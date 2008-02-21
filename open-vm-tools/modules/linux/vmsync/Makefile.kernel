@@ -1,0 +1,37 @@
+#!/usr/bin/make -f
+##########################################################
+# Copyright (C) 1998 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation version 2 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+##########################################################
+
+####
+####  VMware vmsync Makefile to be distributed externally
+####
+
+INCLUDE := -I.
+
+EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
+EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
+EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
+
+obj-m += $(DRIVER).o
+
+$(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)/*.c)))
+
+clean:
+	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko \
+	       .tmp_versions Module.symvers Modules.symvers \
+	       $(foreach dir,./,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))

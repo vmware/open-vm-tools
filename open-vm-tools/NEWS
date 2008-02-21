@@ -1,0 +1,28 @@
+open-vm-tools 2008.02.13 changes:
+	* Some bug fixes.
+
+open-vm-tools 2008.01.23 changes:
+
+	* The Linux HGFS kernel module now supports writeback caching, which
+	should yield better performance.
+
+	* Added a generic Unicode-aware library to ease i18n and l10n work.
+
+	* A bunch of bug fixes.
+
+open-vm-tools 2007.11.15 "Bandsaw" changes:
+
+	* Kernel modules for FreeBSD, including an experimental port of HGFS to
+	FreeBSD.
+
+	* Add the vmsync driver on Linux to make VM snapshots consistent.
+
+	* Added the xferlogs utility, the *-vm-default scripts, and the
+	vm-support script.
+
+	* Build on a wider variety of systems.
+
+	* Lots of smaller bug fixes throughout the code.
+
+open-vm-tools 2007.09.04 "Axe" changes:
+	* Initial release of open-vm-tools.

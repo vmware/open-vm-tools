@@ -1,0 +1,298 @@
+#!/bin/bash
+##########################################################
+# Copyright (C) 2006 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+
+
+#	Function: usage prints how to use this script
+
+function usage {
+	echo ""
+	echo "Usage: $0 [-h]"
+	echo "	-h prints this usage statement"
+	exit
+}
+
+
+TARFILE=vm-$(date -I).$$.tgz
+VER=0.87
+OUTPUT_DIR=vm-support.$$
+
+#	Function: banner prints any number of strings padded with 
+#	newlines before and after.
+
+function banner {
+	echo
+	for option in "$@"
+	do
+		echo $option
+	done
+	echo
+}
+
+
+function UpdateSpinner {
+        case $SPINNER in
+		"|")
+                        SPINNER="/"
+                ;;
+
+                "/")
+                        SPINNER="-"
+                ;;
+
+                "-")
+                        SPINNER="\\"
+                ;;
+
+                "\\")
+                        SPINNER="|"
+                ;;
+
+                *)
+                        SPINNER="|"
+                ;;
+        esac
+        echo -en "\rPreparing Files: $SPINNER"
+}
+
+#	Function: addtar copies whatever files and directories you give it to 
+#	a self contained output directory for later tar'ing
+#	Working on copies could slow this down with VERY large files but:
+#	1) We don't expect VERY large files
+#	2) Since /proc files can be copied this preserves the tree without
+#	   having to cat them all into a file.
+#	3) tar barfs on open files like logs if it changes while it's tar'ing.
+#          Copying file first makes sure tar doesn't complain
+
+
+function addtar {
+	FILE=$1
+
+	DIR=$(dirname "$FILE")
+	if [ ! -d "${OUTPUT_DIR}$DIR" ]; then
+		mkdir -p "${OUTPUT_DIR}$DIR"
+
+		if [ $? != 0 ]; then
+			banner "Could not create ./${OUTPUT_DIR}$DIR... " \
+				"Have you run out of disk space?" "Continuing"
+			return
+		fi
+	fi
+
+	# Ignore stdout and handle errors.
+	UpdateSpinner
+	cp -pr "$FILE" "${OUTPUT_DIR}$DIR" 2>/dev/null
+
+	# We could have failed to copy for several reasons
+	# If we path had a shell special character (* ? .)
+	# or if the file is in /proc
+	if [ $? != 0 ]; then
+		FILENAME=${FILE##*/}
+		for line in "$DIR"/$FILENAME
+		do
+			if [ -e "$line" ]; then
+				# Ignore stdout and handle errors.
+				UpdateSpinner
+				cp -pr "$line" "${OUTPUT_DIR}$DIR" 2>/dev/null
+
+				# If a file from /proc does not copy,
+				# ignore - they're funny.  
+				# Otherwise, exit for failed copy.
+				if [ $? != 0 ]; then
+					echo "$line" | grep ^/proc > /dev/null
+
+					if [ $? != 0 ]; then
+						banner "Could not copy $line \
+							to the tar area."
+						return
+					fi	# Not proc
+				fi # is it proc
+			fi # does file exist
+
+		done # for each file in the list
+	fi # if copy failed
+
+}
+
+
+#	Function: runcmd executes the command ($1) 
+#	redirected to a file ($2) and then adds that 
+#	file to the list of files to tar. 
+#	It then deletes the temp file since addtar makes a copy in its own
+#	selft contained area.
+
+function runcmd {
+	$1 > $2 2>/dev/null
+	
+	if [ $? != 0 ]; then
+		banner "Either could not run $1 or could not write to $2" \
+"Do you have a full disk?" "Continuing..."
+	else
+		addtar "$2"
+		rm "$2"
+
+		if [ $? != 0 ]; then
+			banner "Could not delete $2.  Continuing..." 
+		fi
+	fi
+}
+
+
+# Parse args
+for option in $@
+do
+        case $option in
+                "-h")
+                        usage
+                ;;
+
+                *)
+                        usage
+                ;;
+        esac
+done
+
+#	Start message
+
+banner "VMware Linux Support Script $VER"
+
+#	Check for root privledge
+        
+if [ $(id -u) != "0" ]; then                                                              
+        banner "You are not root, some system information can't be collected."
+fi
+
+# Source /etc/profile.  If we can't find it, it's the users problem to get
+# their paths straight.
+
+if [ -f /etc/profile ]; then
+	. /etc/profile
+fi
+
+# Protect against non-default values of $IFS (Not all scripts in /etc/profile.d/ 
+# are good citizens).
+unset IFS
+
+#	make a subdir to put all your files in.  die if it does not create
+mkdir $OUTPUT_DIR
+
+if [ $? != 0 ]; then
+	banner "Could not create ./${OUTPUT_DIR}... Exiting..." \
+"Please cd to a directory to which you can write" # Thanks Adam!
+	exit
+fi
+
+
+#	Add system configuration and log files. Wildcards
+#	may be used.
+
+
+# Try to collect bootloader config.
+if [ -e /etc/lilo.conf ]; then
+	addtar "/etc/lilo.conf"
+fi
+
+# And for grub we are not sure about the exact default location so collect them
+# all.
+if [ -e /boot/grub/grub.conf ]; then
+	addtar "/boot/grub/grub.conf"
+fi
+if [ -e /boot/grub/menu.lst ]; then
+        addtar "/boot/grub/menu.lst"
+fi
+if [ -e /etc/grub.conf ]; then
+        addtar "/etc/grub.conf"
+fi
+
+addtar "/etc/crontab"
+addtar "/etc/cron.daily"
+addtar "/etc/cron.hourly"
+addtar "/etc/cron.monthly"
+addtar "/etc/cron.weekly"
+addtar "/etc/modules.conf"
+addtar "/etc/ntp.conf"
+addtar "/etc/security/*"
+
+
+# Add services
+addtar "/etc/services"
+
+addtar "/etc/vmware-tools/*"
+addtar "/var/log/boot*"
+addtar "/var/log/secure*"
+addtar "/var/log/messages*"
+addtar "/var/run/vmware-*"
+
+# Add /proc with some exceptions.  stdout redirected to /dev/null.  Some files
+# come and go and confuse find.  Just send whatever works and don't scare user.
+
+for procfile in `find /proc -type f 2>/dev/null| egrep -v kcore\|kmsg\|acpi\|/proc/$$`
+do
+	addtar "$procfile"
+done
+
+#	Commands to run ($1) and redirect to logs ($2) for 
+#	inclusion. 
+
+runcmd "echo vm-support version: $VER" "/tmp/vm-support-version.$$.txt"
+runcmd "lspci -H1 -M" "/tmp/lspci1.$$.txt"
+runcmd "lspci -H1 -M -vn" "/tmp/lspci2.$$.txt"
+runcmd "/sbin/lsmod" "/tmp/modules.$$.txt"
+runcmd "uname -a" "/tmp/uname.$$.txt"
+runcmd "df" "/tmp/df.$$.txt"
+runcmd "cat /etc/issue" "/tmp/issue.$$.txt"
+runcmd "ifconfig -a" "/tmp/ifconfig.$$.txt"
+runcmd "rpm -qa" "/tmp/rpm-qa.$$.txt"
+runcmd "netstat -lan" "/tmp/netstat-lan.$$.txt"
+runcmd "route" "/tmp/route.$$.txt"
+runcmd "mount" "/tmp/mount.$$.txt"
+runcmd "dmesg" "/tmp/dmesg.$$.txt"
+runcmd "free" "/tmp/free.$$.txt"
+runcmd "uptime" "/tmp/uptime.$$.txt"
+runcmd "date" "/tmp/date.$$.txt"
+runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"
+runcmd "ulimit -a" "/tmp/ulimit-a.$$.txt"
+runcmd "umask" "/tmp/umask.$$.txt"
+
+
+#	Perform the tar ('S' for sparse core files)
+
+tar -czSvf $TARFILE $OUTPUT_DIR
+
+if [ $? != 0 ]; then
+	banner "The tar did not successfully complete!" \
+"If tar reports that a file changed while reading, please attempt to rerun this script."
+fi
+
+vmware-xferlogs enc $TARFILE &>/dev/null
+
+if [ $? != 0 ]; then
+        banner "could not transmit logs successfully, either the xmitLogs"\
+        "binary is not in the path, or you are not in a virtual machine"
+fi
+
+#	Clean up temporary files
+rm -rf $OUTPUT_DIR
+rm -rf $TARFILE
+
+if [ $? != 0 ]; then
+	banner "$OUTPUT_DIR was not successfully removed.  Please remove manually."
+fi
+
+#	End

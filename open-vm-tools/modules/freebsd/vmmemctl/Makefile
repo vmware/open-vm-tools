@@ -1,0 +1,46 @@
+#!/usr/bin/make -f
+##########################################################
+# Copyright (C) 2007 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation version 2 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
+##########################################################
+
+####
+#### vmmemctl Makefile (for FreeBSD guest OS)
+####
+
+SRCS	:= os.c
+SRCS	+= vmballoon.c
+
+.if $(MACHINE_ARCH) == "amd64"
+SRCS    += backdoorGcc64.c
+.else
+SRCS    += backdoorGcc32.c
+.endif
+KMOD	= vmmemctl
+PROG    = ../$(KMOD).ko
+NOMAN	= t
+NO_MAN  = t
+KLDMOD	= t
+
+# Don't print a warning that the object dir wasn't specified
+NOOBJ   = 1
+NO_OBJ  = 1
+
+.include <bsd.kmod.mk>
+
+.ifndef VERBOSE
+.SILENT:
+.endif

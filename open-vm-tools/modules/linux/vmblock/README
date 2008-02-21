@@ -1,0 +1,17 @@
+This files in this directory and its subdirectories are the kernel module
+for the VMware Blocking File System.  In order to build, make certain the
+Makefile is correct and then just type
+
+	make
+
+from this directory.  A copy of the module will be left in
+
+        driver-<kernel version>/vmblock.o
+
+(e.g. driver-up-2.4.20/vmblock.o) for 2.4 series kernels and in
+
+        ../vmblock.o
+
+for 2.6 series kernels.
+
+If you have any problems or questions, send mail to support@vmware.com

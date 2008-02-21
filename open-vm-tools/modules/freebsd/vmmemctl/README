@@ -1,0 +1,12 @@
+The files in this directory are the source files for the VMware
+Memory Control driver.  The driver will be built automatically
+by the VMware Tools install script.  If you wish to build the
+driver by hand, run the following commands:
+
+	make
+        make install
+        
+from this directory.  The module 'vmmemctl.ko' will be built and
+installed in /modules.
+
+If you have any problems or questions, send mail to support@vmware.com

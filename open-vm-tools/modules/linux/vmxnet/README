@@ -1,0 +1,11 @@
+The files in this directory are the source files for the VMware
+Virtual Ethernet Adapter driver.  In order to build, make certain the
+Makefile is correct, especially about whether or not your system is
+multi-processor or not, and then just type:
+
+	make
+
+from this directory.  A copy of the module will be left in 'vmxnet.o',
+which can then be installed in /lib/modules/<kernel-name>/net.
+
+If you have any problems or questions, send mail to support@vmware.com

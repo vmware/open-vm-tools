@@ -1,0 +1,90 @@
+#!/bin/sh
+##########################################################
+# Copyright (C) 2001 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+##########################################################################
+# DO NOT modify this file directly as it will be overwritten the next
+# time the VMware Tools are installed.
+##########################################################################
+
+echo `date` ": Executing '$0'"
+echo
+
+find_networking_script() {
+    local script="error"
+    for dir in "/etc/init.d" "/sbin/init.d" "/etc" "/etc/rc.d" ; do
+        if [ -d "$dir/rc0.d" ] &&
+	    [ -d "$dir/rc1.d" ] &&
+	    [ -d "$dir/rc2.d" ] &&
+	    [ -d "$dir/rc3.d" ] &&
+	    [ -d "$dir/rc4.d" ] &&
+	    [ -d "$dir/rc5.d" ] &&
+	    [ -d "$dir/rc6.d" ]; then
+
+	    # Now find the appropriate networking script.
+	    if [ -d "$dir/init.d" ]; then
+		if [ -x "$dir/init.d/network" ]; then
+		    script="$dir/init.d/network"
+		elif [ -x "$dir/init.d/networking" ]; then
+		    script="$dir/init.d/networking"
+		fi
+	    else
+		if [ -x "$dir/network" ]; then
+		    script="$dir/network"
+		elif [ -x "$dir/networking" ]; then
+		    script="$dir/networking"
+		fi
+	    fi
+        fi
+    done
+
+    echo "$script"
+}
+
+save_active_NIC_list() {
+    ifconfig_path=`which ifconfig 2>/dev/null`
+    if [ $? ]; then
+       "$ifconfig_path" | grep '^[^[:space:]]' | awk '{ print $1 }' > /var/run/vmware-active-nics
+    fi
+}
+
+#
+# main
+#
+
+scriptsdir="`dirname $0`/scripts/`basename $0`.d"
+if [ -d "$scriptsdir" ]; then
+   for scriptfile in "$scriptsdir"/*; do
+      [ -x "$scriptfile" ] && "$scriptfile" suspend-vm
+   done
+fi
+
+save_active_NIC_list
+
+network=`find_networking_script`
+if [ "$network" != "error" ]; then
+   "$network" stop
+   # If the network is down, this may fail but that's not a good reason
+   # to prevent the suspend.
+   status=0
+else
+   echo "networking script not found"
+   status=1
+fi
+
+exit "$status"
