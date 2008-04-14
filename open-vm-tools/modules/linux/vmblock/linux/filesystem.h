@@ -95,6 +95,7 @@ struct inode *Iget(struct super_block *sb, struct inode *dir,
                    struct dentry *dentry, ino_t ino);
 int MakeFullName(struct inode *dir, struct dentry *dentry,
                   char *bufOut, size_t bufOutSize);
+void VMBlockReadInode(struct inode *inode);
 
 /* Variables */
 extern compat_kmem_cache *VMBlockInodeCache;

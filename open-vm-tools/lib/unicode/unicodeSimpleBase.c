@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -23,17 +23,7 @@
  *      containing NUL-terminated UTF-8 bytes as the typedef for
  *      Unicode.
  *
- *      This implementation is a short-term shim to start work on the
- *      Unicode development project, and to introduce people to the
- *      lib/unicode interface without requiring them to change all
- *      layers of calling code.
- *
- *      It does not generically handle all encodings; if an encoding
- *      that is not US-ASCII, UTF-8, UTF-16, or UTF-16 LE is passed to
- *      any function, then the process-default encoding is used instead.
- *
- *      Basic Unicode string creation, encoding conversion, and
- *      access to cached UTF-8 and UTF-16 representations.
+ *      Basic Unicode string creation and encoding conversion.
  *
  *      The thread-safety of ConstUnicode functions is the same as
  *      that for standard const char * functions: multiple threads can
@@ -48,15 +38,9 @@
 
 #include "util.h"
 #include "codeset.h"
-#include "hashTable.h"
 #include "str.h"
-#include "syncMutex.h"
 #include "unicodeBase.h"
 #include "unicodeInt.h"
-#include "unicodeSimpleUTF16.h"
-
-// Initial number of buckets for the UTF-16 hash table.
-static const uint32 UNICODE_UTF16_STRING_TABLE_BUCKETS = 4096;
 
 /*
  * Padding for initial and final bytes used by an encoding.  The value
@@ -64,10 +48,6 @@ static const uint32 UNICODE_UTF16_STRING_TABLE_BUCKETS = 4096;
  * for leading and trailing bytes and NUL.
  */
 static const size_t UNICODE_UTF16_CODE_UNITS_PADDING = 10;
-
-static HashTable *UnicodeUTF16StringTable;
-static Atomic_Ptr UnicodeUTF16StringTableLockStorage;
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -207,7 +187,7 @@ Unicode_Duplicate(ConstUnicode str) // IN
  *      None
  *
  * Side effects:
- *      Deletes the cached UTF-16 representation of the string if it's set.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
@@ -215,19 +195,98 @@ Unicode_Duplicate(ConstUnicode str) // IN
 void
 Unicode_Free(Unicode str) // IN
 {
-   char *utf8String = (char *)str;
-   SyncMutex *lck;
+   free(str);
+}
 
-   lck = SyncMutex_CreateSingleton(&UnicodeUTF16StringTableLockStorage);
-   SyncMutex_Lock(lck);
 
-   if (UnicodeUTF16StringTable) {
-      HashTable_Delete(UnicodeUTF16StringTable, utf8String);
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_AllocList --
+ *
+ *      Allocates a list (actually a vector) of Unicode strings from a list
+ *      (vector) of strings of specified encoding.
+ *      The input list has a specified length or can be an argv-style
+ *      NULL-terminated list (if length is negative).
+ *
+ * Results:
+ *      An allocated list (vector) of Unicode strings.
+ *      The result must be freed with Unicode_FreeList.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Unicode *
+Unicode_AllocList(char **srcList,          // IN: list of strings
+                  ssize_t length,          // IN: list 
+                  StringEncoding encoding) // IN:
+{
+   Unicode *dstList = NULL;
+   ssize_t i;
+
+   ASSERT(srcList != NULL);
+
+   if (length < 0) {
+      length = 0;
+      while (srcList[length] != NULL) {
+         length++;
+      }
+      
+      /* Include the sentinel element. */
+      length++;
    }
 
-   SyncMutex_Unlock(lck);
+   dstList = Util_SafeMalloc(length * sizeof *dstList);
 
-   free(utf8String);
+   for (i = 0; i < length; i++) {
+      dstList[i] = Unicode_Alloc(srcList[i], encoding);
+   }
+
+   return dstList;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_FreeList --
+ *
+ *      Free a list (actually a vector) of Unicode strings.
+ *      The list (vector) itself is also freed.
+ *
+ *      The list either has a specified length or is
+ *      argv-style NULL terminated (if length is negative).
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Unicode_FreeList(Unicode *list,    // IN: the list to free
+                 ssize_t length)   // IN: the length
+{
+   if (length >= 0) {
+      ssize_t i;
+      for (i = 0; i < length; i++) {
+	 Unicode_Free(list[i]);
+	 DEBUG_ONLY(list[i] = NULL);
+      }
+   } else {
+      Unicode *s;
+      for (s = list; *s != NULL; s++) {
+	 Unicode_Free(*s);
+	 DEBUG_ONLY(*s = NULL);
+      }
+   }
+   free(list);
 }
 
 
@@ -257,84 +316,6 @@ const char *
 Unicode_GetUTF8(ConstUnicode str) // IN
 {
    return (const char *)str;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unicode_GetUTF16 --
- *
- *      Returns the contents of the string encoded as a NUL-terminated
- *      UTF-16 array in host byte order.
- *
- * Results:
- *      A NUL-terminated UTF-16 string in host byte order; lifetime is
- *      valid until the next non-const Unicode function is called on
- *      the string.  Caller should duplicate if storing the return value
- *      long-term.
- *
- *      Caller does not need to free; the memory is managed inside the
- *      Unicode object.
- *
- * Side effects:
- *      Creates UnicodeUTF16StringTable if it doesn't yet exist.
- *      If the string hasn't yet been converted to UTF-16, converts
- *      the string to UTF-16 and stores the result in
- *      UnicodeUTF16StringTable.
- *
- *-----------------------------------------------------------------------------
- */
-
-const utf16_t *
-Unicode_GetUTF16(ConstUnicode str) // IN
-{
-   const char *utf8Str = (const char *)str;
-   utf16_t *utf16Str = NULL;
-   SyncMutex *lck;
-
-   lck = SyncMutex_CreateSingleton(&UnicodeUTF16StringTableLockStorage);
-   SyncMutex_Lock(lck);
-
-   if (!UnicodeUTF16StringTable) {
-      /*
-       * We use HASH_INT_KEY so we can hash on the pointer value
-       * rather than the contents of the string.  (This lets us simply
-       * delete the hashtable entry in Unicode_Free() without affecting
-       * other strings with the same content).
-       *
-       * If we want to consolidate all UTF-16 representations of
-       * identical strings that might have different pointer values,
-       * we can use a struct rather than storing utf16Str in the hash
-       * directly, and reference count the UTF-16 representations,
-       * freeing when the last reference is gone.
-       */
-      UnicodeUTF16StringTable = 
-                             HashTable_Alloc(UNICODE_UTF16_STRING_TABLE_BUCKETS,
-                                             HASH_INT_KEY,
-                                             (HashTableFreeEntryFn)free);
-   }
-
-   /*
-    * TODO: In the current implementation (where Unicode is char *),
-    * we have no way of ensuring the caller doesn't manipulate the
-    * bytes in the input value after creating it.
-    *
-    * Until we make the type opaque, we must recreate the UTF-16 cache
-    * each time it's asked for.
-    */
-   HashTable_Delete(UnicodeUTF16StringTable, utf8Str);
-
-   if (CodeSet_Utf8ToUtf16le(utf8Str,
-                             strlen(utf8Str),
-                             (char **)&utf16Str,
-                             NULL)) {
-      HashTable_Insert(UnicodeUTF16StringTable, utf8Str, utf16Str);
-   }
-
-   SyncMutex_Unlock(lck);
-
-   return utf16Str;
 }
 
 
@@ -386,48 +367,87 @@ size_t
 Unicode_BytesRequired(ConstUnicode str,        // IN
                       StringEncoding encoding) // IN
 {
-   const utf16_t *utf16;
-   size_t maxUTF16CodeUnitSize;
+   const uint8 *utf8 = (const uint8 *)str;
+
+   // Number of bytes needed for a code point [U+0000, U+FFFF].
+   size_t basicCodePointSize;
+
+   // Number of bytes needed for a code point [U+10000, U+10FFFF].
+   size_t supplementaryCodePointSize;
+
+   size_t result = 0;
 
    switch (encoding) {
+   case STRING_ENCODING_UTF8:
+      return strlen(utf8) + 1;
    case STRING_ENCODING_US_ASCII:
    case STRING_ENCODING_ISO_8859_1:
    case STRING_ENCODING_WINDOWS_1252:
       // TODO: Lots more encodings can be added here.
-      maxUTF16CodeUnitSize = 1;
-      break;
-   case STRING_ENCODING_UTF8:
-      /*
-       * One UTF-16 code unit takes 3 bytes of UTF-8.  Unicode code
-       * points > U+FFFF are encoded in two UTF-16 code units, and 4
-       * bytes of UTF-8.  2*3 = 6 > 4, which gives us more than enough
-       * space to encode such a code point.
-       */
-      maxUTF16CodeUnitSize = 3;
+      basicCodePointSize = supplementaryCodePointSize = 1;
       break;
    case STRING_ENCODING_UTF16:
    case STRING_ENCODING_UTF16_LE:
    case STRING_ENCODING_UTF16_BE:
-      maxUTF16CodeUnitSize = 2;
+      basicCodePointSize = 2;
+      supplementaryCodePointSize = 4;
       break;
    case STRING_ENCODING_UTF32:
    case STRING_ENCODING_UTF32_LE:
    case STRING_ENCODING_UTF32_BE:
-      maxUTF16CodeUnitSize = 4;
+      basicCodePointSize = 4;
+      supplementaryCodePointSize = 4;
       break;
    default:
       /*
-       * Assume the worst: ISO-2022-JP takes up to 7 bytes per UTF-16
-       * code unit.
+       * Assume the worst: ISO-2022-JP takes up to 7 bytes per code point.
        */
-      maxUTF16CodeUnitSize = 7;
+      basicCodePointSize = 7;
+      supplementaryCodePointSize = 7;
       break;
    }
 
-   // Accounts for leading and trailing bytes and NUL.
-   utf16 = Unicode_GetUTF16(str);
-   return (Unicode_UTF16Strlen(utf16) + UNICODE_UTF16_CODE_UNITS_PADDING) *
-           maxUTF16CodeUnitSize;
+   /*
+    * Do a simple check of how many bytes are needed to convert the
+    * UTF-8 to the target encoding.  This doesn't do UTF-8 validity
+    * checking, but will not overrun the end of the buffer.
+    */
+   while (*utf8) {
+      size_t utf8NumBytesRemaining;
+
+      // Advance one code point forward in the UTF-8 input.
+      if (*utf8 <= 0x7F) {
+         utf8NumBytesRemaining = 1;
+         result += basicCodePointSize;
+      } else if (*utf8 & 0xC0) {
+         utf8NumBytesRemaining = 2;
+         result += basicCodePointSize;
+      } else if (*utf8 & 0xE0) {
+         utf8NumBytesRemaining = 3;
+         result += basicCodePointSize;
+      } else if (*utf8 & 0xF0) {
+         utf8NumBytesRemaining = 4;
+         result += supplementaryCodePointSize;
+      } else {
+         // Invalid input; nothing we can do.
+         break;
+      }
+
+      while (*utf8 && utf8NumBytesRemaining) {
+         utf8NumBytesRemaining--;
+         utf8++;
+      }
+
+      if (utf8NumBytesRemaining > 0) {
+         // Invalid input; nothing we can do.
+         break;
+      }
+   }
+
+   // Add enough for NUL expressed in the target encoding.
+   result += UNICODE_UTF16_CODE_UNITS_PADDING * basicCodePointSize;
+
+   return result;
 }
 
 
@@ -441,13 +461,13 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
  *      maxLengthInBytes bytes in total to the buffer.
  *
  * Results:
- *      Returns -1 if the Unicode string requires more than
+ *      Returns FALSE if the Unicode string requires more than
  *      maxLengthInBytes bytes to be encoded in the specified
- *      encoding, including NUL termination.  (Call
- *      Unicode_BytesRequired(str, encoding) to get the correct length.)
- *
- *      Otherwise, returns the number of bytes written to buffer, not
- *      including the NUL termination.
+ *      encoding, including NUL termination. (Call
+ *      Unicode_BytesRequired(str, encoding) to get the correct
+ *      length.). Returns TRUE if no truncation was required. In
+ *      either case, if retLength is not NULL, *retLength contains the
+ *      number of bytes actually written to the buffer upon return.
  *
  * Side effects:
  *      None
@@ -455,62 +475,106 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
  *-----------------------------------------------------------------------------
  */
 
-ssize_t
-Unicode_CopyBytes(ConstUnicode str,        // IN
-                  void *buffer,            // OUT
+Bool
+Unicode_CopyBytes(void *destBuffer,        // OUT
+                  ConstUnicode srcBuffer,  // IN
                   size_t maxLengthInBytes, // IN
+                  size_t *retLength,       // OUT
                   StringEncoding encoding) // IN
 {
-   const char *utf8Str = (const char *)str;
-   ssize_t ret = -1;
+   const char *utf8Str = (const char *)srcBuffer;
+   Bool notTruncated = TRUE;
+   size_t copyBytes = 0;
 
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
    case STRING_ENCODING_UTF8:
-      Str_Strcpy((char *) buffer, utf8Str, maxLengthInBytes);
-      ret = strlen((const char *)buffer);
+      {
+         size_t len = strlen(utf8Str);
+         copyBytes = MIN(len, maxLengthInBytes - 1);
+         memcpy(destBuffer, utf8Str, copyBytes);
+
+         /*
+          * If we truncated, force a null termination in a UTF-8 safe
+          * manner.
+          */
+         if (copyBytes < len) {
+            notTruncated = FALSE;
+            if (encoding == STRING_ENCODING_UTF8) {
+               copyBytes =
+                  CodeSet_Utf8FindCodePointBoundary(destBuffer, copyBytes);
+            }
+         }
+
+         ((char*)destBuffer)[copyBytes] = '\0';
+      }
       break;
    case STRING_ENCODING_UTF16:
    case STRING_ENCODING_UTF16_LE:
       {
-         size_t bytesNeeded;
-         const utf16_t *utf16;
-         UnicodeIndex length;
+         char *utf16Buf;
+         size_t utf16BufLen;
 
-         utf16 = Unicode_GetUTF16(str);
-         length = Unicode_UTF16Strlen(utf16);
-         // Add 1 for NUL.
-         bytesNeeded = (length + 1) * 2;
+         if (!CodeSet_Utf8ToUtf16le(utf8Str,
+                                    strlen(utf8Str),
+                                    &utf16Buf,
+                                    &utf16BufLen)) {
+            break;
+         }
+         copyBytes = MIN(utf16BufLen, maxLengthInBytes - 2);
+         memcpy(destBuffer, utf16Buf, copyBytes);
+         copyBytes = CodeSet_Utf16FindCodePointBoundary(destBuffer, copyBytes);
+         ((utf16_t*)destBuffer)[copyBytes / 2] = 0;
+         free(utf16Buf);
 
-         if (bytesNeeded <= maxLengthInBytes) {
-            memcpy(buffer, utf16, bytesNeeded);
-            ret = bytesNeeded;
+         if (copyBytes < utf16BufLen) {
+            notTruncated = FALSE;
+         }
+
+         break;
+      }
+   case STRING_ENCODING_DEFAULT:
+   defaultEncoding:
+      {
+         char *currentBuf;
+         size_t currentBufSize;
+
+         if (!CodeSet_Utf8ToCurrent(utf8Str,
+                                    strlen(utf8Str),
+                                    &currentBuf,
+                                    &currentBufSize)) {
+            break;
+         }
+         copyBytes = MIN(currentBufSize, maxLengthInBytes - 1);
+         memcpy(destBuffer, currentBuf, copyBytes);
+         free(currentBuf);
+
+         /* 
+          * XXX this isn't quite correct, we still need to truncate on
+          * a code point boundary, based on the current encoding type,
+          * rather than just null terminate blindly.
+          */
+
+         ((char*)destBuffer)[copyBytes] = 0;
+
+         if (copyBytes < currentBufSize) {
+            notTruncated = FALSE;
          }
          break;
       }
    default:
-      {
-         // XXX TODO: This is not correct; it's just a stopgap measure.
-         char *currentBuf;
-         size_t currentBufSize;
-
-         if (CodeSet_Utf8ToCurrent(utf8Str,
-                                   strlen(utf8Str),
-                                   &currentBuf,
-                                   &currentBufSize)) {
-            if (currentBufSize < maxLengthInBytes) {
-               // TODO: NUL is not necessarily 1 byte in all encodings.
-               memcpy(buffer, currentBuf, currentBufSize + 1);
-               ret = currentBufSize;
-               free(currentBuf);
-            }
-         } else {
-            // XXX: What to do here?
-         }
-      }
+      /*
+       * XXX TODO: We need CodeSet_Utf8ToGeneric() to implement this.
+       */
+      goto defaultEncoding;  // XXX - for [254880] fix this when ICU
+                             // converter work is finished.
+      break;
    }
 
-   return ret;
+   if (retLength) {
+      *retLength = copyBytes;
+   }
+   return notTruncated;
 }
 
 

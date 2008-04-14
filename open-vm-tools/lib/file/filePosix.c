@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -51,6 +51,7 @@
 #endif
 
 #include "vmware.h"
+#include "posix.h"
 #include "file.h"
 #include "fileInt.h"
 #include "msg.h"
@@ -110,19 +111,10 @@ static Bool FileIsGroupsMember(gid_t gid);
 int
 FileRemoveDirectory(ConstUnicode pathName)  // IN:
 {
-   int err;
-   char *path;
-
-   if (pathName == NULL) {
-      return EFAULT;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   err = (rmdir(path) == -1) ? errno : 0;
+   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   int err = rmdir(path) == -1 ? errno : 0;
 
    free(path);
-
    return err;
 }
 
@@ -148,22 +140,12 @@ int
 FileRename(ConstUnicode oldName,  // IN:
            ConstUnicode newName)  // IN:
 {
-   int err;
-   char *newPath;
-   char *oldPath;
-
-   if ((oldName == NULL) || (newName == NULL)) {
-      return EFAULT;
-   }
-
-   newPath = Unicode_GetAllocBytes(newName, STRING_ENCODING_DEFAULT);
-   oldPath = Unicode_GetAllocBytes(oldName, STRING_ENCODING_DEFAULT);
-
-   err = (rename(oldPath, newPath) == -1) ? errno : 0;
+   char *newPath = Unicode_GetAllocBytes(newName, STRING_ENCODING_DEFAULT);
+   char *oldPath = Unicode_GetAllocBytes(oldName, STRING_ENCODING_DEFAULT);
+   int err = rename(oldPath, newPath) == -1 ? errno : 0;
 
    free(newPath);
    free(oldPath);
-
    return err;
 }
 
@@ -188,16 +170,10 @@ int
 FileDeletion(ConstUnicode pathName,   // IN:
              const Bool handleLink)   // IN:
 {
-   char *primaryPath;
-
-   int err = 0;
+   int err;
    char *linkPath = NULL;
-
-   if (pathName == NULL) {
-      return EFAULT;
-   }
-
-   primaryPath = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *primaryPath = Unicode_GetAllocBytes(pathName,
+					     STRING_ENCODING_DEFAULT);
 
    if (handleLink) {
       struct stat statbuf;
@@ -208,12 +184,7 @@ FileDeletion(ConstUnicode pathName,   // IN:
       }
 
       if (S_ISLNK(statbuf.st_mode)) {
-         linkPath = malloc(statbuf.st_size + 1);
-
-         if (linkPath == NULL) {
-            err = ENOMEM;
-            goto bail;
-         }
+         linkPath = Util_SafeMalloc(statbuf.st_size + 1);
 
          if (readlink(primaryPath, linkPath,
                       statbuf.st_size) != statbuf.st_size) {
@@ -235,10 +206,8 @@ FileDeletion(ConstUnicode pathName,   // IN:
    err = (unlink(primaryPath) == -1) ? errno : 0;
 
 bail:
-
    free(primaryPath);
    free(linkPath);
-
    return err;
 }
 
@@ -271,7 +240,7 @@ File_UnlinkDelayed(ConstUnicode pathName)  // IN:
  *
  * FileAttributes --
  *
- *	Return the attributes of a file.
+ *	Return the attributes of a file. Time units are in OS native time.
  *
  * Results:
  *	0	success
@@ -288,9 +257,9 @@ FileAttributes(ConstUnicode pathName,  // IN:
                FileData *fileData)     // OUT:
 {
    int err;
-   PosixStatStruct statbuf;
+   struct stat statbuf;
 
-   if (FileIO_PosixStat(pathName, &statbuf) == -1) {
+   if (Posix_Stat(pathName, &statbuf) == -1) {
       err = errno;
    } else {
       if (fileData != NULL) {
@@ -377,7 +346,7 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
    }
 #endif
 
-   if (FileIO_PosixStatfs(pathName, &sfbuf) == -1) {
+   if (Posix_Statfs(pathName, &sfbuf) == -1) {
       Log(LGPFX" %s: statfs(%s) failed: %s\n", __func__, UTF8(pathName),
           strerror(errno));
       return TRUE;
@@ -418,7 +387,7 @@ File_IsSymLink(ConstUnicode pathName)  // IN:
 {
    struct stat statbuf;
 
-   return (FileIO_PosixLstat(pathName, &statbuf) == 0) &&
+   return (Posix_Lstat(pathName, &statbuf) == 0) &&
            S_ISLNK(statbuf.st_mode);
 }
 
@@ -459,6 +428,7 @@ File_Cwd(ConstUnicode drive)  // IN:
                  Msg_ErrString());
       Warning(LGPFX" %s: getcwd() failed: %s\n", __FUNCTION__,
               Msg_ErrString());
+
       return NULL;
    };
 
@@ -566,22 +536,17 @@ File_FullPath(ConstUnicode pathName)  // IN:
    } else if (File_IsFullPath(pathName)) {
       temp = Unicode_Duplicate(pathName);
    } else {
-      char *str;
       Unicode path;
-      char rpath[FILE_MAXPATH];
 
       path = Unicode_Join(cwd, U(DIRSEPS), pathName, NULL);
 
-      str = Unicode_GetAllocBytes(path, STRING_ENCODING_DEFAULT);
+      temp = Posix_RealPath(path);
 
-      if (realpath(str, rpath) == NULL) {
+      if (temp == NULL) {
          temp = path;
       } else {
-         temp = Unicode_Alloc(rpath, STRING_ENCODING_DEFAULT);
-	 Unicode_Free(path);
+         Unicode_Free(path);
       }
-
-      free(str);
    }
 
    ret = FileStripFwdSlashes(temp);
@@ -652,7 +617,7 @@ File_GetTimes(ConstUnicode pathName,      // IN:
    *writeTime      = -1;
    *attrChangeTime = -1;
 
-   if (FileIO_PosixLstat(pathName, &statBuf) == -1) {
+   if (Posix_Lstat(pathName, &statBuf) == -1) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
           UTF8(pathName), strerror(errno));
       return FALSE;
@@ -903,7 +868,7 @@ FileGetStats(ConstUnicode pathName,      // IN:
    Bool retval = TRUE;
    Unicode dupPath = NULL;
 
-   while (FileIO_PosixStatfs(dupPath ? dupPath : pathName,
+   while (Posix_Statfs(dupPath ? dupPath : pathName,
                              pstatfsbuf) == -1) {
       if (errno != ENOENT) {
          retval = FALSE;
@@ -974,7 +939,7 @@ File_GetFreeSpace(ConstUnicode pathName)  // IN: File name
       File_SplitName(fullPath, NULL, &directory, NULL);
       /* Must use an ioctl() to get free space for a VMFS file. */
       ret = -1;
-      fd = FileIO_PosixOpen(directory, O_RDONLY, 0);
+      fd = Posix_Open(directory, O_RDONLY, 0);
       if (fd == -1) {
          Warning(LGPFX" %s: open of %s failed with: %s\n", __func__,
                  UTF8(directory), Msg_ErrString());
@@ -998,8 +963,8 @@ end:
    return ret;
 }
 
-#if defined(VMX86_SERVER)
 
+#if defined(VMX86_SERVER)
 /*
  *----------------------------------------------------------------------
  *
@@ -1055,7 +1020,7 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
    (*fsAttrs)->ioctlAttr.maxPartitions = FS_PLIST_DEF_MAX_PARTITIONS;
    (*fsAttrs)->ioctlAttr.getAttrSpec = FS_ATTR_SPEC_BASIC;
 
-   fd = FileIO_PosixOpen(parentPath, O_RDONLY, 0);
+   fd = Posix_Open(parentPath, O_RDONLY, 0);
 
    if (fd == -1) {
       Log(LGPFX" %s: could not open %s.\n", __func__, UTF8(pathName));
@@ -1077,6 +1042,7 @@ bail:
 
    return ret;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -1117,6 +1083,7 @@ done:
    return ret;
 }
 
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1155,6 +1122,7 @@ done:
    }
    return ret;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -1195,9 +1163,8 @@ done:
    }
    return ret;
 }
-
-
 #endif
+
 
 /*
  *----------------------------------------------------------------------
@@ -1233,7 +1200,7 @@ File_OnVMFS(ConstUnicode pathName)
     * FileGetStats() to check each of the parent directories.
     */
 
-   if (FileIO_PosixStatfs(pathName, &statfsbuf) == -1) {
+   if (Posix_Statfs(pathName, &statfsbuf) == -1) {
       int err;
       Unicode fullPath;
 
@@ -1263,6 +1230,7 @@ end:
    return FALSE;
 #endif
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -1668,8 +1636,8 @@ Bool
 File_IsSameFile(ConstUnicode path1,  // IN:
                 ConstUnicode path2)  // IN:
 {
-   PosixStatStruct st1;
-   PosixStatStruct st2;
+   struct stat st1;
+   struct stat st2;
    struct statfs stfs1;
    struct statfs stfs2;
 
@@ -1718,11 +1686,11 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return TRUE;
    }
 
-   if (FileIO_PosixStat(path1, &st1) == -1) {
+   if (Posix_Stat(path1, &st1) == -1) {
       return FALSE;
    }
 
-   if (FileIO_PosixStat(path2, &st2) == -1) {
+   if (Posix_Stat(path2, &st2) == -1) {
       return FALSE;
    }
 
@@ -1730,11 +1698,11 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return FALSE;
    }
 
-   if (FileIO_PosixStatfs(path1, &stfs1) != 0) {
+   if (Posix_Statfs(path1, &stfs1) != 0) {
       return FALSE;
    }
 
-   if (FileIO_PosixStatfs(path2, &stfs2) != 0) {
+   if (Posix_Statfs(path2, &stfs2) != 0) {
       return FALSE;
    }
 
@@ -1801,12 +1769,14 @@ Bool
 File_Replace(ConstUnicode oldName,  // IN: old file
              ConstUnicode newName)  // IN: new file
 {
-   Bool status;
+   int status;
+   Bool result;
    char *newPath;
    char *oldPath;
    struct stat st;
 
    if ((oldName == NULL) || (newName == NULL)) {
+      errno = EFAULT;
       return FALSE;
    }
 
@@ -1814,31 +1784,37 @@ File_Replace(ConstUnicode oldName,  // IN: old file
    oldPath = Unicode_GetAllocBytes(oldName, STRING_ENCODING_DEFAULT);
 
    if ((stat(oldPath, &st) == 0) && (chmod(newPath, st.st_mode) == -1)) {
+      status = errno;
+
       Msg_Append(MSGID(filePosix.replaceChmodFailed)
                  "Failed to duplicate file permissions from "
                  "\"%s\" to \"%s\": %s\n",
                  oldPath, newPath, Msg_ErrString());
 
-      status = FALSE;
+      result = FALSE;
       goto bail;
    }
 
-   if (rename(newPath, oldPath) == -1) {
+   status = (rename(newPath, oldPath) == -1) ? errno : 0;
+
+   if (status != 0) {
       Msg_Append(MSGID(filePosix.replaceRenameFailed)
                  "Failed to rename \"%s\" to \"%s\": %s\n",
                  newPath, oldPath, Msg_ErrString());
 
-      status = FALSE;
+      result = FALSE;
       goto bail;
    }
 
-   status = TRUE;
+   result = TRUE;
 
 bail:
    free(newPath);
    free(oldPath);
 
-   return status;
+   errno = status;
+
+   return result;
 }
 
 
@@ -1874,7 +1850,7 @@ FileIsVMFS(ConstUnicode pathName)  // IN: file name to test
    }
 #endif
 
-   if (FileIO_PosixStatfs(pathName, &statfsbuf) == 0) {
+   if (Posix_Statfs(pathName, &statfsbuf) == 0) {
       return statfsbuf.f_type == VMFS_SUPER_MAGIC;
    }
 
@@ -2138,17 +2114,18 @@ int
 FileCreateDirectory(ConstUnicode pathName)  // IN:
 {
    int err;
-   char *path;
 
    if (pathName == NULL) {
-      return EFAULT;
+      err = errno = EFAULT;
+   } else {
+      char *path;
+
+      path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+
+      err = (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) == -1) ? errno : 0;
+
+      free(path);
    }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   err = (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) == -1) ? errno : 0;
-
-   free(path);
 
    return err;
 }
@@ -2165,9 +2142,11 @@ FileCreateDirectory(ConstUnicode pathName)  // IN:
  *      Returns the number of files returned or -1 on failure.
  *
  * Side effects:
- *      If ids is provided and the function succeeds, memory is allocated
- *      and must be freed.  Each unicode and the array itself must be
- *      freed.
+ *      If ids is provided and the function succeeds, memory is
+ *      allocated for both the unicode strings and the array itself
+ *      and must be freed.  (See Unicode_FreeList.)
+ *      The memory allocated for the array may be larger than necessary.
+ *      The caller may trim it with realloc() if it cares.
  *
  *----------------------------------------------------------------------
  */
@@ -2180,24 +2159,13 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
    DIR *dir;
    DynBuf b;
    int count;
-   char *path;
 
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
+   ASSERT(pathName != NULL);
 
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   errno = 0;
-   dir = opendir(path);
-
-   err = errno;
-   free(path);
-   errno = err;
+   dir = Posix_OpenDir(pathName);
 
    if (dir == (DIR *) NULL) {
-      // errno is accessible, in the future, for more detail
+      // errno is preserved
       return -1;
    }
 
@@ -2209,7 +2177,6 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
 
       errno = 0;
       entry = readdir(dir);
-
       if (entry == (struct dirent *) NULL) {
          err = errno;
          break;
@@ -2224,7 +2191,7 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
       /* Don't create the file list if we aren't providing it to the caller. */
       if (ids) {
          Unicode id = Unicode_Alloc(entry->d_name, STRING_ENCODING_DEFAULT);
-         DynBuf_Append(&b, &id, sizeof(&id));
+         DynBuf_Append(&b, &id, sizeof id);
       }
 
       count++;
@@ -2233,13 +2200,11 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
    closedir(dir);
 
    if (ids && (err == 0)) {
-      *ids = DynBuf_AllocGet(&b);
-      ASSERT_MEM_ALLOC(*ids);
+      *ids = DynBuf_Detach(&b);
    }
-
    DynBuf_Destroy(&b);
 
-   return (err == 0) ? count : -1;
+   return (errno = err) == 0 ? count : -1;
 }
 
 
@@ -2280,7 +2245,6 @@ File_IsWritableDir(ConstUnicode dirName)  // IN:
    err = FileAttributes(dirName, &fileData);
 
    if ((err != 0) || (fileData.fileType != FILE_TYPE_DIRECTORY)) {
-      errno = err;
       return FALSE;
    }
 
@@ -2505,7 +2469,6 @@ end:
 Bool
 File_MakeCfgFileExecutable(ConstUnicode pathName)
 {
-   int err;
    char *path;
    Bool result;
 
@@ -2522,9 +2485,7 @@ File_MakeCfgFileExecutable(ConstUnicode pathName)
                   S_IROTH | S_IXOTH              // rx by others
                  ) == 0;
 
-   err = errno;
    free(path);
-   errno = err;
 
    return result;
 }
@@ -2553,4 +2514,34 @@ int64
 File_GetSizeAlternate(ConstUnicode pathName)  // IN:
 {
    return File_GetSize(pathName);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_IsCharDevice --
+ *
+ *      This function checks whether the given file is a char device
+ *      and return TRUE in such case. This is often useful on Windows
+ *      where files like COM?, LPT? must be differentiated from "normal"
+ *      disk files.
+ *
+ * Results:
+ *      TRUE    is a character device
+ *      FALSE   is not a character device or error
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+File_IsCharDevice(ConstUnicode pathName)  // IN:
+{
+   FileData fileData;
+
+   return (FileAttributes(pathName, &fileData) == 0) &&
+           (fileData.fileType == FILE_TYPE_CHARDEVICE);
 }

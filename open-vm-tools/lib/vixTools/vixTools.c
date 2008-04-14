@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -28,10 +28,6 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
-
-#if !defined(__FreeBSD__) && !defined(sun)
-#define IMPLEMENT_SOCKET_MGR 0
-#endif
 
 #ifdef _WIN32
 #include <WTypes.h>
@@ -69,15 +65,14 @@
 #include "hgfs.h"
 #include "system.h"
 #include "codeset.h"
+#include "unicode.h"
 
-#ifndef __FreeBSD__
+#if defined(linux) || defined(_WIN32)
 #include "netutil.h"
 #endif
 
-/* Stub out impersonation functions for these platforms. */
-#if defined(__FreeBSD__) || defined(sun) || defined(N_PLAT_NLM)
-Bool Impersonate_Undo(void) { return FALSE; }
-#else
+/* Only Windows and Linux use impersonation functions. */
+#if !defined(__FreeBSD__) && !defined(sun)
 #include "impersonate.h"
 #endif
 
@@ -209,6 +204,17 @@ static HRESULT VixToolsEnableStaticOnPrimary(const char *ipAddr,
                                              const char *subnetMask);
 #endif
 
+static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
+                                              int credentialType,
+                                              char const *obfuscatedNamePassword,
+                                              void **userToken);
+
+#if defined(_WIN32) || defined(linux)
+static char *ToolsDaemonGetCurrentUser(void);
+#endif
+
+static Bool VixToolsPidRefersToThisProcess(ProcMgr_Pid pid);
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -334,9 +340,18 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
                            + runProgramRequest->programNameLength 
                            + 1;
    }
-   // runProgramRequest->runProgramOptions;
 
-   if (thisProcessRunsAsRoot) {
+#ifdef _WIN32
+   if (runProgramRequest->runProgramOptions & VIX_RUNPROGRAM_RUN_AS_LOCAL_SYSTEM) {
+      if (!VixToolsUserIsMemberOfAdministratorGroup(requestMsg)) {
+         err = VIX_E_GUEST_USER_PERMISSIONS;
+         goto abort; 
+      }
+      userToken = PROCESS_CREATOR_USER_TOKEN;
+   }
+#endif
+  
+   if (NULL == userToken) {
       err = VixToolsImpersonateUser(requestMsg, &userToken);
       if (VIX_OK != err) {
          goto abort;
@@ -397,10 +412,8 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    char *stopProgramFileName;
    Bool programExists;
    Bool programIsExecutable;
-#if defined(_WIN32) && !defined(WIN9XCOMPAT)
-   Bool forcedRoot = FALSE;
-#endif
 #if defined(_WIN32)
+   Bool forcedRoot = FALSE;
    ProcMgr_ProcArgs procArgs;
    STARTUPINFO si;
 #endif
@@ -484,13 +497,11 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    asyncState->requestName = Util_SafeStrdup(requestName);
    asyncState->runProgramOptions = runProgramOptions;
 
-#if defined(_WIN32) && !defined(WIN9XCOMPAT)
+#if defined(_WIN32)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
       forcedRoot = Impersonate_ForceRoot();
    }
-#endif
 
-#if defined(_WIN32)
    memset(&procArgs, 0, sizeof procArgs);
    memset(&si, 0, sizeof si);
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
@@ -505,7 +516,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, NULL);
 #endif
 
-#if defined(_WIN32) && !defined(WIN9XCOMPAT)
+#if defined(_WIN32)
    if (forcedRoot) {
       Impersonate_UnforceRoot();
    }
@@ -1050,13 +1061,11 @@ VixToolsReadRegistry(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    if (VIX_PROPERTYTYPE_INTEGER == registryRequest->expectedRegistryKeyType) {
       errResult = Registry_ReadInteger(registryPathName, &valueInt);
@@ -1140,13 +1149,11 @@ VixToolsWriteRegistry(VixCommandRequestHeader *requestMsg) // IN
    }
    registryData = registryPathName + registryRequest->registryKeyLength + 1;
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    if (VIX_PROPERTYTYPE_INTEGER == registryRequest->expectedRegistryKeyType) {
       intValue = *((int *) registryData);
@@ -1221,13 +1228,11 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    ///////////////////////////////////////////
    if (VIX_COMMAND_DELETE_GUEST_FILE == requestMsg->opCode) {
@@ -1347,13 +1352,11 @@ VixToolsObjectExists(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    /*
     * Do the action appropriate for this type of object.
@@ -1430,13 +1433,11 @@ VixToolsOpenUrl(VixCommandRequestHeader *requestMsg) // IN
    openUrlRequest = (VixMsgOpenUrlRequest *) requestMsg;
    url = ((char *) openUrlRequest) + sizeof(*openUrlRequest);
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    /* Actually open the URL. */
    if (!GuestApp_OpenUrl(url, strcmp(windowState, "maximize") == 0)) {
@@ -1485,13 +1486,11 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
 
    makeTempFileRequest = (VixMsgCreateTempFileRequest *) requestMsg;
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    err = VixToolsGetTempFile("vmware", userToken, &filePathName, &fd);
    if (VIX_FAILED(err)) {
@@ -1552,13 +1551,11 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
    readRequest = (VixMsgReadVariableRequest *) requestMsg;
    valueName = ((char *) readRequest) + sizeof(*readRequest);
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    switch (readRequest->variableType) {
    case VIX_GUEST_ENVIRONMENT_VARIABLE:
@@ -1622,16 +1619,16 @@ VixToolsWriteVariable(VixCommandRequestHeader *requestMsg)   // IN
    int result;
 
    writeRequest = (VixMsgWriteVariableRequest *) requestMsg;
-   valueName = ((char *) writeRequest) + sizeof(*writeRequest);
-   value = valueName + writeRequest->nameLength + 1;
-
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixMsg_ParseWriteVariableRequest(writeRequest, &valueName, &value);
+   if (VIX_OK != err) {
+      goto abort;
    }
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
 
    switch (writeRequest->variableType) {
    case VIX_GUEST_ENVIRONMENT_VARIABLE:
@@ -1711,13 +1708,11 @@ VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
       goto abort;
    }
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    /*
     * Be careful. Renaming a file to itself can cause it to be deleted.
@@ -1816,13 +1811,11 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    destPtr = resultBuffer;
    *destPtr = 0;
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    procList = ProcMgr_ListProcesses();
    if (NULL == procList) {
@@ -1890,15 +1883,30 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
    void *userToken = NULL;
    VixCommandKillProcessRequest *killProcessRequest;
    
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    killProcessRequest = (VixCommandKillProcessRequest *) requestMsg;
+
+   /*
+    * This is here for two reasons:
+    *  1) If you kill this process, then it cannot report back to
+    *     you that the command succeeded.
+    *  2) On Linux, you can either always send a signal to youself,
+    *     or it just compares the source and destination real, effective,
+    *     and saved UIDs. Anyway, no matter who guestd is impersonating,
+    *     this will succeed. However, normally a regular user cannot
+    *     kill guestd, and should not be able to because of an implementation
+    *     detail.
+    */
+   if (VixToolsPidRefersToThisProcess(killProcessRequest->pid)) {
+      err = VIX_E_GUEST_USER_PERMISSIONS;
+      goto abort;
+   }
+
    if (!ProcMgr_KillByPid(killProcessRequest->pid)) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
@@ -1945,13 +1953,11 @@ VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    if (File_Exists(dirPathName)) {
       err = VIX_E_FILE_ALREADY_EXISTS;
@@ -2038,13 +2044,11 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       goto abort;
    }
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    if (!(File_IsDirectory(dirPathName))) {
       err = VIX_E_NOT_A_DIRECTORY;
@@ -2187,14 +2191,12 @@ VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,    // IN
       err = VIX_E_INVALID_ARG;
       goto abort;
    }
-
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    if (!(File_Exists(filePathName))) {
       err = VIX_E_FILE_NOT_FOUND;
@@ -2303,13 +2305,11 @@ VixToolsCheckUserAccount(VixCommandRequestHeader *requestMsg) // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
 abort:
    if (impersonatingVMWareUser) {
@@ -2359,12 +2359,10 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
    Bool programIsExecutable;
    int64 pid = (int64) -1;
    static char resultBuffer[32];
-#if defined(_WIN32) && !defined(WIN9XCOMPAT)
-   Bool forcedRoot = FALSE;
-#endif
    VixMsgRunScriptRequest *scriptRequest;
    const char *interpreterFlags = "";
 #if defined(_WIN32)
+   Bool forcedRoot = FALSE;
    ProcMgr_ProcArgs procArgs;
 #endif
 
@@ -2373,13 +2371,12 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
    propertiesString = interpreterName + scriptRequest->interpreterNameLength + 1;
    script = propertiesString + scriptRequest->propertiesLength + 1;
 
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
+
 
 if (0 == *interpreterName) {
 #ifdef _WIN32
@@ -2542,13 +2539,10 @@ if (0 == *interpreterName) {
    asyncState->requestName = Util_SafeStrdup(requestName);
    asyncState->runProgramOptions = scriptRequest->scriptOptions;
 
-#if defined(_WIN32) && !defined(WIN9XCOMPAT)
+#if defined(_WIN32)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
       forcedRoot = Impersonate_ForceRoot();
    }
-#endif
-
-#if defined(_WIN32)
    memset(&procArgs, 0, sizeof procArgs);
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
    procArgs.bInheritHandles = TRUE;
@@ -2557,7 +2551,7 @@ if (0 == *interpreterName) {
    asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, NULL);
 #endif
 
-#if defined(_WIN32) && !defined(WIN9XCOMPAT)
+#if defined(_WIN32)
    if (forcedRoot) {
       Impersonate_UnforceRoot();
    }
@@ -2617,8 +2611,7 @@ abort:
  * VixToolsImpersonateUser --
  *
  * Return value:
- *    TRUE on success
- *    FALSE on failure
+ *    VixError
  *
  * Side effects:
  *    None
@@ -2631,7 +2624,6 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
                         void **userToken)                      // OUT
 {
    VixError err = VIX_OK;
-   Bool success = FALSE;
    char *credentialField;
    VixCommandNamePassword *namePasswordStruct;
 
@@ -2642,12 +2634,11 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
    namePasswordStruct = (VixCommandNamePassword *) credentialField;
    credentialField += sizeof(VixCommandNamePassword);
 
-   success = VixToolsImpersonateUserImpl(NULL, 
-                                         requestMsg->userCredentialType,
-                                         credentialField, 
-                                         userToken);
-   if (!success) {
-      err = VIX_E_GUEST_USER_PERMISSIONS;
+   err = VixToolsImpersonateUserImplEx(NULL, 
+                                       requestMsg->userCredentialType,
+                                       credentialField, 
+                                       userToken);
+   if (VIX_OK != err) {
       /*
        * Windows does not allow you to login with an empty password. Only
        * the console allows this login, which means the console does not
@@ -2662,27 +2653,18 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
          err = VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST;
       }
 #endif
-   } // if (!success)
+   }
 
    return(err);
 } // VixToolsImpersonateUser
 
-   
+
 /*
  *-----------------------------------------------------------------------------
  *
  * VixToolsImpersonateUserImpl --
  *
- *
- *   On Windows:
- *   To retrieve the security context of another user 
- *   call LogonUser to log the user whom you want to impersonate on to the 
- *   local computer, specifying the name of the user account, the user's 
- *   domain, and the user's password. This function returns a pointer to 
- *   a handle to the access token of the logged-on user as an out parameter.
- *   Call ImpersonateLoggedOnUser using the handle to the access token obtained 
- *   in the call to LogonUser.
- *   Run RegEdt32 to load the registry hive of the impersonated user manually. 
+ *    Little compatability wrapper for legacy Foundry Tools implementations. 
  *
  * Return value:
  *    TRUE on success
@@ -2700,7 +2682,44 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
                             char const *obfuscatedNamePassword,    // IN
                             void **userToken)                      // OUT
 {
-   Bool success = FALSE;
+   return(VIX_OK == VixToolsImpersonateUserImplEx(credentialTypeStr,
+                                                  credentialType,
+                                                  obfuscatedNamePassword,
+                                                  userToken));
+} // VixToolsImpersonateUserImpl
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsImpersonateUserImplEx --
+ *
+ *   On Windows:
+ *   To retrieve the security context of another user 
+ *   call LogonUser to log the user whom you want to impersonate on to the 
+ *   local computer, specifying the name of the user account, the user's 
+ *   domain, and the user's password. This function returns a pointer to 
+ *   a handle to the access token of the logged-on user as an out parameter.
+ *   Call ImpersonateLoggedOnUser using the handle to the access token obtained 
+ *   in the call to LogonUser.
+ *   Run RegEdt32 to load the registry hive of the impersonated user manually. 
+ *
+ * Return value:
+ *    VIX_OK on success, or an appropriate error code on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
+                              int credentialType,                    // IN
+                              char const *obfuscatedNamePassword,    // IN
+                              void **userToken)                      // OUT
+{
+   VixError err = VIX_E_GUEST_USER_PERMISSIONS;
 
    if (NULL != userToken) {
       *userToken = NULL;
@@ -2708,26 +2727,21 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
 
 ///////////////////////////////////////////////////////////////////////
 #if defined(__FreeBSD__) || defined(sun)
-   success = FALSE;
-///////////////////////////////////////////////////////////////////////
-#elif defined(WIN9XCOMPAT)
-   /* 
-    * Win9x doesn't have real user model or an API for impersonation.
-    * If you can do anything, then you can do everything, so there's
-    * no reason to pretend otherwise.
-    */
-   success = TRUE;
+   err = VIX_E_NOT_SUPPORTED;
 ///////////////////////////////////////////////////////////////////////
 #elif defined(_WIN32) || defined(linux)
    {
+      Bool success = FALSE;
       AuthToken authToken;
-      Bool singleStepSuccess;
       char *unobfuscatedUserName = NULL;
       char *unobfuscatedPassword = NULL;
 
       if (NULL != credentialTypeStr) {
          if (!StrUtil_StrToInt(&credentialType, credentialTypeStr)) {
-            success = FALSE;
+            /*
+             * This is an internal error, since the VMX supplies this string.
+             */
+            err = VIX_E_FAIL;
             goto abort;
          }
       }
@@ -2742,7 +2756,7 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
          if (NULL != userToken) {
             *userToken = PROCESS_CREATOR_USER_TOKEN;
          }
-         success = TRUE;
+         err = VIX_OK;
          goto abort;
       }
 
@@ -2756,8 +2770,81 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
          if (NULL != userToken) {
             *userToken = PROCESS_CREATOR_USER_TOKEN;
          }
-         success = TRUE;
+         err = VIX_OK;
          goto abort;
+      }
+
+      /*
+       * If the VMX asks us to run commands in the context of the current
+       * user, make sure that the user who requested the command is the
+       * same as the current user.
+       * Also, make sure that the password is valid. But we need not
+       * impersonate, since we are already running as that user.
+       */
+      if (VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER == credentialType) {
+         if (!thisProcessRunsAsRoot) {
+            Unicode currentUser;
+            int cmpResult;
+
+            success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword, 
+                                                     &unobfuscatedUserName,
+                                                     &unobfuscatedPassword);
+            if (!success) {
+               err = VIX_E_FAIL;
+               goto abort;
+            }
+
+            /*
+             * Check if this is a valid account on the guest.
+             */
+            authToken = Auth_AuthenticateUser(unobfuscatedUserName, unobfuscatedPassword);
+            if (NULL == authToken) {
+               err = VIX_E_GUEST_USER_PERMISSIONS;
+               goto abort;
+            }
+
+            Auth_CloseToken(authToken);
+
+            /*
+             * Make sure that the user who requested the command is the
+             * current user.
+             */
+            currentUser = ToolsDaemonGetCurrentUser();
+            if (NULL == currentUser) {
+               err = VIX_E_FAIL;
+               goto abort;
+            }
+
+            /*
+             * Windows is case-insensitive about usernames, Linux is not.
+             */
+#ifdef _WIN32
+            cmpResult = Str_Strcasecmp(unobfuscatedUserName, UTF8(currentUser));
+#else
+            cmpResult = strcmp(unobfuscatedUserName, UTF8(currentUser));
+#endif
+            Unicode_Free(currentUser);
+
+            if (0 != cmpResult) {
+               err = VIX_E_INTERACTIVE_SESSION_USER_MISMATCH;
+               goto abort;
+            }
+
+            if (NULL != userToken) {
+               *userToken = PROCESS_CREATOR_USER_TOKEN;
+            }
+
+            err = VIX_OK;
+            goto abort;
+         } else {
+            /*
+             * This should only be sent to vmware-user, not guestd.
+             * Something is wrong.
+             */
+            ASSERT(0);
+            err = VIX_E_FAIL;
+            goto abort;
+         }
       }
 
       /*
@@ -2767,20 +2854,21 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
        */
       if ((VIX_USER_CREDENTIAL_NAME_PASSWORD != credentialType) 
             && (VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED != credentialType)) {
-         success = FALSE;
+         err = VIX_E_NOT_SUPPORTED;
          goto abort;
       }
 
-      singleStepSuccess = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword, 
-                                                         &unobfuscatedUserName,
-                                                         &unobfuscatedPassword);
-      if (!singleStepSuccess) {
-         success = FALSE;
+      success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
+                                               &unobfuscatedUserName,
+                                               &unobfuscatedPassword);
+      if (!success) {
+         err = VIX_E_FAIL;
          goto abort;
       }
 
       authToken = Auth_AuthenticateUser(unobfuscatedUserName, unobfuscatedPassword);
       if (NULL == authToken) {
+         err = VIX_E_GUEST_USER_PERMISSIONS;
          goto abort;
       }
       if (NULL != userToken) {
@@ -2796,6 +2884,12 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
        */
       success = ProcMgr_ImpersonateUserStart(unobfuscatedUserName, authToken);
 #endif
+      if (!success) {
+         err = VIX_E_GUEST_USER_PERMISSIONS;
+         goto abort;
+      }
+
+      err = VIX_OK;
 
 abort:
       free(unobfuscatedUserName);
@@ -2803,11 +2897,11 @@ abort:
    }
 
 #else
-   success = FALSE;
+   err = VIX_E_NOT_SUPPORTED;
 #endif   // else linux
 
-   return success;
-} // VixToolsImpersonateUserImpl
+   return err;
+} // VixToolsImpersonateUserImplEx
 
 
 /*
@@ -2828,12 +2922,10 @@ void
 VixToolsUnimpersonateUser(void *userToken)
 {
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
-#ifdef _WIN32
+#if defined(_WIN32)
       Impersonate_Undo();
-#else
-#ifdef linux
+#elif defined(linux)
       ProcMgr_ImpersonateUserStop();
-#endif
 #endif
    }
 } // VixToolsUnimpersonateUser
@@ -2860,7 +2952,7 @@ VixToolsLogoutUser(void *userToken)    // IN
       return;
    }
 
-#if !defined(__FreeBSD__) && !defined(sun) && !defined(WIN9XCOMPAT)
+#if !defined(__FreeBSD__) && !defined(sun)
    if (NULL != userToken) {
       AuthToken authToken = (AuthToken) userToken;
       Auth_CloseToken(authToken);
@@ -3041,15 +3133,13 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
       err = VIX_E_FAIL;
       goto abort;
    }
-
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
-                                    &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   
+   err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    hgfsPacket = ((char *) requestMsg) + sizeof(*requestMsg);
    hgfsPacketSize = requestMsg->hgfsPacketSize;
@@ -3214,14 +3304,12 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
 
    ipAddr[0] = '\0';  
    subnetMask[0] = '\0';
-
-   if (thisProcessRunsAsRoot) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
-      if (VIX_OK != err) {
-         goto abort;
-      }
-      impersonatingVMWareUser = TRUE;
+   
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
    }
+   impersonatingVMWareUser = TRUE;
 
    setGuestNetworkingConfigRequest = (VixMsgSetGuestNetworkingConfigRequest *)requestMsg;
    messageBody = (char *) requestMsg + sizeof(*setGuestNetworkingConfigRequest);
@@ -3313,6 +3401,127 @@ abort:
 
 } // VixToolsSetGuestNetworkingConfig
 #endif
+
+
+#if defined(_WIN32) || defined(linux)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsDaemonGetCurrentUser --
+ *
+ *    Get the name of the user whom the process is running as.
+ *
+ * Return value:
+ *    A unicode string containing the name of the current user, or NULL on
+ *    failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Unicode
+ToolsDaemonGetCurrentUser(void)
+{
+   Unicode currentUser = NULL;
+
+#ifdef _WIN32
+   wchar_t *buffer = NULL;
+   DWORD bufferSize = 0;
+   
+   /*
+    * Call the function with a NULL buffer, fail for lack of space,
+    * use the returned size to allocate a buffer and call again.
+    * This uses GetUserNameA() to keep things simple and ASCII for now.
+    */
+   if (!GetUserNameW(buffer, &bufferSize)) {
+      if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         goto abort;
+      }
+      
+      buffer = Util_SafeMalloc(bufferSize * sizeof *buffer);
+      
+      if (!GetUserNameW(buffer, &bufferSize)) {
+         goto abort;
+      }
+   }
+   
+   currentUser = Unicode_AllocWithUTF16(buffer);
+
+#else /* Below is the POSIX case. */
+   uid_t currentUid;
+   struct passwd pwd;
+   struct passwd *ppwd = &pwd;
+   char *buffer = NULL;   // a pool of memory for getpwuid_r() to use.
+   size_t bufferSize;
+   
+   /*
+    * Get the maximum size buffer needed by getpwuid_r.
+    */
+   bufferSize = (size_t) sysconf(_SC_GETPW_R_SIZE_MAX);
+   
+   buffer = Util_SafeMalloc(bufferSize);
+      
+   /*
+    * In the Windows version, GetUserNameW() returns the name of the
+    * user the thread is impersonating (if it is impersonating someone),
+    * so geteuid() seems to be the moral equivalent.
+    */
+   currentUid = geteuid();
+   
+   if (getpwuid_r(currentUid, &pwd, buffer, bufferSize, &ppwd) != 0 ||
+       NULL == ppwd) {
+      Warning("Unable to get the username for uid %d.\n", currentUid);
+      goto abort;
+   }
+
+   currentUser = Unicode_Alloc(pwd.pw_name, STRING_ENCODING_DEFAULT);
+#endif
+
+ abort:
+   
+   free(buffer);
+   
+   return currentUser;
+}
+#endif  // #if defined(_WIN32) || defined(linux)
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsPidRefersToThisProcess --
+ *
+ *    Determines if the given pid refers to the current process, in
+ *    that if it passed to the appropriate OS-specific process killing
+ *    function, will this process get killed.
+ *
+ * Return value:
+ *    TRUE if killing pid kills us, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+VixToolsPidRefersToThisProcess(ProcMgr_Pid pid)  // IN
+{
+#ifdef _WIN32
+   return (GetCurrentProcessId() == pid);
+#else
+   /*
+    * POSIX is complicated. Pid could refer to this process directly,
+    * be 0 which kills all processes in this process's group, be -1
+    * which kill everything to which it can send a signal, or be -1 times
+    * the process group ID of this process.
+    */
+   return ((getpid() == pid) || (0 == pid) || (-1 == pid) ||
+           ((pid < -1) && (getpgrp() == (pid * -1))));
+#endif
+}
 
 
 /*
@@ -3534,40 +3743,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          err = VixToolsSetProperties(requestMsg, confDictRef);
          break;
 #endif
-
-#if IMPLEMENT_SOCKET_MGR
-      ////////////////////////////////////
-      case VIX_COMMAND_GUEST_SOCKET_CONNECT:
-         err = VixToolsSocketConnect(requestMsg, &resultValue);
-         // resultValue is static. Do not free it.
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_GUEST_SOCKET_LISTEN:
-         err = VixToolsSocketListen(requestMsg, &resultValue);
-         // resultValue is static. Do not free it.
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_GUEST_SOCKET_ACCEPT:
-         err = VixToolsSocketAccept(requestMsg, Util_SafeStrdup(requestName));
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_GUEST_SOCKET_RECEIVE:
-         err = VixToolsSocketRecv(requestMsg, Util_SafeStrdup(requestName));
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_GUEST_SOCKET_SEND:
-         err = VixToolsSocketSend(requestMsg, Util_SafeStrdup(requestName));
-         break;
-
-      ////////////////////////////////////
-      case VIX_COMMAND_GUEST_SOCKET_CLOSE:
-         err = VixToolsSocketClose(requestMsg);
-         break;
-#endif // IMPLEMENT_SOCKET_MGR
 
       ////////////////////////////////////
       default:

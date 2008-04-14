@@ -100,16 +100,13 @@
 static INLINE void 
 FXSAVE_ES1(uint8 *save)
 {
-   asm ("fxsave %0       \n"
-        : "=m" (*save));
+   __asm__ __volatile__ ("fxsave %0\n" : "=m" (*save));
 }
 
 static INLINE void 
 FXRSTOR_ES1(const uint8 *load)
 {
-   asm ("fxrstor %0      \n"
-        :
-        : "m" (*load));
+   __asm__ __volatile__ ("fxrstor %0\n" : : "m" (*load));
 }
 
 static INLINE void 
@@ -117,7 +114,8 @@ FXRSTOR_AMD_ES0(const uint8 *load)
 {
    uint64 dummy = 0;
       
-   asm ("fnstsw  %%ax    \n"     // Grab x87 ES bit
+   __asm__ __volatile__ 
+       ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
         "jnc     1f      \n"     // Jump if ES=0
         "fnclex          \n"     // ES=1. Clear it so fild doesn't trap
@@ -130,8 +128,7 @@ FXRSTOR_AMD_ES0(const uint8 *load)
         : "m" (dummy), "m" (*load)
         : "ax");
 }
-
-#endif
+#endif /* __GNUC__ */
 
 /*
  *-----------------------------------------------------------------------------

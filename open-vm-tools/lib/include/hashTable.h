@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -29,6 +29,8 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_atomic.h"
+
 
 typedef struct HashTable HashTable;
 typedef void (*HashTableFreeEntryFn)(void *clientData);
@@ -39,8 +41,21 @@ typedef int (*HashTableForEachCallback)(const char *key, void *value,
 #define HASH_ISTRING_KEY	1	// case-insensitive string key
 #define HASH_INT_KEY		2	// uintptr_t or pointer key
 
+/*
+ * The atmic bit is ored into the type field.
+ * Atomic hash tables only support insert and lookup.
+ */
+
+#define HASH_FLAG_MASK		(~7)
+#define HASH_FLAG_ATOMIC	0x08	// thread-safe hash table
+#define HASH_FLAG_COPYKEY	0x10	// copy string key
+
 HashTable *
 HashTable_Alloc(uint32 numEntries, int keyType, HashTableFreeEntryFn fn);
+
+HashTable *
+HashTable_AllocOnce(Atomic_Ptr *var, uint32 numEntries, int keyType,
+                    HashTableFreeEntryFn fn);
 
 void
 HashTable_Free(HashTable *hashTable);
@@ -54,6 +69,16 @@ Bool
 HashTable_Lookup(HashTable  *hashTable,
                  const char *keyStr,
                  void **clientData);
+
+void *
+HashTable_LookupOrInsert(HashTable  *hashTable,
+                         const char *keyStr,
+                         void       *clientData);
+
+Bool
+HashTable_ReplaceOrInsert(HashTable  *hashTable,
+                          const char *keyStr,
+                          void       *clientData);
 
 Bool
 HashTable_Delete(HashTable  *hashTable,

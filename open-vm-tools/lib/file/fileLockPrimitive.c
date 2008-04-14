@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -540,8 +540,6 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
             break;
          }
 
-         Unicode_Free(memberValues.memberName);
-
          /* Remove any stale locking files */
          if (FileLockMachineIDMatch(myValues->machineID,
                                     memberValues.machineID) &&
@@ -549,6 +547,8 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
                                  memberValues.payload)) {
             Log(LGPFX" %s discarding %s from %s'; invalid executionID.\n",
                 __FUNCTION__, UTF8(fileList[i]), UTF8(lockDir));
+
+            Unicode_Free(memberValues.memberName);
 
             err = RemoveLockingFile(lockDir, fileList[i]);
             if (err != 0) {
@@ -563,6 +563,11 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
 
       /* Locking file looks good; see what happens */
       err = (*func)(lockDir, fileList[i], ptr, myValues);
+
+      if (ptr == &memberValues) {
+         Unicode_Free(memberValues.memberName);
+      }
+
       if (err != 0) {
          break;
       }
@@ -1079,7 +1084,6 @@ CreateEntryDirectory(const char *machineID,    // IN:
    while (TRUE) {
       Unicode temp;
       FileData fileData;
-      char string[FILELOCK_OVERHEAD];
 
       err = FileAttributes(lockDir, &fileData);
       if (err == 0) {
@@ -1133,22 +1137,13 @@ CreateEntryDirectory(const char *machineID,    // IN:
       /* There is a small chance of collision/failure; grab stings now */
       randomNumber = SimpleRandomNumber(machineID, executionID);
 
-      Str_Sprintf(string, sizeof string, "M%05u%s", randomNumber,
-                  FILELOCK_SUFFIX);
+      *memberName = Unicode_Format("M%05u%s", randomNumber, FILELOCK_SUFFIX);
 
-      *memberName = Unicode_Alloc(string, STRING_ENCODING_US_ASCII);
-
-      Str_Sprintf(string, sizeof string, "D%05u%s", randomNumber,
-                  FILELOCK_SUFFIX);
-
-      temp = Unicode_Alloc(string, STRING_ENCODING_US_ASCII);
+      temp = Unicode_Format("D%05u%s", randomNumber, FILELOCK_SUFFIX);
       *entryDirectory = Unicode_Join(lockDir, U(DIRSEPS), temp, NULL);
       Unicode_Free(temp);
 
-      Str_Sprintf(string, sizeof string, "E%05u%s", randomNumber,
-                  FILELOCK_SUFFIX);
-
-      temp = Unicode_Alloc(string, STRING_ENCODING_US_ASCII);
+      temp = Unicode_Format("E%05u%s", randomNumber, FILELOCK_SUFFIX);
       *entryFilePath = Unicode_Join(lockDir, U(DIRSEPS), temp, NULL);
       Unicode_Free(temp);
 

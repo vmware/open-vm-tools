@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -68,6 +68,7 @@
 #include "su.h"
 #include "str.h"
 #include "fileIO.h"
+#include "codeset.h"
 
 
 /*
@@ -129,7 +130,8 @@ _syscall3(int, setresgid,
  * ProcMgr_ListProcesses --
  *
  *      List all the processes that the calling client has privilege to
- *      enumerate.
+ *      enumerate. The strings in the returned structure should be all
+ *      UTF-8 encoded, although we do not enforce it right now.
  *
  * Results:
  *      
@@ -488,7 +490,7 @@ ProcMgr_FreeProcList(ProcMgr_ProcList *procList)
  *
  * ProcMgr_ExecSync --
  *
- *      Synchronously execute a command.
+ *      Synchronously execute a command. The command is UTF-8 encoded.
  *
  * Results:
  *      TRUE on success (the program had an exit code of 0)
@@ -501,7 +503,7 @@ ProcMgr_FreeProcList(ProcMgr_ProcList *procList)
  */
 
 Bool
-ProcMgr_ExecSync(char const *cmd,                  // IN: Command line
+ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
                  ProcMgr_ProcArgs *userArgs)       // IN: Unused
 {
    pid_t pid;
@@ -536,35 +538,43 @@ ProcMgr_ExecSync(char const *cmd,                  // IN: Command line
  */
 
 static pid_t 
-ProcMgrStartProcess(char const *cmd)               // IN
+ProcMgrStartProcess(char const *cmd)            // IN: UTF-8 encoded cmd
 {
    pid_t pid;
+   char *cmdCurrent = NULL;
 
    if (cmd == NULL) {
       ASSERT(FALSE);
       return -1;
    }
 
+   if (!CodeSet_Utf8ToCurrent(cmd, strlen(cmd), &cmdCurrent, NULL)) {
+      Warning("Could not convert from UTF-8 to current\n");
+      return -1;
+   }
+
    pid = fork();
-   
+
    if (pid == -1) {
       Warning("Unable to fork: %s.\n\n", strerror(errno));
    } else if (pid == 0) {
+
       /*
        * Child
        */
-      
-      execl("/bin/sh", "sh", "-c", cmd, (char *)NULL);
-      
+
+      execl("/bin/sh", "sh", "-c", cmdCurrent, (char *)NULL);
+
       /* Failure */
       Panic("Unable to execute the \"%s\" shell command: %s.\n\n",
-            cmd, strerror(errno));
+            cmdCurrent, strerror(errno));
    }
 
    /*
     * Parent
     */
 
+   free(cmdCurrent);
    return pid;
 }
 
@@ -652,7 +662,7 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
  */
 
 ProcMgr_AsyncProc *
-ProcMgr_ExecAsync(char const *cmd,                 // IN: Command line
+ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
                   ProcMgr_ProcArgs *userArgs)      // IN: Unused
 {
    ProcMgr_AsyncProc *asyncProc = NULL;
@@ -1269,6 +1279,8 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
  *      Impersonate a user.  Much like bora/lib/impersonate, but
  *      changes the real and saved uid as well, to work with syscalls
  *      (access() and kill()) that look at real UID instead of effective.
+ *      The user name should be UTF-8 encoded, although we do not enforce
+ *      it right now.
  *
  *      Assumes it will be called as root.
  *
@@ -1283,8 +1295,8 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
  */
 
 Bool
-ProcMgr_ImpersonateUserStart(const char *user,                      // IN
-                  AuthToken token)                                  // IN
+ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
+                             AuthToken token)   // IN
 {
    char buffer[BUFSIZ];
    struct passwd pw;

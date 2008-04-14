@@ -1,3 +1,311 @@
+2008-04-14  Elliot Lee  <elliot@vmware.com>
+
+	* Resync with internal trunk (2008.04.01).
+
+	* Fixed legal header on all LGPL-licensed files.
+
+	* vmware-user/resolution.c: Normalize the display topology that
+	comes in from the host, and report 'global_offset' capability.
+
+	* toolbox/Makefile.am, vmware-user/Makefile.am,
+	lib/misc/Makefile.am, lib/misc/atomic.c, lib/Makefile.am,
+	lib/atomic/*, hgfsclient/Makefile.am: Move libAtomic stuff into libmisc
+
+	* vmware-user/foundryToolsDaemon.c, lib/vixTools/vixTools.c,
+	lib/include/hgfsServerInt.h, guestd/toolsDaemon.c,
+	guestd/foundryToolsDaemon.c: Remove WIN9XCOMPAT, and some
+	SOCKET_MGR code.
+
+	* vmware-user/copyPaste.c: Copy/paste fixes for cross-platform
+	operation.
+
+	* modules/linux/vmxnet/vmnet_def.h: Add SG_SPAN_PAGES capability.
+
+	* modules/linux/vmxnet/vm_device_version.h: Update some device limits.
+
+	* modules/linux/*/compat_sched.h: Add TASK_COMM_LEN define.
+
+	* modules/linux/*/compat_kernel.h,
+	modules/linux/*/kernelStubsLinux.c: Add vsnprintf define.
+
+	* modules/linux/*/x86cpuid.h: Add new CPUs.
+
+	* modules/linux/vmhgfs/vmhgfs_version.h: Bump HGFS version.
+
+	* modules/linux/*/vm_basic_asm_x86.h,
+	modules/linux/*/vm_basic_asm_x86_64.h,
+	lib/include/vm_basic_asm_x86.h, lib/include/vm_basic_asm_x86_64.h:
+	Formatting fixes, and change asm directives used.
+
+	* modules/linux/vmhgfs/module.h,
+	modules/linux/vmhgfs/filesystem.c,
+	modules/linux/vmhgfs/bdhandler.c,
+	modules/linux/*/compat_kthread.h: compat_kthread fixes.
+
+	* modules/freebsd/vmxnet/net_compat.h,
+	modules/freebsd/vmxnet/if_vxn.c: Updates for FreeBSD 7.0.
+	(Thanks to Martin Blapp for contributing to these changes.)
+
+	* lib/misc/util_misc.c, lib/include/loglevel_user.h,
+	lib/user/hostinfoPosix.c, lib/misc/hostname.c: Bugfix.
+
+	* lib/unityStub/unityStub.c, lib/include/unity.h: Add stub and enums
+	related to DnD support.
+
+	* lib/unicode/unicodeSimpleTypes.c,
+	lib/unicode/unicodeSimpleTransforms.c,
+	lib/unicode/unicodeSimpleBase.c, lib/unicode/unicodeCommon.c,
+	lib/include/unicodeTypes.h,
+	lib/include/unicodeTransforms.h,
+	lib/include/unicodeBase.h, lib/include/unicodeCommon.h: Add
+	additional Unicode-related functions.
+
+	* lib/sync/syncMutex.c, lib/include/syncMutex.h: Add TryLock method.
+
+	* lib/strUtil/strutil.c: Add int64-related functions.
+
+	* lib/string/str.c: Compile fix
+
+	* lib/string/bsd_output_shared.c: Better handling of floating
+	point on Windows.
+
+	* lib/include/progMgr.h, lib/procMgr/procMgrPosix.c: Clarify that
+	the strings are in UTF-8, do conversion as needed.
+
+	* lib/include/posix.h, lib/misc/posixPosix.c,
+	lib/misc/posixWin32.c, lib/file/filePosix.c: Add new Posix_
+	function implementations, and unicodify existing ones.
+
+	* lib/misc/hashTable.c, lib/include/hashTable.h: Add lock-less hash
+	table functions.
+
+	* lib/misc/util_misc.c, lib/include/w32util.h: Add a couple of
+	Win32 utility functions.
+
+	* lib/include/vm_version.h: Add WS5 config version.
+
+	* lib/include/vm_atomic.h: Add typecasts to atomic operations to
+	make compilers stop complaining, and expand the AtomicUseFence option.
+
+	* lib/include/vm_app.h: Add a couple of HGFS-related options.
+
+	* lib/include/vix.h: Update a few errors and other macros.
+
+	* lib/include/vixCommands.h, lib/foundry/foundryMsg.c: Change a
+	bunch of structure members from int32 to uint32, and add a parsing
+	function.
+
+	* lib/include/msgfmt.h, lib/include/msg.h: Additional
+	message-handling prototypes.
+
+	* lib/include/guestInfoInt.h, lib/include/guestInfo.h,
+	lib/guestInfo/Makefile.am, lib/guestInfo/guestInfoServer.c,
+	lib/guestInfo/guestInfoPosix.c,
+	lib/guestInfo/guestInfoPerfMonLinux.c: Add IPv6 support, and the
+	ability to read mem stats on Linux.
+
+	* lib/include/fileIO.h, lib/file/fileIOPosix.c: Add MacOS function
+	related to Time Machine.
+
+	* lib/guestApp/guestApp.c: Use Posix_ variants of functions.
+
+	* lib/ghIntegrationStub/ghIntegrationStub.c: Add GHI capabilities
+	stubs.
+
+	* lib/dnd/dndCommon.c, lib/file/file.c: Use new Unicode_Format()
+	function, bugfix.
+
+	* guestd/main.c: Fix a security bug.
+
+	* configure.ac: Allow calling libdnet 'dumbnet' for Debian
+	systems. Detect libprocps.
+
+2008-03-19  Adar Dembo  <adar@vmware.com>
+	* Resync with internal trunk (2008.03.13).
+
+	* vm_version.h: Updated Tools version.
+
+	* configure.ac: Added dynamic dnet detection and --without-dnet flag.
+
+	* guestd/debugStdio.c, lib/include/system.h, lib/system/systemLinux.c:
+	Modified debugging to file behavior to prepend debug strings with human
+	readable timestamps.
+
+	* guestd/main.c, guestd/toolsDaemon.c, lib/conf/conf.c,
+	lib/guestApp/guestApp.c, lib/include/guestApp.h: Internationalized
+	GuestApp_GetInstallPath and GuestApp_GetconfPath.
+
+	* lib/auth/authPosix.c, lib/dnd/dndLinux.c, lib/file/*,
+	lib/impersonate/impersonatePosix.c, lib/include/fileInt.h,
+	lib/include/posix.h, lib/misc/posix*.c: Refactored, extended, and made
+	use of the set of POSIX internationalization-safe function wrappers.
+
+	* lib/dnd/dndCommon.c, lib/include/dnd.h, lib/include/dndInt.h,
+	vmware-user/copyPaste.c, vmware-user/dnd.c: Replaced some duplicated
+	UTF-8 formatting code with calls to lib/unicode.
+
+	* lib/guestInfo/guestInfoPosix.c: Replaced the old syscall-based
+	implementation of nicinfo with a simpler implementation that uses dnet.
+
+	* lib/guestInfo/guestInfoServer.c, lib/include/guestInfo.h,
+	lib/include/guestInfoInt.h: Added Win32 implementation of
+	meminfo. POSIX implementation to follow.
+
+	* lib/hgfsServer/hgfsServerLinux.c: Replaced a direct readlink(3) call
+	with a call to the POSIX wrapper for readlink(3). Relax an overeager
+	ASSERT in symlink checking when using the special empty share.
+
+	* lib/include/codeset.h, lib/string/bsd_vsnprintf.c, lib/string/str.c,
+	lib/unicode/unicodeSimpleOperations.c, lib/unicode/unicodeSimpleUTF16.h:
+	Refactored ICU routines from unicodeSimpleUtf16.h to codeset.h, which
+	is now licensed under the ICU license (BSD variant).
+
+	* lib/include/file.h, lib/file/file.c: Added function File_StripSlashes.
+
+	* lib/include/hgfsProto.h: Removed an A acute from a comment to allow
+	the file to be built on Windows systems where the default language isn't
+	English.
+
+	* lib/include/hostinfo.h, lib/include/util.h, lib/user/hostinfoPosix.c,
+	lib/user/util.c, lib/user/utilPosix.c: More conversions to
+	lib/unicode. Added Util_ZeroFreeStringW function for Windows in util.h.
+
+	* lib/include/msg.h: Removed obsolete NO_MSGFMT macro.
+
+	* lib/include/unicodeBase.h, lib/unicode/unicodeCommon.c,
+	lib/unicode/unicodeSimpleBase.c: Added some more encoding functions.
+
+	* lib/include/vixCommands.h, lib/include/vixOpenSource.h: Added another
+	user credential type, some command flags, some command layouts, some
+	error codes, some properties, and tweaked existing commands.
+
+	* lib/include/vixTools.h: Added VixToolsUserIsMemberOfAdministratorGroup
+	function.
+
+	* lib/include/vm_assert.h, lib/include/vm_basic_defs.h: Move IMPLIES to
+	vm_basic_defs.h. Removed some vprobes definitions.
+
+	* lib/include/vmBackup.h, lib/vmBackupLib/scriptOps.c,
+	lib/vmBackupLib/stateMachine.c: Added infrastructure to disable
+	quiescing targets from a config file.
+
+	* lib/include/vm_basic_asm.h: Changed __GET_CPUID2 handling for Windows.
+
+	* lib/include/vm_produt.h: Added VDM product.
+
+	* lib/include/vm_tools_version.h: Bumped internal Tools version.
+
+	* lib/include/win32util.h, lib/misc/hostname.c, lib/misc/util_misc:
+	Refactored functions to separate set of Win32 wrappers (next to the
+	POSIX wrappers mentioned earlier).
+
+	* lib/misc/codeset.c: Made CodeSetGetCurrentCodeSet non-static.
+
+	* lib/misc/*/Makefile.am: Added POSIX wrappers to build system.
+
+	* lib/strUtil/strutil.c: Fixed bug in StrUtil_EndsWith function.
+
+	* lib/include/unicodeTypes.h, lib/unicode/unicodeSimpleTypes.c: Removed
+	ISO-8859-11 encoding. Added cross-reference of IANA character set
+	names, windows code pages, and ICU encodings.
+
+	* lib/vixTools/vixTools.c: Impersonation tweaks.
+
+	* modules/*/*/*: Reflect header file changes from elsewhere in the
+	source code tree.
+
+2008-03-11  Adar Dembo  <adar@vmware.com>
+	* vm_version.h: Updated Tools version.
+
+	* modules/vmblock/linux/*: Make vmblock build under 2.6.25-rc2.
+	The dentry and mount objects have been moved out of struct
+	nameidata and into the new struct path. Also, path_release() is
+	now path_put().
+
+	* modules/vmsync/linux/*: Make vmsync build under 2.6.25-rc2.
+	The same changes were needed here as in vmblock above.
+
+2008-03-10  Adar Dembo  <adar@vmware.com>
+	* vm_version.h: Updated Tools version.
+
+	* modules/vmhgfs/linux/*: Make vmhgfs build under 2.6.25-rc1.
+	The iget() function has been removed and filesystems are now
+	expected to implement it themselves using iget_locked().
+
+2008-02-27  Elliot Lee  <elliot@vmware.com>
+
+	* configure.ac, guestd/Makefile.am, toolbox/Makefile.am,
+	vmware-user/Makefile.am: Allow passing custom LDFLAGS in to
+	build process (patch by Mike Auty).
+
+	* Resync with internal trunk (2008.02.27).
+
+	* guestd/foundryToolsDaemon.c, lib/vixTools/vixTools.c,
+	vmware-user/foundryToolsDaemon.c: Win9x compat changes.
+
+	* guestd/toolsDaemon.c: Style fixes.
+
+	* hgfsmounter/hgfsmounter.c: Bug fixes.
+
+	* lib/dnd/dndLinux.c, lib/dnd/dndCommon.c: Move some code to the
+	platform-independant file, some DnDv3 support.
+
+	* lib/include/dnd.h, lib/include/dndInt.h: DnDv3 support.
+
+	* lib/file/file.c, lib/file/fileIO.c, lib/file/fileIOPosix.c,
+	lib/file/fileLockPrimitive.c, lib/file/filePosix.c,
+	lib/include/file_extensions.h, lib/include/fileInt.h,
+	lib/include/fileIO.h: Move functions around, Unicode fixes, misc
+	fixes.
+
+	* lib/foundryMsg/foundryPropertyListCommon.c: Error handling fixes.
+
+	* lib/hgfsServer/*.c, lib/include/hgfs*.h,
+	modules/freebsd/vmhgfs/*, modules/linux/vmhgfs/*: HGFS v3 support,
+	updates to improve code re-use between the FreeBSD and MacOS X
+	ports, and updates to make the Linux port build on 2.6.25-rc1 (but
+	not rc2, yet).
+
+	* lib/include/auth.h, lib/include/codeset.h,
+	lib/include/hostinfo.h, lib/include/str.h, lib/include/unicode*.h,
+	lib/include/vm_basic_types.h, lib/misc/hostname.c,
+	lib/unicode/*.c, lib/user/hostinfoPosix.c: Unicode fixes.
+
+	* lib/include/backdoor_def.h: Add a new command for use by the
+	BIOS in checking the GuestOS against Darwin.
+
+	* lib/include/dynarray.h, lib/misc/dynarray.c,
+	lib/misc/Makefile.am, lib/misc/shared/Makefile.am: Add Dynarray
+	implementation.
+
+	* lib/include/bsdfmt.h, lib/include/bsd_output_int.h,
+	lib/string/bsd_output_shared.c, lib/string/bs_vsnprintf.c,
+	lib/string/bsd_vsnwprintf.c, lib/string/str.c: Rework built-in
+	printf implementation, esp. for Unicode fixes.
+
+	* lib/include/ghIntegration.h: Shuffle types around.
+
+	* lib/include/loglevel_user.h, lib/include/unity.h,
+	lib/syncDriver/syncDriverPosix.c, lib/user/util.c,
+	toolbox/toolbox-gtk.c: Misc fixes.
+
+	* lib/include/vmBackup.h, lib/vmBackupLib/scriptOps.c,
+	lib/vmBackupLib/stateMachine.c, lib/vmBackupLib/vmBackupInt.h:
+	Rework scripts for freeze & thaw operations.
+
+	* lib/include/vm_product.h, lib/include/vm_version.h: Add new
+	product defs (VMRC).
+
+	* lib/include/vm_tools_version.h: Add ESX 3.5U1 product.
+
+	* lib/include/vixCommands.h, lib/include/vix.h: Add new VIX
+	commands and error code.
+
+	* lib/include/win32util.h: Add misc Win32 utilities.
+
+	* modules/*/*/*: Reflect header file changes from elsewhere in the
+	source code tree.
+
 2008-02-13  Adar Dembo  <adar@vmware.com>
 	* Resync with internal trunk (2008.02.12).
 
@@ -5,7 +313,7 @@
 	lib/Makefile.am, vmware-user/Makefile.am, vmware-user/vmware-user.c:
 	Added lib/unityStub and lib/ghIntegrationStub. Unity and guest-host
 	integration features for X11 guests are on the way.
-	
+
 	* configure.ac, guestd/Makefile.am, lib/fileUtf8/*,
 	lib/vixTools/vixTools.c, vmare-user/Makefile.am: lib/file is now fully
 	internationalized. Removed unneeded lib/fileUtf8.
@@ -81,7 +389,7 @@
 
 	* lib/include/vm_atomic.h: Comment cleanup and added VMKERNEL-specific
 	calls for fencing.
-	
+
 	* lib/include/vm_basic_asm_x86_64.h: Added inline routines to save and
 	restore ES1.
 
@@ -152,7 +460,7 @@
 	* configure.ac, guestd/Makefile.am, hgfsclient/Makefile.am,
 	lib/Makefile.am, toolbox/Makefile.am, vmware-user/Makefile.am:
 	integrated lib/unicode for internationalizing strings.
-	
+
 	* guestd/main.c: Stopped using pgrep for finding existing instances
 	of guestd. Removed ancient bandwidth test code.
 
@@ -210,7 +518,7 @@
 
 	* lib/include/hash.h, lib/misc/hash.c, lib/misc/Makefile.am,
 	lib/misc/shared/Makefile.am: Added basic hash table implementation.
-	
+
 	* lib/include/hostinfo.h, lib/user/hostinfoPosix.c: Refactored and
 	added several timekeeping functions.
 
@@ -311,7 +619,7 @@
 	* modules/linux/vmblock/linux/filesystem.c,
 	modules/linux/vmblock/Makefile.kernel: Added check for newer kernels
 	where the slab allocator's constructor function expects three
-	arguments.
+	arguments. Makes it work with 2.6.25-rc1 (but not rc2, yet).
 
 	* modules/linux/vmblock/linux/vmblock_version.h: Bumped module version.
 
@@ -327,7 +635,7 @@
 2007-11-15  Elliot Lee  <elliot@vmware.com>
 
 	* Bandsaw release (2007.11.15).
-	
+
 	* configure.ac: Handle building modules for multiple OS's. Improve
 	X detection to allow building --without-x. Improve Gtk+
 	detection. Detect libdnet on Solaris. Detect which -Wwarning flags

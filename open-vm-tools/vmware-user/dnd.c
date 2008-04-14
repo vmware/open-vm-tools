@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -460,7 +460,7 @@ DnDRpcInDataSetCB(char const **result,  // OUT
     * access the file since it will enable vmblock to block that application's
     * progress if necessary.
     */
-   DnD_GetLastDirName(gFileRoot, gFileRootSize, &perDnDDir);
+   perDnDDir = DnD_GetLastDirName(gFileRoot);
    if (!perDnDDir) {
       Debug("DnDRpcInDataSetCB: cannot obtain dirname of root.\n");
       retStr = "error obtaining dirname of root";

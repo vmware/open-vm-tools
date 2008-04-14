@@ -97,5 +97,8 @@ void HgfsSetUidGid(struct inode *parent,
                    struct dentry *dentry,
                    uid_t uid,
                    gid_t gid);
+struct inode *HgfsGetInode(struct super_block *sb, ino_t ino);
+void HgfsDoReadInode(struct inode *inode);
+
 
 #endif // _HGFS_DRIVER_FSUTIL_H_

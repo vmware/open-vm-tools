@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -307,6 +307,8 @@ TopologyRpcInSetCB(char const **result,     // OUT
    xXineramaScreenInfo *displays = NULL;
    short maxX = 0;
    short maxY = 0;
+   int minX = 0;
+   int minY = 0;
 
    /*
     * The argument string will look something like:
@@ -347,16 +349,32 @@ TopologyRpcInSetCB(char const **result,     // OUT
       }
       maxX = MAX(maxX, displays[i].x_org + displays[i].width);
       maxY = MAX(maxY, displays[i].y_org + displays[i].height);
+      minX = MIN(minX, displays[i].x_org);
+      minY = MIN(minY, displays[i].y_org);
+   }
+
+   if (minX != 0 || minY != 0) {
+      Warning("The bounding box of the display topology does not have an origin of (0,0)\n");
+   }
+
+   /*
+    * Transform the topology so that the bounding box has an origin of (0,0). Since the
+    * host is already supposed to pass a normalized topology, this should not have any
+    * effect.
+    */
+   for (i = 0; i < count; i++) {
+      displays[i].x_org -= minX;
+      displays[i].y_org -= minY;
    }
 
    if (!VMwareCtrl_SetTopology(gXDisplay, DefaultScreen(gXDisplay), displays, count)) {
-      RpcIn_SetRetVals(result, resultLen, "Failed to set topology in the driver.", 
+      RpcIn_SetRetVals(result, resultLen, "Failed to set topology in the driver.",
                        FALSE);
       goto out;
    }
 
-   if (!ResolutionSet(maxX, maxY)) {
-      RpcIn_SetRetVals(result, resultLen, "Failed to set new resolution.", 
+   if (!ResolutionSet(maxX - minX, maxY - minY)) {
+      RpcIn_SetRetVals(result, resultLen, "Failed to set new resolution.",
                        FALSE);
       goto out;
    }
@@ -394,7 +412,7 @@ Bool
 Resolution_RegisterCapability(void)
 {
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_set 1")) {
-      Debug("%s: Unable to register resolution set capability\n", 
+      Debug("%s: Unable to register resolution set capability\n",
 	    __FUNCTION__);
       return FALSE;
    }
@@ -415,6 +433,14 @@ Resolution_RegisterCapability(void)
       Debug("%s: Unable to register topology set capability\n",
 	    __FUNCTION__);
       return FALSE;
+   }
+   if (gCanUseVMwareCtrlTopologySet &&
+       !RpcOut_sendOne(NULL, NULL, "tools.capability.display_global_offset 1")) {
+      Debug("%s: Unable to register topology global offset capability\n",
+	    __FUNCTION__);
+      /*
+       * Ignore failures - host may not support these RPCs.
+       */
    }
 #endif
    return TRUE;
@@ -503,10 +529,13 @@ Resolution_Unregister(void)
    }
 #ifndef NO_MULTIMON
    if (gCanUseVMwareCtrlTopologySet &&
-       !RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 0")) {
-      Debug("%s: Unable to unregister TopologySet capability\n", 
+       (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 0")
+        || !RpcOut_sendOne(NULL, NULL, "tools.capability.display_global_offset 0"))) {
+      Debug("%s: Unable to unregister TopologySet capability\n",
 	    __FUNCTION__);
-      return FALSE;
+      /*
+       * Ignore failures - host may not support these RPCs.
+       */
    }
 #endif
 

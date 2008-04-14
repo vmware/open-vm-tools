@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -29,11 +29,13 @@
 #   define __SYSTEM_H__
 
 #include "vm_basic_types.h"
+#include "unicode.h"
 
 
 uint64 System_Uptime(void);
 Bool System_GetCurrentTime(int64 *secs, int64 *usecs);
 Bool System_AddToCurrentTime(int64 deltaSecs, int64 deltaUsecs);
+Unicode System_GetTimeAsString(void);
 Bool System_IsACPI(void);
 void System_Shutdown(Bool reboot);
 Bool System_IsUserAdmin(void);

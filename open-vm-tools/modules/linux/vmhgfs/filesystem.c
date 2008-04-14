@@ -36,6 +36,7 @@
 #include "compat_dcache.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
+#include "compat_kthread.h"
 #include "compat_sched.h"
 #include "compat_slab.h"
 #include "compat_spinlock.h"
@@ -71,7 +72,8 @@
 spinlock_t hgfsBigLock = SPIN_LOCK_UNLOCKED;
 long hgfsReqThreadFlags;
 wait_queue_head_t hgfsReqThreadWait;
-compat_completion hgfsReqThreadDone;
+struct task_struct *hgfsReqThread;
+COMPAT_KTHREAD_DECLARE_STOP_INFO();
 
 /* Other variables. */
 compat_kmem_cache *hgfsReqCache = NULL;
@@ -79,11 +81,18 @@ compat_kmem_cache *hgfsInodeCache = NULL;
 RpcOut *hgfsRpcOut = NULL;
 unsigned int hgfsIdCounter = 0;
 struct list_head hgfsReqsUnsent;
+
+/* Global protocol version switch. */
+atomic_t hgfsProtocolVersion;
+
 atomic_t hgfsVersionOpen;
 atomic_t hgfsVersionGetattr;
 atomic_t hgfsVersionSetattr;
 atomic_t hgfsVersionSearchRead;
 atomic_t hgfsVersionCreateDir;
+atomic_t hgfsVersionSearchOpen;
+atomic_t hgfsVersionCreateSymlink;
+atomic_t hgfsVersionQueryVolumeInfo;
 
 /* Private functions. */
 static inline unsigned long HgfsComputeBlockBits(unsigned long blockSize);
@@ -581,12 +590,11 @@ Bool
 HgfsInitFileSystem(void)
 {
    Bool success = FALSE;
-   pid_t pid = 0;
 
    /* Initialize primitives. */
    INIT_LIST_HEAD(&hgfsReqsUnsent);
    init_waitqueue_head(&hgfsReqThreadWait);
-   compat_init_completion(&hgfsReqThreadDone);
+   hgfsReqThread = NULL;
    hgfsReqThreadFlags = 0;
    HgfsResetOps();
 
@@ -613,8 +621,8 @@ HgfsInitFileSystem(void)
    }
 
    /* Create backdoor handler. */
-   pid = kernel_thread(HgfsBdHandler, NULL, CLONE_KERNEL);
-   if (pid < 0) {
+   hgfsReqThread = compat_kthread_run(HgfsBdHandler, NULL, HGFS_NAME);
+   if (IS_ERR(hgfsReqThread)) {
       printk(KERN_WARNING "VMware hgfs: failed to create kernel thread\n");
       goto exit;
    }
@@ -637,10 +645,8 @@ HgfsInitFileSystem(void)
 
    /* Cleanup if an error occurred. */
    if (success == FALSE) {
-      if (pid > 0) {
-         set_bit(HGFS_REQ_THREAD_EXIT, &hgfsReqThreadFlags);
-         wake_up_interruptible(&hgfsReqThreadWait);
-         compat_wait_for_completion(&hgfsReqThreadDone);
+      if (!IS_ERR(hgfsReqThread)) {
+         compat_kthread_stop(hgfsReqThread);
       }
       if (hgfsInodeCache != NULL) {
          kmem_cache_destroy(hgfsInodeCache);
@@ -692,9 +698,7 @@ HgfsCleanupFileSystem(void)
    }
 
    /* Kill the backdoor handler thread. */
-   set_bit(HGFS_REQ_THREAD_EXIT, &hgfsReqThreadFlags);
-   wake_up_interruptible(&hgfsReqThreadWait);
-   compat_wait_for_completion(&hgfsReqThreadDone);
+   compat_kthread_stop(hgfsReqThread);
 
    /* Destroy the inode and request slabs. */
    kmem_cache_destroy(hgfsInodeCache);

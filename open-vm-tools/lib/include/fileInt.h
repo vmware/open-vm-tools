@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -27,6 +27,8 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
+#include "posix.h"
+#include "fileIO.h"
 #include "fileLock.h"
 #include "unicodeTypes.h"
 
@@ -71,7 +73,9 @@
 #define FILE_TYPE_BLOCKDEVICE  2
 #define FILE_TYPE_CHARDEVICE   3
 #define FILE_TYPE_SYMLINK      4
-#define FILE_TYPE_UNCERTAIN    5
+#define FILE_TYPE_FIFO         5
+#define FILE_TYPE_SOCKET       6
+#define FILE_TYPE_UNCERTAIN    7
 
 typedef struct FileData {
    uint64 fileAccessTime;
@@ -187,5 +191,13 @@ EXTERN Bool FileLockValidOwner(const char *executionID,
                                const char *payload);
 
 EXTERN Bool FileLockValidName(ConstUnicode fileName);
+
+#if defined(__APPLE__)
+EXTERN int PosixFileOpener(ConstUnicode pathName,
+                           int flags,
+                           mode_t mode);
+#else
+#define PosixFileOpener(a, b, c) Posix_Open(a, b, c);
+#endif
 
 #endif

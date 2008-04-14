@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -126,19 +126,62 @@
 
 #define PRODUCT_DDK_NAME MAKE_NAME("ESX DDK")
 
+#define PRODUCT_VDM_SHORT_NAME "VDM"
+#define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
+
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
 #define PRODUCT_VMVISOR_NAME MAKE_NAME("VMvisor")
 
+/*
+ * VMware Remote Console version definitions
+ */
+
 #define PRODUCT_VMRC_SHORT_NAME "VMRC"
-#define PRODUCT_VMRC_NAME MAKE_NAME("Virtual Machine Remote Console")
+#define PRODUCT_VMRC_NAME MAKE_NAME("Remote Console")
 #define PRODUCT_VMRC_PLUGIN_NAME PRODUCT_VMRC_NAME " Plug-in"
 #define PRODUCT_VMRC_DESCRIPTION "Enables remote interaction with virtual machines."
 #ifdef _WIN32
 #define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc.exe"
+#define PRODUCT_VMRC_MIMETYPE_SEPARATOR "|"
+#define PRODUCT_VMRC_MIMETYPE_TERMINATOR ""
 #else
 #define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc"
+#define PRODUCT_VMRC_MIMETYPE_SEPARATOR "::" PRODUCT_VMRC_PLUGIN_NAME ";"
+#define PRODUCT_VMRC_MIMETYPE_TERMINATOR "::" PRODUCT_VMRC_PLUGIN_NAME ";"
 #endif
+
+/*
+ * current Gecko/WebKit plugin mimetype
+ */
+
+#define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
+   "application/x-vmware-vmrc;version=" \
+   VMRC_PLUGIN_VERSION "." BUILD_NUMBER_NUMERIC_STRING PRODUCT_VMRC_MIMETYPE_SEPARATOR
+
+/*
+ * previously shipped plugin mimetypes (updated as we ship them)
+ */
+#define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
+   "application/x-vmware-vmrc;version=2.5.0.0" \
+   PRODUCT_VMRC_MIMETYPE_TERMINATOR
+
+/*
+ * legacy plugin mimetypes
+ */
+#define PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES \
+   "application/x-vmware-mks;version=2.5.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-mks;version=2.1.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-mks;version=2.0.1.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-mks;version=2.0.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR
+
+/*
+ * All plugin mimetypes
+ */
+#define PRODUCT_VMRC_PLUGIN_MIMETYPES \
+   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
+   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
+   // PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES /* Legacy support disabled */
 
 /*
  * TODO: This properly lives in productState, but we need it here to

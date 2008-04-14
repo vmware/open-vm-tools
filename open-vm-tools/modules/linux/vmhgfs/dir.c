@@ -48,6 +48,10 @@ static int HgfsGetNextDirEntry(HgfsSuperInfo *si,
                                uint32 offset,
                                HgfsAttrInfo *attr,
                                Bool *done);
+static int HgfsPackDirOpenRequest(struct inode *inode,
+                                  struct file *file,
+				  HgfsOp opUsed,
+                                  HgfsReq *req);
 
 /* HGFS file operations for directories. */
 static int HgfsDirOpen(struct inode *inode,
@@ -95,9 +99,8 @@ static int
 HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
                           HgfsAttrInfo *attr)  // IN/OUT: Attributes
 {
-   HgfsReplySearchReadV2 *replyV2;
-   HgfsReplySearchRead *replyV1;
-   HgfsFileName *fileNameP;
+   char *fileName;
+   uint32 fileNameLength;
    uint32 replySize;
    int result;
 
@@ -110,16 +113,36 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
    }
 
    switch(attr->requestType) {
-   case HGFS_OP_SEARCH_READ_V2:
+   case HGFS_OP_SEARCH_READ_V3: {
+      HgfsReplySearchReadV3 *replyV3;
+      HgfsDirEntry *dirent;
+      
+      replyV3 = (HgfsReplySearchReadV3 *)(HGFS_REP_PAYLOAD_V3(req));
+      replySize = sizeof *replyV3 + sizeof(struct HgfsReply)
+                                  + sizeof(struct HgfsDirEntry);
+      dirent = (HgfsDirEntry *)replyV3->payload;
+      fileName = dirent->fileName.name;
+      fileNameLength = dirent->fileName.length;
+      break;
+   }
+   case HGFS_OP_SEARCH_READ_V2: {
+      HgfsReplySearchReadV2 *replyV2;
+      
       replyV2 = (HgfsReplySearchReadV2 *)(HGFS_REQ_PAYLOAD(req));
       replySize = sizeof *replyV2;
-      fileNameP = &replyV2->fileName;
+      fileName = replyV2->fileName.name;
+      fileNameLength = replyV2->fileName.length;
       break;
-   case HGFS_OP_SEARCH_READ:
+   }
+   case HGFS_OP_SEARCH_READ: {
+      HgfsReplySearchRead *replyV1;
+      
       replyV1 = (HgfsReplySearchRead *)(HGFS_REQ_PAYLOAD(req));
       replySize = sizeof *replyV1;
-      fileNameP = &replyV1->fileName;
+      fileName = replyV1->fileName.name;
+      fileNameLength = replyV1->fileName.length;
       break;
+   }
    default:
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackSearchReadReply: unexpected "
               "OP type encountered\n"));
@@ -129,8 +152,8 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
    /*
     * Make sure name length is legal.
     */
-   if (fileNameP->length > NAME_MAX ||
-       fileNameP->length > HGFS_PACKET_MAX - replySize) {
+   if (fileNameLength > NAME_MAX ||
+       fileNameLength > HGFS_PACKET_MAX - replySize) {
       return -ENAMETOOLONG;
    }
       
@@ -142,21 +165,21 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
     * bounded by NAME_MAX. Perhaps I should just put a statically-sized
     * array in HgfsAttrInfo and use a slab allocator to allocate the struct.
     */
-   if (fileNameP->length > 0) {
+   if (fileNameLength > 0) {
       /* Sanity check on name length. */
-      if (fileNameP->length != strlen(fileNameP->name)) {
+      if (fileNameLength != strlen(fileName)) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackSearchReadReply: name "
                  "length mismatch %u/%Zu, name \"%s\"\n", 
-                 fileNameP->length, strlen(fileNameP->name), fileNameP->name));
+                 fileNameLength, strlen(fileName), fileName));
          return -EPROTO;
       }
-      attr->fileName = kmalloc(fileNameP->length + 1, GFP_KERNEL);
+      attr->fileName = kmalloc(fileNameLength + 1, GFP_KERNEL);
       if (attr->fileName == NULL) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackSearchReadReply: out of "
                  "memory allocating filename, ignoring\n"));
          return -ENOMEM;
       }
-      memcpy(attr->fileName, fileNameP->name, fileNameP->length + 1);
+      memcpy(attr->fileName, fileName, fileNameLength + 1);
    } else {
       attr->fileName = NULL;
    }
@@ -192,8 +215,8 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
                                              // no more dentries
 {
    HgfsReq *req;
-   HgfsRequestSearchRead *request;
-   HgfsReply *replyHeader;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
    int result = 0;
 
    ASSERT(si);
@@ -207,23 +230,41 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
       return -ENOMEM;
    }
 
-   request = (HgfsRequestSearchRead *)(HGFS_REQ_PAYLOAD(req));
-
   retry:
-   /* Fill out the request's fields. */
-   request->header.op = attr->requestType = 
-      atomic_read(&hgfsVersionSearchRead);
-   request->header.id = req->id;
-   request->search = searchHandle;
-   request->offset = offset;
-   req->payloadSize = sizeof *request;
+   opUsed = atomic_read(&hgfsVersionSearchRead);
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_SEARCH_READ_V3;
+   }
+
+   if (opUsed == HGFS_OP_SEARCH_READ_V3) {
+      HgfsRequest *header;
+      HgfsRequestSearchReadV3 *request;
+
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->op = attr->requestType = opUsed; 
+      header->id = req->id;
+      
+      request = (HgfsRequestSearchReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->search = searchHandle;
+      request->offset = offset;
+      req->payloadSize = sizeof *request + sizeof *header;
+   } else {
+      HgfsRequestSearchRead *request;
+      
+      request = (HgfsRequestSearchRead *)(HGFS_REQ_PAYLOAD(req));
+      request->header.op = attr->requestType = opUsed;
+      request->header.id = req->id;
+      request->search = searchHandle;
+      request->offset = offset;
+      req->payloadSize = sizeof *request;
+   }
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
    if (result == 0) {
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: got reply\n"));
-      replyHeader = (HgfsReply *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(replyHeader->status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
       switch(result) {
       case 0:
@@ -238,10 +279,17 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
 
       case -EPROTO:
          /* Retry with Version 1 of SearchRead. Set globally. */
-         if (attr->requestType == HGFS_OP_SEARCH_READ_V2) {
+         if (attr->requestType == HGFS_OP_SEARCH_READ_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: Version 3 "
+                    "not supported. Falling back to version 2.\n"));
+            atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ_V2);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         } else if (attr->requestType == HGFS_OP_SEARCH_READ_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: Version 2 "
                     "not supported. Falling back to version 1.\n"));
             atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          }
 
@@ -262,6 +310,103 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
    HgfsFreeRequest(req);
    return result;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPackDirOpenRequest --
+ *
+ *    Setup the directory open request, depending on the op version.
+ *
+ * Results:
+ *    Returns zero on success, or negative error on failure. 
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int 
+HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
+                       struct file *file,   // IN: File pointer for this open
+		       HgfsOp opUsed,       // IN: Op to be used
+                       HgfsReq *req)        // IN/OUT: Packet to write into
+{
+   char *name;
+   uint32 *nameLength;
+   size_t requestSize;
+   int result;
+   
+   ASSERT(inode);
+   ASSERT(file);
+   ASSERT(req);
+
+   switch (opUsed) {
+   case HGFS_OP_SEARCH_OPEN_V3: {
+      HgfsRequest *requestHeader;
+      HgfsRequestSearchOpenV3 *requestV3;
+      
+      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader->op = opUsed;
+      requestHeader->id = req->id;
+
+      requestV3 = (HgfsRequestSearchOpenV3 *)HGFS_REQ_PAYLOAD_V3(req); 
+
+      /* We'll use these later. */
+      name = requestV3->dirName.name;
+      nameLength = &requestV3->dirName.length;
+      requestV3->dirName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      break;
+   }
+
+   case HGFS_OP_SEARCH_OPEN: {
+      HgfsRequestSearchOpen *request;
+      
+      request = (HgfsRequestSearchOpen *)(HGFS_REQ_PAYLOAD(req));
+      request->header.op = opUsed;
+      request->header.id = req->id;
+
+      /* We'll use these later. */
+      name = request->dirName.name;
+      nameLength = &request->dirName.length;
+      requestSize = sizeof *request;
+      break;
+   }
+
+   default:
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: unexpected "
+              "OP type encountered\n"));
+      return -EPROTO;
+   }
+
+   /* Build full name to send to server. */
+   if (HgfsBuildPath(name, HGFS_PACKET_MAX - (requestSize - 1), 
+                     file->f_dentry) < 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: build path failed\n"));
+      return -EINVAL;
+   }
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: opening \"%s\"\n",
+           name));
+
+   /* Convert to CP name. */
+   result = CPName_ConvertTo(name, 
+                             HGFS_PACKET_MAX - (requestSize - 1),
+                             name);
+   if (result < 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: CP conversion failed\n"));
+      return -EINVAL;
+   }
+
+   /* Unescape the CP name. */
+   result = HgfsUnescapeBuffer(name, result);
+   *nameLength = (uint32) result;
+   req->payloadSize = requestSize + result;
+
+   return 0;
+}
+
 
 /*
  * HGFS file operations for directories.
@@ -292,17 +437,15 @@ static int
 HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
             struct file *file)    // IN: File pointer for this open
 {
-   HgfsSuperInfo *si;
    HgfsReq *req;
-   HgfsRequestSearchOpen *request;
-   HgfsReplySearchOpen *reply;
    int result;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
+   HgfsHandle *replySearch;
 
    ASSERT(inode);
    ASSERT(inode->i_sb);
    ASSERT(file);
-
-   si = HGFS_SB_TO_COMMON(inode->i_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -312,62 +455,50 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
       goto out;
    }
 
-   request = (HgfsRequestSearchOpen *)(HGFS_REQ_PAYLOAD(req));
-
-   /* Fill out the request's fields. */
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_SEARCH_OPEN;
-
-   /* Build full name to send to server. */
-   if (HgfsBuildPath(request->dirName.name, HGFS_NAME_BUFFER_SIZE(request), 
-                     file->f_dentry) < 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: build path failed\n"));
-      result = -EINVAL;
+  retry:
+   opUsed = atomic_read(&hgfsVersionSearchOpen);
+   replySearch = &((HgfsReplySearchOpen *)HGFS_REQ_PAYLOAD(req))->search;
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_SEARCH_OPEN_V3;
+      replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REQ_PAYLOAD_V3(req))->search;
+   }
+   
+   result = HgfsPackDirOpenRequest(inode, file, opUsed, req);
+   if (result != 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: error packing request\n"));  
       goto out;
    }
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: opening \"%s\"\n",
-           request->dirName.name));
-
-   /* Convert to CP name. */
-   result = CPName_ConvertTo(request->dirName.name, 
-                             HGFS_NAME_BUFFER_SIZE(request),
-                             request->dirName.name);
-   if (result < 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: CP conversion failed\n"));
-      result = -EINVAL;
-      goto out;
-   }
-
-   /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(request->dirName.name, result);
-   request->dirName.length = result;
-   req->payloadSize = sizeof *request + result;
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply and check return status. */
-      reply = (HgfsReplySearchOpen *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(reply->header.status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
       if (result == 0) {
-         if (req->payloadSize != sizeof *reply) {
-            /*
-             * If status != success, the payloadSize will be smaller,
-             * so this test only applies in the success case. [bac]
-             */
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: wrong "
-                    "packet size\n"));
-            result = -EPROTO;
-            goto out;
+         result = HgfsCreateFileInfo(file, *replySearch);
+         switch (result) {
+	 case 0:
+            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: set handle to %u\n",
+                    *replySearch));
+            break;
+         case -EPROTO:
+            /* Retry with Version 1 of SearchOpen. Set globally. */
+            if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
+               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: Version 3 not "
+                       "supported. Falling back to version 1.\n"));
+               atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN);
+               atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+               goto retry;
+            }
+            break;
+         
+         default:
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
+                    "returned error: %d\n", result));
+            break;
          }
-
-         result = HgfsCreateFileInfo(file, reply->search);
-         if (result) {
-            goto out;
-         }
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: set handle to %u\n",
-                 reply->search));
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: timed out\n"));
@@ -649,11 +780,10 @@ static int
 HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
                struct file *file)    // IN: File for the dir getting released
 {
-   HgfsSuperInfo *si;
    HgfsReq *req;
-   HgfsRequestSearchClose *request;
-   HgfsReplySearchClose *reply;
+   HgfsStatus replyStatus;
    HgfsHandle handle;
+   HgfsOp opUsed;
    int result = 0;
 
    ASSERT(inode);
@@ -665,7 +795,6 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: close fh %u\n", handle));
 
    HgfsReleaseFileInfo(file);
-   si = HGFS_SB_TO_COMMON(file->f_dentry->d_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -675,25 +804,53 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
       goto out;
    }
 
-   /* Fill in the request's fields. */
-   request = (HgfsRequestSearchClose *)(HGFS_REQ_PAYLOAD(req));
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_SEARCH_CLOSE;
-   request->search = handle;
-   req->payloadSize = sizeof *request;
+ retry:
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      HgfsRequestSearchCloseV3 *request;
+      HgfsRequest *header;
+
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->id = req->id;
+      header->op = opUsed = HGFS_OP_SEARCH_CLOSE_V3;
+
+      request = (HgfsRequestSearchCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->search = handle;
+      req->payloadSize = sizeof *request + sizeof *header;
+   } else {
+      HgfsRequestSearchClose *request;
+   
+      request = (HgfsRequestSearchClose *)(HGFS_REQ_PAYLOAD(req));
+      request->header.id = req->id;
+      request->header.op = opUsed = HGFS_OP_SEARCH_CLOSE;
+      request->search = handle;
+      req->payloadSize = sizeof *request;
+   }
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply. */
-      reply = (HgfsReplySearchClose *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(reply->header.status);
-      if (result == 0) {
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
+      
+      switch (result) {
+      case 0:
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: release handle %u\n",
                  handle));
-      } else {
+         break;
+      case -EPROTO:
+         /* Retry with Version 2 of Open. Set globally. */
+         if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         }
+         break;
+      default:
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: failed handle %u\n",
                  handle));
+         break;
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: timed out\n"));

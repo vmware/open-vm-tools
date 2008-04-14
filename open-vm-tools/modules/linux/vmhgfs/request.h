@@ -40,6 +40,10 @@
 /* Macros for accessing the payload portion of the HGFS request packet. */
 #define HGFS_REQ_PAYLOAD(hgfsReq) ((hgfsReq)->packet + HGFS_CLIENT_CMD_LEN)
 
+/* XXX: Needs change when VMCI is supported. */
+#define HGFS_REQ_PAYLOAD_V3(hgfsReq) (HGFS_REQ_PAYLOAD(hgfsReq) + sizeof(HgfsRequest))
+#define HGFS_REP_PAYLOAD_V3(hgfsRep) (HGFS_REQ_PAYLOAD(hgfsRep) + sizeof(HgfsReply))
+
 /*
  * HGFS_REQ_STATE_ALLOCATED:
  *    The filesystem half has allocated the request from the slab
@@ -109,5 +113,6 @@ typedef struct HgfsReq {
 HgfsReq *HgfsGetNewRequest(void);
 int HgfsSendRequest(HgfsReq *req);
 void HgfsFreeRequest(HgfsReq *req);
+HgfsStatus HgfsReplyStatus(HgfsReq *req); // IN
 
 #endif // _HGFS_DRIVER_REQUEST_H_

@@ -37,7 +37,9 @@ static void SuperOpDestroyInode(struct inode *inode);
 #else
 static void SuperOpClearInode(struct inode *inode);
 #endif
+#ifndef VMW_USE_IGET_LOCKED
 static void SuperOpReadInode(struct inode *inode);
+#endif
 #ifdef VMW_STATFS_2618
 static int SuperOpStatfs(struct dentry *dentry, struct compat_kstatfs *stat);
 #else
@@ -52,7 +54,9 @@ struct super_operations VMBlockSuperOps = {
 #else
    .clear_inode   = SuperOpClearInode,
 #endif
+#ifndef VMW_USE_IGET_LOCKED
    .read_inode    = SuperOpReadInode,
+#endif
    .statfs        = SuperOpStatfs,
 };
 
@@ -122,12 +126,16 @@ SuperOpClearInode(struct inode *inode)    // IN: Inode to free
 }
 
 
+#ifndef VMW_USE_IGET_LOCKED
 /*
  *----------------------------------------------------------------------------
  *
  * SuperOpReadInode --
  *
- *    Performs any filesystem wide inode initialization.
+ *    Performs any filesystem wide inode initialization. This is only called by
+ *    iget() in older kernels that do not support iget_locked(). Newer kernels
+ *    that use the iget_locked() interface are required to initialize the inode
+ *    after it has been returned to the filesystem.
  *
  * Results:
  *    None.
@@ -141,13 +149,9 @@ SuperOpClearInode(struct inode *inode)    // IN: Inode to free
 static void
 SuperOpReadInode(struct inode *inode)  // IN: Inode to initialize
 {
-   VMBlockInodeInfo *iinfo = INODE_TO_IINFO(inode);
-
-   iinfo->name[0] = '\0';
-   iinfo->nameLen = 0;
-   iinfo->actualDentry = NULL;
+   VMBlockReadInode(inode);
 }
-
+#endif
 
 /*
  *----------------------------------------------------------------------------

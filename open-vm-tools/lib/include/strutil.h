@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -39,6 +39,7 @@ Bool StrUtil_GetNextInt64Token(int64 *out, unsigned int *index, const char *str,
 Bool StrUtil_StrToInt(int32 *out, const char *str);
 Bool StrUtil_StrToUint(uint32 *out, const char *str);
 Bool StrUtil_StrToInt64(int64 *out, const char *str);
+Bool StrUtil_StrToSizet(size_t *out, const char *str);
 Bool StrUtil_DecimalStrToUint(unsigned int *out, const char **str);
 char * StrUtil_FormatSizeInBytesUnlocalized(uint64 size);
 

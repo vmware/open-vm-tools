@@ -72,8 +72,8 @@ typedef struct StrBuf {
    size_t index;
 } StrBuf;
 
-static int   __sfvwrite(StrBuf *sbuf, struct __suio *uio);
-static int   __sprint(StrBuf *sbuf, struct __suio *uio);
+static int   __sfvwrite(StrBuf *sbuf, BSDFmt_UIO *uio);
+static int   __sprint(StrBuf *sbuf, BSDFmt_UIO *uio);
 static wchar_t  *__ujtoa(uintmax_t, wchar_t *, int, int, const char *, int,
                          char, const char *);
 static wchar_t  *__ultoa(u_long, wchar_t *, int, int, const char *, int,
@@ -89,10 +89,10 @@ static void     __grow_type_table(int, enum typeid **, int *);
 #endif
 
 static int
-__sfvwrite(StrBuf *sbuf, struct __suio *uio)
+__sfvwrite(StrBuf *sbuf, BSDFmt_UIO *uio)
 {
    int i;
-   struct __siov *siov;
+   BSDFmt_IOV *siov;
 
    /*
     * If aswprintf(), then grow the buffer as necessary.
@@ -141,7 +141,7 @@ __sfvwrite(StrBuf *sbuf, struct __suio *uio)
  * then reset it so that it can be reused.
  */
 static int
-__sprint(StrBuf *sbuf, struct __suio *uio)
+__sprint(StrBuf *sbuf, BSDFmt_UIO *uio)
 {
    int err;
 
@@ -154,13 +154,6 @@ __sprint(StrBuf *sbuf, struct __suio *uio)
    uio->uio_iovcnt = 0;
    return err;
 }
-
-/*
- * Macros for converting digits to letters and vice versa
- */
-#define to_digit(c)        ((c) - '0')
-#define is_digit(c)     ((unsigned)to_digit(c) <= 9)
-#define to_char(n)        ((n) + '0')
 
 /*
  * Convert an unsigned long to ASCII for printf purposes, returning
@@ -386,36 +379,6 @@ static int exponent(wchar_t *, int, wchar_t);
 
 #endif /* !NO_FLOATING_POINT */
 
-/*
- * The size of the buffer we use as scratch space for integer
- * conversions, among other things.  Technically, we would need the
- * most space for base 10 conversions with thousands' grouping
- * characters between each pair of digits.  100 bytes is a
- * conservative overestimate even for a 128-bit uintmax_t.
- */
-#define BUF        100
-
-#define STATIC_ARG_TBL_SIZE 8           /* Size of static argument table. */
-
-/*
- * Flags used during conversion.
- */
-#define ALT                0x001                /* alternate form */
-#define LADJUST                0x004                /* left adjustment */
-#define LONGINT                0x010                /* long integer */
-#define LLONGINT        0x020                /* long long integer */
-#define SHORTINT        0x040                /* short integer */
-#define ZEROPAD                0x080                /* zero (as opposed to blank) pad */
-#define FPT                0x100                /* Floating point number */
-#define GROUPING        0x200                /* use grouping ("'" flag) */
-/* C99 additional size modifiers: */
-#define SIZET                0x400                /* size_t */
-#define PTRDIFFT        0x800                /* ptrdiff_t */
-#define INTMAXT                0x1000                /* intmax_t */
-#define CHARINT                0x2000                /* print char using int format */
-
-#define   NIOV 8
-
 int
 bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
                va_list ap)
@@ -424,7 +387,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
    wchar_t ch;                /* character from fmt */
    int n, n2;                /* handy integer (short term usage) */
    wchar_t *cp;                /* handy char pointer (short term usage) */
-   struct __siov *iovp;        /* for PRINT macro */
+   BSDFmt_IOV *iovp;        /* for PRINT macro */
    int flags;                /* flags as above */
    int ret;                /* return value accumulator */
    int width;                /* width from format (%8d), or 0 */
@@ -472,9 +435,9 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
    int size;                /* size of converted field or string */
    int prsize;             /* max size of printed field */
    const char *xdigs;        /* digits for [xX] conversion */
-   struct __suio uio;        /* output information: summary */
-   struct __siov iov[NIOV];  /* ... and individual io vectors */
-   wchar_t buf[BUF];        /* buffer with space for digits of uintmax_t */
+   BSDFmt_UIO uio;        /* output information: summary */
+   BSDFmt_IOV iov[BSDFMT_NIOV]; /* ... and individual io vectors */
+   wchar_t buf[INT_CONV_BUF]; /* buffer with space for digits of uintmax_t */
    wchar_t ox[2];                /* space for 0x hex-prefix */
    union arg *argtable;        /* args, built due to positional arg */
    union arg statargtable [STATIC_ARG_TBL_SIZE];
@@ -511,7 +474,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
       iovp->iov_len = len;                              \
       uio.uio_resid += len;                             \
       iovp++;                                           \
-      if (++uio.uio_iovcnt >= NIOV) {                   \
+      if (++uio.uio_iovcnt >= BSDFMT_NIOV) {            \
          if (__sprint(&sbuf, &uio))                     \
             goto error;                                 \
          iovp = iov;                                    \
@@ -1096,7 +1059,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
           * printf("%#.0o", 0) should print 0.''
           *        -- Defect Report #151
           */
-         cp = buf + BUF;
+         cp = buf + INT_CONV_BUF;
          if (flags & INTMAX_SIZE) {
             if (ujval != 0 || prec != 0 ||
                 (flags & ALT && base == 8))
@@ -1112,8 +1075,8 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
                             flags & GROUPING, thousands_sep,
                             grouping);
          }
-         size = buf + BUF - cp;
-         if (size > BUF)        /* should never happen */
+         size = buf + INT_CONV_BUF - cp;
+         if (size > INT_CONV_BUF)        /* should never happen */
             abort();
          break;
       default:        /* "%?" prints ?, unless ? is NUL */

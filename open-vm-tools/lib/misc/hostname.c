@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -23,8 +23,6 @@
  */
 
 #if defined(_WIN32)
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0x0500
 
 #include <windows.h>
 #include <winsock.h>
@@ -39,6 +37,10 @@
 #include "str.h"
 #include "log.h"
 #include "hostinfo.h"
+#if defined(_WIN32)	// Windows
+#include "win32u.h"
+#endif
+#include "unicode.h"
 
 #if defined(_WIN32)	// Windows
 /*
@@ -47,15 +49,6 @@
  * Hostinfo_HostName --
  *
  *      Return the fully qualified host name of the host.
- *
- *      Note: GetComputerNameExA is broken on multibyte encodings that
- *      use more than one byte per characters. The function calls
- *      GetComputerNameExW, then calls WideCharToMultiByte assuming, it
- *      seems, that the number of characters returned from 
- *      GetComputerNameW is the required buffer size for the multibyte
- *      conversion. So instead of calling GetComputerNameExA we will call
- *      the wide version and do the conversion ourselves.
- *
  *
  * Results:
  *      The host name on success; must be freed
@@ -67,59 +60,24 @@
  *----------------------------------------------------------------------
  */
 
-const char *
+Unicode
 Hostinfo_HostName(void)
 {
-   HMODULE        dllHandle;
+   Unicode result;
+   HMODULE dllHandle;
    struct hostent *myHostEnt;
    struct hostent *(WINAPI *GetHostByNameFn)(char *hostName);
    int            (WINAPI *GetHostNameFn)(char *hostName, int size);
-   BOOL           (WINAPI *GetComputerNameExWFn)(COMPUTER_NAME_FORMAT nameType,
-                                                 LPWSTR lpBuffer,
-                                                 LPDWORD lpnSize);
-   char           hostName[1024] = { '\0' };
-   wchar_t        wHostName[1024] = { L'\0' };
-   DWORD          size = sizeof wHostName;
 
-   dllHandle = GetModuleHandleA("kernel32");
+   char hostName[1024] = { '\0' };
 
-   if (!dllHandle) {
-      Warning("%s GetModuleHandle on kernel32 failed\n", __FUNCTION__);
+   result = Win32U_GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified);
 
-      return NULL;
+   if (result != NULL) {
+      return result;
    }
 
-   GetComputerNameExWFn = (void *) GetProcAddress(dllHandle, 
-                                                  "GetComputerNameExW");
-
-   if ((NULL != GetComputerNameExWFn) && 
-       ((*GetComputerNameExWFn)(ComputerNamePhysicalDnsFullyQualified,
-                                wHostName, &size) != 0)) {
-      int bytesConverted;
-      /*
-       * The call to WideCharToMultiByte with the following parameters
-       * might cause the system to drop/change some of the wide chars
-       * in wHostName if an equivalent cannot be found in the locale.
-       * However, this is the way GetComputerNameExA calls this 
-       * function, and we are trying to mimic it.
-       */
-      bytesConverted = WideCharToMultiByte(CP_ACP, 0, wHostName, size + 1, 
-                                           hostName, sizeof hostName, 
-                                           NULL, NULL);
-      if (bytesConverted > 0) {
-         char *dupStr = NULL;
-         dupStr = strdup(hostName);
-         ASSERT_MEM_ALLOC(dupStr);
-         return dupStr;
-      } else {
-         DWORD err = GetLastError();
-         Warning("%s %s failed: %d\n", __FUNCTION__, "WideCharToMultiByte",
-                 err); 
-      }
-   } else if (NULL != GetComputerNameExWFn) {
-      DWORD err = GetLastError();
-      Warning("%s %s failed: %d\n", __FUNCTION__, "GetComputerNameExW", err);
-   }
+   Warning("%s GetComputerNameEx failed: %d\n", __FUNCTION__, GetLastError());
 
    dllHandle = LoadLibraryA("ws2_32");
 
@@ -153,7 +111,7 @@ Hostinfo_HostName(void)
    if (!GetHostByNameFn) {
       Warning("%s Failed to find gethostbyname.\n", __FUNCTION__);
       FreeLibrary(dllHandle);
-      return strdup(hostName);
+      return Unicode_Alloc(hostName, STRING_ENCODING_US_ASCII);
    }
 
    myHostEnt = (*GetHostByNameFn)(hostName);
@@ -166,7 +124,7 @@ Hostinfo_HostName(void)
       Str_Strcpy(hostName, myHostEnt->h_name, sizeof hostName);
    }
 
-   return strdup(hostName);
+   return Unicode_Alloc(hostName, STRING_ENCODING_US_ASCII);
 }
 #elif defined(__APPLE__)	// MacOS X
 #define SYS_NMLN _SYS_NAMELEN
@@ -194,16 +152,16 @@ Hostinfo_HostName(void)
  *-----------------------------------------------------------------------------
  */
 
-const char *
+Unicode
 Hostinfo_HostName(void)
 {
    struct utsname un;
 
-   char           *result = (char *) NULL;
+   Unicode result = NULL;
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
       /* 'un.nodename' is already fully qualified. */
-      result = strdup(un.nodename);
+      result = Unicode_Alloc(un.nodename, STRING_ENCODING_US_ASCII);
    }
 
    return result;
@@ -230,17 +188,18 @@ Hostinfo_HostName(void)
  *-----------------------------------------------------------------------------
  */
 
-const char *
+Unicode
 Hostinfo_HostName(void)
 {
    struct utsname un;
 
-   char           *result = (char *) NULL;
+   Unicode result = NULL;
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
+      char *p;
+      int error;
       struct hostent he;
-      int            error;
-      char           buffer[1024];
+      char buffer[1024];
 
       struct hostent *phe = &he;
 
@@ -250,14 +209,14 @@ Hostinfo_HostName(void)
        * 139607 will occur.
        */
 
-      result = un.nodename;
+      p = un.nodename;
 
-      if ((gethostbyname_r(result, &he, buffer, sizeof buffer,
+      if ((gethostbyname_r(p, &he, buffer, sizeof buffer,
 					&phe, &error) == 0) && phe) {
-         result = phe->h_name;
+         p = phe->h_name;
       }
 
-      result = strdup(result);
+      result = Unicode_Alloc(p, STRING_ENCODING_US_ASCII);
    }
 
    return result;
@@ -283,14 +242,9 @@ Hostinfo_HostName(void)
  *-----------------------------------------------------------------------------
  */
 
-const char *
+Unicode
 Hostinfo_HostName(void)
 {
-   char string[128];
-
-   Str_Sprintf(string, sizeof string, "%s unimplemented for OS",
-               __FUNCTION__);
-
-   return strdup(string);
+   return Unicode_Format("%s: unimplemented for OS", __FUNCTION__);
 }
 #endif

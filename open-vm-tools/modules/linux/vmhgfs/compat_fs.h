@@ -80,8 +80,8 @@
  *
  * The VFS exports do_sync_read() and do_sync_write() as the "new"
  * generic_file_read() and generic_file_write(), but filesystems need not
- * actually implement read and write- the VFS will automatically call 
- * do_sync_write() and do_sync_read() when applications invoke the standard 
+ * actually implement read and write- the VFS will automatically call
+ * do_sync_write() and do_sync_read() when applications invoke the standard
  * read() and write() system calls.
  *
  * In 2.6.19, generic_file_read() and generic_file_write() were removed,
@@ -102,6 +102,14 @@
 # define VMW_EMBED_INODE
 #endif
 
+
+/*
+ * iget() was removed from the VFS as of 2.6.25-rc1. The replacement for iget()
+ * is iget_locked() which was added in 2.5.17.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 17)
+# define VMW_USE_IGET_LOCKED
+#endif
 
 /*
  * parent_ino was born in 2.5.5. For older kernels, let's use 2.5.5

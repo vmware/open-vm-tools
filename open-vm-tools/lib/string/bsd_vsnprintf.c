@@ -69,43 +69,26 @@
 
 #include "vmware.h"
 #include "bsd_output_int.h"
-#include "msgfmt.h"
+#include "codeset.h"
 
-typedef struct StrBuf {
-   Bool alloc;
-   Bool error;
-   char *buf;
-   size_t size;
-   size_t index;
-} StrBuf;
-
-static int   __sprint(StrBuf *sbuf, struct __suio *);
-static char   *__ujtoa(uintmax_t, char *, int, int, const char *, int, char,
-                       const char *);
 static char   *__ultoa(u_long, char *, int, int, const char *, int, char,
                        const char *);
-static char   *__wcsconv(wchar_t *, int);
 static void   __find_arguments(const char *, va_list, union arg **);
 static void   __grow_type_table(int, enum typeid **, int *);
 
-/*
- * Pretend to have wcsrtombs() and wcrtomb().
- * Don't use typedef for mbstate_t because it's actually defined
- * in VS2003/VC7/include/wchar.h, but the functions don't exist.
- * I don't know why, nor do I care.  -- edward
- */
+char blanks[PADSIZE] =
+   {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
+char zeroes[PADSIZE] =
+   {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
 
-#ifdef _WIN32
-#define mbstate_t int
-#define wcsrtombs(dest, srcp, n, state) wcstombs(dest, *(srcp), n)
-#define wcrtomb(dest, wc, state) wctomb(dest, wc)
-#endif
+const char xdigs_lower[17] = "0123456789abcdef?";
+const char xdigs_upper[17] = "0123456789ABCDEF?";
 
-static int
-__sfvwrite(StrBuf *sbuf, struct __suio *uio)
+int
+BSDFmt_SFVWrite(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
 {
    int i;
-   struct __siov *siov;
+   BSDFmt_IOV *siov;
 
    /*
     * If asprintf(), then grow the buffer as necessary.
@@ -153,8 +136,8 @@ __sfvwrite(StrBuf *sbuf, struct __suio *uio)
  * Flush out all the vectors defined by the given uio,
  * then reset it so that it can be reused.
  */
-static int
-__sprint(StrBuf *sbuf, struct __suio *uio)
+int
+BSDFmt_SPrint(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
 {
    int err;
 
@@ -162,18 +145,11 @@ __sprint(StrBuf *sbuf, struct __suio *uio)
       uio->uio_iovcnt = 0;
       return (0);
    }
-   err = __sfvwrite(sbuf, uio);
+   err = BSDFmt_SFVWrite(sbuf, uio);
    uio->uio_resid = 0;
    uio->uio_iovcnt = 0;
    return err;
 }
-
-/*
- * Macros for converting digits to letters and vice versa
- */
-#define to_digit(c)   ((c) - '0')
-#define is_digit(c)   ((unsigned)to_digit(c) <= 9)
-#define to_char(n)    ((n) + '0')
 
 /*
  * Convert an unsigned long to ASCII for printf purposes, returning
@@ -258,9 +234,9 @@ __ultoa(u_long val, char *endp, int base, int octzero, const char *xdigs,
 }
 
 /* Identical to __ultoa, but for intmax_t. */
-static char *
-__ujtoa(uintmax_t val, char *endp, int base, int octzero, const char *xdigs,
-        int needgrp, char thousep, const char *grp)
+char *
+BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
+             const char *xdigs, int needgrp, char thousep, const char *grp)
 {
    char *cp = endp;
    intmax_t sval;
@@ -335,8 +311,8 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, const char *xdigs,
  * bytes to output, and also means that we can't assume that the wide char.
  * string ends is null-terminated.
  */
-static char *
-__wcsconv(wchar_t *wcsarg, int prec)
+char *
+BSDFmt_WCSConv(wchar_t *wcsarg, int prec)
 {
    static const mbstate_t initial;
    mbstate_t mbs;
@@ -388,59 +364,6 @@ __wcsconv(wchar_t *wcsarg, int prec)
    return (convbuf);
 }
 
-#ifndef NO_FLOATING_POINT
-
-static int exponent(char *, int, int);
-
-#endif /* !NO_FLOATING_POINT */
-
-/*
- * The size of the buffer we use as scratch space for integer
- * conversions, among other things.  Technically, we would need the
- * most space for base 10 conversions with thousands' grouping
- * characters between each pair of digits.  100 bytes is a
- * conservative overestimate even for a 128-bit uintmax_t.
- */
-#define   BUF   100
-
-#define STATIC_ARG_TBL_SIZE 8           /* Size of static argument table. */
-
-/*
- * Flags used during conversion.
- */
-#define   ALT      0x001      /* alternate form */
-#define   LADJUST      0x004      /* left adjustment */
-#define   LONGINT      0x010      /* long integer */
-#define   LLONGINT   0x020      /* long long integer */
-#define   SHORTINT   0x040      /* short integer */
-#define   ZEROPAD      0x080      /* zero (as opposed to blank) pad */
-#define   FPT      0x100      /* Floating point number */
-#define   GROUPING   0x200      /* use grouping ("'" flag) */
-/* C99 additional size modifiers: */
-#define   SIZET      0x400      /* size_t */
-#define   PTRDIFFT   0x800      /* ptrdiff_t */
-#define   INTMAXT      0x1000      /* intmax_t */
-#define   CHARINT      0x2000      /* print char using int format */
-
-#define   INTMAX_SIZE   (INTMAXT|SIZET|PTRDIFFT|LLONGINT)
-
-#define   NIOV 8
-
-/*
- * Choose PADSIZE to trade efficiency vs. size.  If larger printf
- * fields occur frequently, increase PADSIZE and make the initialisers
- * below longer.
- */
-
-#define   PADSIZE   16      /* pad chunk size */
-static char blanks[PADSIZE] =
-   {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '};
-static char zeroes[PADSIZE] =
-   {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
-
-static const char xdigs_lower[17] = "0123456789abcdef?";
-static const char xdigs_upper[17] = "0123456789ABCDEF?";
-
 
 int
 bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
@@ -449,7 +372,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
    int ch;         /* character from fmt */
    int n, n2;      /* handy integer (short term usage) */
    char *cp;      /* handy char pointer (short term usage) */
-   struct __siov *iovp;   /* for PRINT macro */
+   BSDFmt_IOV *iovp;   /* for PRINT macro */
    int flags;      /* flags as above */
    int ret;      /* return value accumulator */
    int width;      /* width from format (%8d), or 0 */
@@ -498,9 +421,9 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
    int size;      /* size of converted field or string */
    int prsize;             /* max size of printed field */
    const char *xdigs;        /* digits for %[xX] conversion */
-   struct __suio uio;   /* output information: summary */
-   struct __siov iov[NIOV];/* ... and individual io vectors */
-   char buf[BUF];      /* buffer with space for digits of uintmax_t */
+   BSDFmt_UIO uio;   /* output information: summary */
+   BSDFmt_IOV iov[BSDFMT_NIOV]; /* ... and individual io vectors */
+   char buf[INT_CONV_BUF]; /* buffer with space for digits of uintmax_t */
    char ox[2];      /* space for 0x; ox[1] is either x, X, or \0 */
    union arg *argtable;    /* args, built due to positional arg */
    union arg statargtable [STATIC_ARG_TBL_SIZE];
@@ -509,7 +432,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
    va_list orgap;          /* original argument pointer */
 #endif
    char *convbuf;      /* wide to multibyte conversion result */
-   StrBuf sbuf;
+   BSDFmt_StrBuf sbuf;
 
    /*
     * BEWARE, these `goto error' on error, and PAD uses `n'.
@@ -519,8 +442,8 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
       iovp->iov_len = (len) * sizeof (char);            \
       uio.uio_resid += (len) * sizeof (char);           \
       iovp++;                                           \
-      if (++uio.uio_iovcnt >= NIOV) {                   \
-         if (__sprint(&sbuf, &uio))                     \
+      if (++uio.uio_iovcnt >= BSDFMT_NIOV) {            \
+         if (BSDFmt_SPrint(&sbuf, &uio))                \
             goto error;                                 \
          iovp = iov;                                    \
       }                                                 \
@@ -543,7 +466,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
       PAD((len) - (n2 > 0 ? n2 : 0), (with));   \
    } while(0)
 #define   FLUSH() {                                                     \
-      if (uio.uio_resid && __sprint(&sbuf, &uio))                       \
+      if (uio.uio_resid && BSDFmt_SPrint(&sbuf, &uio))                  \
          goto error;                                                    \
       uio.uio_iovcnt = 0;                                               \
       iovp = iov;                                                       \
@@ -937,7 +860,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
             }
          }
          if (expchar) {
-            expsize = exponent(expstr, expt - 1, expchar);
+            expsize = BSDFmt_Exponent(expstr, expt - 1, expchar);
             size = expsize + prec;
             if (prec > 1 || flags & ALT)
                ++size;
@@ -1034,7 +957,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
             if ((wcp = GETARG(wchar_t *)) == NULL)
                cp = "(null)";
             else {
-               convbuf = __wcsconv(wcp, prec);
+               convbuf = BSDFmt_WCSConv(wcp, prec);
                if (convbuf == NULL) {
                   sbuf.error = TRUE;
                   goto error;
@@ -1060,6 +983,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
                   size = prec;
             } else
                size = prec;
+            size = CodeSet_Utf8FindCodePointBoundary(cp, size);
          } else
             size = strlen(cp);
          sign = '\0';
@@ -1110,14 +1034,14 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
           * printf("%#.0o", 0) should print 0.''
           *   -- Defect Report #151
           */
-         cp = buf + BUF;
+         cp = buf + INT_CONV_BUF;
          if (flags & INTMAX_SIZE) {
             if (ujval != 0 || prec != 0 ||
                 (flags & ALT && base == 8))
-               cp = __ujtoa(ujval, cp, base,
-                            flags & ALT, xdigs,
-                            flags & GROUPING, thousands_sep,
-                            grouping);
+               cp = BSDFmt_UJToA(ujval, cp, base,
+                                 flags & ALT, xdigs,
+                                 flags & GROUPING, thousands_sep,
+                                 grouping);
          } else {
             if (ulval != 0 || prec != 0 ||
                 (flags & ALT && base == 8))
@@ -1126,8 +1050,8 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
                             flags & GROUPING, thousands_sep,
                             grouping);
          }
-         size = buf + BUF - cp;
-         if (size > BUF)   /* should never happen */
+         size = buf + INT_CONV_BUF - cp;
+         if (size > INT_CONV_BUF)   /* should never happen */
             abort();
          break;
       default:   /* "%?" prints ?, unless ? is NUL */
@@ -1682,863 +1606,10 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 }
 
 
+#ifndef NO_FLOATING_POINT
+
 int
-Str_MsgFmtSnprintfWork(char **outbuf, size_t bufSize, const char *fmt0,
-                       const MsgFmt_Arg *args, int numArgs)
-{
-   char *fmt;      /* format string */
-   int ch;         /* character from fmt */
-   int n;          /* handy integer (short term usage) */
-   char *cp;      /* handy char pointer (short term usage) */
-   struct __siov *iovp;   /* for PRINT macro */
-   int flags;      /* flags as above */
-   int ret;      /* return value accumulator */
-   int width;      /* width from format (%8d), or 0 */
-   int prec;      /* precision from format; <0 for N/A */
-   char sign;      /* sign prefix (' ', '+', '-', or \0) */
-   char thousands_sep;   /* locale specific thousands separator */
-   const char *grouping;   /* locale specific numeric grouping rules */
-
-#ifndef NO_FLOATING_POINT
-   /*
-    * We can decompose the printed representation of floating
-    * point numbers into several parts, some of which may be empty:
-    *
-    * [+|-| ] [0x|0X] MMM . NNN [e|E|p|P] [+|-] ZZ
-    *    A       B     ---C---      D       E   F
-    *
-    * A:   'sign' holds this value if present; '\0' otherwise
-    * B:   ox[1] holds the 'x' or 'X'; '\0' if not hexadecimal
-    * C:   cp points to the string MMMNNN.  Leading and trailing
-    *   zeros are not in the string and must be added.
-    * D:   expchar holds this character; '\0' if no exponent, e.g. %f
-    * F:   at least two digits for decimal, at least one digit for hex
-    */
-   char *decimal_point;   /* locale specific decimal point */
-   int signflag;      /* true if float is negative */
-   union {         /* floating point arguments %[aAeEfFgG] */
-      double dbl;
-      long double ldbl;
-   } fparg;
-   int expt;      /* integer value of exponent */
-   char expchar;      /* exponent character: [eEpP\0] */
-   char *dtoaend;      /* pointer to end of converted digits */
-   int expsize;      /* character count for expstr */
-   int lead;      /* sig figs before decimal or group sep */
-   int ndig;      /* actual number of digits returned by dtoa */
-   char expstr[MAXEXPDIG+2];   /* buffer for exponent string: e+ZZZ */
-   char *dtoaresult;   /* buffer allocated by dtoa */
-   int nseps;      /* number of group separators with ' */
-   int nrepeats;      /* number of repeats of the last group */
-#endif
-   uintmax_t ujval;   /* %j, %ll, %q, %t, %z integers */
-   int base;      /* base for [diouxX] conversion */
-   int dprec;      /* a copy of prec if [diouxX], 0 otherwise */
-   int realsz;      /* field size expanded by dprec, sign, etc */
-   int size;      /* size of converted field or string */
-   int prsize;             /* max size of printed field */
-   const char *xdigs;        /* digits for %[xX] conversion */
-   struct __suio uio;   /* output information: summary */
-   struct __siov iov[NIOV];/* ... and individual io vectors */
-   char buf[BUF];      /* buffer with space for digits of uintmax_t */
-   char ox[2];      /* space for 0x; ox[1] is either x, X, or \0 */
-   int nextarg;            /* 1-based argument index */
-   const MsgFmt_Arg *a;
-   char *convbuf;      /* wide to multibyte conversion result */
-   StrBuf sbuf;
-
-   /*
-    * BEWARE, these `goto error' on error, and PAD uses `n'.
-    */
-#define   PRINT(ptr, len) {                             \
-      iovp->iov_base = (ptr);                           \
-      iovp->iov_len = (len);                            \
-      uio.uio_resid += (len);                           \
-      iovp++;                                           \
-      if (++uio.uio_iovcnt >= NIOV) {                   \
-         if (__sprint(&sbuf, &uio))                     \
-            goto error;                                 \
-         iovp = iov;                                    \
-      }                                                 \
-   }
-#define   PAD(howmany, with) {                  \
-      if ((n = (howmany)) > 0) {                \
-         while (n > PADSIZE) {                  \
-            PRINT(with, PADSIZE);               \
-            n -= PADSIZE;                       \
-         }                                      \
-         PRINT(with, n);                        \
-      }                                         \
-   }
-#define   PRINTANDPAD(p, ep, len, with) do {    \
-      int n2 = (ep) - (p);                      \
-      if (n2 > (len))                           \
-         n2 = (len);                            \
-      if (n2 > 0)                               \
-         PRINT((p), n2);                        \
-      PAD((len) - (n2 > 0 ? n2 : 0), (with));   \
-   } while(0)
-#define   FLUSH() {                                                     \
-      if (uio.uio_resid && __sprint(&sbuf, &uio))                       \
-         goto error;                                                    \
-      uio.uio_iovcnt = 0;                                               \
-      iovp = iov;                                                       \
-   }
-
-#define FETCHARG(a, i) do { \
-   int ii = (i) - 1; \
-   if (ii >= numArgs) { \
-      sbuf.error = TRUE; \
-      goto error; \
-   } \
-   (a) = args + ii; \
-} while (FALSE)
-
-   /*
-    * Get * arguments, including the form *nn$.
-    */
-#define GETASTER(val) do { \
-   int n2 = 0; \
-   char *cp = fmt; \
-   const MsgFmt_Arg *a; \
-   while (is_digit(*cp)) { \
-      n2 = 10 * n2 + to_digit(*cp); \
-      cp++; \
-   } \
-   if (*cp == '$') { \
-      FETCHARG(a, n2); \
-      fmt = cp + 1; \
-   } else { \
-      FETCHARG(a, nextarg++); \
-   } \
-   if (a->type != MSGFMT_ARG_INT32) { \
-      sbuf.error = TRUE; \
-      goto error; \
-   } \
-   val = a->v.signed32; \
-} while (FALSE)
-
-   xdigs = xdigs_lower;
-   thousands_sep = '\0';
-   grouping = NULL;
-   convbuf = NULL;
-#ifndef NO_FLOATING_POINT
-   dtoaresult = NULL;
-   decimal_point = localeconv()->decimal_point;
-#endif
-
-   fmt = (char *)fmt0;
-   nextarg = 1;
-   uio.uio_iov = iovp = iov;
-   uio.uio_resid = 0;
-   uio.uio_iovcnt = 0;
-   ret = 0;
-
-   /*
-    * Set up output string buffer structure.
-    */
-
-   sbuf.alloc = *outbuf == NULL;
-   sbuf.error = FALSE;
-   sbuf.buf = *outbuf;
-   sbuf.size = bufSize;
-   sbuf.index = 0;
-
-   /*
-    * If asprintf(), allocate initial buffer based on format length.
-    * Empty format only needs one byte.
-    * Otherwise, round up to multiple of 64.
-    */
-
-   if (sbuf.alloc) {
-      size_t n = strlen(fmt0) + 1;	// +1 for \0
-      if (n > 1) {
-	 n = ROUNDUP(n, 64);
-      }
-      if ((sbuf.buf = malloc(n * sizeof (char))) == NULL) {
-	 sbuf.error = TRUE;
-	 goto error;
-      }
-      sbuf.size = n;
-   }
-
-   // shut compile up
-#ifndef NO_FLOATING_POINT
-   expchar = 0;
-   expsize = 0;
-   lead = 0;
-   ndig = 0;
-   nseps = 0;
-   nrepeats = 0;
-#endif
-   ujval = 0;
-
-   /*
-    * Scan the format for conversions (`%' character).
-    */
-   for (;;) {
-      for (cp = fmt; (ch = *fmt) != '\0' && ch != '%'; fmt++)
-         /* void */;
-      if ((n = fmt - cp) != 0) {
-         if ((unsigned)ret + n > INT_MAX) {
-            ret = EOF;
-            goto error;
-         }
-         PRINT(cp, n);
-         ret += n;
-      }
-      if (ch == '\0')
-         goto done;
-      fmt++;      /* skip over '%' */
-
-      flags = 0;
-      dprec = 0;
-      width = 0;
-      prec = -1;
-      sign = '\0';
-      ox[1] = '\0';
-
-     rflag:      ch = *fmt++;
-     reswitch:   switch (ch) {
-      case ' ':
-         /*-
-          * ``If the space and + flags both appear, the space
-          * flag will be ignored.''
-          *   -- ANSI X3J11
-          */
-         if (!sign)
-            sign = ' ';
-         goto rflag;
-      case '#':
-         flags |= ALT;
-         goto rflag;
-      case '*':
-         /*-
-          * ``A negative field width argument is taken as a
-          * - flag followed by a positive field width.''
-          *   -- ANSI X3J11
-          * They don't exclude field widths read from args.
-          */
-         GETASTER (width);
-         if (width >= 0)
-            goto rflag;
-         width = -width;
-         /* FALLTHROUGH */
-      case '-':
-         flags |= LADJUST;
-         goto rflag;
-      case '+':
-         sign = '+';
-         goto rflag;
-      case '\'':
-         flags |= GROUPING;
-         thousands_sep = *(localeconv()->thousands_sep);
-         grouping = localeconv()->grouping;
-         goto rflag;
-      case '.':
-         if ((ch = *fmt++) == '*') {
-            GETASTER (prec);
-            goto rflag;
-         }
-         prec = 0;
-         while (is_digit(ch)) {
-            prec = 10 * prec + to_digit(ch);
-            ch = *fmt++;
-         }
-         goto reswitch;
-      case '0':
-         /*-
-          * ``Note that 0 is taken as a flag, not as the
-          * beginning of a field width.''
-          *   -- ANSI X3J11
-          */
-         flags |= ZEROPAD;
-         goto rflag;
-      case '1': case '2': case '3': case '4':
-      case '5': case '6': case '7': case '8': case '9':
-         n = 0;
-         do {
-            n = 10 * n + to_digit(ch);
-            ch = *fmt++;
-         } while (is_digit(ch));
-         if (ch == '$') {
-            nextarg = n;
-            goto rflag;
-         }
-         width = n;
-         goto reswitch;
-      case 'h':
-         if (flags & SHORTINT) {
-            flags &= ~SHORTINT;
-            flags |= CHARINT;
-         } else
-            flags |= SHORTINT;
-         goto rflag;
-      case 'j':
-         flags |= INTMAXT;
-         goto rflag;
-      case 'I':
-         /* could be I64 - long long int is 64bit */
-         if (fmt[0] == '6' && fmt[1] == '4') {
-            fmt += 2;
-            flags |= LLONGINT;
-            goto rflag;
-         }
-         /* could be I32 - normal int is 32bit */
-         if (fmt[0] == '3' && fmt[1] == '2') {
-            fmt += 2;
-            /* flags |= normal integer - it is 32bit for all our targets */
-            goto rflag;
-         }
-         /*
-          * I alone - use Microsoft's semantic as size_t modifier.  We do
-          * not support glibc's semantic to use alternative digits.
-          */
-         flags |= SIZET;
-         goto rflag;
-      case 'l':
-         if (flags & LONGINT) {
-            flags &= ~LONGINT;
-            flags |= LLONGINT;
-         } else
-            flags |= LONGINT;
-         goto rflag;
-      case 'L':
-      case 'q':
-         flags |= LLONGINT;   /* not necessarily */
-         goto rflag;
-      case 't':
-         flags |= PTRDIFFT;
-         goto rflag;
-      case 'Z':
-      case 'z':
-         flags |= SIZET;
-         goto rflag;
-      case 'C':
-         flags |= LONGINT;
-         /*FALLTHROUGH*/
-      case 'c':
-	 FETCHARG(a, nextarg++);
-	 if (a->type != MSGFMT_ARG_INT32) {
-	    sbuf.error = TRUE;
-	    goto error;
-	 }
-         if (flags & LONGINT) {
-            static const mbstate_t initial;
-            mbstate_t mbs;
-            size_t mbseqlen;
-
-	    mbs = initial;
-	    // XXX must deal with mismatch between wchar_t size
-            mbseqlen = wcrtomb(cp = buf, (wchar_t)a->v.signed32, &mbs);
-            if (mbseqlen == (size_t)-1) {
-               sbuf.error = TRUE;
-               goto error;
-            }
-            size = (int)mbseqlen;
-         } else {
-            *(cp = buf) = a->v.signed32;
-            size = 1;
-         }
-         sign = '\0';
-         break;
-      case 'D':
-         flags |= LONGINT;
-         /*FALLTHROUGH*/
-      case 'd':
-      case 'i':
-	 FETCHARG(a, nextarg++);
-	 if ((flags & (INTMAXT|LLONGINT)) != 0) {
-	    if (a->type == MSGFMT_ARG_INT64) {
-	       ujval = a->v.signed64;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else if ((flags & (SIZET|PTRDIFFT|LONGINT)) != 0) {
-	    if (a->type == MSGFMT_ARG_INT64) {
-	       ujval = a->v.signed64;
-	    } else if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) a->v.signed32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else if ((flags & SHORTINT) != 0) {
-	    if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) (short) a->v.signed32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else if ((flags & CHARINT) != 0) {
-	    if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) (signed char) a->v.signed32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else {
-	    if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) a->v.signed32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 }
-	 if ((intmax_t)ujval < 0) {
-	    ujval = -ujval;
-	    sign = '-';
-	 }
-         base = 10;
-         goto number;
-#ifndef NO_FLOATING_POINT
-      case 'e':
-      case 'E':
-         expchar = ch;
-         if (prec < 0)   /* account for digit before decpt */
-            prec = DEFPREC + 1;
-         else
-            prec++;
-         goto fp_begin;
-      case 'f':
-      case 'F':
-         expchar = '\0';
-         goto fp_begin;
-      case 'g':
-      case 'G':
-         expchar = ch - ('g' - 'e');
-         if (prec == 0)
-            prec = 1;
-      fp_begin:
-         if (flags & LLONGINT) {
-	    sbuf.error = TRUE;
-	    goto error;
-	 }
-         if (prec < 0)
-            prec = DEFPREC;
-         if (dtoaresult != NULL)
-            freedtoa(dtoaresult);
-	 FETCHARG(a, nextarg++);
-	 if (a->type != MSGFMT_ARG_FLOAT64) {
-	    sbuf.error = TRUE;
-	    goto error;
-	 }
-	 fparg.dbl = a->v.float64;
-	 dtoaresult = cp =
-	    dtoa(fparg.dbl, expchar ? 2 : 3, prec,
-		 &expt, &signflag, &dtoaend);
-	 if (expt == 9999)
-	    expt = INT_MAX;
-         if (signflag)
-            sign = '-';
-         if (expt == INT_MAX) {   /* inf or nan */
-            if (*cp == 'N') {
-               cp = (ch >= 'a') ? "nan" : "NAN";
-               sign = '\0';
-            } else
-               cp = (ch >= 'a') ? "inf" : "INF";
-            size = 3;
-            break;
-         }
-         flags |= FPT;
-         ndig = dtoaend - cp;
-         if (ch == 'g' || ch == 'G') {
-            if (expt > -4 && expt <= prec) {
-               /* Make %[gG] smell like %[fF] */
-               expchar = '\0';
-               if (flags & ALT)
-                  prec -= expt;
-               else
-                  prec = ndig - expt;
-               if (prec < 0)
-                  prec = 0;
-            } else {
-               /*
-                * Make %[gG] smell like %[eE], but
-                * trim trailing zeroes if no # flag.
-                */
-               if (!(flags & ALT))
-                  prec = ndig;
-            }
-         }
-         if (expchar) {
-            expsize = exponent(expstr, expt - 1, expchar);
-            size = expsize + prec;
-            if (prec > 1 || flags & ALT)
-               ++size;
-         } else {
-            /* space for digits before decimal point */
-            if (expt > 0)
-               size = expt;
-            else   /* "0" */
-               size = 1;
-            /* space for decimal pt and following digits */
-            if (prec || flags & ALT)
-               size += prec + 1;
-            if (grouping && expt > 0) {
-               /* space for thousands' grouping */
-               nseps = nrepeats = 0;
-               lead = expt;
-               while (*grouping != CHAR_MAX) {
-                  if (lead <= *grouping)
-                     break;
-                  lead -= *grouping;
-                  if (*(grouping+1)) {
-                     nseps++;
-                     grouping++;
-                  } else
-                     nrepeats++;
-               }
-               size += nseps + nrepeats;
-            } else
-               lead = expt;
-         }
-         break;
-#endif /* !NO_FLOATING_POINT */
-      case 'n':
-	 sbuf.error = TRUE;
-	 goto error;
-      case 'O':
-         flags |= LONGINT;
-         /*FALLTHROUGH*/
-      case 'o':
-         base = 8;
-         goto get_unsigned;
-      case 'p':
-         /*-
-          * ``The argument shall be a pointer to void.  The
-          * value of the pointer is converted to a sequence
-          * of printable characters, in an implementation-
-          * defined manner.''
-          *   -- ANSI X3J11
-          */
-	 FETCHARG(a, nextarg++);
-	 if (a->type == MSGFMT_ARG_PTR32) {
-	    ujval = a->v.unsigned32;
-	 } else if (a->type == MSGFMT_ARG_PTR64) {
-	    ujval = a->v.unsigned64;
-	 } else {
-	    sbuf.error = TRUE;
-	    goto error;
-	 }
-         base = 16;
-         xdigs = xdigs_upper;
-         flags = flags | INTMAXT;
-         /*
-          * PR 103201
-          * VisualC sscanf doesn't grok '0x', so prefix zeroes.
-          */
-//         ox[1] = 'x';
-         goto nosign;
-      case 'S':
-         flags |= LONGINT;
-         /*FALLTHROUGH*/
-      case 's':
-	 FETCHARG(a, nextarg++);
-         if (flags & LONGINT) {
-            wchar_t *wcp;
-
-	    ASSERT_ON_COMPILE(sizeof (wchar_t) == 2 || sizeof (wchar_t) == 4);
-	    if (sizeof (wchar_t) == 2 ?
-		a->type != MSGFMT_ARG_STRING16 :
-		a->type != MSGFMT_ARG_STRING32) {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-            if (convbuf != NULL)
-               free(convbuf);
-            if ((wcp = (wchar_t *) a->v.ptr) == NULL)
-               cp = "(null)";
-            else {
-               convbuf = __wcsconv(wcp, prec);
-               if (convbuf == NULL) {
-                  sbuf.error = TRUE;
-                  goto error;
-               }
-               cp = convbuf;
-            }
-         } else if ((cp = a->v.string8) == NULL)
-            cp = "(null)";
-         if (prec >= 0) {
-            /*
-             * can't use strlen; can only look for the
-             * NUL in the first `prec' characters, and
-             * strlen() will go further.
-             */
-            char *p = memchr(cp, 0, (size_t)prec);
-
-            if (p != NULL) {
-               size = p - cp;
-               if (size > prec)
-                  size = prec;
-            } else
-               size = prec;
-         } else
-            size = strlen(cp);
-         sign = '\0';
-         break;
-      case 'U':
-         flags |= LONGINT;
-         /*FALLTHROUGH*/
-      case 'u':
-         base = 10;
-         goto get_unsigned;
-      case 'X':
-         xdigs = xdigs_upper;
-         goto hex;
-      case 'x':
-         xdigs = xdigs_lower;
-      hex:
-         base = 16;
-         if (flags & ALT)
-            ox[1] = ch;
-         flags &= ~GROUPING;
-
-      get_unsigned:
-	 FETCHARG(a, nextarg++);
-	 if ((flags & (INTMAXT|LLONGINT)) != 0) {
-	    if (a->type == MSGFMT_ARG_INT64) {
-	       ujval = a->v.unsigned64;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else if ((flags & (SIZET|PTRDIFFT|LONGINT)) != 0) {
-	    if (a->type == MSGFMT_ARG_INT64) {
-	       ujval = a->v.unsigned64;
-	    } else if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (uintmax_t) a->v.unsigned32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else if ((flags & SHORTINT) != 0) {
-	    if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) (unsigned short) a->v.unsigned32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else if ((flags & CHARINT) != 0) {
-	    if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) (unsigned char) a->v.unsigned32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 } else {
-	    if (a->type == MSGFMT_ARG_INT32) {
-	       ujval = (intmax_t) a->v.unsigned32;
-	    } else {
-	       sbuf.error = TRUE;
-	       goto error;
-	    }
-	 }
-         if (ujval == 0) /* squash 0x/X if zero */
-            ox[1] = '\0';
-
-         /* unsigned conversions */
-      nosign:
-	 sign = '\0';
-         /*-
-          * ``... diouXx conversions ... if a precision is
-          * specified, the 0 flag will be ignored.''
-          *   -- ANSI X3J11
-          */
-      number:
-	 if ((dprec = prec) >= 0)
-            flags &= ~ZEROPAD;
-
-         /*-
-          * ``The result of converting a zero value with an
-          * explicit precision of zero is no characters.''
-          *   -- ANSI X3J11
-          *
-          * ``The C Standard is clear enough as is.  The call
-          * printf("%#.0o", 0) should print 0.''
-          *   -- Defect Report #151
-          */
-         cp = buf + BUF;
-	 if (ujval != 0 || prec != 0 ||
-	     (flags & ALT && base == 8))
-	    cp = __ujtoa(ujval, cp, base,
-			 flags & ALT, xdigs,
-			 flags & GROUPING, thousands_sep,
-			 grouping);
-         size = buf + BUF - cp;
-         if (size > BUF)   /* should never happen */
-            abort();
-         break;
-      default:   /* "%?" prints ?, unless ? is NUL */
-         if (ch == '\0')
-            goto done;
-         /* pretend it was %c with argument ch */
-         cp = buf;
-         *cp = ch;
-         size = 1;
-         sign = '\0';
-         break;
-      }
-
-      /*
-       * All reasonable formats wind up here.  At this point, `cp'
-       * points to a string which (if not flags&LADJUST) should be
-       * padded out to `width' places.  If flags&ZEROPAD, it should
-       * first be prefixed by any sign or other prefix; otherwise,
-       * it should be blank padded before the prefix is emitted.
-       * After any left-hand padding and prefixing, emit zeroes
-       * required by a decimal [diouxX] precision, then print the
-       * string proper, then emit zeroes required by any leftover
-       * floating precision; finally, if LADJUST, pad with blanks.
-       *
-       * Compute actual size, so we know how much to pad.
-       * size excludes decimal prec; realsz includes it.
-       */
-      realsz = dprec > size ? dprec : size;
-      if (sign)
-         realsz++;
-      if (ox[1])
-         realsz += 2;
-
-      prsize = width > realsz ? width : realsz;
-      if ((unsigned)ret + prsize > INT_MAX) {
-         ret = EOF;
-         goto error;
-      }
-
-      /* right-adjusting blank padding */
-      if ((flags & (LADJUST|ZEROPAD)) == 0)
-         PAD(width - realsz, blanks);
-
-      /* prefix */
-      if (sign)
-         PRINT(&sign, 1);
-
-      if (ox[1]) {   /* ox[1] is either x, X, or \0 */
-         ox[0] = '0';
-         PRINT(ox, 2);
-      }
-
-      /* right-adjusting zero padding */
-      if ((flags & (LADJUST|ZEROPAD)) == ZEROPAD)
-         PAD(width - realsz, zeroes);
-
-      /* leading zeroes from decimal precision */
-      PAD(dprec - size, zeroes);
-
-      /* the string or number proper */
-#ifndef NO_FLOATING_POINT
-      if ((flags & FPT) == 0) {
-         PRINT(cp, size);
-      } else {   /* glue together f_p fragments */
-         if (!expchar) {   /* %[fF] or sufficiently short %[gG] */
-            if (expt <= 0) {
-               PRINT(zeroes, 1);
-               if (prec || flags & ALT)
-                  PRINT(decimal_point, 1);
-               PAD(-expt, zeroes);
-               /* already handled initial 0's */
-               prec += expt;
-            } else {
-               PRINTANDPAD(cp, dtoaend, lead, zeroes);
-               cp += lead;
-               if (grouping) {
-                  while (nseps>0 || nrepeats>0) {
-                     if (nrepeats > 0)
-                        nrepeats--;
-                     else {
-                        grouping--;
-                        nseps--;
-                     }
-                     PRINT(&thousands_sep,
-                           1);
-                     PRINTANDPAD(cp,dtoaend,
-                                 *grouping, zeroes);
-                     cp += *grouping;
-                  }
-                  if (cp > dtoaend)
-                     cp = dtoaend;
-               }
-               if (prec || flags & ALT)
-                  PRINT(decimal_point,1);
-            }
-            PRINTANDPAD(cp, dtoaend, prec, zeroes);
-         } else {   /* %[eE] or sufficiently long %[gG] */
-            if (prec > 1 || flags & ALT) {
-               buf[0] = *cp++;
-               buf[1] = *decimal_point;
-               PRINT(buf, 2);
-               PRINT(cp, ndig-1);
-               PAD(prec - ndig, zeroes);
-            } else   /* XeYYY */
-               PRINT(cp, 1);
-            PRINT(expstr, expsize);
-         }
-      }
-#else
-      PRINT(cp, size);
-#endif
-      /* left-adjusting padding (always blank) */
-      if (flags & LADJUST)
-         PAD(width - realsz, blanks);
-
-      /* finally, adjust ret */
-      ret += prsize;
-
-      FLUSH();   /* copy out the I/O vectors */
-   }
-done:
-   FLUSH();
-
-   /*
-    * Always null terminate, unless buffer is size 0.
-    */
-
-   ASSERT(!sbuf.error && ret >= 0);
-   if (sbuf.size <= 0) {
-      ASSERT(!sbuf.alloc);
-   } else {
-      ASSERT(sbuf.index < sbuf.size);
-      sbuf.buf[sbuf.index] = '\0';
-   }
-
-error:
-#ifndef NO_FLOATING_POINT
-   if (dtoaresult != NULL)
-      freedtoa(dtoaresult);
-#endif
-   if (convbuf != NULL)
-      free(convbuf);
-   if (sbuf.error) {
-      ret = EOF;
-   }
-
-   // return allocated buffer on success, free it on failure
-   if (sbuf.alloc) {
-      if (ret < 0) {
-	 free(sbuf.buf);
-      } else {
-	 *outbuf = sbuf.buf;
-      }
-   }
-
-   return (ret);
-   /* NOTREACHED */
-
-#undef PRINT
-#undef PAD
-#undef PRINTANDPAD
-#undef FLUSH
-#undef FETCHARG
-#undef GETASTER
-}
-
-
-#ifndef NO_FLOATING_POINT
-
-static int
-exponent(char *p0, int exp, int fmtch)
+BSDFmt_Exponent(char *p0, int exp, int fmtch)
 {
    char *p, *t;
    char expbuf[MAXEXPDIG];

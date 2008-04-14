@@ -57,4 +57,5 @@
 #define VMNET_CAP_RX_CHAIN      0x8000  /* a pkt can span multiple rx entries */
 #define VMNET_CAP_LPD           0x10000 /* large pkt delivery */
 #define VMNET_CAP_BPF           0x20000 /* BPF Support in VMXNET Virtual Hardware */
+#define VMNET_CAP_SG_SPAN_PAGES 0x40000	/* Can do scatter-gather span multiple pages transmits. */
 #endif // _VMNET_DEF_H_

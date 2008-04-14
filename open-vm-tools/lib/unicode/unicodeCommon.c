@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -55,9 +55,9 @@ static const int NonPrintableBytesToEscape[256] = {
 };
 
 
-static char * UnicodeEscapeBuffer(const void *buffer,
-                                  ssize_t lengthInBytes,
-                                  StringEncoding encoding);
+char * Unicode_EscapeBuffer(const void *buffer,
+                            ssize_t lengthInBytes,
+                            StringEncoding encoding);
 static Bool UnicodeSanityCheck(const void *buffer,
                                ssize_t lengthInBytes,
                                StringEncoding encoding);
@@ -65,7 +65,7 @@ static Bool UnicodeSanityCheck(const void *buffer,
 /*
  *-----------------------------------------------------------------------------
  *
- * UnicodeEscapeBuffer --
+ * Unicode_EscapeBuffer --
  *
  *      Escape non-printable bytes of the buffer with \xAB, where 0xAB
  *      is the non-printable byte value.
@@ -81,9 +81,9 @@ static Bool UnicodeSanityCheck(const void *buffer,
  */
 
 char *
-UnicodeEscapeBuffer(const void *buffer,      // IN
-                    ssize_t lengthInBytes,   // IN
-                    StringEncoding encoding) // IN
+Unicode_EscapeBuffer(const void *buffer,      // IN
+                     ssize_t lengthInBytes,   // IN
+                     StringEncoding encoding) // IN
 {
    if (lengthInBytes == -1) {
       switch (encoding) {
@@ -252,6 +252,43 @@ Unicode_UTF16Strlen(const utf16_t *utf16) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * Unicode_UTF16Strdup --
+ *
+ *      Duplicates a UTF-16 string.
+ *
+ * Results:
+ *      Returns an allocated copy of the input UTF-16 string.  The caller
+ *      is responsible for freeing it.
+ *
+ *      Panics on failure.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+utf16_t *
+Unicode_UTF16Strdup(const utf16_t *utf16) // IN: May be NULL.
+{
+   ssize_t numBytes;
+   utf16_t *copy;
+
+   // Follow Util_SafeStrdup semantics.
+   if (utf16 == NULL) {
+      return NULL;
+   }
+
+   numBytes = (Unicode_UTF16Strlen(utf16) + 1 /* NUL */) * sizeof *copy;
+   copy = Util_SafeMalloc(numBytes);
+   memcpy(copy, utf16, numBytes);
+   return copy;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Unicode_AllocWithLength --
  *
  *      Allocates a new Unicode string given a buffer with both length
@@ -261,17 +298,21 @@ Unicode_UTF16Strlen(const utf16_t *utf16) // IN
  *      Otherwise, buffer must be of the specified length, but does
  *      not need to be NUL-terminated.
  *
+ *	If buffer is NULL, then NULL is returned.
+ *	In this case, lengthInBytes must be 0 or -1, consistent with
+ *	an empty string.
+ *
  *      Note that regardless of the encoding of the buffer passed to this
  *      function, the returned string can hold any Unicode characters.
  *
  *      If the buffer contains an invalid sequence of the specified
  *      encoding or memory could not be allocated, logs the buffer,
- *      ASSERTs and returns NULL (for non-debug builds).
+ *      and panics.
  *
  * Results:
  *      An allocated Unicode string containing the decoded characters
- *      in buffer, or NULL on failure.  Caller must pass the string to
- *      Unicode_Free to free.
+ *      in buffer, or NULL if input is NULL.
+ *	Caller must pass the string to Unicode_Free to free.
  *
  * Side effects:
  *      None
@@ -284,44 +325,34 @@ Unicode_AllocWithLength(const void *buffer,      // IN
                         ssize_t lengthInBytes,   // IN
                         StringEncoding encoding) // IN
 {
-   Unicode result = NULL;
    char *escapedBuffer;
 
    ASSERT(lengthInBytes >= 0 || lengthInBytes == -1);
 
-   if (lengthInBytes < 0 && lengthInBytes != -1) {
+   if (buffer == NULL) {
+      ASSERT(lengthInBytes <= 0);
       return NULL;
    }
 
    if (UnicodeSanityCheck(buffer, lengthInBytes, encoding)) {
-      result = UnicodeAllocInternal(buffer, lengthInBytes, encoding);
+      Unicode result = UnicodeAllocInternal(buffer, lengthInBytes, encoding);
+      if (result != NULL) {
+	 return result;
+      }
    }
 
-   if (result) {
-      // Success!  We've allocated the Unicode string and can return.
-      return result;
-   }
+   /*
+    * Log and panic on failure.
+    */
 
-   // Failure. Log the buffer, ASSERT, and return (in non-debug builds).
-   escapedBuffer = UnicodeEscapeBuffer(buffer,
-                                       lengthInBytes,
-                                       encoding);
-
-   Log("%s: Error: Couldn't convert invalid buffer [%s] from %s to Unicode.\n",
+   escapedBuffer = Unicode_EscapeBuffer(buffer, lengthInBytes, encoding);
+   Log("%s: Error: Couldn't convert invalid buffer [%s] "
+       "from %s to Unicode.\n",
        __FUNCTION__,
        escapedBuffer ? escapedBuffer : "(couldn't escape bytes)",
        Unicode_EncodingEnumToName(encoding));
-
    free(escapedBuffer);
-
-   /*
-    * Invalid input bytes are fatal in debug builds.  If you need
-    * to sanity check an input array for validity, call
-    * Unicode_IsBufferValid() before allocating this string.
-    */
-   ASSERT(FALSE);
-
-   return NULL;
+   PANIC();
 }
 
 
@@ -331,6 +362,10 @@ Unicode_AllocWithLength(const void *buffer,      // IN
  * Unicode_IsBufferValid --
  *
  *      Tests if the given buffer is valid in the specified encoding.
+ *
+ *      If lengthInBytes is -1, then buffer must be NUL-terminated.
+ *      Otherwise, buffer must be of the specified length, but does
+ *      not need to be NUL-terminated.
  *
  * Results:
  *      TRUE if the buffer is valid, FALSE if it's not.
@@ -360,4 +395,35 @@ Unicode_IsBufferValid(const void *buffer,      // IN
       Unicode_Free(result);
       return TRUE;
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_CanGetBytesWithEncoding --
+ *
+ *      Tests if the given Unicode string can be converted
+ *      losslessly to the specified encoding.
+ *
+ * Results:
+ *      TRUE if the string can be converted, FALSE if it cannot.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN
+                                StringEncoding encoding)  // IN
+{
+   char *tmp;
+
+   if ((tmp = Unicode_GetAllocBytes(ustr, encoding)) == NULL) {
+      return FALSE;
+   }
+   free(tmp);
+   return TRUE;
 }

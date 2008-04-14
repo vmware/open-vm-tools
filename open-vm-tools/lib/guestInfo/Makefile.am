@@ -20,7 +20,9 @@ noinst_LIBRARIES = libGuestInfo.a
 libGuestInfo_a_SOURCES =
 libGuestInfo_a_SOURCES += guestInfoServer.c
 libGuestInfo_a_SOURCES += guestInfoPosix.c
+libGuestInfo_a_SOURCES += guestInfoPerfMonLinux.c
 
 AM_CFLAGS =
 AM_CFLAGS += @COMMON_CFLAGS@
 AM_CFLAGS += $(DNET_CFLAGS)
+AM_CFLAGS += $(PROCPS_CFLAGS)

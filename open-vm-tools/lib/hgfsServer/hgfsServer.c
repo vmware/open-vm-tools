@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -304,7 +304,7 @@ HgfsHandle2AppendFlag(HgfsHandle handle,   // IN: Hgfs file handle
       goto exit;
    }
 
-   *appendFlag = fileNode->appendFlag;
+   *appendFlag = fileNode->flags & FILE_NODE_APPEND_FL;
    found = TRUE;
 
 exit:
@@ -653,11 +653,9 @@ HgfsGetNodeCopy(HgfsHandle handle,        // IN: Hgfs file handle
    copy->fileDesc = original->fileDesc;
    copy->mode = original->mode;
    copy->shareAccess = original->shareAccess;
-   copy->appendFlag = original->appendFlag;
+   copy->flags = original->flags;
    copy->state = original->state;
-   copy->sequentialOpen = original->sequentialOpen;
    copy->handle = original->handle;
-   copy->sharedFolderOpen = original->sharedFolderOpen;
    found = TRUE;
 
 exit:
@@ -698,7 +696,7 @@ HgfsHandleIsSequentialOpen(HgfsHandle handle,     // IN:  Hgfs file handle
       goto exit;
    }
 
-   *sequentialOpen = node->sequentialOpen;
+   *sequentialOpen = node->flags & FILE_NODE_SEQUENTIAL_FL;
    success = TRUE;
 
 exit:
@@ -739,7 +737,7 @@ HgfsHandleIsSharedFolderOpen(HgfsHandle handle,       // IN:  Hgfs file handle
       goto exit;
    }
 
-   *sharedFolderOpen = node->sharedFolderOpen;
+   *sharedFolderOpen = node->flags & FILE_NODE_SHARED_FOLDER_OPEN_FL;
    success = TRUE;
 
 exit:
@@ -861,7 +859,9 @@ HgfsUpdateNodeAppendFlag(HgfsHandle handle, // IN: Hgfs file handle
       goto exit;
    }
 
-   node->appendFlag = appendFlag;
+   if (appendFlag) {
+      node->flags |= FILE_NODE_APPEND_FL;
+   }
    updated = TRUE;
 
 exit:
@@ -1199,16 +1199,23 @@ HgfsAddNewFileNode(HgfsFileOpenInfo *openInfo,  // IN: open info struct
    newNode->utf8Name[newNode->utf8NameLen] = '\0';
 
    newNode->handle = hgfsHandleCounter++;
-   newNode->sequentialOpen =
-      HGFS_OPEN_MODE_FLAGS(openInfo->mode) & HGFS_OPEN_SEQUENTIAL;
    newNode->localId = *localId;
    newNode->fileDesc = fileDesc;
    newNode->shareAccess = (openInfo->mask & HGFS_OPEN_VALID_SHARE_ACCESS) ?
       openInfo->shareAccess : HGFS_DEFAULT_SHARE_ACCESS;
-   newNode->appendFlag = append;
+   newNode->flags = 0;
+   if (append) {
+      newNode->flags |= FILE_NODE_APPEND_FL;
+   }
+   if (sharedFolderOpen) {
+      newNode->flags |= FILE_NODE_SHARED_FOLDER_OPEN_FL;
+   }
+   if (HGFS_OPEN_MODE_FLAGS(openInfo->mode) & HGFS_OPEN_SEQUENTIAL) {
+      newNode->flags |= FILE_NODE_SEQUENTIAL_FL; 
+   }
+
    newNode->serverLock = openInfo->acquiredLock;
    newNode->state = FILENODE_STATE_IN_USE_NOT_CACHED;
-   newNode->sharedFolderOpen = sharedFolderOpen;
 
    LOG(4, ("HgfsAddNewFileNode: got new node, handle %u\n",
            HgfsFileNode2Handle(newNode)));
@@ -2071,18 +2078,37 @@ static struct {
    { HgfsServerDeleteDir,        sizeof (HgfsRequestDelete)            },
    { HgfsServerRename,           sizeof (HgfsRequestRename)            },
    { HgfsServerQueryVolume,      sizeof (HgfsRequestQueryVolume)       },
+
    { HgfsServerOpen,             sizeof (HgfsRequestOpenV2)            },
    { HgfsServerGetattr,          sizeof (HgfsRequestGetattrV2)         },
-   { HgfsServerSetattr,          sizeof (HgfsRequestSetattrV2),        },
-   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchReadV2),     },
-   { HgfsServerSymlinkCreate,    sizeof (HgfsRequestSymlinkCreate),    },
-   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange), },
-   { HgfsServerCreateDir,        sizeof (HgfsRequestCreateDirV2),      },
-   { HgfsServerDeleteFile,       sizeof (HgfsRequestDeleteV2)        },
-   { HgfsServerDeleteDir,        sizeof (HgfsRequestDeleteV2)        },
-   { HgfsServerRename,           sizeof (HgfsRequestRenameV2)        },
+   { HgfsServerSetattr,          sizeof (HgfsRequestSetattrV2)         },
+   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchReadV2)      },
+   { HgfsServerSymlinkCreate,    sizeof (HgfsRequestSymlinkCreate)     },
+   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange)  },
+   { HgfsServerCreateDir,        sizeof (HgfsRequestCreateDirV2)       },
+   { HgfsServerDeleteFile,       sizeof (HgfsRequestDeleteV2)          },
+   { HgfsServerDeleteDir,        sizeof (HgfsRequestDeleteV2)          },
+   { HgfsServerRename,           sizeof (HgfsRequestRenameV2)          },
+
+   { HgfsServerOpen,             (sizeof (HgfsRequestOpenV3) + sizeof (HgfsRequest))          },
+   { HgfsServerRead,             (sizeof (HgfsRequestReadV3) + sizeof (HgfsRequest))          },
+   { HgfsServerWrite,            (sizeof (HgfsRequestWriteV3) + sizeof (HgfsRequest))         },
+   { HgfsServerClose,            (sizeof (HgfsRequestCloseV3) + sizeof (HgfsRequest))         },
+   { HgfsServerSearchOpen,       (sizeof (HgfsRequestSearchOpenV3) + sizeof (HgfsRequest))    },
+   { HgfsServerSearchRead,       (sizeof (HgfsRequestSearchReadV3) + sizeof (HgfsRequest))    },
+   { HgfsServerSearchClose,      (sizeof (HgfsRequestSearchCloseV3) + sizeof (HgfsRequest))   },
+   { HgfsServerGetattr,          (sizeof (HgfsRequestGetattrV3) + sizeof (HgfsRequest))       },
+   { HgfsServerSetattr,          (sizeof (HgfsRequestSetattrV3) + sizeof (HgfsRequest))       },
+   { HgfsServerCreateDir,        (sizeof (HgfsRequestCreateDirV3) + sizeof (HgfsRequest))     },
+   { HgfsServerDeleteFile,       (sizeof (HgfsRequestDeleteV3) + sizeof (HgfsRequest))        },
+   { HgfsServerDeleteDir,        (sizeof (HgfsRequestDeleteV3) + sizeof (HgfsRequest))        },
+   { HgfsServerRename,           (sizeof (HgfsRequestRenameV3) + sizeof (HgfsRequest))        },
+   { HgfsServerQueryVolume,      (sizeof (HgfsRequestQueryVolumeV3) + sizeof (HgfsRequest))   },
+   { HgfsServerSymlinkCreate,    (sizeof (HgfsRequestSymlinkCreateV3) + sizeof (HgfsRequest)) },
+   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange)  },
 
 };
+
 
 
 /*
@@ -2376,16 +2402,18 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
  */
 
 HgfsNameStatus
-HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
-                    size_t cpNameSize, // IN:  Size of name cpName
-                    HgfsOpenMode mode, // IN:  Requested access mode
-                    char **bufOut,     // OUT: File name in local fs
-                    size_t *outLen)    // OUT: Length of name out
+HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filename to check
+                    size_t cpNameSize,             // IN:  Size of name cpName
+                    HgfsOpenMode mode,             // IN:  Requested access mode
+		    uint32 caseFlags,              // IN:  Case-sensitivity flags
+                    char **bufOut,                 // OUT: File name in local fs
+                    size_t *outLen,                // OUT: Length of name out
+                    HgfsSharedFolder **hgfsShare)  // OUT: Share
 {
    HgfsNameStatus nameStatus;
    char const *sharePath;
    char const *inEnd;
-   char const *next;
+   char *next;
    char *myBufOut;
    char *myBufOutCurrent;
    char *out;
@@ -2400,6 +2428,7 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
    size_t ansiLen;
    Bool result;
    char *savedPathSepPos;
+   HgfsSharedFolder *share;
    uint32 startIndex = 0;
 
    ASSERT(cpName);
@@ -2412,7 +2441,7 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
     * function so we'll have more control over the illegal characters, which,
     * for the share name, should be none.
     */
-   len = CPName_GetComponentGeneric(cpName, inEnd, "", &next);
+   len = CPName_GetComponentGeneric(cpName, inEnd, "", (char const **) &next);
    if (len < 0) {
       LOG(4, ("HgfsServerGetAccess: get first component failed\n"));
       return HGFS_NAME_STATUS_FAILURE;
@@ -2441,7 +2470,8 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
                                               ansiLen,
                                               mode,
                                               &sharePathLen,
-                                              &sharePath);
+                                              &sharePath,
+                                              &share);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerGetAccess: No such share (%s) or access denied\n",
               ansiName));
@@ -2481,7 +2511,7 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
        */
       tempSize = sizeof tempBuf;
       tempPtr = tempBuf;
-      nameStatus = CPName_ConvertFromRoot(&cpName,
+      nameStatus = CPName_ConvertFromRoot((char const **) &cpName,
                                           &cpNameSize,
                                           &tempSize,
                                           &tempPtr);
@@ -2536,7 +2566,7 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
    tempSize = sizeof tempBuf;
    tempPtr = tempBuf;
 
-   if (CPName_ConvertFrom(&cpName, 
+   if (CPName_ConvertFrom((char const **) &cpName, 
                           &cpNameSize,
                           &tempSize,
                           &tempPtr) < 0) {
@@ -2568,6 +2598,10 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
    outSize -= pathNameLen;
    out += pathNameLen;
    *out = 0;
+
+   /* Convert file name to proper case as per the policy. */
+   LOG(4, ("HgfsServerGetAccess: %u\n", caseFlags));
+   HgfsServerConvertCase(share, caseFlags, myBufOut);
 
    /*
     * Verify that our path has no symlinks. We will only check up to the
@@ -2660,6 +2694,9 @@ HgfsServerGetAccess(char const *cpName,// IN:  Cross-platform filename to check
 
    LOG(4, ("HgfsServerGetAccess: name is \"%s\"\n", myBufOut));
 
+   if (hgfsShare) {
+      *hgfsShare = share;
+   }
    *bufOut = myBufOut;
    return HGFS_NAME_STATUS_COMPLETE;
 
@@ -3326,8 +3363,56 @@ HgfsUnpackOpenRequest(char const *packetIn,        // IN: request packet
    request = (HgfsRequest *)packetIn;
 
    openInfo->requestType = request->op;
+   openInfo->caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
 
    switch (openInfo->requestType) {
+   case HGFS_OP_OPEN_V3:
+      {
+          HgfsRequestOpenV3 *requestV3 =
+            (HgfsRequestOpenV3 *)(packetIn + sizeof *request);
+          LOG(4, ("HgfsUnpackOpenRequest: HGFS_OP_OPEN_V3\n"));
+      
+
+         /* Enforced by the dispatch function. */
+         ASSERT(packetSize >= sizeof *requestV3 + sizeof *request);
+         extra = packetSize - sizeof *requestV3 - sizeof *request;
+
+         if (!(requestV3->mask & HGFS_OPEN_VALID_FILE_NAME)) {
+            /* We do not support open requests without a valid file name. */
+            return FALSE;
+         }
+
+         /*
+          * requestV3->fileName.length is user-provided, so this test must be
+          * carefully written to prevent wraparounds.
+          */
+         if (requestV3->fileName.length > extra) {
+            /* The input packet is smaller than the request. */
+            return FALSE;
+         }
+
+         /*
+          * Copy all the fields into our carrier struct. Some will probably be
+          * garbage, but it's simpler to copy everything now and check the
+          * valid bits before reading later.
+          */
+         openInfo->mask = requestV3->mask;
+         openInfo->mode = requestV3->mode;
+         openInfo->cpName = requestV3->fileName.name;
+         openInfo->cpNameSize = requestV3->fileName.length;
+	 openInfo->caseFlags = requestV3->fileName.flags;
+         openInfo->flags = requestV3->flags;
+         openInfo->specialPerms = requestV3->specialPerms;
+         openInfo->ownerPerms = requestV3->ownerPerms;
+         openInfo->groupPerms = requestV3->groupPerms;
+         openInfo->otherPerms = requestV3->otherPerms;
+         openInfo->attr = requestV3->attr;
+         openInfo->allocationSize = requestV3->allocationSize;
+         openInfo->desiredAccess = requestV3->desiredAccess;
+         openInfo->shareAccess = requestV3->shareAccess;
+         openInfo->desiredLock = requestV3->desiredLock;
+         break;
+      }
    case HGFS_OP_OPEN_V2:
       {
          HgfsRequestOpenV2 *requestV2 =
@@ -3436,16 +3521,17 @@ HgfsPackOpenReply(HgfsFileOpenInfo *openInfo,   // IN: open info struct
    ASSERT(packetSize);
    ASSERT(openInfo);
 
-   if (openInfo->requestType == HGFS_OP_OPEN_V2) {
+   if (openInfo->requestType == HGFS_OP_OPEN) {
+      HgfsReplyOpen *reply = (HgfsReplyOpen *)packetOut;
+      reply->file = openInfo->file;
+      *packetSize = sizeof *reply;
+   } else {
+      /* Identical reply packet for V2 and V3. */
       HgfsReplyOpenV2 *reply = (HgfsReplyOpenV2 *)packetOut;
       reply->file = openInfo->file;
       if (openInfo->mask & HGFS_OPEN_VALID_SERVER_LOCK) {
          reply->acquiredLock = openInfo->acquiredLock;
       }
-      *packetSize = sizeof *reply;
-   } else {
-      HgfsReplyOpen *reply = (HgfsReplyOpen *)packetOut;
-      reply->file = openInfo->file;
       *packetSize = sizeof *reply;
    }
 
@@ -3483,10 +3569,9 @@ HgfsUnpackDeleteRequest(char const *packetIn,        // IN: request packet
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
                          HgfsDeleteHint *hints,      // OUT: delete hints
-                         HgfsHandle *file)           // OUT: file handle
+                         HgfsHandle *file,           // OUT: file handle
+			 uint32 *caseFlags)          // OUT: case-sensitivity flags
 {
-   HgfsRequestDelete *requestV1;
-   HgfsRequestDeleteV2 *requestV2;
    HgfsRequest *request;
    size_t extra;
 
@@ -3495,12 +3580,53 @@ HgfsUnpackDeleteRequest(char const *packetIn,        // IN: request packet
    ASSERT(cpNameSize);
    ASSERT(file);
    ASSERT(hints);
+   ASSERT(caseFlags);
 
    request = (HgfsRequest *)packetIn;
+   *caseFlags = HGFS_FILE_NAME_CASE_SENSITIVE;
 
    switch (request->op) {
+   case HGFS_OP_DELETE_FILE_V3:
+   case HGFS_OP_DELETE_DIR_V3: {
+      HgfsRequestDeleteV3 *requestV3;
+      
+      requestV3 = (HgfsRequestDeleteV3 *)(packetIn + sizeof *request);
+      LOG(4, ("HgfsUnpackDeleteRequest: HGFS_OP_DELETE_DIR_V3\n"));
+      
+      /* Enforced by the dispatch function. */
+      ASSERT(packetSize >= sizeof *requestV3 + sizeof *request);
+
+      *file = HGFS_INVALID_HANDLE;
+      *hints = requestV3->hints;
+
+      /* 
+       * If we've been asked to reuse a handle, we don't need to look at, let
+       * alone test the filename or its length.
+       */
+      if (*hints & HGFS_DELETE_HINT_USE_FILE_DESC) {
+         *file = requestV3->file;
+         *cpName = NULL;
+         *cpNameSize = 0;
+      } else {
+         extra = packetSize - sizeof *requestV3 - sizeof *request;
+
+         /*
+          * request->fileName.length is user-provided, so this test must be 
+          * carefully written to prevent wraparounds.
+          */
+         if (requestV3->fileName.length > extra) {
+            /* The input packet is smaller than the request */
+            return FALSE;
+         }
+         *cpName = requestV3->fileName.name;
+         *cpNameSize = requestV3->fileName.length;
+	 *caseFlags = requestV3->fileName.flags;
+      }
+      break;
+   }
    case HGFS_OP_DELETE_FILE_V2:
-   case HGFS_OP_DELETE_DIR_V2:
+   case HGFS_OP_DELETE_DIR_V2: {
+      HgfsRequestDeleteV2 *requestV2;
       requestV2 = (HgfsRequestDeleteV2 *)packetIn;
       
       /* Enforced by the dispatch function. */
@@ -3532,9 +3658,11 @@ HgfsUnpackDeleteRequest(char const *packetIn,        // IN: request packet
          *cpNameSize = requestV2->fileName.length;
       }
       break;
-
+   }
    case HGFS_OP_DELETE_FILE:
-   case HGFS_OP_DELETE_DIR:
+   case HGFS_OP_DELETE_DIR: {
+      HgfsRequestDelete *requestV1;
+      
       requestV1 = (HgfsRequestDelete *)packetIn;
 
       /* Enforced by the dispatch function. */
@@ -3553,7 +3681,7 @@ HgfsUnpackDeleteRequest(char const *packetIn,        // IN: request packet
       *cpName = requestV1->fileName.name;
       *cpNameSize = requestV1->fileName.length;
       break;
-
+   }
    default:
       return FALSE;
       break;
@@ -3628,10 +3756,13 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
                         uint32 *cpNewNameLen,       // OUT: rename dst size
                         HgfsRenameHint *hints,      // OUT: rename hints
                         HgfsHandle *srcFile,        // OUT: src file handle
-                        HgfsHandle *targetFile)     // OUT: target file handle
+                        HgfsHandle *targetFile,     // OUT: target file handle
+			uint32 *oldCaseFlags,       // OUT: source case-sensitivity flags
+			uint32 *newCaseFlags)       // OUT: dest. case-sensitivity flags
 {
    HgfsRequestRename *requestV1;
    HgfsRequestRenameV2 *requestV2;
+   HgfsRequestRenameV3 *requestV3;
    HgfsRequest *request;
    HgfsFileName *newName;
    size_t extra;
@@ -3644,6 +3775,8 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
    ASSERT(srcFile);
    ASSERT(targetFile);
    ASSERT(hints);
+   ASSERT(oldCaseFlags);
+   ASSERT(newCaseFlags);
 
    request = (HgfsRequest *)packetIn;
 
@@ -3660,6 +3793,64 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
     */
 
    switch (request->op) {
+   case HGFS_OP_RENAME_V3:
+      requestV3 = (HgfsRequestRenameV3 *)packetIn;
+      
+      /* Enforced by the dispatch function. */
+      ASSERT(packetSize >= sizeof *requestV3);
+      extra = packetSize - sizeof *requestV3;
+
+      *hints = requestV3->hints;
+
+      /* 
+       * If we've been asked to reuse a handle, we don't need to look at, let
+       * alone test the filename or its length. This applies to the source
+       * and the target.
+       */
+      if (*hints & HGFS_RENAME_HINT_USE_SRCFILE_DESC) {
+         *srcFile = requestV3->srcFile;
+         *cpOldName = NULL;
+         *cpOldNameLen = 0;
+	 *oldCaseFlags = 0;
+      } else {
+
+         /*
+          * request->fileName.length is user-provided, so this test must be 
+          * carefully written to prevent wraparounds.
+          */
+         if (requestV3->oldName.length > extra) {
+            /* The input packet is smaller than the request */
+            return FALSE;
+         }
+
+         /* It is now safe to use the old file name. */
+         *cpOldName = requestV3->oldName.name;
+         *cpOldNameLen = requestV3->oldName.length;
+	 *oldCaseFlags = requestV3->oldName.flags;
+      }
+      extra -= *cpOldNameLen;
+
+      if (*hints & HGFS_RENAME_HINT_USE_TARGETFILE_DESC) {
+         *targetFile = requestV3->targetFile;
+         *cpNewName = NULL;
+         *cpNewNameLen = 0;
+	 *newCaseFlags = 0;
+      } else {
+
+         newName = (HgfsFileName *)((char *)(&requestV3->oldName + 1)
+                                       + *cpOldNameLen);
+         if (newName->length > extra) {
+            /* The input packet is smaller than the request */
+            return FALSE;
+         }
+
+         /* It is now safe to use the new file name. */
+         *cpNewName = newName->name;
+         *cpNewNameLen = newName->length;
+	 *newCaseFlags = requestV3->newName.flags;
+      }
+      break;
+
    case HGFS_OP_RENAME_V2:
       requestV2 = (HgfsRequestRenameV2 *)packetIn;
       
@@ -3827,10 +4018,12 @@ HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
                          HgfsAttrHint *hints,        // OUT: getattr hints
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
-                         HgfsHandle *file)           // OUT: file handle
+                         HgfsHandle *file,           // OUT: file handle
+			 uint32 *caseFlags)           // OUT: case-sensitivity flags
 {
    HgfsRequestGetattr *requestV1;
    HgfsRequestGetattrV2 *requestV2;
+   HgfsRequestGetattrV3 *requestV3;
    HgfsRequest *request;
    size_t extra;
 
@@ -3839,11 +4032,47 @@ HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
    ASSERT(cpName);
    ASSERT(cpNameSize);
    ASSERT(file);
+   ASSERT(caseFlags);
 
    request = (HgfsRequest *)packetIn;
    attrInfo->requestType = request->op;
+   *caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
 
    switch (request->op) {
+   case HGFS_OP_GETATTR_V3:
+      requestV3 = (HgfsRequestGetattrV3 *)(packetIn + sizeof(struct HgfsRequest));
+      LOG(4, ("HgfsUnpackGetattrRequest: HGFS_OP_GETATTR_V3\n"));
+      
+      /* Enforced by the dispatch function. */
+      ASSERT(packetSize >= sizeof *requestV3 + sizeof(struct HgfsRequest));
+
+      /* 
+       * If we've been asked to reuse a handle, we don't need to look at, let
+       * alone test the filename or its length.
+       */
+      *hints = requestV3->hints;
+      if (*hints & HGFS_ATTR_HINT_USE_FILE_DESC) {
+         *file = requestV3->file;
+         *cpName = NULL;
+         *cpNameSize = 0;
+      } else {
+         extra = packetSize - sizeof *requestV3 - sizeof(struct HgfsRequest);
+
+         /*
+          * request->fileName.length is user-provided, so this test must be 
+          * carefully written to prevent wraparounds.
+          */
+         if (requestV3->fileName.length > extra) {
+            /* The input packet is smaller than the request */
+            return FALSE;
+         }
+         *cpName = requestV3->fileName.name;
+         *cpNameSize = requestV3->fileName.length;
+	 *caseFlags = requestV3->fileName.flags;
+         LOG(4, ("HgfsUnpackGetattrRequest: HGFS_OP_GETATTR_V3: %u\n", *caseFlags));
+      }
+      break;
+
    case HGFS_OP_GETATTR_V2:
       requestV2 = (HgfsRequestGetattrV2 *)packetIn;
       
@@ -3951,7 +4180,51 @@ HgfsPackGetattrReply(HgfsFileAttrInfo *attr,     // IN: attr stucture
    ASSERT(packetSize);
    ASSERT(attr);
 
-   if (attr->requestType == HGFS_OP_GETATTR_V2) {
+   if (attr->requestType == HGFS_OP_GETATTR_V3) {
+      HgfsReplyGetattrV3 *reply = (HgfsReplyGetattrV3 *)(packetOut + 
+                                  sizeof(struct HgfsRequest));
+      reply->attr.mask = attr->mask;
+      reply->attr.type = attr->type;
+
+      /*
+       * Is there enough space in the request packet for the utf8 name?
+       * Our goal is to write the entire name, with nul terminator, into
+       * the buffer, but set the length to not include the nul termination.
+       * This is what clients expect.
+       *
+       * Also keep in mind that sizeof *reply already contains one character,
+       * which we'll consider the nul terminator.
+       */
+      if (utf8TargetNameLen > HGFS_PACKET_MAX - sizeof *reply - sizeof(struct HgfsReply)) {
+         return FALSE;
+      }
+      if (utf8TargetName) {
+         memcpy(reply->symlinkTarget.name, utf8TargetName, utf8TargetNameLen);
+         CPNameLite_ConvertTo(reply->symlinkTarget.name, utf8TargetNameLen,
+                              DIRSEPC);
+      } else {
+         ASSERT(utf8TargetNameLen == 0);
+      }
+      reply->symlinkTarget.length = utf8TargetNameLen;
+      reply->symlinkTarget.name[utf8TargetNameLen] = '\0';
+      reply->symlinkTarget.flags = HGFS_FILE_NAME_DEFAULT_CASE;
+
+      reply->attr.size = attr->size;
+      reply->attr.creationTime = attr->creationTime;
+      reply->attr.accessTime = attr->accessTime;
+      reply->attr.writeTime = attr->writeTime;
+      reply->attr.attrChangeTime = attr->attrChangeTime;
+      reply->attr.specialPerms = attr->specialPerms;
+      reply->attr.ownerPerms = attr->ownerPerms;
+      reply->attr.groupPerms = attr->groupPerms;
+      reply->attr.otherPerms = attr->otherPerms;
+      reply->attr.flags = attr->flags;
+      reply->attr.allocationSize = attr->allocationSize;
+      reply->attr.userId = attr->userId;
+      reply->attr.groupId = attr->groupId;
+      reply->attr.hostFileId = attr->hostFileId;
+      *packetSize = sizeof *reply + utf8TargetNameLen + sizeof(struct HgfsReply);
+   } else if (attr->requestType == HGFS_OP_GETATTR_V2) {
       HgfsReplyGetattrV2 *reply = (HgfsReplyGetattrV2 *)packetOut;
       reply->attr.mask = attr->mask;
       reply->attr.type = attr->type;
@@ -4053,6 +4326,7 @@ HgfsUnpackSearchReadRequest(const char *packetIn,         // IN: request packet
    ASSERT(hgfsSearchHandle);
    ASSERT(offset);
 
+   /* XXX: Changes required for VMCI. */
    request = (HgfsRequestSearchRead *)packetIn;
 
    /* Enforced by the dispatch function. */
@@ -4063,6 +4337,10 @@ HgfsUnpackSearchReadRequest(const char *packetIn,         // IN: request packet
 
    /* Initialize the rest of the fields. */
    attr->requestType = request->header.op;
+
+   if (request->header.op == HGFS_OP_SEARCH_READ_V3) {
+      LOG(4, ("HgfsUnpackSearchReadRequest: HGFS_OP_SEARCH_READ_V3\n"));
+   }
 
    attr->mask = HGFS_ATTR_VALID_NONE;
    attr->type = 0;
@@ -4109,7 +4387,57 @@ HgfsPackSearchReadReply(const char *utf8Name,      // IN: file name
                         char *packetOut,           // IN/OUT: outgoing packet
                         size_t *packetSize)        // IN/OUT: size of packet
 {
-   if (attr->requestType == HGFS_OP_SEARCH_READ_V2) {
+   if (attr->requestType == HGFS_OP_SEARCH_READ_V3) {
+      HgfsReplySearchReadV3 *reply = (HgfsReplySearchReadV3 *)packetOut + 
+                                  sizeof(struct HgfsRequest);
+      HgfsDirEntry *dirent = (HgfsDirEntry *)reply->payload;
+
+      /*
+       * Is there enough space in the request packet for the utf8 name?
+       * Our goal is to write the entire name, with nul terminator, into
+       * the buffer, but set the length to not include the nul termination.
+       * This is what clients expect.
+       *
+       * Also keep in mind that sizeof *reply already contains one character,
+       * which we'll consider the nul terminator.
+       */
+      if (utf8NameLen > HGFS_PACKET_MAX - sizeof *reply - sizeof(struct HgfsReply)
+                                        - sizeof(struct HgfsDirEntry)) {
+         return FALSE;
+      }
+
+      *packetSize = sizeof *reply + utf8NameLen + sizeof(struct HgfsReply)
+                                  + sizeof(struct HgfsDirEntry);
+      reply->count = 1;
+      dirent->fileName.length = (uint32)utf8NameLen;
+      dirent->fileName.flags = HGFS_FILE_NAME_DEFAULT_CASE;
+      dirent->nextEntry = 0;
+
+      if (utf8NameLen == 0) {
+         /* No entry. */
+         return TRUE;
+      }
+
+      memcpy(dirent->fileName.name, utf8Name, utf8NameLen);
+      dirent->fileName.name[utf8NameLen] = 0;
+
+      dirent->attr.mask = attr->mask;
+      dirent->attr.type = attr->type;
+      dirent->attr.size = attr->size;
+      dirent->attr.creationTime = attr->creationTime;
+      dirent->attr.accessTime = attr->accessTime;
+      dirent->attr.writeTime = attr->writeTime;
+      dirent->attr.attrChangeTime = attr->attrChangeTime;
+      dirent->attr.specialPerms = attr->specialPerms;
+      dirent->attr.ownerPerms = attr->ownerPerms;
+      dirent->attr.groupPerms = attr->groupPerms;
+      dirent->attr.otherPerms = attr->otherPerms;
+      dirent->attr.flags = attr->flags;
+      dirent->attr.allocationSize = attr->allocationSize;
+      dirent->attr.userId = attr->userId;
+      dirent->attr.groupId = attr->groupId;
+      dirent->attr.hostFileId = attr->hostFileId;
+   } else if (attr->requestType == HGFS_OP_SEARCH_READ_V2) {
       HgfsReplySearchReadV2 *reply = (HgfsReplySearchReadV2 *)packetOut;
 
       /*
@@ -4152,6 +4480,7 @@ HgfsPackSearchReadReply(const char *utf8Name,      // IN: file name
       reply->attr.userId = attr->userId;
       reply->attr.groupId = attr->groupId;
       reply->attr.hostFileId = attr->hostFileId;
+
    } else {
       HgfsReplySearchRead *reply = (HgfsReplySearchRead *)packetOut;
 
@@ -4222,7 +4551,8 @@ HgfsUnpackSetattrRequest(char const *packetIn,       // IN: request packet
                          HgfsAttrHint *hints,        // OUT: setattr hints
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
-                         HgfsHandle *file)           // OUT: server file ID
+                         HgfsHandle *file,           // OUT: server file ID
+                         uint32 *caseFlags)          // OUT: case-sensitivity flags 
 {
    HgfsRequest *request;
    size_t extra;
@@ -4232,6 +4562,7 @@ HgfsUnpackSetattrRequest(char const *packetIn,       // IN: request packet
    ASSERT(cpName);
    ASSERT(cpNameSize);
    ASSERT(file);
+   ASSERT(caseFlags);
    request = (HgfsRequest *)packetIn;
 
 
@@ -4239,6 +4570,58 @@ HgfsUnpackSetattrRequest(char const *packetIn,       // IN: request packet
    attr->requestType = request->op;
 
    switch (attr->requestType) {
+   case HGFS_OP_SETATTR_V3:
+      {
+         HgfsRequestSetattrV3 *requestV3 = 
+            (HgfsRequestSetattrV3 *)(packetIn + sizeof(struct HgfsRequest));
+
+         /* Enforced by the dispatch function. */
+         ASSERT(packetSize >= sizeof *requestV3 + sizeof(struct HgfsRequest));
+
+         attr->mask = requestV3->attr.mask;
+         attr->type = requestV3->attr.type;
+         attr->size = requestV3->attr.size;
+         attr->creationTime = requestV3->attr.creationTime;
+         attr->accessTime = requestV3->attr.accessTime;
+         attr->writeTime = requestV3->attr.writeTime;
+         attr->attrChangeTime = requestV3->attr.attrChangeTime;
+         attr->specialPerms = requestV3->attr.specialPerms;
+         attr->ownerPerms = requestV3->attr.ownerPerms;
+         attr->groupPerms = requestV3->attr.groupPerms;
+         attr->otherPerms = requestV3->attr.otherPerms;
+         attr->flags = requestV3->attr.flags;
+         attr->allocationSize = requestV3->attr.allocationSize;
+         attr->userId = requestV3->attr.userId;
+         attr->groupId = requestV3->attr.groupId;
+         attr->hostFileId = requestV3->attr.hostFileId;
+         
+         *hints = requestV3->hints;
+
+         /* 
+          * If we've been asked to reuse a handle, we don't need to look at, 
+          * let alone test the filename or its length.
+          */
+         if (*hints & HGFS_ATTR_HINT_USE_FILE_DESC) {
+            *file = requestV3->file;
+            *cpName = NULL;
+            *cpNameSize = 0;
+	    *caseFlags = 0;
+         } else {
+            extra = packetSize - sizeof *requestV3 - sizeof(struct HgfsRequest);
+
+            if (requestV3->fileName.length > extra) {
+               /* The input packet is smaller than the request. */
+               return FALSE;
+            }
+            /* It is now safe to read the file name. */
+            *cpName = requestV3->fileName.name;
+            *cpNameSize = requestV3->fileName.length;
+            *caseFlags = requestV3->fileName.flags;
+         }
+         LOG(4, ("HgfsUnpackSetattrRequest: unpacking HGFS_OP_SETATTR_V3, %u\n", *caseFlags));
+         break;
+      }
+
    case HGFS_OP_SETATTR_V2:
       {
          HgfsRequestSetattrV2 *requestV2 = 
@@ -4433,8 +4816,48 @@ HgfsUnpackCreateDirRequest(char const *packetIn,    // IN: incoming packet
    request = (HgfsRequest *)packetIn;
 
    info->requestType = request->op;
+   info->caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
 
    switch (info->requestType) {
+   case HGFS_OP_CREATE_DIR_V3:
+      {
+         HgfsRequestCreateDirV3 *requestV3 = 
+            (HgfsRequestCreateDirV3 *)(packetIn + sizeof *request);
+
+         /* Enforced by the dispatch function. */
+         ASSERT(packetSize >= sizeof *requestV3 + sizeof *request);
+         extra = packetSize - sizeof *requestV3 - sizeof *request;
+
+         if (!(requestV3->mask & HGFS_CREATE_DIR_VALID_FILE_NAME)) {
+            /* We do not support requests without a valid file name. */
+            return FALSE;
+         }
+
+         /*
+          * requestV3->fileName.length is user-provided, so this test must be 
+          * carefully written to prevent wraparounds.
+          */
+         if (requestV3->fileName.length > extra) {
+            /* The input packet is smaller than the request. */
+            return FALSE;
+         }
+
+         /*
+          * Copy all the fields into our carrier struct. Some will probably be
+          * garbage, but it's simpler to copy everything now and check the
+          * valid bits before reading later.
+          */
+         info->mask = requestV3->mask;
+         info->cpName = requestV3->fileName.name;
+         info->cpNameSize = requestV3->fileName.length;
+	 info->caseFlags = requestV3->fileName.flags;
+         info->specialPerms = requestV3->specialPerms;
+         info->ownerPerms = requestV3->ownerPerms;
+         info->groupPerms = requestV3->groupPerms;
+         info->otherPerms = requestV3->otherPerms;
+	 LOG(4, ("HgfsUnpackCreateDirRequest: HGFS_OP_CREATE_DIR_V3\n"));
+         break;
+      }
    case HGFS_OP_CREATE_DIR_V2:
       {
          HgfsRequestCreateDirV2 *requestV2 = 

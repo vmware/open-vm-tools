@@ -23,7 +23,6 @@ AM_CFLAGS += @COMMON_CFLAGS@
 AM_CFLAGS += @VMWARE_USER_CFLAGS@
 
 vmware_user_LDADD =
-vmware_user_LDADD += ../lib/atomic/libAtomic.a
 vmware_user_LDADD += ../lib/conf/libConf.a
 vmware_user_LDADD += ../lib/dnd/libDnd.a
 vmware_user_LDADD += ../lib/eventManager/libEventManager.a
@@ -68,12 +67,10 @@ vmware_user_LDADD += ../lib/procMgr/libProcMgr.a
 vmware_user_LDADD += ../lib/auth/libAuth.a
 vmware_user_LDADD += ../lib/panicDefault/libPanicDefault.a
 vmware_user_LDADD += ../lib/panic/libPanic.a
-
-vmware_user_LDFLAGS =
-vmware_user_LDFLAGS += -lcrypt
-vmware_user_LDFLAGS += @GTK_LIBS@
-vmware_user_LDFLAGS += @VMWARE_USER_LDFLAGS@
-vmware_user_LDFLAGS += @COMMON_XLIBS@
+vmware_user_LDADD += -lcrypt
+vmware_user_LDADD += @GTK_LIBS@
+vmware_user_LDADD += @VMWARE_USER_LDADD@
+vmware_user_LDADD += @COMMON_XLIBS@
 
 vmware_user_SOURCES =
 vmware_user_SOURCES += copyPaste.c

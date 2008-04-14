@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -75,6 +75,7 @@
 #include "str.h"
 #include "msg.h"
 #include "log.h"
+#include "posix.h"
 #include "file.h"
 #include "backdoor_def.h"
 #include "util.h"
@@ -83,6 +84,7 @@
 #include "vm_atomic.h"
 #include "x86cpuid.h"
 #include "syncMutex.h"
+#include "unicode.h"
 
 #ifdef VMX86_SERVER
 #include "uwvmkAPI.h"
@@ -494,24 +496,24 @@ Hostinfo_SystemUpTime(void)
  *-----------------------------------------------------------------------------
  */
 
-const char *
+Unicode
 Hostinfo_NameGet(void)
 {
-   char              *result;
+   Unicode result;
 
    static Atomic_Ptr state; /* Implicitly initialized to NULL. --hpreg */
 
    result = Atomic_ReadPtr(&state);
 
    if (UNLIKELY(result == NULL)) {
-      char *before;
+      Unicode before;
 
-      result = (char *) Hostinfo_HostName();
+      result = Hostinfo_HostName();
 
       before = Atomic_ReadIfEqualWritePtr(&state, NULL, result);
 
       if (before) {
-         free((void *) result);
+         Unicode_Free(result);
 
          result = before;
       }
@@ -1262,6 +1264,18 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
    uid_t euid;
 #endif
 
+   /*
+    * Disable itimers before resetting the signal handlers.
+    * Otherwise, the process may still receive timer signals:
+    * SIGALRM, SIGVTARLM, or SIGPROF.
+    */
+   struct itimerval it;
+   it.it_value.tv_sec = it.it_value.tv_usec = 0;
+   it.it_interval.tv_sec = it.it_interval.tv_usec = 0;
+   setitimer(ITIMER_REAL, &it, NULL);
+   setitimer(ITIMER_VIRTUAL, &it, NULL);
+   setitimer(ITIMER_PROF, &it, NULL);
+
    for (s = 1; s <= NSIG; s++) {
       sa.sa_handler = SIG_DFL;
       sigfillset(&sa.sa_mask);
@@ -1419,22 +1433,32 @@ Hostinfo_OSIsSMP(void)
  *-----------------------------------------------------------------------------
  */
 
-char *
-Hostinfo_GetModulePath(void)
+Unicode
+Hostinfo_GetModulePath(uint32 priv)
 {
-   char buf[FILE_MAXPATH];
-#if defined(__APPLE__)
-   uint32_t bufSize = sizeof buf;
+   Unicode path;
 
-   if (_NSGetExecutablePath(buf, &bufSize)) {
-      Warning(LGPFX" %s: _NSGetExecutablePath failed.\n", __FUNCTION__);
+#if defined(__APPLE__)
+   uint32_t pathSize = FILE_MAXPATH;
+#else
+   Bool isSuper = FALSE;
+#endif
+
+   if ((priv != HGMP_PRIVILEGE) && (priv != HGMP_NO_PRIVILEGE)) {
+      Warning("%s: invalid privilege parameter\n", __FUNCTION__);
       return NULL;
    }
-#else
-   int retval;
-   Bool isSuper;
 
-#ifdef VMX86_SERVER
+#if defined(__APPLE__)
+   path = Util_SafeMalloc(pathSize);
+   if (_NSGetExecutablePath(path, &pathSize)) {
+      Warning(LGPFX" %s: _NSGetExecutablePath failed.\n", __FUNCTION__);
+      free(path);
+      return NULL;
+   }
+
+#else
+#if defined(VMX86_SERVER)
    if (HostType_OSIsPureVMK()) {
       return NULL;
    }
@@ -1443,20 +1467,24 @@ Hostinfo_GetModulePath(void)
    // "/proc/self/exe" only exists on Linux 2.2+.
    ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
 
-   /* Readlink does not NULL terminate the string. */
-   memset(buf, 0, sizeof buf);
-   isSuper = IsSuperUser();
-   SuperUser(TRUE);
-   retval = readlink("/proc/self/exe", buf, sizeof buf - 1);
-   SuperUser(isSuper);
-   if (retval < 0) {
+   if (priv == HGMP_PRIVILEGE) {
+      isSuper = IsSuperUser();
+      SuperUser(TRUE);
+   }
+
+   path = Posix_ReadLink(U("/proc/self/exe"));
+
+   if (priv == HGMP_PRIVILEGE) {
+      SuperUser(isSuper);
+   }
+
+   if (path == NULL) {
       Warning(LGPFX" %s: readlink failed: %s\n",
               __FUNCTION__, Err_ErrString());
-      return NULL;
    }
 #endif
 
-   return strdup(buf);
+   return path;
 }
 
 
@@ -1542,26 +1570,30 @@ Hostinfo_TouchBackDoor(void)
  *-----------------------------------------------------------------------------
  */
 
-char *
+Unicode
 Hostinfo_GetUser()
 {
    char buffer[BUFSIZ];
    struct passwd pw;
    struct passwd *ppw = &pw;
-   char const *name = NULL;
+   char *env = NULL;
+   Unicode name = NULL;
 
    if ((getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
        (ppw != NULL)) {
-      name = pw.pw_name;
+      if (pw.pw_name) {
+         name = Unicode_Alloc(pw.pw_name, STRING_ENCODING_DEFAULT);
+      }
    }
 
    if (!name) {
-      name = getenv("USER");
+      env = getenv("USER");
+      if (env) {
+         name = Unicode_Alloc(env, STRING_ENCODING_DEFAULT);
+      }
    }
-
-   return name ? strdup(name) : NULL;
+   return name;
 }
-
 
 /*
  *-----------------------------------------------------------------------------

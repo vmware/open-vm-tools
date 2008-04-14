@@ -175,41 +175,6 @@ typedef enum {
 #define HGFS_SYNC_REQREP_CLIENT_CMD HGFS_SYNC_REQREP_CMD " "
 #define HGFS_SYNC_REQREP_CLIENT_CMD_LEN (sizeof HGFS_SYNC_REQREP_CLIENT_CMD - 1)
 
-/*
- * When an RPCI listener registers for this command, HGFS requests are expected
- * to be synchronously sent from the guest and replies are expected to be 
- * asynchronously returned.
- * 
- * When an RpcIn listener registers for this command, requests are expected to 
- * be asynchronously sent from the host and asynchronously returned from the 
- * guest.
- *
- * In short, an endpoint sending this command is sending a request whose reply
- * should be returned asynchronously.
- */
-#define HGFS_ASYNC_REQUEST_CMD "g"
-#define HGFS_ASYNC_REQUEST_CLIENT_CMD HGFS_ASYNC_REQUEST_CMD " "
-#define HGFS_ASYNC_REQUEST_CLIENT_CMD_LEN (sizeof HGFS_ASYNC_REQUEST_CLIENT_CMD - 1)
-
-/*
- * An endpoint sending this command is sending an asynchronous HGFS reply to a
- * request sent by the HGFS_ASYNC_REQUEST command.
- */
-#define HGFS_ASYNC_REPLY_CMD "h"
-#define HGFS_ASYNC_REPLY_CLIENT_CMD HGFS_ASYNC_REPLY_CMD " "
-#define HGFS_ASYNC_REPLY_CLIENT_CMD_LEN (sizeof HGFS_ASYNC_REPLY_CLIENT_CMD - 1)
-
-/*
- * Ensuring that all commands are the same length eases the implementation of 
- * HGFS client code.
- */
-MY_ASSERTS(HGFS_CMD_LENGTHS,
-           ASSERT_ON_COMPILE(HGFS_SYNC_REQREP_CLIENT_CMD_LEN ==
-                             HGFS_ASYNC_REQUEST_CLIENT_CMD_LEN);
-           ASSERT_ON_COMPILE(HGFS_ASYNC_REQUEST_CLIENT_CMD_LEN ==
-                             HGFS_ASYNC_REPLY_CLIENT_CMD_LEN);
-)
-
 /* 
  * This is just for the sake of macro naming. Since we are guaranteed
  * equal command lengths, defining command length via a generalized macro name

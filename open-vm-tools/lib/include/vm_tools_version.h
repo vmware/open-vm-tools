@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -691,6 +691,13 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_ESX310_RELEASE_V_BASE    3
 
 #ifndef RC_INVOKED
+#define   TOOLS_VERSION_ESX310_UPDATE1    TOOLS_VERSION_TO_UINT(TOOLS_VERSION_ESX310_UPDATE1_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_ESX310_UPDATE1_V_MJR     7
+#define   TOOLS_VERSION_ESX310_UPDATE1_V_MNR     4
+#define   TOOLS_VERSION_ESX310_UPDATE1_V_BASE    4
+
+#ifndef RC_INVOKED
 #define   TOOLS_VERSION_SERVER20_FF     TOOLS_VERSION_TO_UINT(TOOLS_VERSION_SERVER20_FF_V)
 #endif /* RC_INVOKED */
 #define   TOOLS_VERSION_SERVER20_FF_V_MJR     7
@@ -725,9 +732,16 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_SERVER20_BETA1_V_MNR     7
 #define   TOOLS_VERSION_SERVER20_BETA1_V_BASE    0
 
-#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_SERVER20_BETA1
-#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_SERVER20_BETA1)
-#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_SERVER20_BETA1)
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_SERVER20_BETA2     TOOLS_VERSION_TO_UINT(TOOLS_VERSION_SERVER20_BETA2_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_SERVER20_BETA2_V_MJR     7
+#define   TOOLS_VERSION_SERVER20_BETA2_V_MNR     7
+#define   TOOLS_VERSION_SERVER20_BETA2_V_BASE    1
+
+#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_SERVER20_BETA2
+#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_SERVER20_BETA2)
+#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_SERVER20_BETA2)
 
 /*
  * The extended Tools version is the current Tools version with the

@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
+#include <dirent.h>
 #if !defined(N_PLAT_NLM) && defined(linux)
 /*
  * These headers are needed to get __USE_LARGEFILE, __USE_LARGEFILE64,
@@ -59,6 +60,7 @@
 #include <sys/mount.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <dlfcn.h>
+#include <sys/xattr.h>
 #else
 #if defined(__FreeBSD__)
 #include <sys/param.h>
@@ -66,6 +68,10 @@
 #else
 #if !defined(N_PLAT_NLM)
 #include <sys/statfs.h>
+#if !defined(sun)
+#include <mntent.h>
+#include <dlfcn.h>
+#endif
 #endif
 #endif
 #endif
@@ -73,6 +79,7 @@
 /* Check for non-matching prototypes */
 #include "vmware.h"
 #include "str.h"
+#include "posix.h"
 #include "file.h"
 #include "fileIO.h"
 #include "fileInt.h"
@@ -85,6 +92,7 @@
 
 #if defined(__APPLE__)
 #include "hostinfo.h"
+#define XATTR_BACKUP_REENABLED "com.vmware.backupReenabled"
 #endif
 
 static const unsigned int FileIO_SeekOrigins[] = {
@@ -335,49 +343,6 @@ FileIO_GetVolumeSectorSize(ConstUnicode pathName,  // IN:
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * PosixOpen --
- *
- *      Open a file using POSIX open.
- *
- * Results:
- *      -1	error
- *      >= 0	success (file descriptor)
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-static int
-PosixOpen(ConstUnicode pathName,  // IN:
-          int flags,              // IN:
-          int mode)               // IN:
-{
-   int fd;
-   int err;
-   char *path;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   fd = open(path, flags, (mode_t) mode);
-
-   err = errno;
-   free(path);
-   errno = err;
-
-   return fd;
-}
-
-
 #if defined(__APPLE__)
 /*
  *----------------------------------------------------------------------
@@ -547,7 +512,7 @@ ProxyOpen(ConstUnicode pathName,  // IN:
    }
 
    if (pid == 0) { /* child:  use fd[0] */
-      proxyFD = PosixOpen(pathName, flags, mode);
+      proxyFD = Posix_Open(pathName, flags, mode);
 
       ProxySendResults(fds[0], proxyFD, errno);
 
@@ -593,14 +558,14 @@ ProxyUse(ConstUnicode pathName,  // IN:
    Unicode path;
    UnicodeIndex index;
    struct statfs sfbuf;
-   PosixStatStruct statbuf;
+   struct stat statbuf;
 
    if (pathName == NULL) {
       errno = EFAULT;
       return -1;
    }
 
-   if ((FileIO_PosixLstat(pathName, &statbuf) == 0) &&
+   if ((Posix_Lstat(pathName, &statbuf) == 0) &&
        S_ISLNK(statbuf.st_mode)) {
       *useProxy = TRUE;
       return 0;
@@ -632,7 +597,7 @@ ProxyUse(ConstUnicode pathName,  // IN:
     * containing filePath).
     */
 
-   if (FileIO_PosixStatfs(path, &sfbuf) == 0) {
+   if (Posix_Statfs(path, &sfbuf) == 0) {
       /*
        * The testPath exists; determine proxy usage explicitely.
        */
@@ -650,50 +615,44 @@ ProxyUse(ConstUnicode pathName,  // IN:
 
    return 0;
 }
-#endif
 
 
 /*
  *----------------------------------------------------------------------
  *
- * FileIO_PosixOpen --
+ * PosixFileOpener --
  *
- *      Open a file via POSIX open().
+ *      Open a file. Use a proxy when creating a file or on NFS.
  *
- *      Use a proxy when creating a file or on NFS on MacOS X.
- *
- *	Why a proxy? The MacOS X 10.4.* NFS client interacts with our
- *	use of settid() and doesn't send the proper credentials on opens.
- *	This leads to files being written without error but containing no
- *	data. The proxy avoids all of this unhappiness.
+ *      Why a proxy? The MacOS X 10.4.* NFS client interacts with our
+ *      use of settid() and doesn't send the proper credentials on opens.
+ *      This leads to files being written without error but containing no
+ *      data. The proxy avoids all of this unhappiness.
  *
  * Results:
- *      -1	Error
- *      >= 0	File descriptor (success)
+ *      -1 on error
+ *      >= 0 on success
  *
  * Side effects:
- *      errno is set on error
+ *      errno is set
  *
  *----------------------------------------------------------------------
  */
 
 int
-FileIO_PosixOpen(ConstUnicode pathName, // IN:
-                 int flags,             // IN:
-                 int mode)              // IN:
+PosixFileOpener(ConstUnicode pathName,  // IN:
+                int flags,              // IN:
+                mode_t mode)            // IN:
 {
-#if defined(__APPLE__)
    Bool useProxy;
-#endif
 
-#if defined(__APPLE__)
    if ((flags & O_ACCMODE) || (flags & O_CREAT)) {
       int err;
 
       /*
        * Open for write and/or O_CREAT. Determine proxy usage.
-       */
-
+       */ 
+   
       err = ProxyUse(pathName, &useProxy);
       if (err != 0) {
          errno = err;
@@ -708,248 +667,9 @@ FileIO_PosixOpen(ConstUnicode pathName, // IN:
    }
 
    return useProxy ? ProxyOpen(pathName, flags, mode) :
-                     PosixOpen(pathName, flags, mode);
-#else
-   return PosixOpen(pathName, flags, mode);
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_PosixCreat --
- *
- *      Create a file via POSIX creat()
- *
- * Results:
- *      -1	Error
- *      >= 0	File descriptor (success)
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileIO_PosixCreat(ConstUnicode pathName, // IN:
-                  int mode)              // IN:
-{
-   return FileIO_PosixOpen(pathName, O_CREAT | O_WRONLY | O_TRUNC, mode);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_PosixFopen --
- *
- *      Open a file via POSIX fopen()
- *
- * Results:
- *      -1	Error
- *      >= 0	File descriptor (success)
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-FILE *
-FileIO_PosixFopen(ConstUnicode pathName, // IN:
-                  const char *mode)      // IN:
-{
-   int err;
-   char *path;
-   FILE *stream;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return NULL;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   stream = fopen(path, mode);
-   err = errno;
-   free(path);
-   errno = err;
-
-   return stream;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_PosixStat --
- *
- *      POSIX stat()
- *
- * Results:
- *      -1	Error
- *      0	Success
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileIO_PosixStat(ConstUnicode pathName,     // IN:
-                 PosixStatStruct *statbuf)  // IN:
-{
-   int err;
-   int ret;
-   char *path;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   ret = stat(path, statbuf);
-
-   err = errno;
-   free(path);
-   errno = err;
-
-   return ret;
-}
-
-#if !defined(sun) && !defined(N_PLAT_NLM)
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_PosixStatfs --
- *
- *      POSIX statfs()
- *
- * Results:
- *      -1	Error
- *      0	Success
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileIO_PosixStatfs(ConstUnicode pathName,     // IN:
-                   struct statfs *statfsbuf)  // IN:
-{
-   int err;
-   int ret;
-   char *path;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   ret = statfs(path, statfsbuf);
-
-   err = errno;
-   free(path);
-   errno = err;
-
-   return ret;
+                     Posix_Open(pathName, flags, mode);
 }
 #endif
-
-
-#if !defined(N_PLAT_NLM)
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_PosixLstat --
- *
- *      POSIX lstat()
- *
- * Results:
- *      -1	Error
- *      0	Success
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileIO_PosixLstat(ConstUnicode pathName,     // IN:
-                  PosixStatStruct *statbuf)  // IN:
-{
-   int err;
-   int ret;
-   char *path;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   ret = lstat(path, statbuf);
-
-   err = errno;
-   free(path);
-   errno = err;
-
-   return ret;
-}
-#endif
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_PosixChmod --
- *
- *      POSIX chmod()
- *
- * Results:
- *      -1	Error
- *      0	Success
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileIO_PosixChmod(ConstUnicode pathName,  // IN:
-                  uint32 mode)            // IN:
-{
-   int err;
-   int ret;
-   char *path;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   ret = chmod(path, (mode_t) mode);
-
-   err = errno;
-   free(path);
-   errno = err;
-
-   return ret;
-}
 
 
 /*
@@ -1077,12 +797,13 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
 
    path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
 
-   fd = FileIO_PosixOpen(path, flags
+   flags |= 
 #if defined(linux) && !defined(N_PLAT_NLM)
-                         | ((access & FILEIO_OPEN_SYNC) ? O_SYNC : 0)
+            ((access & FILEIO_OPEN_SYNC) ? O_SYNC : 0) |
 #endif
-                         | FileIO_OpenActions[action],
-                        mode);
+            FileIO_OpenActions[action];
+
+   fd = PosixFileOpener(path, flags, mode);
 
    error = errno;
 
@@ -1111,10 +832,23 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
     *   Time Machine backs up EVERY file unless explicitly told not to, so this
     *   option uses the API to exclude the file that was just opened.
     */
-   if ((access & FILEIO_OPEN_NO_TIME_MACHINE) &&
-       !FileIO_SetExcludedFromTimeMachine(pathName, TRUE)) {
-      ret = FILEIO_ERROR;
-      goto error;
+   if ((access & FILEIO_OPEN_NO_TIME_MACHINE)) {
+      if (!FileIO_SetExcludedFromTimeMachine(pathName, TRUE)) {
+         ret = FILEIO_ERROR;
+         goto error;
+      }
+   } else {
+      /*
+       * Fix for Bug 248644:
+       *   The issue with Time Machine that was causing hangs has been fixed in
+       *   10.5.2, so if the user is in 10.5.2 and the option isn't set, then
+       *   we want to reset the exclusion of the file.
+       *
+       *   Note that this call ignores errors because there are some files (like
+       *   raw devices) that will fail checking xattrs and Time Machine Exclusion
+       *   status, but we can't detect them at this point.
+       */
+      FileIO_ResetExcludedFromTimeMachine(pathName);
    }
 #endif
 
@@ -1344,7 +1078,6 @@ FileIO_Write(FileIODescriptor *fd,      // IN
             NOT_TESTED();
             continue;
          }
-         Log(LGPFX" %s failed %d.\n", __FUNCTION__, error);
          fret = FileIOErrno2Result(error);
          break;
       }
@@ -2109,9 +1842,9 @@ int64
 FileIO_GetSizeByPath(ConstUnicode pathName)  // IN:
 {
    int err;
-   PosixStatStruct statbuf;
+   struct stat statbuf;
 
-   err = FileIO_PosixStat(pathName, &statbuf);
+   err = Posix_Stat(pathName, &statbuf);
 
    return (err == 0) ? statbuf.st_size : -1;
 }
@@ -2139,17 +1872,11 @@ FileIOResult
 FileIO_Access(ConstUnicode pathName,  // IN: path name to be tested
               int accessMode)         // IN: access modes to be asserted
 {
-   int err;
+   FileIOResult err;
    int mode;
-   char *path;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return FILEIO_ERROR;
-   }
+   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
 
    mode = 0;
-
    if (accessMode & FILEIO_ACCESS_READ) {
       mode |= R_OK;
    }
@@ -2163,14 +1890,10 @@ FileIO_Access(ConstUnicode pathName,  // IN: path name to be tested
       mode |= F_OK;
    }
 
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   err = (access(path, mode) == -1) ? errno : 0;
+   err = access(path, mode) == -1 ? FILEIO_ERROR : FILEIO_SUCCESS;
 
    free(path);
-   errno = err;
-
-   return (err == 0) ? FILEIO_SUCCESS : FILEIO_ERROR;
+   return err;
 }
 
 
@@ -2308,7 +2031,7 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
    if (suNeeded) {
       SuperUser(TRUE);
    }
-   fd = FileIO_PosixOpen(pathName, flags, 0);
+   fd = Posix_Open(pathName, flags, 0);
    if (suNeeded) {
       int error = errno;
 
@@ -2319,6 +2042,62 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
 }
 
 #if defined(__APPLE__)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_ResetExcludedFromTimeMachine --
+ *
+ *      Request that the given path have its time machine exclusion reset
+ *      (turned off). We use a special xattr on the file to mark that we have
+ *      done this so that future calls won't clear the file if the user has
+ *      explicitly marked it themselves.
+ *
+ * Results:
+ *      A boolean reflecting whether or not reseting the file succeeded.
+ *
+ * Side effects:
+ *      Adds a "backup re-enabled" xattr to the file if wasn't already present
+ *      and removing the Time Machine exclusion was successful.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+FileIO_ResetExcludedFromTimeMachine(char const *pathName) // IN
+{
+   bool result = TRUE;
+   char xattr;
+   ssize_t gXattrResult = getxattr(pathName, XATTR_BACKUP_REENABLED,
+                                   &xattr, sizeof(xattr), 0, 0);
+   if (gXattrResult != -1) {
+      // We have already seen this file, don't touch it again.
+      goto exit;
+   }
+   if (errno != ENOATTR) {
+      LOG_ONCE((LGPFX" %s Couldn't get xattr on path [%s]: %s.\n",
+                __func__, pathName, strerror(errno)));
+      result = FALSE;
+      goto exit;
+   }
+   result = FileIO_SetExcludedFromTimeMachine(pathName, FALSE);
+   if (!result) {
+      goto exit;
+   }
+   xattr = '1';
+   int sXattrResult = setxattr(pathName, XATTR_BACKUP_REENABLED,
+                               &xattr, sizeof(xattr), 0, 0);
+   if (sXattrResult == -1) {
+      LOG_ONCE((LGPFX" %s Couldn't set xattr on path [%s]: %s.\n",
+                __func__, pathName, strerror(errno)));
+      result = FALSE;
+      goto exit;
+   }
+
+exit:
+      return result;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -2382,7 +2161,7 @@ FileIO_SetExcludedFromTimeMachine(char const *pathName, // IN
       goto exit;
    }
 
-   ret = (*backupFunc)(item, TRUE, FALSE);
+   ret = (*backupFunc)(item, isExcluded, FALSE);
 
    if (ret != noErr) {
       /*

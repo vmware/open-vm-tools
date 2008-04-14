@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -28,11 +28,2128 @@
 
 #include "unicodeBase.h"
 #include "unicodeInt.h"
+#include "codeset.h"
 
 #include "vm_assert.h"
 #include "util.h"
 
 static char *UnicodeNormalizeEncodingName(const char *encoding);
+
+/*
+ * Cross reference of IANA character set names, windows code pages
+ * and ICU encodings
+ *
+ * See: http://www.iana.org/assignments/character-sets
+ *      http://msdn2.microsoft.com/en-us/library/ms776446(VS.85).aspx
+ *
+ * If you add new supported StringEncodings to this table, you must
+ * keep SIMPLE_ENCODING_LIST[] (see below) and the StringEncoding
+ * enum in lib/public/unicodeTypes.h in sync!
+ */
+
+#define MAXCHARSETNAMES 12
+#define MIBUNDEF -1
+#define WINUNDEF -1
+
+static struct xRef {
+   int MIBenum;                   // Assigned by IANA
+   int winACP;                    // Windows code page from GetACP()
+   StringEncoding encoding;       // ICU encoding enum
+   int preferredMime;             // Index of preferred MIME name 
+   char *names[MAXCHARSETNAMES];  // Encoding name and aliases
+} xRef[] = {
+   /*
+    * Source: ECMA registry
+    */
+   { 3, 20127, STRING_ENCODING_US_ASCII, 4, 
+      { "ANSI_X3.4-1968", "iso-ir-6", "ANSI_X3.4-1986", "ISO_646.irv:1991",
+        "ASCII", "ISO646-US", "US-ASCII", "us", "IBM367", "cp367", "csASCII",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 4, 28591, STRING_ENCODING_ISO_8859_1, 3,
+      { "ISO_8859-1:1987", "iso-ir-100", "ISO_8859-1", "ISO-8859-1", "latin1",
+        "l1", "IBM819", "CP819", "csISOLatin1", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 5, 28592, STRING_ENCODING_ISO_8859_2, 3,
+      { "ISO_8859-2:1987", "iso-ir-101", "ISO_8859-2", "ISO-8859-2", "latin2",
+        "l2", "csISOLatin2", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 6, 28593, STRING_ENCODING_ISO_8859_3, 3,
+      { "ISO_8859-3:1988", "iso-ir-109", "ISO_8859-3", "ISO-8859-3", "latin3",
+        "l3", "csISOLatin3", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 7, 28594, STRING_ENCODING_ISO_8859_4, 3,
+      { "ISO_8859-4:1988", "iso-ir-110", "ISO_8859-4", "ISO-8859-4", "latin4", 
+        "l4", "csISOLatin4", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 8, 28595, STRING_ENCODING_ISO_8859_5, 3, 
+      { "ISO_8859-5:1988", "iso-ir-144", "ISO_8859-5", "ISO-8859-5", "cyrillic", 
+        "csISOLatinCyrillic", NULL } 
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 9, 28596, STRING_ENCODING_ISO_8859_6, 3, 
+      { "ISO_8859-6:1987", "iso-ir-127", "ISO_8859-6", "ISO-8859-6", "ECMA-114", 
+        "ASMO-708", "arabic", "csISOLatinArabic", NULL } 
+   },
+   /*
+    * Source: Windows duplicate of ISO-8859-6
+    */
+   { 9, 708, STRING_ENCODING_ISO_8859_6, 0,
+      { "ASMO-708", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 10, 28597, STRING_ENCODING_ISO_8859_7, 3,
+      { "ISO_8859-7:1987", "iso-ir-126", "ISO_8859-7", "ISO-8859-7", "ELOT_928",
+        "ECMA-118", "greek", "greek8", "csISOLatinGreek", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 11, 28598, STRING_ENCODING_ISO_8859_8, 3,
+      { "ISO_8859-8:1988", "iso-ir-138", "ISO_8859-8", "ISO-8859-8", "hebrew",
+        "csISOLatinHebrew", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 12, 28599, STRING_ENCODING_ISO_8859_9, 3,
+      { "ISO_8859-9:1989", "iso-ir-148", "ISO_8859-9", "ISO-8859-9", "latin5",
+        "l5", "csISOLatin5", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 13, WINUNDEF, STRING_ENCODING_ISO_8859_10, 0,
+      { "ISO-8859-10", "iso-ir-157", "l6", "ISO_8859-10:1992", "csISOLatin6", 
+        "latin6", NULL }
+   },
+   /*
+    * Source: ECMA registry and ISO 6937-2:1983
+    */
+   { 14, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_6937-2-add", "iso-ir-142", "csISOTextComm", NULL }
+   },
+   /*
+    * Source: JIS X 0201-1976.   One byte only, this is equivalent to 
+    *         JIS/Roman (similar to ASCII) plus eight-bit half-width 
+    *         Katakana
+    */
+   { 15, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_X0201", "X0201", "csHalfWidthKatakana", NULL }
+   },
+   /*
+    * Source: JIS X 0202-1991.  Uses ISO 2022 escape sequences to
+    *         shift code sets as documented in JIS X 0202-1991.
+    */
+   { 16, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_Encoding", "csJISEncoding", NULL }
+   },
+   /*
+    * Source: This charset is an extension of csHalfWidthKatakana by
+    *         adding graphic characters in JIS X 0208.  The CCS's are
+    *         JIS X0201:1997 and JIS X0208:1997.  The
+    *         complete definition is shown in Appendix 1 of JIS
+    *         X0208:1997.
+    *         This charset can be used for the top-level media type "text".
+    */
+   { 17, 932, STRING_ENCODING_SHIFT_JIS, 0,
+      { "Shift_JIS", "MS_Kanji", "csShiftJIS", NULL }
+   },
+   /*
+    * Source: Standardized by OSF, UNIX International, and UNIX Systems
+    *         Laboratories Pacific.  Uses ISO 2022 rules to select
+    *                code set 0: US-ASCII (a single 7-bit byte set)
+    *                code set 1: JIS X0208-1990 (a double 8-bit byte set)
+    *                            restricted to A0-FF in both bytes
+    *                code set 2: Half Width Katakana (a single 7-bit byte set)
+    *                            requiring SS2 as the character prefix
+    *                code set 3: JIS X0212-1990 (a double 7-bit byte set)
+    *                            restricted to A0-FF in both bytes
+    *                            requiring SS3 as the character prefix
+    */
+   { 18, 20932, STRING_ENCODING_EUC_JP, 2,
+      { "Extended_UNIX_Code_Packed_Format_for_Japanese", "csEUCPkdFmtJapanese",
+        "EUC-JP", NULL }
+   },
+   /*
+    * Windows duplicate of EUC-JP
+    */
+   { 18, 51932, STRING_ENCODING_EUC_JP, 2,
+      { "Extended_UNIX_Code_Packed_Format_for_Japanese", "csEUCPkdFmtJapanese",
+        "EUC-JP", NULL }
+   },
+   /*
+    * Source: Used in Japan.  Each character is 2 octets.
+    *                 code set 0: US-ASCII (a single 7-bit byte set)
+    *                               1st byte = 00
+    *                               2nd byte = 20-7E
+    *                 code set 1: JIS X0208-1990 (a double 7-bit byte set)
+    *                             restricted  to A0-FF in both bytes 
+    *                 code set 2: Half Width Katakana (a single 7-bit byte set)
+    *                               1st byte = 00
+    *                               2nd byte = A0-FF
+    *                 code set 3: JIS X0212-1990 (a double 7-bit byte set)
+    *                             restricted to A0-FF in 
+    *                             the first byte
+    *                 and 21-7E in the second byte
+    */
+   { 19, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Extended_UNIX_Code_Fixed_Width_for_Japanese", "csEUCFixWidJapanese",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 20, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "BS_4730", "iso-ir-4", "ISO646-GB", "gb", "uk", "csISO4UnitedKingdom",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 21, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "SEN_850200_C", "iso-ir-11", "ISO646-SE2", "se2",
+        "csISO11SwedishForNames", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 22, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IT", "iso-ir-15", "ISO646-IT", "csISO15Italian", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 23, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ES", "iso-ir-17", "ISO646-ES", "csISO17Spanish", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 24, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "DIN_66003", "iso-ir-21", "de", "ISO646-DE", "csISO21German", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 25, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NS_4551-1", "iso-ir-60", "ISO646-NO", "no", "csISO60DanishNorwegian",
+        "csISO60Norwegian1", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 26, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NF_Z_62-010", "iso-ir-69", "ISO646-FR", "fr", "csISO69French", NULL }
+   },
+   /*
+    * Source: Universal Transfer Format (1), this is the multibyte
+    *         encoding, that subsets ASCII-7. It does not have byte
+    *         ordering issues.
+    */
+   { 27, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-10646-UTF-1", "csISO10646UTF1", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 28, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_646.basic:1983", "ref", "csISO646basic1983", NULL }
+   },
+   { 29, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "INVARIANT", "csINVARIANT", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 30, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_646.irv:1983", "iso-ir-2", "irv", "csISO2IntlRefVersion", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 31, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NATS-SEFI", "iso-ir-8-1", "csNATSSEFI", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 32, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NATS-SEFI-ADD", "iso-ir-8-2", "csNATSSEFIADD", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 33, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NATS-DANO", "iso-ir-9-1", "csNATSDANO", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 34, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NATS-DANO-ADD", "iso-ir-9-2", "csNATSDANOADD", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 35, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "SEN_850200_B", "iso-ir-10", "FI", "ISO646-FI", "ISO646-SE", "se",
+        "csISO10Swedish", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 36, 949, STRING_ENCODING_UNKNOWN, 0,
+      { "KS_C_5601-1987", "iso-ir-149", "KS_C_5601-1989", "KSC_5601", "korean",
+        "csKSC56011987", NULL }
+   },
+   /*
+    * Source: RFC-1557 (see also KS_C_5601-1987)
+    */
+   { 37, 50225, STRING_ENCODING_ISO_2022_KR, 0,
+      { "ISO-2022-KR", "csISO2022KR", NULL }
+   },
+   /*
+    * Source: RFC-1557 (see also KS_C_5861-1992)
+    */
+   { 38, 51949, STRING_ENCODING_EUC_KR, 0,
+      { "EUC-KR", "csEUCKR", NULL }
+   },
+   /*
+    * Source: RFC-1468 (see also RFC-2237)
+    */
+   { 39, 50220, STRING_ENCODING_ISO_2022_JP, 0,
+      { "ISO-2022-JP", "csISO2022JP", NULL }
+   },
+   /*
+    * Source: VMware
+    */
+   { MIBUNDEF, WINUNDEF, STRING_ENCODING_ISO_2022_JP_1, 0,
+      { "ISO-2022-JP-1", NULL }
+   },
+   /*
+    * Source: RFC-1554
+    */
+   { 40, WINUNDEF, STRING_ENCODING_ISO_2022_JP_2, 0,
+      { "ISO-2022-JP-2", "csISO2022JP2", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 41, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6220-1969-jp", "JIS_C6220-1969", "iso-ir-13", "katakana",
+        "x0201-7", "csISO13JISC6220jp", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 42, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6220-1969-ro", "iso-ir-14", "jp", "ISO646-JP",
+        "csISO14JISC6220ro", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 43, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "PT", "iso-ir-16", "ISO646-PT", "csISO16Portuguese", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 44, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "greek7-old", "iso-ir-18", "csISO18Greek7Old", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 45, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "latin-greek", "iso-ir-19", "csISO19LatinGreek", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 46, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NF_Z_62-010_(1973)", "iso-ir-25", "ISO646-FR1", "csISO25French",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 47, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Latin-greek-1", "iso-ir-27", "csISO27LatinGreek1", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 48, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_5427", "iso-ir-37", "csISO5427Cyrillic", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 49, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6226-1978", "iso-ir-42", "csISO42JISC62261978", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 50, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "BS_viewdata", "iso-ir-47", "csISO47BSViewdata", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 51, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "INIS", "iso-ir-49", "csISO49INIS", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 52, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "INIS-8", "iso-ir-50", "csISO50INIS8", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 53, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "INIS-cyrillic", "iso-ir-51", "csISO51INISCyrillic", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 54, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_5427:1981", "iso-ir-54", "ISO5427Cyrillic1981", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 55, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_5428:1980", "iso-ir-55", "csISO5428Greek", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 56, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "GB_1988-80", "iso-ir-57", "cn", "ISO646-CN", "csISO57GB1988", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 57, 20936, STRING_ENCODING_UNKNOWN, 0,
+      { "GB_2312-80", "iso-ir-58", "chinese", "csISO58GB231280", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 58, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NS_4551-2", "ISO646-NO2", "iso-ir-61", "no2", "csISO61Norwegian2",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 59, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "videotex-suppl", "iso-ir-70", "csISO70VideotexSupp1", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 60, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "PT2", "iso-ir-84", "ISO646-PT2", "csISO84Portuguese2", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 61, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ES2", "iso-ir-85", "ISO646-ES2", "csISO85Spanish2", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 62, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "MSZ_7795.3", "iso-ir-86", "ISO646-HU", "hu", "csISO86Hungarian",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 63, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6226-1983", "iso-ir-87", "x0208", "JIS_X0208-1983",
+        "csISO87JISX0208", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 64, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "greek7", "iso-ir-88", "csISO88Greek7", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 65, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ASMO_449", "ISO_9036", "arabic7", "iso-ir-89", "csISO89ASMO449",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 66, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "iso-ir-90", "csISO90", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 67, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6229-1984-a", "iso-ir-91", "jp-ocr-a", "csISO91JISC62291984a",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 68, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6229-1984-b", "iso-ir-92", "ISO646-JP-OCR-B", "jp-ocr-b",
+        "csISO92JISC62991984b", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 69, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6229-1984-b-add", "iso-ir-93", "jp-ocr-b-add",
+        "csISO93JIS62291984badd", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 70, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6229-1984-hand", "iso-ir-94", "jp-ocr-hand",
+        "csISO94JIS62291984hand", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 71, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6229-1984-hand-add", "iso-ir-95", "jp-ocr-hand-add",
+        "csISO95JIS62291984handadd", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 72, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_C6229-1984-kana", "iso-ir-96", "csISO96JISC62291984kana", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 73, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_2033-1983", "iso-ir-98", "e13b", "csISO2033", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 74, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ANSI_X3.110-1983", "iso-ir-99", "CSA_T500-1983", "NAPLPS",
+        "csISO99NAPLPS", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 75, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "T.61-7bit", "iso-ir-102", "csISO102T617bit", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 76, 20261, STRING_ENCODING_UNKNOWN, 0,
+      { "T.61-8bit", "T.61", "iso-ir-103", "csISO103T618bit", NULL }
+   },
+   /*
+    * Source: ISO registry (formerly ECMA registry)
+    *          http://www.itscj.ipsj.jp/ISO-IR/111.pdf
+    */
+   { 77, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ECMA-cyrillic", "iso-ir-111", "KOI8-E", "csISO111ECMACyrillic", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 78, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "CSA_Z243.4-1985-1", "iso-ir-121", "ISO646-CA", "csa7-1", "ca",
+        "csISO121Canadian1", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 79, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "CSA_Z243.4-1985-2", "iso-ir-122", "ISO646-CA2", "csa7-2",
+        "csISO122Canadian2", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 80, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "CSA_Z243.4-1985-gr", "iso-ir-123", "csISO123CSAZ24341985gr", NULL }
+   },
+   /*
+    * Source: RFC1556
+    */
+   { 81, WINUNDEF, STRING_ENCODING_UNKNOWN, 2,
+      { "ISO_8859-6-E", "csISO88596E", "ISO-8859-6-E", NULL }
+   },
+   /*
+    * Source: RFC1556
+    */
+   { 82, WINUNDEF, STRING_ENCODING_UNKNOWN, 2,
+      { "ISO_8859-6-I", "csISO88596I", "ISO-8859-6-I", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 83, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "T.101-G2", "iso-ir-128", "csISO128T101G2", NULL }
+   },
+   /*
+    * Source: RFC1556
+    */
+   { 84, WINUNDEF, STRING_ENCODING_UNKNOWN, 2,
+      { "ISO_8859-8-E", "csISO88598E", "ISO-8859-8-E", NULL }
+   },
+   /*
+    * Source: RFC1556
+    */
+   { 85, WINUNDEF, STRING_ENCODING_UNKNOWN, 2,
+      { "ISO_8859-8-I", "csISO88598I", "ISO-8859-8-I", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 86, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "CSN_369103", "iso-ir-139", "csISO139CSN369103", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 87, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JUS_I.B1.002", "iso-ir-141", "ISO646-YU", "js", "yu",
+        "csISO141JUSIB1002", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 88, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IEC_P27-1", "iso-ir-143", "csISO143IECP271", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 89, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JUS_I.B1.003-serb", "iso-ir-146", "serbian", "csISO146Serbian", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 90, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JUS_I.B1.003-mac", "macedonian", "iso-ir-147", "csISO147Macedonian",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 91, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "greek-ccitt", "iso-ir-150", "csISO150", "csISO150GreekCCITT", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 92, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "NC_NC00-10:81", "cuba", "iso-ir-151", "ISO646-CU", "csISO151Cuba",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 93, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_6937-2-25", "iso-ir-152", "csISO6937Add", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 94, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "GOST_19768-74", "ST_SEV_358-88", "iso-ir-153", "csISO153GOST1976874",
+         NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 95, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_8859-supp", "iso-ir-154", "latin1-2-5", "csISO8859Supp", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 96, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO_10367-box", "iso-ir-155", "csISO10367Box", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 97, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "latin-lap", "lap", "iso-ir-158", "csISO158Lap", NULL }
+   },
+   /*
+    * Source: ECMA registry
+    */
+   { 98, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "JIS_X0212-1990", "x0212", "iso-ir-159", "csISO159JISX02121990", NULL }
+   },
+   /*
+    * Source: Danish Standard, DS 2089, February 1974
+    */
+   { 99, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "DS_2089", "DS2089", "ISO646-DK", "dk", "csISO646Danish", NULL }
+   },
+   { 100, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "us-dk", "csUSDK", NULL }
+   },
+   { 101, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "dk-us", "csDKUS", NULL }
+   },
+   { 102, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "KSC5636", "ISO646-KR", "csKSC5636", NULL }
+   },
+   /*
+    * Source: RFC 1642
+    */
+   { 103, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "UNICODE-1-1-UTF-7", "csUnicode11UTF7", NULL }
+   },
+   /*
+    * Source: RFC-1922
+    */
+   { 104, 50227, STRING_ENCODING_ISO_2022_CN, 0,
+      { "ISO-2022-CN", NULL }
+   },
+   /*
+    * Source: RFC-1922
+    */
+   { 105, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-2022-CN-EXT", NULL }
+   },
+   /*
+    * Source: RFC 3629
+    */
+   { 106, 65001, STRING_ENCODING_UTF8, 0,
+      { "UTF-8", NULL }
+   },
+   /*
+    * Source: ISO See 
+    *     (http://www.iana.org/assignments/charset-reg/ISO-8859-13)[Tumasonis] 
+    */
+   { 109, 28603, STRING_ENCODING_ISO_8859_13, 0,
+      { "ISO-8859-13", NULL }
+   },
+   /*
+    * Source: ISO See
+    *      (http://www.iana.org/assignments/charset-reg/ISO-8859-14) [Simonsen]
+    */
+   { 110, WINUNDEF, STRING_ENCODING_ISO_8859_14, 0,
+      { "ISO-8859-14", "iso-ir-199", "ISO_8859-14:1998", "ISO_8859-14",
+        "latin8", "iso-celtic", "l8", NULL }
+   },
+   /*
+    * Source: ISO 
+    *     Please see: <http://www.iana.org/assignments/charset-reg/ISO-8859-15>
+    */
+   { 111, 28605, STRING_ENCODING_ISO_8859_15, 0,
+      { "ISO-8859-15", "ISO_8859-15", "Latin-9", NULL }
+   },
+   /*
+    * Windows duplicate of ISO-8859-15
+    * windows-874: ANSI/OEM Thai (same as 28605, ISO 8859-15)
+    */
+   { 111, 874, STRING_ENCODING_ISO_8859_15, 0,
+      { "ISO-8859-15", "ISO_8859-15", "Latin-9", NULL }
+   },
+   /*
+    * Source: ISO
+    */
+   { 112, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-8859-16", "iso-ir-226", "ISO_8859-16:2001", "ISO_8859-16",
+        "latin10", "l10", NULL }
+   },
+   /*
+    * Source: Chinese IT Standardization Technical Committee  
+    *         Please see: <http://www.iana.org/assignments/charset-reg/GBK>
+    */
+   { 113, WINUNDEF, STRING_ENCODING_GBK, 0,
+      { "GBK", "CP936", "MS936", "windows-936", NULL }
+   },
+   /*
+    * Source: Chinese IT Standardization Technical Committee
+    *         Please see: <http://www.iana.org/assignments/charset-reg/GB18030>
+    */
+   { 114, 54936, STRING_ENCODING_GB_18030, 0,
+      { "GB18030", NULL }
+   },
+   /*
+    * Source:  Fujitsu-Siemens standard mainframe EBCDIC encoding
+    *          Please see:
+               <http://www.iana.org/assignments/charset-reg/OSD-EBCDIC-DF04-15>
+    */
+   { 115, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "OSD_EBCDIC_DF04_15", NULL }
+   },
+   /*
+    * Source:  Fujitsu-Siemens standard mainframe EBCDIC encoding
+    *          Please see:
+    *          <http://www.iana.org/assignments/charset-reg/OSD-EBCDIC-DF03-IRV>
+    */
+   { 116, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "OSD_EBCDIC_DF03_IRV", NULL }
+   },
+   /*
+    * Source:  Fujitsu-Siemens standard mainframe EBCDIC encoding
+    *          Please see:
+    *          <http://www.iana.org/assignments/charset-reg/OSD-EBCDIC-DF04-1>
+    */
+   { 117, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "OSD_EBCDIC_DF04_1", NULL }
+   },
+   /*
+    * Source: See <http://www.iana.org/assignments/charset-reg/ISO-11548-1>
+    *            [Thibault]
+    */
+   { 118, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-11548-1", "ISO_11548-1", "ISO_TR_11548-1", "csISO115481", NULL }
+   },
+   /*
+    * Source: See <http://www.iana.org/assignments/charset-reg/KZ-1048>  
+    *    [Veremeev, Kikkarin]
+    */
+   { 119, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "KZ-1048", "STRK1048-2002", "RK1048", "csKZ1048", NULL }
+   },
+   /*
+    * Source: the 2-octet Basic Multilingual Plane, aka Unicode
+    *         this needs to specify network byte order: the standard
+    *         does not specify (it is a 16-bit integer space)
+    */
+   { 1000, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-10646-UCS-2", "csUnicode", NULL }
+   },
+   /*
+    * Source: the full code space. (same comment about byte order,
+    *         these are 31-bit numbers.
+    */
+   { 1001, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-10646-UCS-4", "csUCS4", NULL }
+   },
+   /*
+    * Source: ASCII subset of Unicode.  Basic Latin = collection 1
+    *         See ISO 10646, Appendix A
+    */
+   { 1002, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-10646-UCS-Basic", "csUnicodeASCII", NULL }
+   },
+   /*
+    * Source: ISO Latin-1 subset of Unicode. Basic Latin and Latin-1 
+    *          Supplement  = collections 1 and 2.  See ISO 10646, 
+    *          Appendix A.  See RFC 1815.
+    */
+   { 1003, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-10646-Unicode-Latin1", "csUnicodeLatin1", "ISO-10646", NULL }
+   },
+   /*
+    * Source: ISO 10646 Japanese, see RFC 1815.
+    */
+   { MIBUNDEF, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-10646-J-1", NULL }
+   },
+   /*
+    * Source: IBM Latin-2, -3, -5, Extended Presentation Set, GCSGID: 1261
+    */
+   { 1005, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-Unicode-IBM-1261", "csUnicodeIBM1261", NULL }
+   },
+   /*
+    * Source: IBM Latin-4 Extended Presentation Set, GCSGID: 1268
+    */
+   { 1006, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-Unicode-IBM-1268", "csUnicodeIBM1268", NULL }
+   },
+   /*
+    * Source: IBM Cyrillic Greek Extended Presentation Set, GCSGID: 1276
+    */
+   { 1007, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-Unicode-IBM-1276", "csUnicodeIBM1276", NULL }
+   },
+   /*
+    * Source: IBM Arabic Presentation Set, GCSGID: 1264
+    */
+   { 1008, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-Unicode-IBM-1264", "csUnicodeIBM1264", NULL }
+   },
+   /*
+    * Source: IBM Hebrew Presentation Set, GCSGID: 1265
+    */
+   { 1009, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-Unicode-IBM-1265", "csUnicodeIBM1265", NULL }
+   },
+   /*
+    * Source: RFC 1641
+    */
+   { 1010, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "UNICODE-1-1", "csUnicode11", NULL }
+   },
+   /*
+    * Source: SCSU See (http://www.iana.org/assignments/charset-reg/SCSU)
+    *     [Scherer]
+    */
+   { 1011, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "SCSU", NULL }
+   },
+   /*
+    * Source: RFC 2152
+    */
+   { 1012, 65000, STRING_ENCODING_UNKNOWN, 0,
+      { "UTF-7", NULL }
+   },
+   /*
+    * Source: RFC 2781
+    */
+   { 1013, 1201, STRING_ENCODING_UTF16_BE, 0,
+      { "UTF-16BE", NULL }
+   },
+   /*
+    * Source: RFC 2781
+    */
+   { 1015, 1200, STRING_ENCODING_UTF16, 0,
+      { "UTF-16", NULL }
+   },
+   /*
+    * Source: RFC 2781
+    *
+    * UTF-16LE is after UTF16 so windows code page 1200 matches UTF16 first
+    */
+   { 1014, 1200, STRING_ENCODING_UTF16_LE, 0,
+      { "UTF-16LE", NULL }
+   },
+   /*
+    * Source: <http://www.unicode.org/unicode/reports/tr26>
+    */
+   { 1016, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "CESU-8", "csCESU-8", NULL }
+   },
+   /*
+    * Source: <http://www.unicode.org/unicode/reports/tr19/>
+    */
+   { 1017, 12000, STRING_ENCODING_UTF32, 0,
+      { "UTF-32", NULL }
+   },
+   /*
+    * Source: <http://www.unicode.org/unicode/reports/tr19/>
+    */
+   { 1018, 12001, STRING_ENCODING_UTF32_BE, 0,
+      { "UTF-32BE", NULL }
+   },
+   /*
+    * Source: <http://www.unicode.org/unicode/reports/tr19/>
+    */
+   { 1019, 12000, STRING_ENCODING_UTF32_LE, 0,
+      { "UTF-32LE", NULL }
+   },
+   /*
+    * Source: http://www.unicode.org/notes/tn6/
+    */
+   { 1020, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "BOCU-1", "csBOCU-1", NULL }
+   },
+   /*
+    * Source: Extended ISO 8859-1 Latin-1 for Windows 3.0.  
+    *         PCL Symbol Set id: 9U
+    */
+   { 2000, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-8859-1-Windows-3.0-Latin-1", "csWindows30Latin1", NULL }
+   },
+   /*
+    * Source: Extended ISO 8859-1 Latin-1 for Windows 3.1.  
+    *         PCL Symbol Set id: 19U
+    */
+   { 2001, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-8859-1-Windows-3.1-Latin-1", "csWindows31Latin1", NULL }
+   },
+   /*
+    * Source: Extended ISO 8859-2.  Latin-2 for Windows 3.1.
+    *         PCL Symbol Set id: 9E
+    */
+   { 2002, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-8859-2-Windows-Latin-2", "csWindows31Latin2", NULL }
+   },
+   /*
+    * Source: Extended ISO 8859-9.  Latin-5 for Windows 3.1
+    *         PCL Symbol Set id: 5T
+    */
+   { 2003, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "ISO-8859-9-Windows-Latin-5", "csWindows31Latin5", NULL }
+   },
+   /*
+    * Source: LaserJet IIP Printer User's Manual, 
+    *         HP part no 33471-90901, Hewlet-Packard, June 1989.
+    */
+   { 2004, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "hp-roman8", "roman8", "r8", "csHPRoman8", NULL }
+   },
+   /*
+    * Source: PostScript Language Reference Manual
+    *         PCL Symbol Set id: 10J
+    */
+   { 2005, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Adobe-Standard-Encoding", "csAdobeStandardEncoding", NULL }
+   },
+   /*
+    * Source: Ventura US.  ASCII plus characters typically used in 
+    *         publishing, like pilcrow, copyright, registered, trade mark, 
+    *         section, dagger, and double dagger in the range A0 (hex) 
+    *         to FF (hex).  
+    *         PCL Symbol Set id: 14J
+    */
+   { 2006, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Ventura-US", "csVenturaUS", NULL }
+   },
+   /*
+    * Source: Ventura International.  ASCII plus coded characters similar 
+    *         to Roman8.
+    *         PCL Symbol Set id: 13J
+    */
+   { 2007, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Ventura-International", "csVenturaInternational", NULL }
+   },
+   /*
+    * Source: VAX/VMS User's Manual, 
+    *         Order Number: AI-Y517A-TE, April 1986.
+    */
+   { 2008, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "DEC-MCS", "dec", "csDECMCS", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2009, 850, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM850", "cp850", "850", "csPC850Multilingual", NULL }
+   },
+   /*
+    * Source: PC Danish Norwegian
+    *         8-bit PC set for Danish Norwegian
+    *         PCL Symbol Set id: 11U
+    */
+   { 2012, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "PC8-Danish-Norwegian", "csPC8DanishNorwegian", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2013, 862, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM862", "cp862", "862", "csPC862LatinHebrew", NULL }
+   },
+   /*
+    * Source: PC Latin Turkish.  PCL Symbol Set id: 9T
+    */
+   { 2014, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "PC8-Turkish", "csPC8Turkish", NULL }
+   },
+   /*
+    * Source: Presentation Set, CPGID: 259
+    */
+   { 2015, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM-Symbols", "csIBMSymbols", NULL }
+   },
+   /*
+    * Source: Presentation Set, CPGID: 838
+    */
+   { 2016, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM-Thai", "csIBMThai", NULL }
+   },
+   /*
+    * Source: PCL 5 Comparison Guide, Hewlett-Packard,
+    *         HP part number 5961-0510, October 1992
+    *         PCL Symbol Set id: 1U
+    */
+   { 2017, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "HP-Legal", "csHPLegal", NULL }
+   },
+   /*
+    * Source: PCL 5 Comparison Guide, Hewlett-Packard,
+    *         HP part number 5961-0510, October 1992
+    *         PCL Symbol Set id: 15U
+    */
+   { 2018, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "HP-Pi-font", "csHPPiFont", NULL }
+   },
+   /*
+    * Source: PCL 5 Comparison Guide, Hewlett-Packard,
+    *         HP part number 5961-0510, October 1992
+    *         PCL Symbol Set id: 8M
+    */
+   { 2019, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "HP-Math8", "csHPMath8", NULL }
+   },
+   /*
+    * Source: PostScript Language Reference Manual
+    *         PCL Symbol Set id: 5M
+    */
+   { 2020, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Adobe-Symbol-Encoding", "csHPPSMath", NULL }
+   },
+   /*
+    * Source: PCL 5 Comparison Guide, Hewlett-Packard,
+    *         HP part number 5961-0510, October 1992
+    *         PCL Symbol Set id: 7J
+    */
+   { 2021, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "HP-DeskTop", "csHPDesktop", NULL }
+   },
+   /*
+    * Source: PCL 5 Comparison Guide, Hewlett-Packard,
+    *         HP part number 5961-0510, October 1992
+    *         PCL Symbol Set id: 6M
+    */
+   { 2022, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Ventura-Math", "csVenturaMath", NULL }
+   },
+   /*
+    * Source: PCL 5 Comparison Guide, Hewlett-Packard,
+    *         HP part number 5961-0510, October 1992
+    *         PCL Symbol Set id: 6J
+    */
+   { 2023, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Microsoft-Publishing", "csMicrosoftPublishing", NULL }
+   },
+   /*
+    * Source: Windows Japanese.  A further extension of Shift_JIS
+    *         to include NEC special characters (Row 13), NEC
+    *         selection of IBM extensions (Rows 89 to 92), and IBM
+    *         extensions (Rows 115 to 119).  The CCS's are
+    *         JIS X0201:1997, JIS X0208:1997, and these extensions.
+    *         This charset can be used for the top-level media type "text",
+    *         but it is of limited or specialized use (see RFC2278).
+    *         PCL Symbol Set id: 19K
+    */
+   { 2024, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-31J", "csWindows31J", NULL }
+   },
+   /*
+    * Source: Chinese for People's Republic of China (PRC) mixed one byte, 
+    *         two byte set: 
+    *           20-7E = one byte ASCII 
+    *           A1-FE = two byte PRC Kanji 
+    *         See GB 2312-80 
+    *         PCL Symbol Set Id: 18C
+    */
+   { 2025, 936, STRING_ENCODING_GB_2312, 0,
+      { "GB2312", "csGB2312", NULL }
+   },
+   /*
+    * Source: Chinese for Taiwan Multi-byte set.
+    *         PCL Symbol Set Id: 18T
+    */
+   { 2026, 950, STRING_ENCODING_BIG_5, 0,
+      { "Big5", "csBig5", NULL }
+   },
+   /*
+    * Source: The Unicode Standard ver1.0, ISBN 0-201-56788-1, Oct 1991
+    */
+   { 2027, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "macintosh", "mac", "csMacintosh", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2028, 37, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM037", "cp037", "ebcdic-cp-us", "ebcdic-cp-ca", "ebcdic-cp-wt",
+        "ebcdic-cp-nl", "csIBM037", NULL }
+   },
+   /*
+    * Source: IBM 3174 Character Set Ref, GA27-3831-02, March 1990
+    */
+   { 2029, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM038", "EBCDIC-INT", "cp038", "csIBM038", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2030, 20273, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM273", "CP273", "csIBM273", NULL }
+   },
+   /*
+    * Source: IBM 3174 Character Set Ref, GA27-3831-02, March 1990
+    */
+   { 2031, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM274", "EBCDIC-BE", "CP274", "csIBM274", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2032, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM275", "EBCDIC-BR", "cp275", "csIBM275", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2033, 20277, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM277", "EBCDIC-CP-DK", "EBCDIC-CP-NO", "csIBM277", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2034, 20278, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM278", "CP278", "ebcdic-cp-fi", "ebcdic-cp-se", "csIBM278", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2035, 20280, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM280", "CP280", "ebcdic-cp-it", "csIBM280", NULL }
+   },
+   /*
+    * Source: IBM 3174 Character Set Ref, GA27-3831-02, March 1990
+    */
+   { 2036, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM281", "EBCDIC-JP-E", "cp281", "csIBM281", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2037, 20284, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM284", "CP284", "ebcdic-cp-es", "csIBM284", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2038, 20285, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM285", "CP285", "ebcdic-cp-gb", "csIBM285", NULL }
+   },
+   /*
+    * Source: IBM 3174 Character Set Ref, GA27-3831-02, March 1990
+    */
+   { 2039, 20290, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM290", "cp290", "EBCDIC-JP-kana", "csIBM290", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2040, 20297, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM297", "cp297", "ebcdic-cp-fr", "csIBM297", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990, 
+    *         IBM NLS RM p 11-11
+    */
+   { 2041, 20420, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM420", "cp420", "ebcdic-cp-ar1", "csIBM420", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2042, 20423, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM423", "cp423", "ebcdic-cp-gr", "csIBM423", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2043, 20424, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM424", "cp424", "ebcdic-cp-he", "csIBM424", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2011, 437, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM437", "cp437", "437", "csPC8CodePage437", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2044, 500, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM500", "CP500", "ebcdic-cp-be", "ebcdic-cp-ch", "csIBM500", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2045, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM851", "cp851", "851", "csIBM851", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2010, 852, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM852", "cp852", "852", "csPCp852", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2046, 855, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM855", "cp855", "855", "csIBM855", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2047, 857, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM857", "cp857", "857", "csIBM857", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2048, 860, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM860", "cp860", "860", "csIBM860", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2049, 861, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM861", "cp861", "861", "cp-is", "csIBM861", NULL }
+   },
+   /*
+    * Source: IBM Keyboard layouts and code pages, PN 07G4586 June 1991
+    */
+   { 2050, 863, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM863", "cp863", "863", "csIBM863", NULL }
+   },
+   /*
+    * Source: IBM Keyboard layouts and code pages, PN 07G4586 June 1991
+    */
+   { 2051, 864, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM864", "cp864", "csIBM864", NULL }
+   },
+   /*
+    * Source: IBM DOS 3.3 Ref (Abridged), 94X9575 (Feb 1987)
+    */
+   { 2052, 865, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM865", "cp865", "865", "csIBM865", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2053, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM868", "CP868", "cp-ar", "csIBM868", NULL }
+   },
+   /*
+    * Source: IBM Keyboard layouts and code pages, PN 07G4586 June 1991
+    */
+   { 2054, 869, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM869", "cp869", "869", "cp-gr", "csIBM869", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2055, 870, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM870", "CP870", "ebcdic-cp-roece", "ebcdic-cp-yu", "csIBM870",
+         NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2056, 20871, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM871", "CP871", "ebcdic-cp-is", "csIBM871", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2057, 20880, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM880", "cp880", "EBCDIC-Cyrillic", "csIBM880", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2058, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM891", "cp891", "csIBM891", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2059, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM903", "cp903", "csIBM903", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2060, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM904", "cp904", "904", "csIBBM904", NULL }
+   },
+   /*
+    * Source: IBM 3174 Character Set Ref, GA27-3831-02, March 1990
+    */
+   { 2061, 20905, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM905", "CP905", "ebcdic-cp-tr", "csIBM905", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2062, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM918", "CP918", "ebcdic-cp-ar2", "csIBM918", NULL }
+   },
+   /*
+    * Source: IBM NLS RM Vol2 SE09-8002-01, March 1990
+    */
+   { 2063, 1026, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM1026", "CP1026", "csIBM1026", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2064, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-AT-DE", "csIBMEBCDICATDE", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987 
+    */
+   { 2065, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-AT-DE-A", "csEBCDICATDEA", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2066, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-CA-FR", "csEBCDICCAFR", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2067, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-DK-NO", "csEBCDICDKNO", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2068, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-DK-NO-A", "csEBCDICDKNOA", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2069, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-FI-SE", "csEBCDICFISE", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2070, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-FI-SE-A", "csEBCDICFISEA", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2071, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-FR", "csEBCDICFR", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2072, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-IT", "csEBCDICIT", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2073, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-PT", "csEBCDICPT", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2074, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-ES", "csEBCDICES", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2075, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-ES-A", "csEBCDICESA", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2076, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-ES-S", "csEBCDICESS", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2077, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-UK", "csEBCDICUK", NULL }
+   },
+   /*
+    * Source: IBM 3270 Char Set Ref Ch 10, GA27-2837-9, April 1987
+    */
+   { 2078, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "EBCDIC-US", "csEBCDICUS", NULL }
+   },
+   { 2079, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "UNKNOWN-8BIT", "csUnknown8BiT", NULL }
+   },
+   /*
+    * Source: RFC 1345, also known as "mnemonic+ascii+38"
+    */
+   { 2080, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "MNEMONIC", "csMnemonic", NULL }
+   },
+   /*
+    * Source: RFC 1345, also known as "mnemonic+ascii+8200"
+    */
+   { 2081, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "MNEM", "csMnem", NULL }
+   },
+   /*
+    * Source: RFC 1456
+    */
+   { 2082, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "VISCII", "csVISCII", NULL }
+   },
+   /*
+    * Source: RFC 1456
+    */
+   { 2083, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "VIQR", "csVIQR", NULL }
+   },
+   /*
+    * Source: RFC 1489, based on GOST-19768-74, ISO-6937/8, 
+    *         INIS-Cyrillic, ISO-5427.
+    */
+   { 2084, 20866, STRING_ENCODING_UNKNOWN, 0,
+      { "KOI8-R", "csKOI8R", NULL }
+   },
+   /*
+    * Source: RFC 1842, RFC 1843 [RFC1842, RFC1843]
+    */
+   { 2085, 52936, STRING_ENCODING_UNKNOWN, 0,
+      { "HZ-GB-2312", NULL }
+   },
+   /*
+    * Source: IBM NLDG Volume 2 (SE09-8002-03) August 1994
+    */
+   { 2086, 866, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM866", "cp866", "866", "csIBM866", NULL }
+   },
+   /*
+    * Source: HP PCL 5 Comparison Guide (P/N 5021-0329) pp B-13, 1996
+    */
+   { 2087, 775, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM775", "cp775", "csPC775Baltic", NULL }
+   },
+   /*
+    * Source: RFC 2319
+    */
+   { 2088, 21866, STRING_ENCODING_UNKNOWN, 0,
+      { "KOI8-U", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM00858) 
+    *   [Mahdi]
+    */
+   { 2089, 858, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM00858", "CCSID00858", "CP00858", "PC-Multilingual-850+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM00924)i
+        [Mahdi]
+    */
+   { 2090, 20924, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM00924", "CCSID00924", "CP00924", "ebcdic-Latin9--euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01140)
+    *    [Mahdi]
+    */
+   { 2091, 1140, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01140", "CCSID01140", "CP01140", "ebcdic-us-37+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01141)
+        [Mahdi]
+    */
+   { 2092, 1141, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01141", "CCSID01141", "CP01141", "ebcdic-de-273+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01142)
+    *    [Mahdi]
+    */
+   { 2093, 1142, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01142", "CCSID01142", "CP01142", "ebcdic-dk-277+euro",
+        "ebcdic-no-277+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01143)
+    *    [Mahdi]
+    */
+   { 2094, 1143, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01143", "CCSID01143", "CP01143", "ebcdic-fi-278+euro",
+        "ebcdic-se-278+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01144)
+    *    [Mahdi]
+    */
+   { 2095, 1144, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01144", "CCSID01144", "CP01144", "ebcdic-it-280+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01145)
+    *    [Mahdi]
+    */
+   { 2096, 1145, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01145", "CCSID01145", "CP01145", "ebcdic-es-284+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01146)
+    *    [Mahdi]
+    */
+   { 2097, 1146, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01146", "CCSID01146", "CP01146", "ebcdic-gb-285+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01147)
+    *    [Mahdi]
+    */
+   { 2098, 1147, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01147", "CCSID01147", "CP01147", "ebcdic-fr-297+euro", NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01148)i
+    *    [Mahdi]
+    */
+   { 2099, 1148, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01148", "CCSID01148", "CP01148", "ebcdic-international-500+euro",
+         NULL }
+   },
+   /*
+    * Source: IBM See (http://www.iana.org/assignments/charset-reg/IBM01149)i
+    *    [Mahdi]
+    */
+   { 2100, 1149, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM01149", "CCSID01149", "CP01149", "ebcdic-is-871+euro", NULL }
+   },
+   /*
+    * Source:   See (http://www.iana.org/assignments/charset-reg/Big5-HKSCS) 
+    */
+   { 2101, WINUNDEF, STRING_ENCODING_BIG_5_HK, 0,
+      { "Big5-HKSCS", NULL }
+   },
+   /*
+    * Source: IBM1047 (EBCDIC Latin 1/Open Systems)
+    * http://www-1.ibm.com/servers/eserver/iseries/software/globalization/
+    *        pdf/cp01047z.pdf
+    */
+   { 2102, 1047, STRING_ENCODING_UNKNOWN, 0,
+      { "IBM1047", "IBM-1047", NULL }
+   },
+   /*
+    * Source: See (http://www.iana.org/assignments/charset-reg/PTCP154)
+    */
+   { 2103, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "PTCP154", "csPTCP154", "PT154", "CP154", "Cyrillic-Asian", NULL }
+   },
+   /*
+    * Source:  See (http://www.amiga.ultranet.ru/Amiga-1251.html)
+    */
+   { 2104, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "Amiga-1251", "Ami1251", "Amiga1251", "Ami-1251", NULL }
+   },
+   /*
+    * Source:  See <http://www.iana.org/assignments/charset-reg/KOI7-switched>
+    * Aliases:  None
+    */
+   { 2105, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "KOI7-switched", NULL }
+   },
+   /*
+    * Source: See <http://www.iana.org/assignments/charset-reg/BRF>                    [Thibault]
+    */
+   { 2106, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "BRF", "csBRF", NULL }
+   },
+   /*
+    * Source: See <http://www.iana.org/assignments/charset-reg/TSCII>           [Kalyanasundaram]
+    */
+   { 2107, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "TSCII", "csTSCII", NULL }
+   },
+   /*
+    * Source: Microsoft  
+    *  (http://www.iana.org/assignments/charset-reg/windows-1250) [Lazhintseva]
+    */
+   { 2250, 1250, STRING_ENCODING_WINDOWS_1250, 0,
+      { "windows-1250", NULL }
+   },
+   /*
+    * Source: Microsoft
+    *  (http://www.iana.org/assignments/charset-reg/windows-1251) [Lazhintseva]
+    */
+   { 2251, 1251, STRING_ENCODING_WINDOWS_1251, 0,
+      { "windows-1251", NULL }
+   },
+   /*
+    * Source: Microsoft 
+    *  (http://www.iana.org/assignments/charset-reg/windows-1252)       [Wendt]
+    */
+   { 2252, 1252, STRING_ENCODING_WINDOWS_1252, 0,
+      { "windows-1252", NULL }
+   },
+   /*
+    * Source: Microsoft 
+    *  (http://www.iana.org/assignments/charset-reg/windows-1253) [Lazhintseva]
+    */
+   { 2253, 1253, STRING_ENCODING_WINDOWS_1253, 0,
+      { "windows-1253", NULL }
+   },
+   /*
+    * Source: Microsoft
+    *  (http://www.iana.org/assignments/charset-reg/windows-1254) [Lazhintseva]
+    */
+   { 2254, 1254, STRING_ENCODING_WINDOWS_1254, 0,
+      { "windows-1254", NULL }
+   },
+   /*
+    * Source: Microsoft 
+    *  (http://www.iana.org/assignments/charset-reg/windows-1255) [Lazhintseva]
+    */
+   { 2255, 1255, STRING_ENCODING_WINDOWS_1255, 0,
+      { "windows-1255", NULL }
+   },
+   /*
+    * Source: Microsoft
+    *  (http://www.iana.org/assignments/charset-reg/windows-1256) [Lazhintseva]
+    */
+   { 2256, 1256, STRING_ENCODING_WINDOWS_1256, 0,
+      { "windows-1256", NULL }
+   },
+   /*
+    * Source: Microsoft 
+    *  (http://www.iana.org/assignments/charset-reg/windows-1257) [Lazhintseva]
+    */
+   { 2257, 1257, STRING_ENCODING_WINDOWS_1257, 0,
+      { "windows-1257", NULL }
+   },
+   /*
+    * Source: Microsoft
+    *  (http://www.iana.org/assignments/charset-reg/windows-1258) [Lazhintseva]
+    */
+   { 2258, 1258, STRING_ENCODING_WINDOWS_1258, 0,
+      { "windows-1258", NULL }
+   },
+   /*
+    * Source: Thai Industrial Standards Institute (TISI)                             [Tantsetthi]
+    */
+   { 2259, WINUNDEF, STRING_ENCODING_UNKNOWN, 0,
+      { "TIS-620", NULL }
+   },
+   /*
+    * Windows specific entries for which there is no corresponding iana mapping
+    */
+
+   /*
+    * Windows-709: Arabic (ASMO-449+, BCON V4)
+    */
+   { MIBUNDEF, 709, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-709", "ASMO-449+", "BCON_V4", NULL }
+   },
+   /*
+    * Windows-710: Arabic - Transparent Arabic
+    */
+   { MIBUNDEF, 710, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-710", NULL }
+   },
+   /*
+    * DOS-720: Arabic (Transparent ASMO); Arabic (DOS)
+    */
+   { MIBUNDEF, 720, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-720", "DOS-720", "DOS_720", NULL }
+   },
+   /*
+    * ibm737: OEM Greek (formerly 437G); Greek (DOS)
+    */
+   { MIBUNDEF, 737, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-737", "IBM737", NULL }
+   },
+   /*
+    * ibm775: OEM Baltic; Baltic (DOS)
+    */
+   { MIBUNDEF, 775, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-775", "IBM775", NULL }
+   },
+   /*
+    * cp875: IBM EBCDIC Greek Modern
+    */
+   { MIBUNDEF, 875, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-875", "cp875", NULL }
+   },
+   /*
+    * Johab: Korean (Johab)
+    */
+   { MIBUNDEF, 1361, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-1361", "Johab", NULL }
+   },
+   /*
+    * macintosh: MAC Roman; Western European (Mac)
+    * using the encoding names "mac" and "macintosh"
+    * is probably a bad idea here
+    */
+   { MIBUNDEF, 10000, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10000", NULL }
+   },
+   /*
+    * x-mac-japanese: Japanese (Mac)
+    */
+   { MIBUNDEF, 10001, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10001", "x-mac-japanese", NULL }
+   },
+   /*
+    * x-mac-chinesetrad: MAC Traditional Chinese (Big5);
+    *                    Chinese Traditional (Mac)
+    */
+   { MIBUNDEF, 10002, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10002", "x-mac-chinesetrad", NULL }
+   },
+   /*
+    * x-mac-korean: Korean (Mac)
+    */
+   { MIBUNDEF, 10003, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10003", "x-mac-korean", NULL }
+   },
+   /*
+    * x-mac-arabic: Arabic (Mac)
+    */
+   { MIBUNDEF, 10004, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10004", "x-mac-arabic", NULL }
+   },
+   /*
+    * x-mac-hebrew: Hebrew (Mac)
+    */
+   { MIBUNDEF, 10005, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10005", "x-mac-hebrew", NULL }
+   },
+   /*
+    * x-mac-greek: Greek (Mac)
+    */
+   { MIBUNDEF, 10006, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10006", "x-mac-greek", NULL }
+   },
+   /*
+    * x-mac-cyrillic: Cyrillic (Mac)
+    */
+   { MIBUNDEF, 10007, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10007", "x-mac-cyrillic", NULL }
+   },
+   /*
+    * x-mac-chinesesimp: MAC Simplified Chinese (GB 2312);
+    *                    Chinese Simplified (Mac)
+    */
+   { MIBUNDEF, 10008, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10008", "x-mac-chinesesimp", NULL }
+   },
+   /*
+    * x-mac-romanian: Romanian (Mac)
+    */
+   { MIBUNDEF, 10010, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10010", "x-mac-romanian", NULL }
+   },
+   /*
+    * x-mac-ukrainian: Ukrainian (Mac)
+    */
+   { MIBUNDEF, 10017, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10017", "x-mac-ukrainian", NULL }
+   },
+   /*
+    * x-mac-thai: Thai (Mac)
+    */
+   { MIBUNDEF, 10021, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10021", "x-mac-thai", NULL }
+   },
+   /*
+    * x-mac-ce: MAC Latin 2; Central European (Mac)
+    */
+   { MIBUNDEF, 10029, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10029", "x-mac-ce", NULL }
+   },
+   /*
+    * x-mac-icelandic: Icelandic (Mac)
+    */
+   { MIBUNDEF, 10079, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10079", "x-mac-icelandic", NULL }
+   },
+   /*
+    * x-mac-turkish: Turkish (Mac)
+    */
+   { MIBUNDEF, 10081, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10081", "x-mac-turkish", NULL }
+   },
+   /*
+    * x-mac-croatian: Croatian (Mac)
+    */
+   { MIBUNDEF, 10082, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-10082", "x-mac-croatian", NULL }
+   },
+   /*
+    * x-Chinese_CNS: CNS Taiwan; Chinese Traditional (CNS)
+    */
+   { MIBUNDEF, 20000, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20000", "x-Chinese_CNS", NULL }
+   },
+   /*
+    * x-cp20001: TCA Taiwan
+    */
+   { MIBUNDEF, 20001, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20001", "x-cp20001", NULL }
+   },
+   /*
+    * x_Chinese-Eten: Eten Taiwan; Chinese Traditional (Eten)
+    */
+   { MIBUNDEF, 20002, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20002", "x_Chinese-Eten", NULL }
+   },
+   /*
+    * x-cp20003: IBM5550 Taiwan
+    */
+   { MIBUNDEF, 20003, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20003", "x-cp20003", NULL }
+   },
+   /*
+    * x-cp20004: TeleText Taiwan
+    */
+   { MIBUNDEF, 20004, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20004", "x-cp20004", NULL }
+   },
+   /*
+    * x-cp20005: Wang Taiwan
+    */
+   { MIBUNDEF, 20005, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20005", "x-cp20005", NULL }
+   },
+   /*
+    * x-IA5: IA5 (IRV International Alphabet No. 5, 7-bit);
+    *        Western European (IA5)
+    */
+   { MIBUNDEF, 20105, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20105", "x-IA5", NULL }
+   },
+   /*
+    * x-IA5-German: IA5 German (7-bit)
+    */
+   { MIBUNDEF, 20106, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20106", "x-IA5-German", NULL }
+   },
+   /*
+    * x-IA5-Swedish: IA5 Swedish (7-bit)
+    */
+   { MIBUNDEF, 20107, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20107", "x-IA5-Swedish", NULL }
+   },
+   /*
+    * x-IA5-Norwegian: IA5 Norwegian (7-bit)
+    */
+   { MIBUNDEF, 20108, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20108", "x-IA5-Norwegian", NULL }
+   },
+   /*
+    * x-cp20269: ISO 6937 Non-Spacing Accent
+    */
+   { MIBUNDEF, 20269, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20269", "x-cp20269", NULL }
+   },
+   /*
+    * x-EBCDIC-KoreanExtended: IBM EBCDIC Korean Extended
+    */
+   { MIBUNDEF, 20833, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20833", "x-EBCDIC-KoreanExtended", NULL }
+   },
+   /*
+    * IBM-Thai: IBM EBCDIC Thai
+    */
+   { MIBUNDEF, 20838, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20838", "IBM-Thai", NULL }
+   },
+   /*
+    * x-cp20949: Korean Wansung
+    */
+   { MIBUNDEF, 20949, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-20949", "x-cp20949", NULL }
+   },
+   /*
+    * cp1025: IBM EBCDIC Cyrillic Serbian-Bulgarian
+    */
+   { MIBUNDEF, 21025, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-21025", "cp1025", NULL }
+   },
+   /*
+    * Windows-21027: (deprecated)
+    */
+   { MIBUNDEF, 21027, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-21027", NULL }
+   },
+   /*
+    * x-Europa: Europa 3
+    */
+   { MIBUNDEF, 29001, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-29001", "x-Europa", NULL }
+   },
+   /*
+    * iso-8859-8-i: ISO 8859-8 Hebrew; Hebrew (ISO-Logical)
+    */
+   { MIBUNDEF, 38598, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-38598", "iso-8859-8-i", NULL }
+   },
+   /*
+    * csISO2022JP: ISO 2022 Japanese with halfwidth Katakana;
+    *              Japanese (JIS-Allow 1 byte Kana)
+    */
+   { MIBUNDEF, 50221, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50221", "csISO2022JP", NULL }
+   },
+   /*
+    * iso-2022-jp: ISO 2022 Japanese JIS X 0201-1989;
+    *              Japanese (JIS-Allow 1 byte Kana - SO/SI)
+    */
+   { MIBUNDEF, 50222, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50222", "iso-2022-jp", NULL }
+   },
+   /*
+    * Windows-50229: ISO 2022 Traditional Chinese
+    */
+   { MIBUNDEF, 50229, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50229", NULL }
+   },
+   /*
+    * Windows-50930: EBCDIC Japanese (Katakana) Extended
+    */
+   { MIBUNDEF, 50930, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50930", NULL }
+   },
+   /*
+    * Windows-50931: EBCDIC US-Canada and Japanese
+    */
+   { MIBUNDEF, 50931, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50931", NULL }
+   },
+   /*
+    * Windows-50933: EBCDIC Korean Extended and Korean
+    */
+   { MIBUNDEF, 50933, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50933", NULL }
+   },
+   /*
+    * Windows-50935: EBCDIC Simplified Chinese Extended and Simplified Chinese
+    */
+   { MIBUNDEF, 50935, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50935", NULL }
+   },
+   /*
+    * Windows-50936: EBCDIC Simplified Chinese
+    */
+   { MIBUNDEF, 50936, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50936", NULL }
+   },
+   /*
+    * Windows-50937: EBCDIC US-Canada and Traditional Chinese
+    */
+   { MIBUNDEF, 50937, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50937", NULL }
+   },
+   /*
+    * Windows-50939: EBCDIC Japanese (Latin) Extended and Japanese
+    */
+   { MIBUNDEF, 50939, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-50939", NULL }
+   },
+   /*
+    * EUC-CN: EUC Simplified Chinese; Chinese Simplified (EUC)
+    */
+   { MIBUNDEF, 51936, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-51936", "EUC-CN", NULL }
+   },
+   /*
+    * Windows-51950: EUC Traditional Chinese
+    */
+   { MIBUNDEF, 51950, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-51950", NULL }
+   },
+   /*
+    * x-iscii-de: ISCII Devanagari
+    */
+   { MIBUNDEF, 57002, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57002", "x-iscii-de", NULL }
+   },
+   /*
+    * x-iscii-be: ISCII Bengali
+    */
+   { MIBUNDEF, 57003, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57003", "x-iscii-be", NULL }
+   },
+   /*
+    * x-iscii-ta: ISCII Tamil
+    */
+   { MIBUNDEF, 57004, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57004", "x-iscii-ta", NULL }
+   },
+   /*
+    * x-iscii-te: ISCII Telugu
+    */
+   { MIBUNDEF, 57005, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57005", "x-iscii-te", NULL }
+   },
+   /*
+    * x-iscii-as: ISCII Assamese
+    */
+   { MIBUNDEF, 57006, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57006", "x-iscii-as", NULL }
+   },
+   /*
+    * x-iscii-or: ISCII Oriya
+    */
+   { MIBUNDEF, 57007, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57007", "x-iscii-or", NULL }
+   },
+   /*
+    * x-iscii-ka: ISCII Kannada
+    */
+   { MIBUNDEF, 57008, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57008", "x-iscii-ka", NULL }
+   },
+   /*
+    * x-iscii-ma: ISCII Malayalam
+    */
+   { MIBUNDEF, 57009, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57009", "x-iscii-ma", NULL }
+   },
+   /*
+    * x-iscii-gu: ISCII Gujarati
+    */
+   { MIBUNDEF, 57010, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57010", "x-iscii-gu", NULL }
+   },
+   /*
+    * x-iscii-pa: ISCII Punjabi
+    */
+   { MIBUNDEF, 57011, STRING_ENCODING_UNKNOWN, 0,
+      { "Windows-57011", "x-iscii-pa", NULL }
+   },
+};
+
 
 /*
  * Table generated from selected encodings supported by ICU:
@@ -73,7 +2190,7 @@ static const char *SIMPLE_ENCODING_LIST[STRING_ENCODING_MAX_SPECIFIED] = {
    "ISO-8859-8", // STRING_ENCODING_ISO_8859_8
    "ISO-8859-9", // STRING_ENCODING_ISO_8859_9
    "ISO-8859-10", // STRING_ENCODING_ISO_8859_10
-   "ISO-8859-11", // STRING_ENCODING_ISO_8859_11
+                  // ISO-8859-11 is unused
                   // Oddly, there is no ISO-8859-12.
    "ISO-8859-13", // STRING_ENCODING_ISO_8859_13
    "ISO-8859-14", // STRING_ENCODING_ISO_8859_14
@@ -164,6 +2281,120 @@ UnicodeNormalizeEncodingName(const char *encodingName) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * UnicodeIANALookup --
+ *
+ *      Lookup an encoding name in the IANA cross reference table.
+ *
+ * Results:
+ *      The index of the encoding within the table
+ *      -1 if the encoding is not found
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+UnicodeIANALookup(const char *encodingName) // IN
+{
+   char *name;
+   char *candidate = NULL;
+   const char *p;
+   int i;
+   int j;
+   int acp;
+
+   name = UnicodeNormalizeEncodingName(encodingName);
+   
+   /*
+    * check for Windows-xxxx encoding names generated from GetACP()
+    * code page numbers, see:  CodeSet_GetCurrentCodeSet()
+    */
+   if (!strncmp(encodingName, "windows", strlen("windows"))) {
+      p = encodingName + strlen("windows") + 1;
+      acp = 0;
+      while (*p && isdigit((int)*p)) {
+         acp *= 10;
+         acp += *p - '0';
+         p++;
+      }
+      if (!*p) {
+         for (i = 0; i < ARRAYSIZE(xRef); i++) {
+            if (xRef[i].winACP == acp) {
+               goto done;
+            }
+         }
+      }
+   }
+   
+   for (i = 0; i < ARRAYSIZE(xRef); i++) {
+      for (j = 0; (p = xRef[i].names[j]) != NULL; j++) {
+         candidate = UnicodeNormalizeEncodingName(p);
+         if (!strcmp(name, candidate)) {
+            goto done;
+         }
+         free(candidate);
+      }
+   }
+   free(name);
+
+   /*
+    * Did not find a matching name.  Don't validate encoding names
+    * here, unrecognized encoding will be caught when converting
+    * from name to enum.
+    */
+   Log("%s: Did not find an IANA match for encoding \"%s\"\n",
+       __FUNCTION__, encodingName);
+   return -1;
+
+done:
+   free(name);
+   free(candidate);
+   return i;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnicodeIANANameLookup --
+ *
+ *      Lookup an encoding name in the IANA cross reference table.
+ *
+ * Results:
+ *      The IANA preferred Mime name for the encoding in NUL-terminated
+ *      US-ASCII bytes or the argument if no match is found.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static const char *
+UnicodeIANANameLookup(const char *encodingName) // IN
+{
+   int pref;
+   int idx;
+
+   idx = UnicodeIANALookup(encodingName);
+   if (idx < 0) {
+      /*
+       * Did not find a matching name.  Don't validate encoding names
+       * here, unrecognized encodings will be caught when converting
+       * from name to enum.
+       */
+      return encodingName;
+   }
+   pref = xRef[idx].preferredMime;            
+   return xRef[idx].names[pref];
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Unicode_EncodingEnumToName --
  *
  *      Converts a StringEncoding enum value to the equivalent
@@ -193,15 +2424,10 @@ Unicode_EncodingEnumToName(StringEncoding encoding) // IN
        * the process-default encoding name.
        */
    case STRING_ENCODING_DEFAULT:
-      /*
-       * XXX TODO: Need CodeSetGetCurrentCodeSet() from lib/misc/codeset.c,
-       * and need to extend with Win32 implementation.
-       */
-      return "UTF-8";
+      return UnicodeIANANameLookup(CodeSet_GetCurrentCodeSet());
       break;
    default:
-      ASSERT(encoding >= STRING_ENCODING_FIRST);
-      ASSERT(encoding < STRING_ENCODING_MAX_SPECIFIED);
+     ASSERT(Unicode_IsEncodingSupported(encoding));
 
       if (   encoding < STRING_ENCODING_FIRST
           || encoding >= STRING_ENCODING_MAX_SPECIFIED) {
@@ -237,39 +2463,59 @@ Unicode_EncodingEnumToName(StringEncoding encoding) // IN
 StringEncoding
 Unicode_EncodingNameToEnum(const char *encodingName) // IN
 {
-   StringEncoding result = STRING_ENCODING_UNKNOWN;
-   char *normalizedEncodingName;
-   size_t encoding;
+   int idx;
 
-   normalizedEncodingName = UnicodeNormalizeEncodingName(encodingName);
-
-   for (encoding = STRING_ENCODING_FIRST;
-        encoding < STRING_ENCODING_MAX_SPECIFIED;
-        encoding++) {
-      char *normalizedEncodingListEntry;
-
-      ASSERT(SIMPLE_ENCODING_LIST[encoding]);
-
-      /*
-       * TODO: We can optimize this by pulling this code out into
-       * a once-on-startup initialization, where we generate and
-       * cache the normalized encoding name list upon first use.
-       */
-      normalizedEncodingListEntry =
-         UnicodeNormalizeEncodingName(SIMPLE_ENCODING_LIST[encoding]);
-
-      if (0 == strcmp(normalizedEncodingName, normalizedEncodingListEntry)) {
-         result = (StringEncoding)encoding;
-      }
-
-      free(normalizedEncodingListEntry);
-
-      if (result != STRING_ENCODING_UNKNOWN) {
-         break;
-      }
+   idx = UnicodeIANALookup(encodingName);
+   if (idx < 0) {
+      return STRING_ENCODING_UNKNOWN;
    }
+   return xRef[idx].encoding;
+}
 
-   free(normalizedEncodingName);
 
-   return result;
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_GetCurrentEncoding --
+ *
+ *      Calls CodeSet_GetCurrentCodeSet() and returns the corresponding
+ *      encoding.
+ *
+ * Results:
+ *      StringEncoding if we support it or STRING_ENCODING_UNKNOWN.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+StringEncoding
+Unicode_GetCurrentEncoding(void)  // IN
+{
+   return Unicode_EncodingNameToEnum(CodeSet_GetCurrentCodeSet());
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_IsEncodingSupported --
+ *
+ *      Checks whether we support the given encoding.
+ *
+ * Results:
+ *      TRUE if supported, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Unicode_IsEncodingSupported(StringEncoding encoding)  // IN
+{
+   return encoding >= STRING_ENCODING_FIRST && 
+      encoding < STRING_ENCODING_MAX_SPECIFIED;
 }

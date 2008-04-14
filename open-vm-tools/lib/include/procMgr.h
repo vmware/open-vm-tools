@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -27,7 +27,6 @@
 
 #ifndef __PROCMGR_H__
 #   define __PROCMGR_H__
-
 
 #include "vm_basic_types.h"
 #if !defined(N_PLAT_NLM)
@@ -60,8 +59,8 @@ typedef struct ProcMgr_ProcList {
    size_t         procCount;
 
    ProcMgr_Pid *procIdList;
-   char        **procCmdList;
-   char        **procOwnerList;
+   char        **procCmdList;    // UTF-8
+   char        **procOwnerList;  // UTF-8
 #if defined(_WIN32)
    Bool        *procDebugged;
 #endif
@@ -103,13 +102,13 @@ typedef struct ProcMgr_ProcList {
 typedef struct ProcMgr_ProcArgs {
    HANDLE hToken;
 
-   LPCTSTR lpApplicationName;
+   LPCWSTR lpApplicationName;
    LPSECURITY_ATTRIBUTES lpProcessAttributes;
    LPSECURITY_ATTRIBUTES lpThreadAttributes;
    BOOL bInheritHandles;
    DWORD dwCreationFlags;
    LPVOID lpEnvironment;
-   LPCTSTR lpCurrentDirectory;
+   LPCWSTR lpCurrentDirectory;
    LPSTARTUPINFO lpStartupInfo;
 } ProcMgr_ProcArgs;
 #else
@@ -130,8 +129,11 @@ ProcMgr_ProcList *ProcMgr_ListProcesses(void);
 void ProcMgr_FreeProcList(ProcMgr_ProcList *procList);
 Bool ProcMgr_KillByPid(ProcMgr_Pid procId);
 
-Bool ProcMgr_ExecSync(char const *cmd, ProcMgr_ProcArgs *userArgs);
-ProcMgr_AsyncProc *ProcMgr_ExecAsync(char const *cmd, ProcMgr_ProcArgs *userArgs);
+
+Bool ProcMgr_ExecSync(char const *cmd,       // UTF-8
+                      ProcMgr_ProcArgs *userArgs);
+ProcMgr_AsyncProc *ProcMgr_ExecAsync(char const *cmd,     // UTF-8
+                                     ProcMgr_ProcArgs *userArgs);
 void ProcMgr_Kill(ProcMgr_AsyncProc *asyncProc);
 Bool ProcMgr_GetAsyncStatus(ProcMgr_AsyncProc *asyncProc, Bool *status);
 Selectable ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc);
@@ -139,10 +141,10 @@ ProcMgr_Pid ProcMgr_GetPid(ProcMgr_AsyncProc *asyncProc);
 Bool ProcMgr_IsAsyncProcRunning(ProcMgr_AsyncProc *asyncProc);
 int ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc, int *result);
 void ProcMgr_Free(ProcMgr_AsyncProc *asyncProc);
-#if !defined(N_PLAT_NLM)
-Bool ProcMgr_ImpersonateUserStart(const char *user, AuthToken token);
+#if !defined(N_PLAT_NLM) && !defined(_WIN32)
+Bool ProcMgr_ImpersonateUserStart(const char *user,      // UTF-8
+                                  AuthToken token);
 Bool ProcMgr_ImpersonateUserStop(void);
 #endif
-
 
 #endif /* __PROCMGR_H__ */

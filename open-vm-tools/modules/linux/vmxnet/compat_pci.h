@@ -554,4 +554,25 @@ pci_get_drvdata(struct pci_dev *pdev)
 #   define PCI_DMA_FROMDEVICE           2
 #   define PCI_DMA_NONE                 3
 #endif
+
+/*
+ * Power Management related compat wrappers.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 10)
+#   define compat_pci_save_state(pdev)      pci_save_state((pdev), NULL)
+#   define compat_pci_restore_state(pdev)   pci_restore_state((pdev), NULL)
+#else
+#   define compat_pci_save_state(pdev)      pci_save_state((pdev))
+#   define compat_pci_restore_state(pdev)   pci_restore_state((pdev))
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 11)
+#   define pm_message_t          u32
+#   define compat_pci_choose_state(pdev, state)  (state)
+#   define PCI_D0               0
+#   define PCI_D3hot            3
+#else
+#   define compat_pci_choose_state(pdev, state)  pci_choose_state((pdev), (state))
+#endif
+
 #endif /* __COMPAT_PCI_H__ */

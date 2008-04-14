@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -31,6 +31,7 @@
 
 #include "dndInt.h"
 #include "dnd.h"
+#include "posix.h"
 #include "file.h"
 #include "strutil.h"
 #include "vm_assert.h"
@@ -52,66 +53,6 @@
 #ifdef sun
 #define ACCESSPERMS           (S_IRWXU | S_IRWXG | S_IRWXO)
 #endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DnD_DeleteStagingFiles --
- *
- *    Attempts to delete all files in the filelist.
- *
- * Results:
- *    TRUE if all files were deleted. FALSE if there was an error.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-DnD_DeleteStagingFiles(ConstUnicode fileList,  // IN:
-                       Bool onReboot)          // IN: unused
-{
-   Bool ret = TRUE;
-   UnicodeIndex start = 0;
-
-   ASSERT(fileList);
-
-   /*
-    * The list of files is composed of a concatination of path names, each
-    * ending with '|' character. Select each one and delete it.
-    */
-
-   while (TRUE) {
-      Unicode fileName;
-      UnicodeIndex index;
-
-      index = Unicode_FindSubstrInRange(fileList, start, -1,
-                                        U("|"), 0, 1);
-
-      if (index == UNICODE_INDEX_NOT_FOUND) {
-         break;
-      } else {
-         fileName = Unicode_Substr(fileList, start, index - start);
-      }
-
-      if (File_IsFile(fileName)) {
-         File_Unlink(fileName);
-      } else if (File_IsDirectory(fileName)) {
-         File_DeleteDirectoryTree(fileName);
-      } else {
-         ret = FALSE;
-      }
-
-      Unicode_Free(fileName);
-
-      start = index + 1;
-   }
-
-   return ret;
-}
 
 
 /*
@@ -539,9 +480,9 @@ DnD_RemoveBlock(int blockFd,                    // IN
 Bool
 DnDRootDirUsable(ConstUnicode pathName)  // IN:
 {
-   PosixStatStruct buf;
+   struct stat buf;
 
-   if (FileIO_PosixStat(pathName, &buf) < 0) {
+   if (Posix_Stat(pathName, &buf) < 0) {
       return FALSE;
    }
 
@@ -572,7 +513,7 @@ DnDRootDirUsable(ConstUnicode pathName)  // IN:
 Bool
 DnDSetPermissionsOnRootDir(ConstUnicode pathName)  // IN:
 {
-   return FileIO_PosixChmod(pathName, S_ISVTX | DND_ROOTDIR_PERMS) == 0;
+   return Posix_Chmod(pathName, S_ISVTX | DND_ROOTDIR_PERMS) == 0;
 }
 
 
@@ -597,9 +538,9 @@ DnDSetPermissionsOnRootDir(ConstUnicode pathName)  // IN:
 Bool
 DnDStagingDirectoryUsable(ConstUnicode pathName)  // IN:
 {
-   PosixStatStruct buf;
+   struct stat buf;
 
-   if (FileIO_PosixStat(pathName, &buf) < 0) {
+   if (Posix_Stat(pathName, &buf) < 0) {
       return FALSE;
    }
 
@@ -626,5 +567,5 @@ DnDStagingDirectoryUsable(ConstUnicode pathName)  // IN:
 Bool
 DnDSetPermissionsOnStagingDir(ConstUnicode pathName)  // IN:
 {
-   return FileIO_PosixChmod(pathName, DND_STAGINGDIR_PERMS) == 0;
+   return Posix_Chmod(pathName, DND_STAGINGDIR_PERMS) == 0;
 }

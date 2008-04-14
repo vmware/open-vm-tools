@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2008 VMware, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -848,6 +848,16 @@ typedef int MXSemaHandle;
 typedef uintptr_t PollDevHandle;
 #else
 typedef int PollDevHandle;
+#endif
+
+/*
+ * Define the utf16_t type.
+ */
+
+#if defined(_WIN32) && defined(_NATIVE_WCHAR_T_DEFINED)
+typedef wchar_t utf16_t;
+#else
+typedef uint16 utf16_t;
 #endif
 
 #endif  /* _VM_BASIC_TYPES_H_ */

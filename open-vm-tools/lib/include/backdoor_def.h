@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -110,7 +110,8 @@
 #define BDOOR_CMD_LAZYTIMEREMULATION    49
 #define BDOOR_CMD_BIOSBBS               50
 #define BDOOR_CMD_VASSERT               51
-#define BDOOR_CMD_MAX                   52
+#define BDOOR_CMD_ISGOSDARWIN           52
+#define BDOOR_CMD_MAX                   53
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

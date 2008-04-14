@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -50,6 +50,7 @@ extern "C" {
 #include "vmstdio.h"
 #include "codeset.h"
 #include "productState.h"
+#include "posix.h"
 
 #if !defined(N_PLAT_NLM)
 # include "hgfs.h"
@@ -62,6 +63,22 @@ extern "C" {
 #include <shlobj.h>
 #endif
 
+/*
+ * For Netware/Linux/BSD/Solaris, the install path
+ * is the hardcoded value below. For Windows, it is
+ * determined dynamically in GuestApp_GetInstallPath(),
+ * so the empty string here is just for completeness.
+ * XXX. Whoever does the Mac port should do something
+ * intelligent for that platform as well.
+ */
+
+#if defined(N_PLAT_NLM)
+#define GUESTAPP_TOOLS_INSTALL_PATH "SYS:\\ETC\\VMWTOOL"
+#elif defined(_WIN32)
+#define GUESTAPP_TOOLS_INSTALL_PATH ""
+#else
+#define GUESTAPP_TOOLS_INSTALL_PATH "/etc/vmware-tools"
+#endif
 
 /*
  * An option name/value pair stored locally in the guest app.
@@ -84,7 +101,7 @@ struct GuestApp_Dict {
 
 /* Function pointer, used in GuestApp_GetConfPath. */
 #if defined(_WIN32)
-typedef HRESULT (WINAPI *PSHGETFOLDERPATH)(HWND, int, HANDLE, DWORD, LPTSTR);
+typedef HRESULT (WINAPI *PSHGETFOLDERPATH)(HWND, int, HANDLE, DWORD, LPWSTR);
 static PSHGETFOLDERPATH pfnSHGetFolderPath = NULL;
 #endif
 
@@ -766,7 +783,7 @@ GuestApp_LoadDict(GuestApp_Dict *dict)  // IN/OUT
    ASSERT(dict);
    ASSERT(dict->fileName);
 
-   stream = fopen(dict->fileName, "r");
+   stream = Posix_Fopen(dict->fileName, "r");
    if (stream == NULL) {
       Debug("Unable to open \"%s\"\n", dict->fileName);
 
@@ -851,7 +868,7 @@ GuestApp_WriteDict(GuestApp_Dict *dict)  // IN/OUT
    ASSERT(dict);
    ASSERT(dict->fileName);
 
-   stream = fopen(dict->fileName, "w");
+   stream = Posix_Fopen(dict->fileName, "w");
    if (stream == NULL) {
       Warning("Unable to open \"%s\"\n", dict->fileName);
 
@@ -888,79 +905,76 @@ GuestApp_WriteDict(GuestApp_Dict *dict)  // IN/OUT
  *
  * GuestApp_GetInstallPath --
  *
- *      Get the tools installation path.
+ *      Get the tools installation path. The caller is responsible for
+ *      freeing the memory allocated for the path.
  *
  * Results:
- *      The path.
+ *      The path in UTF-8 if successful.
+ *      NULL otherwise.
  *
  * Side effects:
- *	None.
+ *      Allocates memory.
  *
  *----------------------------------------------------------------------
  */
 
-const char *
+char *
 GuestApp_GetInstallPath(void)
 {
-#if defined(N_PLAT_NLM)
-   return "SYS:\\ETC\\VMWTOOL";
-#elif defined(_WIN32)
+   char *pathUtf8 = NULL;
+
+#if defined(_WIN32)
    LONG rv;
    HKEY key;
    DWORD type;
    DWORD len = MAX_PATH;
-   static char path[MAX_PATH] = "";
+   size_t posLastChar;
+   WCHAR path[MAX_PATH] = L"";
+   size_t pathLen = 0;
+   const WCHAR *keyName = L"Software\\VMware, Inc.\\VMware Tools";
 
-   if (strcmp(path, "") == 0) {
-      const char *keyName = "Software\\VMware, Inc.\\VMware Tools";
+   rv = RegOpenKeyW(HKEY_LOCAL_MACHINE, keyName, &key);
+   if (rv != ERROR_SUCCESS) {
+      Warning("%s: Unable to open product key: error: %s\n",
+               __FUNCTION__, Msg_ErrString());
+      return NULL;
+   }
 
-      rv = RegOpenKey(HKEY_LOCAL_MACHINE, keyName, &key);
-
-      if (rv != ERROR_SUCCESS) {
-         Warning("Unable to open key '%s': %s\n", keyName, Msg_ErrString());
-         return NULL;
-      }
-      rv = RegQueryValueEx(key, "InstallPath", 0, &type, (LPBYTE) path, &len);
-
-      RegCloseKey(key);
-      if (rv != ERROR_SUCCESS) {
-         Warning("Unable to retrieve key '%s': %s\n", keyName, Msg_ErrString());
-         goto error;
-      }
+   rv = RegQueryValueExW(key, L"InstallPath", 0, &type, (LPBYTE)path, &len);
+   RegCloseKey(key);
+   if (rv != ERROR_SUCCESS) {
+      Warning("%s: Unable to retrieve key: error: %s\n",
+               __FUNCTION__, Msg_ErrString());
+      return NULL;
    }
 
    /*
     * Strip off the trailing backslash.  This needs to be done with wchars to
     * ensure that we don't mess up a path that ends with the 5C character.
     */
-   {
-      WCHAR pathWide[MAX_PATH];
-      size_t posLastChar;
 
-      if (!MultiByteToWideChar(CP_ACP, 0, path, -1, pathWide, sizeof pathWide)) {
-         ASSERT(FALSE);
-         goto error;
+   pathLen = wcslen(path);
+   if (pathLen > 0) {
+      posLastChar = pathLen - 1;
+      if (path[posLastChar] == L'\\') {
+         path[posLastChar] = L'\0';
       }
-
-      posLastChar = wcslen(pathWide) - 1;
-      if (pathWide[posLastChar] == L'\\') {
-         pathWide[posLastChar] = L'\0';
-      }
-
-      if (!WideCharToMultiByte(CP_ACP, 0, pathWide, -1,
-                               path, sizeof path, NULL, NULL)) {
-         ASSERT(FALSE);
-         goto error;
-      }
-      return path;
    }
 
- error:
-   Str_Strcpy(path, "", sizeof path);
-   return NULL;
+   /* Convert to UTF-8 before returning to the outside world. */
+   if (!CodeSet_Utf16leToUtf8((const char *)path,
+                              wcslen(path) * sizeof(WCHAR),
+                              &pathUtf8,
+                              NULL)) {
+      Warning("%s: Unable to convert to UTF-8\n", __FUNCTION__);
+      return NULL;
+   }
+
 #else
-   return "/etc/vmware-tools";
+   pathUtf8 = Str_Asprintf(NULL, "%s", GUESTAPP_TOOLS_INSTALL_PATH);
 #endif
+
+   return pathUtf8;
 }
 
 
@@ -970,6 +984,9 @@ GuestApp_GetInstallPath(void)
  * GuestApp_GetConfPath --
  *
  *      Get the path to the Tools configuration file.
+ *
+ *      The return conf path is a dynamically allocated UTF-8 encoded
+ *      string that should be freed by the caller.
  *
  *      XXX: Unfortunately, much of this function is duplicated in
  *      lib/user/win32util.c because we can't use that file inside guest
@@ -987,75 +1004,111 @@ GuestApp_GetInstallPath(void)
  *      a non-root user process calls this function, the directory exists.
  *
  * Results:
- *      The path, or NULL on failure. 
+ *      The path in UTF-8, or NULL on failure. 
  *
  * Side effects:
- *	None.
+ *      Allocates memory.
  *
  *----------------------------------------------------------------------
  */
 
-const char *
+char *
 GuestApp_GetConfPath(void)
 {
 #if defined(_WIN32)
-   static char path[MAX_PATH] = "";
+   char *pathUtf8 = NULL;
+   char *appFolderPathUtf8 = NULL;
+   WCHAR appFolderPath[MAX_PATH] = L"";
+   size_t pathUtf8Size = 0;
+   const char *productName;
 
    /*
     * XXX: This is racy. But GuestApp_GetInstallPath is racy too. Clearly
     * that is a good enough justification.
     */
-   if (strcmp(path, "") == 0) {
 
-      if (!pfnSHGetFolderPath) {
-         HMODULE h = LoadLibrary("shfolder.dll");
-         if (h) {
-            pfnSHGetFolderPath = (PSHGETFOLDERPATH) 
-               GetProcAddress(h, "SHGetFolderPathA");
-         }
+   if (!pfnSHGetFolderPath) {
+      HMODULE h = LoadLibraryW(L"shfolder.dll");
+      if (h) {
+         pfnSHGetFolderPath = (PSHGETFOLDERPATH) 
+            GetProcAddress(h, "SHGetFolderPathW");
+      }
          
-         /* win32util.c avoids calling FreeLibrary() so we will too. */
-      }
+      /* win32util.c avoids calling FreeLibrary() so we will too. */
+   }
 
-      /* 
-       * Get the Common Application data folder - create if it doesn't 
-       * exist.
-       */
-      if (!pfnSHGetFolderPath ||
-          FAILED(pfnSHGetFolderPath(NULL, CSIDL_COMMON_APPDATA | 
-                                    CSIDL_FLAG_CREATE, NULL, 0, path))) {
-         return NULL;
-      }
-   
-      ASSERT(path[0]);
-   
-      /* Check to see if <product> subdirectories exist. */
-      Str_Strcat(path, "\\" PRODUCT_GENERIC_NAME, MAX_PATH);
-      if (!File_Exists(path)) {
-         if (!CreateDirectory(path, NULL)) {
-            return NULL;
-         }
-      }
-      
-      if (!File_IsDirectory(path)) {
-         return NULL;
-      }
-      
-      Str_Strcat(path, "\\", MAX_PATH);
-      Str_Strcat(path, ProductState_GetName(), MAX_PATH);
-      if (!File_Exists(path)) {
-         if (!CreateDirectory(path, NULL)) {
-            return NULL;
-         }
-      }
-      
-      if (!File_IsDirectory(path)) {
-         return NULL;
+   /* 
+    * Get the Common Application data folder - create if it doesn't 
+    * exist.
+    */
+
+   if (!pfnSHGetFolderPath ||
+       FAILED(pfnSHGetFolderPath(NULL, CSIDL_COMMON_APPDATA |
+                                 CSIDL_FLAG_CREATE, NULL, 0, appFolderPath))) {
+      return NULL;
+   }
+
+   ASSERT(appFolderPath[0]);
+
+   if (!CodeSet_Utf16leToUtf8((const char *)appFolderPath,
+                               wcslen(appFolderPath) * sizeof *appFolderPath,
+                               &appFolderPathUtf8,
+                               NULL)) {
+      return NULL;
+   }
+
+   productName = ProductState_GetName();
+
+   /*
+    * Make sure there's enought space for
+    * appFolderPath\PRODUCT_GENERIC_NAME\PRODUCT_NAME.
+    */
+
+   pathUtf8Size = strlen(appFolderPathUtf8) + 1 +
+                  strlen(PRODUCT_GENERIC_NAME) + 1 +
+                  strlen(productName) + 1;
+   pathUtf8 = malloc(pathUtf8Size);
+   if (pathUtf8 == NULL) {
+      free(appFolderPathUtf8);
+      goto error;
+   }
+
+   Str_Strcpy(pathUtf8, appFolderPathUtf8, pathUtf8Size);
+   free(appFolderPathUtf8);
+
+   /* Check to see if <product> subdirectories exist. */
+   Str_Strcat(pathUtf8, "\\" PRODUCT_GENERIC_NAME, pathUtf8Size);
+   if (!File_Exists(pathUtf8)) {
+      if (!File_CreateDirectory(pathUtf8)) {
+         goto error;
       }
    }
-   return path;
+
+   if (!File_IsDirectory(pathUtf8)) {
+      goto error;
+   }
+
+   Str_Strcat(pathUtf8, "\\", MAX_PATH);
+   Str_Strcat(pathUtf8, productName, pathUtf8Size);
+   if (!File_Exists(pathUtf8)) {
+      if (!File_CreateDirectory(pathUtf8)) {
+         goto error;
+      }
+   }
+
+   if (!File_IsDirectory(pathUtf8)) {
+      goto error;
+   }
+
+   return pathUtf8;
+
+error:
+   free(pathUtf8);
+
+   return NULL;
 #else
-   /* Just call into GuestApp_GetInstallPath. */
+
+    /* Just call into GuestApp_GetInstallPath. */
    return GuestApp_GetInstallPath();
 #endif
 }
@@ -1066,7 +1119,8 @@ GuestApp_GetConfPath(void)
  *
  * GuestApp_GetLogPath --
  *
- *      Get the path that the Tools should log to.
+ *      Get the path that the Tools should log to. The returned path
+ *      is in UTF-8.
  *
  * Results:
  *      Allocates the path or NULL on failure.
@@ -1081,23 +1135,34 @@ char *
 GuestApp_GetLogPath(void)
 {
 #if defined(_WIN32)
+   char *bufferUtf8 = NULL;
+   Bool conversionRes;
    /* We should log to %TEMP%. */
-   LPTSTR buffer = NULL;
+   LPWSTR buffer = NULL;
    DWORD bufferSize = 0, neededSize;
    
-   if ((neededSize = GetEnvironmentVariable("TEMP", buffer, bufferSize)) == 0) {
+   if ((neededSize = GetEnvironmentVariableW(L"TEMP", buffer, bufferSize)) == 0) {
       return NULL;
    }
-   buffer = malloc(neededSize);
+   buffer = malloc(neededSize * sizeof *buffer);
    if (buffer == NULL) {
       return NULL;
    }
    bufferSize = neededSize;
-   if (GetEnvironmentVariable("TEMP", buffer, bufferSize) != neededSize) {
+   if (GetEnvironmentVariableW(L"TEMP", buffer, bufferSize) != neededSize) {
       free(buffer);
       return NULL;
    }
-   return buffer;
+
+   conversionRes = CodeSet_Utf16leToUtf8((const char *)buffer,
+                                         wcslen(buffer) * sizeof(WCHAR),
+                                         &bufferUtf8,
+                                         NULL);
+   free(buffer);
+   if (!conversionRes) {
+      return NULL;
+   }
+   return bufferUtf8;
 #else
    /* XXX: Is this safe for EVERYONE who isn't Windows? */
    return strdup("/var/log");
@@ -1134,12 +1199,7 @@ GuestApp_GetCmdOutput(const char *cmd) // IN
 
    DynBuf_Init(&db);
 
-#ifndef _WIN32
-   stream = popen(cmd, "r");
-#else
-   stream = _popen(cmd, "r");
-#endif
-
+   stream = Posix_Popen(cmd, "r");
    if (stream == NULL) {
       Debug("Unable to get output of command \"%s\"\n", cmd);
 

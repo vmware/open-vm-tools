@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -107,6 +107,8 @@ Max(int a, int b)
 #define MASK(n)			((1 << (n)) - 1)	/* make an n-bit mask */
 #define DWORD_ALIGN(x)          ((((x)+3) >> 2) << 2)
 #define QWORD_ALIGN(x)          ((((x)+4) >> 3) << 3)
+
+#define IMPLIES(a,b) (!(a) || (b))
 
 
 /*
@@ -541,14 +543,6 @@ typedef int pid_t;
 #define vmvisor 0
 #define VMVISOR_ONLY(x)
 #endif
-#endif
-
-#ifdef VMX86_VPROBES
-#define vmx86_vprobes 1
-#define VPROBES_ONLY(x) x
-#else
-#define vmx86_vprobes 0
-#define VPROBES_ONLY(x)
 #endif
 
 #ifdef _WIN32

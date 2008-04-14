@@ -169,6 +169,13 @@ compat_alloc_netdev(int priv_size,
 #   define compat_free_netdev(dev)                free_netdev(dev)
 #endif
 
+/* netdev_priv() appeared in 2.6.3 */
+#if  LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 3)
+#   define compat_netdev_priv(netdev)   (netdev)->priv
+#else
+#   define compat_netdev_priv(netdev)   netdev_priv(netdev)
+#endif
+
 #if defined(NETDEV_TX_OK)
 #   define COMPAT_NETDEV_TX_OK    NETDEV_TX_OK
 #   define COMPAT_NETDEV_TX_BUSY  NETDEV_TX_BUSY

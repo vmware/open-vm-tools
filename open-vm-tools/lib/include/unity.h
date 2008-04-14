@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -30,14 +30,20 @@
 #include "guestApp.h"
 #include "dynbuf.h"
 #include "str.h"
+#include "rpcin.h"
 
 /*
  * In Unity mode, all our DnD detection windows will be ignored and not displayed
- * on host desktop. Right now we have 2 DnD detection window.
+ * on host desktop. Right now we have 4 DnD detection window. 2 for DnD version 2
+ * or older, 2 for DnD version 3 or newer.
  */
-#define UNITY_BLOCKED_WND_DND_FULL_DET 0
-#define UNITY_BLOCKED_WND_DND_DET      1
-#define UNITY_BLOCKED_WND_MAX          2
+enum{
+   UNITY_BLOCKED_WND_DND_FULL_DET_V2  = 0,
+   UNITY_BLOCKED_WND_DND_DET_V2       = 1,
+   UNITY_BLOCKED_WND_DND_FULL_DET_V3  = 2,
+   UNITY_BLOCKED_WND_DND_DET_V3       = 3,
+   UNITY_BLOCKED_WND_MAX              = 4,
+};
 
 /*
  * Maximum number of virtual desktops supported.
@@ -68,6 +74,7 @@ typedef struct UnityVirtualDesktopArray {
 void Unity_Init(GuestApp_Dict *conf, int* blockedWnd);
 void Unity_InitBackdoor(struct RpcIn *rpcIn);
 Bool Unity_IsSupported(void);
+void Unity_SetActiveDnDDetWnd(int detWnd);
 void Unity_Exit(void);
 void Unity_Cleanup(void);
 void Unity_RegisterCaps(void);

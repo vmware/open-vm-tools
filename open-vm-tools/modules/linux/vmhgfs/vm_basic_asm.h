@@ -413,12 +413,21 @@ __GET_CPUID(int input, CPUIDRegs *regs)
 #endif
 }
 
+#ifdef VM_X86_64
+
+/*
+ * No inline assembly in Win64. Implemented in bora/lib/user in
+ * cpuidMasm64.asm.
+ */
+
+extern void
+__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs);
+
+#else // VM_X86_64
+
 static INLINE void
 __GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
 {
-#ifdef VM_X86_64
-   *(int*)0 = 0;   // NOT_IMPLEMENTED();
-#else
    __asm push esi
    __asm push ebx
    __asm push ecx
@@ -437,8 +446,8 @@ __GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
    __asm pop ecx
    __asm pop ebx
    __asm pop esi
-#endif
 }
+#endif
 
 static INLINE uint32
 __GET_EAX_FROM_CPUID(int input)

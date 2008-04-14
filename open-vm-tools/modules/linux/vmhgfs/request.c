@@ -245,3 +245,31 @@ HgfsFreeRequest(HgfsReq *req) // IN: Request to free
    }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsReplyStatus --
+ *
+ *    Return reply status.
+ *
+ * Results:
+ *    Returns reply status as per the protocol.
+ *    XXX: Needs changes when vmci headers are added.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HgfsStatus
+HgfsReplyStatus(HgfsReq *req)  // IN
+{
+   HgfsReply *rep;
+
+   rep = (HgfsReply *)(HGFS_REQ_PAYLOAD(req));
+
+   return rep->status;
+}
+

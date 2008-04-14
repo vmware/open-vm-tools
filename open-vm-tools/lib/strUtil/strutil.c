@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -206,7 +206,7 @@ StrUtil_GetNextUintToken(uint32 *out,            // OUT   : parsed int
  */
 
 Bool
-StrUtil_GetNextInt64Token(int64 *out,          // OUT: The output value
+StrUtil_GetNextInt64Token(int64 *out,             // OUT: The output value
                           unsigned int *index,    // IN/OUT: Index to start at
                           const char *str,        // IN    : String to parse
                           const char *delimiters) // IN    : Chars separating tokens
@@ -364,7 +364,7 @@ StrUtil_StrToUint(uint32 *out,     // OUT
  */
 
 Bool
-StrUtil_StrToInt64(int64 *out,   // OUT: The output value
+StrUtil_StrToInt64(int64 *out,      // OUT: The output value
                    const char *str) // IN : String to parse
 {
    char *ptr;
@@ -375,17 +375,66 @@ StrUtil_StrToInt64(int64 *out,   // OUT: The output value
    errno = 0;
 
 #if defined(_WIN32)
-   *out= _strtoi64(str, &ptr, 0);
+   *out = _strtoi64(str, &ptr, 0);
 #elif defined(__FreeBSD__)
-   *out= strtoq(str, &ptr, 0);
+   *out = strtoq(str, &ptr, 0);
 #elif defined(N_PLAT_NLM)
    /* Works for small values of str... */
-   *out= (int64)strtol(str, &ptr, 0);
+   *out = (int64)strtol(str, &ptr, 0);
 #else
-   *out= strtoll(str, &ptr, 0);
+   *out = strtoll(str, &ptr, 0);
 #endif
 
    return ptr[0] == '\0' && errno != ERANGE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_StrToSizet --
+ *
+ *      Convert a string into an unsigned integer that is either 32-bits or
+ *      64-bits long, depending on the underlying architecture.
+ *
+ * Results:
+ *      TRUE if conversion was successful, FALSE otherwise.
+ *      Value is stored in 'out', which is left undefined in the FALSE case.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_StrToSizet(size_t *out,     // OUT: The output value
+                   const char *str) // IN : String to parse
+{
+   char *ptr;
+
+   ASSERT(out);
+   ASSERT(str);
+
+   errno = 0;
+#if defined VM_X86_64
+   ASSERT_ON_COMPILE(sizeof *out == sizeof(uint64));
+#   if defined(_WIN32)
+   *out = _strtoui64(str, &ptr, 0);
+#   elif defined(__FreeBSD__)
+   *out = strtouq(str, &ptr, 0);
+#   elif defined(N_PLAT_NLM)
+   /* Works for small values of str... */
+   *out = strtoul(str, &ptr, 0);
+#   else
+   *out = strtoull(str, &ptr, 0);
+#   endif
+#else
+   ASSERT_ON_COMPILE(sizeof *out == sizeof(uint32));
+   *out = strtoul(str, &ptr, 0);
+#endif
+
+   return *ptr == '\0' && errno != ERANGE;
 }
 
 
@@ -621,5 +670,5 @@ StrUtil_EndsWith(const char *s,      // IN
       return FALSE;
    }
 
-   return strcmp(s + slen - suffixlen, s) == 0;
+   return strcmp(s + slen - suffixlen, suffix) == 0;
 }

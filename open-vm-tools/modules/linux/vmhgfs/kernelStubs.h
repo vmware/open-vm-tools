@@ -21,7 +21,7 @@
  *
  * KernelStubs implements some userspace library functions in terms
  * of kernel functions to allow library userspace code to be used in a
- * kernel. 
+ * kernel.
  */
 
 #ifndef __KERNELSTUBS_H__
@@ -29,7 +29,7 @@
 
 #ifdef linux
 #   ifndef __KERNEL__
-#      error "__KERNEL__ is not defined" 
+#      error "__KERNEL__ is not defined"
 #   endif
 #   include "driver-config.h" // Must be included before any other header files
 #   include "vm_basic_types.h"
@@ -57,10 +57,10 @@
 #elif defined(__APPLE__)
 #   include "vm_basic_types.h"
 #   ifndef KERNEL
-#      error "KERNEL is not defined" 
+#      error "KERNEL is not defined"
 #   endif
 #   include <stdarg.h>
-#   include <string.h> 
+#   include <string.h>
 #endif
 
 /*
@@ -71,9 +71,6 @@
 
 #  ifdef linux                               /* if (linux) { */
 char *strdup(const char *source);
-#  elif defined(__APPLE__)                   /* else if (__APPLE__) { */
-void KernelStubs_Init(void);
-void KernelStubs_Cleanup(void);
 #  endif
 
 /* Shared between Linux and Apple kernel stubs. */
@@ -130,6 +127,7 @@ __compat_malloc(unsigned long size, struct malloc_type *type, int flags) {
 /*
  * Stub functions we provide.
  */
+
 void Panic(const char *fmt, ...);
 
 char *Str_Strcpy(char *buf, const char *src, size_t maxSize);

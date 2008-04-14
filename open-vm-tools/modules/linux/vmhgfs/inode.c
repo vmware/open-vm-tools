@@ -72,14 +72,20 @@ static int HgfsDelete(struct inode *dir,
                       HgfsOp op);
 static int HgfsPackSetattrRequest(struct iattr *iattr,
                                   struct dentry *dentry,
+                                  Bool allowHandleReuse,
+                                  HgfsOp opUsed,
                                   HgfsReq *req,
-                                  Bool *changed,
-                                  Bool allowHandleReuse);
+                                  Bool *changed);
 static int HgfsPackCreateDirRequest(struct dentry *dentry,
                                     int mode,
+				    HgfsOp opUsed,
                                     HgfsReq *req);
 static int HgfsTruncatePages(struct inode *inode,
                              loff_t newSize);
+static int HgfsPackSymlinkCreateRequest(struct dentry *dentry,
+                                        const char *symname,
+                                        HgfsOp opUsed,
+                                        HgfsReq *req);
 
 /* HGFS inode operations. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
@@ -116,6 +122,12 @@ static int HgfsGetattr(struct vfsmount *mnt,
                        struct dentry *dentry,
                        struct kstat *stat);
 #endif
+
+#define HGFS_CREATE_DIR_MASK (HGFS_CREATE_DIR_VALID_FILE_NAME | \
+                              HGFS_CREATE_DIR_VALID_SPECIAL_PERMS | \
+                              HGFS_CREATE_DIR_VALID_OWNER_PERMS | \
+                              HGFS_CREATE_DIR_VALID_GROUP_PERMS | \
+                              HGFS_CREATE_DIR_VALID_OTHER_PERMS)
 
 /* HGFS inode operations structure for directories. */
 struct inode_operations HgfsDirInodeOperations = {
@@ -179,12 +191,14 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
            struct dentry *dentry,  // IN: Dentry of file/dir to delete
            HgfsOp op)              // IN: Opcode for file type (file or dir)
 {
-   struct HgfsSuperInfo *si;
-   HgfsRequestDelete *request;
-   HgfsReplyDelete *reply;
    HgfsReq *req = NULL;
    int result = 0;
    Bool secondAttempt = FALSE;
+   HgfsStatus replyStatus;
+   char *fileName = NULL;
+   uint32 *fileNameLength;
+   HgfsOp opUsed;
+   uint32 reqSize;
 
    ASSERT(dir);
    ASSERT(dir->i_sb);
@@ -205,9 +219,6 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       goto out;
    }
 
-
-   si = HGFS_SB_TO_COMMON(dir->i_sb);
-
    req = HgfsGetNewRequest();
    if (!req) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: out of memory while "
@@ -216,27 +227,52 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       goto out;
    }
 
-   request = (HgfsRequestDelete *)(HGFS_REQ_PAYLOAD(req));
-
   retry:
-   /* Fill out the request packet. */
-   request->header.id = req->id;
-   request->header.op = op;
+   opUsed = op;
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      HgfsRequestDeleteV3 *request;
+      HgfsRequest *header;
+
+      if (op == HGFS_OP_DELETE_DIR) {
+         opUsed = HGFS_OP_DELETE_DIR_V3;
+      } else {
+         opUsed = HGFS_OP_DELETE_FILE_V3;
+      }
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->id = req->id;
+      header->op = opUsed;
+
+      request = (HgfsRequestDeleteV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->hints = 0;
+      fileName = request->fileName.name;
+      fileNameLength = &request->fileName.length;
+      reqSize = sizeof *request + sizeof *header;
+   } else {
+      HgfsRequestDelete *request;
+      
+      request = (HgfsRequestDelete *)(HGFS_REQ_PAYLOAD(req));
+      /* Fill out the request packet. */
+      request->header.id = req->id;
+      request->header.op = opUsed = op;
+      fileName = request->fileName.name;
+      fileNameLength = &request->fileName.length;
+      reqSize = sizeof *request;
+   }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(request->fileName.name, HGFS_NAME_BUFFER_SIZE(request),
+   if (HgfsBuildPath(fileName, HGFS_NAME_BUFFER_SIZET(reqSize),
                      dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: build path failed\n"));
       result = -EINVAL;
       goto out;
    }
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDelete: deleting \"%s\", op %u\n",
-           request->fileName.name, op));
+   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: deleting \"%s\", op %u\n",
+           fileName, opUsed));
 
    /* Convert to CP name. */
-   result = CPName_ConvertTo(request->fileName.name,
-                             HGFS_NAME_BUFFER_SIZE(request),
-                             request->fileName.name);
+   result = CPName_ConvertTo(fileName,
+                             HGFS_NAME_BUFFER_SIZET(reqSize),
+                             fileName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: CP conversion failed\n"));
       result = -EINVAL;
@@ -244,73 +280,82 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(request->fileName.name, result);
-   request->fileName.length = result;
-   req->payloadSize = sizeof *request + result;
+   result = HgfsUnescapeBuffer(fileName, result);
+   *fileNameLength = result;
+   req->payloadSize = reqSize + result;
 
    result = HgfsSendRequest(req);
    if (result == 0) {
-      if (req->payloadSize != sizeof *reply) {
-         /* This packet size should never vary. */
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: wrong packet size\n"));
-         result = -EPROTO;
-      } else {
+      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDelete: got reply\n"));
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDelete: got reply\n"));
-         reply = (HgfsReplyDelete *)(HGFS_REQ_PAYLOAD(req));
-         result = HgfsStatusConvertToLinux(reply->header.status);
+      switch (result) {
+      case 0:
+         /*
+          * Since we deleted the file, decrement its hard link count. As
+          * we don't support hard links, this has the effect of making the
+          * link count 0, which means that when the last reference to the
+          * inode is dropped, the inode will be freed instead of moved to
+          * the unused list.
+          *
+          * Also update the mtime/ctime of the parent directory, and the
+          * ctime of the deleted file.
+          */
+         compat_drop_nlink(dentry->d_inode);
+         dentry->d_inode->i_ctime = dir->i_ctime = dir->i_mtime =
+            CURRENT_TIME;
+         break;
 
-         switch (result) {
-         case 0:
-            /*
-             * Since we deleted the file, decrement its hard link count. As
-             * we don't support hard links, this has the effect of making the
-             * link count 0, which means that when the last reference to the
-             * inode is dropped, the inode will be freed instead of moved to
-             * the unused list.
-             *
-             * Also update the mtime/ctime of the parent directory, and the
-             * ctime of the deleted file.
-             */
-            compat_drop_nlink(dentry->d_inode);
-            dentry->d_inode->i_ctime = dir->i_ctime = dir->i_mtime =
-               CURRENT_TIME;
-            break;
+      case -EACCES:
+      case -EPERM:
+         /*
+          * It's possible that we're talking to a Windows server with
+          * a file marked read-only. Let's try again, after removing
+          * the read-only bit from the file.
+          *
+          * XXX: I think old servers will send -EPERM here. Is this entirely
+          * safe?
+          */
+         if (!secondAttempt) {
+            struct iattr enableWrite;
+            secondAttempt = TRUE;
 
-         case -EACCES:
-         case -EPERM:
-            /*
-             * It's possible that we're talking to a Windows server with
-             * a file marked read-only. Let's try again, after removing
-             * the read-only bit from the file.
-             *
-             * XXX: I think old servers will send -EPERM here. Is this entirely
-             * safe?
-             */
-            if (!secondAttempt) {
-               struct iattr enableWrite;
-               secondAttempt = TRUE;
-
-               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: access denied, "
-                       "attempting to work around read-only bit\n"));
-               enableWrite.ia_mode = (dentry->d_inode->i_mode | S_IWUSR);
-               enableWrite.ia_valid = ATTR_MODE;
-               result = HgfsSetattr(dentry, &enableWrite);
-               if (result == 0) {
-                  LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: file is no "
-                          "longer read-only, retrying delete\n"));
-                  goto retry;
-               }
-               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: failed to remove "
-                       "read-only property\n"));
-            } else {
-               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: second attempt at "
-                       "delete failed\n"));
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: access denied, "
+                    "attempting to work around read-only bit\n"));
+            enableWrite.ia_mode = (dentry->d_inode->i_mode | S_IWUSR);
+            enableWrite.ia_valid = ATTR_MODE;
+            result = HgfsSetattr(dentry, &enableWrite);
+            if (result == 0) {
+               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: file is no "
+                       "longer read-only, retrying delete\n"));
+               goto retry;
             }
-            break;
-         default:
-            break;
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: failed to remove "
+                    "read-only property\n"));
+         } else {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: second attempt at "
+                    "delete failed\n"));
          }
+         break;
+      case -EPROTO:
+         if (opUsed == HGFS_OP_DELETE_DIR_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         } else if (opUsed == HGFS_OP_DELETE_FILE_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         }
+
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: server "
+                 "returned error: %d\n", result));
+         break;
+      default:
+         break;
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: timed out\n"));
@@ -351,19 +396,18 @@ out:
 static int
 HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
                        struct dentry *dentry, // IN: File to set attributes of
-                       HgfsReq *req,          // IN/OUT: Packet to write into
-                       Bool *changed,         // OUT: Have the attrs changed?
-                       Bool allowHandleReuse) // IN: Can we use a handle?
+                       Bool allowHandleReuse, // IN: Can we use a handle?
+                       HgfsOp opUsed,         // IN: Op to be used
+		       HgfsReq *req,          // IN/OUT: Packet to write into
+                       Bool *changed)         // OUT: Have the attrs changed?
 {
-   HgfsRequest *requestHeader;
-   HgfsRequestSetattrV2 *requestV2;
-   HgfsRequestSetattr *request;
    HgfsAttrV2 *attrV2;
    HgfsAttr *attr;
    HgfsAttrHint *hints;
    HgfsAttrChanges *update;
-   HgfsFileName *fileNameP;
    HgfsHandle handle;
+   char *fileName = NULL;
+   uint32 *fileNameLength = NULL;
    unsigned int valid;
    size_t reqBufferSize;
    size_t reqSize;
@@ -376,10 +420,120 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
    valid = iattr->ia_valid;
 
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-   switch (requestHeader->op) {
-   case HGFS_OP_SETATTR_V2:
+   switch (opUsed) {
+   case HGFS_OP_SETATTR_V3: {
+      HgfsRequest *requestHeader;
+      HgfsRequestSetattrV3 *requestV3;
+      
+      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader->op = opUsed;
+      requestHeader->id = req->id;
+      
+      requestV3 = (HgfsRequestSetattrV3 *)HGFS_REQ_PAYLOAD_V3(req);
+      attrV2 = &requestV3->attr;
+      hints = &requestV3->hints;
+
+      /*
+       * Clear attributes, mask, and hints before touching them.
+       * We can't rely on GetNewRequest() to zero our structures, so
+       * make sure to zero them all here.
+       */
+      memset(attrV2, 0, sizeof *attrV2);
+      memset(hints, 0, sizeof *hints);
+
+      /* 
+       * When possible, issue a setattr using an existing handle. This will 
+       * give us slightly better performance on a Windows server, and is more 
+       * correct regardless. If we don't find a handle, fall back on setattr
+       * by name.
+       *
+       * Changing the size (via truncate) requires write permissions. Changing
+       * the times also requires write permissions on Windows, so we require it
+       * here too. Otherwise, any handle will do.
+       */
+      if (allowHandleReuse && HgfsGetHandle(dentry->d_inode, 
+                                            (valid & ATTR_SIZE) || 
+                                            (valid & ATTR_ATIME) || 
+                                            (valid & ATTR_MTIME) ? 
+                                            HGFS_OPEN_MODE_WRITE_ONLY + 1 : 0, 
+                                            &handle) == 0) {
+         *hints = HGFS_ATTR_HINT_USE_FILE_DESC;
+         requestV3->file = handle;
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: setting "
+                 "attributes of handle %u\n", handle));
+      } else {
+         fileName = requestV3->fileName.name;
+	 fileNameLength = &requestV3->fileName.length;
+	 requestV3->fileName.flags = HGFS_FILE_NAME_DEFAULT_CASE;
+      }
+      reqSize = sizeof *requestV3 + sizeof *requestHeader;
+      reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+
+      /*
+       * We only support changing these attributes:
+       * - all mode bits (i.e. all permissions)
+       * - uid/gid
+       * - size
+       * - access/write times
+       */
+
+      if (valid & ATTR_MODE) {
+         attrV2->mask |= HGFS_ATTR_VALID_SPECIAL_PERMS | 
+            HGFS_ATTR_VALID_OWNER_PERMS | HGFS_ATTR_VALID_GROUP_PERMS | 
+            HGFS_ATTR_VALID_OTHER_PERMS;
+         attrV2->specialPerms = ((iattr->ia_mode & 
+                                  (S_ISUID | S_ISGID | S_ISVTX)) >> 9);
+         attrV2->ownerPerms = ((iattr->ia_mode & S_IRWXU) >> 6);
+         attrV2->groupPerms = ((iattr->ia_mode & S_IRWXG) >> 3);
+         attrV2->otherPerms = (iattr->ia_mode & S_IRWXO);
+         *changed = TRUE;
+      }
+      
+      if (valid & ATTR_UID) {
+         attrV2->mask |= HGFS_ATTR_VALID_USERID;
+         attrV2->userId = iattr->ia_uid;
+         *changed = TRUE;
+      }
+
+      if (valid & ATTR_GID) {
+         attrV2->mask |= HGFS_ATTR_VALID_GROUPID;
+         attrV2->groupId = iattr->ia_gid;
+         *changed = TRUE;
+      }
+
+      if (valid & ATTR_SIZE) {
+         attrV2->mask |= HGFS_ATTR_VALID_SIZE;
+         attrV2->size = iattr->ia_size;
+         *changed = TRUE;
+      }
+      
+      if (valid & ATTR_ATIME) {
+         attrV2->mask |= HGFS_ATTR_VALID_ACCESS_TIME;
+         attrV2->accessTime = HGFS_GET_TIME(iattr->ia_atime);
+         if (valid & ATTR_ATIME_SET) {
+            *hints |= HGFS_ATTR_HINT_SET_ACCESS_TIME;
+         }
+         *changed = TRUE;
+      }
+      
+      if (valid & ATTR_MTIME) {
+         attrV2->mask |= HGFS_ATTR_VALID_WRITE_TIME;
+         attrV2->writeTime = HGFS_GET_TIME(iattr->ia_mtime);
+         if (valid & ATTR_MTIME_SET) {
+            *hints |= HGFS_ATTR_HINT_SET_WRITE_TIME;
+         }
+         *changed = TRUE;
+      }
+      break;
+   }
+
+   case HGFS_OP_SETATTR_V2: {
+      HgfsRequestSetattrV2 *requestV2;
+      
       requestV2 = (HgfsRequestSetattrV2 *)(HGFS_REQ_PAYLOAD(req));
+      requestV2->header.op = opUsed;
+      requestV2->header.id = req->id;
+      
       attrV2 = &requestV2->attr;
       hints = &requestV2->hints;
 
@@ -409,11 +563,11 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
                                             &handle) == 0) {
          *hints = HGFS_ATTR_HINT_USE_FILE_DESC;
          requestV2->file = handle;
-         fileNameP = NULL;
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: setting "
                  "attributes of handle %u\n", handle));
       } else {
-         fileNameP = &requestV2->fileName;
+         fileName = requestV2->fileName.name;
+	 fileNameLength = &requestV2->fileName.length;
       }
       reqSize = sizeof *requestV2;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(requestV2);
@@ -474,13 +628,21 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
          *changed = TRUE;
       }
       break;
-   case HGFS_OP_SETATTR:
+   }
+
+   case HGFS_OP_SETATTR: {
+      HgfsRequestSetattr *request;
+      
       request = (HgfsRequestSetattr *)(HGFS_REQ_PAYLOAD(req));
+      request->header.op = opUsed;
+      request->header.id = req->id;
+      
       attr = &request->attr;
       update = &request->update;
 
       /* We'll use these later. */
-      fileNameP = &request->fileName;
+      fileName = request->fileName.name;
+      fileNameLength = &request->fileName.length;
       reqSize = sizeof *request;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(request);
 
@@ -526,6 +688,8 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
          *changed = TRUE;
       }
       break;
+   }
+
    default:
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: unexpected "
               "OP type encountered\n"));
@@ -533,21 +697,21 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    }
 
    /* Avoid all this extra work when we're doing a setattr by handle. */
-   if (fileNameP != NULL) {
+   if (fileName != NULL) {
 
       /* Build full name to send to server. */
-      if (HgfsBuildPath(fileNameP->name, reqBufferSize, dentry) < 0) {
+      if (HgfsBuildPath(fileName, reqBufferSize, dentry) < 0) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: build path "
                  "failed\n"));
          return -EINVAL;
       }
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: setting "
-              "attributes of \"%s\"\n", fileNameP->name));
+              "attributes of \"%s\"\n", fileName));
 
       /* Convert to CP name. */
-      result = CPName_ConvertTo(fileNameP->name,
+      result = CPName_ConvertTo(fileName,
                                 reqBufferSize,
-                                fileNameP->name);
+                                fileName);
       if (result < 0) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: CP "
                  "conversion failed\n"));
@@ -555,8 +719,8 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
       }
 
       /* Unescape the CP name. */
-      result = HgfsUnescapeBuffer(fileNameP->name, result);
-      fileNameP->length = result;
+      result = HgfsUnescapeBuffer(fileName, result);
+      *fileNameLength = result;
    }
    req->payloadSize = reqSize + result;
    return 0;
@@ -582,34 +746,58 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 static int
 HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
                          int mode,              // IN: Mode to assign dir
+                         HgfsOp opUsed,         // IN: Op to be used.
                          HgfsReq *req)          // IN/OUT: Packet to write into
 {
-   HgfsRequest *requestHeader;
-   HgfsRequestCreateDirV2 *requestV2;
-   HgfsRequestCreateDir *request;
-   HgfsFileName *fileNameP;
+   char *fileName = NULL;
+   uint32 *fileNameLength;
    size_t requestSize;
    int result;
 
    ASSERT(dentry);
    ASSERT(req);
 
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-
-   switch (requestHeader->op) {
-   case HGFS_OP_CREATE_DIR_V2:
-      requestV2 = (HgfsRequestCreateDirV2 *)(HGFS_REQ_PAYLOAD(req));
+   switch (opUsed) {
+   case HGFS_OP_CREATE_DIR_V3: {
+      HgfsRequest *requestHeader;
+      HgfsRequestCreateDirV3 *requestV3;
+      
+      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader->op = opUsed;
+      requestHeader->id = req->id;
+      
+      requestV3 = (HgfsRequestCreateDirV3 *)(HGFS_REQ_PAYLOAD(req) +
+                                             sizeof *requestHeader);
 
       /* We'll use these later. */
-      fileNameP = &requestV2->fileName;
+      fileName = requestV3->fileName.name;
+      fileNameLength = &requestV3->fileName.length;
+      requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+
+      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+
+      requestV3->mask = HGFS_CREATE_DIR_MASK;
+
+      /* Set permissions. */
+      requestV3->specialPerms = (mode & (S_ISUID | S_ISGID | S_ISVTX)) >> 9;
+      requestV3->ownerPerms = (mode & S_IRWXU) >> 6;
+      requestV3->groupPerms = (mode & S_IRWXG) >> 3;
+      requestV3->otherPerms = (mode & S_IRWXO);
+      break;
+   }
+   case HGFS_OP_CREATE_DIR_V2: {
+      HgfsRequestCreateDirV2 *requestV2;
+      
+      requestV2 = (HgfsRequestCreateDirV2 *)(HGFS_REQ_PAYLOAD(req));
+      requestV2->header.op = opUsed;
+      requestV2->header.id = req->id;
+
+      /* We'll use these later. */
+      fileName = requestV2->fileName.name;
+      fileNameLength = &requestV2->fileName.length;
       requestSize = sizeof *requestV2;
 
-      requestV2->mask =
-         HGFS_CREATE_DIR_VALID_FILE_NAME |
-         HGFS_CREATE_DIR_VALID_SPECIAL_PERMS |
-         HGFS_CREATE_DIR_VALID_OWNER_PERMS |
-         HGFS_CREATE_DIR_VALID_GROUP_PERMS |
-         HGFS_CREATE_DIR_VALID_OTHER_PERMS;
+      requestV2->mask = HGFS_CREATE_DIR_MASK;
 
       /* Set permissions. */
       requestV2->specialPerms = (mode & (S_ISUID | S_ISGID | S_ISVTX)) >> 9;
@@ -617,16 +805,22 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       requestV2->groupPerms = (mode & S_IRWXG) >> 3;
       requestV2->otherPerms = (mode & S_IRWXO);
       break;
-   case HGFS_OP_CREATE_DIR:
+   }
+   case HGFS_OP_CREATE_DIR: {
+      HgfsRequestCreateDir *request;
+      
       request = (HgfsRequestCreateDir *)(HGFS_REQ_PAYLOAD(req));
 
       /* We'll use these later. */
-      fileNameP = &request->fileName;
+      fileName = request->fileName.name;
+      fileNameLength = &request->fileName.length;
+      requestSize = sizeof *request;
       requestSize = sizeof *request;
 
       /* Set permissions. */
       request->permissions = (mode & S_IRWXU) >> 6;
       break;
+   }
    default:
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackCreateDirRequest: unexpected "
               "OP type encountered\n"));
@@ -634,7 +828,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
    }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(fileNameP->name,
+   if (HgfsBuildPath(fileName,
                      HGFS_PACKET_MAX - (requestSize - 1),
                      dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackCreateDirRequest: build path "
@@ -642,12 +836,12 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       return -EINVAL;
    }
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackCreateDirRequest: create dir "
-           "\"%s\", perms %o\n", fileNameP->name, mode));
+           "\"%s\", perms %o\n", fileName, mode));
 
    /* Convert to CP name. */
-   result = CPName_ConvertTo(fileNameP->name,
+   result = CPName_ConvertTo(fileName,
                              HGFS_PACKET_MAX - (requestSize - 1),
-                             fileNameP->name);
+                             fileName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackCreateDirRequest: CP "
               "conversion failed\n"));
@@ -655,8 +849,8 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(fileNameP->name, result);
-   fileNameP->length = result;
+   result = HgfsUnescapeBuffer(fileName, result);
+   *fileNameLength = result;
    req->payloadSize = requestSize + result;
 
    return 0;
@@ -946,18 +1140,14 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
           struct dentry *dentry, // IN: Dentry with name to be created
           int mode)              // IN: Mode of dir to be created
 {
-   struct HgfsSuperInfo *si;
    HgfsReq *req;
+   HgfsStatus replyStatus;
    HgfsOp opUsed;
-   HgfsRequest *requestHeader;
-   HgfsReplyCreateDir *reply;
    int result = 0;
 
    ASSERT(dir);
    ASSERT(dir->i_sb);
    ASSERT(dentry);
-
-   si = HGFS_SB_TO_COMMON(dir->i_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -967,16 +1157,13 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
       goto out;
    }
 
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
   retry:
-   /*
-    * Set up pointers using the proper struct This lets us check the
-    * version exactly once and use the pointers later.
-    */
-   requestHeader->op = opUsed = atomic_read(&hgfsVersionCreateDir);
-   requestHeader->id = req->id;
+   opUsed = atomic_read(&hgfsVersionCreateDir);
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_CREATE_DIR_V3;
+   }
 
-   result = HgfsPackCreateDirRequest(dentry, mode, req);
+   result = HgfsPackCreateDirRequest(dentry, mode, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: error packing request\n"));
       goto out;
@@ -988,43 +1175,44 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
     */
    result = HgfsSendRequest(req);
    if (result == 0) {
-      if (req->payloadSize != sizeof *reply) {
-         /* This packet size should never vary. */
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: wrong packet size\n"));
-         result = -EPROTO;
-      } else {
+      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsMkdir: got reply\n"));
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsMkdir: got reply\n"));
-         reply = (HgfsReplyCreateDir *)(HGFS_REQ_PAYLOAD(req));
-         result = HgfsStatusConvertToLinux(reply->header.status);
-
-         switch (result) {
-         case 0:
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsMkdir: directory created "
-                    "successfully, instantiating dentry\n"));
-            result = HgfsInstantiate(dentry, 0, NULL);
-            if (result == 0) {
-               /*
-                * Attempt to set host directory's uid/gid to that of the
-                * current user.  As with the open(.., O_CREAT) case, this is
-                * only expected to work when the hgfs server is running on
-                * a Linux machine and as root, but we might as well give it
-                * a go.
-                */
-               HgfsSetUidGid(dir, dentry, current->fsuid, current->fsgid);
-            }
-
+      switch (result) {
+      case 0:
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsMkdir: directory created "
+                 "successfully, instantiating dentry\n"));
+         result = HgfsInstantiate(dentry, 0, NULL);
+         if (result == 0) {
             /*
-             * XXX: When we support hard links, this is a good place to
-             * increment link count of parent dir.
+             * Attempt to set host directory's uid/gid to that of the
+             * current user.  As with the open(.., O_CREAT) case, this is
+             * only expected to work when the hgfs server is running on
+             * a Linux machine and as root, but we might as well give it
+             * a go.
              */
-            break;
-         case -EPROTO:
-         /* Retry with Version 1 of CreateDir. Set globally. */
-         if (opUsed == HGFS_OP_CREATE_DIR_V2) {
+            HgfsSetUidGid(dir, dentry, current->fsuid, current->fsgid);
+         }
+
+         /*
+          * XXX: When we support hard links, this is a good place to
+          * increment link count of parent dir.
+          */
+         break;
+      case -EPROTO:
+         /* Retry with older versions of CreateDir. Set globally. */
+         if (opUsed == HGFS_OP_CREATE_DIR_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: Version 3 not "
+                    "supported. Falling back to version 2.\n"));
+            atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR_V2);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         } else if (opUsed == HGFS_OP_CREATE_DIR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: Version 2 not "
                     "supported. Falling back to version 1.\n"));
             atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          }
 
@@ -1034,7 +1222,6 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
                     "created, error %d\n", result));
             break;
          }
-      }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: timed out\n"));
    } else if (result == -EPROTO) {
@@ -1140,7 +1327,6 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
            struct inode *newDir,      // IN: Inode of new directory
            struct dentry *newDentry)  // IN: Dentry containing new name
 {
-   struct HgfsSuperInfo *si;
    HgfsReq *req = NULL;
    HgfsRequestRename *request;
    HgfsReplyRename *reply;
@@ -1158,8 +1344,6 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
       result = -EFAULT;
       goto out;
    }
-
-   si = HGFS_SB_TO_COMMON(oldDir->i_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -1264,6 +1448,151 @@ out:
 /*
  *----------------------------------------------------------------------
  *
+ * HgfsPackSymlinkCreateRequest --
+ *
+ *    Setup the create symlink request, depending on the op version.
+ *
+ * Results:
+ *    Returns zero on success, or negative error on failure. 
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for this open
+                             const char *symname,     // IN: Target name
+                             HgfsOp opUsed,           // IN: Op to be used
+                             HgfsReq *req)            // IN/OUT: Packet to write into
+{
+   HgfsRequestSymlinkCreateV3 *requestV3 = NULL;
+   HgfsRequestSymlinkCreate *request = NULL;
+   char *symlinkName;
+   uint32 *symlinkNameLength;
+   char *targetName;
+   uint32 *targetNameLength;
+   size_t targetNameBytes;
+
+   size_t requestSize;
+   int result;
+
+   ASSERT(dentry);
+   ASSERT(symname);
+   ASSERT(req);
+
+   switch (opUsed) {
+   case HGFS_OP_CREATE_SYMLINK_V3: {
+      HgfsRequest *requestHeader;
+      
+      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader->op = opUsed;
+      requestHeader->id = req->id;
+      
+      requestV3 = (HgfsRequestSymlinkCreateV3 *)HGFS_REQ_PAYLOAD_V3(req);
+
+      /* We'll use these later. */
+      symlinkName = requestV3->symlinkName.name;
+      symlinkNameLength = &requestV3->symlinkName.length;
+      requestV3->symlinkName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      break;
+   }
+   case HGFS_OP_CREATE_SYMLINK: {
+      
+      request = (HgfsRequestSymlinkCreate *)(HGFS_REQ_PAYLOAD(req));
+      request->header.op = opUsed;
+      request->header.id = req->id;
+
+      /* We'll use these later. */
+      symlinkName = request->symlinkName.name;
+      symlinkNameLength = &request->symlinkName.length;
+      requestSize = sizeof *request;
+      break;
+   }
+   default:
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: unexpected "
+              "OP type encountered\n"));
+      return -EPROTO;
+   }
+
+   if (HgfsBuildPath(symlinkName, HGFS_PACKET_MAX - (requestSize - 1),
+                     dentry) < 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: build symlink path "
+              "failed\n"));
+      return -EINVAL;
+   }
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: Symlink name: \"%s\"\n",
+           symlinkName));
+
+   /* Convert symlink name to CP format. */
+   result = CPName_ConvertTo(symlinkName,
+                             HGFS_PACKET_MAX - (requestSize - 1),
+                             symlinkName);
+   if (result < 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: symlinkName CP "
+              "conversion failed\n"));
+      return -EINVAL;
+   }
+
+   /* Unescape the symlink CP name. */
+   result = HgfsUnescapeBuffer(symlinkName, result);
+   *symlinkNameLength = result;
+   req->payloadSize = requestSize + result;
+
+   /*
+    * Note the different buffer length. This is because HgfsRequestSymlink
+    * contains two filenames, and once we place the first into the packet we
+    * must account for it when determining the amount of buffer available for
+    * the second.
+    *
+    * Also note that targetNameBytes accounts for the NUL character. Once
+    * we've converted it to CP name, it won't be NUL-terminated and the length
+    * of the string in the packet itself won't account for it.
+    */
+   if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
+      HgfsFileNameV3 *fileNameP;
+      fileNameP = (HgfsFileNameV3 *)((char *)&requestV3->symlinkName +
+                                     sizeof requestV3->symlinkName + result);
+      targetName = fileNameP->name;
+      targetNameLength = &fileNameP->length;
+      fileNameP->flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+   } else {
+      HgfsFileName *fileNameP;
+      fileNameP = (HgfsFileName *)((char *)&request->symlinkName +
+                                   sizeof request->symlinkName + result);
+      targetName = fileNameP->name;
+      targetNameLength = &fileNameP->length;
+   }
+   targetNameBytes = strlen(symname) + 1;
+
+   /* Copy target name into request packet. */
+   if (targetNameBytes > HGFS_PACKET_MAX - (requestSize - 1)) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: target name is too "
+              "big\n"));
+      return -EINVAL;
+   }
+   memcpy(targetName, symname, targetNameBytes);
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: target name: \"%s\"\n",
+           targetName));
+
+   /* Convert target name to CPName-lite format. */
+   CPNameLite_ConvertTo(targetName, targetNameBytes - 1, '/');
+
+   /* Unescape the target CP-lite name. */
+   result = HgfsUnescapeBuffer(targetName, targetNameBytes - 1);
+   *targetNameLength = result;
+   req->payloadSize += result;
+
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * HgfsSymlink --
  *
  *    Handle a symlink request
@@ -1282,20 +1611,15 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
             struct dentry *dentry, // IN: Dentry of new symlink file
             const char *symname)   // IN: Target name
 {
-   struct HgfsSuperInfo *si;
    HgfsReq *req;
-   HgfsRequestSymlinkCreate *request;
-   HgfsReplySymlinkCreate *reply;
-   HgfsFileName *targetNameP = NULL;
    int result = 0;
-   size_t targetNameBytes;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
 
    ASSERT(dir);
    ASSERT(dir->i_sb);
    ASSERT(dentry);
    ASSERT(symname);
-
-   si = HGFS_SB_TO_COMMON(dir->i_sb);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -1305,93 +1629,42 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
       goto out;
    }
 
-   request = (HgfsRequestSymlinkCreate *)(HGFS_REQ_PAYLOAD(req));
-
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_CREATE_SYMLINK;
-
-   /* Build full symlink name to send to server. */
-   if (HgfsBuildPath(request->symlinkName.name, HGFS_NAME_BUFFER_SIZE(request),
-                     dentry) < 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: build symlink path "
-              "failed\n"));
-      result = -EINVAL;
-      goto out;
-   }
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: Symlink name: \"%s\"\n",
-           request->symlinkName.name));
-
-   /* Convert symlink name to CP format. */
-   result = CPName_ConvertTo(request->symlinkName.name,
-                             HGFS_NAME_BUFFER_SIZE(request),
-                             request->symlinkName.name);
-   if (result < 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlinkName CP "
-              "conversion failed\n"));
-      result = -EINVAL;
-      goto out;
+  retry:
+   opUsed = atomic_read(&hgfsVersionCreateSymlink);
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_CREATE_SYMLINK_V3;
    }
 
-   /* Unescape the symlink CP name. */
-   result = HgfsUnescapeBuffer(request->symlinkName.name, result);
-   request->symlinkName.length = result;
-   req->payloadSize = sizeof *request + result;
-
-   /*
-    * Note the different buffer length. This is because HgfsRequestSymlink
-    * contains two filenames, and once we place the first into the packet we
-    * must account for it when determining the amount of buffer available for
-    * the second.
-    *
-    * Also note that targetNameBytes accounts for the NUL character. Once
-    * we've converted it to CP name, it won't be NUL-terminated and the length
-    * of the string in the packet itself won't account for it.
-    */
-   targetNameP = (HgfsFileName *)((char *)&request->symlinkName +
-                                  sizeof request->symlinkName + result);
-   targetNameBytes = strlen(symname) + 1;
-
-   /* Copy target name into request packet. */
-   if (targetNameBytes > HGFS_NAME_BUFFER_SIZE(request) - result) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: target name is too "
-              "big\n"));
-      result = -EINVAL;
+   result = HgfsPackSymlinkCreateRequest(dentry, symname, opUsed, req);
+   if (result != 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: error packing request\n"));
       goto out;
    }
-   memcpy(targetNameP->name, symname, targetNameBytes);
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: target name: \"%s\"\n",
-           targetNameP->name));
-
-   /* Convert target name to CPName-lite format. */
-   CPNameLite_ConvertTo(targetNameP->name, targetNameBytes - 1, '/');
-
-   /* Unescape the target CP-lite name. */
-   result = HgfsUnescapeBuffer(targetNameP->name, targetNameBytes - 1);
-   targetNameP->length = result;
-   req->payloadSize += result;
 
    result = HgfsSendRequest(req);
    if (result == 0) {
-      if (req->payloadSize != sizeof *reply) {
-         /* This packet size should never vary. */
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: wrong packet size\n"));
-         result = -EPROTO;
+      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: got reply\n"));
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
+      if (result == 0) {
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink created "
+                 "successfully, instantiating dentry\n"));
+         result = HgfsInstantiate(dentry, 0, NULL);
       } else {
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: got reply\n"));
-         reply = (HgfsReplySymlinkCreate *)(HGFS_REQ_PAYLOAD(req));
-         result = HgfsStatusConvertToLinux(reply->header.status);
-         if (result == 0) {
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink created "
-                    "successfully, instantiating dentry\n"));
-            result = HgfsInstantiate(dentry, 0, NULL);
-         } else {
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink was not "
-                    "created, error %d\n", result));
-         }
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink was not "
+                 "created, error %d\n", result));
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: timed out\n"));
    } else if (result == -EPROTO) {
+      /* Retry with older versions of Setattr. Set globally. */
+      if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: Version 3 "
+                 "not supported. Falling back to version 2.\n"));
+         atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
+         atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+         goto retry;
+      }
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: server "
               "returned error: %d\n", result));
    } else {
@@ -1474,10 +1747,8 @@ int
 HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
             struct iattr *iattr)    // IN: Attributes to set
 {
-   struct HgfsSuperInfo *si;
    HgfsReq *req;
-   HgfsRequest *requestHeader;
-   HgfsReplySetattr *reply;
+   HgfsStatus replyStatus;
    int result = 0;
    Bool changed = FALSE;
    Bool allowHandleReuse = TRUE;
@@ -1489,8 +1760,6 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
    ASSERT(dentry->d_sb);
    ASSERT(iattr);
 
-   si = HGFS_SB_TO_COMMON(dentry->d_sb);
-
    req = HgfsGetNewRequest();
    if (!req) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: out of memory while "
@@ -1499,14 +1768,15 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
       goto out;
    }
 
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-
   retry:
    /* Fill out the request packet. */
-   requestHeader->op = opUsed = atomic_read(&hgfsVersionSetattr);
-   requestHeader->id = req->id;
-   result = HgfsPackSetattrRequest(iattr, dentry, req, &changed,
-                                   allowHandleReuse);
+   opUsed = atomic_read(&hgfsVersionSetattr);
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_SETATTR_V3;
+   }
+   
+   result = HgfsPackSetattrRequest(iattr, dentry, allowHandleReuse,
+                                   opUsed, req, &changed);
    if (result != 0 || !changed) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: no attrs changed\n"));
       goto out;
@@ -1524,8 +1794,8 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply. */
-      reply = (HgfsReplySetattr *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(reply->header.status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
       switch (result) {
       case 0:
@@ -1577,11 +1847,18 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
          break;
 
       case -EPROTO:
-         /* Retry with Version 1 of Setattr. Set globally. */
-         if (opUsed == HGFS_OP_SETATTR_V2) {
+         /* Retry with older versions of Setattr. Set globally. */
+         if (opUsed == HGFS_OP_SETATTR_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: Version 3 "
+                    "not supported. Falling back to version 2.\n"));
+            atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR_V2);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         } else if (opUsed == HGFS_OP_SETATTR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: Version 2 "
                     "not supported. Falling back to version 1.\n"));
             atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          }
 

@@ -50,7 +50,9 @@
 static struct inode *HgfsAllocInode(struct super_block *sb);
 static void HgfsDestroyInode(struct inode *inode);
 #endif
+#ifndef VMW_USE_IGET_LOCKED
 static void HgfsReadInode(struct inode *inode);
+#endif
 static void HgfsClearInode(struct inode *inode);
 static void HgfsPutSuper(struct super_block *sb);
 #if defined(VMW_STATFS_2618)
@@ -66,7 +68,9 @@ struct super_operations HgfsSuperOperations = {
    .alloc_inode   = HgfsAllocInode,
    .destroy_inode = HgfsDestroyInode,
 #endif
+#ifndef VMW_USE_IGET_LOCKED
    .read_inode    = HgfsReadInode,
+#endif
    .clear_inode   = HgfsClearInode,
    .put_super     = HgfsPutSuper,
    .statfs        = HgfsStatfs,
@@ -134,6 +138,9 @@ HgfsDestroyInode(struct inode *inode) // IN: The VFS inode
 }
 
 #endif
+
+
+#ifndef VMW_USE_IGET_LOCKED
 /*
  *-----------------------------------------------------------------------------
  *
@@ -154,31 +161,9 @@ HgfsDestroyInode(struct inode *inode) // IN: The VFS inode
 static void
 HgfsReadInode(struct inode *inode) // IN/OUT: VFS inode to fill in
 {
-   HgfsInodeInfo *iinfo = INODE_GET_II_P(inode);
-
-   /*
-    * If the vfs inode is not embedded within the HgfsInodeInfo, then we
-    * haven't yet allocated the HgfsInodeInfo. Do so now.
-    * 
-    * XXX: We could allocate with GFP_ATOMIC. But instead, we'll do a standard
-    * allocation and mark the inode "bad" if the allocation fails. This'll
-    * make all subsequent operations on the inode fail, which is what we want.
-    */
-#ifndef VMW_EMBED_INODE
-   iinfo = kmem_cache_alloc(hgfsInodeCache, GFP_KERNEL);
-   if (!iinfo) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsReadInode: no memory for "
-              "iinfo!\n"));
-      make_bad_inode(inode);
-      return;
-   }
-#endif
-   INODE_SET_II_P(inode, iinfo);
-   INIT_LIST_HEAD(&iinfo->files);
-   iinfo->isReferencedInode = FALSE;
-   iinfo->isFakeInodeNumber = FALSE;
-   iinfo->createdAndUnopened = FALSE;
+   HgfsDoReadInode(inode);
 }
+#endif
 
 
 /*
@@ -250,6 +235,99 @@ HgfsPutSuper(struct super_block *sb) // IN: The superblock
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPackQueryVolumeRequest --
+ *
+ *    Setup the query volume request, depending on the op version.
+ *
+ * Results:
+ *    Returns zero on success, or negative error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this open
+                           HgfsOp opUsed,           // IN: Op to be used.
+                           HgfsReq *req)            // IN/OUT: Packet to write into
+{
+   char *name;
+   uint32 *nameLength;
+   size_t requestSize;
+   int result;
+
+   ASSERT(dentry);
+   ASSERT(req);
+
+   switch (opUsed) {
+   case HGFS_OP_QUERY_VOLUME_INFO_V3: {
+      HgfsRequest *requestHeader;
+      HgfsRequestQueryVolumeV3 *requestV3;
+
+      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader->op = opUsed;
+      requestHeader->id = req->id;
+
+      requestV3 = (HgfsRequestQueryVolumeV3 *)HGFS_REQ_PAYLOAD_V3(req);
+
+      /* We'll use these later. */
+      name = requestV3->fileName.name;
+      nameLength = &requestV3->fileName.length;
+      requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      break;
+   }
+   case HGFS_OP_QUERY_VOLUME_INFO: {
+      HgfsRequestQueryVolume *request;
+
+      request = (HgfsRequestQueryVolume *)(HGFS_REQ_PAYLOAD(req));
+      request->header.op = opUsed;
+      request->header.id = req->id;
+
+      /* We'll use these later. */
+      name = request->fileName.name;
+      nameLength = &request->fileName.length;
+      requestSize = sizeof *request;
+      break;
+   }
+   default:
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackQueryVolumeRequest: unexpected "
+              "OP type encountered\n"));
+      return -EPROTO;
+   }
+
+   /* Build full name to send to server. */
+   if (HgfsBuildPath(name, HGFS_PACKET_MAX - (requestSize - 1),
+                     dentry) < 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackQueryVolumeRequest: build path failed\n"));
+      return -EINVAL;
+   }
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackQueryVolumeRequest: opening \"%s\"\n",
+           name));
+
+   /* Convert to CP name. */
+   result = CPName_ConvertTo(name,
+                             HGFS_PACKET_MAX - (requestSize - 1),
+                             name);
+   if (result < 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackQueryVolumeRequest: CP conversion failed\n"));
+      return -EINVAL;
+   }
+
+   /* Unescape the CP name. */
+   result = HgfsUnescapeBuffer(name, result);
+   *nameLength = (uint32) result;
+   req->payloadSize = requestSize + result;
+
+   return 0;
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * HgfsStatfs --
@@ -278,11 +356,13 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
 #endif
 {
    HgfsReq *req;
-   HgfsRequestQueryVolume *request;
-   HgfsReplyQueryVolume *reply;
    int result = 0;
    struct dentry *dentryToUse;
    struct super_block *sbToUse;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
+   uint64 freeBytes;
+   uint64 totalBytes;
 
    ASSERT(stat);
 #if defined(VMW_STATFS_2618)
@@ -307,42 +387,23 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
       goto out;
    }
 
-   request = (HgfsRequestQueryVolume *)(HGFS_REQ_PAYLOAD(req));
-
-   /* Fill out the request packet. */
-   request->header.op = HGFS_OP_QUERY_VOLUME_INFO;
-   request->header.id = req->id;
-
-   /* Build full name to send to server. */
-   if (HgfsBuildPath(request->fileName.name, HGFS_NAME_BUFFER_SIZE(request), 
-                     dentryToUse) < 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: build path failed\n"));
-      result = -EINVAL;
-      goto out;
-   }
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsStatfs: getting fs stats on \"%s\"\n", 
-           request->fileName.name));
-
-   /* Convert to CP name. */
-   result = CPName_ConvertTo(request->fileName.name, 
-                             HGFS_NAME_BUFFER_SIZE(request),
-                             request->fileName.name);
-   if (result < 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: CP conversion failed\n"));
-      result = -EINVAL;
-      goto out;
+  retry:
+   opUsed = atomic_read(&hgfsVersionQueryVolumeInfo);
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_QUERY_VOLUME_INFO_V3;
    }
 
-   /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(request->fileName.name, result);
-   request->fileName.length = result;
-   req->payloadSize = sizeof *request + result;
+   result = HgfsPackQueryVolumeRequest(dentryToUse, opUsed, req);
+   if (result != 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: error packing request\n"));
+      goto out;
+   }
 
    result = HgfsSendRequest(req);
    if (result == 0) {
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsStatfs: got reply\n"));
-      reply = (HgfsReplyQueryVolume *)(HGFS_REQ_PAYLOAD(req));      
-      result = HgfsStatusConvertToLinux(reply->header.status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
       /*
        * If the statfs succeeded on the server, copy the stats
@@ -353,31 +414,47 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
          stat->f_type = HGFS_SUPER_MAGIC;
          stat->f_bsize = sbToUse->s_blocksize;
          stat->f_namelen = PATH_MAX;
-         stat->f_blocks = reply->totalBytes >> sbToUse->s_blocksize_bits;
-         stat->f_bfree = reply->freeBytes >> sbToUse->s_blocksize_bits;
          stat->f_bavail = stat->f_bfree;
+	 if (opUsed == HGFS_OP_QUERY_VOLUME_INFO_V3) {
+            totalBytes = ((HgfsReplyQueryVolumeV3 *)HGFS_REP_PAYLOAD_V3(req))->totalBytes;
+            freeBytes = ((HgfsReplyQueryVolumeV3 *)HGFS_REP_PAYLOAD_V3(req))->freeBytes;
+	 } else {
+            totalBytes = ((HgfsReplyQueryVolume *)HGFS_REQ_PAYLOAD(req))->totalBytes;
+            freeBytes = ((HgfsReplyQueryVolume *)HGFS_REQ_PAYLOAD(req))->freeBytes;
+	 }
+         stat->f_blocks = totalBytes >> sbToUse->s_blocksize_bits;
+         stat->f_bfree = freeBytes >> sbToUse->s_blocksize_bits;
          break;
 
       case -EPERM:
-         /* 
-          * We're cheating! This will cause statfs will return success. 
+         /*
+          * We're cheating! This will cause statfs will return success.
           * We're doing this because an old server will complain when it gets
           * a statfs on a per-share mount. Rather than have 'df' spit an
           * error, let's just return all zeroes.
           */
          result = 0;
          break;
-      
+
       default:
          break;
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: timed out\n"));
    } else if (result == -EPROTO) {
+      /* Retry with Version 1 of SearchOpen. Set globally. */
+      if (opUsed == HGFS_OP_QUERY_VOLUME_INFO_V3) {
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: Version 3 not "
+                 "supported. Falling back to version 1.\n"));
+         atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+         atomic_set(&hgfsVersionQueryVolumeInfo, HGFS_OP_QUERY_VOLUME_INFO);
+         goto retry;
+      }
+
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: server returned error: "
               "%d\n", result));
    } else {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: unknown error: %d\n", 
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: unknown error: %d\n",
               result));
    }
 

@@ -74,8 +74,8 @@
  *    return an ASCII character string representation of this number -
  *    just digits, no sign, decimal point, or exponent symbol.
  *
- *    If 'mode' is 2, then 'prec' limits the number of digits after the
- *    decimal point, if 'mode' is 3, then total digits.
+ *    If 'mode' is 3, then 'prec' limits the number of digits after the
+ *    decimal point, if 'mode' is 2, then total digits.
  *
  *    The base-10 exponent of the number is returned in 'expOut'.
  *
@@ -111,7 +111,58 @@ dtoa(double d,       // IN
       str = strdup(ecvt(d, prec, &dec, sign));
    } else {
       ASSERT(3 == mode);
+
+#ifdef __APPLE__
+      /*
+       * The Mac fcvt() returns "" when prec is 0, so we have to
+       * compensate.  See bug 233530.
+       * While it is conceivable that fcvt(round(d), 1) can return
+       * a string that doesn't end in 0, it doesn't seem to happen
+       * in practice (on the Mac).  The problematic case that we
+       * want to avoid is a last digit greater than 4, which requires
+       * rounding up, which we don't want to do, which is why we're
+       * doing the rounding on the number instead of after fcvt()
+       * in the first place.
+       * -- edward
+       */
+
+      if (prec == 0) {
+	 size_t l;
+	 str = strdup(fcvt(round(d), 1, &dec, sign));
+	 if (str == NULL) {
+	    goto exit;
+	 }
+	 l = strlen(str);
+	 ASSERT(l > 0);
+	 l--;
+	 ASSERT(str[l] == '0');
+	 str[l] = '\0';
+      } else
+#endif
+
       str = strdup(fcvt(d, prec, &dec, sign));
+
+#ifdef _WIN32
+      /*
+       * When the value is not zero but rounds to zero at prec digits,
+       * the Windows fcvt() sometimes return the empty string and
+       * a negative dec that goes too far (as in -dec > prec).
+       * For example, converting 0.001 with prec 1 results in
+       * the empty string and dec -2.  (See bug 253674.)
+       *
+       * We just clamp dec to -prec when this happens.
+       *
+       * While this may appear to be a safe and good thing to
+       * do in general.  It really only works when the result is
+       * all zeros or empty.  Since checking for all zeros is
+       * expensive, we only check for empty string, which works
+       * for this bug.
+       */
+
+      if (*str == '\0' && dec < 0 && dec < -prec) {
+	 dec = -prec;
+      }
+#endif
    }
 
    if (!str) {

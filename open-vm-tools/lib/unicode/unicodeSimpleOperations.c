@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -29,7 +29,7 @@
 #include "unicodeBase.h"
 #include "unicodeInt.h"
 #include "unicodeOperations.h"
-#include "unicodeSimpleUTF16.h"
+#include "codeset.h"
 
 
 /*
@@ -78,8 +78,8 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    int result = -1;
    Unicode substr1 = NULL;
    Unicode substr2 = NULL;
-   const utf16_t *substr1UTF16;
-   const utf16_t *substr2UTF16;
+   utf16_t *substr1UTF16 = NULL;
+   utf16_t *substr2UTF16 = NULL;
    UnicodeIndex i = 0;
    UnicodeIndex utf16Index;
    utf16_t codeUnit1;
@@ -108,12 +108,12 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    /*
     * XXX TODO: Need to normalize the incoming strings to NFC or NFD.
     */
-   substr1UTF16 = Unicode_GetUTF16(substr1);
+   substr1UTF16 = Unicode_GetAllocUTF16(substr1);
    if (!substr1UTF16) {
       goto out;
    }
 
-   substr2UTF16 = Unicode_GetUTF16(substr2);
+   substr2UTF16 = Unicode_GetAllocUTF16(substr2);
    if (!substr2UTF16) {
       goto out;
    }
@@ -191,13 +191,11 @@ Unicode_CompareRange(ConstUnicode str1,       // IN
    }
 
   out:
-   if (substr1) {
-      Unicode_Free(substr1);
-   }
+   free(substr1UTF16);
+   free(substr2UTF16);
 
-   if (substr2) {
-      Unicode_Free(substr2);
-   }
+   Unicode_Free(substr1);
+   Unicode_Free(substr2);
 
    return result;
 }
@@ -518,4 +516,35 @@ Unicode_Join(ConstUnicode first,  // IN:
    va_end(args);
 
    return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_Format --
+ *
+ *      Format a Unicode string (roughly equivalent to Str_Asprintf()).
+ *
+ * Results:
+ *      The formatted string.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Unicode
+Unicode_Format(const char *fmt,	// IN: the format
+	       ...)		// IN: the arguments
+{
+   va_list args;
+   char *p;
+   
+   va_start(args, fmt);
+   p = Str_Vasprintf(NULL, fmt, args);
+   va_end(args);
+
+   return p;
 }

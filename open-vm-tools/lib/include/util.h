@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -72,8 +72,8 @@ EXTERN uint32 CRC_Compute(uint8 *buf, int len);
 EXTERN uint32 Util_Checksum32(uint32 *buf, int len);
 EXTERN uint32 Util_Checksum(uint8 *buf, int len);
 EXTERN uint32 Util_Checksumv(void *iov, int numEntries);
-EXTERN void Util_ShortenPath(char *dst, const char *src, int maxLen);
-EXTERN char *Util_ExpandString(const char *fileName);
+EXTERN Unicode Util_ExpandString(ConstUnicode fileName);
+EXTERN Unicode Util_GetEnv(ConstUnicode name);
 EXTERN void Util_ExitThread(int);
 EXTERN NORETURN void Util_ExitProcessAbruptly(int);
 EXTERN int Util_HasAdminPriv(void);
@@ -282,7 +282,7 @@ UtilSafeMallocInternal(int bugNumber, size_t size, char *file, int lineno)
 {
    void *result = malloc(size);
 
-   if (result == NULL) {
+   if (result == NULL && size != 0) {
       if (bugNumber == -1) {
          Panic("Unrecoverable memory allocation failure at %s:%d\n",
                file, lineno);
@@ -318,7 +318,7 @@ UtilSafeCallocInternal(int bugNumber, size_t nmemb, size_t size,
 {
    void *result = calloc(nmemb, size);
 
-   if (result == NULL) {
+   if (result == NULL && nmemb != 0 && size != 0) {
       if (bugNumber == -1) {
          Panic("Unrecoverable memory allocation failure at %s:%d\n",
                file, lineno);
@@ -519,5 +519,34 @@ Util_ZeroFreeString(char *str)  // IN
       free(str); 
    }
 }
+
+
+#ifdef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_ZeroFreeStringW --
+ *
+ *      Zeros out a NUL-terminated wide-character string, and then frees it.
+ *      NULL is legal.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *	str is zeroed, and then free() is called on it.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Util_ZeroFreeStringW(wchar_t *str)  // IN
+{
+   if (str != NULL) {
+      Util_Zero(str, wcslen(str) * sizeof(wchar_t));
+      free(str); 
+   }
+}
+#endif // _WIN32
 
 #endif /* UTIL_H */

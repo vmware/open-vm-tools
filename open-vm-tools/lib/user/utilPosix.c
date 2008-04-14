@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -382,15 +382,16 @@ UtilAcceptableSafeTmpDir(const char *dirname,  // IN
  *-----------------------------------------------------------------------------
  */
 
-static char *
+static Unicode
 UtilFindExistingSafeTmpDir(uid_t userId,             // IN
                            const char * userName,    // IN
                            const char * baseTmpDir)  // IN
 {
-   DIR* dir;
-   char* pattern;
-   size_t patlen;
-   char* tmpDir = NULL;
+   int i;
+   int numFiles;
+   Unicode pattern;
+   Unicode tmpDir = NULL;
+   Unicode *fileList = NULL;
    
    /*
     * We always use the pattern PRODUCT-USER-xxxx when creating
@@ -398,51 +399,36 @@ UtilFindExistingSafeTmpDir(uid_t userId,             // IN
     * those names and the appropriate permissions.
     */
    
-   pattern = Str_Asprintf(&patlen, "%s-%s-", 
-                          PRODUCT_GENERIC_NAME_LOWER, userName);
-   if (!pattern) {
-      Warning("%s: Out of memory error.\n", __FUNCTION__);
-      goto exit;
+   pattern = Unicode_Format("%s-%s-", PRODUCT_GENERIC_NAME_LOWER, userName);
+   if (pattern == NULL) {
+      return NULL;
    }
-   
-   dir = opendir(baseTmpDir);
-   
-   if (dir) {
-      struct dirent *direntry;
-      
-      /*
-       * If we get any errors during the directory iteration, we
-       * will just bail out and try to create a new temporary
-       * directory.
-       */
-      while ((direntry = readdir(dir)) != NULL) {
-         
-         if ((direntry->d_type == DT_DIR) &&
-               (strncmp(direntry->d_name, pattern, patlen) == 0)) {
-            
-            tmpDir = Str_Asprintf(NULL, "%s"DIRSEPS"%s",
-                                  baseTmpDir,
-                                  direntry->d_name);
-            
-            if (!tmpDir) {
-               Warning("%s: Out of memory error.\n", __FUNCTION__);
-               break;
-            }
-            
-            if (UtilAcceptableSafeTmpDir(tmpDir, userId)) {
-               break;
-            }
-            
-            free(tmpDir);
-         }
-      }
-      
-      closedir(dir);
-   }
-   
-   free(pattern);
 
-  exit:
+   numFiles = File_ListDirectory(baseTmpDir, &fileList);
+
+   if (numFiles == -1) {
+      Unicode_Free(pattern);
+      return NULL;
+   }
+
+   for (i = 0; i < numFiles; i++) {
+       if (Unicode_StartsWith(fileList[i], pattern)) {
+          Unicode path = Unicode_Join(baseTmpDir, U(DIRSEPS), fileList[i],
+                                      NULL);
+
+          if (File_IsDirectory(path) &&
+              UtilAcceptableSafeTmpDir(path, userId)) {
+             tmpDir = path;
+             break;
+          }
+
+          Unicode_Free(path);
+       }
+   }
+
+   Unicode_FreeList(fileList, numFiles);
+   Unicode_Free(pattern);
+
    return tmpDir;
 }
 

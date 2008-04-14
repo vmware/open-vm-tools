@@ -31,6 +31,7 @@
 #include <linux/timer.h>
 #include "compat_completion.h"
 #include "compat_kernel.h"
+#include "compat_kthread.h"
 #include "compat_list.h"
 #include "compat_sched.h"
 #include "compat_slab.h"
@@ -225,11 +226,15 @@ HgfsSendUnsentReqs(void)
 void
 HgfsResetOps(void)
 {
+   atomic_set(&hgfsProtocolVersion, HGFS_VERSION_3);
    atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V2);
    atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR_V2);
    atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR_V2);
    atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ_V2);
    atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR_V2);
+   atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN);
+   atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
+   atomic_set(&hgfsVersionQueryVolumeInfo, HGFS_OP_QUERY_VOLUME_INFO);
 }
 
 
@@ -242,6 +247,9 @@ HgfsResetOps(void)
  *    the filesystem half of the driver, send them over the backdoor,
  *    get replies, and send them back to the filesystem.
  *
+ *    Note that this function is called out of the kthread subsystem or, in
+ *    older kernels, a similar abstraction built in compat_kthread.h.
+ *
  * Results:
  *    Always returns zero.
  *
@@ -252,20 +260,18 @@ HgfsResetOps(void)
  */
 
 int 
-HgfsBdHandler(void *data)
+HgfsBdHandler(void *data) // Ignored
 {
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsBdHandler: Thread starting\n"));
-   compat_daemonize(HGFS_NAME);
    compat_set_freezable();
 
    for (;;) {
 
-      /* Sleep, waiting for a request, a poll time, or exit. */
+      /* Sleep, waiting for a request or exit. */
       wait_event_interruptible(hgfsReqThreadWait,
                                test_bit(HGFS_REQ_THREAD_SEND, 
                                         &hgfsReqThreadFlags) ||
-                               test_bit(HGFS_REQ_THREAD_EXIT, 
-                                        &hgfsReqThreadFlags));
+                               compat_kthread_should_stop());
       
       /* 
        * First, check for suspend. I'm not convinced that this actually
@@ -284,7 +290,7 @@ HgfsBdHandler(void *data)
       }
 
       /* Kill yourself. */
-      if (test_and_clear_bit(HGFS_REQ_THREAD_EXIT, &hgfsReqThreadFlags)) { 
+      if (compat_kthread_should_stop()) { 
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsBdHandler: Told to exit\n"));
          break;
       }
@@ -293,8 +299,6 @@ HgfsBdHandler(void *data)
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsBdHandler: Closing backdoor\n"));
    HgfsBd_CloseBackdoor(&hgfsRpcOut);
 
-   /* Signal our parent that we're exiting, and exit, all at once. */
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsBdHandler: Thread exiting\n"));
-   compat_complete_and_exit(&hgfsReqThreadDone, 0);
-   NOT_REACHED();
+   return 0;
 }

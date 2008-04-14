@@ -124,6 +124,8 @@
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES	 16	  // BT-958 emulates only 16
+#define SCSI_IDE_CHANNEL         SCSI_MAX_CONTROLLERS
+#define SCSI_MAX_CHANNELS        (SCSI_MAX_CONTROLLERS + 1)
 
 /************* Strings for the VESA BIOS Identity Fields *****************/
 #define VBE_OEM_STRING COMPANY_NAME " SVGA"
@@ -138,6 +140,9 @@
 
 /************* PCI Passthrough implementation limits ********************/
 #define MAX_PCI_PASSTHRU_DEVICES 2
+
+/************* USB implementation limits ********************************/
+#define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127
 
 /************* Strings for Host USB Driver *******************************/
 

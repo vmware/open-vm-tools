@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -87,6 +87,17 @@ VixError Vix_TranslateCryptoError(CryptoError cryptoError);
 #ifdef _WIN32
 VixError Vix_TranslateCOMError(HRESULT comError);
 #endif
+
+/*
+ * This defines additional error codes.
+ * The public error codes are defined in vix.h
+ * These error codes are in addition to those.
+ */
+enum {
+   VIX_E_OP_NOT_SUPPORTED_ON_NON_VMWARE_VM         = 3038
+
+   /* WARNING. Do not exceed 2**16 */
+};
 
 #endif // VIX_HIDE_BORA_DEPENDENCIES
 
@@ -344,6 +355,16 @@ enum {
    //VIX_GUEST_ENVIRONMENT_VARIABLE   = 3,
    VIX_GUEST_CONFIG                 = 4,
    VIX_VMDB_VARIABLE                = 5,
+};
+
+/*
+ * Options for RunProgramInGuest().
+ */
+enum {
+   //VIX_RUNPROGRAM_RETURN_IMMEDIATELY       = 0x0001,
+   //VIX_RUNPROGRAM_ACTIVATE_WINDOW          = 0x0002,
+   /* DEPRECATED VIX_RUNPROGRAM_USE_INTERACTIVE_SESSION  = 0x0004, */
+   VIX_RUNPROGRAM_RUN_AS_LOCAL_SYSTEM      = 0x0008,
 };
 
 

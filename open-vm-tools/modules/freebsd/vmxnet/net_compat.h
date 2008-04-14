@@ -66,7 +66,7 @@
    #define VXN_IF_UNIT(ifp) ((ifp)->if_unit)
 
    #define VXN_IF_INITNAME(ifp, name, unit) do {           \
-           (ifp)->if_name = (name);                        \
+           (ifp)->if_name = (char *)(name);                \
            (ifp)->if_unit = (unit);                        \
    } while (0)
 #else /* >= 501113 */
@@ -96,25 +96,23 @@
  * returned from if_alloc() and if_alloc() allocates
  * space for if_l2com.
  *
+ * Accessing the link layer address via arpcom's ac_enaddr was deprecated as
+ * of sys/net/if_var.h:1.98, and drivers are to instead get/set said address
+ * through the embedded ifnet structure.  So with FreeBSD 6 and above, we
+ * instead define vxn_softc as follows and rely on FreeBSD's macro glue for
+ * easy access to the LL-address.
+ *
  *   struct vxn_softc {
- *      struct arpcom {
- *         struct ifnet {
- *            void *if_softc;
- *            void *if_l2com;
- *            ...
- *         } *ac_ifp;
- *         u_char       _ac_enaddr[6];
- *         ...
- *      } <arpcom>;
+ *      struct ifnet    *vxn_ifp;
  *      ...
  *   };
  */
-#if __FreeBSD_version < 600000
+#if __FreeBSD_version < 600000  /* Pre-FreeBSD 6.0-RELEASE */
+   #define VXN_NEEDARPCOM
    #define VXN_IF_ALLOC(softc)  (&(softc)->arpcom.ac_if)
    #define VXN_IF_FREE(softc)
 
    #define VXN_SC2IFP(softc)    (&(softc)->arpcom.ac_if)
-   #define VXN_SC2ENADDR(softc) ((softc)->arpcom.ac_enaddr)
 
    #define VXN_PCIR_MAPS        PCIR_MAPS
 
@@ -127,12 +125,11 @@
                                 ((ifp)->if_flags &= ~(flags))
    #define VXN_GET_IF_DRV_FLAGS(ifp) \
                                 ((ifp)->if_flags)
-#else
-   #define VXN_IF_ALLOC(softc)  (((softc)->arpcom.ac_ifp) = if_alloc(IFT_ETHER));
-   #define VXN_IF_FREE(softc)   if_free((softc)->arpcom.ac_ifp)
+#else                           /* FreeBSD 6.x+ */
+   #define VXN_IF_ALLOC(softc)  ((softc)->vxn_ifp = if_alloc(IFT_ETHER))
+   #define VXN_IF_FREE(softc)   if_free((softc)->vxn_ifp)
 
-   #define VXN_SC2IFP(softc)    ((softc)->arpcom.ac_ifp)
-   #define VXN_SC2ENADDR(softc) ((softc)->arpcom._ac_enaddr)
+   #define VXN_SC2IFP(softc)    ((softc)->vxn_ifp)
 
    #define VXN_PCIR_MAPS        PCIR_BARS
 

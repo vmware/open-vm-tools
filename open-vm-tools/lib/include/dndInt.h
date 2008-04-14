@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -28,12 +28,17 @@
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
 
+typedef struct {
+   uint8 *pos;
+   size_t unreadLen;
+} BufRead;
+
 Bool DnDDataContainsIllegalCharacters(const char *data,
                                       const size_t dataSize,
                                       const char *illegalChars);
 
-Bool DnDPrependFileRoot(const char *fileRoot,
-                        const char delimiter,
+Bool DnDPrependFileRoot(ConstUnicode fileRoot,
+                        char delimiter,
                         char **src,
                         size_t *srcSize);
 
@@ -44,5 +49,9 @@ Bool DnDSetPermissionsOnRootDir(ConstUnicode pathName);
 Bool DnDStagingDirectoryUsable(ConstUnicode pathName);
 
 Bool DnDSetPermissionsOnStagingDir(ConstUnicode pathName);
+
+Bool DnDReadBuffer(BufRead *b, void *out, size_t len);
+
+Bool DnDSlideBuffer(BufRead *b, size_t len);
 
 #endif /*  __DND_INT_H__ */

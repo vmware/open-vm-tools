@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -403,6 +403,16 @@ VixPropertyList_Deserialize(VixPropertyListImpl *propList,     // IN
       pos += propertyTypeSize;
       lengthPtr = (int*) &(buffer[pos]);
       pos += propertyValueLengthSize;
+   
+      /*
+       * Do not allow lengths of 0 or fewer bytes. Those do not make sense,
+       * unless you can pass a NULL blob, which Serialize() does not allow.
+       * Also, make sure the value is contained within the bounds of the buffer.
+       */
+      if ((*lengthPtr < 1) || ((*lengthPtr + pos) > bufferSize)) {
+         err = VIX_E_INVALID_SERIALIZED_DATA;
+         goto abort;
+      }
       
       /*
        * Create the property if missing
@@ -424,6 +434,10 @@ VixPropertyList_Deserialize(VixPropertyListImpl *propList,     // IN
       switch(*propertyTypePtr) {
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_INTEGER:
+            if (PROPERTY_SIZE_INT32 != *lengthPtr) {
+               err = VIX_E_INVALID_SERIALIZED_DATA;
+               goto abort;
+            }
             intPtr = (int*) &(buffer[pos]);
             property->value.intValue = *intPtr;
             break;
@@ -431,18 +445,34 @@ VixPropertyList_Deserialize(VixPropertyListImpl *propList,     // IN
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_STRING:
             strPtr = (char*) &(buffer[pos]);
+            /*
+             * The length that Serialize() generates includes the terminating
+             * NUL character.
+             */
+            if (strPtr[*lengthPtr - 1] != '\0') {
+               err = VIX_E_INVALID_SERIALIZED_DATA;
+               goto abort;
+            }
             free(property->value.strValue);
             property->value.strValue = Util_SafeStrdup(strPtr);
             break;
 
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_BOOL:
+            if (PROPERTY_SIZE_BOOL != *lengthPtr) {
+               err = VIX_E_INVALID_SERIALIZED_DATA;
+               goto abort;
+            }
             boolPtr = (Bool*) &(buffer[pos]);
             property->value.boolValue = *boolPtr;
             break;
          
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_INT64:
+            if (PROPERTY_SIZE_INT64 != *lengthPtr) {
+               err = VIX_E_INVALID_SERIALIZED_DATA;
+               goto abort;
+            }
             int64Ptr = (int64*) &(buffer[pos]);
             property->value.int64Value = *int64Ptr;
             break;
@@ -451,6 +481,16 @@ VixPropertyList_Deserialize(VixPropertyListImpl *propList,     // IN
          case VIX_PROPERTYTYPE_BLOB:
             blobPtr = (unsigned char*) &(buffer[pos]);
             property->value.blobValue.blobSize = *lengthPtr;
+            /*
+             * Use regular malloc() when allocating amounts specified by another
+             * process. Admittedly we've already bounds checked it, but this is
+             * pretty easy to handle.
+             */
+            property->value.blobValue.blobContents = malloc(*lengthPtr);
+            if (NULL == property->value.blobValue.blobContents) {
+               err = VIX_E_OUT_OF_MEMORY;
+               goto abort;
+            }
             memcpy(property->value.blobValue.blobContents, blobPtr, *lengthPtr);
             break;
 
@@ -458,6 +498,10 @@ VixPropertyList_Deserialize(VixPropertyListImpl *propList,     // IN
          case VIX_PROPERTYTYPE_POINTER:
             // The size may be different on different machines.
             // To be safe, we always use 8 bytes.
+            if (PROPERTY_SIZE_POINTER != *lengthPtr) {
+               err = VIX_E_INVALID_SERIALIZED_DATA;
+               goto abort;
+            }
             ptrPtr = (void**) &(buffer[pos]);
             property->value.ptrValue = *ptrPtr;
             break;

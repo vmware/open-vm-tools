@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -38,6 +38,7 @@
 
 #include "impersonateInt.h"
 #include "su.h"
+#include "posix.h"
 
 #if !defined(VMX86_TOOLS)
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER; 
@@ -431,7 +432,7 @@ ImpersonateDo(const char *user,       // IN
    struct passwd *ppw = &pw;
    int error;
 
-   if ((error = getpwnam_r(user, &pw, buffer, BUFSIZ, &ppw)) != 0 || !ppw) {
+   if ((error = Posix_Getpwnam_r(user, &pw, buffer, BUFSIZ, &ppw)) != 0 || !ppw) {
       if (error == 0) {
          error = ENOENT;
       }

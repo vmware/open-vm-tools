@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -128,9 +128,15 @@ Bool MsgFmt_GetArgs(const char *fmt, va_list va,
                     MsgFmt_Arg **args, int *numArgs, char **error);
 Bool MsgFmt_GetArgsWithBuf(const char *fmt, va_list va,
                            MsgFmt_Arg **args, int *numArgs, char **error,
-			   void *buf, size_t bufSize);
+			   void *buf, size_t *bufSize);
 void MsgFmt_FreeArgs(MsgFmt_Arg *args, int numArgs);
+void MsgFmt_SwizzleArgs(MsgFmt_Arg *args,
+                        int numArgs);
+void MsgFmt_UnswizzleArgs(MsgFmt_Arg *args,
+                          int numArgs);
 
+MsgFmt_Arg* MsgFmt_CopyArgs(MsgFmt_Arg* copyArgs,
+                            int numArgs);
 #ifdef HAS_BSD_PRINTF
 int MsgFmt_Snprintf(char *buf, size_t size, const char *format,
                     const MsgFmt_Arg *args, int numArgs);

@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -34,9 +34,7 @@
 #include <string.h>
 #include <fcntl.h>
 #ifdef sun
-# include <sys/sockio.h>
 # include <sys/systeminfo.h>
-# include <dnet.h>
 #endif
 #include <unistd.h>
 #include <sys/types.h>
@@ -44,17 +42,17 @@
 #include <sys/stat.h>
 #include <errno.h>
 #ifdef __FreeBSD__
-# include <netinet/in.h>
-# include <net/if_dl.h>
-# include <ifaddrs.h>
 # include <sys/sysctl.h>
 #endif
+#ifndef NO_DNET
+# ifdef DNET_IS_DUMBNET
+#  include <dumbnet.h>
+# else
+#  include <dnet.h>
+# endif
+#endif
 #include "util.h"
-#include "arpa/inet.h"
 #include "sys/utsname.h"
-#include "net/if_arp.h"
-#include "net/if.h"
-#include "netdb.h"
 #include "sys/ioctl.h"
 #include "vmware.h"
 #include "guestInfoInt.h"
@@ -169,6 +167,85 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 }
 
 
+#ifndef NO_DNET
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ReadInterfaceDetails --
+ *
+ *      Callback function called by libdnet when iterating over all the
+ *      NICs on the host.
+ *
+ * Return value:
+ *      Returns 0 on success and -1 on failure.
+ *      Adds the MAC addresses of all NICs and their corresponding IPs.
+ *
+ * Side effects:
+ *      Memory is allocated for each NIC, as well as IP addresses of all NICs 
+ *      on successful return.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface entry
+                     void *arg)                       // IN: Pointer to the NicInfo
+{
+   int i;
+
+   NicInfo *nicInfo = (NicInfo *)arg;
+
+   if ((entry->intf_type & INTF_TYPE_ETH) == INTF_TYPE_ETH) {
+      NicEntry *nicEntryCur;
+      char macAddress[MAC_ADDR_SIZE];
+      char ipAddress[IP_ADDR_SIZE_V2];
+
+      Str_Sprintf(macAddress, sizeof macAddress,
+                  addr_ntoa(&entry->intf_link_addr));
+      nicEntryCur = GuestInfoAddNicEntry(nicInfo, macAddress);
+      if (nicEntryCur == NULL) {
+         return -1;
+      }
+
+      if (entry->intf_addr.addr_type == ADDR_TYPE_IP) {
+         VmIpAddressEntry *ipAddressEntry = NULL;
+         /* Use ip_ntop instead of addr_ntop since we don't want the netmask bits. */
+         ip_ntop(&entry->intf_addr.addr_ip, ipAddress, sizeof ipAddress);
+         ipAddressEntry = GuestInfoAddIpAddress(nicEntryCur,
+                                                ipAddress,
+                                                INFO_IP_ADDRESS_FAMILY_IPV4);
+         if (ipAddressEntry) {
+            GuestInfoAddSubnetMask(ipAddressEntry, entry->intf_addr.addr_bits);
+         }
+         /* Walk the list of alias's and add those that are IPV4 or IPV6 */
+         for (i = 0; i < entry->intf_alias_num; i++) {
+            if (entry->intf_alias_addrs[i].addr_type == ADDR_TYPE_IP) {
+               ip_ntop(&entry->intf_alias_addrs[i].addr_ip,
+                       ipAddress,
+                       sizeof ipAddress);
+               ipAddressEntry = GuestInfoAddIpAddress(nicEntryCur,
+                                                      ipAddress,
+                                                      INFO_IP_ADDRESS_FAMILY_IPV4);
+               if (ipAddressEntry) {
+                  GuestInfoAddSubnetMask(ipAddressEntry,
+                                         entry->intf_addr.addr_bits);
+               }
+            } else if (entry->intf_alias_addrs[i].addr_type == ADDR_TYPE_IP6) {
+               memcpy(ipAddress,
+                      addr_ntoa(&entry->intf_alias_addrs[i]),
+                      sizeof ipAddress);
+               GuestInfoAddIpAddress(nicEntryCur,
+                                     ipAddress,
+                                     INFO_IP_ADDRESS_FAMILY_IPV6);
+            }
+         }
+      }
+   }
+
+   return 0;
+}
+#endif
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -186,265 +263,35 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
  *      on successful return.
  *
  *-----------------------------------------------------------------------------
- */                                                                                                                            
+ */
 
-#if defined(__FreeBSD__)
 Bool
 GuestInfoGetNicInfo(NicInfo *nicInfo)           // OUT
 {
-   struct ifaddrs *ifaces;
-   struct ifaddrs *cur;
-   typedef struct IfNameNicMap {    // linked list to remember interface names
-      char *name;
-      NicEntry *nicEntry;     // point to the NIC entry of the interface
-      DblLnkLst_Links links;
-   } IfNameNicMap;
-   IfNameNicMap *ifNamesCur;
-   DblLnkLst_Links ifNameList;
-   DblLnkLst_Links *sCurrent;
-   DblLnkLst_Links *sNext;
-   DblLnkLst_Links *linkIfName;
+#ifndef NO_DNET
+   intf_t *intf;
 
-   ASSERT(nicInfo);
    memset(nicInfo, 0, sizeof *nicInfo);
    DblLnkLst_Init(&nicInfo->nicList);
-   DblLnkLst_Init(&ifNameList);
 
-   if (getifaddrs(&ifaces) < 0) {
-      Debug("GuestInfo: Error, failed to call getifaddrs(3)\n");
+   /* Get a handle to read the network interface configuration details. */
+   if ((intf = intf_open()) == NULL) {
+      Debug("GuestInfo: Error, failed NULL result from intf_open()\n");
       return FALSE;
    }
 
-   /*
-    * First pass: identify all interfaces with MAC addresses. As we add each
-    * MAC address to nicInfo, we also track the interface name tied to that
-    * address. This is because we must later use the interface name to find
-    * the appropriate MAC given a pair of {name,IP}.
-    */
-   for (cur = ifaces; cur != NULL; cur = cur->ifa_next) {
-      if (cur->ifa_addr->sa_family == AF_LINK) {
-         NicEntry *nicEntryCur;
-         unsigned char tempMacAddress[6];
-         char macAddress[MAC_ADDR_SIZE];
-         struct sockaddr_dl *sdl = (struct sockaddr_dl *)cur->ifa_addr;
-
-         /*
-          * By ensuring the address length is 6, we implicitly ignore all
-          * non-Ethernet addresses (such as loopback).
-          */
-         if (sdl->sdl_alen != sizeof tempMacAddress) {
-            Debug("GuestInfo: Unexpected length for MAC address, skipping "
-                  "interface\n");
-            continue;
-         }
-
-         /*
-          * insert the new entry to the end of the nicList
-          */
-
-         memcpy(tempMacAddress, LLADDR(sdl), sdl->sdl_alen);
-         Str_Sprintf(macAddress,
-                     sizeof macAddress,
-                     "%02x:%02x:%02x:%02x:%02x:%02x",
-                     tempMacAddress[0], tempMacAddress[1], tempMacAddress[2],
-                     tempMacAddress[3], tempMacAddress[4], tempMacAddress[5]);
-
-         nicEntryCur = NicInfo_AddNicEntry(nicInfo, macAddress);
-
-         /*
-          * Make interface name link list
-          */
-         ifNamesCur = Util_SafeCalloc(1, sizeof *ifNamesCur);
-         ifNamesCur->name = cur->ifa_name;
-         ifNamesCur->nicEntry = nicEntryCur;
-         DblLnkLst_Init(&ifNamesCur->links);
-         DblLnkLst_LinkLast(&ifNameList, &ifNamesCur->links);
-      } 
-   } 
-  
-   /* Second pass: tie each IP address to its MAC address. */
-   for (cur = ifaces; cur != NULL; cur = cur->ifa_next) {
-      if (cur->ifa_addr->sa_family == AF_INET) {
-         struct sockaddr_in *sin = (struct sockaddr_in *)cur->ifa_addr;
-
-         /*
-          * This is tedious but necessary. We iterate over the stored interface
-          * names looking for the one tied to this IP address. Then we convert
-          * the IP address to a string and store it in the nicInfo struct.
-          */
-
-         DblLnkLst_ForEach(linkIfName, &ifNameList) {
-            ifNamesCur = DblLnkLst_Container(linkIfName, IfNameNicMap, links);
-            if (strcmp(ifNamesCur->name, cur->ifa_name) == 0) {
-               VmIpAddressEntry *ipAddressCur;
-               NicEntry *entry = ifNamesCur->nicEntry;
-               char ipAddress[IP_ADDR_SIZE];
-
-               if (!inet_ntop(AF_INET,
-                              &sin->sin_addr,
-                              ipAddress,
-                              sizeof ipAddress)) {
-                  Debug("GuestInfo: Could not convert IP address, skipping "
-                        "IP\n");
-                  break;
-               }
-
-               ipAddressCur = NicEntry_AddIpAddress(entry, 
-                                                    ipAddress,
-                                                    0); /* not used */
-               break;
-            }
-         } 
-      } 
-   } 
-
-   freeifaddrs(ifaces);
-
-   /* free alllocated temp memory */
-   DblLnkLst_ForEachSafe(sCurrent, sNext, &ifNameList) {
-      DblLnkLst_Unlink1(sCurrent);
-      free(DblLnkLst_Container(sCurrent, IfNameNicMap, links));
+   if (intf_loop(intf, ReadInterfaceDetails, nicInfo) < 0) {
+      intf_close(intf);
+      Debug("GuestInfo: Error, negative result from intf_loop\n");
+      return FALSE;
    }
 
+   intf_close(intf);
    return TRUE;
-}
-
-#else /* FreeBSD */
-
-Bool
-GuestInfoGetNicInfo(NicInfo *nicInfo)           // OUT
-{
-   Bool retVal = FALSE;
-   int sockfd;
-   struct ifconf ifc;
-   struct ifreq *ifr;
-   unsigned int numReqs = 30;  /* Initial estimate of number of ifreqs. */
-   unsigned int i;
-   char ipAddress[IP_ADDR_SIZE];
-   char macAddress[MAC_ADDR_SIZE];
-
-   ASSERT(nicInfo);
-   if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-      Debug("GuestInfo: Error, could not create socket\n");
-      return FALSE;
-   }
-
-   memset(nicInfo, 0, sizeof *nicInfo);
-   DblLnkLst_Init(&nicInfo->nicList);
-   ifc.ifc_buf = NULL;
-  
-   /* Get all the interface entries for this machine. */
-   for (;;) {
-      void *tmp = ifc.ifc_buf;
-      ifc.ifc_len = (sizeof *ifr) * numReqs;
-      if (!(ifc.ifc_buf = realloc(ifc.ifc_buf, ifc.ifc_len))) {
-         Debug("GuestInfo: Error, failed to allocate ifconf\n");
-         free(tmp);
-         goto out;
-      }
-
-      if (ioctl(sockfd, SIOCGIFCONF, &ifc) < 0) {
-         Debug("GuestInfo: SIOCGIFCONF failed\n");
-         goto out;
-      }
-      if (ifc.ifc_len == (sizeof *ifr) * numReqs) {
-         /* assume it overflowed and try again */
-         numReqs += 10;
-         continue;
-      }
-      break;
-   } 
-
-   /* Get the IP and MAC address for each of these interfaces. */
-   ifr = ifc.ifc_req;
-
-   for (i = 0; i * (sizeof *ifr) < ifc.ifc_len; i++, ifr++) {
-      unsigned char *ptr = NULL;
-      VmIpAddressEntry *ipAddressCur;
-      NicEntry *macNicEntry;
-#     ifdef sun
-      eth_t *device;
-      eth_addr_t addr;
-#     endif
-
-      Debug("%s\n", ifr->ifr_name);
-
-      /*
-       * Get the mac address for this interface. Some interfaces (like the
-       * loopback interface) have no MAC address, and we skip them.
-       */
-#     ifndef sun
-      if (ioctl(sockfd, SIOCGIFHWADDR, ifr) < 0) {
-         Debug("GuestInfo: Failed to get MAC address, skipping interface\n");
-         continue;
-      }
-
-      ptr = &ifr->ifr_hwaddr.sa_data[0];
-#     else
-      /* libdnet's eth_* interface gets the ethernet address for us. */
-      device = eth_open(ifr->ifr_name);
-      if (!device) {
-         Debug("GuestInfo: Failed to open device, skipping interface\n");
-         continue;
-      }
-
-      if (eth_get(device, &addr) != 0) {
-         eth_close(device);
-         Debug("GuestInfo: Failed to get MAC address, skipping interface\n");
-         continue;
-      }
-
-      eth_close(device);
-      ptr = &addr.data[0];
+#else
+   return FALSE;
 #endif
-
-      
-      /* Get the corresponding IP address. */
-      ifr->ifr_addr.sa_family = AF_INET;
-      if (ioctl(sockfd, SIOCGIFADDR, ifr) < 0) {
-         Debug("GuestInfo: Failed to get ip address, skipping interface\n");
-         continue;
-      }
-
-      /* Convert IP to a string. */
-      if (!inet_ntop(AF_INET,
-                     &((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr,
-                     ipAddress, sizeof ipAddress)) {
-         Debug("GuestInfo: Failed in inet_ntop, skipping interface\n");
-         continue;
-      }
-
-      Str_Sprintf(macAddress, sizeof macAddress,
-                  "%02x:%02x:%02x:%02x:%02x:%02x",
-                  *ptr, *(ptr + 1), *(ptr + 2),
-                  *(ptr + 3), *(ptr + 4), *(ptr + 5));
-
-      /* Which entry in nic info corresponds to this MAC address? */
-      macNicEntry = NicInfo_FindMacAddress(nicInfo, macAddress);
-      if (NULL == macNicEntry) {
-         /* This mac address has not been added to nicInfo, get a new entry. */  
-         macNicEntry = NicInfo_AddNicEntry(nicInfo,
-                                           macAddress);
-      }
-
-      ipAddressCur = NicEntry_AddIpAddress(macNicEntry, ipAddress, 0);
-   }
-
-   retVal = TRUE;
-
-out:
-   if (close(sockfd) == -1) {
-      Debug("GuestInfo: Close socket failed\n");
-      retVal = FALSE;
-   }
-
-   if (ifc.ifc_buf) {
-      free(ifc.ifc_buf);
-   }
-   return retVal;
 }
-#endif
-
 
 /*
  *-----------------------------------------------------------------------------

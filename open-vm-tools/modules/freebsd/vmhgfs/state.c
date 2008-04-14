@@ -30,14 +30,19 @@
 #if defined(__FreeBSD__)
 #  include <sys/libkern.h>
 #  include <sys/malloc.h>
+#  include "sha1.h"
 #elif defined(__APPLE__)
 #  include <string.h>
+/*
+ * The OS X kernel includes the same exact SHA1 routines as those
+ * provided by bora/lib/misc. Use the kernel ones under OS X.
+ */
+#  include <libkern/crypto/sha1.h>
 #endif
 
 #include "hgfs_kernel.h"
 #include "state.h"
 #include "debug.h"
-#include "sha1.h"
 #include "os.h"
 
 /*
@@ -49,6 +54,9 @@
 
 #define HGFS_IS_ROOT_FILE(sip, file)    (HGFS_VP_TO_FP(sip->rootVnode) == file)
 
+#if defined(__APPLE__)
+#  define SHA1_HASH_LEN SHA_DIGEST_LENGTH
+#endif
 
 /*
  * Local functions (prototypes)
@@ -291,6 +299,9 @@ HgfsInitFileHashTable(HgfsFileHashTable *htp)   // IN: Hash table to initialize
    ASSERT(htp);
 
    htp->mutex = os_mutex_alloc_init("HgfsHashChain");
+   if (!htp->mutex) {
+      return HGFS_ERR;
+   }
 
    for (i = 0; i < ARRAYSIZE(htp->hashTable); i++) {
       DblLnkLst_Init(&htp->hashTable[i]);
@@ -1072,7 +1083,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
 
    default:
       /* Hgfs only supports directories and regular files */
-      goto vnode_error;
+      goto vnodeError;
    }
 
    /*
@@ -1083,7 +1094,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    vp->v_data = (void *)HgfsAllocOpenFile(fileName, fileType, htp, lockHtp);
    if (vp->v_data == NULL) {
       ret = ENOMEM;
-      goto vnode_error;
+      goto vnodeError;
    }
 
    /* If this is going to be the root vnode, we have to mark it as such. */
@@ -1098,7 +1109,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    return 0;
 
    /* Cleanup points for errors. */
-vnode_error:
+vnodeError:
    vrele(vp);
    return ret;
 }
@@ -1159,7 +1170,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
 
    default:
       /* Hgfs only supports directories and regular files */
-      goto vnode_error;
+      goto vnodeError;
    }
 
    /*
@@ -1173,7 +1184,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    params.vnfs_fsnode = (void *)ofp;
    if (params.vnfs_fsnode == NULL) {
       ret = ENOMEM;
-      goto vnode_error;
+      goto vnodeError;
    }
 
 
@@ -1189,7 +1200,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    if (ret != 0) {
       DEBUG(VM_DEBUG_FAIL, "Failed to create vnode");
       ret = EINVAL;
-      goto vnode_error;
+      goto vnodeError;
    }
 
    /* Fill in the provided address with the new vnode. */
@@ -1199,7 +1210,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    return 0;
 
    /* Cleanup points for errors. */
-vnode_error:
+vnodeError:
    vnode_put(vp);
    return ret;
 }
@@ -1242,30 +1253,64 @@ HgfsAllocOpenFile(const char *fileName,         // IN: Name of file
     * We allocate and initialize our open-file state.
     */
    ofp = os_malloc(sizeof *ofp, M_ZERO | M_WAITOK);
+   if (!ofp) {
+      return NULL;
+   }
 
    ofp->mode = 0;
    ofp->modeIsSet = FALSE;
-
-#if defined(__APPLE__)
-   ofp->rwFileLock = os_rw_lock_alloc_init("hgfs_rw_file_lock");
-#endif
 
    ofp->handleRefCount = 0;
    ofp->handle = 0;
 
    ofp->handleMutex = os_mutex_alloc_init("hgfs_mtx_handle");
+   if (!ofp->handleMutex) {
+      goto destroyOut;
+   }
+
    ofp->modeMutex = os_mutex_alloc_init("hgfs_mtx_mode");
+   if (!ofp->modeMutex) {
+      goto destroyOut;
+   }
+
+#if defined(__APPLE__)
+   ofp->rwFileLock = os_rw_lock_alloc_init("hgfs_rw_file_lock");
+   if (!ofp->rwFileLock) {
+      goto destroyOut;
+   }
+#endif
 
    /*
     * Now we get a reference to the underlying per-file state.
     */
    ofp->hgfsFile = HgfsGetFile(fileName, fileType, htp, lockHtp);
    if (!ofp->hgfsFile) {
-      os_free(ofp, sizeof *ofp);
-      return NULL;
+      goto destroyOut;
    }
 
+   /* Success */
    return ofp;
+
+destroyOut:
+   ASSERT(ofp);
+
+   if (ofp->handleMutex) {
+      os_mutex_destroy(ofp->handleMutex);
+   }
+
+   if (ofp->modeMutex) {
+      os_mutex_destroy(ofp->modeMutex);
+   }
+
+#if defined(__APPLE__)
+   if (ofp->rwFileLock) {
+      os_rw_lock_destroy(ofp->rwFileLock);
+   }
+#endif
+
+   os_free(ofp, sizeof *ofp);
+   return NULL;
+
 }
 
 

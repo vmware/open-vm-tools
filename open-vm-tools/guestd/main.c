@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -68,6 +68,7 @@
 #include "escape.h"
 #include "vmstdio.h"
 #include "vmBackup.h"
+#include "codeset.h"
 
 #if !defined(__FreeBSD__) && !defined(sun)
 #include "socketMgr.h"
@@ -725,20 +726,34 @@ GuestdGetBlessedAppList(void)
 {
    FILE* confFile = NULL;
    char *fileName = NULL;
-   const char *installPath = GuestApp_GetInstallPath();
+   char *fileNameUtf8 = NULL;
+   char *installPath = GuestApp_GetInstallPath();
    char *appName = NULL;
    size_t myLineLen;
    int index;
    blessedAppNode *ret = NULL;
 
-   ASSERT(installPath);
+   if (installPath == NULL) {
+      Debug("GuestdGetBlessedAppList: Unable to get install path\n");
+      goto exit;
+   }
 
-   fileName = Str_Asprintf(NULL, "%s"DIRSEPS"%s", installPath, XAUTOSTART_CONF);
-   if (NULL == fileName) {
+   fileNameUtf8 = Str_Asprintf(NULL, "%s"DIRSEPS"%s", installPath, XAUTOSTART_CONF);
+   free(installPath);
+   if (NULL == fileNameUtf8) {
       Debug("GuestdGetBlessedAppList: Unable to allocate memory\n");
       goto exit;
    }
+
+   if (!CodeSet_Utf8ToCurrent(fileNameUtf8,
+                              strlen(fileNameUtf8),
+                              (char **)&fileName,
+                              NULL)) {
+      Debug("GuestdGetBlessedAppList: Unable to convert to current encoding\n");
+      goto exit;
+   }
    confFile = fopen(fileName, "r");
+   free(fileName);
    if (NULL == confFile) {
       /* If can not open conf file, use default value. */
       Debug("GuestdGetBlessedAppList: Unable to open conf file, use default value.\n");
@@ -786,7 +801,7 @@ default_exit:
       }
    }
 exit:
-   free(fileName);
+   free(fileNameUtf8);
    if (confFile) {
       fclose(confFile);
    }
@@ -1034,16 +1049,17 @@ static void
 GuestdRunVMwareUser(pid_t blessedPid)  // IN: blessed pid
 {
    char *fileName = NULL;
-   char *foundUser = NULL;
    char *xauth = NULL;
    Bool isXauthSet = FALSE;
-   FILE *envFile;
+   FILE *envFile = NULL;
    char buffer[65536];
    size_t readSize;
    char *cmd;
    struct passwd *pwd;
    unsigned int index = 0;
    int blockFd;
+   struct stat sb;
+   int envFd = -1;
 
    /*
     * If current active account is non-root, vmware-user can not initialize
@@ -1067,43 +1083,50 @@ GuestdRunVMwareUser(pid_t blessedPid)  // IN: blessed pid
        * We may not be able to open the file due to the security reason.
        */
       Debug("GuestdRunVMwareUser: Unable to open env file for %s\n", fileName);
-      free(fileName);
       goto childerror;
    }
 
    readSize = fread(buffer, 1, sizeof buffer, envFile);
 
-   /* Separator in environ is '\0'. */
-   while (index < readSize) {
-      if (!strncmp(&buffer[index], "USER=", 5)) {
-         foundUser = Str_Asprintf(NULL, "%s", &buffer[index + 5]);
-         if (NULL == foundUser) {
-            Debug("GuestdRunVMwareUser: Unable to allocate memory\n");
-            free(fileName);
-            fclose(envFile);
-            goto childerror;
-         }
-         break;
-      }
-      index += strlen(&buffer[index]) + 1;
+   /*
+    * Rather than consulting the user's USER environment variable, assume we
+    * can instead trust procfs's file permissions to determine processes'
+    * owners.
+    */
+   if ((envFd = fileno(envFile)) == -1) {
+      Debug("GuestdRunVMwareUser: Unable to convert FILE * to descriptor\n");
+      goto childerror;
    }
-   free(fileName);
-   fclose(envFile);
 
-   /* Switch from root to foundUser. */
-   pwd = getpwnam(foundUser);
+   if (fstat(envFd, &sb) == -1) {
+      Debug("GuestdRunVMwareUser: Unable to lookup environment details\n");
+      goto childerror;
+   }
+
+   /*
+    * At this point, we're finished with these, so go ahead and release them before
+    * executing vmware-user.
+    */
+   free(fileName);
+   fileName = NULL;
+
+   fclose(envFile);
+   envFile = NULL;
+
+   /* Switch from root to Xsession user. */
+   pwd = getpwuid(sb.st_uid);
    if (pwd == NULL) {
-      Debug("GuestdRunVMwareUser: Unable to lookup UID for %s\n", foundUser);
+      Debug("GuestdRunVMwareUser: Unable to lookup account for uid %u\n", sb.st_uid);
       goto childerror;
    }
 
    if (setgid(pwd->pw_gid) != 0) {
-      Debug("GuestdRunVMwareUser: Unable to setgid for %s\n", foundUser);
+      Debug("GuestdRunVMwareUser: Unable to setgid for %s\n", pwd->pw_name);
       goto childerror;
    }
 
    if (setuid(pwd->pw_uid) != 0) {
-      Debug("GuestdRunVMwareUser: Unable to setuid for %s\n", foundUser);
+      Debug("GuestdRunVMwareUser: Unable to setuid for %s\n", pwd->pw_name);
       goto childerror;
    }
 
@@ -1130,8 +1153,6 @@ GuestdRunVMwareUser(pid_t blessedPid)  // IN: blessed pid
          goto childerror;
       }
    }
-   free(foundUser);
-   foundUser = NULL;
    free(xauth);
    xauth = NULL;
 
@@ -1149,8 +1170,11 @@ GuestdRunVMwareUser(pid_t blessedPid)  // IN: blessed pid
 
    /* We should only get here from a goto. */
 childerror:
-   free(foundUser);
    free(xauth);
+   free(fileName);
+   if (envFile != NULL) {
+      fclose(envFile);
+   }
    if (blockFd >= 0 && !DnD_UninitializeBlocking(blockFd)) {
       Debug("GuestdRunVMwareUser unable to uninitialize blocking.\n");
    }

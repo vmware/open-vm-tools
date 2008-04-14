@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -71,9 +71,9 @@ Conf_Load(void)
 {
    GuestApp_Dict *confDict;
    char *path;
-   const char *confPath = GuestApp_GetConfPath();
-   const char *installPath = GuestApp_GetInstallPath();
-   
+   char *confPath = GuestApp_GetConfPath();
+   char *installPath = GuestApp_GetInstallPath();
+
    /* We really can't proceed without these paths. */
    ASSERT(confPath);
    ASSERT(installPath);
@@ -135,7 +135,10 @@ Conf_Load(void)
 
    /* Load the user-configured values from the conf file if it's there */
    GuestApp_LoadDict(confDict);
-   
+
+   free(installPath);
+   free(confPath);
+
    return confDict;
 }
 

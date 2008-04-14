@@ -120,6 +120,8 @@ Max(int a, int b)
 #define DWORD_ALIGN(x)          ((((x)+3) >> 2) << 2)
 #define QWORD_ALIGN(x)          ((((x)+4) >> 3) << 3)
 
+#define IMPLIES(a,b) (!(a) || (b))
+
 
 /*
  * Not everybody (e.g., the monitor) has NULL
@@ -553,14 +555,6 @@ typedef int pid_t;
 #define vmvisor 0
 #define VMVISOR_ONLY(x)
 #endif
-#endif
-
-#ifdef VMX86_VPROBES
-#define vmx86_vprobes 1
-#define VPROBES_ONLY(x) x
-#else
-#define vmx86_vprobes 0
-#define VPROBES_ONLY(x)
 #endif
 
 #ifdef _WIN32

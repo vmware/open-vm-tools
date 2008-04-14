@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -23,11 +23,6 @@
  *    Platform specific debug routines
  *
  */
-
-#ifndef VMX86_DEVEL
-
-#endif
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,7 +43,7 @@
 #include "fileIO.h"
 #include "file.h"
 #include "system.h"
-
+#include "unicode.h"
 
 static char debugFile[FILE_MAXPATH] = {0};
 static Bool debugEnabled = FALSE;
@@ -170,7 +165,8 @@ void DebugToFile(const char *str) // IN
    FileIOResult fr;
    FileIODescriptor *fd;
    size_t bytesWritten;
-   char *str2;
+   Unicode timePrefix;
+   const char *timePrefixUtf8;
    
    ASSERT(debugFile[0] != 0);
    
@@ -178,23 +174,33 @@ void DebugToFile(const char *str) // IN
    ASSERT_NOT_IMPLEMENTED(fd);
    FileIO_Invalidate(fd);
    
-   fr = FileIO_Open(fd, debugFile, FILEIO_OPEN_ACCESS_WRITE, FILEIO_OPEN_CREATE);
+   fr = FileIO_Open(fd, debugFile, FILEIO_OPEN_ACCESS_WRITE,
+                    FILEIO_OPEN_CREATE);
    if (fr != FILEIO_SUCCESS) {
       Warning("---Error opening file '%s'.\n", debugFile);
       debugFile[0] = '\0';
-
       goto done;
    }
 
-   FileIO_Seek(fd, 0, FILEIO_SEEK_END);
+   /*
+    * XXX: Writing the date/time prefix in UTF-8 and the rest of the string in
+    * an unspecified encoding is rather broken, but it'll have to do until the
+    * rest of the Tools are made internationalization-safe.
+    */
+   timePrefix = System_GetTimeAsString();
+   if (timePrefix == NULL) {
+      Warning("---Error getting formatted time string.\n");
+      goto close;
+   }
+   timePrefixUtf8 = UTF8(timePrefix);
+   ASSERT(timePrefixUtf8);
 
-   str2 = Str_Asprintf(NULL, "(%"FMT64"u) ", System_Uptime());
-   fr = FileIO_Write(fd, str2, strlen(str2), &bytesWritten);
+   FileIO_Seek(fd, 0, FILEIO_SEEK_END);
+   fr = FileIO_Write(fd, timePrefixUtf8, strlen(timePrefixUtf8), &bytesWritten);
    fr = FileIO_Write(fd, str, strlen(str), &bytesWritten);
-   free(str2);
+   Unicode_Free(timePrefix);
    if (fr != FILEIO_SUCCESS) {
       Warning("---Error writing to file '%s'.\n", debugFile);
-      goto close;
    }
 
  close:

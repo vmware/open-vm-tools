@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -93,6 +93,8 @@ Unicode Unicode_ReplaceRange(ConstUnicode destination,
 Unicode Unicode_Join(ConstUnicode first,
                      ...);
 
+Unicode Unicode_Format(const char *fmt, ...);
+
 
 /*
  * Other operations, each based upon calls to primitives.
@@ -159,36 +161,6 @@ Unicode_AppendRange(ConstUnicode destination,  // IN
                                sourceStart,
                                sourceLength);
 }
-
-
-#ifdef SUPPORT_UNICODE
-
-typedef enum {
-   UNICODE_COMPARE_DEFAULT = 0,
-   UNICODE_COMPARE_IGNORE_ACCENTS,
-   UNICODE_COMPARE_IGNORE_CASE,
-   UNICODE_COMPARE_IGNORE_PUNCTUATION
-} UnicodeCompareOption;
-
-
-/*
- * Different languages and cultures have unique rules for how strings
- * are compared and sorted.  For example:
- *
- *   Swedish: z < "o with umlaut"
- *   German:  "o with umlaut" < z
- *
- * When producing a result visible to the user (like a sorted list of
- * virtual machine names) string comparsion must obey the rules set by
- * the user's language and culture, collectively called the "locale".
- */
-
-int Unicode_CompareWithLocale(ConstUnicode str1,
-                              ConstUnicode str2,
-                              const char *locale,
-                              UnicodeCompareOption compareOption);
-
-#endif
 
 
 /*

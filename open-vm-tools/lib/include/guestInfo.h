@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -39,7 +39,9 @@
 #define MAX_IPS      8     // Max number of IP addresses for a single NIC
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
+#define IP_ADDR_SIZE_V2 48 // 40 bytes for address + 3 for netmask + 5 padding
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
+#define GUESTINFO_TIME_INTERVAL_MSEC 3000  /* time interval in msec */
 
 typedef enum {
    INFO_ERROR,       /* Zero is unused so that errors in atoi can be caught. */
@@ -50,8 +52,14 @@ typedef enum {
    INFO_OS_NAME_FULL,
    INFO_OS_NAME,
    INFO_UPTIME,
+   INFO_MEMORY,
    INFO_MAX
 } GuestInfoType;
+
+typedef enum {
+   INFO_IP_ADDRESS_FAMILY_IPV4,
+   INFO_IP_ADDRESS_FAMILY_IPV6
+} GuestInfoIPAddressFamilyType;
 
 /*
  * For backward compatibility's sake over wire (from Tools to VMX), new fields 
@@ -65,8 +73,8 @@ typedef struct VmIpAddressEntryProtocol {
    uint32 dhcpEnabled;   /* This is a boolean.  However we need it to be */
                          /* multiple of 4 bytes, in order to be the same */
                          /* on different hardware architecture */
-   char ipAddress[IP_ADDR_SIZE];
-   char subnetMask[IP_ADDR_SIZE];
+   char ipAddress[IP_ADDR_SIZE_V2];
+   char subnetMask[IP_ADDR_SIZE_V2];
    uint32 totalIpEntrySizeOnWire;
 } VmIpAddressEntryProtocol;
 
@@ -138,13 +146,42 @@ typedef struct _DiskInfo {
    PPartitionEntry partitionList;
 } DiskInfo, *PDiskInfo;
 
+typedef
+#include "vmware_pack_begin.h"
+struct MemInfo {
+   uint32 version;            /* MemInfo structure version. */
+   uint32 flags;              /* Indicates which stats are valid. */
+   uint64 memTotal;           /* Total physical memory in Kb. */
+   uint64 memFree;            /* Physical memory available in Kb. */
+   uint64 memBuff;            /* Physical memory used as buffer cache in Kb. */
+   uint64 memCache;           /* Physical memory used as cache in Kb. */
+   uint64 memActive;          /* Physical memory actively in use in Kb (working set) */
+   uint64 memInactive;        /* Physical memory inactive in Kb (cold pages) */
+   uint64 swapInRate;         /* Memory swapped out in Kb / sec. */
+   uint64 swapOutRate;        /* Memory swapped out in Kb / sec. */
+   uint64 ioInRate;           /* Amount of I/O in in blocks / sec. */
+   uint64 ioOutRate;          /* Amount of I/O out in blocks / sec. */
+   uint64 hugePagesTotal;     /* Total number of huge pages. */
+   uint64 hugePagesFree;      /* Available number of huge pages. */
+   uint64 memPinned;          /* Unreclaimable physical memory in 4K page size. */
+}
+#include "vmware_pack_end.h"
+MemInfo;
 
-NicEntry *NicInfo_AddNicEntry(NicInfo *nicInfo, const char macAddress[MAC_ADDR_SIZE]);
-VmIpAddressEntry *NicEntry_AddIpAddress(NicEntry *nicEntry, 
-                                        const char *ipAddr, 
-                                        const uint32 af_type); 
-
-NicEntry *NicInfo_FindMacAddress(NicInfo *nicInfo, const char *macAddress);
+/* Flags for MemInfo. */
+#define MEMINFO_MEMTOTAL         (1 << 0)
+#define MEMINFO_MEMFREE          (1 << 1)
+#define MEMINFO_MEMBUFF          (1 << 2)
+#define MEMINFO_MEMCACHE         (1 << 3)
+#define MEMINFO_MEMACTIVE        (1 << 4)
+#define MEMINFO_MEMINACTIVE      (1 << 5)
+#define MEMINFO_SWAPINRATE       (1 << 6)
+#define MEMINFO_SWAPOUTRATE      (1 << 7)
+#define MEMINFO_IOINRATE         (1 << 8)
+#define MEMINFO_IOOUTRATE        (1 << 9)
+#define MEMINFO_HUGEPAGESTOTAL   (1 << 10)
+#define MEMINFO_HUGEPAGESFREE    (1 << 11)
+#define MEMINFO_MEMPINNED        (1 << 12)
 
 /*
  *----------------------------------------------------------------------

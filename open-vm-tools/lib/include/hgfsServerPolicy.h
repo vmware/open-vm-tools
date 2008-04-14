@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -64,7 +64,8 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,         // IN:
                               size_t nameInLen,           // IN: 
                               HgfsOpenMode mode,          // IN: 
                               size_t *sharePathLen,       // OUT: 
-                              char const **sharePath);    // OUT: 
+                              char const **sharePath,     // OUT: 
+                              HgfsSharedFolder **share);  // OUT:
 HgfsNameStatus
 HgfsServerPolicy_GetShareMode(char const *nameIn,        // IN: Share name to retrieve
                               size_t nameInLen,          // IN: Length of Share name

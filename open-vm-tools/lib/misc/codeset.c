@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -33,6 +33,7 @@
 #if defined(_WIN32)
 #   include <windows.h>
 #   include <malloc.h>
+#   include <str.h>
 #else
 #   include <string.h>
 #   include <stdlib.h>
@@ -622,8 +623,6 @@ exit:
 #endif /* defined(__APPLE__) */
 
 
-#ifdef USE_ICONV
-
 /*
  * Linux-specific remarks:
  *
@@ -639,14 +638,14 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetGetCurrentCodeSet --
+ * CodeSet_GetCurrentCodeSet --
  *
  *    Return currently active code set - always UTF-8 on Apple (and old Linux),
  *    and reported by nl_langinfo on Linux & Solaris.
  *
  * Results:
- *    TRUE on success
- *    FALSE on failure
+ *    The name of the current code set on success
+ *    
  *
  * Side effects:
  *    None
@@ -654,8 +653,8 @@ exit:
  *-----------------------------------------------------------------------------
  */
 
-static INLINE const char *
-CodeSetGetCurrentCodeSet(void)
+const char *
+CodeSet_GetCurrentCodeSet(void)
 {
 #if defined(CURRENT_IS_UTF8)
    /*
@@ -668,6 +667,12 @@ CodeSetGetCurrentCodeSet(void)
     */
 
    return "UTF-8";
+#elif defined(_WIN32)
+   static char ret[20];  // max is "windows-4294967296"
+
+   Str_Sprintf(ret, sizeof(ret), "windows-%u", GetACP());
+
+   return ret;
 #else
    return nl_langinfo(CODESET);
 #endif
@@ -857,7 +862,6 @@ error:
    return FALSE;
 }
 #endif
-#endif
 
 
 /*
@@ -937,7 +941,7 @@ CodeSet_Utf8ToCurrent(char const *bufIn,     // IN
 
    DynBuf_Init(&db);
    ok = CodeSetGenericToGeneric("UTF-8", bufIn, sizeIn,
-                                CodeSetGetCurrentCodeSet(), &db, CSGTG_NORMAL);
+                                CodeSet_GetCurrentCodeSet(), &db, CSGTG_NORMAL);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    char *buf;
@@ -1002,7 +1006,7 @@ CodeSet_Utf8ToCurrentTranslit(char const *bufIn,     // IN
 
    DynBuf_Init(&db);
    ok = CodeSetGenericToGeneric("UTF-8", bufIn, sizeIn,
-                                CodeSetGetCurrentCodeSet(), &db,
+                                CodeSet_GetCurrentCodeSet(), &db,
                                 CSGTG_TRANSLIT | CSGTG_IGNORE);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
@@ -1065,7 +1069,7 @@ CodeSet_CurrentToUtf8(char const *bufIn,     // IN
    Bool ok;
 
    DynBuf_Init(&db);
-   ok = CodeSetGenericToGeneric(CodeSetGetCurrentCodeSet(), bufIn, sizeIn,
+   ok = CodeSetGenericToGeneric(CodeSet_GetCurrentCodeSet(), bufIn, sizeIn,
                                 "UTF-8", &db, CSGTG_NORMAL);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
@@ -1422,7 +1426,7 @@ CodeSet_CurrentToUtf16le(char const *bufIn,     // IN
 #if defined(CURRENT_IS_UTF8)
    ok = CodeSetUtf8ToUtf16le(bufIn, sizeIn, &db);
 #elif defined(USE_ICONV)
-   ok = CodeSetGenericToGeneric(CodeSetGetCurrentCodeSet(), bufIn, sizeIn,
+   ok = CodeSetGenericToGeneric(CodeSet_GetCurrentCodeSet(), bufIn, sizeIn,
                                 "UTF-16LE", &db, CSGTG_NORMAL);
 #elif defined(_WIN32)
    /* XXX We should probably use CP_THREAD_ACP on Windows 2000/XP. */
@@ -1466,7 +1470,7 @@ CodeSet_Utf16leToCurrent(char const *bufIn,     // IN
 
    DynBuf_Init(&db);
    ok = CodeSetGenericToGeneric("UTF-16LE", bufIn, sizeIn,
-                                CodeSetGetCurrentCodeSet(), &db, CSGTG_NORMAL);
+                                CodeSet_GetCurrentCodeSet(), &db, CSGTG_NORMAL);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    return CodeSetUtf16leToCurrent(bufIn, sizeIn, bufOut, sizeOut);
@@ -1508,7 +1512,7 @@ CodeSet_Utf16beToCurrent(char const *bufIn,     // IN
 
    DynBuf_Init(&db);
    ok = CodeSetGenericToGeneric("UTF-16BE", bufIn, sizeIn,
-                                CodeSetGetCurrentCodeSet(), &db, CSGTG_NORMAL);
+                                CodeSet_GetCurrentCodeSet(), &db, CSGTG_NORMAL);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    char c;

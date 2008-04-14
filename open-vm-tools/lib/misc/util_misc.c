@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -26,7 +26,6 @@
 #include <winsock2.h> // also includes windows.h
 #include <io.h>
 #include <process.h>
-#include "win32util.h"
 #endif
 
 #include "vm_ctype.h"
@@ -60,7 +59,12 @@
 #include "vm_version.h"
 #include "su.h"
 #include "escape.h"
+#include "posix.h"
 
+#if defined(_WIN32)
+#include "win32u.h"
+#include "win32util.h"
+#endif
 /*
  * ESX with userworld VMX
  */
@@ -90,12 +94,7 @@ Util_GetCanonicalPath(const char *path) // IN
 {
    char *canonicalPath = NULL;
 #if defined(__linux__) || defined(__APPLE__)
-   char longpath[PATH_MAX];
-
-   if (realpath(path, longpath) == NULL) {
-      return NULL;
-   }
-   canonicalPath = strdup(longpath);
+   canonicalPath = Posix_RealPath(path);
 #elif defined(_WIN32)
    char driveSpec[4];
    Bool remoteDrive = FALSE;
@@ -125,7 +124,7 @@ Util_GetCanonicalPath(const char *path) // IN
    if (remoteDrive) {
       canonicalPath = strdup(path);
    } else {
-      canonicalPath = W32Util_GetLongPathName(path);
+      canonicalPath = W32Util_RobustGetLongPath(path);
    }
 
 #else

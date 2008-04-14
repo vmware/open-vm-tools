@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -23,23 +23,20 @@
  */
 
 #include "vmBackup.h"
+#include "vmBackupInt.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "vm_basic_defs.h"
 #include "debug.h"
-#include "dynbuf.h"
 #include "file.h"
 #include "guestApp.h"
 #include "procMgr.h"
-#include "syncDriver.h"
 #include "str.h"
 #include "util.h"
+#include "codeset.h"
 
-
-/* Totally arbitrary limit. */
-#define MAX_SCRIPTS 256
 
 typedef struct VmBackupScript {
    char *path;
@@ -49,9 +46,10 @@ typedef struct VmBackupScript {
 
 typedef struct VmBackupScriptOp {
    VmBackupOp callbacks;
-   VmBackupScript scripts[MAX_SCRIPTS];
-   unsigned int current;
    Bool canceled;
+   Bool thawFailed;
+   VmBackupScriptType type;
+   VmBackupState *state;
 } VmBackupScriptOp;
 
 
@@ -66,25 +64,107 @@ typedef struct VmBackupScriptOp {
  *    A string with the requested path.
  *
  * Side effects:
- *    None.
+ *    Allocates memory for the path.
  *
  *-----------------------------------------------------------------------------
  */
 
-static const char *
+char *
 VmBackupGetScriptPath(void)
 {
-   static char scriptPath[FILE_MAXPATH] = { '\0' };
+   char *scriptPath = NULL;
+   char *installPath = GuestApp_GetInstallPath();
 
-   if (*scriptPath == '\0') {
-      const char *installPath;
-      installPath = GuestApp_GetInstallPath();
-      Str_Strcat(scriptPath, installPath, sizeof scriptPath);
-      Str_Strcat(scriptPath, DIRSEPS, sizeof scriptPath);
-      Str_Strcat(scriptPath, "backupScripts.d", sizeof scriptPath);
+   if (installPath == NULL) {
+      return NULL;
    }
 
-   return (*scriptPath != '\0') ? scriptPath : NULL;
+   scriptPath = Str_Asprintf(NULL, "%s%s%s", installPath, DIRSEPS, "backupScripts.d");
+   free(installPath);
+
+   return scriptPath;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VmBackupRunNextScript --
+ *
+ *    Runs the next script for the given operation. If thawing (or running
+ *    scripts after a failure), this function will try as much as possible
+ *    to start a script, meaning that if it fails to start a script it will
+ *    try to start the preceding one until one script is run, or it runs out
+ *    of scripts to try.
+ *
+ * Results:
+ *    -1: an error occurred.
+ *    0: no more scripts to run.
+ *    1: script was started.
+ *
+ * Side effects:
+ *    Increments (or decrements) the "current script" index in the backup state.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
+{
+   const char *scriptOp;
+   int ret = 0;
+   ssize_t index;
+   VmBackupScript *scripts = op->state->scripts;
+
+   switch (op->type) {
+   case VMBACKUP_SCRIPT_FREEZE:
+      index = ++op->state->currentScript;
+      scriptOp = "freeze";
+      break;
+
+   case VMBACKUP_SCRIPT_FREEZE_FAIL:
+      index = --op->state->currentScript;
+      scriptOp = "freezeFail";
+      break;
+
+   case VMBACKUP_SCRIPT_THAW:
+      index = --op->state->currentScript;
+      scriptOp = "thaw";
+      break;
+
+   default:
+      NOT_REACHED();
+   }
+
+   while (index >= 0 && scripts[index].path != NULL) {
+      char *cmd;
+
+      cmd = Str_Asprintf(NULL, "\"%s\" %s", scripts[index].path, scriptOp);
+      if (cmd == NULL) {
+         index = --op->state->currentScript;
+         op->thawFailed = TRUE;
+      }
+
+      if ((scripts[index].proc = ProcMgr_ExecAsync(cmd, NULL)) == NULL) {
+         if (op->type == VMBACKUP_SCRIPT_FREEZE) {
+            ret = -1;
+            break;
+         } else {
+            index = --op->state->currentScript;
+            op->thawFailed = TRUE;
+         }
+      } else {
+         ret = 1;
+         break;
+      }
+   }
+
+   /* This happens if all thaw/fail scripts failed to start. */
+   if (index == -1 && scripts[0].proc == NULL) {
+      ret = -1;
+   }
+
+   return ret;
 }
 
 
@@ -93,10 +173,10 @@ VmBackupGetScriptPath(void)
  *
  *  VmBackupStringCompare --
  *
- *    Comparison function used to sort the script list.
+ *    Comparison function used to sort the script list in ascending order.
  *
  * Result
- *    The result of strcmp() on the strings.
+ *    The result of strcmp(str1, str2).
  *
  * Side effects:
  *    None.
@@ -135,12 +215,17 @@ VmBackupScriptOpQuery(VmBackupOp *_op) // IN
 {
    VmBackupOpStatus ret = VMBACKUP_STATUS_PENDING;
    VmBackupScriptOp *op = (VmBackupScriptOp *) _op;
-   VmBackupScript *currScript = &(op->scripts[op->current]);
+   VmBackupScript *scripts = op->state->scripts;
+   VmBackupScript *currScript = NULL;
+
+   if (scripts != NULL) {
+      currScript = &scripts[op->state->currentScript];
+   }
 
    if (op->canceled) {
       ret = VMBACKUP_STATUS_CANCELED;
       goto exit;
-   } else if (currScript->proc == NULL) {
+   } else if (scripts == NULL || currScript->proc == NULL) {
       ret = VMBACKUP_STATUS_FINISHED;
       goto exit;
    }
@@ -148,30 +233,34 @@ VmBackupScriptOpQuery(VmBackupOp *_op) // IN
    if (!ProcMgr_IsAsyncProcRunning(currScript->proc)) {
       int exitCode;
 
+      /*
+       * If thaw scripts fail, keep running and only notify the failure after
+       * all others have run.
+       */
       if (ProcMgr_GetExitCode(currScript->proc, &exitCode) != 0 ||
           exitCode != 0) {
-         // XXX: log error.
-         ret = VMBACKUP_STATUS_ERROR;
-         goto exit;
+          if (op->type == VMBACKUP_SCRIPT_FREEZE) {
+             ret = VMBACKUP_STATUS_ERROR;
+             goto exit;
+          } else if (op->type == VMBACKUP_SCRIPT_THAW) {
+             op->thawFailed = TRUE;
+          }
       }
 
       ProcMgr_Free(currScript->proc);
       currScript->proc = NULL;
 
-      /*
-       * If there's another script to execute, start it. Otherwise, just
-       * say we're finished.
-       */
-      if (op->current < MAX_SCRIPTS - 1 && op->scripts[op->current+1].path != NULL) {
-         op->current += 1;
-         currScript = &(op->scripts[op->current]);
-         currScript->proc = ProcMgr_ExecAsync(currScript->path, NULL);
-         if (currScript->proc == NULL) {
-            // XXX : log error
-            ret = VMBACKUP_STATUS_ERROR;
-         }
-      } else {
-         ret = VMBACKUP_STATUS_FINISHED;
+      switch (VmBackupRunNextScript(op)) {
+      case -1:
+         ret = VMBACKUP_STATUS_ERROR;
+         break;
+
+      case 0:
+         ret = op->thawFailed ? VMBACKUP_STATUS_ERROR : VMBACKUP_STATUS_FINISHED;
+         break;
+
+      default:
+         break;
       }
    }
 
@@ -201,14 +290,20 @@ exit:
 static void
 VmBackupScriptOpRelease(VmBackupOp *_op)  // IN
 {
-   int i;
+   size_t i;
    VmBackupScriptOp *op = (VmBackupScriptOp *) _op;
 
-   for (i = 0; i < MAX_SCRIPTS && op->scripts[i].path != NULL; i++) {
-      free(op->scripts[i].path);
-      if (op->scripts[i].proc != NULL) {
-         ProcMgr_Free(op->scripts[i].proc);
+   if (op->type != VMBACKUP_SCRIPT_FREEZE && op->state->scripts != NULL) {
+      VmBackupScript *scripts = op->state->scripts;
+      for (i = 0; scripts[i].path != NULL; i++) {
+         free(scripts[i].path);
+         if (scripts[i].proc != NULL) {
+            ProcMgr_Free(scripts[i].proc);
+         }
       }
+      free(op->state->scripts);
+      op->state->scripts = NULL;
+      op->state->currentScript = 0;
    }
 
    free(op);
@@ -236,17 +331,21 @@ static void
 VmBackupScriptOpCancel(VmBackupOp *_op)   // IN
 {
    VmBackupScriptOp *op = (VmBackupScriptOp *) _op;
-   VmBackupScript *currScript = &(op->scripts[op->current]);
+   VmBackupScript *scripts = op->state->scripts;
+   VmBackupScript *currScript = NULL;
    ProcMgr_Pid pid;
 
-   ASSERT(currScript->proc != NULL);
+   if (scripts != NULL) {
+      currScript = &scripts[op->state->currentScript];
+      ASSERT(currScript->proc != NULL);
 
-   pid = ProcMgr_GetPid(currScript->proc);
-   if (!ProcMgr_KillByPid(pid)) {
-      // XXX: what to do in this situation? other than log and cry?
-   } else {
-      int exitCode;
-      ProcMgr_GetExitCode(currScript->proc, &exitCode);
+      pid = ProcMgr_GetPid(currScript->proc);
+      if (!ProcMgr_KillByPid(pid)) {
+         // XXX: what to do in this situation? other than log and cry?
+      } else {
+         int exitCode;
+         ProcMgr_GetExitCode(currScript->proc, &exitCode);
+      }
    }
 
    op->canceled = TRUE;
@@ -259,8 +358,13 @@ VmBackupScriptOpCancel(VmBackupOp *_op)   // IN
  *  VmBackupNewScriptOp --
  *
  *    Creates a new state object to monitor the execution of OnFreeze or
- *    OnThaw scripts. This will identify all the scripts in the given
+ *    OnThaw scripts. This will identify all the scripts in the backup scripts
  *    directory and add them to an execution queue.
+ *
+ *    Note: there is some state created when instantianting the "OnFreeze"
+ *    scripts which is only released after the "OnThaw" scripts are run. So
+ *    the caller has to make sure that thaw (or fail) scripts are run every
+ *    time the freeze scripts are run.
  *
  * Result
  *    A pointer to the operation state, or NULL on failure.
@@ -271,123 +375,106 @@ VmBackupScriptOpCancel(VmBackupOp *_op)   // IN
  *-----------------------------------------------------------------------------
  */
 
-static VmBackupOp *
-VmBackupNewScriptOp(const char *scriptDir, Bool freeze)  // IN
+VmBackupOp *
+VmBackupNewScriptOp(VmBackupScriptType type, // IN
+                    VmBackupState *state)    // IN
 {
+   Bool fail = FALSE;
+   char **fileList = NULL;
+   char *scriptDir = NULL;
+   int numFiles = 0;
+   size_t i;
    VmBackupScriptOp *op = NULL;
 
-   op = Util_SafeMalloc(sizeof *op);
-   memset(op, 0, sizeof *op);
+   scriptDir = VmBackupGetScriptPath();
+   if (scriptDir == NULL) {
+      goto exit;
+   }
 
+   op = calloc(1, sizeof *op);
+   if (op == NULL) {
+      goto exit;
+   }
+
+   op->state = state;
+   op->type = type;
    op->callbacks.queryFn = VmBackupScriptOpQuery;
    op->callbacks.cancelFn = VmBackupScriptOpCancel;
    op->callbacks.releaseFn = VmBackupScriptOpRelease;
 
    Debug("Trying to run scripts from %s\n", scriptDir);
 
-   if (File_IsDirectory(scriptDir)) {
-      int i, cnt, numFiles;
-      char **fileList = NULL;
+   /*
+    * Load the list of scripts to run when freezing. The same list will be
+    * used later in case of failure, or when thawing, in reverse order.
+    *
+    * This logic won't recurse into directories, so only files directly under
+    * the script dir will be considered.
+    */
+   if (type == VMBACKUP_SCRIPT_FREEZE && File_IsDirectory(scriptDir)) {
+      size_t scriptCount = 0;
 
+      state->scripts = NULL;
+      state->currentScript = 0;
       numFiles = File_ListDirectory(scriptDir, &fileList);
 
-      if (numFiles > 1) {
-         qsort(fileList, (size_t) numFiles, sizeof *fileList, VmBackupStringCompare);
-      }
+      if (numFiles > 0) {
+         VmBackupScript *scripts;
 
-      cnt = 0;
-      for (i = 0; i < numFiles && cnt < MAX_SCRIPTS; i++) {
-         /* Just run files in the scripts dir. Don't recurse into directories. */
-         char script[FILE_MAXPATH + sizeof " freeze"];
-         Str_Sprintf(script, sizeof script, "%s%c%s",
-                     scriptDir, DIRSEPC, fileList[i]);
-         if (File_IsFile(script)) {
-            char *escaped;
-
-            Debug("adding script for execution: %s\n", fileList[i]);
-
-            escaped = Str_Asprintf(NULL, "\"%s\" %s",
-                                   script, (freeze) ? " freeze" : " thaw");
-            ASSERT_MEM_ALLOC(escaped);
-            op->scripts[cnt++].path = escaped;
-         } else {
-            Debug("ignoring non-file entry: %s\n", fileList[i]);
+         scripts = calloc(1, (numFiles + 1) * sizeof *scripts);
+         if (scripts == NULL) {
+            fail = TRUE;
+            goto exit;
          }
-         free(fileList[i]);
-      }
-      free(fileList);
 
-      if (cnt >= MAX_SCRIPTS) {
-         Debug("Too many scripts to run, ignoring past %d.\n", MAX_SCRIPTS);
-      }
+         state->scripts = scripts;
 
+         /*
+          * VmBackupRunNextScript increments the index, so need to make it point
+          * to "before the first script".
+          */
+         state->currentScript = -1;
 
-      /* Start the first script if there are scripts to be executed. */
-      if (cnt > 0) {
-         op->scripts[0].proc = ProcMgr_ExecAsync(op->scripts[0].path, NULL);
-         if (op->scripts[0].proc == NULL) {
-            // XXX : log error
-            VmBackup_Release((VmBackupOp *) op);
-            op = NULL;
+         if (numFiles > 1) {
+            qsort(fileList, (size_t) numFiles, sizeof *fileList, VmBackupStringCompare);
+         }
+
+         for (i = 0; i < numFiles; i++) {
+            char *script;
+
+            script = Str_Asprintf(NULL, "%s%c%s", scriptDir, DIRSEPC, fileList[i]);
+            if (script == NULL) {
+               fail = TRUE;
+               goto exit;
+            } else if (File_IsFile(script)) {
+               scripts[scriptCount++].path = script;
+            } else {
+               free(script);
+            }
          }
       }
-   } else {
-      Debug("Cannot find script directory.\n");
    }
 
+   /*
+    * If there are any scripts to be executed, start the first one. If we get to
+    * this point, we won't free the scripts array until VmBackupScriptOpRelease
+    * is called after thawing (or after the sync provider failed and the "fail"
+    * scripts are run).
+    */
+   fail = (state->scripts != NULL && VmBackupRunNextScript(op) == -1);
+
+exit:
+   /* Free the file list. */
+   for (i = 0; i < numFiles; i++) {
+      free(fileList[i]);
+   }
+   free(fileList);
+
+   if (fail && op != NULL) {
+      VmBackup_Release((VmBackupOp *) op);
+      op = NULL;
+   }
+   free(scriptDir);
    return (VmBackupOp *) op;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- *  VmBackupOnFreezeScripts --
- *
- *    Run the "on freeze" scripts available in the configuration directory.
- *
- * Result
- *    An object that can be used to track the progress of the operation,
- *    or NULL if an error happened.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VmBackupOp *
-VmBackupOnFreezeScripts(void)
-{
-   const char *scriptDir;
-
-   scriptDir = VmBackupGetScriptPath();
-   return (scriptDir != NULL) ? VmBackupNewScriptOp(scriptDir, TRUE) : NULL;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- *  VmBackupOnThawScripts --
- *
- *    Run the "on thaw" scripts available in the configuration directory.
- *
- * Result
- *    An object that can be used to track the progress of the operation.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VmBackupOp *
-VmBackupOnThawScripts(void)
-{
-   const char *scriptDir;
-
-   scriptDir = VmBackupGetScriptPath();
-   return (scriptDir != NULL) ? VmBackupNewScriptOp(scriptDir, FALSE) : NULL;
 }
 

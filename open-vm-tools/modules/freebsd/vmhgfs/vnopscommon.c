@@ -98,6 +98,9 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
 
    /* Make the full path of the destination. */
    dstFullPath = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!dstFullPath) {
+      return ENOMEM;
+   }
 
    ret = HgfsMakeFullName(HGFS_VP_TO_FILENAME(tdvp), HGFS_VP_TO_FILENAME_LENGTH(tdvp),
                           tcnp->cn_nameptr, tcnp->cn_namelen, dstFullPath, MAXPATHLEN);
@@ -133,7 +136,7 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
       DEBUG(VM_DEBUG_FAIL,
             "HgfsRename: couldn't convert source to cross platform name.\n");
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsUnescapeBuffer(request->oldName.name, ret);
@@ -153,7 +156,7 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
       DEBUG(VM_DEBUG_FAIL,
             "HgfsRename: couldn't convert destination to cross platform name.\n");
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsUnescapeBuffer(newNameP->name, ret);
@@ -174,19 +177,19 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
    if (HgfsValidateReply(req, sizeof *reply) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsStatusToBSD(reply->header.status);
    if (ret) {
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* Successfully renamed file on the server. */
     ret = 0;
     DEBUG(VM_DEBUG_DONE, "done.\n");
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    if (dstFullPath != NULL) {
@@ -235,10 +238,6 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
    char *fullName = NULL;       /* Hashed to generate inode number */
    int ret = 0;
 
-   DEBUG(VM_DEBUG_ENTRY, "uiop->uio_resid=%d, "
-         "HGFS_UIOP_TO_OFFSET(uiop)=%jd\n",
-         HGFS_UIOP_TO_RESID(uiop), HGFS_UIOP_TO_OFFSET(uiop));
-
    /* uio_offset is a signed quantity. */
    if (HGFS_UIOP_TO_OFFSET(uiop) < 0) {
       DEBUG(VM_DEBUG_FAIL, "fed negative offset.\n");
@@ -269,6 +268,9 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
     * Allocate 1K (MAXPATHLEN) buffer for inode number generation.
     */
    fullName = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!fullName) {
+      return ENOMEM;
+   }
 
    /*
     * Loop until one of the following conditions is met:
@@ -483,7 +485,7 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    if (HgfsSetattrCopy(vap, &request->attr, &request->update) == FALSE) {
       DEBUG(VM_DEBUG_DONE, "don't need to update attributes.\n");
       ret = 0;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* Convert the filename to cross platform and escape its buffer. */
@@ -491,7 +493,7 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "CPName_ConvertTo failed.\n");
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsUnescapeBuffer(request->fileName.name, ret);
@@ -512,12 +514,12 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
       if (HgfsValidateReply(req, sizeof *reply) != 0) {
          DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
          ret = EPROTO;
-         goto destroy_out;
+         goto destroyOut;
       }
 
       ret = HgfsStatusToBSD(reply->header.status);
       if (ret) {
-	 goto destroy_out;
+	 goto destroyOut;
       }
    } /* else { they were trying to set filerev or vaflags, which we ignore } */
 
@@ -525,7 +527,7 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    ret = 0;
    DEBUG(VM_DEBUG_DONE, "done.\n");
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    return ret;
@@ -784,6 +786,9 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
 
    /* Snag a pathname buffer */
    path = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!path) {
+      return ENOMEM;
+   }
 
    /* Construct the full path for this lookup. */
    len = HgfsMakeFullName(HGFS_VP_TO_FILENAME(dvp),        // Path to this file
@@ -909,6 +914,9 @@ int HgfsCreateInt(struct vnode *dvp,         // IN : Directory vnode
     * HgfsOpenInt call should happen right after this call.
     */
    fullname = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!fullname) {
+      return ENOMEM;
+   }
 
    ret = HgfsMakeFullName(HGFS_VP_TO_FILENAME(dvp),  // Name of directory to create in
                           HGFS_VP_TO_FILENAME_LENGTH(dvp), // Length of name
@@ -1090,8 +1098,6 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
    int ret;
 
    DEBUG(VM_DEBUG_ENTRY, "entry. (vp=%p)\n", vp);
-   DEBUG(VM_DEBUG_INFO, "***ioflag=%x, uio_resid=%d\n",
-         ioflag, HGFS_UIOP_TO_RESID(uiop));
 
    /* Skip write requests for 0 bytes. */
    if (HGFS_UIOP_TO_RESID(uiop) == 0) {
@@ -1203,6 +1209,10 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
 
    /* Construct the complete path of the directory to create. */
    fullname = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!fullname) {
+      return ENOMEM;
+   }
+
    ret = HgfsMakeFullName(HGFS_VP_TO_FILENAME(dvp),        // Parent directory
                           HGFS_VP_TO_FILENAME_LENGTH(dvp), // Length of name
                           cnp->cn_nameptr,                 // Name of file to create
@@ -1232,7 +1242,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "cross-platform name is too long.\n");
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsUnescapeBuffer(request->fileName.name, ret);
@@ -1253,25 +1263,25 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    if (HgfsValidateReply(req, sizeof *reply) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsStatusToBSD(reply->header.status);
    if (ret) {
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsVnodeGet(vpp, sip, HGFS_VP_TO_MP(dvp), fullname,
                       HGFS_FILE_TYPE_DIRECTORY, &sip->fileHashTable);
    if (ret) {
       ret = EIO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ASSERT(*vpp);
    ret = 0;
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    if (fullname != NULL) {
@@ -1373,7 +1383,7 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
                           MAXPATHLEN, request->dirName.name);
    if (ret < 0) {
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsUnescapeBuffer(request->dirName.name, ret);        /* cannot fail */
@@ -1396,7 +1406,7 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
          DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
          ret = EPROTO;
-         goto destroy_out;
+         goto destroyOut;
    }
 
    DEBUG(VM_DEBUG_COMM, "received reply for ID %d\n", reply->header.id);
@@ -1405,19 +1415,19 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
 
    ret = HgfsStatusToBSD(reply->header.status);
    if (ret) {
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* Set the search open handle for use in HgfsReaddir() */
    ret = HgfsSetOpenFileHandle(vp, reply->search);
    if (ret) {
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = 0;     /* Return success */
 
-destroy_out:
+destroyOut:
    /* Make sure we put the request back on the list */
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 
@@ -1482,7 +1492,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "HgfsGetOpenMode failed.\n");
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    request->mode = ret;
@@ -1493,7 +1503,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "HgfsGetOpenFlags failed.\n");
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    request->flags = ret;
@@ -1507,7 +1517,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "CPName_ConvertTo failed.\n");
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
    ret = HgfsUnescapeBuffer(request->fileName.name, ret);
    request->fileName.length = ret;
@@ -1527,12 +1537,12 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
       DEBUG(VM_DEBUG_FAIL, "request not valid.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsStatusToBSD(reply->header.status);
    if (ret) {
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /*
@@ -1544,13 +1554,13 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       DEBUG(VM_DEBUG_FAIL, "couldn't assign handle %d (%s)\n",
             reply->file, HGFS_VP_TO_FILENAME(vp));
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = 0;
 
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 
 out:
@@ -1623,7 +1633,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       DEBUG(VM_DEBUG_FAIL, "couldn't get handle for %s\n",
             HGFS_VP_TO_FILENAME(vp));
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
    HgfsKReq_SetPayloadSize(req, sizeof *request);
 
@@ -1640,7 +1650,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    DEBUG(VM_DEBUG_COMM, "received reply for ID %d\n", reply->header.id);
@@ -1649,7 +1659,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    /* Ensure server was able to close directory. */
    if (reply->header.status != HGFS_STATUS_SUCCESS) {
       ret = EFAULT;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* Now clear this open file's handle for future use. */
@@ -1657,7 +1667,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (ret || (closed == FALSE)) {
       DEBUG(VM_DEBUG_FAIL, "couldn't clear handle.\n");
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    } else {
       DEBUG(VM_DEBUG_FAIL, "cleared file handle\n");
    }
@@ -1665,7 +1675,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    /* The directory was closed successfully so we return success. */
    ret = 0;
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    return ret;
@@ -1733,7 +1743,7 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "couldn't get handle.\n");
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    HgfsKReq_SetPayloadSize(req, sizeof *request);
@@ -1748,7 +1758,7 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof *reply) != 0) {
       DEBUG(VM_DEBUG_FAIL, "reply was invalid.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    reply = (HgfsReplyClose *)HgfsKReq_GetPayload(req);
@@ -1763,16 +1773,16 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
       if (ret || (closed == FALSE)) {
          DEBUG(VM_DEBUG_FAIL, "couldn't clear handle.\n");
          ret = EINVAL;
-         goto destroy_out;
+         goto destroyOut;
       }
 
       ret = 0;
-      goto destroy_out;
+      goto destroyOut;
    } else {
-      goto destroy_out;
+      goto destroyOut;
    }
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    DEBUG(VM_DEBUG_DONE, "returning %d\n", ret);
@@ -1856,13 +1866,13 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = -EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    if (reply->header.status != HGFS_STATUS_SUCCESS) {
       DEBUG(VM_DEBUG_FAIL, "request not completed successfully.\n");
       ret = -EACCES;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /*
@@ -1881,7 +1891,7 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
       ret = uiomove(reply->payload, reply->actualSize, uiop);
       if (ret) {
          ret = -EIO;
-         goto destroy_out;
+         goto destroyOut;
       }
 
       /* We successfully copied the payload to the user's buffer */
@@ -1891,14 +1901,14 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
       /* We got too much data: server error. */
       DEBUG(VM_DEBUG_FAIL, "received too much data in payload.\n");
       ret = -EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
 
 success:
    ret = reply->actualSize;
    DEBUG(VM_DEBUG_DONE, "successfully read %d bytes to user.\n", ret);
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    return ret;
@@ -1974,7 +1984,7 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
       DEBUG(VM_DEBUG_FAIL,
             "HgfsDoWrite: uiomove(9F) failed copying data from user.\n");
       ret = -EIO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* We subtract one so request's 'char payload[1]' member isn't double counted. */
@@ -1996,28 +2006,28 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = -EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    if (reply->header.status != HGFS_STATUS_SUCCESS) {
       DEBUG(VM_DEBUG_FAIL, "write failed (status=%d).\n",
             reply->header.status);
       ret = -EACCES;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    if (HgfsKReq_GetPayloadSize(req) != sizeof *reply) {
       DEBUG(VM_DEBUG_FAIL,
             "HgfsDoWrite: invalid size of reply on successful reply.\n");
       ret = -EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* The write was completed successfully, so return the amount written. */
    ret = reply->actualSize;
    DEBUG(VM_DEBUG_DONE, "wrote %d bytes.\n", ret);
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    return ret;
@@ -2069,7 +2079,7 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
    ret = CPName_ConvertTo(filename, MAXPATHLEN, request->fileName.name);
    if (ret < 0) {
       ret = ENAMETOOLONG;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsUnescapeBuffer(request->fileName.name, ret);
@@ -2093,17 +2103,17 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
    if (HgfsValidateReply(req, sizeof *reply) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    ret = HgfsStatusToBSD(reply->header.status);
    if (ret) {
-      goto destroy_out;
+      goto destroyOut;
    }
 
    DEBUG(VM_DEBUG_DONE, "done.\n");
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    return ret;
@@ -2181,7 +2191,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
       DEBUG(VM_DEBUG_FAIL, "reply not valid.\n");
       ret = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    DEBUG(VM_DEBUG_COMM, "received reply for ID %d\n",
@@ -2193,14 +2203,14 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
       DEBUG(VM_DEBUG_FAIL, "server didn't return success (%d).\n",
             reply->header.status);
       ret = EINVAL;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* Make sure we got an entire reply (excluding filename) */
    if (HgfsKReq_GetPayloadSize(req) < sizeof *reply) {
       DEBUG(VM_DEBUG_FAIL, "server didn't provide entire reply.\n");
       ret = EFAULT;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* See if there are no more filenames to read */
@@ -2208,7 +2218,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
       DEBUG(VM_DEBUG_DONE, "no more directory entries.\n");
       *done = TRUE;
       ret = 0;         /* return success */
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /* Make sure filename isn't too long */
@@ -2216,7 +2226,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
        (reply->fileName.length > HGFS_PAYLOAD_MAX(reply)) ) {
       DEBUG(VM_DEBUG_FAIL, "filename is too long.\n");
       ret = EOVERFLOW;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    /*
@@ -2231,7 +2241,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    ret = 0;
 
    DEBUG(VM_DEBUG_DONE, "done.\n");
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
    return ret;
@@ -2364,7 +2374,7 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
       if (result < 0) {
 	 DEBUG(VM_DEBUG_FAIL, "CPName_ConvertTo failed.\n");
 	 result = ENAMETOOLONG;
-	 goto destroy_out;
+	 goto destroyOut;
       }
       result = HgfsUnescapeBuffer(requestV2->fileName.name, result);
       requestV2->fileName.length = result;
@@ -2396,7 +2406,7 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
       DEBUG(VM_DEBUG_FAIL, "invalid reply received for ID %d "
             "with status %d.\n", replyV2->header.id, replyV2->header.status);
       result = EPROTO;
-      goto destroy_out;
+      goto destroyOut;
    }
 
    DEBUG(VM_DEBUG_COMM, "received reply for ID %d\n", replyV2->header.id);
@@ -2416,7 +2426,7 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
       DEBUG(VM_DEBUG_LOG,
 	    "Get attribute request on \"%s\" failed with an error code of %d\n",
 	    path, result);
-      goto destroy_out;
+      goto destroyOut;
    } else {
       /* The GetAttr succeeded, ensure packet contains correct amount of data. */
       if (HgfsKReq_GetPayloadSize(req) != sizeof *replyV2) {
@@ -2424,14 +2434,14 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
                "HgfsLookup: invalid packet size received for \"%s\".\n",
                path);
          result = EFAULT;
-         goto destroy_out;
+         goto destroyOut;
       }
 
       /* Fill out hgfsAttrV2 with the results from the server. */
       memcpy(hgfsAttrV2, &replyV2->attr, sizeof *hgfsAttrV2);
    }
 
-destroy_out:
+destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 
 out:

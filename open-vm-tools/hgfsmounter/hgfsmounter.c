@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -548,7 +548,7 @@ ParseOptions(const char *optionString, // IN:  Option string to parse
       } else if (strcmp(key, "uid") == 0) {
          char *uidString = StrUtil_GetNextToken(&equalsIndex, keyVal, "=");
          if (uidString != NULL) {
-            uid_t uid;
+            uid_t uid = 0;
 
             valid = ParseUid(uidString, &uid);
             free(uidString);
@@ -566,7 +566,7 @@ ParseOptions(const char *optionString, // IN:  Option string to parse
       } else if (strcmp(key, "gid") == 0) {
          char *gidString = StrUtil_GetNextToken(&equalsIndex, keyVal, "=");
          if (gidString != NULL) {
-            gid_t gid;
+            gid_t gid = 0;
 
             valid = ParseGid(gidString, &gid);
             free(gidString);

@@ -27,6 +27,11 @@
 #define CLONE_KERNEL CLONE_FILES | CLONE_FS | CLONE_SIGHAND
 #endif
 
+/* TASK_COMM_LEN become available in 2.6.11. */
+#ifndef TASK_COMM_LEN
+#define TASK_COMM_LEN 16
+#endif
+
 /* The capable() API appeared in 2.1.92 --hpreg */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 1, 92)
 #   define capable(_capability) suser()

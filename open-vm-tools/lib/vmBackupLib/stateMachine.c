@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -36,8 +36,10 @@
  */
 
 #include "vmBackup.h"
+#include "vmBackupInt.h"
 #include "vmbackup_def.h"
 
+#include <errno.h>
 #include <string.h>
 
 #include "vm_basic_defs.h"
@@ -45,11 +47,17 @@
 
 #include "debug.h"
 #include "eventManager.h"
+#include "posix.h"
+#include "file.h"
+#include "fileIO.h"
+#include "guestApp.h"
 #include "rpcin.h"
 #include "rpcout.h"
 #include "str.h"
 #include "strutil.h"
+#include "unicode.h"
 #include "util.h"
+#include "vmstdio.h"
 
 typedef enum {
    VMBACKUP_SUCCESS = 0,
@@ -68,9 +76,6 @@ typedef enum {
                                                NULL);                   \
    ASSERT_MEM_ALLOC(gBackupState->timerEvent);                          \
 }
-
-extern VmBackupOp *VmBackupOnFreezeScripts(void);
-extern VmBackupOp *VmBackupOnThawScripts(void);
 
 static DblLnkLst_Links *gEventQueue = NULL;
 static VmBackupState *gBackupState = NULL;
@@ -100,6 +105,103 @@ VmBackupKeepAliveCallback(void *clientData)   // IN
    gBackupState->keepAlive = NULL;
    gBackupState->SendEvent(VMBACKUP_EVENT_KEEP_ALIVE, 0, "");
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VmBackupReadConfig --
+ *
+ *    Reads the vmbackup config file. This file should contain the names of
+ *    resources that will not be quiesced during the backup (for example,
+ *    paths to be ignored by the sync driver or writers to be ignored by
+ *    VSS). Each non-empty line not starting with a '#' character is
+ *    considered an entry.
+ *
+ *    The contents are stored in an array in the backup state structure.
+ *    The data is expected to be in UTF-8 format.
+ *
+ *    Note: currently, only the VSS subsystem uses this data.
+ *
+ * Results:
+ *    TRUE on success, FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VmBackupReadConfig(VmBackupState *state)  // OUT
+{
+   Bool ret = TRUE;
+   char *configDir;
+   char *cfgPath;
+
+   ASSERT(state != NULL);
+
+   configDir = GuestApp_GetConfPath();
+   if (configDir == NULL) {
+      return FALSE;
+   }
+
+   cfgPath = Str_Asprintf(NULL, "%s%c%s", configDir, DIRSEPC, "vmbackup.conf");
+   free(configDir);
+   if (cfgPath == NULL) {
+      return FALSE;
+   }
+
+   if (File_IsFile(cfgPath)) {
+      FILE *file;
+      StdIO_Status status;
+
+      file = Posix_Fopen(cfgPath, "r");
+      if (file == NULL) {
+         Debug("Can't open cfg file: %s\n", strerror(errno));
+         ret = FALSE;
+         goto exit;
+      }
+
+      while (TRUE) {
+         Bool skip = TRUE;
+         char *line;
+         char *c;
+
+         status = StdIO_ReadNextLine(file, &line, 0, NULL);
+         if (status != StdIO_Success) {
+            break;
+         }
+
+         /* Check if the line is empty or a comment. */
+         for (c = line; *c != '\0'; c++) {
+            if (*c != ' ' && *c != '\t') {
+               skip = (*c == '#');
+               break;
+            }
+         }
+
+         if (!skip && !TargetArray_Push(&state->disabledTargets, line)) {
+            free(line);
+            break;
+         }
+      }
+
+      ret = (ret && (status == StdIO_EOF));
+      fclose(file);
+   }
+
+exit:
+   if (!ret) {
+      size_t i;
+      for (i = 0; i < TargetArray_Count(&state->disabledTargets); i++) {
+         free(*TargetArray_AddressOf(&state->disabledTargets, i));
+      }
+      TargetArray_Destroy(&state->disabledTargets);
+      TargetArray_Init(&gBackupState->disabledTargets, 0);
+   }
+   return ret;
 }
 
 
@@ -169,6 +271,8 @@ VmBackupSendEvent(const char *event,   // IN: event name
 static void
 VmBackupFinalize(void)
 {
+   size_t i;
+
    ASSERT(gBackupState != NULL);
    Debug("*** %s\n", __FUNCTION__);
 
@@ -187,6 +291,11 @@ VmBackupFinalize(void)
       EventManager_Remove(gBackupState->keepAlive);
    }
 
+   for (i = 0; i < TargetArray_Count(&gBackupState->disabledTargets); i++) {
+      free(*TargetArray_AddressOf(&gBackupState->disabledTargets, i));
+   }
+   TargetArray_Destroy(&gBackupState->disabledTargets);
+
    free(gBackupState->volumes);
    free(gBackupState);
    gBackupState = NULL;
@@ -196,9 +305,9 @@ VmBackupFinalize(void)
 /*
  *-----------------------------------------------------------------------------
  *
- *  VmBackupThaw --
+ *  VmBackupStartScripts --
  *
- *    Starts the execution of the "on thaw" scripts.
+ *    Starts the execution of the scripts for the given action type.
  *
  * Result
  *    TRUE, unless starting the scripts fails for some reason.
@@ -210,16 +319,36 @@ VmBackupFinalize(void)
  */
 
 static Bool
-VmBackupThaw(void)
+VmBackupStartScripts(VmBackupScriptType type,   // IN
+                     VmBackupCallback callback) // IN
 {
+   const char *opName;
    Debug("*** %s\n", __FUNCTION__);
+
+   switch (type) {
+      case VMBACKUP_SCRIPT_FREEZE:
+         opName = "VmBackupOnFreeze";
+         break;
+
+      case VMBACKUP_SCRIPT_FREEZE_FAIL:
+         opName = "VmBackupOnFreezeFail";
+         break;
+
+      case VMBACKUP_SCRIPT_THAW:
+         opName = "VmBackupOnThaw";
+         break;
+
+      default:
+         NOT_REACHED();
+   }
+
    if (!VmBackup_SetCurrentOp(gBackupState,
-                              VmBackupOnThawScripts(),
-                              NULL,
-                              __FUNCTION__)) {
+                              VmBackupNewScriptOp(type, gBackupState),
+                              callback,
+                              opName)) {
       gBackupState->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                               VMBACKUP_SCRIPT_ERROR,
-                              "Error when starting OnThaw scripts.");
+                              "Error when starting backup scripts.");
       return FALSE;
    }
 
@@ -273,18 +402,33 @@ VmBackupAsyncCallback(void *clientData)   // IN
 
       default:
          {
+            Bool freeMsg = TRUE;
             char *errMsg = Str_Asprintf(NULL,
                                         "Asynchronous operation failed: %s\n",
                                         gBackupState->currentOpName);
-            ASSERT_MEM_ALLOC(errMsg);
+            if (errMsg == NULL) {
+               freeMsg = FALSE;
+               errMsg = "Asynchronous operation failed.";
+            }
             gBackupState->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                                     VMBACKUP_UNEXPECTED_ERROR,
                                     errMsg);
-            free(errMsg);
+            if (freeMsg) {
+               free(errMsg);
+            }
 
             VmBackup_Release(gBackupState->currentOp);
             gBackupState->currentOp = NULL;
-            finalize = TRUE;
+
+            /*
+             * If we get an error when running the freeze scripts, we want to
+             * schedule the "fail" scripts to run.
+             */
+            if (!gBackupState->syncProviderRunning &&
+                gBackupState->scripts != NULL) {
+               gBackupState->callback = NULL;
+               finalize = !VmBackupStartScripts(VMBACKUP_SCRIPT_FREEZE_FAIL, NULL);
+            }
             goto exit;
          }
       }
@@ -329,9 +473,11 @@ VmBackupAsyncCallback(void *clientData)   // IN
        gBackupState->callback == NULL) {
       gBackupState->syncProviderRunning = FALSE;
       gBackupState->pollPeriod = 100;
-      finalize = (gBackupState->syncProviderFailed ||
-                  gBackupState->clientAborted ||
-                  !VmBackupThaw());
+      if (gBackupState->syncProviderFailed || gBackupState->clientAborted) {
+         finalize = !VmBackupStartScripts(VMBACKUP_SCRIPT_FREEZE_FAIL, NULL);
+      } else {
+         finalize = !VmBackupStartScripts(VMBACKUP_SCRIPT_THAW, NULL);
+      }
       goto exit;
    }
 
@@ -418,9 +564,10 @@ VmBackupStart(char const **result,     // OUT
 {
    Debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
-      gBackupState->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
-                              VMBACKUP_INVALID_STATE,
-                              "Another backup operation is in progress.");
+      return RpcIn_SetRetVals(result,
+                              resultLen,
+                              "Backup operation already in progress.",
+                              FALSE);
    }
 
    gBackupState = Util_SafeMalloc(sizeof *gBackupState);
@@ -428,6 +575,7 @@ VmBackupStart(char const **result,     // OUT
 
    gBackupState->SendEvent = VmBackupSendEvent;
    gBackupState->pollPeriod = 100;
+   TargetArray_Init(&gBackupState->disabledTargets, 0);
 
    if (argsSize > 0) {
       int generateManifests = 0;
@@ -442,18 +590,24 @@ VmBackupStart(char const **result,     // OUT
       }
    }
 
+   if (!VmBackupReadConfig(gBackupState)) {
+      free(gBackupState);
+      gBackupState = NULL;
+      return RpcIn_SetRetVals(result,
+                              resultLen,
+                              "Error when reading configuration file.",
+                              FALSE);
+   }
+
    gBackupState->SendEvent(VMBACKUP_EVENT_RESET, VMBACKUP_SUCCESS, "");
 
-   if (!VmBackup_SetCurrentOp(gBackupState,
-                              VmBackupOnFreezeScripts(),
-                              VmBackupEnableSync,
-                              "VmBackupOnFreeze")) {
-
-      gBackupState->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
-                              VMBACKUP_SCRIPT_ERROR,
-                              "Error starting OnFreeze scripts.");
-      VmBackupFinalize();
-      return FALSE;
+   if (!VmBackupStartScripts(VMBACKUP_SCRIPT_FREEZE, VmBackupEnableSync)) {
+      free(gBackupState);
+      gBackupState = NULL;
+      return RpcIn_SetRetVals(result,
+                              resultLen,
+                              "Error initializing backup.",
+                              FALSE);
    }
 
    VMBACKUP_ENQUEUE_EVENT();

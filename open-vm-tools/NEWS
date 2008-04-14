@@ -1,3 +1,27 @@
+open-vm-tools 2008.04.14 changes:
+	* Update the license stamp on all LGPL files.
+
+	* Continued Unicode support.
+
+	* Handle libdumbnet on Debian.
+
+	* More bug fixes, including a security fix in guestd.
+
+open-vm-tools 2008.03.19 changes:
+	* Continued Unicode support.
+
+	* A few bug fixes.
+
+open-vm-tools 2008.03.03 changes:
+	* Bug fixes (including the ability to specify custom LDFLAGS
+	at build time, thanks to Mike Auty).
+
+	* First cut of HGFSv3 implementation.
+
+	* Beginnings of DnDv3 implementation.
+
+	* Add Unicode support all over the code base.
+
 open-vm-tools 2008.02.13 changes:
 	* Some bug fixes.
 

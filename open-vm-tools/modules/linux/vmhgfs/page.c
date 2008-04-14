@@ -132,9 +132,11 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
            loff_t offset)      // IN:  Offset at which to read
 {
    HgfsReq *req;
-   HgfsRequestRead *request;
-   HgfsReplyRead *reply;
+   HgfsOp opUsed;
    int result = 0;
+   uint32 actualSize = 0;
+   char *payload = NULL;
+   HgfsStatus replyStatus;
 
    ASSERT(buf);
 
@@ -146,48 +148,85 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
       goto out;
    }
 
-   /* Fill out the request fields. */
-   request = (HgfsRequestRead *)(HGFS_REQ_PAYLOAD(req));
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_READ;
-   request->file = handle;
-   request->offset = offset;
-   request->requiredSize = count;
-   req->payloadSize = sizeof *request;
+ retry:
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      HgfsRequest *header;
+      HgfsRequestReadV3 *request;
+      
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->id = req->id;
+      header->op = opUsed = HGFS_OP_READ_V3;
+      
+      request = (HgfsRequestReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->file = handle;
+      request->offset = offset;
+      request->requiredSize = count;
+      req->payloadSize = sizeof *request + sizeof *header;
+   } else {
+      HgfsRequestRead *request;
+      
+      request = (HgfsRequestRead *)(HGFS_REQ_PAYLOAD(req));
+      request->header.id = req->id;
+      request->header.op = opUsed = HGFS_OP_READ;
+      request->file = handle;
+      request->offset = offset;
+      request->requiredSize = count;
+      req->payloadSize = sizeof *request;
+   }
+
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply. */
-      reply = (HgfsReplyRead *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(reply->header.status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
       
-      if (result != 0) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: read failed\n"));
-         goto out;
+      switch (result) {
+      case 0:
+         if (opUsed == HGFS_OP_READ_V3) {
+            actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
+            payload = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->payload;
+         } else {
+            actualSize = ((HgfsReplyRead *)HGFS_REQ_PAYLOAD(req))->actualSize;
+            payload = ((HgfsReplyRead *)HGFS_REQ_PAYLOAD(req))->payload;
+         }
+
+         /* Sanity check on read size. */
+         if (actualSize > count) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: read too big!\n"));
+            result = -EPROTO;
+            goto out;
+         }
+      
+         if (!actualSize) {
+            /* We got no bytes, so don't need to copy to user. */
+            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: server returned "
+                   "zero\n"));
+            result = actualSize;
+            goto out;
+         }
+
+         /* Return result. */
+         memcpy(buf, payload, actualSize);
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: copied %u\n",
+                 actualSize));
+         result = actualSize;         
+	 break;
+
+      case -EPROTO:
+         /* Retry with Version 2 of Open. Set globally. */
+         if (opUsed == HGFS_OP_READ_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         }
+	 break;
+
+      default:
+         break;
       }
-      
-      /* Sanity check on read size. */
-      if (reply->actualSize > count) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: read too big!\n"));
-         result = -EPROTO;
-         goto out;
-      }
-      
-      if (!reply->actualSize) {
-         /* We got no bytes, so don't need to copy to user. */
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: server returned "
-                 "zero\n"));
-         result = reply->actualSize;
-         goto out;
-      }
-      
-      /* Return result. */
-      memcpy(buf, reply->payload, reply->actualSize);
-      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: copied %u\n",
-              reply->actualSize));
-      result = reply->actualSize;         
-      goto out;
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: timed out\n"));
    } else if (result == -EPROTO) {
@@ -234,9 +273,13 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
             loff_t offset)           // IN: Offset to begin writing at
 {
    HgfsReq *req;
-   HgfsRequestWrite *request;
-   HgfsReplyWrite *reply;
    int result = 0;
+   HgfsOp opUsed;
+   uint32 requiredSize = 0;
+   uint32 actualSize = 0;
+   char *payload = NULL;
+   uint32 reqSize;
+   HgfsStatus replyStatus;
 
    ASSERT(buf);
 
@@ -248,35 +291,77 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
       goto out;
    }
 
-   /* Fill out the request fields. */
-   request = (HgfsRequestWrite *)(HGFS_REQ_PAYLOAD(req));
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_WRITE;
-   request->file = handle;
-   request->flags = 0;
-   request->offset = offset;
-   request->requiredSize = count;
+ retry:
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      HgfsRequest *header;
+      HgfsRequestWriteV3 *request;
+      
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->id = req->id;
+      header->op = opUsed = HGFS_OP_WRITE_V3;
 
-   memcpy(request->payload, buf, request->requiredSize);
-   req->payloadSize = sizeof *request + request->requiredSize - 1;
+      request = (HgfsRequestWriteV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->file = handle;
+      request->flags = 0;
+      request->offset = offset;
+      request->requiredSize = count;
+      payload = request->payload;
+      requiredSize = request->requiredSize;
+      reqSize = sizeof *request + sizeof *header;
+   } else {
+      HgfsRequestWrite *request;
+      
+      request = (HgfsRequestWrite *)(HGFS_REQ_PAYLOAD(req));
+      request->header.id = req->id;
+      request->header.op = opUsed = HGFS_OP_WRITE;
+      request->file = handle;
+      request->flags = 0;
+      request->offset = offset;
+      request->requiredSize = count;
+      payload = request->payload;
+      requiredSize = request->requiredSize;
+      reqSize = sizeof *request;
+   }
+
+   memcpy(payload, buf, requiredSize);
+   req->payloadSize = reqSize + requiredSize - 1;
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply. */
-      reply = (HgfsReplyWrite *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(reply->header.status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
-      if (result != 0) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: write failed\n"));
-         goto out;
-      }
+      switch (result) {
+      case 0:
+         if (opUsed == HGFS_OP_WRITE_V3) {
+            actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
+         } else {
+            actualSize = ((HgfsReplyRead *)HGFS_REQ_PAYLOAD(req))->actualSize;
+	 }
       
-      /* Return result. */
-      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: wrote %u bytes\n",
-              reply->actualSize));
-      result = reply->actualSize;
-      goto out;
+         /* Return result. */
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: wrote %u bytes\n",
+                 actualSize));
+         result = actualSize;
+         break;
+
+      case -EPROTO:
+         /* Retry with Version 2 of Open. Set globally. */
+         if (opUsed == HGFS_OP_WRITE_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         }
+         break;
+
+      default:
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: server "
+                 "returned error: %d\n", result));
+         break;
+      }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: timed out\n"));
    } else if (result == -EPROTO) {

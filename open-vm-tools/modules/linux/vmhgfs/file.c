@@ -43,6 +43,7 @@
 /* Private functions. */
 static int HgfsPackOpenRequest(struct inode *inode,
                                struct file *file,
+			       HgfsOp opUsed,
                                HgfsReq *req);
 static int HgfsUnpackOpenReply(HgfsReq *req,
                                HgfsOp opUsed,
@@ -125,6 +126,16 @@ struct file_operations HgfsFileFileOperations = {
 #endif
 };
 
+/* File open mask. */
+#define HGFS_FILE_OPEN_MASK (HGFS_OPEN_VALID_MODE | \
+                             HGFS_OPEN_VALID_FLAGS | \
+                             HGFS_OPEN_VALID_SPECIAL_PERMS | \
+			     HGFS_OPEN_VALID_OWNER_PERMS | \
+			     HGFS_OPEN_VALID_GROUP_PERMS | \
+			     HGFS_OPEN_VALID_OTHER_PERMS | \
+			     HGFS_OPEN_VALID_FILE_NAME | \
+			     HGFS_OPEN_VALID_SERVER_LOCK)
+
 
 /*
  * Private functions.
@@ -149,12 +160,11 @@ struct file_operations HgfsFileFileOperations = {
 static int
 HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
                     struct file *file,   // IN: File pointer for this open
+		    HgfsOp opUsed,       // IN: Op to use
                     HgfsReq *req)        // IN/OUT: Packet to write into
 {
-   HgfsRequest *requestHeader;
-   HgfsRequestOpenV2 *requestV2;
-   HgfsRequestOpen *request;
-   HgfsFileName *fileNameP;
+   char *name;
+   uint32 *nameLength;
    size_t requestSize;
    int result;
 
@@ -162,20 +172,71 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
    ASSERT(file);
    ASSERT(req);
 
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+   switch (opUsed) {
+    case HGFS_OP_OPEN_V3: {
+      HgfsRequest *requestHeader;
+      HgfsRequestOpenV3 *requestV3;
 
-   switch (requestHeader->op) {
-   case HGFS_OP_OPEN_V2:
-      requestV2 = (HgfsRequestOpenV2 *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader->op = opUsed; 
+      requestHeader->id = req->id;
+      
+      requestV3 = (HgfsRequestOpenV3 *)HGFS_REQ_PAYLOAD_V3(req);
+      requestSize = sizeof *requestV3 + sizeof *requestHeader;
 
       /* We'll use these later. */
-      fileNameP = &requestV2->fileName;
+      name = requestV3->fileName.name;
+      nameLength = &requestV3->fileName.length;
+
+      requestV3->mask = HGFS_FILE_OPEN_MASK;
+
+      /* Linux clients need case-sensitive lookups. */
+      requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestV3->fileName.fid = 0;
+
+      /* Set mode. */
+      result = HgfsGetOpenMode(file->f_flags);
+      if (result < 0) {
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: failed to get "
+                 "open mode\n"));
+         return -EINVAL;
+      }
+      requestV3->mode = result;
+
+      /* Set flags. */
+      result = HgfsGetOpenFlags(file->f_flags);
+      if (result < 0) {
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: failed to get "
+                 "open flags\n"));
+         return -EINVAL;
+      }
+      requestV3->flags = result;
+
+      /* Set permissions. */
+      requestV3->specialPerms = (inode->i_mode & (S_ISUID | S_ISGID | S_ISVTX))
+                                >> 9;
+      requestV3->ownerPerms = (inode->i_mode & S_IRWXU) >> 6;
+      requestV3->groupPerms = (inode->i_mode & S_IRWXG) >> 3;
+      requestV3->otherPerms = (inode->i_mode & S_IRWXO);
+
+      /* XXX: Request no lock for now. */
+      requestV3->desiredLock = HGFS_LOCK_NONE;
+      break;
+   }
+
+   case HGFS_OP_OPEN_V2: {
+      HgfsRequestOpenV2 *requestV2;
+      
+      requestV2 = (HgfsRequestOpenV2 *)(HGFS_REQ_PAYLOAD(req));
+      requestV2->header.op = opUsed; 
+      requestV2->header.id = req->id;
+      
+      /* We'll use these later. */
+      name = requestV2->fileName.name;
+      nameLength = &requestV2->fileName.length;
       requestSize = sizeof *requestV2;
 
-      requestV2->mask = HGFS_OPEN_VALID_MODE | HGFS_OPEN_VALID_FLAGS |
-         HGFS_OPEN_VALID_SPECIAL_PERMS |  HGFS_OPEN_VALID_OWNER_PERMS |
-         HGFS_OPEN_VALID_GROUP_PERMS | HGFS_OPEN_VALID_OTHER_PERMS |
-         HGFS_OPEN_VALID_FILE_NAME | HGFS_OPEN_VALID_SERVER_LOCK;
+      requestV2->mask = HGFS_FILE_OPEN_MASK;
 
       /* Set mode. */
       result = HgfsGetOpenMode(file->f_flags);
@@ -205,11 +266,17 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       /* XXX: Request no lock for now. */
       requestV2->desiredLock = HGFS_LOCK_NONE;
       break;
-   case HGFS_OP_OPEN:
+   }
+   case HGFS_OP_OPEN: {
+      HgfsRequestOpen *request;
+      
       request = (HgfsRequestOpen *)(HGFS_REQ_PAYLOAD(req));
+      request->header.op = opUsed; 
+      request->header.id = req->id;
 
       /* We'll use these later. */
-      fileNameP = &request->fileName;
+      name = request->fileName.name;
+      nameLength = &request->fileName.length;
       requestSize = sizeof *request;
 
       /* Set mode. */
@@ -233,6 +300,7 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       /* Set permissions. */
       request->permissions = (inode->i_mode & S_IRWXU) >> 6;
       break;
+   }
    default:
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: unexpected "
               "OP type encountered\n"));
@@ -240,7 +308,7 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
    }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(fileNameP->name,
+   if (HgfsBuildPath(name,
                      HGFS_PACKET_MAX - (requestSize - 1),
                      file->f_dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: build path "
@@ -248,13 +316,13 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       return -EINVAL;
    }
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: opening \"%s\", "
-           "flags %o, create perms %o\n", fileNameP->name,
+           "flags %o, create perms %o\n", name,
            file->f_flags, file->f_mode));
 
    /* Convert to CP name. */
-   result = CPName_ConvertTo(fileNameP->name,
+   result = CPName_ConvertTo(name,
                              HGFS_PACKET_MAX - (requestSize - 1),
-                             fileNameP->name);
+                             name);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: CP conversion "
               "failed\n"));
@@ -262,8 +330,8 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(fileNameP->name, result);
-   fileNameP->length = result;
+   result = HgfsUnescapeBuffer(name, result);
+   *nameLength = (uint32) result;
    req->payloadSize = requestSize + result;
 
    return 0;
@@ -302,6 +370,7 @@ HgfsUnpackOpenReply(HgfsReq *req,          // IN: Packet with reply inside
    ASSERT(lock);
 
    switch (opUsed) {
+   case HGFS_OP_OPEN_V3:
    case HGFS_OP_OPEN_V2:
       replyV2 = (HgfsReplyOpenV2 *)(HGFS_REQ_PAYLOAD(req));
       replySize = sizeof *replyV2;
@@ -456,8 +525,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
    HgfsSuperInfo *si;
    HgfsReq *req;
    HgfsOp opUsed;
-   HgfsRequest *requestHeader;
-   HgfsReply *replyHeader;
+   HgfsStatus replyStatus;
    HgfsHandle replyFile;
    HgfsServerLock replyLock;
    HgfsInodeInfo *iinfo;
@@ -480,17 +548,18 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
       goto out;
    }
 
-   requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-
   retry:
    /*
     * Set up pointers using the proper struct This lets us check the
     * version exactly once and use the pointers later.
     */
-   requestHeader->op = opUsed = atomic_read(&hgfsVersionOpen);
-   requestHeader->id = req->id;
 
-   result = HgfsPackOpenRequest(inode, file, req);
+   opUsed = atomic_read(&hgfsVersionOpen);
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      opUsed = HGFS_OP_OPEN_V3;
+   }
+
+   result = HgfsPackOpenRequest(inode, file, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: error packing request\n"));
       goto out;
@@ -500,8 +569,8 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply and check return status. */
-      replyHeader = (HgfsReply *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(replyHeader->status);
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
 
       switch (result) {
       case 0:
@@ -567,10 +636,20 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
          break;
 
       case -EPROTO:
+         /* Retry with Version 2 of Open. Set globally. */
+         if (opUsed == HGFS_OP_OPEN_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 3 not "
+                    "supported. Falling back to version 2.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V2);
+            goto retry;
+         }
+         
          /* Retry with Version 1 of Open. Set globally. */
          if (opUsed == HGFS_OP_OPEN_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 2 not "
                     "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN);
             goto retry;
          }
@@ -921,9 +1000,9 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
 {
    HgfsSuperInfo *si;
    HgfsReq *req;
-   HgfsRequestClose *request;
-   HgfsReplyClose *reply;
    HgfsHandle handle;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
    int result = 0;
 
    ASSERT(inode);
@@ -951,25 +1030,53 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
       goto out;
    }
 
-   /* Fill in the request's fields. */
-   request = (HgfsRequestClose *)(HGFS_REQ_PAYLOAD(req));
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_CLOSE;
-   request->file = handle;
-   req->payloadSize = sizeof *request;
+ retry:
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      HgfsRequest *header;
+      HgfsRequestCloseV3 *request;
+
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->id = req->id;
+      header->op = opUsed = HGFS_OP_CLOSE_V3;
+
+      request = (HgfsRequestCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->file = handle;
+      req->payloadSize = sizeof *request + sizeof *header;
+   } else {
+      HgfsRequestClose *request;
+
+      request = (HgfsRequestClose *)(HGFS_REQ_PAYLOAD(req));
+      request->header.id = req->id;
+      request->header.op = opUsed = HGFS_OP_CLOSE;
+      request->file = handle;
+      req->payloadSize = sizeof *request;
+   }
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
    if (result == 0) {
       /* Get the reply. */
-      reply = (HgfsReplyClose *)(HGFS_REQ_PAYLOAD(req));
-      result = HgfsStatusConvertToLinux(reply->header.status);
-      if (result == 0) {
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
+
+      switch (result) {
+      case 0:
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRelease: released handle %u\n",
                  handle));
-      } else {
+         break;
+      case -EPROTO:
+         /* Retry with Version 2 of Open. Set globally. */
+         if (opUsed == HGFS_OP_CLOSE_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRelease: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         }
+         break;
+      default:
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRelease: failed handle %u\n",
                  handle));
+         break;
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRelease: timed out\n"));

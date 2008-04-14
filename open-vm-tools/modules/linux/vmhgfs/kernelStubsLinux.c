@@ -26,19 +26,12 @@
 /* Must come before any kernel header file */
 #include "driver-config.h"
 #include "kernelStubs.h"
+#include "compat_kernel.h"
 #include "compat_page.h"
 #include "compat_sched.h"
 #include <linux/slab.h>
 
 #include "vm_assert.h"
-
-/*
- * vsnprintf was born in 2.4.10. Fall back on vsprintf if we're
- * an older kernel.
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 10)
-#define vsnprintf(str, size, fmt, args) vsprintf(str, fmt, args)
-#endif
 
 
 /*

@@ -43,17 +43,14 @@ toolbox_LDADD += ../lib/wiper/libWiper.a
 toolbox_LDADD += ../lib/err/libErr.a
 toolbox_LDADD += ../lib/backdoor/libBackdoor.a
 toolbox_LDADD += ../lib/dict/libDict.a
-toolbox_LDADD += ../lib/atomic/libAtomic.a
 toolbox_LDADD += ../lib/message/libMessage.a
 toolbox_LDADD += ../lib/unicode/libUnicode.a
 toolbox_LDADD += ../lib/sync/libSync.a
 toolbox_LDADD += ../lib/misc/libMisc.a
 toolbox_LDADD += ../lib/panicDefault/libPanicDefault.a
 toolbox_LDADD += ../lib/panic/libPanic.a
-
-toolbox_LDFLAGS =
-toolbox_LDFLAGS += -lX11
-toolbox_LDFLAGS += @GTK_LIBS@
+toolbox_LDADD += -lX11
+toolbox_LDADD += @GTK_LIBS@
 
 toolbox_SOURCES =
 toolbox_SOURCES += debugStdio.c

@@ -223,7 +223,7 @@ VmSyncAddPath(const VmSyncState *state,   // IN
    if ((result = path_lookup(path, LOOKUP_FOLLOW, &nd)) != 0) {
       goto exit;
    }
-   inode = nd.dentry->d_inode;
+   inode = compat_vmw_nd_to_dentry(nd)->d_inode;
 
    /*
     * Abort if the inode's superblock isn't backed by a block device, or if
@@ -232,7 +232,7 @@ VmSyncAddPath(const VmSyncState *state,   // IN
    if (inode->i_sb->s_bdev == NULL ||
        inode->i_sb->s_frozen != SB_UNFROZEN) {
       result = (inode->i_sb->s_bdev == NULL) ? -EINVAL : -EALREADY;
-      path_release(&nd);
+      compat_path_release(&nd);
       goto exit;
    }
 
@@ -243,7 +243,7 @@ VmSyncAddPath(const VmSyncState *state,   // IN
       dev = list_entry(cur, VmSyncBlockDevice, list);
       if (dev->bdev == inode->i_sb->s_bdev) {
          result = 0;
-         path_release(&nd);
+         compat_path_release(&nd);
          goto exit;
       }
    }
@@ -254,7 +254,7 @@ VmSyncAddPath(const VmSyncState *state,   // IN
    dev = kmem_cache_alloc(gBlockDeviceCache, GFP_KERNEL);
    if (dev == NULL) {
       result = -ENOMEM;
-      path_release(&nd);
+      compat_path_release(&nd);
       goto exit;
    }
 
@@ -350,7 +350,7 @@ VmSyncFreezeDevices(VmSyncState *state,            // IN
       dev = list_entry(cur, VmSyncBlockDevice, list);
       if (result == 0) {
          dev->sb = freeze_bdev(dev->bdev);
-         path_release(&dev->nd);
+         compat_path_release(&dev->nd);
          if (dev->sb != NULL) {
             atomic_inc(&gFreezeCount);
          }

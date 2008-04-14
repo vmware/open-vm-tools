@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -33,6 +33,7 @@
 
 #include "vm_version.h"
 #include "vm_assert.h"
+#include "posix.h"
 
 #ifdef USE_PAM
 #  include "file.h"
@@ -263,7 +264,7 @@ Auth_AuthenticateUser(const char *user,       //IN
 #endif
    /* If this point is reached, the user has been authenticated. */
    setpwent();
-   pwd = getpwnam(user);
+   pwd = Posix_Getpwnam(user);
    endpwent();
 
 #else /* !USE_PAM */
@@ -273,7 +274,7 @@ Auth_AuthenticateUser(const char *user,       //IN
       corresponding #endif below. */
    
    setpwent(); //XXX can kill?
-   pwd = getpwnam(user);
+   pwd = Posix_Getpwnam(user);
    endpwent(); //XXX can kill?
 
    if (!pwd) {

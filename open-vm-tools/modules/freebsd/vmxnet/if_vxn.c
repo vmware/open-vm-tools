@@ -35,6 +35,14 @@
 #   include <sys/mutex.h>
 #endif
 
+/*
+ * FreeBSD 7.0-RELEASE changed the bus_setup_intr API to include a device_filter_t
+ * parameter.
+ */
+#if __FreeBSD_version >= 700031
+#   define VXN_NEWNEWBUS
+#endif
+
 #if __FreeBSD_version < 600000
 #include <machine/bus_pio.h>
 #else
@@ -91,7 +99,11 @@ static int vxn_attach (device_t);
 static int vxn_detach (device_t);
 
 typedef struct vxn_softc {
-   struct arpcom arpcom;
+#ifdef VXN_NEEDARPCOM
+   struct arpcom            arpcom;
+#else
+   struct ifnet            *vxn_ifp;
+#endif
 #ifdef VXN_MPSAFE
    struct mtx               vxn_mtx;
 #endif
@@ -153,6 +165,7 @@ static driver_t vxn_driver = {
 
 static devclass_t vxn_devclass;
 
+MODULE_DEPEND(if_vxn, pci, 1, 1, 1);
 DRIVER_MODULE(if_vxn, pci, vxn_driver, vxn_devclass, 0, 0);
 
 /*
@@ -227,6 +240,7 @@ vxn_attach(device_t dev)
    u_int32_t r;
    u_int32_t vLow, vHigh;
    int driverDataSize;
+   u_char mac[6];
 
    s = splimp();
 
@@ -297,7 +311,10 @@ vxn_attach(device_t dev)
       error = ENXIO;
       goto fail;
    }
-#ifdef VXN_MPSAFE
+#if defined(VXN_NEWNEWBUS)
+   error = bus_setup_intr(dev, sc->vxn_irq, INTR_TYPE_NET | INTR_MPSAFE,
+                          NULL, vxn_intr, sc, &sc->vxn_intrhand);
+#elif defined(VXN_MPSAFE)
    error = bus_setup_intr(dev, sc->vxn_irq, INTR_TYPE_NET | INTR_MPSAFE,
 			  vxn_intr, sc, &sc->vxn_intrhand);
 #else 
@@ -375,14 +392,21 @@ vxn_attach(device_t dev)
     * read the MAC address from the device
     */
    for (i = 0; i < 6; i++) {
-      ((char *)(&VXN_SC2ENADDR(sc)))[i] =
-         bus_space_read_1(sc->vxn_iobtag, sc->vxn_iobhandle, VMXNET_MAC_ADDR + i);
+      mac[i] = bus_space_read_1(sc->vxn_iobtag, sc->vxn_iobhandle, VMXNET_MAC_ADDR + i);
    }
+
+#ifdef VXN_NEEDARPCOM
+   /*
+    * FreeBSD 4.x requires that we manually record the device's MAC address to
+    * the attached arpcom structure prior to calling ether_ifattach().
+    */
+   bcopy(mac, sc->arpcom.ac_enaddr, 6);
+#endif
 
    /*
     * success
     */
-   VXN_ETHER_IFATTACH(ifp, VXN_SC2ENADDR(sc));
+   VXN_ETHER_IFATTACH(ifp, mac);
    printf("vxn%d: attached [num_rx_bufs=(%d*%d) num_tx_bufs=(%d*%d) driverDataSize=%d]\n",
           unit,
           sc->vxn_num_rx_bufs, (int)sizeof(Vmxnet2_RxRingEntry),
@@ -839,10 +863,9 @@ vxn_encap(struct ifnet *ifp,
 static void
 vxn_start(struct ifnet *ifp)
 {
-   vxn_softc_t *sc = ifp->if_softc;
-   VXN_LOCK(sc);
+   VXN_LOCK((vxn_softc_t *)ifp->if_softc);
    vxn_startl(ifp);
-   VXN_UNLOCK(sc);
+   VXN_UNLOCK((vxn_softc_t *)ifp->if_softc);
 }
 
 /*

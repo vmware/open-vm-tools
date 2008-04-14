@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -44,6 +44,7 @@
 #include <dirent.h>
 
 #include "vmware.h"
+#include "posix.h"
 #include "file.h"
 #include "fileIO.h"
 #include "fileLock.h"
@@ -331,7 +332,7 @@ GetLockFileValues(const char *lockFileName, // IN:
 
    su = IsSuperUser();
    SuperUser(TRUE);
-   lockFile = fopen(lockFileName, "r");
+   lockFile = Posix_Fopen(lockFileName, "r");
    saveErrno = errno;
    SuperUser(su);
 
@@ -487,8 +488,8 @@ CreateLockFile(const char *lockFileName, // IN:
        */
 
       SuperUser(TRUE);
-      lockFD = open(lockFileName, O_CREAT | O_EXCL | O_WRONLY,
-		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      lockFD = Posix_Open(lockFileName, O_CREAT | O_EXCL | O_WRONLY,
+                                S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
       saveErrno = errno;
       SuperUser(su);
 
@@ -708,7 +709,7 @@ ReadSlashProc(const char *procPath, // IN:
    ASSERT(buffer);
    ASSERT(bufferSize > 0);
 
-   fd = open(procPath, O_RDONLY);
+   fd = Posix_Open(procPath, O_RDONLY, 0);
 
    if (fd == -1) {
       return errno;
@@ -929,7 +930,7 @@ FileLockOpenFile(ConstUnicode pathName,        // IN:
 {
    ASSERT(pathName);
 
-   *handle = FileIO_PosixOpen(pathName, flags, 0644);
+   *handle = PosixFileOpener(pathName, flags, 0644);
 
    return *handle == -1 ? errno : 0;
 }

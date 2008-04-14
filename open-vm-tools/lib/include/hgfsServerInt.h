@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -121,12 +121,8 @@ typedef enum {
  * to have a single macro for accessing it. 
  */
 #ifdef _WIN32
-#  ifdef HGFS_OLDER_NT
-#     define HGFS_DEFAULT_SHARE_ACCESS (FILE_SHARE_READ | FILE_SHARE_WRITE)
-#  else
-#     define HGFS_DEFAULT_SHARE_ACCESS (FILE_SHARE_READ | FILE_SHARE_WRITE | \
-                                        FILE_SHARE_DELETE)
-#  endif // HGFS_OLDER_NT
+#  define HGFS_DEFAULT_SHARE_ACCESS (FILE_SHARE_READ | FILE_SHARE_WRITE | \
+                                     FILE_SHARE_DELETE)
 #else
 #  define HGFS_DEFAULT_SHARE_ACCESS 0
 #endif // _WIN32
@@ -174,22 +170,25 @@ typedef struct HgfsFileNode {
    /* Share access to open with (Windows only) */
    uint32 shareAccess;
 
-   /* TRUE if opened in append mode */
-   Bool appendFlag;
-
    /* The server lock that the node currently has. */
    HgfsServerLock serverLock;
 
    /* File node state on lists */
    FileNodeState state;
 
-   /* Whether this file was opened in sequential mode. */
-   Bool sequentialOpen;
-
-   /* Whether this a shared folder open. */
-   Bool sharedFolderOpen;
+   /* File flags - see below. */
+   uint32 flags;
 } HgfsFileNode;
 
+
+/* HGFSFileNode flags. */
+
+/* TRUE if opened in append mode */
+#define FILE_NODE_APPEND_FL               (1 << 0)
+/* Whether this file was opened in sequential mode. */
+#define FILE_NODE_SEQUENTIAL_FL           (1 << 1)
+/* Whether this a shared folder open. */
+#define FILE_NODE_SHARED_FOLDER_OPEN_FL   (1 << 2)
 
 /*
  * This struct represents a file search that a client initiated.
@@ -255,6 +254,7 @@ typedef struct HgfsFileOpenInfo {
    uint32 cpNameSize;
    char *cpName;
    char *utf8Name;
+   uint32 caseFlags;                 /* Case-sensitivity flags. */
 } HgfsFileOpenInfo;
 
 typedef struct HgfsFileAttrInfo {
@@ -287,6 +287,7 @@ typedef struct HgfsCreateDirInfo {
    HgfsPermissions otherPerms;   /* Other permissions bits. Ignored by Windows */
    uint32 cpNameSize;
    char *cpName;
+   uint32 caseFlags;             /* Case-sensitivity flags. */
 } HgfsCreateDirInfo;
 
 
@@ -332,11 +333,13 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
                  uint64 *totalBytes);  // OUT: Total bytes on volume
 
 HgfsNameStatus
-HgfsServerGetAccess(char const *in,    // IN:  CP filename to check
-                    size_t inSize,     // IN:  Size of name in
-                    HgfsOpenMode mode, // IN:  Requested access mode
-                    char **bufOut,     // OUT: File name in local fs
-                    size_t *outLen);   // OUT: Length of name out
+HgfsServerGetAccess(char *in,                    // IN:  CP filename to check
+                    size_t inSize,               // IN:  Size of name in
+                    HgfsOpenMode mode,           // IN:  Requested access mode
+		    uint32 caseFlags,            // IN:  Case-sensitivity flags
+                    char **bufOut,               // OUT: File name in local fs
+                    size_t *outLen,              // OUT: Length of name out
+                    HgfsSharedFolder **share);   // OUT: Length of name out
 
 Bool
 HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
@@ -454,7 +457,8 @@ HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
                          HgfsAttrHint *hints,        // OUT: getattr hints
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
-                         HgfsHandle *file);          // OUT: file handle
+                         HgfsHandle *file,           // OUT: file handle
+			 uint32 *caseFlags);         // OUT: case-sensitivity flags
                                                      
 Bool
 HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
@@ -462,7 +466,8 @@ HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
                         char **cpName,              // OUT: cpName
                         size_t *cpNameSize,         // OUT: cpName size
                         HgfsDeleteHint *hints,      // OUT: delete hints
-                        HgfsHandle *file);          // OUT: file handle
+                        HgfsHandle *file,           // OUT: file handle
+			uint32 *caseFlags);         // OUT: case-sensitivity flags 
 
 Bool
 HgfsPackDeleteReply(char *packetOut,               // IN/OUT: outgoing packet
@@ -477,7 +482,9 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
                         uint32 *cpNewNameLen,       // OUT: rename dst size
                         HgfsRenameHint *hints,      // OUT: rename hints
                         HgfsHandle *srcFile,        // OUT: src file handle
-                        HgfsHandle *targetFile);    // OUT: target file handle
+                        HgfsHandle *targetFile,     // OUT: target file handle
+			uint32 *oldCaseFlags,       // OUT: old case-sensitivity flags
+			uint32 *newCaseFlags);      // OUT: new case-sensitivity flags
 
 Bool
 HgfsPackRenameReply(char *packetOut,           // IN/OUT: outgoing packet
@@ -511,7 +518,8 @@ HgfsUnpackSetattrRequest(char const *packetIn,            // IN: request packet
                          HgfsAttrHint *hints,             // OUT: setattr hints
                          char **cpName,                   // OUT: cpName
                          size_t *cpNameSize,              // OUT: cpName size
-                         HgfsHandle *file);               // OUT: server file ID
+                         HgfsHandle *file,                // OUT: server file ID
+			 uint32 *caseFlags);              // OUT: case-sensitivity flags 
 
 Bool
 HgfsPackSetattrReply(char *packetOut,           // IN/OUT: outgoing packet
@@ -623,6 +631,11 @@ HgfsServerPlatformDestroy(void);
 Bool
 HgfsServerHasSymlink(const char *fileName,      // IN
                      const char *sharePath);    // IN
+
+int
+HgfsServerConvertCase(HgfsSharedFolder *share,  // IN
+                      uint32 caseFlags,         // IN
+                      char *fileName);          // IN / OUT
 
 /* All oplock-specific functionality is defined here. */
 #ifdef HGFS_OPLOCKS

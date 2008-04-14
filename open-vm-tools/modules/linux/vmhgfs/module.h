@@ -32,6 +32,7 @@
 #include <asm/semaphore.h>
 #include "compat_completion.h"
 #include "compat_fs.h"
+#include "compat_kthread.h"
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 #include "compat_version.h"
@@ -218,12 +219,12 @@ extern spinlock_t hgfsBigLock;
  *   -Sending outgoing HGFS requests.
  *   -Shutting down the request handler thread.
  *
- * Finally, we use hgfsReqThreadDone to synchronize the stopping of the 
+ * Finally, we use hgfsReqThread to synchronize the stopping of the 
  * backdoor handler thread.
  */
 extern long hgfsReqThreadFlags;
 extern wait_queue_head_t hgfsReqThreadWait;
-extern compat_completion hgfsReqThreadDone;
+extern struct task_struct *hgfsReqThread;
 
 /* Hgfs filesystem structs. */
 extern struct super_operations HgfsSuperOperations;
@@ -241,10 +242,14 @@ extern compat_kmem_cache *hgfsInodeCache;
 extern RpcOut *hgfsRpcOut;
 extern unsigned int hgfsIdCounter;
 extern struct list_head hgfsReqsUnsent;
+extern atomic_t hgfsProtocolVersion;
 extern atomic_t hgfsVersionOpen;
 extern atomic_t hgfsVersionGetattr;
 extern atomic_t hgfsVersionSetattr;
 extern atomic_t hgfsVersionSearchRead;
 extern atomic_t hgfsVersionCreateDir;
+extern atomic_t hgfsVersionSearchOpen;
+extern atomic_t hgfsVersionCreateSymlink;
+extern atomic_t hgfsVersionQueryVolumeInfo;
 
 #endif // _HGFS_DRIVER_MODULE_H_

@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -26,11 +26,6 @@
  *
  */
 
-#ifndef VMX86_DEVEL
-
-#endif
-
-
 #if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun)
 #   error This file should not be compiled
 #endif
@@ -41,6 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/times.h>
@@ -65,6 +61,7 @@
 #include "vm_assert.h"
 #include "system.h"
 #include "debug.h"
+#include "unicode.h"
 
 #define MAX_IFACES      4
 #define LOOPBACK        "lo"
@@ -222,6 +219,82 @@ System_AddToCurrentTime(int64 deltaSecs,  // IN
    }
    
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * System_GetTimeAsString --
+ *
+ *      Returns the current time as a formatted string, useful for prepending
+ *      to debugging output.
+ *
+ *      For example: "Oct 05 18:03:24.948: "
+ *
+ * Results:
+ *      On success, allocates and returns a string containing the formatted
+ *      time.
+ *      On failure, returns NULL.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Unicode
+System_GetTimeAsString(void)
+{
+   struct timeval tv;
+   time_t sec;
+   int msec;
+   size_t charsWritten;
+   size_t bufSize = 8; // Multiplied by 2 for the initial allocation.
+   char *buf = NULL;
+   Unicode dateTime = NULL;
+   Unicode output = NULL;
+
+   if (gettimeofday(&tv, NULL)) {
+      goto out;
+   }
+   sec = tv.tv_sec;
+   msec = tv.tv_usec / 1000;
+
+   /*
+    * Loop repeatedly trying to format the time into a buffer, doubling the
+    * buffer with each failure. This should be safe as the manpage for
+    * strftime(3) seems to suggest that it only fails if the buffer isn't large
+    * enough.
+    *
+    * The resultant string is encoded according to the current locale.
+    */
+   do {
+      char *newBuf;
+      bufSize *= 2;
+      
+      newBuf = realloc(buf, bufSize);
+      if (newBuf == NULL) {
+         goto out;
+      }
+      buf = newBuf;
+      charsWritten = strftime(buf, bufSize, "%b %d %H:%M:%S", localtime(&sec));
+   } while (charsWritten == 0);
+
+   /*
+    * Append the milliseconds field, but only after converting the date/time
+    * string from encoding specified in the current locale to an opaque type.
+    */
+   dateTime = Unicode_Alloc(buf, STRING_ENCODING_DEFAULT);
+   if (dateTime == NULL) {
+      goto out;
+   }
+   output = Unicode_Format("%s.%03d: ", dateTime, msec);
+
+  out:
+   free(buf);
+   Unicode_Free(dateTime);
+   return output;
 }
 
 

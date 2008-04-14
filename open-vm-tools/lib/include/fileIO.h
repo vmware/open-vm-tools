@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -42,6 +42,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if !defined(_WIN32)
+#include <sys/types.h>
+#include <dirent.h>
+#endif
 
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
@@ -354,48 +358,17 @@ const char *FileIO_ErrorEnglish(FileIOResult status);
 
 void FileIO_OptionalSafeInitialize(void);
 
-int FileIO_PosixCreat(ConstUnicode pathName,
-                      int mode);
-
-int FileIO_PosixOpen(ConstUnicode pathName,
-                     int flags,
-                     int mode);
-
-FILE *FileIO_PosixFopen(ConstUnicode pathName,
-                        const char *mode);
-
 #if defined(_WIN32)
 FileIODescriptor FileIO_CreateFDWin32(HANDLE win32,
                                       DWORD access,
                                       DWORD attributes);
-
-struct _stat;
-typedef struct _stat PosixStatStruct;
-
 #else
 FileIODescriptor FileIO_CreateFDPosix(int posix,
                                       int flags);
 
 int FileIO_PrivilegedPosixOpen(ConstUnicode pathName,
                                int flags);
-
-int FileIO_PosixChmod(ConstUnicode pathName,
-                      uint32 mode);
-
-struct stat;
-typedef struct stat PosixStatStruct;
-
-int FileIO_PosixLstat(ConstUnicode pathName,
-                      PosixStatStruct *statbuf);
-
-struct statfs;
-
-int FileIO_PosixStatfs(ConstUnicode pathName,
-                       struct statfs *statfsbuf);
 #endif
-
-int FileIO_PosixStat(ConstUnicode pathName,
-                     PosixStatStruct *statbuf);
 
 
 /*
@@ -431,6 +404,7 @@ Bool FileIO_IsSuccess(FileIOResult res);
 #endif
 
 #if defined(__APPLE__)
+EXTERN Bool FileIO_ResetExcludedFromTimeMachine(char const *pathName);
 EXTERN Bool FileIO_SetExcludedFromTimeMachine(char const *pathName,
                                               Bool isExcluded);
 #endif

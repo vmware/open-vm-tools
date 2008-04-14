@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -34,7 +34,7 @@ extern "C" {
 #   include "vm_basic_types.h"
 #   include "removable_device.h"
 
-#define ALLOW_TOOLS_IN_FOREIGN_VM 1
+//#define ALLOW_TOOLS_IN_FOREIGN_VM 0
 extern Bool runningInForeignVM;
 
 typedef struct GuestApp_Dict GuestApp_Dict;
@@ -106,10 +106,10 @@ GuestApp_Log(const char *s); // IN
 uint32
 GuestApp_GetCurrentVersion(void);
 
-const char *
+char *
 GuestApp_GetInstallPath(void);
 
-const char *
+char *
 GuestApp_GetConfPath(void);
 
 char *

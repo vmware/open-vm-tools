@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -37,7 +37,6 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMIROM
 #include "includeCheck.h"
-
 
 #include "vm_basic_types.h"
 
@@ -117,18 +116,67 @@ Atomic_VolatileToAtomic(volatile uint32 *var)
    return (Atomic_uint32 *)var;
 }
 
-EXTERN Bool AtomicUseFence;
-
-
 /*
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
- * Atomic_SetFence --
+ * Atomic_Init, Atomic_SetFence, AtomicUseFence --
  *
- *   Control the use of lfence after an atomic operation
+ *      Determine whether an lfence intruction is executed after
+ *	every locked instruction.
  *
- *----------------------------------------------------------------------
+ *	Certain AMD processes have a bug (see bug 107024) that
+ *	requires an lfence after every locked instruction.
+ *
+ *	The global variable AtomicUseFence controls whether lfence
+ *	is used (see AtomicEpilogue).
+ *
+ *	Atomic_SetFence sets AtomicUseFence to the given value.
+ *
+ *	Atomic_Init computes and sets AtomicUseFence.
+ *	It does not take into account the number of processors.
+ *
+ *	The rationale for all this complexity is that Atomic_Init
+ *	is the easy-to-use interface.  It can be called a number
+ *	of times cheaply, and does not depend on other libraries.
+ *	However, because the number of CPUs is difficult to compute,
+ *	it does without it and always assumes there are more than one.
+ *
+ *	For programs that care or have special requirements,
+ *	Atomic_SetFence can be called directly, in addition to Atomic_Init.
+ *	It overrides the effect of Atomic_Init, and can be called
+ *	before, after, or between calls to Atomic_Init.
+ *
+ *-----------------------------------------------------------------------------
  */
+
+// The freebsd assembler doesn't know the lfence instruction
+#if defined(__GNUC__) &&                                                \
+     __GNUC__ >= 3 &&                                                   \
+    !defined(BSD_VERSION) &&                                            \
+    (!defined(MODULE) || defined(__VMKERNEL_MODULE__)) &&               \
+    !defined(__APPLE__) /* PR136775 */
+#define ATOMIC_USE_FENCE
+#endif
+
+#if defined(VMATOMIC_IMPORT_DLLDATA)
+VMX86_EXTERN_DATA Bool AtomicUseFence;
+#else
+EXTERN Bool AtomicUseFence;
+#endif
+
+EXTERN Bool atomicFenceInitialized;
+
+void AtomicInitFence(void);
+
+static INLINE void
+Atomic_Init(void)
+{
+#ifdef ATOMIC_USE_FENCE
+   if (!atomicFenceInitialized) {
+      AtomicInitFence();
+   }
+#endif
+}
 
 static INLINE void
 Atomic_SetFence(Bool fenceAfterLock) /* IN: TRUE to enable lfence */
@@ -139,34 +187,21 @@ Atomic_SetFence(Bool fenceAfterLock) /* IN: TRUE to enable lfence */
    extern void Atomic_SetFenceVMKAPI(Bool fenceAfterLock);
    Atomic_SetFenceVMKAPI(fenceAfterLock);  
 #endif
+   atomicFenceInitialized = TRUE;
 }
 
-/*
- * Atomic_Init() is a #define instead of a function in lib/atomic to 
- * avoid lib/user symbol conflicts with stub code in bora_vmsoft
- */
-#define Atomic_Init()                                                   \
-do {                                                                    \
-   HostinfoCpuIdInfo info;                                              \
-   Atomic_SetFence(Hostinfo_GetCpuid(&info) && (info.numLogCPUs > 1) && \
-                   CPUID_RequiresFence(info.vendor, info.version));     \
-} while (0);
 
 /* Conditionally execute fence after interlocked instruction. */
 static INLINE void
 AtomicEpilogue(void)
 {
-// The freebsd assembler doesn't know the lfence instruction
-#if defined(__GNUC__) &&                                                \
-     __GNUC__ >= 3 &&                                                   \
-    !defined(BSD_VERSION) &&                                            \
-    (!defined(MODULE) || defined(__VMKERNEL_MODULE__)) &&               \
-    !defined(__APPLE__) /* PR136775 */
+#ifdef ATOMIC_USE_FENCE
    if (UNLIKELY(AtomicUseFence)) {
       asm volatile ("lfence" ::: "memory");
    }
 #endif
 }
+
 
 /*
  * All the assembly code is tricky and written conservatively.
@@ -1803,15 +1838,26 @@ Atomic_Write64(Atomic_uint64 *var, // IN
 }
 
 
-/* Template code for the Atomic_<name> type and its operators. --hpreg */
-#define MAKE_ATOMIC_TYPE(name, size, in, out)                                 \
+/*
+ * Template code for the Atomic_<name> type and its operators.
+ *
+ * The cast argument is an intermedia type cast to make some
+ * compilers stop complaining about casting uint32 <-> void *,
+ * even though we only do it in the 32-bit case so they are always
+ * the same size.  So for val of type uint32, instead of
+ * (void *)val, we have (void *)(uintptr_t)val.
+ * The specific problem case is the Windows ddk compiler
+ * (as used by the SVGA driver).  -- edward
+ */
+
+#define MAKE_ATOMIC_TYPE(name, size, in, out, cast)                           \
    typedef Atomic_uint ## size Atomic_ ## name;                               \
                                                                               \
                                                                               \
    static INLINE out                                                          \
    Atomic_Read ## name(Atomic_ ## name const *var)                            \
    {                                                                          \
-      return (out)Atomic_Read ## size(var);                                   \
+      return (out)(cast)Atomic_Read ## size(var);                             \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1819,7 +1865,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_Write ## name(Atomic_ ## name *var,                                 \
                         in val)                                               \
    {                                                                          \
-      Atomic_Write ## size(var, (uint ## size)val);                           \
+      Atomic_Write ## size(var, (uint ## size)(cast)val);                     \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1827,7 +1873,8 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_ReadWrite ## name(Atomic_ ## name *var,                             \
                             in val)                                           \
    {                                                                          \
-      return (out)Atomic_ReadWrite ## size(var, (uint ## size)val);           \
+      return (out)(cast)Atomic_ReadWrite ## size(var,                         \
+		(uint ## size)(cast)val);                                     \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1836,8 +1883,8 @@ Atomic_Write64(Atomic_uint64 *var, // IN
                                    in oldVal,                                 \
                                    in newVal)                                 \
    {                                                                          \
-      return (out)Atomic_ReadIfEqualWrite ## size(var,                        \
-                (uint ## size)oldVal, (uint ## size)newVal);                  \
+      return (out)(cast)Atomic_ReadIfEqualWrite ## size(var,                  \
+                (uint ## size)(cast)oldVal, (uint ## size)(cast)newVal);      \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1845,7 +1892,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_And ## name(Atomic_ ## name *var,                                   \
                       in val)                                                 \
    {                                                                          \
-      Atomic_And ## size(var, (uint ## size)val);                             \
+      Atomic_And ## size(var, (uint ## size)(cast)val);                       \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1853,7 +1900,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_Or ## name(Atomic_ ## name *var,                                    \
                      in val)                                                  \
    {                                                                          \
-      Atomic_Or ## size(var, (uint ## size)val);                              \
+      Atomic_Or ## size(var, (uint ## size)(cast)val);                        \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1861,7 +1908,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_Xor ## name(Atomic_ ## name *var,                                   \
                       in val)                                                 \
    {                                                                          \
-      Atomic_Xor ## size(var, (uint ## size)val);                             \
+      Atomic_Xor ## size(var, (uint ## size)(cast)val);                       \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1869,7 +1916,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_Add ## name(Atomic_ ## name *var,                                   \
                       in val)                                                 \
    {                                                                          \
-      Atomic_Add ## size(var, (uint ## size)val);                             \
+      Atomic_Add ## size(var, (uint ## size)(cast)val);                       \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1877,7 +1924,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_Sub ## name(Atomic_ ## name *var,                                   \
                       in val)                                                 \
    {                                                                          \
-      Atomic_Sub ## size(var, (uint ## size)val);                             \
+      Atomic_Sub ## size(var, (uint ## size)(cast)val);                       \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1899,7 +1946,7 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_ReadOr ## name(Atomic_ ## name *var,                                \
                          in val)                                              \
    {                                                                          \
-      return (out)Atomic_ReadOr ## size(var, (uint ## size)val);              \
+      return (out)(cast)Atomic_ReadOr ## size(var, (uint ## size)(cast)val);  \
    }                                                                          \
                                                                               \
                                                                               \
@@ -1907,21 +1954,21 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    Atomic_ReadAdd ## name(Atomic_ ## name *var,                               \
                           in val)                                             \
    {                                                                          \
-      return (out)Atomic_ReadAdd ## size(var, (uint ## size)val);             \
+      return (out)(cast)Atomic_ReadAdd ## size(var, (uint ## size)(cast)val); \
    }                                                                          \
                                                                               \
                                                                               \
    static INLINE out                                                          \
    Atomic_ReadInc ## name(Atomic_ ## name *var)                               \
    {                                                                          \
-      return (out)Atomic_ReadInc ## size(var);                                \
+      return (out)(cast)Atomic_ReadInc ## size(var);                          \
    }                                                                          \
                                                                               \
                                                                               \
    static INLINE out                                                          \
    Atomic_ReadDec ## name(Atomic_ ## name *var)                               \
    {                                                                          \
-      return (out)Atomic_ReadDec ## size(var);                                \
+      return (out)(cast)Atomic_ReadDec ## size(var);                          \
    }
 
 
@@ -1964,11 +2011,11 @@ Atomic_Write64(Atomic_uint64 *var, // IN
  * Atomic_ReadDecInt --
  */
 #if defined(__x86_64__)
-MAKE_ATOMIC_TYPE(Ptr, 64, void const *, void *)
-MAKE_ATOMIC_TYPE(Int, 64, int, int)
+MAKE_ATOMIC_TYPE(Ptr, 64, void const *, void *, uintptr_t)
+MAKE_ATOMIC_TYPE(Int, 64, int, int, int)
 #else
-MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *)
-MAKE_ATOMIC_TYPE(Int, 32, int, int)
+MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
+MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 #endif
 
 

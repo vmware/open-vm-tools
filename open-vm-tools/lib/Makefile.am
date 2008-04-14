@@ -16,7 +16,6 @@
 ################################################################################
 
 SUBDIRS =
-SUBDIRS += atomic
 SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf

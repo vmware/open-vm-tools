@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -79,13 +79,38 @@ typedef enum {
    HGFS_OP_CREATE_SYMLINK,     /* Create a symlink */
    HGFS_OP_SERVER_LOCK_CHANGE, /* Change the oplock on a file */
    HGFS_OP_CREATE_DIR_V2,      /* Create a directory */
-   HGFS_OP_DELETE_FILE_V2,    /* Delete a file */
-   HGFS_OP_DELETE_DIR_V2,     /* Delete a directory */
-   HGFS_OP_RENAME_V2,         /* Rename a file or directory */
+   HGFS_OP_DELETE_FILE_V2,     /* Delete a file */
+   HGFS_OP_DELETE_DIR_V2,      /* Delete a directory */
+   HGFS_OP_RENAME_V2,          /* Rename a file or directory */
    
-   HGFS_OP_MAX,                /* Dummy op, must be last in enum */
+   /*
+    * Operations for version 3.
+    */
+
+   HGFS_OP_OPEN_V3,               /* Open file */
+   HGFS_OP_READ_V3,               /* Read from file */
+   HGFS_OP_WRITE_V3,              /* Write to file */
+   HGFS_OP_CLOSE_V3,              /* Close file */
+   HGFS_OP_SEARCH_OPEN_V3,        /* Start new search */
+   HGFS_OP_SEARCH_READ_V3,        /* Start new search */
+   HGFS_OP_SEARCH_CLOSE_V3,       /* End a search */
+   HGFS_OP_GETATTR_V3,            /* Get file attributes */
+   HGFS_OP_SETATTR_V3,            /* Set file attributes */
+   HGFS_OP_CREATE_DIR_V3,         /* Create new directory */
+   HGFS_OP_DELETE_FILE_V3,        /* Delete a file */
+   HGFS_OP_DELETE_DIR_V3,         /* Delete a directory */
+   HGFS_OP_RENAME_V3,             /* Rename a file or directory */
+   HGFS_OP_QUERY_VOLUME_INFO_V3,  /* Query volume information */
+   HGFS_OP_CREATE_SYMLINK_V3,     /* Create a symlink */
+   HGFS_OP_SERVER_LOCK_CHANGE_V3, /* Change the oplock on a file */
+
+   HGFS_OP_MAX,                   /* Dummy op, must be last in enum */
 } HgfsOp;
 
+
+/* HGFS protocol versions. */
+#define HGFS_VERSION_OLD           (1 << 0)
+#define HGFS_VERSION_3             (1 << 1)
 
 /*
  * File types, used in HgfsAttr. We support regular files,
@@ -411,7 +436,7 @@ HgfsAttrV2;
  * Precomposed (normal form C) versus Decomposed (normal form D)
  * -------------------------------------------------------------
  * Certain Unicode characters can be encoded in more than one way. 
- * For example, an Á (A acute) can be encoded either precomposed,
+ * For example, an (A acute) can be encoded either precomposed,
  * as U+00C1 (LATIN CAPITAL LETTER A WITH ACUTE), or decomposed, 
  * as U+0041 U+0301 (LATIN CAPITAL LETTER A followed by a COMBINING ACUTE ACCENT).
  * Precomposed characters are more common in the Windows world, 
@@ -428,6 +453,33 @@ struct HgfsFileName {
 }
 #include "vmware_pack_end.h"
 HgfsFileName;
+
+
+/*
+ * HgfsFileNameV3 - new header to incorporate case-sensitivity flags along with 
+ * Hgfs file handle.
+ */ 
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsFileNameV3 {
+   uint32 length; /* Does NOT include terminating NUL */
+   uint32 flags;  /* Flags describe below. */
+   HgfsHandle fid;
+   char name[1];
+}
+#include "vmware_pack_end.h"
+HgfsFileNameV3;
+
+
+/*
+ * HgfsFileNameV3 flags. Case-sensitiviy flags are only used when any lookup is
+ * involved on the server side.
+ */
+#define HGFS_FILE_NAME_USE_FILE_DESC     (1 << 0)  /* Other flags ignored if set. */
+#define HGFS_FILE_NAME_CASE_SENSITIVE    (1 << 1)
+#define HGFS_FILE_NAME_CASE_INSENSITIVE  (1 << 2)
+#define HGFS_FILE_NAME_DEFAULT_CASE      (1 << 3)  /* Default host case. */
 
 
 /*
@@ -500,6 +552,31 @@ struct HgfsRequestOpenV2 {
 HgfsRequestOpenV2;  
 
 
+/* Version 3 of HgfsRequestOpen */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestOpenV3 {
+   HgfsOpenValid mask;           /* Bitmask that specified which fields are valid. */
+   HgfsOpenMode mode;            /* Which type of access requested. See desiredAccess */
+   HgfsOpenFlags flags;          /* Which flags to open the file with */
+   HgfsPermissions specialPerms; /* Desired 'special' permissions for file creation */
+   HgfsPermissions ownerPerms;   /* Desired 'owner' permissions for file creation */
+   HgfsPermissions groupPerms;   /* Desired 'group' permissions for file creation */
+   HgfsPermissions otherPerms;   /* Desired 'other' permissions for file creation */
+   HgfsAttrFlags attr;           /* Attributes, if any, for file creation */
+   uint64 allocationSize;        /* How much space to pre-allocate during creation */
+   uint32 desiredAccess;         /* Extended support for windows access modes */
+   uint32 shareAccess;           /* Windows only, share access modes */
+   HgfsServerLock desiredLock;   /* The type of lock desired by the client */
+   uint64 reserved1;             /* Reserved for future use */
+   uint64 reserved2;             /* Reserved for future use */
+   HgfsFileNameV3 fileName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestOpenV3;
+
+
 /* Deprecated */
 
 typedef
@@ -525,6 +602,21 @@ struct HgfsReplyOpenV2 {
 HgfsReplyOpenV2;
 
 
+/* Version 3 of HgfsReplyOpen */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyOpenV3 {
+   HgfsHandle file;                  /* Opaque file ID used by the server */
+   HgfsServerLock acquiredLock;      /* The type of lock acquired by the server */
+   uint64 reserved;                  /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyOpenV3;
+
+
+/* Deprecated */
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestRead {
@@ -536,6 +628,7 @@ struct HgfsRequestRead {
 #include "vmware_pack_end.h"
 HgfsRequestRead;
 
+/* Deprecated */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -547,6 +640,32 @@ struct HgfsReplyRead {
 #include "vmware_pack_end.h"
 HgfsReplyRead;
 
+
+/* Version 3 of HgfsReplyOpen */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestReadV3 {
+   HgfsHandle file;      /* Opaque file ID used by the server */
+   uint64 offset;
+   uint32 requiredSize;
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsRequestReadV3;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyReadV3 {
+   uint32 actualSize;
+   uint64 reserved;      /* Reserved for future use */
+   char payload[1];
+}
+#include "vmware_pack_end.h"
+HgfsReplyReadV3;
+
+
+/* Deprecated */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -562,6 +681,8 @@ struct HgfsRequestWrite {
 HgfsRequestWrite;
 
 
+/* Deprecated */
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyWrite {
@@ -571,6 +692,31 @@ struct HgfsReplyWrite {
 #include "vmware_pack_end.h"
 HgfsReplyWrite;
 
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestWriteV3 {
+   HgfsHandle file;      /* Opaque file ID used by the server */
+   HgfsWriteFlags flags;
+   uint64 offset;
+   uint32 requiredSize;
+   uint64 reserved;      /* Reserved for future use */
+   char payload[1];
+}
+#include "vmware_pack_end.h"
+HgfsRequestWriteV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyWriteV3 {
+   uint32 actualSize;
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyWriteV3;
+
+
+/* Deprecated */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -582,6 +728,8 @@ struct HgfsRequestClose {
 HgfsRequestClose;
 
 
+/* Deprecated */
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyClose {
@@ -590,6 +738,27 @@ struct HgfsReplyClose {
 #include "vmware_pack_end.h"
 HgfsReplyClose;
 
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestCloseV3 {
+   HgfsHandle file;      /* Opaque file ID used by the server */
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsRequestCloseV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyCloseV3 {
+   uint64 reserved;
+}
+#include "vmware_pack_end.h"
+HgfsReplyCloseV3;
+
+
+/* Deprecated */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -603,12 +772,34 @@ HgfsRequestSearchOpen;
 
 typedef
 #include "vmware_pack_begin.h"
+struct HgfsRequestSearchOpenV3 {
+   uint64 reserved;      /* Reserved for future use */
+   HgfsFileNameV3 dirName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestSearchOpenV3;
+
+
+/* Deprecated */
+
+typedef
+#include "vmware_pack_begin.h"
 struct HgfsReplySearchOpen {
    HgfsReply header;
    HgfsHandle search;    /* Opaque search ID used by the server */
 }
 #include "vmware_pack_end.h"
 HgfsReplySearchOpen;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySearchOpenV3 {
+   HgfsHandle search;    /* Opaque search ID used by the server */
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplySearchOpenV3;
 
 
 /* Deprecated */
@@ -636,6 +827,17 @@ struct HgfsRequestSearchReadV2 {
 #include "vmware_pack_end.h"
 HgfsRequestSearchReadV2;
 
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestSearchReadV3 {
+   HgfsHandle search;    /* Opaque search ID used by the server */
+   uint32 offset;        /* The first result is offset 0 */
+   uint32 flags;         /* Reserved for reading multiple directory entries. */
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsRequestSearchReadV3;
+
 
 /* Deprecated */
 
@@ -655,20 +857,47 @@ HgfsReplySearchRead;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplySearchReadV2 {                                                            
-   HgfsReply header;                                                                      
+struct HgfsReplySearchReadV2 {
+   HgfsReply header;
+   HgfsAttrV2 attr;
+ 
+   /* 
+    * fileName.length = 0 means "no entry at this offset" 
+    * If the file is a symlink (as specified in attr)
+    * this name is the name of the symlink, not the target.
+    */ 
+   HgfsFileName fileName; 
+} 
+#include "vmware_pack_end.h" 
+HgfsReplySearchReadV2; 
+
+
+/* Directory entry structure. */
+
+typedef struct HgfsDirEntry {
+   uint32 nextEntry;
    HgfsAttrV2 attr;
    
    /* 
     * fileName.length = 0 means "no entry at this offset" 
     * If the file is a symlink (as specified in attr)
     * this name is the name of the symlink, not the target.
-    */   
-   HgfsFileName fileName;   
-}                                                                                         
-#include "vmware_pack_end.h"                                                              
-HgfsReplySearchReadV2; 
+    */ 
+   HgfsFileNameV3 fileName; 
+} HgfsDirEntry;
 
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySearchReadV3 {
+   uint64 count;         /* Number of directory entries. */
+   uint64 reserved;      /* Reserved for future use. */
+   char payload[1];      /* Directory entries. */
+} 
+#include "vmware_pack_end.h" 
+HgfsReplySearchReadV3;
+
+
+/* Deprecated */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -680,6 +909,8 @@ struct HgfsRequestSearchClose {
 HgfsRequestSearchClose;
 
 
+/* Deprecated */
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplySearchClose {
@@ -687,6 +918,25 @@ struct HgfsReplySearchClose {
 }
 #include "vmware_pack_end.h"
 HgfsReplySearchClose;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestSearchCloseV3 {
+   HgfsHandle search;    /* Opaque search ID used by the server */
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsRequestSearchCloseV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySearchCloseV3 {
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplySearchCloseV3;
 
 
 /* Deprecated */
@@ -713,6 +963,18 @@ struct HgfsRequestGetattrV2 {
 }
 #include "vmware_pack_end.h"
 HgfsRequestGetattrV2;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestGetattrV3 {
+   HgfsAttrHint hints;       /* Flags for file handle valid. */
+   HgfsHandle file;          /* Opaque file ID used by the server. */
+   HgfsFileNameV3 fileName;  /* Filename used when file handle invalid. */
+   uint64 reserved;          /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsRequestGetattrV3;
 
 
 /* Deprecated */
@@ -748,6 +1010,25 @@ struct HgfsReplyGetattrV2 {
 HgfsReplyGetattrV2;
 
 
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyGetattrV3 {
+   HgfsAttrV2 attr;
+      
+   /*
+    * If the file is a symlink, as specified in attr.type, then this is 
+    * the target for the symlink. If the file is not a symlink, this should 
+    * be ignored.
+    *
+    * This filename is in "CPNameLite" format. See CPNameLite.c for details.
+    */
+   uint64 reserved;          /* Reserved for future use */
+   HgfsFileNameV3 symlinkTarget;
+}
+#include "vmware_pack_end.h"
+HgfsReplyGetattrV3;
+
+
 /* Deprecated */
 
 typedef
@@ -777,6 +1058,18 @@ struct HgfsRequestSetattrV2 {
 HgfsRequestSetattrV2;
 
 
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestSetattrV3 {
+   HgfsAttrHint hints;
+   HgfsAttrV2 attr;
+   HgfsHandle file;          /* Opaque file ID used by the server. */
+   uint64 reserved;          /* Reserved for future use */
+   HgfsFileNameV3 fileName;  /* Filename used when file handle invalid. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestSetattrV3;
+
 /* Deprecated */
 
 typedef
@@ -798,6 +1091,27 @@ struct HgfsReplySetattrV2 {
 #include "vmware_pack_end.h"
 HgfsReplySetattrV2;
 
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySetattrV3 {
+   uint64 reserved;          /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplySetattrV3;
+
+
+/* Deprecated */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestCreateDir {
+   HgfsRequest header;
+   HgfsPermissions permissions;
+   HgfsFileName fileName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestCreateDir;
+
 
 /* Version 2 of HgfsRequestCreateDir */
 
@@ -816,28 +1130,21 @@ struct HgfsRequestCreateDirV2 {
 HgfsRequestCreateDirV2;
 
 
-/* Deprecated */
+/* Version 3 of HgfsRequestCreateDir */
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestCreateDir {
-   HgfsRequest header;
-   HgfsPermissions permissions;
-   HgfsFileName fileName;
+struct HgfsRequestCreateDirV3 {
+   HgfsCreateDirValid mask;
+   HgfsPermissions specialPerms;
+   HgfsPermissions ownerPerms;
+   HgfsPermissions groupPerms;
+   HgfsPermissions otherPerms;
+   uint64 reserved;              /* Reserved for future use */
+   HgfsFileNameV3 fileName;
 }
 #include "vmware_pack_end.h"
-HgfsRequestCreateDir;
-
-
-/* Version 2 of HgfsReplyCreateDir */
-
-typedef
-#include "vmware_pack_begin.h"
-struct HgfsReplyCreateDirV2 {
-   HgfsReply header;
-}
-#include "vmware_pack_end.h"
-HgfsReplyCreateDirV2;
+HgfsRequestCreateDirV3;
 
 
 /* Deprecated */
@@ -851,6 +1158,30 @@ struct HgfsReplyCreateDir {
 HgfsReplyCreateDir;
 
 
+/* Version 2 of HgfsReplyCreateDir */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyCreateDirV2 {
+   HgfsReply header;
+}
+#include "vmware_pack_end.h"
+HgfsReplyCreateDirV2;
+
+
+/* Version 3 of HgfsReplyCreateDir */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyCreateDirV3 {
+   uint64 reserved;              /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyCreateDirV3;
+
+
+/* Deprecated */
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestDelete {
@@ -859,6 +1190,9 @@ struct HgfsRequestDelete {
 }
 #include "vmware_pack_end.h"
 HgfsRequestDelete;
+
+
+/* Version 2 of HgfsReplyCreateDir */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -870,6 +1204,23 @@ struct HgfsRequestDeleteV2 {
 }
 #include "vmware_pack_end.h"
 HgfsRequestDeleteV2;
+
+
+/* Version 3 of HgfsReplyCreateDir */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestDeleteV3 {
+   HgfsDeleteHint hints;
+   HgfsHandle file;              /* Opaque file ID used by the server. */
+   uint64 reserved;              /* Reserved for future use */
+   HgfsFileNameV3 fileName;      /* Name used if the file is HGFS_HANDLE_INVALID */
+}
+#include "vmware_pack_end.h"
+HgfsRequestDeleteV3;
+
+
+/* Deprecated */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -888,6 +1239,18 @@ struct HgfsReplyDeleteV2 {
 }
 #include "vmware_pack_end.h"
 HgfsReplyDeleteV2;
+
+
+/* Version 2 of HgfsReplyDelete */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyDeleteV3 {
+   uint64 reserved;              /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyDeleteV3;
+
 
 /*
  * The size of the HgfsFileName struct is variable depending on the
@@ -942,6 +1305,31 @@ struct HgfsReplyRenameV2 {
 HgfsReplyRenameV2;
 
 
+/* HgfsRequestRename and HgfsReplyRename for v3. */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestRenameV3 {
+   HgfsRenameHint hints;
+   HgfsHandle srcFile;           /* Opaque file ID to "old name" used by the server. */
+   HgfsHandle targetFile;        /* Opaque file ID to "old name" used by the server. */
+   uint64 reserved;              /* Reserved for future use */
+   HgfsFileNameV3 oldName;
+   HgfsFileNameV3 newName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestRenameV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyRenameV3 {
+   uint64 reserved;              /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyRenameV3;
+
+
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestQueryVolume {
@@ -961,6 +1349,30 @@ struct HgfsReplyQueryVolume {
 }
 #include "vmware_pack_end.h"
 HgfsReplyQueryVolume;
+
+
+/* HgfsRequestQueryVolume and HgfsReplyQueryVolume for v3. */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestQueryVolumeV3 {
+   uint64 reserved;              /* Reserved for future use */
+   HgfsFileNameV3 fileName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestQueryVolumeV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyQueryVolumeV3 {
+   uint64 freeBytes;
+   uint64 totalBytes;
+   uint64 reserved;              /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyQueryVolumeV3;
+
 
 
 /* New operations for Version 2 */
@@ -1006,6 +1418,30 @@ struct HgfsReplySymlinkCreate {
 }
 #include "vmware_pack_end.h"
 HgfsReplySymlinkCreate;
+
+
+/* HgfsRequestServerLockChange and HgfsReplyServerLockChange for v3. */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestSymlinkCreateV3 {
+   uint64 reserved;              /* Reserved for future use */
+   HgfsFileNameV3 symlinkName;
+
+   /* This filename is in "CPNameLite" format. See CPNameLite.c for details. */
+   HgfsFileNameV3 targetName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestSymlinkCreateV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySymlinkCreateV3 {
+   uint64 reserved;              /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplySymlinkCreateV3;
 
 
 #endif /* _HGFS_PROTO_H_ */

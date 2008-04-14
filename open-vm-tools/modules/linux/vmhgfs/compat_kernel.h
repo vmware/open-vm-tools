@@ -72,5 +72,12 @@ static inline _syscall1(int, compat_exit, int, exit_code);
 
 #endif
 
+/*
+ * vsnprintf became available in 2.4.10. For older kernels, just fall back on
+ * vsprintf.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 10)
+#define vsnprintf(str, size, fmt, args) vsprintf(str, fmt, args)
+#endif
 
 #endif /* __COMPAT_KERNEL_H__ */

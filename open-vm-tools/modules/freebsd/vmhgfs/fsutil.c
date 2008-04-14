@@ -722,7 +722,6 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
    VATTR_RETURN(vap, va_fileid, HGFS_VP_TO_NODEID(vp));
    DEBUG(VM_DEBUG_ATTR, "*HgfsAttrToBSD: fileName %s\n",
          HGFS_VP_TO_FILENAME(vp));
-   DEBUG(VM_DEBUG_ATTR, " Node ID: %ld\n", vap->va_fileid);
 
     /*
      * Some of the attribute names or meanings have changed slightly between
@@ -732,6 +731,8 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
     DEBUG(VM_DEBUG_ATTR, " Setting size to %"FMT64"u\n", hgfsAttrV2->size);
 
 #if defined(__APPLE__)
+    DEBUG(VM_DEBUG_ATTR, " Node ID: %"FMT64"u\n", vap->va_fileid);
+
     /* va_iosize is the Optimal I/O blocksize. */
     VATTR_RETURN(vap, va_iosize, HGFS_BLOCKSIZE);
     VATTR_RETURN(vap, va_data_size, hgfsAttrV2->size);
@@ -753,6 +754,8 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
    VATTR_SET_SUPPORTED(vap, va_create_time);
 
 #elif defined(__FreeBSD__)
+    DEBUG(VM_DEBUG_ATTR, " Node ID: %ld\n", vap->va_fileid);
+
     VATTR_RETURN(vap, va_bytes, hgfsAttrV2->size);
     VATTR_RETURN(vap, va_size, hgfsAttrV2->size);
     VATTR_RETURN(vap, va_blocksize, HGFS_BLOCKSIZE);
@@ -875,7 +878,7 @@ rindex(const char *ptr, // IN: String to search.
 
    ASSERT(ptr);
 
-   for (; *ptr != NULL; ptr++) {
+   for (; *ptr != '\0'; ptr++) {
       if (*ptr == chr) {
 	 result = (char *)ptr;
       }

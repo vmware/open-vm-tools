@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -64,6 +64,9 @@
  * ASCII/UTF-8 versions
  *
  * NOTE: All size_t arguments and integer returns values are in bytes.
+ *
+ * NOTE: Str_Asprintf/Str_Vasprintf return NULL on failure, while
+ * Str_SafeAsprintf/Str_SafeVasprintf ASSERT_NOT_IMPLEMENTED.
  */
 
 EXTERN int Str_Sprintf(char *buf, size_t max,
@@ -76,18 +79,26 @@ EXTERN char *Str_Strnstr(const char *src, const char *sub, size_t n);
 EXTERN char *Str_Strcpy(char *dst, const char *src, size_t maxLen);
 EXTERN char *Str_Strcat(char *dst, const char *src, size_t maxLen);
 EXTERN char *Str_Strncat(char *buf, size_t bufSize, const char *src, size_t n);
+
 EXTERN char *Str_Asprintf(size_t *length,
                           const char *format, ...) PRINTF_DECL(2, 3);
 EXTERN char *Str_Vasprintf(size_t *length, const char *format,
                            va_list arguments);
+EXTERN char *Str_SafeAsprintf(size_t *length,
+                              const char *format, ...) PRINTF_DECL(2, 3);
+EXTERN char *Str_SafeVasprintf(size_t *length, const char *format,
+                               va_list arguments);
 
-#if defined(_WIN32) || defined(GLIBC_VERSION_22)
+#if defined(_WIN32) || defined(GLIBC_VERSION_22) // {
 
 /*
  * wchar_t versions
  *
  * NOTE: All size_t arguments and integer return values are in
  * wchar_ts, not bytes.
+ *
+ * NOTE: Str_Aswprintf/Str_Vaswprintf return NULL on failure, while
+ * Str_SafeAswprintf/Str_SafeVaswprintf ASSERT_NOT_IMPLEMENTED.
  */
 
 EXTERN int Str_Swprintf(wchar_t *buf, size_t max,
@@ -100,150 +111,81 @@ EXTERN wchar_t *Str_Wcscpy(wchar_t *dst, const wchar_t *src, size_t maxLen);
 EXTERN wchar_t *Str_Wcscat(wchar_t *dst, const wchar_t *src, size_t maxLen);
 EXTERN wchar_t *Str_Wcsncat(wchar_t *buf, size_t bufSize, const wchar_t *src,
                             size_t n);
+
 EXTERN wchar_t *Str_Aswprintf(size_t *length,
                               const wchar_t *format, ...);
 EXTERN wchar_t *Str_Vaswprintf(size_t *length, const wchar_t *format,
                                va_list arguments);
+EXTERN wchar_t *Str_SafeAswprintf(size_t *length,
+                                  const wchar_t *format, ...);
+EXTERN wchar_t *Str_SafeVaswprintf(size_t *length, const wchar_t *format,
+                                   va_list arguments);
+
+unsigned char *Str_Mbscpy(char *buf, const char *src,
+                          size_t maxSize);
+unsigned char *Str_Mbscat(char *buf, const char *src,
+                          size_t maxSize);
+
+/*
+ * These are handly for Windows programmers.  They are like
+ * the _tcs functions, but with Str_Strcpy-style bounds checking.
+ *
+ * We don't have Str_Mbsncat() because it has some odd semantic
+ * ambiguity (whether to truncate in the middle of a multibyte
+ * sequence) that I want to stay away from.  -- edward
+ */
 
 #ifdef _WIN32
 #ifdef UNICODE
-   #define  Str_Stprintf Str_Swprintf
-   #define  Str_Sntprintf Str_Snwprintf
-   #define  Str_Vsntprintf Str_Vsnwprintf
-   #define  Str_Tcscpy Str_Wcscpy
-   #define  Str_Tcscat Str_Wcscat
-   #define  Str_Tcsncat Str_Wcsncat
-   #define  Str_Astprintf Str_Aswprintf
-   #define  Str_Vastprintf Str_Vaswprintf
+   #define Str_Tcscpy(s1, s2, n) Str_Wcscpy(s1, s2, n)
+   #define Str_Tcscat(s1, s2, n) Str_Wcscat(s1, s2, n)
 #else
-   #define  Str_Stprintf Str_Sprintf
-   #define  Str_Sntprintf Str_Snprintf
-   #define  Str_Vsntprintf Str_Vsnprintf
-   #define  Str_Tcscpy Str_Strcpy
-   #define  Str_Tcscat Str_Strcat
-   #define  Str_Tcsncat Str_Strncat
-   #define  Str_Astprintf Str_Asprintf
-   #define  Str_Vastprintf Str_Vasprintf
+   #define Str_Tcscpy(s1, s2, n) Str_Mbscpy(s1, s2, n)
+   #define Str_Tcscat(s1, s2, n) Str_Mbscat(s1, s2, n)
 #endif
 #endif
 
-#endif // defined(_WIN32) || defined(GLIBC_VERSION_22)
+#endif // } defined(_WIN32) || defined(GLIBC_VERSION_22)
 
 
 /*
- * MsgFmt version of vsnprintf
+ * Wrappers for standard string functions
+ *
+ * These are either for Windows-Posix compatibility,
+ * or just gratuitous wrapping for consistency.
  */
 
-#ifdef HAS_BSD_PRINTF
-struct MsgFmt_Arg;
-int Str_MsgFmtSnprintfWork(char **outbuf, size_t bufSize, const char *fmt0,
-                           const struct MsgFmt_Arg *args, int numArgs);
+#define Str_Strcmp(s1, s2) strcmp(s1, s2)
+#define Str_Strncmp(s1, s2, n) strncmp(s1, s2, n)
+
+#define Str_Strchr(s, c) strchr(s, c)
+#define Str_Strrchr(s, c) strrchr(s, c)
+#define Str_Strspn(s1, s2) strspn(s1, s2)
+#define Str_Strcspn(s1, s2) strcspn(s1, s2)
+
+#ifdef _WIN32
+   #define Str_Strcasecmp(s1, s2) _stricmp(s1, s2)
+   #define Str_Strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+   #define Str_ToUpper(s) _strupr(s)
+   #define Str_ToLower(s) _strlwr(s)         
+#else
+   #define Str_Strcasecmp(s1, s2) strcasecmp(s1, s2)
+   #define Str_Strncasecmp(s1, s2, n) strncasecmp(s1, s2, n)
+   char *Str_ToUpper(char *string);
+   char *Str_ToLower(char *string);
 #endif
 
-
-/*
- *----------------------------------------------------------------------
- *
- *    Str_Strchr --
- *    Str_Strrchr --
- *    Str_Strspn  --
- *    Str_Strcspn --
- *
- *    Str_Strchr, Str_Strrchr:
- *       const char *str   - null-terminated string to search
- *       int   c           - character to be located
- *    Str_Strspn, Str_Strcspn:
- *       const char *str1  - null-terminated string to search
- *       const char *str2  - null-terminated string of chars to search for
- *
- *    Macros for MBCS implementation.
- *
- *    All Str_xxxx functions work exactly the same way as the
- *    corresponding run-time library strxxxx functions.
- *
- *    For Windows implementation, they are mapped to the generic international
- *    string function names, so that they are compiled with multi-byte (MBCS).
- *    The inline functions here are necessary for the type-casting. We are unable to
- *    call those MBCS functions directly due to type mismatch.
- *
- *    When SUPPORT_UNICODE is on, we need to make those functionS back to ASCII version,
- *    so that they won't screw up the UTF-8 encoding.
- *
- *    The reason for this work is to mainly take care of filename parsing
- *    involving DBCS, especially in cases where a DBCS consists of the
- *    backslash '\' as the 2nd character.
- *    
- *    '.' & '/' characters are not affected in DBCS parsing because they
- *    are defined to be illegal 2nd byte character. 
- *    
- *----------------------------------------------------------------------
- */
-#if _WIN32
-   #ifdef SUPPORT_UNICODE
-      #define  Str_Strchr(str, c)  strchr(str, c)
-      #define  Str_Strrchr(str, c) strrchr(str, c)
-      #define  Str_Strspn(str1, str2)  strspn(str1, str2)
-      #define  Str_Strcspn(str1, str2) strcspn(str1, str2)
-      #define  Str_ToUpper(str) _strupr(str)
-      #define  Str_ToLower(str) _strlwr(str)         
-   #else
-      #include <mbstring.h>
-
-      __inline char *Str_Strchr(const char *_s1, unsigned int _c)
-      {
-         return (char *)_mbschr((const unsigned char *)_s1, _c);
-      }
-
-      __inline char *Str_Strrchr(const char *_s1, unsigned int _c)
-      {
-         return (char *)_mbsrchr((const unsigned char *)_s1, _c);
-      }
-
-      __inline size_t Str_Strspn(const char *_s1, const char *_s2)
-      {
-         return _mbsspn((const unsigned char *)_s1, (const unsigned char *)_s2);
-      }
-
-      __inline size_t Str_Strcspn(const char *_s1, const char *_s2)
-      {
-         return _mbscspn((const unsigned char *)_s1, (const unsigned char *)_s2);
-      }
-
-      __inline char *Str_ToUpper(char *_String)
-      {
-      #pragma warning(push)
-      #pragma warning(disable:4996)           
-         return (char *)_mbsupr((unsigned char *)_String);
-      #pragma warning(pop)
-      }
-
-      __inline char *Str_ToLower(char *_String)
-      {
-      #pragma warning(push)
-      #pragma warning(disable:4996)           
-         return (char *)_mbslwr((unsigned char *)_String);
-      #pragma warning(pop)
-      }
-   #endif
-
-   // To-do: These functions should be MBCS aware too when SUPPORT_UNICODE is not defined.   
-   #define  Str_Strcasecmp(_s1,_s2) _stricmp((_s1),(_s2))
-   #define  Str_Strncasecmp(_s1,_s2,_n) _strnicmp((_s1),(_s2),(_n))
-   #define  Str_Strncmp(_s1,_s2,_n) strncmp((_s1),(_s2),(_n))
-#else
-   #define  Str_Strchr(str, c)  strchr(str, c)
-   #define  Str_Strrchr(str, c) strrchr(str, c)
-   #define  Str_Strspn(str1, str2)  strspn(str1, str2)
-   #define  Str_Strcspn(str1, str2) strcspn(str1, str2)
-   #define  Str_Strcasecmp(_s1,_s2) strcasecmp((_s1),(_s2))
-   #define  Str_Strncasecmp(_s1,_s2,_n) strncasecmp((_s1),(_s2),(_n))
-   #define  Str_Strncmp(_s1,_s2,_n) strncmp((_s1),(_s2),(_n))
-
-   EXTERN char * _Str_ToUpper(char *str);
-   #define  Str_ToUpper(str) _Str_ToUpper((str))
-
-   EXTERN char * _Str_ToLower(char *str);
-   #define  Str_ToLower(str) _Str_ToLower((str))
-#endif   // _WIN32
+#ifdef _WIN32
+   #define Str_Tcscmp(s1, s2) _tcscmp(s1, s2)
+   #define Str_Tcsncmp(s1, s2, n) _tcsncmp(s1, s2, n)
+   #define Str_Tcsicmp(s1, s2) _tcsicmp(s1, s2)
+   #define Str_Tcsnicmp(s1, s2, n) _tcsnicmp(s1, s2, n)
+   #define Str_Tcschr(s, c) _tcschr(s, c)
+   #define Str_Tcsrchr(s, c) _tcsrchr(s, c)
+   #define Str_Tcsspn(s1, s2) _tcsspn(s1, s2)
+   #define Str_Tcscspn(s1, s2) _tcscspn(s1, s2)
+   #define Str_Tcsupr(s) _tcsupr(s)
+   #define Str_Tcslwr(s) _tcslwr(s)
+#endif
 
 #endif /* _STR_H_ */

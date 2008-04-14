@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -37,6 +37,13 @@
 #include <sys/time.h>  // for utimes(2)
 #include <sys/syscall.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <dirent.h>
+
+#ifndef __FreeBSD__
+#   include <wchar.h>
+#   include <wctype.h>
+#endif
 
 #include "vmware.h"
 #include "hgfsServerPolicy.h" // for security policy
@@ -44,6 +51,7 @@
 #include "str.h"
 #include "cpNameLite.h"
 #include "hgfsUtil.h"  // for cross-platform time conversion
+#include "posix.h"
 #include "file.h"
 #include "util.h"
 #include "syncMutex.h"
@@ -253,7 +261,9 @@ static HgfsInternalStatus HgfsConvertFromNameStatus(HgfsNameStatus status);
 static HgfsInternalStatus HgfsGetattrResolveAlias(char const *fileName,
                                                   char **targetName);
 
-static HgfsInternalStatus HgfsGetattrFromName(char const *fileName,
+static HgfsInternalStatus HgfsGetattrFromName(char *fileName,
+                                              HgfsSharedFolder *share,
+					      uint32 caseFlags,
                                               HgfsFileAttrInfo *attr,
                                               char **targetName);
 
@@ -262,6 +272,24 @@ static HgfsInternalStatus HgfsGetattrFromFd(int fd,
 
 static void HgfsStat(struct stat *stats, 
                      HgfsFileAttrInfo *attr);
+
+static int HgfsStatFromName(char *fileName,
+                            HgfsSharedFolder *share,
+			    uint32 caseFlags,
+                            struct stat *stats);
+
+#ifndef __FreeBSD__
+static int HgfsCaseInsensitiveLookup(char *fileName,
+                                     char *shareName);
+
+#if 0
+static int HgfsToUpper(char *src,
+                       char *dst);
+#endif
+
+static int HgfsToLower(char *src,
+                       char *dst);
+#endif
 
 static Bool HgfsSetattrMode(struct stat *statBuf,
                             HgfsFileAttrInfo *attr,
@@ -285,8 +313,8 @@ static HgfsInternalStatus HgfsSetattrFromFd(HgfsHandle file,
 static HgfsInternalStatus HgfsSetattrFromName(char *cpName, 
                                               size_t cpNameSize,
                                               HgfsFileAttrInfo *attr, 
-                                              HgfsAttrHint hints);
-
+                                              HgfsAttrHint hints,
+					      uint32 caseFlags);
 
 #ifdef HGFS_OPLOCKS
 /*
@@ -774,7 +802,7 @@ HgfsGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
        * in append mode. If not, close the file and reopen it in append
        * mode.
        */
-      if (append && !node.appendFlag) {
+      if (append && !(node.flags & FILE_NODE_APPEND_FL)) {
          status = HgfsCloseFile(node.fileDesc);
          if (status != 0) {
             LOG(4, ("HgfsGetFd: Couldn't close file \"%s\" for reopening\n",
@@ -1241,6 +1269,313 @@ HgfsGetHiddenAttr(char const *fileName,         // IN:  Input filename
 }
 
 
+#ifndef __FreeBSD__
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsToLower --
+ *
+ *    Convert string to lower-case independent of the locale.
+ *
+ *    NOTE: fileName needs to be of size PATH_MAX.
+ *
+ * Results:
+ *    0 on Success, -1 otherwise.
+ *    String str converted to lower-case and placed in dst.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsToLower(char *src,    // IN: Input filename
+            char *dst)    // OUT: converted filename
+{
+   char *end = src + strlen(src);
+   wchar_t wc;
+   mbstate_t mbs1, mbs2;
+   size_t ret;
+
+   memset(&mbs1, 0, sizeof(mbstate_t));
+   memset(&mbs2, 0, sizeof(mbstate_t));
+   while (src < end) {
+      ret = mbrtowc(&wc, src, end - src, &mbs1);
+      if (ret == 0) {
+         *dst++ = '\0';
+         src++;
+         continue;
+      }
+      if (ret == (size_t) -2) {
+         LOG(4, ("%s: mbrtowc failed: %d: %s\n", __FUNCTION__, (int)ret, strerror(errno)));
+         return -1;
+      }
+      if (ret == (size_t) -1) {
+         LOG(4, ("%s: mbrtowc failed: %d\n", __FUNCTION__, (int)ret));
+         return -1;
+      }
+      src += ret;
+      wc = towlower(wc);
+      ret = wcrtomb(dst, wc, &mbs2);
+      dst += ret;
+   }
+   *dst++ = '\0';
+   return 0;
+}
+
+#if 0
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsToUpper --
+ *
+ *    Convert string to upper-case independent of the locale.
+ *
+ *    NOTE: fileName needs to be of size PATH_MAX.
+ *
+ * Results:
+ *    0 on Success, -1 otherwise.
+ *    String str converted to upper-case and placed in dst.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsToUpper(char *src,    // IN: Input filename
+            char *dst)    // OUT: converted filename
+{
+   char *end = src + strlen(src);
+   wchar_t wc;
+   mbstate_t mbs1, mbs2;
+   size_t ret;
+
+   memset(&mbs1, 0, sizeof(mbstate_t));
+   memset(&mbs2, 0, sizeof(mbstate_t));
+   while (src < end) {
+      ret = mbrtowc(&wc, src, end - src, &mbs1);
+      if (ret == 0) {
+         *dst++ = '\0';
+         src++;
+         continue;
+      }
+      if (ret == (size_t) -2) {
+         LOG(4, ("%s: mbrtowc failed: %d: %s\n", __FUNCTION__, ret, strerror(errno)));
+         return -1;
+      }
+      if (ret == (size_t) -1) {
+         LOG(4, ("%s: mbrtowc failed: %d\n", __FUNCTION__, ret));
+         return -1;
+      }
+      src += ret;
+      wc = towupper(wc);
+      ret = wcrtomb(dst, wc, &mbs2);
+      dst += ret;
+   }
+   *dst++ = '\0';
+   return 0;
+}
+
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsCaseInsensitiveLookup --
+ *
+ *    Do case insensitivie lookup for fileName. Each component past shareName is
+ *    looked-up case-insensitively. Expensive!
+ *
+ *    NOTE: fileName needs to be of size PATH_MAX.
+ *
+ * Results:
+ *    Returns 0 if successful and resolved path for fileName is over-written.
+ *    Otherwise returns non-zero errno without affecting fileName.
+ *
+ * Side effects:
+ *    fileName over-written with resolved path when successful.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsCaseInsensitiveLookup(char *fileName,   // IN / OUT
+                          char *shareName)  // IN
+{
+   char *fileSuffix = fileName + strlen(shareName) + 1;
+   char curDir[PATH_MAX];
+   char convertedFileName[PATH_MAX];
+   char convertedComponent[PATH_MAX];
+   struct dirent *dirent;
+   DIR *dir;
+   char *ptr;
+   int error;
+
+   strcpy(curDir, shareName);
+
+again:
+   dir = opendir(curDir);
+   if (!dir) {
+      return ENOENT;
+   }
+
+   ptr = strchr(fileSuffix, DIRSEPC);
+   if (ptr) {
+      *ptr = '\0';
+   }
+
+   error = HgfsToLower(fileSuffix, convertedComponent);
+   if (error) {
+      if (ptr) {
+         *ptr = DIRSEPC;
+      }
+      closedir(dir);
+      return ENOENT;
+   }
+
+   while ((dirent = readdir(dir))) {
+      error = HgfsToLower(dirent->d_name, convertedFileName);
+      if (error) {
+         continue;
+      }
+      if (!strcmp(convertedComponent, convertedFileName)) {
+         /* Match found. */
+         strcat(curDir, "/");
+         strcat(curDir, dirent->d_name);
+         fileSuffix = ptr + 1;
+         closedir(dir);
+         if (!ptr) {
+            strcpy(fileName, curDir);
+	    return 0;
+	 }
+         *ptr = DIRSEPC;
+         goto again;
+      }
+   }
+
+   /* Match not found. */
+   if (ptr) {
+      *ptr = DIRSEPC;
+   }
+   closedir(dir);
+   return ENOENT;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerConvertCase --
+ *
+ *    Converts the fileName to appropriate case depending upon flags.
+ *
+ *    NOTE: fileName needs to be of size PATH_MAX.
+ *
+ * Results:
+ *    Returns 0 if successful and converted path for fileName is over-written.
+ *    Otherwise returns non-zero integer without affecting fileName.
+ *
+ * Side effects:
+ *    fileName over-written with the converted path when successful.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+HgfsServerConvertCase(HgfsSharedFolder *share,   // IN
+                      uint32 caseFlags,          // IN
+                      char *fileName)            // IN / OUT
+{
+#ifndef __FreeBSD__
+   int error;
+   char *fileBaseName;
+
+   ASSERT(fileName);
+
+   LOG(4, ("%s: fileName: #%s# %u, %d\n", __FUNCTION__, fileName, caseFlags, (int)caseFlags));
+   if (!share) {
+      return -1;
+   }
+
+   /* fileBaseName is the relative path of the file. */
+   fileBaseName = fileName + share->pathLen;
+
+   if (caseFlags == HGFS_FILE_NAME_CASE_INSENSITIVE) {
+     LOG(4, ("%s: %u, %d\n", __FUNCTION__, caseFlags, (int)caseFlags));
+     error = HgfsCaseInsensitiveLookup(fileName, share->path);
+     return error;
+   }
+#endif
+   return 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsStatFromName --
+ *
+ *    lstat(2) for the file name taking the case-sensitivity options into account.
+ *
+ *    NOTE: fileName needs to be of size PATH_MAX.
+ *
+ * Results:
+ *    0 when successful, non-zero otherwise.
+ *
+ * Side effects:
+ *    Converts fileName to appropriate case.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsStatFromName(char *fileName,          // IN: filename
+                 HgfsSharedFolder *share, // IN: share
+		 uint32 caseFlags,        // IN: case-sensitivity flags
+                 struct stat *stats)      // OUT: file stats
+{
+   int error;
+
+   /* Simple case - plain lookup. */
+   errno = 0;
+   error = lstat(fileName, stats);
+   if (!error || errno != ENOENT) {
+      return errno;
+   }
+
+   if (!share) {
+      return ENOENT;
+   }
+   
+   if (!strncmp(fileName, share->path, strlen(fileName))) {
+      return EACCES;
+   }
+
+   if (Str_Strncmp(share->path, fileName, share->pathLen)) {
+      return ENOENT;
+   }
+
+   LOG(4, ("%s: caseFlags: %u\n", __FUNCTION__, caseFlags));
+   error = HgfsServerConvertCase(share, caseFlags, fileName);
+   if (error) {
+      return error;
+   }
+      
+   LOG(4, ("%s: stating %s\n", __FUNCTION__, fileName));
+   error = lstat(fileName, stats);
+   if (error < 0) {
+      return errno;
+   }
+   return 0;
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1263,7 +1598,9 @@ HgfsGetHiddenAttr(char const *fileName,         // IN:  Input filename
  */
 
 static HgfsInternalStatus
-HgfsGetattrFromName(char const *fileName,       // IN:  Input filename
+HgfsGetattrFromName(char *fileName,             // IN / OUT:  Input filename
+                    HgfsSharedFolder *share,    // IN:  Share
+		    uint32 caseFlags,           // IN: case-sensitivity flags
                     HgfsFileAttrInfo *attr,     // OUT: Struct to copy into
                     char **targetName)          // OUT: Symlink target filename
 {
@@ -1274,9 +1611,8 @@ HgfsGetattrFromName(char const *fileName,       // IN:  Input filename
    ASSERT(attr);
    LOG(4, ("HgfsGetattrFromName: getting attrs for \"%s\"\n", fileName));
 
-   error = lstat(fileName, &stats);
-   if (error < 0) {
-      error = errno;
+   error = HgfsStatFromName(fileName, share, caseFlags, &stats);
+   if (error) {
       LOG(4, ("HgfsGetattrFromName: error stating file: %s\n", 
               strerror(error)));
       status = error;
@@ -1301,16 +1637,9 @@ HgfsGetattrFromName(char const *fileName,       // IN:  Input filename
        */
       if (targetName != NULL) {
          char *myTargetName;
-         /* st_size does not include the nul. */
-         myTargetName = malloc(stats.st_size + 1);
-         if (myTargetName == NULL) {
-            LOG(4, ("HgfsGetattrFromName: ran out of memory when allocating "
-                    "space for symlink target name.\n"));
-            status = ENOMEM;
-            goto exit;
-         }
 
-         if (readlink(fileName, myTargetName, stats.st_size) != stats.st_size) {
+         myTargetName = Posix_ReadLink(fileName);
+         if (myTargetName == NULL) {
             error = errno;
             LOG(4, ("HgfsGetattrFromName: readlink returned wrong size\n"));
             free(myTargetName);
@@ -1324,8 +1653,6 @@ HgfsGetattrFromName(char const *fileName,       // IN:  Input filename
             status = error ? error : ENOMEM;
             goto exit;
          }
-         /* readlink() does not nul terminate. */
-         myTargetName[stats.st_size] = '\0';
          *targetName = myTargetName;
       }
    } else {
@@ -2038,7 +2365,8 @@ static HgfsInternalStatus
 HgfsSetattrFromName(char *cpName,             // IN: Name
                     size_t cpNameSize,        // IN: Name length
                     HgfsFileAttrInfo *attr,   // IN: attrs to set
-                    HgfsAttrHint hints)       // IN: attr hints
+                    HgfsAttrHint hints,       // IN: attr hints
+		    uint32 caseFlags)         // IN: case-sensitivity flags
 {
    HgfsInternalStatus status = 0, timesStatus;
    HgfsNameStatus nameStatus;
@@ -2057,7 +2385,9 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
    nameStatus = HgfsServerGetAccess(cpName,
                                     cpNameSize,
                                     HGFS_OPEN_MODE_WRITE_ONLY,
+				    caseFlags,
                                     &localName,
+                                    NULL,
                                     NULL);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsSetattrFromName: access check failed\n"));
@@ -2390,7 +2720,9 @@ HgfsServerOpen(char const *packetIn, // IN: incoming packet
    nameStatus = HgfsServerGetAccess(openInfo.cpName,
                                     openInfo.cpNameSize,
                                     openInfo.mode,
+                                    openInfo.caseFlags,
                                     &localName,
+                                    NULL,
                                     NULL); 
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerOpen: access check failed\n"));
@@ -2751,41 +3083,70 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
                      char *packetOut,      // OUT: outgoing packet
                      size_t *packetSize)   // IN/OUT: size of packet
 {
-   HgfsRequestSearchOpen *request;
-   HgfsReplySearchOpen *reply;
+   HgfsRequest *header;
+   HgfsHandle *replySearch;
    uint32 extra;
    size_t baseDirLen;
    char *baseDir;
    HgfsHandle handle;
    HgfsInternalStatus status;
    HgfsNameStatus nameStatus;
+   char *dirName;
+   uint32 dirNameLength;
+   uint32 caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
 
-   request = (HgfsRequestSearchOpen *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplySearchOpen *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
    ASSERT(packetSize);
+   header = (HgfsRequest *)packetIn;
+   
+   if (header->op == HGFS_OP_SEARCH_OPEN_V3) {
+      HgfsRequestSearchOpenV3 *requestV3;
+      
+      requestV3 = (HgfsRequestSearchOpenV3 *)(packetIn + sizeof *header);
+      /* Enforced by the dispatch function */
+      ASSERT(*packetSize >= sizeof *requestV3 + sizeof *header);
+      extra = *packetSize - sizeof *requestV3 - sizeof *header;
 
-   /* Enforced by the dispatch function */
-   ASSERT(*packetSize >= sizeof *request);
-   extra = *packetSize - sizeof *request;
+      caseFlags = requestV3->dirName.flags;
+      dirName = requestV3->dirName.name;
+      dirNameLength = requestV3->dirName.length;  
+      replySearch = &((HgfsReplySearchOpenV3 *)(packetOut
+                                                + sizeof(struct HgfsReply)))->search;
+      *packetSize = sizeof(struct HgfsReplySearchOpen) + sizeof(struct HgfsReply);
+       LOG(4, ("HgfsServerSearchOpen: HGFS_OP_SEARCH_OPEN_V3\n"));
+   } else {
+      HgfsRequestSearchOpen *request;
+      
+      request = (HgfsRequestSearchOpen *)packetIn;
+      /* Enforced by the dispatch function */
+      ASSERT(*packetSize >= sizeof *request);
+      extra = *packetSize - sizeof *request;
+
+      dirName = request->dirName.name;
+      dirNameLength = request->dirName.length;  
+      replySearch = &((HgfsReplySearchOpen *)packetOut)->search;
+      *packetSize = sizeof(struct HgfsReplySearchOpen);
+   }
 
    /*
     * request->dirName.length is user-provided, so this test must be carefully
     * written to prevent wraparounds.
     */
-   if (request->dirName.length > extra) {
+   if (dirNameLength > extra) {
       /* The input packet is smaller than the request */
       status = EPROTO;
       goto exit;
    }
    /* It is now safe to read the dirName */
 
-   nameStatus = HgfsServerGetAccess(request->dirName.name,
-                                    request->dirName.length,
+   nameStatus = HgfsServerGetAccess(dirName,
+                                    dirNameLength,
                                     HGFS_OPEN_MODE_READ_ONLY,
+				    caseFlags,
                                     &baseDir,
-                                    &baseDirLen);
+                                    &baseDirLen,
+                                    NULL);
    switch (nameStatus) {
    case HGFS_NAME_STATUS_COMPLETE:
       ASSERT(baseDir);
@@ -2833,8 +3194,7 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
     * Return handle to the search object as the reply to the search
     * open.
     */
-   reply->search = handle;
-   *packetSize = sizeof *reply;
+   *replySearch = handle;
   exit:
    return status;
 }
@@ -2869,6 +3229,7 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
    HgfsHandle hgfsSearchHandle;
    DirectoryEntry *dent;
    HgfsSearch search;
+   HgfsSharedFolder *share;
 
    ASSERT(packetSize);
 
@@ -2893,7 +3254,7 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
                                       requestedOffset, FALSE)) != NULL) {
       unsigned int length;
       char *fullName;
-      char const *sharePath;
+      char *sharePath;
       size_t sharePathLen;
       size_t fullNameLen;
 
@@ -2921,7 +3282,8 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
          memcpy(&fullName[search.utf8DirLen + 1], dent->d_name, length + 1);
 
          LOG(4, ("HgfsServerSearchRead: about to stat \"%s\"\n", fullName));
-         status = HgfsGetattrFromName(fullName, &attr, NULL);
+         status = HgfsGetattrFromName(fullName, NULL, HGFS_FILE_NAME_DEFAULT_CASE,
+	                              &attr, NULL);
          free(fullName);
 
          if (status != 0) {
@@ -2951,14 +3313,16 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
                                              length,
                                              HGFS_OPEN_MODE_READ_ONLY,
                                              &sharePathLen,
-                                             &sharePath);
+                                             (char const **)&sharePath,
+                                             &share);
             if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
                LOG(4, ("HgfsServerSearchRead: No such share or access denied\n"));
                free(dent);
                free(search.utf8Dir);
                return HgfsConvertFromNameStatus(nameStatus);
             }
-            status = HgfsGetattrFromName(sharePath, &attr, NULL);
+            status = HgfsGetattrFromName(sharePath, share, HGFS_FILE_NAME_DEFAULT_CASE,
+	                                 &attr, NULL);
             if (status != 0) {
                /* 
                 * The dent no longer exists. Remove it from the search and get
@@ -3079,6 +3443,8 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
    char *targetName = NULL;
    uint32 targetNameLen;
    HgfsHandle file = HGFS_INVALID_HANDLE; /* file handle from driver */
+   HgfsSharedFolder *share;
+   uint32 caseFlags = 0;
 
    ASSERT(packetSize);
 
@@ -3088,7 +3454,8 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
                                  &hints,
                                  &cpName,
                                  &cpNameSize,
-                                 &file)) {
+                                 &file,
+				 &caseFlags)) {
       status = EPROTO;
       goto exit;
    }
@@ -3113,8 +3480,10 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
       nameStatus = HgfsServerGetAccess(cpName,
                                        cpNameSize,
                                        HGFS_OPEN_MODE_READ_ONLY,
+				       caseFlags,
                                        &localName,
-                                       NULL);
+                                       NULL,
+                                       &share);
       switch (nameStatus) {
       case HGFS_NAME_STATUS_INCOMPLETE_BASE:
          /*
@@ -3129,7 +3498,7 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
          /* This is a regular lookup; proceed as usual */
          ASSERT(localName);
 
-         status = HgfsGetattrFromName(localName, &attr, &targetName);
+         status = HgfsGetattrFromName(localName, share, caseFlags, &attr, &targetName);
          free(localName);
          if (status != 0) {
             goto exit;
@@ -3179,6 +3548,7 @@ HgfsServerSetattr(char const *packetIn, // IN: incoming packet
    size_t cpNameSize = 0;
    HgfsAttrHint hints = 0;
    HgfsHandle file = HGFS_INVALID_HANDLE;
+   uint32 caseFlags = 0;
 
    ASSERT(packetSize);
 
@@ -3188,7 +3558,8 @@ HgfsServerSetattr(char const *packetIn, // IN: incoming packet
                                  &hints,
                                  &cpName,
                                  &cpNameSize,
-                                 &file)) {
+                                 &file,
+				 &caseFlags)) {
       status = EPROTO;
       goto exit;
    }
@@ -3199,7 +3570,8 @@ HgfsServerSetattr(char const *packetIn, // IN: incoming packet
       status = HgfsSetattrFromName(cpName, 
                                    cpNameSize, 
                                    &attr, 
-                                   hints);
+                                   hints,
+				   caseFlags);
    }
    if (!HgfsPackSetattrReply(packetOut, packetSize)) {
       status = EPROTO;
@@ -3249,7 +3621,9 @@ HgfsServerCreateDir(char const *packetIn, // IN: incoming packet
    nameStatus = HgfsServerGetAccess(info.cpName,
                                     info.cpNameSize,
                                     HGFS_OPEN_MODE_WRITE_ONLY,
+				    info.caseFlags,
                                     &localName,
+                                    NULL,
                                     NULL);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerCreateDir: access check failed\n"));
@@ -3326,6 +3700,7 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
    HgfsDeleteHint hints = 0;
    char *cpName;
    size_t cpNameSize;
+   uint32 caseFlags;
 
    request = (HgfsRequestDelete *)packetIn;
    ASSERT(request);
@@ -3338,7 +3713,8 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
                                 &cpName,
                                 &cpNameSize,
                                 &hints,
-                                &file)) {
+                                &file,
+				&caseFlags)) {
       return EPROTO;
    }
 
@@ -3354,7 +3730,9 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
       nameStatus = HgfsServerGetAccess(cpName,
                                        cpNameSize,
                                        HGFS_OPEN_MODE_WRITE_ONLY,
+				       caseFlags,
                                        &localName,
+                                       NULL,
                                        NULL);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("HgfsServerDeleteFile: access check failed\n"));
@@ -3411,6 +3789,7 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
    HgfsDeleteHint hints = 0;
    char *cpName;
    size_t cpNameSize;
+   uint32 caseFlags;
 
    request = (HgfsRequestDelete *)packetIn;
    ASSERT(request);
@@ -3423,7 +3802,8 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
                                 &cpName,
                                 &cpNameSize,
                                 &hints,
-                                &file)) {
+                                &file,
+				&caseFlags)) {
       return EPROTO;
    }
 
@@ -3439,7 +3819,9 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
       nameStatus = HgfsServerGetAccess(cpName,
                                        cpNameSize,
                                        HGFS_OPEN_MODE_WRITE_ONLY,
+				       caseFlags,
                                        &localName,
+                                       NULL,
                                        NULL);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("HgfsServerDeleteDir: access check failed\n"));
@@ -3508,6 +3890,9 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
    int error;
    HgfsInternalStatus status;
    Bool sharedFolderOpen = FALSE;
+   HgfsSharedFolder *share = NULL;
+   uint32 oldCaseFlags = 0;
+   uint32 newCaseFlags = 0;
 
    ASSERT(packetSize);
 
@@ -3519,7 +3904,9 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
                                 &cpNewNameLen,
                                 &hints,
                                 &srcFile,
-                                &targetFile)) {
+                                &targetFile,
+				&oldCaseFlags,
+				&newCaseFlags)) {
       return EPROTO;
    }
 
@@ -3544,7 +3931,9 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
       nameStatus = HgfsServerGetAccess(cpOldName,
                                        cpOldNameLen,
                                        HGFS_OPEN_MODE_READ_WRITE,
+				       oldCaseFlags,
                                        &localOldName,
+                                       NULL,
                                        NULL);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("HgfsServerRename: old name access check failed\n"));
@@ -3582,7 +3971,9 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
       nameStatus = HgfsServerGetAccess(cpNewName,
                                        cpNewNameLen,
                                        HGFS_OPEN_MODE_WRITE_ONLY,
+				       newCaseFlags,
                                        &localNewName,
+                                       NULL,
                                        NULL);
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("HgfsServerRename: new name access check failed\n"));
@@ -3600,7 +3991,7 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
        * We are not being asked to replace an existing
        * file so fail if the target exists.
        */
-      status = HgfsGetattrFromName(localNewName, &attr, NULL);
+      status = HgfsGetattrFromName(localNewName, share, newCaseFlags, &attr, NULL);
       if (status == 0) {
          /* The target exists, and so must fail the rename. */
          LOG(4, ("HgfsServerRename: error: target %s exists\n", localNewName));
@@ -3665,8 +4056,7 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
                       char *packetOut,      // OUT: outgoing packet
                       size_t *packetSize)   // IN/OUT: size of packet
 {
-   HgfsRequestQueryVolume *request;
-   HgfsReplyQueryVolume   *reply;
+   HgfsRequest *header;
    uint32 extra;
    char *utf8Name = NULL;
    size_t utf8NameLen;
@@ -3683,32 +4073,65 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
    size_t failed = 0;
    size_t shares = 0;
    HgfsInternalStatus firstErr = 0;
+   char *fileName;
+   uint32 fileNameLength;
+   uint32 caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+   uint64 *freeBytes;
+   uint64 *totalBytes;
 
-   request = (HgfsRequestQueryVolume *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplyQueryVolume *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
+   header = (HgfsRequest *)packetIn;
+
    ASSERT(packetSize);
+   if (header->op == HGFS_OP_QUERY_VOLUME_INFO_V3) {
+      HgfsRequestQueryVolumeV3 *requestV3;
+      
+      requestV3 = (HgfsRequestQueryVolumeV3 *)(packetIn + sizeof *header);
+      freeBytes = &((HgfsReplyQueryVolumeV3 *)(packetOut + sizeof(struct HgfsReply)))->freeBytes;
+      totalBytes = &((HgfsReplyQueryVolumeV3 *)(packetOut + sizeof(struct HgfsReply)))->totalBytes;
+      
+      /* Enforced by the dispatch function. */
+      ASSERT(*packetSize >= sizeof *requestV3 + sizeof *header);
+      extra = *packetSize - sizeof *requestV3 - sizeof *header;
 
-   /* Enforced by the dispatch function. */
-   ASSERT(*packetSize >= sizeof *request);
-   extra = *packetSize - sizeof *request;
+      caseFlags = requestV3->fileName.flags;
+      fileName = requestV3->fileName.name;
+      fileNameLength = requestV3->fileName.length;
+      *packetSize = sizeof(struct HgfsReplyQueryVolumeV3) + sizeof(struct HgfsReply);
+      LOG(4, ("HgfsServerSearchOpen: HGFS_OP_SEARCH_OPEN_V3\n"));
+   } else {
+      HgfsRequestQueryVolume *request;
+      request = (HgfsRequestQueryVolume *)packetIn;
+      freeBytes = &((HgfsReplyQueryVolume *)packetOut)->freeBytes;
+      totalBytes = &((HgfsReplyQueryVolume *)packetOut)->totalBytes;
+
+      /* Enforced by the dispatch function. */
+      ASSERT(*packetSize >= sizeof *request);
+      extra = *packetSize - sizeof *request;
+
+      fileName = request->fileName.name;
+      fileNameLength = request->fileName.length;
+      *packetSize = sizeof(struct HgfsReplyQueryVolume);
+   }
 
    /*
     * request->fileName.length is user-provided, so this test must be carefully
     * written to prevent wraparounds.
     */
-   if (request->fileName.length > extra) {
+   if (fileNameLength > extra) {
       /* The input packet is smaller than the request. */
       return EPROTO;
    }
 
    /* It is now safe to read the file name field. */
-   nameStatus = HgfsServerGetAccess(request->fileName.name,
-                                    request->fileName.length,
+   nameStatus = HgfsServerGetAccess(fileName,
+                                    fileNameLength,
                                     HGFS_OPEN_MODE_READ_WRITE,
+                                    caseFlags,
                                     &utf8Name,
-                                    &utf8NameLen);
+                                    &utf8NameLen,
+                                    NULL);
    switch (nameStatus) {
    case HGFS_NAME_STATUS_INCOMPLETE_BASE:
       /*
@@ -3785,7 +4208,8 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
                                                     length,
                                                     HGFS_OPEN_MODE_READ_ONLY,
                                                     &sharePathLen,
-                                                    &sharePath);
+                                                    &sharePath,
+                                                    NULL);
          free(dent);
          if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
             LOG(4, ("HgfsServerQueryVolume: No such share or access "
@@ -3857,10 +4281,9 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
       return HgfsConvertFromNameStatus(nameStatus);
    }
 
-   reply->freeBytes  = outFreeBytes;
-   reply->totalBytes = outTotalBytes;
+   *freeBytes  = outFreeBytes;
+   *totalBytes = outTotalBytes;
 
-   *packetSize = sizeof *reply;
    return 0;
 }
 
@@ -3887,41 +4310,72 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
                         char *packetOut,      // OUT: outgoing packet
                         size_t *packetSize)   // IN/OUT: size of packet
 {
-   HgfsRequestSymlinkCreate *request;
-   HgfsReplySymlinkCreate *reply;
+   HgfsRequest *header;
    uint32 extra;
    char *localSymlinkName;
-   HgfsFileName *targetName;
    char localTargetName[HGFS_PACKET_MAX];
    int error;
    HgfsNameStatus nameStatus;
+   uint32 caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+   char *symlinkName;
+   uint32 symlinkNameLength;
+   char *targetName;
+   uint32 targetNameLength;
 
-   request = (HgfsRequestSymlinkCreate *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplySymlinkCreate *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
    ASSERT(packetSize);
+   header = (HgfsRequest *)packetIn;
 
-   /* Enforced by the dispatch function */
-   ASSERT(*packetSize >= sizeof *request);
-   extra = *packetSize - sizeof *request;
+   if (header->op == HGFS_OP_CREATE_SYMLINK_V3) {
+      HgfsRequestSymlinkCreateV3 *requestV3;
+      HgfsFileNameV3 *targetNameP;
+      requestV3 = (HgfsRequestSymlinkCreateV3 *)(packetIn + sizeof *header);
+      LOG(4, ("HgfsServerSymlinkCreate: HGFS_OP_CREATE_SYMLINK_V3\n"));
 
-   /*
-    * Get the symlink and target filenames from the request.
-    *
-    * Getting the new filename is somewhat inconvenient, because we
-    * don't know where request->targetName actually starts, thanks to the
-    * fact that request->symlinkName is of variable length. We get around
-    * this by using an HgfsFileName*, assigning it to the correct address
-    * just after request->symlinkName ends, and using that to access the
-    * new name.
-    */
+      /* Enforced by the dispatch function. */
+      ASSERT(*packetSize >= sizeof *requestV3 + sizeof *header);
+      extra = *packetSize - sizeof *requestV3 - sizeof *header;
+
+      caseFlags = requestV3->symlinkName.flags;
+      symlinkName = requestV3->symlinkName.name;
+      symlinkNameLength = requestV3->symlinkName.length;
+
+      /* 
+       * targetName starts after symlinkName + the variable length array
+       * in symlinkName.
+       */
+      targetNameP = (HgfsFileNameV3 *)(symlinkName + 1 + symlinkNameLength);
+      targetName = targetNameP->name;
+      targetNameLength = targetNameP->length;
+      *packetSize = sizeof(struct HgfsReplySymlinkCreateV3) + sizeof(struct HgfsReply);
+   } else {
+      HgfsRequestSymlinkCreate *request;
+      HgfsFileName *targetNameP;
+      request = (HgfsRequestSymlinkCreate *)packetIn;
+
+      /* Enforced by the dispatch function. */
+      ASSERT(*packetSize >= sizeof *request);
+      extra = *packetSize - sizeof *request;
+
+      symlinkName = request->symlinkName.name;
+      symlinkNameLength = request->symlinkName.length;
+
+      /* 
+       * targetName starts after symlinkName + the variable length array
+       * in symlinkName.
+       */
+      targetNameP = (HgfsFileName *)(symlinkName + 1 + symlinkNameLength);
+      targetName = targetNameP->name;
+      targetNameLength = targetNameP->length;
+      *packetSize = sizeof(struct HgfsReplySymlinkCreate);
+   }
 
    /*
     * request->symlinkName.length is user-provided, so this test must
     * be carefully written to prevent wraparounds.
     */
-   if (request->symlinkName.length > extra) {
+   if (symlinkNameLength > extra) {
       /* The input packet is smaller than the request */
       return EPROTO;
    }
@@ -3930,10 +4384,12 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
     * "targetName" field
     */
 
-   nameStatus = HgfsServerGetAccess(request->symlinkName.name,
-                                    request->symlinkName.length,
+   nameStatus = HgfsServerGetAccess(symlinkName,
+                                    symlinkNameLength,
                                     HGFS_OPEN_MODE_READ_WRITE,
+				    caseFlags,
                                     &localSymlinkName,
+                                    NULL,
                                     NULL);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerSymlinkCreate: symlink name access check failed\n"));
@@ -3941,16 +4397,13 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
    }
 
    ASSERT(localSymlinkName);
-
-   extra -= request->symlinkName.length;
-   targetName = (HgfsFileName *)(  (char *)(&request->symlinkName + 1)
-                                       + request->symlinkName.length);
+   extra -= symlinkNameLength;
 
    /*
-    * targetName->length is user-provided, so this test must be carefully
+    * targetNameLength is user-provided, so this test must be carefully
     * written to prevent wraparounds.
     */
-   if (targetName->length > extra) {
+   if (targetNameLength > extra) {
       /* The input packet is smaller than the request */
       free(localSymlinkName);
       return EPROTO;
@@ -3959,13 +4412,14 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
    /* It is now safe to read the target file name */
 
    /* Convert from CPName-lite to normal and NUL-terminate. */
-   memcpy(localTargetName, targetName->name, targetName->length);
-   CPNameLite_ConvertFrom(localTargetName, targetName->length, DIRSEPC);
-   localTargetName[targetName->length] = '\0';
+   memcpy(localTargetName, targetName, targetNameLength);
+   CPNameLite_ConvertFrom(localTargetName, targetNameLength, DIRSEPC);
+   localTargetName[targetNameLength] = '\0';
 
    LOG(4, ("HgfsServerSymlinkCreate: creating \"%s\" linked to \"%s\"\n",
            localSymlinkName, localTargetName));
 
+   /* XXX: Should make use of targetNameP->flags? */
    error = symlink(localTargetName, localSymlinkName);
    free(localSymlinkName);
    if (error) {
@@ -3974,7 +4428,6 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
       return error;
    }
 
-   *packetSize = sizeof *reply;
    return 0;
 }
 
@@ -4010,20 +4463,12 @@ HgfsServerHasSymlink(const char *fileName,	// IN
                      const char *sharePath)	// IN
 {
    char *path;
-   char *fullSharePath = NULL;
    char *pathSep;
-   size_t shareLen = 1;
+   size_t shareLen = 0;
    size_t pathLen;
    Bool found = FALSE;
 
-   /* Resolve full path for the share to compare with fileName. */
    ASSERT(sharePath);
-   fullSharePath = File_FullPath(sharePath);
-   if (!fullSharePath) {
-      LOG(4, ("HgfsServerHasSymlink: File_FullPath failed on sharePath %s\n", sharePath));
-      return FALSE;
-   }
-   shareLen = strlen(fullSharePath);
 
    path = File_FullPath(fileName);
    if (!path) {
@@ -4031,10 +4476,32 @@ HgfsServerHasSymlink(const char *fileName,	// IN
    }
    pathLen = strlen(path);
 
-   LOG(4, ("%s: fileName: %s, sharePath: %s, path: %s, fullSharePath: %s\n",
-           __FUNCTION__, fileName, sharePath, path, fullSharePath));
+   /*
+    * Resolve full path for the share to compare with fileName.
+    * This sharePath can be equal to "" (special case root share that
+    * allows access to the whole host). Normally, we check to ensure that the share
+    * passed in is a prefix of the fileName path. However, that check is meaningless
+    * in the case of the special root share. Only perform the check if sharePath
+    * is non-empty.
+    */
+   if (strcmp(sharePath, "") != 0) {
+      char *fullSharePath;
+      fullSharePath = File_FullPath(sharePath);
+      if (!fullSharePath) {
+	 LOG(4, ("HgfsServerHasSymlink: File_FullPath failed on sharePath %s\n",
+		 sharePath));
+	 return FALSE;
+      }
+      shareLen = strlen(fullSharePath);
 
-   ASSERT(Str_Strncmp(path, fullSharePath, shareLen < pathLen ? shareLen : pathLen) == 0);
+      LOG(4, ("%s: fileName: %s, sharePath: %s, path: %s, fullSharePath: %s\n",
+	      __FUNCTION__, fileName, sharePath, path, fullSharePath));
+
+      ASSERT(Str_Strncmp(path, fullSharePath, shareLen < pathLen ?
+			 shareLen : pathLen) == 0);
+      free(fullSharePath);
+   }
+
    /* If fileName is prefix of sharePath, ignore symlinks. */
    if (shareLen > pathLen) {
       goto out;
@@ -4054,7 +4521,7 @@ HgfsServerHasSymlink(const char *fileName,	// IN
       *pathSep++ = DIRSEPC;
    }
 
-   /* 
+   /*
     * We've checked up until every path separator. Now check the last
     * component.
     */
@@ -4062,9 +4529,6 @@ HgfsServerHasSymlink(const char *fileName,	// IN
       found = TRUE;
    }
   out:
-   if (fullSharePath) {
-      free(fullSharePath);
-   }
    free(path);
    return found;
 }
@@ -4156,5 +4620,4 @@ HgfsAckOplockBreak(ServerLockData *lockData, // IN: server lock info
    free(lockData);
 }
 #endif
-
 

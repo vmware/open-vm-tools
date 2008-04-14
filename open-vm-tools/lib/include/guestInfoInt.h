@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -37,5 +37,16 @@ Bool GuestInfoGetDiskInfo(PDiskInfo di);
 Bool GuestInfoGetOSName(unsigned int outBufFullLen, unsigned int outBufLen, 
                         char *osNameFull, char *osName);
 int GuestInfo_GetSystemBitness(void);
+Bool GuestInfo_PerfMon(struct MemInfo *vmStats);
+
+NicEntry *GuestInfoAddNicEntry(NicInfo *nicInfo, const char macAddress[MAC_ADDR_SIZE]);
+VmIpAddressEntry *GuestInfoAddIpAddress(NicEntry *nicEntry,
+                                        const char *ipAddr,
+                                        const uint32 af_type);
+void GuestInfoAddSubnetMask(VmIpAddressEntry *ipAddressEntry,
+                            const uint32 subnetMaskBits);
+
+NicEntry *GuestInfoFindMacAddress(NicInfo *nicInfo, const char *macAddress);
+
 
 #endif

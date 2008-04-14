@@ -18,9 +18,11 @@
 noinst_LIBRARIES = libMisc.a
 
 libMisc_a_SOURCES =
+libMisc_a_SOURCES += atomic.c
 libMisc_a_SOURCES += base64.c
 libMisc_a_SOURCES += codeset.c
 libMisc_a_SOURCES += dbllnklst.c
+libMisc_a_SOURCES += dynarray.c
 libMisc_a_SOURCES += dynbuf.c
 libMisc_a_SOURCES += escape.c
 libMisc_a_SOURCES += hashTable.c
@@ -34,6 +36,8 @@ libMisc_a_SOURCES += random.c
 libMisc_a_SOURCES += timeutil.c
 libMisc_a_SOURCES += util_misc.c
 libMisc_a_SOURCES += vmstdio.c
+libMisc_a_SOURCES += posixPosix.c
+libMisc_a_SOURCES += posixDlopen.c
 
 AM_CFLAGS =
 AM_CFLAGS += @COMMON_CFLAGS@

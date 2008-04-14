@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -101,6 +101,9 @@ enum {
    VIX_E_FILE_NAME_INVALID                      = 22,
    VIX_E_ALREADY_EXISTS                         = 23,
    VIX_E_BUFFER_TOOSMALL                        = 24,
+   VIX_E_OBJECT_NOT_FOUND                       = 25,
+   VIX_E_HOST_NOT_CONNECTED                     = 26,
+
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,
@@ -143,6 +146,8 @@ enum {
    VIX_E_OPERATION_NOT_ALLOWED_FOR_LOGIN_TYPE   = 3031,
    VIX_E_LOGIN_TYPE_NOT_SUPPORTED               = 3032,
    VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST    = 3033,
+   VIX_E_INTERACTIVE_SESSION_NOT_PRESENT        = 3034,
+   VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,          
 
    /* VM Errors */ 
    VIX_E_VM_NOT_FOUND                           = 4000,
@@ -157,6 +162,7 @@ enum {
    VIX_E_INVALID_PROPERTY_VALUE                 = 6001,
    VIX_E_READ_ONLY_PROPERTY                     = 6002,
    VIX_E_MISSING_REQUIRED_PROPERTY              = 6003,
+   VIX_E_INVALID_SERIALIZED_DATA                = 6004,
 
    /* Completion Errors */
    VIX_E_BAD_VM_INDEX                           = 8000,
@@ -184,6 +190,9 @@ enum {
    VIX_E_SNAPSHOT_DUPLICATEDDISK                = 13015,
    VIX_E_SNAPSHOT_INDEPENDENTDISK               = 13016,
    VIX_E_SNAPSHOT_NONUNIQUE_NAME                = 13017,
+   VIX_E_SNAPSHOT_MEMORY_ON_INDEPENDENT_DISK    = 13018,
+   VIX_E_SNAPSHOT_ENCODING                      = 13033,
+
 
    /* Host Errors */
    VIX_E_HOST_DISK_INVALID_VALUE                = 14003,
@@ -227,6 +236,7 @@ enum {
    VIX_E_DISK_KEY_NOTFOUND                      = 16052, // metadata key is not found
    VIX_E_DISK_SUBSYSTEM_INIT_FAIL               = 16053,
    VIX_E_DISK_INVALID_CONNECTION                = 16054,
+   VIX_E_DISK_ENCODING                          = 16061,
 
    /* Crypto Library Errors */
    VIX_E_CRYPTO_UNKNOWN_ALGORITHM               = 17000,
@@ -333,6 +343,8 @@ enum {
    VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME         = 3055,
    VIX_PROPERTY_JOB_RESULT_VM_VARIABLE_STRING         = 3056,
    VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED     = 3057,
+   VIX_PROPERTY_JOB_RESULT_FILE_SIZE                  = 3061,
+   VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME              = 3062,
 
    /* Event properties; these are sent in the moreEventInfo for some events. */
    VIX_PROPERTY_FOUND_ITEM_LOCATION                   = 4010,
@@ -616,8 +628,16 @@ enum {
  */
 
 #define VIX_ANONYMOUS_USER_NAME        "__VMware_Vix_Guest_User_Anonymous__"
-#define VIX_ADMINISTRATOR_USER_NAME    "__VMware_Vix_Guest_User_Admin__"
-#define VIX_CONSOLE_USER_NAME          "__VMware_Vix_Guest_Console_User__"
+
+/*
+ * VIX_ADMINISTRATOR_USER_NAME and VIX_CONSOLE_USER_NAME are no longer
+ * supported. If your code includes references to these constants please
+ * update your code to use a valid guest username and password when calling 
+ * VixVM_LoginInGuest(). 
+ */
+
+//#define VIX_ADMINISTRATOR_USER_NAME    "__VMware_Vix_Guest_User_Admin__"
+//#define VIX_CONSOLE_USER_NAME          "__VMware_Vix_Guest_Console_User__"
 
 
 /*

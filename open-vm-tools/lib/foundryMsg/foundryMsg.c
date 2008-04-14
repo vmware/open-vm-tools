@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -404,6 +404,93 @@ VixMsg_ValidateResponseMsg(void *vMsg,       // IN
 
    return VIX_OK;
 } // VixMsg_ValidateResponseMsg
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_ParseWriteVariableRequest --
+ *
+ *      Extract the value's name and the value itself from the request
+ *      message, while validating message.
+ *
+ *      The strings returned from this function just point to memory in
+ *      the message itself, so they must not be free()'d.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixMsg_ParseWriteVariableRequest(VixMsgWriteVariableRequest *msg,   // IN
+                                 char **valueName,                  // OUT
+                                 char **value)                      // OUT
+{
+   VixError err;
+   char *valueNameLocal = NULL;
+   char *valueLocal = NULL;
+   uint64 headerAndBodyLength;
+
+   if ((NULL == msg) || (NULL == valueName) || (NULL == value)) {
+      ASSERT(0);
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   *valueName = NULL;
+   *value = NULL;
+
+   /*
+    * In most cases we will have already called VixMsg_ValidateResponseMsg()
+    * on this request before, but call it here so that this function will
+    * always be sufficient to validate the request.
+    */
+   err = VixMsg_ValidateRequestMsg(msg,
+                                   msg->header.commonHeader.totalMessageLength);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   if (msg->header.commonHeader.totalMessageLength < sizeof *msg) {
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   headerAndBodyLength = (uint64) msg->header.commonHeader.headerLength
+                            + msg->header.commonHeader.bodyLength;
+
+   if (headerAndBodyLength < ((uint64) sizeof *msg
+                                 + msg->nameLength + 1
+                                 + msg->valueLength + 1)) {
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   valueNameLocal = ((char *) msg) + sizeof(*msg);
+   if ('\0' != valueNameLocal[msg->nameLength]) {
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   valueLocal = valueNameLocal + msg->nameLength + 1;
+   if ('\0' != valueLocal[msg->valueLength]) {
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   *valueName = valueNameLocal;
+   *value = valueLocal;
+   err = VIX_OK;
+
+abort:
+
+   return err;
+} // VixMsg_ParseWriteVariableRequest
 
 
 /*

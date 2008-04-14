@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -57,6 +57,7 @@
 #include "util_shared.h"
 #include "escape.h"
 #include "base64.h"
+#include "unicode.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -99,6 +100,12 @@ struct UtilBacktraceToBufferData {
    size_t           len;
 };
 #endif /* UTIL_BACKTRACE_USE_UNWIND */
+
+#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+static Unicode GetHomeDirectory(ConstUnicode name);
+static Unicode GetLoginName(int uid);
+#endif
+static Bool IsAlphaOrNum(char ch);
 
 
 /*
@@ -235,33 +242,6 @@ Util_Checksumv(void *iov,      // IN
    return checksum;
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * Util_ShortenPath --
- *
- *    Check the input path length agains the maxLength parameter. If
- *    the path is too long, prepend "..." and shorten it to the
- *    appropriate length.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Util_ShortenPath(char *dst,       // OUT
-                 const char *src, // IN
-                 int maxLength)   // IN
-{
-   if (strlen(src) >= maxLength - 4) {
-      Str_Strcpy(dst, "...", maxLength);
-      Str_Strcat(dst,
-                 src + strlen(src) - maxLength + 4,
-                 maxLength);
-   } else {
-      Str_Strcpy(dst, src, maxLength);
-   }
-}
 
 /*
  *-----------------------------------------------------------------------------
@@ -618,34 +598,20 @@ Util_BacktraceWithFunc(int bugNr, Util_OutputFunc outFunc, void *outFuncData)
  *----------------------------------------------------------------------
  */
 
-static char *
-UtilDoTildeSubst(char *user)  // IN - name of user
+static Unicode
+UtilDoTildeSubst(Unicode user)  // IN - name of user
 {
-   char *dir;
-   char *str = NULL;
+   Unicode str = NULL;
 
    if (*user == '\0') {
-      dir = getenv("HOME");
-      if (dir == NULL) {
+      str = Util_GetEnv(U("HOME"));
+      if (str == NULL) {
          Log("Could not expand environment variable HOME.\n");
-      } else {
-         str = strdup(dir);
-         if (str == NULL) {
-	    MSG_POST_NOMEM();
-	 }
       }
    } else {
-      struct passwd *pwPtr;
-      pwPtr = getpwnam(user);
-      if (pwPtr == NULL) {
-         endpwent();
-         Log("Could not get information for user '%s'.\n",user);
-      } else {
-         str = strdup(pwPtr->pw_dir);
-         if (str == NULL) {
-            MSG_POST_NOMEM();
-         }
-         endpwent();
+      str = GetHomeDirectory(user);
+      if (str == NULL) {
+         Log("Could not get information for user '%s'.\n", user);
       }
    }
    return str;
@@ -683,11 +649,11 @@ UtilDoTildeSubst(char *user)  // IN - name of user
 
 #define UTIL_MAX_PATH_CHUNKS 100
 
-char *
-Util_ExpandString(const char *fileName)
+Unicode
+Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
 {
-   char *copy = NULL;
-   char *result = NULL;
+   Unicode copy = NULL;
+   Unicode result = NULL;
    int nchunk = 0;
    char *chunks[UTIL_MAX_PATH_CHUNKS];
    int chunkSize[UTIL_MAX_PATH_CHUNKS];
@@ -697,20 +663,22 @@ Util_ExpandString(const char *fileName)
 
    ASSERT(fileName);
 
-   copy = strdup(fileName);
-   if (copy == NULL) {
-      Msg_Append(MSGID(util.ExpandStringNoMemForCopy)
-		 "Cannot allocate memory to expand \"%s\".\n", fileName);
-      goto out;
-   }
+   copy = Unicode_Duplicate(fileName);
 
    /*
     * quick exit
     */
-
-   if (fileName[0] != '~' && Str_Strchr(fileName, '$') == NULL) {
+   if (!Unicode_StartsWith(fileName, U("~")) && 
+       Unicode_Find(fileName, U("$")) == UNICODE_INDEX_NOT_FOUND) {
       return copy;
    }
+
+   /*
+    * XXX Because the rest part of code depends pretty heavily from character
+    *     pointer operations we want to leave it as-is and don't want to re-work
+    *     it with using unicode library. However it's acceptable only until our
+    *     Unicode type is utf-8 and until code below works correctly with utf-8.
+    */
 
    /*
     * Break string into nice chunks for separate expansion.
@@ -723,7 +691,7 @@ Util_ExpandString(const char *fileName)
       size_t len;
       if (*cp == '$') {
 	 char *p;
-	 for (p = cp + 1; isalnum(*p & 0xFF) || *p == '_'; p++) {
+	 for (p = cp + 1; IsAlphaOrNum(*p) || *p == '_'; p++) {
 	 }
 	 len = p - cp;
 #if !defined(_WIN32)
@@ -736,7 +704,7 @@ Util_ExpandString(const char *fileName)
       if (nchunk >= UTIL_MAX_PATH_CHUNKS) {
          Msg_Append(MSGID(util.expandStringTooManyChunks)
 		    "Filename \"%s\" has too many chunks.\n",
-		    fileName);
+		    UTF8(fileName));
 	 goto out;
       }
       chunks[nchunk] = cp;
@@ -774,9 +742,11 @@ Util_ExpandString(const char *fileName)
 
    for (i = 0; i < nchunk; i++) {
       char save;
-      char *expand;
+      Unicode expand = NULL;
       char buf[100];
-
+#if defined(_WIN32)
+      utf16_t bufW[100];
+#endif
       cp = chunks[i];
 
       if (*cp != '$' || chunkSize[i] == 1) {
@@ -797,26 +767,23 @@ Util_ExpandString(const char *fileName)
        * Others are just getenv().
        */
 
-      expand = getenv(cp + 1);
+      expand = Util_GetEnv(cp + 1);
       if (expand != NULL) {
       } else if (strcasecmp(cp + 1, "PID") == 0) {
 	 Str_Snprintf(buf, sizeof buf, "%"FMTPID, getpid());
-	 expand = buf;
+	 expand = Util_SafeStrdup(buf);
       } else if (strcasecmp(cp + 1, "USER") == 0) {
 #if !defined(_WIN32)
 	 int uid = getuid();
-	 struct passwd *p = getpwuid(uid);
-	 if (p != NULL) {
-	    expand = p->pw_name;
-	 }
+	 expand = GetLoginName(uid);
 #else
-	 int n = sizeof buf;
-	 if (GetUserName(buf, &n)) {
-	    expand = buf;
+	 DWORD n = ARRAYSIZE(bufW);
+	 if (GetUserNameW(bufW, &n)) {
+	    expand = Unicode_AllocWithUTF16(bufW);
 	 }
 #endif
-	 else {
-	    expand = "unknown";
+	 if (expand == NULL) {
+	    expand = Unicode_Duplicate(U("unknown"));
 	 }
       } else {
 	 Warning("Environment variable '%s' not defined in '%s'.\n",
@@ -826,7 +793,7 @@ Util_ExpandString(const char *fileName)
           * Strip off the env variable string from the pathname.
           */
 
-	 expand = "";
+	 expand = Unicode_Duplicate(U(""));
 
 #else    // _WIN32
 
@@ -844,7 +811,7 @@ Util_ExpandString(const char *fileName)
           */
 
          Str_Strcpy(buf, cp, 100);
-         expand = buf;
+         expand = Unicode_AllocWithUTF8(buf);
 #endif
       }
 
@@ -852,11 +819,11 @@ Util_ExpandString(const char *fileName)
 
       ASSERT(expand != NULL);
       ASSERT(!freeChunk[i]);
-      chunks[i] = strdup(expand);
+      chunks[i] = expand;
       if (chunks[i] == NULL) {
 	 Msg_Append(MSGID(util.ExpandStringNoMemForChunk)
 		    "Cannot allocate memory to expand \"%s\" in \"%s\".\n",
-		    expand, fileName);
+		    expand, UTF8(fileName));
 	 goto out;
       }
       chunkSize[i] = strlen(expand);
@@ -877,7 +844,7 @@ Util_ExpandString(const char *fileName)
    if (result == NULL) {
       Msg_Append(MSGID(util.expandStringNoMemForResult)
 		 "Cannot allocate memory for the expansion of \"%s\".\n",
-		 fileName);
+		 UTF8(fileName));
       goto out;
    }
    cp = result;
@@ -1440,12 +1407,6 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
       return NULL;
    }
    File_GetPathName(source, &path, &base);
-   if (path == NULL || base == NULL) {
-      Warning("Util_DeriveFileName couldn't get path/base\n");
-      free(path);
-      free(base);
-      goto end;
-   }
 
    /* If replacing name and extension */
    if (name != NULL) {
@@ -1513,7 +1474,6 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
    }
    free(path);
    free(base);
-end:
    return returnResult;
 }
 
@@ -1647,5 +1607,140 @@ Util_SeparateStrings(char *source,              // IN
    return stringVector;
 }
 
-
 #endif /* !defined(N_PLAT_NLM) */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_GetEnv --
+ *
+ *      Unicode wrapper for posix getenv call.
+ *
+ * Results:
+ *      Returns value of an environment variable or NULL if it fails.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Unicode
+Util_GetEnv(ConstUnicode name) // IN: environment variable name
+{
+   char *tmpname = NULL;
+   char *envnam = NULL;
+
+   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+
+   envnam = getenv(tmpname);
+   free(tmpname);
+
+   if (!envnam) {
+      return NULL;
+   }
+   return Unicode_Alloc(envnam, STRING_ENCODING_DEFAULT);
+}
+
+
+#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetHomeDirectory --
+ *
+ *      Unicode wrapper for posix getpwnam call for working directory.
+ *
+ * Results:
+ *      Returns initial working directory or NULL if it fails.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Unicode
+GetHomeDirectory(ConstUnicode name) // IN: user name
+{
+   char *tmpname = NULL;
+   struct passwd *pw;
+   Unicode ret = NULL;
+
+   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+
+   pw = getpwnam(tmpname);
+   free(tmpname);
+
+   if (!pw || (pw && !pw->pw_dir)) {
+      endpwent();
+      return NULL;
+   }
+   ret =  Unicode_Alloc(pw->pw_dir, STRING_ENCODING_DEFAULT);
+   endpwent();
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetLoginName --
+ *
+ *      Unicode wrapper for posix getpwnam call for working directory.
+ *
+ * Results:
+ *      Returns user's login name or NULL if it fails.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Unicode
+GetLoginName(int uid) //IN: user id
+{
+   struct passwd *pw = NULL;
+
+   pw = getpwuid(uid);
+
+   if (!pw || (pw && !pw->pw_name)) {
+      return NULL;
+   }
+   return Unicode_Alloc(pw->pw_name, STRING_ENCODING_DEFAULT);
+}
+
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * IsAlphaOrNum --
+ *
+ *      Checks if character is a numeric digit or a letter of the 
+ *      english alphabet.
+ *
+ * Results:
+ *      Returns TRUE if character is a digit or a letter, FALSE otherwise.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+IsAlphaOrNum(char ch) //IN
+{
+   if ((ch >= '0' && ch <= '9') ||
+       (ch >= 'a' && ch <= 'z') ||
+       (ch >= 'A' && ch <= 'Z')) {
+      return TRUE;
+   } else {
+      return FALSE;
+   }
+}

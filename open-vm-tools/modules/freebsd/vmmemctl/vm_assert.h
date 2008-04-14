@@ -98,8 +98,6 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
  * ASSERT() is special cased because of interaction with Windows DDK.
  */
 
-#define IMPLIES(a,b) (!(a) || (b))
-
 #if defined VMX86_DEBUG || defined ASSERT_ALWAYS_AVAILABLE
 #undef ASSERT
 #define ASSERT(cond) \

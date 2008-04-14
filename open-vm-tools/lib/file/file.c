@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -43,6 +43,7 @@
 #include "msg.h"
 #include "uuid.h"
 #include "config.h"
+#include "posix.h"
 #include "file.h"
 #include "fileIO.h"
 #include "fileInt.h"
@@ -148,36 +149,6 @@ File_IsDirectory(ConstUnicode pathName)  // IN:
 
 
 /*
- *----------------------------------------------------------------------------
- *
- * File_IsCharDevice --
- *
- *      This function checks whether the given file is a char device
- *      and return TRUE in such case. This is often useful on Windows
- *      where files like COM?, LPT? must be differentiated from "normal"
- *      disk files.
- *
- * Results:
- *      TRUE    is a character device
- *      FALSE   is not a character device or error
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-File_IsCharDevice(ConstUnicode pathName)  // IN:
-{
-   FileData fileData;
-
-   return (FileAttributes(pathName, &fileData) == 0) &&
-           (fileData.fileType == FILE_TYPE_CHARDEVICE);
-}
-
-
-/*
  *----------------------------------------------------------------------
  *
  * File_Unlink --
@@ -210,7 +181,8 @@ File_Unlink(ConstUnicode pathName)  // IN:
  *
  * File_GetModTime --
  *
- *      Get the last modification time of a file.
+ *      Get the last modification time of a file and return it. The time
+ *      unit is seconds since the POSIX/UNIX/Linux epoch.
  *
  * Results:
  *      Last modification time of file or -1 if error.
@@ -224,13 +196,16 @@ File_Unlink(ConstUnicode pathName)  // IN:
 int64
 File_GetModTime(ConstUnicode pathName)  // IN:
 {
-   FileData fileData;
+   int64 theTime;
+   struct stat statbuf;
 
-   if (FileAttributes(pathName, &fileData) != 0) {
-      return -1;
+   if (Posix_Stat(pathName, &statbuf) == 0) {
+      theTime = statbuf.st_mtime;
+   } else {
+      theTime = -1;
    }
 
-   return fileData.fileModificationTime;
+   return theTime;
 }
 
 
@@ -931,6 +906,66 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ *  File_StripSlashes --
+ *
+ *      Strip trailing slashes from the end of a path.
+ *
+ * Results:
+ *      The stripped filename.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Unicode
+File_StripSlashes(ConstUnicode path) // IN
+{
+   Unicode volume, dir, base;
+
+   /*
+    * Degenerate cases.
+    */
+
+
+   /*
+    * SplitName handles all drive letter/UNC/whatever cases, all we
+    * have to do is make sure the dir part is stripped of slashes if
+    * there isn't a base part.
+    */
+
+   File_SplitName(path, &volume, &dir, &base);
+
+   if (!Unicode_IsEmpty(dir) && Unicode_IsEmpty(base)) {
+      char *dir2 = Unicode_GetAllocBytes(dir, STRING_ENCODING_UTF8);
+      size_t i = strlen(dir2);
+
+      /*
+       * Don't strip first slash on Windows, since we want at least
+       * one slash to trail a drive letter/colon or UNC specifier.
+       */
+#ifdef _WIN32
+      while ((i > 1) && (('/' == dir2[i - 1]) ||
+                         ('\\' == dir2[i - 1]))) {
+#else
+      while ((i > 0) && ('/' == dir2[i - 1])) {
+#endif
+         i--;
+      }
+
+      free(dir);
+      dir = Unicode_AllocWithLength(dir2, i, STRING_ENCODING_UTF8);
+      free(dir2);
+   }
+
+   return Unicode_Join(volume, dir, base, NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  File_MakeTempEx --
  *
  *      Create a temporary file and, if successful, return an open file
@@ -978,19 +1013,16 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
 
    for (var = 0; var < 0xFFFFFFFF; var++) {
       Unicode temp;
-      char string[16];
 
       /* construct suffixed pathname to use */
       Unicode_Free(path);
 
-      Str_Sprintf(string, sizeof string, "%d", var);
-      temp = Unicode_Alloc(string, STRING_ENCODING_US_ASCII);
+      temp = Unicode_Format("%d", var);
+      ASSERT_MEM_ALLOC(temp);
       path = Unicode_Append(basePath, temp);
       Unicode_Free(temp);
 
-      fd = FileIO_PosixOpen(path,
-                            O_CREAT | O_EXCL | O_BINARY | O_RDWR,
-                            0600);
+      fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
 
       if (fd != -1) {
          *presult = path;
@@ -1635,7 +1667,7 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)
    Unicode_Free(volume);
 
    if (index >= length) {
-      return FALSE;
+      return File_IsDirectory(pathName);
    }
 
    /*
@@ -1916,7 +1948,7 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
  *          If the extension is not found the newExtension is just appended.
  *
  * Results:
- *      The name with newExtension added to it. The caller is resposible to
+ *      The name with newExtension added to it. The caller is responsible to
  *      free it when they are done with it.
  *
  * Side effects:
@@ -1931,41 +1963,58 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
                       uint32 numExtensions,       // IN:
                       ...)                        // IN:
 {
+   Unicode path;
+   Unicode base;
    Unicode result;
    va_list arguments;
    UnicodeIndex index;
-
+   
    ASSERT(pathName);
    ASSERT(newExtension);
    ASSERT(Unicode_StartsWith(newExtension, U(".")));
 
-   index = Unicode_FindLast(pathName, U("."));
+   File_GetPathName(pathName, &path, &base);
 
-   if (index == UNICODE_INDEX_NOT_FOUND) {
-      result = Unicode_Append(pathName, newExtension);
-   } else {
-      uint32 i;
-      Unicode temp;
+   index = Unicode_FindLast(base, U("."));
 
-      va_start(arguments, numExtensions);
+   if (index != UNICODE_INDEX_NOT_FOUND) {
+      if (numExtensions) {
+         uint32 i;
 
-      for (i = 0; i < numExtensions ; i++) {
-         Unicode oldExtension = va_arg(arguments, Unicode);
+         /*
+          * Only truncate the old extension from the base if it exists in
+          * in the valid extensions list.
+          */
 
-         ASSERT(Unicode_StartsWith(oldExtension, U(".")));
+         va_start(arguments, numExtensions);
 
-         if (Unicode_CompareRange(pathName, index, -1,
-                                  oldExtension, 0, -1, FALSE) == 0) {
-            break;
+         for (i = 0; i < numExtensions ; i++) {
+            Unicode oldExtension = va_arg(arguments, Unicode);
+
+            ASSERT(Unicode_StartsWith(oldExtension, U(".")));
+
+            if (Unicode_CompareRange(base, index, -1,
+                                     oldExtension, 0, -1, FALSE) == 0) {
+               base = Unicode_Truncate(base, index); // remove '.'
+               break;
+            }
          }
+
+         va_end(arguments);
+      } else {
+         /* Always truncate the old extension. */
+         base = Unicode_Truncate(base, index); // remove '.'
       }
-
-      va_end(arguments);
-
-      temp = Unicode_Substr(pathName, 0, index);
-      result = Unicode_Append(temp, newExtension);
-      Unicode_Free(temp);
    }
+
+   if (Unicode_IsEmpty(path)) {
+      result = Unicode_Append(base, newExtension);
+   } else {
+      result = Unicode_Join(path, U(DIRSEPS), base, newExtension, NULL);
+   }
+
+   Unicode_Free(path);
+   Unicode_Free(base);
 
    return result;
 }

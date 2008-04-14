@@ -112,8 +112,9 @@ DentryOpRevalidate(struct dentry *dentry,  // IN: dentry revalidating
       LOG(4, "DentryOpRevalidate: [%s] no longer exists\n", iinfo->name);
       return 0;
    }
-   ret = actualNd.dentry && actualNd.dentry->d_inode;
-   path_release(&actualNd);
+   ret = compat_vmw_nd_to_dentry(actualNd) &&
+         compat_vmw_nd_to_dentry(actualNd)->d_inode;
+   compat_path_release(&actualNd);
 
    LOG(8, "DentryOpRevalidate: [%s] %s revalidated\n",
        iinfo->name, ret ? "" : "not");

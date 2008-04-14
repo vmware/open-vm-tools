@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -130,8 +130,8 @@ static int32 gVmxCopyPasteVersion = 1;
 static Bool gWaitingOnGuestSelection = FALSE;
 static char gGuestSelPrimaryBuf[MAX_SELECTION_BUFFER_LENGTH];
 static char gGuestSelClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
-static uint32 gGuestSelPrimaryTime = 0;
-static uint32 gGuestSelClipboardTime = 0;
+static uint64 gGuestSelPrimaryTime = 0;
+static uint64 gGuestSelClipboardTime = 0;
 static char gHostClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
 
 /* Guest->Host state. */
@@ -371,14 +371,32 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
    /* Try to get clipboard or selection timestamp. */
    if (selection_data->target == GDK_SELECTION_TYPE_TIMESTAMP) {
       if (selection_data->selection == GDK_SELECTION_PRIMARY) {
-         gGuestSelPrimaryTime = *(uint32 *)selection_data->data;
-         Debug("CopyPasteSelectionReceivedCB: Got pri time [%d]\n",
-               gGuestSelPrimaryTime);
+         if (selection_data->length == 4) {
+            gGuestSelPrimaryTime = *(uint32 *)selection_data->data;
+            Debug("CopyPasteSelectionReceivedCB: Got pri time [%"FMT64"u]\n",
+                  gGuestSelPrimaryTime);
+         } else if (selection_data->length == 8) {
+            gGuestSelPrimaryTime = *(uint64 *)selection_data->data;
+            Debug("CopyPasteSelectionReceivedCB: Got pri time [%"FMT64"u]\n",
+                  gGuestSelPrimaryTime);
+         } else {
+            Debug("CopyPasteSelectionReceivedCB: Unknown pri time. Size %d\n",
+                  selection_data->length);
+         }
       }
       if (selection_data->selection == GDK_SELECTION_CLIPBOARD) {
-         gGuestSelClipboardTime = *(uint32 *)selection_data->data;
-         Debug("CopyPasteSelectionReceivedCB: Got clip time [%d]\n",
-               gGuestSelClipboardTime);
+         if (selection_data->length == 4) {
+            gGuestSelClipboardTime = *(uint32 *)selection_data->data;
+            Debug("CopyPasteSelectionReceivedCB: Got clip time [%"FMT64"u]\n",
+                  gGuestSelClipboardTime);
+         } else if (selection_data->length == 8) {
+            gGuestSelClipboardTime = *(uint64 *)selection_data->data;
+            Debug("CopyPasteSelectionReceivedCB: Got clip time [%"FMT64"u]\n",
+                  gGuestSelClipboardTime);
+         } else {
+            Debug("CopyPasteSelectionReceivedCB: Unknown clip time. Size %d\n",
+                  selection_data->length);
+         }
       }
       goto exit;
    }
@@ -419,7 +437,7 @@ CopyPasteSelectionReceivedCB(GtkWidget *widget,                // IN: unused
       return;
    }
 
-   /* 
+   /*
     * String in backdoor communication is 4 bytes by 4 bytes, so the len
     * should be aligned to 4;
     */
@@ -1497,7 +1515,7 @@ CopyPasteHGSetFileList(char const **result,     // OUT
        * to access the file since it will enable vmblock to block that
        * application's progress if necessary.
        */
-      DnD_GetLastDirName(gFileRoot, strlen(gFileRoot), &stagingDirName);
+      stagingDirName = DnD_GetLastDirName(gFileRoot);
       if (!stagingDirName) {
          Debug("CopyPasteHGSetFileList: error construct stagingDirName\n");
          retStr = "error construct stagingDirName";

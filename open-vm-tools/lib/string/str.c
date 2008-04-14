@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -35,6 +35,7 @@
 #ifdef HAS_BSD_PRINTF
 #include "bsd_output.h"
 #endif
+#include "codeset.h"
 
 #if defined _WIN32 && !defined HAS_BSD_PRINTF
 #define vsnprintf _vsnprintf
@@ -99,7 +100,8 @@ Str_Sprintf(char *buf,       // OUT
  *	terminate character), -1 on overflow (insufficient space for
  *	null terminate is considered overflow)
  *
- *	NB: on overflow the buffer WILL be null terminated
+ *	NB: on overflow the buffer WILL be null terminated at the last
+ *	UTF-8 code point boundary within the buffer's bounds.
  *
  * Side effects:
  *	None
@@ -140,11 +142,11 @@ Str_Vsnprintf(char *str,          // OUT
     * those cases.
     */
 
-#if defined _WIN32 && !defined HAS_BSD_PRINTF
    if ((retval < 0 || retval >= size) && size > 0) {
-      str[size - 1] = '\0';
+      /* Find UTF-8 code point boundary and place NUL termination there */
+      int trunc = CodeSet_Utf8FindCodePointBoundary(str, size - 1);
+      str[trunc] = '\0';
    }
-#endif
    if (retval >= size) {
       return -1;
    }
@@ -397,7 +399,39 @@ Str_Asprintf(size_t *length,       // OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * Str_Vasprintf --
+ * Str_SafeAsprintf --
+ *
+ *    Same as Str_SafeVasprintf(), but parameters are passed inline
+ *
+ * Results:
+ *    Same as Str_SafeVasprintf()
+ *
+ * Side effects:
+ *    Same as Str_SafeVasprintf()
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Str_SafeAsprintf(size_t *length,       // OUT
+                 const char *format,   // IN
+                 ...)                  // IN
+{
+   va_list arguments;
+   char *result;
+   
+   va_start(arguments, format);
+   result = Str_SafeVasprintf(length, format, arguments);
+   va_end(arguments);
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrVasprintf_Internal --
  *
  *    Allocate and format a string, using the GNU libc way to specify the
  *    format (i.e. optionally allow the use of positional parameters)
@@ -405,8 +439,10 @@ Str_Asprintf(size_t *length,       // OUT
  * Results:
  *
  *    The allocated string on success (if 'length' is not NULL, *length
- *       is set to the length of the allocated string)
- *    NULL on failure
+ *    is set to the length of the allocated string).
+ *
+ *    ASSERTs or returns NULL on failure, depending on the value of
+ *    'assertOnFailure'.
  *
  * Side effects:
  *    None
@@ -414,16 +450,16 @@ Str_Asprintf(size_t *length,       // OUT
  *-----------------------------------------------------------------------------
  */
 
-char *
-Str_Vasprintf(size_t *length,       // OUT
-              const char *format,   // IN
-              va_list arguments)    // IN
+static char *
+StrVasprintf_Internal(size_t *length,       // OUT
+                      const char *format,   // IN
+                      va_list arguments,    // IN
+                      Bool assertOnFailure) // IN
 {
-   char *buf;
+   char *buf = NULL;
    int ret;
 
 #ifdef HAS_BSD_PRINTF
-   buf = NULL;
    #ifdef __linux__
       {
 	 va_list aq;
@@ -444,10 +480,7 @@ Str_Vasprintf(size_t *length,       // OUT
     * but not vasprintf (e.g. in Win32 or in drivers). We just fallback
     * to vsnprintf, doubling if we didn't have enough space.
     */
-   size_t bufSize;
-
-   bufSize = strlen(format);
-   buf = NULL;
+   size_t bufSize = strlen(format);
 
    do {
       /*
@@ -459,10 +492,10 @@ Str_Vasprintf(size_t *length,       // OUT
 
       bufSize *= 2;
       newBuf = realloc(buf, bufSize);
-
       if (!newBuf) {
          free(buf);
-         return NULL;
+         buf = NULL;
+         goto exit;
       }
 
       buf = newBuf;
@@ -471,14 +504,71 @@ Str_Vasprintf(size_t *length,       // OUT
 #endif
 
    if (ret < 0) {
-      return NULL;
+      buf = NULL;
+      goto exit;
    }
    if (length != NULL) {
       *length = ret;
    }
+
+  exit:
+   if (assertOnFailure) {
+      ASSERT_NOT_IMPLEMENTED(buf);
+   }
    return buf;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Str_Vasprintf --
+ *
+ *    See StrVasprintf_Internal.
+ *
+ * Results:
+ *    See StrVasprintf_Internal.
+ *    Returns NULL on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Str_Vasprintf(size_t *length,       // OUT
+              const char *format,   // IN
+              va_list arguments)    // IN
+{
+   return StrVasprintf_Internal(length, format, arguments, FALSE);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Str_SafeVasprintf --
+ *
+ *    See StrVasprintf_Internal.
+ *
+ * Results:
+ *    See StrVasprintf_Internal.
+ *    Calls ASSERT_NOT_IMPLEMENTED on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Str_SafeVasprintf(size_t *length,       // OUT
+                  const char *format,   // IN
+                  va_list arguments)    // IN
+{
+   return StrVasprintf_Internal(length, format, arguments, TRUE);
+}
 
 #if defined(_WIN32) || defined(GLIBC_VERSION_22)
 
@@ -748,11 +838,154 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * Str_Mbscpy--
+ *
+ *    Wrapper for _mbscpy that checks for buffer overruns.
+ *
+ * Results:
+ *    Same as strcpy.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+unsigned char *
+Str_Mbscpy(char *buf,                // OUT
+           const char *src,          // IN
+           size_t maxSize)           // IN
+{
+   uint32 *stack = (uint32 *)&buf;
+   size_t len;
+
+   len = strlen((const char *) src);
+   if (len >= maxSize) {
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+   }
+   return memcpy(buf, src, len + 1);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Str_Mbscat --
+ *
+ *    Wrapper for _mbscat that checks for buffer overruns.
+ *
+ *    The Microsoft _mbscat may or may not deal with tailing
+ *    partial multibyte sequence in buf.  We don't.
+ *
+ * Results:
+ *    Same as strcat.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+unsigned char *
+Str_Mbscat(char *buf,                // IN-OUT
+           const char *src,          // IN
+           size_t maxSize)           // IN
+{
+   uint32 *stack = (uint32 *)&buf;
+   size_t bufLen;
+   size_t srcLen;
+
+   bufLen = strlen((const char *) buf);
+   srcLen = strlen((const char *) src);
+
+   /* The first comparison checks for numeric overflow */
+   if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
+      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+   }
+
+   memcpy(buf + bufLen, src, srcLen + 1);
+
+   return (unsigned char *)buf;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrVaswprintf_Internal --
+ *
+ *    Allocate and format a string.
+ *
+ * Results:
+ *    The allocated string on success (if 'length' is not NULL, *length
+ *    is set to the length of the allocated string, in wchat_ts)
+ *
+ *    ASSERTs or returns NULL on failure, depending on the value of
+ *    'assertOnFailure'.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static wchar_t *
+StrVaswprintf_Internal(size_t *length,         // OUT
+                       const wchar_t *format,  // IN
+                       va_list arguments,      // IN
+                       Bool assertOnFailure)   // IN
+{
+   size_t bufSize;
+   wchar_t *buf = NULL;
+   int retval;
+
+   bufSize = wcslen(format);
+
+   do {
+      /*
+       * Initial allocation of wcslen(format) * 2. Should this be tunable?
+       * XXX Yes, this could overflow and spin forever when you get near 2GB
+       *     allocations. I don't care. --rrdharan
+       */
+      wchar_t *newBuf;
+
+      bufSize *= 2;
+      newBuf = realloc(buf, bufSize*sizeof(wchar_t));
+      if (!newBuf) {
+         free(buf);
+         buf = NULL;
+         goto exit;
+      }
+
+      buf = newBuf;
+      retval = Str_Vsnwprintf(buf, bufSize, format, arguments);
+
+   } while (retval == -1);
+
+   if (length) {
+      *length = retval;
+   }
+
+   /*
+    * Try to trim the buffer here to save memory?
+    */
+
+  exit:
+   if (assertOnFailure) {
+      ASSERT_NOT_IMPLEMENTED(buf);
+   }
+   return buf;
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * Str_Aswprintf --
  *
- *    Same as Str_Vaswprintf(), but parameters are passed inline
+ *    Same as Str_Vaswprintf(), but parameters are passed inline.
  *
  * Results:
  *    Same as Str_Vaswprintf()
@@ -784,12 +1017,11 @@ Str_Aswprintf(size_t *length,         // OUT
  *
  * Str_Vaswprintf --
  *
- *    Allocate and format a string.
+ *    See StrVaswprintf_Internal.
  *
  * Results:
- *    The allocated string on success (if 'length' is not NULL, *length
- *       is set to the length of the allocated string, in wchat_ts)
- *    NULL on failure
+ *    See StrVaswprintf_Internal.
+ *    Returns NULL on failure.
  *
  * Side effects:
  *    None
@@ -802,42 +1034,65 @@ Str_Vaswprintf(size_t *length,         // OUT
                const wchar_t *format,  // IN
                va_list arguments)      // IN
 {
-   size_t bufSize;
-   wchar_t *buf;
-   int retval;
+   return StrVaswprintf_Internal(length, format, arguments, FALSE);
+}
 
-   bufSize = wcslen(format);
-   buf = NULL;
 
-   do {
-      /*
-       * Initial allocation of wcslen(format) * 2. Should this be tunable?
-       * XXX Yes, this could overflow and spin forever when you get near 2GB
-       *     allocations. I don't care. --rrdharan
-       */
-      wchar_t *newBuf;
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Str_SafeAswprintf --
+ *
+ *    Same as Str_SafeVaswprintf(), but parameters are passed inline.
+ *
+ * Results:
+ *    Same as Str_SafeVaswprintf()
+ *
+ * Side effects:
+ *    Same as Str_SafeVaswprintf()
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-      bufSize *= 2;
-      newBuf = realloc(buf, bufSize*sizeof(wchar_t));
+wchar_t *
+Str_SafeAswprintf(size_t *length,         // OUT
+                  const wchar_t *format,  // IN
+                  ...)                    // IN
+{
+   va_list arguments;
+   wchar_t *result;
+   
+   va_start(arguments, format);
+   result = Str_SafeVaswprintf(length, format, arguments);
+   va_end(arguments);
 
-      if (!newBuf) {
-         free(buf);
-         return NULL;
-      }
+   return result;
+}
 
-      buf = newBuf;
-      retval = Str_Vsnwprintf(buf, bufSize, format, arguments);
 
-   } while (retval == -1);
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Str_SafeVaswprintf --
+ *
+ *    See StrVaswprintf_Internal.
+ *
+ * Results:
+ *    See StrVaswprintf_Internal.
+ *    Calls ASSERT_NOT_IMPLEMENTED on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-   if (length) {
-      *length = retval;
-   }
-
-   /*
-    * Try to trim the buffer here to save memory?
-    */
-   return buf;
+wchar_t *
+Str_SafeVaswprintf(size_t *length,         // OUT
+                   const wchar_t *format,  // IN
+                   va_list arguments)      // IN
+{
+   return StrVaswprintf_Internal(length, format, arguments, TRUE);
 }
 
 #endif // defined(_WIN32) || defined(GLIBC_VERSION_22)
@@ -847,7 +1102,7 @@ Str_Vaswprintf(size_t *length,         // OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * _Str_ToLower --
+ * Str_ToLower --
  *
  *      Convert a string to lowercase, in-place. Hand-rolled, for non-WIN32.
  *
@@ -863,7 +1118,7 @@ Str_Vaswprintf(size_t *length,         // OUT
  */
 
 char *
-_Str_ToLower(char *string)  // IN
+Str_ToLower(char *string)  // IN
 {
    char *c = string;
 
@@ -879,7 +1134,7 @@ _Str_ToLower(char *string)  // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * _Str_ToUpper --
+ * Str_ToUpper --
  *
  *      Convert a string to uppercase, in-place. Hand-rolled, for non-WIN32.
  *
@@ -895,7 +1150,7 @@ _Str_ToLower(char *string)  // IN
  */
 
 char *
-_Str_ToUpper(char *string)  // IN
+Str_ToUpper(char *string)  // IN
 {
    char *c = string;
 

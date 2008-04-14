@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -210,7 +210,18 @@
 #define VIM_API_VERSION "2.5.0"
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "1.5.0"
-#define TOOLS_VERSION "2008.02.13"
+
+// VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
+#define VMRC_PLUGIN_VERSION "2.5.0"
+#define VMRC_PLUGIN_VERSION_COMMAS 2,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+
+/*
+ * When setting the Tools product version, please use the string corresponding
+ * to TOOLS_VERSION_CURRENT_STR from vm_tools_version.h.
+ *
+ * XXX: The extract-macro script should be updated to handle this special case.
+ */
+#define TOOLS_VERSION "2008.04.14"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -325,7 +336,6 @@
 
 #define ACE_MGMT_SERVER_VERSION_STRING_FOR_LICENSE "2.0"
 
-
 /*
  * The configuration file version string should be changed
  * whenever we make incompatible changes to the config file
@@ -355,6 +365,7 @@
 #define CONFIG_VERSION_UNDOPOINT        "7"     /* Undopoint paradigm (WS40) */
 #define CONFIG_VERSION_WS4              "7"     /* config version of WS4.0.x */
 #define CONFIG_VERSION_MSNAP            "8"     /* Multiple Snapshots */
+#define CONFIG_VERSION_WS5              "8"     /* WS5.0 */
 
 #define VMVISOR_VERSION "99.99.99"
 

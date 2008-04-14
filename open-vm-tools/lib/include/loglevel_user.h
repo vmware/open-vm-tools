@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -76,7 +76,6 @@
    LOGLEVEL_VAR(pcibridge), \
    LOGLEVEL_VAR(vide), \
    LOGLEVEL_VAR(hostonly), \
-   LOGLEVEL_VAR(timeTracker), \
    LOGLEVEL_VAR(backdoorAbsMouse), \
    LOGLEVEL_VAR(oprom), \
    LOGLEVEL_VAR(http), \
@@ -92,6 +91,7 @@
    LOGLEVEL_VAR(aioWin32Completion), \
    LOGLEVEL_VAR(aioLinux), \
    LOGLEVEL_VAR(aioGeneric), \
+   LOGLEVEL_VAR(aioHttp), \
    LOGLEVEL_VAR(cdrom), \
    LOGLEVEL_VAR(checksum), \
    \
@@ -182,9 +182,10 @@
    LOGLEVEL_VAR(automation), \
    LOGLEVEL_VAR(oemDevice), \
    LOGLEVEL_VAR(cptOps), \
-   LOGLEVEL_VAR(vprobeExec), \
-   LOGLEVEL_VAR(vp), \
+   LOGLEVEL_VAR(VProbeExec), \
+   LOGLEVEL_VAR(VProbeVP), \
    LOGLEVEL_VAR(devicePowerOn), \
+   LOGLEVEL_VAR(vmxvmdbCallbacks), \
 
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -40,6 +40,7 @@ extern "C" {
 #ifdef _WIN32
 #   include <windows.h>
 #   include "win95.h"
+#   include "win32u.h"
 #endif
 
 
@@ -355,7 +356,7 @@ ToolsDaemonTimeSyncLoop(void *clientData) // IN
  *-----------------------------------------------------------------------------
  */
 
-#if defined(_WIN32) && !defined(SERVICE9X)
+#if defined(_WIN32)
 static Bool
 ToolsDaemonDisableWinTimeDaemon(void)
 {
@@ -477,7 +478,7 @@ ToolsDaemonStartStopTimeSyncLoop(ToolsDaemon_Data *data, // IN
          return FALSE;
       }
 
-#if defined(_WIN32) && !defined(SERVICE9X)
+#if defined(_WIN32)
       Debug("Daemon: Attempting to disable Windows Time daemon\n");
       if (!ToolsDaemonDisableWinTimeDaemon()) {
          Debug("Daemon: Failed to disable Windows Time daemon\n");
@@ -845,18 +846,6 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
 
          data->stateChgInProgress = (GuestOsState) stateChangeCmdTable[i].id;
 
-#ifdef _WIN32
-         /*
-          * Skip scripts on win95 altogether b/c they don't exit properly
-          * on some distributions of it (command window stays open)
-          */
-         if (isWin95()) {
-            Debug("Skipping state change script on win 95\n");
-            ToolsDaemonStateChangeDone(TRUE, data);
-            return RpcIn_SetRetVals(result, resultLen, "", TRUE);
-         }
-#endif
-
          script = GuestApp_GetDictEntry(*data->pConfDict,
                                         stateChgConfNames[stateChangeCmdTable[i].id]);
          ASSERT(script);
@@ -872,21 +861,20 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
          scriptCmd = Str_Asprintf(NULL, "(%s) 2>&1 >> %s",
                                   script, data->execLogPath);
 #else
-         /* Use different command shells on NT/9x. */
-         if (isWinNTFamily()) {
-            char systemDir[1024];
+         {
+            char systemDir[1024 * 3];
 
-            GetSystemDirectory(systemDir, sizeof(systemDir));
+            Win32U_GetSystemDirectory(systemDir, sizeof systemDir);
             scriptCmd = Str_Asprintf(NULL, "%s\\cmd.exe /c \"%s\"", systemDir, script);
-         } else {
-            char windowsDir[1024];
-
-            GetWindowsDirectory(windowsDir, sizeof(windowsDir));
-            scriptCmd = Str_Asprintf(NULL, "%s\\command.com /c \"%s\"",
-                                     windowsDir, script);
          }
 #endif
 
+         if (scriptCmd == NULL) {
+            Debug("Could not format the cmd to run scripts\n");
+            return RpcIn_SetRetVals(result, resultLen,
+                                    "Could not format cmd to run scritps",
+                                    FALSE);
+         }
          data->asyncProc = ProcMgr_ExecAsync(scriptCmd, NULL);
 
          if (data->asyncProc) {
@@ -964,6 +952,10 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
       Debug("ToolsDaemonTcloCapReg: Unable to register display topology set "
             "capability\n");
    }
+   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_global_offset 1")) {
+      Debug("ToolsDaemonTcloCapReg: Unable to register display global offset "
+            "capability\n");
+   }
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.color_depth_set 1")) {
       Debug("ToolsDaemonTcloCapReg: Unable to register color depth set "
             "capability\n");
@@ -1002,29 +994,39 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
  * defined when you build the NetWare Tools.
  */
 #if (defined(_WIN32) || defined(linux)) && !defined(N_PLAT_NLM)
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.auto_upgrade 2")) {
-      Debug("ToolsDaemonTcloCapReg: Unable to register auto-upgrading capability.\n");
-   }
+   {
+      if (!RpcOut_sendOne(NULL, NULL, "tools.capability.auto_upgrade 2")) {
+         Debug("ToolsDaemonTcloCapReg: Unable to register "
+               "auto-upgrading capability.\n");
+      }
 
-   if (guestTempDirectory == NULL) {
+      if (guestTempDirectory == NULL) {
 #ifdef _WIN32
-      guestTempDirectory = File_GetTmpDir(FALSE);
+         guestTempDirectory = File_GetTmpDir(FALSE);
 #else
-      guestTempDirectory = Util_GetSafeTmpDir(FALSE);
+         guestTempDirectory = Util_GetSafeTmpDir(FALSE);
 #endif
-   }
+      }
 
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.guest_temp_directory 1 %s",
-                       guestTempDirectory)) {
-      Debug("ToolsDaemonTcloCapReg: Unable to register guest temp directory capability.\n");
-   }
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.guest_conf_directory %s",
-                       GuestApp_GetConfPath())) {
-      Debug("ToolsDaemonTcloCapReg: Unable to register guest conf directory capability.\n");
+      if (!RpcOut_sendOne(NULL, NULL, "tools.capability.guest_temp_directory 1 %s",
+                          guestTempDirectory)) {
+         Debug("ToolsDaemonTcloCapReg: Unable to register guest temp "
+               "directory capability.\n");
+      }
    }
 #endif
 
 #if !defined(N_PLAT_NLM)
+   {
+      char *confPath = GuestApp_GetConfPath();
+      if (!RpcOut_sendOne(NULL, NULL, "tools.capability.guest_conf_directory %s",
+                          confPath ? confPath : "")) {
+         Debug("ToolsDaemonTcloCapReg: Unable to register guest conf "
+               "directory capability.\n");
+      }
+      free(confPath);
+   }
+
    /* 
     * Send the uptime here so that the VMX can detect soft resets. This must be
     * sent before the Tools version RPC since the version RPC handler uses the
@@ -1419,8 +1421,8 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
 
    ASSERT(pConfDict);
    ASSERT(*pConfDict);
-   ASSERT(haltCB);
-   ASSERT(rebootCB);
+   ASSERT(haltCB != NULL);
+   ASSERT(rebootCB != NULL);
 
    data = (ToolsDaemon_Data *) calloc(1, sizeof(ToolsDaemon_Data));
    ASSERT_MEM_ALLOC(data);
@@ -1438,13 +1440,11 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
    data->resetCBData = resetCBData;
    data->timeSyncPeriod = 0;
 
-   if (!VmCheck_IsVirtualWorld()) {
 #if ALLOW_TOOLS_IN_FOREIGN_VM
+   if (!VmCheck_IsVirtualWorld()) {
       ToolsDaemon_InitializeForeignVM(data);
-#else
-      Panic("The VMware service must be run from within a virtual machine.\n");
-#endif
    }
+#endif
 
 #ifdef VMX86_DEBUG
    {
@@ -1565,6 +1565,10 @@ ToolsDaemon_Cleanup(ToolsDaemon_Data *data) // IN
       Debug("%s: Unable to unregister display topology set capability\n",
 	    __FUNCTION__);
    }
+   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_global_offset 0")) {
+      Debug("%s: Unable to unregister display global offset capability\n",
+	    __FUNCTION__);
+   }
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.color_depth_set 0")) {
       Debug("%s: Unable to unregister color depth set capability\n",
 	    __FUNCTION__);
@@ -1584,6 +1588,13 @@ ToolsDaemon_Cleanup(ToolsDaemon_Data *data) // IN
    }
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.guest_temp_directory 0")) {
       Debug("%s: Unable to clear guest temp directory capability.\n",
+	    __FUNCTION__);
+   }
+#endif
+
+#if !defined(N_PLAT_NLM)
+   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.guest_conf_directory 0")) {
+      Debug("%s: Unable to clear guest conf directory capability.\n",
 	    __FUNCTION__);
    }
 #endif
@@ -1750,47 +1761,15 @@ ToolsDaemon_GetMinResolution(GuestApp_Dict *dict,    // IN
                              unsigned int *width,    // OUT
                              unsigned int *height)   // OUT
 {
-#ifdef SERVICE9X
-   int minResolutionWidth;
-   int minResolutionHeight;
-   Bool success;
-
-   ASSERT(dict);
    ASSERT(width);
    ASSERT(height);
 
    /*
-    * Win9x sometimes freaks out with resolutions under 640x480. See
-    * bug 58681.
-    */
-   success = GuestApp_GetDictEntryInt(dict,
-                                      CONFNAME_RESOLUTION_MIN_WIDTH,
-                                      &minResolutionWidth);
-   if (!success) {
-      Debug("ToolsDaemon_GetMinResolution: Failed to get width\n");
-      minResolutionWidth = 640;
-   }
-
-   success = GuestApp_GetDictEntryInt(dict,
-                                      CONFNAME_RESOLUTION_MIN_HEIGHT,
-                                      &minResolutionHeight);
-   if (!success) {
-      Debug("ToolsDaemon_GetMinResolution: Failed to get height\n");
-      minResolutionHeight = 480;
-   }
-
-   *width = (unsigned int)minResolutionWidth;
-   *height = (unsigned int)minResolutionHeight;
-#else
-   ASSERT(width);
-   ASSERT(height);
-
-   /*
-    * It's assumed that other platforms don't have a minimum.
+    * This code is no longer used for Win9x platforms, and it's assumed that
+    * all other platforms don't have a minimum.
     */
    *width = 0;
    *height = 0;
-#endif
 }
 
 

@@ -24,7 +24,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.02.13-77928],
+   [2008.04.14-87182],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -103,6 +103,10 @@ AM_INIT_AUTOMAKE
 ###
 # These need to be declared after initialization.
 
+# Some of our macro call-sites require changes to CFLAGS/LDFLAGS. In such
+# places, we save the original value of CFLAGS/LDFLAGS before the macro call
+# and restore it when the call is done. We must perform this save at each macro
+# site, because CFLAGS/LDFLAGS may change over the course of configuration. 
 CFLAGS="$CFLAGS -DUSING_AUTOCONF=1"
 
 ###
@@ -256,7 +260,7 @@ AC_CHECK_LIB(
    [crypt],
    [crypt],
    [HAVE_CRYPT="yes"
-    GUESTD_LDFLAGS="$GUESTD_LDFLAGS -lcrypt"],
+    GUESTD_LDADD="$GUESTD_LDADD -lcrypt"],
    [AC_MSG_ERROR(
       [libcrypt not found. Please install the libc/libcrypt devel package(s).])])
 
@@ -266,7 +270,7 @@ AC_CHECK_FUNCS(
    [AC_CHECK_LIB(
       dl,
       dlopen,
-      GUESTD_LDFLAGS="$GUESTD_LDFLAGS -ldl",
+      GUESTD_LDADD="$GUESTD_LDADD -ldl",
       [AC_MSG_ERROR(
          [dlopen was not found, but is required for open-vm-tools to function properly. Please contact your OS vendor.])])])
 
@@ -276,29 +280,95 @@ AC_CHECK_FUNCS([fcvt])
 AC_CHECK_LIB(
    [pthread],
    [pthread_mutex_init],
-   [GUESTD_LDFLAGS="$GUESTD_LDFLAGS -lpthread"
-    VMWARE_USER_LDFLAGS="$VMWARE_USER_LDFLAGS -lpthread"],
+   [GUESTD_LDADD="$GUESTD_LDADD -lpthread"
+    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lpthread"],
    [AC_MSG_ERROR(
       [libpthread not found. Please install the libc/libpthread devel package(s).])])
 
-if test "$os" = "solaris"; then
-   # libdnet is needed on Solaris to build guestInfoPosix.c.
+AC_ARG_WITH([procps],
+	    [AS_HELP_STRING([--without-procps],
+	       [compile without libproc (disables support for meminfo)])],
+	    [],
+	    [with_procps=yes])
 
-   AC_PATH_PROG(
-      [DNET_CONFIG],
-      [dnet-config],
-      [no])
+if test "$with_procps" = "yes"; then
+	ORIGINAL_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$CUSTOM_PROCPS_LDFLAGS $LDFLAGS"
+	AC_CHECK_LIB(
+	   [proc-3.2.7],
+	   [getstat],
+	   [if test -n "$CUSTOM_PROCPS_LIBS"; then
+		    PROCPS_LIBS="$CUSTOM_PROCPS_LIBS"
+	    else
+		    PROCPS_LIBS="-lproc-3.2.7"
+	    fi],
+	   [AC_MSG_ERROR(
+	      [libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
+	LDFLAGS="$ORIGINAL_LDFLAGS"
 
-   if test "$DNET_CONFIG" = "no"; then
-      AC_MSG_ERROR(
-	 [dnet-config was not found on your PATH. libdnet must be installed in order to build open-vm-tools on Solaris. See http://libdnet.sourceforge.net/])
-   fi
+	GUESTD_LDADD="$GUESTD_LDADD $PROCPS_LIBS"
+	VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
 
-   DNET_CFLAGS="`$DNET_CONFIG --cflags`"
-   DNET_LIBS="`$DNET_CONFIG --libs`"
+	# On Debian, the 'libproc-dev' package does not contain the libproc
+	# shared object; it is provided in the 'procps' package. Having the
+	# 'procps' package installed without 'libproc-dev' would lead to
+	# compilation errors down the line, so to avoid that we explicitly
+	# check for one of the libproc headers that is consumed in the build.
+	if test -n "$CUSTOM_PROCPS_CFLAGS"; then
+		PROCPS_CFLAGS="$CUSTOM_PROCPS_CFLAGS"
+	else
+		# XXX: Unfortunately, the libproc devel package doesn't appear
+		# to ship with a configuration script or pkg-config manifest
+		# file, so there's no portable way to get the location of its
+		# headers. For now we default to /usr/include.
+		PROCPS_CFLAGS="-I/usr/include"
+	fi
+	ORIGINAL_CFLAGS="$CFLAGS"
+	CFLAGS="$PROCPS_CFLAGS $CFLAGS"
+	AC_CHECK_HEADER(
+	   [proc/sysinfo.h],
+	   [],
+	   [AC_MSG_ERROR(
+	      [libproc headers not found. Please configure without procps (using --without-procps) or install libproc devel package])])
+	CFLAGS="$ORIGINAL_CFLAGS"
+fi
 
-   GUESTD_LDFLAGS="$GUESTD_LDFLAGS $DNET_LIBS"
-   VMWARE_USER_LDFLAGS="$VMWARE_USER_LDFLAGS $DNET_LIBS"
+if test "$with_procps" != "yes"; then
+AC_DEFINE([NO_PROCPS], 1)
+fi
+
+AC_ARG_WITH([dnet],
+	    [AS_HELP_STRING([--without-dnet],
+	    [compile without libdnet (disables support for nicinfo)])],
+	    [],
+	    [with_dnet=yes])
+
+if test "$with_dnet" = "yes"; then
+
+	# On Debian, dnet is installed via the libdumbnet package. We need to
+	# detect this so that our source files include dumbnet.h instead of
+	# dnet.h, which is part of a different package altogether.
+	AC_CHECK_PROGS([DNET_CONFIG],
+		       [dumbnet-config dnet-config],
+		       [no])
+
+	if test "$DNET_CONFIG" != no; then
+		DNET_CFLAGS="`$DNET_CONFIG --cflags`"
+		DNET_LIBS="`$DNET_CONFIG --libs`"
+
+		GUESTD_LDADD="$GUESTD_LDADD $DNET_LIBS"
+		VMWARE_USER_LDADD="$VMWARE_USER_LDADD $DNET_LIBS"
+		if test "$DNET_CONFIG" == dumbnet-config; then
+		AC_DEFINE([DNET_IS_DUMBNET], 1)
+		fi
+	else
+		AC_MSG_ERROR(
+		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
+	fi
+fi
+
+if test "$with_dnet" != "yes"; then
+AC_DEFINE([NO_DNET], 1)
 fi
 
 ###
@@ -362,9 +432,6 @@ AC_C_VOLATILE
 ### Specific features and OS/arch flags / actions
 ###
 
-# Capture the CFLAGS, so we can restore them later.
-ORIGINAL_CFLAGS="$CFLAGS"
-
 # Check to see if SYS_setuid32 is defined. If SYS_setuid32 is unknown, we will
 # certainly error out.
 if test "$os$userSpaceBitness" = "linux32"; then
@@ -385,6 +452,7 @@ fi
 # if the newer form is defined (because, in that case, we would be attempting to
 # remove const'ness without an explicit cast).
 AC_MSG_CHECKING([for the new format of iconv])
+ORIGINAL_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Werror"
 AC_TRY_COMPILE(
    [#include <iconv.h>],
@@ -411,6 +479,7 @@ if test "$os" = "linux"; then
    # setresuid() was wrapped beginning in glibc 2.3.2.
    AC_MSG_CHECKING([for setresuid])
    # Ensure an error is thrown if setresuid is unknown.
+   ORIGINAL_CFLAGS="$CFLAGS"
    CFLAGS="$CFLAGS -Werror-implicit-function-declaration -Werror"
    AC_TRY_COMPILE(
       [#define _GNU_SOURCE
@@ -432,6 +501,7 @@ COMMON_CFLAGS="$COMMON_CFLAGS -Werror"
 for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
     -Wno-unknown-pragmas -Wno-uninitialized; do
     AC_MSG_CHECKING([for GCC flag $TEST_CFLAG])
+    ORIGINAL_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $TEST_CFLAG"
     AC_TRY_COMPILE(
        [],
@@ -490,14 +560,14 @@ if test "$os" = "solaris"; then
    LIB_IMPERSONATE_CFLAGS="$LIB_IMPERSONATE_CFLAGS -D_POSIX_PTHREAD_SEMANTICS"
    LIB_USER_CFLAGS="$LIB_USER_CFLAGS -D_POSIX_PTHREAD_SEMANTICS"
 
-   GUESTD_LDFLAGS="$GUESTD_LDFLAGS -lsocket"
-   GUESTD_LDFLAGS="$GUESTD_LDFLAGS -lnsl"
+   GUESTD_LDADD="$GUESTD_LDADD -lsocket"
+   GUESTD_LDADD="$GUESTD_LDADD -lnsl"
 
    VMWARE_USER_CFLAGS="$VMWARE_USER_CFLAGS -I/usr/X11/include/"
-   VMWARE_USER_LDFLAGS="$VMWARE_USER_LDFLAGS -lXext"
-   VMWARE_USER_LDFLAGS="$VMWARE_USER_LDFLAGS -lX11"
-   VMWARE_USER_LDFLAGS="$VMWARE_USER_LDFLAGS -lsocket"
-   VMWARE_USER_LDFLAGS="$VMWARE_USER_LDFLAGS -lnsl"
+   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lXext"
+   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lX11"
+   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lsocket"
+   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lnsl"
 
    # uname -r on Solaris 10 reports "5.10"
    if test "$osVersion" -ge 510000; then
@@ -557,6 +627,8 @@ AC_SUBST([GTK_CFLAGS])
 AC_SUBST([GTK_LIBS])
 AC_SUBST([DNET_CFLAGS])
 AC_SUBST([DNET_LIBS])
+AC_SUBST([PROCPS_CFLAGS])
+AC_SUBST([PROCPS_LIBS])
 
 ### Lib substs
 
@@ -571,10 +643,10 @@ AC_SUBST([LIB_USER_CFLAGS])
 
 ### Program substs
 
-AC_SUBST([GUESTD_LDFLAGS])
+AC_SUBST([GUESTD_LDADD])
 
 AC_SUBST([VMWARE_USER_CFLAGS])
-AC_SUBST([VMWARE_USER_LDFLAGS])
+AC_SUBST([VMWARE_USER_LDADD])
 
 ###
 ### Create the Makefiles
@@ -582,8 +654,6 @@ AC_SUBST([VMWARE_USER_LDFLAGS])
 AC_CONFIG_FILES([                      \
    Makefile                            \
    lib/Makefile                        \
-   lib/atomic/Makefile                 \
-   lib/atomic/shared/Makefile          \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
    lib/backdoor/shared/Makefile        \

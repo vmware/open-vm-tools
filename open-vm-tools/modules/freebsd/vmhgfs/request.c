@@ -82,7 +82,7 @@ OS_CV_T hgfsKReqWorkItemCv;
  *      to abstract away the request allocation & support code.
  *
  * Results:
- *      None.
+ *      Zero on success, HGFS_ERR on error.
  *
  * Side effects:
  *      hgfsKReqZone is initialized.  This routine may sleep.
@@ -100,8 +100,15 @@ HgfsKReq_SysInit(void)
 				 HgfsKReqZCtor, HgfsKReqZDtor, HgfsKReqZInit,
 				 HgfsKReqZFini, 0, 0);
 
-   /* The following routines cannot fail. */
+   if (!hgfsKReqZone) {
+      return HGFS_ERR;
+   }
+
    hgfsKReqWorkItemLock = os_mutex_alloc_init(HGFS_FS_NAME "_workmtx");
+   if (!hgfsKReqWorkItemLock) {
+      os_zone_destroy(hgfsKReqZone);
+      return HGFS_ERR;
+   }
 
    /*
     * This is a nop on OS X because we don't actually have a condition variable
@@ -115,11 +122,13 @@ HgfsKReq_SysInit(void)
 			  "HgfsKReqWorker", &hgfsKReqWorkerThread);
 
    if (ret != 0) {
-      os_mutex_destroy(hgfsKReqWorkItemLock);
       os_cv_destroy(&hgfsKReqWorkItemCv);
+      os_zone_destroy(hgfsKReqZone);
+      os_mutex_destroy(hgfsKReqWorkItemLock);
+      return HGFS_ERR;
    }
 
-   return ret;
+   return 0;
 }
 
 
@@ -174,7 +183,7 @@ HgfsKReq_SysFini(void)
  *      Allocate a request container for a single file system mount.
  *
  * Results:
- *      Pointer to a new allocation container.  Always succeeds.
+ *      Pointer to a new allocation container or NULL on failure.
  *
  * Side effects:
  *      This routine may sleep.
@@ -187,9 +196,17 @@ HgfsKReq_AllocateContainer(void)
 {
    HgfsKReqContainer *container;
 
-   /* Called with M_WAITOK, so this cannot fail. */
    container = os_malloc(sizeof (struct HgfsKReqContainer), M_WAITOK | M_ZERO);
+   if (!container) {
+      return NULL;
+   }
+
    container->listLock = os_mutex_alloc_init("hgfs_reql_mtx");
+   if (!container->listLock) {
+      os_free(container, sizeof *container);
+      return NULL;
+   }
+
    DblLnkLst_Init(&container->list);
 
    return container;
@@ -353,7 +370,7 @@ HgfsKReq_ContainerIsEmpty(HgfsKReqContainerHandle container)       // IN:
  *      interrupted by a signal.
  *
  * Results:
- *      Pointer to fresh HgfsKReqObject.
+ *      Pointer to fresh HgfsKReqObject or NULL on failure.
  *
  * Side effects:
  *      Request inserted into caller's requests container.  This routine may
@@ -369,13 +386,10 @@ HgfsKReq_AllocateRequest(HgfsKReqContainerHandle container)        // IN
 
    ASSERT(container);
 
-   /*
-    * Called with M_WAITOK, so this can not fail unless the user provided
-    * constructor returns a non-zero value. Ours will not do this, so we should
-    * always succeed.
-    */
    req = os_zone_alloc(hgfsKReqZone, M_WAITOK);
-   ASSERT(req);
+   if (!req) {
+      return NULL;
+   }
 
    os_mutex_lock(container->listLock);
    DblLnkLst_LinkLast(&container->list, &req->fsNode);
@@ -719,6 +733,10 @@ HgfsKReqZInit(void *mem,     // IN: Pointer to the allocated object
    req->id = (uint32_t)((unsigned long)req & 0xffffffff);
    req->state = HGFS_REQ_UNUSED;
    req->stateLock = os_mutex_alloc_init("hgfs_req_mtx");
+   if (!req->stateLock) {
+      return ENOMEM;
+   }
+
    os_cv_init(&req->stateCv, "hgfs_req_cv");
 
    /* Reset list pointers. */

@@ -46,6 +46,7 @@
 #   define KERNEL_25_FS 1
 #endif
 
+static struct inode *GetInode(struct super_block *sb, ino_t ino);
 
 /* File system operations */
 #if KERNEL_25_FS /* { */
@@ -190,6 +191,38 @@ VMBlockCleanupFileSystem(void)
 /*
  *----------------------------------------------------------------------------
  *
+ *  VMBlockReadInode --
+ *
+ *    A filesystem wide function that is called to initialize a new inode.
+ *    This is called from two different places depending on the kernel version.
+ *    In older kernels that provide the iget() interface, this function is
+ *    called by the kernel as part of inode initialization (from
+ *    SuperOpReadInode). In newer kernels that call iget_locked(), this
+ *    function is called by filesystem code to initialize the new inode.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMBlockReadInode(struct inode *inode)  // IN: Inode to initialize
+{
+   VMBlockInodeInfo *iinfo = INODE_TO_IINFO(inode);
+
+   iinfo->name[0] = '\0';
+   iinfo->nameLen = 0;
+   iinfo->actualDentry = NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * GetNextIno --
  *
  *    Gets the next available inode number.
@@ -222,6 +255,48 @@ GetNextIno(void)
 /*
  *----------------------------------------------------------------------------
  *
+ * GetInode --
+ *
+ *    This function replaces iget() and should be called instead of it. In newer
+ *    kernels that have removed the iget() interface,  GetInode() obtains an inode
+ *    and if it is a new one, then initializes the inode by calling
+ *    VMBlockReadInode(). In older kernels that support the iget() interface,
+ *    VMBlockReadInode() is called by iget() internally by the superblock function
+ *    SuperOpReadInode.
+ *
+ * Results:
+ *    A new inode object on success, NULL on error.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static struct inode *
+GetInode(struct super_block *sb, // IN: file system superblock object
+	 ino_t ino)              // IN: inode number to assign to new inode
+{
+#ifdef VMW_USE_IGET_LOCKED
+   struct inode *inode;
+
+   inode = iget_locked(sb, ino);
+   if (!inode) {
+      return NULL;
+   } else if (inode->i_state & I_NEW) {
+      VMBlockReadInode(inode);
+      unlock_new_inode(inode);
+   }
+   return inode;
+#else
+   return iget(sb, ino);
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * Iget --
  *
  *    Lookup or create a new inode.
@@ -240,7 +315,7 @@ GetNextIno(void)
  *    then returns the inode to us (this function).
  *
  *    Note that in older kernels that don't have the alloc_inode operation
- *    (where VMW_EMBED_INODE is undefined), the allocation is delayed until 
+ *    (where VMW_EMBED_INODE is undefined), the allocation is delayed until
  *    this function and is contained within the INODE_TO_IINFO macro.  That
  *    allocation is freed in the SuperOpClearInode() function.
  *
@@ -273,7 +348,7 @@ Iget(struct super_block *sb,    // IN: file system superblock object
 
    ASSERT(sb);
 
-   inode = iget(sb, ino);
+   inode = GetInode(sb, ino);
    if (!inode) {
       return NULL;
    }
@@ -301,8 +376,8 @@ Iget(struct super_block *sb,    // IN: file system superblock object
       return inode;
    }
 
-   iinfo->actualDentry = actualNd.dentry;
-   path_release(&actualNd);
+   iinfo->actualDentry = compat_vmw_nd_to_dentry(actualNd);
+   compat_path_release(&actualNd);
 
    return inode;
 

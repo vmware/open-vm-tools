@@ -18,9 +18,11 @@
 noinst_LTLIBRARIES = libMisc.la
 
 libMisc_la_SOURCES =
+libMisc_la_SOURCES += ../atomic.c
 libMisc_la_SOURCES += ../base64.c
 libMisc_la_SOURCES += ../codeset.c
 libMisc_la_SOURCES += ../dbllnklst.c
+libMisc_la_SOURCES += ../dynarray.c
 libMisc_la_SOURCES += ../dynbuf.c
 libMisc_la_SOURCES += ../escape.c
 libMisc_la_SOURCES += ../hashTable.c

@@ -48,31 +48,7 @@
 #include "includeCheck.h"
 
 #include "bsd_output.h"
-
-#ifdef _WIN32 // {
-
-#pragma warning(disable : 4018 4047 4101 4102 4146 4244 4267)
-
-#define INTMAX_MAX 9223372036854775807i64
-
-typedef unsigned int u_int;
-typedef unsigned long u_long;
-typedef unsigned short u_short;
-typedef unsigned char u_char;
-typedef __int64 intmax_t;
-typedef unsigned __int64 uintmax_t;
-typedef intptr_t ptrdiff_t;
-
-#endif // }
-
-#define MAXEXPDIG 6
-
-/* For u_int and u_long, and other types we might want. */
-#ifndef _WIN32
-#include <unistd.h>
-#include <sys/types.h>
-#include <stddef.h>
-#endif
+#include "bsdfmt.h"
 
 union arg {
    int   intarg;
@@ -113,36 +89,6 @@ enum typeid {
    T_INTMAXT, T_UINTMAXT, TP_INTMAXT, TP_VOID, TP_CHAR, TP_SCHAR,
    T_DOUBLE, T_LONG_DOUBLE, T_WINT, TP_WCHAR
 };
-
-/*
- * I/O descriptors for __sfvwrite().
- */
-struct __siov {
-   void   *iov_base;
-   size_t   iov_len;
-};
-struct __suio {
-   struct   __siov *uio_iov;
-   int   uio_iovcnt;
-   int   uio_resid;
-};
-
-#ifndef NO_FLOATING_POINT
-
-#include <float.h>
-#include <math.h>
-
-#define DEFPREC 6
-
-extern char * dtoa(double d, int mode, int prec, int *expOut,
-                   int *sign, char **strEnd);
-
-extern char * ldtoa(long double *ld, int mode, int prec, int *expOut,
-                    int *sign, char **strEnd);
-
-extern void freedtoa(void *mem);
-
-#endif /* !NO_FLOATING_POINT */
 
 #if defined _MSC_VER && _MSC_VER < 1400
 /* VC80 has an internal wmemchr */

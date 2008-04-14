@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -28,10 +28,6 @@
 #include <stdarg.h>
 #include <fcntl.h>
 
-#if !defined(__FreeBSD__) && !defined(sun)
-#define IMPLEMENT_SOCKET_MGR 1
-#endif
-
 #ifdef _WIN32
 #include <io.h>
 #else
@@ -40,7 +36,9 @@
 #endif
 
 #ifdef _MSC_VER
-#   include <windows.h>
+#   include <Windows.h>
+#   include <WinSock2.h>
+#   include <WinSpool.h>
 #elif _WIN32
 #   include "win95.h"
 #endif
@@ -72,18 +70,13 @@
 #include "hgfs.h"
 #include "system.h"
 #include "codeset.h"
-#if IMPLEMENT_SOCKET_MGR
-#include "socketMgr.h"
-#endif
 
 #ifndef __FreeBSD__
 #include "netutil.h"
 #endif
 
-/* Stub out impersonation functions for these platforms. */
-#if defined(__FreeBSD__) || defined(sun) || defined(N_PLAT_NLM)
-void Impersonate_Init(void) { return; }
-#else
+/* Only Win32 and Linux use impersonation functions. */
+#if !defined(__FreeBSD__) && !defined(sun)
 #include "impersonate.h"
 #endif
 
@@ -95,7 +88,7 @@ static DblLnkLst_Links *globalEventQueue;   // event queue for main event loop
 #define GUESTMSG_MAX_IN_SIZE (64 * 1024) /* vmx/main/guest_msg.c */
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
 
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
 
 # if defined(_WIN32)
 #  define DECLARE_SYNCDRIVER_ERROR(name) DWORD name = ERROR_SUCCESS;
@@ -139,7 +132,7 @@ static Bool ToolsDaemonHgfsImpersonated(char const **result,
                                         void *clientData);
 #endif
 
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
 static Bool ToolsDaemonTcloSyncDriverFreeze(char const **result,
                                             size_t *resultLen,
                                             const char *name,
@@ -173,10 +166,6 @@ void ToolsDaemonTcloReportProgramCompleted(const char *requestName,
  * and a second time to write the buffer.
  */
 #define DEFAULT_RESULT_MSG_MAX_LENGTH     1024
-
-#if IMPLEMENT_SOCKET_MGR
-static Bool socketMgrInitialized = FALSE;
-#endif
 
 static Bool thisProcessRunsAsRoot = FALSE;
 
@@ -491,7 +480,7 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
                                     Bool runAsRoot)               // IN
 {
    static Bool inited = FALSE;
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
    static Bool sync_driver_inited = FALSE;
 #endif
 
@@ -506,6 +495,7 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
                               globalEventQueue,
                               ToolsDaemonTcloReportProgramCompleted);
 
+#if defined(linux) || defined(_WIN32)
    /*
     * Be careful, Impersonate_Init should only be ever called once per process.
     *
@@ -515,6 +505,7 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
    if (!inited && thisProcessRunsAsRoot) {
       Impersonate_Init();
    }
+#endif
 
    RpcIn_RegisterCallback(in,
                           VIX_BACKDOORCOMMAND_RUN_PROGRAM,
@@ -542,17 +533,8 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
                           VIX_BACKDOORCOMMAND_MOUNT_VOLUME_LIST,
                           ToolsDaemonTcloMountHGFS,
                           NULL);
-#if IMPLEMENT_SOCKET_MGR
-   /*
-    * We can be called again in certain tools error recovery cases, such
-    * as restoring from a hibernation.  This annoys SocketMgr_Init().
-    */
-   if (!inited) {
-      socketMgrInitialized = SocketMgr_Init(globalEventQueue);
-   }
-#endif // IMPLEMENT_SOCKET_MGR
 
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
 
    /*
     * Only init once, but always register the RpcIn.
@@ -579,10 +561,8 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
    } else {
       Debug("FoundryToolsDaemon: Failed to init SyncDriver, skipping command handlers.\n");
    }
-
-   inited = TRUE;
-
 #endif
+   inited = TRUE;
 } // FoundryToolsDaemon_RegisterRoutines
 
 
@@ -758,17 +738,11 @@ ToolsDaemonTcloOpenUrl(char const **result,     // OUT
    Debug("Opening URL: \"%s\"\n", url);
 
    /* Actually open the URL. */
- #if !defined(WIN9XCOMPAT)
    if (!GuestApp_OpenUrl(url, strcmp(windowState, "maximize") == 0)) {
       err = VIX_E_FAIL;
       Debug("Failed to open the url \"%s\"\n", url);
       goto abort;
    }
-#else
-   err = VIX_E_OP_NOT_SUPPORTED_ON_GUEST;
-   goto abort;
-#endif
-
 
 abort:
    if (impersonatingVMWareUser) {
@@ -921,7 +895,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
 static Bool
 ToolsDaemonTcloSyncDriverFreeze(char const **result,     // OUT
                                 size_t *resultLen,       // OUT
@@ -1038,7 +1012,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
 static Bool
 ToolsDaemonSyncDriverThawCallback(void *clientData) // IN (ignored)
 {
@@ -1082,7 +1056,7 @@ exit:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || (defined(_WIN32) && !defined(SERVICE9X))
+#if defined(linux) || defined(_WIN32)
 static Bool
 ToolsDaemonTcloSyncDriverThaw(char const **result,     // OUT
                               size_t *resultLen,       // OUT

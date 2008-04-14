@@ -61,6 +61,9 @@ A million repetitions of "a"
 #ifdef USERLEVEL
 #include "vmware.h"
 #endif
+#ifdef VMKBOOT
+#include "vm_libc.h"
+#endif
 #include "sha1.h"
 #include "vm_basic_asm.h"
 

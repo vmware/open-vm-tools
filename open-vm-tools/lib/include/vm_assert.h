@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -97,8 +97,6 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
  * Some of these are redefined below undef !VMX86_DEBUG.
  * ASSERT() is special cased because of interaction with Windows DDK.
  */
-
-#define IMPLIES(a,b) (!(a) || (b))
 
 #if defined VMX86_DEBUG || defined ASSERT_ALWAYS_AVAILABLE
 #undef ASSERT

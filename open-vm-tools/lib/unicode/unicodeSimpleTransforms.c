@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -259,6 +259,12 @@ static const Bool *whitespacePages[256] =
    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
 };
 
+typedef enum {
+   UNICODE_TRIMLEFT  = 0x1,
+   UNICODE_TRIMRIGHT = 0x2,
+   UNICODE_TRIMBOTH  = (UNICODE_TRIMLEFT | UNICODE_TRIMRIGHT),
+} UnicodeTrimSide;
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -334,6 +340,59 @@ Unicode_FoldCase(ConstUnicode str) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * UnicodeTrimInternal --
+ *
+ *      Creates a Unicode string by trimming whitespace from the beginning
+ *      and/or end of the input string, depending on the input parameter "side".
+ *
+ * Results:
+ *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Unicode
+UnicodeTrimInternal(ConstUnicode str,      // IN
+                    UnicodeTrimSide side)  // IN
+{
+   Unicode trimmed;
+   utf16_t *utf16;
+   utf16_t *utf16Start;
+   utf16_t *utf16End;
+
+   ASSERT(str);
+
+   utf16 = Unicode_GetAllocBytes(str, STRING_ENCODING_UTF16);
+   utf16Start = utf16;
+   utf16End = utf16 + Unicode_UTF16Strlen(utf16);
+
+   if (side & UNICODE_TRIMLEFT) {
+      while (utf16Start != utf16End && UnicodeSimpleIsWhiteSpace(*utf16Start)) {
+         utf16Start++;
+      }
+   }
+
+   if (side & UNICODE_TRIMRIGHT) {
+      while (utf16End != utf16Start && UnicodeSimpleIsWhiteSpace(*(utf16End - 1))) {
+         utf16End--;
+      }
+   }
+
+   *utf16End = 0;
+
+   trimmed = Unicode_AllocWithUTF16(utf16Start);
+   free(utf16);
+
+   return trimmed;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Unicode_Trim --
  *
  *      Creates a Unicode string by trimming whitespace from the beginning
@@ -351,29 +410,53 @@ Unicode_FoldCase(ConstUnicode str) // IN
 Unicode
 Unicode_Trim(ConstUnicode str) // IN
 {
-   Unicode trimmed;
-   utf16_t *utf16;
-   utf16_t *utf16Start;
-   utf16_t *utf16End;
+   return UnicodeTrimInternal(str, UNICODE_TRIMBOTH);
+}
 
-   ASSERT(str);
 
-   utf16 = Unicode_GetAllocBytes(str, STRING_ENCODING_UTF16);
-   utf16Start = utf16;
-   utf16End = utf16 + Unicode_UTF16Strlen(utf16);
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_TrimLeft --
+ *
+ *      Creates a Unicode string by trimming whitespace from the beginning of the 
+ *      input string.
+ *
+ * Results:
+ *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-   while (utf16Start != utf16End && UnicodeSimpleIsWhiteSpace(*utf16Start)) {
-      utf16Start++;
-   }
+Unicode
+Unicode_TrimLeft(ConstUnicode str) // IN
+{
+   return UnicodeTrimInternal(str, UNICODE_TRIMLEFT);
+}
 
-   while (utf16End != utf16Start && UnicodeSimpleIsWhiteSpace(*(utf16End - 1))) {
-      utf16End--;
-   }
 
-   *utf16End = 0;
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_TrimRight --
+ *
+ *      Creates a Unicode string by trimming whitespace from the end of the 
+ *      input string.
+ *
+ * Results:
+ *      The allocated Unicode string.  Caller must free with Unicode_Free().
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-   trimmed = Unicode_AllocWithUTF16(utf16Start);
-   free(utf16);
-
-   return trimmed;
+Unicode
+Unicode_TrimRight(ConstUnicode str) // IN
+{
+   return UnicodeTrimInternal(str, UNICODE_TRIMRIGHT);
 }

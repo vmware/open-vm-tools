@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -94,15 +94,14 @@ Unicode Unicode_AllocWithLength(const void *buffer,
  *      Allocates a new Unicode string given a NUL-terminated buffer
  *      of bytes in the specified string encoding.
  *
+ *	If buffer is NULL, then NULL is returned.
+ *
  *      Note that regardless of the encoding of the buffer passed to this
  *      function, the returned string can hold any Unicode characters.
  *
- *      If the buffer contains an invalid sequence of the specified
- *      encoding or memory could not be allocated, returns NULL.
- *
  * Results:
  *      An allocated Unicode string containing the decoded characters
- *      in buffer, or NULL on failure.  Caller must pass to
+ *      in buffer, or NULL if input is NULL.  Caller must pass to
  *      Unicode_Free to free.
  *
  * Side effects:
@@ -126,12 +125,11 @@ Unicode_Alloc(const void *buffer,      // IN
  *
  *      Allocates a new Unicode string given a NUL-terminated UTF-8 string.
  *
- *      If the input contains an invalid UTF-8 byte sequence or memory could
- *      not be allocated, returns NULL.
+ *	If utf8String is NULL, then NULL is returned.
  *
  * Results:
  *      An allocated Unicode string containing the characters in
- *      utf8String, or NULL on failure.  Caller must pass to
+ *      utf8String, or NULL if utf8String is NULL.  Caller must pass to
  *      Unicode_Free to free.
  *
  * Side effects:
@@ -155,12 +153,11 @@ Unicode_AllocWithUTF8(const char *utf8String) // IN
  *      Allocates a new Unicode string given a NUL-terminated UTF-16
  *      string in host-endian order.
  *
- *      If the input contains an invalid UTF-16 sequence or memory could
- *      not be allocated, returns NULL.
+ *	If utf16String is NULL, then NULL is returned.
  *
  * Results:
  *      An allocated Unicode string containing the characters in
- *      utf16String, or NULL on failure.  Caller must pass to
+ *      utf16String, or NULL if utf16String is NULL.  Caller must pass to
  *      Unicode_Free to free.
  *
  * Side effects:
@@ -179,55 +176,56 @@ Unicode_AllocWithUTF16(const utf16_t *utf16String) // IN
 Unicode Unicode_Duplicate(ConstUnicode str);
 void Unicode_Free(Unicode str);
 
+
+Unicode *Unicode_AllocList(char **srcList, ssize_t length,
+                           StringEncoding encoding);
+
 /*
- * Accessors for NUL-terminated UTF-8 and UTF-16 host-endian
- * representations of this Unicode string.
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_AllocListWithUTF16 --
+ *
+ *      Allocates a list (actually a vector) of Unicode strings from a list
+ *      (vector) of UTF-16 strings.  The input list has a specified length or
+ *      can be an argv-style NULL-terminated list (if length is negative).
+ *
+ * Results:
+ *      An allocated list (vector) of Unicode strings.
+ *      The result must be freed with Unicode_FreeList.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Unicode *
+Unicode_AllocListWithUTF16(utf16_t **utf16list, // IN:
+                           ssize_t length)      // IN:
+{
+   return Unicode_AllocList((char **) utf16list, length,
+			    STRING_ENCODING_UTF16);
+}
+
+void Unicode_FreeList(Unicode *list, ssize_t length);
+
+
+/*
+ * Accessor for the NUL-terminated UTF-8 representation of this
+ * Unicode string.
  *
  * Memory is managed inside this string, so callers do not need to
  * free.
  */
 const char *Unicode_GetUTF8(ConstUnicode str);
-const utf16_t *Unicode_GetUTF16(ConstUnicode str);
 
+/*
+ * Convenience wrapper with a short name for this often-used function.
+ */
 static INLINE const char *
 UTF8(ConstUnicode str)
 {
-   const char *result;
-
-   int errP = errno;
-#if defined(_WIN32)
-   DWORD errW = GetLastError();
-#endif
-
-   result = Unicode_GetUTF8(str);
-
-#if defined(_WIN32)
-   SetLastError(errW);
-#endif
-   errno = errP;
-
-   return result;
-}
-
-static INLINE const utf16_t *
-UTF16(ConstUnicode str)
-{
-   const utf16_t *result;
-
-   int errP = errno;
-#if defined(_WIN32)
-   DWORD errW = GetLastError();
-#endif
-
-   result = Unicode_GetUTF16(str);
-
-#if defined(_WIN32)
-   SetLastError(errW);
-#endif
-
-   errno = errP;
-
-   return result;
+   return Unicode_GetUTF8(str);
 }
 
 /*
@@ -236,9 +234,29 @@ UTF16(ConstUnicode str)
 ssize_t Unicode_UTF16Strlen(const utf16_t *utf16);
 
 /*
+ * Duplicates a UTF-16 string.
+ */
+utf16_t *Unicode_UTF16Strdup(const utf16_t *utf16);
+
+/*
  * Tests if the buffer's bytes are valid in the specified encoding.
  */
 Bool Unicode_IsBufferValid(const void *buffer,
+                           ssize_t lengthInBytes,
+                           StringEncoding encoding);
+
+/*
+ * Tests if the buffer's unicode contents can be converted to the
+ * specified encoding.
+ */
+Bool Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,
+                                     StringEncoding encoding);
+
+/*
+ * Escape non-printable bytes of the buffer with \xAB, where 0xAB
+ * is the non-printable byte value.
+ */
+char *Unicode_EscapeBuffer(const void *buffer,
                            ssize_t lengthInBytes,
                            StringEncoding encoding);
 
@@ -281,13 +299,17 @@ size_t Unicode_BytesRequired(ConstUnicode str,
 
 /*
  * Extracts the contents of the Unicode string into a NUL-terminated
- * buffer using the specified encoding.  Returns -1 if
- * maxLengthInBytes isn't enough to hold the encoded string.
+ * buffer using the specified encoding. Copies at most
+ * maxLengthInBytes including NUL termination. Returns FALSE if
+ * truncation occurred, TRUE otherwise. If retLength is not NULL,
+ * *retLength holds the number of bytes actually copied, not including
+ * the NUL termination, upon return.
  */
-ssize_t Unicode_CopyBytes(ConstUnicode str,
-                          void *buffer,
-                          size_t maxLengthInBytes,
-                          StringEncoding encoding);
+Bool Unicode_CopyBytes(void *destBuffer,
+                       ConstUnicode srcBuffer,
+                       size_t maxLengthInBytes,
+                       size_t *retLength,
+                       StringEncoding encoding);
 
 
 /*
@@ -301,9 +323,13 @@ ssize_t Unicode_CopyBytes(ConstUnicode str,
  *      NOTE: The length of the NUL can depend on the encoding.
  *            UTF-16 NUL is "\0\0"; UTF-32 NUL is "\0\0\0\0".
  *
+ *      NULL is returned for NULL argument.
+ *
  * Results:
- *      Pointer to the dynamically allocated memory. The caller is
- *      responsible to free the memory allocated by this routine.
+ *      Pointer to the dynamically allocated memory,
+ *      or NULL on NULL argument.
+ *      The caller is responsible to free the memory allocated
+ *      by this routine.
  *
  * Side effects:
  *      None
@@ -316,15 +342,19 @@ Unicode_GetAllocBytes(ConstUnicode str,        // IN:
                       StringEncoding encoding) // IN:
 {
    void *memory;
-   ssize_t result;
+   Bool success;
+   size_t length;
 
-   size_t length = Unicode_BytesRequired(str, encoding);
+   if (str == NULL) {
+      return NULL;
+   }
+
+   length = Unicode_BytesRequired(str, encoding);
 
    memory = Util_SafeMalloc(length);
 
-   result = Unicode_CopyBytes(str, memory, length, encoding);
-
-   ASSERT_NOT_IMPLEMENTED(result != -1);
+   success = Unicode_CopyBytes(memory, str, length, NULL, encoding);
+   ASSERT(success);
 
    return memory;
 }
@@ -337,13 +367,13 @@ Unicode_GetAllocBytes(ConstUnicode str,        // IN:
  *
  *      Allocates and returns a NUL terminated buffer into which the contents
  *      of the unicode string are extracted using the (host native) UTF-16
- *      encoding.
+ *      encoding.  (Note that UTF-16 NUL is two bytes: "\0\0".)
  *
- *      NOTE: The length of the NUL can depend on the encoding.
- *            UTF-16 NUL is "\0\0"; UTF-32 NUL is "\0\0\0\0".
+ *      NULL is returned for NULL argument.
  *
  * Results:
- *      Pointer to the dynamically allocated memory or NULL on failure.
+ *      Pointer to the dynamically allocated memory,
+ *      or NULL on NULL argument.
  *
  *      Caller is responsible to free the memory allocated by this routine.
  *
@@ -367,23 +397,22 @@ Unicode_GetAllocUTF16(ConstUnicode str)  // IN:
 ConstUnicode Unicode_GetStatic(const char *asciiBytes,
                                Bool unescape);
 
-
 /*
- * XXX Helper macros for win32 Unicode string transition stage.
- *     Those macros should be removed after we turn on SUPPORT_UNICODE.
- *     We need to call free() when !SUPPORT_UNICODE because Unicode_GetAllocUTF16()
- *     creates a new copy of 's' in UTF-16. But when SUPPORT_UNICODE, Unicode_GetUTF16()
- *     just returns a const representation of the string 's'.
+ * Helper macros for Win32 Unicode string transition.
+ *
+ * Eventually, when the Unicode type becomes opaque
+ * (SUPPORT_UNICODE_OPAQUE), we can store UTF-16 directly inside
+ * it, which is a huge optimization for Win32 programmers.
+ *
+ * At that point, UNICODE_GET_UTF16/UNICODE_RELEASE_UTF16 can become
+ * constant-time operations.
+ *
+ * Until then, Win32 programmers need to alloc and free the UTF-16
+ * representation of the Unicode string.
  */
-
 #if defined(_WIN32)
-   #if defined(SUPPORT_UNICODE)
-      #define UNICODE_GET_UTF16(s)     Unicode_GetUTF16(s)
-      #define UNICODE_RELEASE_UTF16(s)
-   #else
-      #define UNICODE_GET_UTF16(s)     Unicode_GetAllocUTF16(s)
-      #define UNICODE_RELEASE_UTF16(s) free((utf16_t *)s)
-   #endif
+   #define UNICODE_GET_UTF16(s)     Unicode_GetAllocUTF16(s)
+   #define UNICODE_RELEASE_UTF16(s) free((utf16_t *)s)
 #endif
 
 #ifdef __cplusplus

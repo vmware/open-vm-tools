@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -31,10 +31,14 @@
 #include "vmbackup_def.h"
 
 #include "dbllnklst.h"
+#include "dynarray.h"
 #include "eventManager.h"
 #include "rpcin.h"
 #include "str.h"
+#include "unicode.h"
 
+typedef char *Target;
+DEFINE_DYNARRAY_TYPE(Target);
 
 typedef enum {
    VMBACKUP_STATUS_PENDING,
@@ -85,6 +89,9 @@ typedef struct VmBackupState {
    Bool        generateManifests;
    Bool        clientAborted;
    intptr_t    clientData;
+   void        *scripts;
+   TargetArray disabledTargets;
+   ssize_t     currentScript;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);

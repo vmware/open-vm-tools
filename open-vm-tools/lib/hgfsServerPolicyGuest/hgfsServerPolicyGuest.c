@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -427,16 +427,17 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
                               size_t nameInLen,          // IN: Length of nameIn
                               HgfsOpenMode mode,         // IN: Requested access mode
                               size_t *sharePathLen,      // OUT: Length of share path
-                              char const **sharePath)    // OUT: Share path
+                              char const **sharePath,    // OUT: Share path
+                              HgfsSharedFolder **share)  // OUT: Share
 {
-   HgfsSharedFolder *share;
+   HgfsSharedFolder *myShare;
 
    ASSERT(nameIn);
    ASSERT(sharePathLen);
    ASSERT(sharePath);
 
-   share = HgfsServerPolicyGetShare(&myState, nameIn, nameInLen);
-   if (!share) {
+   myShare = HgfsServerPolicyGetShare(&myState, nameIn, nameInLen);
+   if (!myShare) {
       LOG(4, ("HgfsServerPolicy_GetSharePath: No matching share name\n"));
       return HGFS_NAME_STATUS_DOES_NOT_EXIST;
    }
@@ -449,21 +450,21 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
     */
    switch (HGFS_OPEN_MODE_ACCMODE(mode)) {
    case HGFS_OPEN_MODE_READ_ONLY:
-      if (!share->readAccess) {
+      if (!myShare->readAccess) {
          LOG(4, ("HgfsServerPolicy_GetSharePath: Read access denied\n"));
          return HGFS_NAME_STATUS_ACCESS_DENIED;
       }
       break;
 
    case HGFS_OPEN_MODE_WRITE_ONLY:
-      if (!share->writeAccess) {
+      if (!myShare->writeAccess) {
          LOG(4, ("HgfsServerPolicy_GetSharePath: Write access denied\n"));
          return HGFS_NAME_STATUS_ACCESS_DENIED;
       }
       break;
 
    case HGFS_OPEN_MODE_READ_WRITE:
-      if (!share->readAccess || !share->writeAccess) {
+      if (!myShare->readAccess || !myShare->writeAccess) {
          LOG(4, ("HgfsServerPolicy_GetSharePath: Read/write access denied\n"));
          return HGFS_NAME_STATUS_ACCESS_DENIED;
       }
@@ -475,8 +476,11 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
       break;
    }
 
-   *sharePathLen = share->pathLen;
-   *sharePath = share->path;
+   *sharePathLen = myShare->pathLen;
+   *sharePath = myShare->path;
+   if (share) {
+      *share = myShare;
+   }
    return HGFS_NAME_STATUS_COMPLETE;
 }
 

@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -33,34 +33,32 @@
 
 #include "vm_basic_types.h"
 
-#if defined(SUPPORT_UNICODE)
+#if defined(SUPPORT_UNICODE_OPAQUE)
+
 /*
- * When Unicode support is turned on, the types become opaque containers.
+ * To assist with finding code that hasn't been internationalized, we
+ * support building with an opaque Unicode type.  This catches users
+ * passing a char * of unknown encoding to Unicode functions, and
+ * assigning a Unicode to a char *.
  */
+
 typedef struct UnicodeImpl UnicodeImpl;
 typedef UnicodeImpl * Unicode;
 typedef const UnicodeImpl * ConstUnicode;
+
 #else
+
 /*
- * As a short-term development tactic to prevent code churn while the
+ * As a transitionary development tactic to prevent code churn while the
  * Unicode libraries are being developed, we'll start with a simple
  * implementation of Unicode as UTF-8 char *.
  */
 typedef char * Unicode;
 typedef const char * ConstUnicode;
+
 #endif
 
 typedef ssize_t UnicodeIndex;
-
-/*
- * include windows.h or other appropriate include files before this one
- */
-
-#if defined(_WIN32) && defined(_NATIVE_WCHAR_T_DEFINED)
-typedef wchar_t utf16_t;
-#else
-typedef uint16 utf16_t;
-#endif
 
 /*
  * Special UnicodeIndex value returned when a string is not found.
@@ -112,7 +110,7 @@ typedef enum {
    STRING_ENCODING_ISO_8859_8,
    STRING_ENCODING_ISO_8859_9,
    STRING_ENCODING_ISO_8859_10,
-   STRING_ENCODING_ISO_8859_11,
+   // ISO-8859-11 is unused.
    // Oddly, there is no ISO-8859-12.
    STRING_ENCODING_ISO_8859_13,
    STRING_ENCODING_ISO_8859_14,
@@ -170,5 +168,7 @@ typedef enum {
 
 const char *Unicode_EncodingEnumToName(StringEncoding encoding);
 StringEncoding Unicode_EncodingNameToEnum(const char *encodingName);
+StringEncoding Unicode_GetCurrentEncoding(void);
+Bool Unicode_IsEncodingSupported(StringEncoding encoding);
 
 #endif // _UNICODE_TYPES_H_

@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -33,9 +33,7 @@
 #include <stdarg.h>
 #include "err.h"
 #include "vm_basic_types.h"
-#ifndef NO_MSGFMT
 #include "msgfmt.h"
-#endif
 
 /*
  * Message ID macros
@@ -61,7 +59,7 @@
 #define MSGID(id)	MSG_MAGIC "(msg." #id ")"
 #define BUTTONID(id)	MSG_MAGIC "(button." #id ")"
 
-#define INVALID_MSG_CODE -1
+#define INVALID_MSG_CODE (-1)
 
 /*
  * Data structures, types, and constants
@@ -95,7 +93,6 @@ typedef enum HintOptions {
    HINT_OKCANCEL
 } HintOptions;
 
-#ifndef NO_MSGFMT
 typedef struct Msg_List Msg_List;
 struct Msg_List {
    Msg_List *next;
@@ -104,7 +101,6 @@ struct Msg_List {
    MsgFmt_Arg *args;
    int numArgs;
 };
-#endif
 
 typedef struct MsgCallback {
    void (*post)(MsgSeverity severity, const char *msgID, const char *message);
@@ -119,19 +115,17 @@ typedef struct MsgCallback {
    void  (*lazyProgress)(void *handle, int percent);
    void  (*lazyProgressEnd)(void *handle);
 
-#ifndef NO_MSGFMT
    void (*postList)(MsgSeverity severity, Msg_List *messages);
    int (*questionList)(const Msg_String *buttons, int defaultAnswer,
                        Msg_List *messages);
    int (*progressList)(Msg_List *messages, int percent, Bool cancelButton);
    HintResult (*hintList)(HintOptions options, Msg_List *messages);
    void *(*lazyProgressStartList)(Msg_List *messages);
-#endif
 } MsgCallback;
 
 #define MSG_QUESTION_MAX_BUTTONS   10
 
-#define MSG_PROGRESS_START -1
+#define MSG_PROGRESS_START (-1)
 #define MSG_PROGRESS_STOP 101
 
 EXTERN Msg_String const Msg_YesNoButtons[];
@@ -157,10 +151,10 @@ EXTERN char *Msg_VFormat(const char *idFmt, va_list arguments);
 EXTERN unsigned Msg_Question(Msg_String const *buttons,
                              int defaultAnswer, const char *idFmt, ...)
        PRINTF_DECL(3, 4);
-EXTERN char *Msg_ChooseFile(const char *idTitle, const char *defaultName);
-#ifdef VMX86_SERVER
-EXTERN void Msg_AppendVob(void *vobBuf, int bytes);
-#endif
+EXTERN void Msg_AppendMsgList(char* id,
+                              char* fmt,
+                              MsgFmt_Arg *args,
+                              int numArgs);
 
 /*
  * Unfortunately, gcc warns about both NULL and "" being passed as format
@@ -185,7 +179,7 @@ EXTERN int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
 			     const char *string);
 EXTERN char *Msg_GetString(const char *idString);
 EXTERN char *Msg_GetStringSafe(const char *idString);
-EXTERN char *Msg_GetUtf8String(const char *idString);
+EXTERN char *Msg_GetPlainButtonText(const char *idString);
 EXTERN const char *Msg_GetLocale(void);
 EXTERN void Msg_SetLocale(const char *locale, const char *binaryName);
 EXTERN char *Msg_GetMessageFilePath(const char *locale, const char *binaryName,
@@ -201,12 +195,10 @@ EXTERN Bool Msg_LoadMessageFile(const char *locale, const char *fileName);
 
 EXTERN const char *Msg_GetMessages(void);
 EXTERN const char *Msg_GetMessagesAndReset(void);
-#ifndef NO_MSGFMT
 EXTERN Msg_List *Msg_GetMsgList(void);
 EXTERN Msg_List *Msg_GetMsgListAndReset(void);
 EXTERN void Msg_FreeMsgList(Msg_List *messages);
 EXTERN char *Msg_LocalizeList(Msg_List *messages);
-#endif
 EXTERN void Msg_Reset(Bool log);
 EXTERN Bool Msg_Present(void);
 EXTERN void Msg_Exit(void);

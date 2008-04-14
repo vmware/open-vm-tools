@@ -23,6 +23,23 @@
 #include <linux/namei.h>
 #endif
 
+/*
+ * In 2.6.25-rc2, dentry and mount objects were removed from the nameidata
+ * struct. They were both replaced with a struct path.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
+#define compat_vmw_nd_to_dentry(nd) (nd).path.dentry
+#else
+#define compat_vmw_nd_to_dentry(nd) (nd).dentry
+#endif
+
+/* In 2.6.25-rc2, path_release(&nd) was replaced with path_put(&nd.path). */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
+#define compat_path_release(nd) path_put(&(nd)->path)
+#else
+#define compat_path_release(nd) path_release(nd)
+#endif
+
 /* path_lookup was exported in 2.4.25 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 25)
 #define compat_path_lookup(path, flags, nd)     path_lookup(path, flags, nd)

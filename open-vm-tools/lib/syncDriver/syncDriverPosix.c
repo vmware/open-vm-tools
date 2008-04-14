@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -175,14 +175,12 @@ SyncDriver_DrivesAreFrozen(void)
 
    file = open(SYNC_PROC_PATH, O_RDONLY);
    if (file == -1) {
-      SyncDriverDebug("can't open driver proc node");
       return FALSE;
    }
 
    ret = ioctl(file, SYNC_IOC_QUERY, &active);
    if (ret == -1) {
       active = 0;
-      SyncDriverDebug("SYNC_IOC_QUERY ioctl failed");
    }
 
    close(file);

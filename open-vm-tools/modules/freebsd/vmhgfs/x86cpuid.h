@@ -92,6 +92,8 @@ typedef struct CPUIDResult {
 
 #define CPUID_UNCACHED_LEVELS                   \
    CPUIDLEVEL(FALSE, 4, 4)                      \
+   CPUIDLEVEL(FALSE, 5, 5)                      \
+   CPUIDLEVEL(FALSE, 6, 6)                      \
    CPUIDLEVEL(FALSE, A, 0xA)                    \
    CPUIDLEVEL(FALSE, 86, 0x80000006)            \
    CPUIDLEVEL(FALSE, 87, 0x80000007)            \
@@ -248,6 +250,8 @@ FLAGDEF(   1, ECX, INTEL,  21,  1, X2APIC,              MASK,    0, FALSE)      
 FLAGDEF(   1, ECX, INTEL,  22,  1, MOVBE,               RSVD,    0, TRUE)             \
 FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              HOST,    0, TRUE,  POPCNT)    \
 FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 RSVD,    0, TRUE)             \
+FLAGDEF(   1, ECX, INTEL,  26,  1, XSAVE,               MASK,    0, FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  27,  1, OSXSAVE,             RSVD,    0, TRUE)             \
 FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          IGNORE,  0, FALSE, HYPERVISOR)\
 FLAGDEFA(  1, EDX, COMMON, 0,   1, FPU,                 HOST,    0, TRUE, FPU)        \
 FLAGDEFA(  1, EDX, COMMON, 1,   1, VME,                 HOST,    0, FALSE, VME)       \
@@ -289,6 +293,25 @@ FIELDDEFA( 4, EAX, INTEL,  26,  6, CORE_COUNT,          IGNORE,  0, FALSE, INTEL
 FIELDDEF(  4, EBX, INTEL,   0, 12, CACHE_LINE,          IGNORE,  0, FALSE)            \
 FIELDDEF(  4, EBX, INTEL,  12, 10, CACHE_PART,          IGNORE,  0, FALSE)            \
 FIELDDEF(  4, EBX, INTEL,  22, 10, CACHE_WAYS,          IGNORE,  0, FALSE)
+
+/*     LEVEL, REG, VENDOR, POS, SIZE, NAME,   MASK TYPE, SET TO, CPL3, [FUNC] */
+#define CPUID_FIELD_DATA_LEVEL_5                                           \
+FIELDDEF(  5, EAX, COMMON,  0, 16, MWAIT_MIN_SIZE,      IGNORE,  0, FALSE) \
+FIELDDEF(  5, EBX, COMMON,  0, 16, MWAIT_MAX_SIZE,      IGNORE,  0, FALSE) \
+FLAGDEF(   5, ECX, COMMON,  0,  1, MWAIT_EXTENSIONS,    IGNORE,  0, FALSE) \
+FLAGDEF(   5, ECX, COMMON,  1,  1, MWAIT_INTR_BREAK,    IGNORE,  0, FALSE) \
+FIELDDEF(  5, EDX, INTEL,   0,  4, MWAIT_C0_SUBSTATE,   IGNORE,  0, FALSE) \
+FIELDDEF(  5, EDX, INTEL,   4,  4, MWAIT_C1_SUBSTATE,   IGNORE,  0, FALSE) \
+FIELDDEF(  5, EDX, INTEL,   8,  4, MWAIT_C2_SUBSTATE,   IGNORE,  0, FALSE) \
+FIELDDEF(  5, EDX, INTEL,  12,  4, MWAIT_C3_SUBSTATE,   IGNORE,  0, FALSE) \
+FIELDDEF(  5, EDX, INTEL,  16,  4, MWAIT_C4_SUBSTATE,   IGNORE,  0, FALSE)
+
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,   MASK TYPE, SET TO, CPL3, [FUNC] */
+#define CPUID_FIELD_DATA_LEVEL_6                                               \
+FLAGDEF(   6, EAX, INTEL,   0,  1, THERMAL_SENSOR,      IGNORE,  0, FALSE)     \
+FLAGDEF(   6, EAX, INTEL,   1,  1, TURBO_MODE,          IGNORE,  0, FALSE)     \
+FIELDDEF(  6, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS, IGNORE,  0, FALSE)     \
+FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   IGNORE,  0, FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,   MASK TYPE, SET TO, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
@@ -371,6 +394,14 @@ FIELDDEF( 86, ECX, AMD,     0,  8, CACHE_LINE,          IGNORE,  0, FALSE)      
 FIELDDEF( 86, ECX, AMD,     8,  4, CACHE_LINE_PER_TAG,  IGNORE,  0, FALSE)            \
 FIELDDEF( 86, ECX, AMD,    12,  4, CACHE_WAYS,          IGNORE,  0, FALSE)            \
 FIELDDEF( 86, ECX, AMD,    16, 16, CACHE_SIZE,          IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     0,  1, TS,                  IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     1,  1, FID,                 IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     2,  1, VID,                 IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     3,  1, TTP,                 IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     4,  1, TM,                  IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     5,  1, STC,                 IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     6,  1, 100MHZSTEPS,         IGNORE,  0, FALSE)            \
+FLAGDEF(  87, EDX, AMD,     7,  1, HWPSTATE,            IGNORE,  0, FALSE)            \
 FLAGDEF(  87, EDX, AMD,     8,  1, TSC_INVARIANT,       IGNORE,  0, FALSE)            \
 FIELDDEFA(88, EAX, COMMON,  0,  8, PHYSBITS,            IGNORE,  0, FALSE, PHYS_BITS) \
 FIELDDEFA(88, EAX, COMMON,  8,  8, VIRTBITS,            IGNORE,  0, FALSE, VIRT_BITS) \
@@ -391,6 +422,8 @@ FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         MASK,    0, FALSE)
    CPUID_FIELD_DATA_LEVEL_0                                           \
    CPUID_FIELD_DATA_LEVEL_1                                           \
    CPUID_FIELD_DATA_LEVEL_4                                           \
+   CPUID_FIELD_DATA_LEVEL_5                                           \
+   CPUID_FIELD_DATA_LEVEL_6                                           \
    CPUID_FIELD_DATA_LEVEL_A                                           \
    CPUID_FIELD_DATA_LEVEL_80                                          \
    CPUID_FIELD_DATA_LEVEL_81                                          \
@@ -519,6 +552,13 @@ FIELD_FUNC(AMD_CORE_COUNT,   CPUID_AMD_ID88ECX_CORE_COUNT)
 FIELD_FUNC(AMD_APICID_COREID_SIZE, CPUID_AMD_ID88ECX_APICID_COREID_SIZE)
 FIELD_FUNC(AMD_EXTAPICSPC,   CPUID_AMD_ID81ECX_EXTAPICSPC)
 FIELD_FUNC(NUM_PMCS,         CPUID_INTEL_IDAEAX_NUM_PMCS)
+FIELD_FUNC(MWAIT_MIN_SIZE,   CPUID_COMMON_ID5EAX_MWAIT_MIN_SIZE)
+FIELD_FUNC(MWAIT_MAX_SIZE,   CPUID_COMMON_ID5EBX_MWAIT_MAX_SIZE)
+FIELD_FUNC(MWAIT_C0_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C0_SUBSTATE)
+FIELD_FUNC(MWAIT_C1_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C1_SUBSTATE)
+FIELD_FUNC(MWAIT_C2_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C2_SUBSTATE)
+FIELD_FUNC(MWAIT_C3_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C3_SUBSTATE)
+FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #undef FIELD_FUNC
 
 
@@ -706,18 +746,51 @@ CPUID_FullyWritableTSC(Bool isIntel, // IN
              CPUID_FAMILY(v) < CPUID_FAMILY_K8));
 }
 
+
 /*
  * For certain AMD processors, an lfence instruction is necessary at various
  * places to ensure ordering.
  */
+
+static INLINE Bool
+CPUID_VendorRequiresFence(CpuidVendors vendor)
+{
+   return vendor == CPUID_VENDOR_AMD;
+}
+
+static INLINE Bool
+CPUID_VersionRequiresFence(uint32 version)
+{
+   return CPUID_EFFECTIVE_FAMILY(version) == CPUID_FAMILY_K8 &&
+          CPUID_EFFECTIVE_MODEL(version) < 0x40;
+}
+
+static INLINE Bool
+CPUID_ID0RequiresFence(CPUIDRegs *id0)
+{
+   if (id0->eax == 0) {
+      return FALSE;
+   }
+   // hard to get strcmp() in some environments, so do it in the raw
+   return (id0->ebx == *(uint32 *) (CPUID_AMD_VENDOR_STRING + 0) &&
+           id0->ecx == *(uint32 *) (CPUID_AMD_VENDOR_STRING + 4) &&
+           id0->edx == *(uint32 *) (CPUID_AMD_VENDOR_STRING + 8));
+}
+
+static INLINE Bool
+CPUID_ID1RequiresFence(CPUIDRegs *id1)
+{
+   return CPUID_VersionRequiresFence(id1->eax);
+}
+
 static INLINE Bool
 CPUID_RequiresFence(CpuidVendors vendor, // IN
                     uint32 version)      // IN: %eax from CPUID with %eax=1.
 {
-   return ((vendor == CPUID_VENDOR_AMD) &&
-           (CPUID_EFFECTIVE_FAMILY(version) == CPUID_FAMILY_K8) &&
-           (CPUID_EFFECTIVE_MODEL(version) < 0x40));
+   return CPUID_VendorRequiresFence(vendor) &&
+	  CPUID_VersionRequiresFence(version);
 }
+
 
 /* 
  * The following low-level functions compute the number of

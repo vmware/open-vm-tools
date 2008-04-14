@@ -25,7 +25,6 @@ AM_CFLAGS =
 AM_CFLAGS += @COMMON_CFLAGS@
 
 guestd_LDADD =
-guestd_LDADD += ../lib/atomic/libAtomic.a
 guestd_LDADD += ../lib/backdoor/libBackdoor.a
 guestd_LDADD += ../lib/conf/libConf.a
 guestd_LDADD += ../lib/dnd/libDnd.a
@@ -76,9 +75,7 @@ else
    HGFS_BD =
 endif
 guestd_LDADD += $(HGFS_BD)
-
-guestd_LDFLAGS =
-guestd_LDFLAGS += @GUESTD_LDFLAGS@
+guestd_LDADD += @GUESTD_LDADD@
 
 guestd_SOURCES =
 guestd_SOURCES += debugStdio.c

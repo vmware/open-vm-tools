@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -38,6 +38,7 @@
 #include "hgfsServerPolicy.h"
 #include "hgfsVirtualDir.h"
 #include "unicodeOperations.h"
+#include "hostinfo.h"
 
 #define LOGLEVEL_MODULE dnd
 #include "loglevel_user.h"
@@ -46,12 +47,6 @@
 #define WIN_DIRSEPS     "\\"
 
 static ConstUnicode DnDCreateRootStagingDirectory(void);
-Bool DnDDataContainsIllegalCharacters(const char *data,
-                                      const size_t dataSize,
-                                      const char *illegalChars);
-Bool DnDPrependFileRoot(const char *fileRoot, const char delimiter,
-                        char **src, size_t *srcSize);
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -124,11 +119,9 @@ DnD_CreateStagingDirectory(void)
 
          Unicode_Free(stagingDir);
       }
-
-      Unicode_Free(stagingDirList[i]);
    }
 
-   free(stagingDirList);
+   Unicode_FreeList(stagingDirList, numStagingDirs);
 
    /* Only create a directory if we didn't find one above. */
    if (!found) {
@@ -138,13 +131,11 @@ DnD_CreateStagingDirectory(void)
 
       for (i = 0; i < 10; i++) {
          Unicode temp;
-         char string[16];
 
          /* Each staging directory is given a random name. */
          Unicode_Free(ret);
-         Str_Sprintf(string, sizeof string, "%08x%c", Random_Quick(p),
-                     DIRSEPC);
-         temp = Unicode_Alloc(string, STRING_ENCODING_US_ASCII);
+         temp = Unicode_Format("%08x%c", Random_Quick(p), DIRSEPC);
+         ASSERT_MEM_ALLOC(temp);
          ret = Unicode_Append(root, temp);
          Unicode_Free(temp);
 
@@ -167,6 +158,77 @@ exit:
    return ret;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_DeleteStagingFiles --
+ *
+ *    Attempts to delete all files in the filelist.
+ *
+ * Results:
+ *    TRUE if all files were deleted. FALSE if there was an error.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+DnD_DeleteStagingFiles(ConstUnicode fileList,  // IN:
+                       Bool onReboot)          // IN:
+{
+   Bool ret = TRUE;
+   UnicodeIndex start = 0;
+
+   ASSERT(fileList);
+
+   /*
+    * The list of files is composed of a concatenation of path names, each
+    * ending with '|' character. Select each one and delete it.
+    */
+
+   while (TRUE) {
+      Unicode fileName;
+      UnicodeIndex index;
+
+      index = Unicode_FindSubstrInRange(fileList, start, -1,
+                                        U("|"), 0, 1);
+
+      if (index == UNICODE_INDEX_NOT_FOUND) {
+         break;
+      } else {
+         fileName = Unicode_Substr(fileList, start, index - start);
+      }
+
+      if (onReboot) {
+         if (File_UnlinkDelayed(fileName)) {
+            ret = FALSE;
+         }
+      } else {
+
+         if (File_IsFile(fileName)) {
+            /* File_Unlink() returns -1 on error */
+            if (File_Unlink(fileName) == -1) {
+               ret = FALSE;
+            }
+         } else if (File_IsDirectory(fileName)) {
+            /* File_DeleteDirectoryTree() returns false on error */
+            if (!File_DeleteDirectoryTree(fileName)) {
+               ret = FALSE;
+            }
+         } else {
+            ret = FALSE;
+         }
+      }
+      Unicode_Free(fileName);
+
+      start = index + 1;
+   }
+
+   return ret;
+}
 
 /*
  *----------------------------------------------------------------------------
@@ -239,9 +301,9 @@ DnDCreateRootStagingDirectory(void)
  */
 
 Bool
-DnDDataContainsIllegalCharacters(const char *data,         // IN: buffer
-                                 const size_t dataSize,    // IN: size of buffer
-                                 const char *illegalChars) // IN: chars to look for
+DnDDataContainsIllegalCharacters(const char *data,          // IN: buffer
+                                 const size_t dataSize,           // IN: size of buffer
+                                 const char *illegalChars)  // IN: chars to look for
 {
    size_t i;
 
@@ -277,8 +339,7 @@ DnDDataContainsIllegalCharacters(const char *data,         // IN: buffer
  *    buffer containing the results.  *srcSize is set to the size of the new
  *    buffer, not including the NUL-terminator.
  *
- *    We can't simply use Str_Sprintf here because it calls FormatMessage on
- *    Win32 which doesn't play well with Unicode strings.
+ *    The logic here and in the called functions appears to be UTF8-safe.
  *
  * Results:
  *    TRUE on success, FALSE on failure.
@@ -291,10 +352,10 @@ DnDDataContainsIllegalCharacters(const char *data,         // IN: buffer
  */
 
 Bool
-DnDPrependFileRoot(const char *fileRoot,  // IN    : file root to append
-                   const char delimiter,  // IN    : delimiter for output buffer
-                   char **src,            // IN/OUT: NUL-delimited list of paths
-                   size_t *srcSize)       // IN/OUT: size of list
+DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
+                   char delimiter,         // IN    : delimiter for output buffer
+                   char **src,             // IN/OUT: NUL-delimited list of paths
+                   size_t *srcSize)        // IN/OUT: size of list
 {
    char *newData = NULL;
    size_t newDataLen = 0;
@@ -362,55 +423,6 @@ DnDPrependFileRoot(const char *fileRoot,  // IN    : file root to append
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * DnD_UTF8Asprintf --
- *
- *    Str_Asprintf should not be used with UTF-8 strings as it uses 
- *    FormatMessage. This interprets UTF-8 strings as a string in the current
- *    locale giving wrong results. This function is otherwise funcationally
- *    equivalent to Str_Asprintf. The caller must first compute how large the
- *    output buffer needs to be and pass it in as outBufSize.
- *
- * Results:
- *    The allocated string on success.
- *    NULL on failure.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-char *
-DnD_UTF8Asprintf(unsigned int outBufSize, // IN: size of output buffer
-                 const char *format,      // IN
-                 ...)                     // IN
-{
-   va_list arguments;
-   char *buffer = NULL;
-
-   ASSERT(format);
-   va_start(arguments, format);
-
-   if (!(buffer = (char *)malloc(outBufSize))) {
-      Log("DnD_UTF8Asprintf: Error creating string.\n");
-      goto exit;
-   }
-
-   if (Str_Vsnprintf(buffer, outBufSize, format, arguments) < 0) {
-      Log("DnD_UTF8Asprintf: Error writing to string.\n");
-      free (buffer);
-      buffer = NULL;
-   }
-
-exit:
-   va_end(arguments);
-   return buffer;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * DnD_LegacyConvertToCPName --
@@ -419,6 +431,8 @@ exit:
  *    format across the backdoor.  Older tools send paths in Windows format so
  *    this implementation must always convert from Windows path to CPName path,
  *    regardless of the platform we are running on.
+ *
+ *    The logic here and in the called functions appears to be UTF8-safe.
  *
  * Results:
  *    On success, returns the number of bytes used in the cross-platform name,
@@ -564,25 +578,88 @@ out:
 /*
  *-----------------------------------------------------------------------------
  *
+ * DnD_CPNameListToDynBufArray --
+ *
+ *    Export CPName file list from binary buffer to DynBufArray.
+ *
+ * Results:
+ *    TRUE if success, FALSE otherwise.
+ *
+ * Side effects:
+ *    Memory may allocated for DynBufArray if success.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+DnD_CPNameListToDynBufArray(char *fileList,           // IN: CPName format
+                            size_t listSize,          // IN
+                            DynBufArray *dynBufArray) // OUT
+{
+   DynBuf buf;
+   BufRead r;
+   int32 pathLen;
+   size_t count;
+   size_t i;
+
+   ASSERT(fileList);
+   r.pos = fileList;
+   r.unreadLen = listSize;
+
+   DynBufArray_Init(dynBufArray, 0);
+
+   while (r.unreadLen > 0) {
+      DynBuf_Init(&buf);
+      if (!DnDReadBuffer(&r, &pathLen, sizeof pathLen) ||
+          (pathLen > r.unreadLen) ||
+          !DynBuf_Append(&buf, r.pos, pathLen)) {
+         goto error;
+      }
+
+      if (!DnDSlideBuffer(&r, pathLen)) {
+         goto error;
+      }
+
+      if (!DynBufArray_Push(dynBufArray, buf)) {
+         goto error;
+      }
+   }
+   return TRUE;
+
+error:
+   DynBuf_Destroy(&buf);
+
+   count = DynBufArray_Count(dynBufArray);
+   for (i = 0; i < count; i++) {
+      DynBuf *b = DynArray_AddressOf(dynBufArray, i);
+      DynBuf_Destroy(b);
+   }
+   DynBufArray_SetCount(dynBufArray, 0);
+   DynBufArray_Destroy(dynBufArray);
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DnD_GetLastDirName --
  *
  *    Try to get last directory name from a full path name.
  *
  * Results:
- *    size of dirName if success, 0 otherwise.
+ *    The allocated Unicode string, or NULL on failure.
  *
  * Side effects:
- *    Memory may allocated for dirName if success.
+ *    None.
  *
  *-----------------------------------------------------------------------------
  */
 
-size_t
-DnD_GetLastDirName(const char *str,   // IN: can be UTF-8
-                   size_t strSize,    // IN
-                   char **dirName)    // OUT
+Unicode
+DnD_GetLastDirName(ConstUnicode str) // IN
 {
-   size_t end = strSize;
+   size_t end = strlen(str);
    size_t start;
    size_t res = 0;
 
@@ -606,8 +683,352 @@ DnD_GetLastDirName(const char *str,   // IN: can be UTF-8
    }
 
    res = end - start;
-   *dirName = (char *)Util_SafeMalloc(res + 1);
-   memcpy(*dirName, str + start, res);
-   (*dirName)[res] = '\0';
-   return res;
+   return Unicode_AllocWithLength(str + start, res, STRING_ENCODING_UTF8);
 }
+
+
+/* Transport layer big buffer support functions. */
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_TransportBufInit --
+ *
+ *    Initialize transport layer buffer with DnD message.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    Buffer memory is allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DnD_TransportBufInit(DnDTransportBuffer *buf, // OUT
+                     uint8 *msg,              // IN
+                     size_t msgSize,          // IN
+                     uint32 seqNum)           // IN
+{
+   ASSERT(buf);
+   ASSERT(msgSize <= DNDMSG_MAX_ARGSZ);
+
+   free(buf->buffer);
+   buf->buffer = Util_SafeMalloc(msgSize);
+   memcpy(buf->buffer, msg, msgSize);
+   buf->seqNum = seqNum;
+   buf->totalSize = msgSize;
+   buf->offset = 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_TransportBufReset --
+ *
+ *    Reset transport layer buffer.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DnD_TransportBufReset(DnDTransportBuffer *buf) // IN/OUT
+{
+   ASSERT(buf);
+
+   free(buf->buffer);
+   buf->buffer = NULL;
+
+   buf->seqNum = 0;
+   buf->totalSize = 0;
+   buf->offset = 0;
+   buf->lastUpdateTime = 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_TransportBufGetPacket --
+ *
+ *    Get a transport layer packet from transport layer buffer.
+ *
+ * Results:
+ *    Transport layer packet size, or 0 if failed.
+ *
+ * Side effects:
+ *    Memory may be allocated for packet.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+DnD_TransportBufGetPacket(DnDTransportBuffer *buf,           // IN/OUT
+                          DnDTransportPacketHeader **packet) // OUT
+{
+   size_t payloadSize;
+
+   ASSERT(buf);
+
+   if (buf->totalSize < buf->offset) {
+      return 0;
+   }
+
+   if ((buf->totalSize - buf->offset) > DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE) {
+      payloadSize = DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE;
+   } else {
+      payloadSize = buf->totalSize - buf->offset;
+   }
+
+   *packet = (DnDTransportPacketHeader *)Util_SafeMalloc(
+      payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE);
+   (*packet)->type = DND_TRANSPORT_PACKET_TYPE_PAYLOAD;
+   (*packet)->seqNum = buf->seqNum;
+   (*packet)->totalSize = buf->totalSize;
+   (*packet)->payloadSize = payloadSize;
+   (*packet)->offset = buf->offset;
+
+   memcpy((*packet)->payload,
+          buf->buffer + buf->offset,
+          payloadSize);
+   buf->offset += payloadSize;
+
+   /* This time is used for timeout purpose. */
+   Hostinfo_GetTimeOfDay(&buf->lastUpdateTime);
+
+   return payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_TransportBufAppendPacket --
+ *
+ *    Put a received packet into transport layer buffer.
+ *
+ * Results:
+ *    TRUE if success, FALSE otherwise.
+ *
+ * Side effects:
+ *    Memory may be allocated for transport layer buffer.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+DnD_TransportBufAppendPacket(DnDTransportBuffer *buf,          // IN/OUT
+                             DnDTransportPacketHeader *packet, // IN
+                             size_t packetSize)                // IN
+{
+   ASSERT(buf);
+   ASSERT(packetSize == (packet->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) &&
+          packetSize <= DND_MAX_TRANSPORT_PACKET_SIZE &&
+          (packet->payloadSize + packet->offset) <= packet->totalSize &&
+          packet->totalSize <= DNDMSG_MAX_ARGSZ);
+
+   if (packetSize != (packet->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) ||
+       packetSize > DND_MAX_TRANSPORT_PACKET_SIZE ||
+       (packet->payloadSize + packet->offset) > packet->totalSize ||
+       packet->totalSize > DNDMSG_MAX_ARGSZ) {
+      goto error;
+   }
+
+   /*
+    * If seqNum does not match, it means either this is the first packet, or there
+    * is a timeout in another side. Reset the buffer in all cases.
+    */
+   if (buf->seqNum != packet->seqNum) {
+      DnD_TransportBufReset(buf);
+   }
+
+   if (!buf->buffer) {
+      ASSERT(!packet->offset);
+      if (packet->offset) {
+         goto error;
+      }
+      buf->buffer = Util_SafeMalloc(packet->totalSize);
+      buf->totalSize = packet->totalSize;
+      buf->seqNum = packet->seqNum;
+      buf->offset = 0;
+   }
+
+   if (buf->offset != packet->offset) {
+      goto error;
+   }
+
+   memcpy(buf->buffer + buf->offset,
+          packet->payload,
+          packet->payloadSize);
+   buf->offset += packet->payloadSize;
+   return TRUE;
+
+error:
+   DnD_TransportBufReset(buf);
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_TransportMsgToPacket --
+ *
+ *    Get a packet from small size message.
+ *
+ * Results:
+ *    Transport layer packet size, or 0 if failed.
+ *
+ * Side effects:
+ *    Memory may be allocated for packet.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+DnD_TransportMsgToPacket(uint8 *msg,                        // IN
+                         size_t msgSize,                    // IN
+                         uint32 seqNum,                     // IN
+                         DnDTransportPacketHeader **packet) // OUT
+{
+   size_t packetSize;
+
+   ASSERT(msgSize > 0 && msgSize <= DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE);
+   ASSERT(msg);
+   ASSERT(packet);
+
+   if (msgSize <=0 ||
+       msgSize > DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE ||
+       !msg || !packet) {
+      return 0;
+   }
+
+   packetSize = msgSize + DND_TRANSPORT_PACKET_HEADER_SIZE;
+
+   *packet = (DnDTransportPacketHeader *)Util_SafeMalloc(packetSize);
+
+   (*packet)->type = DND_TRANSPORT_PACKET_TYPE_SINGLE;
+   (*packet)->seqNum = seqNum;
+   (*packet)->totalSize = msgSize;
+   (*packet)->payloadSize = msgSize;
+   (*packet)->offset = 0;
+
+   memcpy((*packet)->payload, msg, msgSize);
+
+   return packetSize;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_TransportReqPacket --
+ *
+ *    Generate a request packet with empty payload. After got a payload, receive
+ *    side should send a DND_TRANSPORT_PACKET_TYPE_REQUEST packet to ask for
+ *    next payload packet.
+ *
+ * Results:
+ *    Transport layer packet size.
+ *
+ * Side effects:
+ *    Memory is allocated for packet.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+DnD_TransportReqPacket(DnDTransportBuffer *buf,           // IN
+                       DnDTransportPacketHeader **packet) // OUT
+{
+   *packet = (DnDTransportPacketHeader *)Util_SafeMalloc(
+      DND_TRANSPORT_PACKET_HEADER_SIZE);
+
+   (*packet)->type = DND_TRANSPORT_PACKET_TYPE_REQUEST;
+   (*packet)->seqNum = buf->seqNum;
+   (*packet)->totalSize = buf->totalSize;
+   (*packet)->payloadSize = 0;
+   (*packet)->offset = buf->offset;
+   return DND_TRANSPORT_PACKET_HEADER_SIZE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DnDReadBuffer --
+ *
+ *      Copies len bytes of data from b to out. Subsequent calls to this
+ *      function will copy data from the last unread point.
+ *
+ * Results:
+ *      TRUE when data is successfully copies to out, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+DnDReadBuffer(BufRead *b,       // IN/OUT: buffer to read from
+              void *out,        // OUT: the output buffer
+              size_t len)       // IN: the amount to read
+{
+   ASSERT(b);
+   ASSERT(out);
+
+   if (len > b->unreadLen) {
+      return FALSE;
+   }
+
+   memcpy(out, b->pos, len);
+   if (!DnDSlideBuffer(b, len)) {
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DnDSlideBuffer --
+ *
+ *      Ignore len bytes of data in b. Subsequent calls to DnDReadBuffer will
+ *      copy data from the last point.
+ *
+ * Results:
+ *      TRUE when pos is successfully changed, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+DnDSlideBuffer(BufRead *b, // IN/OUT: buffer to read from
+               size_t len) // IN: the amount to read
+{
+   ASSERT(b);
+
+   if (len > b->unreadLen) {
+      return FALSE;
+   }
+
+   b->pos += len;
+   b->unreadLen -= len;
+
+   return TRUE;
+}
+

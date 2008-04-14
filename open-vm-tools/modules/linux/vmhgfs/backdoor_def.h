@@ -110,7 +110,8 @@
 #define BDOOR_CMD_LAZYTIMEREMULATION    49
 #define BDOOR_CMD_BIOSBBS               50
 #define BDOOR_CMD_VASSERT               51
-#define BDOOR_CMD_MAX                   52
+#define BDOOR_CMD_ISGOSDARWIN           52
+#define BDOOR_CMD_MAX                   53
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

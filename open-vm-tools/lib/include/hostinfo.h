@@ -7,11 +7,11 @@
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
@@ -32,9 +32,10 @@
 
 #include "vm_basic_types.h"
 #include "x86cpuid.h"
+#include "unicodeTypes.h"
 
-extern const char *Hostinfo_NameGet(void);	/* don't free result */
-extern const char *Hostinfo_HostName(void);	/* free result */
+extern Unicode Hostinfo_NameGet(void);	/* don't free result */
+extern Unicode Hostinfo_HostName(void);	/* free result */
 
 extern void Hostinfo_MachineID(uint32 *hostNameHash,
                                uint64 *hostHardwareID);
@@ -57,7 +58,10 @@ extern Bool Hostinfo_OSIsWow64(void);
 #endif
 extern Bool Hostinfo_TouchBackDoor(void);
 extern Bool Hostinfo_TouchXen(void);
-extern char *Hostinfo_GetModulePath(void);
+
+#define HGMP_PRIVILEGE    0
+#define HGMP_NO_PRIVILEGE 1
+extern Unicode Hostinfo_GetModulePath(uint32 priv);
 
 
 #if !defined(_WIN32)
@@ -66,7 +70,7 @@ extern int Hostinfo_Execute(const char *command, char * const *args,
 			    Bool wait);
 #endif
 
-extern char *Hostinfo_GetUser(void);
+extern Unicode Hostinfo_GetUser(void);
 extern void Hostinfo_LogMemUsage(void);
 
 
