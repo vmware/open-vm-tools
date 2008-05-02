@@ -180,6 +180,9 @@ void Unicode_Free(Unicode str);
 Unicode *Unicode_AllocList(char **srcList, ssize_t length,
                            StringEncoding encoding);
 
+Unicode *Unicode_GetAllocList(Unicode const srcList[], ssize_t length, 
+                              StringEncoding encoding);
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -311,53 +314,8 @@ Bool Unicode_CopyBytes(void *destBuffer,
                        size_t *retLength,
                        StringEncoding encoding);
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unicode_GetAllocBytes --
- *
- *      Allocates and returns a NUL terminated buffer into which the contents
- *      of the unicode string are extracted using the specified encoding.
- *
- *      NOTE: The length of the NUL can depend on the encoding.
- *            UTF-16 NUL is "\0\0"; UTF-32 NUL is "\0\0\0\0".
- *
- *      NULL is returned for NULL argument.
- *
- * Results:
- *      Pointer to the dynamically allocated memory,
- *      or NULL on NULL argument.
- *      The caller is responsible to free the memory allocated
- *      by this routine.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void *
-Unicode_GetAllocBytes(ConstUnicode str,        // IN:
-                      StringEncoding encoding) // IN:
-{
-   void *memory;
-   Bool success;
-   size_t length;
-
-   if (str == NULL) {
-      return NULL;
-   }
-
-   length = Unicode_BytesRequired(str, encoding);
-
-   memory = Util_SafeMalloc(length);
-
-   success = Unicode_CopyBytes(memory, str, length, NULL, encoding);
-   ASSERT(success);
-
-   return memory;
-}
+void *Unicode_GetAllocBytes(ConstUnicode str,
+                            StringEncoding encoding);
 
 
 /*

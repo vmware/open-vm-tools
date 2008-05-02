@@ -71,6 +71,7 @@ vmware_user_LDADD += -lcrypt
 vmware_user_LDADD += @GTK_LIBS@
 vmware_user_LDADD += @VMWARE_USER_LDADD@
 vmware_user_LDADD += @COMMON_XLIBS@
+vmware_user_LDADD += @ICU_LIBS@
 
 vmware_user_SOURCES =
 vmware_user_SOURCES += copyPaste.c

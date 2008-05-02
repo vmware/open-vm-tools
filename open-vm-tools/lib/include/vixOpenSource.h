@@ -286,6 +286,9 @@ VixError VixPropertyList_RemoveAll(VixHandle propertyListHandle);
 VixError VixPropertyList_Remove(VixHandle propertyListHandle,
                                 int propertyID);
 
+VixError VixPropertyList_RemoveFromImpl(VixPropertyListImpl *propList,
+                                        int propertyID);
+
 VixError VixPropertyList_AppendProperties(VixHandle handle, 
                                           int firstPropertyID,
                                           ...);
@@ -395,6 +398,7 @@ enum {
 extern int vixDebugGlobalSpewLevel;
 extern char *VixAllocDebugString(char *fmt, ...);
 extern void VixDebugInit(int level);
+extern const char *VixDebug_GetFileBaseName(const char *path);
 
 /*
  * preference name for client and vmx
@@ -403,12 +407,14 @@ extern void VixDebugInit(int level);
 
 #define  VIX_DEBUG_LEVEL(logLevel, s) if (logLevel <= vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \
-       Log("Vix Debug: [%s:%d]: %s", __FILE__, __LINE__, debugString); \
+       Log("Vix: [%lu %s:%d]: %s", (unsigned long)Util_GetCurrentThreadId(),    \
+           VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 
 #define  VIX_DEBUG(s) if (0 !=  vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \
-       Log("Vix Debug: [%s:%d]: %s", __FILE__, __LINE__, debugString); \
+       Log("Vix: [%lu %s:%d]: %s", (unsigned long)Util_GetCurrentThreadId(),    \
+           VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 
 #endif   // VIX_HIDE_FROM_JAVA

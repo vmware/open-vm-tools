@@ -127,6 +127,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -237,7 +240,7 @@ hgfsclient_LDADD = ../lib/conf/libConf.a ../lib/guestApp/libGuestApp.a \
 	../lib/err/libErr.a ../lib/file/libFile.a \
 	../lib/message/libMessage.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a
+	../lib/misc/libMisc.a @ICU_LIBS@
 hgfsclient_SOURCES = hgfsclient.c stub.c
 all: all-am
 

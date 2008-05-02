@@ -31,14 +31,9 @@
 #include "vmbackup_def.h"
 
 #include "dbllnklst.h"
-#include "dynarray.h"
 #include "eventManager.h"
 #include "rpcin.h"
 #include "str.h"
-#include "unicode.h"
-
-typedef char *Target;
-DEFINE_DYNARRAY_TYPE(Target);
 
 typedef enum {
    VMBACKUP_STATUS_PENDING,
@@ -90,7 +85,7 @@ typedef struct VmBackupState {
    Bool        clientAborted;
    intptr_t    clientData;
    void        *scripts;
-   TargetArray disabledTargets;
+   const char  *configDir;
    ssize_t     currentScript;
 } VmBackupState;
 

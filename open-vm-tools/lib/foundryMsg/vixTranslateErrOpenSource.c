@@ -37,6 +37,8 @@
 #ifndef _WIN32
 #include <errno.h>
 #include <string.h>
+#else
+#include "win32u.h"
 #endif
 
 
@@ -110,7 +112,7 @@ Vix_TranslateSystemError(int systemError) // IN
    default:
       err = VIX_E_FAIL;
    }
-   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+   Win32U_FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
                  NULL, systemError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                  (LPTSTR) &lpMsgBuf, 0, NULL);
 

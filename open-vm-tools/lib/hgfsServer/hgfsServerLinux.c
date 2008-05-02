@@ -218,7 +218,7 @@ futimes(int fd, const struct timeval times[2])
    if (snprintf(nameBuffer, sizeof nameBuffer, PROC_SELF_FD "%d", fd) < 0) {
       return -1;
    }
-   return utimes(nameBuffer, mytimes);
+   return Posix_Utimes(nameBuffer, mytimes);
 #else /* !sun */
    return futimesat(fd, NULL, times);
 #endif /* !sun */
@@ -280,12 +280,7 @@ static int HgfsStatFromName(char *fileName,
 
 #ifndef __FreeBSD__
 static int HgfsCaseInsensitiveLookup(char *fileName,
-                                     char *shareName);
-
-#if 0
-static int HgfsToUpper(char *src,
-                       char *dst);
-#endif
+                                     char *sharePath);
 
 static int HgfsToLower(char *src,
                        char *dst);
@@ -728,7 +723,7 @@ HgfsCheckFileNode(char const *localName,      // IN
     * file name still refers to the same pair
     */
 
-   if (stat(localName, &nodeStat) < 0) {
+   if (Posix_Stat(localName, &nodeStat) < 0) {
       int error = errno;
       LOG(4, ("HgfsCheckFileNode: couldn't stat local file \"%s\": %s\n",
               localName, strerror(error)));
@@ -802,7 +797,7 @@ HgfsGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
        * in append mode. If not, close the file and reopen it in append
        * mode.
        */
-      if (append && !(node.flags & FILE_NODE_APPEND_FL)) {
+      if (append && !(node.flags & HGFS_FILE_NODE_APPEND_FL)) {
          status = HgfsCloseFile(node.fileDesc);
          if (status != 0) {
             LOG(4, ("HgfsGetFd: Couldn't close file \"%s\" for reopening\n",
@@ -847,7 +842,7 @@ HgfsGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
     *
     * XXX: We should use O_LARGEFILE, see lib/file/fileIOPosix.c --hpreg
     */
-   newFd = open(node.utf8Name,
+   newFd = Posix_Open(node.utf8Name,
 		node.mode | openFlags | (append ? O_APPEND : 0));
 
    if (newFd < 0) {
@@ -957,7 +952,7 @@ HgfsValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    /*
     * Try to open the file with the requested mode, flags and permissions.
     */
-   fd = open(openInfo->utf8Name,
+   fd = Posix_Open(openInfo->utf8Name,
              openMode | openFlags,
              openPerms);
    if (fd < 0) {
@@ -1161,6 +1156,15 @@ HgfsGetattrResolveAlias(char const *fileName,       // IN:  Input filename
    /*
     * If alias points to an unmounted volume, the volume needs to be explicitly
     * mounted on the host. Mount flag kResolveAliasFileNoUI serves the purpose.
+    *
+    * XXX: This function returns fnfErr (file not found) if it encounters a
+    * broken alias. Perhaps we should make that look like a dangling symlink
+    * instead of returning an error?
+    *
+    * XXX: It also returns errors if it encounters a file with a .alias suffix
+    * that isn't a real alias. That's OK for now because our caller
+    * (HgfsGetattrFromName) will assume that an error means the file is a
+    * regular file.
     */
    osStatus = FSResolveAliasFileWithMountFlags(&fileRef, FALSE, &targetIsFolder,
                                                &wasAliased, kResolveAliasFileNoUI);
@@ -1280,7 +1284,7 @@ HgfsGetHiddenAttr(char const *fileName,         // IN:  Input filename
  *    NOTE: fileName needs to be of size PATH_MAX.
  *
  * Results:
- *    0 on Success, -1 otherwise.
+ *    0 on Success, non-zero otherwise.
  *    String str converted to lower-case and placed in dst.
  *
  * Side effects:
@@ -1309,11 +1313,11 @@ HgfsToLower(char *src,    // IN: Input filename
       }
       if (ret == (size_t) -2) {
          LOG(4, ("%s: mbrtowc failed: %d: %s\n", __FUNCTION__, (int)ret, strerror(errno)));
-         return -1;
+         return errno;
       }
       if (ret == (size_t) -1) {
          LOG(4, ("%s: mbrtowc failed: %d\n", __FUNCTION__, (int)ret));
-         return -1;
+         return errno;
       }
       src += ret;
       wc = towlower(wc);
@@ -1324,71 +1328,13 @@ HgfsToLower(char *src,    // IN: Input filename
    return 0;
 }
 
-#if 0
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsToUpper --
- *
- *    Convert string to upper-case independent of the locale.
- *
- *    NOTE: fileName needs to be of size PATH_MAX.
- *
- * Results:
- *    0 on Success, -1 otherwise.
- *    String str converted to upper-case and placed in dst.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static int
-HgfsToUpper(char *src,    // IN: Input filename
-            char *dst)    // OUT: converted filename
-{
-   char *end = src + strlen(src);
-   wchar_t wc;
-   mbstate_t mbs1, mbs2;
-   size_t ret;
-
-   memset(&mbs1, 0, sizeof(mbstate_t));
-   memset(&mbs2, 0, sizeof(mbstate_t));
-   while (src < end) {
-      ret = mbrtowc(&wc, src, end - src, &mbs1);
-      if (ret == 0) {
-         *dst++ = '\0';
-         src++;
-         continue;
-      }
-      if (ret == (size_t) -2) {
-         LOG(4, ("%s: mbrtowc failed: %d: %s\n", __FUNCTION__, ret, strerror(errno)));
-         return -1;
-      }
-      if (ret == (size_t) -1) {
-         LOG(4, ("%s: mbrtowc failed: %d\n", __FUNCTION__, ret));
-         return -1;
-      }
-      src += ret;
-      wc = towupper(wc);
-      ret = wcrtomb(dst, wc, &mbs2);
-      dst += ret;
-   }
-   *dst++ = '\0';
-   return 0;
-}
-
-#endif
-
 
 /*
  *-----------------------------------------------------------------------------
  *
  * HgfsCaseInsensitiveLookup --
  *
- *    Do case insensitivie lookup for fileName. Each component past shareName is
+ *    Do case insensitivie lookup for fileName. Each component past sharePath is
  *    looked-up case-insensitively. Expensive!
  *
  *    NOTE: fileName needs to be of size PATH_MAX.
@@ -1404,40 +1350,40 @@ HgfsToUpper(char *src,    // IN: Input filename
  */
 
 static int
-HgfsCaseInsensitiveLookup(char *fileName,   // IN / OUT
-                          char *shareName)  // IN
+HgfsCaseInsensitiveLookup(char *fileName,   // IN/OUT
+                          char *sharePath)  // IN
 {
-   char *fileSuffix = fileName + strlen(shareName) + 1;
+   char *fileSuffix = fileName + strlen(sharePath) + 1;
    char curDir[PATH_MAX];
    char convertedFileName[PATH_MAX];
    char convertedComponent[PATH_MAX];
    struct dirent *dirent;
-   DIR *dir;
-   char *ptr;
+   DIR *dir = NULL;
+   char *ptr = NULL;
    int error;
 
-   strcpy(curDir, shareName);
+   Str_Strcpy(curDir, sharePath, PATH_MAX);
 
 again:
+   /* Open the shared directory. */
    dir = opendir(curDir);
    if (!dir) {
-      return ENOENT;
+      goto not_found;
    }
 
+   /* Get a component. */
    ptr = strchr(fileSuffix, DIRSEPC);
    if (ptr) {
       *ptr = '\0';
    }
 
+   /* Convert the component to a lower case. */
    error = HgfsToLower(fileSuffix, convertedComponent);
    if (error) {
-      if (ptr) {
-         *ptr = DIRSEPC;
-      }
-      closedir(dir);
-      return ENOENT;
+      goto not_found;
    }
 
+   /* Compare the lower case component with lower case directory entry. */
    while ((dirent = readdir(dir))) {
       error = HgfsToLower(dirent->d_name, convertedFileName);
       if (error) {
@@ -1450,20 +1396,27 @@ again:
          fileSuffix = ptr + 1;
          closedir(dir);
          if (!ptr) {
-            strcpy(fileName, curDir);
-	    return 0;
-	 }
+            Str_Strcpy(fileName, curDir, PATH_MAX);
+            goto found;
+         }
          *ptr = DIRSEPC;
          goto again;
       }
    }
 
+not_found:
    /* Match not found. */
    if (ptr) {
       *ptr = DIRSEPC;
    }
-   closedir(dir);
+   if (dir) {
+      closedir(dir);
+   }
    return ENOENT;
+
+found:
+   return 0;
+
 }
 #endif
 
@@ -1490,29 +1443,23 @@ again:
 int
 HgfsServerConvertCase(HgfsSharedFolder *share,   // IN
                       uint32 caseFlags,          // IN
-                      char *fileName)            // IN / OUT
+                      char *fileName)            // IN/OUT
 {
+   int error = 0;
 #ifndef __FreeBSD__
-   int error;
-   char *fileBaseName;
-
    ASSERT(fileName);
 
-   LOG(4, ("%s: fileName: #%s# %u, %d\n", __FUNCTION__, fileName, caseFlags, (int)caseFlags));
+   LOG(4, ("%s: fileName: #%s# %u\n", __FUNCTION__, fileName, caseFlags));
    if (!share) {
       return -1;
    }
 
-   /* fileBaseName is the relative path of the file. */
-   fileBaseName = fileName + share->pathLen;
-
    if (caseFlags == HGFS_FILE_NAME_CASE_INSENSITIVE) {
-     LOG(4, ("%s: %u, %d\n", __FUNCTION__, caseFlags, (int)caseFlags));
+     LOG(4, ("%s: Case insensitive lookup.\n", __FUNCTION__));
      error = HgfsCaseInsensitiveLookup(fileName, share->path);
-     return error;
    }
 #endif
-   return 0;
+   return error;
 }
 
 
@@ -1535,16 +1482,16 @@ HgfsServerConvertCase(HgfsSharedFolder *share,   // IN
  */
 
 static int
-HgfsStatFromName(char *fileName,          // IN: filename
+HgfsStatFromName(char *fileName,          // IN: filename to stat
                  HgfsSharedFolder *share, // IN: share
-		 uint32 caseFlags,        // IN: case-sensitivity flags
+                 uint32 caseFlags,        // IN: case-sensitivity flags
                  struct stat *stats)      // OUT: file stats
 {
    int error;
 
    /* Simple case - plain lookup. */
    errno = 0;
-   error = lstat(fileName, stats);
+   error = Posix_Lstat(fileName, stats);
    if (!error || errno != ENOENT) {
       return errno;
    }
@@ -1553,10 +1500,15 @@ HgfsStatFromName(char *fileName,          // IN: filename
       return ENOENT;
    }
    
-   if (!strncmp(fileName, share->path, strlen(fileName))) {
+   /* If fileName is same as share path, access is denied. */
+   if (!Str_Strncmp(fileName, share->path, strlen(fileName))) {
       return EACCES;
    }
 
+   /* 
+    * If share path is not a prefix in fileName, it is a wrong
+    * share for this fileName. Return ENOENT.
+    */
    if (Str_Strncmp(share->path, fileName, share->pathLen)) {
       return ENOENT;
    }
@@ -1568,7 +1520,7 @@ HgfsStatFromName(char *fileName,          // IN: filename
    }
       
    LOG(4, ("%s: stating %s\n", __FUNCTION__, fileName));
-   error = lstat(fileName, stats);
+   error = Posix_Lstat(fileName, stats);
    if (error < 0) {
       return errno;
    }
@@ -1598,15 +1550,16 @@ HgfsStatFromName(char *fileName,          // IN: filename
  */
 
 static HgfsInternalStatus
-HgfsGetattrFromName(char *fileName,             // IN / OUT:  Input filename
-                    HgfsSharedFolder *share,    // IN:  Share
-		    uint32 caseFlags,           // IN: case-sensitivity flags
+HgfsGetattrFromName(char *fileName,             // IN/OUT:  Input filename
+                    HgfsSharedFolder *share,    // IN: Share
+                    uint32 caseFlags,           // IN: case-sensitivity flags
                     HgfsFileAttrInfo *attr,     // OUT: Struct to copy into
                     char **targetName)          // OUT: Symlink target filename
 {
    HgfsInternalStatus status = 0;
    struct stat stats;
    int error;
+   char *myTargetName = NULL;
 
    ASSERT(attr);
    LOG(4, ("HgfsGetattrFromName: getting attrs for \"%s\"\n", fileName));
@@ -1636,13 +1589,11 @@ HgfsGetattrFromName(char *fileName,             // IN / OUT:  Input filename
        * caller asked. Use st_size and readlink() to do so.
        */
       if (targetName != NULL) {
-         char *myTargetName;
 
          myTargetName = Posix_ReadLink(fileName);
          if (myTargetName == NULL) {
             error = errno;
             LOG(4, ("HgfsGetattrFromName: readlink returned wrong size\n"));
-            free(myTargetName);
 
             /* 
              * Because of an unavoidable race between the lstat(2) and the 
@@ -1653,20 +1604,23 @@ HgfsGetattrFromName(char *fileName,             // IN / OUT:  Input filename
             status = error ? error : ENOMEM;
             goto exit;
          }
-         *targetName = myTargetName;
       }
    } else {
-      char *myTargetName = NULL;
-
       /* 
        * Now is a good time to check if the file was an alias. If so, we'll
        * treat it as a symlink.
+       *
+       * XXX: If HgfsGetattrResolveAlias fails, we'll treat the file as a
+       * regular file. This isn't completely correct (the function may have
+       * failed because we're out of memory), but it's better than having to
+       * call LScopyItemInfoForRef for each file, which may negatively affect
+       * performance. See:
+       *
+       * http://lists.apple.com/archives/carbon-development/2001/Nov/msg00007.html
        */
       LOG(4, ("HgfsGetattrFromName: NOT a directory or symlink\n"));
-      status = HgfsGetattrResolveAlias(fileName, &myTargetName);
-      if (status != 0) {
+      if (HgfsGetattrResolveAlias(fileName, &myTargetName)) {
          LOG(4, ("HgfsGetattrFromName: could not resolve file aliases\n"));
-         goto exit;
       }
       if (myTargetName != NULL) {
          /* 
@@ -1677,21 +1631,32 @@ HgfsGetattrFromName(char *fileName,             // IN / OUT:  Input filename
           */
          stats.st_size = strlen(myTargetName);
          stats.st_mode |= ACCESSPERMS;
-         
-         /* 
-          * Note that the caller may not actually care about the alias's 
-          * target filename (though it still wants to know that the file is an 
-          * alias).
-          */
-         if (targetName != NULL) {
-            *targetName = myTargetName;
-         } else {
-            free(myTargetName);
-         }
          attr->type = HGFS_FILE_TYPE_SYMLINK;
       } else {
          attr->type = HGFS_FILE_TYPE_REGULAR;
       }
+   }
+
+   if (myTargetName != NULL && targetName != NULL) {
+#if defined(__APPLE__)
+      /*
+       * HGFS clients will expect filenames in unicode normal form C
+       * (precomposed) so Mac hosts must convert from normal form D
+       * (decomposed).
+       */
+      if (!CodeSet_Utf8FormDToUtf8FormC(myTargetName,
+                                        strlen(myTargetName),
+                                        targetName,
+                                        NULL)) {
+         LOG(4, ("HgfsGetattrFromName: Unable to normalize form C "
+                 "\"%s\"\n", myTargetName));
+         status = HgfsConvertFromNameStatus(HGFS_NAME_STATUS_FAILURE);
+         goto exit;
+      }
+#else
+      *targetName = myTargetName;
+      myTargetName = NULL;
+#endif
    }
 
    HgfsStat(&stats, attr);
@@ -1703,6 +1668,7 @@ HgfsGetattrFromName(char *fileName,             // IN / OUT:  Input filename
    HgfsGetHiddenAttr(fileName, attr);
 
 exit:
+   free(myTargetName);
    return status;
 }
 
@@ -2415,7 +2381,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
    LOG(4, ("HgfsSetattrFromName: setting attrs for \"%s\"\n", localName));
 
    /* We need the old stats so that we can preserve times. */
-   if (lstat(localName, &statBuf) == -1) {
+   if (Posix_Lstat(localName, &statBuf) == -1) {
       error = errno;
       LOG(4, ("HgfsSetattrFromName: error stating file \"%s\": %s\n",
               localName, strerror(error)));
@@ -2439,7 +2405,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
    permsChanged = HgfsSetattrMode(&statBuf, attr, &newPermissions);
    if (permsChanged) {
       LOG(4, ("HgfsSetattrFromName: set mode %o\n", (unsigned)newPermissions));
-      if (chmod(localName, newPermissions) < 0) {
+      if (Posix_Chmod(localName, newPermissions) < 0) {
          error = errno;
          LOG(4, ("HgfsSetattrFromName: error chmoding file \"%s\": %s\n",
                  localName, strerror(error)));
@@ -2453,7 +2419,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
     * not be changed, we pass in -1.
     */
    if (idChanged) {
-      if (lchown(localName, newUid, newGid) < 0) {
+      if (Posix_Lchown(localName, newUid, newGid) < 0) {
          error = errno;
          LOG(4, ("HgfsSetattrFromName: error chowning file \"%s\": %s\n",
                  localName, strerror(error)));
@@ -2472,7 +2438,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
          LOG(4, ("HgfsSetattrFromName: Client attempted to truncate an "
                   "oplocked file\n"));
          status = EBUSY;
-      } else if (truncate(localName, attr->size) < 0) {
+      } else if (Posix_Truncate(localName, attr->size) < 0) {
          error = errno;
          LOG(4, ("HgfsSetattrFromName: error truncating file \"%s\": %s\n",
                  localName, strerror(error)));
@@ -2491,7 +2457,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
        *     when we politely ask with -D_GNU_SOURCE -D_BSD_SOURCE
        */
 
-      if (utimes(localName, times) < 0) {
+      if (Posix_Utimes(localName, times) < 0) {
          error = errno;
          LOG(4, ("HgfsSetattrFromName: utimes error on file \"%s\": %s\n",
                  localName, strerror(error)));
@@ -2547,7 +2513,7 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
    char buffer[8192];
 
    /* We want a directory. No FIFOs and no symlinks. */
-   result = open(baseDir, O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+   result = Posix_Open(baseDir, O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
    if (result < 0) {
       status = errno;
       LOG(4, ("HgfsServerScandir: error in open: %d (%s)\n", status,
@@ -2815,42 +2781,64 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
                char *packetOut,      // OUT: outgoing packet
                size_t *packetSize)   // IN/OUT: size of packet
 {
-   HgfsRequestRead *request;
-   HgfsReplyRead *reply;
+   HgfsRequest *header = (HgfsRequest *)packetIn;
    int fd;
-   uint64 offset;
    int error;
    HgfsInternalStatus status;
    uint32 extra;
-   uint32 requiredSize;
    Bool sequentialOpen;
+   HgfsHandle file;
+   uint64 offset;
+   uint32 requiredSize;
+   char *payload;
+   uint32 *replyActualSize;
+   size_t replySize;
 
-   request = (HgfsRequestRead *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplyRead *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
    ASSERT(packetSize);
 
+   if (header->op == HGFS_OP_READ_V3) {
+      HgfsRequestReadV3 *request =
+                        (HgfsRequestReadV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
+      HgfsReplyReadV3 *reply = (HgfsReplyReadV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
+
+      file = request->file;
+      offset = request->offset;
+      requiredSize = request->requiredSize;
+      payload = reply->payload;
+      replyActualSize = &reply->actualSize;
+      replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply) - 1;
+   } else {
+      HgfsRequestRead *request = (HgfsRequestRead *)packetIn;
+      HgfsReplyRead *reply = (HgfsReplyRead *)packetOut;
+
+      file = request->file;
+      offset = request->offset;
+      requiredSize = request->requiredSize;
+      payload = reply->payload;
+      replyActualSize = &reply->actualSize;
+      replySize = sizeof *reply - 1;
+   }
+
    LOG(4, ("HgfsServerRead: read fh %u, offset %"FMT64"u, count %u\n",
-           request->file, request->offset, request->requiredSize));
+           file, offset, requiredSize));
 
    /* Get the file descriptor from the cache */
-   status = HgfsGetFd(request->file, FALSE, &fd);
+   status = HgfsGetFd(file, FALSE, &fd);
 
    if (status != 0) {
       LOG(4, ("HgfsServerRead: Could not get file descriptor\n"));
       return status;
    }
 
-   if (!HgfsHandleIsSequentialOpen(request->file, &sequentialOpen)) {
+   if (!HgfsHandleIsSequentialOpen(file, &sequentialOpen)) {
       LOG(4, ("HgfsServerRead: Could not get sequenial open status\n"));
       return EBADF;
    }
 
-   ASSERT_ON_COMPILE(HGFS_PACKET_MAX >= sizeof *reply - 1);
-   extra = HGFS_PACKET_MAX - (sizeof *reply - 1);
-
-   requiredSize = request->requiredSize;
+   ASSERT_ON_COMPILE(HGFS_PACKET_MAX >= replySize);
+   extra = HGFS_PACKET_MAX - replySize;
 
    /*
     * requiredSize is user-provided, so this test must be carefully
@@ -2864,15 +2852,12 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
       requiredSize = extra;
    }
 
-   offset = request->offset;
-
-
 #if defined(GLIBC_VERSION_21) || defined(__APPLE__)
    /* Read from the file. */
    if (sequentialOpen) {
-      error = read(fd, reply->payload, requiredSize);
+      error = read(fd, payload, requiredSize);
    } else {
-      error = pread(fd, reply->payload, requiredSize, offset);
+      error = pread(fd, payload, requiredSize, offset);
    }
 #else
    /*
@@ -2903,7 +2888,7 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
       }
    }
 
-   error = read(fd, reply->payload, requiredSize);
+   error = read(fd, payload, requiredSize);
    SyncMutex_Unlock(&hgfsIOLock);
 #endif
    if (error < 0) {
@@ -2914,12 +2899,13 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
    }
 
    LOG(4, ("HgfsServerRead: read %d bytes\n", error));
-   reply->actualSize = error;
-   *packetSize = sizeof *reply - 1 + error;
+   *replyActualSize = error;
+   replySize += error;
+   *packetSize = replySize;
    return 0;
 
 error:
-   if (!HgfsRemoveFromCache(request->file)) {
+   if (!HgfsRemoveFromCache(file)) {
       LOG(4, ("HgfsServerRead: Could not remove the node from cache.\n"));
    }
    return status;
@@ -2948,27 +2934,63 @@ HgfsServerWrite(char const *packetIn, // IN: incoming packet
                 char *packetOut,      // OUT: outgoing packet
                 size_t *packetSize)   // IN/OUT: size of packet
 {
-   HgfsRequestWrite *request;
-   HgfsReplyWrite *reply;
+   HgfsRequest *header = (HgfsRequest *)packetIn;
    uint32 extra;
-   uint32 requiredSize;
    HgfsInternalStatus status;
    int fd;
-   uint64 offset;
    int error;
    Bool sequentialOpen;
+   HgfsHandle file;
+   HgfsWriteFlags flags;
+   uint64 offset;
+   uint32 requiredSize;
+   char *payload;
+   uint32 *actualSize;
+   size_t replySize;
 
-   request = (HgfsRequestWrite *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplyWrite *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
    ASSERT(packetSize);
+   
+   if (header->op == HGFS_OP_WRITE_V3) {
+      HgfsRequestWriteV3 *request =
+                         (HgfsRequestWriteV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
+      HgfsReplyWriteV3 *reply =
+                       (HgfsReplyWriteV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
 
-   LOG(4, ("HgfsServerWrite: write fh %u, offset %"FMT64"u, count %u\n",
-           request->file, request->offset, request->requiredSize));
+      /* Enforced by the dispatch function */
+      ASSERT(*packetSize >= HGFS_REQ_PAYLOAD_SIZE_V3(request) - 1);
+      extra = *packetSize - (HGFS_REQ_PAYLOAD_SIZE_V3(request) - 1);
+
+      file = request->file;
+      flags = request->flags;
+      offset = request->offset;
+      payload = request->payload;
+      requiredSize = request->requiredSize;
+      actualSize = &reply->actualSize;
+      replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
+   } else {
+      HgfsRequestWrite *request = (HgfsRequestWrite *)packetIn;
+      HgfsReplyWrite *reply = (HgfsReplyWrite *)packetOut;
+
+      /* Enforced by the dispatch function */
+      ASSERT(*packetSize >= sizeof *request - 1);
+      extra = *packetSize - (sizeof *request - 1);
+
+      file = request->file;
+      flags = request->flags;
+      offset = request->offset;
+      payload = request->payload;
+      requiredSize = request->requiredSize;
+      actualSize = &reply->actualSize;
+      replySize = sizeof *reply;
+   }
+
+   LOG(4, ("HgfsServerWrite: write fh %u, offset %"FMT64"u, count %u, extra %u\n",
+           file, offset, requiredSize, extra));
 
    /* Get the file desriptor from the cache */
-   status = HgfsGetFd(request->file, ((request->flags & HGFS_WRITE_APPEND) ? 
+   status = HgfsGetFd(file, ((flags & HGFS_WRITE_APPEND) ? 
                                       TRUE : FALSE), 
                       &fd);
 
@@ -2977,16 +2999,10 @@ HgfsServerWrite(char const *packetIn, // IN: incoming packet
       return status;
    }
 
-   if (!HgfsHandleIsSequentialOpen(request->file, &sequentialOpen)) {
+   if (!HgfsHandleIsSequentialOpen(file, &sequentialOpen)) {
       LOG(4, ("HgfsServerWrite: Could not get sequential open status\n"));
       return EBADF;
    }
-
-   /* Enforced by the dispatch function */
-   ASSERT(*packetSize >= sizeof *request - 1);
-   extra = *packetSize - (sizeof *request - 1);
-
-   requiredSize = request->requiredSize;
 
    /*
     * requiredSize is user-provided, so this test must be carefully
@@ -3000,14 +3016,12 @@ HgfsServerWrite(char const *packetIn, // IN: incoming packet
       requiredSize = extra;
    }
 
-   offset = request->offset;
-
 #if defined(GLIBC_VERSION_21) || defined(__APPLE__)
    /* Write to the file. */
    if (sequentialOpen) {
-      error = write(fd, request->payload, requiredSize);
+      error = write(fd, payload, requiredSize);
    } else {
-      error = pwrite(fd, request->payload, requiredSize, offset);
+      error = pwrite(fd, payload, requiredSize, offset);
    }
 #else
    /*
@@ -3038,7 +3052,7 @@ HgfsServerWrite(char const *packetIn, // IN: incoming packet
       }
    }
 
-   error = write(fd, request->payload, requiredSize);
+   error = write(fd, payload, requiredSize);
    SyncMutex_Unlock(&hgfsIOLock);
 #endif
    if (error < 0) {
@@ -3049,12 +3063,12 @@ HgfsServerWrite(char const *packetIn, // IN: incoming packet
    }
 
    LOG(4, ("HgfsServerWrite: wrote %d bytes\n", error));
-   reply->actualSize = error;
-   *packetSize = sizeof *reply;
+   *actualSize = error;
+   *packetSize = replySize;
    return 0;
 
 error:
-   if (!HgfsRemoveFromCache(request->file)) {
+   if (!HgfsRemoveFromCache(file)) {
       LOG(4, ("HgfsServerWrite: Could not remove the node from cache.\n"));
    }
    return status;
@@ -3093,7 +3107,8 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
    HgfsNameStatus nameStatus;
    char *dirName;
    uint32 dirNameLength;
-   uint32 caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+   HgfsCaseType caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
+   size_t replySize;
 
    ASSERT(packetIn);
    ASSERT(packetOut);
@@ -3102,18 +3117,21 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
    
    if (header->op == HGFS_OP_SEARCH_OPEN_V3) {
       HgfsRequestSearchOpenV3 *requestV3;
+      HgfsReplySearchOpenV3 *replyV3;
       
-      requestV3 = (HgfsRequestSearchOpenV3 *)(packetIn + sizeof *header);
+      requestV3 = (HgfsRequestSearchOpenV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
+      replyV3 = (HgfsReplySearchOpenV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
+      
       /* Enforced by the dispatch function */
-      ASSERT(*packetSize >= sizeof *requestV3 + sizeof *header);
-      extra = *packetSize - sizeof *requestV3 - sizeof *header;
+      ASSERT(*packetSize >= HGFS_REQ_PAYLOAD_SIZE_V3(requestV3));
+      extra = *packetSize - HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
 
-      caseFlags = requestV3->dirName.flags;
+      caseFlags = requestV3->dirName.caseType;
       dirName = requestV3->dirName.name;
-      dirNameLength = requestV3->dirName.length;  
-      replySearch = &((HgfsReplySearchOpenV3 *)(packetOut
-                                                + sizeof(struct HgfsReply)))->search;
-      *packetSize = sizeof(struct HgfsReplySearchOpen) + sizeof(struct HgfsReply);
+      dirNameLength = requestV3->dirName.length;
+      replySearch = &replyV3->search;
+
+       replySize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
        LOG(4, ("HgfsServerSearchOpen: HGFS_OP_SEARCH_OPEN_V3\n"));
    } else {
       HgfsRequestSearchOpen *request;
@@ -3126,7 +3144,7 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
       dirName = request->dirName.name;
       dirNameLength = request->dirName.length;  
       replySearch = &((HgfsReplySearchOpen *)packetOut)->search;
-      *packetSize = sizeof(struct HgfsReplySearchOpen);
+      replySize = sizeof *request;
    }
 
    /*
@@ -3195,6 +3213,7 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
     * open.
     */
    *replySearch = handle;
+   *packetSize = replySize;
   exit:
    return status;
 }
@@ -3655,7 +3674,7 @@ HgfsServerCreateDir(char const *packetIn, // IN: incoming packet
    LOG(4, ("HgfsServerCreateDir: making dir \"%s\", mode %"FMTMODE"\n",
            localName, permissions));
 
-   error = mkdir(localName, permissions);
+   error = Posix_Mkdir(localName, permissions);
    free(localName);
    if (error) {
       error = errno;
@@ -3692,8 +3711,6 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
                      size_t *packetSize)   // IN/OUT: size of packet
 {
    HgfsNameStatus nameStatus;
-   HgfsRequestDelete *request;
-   HgfsReplyDelete *reply;
    char *localName;
    int error;
    HgfsHandle file = HGFS_INVALID_HANDLE;
@@ -3702,10 +3719,8 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
    size_t cpNameSize;
    uint32 caseFlags;
 
-   request = (HgfsRequestDelete *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplyDelete *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
    ASSERT(packetSize);
 
    if (!HgfsUnpackDeleteRequest(packetIn,
@@ -3743,7 +3758,7 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
    ASSERT(localName);
 
    LOG(4, ("HgfsServerDeleteFile: unlinking \"%s\"\n", localName));
-   error = unlink(localName);
+   error = Posix_Unlink(localName);
    free(localName);
    if (error) {
       error = errno;
@@ -3781,8 +3796,6 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
                     size_t *packetSize)   // IN/OUT: size of packet
 {
    HgfsNameStatus nameStatus;
-   HgfsRequestDelete *request;
-   HgfsReplyDelete *reply;
    char *localName;
    int error;
    HgfsHandle file = HGFS_INVALID_HANDLE;
@@ -3791,10 +3804,8 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
    size_t cpNameSize;
    uint32 caseFlags;
 
-   request = (HgfsRequestDelete *)packetIn;
-   ASSERT(request);
-   reply = (HgfsReplyDelete *)packetOut;
-   ASSERT(reply);
+   ASSERT(packetIn);
+   ASSERT(packetOut);
    ASSERT(packetSize);
 
    if (!HgfsUnpackDeleteRequest(packetIn,
@@ -3838,7 +3849,7 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
    ASSERT(localName);
 
    LOG(4, ("HgfsServerDeleteDir: removing \"%s\"\n", localName));
-   error = rmdir(localName);
+   error = Posix_Rmdir(localName);
    free(localName);
    if (error) {
       error = errno;
@@ -4001,7 +4012,7 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
 
    LOG(4, ("HgfsServerRename: renaming \"%s\" to \"%s\"\n",
            localOldName, localNewName));
-   error = rename(localOldName, localNewName);
+   error = Posix_Rename(localOldName, localNewName);
    if (error) {
       error = errno;
       LOG(4, ("HgfsServerRename: error: %s\n", strerror(error)));
@@ -4086,25 +4097,29 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
    ASSERT(packetSize);
    if (header->op == HGFS_OP_QUERY_VOLUME_INFO_V3) {
       HgfsRequestQueryVolumeV3 *requestV3;
+      HgfsReplyQueryVolumeV3 *replyV3;
       
-      requestV3 = (HgfsRequestQueryVolumeV3 *)(packetIn + sizeof *header);
-      freeBytes = &((HgfsReplyQueryVolumeV3 *)(packetOut + sizeof(struct HgfsReply)))->freeBytes;
-      totalBytes = &((HgfsReplyQueryVolumeV3 *)(packetOut + sizeof(struct HgfsReply)))->totalBytes;
+      requestV3 = (HgfsRequestQueryVolumeV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
+      replyV3 = (HgfsReplyQueryVolumeV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
+
+      freeBytes = &replyV3->freeBytes;
+      totalBytes = &replyV3->totalBytes;
       
       /* Enforced by the dispatch function. */
-      ASSERT(*packetSize >= sizeof *requestV3 + sizeof *header);
-      extra = *packetSize - sizeof *requestV3 - sizeof *header;
+      ASSERT(*packetSize >= HGFS_REQ_PAYLOAD_SIZE_V3(requestV3));
+      extra = *packetSize - HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
 
-      caseFlags = requestV3->fileName.flags;
+      caseFlags = requestV3->fileName.caseType;
       fileName = requestV3->fileName.name;
       fileNameLength = requestV3->fileName.length;
-      *packetSize = sizeof(struct HgfsReplyQueryVolumeV3) + sizeof(struct HgfsReply);
+      *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
       LOG(4, ("HgfsServerSearchOpen: HGFS_OP_SEARCH_OPEN_V3\n"));
    } else {
-      HgfsRequestQueryVolume *request;
-      request = (HgfsRequestQueryVolume *)packetIn;
-      freeBytes = &((HgfsReplyQueryVolume *)packetOut)->freeBytes;
-      totalBytes = &((HgfsReplyQueryVolume *)packetOut)->totalBytes;
+      HgfsRequestQueryVolume *request = (HgfsRequestQueryVolume *)packetIn;
+      HgfsReplyQueryVolume *reply = (HgfsReplyQueryVolume *)packetOut;
+      
+      freeBytes = &reply->freeBytes;
+      totalBytes = &reply->totalBytes;
 
       /* Enforced by the dispatch function. */
       ASSERT(*packetSize >= sizeof *request);
@@ -4112,7 +4127,7 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
 
       fileName = request->fileName.name;
       fileNameLength = request->fileName.length;
-      *packetSize = sizeof(struct HgfsReplyQueryVolume);
+      *packetSize = sizeof *reply;
    }
 
    /*
@@ -4330,14 +4345,14 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
    if (header->op == HGFS_OP_CREATE_SYMLINK_V3) {
       HgfsRequestSymlinkCreateV3 *requestV3;
       HgfsFileNameV3 *targetNameP;
-      requestV3 = (HgfsRequestSymlinkCreateV3 *)(packetIn + sizeof *header);
+      requestV3 = (HgfsRequestSymlinkCreateV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       LOG(4, ("HgfsServerSymlinkCreate: HGFS_OP_CREATE_SYMLINK_V3\n"));
 
       /* Enforced by the dispatch function. */
-      ASSERT(*packetSize >= sizeof *requestV3 + sizeof *header);
-      extra = *packetSize - sizeof *requestV3 - sizeof *header;
+      ASSERT(*packetSize >= HGFS_REQ_PAYLOAD_SIZE_V3(requestV3));
+      extra = *packetSize - HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
 
-      caseFlags = requestV3->symlinkName.flags;
+      caseFlags = requestV3->symlinkName.caseType;
       symlinkName = requestV3->symlinkName.name;
       symlinkNameLength = requestV3->symlinkName.length;
 
@@ -4420,7 +4435,7 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
            localSymlinkName, localTargetName));
 
    /* XXX: Should make use of targetNameP->flags? */
-   error = symlink(localTargetName, localSymlinkName);
+   error = Posix_Symlink(localTargetName, localSymlinkName);
    free(localSymlinkName);
    if (error) {
       error = errno;

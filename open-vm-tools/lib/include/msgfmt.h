@@ -66,6 +66,13 @@ MsgFmt_SpecFunc(void *clientData,       // IN
 
 /*
  * A format argument
+ *
+ * In addition to being a internal data structure,
+ * MsgFmt_Arg defines the Vob (vmkernel observations) protocol
+ * between vmkernel and vmx.  As such, it must be carefully aligned,
+ * so that all the fields (except the pointers) have fixed sizes
+ * and the same offsets in the 64-bit vmkernel, the 32-bit vmx,
+ * and the 64-bit vmx.
  */
 
 typedef enum MsgFmt_ArgType {
@@ -78,11 +85,19 @@ typedef enum MsgFmt_ArgType {
    MSGFMT_ARG_STRING8,
    MSGFMT_ARG_STRING16,
    MSGFMT_ARG_STRING32,
+   MSGFMT_ARG_ERRNO,
 } MsgFmt_ArgType;
 
+typedef enum MsgFmt_ArgPlatform {
+   MSGFMT_PLATFORM_UNKNOWN,
+   MSGFMT_PLATFORM_LINUX,
+   MSGFMT_PLATFORM_WINDOWS,
+   MSGFMT_PLATFORM_MACOS,
+} MsgFmt_ArgPlatform;
+
 typedef struct MsgFmt_Arg {
-   MsgFmt_ArgType type;
-   int precision;	// private
+   int32 type;
+   int32 pad;
    union {
       int32 signed32;
       int64 signed64;
@@ -96,7 +111,26 @@ typedef struct MsgFmt_Arg {
 
       void *ptr;	// private
    } v;
+   struct {
+      int32 platform;
+      int32 number;
+   } e;
+   union {		// private
+      int32 precision;
+      char *localString;
+      uint64 pad;
+   } p;
 } MsgFmt_Arg;
+
+#if defined __linux__
+#define MSGFMT_CURRENT_PLATFORM MSGFMT_PLATFORM_LINUX
+#elif defined _WIN32
+#define MSGFMT_CURRENT_PLATFORM MSGFMT_PLATFORM_WINDOWS
+#elif defined __APPLE__
+#define MSGFMT_CURRENT_PLATFORM MSGFMT_PLATFORM_MACOS
+#else
+#define MSGFMT_CURRENT_PLATFORM MSGFMT_PLATFORM_UNKNOWN
+#endif
 
 
 /*

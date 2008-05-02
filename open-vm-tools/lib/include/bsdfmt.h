@@ -107,7 +107,7 @@ int BSDFmt_SPrint(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio);
  * Conversion functions
  */
 
-char *BSDFmt_WCSConv(wchar_t *, int);
+char *BSDFmt_WCharToUTF8(wchar_t *, int);
 char *BSDFmt_UJToA(uintmax_t, char *, int, int, const char *, int, char,
                    const char *);
 

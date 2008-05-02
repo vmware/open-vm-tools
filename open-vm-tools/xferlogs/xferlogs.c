@@ -236,7 +236,9 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
                ptrStr = strstr(buf, LOG_GUEST_MARK);
                ptrStr += sizeof LOG_GUEST_MARK - 1;
                if (Base64_Decode(ptrStr, base64Out, BUF_OUT_SIZE, &lenOut)) {
-                  fwrite(base64Out, 1, lenOut, outfp);
+                  if (fwrite(base64Out, 1, lenOut, outfp) != lenOut) {
+                     Warning("Error writing output\n");
+                  }
                } else {
                   Warning("Error decoding output %s\n", ptrStr);
                }

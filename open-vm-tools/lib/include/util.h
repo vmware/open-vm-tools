@@ -63,7 +63,6 @@ EXTERN CFMutableDictionaryRef UtilMacos_CreateCFDictionary(
 EXTERN io_service_t Util_IORegGetDeviceObjectByName(const char *deviceName);
 EXTERN char *Util_GetBSDName(const char *deviceName);
 EXTERN char *Util_IORegGetDriveType(const char *deviceName);
-EXTERN char *Util_GetMacOSUserHomeDirectory();
 EXTERN char *Util_GetMacOSDefaultVMPath();
 #endif // __APPLE__
 
@@ -73,7 +72,6 @@ EXTERN uint32 Util_Checksum32(uint32 *buf, int len);
 EXTERN uint32 Util_Checksum(uint8 *buf, int len);
 EXTERN uint32 Util_Checksumv(void *iov, int numEntries);
 EXTERN Unicode Util_ExpandString(ConstUnicode fileName);
-EXTERN Unicode Util_GetEnv(ConstUnicode name);
 EXTERN void Util_ExitThread(int);
 EXTERN NORETURN void Util_ExitProcessAbruptly(int);
 EXTERN int Util_HasAdminPriv(void);
@@ -91,7 +89,7 @@ EXTERN int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
 EXTERN Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
 EXTERN Bool Util_IsAbsolutePath(const char *path);
 EXTERN unsigned Util_GetPrime(unsigned n0);
-EXTERN uint32 Util_GetCurrentThreadId(void);
+EXTERN uintptr_t Util_GetCurrentThreadId(void);
 
 EXTERN char *Util_DeriveFileName(const char *source,
                                  const char *name,
@@ -548,5 +546,56 @@ Util_ZeroFreeStringW(wchar_t *str)  // IN
    }
 }
 #endif // _WIN32
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_FreeList --
+ * Util_FreeStringList --
+ *
+ *      Free a list (actually a vector) of allocated objects.
+ *      The list (vector) itself is also freed.
+ *
+ *      The list either has a specified length or is
+ *      argv-style NULL terminated (if length is negative).
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      errno or Windows last error is preserved.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Util_FreeList(void **list,      // IN/OUT: the list to free
+              ssize_t length)   // IN: the length
+{
+   if (length >= 0) {
+      ssize_t i;
+
+      for (i = 0; i < length; i++) {
+	 free(list[i]);
+	 DEBUG_ONLY(list[i] = NULL);
+      }
+   } else {
+      void **s;
+
+      for (s = list; *s != NULL; s++) {
+	 free(*s);
+	 DEBUG_ONLY(*s = NULL);
+      }
+   }
+   free(list);
+}
+
+static INLINE void
+Util_FreeStringList(char **list,      // IN/OUT: the list to free
+                    ssize_t length)   // IN: the length
+{
+   Util_FreeList((void **) list, length);
+}
 
 #endif /* UTIL_H */

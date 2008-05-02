@@ -150,6 +150,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -275,7 +278,7 @@ guestd_LDADD = ../lib/backdoor/libBackdoor.a ../lib/conf/libConf.a \
 	../lib/unicode/libUnicode.a ../lib/misc/libMisc.a \
 	../lib/foundryMsg/libFoundryMsg.a ../lib/auth/libAuth.a \
 	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
-	$(HGFS_BD) @GUESTD_LDADD@
+	$(HGFS_BD) @ICU_LIBS@ @GUESTD_LDADD@
 @SOLARIS_FALSE@HGFS_BD = 
 @SOLARIS_TRUE@HGFS_BD = ../lib/hgfsBd/libHgfsBd.a
 guestd_SOURCES = debugStdio.c foreignVMToolsDaemon.c \

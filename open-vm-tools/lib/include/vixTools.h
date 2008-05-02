@@ -81,6 +81,9 @@ VixError VixToolsGetUserTmpDir(void *userToken,
                                char **tmpDirPath);
 
 Bool VixToolsUserIsMemberOfAdministratorGroup(VixCommandRequestHeader *requestMsg);
+
+VixError VixToolsValidateUserCredentials(const char *domainAndUsername,
+                                         const char *password);
 #endif // _WIN32
 
 #if IMPLEMENT_SOCKET_MGR

@@ -62,7 +62,8 @@ ARFLAGS = cru
 libString_a_AR = $(AR) $(ARFLAGS)
 libString_a_LIBADD =
 am_libString_a_OBJECTS = bsd_output_shared.$(OBJEXT) \
-	bsd_vsnprintf.$(OBJEXT) bsd_vsnwprintf.$(OBJEXT) str.$(OBJEXT)
+	bsd_vsnprintf.$(OBJEXT) bsd_vsnwprintf.$(OBJEXT) \
+	convertutf.$(OBJEXT) str.$(OBJEXT)
 libString_a_OBJECTS = $(am_libString_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -129,6 +130,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -228,7 +232,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libString.a
 libString_a_SOURCES = bsd_output_shared.c bsd_vsnprintf.c \
-	bsd_vsnwprintf.c str.c
+	bsd_vsnwprintf.c convertutf.c str.c
 AM_CFLAGS = @COMMON_CFLAGS@ @LIB_STRING_CFLAGS@
 SUBDIRS = shared
 all: all-recursive
@@ -281,6 +285,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsd_output_shared.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsd_vsnprintf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bsd_vsnwprintf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/convertutf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/str.Po@am__quote@
 
 .c.o:

@@ -204,12 +204,14 @@
 #define WBC_VERSION "e.x.p"
 #define SDK_VERSION "e.x.p"
 #define FOUNDRY_VERSION "e.x.p"
+#define FOUNDRY_FILE_VERSION 1,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
 #define LICENSE_VERSION "e.x.p"
 #define DDK_VERSION "e.x.p"
 #define VIM_API_VERSION "2.5.0"
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "1.5.0"
+#define VDM_VERSION "e.x.p"
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
 #define VMRC_PLUGIN_VERSION "2.5.0"
@@ -221,7 +223,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.04.14"
+#define TOOLS_VERSION "2008.05.02"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

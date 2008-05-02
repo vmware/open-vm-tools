@@ -211,6 +211,9 @@ static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
 
 #if defined(_WIN32) || defined(linux)
 static char *ToolsDaemonGetCurrentUser(void);
+
+static VixError VixToolsAuthenticateUser(const char *username,
+                                         const char *password);
 #endif
 
 static Bool VixToolsPidRefersToThisProcess(ProcMgr_Pid pid);
@@ -1698,7 +1701,6 @@ VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixCommandRenameFileRequest *renameRequest;
-   Bool pathsAreSameFile;
 
    renameRequest = (VixCommandRenameFileRequest *) requestMsg;
    srcFilePathName = ((char *) renameRequest) + sizeof(*renameRequest);
@@ -1717,42 +1719,21 @@ VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
    /*
     * Be careful. Renaming a file to itself can cause it to be deleted.
     * This should be a no-op anyway.
-    *
-    * TEMPORARY FIX (waiting for FileUtf8_IsSameFile).
-    *
-    * Ideally, we would use a FileUtf8_IsSameFile, but that doesn't exist (yet).
-    * However, we need to catch the case of symlinks, or on Windows the case
-    * of a long file name and a truncated 8.3 form of the same name.
-    * So, we use both a File_IsSameFile test and a strcmp.
-    *
-    * The strcmp will catch any identical paths, even if they are utf-8.
-    * The File_IsSameFile will consider any non-ASCII files different, but
-    * it will work with symlinks and long/short file names. 
-    *
-    * So, if you have 2 different strings that are non-ASCII names for
-    * the same file, then we won't catch it and can delete the file.
-    * This is a data loss bug, the most severe kind. We need to fix this
-    * test soon.
     */
-   pathsAreSameFile = FALSE;
-#if defined(_WIN32)
-   if (0 == Str_Strcasecmp(srcFilePathName, destFilePathName)) {
-#else
-   if (0 == strcmp(srcFilePathName, destFilePathName)) {
-#endif  
-      pathsAreSameFile = TRUE;
-   }
-
-   if (!pathsAreSameFile) {
 #if !defined(sun) && !defined(__FreeBSD__)
-      pathsAreSameFile = File_IsSameFile(srcFilePathName, destFilePathName);
-#endif
-   } // if (!pathsAreSameFile)
-
-   if (pathsAreSameFile) {
+   if (File_IsSameFile(srcFilePathName, destFilePathName)) {
       err = VIX_OK;
       goto abort;
    }
+#else
+   /*
+    * Do something better for Solaris and FreeBSD once we support them.
+    */
+   if (strcmp(srcFilePathName, destFilePathName) == 0) {
+      err = VIX_OK;
+      goto abort;
+   }
+#endif
 
    /*
     * pre-check the dest arg -- File_Rename() will return
@@ -2015,7 +1996,6 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
    Bool impersonatingVMWareUser = FALSE;
    size_t formatStringLength;
    void *userToken = NULL;
-   char fullPathFileName[FILE_MAXPATH];
    VixMsgListDirectoryRequest *listRequest = NULL;
    VixMsgSimpleFileRequest *legacyListRequest = NULL;
    Bool truncated = FALSE;
@@ -2114,28 +2094,20 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       }
    }
 
+   /* File_ListDirectory never returns "." or ".." */
    for (fileNum = offset; fileNum < numFiles; fileNum++) {
+      char *pathName;
+
       currentFileName = fileNameList[fileNum];
 
-      /*
-       * Skip . and .., those aren't very useful and can confuse a
-       * simple client.
-       */
-      if ('.' == currentFileName[0]) {
-         if (0 == currentFileName[1]) {
-            continue;
-         }
-         if (('.' == currentFileName[1]) && (0 == currentFileName[2])) {
-            continue;
-         }
-      }
+      pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
+                                  currentFileName);
 
-      Str_Sprintf(fullPathFileName, sizeof(fullPathFileName), "%s"DIRSEPS"%s",
-                  dirPathName, currentFileName);
+      VixToolsPrintFileInfo(pathName, currentFileName, &destPtr, endDestPtr);
 
-      VixToolsPrintFileInfo(fullPathFileName, currentFileName, &destPtr, endDestPtr);
+      free(pathName);
    } // for (fileNum = 0; fileNum < numFiles; fileNum++)
-   *destPtr = 0;
+   *destPtr = '\0';
 
 abort:
    if (impersonatingVMWareUser) {
@@ -2252,14 +2224,14 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 VixToolsPrintFileInfo(char *filePathName,     // IN
                       char *fileName,         // IN
                       char **destPtr,         // IN
                       char *endDestPtr)       // OUT
 {
    int64 fileSize = 0;
-   int64 modTime = 0;
+   int64 modTime;
    int32 fileProperties = 0;
 
    modTime = File_GetModTime(filePathName);
@@ -2794,16 +2766,11 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
                goto abort;
             }
 
-            /*
-             * Check if this is a valid account on the guest.
-             */
-            authToken = Auth_AuthenticateUser(unobfuscatedUserName, unobfuscatedPassword);
-            if (NULL == authToken) {
-               err = VIX_E_GUEST_USER_PERMISSIONS;
+            err = VixToolsAuthenticateUser(unobfuscatedUserName,
+                                           unobfuscatedPassword);
+            if (VIX_OK != err) {
                goto abort;
             }
-
-            Auth_CloseToken(authToken);
 
             /*
              * Make sure that the user who requested the command is the
@@ -3484,6 +3451,60 @@ ToolsDaemonGetCurrentUser(void)
    free(buffer);
    
    return currentUser;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsAuthenticateUser --
+ *
+ *    Check if the supplied credentials match a valid user account.
+ *
+ * Return value:
+ *    VixError. VIX_OK if the credentials are valid, or an appropriate
+ *    error otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsAuthenticateUser(const char *username,    // IN
+                         const char *password)    // IN
+{
+   VixError err = VIX_OK;
+
+#ifdef _WIN32
+   /*
+    * Check if this is a valid account on the guest. We cannot use
+    * Auth_AuthenticateUser() on Windows, because it uses LogonUser()
+    * which requires the SE_TCB_NAME privilege, which is basically root.
+    */
+   err = VixToolsValidateUserCredentials(username,
+                                         password);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+#else
+   AuthToken authToken;
+
+   authToken = Auth_AuthenticateUser(username,
+                                     password);
+   if (NULL == authToken) {
+      err = VIX_E_GUEST_USER_PERMISSIONS;
+      goto abort;
+   }
+
+   Auth_CloseToken(authToken);
+#endif
+
+abort:
+
+   return err;
 }
 #endif  // #if defined(_WIN32) || defined(linux)
 

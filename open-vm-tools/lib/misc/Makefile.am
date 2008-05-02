@@ -20,7 +20,7 @@ noinst_LIBRARIES = libMisc.a
 libMisc_a_SOURCES =
 libMisc_a_SOURCES += atomic.c
 libMisc_a_SOURCES += base64.c
-libMisc_a_SOURCES += codeset.c
+libMisc_a_SOURCES += codesetOld.c
 libMisc_a_SOURCES += dbllnklst.c
 libMisc_a_SOURCES += dynarray.c
 libMisc_a_SOURCES += dynbuf.c
@@ -38,6 +38,10 @@ libMisc_a_SOURCES += util_misc.c
 libMisc_a_SOURCES += vmstdio.c
 libMisc_a_SOURCES += posixPosix.c
 libMisc_a_SOURCES += posixDlopen.c
+
+if NO_ICU
+libMisc_a_SOURCES += codeset.c
+endif
 
 AM_CFLAGS =
 AM_CFLAGS += @COMMON_CFLAGS@

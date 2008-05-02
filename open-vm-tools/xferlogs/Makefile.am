@@ -30,6 +30,7 @@ xferlogs_LDADD += ../lib/rpcOut/libRpcOut.a
 xferlogs_LDADD += ../lib/message/libMessage.a
 xferlogs_LDADD += ../lib/backdoor/libBackdoor.a
 xferlogs_LDADD += ../lib/misc/libMisc.a
+xferlogs_LDADD += @ICU_LIBS@
 
 xferlogs_SOURCES =
 xferlogs_SOURCES += xferlogs.c

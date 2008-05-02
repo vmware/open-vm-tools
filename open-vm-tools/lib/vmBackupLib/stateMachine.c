@@ -51,11 +51,9 @@
 #include "file.h"
 #include "fileIO.h"
 #include "guestApp.h"
-#include "rpcin.h"
 #include "rpcout.h"
 #include "str.h"
 #include "strutil.h"
-#include "unicode.h"
 #include "util.h"
 #include "vmstdio.h"
 
@@ -81,6 +79,7 @@ static DblLnkLst_Links *gEventQueue = NULL;
 static VmBackupState *gBackupState = NULL;
 static VmBackupSyncProvider *gSyncProvider = NULL;
 
+static void DebugOutput(const char *fmt, ...);
 
 /*
  *-----------------------------------------------------------------------------
@@ -101,107 +100,11 @@ static VmBackupSyncProvider *gSyncProvider = NULL;
 static Bool
 VmBackupKeepAliveCallback(void *clientData)   // IN
 {
+   DebugOutput("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
    gBackupState->keepAlive = NULL;
    gBackupState->SendEvent(VMBACKUP_EVENT_KEEP_ALIVE, 0, "");
    return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VmBackupReadConfig --
- *
- *    Reads the vmbackup config file. This file should contain the names of
- *    resources that will not be quiesced during the backup (for example,
- *    paths to be ignored by the sync driver or writers to be ignored by
- *    VSS). Each non-empty line not starting with a '#' character is
- *    considered an entry.
- *
- *    The contents are stored in an array in the backup state structure.
- *    The data is expected to be in UTF-8 format.
- *
- *    Note: currently, only the VSS subsystem uses this data.
- *
- * Results:
- *    TRUE on success, FALSE otherwise.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-VmBackupReadConfig(VmBackupState *state)  // OUT
-{
-   Bool ret = TRUE;
-   char *configDir;
-   char *cfgPath;
-
-   ASSERT(state != NULL);
-
-   configDir = GuestApp_GetConfPath();
-   if (configDir == NULL) {
-      return FALSE;
-   }
-
-   cfgPath = Str_Asprintf(NULL, "%s%c%s", configDir, DIRSEPC, "vmbackup.conf");
-   free(configDir);
-   if (cfgPath == NULL) {
-      return FALSE;
-   }
-
-   if (File_IsFile(cfgPath)) {
-      FILE *file;
-      StdIO_Status status;
-
-      file = Posix_Fopen(cfgPath, "r");
-      if (file == NULL) {
-         Debug("Can't open cfg file: %s\n", strerror(errno));
-         ret = FALSE;
-         goto exit;
-      }
-
-      while (TRUE) {
-         Bool skip = TRUE;
-         char *line;
-         char *c;
-
-         status = StdIO_ReadNextLine(file, &line, 0, NULL);
-         if (status != StdIO_Success) {
-            break;
-         }
-
-         /* Check if the line is empty or a comment. */
-         for (c = line; *c != '\0'; c++) {
-            if (*c != ' ' && *c != '\t') {
-               skip = (*c == '#');
-               break;
-            }
-         }
-
-         if (!skip && !TargetArray_Push(&state->disabledTargets, line)) {
-            free(line);
-            break;
-         }
-      }
-
-      ret = (ret && (status == StdIO_EOF));
-      fclose(file);
-   }
-
-exit:
-   if (!ret) {
-      size_t i;
-      for (i = 0; i < TargetArray_Count(&state->disabledTargets); i++) {
-         free(*TargetArray_AddressOf(&state->disabledTargets, i));
-      }
-      TargetArray_Destroy(&state->disabledTargets);
-      TargetArray_Init(&gBackupState->disabledTargets, 0);
-   }
-   return ret;
 }
 
 
@@ -230,6 +133,7 @@ VmBackupSendEvent(const char *event,   // IN: event name
    Bool success;
    ASSERT(gBackupState != NULL);
 
+   DebugOutput("*** %s\n", __FUNCTION__);
    if (gBackupState->keepAlive != NULL) {
       EventManager_Remove(gBackupState->keepAlive);
    }
@@ -239,7 +143,7 @@ VmBackupSendEvent(const char *event,   // IN: event name
                             event, code, desc);
 
    if (!success) {
-      Debug("VmBackup: failed to send event to the VMX.\n");
+      DebugOutput("VmBackup: failed to send event to the VMX.\n");
    }
 
    gBackupState->keepAlive = EventManager_Add(gEventQueue,
@@ -271,10 +175,8 @@ VmBackupSendEvent(const char *event,   // IN: event name
 static void
 VmBackupFinalize(void)
 {
-   size_t i;
-
    ASSERT(gBackupState != NULL);
-   Debug("*** %s\n", __FUNCTION__);
+   DebugOutput("*** %s\n", __FUNCTION__);
 
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
@@ -290,11 +192,6 @@ VmBackupFinalize(void)
    if (gBackupState->keepAlive != NULL) {
       EventManager_Remove(gBackupState->keepAlive);
    }
-
-   for (i = 0; i < TargetArray_Count(&gBackupState->disabledTargets); i++) {
-      free(*TargetArray_AddressOf(&gBackupState->disabledTargets, i));
-   }
-   TargetArray_Destroy(&gBackupState->disabledTargets);
 
    free(gBackupState->volumes);
    free(gBackupState);
@@ -323,7 +220,7 @@ VmBackupStartScripts(VmBackupScriptType type,   // IN
                      VmBackupCallback callback) // IN
 {
    const char *opName;
-   Debug("*** %s\n", __FUNCTION__);
+   DebugOutput("*** %s\n", __FUNCTION__);
 
    switch (type) {
       case VMBACKUP_SCRIPT_FREEZE:
@@ -379,15 +276,16 @@ VmBackupAsyncCallback(void *clientData)   // IN
 {
    Bool finalize = FALSE;
 
+   DebugOutput("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
-   Debug("*** %s\n", __FUNCTION__);
 
    gBackupState->timerEvent = NULL;
 
    if (gBackupState->currentOp != NULL) {
       VmBackupOpStatus status;
 
-      Debug("VmBackupAsyncCallback: checking %s\n", gBackupState->currentOpName);
+      DebugOutput("VmBackupAsyncCallback: checking %s\n", 
+         gBackupState->currentOpName);
       status = VmBackup_QueryStatus(gBackupState->currentOp);
 
       switch (status) {
@@ -395,7 +293,7 @@ VmBackupAsyncCallback(void *clientData)   // IN
          goto exit;
 
       case VMBACKUP_STATUS_FINISHED:
-         Debug("Async request completed\n");
+         DebugOutput("Async request completed\n");
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
          break;
@@ -419,6 +317,7 @@ VmBackupAsyncCallback(void *clientData)   // IN
 
             VmBackup_Release(gBackupState->currentOp);
             gBackupState->currentOp = NULL;
+            gBackupState->syncProviderFailed = gBackupState->syncProviderRunning;
 
             /*
              * If we get an error when running the freeze scripts, we want to
@@ -519,8 +418,8 @@ exit:
 static Bool
 VmBackupEnableSync(VmBackupState *state)
 {
+   DebugOutput("*** %s\n", __FUNCTION__);
    ASSERT(state != NULL);
-   Debug("*** %s\n", __FUNCTION__);
    if (!gSyncProvider->start(state, gSyncProvider->clientData)) {
       state->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                        VMBACKUP_SYNC_ERROR,
@@ -562,7 +461,7 @@ VmBackupStart(char const **result,     // OUT
               size_t argsSize,         // IN
               void *clientData)        // IN
 {
-   Debug("*** %s\n", __FUNCTION__);
+   DebugOutput("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
       return RpcIn_SetRetVals(result,
                               resultLen,
@@ -575,7 +474,6 @@ VmBackupStart(char const **result,     // OUT
 
    gBackupState->SendEvent = VmBackupSendEvent;
    gBackupState->pollPeriod = 100;
-   TargetArray_Init(&gBackupState->disabledTargets, 0);
 
    if (argsSize > 0) {
       int generateManifests = 0;
@@ -590,12 +488,13 @@ VmBackupStart(char const **result,     // OUT
       }
    }
 
-   if (!VmBackupReadConfig(gBackupState)) {
+   gBackupState->configDir = GuestApp_GetConfPath();
+   if (gBackupState->configDir == NULL) {
       free(gBackupState);
       gBackupState = NULL;
       return RpcIn_SetRetVals(result,
                               resultLen,
-                              "Error when reading configuration file.",
+                              "Error getting configuration directory.",
                               FALSE);
    }
 
@@ -641,8 +540,8 @@ VmBackupAbort(char const **result,     // OUT
               size_t argsSize,         // IN
               void *clientData)        // IN
 {
+   DebugOutput("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
-      Debug("*** %s\n", __FUNCTION__);
 
       if (gBackupState->currentOp != NULL) {
          VmBackup_Cancel(gBackupState->currentOp);
@@ -691,8 +590,8 @@ VmBackupSnapshotDone(char const **result,    // OUT
                      size_t argsSize,        // IN
                      void *clientData)       // IN
 {
+   DebugOutput("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
-      Debug("*** %s\n", __FUNCTION__);
       if (!gSyncProvider->snapshotDone(gBackupState, gSyncProvider->clientData)) {
          gBackupState->syncProviderFailed = TRUE;
          gBackupState->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
@@ -730,6 +629,7 @@ VmBackup_Init(RpcIn *rpcin,                     // IN
               DblLnkLst_Links *eventQueue,      // IN
               VmBackupSyncProvider *provider)   // IN
 {
+   DebugOutput("*** %s\n", __FUNCTION__);
    ASSERT(gEventQueue == NULL);
    ASSERT(eventQueue != NULL);
    ASSERT(provider != NULL);
@@ -775,6 +675,7 @@ VmBackup_Init(RpcIn *rpcin,                     // IN
 void
 VmBackup_Shutdown(RpcIn *rpcin)
 {
+   DebugOutput("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
       VmBackupFinalize();
    }
@@ -786,5 +687,43 @@ VmBackup_Shutdown(RpcIn *rpcin)
    RpcIn_UnregisterCallback(rpcin, VMBACKUP_PROTOCOL_ABORT);
    RpcIn_UnregisterCallback(rpcin, VMBACKUP_PROTOCOL_SNAPSHOT_DONE);
    gEventQueue = NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DebugOutput --
+ *
+ *    Prints the given message using OutputDebugString in debug builds.
+ *
+ * Result
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void 
+DebugOutput(const char *fmt, ...)
+{
+#ifdef VMX86_DEBUG
+   char *str;
+
+   va_list args;
+   va_start(args, fmt);
+   str = Str_Vasprintf(NULL, fmt, args);
+   va_end(args);
+   if (str != NULL) {
+#if defined(_WIN32)
+      OutputDebugString(str);
+#else
+      fprintf(stderr, "%s", str);
+#endif
+      free(str);
+   }
+#endif
 }
 

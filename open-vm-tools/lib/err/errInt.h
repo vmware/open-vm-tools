@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,34 +17,21 @@
  *********************************************************/
 
 /*
- * unicodeInt.h --
+ * errInt.h --
  *
- *      Internal functions common to all implementations of the
- *      Unicode library.
+ *	Internal definitions for the Err module.
  */
 
-#ifndef _UNICODE_INT_H
-#define _UNICODE_INT_H
+#ifndef _ERRINT_H_
+#define _ERRINT_H_
 
-#include "unicodeTypes.h"
+#define INCLUDE_ALLOW_USERLEVEL
+#include "includeCheck.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "err.h"
 
-Unicode UnicodeAllocInternal(const void *buffer,
-                             ssize_t lengthInBytes,
-                             StringEncoding encoding);
-Unicode UnicodeAllocStatic(const char *asciiBytes,
-                           Bool unescape);
 
-void UnicodePinIndices(ConstUnicode str,
-                       UnicodeIndex *strStart,
-                       UnicodeIndex *strLength);
-utf16_t UnicodeSimpleCaseFold(utf16_t codeUnit);
+const char *ErrErrno2String(Err_Number errorNumber, char *buf, size_t bufSize);
 
-#ifdef __cplusplus
-}
-#endif
 
-#endif // _UNICODE_INT_H
+#endif // ifndef _ERRINT_H_

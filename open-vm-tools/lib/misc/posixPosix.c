@@ -43,16 +43,23 @@
 #include <sys/mount.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <pwd.h>
+#include <grp.h>
 #else
+#if !defined(N_PLAT_NLM)
+#include <pwd.h>
+#endif
 #if defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
 #if !defined(N_PLAT_NLM)
 #include <sys/statfs.h>
+#include <sys/mount.h>
 #if !defined(sun)
 #include <mntent.h>
-#include <pwd.h>
+#include <grp.h>
+#else
+#include <sys/mnttab.h>
 #endif
 #endif
 #endif
@@ -74,10 +81,12 @@
 #endif
 
 
-#if !defined(N_PLAT_NLM) && !defined(__FreeBSD__) && !defined(sun)
+#if !defined(N_PLAT_NLM)
 static struct passwd *GetpwInternal(struct passwd *pw);
+#if !defined(sun) && !defined(__FreeBSD__)
 static int GetpwInternal_r(struct passwd *pw, char *buf, size_t size,
                            struct passwd **ppw);
+#endif
 #endif
 
 
@@ -426,7 +435,64 @@ Posix_Utime(ConstUnicode pathName,        // IN:
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Perror --
+ *
+ *      POSIX perror()
+ *
+ * Results:
+ *      Appends error message corresponding to errno to the passed in string,
+ *      and puts the result on stderr.
+ *
+ * Side effects:
+ *      Message printed to stderr.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Posix_Perror(ConstUnicode str)         // IN:
+{
+   char *tmpstr = Unicode_GetAllocBytes(str, STRING_ENCODING_DEFAULT);
+
+   perror(tmpstr);
+
+   free(tmpstr);
+}
+
+
 #if !defined(N_PLAT_NLM) // {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Pathconf --
+ *
+ *      POSIX pathconf()
+ *
+ * Results:
+ *      Returns the limit, -1 if limit doesn't exist or on error
+ *
+ * Side effects:
+ *      errno is set on error.
+ *
+ *----------------------------------------------------------------------
+ */
+
+long
+Posix_Pathconf(ConstUnicode pathName,   // IN:
+               int name)                // IN:
+{
+   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+
+   long ret = pathconf(path, name);
+
+   free(path);
+   return ret;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -765,6 +831,72 @@ exit:
    return ret;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Execlp --
+ *
+ *      POSIX execlp().
+ *
+ * Results:
+ *      -1      Error
+ *      0       Success
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Execlp(ConstUnicode fileName,   // IN:
+             ConstUnicode arg0, ...)  // IN:
+{
+   int ret = -1;
+   char *file = Unicode_GetAllocBytes(fileName, STRING_ENCODING_DEFAULT);
+   va_list vl;
+   char **argv = NULL;
+   int i, count = 0;
+
+   if (arg0) {
+      count = 1;
+      va_start(vl, arg0);
+      while (va_arg(vl, char *)) {
+         count ++;
+      }   
+      va_end(vl);
+   }
+
+   argv = (char **) malloc(sizeof(char *) * (count + 1));
+   if (argv) {
+      if (count > 0) {
+         argv[0] = Unicode_GetAllocBytes(arg0, STRING_ENCODING_DEFAULT);
+         va_start(vl, arg0);
+         for (i = 1; i < count; i++) {
+            argv[i] = Unicode_GetAllocBytes(va_arg(vl, char *),
+                                            STRING_ENCODING_DEFAULT);
+         }
+         va_end(vl);
+      }
+      argv[count] = NULL;
+   } else {
+      errno = ENOMEM;
+      goto exit;
+   }
+
+   ret = execvp(file, argv);
+
+exit:
+   if (argv) {
+      for (i = 0; i < count; i++) {
+         free(argv[i]);
+      }
+      free(argv);
+   }
+   free(file);
+   return ret;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -790,33 +922,66 @@ Posix_Execv(ConstUnicode pathName,        // IN:
    int ret = -1;
    char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
    char **argv = NULL;
-   int i, count = 0;
 
    if (argVal) {
-      while (argVal[count]) {
-         count++;
-      }
-      argv = (char **) malloc(sizeof(char *) * (count + 1));
-      if (argv) {
-         for (i = 0; i < count; i++) {
-            argv[i] = Unicode_GetAllocBytes(argVal[i],
-                                            STRING_ENCODING_DEFAULT);
-         }
-         argv[count] = NULL;
-      } else {
-         errno = ENOMEM;
-         goto exit;
-      }
+      argv = Unicode_GetAllocList(argVal, -1, 
+                                  STRING_ENCODING_DEFAULT);
    }
 
    ret = execv(path, argv);
 
-exit:
    if (argv) {
-      for (i = 0; i < count; i++) {
-         free(argv[i]);
-      }
-      free(argv);
+      Util_FreeStringList(argv, -1);
+   }
+   free(path);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Execve --
+ *
+ *      POSIX execve().
+ *
+ * Results:
+ *      -1	Error
+ *      0	Success
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Execve(ConstUnicode pathName,        // IN:
+	     Unicode const argVal[],       // IN:
+             Unicode const envPtr[])       // IN:
+{
+   int ret = -1;
+   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char **argv = NULL;
+   char **envp = NULL;
+
+   if (argVal) {
+      argv = Unicode_GetAllocList(argVal, -1, 
+                                  STRING_ENCODING_DEFAULT);
+   }
+
+   if (envPtr) {
+      envp = Unicode_GetAllocList(envPtr, -1, 
+                                  STRING_ENCODING_DEFAULT);
+   }
+
+   ret = execve(path, argv, envp);
+
+   if (argv) {
+      Util_FreeStringList(argv, -1);
+   }
+   if (envp) {
+      Util_FreeStringList(envp, -1);
    }
    free(path);
    return ret;
@@ -847,35 +1012,46 @@ Posix_Execvp(ConstUnicode fileName,        // IN:
    int ret = -1;
    char *file = Unicode_GetAllocBytes(fileName, STRING_ENCODING_DEFAULT);
    char **argv = NULL;
-   int i, count = 0;
 
    if (argVal) {
-      while (argVal[count]) {
-         count++;
-      }
-      argv = (char **) malloc(sizeof(char *) * (count + 1));
-      if (argv) {
-         for (i = 0; i < count; i++) {
-            argv[i] = Unicode_GetAllocBytes(argVal[i],
-                                            STRING_ENCODING_DEFAULT);
-         }
-         argv[count] = NULL;
-      } else {
-         errno = ENOMEM;
-         goto exit;
-      }
+      argv = Unicode_GetAllocList(argVal, -1, 
+                                  STRING_ENCODING_DEFAULT);
    }
 
    ret = execvp(file, argv);
 
-exit:
    if (argv) {
-      for (i = 0; i < count; i++) {
-         free(argv[i]);
-      }
-      free(argv);
+      Util_FreeStringList(argv, -1);
    }
    free(file);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_System --
+ *
+ *      POSIX system()
+ *
+ * Results:
+ *      Returns the status of command, or -1 on failure.
+ *
+ * Side effects:
+ *      errno is set on error.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_System(ConstUnicode command)         // IN:
+{
+   char *tmpcommand = Unicode_GetAllocBytes(command, STRING_ENCODING_DEFAULT);
+
+   int ret = system(tmpcommand);
+
+   free(tmpcommand);
    return ret;
 }
 
@@ -1063,7 +1239,6 @@ Posix_OpenDir(ConstUnicode pathName)  // IN:
 }
 
 
-#if !defined(sun) // {
 /*
  *----------------------------------------------------------------------
  *
@@ -1123,9 +1298,10 @@ Posix_Getenv(ConstUnicode name)  // IN:
 /*
  *----------------------------------------------------------------------
  *
- * Posix_Setenv --
+ * Posix_Putenv --
  *
- *      POSIX setenv().
+ *      POSIX putenv().  This wrapper will only assert the string is ASCII.
+ *                       putenv() should not be used.
  *
  * Results:
  *      -1	Error
@@ -1138,56 +1314,12 @@ Posix_Getenv(ConstUnicode name)  // IN:
  */
 
 int
-Posix_Setenv(ConstUnicode name,   // IN:
-             ConstUnicode value,  // IN:
-             int overWrite)       // IN:
+Posix_Putenv(Unicode name)   // IN:
 {
-   int res;
-   char *rawData;
-   char *rawName;
-
-   rawData = Unicode_GetAllocBytes(value, STRING_ENCODING_DEFAULT);
-   rawName = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
-
-   res = setenv(rawName, rawData, overWrite);
-
-   free(rawData);
-   free(rawName);
-
-   return res;
+   ASSERT(Unicode_IsBufferValid(name, -1, STRING_ENCODING_US_ASCII));
+   return putenv(name);
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * Posix_Statfs --
- *
- *      POSIX statfs()
- *
- * Results:
- *      -1	Error
- *      0	Success
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-int
-Posix_Statfs(ConstUnicode pathName,     // IN:
-             struct statfs *statfsbuf)  // IN:
-{
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = statfs(path, statfsbuf);
-
-   free(path);
-   return ret;
-}
-
-
-#if !defined(__FreeBSD__) // {
 
 /*
  *----------------------------------------------------------------------
@@ -1250,7 +1382,7 @@ Posix_Getpwuid(uid_t uid)  // IN:
  *
  * GetpwInternal --
  *
- *      Helper function for Posix_Getpwnam and Posix_Getpwuid
+ *      Helper function for Posix_Getpwnam, Posix_Getpwuid and Posix_Getpwent
  *
  * Results:
  *      Pointer to updated passwd struct on NULL on error.
@@ -1282,12 +1414,25 @@ GetpwInternal(struct passwd *pw)  // IN:
    spw.pw_gecos = NULL;
    free(spw.pw_shell);
    spw.pw_shell = NULL;
+#if defined(__FreeBSD__)
+   free(spw.pw_class);
+   spw.pw_class = NULL;
+#endif
 
    /* Fill out structure with new values. */
    spw.pw_uid = pw->pw_uid;
    spw.pw_gid = pw->pw_gid;
+#if defined(__FreeBSD__)
+   spw.pw_change = pw->pw_change;
+   spw.pw_expire = pw->pw_expire;
+   spw.pw_fields = pw->pw_fields;
+#endif
 
+#if !defined(sun)
    ret = ENOMEM;
+#else
+   ret = EIO;
+#endif
    if (pw->pw_passwd &&
        (spw.pw_passwd = Unicode_Alloc(pw->pw_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
@@ -1308,6 +1453,12 @@ GetpwInternal(struct passwd *pw)  // IN:
        (spw.pw_shell = Unicode_Alloc(pw->pw_shell, STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
+#if defined(__FreeBSD__)
+   if (pw->pw_class &&
+       (spw.pw_class = Unicode_Alloc(pw->pw_class, STRING_ENCODING_DEFAULT)) == NULL) {
+      goto exit;
+   }
+#endif
    ret = 0;
 
 exit:
@@ -1316,6 +1467,99 @@ exit:
       return NULL;
    }
    return &spw;
+}
+
+
+#if !defined(sun) // {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Statfs --
+ *
+ *      POSIX statfs()
+ *
+ * Results:
+ *      -1	Error
+ *      0	Success
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Statfs(ConstUnicode pathName,     // IN:
+             struct statfs *statfsbuf)  // IN:
+{
+   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   int ret = statfs(path, statfsbuf);
+
+   free(path);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Setenv --
+ *
+ *      POSIX setenv().
+ *
+ * Results:
+ *      -1	Error
+ *      0	Success
+ *
+ * Side effects:
+ *      Environment may be changed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Setenv(ConstUnicode name,   // IN:
+             ConstUnicode value,  // IN:
+             int overWrite)       // IN:
+{
+   int res;
+   char *rawData;
+   char *rawName;
+
+   rawData = Unicode_GetAllocBytes(value, STRING_ENCODING_DEFAULT);
+   rawName = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+
+   res = setenv(rawName, rawData, overWrite);
+
+   free(rawData);
+   free(rawName);
+
+   return res;
+}
+
+
+#if !defined(__FreeBSD__) // {
+/*----------------------------------------------------------------------
+ * Posix_Getpwent --
+ *
+ *      POSIX getpwent()
+ *
+ * Results:
+ *      Pointer to updated passwd struct or NULL on error.
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+struct passwd *
+Posix_Getpwent(void)
+{
+   struct passwd *pw;
+   
+   pw = getpwent();
+   return GetpwInternal(pw);  
 }
 
 
@@ -1422,7 +1666,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
    char *gecos = NULL;
    char *dir = NULL;
    char *shell = NULL;
-   char *p;
+   size_t n;
 
    /*
     * Maybe getpwnam_r didn't use supplied struct, but we don't care.
@@ -1462,51 +1706,51 @@ GetpwInternal_r(struct passwd *pw,    // IN:
     */
 
    ret = ERANGE;
-   p = buf;
+   n = 0;
 
    if (pwname) {
       size_t len = strlen(pwname) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      pw->pw_name = memcpy(p, pwname, len);
-      p += len;
+      pw->pw_name = memcpy(buf + n, pwname, len);
+      n += len;
    }
 
    if (passwd != NULL) {
       size_t len = strlen(passwd) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      pw->pw_passwd = memcpy(p, passwd, len);
-      p += len;
+      pw->pw_passwd = memcpy(buf + n, passwd, len);
+      n += len;
    }
 
    if (gecos) {
       size_t len = strlen(gecos) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      pw->pw_gecos = memcpy(p, gecos, len);
-      p += len;
+      pw->pw_gecos = memcpy(buf + n, gecos, len);
+      n += len;
    }
 
    if (dir) {
       size_t len = strlen(dir) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      pw->pw_dir = memcpy(p, dir, len);
-      p += len;
+      pw->pw_dir = memcpy(buf + n, dir, len);
+      n += len;
    }
 
    if (shell) {
       size_t len = strlen(shell) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      pw->pw_shell = memcpy(p, shell, len);
-      p += len;
+      pw->pw_shell = memcpy(buf + n, shell, len);
+      n += len;
    }
    ret = 0;
 
@@ -1520,7 +1764,285 @@ exit:
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_GetGroupList --
+ *
+ *      POSIX getgrouplist()
+ *
+ * Results:
+ *      Returns number of groups found, or -1 if *ngroups is 
+ *      smaller than number of groups found.  Also returns
+ *      the list of groups.
+ *     
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_GetGroupList(ConstUnicode user,    // IN:
+                   gid_t group,          // IN:
+                   gid_t *groups,        // OUT:
+                   int *ngroups)         // IN/OUT:
+{
+   char *tmpuser = Unicode_GetAllocBytes(user, STRING_ENCODING_DEFAULT);
+
+   int ret = getgrouplist(tmpuser, group, groups, ngroups);
+
+   free(tmpuser);
+   return ret;
+}
+
+/*
+ *----------------------------------------------------------------------
+ * Posix_Getgrnam --
+ *
+ *      POSIX getgrnam()
+ *
+ * Results:
+ *      Pointer to updated group struct on NULL on error.
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+struct group *
+Posix_Getgrnam(ConstUnicode name)  // IN:
+{
+   struct group *gr;
+   char *tmpname;
+   int ret, i;
+   static struct group sgr = {0};
+   
+   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   gr = getgrnam(tmpname);
+   free(tmpname);
+   
+   if (!gr) {
+      return NULL;
+   }
+
+   /* Free static structure string pointers before reuse. */
+   free(sgr.gr_name);
+   sgr.gr_name = NULL;
+   free(sgr.gr_passwd);
+   sgr.gr_passwd = NULL;
+   for (i = 0; sgr.gr_mem[i]; i++) {
+      free(sgr.gr_mem[i]);
+   }
+   free(sgr.gr_mem);
+   sgr.gr_mem = NULL;
+
+   /* Fill out structure with new values. */
+   sgr.gr_gid = gr->gr_gid;
+
+   ret = ENOMEM;
+   if (gr->gr_passwd &&
+       (sgr.gr_passwd = Unicode_Alloc(gr->gr_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
+      goto exit;
+   }
+   if (gr->gr_name &&
+       (sgr.gr_name = Unicode_Alloc(gr->gr_name, STRING_ENCODING_DEFAULT)) == NULL) {
+      goto exit;
+   }
+   if (gr->gr_mem) {
+      sgr.gr_mem = Unicode_GetAllocList(gr->gr_mem, -1, 
+                                        STRING_ENCODING_DEFAULT);
+   }
+   
+   ret = 0;
+   
+ exit:
+   if (ret != 0) {
+      errno = ret;
+      return NULL;
+   }
+   return &sgr;
+
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Getgrnam_r --
+ *
+ *      POSIX getgrnam_r()
+ *
+ * Results:
+ *      Returns 0 with success and pointer to updated group struct
+ *      or returns error code.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Getgrnam_r(ConstUnicode name,    // IN:
+                 struct group *gr,     // IN:
+                 char *buf,            // IN:
+                 size_t size,          // IN:
+                 struct group **pgr)   // OUT:
+{
+   int ret, i;
+   char *tmpname;
+   char *grname = NULL;
+   char *grpasswd = NULL;
+   char **grmem = NULL;
+   size_t n;
+
+   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   ret = getgrnam_r(tmpname, gr, buf, size, pgr);
+   free(tmpname);
+
+   if (ret != 0) {
+      return ret;
+   }
+
+   /*
+    * Maybe getgrnam_r didn't use supplied struct, but we don't care.
+    * We just fix up the one it gives us.
+    */
+
+   gr = *pgr;
+
+   /*
+    * Convert strings to UTF-8
+    */
+
+   ret = ENOMEM;
+   if (gr->gr_name &&
+       (grname = Unicode_Alloc(gr->gr_name, STRING_ENCODING_DEFAULT)) == NULL) {
+      goto exit;
+   }
+   if (gr->gr_passwd &&
+       (grpasswd = Unicode_Alloc(gr->gr_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
+      goto exit;
+   }
+   if (gr->gr_mem) {
+      grmem = Unicode_GetAllocList(gr->gr_mem, -1,
+                                   STRING_ENCODING_DEFAULT);
+   }
+   
+   /*
+    * Put UTF-8 strings into the structure.
+    */
+
+   ret = ERANGE;
+   n = 0;
+
+   if (grname) {
+      size_t len = strlen(grname) + 1;
+      if (n + len > size || n + len < n  ) {
+         goto exit;
+      }
+      gr->gr_name = memcpy(buf + n, grname, len);
+      n += len;
+   }
+
+   if (grpasswd != NULL) {
+      size_t len = strlen(grpasswd) + 1;
+      if (n + len > size || n + len < n) {
+         goto exit;
+      }
+      gr->gr_passwd = memcpy(buf + n, grpasswd, len);
+      n += len;
+   }
+
+   if (grmem) {
+      for (i = 0; grmem[i]; i++) {
+         size_t len = strlen(grmem[i]) + 1;
+         if (n + len > size || n + len < n) {
+	    goto exit;
+         }
+         gr->gr_mem[i] = memcpy(buf + n, grmem[i], len);
+         n += len;
+      }
+   }
+   
+   ret = 0;
+
+ exit:
+   free(grpasswd);
+   free(grname);
+   if (grmem) {
+      Util_FreeStringList(grmem, -1);
+   }
+   return ret;
+}
+
+
 #if !defined(__APPLE__) // {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Mount --
+ *
+ *      POSIX mount()
+ *
+ * Results:
+ *      -1	Error
+ *      0	Success
+ *
+ * Side effects:
+ *      errno is set on error. On success, filesystem is mounted.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Mount(ConstUnicode source,             // IN:
+            ConstUnicode target,             // IN:
+            const char *filesystemtype,      // IN:
+            unsigned long mountflags,        // IN:
+            const void *data)                // IN:
+{
+   char *tmpsource = Unicode_GetAllocBytes(source, STRING_ENCODING_DEFAULT);
+   char *tmptarget = Unicode_GetAllocBytes(target, STRING_ENCODING_DEFAULT);
+
+   int ret = mount(tmpsource, tmptarget, filesystemtype, mountflags, data);
+
+   free(tmpsource);
+   free(tmptarget);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Umount --
+ *
+ *      POSIX umount()
+ *
+ * Results:
+ *      -1	Error
+ *      0	Success
+ *
+ * Side effects:
+ *      errno is set on error. On success, filesystem is unmounted.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Umount(ConstUnicode target)             // IN:
+{
+   char *tmptarget = Unicode_GetAllocBytes(target, STRING_ENCODING_DEFAULT);
+
+   int ret = umount(tmptarget);
+
+   free(tmptarget);
+   return ret;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -1652,7 +2174,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    char *dir = NULL;
    char *type = NULL;
    char *opts = NULL;
-   char *p;
+   size_t n;
 
    if (!getmntent_r(fp, m, buf, size)) {
       return NULL;
@@ -1685,42 +2207,42 @@ Posix_Getmntent_r(FILE *fp,          // IN:
     */
 
    ret = ERANGE;
-   p = buf;
+   n = 0;
 
    if (fsname) {
       int len = strlen(fsname) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      m->mnt_fsname = memcpy(p, fsname, len);
-      p += len;
+      m->mnt_fsname = memcpy(buf + n, fsname, len);
+      n += len;
    }
 
    if (dir != NULL) {
       int len = strlen(dir) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
-      m->mnt_dir = memcpy(p, dir, len);
-      p += len;
+      m->mnt_dir = memcpy(buf + n, dir, len);
+      n += len;
    }
 
    if (type) {
       int len = strlen(type) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < size) {
          goto exit;
       }
-      m->mnt_type = memcpy(p, type, len);
-      p += len;
+      m->mnt_type = memcpy(buf + n, type, len);
+      n += len;
    }
 
    if (opts) {
       size_t len = strlen(opts) + 1;
-      if (p + len > buf + size) {
+      if (n + len > size || n + len < size) {
          goto exit;
       }
-      m->mnt_opts = memcpy(p, opts, len);
-      p += len;
+      m->mnt_opts = memcpy(buf + n, opts, len);
+      n += len;
    }
    ret = 0;
 
@@ -1740,5 +2262,55 @@ exit:
 
 #endif // } !defined(__APPLE__)
 #endif // } !defined(__FreeBSD__)
+
+
+#else  // } !defined(sun) {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Getmntent --
+ *
+ *      POSIX getmntent() for Solaris
+ *
+ * Results:
+ *      -1  EOF
+ *      0   Success
+ *      >0  Error
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_Getmntent(FILE *fp,           // IN:
+                struct mnttab *mp)  // IN:
+{
+   int ret;
+   static struct mnttab m = {0};
+
+   ret = getmntent(fp, mp);
+   if (ret == 0) {
+      free(m.mnt_special);
+      free(m.mnt_mountp);
+      free(m.mnt_fstype);
+      free(m.mnt_mntopts);
+      free(m.mnt_time);
+      m.mnt_special = Unicode_Alloc(mp->mnt_special, STRING_ENCODING_DEFAULT);
+      m.mnt_mountp = Unicode_Alloc(mp->mnt_mountp, STRING_ENCODING_DEFAULT);
+      m.mnt_fstype = Unicode_Alloc(mp->mnt_fstype, STRING_ENCODING_DEFAULT);
+      m.mnt_mntopts = Unicode_Alloc(mp->mnt_mntopts, STRING_ENCODING_DEFAULT);
+      m.mnt_time = Unicode_Alloc(mp->mnt_time, STRING_ENCODING_DEFAULT);
+      mp->mnt_special = m.mnt_special;
+      mp->mnt_mountp = m.mnt_mountp;
+      mp->mnt_fstype = m.mnt_fstype;
+      mp->mnt_mntopts = m.mnt_mntopts;
+      mp->mnt_time = m.mnt_time;
+   }
+
+   return ret;
+}
+
 #endif // } !defined(sun)
 #endif // } !defined(N_PLAT_NLM)

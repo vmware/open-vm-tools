@@ -346,7 +346,7 @@ DnD_InitializeBlocking(void)
    }
 
    /* Open device node for communication with vmblock. */
-   blockFd = open(VMBLOCK_DEVICE, VMBLOCK_DEVICE_MODE);
+   blockFd = Posix_Open(VMBLOCK_DEVICE, VMBLOCK_DEVICE_MODE);
    if (blockFd < 0) {
       LOG(1, ("DnD_InitializeBlocking: Can not open blocker device (%s)\n",
               strerror(errno)));

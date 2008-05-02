@@ -44,9 +44,19 @@ extern "C" {
    typedef int Err_Number;
 #endif
 
+#define ERR_INVALID ((Err_Number) -1)
+
 const char *Err_ErrString(void);
 
 const char *Err_Errno2String(Err_Number errorNumber);
+
+Err_Number Err_String2Errno(const char *string);
+
+#ifdef VMX86_DEBUG
+Err_Number Err_String2ErrnoDebug(const char *string);
+#endif
+
+char *Err_Errno2LocalString(Err_Number errorNumber);
 
 
 /*

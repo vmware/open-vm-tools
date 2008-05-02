@@ -20,6 +20,8 @@
 #   define __COMPAT_NETDEVICE_H__
 
 
+#include <linux/skbuff.h>
+#include <linux/rtnetlink.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
@@ -241,6 +243,45 @@ compat_netif_carrier_off(struct device *dev)
 #define compat_netif_carrier_ok(dev)    netif_carrier_ok(dev)
 #define compat_netif_carrier_on(dev)    netif_carrier_on(dev)
 #define compat_netif_carrier_off(dev)   netif_carrier_off(dev)
+#endif
+
+/* unregister_netdevice_notifier was not safe prior to 2.6.17 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 17) && \
+    !defined(ATOMIC_NOTIFIER_INIT)
+/* pre 2.6.17 and not patched */
+static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb) {
+   int err;
+
+   rtnl_lock();
+   err = unregister_netdevice_notifier(nb);
+   rtnl_unlock();
+   return err;
+}
+#else
+/* post 2.6.17 or patched */
+#define compat_unregister_netdevice_notifier(_nb) \
+        unregister_netdevice_notifier(_nb);
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+#define compat_netif_napi_add(dev, napi, poll, quota) \
+   netif_napi_add(dev, napi, poll, quota)
+#define compat_netif_rx_schedule(dev, napi) netif_rx_schedule(dev, napi)
+#define compat_napi_enable(dev, napi)       napi_enable(napi)
+#define compat_napi_disable(dev, napi)      napi_disable(napi)
+#else
+struct napi_struct {
+   int dummy;
+};
+
+#define compat_netif_napi_add(dev, napi, pollcb, quota) \
+   do {                        \
+      (dev)->poll = (pollcb);    \
+      (dev)->weight = (quota);\
+   } while (0)
+#define compat_netif_rx_schedule(dev, napi) netif_rx_schedule(dev)
+#define compat_napi_enable(dev, napi)       netif_poll_enable(dev)
+#define compat_napi_disable(dev, napi)      netif_poll_disable(dev)
 #endif
 
 #endif /* __COMPAT_NETDEVICE_H__ */

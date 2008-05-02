@@ -36,6 +36,7 @@
 #include "hgfsProto.h"
 #include "module.h"
 #include "request.h"
+#include "hgfsUtil.h"
 #include "fsutil.h"
 #include "vm_assert.h"
 #include "vm_basic_types.h"
@@ -177,12 +178,12 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       HgfsRequest *requestHeader;
       HgfsRequestOpenV3 *requestV3;
 
-      requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      requestHeader = (HgfsRequest *)HGFS_REQ_PAYLOAD(req);
       requestHeader->op = opUsed; 
       requestHeader->id = req->id;
       
       requestV3 = (HgfsRequestOpenV3 *)HGFS_REQ_PAYLOAD_V3(req);
-      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
 
       /* We'll use these later. */
       name = requestV3->fileName.name;
@@ -191,7 +192,8 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       requestV3->mask = HGFS_FILE_OPEN_MASK;
 
       /* Linux clients need case-sensitive lookups. */
-      requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestV3->fileName.flags = 0;
+      requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       requestV3->fileName.fid = 0;
 
       /* Set mode. */
@@ -361,6 +363,7 @@ HgfsUnpackOpenReply(HgfsReq *req,          // IN: Packet with reply inside
                     HgfsHandle *file,      // OUT: Handle in reply packet
                     HgfsServerLock *lock)  // OUT: The server lock we got
 {
+   HgfsReplyOpenV3 *replyV3;
    HgfsReplyOpenV2 *replyV2;
    HgfsReplyOpen *replyV1;
    size_t replySize;
@@ -371,6 +374,11 @@ HgfsUnpackOpenReply(HgfsReq *req,          // IN: Packet with reply inside
 
    switch (opUsed) {
    case HGFS_OP_OPEN_V3:
+      replyV3 = (HgfsReplyOpenV3 *)HGFS_REP_PAYLOAD_V3(req);
+      replySize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
+      *file = replyV3->file;
+      *lock = replyV3->acquiredLock;
+      break;
    case HGFS_OP_OPEN_V2:
       replyV2 = (HgfsReplyOpenV2 *)(HGFS_REQ_PAYLOAD(req));
       replySize = sizeof *replyV2;
@@ -1041,7 +1049,7 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
 
       request = (HgfsRequestCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->file = handle;
-      req->payloadSize = sizeof *request + sizeof *header;
+      req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestClose *request;
 

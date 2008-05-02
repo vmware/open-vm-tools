@@ -104,7 +104,7 @@ AuthLoadPAM(void)
    if (authPamLibraryHandle) {
       return TRUE;
    }
-   pam_library = dlopen(CURRENT_PAM_LIBRARY, RTLD_LAZY | RTLD_GLOBAL);
+   pam_library = Posix_Dlopen(CURRENT_PAM_LIBRARY, RTLD_LAZY | RTLD_GLOBAL);
    if (!pam_library) {
 #if !defined(VMX86_TOOLS)
       char liblocation[FILE_MAXPATH];
@@ -117,7 +117,9 @@ AuthLoadPAM(void)
       }
       snprintf(liblocation, sizeof liblocation, "%s/lib/%s/%s", libdir,
                CURRENT_PAM_LIBRARY, CURRENT_PAM_LIBRARY);
-      pam_library = dlopen(liblocation, RTLD_LAZY | RTLD_GLOBAL);
+      free(libdir);
+
+      pam_library = Posix_Dlopen(liblocation, RTLD_LAZY | RTLD_GLOBAL);
       if (!pam_library) {
          Log("Neither system nor bundled (%s) PAM libraries usable: %s\n",
              liblocation, dlerror());

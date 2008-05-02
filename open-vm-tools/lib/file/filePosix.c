@@ -111,11 +111,7 @@ static Bool FileIsGroupsMember(gid_t gid);
 int
 FileRemoveDirectory(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int err = rmdir(path) == -1 ? errno : 0;
-
-   free(path);
-   return err;
+   return (Posix_Rmdir(pathName) == -1) ? errno : 0;
 }
 
 
@@ -140,13 +136,7 @@ int
 FileRename(ConstUnicode oldName,  // IN:
            ConstUnicode newName)  // IN:
 {
-   char *newPath = Unicode_GetAllocBytes(newName, STRING_ENCODING_DEFAULT);
-   char *oldPath = Unicode_GetAllocBytes(oldName, STRING_ENCODING_DEFAULT);
-   int err = rename(oldPath, newPath) == -1 ? errno : 0;
-
-   free(newPath);
-   free(oldPath);
-   return err;
+   return (Posix_Rename(oldName, newName) == -1) ? errno : 0;
 }
 
 
@@ -1306,9 +1296,13 @@ char *
 File_GetUniqueFileSystemID(char const *path) // IN: File path
 {
 #if defined(VMX86_SERVER)
-   char canPath[FILE_MAXPATH];
+   char *canPath;
 
-   realpath(path, canPath);
+   canPath = Posix_RealPath(path);
+
+   if (canPath == NULL) {
+      return NULL;
+   }
 
    /*
     * VCFS doesn't have real mount points, so the mount point lookup below
@@ -1320,9 +1314,14 @@ File_GetUniqueFileSystemID(char const *path) // IN: File path
       char vmfsVolumeName[FILE_MAXPATH];
 
       if (sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s", vmfsVolumeName) == 1) {
-         return Str_Asprintf(NULL, "%s/%s", VCFS_MOUNT_POINT, vmfsVolumeName);
+         free(canPath);
+
+         return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
+                                 vmfsVolumeName);
       }
    }
+
+   free(canPath);
 #endif
 
    return FilePosixGetBlockDevice(path);
@@ -1577,10 +1576,7 @@ FilePosixNearestExistingAncestor(char const *path) // IN: File path
    char *result;
 
    resultSize = MAX(strlen(path), 1) + 1;
-   result = malloc(resultSize);
-   if (!result) {
-      return NULL;
-   }
+   result = Util_SafeMalloc(resultSize);
 
    Str_Strcpy(result, path, resultSize);
    for (;;) {
@@ -1646,35 +1642,30 @@ File_IsSameFile(ConstUnicode path1,  // IN:
 
 #if defined(VMX86_SERVER)
    {
-      char *p1;
-      char *p2;
-      char *fs1;
-      char *fs2;
-      char realpath1[FILE_MAXPATH];
-      char realpath2[FILE_MAXPATH];
+      Unicode fs1;
+      Unicode fs2;
 
-      p1 = Unicode_GetAllocBytes(path1, STRING_ENCODING_DEFAULT);
-      p2 = Unicode_GetAllocBytes(path2, STRING_ENCODING_DEFAULT);
-
-      fs1 = realpath(p1, realpath1);
-      fs2 = realpath(p2, realpath2);
-
-      free(p1);
-      free(p2);
+      fs1 = Posix_RealPath(path1);
+      fs2 = Posix_RealPath(path2);
 
       /*
        * ESX doesn't have real inodes for VMFS disks in User Worlds. So only
        * way to check if a file is the same is using real path. So said Satyam.
        */
 
-      if (fs1 &&
-          strncmp(fs1, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) == 0) {
-         if (!fs2 || strcmp(realpath1, realpath2) != 0) {
-            return FALSE;
-         } else {
-            return TRUE;
-         }
+      if (fs1 && Unicode_StartsWith(fs1, U(VCFS_MOUNT_POINT))) {
+         Bool res;
+
+         res = (!fs2 || Unicode_Compare(fs1, fs2) != 0) ? FALSE : TRUE;
+
+         Unicode_Free(fs1);
+         Unicode_Free(fs2);
+
+         return res;
       }
+
+      Unicode_Free(fs1);
+      Unicode_Free(fs2);
    }
 #endif
 
@@ -2118,13 +2109,8 @@ FileCreateDirectory(ConstUnicode pathName)  // IN:
    if (pathName == NULL) {
       err = errno = EFAULT;
    } else {
-      char *path;
-
-      path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-      err = (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) == -1) ? errno : 0;
-
-      free(path);
+      err = (Posix_Mkdir(pathName,
+                         S_IRWXU | S_IRWXG | S_IRWXO) == -1) ? errno : 0;
    }
 
    return err;
@@ -2469,25 +2455,11 @@ end:
 Bool
 File_MakeCfgFileExecutable(ConstUnicode pathName)
 {
-   char *path;
-   Bool result;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return FALSE;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
-   result = chmod(path,
-                  S_IRUSR | S_IWUSR | S_IXUSR |  // rwx by user
-                  S_IRGRP | S_IXGRP |            // rx by group
-                  S_IROTH | S_IXOTH              // rx by others
-                 ) == 0;
-
-   free(path);
-
-   return result;
+   return Posix_Chmod(pathName,
+                      S_IRUSR | S_IWUSR | S_IXUSR |  // rwx by user
+                      S_IRGRP | S_IXGRP |            // rx by group
+                      S_IROTH | S_IXOTH              // rx by others
+                     ) == 0;
 }
 
 

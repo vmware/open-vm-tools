@@ -49,6 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@NO_ICU_TRUE@am__append_1 = unicodeICU.c
 subdir = lib/unicode
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -61,10 +62,16 @@ LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libUnicode_a_AR = $(AR) $(ARFLAGS)
 libUnicode_a_LIBADD =
+am__libUnicode_a_SOURCES_DIST = unicodeCommon.c unicodeSimpleBase.c \
+	unicodeSimpleCaseFolding.c unicodeSimpleTypes.c \
+	unicodeSimpleOperations.c unicodeSimpleTransforms.c \
+	unicodeStatic.c unicodeICU.c
+@NO_ICU_TRUE@am__objects_1 = unicodeICU.$(OBJEXT)
 am_libUnicode_a_OBJECTS = unicodeCommon.$(OBJEXT) \
 	unicodeSimpleBase.$(OBJEXT) unicodeSimpleCaseFolding.$(OBJEXT) \
 	unicodeSimpleTypes.$(OBJEXT) unicodeSimpleOperations.$(OBJEXT) \
-	unicodeSimpleTransforms.$(OBJEXT) unicodeStatic.$(OBJEXT)
+	unicodeSimpleTransforms.$(OBJEXT) unicodeStatic.$(OBJEXT) \
+	$(am__objects_1)
 libUnicode_a_OBJECTS = $(am_libUnicode_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -79,7 +86,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libUnicode_a_SOURCES)
-DIST_SOURCES = $(libUnicode_a_SOURCES)
+DIST_SOURCES = $(am__libUnicode_a_SOURCES_DIST)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -121,6 +128,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -222,7 +232,7 @@ noinst_LIBRARIES = libUnicode.a
 libUnicode_a_SOURCES = unicodeCommon.c unicodeSimpleBase.c \
 	unicodeSimpleCaseFolding.c unicodeSimpleTypes.c \
 	unicodeSimpleOperations.c unicodeSimpleTransforms.c \
-	unicodeStatic.c
+	unicodeStatic.c $(am__append_1)
 AM_CFLAGS = @COMMON_CFLAGS@
 all: all-am
 
@@ -272,6 +282,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unicodeCommon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unicodeICU.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unicodeSimpleBase.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unicodeSimpleCaseFolding.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unicodeSimpleOperations.Po@am__quote@

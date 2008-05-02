@@ -23,11 +23,49 @@
  *
  */
 
-#ifdef _WIN32
-#  include "win32util.h"
-#endif
+#include "vmware.h"
+#include "errInt.h"
+#include "str.h"
+#include "vm_atomic.h"
+#include "hashTable.h"
+#include "util.h"
+#include "codeset.h"
 
-#include "err.h"
+
+/*
+ * Constants
+ */
+
+#define HASHTABLE_SIZE 2048
+
+
+/*
+ * Types
+ */
+
+typedef struct ErrInfo {
+   Err_Number number;
+   char *string;
+} ErrInfo;
+
+
+/*
+ * Variables
+ */
+
+static Atomic_Ptr errNumTable;
+static Atomic_Ptr errPtrTable;
+
+#define NUMTABLE() HashTable_AllocOnce(&errNumTable, HASHTABLE_SIZE, \
+				       HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL)
+#define PTRTABLE() HashTable_AllocOnce(&errPtrTable, HASHTABLE_SIZE, \
+				       HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL)
+#ifdef VMX86_DEBUG
+Atomic_Ptr errStrTable;
+#define STRTABLE() HashTable_AllocOnce(&errStrTable, HASHTABLE_SIZE, \
+				       HASH_STRING_KEY | HASH_FLAG_ATOMIC, \
+				       NULL)
+#endif
 
 
 /*
@@ -37,13 +75,12 @@
  *
  *      Returns a string that corresponds to the last error message.
  *
- *      TODO: Return UTF8 or a Unicode object.
- *
  * Results:
  *      Error message string.
  *
  * Side effects:
  *      None.
+ *	Current error number is preserved.
  *
  *----------------------------------------------------------------------
  */
@@ -53,3 +90,185 @@ Err_ErrString(void)
 {
    return Err_Errno2String(Err_Errno());
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Err_Errno2String --
+ *
+ *      Return a string that corresponds to the passed error number.
+ *
+ *	The string is in English in UTF-8, has indefinite lifetime,
+ *	and need not be freed.
+ *
+ * Results:
+ *      Error message string in UTF-8.
+ *      
+ * Side effects:
+ *      None.
+ *	Current error number is preserved.
+ *
+ *----------------------------------------------------------------------
+ */
+
+const char *
+Err_Errno2String(Err_Number errorNumber) // IN
+{
+   HashTable *numTable;
+   HashTable *ptrTable;
+   ErrInfo *info;
+   ErrInfo *oldInfo;
+   Err_Number oldErrno = Err_Errno();
+
+   ASSERT(errorNumber != ERR_INVALID);
+
+   /*
+    * Look up the error in numTable.
+    * Or insert it if it's not there.
+    */
+
+   numTable = NUMTABLE();
+   if (!HashTable_Lookup(numTable, (void *) (uintptr_t) errorNumber,
+			 (void **) &info)) {
+      char buf[2048];
+      const char *p;
+      size_t n;
+
+      /*
+       * Convert number to string and build the info structure.
+       */
+
+      p = ErrErrno2String(errorNumber, buf, sizeof buf);
+
+      info = Util_SafeMalloc(sizeof *info);
+      info->number = errorNumber;
+      info->string = Util_SafeStrdup(p);
+
+      /*
+       * To be safe, make sure the end of the string is at
+       * a UTF-8 boundary, but we can only do this when the
+       * string is in our buffer (it may not be).
+       */
+
+      n = strlen(info->string);
+      n = CodeSet_Utf8FindCodePointBoundary(info->string, n);
+      info->string[n] = '\0';
+
+      /*
+       * Try to insert new info into numTable.
+       * If that fails, then we must have lost out to someone else.
+       * Use theirs in that case.
+       */
+
+      oldInfo = HashTable_LookupOrInsert(numTable,
+				         (void *) (uintptr_t) errorNumber,
+				         info);
+      if (oldInfo != info) {
+	 ASSERT(oldInfo->number == info->number);
+	 ASSERT(Str_Strcmp(oldInfo->string, info->string) == 0);
+	 free(info->string);
+	 free(info);
+	 info = oldInfo;
+      }
+   }
+
+   /*
+    * Try to insert info into ptrTable.
+    * We need to do it even if we didn't create this entry,
+    * because we may get here before the other guy (who created
+    * the entry and inserted it into numTable).
+    */
+
+   ptrTable = PTRTABLE();
+   oldInfo = HashTable_LookupOrInsert(ptrTable, info->string, info);
+   ASSERT(oldInfo == info);
+
+#ifdef VMX86_DEBUG
+   {
+      HashTable *strTable = STRTABLE();
+      ErrInfo *i = HashTable_LookupOrInsert(strTable, info->string, info);
+      ASSERT(i == info);
+   }
+#endif
+
+   Err_SetErrno(oldErrno);
+   return info->string;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Err_String2Errno --
+ *
+ *      Return an error number that corresponds to the passed string.
+ *
+ *	To be recognized, the string must be one previously returned
+ *	by Err_Errno2String.  Any other string (even a copy of
+ *	a valid error string) returns ERR_INVALID.
+ *
+ * Results:
+ *      Error number or ERR_INVALID.
+ *      
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Err_Number
+Err_String2Errno(const char *string) // IN
+{
+   HashTable *ptrTable = PTRTABLE();
+   ErrInfo *info;
+
+   if (!HashTable_Lookup(ptrTable, string, (void **) &info)) {
+      return ERR_INVALID;
+   }
+
+   ASSERT(info->string == string);
+   ASSERT(info->number != ERR_INVALID);
+   return info->number;
+}
+
+
+#ifdef VMX86_DEBUG
+/*
+ *----------------------------------------------------------------------
+ *
+ * Err_String2ErrnoDebug --
+ *
+ *      Return an error number that corresponds to the passed string.
+ *
+ *	This is the debug version that uses the whole string as key,
+ *	instead of just the address.
+ *
+ * Results:
+ *      Error number or ERR_INVALID.
+ *      
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Err_Number
+Err_String2ErrnoDebug(const char *string) // IN
+{
+   HashTable *strTable = STRTABLE();
+   ErrInfo *info;
+
+   if (!HashTable_Lookup(strTable, string, (void **) &info)) {
+      return ERR_INVALID;
+   }
+
+   ASSERT(Str_Strcmp(info->string, string) == 0);
+   ASSERT(info->number != ERR_INVALID);
+   if (info->string != string) {
+      Log("%s: errno %d, string \"%s\" at %p, originally at %p.\n",
+	  __FUNCTION__, info->number, string, string, info->string);
+   }
+   return info->number;
+}
+#endif

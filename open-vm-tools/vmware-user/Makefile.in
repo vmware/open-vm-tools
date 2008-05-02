@@ -144,6 +144,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -268,7 +271,8 @@ vmware_user_LDADD = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/unicode/libUnicode.a ../lib/misc/libMisc.a \
 	../lib/procMgr/libProcMgr.a ../lib/auth/libAuth.a \
 	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
-	-lcrypt @GTK_LIBS@ @VMWARE_USER_LDADD@ @COMMON_XLIBS@
+	-lcrypt @GTK_LIBS@ @VMWARE_USER_LDADD@ @COMMON_XLIBS@ \
+	@ICU_LIBS@ $(am__empty)
 vmware_user_SOURCES = copyPaste.c debugStdio.c dnd.c \
 	foreignVMToolsDaemon.c foreignVMToolsNetworking.c \
 	foundryToolsDaemon.c libvmwarectrl.c pointer.c resolution.c \

@@ -67,6 +67,9 @@
  *
  * NOTE: Str_Asprintf/Str_Vasprintf return NULL on failure, while
  * Str_SafeAsprintf/Str_SafeVasprintf ASSERT_NOT_IMPLEMENTED.
+ *
+ * NOTE: "%s" refers to strings of "char" units, while "%S" refers to
+ * strings of "wchar_t" units, regardless of platform.
  */
 
 EXTERN int Str_Sprintf(char *buf, size_t max,
@@ -99,6 +102,9 @@ EXTERN char *Str_SafeVasprintf(size_t *length, const char *format,
  *
  * NOTE: Str_Aswprintf/Str_Vaswprintf return NULL on failure, while
  * Str_SafeAswprintf/Str_SafeVaswprintf ASSERT_NOT_IMPLEMENTED.
+ *
+ * NOTE: "%s" refers to strings of "char" units, while "%S" refers to
+ * strings of "wchar_t" units, regardless of platform.
  */
 
 EXTERN int Str_Swprintf(wchar_t *buf, size_t max,
@@ -163,11 +169,16 @@ unsigned char *Str_Mbscat(char *buf, const char *src,
 #define Str_Strspn(s1, s2) strspn(s1, s2)
 #define Str_Strcspn(s1, s2) strcspn(s1, s2)
 
-#ifdef _WIN32
+#if defined(_WIN32)
    #define Str_Strcasecmp(s1, s2) _stricmp(s1, s2)
    #define Str_Strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
    #define Str_ToUpper(s) _strupr(s)
-   #define Str_ToLower(s) _strlwr(s)         
+   #define Str_ToLower(s) _strlwr(s)
+#elif defined(N_PLAT_NLM)
+   #define Str_Strcasecmp(s1, s2) stricmp(s1, s2)
+   #define Str_Strncasecmp(s1, s2, n) strnicmp(s1, s2, n)
+   char *Str_ToUpper(char *string);
+   char *Str_ToLower(char *string);
 #else
    #define Str_Strcasecmp(s1, s2) strcasecmp(s1, s2)
    #define Str_Strncasecmp(s1, s2, n) strncasecmp(s1, s2, n)

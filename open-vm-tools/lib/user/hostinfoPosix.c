@@ -457,7 +457,7 @@ Hostinfo_SystemUpTime(void)
       double uptime;
       FILE *f;
 
-      f = fopen("/proc/uptime", "r");
+      f = Posix_Fopen("/proc/uptime", "r");
       if (!f) {
          Warning(LGPFX" Failed to open /proc/uptime: %s\n", Msg_ErrString());
          return 0;
@@ -554,7 +554,7 @@ HostinfoReadProc(const char *str)
 
    ASSERT(!HostType_OSIsVMK()); // Don't use /proc/vmware
 
-   f = fopen("/proc/vmware/sched/ncpus", "r");
+   f = Posix_Fopen("/proc/vmware/sched/ncpus", "r");
    if (f != NULL) {
       while (StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
          if (strstr(line, str)) {
@@ -696,7 +696,7 @@ Hostinfo_NumCPUs(void)
       FILE *f;
       char *line;
 
-      f = fopen("/proc/cpuinfo", "r");
+      f = Posix_Fopen("/proc/cpuinfo", "r");
       if (f == NULL) { 
 	 Msg_Post(MSG_ERROR,
 		  MSGID(hostlinux.opencpuinfo)
@@ -864,7 +864,7 @@ HostinfoGetCpuInfo(int nCpu,         // IN
    int cpu = 0;
    char *value = NULL;
 
-   f = fopen("/proc/cpuinfo", "r");
+   f = Posix_Fopen("/proc/cpuinfo", "r");
    if (f == NULL) { 
       Warning(LGPFX" HostinfoGetCpuInfo: Unable to open /proc/cpuinfo\n");
       return NULL;
@@ -976,7 +976,7 @@ HostinfoGetMemSize(uint64 *memTotal,        // OUT
    FILE *fp = NULL;
    Bool foundVal = FALSE;
 
-   if ((fp = fopen(memInfoFile, "r")) == NULL) {
+   if ((fp = Posix_Fopen(memInfoFile, "r")) == NULL) {
       Warning(LGPFX" Could not open meminfo file %s\n", memInfoFile);
       return FALSE;
    }
@@ -1025,7 +1025,7 @@ HostinfoGetMemInfo(char *name,          //IN
    size_t len;
    char   buffer[4096];
 
-   int fd = open("/proc/meminfo", O_RDONLY);
+   int fd = Posix_Open("/proc/meminfo", O_RDONLY);
 
    if (fd == -1) {
       Warning(LGPFX" HostinfoGetMemInfo: Unable to open /proc/meminfo\n");
@@ -1351,7 +1351,7 @@ Hostinfo_Execute(const char *command,
 
    if (pid == 0) {
       Hostinfo_ResetProcessState(NULL, 0);
-      execvp(command, args);
+      Posix_Execvp(command, args);
       exit(127);
    }
 
@@ -1579,7 +1579,7 @@ Hostinfo_GetUser()
    char *env = NULL;
    Unicode name = NULL;
 
-   if ((getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
+   if ((Posix_Getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
        (ppw != NULL)) {
       if (pw.pw_name) {
          name = Unicode_Alloc(pw.pw_name, STRING_ENCODING_DEFAULT);
@@ -1587,7 +1587,7 @@ Hostinfo_GetUser()
    }
 
    if (!name) {
-      env = getenv("USER");
+      env = Posix_Getenv("USER");
       if (env) {
          name = Unicode_Alloc(env, STRING_ENCODING_DEFAULT);
       }
@@ -1613,7 +1613,7 @@ Hostinfo_GetUser()
 void
 Hostinfo_LogMemUsage(void)
 {
-   int fd = open("/proc/self/statm", O_RDONLY);
+   int fd = Posix_Open("/proc/self/statm", O_RDONLY);
 
    if (fd != -1) {
       size_t len;

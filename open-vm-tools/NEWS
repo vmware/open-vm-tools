@@ -1,3 +1,13 @@
+open-vm-tools 2008.05.02 changes:
+	* Continued Unicode support.
+
+	* open-vm-tools now depends on libicu for codeset conversions. If you
+	wish to build open-vm-tools without libicu, pass "--without--icu" when
+	configuring the package. Without libicu, codeset conversions will be
+	done as before, via calls to iconv.
+	
+	* A few more bug fixes.
+
 open-vm-tools 2008.04.14 changes:
 	* Update the license stamp on all LGPL files.
 

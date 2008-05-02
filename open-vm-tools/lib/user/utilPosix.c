@@ -56,6 +56,7 @@
 #include "escape.h"
 #include "unicodeOperations.h"
 #include "err.h"
+#include "posix.h"
 
 
 /* For Util_GetProcessName() */
@@ -232,7 +233,7 @@ UtilGetUserName(uid_t uid) // IN
       return NULL;
    }
 
-   if (   getpwuid_r(uid, &pw, memPool, memPoolSize, &pw_p) != 0
+   if (   Posix_Getpwuid_r(uid, &pw, memPool, memPoolSize, &pw_p) != 0
        || pw_p != &pw) {
       free(memPool);
       Warning("UtilGetUserName: Unable to retrieve the username associated "
@@ -326,7 +327,7 @@ UtilAcceptableSafeTmpDir(const char *dirname,  // IN
    Bool result;
    static const mode_t mode = 0700;
 
-   result = (mkdir(dirname, mode) == 0);
+   result = (Posix_Mkdir(dirname, mode) == 0);
    if (!result) {
       int error = errno;
 
@@ -342,7 +343,7 @@ UtilAcceptableSafeTmpDir(const char *dirname,  // IN
           * the current effective user with permissions 'mode'.
           */
 
-         if (0 == lstat(dirname, &st)) {
+         if (0 == Posix_Lstat(dirname, &st)) {
             /*
              * Our directory inherited S_ISGID if its parent had it. So it
              * is important to ignore that bit, and it is safe to do so
@@ -666,7 +667,7 @@ Util_GetProcessName(pid_t pid,         // IN : process id
     */
    Str_Sprintf(fileName, sizeof fileName, "/proc/%"FMTPID"/" PROCFILE, pid);
 
-   fd = open(fileName, O_RDONLY);
+   fd = Posix_Open(fileName, O_RDONLY);
    if (fd < 0) {
       Log("Util_GetProcessName: Error: cannot open %s\n", fileName);
       return FALSE;

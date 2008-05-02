@@ -163,6 +163,10 @@ PointerUngrabbed(void)
  *      to ungrabbed, call PointerHasBeenUngrabbed, which will push our
  *      clipboard thru the backdoor. While ungrabbed, don't do a thing.
  *
+ *      This function is queued in Event Manager only when vmx doesn't support 
+ *      RPC copy/paste because newer vmx initiates copy/paste from UI through 
+ *      RPC, and doesn't need cursor grab/ungrab state to start copy/paste.
+ *
  * Results:
  *      TRUE.
  *
@@ -205,8 +209,10 @@ PointerUpdatePointerLoop(void* clientData) // IN: unused
 
    }
 
-   EventManager_Add(gEventQueue, POINTER_POLL_TIME, PointerUpdatePointerLoop,
-                    clientData);
+   if (!CopyPaste_IsRpcCPSupported()) {
+      EventManager_Add(gEventQueue, POINTER_POLL_TIME, PointerUpdatePointerLoop,
+                       clientData);
+   }
    return TRUE;
 }
 

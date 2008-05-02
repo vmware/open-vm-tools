@@ -277,8 +277,9 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
       /* We'll use these later. */
       name = requestV3->fileName.name;
       nameLength = &requestV3->fileName.length;
-      requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
-      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      requestV3->fileName.flags = 0;
+      requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       break;
    }
    case HGFS_OP_QUERY_VOLUME_INFO: {

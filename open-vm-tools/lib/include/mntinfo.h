@@ -37,6 +37,7 @@
 #elif defined(__FreeBSD__)
 # include <sys/mount.h>
 #endif
+#include "posix.h"
 
 /*
  *----------------------------------------------------------------------------
@@ -86,8 +87,8 @@
 # define MNTINFO                        struct mnttab
 # define DECLARE_MNTINFO(name)          struct mnttab __ ## name; \
                                         struct mnttab *name = &__ ## name
-# define OPEN_MNTFILE(mode)             fopen(MNTFILE, mode)
-# define GETNEXT_MNTINFO(fp, mnt)       (getmntent(fp, mnt) == 0)
+# define OPEN_MNTFILE(mode)             Posix_Fopen(MNTFILE, mode)
+# define GETNEXT_MNTINFO(fp, mnt)       (Posix_Getmntent(fp, mnt) == 0)
 # define CLOSE_MNTFILE(fp)              (fclose(fp) == 0)
 # define MNTINFO_NAME(mnt)              mnt->mnt_special
 # define MNTINFO_FSTYPE(mnt)            mnt->mnt_fstype
@@ -98,8 +99,8 @@
 # define MNTHANDLE                      FILE *
 # define MNTINFO                        struct mntent
 # define DECLARE_MNTINFO(name)          struct mntent *name
-# define OPEN_MNTFILE(mode)             setmntent(MNTFILE, mode)
-# define GETNEXT_MNTINFO(fp, mnt)       ((mnt = getmntent(fp)) != NULL)
+# define OPEN_MNTFILE(mode)             Posix_Setmntent(MNTFILE, mode)
+# define GETNEXT_MNTINFO(fp, mnt)       ((mnt = Posix_Getmntent(fp)) != NULL)
 # define CLOSE_MNTFILE(fp)              (endmntent(fp) == 1)
 # define MNTINFO_NAME(mnt)              mnt->mnt_fsname
 # define MNTINFO_FSTYPE(mnt)            mnt->mnt_type

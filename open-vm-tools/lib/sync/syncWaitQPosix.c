@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef __APPLE__
@@ -33,7 +34,9 @@
 
 #include "vm_assert.h"
 #include "str.h"
+#include "util.h"
 #include "syncWaitQ.h"
+#include "posix.h"
 
 
 /*
@@ -106,8 +109,6 @@
  *
  */
 
-#define WAITQ_MAX_NAME (WAITQ_MAX_PATH + 40)
-
 typedef union {
    uint32 fd[2];
    uint64 i64;
@@ -116,8 +117,7 @@ typedef union {
 
 static INLINE Bool SyncWaitQWakeUpNamed(SyncWaitQ *that);
 static INLINE Bool SyncWaitQWakeUpAnon(SyncWaitQ *that);
-static INLINE void SyncWaitQMakeName(const char *path, uint64 seq,
-				     char name[], size_t nameSize);
+static INLINE char *SyncWaitQMakeName(const char *path, uint64 seq);
 
 
 #if __APPLE__
@@ -307,11 +307,11 @@ SyncWaitQ_Init(SyncWaitQ *that,   // OUT
 	       char const *path)  // IN/OPT
 {
    ASSERT(that);
-   ASSERT(!path || path[0] );
+   ASSERT(!path || path[0]);
 
    memset(that, 0, sizeof(SyncWaitQ));
 
-   if( !path ) {
+   if (!path) {
       /*
        * Anonymous
        */
@@ -335,13 +335,13 @@ SyncWaitQ_Init(SyncWaitQ *that,   // OUT
       }
       
       Atomic_Write64(&that->rwHandles, rwHandles.i64);
-
+      that->pathName = NULL;
    } else {
       /*
        * Named
        */
 
-      strncpy(that->path, path, sizeof that->path);
+      that->pathName = Util_SafeStrdup(path);
    }
 
    that->initialized = TRUE;
@@ -371,7 +371,7 @@ SyncWaitQ_Destroy(SyncWaitQ *that)
       return;
    }
 
-   if (!that->path[0]) {
+   if (that->pathName == NULL) {
       /*
        * Anonymous
        */
@@ -395,11 +395,14 @@ SyncWaitQ_Destroy(SyncWaitQ *that)
        * Named
        */
       uint64 seq;
-      char name[WAITQ_MAX_NAME];
-      
+      char *name;
+
       seq = Atomic_Read64(&that->seq);
-      SyncWaitQMakeName(that->path, seq, name, sizeof name);
-      unlink(name);
+      name = SyncWaitQMakeName(that->pathName, seq);
+      Posix_Unlink(name);
+      free(name);
+      free(that->pathName);
+      that->pathName = NULL;
    }
    
    that->initialized = FALSE;
@@ -427,7 +430,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
 {
    uint64 seq;
    int ret = -1;
-   char name[WAITQ_MAX_NAME];
+   char *name = NULL;
 
    ASSERT(that);
    ASSERT(that->initialized);
@@ -445,7 +448,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
     * has changed, we manufacture our own fd, so any error is harmless.
     */
 
-   if (!that->path[0]) {
+   if (that->pathName == NULL) {
       /*
        * Anonymous
        */
@@ -479,7 +482,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
        * Named
        */
 
-      SyncWaitQMakeName(that->path, seq, name, sizeof name);
+      name = SyncWaitQMakeName(that->pathName, seq);
 
       /*
        * Create fifo object with the generated name
@@ -493,7 +496,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
        * directory. -- Ticho.
        */
 
-      ret = mkfifo(name, S_IRUSR | S_IWUSR);
+      ret = Posix_Mkfifo(name, S_IRUSR | S_IWUSR);
       if (ret >= 0 || errno == EEXIST) {
          /*
           * We open in non-blocking mode so that we won't block if nobody
@@ -510,7 +513,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
           * -- Ticho.
           */
 
-         ret = open(name, O_RDONLY | O_NONBLOCK);
+         ret = Posix_Open(name, O_RDONLY | O_NONBLOCK);
          if (ret < 0) {
             SyncWaitQPanicOnFdLimit(errno);
          }
@@ -527,13 +530,14 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
 
       if (ret >= 0) {
 	 close(ret);
-         if (that->path[0]) {
-            unlink(name);
+         if (that->pathName != NULL) {
+            Posix_Unlink(name);
          }
       }
 
       if (pipe(fd) < 0) {
          SyncWaitQPanicOnFdLimit(errno);
+         free(name);
 	 return -1;
       }
 
@@ -541,6 +545,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
 	  fcntl(fd[1], F_SETFL, O_WRONLY | O_NONBLOCK) < 0 ) {
 	 close(fd[0]);
 	 close(fd[1]);
+         free(name);
 	 return -1;
       }
       
@@ -558,6 +563,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
       close(fd[1]);
    } else {
       if (ret < 0) {
+         free(name);
          return -1;
       }
 
@@ -588,6 +594,8 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
 
       Atomic_Write(&that->waiters, TRUE);
    }
+
+   free(name);
 
    return ret;
 }
@@ -669,9 +677,8 @@ SyncWaitQ_WakeUp(SyncWaitQ *that) // IN
     * Slow path --hpreg 
     */
    
-   return that->path[0] ? 
-      SyncWaitQWakeUpNamed(that) :
-      SyncWaitQWakeUpAnon(that);
+   return (that->pathName == NULL) ? SyncWaitQWakeUpAnon(that) :
+                                     SyncWaitQWakeUpNamed(that);
 }
 
 
@@ -692,7 +699,7 @@ SyncWaitQ_WakeUp(SyncWaitQ *that) // IN
  *---------------------------------------------------------------------------- 
  */
 
-Bool
+static Bool
 SyncWaitQWakeUpAnon(SyncWaitQ *that)    // IN
 {
    HandlesAsI64 rwHandles, wakeupHandles;
@@ -759,18 +766,18 @@ SyncWaitQWakeUpAnon(SyncWaitQ *that)    // IN
  *---------------------------------------------------------------------------- 
  */
 
-Bool
+static Bool
 SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
 {
    uint64 seq;
-   char name[WAITQ_MAX_NAME];
+   char *name;
    int wakeupHandle = -1;
    int ret;
    int error;
 
    // The following statement is the demarcation line for wakeup
    seq = Atomic_FetchAndInc64(&that->seq);
-   SyncWaitQMakeName(that->path, seq, name, sizeof name);
+   name = SyncWaitQMakeName(that->pathName, seq);
 
    /*
     * We open in non-blocking mode so that we won't block if there is
@@ -779,9 +786,11 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
     * system call.
     */
 
-   wakeupHandle = open(name, O_WRONLY | O_NONBLOCK);
+   wakeupHandle = Posix_Open(name, O_WRONLY | O_NONBLOCK);
    error = errno;
-   unlink(name);
+   Posix_Unlink(name);
+   free(name);
+
    if (wakeupHandle < 0) {
       SyncWaitQPanicOnFdLimit(error);
 
@@ -830,11 +839,9 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
  *----------------------------------------------------------------------
  */
 
-void
+static char *
 SyncWaitQMakeName(const char *path, // IN
-                  uint64 seq,       // IN
-                  char name[],      // OUT
-                  size_t nameSize)  // OUT
+                  uint64 seq)       // IN
 {
-   Str_Snprintf(name, nameSize, "%s.%"FMT64"x", path, seq);
+   return Str_SafeAsprintf(NULL, "%s.%"FMT64"x", path, seq);
 }

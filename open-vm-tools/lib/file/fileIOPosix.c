@@ -703,7 +703,6 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
    int flags = 0;
    int error;
    FileIOResult ret;
-   char *path = NULL;
 
    ASSERT(file);
 
@@ -795,15 +794,13 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
       SuperUser(TRUE);
    }
 
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-
    flags |= 
 #if defined(linux) && !defined(N_PLAT_NLM)
             ((access & FILEIO_OPEN_SYNC) ? O_SYNC : 0) |
 #endif
             FileIO_OpenActions[action];
 
-   fd = PosixFileOpener(path, flags, mode);
+   fd = PosixFileOpener(pathName, flags, mode);
 
    error = errno;
 
@@ -857,13 +854,11 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
        * Remove the name from the name space. The file remains laid out on the
        * disk and accessible through the file descriptor until it is closed.
        */
-      if (unlink(path) == -1) {
+      if (Posix_Unlink(pathName) == -1) {
          ret = FileIOErrno2Result(errno);
          goto error;
       }
    }
-
-   free(path);
 
    file->posix = fd;
 
@@ -873,8 +868,6 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
 
 error:
    error = errno;
-
-   free(path);
 
    if (fd != -1) {
       close(fd);
@@ -1320,8 +1313,7 @@ FileIOCoalesce(struct iovec *inVec,     // IN:  Vector to coalesce from
    // XXX: Wouldn't it be nice if we could log from here!
    //LOG(5, ("FILE: Coalescing %s of %d elements and %d size\n",
    //        isWrite ? "write" : "read", inCount, inTotalSize));
-   cBuf = malloc(sizeof(uint8) * inTotalSize);
-   ASSERT_MEM_ALLOC(cBuf);
+   cBuf = Util_SafeMalloc(sizeof(uint8) * inTotalSize);
 
   if (isWrite) {
       IOV_WriteIovToBuf(inVec, inCount, cBuf, inTotalSize);
@@ -1872,9 +1864,7 @@ FileIOResult
 FileIO_Access(ConstUnicode pathName,  // IN: path name to be tested
               int accessMode)         // IN: access modes to be asserted
 {
-   FileIOResult err;
    int mode;
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
 
    mode = 0;
    if (accessMode & FILEIO_ACCESS_READ) {
@@ -1890,10 +1880,7 @@ FileIO_Access(ConstUnicode pathName,  // IN: path name to be tested
       mode |= F_OK;
    }
 
-   err = access(path, mode) == -1 ? FILEIO_ERROR : FILEIO_SUCCESS;
-
-   free(path);
-   return err;
+   return (Posix_Access(pathName, mode) == -1) ? FILEIO_ERROR : FILEIO_SUCCESS;
 }
 
 

@@ -48,6 +48,7 @@
 #include "str.h"
 #include "fileIO.h"
 #include "mntinfo.h"
+#include "posix.h"
 
 
 /* Number of bytes per disk sector */
@@ -314,7 +315,7 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
       return;
    }
 
-   if (stat(MNTINFO_NAME(mnt), &s) < 0) {
+   if (Posix_Stat(MNTINFO_NAME(mnt), &s) < 0) {
       item->comment = "Unknown device";
       return;
    }
@@ -520,7 +521,7 @@ WiperSinglePartition_GetSpace(const WiperPartition *p,  // IN
 #ifdef sun
    if (statvfs(p->mountPoint, &statfsbuf) < 0) {
 #else
-   if (statfs(p->mountPoint, &statfsbuf) < 0) {
+   if (Posix_Statfs(p->mountPoint, &statfsbuf) < 0) {
 #endif
       return "Unable to statfs() the mount point";
    }

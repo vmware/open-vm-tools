@@ -63,6 +63,7 @@
 #include "vmware.h"
 #include "bsd_output_int.h"
 #include "msgfmt.h"
+#include "convertutf.h"
 
 typedef struct StrBuf {
    Bool alloc;
@@ -78,15 +79,11 @@ static wchar_t  *__ujtoa(uintmax_t, wchar_t *, int, int, const char *, int,
                          char, const char *);
 static wchar_t  *__ultoa(u_long, wchar_t *, int, int, const char *, int,
                          char, const char *);
-static wchar_t  *__mbsconv(char *, int);
+static wchar_t  *BSDFmt_UTF8ToWChar(const char *, int);
 static void     __find_arguments(const wchar_t *, va_list, union arg **);
 static void     __grow_type_table(int, enum typeid **, int *);
 
-#ifdef _WIN32
-#define mbstate_t int
-#define mbsrtowcs(dest, srcp, n, state) mbstowcs(dest, *(srcp), n)
-#define mbrtowc(dest, wc, size, state) mbtowc(dest, wc, size)
-#endif
+static Bool isLenientConversion = TRUE;
 
 static int
 __sfvwrite(StrBuf *sbuf, BSDFmt_UIO *uio)
@@ -309,69 +306,113 @@ __ujtoa(uintmax_t val, wchar_t *endp, int base, int octzero,
    return (cp);
 }
 
+
 /*
- * Convert a multibyte character string argument for the %s format to a wide
- * string representation. ``prec'' specifies the maximum number of characters
- * to output. If ``prec'' is greater than or equal to zero, we can't assume
- * that the multibyte char. string ends in a null character.
+ * Convert a UTF-8 string argument to a wide-character string
+ * representation. If not -1, 'prec' specifies the maximum number of
+ * wide characters to output. The returned string is always NUL-terminated,
+ * even if that results in the string exceeding 'prec' characters.
  */
-static wchar_t *
-__mbsconv(char *mbsarg, int prec)
+wchar_t *
+BSDFmt_UTF8ToWChar(const char *arg,  // IN
+                   int prec)         // IN
 {
-   static const mbstate_t initial;
-   mbstate_t mbs;
-   wchar_t buf[MB_LEN_MAX];
-   const char *p;
-   wchar_t *convbuf;
-   size_t clen, n;
+   ConversionResult cres;
+   const char *sourceStart, *sourceEnd;
+   wchar_t *targStart, *targEnd;
+   wchar_t *targ = NULL;
 
-   if (mbsarg == NULL)
-      return (NULL);
+   /*
+    * targSize and sourceSize are measured in wchar_t units, excluding NUL.
+    */
+   size_t targSize;
+   size_t sourceSize = strlen(arg);
 
-   /* Allocate space for the maximum number of bytes we could output. */
-   if (prec < 0) {
-      p = mbsarg;
-      mbs = initial;
-      n = mbsrtowcs(NULL, (const char **)&p, 0, &mbs);
-      if (n == (size_t)-1)
-         return (NULL);
-   } else {
+   ASSERT(prec == -1 || prec >= 0);
+
+   targSize = sourceSize;
+   if (prec >= 0) {
+      targSize = MIN(targSize, prec);
+   }
+
+   while (TRUE) {
       /*
-       * Optimisation: if the output precision is small enough,
-       * just allocate enough memory for the maximum instead of
-       * scanning the string.
+       * Pad by 1 because we need to NUL-terminate.
        */
-      if (prec < 128)
-         n = prec;
-      else {
-         n = 0;
-         p = mbsarg;
-	 mbs = initial;
-         for (;;) {
-            clen = mbrtowc(buf, p, MB_LEN_MAX, &mbs);
-            if (clen == 0 || clen == (size_t)-1 ||
-                clen == (size_t)-2 ||
-                (n + 1) > prec)
-               break;
-            n += 1;
-            p += clen;
+      wchar_t *oldTarg = targ;
+      targ = realloc(oldTarg, (targSize + 1) * sizeof *targ);
+      if (!targ) {
+         free(oldTarg);
+         goto exit;
+      }
+
+      targStart = targ;
+      targEnd = targStart + targSize;
+      sourceStart = arg;
+      sourceEnd = sourceStart + sourceSize;
+
+      if (2 == sizeof(wchar_t)) {
+         cres = ConvertUTF8toUTF16((const UTF8 **) &sourceStart,
+                                   (const UTF8 *) sourceEnd,
+                                   (UTF16 **) &targStart,
+                                   (UTF16 *) targEnd,
+                                   isLenientConversion);
+      } else if (4 == sizeof(wchar_t)) {
+         cres = ConvertUTF8toUTF32((const UTF8 **) &sourceStart,
+                                   (const UTF8 *) sourceEnd,
+                                   (UTF32 **) &targStart,
+                                   (UTF32 *) targEnd,
+                                   isLenientConversion);
+      } else {
+         NOT_IMPLEMENTED();
+      }
+
+      if (targetExhausted == cres) {
+         if (targSize == prec) {
+            /*
+             * We've got all the caller wants.
+             */
+            break;
+         } else {
+            /*
+             * Grow the buffer.
+             */
+            ASSERT(FALSE);
+            targSize *= 2;
+            if (prec >= 0) {
+               targSize = MIN(targSize, prec);
+            }
          }
+      } else if ((sourceExhausted == cres) ||
+                 (sourceIllegal == cres)) {
+         /*
+          * If lenient, the API converted all it could, so just
+          * proceed, otherwise, barf.
+          */
+         if (isLenientConversion) {
+            break;
+         } else {
+            free(targ);
+            targ = NULL;
+            goto exit;
+         }
+      } else if (conversionOK == cres) {
+         break;
+      } else {
+         NOT_IMPLEMENTED();
       }
    }
-   if ((convbuf = malloc((n + 1) * sizeof(wchar_t))) == NULL)
-      return (NULL);
 
-   /* Fill the output buffer. */
-   p = mbsarg;
-   mbs = initial;
-   n = mbsrtowcs(convbuf, (const char **)&p, n, &mbs);
-   if (n == (size_t)-1) {
-      free(convbuf);
-      return (NULL);
-   }
-   convbuf[n] = L'\0';
-   return (convbuf);
+   /*
+    * Success, NUL-terminate. (The API updated targStart for us).
+    */
+   ASSERT(targStart <= targEnd);
+   *targStart = L'\0';
+
+  exit:
+   return targ;
 }
+
 
 #ifndef NO_FLOATING_POINT
 
@@ -851,7 +892,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
                expt = INT_MAX;
          }
          ndig = dtoaend - dtoaresult;
-         cp = convbuf = __mbsconv(dtoaresult, -1);
+         cp = convbuf = BSDFmt_UTF8ToWChar(dtoaresult, -1);
          freedtoa(dtoaresult);
          if (signflag)
             sign = '-';
@@ -986,7 +1027,7 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
             if ((mbp = GETARG(char *)) == NULL)
                cp = L"(null)";
             else {
-               convbuf = __mbsconv(mbp, prec);
+               convbuf = BSDFmt_UTF8ToWChar(mbp, prec);
                if (convbuf == NULL) {
                   sbuf.error = TRUE;
                   goto error;

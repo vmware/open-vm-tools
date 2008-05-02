@@ -1,3 +1,110 @@
+2008-05-02  Adar Dembo  <adar@vmware.com>
+
+	* Resync with internal trunk (2008.04.19).
+
+	* configure.ac, guestd/Makefile.am, hgfsclient/Makefile.am,
+	lib/misc/*/Makefile.am, lib/string/*/Makefile.am, toolbox/Makefile.am,
+	vmware-user/Makefile.am, xferlogs/Makefile.am: Added libicu support for
+	codeset conversions. This includes some makefile logic as well as
+	autoconf arguments for controlling libicu behavior at compile-time.
+
+	* */foreignVMToolsNetworking.c, lib/vixTools/vixTools.c: Unicode fixes.
+
+	* */foundryToolsDaemon.c, lib/foundryMsg/vixTranslateErrOpenSource.c,
+	lib/panic/panic.c, lib/printer/printer.c: Added calls to Win32 Unicode
+	wrappers.
+
+	* guestd/main.c: Cleaned up guestInfo server when guestd shuts down.
+
+	* guestd/toolsDaemon.c, vmware-user/resolution.c: Disabled multi-mon
+	advertisement for Win2k.
+
+	* lib/auth/authPosix.c, lib/dnd/dndLinux.c, lib/file/*,
+	lib/impersonate/impersonatePosix.c, lib/include/mntinfo.h,
+	lib/sync/syncWaitQPosix.c, lib/user/hostinfoPosix.c, lib/user/util.c,
+	lib/user/utilPosix.c, lib/wiper/wiperPosix.c: Added calls to POSIX
+	Unicode wrappers. 
+
+	* lib/file/*: Replaced calls to string functions with calls to
+	the "safe" family of string functions.
+
+	* lib/dict/dictll.c, lib/include/dictll.h: Detect and tolerate UTF-8
+	dictionary files that contain the UTF-8 BOM.
+
+	* lib/err/*, lib/include/err.h, lib/include/msgfmt.h,
+	lib/include/msg.h: Added support for localization of error strings.
+
+	* lib/foundryMsg/foundryThreads.c, lib/include/foundryThreads.h,
+	lib/misc/util_misc.c: Added opaque type for threads/process IDs.
+
+	* lib/guestInfo/guestInfoServer.c: Removed separate thread context.
+
+	* lib/hgfsServer/*, lib/include/hgfs*.h: Additional HGFSv3 cleanup.
+
+	* lib/hgfsServer/hgfsServerLinux.c: Added calls to POSIX Unicode
+	wrappers. Fixed some alias detection code for MacOS.
+
+	* lib/include/backdoor_def.h: Added backdoor call for debugging events.
+
+	* lib/include/bsdfmt.h, lib/string/bsd_vsnprintf.c,
+	lib/string/bsd_vsnprintfw.c: Replaced BSDFmt_WCSonv with
+	BSDFmt_WChartoUTF8.
+
+	* lib/include/codeset.h, lib/include/codesetOld.h, lib/misc/codeset.c,
+	lib/misc/codesetOld.c, lib/string/convertutf.h: Implemented
+	libicu-backed codeset layer. When building without libicu, fallback on
+	codesetOld.
+
+	* lib/include/guestApp.h: Added wide versions of dictionary functions.
+
+	* lib/include/loglevel_user.h: Added two new loglevels.
+
+	* lib/include/posix.h, lib/misc/posixPosix.c: Added new POSIX wrappers.
+
+	* lib/include/str.h: Clarified the use of some functions.
+
+	* lib/include/syncMutex.h, lib/include/syncWaitQ.h: Removed unneeded
+	macros.
+
+	* lib/include/unicode*.h, lib/unicode/*: Ongoing Unicode work.
+
+	* lib/include/util.h: Added Util_FreeStringList, removed Util_FreeList.
+
+	* lib/include/uuid.h: Added new UUID creation scheme.
+
+	* lib/include/vix*.h: Tweaked some VIX commands, errors, and properties.
+
+	* lib/include/vmBackup.h, lib/vmBackupLib/scriptOps.c,
+	lib/vmBackupLib/stateMachine.c: Moved disabled targets logic from
+	library to Windows VSS provider.
+
+	* lib/include/vm_basic_asm_x86*.h: Allow emitted FX functions to
+	modify main memory as a side effect.
+
+	* lib/include/vm_tools_version.h: Bump Tools version.
+
+	* lib/include/vm_version.h: Added several product versions.
+
+	* modules/linux/vmhgfs/*: Additional cleanup for HGFSv3. Use new kthread
+	wrapper when possible. Bump module version.
+
+	* modules/linux/vmmemctl/*: Use new kthread wrapper when possible.
+	Remove dead delayed work code. Bump module version.
+
+	* modules/linux/*/compat_kthread.c: Added kthread wrapper implementation
+	for modules that use kernel threads.
+
+	* modules/*/*/*: Reflect header file changes from elsewhere in the
+	source code tree.
+
+	* vmware-user/copyPaste.c, vmware-user/pointer.c,
+	vmware-user/vmwareuserInt.h: Stop wastefully polling for pointer
+	updates if the VMX is new enough.
+
+	* xferlogs/xferlogs.c: Fixed a warning in the call to fwrite.
+	(Thanks to Denis Leroy for reporting this bug.)
+	
+	
 2008-04-14  Elliot Lee  <elliot@vmware.com>
 
 	* Resync with internal trunk (2008.04.01).
@@ -121,6 +228,7 @@
 	systems. Detect libprocps.
 
 2008-03-19  Adar Dembo  <adar@vmware.com>
+
 	* Resync with internal trunk (2008.03.13).
 
 	* vm_version.h: Updated Tools version.
@@ -215,6 +323,7 @@
 	source code tree.
 
 2008-03-11  Adar Dembo  <adar@vmware.com>
+
 	* vm_version.h: Updated Tools version.
 
 	* modules/vmblock/linux/*: Make vmblock build under 2.6.25-rc2.
@@ -226,6 +335,7 @@
 	The same changes were needed here as in vmblock above.
 
 2008-03-10  Adar Dembo  <adar@vmware.com>
+
 	* vm_version.h: Updated Tools version.
 
 	* modules/vmhgfs/linux/*: Make vmhgfs build under 2.6.25-rc1.
@@ -307,6 +417,7 @@
 	source code tree.
 
 2008-02-13  Adar Dembo  <adar@vmware.com>
+
 	* Resync with internal trunk (2008.02.12).
 
 	* configure.ac, lib/unityStub/*, lib/ghIntegrationStub/*,
@@ -468,7 +579,7 @@
 	when guestd sends its version to when guestd registers its
 	capabilities.
 
-	* lib/file/*, lib/public/file*.h : Massive overhaul of lib/file to
+	* lib/file/*, lib/include/file*.h : Massive overhaul of lib/file to
 	integrate the new unicode strings that are i18n-safe. Quite a bit of
 	cleanup and refactoring as well.
 

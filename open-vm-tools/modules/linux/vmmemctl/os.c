@@ -58,6 +58,7 @@
 
 #if	LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 #include <linux/smp_lock.h>
+#include "compat_kthread.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 9)
 int errno;  /* compat_exit() needs global errno variable. */
@@ -72,6 +73,7 @@ int errno;  /* compat_exit() needs global errno variable. */
  * Allow allocations from high memory  on 2.4.x kernels.
  */
 #define	OS_KTHREAD	(1)
+COMPAT_KTHREAD_DECLARE_STOP_INFO();
 #endif
 
 #include "os.h"
@@ -148,12 +150,6 @@ int errno;  /* compat_exit() needs global errno variable. */
 
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 41)
-#define OS_USE_SCHEDULE_DELAYED_WORK
-#else
-#undef OS_USE_SCHEDULE_DELAYED_WORK
-#endif
-
 /*
  * Types
  */
@@ -164,22 +160,16 @@ typedef struct {
    void *data;
    int period;
 
-   /* termination flag */
-   volatile int stop;
-
    /* system structures */
 #ifdef	OS_KTHREAD   
    wait_queue_head_t delay;
-   compat_completion notifyStart;
-   compat_completion notifyStop;
-   pid_t pid;
+   struct task_struct *task;
 #else
-#ifdef OS_USE_SCHEDULE_DELAYED_WORK
-   struct work_struct work;
-#else
+   /* termination flag */
+   atomic_t stop;
+
    struct timer_list timer;
    struct tq_struct task;
-#endif
 #endif
 } os_timer;
 
@@ -344,20 +334,32 @@ os_free_reserved_page(unsigned long addr)
 }
 
 #ifndef	OS_KTHREAD
-static void os_timer_add(os_timer *t);
+static void os_timer_add(os_timer *t)
+{
+   /* schedule timer callback */
+   struct timer_list *timer = &t->timer;
+   timer->expires = jiffies + t->period;
+   add_timer(timer);
+}
+
+static void os_timer_remove(os_timer *t)
+{
+   /* deschedule timer callback */
+   struct timer_list *timer = &t->timer;
+   (void) del_timer(timer);
+}
 
 static void os_timer_bh(void *data)
 {
    os_timer *t = (os_timer *) data;
 
-   if (!t->stop) {
+   if (!atomic_read(&t->stop)) {
       /* execute registered handler, rearm timer */
       (*(t->handler))(t->data);
       os_timer_add(t);
    }
 }
 
-#ifndef OS_USE_SCHEDULE_DELAYED_WORK
 static void os_timer_internal(ulong data)
 {
    os_timer *t = (os_timer *) data;
@@ -368,31 +370,6 @@ static void os_timer_internal(ulong data)
 }
 #endif
 
-static void os_timer_add(os_timer *t)
-{
-#ifdef OS_USE_SCHEDULE_DELAYED_WORK
-   schedule_delayed_work(&t->work, t->period);
-#else
-   /* schedule timer callback */
-   struct timer_list *timer = &t->timer;
-   timer->expires = jiffies + t->period;
-   add_timer(timer);
-#endif
-}
-
-static void os_timer_remove(os_timer *t)
-{
-#ifdef OS_USE_SCHEDULE_DELAYED_WORK
-   cancel_delayed_work(&t->work);
-   flush_scheduled_work();
-#else
-   /* deschedule timer callback */
-   struct timer_list *timer = &t->timer;
-   (void) del_timer(timer);
-#endif
-}
-#endif
-
 void CDECL
 os_timer_init(os_timer_handler handler, void *data, int period)
 {
@@ -400,18 +377,14 @@ os_timer_init(os_timer_handler handler, void *data, int period)
    t->handler = handler;
    t->data = data;
    t->period = period;
-   t->stop = 0;
 #ifndef OS_KTHREAD
-#ifdef OS_USE_SCHEDULE_DELAYED_WORK
-   INIT_WORK(&t->work, os_timer_bh, t);
-#else
+   atomic_set(&t->stop, 0);
    t->task.routine = os_timer_bh;
    t->task.data = t;
    /* initialize timer state */
    init_timer(&t->timer);
    t->timer.function = os_timer_internal;
    t->timer.data = (ulong) t;
-#endif
 #endif
 }
 
@@ -420,21 +393,16 @@ static int os_timer_thread_loop(void *data)
 {
    os_timer *t = (os_timer *) data;
 
-   /* detach thread */
-   lock_kernel();
-   compat_daemonize("vmmemctl");
-   unlock_kernel();
-   
    /* we are running */
-   compat_complete(&t->notifyStart);
    compat_set_freezable();
 
    /* main loop */
    while (1) {
       /* sleep for specified period */
-      wait_event_interruptible_timeout(t->delay, t->stop, t->period);
+      wait_event_interruptible_timeout(t->delay, compat_kthread_should_stop(),
+                                       t->period);
       compat_try_to_freeze();
-      if (t->stop) {
+      if (compat_kthread_should_stop()) {
          break;
       }
 
@@ -443,7 +411,6 @@ static int os_timer_thread_loop(void *data)
    }
 
    /* terminate */
-   compat_complete_and_exit(&t->notifyStop, 0);
    return(0);
 }
 
@@ -452,31 +419,27 @@ static int os_timer_thread_start(os_timer *t)
    os_status *s = &global_state.status;
 
    /* initialize sync objects */
-   compat_init_completion(&t->notifyStart);
-   compat_init_completion(&t->notifyStop);   
    init_waitqueue_head(&t->delay);
 
    /* create kernel thread */
-   t->pid = kernel_thread(os_timer_thread_loop, t, 0);
-   if (t->pid < 0) {
+   t->task = compat_kthread_run(os_timer_thread_loop, t, "vmmemctl");
+   if (IS_ERR(t->task)) {
       /* fail */
-      printk(KERN_WARNING "%s: unable to create kernel thread (%d)\n", s->name, t->pid);
+      printk(KERN_WARNING "%s: unable to create kernel thread\n", s->name);
       return(-1);
    }
 
    if (OS_DEBUG) {
-      printk(KERN_DEBUG "%s: started kernel thread pid=%d\n", s->name, t->pid);
+      printk(KERN_DEBUG "%s: started kernel thread pid=%d\n", s->name,
+             t->task->pid);
    }
 
-   /* block until started... Why?! */
-   compat_wait_for_completion(&t->notifyStart);
    return(0);
 }
 
 static void os_timer_thread_stop(os_timer *t)
 {
-   wake_up_interruptible(&t->delay);
-   compat_wait_for_completion(&t->notifyStop);
+   compat_kthread_stop(t->task);
 }
 #endif
 
@@ -485,12 +448,12 @@ os_timer_start(void)
 {
    os_timer *t = &global_state.timer;
 
-   /* clear termination flag */
-   t->stop = 0;
-
 #ifdef	OS_KTHREAD
    os_timer_thread_start(t);
 #else
+   /* clear termination flag */
+   atomic_set(&t->stop, 0);
+
    os_timer_add(t);
 #endif
 }
@@ -500,12 +463,12 @@ os_timer_stop(void)
 {
    os_timer *t = &global_state.timer;
 
-   /* set termination flag */
-   t->stop = 1;
-
 #ifdef	OS_KTHREAD
    os_timer_thread_stop(t);
 #else
+   /* set termination flag */
+   atomic_set(&t->stop, 1);
+
    os_timer_remove(t);
 #endif
 }

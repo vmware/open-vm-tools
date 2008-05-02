@@ -315,7 +315,6 @@ VixMsgPowerOpRequest;
 
 
 
-
 /*
  * **********************************************************
  * Set NIC request. The response is just a generic
@@ -951,7 +950,19 @@ struct VixMsgRecordReplayEvent {
 VixMsgRecordReplayEvent;
 
 typedef
+#include "vmware_pack_begin.h"
+struct VixMsgDebuggerEvent {
+   VixMsgEventHeader          eventHeader;
 
+   int32                      blobLength;
+   /*
+    * This is followed by the blob buffer.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgDebuggerEvent;
+
+typedef
 #include "vmware_pack_begin.h"
 struct VixMsgGetRecordReplayInfoResponse {
    VixCommandResponseHeader header;
@@ -2036,7 +2047,6 @@ enum {
    VIX_COMMAND_HOT_ADD_DEVICE                   = 138,
    VIX_COMMAND_HOT_REMOVE_DEVICE                = 139,
 
-
    VIX_COMMAND_DEBUGGER_ATTACH                  = 140,
    VIX_COMMAND_DEBUGGER_DETACH                  = 141,
    VIX_COMMAND_DEBUGGER_SEND_COMMAND            = 142,
@@ -2049,8 +2059,10 @@ enum {
    VIX_COMMAND_REMOVE_REPLAY_STATE              = 148,
 
    VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150,
+   
+   VIX_COMMAND_GET_VMX_DEVICE_STATE             = 151,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 151,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 152,
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
 };

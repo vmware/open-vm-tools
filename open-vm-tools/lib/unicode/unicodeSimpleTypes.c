@@ -2152,91 +2152,6 @@ static struct xRef {
 
 
 /*
- * Table generated from selected encodings supported by ICU:
- *
- * http://source.icu-project.org/repos/icu/icu/trunk/source/data/mappings/convrtrs.txt
- *
- * If you update this, you must keep the StringEncoding enum in
- * lib/public/unicodeTypes.h in sync!
- */
-static const char *SIMPLE_ENCODING_LIST[STRING_ENCODING_MAX_SPECIFIED] = {
-   /*
-    * Byte string encodings that support all characters in Unicode.
-    */
-   "UTF-8",    // STRING_ENCODING_UTF8
-   "UTF-16",   // STRING_ENCODING_UTF16
-   "UTF-16LE", // STRING_ENCODING_UTF16_LE
-   "UTF-16BE", // STRING_ENCODING_UTF16_BE
-
-   "UTF-32",   // STRING_ENCODING_UTF32
-   "UTF-32LE", // STRING_ENCODING_UTF32_LE
-   "UTF-32BE", // STRING_ENCODING_UTF32_BE
-
-   /*
-    * Legacy byte string encodings that only support a subset of Unicode.
-    */
-
-   /*
-    * Latin encodings
-    */
-   "US-ASCII",   // STRING_ENCODING_US_ASCII
-   "ISO-8859-1", // STRING_ENCODING_ISO_8859_1
-   "ISO-8859-2", // STRING_ENCODING_ISO_8859_2
-   "ISO-8859-3", // STRING_ENCODING_ISO_8859_3
-   "ISO-8859-4", // STRING_ENCODING_ISO_8859_4
-   "ISO-8859-5", // STRING_ENCODING_ISO_8859_5
-   "ISO-8859-6", // STRING_ENCODING_ISO_8859_6
-   "ISO-8859-7", // STRING_ENCODING_ISO_8859_7
-   "ISO-8859-8", // STRING_ENCODING_ISO_8859_8
-   "ISO-8859-9", // STRING_ENCODING_ISO_8859_9
-   "ISO-8859-10", // STRING_ENCODING_ISO_8859_10
-                  // ISO-8859-11 is unused
-                  // Oddly, there is no ISO-8859-12.
-   "ISO-8859-13", // STRING_ENCODING_ISO_8859_13
-   "ISO-8859-14", // STRING_ENCODING_ISO_8859_14
-   "ISO-8859-15", // STRING_ENCODING_ISO_8859_15
-
-   /*
-    * Chinese encodings
-    */
-   "GB18030",     // STRING_ENCODING_GB_18030
-   "Big5",        // STRING_ENCODING_BIG_5
-   "Big5-HKSCS",  // STRING_ENCODING_BIG_5_HK
-   "GBK",         // STRING_ENCODING_GBK
-   "GB2312",      // STRING_ENCODING_GB_2312
-   "ISO-2022-CN", // STRING_ENCODING_ISO_2022_CN
-
-   /*
-    * Japanese encodings
-    */
-   "Shift_JIS",     // STRING_ENCODING_SHIFT_JIS
-   "EUC-JP",        // STRING_ENCODING_EUC_JP
-   "ISO-2022-JP",   // STRING_ENCODING_ISO_2022_JP
-   "ISO-2022-JP-1", // STRING_ENCODING_ISO_2022_JP_1
-   "ISO-2022-JP-2", // STRING_ENCODING_ISO_2022_JP_2
-
-   /*
-    * Korean encodings
-    */
-   "EUC-KR",      // STRING_ENCODING_EUC_KR
-   "ISO-2022-KR", // STRING_ENCODING_ISO_2022_KR
-
-   /*
-    * Windows encodings
-    */
-   "windows-1250", // STRING_ENCODING_WINDOWS_1250
-   "windows-1251", // STRING_ENCODING_WINDOWS_1251
-   "windows-1252", // STRING_ENCODING_WINDOWS_1252
-   "windows-1253", // STRING_ENCODING_WINDOWS_1253
-   "windows-1254", // STRING_ENCODING_WINDOWS_1254
-   "windows-1255", // STRING_ENCODING_WINDOWS_1255
-   "windows-1256", // STRING_ENCODING_WINDOWS_1256
-   "windows-1257", // STRING_ENCODING_WINDOWS_1257
-   "windows-1258", // STRING_ENCODING_WINDOWS_1258
-};
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * UnicodeNormalizeEncodingName --
@@ -2414,30 +2329,37 @@ UnicodeIANANameLookup(const char *encodingName) // IN
 const char *
 Unicode_EncodingEnumToName(StringEncoding encoding) // IN
 {
+   int i;
+
    // STRING_ENCODING_UNKNOWN shouldn't be hit at runtime.
    ASSERT(encoding != STRING_ENCODING_UNKNOWN);
 
    switch (encoding) {
+
    case STRING_ENCODING_UNKNOWN:
       /*
        * We will only get here in non-debug builds.  Fall through to
        * the process-default encoding name.
        */
-   case STRING_ENCODING_DEFAULT:
+   case STRING_ENCODING_DEFAULT: 
       return UnicodeIANANameLookup(CodeSet_GetCurrentCodeSet());
       break;
-   default:
-     ASSERT(Unicode_IsEncodingSupported(encoding));
 
-      if (   encoding < STRING_ENCODING_FIRST
-          || encoding >= STRING_ENCODING_MAX_SPECIFIED) {
-         const char *defaultEncoding = "UTF-8";
-         Log("%s: Unknown encoding %d, returning default (%s).",
-             __FUNCTION__, encoding, defaultEncoding);
-         return defaultEncoding;
+   default:
+      /*
+       * Look for a match in the xRef table. If found, return the
+       * preferred MIME name. Whether ICU supports this encoding or
+       * not isn't material here.
+       */
+      for (i = 0; i < ARRAYSIZE(xRef); i++) {
+         if (encoding == xRef[i].encoding) {
+            return xRef[i].names[xRef[i].preferredMime];
+         }
       }
 
-      return SIMPLE_ENCODING_LIST[encoding];
+      Log("%s: Unknown encoding %d, returning default (UTF-8).",
+          __FUNCTION__, encoding);
+      return "UTF-8";
    }
 }
 
@@ -2516,6 +2438,174 @@ Unicode_GetCurrentEncoding(void)  // IN
 Bool
 Unicode_IsEncodingSupported(StringEncoding encoding)  // IN
 {
+   /*
+    * Get alias assumed to be understood by ICU.
+    */
+   const char *name = Unicode_EncodingEnumToName(encoding);
+
+   if (!name) {
+      return FALSE;
+   }
+
+   /*
+    * Ask ICU (codeset will fall back onto a reverse-lookup into the
+    * above table if no ICU is available, which is functionally
+    * equivalent to what Unicode_IsEncodingSupported did pre-ICU
+    * anyways).
+    */
+   return CodeSet_IsEncodingSupported(name);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_IsEncodingValid --
+ *
+ *      Checks whether the specified encoding value is valid (not
+ *      necessarily whether we support it).
+ *
+ * Results:
+ *      TRUE if legal, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Unicode_IsEncodingValid(StringEncoding encoding)  // IN
+{
    return encoding >= STRING_ENCODING_FIRST && 
       encoding < STRING_ENCODING_MAX_SPECIFIED;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_Init --
+ *
+ *      Convert argv and environment from default encoding into unicode
+ *	and initialize the cache of the native code set name used to
+ *	resolve STRING_ENCODING_DEFAULT.  
+ *
+ * Results:
+ *	returns on success
+ *      errors are terminal
+ *
+ * Side effects:
+ *	Calling Unicode_AllocList initializes the cache of the native code
+ *	set name used in CodeSet_GetCurrentCodeSet().  The cached name is
+ *	used to resolve references to STRING_ENCODING_DEFAULT in unicode
+ *	functions.  When Unicode_Init is called with NULL argv/envp,
+ *	CodeSet_GetCurrentCodeSet is called explicitly to initialize the
+ *	code set name.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Unicode_Init(int argc,        // IN
+             char ***argv,    // IN/OUT
+             char ***envp)    // IN/OUT
+{
+#if !defined(__APPLE__) && !defined(VMX86_SERVER)
+   char **list;
+#endif
+
+   /*
+    * Always init the codeset module first.
+    */
+
+   if (!CodeSet_Init()) {
+      Panic("Failed to initialize codeset.\n");
+      exit(1);
+   }
+
+#if defined(__APPLE__) || defined(VMX86_SERVER)
+
+   return;  // native encoding is UTF-8
+
+#else
+
+   if (!argv && !envp) {
+      CodeSet_GetCurrentCodeSet();
+      return;
+   }
+
+   if (argv) {
+      list = Unicode_AllocList(*argv, argc + 1, STRING_ENCODING_DEFAULT);
+      if (!list) {
+         goto bail;
+      }
+      *argv = list;
+   }
+
+   if (envp) {
+      list = Unicode_AllocList(*envp, -1, STRING_ENCODING_DEFAULT);
+      if (!list) {
+         goto bail;
+      }
+      *envp = list;
+   }
+
+   return;
+
+bail:
+   Panic("Unsupported local character encoding \"%s\".\n",
+          Unicode_EncodingEnumToName(STRING_ENCODING_DEFAULT));
+   exit(1);
+
+#endif // __APPLE__
+}
+
+#if defined(_WIN32)
+void
+Unicode_InitW(int argc,         // IN
+              utf16_t **wargv,  // IN
+              utf16_t **wenvp,  // IN
+              char ***argv,     // OUT
+              char ***envp)     // OUT
+{
+   char **list;
+
+   /*
+    * Always init the codeset module first.
+    */
+
+   if (!CodeSet_Init()) {
+      Panic("Failed to initialize codeset.\n");
+      exit(1);
+   }
+
+   if (!wargv && !wenvp) {
+      CodeSet_GetCurrentCodeSet();
+      return;
+   }
+
+   if (wargv) {
+      list = Unicode_AllocList((char **)wargv, argc + 1, STRING_ENCODING_UTF16);
+      if (!list) {
+         goto bail;
+      }
+      *argv = list;
+   }
+
+   if (wenvp) {
+      list = Unicode_AllocList((char **)wenvp, -1, STRING_ENCODING_UTF16);
+      if (!list) {
+         goto bail;
+      }
+      *envp = list;
+   }
+
+   return;
+
+bail:
+   Panic("Unsupported character encoding \"%s\".\n",
+          Unicode_EncodingEnumToName(STRING_ENCODING_UTF16));
+   exit(1);
+}
+#endif

@@ -47,7 +47,7 @@
 #  include <pwd.h>
 #endif
 
-#if __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <pthread.h>
 #endif
 
@@ -354,7 +354,7 @@ pid_t gettid(void)
  *-----------------------------------------------------------------------------
  */
 
-uint32
+uintptr_t
 Util_GetCurrentThreadId(void)
 {
 #if defined(linux)
@@ -371,32 +371,34 @@ Util_GetCurrentThreadId(void)
    // ESX with userworld VMX
 #if defined(VMX86_SERVER)
    if (HostType_OSIsVMK()) {
-      return User_GetTid();
+      return (uintptr_t)User_GetTid();
    }
 #endif
 
    if (useTid) {
       tid = gettid();
       if (tid != (pid_t)-1) {
-         return tid;
+         return (uintptr_t)tid;
       }
       ASSERT(errno == ENOSYS);
       useTid = 0;
    }
    tid = getpid();
    ASSERT(tid != (pid_t)-1);
-   return tid;
-#elif __FreeBSD__ || sun
+   return (uintptr_t)tid;
+#elif defined(sun)
    pid_t tid;
 
    tid = getpid();
    ASSERT(tid != (pid_t)-1);
-   return tid;
-#elif __APPLE__
-   ASSERT_ON_COMPILE(sizeof(uint32) == sizeof(pthread_t));
-   return (uint32)pthread_self();
+   return (uintptr_t)tid;
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+   ASSERT_ON_COMPILE(sizeof(uintptr_t) == sizeof(pthread_t));
+   return (uintptr_t)pthread_self();
+#elif defined(_WIN32)
+   return (uintptr_t)GetCurrentThreadId();
 #else
-   return GetCurrentThreadId();
+#error "Unknown platform"
 #endif
 }
 

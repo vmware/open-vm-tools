@@ -39,6 +39,7 @@
 #   include <Windows.h>
 #   include <WinSock2.h>
 #   include <WinSpool.h>
+#   include "win32u.h"
 #elif _WIN32
 #   include "win95.h"
 #endif
@@ -838,7 +839,7 @@ ToolsDaemonTcloSetPrinter(char const **result,     // OUT
 
    /* Set this printer as the default if requested. */
    if (defaultInt != 0) {
-      if (!SetDefaultPrinter(printerName)) {
+      if (!Win32U_SetDefaultPrinter(printerName)) {
          /*
           * We couldn't set this printer as default. Oh well. We'll
           * still report success or failure based purely on whether

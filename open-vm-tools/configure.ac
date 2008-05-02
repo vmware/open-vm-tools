@@ -24,7 +24,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.04.14-87182],
+   [2008.05.02-90473],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -371,6 +371,39 @@ if test "$with_dnet" != "yes"; then
 AC_DEFINE([NO_DNET], 1)
 fi
 
+AC_ARG_WITH([icu],
+            [AS_HELP_STRING([--without-icu],
+              [disable support for ICU])],
+            [],
+            [with_icu=yes])
+
+if test "$with_icu" = "yes"; then
+
+	AC_PATH_PROG([ICU_CONFIG],
+		     [icu-config],
+		     [no])
+
+	if test "$ICU_CONFIG" != no; then
+		ICU_CFLAGS="`$ICU_CONFIG --cppflags` -DUSE_ICU"
+		ICU_LIBS="`$ICU_CONFIG --ldflags`"
+
+		AC_CHECK_LIB([icuuc],
+			     [ucasemap_utf8ToTitle_3_8],
+			     [have_ICU_38="yes"],,
+			     [$ICU_LIBS])
+
+		if test "$have_ICU_38" = "yes"; then
+			ICU_CFLAGS="$ICU_CFLAGS -DHAVE_ICU_38"
+		fi
+
+		# Easier to give all modules the ICU defines/includes...
+		COMMON_CFLAGS="$COMMON_CFLAGS $ICU_CFLAGS"
+	else
+		AC_MSG_ERROR(
+		   [icu-config was not found on your PATH. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])
+	fi
+fi
+
 ###
 ### Headers
 ###
@@ -514,6 +547,7 @@ for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
    CFLAGS="$ORIGINAL_CFLAGS"
 done
 COMMON_CFLAGS="$COMMON_CFLAGS -DVMX86_TOOLS"
+COMMON_CFLAGS="$COMMON_CFLAGS -DNO_CORE_ICU"
 
 INCLUDE_DIR="`cd $srcdir; pwd`/lib/include"
 COMMON_CFLAGS="$COMMON_CFLAGS -I$INCLUDE_DIR"
@@ -580,6 +614,7 @@ AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
+AM_CONDITIONAL(NO_ICU, test "$with_icu" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible
@@ -629,6 +664,8 @@ AC_SUBST([DNET_CFLAGS])
 AC_SUBST([DNET_LIBS])
 AC_SUBST([PROCPS_CFLAGS])
 AC_SUBST([PROCPS_LIBS])
+AC_SUBST([ICU_CFLAGS])
+AC_SUBST([ICU_LIBS])
 
 ### Lib substs
 

@@ -66,12 +66,12 @@ typedef enum {
    HGFS_OP_DELETE_DIR,         /* Delete a directory */
    HGFS_OP_RENAME,             /* Rename a file or directory */
    HGFS_OP_QUERY_VOLUME_INFO,  /* Query volume information */
-   
+
    /*
     * The following operations are only available in version 2 of the hgfs
-    * protocol. The corresponding version 1 opcodes above are deprecated. 
+    * protocol. The corresponding version 1 opcodes above are deprecated.
     */
-   
+
    HGFS_OP_OPEN_V2,            /* Open file */
    HGFS_OP_GETATTR_V2,         /* Get file attributes */
    HGFS_OP_SETATTR_V2,         /* Set file attributes */
@@ -82,9 +82,9 @@ typedef enum {
    HGFS_OP_DELETE_FILE_V2,     /* Delete a file */
    HGFS_OP_DELETE_DIR_V2,      /* Delete a directory */
    HGFS_OP_RENAME_V2,          /* Rename a file or directory */
-   
+
    /*
-    * Operations for version 3.
+    * Operations for version 3, deprecating version 2 operations.
     */
 
    HGFS_OP_OPEN_V3,               /* Open file */
@@ -175,10 +175,10 @@ typedef uint8 HgfsPermissions;
  *
  * The client can ask the server to acquire opportunistic locking/leasing
  * from the host FS on its behalf. This is communicated as part of an open request.
- * 
+ *
  * HGFS_LOCK_OPPORTUNISTIC means that the client trusts the server
  * to decide what kind of locking to request from the host FS.
- * All other values tell the server explicitly the type of lock to 
+ * All other values tell the server explicitly the type of lock to
  * request.
  *
  * The server will attempt to acquire the desired lock and will notify the client
@@ -214,9 +214,9 @@ typedef uint8 HgfsAttrChanges;
 
 
 /*
- * Hints to indicate in a getattr or setattr which attributes 
+ * Hints to indicate in a getattr or setattr which attributes
  * are valid for the request.
- * For setattr only, attributes should be set by host even if 
+ * For setattr only, attributes should be set by host even if
  * no valid values are specified by the guest.
  */
 
@@ -227,7 +227,7 @@ typedef uint64 HgfsAttrHint;
 #define HGFS_ATTR_HINT_USE_FILE_DESC     (1 << 2)
 
 /*
- * Hint to determine using a name or a handle to determine 
+ * Hint to determine using a name or a handle to determine
  * what to delete.
  */
 
@@ -236,7 +236,7 @@ typedef uint64 HgfsDeleteHint;
 #define HGFS_DELETE_HINT_USE_FILE_DESC   (1 << 0)
 
 /*
- * Hint to determine using a name or a handle to determine 
+ * Hint to determine using a name or a handle to determine
  * what to renames.
  */
 
@@ -254,7 +254,7 @@ typedef uint64 HgfsRenameHint;
  * units of 100ns since Jan 1, 1601, UTC.
  */
 
-/* 
+/*
  * Version 1 attributes. Deprecated.
  * Version 2 should be using HgfsAttrV2.
  */
@@ -277,14 +277,14 @@ HgfsAttr;
 
 /* Various flags and Windows attributes. */
 
-typedef uint64 HgfsAttrFlags;                                                             
+typedef uint64 HgfsAttrFlags;
 
 #define HGFS_ATTR_HIDDEN      (1 << 0)
 #define HGFS_ATTR_SYSTEM      (1 << 1)
 #define HGFS_ATTR_ARCHIVE     (1 << 2)
 
 
-/* 
+/*
  * Specifies which open request fields contain
  * valid values.
  */
@@ -293,7 +293,7 @@ typedef uint64 HgfsOpenValid;
 
 #define HGFS_OPEN_VALID_NONE              0
 #define HGFS_OPEN_VALID_MODE              (1 << 0)
-#define HGFS_OPEN_VALID_FLAGS             (1 << 1)	
+#define HGFS_OPEN_VALID_FLAGS             (1 << 1)
 #define HGFS_OPEN_VALID_SPECIAL_PERMS     (1 << 2)
 #define HGFS_OPEN_VALID_OWNER_PERMS       (1 << 3)
 #define HGFS_OPEN_VALID_GROUP_PERMS       (1 << 4)
@@ -306,7 +306,7 @@ typedef uint64 HgfsOpenValid;
 #define HGFS_OPEN_VALID_FILE_NAME         (1 << 11)
 
 
-/* 
+/*
  * Specifies which attribute fields contain
  * valid values.
  */
@@ -326,12 +326,12 @@ typedef uint64 HgfsAttrValid;
 #define HGFS_ATTR_VALID_OTHER_PERMS       (1 << 9)
 #define HGFS_ATTR_VALID_FLAGS             (1 << 10)
 #define HGFS_ATTR_VALID_ALLOCATION_SIZE   (1 << 11)
-#define HGFS_ATTR_VALID_USERID            (1 << 12)  
+#define HGFS_ATTR_VALID_USERID            (1 << 12)
 #define HGFS_ATTR_VALID_GROUPID           (1 << 13)
 #define HGFS_ATTR_VALID_FILEID            (1 << 14)
 
-                                                                                            
-/* 
+
+/*
  * Specifies which create dir request fields contain
  * valid values.
  */
@@ -345,12 +345,12 @@ typedef uint64 HgfsCreateDirValid;
 #define HGFS_CREATE_DIR_VALID_OTHER_PERMS       (1 << 3)
 #define HGFS_CREATE_DIR_VALID_FILE_NAME         (1 << 4)
 
-/*                                                                                        
+/*
  *  Version 2 of HgfsAttr
  */
 
-typedef                                                                                   
-#include "vmware_pack_begin.h"                                                            
+typedef
+#include "vmware_pack_begin.h"
 struct HgfsAttrV2 {
    HgfsAttrValid mask;           /* A bit mask to determine valid attribute fields */
    HgfsFileType type;            /* File type */
@@ -360,12 +360,12 @@ struct HgfsAttrV2 {
    uint64 writeTime;             /* Time of last write */
    uint64 attrChangeTime;        /* Time file attributes were last
                                   * changed. Ignored by Windows */
-   HgfsPermissions specialPerms; /* Special permissions bits (suid, etc.). 
+   HgfsPermissions specialPerms; /* Special permissions bits (suid, etc.).
                                   * Ignored by Windows */
    HgfsPermissions ownerPerms;   /* Owner permissions bits */
-   HgfsPermissions groupPerms;   /* Group permissions bits. Ignored by 
+   HgfsPermissions groupPerms;   /* Group permissions bits. Ignored by
                                   * Windows */
-   HgfsPermissions otherPerms;   /* Other permissions bits. Ignored by 
+   HgfsPermissions otherPerms;   /* Other permissions bits. Ignored by
                                   * Windows */
    HgfsAttrFlags flags;          /* Various flags and Windows 'attributes' */
    uint64 allocationSize;        /* Actual size of file on disk */
@@ -374,9 +374,9 @@ struct HgfsAttrV2 {
    uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
    uint64 reserved1;             /* Reserved for future use */
    uint64 reserved2;             /* Reserved for future use */
-}                                                                                         
-#include "vmware_pack_end.h"                                                              
-HgfsAttrV2; 
+}
+#include "vmware_pack_end.h"
+HgfsAttrV2;
 
 
 /*
@@ -407,16 +407,16 @@ HgfsAttrV2;
  * SEARCH_OPEN.
  *
  * In the current HGFS server implementation, each request has a minimum packet
- * size that must be met for it to be considered valid. This minimum is simply 
+ * size that must be met for it to be considered valid. This minimum is simply
  * the sizeof the particular request, which includes the solitary byte from the
  * HgfsFileName struct. For these particular requests, clients add an extra
  * byte to their payload size, without that byte being present anywhere.
  *
  * It isn't clear that this behavior is correct, but the end result is that
- * neither end malfunctions, as an extra byte gets sent by the client and is 
+ * neither end malfunctions, as an extra byte gets sent by the client and is
  * ignored by the server. Unfortunately, it cannot be easily fixed. The
  * server's minimum packet size can be changed, but the client should continue
- * to send an extra byte, otherwise older servers with a slightly longer 
+ * to send an extra byte, otherwise older servers with a slightly longer
  * minimum packet size may consider the new client's packets to be too short.
  *
  * UTF-8 representation
@@ -435,11 +435,11 @@ HgfsAttrV2;
  *
  * Precomposed (normal form C) versus Decomposed (normal form D)
  * -------------------------------------------------------------
- * Certain Unicode characters can be encoded in more than one way. 
+ * Certain Unicode characters can be encoded in more than one way.
  * For example, an (A acute) can be encoded either precomposed,
- * as U+00C1 (LATIN CAPITAL LETTER A WITH ACUTE), or decomposed, 
+ * as U+00C1 (LATIN CAPITAL LETTER A WITH ACUTE), or decomposed,
  * as U+0041 U+0301 (LATIN CAPITAL LETTER A followed by a COMBINING ACUTE ACCENT).
- * Precomposed characters are more common in the Windows world, 
+ * Precomposed characters are more common in the Windows world,
  * whereas decomposed characters are more common on the Mac.
  *
  * See UAX 15 (http://unicode.org/reports/tr15/)
@@ -456,15 +456,28 @@ HgfsFileName;
 
 
 /*
- * HgfsFileNameV3 - new header to incorporate case-sensitivity flags along with 
+ * Case-sensitiviy flags are only used when any lookup is
+ * involved on the server side.
+ */
+
+typedef enum {
+   HGFS_FILE_NAME_DEFAULT_CASE,
+   HGFS_FILE_NAME_CASE_SENSITIVE,
+   HGFS_FILE_NAME_CASE_INSENSITIVE,
+} HgfsCaseType;
+
+
+/*
+ * HgfsFileNameV3 - new header to incorporate case-sensitivity flags along with
  * Hgfs file handle.
- */ 
+ */
 
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsFileNameV3 {
-   uint32 length; /* Does NOT include terminating NUL */
-   uint32 flags;  /* Flags describe below. */
+   uint32 length;           /* Does NOT include terminating NUL */
+   uint32 flags;            /* Flags described below. */
+   HgfsCaseType caseType;   /* Case-sensitivity type. */
    HgfsHandle fid;
    char name[1];
 }
@@ -476,10 +489,7 @@ HgfsFileNameV3;
  * HgfsFileNameV3 flags. Case-sensitiviy flags are only used when any lookup is
  * involved on the server side.
  */
-#define HGFS_FILE_NAME_USE_FILE_DESC     (1 << 0)  /* Other flags ignored if set. */
-#define HGFS_FILE_NAME_CASE_SENSITIVE    (1 << 1)
-#define HGFS_FILE_NAME_CASE_INSENSITIVE  (1 << 2)
-#define HGFS_FILE_NAME_DEFAULT_CASE      (1 << 3)  /* Default host case. */
+#define HGFS_FILE_NAME_USE_FILE_DESC     (1 << 0)  /* Case type ignored if set. */
 
 
 /*
@@ -530,26 +540,26 @@ HgfsRequestOpen;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestOpenV2 {                                                                
-   HgfsRequest header;       
+struct HgfsRequestOpenV2 {
+   HgfsRequest header;
    HgfsOpenValid mask;           /* Bitmask that specified which fields are valid. */
-   HgfsOpenMode mode;            /* Which type of access requested. See desiredAccess */       
-   HgfsOpenFlags flags;          /* Which flags to open the file with */                  
-   HgfsPermissions specialPerms; /* Desired 'special' permissions for file creation */      
-   HgfsPermissions ownerPerms;   /* Desired 'owner' permissions for file creation */      
-   HgfsPermissions groupPerms;   /* Desired 'group' permissions for file creation */      
-   HgfsPermissions otherPerms;   /* Desired 'other' permissions for file creation */      
-   HgfsAttrFlags attr;           /* Attributes, if any, for file creation */                 
-   uint64 allocationSize;        /* How much space to pre-allocate during creation */       
-   uint32 desiredAccess;         /* Extended support for windows access modes */            
+   HgfsOpenMode mode;            /* Which type of access requested. See desiredAccess */
+   HgfsOpenFlags flags;          /* Which flags to open the file with */
+   HgfsPermissions specialPerms; /* Desired 'special' permissions for file creation */
+   HgfsPermissions ownerPerms;   /* Desired 'owner' permissions for file creation */
+   HgfsPermissions groupPerms;   /* Desired 'group' permissions for file creation */
+   HgfsPermissions otherPerms;   /* Desired 'other' permissions for file creation */
+   HgfsAttrFlags attr;           /* Attributes, if any, for file creation */
+   uint64 allocationSize;        /* How much space to pre-allocate during creation */
+   uint32 desiredAccess;         /* Extended support for windows access modes */
    uint32 shareAccess;           /* Windows only, share access modes */
    HgfsServerLock desiredLock;   /* The type of lock desired by the client */
    uint64 reserved1;             /* Reserved for future use */
    uint64 reserved2;             /* Reserved for future use */
-   HgfsFileName fileName;                                                                 
-}                                                                                         
-#include "vmware_pack_end.h"                                                              
-HgfsRequestOpenV2;  
+   HgfsFileName fileName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestOpenV2;
 
 
 /* Version 3 of HgfsRequestOpen */
@@ -860,16 +870,16 @@ typedef
 struct HgfsReplySearchReadV2 {
    HgfsReply header;
    HgfsAttrV2 attr;
- 
-   /* 
-    * fileName.length = 0 means "no entry at this offset" 
+
+   /*
+    * fileName.length = 0 means "no entry at this offset"
     * If the file is a symlink (as specified in attr)
     * this name is the name of the symlink, not the target.
-    */ 
-   HgfsFileName fileName; 
-} 
-#include "vmware_pack_end.h" 
-HgfsReplySearchReadV2; 
+    */
+   HgfsFileName fileName;
+}
+#include "vmware_pack_end.h"
+HgfsReplySearchReadV2;
 
 
 /* Directory entry structure. */
@@ -877,13 +887,13 @@ HgfsReplySearchReadV2;
 typedef struct HgfsDirEntry {
    uint32 nextEntry;
    HgfsAttrV2 attr;
-   
-   /* 
-    * fileName.length = 0 means "no entry at this offset" 
+
+   /*
+    * fileName.length = 0 means "no entry at this offset"
     * If the file is a symlink (as specified in attr)
     * this name is the name of the symlink, not the target.
-    */ 
-   HgfsFileNameV3 fileName; 
+    */
+   HgfsFileNameV3 fileName;
 } HgfsDirEntry;
 
 typedef
@@ -892,8 +902,8 @@ struct HgfsReplySearchReadV3 {
    uint64 count;         /* Number of directory entries. */
    uint64 reserved;      /* Reserved for future use. */
    char payload[1];      /* Directory entries. */
-} 
-#include "vmware_pack_end.h" 
+}
+#include "vmware_pack_end.h"
 HgfsReplySearchReadV3;
 
 
@@ -996,10 +1006,10 @@ typedef
 struct HgfsReplyGetattrV2 {
    HgfsReply header;
    HgfsAttrV2 attr;
-      
+
    /*
-    * If the file is a symlink, as specified in attr.type, then this is 
-    * the target for the symlink. If the file is not a symlink, this should 
+    * If the file is a symlink, as specified in attr.type, then this is
+    * the target for the symlink. If the file is not a symlink, this should
     * be ignored.
     *
     * This filename is in "CPNameLite" format. See CPNameLite.c for details.
@@ -1014,10 +1024,10 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsReplyGetattrV3 {
    HgfsAttrV2 attr;
-      
+
    /*
-    * If the file is a symlink, as specified in attr.type, then this is 
-    * the target for the symlink. If the file is not a symlink, this should 
+    * If the file is a symlink, as specified in attr.type, then this is
+    * the target for the symlink. If the file is not a symlink, this should
     * be ignored.
     *
     * This filename is in "CPNameLite" format. See CPNameLite.c for details.
@@ -1192,7 +1202,7 @@ struct HgfsRequestDelete {
 HgfsRequestDelete;
 
 
-/* Version 2 of HgfsReplyCreateDir */
+/* Version 2 of HgfsRequestDelete */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -1206,7 +1216,7 @@ struct HgfsRequestDeleteV2 {
 HgfsRequestDeleteV2;
 
 
-/* Version 3 of HgfsReplyCreateDir */
+/* Version 3 of HgfsRequestDelete */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -1420,7 +1430,7 @@ struct HgfsReplySymlinkCreate {
 HgfsReplySymlinkCreate;
 
 
-/* HgfsRequestServerLockChange and HgfsReplyServerLockChange for v3. */
+/* HgfsRequestSymlinkCreate and HgfsReplySymlinkCreate for v3. */
 
 typedef
 #include "vmware_pack_begin.h"

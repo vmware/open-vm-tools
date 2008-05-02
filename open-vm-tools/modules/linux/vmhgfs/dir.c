@@ -117,9 +117,10 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
       HgfsReplySearchReadV3 *replyV3;
       HgfsDirEntry *dirent;
       
+      /* Currently V3 returns only 1 entry. */
       replyV3 = (HgfsReplySearchReadV3 *)(HGFS_REP_PAYLOAD_V3(req));
-      replySize = sizeof *replyV3 + sizeof(struct HgfsReply)
-                                  + sizeof(struct HgfsDirEntry);
+      replyV3->count = 1;
+      replySize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3) + sizeof *dirent;
       dirent = (HgfsDirEntry *)replyV3->payload;
       fileName = dirent->fileName.name;
       fileNameLength = dirent->fileName.length;
@@ -247,7 +248,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
       request = (HgfsRequestSearchReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->search = searchHandle;
       request->offset = offset;
-      req->payloadSize = sizeof *request + sizeof *header;
+      req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestSearchRead *request;
       
@@ -311,6 +312,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
    return result;
 }
 
+
 /*
  *----------------------------------------------------------------------
  *
@@ -330,7 +332,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
 static int 
 HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
                        struct file *file,   // IN: File pointer for this open
-		       HgfsOp opUsed,       // IN: Op to be used
+                       HgfsOp opUsed,       // IN: Op to be used
                        HgfsReq *req)        // IN/OUT: Packet to write into
 {
    char *name;
@@ -356,8 +358,9 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
       /* We'll use these later. */
       name = requestV3->dirName.name;
       nameLength = &requestV3->dirName.length;
-      requestV3->dirName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
-      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      requestV3->dirName.flags = 0;
+      requestV3->dirName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       break;
    }
 
@@ -460,7 +463,7 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
    replySearch = &((HgfsReplySearchOpen *)HGFS_REQ_PAYLOAD(req))->search;
    if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
       opUsed = HGFS_OP_SEARCH_OPEN_V3;
-      replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REQ_PAYLOAD_V3(req))->search;
+      replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REP_PAYLOAD_V3(req))->search;
    }
    
    result = HgfsPackDirOpenRequest(inode, file, opUsed, req);
@@ -815,7 +818,7 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
 
       request = (HgfsRequestSearchCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->search = handle;
-      req->payloadSize = sizeof *request + sizeof *header;
+      req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestSearchClose *request;
    

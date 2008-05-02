@@ -948,7 +948,15 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
 		       TOOLS_DAEMON_NAME)) {
       Debug("ToolsDaemonTcloCapReg: Unable to register resolution server capability\n");
    }
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 1")) {
+   /*
+    * Bug 149541: Windows 2000 does not currently support multimon.
+    *
+    * In addition, NT will never support multimon.  9x guests have
+    * frozen tools, and will report this capability set to 1, which
+    * current UIs will treat as unsupported.
+    */
+   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set %s",
+                       System_GetOSType() >= OS_WINXP ? "2" : "0")) {
       Debug("ToolsDaemonTcloCapReg: Unable to register display topology set "
             "capability\n");
    }

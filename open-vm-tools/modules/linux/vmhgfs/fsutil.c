@@ -245,8 +245,7 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
 
    /* GetattrV2+ also wants a symlink target if it exists. */
    if (attr->requestType == HGFS_OP_GETATTR_V3) {
-      HgfsReplyGetattrV3 *replyV3 = (HgfsReplyGetattrV3 *)
-         (HGFS_REP_PAYLOAD_V3(req));
+      HgfsReplyGetattrV3 *replyV3 = (HgfsReplyGetattrV3 *)(HGFS_REP_PAYLOAD_V3(req));
       name = replyV3->symlinkTarget.name;
       length = replyV3->symlinkTarget.length;
 
@@ -354,9 +353,10 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
          requestV3->hints = 0;
          fileName = requestV3->fileName.name;
 	 fileNameLength = &requestV3->fileName.length;
-	 requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+	 requestV3->fileName.flags = 0;
+	 requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       }
-      reqSize = sizeof *requestV3 + sizeof *requestHeader;
+      reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
       break;
    }
@@ -474,6 +474,7 @@ int
 HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
                      HgfsAttrInfo *attrInfo)  // OUT: Attributes
 {
+   HgfsReplyGetattrV3 *getattrReplyV3;
    HgfsReplyGetattrV2 *getattrReplyV2;
    HgfsReplyGetattr *getattrReplyV1;
    HgfsReplySearchReadV3 *searchReadReplyV3;
@@ -488,6 +489,9 @@ HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
 
    switch (attrInfo->requestType) {
    case HGFS_OP_GETATTR_V3:
+      getattrReplyV3 = (HgfsReplyGetattrV3 *)(HGFS_REP_PAYLOAD_V3(req));
+      attrV2 = &getattrReplyV3->attr;
+      break;
    case HGFS_OP_GETATTR_V2:
       getattrReplyV2 = (HgfsReplyGetattrV2 *)(HGFS_REQ_PAYLOAD(req));
       attrV2 = &getattrReplyV2->attr;

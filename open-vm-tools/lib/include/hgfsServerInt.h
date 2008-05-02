@@ -181,14 +181,14 @@ typedef struct HgfsFileNode {
 } HgfsFileNode;
 
 
-/* HGFSFileNode flags. */
+/* HgfsFileNode flags. */
 
 /* TRUE if opened in append mode */
-#define FILE_NODE_APPEND_FL               (1 << 0)
+#define HGFS_FILE_NODE_APPEND_FL               (1 << 0)
 /* Whether this file was opened in sequential mode. */
-#define FILE_NODE_SEQUENTIAL_FL           (1 << 1)
+#define HGFS_FILE_NODE_SEQUENTIAL_FL           (1 << 1)
 /* Whether this a shared folder open. */
-#define FILE_NODE_SHARED_FOLDER_OPEN_FL   (1 << 2)
+#define HGFS_FILE_NODE_SHARED_FOLDER_OPEN_FL   (1 << 2)
 
 /*
  * This struct represents a file search that a client initiated.
@@ -339,7 +339,7 @@ HgfsServerGetAccess(char *in,                    // IN:  CP filename to check
 		    uint32 caseFlags,            // IN:  Case-sensitivity flags
                     char **bufOut,               // OUT: File name in local fs
                     size_t *outLen,              // OUT: Length of name out
-                    HgfsSharedFolder **share);   // OUT: Length of name out
+                    HgfsSharedFolder **share);   // OUT: Shared Folder
 
 Bool
 HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check

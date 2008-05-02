@@ -100,13 +100,13 @@
 static INLINE void 
 FXSAVE_ES1(uint8 *save)
 {
-   __asm__ __volatile__ ("fxsave %0\n" : "=m" (*save));
+   __asm__ __volatile__ ("fxsave %0\n" : "=m" (*save) : : "memory");
 }
 
 static INLINE void 
 FXRSTOR_ES1(const uint8 *load)
 {
-   __asm__ __volatile__ ("fxrstor %0\n" : : "m" (*load));
+   __asm__ __volatile__ ("fxrstor %0\n" : : "m" (*load) : "memory");
 }
 
 static INLINE void 
@@ -126,7 +126,7 @@ FXRSTOR_AMD_ES0(const uint8 *load)
         "fxrstor %1      \n"
         :  
         : "m" (dummy), "m" (*load)
-        : "ax");
+        : "ax", "memory");
 }
 #endif /* __GNUC__ */
 

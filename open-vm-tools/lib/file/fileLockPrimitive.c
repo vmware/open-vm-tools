@@ -399,11 +399,7 @@ ActivateLockList(ConstUnicode dirName,  // IN:
 
    /* No entry? Attempt to add one. */
    if (ptr == NULL) {
-      ptr = malloc(sizeof *ptr);
-
-      if (ptr == NULL) {
-         return ENOMEM;
-      }
+      ptr = Util_SafeMalloc(sizeof *ptr);
 
       ptr->next = myValues->lockList;
       myValues->lockList = ptr;

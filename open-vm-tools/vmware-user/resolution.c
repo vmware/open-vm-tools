@@ -429,7 +429,7 @@ Resolution_RegisterCapability(void)
    }
 #ifndef NO_MULTIMON
    if (gCanUseVMwareCtrlTopologySet &&
-       !RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 1")) {
+       !RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 2")) {
       Debug("%s: Unable to register topology set capability\n",
 	    __FUNCTION__);
       return FALSE;

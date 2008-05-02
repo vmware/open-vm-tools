@@ -39,6 +39,9 @@
 #include "vmware.h"
 #include "err.h"
 #include "printer.h"
+#ifdef _WIN32
+#include "win32u.h"
+#endif
 
 #define LOGLEVEL_MODULE printer
 #include "loglevel_user.h"
@@ -272,14 +275,14 @@ Printer_Init(void)
    /*
     * Try to load the necessary library.
     */
-   winspoolDll = LoadLibrary("Winspool.drv");
+   winspoolDll = Win32U_LoadLibrary("Winspool.drv");
    if (!winspoolDll) {
       error = Err_Errno();
       Log("Printer_Init: Failed to load Winspool.drv  %d: %s\n",
           error, Err_Errno2String(error));
 
       Log("Printer_Init: Trying to load Winspool as Winspool.dll...\n");
-      winspoolDll = LoadLibrary("Winspool");
+      winspoolDll = Win32U_LoadLibrary("Winspool");
       if (!winspoolDll) {
          error = Err_Errno();
          Log("Printer_Init: Failed to load Winspool.dll  %d: %s\n",

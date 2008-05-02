@@ -54,6 +54,18 @@
 #include "vm_assert.h"
 #include "dynbuf.h"
 
+#   if defined(__FreeBSD__) || defined(VMX86_SERVER) || defined(__APPLE__) \
+                            || (defined(__linux__) && !defined(GLIBC_VERSION_21) \
+                            && !defined(GLIBC_VERSION_22) && !defined(GLIBC_VERSION_23))
+#define CURRENT_IS_UTF8
+#endif
+
+/*
+ * Guard these defines, borrowed from ICU's utf16.h, so that source files
+ * can include both.
+ */
+
+#ifndef __UTF16_H__
 
 /**
  * Is this code point a surrogate (U+d800..U+dfff)?
@@ -222,74 +234,105 @@
       } \
    }
 
+#endif // __UTF16_H__
+
+#define CSGTG_NORMAL    0x0000  /* Without any information loss. */
+#define CSGTG_TRANSLIT  0x0001  /* Transliterate unknown characters. */
+#define CSGTG_IGNORE    0x0002  /* Skip over untranslatable characters. */
 
 Bool
-CodeSet_Utf8ToCurrent(char const *bufIn,      // IN
-                      size_t sizeIn,    // IN
-                      char **bufOut,          // OUT
-                      size_t *sizeOut); // OUT
+CodeSet_Init(void);
+
+void
+CodeSet_DontUseIcu(void);
 
 Bool
-CodeSet_Utf8ToCurrentTranslit(char const *bufIn,      // IN
-                              size_t sizeIn,    // IN
-                              char **bufOut,          // OUT
-                              size_t *sizeOut); // OUT
+CodeSet_GenericToGenericDb(const char *codeIn,  // IN
+                           const char *bufIn,   // IN
+                           size_t sizeIn,       // IN
+                           const char *codeOut, // IN
+                           unsigned int flags,  // IN
+                           DynBuf *db);         // IN/OUT
 
 Bool
-CodeSet_CurrentToUtf8(char const *bufIn,      // IN
-                      size_t sizeIn,    // IN
-                      char **bufOut,          // OUT
-                      size_t *sizeOut); // OUT
+CodeSet_GenericToGeneric(const char *codeIn,  // IN
+                         const char *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         const char *codeOut, // IN
+                         unsigned int flags,  // IN
+                         char **bufOut,       // IN/OUT
+                         size_t *sizeOut);    // IN/OUT
 
 Bool
-CodeSet_Utf16leToUtf8_Db(char const *bufIn,   // IN
-                         size_t sizeIn, // IN
+CodeSet_Utf8ToCurrent(const char *bufIn,   // IN
+                      size_t sizeIn,       // IN
+                      char **bufOut,       // OUT
+                      size_t *sizeOut);    // OUT
+
+Bool
+CodeSet_CurrentToUtf8(const char *bufIn,  // IN
+                      size_t sizeIn,      // IN
+                      char **bufOut,      // OUT
+                      size_t *sizeOut);   // OUT
+
+Bool
+CodeSet_Utf16leToUtf8_Db(const char *bufIn,   // IN
+                         size_t sizeIn,       // IN
                          DynBuf *db);         // IN
 
 Bool
-CodeSet_Utf16leToUtf8(char const *bufIn,      // IN
-                      size_t sizeIn,    // IN
-                      char **bufOut,          // OUT
-                      size_t *sizeOut); // OUT
+CodeSet_Utf16leToUtf8(const char *bufIn,   // IN
+                      size_t sizeIn,       // IN
+                      char **bufOut,       // OUT
+                      size_t *sizeOut);    // OUT
 
 Bool
-CodeSet_Utf8ToUtf16le(char const *bufIn,      // IN
-                      size_t sizeIn,    // IN
-                      char **bufOut,          // OUT
-                      size_t *sizeOut); // OUT
+CodeSet_Utf8ToUtf16le(const char *bufIn,   // IN
+                      size_t sizeIn,       // IN
+                      char **bufOut,       // OUT
+                      size_t *sizeOut);    // OUT
 
 Bool
-CodeSet_CurrentToUtf16le(char const *bufIn,      // IN
-                         size_t sizeIn,    // IN
-                         char **bufOut,          // OUT
-                         size_t *sizeOut); // OUT
+CodeSet_CurrentToUtf16le(const char *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         char **bufOut,       // OUT
+                         size_t *sizeOut);    // OUT
 
 Bool
-CodeSet_Utf16leToCurrent(char const *bufIn,      // IN
-                         size_t sizeIn,    // IN
-                         char **bufOut,          // OUT
-                         size_t *sizeOut); // OUT
+CodeSet_Utf16leToCurrent(const char *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         char **bufOut,       // OUT
+                         size_t *sizeOut);    // OUT
 
 Bool
-CodeSet_Utf16beToCurrent(char const *bufIn,      // IN
-                         size_t sizeIn,    // IN
-                         char **bufOut,          // OUT
-                         size_t *sizeOut); // OUT
+CodeSet_Utf16beToCurrent(const char *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         char **bufOut,       // OUT
+                         size_t *sizeOut);    // OUT
 
 Bool
-CodeSet_Utf8FormDToUtf8FormC(char const *bufIn,     // IN
+CodeSetOld_Utf8Normalize(const char *bufIn,     // IN
+                         size_t sizeIn,         // IN
+                         Bool precomposed,      // IN
+                         DynBuf *db);           // OUT
+
+Bool
+CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
                              size_t *sizeOut);      // OUT
 
 Bool
-CodeSet_Utf8FormCToUtf8FormD(char const *bufIn,     // IN
+CodeSet_Utf8FormCToUtf8FormD(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
                              size_t *sizeOut);      // OUT
 
 const char *
 CodeSet_GetCurrentCodeSet(void);
+
+Bool
+CodeSet_IsEncodingSupported(const char *name);
 
 
 /*

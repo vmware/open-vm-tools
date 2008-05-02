@@ -157,11 +157,11 @@ VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
          ret = 1;
          break;
       }
-   }
 
-   /* This happens if all thaw/fail scripts failed to start. */
-   if (index == -1 && scripts[0].proc == NULL) {
-      ret = -1;
+      /* This happens if all thaw/fail scripts failed to start. */
+      if (index == -1 && scripts[0].proc == NULL) {
+         ret = -1;
+      }
    }
 
    return ret;

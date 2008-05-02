@@ -21,32 +21,17 @@
  *
  *      This is the implementation of the common code in the guest tools
  *      to send out guest information to the host. The guest info server
- *      is currently a thread spawned by the tools daemon which periodically
+ *      runs in the context of the tools daemon's event loop and periodically
  *      gathers all guest information and sends updates to the host if required.
  *      This file implements the platform independent framework for this.
- *      A separate thread is only spawned for Windows guests, currently.
  */
 
-
-#ifndef VMX86_DEVEL
-
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <limits.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <winbase.h>       /* For Sleep() */
-#include <memory.h>
-#define SleepFunction(x) Sleep((uint32)ceil((double)(x) / 1000))
-#else
-/* SleepFunction() for Posix defined below; these includes are needed. */
-#include <sys/poll.h>
-#endif
 
 #include "vmware.h"
 #include "eventManager.h"
@@ -83,7 +68,6 @@ typedef struct _GuestInfoCache{
 static uint32 gDisableQueryDiskInfo = FALSE;
 
 static DblLnkLst_Links *gGuestInfoEventQueue;
-static uint32 gTimerInterval;
 /* Local cache of the guest information that was last sent to vmx. */
 static GuestInfoCache gInfoCache;
 
@@ -94,32 +78,6 @@ static GuestInfoCache gInfoCache;
  */
 
 static Bool vmResumed;
-
-/* 
- * The Windows Guest Info Server runs in a separate thread,
- * so we have to synchronize access to 'vmResumed' variable.
- * Non-windows guest info server does not run in a separate
- * thread, so no locking is needed.
- */
-
-#if defined(_WIN32)
-typedef CRITICAL_SECTION vmResumedLockType;
-#define GUESTINFO_DELETE_LOCK(lockPtr) DeleteCriticalSection(lockPtr)
-#define GUESTINFO_ENTER_LOCK(lockPtr) EnterCriticalSection(lockPtr)
-#define GUESTINFO_LEAVE_LOCK(lockPtr) LeaveCriticalSection(lockPtr)
-#define GUESTINFO_INIT_LOCK(lockPtr) InitializeCriticalSection(lockPtr)
-
-vmResumedLockType vmResumedLock;
-
-#else // #if LINUX
-
-typedef int vmResumedLockType;
-#define GUESTINFO_DELETE_LOCK(lockPtr) 
-#define GUESTINFO_ENTER_LOCK(lockPtr)
-#define GUESTINFO_LEAVE_LOCK(lockPtr)
-#define GUESTINFO_INIT_LOCK(lockPtr)
-
-#endif // #if LINUX
 
 static Bool GuestInfoGather(void * clientData);
 static Bool GuestInfoUpdateVmdb(GuestInfoType infoType, void* info);
@@ -133,76 +91,7 @@ static Bool GuestInfoSerializeNicInfo(NicInfo *nicInfo,
 static int PrintNicInfo(NicInfo *nicInfo, int (*PrintFunc)(const char *, ...));
 
 #ifdef _WIN32
-
-static Bool GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info, NicInfoV1    *infoV1);
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestInfoServer_Main --
- *
- *    The main event loop for the guest info server.
- *    GuestInfoServer_Init() much be called prior to calling this function.
- *
- * Result
- *    None
- *
- * Side-effects
- *    Events are processed, information gathered and updates sent.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GuestInfoServer_Main(void *data) // IN
-{
-   int retVal;
-   uint64 sleepUsecs;
-   HANDLE *events = (HANDLE *) data;
-   HANDLE quitEvent;
-   HANDLE finishedEvent;
-
-   ASSERT(data);
-   ASSERT(events[0]);
-   ASSERT(events[1]);
-
-   quitEvent = events[0];
-   finishedEvent = events[1];
-
-   Debug("Starting GuestInfoServer for Windows.\n");
-   for(;;) {
-      DWORD dwError;
-
-      retVal = EventManager_ProcessNext(gGuestInfoEventQueue, &sleepUsecs);
-      if (retVal != 1) {
-         Debug("Unexpected end of the guest info loop.\n");
-         break;
-      }
-
-      /*
-       * The number of micro seconds to sleep should not overflow a long. This
-       * corresponds to a maximum sleep time of around 4295 seconds (~ 71 minutes)
-       * which should be more than enough.
-       */
-
-      Debug("Sleeping for %"FMT64"u msecs...\n", sleepUsecs / 1000);
-      dwError = WaitForSingleObject(quitEvent, sleepUsecs / 1000);
-      if (dwError == WAIT_OBJECT_0) {
-         GuestApp_Log("GuestInfoServer received quit event.\n");
-         Debug("GuestInfoServer received quit event.\n");
-         break;
-      } else if (dwError == WAIT_TIMEOUT) {
-         Debug("GuestInfoServer woke up.\n");
-      } else if (dwError == WAIT_FAILED) {
-         Debug("GuestInfoServer error waiting on exit event: %d %d\n",
-               dwError, GetLastError());
-         break;
-      }
-   }
-   SetEvent(finishedEvent);
-   GuestApp_Log("GuestInfoServer exiting.\n");
-}
+static Bool GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info, NicInfoV1 *infoV1);
 #endif
 
 
@@ -211,23 +100,15 @@ GuestInfoServer_Main(void *data) // IN
  *
  * GuestInfoServer_Init --
  *
- *    This function must be called before the guest info thread is running.
- *    Initialize the event queue. If an event queue has been supplied, just
- *    add the first event to it. If not, create an event queue and then add
- *    an event to this queue. Initialize vmResumedLock. Even if the function
- *    fails, the lock is initialized anyway since the main thread calls
- *    GuestInfoServer_VMResumedNotify() regardless of whether the guest info
- *    thread was started successfully.
+ *    Initialize some variables and add the first event to the queue.
  *    
- *    Call GuestInfoServer_Cleanup() to do the necessary cleanup after the
- *    guest info thread has finished running.
+ *    Call GuestInfoServer_Cleanup() to do the necessary cleanup.
  *
  * Result
  *    TRUE on success, FALSE on failure.
  *
  * Side-effects
- *    The timer event queue is initialized and populated with the first event.
- *    Lock is created for synchronized access to vmResumed variable.
+ *    The timer event queue is populated with the first event.
  *
  *-----------------------------------------------------------------------------
  */
@@ -236,30 +117,15 @@ Bool
 GuestInfoServer_Init(DblLnkLst_Links *eventQueue) // IN: queue for event loop
 {
    Debug("Entered guest info init.\n");
+   ASSERT(eventQueue);
 
    memset(&gInfoCache, 0, sizeof gInfoCache);
-
-   GUESTINFO_INIT_LOCK(&vmResumedLock);
-   GUESTINFO_ENTER_LOCK(&vmResumedLock);
    vmResumed = FALSE;
-   GUESTINFO_LEAVE_LOCK(&vmResumedLock);
-
-   gGuestInfoEventQueue = eventQueue ? eventQueue: EventManager_Init();
-   if(!gGuestInfoEventQueue) {
-      Debug("Unable to create the event queue.\n");
-      return FALSE;
-   }
-
-   /*
-    * Get the timer interval.
-    * XXX: A default value of 30 seconds is acceptable to the VPX team
-    *      This value should however be made configurable.
-    */
-
-   gTimerInterval = GUESTINFO_TIME_INTERVAL_MSEC;
+   gGuestInfoEventQueue = eventQueue;
 
    /* Add the first timer event. */
-   if (!EventManager_Add(gGuestInfoEventQueue, gTimerInterval, GuestInfoGather, NULL)) {
+   if (!EventManager_Add(gGuestInfoEventQueue, GUESTINFO_TIME_INTERVAL_MSEC,
+                         GuestInfoGather, NULL)) {
       Debug("Unable to add initial event.\n");
       return FALSE;
    }
@@ -307,9 +173,7 @@ GuestInfoServer_DisableDiskInfoQuery(Bool disable)
  *    None.
  *
  * Side-effects
- *    Timer event queue is destroyed.
- *    Deallocate any memory allocated in gInfoCache.
- *    vmResumedLock is deleted.
+ *    Deallocates any memory allocated in gInfoCache.
  *
  *-----------------------------------------------------------------------------
  */
@@ -318,10 +182,6 @@ void
 GuestInfoServer_Cleanup(void)
 {
    GuestInfoClearCache();
-   if (gGuestInfoEventQueue) {
-      EventManager_Destroy(gGuestInfoEventQueue);
-   }
-   GUESTINFO_DELETE_LOCK(&vmResumedLock);
 }
 
 
@@ -345,41 +205,8 @@ GuestInfoServer_Cleanup(void)
 void
 GuestInfoServer_VMResumedNotify(void)
 {
-   GUESTINFO_ENTER_LOCK(&vmResumedLock);
    vmResumed = TRUE;
-   GUESTINFO_LEAVE_LOCK(&vmResumedLock);
 }
-
-
-#ifndef _WIN32
-/*
- *----------------------------------------------------------------------------
- *
- * SleepFunction --
- *
- *    Sleeps in milliseconds. (Posix)
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static inline void
-SleepFunction(uint64 tmout)
-{
-   if (tmout >= INT_MAX * CONST64U(1000)) {
-      tmout = INT_MAX;
-   } else {
-      tmout = (tmout + 999) / 1000;
-   }
-
-   poll(NULL, 0, tmout);
-}
-#endif
 
 
 /*
@@ -493,7 +320,8 @@ GuestInfoGather(void *clientData)   // IN: unused
     * still be passed to the host.
     *
     */
-   if (!EventManager_Add(gGuestInfoEventQueue, gTimerInterval, GuestInfoGather, NULL)) {
+   if (!EventManager_Add(gGuestInfoEventQueue, GUESTINFO_TIME_INTERVAL_MSEC,
+                         GuestInfoGather, NULL)) {
       Debug("GuestInfoGather: Unable to add next event.\n");
    }
 
@@ -617,19 +445,11 @@ Bool
 GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
                     void *info)             // IN: type specific information
 {
-   Bool resumed = FALSE;
-   
    ASSERT(info);
    Debug("Entered update vmdb.\n");
 
-   GUESTINFO_ENTER_LOCK(&vmResumedLock);
    if (vmResumed) {
-      resumed = vmResumed;
       vmResumed = FALSE;
-   }
-   GUESTINFO_LEAVE_LOCK(&vmResumedLock);
-
-   if (resumed) {
       GuestInfoClearCache();
    }
 

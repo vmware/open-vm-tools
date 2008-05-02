@@ -1952,3 +1952,26 @@ CopyPaste_InProgress(void)
    /* XXX We currently have no way to determine if a G->H FCP is ongoing. */
    return gHGFCPFileTransferStatus == FCP_FILE_TRANSFERRING;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CopyPaste_IsRpcCPSupported --
+ *
+ *    Check if RPC copy/paste is supported by vmx or not.
+ *
+ * Results:
+ *    TRUE if RPC copy/paste is supported, FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CopyPaste_IsRpcCPSupported(void)
+{
+   return gVmxCopyPasteVersion > 1;
+}

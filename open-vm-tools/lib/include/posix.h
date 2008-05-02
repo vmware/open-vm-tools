@@ -34,6 +34,7 @@
 
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
+#include "codeset.h"
 
 /*
  * Force all users of these wrappers to use the LFS (large file) interface
@@ -56,7 +57,11 @@ struct statfs;
 struct utimbuf;
 struct timeval;
 struct passwd;
+#if !defined(sun)
 struct mntent;
+#else
+struct mnttab;
+#endif
 #endif
 
 
@@ -70,10 +75,15 @@ int Posix_Unlink(ConstUnicode pathName);
 FILE *Posix_Freopen(ConstUnicode pathName, const char *mode, FILE *stream);
 int Posix_Access(ConstUnicode pathName, int mode);
 int Posix_Stat(ConstUnicode pathName, struct stat *statbuf);
+int Posix_Chmod(ConstUnicode pathName, mode_t mode);
+void Posix_Perror(ConstUnicode str);
+
+#if !defined(N_PLAT_NLM)
 int Posix_Mkdir(ConstUnicode pathName, mode_t mode);
 int Posix_Chdir(ConstUnicode pathName);
-int Posix_Chmod(ConstUnicode pathName, mode_t mode);
-
+Unicode Posix_Getenv(ConstUnicode name);
+long Posix_Pathconf(ConstUnicode pathName, int name);
+#endif
 
 #if !defined(_WIN32)
 void *Posix_Dlopen(ConstUnicode pathName, int flags);
@@ -90,13 +100,15 @@ int Posix_Mkfifo(ConstUnicode pathName, mode_t mode);
 int Posix_Truncate(ConstUnicode pathName, off_t length);
 int Posix_Utimes(ConstUnicode pathName, const struct timeval *time);
 int Posix_Execl(ConstUnicode pathName, ConstUnicode arg0, ...);
+int Posix_Execlp(ConstUnicode fileName, ConstUnicode arg0, ...);
 int Posix_Execv(ConstUnicode pathName, Unicode const argVal[]);
+int Posix_Execve(ConstUnicode pathName, Unicode const argVal[], 
+                 Unicode const envPtr[]);
 int Posix_Execvp(ConstUnicode fileName, Unicode const argVal[]);
 int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 DIR *Posix_OpenDir(ConstUnicode pathName);
-Unicode Posix_Getenv(ConstUnicode name);
-int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
-
+int Posix_System(ConstUnicode command);
+int Posix_Putenv(Unicode name);
 
 /*
  * These functions return dynamically allocated stings that have to be
@@ -106,44 +118,51 @@ int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
 Unicode Posix_RealPath(ConstUnicode pathName);
 Unicode Posix_ReadLink(ConstUnicode pathName);
 
+struct passwd *Posix_Getpwnam(ConstUnicode name);
+struct passwd *Posix_Getpwuid(uid_t uid);
+
 #if !defined(sun)
 int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
+int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
 
 
 #if !defined(__FreeBSD__)
-/*
- * These functions have Unicode strings embedded in their return values
- * so they must be used in the ESX environment.
- */
-struct passwd *Posix_Getpwnam(ConstUnicode name);
 int Posix_Getpwnam_r(ConstUnicode name, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
-struct passwd *Posix_Getpwuid(uid_t uid);
 int Posix_Getpwuid_r(uid_t uid, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
-
+struct passwd *Posix_Getpwent(void);
+int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
+                       int *ngroups);
+struct group *Posix_Getgrnam(ConstUnicode name);
+int Posix_Getgrnam_r(ConstUnicode name, struct group *gr, 
+                 char *buf, size_t size, struct group **pgr);
 
 #if !defined(__APPLE__)
+int Posix_Mount(ConstUnicode source, ConstUnicode target,
+                const char *filesystemtype, unsigned long mountflags,
+		const void *data);
+int Posix_Umount(ConstUnicode target);
 FILE *Posix_Setmntent(ConstUnicode pathName, const char *mode);
-/*
- * These functions have Unicode strings embedded in their return values
- * so they must be used in the ESX environment.
- */
 struct mntent *Posix_Getmntent(FILE *fp);
 struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
                                  char *buf, int size);
+
 #endif // !defined(__APPLE__)
 #endif // !defined(__FreeBSD__)
+#else  // !defined(sun)
+int Posix_Getmntent(FILE *fp, struct mnttab *mp);
+
 #endif // !defined(sun)
 #endif // !defined(N_PLAT_NLM)
 #endif // !define(_WIN32)
 
-
-#if defined(VMX86_SERVER) && !defined(UNICODE_BUILDING_POSIX_WRAPPERS)
+#if defined(CURRENT_IS_UTF8) && \
+    !defined(UNICODE_BUILDING_POSIX_WRAPPERS)
 /*
- * ESX is a UTF-8 environment so these functions can be "defined away" -
- * the POSIX wrapper call can be directly mapped to the POSIX function
- * avoiding unneccesary (call and handling) overhead.
+ * ESX and MacOS X are UTF-8 environments so these functions can be
+ * "defined away" - the POSIX wrapper call can be directly mapped to the
+ * POSIX function avoiding unneccesary (call and handling) overhead.
  *
  * NOTE: PLEASE KEEP THESE IN SORTED ORDER
  */
@@ -154,20 +173,35 @@ struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
 #define Posix_Creat creat
 #define Posix_Dlopen dlopen
 #define Posix_Execl execl
+#define Posix_Execlp execlp
 #define Posix_Execv execv
+#define Posix_Execve execve
 #define Posix_Execvp execvp
 #define Posix_Fopen fopen
 #define Posix_Freopen freopen
 #define Posix_Getenv getenv
+#define Posix_GetGroupList getgrouplist
+#define Posix_Getmntent getmntent
+#define Posix_Getmntent_r getmntent_r
+#define Posix_Getpwnam getpwnam
+#define Posix_Getpwnam_r getpwnam_r
+#define Posix_Getpwuid getpwuid
+#define Posix_Getpwuid_r getpwuid_r
+#define Posix_Getgrnam getgrnam
+#define Posix_Getgrnam_r getgrnam_r
 #define Posix_Lchown lchown
 #define Posix_Link link
 #define Posix_Lstat lstat
 #define Posix_Mkdir mkdir
 #define Posix_Mkfifo mkfifo
 #define Posix_Mknod mknod
+#define Posix_Mount mount
 #define Posix_Open open
 #define Posix_OpenDir opendir
+#define Posix_Pathconf pathconf
+#define Posix_Perror perror
 #define Posix_Popen popen
+#define Posix_Putenv putenv
 #define Posix_Rename rename
 #define Posix_Rmdir rmdir
 #define Posix_Setenv setenv
@@ -175,7 +209,9 @@ struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
 #define Posix_Stat stat
 #define Posix_Statfs statfs
 #define Posix_Symlink symlink
+#define Posix_System system
 #define Posix_Truncate truncate
+#define Posix_Umount umount
 #define Posix_Unlink unlink
 #define Posix_Utime utime
 #define Posix_Utimes utimes

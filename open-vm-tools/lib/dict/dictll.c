@@ -34,6 +34,8 @@
 #include "dictll.h"
 #include "util.h"
 
+#define UTF8_BOM "\xEF\xBB\xBF"
+
 
 /* Duplicate a buffer --hpreg. The result is NUL-terminated */
 static void *
@@ -330,6 +332,11 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
    char *myLine;
    size_t myLineLen;
 
+   if (stream != stdin && ftell(stream) == 0) {
+      // Tolerate UTF-8 files from Windows Notepad that start with funny bytes.
+      DictLL_ReadUTF8BOM(stream);
+   }
+
    ASSERT(stream);
    ASSERT(line);
    ASSERT(name);
@@ -380,7 +387,7 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
  */
 
 Bool
-DictLL_MarshalLine(DynBuf *output,    // IN: output buffer
+DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
                    char const *name,  // IN: name to marshal
                    char const *value) // IN: value to marshal
 {
@@ -484,4 +491,46 @@ DictLL_WriteLine(FILE *stream,      // IN: stream to write
    }
    DynBuf_Destroy(&buf);
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DictLL_ReadUTF8BOM --
+ *
+ *    Reads a UTF-8 BOM from a file.
+ *
+ * Results:
+ *    If successful, returns TRUE and updates the file position.
+ *    Returns FALSE if a UTF-8 BOM was not found.
+ *
+ * Side effects:
+ *    Might clears the error indicator of the file stream.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+DictLL_ReadUTF8BOM(FILE *file) // IN/OUT
+{
+   Bool found;
+
+   // sizeof on a string literal counts NUL.  Exclude it.
+   char buf[sizeof UTF8_BOM - 1] = { 0 };
+
+   if (file == stdin) {
+      return FALSE;
+   }
+
+   ASSERT(ftell(file) == 0);
+
+   found =    fread(buf, sizeof buf, 1, file) == 1
+           && memcmp(UTF8_BOM, buf, sizeof buf) == 0;
+
+   if (!found) {
+      rewind(file);
+   }
+
+   return found;
 }

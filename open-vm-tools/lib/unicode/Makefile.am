@@ -26,5 +26,9 @@ libUnicode_a_SOURCES += unicodeSimpleOperations.c
 libUnicode_a_SOURCES += unicodeSimpleTransforms.c
 libUnicode_a_SOURCES += unicodeStatic.c
 
+if NO_ICU
+libUnicode_a_SOURCES += unicodeICU.c
+endif
+
 AM_CFLAGS =
 AM_CFLAGS += @COMMON_CFLAGS@

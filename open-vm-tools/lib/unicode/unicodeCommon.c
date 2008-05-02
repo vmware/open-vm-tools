@@ -55,13 +55,6 @@ static const int NonPrintableBytesToEscape[256] = {
 };
 
 
-char * Unicode_EscapeBuffer(const void *buffer,
-                            ssize_t lengthInBytes,
-                            StringEncoding encoding);
-static Bool UnicodeSanityCheck(const void *buffer,
-                               ssize_t lengthInBytes,
-                               StringEncoding encoding);
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -383,6 +376,10 @@ Unicode_IsBufferValid(const void *buffer,      // IN
 {
    Unicode result;
 
+   if (buffer == NULL) {
+      return TRUE;
+   }
+
    if (!UnicodeSanityCheck(buffer, lengthInBytes, encoding)) {
       return FALSE;
    }
@@ -419,9 +416,12 @@ Bool
 Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN
                                 StringEncoding encoding)  // IN
 {
-   char *tmp;
+   void *tmp;
 
-   if ((tmp = Unicode_GetAllocBytes(ustr, encoding)) == NULL) {
+   if (ustr == NULL) {
+      return TRUE;
+   }
+   if ((tmp = UnicodeGetAllocBytesInternal(ustr, encoding, NULL)) == NULL) {
       return FALSE;
    }
    free(tmp);

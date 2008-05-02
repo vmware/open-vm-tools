@@ -1,33 +1,54 @@
-/*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 and no later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
- *
- *********************************************************/
+/* **********************************************************
+ * Copyright 1998 VMware, Inc.  All rights reserved.
+ * **********************************************************/
 
 /*
  * codeset.c --
  *
- *    Character set and encoding conversion functions --hpreg
- */
-
-
-/*
- * Windows have their own logic for conversion.  On Posix systems with iconv
- * available we use iconv.  On systems without iconv use simple 1:1 translation
- * for UTF8 <-> Current.  We also use 1:1 translation also for MacOS's conversion
- * between 'current' and 'UTF-8', as MacOS is UTF-8 only.
+ *    Character set and encoding conversion functions, using ICU.
+ *
+ *
+ *      Some definitions borrow from header files from the ICU 1.8.1
+ *      library.
+ *
+ *      ICU 1.8.1 license follows:
+ *
+ *      ICU License - ICU 1.8.1 and later
+ *
+ *      COPYRIGHT AND PERMISSION NOTICE
+ *
+ *      Copyright (c) 1995-2006 International Business Machines Corporation
+ *      and others
+ *
+ *      All rights reserved.
+ *
+ *           Permission is hereby granted, free of charge, to any
+ *      person obtaining a copy of this software and associated
+ *      documentation files (the "Software"), to deal in the Software
+ *      without restriction, including without limitation the rights
+ *      to use, copy, modify, merge, publish, distribute, and/or sell
+ *      copies of the Software, and to permit persons to whom the
+ *      Software is furnished to do so, provided that the above
+ *      copyright notice(s) and this permission notice appear in all
+ *      copies of the Software and that both the above copyright
+ *      notice(s) and this permission notice appear in supporting
+ *      documentation.
+ *
+ *           THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+ *      KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ *      WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ *      PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS. IN NO EVENT
+ *      SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
+ *      BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR
+ *      CONSEQUENTIAL DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING
+ *      FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+ *      CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ *      OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ *           Except as contained in this notice, the name of a
+ *      copyright holder shall not be used in advertising or otherwise
+ *      to promote the sale, use or other dealings in this Software
+ *      without prior written authorization of the copyright holder.
  */
 
 #if defined(_WIN32)
@@ -35,53 +56,374 @@
 #   include <malloc.h>
 #   include <str.h>
 #else
+#   define _GNU_SOURCE
 #   include <string.h>
 #   include <stdlib.h>
 #   include <errno.h>
-#   if defined(__FreeBSD__) || (defined(__linux__) && !defined(GLIBC_VERSION_21))
-#      define CURRENT_IS_UTF8
-#   else
-#      define USE_ICONV
-#      include <iconv.h>
-#      include <langinfo.h>
-#      ifdef __linux__
-#         include "str.h"
-#      endif
-#      if defined(__APPLE__)
-#         define CURRENT_IS_UTF8
-#         include <CoreFoundation/CoreFoundation.h> /* for CFString */
-#      endif
-#   endif
+#   include <su.h>
+#   include <sys/stat.h>
 #endif
 
-#include "vm_assert.h"
+#include <stdio.h>
+#include "vmware.h"
+#include "vm_product.h"
+#include "unicode/ucnv.h"
+#include "unicode/putil.h"
+#ifdef _WIN32
+#include "win32u.h"
+#endif
+#include "file.h"
+#include "util.h"
 #include "codeset.h"
+#include "codesetOld.h"
+#include "str.h"
 
-#define CSGTG_NORMAL    0x0000  /* Without any information loss. */
-#define CSGTG_TRANSLIT  0x0001  /* Transliterate unknown characters. */
-#define CSGTG_IGNORE    0x0002  /* Skip over untranslatable characters. */
+/*
+ * Macros
+ */
 
-#if defined(__FreeBSD__) || defined(sun)
-static const char nul[] = {'\0', '\0'};
+#define CODESET_CAN_FALLBACK_ON_NON_ICU TRUE
+
+#if defined(__APPLE__)
+#define POSIX_ICU_DIR DEFAULT_LIBDIRECTORY "/icu"
+#elif !defined(WIN32)
+#define POSIX_ICU_DIR "/etc/vmware/icu"
+#endif
+
+/*
+ * XXX These should be passed in from the build system,
+ * but I don't have time to deal with bora-vmsoft.  -- edward
+ */
+
+#define ICU_DATA_FILE "icudt38l.dat"
+#ifdef _WIN32
+#define ICU_DATA_FILE_DIR "%TCROOT%/noarch/icu-data-3.8-1"
 #else
-static const wchar_t nul = L'\0';
+#define ICU_DATA_FILE_DIR "/build/toolchain/noarch/icu-data-3.8-1"
+#endif
+
+#ifdef _WIN32
+#define ICU_DATA_FILE_W XCONC(L, ICU_DATA_FILE)
+#define ICU_DATA_FILE_DIR_W XCONC(L, ICU_DATA_FILE_DIR)
+#define ICU_DATA_FILE_PATH ICU_DATA_FILE_DIR_W DIRSEPS_W ICU_DATA_FILE_W
+#else
+#define ICU_DATA_FILE_PATH ICU_DATA_FILE_DIR DIRSEPS ICU_DATA_FILE
 #endif
 
 
-#if defined(CURRENT_IS_UTF8) || defined(_WIN32)
+/*
+ * Variables
+ */
+
+static Bool dontUseIcu = TRUE;
+DEBUG_ONLY(static Bool initedIcu = FALSE;)
+
+/*
+ * Functions
+ */
+
+#ifdef _WIN32
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CodeSetGetModulePath --
+ *
+ *      Returns the wide-character current module path. We can't use
+ *      Win32U_GetModulePath because it invokes codeset.c conversion
+ *      routines.
+ *
+ * Returns:
+ *      NULL, or a utf16 string (free with free).
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+utf16_t *
+CodeSetGetModulePath(HANDLE hModule) // IN
+{
+   utf16_t *pathW = NULL;
+   DWORD size = MAX_PATH;
+
+   while (TRUE) {
+      DWORD res;
+
+      pathW = realloc(pathW, size * sizeof(wchar_t));
+      if (!pathW) {
+         return NULL;
+      }
+
+      res = GetModuleFileNameW(hModule, pathW, size);
+
+      if (res == 0) {
+         /* fatal error */
+         goto exit;
+      } else if (res == size) {
+         /* buffer too small */
+         size *= 2;
+      } else {
+         /* success */
+         break;
+      }
+   }
+
+  exit:
+   return pathW;
+}
+
+#endif // _WIN32
+
+
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetDuplicateStr --
+ * CodeSet_DontUseIcu --
  *
- *    Duplicate input string, appending zero terminator to its end.  Only
- *    used on Windows and on platforms where current encoding is always
- *    UTF-8, on other iconv-capable platforms we just use iconv even for
- *    UTF-8 to UTF-8 translation.  Note that this function is more like
- *    memdup() than strdup(), so it can be used for duplicating UTF-16
- *    strings as well - string is always terminated by wide character NUL,
- *    which is supposed to be longest NUL character occuring on specified
- *    host.
+ *    Tell codeset not to load or use ICU (or stop using it if it's
+ *    already loaded). Codeset will fall back on codesetOld.c, which
+ *    relies on system internationalization APIs (and may have more
+ *    limited functionality). Not all APIs have a fallback, however
+ *    (namely GenericToGeneric).
+ *
+ * Results:
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    See above
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CodeSet_DontUseIcu(void)
+{
+   dontUseIcu = TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_Init --
+ *
+ *    Looks for ICU's data file in some platform-specific
+ *    directory. If present, inits ICU by feeding it the path to that
+ *    directory. If already inited, returns the current state (init
+ *    failed/succeeded).
+ *
+ *    Call while single-threaded.
+ *
+ *    *********** WARNING ***********
+ *    Do not call CodeSet_Init directly, it is called already by
+ *    Unicode_Init. Lots of code depends on codeset. Please call
+ *    Unicode_Init as early as possible.
+ *    *******************************
+ *
+ * Results:
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    See above
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSet_Init(void)
+{
+   DynBuf dbpath;
+#ifdef _WIN32
+   DWORD attribs;
+   utf16_t *modPath = NULL;
+   utf16_t *lastSlash;
+#else
+   struct stat finfo;
+#endif
+   char *path = NULL;
+   Bool ret = FALSE;
+
+   DynBuf_Init(&dbpath);
+
+   DEBUG_ONLY(ASSERT(!initedIcu);)
+   DEBUG_ONLY(initedIcu = TRUE;)
+
+#ifdef USE_ICU
+   /*
+    * We're using system ICU, which finds its own data. So nothing to
+    * do here.
+    */
+   dontUseIcu = FALSE;
+   ret = TRUE;
+   goto exit;
+#endif
+
+  /*
+   * ********************* WARNING
+   * Must avoid recursive calls into the codeset library here, hence
+   * the idiotic hoop-jumping. DO NOT change any of these calls to
+   * wrapper equivalents or call any other functions that may perform
+   * string conversion.
+   * ********************* WARNING
+   */
+
+#ifdef _WIN32 // {
+
+#if vmx86_devel
+   /*
+    * Devel builds use toolchain directory first.
+    */
+
+   {
+      WCHAR icuFilePath[MAX_PATH] = { 0 };
+      DWORD n = ExpandEnvironmentStringsW(ICU_DATA_FILE_PATH,
+                                          icuFilePath, ARRAYSIZE(icuFilePath));
+      if (n > 0 && n < ARRAYSIZE(icuFilePath)) {
+         attribs = GetFileAttributesW(icuFilePath);
+         if ((INVALID_FILE_ATTRIBUTES != attribs) ||
+             (attribs & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+            if (!CodeSetOld_Utf16leToCurrent((const char *) icuFilePath,
+                                             n * sizeof *icuFilePath,
+                                             &path, NULL)) {
+               goto exit;
+            }
+            goto found;
+         }
+      }
+   }
+#endif
+
+   /*
+    * Data file must be in current module directory.
+    */
+
+   modPath = CodeSetGetModulePath(NULL);
+   if (!modPath) {
+      goto exit;
+   }
+
+   lastSlash = wcsrchr(modPath, DIRSEPC_W);
+   if (!lastSlash) {
+      goto exit;
+   }
+
+   *lastSlash = L'\0';
+
+   if (!DynBuf_Append(&dbpath, modPath,
+                      wcslen(modPath) * sizeof(utf16_t)) ||
+       !DynBuf_Append(&dbpath, DIRSEPS_W,
+                      wcslen(DIRSEPS_W) * sizeof(utf16_t)) ||
+       !DynBuf_Append(&dbpath, ICU_DATA_FILE_W,
+                      wcslen(ICU_DATA_FILE_W) * sizeof(utf16_t)) ||
+       !DynBuf_Append(&dbpath, L"\0", 2)) {
+      goto exit;
+   }
+
+   /*
+    * Check for file existence.
+    */
+
+   attribs = GetFileAttributesW((LPCWSTR) DynBuf_Get(&dbpath));
+
+   if ((INVALID_FILE_ATTRIBUTES == attribs) ||
+       (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
+      goto exit;
+   }
+
+   /*
+    * Convert path to local encoding using system APIs (old codeset).
+    */
+
+   if (!CodeSetOld_Utf16leToCurrent(DynBuf_Get(&dbpath),
+                                    DynBuf_GetSize(&dbpath),
+                                    &path, NULL)) {
+      goto exit;
+   }
+
+#else // } _WIN32 {
+
+#if vmx86_devel
+   /*
+    * Devel builds use toolchain directory first.
+    */
+
+   if (stat(ICU_DATA_FILE_PATH, &finfo) >= 0 && !S_ISDIR(finfo.st_mode)) {
+      if ((path = strdup(ICU_DATA_FILE_PATH)) == NULL) {
+	 goto exit;
+      }
+      goto found;
+   }
+#endif
+
+   /*
+    * Data file must be in POSIX_ICU_DIR.
+    */
+
+   if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR)) ||
+       !DynBuf_Append(&dbpath, DIRSEPS, strlen(DIRSEPS)) ||
+       !DynBuf_Append(&dbpath, ICU_DATA_FILE, strlen(ICU_DATA_FILE)) ||
+       !DynBuf_Append(&dbpath, "\0", 1)) {
+      goto exit;
+   }
+
+   /*
+    * Check for file existence. (DO NOT CHANGE TO 'stat' WRAPPER).
+    */
+
+   path = (char *) DynBuf_Detach(&dbpath);
+   if (stat(path, &finfo) < 0 || S_ISDIR(finfo.st_mode)) {
+      goto exit;
+   }
+
+#endif // } _WIN32
+
+#if vmx86_devel
+found:
+#endif
+
+   /*
+    * Tell ICU to use this directory.
+    */
+   u_setDataDirectory(path);
+
+   dontUseIcu = FALSE;
+   ret = TRUE;
+
+  exit:
+   if (!ret) {
+      /*
+       * There was an error initing ICU, but if we can fall back on
+       * non-ICU (old CodeSet) then things are OK.
+       */
+      if (CODESET_CAN_FALLBACK_ON_NON_ICU) {
+         ret = TRUE;
+         dontUseIcu = TRUE;
+      }
+   }
+
+#ifdef _WIN32
+   free(modPath);
+#endif
+
+   free(path);
+   DynBuf_Destroy(&dbpath);
+
+   return ret;
+}
+
+
+#if defined(CURRENT_IS_UTF8)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetDuplicateUtf8Str --
+ *
+ *    Duplicate UTF-8 string, appending zero terminator to its end.
  *
  * Results:
  *    TRUE on success
@@ -94,20 +436,20 @@ static const wchar_t nul = L'\0';
  */
 
 static Bool
-CodeSetDuplicateStr(const char   *bufIn,    // IN: Input string
-                    size_t  sizeIn,   // IN: Input string length
-                    char        **bufOut,   // OUT: "Converted" string
-                    size_t *sizeOut)  // OUT: Length of string
+CodeSetDuplicateUtf8Str(const char *bufIn,  // IN: Input string
+                        size_t sizeIn,      // IN: Input string length
+                        char **bufOut,      // OUT: "Converted" string
+                        size_t *sizeOut)    // OUT: Length of string
 {
    char *myBufOut;
 
-   myBufOut = malloc(sizeIn + sizeof nul);
+   myBufOut = malloc(sizeIn + 1);
    if (myBufOut == NULL) {
       return FALSE;
    }
 
    memcpy(myBufOut, bufIn, sizeIn);
-   memset(myBufOut + sizeIn, 0, sizeof nul);
+   memset(myBufOut + sizeIn, 0, 1);
 
    *bufOut = myBufOut;
    if (sizeOut) {
@@ -115,7 +457,8 @@ CodeSetDuplicateStr(const char   *bufIn,    // IN: Input string
    }
    return TRUE;
 }
-#endif
+
+#endif // defined(CURRENT_IS_UTF8)
 
 
 /*
@@ -123,9 +466,9 @@ CodeSetDuplicateStr(const char   *bufIn,    // IN: Input string
  *
  * CodeSetDynBufFinalize --
  *
- *    Append NUL terminator to the buffer, and return pointer to buffer
- *    and its data size (before appending terminator).  Destroys buffer
- *    on failure.
+ *    Append NUL terminator to the buffer, and return pointer to
+ *    buffer and its data size (before appending terminator). Destroys
+ *    buffer on failure.
  *
  * Results:
  *    TRUE on success
@@ -138,19 +481,22 @@ CodeSetDuplicateStr(const char   *bufIn,    // IN: Input string
  */
 
 static Bool
-CodeSetDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
-                      DynBuf       *db,       // IN: Buffer with converted string
-                      char        **bufOut,   // OUT: Converted string
+CodeSetDynBufFinalize(Bool ok,          // IN: Earlier steps succeeded
+                      DynBuf *db,       // IN: Buffer with converted string
+                      char **bufOut,    // OUT: Converted string
                       size_t *sizeOut)  // OUT: Length of string in bytes
 {
-   if (!ok || !DynBuf_Append(db, &nul, sizeof nul) || !DynBuf_Trim(db)) {
+   /*
+    * NUL can be as long as 4 bytes if UTF-32, make no assumptions.
+    */
+   if (!ok || !DynBuf_Append(db, "\0\0\0\0", 4) || !DynBuf_Trim(db)) {
       DynBuf_Destroy(db);
       return FALSE;
    }
 
    *bufOut = DynBuf_Get(db);
    if (sizeOut) {
-      *sizeOut = DynBuf_GetSize(db) - sizeof nul;
+      *sizeOut = DynBuf_GetSize(db) - 4;
    }
    return TRUE;
 }
@@ -176,463 +522,42 @@ CodeSetDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
 
 static Bool
 CodeSetUtf8ToUtf16le(const char *bufIn,  // IN
-                     size_t      sizeIn, // IN
-                     DynBuf     *db)     // IN
+                     size_t sizeIn,      // IN
+                     DynBuf *db)         // IN
 {
-   size_t currentSize;
-   size_t allocatedSize;
-   uint16 *buf;
-
-   currentSize = DynBuf_GetSize(db);
-   allocatedSize = DynBuf_GetAllocatedSize(db);
-   buf = (uint16 *)((char *)DynBuf_Get(db) + currentSize);
-   while (sizeIn--) {
-      unsigned int uniChar = *bufIn++ & 0xFF;
-      size_t neededSize;
-
-      if (uniChar >= 0x80) {
-         size_t charLen;
-         size_t idx;
-
-         if (uniChar < 0xC2) {
-            /* 80-BF cannot start UTF8 sequence.  C0-C1 cannot appear in UTF8 stream at all. */
-            return FALSE;
-         } else if (uniChar < 0xE0) {
-            uniChar -= 0xC0;
-            charLen = 1;
-         } else if (uniChar < 0xF0) {
-            uniChar -= 0xE0;
-            charLen = 2;
-         } else if (uniChar < 0xF8) {
-            uniChar -= 0xF0;
-            charLen = 3;
-         } else if (uniChar < 0xFC) {
-            uniChar -= 0xF8;
-            charLen = 4;
-         } else if (uniChar < 0xFE) {
-            uniChar -= 0xFC;
-            charLen = 5;
-         } else {
-            return FALSE;
-         }
-         if (sizeIn < charLen) {
-            return FALSE;
-         }
-         for (idx = 0; idx < charLen; idx++) {
-            unsigned int nextChar;
-
-            nextChar = *bufIn++ & 0xFF;
-            if (nextChar < 0x80 || nextChar >= 0xC0) {
-               return FALSE;
-            }
-            uniChar = (uniChar << 6) + nextChar - 0x80;
-            sizeIn--;
-         }
-
-         /*
-          * Shorter encoding available.  UTF-8 mandates that shortest possible encoding
-          * is used, as otherwise doing UTF-8 => anything => UTF-8 could bypass some
-          * important tests, like '/' for path separator or \0 for string termination.
-          *
-          * This test is not correct for charLen == 1, as its disallowed range is
-          * 0x00-0x7F, while this test disallows only 0x00-0x3F.  But this part of
-          * problem is solved by stopping when 0xC1 is encountered, as 0xC1 0xXX
-          * describes just this range.  This also means that 0xC0 and 0xC1 cannot
-          * ever occur in valid UTF-8 string.
-          */
-         if (uniChar < 1U << (charLen * 5 + 1)) {
-            return FALSE;
-         }
-      }
-
-      /*
-       * Here we have UCS-4 character in uniChar, between 0 and 0x7FFFFFFF.
-       * Let's convert it to UTF-16.
-       */
-
-      /* Non-paired surrogates are illegal in UTF-16. */
-      if (uniChar >= 0xD800 && uniChar < 0xE000) {
-         return FALSE;
-      }
-      if (uniChar < 0x10000) {
-         neededSize = currentSize + sizeof *buf;
-      } else if (uniChar < 0x110000) {
-         neededSize = currentSize + 2 * sizeof *buf;
-      } else {
-         /* This character cannot be represented in UTF-16. */
-         return FALSE;
-      }
-      if (allocatedSize < neededSize) {
-         if (DynBuf_Enlarge(db, neededSize) == FALSE) {
-            return FALSE;
-         }
-         allocatedSize = DynBuf_GetAllocatedSize(db);
-         ASSERT(neededSize <= allocatedSize);
-         buf = (uint16 *)((char *)DynBuf_Get(db) + currentSize);
-      }
-      if (uniChar < 0x10000) {
-         *buf++ = uniChar;
-      } else {
-         *buf++ = 0xD800 + ((uniChar - 0x10000) >> 10);
-         *buf++ = 0xDC00 + ((uniChar - 0x10000) & 0x3FF);
-      }
-      currentSize = neededSize;
-   }
-   /* All went fine, update buffer size. */
-   DynBuf_SetSize(db, currentSize);
-   return TRUE;
+   return CodeSet_GenericToGenericDb("UTF-8", bufIn, sizeIn, "UTF-16LE", 0,
+                                     db);
 }
-
-
-#if defined(_WIN32)
-
-static Bool IsWin95(void);
-static DWORD GetInvalidCharsFlag(void);
-
-/*
- * Win32-specific remarks: here is my understanding of those terms as of
- * 2002/02/12:
- *
- * ANSI code page
- *    The character set used internally by Windows applications (when they are
- *    not fully Unicode).
- *
- * OEM code page
- *    The character set used by MS-DOS and stored in the FAT filesystem.
- *
- *   --hpreg
- */
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSetGenericToUtf16le --
- *
- *    Append the content of a buffer (that uses the specified encoding) to a
- *    DynBuf (that uses the UTF-16LE encoding) --hpreg
- *
- * Results:
- *    TRUE on success
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-CodeSetGenericToUtf16le(UINT codeIn,         // IN
-                        char const *bufIn,   // IN
-                        size_t sizeIn, // IN
-                        DynBuf *db)          // IN
-{
-   /*
-    * Undocumented: calling MultiByteToWideChar() with sizeIn == 0 returns 0
-    * with GetLastError() set to ERROR_INVALID_PARAMETER. Isn't this API
-    * robust? --hpreg
-    */
-   if (sizeIn) {
-      size_t initialSize;
-      DWORD flags = GetInvalidCharsFlag();
-      Bool invalidCharsCheck = ((flags & MB_ERR_INVALID_CHARS) != 0);
-
-      initialSize = DynBuf_GetSize(db);
-      for (;;) {
-         int result;
-         int resultReverse;
-         DWORD error = ERROR_SUCCESS;
-
-         if (DynBuf_Enlarge(db, sizeof(wchar_t)) == FALSE) {
-            return FALSE;
-         }
-
-         /*
-          * Must fail if bufIn has any invalid characters.
-          * So MB_ERR_INVALID_CHARS added, otherwise can
-          * lead to security issues see bug 154114.
-          */
-         result = MultiByteToWideChar(codeIn,
-                     flags,
-                     bufIn,
-                     sizeIn,
-                     (wchar_t *)((char *)DynBuf_Get(db) + initialSize),
-                     (DynBuf_GetAllocatedSize(db) - initialSize) /
-                                      sizeof(wchar_t));
-
-         if (0 == result) {
-            error = GetLastError();   // may be ERROR_NO_UNICODE_TRANSLATION
-         }
-
-         /*
-          * Success if: result is > 0 and is the same number
-          * of characters as the input string contains. If there
-          * are any invalid characters, the Win2K SP4 or later will
-          * fail, but for earlier OS versions, these invalid characters
-          * will be dropped. Thus only succeed if we have no dropped
-          * characters.
-          * For the older platforms which don't fail for invalid characters
-          * we see if the reverse conversion of the converted string
-          * yields the same string size that was passed in.
-          * If not, then dropped characters so fail.
-          */
-         if (!invalidCharsCheck) {
-            resultReverse = WideCharToMultiByte(codeIn, 0,
-                            (wchar_t *)((char *)DynBuf_Get(db) + initialSize),
-                            result, NULL, 0, 0, 0);
-         }
-         if (result > 0 &&
-             (invalidCharsCheck ||
-             (sizeIn == resultReverse))) {
-            DynBuf_SetSize(db, initialSize + result * sizeof(wchar_t));
-            break;
-         }
-
-         if (result > 0 && (!invalidCharsCheck && sizeIn != resultReverse)) {
-            return FALSE;
-         }
-
-         ASSERT(result == 0);
-
-         if (error != ERROR_INSUFFICIENT_BUFFER) {
-            return FALSE;
-         }
-
-         /* Need a larger buffer --hpreg */
-      }
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSetUtf16leToGeneric --
- *
- *    Append the content of a buffer (that uses the UTF-16LE encoding) to a
- *    DynBuf (that uses the specified encoding) --hpreg
- *
- * Results:
- *    TRUE on success
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-CodeSetUtf16leToGeneric(char const *bufIn,   // IN
-                        size_t sizeIn, // IN
-                        UINT codeOut,        // IN
-                        DynBuf *db)          // IN
-{
-   /*
-    * Undocumented: calling WideCharToMultiByte() with sizeIn == 0 returns 0
-    * with GetLastError() set to ERROR_INVALID_PARAMETER. Isn't this API
-    * robust? --hpreg
-    */
-   if (sizeIn) {
-      size_t initialSize;
-
-      initialSize = DynBuf_GetSize(db);
-      for (;;) {
-         int result;
-         DWORD error;
-
-         if (DynBuf_Enlarge(db, 1) == FALSE) {
-            return FALSE;
-         }
-
-         result = WideCharToMultiByte(codeOut,
-                     0,
-                     (wchar_t const *)bufIn,
-                     sizeIn / sizeof(wchar_t),
-                     (char *)DynBuf_Get(db) + initialSize,
-                     DynBuf_GetAllocatedSize(db) - initialSize,
-                     NULL,
-                     /*
-                      * XXX We may need to pass that argument
-                      *     to know when the conversion was
-                      *     not possible --hpreg
-                      */
-                     NULL);
-         if (result > 0) {
-            DynBuf_SetSize(db, initialSize + result);
-            break;
-         }
-
-         ASSERT(result == 0);
-
-         /* Must come first --hpreg */
-         error = GetLastError();
-
-         if (error != ERROR_INSUFFICIENT_BUFFER) {
-            return FALSE;
-         }
-
-         /* Need a larger buffer --hpreg */
-      }
-   }
-
-   /*
-    * Undocumented: if the input buffer is not NUL-terminated, the output
-    * buffer will not be NUL-terminated either --hpreg
-    */
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSetUtf16leToCurrent --
- *
- *    Convert the content of a buffer (that uses the UTF-16LE encoding) into
- *    another buffer (that uses the current encoding) --hpreg
- *
- * Results:
- *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
- *                     If not NULL, '*sizeOut' contains the size of the buffer
- *                     (excluding the NUL terminator)
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-CodeSetUtf16leToCurrent(char const *bufIn,     // IN
-                        size_t sizeIn,   // IN
-                        char **bufOut,         // OUT
-                        size_t *sizeOut) // OUT
-{
-   DynBuf db;
-   Bool ok;
-
-   DynBuf_Init(&db);
-   /* XXX We should probably use CP_THREAD_ACP on Windows 2000/XP --hpreg */
-   ok = CodeSetUtf16leToGeneric(bufIn, sizeIn, CP_ACP, &db);
-   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
-}
-#endif
 
 
 #if defined(__APPLE__)
+
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetUtf8Normalize --
+ * CodeSet_Utf8Normalize --
  *
- *    Convert the content of a buffer (that uses the UTF-8 encoding) into
- *    another buffer (that uses the UTF-8 encoding) that is in precomposed
-      (Normalization Form C) or decomposed (Normalization Form D).
+ *    Calls down to CodeSetOld_Utf8Normalize.
  *
  * Results:
- *    TRUE on success: '*bufOut' contains a NUL terminated buffer.
- *                     If not NULL, '*sizeOut' contains the size of the buffer
- *                     (excluding the NUL terminator)
- *    FALSE on failure
+ *    See CodeSetOld_Utf8Normalize.
  *
  * Side effects:
- *    '*bufOut' contains the allocated, NUL terminated buffer.
+ *    See CodeSetOld_Utf8Normalize.
  *
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-CodeSetUtf8Normalize(char const *bufIn,     // IN
-                     size_t sizeIn,         // IN
-                     Bool precomposed,      // IN
-                     DynBuf *db)            // OUT
+Bool
+CodeSet_Utf8Normalize(const char *bufIn,     // IN
+                      size_t sizeIn,         // IN
+                      Bool precomposed,      // IN
+                      DynBuf *db)            // OUT
 {
-   Bool ok = FALSE;
-   CFStringRef str = NULL;
-   CFMutableStringRef mutStr = NULL;
-   CFIndex len, lenMut;
-   size_t initialSize = DynBuf_GetSize(db);
-
-   str = CFStringCreateWithCString(NULL,
-                                   bufIn,
-                                   kCFStringEncodingUTF8);
-   if (str == NULL) {
-      goto exit;
-   }
-
-   mutStr = CFStringCreateMutableCopy(NULL, 0, str);
-   if (mutStr == NULL) {
-      goto exit;
-   }
-
-   /*
-    * Normalize the string, Form C - precomposed or D, not.
-    */
-   CFStringNormalize(mutStr, 
-                     (precomposed ? kCFStringNormalizationFormC :
-                     kCFStringNormalizationFormD));
-
-   /* 
-    * Get the number (in terms of UTF-16 code units) 
-    * of characters in a string.
-    */
-   lenMut = CFStringGetLength(mutStr);
-
-   /*
-    * Retrieve the maximum number of bytes a string of a 
-    * specified length (in UTF-16 code units) will take up 
-    * if encoded in a specified encoding.
-    */
-   len = CFStringGetMaximumSizeForEncoding(lenMut,
-                                           kCFStringEncodingUTF8);
-   if (len + 1 > initialSize) {
-      if (DynBuf_Enlarge(db, len + 1 - initialSize) == FALSE) {
-         ok = FALSE;
-         goto exit;
-      }
-   }
-
-   /*
-    * Copies the character contents of a string to a local C 
-    * string buffer after converting the characters to UTF-8.
-    */
-   ok = CFStringGetCString(mutStr, 
-                           (char *)DynBuf_Get(db),
-                           len + 1, 
-                           kCFStringEncodingUTF8);
-   if (ok) {
-      /* Remove the NUL terminator that the above includes. */
-      DynBuf_SetSize(db, strlen((char *)DynBuf_Get(db)));
-   }
-
-exit:
-   if (str) {
-      CFRelease(str);
-   }
-   if (mutStr) {
-      CFRelease(mutStr);
-   }
-
-   return ok;
+   return CodeSetOld_Utf8Normalize(bufIn, sizeIn, precomposed, db);
 }
+
 #endif /* defined(__APPLE__) */
-
-
-/*
- * Linux-specific remarks:
- *
- * We use UTF-16 instead of UCS-2, because Windows 2000 introduces support
- * for basic input, output, and simple sorting of surrogates.
- *
- * We use UTF-16LE instead of UTF-16 so that iconv() does not prepend a BOM.
- *
- *   --hpreg
- */
 
 
 /*
@@ -640,15 +565,14 @@ exit:
  *
  * CodeSet_GetCurrentCodeSet --
  *
- *    Return currently active code set - always UTF-8 on Apple (and old Linux),
- *    and reported by nl_langinfo on Linux & Solaris.
+ *    Return native code set name. Always calls down to
+ *    CodeSetOld_GetCurrentCodeSet. See there for more details.
  *
  * Results:
- *    The name of the current code set on success
- *    
+ *    See CodeSetOld_GetCurrentCodeSet.
  *
  * Side effects:
- *    None
+ *    See CodeSetOld_GetCurrentCodeSet.
  *
  *-----------------------------------------------------------------------------
  */
@@ -656,93 +580,266 @@ exit:
 const char *
 CodeSet_GetCurrentCodeSet(void)
 {
-#if defined(CURRENT_IS_UTF8)
-   /*
-    * This code is used in
-    * 1. tools which need to support older glibc versions in which
-    *    internationalization functions are not available.
-    * 2. Mac OS which we always assume UTF-8
-    * On such systems we revert to the original behaviour of this code which
-    * simply copies the input buffer into the output.
-    */
-
-   return "UTF-8";
-#elif defined(_WIN32)
-   static char ret[20];  // max is "windows-4294967296"
-
-   Str_Sprintf(ret, sizeof(ret), "windows-%u", GetACP());
-
-   return ret;
-#else
-   return nl_langinfo(CODESET);
-#endif
+   return CodeSetOld_GetCurrentCodeSet();
 }
 
-
-#if defined(USE_ICONV)
 
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetIconvOpen --
+ * CodeSet_GenericToGenericDb --
  *
- *    Open iconv translator with requested flags.  Currently only no flags,
- *    and both CSGTG_TRANSLIT and CSGTG_IGNORE together are supported, as
- *    this is only thing we need.  If translit/ignore convertor fails,
- *    then non-transliterating conversion is used.
+ *    Append the content of a buffer (that uses the specified encoding) to a
+ *    DynBuf (that uses the specified encoding).
  *
  * Results:
- *    (iconv_t)-1 on failure
- *    iconv handle on success
+ *    TRUE on success
+ *    FALSE on failure
  *
  * Side effects:
- *    None.
+ *    String (sans NUL-termination) is appended to db.
  *
  *-----------------------------------------------------------------------------
  */
 
-static INLINE_SINGLE_CALLER iconv_t
-CodeSetIconvOpen(const char  *codeIn,  // IN
-                 const char  *codeOut, // IN
-                 unsigned int flags)   // IN
+Bool
+CodeSet_GenericToGenericDb(const char *codeIn,  // IN
+                           const char *bufIn,   // IN
+                           size_t sizeIn,       // IN
+                           const char *codeOut, // IN
+                           unsigned int flags,  // IN
+                           DynBuf *db)          // IN/OUT
 {
-#ifdef __linux__
-   if (flags) {
-      char *codeOutExt;
+   Bool result = FALSE;
+   UErrorCode uerr;
+   char *bufInCur;
+   char *bufInEnd;
+   DynBuf dbpiv;
+   UChar *bufPiv;
+   UChar *bufPivCur;
+   UChar *bufPivEnd;
+   char *bufOut;
+   char *bufOutCur;
+   char *bufOutEnd;
+   size_t bufPivSize;
+   size_t bufPivOffset;
+   size_t bufOutSize;
+   size_t bufOutOffset;
+   UConverter *cvin = NULL;
+   UConverter *cvout = NULL;
+   UConverterToUCallback toUCb;
+   UConverterFromUCallback fromUCb;
 
-      ASSERT(flags == (CSGTG_TRANSLIT | CSGTG_IGNORE));
+   ASSERT(codeIn);
+   ASSERT(sizeIn == 0 || bufIn);
+   ASSERT(codeOut);
+   ASSERT(db);
+   ASSERT((CSGTG_NORMAL == flags) || (CSGTG_TRANSLIT == flags) ||
+          (CSGTG_IGNORE == flags));
+
+   if (dontUseIcu) {
       /*
-       * We should be using //TRANSLIT,IGNORE, but glibc versions older than
-       * 2.3.4 (in particular, the version that ships with redhat linux 9.0)
-       * are subtly broken when passing options with a comma, in such a way
-       * that iconv_open will succeed but iconv_close can crash.  For now, we
-       * only use TRANSLIT and bail out after the first non-translitible
-       * character.
+       * Fall back.
        */
-      codeOutExt = Str_Asprintf(NULL, "%s//TRANSLIT", codeOut);
-      if (codeOutExt) {
-         iconv_t cd = iconv_open(codeOutExt, codeIn);
-         free(codeOutExt);
-         if (cd != (iconv_t)-1) {
-            return cd;
-         }
+      return CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn, codeOut,
+                                           flags, db);
+   }
+
+   DynBuf_Init(&dbpiv);
+
+   /*
+    * Trivial case.
+    */
+   if ((0 == sizeIn) || (NULL == bufIn)) {
+      result = TRUE;
+      goto exit;
+   }
+
+   /*
+    * Open converters.
+    */
+   uerr = U_ZERO_ERROR;
+   cvin = ucnv_open(codeIn, &uerr);
+   if (!cvin) {
+      goto exit;
+   }
+
+   uerr = U_ZERO_ERROR;
+   cvout = ucnv_open(codeOut, &uerr);
+   if (!cvout) {
+      goto exit;
+   }
+
+   /*
+    * Set callbacks according to flags.
+    */
+   switch (flags) {
+   case CSGTG_NORMAL:
+      toUCb = UCNV_TO_U_CALLBACK_STOP;
+      fromUCb = UCNV_FROM_U_CALLBACK_STOP;
+      break;
+
+   case CSGTG_TRANSLIT:
+      toUCb = UCNV_TO_U_CALLBACK_SUBSTITUTE;
+      fromUCb = UCNV_FROM_U_CALLBACK_SUBSTITUTE;
+      break;
+
+   case CSGTG_IGNORE:
+      toUCb = UCNV_TO_U_CALLBACK_SKIP;
+      fromUCb = UCNV_FROM_U_CALLBACK_SKIP;
+      break;
+
+   default:
+      NOT_IMPLEMENTED();
+      break;
+   }
+
+   uerr = U_ZERO_ERROR;
+   ucnv_setToUCallBack(cvin, toUCb, NULL, NULL, NULL, &uerr);
+   if (U_ZERO_ERROR != uerr) {
+      goto exit;
+   }
+
+   uerr = U_ZERO_ERROR;
+   ucnv_setFromUCallBack(cvout, fromUCb, NULL, NULL, NULL, &uerr);
+   if (U_ZERO_ERROR != uerr) {
+      goto exit;
+   }
+
+   /*
+    * Convert to pivot buffer. As a starting guess, allocate a pivot
+    * buffer the size of the input string times UChar size (with a
+    * fudge constant added in to avoid degen cases).
+    */
+   bufInCur = (char *) bufIn;
+   bufInEnd = (char *) bufIn + sizeIn;
+   bufPivSize = (sizeIn + 4) * sizeof(UChar);
+   bufPivOffset = 0;
+
+   while (TRUE) {
+      if (!DynBuf_Enlarge(&dbpiv, bufPivSize * sizeof(UChar))) {
+         goto exit;
+      }
+
+      bufPiv = (UChar *) DynBuf_Get(&dbpiv);
+      bufPivCur = bufPiv + bufPivOffset;
+      bufPivEnd = bufPiv + bufPivSize;
+
+      uerr = U_ZERO_ERROR;
+      ucnv_toUnicode(cvin, &bufPivCur, bufPivEnd, (const char **) &bufInCur,
+                     bufInEnd, NULL, TRUE, &uerr);
+
+      if (U_BUFFER_OVERFLOW_ERROR == uerr) {
+         /*
+          * 'bufInCur' points to the next chunk of input string to
+          * convert, so we leave it alone. 'bufPivCur' points to right
+          * after the last UChar written, so it should be at or almost
+          * at the end of the buffer.
+          *
+          * Our guess at 'bufPivSize' was obviously wrong, just double
+          * the buffer.
+          */
+         bufPivSize *= 2;
+         bufPivOffset = bufPivCur - bufPiv;
+      } else if (U_FAILURE(uerr)) {
+         /*
+          * Failure.
+          */
+         goto exit;
+      } else {
+         /*
+          * Success.
+          */
+         break;
       }
    }
-#endif
-   return iconv_open(codeOut, codeIn);
+
+   /*
+    * Convert from pivot buffer. Since we're probably most likely
+    * converting to UTF-8, a safe guess for the byte size of the
+    * output buffer would be the same number of code units as in the
+    * pivot buffer (with a fudge constant added to avoid degen cases).
+    */
+   bufPivEnd = bufPivCur;
+   bufPivCur = bufPiv;
+   bufPivSize = bufPivEnd - bufPivCur;
+   bufOutSize = bufPivSize + 4;
+   bufOutOffset = 0;
+
+   while (TRUE) {
+      if (!DynBuf_Enlarge(db, bufOutSize)) {
+         goto exit;
+      }
+
+      bufOut = (char *) DynBuf_Get(db);
+      bufOutCur = bufOut + bufOutOffset;
+      bufOutEnd = bufOut + bufOutSize;
+
+      uerr = U_ZERO_ERROR;
+      ucnv_fromUnicode(cvout, &bufOutCur, bufOutEnd,
+                       (const UChar **) &bufPivCur, bufPivEnd, NULL, TRUE,
+                       &uerr);
+
+      if (U_BUFFER_OVERFLOW_ERROR == uerr) {
+         /*
+          * 'bufPivCur' points to the next chunk of pivot string to
+          * convert, so we leave it alone. 'bufOutCur' points to right
+          * after the last unit written, so it should be at or almost
+          * at the end of the buffer.
+          *
+          * Our guess at 'bufOutSize' was obviously wrong, just double
+          * the buffer.
+          */
+         bufOutSize *= 2;
+         bufOutOffset = bufOutCur - bufOut;
+      } else if (U_FAILURE(uerr)) {
+         /*
+          * Failure.
+          */
+         goto exit;
+      } else {
+         /*
+          * "This was a triumph.
+          *  I'm making a note here:
+          *  HUGE SUCCESS.
+          *  It's hard to overstate
+          *  my satisfaction."
+          */
+         break;
+      }
+   }
+
+   /*
+    * Set final size and return.
+    */
+   DynBuf_SetSize(db, bufOutCur - bufOut);
+
+   result = TRUE;
+
+  exit:
+   DynBuf_Destroy(&dbpiv);
+
+   if (cvin) {
+      ucnv_close(cvin);
+   }
+
+   if (cvout) {
+      ucnv_close(cvout);
+   }
+
+   return result;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetGenericToGeneric --
+ * CodeSet_GenericToGeneric --
  *
- *    Append the content of a buffer (that uses the specified encoding) to a
- *    DynBuf (that uses the specified encoding). --hpreg
+ *    Non-db version of CodeSet_GenericToGenericDb.
  *
  * Results:
- *    TRUE on success
+ *    TRUE on success, plus allocated string
  *    FALSE on failure
  *
  * Side effects:
@@ -751,117 +848,22 @@ CodeSetIconvOpen(const char  *codeIn,  // IN
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-CodeSetGenericToGeneric(char const *codeIn,  // IN
-                        char const *bufIn,   // IN
-                        size_t sizeIn,       // IN
-                        char const *codeOut, // IN
-                        DynBuf *db,          // IN/OUT
-                        size_t flags)  // IN
+Bool
+CodeSet_GenericToGeneric(const char *codeIn,  // IN
+                         const char *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         const char *codeOut, // IN
+                         unsigned int flags,  // IN
+                         char **bufOut,       // OUT
+                         size_t *sizeOut)     // OUT
 {
-   iconv_t cd;
+   DynBuf db;
+   Bool ok;
 
-   ASSERT(codeIn);
-   ASSERT(sizeIn == 0 || bufIn);
-   ASSERT(codeOut);
-   ASSERT(db);
-
-   cd = CodeSetIconvOpen(codeIn, codeOut, flags);
-   if (cd == (iconv_t)-1) {
-      return FALSE;
-   }
-
-   for (;;) {
-      size_t size;
-      char *out;
-      char *outOrig;
-      size_t outLeft;
-      size_t status;
-
-      /*
-       * Every character we care about can occupy at most
-       * 4 bytes - UCS-4 is 4 bytes, UTF-16 is 2+2 bytes,
-       * and UTF-8 is also at most 4 bytes for all
-       * characters under 0x1FFFFF.
-       *
-       * If we allocate too small buffer nothing critical
-       * happens except that in //IGNORE case some
-       * implementations might return EILSEQ instead of
-       * E2BIG.  By having at least 4 bytes available we
-       * can be sure that at least one character is
-       * converted each call to iconv().
-       */
-      size = DynBuf_GetSize(db);
-      if (DynBuf_Enlarge(db, size + 4) == FALSE) {
-         goto error;
-      }
-
-      out = (int8 *)DynBuf_Get(db) + size;
-      outOrig = out;
-      outLeft = DynBuf_GetAllocatedSize(db) - size;
-
-      /*
-       * From glibc 2.2 onward bufIn is no longer const due to a change
-       * in the standard. However, the implementation of iconv doesn't
-       * change bufIn so a simple cast is safe. --plangdale
-       */
-#if defined(GLIBC_VERSION_22)
-      status = iconv(cd, (char **)&bufIn, &sizeIn, &out, &outLeft);
-#else
-      status = iconv(cd, &bufIn, &sizeIn, &out, &outLeft);
-#endif
-
-      DynBuf_SetSize(db, size + out - outOrig);
-
-      /*
-       * If all input characters were consumed, we are done.
-       * Otherwise if at least one character was produced by conversion
-       * then just increase buffer size and try again - with //IGNORE
-       * iconv() returns an error (EILSEQ) but still processes as
-       * many characters as possible.  If no characters were produced,
-       * then consult error code - do not consult return value in other
-       * cases, it can be either random positive value (if some
-       * characters were transliterated) or even -1 with errno set to
-       * EILSEQ (if some characters were ignored).
-       */
-      if (sizeIn == 0) {
-         break;
-      }
-      if (out == outOrig) {
-         if (status != -1) {
-            goto error;
-         }
-	 /*
-	  * Some libc implementations (one on ESX3, and one on Ganesh's
-	  * box) silently ignore //IGNORE.  So if caller asked for
-	  * getting conversion done at any cost, just return success
-	  * even if failure occured.  User will get truncated
-	  * message, but that's our best.  We have no idea whether
-	  * incoming encoding is 8bit, 16bit, or what, so we cannot
-	  * skip over characters in input stream and recover :-(
-	  */
-	 if ((flags & CSGTG_IGNORE) && errno == EILSEQ) {
-	    break;
-	 }
-         if (errno != E2BIG) {
-            goto error;
-         }
-      }
-      /* Need a larger buffer --hpreg */
-   }
-
-   if (iconv_close(cd) < 0) {
-      return FALSE;
-   }
-
-   return TRUE;
-
-error:
-   iconv_close(cd);
-
-   return FALSE;
+   DynBuf_Init(&db);
+   ok = CodeSet_GenericToGenericDb(codeIn, bufIn, sizeIn, codeOut, flags, &db);
+   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
-#endif
 
 
 /*
@@ -913,7 +915,7 @@ error:
  * CodeSet_Utf8ToCurrent --
  *
  *    Convert the content of a buffer (that uses the UTF-8 encoding) into
- *    another buffer (that uses the current encoding) --hpreg
+ *    another buffer (that uses the current encoding).
  *
  * Results:
  *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
@@ -928,110 +930,30 @@ error:
  */
 
 Bool
-CodeSet_Utf8ToCurrent(char const *bufIn,     // IN
-                      size_t sizeIn,   // IN
-                      char **bufOut,         // OUT
-                      size_t *sizeOut) // OUT
+CodeSet_Utf8ToCurrent(const char *bufIn,  // IN
+                      size_t sizeIn,      // IN
+                      char **bufOut,      // OUT
+                      size_t *sizeOut)    // OUT
 {
-#if defined(CURRENT_IS_UTF8)
-   return CodeSetDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-#elif defined(USE_ICONV)
+#if !defined(CURRENT_IS_UTF8)
    DynBuf db;
    Bool ok;
-
-   DynBuf_Init(&db);
-   ok = CodeSetGenericToGeneric("UTF-8", bufIn, sizeIn,
-                                CodeSet_GetCurrentCodeSet(), &db, CSGTG_NORMAL);
-   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
-#elif defined(_WIN32)
-   char *buf;
-   size_t size;
-   Bool status;
-
-   if (CodeSet_Utf8ToUtf16le(bufIn, sizeIn, &buf, &size) == FALSE) {
-      if (IsWin95()) {
-         /*
-          * Win95 doesnt support UTF-8 by default. If we are here,
-          * it means that the application was not linked with unicows.lib.
-          * So simply copy the buffer as is.
-          */
-         return CodeSetDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-      }
-      return FALSE;
-   }
-
-   status = CodeSetUtf16leToCurrent(buf, size, bufOut, sizeOut);
-   free(buf);
-
-   return status;
-#else
-   return FALSE;
 #endif
-}
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSet_Utf8ToCurrentTranslit --
- *
- *    Convert the content of a buffer (that uses the UTF-8 encoding) into
- *    another buffer (that uses the current encoding).  Transliterate
- *    characters which can be transliterated, and ignore characters which
- *    cannot be even transliterated.
- *
- * Results:
- *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
- *                     If not NULL, '*sizeOut' contains the size of the buffer
- *                     (excluding the NUL terminator)
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-CodeSet_Utf8ToCurrentTranslit(char const *bufIn,     // IN
-                              size_t sizeIn,   // IN
-                              char **bufOut,         // OUT
-                              size_t *sizeOut) // OUT
-{
-#if defined(CURRENT_IS_UTF8)
-   return CodeSetDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-#elif defined(USE_ICONV)
-   DynBuf db;
-   Bool ok;
-
-   DynBuf_Init(&db);
-   ok = CodeSetGenericToGeneric("UTF-8", bufIn, sizeIn,
-                                CodeSet_GetCurrentCodeSet(), &db,
-                                CSGTG_TRANSLIT | CSGTG_IGNORE);
-   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
-#elif defined(_WIN32)
-   char *buf;
-   size_t size;
-   Bool status;
-
-   if (CodeSet_Utf8ToUtf16le(bufIn, sizeIn, &buf, &size) == FALSE) {
-      if (IsWin95()) {
-         /*
-          * Win95 doesnt support UTF-8 by default. If we are here,
-          * it means that the application was not linked with unicows.lib.
-          * So simply copy the buffer as is.
-          */
-         return CodeSetDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-      }
-      return FALSE;
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf8ToCurrent(bufIn, sizeIn, bufOut, sizeOut);
    }
 
-   status = CodeSetUtf16leToCurrent(buf, size, bufOut, sizeOut);
-   free(buf);
-
-   return status;
+#if defined(CURRENT_IS_UTF8)
+   return CodeSetDuplicateUtf8Str(bufIn, sizeIn, bufOut, sizeOut);
 #else
-   return FALSE;
+   DynBuf_Init(&db);
+   ok = CodeSet_GenericToGenericDb("UTF-8", bufIn, sizeIn,
+                                   CodeSet_GetCurrentCodeSet(), 0, &db);
+   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #endif
 }
 
@@ -1042,7 +964,7 @@ CodeSet_Utf8ToCurrentTranslit(char const *bufIn,     // IN
  * CodeSet_CurrentToUtf8 --
  *
  *    Convert the content of a buffer (that uses the current encoding) into
- *    another buffer (that uses the UTF-8 encoding) --hpreg
+ *    another buffer (that uses the UTF-8 encoding).
  *
  * Results:
  *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
@@ -1057,43 +979,30 @@ CodeSet_Utf8ToCurrentTranslit(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_CurrentToUtf8(char const *bufIn,     // IN
-                      size_t sizeIn,   // IN
-                      char **bufOut,         // OUT
-                      size_t *sizeOut) // OUT
+CodeSet_CurrentToUtf8(const char *bufIn,  // IN
+                      size_t sizeIn,      // IN
+                      char **bufOut,      // OUT
+                      size_t *sizeOut)    // OUT
 {
-#if defined(CURRENT_IS_UTF8)
-   return CodeSetDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-#elif defined(USE_ICONV)
+#if !defined(CURRENT_IS_UTF8)
    DynBuf db;
    Bool ok;
+#endif
 
-   DynBuf_Init(&db);
-   ok = CodeSetGenericToGeneric(CodeSet_GetCurrentCodeSet(), bufIn, sizeIn,
-                                "UTF-8", &db, CSGTG_NORMAL);
-   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
-#elif defined(_WIN32)
-   char *buf;
-   size_t size;
-   Bool status;
-
-   if (CodeSet_CurrentToUtf16le(bufIn, sizeIn, &buf, &size) == FALSE) {
-      return FALSE;
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_CurrentToUtf8(bufIn, sizeIn, bufOut, sizeOut);
    }
 
-   status = CodeSet_Utf16leToUtf8(buf, size, bufOut, sizeOut);
-   free(buf);
-   if (!status && IsWin95()) {
-      /*
-       * Win95 doesnt support UTF-8 by default. If we are here,
-       * it means that the application was not linked with unicows.lib.
-       * So simply copy the buffer as is.
-       */
-      return CodeSetDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-   }
-  return status;
+#if defined(CURRENT_IS_UTF8)
+   return CodeSetDuplicateUtf8Str(bufIn, sizeIn, bufOut, sizeOut);
 #else
-   return FALSE;
+   DynBuf_Init(&db);
+   ok = CodeSet_GenericToGenericDb(CodeSet_GetCurrentCodeSet(), bufIn, sizeIn,
+                                   "UTF-8", 0, &db);
+   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #endif
 }
 
@@ -1104,7 +1013,7 @@ CodeSet_CurrentToUtf8(char const *bufIn,     // IN
  * CodeSet_Utf16leToUtf8_Db --
  *
  *    Append the content of a buffer (that uses the UTF-16LE encoding) to a
- *    DynBuf (that uses the UTF-8 encoding). --hpreg
+ *    DynBuf (that uses the UTF-8 encoding).
  *
  * Results:
  *    TRUE on success
@@ -1117,125 +1026,19 @@ CodeSet_CurrentToUtf8(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_Utf16leToUtf8_Db(char const *bufIn,   // IN
-                         size_t sizeIn, // IN
-                         DynBuf *db)          // IN
+CodeSet_Utf16leToUtf8_Db(const char *bufIn, // IN
+                         size_t sizeIn,     // IN
+                         DynBuf *db)        // IN
 {
-#if defined(_WIN32)
-   return CodeSetUtf16leToGeneric(bufIn, sizeIn, CP_UTF8, db);
-#else
-   const uint16 *utf16In;
-   size_t numCodeUnits;
-   size_t codeUnitIndex;
-
-   if (sizeIn % sizeof *utf16In != 0) {
-      return FALSE;
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf16leToUtf8_Db(bufIn, sizeIn, db);
    }
 
-   utf16In = (const uint16 *)bufIn;
-   numCodeUnits = sizeIn / 2;
-
-   for (codeUnitIndex = 0; codeUnitIndex < numCodeUnits; codeUnitIndex++) {
-      uint32 codePoint;
-      uint8 *dbBytes;
-      size_t size;
-
-      if (   utf16In[codeUnitIndex] < 0xD800
-          || utf16In[codeUnitIndex] > 0xDFFF) {
-         // Non-surrogate UTF-16 code units directly represent a code point.
-         codePoint = utf16In[codeUnitIndex];
-      } else {
-         static const uint32 SURROGATE_OFFSET =
-            (0xD800 << 10UL) + 0xDC00 - 0x10000;
-
-         uint16 surrogateLead = utf16In[codeUnitIndex];
-         uint16 surrogateTrail;
-
-         // We need one more code unit for the trailing surrogate.
-         codeUnitIndex++;
-         if (codeUnitIndex == numCodeUnits) {
-            return FALSE;
-         }
-
-         surrogateTrail = utf16In[codeUnitIndex];
-
-         // Ensure we have a lead surrogate followed by a trail surrogate.
-         if (   surrogateLead > 0xDBFF
-             || surrogateTrail < 0xDC00
-             || surrogateTrail > 0xDFFF) {
-            return FALSE;
-         }
-
-         /*
-          * To get a code point between 0x10000 and 0x10FFFF (2^16 to
-          * (2^21) - 1):
-          *
-          * 1) Ensure surrogateLead is in the range [0xD800, 0xDBFF]
-          *
-          * 2) Ensure surrogateTrail is in the range [0xDC00, 0xDFFF]
-          *
-          * 3) Mask off all but the low 10 bits of lead and shift that
-          *    left 10 bits: ((surrogateLead << 10) - (0xD800 << 10))
-          *    -> result [0, 0xFFC00]
-          *
-          * 4) Add to that the low 10 bits of trail: (surrogateTrail - 0xDC00)
-          *    -> result [0, 0xFFFFF]
-          *
-          * 5) Add to that 0x10000:
-          *    -> result [0x10000, 0x10FFFF]
-          */
-         codePoint = ((uint32)surrogateLead << 10UL) +
-            (uint32)surrogateTrail - SURROGATE_OFFSET;
-
-         ASSERT(codePoint >= 0x10000 && codePoint <= 0x10FFFF);
-      }
-
-      size = DynBuf_GetSize(db);
-
-      // We'll need at most 4 more bytes for this code point.
-      if (   DynBuf_GetAllocatedSize(db) < size + 4
-          && DynBuf_Enlarge(db, size + 4) == FALSE) {
-         return FALSE;
-      }
-
-      dbBytes = (uint8 *)DynBuf_Get(db) + size;
-
-      // Convert the code point to UTF-8.
-      if (codePoint <= 0x007F) {
-         // U+0000 - U+007F: 1 byte of UTF-8.
-         dbBytes[0] = codePoint;
-         size += 1;
-      } else if (codePoint <= 0x07FF) {
-         // U+0080 - U+07FF: 2 bytes of UTF-8.
-         dbBytes[0] = 0xC0 | (codePoint >> 6);
-         dbBytes[1] = 0x80 | (codePoint & 0x3F);
-         size += 2;
-      } else if (codePoint <= 0xFFFF) {
-         // U+0800 - U+FFFF: 3 bytes of UTF-8.
-         dbBytes[0] = 0xE0 | (codePoint >> 12);
-         dbBytes[1] = 0x80 | ((codePoint >> 6) & 0x3F);
-         dbBytes[2] = 0x80 | (codePoint & 0x3F);
-         size += 3;
-      } else {
-         /*
-          * U+10000 - U+10FFFF: 4 bytes of UTF-8.
-          *
-          * See the surrogate pair handling block above for the math
-          * that ensures we're in the range [0x10000, 0x10FFFF] here.
-          */
-         ASSERT(codePoint <= 0x10FFFF);
-         dbBytes[0] = 0xF0 | (codePoint >> 18);
-         dbBytes[1] = 0x80 | ((codePoint >> 12) & 0x3F);
-         dbBytes[2] = 0x80 | ((codePoint >> 6) & 0x3F);
-         dbBytes[3] = 0x80 | (codePoint & 0x3F);
-         size += 4;
-      }
-
-      DynBuf_SetSize(db, size);
-   }
-
-   return TRUE;
-#endif
+   return CodeSet_GenericToGenericDb("UTF-16LE", bufIn, sizeIn, "UTF-8", 0,
+                                     db);
 }
 
 
@@ -1245,7 +1048,7 @@ CodeSet_Utf16leToUtf8_Db(char const *bufIn,   // IN
  * CodeSet_Utf16leToUtf8 --
  *
  *    Convert the content of a buffer (that uses the UTF-16LE encoding) into
- *    another buffer (that uses the UTF-8 encoding). --hpreg
+ *    another buffer (that uses the UTF-8 encoding).
  *
  *    The operation is inversible (its inverse is CodeSet_Utf8ToUtf16le).
  *
@@ -1262,13 +1065,20 @@ CodeSet_Utf16leToUtf8_Db(char const *bufIn,   // IN
  */
 
 Bool
-CodeSet_Utf16leToUtf8(char const *bufIn,     // IN
-                      size_t sizeIn,   // IN
-                      char **bufOut,         // OUT
-                      size_t *sizeOut) // OUT
+CodeSet_Utf16leToUtf8(const char *bufIn,  // IN
+                      size_t sizeIn,      // IN
+                      char **bufOut,      // OUT
+                      size_t *sizeOut)    // OUT
 {
    DynBuf db;
    Bool ok;
+
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf16leToUtf8(bufIn, sizeIn, bufOut, sizeOut);
+   }
 
    DynBuf_Init(&db);
    ok = CodeSet_Utf16leToUtf8_Db(bufIn, sizeIn, &db);
@@ -1282,7 +1092,7 @@ CodeSet_Utf16leToUtf8(char const *bufIn,     // IN
  * CodeSet_Utf8ToUtf16le --
  *
  *    Convert the content of a buffer (that uses the UTF-8 encoding) into
- *    another buffer (that uses the UTF-16LE encoding). --hpreg
+ *    another buffer (that uses the UTF-16LE encoding).
  *
  *    The operation is inversible (its inverse is CodeSet_Utf16leToUtf8).
  *
@@ -1299,13 +1109,20 @@ CodeSet_Utf16leToUtf8(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_Utf8ToUtf16le(char const *bufIn,     // IN
-                      size_t sizeIn,   // IN
-                      char **bufOut,         // OUT
-                      size_t *sizeOut) // OUT
+CodeSet_Utf8ToUtf16le(const char *bufIn,  // IN
+                      size_t sizeIn,      // IN
+                      char **bufOut,      // OUT
+                      size_t *sizeOut)    // OUT
 {
    DynBuf db;
    Bool ok;
+
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf8ToUtf16le(bufIn, sizeIn, bufOut, sizeOut);
+   }
 
    DynBuf_Init(&db);
    ok = CodeSetUtf8ToUtf16le(bufIn, sizeIn, &db);
@@ -1336,16 +1153,23 @@ CodeSet_Utf8ToUtf16le(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_Utf8FormDToUtf8FormC(char const *bufIn,     // IN
+CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
                              size_t *sizeOut)       // OUT
 {
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf8FormDToUtf8FormC(bufIn, sizeIn, bufOut, sizeOut);
+   }
+
 #if defined(__APPLE__)
    DynBuf db;
    Bool ok;
    DynBuf_Init(&db);
-   ok = CodeSetUtf8Normalize(bufIn, sizeIn, TRUE, &db);
+   ok = CodeSet_Utf8Normalize(bufIn, sizeIn, TRUE, &db);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #else
    NOT_IMPLEMENTED();
@@ -1376,16 +1200,23 @@ CodeSet_Utf8FormDToUtf8FormC(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_Utf8FormCToUtf8FormD(char const *bufIn,     // IN
+CodeSet_Utf8FormCToUtf8FormD(const char *bufIn,     // IN
                              size_t sizeIn,         // IN
                              char **bufOut,         // OUT
                              size_t *sizeOut)       // OUT
 {
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf8FormCToUtf8FormD(bufIn, sizeIn, bufOut, sizeOut);
+   }
+
 #if defined(__APPLE__)
    DynBuf db;
    Bool ok;
    DynBuf_Init(&db);
-   ok = CodeSetUtf8Normalize(bufIn, sizeIn, FALSE, &db);
+   ok = CodeSet_Utf8Normalize(bufIn, sizeIn, FALSE, &db);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 #else
    NOT_IMPLEMENTED();
@@ -1414,26 +1245,24 @@ CodeSet_Utf8FormCToUtf8FormD(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_CurrentToUtf16le(char const *bufIn,     // IN
-                        size_t sizeIn,    // IN
-                        char **bufOut,          // OUT
-                        size_t *sizeOut)  // OUT
+CodeSet_CurrentToUtf16le(const char *bufIn, // IN
+                         size_t sizeIn,     // IN
+                         char **bufOut,     // OUT
+                         size_t *sizeOut)   // OUT
 {
    DynBuf db;
    Bool ok;
 
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_CurrentToUtf16le(bufIn, sizeIn, bufOut, sizeOut);
+   }
+
    DynBuf_Init(&db);
-#if defined(CURRENT_IS_UTF8)
-   ok = CodeSetUtf8ToUtf16le(bufIn, sizeIn, &db);
-#elif defined(USE_ICONV)
-   ok = CodeSetGenericToGeneric(CodeSet_GetCurrentCodeSet(), bufIn, sizeIn,
-                                "UTF-16LE", &db, CSGTG_NORMAL);
-#elif defined(_WIN32)
-   /* XXX We should probably use CP_THREAD_ACP on Windows 2000/XP. */
-   ok = CodeSetGenericToUtf16le(CP_ACP, bufIn, sizeIn, &db);
-#else
-   ok = FALSE;
-#endif
+   ok = CodeSet_GenericToGenericDb(CodeSet_GetCurrentCodeSet(), bufIn, sizeIn,
+                                   "UTF-16LE", 0, &db);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1459,24 +1288,25 @@ CodeSet_CurrentToUtf16le(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_Utf16leToCurrent(char const *bufIn,     // IN
-                         size_t sizeIn,   // IN
-                         char **bufOut,         // OUT
-                         size_t *sizeOut) // OUT
+CodeSet_Utf16leToCurrent(const char *bufIn,  // IN
+                         size_t sizeIn,      // IN
+                         char **bufOut,      // OUT
+                         size_t *sizeOut)    // OUT
 {
-#if defined(USE_ICONV)
    DynBuf db;
    Bool ok;
 
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf16leToCurrent(bufIn, sizeIn, bufOut, sizeOut);
+   }
+
    DynBuf_Init(&db);
-   ok = CodeSetGenericToGeneric("UTF-16LE", bufIn, sizeIn,
-                                CodeSet_GetCurrentCodeSet(), &db, CSGTG_NORMAL);
+   ok = CodeSet_GenericToGenericDb("UTF-16LE", bufIn, sizeIn,
+                                   CodeSet_GetCurrentCodeSet(), 0, &db);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
-#elif defined(_WIN32)
-   return CodeSetUtf16leToCurrent(bufIn, sizeIn, bufOut, sizeOut);
-#else // Not Windows or Linux or Solaris
-   return FALSE;
-#endif
 }
 
 
@@ -1501,167 +1331,67 @@ CodeSet_Utf16leToCurrent(char const *bufIn,     // IN
  */
 
 Bool
-CodeSet_Utf16beToCurrent(char const *bufIn,     // IN
-                         size_t sizeIn,   // IN
-                         char **bufOut,         // OUT
-                         size_t *sizeOut) // OUT
+CodeSet_Utf16beToCurrent(const char *bufIn,  // IN
+                         size_t sizeIn,      // IN
+                         char **bufOut,      // OUT
+                         size_t *sizeOut)    // OUT
 {
-#if defined(USE_ICONV)
    DynBuf db;
    Bool ok;
 
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_Utf16beToCurrent(bufIn, sizeIn, bufOut, sizeOut);
+   }
+
    DynBuf_Init(&db);
-   ok = CodeSetGenericToGeneric("UTF-16BE", bufIn, sizeIn,
-                                CodeSet_GetCurrentCodeSet(), &db, CSGTG_NORMAL);
+   ok = CodeSet_GenericToGenericDb("UTF-16BE", bufIn, sizeIn,
+                                   CodeSet_GetCurrentCodeSet(), 0, &db);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
-#elif defined(_WIN32)
-   char c;
-   char *bufIn_dup;
-   int i;
-   Bool status = FALSE;
-
-   bufIn_dup = NULL;
-
-   /* sizeIn must be even */
-   ASSERT((sizeIn & 1) == 0);
-
-   /* Make a non-const copy */
-   bufIn_dup = malloc(sizeIn);
-   if (bufIn_dup == NULL) {
-      goto error;
-   }
-   memcpy(bufIn_dup, bufIn, sizeIn);
-
-   /* Swap pairs of bytes */
-   for (i = 0; i < sizeIn; i += 2) {
-      c = bufIn_dup[i];
-      bufIn_dup[i] = bufIn_dup[i + 1];
-      bufIn_dup[i + 1] = c;
-   }
-
-   status = CodeSetUtf16leToCurrent(bufIn_dup, sizeIn, bufOut, sizeOut);
-
-  error:
-   free(bufIn_dup);
-   return status;
-#else // Not Windows or Linux or Solaris
-   return FALSE;
-#endif
-}
-
-
-#if defined(_WIN32)
-/*
- *-----------------------------------------------------------------------------
- *
- * IsWin95 --
- *
- *      Is the current OS Windows 95?
- *
- * Results:
- *      TRUE if this is Win95
- *      FALSE if this is not Win95.
- *
- * Side effects:
- *      none
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-IsWin95(void)
-{
-   OSVERSIONINFOEX osvi;
-   BOOL bOsVersionInfoEx;
-
-   /*
-    * Try calling GetVersionEx using the OSVERSIONINFOEX structure.
-    * If that fails, try using the OSVERSIONINFO structure.
-    */
-
-   ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-   if(!(bOsVersionInfoEx = GetVersionEx ((OSVERSIONINFO *) &osvi))) {
-      /* If OSVERSIONINFOEX doesn't work, try OSVERSIONINFO. */
-      osvi.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-      if (!GetVersionEx((OSVERSIONINFO *) &osvi)) {
-         return FALSE;
-      }
-   }
-
-   if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
-      if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0) {
-         return TRUE;
-      }
-   }
-
-   return FALSE;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * GetInvalidCharsFlag --
+ * CodeSet_IsEncodingSupported --
  *
- *    The flag MB_ERR_INVALID_CHARS can only be passed to MultiByteToWideChar
- *    on Win2000 SP4 or later.  If it's passed to an NT or 9x system,
- *    MultiByteToWideChar fails with ERR_INVALID_FLAGS.
+ *    Ask ICU if it supports the specific encoding.
  *
  * Results:
- *      returns MB_ERR_INVALID_CHARS if this flag is supported under current OS
- *      returns zero if the flag would case MultiByteToWideChar failure.
+ *    TRUE on success
+ *    FALSE on failure
  *
  * Side effects:
- *      none
+ *    None
  *
  *-----------------------------------------------------------------------------
  */
 
-static DWORD
-GetInvalidCharsFlag(void)
+Bool
+CodeSet_IsEncodingSupported(const char *name) // IN
 {
-   static volatile Bool bFirstCall = TRUE;
-   static DWORD retval;
+   UConverter *cv;
+   UErrorCode uerr;
 
-   OSVERSIONINFOEX osvi;
-   BOOL bOsVersionInfoEx;
-
-   if (!bFirstCall) {   // We can return a cached result for subsequent calls
-      return retval;
+   /*
+    * Fallback if necessary.
+    */
+   if (dontUseIcu) {
+      return CodeSetOld_IsEncodingSupported(name);
    }
 
    /*
-    * Try calling GetVersionEx using the OSVERSIONINFOEX structure.
+    * Try to open the encoding.
     */
-
-   ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-   if(!(bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO *) &osvi))) {
-      /*
-       * If GetVersionEx failed, we are running something earlier than NT4+SP6,
-       * thus we cannot use MB_ERR_INVALID_CHARS
-       */
-       retval = 0;
-       bFirstCall = FALSE;
-       return retval;
+   uerr = U_ZERO_ERROR;
+   cv = ucnv_open(name, &uerr);
+   if (cv) {
+      ucnv_close(cv);
+      return TRUE;
    }
 
-   if (osvi.dwMajorVersion > 5) {
-      retval = MB_ERR_INVALID_CHARS;  // Vista or later
-   } else if (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion > 0) {
-      retval = MB_ERR_INVALID_CHARS;  // XP, 2003
-   } else if (osvi.dwMajorVersion == 5
-               && osvi.dwMinorVersion == 0
-               && osvi.wServicePackMajor >= 4) {  // Win2000 + SP4
-      retval = MB_ERR_INVALID_CHARS;
-   } else {
-      retval = 0;   // Do not use MB_ERR_INVALID_CHARS on this OS.
-   }
-
-   bFirstCall = FALSE;
-   return retval;
+   return FALSE;
 }
-#endif

@@ -75,6 +75,7 @@ else
    HGFS_BD =
 endif
 guestd_LDADD += $(HGFS_BD)
+guestd_LDADD += @ICU_LIBS@
 guestd_LDADD += @GUESTD_LDADD@
 
 guestd_SOURCES =

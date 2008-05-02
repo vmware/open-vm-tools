@@ -1764,6 +1764,7 @@ static Bool
 GuestdDaemon(GuestApp_Dict **pConfDict,       // IN/OUT
              int *gDaemonSignalPtr)           // IN/OUT
 {
+   Bool guestInfoEnabled = FALSE;
 #if !defined(__FreeBSD__) && !defined(sun)
    pid_t vmwareuserPid = 0;
 #endif
@@ -1812,13 +1813,11 @@ GuestdDaemon(GuestApp_Dict **pConfDict,       // IN/OUT
 
    ASSERT(data->in);
 
-   /*
-    * Set up the guest info 'server'. On Linux, a separate event loop thread
-    * is not spawned.
-    */
+   /* Set up the guest info 'server'. */
    if (!GuestInfoServer_Init(ToolsDaemonEventQueue)) {
       Warning("Unable to start guest info server.\n");
    } else {
+      guestInfoEnabled = TRUE;
       GuestInfoServer_DisableDiskInfoQuery(
          GuestApp_GetDictEntryBool(*pConfDict, CONFNAME_DISABLEQUERYDISKINFO));
    }
@@ -1896,6 +1895,9 @@ GuestdDaemon(GuestApp_Dict **pConfDict,       // IN/OUT
    NOT_REACHED();
 
 out:
+   if (guestInfoEnabled) {
+      GuestInfoServer_Cleanup();
+   }
 #if defined(VM_GUESTD_RUNS_HGFS_PSERVER)
    HgfsPserver_Cleanup(&globalHgfsState);
 #elif defined(VM_GUESTD_MOUNTS_HGFS)

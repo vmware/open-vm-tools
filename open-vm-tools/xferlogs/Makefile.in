@@ -120,6 +120,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -223,7 +226,7 @@ AM_CFLAGS = @COMMON_CFLAGS@
 # order so their symbols are properly resolved.
 xferlogs_LDADD = ../lib/rpcVmx/libRpcVmx.a ../lib/string/libString.a \
 	../lib/rpcOut/libRpcOut.a ../lib/message/libMessage.a \
-	../lib/backdoor/libBackdoor.a ../lib/misc/libMisc.a
+	../lib/backdoor/libBackdoor.a ../lib/misc/libMisc.a @ICU_LIBS@
 xferlogs_SOURCES = xferlogs.c
 all: all-am
 

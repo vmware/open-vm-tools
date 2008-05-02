@@ -166,9 +166,49 @@ typedef enum {
    STRING_ENCODING_UNKNOWN = -2,
 } StringEncoding;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char *Unicode_EncodingEnumToName(StringEncoding encoding);
 StringEncoding Unicode_EncodingNameToEnum(const char *encodingName);
 StringEncoding Unicode_GetCurrentEncoding(void);
 Bool Unicode_IsEncodingSupported(StringEncoding encoding);
+Bool Unicode_IsEncodingValid(StringEncoding encoding);
+void Unicode_Init(int argc, char ***argv, char ***envp);
+#if defined (_WIN32)
+void Unicode_InitW(int argc, utf16_t **wargv, utf16_t **wenvp,
+                   char ***argv, char ***envp);
+#endif
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_ResolveEncoding --
+ *
+ *      Resolves a meta-encoding enum value (e.g. STRING_ENCODING_DEFAULT) to
+ *      a concrete one (e.g. STRING_ENCODING_UTF8).
+ *
+ * Results:
+ *      A StringEncoding enum value.  May return STRING_ENCODING_UNKNOWN.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE StringEncoding
+Unicode_ResolveEncoding(StringEncoding encoding) // IN
+{
+   return (encoding == STRING_ENCODING_DEFAULT)
+          ? Unicode_GetCurrentEncoding()
+          : encoding;
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _UNICODE_TYPES_H_

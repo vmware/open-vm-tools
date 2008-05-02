@@ -564,18 +564,18 @@ FileLock_LockDevice(const char *deviceName)   // IN:
 {
    const char *hostID;
    char       uniqueID[1000];
-   char       lockFileName[FILE_MAXPATH];
-   char       lockFileLink[FILE_MAXPATH];
+   char       *lockFileName;
+   char       *lockFileLink;
 
    int  status = -1;
 
    ASSERT(deviceName);
 
-   Str_Sprintf(lockFileName, sizeof lockFileName, "%s/LCK..%s",
-               DEVICE_LOCK_DIR, deviceName);
+   lockFileName = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR,
+                                   deviceName);
 
-   Str_Sprintf(lockFileLink, sizeof lockFileLink, "%s/LTMP..%s.t%05d",
-               DEVICE_LOCK_DIR, deviceName, FileLockGetPid());
+   lockFileLink = Str_SafeAsprintf(NULL, "%s/LTMP..%s.t%05d", DEVICE_LOCK_DIR,
+                                   deviceName, FileLockGetPid());
 
    LOG(1, ("Requesting lock %s (temp = %s).\n", lockFileName,
        lockFileLink));
@@ -627,6 +627,8 @@ FileLock_LockDevice(const char *deviceName)   // IN:
    }
 
 exit:
+   free(lockFileName);
+   free(lockFileLink);
    return status;
 }
 
@@ -653,12 +655,11 @@ FileLock_UnlockDevice(const char *deviceName)	// IN:
    Bool su;
    int  ret;
    int  saveErrno;
-   char path[FILE_MAXPATH];
+   char *path;
 
    ASSERT(deviceName);
 
-   Str_Sprintf(path, sizeof path, "%s/LCK..%s",
-               DEVICE_LOCK_DIR, deviceName);
+   path = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR, deviceName);
 
    LOG(1, ("Releasing lock %s.\n", path));
 
@@ -671,9 +672,12 @@ FileLock_UnlockDevice(const char *deviceName)	// IN:
    if (ret < 0) {
       Log(LGPFX" Cannot remove lock file %s (%s).\n",
           path, strerror(saveErrno));
+      free(path);
 
       return FALSE;
    }
+
+   free(path);
 
    return TRUE;
 }

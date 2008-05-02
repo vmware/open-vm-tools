@@ -48,9 +48,13 @@ DictLL_UnmarshalLine(const char *buf,  // IN
                      char **value);    // OUT
 
 Bool
-DictLL_MarshalLine(DynBuf *output,     // IN
+DictLL_MarshalLine(DynBuf *output,     // IN/OUT
                    char const *name,   // IN
                    char const *value); // IN
+
+
+Bool
+DictLL_ReadUTF8BOM(FILE *file); // IN/OUT
 
 
 #endif /* __DICTLL_H__ */

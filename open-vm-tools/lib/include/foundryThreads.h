@@ -51,7 +51,7 @@ Bool FoundryThreads_IsCurrentThread(struct FoundryWorkerThread *threadState);
  */
 typedef struct FoundryWorkerThread {
 #if _WIN32
-   DWORD                   threadId;
+   uintptr_t               threadId;
    HANDLE                  threadHandle;
 #else
    pthread_t               threadInfo;

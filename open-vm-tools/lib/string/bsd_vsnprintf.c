@@ -70,6 +70,7 @@
 #include "vmware.h"
 #include "bsd_output_int.h"
 #include "codeset.h"
+#include "convertutf.h"
 
 static char   *__ultoa(u_long, char *, int, int, const char *, int, char,
                        const char *);
@@ -83,6 +84,8 @@ char zeroes[PADSIZE] =
 
 const char xdigs_lower[17] = "0123456789abcdef?";
 const char xdigs_upper[17] = "0123456789ABCDEF?";
+
+static Bool isLenientConversion = TRUE;
 
 int
 BSDFmt_SFVWrite(BSDFmt_StrBuf *sbuf, BSDFmt_UIO *uio)
@@ -306,62 +309,95 @@ BSDFmt_UJToA(uintmax_t val, char *endp, int base, int octzero,
 }
 
 /*
- * Convert a wide character string argument for the %ls format to a multibyte
- * string representation. If not -1, prec specifies the maximum number of
- * bytes to output, and also means that we can't assume that the wide char.
- * string ends is null-terminated.
+ * Convert a wide character string argument to a UTF-8 string
+ * representation. If not -1, 'prec' specifies the maximum number of
+ * bytes to output. The returned string is always NUL-terminated, even
+ * if that results in the string exceeding 'prec' bytes.
  */
 char *
-BSDFmt_WCSConv(wchar_t *wcsarg, int prec)
+BSDFmt_WCharToUTF8(wchar_t *wcsarg, int prec)
 {
-   static const mbstate_t initial;
-   mbstate_t mbs;
-   char buf[MB_LEN_MAX];
-   wchar_t *p;
-   char *convbuf;
-   size_t clen, nbytes;
+   ConversionResult cres;
+   char *sourceStart, *sourceEnd;
+   char *targStart, *targEnd;
+   char *targ = NULL;
+   size_t targSize;
+   size_t sourceSize = wcslen(wcsarg) * sizeof(wchar_t);
 
-   /* Allocate space for the maximum number of bytes we could output. */
-   if (prec < 0) {
-      p = wcsarg;
-      mbs = initial;
-      nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, &mbs);
-      if (nbytes == (size_t)-1)
-         return (NULL);
-   } else {
+   targSize = (-1 == prec) ? sourceSize : MIN(sourceSize, prec);
+
+   while (TRUE)
+   {
       /*
-       * Optimisation: if the output precision is small enough,
-       * just allocate enough memory for the maximum instead of
-       * scanning the string.
+       * Pad by 4, because we need to NUL-terminate.
        */
-      if (prec < 128)
-         nbytes = prec;
-      else {
-         nbytes = 0;
-         p = wcsarg;
-	 mbs = initial;
-         for (;;) {
-            clen = wcrtomb(buf, *p++, &mbs);
-            if (clen == 0 || clen == (size_t)-1 ||
-                nbytes + clen > prec)
-               break;
-            nbytes += clen;
+      targ = realloc(targ, targSize + 4);
+      if (!targ) {
+         goto exit;
+      }
+
+      targStart = targ;
+      targEnd = targStart + targSize;
+      sourceStart = (char *) wcsarg;
+      sourceEnd = sourceStart + sourceSize;
+
+      if (2 == sizeof(wchar_t)) {
+         cres = ConvertUTF16toUTF8((const UTF16 **) &sourceStart,
+                                   (const UTF16 *) sourceEnd,
+                                   (UTF8 **) &targStart,
+                                   (UTF8 *) targEnd,
+                                   isLenientConversion);
+      } else if (4 == sizeof(wchar_t)) {
+         cres = ConvertUTF32toUTF8((const UTF32 **) &sourceStart,
+                                   (const UTF32 *) sourceEnd,
+                                   (UTF8 **) &targStart,
+                                   (UTF8 *) targEnd,
+                                   isLenientConversion);
+      } else {
+         NOT_IMPLEMENTED();
+      }
+
+      if (targetExhausted == cres) {
+         if (targSize == prec) {
+            /*
+             * We've got all the caller wants.
+             */
+            break;
+         } else {
+            /*
+             * Double buffer.
+             */
+            targSize = (-1 == prec) ? targSize * 2 : MIN(targSize * 2, prec);
          }
+      } else if ((sourceExhausted == cres) ||
+                 (sourceIllegal == cres)) {
+         /*
+          * If lenient, the API converted all it could, so just
+          * proceed, otherwise, barf.
+          */
+         if (isLenientConversion) {
+            break;
+         } else {
+            free(targ);
+            targ = NULL;
+            goto exit;
+         }
+      } else if (conversionOK == cres) {
+         break;
+      } else {
+         NOT_IMPLEMENTED();
       }
    }
-   if ((convbuf = malloc(nbytes + 1)) == NULL)
-      return (NULL);
 
-   /* Fill the output buffer. */
-   p = wcsarg;
-   mbs = initial;
-   nbytes = wcsrtombs(convbuf, (const wchar_t **)&p, nbytes, &mbs);
-   if (nbytes == (size_t)-1) {
-      free(convbuf);
-      return (NULL);
-   }
-   convbuf[nbytes] = '\0';
-   return (convbuf);
+   /*
+    * Success, NUL-terminate. (The API updated targStart for us).
+    */
+   ASSERT(targStart <= targEnd);
+   targSize = targStart - targ;
+   memset(targ + targSize, 0, 4);
+
+  exit:
+   return targ;
 }
 
 
@@ -957,7 +993,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
             if ((wcp = GETARG(wchar_t *)) == NULL)
                cp = "(null)";
             else {
-               convbuf = BSDFmt_WCSConv(wcp, prec);
+               convbuf = BSDFmt_WCharToUTF8(wcp, prec);
                if (convbuf == NULL) {
                   sbuf.error = TRUE;
                   goto error;

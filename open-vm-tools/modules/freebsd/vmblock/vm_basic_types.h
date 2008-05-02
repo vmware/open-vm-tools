@@ -499,8 +499,9 @@ typedef void * UserVA;
 #   define FMTVPN ""
 #endif
 
-
+#ifndef EXTERN
 #define EXTERN        extern
+#endif
 #define CONST         const
 
 

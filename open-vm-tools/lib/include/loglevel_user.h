@@ -90,8 +90,8 @@
    LOGLEVEL_VAR(aioWin32), \
    LOGLEVEL_VAR(aioWin32Completion), \
    LOGLEVEL_VAR(aioLinux), \
-   LOGLEVEL_VAR(aioGeneric), \
    LOGLEVEL_VAR(aioHttp), \
+   LOGLEVEL_VAR(aioGeneric), \
    LOGLEVEL_VAR(cdrom), \
    LOGLEVEL_VAR(checksum), \
    \
@@ -184,8 +184,10 @@
    LOGLEVEL_VAR(cptOps), \
    LOGLEVEL_VAR(VProbeExec), \
    LOGLEVEL_VAR(VProbeVP), \
+   LOGLEVEL_VAR(device), \
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(vmxvmdbCallbacks), \
+   LOGLEVEL_VAR(guestInstall), \
 
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

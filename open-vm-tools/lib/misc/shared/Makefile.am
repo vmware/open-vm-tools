@@ -20,7 +20,7 @@ noinst_LTLIBRARIES = libMisc.la
 libMisc_la_SOURCES =
 libMisc_la_SOURCES += ../atomic.c
 libMisc_la_SOURCES += ../base64.c
-libMisc_la_SOURCES += ../codeset.c
+libMisc_la_SOURCES += ../codesetOld.c
 libMisc_la_SOURCES += ../dbllnklst.c
 libMisc_la_SOURCES += ../dynarray.c
 libMisc_la_SOURCES += ../dynbuf.c
@@ -36,6 +36,10 @@ libMisc_la_SOURCES += ../random.c
 libMisc_la_SOURCES += ../timeutil.c
 libMisc_la_SOURCES += ../util_misc.c
 libMisc_la_SOURCES += ../vmstdio.c
+
+if NO_ICU
+libMisc_la_SOURCES += ../codeset.c
+endif
 
 AM_CFLAGS =
 AM_CFLAGS += @COMMON_CFLAGS@

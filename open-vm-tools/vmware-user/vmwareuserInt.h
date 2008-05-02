@@ -73,6 +73,7 @@ Bool CopyPaste_GetBackdoorSelections(void);
 void CopyPaste_Unregister(GtkWidget* mainWnd);
 Bool CopyPaste_GHFileListGetNext(char **fileName, size_t *fileNameSize);
 Bool CopyPaste_InProgress(void);
+Bool CopyPaste_IsRpcCPSupported(void);
 
 Bool Pointer_Register(GtkWidget* mainWnd);
 

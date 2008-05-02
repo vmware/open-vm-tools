@@ -53,11 +53,13 @@
 /* For HARD_EXPIRE --hpreg */
 #include "vm_version.h"
 #include "su.h"
+#include "posix.h"
 #include "file.h"
 #include "util_shared.h"
 #include "escape.h"
 #include "base64.h"
 #include "unicode.h"
+#include "posix.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -604,7 +606,7 @@ UtilDoTildeSubst(Unicode user)  // IN - name of user
    Unicode str = NULL;
 
    if (*user == '\0') {
-      str = Util_GetEnv(U("HOME"));
+      str = Unicode_Duplicate(Posix_Getenv(U("HOME")));
       if (str == NULL) {
          Log("Could not expand environment variable HOME.\n");
       }
@@ -767,7 +769,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
        * Others are just getenv().
        */
 
-      expand = Util_GetEnv(cp + 1);
+      expand = Unicode_Duplicate(Posix_Getenv(cp + 1));
       if (expand != NULL) {
       } else if (strcasecmp(cp + 1, "PID") == 0) {
 	 Str_Snprintf(buf, sizeof buf, "%"FMTPID, getpid());
@@ -902,7 +904,7 @@ Util_MakeSureDirExistsAndAccessible(char const *path,  // IN
       return FALSE;
    }
 
-   if (stat(epath, &statbuf) == 0) {
+   if (Posix_Stat(epath, &statbuf) == 0) {
       if (! S_ISDIR(statbuf.st_mode)) {
 	 Msg_Append(MSGID(util.msde.notDir)
 		    "The path \"%s\" exists, but it is not a directory.\n",
@@ -911,7 +913,7 @@ Util_MakeSureDirExistsAndAccessible(char const *path,  // IN
 	 return FALSE;
       }
    } else {
-      if (mkdir(epath, mode) != 0) {
+      if (Posix_Mkdir(epath, mode) != 0) {
 	 Msg_Append(MSGID(util.msde.mkdir)
 		    "Cannot create directory \"%s\": %s.\n",
 		    epath, Msg_ErrString());
@@ -1608,40 +1610,6 @@ Util_SeparateStrings(char *source,              // IN
 }
 
 #endif /* !defined(N_PLAT_NLM) */
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_GetEnv --
- *
- *      Unicode wrapper for posix getenv call.
- *
- * Results:
- *      Returns value of an environment variable or NULL if it fails.
- *
- * Side effects:
- *	     None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Unicode
-Util_GetEnv(ConstUnicode name) // IN: environment variable name
-{
-   char *tmpname = NULL;
-   char *envnam = NULL;
-
-   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
-
-   envnam = getenv(tmpname);
-   free(tmpname);
-
-   if (!envnam) {
-      return NULL;
-   }
-   return Unicode_Alloc(envnam, STRING_ENCODING_DEFAULT);
-}
 
 
 #if !defined(_WIN32) && !defined(N_PLAT_NLM)

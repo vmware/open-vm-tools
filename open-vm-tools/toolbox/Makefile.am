@@ -51,6 +51,7 @@ toolbox_LDADD += ../lib/panicDefault/libPanicDefault.a
 toolbox_LDADD += ../lib/panic/libPanic.a
 toolbox_LDADD += -lX11
 toolbox_LDADD += @GTK_LIBS@
+toolbox_LDADD += @ICU_LIBS@
 
 toolbox_SOURCES =
 toolbox_SOURCES += debugStdio.c

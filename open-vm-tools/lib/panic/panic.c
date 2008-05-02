@@ -44,6 +44,7 @@
 #include "util.h"
 #ifdef _WIN32
 #include "coreDump.h"
+#include "win32u.h"
 #endif
 
 
@@ -329,7 +330,7 @@ Panic_GetBreakOnPanic(void)
       {
          typedef BOOL (*pfnIsDebuggerPresent)(void);
 
-         HMODULE kernelLibrary = LoadLibrary("kernel32.dll");
+         HMODULE kernelLibrary = Win32U_LoadLibrary("kernel32.dll");
          if (kernelLibrary != NULL) {
             pfnIsDebuggerPresent IsDebuggerPresentFn = 
                (pfnIsDebuggerPresent) GetProcAddress(kernelLibrary, "IsDebuggerPresent");
@@ -449,7 +450,7 @@ Panic_Panic(const char *format,
 
    fputs(buf, stderr);
 #ifdef _WIN32
-   OutputDebugString(buf);
+   Win32U_OutputDebugString(buf);
 #endif
 
    /*
@@ -544,7 +545,7 @@ Panic_Panic(const char *format,
 void
 Panic_DumpGuiResources(void)
 {
-   HANDLE hUser = GetModuleHandle("user32.dll");
+   HANDLE hUser = Win32U_GetModuleHandle("user32.dll");
    if (hUser) {
       typedef DWORD (WINAPI *fnGetGuiResources)(HANDLE, DWORD);
       fnGetGuiResources pGetGuiResources =

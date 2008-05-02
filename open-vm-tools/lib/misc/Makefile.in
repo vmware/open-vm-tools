@@ -49,6 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@NO_ICU_TRUE@am__append_1 = codeset.c
 subdir = lib/misc
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -61,13 +62,20 @@ LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libMisc_a_AR = $(AR) $(ARFLAGS)
 libMisc_a_LIBADD =
+am__libMisc_a_SOURCES_DIST = atomic.c base64.c codesetOld.c \
+	dbllnklst.c dynarray.c dynbuf.c escape.c hashTable.c \
+	hostinfo_misc.c hostname.c idLinux.c iovector.c machineID.c \
+	miscSolaris.c random.c timeutil.c util_misc.c vmstdio.c \
+	posixPosix.c posixDlopen.c codeset.c
+@NO_ICU_TRUE@am__objects_1 = codeset.$(OBJEXT)
 am_libMisc_a_OBJECTS = atomic.$(OBJEXT) base64.$(OBJEXT) \
-	codeset.$(OBJEXT) dbllnklst.$(OBJEXT) dynarray.$(OBJEXT) \
+	codesetOld.$(OBJEXT) dbllnklst.$(OBJEXT) dynarray.$(OBJEXT) \
 	dynbuf.$(OBJEXT) escape.$(OBJEXT) hashTable.$(OBJEXT) \
 	hostinfo_misc.$(OBJEXT) hostname.$(OBJEXT) idLinux.$(OBJEXT) \
 	iovector.$(OBJEXT) machineID.$(OBJEXT) miscSolaris.$(OBJEXT) \
 	random.$(OBJEXT) timeutil.$(OBJEXT) util_misc.$(OBJEXT) \
-	vmstdio.$(OBJEXT) posixPosix.$(OBJEXT) posixDlopen.$(OBJEXT)
+	vmstdio.$(OBJEXT) posixPosix.$(OBJEXT) posixDlopen.$(OBJEXT) \
+	$(am__objects_1)
 libMisc_a_OBJECTS = $(am_libMisc_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -82,7 +90,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libMisc_a_SOURCES)
-DIST_SOURCES = $(libMisc_a_SOURCES)
+DIST_SOURCES = $(am__libMisc_a_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -134,6 +142,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -232,10 +243,11 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libMisc.a
-libMisc_a_SOURCES = atomic.c base64.c codeset.c dbllnklst.c dynarray.c \
-	dynbuf.c escape.c hashTable.c hostinfo_misc.c hostname.c \
-	idLinux.c iovector.c machineID.c miscSolaris.c random.c \
-	timeutil.c util_misc.c vmstdio.c posixPosix.c posixDlopen.c
+libMisc_a_SOURCES = atomic.c base64.c codesetOld.c dbllnklst.c \
+	dynarray.c dynbuf.c escape.c hashTable.c hostinfo_misc.c \
+	hostname.c idLinux.c iovector.c machineID.c miscSolaris.c \
+	random.c timeutil.c util_misc.c vmstdio.c posixPosix.c \
+	posixDlopen.c $(am__append_1)
 AM_CFLAGS = @COMMON_CFLAGS@ @LIB_MISC_CFLAGS@
 SUBDIRS = shared
 all: all-recursive
@@ -288,6 +300,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/atomic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/codeset.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/codesetOld.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dbllnklst.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynarray.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynbuf.Po@am__quote@

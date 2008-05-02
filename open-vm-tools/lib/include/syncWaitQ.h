@@ -69,8 +69,6 @@
  */
 
 
-#define WAITQ_MAX_PATH   0x100
-
 typedef struct SyncWaitQ {
    /*
     * Common members used for both named and unnamed objects
@@ -88,7 +86,7 @@ typedef struct SyncWaitQ {
     */
 
    // Name of the waitqueue object (FIFO path on Linux or Event name on Win32)
-   char path[WAITQ_MAX_PATH];
+   char *pathName;
 
    /*
     * The following handles are only used only in the case of

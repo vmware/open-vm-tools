@@ -39,6 +39,7 @@
 #include "hgfsProto.h"
 #include "module.h"
 #include "request.h"
+#include "hgfsUtil.h"
 #include "fsutil.h"
 #include "inode.h"
 #include "vm_assert.h"
@@ -161,7 +162,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
       request->file = handle;
       request->offset = offset;
       request->requiredSize = count;
-      req->payloadSize = sizeof *request + sizeof *header;
+      req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRead *request;
       
@@ -307,7 +308,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
       request->requiredSize = count;
       payload = request->payload;
       requiredSize = request->requiredSize;
-      reqSize = sizeof *request + sizeof *header;
+      reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestWrite *request;
       
@@ -336,9 +337,9 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
       switch (result) {
       case 0:
          if (opUsed == HGFS_OP_WRITE_V3) {
-            actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
+            actualSize = ((HgfsReplyWriteV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
          } else {
-            actualSize = ((HgfsReplyRead *)HGFS_REQ_PAYLOAD(req))->actualSize;
+            actualSize = ((HgfsReplyWrite *)HGFS_REQ_PAYLOAD(req))->actualSize;
 	 }
       
          /* Return result. */

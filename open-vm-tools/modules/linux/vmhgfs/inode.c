@@ -246,7 +246,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       request->hints = 0;
       fileName = request->fileName.name;
       fileNameLength = &request->fileName.length;
-      reqSize = sizeof *request + sizeof *header;
+      reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestDelete *request;
       
@@ -464,9 +464,9 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
       } else {
          fileName = requestV3->fileName.name;
 	 fileNameLength = &requestV3->fileName.length;
-	 requestV3->fileName.flags = HGFS_FILE_NAME_DEFAULT_CASE;
+	 requestV3->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
       }
-      reqSize = sizeof *requestV3 + sizeof *requestHeader;
+      reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
 
       /*
@@ -766,15 +766,15 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       requestHeader->op = opUsed;
       requestHeader->id = req->id;
       
-      requestV3 = (HgfsRequestCreateDirV3 *)(HGFS_REQ_PAYLOAD(req) +
-                                             sizeof *requestHeader);
+      requestV3 = (HgfsRequestCreateDirV3 *)(HGFS_REQ_PAYLOAD_V3(req));
 
       /* We'll use these later. */
       fileName = requestV3->fileName.name;
       fileNameLength = &requestV3->fileName.length;
-      requestV3->fileName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestV3->fileName.flags = 0;
+      requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
 
-      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
 
       requestV3->mask = HGFS_CREATE_DIR_MASK;
 
@@ -1328,10 +1328,14 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
            struct dentry *newDentry)  // IN: Dentry containing new name
 {
    HgfsReq *req = NULL;
-   HgfsRequestRename *request;
-   HgfsReplyRename *reply;
-   HgfsFileName *newNameP = NULL;
+   char *oldName;
+   char *newName;
+   uint32 *oldNameLength;
+   uint32 *newNameLength;
    int result = 0;
+   uint32 reqSize;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
 
    ASSERT(oldDir);
    ASSERT(oldDir->i_sb);
@@ -1353,25 +1357,42 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
       goto out;
    }
 
-   request = (HgfsRequestRename *)(HGFS_REQ_PAYLOAD(req));
+retry:
+   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+      HgfsRequestRenameV3 *request = (HgfsRequestRenameV3 *)HGFS_REQ_PAYLOAD_V3(req);
+      HgfsRequest *header = (HgfsRequest *)HGFS_REQ_PAYLOAD(req);
 
-   request->header.id = req->id;
-   request->header.op = HGFS_OP_RENAME;
+      header->op = opUsed = HGFS_OP_RENAME_V3;
+      header->id = req->id;
+      
+      oldName = request->oldName.name;
+      oldNameLength = &request->oldName.length;
+      request->oldName.flags = 0;
+      request->oldName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
+   } else {
+      HgfsRequestRename *request = (HgfsRequestRename *)HGFS_REQ_PAYLOAD(req);
+      
+      request->header.op = opUsed = HGFS_OP_RENAME;
+      oldName = request->oldName.name;
+      oldNameLength = &request->oldName.length;
+      reqSize = sizeof *request;
+   }
 
    /* Build full old name to send to server. */
-   if (HgfsBuildPath(request->oldName.name, HGFS_NAME_BUFFER_SIZE(request),
+   if (HgfsBuildPath(oldName, HGFS_NAME_BUFFER_SIZET(reqSize),
                      oldDentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: build old path failed\n"));
       result = -EINVAL;
       goto out;
    }
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRename: Old name: \"%s\"\n",
-           request->oldName.name));
+           oldName));
 
    /* Convert old name to CP format. */
-   result = CPName_ConvertTo(request->oldName.name,
-                             HGFS_NAME_BUFFER_SIZE(request),
-                             request->oldName.name);
+   result = CPName_ConvertTo(oldName,
+                             HGFS_NAME_BUFFER_SIZET(reqSize),
+                             oldName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: oldName CP "
               "conversion failed\n"));
@@ -1380,9 +1401,9 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
    }
 
    /* Unescape the old CP name. */
-   result = HgfsUnescapeBuffer(request->oldName.name, result);
-   request->oldName.length = result;
-   req->payloadSize = sizeof *request + result;
+   result = HgfsUnescapeBuffer(oldName, result);
+   *oldNameLength = result;
+   reqSize += result;
 
    /*
     * Build full new name to send to server.
@@ -1391,21 +1412,37 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
     * must account for it when determining the amount of buffer available for
     * the second.
     */
-   newNameP = (HgfsFileName *)((char *)&request->oldName +
-                               sizeof request->oldName + result);
-   if (HgfsBuildPath(newNameP->name, HGFS_NAME_BUFFER_SIZE(request) - result,
+   if (opUsed == HGFS_OP_RENAME_V3) {
+      HgfsRequestRenameV3 *request = (HgfsRequestRenameV3 *)HGFS_REQ_PAYLOAD_V3(req);
+      HgfsFileNameV3 *newNameP;
+      newNameP = (HgfsFileNameV3 *)((char *)&request->oldName +
+                                    sizeof request->oldName + result);
+      newName = newNameP->name;
+      newNameLength = &newNameP->length;
+      newNameP->flags = 0;
+      newNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+   } else {
+      HgfsRequestRename *request = (HgfsRequestRename *)HGFS_REQ_PAYLOAD(req);
+      HgfsFileName *newNameP;
+      newNameP = (HgfsFileName *)((char *)&request->oldName +
+                                  sizeof request->oldName + result);
+      newName = newNameP->name;
+      newNameLength = &newNameP->length;
+   }
+
+   if (HgfsBuildPath(newName, HGFS_NAME_BUFFER_SIZET(reqSize) - result,
                      newDentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: build new path failed\n"));
       result = -EINVAL;
       goto out;
    }
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRename: New name: \"%s\"\n",
-           newNameP->name));
+           newName));
 
    /* Convert new name to CP format. */
-   result = CPName_ConvertTo(newNameP->name,
-                             HGFS_NAME_BUFFER_SIZE(request) - result,
-                             newNameP->name);
+   result = CPName_ConvertTo(newName,
+                             HGFS_NAME_BUFFER_SIZET(reqSize) - result,
+                             newName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: newName CP "
               "conversion failed\n"));
@@ -1414,20 +1451,26 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
    }
 
    /* Unescape the new CP name. */
-   result = HgfsUnescapeBuffer(newNameP->name, result);
-   newNameP->length = result;
-   req->payloadSize += result;
+   result = HgfsUnescapeBuffer(newName, result);
+   *newNameLength = result;
+   reqSize += result;
+   req->payloadSize = reqSize;
 
    result = HgfsSendRequest(req);
    if (result == 0) {
-      if (req->payloadSize != sizeof *reply) {
-         /* This packet size should never vary. */
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: wrong packet size\n"));
-         result = -EPROTO;
-      } else {
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRename: got reply\n"));
-         reply = (HgfsReplyRename *)(HGFS_REQ_PAYLOAD(req));
-         result = HgfsStatusConvertToLinux(reply->header.status);
+      LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRename: got reply\n"));
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
+
+      if (result == -EPROTO) {
+         if (opUsed == HGFS_OP_RENAME_V3) {
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         } else {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: server "
+                    "returned error: %d\n", result));
+            goto out;
+         }
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: timed out\n"));
@@ -1495,8 +1538,9 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
       /* We'll use these later. */
       symlinkName = requestV3->symlinkName.name;
       symlinkNameLength = &requestV3->symlinkName.length;
-      requestV3->symlinkName.flags = HGFS_FILE_NAME_CASE_SENSITIVE;
-      requestSize = sizeof *requestV3 + sizeof *requestHeader;
+      requestV3->symlinkName.flags = 0;
+      requestV3->symlinkName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       break;
    }
    case HGFS_OP_CREATE_SYMLINK: {
@@ -1558,7 +1602,8 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
                                      sizeof requestV3->symlinkName + result);
       targetName = fileNameP->name;
       targetNameLength = &fileNameP->length;
-      fileNameP->flags = HGFS_FILE_NAME_CASE_SENSITIVE;
+      fileNameP->flags = 0;
+      fileNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
    } else {
       HgfsFileName *fileNameP;
       fileNameP = (HgfsFileName *)((char *)&request->symlinkName +
@@ -1570,12 +1615,12 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
 
    /* Copy target name into request packet. */
    if (targetNameBytes > HGFS_PACKET_MAX - (requestSize - 1)) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: target name is too "
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: target name is too "
               "big\n"));
       return -EINVAL;
    }
    memcpy(targetName, symname, targetNameBytes);
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: target name: \"%s\"\n",
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: target name: \"%s\"\n",
            targetName));
 
    /* Convert target name to CPName-lite format. */
@@ -1650,21 +1695,22 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink created "
                  "successfully, instantiating dentry\n"));
          result = HgfsInstantiate(dentry, 0, NULL);
-      } else {
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink was not "
-                 "created, error %d\n", result));
+      } else if (result == -EPROTO) {
+         /* Retry with older versions of Setattr. Set globally. */
+         if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: Version 3 "
+                    "not supported. Falling back to version 2.\n"));
+            atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
+            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            goto retry;
+         } else {
+            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink was not "
+                    "created, error %d\n", result));
+         }
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: timed out\n"));
    } else if (result == -EPROTO) {
-      /* Retry with older versions of Setattr. Set globally. */
-      if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: Version 3 "
-                 "not supported. Falling back to version 2.\n"));
-         atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
-         atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
-         goto retry;
-      }
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: server "
               "returned error: %d\n", result));
    } else {

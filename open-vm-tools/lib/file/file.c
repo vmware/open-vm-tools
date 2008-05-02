@@ -401,7 +401,7 @@ FileLockGetMachineID(void)
       if (q == NULL) {
          p = (char *) GetOldMachineID();
       } else {
-         p = Str_Asprintf(NULL, "uuid=%s", q);
+         p = Str_SafeAsprintf(NULL, "uuid=%s", q);
          free(q);
 
          /* Surpress any whitespace. */
@@ -1808,9 +1808,8 @@ File_PrependToPath(const char *searchPath,   // IN
    ASSERT(searchPath);
    ASSERT(elem);
 
-   newPath = Str_Asprintf(NULL, "%s" FILE_SEARCHPATHTOKEN "%s",
+   newPath = Str_SafeAsprintf(NULL, "%s" FILE_SEARCHPATHTOKEN "%s",
                           elem, searchPath);
-   ASSERT_MEM_ALLOC(newPath);
 
    n = strlen(elem);
    path = newPath + n + 1;
@@ -1877,7 +1876,7 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
    if (File_IsFullPath(fileIn)) {
       cur = Util_SafeStrdup(fileIn);
    } else {
-      cur = Str_Asprintf(NULL, "%s"DIRSEPS"%s", cwd, fileIn);
+      cur = Str_SafeAsprintf(NULL, "%s"DIRSEPS"%s", cwd, fileIn);
    }
 
    if (File_Exists(cur)) {
@@ -1897,15 +1896,15 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
    while (tok) {
       if (File_IsFullPath(tok)) {
          /* Fully Qualified Path. Use it. */
-         cur = Str_Asprintf(NULL, "%s%s%s", tok, DIRSEPS, file);
+         cur = Str_SafeAsprintf(NULL, "%s%s%s", tok, DIRSEPS, file);
       } else {
          /* Relative Path.  Prepend the cwd. */
          if (Str_Strcasecmp(tok, ".") == 0) {
             /* Don't append "." */
-            cur = Str_Asprintf(NULL, "%s"DIRSEPS"%s", cwd, file);
+            cur = Str_SafeAsprintf(NULL, "%s"DIRSEPS"%s", cwd, file);
          } else {
-            cur = Str_Asprintf(NULL, "%s"DIRSEPS"%s"DIRSEPS"%s", cwd,
-                               tok, file);
+            cur = Str_SafeAsprintf(NULL, "%s"DIRSEPS"%s"DIRSEPS"%s", cwd,
+                                   tok, file);
          }
       }
 

@@ -191,8 +191,6 @@ enum {
    VIX_E_SNAPSHOT_INDEPENDENTDISK               = 13016,
    VIX_E_SNAPSHOT_NONUNIQUE_NAME                = 13017,
    VIX_E_SNAPSHOT_MEMORY_ON_INDEPENDENT_DISK    = 13018,
-   VIX_E_SNAPSHOT_ENCODING                      = 13033,
-
 
    /* Host Errors */
    VIX_E_HOST_DISK_INVALID_VALUE                = 14003,
@@ -237,6 +235,7 @@ enum {
    VIX_E_DISK_SUBSYSTEM_INIT_FAIL               = 16053,
    VIX_E_DISK_INVALID_CONNECTION                = 16054,
    VIX_E_DISK_ENCODING                          = 16061,
+   VIX_E_DISK_CANTREPAIR                        = 16062,
 
    /* Crypto Library Errors */
    VIX_E_CRYPTO_UNKNOWN_ALGORITHM               = 17000,
@@ -256,7 +255,13 @@ enum {
    /* Remoting Errors. */
    VIX_E_CANNOT_CONNECT_TO_HOST                 = 18000,
    VIX_E_NOT_FOR_REMOTE_HOST                    = 18001,
- 
+    
+   /* Screen Capture Errors. */
+   VIX_E_SCREEN_CAPTURE_ERROR                   = 19000,
+   VIX_E_SCREEN_CAPTURE_BAD_FORMAT              = 19001,
+   VIX_E_SCREEN_CAPTURE_COMPRESSION_FAIL        = 19002,
+   VIX_E_SCREEN_CAPTURE_LARGE_DATA              = 19003,
+
    /* Guest Errors */
    VIX_E_GUEST_VOLUMES_NOT_FROZEN               = 20000,
    VIX_E_NOT_A_FILE                             = 20001,
@@ -343,6 +348,8 @@ enum {
    VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME         = 3055,
    VIX_PROPERTY_JOB_RESULT_VM_VARIABLE_STRING         = 3056,
    VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED     = 3057,
+   VIX_PROPERTY_JOB_RESULT_SCREEN_IMAGE_SIZE          = 3058,
+   VIX_PROPERTY_JOB_RESULT_SCREEN_IMAGE_DATA          = 3059,
    VIX_PROPERTY_JOB_RESULT_FILE_SIZE                  = 3061,
    VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME              = 3062,
 
@@ -532,7 +539,7 @@ VixHandle VixVM_Open(VixHandle hostHandle,
 typedef int VixVMPowerOpOptions;
 enum {
    VIX_VMPOWEROP_NORMAL                      = 0,
-   VIX_VMPOWEROP_FROM_GUEST                  = 0x0001,
+   VIX_VMPOWEROP_FROM_GUEST                  = 0x0004,
    VIX_VMPOWEROP_SUPPRESS_SNAPSHOT_POWERON   = 0x0080,
    VIX_VMPOWEROP_LAUNCH_GUI                  = 0x0200
 };
@@ -553,12 +560,12 @@ VixHandle VixVM_PowerOff(VixHandle vmHandle,
                          void *clientData);
 
 VixHandle VixVM_Reset(VixHandle vmHandle,
-                      VixVMPowerOpOptions powerOnOptions,
+                      VixVMPowerOpOptions resetOptions,
                       VixEventProc *callbackProc,
                       void *clientData);
 
 VixHandle VixVM_Suspend(VixHandle vmHandle,
-                        VixVMPowerOpOptions powerOffOptions,
+                        VixVMPowerOpOptions suspendOptions,
                         VixEventProc *callbackProc,
                         void *clientData);
 
@@ -945,7 +952,8 @@ VixHandle VixVM_RemoveSharedFolder(VixHandle vmHandle,
 
 #ifndef VIX_HIDE_FROM_JAVA
 enum {
-   VIX_CAPTURESCREENFORMAT_BITMAP         = 0x00,
+   VIX_CAPTURESCREENFORMAT_PNG            = 0x01,
+   VIX_CAPTURESCREENFORMAT_PNG_NOCOMPRESS = 0x02,
 };
 
 VixHandle VixVM_CaptureScreenImage(VixHandle vmHandle, 

@@ -281,7 +281,7 @@ ForeignTools_InitializeNetworking(void)
    }
 
 #ifdef _WIN32
-   hWs2_32 = LoadLibrary("ws2_32.dll");
+   hWs2_32 = LoadLibrary(_T("ws2_32.dll"));
    if (NULL == hWs2_32) {
       goto abort;
    }

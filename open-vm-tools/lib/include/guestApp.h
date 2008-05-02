@@ -27,6 +27,10 @@
 #ifndef __GUESTAPP_H__
 #   define __GUESTAPP_H__
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -172,6 +176,22 @@ GuestApp_RpcSendOneCPName(char const *cmd, // IN: RPCI command
                           size_t argSize); // IN: size of arg
 
 Bool GuestApp_OpenUrl(const char *url, Bool maximize);
+
+#if defined(_WIN32)
+void GuestApp_SetDictEntryW(GuestApp_Dict *dict,
+                            const WCHAR *name,
+                            const WCHAR *value);
+
+void GuestApp_SetDictEntryDefaultW(GuestApp_Dict *dict,
+                                   const WCHAR *name,
+                                   const WCHAR *defaultVal);
+
+WCHAR *GuestApp_GetDictEntryW(GuestApp_Dict *dict,
+                              const WCHAR *name);
+
+WCHAR *GuestApp_GetDictEntryDefaultW(GuestApp_Dict *dict,
+                                     const WCHAR *name);
+#endif
 
 #ifndef _WIN32
 Bool GuestApp_FindProgram(const char *program);

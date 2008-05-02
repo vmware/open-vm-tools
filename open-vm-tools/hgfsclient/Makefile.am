@@ -43,6 +43,7 @@ hgfsclient_LDADD += ../lib/rpcVmx/libRpcVmx.a
 hgfsclient_LDADD += ../lib/unicode/libUnicode.a
 hgfsclient_LDADD += ../lib/sync/libSync.a
 hgfsclient_LDADD += ../lib/misc/libMisc.a
+hgfsclient_LDADD += @ICU_LIBS@
 
 hgfsclient_SOURCES =
 hgfsclient_SOURCES += hgfsclient.c

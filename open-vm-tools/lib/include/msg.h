@@ -59,6 +59,9 @@
 #define MSGID(id)	MSG_MAGIC "(msg." #id ")"
 #define BUTTONID(id)	MSG_MAGIC "(button." #id ")"
 
+// the X hides MSG_MAGIC so it won't appear in the object file
+#define MSG_MAGICAL(s)	(strncmp(s, MSG_MAGIC"X", MSG_MAGIC_LEN) == 0)
+
 #define INVALID_MSG_CODE (-1)
 
 /*
@@ -269,7 +272,7 @@ EXTERN void MsgSetPostStderrBlock(Bool block);	// XXX don't know -- edward
 static INLINE const char *
 Msg_StripMSGID(const char *idString)    // IN
 {
-   if (idString && strncmp(idString, MSG_MAGIC"X", MSG_MAGIC_LEN) == 0) {
+   if (idString && MSG_MAGICAL(idString)) {
       const char *strp;
 
       /*

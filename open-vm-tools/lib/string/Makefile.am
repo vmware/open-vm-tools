@@ -21,6 +21,7 @@ libString_a_SOURCES =
 libString_a_SOURCES += bsd_output_shared.c
 libString_a_SOURCES += bsd_vsnprintf.c
 libString_a_SOURCES += bsd_vsnwprintf.c
+libString_a_SOURCES += convertutf.c
 libString_a_SOURCES += str.c
 
 AM_CFLAGS =

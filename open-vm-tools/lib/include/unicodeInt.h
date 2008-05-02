@@ -43,6 +43,14 @@ void UnicodePinIndices(ConstUnicode str,
                        UnicodeIndex *strLength);
 utf16_t UnicodeSimpleCaseFold(utf16_t codeUnit);
 
+void *UnicodeGetAllocBytesInternal(ConstUnicode src,
+                                   StringEncoding encoding,
+                                   size_t *retLength);
+
+Bool UnicodeSanityCheck(const void *buffer,
+                        ssize_t lengthInBytes,
+                        StringEncoding encoding);
+
 #ifdef __cplusplus
 }
 #endif

@@ -47,8 +47,6 @@
  * SyncMutex --
  */
 
-#define MUTEX_MAX_PATH   WAITQ_MAX_PATH
-
 typedef struct SyncMutex {
 #if defined(N_PLAT_NLM)
    LONG semaphoreHandle;

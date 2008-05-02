@@ -132,6 +132,9 @@ GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
+ICU_CFLAGS = @ICU_CFLAGS@
+ICU_CONFIG = @ICU_CONFIG@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -245,7 +248,7 @@ toolbox_LDADD = ../lib/conf/libConf.a \
 	../lib/dict/libDict.a ../lib/message/libMessage.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
 	../lib/misc/libMisc.a ../lib/panicDefault/libPanicDefault.a \
-	../lib/panic/libPanic.a -lX11 @GTK_LIBS@
+	../lib/panic/libPanic.a -lX11 @GTK_LIBS@ @ICU_LIBS@
 toolbox_SOURCES = debugStdio.c stub.c toolbox-gtk.c toolboxAbout.c \
 	toolboxDevices.c toolboxOptions.c toolboxScripts.c \
 	toolboxShrink.c

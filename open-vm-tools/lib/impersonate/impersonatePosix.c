@@ -217,13 +217,13 @@ ImpersonateOwner(const char *file)          // IN
    struct passwd *ppw = &pw;
    int error;
 
-   if (stat(file, &buf) == -1) {
+   if (Posix_Stat(file, &buf) == -1) {
       Warning("Failed to lookup owner for: %s. Reason: %s\n", file, 
               strerror(errno));
       return FALSE;
    }
 
-   if ((error = getpwuid_r(buf.st_uid, &pw, buffer, BUFSIZ, &ppw)) != 0 || !ppw) {
+   if ((error = Posix_Getpwuid_r(buf.st_uid, &pw, buffer, BUFSIZ, &ppw)) != 0 || !ppw) {
       if (error == 0) {
          error = ENOENT;
       }
@@ -269,7 +269,7 @@ ImpersonateUndo(void)
    ASSERT(imp);
    //ASSERT(imp->impersonatedUser);
    
-   if ((error = getpwuid_r(0, &pw, buffer, BUFSIZ, &ppw)) != 0 || !ppw) {
+   if ((error = Posix_Getpwuid_r(0, &pw, buffer, BUFSIZ, &ppw)) != 0 || !ppw) {
       if (error == 0) {
          error = ENOENT;
       }
@@ -304,9 +304,9 @@ ImpersonateUndo(void)
    }
 
    /* Restore root's environment */
-   setenv("USER", ppw->pw_name, 1);
-   setenv("HOME", ppw->pw_dir, 1);
-   setenv("SHELL", ppw->pw_shell, 1);
+   Posix_Setenv("USER", ppw->pw_name, 1);
+   Posix_Setenv("HOME", ppw->pw_dir, 1);
+   Posix_Setenv("SHELL", ppw->pw_shell, 1);
 
    free((char *)imp->impersonatedUser);
    imp->impersonatedUser = NULL;
@@ -386,9 +386,9 @@ ImpersonateDoPosix(struct passwd *pwd)            // IN
 #endif
 
    /* Setup the user's environment */
-   setenv("USER", pwd->pw_name, 1);
-   setenv("HOME", pwd->pw_dir, 1);
-   setenv("SHELL", pwd->pw_shell, 1);
+   Posix_Setenv("USER", pwd->pw_name, 1);
+   Posix_Setenv("HOME", pwd->pw_dir, 1);
+   Posix_Setenv("SHELL", pwd->pw_shell, 1);
 
    imp->impersonatedUser = strdup(pwd->pw_name);
    ASSERT_MEM_ALLOC(imp->impersonatedUser);

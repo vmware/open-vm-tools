@@ -28,9 +28,9 @@
  *
  *         ConstUnicode c = U_UNESCAPE("Copyright \\u00A9 VMware, Inc.");
  *
- *      Uses two HashTables to hold static ConstUnicode strings,
- *      protected by a single mutex.  Static ConstUnicode strings are
- *      keyed off the ASCII bytes passed to the static macros.
+ *      Uses two HashTables to hold static ConstUnicode strings. Static
+ *      ConstUnicode strings are keyed off the ASCII bytes passed to the
+ *      static macros.
  *
  *      Unescaped strings are kept separate from escaped strings so
  *      users can expect a literal "\\" to stay as-is by default.
@@ -49,49 +49,37 @@
 
 #include "vmware.h"
 #include "hashTable.h"
-#include "syncMutex.h"
+#include "vm_atomic.h"
+#include "hashTable.h"
 #include "unicodeBase.h"
 #include "unicodeInt.h"
 #include "util.h"
 
-static HashTable *UnicodeStaticStringTable = NULL;
-static HashTable *UnicodeStaticUnescapedStringTable = NULL;
-
-static void UnicodeStaticCreateTableIfNeeded(HashTable **table);
+/* These are Implicitly initialized to NULL */
+static Atomic_Ptr UnicodeStringTable;
+static Atomic_Ptr UnicodeUnescapedStringTable;
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * UnicodeStaticCreateTableIfNeeded --
+ * UnicodeHashFree --
  *
- *      Helper function to create a static 7-bit ASCII -> Unicode
- *      string table if needed.
+ *      Called by the hash table functions when a value must be replaced.
  *
  * Results:
- *      None
+ *	The argument, a unicode, is freed.
  *
  * Side effects:
- *      If *table is NULL, allocates a HashTable to use ASCII string keys
- *      and stores the result in *table.
+ *	None.
  *
  *-----------------------------------------------------------------------------
  */
 
-void
-UnicodeStaticCreateTableIfNeeded(HashTable **table) // OUT
+static void
+UnicodeHashFree(void *v)  // IN:
 {
-   if (!*table) {
-      /*
-       * We don't supply a free function, since these strings are
-       * never freed.
-       *
-       * We use HASH_STRING_KEY to use the 7-bit ASCII strings passed
-       * to Unicode_GetStatic() as the lookup key into the hash, to
-       * avoid creating the same string multiple times.
-       */
-      *table = HashTable_Alloc(4096, HASH_STRING_KEY, NULL);
-   }
+   Unicode_Free((Unicode) v);
 }
 
 
@@ -114,8 +102,8 @@ UnicodeStaticCreateTableIfNeeded(HashTable **table) // OUT
  *      caller does not need to free.
  *
  * Side effects:
- *      Creates UnicodeStaticStringTable and UnicodeStaticUnescapedStringTable
- *      if they don't yet exist.
+ *      Creates the UnicodeStringTable and UnicodeUnescapedStringTable hash
+ *      tables if it don't yet exist.
  *      Creates and inserts a Unicode string into the appropriate static
  *      string table if the key 'asciiBytes' is not found in the table.
  *
@@ -126,32 +114,40 @@ ConstUnicode
 Unicode_GetStatic(const char *asciiBytes, // IN
                   Bool unescape)          // IN
 {
-   static Atomic_Ptr lckStorage;
-   SyncMutex *lck;
    Unicode result = NULL;
    HashTable *stringTable;
 
-   lck = SyncMutex_CreateSingleton(&lckStorage);
-   SyncMutex_Lock(lck);
-
-   UnicodeStaticCreateTableIfNeeded(&UnicodeStaticUnescapedStringTable);
-   UnicodeStaticCreateTableIfNeeded(&UnicodeStaticStringTable);
-
    if (unescape) {
-      stringTable = UnicodeStaticUnescapedStringTable;
+      stringTable = HashTable_AllocOnce(&UnicodeUnescapedStringTable, 4096, 
+                                        HASH_FLAG_ATOMIC | HASH_STRING_KEY,
+                                        UnicodeHashFree);
    } else {
-      stringTable = UnicodeStaticStringTable;
+      stringTable = HashTable_AllocOnce(&UnicodeStringTable, 4096, 
+                                        HASH_FLAG_ATOMIC | HASH_STRING_KEY,
+                                        UnicodeHashFree);
    }
 
-   if (!HashTable_Lookup(stringTable, asciiBytes, (void **)&result)) {
-      result = UnicodeAllocStatic(asciiBytes, unescape);
+   /*
+    * Attempt a lookup for the key value; if it is found things are easy and
+    * fine. Otherwise HashTable_LookupOrInsert is used to attempt to enter
+    * the data in a racey manner. Should multiple threads attempt to enter
+    * the same key concurrently one thread will get the entered data and the
+    * other threads will detect that their entries were rejected; they
+    * discard their copies of the data and use the entered data (values
+    * will be stable).
+    */
 
-      if (result) {
-         HashTable_Insert(stringTable, asciiBytes, result);
+   if (!HashTable_Lookup(stringTable, asciiBytes, (void **) &result)) {
+      Unicode newData = UnicodeAllocStatic(asciiBytes, unescape);
+
+      if (newData) {
+         result = HashTable_LookupOrInsert(stringTable, asciiBytes, newData);
+
+         if (result != newData) {
+            Unicode_Free(newData);
+         }
       }
    }
-
-   SyncMutex_Unlock(lck);
 
    return result;
 }
