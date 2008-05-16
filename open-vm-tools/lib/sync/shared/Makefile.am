@@ -20,6 +20,3 @@ noinst_LTLIBRARIES = libSync.la
 libSync_la_SOURCES =
 libSync_la_SOURCES += ../syncMutex.c
 libSync_la_SOURCES += ../syncWaitQPosix.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

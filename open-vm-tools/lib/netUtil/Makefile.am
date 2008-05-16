@@ -19,6 +19,3 @@ noinst_LIBRARIES = libNetUtil.a
 
 libNetUtil_a_SOURCES =
 libNetUtil_a_SOURCES += netUtilLinux.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

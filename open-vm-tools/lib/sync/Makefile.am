@@ -21,8 +21,5 @@ libSync_a_SOURCES =
 libSync_a_SOURCES += syncMutex.c
 libSync_a_SOURCES += syncWaitQPosix.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 SUBDIRS =
 SUBDIRS += shared

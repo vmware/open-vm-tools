@@ -79,13 +79,13 @@ HgfsWaitRequestReply(HgfsReq *req)  // IN/OUT: Request object
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsWaitRequestReply: null req\n"));
       return -EINVAL;
    }
-   
-   timeleft = wait_event_timeout(req->queue, 
+
+   timeleft = wait_event_timeout(req->queue,
                                  (req->state == HGFS_REQ_STATE_COMPLETED ||
                                   req->state == HGFS_REQ_STATE_ERROR),
                                  HGFS_REQUEST_TIMEOUT);
-   /* 
-    * Did we time out? If so, abandon the request. We have to be careful, 
+   /*
+    * Did we time out? If so, abandon the request. We have to be careful,
     * because a timeout means that the request is still on a list somewhere.
     */
    if (timeleft == 0) {
@@ -95,7 +95,7 @@ HgfsWaitRequestReply(HgfsReq *req)  // IN/OUT: Request object
       }
       spin_unlock(&hgfsBigLock);
 
-      /* 
+      /*
        * Notice that we're completely ignoring any pending signals. That's
        * because the request timed out; it was not interrupted. There's no
        * point in having the client retry the syscall (through -ERESTARTSYS) if
@@ -103,7 +103,7 @@ HgfsWaitRequestReply(HgfsReq *req)  // IN/OUT: Request object
        */
       err = -EIO;
    } else if (req->state == HGFS_REQ_STATE_ERROR) {
-      /* 
+      /*
        * If the backdoor exploded, let's modify the return value so the client
        * knows about it. We only care about this if we didn't timeout.
        */
@@ -195,10 +195,10 @@ HgfsSendRequest(HgfsReq *req)       // IN/OUT: Outgoing request
 
    req->state = HGFS_REQ_STATE_UNSENT;
 
-   LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendRequest: Sending request id %d\n", 
+   LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendRequest: Sending request id %d\n",
            req->id));
 
-   /* 
+   /*
     * Add the request to the queue, wake up the backdoor handler thread, and
     * wait for a reply.
     */
@@ -210,7 +210,7 @@ HgfsSendRequest(HgfsReq *req)       // IN/OUT: Outgoing request
    wake_up_interruptible(&hgfsReqThreadWait);
    error = HgfsWaitRequestReply(req);
 
-   return error; 
+   return error;
 }
 
 
@@ -234,7 +234,7 @@ void
 HgfsFreeRequest(HgfsReq *req) // IN: Request to free
 {
    ASSERT(hgfsReqCache);
-   
+
    /* Atomically decrement counter. */
    spin_lock(&hgfsBigLock);
    hgfsIdCounter--;

@@ -25,6 +25,3 @@ libHgfs_a_SOURCES += cpNameUtil.c
 libHgfs_a_SOURCES += cpNameUtilLinux.c
 libHgfs_a_SOURCES += hgfsUtil.c
 libHgfs_a_SOURCES += staticEscape.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

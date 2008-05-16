@@ -20,6 +20,3 @@ noinst_LIBRARIES = libDnd.a
 libDnd_a_SOURCES =
 libDnd_a_SOURCES += dndCommon.c
 libDnd_a_SOURCES += dndLinux.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

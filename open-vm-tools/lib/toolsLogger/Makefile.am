@@ -19,6 +19,3 @@ noinst_LIBRARIES = libToolsLogger.a
 
 libToolsLogger_a_SOURCES =
 libToolsLogger_a_SOURCES += logger.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

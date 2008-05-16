@@ -104,10 +104,6 @@ typedef signed __int64 int64;
 #pragma warning (disable :4305) // truncation from 'const int' to 'short'
 #pragma warning (disable :4244) // conversion from 'unsigned short' to 'unsigned char'
 #pragma warning (disable :4267) // truncation of 'size_t'
-#if !defined VMX86_DEVEL // XXX until we clean up all the code -- edward
-#pragma warning (disable :4133) // incompatible types - from 'struct VM *' to 'int *'
-#pragma warning (disable :4047) // differs in levels of indirection
-#endif
 #pragma warning (disable :4146) // unary minus operator applied to unsigned type, result still unsigned
 #pragma warning (disable :4142) // benign redefinition of type
 
@@ -266,7 +262,12 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       || (defined(_POSIX2_VERSION) && _POSIX2_VERSION >= 200112L)
       /* BSD/Darwin, Linux */
       #define FMTSZ     "z"
-      #define FMTPD     "t"
+
+      #ifdef VM_X86_64
+         #define FMTPD  "l"
+      #else
+         #define FMTPD  ""
+      #endif
    #else
       /* Systems with a pre-C99 libc */
       #define FMTSZ     "Z"
@@ -649,6 +650,12 @@ typedef void * UserVA;
 # define PRINTF_DECL(fmtPos, varPos) __attribute__((__format__(__printf__, fmtPos, varPos)))
 #else
 # define PRINTF_DECL(fmtPos, varPos)
+#endif
+
+#if defined(__GNUC__)
+# define SCANF_DECL(fmtPos, varPos) __attribute__((__format__(__scanf__, fmtPos, varPos)))
+#else
+# define SCANF_DECL(fmtPos, varPos)
 #endif
 
 /*

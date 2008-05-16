@@ -1,3 +1,12 @@
+open-vm-tools 2008.05.15 changes:
+	* guestd no longer starts vmware-user. Packagers will need to use
+	the XDG autostart spec, Xsession drop-in scripts, or other appropriate
+	mechanisms to make sure that vmware-user is started as part of
+	X session initialization. Please see
+	http://open-vm-tools.wiki.sourceforge.net/Packaging for more details.
+
+	* Bug fixes as usual.
+
 open-vm-tools 2008.05.02 changes:
 	* Continued Unicode support.
 

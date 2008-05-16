@@ -86,7 +86,7 @@ typedef int socklen_t;
  *
  * We cannot link with winsock, since the DLL may not be present in all guests.
  * That would create a dll link problem that would prevent the tools from loading.
- * Instead, we try to get the procedure pointer ourselves at runtime, and quietly 
+ * Instead, we try to get the procedure pointer ourselves at runtime, and quietly
  * fail if it is not there.
  *-----------------------------------------------------------------------------
  */
@@ -147,8 +147,8 @@ typedef int (WSAAPI *SendToProcType)(SOCKET s,
                                      int tolen);
 
 typedef int (WSAAPI *SendSockOptProcType)(SOCKET s,
-                                          int level, 
-                                          int optname, 
+                                          int level,
+                                          int optname,
                                           const void *optval,
                                           socklen_t optlen);
 
@@ -215,7 +215,7 @@ static RecvfromProcType             VMToolsNet_Recvfrom = NULL;
 #define VMToolsNet_FDIsSet                  FD_ISSET
 #define VMToolsNet_Recvfrom                 recvfrom
 
-#endif 
+#endif
 
 
 Bool ForeignToolsMakeNonBlocking(int fd);
@@ -265,7 +265,7 @@ ForeignTools_InitializeNetworking(void)
    char *ipAddressStr = NULL;
    char *destPtr;
    char *endDestPtr;
-   NicInfo nicInfo;
+   GuestNicInfo nicInfo;
 #ifdef _WIN32
    HMODULE hWs2_32 = NULL;
    WSADATA wsaData;
@@ -412,13 +412,13 @@ ForeignTools_InitializeNetworking(void)
                            VixSocketListenerPort);
 
    /*
-    * Find out how big the IP_ADAPTER_INFO table needs to be. 
+    * Find out how big the IP_ADAPTER_INFO table needs to be.
     */
    success = GuestInfoGetNicInfo(&nicInfo);
    if (success) {
       NicEntry *nicEntryPtr = NULL;
       DblLnkLst_Links *nicEntryLink;
-    
+
       DblLnkLst_ForEach(nicEntryLink, &nicInfo.nicList) {
          nicEntryPtr = DblLnkLst_Container(nicEntryLink, NicEntry, links);
          destPtr += Str_Snprintf(destPtr,
@@ -426,7 +426,7 @@ ForeignTools_InitializeNetworking(void)
                                  "%s=%s;",
                                  VIX_SLPV2_PROPERTY_MAC_ADDR,
                                  nicEntryPtr->nicEntryProto.macAddress);
-      } 
+      }
 
       GuestInfo_FreeDynamicMemoryInNicInfo(&nicInfo);
    }
@@ -601,8 +601,8 @@ ForeignToolsSelectLoop(FoundryWorkerThread *threadState)    // IN
       goto abort;
    }
    //success = ForeignToolsMakeNonBlocking(tcpListenerSocket);
-   success = ForeignToolsSocketBind(tcpListenerSocket, 
-                                    INADDR_ANY, 
+   success = ForeignToolsSocketBind(tcpListenerSocket,
+                                    INADDR_ANY,
                                     VixSocketListenerPort);
    if (!success) {
       goto abort;
@@ -615,16 +615,16 @@ ForeignToolsSelectLoop(FoundryWorkerThread *threadState)    // IN
       goto abort;
    }
    //success = ForeignToolsMakeNonBlocking(tcpListenerSocket);
-   success = ForeignToolsSocketBind(udpListenerSocket, 
-                                    INADDR_ANY, 
+   success = ForeignToolsSocketBind(udpListenerSocket,
+                                    INADDR_ANY,
                                     SLPv2SocketListenerPort);
    if (!success) {
       goto abort;
    }
-   VMToolsNet_SetSockOpt(udpListenerSocket, 
-                         SOL_SOCKET, 
+   VMToolsNet_SetSockOpt(udpListenerSocket,
+                         SOL_SOCKET,
                          SO_BROADCAST,
-                         (const void *) &bcast, 
+                         (const void *) &bcast,
                          sizeof(bcast));
 
 #ifdef _WIN32
@@ -639,14 +639,14 @@ ForeignToolsSelectLoop(FoundryWorkerThread *threadState)    // IN
          DWORD dwBytesReturned = 0;
          BOOL bNewBehavior = FALSE;
          DWORD status;
-         status = VMToolsNet_WSAIoctl(udpListenerSocket, 
+         status = VMToolsNet_WSAIoctl(udpListenerSocket,
                                       SIO_UDP_CONNRESET,
-                                      &bNewBehavior, 
+                                      &bNewBehavior,
                                       sizeof(bNewBehavior),
-                                      NULL, 
-                                      0, 
+                                      NULL,
+                                      0,
                                       &dwBytesReturned,
-                                      NULL, 
+                                      NULL,
                                       NULL);
          if (SOCKET_ERROR == status) {
          }
@@ -732,7 +732,7 @@ abort:
    if (udpListenerSocket != -1) {
       VMToolsNet_CloseSocket(udpListenerSocket);
       udpListenerSocket = -1;
-   }   
+   }
 } // ForeignToolsSelectLoop
 
 
@@ -773,9 +773,9 @@ ForeignToolsAcceptConnection(int tcpListenerSocket)   // IN
       }
    }
 
-         
+
    VIX_ENTER_LOCK(&globalLock);
-         
+
    /*
     * Allocate some state for the connection
     */
@@ -818,8 +818,8 @@ ForeignToolsReadRequest(ForeignVMToolsConnection *connectionState)   // IN
    /*
     * Read the message header.
     */
-   result = VMToolsNet_Recv(connectionState->socket, 
-                            (char *) &(connectionState->requestHeader), 
+   result = VMToolsNet_Recv(connectionState->socket,
+                            (char *) &(connectionState->requestHeader),
                             sizeof(connectionState->requestHeader),
                             0);
    if (result <= 0) {
@@ -835,7 +835,7 @@ ForeignToolsReadRequest(ForeignVMToolsConnection *connectionState)   // IN
       goto abort;
    }
 
-   connectionState->completeRequest 
+   connectionState->completeRequest
        = Util_SafeMalloc(connectionState->requestHeader.commonHeader.totalMessageLength);
    memcpy(connectionState->completeRequest,
           &(connectionState->requestHeader),
@@ -843,12 +843,12 @@ ForeignToolsReadRequest(ForeignVMToolsConnection *connectionState)   // IN
 
    /*
     * If this request has a variable-sized part, like a body or a user credential,
-    * then start reading that. Otherwise, if the request only has a fixed-size header, 
+    * then start reading that. Otherwise, if the request only has a fixed-size header,
     * then we can start processing it now.
     */
    if (connectionState->requestHeader.commonHeader.totalMessageLength > result) {
-      result = VMToolsNet_Recv(connectionState->socket, 
-                              connectionState->completeRequest + result, 
+      result = VMToolsNet_Recv(connectionState->socket,
+                              connectionState->completeRequest + result,
                               connectionState->requestHeader.commonHeader.totalMessageLength - result,
                               0);
       if (result <= 0) {
@@ -908,9 +908,9 @@ ForeignToolsSendResponse(ForeignVMToolsConnection *connectionState,  // IN
 
    responseHeader->responseFlags |= responseFlags;
 
-   result = VMToolsNet_Send(connectionState->socket, 
+   result = VMToolsNet_Send(connectionState->socket,
                             (const char *) responseHeader,
-                            totalMessageSize, 
+                            totalMessageSize,
                             0);
    if (result <= 0) {
    }
@@ -958,9 +958,9 @@ ForeignToolsSendResponseUsingTotalMessage(ForeignVMToolsConnection *connectionSt
 
    responseHeader->responseFlags |= responseFlags;
 
-   result = VMToolsNet_Send(connectionState->socket, 
+   result = VMToolsNet_Send(connectionState->socket,
                             (const char *) responseHeader,
-                            totalMessageSize, 
+                            totalMessageSize,
                             0);
    if (result <= 0) {
    }
@@ -997,11 +997,11 @@ ForeignToolsProcessUDP(int udpListenerSocket)   // IN
    char *replyPacket = NULL;
    int replyPacketSize = 0;
 
-   actualPacketLength = VMToolsNet_Recvfrom(udpListenerSocket, 
-                                             receiveBuffer, 
+   actualPacketLength = VMToolsNet_Recvfrom(udpListenerSocket,
+                                             receiveBuffer,
                                              sizeof(receiveBuffer),
                                              0,
-                                             (struct sockaddr *) &clientAddr, 
+                                             (struct sockaddr *) &clientAddr,
                                              &clientAddrLen);
    if (actualPacketLength <= 0) {
       goto abort;
@@ -1025,9 +1025,9 @@ ForeignToolsProcessUDP(int udpListenerSocket)   // IN
                                               "", // LDAPv3 predicate
                                               &xid);
    if (match) {
-       Str_Sprintf(urlBuffer, 
-                   sizeof urlBuffer, 
-                   "%s://%s/", 
+       Str_Sprintf(urlBuffer,
+                   sizeof urlBuffer,
+                   "%s://%s/",
                    VIX_SLPV2_SERVICE_NAME_TOOLS_SERVICE,
                    globalHostName);
        success = SLPv2MsgAssembler_ServiceReply(&replyPacket,
@@ -1063,11 +1063,11 @@ ForeignToolsProcessUDP(int udpListenerSocket)   // IN
        * for more responses.
        */
       if (NULL != replyPacket) {
-         VMToolsNet_Sendto(udpListenerSocket, 
-                           replyPacket, 
+         VMToolsNet_Sendto(udpListenerSocket,
+                           replyPacket,
                            replyPacketSize,
                            0, // flags
-                           (struct sockaddr *) &clientAddr, 
+                           (struct sockaddr *) &clientAddr,
                            clientAddrLen);
       }
 
@@ -1111,7 +1111,7 @@ ForeignToolsCloseConnection(ForeignVMToolsConnection *connectionState,  // IN
 
    /*
     * It's possible that data on a connection arrives late, after we have
-    * closed it. In that case, VMAutomationReceiveMessage will correctly 
+    * closed it. In that case, VMAutomationReceiveMessage will correctly
     * not process the data. But, be careful that we don't try to close
     * the connection again.
     */
@@ -1145,7 +1145,7 @@ ForeignToolsCloseConnection(ForeignVMToolsConnection *connectionState,  // IN
 
          ForeignToolsDiscardCommand(command);
       }
-      
+
       command = nextCommand;
    } // while (NULL != command)
 
@@ -1210,11 +1210,11 @@ ForeignToolsWakeSelectThread(void)    // IN
    localAddr.sin_addr.s_addr = VMToolsNet_htonl(INADDR_ANY);
    localAddr.sin_port = VMToolsNet_htons(SLPv2SocketListenerPort);
 
-   VMToolsNet_Sendto(udpListenerSocket, 
-                     packet, 
+   VMToolsNet_Sendto(udpListenerSocket,
+                     packet,
                      sizeof(packet),
                      0, // flags
-                     (struct sockaddr *) &localAddr, 
+                     (struct sockaddr *) &localAddr,
                      sizeof(localAddr));
 } // ForeignToolsWakeSelectThread
 

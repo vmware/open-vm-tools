@@ -57,16 +57,6 @@
 #include "util.h"
 #include "vmstdio.h"
 
-typedef enum {
-   VMBACKUP_SUCCESS = 0,
-   VMBACKUP_INVALID_STATE,
-   VMBACKUP_SCRIPT_ERROR,
-   VMBACKUP_SYNC_ERROR,
-   VMBACKUP_REMOTE_ABORT,
-   VMBACKUP_UNEXPECTED_ERROR
-} VmBackupStatus;
-
-
 #define VMBACKUP_ENQUEUE_EVENT() {                                      \
    gBackupState->timerEvent = EventManager_Add(gEventQueue,             \
                                                gBackupState->pollPeriod,\

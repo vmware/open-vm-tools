@@ -16,6 +16,7 @@
  *
  *********************************************************/
 
+#define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"

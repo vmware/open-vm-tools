@@ -31,22 +31,23 @@
 #include "guestInfo.h"
 
 Bool GuestInfoGetFqdn(int outBufLen, char fqdn[]);
-Bool GuestInfoGetNicInfo(NicInfo *nicInfo);
+Bool GuestInfoGetNicInfo(GuestNicInfo *nicInfo);
 void GuestInfoMemset(void * mem, int value, unsigned int size);
-Bool GuestInfoGetDiskInfo(PDiskInfo di);
-Bool GuestInfoGetOSName(unsigned int outBufFullLen, unsigned int outBufLen, 
+Bool GuestInfoGetDiskInfo(PGuestDiskInfo di);
+Bool GuestInfoGetOSName(unsigned int outBufFullLen, unsigned int outBufLen,
                         char *osNameFull, char *osName);
 int GuestInfo_GetSystemBitness(void);
-Bool GuestInfo_PerfMon(struct MemInfo *vmStats);
+Bool GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
 
-NicEntry *GuestInfoAddNicEntry(NicInfo *nicInfo, const char macAddress[MAC_ADDR_SIZE]);
+NicEntry *GuestInfoAddNicEntry(GuestNicInfo *nicInfo,
+                               const char macAddress[MAC_ADDR_SIZE]);
 VmIpAddressEntry *GuestInfoAddIpAddress(NicEntry *nicEntry,
                                         const char *ipAddr,
                                         const uint32 af_type);
 void GuestInfoAddSubnetMask(VmIpAddressEntry *ipAddressEntry,
                             const uint32 subnetMaskBits);
 
-NicEntry *GuestInfoFindMacAddress(NicInfo *nicInfo, const char *macAddress);
+NicEntry *GuestInfoFindMacAddress(GuestNicInfo *nicInfo, const char *macAddress);
 
 
 #endif

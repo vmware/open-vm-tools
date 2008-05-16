@@ -112,6 +112,15 @@ typedef enum {
 #define HGFS_VERSION_OLD           (1 << 0)
 #define HGFS_VERSION_3             (1 << 1)
 
+/* XXX: Needs change when VMCI is supported. */
+#define HGFS_REQ_PAYLOAD_SIZE_V3(hgfsReq) (sizeof *hgfsReq + sizeof(HgfsRequest))
+#define HGFS_REP_PAYLOAD_SIZE_V3(hgfsRep) (sizeof *hgfsRep + sizeof(HgfsReply))
+
+/* XXX: Needs change when VMCI is supported. */
+#define HGFS_REQ_GET_PAYLOAD_V3(hgfsReq) ((char *)(hgfsReq) + sizeof(HgfsRequest))
+#define HGFS_REP_GET_PAYLOAD_V3(hgfsRep) ((char *)(hgfsRep) + sizeof(HgfsReply))
+
+
 /*
  * File types, used in HgfsAttr. We support regular files,
  * directories, and symlinks.

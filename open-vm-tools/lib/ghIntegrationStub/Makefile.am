@@ -20,6 +20,4 @@ noinst_LIBRARIES = libghIntegrationStub.a
 libghIntegrationStub_a_SOURCES =
 libghIntegrationStub_a_SOURCES += ghIntegrationStub.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_FILE_CFLAGS@
+AM_CFLAGS = @LIB_FILE_CPPFLAGS@

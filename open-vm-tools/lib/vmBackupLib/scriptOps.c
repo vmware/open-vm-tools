@@ -218,27 +218,32 @@ VmBackupScriptOpQuery(VmBackupOp *_op) // IN
    VmBackupScript *scripts = op->state->scripts;
    VmBackupScript *currScript = NULL;
 
-   if (scripts != NULL) {
+   if (scripts != NULL && op->state->currentScript >= 0) {
       currScript = &scripts[op->state->currentScript];
    }
 
    if (op->canceled) {
       ret = VMBACKUP_STATUS_CANCELED;
       goto exit;
-   } else if (scripts == NULL || currScript->proc == NULL) {
+   } else if (scripts == NULL || currScript == NULL || currScript->proc == NULL) {
       ret = VMBACKUP_STATUS_FINISHED;
       goto exit;
    }
 
    if (!ProcMgr_IsAsyncProcRunning(currScript->proc)) {
       int exitCode;
+      Bool succeeded;
+
+      succeeded = (ProcMgr_GetExitCode(currScript->proc, &exitCode) == 0 &&
+                   exitCode == 0);
+      ProcMgr_Free(currScript->proc);
+      currScript->proc = NULL;
 
       /*
        * If thaw scripts fail, keep running and only notify the failure after
        * all others have run.
        */
-      if (ProcMgr_GetExitCode(currScript->proc, &exitCode) != 0 ||
-          exitCode != 0) {
+      if (!succeeded) {
           if (op->type == VMBACKUP_SCRIPT_FREEZE) {
              ret = VMBACKUP_STATUS_ERROR;
              goto exit;
@@ -246,9 +251,6 @@ VmBackupScriptOpQuery(VmBackupOp *_op) // IN
              op->thawFailed = TRUE;
           }
       }
-
-      ProcMgr_Free(currScript->proc);
-      currScript->proc = NULL;
 
       switch (VmBackupRunNextScript(op)) {
       case -1:
@@ -265,6 +267,12 @@ VmBackupScriptOpQuery(VmBackupOp *_op) // IN
    }
 
 exit:
+   if (ret == VMBACKUP_STATUS_ERROR) {
+      /* Report the script error to the host */
+      op->state->SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                           VMBACKUP_SCRIPT_ERROR,
+                           "Custom script failed.");
+   }
    return ret;
 }
 

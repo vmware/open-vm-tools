@@ -22,7 +22,5 @@ libGuestInfo_a_SOURCES += guestInfoServer.c
 libGuestInfo_a_SOURCES += guestInfoPosix.c
 libGuestInfo_a_SOURCES += guestInfoPerfMonLinux.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += $(DNET_CFLAGS)
-AM_CFLAGS += $(PROCPS_CFLAGS)
+AM_CFLAGS = $(DNET_CPPFLAGS)
+AM_CFLAGS += $(PROCPS_CPPFLAGS)

@@ -19,6 +19,7 @@
 #ifndef _LOGLEVEL_USER_H_
 #define _LOGLEVEL_USER_H_
 
+#define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
@@ -75,6 +76,7 @@
    LOGLEVEL_VAR(pci_hyper), \
    LOGLEVEL_VAR(pcibridge), \
    LOGLEVEL_VAR(vide), \
+   LOGLEVEL_VAR(ideCdrom), \
    LOGLEVEL_VAR(hostonly), \
    LOGLEVEL_VAR(backdoorAbsMouse), \
    LOGLEVEL_VAR(oprom), \
@@ -130,6 +132,7 @@
    LOGLEVEL_VAR(macfilter), \
    LOGLEVEL_VAR(macbw), \
    LOGLEVEL_VAR(macfi), \
+   LOGLEVEL_VAR(vmkcfg), \
    LOGLEVEL_VAR(vmxfer), \
    LOGLEVEL_VAR(poll), \
    LOGLEVEL_VAR(barrier), \

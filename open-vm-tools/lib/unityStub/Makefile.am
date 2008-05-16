@@ -20,6 +20,4 @@ noinst_LIBRARIES = libunityStub.a
 libunityStub_a_SOURCES =
 libunityStub_a_SOURCES += unityStub.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_FILE_CFLAGS@
+AM_CFLAGS = @LIB_FILE_CPPFLAGS@

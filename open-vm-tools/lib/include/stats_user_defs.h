@@ -27,6 +27,7 @@
 #ifndef STATS_USER_DEFS_H
 #define STATS_USER_DEFS_H
 
+#define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"

@@ -17,9 +17,6 @@
 
 noinst_PROGRAMS = hgfsmounter
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 hgfsmounter_LDADD =
 hgfsmounter_LDADD += ../lib/string/libString.a
 hgfsmounter_LDADD += ../lib/strUtil/libStrUtil.a

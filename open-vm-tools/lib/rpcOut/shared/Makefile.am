@@ -19,6 +19,3 @@ noinst_LTLIBRARIES = libRpcOut.la
 
 libRpcOut_la_SOURCES =
 libRpcOut_la_SOURCES += ../rpcout.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

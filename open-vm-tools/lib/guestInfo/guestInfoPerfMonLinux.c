@@ -17,7 +17,7 @@
  *********************************************************/
 
 /*
- * This file gathers the virtual memory stats from Linux guest to be 
+ * This file gathers the virtual memory stats from Linux guest to be
  * passed on to the vmx.
  */
 
@@ -37,14 +37,14 @@
 #include "debug.h"
 
 #ifndef NO_PROCPS
-static void GuestInfoMonitorGetStat(MemInfo *vmStats);
-static Bool GuestInfoMonitorReadMeminfo(MemInfo *vmStats);
+static void GuestInfoMonitorGetStat(GuestMemInfo *vmStats);
+static Bool GuestInfoMonitorReadMeminfo(GuestMemInfo *vmStats);
 #endif
 
 #define LINUX_MEMINFO_FLAGS (MEMINFO_MEMTOTAL | MEMINFO_MEMFREE | MEMINFO_MEMBUFF |\
                              MEMINFO_MEMCACHE | MEMINFO_MEMACTIVE | MEMINFO_MEMINACTIVE |\
                              MEMINFO_SWAPINRATE | MEMINFO_SWAPOUTRATE |\
-                             MEMINFO_IOINRATE | MEMINFO_IOOUTRATE) 
+                             MEMINFO_IOINRATE | MEMINFO_IOOUTRATE)
 
 /*
  *----------------------------------------------------------------------
@@ -63,7 +63,7 @@ static Bool GuestInfoMonitorReadMeminfo(MemInfo *vmStats);
  */
 
 Bool
-GuestInfo_PerfMon(MemInfo *vmStats)   // OUT: filled vmstats 
+GuestInfo_PerfMon(GuestMemInfo *vmStats)   // OUT: filled vmstats
 {
 #ifndef NO_PROCPS
    ASSERT(vmStats);
@@ -95,7 +95,7 @@ GuestInfo_PerfMon(MemInfo *vmStats)   // OUT: filled vmstats
  */
 
 static void
-GuestInfoMonitorGetStat(MemInfo *vmStats)   // OUT: filled vmstats
+GuestInfoMonitorGetStat(GuestMemInfo *vmStats)   // OUT: filled vmstats
 {
    uint32 hz = Hertz;
    uint32 dummy;
@@ -137,7 +137,7 @@ GuestInfoMonitorGetStat(MemInfo *vmStats)   // OUT: filled vmstats
    vmStats->ioOutRate = (uint64)((*pageOut * hz + cpuHalf) / cpuTotal);
 
 
-   Debug("GuestInfoMonitorGetStat: MemInfo: total: %"FMT64"u free: %"FMT64"u"\
+   Debug("GuestInfoMonitorGetStat: GuestMemInfo: total: %"FMT64"u free: %"FMT64"u"\
          "buff: %"FMT64"u cache: %"FMT64"u swapin: %"FMT64"u swapout: %"FMT64"u ioin:"\
          "%"FMT64"u ioout: %"FMT64"u inactive: %"FMT64"u active: %"FMT64"u"\
          "hugetotal: %"FMT64"u hugefree: %"FMT64"u\n", vmStats->memTotal,
@@ -166,7 +166,7 @@ GuestInfoMonitorGetStat(MemInfo *vmStats)   // OUT: filled vmstats
  */
 
 static Bool
-GuestInfoMonitorReadMeminfo(MemInfo *vmStats)   // OUT: filled vmstats
+GuestInfoMonitorReadMeminfo(GuestMemInfo *vmStats)   // OUT: filled vmstats
 {
    char buf[512];
    uint64 value;
@@ -194,8 +194,8 @@ GuestInfoMonitorReadMeminfo(MemInfo *vmStats)   // OUT: filled vmstats
       }
    }
    fclose(fp);
-   
-   Debug("GuestInfoMonitorReadMeminfo: MemInfo: total: %"FMT64"u free: %"FMT64"u"\
+
+   Debug("GuestInfoMonitorReadMeminfo: GuestMemInfo: total: %"FMT64"u free: %"FMT64"u"\
          "buff: %"FMT64"u cache: %"FMT64"u swapin: %"FMT64"u swapout: %"FMT64"u ioin:"\
          "%"FMT64"u ioout: %"FMT64"u inactive: %"FMT64"u active: %"FMT64"u"\
          "hugetotal: %"FMT64"u hugefree: %"FMT64"u\n", vmStats->memTotal,

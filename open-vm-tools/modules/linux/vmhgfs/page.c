@@ -46,11 +46,11 @@
 #include "vm_basic_types.h"
 
 /*
- * Max amount of read/write data per server request. Must be smaller than 
- * HGFS_PACKET_MAX by a large enough margin to allow for headers and 
+ * Max amount of read/write data per server request. Must be smaller than
+ * HGFS_PACKET_MAX by a large enough margin to allow for headers and
  * other request fields.
  */
-#define HGFS_IO_MAX 4096               
+#define HGFS_IO_MAX 4096
 
 /* Private functions. */
 static int HgfsDoWrite(HgfsHandle handle,
@@ -71,21 +71,21 @@ static int HgfsDoWritepage(HgfsHandle handle,
                            unsigned pageTo);
 
 /* HGFS address space operations. */
-static int HgfsReadpage(struct file *file, 
+static int HgfsReadpage(struct file *file,
                         struct page *page);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 52)
-static int HgfsWritepage(struct page *page, 
+static int HgfsWritepage(struct page *page,
                          struct writeback_control *wbc);
 #else
 static int HgfsWritepage(struct page *page);
 #endif
-static int HgfsPrepareWrite(struct file *file, 
+static int HgfsPrepareWrite(struct file *file,
                             struct page *page,
-                            unsigned pageFrom, 
+                            unsigned pageFrom,
                             unsigned pageTo);
-static int HgfsCommitWrite(struct file *file, 
+static int HgfsCommitWrite(struct file *file,
                            struct page *page,
-                           unsigned pageFrom, 
+                           unsigned pageFrom,
                            unsigned pageTo);
 
 /* HGFS address space operations structure. */
@@ -100,8 +100,8 @@ struct address_space_operations HgfsAddressSpaceOperations = {
 };
 
 
-/* 
- * Private functions. 
+/*
+ * Private functions.
  */
 
 /*
@@ -114,7 +114,7 @@ struct address_space_operations HgfsAddressSpaceOperations = {
  *
  *    We send a "Read" request to the server with the given handle.
  *
- *    It is assumed that this function is never called with a larger read than 
+ *    It is assumed that this function is never called with a larger read than
  *    what can be sent in one request.
  *
  * Results:
@@ -153,11 +153,11 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
    if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
-      
+
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
       header->op = opUsed = HGFS_OP_READ_V3;
-      
+
       request = (HgfsRequestReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->file = handle;
       request->offset = offset;
@@ -165,7 +165,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRead *request;
-      
+
       request = (HgfsRequestRead *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
       request->header.op = opUsed = HGFS_OP_READ;
@@ -182,7 +182,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
       /* Get the reply. */
       replyStatus = HgfsReplyStatus(req);
       result = HgfsStatusConvertToLinux(replyStatus);
-      
+
       switch (result) {
       case 0:
          if (opUsed == HGFS_OP_READ_V3) {
@@ -199,7 +199,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
             result = -EPROTO;
             goto out;
          }
-      
+
          if (!actualSize) {
             /* We got no bytes, so don't need to copy to user. */
             LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: server returned "
@@ -212,7 +212,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
          memcpy(buf, payload, actualSize);
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: copied %u\n",
                  actualSize));
-         result = actualSize;         
+         result = actualSize;
 	 break;
 
       case -EPROTO:
@@ -249,13 +249,13 @@ out:
  *
  * HgfsDoWrite --
  *
- *    Do one write request. Called by HgfsDoWritepage, possibly multiple 
- *    times if the size of the write is too big to be handled by one server 
+ *    Do one write request. Called by HgfsDoWritepage, possibly multiple
+ *    times if the size of the write is too big to be handled by one server
  *    request.
  *
  *    We send a "Write" request to the server with the given handle.
  *
- *    It is assumed that this function is never called with a larger write 
+ *    It is assumed that this function is never called with a larger write
  *    than what can be sent in one request.
  *
  * Results:
@@ -296,7 +296,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
    if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
-      
+
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
       header->op = opUsed = HGFS_OP_WRITE_V3;
@@ -311,7 +311,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestWrite *request;
-      
+
       request = (HgfsRequestWrite *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
       request->header.op = opUsed = HGFS_OP_WRITE;
@@ -341,7 +341,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
          } else {
             actualSize = ((HgfsReplyWrite *)HGFS_REQ_PAYLOAD(req))->actualSize;
 	 }
-      
+
          /* Return result. */
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: wrote %u bytes\n",
                  actualSize));
@@ -399,7 +399,7 @@ out:
  *-----------------------------------------------------------------------------
  */
 
-static int 
+static int
 HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
                struct page *page,  // IN/OUT: Page to read into
                unsigned pageFrom,  // IN:     Where to start reading to
@@ -433,15 +433,15 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
       buffer += result;
    } while ((result > 0) && (remainingCount > 0));
 
-   /* 
+   /*
     * It's possible that despite being asked to read a full page, there is less
-    * than a page in the file from this offset, so we should zero the rest of 
+    * than a page in the file from this offset, so we should zero the rest of
     * the page's memory.
     */
    memset(buffer, 0, remainingCount);
 
-   /* 
-    * We read a full page (or all of the page that actually belongs to the 
+   /*
+    * We read a full page (or all of the page that actually belongs to the
     * file), so mark it up to date. Also, flush the old page data from the data
     * cache.
     */
@@ -489,7 +489,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
  *-----------------------------------------------------------------------------
  */
 
-static int 
+static int
 HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
                 struct page *page,  // IN: Page containing data to write
                 unsigned pageFrom,  // IN: Beginning page offset
@@ -517,7 +517,7 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
          HGFS_IO_MAX : remainingCount;
       result = HgfsDoWrite(handle, buffer, nextCount, curOffset);
       if (result < 0) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWritepage: write error %d\n", 
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWritepage: write error %d\n",
                  result));
          goto out;
       }
@@ -564,8 +564,8 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
  *-----------------------------------------------------------------------------
  */
 
-static int 
-HgfsReadpage(struct file *file, // IN:     File to read from 
+static int
+HgfsReadpage(struct file *file, // IN:     File to read from
              struct page *page) // IN/OUT: Page to write to
 {
    int result = 0;
@@ -578,7 +578,7 @@ HgfsReadpage(struct file *file, // IN:     File to read from
 
    handle = FILE_GET_FI_P(file)->handle;
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadPage: reading from handle %u\n",
-           handle));   
+           handle));
 
    page_cache_get(page);
    result = HgfsDoReadpage(handle, page, 0, PAGE_CACHE_SIZE);
@@ -594,9 +594,9 @@ HgfsReadpage(struct file *file, // IN:     File to read from
  * HgfsWritepage --
  *
  *    The "spontaneous" way to write a page, called when the kernel is under
- *    memory pressure or is asked to sync a memory mapped file. Because 
- *    writepage() can be called from so many different places, we don't get a 
- *    filp with which to write, and we have to be very careful about races and 
+ *    memory pressure or is asked to sync a memory mapped file. Because
+ *    writepage() can be called from so many different places, we don't get a
+ *    filp with which to write, and we have to be very careful about races and
  *    locking.
  *
  * Results:
@@ -609,11 +609,11 @@ HgfsReadpage(struct file *file, // IN:     File to read from
  */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 52)
-static int 
+static int
 HgfsWritepage(struct page *page,             // IN: Page to write from
               struct writeback_control *wbc) // IN: Ignored
 #else
-static int 
+static int
 HgfsWritepage(struct page *page)             // IN: Page to write from
 #endif
 {
@@ -630,8 +630,8 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
    inode = page->mapping->host;
 
    /* We need a writable file handle. */
-   result = HgfsGetHandle(inode, 
-                          HGFS_OPEN_MODE_WRITE_ONLY + 1, 
+   result = HgfsGetHandle(inode,
+                          HGFS_OPEN_MODE_WRITE_ONLY + 1,
                           &handle);
    if (result) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsWritepage: could not get writable "
@@ -639,7 +639,7 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
       goto exit;
    }
 
-   /* 
+   /*
     * We were given an entire page to write. In most cases this means "start
     * writing from the beginning of the page (byte 0) to the very end (byte
     * PAGE_CACHE_SIZE). But what if this is the last page of the file? Then
@@ -662,7 +662,7 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
       }
    }
 
-   /* 
+   /*
     * This part is fairly intricate, so it deserves some explanation. We're
     * really interested in calling HgfsDoWritepage with our page and
     * handle, without having to then worry about locks or references. See
@@ -670,19 +670,19 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
     * must obey.
     *
     * Firstly, we acquire a reference to the page via page_cache_get() and call
-    * compat_set_page_writeback(). The latter does a number of things: it sets 
-    * the writeback bit on the page, and if it wasn't already set, it sets the 
+    * compat_set_page_writeback(). The latter does a number of things: it sets
+    * the writeback bit on the page, and if it wasn't already set, it sets the
     * writeback bit in the radix tree. Then, if the page isn't dirty, it clears
-    * the dirty bit in the radix tree. The end result is that the radix tree's 
+    * the dirty bit in the radix tree. The end result is that the radix tree's
     * notion of dirty and writeback is fully synced with the page itself.
     *
-    * Secondly, we write the page itself. 
+    * Secondly, we write the page itself.
     *
-    * Thirdly, we end writeback of the page via compat_end_page_writeback(), 
+    * Thirdly, we end writeback of the page via compat_end_page_writeback(),
     * and release our reference on the page.
     *
-    * Finally, we unlock the page, waking up its waiters and making it 
-    * available to anyone else. Note that this step must be performed 
+    * Finally, we unlock the page, waking up its waiters and making it
+    * available to anyone else. Note that this step must be performed
     * regardless of whether we wrote anything, as the VFS locked the page for
     * us.
     */
@@ -705,7 +705,7 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
  *
  *      Called by the generic write path to set up a write request for a page.
  *      We're expected to do any pre-allocation and housekeeping prior to
- *      receiving the write. 
+ *      receiving the write.
  *
  * Results:
  *      Always zero.
@@ -716,7 +716,7 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
  *-----------------------------------------------------------------------------
  */
 
-static int 
+static int
 HgfsPrepareWrite(struct file *file,  // IN: Ignored
                  struct page *page,  // IN: Page to prepare
                  unsigned pageFrom,  // IN: Beginning page offset
@@ -734,7 +734,7 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
    if ((offset >= currentFileSize) ||
        ((pageFrom == 0) && (offset + pageTo) >= currentFileSize)) {
       void *kaddr = kmap_atomic(page, KM_USER0);
-	
+
       if (pageFrom) {
          memset(kaddr, 0, pageFrom);
       }
@@ -746,11 +746,11 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
    }
 #endif
 
-   /* 
-    * Prior to 2.4.10, our caller expected to call page_address(page) between 
+   /*
+    * Prior to 2.4.10, our caller expected to call page_address(page) between
     * the calls to prepare_write() and commit_write(). This meant filesystems
-    * had to kmap() the page in prepare_write() and kunmap() it in 
-    * commit_write(). In 2.4.10, the call to page_address() was replaced with 
+    * had to kmap() the page in prepare_write() and kunmap() it in
+    * commit_write(). In 2.4.10, the call to page_address() was replaced with
     * __copy_to_user(), and while its not clear to me why this is safer,
     * nfs_prepare_write() dropped the kmap()/kunmap() calls in the same patch,
     * so the two events must be related.
@@ -768,9 +768,9 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
  * HgfsCommitWrite --
  *
  *    This function is the more common write path for HGFS, called from
- *    generic_file_buffered_write. It is much simpler for us than 
- *    HgfsWritepage above: the caller has obtained a reference to the page 
- *    and will unlock it when we're done. And we don't need to worry about 
+ *    generic_file_buffered_write. It is much simpler for us than
+ *    HgfsWritepage above: the caller has obtained a reference to the page
+ *    and will unlock it when we're done. And we don't need to worry about
  *    properly marking the writeback bit, either. See mm/filemap.c in the
  *    kernel for details about how we are called.
  *
@@ -783,7 +783,7 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
  *-----------------------------------------------------------------------------
  */
 
-static int 
+static int
 HgfsCommitWrite(struct file *file, // IN: File we're writing to
                 struct page *page, // IN: Page we're writing from
                 unsigned pageFrom, // IN: Beginning page offset
@@ -810,15 +810,15 @@ HgfsCommitWrite(struct file *file, // IN: File we're writing to
    if (writeTo > currentFileSize) {
       compat_i_size_write(inode, writeTo);
    }
-   
+
    /* We wrote a complete page, so it is up to date. */
    if ((pageTo - pageFrom) == PAGE_CACHE_SIZE) {
       SetPageUptodate(page);
    }
 
 #ifdef HGFS_ENABLE_WRITEBACK
-   /* 
-    * Check if this is a partial write to a new page, which was 
+   /*
+    * Check if this is a partial write to a new page, which was
     * initialized in HgfsPrepareWrite.
     */
    if ((offset >= currentFileSize) ||
@@ -842,8 +842,8 @@ HgfsCommitWrite(struct file *file, // IN: File we're writing to
     * would make it uptodate (ie a complete cached page).
     */
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsCommitWrite: writing to handle %u\n", 
-           handle));   
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsCommitWrite: writing to handle %u\n",
+           handle));
    return HgfsDoWritepage(handle, page, pageFrom, pageTo);
 }
 

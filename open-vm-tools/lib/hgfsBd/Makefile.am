@@ -19,6 +19,3 @@ noinst_LIBRARIES = libHgfsBd.a
 
 libHgfsBd_a_SOURCES =
 libHgfsBd_a_SOURCES += hgfsBd.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

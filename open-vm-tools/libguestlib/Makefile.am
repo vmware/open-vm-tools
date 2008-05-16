@@ -17,9 +17,6 @@
 
 lib_LTLIBRARIES = libguestlib.la
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += ../lib/rpcOut/shared/libRpcOut.la
 libguestlib_la_LIBADD += ../lib/string/shared/libString.la

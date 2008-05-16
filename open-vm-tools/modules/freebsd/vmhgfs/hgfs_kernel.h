@@ -44,11 +44,11 @@
  */
 
 #include "dbllnklst.h"
-#include "hgfs.h"
-#include "hgfsProto.h"
 
 #include "request.h"
 #include "state.h"
+#include "hgfs.h"
+#include "hgfsProto.h"
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"

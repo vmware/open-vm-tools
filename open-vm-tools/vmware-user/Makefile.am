@@ -18,9 +18,8 @@
 noinst_PROGRAMS = vmware-user
 
 AM_CFLAGS =
-AM_CFLAGS += @GTK_CFLAGS@
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @VMWARE_USER_CFLAGS@
+AM_CFLAGS += @GTK_CPPFLAGS@
+AM_CFLAGS += @VMWARE_USER_CPPFLAGS@
 
 vmware_user_LDADD =
 vmware_user_LDADD += ../lib/conf/libConf.a

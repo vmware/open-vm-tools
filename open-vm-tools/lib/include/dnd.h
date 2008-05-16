@@ -148,6 +148,10 @@ EXTERN HGLOBAL DnD_CopyDWORDToGlobal(DWORD *pDWORD);
 EXTERN HGLOBAL DnD_CreateHDrop(ConstUnicode path, ConstUnicode fileList);
 EXTERN HGLOBAL DnD_CreateHDropForGuest(ConstUnicode path,
                                        ConstUnicode fileList);
+EXTERN size_t DnD_CPStringToLocalString(ConstUnicode bufIn,
+                                        utf16_t **bufOut);
+EXTERN size_t DnD_LocalStringToCPString(utf16_t *bufIn,
+                                        char **bufOut);
 EXTERN Bool DnD_FakeMouseEvent(DWORD flag);
 EXTERN Bool DnD_FakeMouseState(DWORD key, Bool isDown);
 EXTERN Bool DnD_FakeEscapeKey(void);

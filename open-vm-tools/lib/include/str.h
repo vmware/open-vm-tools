@@ -25,6 +25,7 @@
 #ifndef _STR_H_
 #define _STR_H_
 
+#define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"

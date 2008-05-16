@@ -22,25 +22,25 @@
 
 #include "vm_basic_types.h"
 
-/* 
+/*
  * Definitions of wrapped internal primitives.
  *
  * We wrap open file handles and directory entries so that cross-platform HGFS
  * server code can use them without platform-specific pre-processing.
  *
- * On Linux, we use dirent64 from the kernel headers so as to alleviate any 
- * confusion between what the kernel will give us from the getdents64() 
+ * On Linux, we use dirent64 from the kernel headers so as to alleviate any
+ * confusion between what the kernel will give us from the getdents64()
  * syscall and what userspace will expect. Note that to avoid depending on
  * kernel headers directly, I've copied the dirent struct, replacing certain
  * kernel basic types with our own.
  *
- * On Windows, we define our own DirectoryEntry struct with d_reclen and 
- * d_name, as those are the only two fields we're interested in. It's not 
- * essential that it match the dirents from another platform, because we 
+ * On Windows, we define our own DirectoryEntry struct with d_reclen and
+ * d_name, as those are the only two fields we're interested in. It's not
+ * essential that it match the dirents from another platform, because we
  * control how they get created and populated, and they never pass down a wire.
  *
- * Otherwise, we use the native dirent struct provided by the platform's libc, 
- * as nobody else seems to suffer from the 32-bit vs. 64-bit ino_t and off_t 
+ * Otherwise, we use the native dirent struct provided by the platform's libc,
+ * as nobody else seems to suffer from the 32-bit vs. 64-bit ino_t and off_t
  * insanity that plagues Linux.
  */
 #ifndef _WIN32
@@ -75,8 +75,8 @@
 #include "hgfsUtil.h"   // for HgfsInternalStatus
 #include "syncMutex.h"
 
-/* 
- * Does this platform have oplock support? We define it here to avoid long 
+/*
+ * Does this platform have oplock support? We define it here to avoid long
  * ifdefs all over the code. For now, Linux and Windows hosts only.
  *
  * XXX: Just kidding, no oplock support yet.
@@ -106,7 +106,7 @@ typedef enum {
 typedef enum {
    DIRECTORY_SEARCH_TYPE_DIR,       /* Objects are files and subdirectories */
    DIRECTORY_SEARCH_TYPE_BASE,      /* Objects are shares */
-   DIRECTORY_SEARCH_TYPE_OTHER,     /* Objects are the contents of 
+   DIRECTORY_SEARCH_TYPE_OTHER,     /* Objects are the contents of
                                        "root/drive" or contents of "root" */
 } DirectorySearchType;
 
@@ -116,9 +116,9 @@ typedef enum {
    VOLUME_INFO_TYPE_MAX,
 } VolumeInfoType;
 
-/* 
- * The "default" share access is used in cross-platform code, so it's helpful 
- * to have a single macro for accessing it. 
+/*
+ * The "default" share access is used in cross-platform code, so it's helpful
+ * to have a single macro for accessing it.
  */
 #ifdef _WIN32
 #  define HGFS_DEFAULT_SHARE_ACCESS (FILE_SHARE_READ | FILE_SHARE_WRITE | \
@@ -216,9 +216,9 @@ typedef struct HgfsSearch {
    /* Number of dents */
    uint32 numDents;
 
-   /* 
-    * What type of search is this (what objects does it track)? This is 
-    * important to know so we can do the right kind of stat operation later 
+   /*
+    * What type of search is this (what objects does it track)? This is
+    * important to know so we can do the right kind of stat operation later
     * when we want to retrieve the attributes for each dent.
     */
    DirectorySearchType type;
@@ -232,22 +232,22 @@ typedef struct HgfsSearch {
  * The main reason for these structs is data abstraction -- we pass
  * a struct around instead of the individual parameters. This way
  * as more parameters are implemented, we don't have to add more
- * parameters to the functions, instead just extend the structs. 
+ * parameters to the functions, instead just extend the structs.
  */
- 
+
 typedef struct HgfsFileOpenInfo {
    HgfsOp requestType;
    HgfsHandle file;                  /* Opaque file ID used by the server */
    HgfsOpenValid mask;               /* Bitmask that specified which fields are valid. */
-   HgfsOpenMode mode;                /* Which type of access requested. See desiredAccess */       
-   HgfsOpenFlags flags;              /* Which flags to open the file with */                  
-   HgfsPermissions specialPerms;     /* Desired 'special' permissions for file creation */      
-   HgfsPermissions ownerPerms;       /* Desired 'owner' permissions for file creation */      
-   HgfsPermissions groupPerms;       /* Desired 'group' permissions for file creation */      
-   HgfsPermissions otherPerms;       /* Desired 'other' permissions for file creation */      
-   HgfsAttrFlags attr;               /* Attributes, if any, for file creation */                 
-   uint64 allocationSize;            /* How much space to pre-allocate during creation */       
-   uint32 desiredAccess;             /* Extended support for windows access modes */            
+   HgfsOpenMode mode;                /* Which type of access requested. See desiredAccess */
+   HgfsOpenFlags flags;              /* Which flags to open the file with */
+   HgfsPermissions specialPerms;     /* Desired 'special' permissions for file creation */
+   HgfsPermissions ownerPerms;       /* Desired 'owner' permissions for file creation */
+   HgfsPermissions groupPerms;       /* Desired 'group' permissions for file creation */
+   HgfsPermissions otherPerms;       /* Desired 'other' permissions for file creation */
+   HgfsAttrFlags attr;               /* Attributes, if any, for file creation */
+   uint64 allocationSize;            /* How much space to pre-allocate during creation */
+   uint32 desiredAccess;             /* Extended support for windows access modes */
    uint32 shareAccess;               /* Windows only, share access modes */
    HgfsServerLock desiredLock;       /* The type of lock desired by the client */
    HgfsServerLock acquiredLock;      /* The type of lock acquired by the server */
@@ -453,13 +453,13 @@ HgfsPackOpenReply(HgfsFileOpenInfo *openInfo,   // IN: open info struct
 Bool
 HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
                          size_t packetSize,          // IN: request packet size
-                         HgfsFileAttrInfo *attrInfo, // IN/OUT: unpacked attr struct 
+                         HgfsFileAttrInfo *attrInfo, // IN/OUT: unpacked attr struct
                          HgfsAttrHint *hints,        // OUT: getattr hints
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
                          HgfsHandle *file,           // OUT: file handle
 			 uint32 *caseFlags);         // OUT: case-sensitivity flags
-                                                     
+
 Bool
 HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
                         size_t packetSize,          // IN: request packet size
@@ -467,7 +467,7 @@ HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
                         size_t *cpNameSize,         // OUT: cpName size
                         HgfsDeleteHint *hints,      // OUT: delete hints
                         HgfsHandle *file,           // OUT: file handle
-			uint32 *caseFlags);         // OUT: case-sensitivity flags 
+			uint32 *caseFlags);         // OUT: case-sensitivity flags
 
 Bool
 HgfsPackDeleteReply(char *packetOut,               // IN/OUT: outgoing packet
@@ -497,8 +497,8 @@ HgfsPackGetattrReply(HgfsFileAttrInfo *attr,     // IN: attr stucture
                      char *packetOut,            // IN/OUT: outgoing packet
                      size_t *packetSize);        // IN/OUT: size of packet
 
-Bool 
-HgfsUnpackSearchReadRequest(const char *packetIn,         // IN: request packet  
+Bool
+HgfsUnpackSearchReadRequest(const char *packetIn,         // IN: request packet
                             size_t packetSize,            // IN: packet size
                             HgfsFileAttrInfo *attr,       // OUT: unpacked attr struct
                             HgfsHandle *hgfsSearchHandle, // OUT: hgfs search handle
@@ -511,15 +511,15 @@ HgfsPackSearchReadReply(const char *utf8Name,      // IN: file name
                         char *packetOut,           // IN/OUT: outgoing packet
                         size_t *packetSize);       // IN/OUT: size of packet
 
-Bool 
+Bool
 HgfsUnpackSetattrRequest(char const *packetIn,            // IN: request packet
                          size_t packetSize,               // IN: request packet size
-                         HgfsFileAttrInfo *attr,          // IN/OUT: getattr info 
+                         HgfsFileAttrInfo *attr,          // IN/OUT: getattr info
                          HgfsAttrHint *hints,             // OUT: setattr hints
                          char **cpName,                   // OUT: cpName
                          size_t *cpNameSize,              // OUT: cpName size
                          HgfsHandle *file,                // OUT: server file ID
-			 uint32 *caseFlags);              // OUT: case-sensitivity flags 
+			 uint32 *caseFlags);              // OUT: case-sensitivity flags
 
 Bool
 HgfsPackSetattrReply(char *packetOut,           // IN/OUT: outgoing packet
@@ -551,7 +551,7 @@ HgfsIsServerLockAllowed(void);
 
 Bool
 HgfsHandle2FileDesc(HgfsHandle handle,    // IN: Hgfs file handle
-                    fileDesc *fd);        // OUT: OS handle (file descriptor) 
+                    fileDesc *fd);        // OUT: OS handle (file descriptor)
 
 Bool
 HgfsFileDesc2Handle(fileDesc fd,          // IN: OS handle (file descriptor)
@@ -639,7 +639,7 @@ HgfsServerConvertCase(HgfsSharedFolder *share,  // IN
 
 /* All oplock-specific functionality is defined here. */
 #ifdef HGFS_OPLOCKS
-void 
+void
 HgfsServerOplockBreak(ServerLockData *data); // IN: server lock info
 
 void

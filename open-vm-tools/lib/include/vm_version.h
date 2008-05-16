@@ -223,7 +223,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.05.02"
+#define TOOLS_VERSION "2008.05.15"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

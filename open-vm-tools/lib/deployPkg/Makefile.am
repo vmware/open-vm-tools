@@ -21,6 +21,3 @@ libDeployPkg_a_SOURCES =
 libDeployPkg_a_SOURCES += deployPkgLog.c
 libDeployPkg_a_SOURCES += deployPkg.c
 libDeployPkg_a_SOURCES += runDeployPkgPosix.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

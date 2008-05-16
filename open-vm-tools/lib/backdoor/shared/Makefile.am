@@ -24,6 +24,3 @@ if THIRTY_TWO_BIT_USERSPACE
 else
    libBackdoor_la_SOURCES += ../backdoorGcc64.c
 endif
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

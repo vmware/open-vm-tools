@@ -19,6 +19,3 @@ noinst_LIBRARIES = libEventManager.a
 
 libEventManager_a_SOURCES =
 libEventManager_a_SOURCES += eventManager.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

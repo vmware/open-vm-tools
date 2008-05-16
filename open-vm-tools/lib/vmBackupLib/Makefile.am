@@ -21,6 +21,3 @@ libVmBackupLib_a_SOURCES =
 libVmBackupLib_a_SOURCES += scriptOps.c
 libVmBackupLib_a_SOURCES += stateMachine.c
 libVmBackupLib_a_SOURCES += syncDriverOps.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

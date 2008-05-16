@@ -17,9 +17,6 @@
 
 noinst_PROGRAMS = xferlogs
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 xferlogs_LDADD =
 xferlogs_LDADD += ../lib/rpcVmx/libRpcVmx.a
 xferlogs_LDADD += ../lib/string/libString.a

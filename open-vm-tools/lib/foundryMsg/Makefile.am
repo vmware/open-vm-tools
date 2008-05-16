@@ -22,6 +22,3 @@ libFoundryMsg_a_SOURCES += foundryMsg.c
 libFoundryMsg_a_SOURCES += foundryThreads.c
 libFoundryMsg_a_SOURCES += foundryPropertyListCommon.c
 libFoundryMsg_a_SOURCES += vixTranslateErrOpenSource.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

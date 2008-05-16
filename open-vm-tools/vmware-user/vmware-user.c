@@ -131,6 +131,7 @@ static int const gSignals[] = {
    SIGTERM,
    SIGUSR1,
    SIGUSR2,
+   SIGPIPE
 };
 
 

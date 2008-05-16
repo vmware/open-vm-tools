@@ -19,6 +19,3 @@ noinst_LIBRARIES = libVmSignal.a
 
 libVmSignal_a_SOURCES =
 libVmSignal_a_SOURCES += vmsignal.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

@@ -897,6 +897,16 @@ struct VixMsgSnapshotUpdateEvent {
 #include "vmware_pack_end.h"
 VixMsgSnapshotUpdateEvent;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgSnapshotMRURequest {
+   VixCommandRequestHeader    header;
+
+   int32                      snapshotId;
+   int32                      maxMRU;
+}
+#include "vmware_pack_end.h"
+VixMsgSnapshotMRURequest;
 
 /*
  * Fork a running VM.
@@ -951,6 +961,15 @@ VixMsgRecordReplayEvent;
 
 typedef
 #include "vmware_pack_begin.h"
+struct VixMsgTimeMarkerEncounteredEvent {
+   VixMsgEventHeader        eventHeader;      
+   uint32                   propertyListSize;
+}
+#include "vmware_pack_end.h"
+VixMsgTimeMarkerEncounteredEvent;
+
+typedef
+#include "vmware_pack_begin.h"
 struct VixMsgDebuggerEvent {
    VixMsgEventHeader          eventHeader;
 
@@ -983,33 +1002,29 @@ struct VixMsgVMSnapshotSetReplaySpeedRequest {
 #include "vmware_pack_end.h"
 VixMsgVMSnapshotSetReplaySpeedRequest;
 
-typedef uint32 VixReplayStopAtType;
-enum {
-   VIX_REPLAY_STOPAT_EIPECXBRCNT  = 1,
-};
-
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgVMSetReplayStopAtRequest {
+struct VixMsgVMAddTimeMarkerRequest {
    VixCommandRequestHeader    header;
-
-   int32                      options;
-   VixReplayStopAtType        stopAtType;
+   uint32                     options;
+   uint32                     action;
+   uint32                     propertyListSize;
 }
 #include "vmware_pack_end.h"
-VixMsgVMSetReplayStopAtRequest;
+VixMsgVMAddTimeMarkerRequest;
 
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgVMSetReplayStopAtEipEcxBrCntRequest {
-   VixMsgVMSetReplayStopAtRequest   stopAtCommonRequest;
-   uint32                           mask;
-   uint64                           eip;
-   uint64                           ecx;
-   int64                            brCnt;
+struct VixMsgVMGetTimeMarkerRequest {
+   VixCommandRequestHeader    header;
+   uint32                     options;
+   uint32                     whence;
+   uint32                     index;
+   uint32                     propertyListSize;
 }
 #include "vmware_pack_end.h"
-VixMsgVMSetReplayStopAtEipEcxBrCntRequest;
+VixMsgVMGetTimeMarkerRequest;
+
 
 /*
  * Fault Tolerance Automation
@@ -1825,7 +1840,19 @@ struct VixMsgDetachDebuggerResponse {
 #include "vmware_pack_end.h"
 VixMsgDetachDebuggerResponse;
 
+/*
+ * **********************************************************
+ * VM Pause state change event format
+ */
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgPauseStateChangedEvent {
+   VixMsgEventHeader          eventHeader;
+   Bool                       paused;
+}
+#include "vmware_pack_end.h"
+VixMsgPauseStateChangedEvent;
 
 
 /*
@@ -2034,7 +2061,7 @@ enum {
    VIX_COMMAND_REFRESH_RUNTIME_PROPERTIES       = 129,
 
    VIX_COMMAND_GET_SNAPSHOT_SCREENSHOT          = 130,
-   VIX_COMMAND_SET_REPLAY_STOP_POINT            = 131,
+   VIX_COMMAND_ADD_TIMEMARKER                   = 131,
 
    VIX_COMMAND_WAIT_FOR_USER_ACTION_IN_GUEST    = 132,
    VIX_COMMAND_VMDB_END_TRANSACTION             = 133,
@@ -2062,7 +2089,13 @@ enum {
    
    VIX_COMMAND_GET_VMX_DEVICE_STATE             = 151,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 152,
+   VIX_COMMAND_GET_NUM_TIMEMARKERS              = 152,
+   VIX_COMMAND_GET_TIMEMARKER                   = 153,
+   VIX_COMMAND_REMOVE_TIMEMARKER                = 154,
+
+   VIX_COMMAND_SNAPSHOT_SET_MRU                 = 156,
+
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 157,
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
 };

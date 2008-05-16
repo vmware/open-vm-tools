@@ -1,3 +1,120 @@
+2008-05-12  Elliot Lee  <elliot@vmware.com>
+
+	* Resync with internal trunk (2008.05.08).
+
+	* configure.ac, **/Makefile.am: Use CPPFLAGS instead of
+	CFLAGS to eliminate warning about proc/sysinfo.h.
+
+	* guestd/foreignVMToolsNetworking.c,
+	vmware-user/foreignVMToolsNetworking.c
+	lib/hgfsServer/hgfsServerLinux.c, lib/include/hgfsServerInt.h,
+	modules/linux/vmhgfs/bdhandler.c, modules/linux/vmhgfs/dir.c,
+	modules/linux/vmhgfs/file.c, modules/linux/vmhgfs/filesystem.h,
+	modules/linux/vmhgfs/fsutil.h, modules/linux/vmhgfs/inode.c,
+	modules/linux/vmhgfs/link.c, modules/linux/vmhgfs/module.h,
+	modules/linux/vmhgfs/page.c, modules/linux/vmhgfs/request.c,
+	modules/linux/vmhgfs/request.h: Whitespace cleanups.
+
+	* guestd/main.c: Removed "blessed app" code for starting
+	vmware-user. Hooray!
+
+	* lib/deployPkg/deployPkg.c: Remove unneeded Utf8 conversion for
+	Windows.
+
+	* lib/file/filePosix.c: Use new Posix_RealPath implementation.
+
+	* lib/guestApp/guestApp.c, lib/include/guestApp.h: Remove/cleanup
+	UTF-8 related RPC functions.
+
+	* lib/guestInfo/guestInfoPerfMonLinux.c,
+	lib/guestInfo/guestInfoPosix.c, lib/include/guestInfo.h,
+	lib/include/guestInfoInt.h, lib/include/guestStats.h: Rename
+	structures to GuestMemInfo, GuestNicInfo, and GuestDiskInfo.
+
+	* lib/guestInfo/guestInfoServer.c, lib/include/guest_msg_def.h: As
+	above, and also GUESTMSG_MAX_IN_SIZE moved to guest_msg_def.h, and
+	misc locking updates. Also add GuestInfoServer_Main(), and cleanup
+	whitespace.
+
+	* lib/hgfsServer/hgfsServer.c: Cleanup UTF-8 handling.
+
+	* lib/include/codeset.h: Update defines that indicate whether the
+	current platform is using UTF-8.
+
+	* lib/include/dnd.h: Add prototypes for a couple of string
+	conversion functions.
+
+	* lib/include/file_extensions.h: Add OVF and Archived OVF file extensions.
+
+	* lib/include/file.h: C++ guard thingies. Update a couple of
+	function prototypes to work on file descriptors instead of
+	filenames.
+
+	* lib/include/hashTable.h, lib/include/guest_os.h,
+	lib/include/loglevel_defs.h, lib/include/stats_user_defs.h,
+	lib/include/stats_user_setup.h, lib/include/str.h,
+	lib/include/unicodeTypes.h, lib/include/util.h: Allow inclusion in
+	kernel modules...
+
+	* lib/include/loglevel_user.h: As above, and add a couple of
+	loglevel variables.
+
+	* lib/include/util.h, lib/misc/util_misc.c: Allow inclusion in
+	kernel modules as above, and add some utility functions on Windows
+	for manipulating canonical paths.
+
+	* lib/include/hgfsProto.h, lib/include/hgfsUtil.h: Move
+	request/reply payload macros to hgfsProto.h.
+
+	* lib/include/hgfsServerPolicy.h: Add ShareList management
+	prototypes and structure members.
+
+	* lib/include/msg.h: Add function prototypes for creating and
+	posting lists of messages.
+
+	* lib/include/system.h: Add types & functions related to desktop
+	switch monitoring on Windows.
+
+	* lib/include/unicodeOperations.h: Add/update inline unicode operations.
+
+	* lib/include/vixCommands.h: Add VIX requests and events.
+
+	* lib/include/vmbackup_def.h, lib/vmBackupLib/stateMachine.c: Move
+	backup status enum to public header.
+
+	* lib/include/vm_basic_asm_x86_64.h: Div643232 now also works on MSC.
+
+	* lib/include/vm_basic_defs.h: Add debug output macros for Windows drivers.
+
+	* lib/include/vm_basic_types.h: Update the FMTPD macro, add
+	SCANF_DECL macro for arg checking on scanf-like functions.
+
+	* lib/include/x86cpuid.h: Defines for AMD L2/L3 cache separately, and CPUID for Nehalem.
+
+	* lib/misc/codesetOld.c: Bug fixes and general unicode handling updates. 
+
+	* lib/system/systemLinux.c: Use Posix_Getenv/Posix_Setenv impls.
+
+	* lib/vixTools/vixTools.c, lib/vmBackupLib/scriptOps.c: Bug fixes.
+
+	* modules/freebsd/*, modules/linux/*: Updates to correspond to
+	updates of files in main tree.
+
+	* modules/freebsd/vmhgfs/hgfs_kernel.h: Bug fixes.
+
+	* modules/freebsd/vmxnet/vm_device_version: Add
+	SCSI_IDE_HOSTED_CHANNEL define, update SCSI_MAX_CHANNELS.
+
+	* modules/freebsd/vmxnet/vmnet.def: Add capabilities for IPv6
+	checksumming and TSO, and large packet TSO.
+
+	* lib/include/vmblock.h, modules/linux/vmblock/linux/control.c,
+	modules/linux/vmblock/linux/vmblockInt.h: Use a macro to better
+	abstract the vmblock mount point & device.
+
+	* vmware-user/vmware-user.c: Add SIGPIPE to the list of signals
+	that vmware-user handles.
+	
 2008-05-02  Adar Dembo  <adar@vmware.com>
 
 	* Resync with internal trunk (2008.04.19).

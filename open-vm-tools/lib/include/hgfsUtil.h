@@ -91,14 +91,6 @@ struct timespec {
 #define HGFS_NAME_BUFFER_SIZE(request) (HGFS_PACKET_MAX - (sizeof *request - 1))
 #define HGFS_NAME_BUFFER_SIZET(sizet) (HGFS_PACKET_MAX - (sizet) - 1)
 
-/* XXX: Needs change when VMCI is supported. */
-#define HGFS_REQ_PAYLOAD_SIZE_V3(hgfsReq) (sizeof *hgfsReq + sizeof(HgfsRequest))
-#define HGFS_REP_PAYLOAD_SIZE_V3(hgfsRep) (sizeof *hgfsRep + sizeof(HgfsReply))
-
-/* XXX: Needs change when VMCI is supported. */
-#define HGFS_REQ_GET_PAYLOAD_V3(hgfsReq) ((char *)(hgfsReq) + sizeof(HgfsRequest))
-#define HGFS_REP_GET_PAYLOAD_V3(hgfsRep) ((char *)(hgfsRep) + sizeof(HgfsReply))
-
 #ifndef _WIN32
 /*
  * Routines for converting between Win NT and unix time formats. The

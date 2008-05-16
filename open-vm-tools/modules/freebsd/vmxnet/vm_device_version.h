@@ -125,7 +125,8 @@
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES	 16	  // BT-958 emulates only 16
 #define SCSI_IDE_CHANNEL         SCSI_MAX_CONTROLLERS
-#define SCSI_MAX_CHANNELS        (SCSI_MAX_CONTROLLERS + 1)
+#define SCSI_IDE_HOSTED_CHANNEL  (SCSI_MAX_CONTROLLERS + 1)
+#define SCSI_MAX_CHANNELS        (SCSI_MAX_CONTROLLERS + 2)
 
 /************* Strings for the VESA BIOS Identity Fields *****************/
 #define VBE_OEM_STRING COMPANY_NAME " SVGA"

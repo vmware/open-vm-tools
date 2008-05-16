@@ -17,9 +17,7 @@
 
 noinst_PROGRAMS = toolbox
 
-AM_CFLAGS =
-AM_CFLAGS += @GTK_CFLAGS@
-AM_CFLAGS += @COMMON_CFLAGS@
+AM_CFLAGS = @GTK_CPPFLAGS@
 
 toolbox_LDADD =
 toolbox_LDADD += ../lib/conf/libConf.a

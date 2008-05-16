@@ -21,6 +21,3 @@ libSLPv2Parser_a_SOURCES =
 libSLPv2Parser_a_SOURCES += SLPv2MsgParser.c
 libSLPv2Parser_a_SOURCES += SLPv2Match.c
 libSLPv2Parser_a_SOURCES += SLPv2MsgAssembler.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

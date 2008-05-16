@@ -181,7 +181,7 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
  *      Adds the MAC addresses of all NICs and their corresponding IPs.
  *
  * Side effects:
- *      Memory is allocated for each NIC, as well as IP addresses of all NICs 
+ *      Memory is allocated for each NIC, as well as IP addresses of all NICs
  *      on successful return.
  *
  *-----------------------------------------------------------------------------
@@ -189,11 +189,11 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 
 int
 ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface entry
-                     void *arg)                       // IN: Pointer to the NicInfo
+                     void *arg)                       // IN: Pointer to the GuestNicInfo
 {
    int i;
 
-   NicInfo *nicInfo = (NicInfo *)arg;
+   GuestNicInfo *nicInfo = (GuestNicInfo *)arg;
 
    if ((entry->intf_type & INTF_TYPE_ETH) == INTF_TYPE_ETH) {
       NicEntry *nicEntryCur;
@@ -259,14 +259,14 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
  *      Return MAC addresses of all NICs and their corresponding IPs.
  *
  * Side effects:
- *      Memory is allocated for each NIC, as well as IP addresses of all NICs 
+ *      Memory is allocated for each NIC, as well as IP addresses of all NICs
  *      on successful return.
  *
  *-----------------------------------------------------------------------------
  */
 
 Bool
-GuestInfoGetNicInfo(NicInfo *nicInfo)           // OUT
+GuestInfoGetNicInfo(GuestNicInfo *nicInfo)           // OUT
 {
 #ifndef NO_DNET
    intf_t *intf;
@@ -755,7 +755,7 @@ GuestInfoGetOSName(unsigned int outBufFullLen,      // IN: length of osNameFull 
  *      Determines the operating system's bitness.
  *
  * Return value:
- *      32 or 64 on success, negative value on failure. Check errno for more 
+ *      32 or 64 on success, negative value on failure. Check errno for more
  *      details of error.
  *
  * Side effects:

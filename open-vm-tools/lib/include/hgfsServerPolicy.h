@@ -48,11 +48,18 @@ typedef struct HgfsSharedFolder {
                 * Path of share in server's filesystem. Should
                 * not include final path separator.
                 */
-   size_t nameLen;   /* Length of name string */
-   size_t pathLen;   /* Length of path string */
-   Bool readAccess;  /* Read permission for this share */
-   Bool writeAccess; /* Write permission for this share */
+   char *shareTags;     /* Tags associated with this share (comma delimited). */
+   size_t shareTagsLen; /* Length of shareTag string */
+   size_t nameLen;      /* Length of name string */
+   size_t pathLen;      /* Length of path string */
+   Bool readAccess;     /* Read permission for this share */
+   Bool writeAccess;    /* Write permission for this share */
 } HgfsSharedFolder;
+
+typedef struct HgfsServerPolicy_ShareList {
+   size_t count;
+   char **shareNames;
+} HgfsServerPolicy_ShareList;
 
 /* Defined in hgfsServerInt.h */
 HgfsGetNameFunc HgfsServerPolicy_GetShares;
@@ -60,15 +67,21 @@ HgfsInitFunc HgfsServerPolicy_GetSharesInit;
 HgfsCleanupFunc HgfsServerPolicy_GetSharesCleanup;
 
 HgfsNameStatus
-HgfsServerPolicy_GetSharePath(char const *nameIn,         // IN: 
-                              size_t nameInLen,           // IN: 
-                              HgfsOpenMode mode,          // IN: 
-                              size_t *sharePathLen,       // OUT: 
-                              char const **sharePath,     // OUT: 
+HgfsServerPolicy_GetSharePath(char const *nameIn,         // IN:
+                              size_t nameInLen,           // IN:
+                              HgfsOpenMode mode,          // IN:
+                              size_t *sharePathLen,       // OUT:
+                              char const **sharePath,     // OUT:
                               HgfsSharedFolder **share);  // OUT:
 HgfsNameStatus
 HgfsServerPolicy_GetShareMode(char const *nameIn,        // IN: Share name to retrieve
                               size_t nameInLen,          // IN: Length of Share name
                               HgfsOpenMode *mode);       // OUT: Share's access mode
+
+void
+HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: list to free
+
+HgfsServerPolicy_ShareList *
+HgfsServerPolicy_GetSharesWithTag(const char *tag); // IN: tag to search for
 
 #endif // _HGFS_SERVER_POLICY_H_

@@ -72,11 +72,19 @@ typedef enum {OS_DETAIL_WIN95           = 1,
               OS_DETAIL_WIN2K3_BUS      = 16,
               OS_DETAIL_VISTA           = 17,
               OS_DETAIL_UNKNOWN         = 18} OS_DETAIL_TYPE;
+typedef void (*DesktopSwitchNotifyCB)(void *);
+typedef struct {
+   DesktopSwitchNotifyCB cb;   // callback to invoke.
+   void *cbdata;               // data to pass to callback
+} DesktopSwitchThreadArgs;
 
 BOOL System_SetProcessPrivilege(char *lpszPrivilege, Bool bEnablePrivilege);
 OS_TYPE System_GetOSType(void);
 OS_DETAIL_TYPE System_GetOSDetailType(void);
 int32 System_GetSPVersion(void);
+Bool System_IsLoginScreenActive(void);
+Bool System_StartDesktopSwitchThread(DesktopSwitchThreadArgs *args);
+void System_KillDesktopSwitchThread(void);
 #endif
 
 

@@ -18,13 +18,23 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+################################################################################
+# In addition to the usual environment variables and command line
+# arguments that a configure script usually takes (CFLAGS, LDFLAGS,
+# etc.), this script also accepts:
+# $CUSTOM_GTK_CPPFLAGS - compile-time flags to find Gtk headers.
+# $CUSTOM_GTK_LIBS - link-time flags to find and link the Gtk libraries.
+# $CUSTOM_PROCPS_CPPFLAGS - compile-time flags to find procps headers
+# $CUSTOM_PROCPS_LIBS - link-time flags to find and link the procps library.
+################################################################################
+
 ###
 ### Initialization
 ###
 
 AC_INIT(
    [open-vm-tools],
-   [2008.05.02-90473],
+   [2008.05.15-93084],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -103,11 +113,17 @@ AM_INIT_AUTOMAKE
 ###
 # These need to be declared after initialization.
 
-# Some of our macro call-sites require changes to CFLAGS/LDFLAGS. In such
-# places, we save the original value of CFLAGS/LDFLAGS before the macro call
-# and restore it when the call is done. We must perform this save at each macro
-# site, because CFLAGS/LDFLAGS may change over the course of configuration. 
-CFLAGS="$CFLAGS -DUSING_AUTOCONF=1"
+# Some of our macro call-sites require changes to
+# CPPFLAGS/CFLAGS/LDFLAGS. In such places, we save the original value
+# of CPPFLAGS/CFLAGS/LDFLAGS before the macro call and restore it when
+# the call is done. We must perform this save at each macro site,
+# because CPPFLAGS/CFLAGS/LDFLAGS may change over the course of
+# configuration.
+#
+# CPPFLAGS is intended for preprocessor options (-D and -I mainly)
+# CFLAGS is intended for compiler options (-O, -f, -W, and so forth)
+
+CPPFLAGS="$CPPFLAGS -DUSING_AUTOCONF=1"
 
 ###
 ### Programs
@@ -142,7 +158,7 @@ elif test "$have_x" != "yes"; then
       [The X11 libraries were not found. Please configure without X11 (using --without-x), or install the libX11 devel package(s).])
 else
    LIBS="$LIBS $X_LIBS"
-   CFLAGS="$CFLAGS $X_CFLAGS"
+   CPPFLAGS="$CPPFLAGS $X_CFLAGS"
    COMMON_XLIBS="-lX11"
    COMMON_XLIBS="-lXext $COMMON_XLIBS"
 
@@ -173,7 +189,7 @@ else
 	 [libXtst not found. Please configure without X11 (using --without-x) or install the libXtst devel package(s).])],
       [$COMMON_XLIBS])
 
-   if test -n "$CUSTOM_GTK_CFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
+   if test -n "$CUSTOM_GTK_CPPFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
    # Check to see if we have some version of GTK. gtk_accel_group_add
    # is a random function that is present in Gtk 1.2 but not Gtk
    # 2.0. Similarly, gtk_tree_view_new is a random function in Gtk 2.0
@@ -221,13 +237,13 @@ else
       # 'pkg-config --cflags gtk+-2.0' gives an error.
       if test "$HAVE_GTK2" = "yes" -a "$HAVE_PKG_CONFIG" = "yes" \
 	 && ! pkg-config --exists gtk+-2.0 \
-	 && test -z "$CUSTOM_GTK_CFLAGS" -a -z "$CUSTOM_GTK_LIBS"; then
+	 && test -z "$CUSTOM_GTK_CPPFLAGS" -a -z "$CUSTOM_GTK_LIBS"; then
          HAVE_GTK2="no"
       fi
 
       if test "$HAVE_GTK2" = "yes"; then
       # Gtk 2.0
-	 GTK_CFLAGS="$GTK_CFLAGS -DGTK2"
+	 GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK2"
 	 gtkPackageName="gtk+-2.0"
       elif test "$HAVE_GTK1" = "yes"; then
       # Gtk 1.2
@@ -239,16 +255,16 @@ else
       fi
 
       # Prefer flags specified, in the environment, by the user.
-      if test -n "$CUSTOM_GTK_CFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
-	 GTK_CFLAGS="$GTK_CFLAGS $CUSTOM_GTK_CFLAGS"
+      if test -n "$CUSTOM_GTK_CPPFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
+	 GTK_CPPFLAGS="$GTK_CPPFLAGS $CUSTOM_GTK_CPPFLAGS"
 	 GTK_LIBS="$GTK_LIBS $CUSTOM_GTK_LIBS"
       # Use pkg-config if available and there are no user-specified flags.
       elif test "$HAVE_PKG_CONFIG" = "yes"; then
-	 GTK_CFLAGS="$GTK_CFLAGS $(pkg-config --cflags $gtkPackageName)"
+	 GTK_CPPFLAGS="$GTK_CPPFLAGS $(pkg-config --cflags $gtkPackageName)"
 	 GTK_LIBS="$GTK_LIBS $(pkg-config --libs $gtkPackageName)"
       # Otherwise, we have a problem.
       else
-	 AC_MSG_ERROR([pkg-config not found. Get pkg-config or set CUSTOM_GTK_CFLAGS and CUSTOM_GTK_LIBS to specify gtk header file and library locations.])
+	 AC_MSG_ERROR([pkg-config not found. Get pkg-config or set CUSTOM_GTK_CPPFLAGS and CUSTOM_GTK_LIBS to specify gtk header file and library locations.])
       fi
 
    else
@@ -314,23 +330,23 @@ if test "$with_procps" = "yes"; then
 	# 'procps' package installed without 'libproc-dev' would lead to
 	# compilation errors down the line, so to avoid that we explicitly
 	# check for one of the libproc headers that is consumed in the build.
-	if test -n "$CUSTOM_PROCPS_CFLAGS"; then
-		PROCPS_CFLAGS="$CUSTOM_PROCPS_CFLAGS"
+	if test -n "$CUSTOM_PROCPS_CPPFLAGS"; then
+		PROCPS_CPPFLAGS="$CUSTOM_PROCPS_CPPFLAGS"
 	else
 		# XXX: Unfortunately, the libproc devel package doesn't appear
 		# to ship with a configuration script or pkg-config manifest
 		# file, so there's no portable way to get the location of its
 		# headers. For now we default to /usr/include.
-		PROCPS_CFLAGS="-I/usr/include"
+		PROCPS_CPPFLAGS="-I/usr/include"
 	fi
-	ORIGINAL_CFLAGS="$CFLAGS"
-	CFLAGS="$PROCPS_CFLAGS $CFLAGS"
+	ORIGINAL_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$PROCPS_CPPFLAGS $CPPFLAGS"
 	AC_CHECK_HEADER(
 	   [proc/sysinfo.h],
 	   [],
 	   [AC_MSG_ERROR(
 	      [libproc headers not found. Please configure without procps (using --without-procps) or install libproc devel package])])
-	CFLAGS="$ORIGINAL_CFLAGS"
+	CPPFLAGS="$ORIGINAL_CPPFLAGS"
 fi
 
 if test "$with_procps" != "yes"; then
@@ -353,7 +369,7 @@ if test "$with_dnet" = "yes"; then
 		       [no])
 
 	if test "$DNET_CONFIG" != no; then
-		DNET_CFLAGS="`$DNET_CONFIG --cflags`"
+		DNET_CPPFLAGS="`$DNET_CONFIG --cflags`"
 		DNET_LIBS="`$DNET_CONFIG --libs`"
 
 		GUESTD_LDADD="$GUESTD_LDADD $DNET_LIBS"
@@ -384,7 +400,7 @@ if test "$with_icu" = "yes"; then
 		     [no])
 
 	if test "$ICU_CONFIG" != no; then
-		ICU_CFLAGS="`$ICU_CONFIG --cppflags` -DUSE_ICU"
+		ICU_CPPFLAGS="`$ICU_CONFIG --cppflags` -DUSE_ICU"
 		ICU_LIBS="`$ICU_CONFIG --ldflags`"
 
 		AC_CHECK_LIB([icuuc],
@@ -393,11 +409,11 @@ if test "$with_icu" = "yes"; then
 			     [$ICU_LIBS])
 
 		if test "$have_ICU_38" = "yes"; then
-			ICU_CFLAGS="$ICU_CFLAGS -DHAVE_ICU_38"
+			ICU_CPPFLAGS="$ICU_CPPFLAGS -DHAVE_ICU_38"
 		fi
 
 		# Easier to give all modules the ICU defines/includes...
-		COMMON_CFLAGS="$COMMON_CFLAGS $ICU_CFLAGS"
+		CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
 	else
 		AC_MSG_ERROR(
 		   [icu-config was not found on your PATH. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])
@@ -527,8 +543,8 @@ if test "$os" = "linux"; then
 fi
 
 ### General flags / actions
-COMMON_CFLAGS="$COMMON_CFLAGS -Wall"
-COMMON_CFLAGS="$COMMON_CFLAGS -Werror"
+CFLAGS="$CFLAGS -Wall"
+CFLAGS="$CFLAGS -Werror"
 
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident' in Xlib.h on OpenSolaris.
 for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
@@ -541,16 +557,16 @@ for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
        [
 	return 0;
        ],
-   [COMMON_CFLAGS="$COMMON_CFLAGS $TEST_CFLAG"
+   [CFLAGS="$CFLAGS $TEST_CFLAG"
     AC_MSG_RESULT(yes)],
    [AC_MSG_RESULT(no)])
    CFLAGS="$ORIGINAL_CFLAGS"
 done
-COMMON_CFLAGS="$COMMON_CFLAGS -DVMX86_TOOLS"
-COMMON_CFLAGS="$COMMON_CFLAGS -DNO_CORE_ICU"
+CPPFLAGS="$CPPFLAGS -DVMX86_TOOLS"
+CPPFLAGS="$CPPFLAGS -DNO_CORE_ICU"
 
 INCLUDE_DIR="`cd $srcdir; pwd`/lib/include"
-COMMON_CFLAGS="$COMMON_CFLAGS -I$INCLUDE_DIR"
+CPPFLAGS="$CPPFLAGS -I$INCLUDE_DIR"
 
 ### OS/arch-specific flags / actions
 
@@ -559,11 +575,11 @@ MODULES_OS="$os"
 buildHgfsmounter=no
 
 if test "$os" = "linux"; then
-   COMMON_CFLAGS="$COMMON_CFLAGS -D_FILE_OFFSET_BITS=64"
-   COMMON_CFLAGS="$COMMON_CFLAGS -D_LARGEFILE64_SOURCE"
-   COMMON_CFLAGS="$COMMON_CFLAGS -D_XOPEN_SOURCE=500"
-   COMMON_CFLAGS="$COMMON_CFLAGS -D_BSD_SOURCE"
-   COMMON_CFLAGS="$COMMON_CFLAGS -D_SVID_SOURCE"
+   CPPFLAGS="$CPPFLAGS -D_FILE_OFFSET_BITS=64"
+   CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
+   CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=500"
+   CPPFLAGS="$CPPFLAGS -D_BSD_SOURCE"
+   CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE"
 
    if test "$osVersion" -ge 202000; then
       MODULES="$MODULES vmxnet vmmemctl"
@@ -591,13 +607,13 @@ if test "$os" = "freebsd"; then
 fi
 
 if test "$os" = "solaris"; then
-   LIB_IMPERSONATE_CFLAGS="$LIB_IMPERSONATE_CFLAGS -D_POSIX_PTHREAD_SEMANTICS"
-   LIB_USER_CFLAGS="$LIB_USER_CFLAGS -D_POSIX_PTHREAD_SEMANTICS"
+   LIB_IMPERSONATE_CPPFLAGS="$LIB_IMPERSONATE_CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
+   LIB_USER_CPPFLAGS="$LIB_USER_CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
 
    GUESTD_LDADD="$GUESTD_LDADD -lsocket"
    GUESTD_LDADD="$GUESTD_LDADD -lnsl"
 
-   VMWARE_USER_CFLAGS="$VMWARE_USER_CFLAGS -I/usr/X11/include/"
+   VMWARE_USER_CPPFLAGS="$VMWARE_USER_CPPFLAGS -I/usr/X11/include/"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lXext"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lX11"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lsocket"
@@ -605,7 +621,7 @@ if test "$os" = "solaris"; then
 
    # uname -r on Solaris 10 reports "5.10"
    if test "$osVersion" -ge 510000; then
-      COMMON_CFLAGS="$COMMON_CFLAGS -DSOL10"
+      CPPFLAGS="$CPPFLAGS -DSOL10"
    fi
 fi
 
@@ -627,62 +643,60 @@ if test "$MULTIMON_ENABLED" = "no"; then
 fi
 
 if test "$os$userSpaceBitness" = "linux64" || test "$HAVE_SYS_SETUID" = "yes"; then
-   LIB_MISC_CFLAGS="$LIB_MISC_CFLAGS -DGLIBC_VERSION_21"
+   LIB_MISC_CPPFLAGS="$LIB_MISC_CPPFLAGS -DGLIBC_VERSION_21"
 fi
 
 if test "$HAVE_NEW_ICONV" = "yes"; then
-   LIB_MISC_CFLAGS="$LIB_MISC_CFLAGS -DGLIBC_VERSION_22"
+   LIB_MISC_CPPFLAGS="$LIB_MISC_CPPFLAGS -DGLIBC_VERSION_22"
 fi
 
 if test "$HAVE_LSEEK" = "yes"; then
-   LIB_FILE_CFLAGS="$LIB_FILE_CFLAGS -DGLIBC_VERSION_21"
-   LIB_HGFS_SERVER_CFLAGS="$LIB_HGFS_SERVER_CFLAGS -DGLIBC_VERSION_21"
+   LIB_FILE_CPPFLAGS="$LIB_FILE_CPPFLAGS -DGLIBC_VERSION_21"
+   LIB_HGFS_SERVER_CPPFLAGS="$LIB_HGFS_SERVER_CPPFLAGS -DGLIBC_VERSION_21"
 fi
 
 if test "$HAVE_SETRESUID" = "yes"; then
-   LIB_PROC_MGR_CFLAGS="$LIB_PROC_MGR_CFLAGS -DGLIBC_VERSION_23"
+   LIB_PROC_MGR_CPPFLAGS="$LIB_PROC_MGR_CPPFLAGS -DGLIBC_VERSION_23"
 fi
 
 if test "$HAVE_CRYPT" = "yes"; then
-   LIB_AUTH_CFLAGS="$LIB_AUTH_CFLAGS -DGLIBC_VERSION_22"
+   LIB_AUTH_CPPFLAGS="$LIB_AUTH_CPPFLAGS -DGLIBC_VERSION_22"
 fi
 
 if test "$HAVE_WCHAR_H" = "yes"; then
-   LIB_STRING_CFLAGS="$LIB_STRING_CFLAGS -DGLIBC_VERSION_22"
+   LIB_STRING_CPPFLAGS="$LIB_STRING_CPPFLAGS -DGLIBC_VERSION_22"
 fi
 
 ### General substs
 
 AC_SUBST([MODULES_OS])
 AC_SUBST([MODULES])
-AC_SUBST([COMMON_CFLAGS])
-AC_SUBST([COMMON_PROG_CFLAGS])
 AC_SUBST([COMMON_XLIBS])
-AC_SUBST([GTK_CFLAGS])
+AC_SUBST([GTK_CPPFLAGS])
 AC_SUBST([GTK_LIBS])
-AC_SUBST([DNET_CFLAGS])
+AC_SUBST([DNET_CPPFLAGS])
 AC_SUBST([DNET_LIBS])
-AC_SUBST([PROCPS_CFLAGS])
+AC_SUBST([PROCPS_CPPFLAGS])
 AC_SUBST([PROCPS_LIBS])
-AC_SUBST([ICU_CFLAGS])
+AC_SUBST([ICU_CPPFLAGS])
 AC_SUBST([ICU_LIBS])
 
 ### Lib substs
 
-AC_SUBST([LIB_AUTH_CFLAGS])
-AC_SUBST([LIB_FILE_CFLAGS])
-AC_SUBST([LIB_HGFS_SERVER_CFLAGS])
-AC_SUBST([LIB_IMPERSONATE_CFLAGS])
-AC_SUBST([LIB_MISC_CFLAGS])
-AC_SUBST([LIB_PROC_MGR_CFLAGS])
-AC_SUBST([LIB_STRING_CFLAGS])
-AC_SUBST([LIB_USER_CFLAGS])
+AC_SUBST([LIB_AUTH_CPPFLAGS])
+AC_SUBST([LIB_FILE_CPPFLAGS])
+AC_SUBST([LIB_HGFS_SERVER_CPPFLAGS])
+AC_SUBST([LIB_IMPERSONATE_CPPFLAGS])
+AC_SUBST([LIB_MISC_CPPFLAGS])
+AC_SUBST([LIB_PROC_MGR_CPPFLAGS])
+AC_SUBST([LIB_STRING_CPPFLAGS])
+AC_SUBST([LIB_USER_CPPFLAGS])
 
 ### Program substs
 
 AC_SUBST([GUESTD_LDADD])
 
-AC_SUBST([VMWARE_USER_CFLAGS])
+AC_SUBST([VMWARE_USER_CPPFLAGS])
 AC_SUBST([VMWARE_USER_LDADD])
 
 ###

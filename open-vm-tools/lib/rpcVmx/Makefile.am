@@ -19,6 +19,3 @@ noinst_LIBRARIES = libRpcVmx.a
 
 libRpcVmx_a_SOURCES =
 libRpcVmx_a_SOURCES += rpcvmx.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

@@ -1297,8 +1297,11 @@ File_GetUniqueFileSystemID(char const *path) // IN: File path
 {
 #if defined(VMX86_SERVER)
    char *canPath;
+   char *existPath;
 
-   canPath = Posix_RealPath(path);
+   existPath = FilePosixNearestExistingAncestor(path);
+   canPath = Posix_RealPath(existPath);
+   free(existPath);
 
    if (canPath == NULL) {
       return NULL;
@@ -1429,12 +1432,10 @@ FilePosixGetBlockDevice(char const *path) // IN: File path
    char canPath[FILE_MAXPATH];
    char canPath2[FILE_MAXPATH];
    unsigned int retries = 0;
+   char *realPath;
 #endif
 
    existPath = FilePosixNearestExistingAncestor(path);
-   if (!existPath) {
-      return NULL;
-   }
 
 #if defined(__APPLE__)
    failed = statfs(existPath, &buf) == -1;
@@ -1445,11 +1446,14 @@ FilePosixGetBlockDevice(char const *path) // IN: File path
 
    return Util_SafeStrdup(buf.f_mntfromname);
 #else
-   failed = !realpath(existPath, canPath);
+   realPath = Posix_RealPath(existPath);
    free(existPath);
-   if (failed) {
+
+   if (realPath == NULL) {
       return NULL;
    }
+   Str_Strcpy(canPath, realPath, sizeof canPath);
+   free(realPath);
 
 retry:
    Str_Strcpy(canPath2, canPath, sizeof canPath2);
@@ -1501,8 +1505,7 @@ retry:
 
                if (*diff != '\0') {
                   Str_Sprintf(canPath, sizeof canPath, "%s%s",
-                     strlen(ptr) > 1 ? ptr : "",
-                     diff);
+                     strlen(ptr) > 1 ? ptr : "", diff);
                } else {
                   Str_Strcpy(canPath, ptr, sizeof canPath);
                }
@@ -1559,9 +1562,8 @@ retry:
  *      have any number of non-existing components at its end.
  *
  * Results:
- *      On success: The allocated, NUL-terminated, non-empty path of the
- *                  nearest existing ancestor.
- *      On failure: NULL.
+ *      The allocated, NUL-terminated, non-empty path of the
+ *      nearest existing ancestor.
  *
  * Side effects:
  *      None

@@ -24,6 +24,4 @@ libString_la_SOURCES += ../bsd_vsnwprintf.c
 libString_la_SOURCES += ../convertutf.c
 libString_la_SOURCES += ../str.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_STRING_CFLAGS@
+AM_CFLAGS = @LIB_STRING_CPPFLAGS@

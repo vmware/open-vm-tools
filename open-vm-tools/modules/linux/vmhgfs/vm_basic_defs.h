@@ -110,7 +110,6 @@ Max(int a, int b)
 
 #define IMPLIES(a,b) (!(a) || (b))
 
-
 /*
  * Not everybody (e.g., the monitor) has NULL
  */
@@ -550,5 +549,21 @@ typedef int pid_t;
 #else
 #define VMW_INVALID_HANDLE -1
 #endif
+
+/*
+ * Debug output macros for Windows drivers (the Eng variant is for
+ * display/printer drivers only.
+ */
+#ifdef _WIN32
+#ifndef USES_OLD_WINDDK
+#if defined(VMX86_DEBUG) || defined(ASSERT_ALWAYS_AVAILABLE)
+#define WinDrvPrint(arg, ...) DbgPrint(arg, __VA_ARGS__)
+#define WinDrvEngPrint(arg, ...) EngDbgPrint(arg, __VA_ARGS__)
+#else
+#define WinDrvPrint(arg, ...)
+#define WinDrvEngPrint(arg, ...)
+#endif
+#endif
+#endif // _WIN32
 
 #endif // ifndef _VM_BASIC_DEFS_H_

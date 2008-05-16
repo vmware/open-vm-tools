@@ -20,6 +20,3 @@ noinst_LIBRARIES = libGuestApp.a
 libGuestApp_a_SOURCES =
 libGuestApp_a_SOURCES += guestApp.c
 libGuestApp_a_SOURCES += guestAppPosix.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

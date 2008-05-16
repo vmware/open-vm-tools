@@ -249,7 +249,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestDelete *request;
-      
+
       request = (HgfsRequestDelete *)(HGFS_REQ_PAYLOAD(req));
       /* Fill out the request packet. */
       request->header.id = req->id;
@@ -424,11 +424,11 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
    case HGFS_OP_SETATTR_V3: {
       HgfsRequest *requestHeader;
       HgfsRequestSetattrV3 *requestV3;
-      
+
       requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       requestHeader->op = opUsed;
       requestHeader->id = req->id;
-      
+
       requestV3 = (HgfsRequestSetattrV3 *)HGFS_REQ_PAYLOAD_V3(req);
       attrV2 = &requestV3->attr;
       hints = &requestV3->hints;
@@ -441,9 +441,9 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
       memset(attrV2, 0, sizeof *attrV2);
       memset(hints, 0, sizeof *hints);
 
-      /* 
-       * When possible, issue a setattr using an existing handle. This will 
-       * give us slightly better performance on a Windows server, and is more 
+      /*
+       * When possible, issue a setattr using an existing handle. This will
+       * give us slightly better performance on a Windows server, and is more
        * correct regardless. If we don't find a handle, fall back on setattr
        * by name.
        *
@@ -451,11 +451,11 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
        * the times also requires write permissions on Windows, so we require it
        * here too. Otherwise, any handle will do.
        */
-      if (allowHandleReuse && HgfsGetHandle(dentry->d_inode, 
-                                            (valid & ATTR_SIZE) || 
-                                            (valid & ATTR_ATIME) || 
-                                            (valid & ATTR_MTIME) ? 
-                                            HGFS_OPEN_MODE_WRITE_ONLY + 1 : 0, 
+      if (allowHandleReuse && HgfsGetHandle(dentry->d_inode,
+                                            (valid & ATTR_SIZE) ||
+                                            (valid & ATTR_ATIME) ||
+                                            (valid & ATTR_MTIME) ?
+                                            HGFS_OPEN_MODE_WRITE_ONLY + 1 : 0,
                                             &handle) == 0) {
          *hints = HGFS_ATTR_HINT_USE_FILE_DESC;
          requestV3->file = handle;
@@ -478,17 +478,17 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
        */
 
       if (valid & ATTR_MODE) {
-         attrV2->mask |= HGFS_ATTR_VALID_SPECIAL_PERMS | 
-            HGFS_ATTR_VALID_OWNER_PERMS | HGFS_ATTR_VALID_GROUP_PERMS | 
+         attrV2->mask |= HGFS_ATTR_VALID_SPECIAL_PERMS |
+            HGFS_ATTR_VALID_OWNER_PERMS | HGFS_ATTR_VALID_GROUP_PERMS |
             HGFS_ATTR_VALID_OTHER_PERMS;
-         attrV2->specialPerms = ((iattr->ia_mode & 
+         attrV2->specialPerms = ((iattr->ia_mode &
                                   (S_ISUID | S_ISGID | S_ISVTX)) >> 9);
          attrV2->ownerPerms = ((iattr->ia_mode & S_IRWXU) >> 6);
          attrV2->groupPerms = ((iattr->ia_mode & S_IRWXG) >> 3);
          attrV2->otherPerms = (iattr->ia_mode & S_IRWXO);
          *changed = TRUE;
       }
-      
+
       if (valid & ATTR_UID) {
          attrV2->mask |= HGFS_ATTR_VALID_USERID;
          attrV2->userId = iattr->ia_uid;
@@ -506,7 +506,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
          attrV2->size = iattr->ia_size;
          *changed = TRUE;
       }
-      
+
       if (valid & ATTR_ATIME) {
          attrV2->mask |= HGFS_ATTR_VALID_ACCESS_TIME;
          attrV2->accessTime = HGFS_GET_TIME(iattr->ia_atime);
@@ -515,7 +515,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
          }
          *changed = TRUE;
       }
-      
+
       if (valid & ATTR_MTIME) {
          attrV2->mask |= HGFS_ATTR_VALID_WRITE_TIME;
          attrV2->writeTime = HGFS_GET_TIME(iattr->ia_mtime);
@@ -529,11 +529,11 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
    case HGFS_OP_SETATTR_V2: {
       HgfsRequestSetattrV2 *requestV2;
-      
+
       requestV2 = (HgfsRequestSetattrV2 *)(HGFS_REQ_PAYLOAD(req));
       requestV2->header.op = opUsed;
       requestV2->header.id = req->id;
-      
+
       attrV2 = &requestV2->attr;
       hints = &requestV2->hints;
 
@@ -632,11 +632,11 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 
    case HGFS_OP_SETATTR: {
       HgfsRequestSetattr *request;
-      
+
       request = (HgfsRequestSetattr *)(HGFS_REQ_PAYLOAD(req));
       request->header.op = opUsed;
       request->header.id = req->id;
-      
+
       attr = &request->attr;
       update = &request->update;
 
@@ -761,11 +761,11 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
    case HGFS_OP_CREATE_DIR_V3: {
       HgfsRequest *requestHeader;
       HgfsRequestCreateDirV3 *requestV3;
-      
+
       requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       requestHeader->op = opUsed;
       requestHeader->id = req->id;
-      
+
       requestV3 = (HgfsRequestCreateDirV3 *)(HGFS_REQ_PAYLOAD_V3(req));
 
       /* We'll use these later. */
@@ -787,7 +787,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
    }
    case HGFS_OP_CREATE_DIR_V2: {
       HgfsRequestCreateDirV2 *requestV2;
-      
+
       requestV2 = (HgfsRequestCreateDirV2 *)(HGFS_REQ_PAYLOAD(req));
       requestV2->header.op = opUsed;
       requestV2->header.id = req->id;
@@ -808,7 +808,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
    }
    case HGFS_OP_CREATE_DIR: {
       HgfsRequestCreateDir *request;
-      
+
       request = (HgfsRequestCreateDir *)(HGFS_REQ_PAYLOAD(req));
 
       /* We'll use these later. */
@@ -1364,7 +1364,7 @@ retry:
 
       header->op = opUsed = HGFS_OP_RENAME_V3;
       header->id = req->id;
-      
+
       oldName = request->oldName.name;
       oldNameLength = &request->oldName.length;
       request->oldName.flags = 0;
@@ -1372,7 +1372,7 @@ retry:
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRename *request = (HgfsRequestRename *)HGFS_REQ_PAYLOAD(req);
-      
+
       request->header.op = opUsed = HGFS_OP_RENAME;
       oldName = request->oldName.name;
       oldNameLength = &request->oldName.length;
@@ -1496,7 +1496,7 @@ out:
  *    Setup the create symlink request, depending on the op version.
  *
  * Results:
- *    Returns zero on success, or negative error on failure. 
+ *    Returns zero on success, or negative error on failure.
  *
  * Side effects:
  *    None
@@ -1528,11 +1528,11 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
    switch (opUsed) {
    case HGFS_OP_CREATE_SYMLINK_V3: {
       HgfsRequest *requestHeader;
-      
+
       requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       requestHeader->op = opUsed;
       requestHeader->id = req->id;
-      
+
       requestV3 = (HgfsRequestSymlinkCreateV3 *)HGFS_REQ_PAYLOAD_V3(req);
 
       /* We'll use these later. */
@@ -1544,7 +1544,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
       break;
    }
    case HGFS_OP_CREATE_SYMLINK: {
-      
+
       request = (HgfsRequestSymlinkCreate *)(HGFS_REQ_PAYLOAD(req));
       request->header.op = opUsed;
       request->header.id = req->id;
@@ -1820,7 +1820,7 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
    if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
       opUsed = HGFS_OP_SETATTR_V3;
    }
-   
+
    result = HgfsPackSetattrRequest(iattr, dentry, allowHandleReuse,
                                    opUsed, req, &changed);
    if (result != 0 || !changed) {

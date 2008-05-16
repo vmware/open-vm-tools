@@ -54,9 +54,18 @@
 #include "vm_assert.h"
 #include "dynbuf.h"
 
-#   if defined(__FreeBSD__) || defined(VMX86_SERVER) || defined(__APPLE__) \
-                            || (defined(__linux__) && !defined(GLIBC_VERSION_21) \
-                            && !defined(GLIBC_VERSION_22) && !defined(GLIBC_VERSION_23))
+/*
+ * These platforms use UTF-8 (or pretend to):
+ *   FreeBSD: really UTF-8
+ *   ESX: UTF-8 by policy decree
+ *   Mac: really UTF-8
+ *   Netware: don't know (either no iconv, or really UTF-8)
+ */
+
+#if defined(__FreeBSD__) || \
+    defined(VMX86_SERVER) || \
+    defined(__APPLE__) || \
+    defined(N_PLAT_NLM)
 #define CURRENT_IS_UTF8
 #endif
 

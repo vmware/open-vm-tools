@@ -17,8 +17,5 @@
 
 noinst_PROGRAMS = checkvm
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 checkvm_SOURCES =
 checkvm_SOURCES += checkvm.c

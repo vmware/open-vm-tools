@@ -31,6 +31,8 @@
 #include "vm_basic_types.h"
 
 #include "dbllnklst.h"
+#include "guestStats.h"
+#include <stdlib.h>     // For inline malloc()/free()
 
 #define GUEST_INFO_COMMAND_TWO "SetGuestInfo2"
 #define GUEST_INFO_COMMAND "SetGuestInfo"
@@ -62,7 +64,7 @@ typedef enum {
 } GuestInfoIPAddressFamilyType;
 
 /*
- * For backward compatibility's sake over wire (from Tools to VMX), new fields 
+ * For backward compatibility's sake over wire (from Tools to VMX), new fields
  * in this struct must be added at the end.  THis is the part that goes over wire.
  */
 typedef struct VmIpAddressEntryProtocol {
@@ -90,10 +92,10 @@ typedef struct NicEntryV1 {
 } NicEntryV1;
 
 /*
- * For backward compatibility's sake over wire (from Tools to VMX), new fields 
+ * For backward compatibility's sake over wire (from Tools to VMX), new fields
  * in this struct must be added at the end.  THis is the part that goes over wire.
  */
-typedef struct NicEntryProtocol {     
+typedef struct NicEntryProtocol {
    char macAddress[MAC_ADDR_SIZE];   /* In the format "12-23-34-45-56-67" */
    char pad[1];                      /* MAC_ADDR_SIZE happens to be 19.  */
                                      /* Pad it to be multiple of 4 bytes */
@@ -103,40 +105,41 @@ typedef struct NicEntryProtocol {
 } NicEntryProtocol;
 
 typedef struct NicEntry {
-   DblLnkLst_Links links;           
+   DblLnkLst_Links links;
    NicEntryProtocol nicEntryProto;
    DblLnkLst_Links ipAddressList;
 /* DblLnkLst_Links gatewayList; */
 } NicEntry;
 
-typedef struct NicInfoV1 {
+typedef struct GuestNicInfoV1 {
    unsigned int numNicEntries;
    NicEntryV1 nicList[MAX_NICS];
-} NicInfoV1;
+} GuestNicInfoV1;
+
 
 /*
- * For backward compatibility's sake over wire (from Tools to VMX), new fields 
+ * For backward compatibility's sake over wire (from Tools to VMX), new fields
  * in this struct must be added at the end.  This is the part that goes over wire.
  */
-typedef struct NicInfoProtocol { 
+typedef struct NicInfoProtocol {
    uint32 version;
    uint32 nicEntrySizeOnWire;      /* length of NicEntry over wire.  Lengths differ */
                                    /* with different versions. */
    uint32 numNicEntries;
-   uint32 totalInfoSizeOnWire;    
+   uint32 totalInfoSizeOnWire;
 } NicInfoProtocol;
 
-typedef struct NicInfo {
+typedef struct GuestNicInfo {
    NicInfoProtocol    nicInfoProto;
    DblLnkLst_Links    nicList;     /* Pointers in it must be initialized to NULL */
-} NicInfo;
+} GuestNicInfo;
 
 typedef
 #include "vmware_pack_begin.h"
 struct _PartitionEntry {
    uint64 freeBytes;
    uint64 totalBytes;
-   char name[PARTITION_NAME_SIZE]; 
+   char name[PARTITION_NAME_SIZE];
 }
 #include "vmware_pack_end.h"
 PartitionEntry, *PPartitionEntry;
@@ -144,44 +147,21 @@ PartitionEntry, *PPartitionEntry;
 typedef struct _DiskInfo {
    unsigned int numEntries;
    PPartitionEntry partitionList;
-} DiskInfo, *PDiskInfo;
+} GuestDiskInfo, *PGuestDiskInfo;
 
-typedef
-#include "vmware_pack_begin.h"
-struct MemInfo {
-   uint32 version;            /* MemInfo structure version. */
-   uint32 flags;              /* Indicates which stats are valid. */
-   uint64 memTotal;           /* Total physical memory in Kb. */
-   uint64 memFree;            /* Physical memory available in Kb. */
-   uint64 memBuff;            /* Physical memory used as buffer cache in Kb. */
-   uint64 memCache;           /* Physical memory used as cache in Kb. */
-   uint64 memActive;          /* Physical memory actively in use in Kb (working set) */
-   uint64 memInactive;        /* Physical memory inactive in Kb (cold pages) */
-   uint64 swapInRate;         /* Memory swapped out in Kb / sec. */
-   uint64 swapOutRate;        /* Memory swapped out in Kb / sec. */
-   uint64 ioInRate;           /* Amount of I/O in in blocks / sec. */
-   uint64 ioOutRate;          /* Amount of I/O out in blocks / sec. */
-   uint64 hugePagesTotal;     /* Total number of huge pages. */
-   uint64 hugePagesFree;      /* Available number of huge pages. */
-   uint64 memPinned;          /* Unreclaimable physical memory in 4K page size. */
-}
-#include "vmware_pack_end.h"
-MemInfo;
 
-/* Flags for MemInfo. */
-#define MEMINFO_MEMTOTAL         (1 << 0)
-#define MEMINFO_MEMFREE          (1 << 1)
-#define MEMINFO_MEMBUFF          (1 << 2)
-#define MEMINFO_MEMCACHE         (1 << 3)
-#define MEMINFO_MEMACTIVE        (1 << 4)
-#define MEMINFO_MEMINACTIVE      (1 << 5)
-#define MEMINFO_SWAPINRATE       (1 << 6)
-#define MEMINFO_SWAPOUTRATE      (1 << 7)
-#define MEMINFO_IOINRATE         (1 << 8)
-#define MEMINFO_IOOUTRATE        (1 << 9)
-#define MEMINFO_HUGEPAGESTOTAL   (1 << 10)
-#define MEMINFO_HUGEPAGESFREE    (1 << 11)
-#define MEMINFO_MEMPINNED        (1 << 12)
+
+/*
+ * Global functions
+ */
+
+extern Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
+extern Bool GuestInfo_GetNicInfo(GuestNicInfo *nicInfo);
+extern Bool GuestInfo_GetDiskInfo(PGuestDiskInfo di);
+extern Bool GuestInfo_GetOSName(unsigned int outBufFullLen,
+                                unsigned int outBufLen, char *osNameFull,
+                                char *osName);
+
 
 /*
  *----------------------------------------------------------------------
@@ -199,7 +179,7 @@ MemInfo;
  *----------------------------------------------------------------------
  */
 
-static INLINE void 
+static INLINE void
 GuestInfo_FreeDynamicMemoryInNic(NicEntry *nicEntry)        // IN
 {
    VmIpAddressEntry *ipAddressCur;
@@ -217,7 +197,7 @@ GuestInfo_FreeDynamicMemoryInNic(NicEntry *nicEntry)        // IN
    DblLnkLst_ForEachSafe(sCurrent, sNext, &nicEntry->ipAddressList) {
 
       ipAddressCur = DblLnkLst_Container(sCurrent,
-                                         VmIpAddressEntry, 
+                                         VmIpAddressEntry,
                                          links);
 
       DblLnkLst_Unlink1(&ipAddressCur->links);
@@ -233,7 +213,7 @@ GuestInfo_FreeDynamicMemoryInNic(NicEntry *nicEntry)        // IN
  *
  * GuestInfo_FreeDynamicMemoryInNicInfo --
  *
- *      Free all dynamically allocated memory in the struct pointed to 
+ *      Free all dynamically allocated memory in the struct pointed to
  *      by nicInfo.
  *
  * Results:
@@ -245,8 +225,8 @@ GuestInfo_FreeDynamicMemoryInNic(NicEntry *nicEntry)        // IN
  *----------------------------------------------------------------------
  */
 
-static INLINE void 
-GuestInfo_FreeDynamicMemoryInNicInfo(NicInfo *nicInfo)      // IN
+static INLINE void
+GuestInfo_FreeDynamicMemoryInNicInfo(GuestNicInfo *nicInfo)      // IN
 {
    NicEntry *nicEntryCur = NULL;
    DblLnkLst_Links *sCurrent;
@@ -262,13 +242,13 @@ GuestInfo_FreeDynamicMemoryInNicInfo(NicInfo *nicInfo)      // IN
 
    DblLnkLst_ForEachSafe(sCurrent, sNext, &nicInfo->nicList) {
       nicEntryCur = DblLnkLst_Container(sCurrent,
-                                        NicEntry, 
+                                        NicEntry,
                                         links);
 
       GuestInfo_FreeDynamicMemoryInNic(nicEntryCur);
       DblLnkLst_Unlink1(&nicEntryCur->links);
       free (nicEntryCur);
-   } 
+   }
 
    DblLnkLst_Init(&nicInfo->nicList);
 }

@@ -25,6 +25,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
@@ -83,7 +84,9 @@ EXTERN Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
                              size_t dataSize);
 EXTERN char *Util_GetCanonicalPath(const char *path);
 #ifdef _WIN32
-EXTERN char *Util_GetLowerCaseCanonicalPath(const char *path);
+EXTERN char *Util_CompatGetCanonicalPath(const char *path);
+EXTERN char *Util_GetCanonicalPathForHash(const char *path);
+EXTERN char *Util_CompatGetLowerCaseCanonicalPath(const char* path);
 #endif
 EXTERN int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
 EXTERN Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);

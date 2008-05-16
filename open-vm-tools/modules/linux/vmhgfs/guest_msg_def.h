@@ -83,5 +83,10 @@ typedef enum {
 #define GUESTMSG_FLAG_COOKIE 0x80000000
 #define GUESTMSG_FLAG_ALL GUESTMSG_FLAG_COOKIE
 
+/*
+ * Maximum size of incoming message. This is to prevent denial of host service
+ * attacks from guest applications.
+ */
+#define GUESTMSG_MAX_IN_SIZE (64 * 1024)
 
 #endif /* _GUEST_MSG_DEF_H_ */

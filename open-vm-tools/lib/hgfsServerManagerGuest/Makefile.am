@@ -19,6 +19,3 @@ noinst_LIBRARIES = libHgfsServerManagerGuest.a
 
 libHgfsServerManagerGuest_a_SOURCES =
 libHgfsServerManagerGuest_a_SOURCES += hgfsServerManagerGuest.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

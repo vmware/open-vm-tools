@@ -179,9 +179,9 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       HgfsRequestOpenV3 *requestV3;
 
       requestHeader = (HgfsRequest *)HGFS_REQ_PAYLOAD(req);
-      requestHeader->op = opUsed; 
+      requestHeader->op = opUsed;
       requestHeader->id = req->id;
-      
+
       requestV3 = (HgfsRequestOpenV3 *)HGFS_REQ_PAYLOAD_V3(req);
       requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
 
@@ -228,11 +228,11 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
 
    case HGFS_OP_OPEN_V2: {
       HgfsRequestOpenV2 *requestV2;
-      
+
       requestV2 = (HgfsRequestOpenV2 *)(HGFS_REQ_PAYLOAD(req));
-      requestV2->header.op = opUsed; 
+      requestV2->header.op = opUsed;
       requestV2->header.id = req->id;
-      
+
       /* We'll use these later. */
       name = requestV2->fileName.name;
       nameLength = &requestV2->fileName.length;
@@ -271,9 +271,9 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
    }
    case HGFS_OP_OPEN: {
       HgfsRequestOpen *request;
-      
+
       request = (HgfsRequestOpen *)(HGFS_REQ_PAYLOAD(req));
-      request->header.op = opUsed; 
+      request->header.op = opUsed;
       request->header.id = req->id;
 
       /* We'll use these later. */
@@ -652,7 +652,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
             atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V2);
             goto retry;
          }
-         
+
          /* Retry with Version 1 of Open. Set globally. */
          if (opUsed == HGFS_OP_OPEN_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 2 not "

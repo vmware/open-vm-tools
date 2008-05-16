@@ -44,6 +44,8 @@
 #define INCLUDE_ALLOW_VMNIXMOD
 #include "includeCheck.h"
 
+#include <string.h>
+
 #include "unicodeBase.h"
 #include "vm_assert.h"
 
@@ -58,6 +60,7 @@ extern "C" {
  * Pass -1 for any length parameter to indicate "from start until end
  * of string".
  */
+
 int Unicode_CompareRange(ConstUnicode str1,
                          UnicodeIndex str1Start,
                          UnicodeIndex str1Length,
@@ -94,6 +97,44 @@ Unicode Unicode_Join(ConstUnicode first,
                      ...);
 
 Unicode Unicode_Format(const char *fmt, ...);
+
+
+/*
+ * Simple in-line functions that may be used below.
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_IsIndexAtCodePointBoundary --
+ *
+ *      Check a string index for code point boundary.
+ *
+ *	The index must be valid (>= 0 and <= string length).
+ *	The end of the string is considered a valid boundary.
+ *
+ * Results:
+ *      TRUE if index is at a code point boundary.
+ *
+ * Side effects:
+ *      Panic if index is not valid.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Unicode_IsIndexAtCodePointBoundary(ConstUnicode str,    // IN
+                                   UnicodeIndex index)  // IN
+{
+   ASSERT(index >= 0 && index <= Unicode_LengthInCodeUnits(str));
+
+#ifdef SUPPORT_UNICODE_OPAQUE
+   NOT_IMPLEMENTED();
+#else
+   return (str[index] & 0xc0) != 0x80;
+#endif
+}
 
 
 /*
@@ -253,20 +294,34 @@ static INLINE Bool
 Unicode_EndsWith(ConstUnicode str,    // IN
                  ConstUnicode suffix) // IN
 {
+#ifdef SUPPORT_UNICODE_OPAQUE
    UnicodeIndex strLength = Unicode_LengthInCodeUnits(str);
    UnicodeIndex suffixLength = Unicode_LengthInCodeUnits(suffix);
+   UnicodeIndex offset = strLength - suffixLength;
 
    if (suffixLength > strLength) {
       return FALSE;
    }
+   if (!Unicode_IsIndexAtCodePointBoundary(str, offset)) {
+      return FALSE;
+   }
 
    return Unicode_CompareRange(str,
-                               strLength - suffixLength,
+                               offset,
                                suffixLength,
                                suffix,
                                0,
                                suffixLength,
                                FALSE) == 0;
+#else
+   size_t strLength = strlen(str);
+   size_t suffixLength = strlen(suffix);
+
+   if (suffixLength > strLength) {
+      return FALSE;
+   }
+   return strcmp(str + strLength - suffixLength, suffix) == 0;
+#endif
 }
 
 
@@ -648,7 +703,16 @@ static INLINE Bool
 Unicode_StartsWith(ConstUnicode str,    // IN
                    ConstUnicode prefix) // IN
 {
+#ifdef SUPPORT_UNICODE_OPAQUE
+   UnicodeIndex strLength = Unicode_LengthInCodeUnits(str);
    UnicodeIndex prefixLength = Unicode_LengthInCodeUnits(prefix);
+
+   if (prefixLength > strLength) {
+      return FALSE;
+   }
+   if (!Unicode_IsIndexAtCodePointBoundary(str, prefixLength)) {
+      return FALSE;
+   }
 
    return Unicode_CompareRange(str,
                                0,
@@ -657,6 +721,9 @@ Unicode_StartsWith(ConstUnicode str,    // IN
                                0,
                                prefixLength,
                                FALSE) == 0;
+#else
+   return strncmp(str, prefix, strlen(prefix)) == 0;
+#endif
 }
 
 

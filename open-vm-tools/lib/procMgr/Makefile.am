@@ -20,6 +20,4 @@ noinst_LIBRARIES = libProcMgr.a
 libProcMgr_a_SOURCES =
 libProcMgr_a_SOURCES += procMgrPosix.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_PROC_MGR_CFLAGS@
+AM_CFLAGS = @LIB_PROC_MGR_CPPFLAGS@

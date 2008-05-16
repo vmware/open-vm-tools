@@ -61,6 +61,7 @@
 #include "vm_assert.h"
 #include "system.h"
 #include "debug.h"
+#include "posix.h"
 #include "unicode.h"
 
 #define MAX_IFACES      4
@@ -365,10 +366,10 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
  *----------------------------------------------------------------------
  *
  * System_GetEnv --
- *
+ *    Read environment variables.
  *
  * Results:
- *    A copy of the string
+ *    A copy of the environment variable encoded in UTF-8.
  *
  * Side effects:
  *    None.
@@ -378,14 +379,14 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
 
 char *
 System_GetEnv(Bool global,       // IN
-              char *valueName)   // IN
+              char *valueName)   // IN: UTF-8
 {
    char *result;
    
 #if defined(sun)
    result = NULL;
 #else
-   result = getenv(valueName);
+   result = Posix_Getenv(valueName);
 #endif
 
    if (NULL != result) {
@@ -417,13 +418,13 @@ System_GetEnv(Bool global,       // IN
 
 int
 System_SetEnv(Bool global,      // IN
-              char *valueName,  // IN
-              char *value)      // IN
+              char *valueName,  // IN: UTF-8
+              char *value)      // IN: UTF-8
 {
 #if defined(sun)
    return(-1);
 #else
-   return(setenv(valueName, value, 1));
+   return Posix_Setenv(valueName, value, 1);
 #endif
 } // System_SetEnv
 

@@ -242,7 +242,6 @@ DeployPkgGetTempDir(void)
    int i = 0;
    char *dir = NULL;
    char *newDir = NULL;
-   char *utf8Dir = NULL;
    Bool found = FALSE;
 
    /*
@@ -272,17 +271,7 @@ DeployPkgGetTempDir(void)
       Warning("DeployPkgGetTempDir Could not create temp directory\n");
       goto exit;
    } 
-
-   /* Convert newDir to utf8. */
-   if (!CodeSet_CurrentToUtf8(newDir, 
-                              strlen(newDir),
-                              &utf8Dir,
-                              NULL)) {
-      Warning("DeployPkgGetTempDir CodeSet_CurrentToUtf8 failed\n");
-      goto exit;
-   }
 exit:
    free(dir);
-   free(newDir);
-   return utf8Dir;
+   return newDir;
 }

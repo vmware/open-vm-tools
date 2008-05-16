@@ -20,6 +20,4 @@ noinst_LIBRARIES = libAuth.a
 libAuth_a_SOURCES =
 libAuth_a_SOURCES += authPosix.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_AUTH_CFLAGS@
+AM_CFLAGS = @LIB_AUTH_CPPFLAGS@

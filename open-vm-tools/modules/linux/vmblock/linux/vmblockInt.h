@@ -64,7 +64,6 @@ extern int LOGLEVEL_THRESHOLD;
 #endif /* __KERNEL__ */
 
 #define VMBLOCK_CONTROL_MODE       S_IRUSR | S_IFREG
-#define VMBLOCK_CONTROL_PARENT     proc_root_fs
 
 /*
  * Our modules may be compatible with kernels built for different processors.

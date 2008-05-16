@@ -19,6 +19,3 @@ noinst_LIBRARIES = libConf.a
 
 libConf_a_SOURCES =
 libConf_a_SOURCES += conf.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

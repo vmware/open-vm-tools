@@ -45,10 +45,11 @@
 # define VMBLOCK_CONTROL_DIRNAME        VMBLOCK_FS_NAME
 # define VMBLOCK_CONTROL_DEVNAME        "dev"
 # define VMBLOCK_CONTROL_MOUNTPOINT     "mountPoint"
+# define VMBLOCK_CONTROL_PROC_DIRNAME	"fs/" VMBLOCK_CONTROL_DIRNAME
 
-# define VMBLOCK_MOUNT_POINT            "/proc/fs/" VMBLOCK_CONTROL_DIRNAME   \
+# define VMBLOCK_MOUNT_POINT            "/proc/" VMBLOCK_CONTROL_PROC_DIRNAME   \
                                        "/" VMBLOCK_CONTROL_MOUNTPOINT
-# define VMBLOCK_DEVICE                 "/proc/fs/" VMBLOCK_CONTROL_DIRNAME   \
+# define VMBLOCK_DEVICE                 "/proc/" VMBLOCK_CONTROL_PROC_DIRNAME   \
                                        "/" VMBLOCK_CONTROL_DEVNAME
 # define VMBLOCK_DEVICE_MODE            O_WRONLY
 # define VMBLOCK_CONTROL(fd, op, path)  write(fd, path, op)

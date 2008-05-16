@@ -25,8 +25,5 @@ else
    libBackdoor_a_SOURCES += backdoorGcc64.c
 endif
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 SUBDIRS =
 SUBDIRS += shared

@@ -106,7 +106,7 @@ HgfsWakeWaitingClient(HgfsReq *req)  // IN: Request
  *----------------------------------------------------------------------
  */
 
-static inline void 
+static inline void
 HgfsCompleteReq(HgfsReq *req,       // IN: Request
                 char const *reply,  // IN: Reply packet
                 size_t replySize)   // IN: Size of reply packet
@@ -117,7 +117,7 @@ HgfsCompleteReq(HgfsReq *req,       // IN: Request
    req->payloadSize = replySize;
    req->state = HGFS_REQ_STATE_COMPLETED;
    list_del_init(&req->list);
-   HgfsWakeWaitingClient(req);         
+   HgfsWakeWaitingClient(req);
 }
 
 
@@ -149,7 +149,7 @@ HgfsSendUnsentReqs(void)
    list_for_each_safe(cur, tmp, &hgfsReqsUnsent) {
       req = list_entry(cur, HgfsReq, list);
 
-      /* 
+      /*
        * A big "wtf" from the driver is in order. Perhaps by "wtf" I really
        * mean BUG_ON().
        */
@@ -165,9 +165,9 @@ HgfsSendUnsentReqs(void)
       LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendUnsentReqs: Sending packet "
               "over backdoor\n"));
 
-      /* 
-       * We should attempt to reopen the backdoor channel with every request, 
-       * because the HGFS server in the host can be enabled or disabled at any 
+      /*
+       * We should attempt to reopen the backdoor channel with every request,
+       * because the HGFS server in the host can be enabled or disabled at any
        * time.
        */
       if (!HgfsBd_OpenBackdoor(&hgfsRpcOut)) {
@@ -183,7 +183,7 @@ HgfsSendUnsentReqs(void)
          LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendUnsentReqs: Backdoor "
                  "reply received\n"));
       } else {
-         
+
          /* Pass the error into the request. */
          req->state = HGFS_REQ_STATE_ERROR;
          list_del_init(&req->list);
@@ -259,7 +259,7 @@ HgfsResetOps(void)
  *----------------------------------------------------------------------
  */
 
-int 
+int
 HgfsBdHandler(void *data) // Ignored
 {
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsBdHandler: Thread starting\n"));
@@ -269,16 +269,16 @@ HgfsBdHandler(void *data) // Ignored
 
       /* Sleep, waiting for a request or exit. */
       wait_event_interruptible(hgfsReqThreadWait,
-                               test_bit(HGFS_REQ_THREAD_SEND, 
+                               test_bit(HGFS_REQ_THREAD_SEND,
                                         &hgfsReqThreadFlags) ||
                                compat_kthread_should_stop());
-      
-      /* 
+
+      /*
        * First, check for suspend. I'm not convinced that this actually
        * has to come first, but whatever.
        */
       if (compat_try_to_freeze()) {
-	 LOG(6, (KERN_DEBUG 
+	 LOG(6, (KERN_DEBUG
 		 "VMware hgfs: HgfsBdHandler: Closing backdoor after resume\n"));
 	 HgfsBd_CloseBackdoor(&hgfsRpcOut);
       }
@@ -290,7 +290,7 @@ HgfsBdHandler(void *data) // Ignored
       }
 
       /* Kill yourself. */
-      if (compat_kthread_should_stop()) { 
+      if (compat_kthread_should_stop()) {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsBdHandler: Told to exit\n"));
          break;
       }

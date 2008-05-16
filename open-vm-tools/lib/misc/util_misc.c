@@ -138,13 +138,98 @@ Util_GetCanonicalPath(const char *path) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Util_GetLowerCaseCanonicalPath --
+ * Util_GetCanonicalPathForHash --
  *
  *      Utility function to both get the canonical version of the input path
- *      and lower case it at the same time.
+ *      and produce a unique case-insensitive version of the path suitable
+ *      for use as a seed to hash functions.
  *
  * Results:
- *      A lower case freshly allocated canonicalized path name.
+ *       Canonicalized UTF-8 pathname suitable for use in hashing. 
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Util_GetCanonicalPathForHash(const char *path) // IN: UTF-8
+{
+   char *ret = NULL;
+   char *cpath = Util_GetCanonicalPath(path);
+   
+   if (cpath != NULL) {
+      ret = Unicode_FoldCase(cpath);
+      free(cpath);
+   }   
+
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilGetLegacyEncodedString --
+ *
+ *      Takes a UTF-8 string, and allocates a new string in legacy encoding.
+ *      This is necessary to maintain compatibility with older versions of
+ *      the product, which may have stored strings (paths) in legacy
+ *      encoding.  Hence, the use of WideCharToMultiByte().
+ *
+ * Results:
+ *      An allocated string in legacy encoding (MBCS when applicable).  
+ *      NULL on failure.
+ *      
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char*
+UtilGetLegacyEncodedString(const char *path) // IN: UTF-8
+{
+   char *ret = NULL;
+   char *cpath = Util_GetCanonicalPath(path);
+  
+   if (cpath != NULL) {
+      char *apath = NULL;
+      int retlen;
+      WCHAR *wcpath = Unicode_GetAllocUTF16(cpath);
+
+      /* First get the length of multibyte string */
+      int alen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1, 
+                                     NULL, 0, NULL, NULL);
+      if (alen > 0) {
+         /* Now get the converted string */
+         ret = Util_SafeMalloc(alen);
+         retlen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1, 
+                                      ret, alen, NULL, NULL);
+         if (retlen != alen) {
+            free(ret);
+            ret = NULL;
+         }
+      }
+      free(cpath);
+      free(wcpath);
+   }
+  
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_CompatGetCanonicalPath --
+ *
+ *      Canonicalizes a path name (compatibility version).
+ *
+ * Results:
+ *      A freshly allocated canonicalized path name in legacy encoding
+ *      (MBCS when applicable).
  *
  * Side effects:
  *      None.
@@ -153,12 +238,16 @@ Util_GetCanonicalPath(const char *path) // IN
  */
 
 char*
-Util_GetLowerCaseCanonicalPath(const char* path) // IN
+Util_CompatGetCanonicalPath(const char *path) // IN: UTF-8
 {
-   char *ret = Util_GetCanonicalPath(path);
-   if (ret != NULL) {
-      ret = _strlwr(ret);
+   char *cpath = Util_GetCanonicalPath(path);
+   char *ret = NULL;
+
+   if (cpath != NULL) {
+      ret = UtilGetLegacyEncodedString(cpath);
+      free(cpath);
    }
+   
    return ret;
 }
 #endif

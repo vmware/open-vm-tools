@@ -60,7 +60,7 @@
  *    asynchronously. The request is now on the sent list, and whenever
  *    the reply arrives, the backdoor handler will remove the request from
  *    the sent list and stuff the reply into the request's packet buffer.
- *    
+ *
  * HGFS_REQ_STATE_ERROR:
  *    The backdoor handler encountered an error while sending the request
  *    or getting the reply. The filesystem half of the driver should
@@ -83,11 +83,11 @@ typedef enum {
  * A request to be sent to the user process.
  */
 typedef struct HgfsReq {
- 
+
    /* Links to place the object on various lists. */
    struct list_head list;
- 
-   /* 
+
+   /*
     * When clients wait for the reply to a request, they'll wait on this
     * wait queue.
     */
@@ -102,7 +102,7 @@ typedef struct HgfsReq {
    /* Total size of the payload.*/
    size_t payloadSize;
 
-   /* 
+   /*
     * Packet of data, for both incoming and outgoing messages.
     * Include room for the command.
     */

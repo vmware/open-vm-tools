@@ -116,7 +116,7 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
    case HGFS_OP_SEARCH_READ_V3: {
       HgfsReplySearchReadV3 *replyV3;
       HgfsDirEntry *dirent;
-      
+
       /* Currently V3 returns only 1 entry. */
       replyV3 = (HgfsReplySearchReadV3 *)(HGFS_REP_PAYLOAD_V3(req));
       replyV3->count = 1;
@@ -128,7 +128,7 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
    }
    case HGFS_OP_SEARCH_READ_V2: {
       HgfsReplySearchReadV2 *replyV2;
-      
+
       replyV2 = (HgfsReplySearchReadV2 *)(HGFS_REQ_PAYLOAD(req));
       replySize = sizeof *replyV2;
       fileName = replyV2->fileName.name;
@@ -137,7 +137,7 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
    }
    case HGFS_OP_SEARCH_READ: {
       HgfsReplySearchRead *replyV1;
-      
+
       replyV1 = (HgfsReplySearchRead *)(HGFS_REQ_PAYLOAD(req));
       replySize = sizeof *replyV1;
       fileName = replyV1->fileName.name;
@@ -157,9 +157,9 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
        fileNameLength > HGFS_PACKET_MAX - replySize) {
       return -ENAMETOOLONG;
    }
-      
+
    /*
-    * If the size of the name is valid (meaning the end of the directory has 
+    * If the size of the name is valid (meaning the end of the directory has
     * not yet been reached), copy the name to the AttrInfo struct.
     *
     * XXX: This operation happens often and the length of the filename is
@@ -170,7 +170,7 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
       /* Sanity check on name length. */
       if (fileNameLength != strlen(fileName)) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackSearchReadReply: name "
-                 "length mismatch %u/%Zu, name \"%s\"\n", 
+                 "length mismatch %u/%Zu, name \"%s\"\n",
                  fileNameLength, strlen(fileName), fileName));
          return -EPROTO;
       }
@@ -242,16 +242,16 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
       HgfsRequestSearchReadV3 *request;
 
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-      header->op = attr->requestType = opUsed; 
+      header->op = attr->requestType = opUsed;
       header->id = req->id;
-      
+
       request = (HgfsRequestSearchReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->search = searchHandle;
       request->offset = offset;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestSearchRead *request;
-      
+
       request = (HgfsRequestSearchRead *)(HGFS_REQ_PAYLOAD(req));
       request->header.op = attr->requestType = opUsed;
       request->header.id = req->id;
@@ -321,7 +321,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
  *    Setup the directory open request, depending on the op version.
  *
  * Results:
- *    Returns zero on success, or negative error on failure. 
+ *    Returns zero on success, or negative error on failure.
  *
  * Side effects:
  *    None
@@ -329,7 +329,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
  *----------------------------------------------------------------------
  */
 
-static int 
+static int
 HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
                        struct file *file,   // IN: File pointer for this open
                        HgfsOp opUsed,       // IN: Op to be used
@@ -339,7 +339,7 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
    uint32 *nameLength;
    size_t requestSize;
    int result;
-   
+
    ASSERT(inode);
    ASSERT(file);
    ASSERT(req);
@@ -348,12 +348,12 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
    case HGFS_OP_SEARCH_OPEN_V3: {
       HgfsRequest *requestHeader;
       HgfsRequestSearchOpenV3 *requestV3;
-      
+
       requestHeader = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       requestHeader->op = opUsed;
       requestHeader->id = req->id;
 
-      requestV3 = (HgfsRequestSearchOpenV3 *)HGFS_REQ_PAYLOAD_V3(req); 
+      requestV3 = (HgfsRequestSearchOpenV3 *)HGFS_REQ_PAYLOAD_V3(req);
 
       /* We'll use these later. */
       name = requestV3->dirName.name;
@@ -366,7 +366,7 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
 
    case HGFS_OP_SEARCH_OPEN: {
       HgfsRequestSearchOpen *request;
-      
+
       request = (HgfsRequestSearchOpen *)(HGFS_REQ_PAYLOAD(req));
       request->header.op = opUsed;
       request->header.id = req->id;
@@ -385,7 +385,7 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
    }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(name, HGFS_PACKET_MAX - (requestSize - 1), 
+   if (HgfsBuildPath(name, HGFS_PACKET_MAX - (requestSize - 1),
                      file->f_dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: build path failed\n"));
       return -EINVAL;
@@ -394,7 +394,7 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
            name));
 
    /* Convert to CP name. */
-   result = CPName_ConvertTo(name, 
+   result = CPName_ConvertTo(name,
                              HGFS_PACKET_MAX - (requestSize - 1),
                              name);
    if (result < 0) {
@@ -465,10 +465,10 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
       opUsed = HGFS_OP_SEARCH_OPEN_V3;
       replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REP_PAYLOAD_V3(req))->search;
    }
-   
+
    result = HgfsPackDirOpenRequest(inode, file, opUsed, req);
    if (result != 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: error packing request\n"));  
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: error packing request\n"));
       goto out;
    }
 
@@ -496,7 +496,7 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
                goto retry;
             }
             break;
-         
+
          default:
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
                     "returned error: %d\n", result));
@@ -626,9 +626,9 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
                                    &attr,
                                    &done);
       if (result == -ENAMETOOLONG) {
-         /* 
+         /*
           * Skip dentry if its name is too long (see below).
-          * 
+          *
           * XXX: If a bad server sends us bad packets, we can loop here
           * forever, as I did while testing *grumble*. Maybe we should error
           * in that case.
@@ -674,9 +674,9 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
        * just check its return value.
        */
       if (result < 0) {
-         /* 
+         /*
           * XXX: Another area where a bad server could cause us to loop
-          * forever. 
+          * forever.
           */
          file->f_pos++;
          continue;
@@ -727,11 +727,11 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
          if (attr.mask & HGFS_ATTR_VALID_FILEID) {
             ino = attr.hostFileId;
          } else {
-            ino = iunique(file->f_dentry->d_inode->i_sb, 
+            ino = iunique(file->f_dentry->d_inode->i_sb,
                           HGFS_RESERVED_INO);
          }
       }
-       
+
       /*
        * Call filldir for this dentry.
        */
@@ -821,7 +821,7 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestSearchClose *request;
-   
+
       request = (HgfsRequestSearchClose *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
       request->header.op = opUsed = HGFS_OP_SEARCH_CLOSE;
@@ -835,7 +835,7 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
       /* Get the reply. */
       replyStatus = HgfsReplyStatus(req);
       result = HgfsStatusConvertToLinux(replyStatus);
-      
+
       switch (result) {
       case 0:
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: release handle %u\n",

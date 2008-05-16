@@ -15,14 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-###
-### This Makefile describes 
-###
-
 noinst_PROGRAMS = guestd
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
 
 guestd_LDADD =
 guestd_LDADD += ../lib/backdoor/libBackdoor.a

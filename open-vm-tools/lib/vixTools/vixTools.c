@@ -1477,11 +1477,10 @@ abort:
 
 VixError
 VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
-                       char **result)                         // OUT
+                       char **result)                         // OUT: UTF-8
 {
    VixError err = VIX_OK;
    char *filePathName = NULL;
-   static char resultBuffer[FILE_MAXPATH];
    int fd = -1;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
@@ -1508,16 +1507,13 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
       Debug("Unable to close a file, errno is %d.\n", errno);
    }
 
-   Str_Sprintf(resultBuffer, sizeof(resultBuffer), "%s", filePathName);
-   *result = resultBuffer;
+   *result = filePathName;
 
 abort:
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
    VixToolsLogoutUser(userToken);
-
-   free(filePathName);
 
    return err;
 } // VixToolsCreateTempFile
@@ -1528,7 +1524,8 @@ abort:
  *
  * VixToolsReadVariable --
  *
- *    Write an environment variable in the guest.
+ *    Read an environment variable in the guest. The name of the environment
+ *    variable is expected to be in UTF-8.
  *
  * Return value:
  *    VixError
@@ -1541,11 +1538,10 @@ abort:
 
 VixError
 VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
-                     char **result)                         // OUT
+                     char **result)                         // OUT: UTF-8
 {
    VixError err = VIX_OK;
    char *value = "";
-   static char resultBuffer[FILE_MAXPATH];
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgReadVariableRequest *readRequest;
@@ -1580,15 +1576,13 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
       break;
    } // switch (readRequest->variableType)
 
-   Str_Sprintf(resultBuffer, sizeof(resultBuffer), "%s", value);
-   *result = resultBuffer;
+   *result = value;
 
 abort:
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
    VixToolsLogoutUser(userToken);
-   free(value);
 
    return err;
 } // VixToolsReadVariable
@@ -1599,7 +1593,8 @@ abort:
  *
  * VixToolsWriteVariable --
  *
- *    Write an environment variable in the guest.
+ *    Write an environment variable in the guest. The name of the environment
+ *    variable and its value are expected to be in UTF-8.
  *
  * Return value:
  *    VixError
@@ -2045,7 +2040,7 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
     * Calculate the size of the result buffer and keep track of the
     * max number of entries we can store.
     */
-   resultBufferSize = 2; // truncation bool + space
+   resultBufferSize = 3; // truncation bool + space + '\0'
    formatStringLength = strlen(fileInfoFormatString);
 
    for (fileNum = offset; fileNum < numFiles; fileNum++) {
@@ -2069,7 +2064,6 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
          break;
       }
    }
-   numFiles = lastGoodNumFiles;
    resultBufferSize = lastGoodResultBufferSize;
 
    /*
@@ -2094,8 +2088,8 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       }
    }
 
-   /* File_ListDirectory never returns "." or ".." */
-   for (fileNum = offset; fileNum < numFiles; fileNum++) {
+   for (fileNum = offset; fileNum < lastGoodNumFiles; fileNum++) {
+      /* File_ListDirectory never returns "." or ".." */
       char *pathName;
 
       currentFileName = fileNameList[fileNum];
@@ -2106,7 +2100,7 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       VixToolsPrintFileInfo(pathName, currentFileName, &destPtr, endDestPtr);
 
       free(pathName);
-   } // for (fileNum = 0; fileNum < numFiles; fileNum++)
+   } // for (fileNum = 0; fileNum < lastGoodNumFiles; fileNum++)
    *destPtr = '\0';
 
 abort:
@@ -3695,13 +3689,13 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_CREATE_TEMPORARY_FILE:
          err = VixToolsCreateTempFile(requestMsg, &resultValue);
-         // resultValue is static. Do not free it.
+         deleteResultValue = TRUE;
          break;
 
       ///////////////////////////////////
       case VIX_COMMAND_READ_VARIABLE:
          err = VixToolsReadVariable(requestMsg, &resultValue);
-         // resultValue is static. Do not free it.
+         deleteResultValue = TRUE;
          break;
 
       ///////////////////////////////////

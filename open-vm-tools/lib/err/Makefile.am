@@ -17,9 +17,6 @@
 
 noinst_LIBRARIES = libErr.a
 
-libErr_a_SOURCES = 
+libErr_a_SOURCES =
 libErr_a_SOURCES += err.c
 libErr_a_SOURCES += errPosix.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

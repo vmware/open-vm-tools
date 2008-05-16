@@ -20,8 +20,5 @@ noinst_LIBRARIES = libRpcOut.a
 libRpcOut_a_SOURCES =
 libRpcOut_a_SOURCES += rpcout.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 SUBDIRS =
 SUBDIRS += shared

@@ -19,6 +19,3 @@ noinst_LIBRARIES = libRpcIn.a
 
 libRpcIn_a_SOURCES =
 libRpcIn_a_SOURCES += rpcin.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

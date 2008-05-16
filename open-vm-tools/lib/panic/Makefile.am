@@ -19,6 +19,3 @@ noinst_LIBRARIES = libPanic.a
 
 libPanic_a_SOURCES =
 libPanic_a_SOURCES += panic.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

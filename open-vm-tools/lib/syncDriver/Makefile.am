@@ -19,6 +19,3 @@ noinst_LIBRARIES = libSyncDriver.a
 
 libSyncDriver_a_SOURCES =
 libSyncDriver_a_SOURCES += syncDriverPosix.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

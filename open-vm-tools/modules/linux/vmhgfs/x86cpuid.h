@@ -390,10 +390,14 @@ FLAGDEFA( 81, EDX, AMD,    31,  1, 3DNOW,               HOST,    0, TRUE,  3DNOW
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,   MASK TYPE, SET TO, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_8x                                              \
-FIELDDEF( 86, ECX, AMD,     0,  8, CACHE_LINE,          IGNORE,  0, FALSE)            \
-FIELDDEF( 86, ECX, AMD,     8,  4, CACHE_LINE_PER_TAG,  IGNORE,  0, FALSE)            \
-FIELDDEF( 86, ECX, AMD,    12,  4, CACHE_WAYS,          IGNORE,  0, FALSE)            \
-FIELDDEF( 86, ECX, AMD,    16, 16, CACHE_SIZE,          IGNORE,  0, FALSE)            \
+FIELDDEF( 86, ECX, AMD,     0,  8, L2CACHE_LINE,        IGNORE,  0, FALSE)            \
+FIELDDEF( 86, ECX, AMD,     8,  4, L2CACHE_LINE_PER_TAG, IGNORE, 0, FALSE)            \
+FIELDDEF( 86, ECX, AMD,    12,  4, L2CACHE_WAYS,        IGNORE,  0, FALSE)            \
+FIELDDEF( 86, ECX, AMD,    16, 16, L2CACHE_SIZE,        IGNORE,  0, FALSE)            \
+FIELDDEF( 86, EDX, AMD,     0,  8, L3CACHE_LINE,        IGNORE,  0, FALSE)            \
+FIELDDEF( 86, EDX, AMD,     8,  4, L3CACHE_LINE_PER_TAG,IGNORE,  0, FALSE)            \
+FIELDDEF( 86, EDX, AMD,    12,  4, L3CACHE_WAYS,        IGNORE,  0, FALSE)            \
+FIELDDEF( 86, EDX, AMD,    18, 14, L3CACHE_SIZE,        IGNORE,  0, FALSE)            \
 FLAGDEF(  87, EDX, AMD,     0,  1, TS,                  IGNORE,  0, FALSE)            \
 FLAGDEF(  87, EDX, AMD,     1,  1, FID,                 IGNORE,  0, FALSE)            \
 FLAGDEF(  87, EDX, AMD,     2,  1, VID,                 IGNORE,  0, FALSE)            \
@@ -595,6 +599,7 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_CORE       14
 #define CPUID_MODEL_CORE2      15
 #define CPUID_MODEL_PENRYN     0x17  // Effective model
+#define CPUID_MODEL_NEHALEM    0x1a  // Effective model
 
 static INLINE uint32
 CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */

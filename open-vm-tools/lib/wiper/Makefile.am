@@ -19,6 +19,3 @@ noinst_LIBRARIES = libWiper.a
 
 libWiper_a_SOURCES =
 libWiper_a_SOURCES += wiperPosix.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

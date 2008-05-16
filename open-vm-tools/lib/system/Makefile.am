@@ -18,6 +18,3 @@
 noinst_LIBRARIES = libSystem.a
 
 libSystem_a_SOURCES = systemLinux.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

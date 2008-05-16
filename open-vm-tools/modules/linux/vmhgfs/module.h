@@ -59,7 +59,7 @@ extern int LOGLEVEL_THRESHOLD;
 /* The amount of time we'll wait for the backdoor to process our request. */
 #define HGFS_REQUEST_TIMEOUT (30 * HZ)
 
-/* 
+/*
  * Inode number of the root inode. We set this to be non-zero because,
  * according to glibc source, when the returned inode number in a dirent
  * is zero, that entry has been deleted. This is presumably when you've done
@@ -127,7 +127,7 @@ extern int LOGLEVEL_THRESHOLD;
 
 /*
  * The writeback support we're using (set_page_dirty()) was added in
- * 2.5.12, so we only support writeback from then on. 
+ * 2.5.12, so we only support writeback from then on.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 12)
 #define HGFS_ENABLE_WRITEBACK
@@ -162,8 +162,8 @@ typedef struct HgfsSuperInfo {
    size_t shareNameLen;             /* To avoid repeated strlen() calls. */
 } HgfsSuperInfo;
 
-/* 
- * HGFS specific per-inode data. 
+/*
+ * HGFS specific per-inode data.
  */
 typedef struct HgfsInodeInfo {
 #ifdef VMW_EMBED_INODE
@@ -195,9 +195,9 @@ typedef struct HgfsFileInfo {
    /* Handle to be sent to the server. Needed for writepage(). */
    HgfsHandle handle;
 
-   /* 
-    * Mode with which handle was opened. When we reuse a handle, we need to 
-    * choose one with appropriate permissions. 
+   /*
+    * Mode with which handle was opened. When we reuse a handle, we need to
+    * choose one with appropriate permissions.
     */
    HgfsOpenMode mode;
 } HgfsFileInfo;
@@ -208,18 +208,18 @@ typedef struct HgfsFileInfo {
  */
 
 /*
- * We use hgfsBigLock to protect certain global structures that are locked for 
+ * We use hgfsBigLock to protect certain global structures that are locked for
  * a very short amount of time.
  */
 extern spinlock_t hgfsBigLock;
 
-/* 
+/*
  * The request handler thread uses hgfsReqThreadWait to wake up and handle
  * IO. Possible operations include:
  *   -Sending outgoing HGFS requests.
  *   -Shutting down the request handler thread.
  *
- * Finally, we use hgfsReqThread to synchronize the stopping of the 
+ * Finally, we use hgfsReqThread to synchronize the stopping of the
  * backdoor handler thread.
  */
 extern long hgfsReqThreadFlags;

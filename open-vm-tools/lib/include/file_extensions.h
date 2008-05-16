@@ -80,6 +80,8 @@
 #define SYMANTEC_LIVESTATE_EXTENSION "sv2i"
 #define STORAGECRAFT_SHADOWSTOR_EXTENSION "spf"
 #define ACRONIS_EXTENSION "tib"
+#define OPEN_VM_FORMAT_EXTENSION "ovf"
+#define ARCHIVED_OPEN_VM_FORMAT_EXTENSION "ova"
 // "xvm" // VMware console configuration file
 
 /*

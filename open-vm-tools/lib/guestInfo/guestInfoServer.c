@@ -47,9 +47,9 @@
 #include "buildNumber.h"
 #include "system.h"
 #include "wiper.h" // for WiperPartition functions
+#include "guest_msg_def.h" // For GUESTMSG_MAX_IN_SIZE
 
 #define GUESTINFO_DEFAULT_DELIMITER ' '
-#define GUESTMSG_MAX_IN_SIZE (64 * 1024) /* vmx/main/guest_msg.c */
 
 /*
  * Stores information about all guest information sent to the vmx.
@@ -57,8 +57,8 @@
 
 typedef struct _GuestInfoCache{
    char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
-   NicInfo  nicInfo;
-   DiskInfo diskInfo;
+   GuestNicInfo  nicInfo;
+   GuestDiskInfo diskInfo;
 } GuestInfoCache;
 
 
@@ -71,7 +71,7 @@ static DblLnkLst_Links *gGuestInfoEventQueue;
 /* Local cache of the guest information that was last sent to vmx. */
 static GuestInfoCache gInfoCache;
 
-/* 
+/*
  * A boolean flag that specifies whether the state of the VM was
  * changed since the last time guest info was sent to the VMX.
  * Tools daemon sets it to TRUE after the VM was resumed.
@@ -79,19 +79,113 @@ static GuestInfoCache gInfoCache;
 
 static Bool vmResumed;
 
+/*
+ * The Windows Guest Info Server runs in a separate thread,
+ * so we have to synchronize access to 'vmResumed' variable.
+ * Non-windows guest info server does not run in a separate
+ * thread, so no locking is needed.
+ */
+
+#if defined(_WIN32)
+typedef CRITICAL_SECTION vmResumedLockType;
+#define GUESTINFO_DELETE_LOCK(lockPtr) DeleteCriticalSection(lockPtr)
+#define GUESTINFO_ENTER_LOCK(lockPtr) EnterCriticalSection(lockPtr)
+#define GUESTINFO_LEAVE_LOCK(lockPtr) LeaveCriticalSection(lockPtr)
+#define GUESTINFO_INIT_LOCK(lockPtr) InitializeCriticalSection(lockPtr)
+
+vmResumedLockType vmResumedLock;
+
+#else // #if LINUX
+
+typedef int vmResumedLockType;
+#define GUESTINFO_DELETE_LOCK(lockPtr)
+#define GUESTINFO_ENTER_LOCK(lockPtr)
+#define GUESTINFO_LEAVE_LOCK(lockPtr)
+#define GUESTINFO_INIT_LOCK(lockPtr)
+
+#endif // #if LINUX
+
 static Bool GuestInfoGather(void * clientData);
 static Bool GuestInfoUpdateVmdb(GuestInfoType infoType, void* info);
 static Bool SetGuestInfo(GuestInfoType key, const char* value, char delimiter);
-static Bool NicInfoChanged(NicInfo *nicInfo);
-static Bool DiskInfoChanged(PDiskInfo diskInfo);
+static Bool NicInfoChanged(GuestNicInfo *nicInfo);
+static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
-static Bool GuestInfoSerializeNicInfo(NicInfo *nicInfo, 
-                                      char buffer[GUESTMSG_MAX_IN_SIZE], 
+static Bool GuestInfoSerializeNicInfo(GuestNicInfo *nicInfo,
+                                      char buffer[GUESTMSG_MAX_IN_SIZE],
                                       size_t *bufferLen);
-static int PrintNicInfo(NicInfo *nicInfo, int (*PrintFunc)(const char *, ...));
+static int PrintNicInfo(GuestNicInfo *nicInfo, int (*PrintFunc)(const char *, ...));
 
 #ifdef _WIN32
-static Bool GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info, NicInfoV1 *infoV1);
+static Bool GuestInfoConvertNicInfoToNicInfoV1(GuestNicInfo *info, GuestNicInfoV1 *infoV1);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestInfoServer_Main --
+ *
+ *    The main event loop for the guest info server.
+ *    GuestInfoServer_Init() much be called prior to calling this function.
+ *
+ * Result
+ *    None
+ *
+ * Side-effects
+ *    Events are processed, information gathered and updates sent.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+GuestInfoServer_Main(void *data) // IN
+{
+   int retVal;
+   uint64 sleepUsecs;
+   HANDLE *events = (HANDLE *) data;
+   HANDLE quitEvent;
+   HANDLE finishedEvent;
+
+   ASSERT(data);
+   ASSERT(events[0]);
+   ASSERT(events[1]);
+
+   quitEvent = events[0];
+   finishedEvent = events[1];
+
+   Debug("Starting GuestInfoServer for Windows.\n");
+   for(;;) {
+      DWORD dwError;
+
+      retVal = EventManager_ProcessNext(gGuestInfoEventQueue, &sleepUsecs);
+      if (retVal != 1) {
+         Debug("Unexpected end of the guest info loop.\n");
+         break;
+      }
+
+      /*
+       * The number of micro seconds to sleep should not overflow a long. This
+       * corresponds to a maximum sleep time of around 4295 seconds (~ 71 minutes)
+       * which should be more than enough.
+       */
+
+      Debug("Sleeping for %"FMT64"u msecs...\n", sleepUsecs / 1000);
+      dwError = WaitForSingleObject(quitEvent, sleepUsecs / 1000);
+      if (dwError == WAIT_OBJECT_0) {
+         GuestApp_Log("GuestInfoServer received quit event.\n");
+         Debug("GuestInfoServer received quit event.\n");
+         break;
+      } else if (dwError == WAIT_TIMEOUT) {
+         Debug("GuestInfoServer woke up.\n");
+      } else if (dwError == WAIT_FAILED) {
+         Debug("GuestInfoServer error waiting on exit event: %d %d\n",
+               dwError, GetLastError());
+         break;
+      }
+   }
+   SetEvent(finishedEvent);
+   GuestApp_Log("GuestInfoServer exiting.\n");
+}
 #endif
 
 
@@ -101,7 +195,7 @@ static Bool GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info, NicInfoV1 *infoV1)
  * GuestInfoServer_Init --
  *
  *    Initialize some variables and add the first event to the queue.
- *    
+ *
  *    Call GuestInfoServer_Cleanup() to do the necessary cleanup.
  *
  * Result
@@ -141,11 +235,11 @@ GuestInfoServer_Init(DblLnkLst_Links *eventQueue) // IN: queue for event loop
  *
  *    Set whether to disable/enable querying disk information.
  *    This function is required to provide a work around for bug number 94434.
- *    On Win 9x/ME querying for the disk information prevents the machine from 
- *    entering standby. So we added a configuration option diable-query-diskinfo 
+ *    On Win 9x/ME querying for the disk information prevents the machine from
+ *    entering standby. So we added a configuration option diable-query-diskinfo
  *    for the tools.conf file. We use this function to let the guestd & tools service
  *    control the disabling/enabling of disk information querying.
- *    
+ *
  * Result
  *    None.
  *
@@ -158,7 +252,7 @@ GuestInfoServer_Init(DblLnkLst_Links *eventQueue) // IN: queue for event loop
 void
 GuestInfoServer_DisableDiskInfoQuery(Bool disable)
 {
-   gDisableQueryDiskInfo = disable; 
+   gDisableQueryDiskInfo = disable;
 }
 
 
@@ -231,16 +325,16 @@ GuestInfoGather(void *clientData)   // IN: unused
    char name[255];
    char osNameFull[MAX_VALUE_LEN];
    char osName[MAX_VALUE_LEN];
-   NicInfo nicInfo;
-   DiskInfo diskInfo;
+   GuestNicInfo nicInfo;
+   GuestDiskInfo diskInfo;
 #if defined(_WIN32) || defined(linux)
-   MemInfo vmStats = {0};
-#endif  
+   GuestMemInfo vmStats = {0};
+#endif
 
    Debug("Entered guest info gather.\n");
 
    memset(&nicInfo, 0, sizeof nicInfo);
-   
+
    /* Send tools version. */
    if (!GuestInfoUpdateVmdb(INFO_TOOLS_VERSION, BUILD_NUMBER)) {
       /*
@@ -262,7 +356,7 @@ GuestInfoGather(void *clientData)   // IN: unused
          Debug("Failed to update VMDB\n");
       }
    }
- 
+
    if (!gDisableQueryDiskInfo) {
       if (!GuestInfoGetDiskInfo(&diskInfo)) {
          Debug("Failed to get disk info.\n");
@@ -276,8 +370,8 @@ GuestInfoGather(void *clientData)   // IN: unused
          free(diskInfo.partitionList);
          diskInfo.partitionList = NULL;
       }
-   }   
-   
+   }
+
    if(!GuestInfoGetFqdn(sizeof name, name)) {
          Debug("Failed to get netbios name.\n");
    } else {
@@ -312,9 +406,9 @@ GuestInfoGather(void *clientData)   // IN: unused
       }
    }
 #endif
- 
-   /* 
-    * Even if one of the updates was unsuccessfull, 
+
+   /*
+    * Even if one of the updates was unsuccessfull,
     * we still add the next timer event. This way
     * if one of the pieces failed, other information will
     * still be passed to the host.
@@ -334,23 +428,23 @@ GuestInfoGather(void *clientData)   // IN: unused
  *
  * GuestInfoConvertNicInfoToNicInfoV1 --
  *
- *      Convert the new dynamic nicInfoNew to fixed size struct NicInfoV1.
+ *      Convert the new dynamic nicInfoNew to fixed size struct GuestNicInfoV1.
  *
  * Results:
  *      TRUE if successfully converted
  *      FALSE otherwise
  *
  * Side effects:
- *      If number of NICs or number of IP addresses on any of the NICs 
+ *      If number of NICs or number of IP addresses on any of the NICs
  *      exceeding MAX_NICS and MAX_IPS respectively, the extra ones
  *      are truncated, on successful return.
- *	     
+ *
  *----------------------------------------------------------------------
  */
 
 Bool
-GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info,             // IN
-                                   NicInfoV1  *infoV1)        // OUT
+GuestInfoConvertNicInfoToNicInfoV1(GuestNicInfo *info,             // IN
+                                   GuestNicInfoV1  *infoV1)        // OUT
 {
    NicEntry *nicEntryCur;
    uint32 maxNics;
@@ -362,7 +456,7 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info,             // IN
       return FALSE;
    }
 
-   maxNics = info->nicInfoProto.numNicEntries > MAX_NICS ? 
+   maxNics = info->nicInfoProto.numNicEntries > MAX_NICS ?
                                    MAX_NICS : info->nicInfoProto.numNicEntries;
    infoV1->numNicEntries = maxNics;
    if (maxNics < info->nicInfoProto.numNicEntries) {
@@ -380,7 +474,7 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info,             // IN
       }
 
       nicEntryCur = DblLnkLst_Container(nicEntryLink,
-                                        NicEntry, 
+                                        NicEntry,
                                         links);
       if (NULL == nicEntryCur) {
          return FALSE;
@@ -388,26 +482,26 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info,             // IN
 
       strcpy(infoV1->nicList[nicIndex].macAddress, nicEntryCur->nicEntryProto.macAddress);
 
-      maxIPs = nicEntryCur->nicEntryProto.numIPs > MAX_IPS ? 
+      maxIPs = nicEntryCur->nicEntryProto.numIPs > MAX_IPS ?
                                           MAX_IPS : nicEntryCur->nicEntryProto.numIPs;
       nicEntryCur -> nicEntryProto.numIPs = maxIPs;
       if (maxIPs < nicEntryCur->nicEntryProto.numIPs) {
          Debug("Truncating IP addresses for NIC %d.\n", nicIndex);
       }
-      
+
       DblLnkLst_ForEach(ipAddrLink, &nicEntryCur->ipAddressList) {
 
          if (ipIndex >= maxIPs) {
             break;
          }
 
-         ipAddressCur = DblLnkLst_Container(ipAddrLink, 
-                                          VmIpAddressEntry, 
+         ipAddressCur = DblLnkLst_Container(ipAddrLink,
+                                          VmIpAddressEntry,
                                           links);
          if (NULL == ipAddressCur) {
             return FALSE;
          }
-         strcpy(infoV1->nicList[nicIndex].ipAddress[ipIndex], 
+         strcpy(infoV1->nicList[nicIndex].ipAddress[ipIndex],
                 ipAddressCur->ipEntryProto.ipAddress);
 
          ipIndex++;
@@ -415,7 +509,7 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfo *info,             // IN
       }
 
       nicIndex++;
-   } 
+   }
 
    return TRUE;
 }
@@ -480,9 +574,9 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
       break;
 
    case INFO_IPADDRESS:
-      if (NicInfoChanged((NicInfo *)info)) {
+      if (NicInfoChanged((GuestNicInfo *)info)) {
          static Bool isCmdV1 = FALSE;
-         char request[GUESTMSG_MAX_IN_SIZE]; 
+         char request[GUESTMSG_MAX_IN_SIZE];
          size_t requestLength = 0;
          char *reply = NULL;
          size_t replyLen;
@@ -490,14 +584,14 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
 
          if (FALSE == isCmdV1) {
             Debug("Creating nic info message.\n");
-            Str_Sprintf(request, 
-                        sizeof request, 
-                        "%s  %d ", 
+            Str_Sprintf(request,
+                        sizeof request,
+                        "%s  %d ",
                         GUEST_INFO_COMMAND_TWO,
                         INFO_IPADDRESS);
-         
-            if (GuestInfoSerializeNicInfo((NicInfo *)info, 
-                                          request + strlen(request), 
+
+            if (GuestInfoSerializeNicInfo((GuestNicInfo *)info,
+                                          request + strlen(request),
                                           &requestLength)) {
                requestLength += strlen(request);
             } else {
@@ -514,32 +608,32 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
          }
          if (!status) {
             /*
-             * Could be that we are talking to the old protocol that NicInfo is 
+             * Could be that we are talking to the old protocol that GuestNicInfo is
              * still fixed size.  Another try to send the fixed sized Nic info.
              */
-            char request[sizeof (NicInfoV1) + sizeof GUEST_INFO_COMMAND + 
+            char request[sizeof (GuestNicInfoV1) + sizeof GUEST_INFO_COMMAND +
                          2 +                 /* 2 bytes are for digits of infotype. */
                          3 * sizeof (char)]; /* 3 spaces */
-            NicInfoV1 nicInfo;
-            
+            GuestNicInfoV1 nicInfo;
+
             free(reply);
             reply = NULL;
 
-            Str_Sprintf(request, 
-                        sizeof request, 
-                        "%s  %d ", 
+            Str_Sprintf(request,
+                        sizeof request,
+                        "%s  %d ",
                         GUEST_INFO_COMMAND,
                         INFO_IPADDRESS);
             if (GuestInfoConvertNicInfoToNicInfoV1(info, &nicInfo)) {
-               memcpy(request + strlen(request), 
-                      &nicInfo, 
-                      sizeof(NicInfoV1));
+               memcpy(request + strlen(request),
+                      &nicInfo,
+                      sizeof(GuestNicInfoV1));
 
                Debug("GuestInfo: Sending nic info message.\n");
                /* Send all the information in the message. */
-               status = RpcOut_SendOneRaw(request, 
-                                          sizeof request, 
-                                          &reply, 
+               status = RpcOut_SendOneRaw(request,
+                                          sizeof request,
+                                          &reply,
                                           &replyLen);
 
                Debug("GuestInfo: Just sent fixed sized nic info message.\n");
@@ -555,7 +649,7 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
          }
 
          if (RpcVMX_ConfigGetBool(FALSE, "printNicInfo")) {
-            PrintNicInfo((NicInfo *) info, (int (*)(const char *fmt, ...)) RpcVMX_Log);
+            PrintNicInfo((GuestNicInfo *) info, (int (*)(const char *fmt, ...)) RpcVMX_Log);
          }
 
          Debug("GuestInfo: Updated new NIC information\n");
@@ -563,19 +657,19 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
          reply = NULL;
 
          /*
-          * Update the cache.  Assign info to gInfoCache.nicInfo. First free dynamic 
-          * memory allocated in gInfoCache.nicInfo. Then unlink those in nicInfo and 
-          * link them back to gInfoCache.nicInfo this is sort of hacking.  However, it 
+          * Update the cache.  Assign info to gInfoCache.nicInfo. First free dynamic
+          * memory allocated in gInfoCache.nicInfo. Then unlink those in nicInfo and
+          * link them back to gInfoCache.nicInfo this is sort of hacking.  However, it
           * works in this case, since nicInfo is not going to be used after this.  NOTE,
           * nicInfo CAN NOT BE USED AFTER THIS POINT.
           */
          GuestInfo_FreeDynamicMemoryInNicInfo(&gInfoCache.nicInfo);
          /* assign the fixed memory part */
-         gInfoCache.nicInfo = *(NicInfo *)info;
+         gInfoCache.nicInfo = *(GuestNicInfo *)info;
          /* assign the dynamic memory part */
          DblLnkLst_Init(&gInfoCache.nicInfo.nicList);
-         DblLnkLst_Link(&gInfoCache.nicInfo.nicList, ((NicInfo *)info)->nicList.next);
-         DblLnkLst_Unlink1(&((NicInfo *)info)->nicList);
+         DblLnkLst_Link(&gInfoCache.nicInfo.nicList, ((GuestNicInfo *)info)->nicList.next);
+         DblLnkLst_Unlink1(&((GuestNicInfo *)info)->nicList);
       } else {
          Debug("GuestInfo: Nic info not changed.\n");
       }
@@ -583,28 +677,28 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
 
    case INFO_MEMORY:
    {
-      char request[sizeof(MemInfo) + sizeof GUEST_INFO_COMMAND + 
-                   2 +                 /* 2 bytes are for digits of infotype. */
-                   3 * sizeof (char)]; /* 3 spaces */
+      char request[sizeof(GuestMemInfo) + sizeof GUEST_INFO_COMMAND +
+                   2 +                    /* 2 bytes are for digits of infotype. */
+                   3 * sizeof (char)];    /* 3 spaces */
       Bool status;
 
-      Debug("GuestInfo: Sending MemInfo message.\n");
-      Str_Sprintf(request, 
-                  sizeof request, 
-                  "%s  %d ", 
+      Debug("GuestInfo: Sending GuestMemInfo message.\n");
+      Str_Sprintf(request,
+                  sizeof request,
+                  "%s  %d ",
                   GUEST_INFO_COMMAND,
                   INFO_MEMORY);
       memcpy(request + strlen(request),
-             info, sizeof(MemInfo));
-      
+             info, sizeof(GuestMemInfo));
+
       /* Send all the information in the message. */
       status = RpcOut_SendOneRaw(request, sizeof(request),
                                  NULL, NULL);
       if (!status) {
-         Debug("Error sending MemInfo.\n");
+         Debug("Error sending GuestMemInfo.\n");
          return FALSE;
       }
-      Debug("MemInfo sent successfully.\n");
+      Debug("GuestMemInfo sent successfully.\n");
       break;
    }
 
@@ -621,14 +715,14 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
          char *reply;
          size_t replyLen;
          Bool status;
-         PDiskInfo pdi = (PDiskInfo)info;
+         PGuestDiskInfo pdi = (PGuestDiskInfo)info;
          int j = 0;
 
          if (!DiskInfoChanged(pdi)) {
             Debug("GuestInfo: Disk info not changed.\n");
             break;
          }
-         
+
          requestSize += sizeof pdi->numEntries +
                         sizeof *pdi->partitionList * pdi->numEntries;
          request = (char *)calloc(requestSize, sizeof (char));
@@ -637,9 +731,9 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
             break;
          }
 
-         Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND, 
+         Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
                      INFO_DISK_FREE_SPACE);
-            
+
          /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
          if (pdi->numEntries > UCHAR_MAX) {
             Debug("GuestInfo: Too many partitions.\n");
@@ -663,7 +757,7 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
          memcpy(request + offset, &partitionCount, sizeof partitionCount);
          memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
                 sizeof *pdi->partitionList * pdi->numEntries);
-   
+
          Debug("sizeof request is %d\n", requestSize);
          status = RpcOut_SendOneRaw(request, requestSize, &reply, &replyLen);
 
@@ -684,11 +778,11 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
             gInfoCache.diskInfo.partitionList = NULL;
          }
          gInfoCache.diskInfo.numEntries = pdi->numEntries;
-         gInfoCache.diskInfo.partitionList = calloc(pdi->numEntries, 
+         gInfoCache.diskInfo.partitionList = calloc(pdi->numEntries,
                                                          sizeof(PartitionEntry));
          if (gInfoCache.diskInfo.partitionList == NULL) {
             Debug("GuestInfo: could not allocate memory for the disk info cache.\n");
-            return FALSE; 
+            return FALSE;
          }
 
          for (j = 0; j < pdi->numEntries; j++) {
@@ -746,7 +840,7 @@ SetGuestInfo(GuestInfoType key,  // IN: the VMDB key to set
                            delimiter, key, delimiter, value);
 
    if (!status) {
-      Debug("SetGuestInfo: Error sending rpc message: %s\n", 
+      Debug("SetGuestInfo: Error sending rpc message: %s\n",
             reply ? reply : "NULL");
       free(reply);
       return FALSE;
@@ -777,7 +871,7 @@ SetGuestInfo(GuestInfoType key,  // IN: the VMDB key to set
  */
 
 NicEntry *
-GuestInfoFindMacAddress(NicInfo *nicInfo, const char *macAddress)
+GuestInfoFindMacAddress(GuestNicInfo *nicInfo, const char *macAddress)
 {
    NicEntry *nicEntry;
    DblLnkLst_Links *sCurrent;
@@ -817,19 +911,19 @@ GuestInfoFindMacAddress(NicInfo *nicInfo, const char *macAddress)
  */
 
 Bool
-NicInfoChanged(NicInfo *nicInfo)     // IN:
+NicInfoChanged(GuestNicInfo *nicInfo)     // IN:
 {
    char *currentMac;
-   NicInfo *cachedNicInfo;
+   GuestNicInfo *cachedNicInfo;
    NicEntry *cachedNic;
    DblLnkLst_Links *cachedNicLink;
 
    cachedNicInfo = &gInfoCache.nicInfo;
-   cachedNic = DblLnkLst_Container(cachedNicInfo->nicList.next, 
-                                   NicEntry, 
+   cachedNic = DblLnkLst_Container(cachedNicInfo->nicList.next,
+                                   NicEntry,
                                    links);
 
-   if (cachedNicInfo->nicInfoProto.numNicEntries != 
+   if (cachedNicInfo->nicInfoProto.numNicEntries !=
        nicInfo->nicInfoProto.numNicEntries) {
       Debug("GuestInfo: number of nics has changed\n");
       return TRUE;
@@ -852,7 +946,7 @@ NicInfoChanged(NicInfo *nicInfo)     // IN:
       }
 
       if (matchedNIC->nicEntryProto.numIPs != cachedNic->nicEntryProto.numIPs) {
-         Debug("GuestInfo: count of ip addresses for mac %d\n", 
+         Debug("GuestInfo: count of ip addresses for mac %d\n",
                                                 matchedNIC->nicEntryProto.numIPs);
          return TRUE;
       }
@@ -900,7 +994,7 @@ NicInfoChanged(NicInfo *nicInfo)     // IN:
             return TRUE;
          }
 
-      } 
+      }
 
    }
 
@@ -913,9 +1007,9 @@ NicInfoChanged(NicInfo *nicInfo)     // IN:
  *
  * GuestInfoSerializeNicInfo --
  *
- *      Now that NicInfo is not fixed size, serialize nicInfo into a 
- *      buffer, in order to send it over wire.  
- *      
+ *      Now that GuestNicInfo is not fixed size, serialize nicInfo into a
+ *      buffer, in order to send it over wire.
+ *
  * Results:
  *
  *      TRUE if successful, FALSE otherwise.
@@ -927,10 +1021,10 @@ NicInfoChanged(NicInfo *nicInfo)     // IN:
  *----------------------------------------------------------------------
  */
 
-Bool 
-GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
-                          char buffer[GUESTMSG_MAX_IN_SIZE],     // OUT
-                          size_t *bufferLen)                     // OUT
+Bool
+GuestInfoSerializeNicInfo(GuestNicInfo *nicInfo,                      // IN
+                          char buffer[GUESTMSG_MAX_IN_SIZE],          // OUT
+                          size_t *bufferLen)                          // OUT
 {
    char *buf;
    char *info;
@@ -938,14 +1032,14 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
    DblLnkLst_Links *nicEntryLink;
 
    ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.version == 4);
-   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, nicEntrySizeOnWire) == 4); 
+   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, nicEntrySizeOnWire) == 4);
    ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.nicEntrySizeOnWire == 4);
-   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, numNicEntries) == 8); 
+   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, numNicEntries) == 8);
    ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.numNicEntries == 4);
-   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, totalInfoSizeOnWire) == 12); 
+   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, totalInfoSizeOnWire) == 12);
    ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.totalInfoSizeOnWire == 4);
 
-   if ((NULL == nicInfo) || 
+   if ((NULL == nicInfo) ||
        (NULL == buffer ) ||
        (NULL == bufferLen)) {
       return FALSE;
@@ -957,16 +1051,16 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
 
    nicInfo->nicInfoProto.totalInfoSizeOnWire = 0;
    nicInfo->nicInfoProto.nicEntrySizeOnWire = sizeof(NicEntryProtocol);
-   
+
    buf = buffer;
    info = (char *)(&nicInfo->nicInfoProto);
-   entrySize = sizeof nicInfo->nicInfoProto;  
-   
+   entrySize = sizeof nicInfo->nicInfoProto;
+
    memcpy(buf, info, entrySize);
    nicInfo->nicInfoProto.totalInfoSizeOnWire += entrySize;
 
    buf += entrySize;
-   
+
    DblLnkLst_ForEach(nicEntryLink, &nicInfo->nicList) {
       NicEntry *nicEntry;
       DblLnkLst_Links *ipAddrLink;
@@ -976,7 +1070,7 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
       nicEntry = DblLnkLst_Container(nicEntryLink, NicEntry, links);
       nicEntry->nicEntryProto.totalNicEntrySizeOnWire = 0;
       nicEntry->nicEntryProto.ipAddressSizeOnWire = sizeof(VmIpAddressEntryProtocol);
-                                                     
+
       info = (char *)(&nicEntry->nicEntryProto);
 
       entrySize = sizeof nicEntry->nicEntryProto;
@@ -995,10 +1089,10 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
       entrySize = sizeof ipAddressCur->ipEntryProto;
 
       DblLnkLst_ForEach(ipAddrLink, &nicEntry->ipAddressList) {
-         ipAddressCur = DblLnkLst_Container(ipAddrLink, VmIpAddressEntry, links);  
+         ipAddressCur = DblLnkLst_Container(ipAddrLink, VmIpAddressEntry, links);
          ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire = 0;
          info = (char *)(&ipAddressCur->ipEntryProto);
-   
+
          if (info) {
             /* to prevent buffer overflow */
             if (buf + entrySize - buffer < GUESTMSG_MAX_IN_SIZE) {
@@ -1013,23 +1107,23 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
                return FALSE;
             }
          }
-              
+
          /*
           * Update total size portion that was just calculated.
           */
-         memcpy(buf + offsetof(VmIpAddressEntryProtocol, 
+         memcpy(buf + offsetof(VmIpAddressEntryProtocol,
                                totalIpEntrySizeOnWire),
                 &ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire,
-                sizeof ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire);  
+                sizeof ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire);
          buf += entrySize;
       }
       /*
        * Update total size portion that was just calculated.
        */
-      memcpy(nicEntryBuf + offsetof(NicEntryProtocol , 
+      memcpy(nicEntryBuf + offsetof(NicEntryProtocol ,
                                     totalNicEntrySizeOnWire),
              &nicEntry->nicEntryProto.totalNicEntrySizeOnWire,
-             sizeof nicEntry->nicEntryProto.totalNicEntrySizeOnWire);    
+             sizeof nicEntry->nicEntryProto.totalNicEntrySizeOnWire);
    }
 
    *bufferLen = buf + entrySize - buffer;
@@ -1037,7 +1131,7 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
    /*
     * Update total size portion that was just calculated.
     */
-   memcpy(buffer + offsetof(NicInfoProtocol, totalInfoSizeOnWire), 
+   memcpy(buffer + offsetof(NicInfoProtocol, totalInfoSizeOnWire),
           &nicInfo->nicInfoProto.totalInfoSizeOnWire,
           sizeof nicInfo->nicInfoProto.totalInfoSizeOnWire);
 
@@ -1063,25 +1157,25 @@ GuestInfoSerializeNicInfo(NicInfo *nicInfo,                      // IN
  */
 
 int
-PrintNicInfo(NicInfo *nicInfo,                    // IN
-             int (*PrintFunc)(const char *, ...)) // IN
+PrintNicInfo(GuestNicInfo *nicInfo,                    // IN
+             int (*PrintFunc)(const char *, ...))      // IN
 {
    int ret = 0;
    uint32 i = 0;
    DblLnkLst_Links *nicEntryLink;
-   
 
-   ret += PrintFunc("NicInfo: count: %d\n", nicInfo->nicInfoProto.numNicEntries);
+
+   ret += PrintFunc("GuestNicInfo: count: %d\n", nicInfo->nicInfoProto.numNicEntries);
    DblLnkLst_ForEach(nicEntryLink, &nicInfo->nicList) {
       uint32 j = 0;
       DblLnkLst_Links *ipAddrLink;
       NicEntry *nicEntry = DblLnkLst_Container(nicEntryLink,
-                                               NicEntry, 
+                                               NicEntry,
                                                links);
-      if (nicEntry) { 
-         ret += PrintFunc("NicInfo: nic [%d/%d] mac:      %s",
-                          i+1, 
-                          nicInfo->nicInfoProto.numNicEntries, 
+      if (nicEntry) {
+         ret += PrintFunc("GuestNicInfo: nic [%d/%d] mac:      %s",
+                          i+1,
+                          nicInfo->nicInfoProto.numNicEntries,
                           nicEntry->nicEntryProto.macAddress);
       } else {
          break;
@@ -1094,9 +1188,9 @@ PrintNicInfo(NicInfo *nicInfo,                    // IN
                                                        links);
 
          if (ipAddress) {
-            ret += PrintFunc("NicInfo: nic [%d/%d] IP [%d/%d]: %s",
-                             i+1, 
-                             nicInfo->nicInfoProto.numNicEntries, 
+            ret += PrintFunc("GuestNicInfo: nic [%d/%d] IP [%d/%d]: %s",
+                             i+1,
+                             nicInfo->nicInfoProto.numNicEntries,
                              j+1,
                              nicEntry->nicEntryProto.numIPs,
                              ipAddress->ipEntryProto.ipAddress);
@@ -1132,13 +1226,13 @@ PrintNicInfo(NicInfo *nicInfo,                    // IN
  */
 
 Bool
-DiskInfoChanged(PDiskInfo diskInfo)     // IN:
+DiskInfoChanged(PGuestDiskInfo diskInfo)     // IN:
 {
    int index;
    char *name;
    int i;
    int matchedPartition;
-   PDiskInfo cachedDiskInfo;
+   PGuestDiskInfo cachedDiskInfo;
 
    cachedDiskInfo = &gInfoCache.diskInfo;
 
@@ -1165,12 +1259,12 @@ DiskInfoChanged(PDiskInfo diskInfo)     // IN:
          return TRUE;
       } else {
          /* Compare the free space. */
-         if (diskInfo->partitionList[matchedPartition].freeBytes != 
+         if (diskInfo->partitionList[matchedPartition].freeBytes !=
              cachedDiskInfo->partitionList[index].freeBytes) {
             Debug("GuestInfo: free space changed\n");
             return TRUE;
          }
-         if (diskInfo->partitionList[matchedPartition].totalBytes != 
+         if (diskInfo->partitionList[matchedPartition].totalBytes !=
             cachedDiskInfo->partitionList[index].totalBytes) {
             Debug("GuestInfo: total space changed\n");
             return TRUE;
@@ -1200,23 +1294,23 @@ DiskInfoChanged(PDiskInfo diskInfo)     // IN:
  *----------------------------------------------------------------------
  */
 
-Bool 
-GuestInfoGetDiskInfo(PDiskInfo di) // IN/OUT
+Bool
+GuestInfoGetDiskInfo(PGuestDiskInfo di) // IN/OUT
 {
-   int i = 0; 
+   int i = 0;
    WiperPartition_List *pl = NULL;
-   unsigned int partCount = 0; 
+   unsigned int partCount = 0;
    uint64 freeBytes = 0;
    uint64 totalBytes = 0;
    WiperPartition nextPartition;
    unsigned int partNameSize = 0;
    Bool success = FALSE;
-   
+
    ASSERT(di);
    partNameSize = sizeof (di->partitionList)[0].name;
-   di->numEntries = 0; 
+   di->numEntries = 0;
    di->partitionList = NULL;
-   
+
     /* Get partition list. */
    if (!Wiper_Init(NULL)) {
       Debug("GetDiskInfo: ERROR: could not initialize wiper library\n");
@@ -1228,25 +1322,25 @@ GuestInfoGetDiskInfo(PDiskInfo di) // IN/OUT
       Debug("GetDiskInfo: ERROR: could not get partition list\n");
       return FALSE;
    }
-      
+
    for (i = 0; i < pl->size; i++) {
       nextPartition = pl->partitions[i];
       if (!strlen(nextPartition.comment)) {
          PPartitionEntry newPartitionList;
-         unsigned char *error; 
+         unsigned char *error;
          error = WiperSinglePartition_GetSpace(&nextPartition, &freeBytes, &totalBytes);
          if (strlen(error)) {
-            Debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n", 
+            Debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
                   nextPartition.mountPoint, error);
             goto out;
          }
-       
+
          if (strlen(nextPartition.mountPoint) + 1 > partNameSize) {
             Debug("GetDiskInfo: ERROR: Partition name buffer too small\n");
             goto out;
          }
-         
-         newPartitionList = realloc(di->partitionList, 
+
+         newPartitionList = realloc(di->partitionList,
                                     (partCount + 1) * sizeof *di->partitionList);
          if (newPartitionList == NULL) {
             Debug("GetDiskInfo: ERROR: could not allocate partition list.\n");
@@ -1254,8 +1348,8 @@ GuestInfoGetDiskInfo(PDiskInfo di) // IN/OUT
          }
          di->partitionList = newPartitionList;
 
-         Str_Strcpy((di->partitionList)[partCount].name, nextPartition.mountPoint, 
-                        partNameSize); 
+         Str_Strcpy((di->partitionList)[partCount].name, nextPartition.mountPoint,
+                        partNameSize);
          (di->partitionList)[partCount].freeBytes = freeBytes;
          (di->partitionList)[partCount].totalBytes = totalBytes;
          partCount++;
@@ -1278,7 +1372,7 @@ GuestInfoGetDiskInfo(PDiskInfo di) // IN/OUT
  *    Clears the cached guest info data.
  *
  * Results:
- *    None.  
+ *    None.
  *
  * Side effects:
  *    gInfoCache is cleared.
@@ -1287,14 +1381,14 @@ GuestInfoGetDiskInfo(PDiskInfo di) // IN/OUT
  */
 
 static void
-GuestInfoClearCache(void) 
+GuestInfoClearCache(void)
 {
-   int i; 
+   int i;
 
    for (i = 0; i < INFO_MAX; i++) {
       gInfoCache.value[i][0] = 0;
    }
-      
+
    GuestInfo_FreeDynamicMemoryInNicInfo(&gInfoCache.nicInfo);
 
    gInfoCache.nicInfo.nicInfoProto.numNicEntries = 0;
@@ -1329,11 +1423,11 @@ GuestInfoClearCache(void)
 uint64
 GetAvailableDiskSpace(char *pathName)
 {
-   WiperPartition p; 
+   WiperPartition p;
    uint64 freeBytes  = 0;
-   uint64 totalBytes = 0; 
+   uint64 totalBytes = 0;
    char *wiperError;
-      
+
    Wiper_Init(NULL);
 
    if (strlen(pathName) > sizeof p.mountPoint) {
@@ -1341,10 +1435,10 @@ GetAvailableDiskSpace(char *pathName)
       return 0;
    }
    Str_Strcpy((char *)p.mountPoint, pathName, sizeof p.mountPoint);
-   wiperError = (char *)WiperSinglePartition_GetSpace(&p, &freeBytes, &totalBytes);      
+   wiperError = (char *)WiperSinglePartition_GetSpace(&p, &freeBytes, &totalBytes);
    if (strlen(wiperError) > 0) {
       Debug("GetAvailableDiskSpace: error using wiper lib: %s\n", wiperError);
-      return 0; 
+      return 0;
    }
    Debug("GetAvailableDiskSpace: free bytes is %"FMT64"u\n", freeBytes);
    return freeBytes;
@@ -1387,7 +1481,7 @@ GuestInfoServer_SendUptime(void)
  *
  * GuestInfoAddNicEntry --
  *
- *      Add a Nic entry into NicInfo.  macAddress of the NicEntry is 
+ *      Add a Nic entry into GuestNicInfo.  macAddress of the NicEntry is
  *      initialized with the input parameter
  *
  * Results:
@@ -1400,8 +1494,8 @@ GuestInfoServer_SendUptime(void)
  */
 
 NicEntry *
-GuestInfoAddNicEntry(NicInfo *nicInfo,                       // IN/OUT
-                     const char macAddress[MAC_ADDR_SIZE])   // IN
+GuestInfoAddNicEntry(GuestNicInfo *nicInfo,                       // IN/OUT
+                     const char macAddress[MAC_ADDR_SIZE])        // IN
 {
    NicEntry   *nicEntryCur = NULL;
 
@@ -1428,7 +1522,7 @@ GuestInfoAddNicEntry(NicInfo *nicInfo,                       // IN/OUT
  *      Newly allocated IP address Entry
  *
  * Side effects:
- *	     Linked list in the new IP address entry is initialized.Number 
+ *	     Linked list in the new IP address entry is initialized.Number
  *      of IP addresses on the NIC is bumped up by 1
  *
  *----------------------------------------------------------------------
@@ -1506,7 +1600,7 @@ GuestInfoAddSubnetMask(VmIpAddressEntry *ipAddressEntry,       // IN/OUT
  *      Determines the operating system's bitness.
  *
  * Return value:
- *      32 or 64 on success, negative value on failure. Check errno for more 
+ *      32 or 64 on success, negative value on failure. Check errno for more
  *      details of error.
  *
  * Side effects:

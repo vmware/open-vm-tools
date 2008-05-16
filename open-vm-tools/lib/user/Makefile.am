@@ -23,6 +23,4 @@ libUser_a_SOURCES += hostinfoPosix.c
 libUser_a_SOURCES += util.c
 libUser_a_SOURCES += utilPosix.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_USER_CFLAGS@
+AM_CFLAGS = @LIB_USER_CPPFLAGS@

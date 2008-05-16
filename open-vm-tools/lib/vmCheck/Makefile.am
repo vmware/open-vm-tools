@@ -19,6 +19,3 @@ noinst_LIBRARIES = libVmCheck.a
 
 libVmCheck_a_SOURCES =
 libVmCheck_a_SOURCES += vmcheck.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

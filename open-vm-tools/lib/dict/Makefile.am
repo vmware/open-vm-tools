@@ -17,8 +17,5 @@
 
 noinst_LIBRARIES = libDict.a
 
-libDict_a_SOURCES = 
+libDict_a_SOURCES =
 libDict_a_SOURCES += dictll.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

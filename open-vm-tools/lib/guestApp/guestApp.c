@@ -1671,86 +1671,16 @@ GuestApp_HostCopyStep(uint8 c) // IN
 }
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestApp_RpcSendOneUtf8 --
- *
- *      Wrapper for RpcOut_SendOneRaw. Sends a single RPCI command with a single string
- *      argument. The argument will be UTF-8 encoded and sent safely over the backdoor.
- *      This used instead of RpcOut_SendOne because that function uses Str_Asprintf
- *      which uses FormatMessage. FormatMessage would interpret the utf8 encoded arg
- *      as being in the current locale and corrupts the string. This is used for
- *      commands which pass file paths over the backdoor.
- *
- * Results:
- *    TRUE on success.
- *    FALSE on error.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-GuestApp_RpcSendOneUtf8(char const *cmd,  // IN: RPCI command
-                        char const *arg,  // IN: string arg to be Utf8 encoded
-                        size_t argSize)   // IN: size of arg
-{
-   char *utf8Name;
-   size_t utf8NameSize;
-   char *rpcMessage;
-   size_t messageSize;
-
-   ASSERT(cmd);
-   ASSERT(arg);
-
-   if (!CodeSet_CurrentToUtf8(arg, argSize,
-                               &utf8Name, &utf8NameSize)) {
-      Debug("GuestApp_RpcSendOneUtf8: error failed to convert arg to utf8\n");
-      return FALSE;
-   }
-
-   messageSize = strlen(cmd) + 1 + utf8NameSize + 1;
-   rpcMessage = (char *)malloc(messageSize);
-   if (!rpcMessage) {
-      Debug("GuestApp_RpcSendOneUtf8: Error, out of memory\n");
-      free(utf8Name);
-      return FALSE;
-   }
-
-   Str_Strcpy(rpcMessage, cmd, messageSize);
-   Str_Strcat(rpcMessage, " ", messageSize);
-   Str_Strcat(rpcMessage, utf8Name, messageSize);
-   free(utf8Name);
-
-   Debug("GuestApp_RpcSendOneUtf8: about to send rpc message = *%s*, len = %"FMTSZ"d\n",
-         rpcMessage, messageSize);
-   if (!RpcOut_SendOneRaw(rpcMessage, messageSize, NULL, NULL)) {
-      Debug("GuestApp_RpcSendOneUtf8: Failed to send message to host\n");
-      free(rpcMessage);
-      return FALSE;
-   } else {
-      Debug("GuestApp_RpcSendOneUtf8: sent rpc message");
-   }
-
-   free(rpcMessage);
-   return TRUE;
-}
-
-
 #if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------------
  *
- * GuestApp_RpcSendOneUtf8CPName --
+ * GuestApp_RpcSendOneArgCPName --
  *
- *    Wrapper for GuestApp_RpcSendOneCPName to enable both UTF-8 and CPName
- *    conversions.  Sends a single RPCI command with arg UTF-8 encoded and
- *    cpNameArg both UTF-8 and CPName encoded.
+ *    Wrapper for GuestApp_RpcSendOneCPName with an extra argument. Sends a 
+ *    single RPCI command with arg and cpNameArg both in UTF-8 encodeding.
  *
- *    The UTF-8 encoded string is optional so that one can send a single UTF-8
+ *    The UTF-8 encoded arg is optional so that one can send a single UTF-8
  *    and CPName encoded string using this function.
  *
  *    Note that the UTF-8 string always preceeds the UTF-8 & CPName string in
@@ -1767,75 +1697,43 @@ GuestApp_RpcSendOneUtf8(char const *cmd,  // IN: RPCI command
  */
 
 Bool
-GuestApp_RpcSendOneUtf8CPName(char const *cmd,        // IN: RPCI command
-                              char const *arg,        // IN: to UTF8 encode
-                              size_t argSize,         // IN: size of arg
-                              char delimiter,         // IN: arg/cpNameArg delim.
-                              char const *cpNameArg,  // IN: to UTF8/CPName encode
-                              size_t cpNameArgSize)   // IN: size of cpNameArg
+GuestApp_RpcSendOneArgCPName(char const *cmd,        // IN: RPCI command
+                             char const *arg,        // IN: UTF-8 encoded string
+                             size_t argSize,         // IN: size of arg
+                             char delimiter,         // IN: arg/cpNameArg delim.
+                             char const *cpNameArg,  // IN: UTF-8 encoded CPName
+                             size_t cpNameArgSize)   // IN: size of cpNameArg
 {
-   size_t utf8cpNameArgSize;
-   char *utf8cpNameArg;
    Bool ret = FALSE;
 
    ASSERT(cmd);
    ASSERT(cpNameArg);
 
 
-   /* UTF-8 encode cpNameArg */
    Debug("GuestApp_RpcSendOneUtf8CPName: cpNameArg=\"%s\" (%"FMTSZ"u)\n",
          CPName_Print(cpNameArg, cpNameArgSize), cpNameArgSize);
 
-   if (!CodeSet_CurrentToUtf8(cpNameArg, cpNameArgSize,
-                              &utf8cpNameArg, &utf8cpNameArgSize)) {
-      Debug("GuestApp_RpcSendOneUtf8CPName: error failed to convert arg to utf8\n");
-      return FALSE;
-   }
-
-   Debug("GuestApp_RpcSendOneUtf8CPName: utf8cpNameArg=\"%s\", len=%"FMTSZ"d\n",
-         CPName_Print(utf8cpNameArg, utf8cpNameArgSize), utf8cpNameArgSize);
-
-   /* UTF-8 encode arg if provided */
    if (arg) {
       char *rpcMessage;
-      size_t messageSize;
-      char *utf8Arg;
-      size_t utf8ArgSize = 0;
 
       Debug("GuestApp_RpcSendOneUtf8CPName: arg=\"%s\"\n", arg);
 
-      if (!CodeSet_CurrentToUtf8(arg, argSize, &utf8Arg, &utf8ArgSize)) {
-         Debug("GuestApp_RpcSendOneUtf8CPName: error failed to convert arg to utf8\n");
-         goto abort;
-      }
-
-      Debug("GuestApp_RpcSendOneUtf8CPName: utf8Arg=\"%s\", len=%"FMTSZ"d\n",
-            utf8Arg, utf8ArgSize);
-
-      /* Merge command and UTF-8 encoded string */
-      messageSize = strlen(cmd) + 1 + utf8ArgSize + 1;
-      rpcMessage = (char *)malloc(messageSize);
+      /* Merge command and argument */
+      rpcMessage = Str_Asprintf(NULL, "%s %s", cmd, arg);
       if (!rpcMessage) {
          Debug("GuestApp_RpcSendOneUtf8CPName: Error, out of memory\n");
-         free(utf8Arg);
          goto abort;
       }
 
-      Str_Strcpy(rpcMessage, cmd, messageSize);
-      Str_Strcat(rpcMessage, " ", messageSize);
-      Str_Strcat(rpcMessage, utf8Arg, messageSize);
-      free(utf8Arg);
-
       ret = GuestApp_RpcSendOneCPName(rpcMessage, delimiter,
-                                      utf8cpNameArg, utf8cpNameArgSize);
+                                      cpNameArg, cpNameArgSize);
       free(rpcMessage);
    } else {
       ret = GuestApp_RpcSendOneCPName(cmd, delimiter,
-                                      utf8cpNameArg, utf8cpNameArgSize);
+                                      cpNameArg, cpNameArgSize);
    }
 
 abort:
-   free(utf8cpNameArg);
    return ret;
 }
 

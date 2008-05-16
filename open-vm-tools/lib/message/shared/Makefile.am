@@ -21,6 +21,3 @@ libMessage_la_SOURCES =
 libMessage_la_SOURCES += ../message.c
 libMessage_la_SOURCES += ../messageBackdoor.c
 libMessage_la_SOURCES += ../messageStub.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

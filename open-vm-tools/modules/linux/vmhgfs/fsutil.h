@@ -37,7 +37,7 @@
 #include "vm_basic_types.h"
 #include "hgfsProto.h"
 
-/* 
+/*
  * Struct used to pass around attributes that Linux cares about.
  * These aren't just the attributes seen in HgfsAttr[V2]; we add a filename
  * pointer for convenience (used by SearchRead and Getattr).

@@ -286,7 +286,7 @@ uint64set(void *dst, uint64 val, uint64 count)
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(_MSC_VER)
 
 static INLINE void
 Div643232(uint64 dividend,   // IN
@@ -294,8 +294,8 @@ Div643232(uint64 dividend,   // IN
           uint32 *quotient,  // OUT
           uint32 *remainder) // OUT
 {
-   *quotient = dividend / divisor;
-   *remainder = dividend % divisor;
+   *quotient = (uint32)(dividend / divisor);
+   *remainder = (uint32)(dividend % divisor);
 }
 
 #endif

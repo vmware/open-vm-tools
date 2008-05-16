@@ -158,17 +158,12 @@ uint32
 GuestApp_HostCopyStep(uint8 c);  // IN
 
 Bool
-GuestApp_RpcSendOneUtf8(char const *cmd,  // IN: RPCI command
-                        char const *arg,  // IN: string arg to be Utf8 encoded
-                        size_t argSize);  // IN: size of arg
-
-Bool
-GuestApp_RpcSendOneUtf8CPName(char const *cmd,       // IN: RPCI command
-                              char const *arg,       // IN: to UTF8 encode
-                              size_t argSize,        // IN: size of arg
-                              char delimiter,        // IN: delimiter
-                              char const *cpNameArg, // IN: to UTF8/CPName encode
-                              size_t cpNameArgSize); // IN: size of cpNameArg
+GuestApp_RpcSendOneArgCPName(char const *cmd,       // IN: RPCI command
+                             char const *arg,       // IN: UTF-8 encoded string
+                             size_t argSize,        // IN: size of arg
+                             char delimiter,        // IN: delimiter
+                             char const *cpNameArg, // IN: UTF-8 encoded CPName
+                             size_t cpNameArgSize); // IN: size of cpNameArg
 Bool
 GuestApp_RpcSendOneCPName(char const *cmd, // IN: RPCI command
                           char delimiter,  // IN: delimiter

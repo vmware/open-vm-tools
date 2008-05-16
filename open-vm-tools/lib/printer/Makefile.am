@@ -19,6 +19,3 @@ noinst_LIBRARIES = libPrinter.a
 
 libPrinter_a_SOURCES =
 libPrinter_a_SOURCES += printer.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

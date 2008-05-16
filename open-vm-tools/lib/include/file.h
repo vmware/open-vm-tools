@@ -25,6 +25,10 @@
 #ifndef _FILE_H_
 #define _FILE_H_
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #include <stdio.h>
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
@@ -62,8 +66,8 @@ EXTERN FileMacosUnmountStatus FileMacos_UnmountDev(char const *bsdDev,
 EXTERN void FileMacos_MountDevAsyncNoResult(char const *bsdSliceDev,
                                             Bool su);
 
-EXTERN Bool FileMacos_IsOnExternalDevice(char const *path);
-EXTERN Bool FileMacos_IsOnSparseDmg(char const *path);
+EXTERN Bool FileMacos_IsOnExternalDevice(int fd);
+EXTERN Bool FileMacos_IsOnSparseDmg(int fd);
 
 EXTERN char *FileMacos_DiskDevToDiskName(char const *bsdDiskDev);
 
@@ -254,5 +258,9 @@ EXTERN Bool File_OnVMFS(ConstUnicode pathName);
 EXTERN Bool File_MakeCfgFileExecutable(ConstUnicode pathName);
 
 EXTERN char *File_ExpandAndCheckDir(const char *dirName);
+
+#ifdef __cplusplus
+} // extern "C" {
+#endif
 
 #endif // ifndef _FILE_H_

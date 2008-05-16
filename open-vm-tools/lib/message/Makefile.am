@@ -22,8 +22,5 @@ libMessage_a_SOURCES += message.c
 libMessage_a_SOURCES += messageBackdoor.c
 libMessage_a_SOURCES += messageStub.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 SUBDIRS =
 SUBDIRS += shared

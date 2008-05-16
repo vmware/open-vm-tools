@@ -19,6 +19,3 @@ noinst_LIBRARIES = libStrUtil.a
 
 libStrUtil_a_SOURCES =
 libStrUtil_a_SOURCES += strutil.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

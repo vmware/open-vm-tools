@@ -19,7 +19,7 @@
 /*
  * link.c --
  *
- * Symlink-specific inode operations for the filesystem portion of the 
+ * Symlink-specific inode operations for the filesystem portion of the
  * vmhgfs driver.
  */
 
@@ -36,10 +36,10 @@
 
 /* HGFS symlink operations. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
-static void *HgfsFollowlink(struct dentry *dentry, 
+static void *HgfsFollowlink(struct dentry *dentry,
                             struct nameidata *nd);
 #else
-static int HgfsFollowlink(struct dentry *dentry, 
+static int HgfsFollowlink(struct dentry *dentry,
                           struct nameidata *nd);
 #endif
 static int HgfsReadlink(struct dentry *dentry,
@@ -52,8 +52,8 @@ struct inode_operations HgfsLinkInodeOperations = {
    .readlink      = HgfsReadlink,
 };
 
-/* 
- * HGFS symlink operations. 
+/*
+ * HGFS symlink operations.
  */
 
 /*
@@ -103,14 +103,14 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
    attr.fileName = NULL;
    error = HgfsPrivateGetattr(dentry, &attr);
    if (!error) {
-      
+
       /* Let's make sure we got called on a symlink. */
       if (attr.type != HGFS_FILE_TYPE_SYMLINK ||
           attr.fileName == NULL) {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: got called "
                  "on something that wasn't a symlink\n"));
          error = -EINVAL;
-      } else {         
+      } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: calling "
                  "vfs_follow_link\n"));
          error = vfs_follow_link(nd, attr.fileName);
@@ -144,7 +144,7 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
  *----------------------------------------------------------------------
  */
 
-static int 
+static int
 HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
              char __user *buffer,    // OUT: User buffer to copy link into
              int buflen)             // IN:  Length of user buffer
@@ -166,14 +166,14 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
    attr.fileName = NULL;
    error = HgfsPrivateGetattr(dentry, &attr);
    if (!error) {
-      
+
       /* Let's make sure we got called on a symlink. */
       if (attr.type != HGFS_FILE_TYPE_SYMLINK ||
           attr.fileName == NULL) {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadlink: got called "
                  "on something that wasn't a symlink\n"));
          error = -EINVAL;
-      } else {         
+      } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadlink: calling "
                  "vfs_readlink\n"));
          error = vfs_readlink(dentry, buffer, buflen, attr.fileName);

@@ -17,7 +17,7 @@
 
 noinst_LIBRARIES = libUnicode.a
 
-libUnicode_a_SOURCES = 
+libUnicode_a_SOURCES =
 libUnicode_a_SOURCES += unicodeCommon.c
 libUnicode_a_SOURCES += unicodeSimpleBase.c
 libUnicode_a_SOURCES += unicodeSimpleCaseFolding.c
@@ -29,6 +29,3 @@ libUnicode_a_SOURCES += unicodeStatic.c
 if NO_ICU
 libUnicode_a_SOURCES += unicodeICU.c
 endif
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

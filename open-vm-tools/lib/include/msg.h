@@ -148,6 +148,8 @@ EXTERN void Msg_Append(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
 EXTERN void Msg_Post(MsgSeverity severity, const char *idFmt, ...)
        PRINTF_DECL(2, 3);
+EXTERN void Msg_PostMsgList(MsgSeverity severity, Msg_List *msg);
+
 EXTERN char *Msg_Format(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
 EXTERN char *Msg_VFormat(const char *idFmt, va_list arguments);
@@ -158,6 +160,7 @@ EXTERN void Msg_AppendMsgList(char* id,
                               char* fmt,
                               MsgFmt_Arg *args,
                               int numArgs);
+EXTERN Msg_List *Msg_VCreateMsgList(const char *idFmt, va_list args);
 
 /*
  * Unfortunately, gcc warns about both NULL and "" being passed as format
@@ -178,6 +181,7 @@ EXTERN void Msg_LazyProgressEnd(void *handle);
 EXTERN HintResult Msg_Hint(Bool defaultShow, HintOptions options,
                            const char *idFmt, ...)
        PRINTF_DECL(3, 4);
+EXTERN HintResult Msg_HintMsgList(Bool defaultShow, HintOptions options, Msg_List *msg);
 EXTERN int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
 			     const char *string);
 EXTERN char *Msg_GetString(const char *idString);

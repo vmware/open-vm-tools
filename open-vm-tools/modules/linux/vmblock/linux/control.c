@@ -149,11 +149,10 @@ SetupProcDevice(void)
    struct proc_dir_entry *controlProcMountpoint;
 
    /* Create /proc/fs/vmblock */
-   controlProcDirEntry = proc_mkdir(VMBLOCK_CONTROL_DIRNAME,
-                                    VMBLOCK_CONTROL_PARENT);
+   controlProcDirEntry = proc_mkdir(VMBLOCK_CONTROL_PROC_DIRNAME, NULL);
    if (!controlProcDirEntry) {
-      Warning("SetupProcDevice: could not create /proc/fs/"
-              VMBLOCK_CONTROL_DIRNAME "\n");
+      Warning("SetupProcDevice: could not create /proc/"
+              VMBLOCK_CONTROL_PROC_DIRNAME "\n");
       return -EINVAL;
    }
 
@@ -163,9 +162,9 @@ SetupProcDevice(void)
    controlProcMountpoint = proc_mkdir(VMBLOCK_CONTROL_MOUNTPOINT,
                                       controlProcDirEntry);
    if (!controlProcMountpoint) {
-      Warning("SetupProcDevice: could not create /proc/fs/"
-              VMBLOCK_CONTROL_MOUNTPOINT "\n");
-      remove_proc_entry(VMBLOCK_CONTROL_DIRNAME, VMBLOCK_CONTROL_PARENT);
+      Warning("SetupProcDevice: could not create "
+              VMBLOCK_MOUNT_POINT "\n");
+      remove_proc_entry(VMBLOCK_CONTROL_PROC_DIRNAME, NULL);
       return -EINVAL;
    }
 
@@ -176,10 +175,9 @@ SetupProcDevice(void)
                                         VMBLOCK_CONTROL_MODE,
                                         controlProcDirEntry);
    if (!controlProcEntry) {
-      Warning("SetupProcDevice: could not create /proc/fs/"
-              VMBLOCK_CONTROL_DIRNAME "/" VMBLOCK_CONTROL_DEVNAME "\n");
+      Warning("SetupProcDevice: could not create " VMBLOCK_DEVICE "\n");
       remove_proc_entry(VMBLOCK_CONTROL_MOUNTPOINT, controlProcDirEntry);
-      remove_proc_entry(VMBLOCK_CONTROL_DIRNAME, VMBLOCK_CONTROL_PARENT);
+      remove_proc_entry(VMBLOCK_CONTROL_PROC_DIRNAME, NULL);
       return -EINVAL;
    }
 
@@ -210,7 +208,7 @@ CleanupProcDevice(void)
    if (controlProcDirEntry) {
       remove_proc_entry(VMBLOCK_CONTROL_MOUNTPOINT, controlProcDirEntry);
       remove_proc_entry(VMBLOCK_CONTROL_DEVNAME, controlProcDirEntry);
-      remove_proc_entry(VMBLOCK_CONTROL_DIRNAME, VMBLOCK_CONTROL_PARENT);
+      remove_proc_entry(VMBLOCK_CONTROL_PROC_DIRNAME, NULL);
    }
    return 0;
 }

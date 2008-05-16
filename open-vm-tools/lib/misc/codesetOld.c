@@ -24,56 +24,57 @@
  */
 
 
-/*
- * Windows have their own logic for conversion.  On Posix systems with iconv
- * available we use iconv.  On systems without iconv use simple 1:1 translation
- * for UTF8 <-> Current.  We also use 1:1 translation also for MacOS's conversion
- * between 'current' and 'UTF-8', as MacOS is UTF-8 only.
- */
-
 #if defined(_WIN32)
 #   include <windows.h>
 #   include <malloc.h>
 #   include <str.h>
 #else
-#   define _GNU_SOURCE
+#   if defined(__linux__)
+#      define _GNU_SOURCE	// see nl_langinfo_l explanation below
+#   endif
 #   include <string.h>
 #   include <stdlib.h>
 #   include <errno.h>
-#   if !defined(CURRENT_IS_UTF8)
-#      include <locale.h>
-#      ifndef LC_CTYPE_MASK  // Prior to glibc 2.3
-#         define LC_CTYPE_MASK (1 << LC_CTYPE)
-#         define locale_t __locale_t
-#         define newlocale __newlocale
-#         define freelocale __freelocale
-#         define nl_langinfo_l __nl_langinfo_l
-#      endif
-#      if !defined(N_PLAT_NLM) && !defined(__FreeBSD__)
-#         define USE_ICONV
-#         include <dlfcn.h>
-#         include <iconv.h>
-#         include <langinfo.h>
-#      endif
-#   endif
 #endif
 
 #if defined(__APPLE__)
 #   include <CoreFoundation/CoreFoundation.h> /* for CFString */
 #endif
 
-#include "vm_assert.h"
+#include "vmware.h"
 #include "codeset.h"
 #include "codesetOld.h"
 #include "unicodeTypes.h"
 #include "util.h"
 #include "str.h"
 
-#define CSGTG_NORMAL    0x0000  /* Without any information loss. */
-#define CSGTG_TRANSLIT  0x0001  /* Transliterate unknown characters. */
-#define CSGTG_IGNORE    0x0002  /* Skip over untranslatable characters. */
+/*
+ * These systems use iconv and nl_langinfo.
+ * See the definition of CURRENT_IS_UTF8.
+ *
+ * In addition, Linux has nl_langinfo_l.  To get the nl_langinfo_l
+ * related definitions in local.h, we need to define _GNU_SOURCE,
+ * which has to be done above because one of the other standard include
+ * files sucks it in.
+ */
 
-#if defined(__FreeBSD__) || defined(sun) || defined(VMX86_SERVER)
+#if !defined(CURRENT_IS_UTF8) && !defined(_WIN32)
+   #include <locale.h>
+   #if defined(__linux__) && !defined(LC_CTYPE_MASK)  // Prior to glibc 2.3
+      #define LC_CTYPE_MASK (1 << LC_CTYPE)
+      #define locale_t __locale_t
+      #define newlocale __newlocale
+      #define freelocale __freelocale
+      #define nl_langinfo_l __nl_langinfo_l
+   #endif
+   #define USE_ICONV
+   #include <dlfcn.h>
+   #include <iconv.h>
+   #include <langinfo.h>
+#endif
+
+
+#if defined(__FreeBSD__) || defined(sun)
 static const char nul[] = {'\0', '\0'};
 #else
 static const wchar_t nul = L'\0';
@@ -296,9 +297,8 @@ CodeSetOldUtf8ToUtf16le(const char *bufIn,  // IN
 }
 
 
-#if defined(_WIN32)
+#if defined(_WIN32) // {
 
-static Bool IsWin95(void);
 static DWORD GetInvalidCharsFlag(void);
 
 /*
@@ -439,7 +439,7 @@ CodeSetOldGenericToUtf16le(UINT codeIn,         // IN
 
 static Bool
 CodeSetOldUtf16leToGeneric(char const *bufIn,   // IN
-                           size_t sizeIn, // IN
+                           size_t sizeIn,       // IN
                            UINT codeOut,        // IN
                            DynBuf *db)          // IN
 {
@@ -450,29 +450,31 @@ CodeSetOldUtf16leToGeneric(char const *bufIn,   // IN
     */
    if (sizeIn) {
       size_t initialSize;
+      Bool canHaveSubstitution = codeOut != CP_UTF8 && codeOut != CP_UTF7;
 
       initialSize = DynBuf_GetSize(db);
       for (;;) {
          int result;
          DWORD error;
+         BOOL usedSubstitution = FALSE;
 
          if (DynBuf_Enlarge(db, 1) == FALSE) {
             return FALSE;
          }
 
          result = WideCharToMultiByte(codeOut,
-                     0,
+                     canHaveSubstitution ? WC_NO_BEST_FIT_CHARS : 0,
                      (wchar_t const *)bufIn,
                      sizeIn / sizeof(wchar_t),
                      (char *)DynBuf_Get(db) + initialSize,
                      DynBuf_GetAllocatedSize(db) - initialSize,
                      NULL,
-                     /*
-                      * XXX We may need to pass that argument
-                      *     to know when the conversion was
-                      *     not possible --hpreg
-                      */
-                     NULL);
+                     canHaveSubstitution ? &usedSubstitution : NULL);
+
+         if (usedSubstitution) {
+            return FALSE;
+         }
+
          if (result > 0) {
             DynBuf_SetSize(db, initialSize + result);
             break;
@@ -533,7 +535,8 @@ CodeSetOldUtf16leToCurrent(char const *bufIn,     // IN
    ok = CodeSetOldUtf16leToGeneric(bufIn, sizeIn, CP_ACP, &db);
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
-#endif
+
+#endif // }
 
 
 #if defined(__APPLE__)
@@ -544,7 +547,7 @@ CodeSetOldUtf16leToCurrent(char const *bufIn,     // IN
  *
  *    Convert the content of a buffer (that uses the UTF-8 encoding) into
  *    another buffer (that uses the UTF-8 encoding) that is in precomposed
-      (Normalization Form C) or decomposed (Normalization Form D).
+ *    (Normalization Form C) or decomposed (Normalization Form D).
  *
  * Results:
  *    TRUE on success: '*bufOut' contains a NUL terminated buffer.
@@ -646,6 +649,73 @@ exit:
  *   --hpreg
  */
 
+
+#if defined(USE_ICONV) // {
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOldGetCodeSetFromLocale --
+ *
+ *    Extract the native code set from LC_CTYPE.  
+ *
+ * Results:
+ *
+ *    The name of the current code set on success.  The return value depends
+ *    on how LC_CTYPE is set in the locale, even if setlocale has not been
+ *    previously called.
+ *
+ * Side effects:
+ *
+ *    May briefly set and restore locale on some systems, which is not
+ *    thread-safe.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+CodeSetOldGetCodeSetFromLocale(void)
+{
+   char *codeset;
+
+#if defined(__linux__)
+
+   locale_t new = newlocale(LC_CTYPE_MASK, "", NULL);
+   if (!new) {
+      /*
+       * If the machine is configured incorrectly (no current locale),
+       * newlocale() could return NULL.  Try to fall back on the "C"
+       * locale.
+       */
+
+      new = newlocale(LC_CTYPE_MASK, "C", NULL); 
+      ASSERT(new); 
+   } 
+   codeset = Util_SafeStrdup(nl_langinfo_l(CODESET, new));
+   freelocale(new);
+
+#elif defined(sun)
+
+   char *locale = setlocale(LC_CTYPE, NULL);
+   if (!setlocale(LC_CTYPE, "")) {
+      /*
+       * If the machine is configured incorrectly (no current locale),
+       * setlocale() can fail.  Try to fall back on the "C" locale.
+       */
+
+      setlocale(LC_CTYPE, "C");
+   }
+   codeset = Util_SafeStrdup(nl_langinfo(CODESET));
+   setlocale(LC_CTYPE, locale);
+
+#else
+#error
+#endif
+
+   return codeset;
+}
+#endif // } USE_ICONV
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -682,35 +752,66 @@ CodeSetOld_GetCurrentCodeSet(void)
    }
 
    return ret;
-#elif defined(__linux__) && (defined(GLIBC_VERSION_21) || \
-      defined(GLIBC_VERSION_22) || defined(GLIBC_VERSION_23))
+#elif defined(USE_ICONV)
    static char *cachedCodeset;
 
+   /*
+    * Mirror GLib behavior:
+    *
+    *    $G_FILENAME_ENCODING can have one or more encoding names
+    *    in a comma separated list.
+    *
+    *    If the first entry in $G_FILENAME_ENCODING is set to
+    *    "@locale", get the code set from the environment.
+    *
+    *    If the first entry in $G_FILENAME_ENCODING is not set to
+    *    "@locale", then it is the encoding name.
+    *
+    *    If $G_FILENAME_ENCODING is not set and $G_BROKEN_FILENAMES
+    *    is set, the get the code set from the environment.
+    *
+    *    If none of the above are met, the code set is UTF-8.
+    *
+    *    XXX - TODO - Support multiple encodings in the list.
+    *    While G_FILENAME_ENCODING is documented to be a list,
+    *    the current implementation (GLib 2.16) ignores all but
+    *    the first entry when converting to/from UTF-8.
+    */
+
    if (!cachedCodeset) {
-      locale_t new = newlocale(LC_CTYPE_MASK, "", NULL);
-      cachedCodeset = Util_SafeStrdup(nl_langinfo_l(CODESET, new));
-      freelocale(new);
+      char *gFilenameEncoding = getenv("G_FILENAME_ENCODING");
+      char *p;
+
+      if (gFilenameEncoding && *gFilenameEncoding) {
+         gFilenameEncoding = Util_SafeStrdup(gFilenameEncoding);
+         p = strchr(gFilenameEncoding, ',');
+         if (p) {
+            *p = '\0';
+         }
+         if (!strcmp(gFilenameEncoding, "@locale")) {
+            free(gFilenameEncoding);
+            cachedCodeset = CodeSetOldGetCodeSetFromLocale();
+            return cachedCodeset;
+         }
+         cachedCodeset = gFilenameEncoding;
+         return cachedCodeset;
+      }
+
+      if (getenv("G_BROKEN_FILENAMES")) {
+         cachedCodeset = CodeSetOldGetCodeSetFromLocale();
+         return cachedCodeset;
+      }
+
+      cachedCodeset = "UTF-8";
    }
 
    return cachedCodeset;
-#else // Solaris, Netware
-   static char *cachedCodeset;
-
-   if (!cachedCodeset) {
-      char *locale;
-
-      locale = setlocale(LC_CTYPE, NULL);
-      setlocale(LC_CTYPE, "");
-      cachedCodeset = Util_SafeStrdup(nl_langinfo(CODESET));
-      setlocale(LC_CTYPE, locale);
-   }
-
-   return cachedCodeset;
-
+#else
+#error
 #endif
 }
 
-#if defined(USE_ICONV)
+#if defined(USE_ICONV) // {
 
 /*
  *-----------------------------------------------------------------------------
@@ -893,7 +994,7 @@ error:
    return FALSE;
 }
 
-#else // USE_ICONV
+#else // USE_ICONV } {
 
 /*
  *-----------------------------------------------------------------------------
@@ -998,7 +1099,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
    return ret;
 }
 
-#endif // USE_ICONV
+#endif // USE_ICONV }
 
 /*
  *-----------------------------------------------------------------------------
@@ -1121,14 +1222,6 @@ CodeSetOld_Utf8ToCurrent(char const *bufIn,     // IN
    Bool status;
 
    if (CodeSetOld_Utf8ToUtf16le(bufIn, sizeIn, &buf, &size) == FALSE) {
-      if (IsWin95()) {
-         /*
-          * Win95 doesnt support UTF-8 by default. If we are here,
-          * it means that the application was not linked with unicows.lib.
-          * So simply copy the buffer as is.
-          */
-         return CodeSetOldDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-      }
       return FALSE;
    }
 
@@ -1137,7 +1230,7 @@ CodeSetOld_Utf8ToCurrent(char const *bufIn,     // IN
 
    return status;
 #else
-   return FALSE;
+#error
 #endif
 }
 
@@ -1187,14 +1280,6 @@ CodeSetOld_Utf8ToCurrentTranslit(char const *bufIn,     // IN
    Bool status;
 
    if (CodeSetOld_Utf8ToUtf16le(bufIn, sizeIn, &buf, &size) == FALSE) {
-      if (IsWin95()) {
-         /*
-          * Win95 doesnt support UTF-8 by default. If we are here,
-          * it means that the application was not linked with unicows.lib.
-          * So simply copy the buffer as is.
-          */
-         return CodeSetOldDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-      }
       return FALSE;
    }
 
@@ -1203,7 +1288,7 @@ CodeSetOld_Utf8ToCurrentTranslit(char const *bufIn,     // IN
 
    return status;
 #else
-   return FALSE;
+#error
 #endif
 }
 
@@ -1255,17 +1340,9 @@ CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
 
    status = CodeSetOld_Utf16leToUtf8(buf, size, bufOut, sizeOut);
    free(buf);
-   if (!status && IsWin95()) {
-      /*
-       * Win95 doesnt support UTF-8 by default. If we are here,
-       * it means that the application was not linked with unicows.lib.
-       * So simply copy the buffer as is.
-       */
-      return CodeSetOldDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-   }
-  return status;
+   return status;
 #else
-   return FALSE;
+#error
 #endif
 }
 
@@ -1604,7 +1681,7 @@ CodeSetOld_CurrentToUtf16le(char const *bufIn,     // IN
    /* XXX We should probably use CP_THREAD_ACP on Windows 2000/XP. */
    ok = CodeSetOldGenericToUtf16le(CP_ACP, bufIn, sizeIn, &db);
 #else
-   ok = FALSE;
+#error
 #endif
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
@@ -1636,7 +1713,9 @@ CodeSetOld_Utf16leToCurrent(char const *bufIn,     // IN
                             char **bufOut,         // OUT
                             size_t *sizeOut) // OUT
 {
-#if defined(USE_ICONV)
+#if defined(CURRENT_IS_UTF8)
+   NOT_IMPLEMENTED();
+#elif defined(USE_ICONV)
    DynBuf db;
    Bool ok;
 
@@ -1646,8 +1725,8 @@ CodeSetOld_Utf16leToCurrent(char const *bufIn,     // IN
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    return CodeSetOldUtf16leToCurrent(bufIn, sizeIn, bufOut, sizeOut);
-#else // Not Windows or Linux or Solaris
-   return FALSE;
+#else
+#error
 #endif
 }
 
@@ -1678,7 +1757,9 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
                             char **bufOut,         // OUT
                             size_t *sizeOut) // OUT
 {
-#if defined(USE_ICONV)
+#if defined(CURRENT_IS_UTF8)
+   NOT_IMPLEMENTED();
+#elif defined(USE_ICONV)
    DynBuf db;
    Bool ok;
 
@@ -1716,62 +1797,13 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
   error:
    free(bufIn_dup);
    return status;
-#else // Not Windows or Linux or Solaris
-   return FALSE;
+#else
+#error
 #endif
 }
 
 
 #if defined(_WIN32)
-/*
- *-----------------------------------------------------------------------------
- *
- * IsWin95 --
- *
- *      Is the current OS Windows 95?
- *
- * Results:
- *      TRUE if this is Win95
- *      FALSE if this is not Win95.
- *
- * Side effects:
- *      none
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-IsWin95(void)
-{
-   OSVERSIONINFOEX osvi;
-   BOOL bOsVersionInfoEx;
-
-   /*
-    * Try calling GetVersionEx using the OSVERSIONINFOEX structure.
-    * If that fails, try using the OSVERSIONINFO structure.
-    */
-
-   ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-   if(!(bOsVersionInfoEx = GetVersionEx ((OSVERSIONINFO *) &osvi))) {
-      /* If OSVERSIONINFOEX doesn't work, try OSVERSIONINFO. */
-      osvi.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-      if (!GetVersionEx((OSVERSIONINFO *) &osvi)) {
-         return FALSE;
-      }
-   }
-
-   if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
-      if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0) {
-         return TRUE;
-      }
-   }
-
-   return FALSE;
-}
-
-
 /*
  *-----------------------------------------------------------------------------
  *

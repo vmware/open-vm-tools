@@ -24,9 +24,7 @@ libString_a_SOURCES += bsd_vsnwprintf.c
 libString_a_SOURCES += convertutf.c
 libString_a_SOURCES += str.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_STRING_CFLAGS@
+AM_CFLAGS = @LIB_STRING_CPPFLAGS@
 
 SUBDIRS =
 SUBDIRS += shared

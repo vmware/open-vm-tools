@@ -58,4 +58,7 @@
 #define VMNET_CAP_LPD           0x10000 /* large pkt delivery */
 #define VMNET_CAP_BPF           0x20000 /* BPF Support in VMXNET Virtual Hardware */
 #define VMNET_CAP_SG_SPAN_PAGES 0x40000	/* Can do scatter-gather span multiple pages transmits. */
+#define VMNET_CAP_IP6_CSUM      0x80000	/* Can do IPv6 csum offload. */
+#define VMNET_CAP_TSO6         0x100000	/* Can do TSO segmentation offload for IPv6 pkts. */
+#define VMNET_CAP_TSO256k      0x200000	/* Can do TSO segmentation offload for pkts up to 256kB. */
 #endif // _VMNET_DEF_H_

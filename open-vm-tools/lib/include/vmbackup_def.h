@@ -71,6 +71,16 @@
 #define VMBACKUP_EVENT_WRITER_ERROR       "req.writerError"
 #define VMBACKUP_EVENT_KEEP_ALIVE         "req.keepAlive"
 
+/* These are the event codes sent with the events */
+typedef enum {
+   VMBACKUP_SUCCESS = 0,
+   VMBACKUP_INVALID_STATE,
+   VMBACKUP_SCRIPT_ERROR,
+   VMBACKUP_SYNC_ERROR,
+   VMBACKUP_REMOTE_ABORT,
+   VMBACKUP_UNEXPECTED_ERROR
+} VmBackupStatus;
+
 /* Event name used for communnication between the VSS components. */
 #ifdef _WIN32
 #define VMVSS_RESUME_MSG   TEXT("VmVss_ResumeSnapshotProvider")

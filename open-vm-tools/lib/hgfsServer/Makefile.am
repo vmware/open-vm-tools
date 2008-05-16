@@ -21,6 +21,4 @@ libHgfsServer_a_SOURCES =
 libHgfsServer_a_SOURCES += hgfsServer.c
 libHgfsServer_a_SOURCES += hgfsServerLinux.c
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-AM_CFLAGS += @LIB_HGFS_SERVER_CFLAGS@
+AM_CFLAGS = @LIB_HGFS_SERVER_CPPFLAGS@

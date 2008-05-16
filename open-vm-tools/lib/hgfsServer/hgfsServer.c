@@ -2441,7 +2441,6 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    char const *inEnd;
    char *next;
    char *myBufOut;
-   char *myBufOutCurrent;
    char *out;
    size_t outSize;
    size_t sharePathLen; /* Length of share's path */
@@ -2450,8 +2449,6 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    char tempBuf[HGFS_PATH_MAX];
    size_t tempSize;
    char *tempPtr;
-   char *ansiName;
-   size_t ansiLen;
    Bool result;
    char *savedPathSepPos;
    HgfsSharedFolder *share;
@@ -2478,34 +2475,18 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
       return HGFS_NAME_STATUS_INCOMPLETE_BASE;
    }
 
-   /*
-    * VMDB stores the ANSI name so convert from UTF8 before looking up a share.
-    * XXX: Ideally, we should store share names in UTF16 so that these
-    * conversions can be done away with.
-    */
-   if (!CodeSet_Utf8ToCurrent(cpName,
-                              len,
-                              &ansiName,
-                              &ansiLen)) {
-      LOG(4, ("HgfsServerGetAccess: ANSI conversion failed\n"));
-      return HGFS_NAME_STATUS_FAILURE;
-   }
-
    /* Check permission on the share and get the share path */
-   nameStatus = HgfsServerPolicy_GetSharePath(ansiName,
-                                              ansiLen,
+   nameStatus = HgfsServerPolicy_GetSharePath(cpName,
+                                              len,
                                               mode,
                                               &sharePathLen,
                                               &sharePath,
                                               &share);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerGetAccess: No such share (%s) or access denied\n",
-              ansiName));
-      free(ansiName);
+              cpName));
       return nameStatus;
    }
-
-   free(ansiName);
 
    /* Point to the next component, if any */
    cpNameSize -= next - cpName;
@@ -2560,32 +2541,18 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
       *out = 0;
       outSize -= prefixLen;
    } else {
-      size_t utf8ShareLen;
-      char *utf8SharePath;
-
       /*
-       * This is a regular share. Append the UTF8 path to the out buffer.
+       * This is a regular share. Append the path to the out buffer.
        */
-      if (!CodeSet_CurrentToUtf8(sharePath,
-                                 sharePathLen,
-                                 &utf8SharePath,
-                                 &utf8ShareLen)) {
-         LOG(4, ("HgfsServerGetAccess: share name UTF8 conversion failed\n"));
-         nameStatus = HGFS_NAME_STATUS_FAILURE;
-         goto error;
-      }
-
-      if (outSize < utf8ShareLen + 1) {
+      if (outSize < sharePathLen + 1) {
          LOG(4, ("HgfsServerGetAccess: share path too big\n"));
-         free(utf8SharePath);
          nameStatus = HGFS_NAME_STATUS_TOO_LONG;
          goto error;
       }
 
-      memcpy(out, utf8SharePath, utf8ShareLen + 1);
-      out += utf8ShareLen;
-      outSize -= utf8ShareLen;
-      free(utf8SharePath);
+      memcpy(out, sharePath, sharePathLen + 1);
+      out += sharePathLen;
+      outSize -= sharePathLen;
    }
 
    /* Convert the rest of the input name (if any) to a local name */
@@ -2653,18 +2620,8 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
       *savedPathSepPos = '\0';
    }
 
-   if (!CodeSet_Utf8ToCurrent(myBufOut,
-                              strlen(myBufOut),
-			      &myBufOutCurrent,
-			      NULL)) {
-         LOG(4, ("HgfsServerGetAccess: share name UTF8 to current conversion failed\n"));
-         nameStatus = HGFS_NAME_STATUS_FAILURE;
-	 goto error;
-   }
-
-   result = HgfsServerHasSymlink(myBufOutCurrent, sharePath);
+   result = HgfsServerHasSymlink(myBufOut, sharePath);
    *savedPathSepPos = DIRSEPC;
-   free(myBufOutCurrent);
    if (result) {
       LOG(4, ("HgfsServerGetAccess: parent path contains a symlink\n"));
       nameStatus = HGFS_NAME_STATUS_FAILURE;
@@ -2854,8 +2811,6 @@ HgfsServerGetDents(HgfsGetNameFunc getName,     // IN: Function to get name
       char const *name;
       size_t len;
       Bool done = FALSE;
-      char *utf8Name;
-      size_t utf8NameLen;
       size_t newDirEntryLen;
       size_t maxLen;
 
@@ -2911,16 +2866,8 @@ HgfsServerGetDents(HgfsGetNameFunc getName,     // IN: Function to get name
          myDents = (DirectoryEntry **)p;
       }
 
-      /* This file/directory can be added to the list. Convert to UTF8 first. */
+      /* This file/directory can be added to the list. */
       LOG(4, ("HgfsServerGetDents: Nextfilename = \"%s\"\n", name));
-      if (!CodeSet_CurrentToUtf8((const char *)name,
-                                 len,
-                                 &utf8Name,
-                                 &utf8NameLen)) {
-         LOG(4, ("HgfsServerGetDents: Unable to convert \"%s\" to utf-8\n",
-                 name));
-         goto error;
-      }
 
       /*
        * Start with the size of the DirectoryEntry struct, subtract the static
@@ -2928,20 +2875,18 @@ HgfsServerGetDents(HgfsGetNameFunc getName,     // IN: Function to get name
        * just enough space for the UTF-8 name and nul terminator.
        */
       newDirEntryLen =
-         sizeof *pDirEntry - sizeof pDirEntry->d_name + utf8NameLen + 1;
+         sizeof *pDirEntry - sizeof pDirEntry->d_name + len + 1;
       pDirEntry = (DirectoryEntry *)malloc(newDirEntryLen);
       if (!pDirEntry) {
          LOG(4, ("HgfsServerGetDents: Couldn't allocate dentry memory\n"));
-         free(utf8Name);
          goto error;
       }
       pDirEntry->d_reclen = (unsigned short)newDirEntryLen;
-      memcpy(pDirEntry->d_name, utf8Name, utf8NameLen);
-      pDirEntry->d_name[utf8NameLen] = 0;
+      memcpy(pDirEntry->d_name, name, len);
+      pDirEntry->d_name[len] = 0;
 
       myDents[numDents] = pDirEntry;
       numDents++;
-      free(utf8Name);
    }
 
    /* We are done; cleanup the state */
@@ -3285,8 +3230,6 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    HgfsFileNode *node = NULL;
    char const *inEnd;
    char const *next;
-   char *shareName = NULL;
-   size_t shareLen = 0;
    uint32 len;
    Bool sharedFolderOpen = FALSE;
 
@@ -3315,28 +3258,14 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       sharedFolderOpen = TRUE;
    }
 
-   /*
-    * VMDB stores the ANSI name so convert from UTF8 before looking up a share.
-    * XXX: Ideally, we should store share names in UTF16 so that these
-    * conversions can be done away with.
-    */
-   if (!CodeSet_Utf8ToCurrent(openInfo->cpName,
-                              len,
-                              &shareName,
-                              &shareLen)) {
-      LOG(4, ("HgfsServerGetAccess: ANSI conversion failed\n"));
-      return FALSE;
-   }
-
    SyncMutex_Lock(&hgfsNodeArrayLock);
    node = HgfsAddNewFileNode(openInfo,
                              localId,
                              fileDesc,
                              append,
-                             shareLen,
-                             shareName,
+                             len,
+                             openInfo->cpName,
                              sharedFolderOpen);
-   free(shareName);
    if (node == NULL) {
       LOG(4, ("HgfsCreateAndCacheFileNode: Failed to add new node.\n"));
       SyncMutex_Unlock(&hgfsNodeArrayLock);
@@ -4096,7 +4025,7 @@ HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
    switch (request->op) {
    case HGFS_OP_GETATTR_V3: {
       HgfsRequestGetattrV3 *requestV3;
-      
+
       requestV3 = (HgfsRequestGetattrV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       LOG(4, ("HgfsUnpackGetattrRequest: HGFS_OP_GETATTR_V3\n"));
 
@@ -4290,7 +4219,7 @@ HgfsPackGetattrReply(HgfsFileAttrInfo *attr,     // IN: attr stucture
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply) + utf8TargetNameLen;
       break;
    }
-   
+
    case HGFS_OP_GETATTR_V2: {
       HgfsReplyGetattrV2 *reply = (HgfsReplyGetattrV2 *)packetOut;
       reply->attr.mask = attr->mask;
@@ -4524,7 +4453,7 @@ HgfsPackSearchReadReply(const char *utf8Name,      // IN: file name
       dirent->attr.hostFileId = attr->hostFileId;
       break;
    }
-   
+
    case HGFS_OP_SEARCH_READ_V2: {
       HgfsReplySearchReadV2 *reply = (HgfsReplySearchReadV2 *)packetOut;
 
@@ -4570,7 +4499,7 @@ HgfsPackSearchReadReply(const char *utf8Name,      // IN: file name
       reply->attr.hostFileId = attr->hostFileId;
       break;
    }
-   
+
    case HGFS_OP_SEARCH_READ: {
       HgfsReplySearchRead *reply = (HgfsReplySearchRead *)packetOut;
 

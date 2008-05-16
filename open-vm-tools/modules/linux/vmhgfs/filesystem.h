@@ -19,7 +19,7 @@
 /*
  * filesystem.h --
  *
- * High-level filesystem operations for the filesystem portion of 
+ * High-level filesystem operations for the filesystem portion of
  * the vmhgfs driver.
  */
 

@@ -19,6 +19,3 @@ noinst_LIBRARIES = libSocketMgr.a
 
 libSocketMgr_a_SOURCES =
 libSocketMgr_a_SOURCES += socketMgr.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@

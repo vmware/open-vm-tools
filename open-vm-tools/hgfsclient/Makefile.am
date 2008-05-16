@@ -17,9 +17,6 @@
 
 noinst_PROGRAMS = hgfsclient
 
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
-
 hgfsclient_LDADD =
 hgfsclient_LDADD += ../lib/conf/libConf.a
 hgfsclient_LDADD += ../lib/guestApp/libGuestApp.a

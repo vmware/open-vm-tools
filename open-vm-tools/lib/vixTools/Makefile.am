@@ -19,6 +19,3 @@ noinst_LIBRARIES = libVixTools.a
 
 libVixTools_a_SOURCES =
 libVixTools_a_SOURCES += vixTools.c
-
-AM_CFLAGS =
-AM_CFLAGS += @COMMON_CFLAGS@
