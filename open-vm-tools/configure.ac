@@ -34,7 +34,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.05.15-93084],
+   [2008.05.15-93241],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -552,15 +552,16 @@ for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
     AC_MSG_CHECKING([for GCC flag $TEST_CFLAG])
     ORIGINAL_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $TEST_CFLAG"
+    NEW_CFLAG=""
     AC_TRY_COMPILE(
        [],
        [
 	return 0;
        ],
-   [CFLAGS="$CFLAGS $TEST_CFLAG"
+   [NEW_CFLAG=" $TEST_CFLAG"
     AC_MSG_RESULT(yes)],
    [AC_MSG_RESULT(no)])
-   CFLAGS="$ORIGINAL_CFLAGS"
+   CFLAGS="$ORIGINAL_CFLAGS$NEW_CFLAG"
 done
 CPPFLAGS="$CPPFLAGS -DVMX86_TOOLS"
 CPPFLAGS="$CPPFLAGS -DNO_CORE_ICU"
