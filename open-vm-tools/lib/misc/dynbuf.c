@@ -272,8 +272,12 @@ DynBuf_Enlarge(DynBuf *b,       // IN
 #if defined(DYNBUF_DEBUG)
                         b->allocated + 1
 #else
-                        /* Double the previously allocated size --hpreg */
-                        b->allocated * 2
+                        /* 
+                         * Double the previously allocated size if it is less
+                         * than 256KB; otherwise grow it linearly by 256KB
+                         */
+                        (b->allocated < 256 * 1024 ? b->allocated * 2
+                                                   : b->allocated + 256 * 1024)
 #endif
                       :
 #if defined(DYNBUF_DEBUG)

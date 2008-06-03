@@ -83,16 +83,21 @@ unsigned int hgfsIdCounter = 0;
 struct list_head hgfsReqsUnsent;
 
 /* Global protocol version switch. */
-atomic_t hgfsProtocolVersion;
-
 atomic_t hgfsVersionOpen;
+atomic_t hgfsVersionRead;
+atomic_t hgfsVersionWrite;
+atomic_t hgfsVersionClose;
+atomic_t hgfsVersionSearchOpen;
+atomic_t hgfsVersionSearchRead;
+atomic_t hgfsVersionSearchClose;
 atomic_t hgfsVersionGetattr;
 atomic_t hgfsVersionSetattr;
-atomic_t hgfsVersionSearchRead;
 atomic_t hgfsVersionCreateDir;
-atomic_t hgfsVersionSearchOpen;
-atomic_t hgfsVersionCreateSymlink;
+atomic_t hgfsVersionDeleteFile;
+atomic_t hgfsVersionDeleteDir;
+atomic_t hgfsVersionRename;
 atomic_t hgfsVersionQueryVolumeInfo;
+atomic_t hgfsVersionCreateSymlink;
 
 /* Private functions. */
 static inline unsigned long HgfsComputeBlockBits(unsigned long blockSize);

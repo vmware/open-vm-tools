@@ -54,7 +54,7 @@ extern int vsnprintf(char *buf, size_t len, const char *f, va_list arg);
 /*
  *----------------------------------------------------------------------
  *
- * Str_Sprintf
+ * Str_Sprintf --
  *
  *      sprintf wrapper that fails on overflow
  *
@@ -194,7 +194,7 @@ Str_Snprintf(char *str,          // OUT
 /*
  *----------------------------------------------------------------------
  *
- * Str_Strcpy--
+ * Str_Strcpy --
  *
  *    Wrapper for strcpy that checks for buffer overruns.
  *
@@ -342,9 +342,8 @@ Str_Strncat(char *buf,       // IN-OUT
     * if possible.
     *
     * The reason the test with bufLen and n is >= rather than just >
-    * is that both the glibc and the Win32 version of strncat null-
-    * terminate the final resulting string, even if they reach the
-    * length limit n. This means that if it happens that
+    * is that strncat always NUL-terminates the resulting string, even
+    * if it reaches the length limit n. This means that if it happens that
     * bufLen + n == bufSize, strncat will write a null terminator that
     * is outside of the buffer. Therefore, we make sure this does not
     * happen by adding the == case to the Panic test.
@@ -590,7 +589,7 @@ Str_SafeVasprintf(size_t *length,       // OUT
 
 int
 Str_Swprintf(wchar_t *buf,       // OUT
-             size_t maxSize,     // IN
+             size_t maxSize,     // IN: Size of buf, in wide-characters.
              const wchar_t *fmt, // IN
              ...)                // IN
 {
@@ -631,7 +630,7 @@ Str_Swprintf(wchar_t *buf,       // OUT
 
 int
 Str_Vsnwprintf(wchar_t *str,          // OUT
-               size_t size,           // IN
+               size_t size,           // IN: Size of str, in wide-characters.
                const wchar_t *format, // IN
                va_list ap)            // IN
 {
@@ -696,7 +695,7 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
 
 int      
 Str_Snwprintf(wchar_t *str,          // OUT
-              size_t size,           // IN
+              size_t size,           // IN: Size of str, in wide-characters.
               const wchar_t *format, // IN
               ...)                   // IN
 {
@@ -713,7 +712,7 @@ Str_Snwprintf(wchar_t *str,          // OUT
 /*
  *----------------------------------------------------------------------
  *
- * Str_Wcscpy--
+ * Str_Wcscpy --
  *
  *      Wrapper for wcscpy that checks for buffer overruns.
  *
@@ -729,7 +728,7 @@ Str_Snwprintf(wchar_t *str,          // OUT
 wchar_t *
 Str_Wcscpy(wchar_t *buf,       // OUT
            const wchar_t *src, // IN
-           size_t maxSize)     // IN
+           size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
    uint32 *stack = (uint32 *)&buf;
    size_t len;
@@ -762,7 +761,7 @@ Str_Wcscpy(wchar_t *buf,       // OUT
 wchar_t *
 Str_Wcscat(wchar_t *buf,       // IN-OUT
            const wchar_t *src, // IN
-           size_t maxSize)     // IN
+           size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
    uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
@@ -803,7 +802,7 @@ Str_Wcscat(wchar_t *buf,       // IN-OUT
 
 wchar_t *
 Str_Wcsncat(wchar_t *buf,       // IN-OUT
-            size_t bufSize,     // IN: Size of buf
+            size_t bufSize,     // IN: Size of buf, in wide-characters.
             const wchar_t *src, // IN: String to append
             size_t n)           // IN: Max chars of src to append
 {
@@ -815,9 +814,8 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
     * if possible.
     *
     * The reason the test with bufLen and n is >= rather than just >
-    * is that both the glibc and the Win32 version of wcsncat null
-    * terminate the final resulting string, even if they reach the
-    * length limit n. This means that if it happens that
+    * is that wcsncat always NUL-terminates the resulting string, even
+    * if it reaches the length limit n. This means that if it happens that
     * bufLen + n == bufSize, wcsncat will write a null terminator that
     * is outside of the buffer. Therefore, we make sure this does not
     * happen by adding the == case to the Panic test.
@@ -840,7 +838,7 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
 /*
  *----------------------------------------------------------------------
  *
- * Str_Mbscpy--
+ * Str_Mbscpy --
  *
  *    Wrapper for _mbscpy that checks for buffer overruns.
  *

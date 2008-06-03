@@ -1,3 +1,112 @@
+2008-06-03  Adar Dembo  <adar@vmware.com>
+	* Resync with internal trunk (2008.05.28).
+
+	* configure.ac, Makefile.am, */Makefile.am: Added rudimentary
+	`make install` support. Fixes Sourceforge bug 1839981.
+	
+	* configure.ac, Makefile.am, vmware-user-suid-wrapper/*: Added
+	vmware-user-suid-wrapper to help autostart vmware-user. Added some
+	informational tags to AC_DEFINE macros.
+	
+	* */debugStdio.c: Fixed a format string vulnerability
+	in Debug. Allocate fd on the stack in DebugToFile.
+
+	* lib/auth/authPosix.c, lib/dnd/dndCommon.c, lib/dnd/dndLinux.c
+	lib/impersonate/impersonate.c: Add inclusion of vmware.h and refactor
+	some include statements.
+
+	* lib/file/file.c, lib/include/file.h: Added File_UnlinkNoFollow
+	function.
+
+	* lib/file/fileIO.c, lib/file/fileLockPrimitive.c,
+	lib/include/fileIO.h: Added error case for ENAMETOOLONG to FileIO_Lock.
+	Constified 'buf' in FileIO_Pwrite.
+
+	* lib/file/fileIOPosix.c: Removed coalescing and decoalescing code.
+	Consolidated some Unicode calls.
+
+	* lib/file/filePosix.c: Reworked some error handling logic.
+
+	* lib/foundryMsg/foundryMsg.c: Refactored buffer encoding and decoding
+	logic into a single pair of functions.
+
+	* lib/foundryMsg/foundryThreads.c, lib/include/foundryThreads.h
+	lib/include/util.h, lib/misc/util_misc.c: Changed generic thread type
+	from uintptr_t to Util_ThreadID.
+
+	* lib/hgfsServer/*, lib/hgfs/hgfsProto.h, modules/linux/vmhgfs/*:
+	Additional HGFSv3 fixes and refactoring.
+
+	* lib/include/dbllnklst.h, lib/misc/dbllnklst.c: Constified argument to
+	DblLnkLst_IsLinked.
+
+	* lib/include/dnd.h: Added support for DnD of RTF.
+
+	* lib/include/fileInt.h: Removed prototype of FileLockFileSize.
+
+	* lib/include/hashTable.h, lib/misc/hashTable.c: Cosmetic changes.
+	Added HashTable_ReplaceIfEqual.
+
+	* lib/include/loglevel_user.h: Added hpet loglevel.
+
+	* lib/include/msg.h: Removed prototype of MsgSetPostStderrBlock.
+
+	* lib/include/posix.h: Removed certain includeCheck allowances.
+
+	* lib/include/productState.h: Added VDM client product.
+
+	* lib/include/unicode*, lib/unicode/*: Ongoing i18n work.
+	
+	* lib/include/vixCommands.h: Added command to set snapshot information.
+
+	* lib/include/vix.h: Added more errors and a new flag.
+
+	* lib/include/vixOpenSource.h: Reworked asserts and added VIX_ASSERT.
+
+	* lib/include/vm_app.h: Added Tools tray app.
+
+	* lib/include/vm_product.h: Reworked VMRC product definitions and added
+	VDM client product definitions.
+
+	* lib/include/vm_tools_version.h: Added WS65 Tools version.
+
+	* lib/include/vm_version.h: Bumped Tools version. Added logic for VMRC
+	product.
+
+	* lib/include/x86cpuid.h: Modified a flag and trimmed an unneeded macro.
+
+	* lib/misc/codesetOld.c: Implement UTF-16 codest conversion to UTF-8
+	for CURRENT_IS_UTF8.
+
+	* lib/misc/dynbuf.c: Modified dynbuf growing behavior.
+
+	* lib/misc/posixDlopen.c, lib/misc/posixInt.h, lib/misc/posixPosix.h:
+	Refactored codeset conversion code into PosixConvertToCurrent.
+
+	* lib/misc/posixWin32.c: Added some path checks.
+
+	* lib/misc/timeutil.c: Win32-wrappified TimeUtil_GetTimeFormat.
+
+	* lib/misc/vmstdio.c: Reduce virtual memory usage and add '\r' as a line
+	ending in StdIO_ReadNextLine.
+
+	* lib/rpcout/rpcout.c: Added comments.
+
+	* lib/str/str.c: Cosmetic changes.
+
+	* lib/vixTools/vixTools.c: Added unlink(2) logic to avoid deleting
+	symlink targets. Cosmetic changes.
+
+	* modules/*/*/*: Reflect changes from elsewhere in the source tree.
+
+	* modules/linux/vmhgfs/super.c: Fix vmhgfs to properly report the
+	available space on the host (Sourceforge bug 1924246).
+
+	* vmware-user/vmware-user.c: Add advisory locking code to help maintain
+	only one vmware-user instance per X session.
+
+	* xferlogs/xferlogs.c: Fix a formatted string vulnerability.
+	
 2008-05-12  Elliot Lee  <elliot@vmware.com>
 
 	* Resync with internal trunk (2008.05.08).

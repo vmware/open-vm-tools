@@ -163,22 +163,20 @@ void DebugToFile(const char *str) // IN
 {
 #ifndef _CONSOLE
    FileIOResult fr;
-   FileIODescriptor *fd;
+   FileIODescriptor fd;
    size_t bytesWritten;
    Unicode timePrefix;
    const char *timePrefixUtf8;
-   
+
    ASSERT(debugFile[0] != 0);
-   
-   fd = (FileIODescriptor *) malloc(sizeof(FileIODescriptor));
-   ASSERT_NOT_IMPLEMENTED(fd);
-   FileIO_Invalidate(fd);
-   
-   fr = FileIO_Open(fd, debugFile, FILEIO_OPEN_ACCESS_WRITE,
+
+   FileIO_Invalidate(&fd);
+
+   fr = FileIO_Open(&fd, debugFile, FILEIO_OPEN_ACCESS_WRITE,
                     FILEIO_OPEN_CREATE);
    if (fr != FILEIO_SUCCESS) {
-      Warning("---Error opening file '%s'.\n", debugFile);
       debugFile[0] = '\0';
+      Warning("---Error opening file '%s'.\n", debugFile);
       goto done;
    }
 
@@ -195,19 +193,18 @@ void DebugToFile(const char *str) // IN
    timePrefixUtf8 = UTF8(timePrefix);
    ASSERT(timePrefixUtf8);
 
-   FileIO_Seek(fd, 0, FILEIO_SEEK_END);
-   fr = FileIO_Write(fd, timePrefixUtf8, strlen(timePrefixUtf8), &bytesWritten);
-   fr = FileIO_Write(fd, str, strlen(str), &bytesWritten);
+   FileIO_Seek(&fd, 0, FILEIO_SEEK_END);
+   fr = FileIO_Write(&fd, timePrefixUtf8, strlen(timePrefixUtf8), &bytesWritten);
+   fr = FileIO_Write(&fd, str, strlen(str), &bytesWritten);
    Unicode_Free(timePrefix);
    if (fr != FILEIO_SUCCESS) {
       Warning("---Error writing to file '%s'.\n", debugFile);
    }
 
  close:
-   FileIO_Close(fd);
-   
+   FileIO_Close(&fd);
+
  done:
-   free(fd);
    return;
 #endif // _CONSOLE
 }
@@ -255,7 +252,7 @@ Debug(char const *fmt, // IN: Format string
    OutputDebugString(str);
 #endif
 #if !defined(_WIN32) || defined(_CONSOLE)
-   fprintf(stderr, str);
+   fputs(str, stderr);
 #endif
 #endif
    if (debugFile[0] != '\0') {

@@ -310,7 +310,7 @@ FileIOResult FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
                           uint64 offset);          // IN: Offset to start reading
 
 FileIOResult FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
-                           void *buf,              // IN: Buffer to write from
+                           void const *buf,        // IN: Buffer to write from
                            size_t len,             // IN: Length of the buffer
                            uint64 offset);         // IN: Offset to start writing
 #endif

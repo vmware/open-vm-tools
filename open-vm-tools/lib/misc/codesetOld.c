@@ -34,6 +34,7 @@
 #   endif
 #   include <string.h>
 #   include <stdlib.h>
+#   include <unistd.h>
 #   include <errno.h>
 #endif
 
@@ -1714,7 +1715,7 @@ CodeSetOld_Utf16leToCurrent(char const *bufIn,     // IN
                             size_t *sizeOut) // OUT
 {
 #if defined(CURRENT_IS_UTF8)
-   NOT_IMPLEMENTED();
+   return CodeSetOld_Utf16leToUtf8(bufIn, sizeIn, bufOut, sizeOut);
 #elif defined(USE_ICONV)
    DynBuf db;
    Bool ok;
@@ -1758,7 +1759,18 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
                             size_t *sizeOut) // OUT
 {
 #if defined(CURRENT_IS_UTF8)
-   NOT_IMPLEMENTED();
+   Bool status;
+   char *temp;
+
+   if ((temp = malloc(sizeIn)) == NULL) {
+      return FALSE;
+   }
+   ASSERT((sizeIn & 1) == 0);
+   ASSERT((ssize_t) sizeIn >= 0);
+   swab(bufIn, temp, sizeIn);
+   status = CodeSetOld_Utf16leToUtf8(temp, sizeIn, bufOut, sizeOut);
+   free(temp);
+   return status;
 #elif defined(USE_ICONV)
    DynBuf db;
    Bool ok;

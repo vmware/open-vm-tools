@@ -103,6 +103,7 @@ LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 MODULES = @MODULES@
+MODULES_DIR = @MODULES_DIR@
 MODULES_OS = @MODULES_OS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -111,6 +112,7 @@ PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PAM_PREFIX = @PAM_PREFIX@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
@@ -119,6 +121,7 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TARGET_OS = @TARGET_OS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -300,6 +303,8 @@ install-data-am:
 install-dvi: install-dvi-am
 
 install-exec-am:
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 
 install-html: install-html-am
 
@@ -330,20 +335,22 @@ ps: ps-am
 ps-am:
 
 uninstall-am:
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
 
-.MAKE: install-am install-strip
+.MAKE: install-am install-exec-am install-strip uninstall-am
 
 .PHONY: all all-am check check-am clean clean-generic clean-libtool \
 	clean-local distclean distclean-generic distclean-libtool \
 	distclean-local distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	uninstall uninstall-am
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-man install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-generic mostlyclean-libtool pdf pdf-am \
+	ps ps-am uninstall uninstall-am uninstall-hook
 
 all: modules
 
@@ -353,12 +360,37 @@ modules: $(MODULES)
 $(MODULES):
 	$(MAKE) -C "$(MODULES_OS)/$@"
 
+@LINUX_TRUE@export vmblockdir = $(MODULES_DIR)/fs/vmblock
+@LINUX_TRUE@export vmhgfsdir = $(MODULES_DIR)/fs/vmhgfs
+@LINUX_TRUE@export vmmemctldir = $(MODULES_DIR)/drivers/misc
+@LINUX_TRUE@export vmsyncdir = $(MODULES_DIR)/drivers/misc
+@LINUX_TRUE@export vmxnetdir = $(MODULES_DIR)/drivers/net
+@LINUX_TRUE@export DEPMOD = depmod -a
+
+@FREEBSD_TRUE@export vmblockdir = $(MODULES_DIR)
+@FREEBSD_TRUE@export vmhgfsdir = $(MODULES_DIR)
+@FREEBSD_TRUE@export vmmemctldir = $(MODULES_DIR)
+@FREEBSD_TRUE@export vmsyncdir = $(MODULES_DIR)
+@FREEBSD_TRUE@export vmxnetdir = $(MODULES_DIR)
+
 distclean-local:
 clean-local:
 	for MOD in $(MODULES); do \
 	   $(MAKE) -C "$(MODULES_OS)/$$MOD" clean || exit 1; \
 	done
-	rm -f $(MODULES_OS)/*.o $(MODULES_OS)/*.ko
+	$(RM) -f $(MODULES_OS)/*.o $(MODULES_OS)/*.ko
+
+install-exec-hook:
+	for MOD in $(MODULES); do \
+		$(INSTALL) -d `eval echo '$$'$${MOD}dir`; \
+		$(INSTALL) -m644 $(MODULES_OS)/$$MOD/$$MOD.ko `eval echo '$$'$${MOD}dir`; \
+	done
+	eval "$$DEPMOD"
+uninstall-hook:
+	for MOD in $(MODULES); do \
+		$(RM) -f `eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null; \
+	done
+	eval "$$DEPMOD"
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

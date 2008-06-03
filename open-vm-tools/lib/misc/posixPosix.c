@@ -72,13 +72,7 @@
 # endif
 
 #include "vmware.h"
-#include "str.h"
-#include "posix.h"
-#include "unicode.h"
-#if !defined(N_PLAT_NLM)
-#include "hashTable.h"
-#include "vm_atomic.h"
-#endif
+#include "posixInt.h"
 
 
 #if !defined(N_PLAT_NLM)
@@ -112,9 +106,13 @@ Posix_Open(ConstUnicode pathName,  // IN:
            int flags,              // IN:
            ...)                    // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    mode_t mode = 0;
    int fd;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
 
    if ((flags & O_CREAT) != 0) {
       va_list a;
@@ -185,10 +183,14 @@ FILE *
 Posix_Fopen(ConstUnicode pathName, // IN:
             const char *mode)      // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    FILE *stream;
 
    ASSERT(mode);
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
 
    stream = fopen(path, mode);
 
@@ -218,8 +220,14 @@ int
 Posix_Stat(ConstUnicode pathName,  // IN:
            struct stat *statbuf)   // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = stat(path, statbuf);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = stat(path, statbuf);
 
    free(path);
    return ret;
@@ -247,8 +255,14 @@ int
 Posix_Chmod(ConstUnicode pathName,  // IN:
             mode_t mode)            // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = chmod(path, mode);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = chmod(path, mode);
 
    free(path);
    return ret;
@@ -276,10 +290,19 @@ int
 Posix_Rename(ConstUnicode fromPathName,  // IN:
              ConstUnicode toPathName)    // IN:
 {
-   char *toPath = Unicode_GetAllocBytes(toPathName, STRING_ENCODING_DEFAULT);
-   char *fromPath = Unicode_GetAllocBytes(fromPathName,
-					  STRING_ENCODING_DEFAULT);
-   int result = rename(fromPath, toPath);
+   char *toPath;
+   char *fromPath;
+   int result;
+
+   if (!PosixConvertToCurrent(fromPathName, &fromPath)) {
+      return -1;
+   }
+   if (!PosixConvertToCurrent(toPathName, &toPath)) {
+      free(fromPath);
+      return -1;
+   }
+
+   result = rename(fromPath, toPath);
 
    free(toPath);
    free(fromPath);
@@ -307,8 +330,14 @@ Posix_Rename(ConstUnicode fromPathName,  // IN:
 int
 Posix_Unlink(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = unlink(path);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = unlink(path);
 
    free(path);
    return ret;
@@ -335,8 +364,14 @@ Posix_Unlink(ConstUnicode pathName)  // IN:
 int
 Posix_Rmdir(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = rmdir(path);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = rmdir(path);
 
    free(path);
    return ret;
@@ -365,10 +400,14 @@ Posix_Freopen(ConstUnicode pathName, // IN:
               const char *mode,      // IN:
               FILE *input_stream)    // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    FILE *stream;
 
    ASSERT(mode);
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
 
    stream = freopen(path, mode, input_stream);
 
@@ -398,8 +437,14 @@ int
 Posix_Access(ConstUnicode pathName,  // IN:
              int mode)               // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = access(path, mode);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = access(path, mode);
 
    free(path);
    return ret;
@@ -427,8 +472,14 @@ int
 Posix_Utime(ConstUnicode pathName,        // IN:
             const struct utimbuf *times)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = utime(path, times);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = utime(path, times);
 
    free(path);
    return ret;
@@ -457,6 +508,7 @@ Posix_Perror(ConstUnicode str)         // IN:
 {
    char *tmpstr = Unicode_GetAllocBytes(str, STRING_ENCODING_DEFAULT);
 
+   // ignore conversion error silently
    perror(tmpstr);
 
    free(tmpstr);
@@ -484,9 +536,14 @@ long
 Posix_Pathconf(ConstUnicode pathName,   // IN:
                int name)                // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
+   long ret;
 
-   long ret = pathconf(path, name);
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = pathconf(path, name);
 
    free(path);
    return ret;
@@ -514,10 +571,14 @@ FILE *
 Posix_Popen(ConstUnicode pathName,  // IN:
             const char *mode)       // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    FILE *stream;
 
    ASSERT(mode);
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
 
    stream = popen(path, mode);
 
@@ -548,8 +609,14 @@ Posix_Mknod(ConstUnicode pathName,  // IN:
             mode_t mode,            // IN:
             dev_t dev)              // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = mknod(path, mode, dev);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = mknod(path, mode, dev);
 
    free(path);
    return ret;
@@ -578,8 +645,14 @@ Posix_Chown(ConstUnicode pathName,  // IN:
             uid_t owner,            // IN:
             gid_t group)            // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = chown(path, owner, group);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = chown(path, owner, group);
 
    free(path);
    return ret;
@@ -608,8 +681,14 @@ Posix_Lchown(ConstUnicode pathName,  // IN:
              uid_t owner,            // IN:
              gid_t group)            // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = lchown(path, owner, group);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = lchown(path, owner, group);
 
    free(path);
    return ret;
@@ -637,9 +716,19 @@ int
 Posix_Link(ConstUnicode pathName1,  // IN:
            ConstUnicode pathName2)  // IN:
 {
-   char *path1 = Unicode_GetAllocBytes(pathName1, STRING_ENCODING_DEFAULT);
-   char *path2 = Unicode_GetAllocBytes(pathName2, STRING_ENCODING_DEFAULT);
-   int ret = link(path1, path2);
+   char *path1;
+   char *path2;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName1, &path1)) {
+      return -1;
+   }
+   if (!PosixConvertToCurrent(pathName2, &path2)) {
+      free(path1);
+      return -1;
+   }
+
+   ret = link(path1, path2);
 
    free(path1);
    free(path2);
@@ -668,9 +757,19 @@ int
 Posix_Symlink(ConstUnicode pathName1,  // IN:
               ConstUnicode pathName2)  // IN:
 {
-   char *path1 = Unicode_GetAllocBytes(pathName1, STRING_ENCODING_DEFAULT);
-   char *path2 = Unicode_GetAllocBytes(pathName2, STRING_ENCODING_DEFAULT);
-   int ret = symlink(path1, path2);
+   char *path1;
+   char *path2;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName1, &path1)) {
+      return -1;
+   }
+   if (!PosixConvertToCurrent(pathName2, &path2)) {
+      free(path1);
+      return -1;
+   }
+
+   ret = symlink(path1, path2);
 
    free(path1);
    free(path2);
@@ -699,8 +798,14 @@ int
 Posix_Mkfifo(ConstUnicode pathName,  // IN:
              mode_t mode)            // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = mkfifo(path, mode);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = mkfifo(path, mode);
 
    free(path);
    return ret;
@@ -728,8 +833,14 @@ int
 Posix_Truncate(ConstUnicode pathName,  // IN:
                off_t length)           // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = truncate(path, length);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = truncate(path, length);
 
    free(path);
    return ret;
@@ -757,8 +868,14 @@ int
 Posix_Utimes(ConstUnicode pathName,        // IN:
              const struct timeval *times)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = utimes(path, times);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = utimes(path, times);
 
    free(path);
    return ret;
@@ -787,10 +904,14 @@ Posix_Execl(ConstUnicode pathName,   // IN:
             ConstUnicode arg0, ...)  // IN:
 {
    int ret = -1;
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    va_list vl;
    char **argv = NULL;
    int i, count = 0;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      goto exit;
+   }
 
    if (arg0) {
       count = 1;
@@ -802,30 +923,31 @@ Posix_Execl(ConstUnicode pathName,   // IN:
    }
 
    argv = (char **) malloc(sizeof(char *) * (count + 1));
+   if (argv == NULL) {
+      errno = ENOMEM;
+      goto exit;
+   }
    if (argv) {
+      errno = 0;
       if (count > 0) {
-         argv[0] = Unicode_GetAllocBytes(arg0, STRING_ENCODING_DEFAULT);
+	 PosixConvertToCurrent(arg0, &argv[0]);
          va_start(vl, arg0);
          for (i = 1; i < count; i++) {
-            argv[i] = Unicode_GetAllocBytes(va_arg(vl, char *),
-                                            STRING_ENCODING_DEFAULT);
+	    PosixConvertToCurrent(va_arg(vl, char *), &argv[i]);
          }
          va_end(vl);
       }
       argv[count] = NULL;
-   } else {
-      errno = ENOMEM;
-      goto exit;
+      if (errno != 0) {
+	 goto exit;
+      }
    }
 
    ret = execv(path, argv);
 
 exit:
    if (argv) {
-      for (i = 0; i < count; i++) {
-         free(argv[i]);
-      }
-      free(argv);
+      Util_FreeStringList(argv, count + 1);
    }
    free(path);
    return ret;
@@ -853,10 +975,14 @@ Posix_Execlp(ConstUnicode fileName,   // IN:
              ConstUnicode arg0, ...)  // IN:
 {
    int ret = -1;
-   char *file = Unicode_GetAllocBytes(fileName, STRING_ENCODING_DEFAULT);
+   char *file;
    va_list vl;
    char **argv = NULL;
    int i, count = 0;
+
+   if (!PosixConvertToCurrent(fileName, &file)) {
+      goto exit;
+   }
 
    if (arg0) {
       count = 1;
@@ -868,30 +994,31 @@ Posix_Execlp(ConstUnicode fileName,   // IN:
    }
 
    argv = (char **) malloc(sizeof(char *) * (count + 1));
+   if (argv == NULL) {
+      errno = ENOMEM;
+      goto exit;
+   }
    if (argv) {
+      errno = 0;
       if (count > 0) {
-         argv[0] = Unicode_GetAllocBytes(arg0, STRING_ENCODING_DEFAULT);
+	 PosixConvertToCurrent(arg0, &argv[0]);
          va_start(vl, arg0);
          for (i = 1; i < count; i++) {
-            argv[i] = Unicode_GetAllocBytes(va_arg(vl, char *),
-                                            STRING_ENCODING_DEFAULT);
+	    PosixConvertToCurrent(va_arg(vl, char *), &argv[i]);
          }
          va_end(vl);
       }
       argv[count] = NULL;
-   } else {
-      errno = ENOMEM;
-      goto exit;
+      if (errno != 0) {
+	 goto exit;
+      }
    }
 
    ret = execvp(file, argv);
 
 exit:
    if (argv) {
-      for (i = 0; i < count; i++) {
-         free(argv[i]);
-      }
-      free(argv);
+      Util_FreeStringList(argv, count + 1);
    }
    free(file);
    return ret;
@@ -920,16 +1047,19 @@ Posix_Execv(ConstUnicode pathName,        // IN:
             Unicode const argVal[])       // IN:
 {
    int ret = -1;
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    char **argv = NULL;
 
-   if (argVal) {
-      argv = Unicode_GetAllocList(argVal, -1, 
-                                  STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      goto exit;
+   }
+   if (!PosixConvertToCurrentList(argVal, &argv)) {
+      goto exit;
    }
 
    ret = execv(path, argv);
 
+exit:
    if (argv) {
       Util_FreeStringList(argv, -1);
    }
@@ -961,22 +1091,23 @@ Posix_Execve(ConstUnicode pathName,        // IN:
              Unicode const envPtr[])       // IN:
 {
    int ret = -1;
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    char **argv = NULL;
    char **envp = NULL;
 
-   if (argVal) {
-      argv = Unicode_GetAllocList(argVal, -1, 
-                                  STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      goto exit;
    }
-
-   if (envPtr) {
-      envp = Unicode_GetAllocList(envPtr, -1, 
-                                  STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrentList(argVal, &argv)) {
+      goto exit;
+   }
+   if (!PosixConvertToCurrentList(envPtr, &envp)) {
+      goto exit;
    }
 
    ret = execve(path, argv, envp);
 
+exit:
    if (argv) {
       Util_FreeStringList(argv, -1);
    }
@@ -1010,16 +1141,19 @@ Posix_Execvp(ConstUnicode fileName,        // IN:
              Unicode const argVal[])       // IN:
 {
    int ret = -1;
-   char *file = Unicode_GetAllocBytes(fileName, STRING_ENCODING_DEFAULT);
+   char *file;
    char **argv = NULL;
 
-   if (argVal) {
-      argv = Unicode_GetAllocList(argVal, -1, 
-                                  STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(fileName, &file)) {
+      goto exit;
+   }
+   if (!PosixConvertToCurrentList(argVal, &argv)) {
+      goto exit;
    }
 
    ret = execvp(file, argv);
 
+exit:
    if (argv) {
       Util_FreeStringList(argv, -1);
    }
@@ -1047,9 +1181,14 @@ Posix_Execvp(ConstUnicode fileName,        // IN:
 int
 Posix_System(ConstUnicode command)         // IN:
 {
-   char *tmpcommand = Unicode_GetAllocBytes(command, STRING_ENCODING_DEFAULT);
+   char *tmpcommand;
+   int ret;
 
-   int ret = system(tmpcommand);
+   if (!PosixConvertToCurrent(command, &tmpcommand)) {
+      return -1;
+   }
+
+   ret = system(tmpcommand);
 
    free(tmpcommand);
    return ret;
@@ -1077,8 +1216,14 @@ int
 Posix_Mkdir(ConstUnicode pathName,  // IN:
             mode_t mode)            // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = mkdir(path, mode);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = mkdir(path, mode);
 
    free(path);
    return ret;
@@ -1105,8 +1250,14 @@ Posix_Mkdir(ConstUnicode pathName,  // IN:
 int
 Posix_Chdir(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = chdir(path);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = chdir(path);
 
    free(path);
    return ret;
@@ -1133,9 +1284,15 @@ Posix_Chdir(ConstUnicode pathName)  // IN:
 Unicode
 Posix_RealPath(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    char rpath[PATH_MAX];
-   char *p = realpath(path, rpath);
+   char *p;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
+
+   p = realpath(path, rpath);
 
    free(path);
    return p == NULL ? NULL : Unicode_Alloc(rpath, STRING_ENCODING_DEFAULT);
@@ -1162,10 +1319,14 @@ Posix_RealPath(ConstUnicode pathName)  // IN:
 Unicode
 Posix_ReadLink(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    ssize_t bytes;
    Unicode result = NULL;
    char link[PATH_MAX];
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
 
    bytes = readlink(path, link, sizeof link);
    ASSERT_NOT_IMPLEMENTED(bytes < (ssize_t) sizeof link);
@@ -1203,8 +1364,14 @@ int
 Posix_Lstat(ConstUnicode pathName,  // IN:
             struct stat *statbuf)   // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = lstat(path, statbuf);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = lstat(path, statbuf);
 
    free(path);
    return ret;
@@ -1231,8 +1398,14 @@ Posix_Lstat(ConstUnicode pathName,  // IN:
 DIR *
 Posix_OpenDir(ConstUnicode pathName)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   DIR *ret = opendir(path);
+   char *path;
+   DIR *ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
+
+   ret = opendir(path);
 
    free(path);
    return ret;
@@ -1257,41 +1430,24 @@ Posix_OpenDir(ConstUnicode pathName)  // IN:
  *----------------------------------------------------------------------
  */
 
-static void
-PosixEnvFree(void *v)  // IN:
-{
-   Unicode_Free((Unicode) v);
-}
-
 Unicode
 Posix_Getenv(ConstUnicode name)  // IN:
 {
-   char *rawData;
    char *rawName;
-   Unicode newValue;
-   HashTable *posixHashTable;
+   char *rawValue;
 
-   static Atomic_Ptr posixEnvPtr; // Implicitly initialized to NULL. --mbellon
-
-   posixHashTable = HashTable_AllocOnce(&posixEnvPtr, 128,
-                                        HASH_FLAG_ATOMIC | HASH_STRING_KEY,
-                                        PosixEnvFree);
-
-   rawName = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
-   rawData = getenv(rawName);
+   if (!PosixConvertToCurrent(name, &rawName)) {
+      return NULL;
+   }
+   rawValue = getenv(rawName);
    free(rawName);
 
-   if (rawData == NULL) {
-     return NULL;
+   if (rawValue == NULL) {
+      return NULL;
    }
 
-   newValue = Unicode_Alloc(rawData, STRING_ENCODING_DEFAULT);
-
-   if (newValue != NULL) {
-      HashTable_ReplaceOrInsert(posixHashTable, name, newValue);
-   }
-
-   return newValue;
+   return PosixGetenvHash(name, Unicode_Alloc(rawValue,
+					      STRING_ENCODING_DEFAULT));
 }
 
 
@@ -1343,7 +1499,9 @@ Posix_Getpwnam(ConstUnicode name)  // IN:
    struct passwd *pw;
    char *tmpname;
 
-   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(name, &tmpname)) {
+      return NULL;
+   }
    pw = getpwnam(tmpname);
    free(tmpname);
 
@@ -1492,8 +1650,14 @@ int
 Posix_Statfs(ConstUnicode pathName,     // IN:
              struct statfs *statfsbuf)  // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   int ret = statfs(path, statfsbuf);
+   char *path;
+   int ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+
+   ret = statfs(path, statfsbuf);
 
    free(path);
    return ret;
@@ -1522,19 +1686,53 @@ Posix_Setenv(ConstUnicode name,   // IN:
              ConstUnicode value,  // IN:
              int overWrite)       // IN:
 {
-   int res;
-   char *rawData;
+   int ret = -1;
+   char *rawName = NULL;
+   char *rawValue = NULL;
+
+   if (!PosixConvertToCurrent(name, &rawName)) {
+      goto exit;
+   }
+   if (!PosixConvertToCurrent(value, &rawValue)) {
+      goto exit;
+   }
+
+   ret = setenv(rawName, rawValue, overWrite);
+
+exit:
+   free(rawName);
+   free(rawValue);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Unsetenv --
+ *
+ *      POSIX unsetenv().
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Environment may be changed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Posix_Unsetenv(ConstUnicode name)   // IN:
+{
    char *rawName;
 
-   rawData = Unicode_GetAllocBytes(value, STRING_ENCODING_DEFAULT);
-   rawName = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(name, &rawName)) {
+      return;
+   }
 
-   res = setenv(rawName, rawData, overWrite);
-
-   free(rawData);
+   unsetenv(rawName);
    free(rawName);
-
-   return res;
 }
 
 
@@ -1590,11 +1788,22 @@ Posix_Getpwnam_r(ConstUnicode name,    // IN:
    int ret;
    char *tmpname;
 
-   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(name, &tmpname)) {
+      /*
+       * Act like nonexistent user, almost.
+       * While getpwnam_r() returns 0 on nonexistent user,
+       * we will return the errno instead.
+       */
+
+      *ppw = NULL;
+      return errno;
+   }
+
    ret = getpwnam_r(tmpname, pw, buf, size, ppw);
    free(tmpname);
 
-   if (ret != 0) {
+   // ret is errno on failure, *ppw is NULL if no matching entry found.
+   if (ret != 0 || *ppw == NULL) {
       return ret;
    }
 
@@ -1629,7 +1838,8 @@ Posix_Getpwuid_r(uid_t uid,            // IN:
    int ret;
 
    ret = getpwuid_r(uid, pw, buf, size, ppw);
-   if (ret != 0) {
+   // ret is errno on failure, *ppw is NULL if no matching entry found.
+   if (ret != 0 || *ppw == NULL) {
       return ret;
    }
 
@@ -1788,9 +1998,34 @@ Posix_GetGroupList(ConstUnicode user,    // IN:
                    gid_t *groups,        // OUT:
                    int *ngroups)         // IN/OUT:
 {
-   char *tmpuser = Unicode_GetAllocBytes(user, STRING_ENCODING_DEFAULT);
+   char *tmpuser;
+   int ret;
 
-   int ret = getgrouplist(tmpuser, group, groups, ngroups);
+   if (!PosixConvertToCurrent(user, &tmpuser)) {
+      /*
+       * Act like nonexistent user.
+       * The supplied gid is always returned, so there's exactly
+       * one group.
+       * While the man page doesn't say, the return value is
+       * the same as *ngroups in the success case.
+       *
+       * Should we always return -1 instead?
+       *
+       * -- edward
+       */
+
+      int n = *ngroups;
+
+      *ngroups = 1;
+      if (n < 1) {
+	 return -1;
+      }
+      ASSERT(groups != NULL);
+      *groups = group;
+      return 1;
+   }
+
+   ret = getgrouplist(tmpuser, group, groups, ngroups);
 
    free(tmpuser);
    return ret;
@@ -1816,10 +2051,12 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
 {
    struct group *gr;
    char *tmpname;
-   int ret, i;
+   int ret;
    static struct group sgr = {0};
    
-   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(name, &tmpname)) {
+      return NULL;
+   }
    gr = getgrnam(tmpname);
    free(tmpname);
    
@@ -1832,11 +2069,10 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
    sgr.gr_name = NULL;
    free(sgr.gr_passwd);
    sgr.gr_passwd = NULL;
-   for (i = 0; sgr.gr_mem[i]; i++) {
-      free(sgr.gr_mem[i]);
+   if (sgr.gr_mem != NULL) {
+      Unicode_FreeList(sgr.gr_mem, -1);
+      sgr.gr_mem = NULL;
    }
-   free(sgr.gr_mem);
-   sgr.gr_mem = NULL;
 
    /* Fill out structure with new values. */
    sgr.gr_gid = gr->gr_gid;
@@ -1851,8 +2087,7 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
       goto exit;
    }
    if (gr->gr_mem) {
-      sgr.gr_mem = Unicode_GetAllocList(gr->gr_mem, -1, 
-                                        STRING_ENCODING_DEFAULT);
+      sgr.gr_mem = Unicode_AllocList(gr->gr_mem, -1, STRING_ENCODING_DEFAULT);
    }
    
    ret = 0;
@@ -1898,11 +2133,22 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    char **grmem = NULL;
    size_t n;
 
-   tmpname = Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+   if (!PosixConvertToCurrent(name, &tmpname)) {
+      /*
+       * Act like nonexistent group, almost.
+       * While getgrnam_r() returns 0 on nonexistent group,
+       * we will return the errno instead.
+       */
+
+      *pgr = NULL;
+      return errno;
+   }
+
    ret = getgrnam_r(tmpname, gr, buf, size, pgr);
    free(tmpname);
 
-   if (ret != 0) {
+   // ret is errno on failure, *pgr is NULL if no matching entry found.
+   if (ret != 0 || *pgr == NULL) {
       return ret;
    }
 
@@ -1927,8 +2173,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
       goto exit;
    }
    if (gr->gr_mem) {
-      grmem = Unicode_GetAllocList(gr->gr_mem, -1,
-                                   STRING_ENCODING_DEFAULT);
+      grmem = Unicode_AllocList(gr->gr_mem, -1, STRING_ENCODING_DEFAULT);
    }
    
    /*
@@ -1973,7 +2218,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    free(grpasswd);
    free(grname);
    if (grmem) {
-      Util_FreeStringList(grmem, -1);
+      Unicode_FreeList(grmem, -1);
    }
    return ret;
 }
@@ -2004,11 +2249,20 @@ Posix_Mount(ConstUnicode source,             // IN:
             unsigned long mountflags,        // IN:
             const void *data)                // IN:
 {
-   char *tmpsource = Unicode_GetAllocBytes(source, STRING_ENCODING_DEFAULT);
-   char *tmptarget = Unicode_GetAllocBytes(target, STRING_ENCODING_DEFAULT);
+   int ret = -1;
+   char *tmpsource = NULL;
+   char *tmptarget = NULL;
 
-   int ret = mount(tmpsource, tmptarget, filesystemtype, mountflags, data);
+   if (!PosixConvertToCurrent(source, &tmpsource)) {
+      goto exit;
+   }
+   if (!PosixConvertToCurrent(target, &tmptarget)) {
+      goto exit;
+   }
 
+   ret = mount(tmpsource, tmptarget, filesystemtype, mountflags, data);
+
+exit:
    free(tmpsource);
    free(tmptarget);
    return ret;
@@ -2035,9 +2289,14 @@ Posix_Mount(ConstUnicode source,             // IN:
 int
 Posix_Umount(ConstUnicode target)             // IN:
 {
-   char *tmptarget = Unicode_GetAllocBytes(target, STRING_ENCODING_DEFAULT);
+   char *tmptarget;
+   int ret;
 
-   int ret = umount(tmptarget);
+   if (!PosixConvertToCurrent(target, &tmptarget)) {
+      return -1;
+   }
+
+   ret = umount(tmptarget);
 
    free(tmptarget);
    return ret;
@@ -2065,10 +2324,14 @@ FILE *
 Posix_Setmntent(ConstUnicode pathName, // IN:
                 const char *mode)      // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   char *path;
    FILE *stream;
 
    ASSERT(mode != NULL);
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
 
    stream = setmntent(path, mode);
 
@@ -2229,7 +2492,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    if (type) {
       int len = strlen(type) + 1;
-      if (n + len > size || n + len < size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
       m->mnt_type = memcpy(buf + n, type, len);
@@ -2238,7 +2501,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    if (opts) {
       size_t len = strlen(opts) + 1;
-      if (n + len > size || n + len < size) {
+      if (n + len > size || n + len < n) {
          goto exit;
       }
       m->mnt_opts = memcpy(buf + n, opts, len);

@@ -58,7 +58,7 @@ void DblLnkLst_Init(DblLnkLst_Links *l);
 void DblLnkLst_Link(DblLnkLst_Links *l1, DblLnkLst_Links *l2);
 void DblLnkLst_Unlink(DblLnkLst_Links *l1, DblLnkLst_Links *l2);
 void DblLnkLst_Unlink1(DblLnkLst_Links *l);
-Bool DblLnkLst_IsLinked(DblLnkLst_Links *l);
+Bool DblLnkLst_IsLinked(DblLnkLst_Links const *l);
 
 /* Functions specific to anchored lists. --hpreg */
 

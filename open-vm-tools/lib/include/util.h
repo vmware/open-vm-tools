@@ -52,6 +52,19 @@
 #include "vm_assert.h"
 #include "unicodeTypes.h"
 
+/*
+ * Define the Util_ThreadID type.
+ */
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <pthread.h>
+typedef pthread_t Util_ThreadID;
+#elif defined(_WIN32)
+typedef DWORD Util_ThreadID;
+#else // Linux et al
+#include <unistd.h>
+typedef pid_t Util_ThreadID;
+#endif
+
 #ifdef __APPLE__
 EXTERN char *Util_CFStringToUTF8CString(CFStringRef s);
 EXTERN char *Util_IORegGetStringProperty(io_object_t entry, CFStringRef property);
@@ -92,7 +105,7 @@ EXTERN int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
 EXTERN Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
 EXTERN Bool Util_IsAbsolutePath(const char *path);
 EXTERN unsigned Util_GetPrime(unsigned n0);
-EXTERN uintptr_t Util_GetCurrentThreadId(void);
+EXTERN Util_ThreadID Util_GetCurrentThreadId(void);
 
 EXTERN char *Util_DeriveFileName(const char *source,
                                  const char *name,

@@ -278,7 +278,9 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
       name = requestV3->fileName.name;
       nameLength = &requestV3->fileName.length;
       requestV3->fileName.flags = 0;
+      requestV3->fileName.fid = HGFS_INVALID_HANDLE;
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestV3->reserved = 0;
       requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       break;
    }
@@ -390,10 +392,6 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
 
   retry:
    opUsed = atomic_read(&hgfsVersionQueryVolumeInfo);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_QUERY_VOLUME_INFO_V3;
-   }
-
    result = HgfsPackQueryVolumeRequest(dentryToUse, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: error packing request\n"));
@@ -415,16 +413,16 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
          stat->f_type = HGFS_SUPER_MAGIC;
          stat->f_bsize = sbToUse->s_blocksize;
          stat->f_namelen = PATH_MAX;
-         stat->f_bavail = stat->f_bfree;
-	 if (opUsed == HGFS_OP_QUERY_VOLUME_INFO_V3) {
+         if (opUsed == HGFS_OP_QUERY_VOLUME_INFO_V3) {
             totalBytes = ((HgfsReplyQueryVolumeV3 *)HGFS_REP_PAYLOAD_V3(req))->totalBytes;
             freeBytes = ((HgfsReplyQueryVolumeV3 *)HGFS_REP_PAYLOAD_V3(req))->freeBytes;
-	 } else {
+         } else {
             totalBytes = ((HgfsReplyQueryVolume *)HGFS_REQ_PAYLOAD(req))->totalBytes;
             freeBytes = ((HgfsReplyQueryVolume *)HGFS_REQ_PAYLOAD(req))->freeBytes;
-	 }
+         }
          stat->f_blocks = totalBytes >> sbToUse->s_blocksize_bits;
          stat->f_bfree = freeBytes >> sbToUse->s_blocksize_bits;
+         stat->f_bavail = stat->f_bfree;
          break;
 
       case -EPERM:
@@ -437,21 +435,22 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
          result = 0;
          break;
 
+      case -EPROTO:
+         /* Retry with older version(s). Set globally. */
+         if (opUsed == HGFS_OP_QUERY_VOLUME_INFO_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsVersionQueryVolumeInfo, HGFS_OP_QUERY_VOLUME_INFO);
+            goto retry;
+         }
+         break;
+
       default:
          break;
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: timed out\n"));
    } else if (result == -EPROTO) {
-      /* Retry with Version 1 of SearchOpen. Set globally. */
-      if (opUsed == HGFS_OP_QUERY_VOLUME_INFO_V3) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: Version 3 not "
-                 "supported. Falling back to version 1.\n"));
-         atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
-         atomic_set(&hgfsVersionQueryVolumeInfo, HGFS_OP_QUERY_VOLUME_INFO);
-         goto retry;
-      }
-
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsStatfs: server returned error: "
               "%d\n", result));
    } else {

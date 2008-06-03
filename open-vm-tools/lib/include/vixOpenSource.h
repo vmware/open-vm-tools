@@ -397,13 +397,32 @@ enum {
 
 extern int vixDebugGlobalSpewLevel;
 extern char *VixAllocDebugString(char *fmt, ...);
-extern void VixDebugInit(int level);
+extern void VixDebugInit(int level, Bool panicOnVixAssert);
 extern const char *VixDebug_GetFileBaseName(const char *path);
+extern void VixAssert(const char *cond, const char *file, int lineNum);
 
 /*
  * preference name for client and vmx
  */
-#define  VIX_DEBUG_PREFERENCE_NAME   "vix.debugLevel"
+#define VIX_DEBUG_PREFERENCE_NAME  "vix.debugLevel"
+#define VIX_ASSERT_PREFERENCE_NAME "vix.doAssert"
+
+/*
+ * Assertions.  Normally we'd just use ASSERT(), but we've hit many cases
+ * where ASSERT() is desired by foundry developers, but not by foundry users.
+ * So we have our own VIX_ASSERT(), which is configured via a preference,
+ * vix.doAssert, off by default.
+ */
+#ifdef VMX86_DEBUG
+# ifdef __cplusplus
+# define  VIX_ASSERT(cond) (UNLIKELY(!(cond)) ? VixAssert(#cond, __FILE__, __LINE__) : (void) 0)
+# else
+# define  VIX_ASSERT(cond) (UNLIKELY(!(cond)) ? VixAssert(#cond, __FILE__, __LINE__) : 0)
+# endif
+#else
+#define  VIX_ASSERT(cond)
+#endif
+
 
 #define  VIX_DEBUG_LEVEL(logLevel, s) if (logLevel <= vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \

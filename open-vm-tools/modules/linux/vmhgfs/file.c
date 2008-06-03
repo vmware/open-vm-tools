@@ -194,7 +194,7 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       /* Linux clients need case-sensitive lookups. */
       requestV3->fileName.flags = 0;
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
-      requestV3->fileName.fid = 0;
+      requestV3->fileName.fid = HGFS_INVALID_HANDLE;
 
       /* Set mode. */
       result = HgfsGetOpenMode(file->f_flags);
@@ -223,6 +223,9 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
 
       /* XXX: Request no lock for now. */
       requestV3->desiredLock = HGFS_LOCK_NONE;
+
+      requestV3->reserved1 = 0;
+      requestV3->reserved2 = 0;
       break;
    }
 
@@ -563,10 +566,6 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
     */
 
    opUsed = atomic_read(&hgfsVersionOpen);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_OPEN_V3;
-   }
-
    result = HgfsPackOpenRequest(inode, file, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: error packing request\n"));
@@ -644,11 +643,10 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
          break;
 
       case -EPROTO:
-         /* Retry with Version 2 of Open. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_OPEN_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 3 not "
                     "supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V2);
             goto retry;
          }
@@ -657,7 +655,6 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
          if (opUsed == HGFS_OP_OPEN_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 2 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN);
             goto retry;
          }
@@ -1039,23 +1036,25 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
    }
 
  retry:
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+   opUsed = atomic_read(&hgfsVersionClose);
+   if (opUsed == HGFS_OP_CLOSE_V3) {
       HgfsRequest *header;
       HgfsRequestCloseV3 *request;
 
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
-      header->op = opUsed = HGFS_OP_CLOSE_V3;
+      header->op = opUsed;
 
       request = (HgfsRequestCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->file = handle;
+      request->reserved = 0;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestClose *request;
 
       request = (HgfsRequestClose *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
-      request->header.op = opUsed = HGFS_OP_CLOSE;
+      request->header.op = opUsed;
       request->file = handle;
       req->payloadSize = sizeof *request;
    }
@@ -1073,11 +1072,11 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
                  handle));
          break;
       case -EPROTO:
-         /* Retry with Version 2 of Open. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_CLOSE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRelease: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionClose, HGFS_OP_CLOSE);
             goto retry;
          }
          break;

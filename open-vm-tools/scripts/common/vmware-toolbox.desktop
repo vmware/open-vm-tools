@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=VMware Toolbox
+Comment=VMware Guest Toolbox utility
+# have to use the full path here otherwise help won't work
+Exec=/usr/lib/vmware-tools/bin/vmware-toolbox
+Icon=vmware-toolbox
+Terminal=false
+Type=Application
+Categories=Application;Utility;

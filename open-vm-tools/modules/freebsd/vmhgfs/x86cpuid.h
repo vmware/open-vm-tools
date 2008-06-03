@@ -416,7 +416,7 @@ FLAGDEF(  8A, EAX, AMD,     8,  1, SVM_HYPERVISOR,      MASK,    0, FALSE)      
 FIELDDEF( 8A, EAX, AMD,     9, 23, SVMEAX_RSVD,         MASK,    0, FALSE)            \
 FIELDDEF( 8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         MASK,    0, FALSE)            \
 FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         MASK,    0, FALSE)            \
-FLAGDEF(  8A, EDX, AMD,     0,  1, SVM_NP,              MASK,    0, FALSE)            \
+FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              MASK,    0, FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             MASK,    0, FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            MASK,    0, FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            MASK,    0, FALSE)            \
@@ -599,7 +599,6 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_CORE       14
 #define CPUID_MODEL_CORE2      15
 #define CPUID_MODEL_PENRYN     0x17  // Effective model
-#define CPUID_MODEL_NEHALEM    0x1a  // Effective model
 
 static INLINE uint32
 CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */

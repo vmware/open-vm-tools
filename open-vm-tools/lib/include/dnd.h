@@ -73,6 +73,7 @@ typedef enum
    CPFORMAT_UNKNOWN = 0,
    CPFORMAT_TEXT,       /* NUL terminated UTF-8. */
    CPFORMAT_FILELIST,
+   CPFORMAT_RTF,
    CPFORMAT_MAX,
 } DND_CPFORMAT;
 
@@ -152,6 +153,10 @@ EXTERN size_t DnD_CPStringToLocalString(ConstUnicode bufIn,
                                         utf16_t **bufOut);
 EXTERN size_t DnD_LocalStringToCPString(utf16_t *bufIn,
                                         char **bufOut);
+EXTERN Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
+                                            utf16_t *bufIn);
+EXTERN Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
+                                           char *bufIn);
 EXTERN Bool DnD_FakeMouseEvent(DWORD flag);
 EXTERN Bool DnD_FakeMouseState(DWORD key, Bool isDown);
 EXTERN Bool DnD_FakeEscapeKey(void);

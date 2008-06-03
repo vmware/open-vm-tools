@@ -1,3 +1,22 @@
+open-vm-tools 2008.06.03 changes:
+	* Added the vmware-user-suid-wrapper application, with implementations
+	for Linux, FreeBSD, and Solaris. This app is needed to make correct use
+	of vmware-user with the vmblock kernel module. It should have been in
+	the previous code refresh, but we accidentally overlooked it.
+
+	* Fixed Sourceforge bug 1924246: vmhgfs on Linux properly reports the
+	available space on the host. Thanks to Mikhail Krivtsov for reporting
+	the bug.
+
+	* Fixed Sourceforge bug 1839981: we now have rudimentary `make install`
+	support. On any platform, it should copy files and kernel modules to
+	the location specified at build-time, and on Linux, it will additionally
+	run `depmod -a` to make the kernel modules accessible to modprobe. This
+	change also adds a "--with-pam-prefix" argument to the configure
+	script, which controls the location of guestd's pam files.
+	
+	* Other bug fixes.
+
 open-vm-tools 2008.05.15 changes:
 	* guestd no longer starts vmware-user. Packagers will need to use
 	the XDG autostart spec, Xsession drop-in scripts, or other appropriate

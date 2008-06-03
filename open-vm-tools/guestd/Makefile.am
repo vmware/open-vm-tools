@@ -15,67 +15,85 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = guestd
+sbin_PROGRAMS = vmware-guestd
+pamdir = $(PAM_PREFIX)/pam.d
 
-guestd_LDADD =
-guestd_LDADD += ../lib/backdoor/libBackdoor.a
-guestd_LDADD += ../lib/conf/libConf.a
-guestd_LDADD += ../lib/dnd/libDnd.a
-guestd_LDADD += ../lib/err/libErr.a
-guestd_LDADD += ../lib/eventManager/libEventManager.a
-guestd_LDADD += ../lib/file/libFile.a
-guestd_LDADD += ../lib/guestApp/libGuestApp.a
-guestd_LDADD += ../lib/guestInfo/libGuestInfo.a
-guestd_LDADD += ../lib/hgfsServer/libHgfsServer.a
-guestd_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a
-guestd_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a
-guestd_LDADD += ../lib/deployPkg/libDeployPkg.a
-guestd_LDADD += ../lib/impersonate/libImpersonate.a
-guestd_LDADD += ../lib/netUtil/libNetUtil.a
-guestd_LDADD += ../lib/printer/libPrinter.a
-guestd_LDADD += ../lib/procMgr/libProcMgr.a
-guestd_LDADD += ../lib/rpcIn/libRpcIn.a
-guestd_LDADD += ../lib/rpcOut/libRpcOut.a
-guestd_LDADD += ../lib/rpcVmx/libRpcVmx.a
-guestd_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.a
-guestd_LDADD += ../lib/socketMgr/libSocketMgr.a
-guestd_LDADD += ../lib/strUtil/libStrUtil.a
-guestd_LDADD += ../lib/string/libString.a
-guestd_LDADD += ../lib/sync/libSync.a
-guestd_LDADD += ../lib/syncDriver/libSyncDriver.a
-guestd_LDADD += ../lib/system/libSystem.a
-guestd_LDADD += ../lib/user/libUser.a
-guestd_LDADD += ../lib/vixTools/libVixTools.a
-guestd_LDADD += ../lib/vmBackupLib/libVmBackupLib.a
-guestd_LDADD += ../lib/vmCheck/libVmCheck.a
-guestd_LDADD += ../lib/vmSignal/libVmSignal.a
-guestd_LDADD += ../lib/wiper/libWiper.a
+vmware_guestd_LDADD =
+vmware_guestd_LDADD += ../lib/backdoor/libBackdoor.a
+vmware_guestd_LDADD += ../lib/conf/libConf.a
+vmware_guestd_LDADD += ../lib/dnd/libDnd.a
+vmware_guestd_LDADD += ../lib/err/libErr.a
+vmware_guestd_LDADD += ../lib/eventManager/libEventManager.a
+vmware_guestd_LDADD += ../lib/file/libFile.a
+vmware_guestd_LDADD += ../lib/guestApp/libGuestApp.a
+vmware_guestd_LDADD += ../lib/guestInfo/libGuestInfo.a
+vmware_guestd_LDADD += ../lib/hgfsServer/libHgfsServer.a
+vmware_guestd_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a
+vmware_guestd_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a
+vmware_guestd_LDADD += ../lib/deployPkg/libDeployPkg.a
+vmware_guestd_LDADD += ../lib/impersonate/libImpersonate.a
+vmware_guestd_LDADD += ../lib/netUtil/libNetUtil.a
+vmware_guestd_LDADD += ../lib/printer/libPrinter.a
+vmware_guestd_LDADD += ../lib/procMgr/libProcMgr.a
+vmware_guestd_LDADD += ../lib/rpcIn/libRpcIn.a
+vmware_guestd_LDADD += ../lib/rpcOut/libRpcOut.a
+vmware_guestd_LDADD += ../lib/rpcVmx/libRpcVmx.a
+vmware_guestd_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.a
+vmware_guestd_LDADD += ../lib/socketMgr/libSocketMgr.a
+vmware_guestd_LDADD += ../lib/strUtil/libStrUtil.a
+vmware_guestd_LDADD += ../lib/string/libString.a
+vmware_guestd_LDADD += ../lib/sync/libSync.a
+vmware_guestd_LDADD += ../lib/syncDriver/libSyncDriver.a
+vmware_guestd_LDADD += ../lib/system/libSystem.a
+vmware_guestd_LDADD += ../lib/user/libUser.a
+vmware_guestd_LDADD += ../lib/vixTools/libVixTools.a
+vmware_guestd_LDADD += ../lib/vmBackupLib/libVmBackupLib.a
+vmware_guestd_LDADD += ../lib/vmCheck/libVmCheck.a
+vmware_guestd_LDADD += ../lib/vmSignal/libVmSignal.a
+vmware_guestd_LDADD += ../lib/wiper/libWiper.a
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of the
 # alphabetical order so their symbols are properly resolved.
-guestd_LDADD += ../lib/dict/libDict.a
-guestd_LDADD += ../lib/hgfs/libHgfs.a
-guestd_LDADD += ../lib/message/libMessage.a
-guestd_LDADD += ../lib/unicode/libUnicode.a
-guestd_LDADD += ../lib/misc/libMisc.a
-guestd_LDADD += ../lib/foundryMsg/libFoundryMsg.a
-guestd_LDADD += ../lib/auth/libAuth.a
-guestd_LDADD += ../lib/panicDefault/libPanicDefault.a
-guestd_LDADD += ../lib/panic/libPanic.a
+vmware_guestd_LDADD += ../lib/dict/libDict.a
+vmware_guestd_LDADD += ../lib/hgfs/libHgfs.a
+vmware_guestd_LDADD += ../lib/message/libMessage.a
+vmware_guestd_LDADD += ../lib/unicode/libUnicode.a
+vmware_guestd_LDADD += ../lib/misc/libMisc.a
+vmware_guestd_LDADD += ../lib/foundryMsg/libFoundryMsg.a
+vmware_guestd_LDADD += ../lib/auth/libAuth.a
+vmware_guestd_LDADD += ../lib/panicDefault/libPanicDefault.a
+vmware_guestd_LDADD += ../lib/panic/libPanic.a
 if SOLARIS
    HGFS_BD = ../lib/hgfsBd/libHgfsBd.a
 else
    HGFS_BD =
 endif
-guestd_LDADD += $(HGFS_BD)
-guestd_LDADD += @ICU_LIBS@
-guestd_LDADD += @GUESTD_LDADD@
+vmware_guestd_LDADD += $(HGFS_BD)
+vmware_guestd_LDADD += @ICU_LIBS@
+vmware_guestd_LDADD += @GUESTD_LDADD@
 
-guestd_SOURCES =
-guestd_SOURCES += debugStdio.c
-guestd_SOURCES += foreignVMToolsDaemon.c
-guestd_SOURCES += foreignVMToolsNetworking.c
-guestd_SOURCES += foundryToolsDaemon.c
-guestd_SOURCES += main.c
-guestd_SOURCES += stub.c
-guestd_SOURCES += toolsDaemon.c
+vmware_guestd_SOURCES =
+vmware_guestd_SOURCES += debugStdio.c
+vmware_guestd_SOURCES += foreignVMToolsDaemon.c
+vmware_guestd_SOURCES += foreignVMToolsNetworking.c
+vmware_guestd_SOURCES += foundryToolsDaemon.c
+vmware_guestd_SOURCES += main.c
+vmware_guestd_SOURCES += stub.c
+vmware_guestd_SOURCES += toolsDaemon.c
+
+if LINUX
+if PAMD
+if THIRTY_TWO_BIT_USERSPACE
+pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd
+else
+pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd-x64
+endif !THIRTY_TWO_BIT_USERSPACE
+endif PAMD
+endif LINUX
+
+install-exec-hook:
+	$(INSTALL) -d /etc/vmware-tools
+	echo 'disable-tools-version = "true"' > /etc/vmware-tools/tools.conf
+
+uninstall-hook:
+	$(RM) -rf /etc/vmware-tools

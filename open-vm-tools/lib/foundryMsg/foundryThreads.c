@@ -84,7 +84,7 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
                                             FoundryThreadWrapperProc,
                                             threadState,
                                             0,
-                                            (LPDWORD)&(threadState->threadId));
+                                            &(threadState->threadId));
    if (NULL == threadState->threadHandle) {
       err = VIX_E_OUT_OF_MEMORY;
       goto abort;
@@ -146,7 +146,7 @@ FoundryThreads_StopThread(FoundryWorkerThread *threadState)    // IN
 #ifdef _WIN32
       DWORD waitResult;
 
-      ASSERT(threadState->threadId != ((uintptr_t)GetCurrentThreadId()));
+      ASSERT(threadState->threadId != GetCurrentThreadId());
 
       waitResult = WaitForSingleObject(threadState->threadHandle, 30000);
       if (WAIT_OBJECT_0 != waitResult) {
@@ -218,7 +218,7 @@ FoundryThreads_IsCurrentThread(struct FoundryWorkerThread *threadState)     // I
    }
 #ifdef _WIN32
    {
-      uintptr_t id = (uintptr_t)GetCurrentThreadId();
+      Util_ThreadID id = GetCurrentThreadId();
       if (id == threadState->threadId) {
 	 return TRUE;
       }

@@ -908,6 +908,39 @@ struct VixMsgSnapshotMRURequest {
 #include "vmware_pack_end.h"
 VixMsgSnapshotMRURequest;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgSetSnapshotInfoRequest {
+   VixCommandRequestHeader    header;
+
+   int32                      snapshotId;
+   int32                      clientFlags;
+
+   uint32                     displayNameLength;
+   uint32                     descriptionLength;
+   uint32                     propertyListLength;
+
+   /*
+    * Followed by:
+    *   displayName string
+    *   description string
+    *   serialized property list.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgSetSnapshotInfoRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgSetSnapshotInfoResponse {
+   VixCommandResponseHeader    header;
+
+   uint32                     propertyListLength;
+}
+#include "vmware_pack_end.h"
+VixMsgSetSnapshotInfoResponse;
+
+
 /*
  * Fork a running VM.
  */
@@ -2093,9 +2126,11 @@ enum {
    VIX_COMMAND_GET_TIMEMARKER                   = 153,
    VIX_COMMAND_REMOVE_TIMEMARKER                = 154,
 
+   VIX_COMMAND_SET_SNAPSHOT_INFO                = 155,
    VIX_COMMAND_SNAPSHOT_SET_MRU                 = 156,
 
    VIX_COMMAND_LAST_NORMAL_COMMAND              = 157,
+
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
 };

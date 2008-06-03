@@ -443,7 +443,7 @@ pid_t gettid(void)
  *-----------------------------------------------------------------------------
  */
 
-uintptr_t
+Util_ThreadID
 Util_GetCurrentThreadId(void)
 {
 #if defined(linux)
@@ -460,32 +460,32 @@ Util_GetCurrentThreadId(void)
    // ESX with userworld VMX
 #if defined(VMX86_SERVER)
    if (HostType_OSIsVMK()) {
-      return (uintptr_t)User_GetTid();
+      return User_GetTid();
    }
 #endif
 
    if (useTid) {
       tid = gettid();
       if (tid != (pid_t)-1) {
-         return (uintptr_t)tid;
+         return tid;
       }
       ASSERT(errno == ENOSYS);
       useTid = 0;
    }
    tid = getpid();
    ASSERT(tid != (pid_t)-1);
-   return (uintptr_t)tid;
+   return tid;
 #elif defined(sun)
    pid_t tid;
 
    tid = getpid();
    ASSERT(tid != (pid_t)-1);
-   return (uintptr_t)tid;
+   return tid;
 #elif defined(__APPLE__) || defined(__FreeBSD__)
-   ASSERT_ON_COMPILE(sizeof(uintptr_t) == sizeof(pthread_t));
-   return (uintptr_t)pthread_self();
+   ASSERT_ON_COMPILE(sizeof(Util_ThreadID) == sizeof(pthread_t));
+   return pthread_self();
 #elif defined(_WIN32)
-   return (uintptr_t)GetCurrentThreadId();
+   return GetCurrentThreadId();
 #else
 #error "Unknown platform"
 #endif

@@ -286,7 +286,7 @@ Panic(const char *fmt, ...)
    Str_Vsnprintf(buf, sizeof buf, fmt, args);
    va_end(args);
 
-   fprintf(stderr, buf);
+   fputs(buf, stderr);
    abort();
 }
 

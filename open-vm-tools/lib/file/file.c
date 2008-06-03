@@ -175,6 +175,32 @@ File_Unlink(ConstUnicode pathName)  // IN:
    return (FileDeletion(pathName, TRUE) == 0) ? 0 : -1;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_UnlinkNoFollow --
+ *
+ *      Unlink the file (do not follow symbolic links).
+ *      On Windows, there are no symbolic links so this is the same as
+ *      File_Unlink
+ *
+ * Results:
+ *      Return 0 if the unlink is successful. Otherwise, returns -1.
+ *
+ * Side effects:
+ *      The file is removed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
+{
+   return (FileDeletion(pathName, FALSE) == 0) ? 0 : -1;
+}
+
+
+
 
 /*
  *----------------------------------------------------------------------

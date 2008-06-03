@@ -28,11 +28,8 @@
 #include <stdarg.h>
 
 #include "vmware.h"
-#include "posix.h"
-#include "str.h"
-#include "hashTable.h"
-#include "vm_atomic.h"
-#include "unicode.h"
+#include "posixInt.h"
+#include "win32u.h"
 
 
 /*
@@ -61,6 +58,8 @@ Posix_Open(ConstUnicode pathName,  // IN:
    mode_t mode = 0;
    int fd;
 
+   WIN32U_CHECK_LONGPATH(path, fd = -1, exit);
+
    if ((flags & O_CREAT) != 0) {
       va_list a;
       va_start(a, flags);
@@ -70,6 +69,7 @@ Posix_Open(ConstUnicode pathName,  // IN:
 
    fd = _wopen(path, flags, mode);
 
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return fd;
 }
@@ -121,17 +121,19 @@ FILE *
 Posix_Fopen(ConstUnicode pathName,  // IN:
             const char *mode)       // IN:
 {
-   const utf16_t *path;
-   const utf16_t *modeString;
+   const utf16_t *path = NULL;
+   const utf16_t *modeString = NULL;
    FILE *stream;
 
    ASSERT(mode);
 
    path = UNICODE_GET_UTF16(pathName);
+   WIN32U_CHECK_LONGPATH(path, stream = NULL, exit);
    modeString = UNICODE_GET_UTF16(mode);
 
    stream = _wfopen(path, modeString);
 
+  exit:
    UNICODE_RELEASE_UTF16(path);
    UNICODE_RELEASE_UTF16(modeString);
    return stream;
@@ -159,17 +161,19 @@ FILE *
 Posix_Popen(ConstUnicode pathName,  // IN:
             const char *mode)       // IN:
 {
-   const utf16_t *path;
-   const utf16_t *modeString;
+   const utf16_t *path = NULL;
+   const utf16_t *modeString = NULL;
    FILE *stream;
 
    ASSERT(mode);
 
    path = UNICODE_GET_UTF16(pathName);
+   WIN32U_CHECK_LONGPATH(path, stream = NULL, exit);
    modeString = UNICODE_GET_UTF16(mode);
 
    stream = _wpopen(path, modeString);
 
+  exit:
    UNICODE_RELEASE_UTF16(path);
    UNICODE_RELEASE_UTF16(modeString);
    return stream;
@@ -197,8 +201,12 @@ int
 Posix_Chdir(ConstUnicode pathName)  // IN:
 {
    const utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int result = _wchdir(path);
+   int result;
 
+   WIN32U_CHECK_LONGPATH(path, result = -1, exit);
+   result = _wchdir(path);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return result;
 }
@@ -226,8 +234,12 @@ Posix_Mkdir(ConstUnicode pathName,  // IN:
             mode_t mode)            // IN:
 {
    const utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int result = _wmkdir(path);
+   int result;
 
+   WIN32U_CHECK_LONGPATH(path, result = -1, exit);
+   result = _wmkdir(path);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return result;
 }
@@ -256,7 +268,12 @@ Posix_Stat(ConstUnicode pathName,  // IN:
 {
    struct _stat _statbuf;
    const utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int ret = _wstat(path, &_statbuf);
+   int ret;
+
+   WIN32U_CHECK_LONGPATH(path, ret = -1, exit);
+   ret = _wstat(path, &_statbuf);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
 
    if (ret == 0) {
@@ -300,8 +317,14 @@ Posix_Rename(ConstUnicode fromPathName,  // IN:
 {
    utf16_t *fromPath = UNICODE_GET_UTF16(fromPathName);
    utf16_t *toPath = UNICODE_GET_UTF16(toPathName);
-   int result = _wrename(fromPath, toPath);
+   int result;
 
+   WIN32U_CHECK_LONGPATH(fromPath, result = -1, exit);
+   WIN32U_CHECK_LONGPATH(toPath, result = -1, exit);
+
+   result =  _wrename(fromPath, toPath);
+
+  exit:
    UNICODE_RELEASE_UTF16(fromPath);
    UNICODE_RELEASE_UTF16(toPath);
    return result;
@@ -329,8 +352,12 @@ int
 Posix_Unlink(ConstUnicode pathName)  // IN:
 {
    const utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int result = _wunlink(path);
+   int result;
 
+   WIN32U_CHECK_LONGPATH(path, result = -1, exit);
+   result = _wunlink(path);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return result;
 }
@@ -357,8 +384,12 @@ int
 Posix_Rmdir(ConstUnicode pathName)  // IN:
 {
    const utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int result = _wrmdir(path);
+   int result;
 
+   WIN32U_CHECK_LONGPATH(path, result = -1, exit);
+   result = _wrmdir(path);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return result;
 }
@@ -386,8 +417,12 @@ Posix_Chmod(ConstUnicode pathName,  // IN:
             mode_t mode)            // IN:
 {
    const utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int result = _wchmod(path, mode);
+   int result;
 
+   WIN32U_CHECK_LONGPATH(path, result = -1, exit);
+   result = _wchmod(path, mode);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return result;
 }
@@ -420,10 +455,12 @@ Posix_Freopen(ConstUnicode pathName,  // IN:
    FILE *stream;
 
    path = UNICODE_GET_UTF16(pathName);
+   WIN32U_CHECK_LONGPATH(path, stream = NULL, exit);
    modeString = UNICODE_GET_UTF16(mode);
 
    stream = _wfreopen(path, modeString, input_stream);
 
+  exit:
    UNICODE_RELEASE_UTF16(path);
    UNICODE_RELEASE_UTF16(modeString);
    return stream;
@@ -452,8 +489,12 @@ Posix_Access(ConstUnicode pathName,  // IN:
              int mode)               // IN:
 {
    utf16_t *path = UNICODE_GET_UTF16(pathName);
-   int ret = _waccess(path, mode);
+   int ret;
 
+   WIN32U_CHECK_LONGPATH(path, ret = -1, exit);
+   ret = _waccess(path, mode);
+
+  exit:
    UNICODE_RELEASE_UTF16(path);
    return ret;
 }
@@ -486,12 +527,14 @@ Posix_Execl(ConstUnicode pathName,   // IN:
    va_list vl;
    int i, count = 0;
 
+   WIN32U_CHECK_LONGPATH(path, ret = -1, exit);
+
    if (arg0) {
       count = 1;
       va_start(vl, arg0);
       while(va_arg(vl, utf16_t *)) {
          count ++;
-      }   
+      }
       va_end(vl);
    }
 
@@ -551,6 +594,8 @@ Posix_Execv(ConstUnicode pathName,        // IN:
    utf16_t **argv = NULL;
    int i, count = 0;
 
+   WIN32U_CHECK_LONGPATH(path, ret = -1, exit);
+
    if (argVal) {
       while (argVal[count]) {
          count++;
@@ -607,6 +652,8 @@ Posix_Execvp(ConstUnicode fileName,        // IN:
    utf16_t **argv = NULL;
    int i, count = 0;
 
+   WIN32U_CHECK_LONGPATH(file, ret = -1, exit);
+
    if (argVal) {
       while (argVal[count]) {
          count++;
@@ -655,39 +702,19 @@ exit:
  *----------------------------------------------------------------------
  */
 
-static void
-PosixEnvFree(void *v)  // IN:
-{
-   Unicode_Free((Unicode) v);
-}
-
 Unicode
 Posix_Getenv(ConstUnicode name)  // IN:
 {
-   utf16_t *rawData;
    utf16_t *rawName;
-   Unicode newValue;
-   HashTable *posixHashTable;
-
-   static Atomic_Ptr posixEnvPtr; // Implicitly initialized to NULL. --mbellon
-
-   posixHashTable = HashTable_AllocOnce(&posixEnvPtr, 128,
-                                        HASH_FLAG_ATOMIC | HASH_STRING_KEY,
-                                        PosixEnvFree);
+   utf16_t *rawValue;
 
    rawName = UNICODE_GET_UTF16(name);
-   rawData = _wgetenv(rawName);
+   rawValue = _wgetenv(rawName);
    UNICODE_RELEASE_UTF16(rawName);
 
-   if (rawData == NULL) {
-     return NULL;
+   if (rawValue == NULL) {
+      return NULL;
    }
 
-   newValue = Unicode_AllocWithUTF16(rawData);
-
-   if (newValue != NULL) {
-      HashTable_ReplaceOrInsert(posixHashTable, name, newValue);
-   }
-
-   return newValue;
+   return PosixGetenvHash(name, Unicode_AllocWithUTF16(rawValue));
 }

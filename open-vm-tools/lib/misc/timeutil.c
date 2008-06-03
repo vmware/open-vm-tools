@@ -41,6 +41,9 @@
 #include "timeutil.h"
 #include "str.h"
 #include "util.h"
+#ifdef _WIN32
+#include "win32u.h"
+#endif
 
 /*
  * NT time of the Unix epoch:
@@ -449,8 +452,8 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
 {
 #ifdef _WIN32
    SYSTEMTIME systemTime = { 0 };
-   TCHAR dateStr[100];
-   TCHAR timeStr[100];
+   char dateStr[100] = "";
+   char timeStr[100] = "";
 
    if (!showDate && !showTime) {
       return NULL;
@@ -460,11 +463,11 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
       return NULL;
    }
 
-   GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE,
-                 &systemTime, NULL, dateStr, ARRAYSIZE(dateStr));
+   Win32U_GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE,
+                        &systemTime, NULL, dateStr, ARRAYSIZE(dateStr));
 
-   GetTimeFormat(LOCALE_USER_DEFAULT, 0, &systemTime, NULL,
-                 timeStr, ARRAYSIZE(timeStr));
+   Win32U_GetTimeFormat(LOCALE_USER_DEFAULT, 0, &systemTime, NULL,
+                        timeStr, ARRAYSIZE(timeStr));
 
    if (showDate && showTime) {
       return Str_Asprintf(NULL, "%s %s", dateStr, timeStr);

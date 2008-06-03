@@ -49,7 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = hgfsclient$(EXEEXT)
+bin_PROGRAMS = vmware-hgfsclient$(EXEEXT)
 subdir = hgfsclient
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -58,10 +58,12 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
-PROGRAMS = $(noinst_PROGRAMS)
-am_hgfsclient_OBJECTS = hgfsclient.$(OBJEXT) stub.$(OBJEXT)
-hgfsclient_OBJECTS = $(am_hgfsclient_OBJECTS)
-hgfsclient_DEPENDENCIES = ../lib/conf/libConf.a \
+am__installdirs = "$(DESTDIR)$(bindir)"
+binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
+PROGRAMS = $(bin_PROGRAMS)
+am_vmware_hgfsclient_OBJECTS = hgfsclient.$(OBJEXT) stub.$(OBJEXT)
+vmware_hgfsclient_OBJECTS = $(am_vmware_hgfsclient_OBJECTS)
+vmware_hgfsclient_DEPENDENCIES = ../lib/conf/libConf.a \
 	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
 	../lib/hgfsBd/libHgfsBd.a ../lib/rpcOut/libRpcOut.a \
 	../lib/strUtil/libStrUtil.a ../lib/string/libString.a \
@@ -84,8 +86,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(hgfsclient_SOURCES)
-DIST_SOURCES = $(hgfsclient_SOURCES)
+SOURCES = $(vmware_hgfsclient_SOURCES)
+DIST_SOURCES = $(vmware_hgfsclient_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -150,6 +152,7 @@ LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 MODULES = @MODULES@
+MODULES_DIR = @MODULES_DIR@
 MODULES_OS = @MODULES_OS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -158,6 +161,7 @@ PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PAM_PREFIX = @PAM_PREFIX@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
@@ -166,6 +170,7 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TARGET_OS = @TARGET_OS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -228,17 +233,18 @@ top_srcdir = @top_srcdir@
 # In the absence of the linker options --start-group and --end-group (which can't
 # be put in LDADD), we need to bring the following libraries out of the alphebetical
 # order so their symbols are properly resolved.
-hgfsclient_LDADD = ../lib/conf/libConf.a ../lib/guestApp/libGuestApp.a \
-	../lib/hgfs/libHgfs.a ../lib/hgfsBd/libHgfsBd.a \
-	../lib/rpcOut/libRpcOut.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/toolsLogger/libToolsLogger.a \
+vmware_hgfsclient_LDADD = ../lib/conf/libConf.a \
+	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
+	../lib/hgfsBd/libHgfsBd.a ../lib/rpcOut/libRpcOut.a \
+	../lib/strUtil/libStrUtil.a ../lib/string/libString.a \
+	../lib/toolsLogger/libToolsLogger.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
 	../lib/err/libErr.a ../lib/file/libFile.a \
 	../lib/message/libMessage.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
 	../lib/misc/libMisc.a @ICU_LIBS@
-hgfsclient_SOURCES = hgfsclient.c stub.c
+vmware_hgfsclient_SOURCES = hgfsclient.c stub.c
 all: all-am
 
 .SUFFIXES:
@@ -272,16 +278,37 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
+install-binPROGRAMS: $(bin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
+	  if test -f $$p \
+	     || test -f $$p1 \
+	  ; then \
+	    f=`echo "$$p1" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(binPROGRAMS_INSTALL) '$$p' '$(DESTDIR)$(bindir)/$$f'"; \
+	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(binPROGRAMS_INSTALL) "$$p" "$(DESTDIR)$(bindir)/$$f" || exit 1; \
+	  else :; fi; \
+	done
 
-clean-noinstPROGRAMS:
-	@list='$(noinst_PROGRAMS)'; for p in $$list; do \
+uninstall-binPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
+	  echo " rm -f '$(DESTDIR)$(bindir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(bindir)/$$f"; \
+	done
+
+clean-binPROGRAMS:
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
 	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-hgfsclient$(EXEEXT): $(hgfsclient_OBJECTS) $(hgfsclient_DEPENDENCIES) 
-	@rm -f hgfsclient$(EXEEXT)
-	$(LINK) $(hgfsclient_OBJECTS) $(hgfsclient_LDADD) $(LIBS)
+vmware-hgfsclient$(EXEEXT): $(vmware_hgfsclient_OBJECTS) $(vmware_hgfsclient_DEPENDENCIES) 
+	@rm -f vmware-hgfsclient$(EXEEXT)
+	$(LINK) $(vmware_hgfsclient_OBJECTS) $(vmware_hgfsclient_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -397,6 +424,9 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS)
 installdirs:
+	for dir in "$(DESTDIR)$(bindir)"; do \
+	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+	done
 install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
@@ -423,8 +453,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-noinstPROGRAMS \
-	mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -446,7 +475,7 @@ install-data-am:
 
 install-dvi: install-dvi-am
 
-install-exec-am:
+install-exec-am: install-binPROGRAMS
 
 install-html: install-html-am
 
@@ -478,22 +507,23 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-binPROGRAMS
 
 .MAKE: install-am install-strip
 
-.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstPROGRAMS ctags distclean \
-	distclean-compile distclean-generic distclean-libtool \
-	distclean-tags distdir dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-dvi \
+.PHONY: CTAGS GTAGS all all-am check check-am clean clean-binPROGRAMS \
+	clean-generic clean-libtool ctags distclean distclean-compile \
+	distclean-generic distclean-libtool distclean-tags distdir dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-binPROGRAMS install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
 	install-html-am install-info install-info-am install-man \
 	install-pdf install-pdf-am install-ps install-ps-am \
 	install-strip installcheck installcheck-am installdirs \
 	maintainer-clean maintainer-clean-generic mostlyclean \
 	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am
+	pdf pdf-am ps ps-am tags uninstall uninstall-am \
+	uninstall-binPROGRAMS
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

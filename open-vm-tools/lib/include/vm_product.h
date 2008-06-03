@@ -129,12 +129,15 @@
 #define PRODUCT_VDM_SHORT_NAME "VDM"
 #define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
 
+#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("VDM Client")
+#define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
+
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
 #define PRODUCT_VMVISOR_NAME MAKE_NAME("VMvisor")
 
 /*
- * VMware Remote Console version definitions
+ * VMware Remote Console (VMRC) version definitions
  */
 
 #define PRODUCT_VMRC_SHORT_NAME "VMRC"
@@ -143,31 +146,53 @@
 #define PRODUCT_VMRC_DESCRIPTION "Enables remote interaction with virtual machines."
 #ifdef _WIN32
 #define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc.exe"
+#else
+#define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc"
+#endif
+
+/*
+ * VMRC ActiveX CLSIDs and ProgIDs
+ */
+#define PRODUCT_VMRC_PLUGIN_GUID_WEB           B94C2238-346E-4c5e-9B36-8CC627F35574
+#define PRODUCT_VMRC_PLUGIN_GUID_WEB_TYPELIB   84D652E1-9364-4536-B13C-24F16FBEBCFE
+#define PRODUCT_VMRC_PLUGIN_WEB_CLSID          CLSID:##PRODUCT_VMRC_PLUGIN_GUID_WEB
+#define PRODUCT_VMRC_PLUGIN_WEB_PROGID_BASE    "VMware.web.VMwareRemoteConsole"
+#define PRODUCT_VMRC_PLUGIN_WEB_PROGID         PRODUCT_VMRC_PLUGIN_WEB_PROGID_BASE "." \
+                                               XSTR(VMRC_PLUGIN_VERSION_BASE)
+
+#define PRODUCT_VMRC_PLUGIN_GUID               B94C2248-346E-4C5E-9B36-8CC627F35574
+#define PRODUCT_VMRC_PLUGIN_GUID_EMBEDDED      B94C2249-346E-4C5E-9B36-8CC627F35574
+#define PRODUCT_VMRC_PLUGIN_GUID_QUICKMKSAXCTL 338095E4-1806-4BA3-AB51-38A3179200E9
+#define PRODUCT_VMRC_PLUGIN_GUID_TYPELIB       A51B0CB2-1545-43AD-B66E-AD322009406C
+#define PRODUCT_VMRC_PLUGIN_PROGID_BASE        "VMware.hosted.VMwareRemoteConsole"
+#define PRODUCT_VMRC_PLUGIN_PROGID             PRODUCT_VMRC_PLUGIN_PROGID_BASE "." \
+                                               XSTR(VMRC_PLUGIN_VERSION_BASE)
+#define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "VMware.hosted.VMwareEmbeddedRemoteConsole"
+#define PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED    PRODUCT_VMRC_PLUGIN_PROGID_EMBEDDED_BASE "." \
+                                               XSTR(VMRC_PLUGIN_VERSION_BASE)
+
+/*
+ * VMRC MIME types
+ */
+#ifdef _WIN32
 #define PRODUCT_VMRC_MIMETYPE_SEPARATOR "|"
 #define PRODUCT_VMRC_MIMETYPE_TERMINATOR ""
 #else
-#define PRODUCT_VMRC_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmrc"
 #define PRODUCT_VMRC_MIMETYPE_SEPARATOR "::" PRODUCT_VMRC_PLUGIN_NAME ";"
 #define PRODUCT_VMRC_MIMETYPE_TERMINATOR "::" PRODUCT_VMRC_PLUGIN_NAME ";"
 #endif
 
-/*
- * current Gecko/WebKit plugin mimetype
- */
-
 #define PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   "application/x-vmware-vmrc;version=" \
-   VMRC_PLUGIN_VERSION "." BUILD_NUMBER_NUMERIC_STRING PRODUCT_VMRC_MIMETYPE_SEPARATOR
+   "application/x-vmware-vmrc;version=" VMRC_PLUGIN_VERSION
 
 /*
  * previously shipped plugin mimetypes (updated as we ship them)
  */
 #define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
-   "application/x-vmware-vmrc;version=2.5.0.0" \
-   PRODUCT_VMRC_MIMETYPE_TERMINATOR
+   "application/x-vmware-vmrc;version=2.5.0.0"
 
 /*
- * legacy plugin mimetypes
+ * legacy plugin mimetypes (currently unused but here for reference)
  */
 #define PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES \
    "application/x-vmware-mks;version=2.5.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
@@ -176,12 +201,11 @@
    "application/x-vmware-mks;version=2.0.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR
 
 /*
- * All plugin mimetypes
+ * All supported plugin mimetypes
  */
 #define PRODUCT_VMRC_PLUGIN_MIMETYPES \
-   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE \
-   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
-   // PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES /* Legacy support disabled */
+   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES PRODUCT_VMRC_MIMETYPE_TERMINATOR
 
 /*
  * TODO: This properly lives in productState, but we need it here to

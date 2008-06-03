@@ -21,6 +21,7 @@
 # These subdirectories require X, and may be disabled using --without-x
 X11_SUBDIRS =
 X11_SUBDIRS += vmware-user
+X11_SUBDIRS += vmware-user-suid-wrapper
 X11_SUBDIRS += toolbox
 
 SUBDIRS =
@@ -36,7 +37,7 @@ endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
 SUBDIRS += xferlogs
-
-.PHONY: modules
-modules:
-	$(MAKE) -C modules
+SUBDIRS += scripts
+if !SOLARIS
+SUBDIRS += modules
+endif

@@ -19,15 +19,14 @@
 #define UNICODE_BUILDING_POSIX_WRAPPERS
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #if defined(__APPLE__) || defined(linux)
 #include <dlfcn.h>
 #endif
 
 #include "vmware.h"
-#include "str.h"
-#include "posix.h"
-#include "unicode.h"
+#include "posixInt.h"
 
 
 #if defined(__APPLE__) || defined(linux)
@@ -52,8 +51,14 @@ void *
 Posix_Dlopen(ConstUnicode pathName,  // IN:
              int flag)               // IN:
 {
-   char *path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   void *ret = dlopen(path, flag);
+   char *path;
+   void *ret;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return NULL;
+   }
+
+   ret = dlopen(path, flag);
 
    free(path);
    return ret;

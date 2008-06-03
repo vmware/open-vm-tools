@@ -28,6 +28,7 @@
 #include <time.h>
 #include <limits.h>
 
+#include "vmware.h"
 #include "dndInt.h"
 #include "dnd.h"
 #include "file.h"

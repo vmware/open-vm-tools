@@ -293,10 +293,13 @@ RpcOut_sendOne(char **reply,        // OUT: Result
    }
 
    /*
-    * If the command doesn't contain a space, add one to the
-    * end to maintain compatibility with old VMXs.
+    * If the command doesn't contain a space, add one to the end to maintain
+    * compatibility with old VMXs.
     *
-    * XXX Do we still need to bother with this?
+    * For a long time, the GuestRpc logic in the VMX was wired to expect a
+    * trailing space in every command, even commands without arguments. That is
+    * no longer true, but we must continue to add a trailing space because we
+    * don't know whether we're talking to an old or new VMX.
     */
    if (strchr(request, ' ') == NULL) {
       char *tmp;
@@ -346,7 +349,8 @@ RpcOut_sendOne(char **reply,        // OUT: Result
  *    varargs.
  *
  *    Note: It is the caller's responsibility to ensure that the RPCI command
- *          followed by a space appear at the start of the request buffer.
+ *          followed by a space appear at the start of the request buffer. See
+ *          the command in RpcOut_sendOne for details.
  *
  * Return value:
  *    TRUE on success. '*reply' contains an allocated result of the rpc

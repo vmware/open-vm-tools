@@ -1013,13 +1013,13 @@ MakeDirectory(ConstUnicode pathName)
 {
    int err;
 
-   ASSERT(pathName);
-
 #if !defined(_WIN32)
    mode_t save;
 
    save = umask(0);
 #endif
+
+   ASSERT(pathName);
 
    err = FileCreateDirectory(pathName);
 
@@ -1385,18 +1385,6 @@ FileLockIntrinsic(const char *machineID,    // IN:
    LOG(1, ("Requesting %s lock on %s (%s, %s, %u).\n",
        myValues.lockType, UTF8(pathName), myValues.machineID,
        myValues.executionID, myValues.msecMaxWaitTime));
-
-   /*
-    * Enforce the maximum path length restriction explicitely. Apparently
-    * the Windows POSIX routine mappings cannot be trusted to return
-    * ENAMETOOLONG when it is appropriate.
-    */
-
-   if ((Unicode_LengthInCodeUnits(pathName) +
-                                  FILELOCK_OVERHEAD) >= FILE_MAXPATH) {
-      *err = ENAMETOOLONG;
-      goto bail;
-   }
 
    /* Construct the locking directory path */
    dirPath = Unicode_Append(pathName, U(FILELOCK_SUFFIX));

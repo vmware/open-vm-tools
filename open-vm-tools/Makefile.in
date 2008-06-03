@@ -53,6 +53,7 @@ build_triplet = @build@
 host_triplet = @host@
 @HAVE_X11_TRUE@am__append_1 = $(X11_SUBDIRS)
 @BUILD_HGFSMOUNTER_TRUE@am__append_2 = hgfsmounter
+@SOLARIS_FALSE@am__append_3 = modules
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
@@ -79,8 +80,9 @@ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = lib guestd vmware-user toolbox hgfsclient hgfsmounter \
-	checkvm libguestlib xferlogs
+DIST_SUBDIRS = lib guestd vmware-user vmware-user-suid-wrapper toolbox \
+	hgfsclient hgfsmounter checkvm libguestlib xferlogs scripts \
+	modules
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -153,6 +155,7 @@ LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 MODULES = @MODULES@
+MODULES_DIR = @MODULES_DIR@
 MODULES_OS = @MODULES_OS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -161,6 +164,7 @@ PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PAM_PREFIX = @PAM_PREFIX@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
@@ -169,6 +173,7 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TARGET_OS = @TARGET_OS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -230,9 +235,9 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 
 # These subdirectories require X, and may be disabled using --without-x
-X11_SUBDIRS = vmware-user toolbox
+X11_SUBDIRS = vmware-user vmware-user-suid-wrapper toolbox
 SUBDIRS = lib guestd $(am__append_1) hgfsclient $(am__append_2) \
-	checkvm libguestlib xferlogs
+	checkvm libguestlib xferlogs scripts $(am__append_3)
 all: all-recursive
 
 .SUFFIXES:
@@ -658,10 +663,6 @@ uninstall-am:
 	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
 	uninstall uninstall-am
 
-
-.PHONY: modules
-modules:
-	$(MAKE) -C modules
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

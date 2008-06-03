@@ -78,6 +78,8 @@ Unicode_EscapeBuffer(const void *buffer,      // IN
                      ssize_t lengthInBytes,   // IN
                      StringEncoding encoding) // IN
 {
+   encoding = Unicode_ResolveEncoding(encoding);
+
    if (lengthInBytes == -1) {
       switch (encoding) {
       case STRING_ENCODING_UTF16:
@@ -137,6 +139,8 @@ UnicodeSanityCheck(const void *buffer,      // IN
                    ssize_t lengthInBytes,   // IN
                    StringEncoding encoding) // IN
 {
+   ASSERT(Unicode_IsEncodingValid(encoding));
+
    /*
     * Sanity check US-ASCII here, so we can fast-path its conversion
     * to Unicode later.
@@ -327,6 +331,8 @@ Unicode_AllocWithLength(const void *buffer,      // IN
       return NULL;
    }
 
+   encoding = Unicode_ResolveEncoding(encoding);
+
    if (UnicodeSanityCheck(buffer, lengthInBytes, encoding)) {
       Unicode result = UnicodeAllocInternal(buffer, lengthInBytes, encoding);
       if (result != NULL) {
@@ -377,8 +383,11 @@ Unicode_IsBufferValid(const void *buffer,      // IN
    Unicode result;
 
    if (buffer == NULL) {
+      ASSERT(lengthInBytes <= 0);
       return TRUE;
    }
+
+   encoding = Unicode_ResolveEncoding(encoding);
 
    if (!UnicodeSanityCheck(buffer, lengthInBytes, encoding)) {
       return FALSE;

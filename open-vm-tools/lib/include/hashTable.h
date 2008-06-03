@@ -43,11 +43,12 @@ typedef int (*HashTableForEachCallback)(const char *key, void *value,
 #define HASH_INT_KEY		2	// uintptr_t or pointer key
 
 /*
- * The atmic bit is ored into the type field.
- * Atomic hash tables only support insert and lookup.
+ * The flag bits are ored into the type field.
+ * Atomic hash tables only support insert, lookup, and replace.
  */
 
-#define HASH_FLAG_MASK		(~7)
+#define HASH_TYPE_MASK		7
+#define HASH_FLAG_MASK		(~HASH_TYPE_MASK)
 #define HASH_FLAG_ATOMIC	0x08	// thread-safe hash table
 #define HASH_FLAG_COPYKEY	0x10	// copy string key
 
@@ -80,6 +81,12 @@ Bool
 HashTable_ReplaceOrInsert(HashTable  *hashTable,
                           const char *keyStr,
                           void       *clientData);
+
+Bool
+HashTable_ReplaceIfEqual(HashTable  *hashTable,
+                         const char *keyStr,
+                         void       *oldClientData,
+                         void       *newClientData);
 
 Bool
 HashTable_Delete(HashTable  *hashTable,

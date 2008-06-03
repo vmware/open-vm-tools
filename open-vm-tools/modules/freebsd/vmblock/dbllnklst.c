@@ -176,7 +176,7 @@ DblLnkLst_Unlink1(DblLnkLst_Links *l) // IN
  */
 
 Bool
-DblLnkLst_IsLinked(DblLnkLst_Links *l) // IN
+DblLnkLst_IsLinked(DblLnkLst_Links const *l) // IN
 {
    ASSERT(l);
 

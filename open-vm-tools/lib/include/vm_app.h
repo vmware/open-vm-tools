@@ -65,6 +65,7 @@ typedef struct GuestOsStateChangeCmd {
 #define TOOLS_UPGRADER_NAME       "tools-upgrader"
 #define TOOLS_SSO_NAME            "tools-sso"
 #define TOOLS_HGFS_NAME           "tools-hgfs"
+#define TOOLS_TRAY_NAME           "tools-tray"
 
 /*
  * Option strings

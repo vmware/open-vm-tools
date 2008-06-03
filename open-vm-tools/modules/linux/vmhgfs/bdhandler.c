@@ -226,15 +226,21 @@ HgfsSendUnsentReqs(void)
 void
 HgfsResetOps(void)
 {
-   atomic_set(&hgfsProtocolVersion, HGFS_VERSION_3);
-   atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V2);
-   atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR_V2);
-   atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR_V2);
-   atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ_V2);
-   atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR_V2);
-   atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN);
-   atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
-   atomic_set(&hgfsVersionQueryVolumeInfo, HGFS_OP_QUERY_VOLUME_INFO);
+   atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V3);
+   atomic_set(&hgfsVersionRead, HGFS_OP_READ_V3);
+   atomic_set(&hgfsVersionWrite, HGFS_OP_WRITE_V3);
+   atomic_set(&hgfsVersionClose, HGFS_OP_CLOSE_V3);
+   atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN_V3);
+   atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ_V3);
+   atomic_set(&hgfsVersionSearchClose, HGFS_OP_SEARCH_CLOSE_V3);
+   atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR_V3);
+   atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR_V3);
+   atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR_V3);
+   atomic_set(&hgfsVersionDeleteFile, HGFS_OP_DELETE_FILE_V3);
+   atomic_set(&hgfsVersionDeleteDir, HGFS_OP_DELETE_DIR_V3);
+   atomic_set(&hgfsVersionRename, HGFS_OP_RENAME_V3);
+   atomic_set(&hgfsVersionQueryVolumeInfo, HGFS_OP_QUERY_VOLUME_INFO_V3);
+   atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK_V3);
 }
 
 

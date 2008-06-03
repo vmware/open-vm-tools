@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = checkvm
+bin_PROGRAMS = vmware-checkvm
 
-checkvm_SOURCES =
-checkvm_SOURCES += checkvm.c
+vmware_checkvm_SOURCES =
+vmware_checkvm_SOURCES += checkvm.c

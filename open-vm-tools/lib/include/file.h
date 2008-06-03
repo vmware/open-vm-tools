@@ -83,6 +83,8 @@ EXTERN int File_UnlinkIfExists(ConstUnicode pathName);
 
 EXTERN int File_UnlinkDelayed(ConstUnicode pathName);
 
+EXTERN int File_UnlinkNoFollow(ConstUnicode pathName);
+
 EXTERN void File_SplitName(ConstUnicode pathName,
                            Unicode *volume, 
                            Unicode *dir, 

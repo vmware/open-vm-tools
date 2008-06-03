@@ -40,6 +40,7 @@ extern "C" {
 #include "util.h"
 #include "unicodeTypes.h"
 
+
 /*
  * Static Unicode string literal macros.
  *
@@ -56,6 +57,7 @@ extern "C" {
  *
  *   ConstUnicode extension = U(".vmdk");
  */
+
 #define U(x) Unicode_GetStatic(x, FALSE)
 
 /*
@@ -70,7 +72,18 @@ extern "C" {
  *
  *   ConstUnicode copyright = U_UNESCAPE("Copyright \\u00A9 COMPANY_NAME");
  */
+
 #define U_UNESCAPE(x) Unicode_GetStatic(x, TRUE)
+
+
+/*
+ * In contexts where an errno makes sense, use this
+ * to report conversion failure.
+ */
+
+#ifndef _WIN32
+#define UNICODE_CONVERSION_ERRNO EINVAL 
+#endif
 
 
 /*

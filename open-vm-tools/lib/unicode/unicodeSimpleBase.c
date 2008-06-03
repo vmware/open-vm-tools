@@ -88,6 +88,8 @@ UnicodeAllocInternal(const void *buffer,      // IN
 
    ASSERT(buffer != NULL);
 
+   encoding = Unicode_ResolveEncoding(encoding);
+
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
       /*
@@ -225,6 +227,8 @@ Unicode_AllocList(char **srcList,          // IN: list of strings
 
    ASSERT(srcList != NULL);
 
+   encoding = Unicode_ResolveEncoding(encoding);
+
    if (length < 0) {
       length = 0;
       while (srcList[length] != NULL) {
@@ -284,7 +288,8 @@ Unicode_FreeList(Unicode *list,    // IN: the list to free
  *      NULL-terminated list (if length is negative).
  *
  * Results:
- *      An allocated list (vector) of NUL terminated buffers.
+ *      An allocated list (vector) of NUL terminated buffers,
+ *      or NULL on conversion failure.
  *      The caller is responsible to free the memory allocated by
  *      this routine.
  *
@@ -304,6 +309,8 @@ Unicode_GetAllocList(Unicode const srcList[], // IN: list of strings
 
    ASSERT(srcList != NULL);
 
+   encoding = Unicode_ResolveEncoding(encoding);
+
    if (length < 0) {
       length = 0;
       while (srcList[length] != NULL) {
@@ -318,6 +325,13 @@ Unicode_GetAllocList(Unicode const srcList[], // IN: list of strings
 
    for (i = 0; i < length; i++) {
       dstList[i] = Unicode_GetAllocBytes(srcList[i], encoding);
+      if (dstList[i] == NULL && srcList[i] != NULL) {
+	 while (--i >= 0) {
+	    free(dstList[i]);
+	 }
+	 free(dstList);
+	 return NULL;
+      }
    }
 
    return dstList;
@@ -411,6 +425,8 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
 
    size_t result = 0;
 
+   encoding = Unicode_ResolveEncoding(encoding);
+
    switch (encoding) {
    case STRING_ENCODING_UTF8:
       return strlen(utf8) + 1;
@@ -495,8 +511,8 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
  *      maxLengthInBytes bytes in total to the buffer.
  *
  * Results:
- *      Returns FALSE if the Unicode string requires more than
- *      maxLengthInBytes bytes to be encoded in the specified
+ *	FALSE on conversion failure or if the Unicode string requires
+ *      more than maxLengthInBytes bytes to be encoded in the specified
  *      encoding, including NUL termination. (Call
  *      Unicode_BytesRequired(str, encoding) to get the correct
  *      length.). Returns TRUE if no truncation was required. In
@@ -517,8 +533,10 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
                   StringEncoding encoding) // IN
 {
    const char *utf8Str = (const char *)srcBuffer;
-   Bool notTruncated = TRUE;
+   Bool success = FALSE;
    size_t copyBytes = 0;
+
+   encoding = Unicode_ResolveEncoding(encoding);
 
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
@@ -536,8 +554,9 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
           * If we truncated, force a null termination in a UTF-8 safe
           * manner.
           */
-         if (copyBytes < len) {
-            notTruncated = FALSE;
+         if (copyBytes >= len) {
+	    success = TRUE;
+	 } else {
             if (encoding == STRING_ENCODING_UTF8) {
                copyBytes =
                   CodeSet_Utf8FindCodePointBoundary(destBuffer, copyBytes);
@@ -557,6 +576,8 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
                                     strlen(utf8Str),
                                     &utf16Buf,
                                     &utf16BufLen)) {
+	    // input should be valid UTF-8, no conversion error possible
+	    ASSERT_MEM_ALLOC(FALSE);
             break;
          }
          copyBytes = MIN(utf16BufLen, maxLengthInBytes - 2);
@@ -565,8 +586,8 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
          ((utf16_t*)destBuffer)[copyBytes / 2] = 0;
          free(utf16Buf);
 
-         if (copyBytes < utf16BufLen) {
-            notTruncated = FALSE;
+         if (copyBytes >= utf16BufLen) {
+            success = TRUE;
          }
 
          break;
@@ -580,6 +601,7 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
 				       Unicode_EncodingEnumToName(encoding),
 				       CSGTG_NORMAL,
 				       &currentBuf, &currentBufSize)) {
+	    // XXX can't distinguish error cause
 	    break;
 	 }
          copyBytes = MIN(currentBufSize, maxLengthInBytes - 1);
@@ -594,8 +616,8 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
 
          ((char*)destBuffer)[copyBytes] = 0;
 
-         if (copyBytes < currentBufSize) {
-            notTruncated = FALSE;
+         if (copyBytes >= currentBufSize) {
+            success = TRUE;
          }
       }
       break;
@@ -604,7 +626,7 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
    if (retLength) {
       *retLength = copyBytes;
    }
-   return notTruncated;
+   return success;
 }
 
 
@@ -622,8 +644,9 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
  *      NULL is returned for NULL argument.
  *
  * Results:
- *      Pointer to the dynamically allocated memory,
- *      or NULL on NULL argument.
+ *      NULL if argument is NULL.
+ *      Otherwise, pointer to the dynamically allocated memory
+ *      or NULL on conversion failure.
  *      The caller is responsible to free the memory allocated
  *      by this routine.
  *
@@ -637,15 +660,11 @@ void *
 Unicode_GetAllocBytes(ConstUnicode str,        // IN:
                       StringEncoding encoding) // IN:
 {
-   void *result;
-
    if (str == NULL) {
       return NULL;
    }
 
-   result = UnicodeGetAllocBytesInternal(str, encoding, NULL);
-   ASSERT_NOT_IMPLEMENTED(result != NULL);
-   return result;
+   return UnicodeGetAllocBytesInternal(str, encoding, NULL);
 }
 
 
@@ -659,13 +678,13 @@ Unicode_GetAllocBytes(ConstUnicode str,        // IN:
  *
  * Results:
  *      The converted string in an allocated buffer,
- *      or NULL on conversion or memory allocation failure.
+ *      or NULL on conversion failure.
  *
  *	The length of the result (in bytes, without termination)
  *	in retLength.
  *
  * Side effects:
- *      None.
+ *      Panic on memory allocation failure.
  *
  *-----------------------------------------------------------------------------
  */
@@ -681,6 +700,8 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
 
    ASSERT(ustr != NULL);
 
+   encoding = Unicode_ResolveEncoding(encoding);
+
    len = strlen(utf8Str);
 
    switch (encoding) {
@@ -690,9 +711,7 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
       }
       // fall through
    case STRING_ENCODING_UTF8:
-      if ((result = malloc(len + 1)) == NULL) {
-	 break;
-      }
+      result = Util_SafeMalloc(len + 1);
       memcpy(result, utf8Str, len + 1);
       if (retLength != NULL) {
 	 *retLength = len;
@@ -702,7 +721,8 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
    case STRING_ENCODING_UTF16:
    case STRING_ENCODING_UTF16_LE:
       if (!CodeSet_Utf8ToUtf16le(utf8Str, len, &result, retLength)) {
-	 ASSERT(result == NULL);
+	 // input should be valid UTF-8, no conversion error possible
+	 ASSERT_MEM_ALLOC(FALSE);
       }
       break;
 
@@ -711,6 +731,7 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
 				    Unicode_EncodingEnumToName(encoding),
 				    CSGTG_NORMAL,
 				    &result, retLength)) {
+	 // XXX can't distinguish error cause
 	 ASSERT(result == NULL);
       }
    }

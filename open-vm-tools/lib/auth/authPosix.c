@@ -29,11 +29,10 @@
 #include <crypt.h>
 #endif
 
-#include "auth.h"
-
+#include "vmware.h"
 #include "vm_version.h"
-#include "vm_assert.h"
 #include "posix.h"
+#include "auth.h"
 
 #ifdef USE_PAM
 #  include "file.h"

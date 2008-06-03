@@ -40,63 +40,100 @@
  *      The fgets() API is poorly designed: it doesn't return how many bytes
  *      were written to the buffer. Hence this function --hpreg
  *
+ *      In addition, this function recognizes three variants of end-of-line
+ *      markers regardless of the platform: \n, \r\n and \r.  The exception
+ *      is that on Windows, \r\n is recognized only if the file is opened
+ *      in text mode.  In binary mode, the \r and \n are interpreted as two
+ *      separate end-of-line markers.
+ *
+ *      As input, *count is the size of bufIn.
+ *
  * Results:
- *      Like fgets(). On success, '*count' is the number of bytes written to the
- *      buffer (excluding the NUL terminator)
+ *      It returns bufIn on success and NULL on error.  The line terminator
+ *      and NUL terminator are not stored in bufIn.  On success, '*count' is
+ *      the number of bytes written to the buffer.
  *    
  * Side effects:
- *      None
+ *      If the line read is terminated by a standalone '\r' (legacy Mac), the
+ *      next character is pushed back using ungetc.  Thus, that character may
+ *      be lost if the caller performs any write operation on the stream
+ *      (including fseek, fflush, etc.) subsequently without an intervening
+ *      read operation.
  *
  *-----------------------------------------------------------------------------
  */
 
 static void *
 SuperFgets(FILE *stream,        // IN
-           void *bufIn,         // OUT
-           size_t *count)       // IN/OUT
+           size_t *count,       // IN/OUT
+           void *bufIn)         // OUT
 {
-   char *buf;
-
-   /*
-    * To compute how many bytes were written to the buffer, we fill our buffer
-    * with non-NUL bytes prior to calling fgets(). Consequently, after calling
-    * fgets(), the only NUL bytes that are in the buffer are:
-    * . those that were read from the stream
-    * . the one added by fgets() after all the other bytes that were read
-    *   from the stream
-    * So all we need to do is locate the last NUL byte in the buffer.
-    *
-    * Note that this may not work if your implementation of fgets() does funny
-    * things (which is unlikely) like writing to buffer positions beyond the
-    * terminating NUL byte --hpreg
-    */
+   char *buf = (char *)bufIn;
+   size_t size = 0;
 
    ASSERT(stream);
-   buf = (char *)bufIn;
    ASSERT(buf);
    ASSERT(count);
    ASSERT(*count);
 
-   memset(buf, '\0' - 1, *count);
-
    /*
-    * In the end of stream case, glibc's fgets() returns NULL but does not set
-    * errno --hpreg
+    * Keep reading until a line terminator is found or *count is reached.
+    * The line terminator itself is not written into the buffer.
+    * Clear errno so that we can distinguish between end-of-file and error.
     */
+
    errno = 0;
-   if (fgets(buf, *count, stream) == NULL) {
-      if (errno) {
-         return NULL;
+
+   for (size = 0; size < *count; size++) {
+      int c;
+
+      c = getc(stream);
+
+      if (c == EOF) {
+         if (errno) {
+            /* getc returned an error. */
+            return NULL;
+         } else {
+            /* Found an end-of-file line terminator. */
+            break;
+         }
       }
 
-      /* End of stream and no byte was written --hpreg */
-      *count = 0;
-      return NULL;
+      if (c == '\n') {
+         /* Found a Unix line terminator */
+         break;
+      }
+      
+      if (c == '\r') {
+
+#ifndef _WIN32
+         /* 
+          * Look ahead to see if it is a \r\n line terminator.
+          * On Windows platform, getc() returns one '\n' for a \r\n two-byte
+          * sequence (for files opened in text mode), so we can skip the
+          * look-ahead.
+          */
+
+         c = getc(stream);
+         if (c != EOF && c != '\n') {
+            /* Found a legacy Mac line terminator */
+
+            if (ungetc(c, stream) == EOF) {
+               return NULL;
+            }
+         }
+
+         /* Forget that we peeked. */
+         clearerr(stream);
+#endif
+
+         break;
+      }
+
+      buf[size] = c;
    }
 
-   do {
-      (*count)--;
-   } while (buf[*count] != '\0');
+   *count = size;
 
    return buf;
 }
@@ -111,11 +148,17 @@ SuperFgets(FILE *stream,        // IN
  *
  *      A line is defined as an arbitrary long sequence of arbitrary bytes, that
  *      ends with the first occurrence of one of these line terminators:
- *      . \r\n          (the ANSI way)
+ *      . \r\n          (the ANSI way, in text mode)
  *      . \n            (the UNIX way)
+ *      . \r            (the Legacy Mac (pre-OS X) way)
  *      . end-of-stream
  *
- *     If maxBufLength is non-zero at most maxBufLength bytes will be allocated.
+ *      Note that on Windows, getc() returns one '\n' for a \r\n two-byte
+ *      sequence only if the file is opened in text mode.  Therefore \r\r\n
+ *      will be interpreted as two newlines in text mode ('\r' followed by
+ *      '\r\n'), but three newlines in binary mode ('\r', '\r', '\n').
+ *
+ *      If maxBufLength is non-zero at most maxBufLength bytes will be allocated.
  *
  * Results:
  *      StdIO_Success on success: '*buf' is an allocated, NUL terminated buffer
@@ -127,7 +170,11 @@ SuperFgets(FILE *stream,        // IN
  *      StdIO_Error on failure: errno is set accordingly
  *
  * Side effects:
- *      None
+ *      If the line read is terminated by a standalone '\r' (legacy Mac), the
+ *      next character is pushed back using ungetc.  Thus, that character may
+ *      be lost if the caller performs any write operation on the stream
+ *      (including fseek, fflush, etc.) subsequently without an intervening
+ *      read operation.
  *
  *-----------------------------------------------------------------------------
  */
@@ -148,6 +195,7 @@ StdIO_ReadNextLine(FILE *stream,         // IN
    for (;;) {
       char *data;
       size_t size;
+      size_t max;
       size_t nr;
 
       /*
@@ -169,64 +217,39 @@ StdIO_ReadNextLine(FILE *stream,         // IN
          goto error;
       }
 
-      nr = DynBuf_GetAllocatedSize(&b) - size;
-      /*
-       * XXX SuperFgets() is such a hack that I may replace it soon with a more
-       *     reliable fgetc() loop --hpreg
-       */
-      if (SuperFgets(stream, data + size, &nr) == NULL) {
-         if (errno) {
-            goto error;
-         }
+      max = DynBuf_GetAllocatedSize(&b);
+      nr = max - size;
 
-         /* End of stream: there is no next chunk of line --hpreg */
-         ASSERT(nr == 0);
-
-         if (size) {
-            /* Found an end-of-stream line terminator --hpreg */
-            break;
-         }
-
-         DynBuf_Destroy(&b);
-
-         return StdIO_EOF;
+      if (SuperFgets(stream, &nr, data + size) == NULL) {
+         goto error;
       }
-      /*
-       * fgets() wrote at least 1 stream byte, and NUL terminated the dynamic
-       * buffer --hpreg
-       */
-      ASSERT(nr);
+
       size += nr;
+      DynBuf_SetSize(&b, size);
 
-      if (data[size - 1] == '\n') {
-         /* Found a Unix or ANSI line terminator --hpreg */
-         size--;
+      if (size < max) {
+         /* SuperFgets() found end-of-line */
 
-/* Win32 takes care of this in fgets() --hpreg */
-#if !defined(_WIN32)
-         if (size && data[size - 1] == '\r') {
-            /* Found an ANSI line terminator --hpreg */
-            size--;
+         if (size == 0 && feof(stream)) {
+            /* Reached end-of-file before reading anything */
+            DynBuf_Destroy(&b);
+            return StdIO_EOF;
          }
-#endif
 
-         /* Remove the line terminator from the dynamic buffer --hpreg */
-         DynBuf_SetSize(&b, size);
          break;
       }
 
       /*
        * No line terminator found yet, we need a larger buffer to do the next
-       * fgets() --hpreg
+       * SuperFgets() --hpreg
        */
-      DynBuf_SetSize(&b, size);
+
    }
 
    /* There is a line in the buffer --hpreg */
 
-   if (   /* NUL terminator --hpreg */
-          DynBuf_Append(&b, "", 1) == FALSE
-       || DynBuf_Trim(&b) == FALSE) {
+   /* NUL terminator --hpreg */
+   if (DynBuf_Append(&b, "", 1) == FALSE) {
       errno = ENOMEM;
       goto error;
    }

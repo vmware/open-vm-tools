@@ -57,6 +57,7 @@
    LOGLEVEL_VAR(chipset), \
    LOGLEVEL_VAR(smc), \
    LOGLEVEL_VAR(ich7m), \
+   LOGLEVEL_VAR(hpet), \
    LOGLEVEL_VAR(extcfgdevice), \
    LOGLEVEL_VAR(flashram), \
    LOGLEVEL_VAR(pci), \

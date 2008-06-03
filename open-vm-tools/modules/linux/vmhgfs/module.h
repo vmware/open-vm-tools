@@ -242,14 +242,21 @@ extern compat_kmem_cache *hgfsInodeCache;
 extern RpcOut *hgfsRpcOut;
 extern unsigned int hgfsIdCounter;
 extern struct list_head hgfsReqsUnsent;
-extern atomic_t hgfsProtocolVersion;
+
 extern atomic_t hgfsVersionOpen;
+extern atomic_t hgfsVersionRead;
+extern atomic_t hgfsVersionWrite;
+extern atomic_t hgfsVersionClose;
+extern atomic_t hgfsVersionSearchOpen;
+extern atomic_t hgfsVersionSearchRead;
+extern atomic_t hgfsVersionSearchClose;
 extern atomic_t hgfsVersionGetattr;
 extern atomic_t hgfsVersionSetattr;
-extern atomic_t hgfsVersionSearchRead;
 extern atomic_t hgfsVersionCreateDir;
-extern atomic_t hgfsVersionSearchOpen;
-extern atomic_t hgfsVersionCreateSymlink;
+extern atomic_t hgfsVersionDeleteFile;
+extern atomic_t hgfsVersionDeleteDir;
+extern atomic_t hgfsVersionRename;
 extern atomic_t hgfsVersionQueryVolumeInfo;
+extern atomic_t hgfsVersionCreateSymlink;
 
 #endif // _HGFS_DRIVER_MODULE_H_

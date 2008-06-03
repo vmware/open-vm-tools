@@ -233,10 +233,6 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
 
   retry:
    opUsed = atomic_read(&hgfsVersionSearchRead);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_SEARCH_READ_V3;
-   }
-
    if (opUsed == HGFS_OP_SEARCH_READ_V3) {
       HgfsRequest *header;
       HgfsRequestSearchReadV3 *request;
@@ -248,6 +244,8 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
       request = (HgfsRequestSearchReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->search = searchHandle;
       request->offset = offset;
+      request->flags = 0;
+      request->reserved = 0;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestSearchRead *request;
@@ -279,18 +277,16 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
          break;
 
       case -EPROTO:
-         /* Retry with Version 1 of SearchRead. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (attr->requestType == HGFS_OP_SEARCH_READ_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: Version 3 "
                     "not supported. Falling back to version 2.\n"));
             atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ_V2);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          } else if (attr->requestType == HGFS_OP_SEARCH_READ_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: Version 2 "
                     "not supported. Falling back to version 1.\n"));
             atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          }
 
@@ -360,6 +356,8 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
       nameLength = &requestV3->dirName.length;
       requestV3->dirName.flags = 0;
       requestV3->dirName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestV3->dirName.fid = HGFS_INVALID_HANDLE;
+      requestV3->reserved = 0;
       requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       break;
    }
@@ -460,10 +458,10 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
 
   retry:
    opUsed = atomic_read(&hgfsVersionSearchOpen);
-   replySearch = &((HgfsReplySearchOpen *)HGFS_REQ_PAYLOAD(req))->search;
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_SEARCH_OPEN_V3;
+   if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
       replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REP_PAYLOAD_V3(req))->search;
+   } else {
+      replySearch = &((HgfsReplySearchOpen *)HGFS_REQ_PAYLOAD(req))->search;
    }
 
    result = HgfsPackDirOpenRequest(inode, file, opUsed, req);
@@ -479,29 +477,31 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
       replyStatus = HgfsReplyStatus(req);
       result = HgfsStatusConvertToLinux(replyStatus);
 
-      if (result == 0) {
+      switch (result) {
+      case 0:
          result = HgfsCreateFileInfo(file, *replySearch);
-         switch (result) {
-	 case 0:
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: set handle to %u\n",
-                    *replySearch));
-            break;
-         case -EPROTO:
-            /* Retry with Version 1 of SearchOpen. Set globally. */
-            if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
-               LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: Version 3 not "
-                       "supported. Falling back to version 1.\n"));
-               atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN);
-               atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
-               goto retry;
-            }
-            break;
-
-         default:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
-                    "returned error: %d\n", result));
-            break;
+         if (result) {
+           goto out;
          }
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: set handle to %u\n",
+                    *replySearch));
+         break;
+      case -EPROTO:
+         /* Retry with older version(s). Set globally. */
+         if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN);
+            goto retry;
+         }
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
+                 "returned error: %d\n", result));
+         break;
+
+      default:
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
+                  "returned error: %d\n", result));
+         break;
       }
    } else if (result == -EIO) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: timed out\n"));
@@ -808,23 +808,25 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
    }
 
  retry:
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+   opUsed = atomic_read(&hgfsVersionSearchClose);
+   if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
       HgfsRequestSearchCloseV3 *request;
       HgfsRequest *header;
 
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
-      header->op = opUsed = HGFS_OP_SEARCH_CLOSE_V3;
+      header->op = opUsed;
 
       request = (HgfsRequestSearchCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->search = handle;
+      request->reserved = 0;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestSearchClose *request;
 
       request = (HgfsRequestSearchClose *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
-      request->header.op = opUsed = HGFS_OP_SEARCH_CLOSE;
+      request->header.op = opUsed;
       request->search = handle;
       req->payloadSize = sizeof *request;
    }
@@ -842,11 +844,11 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
                  handle));
          break;
       case -EPROTO:
-         /* Retry with Version 2 of Open. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionSearchClose, HGFS_OP_SEARCH_CLOSE);
             goto retry;
          }
          break;

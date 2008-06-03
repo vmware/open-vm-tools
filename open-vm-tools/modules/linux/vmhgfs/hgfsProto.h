@@ -988,9 +988,8 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestGetattrV3 {
    HgfsAttrHint hints;       /* Flags for file handle valid. */
-   HgfsHandle file;          /* Opaque file ID used by the server. */
-   HgfsFileNameV3 fileName;  /* Filename used when file handle invalid. */
    uint64 reserved;          /* Reserved for future use */
+   HgfsFileNameV3 fileName;  /* Filename used when file handle invalid. */
 }
 #include "vmware_pack_end.h"
 HgfsRequestGetattrV3;
@@ -1082,7 +1081,6 @@ typedef
 struct HgfsRequestSetattrV3 {
    HgfsAttrHint hints;
    HgfsAttrV2 attr;
-   HgfsHandle file;          /* Opaque file ID used by the server. */
    uint64 reserved;          /* Reserved for future use */
    HgfsFileNameV3 fileName;  /* Filename used when file handle invalid. */
 }
@@ -1231,7 +1229,6 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestDeleteV3 {
    HgfsDeleteHint hints;
-   HgfsHandle file;              /* Opaque file ID used by the server. */
    uint64 reserved;              /* Reserved for future use */
    HgfsFileNameV3 fileName;      /* Name used if the file is HGFS_HANDLE_INVALID */
 }
@@ -1330,8 +1327,6 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsRequestRenameV3 {
    HgfsRenameHint hints;
-   HgfsHandle srcFile;           /* Opaque file ID to "old name" used by the server. */
-   HgfsHandle targetFile;        /* Opaque file ID to "old name" used by the server. */
    uint64 reserved;              /* Reserved for future use */
    HgfsFileNameV3 oldName;
    HgfsFileNameV3 newName;

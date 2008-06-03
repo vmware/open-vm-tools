@@ -161,9 +161,6 @@ EXTERN int FileLockOpenFile(ConstUnicode pathName,
 
 EXTERN int FileLockCloseFile(FILELOCK_FILE_HANDLE handle);
 
-EXTERN int FileLockFileSize(FILELOCK_FILE_HANDLE handle,
-                            uint32 *fileSize);
-
 EXTERN int FileLockReadFile(FILELOCK_FILE_HANDLE handle,
                             void *buf,
                             uint32 requestedBytes,

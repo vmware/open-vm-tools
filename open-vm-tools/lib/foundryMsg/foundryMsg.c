@@ -39,6 +39,14 @@ static char ObfuscatedToPlainCharMap[256];
 
 static void VixMsgInitializeObfuscationMapping(void);
 
+static char *VixMsgEncodeBuffer(const uint8 *buffer,
+                                size_t bufferLength,
+                                Bool includeEncodingId);
+
+static char *VixMsgDecodeBuffer(const char *str,
+                                Bool nullTerminateResult,
+                                size_t *bufferLength);
+
 
 /*
  *----------------------------------------------------------------------------
@@ -575,17 +583,12 @@ char *
 VixMsg_ObfuscateNamePassword(const char *userName,      // IN
                              const char *password)      // IN
 {
-   char *packedBufferString = NULL;
-   char *base64String = NULL;
+   char *packedBuffer = NULL;
    char *resultString = NULL;
-   size_t resultBufferLength = 0;
-   size_t resultLength = 0;
+   char *destPtr;
+   size_t packedBufferLength = 0;
    size_t nameLength = 0;
    size_t passwordLength = 0;
-   char *srcPtr;
-   char *endSrcPtr;
-   char *destPtr;
-   size_t base64Length;
    
    if (NULL != userName) {
       nameLength = strlen(userName);
@@ -596,14 +599,9 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
    /*
     * Leave space for null terminating characters.
     */
-   resultLength = nameLength + 1 + passwordLength + 1;
-
-   /*
-    * Expand it to make space for base64 encoding, and escaping some characters.
-    */
-   resultBufferLength = resultLength * 3;
-   packedBufferString = Util_SafeMalloc(resultBufferLength + 1);
-   destPtr = packedBufferString;
+   packedBufferLength = nameLength + 1 + passwordLength + 1;
+   packedBuffer = Util_SafeMalloc(packedBufferLength);
+   destPtr = packedBuffer;
    if (NULL != userName) {
       Str_Strcpy(destPtr, userName, nameLength + 1);
       destPtr += nameLength;
@@ -615,39 +613,9 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
    }
    *(destPtr++) = 0;
 
-   base64String = Util_SafeMalloc(resultBufferLength + 1);
-   if (!(Base64_Encode((uint8 const *) packedBufferString,
-                       destPtr - packedBufferString,
-                       base64String, 
-                       resultBufferLength,
-                       &base64Length))) {
-      goto abort;
-   }
+   resultString = VixMsgEncodeBuffer(packedBuffer, packedBufferLength, FALSE);
 
-   /*
-    * Now, escape problematic characters.
-    */
-   VixMsgInitializeObfuscationMapping();
-   resultString = Util_SafeMalloc(resultBufferLength + 1);
-   destPtr = resultString;
-   srcPtr = base64String;
-   endSrcPtr = base64String + base64Length;
-   while ( srcPtr < endSrcPtr )
-   {
-      if (PlainToObfuscatedCharMap[(int) (*srcPtr)]) {
-         *(destPtr++) = '\\';
-         *(destPtr++) = PlainToObfuscatedCharMap[(int) (*srcPtr)];
-      } else {
-         *(destPtr++) = *srcPtr;
-      }
-
-      srcPtr++;
-   }
-   *destPtr = 0;
-
-abort:
-   free(packedBufferString);
-   free(base64String);
+   free(packedBuffer);
 
    return(resultString);
 } // VixMsg_ObfuscateNamePassword
@@ -658,11 +626,11 @@ abort:
  *
  * VixMsg_DeObfuscateNamePassword --
  *
- *       This reverses VixMsg_ObfuscateNamePassword. 
- *       See the notes for that procedure.
+ *      This reverses VixMsg_ObfuscateNamePassword. 
+ *      See the notes for that procedure.
  *
  * Results:
- *      VixError
+ *      Bool. TRUE on success, FALSE otherwise.
  *
  * Side effects:
  *      None.
@@ -676,39 +644,14 @@ VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
                                char **passwordResult)      // OUT
 {
    Bool success = FALSE;
-   char *base64String = NULL;
    char *packedString = NULL;
    char *srcPtr;
-   char *destPtr;
-   size_t base64Length;
-   size_t packedStringLength;
 
-   
-   /*
-    * Remove escaped special characters.
-    * Do this in a private copy because we will change the string in place.
-    */
-   VixMsgInitializeObfuscationMapping();
-   base64String = Util_SafeStrdup(packagedName);
-   destPtr = base64String;
-   srcPtr = base64String;
-   while ( *srcPtr ) {
-      if ( '\\' == *srcPtr ) {
-         srcPtr++;
-         *(destPtr++) = ObfuscatedToPlainCharMap[(int) (*srcPtr)];
-      } else {
-         *(destPtr++) = *srcPtr;
-      }
-      srcPtr++;
-   }
-   *destPtr = 0;
-   base64Length = strlen(base64String);
-
-   packedString = Util_SafeMalloc(base64Length + 1);
-   if (!Base64_Decode(base64String, packedString, base64Length, &packedStringLength)) {
+   packedString = VixMsgDecodeBuffer(packagedName, FALSE, NULL);
+   if (NULL == packedString) {
       goto abort;
    }
-   
+
    srcPtr = packedString;
    if (NULL != userNameResult) {
       *userNameResult = Util_SafeStrdup(srcPtr);
@@ -721,7 +664,6 @@ VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
    success = TRUE;
 
 abort:
-   free(base64String);
    free(packedString);
 
    return(success);
@@ -750,72 +692,23 @@ abort:
 char *
 VixMsg_EncodeString(const char *str)  // IN
 {
-   char *base64String = NULL;
-   char *resultString = NULL;
-   size_t resultBufferLength = 0;
-   size_t strLength = 0;
-   char *srcPtr;
-   char *endSrcPtr;
-   char *destPtr;
-   size_t base64Length;
-   
    if (NULL == str) {
       str = "";
    }
-   strLength = strlen(str);
 
-   resultBufferLength = (strLength + 1) * 3;
-   base64String = Util_SafeMalloc(resultBufferLength + 1);
-   if (!(Base64_Encode((uint8 const *) str,
-                       strLength,
-                       base64String, 
-                       resultBufferLength,
-                       &base64Length))) {
-      goto abort;
-   }
-
-   VixMsgInitializeObfuscationMapping();
-   resultString = Util_SafeMalloc(resultBufferLength + 1);
-   destPtr = resultString;
-   srcPtr = base64String;
-   endSrcPtr = base64String + base64Length;
-
-   /*
-    * Start with the character-set type. 
-    *   'a' means ASCII.
-    */
-   *(destPtr++) = 'a';
-
-   /*
-    * Now, escape problematic characters.
-    */
-   while ( srcPtr < endSrcPtr )
-   {
-      if (PlainToObfuscatedCharMap[(int) (*srcPtr)]) {
-         *(destPtr++) = '\\';
-         *(destPtr++) = PlainToObfuscatedCharMap[(int) (*srcPtr)];
-      } else {
-         *(destPtr++) = *srcPtr;
-      }
-
-      srcPtr++;
-   }
-   *destPtr = 0;
-
-abort:
-   free(base64String);
-
-   return(resultString);
+   return VixMsgEncodeBuffer(str, strlen(str), TRUE);
 } // VixMsg_EncodeString
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VixMsg_DecodeString --
+ * VixMsgEncodeBuffer --
  *
- *       This reverses VixMsg_EncodeString. 
- *       See the notes for that procedure.
+ *       This makes a string safe to pass over a backdoor Tclo command as a 
+ *       string. It base64 encodes a string, which removes quote, space,
+ *       backslash, and other characters. This will also allow us to pass
+ *       UTF-8 strings.
  *
  * Results:
  *      VixError
@@ -827,15 +720,96 @@ abort:
  */
 
 char *
-VixMsg_DecodeString(const char *str)   // IN
+VixMsgEncodeBuffer(const uint8 *buffer,     // IN
+                   size_t bufferLength,     // IN
+                   Bool includeEncodingId)  // IN: Add 'a' (ASCII) at start of output
 {
    char *base64String = NULL;
-   char *resultStr = NULL;
+   char *resultString = NULL;
+   size_t resultBufferLength = 0;
    char *srcPtr;
+   char *endSrcPtr;
    char *destPtr;
    size_t base64Length;
-   size_t resultStringLength;
+   
+   base64Length = Base64_EncodedLength((uint8 const *) buffer,
+                                       bufferLength);
+   base64String = Util_SafeMalloc(base64Length);
+   if (!(Base64_Encode((uint8 const *) buffer,
+                       bufferLength,
+                       base64String, 
+                       base64Length,
+                       &base64Length))) {
+      goto abort;
+   }
 
+   VixMsgInitializeObfuscationMapping();
+
+   /*
+    * Expand it to make space for escaping some characters.
+    */
+   resultBufferLength = base64Length * 2;
+   if (includeEncodingId) {
+      resultBufferLength++;
+   }
+
+   resultString = Util_SafeMalloc(resultBufferLength + 1);
+   destPtr = resultString;
+   srcPtr = base64String;
+   endSrcPtr = base64String + base64Length;
+
+   if (includeEncodingId) {
+      /*
+       * Start with the character-set type. 
+       *   'a' means ASCII.
+       */
+      *(destPtr++) = 'a';
+   }
+
+   /*
+    * Now, escape problematic characters.
+    */
+   while (srcPtr < endSrcPtr)
+   {
+      if (PlainToObfuscatedCharMap[(unsigned int) (*srcPtr)]) {
+         *(destPtr++) = '\\';
+         *(destPtr++) = PlainToObfuscatedCharMap[(unsigned int) (*srcPtr)];
+      } else {
+         *(destPtr++) = *srcPtr;
+      }
+
+      srcPtr++;
+   }
+
+   ASSERT_NOT_IMPLEMENTED((destPtr - resultString) <= resultBufferLength);
+   *destPtr = 0;
+
+abort:
+   free(base64String);
+
+   return resultString;
+} // VixMsgEncodeBuffer
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_DecodeString --
+ *
+ *       This reverses VixMsg_EncodeString. 
+ *       See the notes for that procedure.
+ *
+ * Results:
+ *      A pointer to the decoded string, or NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+VixMsg_DecodeString(const char *str)   // IN
+{
    /*
     * Check the character set. 
     *   'a' means ASCII.
@@ -843,40 +817,105 @@ VixMsg_DecodeString(const char *str)   // IN
    if ((NULL == str) || ('a' != *str)) {
       return(NULL);
    }
-   str += 1;
 
-   VixMsgInitializeObfuscationMapping();
-   base64String = Util_SafeStrdup(str);
-   destPtr = base64String;
-   srcPtr = base64String;
+   return VixMsgDecodeBuffer(str + 1, TRUE, NULL);
+} // VixMsg_DecodeString
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsgDecodeBuffer --
+ *
+ *      This reverses VixMsgEncodeBuffer. 
+ *      See the notes for that procedure.
+ *
+ * Results:
+ *      A pointer to the decoded string, or NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+VixMsgDecodeBuffer(const char *str,           // IN
+                   Bool nullTerminateResult,  // OUT
+                   size_t *bufferLength)      // OUT: Optional
+{
+   char *base64String = NULL;
+   char *resultStr = NULL;
+   char *srcPtr;
+   char *destPtr;
+   size_t resultStrAllocatedLength;
+   size_t resultStrLogicalLength;
+
+   if (NULL != bufferLength) {
+      *bufferLength = 0;
+   }
 
    /*
     * Remove escaped special characters.
     * Do this in a private copy because we will change the string in place.
     */
-   while ( *srcPtr ) {
-      if ( '\\' == *srcPtr ) {
+   VixMsgInitializeObfuscationMapping();
+   base64String = Util_SafeStrdup(str);
+   destPtr = base64String;
+   srcPtr = base64String;
+
+   while (*srcPtr) {
+      if ('\\' == *srcPtr) {
          srcPtr++;
-         *(destPtr++) = ObfuscatedToPlainCharMap[(int) (*srcPtr)];
+         /*
+          * There should never be a null byte as part of an escape character or
+          * an escape character than translates into a null byte.
+          */
+         if ((0 == *srcPtr)
+                || (0 == ObfuscatedToPlainCharMap[(unsigned int) (*srcPtr)])) {
+            goto abort;
+         }
+         *(destPtr++) = ObfuscatedToPlainCharMap[(unsigned int) (*srcPtr)];
       } else {
          *(destPtr++) = *srcPtr;
       }
       srcPtr++;
    }
    *destPtr = 0;
-   base64Length = strlen(base64String);
 
-   resultStr = Util_SafeMalloc(base64Length + 1);
-   if (!Base64_Decode(base64String, resultStr, base64Length, &resultStringLength)) {
+   /*
+    * Add 1 to the Base64_DecodedLength(), since we base64 encoded the string
+    * without the NUL terminator and need to add one.
+    */
+   resultStrAllocatedLength = Base64_DecodedLength(base64String,
+                                                   destPtr - base64String);
+   if (nullTerminateResult) {
+      resultStrAllocatedLength += 1;
+   }
+
+   resultStr = Util_SafeMalloc(resultStrAllocatedLength);
+   if (!Base64_Decode(base64String,
+                      resultStr,
+                      resultStrAllocatedLength,
+                      &resultStrLogicalLength)
+          || (resultStrLogicalLength > resultStrAllocatedLength)) {
       free(resultStr);
       resultStr = NULL;
       goto abort;
    }
-   resultStr[resultStringLength] = 0;
+
+   if (nullTerminateResult) {
+      ASSERT_NOT_IMPLEMENTED(resultStrLogicalLength < resultStrAllocatedLength);
+      resultStr[resultStrLogicalLength] = 0;
+   }
+
+   if (NULL != bufferLength) {
+      *bufferLength = resultStrLogicalLength;
+   }
 
 abort:
    free(base64String);
 
    return(resultStr);
-} // VixMsg_DecodeString
+} // VixMsgDecodeBuffer
 

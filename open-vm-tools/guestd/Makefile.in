@@ -31,6 +31,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
@@ -49,7 +50,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = guestd$(EXEEXT)
+sbin_PROGRAMS = vmware-guestd$(EXEEXT)
 subdir = guestd
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -58,15 +59,17 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
-PROGRAMS = $(noinst_PROGRAMS)
-am_guestd_OBJECTS = debugStdio.$(OBJEXT) \
+am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(pamdir)"
+sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
+PROGRAMS = $(sbin_PROGRAMS)
+am_vmware_guestd_OBJECTS = debugStdio.$(OBJEXT) \
 	foreignVMToolsDaemon.$(OBJEXT) \
 	foreignVMToolsNetworking.$(OBJEXT) \
 	foundryToolsDaemon.$(OBJEXT) main.$(OBJEXT) stub.$(OBJEXT) \
 	toolsDaemon.$(OBJEXT)
-guestd_OBJECTS = $(am_guestd_OBJECTS)
+vmware_guestd_OBJECTS = $(am_vmware_guestd_OBJECTS)
 @SOLARIS_TRUE@am__DEPENDENCIES_1 = ../lib/hgfsBd/libHgfsBd.a
-guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
+vmware_guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/conf/libConf.a ../lib/dnd/libDnd.a ../lib/err/libErr.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
@@ -91,6 +94,8 @@ guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/foundryMsg/libFoundryMsg.a ../lib/auth/libAuth.a \
 	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
 	$(am__DEPENDENCIES_1)
+pamSCRIPT_INSTALL = $(INSTALL_SCRIPT)
+SCRIPTS = $(pam_SCRIPTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -103,8 +108,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(guestd_SOURCES)
-DIST_SOURCES = $(guestd_SOURCES)
+SOURCES = $(vmware_guestd_SOURCES)
+DIST_SOURCES = $(vmware_guestd_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -169,6 +174,7 @@ LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 MODULES = @MODULES@
+MODULES_DIR = @MODULES_DIR@
 MODULES_OS = @MODULES_OS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -177,6 +183,7 @@ PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PAM_PREFIX = @PAM_PREFIX@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
@@ -185,6 +192,7 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TARGET_OS = @TARGET_OS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -244,11 +252,12 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+pamdir = $(PAM_PREFIX)/pam.d
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of the
 # alphabetical order so their symbols are properly resolved.
-guestd_LDADD = ../lib/backdoor/libBackdoor.a ../lib/conf/libConf.a \
-	../lib/dnd/libDnd.a ../lib/err/libErr.a \
+vmware_guestd_LDADD = ../lib/backdoor/libBackdoor.a \
+	../lib/conf/libConf.a ../lib/dnd/libDnd.a ../lib/err/libErr.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
 	../lib/hgfsServer/libHgfsServer.a \
@@ -274,9 +283,11 @@ guestd_LDADD = ../lib/backdoor/libBackdoor.a ../lib/conf/libConf.a \
 	$(HGFS_BD) @ICU_LIBS@ @GUESTD_LDADD@
 @SOLARIS_FALSE@HGFS_BD = 
 @SOLARIS_TRUE@HGFS_BD = ../lib/hgfsBd/libHgfsBd.a
-guestd_SOURCES = debugStdio.c foreignVMToolsDaemon.c \
+vmware_guestd_SOURCES = debugStdio.c foreignVMToolsDaemon.c \
 	foreignVMToolsNetworking.c foundryToolsDaemon.c main.c stub.c \
 	toolsDaemon.c
+@LINUX_TRUE@@PAMD_TRUE@@THIRTY_TWO_BIT_USERSPACE_FALSE@pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd-x64
+@LINUX_TRUE@@PAMD_TRUE@@THIRTY_TWO_BIT_USERSPACE_TRUE@pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd
 all: all-am
 
 .SUFFIXES:
@@ -310,16 +321,56 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
+install-sbinPROGRAMS: $(sbin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(sbindir)" || $(MKDIR_P) "$(DESTDIR)$(sbindir)"
+	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
+	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
+	  if test -f $$p \
+	     || test -f $$p1 \
+	  ; then \
+	    f=`echo "$$p1" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) '$$p' '$(DESTDIR)$(sbindir)/$$f'"; \
+	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) "$$p" "$(DESTDIR)$(sbindir)/$$f" || exit 1; \
+	  else :; fi; \
+	done
 
-clean-noinstPROGRAMS:
-	@list='$(noinst_PROGRAMS)'; for p in $$list; do \
+uninstall-sbinPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
+	  echo " rm -f '$(DESTDIR)$(sbindir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(sbindir)/$$f"; \
+	done
+
+clean-sbinPROGRAMS:
+	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
 	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-guestd$(EXEEXT): $(guestd_OBJECTS) $(guestd_DEPENDENCIES) 
-	@rm -f guestd$(EXEEXT)
-	$(LINK) $(guestd_OBJECTS) $(guestd_LDADD) $(LIBS)
+vmware-guestd$(EXEEXT): $(vmware_guestd_OBJECTS) $(vmware_guestd_DEPENDENCIES) 
+	@rm -f vmware-guestd$(EXEEXT)
+	$(LINK) $(vmware_guestd_OBJECTS) $(vmware_guestd_LDADD) $(LIBS)
+install-pamSCRIPTS: $(pam_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	test -z "$(pamdir)" || $(MKDIR_P) "$(DESTDIR)$(pamdir)"
+	@list='$(pam_SCRIPTS)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  if test -f $$d$$p; then \
+	    f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	    echo " $(pamSCRIPT_INSTALL) '$$d$$p' '$(DESTDIR)$(pamdir)/$$f'"; \
+	    $(pamSCRIPT_INSTALL) "$$d$$p" "$(DESTDIR)$(pamdir)/$$f"; \
+	  else :; fi; \
+	done
+
+uninstall-pamSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(pam_SCRIPTS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's|^.*/||;$(transform)'`; \
+	  echo " rm -f '$(DESTDIR)$(pamdir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(pamdir)/$$f"; \
+	done
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -438,8 +489,11 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(PROGRAMS)
+all-am: Makefile $(PROGRAMS) $(SCRIPTS)
 installdirs:
+	for dir in "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(pamdir)"; do \
+	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+	done
 install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
@@ -466,7 +520,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-noinstPROGRAMS \
+clean-am: clean-generic clean-libtool clean-sbinPROGRAMS \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -485,11 +539,13 @@ info: info-am
 
 info-am:
 
-install-data-am:
+install-data-am: install-pamSCRIPTS
 
 install-dvi: install-dvi-am
 
-install-exec-am:
+install-exec-am: install-sbinPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 
 install-html: install-html-am
 
@@ -521,23 +577,34 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-pamSCRIPTS uninstall-sbinPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
 
-.MAKE: install-am install-strip
+.MAKE: install-am install-exec-am install-strip uninstall-am
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstPROGRAMS ctags distclean \
+	clean-libtool clean-sbinPROGRAMS ctags distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-man install-pamSCRIPTS install-pdf install-pdf-am \
+	install-ps install-ps-am install-sbinPROGRAMS install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-hook \
+	uninstall-pamSCRIPTS uninstall-sbinPROGRAMS
 
+
+install-exec-hook:
+	$(INSTALL) -d /etc/vmware-tools
+	echo 'disable-tools-version = "true"' > /etc/vmware-tools/tools.conf
+
+uninstall-hook:
+	$(RM) -rf /etc/vmware-tools
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

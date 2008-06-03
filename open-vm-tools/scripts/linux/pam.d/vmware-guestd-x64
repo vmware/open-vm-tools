@@ -1,0 +1,5 @@
+#%PAM-1.0
+auth       sufficient       /lib64/security/pam_unix2.so shadow nullok
+auth       required         /lib64/security/pam_unix_auth.so shadow nullok
+account    sufficient       /lib64/security/pam_unix2.so
+account    required         /lib64/security/pam_unix_acct.so

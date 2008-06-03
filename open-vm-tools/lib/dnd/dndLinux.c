@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#include "vmware.h"
 #include "dndInt.h"
 #include "dnd.h"
 #include "posix.h"

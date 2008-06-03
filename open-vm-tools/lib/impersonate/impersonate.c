@@ -25,8 +25,9 @@
  */
 
 #include <string.h>
-#include "auth.h"
 
+#include "vmware.h"
+#include "auth.h"
 #include "impersonateInt.h"
 
 Bool impersonationEnabled = FALSE;

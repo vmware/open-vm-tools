@@ -26,6 +26,10 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+
 #include "vmware.h"
 #include "util.h"
 #include "fileIO.h"
@@ -268,7 +272,16 @@ FileIO_Lock(FileIODescriptor *file, // IN/OUT:
                  (err == 0) ? "Lock timed out" : strerror(err));
 
          /* Return a serious failure status if the locking code did */
-         ret = (err == 0) ? FILEIO_LOCK_FAILED : FILEIO_ERROR;
+         switch (err) {
+         case 0:             // file is currently locked
+            ret = FILEIO_LOCK_FAILED;
+            break;
+         case ENAMETOOLONG:  // path is too long
+            ret = FILEIO_FILE_NAME_TOO_LONG;
+            break;
+         default:            // some sort of locking error
+            ret = FILEIO_ERROR;
+         }
       }
    }
 #else
@@ -495,7 +508,7 @@ FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
 
 FileIOResult
 FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
-              void *buf,              // IN: Buffer to write from
+              void const *buf,        // IN: Buffer to write from
               size_t len,             // IN: Length of the buffer
               uint64 offset)          // IN: Offset to start writing
 {
@@ -503,7 +516,8 @@ FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
 
    ASSERT(fd);
 
-   iov.iov_base = buf;
+   /* The cast is safe because FileIO_Pwritev() will not write to '*buf'. */
+   iov.iov_base = (void *)buf;
    iov.iov_len = len;
 
    return FileIO_Pwritev(fd, &iov, 1, offset, len);

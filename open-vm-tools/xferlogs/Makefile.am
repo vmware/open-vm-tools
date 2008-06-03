@@ -15,19 +15,19 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = xferlogs
+bin_PROGRAMS = vmware-xferlogs
 
-xferlogs_LDADD =
-xferlogs_LDADD += ../lib/rpcVmx/libRpcVmx.a
-xferlogs_LDADD += ../lib/string/libString.a
+vmware_xferlogs_LDADD =
+vmware_xferlogs_LDADD += ../lib/rpcVmx/libRpcVmx.a
+vmware_xferlogs_LDADD += ../lib/string/libString.a
 # In the absence of the linker options --start-group and --end-group (which can't
 # be put in LDADD), we need to bring the following libraries out of the alphebetical
 # order so their symbols are properly resolved.
-xferlogs_LDADD += ../lib/rpcOut/libRpcOut.a
-xferlogs_LDADD += ../lib/message/libMessage.a
-xferlogs_LDADD += ../lib/backdoor/libBackdoor.a
-xferlogs_LDADD += ../lib/misc/libMisc.a
-xferlogs_LDADD += @ICU_LIBS@
+vmware_xferlogs_LDADD += ../lib/rpcOut/libRpcOut.a
+vmware_xferlogs_LDADD += ../lib/message/libMessage.a
+vmware_xferlogs_LDADD += ../lib/backdoor/libBackdoor.a
+vmware_xferlogs_LDADD += ../lib/misc/libMisc.a
+vmware_xferlogs_LDADD += @ICU_LIBS@
 
-xferlogs_SOURCES =
-xferlogs_SOURCES += xferlogs.c
+vmware_xferlogs_SOURCES =
+vmware_xferlogs_SOURCES += xferlogs.c

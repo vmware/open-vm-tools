@@ -150,25 +150,27 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
    }
 
  retry:
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+   opUsed = atomic_read(&hgfsVersionRead);
+   if (opUsed == HGFS_OP_READ_V3) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
 
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
-      header->op = opUsed = HGFS_OP_READ_V3;
+      header->op = opUsed;
 
       request = (HgfsRequestReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->file = handle;
       request->offset = offset;
       request->requiredSize = count;
+      request->reserved = 0;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRead *request;
 
       request = (HgfsRequestRead *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
-      request->header.op = opUsed = HGFS_OP_READ;
+      request->header.op = opUsed;
       request->file = handle;
       request->offset = offset;
       request->requiredSize = count;
@@ -216,11 +218,11 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
 	 break;
 
       case -EPROTO:
-         /* Retry with Version 2 of Open. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_READ_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionRead, HGFS_OP_READ);
             goto retry;
          }
 	 break;
@@ -293,19 +295,21 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
    }
 
  retry:
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+   opUsed = atomic_read(&hgfsVersionWrite);
+   if (opUsed == HGFS_OP_WRITE_V3) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
 
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
-      header->op = opUsed = HGFS_OP_WRITE_V3;
+      header->op = opUsed;
 
       request = (HgfsRequestWriteV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->file = handle;
       request->flags = 0;
       request->offset = offset;
       request->requiredSize = count;
+      request->reserved = 0;
       payload = request->payload;
       requiredSize = request->requiredSize;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
@@ -314,7 +318,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
 
       request = (HgfsRequestWrite *)(HGFS_REQ_PAYLOAD(req));
       request->header.id = req->id;
-      request->header.op = opUsed = HGFS_OP_WRITE;
+      request->header.op = opUsed;
       request->file = handle;
       request->flags = 0;
       request->offset = offset;
@@ -340,7 +344,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
             actualSize = ((HgfsReplyWriteV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
          } else {
             actualSize = ((HgfsReplyWrite *)HGFS_REQ_PAYLOAD(req))->actualSize;
-	 }
+         }
 
          /* Return result. */
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: wrote %u bytes\n",
@@ -349,11 +353,11 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
          break;
 
       case -EPROTO:
-         /* Retry with Version 2 of Open. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_WRITE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionWrite, HGFS_OP_WRITE);
             goto retry;
          }
          break;

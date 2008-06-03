@@ -165,6 +165,12 @@ FileDeletion(ConstUnicode pathName,   // IN:
    char *primaryPath = Unicode_GetAllocBytes(pathName,
 					     STRING_ENCODING_DEFAULT);
 
+   if (primaryPath == NULL && pathName != NULL) {
+      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
+	  __FUNCTION__, UTF8(pathName));
+      return UNICODE_CONVERSION_ERRNO;
+   }
+
    if (handleLink) {
       struct stat statbuf;
 
@@ -454,9 +460,7 @@ FileStripFwdSlashes(ConstUnicode pathName)  // IN:
    ASSERT(pathName);
 
    path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_UTF8);
-   if (path == NULL) {
-      return NULL;
-   }
+   ASSERT(path != NULL);
 
    ptr = path;
    cptr = path;
@@ -729,6 +733,11 @@ File_SetTimes(ConstUnicode pathName,      // IN:
    }
 
    path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
+   if (path == NULL) {
+      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
+	  __FUNCTION__, UTF8(pathName));
+      return FALSE;
+   }
 
    err = (lstat(path, &statBuf) == -1) ? errno : 0;
 
@@ -1763,39 +1772,42 @@ File_Replace(ConstUnicode oldName,  // IN: old file
              ConstUnicode newName)  // IN: new file
 {
    int status;
-   Bool result;
-   char *newPath;
-   char *oldPath;
+   Bool result = FALSE;
+   char *newPath = NULL;
+   char *oldPath = NULL;
    struct stat st;
 
-   if ((oldName == NULL) || (newName == NULL)) {
-      errno = EFAULT;
-      return FALSE;
-   }
-
    newPath = Unicode_GetAllocBytes(newName, STRING_ENCODING_DEFAULT);
+   if (newPath == NULL && newName != NULL) {
+      status = UNICODE_CONVERSION_ERRNO;
+      Msg_Append(MSGID(filePosix.replaceConversionFailed)
+                 "Failed to convert file path \"%s\" to current encoding\n",
+                 newName);
+      goto bail;
+   }
    oldPath = Unicode_GetAllocBytes(oldName, STRING_ENCODING_DEFAULT);
+   if (oldPath == NULL && oldName != NULL) {
+      status = UNICODE_CONVERSION_ERRNO;
+      Msg_Append(MSGID(filePosix.replaceConversionFailed)
+                 "Failed to convert file path \"%s\" to current encoding\n",
+                 oldName);
+      goto bail;
+   }
 
    if ((stat(oldPath, &st) == 0) && (chmod(newPath, st.st_mode) == -1)) {
       status = errno;
-
       Msg_Append(MSGID(filePosix.replaceChmodFailed)
                  "Failed to duplicate file permissions from "
                  "\"%s\" to \"%s\": %s\n",
-                 oldPath, newPath, Msg_ErrString());
-
-      result = FALSE;
+                 oldName, newName, Msg_ErrString());
       goto bail;
    }
 
    status = (rename(newPath, oldPath) == -1) ? errno : 0;
-
    if (status != 0) {
       Msg_Append(MSGID(filePosix.replaceRenameFailed)
                  "Failed to rename \"%s\" to \"%s\": %s\n",
-                 newPath, oldPath, Msg_ErrString());
-
-      result = FALSE;
+                 newName, oldName, Msg_ErrString());
       goto bail;
    }
 
@@ -1806,7 +1818,6 @@ bail:
    free(oldPath);
 
    errno = status;
-
    return result;
 }
 

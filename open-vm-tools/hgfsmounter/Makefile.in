@@ -49,7 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = hgfsmounter$(EXEEXT)
+sbin_PROGRAMS = mount.vmhgfs$(EXEEXT)
 subdir = hgfsmounter
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -58,10 +58,12 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
-PROGRAMS = $(noinst_PROGRAMS)
-am_hgfsmounter_OBJECTS = hgfsmounter.$(OBJEXT) stub.$(OBJEXT)
-hgfsmounter_OBJECTS = $(am_hgfsmounter_OBJECTS)
-hgfsmounter_DEPENDENCIES = ../lib/string/libString.a \
+am__installdirs = "$(DESTDIR)$(sbindir)"
+sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
+PROGRAMS = $(sbin_PROGRAMS)
+am_mount_vmhgfs_OBJECTS = hgfsmounter.$(OBJEXT) stub.$(OBJEXT)
+mount_vmhgfs_OBJECTS = $(am_mount_vmhgfs_OBJECTS)
+mount_vmhgfs_DEPENDENCIES = ../lib/string/libString.a \
 	../lib/strUtil/libStrUtil.a
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -75,8 +77,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(hgfsmounter_SOURCES)
-DIST_SOURCES = $(hgfsmounter_SOURCES)
+SOURCES = $(mount_vmhgfs_SOURCES)
+DIST_SOURCES = $(mount_vmhgfs_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -141,6 +143,7 @@ LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 MODULES = @MODULES@
+MODULES_DIR = @MODULES_DIR@
 MODULES_OS = @MODULES_OS@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -149,6 +152,7 @@ PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
+PAM_PREFIX = @PAM_PREFIX@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
@@ -157,6 +161,7 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TARGET_OS = @TARGET_OS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -216,9 +221,9 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-hgfsmounter_LDADD = ../lib/string/libString.a \
+mount_vmhgfs_LDADD = ../lib/string/libString.a \
 	../lib/strUtil/libStrUtil.a
-hgfsmounter_SOURCES = hgfsmounter.c stub.c
+mount_vmhgfs_SOURCES = hgfsmounter.c stub.c
 all: all-am
 
 .SUFFIXES:
@@ -252,16 +257,37 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
+install-sbinPROGRAMS: $(sbin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(sbindir)" || $(MKDIR_P) "$(DESTDIR)$(sbindir)"
+	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
+	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
+	  if test -f $$p \
+	     || test -f $$p1 \
+	  ; then \
+	    f=`echo "$$p1" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) '$$p' '$(DESTDIR)$(sbindir)/$$f'"; \
+	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) "$$p" "$(DESTDIR)$(sbindir)/$$f" || exit 1; \
+	  else :; fi; \
+	done
 
-clean-noinstPROGRAMS:
-	@list='$(noinst_PROGRAMS)'; for p in $$list; do \
+uninstall-sbinPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
+	  f=`echo "$$p" | sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
+	  echo " rm -f '$(DESTDIR)$(sbindir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(sbindir)/$$f"; \
+	done
+
+clean-sbinPROGRAMS:
+	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
 	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-hgfsmounter$(EXEEXT): $(hgfsmounter_OBJECTS) $(hgfsmounter_DEPENDENCIES) 
-	@rm -f hgfsmounter$(EXEEXT)
-	$(LINK) $(hgfsmounter_OBJECTS) $(hgfsmounter_LDADD) $(LIBS)
+mount.vmhgfs$(EXEEXT): $(mount_vmhgfs_OBJECTS) $(mount_vmhgfs_DEPENDENCIES) 
+	@rm -f mount.vmhgfs$(EXEEXT)
+	$(LINK) $(mount_vmhgfs_OBJECTS) $(mount_vmhgfs_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -377,6 +403,9 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS)
 installdirs:
+	for dir in "$(DESTDIR)$(sbindir)"; do \
+	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+	done
 install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
@@ -401,9 +430,10 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+@FREEBSD_FALSE@uninstall-hook:
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-noinstPROGRAMS \
+clean-am: clean-generic clean-libtool clean-sbinPROGRAMS \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -426,7 +456,9 @@ install-data-am:
 
 install-dvi: install-dvi-am
 
-install-exec-am:
+install-exec-am: install-sbinPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 
 install-html: install-html-am
 
@@ -458,23 +490,37 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-sbinPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
 
-.MAKE: install-am install-strip
+.MAKE: install-am install-exec-am install-strip uninstall-am
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstPROGRAMS ctags distclean \
+	clean-libtool clean-sbinPROGRAMS ctags distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-man install-pdf install-pdf-am install-ps \
+	install-ps-am install-sbinPROGRAMS install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-hook \
+	uninstall-sbinPROGRAMS
 
+
+@FREEBSD_TRUE@install-exec-hook:
+@FREEBSD_TRUE@	$(MV) $(sbindir)/mount.vmhgfs $(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	chown root $(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	chmod u+s $(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@uninstall-hook:
+@FREEBSD_TRUE@	$(RM) -f $(sbindir)/mount_vmhgfs
+@FREEBSD_FALSE@install-exec-hook:
+@FREEBSD_FALSE@	chown root $(sbindir)/mount.vmhgfs
+@FREEBSD_FALSE@	chmod u+s $(sbindir)/mount.vmhgfs
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -156,6 +156,11 @@ enum {
    VIX_E_TEMPLATE_VM                            = 4003,
    VIX_E_VM_ALREADY_LOADED                      = 4004,
    VIX_E_VM_ALREADY_UP_TO_DATE                  = 4006,
+
+   /* Wrapper Errors */
+   VIX_E_WRAPPER_WORKSTATION_NOT_INSTALLED      = 5001,
+   VIX_E_WRAPPER_VERSION_NOT_FOUND              = 5002,
+   VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 5003,
  
    /* Property Errors */
    VIX_E_UNRECOGNIZED_PROPERTY                  = 6000,
@@ -255,6 +260,7 @@ enum {
    /* Remoting Errors. */
    VIX_E_CANNOT_CONNECT_TO_HOST                 = 18000,
    VIX_E_NOT_FOR_REMOTE_HOST                    = 18001,
+   VIX_E_INVALID_HOSTNAME_SPECIFICATION         = 18002,
     
    /* Screen Capture Errors. */
    VIX_E_SCREEN_CAPTURE_ERROR                   = 19000,
@@ -686,6 +692,13 @@ VixHandle VixVM_WaitForToolsInGuest(VixHandle vmHandle,
                                     int timeoutInSeconds,
                                     VixEventProc *callbackProc,
                                     void *clientData);
+
+/*
+ * VixVM_LoginInGuest option flags.
+ */
+enum {
+   VIX_LOGIN_IN_GUEST_REQUIRE_INTERACTIVE_ENVIRONMENT      = 0x08,                     
+};
 
 VixHandle VixVM_LoginInGuest(VixHandle vmHandle,
                              const char *userName,

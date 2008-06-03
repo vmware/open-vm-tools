@@ -581,15 +581,10 @@ ProxyUse(ConstUnicode pathName,  // IN:
       path = Unicode_Duplicate(U("."));
    } else {
       Unicode temp;
-      Unicode testPath;
 
       temp = Unicode_Substr(pathName, 0, index + 1);
-      testPath = Unicode_Append(temp, U("."));
-
-      path = Unicode_GetAllocBytes(testPath, STRING_ENCODING_DEFAULT);
-
+      path = Unicode_Append(temp, U("."));
       Unicode_Free(temp);
-      Unicode_Free(testPath);
    }
 
    /*
@@ -1257,114 +1252,6 @@ FileIO_Sync(const FileIODescriptor *file) // IN
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * FileIOCoalesce --
- *
- *      Linux 2.2 does a fairly braindead thing with ioVec's.  It simply issues
- *      reads and writes internal to the kernel in serial
- *      (linux/fs/read_write.c:do_readv_writev()).  We optimize here for the
- *      case of many small chunks.  The cost of the extra copy in this case
- *      is made up for by the decreased number of separate I/Os the kernel
- *      issues internally. Note that linux 2.4 seems to be smarter with respect
- *      to this problem.
- *
- * Results:
- *      Bool - Whether or not coalescing was done.  If it was done,
- *             FileIODecoalesce *MUST* be called.
- *
- * Side effects:
- *      FileIOCoalesce will malloc *outVec if coalescing is performed
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-FileIOCoalesce(struct iovec *inVec,     // IN:  Vector to coalesce from
-               int inCount,             // IN:  count for inVec
-               size_t inTotalSize,      // IN:  totalSize (bytes) in inVec
-               Bool isWrite,            // IN:  coalesce for writing (or reading)
-               Bool forceCoalesce,      // IN:  if TRUE always coalesce
-               struct iovec *outVec)    // OUT: Coalesced (1-entry) iovec
-{
-   uint8 *cBuf;
-
-   ASSERT(inVec);
-   ASSERT(outVec);
-
-   FileIO_OptionalSafeInitialize();
-
-   /* simple case: no need to coalesce */
-   if (inCount == 1) {
-      return FALSE;
-   }
-
-   /*
-    * Only coalesce when the number of entries is above our count threshold
-    * and the average size of an entry is less than our size threshold
-    */
-   if (!forceCoalesce &&
-       (!filePosixOptions.enabled ||
-       inCount <= filePosixOptions.countThreshold ||
-       inTotalSize / inCount >= filePosixOptions.sizeThreshold)) {
-      return FALSE;
-   }
-
-   // XXX: Wouldn't it be nice if we could log from here!
-   //LOG(5, ("FILE: Coalescing %s of %d elements and %d size\n",
-   //        isWrite ? "write" : "read", inCount, inTotalSize));
-   cBuf = Util_SafeMalloc(sizeof(uint8) * inTotalSize);
-
-  if (isWrite) {
-      IOV_WriteIovToBuf(inVec, inCount, cBuf, inTotalSize);
-   }
-
-   outVec->iov_base = cBuf;
-   outVec->iov_len = inTotalSize;
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FileIODecoalesce --
- *
- *      Inverse of the coalesce optimization.  For writes, its a NOOP, but
- *      for reads, it copies the data back into the original buffer.
- *      It also frees the memory allocated by FileIOCoalesce.
- *
- * Results:
- *      void
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
-                 struct iovec *origVec, // IN: Original vector
-                 int origVecCount,      // IN: count for origVec
-                 size_t actualSize,     // IN: # bytes to transfer back to origVec
-                 Bool isWrite)          // IN: decoalesce for writing (or reading)
-{
-   ASSERT(coVec);
-   ASSERT(origVec);
-
-   ASSERT(actualSize <= coVec->iov_len);
-   ASSERT_NOT_TESTED(actualSize == coVec->iov_len);
-
-   if (!isWrite) {
-      IOV_WriteBufToIov(coVec->iov_base, actualSize, origVec, origVecCount);
-   }
-
-   free(coVec->iov_base);
-}
-
-
-/*
  *----------------------------------------------------------------------
  *
  * FileIO_Readv --
@@ -1397,29 +1284,19 @@ FileIO_Readv(FileIODescriptor *fd,      // IN
    size_t bytesRead = 0, sum = 0;
    FileIOResult fret = FILEIO_ERROR;
    int nRetries = 0, maxRetries = numEntries;
-   struct iovec coV;
-   struct iovec *vPtr;
-   Bool didCoalesce;
-   int numVec;
+   struct iovec *vPtr = v;
+   int numVec = numEntries;
 
    ASSERT(fd);
-
-   didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE, FALSE, &coV);
 
    STAT_INST_INC(fd->stats, NumReadvs);
    STAT_INST_INC_BY(fd->stats, BytesReadv, totalSize);
    STATS_ONLY({
       fd->readvIn++;
       fd->bytesRead += totalSize;
-      if (didCoalesce) {
-         fd->numReadCoalesced++;
-      }
    })
 
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
-
-   numVec = didCoalesce ? 1 : numEntries;
-   vPtr = didCoalesce ? &coV : v;
 
    while (nRetries < maxRetries) {
       ssize_t retval;
@@ -1468,10 +1345,6 @@ FileIO_Readv(FileIODescriptor *fd,      // IN
       }
    }
 
-   if (didCoalesce) {
-      FileIODecoalesce(&coV, v, numEntries, bytesRead, FALSE);
-   }
-
    if (actual) {
       *actual = bytesRead;
    }
@@ -1512,29 +1385,19 @@ FileIO_Writev(FileIODescriptor *fd,     // IN
    size_t bytesWritten = 0, sum = 0;
    FileIOResult fret = FILEIO_ERROR;
    int nRetries = 0, maxRetries = numEntries;
-   struct iovec coV;
-   struct iovec *vPtr;
-   Bool didCoalesce;
-   int numVec;
+   struct iovec *vPtr = v;
+   int numVec = numEntries;
 
    ASSERT(fd);
-
-   didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE, FALSE, &coV);
 
    STAT_INST_INC(fd->stats, NumWritevs);
    STAT_INST_INC_BY(fd->stats, BytesWritev, totalSize);
    STATS_ONLY({
       fd->writevIn++;
       fd->bytesWritten += totalSize;
-      if (didCoalesce) {
-         fd->numWriteCoalesced++;
-      }
    })
 
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
-
-   numVec = didCoalesce ? 1 : numEntries;
-   vPtr = didCoalesce ? &coV : v;
 
    while (nRetries < maxRetries) {
       ssize_t retval;
@@ -1564,10 +1427,6 @@ FileIO_Writev(FileIODescriptor *fd,     // IN
          fret = FILEIO_WRITE_ERROR_NOSPC;
          break;
       }
-   }
-
-   if (didCoalesce) {
-      FileIODecoalesce(&coV, v, numEntries, bytesWritten, TRUE);
    }
 
    if (actual) {
@@ -1606,33 +1465,21 @@ FileIO_Preadv(FileIODescriptor *fd,    // IN: File descriptor
               size_t totalSize)        // IN: totalSize (bytes) in entries
 {
    size_t sum = 0;
-   struct iovec *vPtr;
-   struct iovec coV;
-   int count;
+   struct iovec *vPtr = entries;
+   int count = numEntries;
    uint64 fileOffset;
    FileIOResult fret;
-   Bool didCoalesce;
 
    ASSERT(fd);
    ASSERT(entries);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
-   didCoalesce = FileIOCoalesce(entries, numEntries, totalSize, FALSE,
-                                TRUE /* force coalescing */,
-                                &coV);
-
-   count = didCoalesce ? 1 : numEntries;
-   vPtr = didCoalesce ? &coV : entries;
-
    STAT_INST_INC(fd->stats, NumPreadvs);
    STAT_INST_INC_BY(fd->stats, BytesPreadv, totalSize);
    STATS_ONLY({
       fd->preadvIn++;
       fd->bytesRead += totalSize;
-      if (didCoalesce) {
-         fd->numReadCoalesced++;
-      }
    })
 
    fileOffset = offset;
@@ -1672,9 +1519,6 @@ FileIO_Preadv(FileIODescriptor *fd,    // IN: File descriptor
    fret = FILEIO_SUCCESS;
 
 exit:
-   if (didCoalesce) {
-      FileIODecoalesce(&coV, entries, numEntries, sum, FALSE);
-   }
 
    return fret;
 }
@@ -1706,10 +1550,8 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
                uint64 offset,          // IN: Offset to start writing
                size_t totalSize)       // IN: Total size (bytes) in entries
 {
-   struct iovec coV;
-   Bool didCoalesce;
-   struct iovec *vPtr;
-   int count;
+   struct iovec *vPtr = entries;
+   int count = numEntries;
    size_t sum = 0;
    uint64 fileOffset;
    FileIOResult fret;
@@ -1719,21 +1561,11 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
-   didCoalesce = FileIOCoalesce(entries, numEntries, totalSize, TRUE,
-                                TRUE /* force coalescing */,
-                                &coV);
-
-   count = didCoalesce ? 1 : numEntries;
-   vPtr = didCoalesce ? &coV : entries;
-
    STAT_INST_INC(fd->stats, NumPwritevs);
    STAT_INST_INC_BY(fd->stats, BytesPwritev, totalSize);
    STATS_ONLY({
       fd->pwritevIn++;
       fd->bytesWritten += totalSize;
-      if (didCoalesce) {
-         fd->numWriteCoalesced++;
-      }
    })
 
    fileOffset = offset;
@@ -1777,9 +1609,6 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
 
    fret = FILEIO_SUCCESS;
 exit:
-   if (didCoalesce) {
-      FileIODecoalesce(&coV, entries, numEntries, sum, TRUE);
-   }
 
    return fret;
 }

@@ -343,19 +343,23 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
        * correct regardless. If we don't find a handle, fall back on getattr
        * by name.
        */
+      requestV3->hints = 0;
       if (allowHandleReuse && HgfsGetHandle(dentry->d_inode,
                                             0,
                                             &handle) == 0) {
-         requestV3->hints = HGFS_ATTR_HINT_USE_FILE_DESC;
-         requestV3->file = handle;
+         requestV3->fileName.flags = HGFS_FILE_NAME_USE_FILE_DESC;
+         requestV3->fileName.fid = handle;
+         requestV3->fileName.length = 0;
+         requestV3->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
          fileName = NULL;
       } else {
-         requestV3->hints = 0;
          fileName = requestV3->fileName.name;
-	 fileNameLength = &requestV3->fileName.length;
-	 requestV3->fileName.flags = 0;
-	 requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+         fileNameLength = &requestV3->fileName.length;
+         requestV3->fileName.flags = 0;
+         requestV3->fileName.fid = HGFS_INVALID_HANDLE;
+         requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       }
+      requestV3->reserved = 0;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
       break;
@@ -383,7 +387,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       } else {
          requestV2->hints = 0;
          fileName = requestV2->fileName.name;
-	 fileNameLength = &requestV2->fileName.length;
+         fileNameLength = &requestV2->fileName.length;
       }
       reqSize = sizeof *requestV2;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(requestV2);
@@ -915,10 +919,6 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
   retry:
 
    opUsed = atomic_read(&hgfsVersionGetattr);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_GETATTR_V3;
-   }
-
    result = HgfsPackGetattrRequest(req, dentry, allowHandleReuse, opUsed, attr);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: no attrs\n"));
@@ -961,17 +961,15 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
          break;
 
       case -EPROTO:
-         /* Retry with older versions of Getattr. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (attr->requestType == HGFS_OP_GETATTR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: Version 3 "
                     "not supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR_V2);
             goto retry;
          } else if (attr->requestType == HGFS_OP_GETATTR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: Version 2 "
                     "not supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR);
             goto retry;
          }

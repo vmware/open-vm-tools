@@ -34,7 +34,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.05.15-93241],
+   [2008.06.03-96374],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -301,6 +301,13 @@ AC_CHECK_LIB(
    [AC_MSG_ERROR(
       [libpthread not found. Please install the libc/libpthread devel package(s).])])
 
+# PAM prefix
+AC_ARG_WITH([pam-prefix],
+	    [AS_HELP_STRING([--with-pam-prefix],
+		[specify where pam files go. Default is $(sysconfdir)])],
+	    [PAM_PREFIX="$withval"],
+	    [PAM_PREFIX='$(sysconfdir)'])
+
 AC_ARG_WITH([procps],
 	    [AS_HELP_STRING([--without-procps],
 	       [compile without libproc (disables support for meminfo)])],
@@ -350,7 +357,7 @@ if test "$with_procps" = "yes"; then
 fi
 
 if test "$with_procps" != "yes"; then
-AC_DEFINE([NO_PROCPS], 1)
+AC_DEFINE([NO_PROCPS], 1, [Define to 1 if building without procps.])
 fi
 
 AC_ARG_WITH([dnet],
@@ -375,7 +382,7 @@ if test "$with_dnet" = "yes"; then
 		GUESTD_LDADD="$GUESTD_LDADD $DNET_LIBS"
 		VMWARE_USER_LDADD="$VMWARE_USER_LDADD $DNET_LIBS"
 		if test "$DNET_CONFIG" == dumbnet-config; then
-		AC_DEFINE([DNET_IS_DUMBNET], 1)
+		AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting Debian's libdumbnet for libdnet.])
 		fi
 	else
 		AC_MSG_ERROR(
@@ -384,7 +391,7 @@ if test "$with_dnet" = "yes"; then
 fi
 
 if test "$with_dnet" != "yes"; then
-AC_DEFINE([NO_DNET], 1)
+AC_DEFINE([NO_DNET], 1, [Define to 1 if building without libdnet.])
 fi
 
 AC_ARG_WITH([icu],
@@ -573,9 +580,13 @@ CPPFLAGS="$CPPFLAGS -I$INCLUDE_DIR"
 
 MODULES=""
 MODULES_OS="$os"
+TARGET_OS="$os"
+MODULES_DIR=""
 buildHgfsmounter=no
 
 if test "$os" = "linux"; then
+   MODULES_DIR="/lib/modules/`uname -r`/kernel/"
+
    CPPFLAGS="$CPPFLAGS -D_FILE_OFFSET_BITS=64"
    CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
    CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=500"
@@ -595,6 +606,8 @@ if test "$os" = "linux"; then
 fi
 
 if test "$os" = "freebsd"; then
+   MODULES_DIR="/boot/modules"
+
    if test "$osVersion" -gt 302000; then
       MODULES="$MODULES vmmemctl"
    fi
@@ -629,9 +642,11 @@ fi
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
+AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(NO_ICU, test "$with_icu" = "yes")
+AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 
 ### Feature-specific flags / actions
 # Combine where possible
@@ -640,7 +655,7 @@ AM_CONDITIONAL(NO_ICU, test "$with_icu" = "yes")
 # tests for required components have passed and it's safe to allow multimon.
 # Otherwise, it should be disabled.
 if test "$MULTIMON_ENABLED" = "no"; then
-   AC_DEFINE([NO_MULTIMON], 1)
+   AC_DEFINE([NO_MULTIMON], 1, [Define to 1 if building without multimon support.])
 fi
 
 if test "$os$userSpaceBitness" = "linux64" || test "$HAVE_SYS_SETUID" = "yes"; then
@@ -670,7 +685,9 @@ fi
 
 ### General substs
 
+AC_SUBST([TARGET_OS])
 AC_SUBST([MODULES_OS])
+AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
 AC_SUBST([COMMON_XLIBS])
 AC_SUBST([GTK_CPPFLAGS])
@@ -681,6 +698,7 @@ AC_SUBST([PROCPS_CPPFLAGS])
 AC_SUBST([PROCPS_LIBS])
 AC_SUBST([ICU_CPPFLAGS])
 AC_SUBST([ICU_LIBS])
+AC_SUBST([PAM_PREFIX])
 
 ### Lib substs
 
@@ -759,6 +777,7 @@ AC_CONFIG_FILES([                      \
    lib/wiper/Makefile                  \
    guestd/Makefile                     \
    vmware-user/Makefile                \
+   vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
    hgfsclient/Makefile                 \
    hgfsmounter/Makefile                \
@@ -766,6 +785,7 @@ AC_CONFIG_FILES([                      \
    libguestlib/Makefile                \
    xferlogs/Makefile                   \
    modules/Makefile                    \
+   scripts/Makefile		       \
 ])
 
 ###

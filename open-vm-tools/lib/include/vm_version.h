@@ -212,10 +212,23 @@
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "1.5.0"
 #define VDM_VERSION "e.x.p"
+#define VDM_CLIENT_VERSION "e.x.p"
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
-#define VMRC_PLUGIN_VERSION "2.5.0"
-#define VMRC_PLUGIN_VERSION_COMMAS 2,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#ifndef MAKESTR
+#define MAKESTR(x) #x
+#define XSTR(x) MAKESTR(x)
+#endif
+
+#define VMRC_PLUGIN_VERSION_MAJOR 2
+#define VMRC_PLUGIN_VERSION_MINOR 5
+#define VMRC_PLUGIN_VERSION_Z     0
+#define VMRC_PLUGIN_VERSION_BASE  VMRC_PLUGIN_VERSION_MAJOR.VMRC_PLUGIN_VERSION_MINOR
+
+#define VMRC_PLUGIN_VERSION       \
+        XSTR(VMRC_PLUGIN_VERSION_BASE) "." XSTR(VMRC_PLUGIN_VERSION_Z) "." BUILD_NUMBER_NUMERIC_STRING
+#define VMRC_PLUGIN_VERSION_COMMAS \
+        VMRC_PLUGIN_VERSION_MAJOR,VMRC_PLUGIN_VERSION_MINOR,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * When setting the Tools product version, please use the string corresponding
@@ -223,7 +236,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.05.15"
+#define TOOLS_VERSION "2008.06.03"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

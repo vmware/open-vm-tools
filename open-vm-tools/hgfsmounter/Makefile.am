@@ -15,12 +15,25 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = hgfsmounter
+sbin_PROGRAMS = mount.vmhgfs
 
-hgfsmounter_LDADD =
-hgfsmounter_LDADD += ../lib/string/libString.a
-hgfsmounter_LDADD += ../lib/strUtil/libStrUtil.a
+mount_vmhgfs_LDADD =
+mount_vmhgfs_LDADD += ../lib/string/libString.a
+mount_vmhgfs_LDADD += ../lib/strUtil/libStrUtil.a
 
-hgfsmounter_SOURCES =
-hgfsmounter_SOURCES += hgfsmounter.c
-hgfsmounter_SOURCES += stub.c
+mount_vmhgfs_SOURCES =
+mount_vmhgfs_SOURCES += hgfsmounter.c
+mount_vmhgfs_SOURCES += stub.c
+
+if FREEBSD
+install-exec-hook:
+	$(MV) $(sbindir)/mount.vmhgfs $(sbindir)/mount_vmhgfs
+	chown root $(sbindir)/mount_vmhgfs
+	chmod u+s $(sbindir)/mount_vmhgfs
+uninstall-hook:
+	$(RM) -f $(sbindir)/mount_vmhgfs
+else
+install-exec-hook:
+	chown root $(sbindir)/mount.vmhgfs
+	chmod u+s $(sbindir)/mount.vmhgfs
+endif !FREEBSD

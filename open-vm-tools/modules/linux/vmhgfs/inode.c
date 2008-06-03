@@ -197,8 +197,8 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
    HgfsStatus replyStatus;
    char *fileName = NULL;
    uint32 *fileNameLength;
-   HgfsOp opUsed;
    uint32 reqSize;
+   HgfsOp opUsed;
 
    ASSERT(dir);
    ASSERT(dir->i_sb);
@@ -211,9 +211,8 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       goto out;
    }
 
-   /* Check opcode. */
    if ((op != HGFS_OP_DELETE_FILE) &&
-      (op != HGFS_OP_DELETE_DIR)) {
+       (op != HGFS_OP_DELETE_DIR)) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Invalid opcode\n"));
       result = -EINVAL;
       goto out;
@@ -228,16 +227,17 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
    }
 
   retry:
-   opUsed = op;
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+   if (op == HGFS_OP_DELETE_FILE) {
+      opUsed = atomic_read(&hgfsVersionDeleteFile);
+   } else {
+      opUsed = atomic_read(&hgfsVersionDeleteDir);
+   }
+
+   if (opUsed == HGFS_OP_DELETE_FILE_V3 ||
+       opUsed == HGFS_OP_DELETE_DIR_V3) {
       HgfsRequestDeleteV3 *request;
       HgfsRequest *header;
 
-      if (op == HGFS_OP_DELETE_DIR) {
-         opUsed = HGFS_OP_DELETE_DIR_V3;
-      } else {
-         opUsed = HGFS_OP_DELETE_FILE_V3;
-      }
       header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
       header->id = req->id;
       header->op = opUsed;
@@ -246,6 +246,10 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       request->hints = 0;
       fileName = request->fileName.name;
       fileNameLength = &request->fileName.length;
+      request->fileName.fid = HGFS_INVALID_HANDLE;
+      request->fileName.flags = 0;
+      request->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
+      request->reserved = 0;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestDelete *request;
@@ -253,7 +257,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       request = (HgfsRequestDelete *)(HGFS_REQ_PAYLOAD(req));
       /* Fill out the request packet. */
       request->header.id = req->id;
-      request->header.op = opUsed = op;
+      request->header.op = opUsed;
       fileName = request->fileName.name;
       fileNameLength = &request->fileName.length;
       reqSize = sizeof *request;
@@ -266,7 +270,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       result = -EINVAL;
       goto out;
    }
-   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: deleting \"%s\", op %u\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: deleting \"%s\", opUsed %u\n",
            fileName, opUsed));
 
    /* Convert to CP name. */
@@ -339,15 +343,16 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
          }
          break;
       case -EPROTO:
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_DELETE_DIR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionDeleteDir, HGFS_OP_DELETE_DIR);
             goto retry;
          } else if (opUsed == HGFS_OP_DELETE_FILE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionDeleteFile, HGFS_OP_DELETE_FILE);
             goto retry;
          }
 
@@ -457,15 +462,20 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
                                             (valid & ATTR_MTIME) ?
                                             HGFS_OPEN_MODE_WRITE_ONLY + 1 : 0,
                                             &handle) == 0) {
-         *hints = HGFS_ATTR_HINT_USE_FILE_DESC;
-         requestV3->file = handle;
+         requestV3->fileName.fid = handle;
+         requestV3->fileName.flags = HGFS_FILE_NAME_USE_FILE_DESC;
+         requestV3->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
+         requestV3->fileName.length = 0;
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackSetattrRequest: setting "
                  "attributes of handle %u\n", handle));
       } else {
          fileName = requestV3->fileName.name;
-	 fileNameLength = &requestV3->fileName.length;
-	 requestV3->fileName.caseType = HGFS_FILE_NAME_DEFAULT_CASE;
+         fileNameLength = &requestV3->fileName.length;
+         requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+         requestV3->fileName.fid = HGFS_INVALID_HANDLE;
+         requestV3->fileName.flags = 0;
       }
+      requestV3->reserved = 0;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
 
@@ -772,6 +782,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       fileName = requestV3->fileName.name;
       fileNameLength = &requestV3->fileName.length;
       requestV3->fileName.flags = 0;
+      requestV3->fileName.fid = HGFS_INVALID_HANDLE;
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
 
       requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
@@ -783,6 +794,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       requestV3->ownerPerms = (mode & S_IRWXU) >> 6;
       requestV3->groupPerms = (mode & S_IRWXG) >> 3;
       requestV3->otherPerms = (mode & S_IRWXO);
+      requestV3->reserved = 0;
       break;
    }
    case HGFS_OP_CREATE_DIR_V2: {
@@ -1159,10 +1171,6 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
 
   retry:
    opUsed = atomic_read(&hgfsVersionCreateDir);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_CREATE_DIR_V3;
-   }
-
    result = HgfsPackCreateDirRequest(dentry, mode, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: error packing request\n"));
@@ -1201,18 +1209,16 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
           */
          break;
       case -EPROTO:
-         /* Retry with older versions of CreateDir. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_CREATE_DIR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: Version 3 not "
                     "supported. Falling back to version 2.\n"));
             atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR_V2);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          } else if (opUsed == HGFS_OP_CREATE_DIR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: Version 2 not "
                     "supported. Falling back to version 1.\n"));
             atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          }
 
@@ -1358,22 +1364,26 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
    }
 
 retry:
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
+   opUsed = atomic_read(&hgfsVersionRename);
+   if (opUsed == HGFS_OP_RENAME_V3) {
       HgfsRequestRenameV3 *request = (HgfsRequestRenameV3 *)HGFS_REQ_PAYLOAD_V3(req);
       HgfsRequest *header = (HgfsRequest *)HGFS_REQ_PAYLOAD(req);
 
-      header->op = opUsed = HGFS_OP_RENAME_V3;
+      header->op = opUsed;
       header->id = req->id;
 
       oldName = request->oldName.name;
       oldNameLength = &request->oldName.length;
+      request->hints = 0;
       request->oldName.flags = 0;
+      request->oldName.fid = HGFS_INVALID_HANDLE;
       request->oldName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      request->reserved = 0;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRename *request = (HgfsRequestRename *)HGFS_REQ_PAYLOAD(req);
 
-      request->header.op = opUsed = HGFS_OP_RENAME;
+      request->header.op = opUsed;
       oldName = request->oldName.name;
       oldNameLength = &request->oldName.length;
       reqSize = sizeof *request;
@@ -1420,6 +1430,7 @@ retry:
       newName = newNameP->name;
       newNameLength = &newNameP->length;
       newNameP->flags = 0;
+      newNameP->fid = HGFS_INVALID_HANDLE;
       newNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
    } else {
       HgfsRequestRename *request = (HgfsRequestRename *)HGFS_REQ_PAYLOAD(req);
@@ -1463,8 +1474,9 @@ retry:
       result = HgfsStatusConvertToLinux(replyStatus);
 
       if (result == -EPROTO) {
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_RENAME_V3) {
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
+            atomic_set(&hgfsVersionRename, HGFS_OP_RENAME);
             goto retry;
          } else {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: server "
@@ -1539,7 +1551,9 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
       symlinkName = requestV3->symlinkName.name;
       symlinkNameLength = &requestV3->symlinkName.length;
       requestV3->symlinkName.flags = 0;
+      requestV3->symlinkName.fid = HGFS_INVALID_HANDLE;
       requestV3->symlinkName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+      requestV3->reserved = 0;
       requestSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
       break;
    }
@@ -1603,6 +1617,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
       targetName = fileNameP->name;
       targetNameLength = &fileNameP->length;
       fileNameP->flags = 0;
+      fileNameP->fid = HGFS_INVALID_HANDLE;
       fileNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
    } else {
       HgfsFileName *fileNameP;
@@ -1676,10 +1691,6 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
 
   retry:
    opUsed = atomic_read(&hgfsVersionCreateSymlink);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_CREATE_SYMLINK_V3;
-   }
-
    result = HgfsPackSymlinkCreateRequest(dentry, symname, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: error packing request\n"));
@@ -1696,12 +1707,11 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
                  "successfully, instantiating dentry\n"));
          result = HgfsInstantiate(dentry, 0, NULL);
       } else if (result == -EPROTO) {
-         /* Retry with older versions of Setattr. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: Version 3 "
                     "not supported. Falling back to version 2.\n"));
             atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          } else {
             LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink was not "
@@ -1817,10 +1827,6 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
   retry:
    /* Fill out the request packet. */
    opUsed = atomic_read(&hgfsVersionSetattr);
-   if (atomic_read(&hgfsProtocolVersion) == HGFS_VERSION_3) {
-      opUsed = HGFS_OP_SETATTR_V3;
-   }
-
    result = HgfsPackSetattrRequest(iattr, dentry, allowHandleReuse,
                                    opUsed, req, &changed);
    if (result != 0 || !changed) {
@@ -1893,18 +1899,16 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
          break;
 
       case -EPROTO:
-         /* Retry with older versions of Setattr. Set globally. */
+         /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_SETATTR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: Version 3 "
                     "not supported. Falling back to version 2.\n"));
             atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR_V2);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          } else if (opUsed == HGFS_OP_SETATTR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: Version 2 "
                     "not supported. Falling back to version 1.\n"));
             atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR);
-            atomic_set(&hgfsProtocolVersion, HGFS_VERSION_OLD);
             goto retry;
          }
 

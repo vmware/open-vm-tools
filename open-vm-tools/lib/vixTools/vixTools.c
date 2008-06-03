@@ -65,6 +65,7 @@
 #include "hgfs.h"
 #include "system.h"
 #include "codeset.h"
+#include "posix.h"
 #include "unicode.h"
 
 #if defined(linux) || defined(_WIN32)
@@ -1254,7 +1255,27 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
          }
       }
 
+#ifdef _WIN32
       resultInt = File_UnlinkIfExists(pathName);
+#else
+      /*
+       * UnlinkIfExists() chases the symlink and tries to delete
+       * what it points to.  We don't want this, and rather than
+       * fight with bora/lib/file, just do it here ourselves.
+       */
+      {
+         char *primaryPath = Unicode_GetAllocBytes(pathName,
+                                                   STRING_ENCODING_DEFAULT);
+         if (NULL != primaryPath) {
+            resultInt = (unlink(primaryPath) == -1) ? errno : 0;
+            resultInt = (resultInt == ENOENT) ? 0 : resultInt;
+            free(primaryPath);
+         } else {
+            resultInt = UNICODE_CONVERSION_ERRNO;
+         }
+      }
+#endif
+
       if (0 != resultInt) {
          err = FoundryToolsDaemon_TranslateSystemErr();
       }
@@ -2414,26 +2435,25 @@ if (0 == *interpreterName) {
          goto abort;
       }
       
-      fd = open(tempScriptFilePath,
-                  O_CREAT
-                | O_EXCL
+      fd = Posix_Open(tempScriptFilePath, // UTF-8
+                      O_CREAT | O_EXCL
 #if defined(_WIN32)
-                | O_BINARY
+                     | O_BINARY
 #endif
 #if defined(linux) && defined(GLIBC_VERSION_21)
-                | O_LARGEFILE
+                     | O_LARGEFILE
 #endif
-                | O_RDWR,
-                0600);
+                     | O_RDWR,
+                      0600);
       if (fd >= 0) {
          break;
       }
 
       if (errno != EEXIST) {
          /*
-          * While persistence is generally a worthwhile trail, if something happens
-          * to the temp directory while we're using it (e.g., someone deletes it), we
-          * should not try 4+ billion times.
+          * While persistence is generally a worthwhile trail, if something
+          * happens to the temp directory while we're using it (e.g., someone
+          * deletes it), we should not try 4+ billion times.
           */
          break;
       }

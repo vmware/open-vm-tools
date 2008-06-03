@@ -245,7 +245,6 @@ EXTERN void Msg_Exit(void);
 
 EXTERN void Msg_SetCallback(MsgCallback *cb);
 EXTERN void Msg_GetCallback(MsgCallback *cb);
-EXTERN void MsgSetPostStderrBlock(Bool block);	// XXX don't know -- edward
 
 
 /*

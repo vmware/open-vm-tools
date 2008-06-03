@@ -26,8 +26,11 @@
  */
 
 
+#include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <gtk/gtkinvisible.h>
 #include <locale.h>
@@ -93,9 +96,15 @@ void VMwareUserRpcInErrorCB    (void *clientdata, char const *status);
 extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam);
 extern void ForeignTools_Shutdown(void);
 
+static Bool InitLockFile(void);
+static Bool TryAcquireLockFile(void);
+static void ReleaseLockFile(void);
+
+
 /*
  * Globals
  */
+
 static Bool gOpenUrlRegistered;
 static Bool gResolutionSetRegistered;
 static Bool gDnDRegistered;
@@ -103,6 +112,13 @@ static Bool gCopyPasteRegistered;
 static Bool gHgfsServerRegistered;
 static pid_t gParentPid;
 static char gLogFilePath[PATH_MAX];
+
+/*
+ * The lock file is used to -try- to prevent multiple instances of vmware-user
+ * from executing.  See InitLockFile() for more information.
+ */
+static char gLockFilePath[PATH_MAX] = "";
+static int gLockFileFd = -1;
 
 /*
  * From vmwareuserInt.h
@@ -567,6 +583,7 @@ int VMwareUserXIOErrorHandler(Display *dpy)
    } else {
       Debug("VMwareUserXIOErrorHandler hit from forked() child, not cleaning Rpc\n");
    }
+   ReleaseLockFile();
    exit(1);
    return 1;
 }
@@ -687,6 +704,20 @@ main(int argc, char *argv[])
 
    /* Set to system locale. */
    setlocale(LC_CTYPE, "");
+
+   /*
+    * There can be only one vmware-user (in theory) per X session.
+    *
+    * Reminder:  Use of the lock file is entirely opportunistic.  If
+    * InitLockFile fails, we'll ignore it and continue on without lock file
+    * protection.
+    */
+   if (InitLockFile()) {
+      if (TryAcquireLockFile() == FALSE) {
+         Warning("Another instance of vmware-user already running.  Exiting.\n");
+         return -1;
+      }
+   }
 
    gParentPid = getpid();
 
@@ -855,5 +886,192 @@ main(int argc, char *argv[])
    if (gBlockFd >= 0 && !DnD_UninitializeBlocking(gBlockFd)) {
       Debug("vmware-user failed to uninitialize blocking.\n");
    }
+
+   ReleaseLockFile();
+
    return 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * InitLockFile --
+ *
+ *      Initializes gLockFileFd to a file descriptor on one of the following:
+ *        1. $HOME/.vmware-user.<hostname>.<displayname>.lock
+ *        2. /tmp/vmware-user.<uid>.<displayname>.lock
+ *
+ *      The first option is preferred, because I'd rather store a lock file
+ *      where only our user can access it.  (This avoids a race involved with
+ *      relying on known pathnames under /tmp.)  If that path is unavailable
+ *      for any reason, we fall back to a path under /tmp.  
+ *
+ *      In the first case, even if the user's home directory is NFS mounted,
+ *      NFS clients still honor fcntl() locks locally, so we would be good to go.
+ *
+ *      This scheme is to be considered entirely advisory / opportunistic.
+ *      I.e., if we're unable to create and open a lock file, we'll plod on,
+ *      ignoring failures, and possibly launch multiple instances of vmware-user.
+ *
+ *      NB:  The lock files are not removed upon exit.
+ *
+ * Results:
+ *      TRUE if the path was generated & lock file opened, FALSE otherwise.
+ *
+ * Side effects:
+ *      On success:
+ *         Lock file path is written to gLockFilePath.
+ *         Lock file is opened and descriptor assigned to gLockFileFd.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+InitLockFile(void)
+{
+   struct passwd *pw = NULL;
+   /* XXX We really need a constant for maximum hostname lengths. */
+   char hostname[256] = "";
+   char *display = NULL;
+
+   if ((pw = getpwuid(getuid())) == NULL) {
+      Warning("%s: getpwuid: %s\n", __func__, strerror(errno));
+      return FALSE;
+   }
+
+   if (gethostname(hostname, sizeof hostname) == -1) {
+      Warning("%s: gethostname: %s\n", __func__,  strerror(errno));
+      return FALSE;
+   }
+
+   /*
+    * XXX Would it be any better to rely on something returned from gtk/gdk
+    * instead?
+    */
+   if ((display = getenv("DISPLAY")) == NULL) {
+      Warning("Environment variable DISPLAY missing.");
+      return FALSE;
+   }
+
+   /*
+    * Sure, the user could put some nasty things in DISPLAY, but what good
+    * would it do?  We're running with his/her permissions, anyway.
+    *
+    * Additionally, this may fail if someone's machine has a really long
+    * hostname.  Workarounds may include truncating the hostname, using an
+    * MD5 or SHA hash, etc.
+    */
+   Str_Snprintf(gLockFilePath, sizeof gLockFilePath, "%s/.vmware-user.%s.%s.lock",
+                pw->pw_dir, hostname, display);
+
+   if ((gLockFileFd = open(gLockFilePath, O_CREAT | O_RDWR, 00600)) == -1) {
+      Debug("%s: %s: %s\n", __func__, gLockFilePath, strerror(errno));
+
+      /*
+       * If the first attempt to create a lock in the user's home directory
+       * failed, we generate a new lock file path under /tmp and make a
+       * second (and final) attempt.
+       */
+      Str_Snprintf(gLockFilePath, sizeof gLockFilePath,
+                   "/tmp/vmware-user.%"FMTUID".%s.lock", pw->pw_uid, display);
+
+      if ((gLockFileFd = open(gLockFilePath, O_CREAT | O_RDWR, 00600)) == -1) {
+         Debug("%s: %s: %s\n", __func__, gLockFilePath, strerror(errno));
+      }
+   }
+
+   /*
+    * To reiterate, true if we opened the file, false otherwise.
+    */
+   return (gLockFileFd != -1) ? TRUE : FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TryAcquireLockFile --
+ *
+ *      Uses non-blocking fcntl() to try to lock gLockFileFd.
+ *
+ *      Only call this if InitLockFile succeeded.  See InitLockFile re:
+ *      advisory locking.
+ *
+ * Results:
+ *      TRUE if lock acquired, FALSE otherwise.
+ *
+ * Side effects:
+ *      On success, exclusive lock of gLockFileFd acquired.  On failure,
+ *      gLockFileFd is closed and reset to -1.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+TryAcquireLockFile(void)
+{
+   struct flock lock;
+
+   ASSERT(gLockFileFd != -1);
+
+   lock.l_type = F_WRLCK;
+   lock.l_whence = SEEK_SET;
+   lock.l_start = 0;
+   lock.l_len = 0;
+
+   if (fcntl(gLockFileFd, F_SETLK, &lock) == -1) {
+      Debug("%s: fcntl: %s\n", __func__, strerror(errno));
+      close(gLockFileFd);
+      gLockFileFd = -1;
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ReleaseLockFile --
+ *
+ *      Releases advisory lock on gLockFileFd, and closes it.  Note that the
+ *      lock file will persist, because otherwise we have a race between 3
+ *      processes:  us (P1), P2, and P3.
+ *
+ *      P2      open
+ *      P1      unlink
+ *              [unlock]
+ *      P3      open(O_CREAT) -- succeeds & is separate lock file
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Exclusive lock of gLockFileFd released.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+ReleaseLockFile(void)
+{
+   struct flock lock;
+
+   if (gLockFileFd == -1) {
+      return;
+   }
+
+   lock.l_type = F_UNLCK;
+   lock.l_whence = SEEK_SET;
+   lock.l_start = 0;
+   lock.l_len = 0;
+
+   if (fcntl(gLockFileFd, F_SETLK, &lock) == -1) {
+      Debug("%s: fcntl: %s\n", __func__, strerror(errno));
+   }
+
+   close(gLockFileFd);
+   gLockFileFd = -1;
 }

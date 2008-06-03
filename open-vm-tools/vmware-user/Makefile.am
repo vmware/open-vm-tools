@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = vmware-user
+bin_PROGRAMS = vmware-user
 
 AM_CFLAGS =
 AM_CFLAGS += @GTK_CPPFLAGS@
@@ -84,3 +84,10 @@ vmware_user_SOURCES += pointer.c
 vmware_user_SOURCES += resolution.c
 vmware_user_SOURCES += stub.c
 vmware_user_SOURCES += vmware-user.c
+
+install-exec-hook:
+	$(INSTALL) -d $(datadir)/applications/
+	$(INSTALL) -m 644 ../scripts/common/vmware-user.desktop \
+		$(datadir)/applications/
+uninstall-hook:
+	-$(RM) -f $(datadir)/applications/vmware-user.desktop

@@ -27,6 +27,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "vmware.h"
 #include "hashTable.h"
@@ -254,16 +257,16 @@ HashTable_Alloc(uint32 numEntries,       // IN: must be a power of 2
 #ifdef NO_ATOMIC_HASHTABLE
    ASSERT_NOT_IMPLEMENTED((keyType & HASH_FLAG_ATOMIC) == 0);
 #endif
-   ASSERT(((keyType & ~HASH_FLAG_MASK) != HASH_STRING_KEY &&
-           (keyType & ~HASH_FLAG_MASK) != HASH_ISTRING_KEY) ||
-	  (keyType & HASH_FLAG_COPYKEY) == 0);
+   ASSERT((keyType & HASH_FLAG_COPYKEY) == 0 ||
+          ((keyType & HASH_TYPE_MASK) == HASH_STRING_KEY ||
+           (keyType & HASH_TYPE_MASK) == HASH_ISTRING_KEY));
 
    ht = Util_SafeMalloc(sizeof *ht);
    ASSERT_MEM_ALLOC(ht);
 
    ht->numBits = ffs(numEntries) - 1;
    ht->numEntries = numEntries;
-   ht->keyType = keyType & ~HASH_FLAG_MASK;
+   ht->keyType = keyType & HASH_TYPE_MASK;
    ht->atomic = (keyType & HASH_FLAG_ATOMIC) != 0;
    ht->copyKey = (keyType & HASH_FLAG_COPYKEY) != 0;
    ht->freeEntryFn = fn;
@@ -622,6 +625,62 @@ HashTable_ReplaceOrInsert(HashTable  *ht,          // IN/OUT
       Atomic_WritePtr(&entry->clientData, clientData);
    }
    return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HashTable_ReplaceIfEqual --
+ *
+ *      Look up an a key.  If found, replace the existing clientData
+ *	if it is the same as oldClientData and return TRUE.
+ *	Return FALSE otherwise.
+ *
+ * Results:
+ *      TRUE if replaced, FALSE otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+HashTable_ReplaceIfEqual(HashTable  *ht,            // IN/OUT
+                         const char *keyStr,        // IN
+			 void       *oldClientData, // IN
+                         void       *newClientData) // IN
+{
+   uint32 hash = HashTableComputeHash(ht, keyStr);
+   HashTableEntry *entry = HashTableLookup(ht, keyStr, hash);
+   Bool retval = FALSE;
+
+   if (entry == NULL) {
+      return FALSE;
+   }
+
+#ifndef NO_ATOMIC_HASHTABLE
+   if (ht->atomic) {
+      void *data = Atomic_ReadIfEqualWritePtr(&entry->clientData,
+					      oldClientData, newClientData);
+      if (data == oldClientData) {
+	 retval = TRUE;
+	 if (ht->freeEntryFn != NULL) {
+	    ht->freeEntryFn(data);
+	 }
+      }
+   } else
+#endif
+   if (Atomic_ReadPtr(&entry->clientData) == oldClientData) {
+      retval = TRUE;
+      if (ht->freeEntryFn) {
+	 ht->freeEntryFn(Atomic_ReadPtr(&entry->clientData));
+      }
+      Atomic_WritePtr(&entry->clientData, newClientData);
+   }
+
+   return retval;
 }
 
 
