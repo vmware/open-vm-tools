@@ -18,6 +18,8 @@
 sbin_PROGRAMS = vmware-guestd
 pamdir = $(PAM_PREFIX)/pam.d
 
+AM_CFLAGS = -I$(top_builddir)/include
+
 vmware_guestd_LDADD =
 vmware_guestd_LDADD += ../lib/backdoor/libBackdoor.a
 vmware_guestd_LDADD += ../lib/conf/libConf.a
@@ -27,6 +29,7 @@ vmware_guestd_LDADD += ../lib/eventManager/libEventManager.a
 vmware_guestd_LDADD += ../lib/file/libFile.a
 vmware_guestd_LDADD += ../lib/guestApp/libGuestApp.a
 vmware_guestd_LDADD += ../lib/guestInfo/libGuestInfo.a
+vmware_guestd_LDADD += ../lib/guestRpc/libGuestRpc.a
 vmware_guestd_LDADD += ../lib/hgfsServer/libHgfsServer.a
 vmware_guestd_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a
 vmware_guestd_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a
@@ -55,6 +58,7 @@ vmware_guestd_LDADD += ../lib/wiper/libWiper.a
 # can't be put in LDADD), we need to bring the following libraries out of the
 # alphabetical order so their symbols are properly resolved.
 vmware_guestd_LDADD += ../lib/dict/libDict.a
+vmware_guestd_LDADD += ../lib/dynxdr/libDynxdr.a
 vmware_guestd_LDADD += ../lib/hgfs/libHgfs.a
 vmware_guestd_LDADD += ../lib/message/libMessage.a
 vmware_guestd_LDADD += ../lib/unicode/libUnicode.a
@@ -63,6 +67,7 @@ vmware_guestd_LDADD += ../lib/foundryMsg/libFoundryMsg.a
 vmware_guestd_LDADD += ../lib/auth/libAuth.a
 vmware_guestd_LDADD += ../lib/panicDefault/libPanicDefault.a
 vmware_guestd_LDADD += ../lib/panic/libPanic.a
+vmware_guestd_LDADD += ../lib/stubs/libStubs.a
 if SOLARIS
    HGFS_BD = ../lib/hgfsBd/libHgfsBd.a
 else
@@ -78,7 +83,6 @@ vmware_guestd_SOURCES += foreignVMToolsDaemon.c
 vmware_guestd_SOURCES += foreignVMToolsNetworking.c
 vmware_guestd_SOURCES += foundryToolsDaemon.c
 vmware_guestd_SOURCES += main.c
-vmware_guestd_SOURCES += stub.c
 vmware_guestd_SOURCES += toolsDaemon.c
 
 if LINUX

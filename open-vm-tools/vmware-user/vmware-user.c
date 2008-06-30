@@ -56,6 +56,7 @@
 #include "guestApp.h" // for ALLOW_TOOLS_IN_FOREIGN_VM
 #include "unity.h"
 #include "ghIntegration.h"
+#include "resolution.h"
 
 #include "vm_atomic.h"
 #include "hostinfo.h"
@@ -70,6 +71,9 @@ VM_EMBED_VERSION(VMWAREUSER_VERSION_STRING);
 static char THIS_FILE[] = __FILE__;
 #endif
 
+#define WINDOW_TITLE    "vmware-user"
+#define LOCK_ATOM_NAME  "vmware-user-lock"
+
 #define INVALID_VALUE "Invalid option"
 #define INVALID_OPTION "Invalid value"
 #define INVALID_COMMAND "Invalid command format"
@@ -79,12 +83,10 @@ static char THIS_FILE[] = __FILE__;
  * Forward Declarations
  */
 void VMwareUser_OnDestroy(GtkWidget *widget, gpointer data);
-GtkWidget* VMwareUser_Create(void);
+GtkWidget* VMwareUser_CreateWindow(void);
 gint EventQueuePump(gpointer data);
 
-Bool VMwareUserRpcInResetCB    (char const **result, size_t *resultLen,
-                                const char *name, const char *args,
-                                size_t argsSize, void *clientData);
+Bool VMwareUserRpcInResetCB    (RpcInData *data);
 Bool VMwareUserRpcInSetOptionCB(char const **result, size_t *resultLen,
                                 const char *name, const char *args,
                                 size_t argsSize, void *clientData);
@@ -96,9 +98,10 @@ void VMwareUserRpcInErrorCB    (void *clientdata, char const *status);
 extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam);
 extern void ForeignTools_Shutdown(void);
 
-static Bool InitLockFile(void);
-static Bool TryAcquireLockFile(void);
-static void ReleaseLockFile(void);
+static Bool InitGdkWindow(GdkDisplay **dpy, GdkWindow **groupLeader,
+                          GdkWindow **rootWindow);
+static Bool AcquireDisplayLock(void);
+static Bool QueryX11Lock(Display *dpy, Window w, Atom lockAtom);
 
 
 /*
@@ -114,18 +117,15 @@ static pid_t gParentPid;
 static char gLogFilePath[PATH_MAX];
 
 /*
- * The lock file is used to -try- to prevent multiple instances of vmware-user
- * from executing.  See InitLockFile() for more information.
- */
-static char gLockFilePath[PATH_MAX] = "";
-static int gLockFileFd = -1;
-
-/*
  * From vmwareuserInt.h
  */
 RpcIn *gRpcIn;
 Display *gXDisplay;
 GtkWidget *gUserMainWidget;
+
+GtkWidget *gHGWnd;
+GtkWidget *gGHWnd;
+
 Window gXRoot;
 DblLnkLst_Links *gEventQueue;
 Bool optionCopyPaste;
@@ -187,11 +187,11 @@ void VMwareUserCleanupRpc(void)
          gOpenUrlRegistered = FALSE;
       }
       if (gResolutionSetRegistered) {
-         Resolution_Unregister();
+         Resolution_UnregisterCapability();
          gResolutionSetRegistered = FALSE;
       }
       if (gDnDRegistered) {
-         DnD_Unregister(gUserMainWidget);
+         DnD_Unregister(gHGWnd, gGHWnd);
          gDnDRegistered = FALSE;
       }
       if (gCopyPasteRegistered) {
@@ -292,13 +292,12 @@ EventQueuePump(gpointer data) // IN: Unused
 /*
  *-----------------------------------------------------------------------------
  *
- * VMwareUser_Create  --
+ * VMwareUser_CreateWindow  --
  *
- *      Create and init the main window. It's hidden, but we need it to recieve
- *      X-Windows messages
+ *      Create and initializes a hidden input only window for dnd and cp.
  *
  * Results:
- *      The main window widget.
+ *      An invisible gtk widget.
  *
  * Side effects:
  *      None.
@@ -307,7 +306,7 @@ EventQueuePump(gpointer data) // IN: Unused
  */
 
 GtkWidget*
-VMwareUser_Create(void)
+VMwareUser_CreateWindow(void)
 {
    GtkWidget *wnd;
 
@@ -335,22 +334,19 @@ VMwareUser_Create(void)
  */
 
 Bool
-VMwareUserRpcInResetCB(char const **result,     // OUT
-                       size_t *resultLen,       // OUT
-                       const char *name,        // IN
-                       const char *args,        // IN
-                       size_t argsSize,         // Unused
-                       void *clientData)        // Unused
+VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
 {
    Debug("----------toolbox: Received 'reset' from vmware\n");
    if (gDnDRegistered) {
-      DnD_OnReset(gUserMainWidget);
+      DnD_OnReset(gHGWnd, gGHWnd);
+   }
+   if (gCopyPasteRegistered) {
+      CopyPaste_OnReset();
    }
    if (Unity_IsSupported()) {
       Unity_Exit();
    }
-   return RpcIn_SetRetVals(result, resultLen, "ATR " TOOLS_DND_NAME,
-                           TRUE);
+   return RPCIN_SETRETVALS(data, "ATR " TOOLS_DND_NAME, TRUE);
 }
 
 
@@ -411,15 +407,21 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
       FoundryToolsDaemon_RegisterOpenUrlCapability();
    }
    if (!gResolutionSetRegistered) {
-      gResolutionSetRegistered = Resolution_Register();
+      gResolutionSetRegistered = Resolution_Register(gRpcIn);
    } else {
       Resolution_RegisterCapability();
    }
    if (!gDnDRegistered) {
-      gDnDRegistered = DnD_Register(gUserMainWidget);
+      gDnDRegistered = DnD_Register(gHGWnd, gGHWnd);
+      if (gDnDRegistered) {
+         UnityDnD state;
+         state.detWnd = gGHWnd;
+         state.setMode = DnD_SetMode;
+         Unity_SetActiveDnDDetWnd(&state);
+      }
    } else if (DnD_GetVmxDnDVersion() > 1) {
       if (!DnD_RegisterCapability()) {
-         DnD_Unregister(gUserMainWidget);
+         DnD_Unregister(gHGWnd, gGHWnd);
          gDnDRegistered = FALSE;
       }
    }
@@ -427,7 +429,7 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
    if (!gCopyPasteRegistered) {
       gCopyPasteRegistered = CopyPaste_Register(gUserMainWidget);
    }
-   
+
    if (gCopyPasteRegistered) {
       if (!CopyPaste_RegisterCapability()) {
          CopyPaste_Unregister(gUserMainWidget);
@@ -522,13 +524,13 @@ VMwareUserRpcInSetOptionCB(char const **result,     // OUT
       if (strcmp(value, "1") == 0) {
          optionDnD = TRUE;
          if (!gDnDRegistered) {
-            DnD_Register(gUserMainWidget);
+            DnD_Register(gHGWnd, gGHWnd);
             gDnDRegistered = TRUE;
          }
       } else if (strcmp(value, "0") == 0) {
          optionDnD = FALSE;
          if (gDnDRegistered) {
-            DnD_Unregister(gUserMainWidget);
+            DnD_Unregister(gHGWnd, gGHWnd);
             gDnDRegistered = FALSE;
          }
       } else {
@@ -583,7 +585,6 @@ int VMwareUserXIOErrorHandler(Display *dpy)
    } else {
       Debug("VMwareUserXIOErrorHandler hit from forked() child, not cleaning Rpc\n");
    }
-   ReleaseLockFile();
    exit(1);
    return 1;
 }
@@ -704,19 +705,20 @@ main(int argc, char *argv[])
 
    /* Set to system locale. */
    setlocale(LC_CTYPE, "");
+   gtk_set_locale();
+   gtk_init(&argc, &argv);
 
    /*
-    * There can be only one vmware-user (in theory) per X session.
+    * Running more than 1 VMware user process (vmware-user) per X11 session
+    * invites bad juju.  The following routine ensures that only one instance
+    * will run per session.
     *
-    * Reminder:  Use of the lock file is entirely opportunistic.  If
-    * InitLockFile fails, we'll ignore it and continue on without lock file
-    * protection.
+    * NB:  The lock is tied to this process, so it disappears when we exit.
+    * As such, there is no corresponding unlock routine.
     */
-   if (InitLockFile()) {
-      if (TryAcquireLockFile() == FALSE) {
-         Warning("Another instance of vmware-user already running.  Exiting.\n");
-         return -1;
-      }
+   if (AcquireDisplayLock() == FALSE) {
+      Warning("Another instance of vmware-user already running.  Exiting.\n");
+      return -1;
    }
 
    gParentPid = getpid();
@@ -799,14 +801,15 @@ main(int argc, char *argv[])
       }
    }
 
-   gtk_set_locale();
-   gtk_init(&argc, &argv);
-
-   gUserMainWidget = VMwareUser_Create();
+   gUserMainWidget = VMwareUser_CreateWindow();
+   gHGWnd = VMwareUser_CreateWindow();
+   gGHWnd = VMwareUser_CreateWindow();
    /*
     * I don't want to show the window, but I need it's X window to exist.
     */
    gtk_widget_realize(gUserMainWidget);
+   gtk_widget_realize(gHGWnd);
+   gtk_widget_realize(gGHWnd);
 
 
    gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
@@ -837,6 +840,11 @@ main(int argc, char *argv[])
       return -1;
    }
 
+   /* Not fatal. */
+   if (Resolution_Init(TOOLS_DND_NAME, gXDisplay) == FALSE) {
+      Warning("Unable to initialize Guest Fit feature.\n\n");
+   }
+
    if (!RpcIn_start(gRpcIn, RPCIN_POLL_TIME, VMwareUserRpcInResetCB,
                     NULL, VMwareUserRpcInErrorCB, NULL)) {
       Warning("Unable to start the receive loop.\n\n");
@@ -853,9 +861,9 @@ main(int argc, char *argv[])
 
 #if !defined(N_PLAT_NLM) && !defined(sun)
    {
-      FoundryToolsDaemon_RegisterRoutines(gRpcIn, 
-                                          &confDict, 
-                                          gEventQueue, 
+      FoundryToolsDaemon_RegisterRoutines(gRpcIn,
+                                          &confDict,
+                                          gEventQueue,
                                           FALSE);
    }
 #endif
@@ -887,8 +895,6 @@ main(int argc, char *argv[])
       Debug("vmware-user failed to uninitialize blocking.\n");
    }
 
-   ReleaseLockFile();
-
    return 0;
 }
 
@@ -896,136 +902,67 @@ main(int argc, char *argv[])
 /*
  *-----------------------------------------------------------------------------
  *
- * InitLockFile --
+ * InitGdkWindow --
  *
- *      Initializes gLockFileFd to a file descriptor on one of the following:
- *        1. $HOME/.vmware-user.<hostname>.<displayname>.lock
- *        2. /tmp/vmware-user.<uid>.<displayname>.lock
+ *      This routine sets a few properties related to our main window created
+ *      by {gdk,gtk}_init.  Specifically this routine sets the window title,
+ *      sets the override_redirect X11 property, and reparents it to the root
+ *      window,
  *
- *      The first option is preferred, because I'd rather store a lock file
- *      where only our user can access it.  (This avoids a race involved with
- *      relying on known pathnames under /tmp.)  If that path is unavailable
- *      for any reason, we fall back to a path under /tmp.  
- *
- *      In the first case, even if the user's home directory is NFS mounted,
- *      NFS clients still honor fcntl() locks locally, so we would be good to go.
- *
- *      This scheme is to be considered entirely advisory / opportunistic.
- *      I.e., if we're unable to create and open a lock file, we'll plod on,
- *      ignoring failures, and possibly launch multiple instances of vmware-user.
- *
- *      NB:  The lock files are not removed upon exit.
+ *      In addition, this routine will return GDK handles for the following
+ *      objects:
+ *        - This application's default display (think $DISPLAY)
+ *        - Main or group leader window
+ *        - Display's root window
  *
  * Results:
- *      TRUE if the path was generated & lock file opened, FALSE otherwise.
+ *      TRUE on success, FALSE on failure.
  *
  * Side effects:
- *      On success:
- *         Lock file path is written to gLockFilePath.
- *         Lock file is opened and descriptor assigned to gLockFileFd.
+ *      Errors may be sent to stderr.
+ *      Window will have a title of WINDOW_TITLE.
+ *      Window, if not already directly parented by the root, will be.
+ *
+ *      dpy will point to our default display (ex: $DISPLAY).
+ *      groupLeader will point to the window created by gtk_init().
+ *      rootWindow will point to the root window on $DISPLAY.
  *
  *-----------------------------------------------------------------------------
  */
 
 static Bool
-InitLockFile(void)
+InitGdkWindow(GdkDisplay **defaultDisplay,      // OUT: default display
+              GdkWindow **groupLeader,          // OUT: group leader window
+              GdkWindow **rootWindow)           // OUT: root window
 {
-   struct passwd *pw = NULL;
-   /* XXX We really need a constant for maximum hostname lengths. */
-   char hostname[256] = "";
-   char *display = NULL;
+   GdkDisplay *myDefaultDisplay;
+   GdkWindow *myGroupLeader;
+   GdkWindow *myRootWindow;
 
-   if ((pw = getpwuid(getuid())) == NULL) {
-      Warning("%s: getpwuid: %s\n", __func__, strerror(errno));
+   myDefaultDisplay = gdk_display_get_default();
+
+   if (myDefaultDisplay == NULL) {
+      Warning("%s: unable to get default display\n", __func__);
       return FALSE;
    }
 
-   if (gethostname(hostname, sizeof hostname) == -1) {
-      Warning("%s: gethostname: %s\n", __func__,  strerror(errno));
-      return FALSE;
-   }
+   myGroupLeader = gdk_display_get_default_group(myDefaultDisplay);
+   gdk_window_set_title(myGroupLeader, WINDOW_TITLE);
 
    /*
-    * XXX Would it be any better to rely on something returned from gtk/gdk
-    * instead?
+    * Sanity check:  Set the override redirect property on our group leader
+    * window (not default), then re-parent it to the root window (default).
+    * This makes sure that (a) a window manager can't re-parent our window,
+    * and (b) that we remain a top-level window.
     */
-   if ((display = getenv("DISPLAY")) == NULL) {
-      Warning("Environment variable DISPLAY missing.");
-      return FALSE;
-   }
+   myRootWindow = gdk_get_default_root_window();
+   gdk_window_set_override_redirect(myGroupLeader, True);
+   gdk_window_reparent(myGroupLeader, myRootWindow, 10, 10);
+   gdk_display_sync(myDefaultDisplay);
 
-   /*
-    * Sure, the user could put some nasty things in DISPLAY, but what good
-    * would it do?  We're running with his/her permissions, anyway.
-    *
-    * Additionally, this may fail if someone's machine has a really long
-    * hostname.  Workarounds may include truncating the hostname, using an
-    * MD5 or SHA hash, etc.
-    */
-   Str_Snprintf(gLockFilePath, sizeof gLockFilePath, "%s/.vmware-user.%s.%s.lock",
-                pw->pw_dir, hostname, display);
-
-   if ((gLockFileFd = open(gLockFilePath, O_CREAT | O_RDWR, 00600)) == -1) {
-      Debug("%s: %s: %s\n", __func__, gLockFilePath, strerror(errno));
-
-      /*
-       * If the first attempt to create a lock in the user's home directory
-       * failed, we generate a new lock file path under /tmp and make a
-       * second (and final) attempt.
-       */
-      Str_Snprintf(gLockFilePath, sizeof gLockFilePath,
-                   "/tmp/vmware-user.%"FMTUID".%s.lock", pw->pw_uid, display);
-
-      if ((gLockFileFd = open(gLockFilePath, O_CREAT | O_RDWR, 00600)) == -1) {
-         Debug("%s: %s: %s\n", __func__, gLockFilePath, strerror(errno));
-      }
-   }
-
-   /*
-    * To reiterate, true if we opened the file, false otherwise.
-    */
-   return (gLockFileFd != -1) ? TRUE : FALSE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * TryAcquireLockFile --
- *
- *      Uses non-blocking fcntl() to try to lock gLockFileFd.
- *
- *      Only call this if InitLockFile succeeded.  See InitLockFile re:
- *      advisory locking.
- *
- * Results:
- *      TRUE if lock acquired, FALSE otherwise.
- *
- * Side effects:
- *      On success, exclusive lock of gLockFileFd acquired.  On failure,
- *      gLockFileFd is closed and reset to -1.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-TryAcquireLockFile(void)
-{
-   struct flock lock;
-
-   ASSERT(gLockFileFd != -1);
-
-   lock.l_type = F_WRLCK;
-   lock.l_whence = SEEK_SET;
-   lock.l_start = 0;
-   lock.l_len = 0;
-
-   if (fcntl(gLockFileFd, F_SETLK, &lock) == -1) {
-      Debug("%s: fcntl: %s\n", __func__, strerror(errno));
-      close(gLockFileFd);
-      gLockFileFd = -1;
-      return FALSE;
-   }
+   *defaultDisplay = myDefaultDisplay;
+   *groupLeader = myGroupLeader;
+   *rootWindow = myRootWindow;
 
    return TRUE;
 }
@@ -1034,44 +971,227 @@ TryAcquireLockFile(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * ReleaseLockFile --
+ * AcquireDisplayLock --
  *
- *      Releases advisory lock on gLockFileFd, and closes it.  Note that the
- *      lock file will persist, because otherwise we have a race between 3
- *      processes:  us (P1), P2, and P3.
+ *      This function "locks" the display against being "claimed" by another
+ *      instance of vmware-user.  It will succeed if we're the first/only
+ *      instance of vmware-user, and fail otherwise.
  *
- *      P2      open
- *      P1      unlink
- *              [unlock]
- *      P3      open(O_CREAT) -- succeeds & is separate lock file
+ *      NB:  This routine must be called -after- gtk_init().
+ *
+ *      Vmware-user enjoys per-display exclusivity using the following algorithm:
+ *
+ *        1.  Grab X server.  (I.e., get exclusive access.)
+ *        2.  Search for top-level X windows meeting the following criteria:
+ *            a.  named "vmware-user"
+ *            b.  has the property "vmware-user-lock" set.
+ *        3a. If any such windows described above found, then another vmware-user
+ *            process is attached to this display, so we consider the display
+ *            locked.
+ *        3b. Else we're the only one.  Set the "vmware-user-lock" property on
+ *            our top-level window.
+ *        4.  Ungrab the X server.
  *
  * Results:
- *      None.
+ *      TRUE if "lock" acquired (i.e., we're the first/only vmware-user process);
+ *      otherwise FALSE.
  *
  * Side effects:
- *      Exclusive lock of gLockFileFd released.
+ *      The first time this routine is ever called during the lifetime of an X
+ *      session, a new X11 Atom, "vmware-user-lock" is created for the lifetime
+ *      of the X server.
+ *
+ *      The "vmware-user-lock" property may be set on this process's group leader
+ *      window.
  *
  *-----------------------------------------------------------------------------
  */
 
-static void
-ReleaseLockFile(void)
+static Bool
+AcquireDisplayLock(void)
 {
-   struct flock lock;
+   Display *defaultDisplay;     // Current default X11 display.
+   Window queryWindow;          // Root window of defaultDisplay; used as root node
+                                // passed to XQueryTree().
+   Window groupLeader;          // Our instance's window group leader.  This is
+                                // implicitly created by gtk_init().
 
-   if (gLockFileFd == -1) {
-      return;
+   Window *children = NULL;     // Array of windows returned by XQueryTree().
+   unsigned int nchildren;      // Length of children.
+
+   Window parent, root;         // Throwaway window IDs for XQueryTree().
+   Atom lockAtom;               // Refers to the "vmware-user-lock" X11 Atom.
+
+   unsigned int index;
+   Bool alreadyLocked = FALSE;  // Set to TRUE if we discover lock is held.
+   Bool retval = FALSE;
+
+   {
+      GdkDisplay *defaultDisplayGdk;
+      GdkWindow *groupLeaderGdk;
+      GdkWindow *rootWindowGdk;
+
+      /*
+       * Reset some of our main window's settings & fetch GDK handles for
+       * the default display, group leader, and root window.
+       */
+      if (InitGdkWindow(&defaultDisplayGdk, &groupLeaderGdk,
+                        &rootWindowGdk) == FALSE) {
+         Warning("%s: unable to initialize main window.\n", __func__);
+         return FALSE;
+      }
+
+      /*
+       * Since the rest of this routine works in terms of Xlib rather than
+       * GDK, convert GDK handles to backing Xlib handles.
+       */
+      defaultDisplay = gdk_x11_display_get_xdisplay(defaultDisplayGdk);
+      queryWindow = GDK_WINDOW_XWINDOW(rootWindowGdk);
+      groupLeader = GDK_WINDOW_XWINDOW(groupLeaderGdk);
    }
 
-   lock.l_type = F_UNLCK;
-   lock.l_whence = SEEK_SET;
-   lock.l_start = 0;
-   lock.l_len = 0;
-
-   if (fcntl(gLockFileFd, F_SETLK, &lock) == -1) {
-      Debug("%s: fcntl: %s\n", __func__, strerror(errno));
+   /*
+    * Look up the lock atom, creating it if it doesn't already exist.
+    */
+   lockAtom = XInternAtom(defaultDisplay, LOCK_ATOM_NAME, False);
+   if (lockAtom == None) {
+      Warning("%s: unable to create X11 atom: " LOCK_ATOM_NAME "\n", __func__);
+      return FALSE;
    }
 
-   close(gLockFileFd);
-   gLockFileFd = -1;
+   /*
+    * Okay, so at this point the following is done:
+    *
+    *   1.  Our top-level / group leader window is a child of the display's
+    *       root window.
+    *   2.  The window manager can't get its hands on said window.
+    *   3.  We have a handle on the X11 atom which will be used to identify
+    *       the X11 property used as our lock.
+    */
+
+   Debug("%s: Grabbing X server.\n", __func__);
+
+   /*
+    * Neither of these can fail, or at least not in the sense that they'd
+    * return an error.  Instead we'd likely see an X11 I/O error, tearing
+    * the connection down.
+    *
+    * XSync simply blocks until the XGrabServer request is acknowledged
+    * by the server.  It makes sure that we don't continue issuing requests,
+    * such as XQueryTree, until the server grants our "grab".
+    */
+   XGrabServer(defaultDisplay);
+   XSync(defaultDisplay, False);
+
+   /*
+    * WARNING:  At this point, we have grabbed the X server.  Consider the
+    * UI to be completely frozen.  Under -no- circumstances should we return
+    * without ungrabbing the server first.
+    */
+
+   if (XQueryTree(defaultDisplay, queryWindow, &root, &parent, &children,
+                  &nchildren) == 0) {
+      Warning("%s: XQueryTree failed\n", __func__);
+      goto out;
+   }
+
+   /*
+    * Iterate over array of top-level windows.  Search for those named
+    * vmware-user and with the property "vmware-user-lock" set.
+    *
+    * If any such windows are found, then another process has already
+    * claimed this X session.
+    */
+   for (index = 0; (index < nchildren) && !alreadyLocked; index++) {
+      char *name = NULL;
+
+      /* Skip unless window is named vmware-user. */
+      if ((XFetchName(defaultDisplay, children[index], &name) == 0) ||
+          (name == NULL) ||
+          strcmp(name, WINDOW_TITLE)) {
+         XFree(name);
+         continue;
+      }
+
+      /*
+       * Query the window for the "vmware-user-lock" property.
+       */
+      alreadyLocked = QueryX11Lock(defaultDisplay, children[index], lockAtom);
+      XFree(name);
+   }
+
+   /*
+    * Yay.  Lock isn't held, so go ahead and acquire it.
+    */
+   if (!alreadyLocked) {
+      unsigned char dummy[] = "1";
+      Debug("%s: Setting property " LOCK_ATOM_NAME "\n", __func__);
+      /*
+       * NB: Current Xlib always returns one.  This may generate a -fatal- IO
+       * error, though.
+       */
+      XChangeProperty(defaultDisplay, groupLeader, lockAtom, lockAtom, 8,
+                      PropModeReplace, dummy, sizeof dummy);
+      retval = TRUE;
+   }
+
+out:
+   XUngrabServer(defaultDisplay);
+   XSync(defaultDisplay, False);
+   XFree(children);
+
+   return retval;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * QueryX11Lock --
+ *
+ *      This is just a wrapper around XGetWindowProperty which queries the
+ *      window described by <dpy,w> for the property described by lockAtom.
+ *
+ * Results:
+ *      TRUE if property defined by parameters exists; FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+QueryX11Lock(Display *dpy,      // IN: X11 display to query
+             Window w,          // IN: window to query
+             Atom lockAtom)     // IN: atom used for locking
+{
+   Atom ptype;                  // returned property type
+   int pfmt;                    // returned property format
+   unsigned long np;            // returned # of properties
+   unsigned long remaining;     // amount of data remaining in property
+   unsigned char *data = NULL;
+
+   if (XGetWindowProperty(dpy, w, lockAtom, 0, 1, False, lockAtom,
+                          &ptype, &pfmt, &np, &remaining, &data) != Success) {
+      Warning("%s: Unable to query window %lx for property %s\n", __func__, w,
+              LOCK_ATOM_NAME);
+      return FALSE;
+   }
+
+   /*
+    * Xlib is wacky.  If the following test is true, then our property
+    * didn't exist for the window in question.  As a result, `data' is
+    * unset, so don't worry about the lack of XFree(data) here.
+    */
+   if (ptype == None) {
+      return FALSE;
+   }
+
+   /*
+    * We care only about the existence of the property, not its value.
+    */
+   XFree(data);
+
+   return TRUE;
 }

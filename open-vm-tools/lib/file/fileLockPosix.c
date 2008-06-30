@@ -76,7 +76,7 @@
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
 
-#define DEVICE_LOCK_DIR	"/var/lock"
+#define DEVICE_LOCK_DIR "/var/lock"
 
 /*
  * Parameters used by the file library.
@@ -128,7 +128,7 @@ FileLock_Init(int lockerPid,            // IN
  * IsLinkingAvailable --
  *
  *      Check if linking is supported in the filesystem where we create
- *	the lock file.
+ *      the lock file.
  *
  * Results:
  *      TRUE is we're sure it's supported.  FALSE otherwise.
@@ -218,7 +218,7 @@ IsLinkingAvailable(const char *fileName)     // IN:
  * FileLockGetPid --
  *
  *      Returns the pid of the main thread if we're running in a
- *	multithreaded process, otherwise return the result of getpid().
+ *      multithreaded process, otherwise return the result of getpid().
  *
  * Results:
  *      a pid.
@@ -324,7 +324,7 @@ GetLockFileValues(const char *lockFileName, // IN:
    char line[1000];
    Bool deleteLockFile;
 
-   int	status;
+   int status;
 
    ASSERT(lockFileName);
    ASSERT(pid);
@@ -384,11 +384,11 @@ GetLockFileValues(const char *lockFileName, // IN:
  *
  * IsValidProcess --
  *
- *	Determine if the process, via its pid, is valid (alive).
+ *      Determine if the process, via its pid, is valid (alive).
  *
  * Results:
- *	TRUE	Yes
- *	FALSE	No
+ *      TRUE    Yes
+ *      FALSE   No
  *
  * Side effects:
  *      None.
@@ -552,9 +552,9 @@ exit:
  *      Change the host file system.
  *
  * Note:
- *	This locking method remains due to "minicom" and similar
- *	programs that use this locking method for access serialization
- *	of serial ports.
+ *      This locking method remains due to "minicom" and similar
+ *      programs that use this locking method for access serialization
+ *      of serial ports.
  *
  *----------------------------------------------------------------------
  */
@@ -585,7 +585,7 @@ FileLock_LockDevice(const char *deviceName)   // IN:
                FileLockGetPid(), hostID);
 
    while ((status = CreateLockFile(lockFileName, lockFileLink,
-						uniqueID)) == 0) {
+                                   uniqueID)) == 0) {
       int  pid;
       char fileID[1000];
 
@@ -650,7 +650,7 @@ exit:
  */
 
 Bool
-FileLock_UnlockDevice(const char *deviceName)	// IN:
+FileLock_UnlockDevice(const char *deviceName)  // IN:
 {
    Bool su;
    int  ret;
@@ -688,10 +688,11 @@ FileLock_UnlockDevice(const char *deviceName)	// IN:
  *
  * ReadSlashProc --
  *
- *	Read the data in a /proc file
+ *      Read the data in a /proc file
  *
  * Results:
- *	
+ *      0    Data is available
+ *      !0   Error (errno)
  *
  * Side effects:
  *      None.
@@ -745,11 +746,11 @@ ReadSlashProc(const char *procPath, // IN:
  *
  * ProcessCreationTime --
  *
- *	Return the specified process's creation time.
+ *      Return the specified process's creation time.
  *
  * Results:
- *	The process's creation time is returned. If an error occurs the
- *	reported creation time will be 0.
+ *      The process's creation time is returned. If an error occurs the
+ *      reported creation time will be 0.
  *
  * Side effects:
  *      None.
@@ -849,11 +850,11 @@ ProcessCreationTime(pid_t pid)
  *
  * FileLockValidOwner --
  *
- *	Validate the lock file owner.
+ *      Validate the lock file owner.
  *
  * Results:
- *	TRUE	Yes
- *	FALSE	No
+ *      TRUE    Yes
+ *      FALSE   No
  *
  * Side effects:
  *      None.
@@ -915,11 +916,11 @@ FileLockValidOwner(const char *executionID, // IN:
  *
  *  FileLockOpenFile --
  *
- *	Open the specified file
+ *      Open the specified file
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -945,11 +946,11 @@ FileLockOpenFile(ConstUnicode pathName,        // IN:
  *
  *  FileLockCloseFile --
  *
- *	Close the specified file
+ *      Close the specified file
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -969,11 +970,11 @@ FileLockCloseFile(FILELOCK_FILE_HANDLE handle) // IN:
  *
  * FileLockReadFile --
  *
- *	Read a file.
+ *      Read a file.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side effects:
  *      None
@@ -1009,11 +1010,11 @@ FileLockReadFile(FILELOCK_FILE_HANDLE handle,  // IN:
  *
  * FileLockWriteFile --
  *
- *	Write a file.
+ *      Write a file.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side effects:
  *      May change the host file system.
@@ -1045,25 +1046,50 @@ FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN:
 
 
 /*
+ *---------------------------------------------------------------------------
+ *
+ * FileLockGetExecutionID --
+ *
+ *      Returns the executionID of the caller.
+ *
+ * Results:
+ *      The executionID of the caller.
+ *
+ * Side effects:
+ *      The executionID of the caller is not thread safe. Locking is currently
+ *      done at the process level - all threads of a process are treated
+ *      identically.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+char *
+FileLockGetExecutionID(void)
+{
+   return Str_SafeAsprintf(NULL, "%d", FileLockGetPid());
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * FileLock_Lock --
  *
- *	Obtain a lock on a file; shared or exclusive access. Also specify
- *	how long to wait on lock acquisition - msecMaxWaitTime
+ *      Obtain a lock on a file; shared or exclusive access. Also specify
+ *      how long to wait on lock acquisition - msecMaxWaitTime
  *
- *	msecMaxWaitTime specifies the maximum amount of time, in
- *	milliseconds, to wait for the lock before returning the "not
- *	acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
- *	equivalent of a "try lock" - the lock will be acquired only if
- *	there is no contention. A value of FILELOCK_INFINITE_WAIT
- *	specifies "waiting forever" to acquire the lock.
+ *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      milliseconds, to wait for the lock before returning the "not
+ *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
+ *      equivalent of a "try lock" - the lock will be acquired only if
+ *      there is no contention. A value of FILELOCK_INFINITE_WAIT
+ *      specifies "waiting forever" to acquire the lock.
  *
  * Results:
- *	NULL	Lock not acquired. Check err.
- *		err	0	Lock Timed Out
- *		err	!0	errno
- *	!NULL	Lock Acquired. This is the "lockToken" for an unlock.
+ *      NULL    Lock not acquired. Check err.
+ *              err     0       Lock Timed Out
+ *              err     !0      errno
+ *      !NULL   Lock Acquired. This is the "lockToken" for an unlock.
  *
  * Side effects:
  *      Changes the host file system.
@@ -1079,7 +1105,6 @@ FileLock_Lock(ConstUnicode filePath,        // IN:
 {
    Unicode fullPath;
    void *lockToken;
-   char pidString[16];
    char creationTimeString[32];
 
    ASSERT(filePath);
@@ -1091,16 +1116,11 @@ FileLock_Lock(ConstUnicode filePath,        // IN:
       return NULL;
    }
 
-   // Encode the callers process creation time
-   Str_Sprintf(creationTimeString, sizeof creationTimeString, "pc=%"FMT64"u",
+   Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
                ProcessCreationTime(FileLockGetPid()));
 
-   // No thread information encoded - NOT THREAD SAFE
-   Str_Sprintf(pidString, sizeof pidString, "%d", FileLockGetPid());
-
-   lockToken = FileLockIntrinsic(FileLockGetMachineID(), pidString,
-                                 creationTimeString, fullPath, !readOnly,
-                                 msecMaxWaitTime, err);
+   lockToken = FileLockIntrinsic(fullPath, !readOnly, msecMaxWaitTime,
+                                 creationTimeString, err);
 
    Unicode_Free(fullPath);
 
@@ -1113,11 +1133,11 @@ FileLock_Lock(ConstUnicode filePath,        // IN:
  *
  * FileLock_Unlock --
  *
- *	Release the lock held on the specified file.
+ *      Release the lock held on the specified file.
  *
  * Results:
- *	0	unlocked
- *	>0	errno
+ *      0       unlocked
+ *      >0      errno
  *
  * Side effects:
  *      Changes the host file system.
@@ -1131,7 +1151,6 @@ FileLock_Unlock(ConstUnicode filePath,  // IN:
 {
    int err;
    Unicode fullPath;
-   char pidString[16];
 
    ASSERT(filePath);
    ASSERT(lockToken);
@@ -1141,11 +1160,7 @@ FileLock_Unlock(ConstUnicode filePath,  // IN:
       return EINVAL;
    }
 
-   // No thread information encoded - NOT THREAD SAFE
-   Str_Sprintf(pidString, sizeof pidString, "%d", FileLockGetPid());
-
-   err = FileUnlockIntrinsic(FileLockGetMachineID(), pidString, fullPath,
-                             lockToken);
+   err = FileUnlockIntrinsic(fullPath, lockToken);
 
    Unicode_Free(fullPath);
 
@@ -1158,17 +1173,17 @@ FileLock_Unlock(ConstUnicode filePath,  // IN:
  *
  * FileLock_DeleteFileVMX --
  *
- *	The VMX file delete primitive.
+ *      The VMX file delete primitive.
  *
  * Results:
- *	0	unlocked
- *	>0	errno
+ *      0       unlocked
+ *      >0      errno
  *
  * Side effects:
  *      Changes the host file system.
  *
  * Note:
- *	THIS IS A HORRIBLE HACK AND NEEDS TO BE REMOVED ASAP!!!
+ *      THIS IS A HORRIBLE HACK AND NEEDS TO BE REMOVED ASAP!!!
  *
  *----------------------------------------------------------------------
  */
@@ -1178,7 +1193,6 @@ FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
 {
    int err;
    Unicode fullPath;
-   char pidString[16];
 
    ASSERT(filePath);
 
@@ -1187,10 +1201,7 @@ FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
       return EINVAL;
    }
 
-   // No thread information encoded - NOT THREAD SAFE
-   Str_Sprintf(pidString, sizeof pidString, "%d", FileLockGetPid());
-
-   err = FileLockHackVMX(FileLockGetMachineID(), pidString, fullPath);
+   err = FileLockHackVMX(fullPath);
 
    Unicode_Free(fullPath);
 

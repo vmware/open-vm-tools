@@ -605,14 +605,18 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
        S_ISDIR(statBuf.st_mode)) {
       Str_Strcat(path, "/", sizeof path);
    }
-   
-   gtk_file_selection_set_filename(GTK_FILE_SELECTION(scriptsFileDlg), 
+
+   gtk_file_selection_set_filename(GTK_FILE_SELECTION(scriptsFileDlg),
                                    path);
    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(scriptsFileDlg));
    gtk_widget_set_sensitive(GTK_FILE_SELECTION(scriptsFileDlg)->ok_button, FALSE);
+#ifdef GTK2
+   gtk_file_selection_set_select_multiple(GTK_FILE_SELECTION(scriptsFileDlg), FALSE);
+#else
    gtk_clist_set_selection_mode(GTK_CLIST(GTK_FILE_SELECTION(scriptsFileDlg)->
                                           file_list),
                                 GTK_SELECTION_BROWSE);
+#endif
    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->ok_button),
                        "clicked", (GtkSignalFunc)Scripts_BrowseOnOk, &path);
    gtk_signal_connect(GTK_OBJECT(scriptsFileDlg), "destroy",

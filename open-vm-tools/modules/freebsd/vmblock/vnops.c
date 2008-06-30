@@ -187,6 +187,10 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kdb.h>
+#include "compat_freebsd.h"
+#if __FreeBSD_version >= 700000
+#include <sys/priv.h>
+#endif
 
 #include "vmblock_k.h"
 #include "vmblock.h"
@@ -210,7 +214,7 @@ static vop_getwritemount_t      VMBlockVopGetWriteMount;
 static vop_inactive_t           VMBlockVopInactive;
 static vop_ioctl_t              VMBlockVopIoctl;
 static vop_islocked_t           VMBlockVopIsLocked;
-static vop_lock_t               VMBlockVopLock;
+static compat_vop_lock_t        VMBlockVopLock;
 static vop_lookup_t             VMBlockVopLookup;
 static vop_open_t               VMBlockVopOpen;
 static vop_print_t              VMBlockVopPrint;
@@ -246,23 +250,23 @@ typedef struct VMBlockIoctlArgs VMBlockIoctlArgs;
  */
 
 struct vop_vector VMBlockVnodeOps = {
-   .vop_bypass =        VMBlockVopBypass,
-   .vop_access =        VMBlockVopAccess,
-   .vop_bmap =          VOP_EOPNOTSUPP,
-   .vop_getattr =       VMBlockVopGetAttr,
-   .vop_getwritemount = VMBlockVopGetWriteMount,
-   .vop_inactive =      VMBlockVopInactive,
-   .vop_ioctl =         VMBlockVopIoctl,
-   .vop_islocked =      VMBlockVopIsLocked,
-   .vop_lock =          VMBlockVopLock,
-   .vop_lookup =        VMBlockVopLookup,
-   .vop_open =          VMBlockVopOpen,
-   .vop_print =         VMBlockVopPrint,
-   .vop_reclaim =       VMBlockVopReclaim,
-   .vop_rename =        VMBlockVopRename,
-   .vop_setattr =       VMBlockVopSetAttr,
-   .vop_strategy =      VOP_EOPNOTSUPP,
-   .vop_unlock =        VMBlockVopUnlock,
+   .vop_bypass =                  VMBlockVopBypass,
+   .vop_access =                  VMBlockVopAccess,
+   .vop_bmap =                    VOP_EOPNOTSUPP,
+   .vop_getattr =                 VMBlockVopGetAttr,
+   .vop_getwritemount =           VMBlockVopGetWriteMount,
+   .vop_inactive =                VMBlockVopInactive,
+   .vop_ioctl =                   VMBlockVopIoctl,
+   .vop_islocked =                VMBlockVopIsLocked,
+   .COMPAT_VOP_LOCK_OP_ELEMENT =  VMBlockVopLock,
+   .vop_lookup =                  VMBlockVopLookup,
+   .vop_open =                    VMBlockVopOpen,
+   .vop_print =                   VMBlockVopPrint,
+   .vop_reclaim =                 VMBlockVopReclaim,
+   .vop_rename =                  VMBlockVopRename,
+   .vop_setattr =                 VMBlockVopSetAttr,
+   .vop_strategy =                VOP_EOPNOTSUPP,
+   .vop_unlock =                  VMBlockVopUnlock,
 };
 
 /*
@@ -560,7 +564,7 @@ struct vop_lookup_args {
 */
 {
    struct componentname *cnp = ap->a_cnp;
-   struct thread *td = cnp->cn_thread;
+   COMPAT_THREAD_VAR(td, cnp->cn_thread);
    struct vnode *dvp = ap->a_dvp;
    struct vnode *vp, *ldvp, *lvp;
    BlockHandle blockCookie;
@@ -599,15 +603,15 @@ struct vop_lookup_args {
    }
 
    if ((blockCookie = BlockLookup(pathname, OS_UNKNOWN_BLOCKER)) != NULL) {
-      int lkflags = lockstatus(dvp->v_vnlock, td) & LK_TYPE_MASK;
+      int lkflags = compat_lockstatus(dvp->v_vnlock, td) & LK_TYPE_MASK;
       lvp = VPTOVMB(dvp)->lowerVnode;
       vhold(dvp);
       vhold(lvp);
-      VOP_UNLOCK(dvp, 0, td);
+      COMPAT_VOP_UNLOCK(dvp, 0, td);
 
       error = BlockWaitOnFile(pathname, blockCookie);
 
-      VOP_LOCK(dvp, lkflags, td);
+      COMPAT_VOP_LOCK(dvp, lkflags, td);
       vdrop(lvp);
       vdrop(dvp);
       if (dvp->v_op != &VMBlockVnodeOps) {
@@ -720,7 +724,11 @@ struct vop_open_args {
        *      readdir() of the filesystem root for non-privileged users.
        */
       if ((retval = suser(ap->a_td)) == 0) {
+#if __FreeBSD_version >= 700000
+         fp = ap->a_fp;
+#else
          fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+#endif
          fp->f_ops = &VMBlockFileOps;
       }
    } else {
@@ -818,7 +826,7 @@ struct vop_ioctl_args {
 {
    VMBlockIoctlArgs *ioctlArgs = (VMBlockIoctlArgs *)ap->a_data;
    VMBlockMount *mp;
-   struct thread *td = ap->a_td;
+   COMPAT_THREAD_VAR(td, ap->a_td);
    struct vnode *vp = ap->a_vp;
    char *pathbuf = NULL;
    int ret = 0, pathlen;
@@ -833,10 +841,10 @@ struct vop_ioctl_args {
     *       may be invalid.
     *   2.  Make sure the filesystem isn't being unmounted.
     */
-   VOP_LOCK(vp, LK_EXCLUSIVE|LK_RETRY, td);
+   COMPAT_VOP_LOCK(vp, LK_EXCLUSIVE|LK_RETRY, td);
    if (vp->v_op != &VMBlockVnodeOps ||
        vp->v_mount->mnt_kern_flag & MNTK_UNMOUNT) {
-      VOP_UNLOCK(vp, 0, td);
+      COMPAT_VOP_UNLOCK(vp, 0, td);
       return EBADF;
    }
 
@@ -853,7 +861,7 @@ struct vop_ioctl_args {
        * argument before passing to the lower layer.
        */
       ap->a_data = ioctlArgs->data;
-      VOP_UNLOCK(vp, 0, td);
+      COMPAT_VOP_UNLOCK(vp, 0, td);
       return VMBlockVopBypass((struct vop_generic_args *)ap);
    }
 
@@ -921,7 +929,7 @@ struct vop_ioctl_args {
       ret = EOPNOTSUPP;
    }
 
-   VOP_UNLOCK(vp, 0, td);
+   COMPAT_VOP_UNLOCK(vp, 0, td);
    if (pathbuf) {
       uma_zfree(VMBlockPathnameZone, pathbuf);
    }
@@ -1100,18 +1108,18 @@ struct vop_rename_args {
  */
 
 static int
-VMBlockVopLock(struct vop_lock_args *ap)
+VMBlockVopLock(compat_vop_lock_args *ap)
 /*
-struct vop_lock_args {
-   struct vnode *vp;    // IN: vnode operand 
-   int flags;           // IN: lockmgr(9) flags
-   struct thread *td;   // IN: calling thread's context
-};
+struct {
+   struct vnode *a_vp;    // IN: vnode operand 
+   int a_flags;           // IN: lockmgr(9) flags
+   struct thread *a_td;   // IN: calling thread's context
+} *ap;
 */
 {
    struct vnode *vp = ap->a_vp;
    int flags = ap->a_flags;
-   struct thread *td = ap->a_td;
+   COMPAT_THREAD_VAR(td, ap->a_td);
    struct VMBlockNode *nn;
    struct vnode *lvp;
    int error;
@@ -1139,7 +1147,7 @@ struct vop_lock_args {
        * We prevent it from being recycled by holding the vnode here.
        */
       vholdl(lvp);
-      error = VOP_LOCK(lvp, flags, td);
+      error = COMPAT_VOP_LOCK(lvp, flags, td);
 
       /*
        * We might have slept to get the lock and someone might have clean
@@ -1161,7 +1169,7 @@ struct vop_lock_args {
             panic("Unsupported lock request %d\n",
                 ap->a_flags);
          }
-         VOP_UNLOCK(lvp, 0, td);
+         COMPAT_VOP_UNLOCK(lvp, 0, td);
          error = vop_stdlock(ap);
       }
       vdrop(lvp);
@@ -1205,7 +1213,7 @@ struct vop_unlock_args {
 {
    struct vnode *vp = ap->a_vp;
    int flags = ap->a_flags;
-   struct thread *td = ap->a_td;
+   COMPAT_THREAD_VAR(td, ap->a_td);
    struct VMBlockNode *nn;
    struct vnode *lvp;
    int error;
@@ -1220,7 +1228,7 @@ struct vop_unlock_args {
    }
    nn = VPTOVMB(vp);
    if (nn != NULL && (lvp = VMBVPTOLOWERVP(vp)) != NULL) {
-      error = VOP_UNLOCK(lvp, flags, td);
+      error = COMPAT_VOP_UNLOCK(lvp, flags, td);
    } else {
       error = vop_stdunlock(ap);
    }
@@ -1255,9 +1263,9 @@ struct vop_islocked_args {
 */
 {
    struct vnode *vp = ap->a_vp;
-   struct thread *td = ap->a_td;
+   COMPAT_THREAD_VAR(td, ap->a_td);
 
-   return lockstatus(vp->v_vnlock, td);
+   return compat_lockstatus(vp->v_vnlock, td);
 }
 
 
@@ -1371,7 +1379,7 @@ struct vop_reclaim_args {
     * to the lower layer's lock.)
     */
    vp->v_vnlock = &vp->v_lock;
-   lockmgr(vp->v_vnlock, LK_EXCLUSIVE|LK_INTERLOCK, VI_MTX(vp), curthread);
+   compat_lockmgr(vp->v_vnlock, LK_EXCLUSIVE|LK_INTERLOCK, VI_MTX(vp), curthread);
    vput(lowervp);
 
    /*

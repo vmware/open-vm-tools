@@ -26,7 +26,7 @@
  *
  */
 
-#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #   error This file should not be compiled
 #endif
 

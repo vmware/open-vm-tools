@@ -183,7 +183,7 @@ ffs(uint32 bits)
    } else {
       i = 1;
 
-      while (bits) {
+      while ((bits & 0x1) == 0) {
          i++;
          bits >>= 1;
       }

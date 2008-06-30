@@ -61,8 +61,9 @@ LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libGuestInfo_a_AR = $(AR) $(ARFLAGS)
 libGuestInfo_a_LIBADD =
-am_libGuestInfo_a_OBJECTS = guestInfoServer.$(OBJEXT) \
-	guestInfoPosix.$(OBJEXT) guestInfoPerfMonLinux.$(OBJEXT)
+am_libGuestInfo_a_OBJECTS = guestInfo.$(OBJEXT) \
+	guestInfoServer.$(OBJEXT) guestInfoPosix.$(OBJEXT) \
+	guestInfoPerfMonLinux.$(OBJEXT)
 libGuestInfo_a_OBJECTS = $(am_libGuestInfo_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -156,6 +157,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -221,9 +223,10 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libGuestInfo.a
-libGuestInfo_a_SOURCES = guestInfoServer.c guestInfoPosix.c \
-	guestInfoPerfMonLinux.c
-AM_CFLAGS = $(DNET_CPPFLAGS) $(PROCPS_CPPFLAGS)
+libGuestInfo_a_SOURCES = guestInfo.c guestInfoServer.c \
+	guestInfoPosix.c guestInfoPerfMonLinux.c
+AM_CFLAGS = $(DNET_CPPFLAGS) $(PROCPS_CPPFLAGS) \
+	-I$(top_builddir)/include
 all: all-am
 
 .SUFFIXES:
@@ -271,6 +274,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/guestInfo.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/guestInfoPerfMonLinux.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/guestInfoPosix.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/guestInfoServer.Po@am__quote@

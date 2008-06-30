@@ -120,7 +120,7 @@ SyncMutex_Lock(SyncMutex *that) // IN
    WaitOnLocalSemaphore(that->semaphoreHandle);
 #else
 #if defined(VMX86_DEVEL)
-#define RETRY_TIMEOUT_MS -1 // Infinite time out to catch bug #23716 (devel)
+#define RETRY_TIMEOUT_MS (-1) // Infinite time out to catch bug #23716 (devel)
 #else
 #define RETRY_TIMEOUT_MS 5000 // Workaround for bug #23716
 #endif

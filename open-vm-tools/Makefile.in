@@ -53,7 +53,7 @@ build_triplet = @build@
 host_triplet = @host@
 @HAVE_X11_TRUE@am__append_1 = $(X11_SUBDIRS)
 @BUILD_HGFSMOUNTER_TRUE@am__append_2 = hgfsmounter
-@SOLARIS_FALSE@am__append_3 = modules
+@SOLARIS_FALSE@@WITH_KERNEL_MODULES_TRUE@am__append_3 = modules
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
@@ -169,6 +169,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@

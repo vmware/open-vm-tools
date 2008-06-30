@@ -1,13 +1,100 @@
+2008-06-13  Elliot Lee  <elliot@vmware.com>
+
+	* Resync with internal trunk (2008.06.13)
+
+	* FreeBSD 7/8 fixes from Martin Blapp.
+
+	* Fix getpwnam_r etc. on FreeBSD & Solaris.
+
+	* configure.ac: Add --without-kernel-modules,
+	--with-linux-release, and --with-linuxdir (gissa).
+
+	* configure.ac, lib/guestRpc/*, lib/guestInfo/guestInfo.c,
+	lib/guestInfo/guestInfoServer.c, lib/dynxdr/*,
+	{vmware-user,guestd}/foreignVMToolsNetworking.c, guestd/Makefile.am,
+	{vmware-user,guestd}/foundryToolsDaemon.c, lib/include/dynxdr.h,
+	lib/include/guestInfo.h, lib/include/vmxrpc.h,
+	lib/include/xdrutil.h, lib/Makefile.am, lib/netUtil/*,
+	lib/vixTools/Makefile.am: Add support for XDR encoding of RPC
+	values, including the NicInfoV2 structure.
+
+	* guestd/stub.c, hgfsclient/Makefile.am, hgfsclient/stub.c,
+	hgfsclient/stub-user-util.c, hgfsmounter/Makefile.am,
+	hgfsmounter/stub.c, lib/stubs/*, libguestlib/Makefile.am,
+	libguestlib/stubs.c, toolbox/Makefile.am, toolbox/stub.c,
+	vmware-user/stub.c: Centralize stubs.
+
+	* lib/guestInfo/guestInfoPerfMonLinux.c: Convert ioInRate and
+	ioOutRate to be in terms of KB instead of pages.
+
+	* lib/hgfsBd/hgfsBd.c, lib/hgfsServer/hgfsServer.c,
+	lib/hgfsServer/hgfsServerLinux.c: Large packet support, and
+	additional case-insensitivity fixes.
+
+	* lib/include/hgfsBd.h, lib/include/hgfs.h,
+	lib/include/hgfsProto.h: Add HGFS error code.
+	
+	* lib/hgfs/hgfsUtil.c, lib/guestInfo/Makefile.am,
+	lib/guestInfo/guestInfoPosix.c, lib/guestApp/guestApp.c,
+	lib/foundryMsg/foundryMsg.c, lib/file/fileLockPrimitive.c,
+	lib/file/fileIOPosix.c, lib/file/fileLockPosix.c,
+	guestd/toolsDaemon.c, guestd/debugStdio.c, guestd/main.c,
+	lib/hgfsServerManagerGuest/hgfsServerManagerGuest.c,
+	lib/include/codeset.h, lib/include/cpuid_info.h,
+	lib/include/dnd.h, lib/include/file_extensions.h,
+	lib/include/fileInt.h, lib/include/ghIntegration.h,
+	lib/include/guestApp.h, lib/include/guestStats.h,
+	lib/include/hgfsServerInt.h, lib/include/hgfsUtil.h,
+	lib/include/hostinfo.h, lib/include/loglevel_user.h,
+	lib/include/netutil.h, lib/include/panic.h, lib/include/posix.h,
+	lib/include/unicode*.h, lib/include/util.h, lib/include/vix.h,
+	lib/include/vixTools.h, lib/include/vm_app.h,
+	lib/include/vm_basic_defs.h, lib/include/vm_product.h,
+	lib/include/vm_tools_version.h, lib/include/vm_version.h,
+	lib/include/x86cpuid.h, lib/misc/codeset.c, lib/misc/codesetOld.c,
+	lib/misc/codesetOld.h, lib/misc/hashTable.c, lib/misc/hostname.c,
+	lib/misc/timeutil.c, lib/panic/panic.c, lib/string/str.c,
+	lib/sync/syncMutex.c, lib/system/systemLinux.c, lib/unicode/*.c,
+	lib/unityStub/*, lib/user/hostinfo.c, lib/user/hostinfoPosix.c,
+	lib/vixTools/*, modules/linux/vmxnet/*, toolbox/debugStdio.c,
+	vmware-user/debugStdio.c, vmware-user/dnd.c, vmware-user/main.c:
+	Bug fixes.
+
+	* modules/linux/vmxnet/*: Remove unused BPF code. Add ethtool
+	callbacks to get & set driver settings.
+
+	* lib/user/util.c: Add function for getting backtraces.
+
+	* lib/resolution/*, vmware-user/*, lib/Makefile.am, configure.ac:
+	Move resolution-changing code into separate library.
+
+	* guestd/main.c, lib/include/tools.h: Allow disabling tools
+	version reporting to the host, via config file.
+
+	* lib/rpcIn/*, lib/include/rpcin.h, guestd/toolsDaemon.c,
+	toolbox/toolbox-gtk.c: Updated RPC API
+
+	* lib/include/dndGuest.h: Helper API for DnD code
+
+	* modules/freebsd/vmhgfs/*, modules/freebsd/vmmemctl/*,
+	modules/freebsd/vmblock/*, modules/linux/vmhgfs/*,
+	modules/linux/vmmemctl/*: Reflect changes from main source tree.
+
+	* vmware-user/copyPaste.c: Copy/paste cleanup.
+
+	* vmware-user/vmware-user.c: Updated locking code to use X11
+	display instead of lockfiles.
+
 2008-06-03  Adar Dembo  <adar@vmware.com>
 	* Resync with internal trunk (2008.05.28).
 
 	* configure.ac, Makefile.am, */Makefile.am: Added rudimentary
 	`make install` support. Fixes Sourceforge bug 1839981.
-	
+
 	* configure.ac, Makefile.am, vmware-user-suid-wrapper/*: Added
 	vmware-user-suid-wrapper to help autostart vmware-user. Added some
 	informational tags to AC_DEFINE macros.
-	
+
 	* */debugStdio.c: Fixed a format string vulnerability
 	in Debug. Allocate fd on the stack in DebugToFile.
 
@@ -56,7 +143,7 @@
 	* lib/include/productState.h: Added VDM client product.
 
 	* lib/include/unicode*, lib/unicode/*: Ongoing i18n work.
-	
+
 	* lib/include/vixCommands.h: Added command to set snapshot information.
 
 	* lib/include/vix.h: Added more errors and a new flag.
@@ -106,7 +193,7 @@
 	only one vmware-user instance per X session.
 
 	* xferlogs/xferlogs.c: Fix a formatted string vulnerability.
-	
+
 2008-05-12  Elliot Lee  <elliot@vmware.com>
 
 	* Resync with internal trunk (2008.05.08).

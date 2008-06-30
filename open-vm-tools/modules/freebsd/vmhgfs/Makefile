@@ -27,6 +27,8 @@ HEADERS += kernelStubs.h
 HEADERS += fsutil.h
 HEADERS += vnopscommon.h
 HEADERS += os.h
+HEADERS += compat_freebsd.h
+HEADERS += compat_vop.h
 
 COMMON_SRCS := cpName.c
 COMMON_SRCS += cpNameLinux.c

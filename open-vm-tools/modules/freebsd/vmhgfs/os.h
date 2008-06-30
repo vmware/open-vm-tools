@@ -29,6 +29,8 @@
 
 #if defined(__FreeBSD__)
 #  include <sys/param.h>          // for <everything>
+#  include <sys/proc.h>
+#  include <sys/condvar.h>
 #  include <sys/lock.h>           // for struct mtx
 #  include <sys/mutex.h>          // for struct mtx
 #  include <sys/sx.h>

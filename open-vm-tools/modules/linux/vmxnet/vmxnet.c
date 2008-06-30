@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmxnet.c: A virtual network driver for VMware.
  */
 #include "driver-config.h"
@@ -25,7 +25,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 #include <linux/moduleparam.h>
 #endif
-   
+
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 #include "compat_pci.h"
@@ -54,14 +54,9 @@
 #include "net.h"
 #include "vmxnet_version.h"
 
-#ifdef BPF_SUPPORT_ENABLED
-#include "bpf_meta.h"
-#include "compat_highmem.h"
-#endif
-
 static int vmxnet_debug = 1;
 
-#define VMXNET_WATCHDOG_TIMEOUT (5 * HZ) 
+#define VMXNET_WATCHDOG_TIMEOUT (5 * HZ)
 
 #if defined(CONFIG_NET_POLL_CONTROLLER) || defined(HAVE_POLL_CONTROLLER)
 #define VMW_HAVE_POLL_CONTROLLER
@@ -70,7 +65,7 @@ static int vmxnet_debug = 1;
 static int vmxnet_open(struct net_device *dev);
 static int vmxnet_start_tx(struct sk_buff *skb, struct net_device *dev);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-static compat_irqreturn_t vmxnet_interrupt(int irq, void *dev_id, 
+static compat_irqreturn_t vmxnet_interrupt(int irq, void *dev_id,
 					   struct pt_regs * regs);
 #else
 static compat_irqreturn_t vmxnet_interrupt(int irq, void *dev_id);
@@ -103,7 +98,7 @@ static int debug = -1;
 #endif
 
 #if defined(MAX_SKB_FRAGS) && ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,18) ) && ( LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 0) )
-#define VMXNET_DO_ZERO_COPY 
+#define VMXNET_DO_ZERO_COPY
 #endif
 
 #ifdef VMXNET_DO_ZERO_COPY
@@ -112,11 +107,11 @@ static int debug = -1;
 #include <linux/in.h>
 #include <linux/tcp.h>
 
-/* 
+/*
  * Tx buffer size that we need for copying header
  * max header is: 14(ip) + 4(vlan) + ip (60) + tcp(60) = 138
  * round it up to the power of 2
- */ 
+ */
 #define TX_PKT_HEADER_SIZE      256
 
 /* Constants used for Zero Copy Tx */
@@ -149,7 +144,7 @@ do{\
 
 #if defined(NETIF_F_GSO) /* 2.6.18 and upwards */
 #define VMXNET_SKB_MSS(skb) skb_shinfo(skb)->gso_size
-#else 
+#else
 #define VMXNET_SKB_MSS(skb) skb_shinfo(skb)->tso_size
 #endif
 #endif
@@ -158,7 +153,7 @@ do{\
 
 #ifdef VMXNET_DEBUG
 #define VMXNET_LOG(msg...) printk(KERN_ERR msg)
-#else 
+#else
 #define VMXNET_LOG(msg...)
 #endif // VMXNET_DEBUG
 
@@ -205,6 +200,132 @@ vmxnet_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 #endif
+
+
+#ifdef SET_ETHTOOL_OPS
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet_get_settings --
+ *
+ *      Get device-specific settings.
+ *
+ * Results:
+ *      0 on success, errno on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+vmxnet_get_settings(struct net_device *dev,
+                    struct ethtool_cmd *ecmd)
+{
+   ecmd->supported = SUPPORTED_1000baseT_Full | SUPPORTED_TP;
+   ecmd->advertising = ADVERTISED_TP;
+   ecmd->port = PORT_TP;
+   ecmd->transceiver = XCVR_INTERNAL;
+
+   if (netif_carrier_ok(dev)) {
+      ecmd->speed = 1000;
+      ecmd->duplex = DUPLEX_FULL;
+   } else {
+      ecmd->speed = -1;
+      ecmd->duplex = -1;
+   }
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet_get_drvinfo --
+ *
+ *      Ethtool callback to return driver information
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Updates *drvinfo
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+vmxnet_get_drvinfo(struct net_device *dev,
+                   struct ethtool_drvinfo *drvinfo)
+{
+   struct Vmxnet_Private *lp = dev->priv;
+
+   strncpy(drvinfo->driver, vmxnet_driver.name, sizeof(drvinfo->driver));
+   drvinfo->driver[sizeof(drvinfo->driver) - 1] = '\0';
+
+   strncpy(drvinfo->version, VMXNET_DRIVER_VERSION_STRING,
+           sizeof(drvinfo->version));
+   drvinfo->driver[sizeof(drvinfo->version) - 1] = '\0';
+
+   strncpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+   drvinfo->fw_version[sizeof(drvinfo->fw_version) - 1] = '\0';
+
+   strncpy(drvinfo->bus_info, compat_pci_name(lp->pdev), ETHTOOL_BUSINFO_LEN);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ *  vmxnet_set_tso --
+ *
+ *    Ethtool handler to set TSO. If the data is non-zero, TSO is
+ *    enabled. Othewrise, it is disabled.
+ *
+ *  Results:
+ *    0 if successful, error code otherwise.
+ *
+ *  Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#ifdef VMXNET_DO_TSO
+static int
+vmxnet_set_tso(struct net_device *dev, u32 data)
+{
+   if (data) {
+      struct Vmxnet_Private *lp = (struct Vmxnet_Private *)dev->priv;
+
+      if (!lp->tso) {
+         return -EINVAL;
+      }
+      dev->features |= NETIF_F_TSO;
+   } else {
+      dev->features &= ~NETIF_F_TSO;
+   }
+   return 0;
+}
+#endif
+
+
+static struct ethtool_ops
+vmxnet_ethtool_ops = {
+   .get_settings        = vmxnet_get_settings,
+   .get_drvinfo         = vmxnet_get_drvinfo,
+   .get_link            = ethtool_op_get_link,
+   .get_sg              = ethtool_op_get_sg,
+   .set_sg              = ethtool_op_set_sg,
+#ifdef VMXNET_DO_TSO
+   .get_tso             = ethtool_op_get_tso,
+   .set_tso             = vmxnet_set_tso,
+#endif
+};
+
+
+#else   /* !defined(SET_ETHTOOL_OPS) */
 
 
 /*
@@ -295,7 +416,7 @@ vmxnet_get_tso(struct net_device *dev, void *addr)
    value.data = (dev->features & NETIF_F_TSO) ? 1 : 0;
    if (copy_to_user(addr, &value, sizeof(value))) {
        return -EFAULT;
-   } 
+   }
    return 0;
 }
 #endif
@@ -326,7 +447,7 @@ vmxnet_set_tso(struct net_device *dev, void *addr)
    if (copy_from_user(&value, addr, sizeof(value))) {
       return -EFAULT;
    }
-   
+
    if (value.data) {
       struct Vmxnet_Private *lp = (struct Vmxnet_Private *)dev->priv;
 
@@ -346,7 +467,7 @@ vmxnet_set_tso(struct net_device *dev, void *addr)
  *----------------------------------------------------------------------------
  *
  *  vmxnet_ethtool_ioctl --
- * 
+ *
  *    Handler for ethtool ioctl calls.
  *
  *  Results:
@@ -378,7 +499,7 @@ vmxnet_ethtool_ioctl(struct net_device *dev, struct ifreq *ifr)
 #endif
 #ifdef VMXNET_DO_TSO
       case ETHTOOL_GTSO:
-         return vmxnet_get_tso(dev, ifr->ifr_data);         
+         return vmxnet_get_tso(dev, ifr->ifr_data);
       case ETHTOOL_STSO:
          return vmxnet_set_tso(dev, ifr->ifr_data);
 #endif
@@ -419,6 +540,7 @@ vmxnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
    printk(KERN_DEBUG" ioctl operation %d not supported\n", cmd);
    return -EOPNOTSUPP;
 }
+#endif /* SET_ETHTOOL_OPS */
 
 
 /*
@@ -771,7 +893,7 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
 #ifdef VMXNET_DO_TSO
    if ((lp->capabilities & VMNET_CAP_TSO) &&
-       (lp->capabilities & (VMNET_CAP_IP4_CSUM | VMNET_CAP_HW_CSUM)) && 
+       (lp->capabilities & (VMNET_CAP_IP4_CSUM | VMNET_CAP_HW_CSUM)) &&
        // tso only makes sense if we have hw csum offload
        lp->chainTx && lp->zeroCopyTx &&
        lp->features & VMXNET_FEATURE_TSO) {
@@ -787,16 +909,6 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    }
 #endif
 #endif
-
-#ifdef BPF_SUPPORT_ENABLED
-    if(lp->capabilities & VMNET_CAP_BPF && 
-       lp->features & VMXNET_FEATURE_BPF) {
-       dev->features |= NETIF_F_BPF;
-       printk(" bpf");
-    }    
-#endif
-
-
 
    printk("\n");
 
@@ -829,7 +941,7 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
    driverDataSize =
             sizeof(Vmxnet2_DriverData) +
-            (numRxBuffers + numRxBuffers2) * sizeof(Vmxnet2_RxRingEntry) + 
+            (numRxBuffers + numRxBuffers2) * sizeof(Vmxnet2_RxRingEntry) +
             numTxBuffers * sizeof(Vmxnet2_TxRingEntry);
    VMXNET_LOG("vmxnet: numRxBuffers=((%d+%d)*%d) numTxBuffers=(%d*%d) driverDataSize=%d\n",
               numRxBuffers, numRxBuffers2, (uint32)sizeof(Vmxnet2_RxRingEntry),
@@ -890,14 +1002,14 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
    if (lp->partialHeaderCopyEnabled) {
       unsigned int txBufferSize;
-      
+
       txBufferSize = numTxBuffers * TX_PKT_HEADER_SIZE;
       lp->txBufferStartRaw = kmalloc(txBufferSize + PAGE_SIZE,
                                      GFP_DMA | GFP_KERNEL);
       if (lp->txBufferStartRaw) {
-         lp->txBufferStart = (char*)((unsigned long)(lp->txBufferStartRaw + PAGE_SIZE - 1) & 
+         lp->txBufferStart = (char*)((unsigned long)(lp->txBufferStartRaw + PAGE_SIZE - 1) &
                                      (unsigned long)~(PAGE_SIZE - 1));
-         lp->dd->txBufferPhysStart = virt_to_phys(lp->txBufferStart); 
+         lp->dd->txBufferPhysStart = virt_to_phys(lp->txBufferStart);
          lp->dd->txBufferPhysLength = txBufferSize;
          lp->dd->txPktMaxSize = TX_PKT_HEADER_SIZE;
       } else {
@@ -927,7 +1039,12 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
    /* Do this after ether_setup(), which sets the default value. */
    dev->set_mac_address = &vmxnet_set_mac_address;
+
+#ifdef SET_ETHTOOL_OPS
+   SET_ETHTOOL_OPS(dev, &vmxnet_ethtool_ops);
+#else
    dev->do_ioctl = vmxnet_ioctl;
+#endif
 
    COMPAT_SET_MODULE_OWNER(dev);
    COMPAT_SET_NETDEV_DEV(dev, &pdev->dev);
@@ -1070,7 +1187,7 @@ vmxnet_init_ring(struct net_device *dev)
    dd->rxRingOffset = offset;
    lp->rxRing = (Vmxnet2_RxRingEntry *)((uintptr_t)dd + offset);
    offset += lp->numRxBuffers * sizeof(Vmxnet2_RxRingEntry);
-   
+
    dd->rxRingLength2 = lp->numRxBuffers2;
    dd->rxRingOffset2 = offset;
    lp->rxRing2 = (Vmxnet2_RxRingEntry *)((uintptr_t)dd + offset);
@@ -1081,7 +1198,7 @@ vmxnet_init_ring(struct net_device *dev)
    lp->txRing = (Vmxnet2_TxRingEntry *)((uintptr_t)dd + offset);
    offset += lp->numTxBuffers * sizeof(Vmxnet2_TxRingEntry);
 
-   VMXNET_LOG("vmxnet_init_ring: offset=%"FMT64"d length=%d\n", 
+   VMXNET_LOG("vmxnet_init_ring: offset=%"FMT64"d length=%d\n",
               (uint64)offset, dd->length);
 
    for (i = 0; i < lp->numRxBuffers; i++) {
@@ -1126,13 +1243,13 @@ vmxnet_init_ring(struct net_device *dev)
             return -ENOMEM;
          }
 
-         lp->rxRing2[i].paddr = pci_map_page(pdev, lp->rxPages[i], 0, 
+         lp->rxRing2[i].paddr = pci_map_page(pdev, lp->rxPages[i], 0,
                                              PAGE_SIZE, PCI_DMA_FROMDEVICE);
          lp->rxRing2[i].bufferLength = PAGE_SIZE;
          lp->rxRing2[i].actualLength = 0;
          lp->rxRing2[i].ownership = VMXNET2_OWNERSHIP_NIC_FRAG;
       }
-   } else 
+   } else
 #endif
    {
       // dummy rxRing2 tacked on to the end, with a single unusable entry
@@ -1236,7 +1353,7 @@ vmxnet_open(struct net_device *dev)
  *
  * vmxnet_unmap_buf  --
  *
- *      Unmap the PAs of the tx entry that we pinned for DMA. 
+ *      Unmap the PAs of the tx entry that we pinned for DMA.
  *
  * Results:
  *      None.
@@ -1247,7 +1364,7 @@ vmxnet_open(struct net_device *dev)
  */
 
 void
-vmxnet_unmap_buf(struct sk_buff *skb, 
+vmxnet_unmap_buf(struct sk_buff *skb,
                  struct Vmxnet2_TxBuf *tb,
                  Vmxnet2_TxRingEntry *xre,
                  struct pci_dev *pdev)
@@ -1281,34 +1398,34 @@ vmxnet_unmap_buf(struct sk_buff *skb,
  *
  * vmxnet_map_pkt  --
  *
- *      Map the buffers/pages that we need for DMA and populate the SG. 
+ *      Map the buffers/pages that we need for DMA and populate the SG.
  *
  *      "offset" indicates the position inside the pkt where mapping should start.
  *      "startSgIdx" indicates the first free sg slot of the first tx entry
  *      (pointed to by txDriverNext).
  *
  *      The caller should guarantee the first tx has at least one sg slot
- *      available. The caller should also ensure that enough tx entries are 
- *      available for this pkt. 
- *      
+ *      available. The caller should also ensure that enough tx entries are
+ *      available for this pkt.
+ *
  * Results:
  *      None.
  *
  * Side effects:
- *      1. Ownership of all tx entries used (EXCEPT the 1st one) are updated. 
- *         The only flag set is VMXNET2_TX_MORE if needed. caller is 
+ *      1. Ownership of all tx entries used (EXCEPT the 1st one) are updated.
+ *         The only flag set is VMXNET2_TX_MORE if needed. caller is
  *         responsible to set up other flags after this call returns.
  *      2. lp->dd->numTxPending is updated
  *      3. txBufInfo corresponding to used tx entries (including the 1st one)
  *         are updated
- *      4. txDriverNext is advanced accordingly 
+ *      4. txDriverNext is advanced accordingly
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-vmxnet_map_pkt(struct sk_buff *skb, 
-               int offset, 
+vmxnet_map_pkt(struct sk_buff *skb,
+               int offset,
                struct Vmxnet_Private *lp,
                int startSgIdx)
 {
@@ -1318,7 +1435,7 @@ vmxnet_map_pkt(struct sk_buff *skb,
    Vmxnet2_TxRingEntry *xre;
    struct Vmxnet2_TxBuf *tb;
    dma_addr_t dma;
-  
+
    VMXNET_ASSERT(startSgIdx < VMXNET2_SG_DEFAULT_LENGTH);
 
    lp->numTxPending ++;
@@ -1329,13 +1446,13 @@ vmxnet_map_pkt(struct sk_buff *skb,
       tb->sgForLinear = -1;
       tb->firstSgForFrag = nextSg;
    } else if (offset < skb_headlen(skb)) {
-      /* we need to map some of the non-frag data. */ 
-      dma = pci_map_single(lp->pdev, 
-                           skb->data + offset, 
-                           skb_headlen(skb) - offset, 
+      /* we need to map some of the non-frag data. */
+      dma = pci_map_single(lp->pdev,
+                           skb->data + offset,
+                           skb_headlen(skb) - offset,
                            PCI_DMA_TODEVICE);
       VMXNET_FILL_SG(xre->sg.sg[nextSg], dma, skb_headlen(skb) - offset);
-      VMXNET_LOG("vmxnet_map_pkt: txRing[%u].sg[%d] -> data %p offset %u size %u\n", 
+      VMXNET_LOG("vmxnet_map_pkt: txRing[%u].sg[%d] -> data %p offset %u size %u\n",
                  dd->txDriverNext, nextSg, skb->data, offset, skb_headlen(skb) - offset);
       tb->sgForLinear = nextSg++;
       tb->firstSgForFrag = nextSg;
@@ -1348,8 +1465,8 @@ vmxnet_map_pkt(struct sk_buff *skb,
 
       for ( ; nextFrag < skb_shinfo(skb)->nr_frags; nextFrag++){
          frag = &skb_shinfo(skb)->frags[nextFrag];
-         
-         // skip those frags that are completely copied 
+
+         // skip those frags that are completely copied
          if (offset >= frag->size){
             offset -= frag->size;
          } else {
@@ -1364,7 +1481,7 @@ vmxnet_map_pkt(struct sk_buff *skb,
                        dd->txDriverNext, nextSg, nextFrag, offset, frag->size - offset);
             nextSg++;
             nextFrag++;
-            
+
             break;
          }
       }
@@ -1373,28 +1490,28 @@ vmxnet_map_pkt(struct sk_buff *skb,
    // map the remaining frags, we might need to use additional tx entries
    for ( ; nextFrag < skb_shinfo(skb)->nr_frags; nextFrag++) {
       frag = &skb_shinfo(skb)->frags[nextFrag];
-      dma = pci_map_page(lp->pdev, 
+      dma = pci_map_page(lp->pdev,
                          frag->page,
                          frag->page_offset,
                          frag->size,
                          PCI_DMA_TODEVICE);
-      
+
       if (nextSg == VMXNET2_SG_DEFAULT_LENGTH) {
          xre->flags = VMXNET2_TX_MORE;
          xre->sg.length = VMXNET2_SG_DEFAULT_LENGTH;
          tb->skb = skb;
          tb->eop = 0;
-         
-         // move to the next tx entry 
+
+         // move to the next tx entry
          VMXNET_INC(dd->txDriverNext, dd->txRingLength);
          xre = &lp->txRing[dd->txDriverNext];
          tb = &lp->txBufInfo[dd->txDriverNext];
 
          // the new tx entry must be available
-         VMXNET_ASSERT(xre->ownership == VMXNET2_OWNERSHIP_DRIVER && tb->skb == NULL); 
+         VMXNET_ASSERT(xre->ownership == VMXNET2_OWNERSHIP_DRIVER && tb->skb == NULL);
 
-         /* 
-          * we change it even before the sg are populated but this is 
+         /*
+          * we change it even before the sg are populated but this is
           * fine, because the first tx entry's ownership is not
           * changed yet
           */
@@ -1517,17 +1634,17 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
 #ifdef VMXNET_DO_ZERO_COPY
    if (lp->zeroCopyTx) {
       int txEntries, sgCount;
-      unsigned int headerSize;         
-   
+      unsigned int headerSize;
+
       /* conservatively estimate the # of tx entries needed in the worse case */
       sgCount = (lp->partialHeaderCopyEnabled ? 2 : 1) + skb_shinfo(skb)->nr_frags;
       txEntries = (sgCount + VMXNET2_SG_DEFAULT_LENGTH - 1) / VMXNET2_SG_DEFAULT_LENGTH;
 
       if (UNLIKELY(!lp->chainTx && txEntries > 1)) {
-         /* 
+         /*
           * rare case, no tx desc chaining support but the pkt need more than 1
           * tx entry, linearize it
-          */ 
+          */
          if (compat_skb_linearize(skb) != 0) {
             VMXNET_LOG("vmxnet_tx: skb_linearize failed\n");
             compat_dev_kfree_skb(skb, FREE_WRITE);
@@ -1537,7 +1654,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
          txEntries = 1;
       }
 
-      VMXNET_LOG("\n%d(%d) bytes, %d frags, %d tx entries\n", skb->len, 
+      VMXNET_LOG("\n%d(%d) bytes, %d frags, %d tx entries\n", skb->len,
                  skb_headlen(skb), skb_shinfo(skb)->nr_frags, txEntries);
 
       spin_lock_irqsave(&lp->txLock, flags);
@@ -1552,7 +1669,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
          VMXNET_LOG("queue stopped\n");
          return VMXNET_STOP_TRANSMIT;
       }
-    
+
       /* copy protocol headers if needed */
       if (LIKELY(lp->partialHeaderCopyEnabled)) {
          unsigned int pos = dd->txDriverNext * dd->txPktMaxSize;
@@ -1637,7 +1754,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
                }
             }
          }
-             
+
          if (skb_copy_bits(skb, 0, header, headerSize) != 0) {
             compat_dev_kfree_skb(skb, FREE_WRITE);
             spin_unlock_irqrestore(&lp->txLock, flags);
@@ -1679,7 +1796,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
          spin_unlock_irqrestore(&lp->txLock, flags);
          return VMXNET_STOP_TRANSMIT;
       }
-     
+
       lp->numTxPending ++;
 
       xre->sg.sg[0].addrLow = virt_to_bus(skb->data);
@@ -1703,7 +1820,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
    if (skb->ip_summed == VM_TX_CHECKSUM_PARTIAL) {
       xre->flags |= VMXNET2_TX_HW_XSUM | VMXNET2_TX_CAN_KEEP;
    } else {
-      xre->flags |= VMXNET2_TX_CAN_KEEP;	 
+      xre->flags |= VMXNET2_TX_CAN_KEEP;
    }
    if (lp->numTxPending > dd->txRingLength - 5) {
       xre->flags |= VMXNET2_TX_RING_LOW;
@@ -1811,7 +1928,7 @@ vmxnet_drop_frags(Vmxnet_Private *lp)
  * vmxnet_rx_frags --
  *
  *    get data from the 2nd rx ring and append the frags to the skb. Multiple
- *    rx entries in the 2nd rx ring are processed until the one with 
+ *    rx entries in the 2nd rx ring are processed until the one with
  *    VMXNET2_RX_FRAG_EOP set.
  *
  * Result:
@@ -1840,7 +1957,7 @@ vmxnet_rx_frags(Vmxnet_Private *lp, struct sk_buff *skb)
       rre2 = &lp->rxRing2[dd->rxDriverNext2];
       flags = rre2->flags;
       VMXNET_ASSERT(rre2->ownership == VMXNET2_OWNERSHIP_DRIVER_FRAG);
-      
+
       if (rre2->actualLength > 0) {
          newPage = alloc_page(GFP_ATOMIC);
          if (UNLIKELY(newPage == NULL)) {
@@ -1878,8 +1995,8 @@ vmxnet_rx_frags(Vmxnet_Private *lp, struct sk_buff *skb)
    skb_shinfo(skb)->nr_frags = numFrags;
    skb->len += skb->data_len;
    skb->truesize += skb->data_len;
-   VMXNET_LOG("vmxnet_rx: %dB from rxRing[%d](%dB)+rxRing2[%d, %d)(%dB)\n", 
-              skb->len, dd->rxDriverNext, skb_headlen(skb), 
+   VMXNET_LOG("vmxnet_rx: %dB from rxRing[%d](%dB)+rxRing2[%d, %d)(%dB)\n",
+              skb->len, dd->rxDriverNext, skb_headlen(skb),
               firstFrag, dd->rxDriverNext2, skb->data_len);
    return 0;
 }
@@ -1905,10 +2022,6 @@ vmxnet_rx(struct net_device *dev)
 {
    Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
    Vmxnet2_DriverData *dd = lp->dd;
-
-#ifdef BPF_SUPPORT_ENABLED
-   struct BPF_MetaData *meta = NULL;
-#endif
 
    if (!lp->devOpen) {
       return 0;
@@ -1942,7 +2055,7 @@ vmxnet_rx(struct net_device *dev)
 #ifdef VMXNET_DO_ZERO_COPY
          if (rre->flags & VMXNET2_RX_WITH_FRAG) {
             vmxnet_drop_frags(lp);
-         } 
+         }
 #endif
          lp->stats.rx_errors++;
          goto next_pkt;
@@ -1973,7 +2086,7 @@ vmxnet_rx(struct net_device *dev)
           *  is stripped, such frames become ETH_MIN_FRAME_LEN - 4. (PR106153)
           */
          if (skb->len != 0) {
-	    printk(KERN_DEBUG "%s: Runt pkt (%d bytes) entry %d!\n", dev->name, 
+	    printk(KERN_DEBUG "%s: Runt pkt (%d bytes) entry %d!\n", dev->name,
                    skb->len, dd->rxDriverNext);
          }
 	 lp->stats.rx_errors++;
@@ -1981,51 +2094,6 @@ vmxnet_rx(struct net_device *dev)
          if (rre->flags & VMXNET2_RX_HW_XSUM_OK) {
             skb->ip_summed = CHECKSUM_UNNECESSARY;
          }
-#ifdef BPF_SUPPORT_ENABLED
-         
-         meta = (struct BPF_MetaData *)skb->cb;
-
-         if(rre->flags & VMXNET2_RX_BPF_TRAILER) {
-            char *vaddr;
-            int numFrags = skb_shinfo(skb)->nr_frags;
-            
-            if (numFrags > 0) {
-
-               /* If fragments are present, the trailer is present in the
-                * last fragement. Map it and remove the trailer 
-                */
-	       vaddr = kmap_atomic(skb_shinfo(skb)->frags[numFrags - 1].page,
-                                   KM_USER0);
-               if (vaddr) {
-
-                  memcpy(meta->bpfSnapLens, 
-                         vaddr + skb_shinfo(skb)->frags[numFrags-1].size, 
-                         sizeof meta->bpfSnapLens);
-                  kunmap_atomic((struct page *)vaddr, KM_USER0);
-
-               } else  {
-                  printk(KERN_ERR"Error mapping Last Fragment of Packet\n");
-                  /* Act as if there was no bpf trailer at all*/
-                  meta->controlByte = 0;
-                  goto error;
-               }
-            } else { 
-
-               /* The trailer is present in the linear data array */
-
-               vaddr = (char *)skb->data;
-
-               memcpy(meta->bpfSnapLens, vaddr + skb->len,
-                      sizeof meta->bpfSnapLens);
-            }
-
-            meta->controlByte |= VMXNET_BPF_PROCESSED;
-
-         } else {
-            meta->controlByte = 0;
-         }
-error:
-#endif
 
          skb->dev = dev;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,0)
@@ -2179,7 +2247,7 @@ vmxnet_close(struct net_device *dev)
    spin_lock_irqsave(&lp->txLock, flags);
    if (lp->numTxPending > 0) {
       //Wait absurdly long (2sec) for all the pending packets to be returned.
-      printk(KERN_DEBUG "vmxnet_close: Pending tx = %d\n", lp->numTxPending); 
+      printk(KERN_DEBUG "vmxnet_close: Pending tx = %d\n", lp->numTxPending);
       for (i = 0; i < 200 && lp->numTxPending > 0; i++) {
 	 outl(VMXNET_CMD_CHECK_TX_DONE, dev->base_addr + VMXNET_COMMAND_ADDR);
 	 udelay(10000);
@@ -2198,7 +2266,7 @@ vmxnet_close(struct net_device *dev)
       }
    }
    spin_unlock_irqrestore(&lp->txLock, flags);
-   
+
    outl(0, ioaddr + VMXNET_INIT_ADDR);
 
    free_irq(dev->irq, dev);
@@ -2247,7 +2315,7 @@ vmxnet_close(struct net_device *dev)
  *
  *-----------------------------------------------------------------------------
  */
-static int 
+static int
 vmxnet_load_multicast (struct net_device *dev)
 {
     Vmxnet_Private *lp = (Vmxnet_Private *) dev->priv;
@@ -2307,7 +2375,7 @@ vmxnet_load_multicast (struct net_device *dev)
  *
  *-----------------------------------------------------------------------------
  */
-static void 
+static void
 vmxnet_set_multicast_list(struct net_device *dev)
 {
    unsigned int ioaddr = dev->base_addr;
@@ -2334,7 +2402,7 @@ vmxnet_set_multicast_list(struct net_device *dev)
          lp->dd->ifflags |= VMXNET_IFF_MULTICAST;
       }
    }
-   outl(VMXNET_CMD_UPDATE_LADRF, ioaddr + VMXNET_COMMAND_ADDR);	       
+   outl(VMXNET_CMD_UPDATE_LADRF, ioaddr + VMXNET_COMMAND_ADDR);
 
    outl(VMXNET_CMD_UPDATE_IFF, ioaddr + VMXNET_COMMAND_ADDR);
 }

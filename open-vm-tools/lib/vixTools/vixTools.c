@@ -33,6 +33,7 @@
 #include <WTypes.h>
 #include <io.h>
 #include "wminic.h"
+#include "win32u.h"
 #else
 #include <unistd.h>
 #endif
@@ -60,7 +61,7 @@
 #include "conf.h"
 #include "vixCommands.h"
 #include "base64.h"
-#include "guestInfoInt.h"
+#include "guestInfo.h"
 #include "hgfsServer.h"
 #include "hgfs.h"
 #include "system.h"
@@ -211,10 +212,7 @@ static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
                                               void **userToken);
 
 #if defined(_WIN32) || defined(linux)
-static char *ToolsDaemonGetCurrentUser(void);
-
-static VixError VixToolsAuthenticateUser(const char *username,
-                                         const char *password);
+static VixError VixToolsDoesUsernameMatchCurrentUser(const char *username);
 #endif
 
 static Bool VixToolsPidRefersToThisProcess(ProcMgr_Pid pid);
@@ -724,7 +722,7 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
    /*
     * Collect some values about the host.
     */
-   foundHostName = GuestInfoGetFqdn(sizeof(guestName), guestName);
+   foundHostName = GuestInfo_GetFqdn(sizeof(guestName), guestName);
    if (!foundHostName) {
 #ifdef _WIN32
       DWORD guestNameSize;
@@ -748,7 +746,7 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
 #else
    osFamily = GUEST_OS_FAMILY_LINUX;
 #endif
-   if (!(GuestInfoGetOSName(sizeof osNameFull, sizeof osName, osNameFull, osName))) {
+   if (!(GuestInfo_GetOSName(sizeof osNameFull, sizeof osName, osNameFull, osName))) {
       osNameFull[0] = 0;
       osName[0] = 0;
    }
@@ -2062,6 +2060,8 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
     * max number of entries we can store.
     */
    resultBufferSize = 3; // truncation bool + space + '\0'
+   lastGoodResultBufferSize = resultBufferSize;
+   ASSERT_NOT_IMPLEMENTED(lastGoodResultBufferSize < maxBufferSize);
    formatStringLength = strlen(fileInfoFormatString);
 
    for (fileNum = offset; fileNum < numFiles; fileNum++) {
@@ -2612,6 +2612,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
    VixError err = VIX_OK;
    char *credentialField;
    VixCommandNamePassword *namePasswordStruct;
+   int credentialType;
 
    credentialField = ((char *) requestMsg)
                            + requestMsg->commonHeader.headerLength 
@@ -2619,12 +2620,15 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
 
    namePasswordStruct = (VixCommandNamePassword *) credentialField;
    credentialField += sizeof(VixCommandNamePassword);
+   credentialType = requestMsg->userCredentialType;
 
    err = VixToolsImpersonateUserImplEx(NULL, 
-                                       requestMsg->userCredentialType,
+                                       credentialType,
                                        credentialField, 
                                        userToken);
-   if (VIX_OK != err) {
+   if ((VIX_OK != err)
+         && ((VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)
+               || (VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType))) {
       /*
        * Windows does not allow you to login with an empty password. Only
        * the console allows this login, which means the console does not
@@ -2764,25 +2768,17 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        * If the VMX asks us to run commands in the context of the current
        * user, make sure that the user who requested the command is the
        * same as the current user.
-       * Also, make sure that the password is valid. But we need not
-       * impersonate, since we are already running as that user.
+       * We don't need to make sure the password is valid (in fact we should
+       * not receive one) because the VMX should have validated the
+       * password by other means. Currently it sends it to the Tools daemon.
        */
       if (VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER == credentialType) {
          if (!thisProcessRunsAsRoot) {
-            Unicode currentUser;
-            int cmpResult;
-
-            success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword, 
+            success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                                      &unobfuscatedUserName,
                                                      &unobfuscatedPassword);
-            if (!success) {
+            if (!success || (NULL == unobfuscatedUserName)) {
                err = VIX_E_FAIL;
-               goto abort;
-            }
-
-            err = VixToolsAuthenticateUser(unobfuscatedUserName,
-                                           unobfuscatedPassword);
-            if (VIX_OK != err) {
                goto abort;
             }
 
@@ -2790,24 +2786,9 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
              * Make sure that the user who requested the command is the
              * current user.
              */
-            currentUser = ToolsDaemonGetCurrentUser();
-            if (NULL == currentUser) {
-               err = VIX_E_FAIL;
-               goto abort;
-            }
 
-            /*
-             * Windows is case-insensitive about usernames, Linux is not.
-             */
-#ifdef _WIN32
-            cmpResult = Str_Strcasecmp(unobfuscatedUserName, UTF8(currentUser));
-#else
-            cmpResult = strcmp(unobfuscatedUserName, UTF8(currentUser));
-#endif
-            Unicode_Free(currentUser);
-
-            if (0 != cmpResult) {
-               err = VIX_E_INTERACTIVE_SESSION_USER_MISMATCH;
+            err = VixToolsDoesUsernameMatchCurrentUser(unobfuscatedUserName);
+            if (VIX_OK != err) {
                goto abort;
             }
 
@@ -2815,7 +2796,6 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
                *userToken = PROCESS_CREATOR_USER_TOKEN;
             }
 
-            err = VIX_OK;
             goto abort;
          } else {
             /*
@@ -3178,8 +3158,8 @@ VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,   // IN
    VixPropertyListImpl propList;
    char *serializedBuffer = NULL;
    size_t serializedBufferLength = 0;
-   NicEntry *nicEntry = NULL;
-   VmIpAddressEntry *ipAddr;
+   GuestNic *nicEntry = NULL;
+   VmIpAddress *ipAddr;
 
    ASSERT(NULL != requestMsg);
    ASSERT(NULL != resultBuffer);
@@ -3187,21 +3167,20 @@ VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,   // IN
 
    VixPropertyList_Initialize(&propList);
 
-   nicEntry = NetUtil_GetPrimaryNicEntry();
+   nicEntry = NetUtil_GetPrimaryNic();
    if (NULL == nicEntry) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
 
-   ipAddr = DblLnkLst_Container(nicEntry->ipAddressList.next, 
-                                VmIpAddressEntry, 
-                                links);
+   ipAddr = &nicEntry->ips.ips_val[0];
+
    /*
     *  Now, record these values in a property list.
     */
    err = VixPropertyList_SetString(&propList,
                                    VIX_PROPERTY_VM_IP_ADDRESS,
-                                   ipAddr->ipEntryProto.ipAddress);
+                                   ipAddr->ipAddress);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3209,14 +3188,14 @@ VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,   // IN
 #if defined(_WIN32)
    err = VixPropertyList_SetBool(&propList,
                                  VIX_PROPERTY_VM_DHCP_ENABLED,
-                                 ipAddr->ipEntryProto.dhcpEnabled);
+                                 ipAddr->dhcpEnabled);
    if (VIX_OK != err) {
       goto abort;
    }
 
    err = VixPropertyList_SetString(&propList,
                                    VIX_PROPERTY_VM_SUBNET_MASK,
-                                   ipAddr->ipEntryProto.subnetMask);
+                                   ipAddr->subnetMask);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3241,7 +3220,7 @@ VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,   // IN
 
 abort:
    VixPropertyList_RemoveAllWithoutHandles(&propList);
-   GuestInfo_FreeDynamicMemoryInNic(nicEntry);
+   VMX_XDR_FREE(xdr_GuestNic, nicEntry);
    free(nicEntry);
 
    return err;
@@ -3388,13 +3367,12 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * ToolsDaemonGetCurrentUser --
+ * VixToolsDoesUsernameMatchCurrentUser --
  *
- *    Get the name of the user whom the process is running as.
+ *    Check if the provider username matches the current user.
  *
  * Return value:
- *    A unicode string containing the name of the current user, or NULL on
- *    failure.
+ *    VIX_OK if it does, otherwise an appropriate error code.
  *
  * Side effects:
  *    None
@@ -3402,122 +3380,95 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-static Unicode
-ToolsDaemonGetCurrentUser(void)
+static VixError
+VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
 {
-   Unicode currentUser = NULL;
+   VixError err = VIX_E_FAIL;
 
 #ifdef _WIN32
-   wchar_t *buffer = NULL;
-   DWORD bufferSize = 0;
+   char *currentUser = NULL;
+   DWORD currentUserSize = 0;
    
    /*
-    * Call the function with a NULL buffer, fail for lack of space,
-    * use the returned size to allocate a buffer and call again.
-    * This uses GetUserNameA() to keep things simple and ASCII for now.
+    * For Windows, get the name of the owner of this process, then
+    * compare it to the provided username.
     */
-   if (!GetUserNameW(buffer, &bufferSize)) {
+   if (!Win32U_GetUserName(currentUser, &currentUserSize)) {
       if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
-      
-      buffer = Util_SafeMalloc(bufferSize * sizeof *buffer);
-      
-      if (!GetUserNameW(buffer, &bufferSize)) {
+
+      currentUser = Util_SafeMalloc(currentUserSize);
+
+      if (!Win32U_GetUserName(currentUser, &currentUserSize)) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
    }
-   
-   currentUser = Unicode_AllocWithUTF16(buffer);
+
+   if (0 != Unicode_CompareIgnoreCase(username, currentUser)) {
+      err = VIX_E_INTERACTIVE_SESSION_USER_MISMATCH;
+      goto abort;
+   }
+
+   err = VIX_OK;
+
+abort:
+   free(currentUser);
 
 #else /* Below is the POSIX case. */
    uid_t currentUid;
    struct passwd pwd;
    struct passwd *ppwd = &pwd;
-   char *buffer = NULL;   // a pool of memory for getpwuid_r() to use.
+   char *buffer = NULL; // a pool of memory for Posix_Getpwnam_r() to use.
    size_t bufferSize;
    
    /*
-    * Get the maximum size buffer needed by getpwuid_r.
+    * For POSIX systems, look up the uid of 'username', and compare
+    * it to the uid of the owner of this process. This handles systems
+    * where multiple usernames map to the name user.
     */
-   bufferSize = (size_t) sysconf(_SC_GETPW_R_SIZE_MAX);
    
+   /*
+    * Get the maximum size buffer needed by getpwuid_r.
+    * Multiply by 4 to compensate for the conversion to UTF-8 by
+    * the Posix_Getpwnam_r() wrapper.
+    */
+   bufferSize = (size_t) sysconf(_SC_GETPW_R_SIZE_MAX) * 4;
+
    buffer = Util_SafeMalloc(bufferSize);
-      
+
+   if (Posix_Getpwnam_r(username, &pwd, buffer, bufferSize, &ppwd) != 0 ||
+       NULL == ppwd) {
+      /* 
+       * This username should exist, since it should have already
+       * been validated by guestd. Assume it is a system error.
+       */
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      Warning("Unable to get the uid for username %s.\n", username);
+      goto abort;
+   }
+
    /*
     * In the Windows version, GetUserNameW() returns the name of the
     * user the thread is impersonating (if it is impersonating someone),
     * so geteuid() seems to be the moral equivalent.
     */
    currentUid = geteuid();
-   
-   if (getpwuid_r(currentUid, &pwd, buffer, bufferSize, &ppwd) != 0 ||
-       NULL == ppwd) {
-      Warning("Unable to get the username for uid %d.\n", currentUid);
+
+   if (currentUid != pwd.pw_uid) {
+      err = VIX_E_INTERACTIVE_SESSION_USER_MISMATCH;
       goto abort;
    }
 
-   currentUser = Unicode_Alloc(pwd.pw_name, STRING_ENCODING_DEFAULT);
-#endif
+   err = VIX_OK;
 
  abort:
-   
-   free(buffer);
-   
-   return currentUser;
-}
+   Util_ZeroFree(buffer, bufferSize);
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixToolsAuthenticateUser --
- *
- *    Check if the supplied credentials match a valid user account.
- *
- * Return value:
- *    VixError. VIX_OK if the credentials are valid, or an appropriate
- *    error otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-VixError
-VixToolsAuthenticateUser(const char *username,    // IN
-                         const char *password)    // IN
-{
-   VixError err = VIX_OK;
-
-#ifdef _WIN32
-   /*
-    * Check if this is a valid account on the guest. We cannot use
-    * Auth_AuthenticateUser() on Windows, because it uses LogonUser()
-    * which requires the SE_TCB_NAME privilege, which is basically root.
-    */
-   err = VixToolsValidateUserCredentials(username,
-                                         password);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-
-#else
-   AuthToken authToken;
-
-   authToken = Auth_AuthenticateUser(username,
-                                     password);
-   if (NULL == authToken) {
-      err = VIX_E_GUEST_USER_PERMISSIONS;
-      goto abort;
-   }
-
-   Auth_CloseToken(authToken);
 #endif
-
-abort:
-
+   
    return err;
 }
 #endif  // #if defined(_WIN32) || defined(linux)
@@ -3897,17 +3848,16 @@ HRESULT
 VixToolsEnableDHCPOnPrimary(void)
 {
    HRESULT ret;
-   NicEntry *primaryNic;
+   GuestNic *primaryNic;
 
-   primaryNic = NetUtil_GetPrimaryNicEntry();
+   primaryNic = NetUtil_GetPrimaryNic();
    if (NULL == primaryNic) {
       return HRESULT_FROM_WIN32(GetLastError());
    }
 
-   ret = WMI_EnableDHCP(primaryNic->nicEntryProto.macAddress);
-   
-   GuestInfo_FreeDynamicMemoryInNic(primaryNic);
-
+   ret = WMI_EnableDHCP(primaryNic->macAddress);
+   VMX_XDR_FREE(xdr_GuestNic, primaryNic);
+   free(primaryNic);
    return ret;
 }
 
@@ -3935,8 +3885,8 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
                               const char *subnetMask)   // IN
 {
    HRESULT ret;
-   NicEntry *primaryNic;
-   VmIpAddressEntry *primaryIpEntry;
+   GuestNic *primaryNic;
+   VmIpAddress *primaryIp;
    char actualIpAddress[IP_ADDR_SIZE];
    char actualSubnetMask[IP_ADDR_SIZE];
 
@@ -3948,7 +3898,7 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    actualIpAddress[0] = '\0';
    actualSubnetMask[0] = '\0';
 
-   primaryNic = NetUtil_GetPrimaryNicEntry();
+   primaryNic = NetUtil_GetPrimaryNic();
    if (NULL == primaryNic) {
       return HRESULT_FROM_WIN32(GetLastError());
    }
@@ -3956,9 +3906,8 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    /*
     * Set IP address if client provides it.
     */
-   primaryIpEntry = DblLnkLst_Container(primaryNic->ipAddressList.next,
-                                        VmIpAddressEntry, 
-                                        links);
+   
+   primaryIp = &primaryNic->ips.ips_val[0];
  
    if ('\0' != ipAddr[0]) {
       Str_Strcpy(actualIpAddress,
@@ -3966,7 +3915,7 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
                  sizeof actualIpAddress);
    } else {
       Str_Strcpy(actualIpAddress,
-                 primaryIpEntry->ipEntryProto.ipAddress,
+                 primaryIp->ipAddress,
                  sizeof actualIpAddress);
    }
 
@@ -3979,16 +3928,16 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
                  sizeof actualSubnetMask);
    } else {
       Str_Strcpy(actualSubnetMask,
-                 primaryIpEntry->ipEntryProto.subnetMask, 
+                 primaryIp->subnetMask,
                  sizeof actualSubnetMask);
    }
 
-   ret = WMI_EnableStatic(primaryNic->nicEntryProto.macAddress, 
+   ret = WMI_EnableStatic(primaryNic->macAddress, 
                           actualIpAddress, 
                           actualSubnetMask);
-   
-   GuestInfo_FreeDynamicMemoryInNic(primaryNic);
 
+   VMX_XDR_FREE(xdr_GuestNic, primaryNic);
+   free(primaryNic);
    return ret;
 }
 #endif

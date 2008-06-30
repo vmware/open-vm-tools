@@ -144,7 +144,9 @@ void Util_LogWrapper(void *ignored, const char *fmt, ...);
 
 int Util_CompareDotted(const char *s1, const char *s2);
 
-
+#if defined(__linux__)
+void Util_PrintLoadedObjects(void *addr_inside_exec);
+#endif
 
 /*
  * In util_shared.h

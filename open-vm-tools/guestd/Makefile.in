@@ -65,7 +65,7 @@ PROGRAMS = $(sbin_PROGRAMS)
 am_vmware_guestd_OBJECTS = debugStdio.$(OBJEXT) \
 	foreignVMToolsDaemon.$(OBJEXT) \
 	foreignVMToolsNetworking.$(OBJEXT) \
-	foundryToolsDaemon.$(OBJEXT) main.$(OBJEXT) stub.$(OBJEXT) \
+	foundryToolsDaemon.$(OBJEXT) main.$(OBJEXT) \
 	toolsDaemon.$(OBJEXT)
 vmware_guestd_OBJECTS = $(am_vmware_guestd_OBJECTS)
 @SOLARIS_TRUE@am__DEPENDENCIES_1 = ../lib/hgfsBd/libHgfsBd.a
@@ -73,6 +73,7 @@ vmware_guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/conf/libConf.a ../lib/dnd/libDnd.a ../lib/err/libErr.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
+	../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
 	../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a \
 	../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a \
@@ -89,10 +90,11 @@ vmware_guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/vmBackupLib/libVmBackupLib.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/wiper/libWiper.a ../lib/dict/libDict.a \
-	../lib/hgfs/libHgfs.a ../lib/message/libMessage.a \
-	../lib/unicode/libUnicode.a ../lib/misc/libMisc.a \
-	../lib/foundryMsg/libFoundryMsg.a ../lib/auth/libAuth.a \
-	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
+	../lib/dynxdr/libDynxdr.a ../lib/hgfs/libHgfs.a \
+	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
+	../lib/misc/libMisc.a ../lib/foundryMsg/libFoundryMsg.a \
+	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
+	../lib/panic/libPanic.a ../lib/stubs/libStubs.a \
 	$(am__DEPENDENCIES_1)
 pamSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 SCRIPTS = $(pam_SCRIPTS)
@@ -188,6 +190,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -253,6 +256,7 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 pamdir = $(PAM_PREFIX)/pam.d
+AM_CFLAGS = -I$(top_builddir)/include
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of the
 # alphabetical order so their symbols are properly resolved.
@@ -260,6 +264,7 @@ vmware_guestd_LDADD = ../lib/backdoor/libBackdoor.a \
 	../lib/conf/libConf.a ../lib/dnd/libDnd.a ../lib/err/libErr.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
+	../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
 	../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a \
 	../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a \
@@ -276,15 +281,16 @@ vmware_guestd_LDADD = ../lib/backdoor/libBackdoor.a \
 	../lib/vmBackupLib/libVmBackupLib.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/wiper/libWiper.a ../lib/dict/libDict.a \
-	../lib/hgfs/libHgfs.a ../lib/message/libMessage.a \
-	../lib/unicode/libUnicode.a ../lib/misc/libMisc.a \
-	../lib/foundryMsg/libFoundryMsg.a ../lib/auth/libAuth.a \
-	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
-	$(HGFS_BD) @ICU_LIBS@ @GUESTD_LDADD@
+	../lib/dynxdr/libDynxdr.a ../lib/hgfs/libHgfs.a \
+	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
+	../lib/misc/libMisc.a ../lib/foundryMsg/libFoundryMsg.a \
+	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
+	../lib/panic/libPanic.a ../lib/stubs/libStubs.a $(HGFS_BD) \
+	@ICU_LIBS@ @GUESTD_LDADD@ $(am__empty)
 @SOLARIS_FALSE@HGFS_BD = 
 @SOLARIS_TRUE@HGFS_BD = ../lib/hgfsBd/libHgfsBd.a
 vmware_guestd_SOURCES = debugStdio.c foreignVMToolsDaemon.c \
-	foreignVMToolsNetworking.c foundryToolsDaemon.c main.c stub.c \
+	foreignVMToolsNetworking.c foundryToolsDaemon.c main.c \
 	toolsDaemon.c
 @LINUX_TRUE@@PAMD_TRUE@@THIRTY_TWO_BIT_USERSPACE_FALSE@pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd-x64
 @LINUX_TRUE@@PAMD_TRUE@@THIRTY_TWO_BIT_USERSPACE_TRUE@pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd
@@ -383,7 +389,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foreignVMToolsNetworking.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foundryToolsDaemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolsDaemon.Po@am__quote@
 
 .c.o:

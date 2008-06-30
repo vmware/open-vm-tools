@@ -69,6 +69,7 @@
 #define CONFNAME_LOGFILE                  "log.file"
 #define CONFNAME_LOGLEVEL                 "log.level" 
 #define CONFNAME_DISABLEQUERYDISKINFO     "disable-query-diskinfo"
+#define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
 /*
  * Without dnd = "true" in tools.conf, Linux DnD won't work. This will only be used 
  * to develop Linux DnD. Once the implementation is done, get rid of this (and the
@@ -83,6 +84,12 @@
 #define CONFNAME_RESOLUTION_MIN_HEIGHT        "resolution.min.height"
 #define CONFVAL_RESOLUTION_MIN_WIDTH_DEFAULT  "640"
 #define CONFVAL_RESOLUTION_MIN_HEIGHT_DEFAULT "480"
+
+/*
+ * Tell the tools to show the wireless icon in the guest.
+ */
+
+#define CONFNAME_SHOW_WIRELESS_ICON "wirelessIcon.enable"
 
 /*
  * This is the bin direcotry the user chose while installing the tools

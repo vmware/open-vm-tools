@@ -42,11 +42,12 @@
 #include "str.h"
 #include "config.h"
 #include "util.h"
-#ifdef _WIN32
+#if defined(_WIN32) || !defined(VMX86_TOOLS)
 #include "coreDump.h"
+#endif
+#ifdef _WIN32
 #include "win32u.h"
 #endif
-
 
 typedef enum {
    PanicBreakLevel_Never,
@@ -491,13 +492,9 @@ Panic_Panic(const char *format,
     * to double panic.
     */
 
-#ifdef _WIN32
    Panic_DumpGuiResources();
 
-   /*
-    * XXX: Posix app coredumps have to wait until the coredump code makes
-    * it out of lib/left/sigPosix and into lib/user/panic.
-    */
+#if defined(_WIN32) ||  !defined(VMX86_TOOLS)
    if (Panic_GetCoreDumpOnPanic()) {
       CoreDump_CoreDump();
    }
@@ -521,17 +518,12 @@ Panic_Panic(const char *format,
 }
 
 
-#ifdef _WIN32
 /*
  *-----------------------------------------------------------------------------
  *
  * Panic_DumpGuiResources --
  *
- *      Dumps Win32 userlevel resources used by the current process.
- *      Dynamically loads user32!GetGuiResources because it's only
- *      implemented on Windows 2000 and later, while this module is
- *      linked by tools and possibly other things that need legacy
- *      Windows support.
+ *      Dumps userlevel resources used by the current process.
  *
  * Results:
  *      void
@@ -545,6 +537,7 @@ Panic_Panic(const char *format,
 void
 Panic_DumpGuiResources(void)
 {
+#ifdef _WIN32
    HANDLE hUser = Win32U_GetModuleHandle("user32.dll");
    if (hUser) {
       typedef DWORD (WINAPI *fnGetGuiResources)(HANDLE, DWORD);
@@ -556,5 +549,5 @@ Panic_DumpGuiResources(void)
                  pGetGuiResources(GetCurrentProcess(), GR_USEROBJECTS));
       }
    }
-}
 #endif
+}

@@ -283,7 +283,7 @@ static GdkAtom gTargetEntryAtom[NR_GH_DRAG_TARGETS];
 static char gFileRoot[DND_MAX_PATH];
 static size_t gFileRootSize;
 static size_t gDnDDataSize;
-
+static Bool gUnity;
 
 /*
  * From vmwareuserInt.h
@@ -1336,8 +1336,12 @@ DnDGtkDragMotionCB(GtkWidget *widget,    // IN: target widget
    /*
     * We'll get a number of these and should only carry on these operations on
     * the first one.
+    *
+    * XXX Unity mode needs to know if there is a g->h->g dnd operation by
+    * detecting if the mouse has left the detection window. This code is
+    * currently not in the guest and should be ported from the host.
     */
-   if (gGHState.dragInProgress) {
+   if (gGHState.dragInProgress && !gUnity) {
       Debug("DnDGtkDragMotionCB: drag already in progress\n");
       return FALSE;
    }
@@ -1347,7 +1351,7 @@ DnDGtkDragMotionCB(GtkWidget *widget,    // IN: target widget
     * signals after we have already handled them.  Prevent resetting the data
     * and trying to start a new DnD operation.
     */
-   if (!gGHState.ungrabReceived) {
+   if (!gGHState.ungrabReceived && !gUnity) {
       Debug("DnDGtkDragMotionCB: extra drag motion without ungrab\n");
       return FALSE;
    }
@@ -1603,7 +1607,9 @@ DnDGtkDragDropCB(GtkWidget *widget,  // IN: widget event occurred on
    }
 
    /* Hide our window so we don't receive stray signals */
-   gtk_widget_hide(widget);
+   if (!gUnity) {
+      gtk_widget_hide(widget);
+   }
 
    gtk_drag_finish(dc, TRUE, FALSE, time);
 
@@ -2220,7 +2226,9 @@ DnDGHStateInit(GtkWidget *widget)  // IN
    gGHState.ungrabReceived = FALSE;
    gGHState.event = NULL;
    DnDGHXdndClearPending(widget);
-   gtk_widget_hide(widget);
+   if (!gUnity) {
+      gtk_widget_hide(widget);
+   }
 }
 
 
@@ -2268,7 +2276,7 @@ static INLINE Bool
 DnDGHCancel(GtkWidget *widget) // IN: program's widget
 {
    /* Hide our widget so we don't receive stray signals */
-   if (widget) {
+   if (widget && !gUnity) {
       gtk_widget_hide(widget);
    }
 
@@ -2318,7 +2326,7 @@ DnDGHXEventTimeout(void *clientData) // IN: our widget
 
    Debug("DnDGHXEventTimeout time out \n");
 
-   if (!gGHState.dragInProgress) {
+   if (!gGHState.dragInProgress && !gUnity) {
       gtk_widget_hide(widget);
    }
 
@@ -2422,10 +2430,14 @@ DnD_RegisterCapability(void)
  */
 
 Bool
-DnD_Register(GtkWidget *mainWnd) // IN: The widget to register as a drag source.
+DnD_Register(GtkWidget *hgWnd, // IN: The widget to register as a drag source.
+             GtkWidget *ghWnd) // IN: The widget to register as a drag target.
 {
    gDragCtx = NULL;
    uint32 i;
+
+   ASSERT(hgWnd);
+   ASSERT(ghWnd);
 
    if (DnD_GetVmxDnDVersion() < 2) {
       goto error;
@@ -2436,26 +2448,26 @@ DnD_Register(GtkWidget *mainWnd) // IN: The widget to register as a drag source.
     * variable to avoid segfaults.  If we have a reason to check the major and
     * minor numbers of the running extension, that would go here.
     */
-   if (!XTestQueryExtension(GDK_WINDOW_XDISPLAY(mainWnd->window),
+   if (!XTestQueryExtension(GDK_WINDOW_XDISPLAY(hgWnd->window),
                             &i, &i, &i, &i)) {
       goto error;
    }
 
    /* Host->Guest RPC callbacks */
-   RpcIn_RegisterCallback(gRpcIn, "dnd.data.set", DnDRpcInDataSetCB, mainWnd);
-   RpcIn_RegisterCallback(gRpcIn, "dnd.enter", DnDRpcInEnterCB, mainWnd);
-   RpcIn_RegisterCallback(gRpcIn, "dnd.move", DnDRpcInMoveCB, mainWnd);
-   RpcIn_RegisterCallback(gRpcIn, "dnd.drop", DnDRpcInDropCB, mainWnd);
+   RpcIn_RegisterCallback(gRpcIn, "dnd.data.set", DnDRpcInDataSetCB, hgWnd);
+   RpcIn_RegisterCallback(gRpcIn, "dnd.enter", DnDRpcInEnterCB, hgWnd);
+   RpcIn_RegisterCallback(gRpcIn, "dnd.move", DnDRpcInMoveCB, hgWnd);
+   RpcIn_RegisterCallback(gRpcIn, "dnd.drop", DnDRpcInDropCB, hgWnd);
    RpcIn_RegisterCallback(gRpcIn, "dnd.data.finish", DnDRpcInDataFinishCB,
-                          mainWnd);
+                          hgWnd);
 
    /* Guest->Host RPC callbacks */
    RpcIn_RegisterCallback(gRpcIn, "dnd.ungrab",
-                          DnDRpcInMouseUngrabCB, mainWnd);
+                          DnDRpcInMouseUngrabCB, ghWnd);
    RpcIn_RegisterCallback(gRpcIn, "dnd.data.get.file",
-                          DnDRpcInGetNextFileCB, mainWnd);
+                          DnDRpcInGetNextFileCB, ghWnd);
    RpcIn_RegisterCallback(gRpcIn, "dnd.finish",
-                          DnDRpcInFinishCB, mainWnd);
+                          DnDRpcInFinishCB, ghWnd);
 
    /*
     * Setup mainWnd as a DND source/dest.
@@ -2481,16 +2493,16 @@ DnD_Register(GtkWidget *mainWnd) // IN: The widget to register as a drag source.
    }
 
    /* Drag source for Host->Guest */
-   gtk_drag_source_set(mainWnd, GDK_BUTTON1_MASK,
+   gtk_drag_source_set(hgWnd, GDK_BUTTON1_MASK,
                        gTargetEntry, ARRAYSIZE(gTargetEntry),
                        GDK_ACTION_COPY | GDK_ACTION_MOVE);
 
-   gtk_signal_connect(GTK_OBJECT(mainWnd), "drag_begin",
-                      GTK_SIGNAL_FUNC(DnDGtkBeginCB), mainWnd);
-   gtk_signal_connect(GTK_OBJECT(mainWnd), "drag_end",
-                      GTK_SIGNAL_FUNC(DnDGtkEndCB), mainWnd);
-   gtk_signal_connect(GTK_OBJECT(mainWnd), "drag_data_get",
-                      GTK_SIGNAL_FUNC(DnDGtkDataRequestCB), mainWnd);
+   gtk_signal_connect(GTK_OBJECT(hgWnd), "drag_begin",
+                      GTK_SIGNAL_FUNC(DnDGtkBeginCB), hgWnd);
+   gtk_signal_connect(GTK_OBJECT(hgWnd), "drag_end",
+                      GTK_SIGNAL_FUNC(DnDGtkEndCB), hgWnd);
+   gtk_signal_connect(GTK_OBJECT(hgWnd), "drag_data_get",
+                      GTK_SIGNAL_FUNC(DnDGtkDataRequestCB), hgWnd);
 
 
    /*
@@ -2499,21 +2511,20 @@ DnD_Register(GtkWidget *mainWnd) // IN: The widget to register as a drag source.
     * We provide NR_GH_DRAG_TARGETS (rather than ARRAYSIZE(gTargetEntry)) to
     * gtk_drag_dest_set() since we support less targets for G->H than H->G.
     */
-   gtk_drag_dest_set(mainWnd,
+   gtk_drag_dest_set(ghWnd,
                      GTK_DEST_DEFAULT_MOTION,
                      gTargetEntry, NR_GH_DRAG_TARGETS,
                      GDK_ACTION_COPY | GDK_ACTION_MOVE);
 
-   gtk_signal_connect(GTK_OBJECT(mainWnd), "drag_motion",
-                      GTK_SIGNAL_FUNC(DnDGtkDragMotionCB), mainWnd);
-   gtk_signal_connect(GTK_OBJECT(mainWnd), "drag_data_received",
+   gtk_signal_connect(GTK_OBJECT(ghWnd), "drag_motion",
+                      GTK_SIGNAL_FUNC(DnDGtkDragMotionCB), ghWnd);
+   gtk_signal_connect(GTK_OBJECT(ghWnd), "drag_data_received",
                       GTK_SIGNAL_FUNC(DnDGtkDragDataReceivedCB),
-                      mainWnd);
-   gtk_signal_connect(GTK_OBJECT(mainWnd), "drag_drop",
-                      GTK_SIGNAL_FUNC(DnDGtkDragDropCB), mainWnd);
+                      ghWnd);
+   gtk_signal_connect(GTK_OBJECT(ghWnd), "drag_drop",
+                      GTK_SIGNAL_FUNC(DnDGtkDragDropCB), ghWnd);
 
-   DnDHGStateInit();
-   DnDGHStateInit(mainWnd);
+   DnD_OnReset(hgWnd, ghWnd);
 
    if (DnD_RegisterCapability()) {
       return TRUE;
@@ -2523,7 +2534,7 @@ DnD_Register(GtkWidget *mainWnd) // IN: The widget to register as a drag source.
     * We get here if DnD registration fails for some reason
     */
 error:
-   DnD_Unregister(mainWnd);
+   DnD_Unregister(hgWnd, ghWnd);
    return FALSE;
 }
 
@@ -2545,35 +2556,36 @@ error:
  */
 
 void
-DnD_Unregister(GtkWidget *mainWnd) // IN: program's widget
+DnD_Unregister(GtkWidget *hgWnd,        // IN: The widget for hg dnd
+               GtkWidget *ghWnd)        // IN: The widget for gh dnd
 {
    RpcOut_sendOne(NULL, NULL, "dnd.ready disable");
 
    DnDGHFileListClear();
 
    /* Unregister source for Host->Guest DnD. */
-   gtk_drag_source_unset(mainWnd);
-   gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
+   gtk_drag_source_unset(hgWnd);
+   gtk_signal_disconnect_by_func(GTK_OBJECT(hgWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkBeginCB),
-                                 mainWnd);
-   gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
+                                 hgWnd);
+   gtk_signal_disconnect_by_func(GTK_OBJECT(hgWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkEndCB),
-                                 mainWnd);
-   gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
+                                 hgWnd);
+   gtk_signal_disconnect_by_func(GTK_OBJECT(hgWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkDataRequestCB),
-                                 mainWnd);
+                                 hgWnd);
 
    /* Unregister destination for Guest->Host DnD. */
-   gtk_drag_dest_unset(mainWnd);
-   gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
+   gtk_drag_dest_unset(ghWnd);
+   gtk_signal_disconnect_by_func(GTK_OBJECT(ghWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkDragMotionCB),
-                                 mainWnd);
-   gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
+                                 ghWnd);
+   gtk_signal_disconnect_by_func(GTK_OBJECT(ghWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkDragDataReceivedCB),
-                                 mainWnd);
-   gtk_signal_disconnect_by_func(GTK_OBJECT(mainWnd),
+                                 ghWnd);
+   gtk_signal_disconnect_by_func(GTK_OBJECT(ghWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkDragDropCB),
-                                 mainWnd);
+                                 ghWnd);
 }
 
 
@@ -2594,27 +2606,45 @@ DnD_Unregister(GtkWidget *mainWnd) // IN: program's widget
  */
 
 void
-DnD_OnReset(GtkWidget *mainWnd) // IN: program's widget
+DnD_OnReset(GtkWidget *hgWnd,   // IN: The widget for hg dnd
+            GtkWidget *ghWnd)   // IN: The widget for gh dnd
+
 {
    Debug("DnD_OnReset: entry\n");
+
+   /* Cancel file transfer. */
+   if (gHGDnDInProgress || gHGDataPending) {
+      DnD_DeleteStagingFiles(gFileRoot, FALSE);
+      if (gBlockFd >= 0 && !DnD_RemoveBlock(gBlockFd, gFileRoot)) {
+         Warning("DnD_OnReset: could not remove block on %s\n",
+                 gFileRoot);
+      }
+   }
+
    /*
     * If a DnD in either direction was in progress during suspend, send an
     * escape to cancel the operation and reset the pointer state.
     */
-   if (gHGDnDInProgress || gGHState.dragInProgress) {
-      Debug("DnD_OnReset: sending escape\n");
-      DnDSendEscapeKey(mainWnd);
+   if (gHGDnDInProgress) {
+      Debug("DnD_OnReset: sending hgWnd escape\n");
+      DnDSendEscapeKey(hgWnd);
+   }
+
+   if (gGHState.dragInProgress) {
+      Debug("DnD_OnReset: sending ghWnd escape\n");
+      DnDSendEscapeKey(ghWnd);
    }
 
    if (gGHState.dragInProgress) {
       Debug("DnD_OnReset: canceling host->guest DnD\n");
-      DnDGHCancel(mainWnd);
+      DnDGHCancel(ghWnd);
    }
 
    /* Reset DnD state. */
    DnDHGStateInit();
-   DnDGHStateInit(mainWnd);
+   DnDGHStateInit(ghWnd);
    DnDGHFileListClear();
+   DnD_SetMode(FALSE);
 }
 
 
@@ -2638,4 +2668,27 @@ Bool
 DnD_InProgress(void)
 {
    return gGHState.dragInProgress || gHGDnDInProgress || gHGDataPending;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DnD_SetMode --
+ *
+ *      Sets dnd mode to single window or unity mode.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Controls if the g->h det window is automatically hidden.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+DnD_SetMode(Bool unity) // IN
+{
+   gUnity = unity;
 }

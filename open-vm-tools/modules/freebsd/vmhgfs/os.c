@@ -37,6 +37,7 @@
 #include "vm_basic_types.h"
 #include "os.h"
 #include "debug.h"
+#include "compat_freebsd.h"
 
 /*
  * Malloc tag for statistics, debugging, etc.
@@ -642,8 +643,8 @@ os_thread_create(void *function,           // IN
 		 const char *threadName,   // IN
 		 OS_THREAD_T *newThread)   // OUT
 {
-   return kthread_create(function, parameter,
-			 newThread, 0, 0, threadName);
+   return compat_kthread_create(function, parameter,
+                                newThread, 0, 0, threadName);
 }
 
 
@@ -720,7 +721,7 @@ os_thread_release(OS_THREAD_T thread) // IN
 void
 os_thread_exit(int errorCode) // IN
 {
-   kthread_exit(errorCode);
+   compat_kthread_exit(errorCode);
 }
 
 

@@ -20,10 +20,13 @@ sbin_PROGRAMS = mount.vmhgfs
 mount_vmhgfs_LDADD =
 mount_vmhgfs_LDADD += ../lib/string/libString.a
 mount_vmhgfs_LDADD += ../lib/strUtil/libStrUtil.a
+mount_vmhgfs_LDADD += ../lib/panicDefault/libPanicDefault.a
+mount_vmhgfs_LDADD += ../lib/panic/libPanic.a
+mount_vmhgfs_LDADD += ../lib/stubs/libStubs.a
 
 mount_vmhgfs_SOURCES =
 mount_vmhgfs_SOURCES += hgfsmounter.c
-mount_vmhgfs_SOURCES += stub.c
+mount_vmhgfs_SOURCES += stub-user-util.c
 
 if FREEBSD
 install-exec-hook:

@@ -111,7 +111,7 @@ Hostinfo_HostName(void)
    if (!GetHostByNameFn) {
       Warning("%s Failed to find gethostbyname.\n", __FUNCTION__);
       FreeLibrary(dllHandle);
-      return Unicode_Alloc(hostName, STRING_ENCODING_US_ASCII);
+      return Unicode_Alloc(hostName, STRING_ENCODING_DEFAULT);
    }
 
    myHostEnt = (*GetHostByNameFn)(hostName);
@@ -124,7 +124,7 @@ Hostinfo_HostName(void)
       Str_Strcpy(hostName, myHostEnt->h_name, sizeof hostName);
    }
 
-   return Unicode_Alloc(hostName, STRING_ENCODING_US_ASCII);
+   return Unicode_Alloc(hostName, STRING_ENCODING_DEFAULT);
 }
 #elif defined(__APPLE__)	// MacOS X
 #define SYS_NMLN _SYS_NAMELEN

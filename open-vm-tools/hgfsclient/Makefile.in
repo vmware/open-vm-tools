@@ -61,7 +61,8 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_vmware_hgfsclient_OBJECTS = hgfsclient.$(OBJEXT) stub.$(OBJEXT)
+am_vmware_hgfsclient_OBJECTS = hgfsclient.$(OBJEXT) \
+	stub-user-util.$(OBJEXT)
 vmware_hgfsclient_OBJECTS = $(am_vmware_hgfsclient_OBJECTS)
 vmware_hgfsclient_DEPENDENCIES = ../lib/conf/libConf.a \
 	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
@@ -73,7 +74,7 @@ vmware_hgfsclient_DEPENDENCIES = ../lib/conf/libConf.a \
 	../lib/err/libErr.a ../lib/file/libFile.a \
 	../lib/message/libMessage.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a
+	../lib/misc/libMisc.a ../lib/stubs/libStubs.a
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -166,6 +167,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -243,8 +245,8 @@ vmware_hgfsclient_LDADD = ../lib/conf/libConf.a \
 	../lib/err/libErr.a ../lib/file/libFile.a \
 	../lib/message/libMessage.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a @ICU_LIBS@
-vmware_hgfsclient_SOURCES = hgfsclient.c stub.c
+	../lib/misc/libMisc.a ../lib/stubs/libStubs.a @ICU_LIBS@
+vmware_hgfsclient_SOURCES = hgfsclient.c stub-user-util.c
 all: all-am
 
 .SUFFIXES:
@@ -317,7 +319,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hgfsclient.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-user-util.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

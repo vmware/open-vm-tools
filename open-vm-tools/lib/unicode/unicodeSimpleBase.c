@@ -43,12 +43,15 @@
 #include "unicodeBase.h"
 #include "unicodeInt.h"
 
+
 /*
  * Padding for initial and final bytes used by an encoding.  The value
  * comes from ICU's UCNV_GET_MAX_BYTES_FOR_STRING macro and accounts
  * for leading and trailing bytes and NUL.
  */
+
 static const size_t UNICODE_UTF16_CODE_UNITS_PADDING = 10;
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -62,11 +65,15 @@ static const size_t UNICODE_UTF16_CODE_UNITS_PADDING = 10;
  *      Otherwise, buffer must be of the specified length, but does
  *      not need to be NUL-terminated.
  *
- *      Note that regardless of the encoding of the buffer passed to this
- *      function, the returned string can hold any Unicode characters.
+ *      Return NULL on memory allocation failure.
  *
- *      If the buffer contains an invalid sequence of the specified
- *      encoding or memory could not be allocated, returns NULL.
+ *      Return NULL if strict is true and the buffer contains an invalid
+ *      sequence in the specified encoding.
+ *
+ *	If strict is false, then an invalid sequence is replaced by
+ *      a substitution character, which is either the Unicode
+ *	substitution character (U+FFFD or \xef\xbf\xbd in UTF-8)
+ *	or subchar1 (ASCII SUB or control-z, value 0x1a).
  *
  * Results:
  *      An allocated Unicode string containing the decoded characters
@@ -82,46 +89,30 @@ static const size_t UNICODE_UTF16_CODE_UNITS_PADDING = 10;
 Unicode
 UnicodeAllocInternal(const void *buffer,      // IN
                      ssize_t lengthInBytes,   // IN
-                     StringEncoding encoding) // IN
+                     StringEncoding encoding, // IN
+		     Bool strict)             // IN
 {
    char *utf8Result = NULL;
 
    ASSERT(buffer != NULL);
+   ASSERT(lengthInBytes >= 0);
+   ASSERT(Unicode_IsEncodingValid(encoding));
 
-   encoding = Unicode_ResolveEncoding(encoding);
+   if (!strict) {
+      CodeSet_GenericToGeneric(Unicode_EncodingEnumToName(encoding),
+                               buffer, lengthInBytes,
+			       "UTF-8", CSGTG_TRANSLIT, &utf8Result, NULL);
+      return utf8Result;
+   }
 
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
-      /*
-       * Fall through and treat as a special case of UTF-8.
-       * Unicode_AllocWithLength() has already ensured we've gotten
-       * only 7-bit bytes in 'buffer'.
-       */
    case STRING_ENCODING_UTF8:
-      {
-         char *utf16Str;
-         const char *utf8Str = (const char *)buffer;
-
-         if (lengthInBytes == -1) {
-            lengthInBytes = strlen(utf8Str);
-         }
-
-         // Ensure the input is valid UTF-8.
-         if (CodeSet_Utf8ToUtf16le(utf8Str,
-                                   lengthInBytes,
-                                   &utf16Str,
-                                   NULL)) {
-            free(utf16Str);
-            utf8Result = Util_SafeStrndup(utf8Str, lengthInBytes);
-         }
-         break;
+      if (Unicode_IsBufferValid(buffer, lengthInBytes, encoding)) {
+	 utf8Result = Util_SafeStrndup(buffer, lengthInBytes);
       }
-   case STRING_ENCODING_UTF16:
+      break;
    case STRING_ENCODING_UTF16_LE:
-      if (lengthInBytes == -1) {
-         lengthInBytes = Unicode_UTF16Strlen((const utf16_t *)buffer) * 2;
-      }
-
       // utf8Result will be left NULL on failure.
       CodeSet_Utf16leToUtf8((const char *)buffer,
                             lengthInBytes,
@@ -129,20 +120,58 @@ UnicodeAllocInternal(const void *buffer,      // IN
                             NULL);
       break;
    default:
-      if (lengthInBytes == -1) {
-         /*
-          * TODO: This doesn't work for UTF-16 BE, UTF-32, and other
-          * encodings with embedded NULs.
-          */
-         lengthInBytes = strlen((const char *)buffer);
-      }
       CodeSet_GenericToGeneric(Unicode_EncodingEnumToName(encoding),
                                buffer, lengthInBytes,
-			       "UTF-8", CSGTG_NORMAL, &utf8Result, NULL);
+			       "UTF-8", 0, &utf8Result, NULL);
       break;
    }
 
    return (Unicode)utf8Result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_IsBufferValid --
+ *
+ *      Tests if the given buffer is valid in the specified encoding.
+ *
+ *      If lengthInBytes is -1, then buffer must be NUL-terminated.
+ *      Otherwise, buffer must be of the specified length, but does
+ *      not need to be NUL-terminated.
+ *
+ * Results:
+ *      TRUE if the buffer is valid, FALSE if it's not.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Unicode_IsBufferValid(const void *buffer,      // IN
+                      ssize_t lengthInBytes,   // IN
+                      StringEncoding encoding) // IN
+{
+   if (buffer == NULL) {
+      ASSERT(lengthInBytes <= 0);
+      return TRUE;
+   }
+
+   encoding = Unicode_ResolveEncoding(encoding);
+
+   if (encoding == STRING_ENCODING_US_ASCII) {
+      return UnicodeSanityCheck(buffer, lengthInBytes, encoding);
+   }
+
+   if (lengthInBytes == -1) {
+      lengthInBytes = Unicode_LengthInBytes(buffer, encoding);
+   }
+
+   return CodeSet_Validate(buffer, lengthInBytes,
+			   Unicode_EncodingEnumToName(encoding));
 }
 
 
@@ -436,15 +465,15 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
       // TODO: Lots more encodings can be added here.
       basicCodePointSize = supplementaryCodePointSize = 1;
       break;
-   case STRING_ENCODING_UTF16:
    case STRING_ENCODING_UTF16_LE:
    case STRING_ENCODING_UTF16_BE:
+   case STRING_ENCODING_UTF16_XE:
       basicCodePointSize = 2;
       supplementaryCodePointSize = 4;
       break;
-   case STRING_ENCODING_UTF32:
    case STRING_ENCODING_UTF32_LE:
    case STRING_ENCODING_UTF32_BE:
+   case STRING_ENCODING_UTF32_XE:
       basicCodePointSize = 4;
       supplementaryCodePointSize = 4;
       break;
@@ -566,7 +595,6 @@ Unicode_CopyBytes(void *destBuffer,        // OUT
          ((char*)destBuffer)[copyBytes] = '\0';
       }
       break;
-   case STRING_ENCODING_UTF16:
    case STRING_ENCODING_UTF16_LE:
       {
          char *utf16Buf;
@@ -718,7 +746,6 @@ UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
       }
       break;
 
-   case STRING_ENCODING_UTF16:
    case STRING_ENCODING_UTF16_LE:
       if (!CodeSet_Utf8ToUtf16le(utf8Str, len, &result, retLength)) {
 	 // input should be valid UTF-8, no conversion error possible

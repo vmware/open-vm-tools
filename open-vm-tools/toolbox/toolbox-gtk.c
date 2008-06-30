@@ -105,8 +105,7 @@ void ToolsMain_OpenHelp(const char *help);
 GtkWidget* ToolsMain_Create(void);
 
 
-Bool RpcInResetCB(char const **result, size_t *resultLen, const char *name,
-                  const char *args, size_t argsSize, void *clientData);
+Bool RpcInResetCB(RpcInData *data);
 Bool RpcInSetOptionCB(char const **result, size_t *resultLen, const char *name,
                       const char *args, size_t argsSize, void *clientData);
 Bool RpcInCapRegCB(char const **result, size_t *resultLen, const char *name,
@@ -602,17 +601,11 @@ ToolsMain_Create(void)
  */
 
 Bool
-RpcInResetCB(char const **result,     // OUT
-             size_t *resultLen,       // OUT
-             const char *name,        // IN
-             const char *args,        // IN
-             size_t argsSize,         // Unused
-             void *clientData)        // Unused
+RpcInResetCB(RpcInData *data) // IN/OUT
 {
    Debug("----------toolbox: Received 'reset' from vmware\n");
 
-   return RpcIn_SetRetVals(result, resultLen, "ATR " TOOLS_CTLPANEL_NAME,
-                           TRUE);
+   return RPCIN_SETRETVALS(data, "ATR " TOOLS_CTLPANEL_NAME, TRUE);
 }
 
 

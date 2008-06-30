@@ -61,10 +61,13 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am_mount_vmhgfs_OBJECTS = hgfsmounter.$(OBJEXT) stub.$(OBJEXT)
+am_mount_vmhgfs_OBJECTS = hgfsmounter.$(OBJEXT) \
+	stub-user-util.$(OBJEXT)
 mount_vmhgfs_OBJECTS = $(am_mount_vmhgfs_OBJECTS)
 mount_vmhgfs_DEPENDENCIES = ../lib/string/libString.a \
-	../lib/strUtil/libStrUtil.a
+	../lib/strUtil/libStrUtil.a \
+	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
+	../lib/stubs/libStubs.a
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -157,6 +160,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -222,8 +226,10 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 mount_vmhgfs_LDADD = ../lib/string/libString.a \
-	../lib/strUtil/libStrUtil.a
-mount_vmhgfs_SOURCES = hgfsmounter.c stub.c
+	../lib/strUtil/libStrUtil.a \
+	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
+	../lib/stubs/libStubs.a
+mount_vmhgfs_SOURCES = hgfsmounter.c stub-user-util.c
 all: all-am
 
 .SUFFIXES:
@@ -296,7 +302,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hgfsmounter.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub-user-util.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

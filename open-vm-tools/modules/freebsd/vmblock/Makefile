@@ -37,6 +37,8 @@ HEADERS := block.h
 HEADERS += vnode_if.h
 HEADERS += vmblock_k.h
 HEADERS += os.h
+HEADERS += compat_freebsd.h
+HEADERS += compat_vop.h
 
 CSRCS  := block.c
 CSRCS  += dbllnklst.c

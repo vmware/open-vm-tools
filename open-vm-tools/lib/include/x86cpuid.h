@@ -54,17 +54,36 @@ typedef union CPUIDRegsUnion {
 } CPUIDRegsUnion;
 
 /*
- * Results of calling cpuid(eaxArg, ecxArg) on all logical processors. 
+ * Results of calling cpuid(eax, ecx) on all host logical CPU.
  */
 #ifdef _MSC_VER
 #pragma warning (disable :4200) // non-std extension: zero-sized array in struct
 #endif
 
-typedef struct CPUIDResult {
-   uint32 numLogicalCPUs;
-   uint32 eaxArg, ecxArg;
-   CPUIDRegs regs[0];
-} CPUIDResult;
+typedef
+#include "vmware_pack_begin.h"
+struct CPUIDReply {
+   /*
+    * Unique host logical CPU identifier. It does not change across queries, so
+    * we use it to correlate the replies of multiple queries.
+    */
+   uint64 tag;                // OUT
+
+   CPUIDRegs regs;            // OUT
+}
+#include "vmware_pack_end.h"
+CPUIDReply;
+
+typedef
+#include "vmware_pack_begin.h"
+struct CPUIDQuery {
+   uint32 eax;                // IN
+   uint32 ecx;                // IN
+   uint32 numLogicalCPUs;     // IN/OUT
+   CPUIDReply logicalCPUs[0]; // OUT
+}
+#include "vmware_pack_end.h"
+CPUIDQuery;
 
 /*
  * CPUID levels the monitor caches and ones that are not cached, but
@@ -315,10 +334,10 @@ FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   IGNORE,  0, FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,   MASK TYPE, SET TO, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
-FIELDDEF(  A, EAX, INTEL,   0,  8, PMC_VERSION,         IGNORE,  0, FALSE)            \
+FIELDDEFA( A, EAX, INTEL,   0,  8, PMC_VERSION,         IGNORE,  0, FALSE, PMC_VERSION) \
 FIELDDEFA( A, EAX, INTEL,   8,  8, NUM_PMCS,            IGNORE,  0, FALSE, NUM_PMCS)  \
 FIELDDEF(  A, EAX, INTEL,  16,  8, PMC_BIT_WIDTH,       IGNORE,  0, FALSE)            \
-FIELDDEF(  A, EAX, INTEL,  24,  8, PMC_EBX_LENGTH,      IGNORE,  0, FALSE)            \
+FIELDDEFA( A, EAX, INTEL,  24,  8, PMC_EBX_LENGTH,      IGNORE,  0, FALSE, PMC_EBX_LENGTH) \
 FLAGDEF(   A, EBX, INTEL,   0,  1, PMC_CORE_CYCLE,      IGNORE,  0, FALSE)            \
 FLAGDEF(   A, EBX, INTEL,   1,  1, PMC_INSTR_RETIRED,   IGNORE,  0, FALSE)            \
 FLAGDEF(   A, EBX, INTEL,   2,  1, PMC_REF_CYCLES,      IGNORE,  0, FALSE)            \
@@ -458,7 +477,11 @@ FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         MASK,    0, FALSE)
                       CPUID_##vend##_ID##lvl##reg##_##name##_MASK,
 
 #define FIELDDEFA(lvl, reg, vend, bitpos, size, name, m, v, c3, f)      \
-         FIELDDEF(lvl, reg, vend, bitpos, size, name, m, v, c3)
+   CPUID_##vend##_ID##lvl##reg##_##name##_SHIFT = bitpos,               \
+   CPUID_##vend##_ID##lvl##reg##_##name##_MASK  =                       \
+                      VMW_BIT_MASK(size) << bitpos,                     \
+   CPUID_FEATURE_##vend##_ID##lvl##reg##_##name =                       \
+                      CPUID_##vend##_ID##lvl##reg##_##name##_MASK,
 
 #define FLAGDEFA FIELDDEFA
 #define FLAGDEF FIELDDEF
@@ -796,6 +819,33 @@ CPUID_RequiresFence(CpuidVendors vendor, // IN
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_CountsCPUIDAsBranch --
+ *
+ *      Returns TRUE iff the cpuid given counts CPUID as a branch
+ *      (i.e. is a pre-Merom E CPU).
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+CPUID_CountsCPUIDAsBranch(uint32 v) /* %eax from CPUID with %eax=1 */
+{
+   /* 
+    * CPUID no longer a branch starting with Merom E. Bug 148411.
+    * Penryn (Extended Model: 1) also has this fixed.
+    *
+    * Merom E is: CPUID.1.eax & 0xfff = 0x6f9
+    */
+   return !(CPUID_FAMILY_IS_P6(v) &&
+            (CPUID_EFFECTIVE_MODEL(v) > CPUID_MODEL_CORE2 ||
+             (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_CORE2 &&
+              CPUID_STEPPING(v) >= 9)));
+}
+
+
 /* 
  * The following low-level functions compute the number of
  * cores per cpu.  They should be used cautiously because
@@ -827,5 +877,6 @@ CPUID_IsHypervisorLevel(uint32 level, uint32 *offset)
    *offset = level & 0xff;
    return (level & 0xffffff00) == 0x40000000;
 }
+
 
 #endif

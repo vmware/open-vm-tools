@@ -29,6 +29,8 @@
 
 char *HgfsBd_GetBuf(void);
 
+char *HgfsBd_GetLargeBuf(void);
+
 void HgfsBd_PutBuf(char *);
 
 RpcOut *HgfsBd_GetChannel(void);

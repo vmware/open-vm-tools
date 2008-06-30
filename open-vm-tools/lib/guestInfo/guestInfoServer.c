@@ -36,6 +36,7 @@
 #include "vmware.h"
 #include "eventManager.h"
 #include "debug.h"
+#include "dynxdr.h"
 #include "str.h"
 #include "util.h"
 #include "rpcout.h"
@@ -48,6 +49,7 @@
 #include "system.h"
 #include "wiper.h" // for WiperPartition functions
 #include "guest_msg_def.h" // For GUESTMSG_MAX_IN_SIZE
+#include "xdrutil.h"
 
 #define GUESTINFO_DEFAULT_DELIMITER ' '
 
@@ -57,7 +59,7 @@
 
 typedef struct _GuestInfoCache{
    char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
-   GuestNicInfo  nicInfo;
+   GuestNicList  nicInfo;
    GuestDiskInfo diskInfo;
 } GuestInfoCache;
 
@@ -79,114 +81,13 @@ static GuestInfoCache gInfoCache;
 
 static Bool vmResumed;
 
-/*
- * The Windows Guest Info Server runs in a separate thread,
- * so we have to synchronize access to 'vmResumed' variable.
- * Non-windows guest info server does not run in a separate
- * thread, so no locking is needed.
- */
-
-#if defined(_WIN32)
-typedef CRITICAL_SECTION vmResumedLockType;
-#define GUESTINFO_DELETE_LOCK(lockPtr) DeleteCriticalSection(lockPtr)
-#define GUESTINFO_ENTER_LOCK(lockPtr) EnterCriticalSection(lockPtr)
-#define GUESTINFO_LEAVE_LOCK(lockPtr) LeaveCriticalSection(lockPtr)
-#define GUESTINFO_INIT_LOCK(lockPtr) InitializeCriticalSection(lockPtr)
-
-vmResumedLockType vmResumedLock;
-
-#else // #if LINUX
-
-typedef int vmResumedLockType;
-#define GUESTINFO_DELETE_LOCK(lockPtr)
-#define GUESTINFO_ENTER_LOCK(lockPtr)
-#define GUESTINFO_LEAVE_LOCK(lockPtr)
-#define GUESTINFO_INIT_LOCK(lockPtr)
-
-#endif // #if LINUX
-
 static Bool GuestInfoGather(void * clientData);
 static Bool GuestInfoUpdateVmdb(GuestInfoType infoType, void* info);
 static Bool SetGuestInfo(GuestInfoType key, const char* value, char delimiter);
-static Bool NicInfoChanged(GuestNicInfo *nicInfo);
+static Bool NicInfoChanged(GuestNicList *nicInfo);
 static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
-static Bool GuestInfoSerializeNicInfo(GuestNicInfo *nicInfo,
-                                      char buffer[GUESTMSG_MAX_IN_SIZE],
-                                      size_t *bufferLen);
-static int PrintNicInfo(GuestNicInfo *nicInfo, int (*PrintFunc)(const char *, ...));
-
-#ifdef _WIN32
-static Bool GuestInfoConvertNicInfoToNicInfoV1(GuestNicInfo *info, GuestNicInfoV1 *infoV1);
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestInfoServer_Main --
- *
- *    The main event loop for the guest info server.
- *    GuestInfoServer_Init() much be called prior to calling this function.
- *
- * Result
- *    None
- *
- * Side-effects
- *    Events are processed, information gathered and updates sent.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GuestInfoServer_Main(void *data) // IN
-{
-   int retVal;
-   uint64 sleepUsecs;
-   HANDLE *events = (HANDLE *) data;
-   HANDLE quitEvent;
-   HANDLE finishedEvent;
-
-   ASSERT(data);
-   ASSERT(events[0]);
-   ASSERT(events[1]);
-
-   quitEvent = events[0];
-   finishedEvent = events[1];
-
-   Debug("Starting GuestInfoServer for Windows.\n");
-   for(;;) {
-      DWORD dwError;
-
-      retVal = EventManager_ProcessNext(gGuestInfoEventQueue, &sleepUsecs);
-      if (retVal != 1) {
-         Debug("Unexpected end of the guest info loop.\n");
-         break;
-      }
-
-      /*
-       * The number of micro seconds to sleep should not overflow a long. This
-       * corresponds to a maximum sleep time of around 4295 seconds (~ 71 minutes)
-       * which should be more than enough.
-       */
-
-      Debug("Sleeping for %"FMT64"u msecs...\n", sleepUsecs / 1000);
-      dwError = WaitForSingleObject(quitEvent, sleepUsecs / 1000);
-      if (dwError == WAIT_OBJECT_0) {
-         GuestApp_Log("GuestInfoServer received quit event.\n");
-         Debug("GuestInfoServer received quit event.\n");
-         break;
-      } else if (dwError == WAIT_TIMEOUT) {
-         Debug("GuestInfoServer woke up.\n");
-      } else if (dwError == WAIT_FAILED) {
-         Debug("GuestInfoServer error waiting on exit event: %d %d\n",
-               dwError, GetLastError());
-         break;
-      }
-   }
-   SetEvent(finishedEvent);
-   GuestApp_Log("GuestInfoServer exiting.\n");
-}
-#endif
+static int PrintNicInfo(GuestNicList *nicInfo, int (*PrintFunc)(const char *, ...));
 
 
 /*
@@ -325,7 +226,7 @@ GuestInfoGather(void *clientData)   // IN: unused
    char name[255];
    char osNameFull[MAX_VALUE_LEN];
    char osName[MAX_VALUE_LEN];
-   GuestNicInfo nicInfo;
+   GuestNicList nicInfo;
    GuestDiskInfo diskInfo;
 #if defined(_WIN32) || defined(linux)
    GuestMemInfo vmStats = {0};
@@ -443,72 +344,57 @@ GuestInfoGather(void *clientData)   // IN: unused
  */
 
 Bool
-GuestInfoConvertNicInfoToNicInfoV1(GuestNicInfo *info,             // IN
-                                   GuestNicInfoV1  *infoV1)        // OUT
+GuestInfoConvertNicInfoToNicInfoV1(GuestNicList *info,        // IN
+                                   GuestNicInfoV1 *infoV1)    // OUT
 {
-   NicEntry *nicEntryCur;
    uint32 maxNics;
-   uint32 nicIndex = 0;
-   DblLnkLst_Links *nicEntryLink;
+   u_int i;
 
    if ((NULL == info) ||
        (NULL == infoV1)) {
       return FALSE;
    }
 
-   maxNics = info->nicInfoProto.numNicEntries > MAX_NICS ?
-                                   MAX_NICS : info->nicInfoProto.numNicEntries;
+   maxNics = MIN(info->nics.nics_len, MAX_NICS);
    infoV1->numNicEntries = maxNics;
-   if (maxNics < info->nicInfoProto.numNicEntries) {
-      Debug("Truncating NICs.\n");
+   if (maxNics < info->nics.nics_len) {
+      Debug("GuestInfo: truncating NIC list for backwards compatibility.\n");
    }
 
-   DblLnkLst_ForEach(nicEntryLink, &info->nicList) {
-      uint32 ipIndex = 0;
+   XDRUTIL_FOREACH(i, info, nics) {
+      u_int j;
       uint32 maxIPs;
-      VmIpAddressEntry *ipAddressCur;
-      DblLnkLst_Links *ipAddrLink;
+      GuestNic *nic = XDRUTIL_GETITEM(info, nics, i);
+      
+      Str_Strcpy(infoV1->nicList[i].macAddress,
+                 nic->macAddress,
+                 sizeof infoV1->nicList[i].macAddress);
 
-      if (nicIndex >= maxNics) {
+      maxIPs = MIN(nic->ips.ips_len, MAX_IPS);
+      infoV1->nicList[i].numIPs = 0;
+
+      XDRUTIL_FOREACH(j, nic, ips) {
+         VmIpAddress *ip = XDRUTIL_GETITEM(nic, ips, j);
+         
+         if (strlen(ip->ipAddress) < sizeof infoV1->nicList[i].ipAddress[j]) {
+            Str_Strcpy(infoV1->nicList[i].ipAddress[j],
+                       ip->ipAddress,
+                       sizeof infoV1->nicList[i].ipAddress[j]);
+            infoV1->nicList[i].numIPs++;
+            if (infoV1->nicList[i].numIPs == maxIPs) {
+               break;
+            }
+         } else {
+            Debug("GuestInfo: ignoring IPV6 address for compatibility.\n");
+         }
+      }
+
+      if (infoV1->nicList[i].numIPs != nic->ips.ips_len) {
+         Debug("GuestInfo: some IP addresses were ignored for compatibility.\n");
+      }
+      if (i == maxNics) {
          break;
       }
-
-      nicEntryCur = DblLnkLst_Container(nicEntryLink,
-                                        NicEntry,
-                                        links);
-      if (NULL == nicEntryCur) {
-         return FALSE;
-      }
-
-      strcpy(infoV1->nicList[nicIndex].macAddress, nicEntryCur->nicEntryProto.macAddress);
-
-      maxIPs = nicEntryCur->nicEntryProto.numIPs > MAX_IPS ?
-                                          MAX_IPS : nicEntryCur->nicEntryProto.numIPs;
-      nicEntryCur -> nicEntryProto.numIPs = maxIPs;
-      if (maxIPs < nicEntryCur->nicEntryProto.numIPs) {
-         Debug("Truncating IP addresses for NIC %d.\n", nicIndex);
-      }
-
-      DblLnkLst_ForEach(ipAddrLink, &nicEntryCur->ipAddressList) {
-
-         if (ipIndex >= maxIPs) {
-            break;
-         }
-
-         ipAddressCur = DblLnkLst_Container(ipAddrLink,
-                                          VmIpAddressEntry,
-                                          links);
-         if (NULL == ipAddressCur) {
-            return FALSE;
-         }
-         strcpy(infoV1->nicList[nicIndex].ipAddress[ipIndex],
-                ipAddressCur->ipEntryProto.ipAddress);
-
-         ipIndex++;
-         infoV1->nicList[nicIndex].numIPs = ipIndex;
-      }
-
-      nicIndex++;
    }
 
    return TRUE;
@@ -574,35 +460,52 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
       break;
 
    case INFO_IPADDRESS:
-      if (NicInfoChanged((GuestNicInfo *)info)) {
+      if (NicInfoChanged((GuestNicList *)info)) {
          static Bool isCmdV1 = FALSE;
-         char request[GUESTMSG_MAX_IN_SIZE];
-         size_t requestLength = 0;
          char *reply = NULL;
          size_t replyLen;
          Bool status;
 
          if (FALSE == isCmdV1) {
-            Debug("Creating nic info message.\n");
-            Str_Sprintf(request,
-                        sizeof request,
-                        "%s  %d ",
-                        GUEST_INFO_COMMAND_TWO,
-                        INFO_IPADDRESS);
+            /* 13 = max size of string representation of an int + 3 spaces. */
+            char request[sizeof GUEST_INFO_COMMAND + 13];
+            GuestNicProto message;
+            XDR xdrs;
 
-            if (GuestInfoSerializeNicInfo((GuestNicInfo *)info,
-                                          request + strlen(request),
-                                          &requestLength)) {
-               requestLength += strlen(request);
-            } else {
+            if (DynXdr_Create(&xdrs) == NULL) {
                return FALSE;
             }
 
-            Debug("GuestInfo: Sending nic info message.\n");
-            /* Send all the information in the message. */
-            status = RpcOut_SendOneRaw(request, requestLength, &reply, &replyLen);
+            /* Add the RPC preamble: message name, and type. */
+            Str_Sprintf(request, sizeof request, "%s  %d ",
+                        GUEST_INFO_COMMAND, INFO_IPADDRESS_V2);
 
-            Debug("GuestInfo: Just sent nic info message.\n");
+            message.ver = NIC_INFO_V2;
+            message.GuestNicProto_u.nicsV2 = info;
+
+            /* Write preamble and serialized nic info to XDR stream. */
+            if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
+                !xdr_GuestNicProto(&xdrs, &message)) {
+               Debug("GuestInfo: Error serializing nic info v2 data.");
+               DynXdr_Destroy(&xdrs, TRUE);
+               return FALSE;
+            }
+
+            status = RpcOut_SendOneRaw(DynXdr_Get(&xdrs),
+                                       xdr_getpos(&xdrs),
+                                       &reply,
+                                       &replyLen);
+            DynXdr_Destroy(&xdrs, TRUE);
+            if (status) {
+               Debug("GuestInfo: sent nic info message.\n");
+            } else {
+               Debug("GuestInfo: failed to send V2 nic info message.\n");
+            }
+
+            if (RpcVMX_ConfigGetBool(FALSE, "printNicInfo")) {
+               PrintNicInfo((GuestNicList *) info,
+                            (int (*)(const char *fmt, ...)) RpcVMX_Log);
+            }
          } else {
             status = FALSE;
          }
@@ -648,28 +551,16 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
             }
          }
 
-         if (RpcVMX_ConfigGetBool(FALSE, "printNicInfo")) {
-            PrintNicInfo((GuestNicInfo *) info, (int (*)(const char *fmt, ...)) RpcVMX_Log);
-         }
-
          Debug("GuestInfo: Updated new NIC information\n");
          free(reply);
          reply = NULL;
 
          /*
-          * Update the cache.  Assign info to gInfoCache.nicInfo. First free dynamic
-          * memory allocated in gInfoCache.nicInfo. Then unlink those in nicInfo and
-          * link them back to gInfoCache.nicInfo this is sort of hacking.  However, it
-          * works in this case, since nicInfo is not going to be used after this.  NOTE,
-          * nicInfo CAN NOT BE USED AFTER THIS POINT.
+          * Update the cache. Release the memory previously used by the cache,
+          * and copy the new information into the cache.
           */
-         GuestInfo_FreeDynamicMemoryInNicInfo(&gInfoCache.nicInfo);
-         /* assign the fixed memory part */
-         gInfoCache.nicInfo = *(GuestNicInfo *)info;
-         /* assign the dynamic memory part */
-         DblLnkLst_Init(&gInfoCache.nicInfo.nicList);
-         DblLnkLst_Link(&gInfoCache.nicInfo.nicList, ((GuestNicInfo *)info)->nicList.next);
-         DblLnkLst_Unlink1(&((GuestNicInfo *)info)->nicList);
+         VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
+         gInfoCache.nicInfo = *(GuestNicList *)info;
       } else {
          Debug("GuestInfo: Nic info not changed.\n");
       }
@@ -858,11 +749,11 @@ SetGuestInfo(GuestInfoType key,  // IN: the VMDB key to set
  *
  * GuestInfoFindMacAddress --
  *
- *      Locates a MAC address in the NIC info structure.
+ *      Locates a NIC with the given MAC address in the NIC list.
  *
  * Return value:
  *      If there is an entry in nicInfo which corresponds to this MAC address,
- *      its index is returned. If not -1 is returned.
+ *      it is returned. If not NULL is returned.
  *
  * Side effects:
  *      None
@@ -870,20 +761,16 @@ SetGuestInfo(GuestInfoType key,  // IN: the VMDB key to set
  *-----------------------------------------------------------------------------
  */
 
-NicEntry *
-GuestInfoFindMacAddress(GuestNicInfo *nicInfo, const char *macAddress)
+GuestNic *
+GuestInfoFindMacAddress(GuestNicList *nicInfo,  // IN/OUT
+                        const char *macAddress) // IN
 {
-   NicEntry *nicEntry;
-   DblLnkLst_Links *sCurrent;
+   u_int i;
 
-   if (0 == nicInfo->nicInfoProto.numNicEntries) {
-      return NULL;
-   }
-
-   DblLnkLst_ForEach(sCurrent, &nicInfo->nicList) {
-      nicEntry = DblLnkLst_Container(sCurrent, NicEntry, links);
-      if (Str_Strcasecmp(macAddress, nicEntry->nicEntryProto.macAddress) == 0) {
-         return nicEntry;
+   for (i = 0; i < nicInfo->nics.nics_len; i++) {
+      GuestNic *nic = &nicInfo->nics.nics_val[i];
+      if (strncmp(nic->macAddress, macAddress, NICINFO_MAC_LEN) == 0) {
+         return nic;
       }
    }
 
@@ -911,86 +798,56 @@ GuestInfoFindMacAddress(GuestNicInfo *nicInfo, const char *macAddress)
  */
 
 Bool
-NicInfoChanged(GuestNicInfo *nicInfo)     // IN:
+NicInfoChanged(GuestNicList *nicInfo)  // IN
 {
-   char *currentMac;
-   GuestNicInfo *cachedNicInfo;
-   NicEntry *cachedNic;
-   DblLnkLst_Links *cachedNicLink;
+   u_int i;
+   GuestNicList *cachedNicInfo = &gInfoCache.nicInfo;
 
-   cachedNicInfo = &gInfoCache.nicInfo;
-   cachedNic = DblLnkLst_Container(cachedNicInfo->nicList.next,
-                                   NicEntry,
-                                   links);
-
-   if (cachedNicInfo->nicInfoProto.numNicEntries !=
-       nicInfo->nicInfoProto.numNicEntries) {
+   if (cachedNicInfo->nics.nics_len != nicInfo->nics.nics_len) {
       Debug("GuestInfo: number of nics has changed\n");
       return TRUE;
    }
 
-   /* Have any MAC or IP addresses been modified? */
-   DblLnkLst_ForEach(cachedNicLink, &cachedNicInfo->nicList) {
-      NicEntry *matchedNIC;
-      DblLnkLst_Links *curCachedIpLink;
-
-      cachedNic = DblLnkLst_Container(cachedNicLink, NicEntry, links);
-      currentMac = cachedNic->nicEntryProto.macAddress;
+   for (i = 0; i < cachedNicInfo->nics.nics_len; i++) {
+      u_int j;
+      GuestNic *cachedNic = &cachedNicInfo->nics.nics_val[i];
+      GuestNic *matchedNic;
 
       /* Find the corresponding nic in the new nic info. */
-      matchedNIC = GuestInfoFindMacAddress(nicInfo, currentMac);
+      matchedNic = GuestInfoFindMacAddress(nicInfo, cachedNic->macAddress);
 
-      if (NULL == matchedNIC) {
+      if (NULL == matchedNic) {
          /* This mac address has been deleted. */
          return TRUE;
       }
 
-      if (matchedNIC->nicEntryProto.numIPs != cachedNic->nicEntryProto.numIPs) {
+      if (matchedNic->ips.ips_len != cachedNic->ips.ips_len) {
          Debug("GuestInfo: count of ip addresses for mac %d\n",
-                                                matchedNIC->nicEntryProto.numIPs);
+                                                matchedNic->ips.ips_len);
          return TRUE;
       }
 
       /* Which IP addresses have been modified for this NIC? */
-      DblLnkLst_ForEach(curCachedIpLink, &cachedNic->ipAddressList) {
-         char *currentCachedIp;
-         VmIpAddressEntry *cachedIpAddress;
-         DblLnkLst_Links * matchedIpAddressLink;
+      for (j = 0; j < matchedNic->ips.ips_len; j++) {
+         VmIpAddress *cachedIp = &cachedNic->ips.ips_val[i];
          Bool foundIP = FALSE;
+         u_int k;
 
-         cachedIpAddress = DblLnkLst_Container(curCachedIpLink,
-                                               VmIpAddressEntry,
-                                               links);
-
-         if (cachedIpAddress) {
-            currentCachedIp = cachedIpAddress->ipEntryProto.ipAddress;
-         } else {
-            break;
-         }
-
-         DblLnkLst_ForEach(matchedIpAddressLink, &matchedNIC->ipAddressList) {
-            VmIpAddressEntry *matchedIpAddressEntry =
-                                  DblLnkLst_Container(matchedIpAddressLink,
-                                                      VmIpAddressEntry,
-                                                      links);
-
-            if (matchedIpAddressEntry) {
-               if (strncmp(matchedIpAddressEntry->ipEntryProto.ipAddress,
-                           currentCachedIp,
-                           IP_ADDR_SIZE_V2) == 0) {
-                  foundIP = TRUE;
-                  break;
-               }
-            } else {
+         for (k = 0; k < matchedNic->ips.ips_len; k++) {
+            VmIpAddress *matchedIp = &matchedNic->ips.ips_val[k];
+            if (strncmp(cachedIp->ipAddress,
+                        matchedIp->ipAddress,
+                        NICINFO_MAX_IP_LEN)) {
+               foundIP = TRUE;
                break;
             }
          }
 
-
          if (FALSE == foundIP) {
             /* This ip address couldn't be found and has been modified. */
-            Debug("GuestInfo: mac address %s, ipaddress %s deleted\n", currentMac,
-                  currentCachedIp);
+            Debug("GuestInfo: mac address %s, ipaddress %s deleted\n",
+                  cachedNic->macAddress,
+                  cachedIp->ipAddress);
             return TRUE;
          }
 
@@ -999,143 +856,6 @@ NicInfoChanged(GuestNicInfo *nicInfo)     // IN:
    }
 
    return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfoSerializeNicInfo --
- *
- *      Now that GuestNicInfo is not fixed size, serialize nicInfo into a
- *      buffer, in order to send it over wire.
- *
- * Results:
- *
- *      TRUE if successful, FALSE otherwise.
- *
- * Side effects:
- *
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestInfoSerializeNicInfo(GuestNicInfo *nicInfo,                      // IN
-                          char buffer[GUESTMSG_MAX_IN_SIZE],          // OUT
-                          size_t *bufferLen)                          // OUT
-{
-   char *buf;
-   char *info;
-   size_t entrySize;
-   DblLnkLst_Links *nicEntryLink;
-
-   ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.version == 4);
-   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, nicEntrySizeOnWire) == 4);
-   ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.nicEntrySizeOnWire == 4);
-   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, numNicEntries) == 8);
-   ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.numNicEntries == 4);
-   ASSERT_ON_COMPILE(offsetof(NicInfoProtocol, totalInfoSizeOnWire) == 12);
-   ASSERT_ON_COMPILE(sizeof nicInfo->nicInfoProto.totalInfoSizeOnWire == 4);
-
-   if ((NULL == nicInfo) ||
-       (NULL == buffer ) ||
-       (NULL == bufferLen)) {
-      return FALSE;
-   }
-
-   if (0 == nicInfo->nicInfoProto.numNicEntries) {
-      return FALSE;
-   }
-
-   nicInfo->nicInfoProto.totalInfoSizeOnWire = 0;
-   nicInfo->nicInfoProto.nicEntrySizeOnWire = sizeof(NicEntryProtocol);
-
-   buf = buffer;
-   info = (char *)(&nicInfo->nicInfoProto);
-   entrySize = sizeof nicInfo->nicInfoProto;
-
-   memcpy(buf, info, entrySize);
-   nicInfo->nicInfoProto.totalInfoSizeOnWire += entrySize;
-
-   buf += entrySize;
-
-   DblLnkLst_ForEach(nicEntryLink, &nicInfo->nicList) {
-      NicEntry *nicEntry;
-      DblLnkLst_Links *ipAddrLink;
-      VmIpAddressEntry *ipAddressCur;
-      char *nicEntryBuf = buf;
-
-      nicEntry = DblLnkLst_Container(nicEntryLink, NicEntry, links);
-      nicEntry->nicEntryProto.totalNicEntrySizeOnWire = 0;
-      nicEntry->nicEntryProto.ipAddressSizeOnWire = sizeof(VmIpAddressEntryProtocol);
-
-      info = (char *)(&nicEntry->nicEntryProto);
-
-      entrySize = sizeof nicEntry->nicEntryProto;
-
-       /* to prevent buffer overflow */
-      if (buf + entrySize - buffer < GUESTMSG_MAX_IN_SIZE) {
-         memcpy(buf, info, entrySize);
-         nicEntry->nicEntryProto.totalNicEntrySizeOnWire += entrySize;
-         nicInfo->nicInfoProto.totalInfoSizeOnWire += entrySize;
-      } else {
-         return FALSE;
-      }
-
-      buf += entrySize;
-
-      entrySize = sizeof ipAddressCur->ipEntryProto;
-
-      DblLnkLst_ForEach(ipAddrLink, &nicEntry->ipAddressList) {
-         ipAddressCur = DblLnkLst_Container(ipAddrLink, VmIpAddressEntry, links);
-         ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire = 0;
-         info = (char *)(&ipAddressCur->ipEntryProto);
-
-         if (info) {
-            /* to prevent buffer overflow */
-            if (buf + entrySize - buffer < GUESTMSG_MAX_IN_SIZE) {
-               memcpy(buf, info, entrySize);
-               ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire +=
-                  entrySize;
-               nicEntry->nicEntryProto.totalNicEntrySizeOnWire +=
-                  entrySize;
-               nicInfo->nicInfoProto.totalInfoSizeOnWire +=
-                  entrySize;
-            } else {
-               return FALSE;
-            }
-         }
-
-         /*
-          * Update total size portion that was just calculated.
-          */
-         memcpy(buf + offsetof(VmIpAddressEntryProtocol,
-                               totalIpEntrySizeOnWire),
-                &ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire,
-                sizeof ipAddressCur->ipEntryProto.totalIpEntrySizeOnWire);
-         buf += entrySize;
-      }
-      /*
-       * Update total size portion that was just calculated.
-       */
-      memcpy(nicEntryBuf + offsetof(NicEntryProtocol ,
-                                    totalNicEntrySizeOnWire),
-             &nicEntry->nicEntryProto.totalNicEntrySizeOnWire,
-             sizeof nicEntry->nicEntryProto.totalNicEntrySizeOnWire);
-   }
-
-   *bufferLen = buf + entrySize - buffer;
-
-   /*
-    * Update total size portion that was just calculated.
-    */
-   memcpy(buffer + offsetof(NicInfoProtocol, totalInfoSizeOnWire),
-          &nicInfo->nicInfoProto.totalInfoSizeOnWire,
-          sizeof nicInfo->nicInfoProto.totalInfoSizeOnWire);
-
-   return TRUE;
 }
 
 
@@ -1157,49 +877,32 @@ GuestInfoSerializeNicInfo(GuestNicInfo *nicInfo,                      // IN
  */
 
 int
-PrintNicInfo(GuestNicInfo *nicInfo,                    // IN
-             int (*PrintFunc)(const char *, ...))      // IN
+PrintNicInfo(GuestNicList *nicInfo,               // IN
+             int (*PrintFunc)(const char *, ...)) // IN
 {
    int ret = 0;
-   uint32 i = 0;
-   DblLnkLst_Links *nicEntryLink;
+   u_int i = 0;
 
+   ret += PrintFunc("NicInfo: count: %ud\n", nicInfo->nics.nics_len);
+   for (i = 0; i < nicInfo->nics.nics_len; i++) {
+      u_int j;
+      GuestNic *nic = &nicInfo->nics.nics_val[i];
 
-   ret += PrintFunc("GuestNicInfo: count: %d\n", nicInfo->nicInfoProto.numNicEntries);
-   DblLnkLst_ForEach(nicEntryLink, &nicInfo->nicList) {
-      uint32 j = 0;
-      DblLnkLst_Links *ipAddrLink;
-      NicEntry *nicEntry = DblLnkLst_Container(nicEntryLink,
-                                               NicEntry,
-                                               links);
-      if (nicEntry) {
-         ret += PrintFunc("GuestNicInfo: nic [%d/%d] mac:      %s",
+      ret += PrintFunc("NicInfo: nic [%d/%d] mac:      %s",
+                       i+1,
+                       nicInfo->nics.nics_len,
+                       nic->macAddress);
+
+      for (j = 0; j < nic->ips.ips_len; j++) {
+         VmIpAddress *ipAddress = &nic->ips.ips_val[j];
+
+         ret += PrintFunc("NicInfo: nic [%d/%d] IP [%d/%d]: %s",
                           i+1,
-                          nicInfo->nicInfoProto.numNicEntries,
-                          nicEntry->nicEntryProto.macAddress);
-      } else {
-         break;
+                          nicInfo->nics.nics_len,
+                          j+1,
+                          nic->ips.ips_len,
+                          ipAddress->ipAddress);
       }
-
-      DblLnkLst_ForEach(ipAddrLink, &nicEntry->ipAddressList) {
-         VmIpAddressEntry *ipAddress = DblLnkLst_Container(
-                                                       ipAddrLink,
-                                                       VmIpAddressEntry,
-                                                       links);
-
-         if (ipAddress) {
-            ret += PrintFunc("GuestNicInfo: nic [%d/%d] IP [%d/%d]: %s",
-                             i+1,
-                             nicInfo->nicInfoProto.numNicEntries,
-                             j+1,
-                             nicEntry->nicEntryProto.numIPs,
-                             ipAddress->ipEntryProto.ipAddress);
-         } else {
-            break;
-         }
-         j++;
-      }
-      i++;
    }
 
    return ret;
@@ -1389,15 +1092,8 @@ GuestInfoClearCache(void)
       gInfoCache.value[i][0] = 0;
    }
 
-   GuestInfo_FreeDynamicMemoryInNicInfo(&gInfoCache.nicInfo);
-
-   gInfoCache.nicInfo.nicInfoProto.numNicEntries = 0;
-   gInfoCache.diskInfo.numEntries = 0;
-
-   if (gInfoCache.diskInfo.partitionList != NULL) {
-      free(gInfoCache.diskInfo.partitionList);
-      gInfoCache.diskInfo.partitionList = NULL;
-   }
+   VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
+   memset(&gInfoCache.nicInfo, 0, sizeof gInfoCache.nicInfo);
 }
 
 
@@ -1485,29 +1181,25 @@ GuestInfoServer_SendUptime(void)
  *      initialized with the input parameter
  *
  * Results:
- *      newly allocated NicEntry
+ *      Newly allocated GuestNic, NULL on failure.
  *
  * Side effects:
- *	     All linked list in the new entry is initialized. Number of Nic
- *      entries is bumped up by 1.
+ *	     Number of Nic entries is bumped up by 1.
  *----------------------------------------------------------------------
  */
 
-NicEntry *
-GuestInfoAddNicEntry(GuestNicInfo *nicInfo,                       // IN/OUT
-                     const char macAddress[MAC_ADDR_SIZE])        // IN
+GuestNic *
+GuestInfoAddNicEntry(GuestNicList *nicInfo,                    // IN/OUT
+                     const char macAddress[NICINFO_MAC_LEN])   // IN
 {
-   NicEntry   *nicEntryCur = NULL;
+   GuestNic *newNic;
 
-   nicEntryCur = Util_SafeCalloc(1, sizeof(*nicEntryCur));
-   DblLnkLst_Init(&nicEntryCur->ipAddressList);
-   DblLnkLst_Init(&nicEntryCur->links);
-   DblLnkLst_LinkLast(&nicInfo->nicList, &nicEntryCur->links);
+   newNic = XDRUTIL_ARRAYAPPEND(nicInfo, nics, 1);
+   if (newNic != NULL) {
+      Str_Strcpy(newNic->macAddress, macAddress, sizeof newNic->macAddress);
+   }
 
-   Str_Strcpy(nicEntryCur->nicEntryProto.macAddress, macAddress, MAC_ADDR_SIZE);
-   nicInfo->nicInfoProto.numNicEntries++;
-
-   return nicEntryCur;
+   return newNic;
 }
 
 
@@ -1516,34 +1208,31 @@ GuestInfoAddNicEntry(GuestNicInfo *nicInfo,                       // IN/OUT
  *
  * GuestInfoAddIpAddress --
  *
- *      Add an IP address entry into NicEntry
+ *      Add an IP address entry into the GuestNic.
  *
  * Results:
- *      Newly allocated IP address Entry
+ *      Newly allocated IP address struct.
  *
  * Side effects:
- *	     Linked list in the new IP address entry is initialized.Number
- *      of IP addresses on the NIC is bumped up by 1
+ *      Number of IP addresses on the NIC is bumped up by 1.
  *
  *----------------------------------------------------------------------
  */
 
-VmIpAddressEntry *
-GuestInfoAddIpAddress(NicEntry *nicEntry,               // IN/OUT
+VmIpAddress *
+GuestInfoAddIpAddress(GuestNic *nic,                    // IN/OUT
                       const char *ipAddr,               // IN
                       const uint32 af_type)             // IN
 {
-   VmIpAddressEntry *ipAddressCur;
+   VmIpAddress *ip;
 
-   ipAddressCur = Util_SafeCalloc(1, sizeof *ipAddressCur);
-   DblLnkLst_Init(&ipAddressCur->links);
-   DblLnkLst_LinkLast(&nicEntry->ipAddressList, &ipAddressCur->links);
-   memcpy(ipAddressCur->ipEntryProto.ipAddress, ipAddr, IP_ADDR_SIZE_V2);
-   ipAddressCur->ipEntryProto.addressFamily = af_type;
+   ip = XDRUTIL_ARRAYAPPEND(nic, ips, 1);
+   if (ip != NULL) {
+      Str_Strcpy(ip->ipAddress, ipAddr, sizeof ip->ipAddress);
+      ip->addressFamily = af_type;
+   }
 
-   nicEntry->nicEntryProto.numIPs++;
-
-   return ipAddressCur;
+   return ip;
 }
 
 
@@ -1552,7 +1241,7 @@ GuestInfoAddIpAddress(NicEntry *nicEntry,               // IN/OUT
  *
  * GuestInfoAddSubnetMask --
  *
- *      Add an IPV4 subnet mask to the IpAddressEntry in ASCII form
+ *      Add an IPV4 subnet mask to the IpAddress in ASCII form.
  *
  * Results:
  *      The 'n' bits subnet mask is converted to an ASCII string as a
@@ -1565,7 +1254,7 @@ GuestInfoAddIpAddress(NicEntry *nicEntry,               // IN/OUT
  */
 
 void
-GuestInfoAddSubnetMask(VmIpAddressEntry *ipAddressEntry,       // IN/OUT
+GuestInfoAddSubnetMask(VmIpAddress *ipAddressEntry,            // IN/OUT
                        const uint32 subnetMaskBits)            // IN
 {
    int i;
@@ -1583,8 +1272,8 @@ GuestInfoAddSubnetMask(VmIpAddressEntry *ipAddressEntry,       // IN/OUT
    }
 
    // Convert the hexadecimal value to a string and add to the IpAddress Entry
-   Str_Sprintf(ipAddressEntry->ipEntryProto.subnetMask,
-               sizeof ipAddressEntry->ipEntryProto.subnetMask,
+   Str_Sprintf(ipAddressEntry->subnetMask,
+               sizeof ipAddressEntry->subnetMask,
                "0x%x", subnetMask);
 
    return;

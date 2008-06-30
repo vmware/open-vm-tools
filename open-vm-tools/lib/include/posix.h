@@ -32,6 +32,7 @@
 
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
+#include "unicodeBase.h"
 #include "codeset.h"
 
 /*
@@ -84,6 +85,15 @@ long Posix_Pathconf(ConstUnicode pathName, int name);
 #endif
 
 #if !defined(_WIN32)
+/*
+ * These Windows APIs actually work with non-ASCII (MBCS) strings.
+ * Make them NULL wrappers for all other platforms.
+ */
+#define Posix_GetHostName gethostname
+#define Posix_GetHostByName gethostbyname
+#define Posix_GetAddrInfo getaddrinfo
+#define Posix_GetNameInfo getnameinfo
+
 void *Posix_Dlopen(ConstUnicode pathName, int flags);
 
 int Posix_Utime(ConstUnicode pathName, const struct utimbuf *times);
@@ -121,22 +131,25 @@ struct passwd *Posix_Getpwuid(uid_t uid);
 
 #if !defined(sun)
 int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
+#endif
+
 int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
 
-
-#if !defined(__FreeBSD__)
 int Posix_Getpwnam_r(ConstUnicode name, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
 int Posix_Getpwuid_r(uid_t uid, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
 struct passwd *Posix_Getpwent(void);
+#if !defined(sun)
 int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
                        int *ngroups);
+#endif
 struct group *Posix_Getgrnam(ConstUnicode name);
-int Posix_Getgrnam_r(ConstUnicode name, struct group *gr, 
+int Posix_Getgrnam_r(ConstUnicode name, struct group *gr,
                  char *buf, size_t size, struct group **pgr);
 
-#if !defined(__APPLE__)
+#if !defined(sun)
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
 int Posix_Mount(ConstUnicode source, ConstUnicode target,
                 const char *filesystemtype, unsigned long mountflags,
 		const void *data);
@@ -146,17 +159,378 @@ struct mntent *Posix_Getmntent(FILE *fp);
 struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
                                  char *buf, int size);
 
-#endif // !defined(__APPLE__)
-#endif // !defined(__FreeBSD__)
+#endif // !defined(__APPLE__) && !defined(__FreeBSD__)
 #else  // !defined(sun)
 int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 #endif // !defined(sun)
 #endif // !defined(N_PLAT_NLM)
+#else  // !define(_WIN32)
+
+
+#if defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_GetHostName --
+ *
+ *      Wrapper for gethostname().
+ *
+ * Results:
+ *      0    Success
+ *      -1   Error
+ *
+ * Side effects:
+ *      On error, error code returned by WSAGetLastError() is updated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE int
+Posix_GetHostName(Unicode name, // OUT
+                  int namelen)  // IN
+{
+   char *nameMBCS = (char *)Util_SafeMalloc(namelen);
+   Unicode nameUTF8;
+   int retval;
+
+   ASSERT(name);
+
+   retval = gethostname(nameMBCS, namelen);
+
+   if (retval == 0) {
+      nameUTF8 = Unicode_Alloc(nameMBCS, STRING_ENCODING_DEFAULT);
+      if (!Unicode_CopyBytes(name, nameUTF8, namelen, NULL, STRING_ENCODING_UTF8)) {
+         retval = -1;
+         WSASetLastError(WSAEFAULT);
+      }
+      Unicode_Free(nameUTF8);
+   }
+
+   free(nameMBCS);
+   
+   return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_GetHostByName --
+ *
+ *      Wrapper for gethostbyname().
+ *
+ *      XXX TODO: It returns a pointer to static data and is not thread-
+ *      safe.  Better switch to Posix_GetAddrInfo.
+ *
+ * Results:
+ *      NULL    Error
+ *      !NULL   Pointer to hostent structure
+ *
+ * Side effects:
+ *      On error, error code returned by WSAGetLastError() is updated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE struct hostent*
+Posix_GetHostByName(ConstUnicode name)  // IN
+{
+   static struct hostent shostent = {0};  // XXX: use TLS to be thread-safe
+   char *nameMBCS;
+   struct hostent *hostentMBCS;
+   struct hostent *ret = NULL;
+
+   ASSERT(name);
+
+   nameMBCS = (char *)Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
+
+   if (nameMBCS != NULL) {
+      hostentMBCS = gethostbyname(nameMBCS);
+
+      if (hostentMBCS != NULL) {
+         Unicode_Free(shostent.h_name);
+         if (shostent.h_aliases) {
+            Unicode_FreeList(shostent.h_aliases, -1);
+            shostent.h_aliases = NULL;
+         }
+
+         shostent.h_name = Unicode_Alloc(hostentMBCS->h_name,
+                                         STRING_ENCODING_DEFAULT);
+         if (hostentMBCS->h_aliases) {
+            shostent.h_aliases = Unicode_AllocList(hostentMBCS->h_aliases, -1,
+                                                   STRING_ENCODING_DEFAULT);
+         }
+         shostent.h_addrtype = hostentMBCS->h_addrtype;
+         shostent.h_length = hostentMBCS->h_length;
+         shostent.h_addr_list = hostentMBCS->h_addr_list;
+         ret = &shostent;
+      }
+   } else {
+      /* There has been an error converting from UTF-8 to local encoding. */
+      WSASetLastError(WSANO_RECOVERY);
+   }
+
+   return ret;
+}
+#endif	// defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
+
+#ifdef _WS2TCPIP_H_
+typedef int (WINAPI *GetAddrInfoWFnType)(PCWSTR pNodeName, PCWSTR pServiceName,
+                                         const struct addrinfo *pHints,
+                                         struct addrinfo **ppResult);
+typedef int (WINAPI *GetNameInfoWFnType)(const SOCKADDR *pSockaddr,
+                                         socklen_t SockAddrLength,
+                                	 PWCHAR pNodeBuffer,
+					 DWORD NodeBufferSize,
+                                	 PWCHAR pServiceBuffer,
+					 DWORD ServiceBufferSize,
+                                	 INT flags);
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_GetAddrInfo --
+ *
+ *      Wrapper for getaddrinfo().
+ *
+ * Results:
+ *      0       Success
+ *      != 0    Error
+ *
+ * Side effects:
+ *      On error, error code returned by WSAGetLastError() is updated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE int
+Posix_GetAddrInfo(ConstUnicode nodename,        // IN
+                  ConstUnicode servname,        // IN
+                  const struct addrinfo *hints, // IN
+                  struct addrinfo **res)        // OUT
+{
+   HMODULE hWs2_32;
+   int retval;
+   char *nodenameMBCS;
+   char *servnameMBCS;
+   GetAddrInfoWFnType GetAddrInfoWFn;
+
+   ASSERT(nodename || servname);
+   ASSERT(res);
+
+   hWs2_32 = LoadLibraryA("ws2_32");
+
+   if (hWs2_32) {
+      /*
+       * If the unicode version of getaddrinfo exists, use it.  The string
+       * conversion required is between UTF-8 and UTF-16 encodings.  Note
+       * that struct addrinfo and ADDRINFOW are identical except for the
+       * fields ai_canonname (char * vs. PWSTR) and ai_next (obviously).
+       */
+
+      GetAddrInfoWFn = (GetAddrInfoWFnType)GetProcAddress(hWs2_32, "GetAddrInfoW");
+
+      if (GetAddrInfoWFn) {
+         utf16_t *nodenameW = Unicode_GetAllocUTF16(nodename);
+         utf16_t *servnameW = Unicode_GetAllocUTF16(servname);
+
+         retval = (*GetAddrInfoWFn)(nodenameW, servnameW, hints, res);
+
+         if (retval == 0) {
+            struct addrinfo *cur;
+            utf16_t *tempW;
+
+            for (cur = *res; cur != NULL; cur = cur->ai_next) {
+               if (cur->ai_canonname) {
+                  tempW = (utf16_t *)cur->ai_canonname;
+                  cur->ai_canonname = Unicode_AllocWithUTF16(tempW);
+                  free(tempW);
+               }
+            }
+         }
+
+         free(nodenameW);
+         free(servnameW);
+
+         goto exit;
+      }
+   }
+
+   /*
+    * We did not find the unicode version of getaddrinfo, so we need to
+    * convert strings to and from the local encoding.
+    */
+
+   nodenameMBCS = (char *)Unicode_GetAllocBytes(nodename, STRING_ENCODING_DEFAULT);
+   servnameMBCS = (char *)Unicode_GetAllocBytes(servname, STRING_ENCODING_DEFAULT);
+
+   retval = getaddrinfo(nodenameMBCS, servnameMBCS, hints, res);
+
+   if (retval == 0) {
+      struct addrinfo *cur;
+      char *temp;
+
+      for (cur = *res; cur != NULL; cur = cur->ai_next) {
+         if (cur->ai_canonname) {
+            temp = cur->ai_canonname;
+            cur->ai_canonname = Unicode_Alloc(temp, STRING_ENCODING_DEFAULT);
+            free(temp);
+         }
+      }
+   }
+
+   free(nodenameMBCS);
+   free(servnameMBCS);
+
+exit:
+   if (hWs2_32) {
+      FreeLibrary(hWs2_32);
+   }
+
+   return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_GetNameInfo --
+ *
+ *      Wrapper for getnameinfo().
+ *
+ * Results:
+ *      0       Success
+ *      != 0    Error
+ *
+ * Side effects:
+ *      On error, error code returned by WSAGetLastError() is updated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE int
+Posix_GetNameInfo(const struct sockaddr *sa,    // IN
+                  socklen_t salen,              // IN
+                  Unicode host,                 // OUT
+                  DWORD hostlen,                // IN
+                  Unicode serv,                 // OUT
+                  DWORD servlen,                // IN
+                  int flags)                    // IN
+{
+   HMODULE hWs2_32;
+   int retval;
+   char *hostMBCS = NULL;
+   char *servMBCS = NULL;
+   utf16_t *hostW = NULL;
+   utf16_t *servW = NULL;
+   Unicode hostUTF8 = NULL;
+   Unicode servUTF8 = NULL;
+   GetNameInfoWFnType GetNameInfoWFn;
+
+   hWs2_32 = LoadLibraryA("ws2_32");
+
+   if (hWs2_32) {
+      /*
+       * If the unicode version of getnameinfo exists, use it.  The string
+       * conversion required is between UTF-8 and UTF-16 encodings.
+       */
+
+      GetNameInfoWFn = (GetNameInfoWFnType)GetProcAddress(hWs2_32, "GetNameInfoW");
+
+      if (GetNameInfoWFn) {
+         if (host) {
+            hostW = (utf16_t *)Util_SafeMalloc(hostlen * sizeof *hostW);
+         }
+         if (serv) {
+            servW = (utf16_t *)Util_SafeMalloc(servlen * sizeof *servW);
+         }
+
+         retval = (*GetNameInfoWFn)(sa, salen, hostW, hostlen, servW, servlen, flags);
+
+         if (retval == 0) {
+            if (host) {
+               hostUTF8 = Unicode_AllocWithUTF16(hostW);
+
+               if (!Unicode_CopyBytes(host, hostUTF8, hostlen, NULL,
+                                      STRING_ENCODING_UTF8)) {
+                  retval = EAI_MEMORY;
+                  WSASetLastError(WSA_NOT_ENOUGH_MEMORY);
+                  goto exit;
+               }
+            }
+            if (serv) {
+               servUTF8 = Unicode_AllocWithUTF16(servW);
+
+               if (!Unicode_CopyBytes(serv, servUTF8, servlen, NULL,
+                                      STRING_ENCODING_UTF8)) {
+                  retval = EAI_MEMORY;
+                  WSASetLastError(WSA_NOT_ENOUGH_MEMORY);
+                  goto exit;
+               }
+            }
+         }
+         
+         goto exit;
+      }
+   }
+
+   /*
+    * We did not find the unicode version of getnameinfo, so we need to
+    * convert strings to and from the local encoding.
+    */
+
+   if (host) {
+      hostMBCS = (char *)Util_SafeMalloc(hostlen * sizeof *hostMBCS);
+   }
+   if (serv) {
+      servMBCS = (char *)Util_SafeMalloc(servlen * sizeof *servMBCS);
+   }
+
+   retval = getnameinfo(sa, salen, hostMBCS, hostlen, servMBCS, servlen, flags);
+
+   if (retval == 0) {
+      if (host) {
+         hostUTF8 = Unicode_Alloc(hostMBCS, STRING_ENCODING_DEFAULT);
+
+         if (!Unicode_CopyBytes(host, hostUTF8, hostlen, NULL,
+                                STRING_ENCODING_UTF8)) {
+            retval = EAI_MEMORY;
+            WSASetLastError(WSA_NOT_ENOUGH_MEMORY);
+            goto exit;
+         }
+      }
+      if (serv) {
+         servUTF8 = Unicode_Alloc(servMBCS, STRING_ENCODING_DEFAULT);
+
+         if (!Unicode_CopyBytes(serv, servUTF8, servlen, NULL,
+                                STRING_ENCODING_UTF8)) {
+            retval = EAI_MEMORY;
+            WSASetLastError(WSA_NOT_ENOUGH_MEMORY);
+            goto exit;
+         }
+      }
+   }
+
+exit:
+   if (hWs2_32) {
+      FreeLibrary(hWs2_32);
+      free(hostW);
+      free(servW);
+   }
+   free(hostMBCS);
+   free(servMBCS);
+   free(hostUTF8);
+   free(servUTF8);
+
+   return retval;
+}
+#endif // ifdef _WS2TCPIP_H_
 #endif // !define(_WIN32)
 
-#if defined(CURRENT_IS_UTF8) && \
-    !defined(UNICODE_BUILDING_POSIX_WRAPPERS)
+#if (defined(VMX86_SERVER) || defined(__APPLE__)) && \
+   !defined(UNICODE_BUILDING_POSIX_WRAPPERS)
 /*
  * ESX and MacOS X are UTF-8 environments so these functions can be
  * "defined away" - the POSIX wrapper call can be directly mapped to the

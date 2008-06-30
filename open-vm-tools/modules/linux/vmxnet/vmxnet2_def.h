@@ -108,10 +108,6 @@ typedef struct Vmxnet2_RxRingEntry {
 #define VMXNET2_RX_WITH_FRAG   0x02
 #define VMXNET2_RX_FRAG_EOP    0x04
 
-#ifdef BPF_SUPPORT_ENABLED
-#define VMXNET2_RX_BPF_TRAILER 0x08
-#endif /* BPF_SUPPORT_ENABLED */
-
 typedef struct Vmxnet2_TxRingEntry {
    uint16		flags;		/* Flags as defined below. */
    uint16 	        ownership;	/* Who owns this packet. */

@@ -45,13 +45,6 @@
 #include "vm_assert.h"
 #include "vm_basic_types.h"
 
-/*
- * Max amount of read/write data per server request. Must be smaller than
- * HGFS_PACKET_MAX by a large enough margin to allow for headers and
- * other request fields.
- */
-#define HGFS_IO_MAX 4096
-
 /* Private functions. */
 static int HgfsDoWrite(HgfsHandle handle,
                        const char *buf,

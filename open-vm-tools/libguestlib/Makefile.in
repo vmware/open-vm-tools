@@ -68,9 +68,10 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libguestlib_la_DEPENDENCIES = ../lib/rpcOut/shared/libRpcOut.la \
 	../lib/string/shared/libString.la \
+	../lib/stubs/shared/libStubs.la \
 	../lib/message/shared/libMessage.la \
 	../lib/backdoor/shared/libBackdoor.la
-am_libguestlib_la_OBJECTS = vmGuestLib.lo vmGuestLibPanic.lo stubs.lo
+am_libguestlib_la_OBJECTS = vmGuestLib.lo vmGuestLibPanic.lo
 libguestlib_la_OBJECTS = $(am_libguestlib_la_OBJECTS)
 libguestlib_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -167,6 +168,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -237,9 +239,10 @@ lib_LTLIBRARIES = libguestlib.la
 # order so their symbols are properly resolved.
 libguestlib_la_LIBADD = ../lib/rpcOut/shared/libRpcOut.la \
 	../lib/string/shared/libString.la \
+	../lib/stubs/shared/libStubs.la \
 	../lib/message/shared/libMessage.la \
 	../lib/backdoor/shared/libBackdoor.la
-libguestlib_la_SOURCES = vmGuestLib.c vmGuestLibPanic.c stubs.c
+libguestlib_la_SOURCES = vmGuestLib.c vmGuestLibPanic.c
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
 libguestlib_la_LDFLAGS = -Wl,-lc
@@ -312,7 +315,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stubs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vmGuestLib.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vmGuestLibPanic.Plo@am__quote@
 

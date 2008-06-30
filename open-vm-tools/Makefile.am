@@ -39,5 +39,7 @@ SUBDIRS += libguestlib
 SUBDIRS += xferlogs
 SUBDIRS += scripts
 if !SOLARIS
+if WITH_KERNEL_MODULES
 SUBDIRS += modules
+endif
 endif

@@ -615,7 +615,7 @@ VixMsg_ObfuscateNamePassword(const char *userName,      // IN
 
    resultString = VixMsgEncodeBuffer(packedBuffer, packedBufferLength, FALSE);
 
-   free(packedBuffer);
+   Util_ZeroFree(packedBuffer, packedBufferLength);
 
    return(resultString);
 } // VixMsg_ObfuscateNamePassword
@@ -646,8 +646,9 @@ VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
    Bool success = FALSE;
    char *packedString = NULL;
    char *srcPtr;
+   size_t packedStringLength;
 
-   packedString = VixMsgDecodeBuffer(packagedName, FALSE, NULL);
+   packedString = VixMsgDecodeBuffer(packagedName, FALSE, &packedStringLength);
    if (NULL == packedString) {
       goto abort;
    }
@@ -664,7 +665,7 @@ VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
    success = TRUE;
 
 abort:
-   free(packedString);
+   Util_ZeroFree(packedString, packedStringLength);
 
    return(success);
 } // VixMsg_DeObfuscateNamePassword

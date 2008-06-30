@@ -29,7 +29,10 @@
 #define __NETUTIL_H__
 
 #include "vm_basic_types.h"
-#include "guestInfo.h"
+
+#if !defined(N_PLAT_NLM)
+#  include "guestInfo.h"
+#endif
 
 #ifdef _WIN32
 #include <windows.h>
@@ -47,7 +50,9 @@ typedef FIXED_INFO_W2KSP1 *PFIXED_INFO;
 
 char *NetUtil_GetPrimaryIP(void);
 
-NicEntry *NetUtil_GetPrimaryNicEntry(void);
+#if !defined(N_PLAT_NLM)
+GuestNic *NetUtil_GetPrimaryNic(void);
+#endif
 
 #ifdef _WIN32
 DWORD NetUtil_LoadIpHlpApiDll(void);

@@ -53,17 +53,14 @@
 #define FCP_FILE_TRANSFERRING                1
 #define FCP_FILE_TRANSFERRED                 2
 
-Bool Resolution_Register(void);
-Bool Resolution_RegisterCapability(void);
-Bool Resolution_Unregister(void);
-
-Bool DnD_Register(GtkWidget *mainWnd);
+Bool DnD_Register(GtkWidget *hgWnd, GtkWidget *ghWnd);
 Bool DnD_RegisterCapability(void);
-void DnD_Unregister(GtkWidget *mainWnd);
+void DnD_Unregister(GtkWidget *hgWnd, GtkWidget *ghWnd);
 uint32 DnD_GetVmxDnDVersion(void);
 int DnD_GetNewFileRoot(char *fileRoot, int bufSize);
-void DnD_OnReset(GtkWidget *mainWnd);
+void DnD_OnReset(GtkWidget *hgWnd, GtkWidget *gHWnd);
 Bool DnD_InProgress(void);
+void DnD_SetMode(Bool unity);
 
 Bool CopyPaste_Register(GtkWidget* mainWnd);
 Bool CopyPaste_RegisterCapability(void);
@@ -72,6 +69,7 @@ void CopyPaste_RequestSelection(void);
 Bool CopyPaste_GetBackdoorSelections(void);
 void CopyPaste_Unregister(GtkWidget* mainWnd);
 Bool CopyPaste_GHFileListGetNext(char **fileName, size_t *fileNameSize);
+void CopyPaste_OnReset(void);
 Bool CopyPaste_InProgress(void);
 Bool CopyPaste_IsRpcCPSupported(void);
 
@@ -83,8 +81,6 @@ extern Window gXRoot;
 extern DblLnkLst_Links *gEventQueue;
 extern GtkWidget *gUserMainWidget;
 extern Bool optionCopyPaste;
-extern Bool gCanUseVMwareCtrl;
-extern Bool gCanUseVMwareCtrlTopologySet;
 extern int gBlockFd;
 
 #endif // _VMWAREUSER_INT_H_

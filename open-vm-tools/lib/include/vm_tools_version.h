@@ -68,6 +68,18 @@ typedef uint32 ToolsVersion;
 
 #endif
 
+/*
+ * Reserve the highest possible Tools version for Tools whose lifecycle isn't
+ * to be managed by VMware's platform.
+ *
+ * Even though the ToolsVersion type is defined as uint32 above, the VMX had,
+ * for a long time, scanned it via sscanf(3) using "%d". To preserve backwards
+ * compatibility with such a VMX, the "highest possible" version is defined to
+ * be the largest signed 32-bit integer instead of the largest unsigned 32-bit
+ * integer.
+ */
+#define TOOLS_VERSION_UNMANAGED 0x7fffffff
+
 #define STRINGER(MJR, MNR, BASE)     #MJR "." #MNR "." #BASE
 #define TOOLS_VERSION_STRINGER(MJR, MNR, BASE)    STRINGER(MJR, MNR, BASE)
 

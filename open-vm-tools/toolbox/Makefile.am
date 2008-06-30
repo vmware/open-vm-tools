@@ -47,13 +47,13 @@ vmware_toolbox_LDADD += ../lib/sync/libSync.a
 vmware_toolbox_LDADD += ../lib/misc/libMisc.a
 vmware_toolbox_LDADD += ../lib/panicDefault/libPanicDefault.a
 vmware_toolbox_LDADD += ../lib/panic/libPanic.a
+vmware_toolbox_LDADD += ../lib/stubs/libStubs.a
 vmware_toolbox_LDADD += -lX11
 vmware_toolbox_LDADD += @GTK_LIBS@
 vmware_toolbox_LDADD += @ICU_LIBS@
 
 vmware_toolbox_SOURCES =
 vmware_toolbox_SOURCES += debugStdio.c
-vmware_toolbox_SOURCES += stub.c
 vmware_toolbox_SOURCES += toolbox-gtk.c
 vmware_toolbox_SOURCES += toolboxAbout.c
 vmware_toolbox_SOURCES += toolboxDevices.c

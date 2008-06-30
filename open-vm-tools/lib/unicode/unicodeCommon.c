@@ -81,29 +81,7 @@ Unicode_EscapeBuffer(const void *buffer,      // IN
    encoding = Unicode_ResolveEncoding(encoding);
 
    if (lengthInBytes == -1) {
-      switch (encoding) {
-      case STRING_ENCODING_UTF16:
-      case STRING_ENCODING_UTF16_LE:
-      case STRING_ENCODING_UTF16_BE:
-         lengthInBytes = Unicode_UTF16Strlen((const utf16_t *)buffer) * 2;
-         break;
-      case STRING_ENCODING_UTF32:
-      case STRING_ENCODING_UTF32_LE:
-      case STRING_ENCODING_UTF32_BE:
-         {
-            const uint32 *utf32 = (const uint32 *)buffer;
-            ssize_t numCodeUnits;
-
-            for (numCodeUnits = 0; utf32[numCodeUnits]; numCodeUnits++) {
-               // Count the number of code units until we hit NUL.
-            }
-
-            lengthInBytes = numCodeUnits * 4;
-         }
-      default:
-         lengthInBytes = strlen((const char *)buffer);
-         break;
-      }
+      lengthInBytes = Unicode_LengthInBytes(buffer, encoding);
    }
 
    /*
@@ -145,17 +123,26 @@ UnicodeSanityCheck(const void *buffer,      // IN
     * Sanity check US-ASCII here, so we can fast-path its conversion
     * to Unicode later.
     */
+
    if (encoding == STRING_ENCODING_US_ASCII) {
       const uint8 *asciiBytes = (const uint8 *)buffer;
-      Bool nulTerminated = (lengthInBytes == -1);
-      ssize_t i;
 
-      for (i = 0; nulTerminated ? asciiBytes[i] : i < lengthInBytes; i++) {
-         if (asciiBytes[i] >= 0x80) {
-            return FALSE;
-         }
+      if (lengthInBytes == -1) {
+	 for (; *asciiBytes != '\0'; asciiBytes++) {
+	    if (*asciiBytes >= 0x80) {
+	       return FALSE;
+	    }
+	 }
+      } else {
+	 ssize_t i;
+	 for (i = 0; i < lengthInBytes; i++) {
+	    if (asciiBytes[i] >= 0x80) {
+	       return FALSE;
+	    }
+	 }
       }
    }
+
    return TRUE;
 }
 
@@ -214,6 +201,60 @@ UnicodePinIndices(ConstUnicode str,         // IN
        || *startIndex + *length > numCodeUnits) {
       *length = numCodeUnits - *startIndex;
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_LengthInBytes --
+ *
+ *      Compute the length in bytes of a string in a given encoding.
+ *
+ * Results:
+ *      The number of bytes.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+ssize_t
+Unicode_LengthInBytes(const void *buffer,      // IN
+                      StringEncoding encoding) // IN
+{
+   ssize_t len;
+
+   encoding = Unicode_ResolveEncoding(encoding);
+
+   switch (encoding) {
+   case STRING_ENCODING_UTF32_LE:
+   case STRING_ENCODING_UTF32_BE:
+   case STRING_ENCODING_UTF32_XE:
+   {
+      const int32 *p;
+      for (p = buffer; *p != 0; p++) {
+      }
+      len = (const char *) p - (const char *) buffer;
+      break;
+   }
+   case STRING_ENCODING_UTF16_LE:
+   case STRING_ENCODING_UTF16_BE:
+   case STRING_ENCODING_UTF16_XE:
+   {
+      const utf16_t *p;
+      for (p = buffer; *p != 0; p++) {
+      }
+      len = (const char *) p - (const char *) buffer;
+      break;
+   }
+   default:
+      // XXX assume 8-bit encoding with no embedded null
+      len = strlen(buffer);
+   }
+
+   return len;
 }
 
 
@@ -323,6 +364,7 @@ Unicode_AllocWithLength(const void *buffer,      // IN
                         StringEncoding encoding) // IN
 {
    char *escapedBuffer;
+   Unicode result;
 
    ASSERT(lengthInBytes >= 0 || lengthInBytes == -1);
 
@@ -332,12 +374,13 @@ Unicode_AllocWithLength(const void *buffer,      // IN
    }
 
    encoding = Unicode_ResolveEncoding(encoding);
+   if (lengthInBytes == -1) {
+      lengthInBytes = Unicode_LengthInBytes(buffer, encoding);
+   }
 
-   if (UnicodeSanityCheck(buffer, lengthInBytes, encoding)) {
-      Unicode result = UnicodeAllocInternal(buffer, lengthInBytes, encoding);
-      if (result != NULL) {
-	 return result;
-      }
+   result = UnicodeAllocInternal(buffer, lengthInBytes, encoding, FALSE);
+   if (result != NULL) {
+      return result;
    }
 
    /*
@@ -352,55 +395,6 @@ Unicode_AllocWithLength(const void *buffer,      // IN
        Unicode_EncodingEnumToName(encoding));
    free(escapedBuffer);
    PANIC();
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unicode_IsBufferValid --
- *
- *      Tests if the given buffer is valid in the specified encoding.
- *
- *      If lengthInBytes is -1, then buffer must be NUL-terminated.
- *      Otherwise, buffer must be of the specified length, but does
- *      not need to be NUL-terminated.
- *
- * Results:
- *      TRUE if the buffer is valid, FALSE if it's not.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Unicode_IsBufferValid(const void *buffer,      // IN
-                      ssize_t lengthInBytes,   // IN
-                      StringEncoding encoding) // IN
-{
-   Unicode result;
-
-   if (buffer == NULL) {
-      ASSERT(lengthInBytes <= 0);
-      return TRUE;
-   }
-
-   encoding = Unicode_ResolveEncoding(encoding);
-
-   if (!UnicodeSanityCheck(buffer, lengthInBytes, encoding)) {
-      return FALSE;
-   }
-
-   result = UnicodeAllocInternal(buffer, lengthInBytes, encoding);
-
-   if (!result) {
-      return FALSE;
-   } else {
-      Unicode_Free(result);
-      return TRUE;
-   }
 }
 
 

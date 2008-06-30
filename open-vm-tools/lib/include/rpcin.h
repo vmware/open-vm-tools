@@ -29,22 +29,48 @@
 
 #include "dbllnklst.h"
 
+/* Helper macro for porting old callbacks that currently use RpcIn_SetRetVals. */
+#define RPCIN_SETRETVALS(data, val, retVal)                                \
+   RpcIn_SetRetVals((char const **) &(data)->result, &(data)->resultLen,   \
+                    (val), (retVal))
+
 typedef void RpcIn_ErrorFunc(void *clientData, char const *status);
 
 typedef struct RpcIn RpcIn;
 
+/* Data passed to new-style RpcIn callbacks. */
+typedef struct RpcInData {
+   /* Data from the host's RPC request. */
+   const char *name;
+   const char *args;
+   size_t argsSize;
+   /* Data to be returned to the host. */
+   char *result;
+   size_t resultLen;
+   Bool freeResult;
+   /* Client data. */
+   void *clientData;
+} RpcInData;
+
+
 /*
- * Type for RpcIn callbacks.  The command is the prefix of message and
- * that result may be NULL.  The callback function is responsible for
+ * Type for RpcIn callbacks. The callback function is responsible for
  * allocating memory for the result string.
  */
+typedef Bool (*RpcIn_Callback)(RpcInData *data);
+
+
+/*
+ * Type for old RpcIn callbacks. Don't use this anymore - this is here
+ * for backwards compatibility.
+ */
 typedef Bool
-(*RpcIn_Callback)(char const **result,     // OUT
-                  size_t *resultLen,       // OUT
-                  const char *name,        // IN
-                  const char *args,        // IN
-                  size_t argsSize,         // IN
-                  void *clientData);       // IN
+(*RpcIn_CallbackOld)(char const **result,     // OUT
+                     size_t *resultLen,       // OUT
+                     const char *name,        // IN
+                     const char *args,        // IN
+                     size_t argsSize,         // IN
+                     void *clientData);       // IN
 
 RpcIn *RpcIn_Construct(DblLnkLst_Links *eventQueue);
 void RpcIn_Destruct(RpcIn *in);
@@ -53,10 +79,18 @@ Bool RpcIn_start(RpcIn *in, unsigned int delay,
                  RpcIn_ErrorFunc *errorFunc, void *errorData);
 Bool RpcIn_restart(RpcIn *in);
 Bool RpcIn_stop(RpcIn *in);
+
+/*
+ * Don't use this function anymore - it's here only for backwards compatibility.
+ * Use RpcIn_RegisterCallbackEx() instead.
+ */
 void RpcIn_RegisterCallback(RpcIn *in, const char *name,
-                            RpcIn_Callback callback, void *clientData);
+                            RpcIn_CallbackOld callback, void *clientData);
+
+void RpcIn_RegisterCallbackEx(RpcIn *in, const char *name,
+                              RpcIn_Callback callback, void *clientData);
 void RpcIn_UnregisterCallback(RpcIn *in, const char *name);
 unsigned int RpcIn_SetRetVals(char const **result, size_t *resultLen,
                               const char *resultVal, Bool retVal);
-
 #endif /* __RPCIN_H__ */
+

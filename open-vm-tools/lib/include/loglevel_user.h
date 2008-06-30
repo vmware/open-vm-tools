@@ -130,6 +130,7 @@
    LOGLEVEL_VAR(vmxnet), \
    LOGLEVEL_VAR(pciPassthru), \
    LOGLEVEL_VAR(vnet), \
+   LOGLEVEL_VAR(netPkt), \
    LOGLEVEL_VAR(macfilter), \
    LOGLEVEL_VAR(macbw), \
    LOGLEVEL_VAR(macfi), \
@@ -192,7 +193,7 @@
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(vmxvmdbCallbacks), \
    LOGLEVEL_VAR(guestInstall), \
-
+   LOGLEVEL_VAR(vmUpsellController), \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

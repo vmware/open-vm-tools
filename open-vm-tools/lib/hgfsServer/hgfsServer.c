@@ -44,6 +44,44 @@
 #define LOGLEVEL_MODULE hgfs
 #include "loglevel_user.h"
 
+/*
+ * Define this to enable an ASSERT on HGFS_STATUS_PROTOCOL_ERROR.
+ * This is useful if client is to be guaranteed to work with the server
+ * without falling back to older protocol versions and to ensure that
+ * clients don't send op value greater than HGFS_OP_MAX.
+ *
+ * NOTE: This flag is only meant to be used while testing. This should
+ *       _always_ be undefined when checking code in.
+ */
+#if 0
+#define HGFS_ASSERT_CLIENT(op) \
+   do { \
+      LOG(4, ("%s: op: %u.\n", __FUNCTION__, op)); \
+      ASSERT(status != HGFS_STATUS_PROTOCOL_ERROR); \
+   } while(0)
+#else
+#define HGFS_ASSERT_CLIENT(op)
+#endif
+
+
+/*
+ * Define this to enable an ASSERT if server gets an op lower than
+ * this value. This is useful if client is to be guaranteed to work with
+ * the server without falling back to older protocol versions.
+ *
+ * NOTE: This flag is only meant to be used while testing. This should
+ *       _always_ be undefined when checking code in.
+ */
+#if 0
+#define HGFS_ASSERT_MINIMUM_OP(op) \
+   do { \
+      LOG(4, ("%s: op received - %u.\n", __FUNCTION__, op)); \
+      ASSERT(op >= HGFS_OP_OPEN_V3); \
+   } while(0)
+#else
+#define HGFS_ASSERT_MINIMUM_OP(op)
+#endif
+
 
 /*
  * This ensures that the hgfs name conversion code never fails on long
@@ -2197,6 +2235,7 @@ HgfsServer_DispatchPacket(char const *packetIn, // IN:     Incoming request pack
    id = request->id;
    op = request->op;
 
+   HGFS_ASSERT_MINIMUM_OP(op);
    if (op < sizeof handlers / sizeof handlers[0]) {
       if (*packetSize >= handlers[op].minReqSize) {
          HgfsInternalStatus internalStatus;
@@ -2215,6 +2254,7 @@ HgfsServer_DispatchPacket(char const *packetIn, // IN:     Incoming request pack
       /* Unknown opcode */
       status = HGFS_STATUS_PROTOCOL_ERROR;
    }
+   HGFS_ASSERT_CLIENT(op);
 
    /*
     * If the status isn't success, set the packetSize to the
@@ -2226,7 +2266,7 @@ HgfsServer_DispatchPacket(char const *packetIn, // IN:     Incoming request pack
       *packetSize = sizeof *reply;
    }
 
-   ASSERT(*packetSize >= sizeof *reply && *packetSize <= HGFS_PACKET_MAX);
+   ASSERT(*packetSize >= sizeof *reply && *packetSize <= HGFS_LARGE_PACKET_MAX);
    reply->id = id;
    reply->status = status;
 }
@@ -2446,16 +2486,18 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    char const *inEnd;
    char *next;
    char *myBufOut;
+   char *convertedMyBufOut;
    char *out;
    size_t outSize;
    size_t sharePathLen; /* Length of share's path */
+   size_t myBufOutLen;
+   size_t convertedMyBufOutLen;
    int len;
    uint32 pathNameLen;
    char tempBuf[HGFS_PATH_MAX];
    size_t tempSize;
    char *tempPtr;
-   Bool result;
-   char *savedPathSepPos;
+   HgfsInternalStatus result;
    HgfsSharedFolder *share;
    uint32 startIndex = 0;
 
@@ -2512,7 +2554,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    /*
     * See if we are dealing with a "root" share or regular share
     */
-   if (strcmp(sharePath, "") == 0) {
+   if (strlen(sharePath) == 0) {
       size_t prefixLen;
 
       /*
@@ -2596,42 +2638,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    outSize -= pathNameLen;
    out += pathNameLen;
    *out = 0;
-
-   /* Convert file name to proper case as per the policy. */
-   LOG(4, ("HgfsServerGetAccess: %u\n", caseFlags));
-   HgfsServerConvertCase(share, caseFlags, myBufOut);
-
-   /*
-    * Verify that our path has no symlinks. We will only check up to the
-    * parent, because some ops that call us expect to operate on a symlink
-    * final component.
-    */
-   savedPathSepPos = Str_Strrchr(myBufOut, DIRSEPC);
-
-   /*
-    * Since cpName is user-supplied, it's possible that the name was invalid
-    * and did not contain any DIRSEPC characters. If that's the case, fail
-    * gracefully.
-    */
-
-   if (savedPathSepPos == NULL) {
-      LOG(4, ("HgfsServerGetAccess: no valid path separator in the name\n"));
-      nameStatus = HGFS_NAME_STATUS_FAILURE;
-      goto error;
-   }
-
-   /* If the path starts with a DIRSEPC. */
-   if (savedPathSepPos != myBufOut) {
-      *savedPathSepPos = '\0';
-   }
-
-   result = HgfsServerHasSymlink(myBufOut, sharePath);
-   *savedPathSepPos = DIRSEPC;
-   if (result) {
-      LOG(4, ("HgfsServerGetAccess: parent path contains a symlink\n"));
-      nameStatus = HGFS_NAME_STATUS_FAILURE;
-      goto error;
-   }
+   myBufOutLen = out - myBufOut;
 
 #if defined(__APPLE__)
    {
@@ -2642,7 +2649,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
        * which is assumed to be in the normalized form C (precomposed).
        */
       if (!CodeSet_Utf8FormCToUtf8FormD(myBufOut,
-                                        out - myBufOut,
+                                        myBufOutLen,
                                         &tempPtr,
                                         &nameLen)) {
          LOG(4, ("HgfsServerGetAccess: unicode conversion to form D failed.\n"));
@@ -2653,22 +2660,57 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
       free(myBufOut);
       LOG(4, ("HgfsServerGetAccess: name is \"%s\"\n", myBufOut));
 
-      /* Save returned pointers for memory trim. */
+      /* Save returned pointers, update buffer length. */
       myBufOut = tempPtr;
       out = tempPtr + nameLen;
+      myBufOutLen = nameLen;
    }
 #endif /* defined(__APPLE__) */
 
+   /* Convert file name to proper case as per the policy. */
+   if (HgfsServerCaseConversionRequired()) {
+      result = HgfsServerConvertCase(sharePath, sharePathLen, myBufOut,
+                                     myBufOutLen, caseFlags,
+                                     &convertedMyBufOut, &convertedMyBufOutLen);
+
+      /*
+       * On success, use the converted file names for further operations.
+       */
+      if (result != 0) {
+         LOG(4, ("HgfsServerGetAccess: HgfsServerConvertCase failed.\n"));
+         nameStatus  = HGFS_NAME_STATUS_FAILURE;
+         goto error;
+      }
+
+      free(myBufOut);
+      myBufOut = convertedMyBufOut;
+      myBufOutLen = convertedMyBufOutLen;
+      ASSERT(myBufOut);
+   }
+
+   /*
+    * Verify that either the path is same as share path or the path until the
+    * parent directory is within the share.
+    *
+    * XXX: Symlink check could become susceptible to TOCTOU (time-of-check, time-of-use)
+    * attack when we move to asynchrounous HGFS operations. We should use the resolved
+    * file path for further file system operations, instead of using the one passed
+    * from the client.
+    */
+   result = HgfsServerHasSymlink(myBufOut, myBufOutLen, sharePath, sharePathLen);
+   if (result != 0) {
+      LOG(4, ("HgfsServerGetAccess: parent path contains a symlink\n"));
+      nameStatus = HGFS_NAME_STATUS_FAILURE;
+      goto error;
+   }
+
    {
       char *p;
-      size_t len;
 
       /* Trim unused memory */
 
-      len = out - myBufOut;
-
       /* Enough space for resulting string + NUL termination */
-      p = realloc(myBufOut, (len + 1) * sizeof *p);
+      p = realloc(myBufOut, (myBufOutLen + 1) * sizeof *p);
       if (!p) {
          LOG(4, ("HgfsServerGetAccess: failed to trim memory\n"));
       } else {
@@ -2676,7 +2718,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
       }
 
       if (outLen) {
-         *outLen = len;
+         *outLen = myBufOutLen;
       }
    }
 

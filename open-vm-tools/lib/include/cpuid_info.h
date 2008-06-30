@@ -60,6 +60,7 @@ typedef struct CPUID81 {
 typedef struct CPUIDSummary {
    CPUID0  id0;
    CPUID1  id1;
+   CPUIDRegs ida;
    CPUID80 id80;
    CPUID81 id81;
    CPUIDRegs id88, id8a;

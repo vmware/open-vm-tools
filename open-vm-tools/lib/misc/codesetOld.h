@@ -27,9 +27,19 @@
 #ifndef __CODESET_OLD_H__
 #   define __CODESET_OLD_H__
 
-#include "vm_basic_types.h"
-#include "vm_assert.h"
 #include "dynbuf.h"
+#include "codeset.h"  // for CURRENT_IS_UTF8
+
+
+/*
+ * These systems use iconv and nl_langinfo.
+ * See the definition of CURRENT_IS_UTF8.
+ */
+
+#if !defined(CURRENT_IS_UTF8) && !defined(_WIN32)
+   #define USE_ICONV
+#endif
+
 
 /*
  * NO_CORE_ICU is currently only used by oddball Tools builds
@@ -60,6 +70,7 @@
 #define CodeSetOld_Utf8FormCToUtf8FormD CodeSet_Utf8FormCToUtf8FormD
 #define CodeSetOld_GetCurrentCodeSet CodeSet_GetCurrentCodeSet
 #define CodeSetOld_IsEncodingSupported CodeSet_IsEncodingSupported
+#define CodeSetOld_Validate CodeSet_Validate
 #define CodeSetOld_Init CodeSet_Init
 #endif
 
@@ -158,6 +169,22 @@ Bool
 CodeSetOld_IsEncodingSupported(const char *name); // IN
 
 Bool
+CodeSetOld_Validate(const char *buf,   // IN: the string
+                    size_t size,       // IN: length of string
+                    const char *code); // IN: encoding
+
+Bool
 CodeSetOld_Init(void);
+
+Bool
+CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
+                         size_t sizeIn,     // IN
+                         char **bufOut,     // OUT
+                         size_t *sizeOut);  // OUT
+
+Bool
+CodeSetOld_Utf16beToUtf8_Db(char const *bufIn, // IN
+                            size_t sizeIn,     // IN
+                            DynBuf *db);       // IN
 
 #endif /* __CODESET_OLD_H__ */

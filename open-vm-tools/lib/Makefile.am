@@ -16,11 +16,13 @@
 ################################################################################
 
 SUBDIRS =
+SUBDIRS += guestRpc
 SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf
 SUBDIRS += dict
 SUBDIRS += dnd
+SUBDIRS += dynxdr
 SUBDIRS += err
 SUBDIRS += eventManager
 SUBDIRS += file
@@ -42,6 +44,7 @@ SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer
 SUBDIRS += procMgr
+SUBDIRS += resolution
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut
 SUBDIRS += rpcVmx
@@ -49,6 +52,7 @@ SUBDIRS += SLPv2Parser
 SUBDIRS += socketMgr
 SUBDIRS += strUtil
 SUBDIRS += string
+SUBDIRS += stubs
 SUBDIRS += sync
 SUBDIRS += syncDriver
 SUBDIRS += system

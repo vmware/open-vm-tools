@@ -98,6 +98,7 @@ typedef struct CPClipItem {
  * into cross platform clipboards.
  */
 typedef struct {
+   Bool changed;
    CPClipItem items[CPFORMAT_MAX - 1];
 } CPClipboard;
 

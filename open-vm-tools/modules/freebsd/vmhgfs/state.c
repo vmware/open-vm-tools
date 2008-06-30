@@ -31,6 +31,7 @@
 #  include <sys/libkern.h>
 #  include <sys/malloc.h>
 #  include "sha1.h"
+#  include "compat_freebsd.h"
 #elif defined(__APPLE__)
 #  include <string.h>
 /*
@@ -1064,7 +1065,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    /*
     * Return a locked vnode to the caller.
     */
-   lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
+   compat_lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
 
    /*
     * Now we'll initialize the vnode.  We need to set the file type, vnode

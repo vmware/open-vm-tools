@@ -65,7 +65,6 @@
 #include "foundryToolsDaemon.h"
 #include "printer.h"
 #include "base64.h"
-#include "guestInfoInt.h"
 #include "syncDriver.h"
 #include "hgfsServer.h"
 #include "hgfs.h"

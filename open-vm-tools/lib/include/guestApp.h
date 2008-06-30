@@ -102,13 +102,7 @@ Bool
 GuestApp_GetPtrGrabCap(const char *channel); // IN
 
 Bool
-GuestApp_SetVersion(void);
-
-Bool
 GuestApp_Log(const char *s); // IN
-
-uint32
-GuestApp_GetCurrentVersion(void);
 
 char *
 GuestApp_GetInstallPath(void);
@@ -124,6 +118,15 @@ GuestApp_GetCmdOutput(const char *cmd); // IN
 
 Bool
 GuestApp_IsHgfsCapable(void);
+
+Bool
+GuestApp_IsDiskShrinkEnabled(void);
+
+Bool
+GuestApp_IsDiskShrinkCapable(void);
+
+Bool
+GuestApp_DiskShrink(void);
 
 void
 GuestApp_GetPos(int16 *x,  // OUT

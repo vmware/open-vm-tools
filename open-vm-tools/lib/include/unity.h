@@ -26,6 +26,7 @@
 #define _UNITY_H_
 
 #include <string.h>
+#include "dndGuest.h"
 #include "dbllnklst.h"
 #include "guestApp.h"
 #include "dynbuf.h"
@@ -74,7 +75,7 @@ typedef struct UnityVirtualDesktopArray {
 void Unity_Init(GuestApp_Dict *conf, int* blockedWnd);
 void Unity_InitBackdoor(struct RpcIn *rpcIn);
 Bool Unity_IsSupported(void);
-void Unity_SetActiveDnDDetWnd(int detWnd);
+void Unity_SetActiveDnDDetWnd(UnityDnD *state);
 void Unity_Exit(void);
 void Unity_Cleanup(void);
 void Unity_RegisterCaps(void);

@@ -48,14 +48,13 @@
 #include "SLPv2Private.h"
 #include "guestInfo.h"
 #include "netutil.h"
-#include "guestInfoInt.h"
+#include "guestInfo.h"
 
 #include "vixOpenSource.h"
 #include "syncEvent.h"
 #include "foundryThreads.h"
 #include "vixCommands.h"
 #include "foreignVMToolsDaemon.h"
-
 
 
 #ifdef _WIN32
@@ -265,7 +264,7 @@ ForeignTools_InitializeNetworking(void)
    char *ipAddressStr = NULL;
    char *destPtr;
    char *endDestPtr;
-   GuestNicInfo nicInfo;
+   GuestNicList nicInfo;
 #ifdef _WIN32
    HMODULE hWs2_32 = NULL;
    WSADATA wsaData;
@@ -414,21 +413,18 @@ ForeignTools_InitializeNetworking(void)
    /*
     * Find out how big the IP_ADAPTER_INFO table needs to be.
     */
-   success = GuestInfoGetNicInfo(&nicInfo);
+   success = GuestInfo_GetNicInfo(&nicInfo);
    if (success) {
-      NicEntry *nicEntryPtr = NULL;
-      DblLnkLst_Links *nicEntryLink;
-
-      DblLnkLst_ForEach(nicEntryLink, &nicInfo.nicList) {
-         nicEntryPtr = DblLnkLst_Container(nicEntryLink, NicEntry, links);
+      u_int i;
+      for (i = 0; i < nicInfo.nics.nics_len; i++) {
+         GuestNic *nic = &nicInfo.nics.nics_val[i];
          destPtr += Str_Snprintf(destPtr,
                                  endDestPtr - destPtr,
                                  "%s=%s;",
                                  VIX_SLPV2_PROPERTY_MAC_ADDR,
-                                 nicEntryPtr->nicEntryProto.macAddress);
+                                 nic->macAddress);
       }
-
-      GuestInfo_FreeDynamicMemoryInNicInfo(&nicInfo);
+      VMX_XDR_FREE(xdr_GuestNicList, &nicInfo);
    }
 
    free(ipAddressStr);

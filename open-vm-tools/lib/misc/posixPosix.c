@@ -16,6 +16,10 @@
  *
  *********************************************************/
 
+#if !defined(_POSIX_PTHREAD_SEMANTICS) && defined(sun)
+#define _POSIX_PTHREAD_SEMANTICS 1 // Needed to get POSIX-correct getpw*_r() on Solaris
+#endif
+
 #define UNICODE_BUILDING_POSIX_WRAPPERS
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +34,10 @@
 #include <utime.h>
 #include <sys/time.h>
 #include <stdarg.h>
+#if !defined(N_PLAT_NLM)
+#include <pwd.h>
+#include <grp.h>
+#endif
 
 #if defined(__APPLE__)
 #include <sys/socket.h>
@@ -42,27 +50,24 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <CoreFoundation/CoreFoundation.h>
-#include <pwd.h>
-#include <grp.h>
-#else
-#if !defined(N_PLAT_NLM)
-#include <pwd.h>
-#endif
-#if defined(__FreeBSD__)
+#elif defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
-#else
-#if !defined(N_PLAT_NLM)
+#elif !defined(N_PLAT_NLM)
 #include <sys/statfs.h>
 #include <sys/mount.h>
 #if !defined(sun)
 #include <mntent.h>
-#include <grp.h>
 #else
+#include <alloca.h>
 #include <sys/mnttab.h>
 #endif
 #endif
-#endif
+
+#if !defined(__FreeBSD__) || __FreeBSD_release >= 503001
+#define VM_SYSTEM_HAS_GETPWNAM_R 1
+#define VM_SYSTEM_HAS_GETPWUID_R 1
+#define VM_SYSTEM_HAS_GETGRNAM_R 1
 #endif
 
 # if defined(__FreeBSD__) && BSD_VERSION >= 53
@@ -73,14 +78,14 @@
 
 #include "vmware.h"
 #include "posixInt.h"
-
+#if defined(sun)
+#include "hashTable.h" // For setenv emulation
+#endif
 
 #if !defined(N_PLAT_NLM)
 static struct passwd *GetpwInternal(struct passwd *pw);
-#if !defined(sun) && !defined(__FreeBSD__)
 static int GetpwInternal_r(struct passwd *pw, char *buf, size_t size,
                            struct passwd **ppw);
-#endif
 #endif
 
 
@@ -918,7 +923,7 @@ Posix_Execl(ConstUnicode pathName,   // IN:
       va_start(vl, arg0);
       while (va_arg(vl, char *)) {
          count ++;
-      }   
+      }
       va_end(vl);
    }
 
@@ -952,6 +957,7 @@ exit:
    free(path);
    return ret;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -989,7 +995,7 @@ Posix_Execlp(ConstUnicode fileName,   // IN:
       va_start(vl, arg0);
       while (va_arg(vl, char *)) {
          count ++;
-      }   
+      }
       va_end(vl);
    }
 
@@ -1529,7 +1535,7 @@ struct passwd *
 Posix_Getpwuid(uid_t uid)  // IN:
 {
    struct passwd *pw;
-   
+
    pw = getpwuid(uid);
    return GetpwInternal(pw);
 }
@@ -1629,6 +1635,7 @@ exit:
 
 
 #if !defined(sun) // {
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1662,6 +1669,7 @@ Posix_Statfs(ConstUnicode pathName,     // IN:
    free(path);
    return ret;
 }
+#endif // } !defined(sun)
 
 
 /*
@@ -1697,7 +1705,46 @@ Posix_Setenv(ConstUnicode name,   // IN:
       goto exit;
    }
 
+#if defined(sun)
+   if (overWrite || !getenv(rawName)) {
+      static HashTable *trackEnv = NULL; // Tracks values to avoid leaks.
+      char *keyStr;
+      char *fullStr;
+      int fslen;
+      int rawNameLen;
+      int rawValueLen;
+
+      if (!trackEnv) {
+         trackEnv = HashTable_Alloc(16, HASH_STRING_KEY, free);
+      }
+      /*
+       * In order to keep memory management and hash table manipulation simple, each env
+       * var is stored as a memory block containing the NUL-terminated environment
+       * variable name, followed immediately in memory by the full argument to putenv
+       * ('varname=value').
+       */
+
+      rawNameLen = strlen(rawName) + 1;
+      rawValueLen = strlen(rawValue) + 1;
+      fslen = rawNameLen + rawValueLen + 1; // 1 is for '=' sign
+      keyStr = malloc(rawNameLen + fslen);
+      fullStr = keyStr + rawNameLen;
+      /*
+       * Use memcpy because Str_Snprintf() doesn't play well with non-UTF8 strings.
+       */
+      memcpy(keyStr, rawName, rawNameLen);
+      memcpy(fullStr, rawName, rawNameLen);
+      fullStr[rawNameLen - 1] = '=';
+      memcpy(fullStr + rawNameLen, rawValue, rawValueLen);
+
+      ret = putenv(fullStr);
+      HashTable_Insert(trackEnv, keyStr, keyStr); // Any old value will be freed
+   } else {
+      ret = 0;
+   }
+#else
    ret = setenv(rawName, rawValue, overWrite);
+#endif
 
 exit:
    free(rawName);
@@ -1731,12 +1778,15 @@ Posix_Unsetenv(ConstUnicode name)   // IN:
       return;
    }
 
+#if defined(sun)
+   putenv(rawName);
+#else
    unsetenv(rawName);
+#endif
    free(rawName);
 }
 
 
-#if !defined(__FreeBSD__) // {
 /*----------------------------------------------------------------------
  * Posix_Getpwent --
  *
@@ -1755,10 +1805,364 @@ struct passwd *
 Posix_Getpwent(void)
 {
    struct passwd *pw;
-   
+
    pw = getpwent();
-   return GetpwInternal(pw);  
+   return GetpwInternal(pw);
 }
+
+#if !defined(VM_SYSTEM_HAS_GETPWNAM_R) || \
+   !defined(VM_SYSTEM_HAS_GETPWUID_R) || \
+   !defined(VM_SYSTEM_HAS_GETGRNAM_R)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyFieldIntoBuf --
+ *
+ *      Copies a field in a passwd/group structure into the supplied buffer, and sets
+ *      that pointer into dest. Used as a helper function for the EmulateGet* routines.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      Updates *buf and *bufLen to allocate space for the copied field.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+CopyFieldIntoBuf(const char *src,
+                 char **dest,
+                 char **buf,
+                 size_t *bufLen)
+{
+   if (src) {
+      size_t needLen = strlen(src) + 1;
+
+      if (*bufLen < needLen) {
+         return FALSE;
+      }
+
+      *dest = *buf;
+      memcpy(*dest, src, needLen);
+      *buf += needLen;
+      *bufLen -= needLen;
+   } else {
+      *dest = NULL;
+   }
+
+   return TRUE;
+}
+
+
+#endif
+
+
+#if !defined(VM_SYSTEM_HAS_GETPWNAM_R) || !defined(VM_SYSTEM_HAS_GETPWUID_R)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PasswdCopy --
+ *
+ *      Copies a password structure as part of emulating the getpw*_r routines.
+ *
+ * Results:
+ *      'new' if successful, NULL otherwise.
+ *
+ * Side effects:
+ *      Modifies 'buf'
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static struct passwd *
+PasswdCopy(struct passwd *orig, // IN
+           struct passwd *new,  // IN/OUT
+           char *buf,           // IN
+           size_t bufLen)       // IN
+{
+   if (!orig) {
+      return NULL;
+   }
+
+   *new = *orig;
+
+   if (!CopyFieldIntoBuf(orig->pw_name, &new->pw_name, &buf, &bufLen)) {
+      return NULL;
+   }
+   if (!CopyFieldIntoBuf(orig->pw_passwd, &new->pw_passwd, &buf, &bufLen)) {
+      return NULL;
+   }
+   if (!CopyFieldIntoBuf(orig->pw_gecos, &new->pw_gecos, &buf, &bufLen)) {
+      return NULL;
+   }
+   if (!CopyFieldIntoBuf(orig->pw_dir, &new->pw_dir, &buf, &bufLen)) {
+      return NULL;
+   }
+   if (!CopyFieldIntoBuf(orig->pw_shell, &new->pw_shell, &buf, &bufLen)) {
+      return NULL;
+   }
+#ifdef __FreeBSD__
+   if (!CopyFieldIntoBuf(orig->pw_class, &new->pw_class, &buf, &bufLen)) {
+      return NULL;
+   }
+#endif
+
+   return new;
+}
+#endif
+
+
+#ifndef VM_SYSTEM_HAS_GETPWNAM_R
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * EmulateGetpwnam_r --
+ *
+ *      Emulates getpwnam_r() for old/odd systems that don't have it
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Data may be stored in 'buf'.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+EmulateGetpwnam_r(const char *name,       // IN
+                  struct passwd *pwbuf,   // IN/OUT
+                  char *buf,              // IN
+                  size_t buflen,          // IN
+                  struct passwd **pwbufp) // IN/OUT
+{
+   static Atomic_uint32 mutex = {0};
+   struct passwd *pw;
+   int savedErrno;
+
+   ASSERT(pwbuf);
+   ASSERT(name);
+   ASSERT(buf);
+   ASSERT(pwbufp);
+
+   /*
+    * XXX Use YIELD() here when it works on FreeBSD.
+    */
+   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
+
+   pw = getpwnam(name);
+   savedErrno = errno;
+   *pwbufp = PasswdCopy(pw, pwbuf, buf, buflen);
+
+   Atomic_Write(&mutex, 0);
+
+   if (pw) {
+      return 0;
+   } else if (savedErrno) {
+      return savedErrno;
+   } else {
+      return ENOENT;
+   }
+}
+#endif
+
+
+#ifndef VM_SYSTEM_HAS_GETPWUID_R
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * EmulateGetpwuid_r --
+ *
+ *      Emulates getpwuid_r() for old/odd systems that don't have it
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+EmulateGetpwuid_r(uid_t uid,              // IN
+                  struct passwd *pwbuf,   // IN/OUT
+                  char *buf,              // IN
+                  size_t buflen,          // IN
+                  struct passwd **pwbufp) // IN/OUT
+{
+   static Atomic_uint32 mutex = {0};
+   struct passwd *pw;
+   int savedErrno;
+
+   ASSERT(pwbuf);
+   ASSERT(buf);
+   ASSERT(pwbufp);
+
+   /*
+    * XXX Use YIELD() here when it works on FreeBSD.
+    */
+   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock
+
+   pw = getpwuid(uid);
+   savedErrno = errno;
+   *pwbufp = PasswdCopy(pw, pwbuf, buf, buflen);
+
+   Atomic_Write(&mutex, 0);
+
+   if (pw) {
+      return 0;
+   } else if (savedErrno) {
+      return savedErrno;
+   } else {
+      return ENOENT;
+   }
+}
+#endif
+
+
+#ifndef VM_SYSTEM_HAS_GETGRNAM_R
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GroupCopy --
+ *
+ *      Copies a password structure as part of emulating the getgr*_r routines.
+ *
+ * Results:
+ *      'new' if successful, NULL otherwise.
+ *
+ * Side effects:
+ *      Modifies 'buf'
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static struct group *
+GroupCopy(struct group *orig, // IN
+          struct group *new,  // IN/OUT
+          char *buf,          // IN
+          size_t bufLen)      // IN
+{
+   if (!orig) {
+      return NULL;
+   }
+
+   *new = *orig;
+
+   if (!CopyFieldIntoBuf(orig->gr_name, &new->gr_name, &buf, &bufLen)) {
+      return NULL;
+   }
+   if (!CopyFieldIntoBuf(orig->gr_passwd, &new->gr_passwd, &buf, &bufLen)) {
+      return NULL;
+   }
+
+   if (orig->gr_mem) {
+      int i;
+      uintptr_t alignLen;
+      char **newGrMem;
+
+      /*
+       * Before putting the gr_mem 'char **' array into 'buf', aligns the buffer to a
+       * pointer-size boundary.
+       */
+      alignLen = ((((uintptr_t) buf) + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1));
+      alignLen -= ((uintptr_t) buf);
+
+      if (bufLen < alignLen) {
+         return NULL;
+      }
+      buf += alignLen;
+      bufLen -= alignLen;
+
+      /*
+       * Count the number of items in the gr_mem array, and then copy them all.
+       */
+      for (i = 0; orig->gr_mem[i]; i++);
+      i++; // need space for a terminating NULL
+
+      if (bufLen < (i * sizeof(void *))) {
+         return NULL;
+      }
+      newGrMem = (char **)buf;
+      buf += i * sizeof(void *);
+      bufLen -= i * sizeof(void *);
+
+      for (i = 0; orig->gr_mem[i]; i++, newGrMem++) {
+         size_t flen;
+
+         flen = strlen(orig->gr_mem[i]) + 1;
+         if (bufLen < flen) {
+            return NULL;
+         }
+
+         *newGrMem = buf;
+         memcpy(*newGrMem, orig->gr_mem[i], flen);
+         buf += flen;
+         bufLen -= flen;
+      }
+      *newGrMem = NULL;
+   }
+
+   return new;
+}
+#endif
+
+
+#ifndef VM_SYSTEM_HAS_GETGRNAM_R
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * EmulateGetgrnam_r --
+ *
+ *      Emulates getgrnam_r() for old/odd systems that don't have it
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Data may be stored in 'buf'.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+EmulateGetgrnam_r(const char *name,       // IN
+                  struct group *grbuf,    // IN/OUT
+                  char *buf,              // IN
+                  size_t buflen,          // IN
+                  struct group **grbufp)  // IN/OUT
+{
+   static Atomic_uint32 mutex = {0};
+   struct group *gr;
+   int savedErrno;
+
+   ASSERT(grbuf);
+   ASSERT(name);
+   ASSERT(buf);
+   ASSERT(grbufp);
+
+   /*
+    * XXX Use YIELD() here once it is available on FreeBSD
+    */
+   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock
+
+   gr = getgrnam(name);
+   savedErrno = errno;
+   *grbufp = GroupCopy(gr, grbuf, buf, buflen);
+
+   Atomic_Write(&mutex, 0);
+
+   if (gr) {
+      return 0;
+   } else if (savedErrno) {
+      return savedErrno;
+   } else {
+      return ENOENT;
+   }
+}
+#endif
 
 
 /*
@@ -1799,7 +2203,12 @@ Posix_Getpwnam_r(ConstUnicode name,    // IN:
       return errno;
    }
 
+#if defined(VM_SYSTEM_HAS_GETPWNAM_R)
    ret = getpwnam_r(tmpname, pw, buf, size, ppw);
+#else
+   ret = EmulateGetpwnam_r(tmpname, pw, buf, size, ppw);
+#endif
+
    free(tmpname);
 
    // ret is errno on failure, *ppw is NULL if no matching entry found.
@@ -1837,9 +2246,13 @@ Posix_Getpwuid_r(uid_t uid,            // IN:
 {
    int ret;
 
+#if defined(VM_SYSTEM_HAS_GETPWNAM_R)
    ret = getpwuid_r(uid, pw, buf, size, ppw);
-   // ret is errno on failure, *ppw is NULL if no matching entry found.
+#else
+   ret = EmulateGetpwuid_r(uid, pw, buf, size, ppw);
+#endif
    if (ret != 0 || *ppw == NULL) {
+   // ret is errno on failure, *ppw is NULL if no matching entry found.
       return ret;
    }
 
@@ -1974,6 +2387,7 @@ exit:
 }
 
 
+#if !defined(sun)
 /*
  *----------------------------------------------------------------------
  *
@@ -1982,10 +2396,10 @@ exit:
  *      POSIX getgrouplist()
  *
  * Results:
- *      Returns number of groups found, or -1 if *ngroups is 
+ *      Returns number of groups found, or -1 if *ngroups is
  *      smaller than number of groups found.  Also returns
  *      the list of groups.
- *     
+ *
  * Side effects:
  *      None.
  *
@@ -2031,6 +2445,9 @@ Posix_GetGroupList(ConstUnicode user,    // IN:
    return ret;
 }
 
+
+#endif
+
 /*
  *----------------------------------------------------------------------
  * Posix_Getgrnam --
@@ -2053,13 +2470,13 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
    char *tmpname;
    int ret;
    static struct group sgr = {0};
-   
+
    if (!PosixConvertToCurrent(name, &tmpname)) {
       return NULL;
    }
    gr = getgrnam(tmpname);
    free(tmpname);
-   
+
    if (!gr) {
       return NULL;
    }
@@ -2089,9 +2506,9 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
    if (gr->gr_mem) {
       sgr.gr_mem = Unicode_AllocList(gr->gr_mem, -1, STRING_ENCODING_DEFAULT);
    }
-   
+
    ret = 0;
-   
+
  exit:
    if (ret != 0) {
       errno = ret;
@@ -2144,7 +2561,11 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
       return errno;
    }
 
+#if defined(VM_SYSTEM_HAS_GETGRNAM_R)
    ret = getgrnam_r(tmpname, gr, buf, size, pgr);
+#else
+   ret = EmulateGetgrnam_r(tmpname, gr, buf, size, pgr);
+#endif
    free(tmpname);
 
    // ret is errno on failure, *pgr is NULL if no matching entry found.
@@ -2175,7 +2596,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    if (gr->gr_mem) {
       grmem = Unicode_AllocList(gr->gr_mem, -1, STRING_ENCODING_DEFAULT);
    }
-   
+
    /*
     * Put UTF-8 strings into the structure.
     */
@@ -2185,7 +2606,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
 
    if (grname) {
       size_t len = strlen(grname) + 1;
-      if (n + len > size || n + len < n  ) {
+      if (n + len > size) {
          goto exit;
       }
       gr->gr_name = memcpy(buf + n, grname, len);
@@ -2194,7 +2615,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
 
    if (grpasswd != NULL) {
       size_t len = strlen(grpasswd) + 1;
-      if (n + len > size || n + len < n) {
+      if (n + len > size) {
          goto exit;
       }
       gr->gr_passwd = memcpy(buf + n, grpasswd, len);
@@ -2204,14 +2625,14 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    if (grmem) {
       for (i = 0; grmem[i]; i++) {
          size_t len = strlen(grmem[i]) + 1;
-         if (n + len > size || n + len < n) {
+         if (n + len > size) {
 	    goto exit;
          }
          gr->gr_mem[i] = memcpy(buf + n, grmem[i], len);
          n += len;
       }
    }
-   
+
    ret = 0;
 
  exit:
@@ -2224,7 +2645,9 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
 }
 
 
-#if !defined(__APPLE__) // {
+#if !defined(sun) // {
+
+#if !defined(__APPLE__) && !defined(__FreeBSD__) // {
 /*
  *----------------------------------------------------------------------
  *
@@ -2523,8 +2946,8 @@ exit:
    return m;
 }
 
-#endif // } !defined(__APPLE__)
-#endif // } !defined(__FreeBSD__)
+
+#endif // } !defined(__APPLE__) && !defined(__FreeBSD)
 
 
 #else  // } !defined(sun) {

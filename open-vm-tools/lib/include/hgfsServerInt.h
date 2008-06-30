@@ -628,14 +628,22 @@ HgfsServerPlatformInit(void);
 void
 HgfsServerPlatformDestroy(void);
 
-Bool
-HgfsServerHasSymlink(const char *fileName,      // IN
-                     const char *sharePath);    // IN
+HgfsInternalStatus
+HgfsServerHasSymlink(const char *fileName,      // IN: fileName to be checked
+                     size_t fileNameLength,     // IN
+                     const char *sharePath,     // IN: share path in question
+                     size_t sharePathLen);      // IN
+HgfsInternalStatus
+HgfsServerConvertCase(const char *sharePath,             // IN: share path in question
+                      size_t sharePathLength,            // IN
+                      char *fileName,                    // IN: filename to be looked up
+                      size_t fileNameLength,             // IN
+                      uint32 caseFlags,                  // IN: case-sensitivity flags
+                      char **convertedFileName,          // OUT: case-converted filename
+                      size_t *convertedFileNameLength);  // OUT
 
-int
-HgfsServerConvertCase(HgfsSharedFolder *share,  // IN
-                      uint32 caseFlags,         // IN
-                      char *fileName);          // IN / OUT
+Bool
+HgfsServerCaseConversionRequired(void);
 
 /* All oplock-specific functionality is defined here. */
 #ifdef HGFS_OPLOCKS

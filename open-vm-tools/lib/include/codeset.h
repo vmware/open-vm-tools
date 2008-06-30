@@ -245,9 +245,22 @@
 
 #endif // __UTF16_H__
 
+
+/*
+ * Use this instead of "UTF-16" to specify UTF-16 in native byte order.
+ */
+
+#define CODESET_NATIVE_UTF16 "UTF-16LE"
+
+
+/*
+ * Flags for conversion functions
+ */
+
 #define CSGTG_NORMAL    0x0000  /* Without any information loss. */
 #define CSGTG_TRANSLIT  0x0001  /* Transliterate unknown characters. */
 #define CSGTG_IGNORE    0x0002  /* Skip over untranslatable characters. */
+
 
 Bool
 CodeSet_Init(void);
@@ -343,6 +356,11 @@ CodeSet_GetCurrentCodeSet(void);
 Bool
 CodeSet_IsEncodingSupported(const char *name);
 
+Bool
+CodeSet_Validate(const char *buf,   // IN: the string
+                 size_t size,	    // IN: length of string
+                 const char *code); // IN: encoding
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -366,8 +384,8 @@ CodeSet_Utf8ToUtf16(const char *str)  // IN:
 {
    utf16_t *strW;
 
-   if (!CodeSet_Utf8ToUtf16le(str, strlen(str), (char **)(char*) &strW, NULL)) {
-      ASSERT_NOT_IMPLEMENTED(0);
+   if (!CodeSet_Utf8ToUtf16le(str, strlen(str), (char **) &strW, NULL)) {
+      ASSERT_MEM_ALLOC(FALSE);
    }
 
    return strW;

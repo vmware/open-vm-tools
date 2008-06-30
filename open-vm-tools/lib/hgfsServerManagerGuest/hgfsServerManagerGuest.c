@@ -66,7 +66,7 @@ HgfsServerManagerRpcInDispatch(char const **result,        // OUT
                                void *clientData)           // Unused
 {
    size_t packetSize;
-   static char packet[HGFS_PACKET_MAX];
+   static char packet[HGFS_LARGE_PACKET_MAX];
 
 
    ASSERT(clientData == NULL);

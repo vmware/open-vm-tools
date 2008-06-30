@@ -42,9 +42,11 @@
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsBd_GetBuf --
+ * HgfsBdGetBufInt --
  *
- *    Get a buffer to send hgfs requests in.
+ *    Allocates a buffer to send a hgfs request in. This can be either a
+ *    HGFS_PACKET_MAX or HGFS_LARGE_PACKET_MAX size buffer depending on the
+ *    external funciton called.
  *
  * Results:
  *    Pointer to a buffer that has the correct backdoor command prefix for 
@@ -52,20 +54,20 @@
  *    NULL on failure (not enough memory).
  *
  * Side effects:
- *    None
+ *    None.
  *
  *-----------------------------------------------------------------------------
  */
 
-char *
-HgfsBd_GetBuf(void)
+static char *
+HgfsBdGetBufInt(size_t bufSize)
 {
    /* 
     * Allocate a buffer that is large enough for an HGFS packet and the 
     * synchronous HGFS command, write the command, and return a pointer that 
     * points into the buffer, after the command.
     */
-   size_t len = HGFS_PACKET_MAX + HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
+   size_t len = bufSize + HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
    char *buf = (char*) calloc(sizeof(char), len);
 
    if (!buf) {
@@ -76,6 +78,51 @@ HgfsBd_GetBuf(void)
    Str_Strcpy(buf, HGFS_SYNC_REQREP_CLIENT_CMD, len);
 
    return buf + HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsBd_GetBuf --
+ *
+ *    Get a buffer of size HGFS_PACKET_MAX to send hgfs requests in.
+ *
+ * Results:
+ *    See HgfsBdGetBufInt.
+ *
+ * Side effects:
+ *    Allocates memory that must be freed with a call to HgfsBd_PutBuf.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+HgfsBd_GetBuf(void)
+{
+   return HgfsBdGetBufInt(HGFS_PACKET_MAX);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsBd_GetLargeBuf --
+ *
+ *    Get a buffer of size HGFS_LARGE_PACKET_MAX to send hgfs requests in.
+ *
+ * Results:
+ *    See HgfsBdGetBufInt.
+ *
+ * Side effects:
+ *    Allocates memory that must be freed with a call to HgfsBd_PutBuf.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+HgfsBd_GetLargeBuf(void)
+{
+   return HgfsBdGetBufInt(HGFS_LARGE_PACKET_MAX);
 }
 
 
@@ -215,7 +262,7 @@ HgfsBd_Dispatch(RpcOut *out,            // IN: Channel to send on
       return -1;
    }
 
-   ASSERT(replyLen <= HGFS_PACKET_MAX);
+   ASSERT(replyLen <= HGFS_LARGE_PACKET_MAX);
    *packetOut = reply;
    *packetSize = replyLen;
 

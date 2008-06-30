@@ -41,7 +41,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <errno.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__APPLE__)
 # include <sys/sysctl.h>
 #endif
 #ifndef NO_DNET
@@ -189,33 +189,33 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 
 int
 ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface entry
-                     void *arg)                       // IN: Pointer to the GuestNicInfo
+                     void *arg)                       // IN: Pointer to the GuestNicList
 {
    int i;
-
-   GuestNicInfo *nicInfo = (GuestNicInfo *)arg;
+   GuestNicList *nicInfo = arg;
 
    if ((entry->intf_type & INTF_TYPE_ETH) == INTF_TYPE_ETH) {
-      NicEntry *nicEntryCur;
-      char macAddress[MAC_ADDR_SIZE];
-      char ipAddress[IP_ADDR_SIZE_V2];
+      GuestNic *nic;
+      char macAddress[NICINFO_MAC_LEN];
+      char ipAddress[NICINFO_MAX_IP_LEN];
 
       Str_Sprintf(macAddress, sizeof macAddress,
                   addr_ntoa(&entry->intf_link_addr));
-      nicEntryCur = GuestInfoAddNicEntry(nicInfo, macAddress);
-      if (nicEntryCur == NULL) {
+      nic = GuestInfoAddNicEntry(nicInfo, macAddress);
+
+      if (nic == NULL) {
          return -1;
       }
 
       if (entry->intf_addr.addr_type == ADDR_TYPE_IP) {
-         VmIpAddressEntry *ipAddressEntry = NULL;
+         VmIpAddress *ip = NULL;
          /* Use ip_ntop instead of addr_ntop since we don't want the netmask bits. */
          ip_ntop(&entry->intf_addr.addr_ip, ipAddress, sizeof ipAddress);
-         ipAddressEntry = GuestInfoAddIpAddress(nicEntryCur,
-                                                ipAddress,
-                                                INFO_IP_ADDRESS_FAMILY_IPV4);
-         if (ipAddressEntry) {
-            GuestInfoAddSubnetMask(ipAddressEntry, entry->intf_addr.addr_bits);
+         ip = GuestInfoAddIpAddress(nic,
+                                    ipAddress,
+                                    INFO_IP_ADDRESS_FAMILY_IPV4);
+         if (ip) {
+            GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits);
          }
          /* Walk the list of alias's and add those that are IPV4 or IPV6 */
          for (i = 0; i < entry->intf_alias_num; i++) {
@@ -223,18 +223,17 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
                ip_ntop(&entry->intf_alias_addrs[i].addr_ip,
                        ipAddress,
                        sizeof ipAddress);
-               ipAddressEntry = GuestInfoAddIpAddress(nicEntryCur,
-                                                      ipAddress,
-                                                      INFO_IP_ADDRESS_FAMILY_IPV4);
-               if (ipAddressEntry) {
-                  GuestInfoAddSubnetMask(ipAddressEntry,
-                                         entry->intf_addr.addr_bits);
+               ip = GuestInfoAddIpAddress(nic,
+                                          ipAddress,
+                                          INFO_IP_ADDRESS_FAMILY_IPV4);
+               if (ip) {
+                  GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits);
                }
             } else if (entry->intf_alias_addrs[i].addr_type == ADDR_TYPE_IP6) {
                memcpy(ipAddress,
                       addr_ntoa(&entry->intf_alias_addrs[i]),
                       sizeof ipAddress);
-               GuestInfoAddIpAddress(nicEntryCur,
+               GuestInfoAddIpAddress(nic,
                                      ipAddress,
                                      INFO_IP_ADDRESS_FAMILY_IPV6);
             }
@@ -266,13 +265,12 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
  */
 
 Bool
-GuestInfoGetNicInfo(GuestNicInfo *nicInfo)           // OUT
+GuestInfoGetNicInfo(GuestNicList *nicInfo)   // OUT
 {
 #ifndef NO_DNET
    intf_t *intf;
 
    memset(nicInfo, 0, sizeof *nicInfo);
-   DblLnkLst_Init(&nicInfo->nicList);
 
    /* Get a handle to read the network interface configuration details. */
    if ((intf = intf_open()) == NULL) {
@@ -768,7 +766,7 @@ int
 GuestInfo_GetSystemBitness(void)
 {
    char buf[MAX_ARCH_NAME_LEN] = { 0 };
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
    int mib[2];
    size_t len;
 

@@ -43,6 +43,7 @@
 #include "vmware.h"
 #include "hostinfo.h"
 #include "util.h"
+#include "err.h"
 #include "log.h"
 #include "str.h"
 #include "file.h"
@@ -56,12 +57,22 @@
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
 
-#define	LOCK_SHARED	"S"
-#define	LOCK_EXCLUSIVE	"X"
+#define LOCK_SHARED     "S"
+#define LOCK_EXCLUSIVE  "X"
 #define FILELOCK_PROGRESS_DEARTH 8000 // Dearth of progress time in msec
 #define FILELOCK_PROGRESS_SAMPLE 200  // Progress sampling time in msec
 
 static char implicitReadToken;
+
+#define PARSE_TABLE_UINT   0
+#define PARSE_TABLE_STRING 1
+
+typedef struct parse_table
+{
+   int type;
+   char *name;
+   void *valuePtr;
+} ParseTable;
 
 
 /*
@@ -69,16 +80,16 @@ static char implicitReadToken;
  *
  * Sleeper --
  *
- *	Have the calling thread sleep "for a while". The duration of the
- *	sleep is determined by the count that is passed in. Checks are
- *	also done for exceeding the maximum wait time.
+ *      Have the calling thread sleep "for a while". The duration of the
+ *      sleep is determined by the count that is passed in. Checks are
+ *      also done for exceeding the maximum wait time.
  *
  * Results:
- *	0	slept
- *	EAGAIN	maximum sleep time exceeded
+ *      0       slept
+ *      EAGAIN  maximum sleep time exceeded
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -127,14 +138,14 @@ Sleeper(LockValues *myValues, // IN/OUT:
  *
  * RemoveLockingFile --
  *
- *	Remove the specified file.
+ *      Remove the specified file.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -172,19 +183,87 @@ RemoveLockingFile(ConstUnicode lockDir,   // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileLockMemberValues --
+ * FileLockParseArgs --
  *
- *	Returns the values associated with lock directory file.
+ *      Parse the property list arguments of a lock file. The ParseTable
+ *      contains names of properies that are interesting to the caller;
+ *      only those values associated with the interesting names will be
+ *      extracted, the others will be ignored.
  *
  * Results:
- *	0	Valid lock file; values have been returned
- *	> 0	Lock file problem (errno); values have not been returned
+ *      TRUE    An error was detected
+ *      FALSE   All is well
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+FileLockParseArgs(char *argv[],       // IN:
+                  uint32 argCount,    // IN:
+                  ParseTable *table,  // IN:
+                  uint32 tableSize)   // IN:
+{
+   uint32 argPos = 5;  // The property list always starts with this argument
+
+   while (argCount) {
+      uint32 i;
+      char *p = strchr(argv[argPos], '=');
+
+      /* Validate the "name=value" form */
+      if ((p == NULL) || (p == argv[argPos]) || (p[1] == '\0')) {
+         return TRUE;
+      }
+
+      *p = '\0';
+
+      /* Unknown names are ignored without error */
+      for (i = 0; i < tableSize; i++) {
+         if (strcmp(argv[argPos], table[i].name) == 0) {
+            switch (table[i].type) {
+            case PARSE_TABLE_UINT:
+               if (sscanf(&p[1], "%u", (uint32 *) table[i].valuePtr) != 1) {
+                  return TRUE;
+               }
+               break;
+
+            case PARSE_TABLE_STRING:
+               *((char **) table[i].valuePtr) = &p[1];
+               break;
+            }
+         }
+      }
+
+      *p = '=';
+
+      argPos++;
+      argCount--;
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileLockMemberValues --
+ *
+ *      Returns the values associated with lock directory file.
+ *
+ * Results:
+ *      0       Valid lock file; values have been returned
+ *      > 0     Lock file problem (errno); values have not been returned
  *
  * Side effects:
  *      The lock file may be deleted if it is invalid
  *
  *-----------------------------------------------------------------------------
  */
+
+#define FL_MAX_ARGS 16
 
 int
 FileLockMemberValues(ConstUnicode lockDir,     // IN:
@@ -193,14 +272,19 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
                      uint32 requiredSize,      // IN:
                      LockValues *memberValues) // OUT:
 {
-   uint32 i;
+   uint32 argc;
    FILELOCK_FILE_HANDLE handle;
    uint32 len;
-   char *argv[4];
+   char *argv[FL_MAX_ARGS];
    int err;
    Unicode path;
    FileData fileData;
 
+   ParseTable table = { PARSE_TABLE_STRING,
+                        "lc",
+                        (void *) &memberValues->locationChecksum
+                      };
+ 
    ASSERT(lockDir);
    ASSERT(fileName);
 
@@ -266,18 +350,55 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
    }
 
    /* Extract and validate the lock file data. */
-   for (i = 0; i < 4; i++) {
-      argv[i] = strtok((i == 0) ? buffer : NULL, " ");
+   for (argc = 0; argc < FL_MAX_ARGS; argc++) {
+      argv[argc] = strtok((argc == 0) ? buffer : NULL, " ");
 
-      if (argv[i] == NULL) {
-         Warning(LGPFX" %s mandatory argument %u is missing!\n",
-                 __FUNCTION__, i);
-
-         goto corrupt;
+      if (argv[argc] == NULL) {
+         break;
       }
    }
 
-   memberValues->payload = strtok(NULL, " ");
+   if ((argc < 4) || ((argc == FL_MAX_ARGS) && (strtok(NULL, " ") != NULL))) {
+      goto corrupt;
+   }
+
+   /*
+    * Lock file arguments are space separated. There is a minimum of 4
+    * arguments - machineID, executionID, Lamport number and lock type.
+    * The maximum number of arguments is FL_MAX_ARGS.
+    *
+    * The fifth argument, if present, is the payload or "[" if there is no
+    * payload and additional arguments are present. The additional arguments
+    * form  a properly list - one or more "name=value" pairs.
+    *
+    * Here is picture of valid forms:
+    *
+    * 0 1 2 3 4 5 6    Comment
+    *-------------------------
+    * A B C D         contents, no payload, no list entries
+    * A B C D [       contents, no payload, no list entries
+    * A B C D P       contents, a payload,  no list entries
+    * A B C D [ x     contents, no payload, one list entry
+    * A B C D P x     contents, a payload,  one list entry
+    * A B C D [ x y   contents, no payload, two list entries,
+    * A B C D P x y   contents, a payload,  two list entries
+    */
+
+   memberValues->locationChecksum = NULL;
+
+   if (argc == 4) {
+      memberValues->payload = NULL;
+   } else {
+      if (strcmp(argv[4], "[") == 0) {
+         memberValues->payload = NULL;
+      } else {
+         memberValues->payload = argv[4];
+      }
+
+      if (FileLockParseArgs(argv, argc - 5, &table, 1)) {
+         goto corrupt;
+      }
+   }
 
    if (sscanf(argv[2], "%u", &memberValues->lamportNumber) != 1) {
       Warning(LGPFX" %s Lamport number conversion error\n",
@@ -325,14 +446,14 @@ bail:
  *
  * FileLockValidName --
  *
- *	Validate the format of the file name.
+ *      Validate the format of the file name.
  *
  * Results:
- *	TRUE	yes
- *	FALSE	No
+ *      TRUE    Yes
+ *      FALSE   No
  *
  * Side effects:
- *	None
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
@@ -368,14 +489,14 @@ FileLockValidName(ConstUnicode fileName) // IN:
  *
  * ActivateLockList
  *
- *	Insure a lock list entry exists for the lock directory.
+ *      Insure a lock list entry exists for the lock directory.
  *
  * Results:
- *	0	success
- *	> 0	error (errno)
+ *     0        success
+ *     > 0      error (errno)
  *
  * Side effects:
- *	None.
+ *     None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -418,17 +539,63 @@ ActivateLockList(ConstUnicode dirName,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * ScanDirectory --
+ * FileLockLocationChecksum --
  *
- *	Call the specified function for each member file found in the
- *	specified directory.
+ *      Compute the location checksum of the argument path.
  *
  * Results:
- *	0	success
- *	> 0	failure
+ *      The location checksum as dynamically allocated string.
  *
  * Side effects:
- *	Anything that this not a valid locking file is deleted.
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+FileLockLocationChecksum(ConstUnicode path)  // IN:
+{
+   int c;
+   uint32 hash = 5381;
+
+#if defined(_WIN32)
+   char *p;
+   Unicode value = Unicode_Duplicate(path);
+
+   /* Don't get fooled by mixed case; "normalize" */
+   Str_ToLower(value);
+   p = value;
+#else
+   char *p = (char *) path;
+#endif
+
+   /* DBJ2 hash... good enough? */
+   while ((c = *p++)) {
+      hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+   }
+
+#if defined(_WIN32)
+   Unicode_Free(value);
+#endif
+
+   return Str_SafeAsprintf(NULL, "%u", hash);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ScanDirectory --
+ *
+ *      Call the specified function for each member file found in the
+ *      specified directory.
+ *
+ * Results:
+ *      0       success
+ *      > 0     failure
+ *
+ * Side effects:
+ *     Anything that this not a valid locking file is deleted.
  *
  *-----------------------------------------------------------------------------
  */
@@ -449,16 +616,18 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
    int numEntries;
 
    Unicode *fileList = NULL;
+   char *myExecutionID = NULL;
+   char *locationChecksum = NULL;
 
    ASSERT(lockDir);
 
    numEntries = File_ListDirectory(lockDir, &fileList);
 
    if (numEntries == -1) {
-      Log(LGPFX" %s: Could not read the directory '%s'.\n",
-          __FUNCTION__, UTF8(lockDir));
+      Log(LGPFX" %s: Could not read the directory '%s': %d\n",
+          __FUNCTION__, UTF8(lockDir), Err_Errno());
 
-      return EDOM;	// out of my domain
+      return EDOM;  // out of my domain
    }
 
    /* Pass 1: Validate entries and handle any 'D' entries */
@@ -503,6 +672,9 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
       goto bail;
    }
 
+   myExecutionID = FileLockGetExecutionID();
+   locationChecksum = FileLockLocationChecksum(lockDir);
+
    /* Pass 2: Handle the 'M' entries */
    for (i = 0, err = 0; i < numEntries; i++) {
       LockValues *ptr;
@@ -538,20 +710,35 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
 
          /* Remove any stale locking files */
          if (FileLockMachineIDMatch(myValues->machineID,
-                                    memberValues.machineID) &&
-             !FileLockValidOwner(memberValues.executionID,
-                                 memberValues.payload)) {
-            Log(LGPFX" %s discarding %s from %s'; invalid executionID.\n",
-                __FUNCTION__, UTF8(fileList[i]), UTF8(lockDir));
+                                    memberValues.machineID)) {
+            char *dispose = NULL;
 
-            Unicode_Free(memberValues.memberName);
-
-            err = RemoveLockingFile(lockDir, fileList[i]);
-            if (err != 0) {
-               break;
+            if (FileLockValidOwner(memberValues.executionID,
+                                   memberValues.payload)) {
+               /* If it's mine it better still be where I put it! */
+               if ((strcmp(myExecutionID, memberValues.executionID) == 0) &&
+                   ((memberValues.locationChecksum != NULL) &&
+                    (strcmp(memberValues.locationChecksum,
+                            locationChecksum) != 0))) {
+                  dispose = "lock file has been moved.";
+               }
+            } else {
+               dispose = "invalid executionID.";
             }
 
-            continue;
+            if (dispose) {
+               Log(LGPFX" %s discarding %s from %s': %s\n",
+                   __FUNCTION__, UTF8(fileList[i]), UTF8(lockDir), dispose);
+
+               Unicode_Free(memberValues.memberName);
+
+               err = RemoveLockingFile(lockDir, fileList[i]);
+               if (err != 0) {
+                  break;
+               }
+
+               continue;
+            }
          }
 
          ptr = &memberValues;
@@ -576,6 +763,8 @@ bail:
    }
 
    free(fileList);
+   free(locationChecksum);
+   free(myExecutionID);
 
    return err;
 }
@@ -586,16 +775,16 @@ bail:
  *
  * Scanner --
  *
- *	Call the specified function for each member file found in the
- *	specified directory. If a rescan is necessary check the list
- *	of outstanding locks and handle removing stale locks.
+ *      Call the specified function for each member file found in the
+ *      specified directory. If a rescan is necessary check the list
+ *      of outstanding locks and handle removing stale locks.
  *
  * Results:
- *	0	success
- *	> 0	failure
+ *     0        success
+ *     > 0      failure
  *
  * Side effects:
- *	None
+ *     None
  *
  *-----------------------------------------------------------------------------
  */
@@ -710,59 +899,28 @@ Scanner(ConstUnicode lockDir,    // IN:
  *
  * FileUnlockIntrinsic --
  *
- *	Release a lock on a file.
- *
- *	The locker is required to identify themselves in a "universally
- *	unique" manner. This is done via two parameters:
- *
- *	machineID --
- *		This a machine/hardware identifier string.
- *
- *		The MAC address of a hardware Ethernet, a WWN of a
- *		hardware FibreChannel HBA, the UUID of an Infiniband HBA
- *		and a machine serial number (e.g. Macs) are all good
- *		candidates for a machine identifier.
- *
- *	executionID --
- *		This is an string which differentiates one thread of
- *		execution from another within the host OS. In a
- *		non-threaded environment this can simply be some form
- *		of process identifier (e.g. getpid() on UNIXen or
- *		_getpid() on Windows). When a process makes use of
- *		threads AND more than one thread may perform locking
- *		this identifier must discriminate between all threads
- *		within the process.
- *
- *	All of the ID strings must encode their respective information
- *	such that any OS may utilize the strings as part of a file name.
- *	Keep them short and, at a minimum, do not use ':', '/', '\', '.'
- *	and white space characters.
+ *      Release a lock on a file.
  *
  * Results:
- *	0	unlocked
- *	> 0	errno
+ *      0       unlocked
+ *      > 0     errno
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 int
-FileUnlockIntrinsic(const char *machineID,    // IN:
-                    const char *executionID,  // IN:
-                    ConstUnicode pathName,    // IN:
-                    const void *lockToken)    // IN:
+FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
+                    const void *lockToken)  // IN:
 {
    int err;
 
-   ASSERT(machineID);
-   ASSERT(executionID);
    ASSERT(pathName);
    ASSERT(lockToken);
 
-   LOG(1, ("Releasing lock on %s (%s, %s).\n", UTF8(pathName),
-       machineID, executionID));
+   LOG(1, ("Requesting unlock on %s\n", UTF8(pathName)));
 
    if (lockToken == &implicitReadToken) {
       /*
@@ -772,10 +930,10 @@ FileUnlockIntrinsic(const char *machineID,    // IN:
 
       err = 0;
    } else {
-      Unicode dirPath;
+      Unicode lockDir;
 
       /* The lock directory path */
-      dirPath = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
+      lockDir = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
 
       /*
        * The lock token is the (unicode) path of the lock file.
@@ -798,9 +956,9 @@ FileUnlockIntrinsic(const char *machineID,    // IN:
 
       Unicode_Free((Unicode) lockToken);
 
-      FileRemoveDirectory(dirPath); // just in case we can clean up
+      FileRemoveDirectory(lockDir); // just in case we can clean up
 
-      Unicode_Free(dirPath);
+      Unicode_Free(lockDir);
    }
 
    return err;
@@ -812,15 +970,15 @@ FileUnlockIntrinsic(const char *machineID,    // IN:
  *
  * WaitForPossession --
  *
- *	Wait until the caller has a higher priority towards taking
- *	possession of a lock than the specified file.
+ *      Wait until the caller has a higher priority towards taking
+ *      possession of a lock than the specified file.
  *
  * Results:
- *	0	success
- *	> 0	error (errno)
+ *     0        success
+ *     > 0      error (errno)
  *
  * Side effects:
- *	None.
+ *     None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -906,14 +1064,14 @@ WaitForPossession(ConstUnicode lockDir,     // IN:
  *
  * NumberScan --
  *
- *	Determine the maxmimum number value within the current locking set.
+ *      Determine the maxmimum number value within the current locking set.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *     0        success
+ *     > 0      failure (errno)
  *
  * Side effects:
- *	None.
+ *     None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -940,13 +1098,13 @@ NumberScan(ConstUnicode lockDir,      // IN:
  *
  * SimpleRandomNumber --
  *
- *	Return a random number in the range of 0 and 2^16-1.
+ *      Return a random number in the range of 0 and 2^16-1.
  *
  * Results:
- *	Random number is returned.
+ *      Random number is returned.
  *
  * Side Effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -996,11 +1154,11 @@ SimpleRandomNumber(const char *machineID,   // IN:
  *
  * MakeDirectory --
  *
- *	Create a directory.
+ *      Create a directory.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side Effects:
  *      File system may be modified.
@@ -1009,7 +1167,7 @@ SimpleRandomNumber(const char *machineID,   // IN:
  */
 
 static int
-MakeDirectory(ConstUnicode pathName)
+MakeDirectory(ConstUnicode pathName)  // IN:
 {
    int err;
 
@@ -1036,22 +1194,22 @@ MakeDirectory(ConstUnicode pathName)
  *
  * CreateEntryDirectory --
  *
- *	Create an entry directory in the specified locking directory.
+ *      Create an entry directory in the specified locking directory.
  *
- *	Due to FileLock_UnlockFile() attempting to remove the locking
- *	directory on an unlock operation (to "clean up" and remove the
- *	locking directory when it is no longer needed), this routine
- *	must carefully handle a number of race conditions to insure the
- *	the locking directory exists and the entry directory is created
- *	within.
+ *      Due to FileLock_UnlockFile() attempting to remove the locking
+ *      directory on an unlock operation (to "clean up" and remove the
+ *      locking directory when it is no longer needed), this routine
+ *      must carefully handle a number of race conditions to insure the
+ *      the locking directory exists and the entry directory is created
+ *      within.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *      0       success
+ *      > 0     failure (errno)
  *
  * Side Effects:
- *	On success returns the number identifying the entry directory and
- *	the entry directory path name.
+ *      On success returns the number identifying the entry directory and
+ *      the entry directory path name.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1213,14 +1371,14 @@ CreateEntryDirectory(const char *machineID,    // IN:
  *
  * CreateMemberFile --
  *
- *	Create the member file.
+ *      Create the member file.
  *
  * Results:
- *	0	success
- *	> 0	failure (errno)
+ *     0        success
+ *     > 0      failure (errno)
  *
  * Side Effects:
- *	None
+ *     None
  *
  *-----------------------------------------------------------------------------
  */
@@ -1238,11 +1396,25 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
    ASSERT(entryFilePath);
    ASSERT(memberFilePath);
 
-   /* Populate the buffer with appropriate data */
-   Str_Sprintf(buffer, sizeof buffer, "%s %s %u %s %s", myValues->machineID,
-               myValues->executionID, myValues->lamportNumber,
+   /*
+    * Populate the buffer with appropriate data
+    *
+    * Lock file arguments are space separated. There is a minimum of 4
+    * arguments - machineID, executionID, Lamport number and lock type.
+    * The maximum number of argument is FL_MAX_ARGS.
+    *
+    * The fifth argument, if present, is the payload or "[" if there is no
+    * payload and additional arguments are present. The additional arguments
+    * form  a properly list - one or more "name=value" pairs.
+    */
+
+   Str_Sprintf(buffer, sizeof buffer, "%s %s %u %s %s lc=%s",
+               myValues->machineID,
+               myValues->executionID,
+               myValues->lamportNumber,
                myValues->lockType,
-               myValues->payload == NULL ? "" : myValues->payload);
+               myValues->payload == NULL ? "[" : myValues->payload,
+               myValues->locationChecksum);
 
    /* Attempt to write the data */
    err = FileLockWriteFile(entryHandle, buffer, sizeof buffer, &len);
@@ -1300,84 +1472,56 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
  *
  * FileLockIntrinsic --
  *
- *	Obtain a lock on a file; shared or exclusive access.
+ *      Obtain a lock on a file; shared or exclusive access.
  *
- *	Each locker is required to identify themselves in a "universally
- *	unique" manner. This is done via two parameters:
- *
- *	machineID --
- *		This a machine/hardware identifier string.
- *
- *		The MAC address of a hardware Ethernet, a WWN of a
- *		hardware FibreChannel HBA, the UUID of an Infiniband HBA
- *		and a machine serial number (e.g. Macs) are all good
- *		candidates for a machine identifier.
- *
- *		The machineID is "univerally unique", discriminating
- *		between all computational platforms.
- *
- *	executionID --
- *		This is an string which differentiates one thread of
- *		execution from another within the host OS. In a
- *		non-threaded environment this can simply be some form
- *		of process identifier (e.g. getpid() on UNIXen or
- *		_getpid() on Windows). When a process makes use of
- *		threads AND more than one thread may perform locking
- *		this identifier must discriminate between all threads
- *		within the process.
- *
- *	All of the ID strings must encode their respective information
- *	such that any OS may utilize the strings as part of a file name.
- *	Keep them short and, at a minimum, do not use ':', '/', '\', '.'
- *	and white space characters.
- *
- *	msecMaxWaitTime specifies the maximum amount of time, in
- *	milliseconds, to wait for the lock before returning the "not
- *	acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
- *	equivalent of a "try lock" - the lock will be acquired only if
- *	there is no contention. A value of FILELOCK_INFINITE_WAIT
- *	specifies "waiting forever" to acquire the lock.
+ *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      milliseconds, to wait for the lock before returning the "not
+ *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
+ *      equivalent of a "try lock" - the lock will be acquired only if
+ *      there is no contention. A value of FILELOCK_INFINITE_WAIT
+ *      specifies "waiting forever" to acquire the lock.
  *
  * Results:
- *	NULL	Lock not acquired. Check err.
- *		err	0	Lock Timed Out
- *		err	> 0	errno
- *	!NULL	Lock Acquired. This is the "lockToken" for an unlock.
+ *      NULL    Lock not acquired. Check err.
+ *              err     0       Lock Timed Out
+ *              err     > 0     errno
+ *      !NULL   Lock Acquired. This is the "lockToken" for an unlock.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 void *
-FileLockIntrinsic(const char *machineID,    // IN:
-                  const char *executionID,  // IN:
-                  const char *payload,      // IN:
-                  ConstUnicode pathName,    // IN:
-                  Bool exclusivity,         // IN:
-                  uint32 msecMaxWaitTime,   // IN:
-                  int *err)                 // OUT:
+FileLockIntrinsic(ConstUnicode pathName,   // IN:
+                  Bool exclusivity,        // IN:
+                  uint32 msecMaxWaitTime,  // IN:
+                  const char *payload,     // IN:
+                  int *err)                // OUT:
 {
    FILELOCK_FILE_HANDLE handle;
    LockValues myValues;
 
-   Unicode dirPath = NULL;
+   Unicode lockDir = NULL;
    Unicode entryFilePath = NULL;
    Unicode memberFilePath = NULL;
    Unicode entryDirectory = NULL;
 
-   ASSERT(machineID);
-   ASSERT(executionID);
    ASSERT(pathName);
    ASSERT(err);
 
+   /* Construct the locking directory path */
+   lockDir = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
+
    /* establish our values */
-   myValues.machineID = (char *) machineID;
-   myValues.executionID = (char *) executionID;
+
+   myValues.machineID = (char *) FileLockGetMachineID(); // don't free this!
+   myValues.executionID = FileLockGetExecutionID();      // free this!
    myValues.payload = (char *) payload;
    myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
    myValues.lamportNumber = 0;
+   myValues.locationChecksum = FileLockLocationChecksum(lockDir); // free this!
    myValues.waitTime = 0;
    myValues.msecMaxWaitTime = msecMaxWaitTime;
    myValues.memberName = NULL;
@@ -1386,15 +1530,13 @@ FileLockIntrinsic(const char *machineID,    // IN:
        myValues.lockType, UTF8(pathName), myValues.machineID,
        myValues.executionID, myValues.msecMaxWaitTime));
 
-   /* Construct the locking directory path */
-   dirPath = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
-
    /*
     * Attempt to create the locking and entry directories; obtain the
     * entry and member path names.
     */
 
-   *err = CreateEntryDirectory(machineID, executionID, dirPath,
+   *err = CreateEntryDirectory(myValues.machineID, myValues.executionID,
+                               lockDir,
                                &entryDirectory, &entryFilePath,
                                &memberFilePath, &myValues.memberName);
 
@@ -1433,20 +1575,20 @@ FileLockIntrinsic(const char *machineID,    // IN:
    if (*err != 0) {
       /* clean up */
       FileRemoveDirectory(entryDirectory);
-      FileRemoveDirectory(dirPath);
+      FileRemoveDirectory(lockDir);
 
       goto bail;
    }
 
    /* what is max(Number[1]... Number[all lockers])? */
-   *err = Scanner(dirPath, NumberScan, &myValues, FALSE);
+   *err = Scanner(lockDir, NumberScan, &myValues, FALSE);
 
    if (*err != 0) {
       /* clean up */
       FileLockCloseFile(handle);
       FileDeletion(entryFilePath, FALSE);
       FileRemoveDirectory(entryDirectory);
-      FileRemoveDirectory(dirPath);
+      FileRemoveDirectory(lockDir);
 
       goto bail;
    }
@@ -1464,13 +1606,13 @@ FileLockIntrinsic(const char *machineID,    // IN:
       /* clean up */
       FileDeletion(entryFilePath, FALSE);
       FileDeletion(memberFilePath, FALSE);
-      FileRemoveDirectory(dirPath);
+      FileRemoveDirectory(lockDir);
 
       goto bail;
    }
 
    /* Attempt to acquire the lock */
-   *err = Scanner(dirPath, WaitForPossession, &myValues, TRUE);
+   *err = Scanner(lockDir, WaitForPossession, &myValues, TRUE);
 
    switch (*err) {
    case 0:
@@ -1479,7 +1621,7 @@ FileLockIntrinsic(const char *machineID,    // IN:
    case EAGAIN:
       /* clean up */
       FileDeletion(memberFilePath, FALSE);
-      FileRemoveDirectory(dirPath);
+      FileRemoveDirectory(lockDir);
 
       /* FALL THROUGH */
    default:
@@ -1488,10 +1630,12 @@ FileLockIntrinsic(const char *machineID,    // IN:
 
 bail:
 
-   Unicode_Free(dirPath);
+   Unicode_Free(lockDir);
    Unicode_Free(entryDirectory);
    Unicode_Free(entryFilePath);
    Unicode_Free(myValues.memberName);
+   free(myValues.locationChecksum);
+   free(myValues.executionID);
 
    if (*err != 0) {
       Unicode_Free(memberFilePath);
@@ -1511,14 +1655,14 @@ bail:
  *
  * ScannerVMX --
  *
- *	VMX hack scanner
+ *      VMX hack scanner
  *
  * Results:
- *	0	success
- *	> 0	error (errno)
+ *      0       success
+ *      > 0     error (errno)
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1543,49 +1687,49 @@ ScannerVMX(ConstUnicode lockDir,     // IN:
  *
  * FileLockHackVMX --
  *
- *	The VMX file delete primitive.
+ *      The VMX file delete primitive.
  *
  * Results:
- *	0	unlocked
- *	> 0	errno
+ *      0       unlocked
+ *      > 0     errno
  *
  * Side effects:
  *      Changes the host file system.
  *
  * Note:
- *	THIS IS A HORRIBLE HACK AND NEEDS TO BE REMOVED ASAP!!!
+ *      THIS IS A HORRIBLE HACK AND NEEDS TO BE REMOVED ASAP!!!
  *
  *----------------------------------------------------------------------
  */
 
 int
-FileLockHackVMX(const char *machineID,    // IN:
-                const char *executionID,  // IN:
-                ConstUnicode pathName)    // IN:
+FileLockHackVMX(ConstUnicode pathName)  // IN:
 {
-   int        err;
+   int err;
    LockValues myValues;
 
-   Unicode dirPath = NULL;
+   Unicode lockDir = NULL;
    Unicode entryFilePath = NULL;
    Unicode memberFilePath = NULL;
    Unicode entryDirectory = NULL;
 
    ASSERT(pathName);
 
-   LOG(1, ("%s on %s (%s, %s).\n", __FUNCTION__, UTF8(pathName),
-       machineID, executionID));
+   /* first the locking directory path name */
+   lockDir = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
 
    /* establish our values */
-   myValues.machineID = (char *) machineID;
-   myValues.executionID = (char *) executionID;
+   myValues.machineID = (char *) FileLockGetMachineID(); // don't free this!
+   myValues.executionID = FileLockGetExecutionID();      // free this!
+   myValues.locationChecksum = FileLockLocationChecksum(lockDir); // free this!
    myValues.lamportNumber = 0;
    myValues.memberName = NULL;
 
-   /* first the locking directory path name */
-   dirPath = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
+   LOG(1, ("%s on %s (%s, %s).\n", __FUNCTION__, UTF8(pathName),
+       myValues.machineID, myValues.executionID));
 
-   err = CreateEntryDirectory(machineID, executionID, dirPath,
+   err = CreateEntryDirectory(myValues.machineID, myValues.executionID,
+                              lockDir,
                               &entryDirectory, &entryFilePath,
                               &memberFilePath, &myValues.memberName);
 
@@ -1594,7 +1738,7 @@ FileLockHackVMX(const char *machineID,    // IN:
    }
 
    /* Scan the lock directory */
-   err = Scanner(dirPath, ScannerVMX, &myValues, FALSE);
+   err = Scanner(lockDir, ScannerVMX, &myValues, FALSE);
 
    if (err == 0) {
       /* if no members are valid, clean up */
@@ -1610,15 +1754,17 @@ FileLockHackVMX(const char *machineID,    // IN:
 
    /* clean up */
    FileRemoveDirectory(entryDirectory);
-   FileRemoveDirectory(dirPath);
+   FileRemoveDirectory(lockDir);
 
 bail:
 
-   Unicode_Free(dirPath);
+   Unicode_Free(lockDir);
    Unicode_Free(entryDirectory);
    Unicode_Free(entryFilePath);
    Unicode_Free(memberFilePath);
    Unicode_Free(myValues.memberName);
+   free(myValues.locationChecksum);
+   free(myValues.executionID);
 
    return err;
 }

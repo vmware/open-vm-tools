@@ -303,42 +303,42 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
     * smart enough, at least in the version we are currently using.
     */
    if (shift < 32) {
-      asm("mov   %%eax, %2     \n\t" // Save lo(multiplicand) in tmp2
-          "mov   %%edx, %%eax  \n\t" // Get hi(multiplicand)
-          "mull  %4            \n\t" // p2 = hi(multiplicand) * multiplier
-          "xchg  %%eax, %2     \n\t" // Save lo(p2) in tmp2, get lo(multiplicand)
-          "mov   %%edx, %1     \n\t" // Save hi(p2) in tmp1
-          "mull  %4            \n\t" // p1 = lo(multiplicand) * multiplier
-          "addl  %2, %%edx     \n\t" // hi(p1) += lo(p2)
-          "adcl  $0, %1        \n\t" // hi(p2) += carry from previous step
-          "shrdl %%edx, %%eax  \n\t" // result = hi(p2):hi(p1):lo(p1) >> shift
-          "shrdl %1, %%edx"
-          : "=A"  (result),
-            "=&r" (tmp1),            // use in shrdl requires it to be a register
-            "=&r" (tmp2)             // could be "=&rm" but "m" is slower
-          : "0"   (multiplicand),
-            "rm"  (multiplier),
-            "c"   (shift)
-          : "cc"
-      );
+      __asm__("mov   %%eax, %2     \n\t" // Save lo(multiplicand) in tmp2
+              "mov   %%edx, %%eax  \n\t" // Get hi(multiplicand)
+              "mull  %4            \n\t" // p2 = hi(multiplicand) * multiplier
+              "xchg  %%eax, %2     \n\t" // Save lo(p2) in tmp2, get lo(multiplicand)
+              "mov   %%edx, %1     \n\t" // Save hi(p2) in tmp1
+              "mull  %4            \n\t" // p1 = lo(multiplicand) * multiplier
+              "addl  %2, %%edx     \n\t" // hi(p1) += lo(p2)
+              "adcl  $0, %1        \n\t" // hi(p2) += carry from previous step
+              "shrdl %%edx, %%eax  \n\t" // result = hi(p2):hi(p1):lo(p1) >> shift
+              "shrdl %1, %%edx"
+              : "=A"  (result),
+                "=&r" (tmp1),            // use in shrdl requires it to be a register
+                "=&r" (tmp2)             // could be "=&rm" but "m" is slower
+              : "0"   (multiplicand),
+                "rm"  (multiplier),
+                "c"   (shift)
+              : "cc"
+         );
    } else {
-      asm("mov   %%edx, %2     \n\t" // Save hi(multiplicand) in tmp2
-          "mull  %4            \n\t" // p1 = lo(multiplicand) * multiplier
-          "mov   %%edx, %1     \n\t" // Save hi(p1) in tmp1
-          "mov   %2, %%eax     \n\t" // Discard lo(p1), get hi(multiplicand)
-          "mull  %4            \n\t" // p2 = hi(multiplicand) * multiplier
-          "addl  %1, %%eax     \n\t" // lo(p2) += hi(p1)
-          "adcl  $0, %%edx     \n\t" // hi(p2) += carry from previous step
-          "shrdl %%edx, %%eax  \n\t" // result = p2 >> (shift & 31)
-          "shrl  %%cl, %%edx"
-          : "=A"  (result),
-            "=&r" (tmp1),            // could be "=&rm" but "m" is slower
-            "=&r" (tmp2)             // could be "=&rm" but "m" is slower
-          : "0"   (multiplicand),
-            "rm"  (multiplier),
-            "c"   (shift)
-          : "cc"
-      );
+      __asm__("mov   %%edx, %2     \n\t" // Save hi(multiplicand) in tmp2
+              "mull  %4            \n\t" // p1 = lo(multiplicand) * multiplier
+              "mov   %%edx, %1     \n\t" // Save hi(p1) in tmp1
+              "mov   %2, %%eax     \n\t" // Discard lo(p1), get hi(multiplicand)
+              "mull  %4            \n\t" // p2 = hi(multiplicand) * multiplier
+              "addl  %1, %%eax     \n\t" // lo(p2) += hi(p1)
+              "adcl  $0, %%edx     \n\t" // hi(p2) += carry from previous step
+              "shrdl %%edx, %%eax  \n\t" // result = p2 >> (shift & 31)
+              "shrl  %%cl, %%edx"
+              : "=A"  (result),
+                "=&r" (tmp1),            // could be "=&rm" but "m" is slower
+                "=&r" (tmp2)             // could be "=&rm" but "m" is slower
+              : "0"   (multiplicand),
+                "rm"  (multiplier),
+                "c"   (shift)
+              : "cc"
+         );
    }
    return result;
 }
@@ -415,38 +415,38 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
    int64 result;
    uint32 tmp1, tmp2;
    // ASSERT(shift >= 0 && shift < 64);
-  
+
    /* Written and tested by mann, checked by dbudko and hpreg */
    /* XXX hpreg suggested some improvements that we haven't converged on yet */
-   asm("mov   %%eax, %2\n\t"      // Save lo(multiplicand)
-       "mov   %%edx, %%eax\n\t"   // Get hi(multiplicand)
-       "test  %%eax, %%eax\n\t"   // Check sign of multiplicand
-       "jl    0f\n\t"             // Go if negative
-       "mull  %4\n\t"             // p2 = hi(multiplicand) * multiplier
-       "jmp   1f\n"
-    "0:\n\t"
-       "mull  %4\n\t"             // p2 = hi(multiplicand) * multiplier
-       "sub   %4, %%edx\n"        // hi(p2) += -1 * multiplier
-    "1:\n\t"
-       "xchg  %%eax, %2\n\t"      // Save lo(p2), get lo(multiplicand)
-       "mov   %%edx, %1\n\t"      // Save hi(p2)
-       "mull  %4\n\t"             // p1 = lo(multiplicand) * multiplier
-       "addl  %2, %%edx\n\t"      // hi(p1) += lo(p2)
-       "adcl  $0, %1\n\t"         // hi(p2) += carry from previous step
-       "cmpl  $32, %%ecx\n\t"     // shift < 32?
-       "jl    2f\n\t"             // Go if so
-       "mov   %%edx, %%eax\n\t"   // result = hi(p2):hi(p1) >> (shift & 31)
-       "mov   %1, %%edx\n\t"
-       "shrdl %%edx, %%eax\n\t"
-       "sarl  %%cl, %%edx\n\t"
-       "jmp   3f\n"
-    "2:\n\t"
-       "shrdl %%edx, %%eax\n\t"   // result = hi(p2):hi(p1):lo(p1) >> shift
-       "shrdl %1, %%edx\n"
-    "3:\n\t"
-       : "=A" (result), "=&r" (tmp1), "=&r" (tmp2)
-       : "0" (multiplicand), "rm" (multiplier), "c" (shift)
-       : "cc");
+   __asm__("mov   %%eax, %2\n\t"      // Save lo(multiplicand)
+           "mov   %%edx, %%eax\n\t"   // Get hi(multiplicand)
+           "test  %%eax, %%eax\n\t"   // Check sign of multiplicand
+           "jl    0f\n\t"             // Go if negative
+           "mull  %4\n\t"             // p2 = hi(multiplicand) * multiplier
+           "jmp   1f\n"
+        "0:\n\t"
+           "mull  %4\n\t"             // p2 = hi(multiplicand) * multiplier
+           "sub   %4, %%edx\n"        // hi(p2) += -1 * multiplier
+        "1:\n\t"
+           "xchg  %%eax, %2\n\t"      // Save lo(p2), get lo(multiplicand)
+           "mov   %%edx, %1\n\t"      // Save hi(p2)
+           "mull  %4\n\t"             // p1 = lo(multiplicand) * multiplier
+           "addl  %2, %%edx\n\t"      // hi(p1) += lo(p2)
+           "adcl  $0, %1\n\t"         // hi(p2) += carry from previous step
+           "cmpl  $32, %%ecx\n\t"     // shift < 32?
+           "jl    2f\n\t"             // Go if so
+           "mov   %%edx, %%eax\n\t"   // result = hi(p2):hi(p1) >> (shift & 31)
+           "mov   %1, %%edx\n\t"
+           "shrdl %%edx, %%eax\n\t"
+           "sarl  %%cl, %%edx\n\t"
+           "jmp   3f\n"
+        "2:\n\t"
+           "shrdl %%edx, %%eax\n\t"   // result = hi(p2):hi(p1):lo(p1) >> shift
+           "shrdl %1, %%edx\n"
+        "3:\n\t"
+           : "=A" (result), "=&r" (tmp1), "=&r" (tmp2)
+           : "0" (multiplicand), "rm" (multiplier), "c" (shift)
+           : "cc");
    return result;
 }
 

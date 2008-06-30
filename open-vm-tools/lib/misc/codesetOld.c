@@ -49,17 +49,13 @@
 #include "util.h"
 #include "str.h"
 
-/*
- * These systems use iconv and nl_langinfo.
- * See the definition of CURRENT_IS_UTF8.
- *
- * In addition, Linux has nl_langinfo_l.  To get the nl_langinfo_l
- * related definitions in local.h, we need to define _GNU_SOURCE,
- * which has to be done above because one of the other standard include
- * files sucks it in.
- */
-
-#if !defined(CURRENT_IS_UTF8) && !defined(_WIN32)
+#if defined(USE_ICONV)
+   /*
+    * Use nl_langinfo_l on Linux.  To get the nl_langinfo_l
+    * related definitions in local.h, we need to define _GNU_SOURCE,
+    * which has to be done above because one of the other standard include
+    * files sucks it in.
+    */
    #include <locale.h>
    #if defined(__linux__) && !defined(LC_CTYPE_MASK)  // Prior to glibc 2.3
       #define LC_CTYPE_MASK (1 << LC_CTYPE)
@@ -68,7 +64,6 @@
       #define freelocale __freelocale
       #define nl_langinfo_l __nl_langinfo_l
    #endif
-   #define USE_ICONV
    #include <dlfcn.h>
    #include <iconv.h>
    #include <langinfo.h>
@@ -1053,8 +1048,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
          if (!CodeSetOld_CurrentToUtf8(bufIn, sizeIn, &bufOut, &sizeOut)) {
             goto exit;
          }
-      } else if ((STRING_ENCODING_UTF16 == encOut) ||
-                 (STRING_ENCODING_UTF16_LE == encOut)) {
+      } else if (STRING_ENCODING_UTF16_LE == encOut) {
          if (!CodeSetOld_CurrentToUtf16le(bufIn, sizeIn, &bufOut, &sizeOut)) {
             goto exit;
          }
@@ -1066,22 +1060,32 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
          if (!CodeSetOld_Utf8ToCurrent(bufIn, sizeIn, &bufOut, &sizeOut)) {
             goto exit;
          }
-      } else if ((STRING_ENCODING_UTF16 == encOut) ||
-                 (STRING_ENCODING_UTF16_LE == encOut)) {
+      } else if (STRING_ENCODING_UTF16_LE == encOut) {
          if (!CodeSetOldUtf8ToUtf16le(bufIn, sizeIn, db)) {
             goto exit;
          }
       } else {
          goto exit;
       }
-   } else if ((STRING_ENCODING_UTF16 == encIn) ||
-              (STRING_ENCODING_UTF16_LE == encIn)) {
+   } else if (STRING_ENCODING_UTF16_LE == encIn) {
       if (rawCurEnc == encOut) {
          if (!CodeSetOld_Utf16leToCurrent(bufIn, sizeIn, &bufOut, &sizeOut)) {
             goto exit;
          }
       } else if (STRING_ENCODING_UTF8 == encOut) {
          if (!CodeSetOld_Utf16leToUtf8_Db(bufIn, sizeIn, db)) {
+            goto exit;
+         }
+      } else {
+         goto exit;
+      }
+   } else if (STRING_ENCODING_UTF16_BE == encIn) {
+      if (rawCurEnc == encOut) {
+         if (!CodeSetOld_Utf16beToCurrent(bufIn, sizeIn, &bufOut, &sizeOut)) {
+            goto exit;
+         }
+      } else if (STRING_ENCODING_UTF8 == encOut) {
+         if (!CodeSetOld_Utf16beToUtf8_Db(bufIn, sizeIn, db)) {
             goto exit;
          }
       } else {
@@ -1915,6 +1919,43 @@ CodeSetOld_IsEncodingSupported(const char *name) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * CodeSetOld_Validate --
+ *
+ *    Validate a string in the given encoding.
+ *
+ * Results:
+ *    TRUE if string is valid,
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Validate(const char *buf,   // IN: the string
+                    size_t size,       // IN: length of string
+                    const char *code)  // IN: encoding
+{
+   DynBuf db;
+   Bool ok;
+
+   if (size == 0) {
+      return TRUE;
+   }
+
+   DynBuf_Init(&db);
+   ok = CodeSetOld_GenericToGenericDb(code, buf, size, "UTF-8",
+				      CSGTG_NORMAL, &db);
+   DynBuf_Destroy(&db);
+   return ok;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * CodeSetOld_Init --
  *
  *    No-op.
@@ -1932,4 +1973,82 @@ Bool
 CodeSetOld_Init(void)
 {
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOld_Utf16beToUtf8_Db --
+ *
+ *    Append the content of a buffer (that uses the UTF-16BE encoding) to a
+ *    DynBuf (that uses the UTF-8 encoding). 
+ *
+ * Results:
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Utf16beToUtf8_Db(char const *bufIn, // IN
+                            size_t sizeIn,     // IN
+                            DynBuf *db)        // IN
+{
+   int i;
+   char *temp;
+   Bool ret = FALSE;
+   if ((temp = malloc(sizeIn)) == NULL) {
+      return ret;
+   }
+   ASSERT((sizeIn & 1) == 0);
+   ASSERT((ssize_t) sizeIn >= 0);
+
+   for (i = 0; i < sizeIn; i += 2) {
+      temp[i] = bufIn[i + 1];
+      temp[i + 1] = bufIn[i];
+   }
+
+   ret = CodeSetOld_Utf16leToUtf8_Db(temp, sizeIn, db);
+   free(temp);
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOld_Utf16beToUtf8 --
+ *
+ *    Convert the content of a buffer (that uses the UTF-16BE encoding) into
+ *    another buffer (that uses the UTF-8 encoding). 
+ *
+ * Results:
+ *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
+ *                     If not NULL, '*sizeOut' contains the size of the buffer
+ *                     (excluding the NUL terminator)
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
+                         size_t sizeIn,     // IN
+                         char **bufOut,     // OUT
+                         size_t *sizeOut)   // OUT
+{
+   DynBuf db;
+   Bool ok;
+
+   DynBuf_Init(&db);
+   ok = CodeSetOld_Utf16beToUtf8_Db(bufIn, sizeIn, &db);
+   return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }

@@ -29,11 +29,15 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#if __FreeBSD_version >= 700000
+#include <sys/priv.h>
+#endif
 
 #include "hgfs_kernel.h"
 #include "request.h"
 #include "debug.h"
 #include "os.h"
+#include "compat_freebsd.h"
 
 /*
  * Local functions (prototypes)
@@ -64,7 +68,9 @@ static struct vfsops HgfsVfsOps = {
    .vfs_vget            = vfs_stdvget,
    .vfs_fhtovp          = vfs_stdfhtovp,
    .vfs_checkexp        = vfs_stdcheckexp,
+#if __FreeBSD_version < 700000
    .vfs_vptofh          = vfs_stdvptofh,
+#endif
    .vfs_init            = HgfsVfsInit,
    .vfs_uninit          = HgfsVfsUninit,
    .vfs_extattrctl      = vfs_stdextattrctl,
@@ -164,7 +170,7 @@ HgfsVfsMount(struct mount *mp,  // IN: structure representing the file system
    sip->rootVnode = vp;
 
    /* We're finished with the root vnode, so unlock it. */
-   VOP_UNLOCK(vp, 0, td);
+   COMPAT_VOP_UNLOCK(vp, 0, td);
 
    /*
     * Initialize this file system's Hgfs requests container.

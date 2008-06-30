@@ -97,7 +97,7 @@
 /*
  * An invalid ring index.
  */
-#define VMXNET_INVALID_RING_INDEX	-1
+#define VMXNET_INVALID_RING_INDEX	(-1)
 
 /*
  * Features that are implemented by the driver.  These are driver
@@ -120,7 +120,6 @@
 #define VMXNET_FEATURE_TSO                      0x02
 #define VMXNET_FEATURE_JUMBO_FRAME              0x04
 #define VMXNET_FEATURE_LPD                      0x08
-#define VMXNET_FEATURE_BPF                      0x10
 
 /*
  * Define the set of capabilities required by each feature above
@@ -128,7 +127,6 @@
 #define VMXNET_FEATURE_ZERO_COPY_TX_CAPS        VMXNET_CAP_SG
 #define VMXNET_FEATURE_TSO_CAPS                 VMXNET_CAP_TSO
 #define VMXNET_HIGHEST_FEATURE_BIT              VMXNET_FEATURE_TSO
-#define VMXNET_FEATURE_BPF_CAPS                 VMNET_CAP_BPF
 
 #define VMXNET_INC(val, max)     \
    val++;                        \

@@ -1,3 +1,20 @@
+open-vm-tools 2008.06.18 changes:
+	* Fixed Sourceforge bug 1847750 (FreeBSD 7 & 8 builds) and Sourceforge
+	bug 1981632 (build failure on Solaris). This should get open-vm-tools
+	building and running on FreeBSD 7 & 8 and Solaris. Thanks to Martin
+	Blapp for all the FreeBSD patches, and Jonathan Keatley for reporting
+	the Solaris bug.
+
+	* Fixed Sourceforge bug 1968416 (packet counting in FreeBSD vmxnet).
+	Thanks to Shunsuke SHINOMIYA for reporting this bug.
+
+	* Fixed Sourceforge bug 1983375 (Cannot specify kernel constraints).
+	You can now pass --without-kernel-modules, --with-kernel-release, and
+	--with-linuxdir to the ./configure script. Thanks to Craig Phillips for
+	reporting this bug.
+
+	* Other bug fixes.
+
 open-vm-tools 2008.06.03 changes:
 	* Added the vmware-user-suid-wrapper application, with implementations
 	for Linux, FreeBSD, and Solaris. This app is needed to make correct use

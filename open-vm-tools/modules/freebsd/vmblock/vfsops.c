@@ -52,11 +52,13 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/fcntl.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
 #include "vmblock_k.h"
+#include "compat_freebsd.h"
 
 static MALLOC_DEFINE(M_VMBLOCKFSMNT, "VMBlockFS mount", "VMBlockFS mount structure");
 
@@ -187,7 +189,7 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
     * Make sure the node alias worked
     */
    if (error) {
-      VOP_UNLOCK(vp, 0, td);
+      COMPAT_VOP_UNLOCK(vp, 0, td);
       vrele(lowerrootvp);
       free(xmp, M_VMBLOCKFSMNT);   /* XXX */
       return error;
@@ -209,7 +211,7 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
    /*
     * Unlock the node (either the lower or the alias)
     */
-   VOP_UNLOCK(vp, 0, td);
+   COMPAT_VOP_UNLOCK(vp, 0, td);
 
    /*
     * If the staging area is a local filesystem, reflect that here, too.  (We
@@ -217,7 +219,7 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
     */
    MNT_ILOCK(mp);
    mp->mnt_flag |= lowerrootvp->v_mount->mnt_flag & MNT_LOCAL;
-#if BSD_VERSION >= 60
+#if __FreeBSD_version >= 600000
    mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
 #endif
    MNT_IUNLOCK(mp);
@@ -288,14 +290,14 @@ VMBlockVFSUnmount(struct mount *mp,     // IN: filesystem to unmount
     * transfer will happen atomically.  (Er, at least within the scope of
     * the vnode subsystem.)
     */
-   VOP_LOCK(vp, LK_EXCLUSIVE|LK_RETRY|LK_INTERLOCK, td);
+   COMPAT_VOP_LOCK(vp, LK_EXCLUSIVE|LK_RETRY|LK_INTERLOCK, td);
 
    removed = BlockRemoveAllBlocks(OS_UNKNOWN_BLOCKER);
 
    VI_LOCK(vp);
    vp->v_usecount -= removed;
    VI_UNLOCK(vp);
-   VOP_UNLOCK(vp, 0, td);
+   COMPAT_VOP_UNLOCK(vp, 0, td);
 
    if (mntflags & MNT_FORCE) {
       flags |= FORCECLOSE;
@@ -346,7 +348,7 @@ VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
     */
    vp = MNTTOVMBLOCKMNT(mp)->rootVnode;
    VREF(vp);
-   vn_lock(vp, flags | LK_RETRY, td);
+   compat_vn_lock(vp, flags | LK_RETRY, td);
    *vpp = vp;
    return 0;
 }

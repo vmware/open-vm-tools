@@ -19,3 +19,5 @@ noinst_LIBRARIES = libVixTools.a
 
 libVixTools_a_SOURCES =
 libVixTools_a_SOURCES += vixTools.c
+AM_CFLAGS = -I$(top_builddir)/include
+

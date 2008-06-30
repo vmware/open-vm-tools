@@ -47,13 +47,13 @@ typedef atomic_t os_atomic_t;
 typedef struct file * os_blocker_id_t;
 
 #define OS_UNKNOWN_BLOCKER              NULL
-#define OS_ENOMEM                       -ENOMEM
-#define OS_ENOENT                       -ENOENT
-#define OS_EEXIST                       -EEXIST
+#define OS_ENOMEM                       (-ENOMEM)
+#define OS_ENOENT                       (-ENOENT)
+#define OS_EEXIST                       (-EEXIST)
 #define OS_PATH_MAX                     PATH_MAX
 
 #define OS_FMTTID                       "d"
-#define os_threadid                     current->pid
+#define os_threadid                     (current->pid)
 /*
  * XXX vprintk() wasn't exported until 2.6.9; we should do something more
  * intelligent here eventually.

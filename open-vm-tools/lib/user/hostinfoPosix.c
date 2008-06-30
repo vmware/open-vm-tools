@@ -67,6 +67,10 @@
 #endif
 #endif
 #endif
+#if defined(__FreeBSD__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 
 #include "vmware.h"
 #include "hostType.h"
@@ -89,6 +93,7 @@
 #ifdef VMX86_SERVER
 #include "uwvmkAPI.h"
 #include "uwvmk.h"
+#include "vmkSyscall.h"
 #endif
 
 #define LGPFX "HOSTINFO:"
@@ -107,9 +112,10 @@
 
 #if !defined(__APPLE__)
 static char *HostinfoGetCpuInfo(int nCpu, char *name);
+#if !defined(VMX86_SERVER)
 static Bool HostinfoGetMemInfo(char *name, unsigned int *value);
-static Bool HostinfoGetMemSize(uint64 *total, uint64 *avail);
-#endif
+#endif // ifndef VMX86_SERVER
+#endif // ifndef __APPLE__
 
 
 /*
@@ -674,6 +680,15 @@ Hostinfo_NumCPUs(void)
    }
 
    return out;
+#elif defined(__FreeBSD__)
+   uint32 out;
+   size_t outSize = sizeof out;
+
+   if (sysctlbyname("kern.smp.cpus", &out, &outSize, NULL, 0) == -1) {
+      return -1;
+   }
+
+   return out;
 #else
    static int count = 0;
 
@@ -900,6 +915,7 @@ HostinfoGetCpuInfo(int nCpu,         // IN
 }
 
 
+#if !defined(VMX86_SERVER)
 /*
  *----------------------------------------------------------------------
  *
@@ -945,59 +961,6 @@ HostinfoFindEntry(char *buffer,         // IN: Buffer
 
    *value = val;
    return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HostinfoGetMemSize --
- *
- *      Get the memory size and available space from  /proc/vmware/mem 
- *      on ESX hosts. Return value is in MB.
- *
- * Results:
- *      TRUE on success, FALSE on failure
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-HostinfoGetMemSize(uint64 *memTotal,        // OUT
-                   uint64 *memAvail)        // OUT 
-{
-   const char *memInfoFile = "/proc/vmware/mem";
-   uint64 total = 0;
-   uint64 avail = 0;
-   char buf[MAX_LINE_LEN];
-   FILE *fp = NULL;
-   Bool foundVal = FALSE;
-
-   if ((fp = Posix_Fopen(memInfoFile, "r")) == NULL) {
-      Warning(LGPFX" Could not open meminfo file %s\n", memInfoFile);
-      return FALSE;
-   }
-   
-   while (fgets(buf, MAX_LINE_LEN, fp)) {
-      if (sscanf(buf, "Machine memory free: %"FMT64"d Mbytes/%"FMT64"d Mbytes", 
-		 &avail, &total) == 2) {
-         foundVal = TRUE;
-         break;
-      }
-   }
-   if (fp) {
-      fclose(fp);
-   }
-   if (memTotal != NULL) {
-      *memTotal = total;
-   }
-   if (memAvail != NULL) {
-      *memAvail = avail;
-   }
-   return foundVal;
 }
 
 
@@ -1115,6 +1078,7 @@ HostinfoSysinfo(uint64 *totalRam, // OUT: Total RAM in bytes
    NOT_IMPLEMENTED();
 #endif // ifdef HAVE_SYSINFO
 }
+#endif // ifndef VMX86_SERVER
 #endif // ifndef __APPLE__
 
 
@@ -1174,23 +1138,27 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,     // OUT
               + stat.wire_count + stat.active_count + stat.inactive_count;
 
    return TRUE;
+#elif defined(VMX86_SERVER)
+   uint64 total; 
+   uint64 free;
+   VMK_ReturnStatus status;
+
+   if (VmkSyscall_Init(FALSE, NULL, 0)) {
+      status = CosVmnix_GetMemSize(&total, &free);
+      if (status == VMK_OK) {
+         *minSize = 128;
+         *maxSize = total / PAGE_SIZE;
+         *currentSize = free / PAGE_SIZE;
+
+         return TRUE;
+      }
+   }
+
+   return FALSE;
 #else 
    uint64 total; 
    uint64 free;
    unsigned int cached = 0;
-   
-   if (vmx86_server) {
-      // This is completely bogus on esx. Needs to use sysinfo.
-      *minSize = 128;
-      if (HostinfoGetMemSize(&total, &free)) {
-         *maxSize = (total *1024 * 1024) / PAGE_SIZE;
-         *currentSize = (free *1024 * 1024) / PAGE_SIZE;
-      } else {
-         *maxSize = (128 *1024 * 1024) / PAGE_SIZE;
-         *currentSize = (32 *1024 * 1024) / PAGE_SIZE;
-      }
-      return TRUE;
-   }
    
    /*
     * Note that the free memory provided by linux does not include buffer and
@@ -1232,7 +1200,7 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,     // OUT
    }
 
    return TRUE;
-#endif    // ifdef __APPLE_
+#endif
 }
 
 

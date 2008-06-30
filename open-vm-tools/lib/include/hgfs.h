@@ -39,6 +39,11 @@
 #include "includeCheck.h"
 #include "vm_assert.h"
 
+/*
+ * Maximum number of pages to transfer to/from the HGFS server for V3 protocol
+ * operations that support large requests/replies, e.g. reads and writes.
+ */
+#define HGFS_LARGE_IO_MAX_PAGES  15
 
 /*
  * Maximum allowed packet size in bytes. All hgfs code should be made
@@ -46,6 +51,19 @@
  */
 #define HGFS_PACKET_MAX 6144
 
+/*
+ * The HGFS_LARGE_PACKET_MAX size is used to allow guests to make
+ * read / write requests of sizes larger than HGFS_PACKET_MAX. The larger size
+ * can only be used with server operations that are specified to be large packet
+ * capable in hgfsProto.h.
+ */
+#define HGFS_LARGE_PACKET_MAX ((4096 * HGFS_LARGE_IO_MAX_PAGES) + 2048)
+
+/* Maximum number of bytes to read or write to a hgfs server in a single packet. */
+#define HGFS_IO_MAX 4096
+
+/* Maximum number of bytes to read or write to a V3 server in a single hgfs packet. */
+#define HGFS_LARGE_IO_MAX (HGFS_LARGE_IO_MAX_PAGES * 4096)
 
 /*
  * Open mode
@@ -113,8 +131,8 @@ typedef enum {
  * error codes travelled from hgfsProto.h to hgfs.h in that same change. Worse,
  * we GA'ed a product (Server 1.0) this way.
  *
- * XXX: I've reversed the order because otherwise new HGFS clients working 
- * against WS55-era HGFS servers will think they got HGFS_STATUS_GENERIC_ERROR 
+ * XXX: I've reversed the order because otherwise new HGFS clients working
+ * against WS55-era HGFS servers will think they got HGFS_STATUS_GENERIC_ERROR
  * when the server sent them HGFS_STATUS_INVALID_NAME. This was a problem
  * the Linux client converts HGFS_STATUS_GENERIC_ERROR to -EIO, which causes
  * HgfsLookup to fail unexpectedly (normally HGFS_STATUS_INVALID_NAME is
@@ -136,6 +154,7 @@ typedef enum {
    HGFS_STATUS_NO_SPACE,
    HGFS_STATUS_OPERATION_NOT_SUPPORTED,
    HGFS_STATUS_NAME_TOO_LONG,
+   HGFS_STATUS_INVALID_PARAMETER,
 } HgfsStatus;
 
 /*
@@ -150,9 +169,9 @@ typedef enum {
  * the command and the space into some buffer that is then sent over the
  * backdoor.
  *
- * In Host --> Guest RPC traffic, the host endpoint is TCLO and the guest 
- * endpoint is RpcIn. TCLO is a particularly confusing name choice which dates 
- * back to when the host was to send raw TCL code to the guest (TCL Out == 
+ * In Host --> Guest RPC traffic, the host endpoint is TCLO and the guest
+ * endpoint is RpcIn. TCLO is a particularly confusing name choice which dates
+ * back to when the host was to send raw TCL code to the guest (TCL Out ==
  * TCLO).
  *
  * In Guest --> Host RPC traffic, the guest endpoint is RpcOut and the host
@@ -161,11 +180,11 @@ typedef enum {
 
 /*
  * When an RPCI listener registers for this command, HGFS requests are expected
- * to be synchronously sent from the guest and replies are expected to be 
+ * to be synchronously sent from the guest and replies are expected to be
  * synchronously returned.
- * 
- * When an RpcIn listener registers for this command, requests are expected to 
- * be asynchronously sent from the host and synchronously returned from the 
+ *
+ * When an RpcIn listener registers for this command, requests are expected to
+ * be asynchronously sent from the host and synchronously returned from the
  * guest.
  *
  * In short, an endpoint sending this command is sending a request whose reply
@@ -175,7 +194,7 @@ typedef enum {
 #define HGFS_SYNC_REQREP_CLIENT_CMD HGFS_SYNC_REQREP_CMD " "
 #define HGFS_SYNC_REQREP_CLIENT_CMD_LEN (sizeof HGFS_SYNC_REQREP_CLIENT_CMD - 1)
 
-/* 
+/*
  * This is just for the sake of macro naming. Since we are guaranteed
  * equal command lengths, defining command length via a generalized macro name
  * will prevent confusion.

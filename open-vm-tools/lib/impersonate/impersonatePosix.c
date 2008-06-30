@@ -227,7 +227,7 @@ ImpersonateOwner(const char *file)          // IN
       if (error == 0) {
          error = ENOENT;
       }
-      Warning("Failed to lookup user with uid: %d. Reason: %s\n", buf.st_uid,
+      Warning("Failed to lookup user with uid: %" FMTUID ". Reason: %s\n", buf.st_uid,
               strerror(error));
       return FALSE;
    }

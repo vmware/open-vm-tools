@@ -161,6 +161,7 @@ static Bool gIsOwner;
 /*
  * Forward Declarations
  */
+static INLINE void CopyPasteStateInit(void);
 static void CopyPasteSelectionReceivedCB(GtkWidget *widget,
                                          GtkSelectionData *selection_data,
                                          gpointer data);
@@ -209,7 +210,7 @@ struct SelectionTargetList {
  *-----------------------------------------------------------------------------
  */
 
-void 
+void
 CopyPasteSelectionRemoveTarget(GtkWidget *widget,
                                GdkAtom selection,
                                GdkAtom target)
@@ -1868,14 +1869,6 @@ CopyPaste_Register(GtkWidget* mainWnd)
    gtk_signal_connect(GTK_OBJECT(mainWnd), "selection_clear_event",
                       GTK_SIGNAL_FUNC(CopyPasteSelectionClearCB), mainWnd);
 
-   gHostClipboardBuf[0] = '\0';
-   gGuestSelPrimaryBuf[0] = '\0';
-   gGuestSelClipboardBuf[0] = '\0';
-   gIsOwner = FALSE;
-   gGHFCPRpcResultBuffer = NULL;
-   gHGFCPPending = FALSE;
-   gHGFCPFileTransferStatus = FCP_FILE_TRANSFER_NOT_YET;
-
    RpcIn_RegisterCallback(gRpcIn, "copypaste.hg.data.set",
                           CopyPasteRpcInHGSetDataCB, NULL);
    RpcIn_RegisterCallback(gRpcIn, "copypaste.hg.data.finish",
@@ -1887,14 +1880,8 @@ CopyPaste_Register(GtkWidget* mainWnd)
    RpcIn_RegisterCallback(gRpcIn, "copypaste.gh.finish",
                           CopyPasteRpcInGHFinishCB, NULL);
 
-   if (CopyPaste_GetVmxCopyPasteVersion() >= 2) {
-      /*
-       * Create staging directory for file copy/paste. This is for vmx with version 2
-       * or greater.
-       */
-      gFileRootSize = DnD_GetNewFileRoot(gFileRoot, sizeof gFileRoot);
-      Debug("CopyPaste_Register create file root [%s]\n", gFileRoot);
-   }
+   CopyPasteStateInit();
+
    return CopyPaste_RegisterCapability();
 }
 
@@ -1929,6 +1916,37 @@ CopyPaste_Unregister(GtkWidget* mainWnd)
                                  mainWnd);
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPaste_OnReset --
+ *
+ *    Handles reinitializing Copy Paste state on a reset.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPaste_OnReset(void)
+{
+   if (gHGFCPFileTransferStatus == FCP_FILE_TRANSFERRING) {
+      File_DeleteDirectoryTree(gFileRoot);
+      if (gBlockFd > 0 && !DnD_RemoveBlock(gBlockFd, gFileRoot)) {
+         Warning("CopyPasteRpcInHGDataFinishCB: Unable to remove block [%s].\n",
+                 gFileRoot);
+      }
+      gFileRootSize = DnD_GetNewFileRoot(gFileRoot, sizeof gFileRoot);
+   }
+
+   CopyPasteStateInit();
+}
 
 /*
  *----------------------------------------------------------------------------
@@ -1974,4 +1992,42 @@ Bool
 CopyPaste_IsRpcCPSupported(void)
 {
    return gVmxCopyPasteVersion > 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CopyPasteStateInit --
+ *
+ *    Initalialize CopyPaste State.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteStateInit(void)
+{
+   gHostClipboardBuf[0] = '\0';
+   gGuestSelPrimaryBuf[0] = '\0';
+   gGuestSelClipboardBuf[0] = '\0';
+   gIsOwner = FALSE;
+   gGHFCPRpcResultBuffer = NULL;
+   gHGFCPPending = FALSE;
+   gHGFCPFileTransferStatus = FCP_FILE_TRANSFER_NOT_YET;
+
+   if (CopyPaste_GetVmxCopyPasteVersion() >= 2) {
+      /*
+       * Create staging directory for file copy/paste. This is for vmx with version 2
+       * or greater.
+       */
+      gFileRootSize = DnD_GetNewFileRoot(gFileRoot, sizeof gFileRoot);
+      Debug("CopyPaste_Register create file root [%s]\n", gFileRoot);
+   }
 }

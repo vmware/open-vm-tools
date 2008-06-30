@@ -34,7 +34,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.06.03-96374],
+   [2008.06.20-100027],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -74,11 +74,32 @@ case "$host_cpu" in
       ;;
 esac
 
+# Kernel args
+# The kernel args have to go here otherwise the KERNEL_RELEASE won't be visible
+# to getOsVersion()
+AC_ARG_WITH([kernel-modules],
+	    [AS_HELP_STRING([--without-kernel-modules],
+		[Do not compile or install the kernel modules])],
+	    [],
+	    [with_kernel_modules=yes])
+
+AC_ARG_WITH([kernel-release],
+	    [AS_HELP_STRING([--with-kernel-release],
+		[Specify the kernel release you want to build against])],
+	    [KERNEL_RELEASE="$withval"],
+	    [KERNEL_RELEASE=`uname -r`])
+
+AC_ARG_WITH([linuxdir],
+	    [AS_HELP_STRING([--with-linuxdir],
+		[Specify the Linux directory you want to use])],
+	    [LINUXDIR="$withval"],
+	    [LINUXDIR=/lib/modules/$KERNEL_RELEASE])
+
 # Turn the uname output into something we can run comparisons on.
 getOsVersion() {
-   major_version="`uname -r | cut -f1 -d. | cut -f1 -d-`"
-   minor_version="`uname -r | cut -f2 -d. | cut -f1 -d-`"
-   micro_version="`uname -r | cut -f3 -d. | cut -f1 -d-`"
+   major_version="`echo $KERNEL_RELEASE | cut -f1 -d. | cut -f1 -d-`"
+   minor_version="`echo $KERNEL_RELEASE | cut -f2 -d. | cut -f1 -d-`"
+   micro_version="`echo $KERNEL_RELEASE | cut -f3 -d. | cut -f1 -d-`"
    printf '%02d%02d%03d' $major_version $minor_version $micro_version
 }
 
@@ -97,6 +118,13 @@ case "$host_os" in
       ;;
 esac
 osVersion="`getOsVersion`"
+if test "$os" = "linux"; then
+   if test "$with_kernel_modules" = "yes"; then
+      if test ! -d "$LINUXDIR/kernel/"; then
+      	 AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
+      fi
+   fi
+fi
 
 AC_ARG_ENABLE(
    multimon,
@@ -133,6 +161,10 @@ AC_PROG_CC
 AC_PROG_INSTALL
 # Needed for creating the archives in lib/ and the shared libraries.
 AC_PROG_LIBTOOL
+if test "$ac_cv_prog_AR" = false; then
+   AC_MSG_ERROR([The 'ar' utility was not found. Please put ar on the path.])
+fi
+
 # We use pkg-config to set up the cflags and libs for gtk.
 AC_CHECK_PROG(
    [HAVE_PKG_CONFIG],
@@ -161,6 +193,14 @@ else
    CPPFLAGS="$CPPFLAGS $X_CFLAGS"
    COMMON_XLIBS="-lX11"
    COMMON_XLIBS="-lXext $COMMON_XLIBS"
+
+   AC_CHECK_HEADER(
+      [X11/extensions/extutil.h],
+      [],
+      [AC_MSG_ERROR(
+         [X11/extensions/extutil.h header not found - you're probably on Solaris 10 or older. Please copy that header file onto your system manually, or configure without X11 (using --without-x).])],
+      [#include <X11/Xlib.h>
+       #include <X11/Xproto.h>])
 
    if test "$MULTIMON_ENABLED" != "no"; then
       AC_CHECK_LIB(
@@ -308,11 +348,15 @@ AC_ARG_WITH([pam-prefix],
 	    [PAM_PREFIX="$withval"],
 	    [PAM_PREFIX='$(sysconfdir)'])
 
-AC_ARG_WITH([procps],
+if test "$os" = "linux"; then
+        AC_ARG_WITH([procps],
 	    [AS_HELP_STRING([--without-procps],
-	       [compile without libproc (disables support for meminfo)])],
+		[compile without libproc (disables support for meminfo)])],
 	    [],
 	    [with_procps=yes])
+else
+	with_procps="no"
+fi
 
 if test "$with_procps" = "yes"; then
 	ORIGINAL_LDFLAGS="$LDFLAGS"
@@ -426,6 +470,11 @@ if test "$with_icu" = "yes"; then
 		   [icu-config was not found on your PATH. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])
 	fi
 fi
+
+AC_PATH_PROG(
+   [RPCGEN],
+   [rpcgen],
+   [ AC_MSG_ERROR([rpcgen not found. Please install the libc devel package.]) ])
 
 ###
 ### Headers
@@ -585,7 +634,7 @@ MODULES_DIR=""
 buildHgfsmounter=no
 
 if test "$os" = "linux"; then
-   MODULES_DIR="/lib/modules/`uname -r`/kernel/"
+   MODULES_DIR="$LINUXDIR/kernel/"
 
    CPPFLAGS="$CPPFLAGS -D_FILE_OFFSET_BITS=64"
    CPPFLAGS="$CPPFLAGS -D_LARGEFILE64_SOURCE"
@@ -626,12 +675,14 @@ if test "$os" = "solaris"; then
 
    GUESTD_LDADD="$GUESTD_LDADD -lsocket"
    GUESTD_LDADD="$GUESTD_LDADD -lnsl"
+   GUESTD_LDADD="$GUESTD_LDADD -lrpcsvc"
 
    VMWARE_USER_CPPFLAGS="$VMWARE_USER_CPPFLAGS -I/usr/X11/include/"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lXext"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lX11"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lsocket"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lnsl"
+   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lrpcsvc"
 
    # uname -r on Solaris 10 reports "5.10"
    if test "$osVersion" -ge 510000; then
@@ -646,6 +697,7 @@ AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(NO_ICU, test "$with_icu" = "yes")
+AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 
 ### Feature-specific flags / actions
@@ -730,6 +782,7 @@ AC_CONFIG_FILES([                      \
    lib/conf/Makefile                   \
    lib/dict/Makefile                   \
    lib/dnd/Makefile                    \
+   lib/dynxdr/Makefile                 \
    lib/err/Makefile                    \
    lib/eventManager/Makefile           \
    lib/file/Makefile                   \
@@ -737,6 +790,7 @@ AC_CONFIG_FILES([                      \
    lib/ghIntegrationStub/Makefile      \
    lib/guestApp/Makefile               \
    lib/guestInfo/Makefile              \
+   lib/guestRpc/Makefile               \
    lib/hgfs/Makefile                   \
    lib/hgfsBd/Makefile                 \
    lib/hgfsServer/Makefile             \
@@ -753,6 +807,7 @@ AC_CONFIG_FILES([                      \
    lib/panicDefault/Makefile           \
    lib/printer/Makefile                \
    lib/procMgr/Makefile                \
+   lib/resolution/Makefile             \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
    lib/rpcOut/shared/Makefile          \
@@ -762,6 +817,8 @@ AC_CONFIG_FILES([                      \
    lib/strUtil/Makefile                \
    lib/string/Makefile                 \
    lib/string/shared/Makefile          \
+   lib/stubs/Makefile                  \
+   lib/stubs/shared/Makefile           \
    lib/sync/Makefile                   \
    lib/sync/shared/Makefile            \
    lib/syncDriver/Makefile             \

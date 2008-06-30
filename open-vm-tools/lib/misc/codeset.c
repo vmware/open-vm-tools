@@ -69,9 +69,6 @@
 #include "vm_product.h"
 #include "unicode/ucnv.h"
 #include "unicode/putil.h"
-#ifdef _WIN32
-#include "win32u.h"
-#endif
 #include "file.h"
 #include "util.h"
 #include "codeset.h"
@@ -118,6 +115,7 @@
 static Bool dontUseIcu = TRUE;
 DEBUG_ONLY(static Bool initedIcu = FALSE;)
 
+
 /*
  * Functions
  */
@@ -130,7 +128,7 @@ DEBUG_ONLY(static Bool initedIcu = FALSE;)
  * CodeSetGetModulePath --
  *
  *      Returns the wide-character current module path. We can't use
- *      Win32U_GetModulePath because it invokes codeset.c conversion
+ *      Win32U_GetModuleFileName because it invokes codeset.c conversion
  *      routines.
  *
  * Returns:
@@ -612,17 +610,15 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 {
    Bool result = FALSE;
    UErrorCode uerr;
-   char *bufInCur;
-   char *bufInEnd;
-   DynBuf dbpiv;
-   UChar *bufPiv;
-   UChar *bufPivCur;
+   const char *bufInCur;
+   const char *bufInEnd;
+   UChar bufPiv[1024];
+   UChar *bufPivSource;
+   UChar *bufPivTarget;
    UChar *bufPivEnd;
    char *bufOut;
    char *bufOutCur;
    char *bufOutEnd;
-   size_t bufPivSize;
-   size_t bufPivOffset;
    size_t bufOutSize;
    size_t bufOutOffset;
    UConverter *cvin = NULL;
@@ -640,16 +636,25 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
    if (dontUseIcu) {
       /*
        * Fall back.
+       *
+       * XXX CodeSetOld_GenericToGenericDb only supports certain
+       * flags, so make it happy.
        */
+#if !defined USE_ICONV
+      flags = 0;
+#elif defined __linux__
+      if (flags != 0) {
+	 flags = CSGTG_TRANSLIT | CSGTG_IGNORE;
+      }
+#endif
       return CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn, codeOut,
                                            flags, db);
    }
 
-   DynBuf_Init(&dbpiv);
-
    /*
     * Trivial case.
     */
+
    if ((0 == sizeIn) || (NULL == bufIn)) {
       result = TRUE;
       goto exit;
@@ -658,6 +663,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
    /*
     * Open converters.
     */
+
    uerr = U_ZERO_ERROR;
    cvin = ucnv_open(codeIn, &uerr);
    if (!cvin) {
@@ -673,6 +679,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
    /*
     * Set callbacks according to flags.
     */
+
    switch (flags) {
    case CSGTG_NORMAL:
       toUCb = UCNV_TO_U_CALLBACK_STOP;
@@ -707,97 +714,36 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
    }
 
    /*
-    * Convert to pivot buffer. As a starting guess, allocate a pivot
-    * buffer the size of the input string times UChar size (with a
-    * fudge constant added in to avoid degen cases).
+    * Convert using ucnv_convertEx().
+    * As a starting guess, make the output buffer the same size as
+    * the input string (with a fudge constant added in to avoid degen
+    * cases).
     */
-   bufInCur = (char *) bufIn;
-   bufInEnd = (char *) bufIn + sizeIn;
-   bufPivSize = (sizeIn + 4) * sizeof(UChar);
-   bufPivOffset = 0;
 
-   while (TRUE) {
-      if (!DynBuf_Enlarge(&dbpiv, bufPivSize * sizeof(UChar))) {
-         goto exit;
-      }
-
-      bufPiv = (UChar *) DynBuf_Get(&dbpiv);
-      bufPivCur = bufPiv + bufPivOffset;
-      bufPivEnd = bufPiv + bufPivSize;
-
-      uerr = U_ZERO_ERROR;
-      ucnv_toUnicode(cvin, &bufPivCur, bufPivEnd, (const char **) &bufInCur,
-                     bufInEnd, NULL, TRUE, &uerr);
-
-      if (U_BUFFER_OVERFLOW_ERROR == uerr) {
-         /*
-          * 'bufInCur' points to the next chunk of input string to
-          * convert, so we leave it alone. 'bufPivCur' points to right
-          * after the last UChar written, so it should be at or almost
-          * at the end of the buffer.
-          *
-          * Our guess at 'bufPivSize' was obviously wrong, just double
-          * the buffer.
-          */
-         bufPivSize *= 2;
-         bufPivOffset = bufPivCur - bufPiv;
-      } else if (U_FAILURE(uerr)) {
-         /*
-          * Failure.
-          */
-         goto exit;
-      } else {
-         /*
-          * Success.
-          */
-         break;
-      }
-   }
-
-   /*
-    * Convert from pivot buffer. Since we're probably most likely
-    * converting to UTF-8, a safe guess for the byte size of the
-    * output buffer would be the same number of code units as in the
-    * pivot buffer (with a fudge constant added to avoid degen cases).
-    */
-   bufPivEnd = bufPivCur;
-   bufPivCur = bufPiv;
-   bufPivSize = bufPivEnd - bufPivCur;
-   bufOutSize = bufPivSize + 4;
+   bufInCur = bufIn;
+   bufInEnd = bufIn + sizeIn;
+   bufOutSize = sizeIn + 4;
    bufOutOffset = 0;
+   bufPivSource = bufPiv;
+   bufPivTarget = bufPiv;
+   bufPivEnd = bufPiv + ARRAYSIZE(bufPiv);
 
-   while (TRUE) {
+   for (;;) {
       if (!DynBuf_Enlarge(db, bufOutSize)) {
          goto exit;
       }
-
-      bufOut = (char *) DynBuf_Get(db);
+      bufOut = DynBuf_Get(db);
       bufOutCur = bufOut + bufOutOffset;
+      bufOutSize = DynBuf_GetAllocatedSize(db);
       bufOutEnd = bufOut + bufOutSize;
 
       uerr = U_ZERO_ERROR;
-      ucnv_fromUnicode(cvout, &bufOutCur, bufOutEnd,
-                       (const UChar **) &bufPivCur, bufPivEnd, NULL, TRUE,
-                       &uerr);
+      ucnv_convertEx(cvout, cvin, &bufOutCur, bufOutEnd,
+		     &bufInCur, bufInEnd,
+		     bufPiv, &bufPivSource, &bufPivTarget, bufPivEnd,
+		     FALSE, TRUE, &uerr);
 
-      if (U_BUFFER_OVERFLOW_ERROR == uerr) {
-         /*
-          * 'bufPivCur' points to the next chunk of pivot string to
-          * convert, so we leave it alone. 'bufOutCur' points to right
-          * after the last unit written, so it should be at or almost
-          * at the end of the buffer.
-          *
-          * Our guess at 'bufOutSize' was obviously wrong, just double
-          * the buffer.
-          */
-         bufOutSize *= 2;
-         bufOutOffset = bufOutCur - bufOut;
-      } else if (U_FAILURE(uerr)) {
-         /*
-          * Failure.
-          */
-         goto exit;
-      } else {
+      if (!U_FAILURE(uerr)) {
          /*
           * "This was a triumph.
           *  I'm making a note here:
@@ -805,20 +751,34 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
           *  It's hard to overstate
           *  my satisfaction."
           */
+
          break;
       }
+
+      if (U_BUFFER_OVERFLOW_ERROR != uerr) {
+	 // failure
+         goto exit;
+      }
+
+      /*
+       * Our guess at 'bufOutSize' was obviously wrong, just double it.
+       * We'll be reallocating bufOut, so will need to recompute bufOutCur
+       * based on bufOutOffset.
+       */
+
+      bufOutSize *= 2;
+      bufOutOffset = bufOutCur - bufOut;
    }
 
    /*
     * Set final size and return.
     */
+
    DynBuf_SetSize(db, bufOutCur - bufOut);
 
    result = TRUE;
 
   exit:
-   DynBuf_Destroy(&dbpiv);
-
    if (cvin) {
       ucnv_close(cvin);
    }
@@ -1394,4 +1354,63 @@ CodeSet_IsEncodingSupported(const char *name) // IN
    }
 
    return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_Validate --
+ *
+ *    Validate a string in the given encoding.
+ *
+ * Results:
+ *    TRUE if string is valid,
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSet_Validate(const char *buf,   // IN: the string
+                 size_t size,	   // IN: length of string
+                 const char *code)  // IN: encoding
+{
+   UConverter *cv;
+   UErrorCode uerr;
+
+   // ucnv_toUChars takes 32-bit int size
+   ASSERT_NOT_IMPLEMENTED(size <= (size_t) MAX_INT32);
+
+   if (size == 0) {
+      return TRUE;
+   }
+
+   /*
+    * Fallback if necessary.
+    */
+
+   if (dontUseIcu) {
+      return CodeSetOld_Validate(buf, size, code);
+   }
+
+   /*
+    * Calling ucnv_toUChars() this way is the idiom to precompute
+    * the length of the output.  (See preflighting in the ICU User Guide.)
+    * So if the error is not U_BUFFER_OVERFLOW_ERROR, then the input
+    * is bad.
+    */
+
+   uerr = U_ZERO_ERROR;
+   cv = ucnv_open(code, &uerr);
+   ASSERT_NOT_IMPLEMENTED(uerr == U_ZERO_ERROR);
+   ucnv_setToUCallBack(cv, UCNV_TO_U_CALLBACK_STOP, NULL, NULL, NULL, &uerr);
+   ASSERT_NOT_IMPLEMENTED(uerr == U_ZERO_ERROR);
+   ucnv_toUChars(cv, NULL, 0, buf, size, &uerr);
+   ucnv_close(cv);
+
+   return uerr == U_BUFFER_OVERFLOW_ERROR;
 }

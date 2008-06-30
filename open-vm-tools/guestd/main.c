@@ -1132,12 +1132,12 @@ out:
 #elif defined(VM_GUESTD_MOUNTS_HGFS)
    HgfsMountState_Cleanup(&globalHgfsState);
 #endif
-   if (data) {
-      ToolsDaemon_Cleanup(data);
-   }
-
    if (syncProvider != NULL) {
       VmBackup_Shutdown(data->in);
+   }
+
+   if (data) {
+      ToolsDaemon_Cleanup(data);
    }
 
    return *gDaemonSignalPtr == SIGTERM ? TRUE : FALSE;

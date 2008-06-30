@@ -76,9 +76,7 @@ EXTERN int  Panic_GetCoreDumpFlags(void);
 /*
  * Extra debugging information that Panic module knows how to dump.
  */
-#ifdef _WIN32
 EXTERN void Panic_DumpGuiResources(void);
-#endif
 
 
 #endif //  _PANIC_H_

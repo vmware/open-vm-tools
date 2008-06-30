@@ -24,6 +24,10 @@
 
 #undef WIN32_LEAN_AND_MEAN
 
+#if defined(__linux__) && !defined(VMX86_TOOLS)
+#define _GNU_SOURCE
+#endif
+
 #if defined(_WIN32)
 # include <winsock2.h> // also includes windows.h
 # include <io.h>
@@ -44,6 +48,11 @@
 #if !defined(_WIN32) && !defined(N_PLAT_NLM)
 #  include <unistd.h>
 #  include <pwd.h>
+#  include <dlfcn.h>
+#endif
+
+#if defined(__linux__) && !defined(VMX86_TOOLS)
+#  include <link.h>
 #endif
 
 #include "vmware.h"
@@ -363,6 +372,61 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
    }
    return _URC_NO_REASON;
 }
+
+#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilSymbolBacktraceFromPointerCallback --
+ *
+ *      Callback from _Unwind_Backtrace to print one backtrace entry
+ *      to the backtrace output.  This version includes symbol information,
+ *      if available.
+ *
+ * Results:
+ *      _URC_NO_REASON : Please continue with backtrace.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static _Unwind_Reason_Code
+UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind context
+                                       void *cbData)                // IN/OUT: Our status
+{
+   struct UtilBacktraceFromPointerData *data = cbData;
+   uintptr_t cfa = _Unwind_GetCFA(ctx);
+   void *encl_func_addr;
+   Dl_info dli;
+   
+
+   /*
+    * Stack grows down.  So if we are below basePtr, do nothing...
+    */
+   if (cfa >= data->basePtr) {
+#ifndef VM_X86_64
+#   error You should not build this on 32bit - there is no eh_frame there.
+#endif
+      encl_func_addr = _Unwind_FindEnclosingFunction((void *)_Unwind_GetIP(ctx));
+      if ( (dladdr(encl_func_addr, &dli)  != 0) ||
+           (dladdr((void *)_Unwind_GetIP(ctx), &dli) != 0 )) {
+         data->outFunc(data->outFuncData,
+                      "Backtrace[%u] %016lx rip=%016lx in function %s "
+                      "in object %s loaded at %016lx\n",
+                      data->frameNr, cfa, _Unwind_GetIP(ctx),
+                      dli.dli_sname, dli.dli_fname, dli.dli_fbase);
+      } else {
+         data->outFunc(data->outFuncData,
+                      "Backtrace/no symbols[%u] %016lx rip=%016lx \n",
+                      data->frameNr, cfa, _Unwind_GetIP(ctx));
+      }
+      data->frameNr++;
+   }
+   return _URC_NO_REASON;
+}
+#endif
 #endif
 
 
@@ -421,9 +485,26 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
    data.outFuncData = outFuncData;
    data.frameNr = 0;
    _Unwind_Backtrace(UtilBacktraceFromPointerCallback, &data);
+
+#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+   /* 
+    * We do a separate pass here that includes symbols in order to
+    * make sure the base backtrace that does not call dladdr etc.
+    * is safely produced
+    */
+   data.basePtr = (uintptr_t)basePtr;
+   data.outFunc = outFunc;
+   data.outFuncData = outFuncData;
+   data.frameNr = 0;
+   _Unwind_Backtrace(UtilSymbolBacktraceFromPointerCallback, &data);
+#endif
+
 #elif !defined(VM_X86_64)
    uintptr_t *x = basePtr;
    int i;
+#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+   Dl_info dli;
+#endif
 
    for (i = 0; i < 256; i++) {
       if (x < basePtr ||
@@ -433,6 +514,30 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
       outFunc(outFuncData, "Backtrace[%d] %#08x eip %#08x \n", i, x[0], x[1]);
       x = (uintptr_t *) x[0];
    }
+
+#if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
+   /* 
+    * We do a separate pass here that includes symbols in order to
+    * make sure the base backtrace that does not call dladdr etc.
+    * is safely produced
+    */
+   x = basePtr;
+   for (i = 0; i < 256; i++) {
+      if (x < basePtr ||
+	  (uintptr_t) x - (uintptr_t) basePtr > 0x8000) {
+         break;
+      }
+      if ( dladdr((uintptr_t *)x[1], &dli)  != 0 ) {
+         outFunc(outFuncData, "Backtrace[%d] %#08x eip %#08x in function %s "
+                              "in object %s loaded at %#08x\n",
+                               i, x[0], x[1], dli.dli_sname, dli.dli_fname,
+                                dli.dli_fbase);
+      } else {
+         outFunc(outFuncData, "Backtrace/no symbol info[%d] %#08x eip %#08x \n", i, x[0], x[1]);
+      }
+      x = (uintptr_t *) x[0];
+   }
+#endif
 #endif
 }
 
@@ -1611,6 +1716,71 @@ Util_SeparateStrings(char *source,              // IN
 
 #endif /* !defined(N_PLAT_NLM) */
 
+#if defined (__linux__) && !defined(VMX86_TOOLS)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilPrintLoadedObjectsCallback --
+ *
+ *       Callback from dl_iterate_phdr to add info for a single  
+ *       loaded object to the log.
+ *
+ * Results:
+ *       0: continue iterating/success 
+ *       non-zero: stop iterating/error
+ *
+ * Side effects:
+ *       None. 
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+UtilPrintLoadedObjectsCallback(struct dl_phdr_info *info,  //IN
+                                size_t size,               //IN
+                                void *data)                //IN
+{
+   /* Blank name means things like stack, which we don't care about */
+   if (strcmp(info->dlpi_name, "")) {
+      Log("Object %s loaded at %p\n", info->dlpi_name, 
+          (void *)info->dlpi_addr); 
+   }
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_PrintLoadedObjects --
+ *
+ *      Print the list of loaded objects to the log.  Useful in
+ *      parsing backtraces with ASLR.
+ *
+ * Results:
+ *
+ *      void
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void 
+Util_PrintLoadedObjects(void *addr_inside_exec) 
+{
+   Dl_info dli;
+
+   Log("Printing loaded objects\n"); 
+   if (dladdr(addr_inside_exec, &dli)) {
+      Log("Object %s loaded at %p\n", dli.dli_fname,
+          (void *)dli.dli_fbase);
+   }
+   dl_iterate_phdr(UtilPrintLoadedObjectsCallback, NULL);
+   Log("End printing loaded objects\n");
+}
+#endif
 
 #if !defined(_WIN32) && !defined(N_PLAT_NLM)
 

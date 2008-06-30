@@ -314,7 +314,22 @@ GetCallerFrameAddr(void)
 #endif // sun
 #endif // __GNUC__
 
-
+/*
+ * Data prefetch was added in gcc 3.1.1
+ * http://www.gnu.org/software/gcc/gcc-3.1/changes.html
+ */
+#ifdef __GNUC__
+#  if ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ > 1) || \
+       (__GNUC__ == 3 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 1))
+#     define PREFETCH_R(var) __builtin_prefetch((var), 0 /* read */, \
+                                                3 /* high temporal locality */)
+#     define PREFETCH_W(var) __builtin_prefetch((var), 1 /* write */, \
+                                                3 /* high temporal locality */)
+#  else
+#     define PREFETCH_R(var) ((void)(var))
+#     define PREFETCH_W(var) ((void)(var))
+#  endif
+#endif /* __GNUC__ */
 
 
 #ifdef USERLEVEL // {
@@ -547,7 +562,7 @@ typedef int pid_t;
 #ifdef _WIN32
 #define VMW_INVALID_HANDLE INVALID_HANDLE_VALUE
 #else
-#define VMW_INVALID_HANDLE -1
+#define VMW_INVALID_HANDLE (-1)
 #endif
 
 /*

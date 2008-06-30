@@ -241,6 +241,7 @@ enum {
    VIX_E_DISK_INVALID_CONNECTION                = 16054,
    VIX_E_DISK_ENCODING                          = 16061,
    VIX_E_DISK_CANTREPAIR                        = 16062,
+   VIX_E_DISK_INVALIDDISK                       = 16063,
 
    /* Crypto Library Errors */
    VIX_E_CRYPTO_UNKNOWN_ALGORITHM               = 17000,
@@ -613,6 +614,7 @@ enum {
       VIX_POWERSTATE_RESETTING       = 0x0080,
       VIX_POWERSTATE_BLOCKED_ON_MSG  = 0x0100,
       VIX_POWERSTATE_PAUSED          = 0x0200,
+      VIX_POWERSTATE_RESUMING        = 0x0800,
 };
 
 typedef int VixToolsState;

@@ -34,7 +34,8 @@ extern "C" {
 
 Unicode UnicodeAllocInternal(const void *buffer,
                              ssize_t lengthInBytes,
-                             StringEncoding encoding);
+                             StringEncoding encoding,
+			     Bool strict);
 Unicode UnicodeAllocStatic(const char *asciiBytes,
                            Bool unescape);
 

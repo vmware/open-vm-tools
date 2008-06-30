@@ -44,7 +44,12 @@
 #   define MS_SYNCHRONOUS MNT_SYNCHRONOUS
 #   define MS_NOEXEC MNT_NOEXEC
 #   define MS_NOSUID MNT_NOSUID
-#   define MS_NODEV MNT_NODEV
+/*
+ * MNT_NODEV does not exist, or is set to 0, on newer versions of FreeBSD.
+ */
+#   if defined(MNT_NODEV) && MNT_NODEV
+#      define MS_NODEV MNT_NODEV
+#   endif
 #   define MS_UNION MNT_UNION
 #   define MS_ASYNC MNT_ASYNC
 #   define MS_SUIDDIR MNT_SUIDDIR
@@ -199,8 +204,10 @@ PrintUsage(void)
    printf("  rw                    mount read-write (default)\n");
    printf("  nosuid                ignore suid/sgid bits\n");
    printf("  suid                  allow suid/sgid bits (default)\n");
+#ifdef MS_NODEV
    printf("  nodev                 prevent device node access\n");
    printf("  dev                   allow device node access (default)\n");
+#endif
    printf("  noexec                prevent program execution\n");
    printf("  exec                  allow program execution (default)\n");
    printf("  sync                  file writes are synchronous\n");
@@ -603,12 +610,14 @@ ParseOptions(const char *optionString, // IN:  Option string to parse
       } else if (strcmp(key, "suid") == 0) {
          *flags &= ~MS_NOSUID;
          LOG("Setting mount option for allowing suid/sgid bits on\n");
+#ifdef MS_NODEV
       } else if (strcmp(key, "nodev") == 0) { // allow access to device nodes?
          *flags |= MS_NODEV;
          LOG("Setting mount option for accessing device nodes off\n");
       } else if (strcmp(key, "dev") == 0) {
          *flags &= ~MS_NODEV;
          LOG("Setting mount option for accessing device nodes on\n");
+#endif
       } else if (strcmp(key, "noexec") == 0) { // allow program execution?
          *flags |= MS_NOEXEC;
          LOG("Setting mount option for program execution off\n");
@@ -737,9 +746,11 @@ UpdateMtab(HgfsMountInfo *mountInfo,  // IN: Info to write into mtab
       if (flags & MS_NOSUID) {
          Str_Strcat(mountEnt.mnt_opts, ",nosuid", MOUNT_OPTS_BUFFER_SIZE);
       }
+#ifdef MS_NODEV
       if (flags & MS_NODEV) {
          Str_Strcat(mountEnt.mnt_opts, ",nodev", MOUNT_OPTS_BUFFER_SIZE);
       }
+#endif
       if (flags & MS_NOEXEC) {
          Str_Strcat(mountEnt.mnt_opts, ",noexec", MOUNT_OPTS_BUFFER_SIZE);
       }

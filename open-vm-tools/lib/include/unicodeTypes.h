@@ -74,12 +74,14 @@ enum {
    UNICODE_INDEX_NOT_FOUND = -1
 };
 
+
 /*
  * Encodings passed to convert encoded byte strings to and from
  * Unicode.
  *
  * Keep this enum synchronized with ICU_ENCODING_LIST in unicodeICU.cc!
  */
+
 typedef enum {
    STRING_ENCODING_FIRST,
 
@@ -89,15 +91,16 @@ typedef enum {
     * If you don't know what to use for bytes in a new system, use
     * STRING_ENCODING_UTF8.
     */
+
    STRING_ENCODING_UTF8 = STRING_ENCODING_FIRST,
 
-   STRING_ENCODING_UTF16,    // Host-endian UTF-16.
    STRING_ENCODING_UTF16_LE, // Little-endian UTF-16.
    STRING_ENCODING_UTF16_BE, // Big-endian UTF-16.
+   STRING_ENCODING_UTF16_XE, // UTF-16 with BOM.
 
-   STRING_ENCODING_UTF32,    // Host-endian UTF-32.
    STRING_ENCODING_UTF32_LE, // Little-endian UTF-32.
    STRING_ENCODING_UTF32_BE, // Big-endian UTF-32.
+   STRING_ENCODING_UTF32_XE, // UTF-32 with BOM.
 
    /*
     * Legacy byte string encodings that only support a subset of Unicode.
@@ -106,6 +109,7 @@ typedef enum {
    /*
     * Latin encodings
     */
+
    STRING_ENCODING_US_ASCII,
    STRING_ENCODING_ISO_8859_1,
    STRING_ENCODING_ISO_8859_2,
@@ -126,6 +130,7 @@ typedef enum {
    /*
     * Chinese encodings
     */
+
    STRING_ENCODING_GB_18030,
    STRING_ENCODING_BIG_5,
    STRING_ENCODING_BIG_5_HK,
@@ -136,6 +141,7 @@ typedef enum {
    /*
     * Japanese encodings
     */
+
    STRING_ENCODING_SHIFT_JIS,
    STRING_ENCODING_EUC_JP,
    STRING_ENCODING_ISO_2022_JP,
@@ -145,12 +151,14 @@ typedef enum {
    /*
     * Korean encodings
     */
+
    STRING_ENCODING_EUC_KR,
    STRING_ENCODING_ISO_2022_KR,
 
    /*
     * Windows encodings
     */
+
    STRING_ENCODING_WINDOWS_1250,
    STRING_ENCODING_WINDOWS_1251,
    STRING_ENCODING_WINDOWS_1252,
@@ -377,7 +385,6 @@ typedef enum {
    STRING_ENCODING_WINDOWS_710,
    STRING_ENCODING_WINDOWS_720,
    STRING_ENCODING_WINDOWS_737,
-   STRING_ENCODING_WINDOWS_775,
    STRING_ENCODING_WINDOWS_875,
    STRING_ENCODING_WINDOWS_1361,
    STRING_ENCODING_WINDOWS_10000,
@@ -408,7 +415,6 @@ typedef enum {
    STRING_ENCODING_WINDOWS_20108,
    STRING_ENCODING_WINDOWS_20269,
    STRING_ENCODING_WINDOWS_20833,
-   STRING_ENCODING_WINDOWS_20838,
    STRING_ENCODING_WINDOWS_20949,
    STRING_ENCODING_WINDOWS_21025,
    STRING_ENCODING_WINDOWS_21027,
@@ -445,8 +451,16 @@ typedef enum {
    /*
     * The environment-specified "default" encoding for this process.
     */
+
    STRING_ENCODING_DEFAULT = -1,
    STRING_ENCODING_UNKNOWN = -2,
+
+   /*
+    * UTF-16 and UTF-32 in native byte order.
+    */
+
+   STRING_ENCODING_UTF16 = STRING_ENCODING_UTF16_LE,
+   STRING_ENCODING_UTF32 = STRING_ENCODING_UTF32_LE,
 } StringEncoding;
 
 

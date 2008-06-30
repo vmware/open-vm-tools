@@ -243,7 +243,7 @@ NetUtil_GetPrimaryIP(void)
 /*
  *----------------------------------------------------------------------
  *
- * NetUtil_GetPrimaryNicEntry --
+ * NetUtil_GetPrimaryNic --
  *
  *      Get the primary Nic entry for this machine. Primary Nic is the 
  *      first interface that comes up when you do a ifconfig.
@@ -259,11 +259,11 @@ NetUtil_GetPrimaryIP(void)
  *----------------------------------------------------------------------
  */
 
-NicEntry *
-NetUtil_GetPrimaryNicEntry(void)
+GuestNic *
+NetUtil_GetPrimaryNic(void)
 {
-   NicEntry *nicEntry = NULL;
-   VmIpAddressEntry *ipAddressEntry;
+   GuestNic *nicEntry = NULL;
+   VmIpAddress *ip;
    char *ipstr;
 
    ipstr = NetUtil_GetPrimaryIP();
@@ -272,18 +272,12 @@ NetUtil_GetPrimaryNicEntry(void)
    }
 
    nicEntry = Util_SafeCalloc(1, sizeof *nicEntry);
-   DblLnkLst_Init(&nicEntry->ipAddressList);
-   ipAddressEntry = Util_SafeCalloc(1, sizeof *ipAddressEntry);
-   DblLnkLst_Init(&ipAddressEntry->links);
-   DblLnkLst_LinkLast(&nicEntry->ipAddressList, &ipAddressEntry->links);
+   ip = Util_SafeCalloc(1, sizeof *ip);
 
-   /*
-    *  Now, record these values in nicEntry.
-    */
-   Str_Strcpy(ipAddressEntry->ipEntryProto.ipAddress, 
-              ipstr,
-              sizeof ipAddressEntry->ipEntryProto.ipAddress);
+   nicEntry->ips.ips_len = 1;
+   nicEntry->ips.ips_val = ip;
 
+   Str_Strcpy(ip->ipAddress, ipstr, sizeof ip->ipAddress);
    free(ipstr);
 
 abort:

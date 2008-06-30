@@ -105,6 +105,7 @@ static vop_print_t	HgfsVopPrint;
  * HGFS vnode operations vector
  */
 struct vop_vector HgfsVnodeOps = {
+   .vop_default		= &default_vnodeops,
    .vop_lookup          = HgfsVopLookup,
    .vop_create          = HgfsVopCreate,
    .vop_open            = HgfsVopOpen,
@@ -122,29 +123,6 @@ struct vop_vector HgfsVnodeOps = {
    .vop_inactive        = HgfsVopInactive,
    .vop_reclaim         = HgfsVopReclaim,
    .vop_print           = HgfsVopPrint,
-
-   /*
-    * The following operations are not supported directly by the Hgfs module,
-    * so we fall back to the kernel's default support routines.  (Most cases
-    * return EOPNOTSUPP or EINVAL.
-    */
-   .vop_advlock         = VOP_EINVAL,
-   .vop_bmap            = vop_stdbmap,
-   .vop_bypass          = VOP_EOPNOTSUPP,
-   .vop_fsync           = VOP_NULL,
-   .vop_getpages        = vop_stdgetpages,
-   .vop_getwritemount   = vop_stdgetwritemount,
-   .vop_ioctl           = VOP_ENOTTY,
-   .vop_islocked        = vop_stdislocked,
-   .vop_kqfilter        = vop_stdkqfilter,
-   .vop_lease           = VOP_NULL,
-   .vop_lock            = vop_stdlock,
-   .vop_pathconf        = VOP_EINVAL,
-   .vop_poll            = vop_nopoll,
-   .vop_putpages        = vop_stdputpages,
-   .vop_readlink        = VOP_EINVAL,
-   .vop_revoke          = VOP_PANIC,
-   .vop_unlock          = vop_stdunlock,
 };
 
 

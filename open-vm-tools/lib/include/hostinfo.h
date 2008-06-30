@@ -110,7 +110,7 @@ Bool Hostinfo_GetPCFrequency(uint64 *pcHz);
 Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber, 
 				uint32 *currentMhz, uint32 *maxMhz);
 uint64 Hostinfo_SystemIdleTime(void);
-Bool Hostinfo_GetAllCpuid(CPUIDResult* info);
+Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
 #endif
 void Hostinfo_LogLoadAverage(void);
 Bool Hostinfo_GetLoadAverage(uint32 *l);

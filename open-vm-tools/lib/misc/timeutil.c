@@ -864,20 +864,20 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName)
 {
    int timeZoneIndex = (-1);
    HKEY parentKey, childKey;
-   TCHAR childKeyName[255];
+   char childKeyName[255];
    int keyIndex, childKeyLen=255;
    DWORD rv;
 
    /* Open parent key containing timezone child keys */
-   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                    (LPCTSTR) "SOFTWARE\\"
-                    "Microsoft\\"
-                    "Windows NT\\"
-                    "CurrentVersion\\"
-                    "Time Zones",
-                    0,
-                    KEY_READ,
-                    &parentKey) != ERROR_SUCCESS) {
+   if (Win32U_RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                           "SOFTWARE\\"
+                           "Microsoft\\"
+                           "Windows NT\\"
+                           "CurrentVersion\\"
+                           "Time Zones",
+                           0,
+                           KEY_READ,
+                           &parentKey) != ERROR_SUCCESS) {
       /* Failed to open registry */
       return (-1);
    }
@@ -886,32 +886,32 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName)
    keyIndex = 0;
    while (
          timeZoneIndex < 0 &&
-         RegEnumKeyEx(parentKey,
-                      keyIndex,
-                      childKeyName,
-                      &childKeyLen,
-                      0,0,0,0) == ERROR_SUCCESS) {
+         Win32U_RegEnumKeyEx(parentKey,
+                             keyIndex,
+                             childKeyName,
+                             &childKeyLen,
+                             0,0,0,0) == ERROR_SUCCESS) {
 
       char* std;
       DWORD stdSize;
 
       /* Open child key */
-      rv = RegOpenKeyEx(parentKey, childKeyName, 0, KEY_READ, &childKey);
+      rv = Win32U_RegOpenKeyEx(parentKey, childKeyName, 0, KEY_READ, &childKey);
       if (rv != ERROR_SUCCESS) {
          continue;
       }
 
       /* Get size of "Std" value */
-      if (RegQueryValueEx(childKey,
-                          (LPCTSTR) "Std", 0, 0,
-                          NULL, &stdSize) == ERROR_SUCCESS) {
+      if (Win32U_RegQueryValueEx(childKey,
+                                 "Std", 0, 0,
+                                 NULL, &stdSize) == ERROR_SUCCESS) {
 
          /* Get value of "Std" */
          std = (char*) calloc(stdSize+1, sizeof(char));
          if (std != NULL) {
-            if (RegQueryValueEx(childKey,
-                                (LPCTSTR) "Std", 0, 0,
-                                (LPBYTE) std, &stdSize) == ERROR_SUCCESS) {
+            if (Win32U_RegQueryValueEx(childKey,
+                                       "Std", 0, 0,
+                                       (LPBYTE) std, &stdSize) == ERROR_SUCCESS) {
 
                /* Make sure there is at least one EOS */
                std[stdSize] = '\0';
@@ -922,10 +922,10 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName)
                   /* yes: look up value of "Index" */
                   DWORD val = 0;
                   DWORD valSize = sizeof(val);
-                  if (RegQueryValueEx(childKey,
-                                      (LPCTSTR) "Index", 0, 0,
-                                      (LPBYTE) &val,
-                                      &valSize) == ERROR_SUCCESS) {
+                  if (Win32U_RegQueryValueEx(childKey,
+                                             "Index", 0, 0,
+                                             (LPBYTE) &val,
+                                             &valSize) == ERROR_SUCCESS) {
                      timeZoneIndex = val;
                   }
               }

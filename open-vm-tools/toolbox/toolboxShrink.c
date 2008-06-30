@@ -28,8 +28,8 @@
 
 #include "toolboxInt.h"
 #include "debug.h"
+#include "guestApp.h"
 #include "wiper.h"
-#include "rpcout.h"
 
 /*
  * Globals
@@ -71,8 +71,6 @@ Shrink_Create(GtkWidget *mainWnd)
    GtkWidget *viewport;
    GtkWidget *ebox;
 
-   char *result;
-   size_t resultLen;
    int i;
    WiperPartition_List *plist;
    WiperPartition *partkb;
@@ -144,9 +142,8 @@ Shrink_Create(GtkWidget *mainWnd)
       gtk_signal_connect(GTK_OBJECT(button), "clicked",
                          GTK_SIGNAL_FUNC(Shrink_OnShrinkClicked), mainWnd);
 
-      if (RpcOut_sendOne(&result, &resultLen, "disk.wiper.enable")) {
-         if (resultLen == 1 && strcmp(result, "1") == 0)
-         {
+      if (GuestApp_IsDiskShrinkCapable()) {
+         if (GuestApp_IsDiskShrinkEnabled()) {
             gtk_widget_set_sensitive(button, TRUE);
             shrinkList = gtk_clist_new(1);
             gtk_widget_show(shrinkList);
@@ -190,12 +187,11 @@ Shrink_Create(GtkWidget *mainWnd)
          gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
 
       }
-      free(result);
    }
 
    return shrinktab;
 }
-            
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -242,13 +238,13 @@ Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
          } else {
             disks_to_shrink = 0;
             break;
-         }  
+         }
       } while (slist);
 
       if (disks_to_shrink > 0) {
-         if (ToolsMain_YesNoBox("Shrink Disk", 
+         if (ToolsMain_YesNoBox("Shrink Disk",
                                 "Do you want to shrink the disk(s)?\n")) {
-            if (RpcOut_sendOne(NULL, NULL, "disk.shrink")) {
+            if (GuestApp_DiskShrink()) {
                ToolsMain_MsgBox("Information", "The shrink process is complete.");
             }
             gtk_clist_unselect_all(GTK_CLIST(shrinkList));
@@ -280,11 +276,9 @@ Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
  *-----------------------------------------------------------------------------
  */
 
-Bool 
+Bool
 Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be wiped
 {
-   char *result;
-   size_t resultLen;
    Bool performShrink = FALSE;
    GtkWidget *btn;
    int progress = 0;
@@ -295,12 +289,10 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
     * wiping. This obviously isn't atomic, but it should take care of
     * the case where the user takes a snapshot with the toolbox open.
     */
-   if (RpcOut_sendOne(&result, &resultLen, "disk.wiper.enable")) {
-      if (resultLen == 1 && strcmp(result, "1") == 0) {
+   if (GuestApp_IsDiskShrinkEnabled()) {
          performShrink = TRUE;
-      }
    }
-   free(result);
+
    if (!performShrink) {
       ToolsMain_MsgBox("Error", "The Toolbox believes disk shrinking is "
                        "enabled while the host believes it is disabled. "
@@ -347,7 +339,7 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
    gtk_widget_show_all(shrinkWipeDlg);
 
 
-   wiper = Wiper_Start(part, 2 << 30);
+   wiper = Wiper_Start(part, MAX_WIPER_FILE_SIZE);
 
    while (progress < 100 && wiper != NULL) {
       err = Wiper_Next(&wiper, &progress);

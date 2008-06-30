@@ -146,6 +146,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -210,13 +211,14 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = auth backdoor conf dict dnd err eventManager file foundryMsg \
-	ghIntegrationStub guestApp guestInfo hgfs hgfsBd hgfsServer \
-	hgfsServerManagerGuest hgfsServerPolicyGuest deployPkg \
-	impersonate message misc netUtil panic panicDefault printer \
-	procMgr rpcIn rpcOut rpcVmx SLPv2Parser socketMgr strUtil \
-	string sync syncDriver system toolsLogger unicode unityStub \
-	user vixTools vmBackupLib vmCheck vmSignal wiper
+SUBDIRS = guestRpc auth backdoor conf dict dnd dynxdr err eventManager \
+	file foundryMsg ghIntegrationStub guestApp guestInfo hgfs \
+	hgfsBd hgfsServer hgfsServerManagerGuest hgfsServerPolicyGuest \
+	deployPkg impersonate message misc netUtil panic panicDefault \
+	printer procMgr resolution rpcIn rpcOut rpcVmx SLPv2Parser \
+	socketMgr strUtil string stubs sync syncDriver system \
+	toolsLogger unicode unityStub user vixTools vmBackupLib \
+	vmCheck vmSignal wiper
 all: all-recursive
 
 .SUFFIXES:

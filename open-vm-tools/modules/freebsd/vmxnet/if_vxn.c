@@ -932,6 +932,7 @@ vxn_startl(struct ifnet *ifp)
       VMXNET_INC(dd->txDriverNext, dd->txRingLength);
       dd->txNumDeferred++;
       sc->vxn_tx_pending++;
+      ifp->if_opackets++;
    }
 
    /*

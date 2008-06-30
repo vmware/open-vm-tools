@@ -65,7 +65,6 @@ typedef struct GuestOsStateChangeCmd {
 #define TOOLS_UPGRADER_NAME       "tools-upgrader"
 #define TOOLS_SSO_NAME            "tools-sso"
 #define TOOLS_HGFS_NAME           "tools-hgfs"
-#define TOOLS_TRAY_NAME           "tools-tray"
 
 /*
  * Option strings
@@ -87,10 +86,10 @@ typedef struct GuestOsStateChangeCmd {
  * and then through the backdoor to the tools. Also, leave
  * some room for ipc msg overhead. [greg]
  */
-#define MAX_SELECTION_BUFFER_LENGTH             (1 << 16) - 100
+#define MAX_SELECTION_BUFFER_LENGTH             ((1 << 16) - 100)
 
-#define VMWARE_DONT_EXCHANGE_SELECTIONS		-2
-#define VMWARE_SELECTION_NOT_READY		-1
+#define VMWARE_DONT_EXCHANGE_SELECTIONS		(-2)
+#define VMWARE_SELECTION_NOT_READY		(-1)
 
 #define VMWARE_GUI_AUTO_GRAB			0x001
 #define VMWARE_GUI_AUTO_UNGRAB			0x002

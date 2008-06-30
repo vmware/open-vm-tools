@@ -157,6 +157,7 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
    *(uint32*)(cpuid.id0.name + 12) = 0;
 
    __GET_CPUID(1,          (CPUIDRegs*)&cpuid.id1);
+   __GET_CPUID(0xa,        (CPUIDRegs*)&cpuid.ida);
    __GET_CPUID(0x80000000, (CPUIDRegs*)&cpuid.id80);
    __GET_CPUID(0x80000001, (CPUIDRegs*)&cpuid.id81);
    __GET_CPUID(0x80000008, (CPUIDRegs*)&cpuid.id88);

@@ -167,6 +167,7 @@ void DebugToFile(const char *str) // IN
    size_t bytesWritten;
    Unicode timePrefix;
    const char *timePrefixUtf8;
+   char debugFileShadow;
 
    ASSERT(debugFile[0] != 0);
 
@@ -174,8 +175,9 @@ void DebugToFile(const char *str) // IN
 
    fr = FileIO_Open(&fd, debugFile, FILEIO_OPEN_ACCESS_WRITE,
                     FILEIO_OPEN_CREATE);
+   debugFileShadow = debugFile[0];
+   debugFile[0] = '\0';
    if (fr != FILEIO_SUCCESS) {
-      debugFile[0] = '\0';
       Warning("---Error opening file '%s'.\n", debugFile);
       goto done;
    }
@@ -205,6 +207,7 @@ void DebugToFile(const char *str) // IN
    FileIO_Close(&fd);
 
  done:
+   debugFile[0] = debugFileShadow;
    return;
 #endif // _CONSOLE
 }

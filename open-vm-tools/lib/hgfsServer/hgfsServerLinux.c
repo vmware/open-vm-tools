@@ -40,11 +40,6 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#ifndef __FreeBSD__
-#   include <wchar.h>
-#   include <wctype.h>
-#endif
-
 #include "vmware.h"
 #include "hgfsServerPolicy.h" // for security policy
 #include "hgfsServerInt.h"
@@ -57,6 +52,7 @@
 #include "syncMutex.h"
 #include "su.h"
 #include "codeset.h"
+#include "unicodeOperations.h"
 
 #if defined(linux) && !defined(SYS_getdents64)
 /* For DT_UNKNOWN */
@@ -278,17 +274,22 @@ static int HgfsStatFromName(char *fileName,
 			    uint32 caseFlags,
                             struct stat *stats);
 
-#ifndef __FreeBSD__
 static int HgfsConvertComponentCase(char *currentComponent,
-				    size_t dirPathSize,
-				    char *sharePath);
+                                    const char *dirPath,
+                                    const char **convertedComponent,
+                                    size_t *convertedComponentSize);
 
-static int HgfsCaseInsensitiveLookup(char *fileName,
-                                     char *sharePath);
+static int HgfsConstructConvertedPath(char **path,
+                                      size_t *pathSize,
+                                      char *convertedPath,
+                                      size_t convertedPathSize);
 
-static int HgfsToLower(char *src,
-                       char *dst);
-#endif
+static int HgfsCaseInsensitiveLookup(const char *sharePath,
+                                     size_t sharePathLength,
+                                     char *fileName,
+                                     size_t fileNameLength,
+                                     char **convertedFileName,
+                                     size_t *convertedFileNameLength);
 
 static Bool HgfsSetattrMode(struct stat *statBuf,
                             HgfsFileAttrInfo *attr,
@@ -1277,142 +1278,146 @@ HgfsGetHiddenAttr(char const *fileName,         // IN:  Input filename
 }
 
 
-#ifndef __FreeBSD__
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsToLower --
- *
- *    Convert string to lower-case independent of the locale.
- *
- *    NOTE: fileName needs to be of size PATH_MAX.
- *
- * Results:
- *    0 on Success, non-zero otherwise.
- *    String str converted to lower-case and placed in dst.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static int
-HgfsToLower(char *src,    // IN: Input filename
-            char *dst)    // OUT: converted filename
-{
-   char *end = src + strlen(src);
-   wchar_t wc;
-   mbstate_t mbs1, mbs2;
-   size_t ret;
-
-   memset(&mbs1, 0, sizeof(mbstate_t));
-   memset(&mbs2, 0, sizeof(mbstate_t));
-   while (src < end) {
-      ret = mbrtowc(&wc, src, end - src, &mbs1);
-      if (ret == 0) {
-         *dst++ = '\0';
-         src++;
-         continue;
-      }
-      if (ret == (size_t) -2) {
-         LOG(4, ("%s: mbrtowc failed: %d: %s\n", __FUNCTION__, (int)ret, strerror(errno)));
-         return errno;
-      }
-      if (ret == (size_t) -1) {
-         LOG(4, ("%s: mbrtowc failed: %d\n", __FUNCTION__, (int)ret));
-         return errno;
-      }
-      src += ret;
-      wc = towlower(wc);
-      ret = wcrtomb(dst, wc, &mbs2);
-      dst += ret;
-   }
-   *dst++ = '\0';
-   return 0;
-}
-
-
 /*
  *-----------------------------------------------------------------------------
  *
  * HgfsConvertComponentCase --
  *
  *    Do a case insensitive search of a directory for the specified entry. If
- *    a matching entry is found, append it to the specified path.
+ *    a matching entry is found, return it in the convertedComponent argument.
  *
  * Results:
  *    On Success:
- *    Returns 0 and append a directory separator and the specified entry
- *    (in its original case) to the output path specified.
+ *    Returns 0 and the converted component name in the argument convertedComponent.
+ *    The length for the convertedComponent is returned in convertedComponentSize.
+ *
  *    On Failure:
- *    Non-zero errno return.
+ *    Non-zero errno return, with convertedComponent and convertedComponentSize
+ *    set to NULL and 0 respectively.
  *
  * Side effects:
- *    None.
+ *    On success, allocated memory is returned in convertedComponent and needs
+ *    to be freed.
  *
  *-----------------------------------------------------------------------------
  */
 
 static int
-HgfsConvertComponentCase(char *currentComponent, // IN
-			 size_t dirPathSize,     // IN
-                         char *dirPath)          // IN/OUT
+HgfsConvertComponentCase(char *currentComponent,           // IN
+                         const char *dirPath,              // IN
+                         const char **convertedComponent,  // OUT
+                         size_t *convertedComponentSize)   // OUT
 {
    struct dirent *dirent;
    DIR *dir = NULL;
-   char lowerCaseComponent[PATH_MAX] = {0};
+   char *dentryName;
+   size_t dentryNameLen;
+   char *myConvertedComponent = NULL;
+   size_t myConvertedComponentSize;
    int ret;
 
    ASSERT(currentComponent);
    ASSERT(dirPath);
+   ASSERT(convertedComponent);
+   ASSERT(convertedComponentSize);
 
-   /* Convert the component to lower case. */
-   ret = HgfsToLower(currentComponent, lowerCaseComponent);
-   if (ret) {
+   /* Open the specified directory. */
+   dir = opendir(dirPath);
+   if (!dir) {
+      ret = errno;
       goto exit;
    }
 
-  /* Open the specified directory. */
-  dir = opendir(dirPath);
-  if (!dir) {
-     ret = ENOENT;
-     goto exit;
-  }
+   /*
+    * Read all of the directory entries. For each one, convert the name
+    * to lower case and then compare it to the lower case component.
+    */
+   while ((dirent = readdir(dir))) {
+      dentryName = dirent->d_name;
+      dentryNameLen = strlen(dentryName);
 
-  /*
-   * Read all of the directory entries. For each one, convert the name
-   * to lower case and then compare it to the lower case component.
-   */
-  while ((dirent = readdir(dir))) {
-     char lowerCaseFileName[PATH_MAX] = {0};
-     ret = HgfsToLower(dirent->d_name, lowerCaseFileName);
-     if (ret) {
-        continue;
-     }
-     if (Str_Strcmp(lowerCaseComponent, lowerCaseFileName) == 0) {
-	/*
-	 * The current directory entry is a case insensitive match to
-	 * the specified component. Append it to the output path.
-	 */
-	Str_Strcat(dirPath, "/", dirPathSize);
-	Str_Strcat(dirPath, dirent->d_name, dirPathSize);
+      if (Unicode_CompareIgnoreCase(currentComponent, dentryName) == 0) {
+         /*
+          * The current directory entry is a case insensitive match to
+          * the specified component. Malloc and copy the current directory entry.
+          */
+         myConvertedComponentSize = dentryNameLen + 1;
+         myConvertedComponent = malloc(myConvertedComponentSize);
+         if (myConvertedComponent == NULL) {
+            ret = errno;
+            LOG(4, ("%s: failed to malloc myConvertedComponent.\n", __FUNCTION__));
+            goto exit;
+         }
+         Str_Strcpy(myConvertedComponent, dentryName, myConvertedComponentSize);
 
-	/* Success. Cleanup and exit. */
-	ret = 0;
-	goto exit;
-     }
-  }
+         /* Success. Cleanup and exit. */
+         ret = 0;
+         *convertedComponentSize = myConvertedComponentSize;
+         *convertedComponent = myConvertedComponent;
+         goto exit;
+      }
+   }
 
-  /* We didn't find a match. Failure. */
-  ret = ENOENT;
+   /* We didn't find a match. Failure. */
+   ret = ENOENT;
 
 exit:
-  if (dir) {
-     closedir(dir);
-  }
+   if (dir) {
+      closedir(dir);
+   }
+   if (ret) {
+      *convertedComponent = NULL;
+      *convertedComponentSize = 0;
+   }
+   return ret;
+}
 
-  return ret;
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsConstructConvertedPath --
+ *
+ *    Expand the passed string and append the converted path.
+ *
+ * Results:
+ *    Returns 0 if successful, errno on failure. Note that this
+ *    function cannot return ENOENT.
+ *
+ * Side effects:
+ *    Reallocs the path.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsConstructConvertedPath(char **path,                 // IN/OUT
+                           size_t *pathSize,            // IN/OUT
+                           char *convertedPath,         // IN
+                           size_t convertedPathSize)    // IN
+{
+   char *p;
+   size_t convertedPathLen = convertedPathSize - 1;
+
+   ASSERT(path);
+   ASSERT(*path);
+   ASSERT(convertedPath);
+   ASSERT(pathSize);
+
+   p = realloc(*path, *pathSize + convertedPathLen + sizeof(DIRSEPC));
+   if (!p) {
+      int error = errno;
+      LOG(4, ("%s: failed to realloc.\n", __FUNCTION__));
+      return error;
+   }
+
+   *path = p;
+   *pathSize += convertedPathLen + sizeof(DIRSEPC);
+
+   /* Copy out the converted component to curDir, and free it. */
+   Str_Strncat(p, *pathSize, DIRSEPS, sizeof(DIRSEPS));
+   Str_Strncat(p, *pathSize, convertedPath, convertedPathLen);
+   return 0;
 }
 
 
@@ -1426,96 +1431,155 @@ exit:
  *
  *    NOTE:
  *    shareName is always expected to be a prefix of fileName.
- *    fileName needs to be of size PATH_MAX.
  *
  * Results:
- *    Returns 0 if successful and resolved path for fileName is over-written.
- *    Otherwise returns non-zero errno without affecting fileName.
+ *    Returns 0 if successful and resolved path for fileName is returned in
+ *    convertedFileName with its length in convertedFileNameLength.
+ *    Otherwise returns non-zero errno with convertedFileName and
+ *    convertedFileNameLength set to NULL and 0 respectively.
  *
  * Side effects:
- *    fileName over-written with resolved path when successful.
+ *    On success, allocated memory is returned in convertedFileName and needs
+ *    to be freed.
  *
  *-----------------------------------------------------------------------------
  */
 
 static int
-HgfsCaseInsensitiveLookup(char *fileName,      // IN/OUT
-			  char *sharePath)     // IN
+HgfsCaseInsensitiveLookup(const char *sharePath,           // IN
+                          size_t sharePathLength,          // IN
+                          char *fileName,                  // IN
+                          size_t fileNameLength,           // IN
+                          char **convertedFileName,        // OUT
+                          size_t *convertedFileNameLength) // OUT
 {
-  char *currentComponent;
-  char curDir[PATH_MAX] = {0};
-  char *nextComponent = NULL;
-  int error = ENOENT;
+   char *currentComponent;
+   char *curDir;
+   char *nextComponent;
+   int error = ENOENT;
+   size_t curDirSize;
+   char *convertedComponent = NULL;
+   size_t convertedComponentSize = 0;
 
-  ASSERT(fileName);
-  ASSERT(sharePath);
+   ASSERT(sharePath);
+   ASSERT(fileName);
+   ASSERT(convertedFileName);
+   ASSERT(fileNameLength >= sharePathLength);
 
-  currentComponent = fileName + strlen(sharePath);
-  /* Check there is something beyond the share name. */
-  if (*currentComponent == '\0') {
-     /* The fileName is the same as sharePath. Nothing else to do. */
-     return 0;
-  }
+   currentComponent = fileName + sharePathLength;
+   /* Check there is something beyond the share name. */
+   if (*currentComponent == '\0') {
+      /*
+       * The fileName is the same as sharePath. Nothing else to do.
+       * Dup the string and return.
+       */
+      *convertedFileName = strdup(fileName);
+      if (!*convertedFileName) {
+         error = errno;
+         *convertedFileName = NULL;
+         *convertedFileNameLength = 0;
+         LOG(4, ("%s: strdup on fileName failed.\n", __FUNCTION__));
+      } else {
+         *convertedFileNameLength = strlen(fileName);
+      }
+      return 0;
+   }
 
-  /* Skip a component separator if not in the share path. */
-  if (*currentComponent == DIRSEPC) {
-     currentComponent += 1;
-  }
+   /* Skip a component separator if not in the share path. */
+   if (*currentComponent == DIRSEPC) {
+      currentComponent += 1;
+   }
 
-  Str_Strcpy(curDir, sharePath, sizeof curDir);
+   curDirSize = sharePathLength + 1;
+   curDir = malloc(curDirSize);
+   if (!curDir) {
+      error = errno;
+      LOG(4, ("%s: failed to allocate for curDir\n", __FUNCTION__));
+      goto exit;
+   }
+   Str_Strcpy(curDir, sharePath, curDirSize);
 
-  while (TRUE) {
-     /* Get the next component. */
-     nextComponent = strchr(currentComponent, DIRSEPC);
-     if (nextComponent != NULL) {
-	*nextComponent = '\0';
-     }
+   while (TRUE) {
+      /* Get the next component. */
+      nextComponent = strchr(currentComponent, DIRSEPC);
+      if (nextComponent != NULL) {
+         *nextComponent = '\0';
+      }
 
-     /*
-      * Try to match the current component againts one in curDir. If one is
-      * found then append it to curDir.
-      */
-     error = HgfsConvertComponentCase(currentComponent, ARRAYSIZE(curDir),
-				      curDir);
-     if (error) {
-	/* Restore the path separator if we removed it earlier. */
-	if (nextComponent != NULL) {
-	   *nextComponent = DIRSEPC;
-	}
-	break;
-     }
+      /*
+       * Try to match the current component against the one in curDir.
+       * HgfsConvertComponentCase may return ENOENT. In that case return
+       * the path case-converted uptil now (curDir) and append to it the
+       * rest of the unconverted path.
+       */
+      error = HgfsConvertComponentCase(currentComponent, curDir,
+                                       (const char **)&convertedComponent,
+                                       &convertedComponentSize);
+      /* Restore the path separator if we removed it earlier. */
+      if (nextComponent != NULL) {
+         *nextComponent = DIRSEPC;
+      }
 
-     /* If there is no component after the current one then we are done. */
-     if (nextComponent == NULL) {
-	/* Set success. */
-	error = 0;
-	break;
-     }
+      if (error) {
+         if (error == ENOENT) {
+	    int ret;
+            /*
+             * Copy out the components starting from currentComponent. We do this
+             * after replacing DIRSEPC, so all the components following
+             * currentComponent gets copied.
+             */
+            ret = HgfsConstructConvertedPath(&curDir, &curDirSize, currentComponent,
+                                             strlen(currentComponent) + 1);
+            if (ret) {
+               error = ret;
+            }
+         }
 
-     /*
-      * Set the current component pointer to point at the start of the next
-      * component.
-      */
-     currentComponent = nextComponent + 1;
+         if (error != ENOENT) {
+            free(curDir);
+         }
+         break;
+      }
 
-     /*
-      * Restore the directory separator that was removed at the start of
-      * the loop.
-      */
-     *nextComponent = DIRSEPC;
-  }
+      /* Expand curDir and copy out the converted component. */
+      error = HgfsConstructConvertedPath(&curDir, &curDirSize, convertedComponent,
+                                         convertedComponentSize);
+      if (error) {
+         free(curDir);
+         free(convertedComponent);
+         break;
+      }
 
-  /* If the conversion was successful, copy the result out. */
-  if (error == 0) {
-     /* 
-      * XXX: PATH_MAX defeats the purpose of this check. Pass in the
-      *      fileName size.
-      */
-     Str_Strcpy(fileName, curDir, PATH_MAX);
-  }
-  return error;
+      /* Free the converted component. */
+      free(convertedComponent);
+
+      /* If there is no component after the current one then we are done. */
+      if (nextComponent == NULL) {
+         /* Set success. */
+         error = 0;
+         break;
+      }
+
+      /*
+       * Set the current component pointer to point at the start of the next
+       * component.
+       */
+      currentComponent = nextComponent + 1;
+   }
+
+   /* If the conversion was successful, return the result. */
+   if (error == 0 || error == ENOENT) {
+      *convertedFileName = curDir;
+      *convertedFileNameLength = curDirSize;
+   }
+
+exit:
+   if (error && error != ENOENT) {
+      *convertedFileName = NULL;
+      *convertedFileNameLength = 0;
+   }
+   return error;
 }
-#endif
 
 
 /*
@@ -1525,39 +1589,88 @@ HgfsCaseInsensitiveLookup(char *fileName,      // IN/OUT
  *
  *    Converts the fileName to appropriate case depending upon flags.
  *
- *    NOTE: fileName needs to be of size PATH_MAX.
- *
  * Results:
- *    Returns 0 if successful and converted path for fileName is over-written.
- *    Otherwise returns non-zero integer without affecting fileName.
+ *    Returns 0 if successful and converted path for fileName is returned in
+ *    convertedFileName and it length in convertedFileNameLength.
+ *
+ *    Otherwise returns non-zero integer without affecting fileName with
+ *    convertedFileName and convertedFileNameLength set to NULL and 0
+ *    respectively.
  *
  * Side effects:
- *    fileName over-written with the converted path when successful.
+ *    On success, allocated memory is returned in convertedFileName and needs
+ *    to be freed.
  *
  *-----------------------------------------------------------------------------
  */
 
-int
-HgfsServerConvertCase(HgfsSharedFolder *share,   // IN
-                      uint32 caseFlags,          // IN
-                      char *fileName)            // IN/OUT
+HgfsInternalStatus
+HgfsServerConvertCase(const char *sharePath,              // IN
+                      size_t sharePathLength,             // IN
+                      char *fileName,                     // IN
+                      size_t fileNameLength,              // IN
+                      uint32 caseFlags,                   // IN
+                      char **convertedFileName,           // OUT
+                      size_t *convertedFileNameLength)    // OUT
 {
    int error = 0;
-#ifndef __FreeBSD__
+   ASSERT(sharePath);
    ASSERT(fileName);
+   ASSERT(convertedFileName);
+   ASSERT(convertedFileNameLength);
 
-   LOG(4, ("%s: fileName: #%s# %u\n", __FUNCTION__, fileName, caseFlags));
-   if (!share) {
-      return -1;
-   }
+   *convertedFileName = NULL;
+   *convertedFileNameLength = 0;
 
    if (caseFlags == HGFS_FILE_NAME_CASE_INSENSITIVE) {
-     LOG(4, ("%s: Case insensitive lookup.\n", __FUNCTION__));
-     error = HgfsCaseInsensitiveLookup(fileName, share->path);
+      LOG(4, ("%s: Case insensitive lookup, fileName: %s, flags: %u.\n",
+              __FUNCTION__, fileName, caseFlags));
+      error = HgfsCaseInsensitiveLookup(sharePath, sharePathLength,
+                                        fileName, fileNameLength,
+                                        convertedFileName, convertedFileNameLength);
+      /*
+       * Success or non-ENOENT error code. HgfsCaseInsensitiveLookup can return ENOENT,
+       * and its ok to continue if it is ENOENT.
+       */
+      if (error == ENOENT) {
+         error = 0;
+      }
+      return error;
    }
-#endif
+
+   *convertedFileName = strdup(fileName);
+   if (!*convertedFileName) {
+      error = errno;
+      LOG(4, ("%s: strdup on fileName failed.\n", __FUNCTION__));
+   } else {
+      *convertedFileNameLength = fileNameLength;
+   }
    return error;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerCaseConversionRequired --
+ *
+ *   Determines if the case conversion is required for this platform.
+ *
+ * Results:
+ *   TRUE on Linux / Apple.
+ *
+ * Side effects:
+ *   None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerCaseConversionRequired()
+{
+   return TRUE;
+}
+
 
 
 /*
@@ -1566,8 +1679,6 @@ HgfsServerConvertCase(HgfsSharedFolder *share,   // IN
  * HgfsStatFromName --
  *
  *    lstat(2) for the file name taking the case-sensitivity options into account.
- *
- *    NOTE: fileName needs to be of size PATH_MAX.
  *
  * Results:
  *    0 when successful, non-zero otherwise.
@@ -1585,6 +1696,9 @@ HgfsStatFromName(char *fileName,          // IN: filename to stat
                  struct stat *stats)      // OUT: file stats
 {
    int error;
+   size_t fileNameLen = strlen(fileName);
+   char *convertedFileName = NULL;
+   size_t convertedFileNameLen;
 
    /* Simple case - plain lookup. */
    errno = 0;
@@ -1598,7 +1712,7 @@ HgfsStatFromName(char *fileName,          // IN: filename to stat
    }
 
    /* If fileName is same as share path, access is denied. */
-   if (!Str_Strncmp(fileName, share->path, strlen(fileName))) {
+   if (!Str_Strncmp(fileName, share->path, fileNameLen)) {
       return EACCES;
    }
 
@@ -1611,17 +1725,22 @@ HgfsStatFromName(char *fileName,          // IN: filename to stat
    }
 
    LOG(4, ("%s: caseFlags: %u\n", __FUNCTION__, caseFlags));
-   error = HgfsServerConvertCase(share, caseFlags, fileName);
+   error = HgfsServerConvertCase(share->path, share->pathLen, fileName,
+                                 fileNameLen, caseFlags,
+                                 &convertedFileName, &convertedFileNameLen);
    if (error) {
       return error;
    }
 
    LOG(4, ("%s: stating %s\n", __FUNCTION__, fileName));
-   error = Posix_Lstat(fileName, stats);
-   if (error < 0) {
-      return errno;
+   error = Posix_Lstat(convertedFileName, stats);
+   if (error) {
+      error = errno;
+      /* Fall through. */
    }
-   return 0;
+
+   free(convertedFileName);
+   return error;
 }
 
 
@@ -2907,6 +3026,8 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
       replyActualSize = &reply->actualSize;
       reply->reserved = 0;
       replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply) - 1;
+      ASSERT(HGFS_LARGE_PACKET_MAX >= replySize);
+      extra = HGFS_LARGE_PACKET_MAX - replySize;
    } else {
       HgfsRequestRead *request = (HgfsRequestRead *)packetIn;
       HgfsReplyRead *reply = (HgfsReplyRead *)packetOut;
@@ -2917,6 +3038,8 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
       payload = reply->payload;
       replyActualSize = &reply->actualSize;
       replySize = sizeof *reply - 1;
+      ASSERT(HGFS_PACKET_MAX >= replySize);
+      extra = HGFS_PACKET_MAX - replySize;
    }
 
    LOG(4, ("HgfsServerRead: read fh %u, offset %"FMT64"u, count %u\n",
@@ -2934,9 +3057,6 @@ HgfsServerRead(char const *packetIn, // IN: incoming packet
       LOG(4, ("HgfsServerRead: Could not get sequenial open status\n"));
       return EBADF;
    }
-
-   ASSERT_ON_COMPILE(HGFS_PACKET_MAX >= replySize);
-   extra = HGFS_PACKET_MAX - replySize;
 
    /*
     * requiredSize is user-provided, so this test must be carefully
@@ -3244,7 +3364,7 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
       dirName = request->dirName.name;
       dirNameLength = request->dirName.length;
       replySearch = &((HgfsReplySearchOpen *)packetOut)->search;
-      replySize = sizeof *request;
+      replySize = sizeof(HgfsReplySearchOpen);
    }
 
    /*
@@ -4203,6 +4323,15 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
       requestV3 = (HgfsRequestQueryVolumeV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       replyV3 = (HgfsReplyQueryVolumeV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
 
+      /*
+       * We don't yet support file handle for this operation.
+       * Clients should retry using the file name.
+       */
+      if (requestV3->fileName.flags & HGFS_FILE_NAME_USE_FILE_DESC) {
+         LOG(4, ("HgfsServerSearchOpen: Doesn't support file handle.\n"));
+         return EPARAMETERNOTSUPPORTED;
+      }
+
       freeBytes = &replyV3->freeBytes;
       totalBytes = &replyV3->totalBytes;
       replyV3->reserved = 0;
@@ -4466,6 +4595,16 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
       targetName = targetNameP->name;
       targetNameLength = targetNameP->length;
 
+      /*
+       * We don't yet support file handle for this operation.
+       * Clients should retry using the file name.
+       */
+      if (requestV3->symlinkName.flags & HGFS_FILE_NAME_USE_FILE_DESC ||
+          targetNameP->flags & HGFS_FILE_NAME_USE_FILE_DESC) {
+         LOG(4, ("HgfsServerSymlinkCreate: Doesn't support file handle.\n"));
+         return EPARAMETERNOTSUPPORTED;
+      }
+
       replyV3 = (HgfsReplySymlinkCreateV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
       replyV3->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
@@ -4557,20 +4696,37 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
  *
  * HgfsServerHasSymlink --
  *
- *      This function looks at each directory component from left to
- *      right, searching for symlinks after the host share path. If any
- *      component after the share path is found to be a symlink, it returns
- *      TRUE. Otherwise, it returns FALSE. Note that if the file does not
- *      exist, we also return FALSE.
+ *      This function determines if any of the intermediate components of the
+ *      fileName makes references outside the actual shared path. We do not
+ *      check for the last component as none of the server operations follow
+ *      symlinks. Also some ops that call us expect to operate on a symlink
+ *      final component.
  *
- *      Sadly, much of this function was copied from File_IsSymlink
- *      because that function won't differentiate between a file that isn't
- *      a symlink and a file that doesn't exist. Since we're checking
- *      every component, we'd definitely like to know when a file doesn't
- *      exist so we may short-circuit out.
+ *      We use following algorithm. It takes 2 parameters, sharePath and
+ *      fileName, and returns non-zero errno if fileName makes an invalid
+ *      reference. The idea is to resolve both the sharePath and parent
+ *      directory of the fileName. The sharePath is already resolved
+ *      beforehand in HgfsServerPolicyRead. During resolution, we eliminate
+ *      all the ".", "..", and symlinks handled by the realpath(3) libc call.
+ *
+ *      We use parent because last component could be a symlink or a component
+ *      that doesn't exist. After resolving, we determine if sharePath is a
+ *      prefix of fileName.
+ *
+ *      Note that realpath(3) behaves differently on GNU and BSD systems.
+ *      Following table lists the difference:
+ *
+ *                                  GNU realpath          BSD realpath
+ *                            -----------------------  -----------------------
+ *
+ *      "/tmp/existingFile"   "/tmp/existingFile" (0)  "/tmp/existingFile" (0)
+ *       "/tmp/missingFile"   NULL           (ENOENT)  "/tmp/missingFile"  (0)
+ *        "/missingDir/foo"   NULL           (ENOENT)  NULL           (ENOENT)
+ *              In /tmp, ""   NULL           (ENOENT)  "/tmp"              (0)
+ *             In /tmp, "."   "/tmp"              (0)  "/tmp"              (0)
  *
  * Results:
- *      TRUE if the given path has a symlink, FALSE otherwise.
+ *      0 if the given path has a symlink, non-zero errno otherwise.
  *
  * Side effects:
  *      None.
@@ -4578,79 +4734,81 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
  *----------------------------------------------------------------------
  */
 
-Bool
+HgfsInternalStatus
 HgfsServerHasSymlink(const char *fileName,	// IN
-                     const char *sharePath)	// IN
+                     size_t fileNameLength,     // IN
+                     const char *sharePath,	// IN
+                     size_t sharePathLength)    // IN
 {
-   char *path;
-   char *pathSep;
-   size_t shareLen = 0;
-   size_t pathLen;
-   Bool found = FALSE;
+   char *resolvedFileDirPath = NULL;
+   char *fileDirName = NULL;
+   HgfsInternalStatus status;
 
+   ASSERT(fileName);
    ASSERT(sharePath);
+   ASSERT(sharePathLength <= fileNameLength);
 
-   path = File_FullPath(fileName);
-   if (!path) {
-      goto out;
-   }
-   pathLen = strlen(path);
-
+   LOG(4, ("%s: fileName: %s, sharePath: %s#\n", __FUNCTION__, fileName, sharePath));
    /*
-    * Resolve full path for the share to compare with fileName.
-    * This sharePath can be equal to "" (special case root share that
-    * allows access to the whole host). Normally, we check to ensure that the share
-    * passed in is a prefix of the fileName path. However, that check is meaningless
-    * in the case of the special root share. Only perform the check if sharePath
-    * is non-empty.
+    * Return success if:
+    * - empty fileName or
+    * - sharePath is empty (this is for special root share that allows
+    *   access to entire host) or
+    * - fileName and sharePath are same.
     */
-   if (strcmp(sharePath, "") != 0) {
-      char *fullSharePath;
-      fullSharePath = File_FullPath(sharePath);
-      if (!fullSharePath) {
-	 LOG(4, ("HgfsServerHasSymlink: File_FullPath failed on sharePath %s\n",
-		 sharePath));
-	 return FALSE;
-      }
-      shareLen = strlen(fullSharePath);
-
-      LOG(4, ("%s: fileName: %s, sharePath: %s, path: %s, fullSharePath: %s\n",
-	      __FUNCTION__, fileName, sharePath, path, fullSharePath));
-
-      ASSERT(Str_Strncmp(path, fullSharePath, shareLen < pathLen ?
-			 shareLen : pathLen) == 0);
-      free(fullSharePath);
+   if (fileNameLength == 0 ||
+       sharePathLength == 0 ||
+       Str_Strcmp(sharePath, fileName) == 0) {
+      status = 0;
+      goto exit;
    }
 
-   /* If fileName is prefix of sharePath, ignore symlinks. */
-   if (shareLen > pathLen) {
-      goto out;
-   }
-
-   /* Start with the first component after the share. */
-   pathSep = path + shareLen;
-
-   while ((pathSep = Str_Strchr(pathSep, DIRSEPC)) != NULL) {
-      *pathSep = '\0';
-
-      if (File_IsSymLink(path)) {
-         found = TRUE;
-         goto out;
+   /* Separate out parent directory of the fileName. */
+   File_GetPathName(fileName, &fileDirName, NULL);
+   /*
+    * File_GetPathName may return an empty string to signify the root of the filesystem.
+    * To simplify subsequent processing, let's convert such empty strings to "/" when
+    * found. See File_GetPathName header comment for details.
+    */
+   if (strlen(fileDirName) == 0) {
+      char *p;
+      p = realloc(fileDirName, sizeof(DIRSEPS));
+      if (p == NULL) {
+         status = errno;
+         LOG(4, ("%s: failed to realloc fileDirName.\n", __FUNCTION__));
+         goto exit;
+      } else {
+         fileDirName = p;
+         Str_Strcpy(fileDirName, DIRSEPS, sizeof(DIRSEPS));
       }
-
-      *pathSep++ = DIRSEPC;
    }
 
    /*
-    * We've checked up until every path separator. Now check the last
-    * component.
+    * Resolve parent directory of fileName.
+    * Use realpath(2) to resolve the parent.
     */
-   if (pathLen > shareLen && File_IsSymLink(path)) {
-      found = TRUE;
+   resolvedFileDirPath = Posix_RealPath(fileDirName);
+   if (resolvedFileDirPath == NULL) {
+      status = errno;
+      LOG(4, ("%s: realpath failed: fileDirName: %s: %s\n",
+              __FUNCTION__, fileDirName, strerror(errno)));
+      goto exit;
    }
-  out:
-   free(path);
-   return found;
+
+   /* Resolved parent should match with the shareName. */
+   if (Str_Strncmp(sharePath, resolvedFileDirPath, sharePathLength) != 0) {
+      status = EACCES;
+      LOG(4, ("%s: resolved parent do not match, parent: %s, resolved: %s#\n",
+              __FUNCTION__, fileDirName, resolvedFileDirPath));
+      goto exit;
+   }
+
+   status = 0;
+
+exit:
+   free(resolvedFileDirPath);
+   free(fileDirName);
+   return status;
 }
 
 

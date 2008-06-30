@@ -19,7 +19,7 @@
 
 /*
  * hgfsUtil.h --
- * 
+ *
  *    Utility functions and macros used by hgfs.
  */
 
@@ -29,15 +29,15 @@
 
 #   if defined(__linux__) && defined(__KERNEL__)
 #      include "driver-config.h"
-#      include <linux/time.h> // for time_t and timespec  
+#      include <linux/time.h> // for time_t and timespec
     /* Include time.h in userspace code, but not in Solaris kernel code. */
 #   elif defined(__FreeBSD__) && defined(_KERNEL)
     /* Do nothing. */
 #   elif defined(__APPLE__) && defined(KERNEL)
 #      include <sys/time.h>
-#   else 
+#   else
 #      include <time.h>
-#   endif 
+#   endif
 #   include "vm_basic_types.h"
 #   if !defined(_STRUCT_TIMESPEC) &&   \
        !defined(_TIMESPEC_DECLARED) && \
@@ -71,15 +71,27 @@ struct timespec {
     typedef DWORD HgfsInternalStatus;
 #endif
 
-/* 
- * Unfortunately, we need a catch-all "generic error" to use with 
+/*
+ * Unfortunately, we need a catch-all "generic error" to use with
  * HgfsInternalStatus, because there are times when cross-platform code needs
- * to return its own errors along with errors from platform specific code. 
+ * to return its own errors along with errors from platform specific code.
  *
  * Using -1 should be safe because we expect our platforms to use zero as
  * success and a positive range of numbers as error values.
  */
-#define HGFS_INTERNAL_STATUS_ERROR -1
+#define HGFS_INTERNAL_STATUS_ERROR (-1)
+
+#ifndef _WIN32
+/*
+ * This error code is used to notify the client that some of the parameters passed
+ * (e.g. file handles) are not supported. Clients are expected to correct
+ * the parameter (e.g. pass file name instead) and retry.
+ *
+ * Note that this error code is artificially made up and in future may conflict
+ * with an "official" error code when added.
+ */
+#define EPARAMETERNOTSUPPORTED  (MAX_INT32 - 1)
+#endif
 
 /*
  * FreeBSD (pre-6.0) does not define EPROTO, so we'll define our own error code.

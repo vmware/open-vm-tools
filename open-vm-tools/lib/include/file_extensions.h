@@ -44,6 +44,7 @@
 #define VPX_TEMPLATE_EXTENSION "vmtx"         // VirtualCenter template
 #define TEAM_FILE_EXTENSION "vmtm"            // Foundry VM team
 #define POLICY_FILE_EXTENSION "vmpl"          // ACE/VRM policy file
+#define BUNDLE_FILE_EXTENSION "vmwarevm"      // VM configuration bundle directory
 
 /*
  * Snapshot and related file types.
@@ -52,6 +53,7 @@
 #define MAINMEM_FILE_EXTENSION "vmem"
 #define SUSPEND_FILE_EXTENSION "vmss"
 #define CHECKPOINT_FILE_EXTENSION "vmsn"
+#define VPLAY_FILE_EXTENSION "log"
 #define SNAPSHOT_METADATA_EXTENSION "vmsd"
 #define CHECKPOINT_FILE_EXTENSION_OLD "cpt"   // Obsolete synonym for vmsn
 

@@ -208,9 +208,9 @@
 #define VMLS_VERSION "e.x.p"
 #define LICENSE_VERSION "e.x.p"
 #define DDK_VERSION "e.x.p"
-#define VIM_API_VERSION "2.5.0"
+#define VIM_API_VERSION "4.0"
 #define VIPERL_VERSION "1.1.0"
-#define RCLI_VERSION "1.5.0"
+#define RCLI_VERSION "4.0.0"
 #define VDM_VERSION "e.x.p"
 #define VDM_CLIENT_VERSION "e.x.p"
 
@@ -236,7 +236,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.06.03"
+#define TOOLS_VERSION "2008.06.20"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

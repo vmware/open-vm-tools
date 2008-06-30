@@ -43,8 +43,8 @@ struct GuestMemInfo {
    uint64 memInactive;        /* Physical memory inactive in Kb (cold pages) */
    uint64 swapInRate;         /* Memory swapped out in Kb / sec. */
    uint64 swapOutRate;        /* Memory swapped out in Kb / sec. */
-   uint64 ioInRate;           /* Amount of I/O in in blocks / sec. */
-   uint64 ioOutRate;          /* Amount of I/O out in blocks / sec. */
+   uint64 ioInRate;           /* Amount of I/O in Kb / sec. */
+   uint64 ioOutRate;          /* Amount of I/O out in Kb / sec. */
    uint64 hugePagesTotal;     /* Total number of huge pages. */
    uint64 hugePagesFree;      /* Available number of huge pages. */
    uint64 memPinned;          /* Unreclaimable physical memory in 4K page size. */

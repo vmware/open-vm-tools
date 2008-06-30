@@ -133,8 +133,8 @@ GuestInfoMonitorGetStat(GuestMemInfo *vmStats)   // OUT: filled vmstats
 
    vmStats->swapInRate = (uint64)((*swapIn  * kb_per_page * hz + cpuHalf) / cpuTotal);
    vmStats->swapOutRate = (uint64)((*swapOut * kb_per_page * hz + cpuHalf) / cpuTotal);
-   vmStats->ioInRate = (uint64)((*pageIn * hz + cpuHalf) / cpuTotal);
-   vmStats->ioOutRate = (uint64)((*pageOut * hz + cpuHalf) / cpuTotal);
+   vmStats->ioInRate = (uint64)((*pageIn * kb_per_page * hz + cpuHalf) / cpuTotal);
+   vmStats->ioOutRate = (uint64)((*pageOut * kb_per_page * hz + cpuHalf) / cpuTotal);
 
 
    Debug("GuestInfoMonitorGetStat: GuestMemInfo: total: %"FMT64"u free: %"FMT64"u"\

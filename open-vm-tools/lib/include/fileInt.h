@@ -19,7 +19,7 @@
 /*
  * fileInt.h --
  *
- *	Things internal to the file library.
+ *     Things internal to the file library.
  */
 
 #if !defined(__FILE_INTERNAL_H__)
@@ -64,9 +64,9 @@
 #if !defined(REISERFS_SUPER_MAGIC)
 #define REISERFS_SUPER_MAGIC  0x52654973
 #endif
-#endif	// linux
+#endif // linux
 
-#define LGPFX	"FILE:"
+#define LGPFX "FILE:"
 
 #define FILE_TYPE_REGULAR      0
 #define FILE_TYPE_DIRECTORY    1
@@ -121,6 +121,7 @@ typedef struct lock_values
    char         *executionID;
    char         *payload;
    char         *lockType;
+   char         *locationChecksum;
    Unicode      memberName;
    unsigned int lamportNumber;
    uint32       waitTime;
@@ -142,6 +143,8 @@ typedef int FILELOCK_FILE_HANDLE;
 
 EXTERN const char *FileLockGetMachineID(void);
 
+EXTERN char *FileLockGetExecutionID(void);
+
 EXTERN Bool FileLockMachineIDMatch(char *host,
                                    char *second);
 
@@ -151,9 +154,7 @@ EXTERN int FileLockMemberValues(ConstUnicode lockDir,
                                 uint32 size,
                                 LockValues *memberValues);
 
-EXTERN int FileLockHackVMX(const char *machineID,
-                           const char *executionID,
-                           ConstUnicode filePathName);
+EXTERN int FileLockHackVMX(ConstUnicode filePathName);
 
 EXTERN int FileLockOpenFile(ConstUnicode pathName,
                             int flags,
@@ -171,17 +172,13 @@ EXTERN int FileLockWriteFile(FILELOCK_FILE_HANDLE handle,
                              uint32 requestedBytes,
                              uint32 *resultantBytes);
 
-EXTERN void *FileLockIntrinsic(const char *machineID,
-                               const char *executionID,
-                               const char *payload,
-                               ConstUnicode filePathName,
+EXTERN void *FileLockIntrinsic(ConstUnicode filePathName,
                                Bool exclusivity,
                                uint32 msecMaxWaitTime,
+                               const char *payload,
                                int *err);
 
-EXTERN int FileUnlockIntrinsic(const char *machineID,
-                               const char *executionID,
-                               ConstUnicode filePathName,
+EXTERN int FileUnlockIntrinsic(ConstUnicode filePathName,
                                const void *lockToken);
 
 EXTERN Bool FileLockValidOwner(const char *executionID,

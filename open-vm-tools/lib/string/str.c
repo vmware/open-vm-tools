@@ -43,8 +43,24 @@
 
 #ifndef _WIN32
 extern int vasprintf(char **ptr, const char *f, va_list arg);
+/*
+ * Declare vswprintf on platforms where it's not known to exist.  We know
+ * it's available on glibc >= 2.2, FreeBSD >= 5.0, and all versions of 
+ * Solaris.
+ * (Re: Solaris, vswprintf has been present since Solaris 8, and we only
+ * support Solaris 9 and above, since that was the first release available
+ * for x86, so we just assume it's already there.)
+ *
+ * XXX Str_Vsnwprintf and friends are still protected by _WIN32 and
+ * GLIBC_VERSION_22.  I.e., even though they should be able to work on
+ * FreeBSD 5.0+ and Solaris 8+, they aren't made available there.
+ */
+#   if !(defined(GLIBC_VERSION_22) ||                                   \
+         (defined(__FreeBSD__) && (__FreeBSD_version >= 500000)) ||     \
+         defined(sun))
 extern int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *format, va_list args);
-#endif
+#   endif
+#endif // _WIN32
 
 #ifdef N_PLAT_NLM
 extern int vsnprintf(char *buf, size_t len, const char *f, va_list arg);
@@ -117,6 +133,9 @@ Str_Vsnprintf(char *str,          // OUT
 {
    int retval;
 
+   ASSERT(str != NULL);
+   ASSERT(format != NULL);
+
 #ifndef HAS_BSD_PRINTF
    retval = vsnprintf(str, size, format, ap);
 #elif defined __linux__
@@ -184,6 +203,9 @@ Str_Snprintf(char *str,          // OUT
    int retval;
    va_list args;
 
+   ASSERT(str != NULL);
+   ASSERT(format != NULL);
+
    va_start(args, format);
    retval = Str_Vsnprintf(str, size, format, args);
    va_end(args);
@@ -215,10 +237,13 @@ Str_Strcpy(char *buf,       // OUT
    uint32 *stack = (uint32 *)&buf;
    size_t len;
 
+   ASSERT(buf != NULL);
+   ASSERT(src != NULL);
+
    len = strlen(src);
-   if (len >= maxSize) { 
+   if (len >= maxSize) {
       Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
-      ASSERT_BUG(5686, FALSE); 
+      ASSERT_BUG(5686, FALSE);
    }
    return memcpy(buf, src, len + 1);
 }
@@ -249,7 +274,8 @@ Str_Strnstr(const char *src,  	// IN
    size_t subLen;
    const char *end;
 
-   ASSERT(src != NULL && sub != NULL);
+   ASSERT(src != NULL);
+   ASSERT(sub != NULL);
 
    if ((subLen = strlen(sub)) == 0) {
       return (char *) src;
@@ -295,6 +321,9 @@ Str_Strcat(char *buf,       // IN-OUT
    size_t bufLen;
    size_t srcLen;
 
+   ASSERT(buf != NULL);
+   ASSERT(src != NULL);
+
    bufLen = strlen(buf);
    srcLen = strlen(src);
 
@@ -334,8 +363,14 @@ Str_Strncat(char *buf,       // IN-OUT
             const char *src, // IN: String to append
             size_t n)        // IN: Max chars of src to append
 {
-   uint32 *stack = (uint32 *)&buf;
-   size_t bufLen = strlen(buf);
+   uint32 *stack; 
+   size_t bufLen; 
+
+   ASSERT(buf != NULL);
+   ASSERT(src != NULL);
+
+   stack = (uint32 *)&buf;
+   bufLen = strlen(buf);
 
    /*
     * Check bufLen + n first so we can avoid the second call to strlen
@@ -386,7 +421,7 @@ Str_Asprintf(size_t *length,       // OUT
 {
    va_list arguments;
    char *result;
-   
+
    va_start(arguments, format);
    result = Str_Vasprintf(length, format, arguments);
    va_end(arguments);

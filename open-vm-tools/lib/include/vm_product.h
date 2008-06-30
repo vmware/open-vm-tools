@@ -59,7 +59,7 @@
 /*
  * Brief names are used when the VMware prefix is not wanted.
  */
-#define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX Server"
+#define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
 #define PRODUCT_WGS_BRIEF_NAME "Server"
 #define PRODUCT_GSX_BRIEF_NAME "GSX Server"
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
@@ -134,7 +134,9 @@
 
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
-#define PRODUCT_VMVISOR_NAME MAKE_NAME("VMvisor")
+// #define PRODUCT_VMVISOR_NAME MAKE_NAME("VMvisor")
+// XXX Only one product for now so just hardcode it.
+#define PRODUCT_VMVISOR_NAME MAKE_NAME(PRODUCT_SCALABLE_SERVER_BRIEF_NAME "i")
 
 /*
  * VMware Remote Console (VMRC) version definitions
@@ -490,6 +492,8 @@
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for FreeBSD"
 #elif defined(sun)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Solaris"
+#elif defined(__APPLE__)
+#  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Mac OS X"
 #else
 #  ifdef VMX86_TOOLS
 #    error "Define a product string for this platform."

@@ -20,4 +20,5 @@ noinst_LIBRARIES = libunityStub.a
 libunityStub_a_SOURCES =
 libunityStub_a_SOURCES += unityStub.c
 
-AM_CFLAGS = @LIB_FILE_CPPFLAGS@
+AM_CFLAGS = @GTK_CPPFLAGS@
+AM_CFLAGS += @LIB_FILE_CPPFLAGS@

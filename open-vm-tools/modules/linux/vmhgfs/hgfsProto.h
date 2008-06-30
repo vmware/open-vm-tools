@@ -660,7 +660,10 @@ struct HgfsReplyRead {
 HgfsReplyRead;
 
 
-/* Version 3 of HgfsReplyOpen */
+/*
+ * Version 3 of HgfsRequestRead.
+ * Server must support HGFS_LARGE_PACKET_MAX to implement this op.
+ */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -710,6 +713,11 @@ struct HgfsReplyWrite {
 }
 #include "vmware_pack_end.h"
 HgfsReplyWrite;
+
+/*
+ * Version 3 of HgfsRequestWrite.
+ * Server must support HGFS_LARGE_PACKET_MAX to implement this op.
+ */
 
 typedef
 #include "vmware_pack_begin.h"

@@ -142,7 +142,7 @@ HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
  *
  * Results:
  *    0       on success
- *    nonzero if time is not representable on UNIX 
+ *    nonzero if time is not representable on UNIX
  *
  * Side effects:
  *    None
@@ -156,7 +156,7 @@ HgfsConvertFromNtTime(time_t *unixTime, // OUT: Time in UNIX format
 {
    struct timespec tm;
    int ret;
-   
+
    ret = HgfsConvertFromNtTimeNsec(&tm, ntTime);
    *unixTime = tm.tv_sec;
    return ret;
@@ -215,6 +215,8 @@ HgfsConvertFromInternalStatus(HgfsInternalStatus status) // IN
       return HGFS_STATUS_NO_SPACE;
    case ERROR_NOT_SUPPORTED:
       return HGFS_STATUS_OPERATION_NOT_SUPPORTED;
+   case ERROR_INVALID_PARAMETER:
+      return HGFS_STATUS_INVALID_PARAMETER;
    case HGFS_INTERNAL_STATUS_ERROR:
    default:
       return HGFS_STATUS_GENERIC_ERROR;
@@ -253,6 +255,8 @@ HgfsConvertFromInternalStatus(HgfsInternalStatus status) // IN
       return HGFS_STATUS_OPERATION_NOT_SUPPORTED;
    case ENAMETOOLONG:
       return HGFS_STATUS_NAME_TOO_LONG;
+   case EPARAMETERNOTSUPPORTED:
+      return HGFS_STATUS_INVALID_PARAMETER;
    case HGFS_INTERNAL_STATUS_ERROR:
    default:
       return HGFS_STATUS_GENERIC_ERROR;

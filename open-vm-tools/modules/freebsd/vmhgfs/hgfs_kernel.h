@@ -67,9 +67,6 @@
  */
 #define HGFS_BLOCKSIZE                  1024
 
-/* Maximum amount of data that can be transferred in any one request */
-#define HGFS_IO_MAX                     4096
-
 /* Internal error code(s) */
 #define HGFS_ERR                        (-1)
 #define HGFS_ERR_NULL_INPUT             (-50)

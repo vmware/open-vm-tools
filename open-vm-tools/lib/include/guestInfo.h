@@ -32,16 +32,14 @@
 
 #include "dbllnklst.h"
 #include "guestStats.h"
-#include <stdlib.h>     // For inline malloc()/free()
+#include "guestrpc/nicinfo.h"
 
-#define GUEST_INFO_COMMAND_TWO "SetGuestInfo2"
 #define GUEST_INFO_COMMAND "SetGuestInfo"
 #define MAX_VALUE_LEN 100
 #define MAX_NICS     16
 #define MAX_IPS      8     // Max number of IP addresses for a single NIC
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
-#define IP_ADDR_SIZE_V2 48 // 40 bytes for address + 3 for netmask + 5 padding
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
 #define GUESTINFO_TIME_INTERVAL_MSEC 3000  /* time interval in msec */
 
@@ -55,6 +53,7 @@ typedef enum {
    INFO_OS_NAME,
    INFO_UPTIME,
    INFO_MEMORY,
+   INFO_IPADDRESS_V2,
    INFO_MAX
 } GuestInfoType;
 
@@ -63,76 +62,16 @@ typedef enum {
    INFO_IP_ADDRESS_FAMILY_IPV6
 } GuestInfoIPAddressFamilyType;
 
-/*
- * For backward compatibility's sake over wire (from Tools to VMX), new fields
- * in this struct must be added at the end.  THis is the part that goes over wire.
- */
-typedef struct VmIpAddressEntryProtocol {
-   uint32 addressFamily;             /* uint8 should be enough.  However we */
-                                     /* need it to be multiple of 4 bytes */
-                                     /* in order to have the same size on */
-                                     /* different hardware architectures */
-   uint32 dhcpEnabled;   /* This is a boolean.  However we need it to be */
-                         /* multiple of 4 bytes, in order to be the same */
-                         /* on different hardware architecture */
-   char ipAddress[IP_ADDR_SIZE_V2];
-   char subnetMask[IP_ADDR_SIZE_V2];
-   uint32 totalIpEntrySizeOnWire;
-} VmIpAddressEntryProtocol;
-
-typedef struct VmIpAddressEntry {
-   DblLnkLst_Links links;
-   VmIpAddressEntryProtocol ipEntryProto;
-} VmIpAddressEntry;
-
 typedef struct NicEntryV1 {
    unsigned int numIPs;
    char macAddress[MAC_ADDR_SIZE];  // In the format "12-23-34-45-56-67"
    char ipAddress[MAX_IPS][IP_ADDR_SIZE];
 } NicEntryV1;
 
-/*
- * For backward compatibility's sake over wire (from Tools to VMX), new fields
- * in this struct must be added at the end.  THis is the part that goes over wire.
- */
-typedef struct NicEntryProtocol {
-   char macAddress[MAC_ADDR_SIZE];   /* In the format "12-23-34-45-56-67" */
-   char pad[1];                      /* MAC_ADDR_SIZE happens to be 19.  */
-                                     /* Pad it to be multiple of 4 bytes */
-   uint32 numIPs;
-   uint32 ipAddressSizeOnWire;      /* size of struct VmIpAddresses over wire*/
-   uint32 totalNicEntrySizeOnWire;
-} NicEntryProtocol;
-
-typedef struct NicEntry {
-   DblLnkLst_Links links;
-   NicEntryProtocol nicEntryProto;
-   DblLnkLst_Links ipAddressList;
-/* DblLnkLst_Links gatewayList; */
-} NicEntry;
-
 typedef struct GuestNicInfoV1 {
    unsigned int numNicEntries;
    NicEntryV1 nicList[MAX_NICS];
 } GuestNicInfoV1;
-
-
-/*
- * For backward compatibility's sake over wire (from Tools to VMX), new fields
- * in this struct must be added at the end.  This is the part that goes over wire.
- */
-typedef struct NicInfoProtocol {
-   uint32 version;
-   uint32 nicEntrySizeOnWire;      /* length of NicEntry over wire.  Lengths differ */
-                                   /* with different versions. */
-   uint32 numNicEntries;
-   uint32 totalInfoSizeOnWire;
-} NicInfoProtocol;
-
-typedef struct GuestNicInfo {
-   NicInfoProtocol    nicInfoProto;
-   DblLnkLst_Links    nicList;     /* Pointers in it must be initialized to NULL */
-} GuestNicInfo;
 
 typedef
 #include "vmware_pack_begin.h"
@@ -156,103 +95,12 @@ typedef struct _DiskInfo {
  */
 
 extern Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
-extern Bool GuestInfo_GetNicInfo(GuestNicInfo *nicInfo);
+extern Bool GuestInfo_GetNicInfo(GuestNicList *nicInfo);
 extern Bool GuestInfo_GetDiskInfo(PGuestDiskInfo di);
 extern Bool GuestInfo_GetOSName(unsigned int outBufFullLen,
                                 unsigned int outBufLen, char *osNameFull,
                                 char *osName);
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfo_FreeDynamicMemoryInNic --
- *
- *      Traverse the link list and free all dynamically allocated memory.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE void
-GuestInfo_FreeDynamicMemoryInNic(NicEntry *nicEntry)        // IN
-{
-   VmIpAddressEntry *ipAddressCur;
-   DblLnkLst_Links *sCurrent;
-   DblLnkLst_Links *sNext;
-
-   if (NULL == nicEntry) {
-      return;
-   }
-
-   if (0 == nicEntry->nicEntryProto.numIPs) {
-      return;
-   }
-
-   DblLnkLst_ForEachSafe(sCurrent, sNext, &nicEntry->ipAddressList) {
-
-      ipAddressCur = DblLnkLst_Container(sCurrent,
-                                         VmIpAddressEntry,
-                                         links);
-
-      DblLnkLst_Unlink1(&ipAddressCur->links);
-      free(ipAddressCur);
-   }
-
-   DblLnkLst_Init(&nicEntry->ipAddressList);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfo_FreeDynamicMemoryInNicInfo --
- *
- *      Free all dynamically allocated memory in the struct pointed to
- *      by nicInfo.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE void
-GuestInfo_FreeDynamicMemoryInNicInfo(GuestNicInfo *nicInfo)      // IN
-{
-   NicEntry *nicEntryCur = NULL;
-   DblLnkLst_Links *sCurrent;
-   DblLnkLst_Links *sNext;
-
-   if (NULL == nicInfo) {
-      return;
-   }
-
-   if (0 == nicInfo->nicInfoProto.numNicEntries) {
-      return;
-   }
-
-   DblLnkLst_ForEachSafe(sCurrent, sNext, &nicInfo->nicList) {
-      nicEntryCur = DblLnkLst_Container(sCurrent,
-                                        NicEntry,
-                                        links);
-
-      GuestInfo_FreeDynamicMemoryInNic(nicEntryCur);
-      DblLnkLst_Unlink1(&nicEntryCur->links);
-      free (nicEntryCur);
-   }
-
-   DblLnkLst_Init(&nicInfo->nicList);
-}
-
+extern int GuestInfo_GetSystemBitness(void);
 
 #endif // _GUEST_INFO_H_
 

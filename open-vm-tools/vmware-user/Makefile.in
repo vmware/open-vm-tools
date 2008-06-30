@@ -64,21 +64,22 @@ PROGRAMS = $(bin_PROGRAMS)
 am_vmware_user_OBJECTS = copyPaste.$(OBJEXT) debugStdio.$(OBJEXT) \
 	dnd.$(OBJEXT) foreignVMToolsDaemon.$(OBJEXT) \
 	foreignVMToolsNetworking.$(OBJEXT) \
-	foundryToolsDaemon.$(OBJEXT) libvmwarectrl.$(OBJEXT) \
-	pointer.$(OBJEXT) resolution.$(OBJEXT) stub.$(OBJEXT) \
+	foundryToolsDaemon.$(OBJEXT) pointer.$(OBJEXT) \
 	vmware-user.$(OBJEXT)
 vmware_user_OBJECTS = $(am_vmware_user_OBJECTS)
 vmware_user_DEPENDENCIES = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/ghIntegrationStub/libghIntegrationStub.a \
 	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
+	../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
 	../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a \
 	../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a \
 	../lib/impersonate/libImpersonate.a \
 	../lib/netUtil/libNetUtil.a ../lib/printer/libPrinter.a \
-	../lib/rpcIn/libRpcIn.a ../lib/rpcOut/libRpcOut.a \
-	../lib/rpcVmx/libRpcVmx.a ../lib/SLPv2Parser/libSLPv2Parser.a \
+	../lib/resolution/libResolution.a ../lib/rpcIn/libRpcIn.a \
+	../lib/rpcOut/libRpcOut.a ../lib/rpcVmx/libRpcVmx.a \
+	../lib/SLPv2Parser/libSLPv2Parser.a \
 	../lib/socketMgr/libSocketMgr.a ../lib/strUtil/libStrUtil.a \
 	../lib/string/libString.a ../lib/sync/libSync.a \
 	../lib/syncDriver/libSyncDriver.a ../lib/system/libSystem.a \
@@ -87,10 +88,11 @@ vmware_user_DEPENDENCIES = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/vmSignal/libVmSignal.a ../lib/wiper/libWiper.a \
 	../lib/err/libErr.a ../lib/foundryMsg/libFoundryMsg.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
-	../lib/hgfs/libHgfs.a ../lib/message/libMessage.a \
-	../lib/unicode/libUnicode.a ../lib/misc/libMisc.a \
-	../lib/procMgr/libProcMgr.a ../lib/auth/libAuth.a \
-	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a
+	../lib/dynxdr/libDynxdr.a ../lib/hgfs/libHgfs.a \
+	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
+	../lib/misc/libMisc.a ../lib/procMgr/libProcMgr.a \
+	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
+	../lib/panic/libPanic.a ../lib/stubs/libStubs.a
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -183,6 +185,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PROCPS_CPPFLAGS = @PROCPS_CPPFLAGS@
 PROCPS_LIBS = @PROCPS_LIBS@
 RANLIB = @RANLIB@
+RPCGEN = @RPCGEN@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -247,7 +250,8 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CFLAGS = @GTK_CPPFLAGS@ @VMWARE_USER_CPPFLAGS@
+AM_CFLAGS = @GTK_CPPFLAGS@ @VMWARE_USER_CPPFLAGS@ \
+	-I$(top_builddir)/include -DRESOLUTION_X11
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of
 # the alphabetical order so their symbols are properly resolved.
@@ -255,13 +259,15 @@ vmware_user_LDADD = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/ghIntegrationStub/libghIntegrationStub.a \
 	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
+	../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
 	../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a \
 	../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a \
 	../lib/impersonate/libImpersonate.a \
 	../lib/netUtil/libNetUtil.a ../lib/printer/libPrinter.a \
-	../lib/rpcIn/libRpcIn.a ../lib/rpcOut/libRpcOut.a \
-	../lib/rpcVmx/libRpcVmx.a ../lib/SLPv2Parser/libSLPv2Parser.a \
+	../lib/resolution/libResolution.a ../lib/rpcIn/libRpcIn.a \
+	../lib/rpcOut/libRpcOut.a ../lib/rpcVmx/libRpcVmx.a \
+	../lib/SLPv2Parser/libSLPv2Parser.a \
 	../lib/socketMgr/libSocketMgr.a ../lib/strUtil/libStrUtil.a \
 	../lib/string/libString.a ../lib/sync/libSync.a \
 	../lib/syncDriver/libSyncDriver.a ../lib/system/libSystem.a \
@@ -270,16 +276,16 @@ vmware_user_LDADD = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/vmSignal/libVmSignal.a ../lib/wiper/libWiper.a \
 	../lib/err/libErr.a ../lib/foundryMsg/libFoundryMsg.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
-	../lib/hgfs/libHgfs.a ../lib/message/libMessage.a \
-	../lib/unicode/libUnicode.a ../lib/misc/libMisc.a \
-	../lib/procMgr/libProcMgr.a ../lib/auth/libAuth.a \
-	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
-	-lcrypt @GTK_LIBS@ @VMWARE_USER_LDADD@ @COMMON_XLIBS@ \
-	@ICU_LIBS@ $(am__empty)
+	../lib/dynxdr/libDynxdr.a ../lib/hgfs/libHgfs.a \
+	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
+	../lib/misc/libMisc.a ../lib/procMgr/libProcMgr.a \
+	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
+	../lib/panic/libPanic.a ../lib/stubs/libStubs.a -lcrypt \
+	@GTK_LIBS@ @VMWARE_USER_LDADD@ @COMMON_XLIBS@ @ICU_LIBS@ \
+	$(am__empty)
 vmware_user_SOURCES = copyPaste.c debugStdio.c dnd.c \
 	foreignVMToolsDaemon.c foreignVMToolsNetworking.c \
-	foundryToolsDaemon.c libvmwarectrl.c pointer.c resolution.c \
-	stub.c vmware-user.c
+	foundryToolsDaemon.c pointer.c vmware-user.c
 all: all-am
 
 .SUFFIXES:
@@ -357,10 +363,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foreignVMToolsDaemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foreignVMToolsNetworking.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foundryToolsDaemon.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libvmwarectrl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pointer.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resolution.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vmware-user.Po@am__quote@
 
 .c.o:

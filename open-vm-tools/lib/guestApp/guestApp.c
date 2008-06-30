@@ -708,58 +708,6 @@ GuestApp_GetPtrGrabCap(const char *channel) // IN
 /*
  *----------------------------------------------------------------------
  *
- * GuestApp_SetVersion --
- *
- *      Set the tools version through the backdoor.
- *
- * Results:
- *      TRUE if the rpci send succeeded
- *      FALSE if it failed
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_SetVersion(void)
-{
-   Debug("Setting tools version to '%u'\n", TOOLS_VERSION_CURRENT);
-
-   return RpcOut_sendOne(NULL, NULL, "tools.set.version %u",
-                         TOOLS_VERSION_CURRENT);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_GetCurrentVersion --
- *
- *      Get the current version of this guest app. This wrapper
- *      method is provided so that it can be exported in a COM, etc.
- *      wrapper.
- *
- * Results:
- *      The version.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-uint32
-GuestApp_GetCurrentVersion(void)
-{
-   return TOOLS_VERSION_CURRENT;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * GuestApp_LoadDict --
  *
  *      Load the dict file into memory. Assumes the
@@ -1268,9 +1216,87 @@ GuestApp_GetCmdOutput(const char *cmd) // IN
  */
 
 Bool
-GuestApp_IsHgfsCapable()
+GuestApp_IsHgfsCapable(void)
 {
    return RpcOut_sendOne(NULL, NULL, HGFS_SYNC_REQREP_CLIENT_CMD);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_IsDiskShrinkCapable --
+ *
+ *      Is the host capable of doing disk shrinks?
+ *
+ * Results:
+ *      TRUE if the host is capable of disk shrink operations
+ *      FALSE if the host is not capable of disk shrink operations
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+GuestApp_IsDiskShrinkCapable(void)
+{
+   return RpcOut_sendOne(NULL, NULL, "disk.wiper.enable");
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_IsDiskShrinkEnabled --
+ *
+ *      Is disk shrinking enabled
+ *
+ * Results:
+ *      TRUE if disk shrinking is enabled
+ *      FALSE if disk shrinking is not enabled
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+GuestApp_IsDiskShrinkEnabled(void) {
+   char *result;
+   size_t resultLen;
+   Bool enabled = FALSE;
+   if (RpcOut_sendOne(&result, &resultLen, "disk.wiper.enable")) {
+      if (resultLen == 1 && strcmp(result, "1") == 0) {
+         enabled = TRUE;
+      } else {
+         enabled = FALSE;
+      }
+   }
+   free(result);
+   return enabled;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_DiskShrink --
+ *
+ *      Shrink disk
+ *
+ * Results:
+ *      TRUE if the shrinking is successful
+ *      FALSE if disk shrinking is not successful
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+GuestApp_DiskShrink(void) {
+   return RpcOut_sendOne(NULL, NULL, "disk.shrink");
 }
 
 

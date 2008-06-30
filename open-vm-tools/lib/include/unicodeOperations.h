@@ -277,7 +277,9 @@ Unicode_CompareIgnoreCase(ConstUnicode str1, // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * UnicodeEndsWith --
  * Unicode_EndsWith --
+ * Unicode_EndsWithIgnoreCase --
  *
  *      Tests if 'str' ends with 'suffix'.
  *
@@ -291,10 +293,10 @@ Unicode_CompareIgnoreCase(ConstUnicode str1, // IN
  */
 
 static INLINE Bool
-Unicode_EndsWith(ConstUnicode str,    // IN
-                 ConstUnicode suffix) // IN
+UnicodeEndsWith(ConstUnicode str,    // IN
+                ConstUnicode suffix, // IN
+                Bool ignoreCase)     // IN
 {
-#ifdef SUPPORT_UNICODE_OPAQUE
    UnicodeIndex strLength = Unicode_LengthInCodeUnits(str);
    UnicodeIndex suffixLength = Unicode_LengthInCodeUnits(suffix);
    UnicodeIndex offset = strLength - suffixLength;
@@ -312,16 +314,23 @@ Unicode_EndsWith(ConstUnicode str,    // IN
                                suffix,
                                0,
                                suffixLength,
-                               FALSE) == 0;
-#else
-   size_t strLength = strlen(str);
-   size_t suffixLength = strlen(suffix);
+                               ignoreCase) == 0;
+}
 
-   if (suffixLength > strLength) {
-      return FALSE;
-   }
-   return strcmp(str + strLength - suffixLength, suffix) == 0;
-#endif
+
+static INLINE Bool
+Unicode_EndsWith(ConstUnicode str,    // IN
+                 ConstUnicode suffix) // IN
+{
+   return UnicodeEndsWith(str, suffix, FALSE);
+}
+
+
+static INLINE Bool
+Unicode_EndsWithIgnoreCase(ConstUnicode str,    // IN
+                           ConstUnicode suffix) // IN
+{
+   return UnicodeEndsWith(str, suffix, TRUE);
 }
 
 
@@ -686,7 +695,9 @@ Unicode_Replace(ConstUnicode destination,
 /*
  *-----------------------------------------------------------------------------
  *
+ * UnicodeStartsWith --
  * Unicode_StartsWith --
+ * Unicode_StartsWithIgnoreCase --
  *
  *      Tests if 'str' starts with 'prefix'.
  *
@@ -700,10 +711,10 @@ Unicode_Replace(ConstUnicode destination,
  */
 
 static INLINE Bool
-Unicode_StartsWith(ConstUnicode str,    // IN
-                   ConstUnicode prefix) // IN
+UnicodeStartsWith(ConstUnicode str,    // IN
+                  ConstUnicode prefix, // IN
+                  Bool ignoreCase)     // IN
 {
-#ifdef SUPPORT_UNICODE_OPAQUE
    UnicodeIndex strLength = Unicode_LengthInCodeUnits(str);
    UnicodeIndex prefixLength = Unicode_LengthInCodeUnits(prefix);
 
@@ -720,10 +731,23 @@ Unicode_StartsWith(ConstUnicode str,    // IN
                                prefix,
                                0,
                                prefixLength,
-                               FALSE) == 0;
-#else
-   return strncmp(str, prefix, strlen(prefix)) == 0;
-#endif
+                               ignoreCase) == 0;
+}
+
+
+static INLINE Bool
+Unicode_StartsWith(ConstUnicode str,    // IN
+                   ConstUnicode prefix) // IN
+{
+   return UnicodeStartsWith(str, prefix, FALSE);
+}
+
+
+static INLINE Bool
+Unicode_StartsWithIgnoreCase(ConstUnicode str,    // IN
+                             ConstUnicode prefix) // IN
+{
+   return UnicodeStartsWith(str, prefix, TRUE);
 }
 
 

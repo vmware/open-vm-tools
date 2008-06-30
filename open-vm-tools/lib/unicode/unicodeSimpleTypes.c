@@ -41,14 +41,15 @@ static char *UnicodeNormalizeEncodingName(const char *encoding);
  *
  * See: http://www.iana.org/assignments/character-sets
  *      http://msdn2.microsoft.com/en-us/library/ms776446(VS.85).aspx
+ *      http://demo.icu-project.org/icu-bin/convexp
  *
  * If you add new StringEncodings to this table, you must keep the
  * StringEncoding enum in lib/public/unicodeTypes.h in sync!
  */
 
-#define MAXCHARSETNAMES 12
-#define MIBUNDEF -1
-#define WINUNDEF -1
+#define MAXCHARSETNAMES 20
+#define MIBUNDEF (-1)
+#define WINUNDEF (-1)
 #define SUPPORTED TRUE
 #define UNSUPPORTED FALSE
 
@@ -66,49 +67,54 @@ static struct xRef {
    { 3, 20127, STRING_ENCODING_US_ASCII, SUPPORTED, 4,
       { "ANSI_X3.4-1968", "iso-ir-6", "ANSI_X3.4-1986", "ISO_646.irv:1991",
         "ASCII", "ISO646-US", "US-ASCII", "us", "IBM367", "cp367", "csASCII",
-         NULL }
+        "646", "ascii7", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 4, 28591, STRING_ENCODING_ISO_8859_1, SUPPORTED, 3,
       { "ISO_8859-1:1987", "iso-ir-100", "ISO_8859-1", "ISO-8859-1", "latin1",
-        "l1", "IBM819", "CP819", "csISOLatin1", NULL }
+        "l1", "IBM819", "CP819", "csISOLatin1", "8859_1", "819", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 5, 28592, STRING_ENCODING_ISO_8859_2, SUPPORTED, 3,
       { "ISO_8859-2:1987", "iso-ir-101", "ISO_8859-2", "ISO-8859-2", "latin2",
-        "l2", "csISOLatin2", NULL }
+        "l2", "csISOLatin2", "ibm-912_P100-1995", "ibm-912", "8859_2", "cp912",
+        "912", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 6, 28593, STRING_ENCODING_ISO_8859_3, SUPPORTED, 3,
       { "ISO_8859-3:1988", "iso-ir-109", "ISO_8859-3", "ISO-8859-3", "latin3",
-        "l3", "csISOLatin3", NULL }
+        "l3", "csISOLatin3", "ibm-913_P100-2000", "ibm-913", "8859_3", "cp913",
+        "913", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 7, 28594, STRING_ENCODING_ISO_8859_4, SUPPORTED, 3,
       { "ISO_8859-4:1988", "iso-ir-110", "ISO_8859-4", "ISO-8859-4", "latin4",
-        "l4", "csISOLatin4", NULL }
+        "l4", "csISOLatin4", "ibm-914_P100-1995", "ibm-914", "8859_4", "cp914",
+        "914", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 8, 28595, STRING_ENCODING_ISO_8859_5, SUPPORTED, 3,
       { "ISO_8859-5:1988", "iso-ir-144", "ISO_8859-5", "ISO-8859-5", "cyrillic",
-        "csISOLatinCyrillic", NULL }
+        "csISOLatinCyrillic", "ibm-915_P100-1995", "ibm-915", "8859_5", "cp915",
+        "915", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 9, 28596, STRING_ENCODING_ISO_8859_6, SUPPORTED, 3,
       { "ISO_8859-6:1987", "iso-ir-127", "ISO_8859-6", "ISO-8859-6", "ECMA-114",
-        "ASMO-708", "arabic", "csISOLatinArabic", NULL }
+        "ASMO-708", "arabic", "csISOLatinArabic", "ibm-1089_P100-1995",
+        "ibm-1089", "8859_6", "cp1089", "1089", NULL }
    },
    /*
     * Source: Windows duplicate of ISO-8859-6
@@ -121,21 +127,23 @@ static struct xRef {
     */
    { 10, 28597, STRING_ENCODING_ISO_8859_7, SUPPORTED, 3,
       { "ISO_8859-7:1987", "iso-ir-126", "ISO_8859-7", "ISO-8859-7", "ELOT_928",
-        "ECMA-118", "greek", "greek8", "csISOLatinGreek", NULL }
+        "ECMA-118", "greek", "greek8", "csISOLatinGreek", "ibm-9005_X110-2007",
+        "ibm-9005", "sun_eu_greek", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 11, 28598, STRING_ENCODING_ISO_8859_8, SUPPORTED, 3,
       { "ISO_8859-8:1988", "iso-ir-138", "ISO_8859-8", "ISO-8859-8", "hebrew",
-        "csISOLatinHebrew", NULL }
+        "csISOLatinHebrew", "ibm-5012_P100-1999", "ibm-5012", "8859_8", NULL }
    },
    /*
     * Source: ECMA registry
     */
    { 12, 28599, STRING_ENCODING_ISO_8859_9, SUPPORTED, 3,
       { "ISO_8859-9:1989", "iso-ir-148", "ISO_8859-9", "ISO-8859-9", "latin5",
-        "l5", "csISOLatin5", NULL }
+        "l5", "csISOLatin5", "ibm-920_P100-1995", "ibm-920", "8859_9", "cp920",
+        "920", "ECMA-128", NULL }
    },
    /*
     * Source: ECMA registry
@@ -174,7 +182,9 @@ static struct xRef {
     *         This charset can be used for the top-level media type "text".
     */
    { 17, 932, STRING_ENCODING_SHIFT_JIS, SUPPORTED, 0,
-      { "Shift_JIS", "MS_Kanji", "csShiftJIS", NULL }
+      { "Shift_JIS", "MS_Kanji", "csShiftJIS", "ibm-943_P15A-2003", "ibm-943",
+        "x-sjis", "x-ms-cp932", "cp932", "cp943c", "IBM-943C", "ms932", "pck",
+        "sjis", "ibm-943_VSUB_VPUA", NULL }
    },
    /*
     * Source: Standardized by OSF, UNIX International, and UNIX Systems
@@ -323,7 +333,8 @@ static struct xRef {
     */
    { 36, 949, STRING_ENCODING_KS_C_5601_1987, SUPPORTED, 0,
       { "KS_C_5601-1987", "iso-ir-149", "KS_C_5601-1989", "KSC_5601", "korean",
-        "csKSC56011987", NULL }
+        "csKSC56011987", "ibm-1363_P11B-1998", "ibm-1363", "cp1363", "5601",
+        "ksc", "ibm-1363_VSUB_VPUA", NULL }
    },
    /*
     * Source: RFC-1557 (see also KS_C_5601-1987)
@@ -756,14 +767,16 @@ static struct xRef {
     * Source: RFC 3629
     */
    { 106, 65001, STRING_ENCODING_UTF8, SUPPORTED, 0,
-      { "UTF-8", NULL }
+      { "UTF-8", "ibm-1208", "ibm-1209", "ibm-5304", "ibm-5305", "ibm-13496",
+        "ibm-13497", "ibm-17592", "ibm-17593", "cp1208", NULL }
    },
    /*
     * Source: ISO See 
     *     (http://www.iana.org/assignments/charset-reg/ISO-8859-13)[Tumasonis] 
     */
    { 109, 28603, STRING_ENCODING_ISO_8859_13, SUPPORTED, 0,
-      { "ISO-8859-13", NULL }
+      { "ISO-8859-13", "ibm-921_P100-1995", "ibm-921", "8859_13", "cp921",
+        "921", NULL }
    },
    /*
     * Source: ISO See
@@ -778,7 +791,9 @@ static struct xRef {
     *     Please see: <http://www.iana.org/assignments/charset-reg/ISO-8859-15>
     */
    { 111, 28605, STRING_ENCODING_ISO_8859_15, SUPPORTED, 0,
-      { "ISO-8859-15", "ISO_8859-15", "Latin-9", NULL }
+      { "ISO-8859-15", "ISO_8859-15", "Latin-9", "ibm-923_P100-1998", "ibm-923",
+        "l9", "8859_15", "latin0", "csisolatin0", "csisolatin9", "cp923", "923",
+        "iso8859_15_fdis", NULL }
    },
    /*
     * Windows duplicate of ISO-8859-15
@@ -799,7 +814,7 @@ static struct xRef {
     *         Please see: <http://www.iana.org/assignments/charset-reg/GBK>
     */
    { 113, 936, STRING_ENCODING_GBK, SUPPORTED, 0,
-      { "GBK", "CP936", "MS936", "windows-936", NULL }
+      { "GBK", "CP936", "MS936", "windows-936", "windows-936-2000", NULL }
    },
    /*
     * Source: Chinese IT Standardization Technical Committee
@@ -852,14 +867,15 @@ static struct xRef {
     *         does not specify (it is a 16-bit integer space)
     */
    { 1000, WINUNDEF, STRING_ENCODING_ISO_10646_UCS_2, SUPPORTED, 0,
-      { "ISO-10646-UCS-2", "csUnicode", NULL }
+      { "ISO-10646-UCS-2", "csUnicode", "ibm-1204", "ibm-1205", "unicode",
+        "ucs-2", NULL }
    },
    /*
     * Source: the full code space. (same comment about byte order,
     *         these are 31-bit numbers.
     */
    { 1001, WINUNDEF, STRING_ENCODING_ISO_10646_UCS_4, SUPPORTED, 0,
-      { "ISO-10646-UCS-4", "csUCS4", NULL }
+      { "ISO-10646-UCS-4", "csUCS4", "ibm-1236", "ibm-1237", "ucs-4", NULL }
    },
    /*
     * Source: ASCII subset of Unicode.  Basic Latin = collection 1
@@ -935,53 +951,56 @@ static struct xRef {
     * Source: RFC 2781
     */
    { 1013, 1201, STRING_ENCODING_UTF16_BE, SUPPORTED, 0,
-      { "UTF-16BE", NULL }
+      { "UTF-16BE", "x-utf-16be", "ibm-1200", "ibm-1201", "ibm-13488",
+        "ibm-13489", "ibm-17584", "ibm-17585", "ibm-21680", "ibm-21681",
+        "ibm-25776", "ibm-25777", "ibm-29872", "ibm-29873", "ibm-61955",
+        "ibm-61956", "cp1200", "cp1201", "UTF16_BigEndian", NULL }
    },
    /*
     * Source: RFC 2781
-    */
-   { 1015, 1200, STRING_ENCODING_UTF16, SUPPORTED, 0,
-      { "UTF-16", NULL }
-   },
-   /*
-    * Source: RFC 2781
-    *
-    * UTF-16LE is after UTF16 so windows code page 1200 matches UTF16 first
     */
    { 1014, 1200, STRING_ENCODING_UTF16_LE, SUPPORTED, 0,
-      { "UTF-16LE", NULL }
+      { "UTF-16LE", "x-utf-16le", "ibm-1202", "ibm-1203", "ibm-13490",
+        "ibm-13491", "ibm-17586", "ibm-17587", "ibm-21682", "ibm-21683",
+        "ibm-25778", "ibm-25779", "ibm-29874", "ibm-29875",
+        "UTF16_LittleEndian", NULL }
+   },
+   /*
+    * Source: RFC 2781
+    */
+   { 1015, WINUNDEF, STRING_ENCODING_UTF16_XE, SUPPORTED, 0,
+      { "UTF-16", NULL }
    },
    /*
     * Source: <http://www.unicode.org/unicode/reports/tr26>
     */
    { 1016, WINUNDEF, STRING_ENCODING_CESU_8, SUPPORTED, 0,
-      { "CESU-8", "csCESU-8", NULL }
+      { "CESU-8", "csCESU-8", "ibm-9400", NULL }
    },
    /*
     * Source: <http://www.unicode.org/unicode/reports/tr19/>
     */
-   { 1017, 12000, STRING_ENCODING_UTF32, SUPPORTED, 0,
+   { 1017, WINUNDEF, STRING_ENCODING_UTF32_XE, SUPPORTED, 0,
       { "UTF-32", NULL }
    },
    /*
     * Source: <http://www.unicode.org/unicode/reports/tr19/>
     */
    { 1018, 12001, STRING_ENCODING_UTF32_BE, SUPPORTED, 0,
-      { "UTF-32BE", NULL }
+      { "UTF-32BE", "UTF32_BigEndian", "ibm-1232", "ibm-1233", "ibm-9424",
+         NULL }
    },
    /*
     * Source: <http://www.unicode.org/unicode/reports/tr19/>
-    *
-    * Windows code page 12000 matches UTF-32 above first 
     */
    { 1019, 12000, STRING_ENCODING_UTF32_LE, SUPPORTED, 0,
-      { "UTF-32LE", NULL }
+      { "UTF-32LE", "UTF32_LittleEndian", "ibm-1234", "ibm-1235", NULL }
    },
    /*
     * Source: http://www.unicode.org/notes/tn6/
     */
    { 1020, WINUNDEF, STRING_ENCODING_BOCU_1, SUPPORTED, 0,
-      { "BOCU-1", "csBOCU-1", NULL }
+      { "BOCU-1", "csBOCU-1", "ibm-1214", "ibm-1215", NULL }
    },
    /*
     * Source: Extended ISO 8859-1 Latin-1 for Windows 3.0.  
@@ -1090,7 +1109,7 @@ static struct xRef {
    /*
     * Source: Presentation Set, CPGID: 838
     */
-   { 2016, WINUNDEF, STRING_ENCODING_IBM_THAI, UNSUPPORTED, 0,
+   { 2016, 20838, STRING_ENCODING_IBM_THAI, UNSUPPORTED, 0,
       { "IBM-Thai", "csIBMThai", NULL }
    },
    /*
@@ -1177,7 +1196,7 @@ static struct xRef {
     *         PCL Symbol Set Id: 18T
     */
    { 2026, 950, STRING_ENCODING_BIG_5, SUPPORTED, 0,
-      { "Big5", "csBig5", NULL }
+      { "Big5", "csBig5", "windows-950", "x-big5", NULL }
    },
    /*
     * Source: The Unicode Standard ver1.0, ISBN 0-201-56788-1, Oct 1991
@@ -1543,7 +1562,7 @@ static struct xRef {
     * Source: RFC 1842, RFC 1843 [RFC1842, RFC1843]
     */
    { 2085, 52936, STRING_ENCODING_HZ_GB_2312, SUPPORTED, 0,
-      { "HZ-GB-2312", NULL }
+      { "HZ-GB-2312", "HZ", NULL }
    },
    /*
     * Source: IBM NLDG Volume 2 (SE09-8002-03) August 1994
@@ -1702,70 +1721,71 @@ static struct xRef {
     *  (http://www.iana.org/assignments/charset-reg/windows-1250) [Lazhintseva]
     */
    { 2250, 1250, STRING_ENCODING_WINDOWS_1250, SUPPORTED, 0,
-      { "windows-1250", NULL }
+      { "windows-1250", "ibm-5346_P100-1998", "ibm-5346", "cp1250", NULL }
    },
    /*
     * Source: Microsoft
     *  (http://www.iana.org/assignments/charset-reg/windows-1251) [Lazhintseva]
     */
    { 2251, 1251, STRING_ENCODING_WINDOWS_1251, SUPPORTED, 0,
-      { "windows-1251", NULL }
+      { "windows-1251", "ibm-5347_P100-1998", "ibm-5347", "cp1251", "ANSI1251",
+         NULL }
    },
    /*
     * Source: Microsoft 
     *  (http://www.iana.org/assignments/charset-reg/windows-1252) [Wendt]
     */
    { 2252, 1252, STRING_ENCODING_WINDOWS_1252, SUPPORTED, 0,
-      { "windows-1252", NULL }
+      { "windows-1252", "ibm-5348_P100-1997", "ibm-5348", "cp1252", NULL }
    },
    /*
     * Source: Microsoft 
     *  (http://www.iana.org/assignments/charset-reg/windows-1253) [Lazhintseva]
     */
    { 2253, 1253, STRING_ENCODING_WINDOWS_1253, SUPPORTED, 0,
-      { "windows-1253", NULL }
+      { "windows-1253", "ibm-5349_P100-1998", "ibm-5349", "cp1253", NULL }
    },
    /*
     * Source: Microsoft
     *  (http://www.iana.org/assignments/charset-reg/windows-1254) [Lazhintseva]
     */
    { 2254, 1254, STRING_ENCODING_WINDOWS_1254, SUPPORTED, 0,
-      { "windows-1254", NULL }
+      { "windows-1254", "ibm-5350_P100-1998", "ibm-5350", "cp1254", NULL }
    },
    /*
     * Source: Microsoft 
     *  (http://www.iana.org/assignments/charset-reg/windows-1255) [Lazhintseva]
     */
    { 2255, 1255, STRING_ENCODING_WINDOWS_1255, SUPPORTED, 0,
-      { "windows-1255", NULL }
+      { "windows-1255", "ibm-9447_P100-2002", "ibm-9447", "cp1255", NULL }
    },
    /*
     * Source: Microsoft
     *  (http://www.iana.org/assignments/charset-reg/windows-1256) [Lazhintseva]
     */
    { 2256, 1256, STRING_ENCODING_WINDOWS_1256, SUPPORTED, 0,
-      { "windows-1256", NULL }
+      { "windows-1256", "ibm-9448_X100-2005", "ibm-9448", "cp1256", NULL }
    },
    /*
     * Source: Microsoft 
     *  (http://www.iana.org/assignments/charset-reg/windows-1257) [Lazhintseva]
     */
    { 2257, 1257, STRING_ENCODING_WINDOWS_1257, SUPPORTED, 0,
-      { "windows-1257", NULL }
+      { "windows-1257", "ibm-9449_P100-2002", "ibm-9449", "cp1257", NULL }
    },
    /*
     * Source: Microsoft
     *  (http://www.iana.org/assignments/charset-reg/windows-1258) [Lazhintseva]
     */
    { 2258, 1258, STRING_ENCODING_WINDOWS_1258, SUPPORTED, 0,
-      { "windows-1258", NULL }
+      { "windows-1258", "ibm-5354_P100-1998", "ibm-5354", "cp1258", NULL }
    },
    /*
     * Source: Thai Industrial Standards Institute (TISI)
     *    [Tantsetthi]
     */
    { 2259, WINUNDEF, STRING_ENCODING_TIS_620, SUPPORTED, 0,
-      { "TIS-620", NULL }
+      { "TIS-620", "windows-874-2000", "MS874", NULL }
    },
    /*
     * Windows specific entries for which there is no corresponding IANA mapping
@@ -1794,12 +1814,6 @@ static struct xRef {
     */
    { MIBUNDEF, 737, STRING_ENCODING_WINDOWS_737, UNSUPPORTED, 0,
       { "Windows-737", "IBM737", NULL }
-   },
-   /*
-    * ibm775: OEM Baltic; Baltic (DOS)
-    */
-   { MIBUNDEF, 775, STRING_ENCODING_WINDOWS_775, UNSUPPORTED, 0,
-      { "Windows-775", "IBM775", NULL }
    },
    /*
     * cp875: IBM EBCDIC Greek Modern
@@ -1987,12 +2001,6 @@ static struct xRef {
       { "Windows-20833", "x-EBCDIC-KoreanExtended", NULL }
    },
    /*
-    * IBM-Thai: IBM EBCDIC Thai
-    */
-   { MIBUNDEF, 20838, STRING_ENCODING_WINDOWS_20838, UNSUPPORTED, 0,
-      { "Windows-20838", "IBM-Thai", NULL }
-   },
-   /*
     * x-cp20949: Korean Wansung
     */
    { MIBUNDEF, 20949, STRING_ENCODING_WINDOWS_20949, UNSUPPORTED, 0,
@@ -2100,25 +2108,25 @@ static struct xRef {
     * x-iscii-de: ISCII Devanagari
     */
    { MIBUNDEF, 57002, STRING_ENCODING_WINDOWS_57002, SUPPORTED, 0,
-      { "Windows-57002", "x-iscii-de", NULL }
+      { "Windows-57002", "x-iscii-de", "iscii-dev", "ibm-4902", NULL }
    },
    /*
     * x-iscii-be: ISCII Bengali
     */
    { MIBUNDEF, 57003, STRING_ENCODING_WINDOWS_57003, SUPPORTED, 0,
-      { "Windows-57003", "x-iscii-be", NULL }
+      { "Windows-57003", "x-iscii-be", "iscii-bng", NULL }
    },
    /*
     * x-iscii-ta: ISCII Tamil
     */
    { MIBUNDEF, 57004, STRING_ENCODING_WINDOWS_57004, SUPPORTED, 0,
-      { "Windows-57004", "x-iscii-ta", NULL }
+      { "Windows-57004", "x-iscii-ta", "iscii-tml", NULL }
    },
    /*
     * x-iscii-te: ISCII Telugu
     */
    { MIBUNDEF, 57005, STRING_ENCODING_WINDOWS_57005, SUPPORTED, 0,
-      { "Windows-57005", "x-iscii-te", NULL }
+      { "Windows-57005", "x-iscii-te", "iscii-tlg", NULL }
    },
    /*
     * x-iscii-as: ISCII Assamese
@@ -2130,31 +2138,31 @@ static struct xRef {
     * x-iscii-or: ISCII Oriya
     */
    { MIBUNDEF, 57007, STRING_ENCODING_WINDOWS_57007, SUPPORTED, 0,
-      { "Windows-57007", "x-iscii-or", NULL }
+      { "Windows-57007", "x-iscii-or", "iscii-ori", NULL }
    },
    /*
     * x-iscii-ka: ISCII Kannada
     */
    { MIBUNDEF, 57008, STRING_ENCODING_WINDOWS_57008, SUPPORTED, 0,
-      { "Windows-57008", "x-iscii-ka", NULL }
+      { "Windows-57008", "x-iscii-ka", "iscii-knd", NULL }
    },
    /*
     * x-iscii-ma: ISCII Malayalam
     */
    { MIBUNDEF, 57009, STRING_ENCODING_WINDOWS_57009, SUPPORTED, 0,
-      { "Windows-57009", "x-iscii-ma", NULL }
+      { "Windows-57009", "x-iscii-ma", "iscii-mlm", NULL }
    },
    /*
     * x-iscii-gu: ISCII Gujarati
     */
    { MIBUNDEF, 57010, STRING_ENCODING_WINDOWS_57010, SUPPORTED, 0,
-      { "Windows-57010", "x-iscii-gu", NULL }
+      { "Windows-57010", "x-iscii-gu", "x-iscii-guj", NULL }
    },
    /*
     * x-iscii-pa: ISCII Punjabi
     */
    { MIBUNDEF, 57011, STRING_ENCODING_WINDOWS_57011, SUPPORTED, 0,
-      { "Windows-57011", "x-iscii-pa", NULL }
+      { "Windows-57011", "x-iscii-pa", "iscii-gur", NULL }
    },
 };
 

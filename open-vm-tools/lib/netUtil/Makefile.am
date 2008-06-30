@@ -19,3 +19,5 @@ noinst_LIBRARIES = libNetUtil.a
 
 libNetUtil_a_SOURCES =
 libNetUtil_a_SOURCES += netUtilLinux.c
+AM_CFLAGS = -I$(top_builddir)/include
+

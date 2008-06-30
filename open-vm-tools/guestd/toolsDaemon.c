@@ -708,12 +708,7 @@ ToolsDaemonResetSent(void *clientData) // IN
  */
 
 static Bool
-ToolsDaemonTcloReset(char const **result,     // OUT
-                     size_t *resultLen,       // OUT
-                     const char *name,        // IN
-                     const char *args,        // IN
-                     size_t argsSize,         // Ignored
-                     void *clientData)        // Ignored
+ToolsDaemonTcloReset(RpcInData *data)  // IN/OUT
 {
    /*
     * Mandatory reset RPC
@@ -727,10 +722,9 @@ ToolsDaemonTcloReset(char const **result,     // OUT
     * reinitialize the channel if appropriate. [greg]
     */
    EventManager_Add(ToolsDaemonEventQueue, (int) (RPCIN_POLL_TIME * 1.5),
-                    ToolsDaemonResetSent, clientData);
+                    ToolsDaemonResetSent, data->clientData);
 
-   return RpcIn_SetRetVals(result, resultLen, "ATR " TOOLS_DAEMON_NAME,
-                           TRUE);
+   return RPCIN_SETRETVALS(data, "ATR " TOOLS_DAEMON_NAME, TRUE);
 }
 
 
@@ -930,11 +924,13 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
 #ifdef _WIN32
    unsigned int minResolutionWidth;
    unsigned int minResolutionHeight;
+#endif
    ToolsDaemon_Data *data;
 
    data = (ToolsDaemon_Data *)clientData;
    ASSERT(data);
 
+#ifdef _WIN32
    /*
     * Inform the VMX that we support setting the guest
     * resolution and display topology. Currently, this only
@@ -1045,7 +1041,15 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
    }
 #endif
 
-   if (!GuestApp_SetVersion()) {
+   /*
+    * Send the monolithic Tools version. Using a configuration option, users
+    * can override the Tools version such that the VMX treats the Tools as not
+    * to be managed by the VMware platform.
+    */
+   if (!RpcOut_sendOne(NULL, NULL, "tools.set.version %u",
+                       GuestApp_GetDictEntryBool(*data->pConfDict,
+                                                 CONFNAME_DISABLETOOLSVERSION) ?
+                       TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT)) {
       Debug("Daemon: Error setting tools version during 'Capabilities_Register'"
             "request.\n");
    }

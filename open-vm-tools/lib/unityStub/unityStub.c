@@ -60,7 +60,7 @@ Unity_IsSupported(void)
 }
 
 void
-Unity_SetActiveDnDDetWnd(int detWnd)
+Unity_SetActiveDnDDetWnd(UnityDnD *state)
 {
 }
 

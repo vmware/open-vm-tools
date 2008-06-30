@@ -245,6 +245,11 @@ UTF8(ConstUnicode str)
 }
 
 /*
+ * Compute the number of bytes in a string.
+ */
+ssize_t Unicode_LengthInBytes(const void *buffer, StringEncoding encoding);
+
+/*
  * Gets the number of UTF-16 code units in the NUL-terminated UTF-16 array.
  */
 ssize_t Unicode_UTF16Strlen(const utf16_t *utf16);
@@ -301,7 +306,12 @@ UnicodeIndex Unicode_LengthInCodeUnits(ConstUnicode str);
 static INLINE Bool
 Unicode_IsEmpty(ConstUnicode str)  // IN:
 {
-   return Unicode_LengthInCodeUnits(str) == 0;
+#ifdef SUPPORT_UNICODE_OPAQUE
+   NOT_IMPLEMENTED();
+#else
+   ASSERT(str != NULL);
+   return str[0] == '\0';
+#endif
 }
 
 

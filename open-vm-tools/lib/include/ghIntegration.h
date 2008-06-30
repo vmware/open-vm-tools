@@ -26,9 +26,10 @@
 #define _GH_INTEGRATION_H_
 
 #include "dbllnklst.h"
+#include "rpcin.h"
 
 
-DblLnkLst_Links launchMenu;
+extern DblLnkLst_Links launchMenu;
 
 /*
  * If other libraries want to use dynamic adding/removing of event monitoring
@@ -66,6 +67,7 @@ void GHI_Cleanup(void);
 void GHI_InitBackdoor(struct RpcIn *rpcIn);
 void GHI_RegisterCaps(void);
 void GHI_UnregisterCaps(void);
+void GHI_Gather(void);
 
 #endif
 
