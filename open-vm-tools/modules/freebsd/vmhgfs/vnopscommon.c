@@ -87,6 +87,9 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
    char *srcFullPath = NULL;    // will point to fvp's filename; don't free
    char *dstFullPath = NULL;    // allocated from M_TEMP; free when done.
    int ret = 0;
+   uint32 srcFullPathLen;
+   uint32 dstFullPathLen;
+   uint32 remMsgLen;
 
    /* No cross-device renaming. */
    if (HGFS_VP_TO_MP(fvp) != HGFS_VP_TO_MP(tdvp)) {
@@ -95,6 +98,7 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
 
    /* Make the full path of the source. */
    srcFullPath = HGFS_VP_TO_FILENAME(fvp);
+   srcFullPathLen = HGFS_VP_TO_FILENAME_LENGTH(fvp);
 
    /* Make the full path of the destination. */
    dstFullPath = os_malloc(MAXPATHLEN, M_WAITOK);
@@ -109,10 +113,11 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
       ret = ENAMETOOLONG;
       goto out;
    }
+   dstFullPathLen = ret;
 
    /* Ensure both names will fit in one request. */
-   if ((sizeof *request + strlen(srcFullPath) + strlen(dstFullPath))
-       > HGFS_PACKET_MAX) {
+   if ((sizeof *request + srcFullPathLen + dstFullPathLen) > 
+        HGFS_PACKET_MAX) {
       DEBUG(VM_DEBUG_FAIL, "names too big for one request.\n");
       ret = EPROTO;
       goto out;
@@ -130,16 +135,19 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
    request = (HgfsRequestRename *)HgfsKReq_GetPayload(req);
    HGFS_INIT_REQUEST_HDR(request, req, HGFS_OP_RENAME);
 
-   /* Convert the source to cross platform and unescape its buffer. */
-   ret = CPName_ConvertTo(srcFullPath, MAXPATHLEN, request->oldName.name);
+   remMsgLen = HGFS_PACKET_MAX - (sizeof *request - 2);
+
+   /*
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   ret = HgfsNameToWireEncoding(srcFullPath, srcFullPathLen + 1,
+                                request->oldName.name, remMsgLen);
    if (ret < 0) {
-      DEBUG(VM_DEBUG_FAIL,
-            "HgfsRename: couldn't convert source to cross platform name.\n");
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL, "Couldn't encode to wire format\n");
       goto destroyOut;
    }
-
-   ret = HgfsUnescapeBuffer(request->oldName.name, ret);
    request->oldName.length = ret;
 
    /*
@@ -150,16 +158,14 @@ HgfsRenameInt(struct vnode *fvp,          // IN: "from" file
                                sizeof request->oldName +
                                request->oldName.length);
 
-   /* Convert the destination to cross platform and unescape its buffer. */
-   ret = CPName_ConvertTo(dstFullPath, MAXPATHLEN, newNameP->name);
+   remMsgLen -=  request->oldName.length;
+
+   ret = HgfsNameToWireEncoding(dstFullPath, dstFullPathLen + 1,
+                                newNameP->name, remMsgLen);
    if (ret < 0) {
-      DEBUG(VM_DEBUG_FAIL,
-            "HgfsRename: couldn't convert destination to cross platform name.\n");
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL, "Couldn't encode to wire format.\n");
       goto destroyOut;
    }
-
-   ret = HgfsUnescapeBuffer(newNameP->name, ret);
    newNameP->length = ret;
 
    /* The request's size includes the request and both filenames. */
@@ -318,17 +324,18 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
          }
          break;
       }
-
-      /*
-       * We now have the directory entry, so we sanitize the name and try to
-       * put it in our buffer.
+      /* 
+       * Convert an input string to utf8 decomposed form and then escape its
+       * buffer.
        */
-      DEBUG(VM_DEBUG_COMM, "received filename \"%s\"\n", nameBuf);
-
-      ret = HgfsEscapeBuffer(nameBuf, strlen(nameBuf), sizeof dirp->d_name, dirp->d_name);
-      /* If the escaped name didn't fit in the buffer, skip to the next entry. */
+      ret = HgfsNameFromWireEncoding(nameBuf, sizeof nameBuf, dirp->d_name,
+                                     sizeof dirp->d_name);
+      /* 
+       * If the name didn't fit in the buffer or illegal utf8 characters
+       * were encountered, skip to the next entry.
+       */
       if (ret < 0) {
-         DEBUG(VM_DEBUG_FAIL, "HgfsEscapeBuffer failed.\n");
+         DEBUG(VM_DEBUG_FAIL, "HgfsNameFromWireEncoding failed.\n");
          continue;
       }
 
@@ -438,7 +445,6 @@ HgfsGetattrInt(struct vnode *vp,      // IN : vnode of the file
    return ret;
 }
 
-
 /*
  *----------------------------------------------------------------------------
  *
@@ -466,6 +472,8 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    HgfsKReqHandle req;
    HgfsRequestSetattr *request;
    HgfsReplySetattr *reply;
+   char *fullPath = NULL;
+   uint32 fullPathLen;
    int ret;
 
    sip = HGFS_VP_TO_SIP(vp);
@@ -488,15 +496,22 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
       goto destroyOut;
    }
 
-   /* Convert the filename to cross platform and escape its buffer. */
-   ret = CPName_ConvertTo(HGFS_VP_TO_FILENAME(vp), MAXPATHLEN, request->fileName.name);
+   fullPath = HGFS_VP_TO_FILENAME(vp);
+   fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
+   /* 
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   ret = HgfsNameToWireEncoding(fullPath, fullPathLen + 1,
+                                request->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *request - 1));
+
    if (ret < 0) {
-      DEBUG(VM_DEBUG_FAIL, "CPName_ConvertTo failed.\n");
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
       goto destroyOut;
    }
 
-   ret = HgfsUnescapeBuffer(request->fileName.name, ret);
    request->fileName.length = ret;
 
    /* The request's size includes the request and filename. */
@@ -798,6 +813,7 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
                           path,                            // Destination buffer
                           MAXPATHLEN);                     // Size of dest buffer
    if (len < 0) {
+      DEBUG(VM_DEBUG_FAIL, "LookupInt length is less than zero\n");
       ret = EINVAL;
       goto out;
    }
@@ -1192,7 +1208,8 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    HgfsKReqHandle req;
    HgfsRequestCreateDir *request;
    HgfsReplyCreateDir *reply;
-   char *fullname = NULL;       // allocated from M_TEMP; free when done.
+   char *fullName = NULL;       // allocated from M_TEMP; free when done.
+   uint32 fullNameLen;
    int ret;
 
    DEBUG(VM_DEBUG_ENTRY, "dvp=%p (%s), dirname=%s, vpp=%p\n",
@@ -1208,8 +1225,8 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
     */
 
    /* Construct the complete path of the directory to create. */
-   fullname = os_malloc(MAXPATHLEN, M_WAITOK);
-   if (!fullname) {
+   fullName = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!fullName) {
       return ENOMEM;
    }
 
@@ -1217,7 +1234,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
                           HGFS_VP_TO_FILENAME_LENGTH(dvp), // Length of name
                           cnp->cn_nameptr,                 // Name of file to create
                           cnp->cn_namelen,                 // Length of filename
-                          fullname,                        // Buffer to write full name
+                          fullName,                        // Buffer to write full name
                           MAXPATHLEN);                     // Size of this buffer
 
    if (ret < 0) {
@@ -1225,6 +1242,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
       ret = ENAMETOOLONG;
       goto out;
    }
+   fullNameLen = ret;
 
    req = HgfsKReq_AllocateRequest(sip->reqs);
    if (!req) {
@@ -1238,14 +1256,20 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
 
    request->permissions = (mode & S_IRWXU) >> HGFS_ATTR_MODE_SHIFT;
 
-   ret = CPName_ConvertTo(fullname, MAXPATHLEN, request->fileName.name);
+   /*
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   ret = HgfsNameToWireEncoding(fullName, fullNameLen + 1,
+                                request->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *request - 1));
+
    if (ret < 0) {
-      DEBUG(VM_DEBUG_FAIL, "cross-platform name is too long.\n");
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL,"Could not encode to wire format");
       goto destroyOut;
    }
 
-   ret = HgfsUnescapeBuffer(request->fileName.name, ret);
    request->fileName.length = ret;
 
    /* Set the size of this request. */
@@ -1271,7 +1295,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
       goto destroyOut;
    }
 
-   ret = HgfsVnodeGet(vpp, sip, HGFS_VP_TO_MP(dvp), fullname,
+   ret = HgfsVnodeGet(vpp, sip, HGFS_VP_TO_MP(dvp), fullName,
                       HGFS_FILE_TYPE_DIRECTORY, &sip->fileHashTable);
    if (ret) {
       ret = EIO;
@@ -1284,8 +1308,8 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
 destroyOut:
    HgfsKReq_ReleaseRequest(sip->reqs, req);
 out:
-   if (fullname != NULL) {
-      os_free(fullname, MAXPATHLEN);
+   if (fullName != NULL) {
+      os_free(fullName, MAXPATHLEN);
    }
    return ret;
 }
@@ -1317,6 +1341,8 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
    HgfsKReqHandle req;
    HgfsRequestSearchOpen *request;
    HgfsReplySearchOpen *reply;
+   char *fullPath;
+   uint32 fullPathLen;
 
    ASSERT(sip);
    ASSERT(vp);
@@ -1375,18 +1401,28 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
    request = (HgfsRequestSearchOpen *)HgfsKReq_GetPayload(req);
    HGFS_INIT_REQUEST_HDR(request, req, HGFS_OP_SEARCH_OPEN);
 
+   if (HGFS_IS_ROOT_VNODE(sip, vp)) {
+      fullPath = "";
+      fullPathLen = 0;
+   } else {
+      fullPath = HGFS_VP_TO_FILENAME(vp);
+      fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
+   }
+
    /*
-    * Convert name to cross-platform and unescape.  If the vnode is the root of
-    * our filesystem the Hgfs server expects an empty string.
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
     */
-   ret = CPName_ConvertTo((HGFS_IS_ROOT_VNODE(sip, vp)) ? "" : HGFS_VP_TO_FILENAME(vp),
-                          MAXPATHLEN, request->dirName.name);
+   ret = HgfsNameToWireEncoding(fullPath, fullPathLen + 1,
+                                request->dirName.name,
+                                HGFS_PACKET_MAX - (sizeof *request - 1));
+
    if (ret < 0) {
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
       goto destroyOut;
    }
 
-   ret = HgfsUnescapeBuffer(request->dirName.name, ret);        /* cannot fail */
    request->dirName.length = ret;
 
    HgfsKReq_SetPayloadSize(req, request->dirName.length + sizeof *request);
@@ -1466,12 +1502,31 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    HgfsKReqHandle req;
    HgfsRequestOpen *request;
    HgfsReplyOpen *reply;
+   char *fullPath = NULL;
+   uint32 fullPathLen;
    int ret;
 
    ASSERT(sip);
    ASSERT(vp);
 
    DEBUG(VM_DEBUG_ENTRY, "opening \"%s\"\n", HGFS_VP_TO_FILENAME(vp));
+
+   /*
+    * Check if the user is trying to create a new share. This check was
+    * mainly implemented to address the issue with OS X. When the user
+    * attempts to create a file in the root folder, the server returns ENOENT
+    * error code. However, OS X specifically checks for this case. If OS X asks for
+    * the creation of a new file and if it gets ENOENT as a return error code, 
+    * then it assumes that the error was because of some race condition and tries it
+    * again. Thus, returning ENOENT to the OS X puts the guest kernel into infinite
+    * loop. In order to resolve this issue, before passing on the request to the
+    * server, we validate if user is attempting to create a new share. If yes, 
+    * we return EPERM as the error code.
+    */
+   if (HgfsAttemptToCreateShare(HGFS_VP_TO_FILENAME(vp), flag)) {
+      DEBUG (VM_DEBUG_LOG, "An attempt to create a new share was made.\n");
+      return EPERM;
+   }
 
    if (HgfsHandleIsSet(vp)) {
       DEBUG(VM_DEBUG_FAIL, "Trying to share a file handle for an already open !file! handle\n");
@@ -1512,14 +1567,22 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    request->permissions = (permissions & S_IRWXU) >> HGFS_ATTR_MODE_SHIFT;
    DEBUG(VM_DEBUG_COMM, "permissions are %o\n", request->permissions);
 
-   /* Convert the file name to cross platform format. */
-   ret = CPName_ConvertTo(HGFS_VP_TO_FILENAME(vp), MAXPATHLEN, request->fileName.name);
+   fullPath = HGFS_VP_TO_FILENAME(vp);
+   fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
+
+   /*
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   ret = HgfsNameToWireEncoding(fullPath, fullPathLen + 1,
+                                request->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *request - 1));
+
    if (ret < 0) {
-      DEBUG(VM_DEBUG_FAIL, "CPName_ConvertTo failed.\n");
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
       goto destroyOut;
    }
-   ret = HgfsUnescapeBuffer(request->fileName.name, ret);
    request->fileName.length = ret;
 
    /* Packet size includes the request and its payload. */
@@ -1610,6 +1673,7 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    if (!HgfsShouldCloseOpenFileHandle(vp)) {
       ret = HgfsReleaseOpenFileHandle(vp, &closed);
       if (ret || (closed == TRUE)) {
+         DEBUG(VM_DEBUG_FAIL, "Dirclose\n");
 	 return EINVAL;
       }
       return 0;
@@ -1724,6 +1788,7 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
    if (!HgfsShouldCloseOpenFileHandle(vp)) {
       ret = HgfsReleaseOpenFileHandle(vp, &closed);
       if (ret || (closed == TRUE)) {
+         DEBUG(VM_DEBUG_FAIL, " HgfsFileClose: The handle is closed!\n");
 	 return EINVAL;
       }
       return 0;
@@ -2075,14 +2140,20 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
    request = (HgfsRequestDelete *)HgfsKReq_GetPayload(req);
    HGFS_INIT_REQUEST_HDR(request, req, op);
 
-   /* Convert filename to cross platform and unescape. */
-   ret = CPName_ConvertTo(filename, MAXPATHLEN, request->fileName.name);
+   /*
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   ret = HgfsNameToWireEncoding(filename, strlen(filename) + 1,
+                                request->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *request - 1));
+
    if (ret < 0) {
-      ret = ENAMETOOLONG;
+      DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
       goto destroyOut;
    }
 
-   ret = HgfsUnescapeBuffer(request->fileName.name, ret);
    request->fileName.length = ret;
 
    /* Set the size of our request. (XXX should this be - 1 for char[1]?) */
@@ -2369,14 +2440,19 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
       /* Do a Getattr by path. */
       requestV2->hints = 0;
 
-      /* Fill in the filename portion of the request. */
-      result = CPName_ConvertTo(path, MAXPATHLEN, requestV2->fileName.name);
+      /*
+       * Convert an input string to utf8 precomposed form, convert it to
+       * the cross platform name format and finally unescape any illegal
+       * filesystem characters.
+       */
+      result = HgfsNameToWireEncoding(path, strlen(path) + 1,
+                                      requestV2->fileName.name,
+                                      HGFS_PACKET_MAX - (sizeof *requestV2 - 1));
+
       if (result < 0) {
-	 DEBUG(VM_DEBUG_FAIL, "CPName_ConvertTo failed.\n");
-	 result = ENAMETOOLONG;
-	 goto destroyOut;
+         DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
+         goto destroyOut;
       }
-      result = HgfsUnescapeBuffer(requestV2->fileName.name, result);
       requestV2->fileName.length = result;
 
       /* Packet size includes the request and its payload. */
@@ -2479,7 +2555,6 @@ HgfsAccessInt(struct vnode *vp, // IN: Vnode to check access for
    }
 
    DEBUG(VM_DEBUG_INFO, "vp's mode: %o\n", va.va_mode);
-
    /*
     * mode is the desired access from the caller, and is composed of S_IREAD,
     * S_IWRITE, and S_IEXEC from <sys/stat.h>.  Since the mode of the file is

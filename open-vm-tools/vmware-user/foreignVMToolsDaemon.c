@@ -55,7 +55,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#if defined(__FreeBSD__) || defined(sun)
+#if defined(__FreeBSD__) || defined(sun) || defined(__APPLE__)
 #include <unistd.h>
 #else
 #include <linux/unistd.h>

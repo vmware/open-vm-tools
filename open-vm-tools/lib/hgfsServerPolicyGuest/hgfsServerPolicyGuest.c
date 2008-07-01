@@ -129,8 +129,8 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects) // Ignored
 {
    HgfsSharedFolder *rootShare;
 
-   /* 
-    * We do not recognize this callback, so make sure our caller doesn't pass 
+   /*
+    * We do not recognize this callback, so make sure our caller doesn't pass
     * it in.
     */
    ASSERT(!invalidateObjects);
@@ -220,8 +220,8 @@ HgfsServerPolicyGetShare(HgfsServerPolicyState *state, // IN
    ASSERT(state);
    ASSERT(nameIn);
 
-   /* 
-    * First try to find a share that matches the given name exactly. 
+   /*
+    * First try to find a share that matches the given name exactly.
     * This is to handle the case where 2 share names differ in case only.
     */
 
@@ -236,18 +236,18 @@ HgfsServerPolicyGetShare(HgfsServerPolicyState *state, // IN
       }
    }
 
-   /* 
+   /*
     * There was no match. As a fall back try a case insensitive match.
     * This is because some Windows applications uppercase or lowercase the
-    * entire path before sending the request. 
+    * entire path before sending the request.
     */
-   
+
    for (l = state->shares.next; l != &state->shares; l = l->next) {
       HgfsSharedFolder *share;
       char *tempName;
 
       /*
-       * Null terminate the input name before a case insensitive comparison. 
+       * Null terminate the input name before a case insensitive comparison.
        * This is just to protect against bad implementations of strnicmp.
        */
 
@@ -273,7 +273,7 @@ HgfsServerPolicyGetShare(HgfsServerPolicyState *state, // IN
 
       free(tempName);
    }
-   
+
    return NULL;
 }
 
@@ -413,7 +413,7 @@ HgfsServerPolicy_GetSharesCleanup(void *data) // IN: Callback data
  * Results:
  *    An HgfsNameStatus value indicating the result is returned.
  *
- *    The local path for the shareName is also returned if a match is found and 
+ *    The local path for the shareName is also returned if a match is found and
  *    access is permitted.
  *
  * Side effects:
@@ -427,8 +427,7 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
                               size_t nameInLen,          // IN: Length of nameIn
                               HgfsOpenMode mode,         // IN: Requested access mode
                               size_t *sharePathLen,      // OUT: Length of share path
-                              char const **sharePath,    // OUT: Share path
-                              HgfsSharedFolder **share)  // OUT: Share
+                              char const **sharePath)    // OUT: Share path
 {
    HgfsSharedFolder *myShare;
 
@@ -478,9 +477,6 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
 
    *sharePathLen = myShare->pathLen;
    *sharePath = myShare->path;
-   if (share) {
-      *share = myShare;
-   }
    return HGFS_NAME_STATUS_COMPLETE;
 }
 
@@ -491,11 +487,11 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
  * HgfsServerPolicy_GetShareMode --
  *
  *    Get the access mode for a share by looking at the requested
- *    name, finding the matching share (if any), and returning 
+ *    name, finding the matching share (if any), and returning
  *    the share's access mode.
  *
  * Results:
- *    An HgfsNameStatus value indicating the result is returned.    
+ *    An HgfsNameStatus value indicating the result is returned.
  *
  *    The access mode for the shareName is also returned if a match is found.
  *

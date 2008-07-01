@@ -609,7 +609,6 @@ StrUtil_StartsWith(const char *s,      // IN
 }
 
 
-#ifndef N_PLAT_NLM
 /*
  *----------------------------------------------------------------------
  *
@@ -634,7 +633,6 @@ StrUtil_CaselessStartsWith(const char *s,      // IN
    ASSERT(prefix != NULL);
    return Str_Strncasecmp(s, prefix, strlen(prefix)) == 0;
 }
-#endif
 
 
 /*

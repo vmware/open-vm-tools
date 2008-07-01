@@ -194,6 +194,7 @@
    LOGLEVEL_VAR(vmxvmdbCallbacks), \
    LOGLEVEL_VAR(guestInstall), \
    LOGLEVEL_VAR(vmUpsellController), \
+   LOGLEVEL_VAR(objc), /* lib/objc */ \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

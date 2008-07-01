@@ -22,6 +22,24 @@
  *    Library for the guest resolution and topology fit/resize capabilities.
  *    This library handles its own RPC callbacks, and it's intended to more
  *    or less operate independently of the client application.
+ *
+ *    Client applications are expected to do (roughly) the following:
+ *      // Init library.
+ *      Resolution_Init();
+ *
+ *      // Register RpcIn callbacks.
+ *      Resolution_InitBackdoor();
+ *
+ *      // Call this in response to getting a/ capreg message from the host.
+ *      Resolution_RegisterCaps();
+ *
+ *      // Call this when you're finished with the library and wish to reclaim
+ *      // resources.
+ *      Resolution_Cleanup();
+ *
+ *    In response to a TCLO reset or to otherwise (temporarily) disable the
+ *    library, one can also call Resolution_UnregisterCaps().  (This routine
+ *    is also called implicitly by Resolution_Cleanup().)
  */
 
 #ifndef _LIB_RESOLUTION_H_
@@ -61,8 +79,12 @@ typedef void *          InitHandle;
  */
 
 Bool Resolution_Init(const char *tcloChannel, InitHandle handle);
-Bool Resolution_Register(RpcIn *rpcIn);
-Bool Resolution_RegisterCapability(void);
-Bool Resolution_UnregisterCapability(void);
+void Resolution_Cleanup(void);
+
+void Resolution_InitBackdoor(RpcIn *rpcIn);
+void Resolution_CleanupBackdoor(void);
+
+Bool Resolution_RegisterCaps(void);
+Bool Resolution_UnregisterCaps(void);
 
 #endif // ifndef _LIB_RESOLUTION_H_

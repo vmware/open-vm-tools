@@ -70,20 +70,6 @@
 #define CONFNAME_LOGLEVEL                 "log.level" 
 #define CONFNAME_DISABLEQUERYDISKINFO     "disable-query-diskinfo"
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
-/*
- * Without dnd = "true" in tools.conf, Linux DnD won't work. This will only be used 
- * to develop Linux DnD. Once the implementation is done, get rid of this (and the
- * code that checks it in toolbox-gtk.c and let dnd be enabled by default. 
- */
-#define CONFNAME_HACKY_DND                "dnd"
-
-/*
- * Minimum guest resolution size. Fix for bug 58681.
- */
-#define CONFNAME_RESOLUTION_MIN_WIDTH         "resolution.min.width"
-#define CONFNAME_RESOLUTION_MIN_HEIGHT        "resolution.min.height"
-#define CONFVAL_RESOLUTION_MIN_WIDTH_DEFAULT  "640"
-#define CONFVAL_RESOLUTION_MIN_HEIGHT_DEFAULT "480"
 
 /*
  * Tell the tools to show the wireless icon in the guest.

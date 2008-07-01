@@ -469,7 +469,7 @@ HgfsMakeFullName(const char *path,      // IN:  Path of directory containing fil
                  char *outBuf,          // OUT: Location to write full path
                  ssize_t bufSize)       // IN:  Size of the out buffer
 {
-
+   uint32 pathSeparatorLen;
    ASSERT(path);
    ASSERT(file);
    ASSERT(outBuf);
@@ -514,7 +514,7 @@ HgfsMakeFullName(const char *path,      // IN:  Path of directory containing fil
        * Replace the last path separator with a NUL terminator, then return the
        * size of the buffer.
        */
-      char *newEnd = rindex(outBuf, '/');
+      char *newEnd = rindex(outBuf, DIRSEPC);
       if (!newEnd) {
          /*
           * We should never get here since we name the root vnode "/" in
@@ -531,19 +531,22 @@ HgfsMakeFullName(const char *path,      // IN:  Path of directory containing fil
       }
 
       /*
-       * The CPName_ConvertTo function handles multiple path separators
-       * at the beginning of the filename, so we skip the checks to limit
-       * them to one.  This also enables clobbering newEnd above to work
-       * properly on base shares (named "//sharename") that need to turn into
-       * "/".
+       * If the path consists of just a single path separator, then
+       * do not add another path separator. This will ensure that
+       * we have only single path separator at the beginning of the
+       * filename.
        */
-      outBuf[pathLen] = '/';
-
+      if (pathLen == 1 && *path == DIRSEPC) {
+         pathSeparatorLen = 0;
+      } else {
+         outBuf[pathLen] = DIRSEPC;
+         pathSeparatorLen = DIRSEPSLEN;
+      }
       /* Now append the filename and NUL terminator. */
-      memcpy(outBuf + pathLen + 1, file, fileLen);
-      outBuf[pathLen + 1 + fileLen] = '\0';
+      memcpy(outBuf + pathSeparatorLen + pathLen, file, fileLen);
+      outBuf[pathLen + pathSeparatorLen + fileLen] = '\0';
 
-      return pathLen + 1 + fileLen;
+      return pathLen + pathSeparatorLen + fileLen;
    }
 }
 
@@ -887,3 +890,167 @@ rindex(const char *ptr, // IN: String to search.
    return result;
 }
 #endif
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsAttemptToCreateShare --
+ *
+ *      Checks if an attempt to create a new share is made.
+ *
+ * Results:
+ *      Returns FALSE if not such attempt is made, TRUE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsAttemptToCreateShare(const char *path,  // IN: Path
+                         int flag)          // IN: flag
+{
+   int ret = FALSE;
+   ASSERT(path);
+
+   /* 
+    * If the first character is the path seperator and 
+    * and there are no more path seperators present in the
+    * path, then with the create flag (O_CREAT) set, we believe
+    * that user has attempted to create new a share. This operation
+    * is not permitted and hence EPERM error code is returned.
+    */
+   if ((flag & O_CREAT) && path[0] == DIRSEPC &&
+        strchr(path + DIRSEPSLEN, DIRSEPC) == NULL) {
+       ret = TRUE;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsNameToWireEncoding --
+ *      1) Input string is converted into precomposed form.
+ *      2) Precomposed string is then converted to cross platform string.
+ *      3) Cross platform string is finally unescaped.
+ *
+ * Results:
+ *      Returns 0 on success and an error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+HgfsNameToWireEncoding(const char *bufIn,  // IN: Buffer to be normalized
+                       uint32 bufInSize,   // IN: Size of input buffer
+                       char *bufOut,       // OUT: Normalized string will be stored here
+                       uint32 bufOutSize)  // IN: Size of output buffer
+{
+   char *precomposedBuf = NULL; // allocated from M_TEMP; free when done.
+   const char *utf8Buf;
+   int ret = 0;
+
+   if (os_utf8_conversion_needed()) {
+      /* Allocating precomposed buffer to be equal to Output buffer. */
+      precomposedBuf = os_malloc(bufOutSize, M_WAITOK);
+      if (!precomposedBuf) {
+         return ENOMEM;
+      }
+
+      ret = os_path_to_utf8_precomposed(bufIn, bufInSize, precomposedBuf, bufOutSize);
+      if (ret < 0) {
+         DEBUG(VM_DEBUG_FAIL, "os_path_to_utf8_precomposed failed.");
+         goto out;
+      }
+      utf8Buf = precomposedBuf;
+   } else {
+      utf8Buf = bufIn;
+   }
+
+   ret = CPName_ConvertTo(utf8Buf, bufOutSize, bufOut);
+   if (ret < 0) {
+      DEBUG(VM_DEBUG_FAIL,
+            "CPName_ConvertTo: Conversion to cross platform name failed.\n");
+      ret = ENAMETOOLONG;
+      goto out;
+   }
+
+   ret = HgfsUnescapeBuffer(bufOut, ret); // Cannot fail
+out:
+   if (precomposedBuf != NULL) {
+      os_free(precomposedBuf, bufOutSize);
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsNameFromWireEncoding --
+ *      1) Input string is converted into decomposed form.
+ *      2) Decomposed string is finally escaped.
+ *
+ * Results:
+ *      Returns 0 on success and an error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+HgfsNameFromWireEncoding(const char *bufIn,  // IN: Buffer to be encoded
+                         uint32 bufInSize,   // IN: Size of input buffer
+                         char *bufOut,       // OUT: Encoded buffer will be stored here
+                         uint32 bufOutSize)  // IN: Size of output buffer
+{
+   char *decomposedBuf = NULL; //Allocated from M_TEMP; free when done
+   const char *utf8Buf;
+   size_t lenOut;
+   int ret = 0;
+
+   if (os_utf8_conversion_needed()) {
+      /* 
+       * The decomposed form a string can be a lot bigger than the input 
+       * buffer size. We allocate a buffer equal to the output buffer.  
+       */
+      decomposedBuf = os_malloc(bufOutSize, M_WAITOK);
+      if (!decomposedBuf) {
+         return ENOMEM;
+      }
+      /*
+       * Convert the input buffer into decomposed form. Higher layers in
+       * MacOS X expects the name to be in decomposed form.
+       */
+      ret = os_component_to_utf8_decomposed(bufIn, bufInSize, decomposedBuf,
+                                             &lenOut, bufOutSize);
+      /*
+       * If the decomposed name didn't fit in the buffer or it contained
+       * illegal utf8 characters, return back to the caller.
+       */
+      if (ret < 0){
+         DEBUG(VM_DEBUG_FAIL, "os_component_to_utf8_decomposed failed.\n");
+         goto out;
+      }
+      utf8Buf = decomposedBuf;
+   } else {
+      utf8Buf = bufIn;
+   }
+
+    /* Escape any illegal characters */
+    ret = HgfsEscapeBuffer(utf8Buf, strlen(utf8Buf), bufOutSize, bufOut);
+out:
+   if (decomposedBuf != NULL) {
+      os_free(decomposedBuf, bufOutSize);
+   }
+   return ret;
+}

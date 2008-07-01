@@ -112,7 +112,8 @@
 #define BDOOR_CMD_VASSERT               51
 #define BDOOR_CMD_ISGOSDARWIN           52
 #define BDOOR_CMD_DEBUGEVENT            53
-#define BDOOR_CMD_MAX                   54
+#define BDOOR_CMD_OSNOTMACOSXSERVER     54
+#define BDOOR_CMD_MAX                   55
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

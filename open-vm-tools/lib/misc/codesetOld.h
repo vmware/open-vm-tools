@@ -58,9 +58,8 @@
 #define CodeSetOld_GenericToGenericDb CodeSet_GenericToGenericDb
 #define CodeSetOld_GenericToGeneric CodeSet_GenericToGeneric
 #define CodeSetOld_Utf8ToCurrent CodeSet_Utf8ToCurrent
-#define CodeSetOld_Utf8ToCurrentTranslit CodeSet_Utf8ToCurrentTranslit
 #define CodeSetOld_CurrentToUtf8 CodeSet_CurrentToUtf8
-#define CodeSetOld_Utf16leToUtf8_Db CodeSet_Utf16leToUtf8_Db
+#define CodeSetOld_Utf16leToUtf8Db CodeSet_Utf16leToUtf8Db
 #define CodeSetOld_Utf16leToUtf8 CodeSet_Utf16leToUtf8
 #define CodeSetOld_Utf8ToUtf16le CodeSet_Utf8ToUtf16le
 #define CodeSetOld_CurrentToUtf16le CodeSet_CurrentToUtf16le
@@ -83,7 +82,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
                               DynBuf *db);         // IN/OUT
 
 Bool
-CodeSet_OldGenericToGeneric(const char *codeIn,  // IN
+CodeSetOld_GenericToGeneric(const char *codeIn,  // IN
                             const char *bufIn,   // IN
                             size_t sizeIn,       // IN
                             const char *codeOut, // IN
@@ -98,21 +97,15 @@ CodeSetOld_Utf8ToCurrent(char const *bufIn,      // IN
                          size_t *sizeOut); // OUT
 
 Bool
-CodeSetOld_Utf8ToCurrentTranslit(char const *bufIn,      // IN
-                                 size_t sizeIn,    // IN
-                                 char **bufOut,          // OUT
-                                 size_t *sizeOut); // OUT
-
-Bool
 CodeSetOld_CurrentToUtf8(char const *bufIn,      // IN
                          size_t sizeIn,    // IN
                          char **bufOut,          // OUT
                          size_t *sizeOut); // OUT
 
 Bool
-CodeSetOld_Utf16leToUtf8_Db(char const *bufIn,   // IN
-                            size_t sizeIn, // IN
-                            DynBuf *db);         // IN
+CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
+                           size_t sizeIn,	// IN
+                           DynBuf *db);         // IN
 
 Bool
 CodeSetOld_Utf16leToUtf8(char const *bufIn,      // IN
@@ -162,6 +155,43 @@ CodeSetOld_Utf8FormCToUtf8FormD(char const *bufIn,     // IN
                                 char **bufOut,         // OUT
                                 size_t *sizeOut);      // OUT
 
+Bool
+CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
+                         size_t sizeIn,     // IN
+                         char **bufOut,     // OUT
+                         size_t *sizeOut);  // OUT
+
+Bool
+CodeSetOld_Utf16beToUtf8Db(char const *bufIn, // IN
+                           size_t sizeIn,     // IN
+                           DynBuf *db);       // IN
+
+Bool
+CodeSetOld_AsciiToUtf8(const char *bufIn,   // IN
+                       size_t sizeIn,       // IN
+                       unsigned int flags,  // IN
+                       char **bufOut,       // OUT
+                       size_t *sizeOut);    // OUT
+
+Bool
+CodeSetOld_AsciiToUtf8Db(char const *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         unsigned int flags,  // IN
+                         DynBuf *db);         // OUT
+
+Bool
+CodeSetOld_Utf8ToAscii(const char *bufIn,   // IN
+                       size_t sizeIn,       // IN
+                       unsigned int flags,  // IN
+                       char **bufOut,       // OUT
+                       size_t *sizeOut);    // OUT
+
+Bool
+CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         unsigned int flags,  // IN
+                         DynBuf *db);         // OUT
+
 const char *
 CodeSetOld_GetCurrentCodeSet(void);
 
@@ -176,15 +206,5 @@ CodeSetOld_Validate(const char *buf,   // IN: the string
 Bool
 CodeSetOld_Init(void);
 
-Bool
-CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
-                         size_t sizeIn,     // IN
-                         char **bufOut,     // OUT
-                         size_t *sizeOut);  // OUT
-
-Bool
-CodeSetOld_Utf16beToUtf8_Db(char const *bufIn, // IN
-                            size_t sizeIn,     // IN
-                            DynBuf *db);       // IN
 
 #endif /* __CODESET_OLD_H__ */

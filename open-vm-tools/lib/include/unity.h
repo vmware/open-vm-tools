@@ -32,7 +32,9 @@
 #include "dynbuf.h"
 #include "str.h"
 #include "rpcin.h"
-
+#ifdef _WIN32
+#include "unityCommon.h"
+#endif
 /*
  * In Unity mode, all our DnD detection windows will be ignored and not displayed
  * on host desktop. Right now we have 4 DnD detection window. 2 for DnD version 2
@@ -80,6 +82,9 @@ void Unity_Exit(void);
 void Unity_Cleanup(void);
 void Unity_RegisterCaps(void);
 void Unity_UnregisterCaps(void);
+#ifdef _WIN32
+HWND Unity_GetHwndFromUnityId(UnityWindowId id);
+#endif
 
 #endif
 

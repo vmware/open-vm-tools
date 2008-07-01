@@ -35,11 +35,11 @@
 
 #include "hgfsProto.h"
 #include "escBitvector.h"
+#include "hgfsEscape.h"
 #include "cpName.h"
 #include "hgfsUtil.h"
 #include "request.h"
 #include "fsutil.h"
-#include "staticEscape.h"
 #include "hgfsDevLinux.h"
 #include "module.h"
 #include "vm_assert.h"
@@ -322,7 +322,7 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(name, result);
+   result = HgfsEscape_Undo(name, result);
    *nameLength = (uint32) result;
    req->payloadSize = requestSize + result;
 

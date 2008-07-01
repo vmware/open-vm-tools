@@ -1,4 +1,14 @@
-open-vm-tools 2008.06.18 changes:
+open-vm-tools 2008.07.01 changes:
+	* Fixed a backwards time synchronization issue (not tracked on
+	Sourceforge). Thanks to Eric Castan for reporting it.
+
+	* Fixed an issue where open-vm-tools configured via --without-x didn't
+	compile (not tracked on Sourceforge). Thanks to Mark Foster for
+	reporting the bug.
+
+	* Other bug fixes.
+
+open-vm-tools 2008.06.20 changes:
 	* Fixed Sourceforge bug 1847750 (FreeBSD 7 & 8 builds) and Sourceforge
 	bug 1981632 (build failure on Solaris). This should get open-vm-tools
 	building and running on FreeBSD 7 & 8 and Solaris. Thanks to Martin

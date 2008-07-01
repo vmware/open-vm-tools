@@ -748,3 +748,116 @@ os_add_atomic(unsigned *address, // IN
 {
    return atomic_fetchadd_int(address, amount);
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * os_utf8_conversion_needed --
+ *
+ *      It returns result depending upon whether a particular operating
+ *      system expects utf8 strings in a format (decomposed utf8)
+ *      different from wire format (precomposed utf8) or not. Since FreeBSD
+ *      does not expect decomposed utf8, we return FALSE.
+ *
+ * Results:
+ *      FALSE if conversion is not needed, TRUE if needed.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+os_utf8_conversion_needed(void)
+{
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * os_component_to_utf8_decomposed --
+ *
+ *      Converts an input component into decomposed form and writes it into
+ *      output buffer. It simply returns OS_ERR for FreeBSD.
+ *
+ * Results:
+ *      0 on success or OS_ERR on failure. Since this function is not
+ *      implemented, it always returns OS_ERR.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+os_component_to_utf8_decomposed(char const *bufIn,  // IN
+                                uint32 bufSizeIn,   // IN
+                                char *bufOut,       // OUT
+                                size_t *sizeOut,    // OUT
+                                uint32 bufSizeOut)  // IN
+{
+   NOT_IMPLEMENTED();
+   return OS_ERR;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * os_component_to_utf8_precomposed --
+ *
+ *      Converts an input component into precomposed form and writes it into
+ *      output buffer. It simply returns OS_ERR for FreeBSD.
+ *
+ * Results:
+ *      0 on success or OS_ERR on failure. Since this function is not 
+ *      implemented, it always returns OS_ERR.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+os_component_to_utf8_precomposed(char const *bufIn,  // IN
+                                     uint32 bufSizeIn,   // IN
+                                     char *bufOut,       // OUT
+                                     size_t *sizeOut,    // OUT
+                                     uint32 bufSizeOut)  // IN
+{
+   NOT_IMPLEMENTED();
+   return OS_ERR;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * os_path_to_utf8_precomposed  --
+ *
+ *      Converts an input path into precomposed form and writes it into output
+ *      buffer. It simply returns OS_ERR for FreeBSD.
+ *
+ * Results:
+ *      0 on success or OS_ERR on failure. Since this function is not
+ *      implemented, it always returns OS_ERR.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+os_path_to_utf8_precomposed(char const *bufIn,  // IN
+                            uint32 bufSizeIn,   // IN
+                            char *bufOut,       // OUT
+                            uint32 bufSizeOut)  // IN
+{
+   NOT_IMPLEMENTED();
+   return OS_ERR;
+}

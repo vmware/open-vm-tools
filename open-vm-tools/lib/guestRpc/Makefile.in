@@ -91,6 +91,9 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+
+# XXX: Autoreconf complains about this and recommends using AM_CFLAGS instead.
+# Neither that nor libGuestRpc_a_CFLAGS work, though. What gives?
 CFLAGS = @CFLAGS@ -Wno-unused
 COMMON_XLIBS = @COMMON_XLIBS@
 CPP = @CPP@

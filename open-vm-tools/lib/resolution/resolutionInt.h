@@ -30,11 +30,31 @@
 #include "includeCheck.h"
 
 #include "resolution.h"
+#include "vm_app.h"
 
 
 /*
  * Data types
  */
+
+
+/*
+ * Describes internal state of the resolution library.  I.e., tracks whether
+ * a capability is supported, enabled, etc.
+ */
+typedef struct {
+   Bool initialized;                    // TRUE if successfully initialized.
+   Bool canSetResolution;               // TRUE if back-end supports Resolution_Set.
+   Bool canSetTopology;                 // TRUE if back-end supports DisplayTopology_Set.
+   Bool cbResolutionRegistered;         // TRUE if Resolution_Set CB registered.
+   Bool cbTopologyRegistered;           // TRUE if DisplayTopology_Set CB registered.
+   RpcIn *rpcIn;                        // Points to RpcIn channel.
+
+   char tcloChannel[MAX(sizeof TOOLS_DAEMON_NAME,
+                        sizeof TOOLS_DND_NAME)];
+                                        // Names the TCLO channel which the library will
+                                        //    use for registering capabilities.
+} ResolutionInfoType;
 
 
 /*
@@ -55,20 +75,18 @@ typedef struct {
  * Global variables
  */
 
-extern Bool gCanSetResolution;  // Set to TRUE if initialized backend supports
-                                // Resolution_Set 
-extern Bool gCanSetTopology;    // Set to TRUE if " " " Topology_Set
+extern ResolutionInfoType resolutionInfo;
 
 
 /*
  * Global functions
  */
 
-/* Defined per backend. */
+/* Defined per back-end. */
 Bool ResolutionBackendInit(InitHandle handle);
+void ResolutionBackendCleanup(void);
 Bool ResolutionSetResolution(uint32 width, uint32 height);
-Bool ResolutionSetTopology(char const **result, size_t *resultLen,
-                           unsigned int ndisplays, DisplayTopologyInfo displays[]);
+Bool ResolutionSetTopology(unsigned int ndisplays, DisplayTopologyInfo displays[]);
 
 
 #endif // ifndef _LIB_RESOLUTIONINT_H_

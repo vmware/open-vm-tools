@@ -64,12 +64,6 @@ typedef struct HgfsAttrInfo {
 /* Public functions (with respect to the entire module). */
 int HgfsUnpackCommonAttr(HgfsReq *req,
                          HgfsAttrInfo *attr);
-int HgfsEscapeBuffer(char const *bufIn,
-                     uint32 sizeIn,
-                     uint32 sizeBufOut,
-                     char *bufOut);
-int HgfsUnescapeBuffer(char *bufIn,
-                       uint32 sizeIn);
 void HgfsChangeFileAttributes(struct inode *inode,
                               HgfsAttrInfo const *attr);
 int HgfsPrivateGetattr(struct dentry *dentry,

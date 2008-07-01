@@ -330,7 +330,8 @@ HostinfoSystemTimerUS(void)
 
       status = VMKernel_GetUptimeUS(&uptime);
       if (status != VMK_OK) {
-	 return 0;
+         Log("%s: failure!\n", __FUNCTION__);
+         return 0;  // A timer read failure - this is really bad!
       }
 
       return uptime;
@@ -340,7 +341,8 @@ HostinfoSystemTimerUS(void)
 
       /* Read the time from the operating system */
       if (gettimeofday(&tval, NULL) != 0) {
-         Panic("gettimeofday failed!\n");
+         Log("%s: failure!\n", __FUNCTION__);
+         return 0;  // A timer read failure - this is really bad!
       }
       /* Convert into microseconds */
       return (((VmTimeType)tval.tv_sec) * 1000000 + tval.tv_usec);

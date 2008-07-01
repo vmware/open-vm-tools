@@ -977,7 +977,11 @@ HgfsGetNewNode(void)
    LOG(4, ("HgfsGetNewNode: entered\n"));
 
    if (nodeFreeList.next == &nodeFreeList) {
-      unsigned int ptrDiff;
+      /*
+       * This has to be unsigned and with maximum bit length. This is
+       * required to take care of "negative" differences as well.
+       */
+      uintptr_t ptrDiff;
 
       if (DOLOG(4)) {
          Log("Dumping nodes before realloc\n");
@@ -995,7 +999,7 @@ HgfsGetNewNode(void)
 
       ptrDiff = (char *)newMem - (char *)nodeArray;
       if (ptrDiff) {
-         unsigned int const oldSize = numNodes * sizeof *nodeArray;
+         size_t const oldSize = numNodes * sizeof *nodeArray;
 
          /*
           * The portion of memory that contains all our file nodes moved.
@@ -1004,14 +1008,14 @@ HgfsGetNewNode(void)
           *
           * We'll need to lock this if we multithread.
           */
-         LOG(4, ("Rebasing pointers, diff is %d, sizeof node is %"FMTSZ"u\n",
+         LOG(4, ("Rebasing pointers, diff is %"FMTSZ"u, sizeof node is %"FMTSZ"u\n",
                   ptrDiff, sizeof(HgfsFileNode)));
          LOG(4, ("old: %p new: %p\n", nodeArray, newMem));
          ASSERT(newMem == (HgfsFileNode*)((char*)nodeArray + ptrDiff));
 
-#define HgfsServerRebase(_ptr, _type)                                         \
-   if ((unsigned int)((char *)_ptr - (char *)nodeArray) < oldSize) {          \
-      _ptr = (_type *)((char *)_ptr + ptrDiff);                               \
+#define HgfsServerRebase(_ptr, _type)                                   \
+   if ((size_t)((char *)_ptr - (char *)nodeArray) < oldSize) {          \
+      _ptr = (_type *)((char *)_ptr + ptrDiff);                         \
    }
 
          /*
@@ -1510,7 +1514,11 @@ HgfsGetNewSearch(void)
    LOG(4, ("HgfsGetNewSearch: entered\n"));
 
    if (searchFreeList.next == &searchFreeList) {
-      unsigned int ptrDiff;
+      /*
+       * This has to be unsigned and with maximum bit length. This is
+       * required to take care of "negative" differences as well.
+       */
+      uintptr_t ptrDiff;
 
       if (DOLOG(4)) {
          Log("Dumping searches before realloc\n");
@@ -1528,7 +1536,7 @@ HgfsGetNewSearch(void)
 
       ptrDiff = (char *)newMem - (char *)searchArray;
       if (ptrDiff) {
-         unsigned int const oldSize = numSearches * sizeof *searchArray;
+         size_t const oldSize = numSearches * sizeof *searchArray;
 
          /*
           * The portion of memory that contains all our searches moved.
@@ -1536,14 +1544,14 @@ HgfsGetNewSearch(void)
           * must be updated to point to the new portion of memory.
           */
 
-         LOG(4, ("Rebasing pointers, diff is %d, sizeof search is %"FMTSZ"u\n",
+         LOG(4, ("Rebasing pointers, diff is %"FMTSZ"u, sizeof search is %"FMTSZ"u\n",
                  ptrDiff, sizeof(HgfsSearch)));
          LOG(4, ("old: %p new: %p\n", searchArray, newMem));
          ASSERT(newMem == (HgfsSearch*)((char*)searchArray + ptrDiff));
 
-#define HgfsServerRebase(_ptr, _type)                                         \
-   if ((unsigned int)((char *)_ptr - (char *)searchArray) < oldSize) {        \
-      _ptr = (_type *)((char *)_ptr + ptrDiff);                               \
+#define HgfsServerRebase(_ptr, _type)                                   \
+   if ((size_t)((char *)_ptr - (char *)searchArray) < oldSize) {        \
+      _ptr = (_type *)((char *)_ptr + ptrDiff);                         \
    }
 
          /*
@@ -2478,8 +2486,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
                     HgfsOpenMode mode,             // IN:  Requested access mode
                     uint32 caseFlags,              // IN:  Case-sensitivity flags
                     char **bufOut,                 // OUT: File name in local fs
-                    size_t *outLen,                // OUT: Length of name out
-                    HgfsSharedFolder **hgfsShare)  // OUT: Share
+                    size_t *outLen)                // OUT: Length of name out
 {
    HgfsNameStatus nameStatus;
    char const *sharePath;
@@ -2498,7 +2505,6 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    size_t tempSize;
    char *tempPtr;
    HgfsInternalStatus result;
-   HgfsSharedFolder *share;
    uint32 startIndex = 0;
 
    ASSERT(cpName);
@@ -2527,8 +2533,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
                                               len,
                                               mode,
                                               &sharePathLen,
-                                              &sharePath,
-                                              &share);
+                                              &sharePath);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerGetAccess: No such share (%s) or access denied\n",
               cpName));
@@ -2724,9 +2729,6 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
 
    LOG(4, ("HgfsServerGetAccess: name is \"%s\"\n", myBufOut));
 
-   if (hgfsShare) {
-      *hgfsShare = share;
-   }
    *bufOut = myBufOut;
    return HGFS_NAME_STATUS_COMPLETE;
 

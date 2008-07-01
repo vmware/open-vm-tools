@@ -77,6 +77,100 @@ static const wchar_t nul = L'\0';
 #endif
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOldGetUtf8 --
+ *
+ *      Parse the next UTF-8 sequence.
+ *
+ * Results:
+ *      0 on failure.
+ *	Length of sequence and Unicode character in *uchar on success.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+CodeSetOldGetUtf8(const char *string,	// IN: string
+                  const char *end,	// IN: end of string
+                  uint32 *uchar)	// OUT: the Unicode character
+{
+   uint8 *p = (uint8 *) string;
+   uint8 *e;
+   uint32 c;
+   int len;
+
+   ASSERT(string < end);
+
+   c = *p;
+
+   if (c < 0x80) {
+      // ASCII
+      len = 1;
+      goto out;
+   }
+
+   if (c < 0xc2) {
+      // 0x81 to 0xbf are not valid first bytes
+      // 0xc0 and 0xc1 cannot appear in UTF-8, see below
+      return 0;
+   }
+
+   if (c < 0xe0) {
+      c -= 0xc0;
+      len = 2;
+   } else if (c <= 0xf0) {
+      c -= 0xe0;
+      len = 3;
+   } else if (c <= 0xf8) {
+      c -= 0xf0;
+      len = 4;
+   } else {
+      // bad first byte
+      return 0;
+   }
+
+   if ((e = p + len) > (uint8 *) end) {
+      // input too short
+      return 0;
+   }
+
+   while (++p < e) {
+      if ((*p & 0xc0) != 0x80) {
+	 // bad trailing byte
+	 return 0;
+      }
+      c <<= 6;
+      c += *p - 0x80;
+   }
+
+   /*
+    * Enforce shortest encoding.
+    * UTF-8 mandates that shortest possible encoding is used,
+    * as otherwise doing UTF-8 => anything => UTF-8 could bypass some
+    * important tests, like '/' for path separator or \0 for string
+    * termination.
+    *
+    * This test does not work for len == 2, but that case is handled
+    * by requiring the first byte to be 0xc2 or greater (see above).
+    */
+
+   if (c < 1U << (len * 5 - 4)) {
+      return 0;
+   }
+
+out:
+   if (uchar != NULL) {
+      *uchar = c;
+   }
+   return len;
+}
+
+
 #if defined(CURRENT_IS_UTF8) || defined(_WIN32)
 /*
  *-----------------------------------------------------------------------------
@@ -168,7 +262,7 @@ CodeSetOldDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetOldUtf8ToUtf16le --
+ * CodeSetOldUtf8ToUtf16leDb --
  *
  *    Append the content of a buffer (that uses the UTF-8 encoding) to a
  *    DynBuf (that uses the UTF-16LE encoding)
@@ -184,10 +278,11 @@ CodeSetOldDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
  */
 
 static Bool
-CodeSetOldUtf8ToUtf16le(const char *bufIn,  // IN
-                        size_t      sizeIn, // IN
-                        DynBuf     *db)     // IN
+CodeSetOldUtf8ToUtf16leDb(const char *bufIn,  // IN
+                          size_t      sizeIn, // IN
+                          DynBuf     *db)     // IN
 {
+   const char *bufEnd = bufIn + sizeIn;
    size_t currentSize;
    size_t allocatedSize;
    uint16 *buf;
@@ -195,64 +290,15 @@ CodeSetOldUtf8ToUtf16le(const char *bufIn,  // IN
    currentSize = DynBuf_GetSize(db);
    allocatedSize = DynBuf_GetAllocatedSize(db);
    buf = (uint16 *)((char *)DynBuf_Get(db) + currentSize);
-   while (sizeIn--) {
-      unsigned int uniChar = *bufIn++ & 0xFF;
+   while (bufIn < bufEnd) {
       size_t neededSize;
+      uint32 uniChar;
+      int n = CodeSetOldGetUtf8(bufIn, bufEnd, &uniChar);
 
-      if (uniChar >= 0x80) {
-         size_t charLen;
-         size_t idx;
-
-         if (uniChar < 0xC2) {
-            /* 80-BF cannot start UTF8 sequence.  C0-C1 cannot appear in UTF8 stream at all. */
-            return FALSE;
-         } else if (uniChar < 0xE0) {
-            uniChar -= 0xC0;
-            charLen = 1;
-         } else if (uniChar < 0xF0) {
-            uniChar -= 0xE0;
-            charLen = 2;
-         } else if (uniChar < 0xF8) {
-            uniChar -= 0xF0;
-            charLen = 3;
-         } else if (uniChar < 0xFC) {
-            uniChar -= 0xF8;
-            charLen = 4;
-         } else if (uniChar < 0xFE) {
-            uniChar -= 0xFC;
-            charLen = 5;
-         } else {
-            return FALSE;
-         }
-         if (sizeIn < charLen) {
-            return FALSE;
-         }
-         for (idx = 0; idx < charLen; idx++) {
-            unsigned int nextChar;
-
-            nextChar = *bufIn++ & 0xFF;
-            if (nextChar < 0x80 || nextChar >= 0xC0) {
-               return FALSE;
-            }
-            uniChar = (uniChar << 6) + nextChar - 0x80;
-            sizeIn--;
-         }
-
-         /*
-          * Shorter encoding available.  UTF-8 mandates that shortest possible encoding
-          * is used, as otherwise doing UTF-8 => anything => UTF-8 could bypass some
-          * important tests, like '/' for path separator or \0 for string termination.
-          *
-          * This test is not correct for charLen == 1, as its disallowed range is
-          * 0x00-0x7F, while this test disallows only 0x00-0x3F.  But this part of
-          * problem is solved by stopping when 0xC1 is encountered, as 0xC1 0xXX
-          * describes just this range.  This also means that 0xC0 and 0xC1 cannot
-          * ever occur in valid UTF-8 string.
-          */
-         if (uniChar < 1U << (charLen * 5 + 1)) {
-            return FALSE;
-         }
+      if (n <= 0) {
+	 return FALSE;
       }
+      bufIn += n;
 
       /*
        * Here we have UCS-4 character in uniChar, between 0 and 0x7FFFFFFF.
@@ -315,7 +361,7 @@ static DWORD GetInvalidCharsFlag(void);
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetOldGenericToUtf16le --
+ * CodeSetOldGenericToUtf16leDb --
  *
  *    Append the content of a buffer (that uses the specified encoding) to a
  *    DynBuf (that uses the UTF-16LE encoding) --hpreg
@@ -331,10 +377,10 @@ static DWORD GetInvalidCharsFlag(void);
  */
 
 static Bool
-CodeSetOldGenericToUtf16le(UINT codeIn,         // IN
-                           char const *bufIn,   // IN
-                           size_t sizeIn, // IN
-                           DynBuf *db)          // IN
+CodeSetOldGenericToUtf16leDb(UINT codeIn,         // IN
+                             char const *bufIn,   // IN
+                             size_t sizeIn,       // IN
+                             DynBuf *db)          // IN
 {
    /*
     * Undocumented: calling MultiByteToWideChar() with sizeIn == 0 returns 0
@@ -894,6 +940,11 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
    ASSERT(codeOut);
    ASSERT(db);
 
+   // XXX make CodeSetOldIconvOpen happy
+   if (flags != 0) {
+      flags = CSGTG_TRANSLIT | CSGTG_IGNORE;
+   }
+
    cd = CodeSetOldIconvOpen(codeIn, codeOut, flags);
    if (cd == (iconv_t)-1) {
       return FALSE;
@@ -1027,15 +1078,9 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
    /*
     * Trivial case.
     */
+
    if ((0 == sizeIn) || (NULL == bufIn)) {
       ret = TRUE;
-      goto exit;
-   }
-
-   /*
-    * No support for non-default flags.
-    */
-   if (flags != CSGTG_NORMAL) {
       goto exit;
    }
 
@@ -1061,9 +1106,13 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
             goto exit;
          }
       } else if (STRING_ENCODING_UTF16_LE == encOut) {
-         if (!CodeSetOldUtf8ToUtf16le(bufIn, sizeIn, db)) {
+         if (!CodeSetOldUtf8ToUtf16leDb(bufIn, sizeIn, db)) {
             goto exit;
          }
+      } else if (STRING_ENCODING_US_ASCII == encOut) {
+	 if (!CodeSetOld_Utf8ToAsciiDb(bufIn, sizeIn, flags, db)) {
+	    goto exit;
+	 }
       } else {
          goto exit;
       }
@@ -1073,7 +1122,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
             goto exit;
          }
       } else if (STRING_ENCODING_UTF8 == encOut) {
-         if (!CodeSetOld_Utf16leToUtf8_Db(bufIn, sizeIn, db)) {
+         if (!CodeSetOld_Utf16leToUtf8Db(bufIn, sizeIn, db)) {
             goto exit;
          }
       } else {
@@ -1085,16 +1134,33 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
             goto exit;
          }
       } else if (STRING_ENCODING_UTF8 == encOut) {
-         if (!CodeSetOld_Utf16beToUtf8_Db(bufIn, sizeIn, db)) {
+         if (!CodeSetOld_Utf16beToUtf8Db(bufIn, sizeIn, db)) {
             goto exit;
          }
       } else {
          goto exit;
       }
+   } else if (STRING_ENCODING_US_ASCII == encIn) {
+      if (STRING_ENCODING_UTF8 == encOut) {
+	 if (!CodeSetOld_AsciiToUtf8Db(bufIn, sizeIn, flags, db)) {
+	    goto exit;
+	 }
+      } else {
+         goto exit;
+      }
+   } else {
+      goto exit;
    }
 
-   if (bufOut != NULL && !DynBuf_Append(db, bufOut, sizeOut)) {
-      goto exit;
+   if (bufOut != NULL) {
+      if (DynBuf_GetSize(db) == 0) {
+	 DynBuf_Attach(db, sizeOut, bufOut);
+	 bufOut = NULL;
+      } else {
+	 if (!DynBuf_Append(db, bufOut, sizeOut)) {
+	    goto exit;
+	 }
+      }
    }
 
    ret = TRUE;
@@ -1136,7 +1202,8 @@ CodeSetOld_GenericToGeneric(const char *codeIn,  // IN
    Bool ok;
 
    DynBuf_Init(&db);
-   ok = CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn, codeOut, 0, &db);
+   ok = CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn,
+				      codeOut, flags, &db);
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1243,64 +1310,6 @@ CodeSetOld_Utf8ToCurrent(char const *bufIn,     // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetOld_Utf8ToCurrentTranslit --
- *
- *    Convert the content of a buffer (that uses the UTF-8 encoding) into
- *    another buffer (that uses the current encoding).  Transliterate
- *    characters which can be transliterated, and ignore characters which
- *    cannot be even transliterated.
- *
- * Results:
- *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
- *                     If not NULL, '*sizeOut' contains the size of the buffer
- *                     (excluding the NUL terminator)
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-CodeSetOld_Utf8ToCurrentTranslit(char const *bufIn,     // IN
-                              size_t sizeIn,   // IN
-                              char **bufOut,         // OUT
-                              size_t *sizeOut) // OUT
-{
-#if defined(CURRENT_IS_UTF8)
-   return CodeSetOldDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
-#elif defined(USE_ICONV)
-   DynBuf db;
-   Bool ok;
-
-   DynBuf_Init(&db);
-   ok = CodeSetOld_GenericToGenericDb("UTF-8", bufIn, sizeIn,
-                                      CodeSetOld_GetCurrentCodeSet(),
-                                      CSGTG_TRANSLIT | CSGTG_IGNORE, &db);
-   return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
-#elif defined(_WIN32)
-   char *buf;
-   size_t size;
-   Bool status;
-
-   if (CodeSetOld_Utf8ToUtf16le(bufIn, sizeIn, &buf, &size) == FALSE) {
-      return FALSE;
-   }
-
-   status = CodeSetOldUtf16leToCurrent(buf, size, bufOut, sizeOut);
-   free(buf);
-
-   return status;
-#else
-#error
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * CodeSetOld_CurrentToUtf8 --
  *
  *    Convert the content of a buffer (that uses the current encoding) into
@@ -1355,7 +1364,7 @@ CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetOld_Utf16leToUtf8_Db --
+ * CodeSetOld_Utf16leToUtf8Db --
  *
  *    Append the content of a buffer (that uses the UTF-16LE encoding) to a
  *    DynBuf (that uses the UTF-8 encoding). --hpreg
@@ -1371,9 +1380,9 @@ CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf16leToUtf8_Db(char const *bufIn,   // IN
-                         size_t sizeIn, // IN
-                         DynBuf *db)          // IN
+CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
+                           size_t sizeIn, // IN
+                           DynBuf *db)          // IN
 {
 #if defined(_WIN32)
    return CodeSetOldUtf16leToGeneric(bufIn, sizeIn, CP_UTF8, db);
@@ -1525,7 +1534,7 @@ CodeSetOld_Utf16leToUtf8(char const *bufIn,     // IN
    Bool ok;
 
    DynBuf_Init(&db);
-   ok = CodeSetOld_Utf16leToUtf8_Db(bufIn, sizeIn, &db);
+   ok = CodeSetOld_Utf16leToUtf8Db(bufIn, sizeIn, &db);
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1562,7 +1571,7 @@ CodeSetOld_Utf8ToUtf16le(char const *bufIn,     // IN
    Bool ok;
 
    DynBuf_Init(&db);
-   ok = CodeSetOldUtf8ToUtf16le(bufIn, sizeIn, &db);
+   ok = CodeSetOldUtf8ToUtf16leDb(bufIn, sizeIn, &db);
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1678,13 +1687,13 @@ CodeSetOld_CurrentToUtf16le(char const *bufIn,     // IN
 
    DynBuf_Init(&db);
 #if defined(CURRENT_IS_UTF8)
-   ok = CodeSetOldUtf8ToUtf16le(bufIn, sizeIn, &db);
+   ok = CodeSetOldUtf8ToUtf16leDb(bufIn, sizeIn, &db);
 #elif defined(USE_ICONV)
    ok = CodeSetOld_GenericToGenericDb(CodeSetOld_GetCurrentCodeSet(), bufIn,
                                       sizeIn, "UTF-16LE", 0, &db);
 #elif defined(_WIN32)
    /* XXX We should probably use CP_THREAD_ACP on Windows 2000/XP. */
-   ok = CodeSetOldGenericToUtf16le(CP_ACP, bufIn, sizeIn, &db);
+   ok = CodeSetOldGenericToUtf16leDb(CP_ACP, bufIn, sizeIn, &db);
 #else
 #error
 #endif
@@ -1816,6 +1825,244 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
 #else
 #error
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOld_Utf16beToUtf8 --
+ *
+ *    Convert the content of a buffer (that uses the UTF-16BE encoding) into
+ *    another buffer (that uses the UTF-8 encoding). 
+ *
+ * Results:
+ *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
+ *                     If not NULL, '*sizeOut' contains the size of the buffer
+ *                     (excluding the NUL terminator)
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
+                         size_t sizeIn,     // IN
+                         char **bufOut,     // OUT
+                         size_t *sizeOut)   // OUT
+{
+   DynBuf db;
+   Bool ok;
+
+   DynBuf_Init(&db);
+   ok = CodeSetOld_Utf16beToUtf8Db(bufIn, sizeIn, &db);
+   return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOld_Utf16beToUtf8Db --
+ *
+ *    Append the content of a buffer (that uses the UTF-16BE encoding) to a
+ *    DynBuf (that uses the UTF-8 encoding). 
+ *
+ * Results:
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Utf16beToUtf8Db(char const *bufIn, // IN
+                           size_t sizeIn,     // IN
+                           DynBuf *db)        // IN
+{
+   int i;
+   char *temp;
+   Bool ret = FALSE;
+   if ((temp = malloc(sizeIn)) == NULL) {
+      return ret;
+   }
+   ASSERT((sizeIn & 1) == 0);
+   ASSERT((ssize_t) sizeIn >= 0);
+
+   for (i = 0; i < sizeIn; i += 2) {
+      temp[i] = bufIn[i + 1];
+      temp[i + 1] = bufIn[i];
+   }
+
+   ret = CodeSetOld_Utf16leToUtf8Db(temp, sizeIn, db);
+   free(temp);
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_AsciiToUtf8 --
+ *
+ *      Convert ASCII to UTF-8
+ *
+ * Results:
+ *      On success, TRUE and conversion result in bufOut and sizeOut.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_AsciiToUtf8(const char *bufIn,   // IN
+                       size_t sizeIn,       // IN
+                       unsigned int flags,  // IN
+                       char **bufOut,       // OUT
+                       size_t *sizeOut)     // OUT
+{
+   DynBuf db;
+   Bool ok;
+
+   DynBuf_Init(&db);
+   ok = CodeSetOld_AsciiToUtf8Db(bufIn, sizeIn, flags, &db);
+   return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_AsciiToUtf8Db --
+ *
+ *      Convert ASCII to UTF-8
+ *
+ * Results:
+ *      On success, TRUE and conversion result appended to db.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_AsciiToUtf8Db(char const *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         unsigned int flags,  // IN
+                         DynBuf *db)          // OUT
+{
+   size_t oldSize = DynBuf_GetSize(db);
+   size_t i;
+   size_t last = 0;
+
+   for (i = 0; i < sizeIn; i++) {
+      if (UNLIKELY((unsigned char) bufIn[i] >= 0x80)) {
+	 if (flags == 0) {
+	    DynBuf_SetSize(db, oldSize);
+	    return FALSE;
+	 }
+	 DynBuf_Append(db, bufIn + last, i - last);
+	 if ((flags & CSGTG_TRANSLIT) != 0) {
+	    DynBuf_Append(db, "\xef\xbf\xbd", 3);
+	 }
+	 last = i + 1;
+      }
+   }
+   DynBuf_Append(db, bufIn + last, i - last);
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_Utf8ToAscii --
+ *
+ *      Convert UTF-8 to ASCII
+ *
+ * Results:
+ *      On success, TRUE and conversion result in bufOut and sizeOut.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Utf8ToAscii(const char *bufIn,   // IN
+                       size_t sizeIn,       // IN
+                       unsigned int flags,  // IN
+                       char **bufOut,       // OUT
+                       size_t *sizeOut)     // OUT
+{
+   DynBuf db;
+   Bool ok;
+
+   DynBuf_Init(&db);
+   ok = CodeSetOld_Utf8ToAsciiDb(bufIn, sizeIn, flags, &db);
+   return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_Utf8ToAsciiDb --
+ *
+ *      Convert UTF-8 to ASCII
+ *
+ * Results:
+ *      On success, TRUE and conversion result appended to db.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
+                         size_t sizeIn,       // IN
+                         unsigned int flags,  // IN
+                         DynBuf *db)          // OUT
+{
+   size_t oldSize = DynBuf_GetSize(db);
+   uint8 *p = (uint8 *) bufIn;
+   uint8 *end = (uint8 *) bufIn + sizeIn;
+   uint8 *last = p;
+
+   for (; p < end; p++) {
+      if (UNLIKELY(*p >= 0x80)) {
+	 int n;
+
+	 if (flags == 0) {
+	    DynBuf_SetSize(db, oldSize);
+	    return FALSE;
+	 }
+	 DynBuf_Append(db, last, p - last);
+	 if ((flags & CSGTG_TRANSLIT) != 0) {
+	    DynBuf_Append(db, "\x1a", 1);
+	 }
+	 if ((n = CodeSetOldGetUtf8(p, end, NULL)) > 0) {
+	    p += n - 1;
+	 }
+	 last = p + 1;
+      }
+   }
+   DynBuf_Append(db, last, p - last);
+
+   return TRUE;
 }
 
 
@@ -1973,82 +2220,4 @@ Bool
 CodeSetOld_Init(void)
 {
    return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSetOld_Utf16beToUtf8_Db --
- *
- *    Append the content of a buffer (that uses the UTF-16BE encoding) to a
- *    DynBuf (that uses the UTF-8 encoding). 
- *
- * Results:
- *    TRUE on success
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-CodeSetOld_Utf16beToUtf8_Db(char const *bufIn, // IN
-                            size_t sizeIn,     // IN
-                            DynBuf *db)        // IN
-{
-   int i;
-   char *temp;
-   Bool ret = FALSE;
-   if ((temp = malloc(sizeIn)) == NULL) {
-      return ret;
-   }
-   ASSERT((sizeIn & 1) == 0);
-   ASSERT((ssize_t) sizeIn >= 0);
-
-   for (i = 0; i < sizeIn; i += 2) {
-      temp[i] = bufIn[i + 1];
-      temp[i + 1] = bufIn[i];
-   }
-
-   ret = CodeSetOld_Utf16leToUtf8_Db(temp, sizeIn, db);
-   free(temp);
-   return ret;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSetOld_Utf16beToUtf8 --
- *
- *    Convert the content of a buffer (that uses the UTF-16BE encoding) into
- *    another buffer (that uses the UTF-8 encoding). 
- *
- * Results:
- *    TRUE on success: '*bufOut' contains the allocated, NUL terminated buffer.
- *                     If not NULL, '*sizeOut' contains the size of the buffer
- *                     (excluding the NUL terminator)
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
-                         size_t sizeIn,     // IN
-                         char **bufOut,     // OUT
-                         size_t *sizeOut)   // OUT
-{
-   DynBuf db;
-   Bool ok;
-
-   DynBuf_Init(&db);
-   ok = CodeSetOld_Utf16beToUtf8_Db(bufIn, sizeIn, &db);
-   return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }

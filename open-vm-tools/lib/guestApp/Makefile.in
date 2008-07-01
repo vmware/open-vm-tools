@@ -31,6 +31,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+# We build this library in two flavors:  with X11 and without X11.  This is
+# because the X11 code supports only GuestApp_OpenUrl, and we'd like to not
+# force an X11 dependency on applications that don't need one (e.g., guestd).
+
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
@@ -63,6 +67,13 @@ libGuestApp_a_AR = $(AR) $(ARFLAGS)
 libGuestApp_a_LIBADD =
 am_libGuestApp_a_OBJECTS = guestApp.$(OBJEXT) guestAppPosix.$(OBJEXT)
 libGuestApp_a_OBJECTS = $(am_libGuestApp_a_OBJECTS)
+libGuestAppX11_a_AR = $(AR) $(ARFLAGS)
+libGuestAppX11_a_LIBADD =
+am__objects_1 = libGuestAppX11_a-guestApp.$(OBJEXT) \
+	libGuestAppX11_a-guestAppPosix.$(OBJEXT)
+am_libGuestAppX11_a_OBJECTS = $(am__objects_1) \
+	libGuestAppX11_a-guestAppPosixX11.$(OBJEXT)
+libGuestAppX11_a_OBJECTS = $(am_libGuestAppX11_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -75,8 +86,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libGuestApp_a_SOURCES)
-DIST_SOURCES = $(libGuestApp_a_SOURCES)
+SOURCES = $(libGuestApp_a_SOURCES) $(libGuestAppX11_a_SOURCES)
+DIST_SOURCES = $(libGuestApp_a_SOURCES) $(libGuestAppX11_a_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -220,8 +231,10 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-noinst_LIBRARIES = libGuestApp.a
+noinst_LIBRARIES = libGuestApp.a libGuestAppX11.a
 libGuestApp_a_SOURCES = guestApp.c guestAppPosix.c
+libGuestAppX11_a_SOURCES = $(libGuestApp_a_SOURCES) guestAppPosixX11.c
+libGuestAppX11_a_CPPFLAGS = -DGUESTAPP_HAS_X11
 all: all-am
 
 .SUFFIXES:
@@ -262,6 +275,10 @@ libGuestApp.a: $(libGuestApp_a_OBJECTS) $(libGuestApp_a_DEPENDENCIES)
 	-rm -f libGuestApp.a
 	$(libGuestApp_a_AR) libGuestApp.a $(libGuestApp_a_OBJECTS) $(libGuestApp_a_LIBADD)
 	$(RANLIB) libGuestApp.a
+libGuestAppX11.a: $(libGuestAppX11_a_OBJECTS) $(libGuestAppX11_a_DEPENDENCIES) 
+	-rm -f libGuestAppX11.a
+	$(libGuestAppX11_a_AR) libGuestAppX11.a $(libGuestAppX11_a_OBJECTS) $(libGuestAppX11_a_LIBADD)
+	$(RANLIB) libGuestAppX11.a
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -271,6 +288,9 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/guestApp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/guestAppPosix.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libGuestAppX11_a-guestApp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libGuestAppX11_a-guestAppPosix.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -292,6 +312,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
+
+libGuestAppX11_a-guestApp.o: guestApp.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libGuestAppX11_a-guestApp.o -MD -MP -MF $(DEPDIR)/libGuestAppX11_a-guestApp.Tpo -c -o libGuestAppX11_a-guestApp.o `test -f 'guestApp.c' || echo '$(srcdir)/'`guestApp.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libGuestAppX11_a-guestApp.Tpo $(DEPDIR)/libGuestAppX11_a-guestApp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='guestApp.c' object='libGuestAppX11_a-guestApp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libGuestAppX11_a-guestApp.o `test -f 'guestApp.c' || echo '$(srcdir)/'`guestApp.c
+
+libGuestAppX11_a-guestApp.obj: guestApp.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libGuestAppX11_a-guestApp.obj -MD -MP -MF $(DEPDIR)/libGuestAppX11_a-guestApp.Tpo -c -o libGuestAppX11_a-guestApp.obj `if test -f 'guestApp.c'; then $(CYGPATH_W) 'guestApp.c'; else $(CYGPATH_W) '$(srcdir)/guestApp.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libGuestAppX11_a-guestApp.Tpo $(DEPDIR)/libGuestAppX11_a-guestApp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='guestApp.c' object='libGuestAppX11_a-guestApp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libGuestAppX11_a-guestApp.obj `if test -f 'guestApp.c'; then $(CYGPATH_W) 'guestApp.c'; else $(CYGPATH_W) '$(srcdir)/guestApp.c'; fi`
+
+libGuestAppX11_a-guestAppPosix.o: guestAppPosix.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libGuestAppX11_a-guestAppPosix.o -MD -MP -MF $(DEPDIR)/libGuestAppX11_a-guestAppPosix.Tpo -c -o libGuestAppX11_a-guestAppPosix.o `test -f 'guestAppPosix.c' || echo '$(srcdir)/'`guestAppPosix.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libGuestAppX11_a-guestAppPosix.Tpo $(DEPDIR)/libGuestAppX11_a-guestAppPosix.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='guestAppPosix.c' object='libGuestAppX11_a-guestAppPosix.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libGuestAppX11_a-guestAppPosix.o `test -f 'guestAppPosix.c' || echo '$(srcdir)/'`guestAppPosix.c
+
+libGuestAppX11_a-guestAppPosix.obj: guestAppPosix.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libGuestAppX11_a-guestAppPosix.obj -MD -MP -MF $(DEPDIR)/libGuestAppX11_a-guestAppPosix.Tpo -c -o libGuestAppX11_a-guestAppPosix.obj `if test -f 'guestAppPosix.c'; then $(CYGPATH_W) 'guestAppPosix.c'; else $(CYGPATH_W) '$(srcdir)/guestAppPosix.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libGuestAppX11_a-guestAppPosix.Tpo $(DEPDIR)/libGuestAppX11_a-guestAppPosix.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='guestAppPosix.c' object='libGuestAppX11_a-guestAppPosix.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libGuestAppX11_a-guestAppPosix.obj `if test -f 'guestAppPosix.c'; then $(CYGPATH_W) 'guestAppPosix.c'; else $(CYGPATH_W) '$(srcdir)/guestAppPosix.c'; fi`
+
+libGuestAppX11_a-guestAppPosixX11.o: guestAppPosixX11.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libGuestAppX11_a-guestAppPosixX11.o -MD -MP -MF $(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Tpo -c -o libGuestAppX11_a-guestAppPosixX11.o `test -f 'guestAppPosixX11.c' || echo '$(srcdir)/'`guestAppPosixX11.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Tpo $(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='guestAppPosixX11.c' object='libGuestAppX11_a-guestAppPosixX11.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libGuestAppX11_a-guestAppPosixX11.o `test -f 'guestAppPosixX11.c' || echo '$(srcdir)/'`guestAppPosixX11.c
+
+libGuestAppX11_a-guestAppPosixX11.obj: guestAppPosixX11.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libGuestAppX11_a-guestAppPosixX11.obj -MD -MP -MF $(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Tpo -c -o libGuestAppX11_a-guestAppPosixX11.obj `if test -f 'guestAppPosixX11.c'; then $(CYGPATH_W) 'guestAppPosixX11.c'; else $(CYGPATH_W) '$(srcdir)/guestAppPosixX11.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Tpo $(DEPDIR)/libGuestAppX11_a-guestAppPosixX11.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='guestAppPosixX11.c' object='libGuestAppX11_a-guestAppPosixX11.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libGuestAppX11_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libGuestAppX11_a-guestAppPosixX11.obj `if test -f 'guestAppPosixX11.c'; then $(CYGPATH_W) 'guestAppPosixX11.c'; else $(CYGPATH_W) '$(srcdir)/guestAppPosixX11.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

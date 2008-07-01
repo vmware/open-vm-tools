@@ -162,7 +162,7 @@ RemoveLockingFile(ConstUnicode lockDir,   // IN:
 
    path = Unicode_Join(lockDir, U(DIRSEPS), fileName, NULL);
 
-   err = FileDeletion(path, FALSE);
+   err = FileDeletionRobust(path, FALSE);
 
    if (err != 0) {
       if (err == ENOENT) {
@@ -272,7 +272,7 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
                      uint32 requiredSize,      // IN:
                      LockValues *memberValues) // OUT:
 {
-   uint32 argc;
+   uint32 argc = 0;
    FILELOCK_FILE_HANDLE handle;
    uint32 len;
    char *argv[FL_MAX_ARGS];
@@ -308,7 +308,7 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
    }
 
    /* Attempt to obtain the lock file attributes now that it is opened */
-   err = FileAttributes(path, &fileData);
+   err = FileAttributesRobust(path, &fileData);
 
    if (err != 0) {
       Warning(LGPFX" %s file size failure on '%s': %s\n", __FUNCTION__,
@@ -401,16 +401,11 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
    }
 
    if (sscanf(argv[2], "%u", &memberValues->lamportNumber) != 1) {
-      Warning(LGPFX" %s Lamport number conversion error\n",
-              __FUNCTION__);
-
       goto corrupt;
    }
 
    if ((strcmp(argv[3], LOCK_SHARED) != 0) &&
        (strcmp(argv[3], LOCK_EXCLUSIVE) != 0)) {
-      Warning(LGPFX" %s unknown lock type '%s'\n", __FUNCTION__, argv[3]);
-
       goto corrupt;
    }
 
@@ -427,8 +422,17 @@ corrupt:
    Warning(LGPFX" %s removing problematic lock file '%s'\n", __FUNCTION__,
            UTF8(path));
 
+   if (argc) {
+      Log(LGPFX" %s '%s' contents are:\n", __FUNCTION__, UTF8(fileName));
+
+      for (len = 0; len < argc; len++) {
+         Log(LGPFX" %s %s argv[%d]: '%s'\n", __FUNCTION__, UTF8(fileName),
+             len, argv[len]);
+      }
+   }
+
    /* Remove the lock file and behave like it has disappeared */
-   err = FileDeletion(path, FALSE);
+   err = FileDeletionRobust(path, FALSE);
 
    if (err == 0) {
       err = ENOENT;
@@ -621,7 +625,7 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
 
    ASSERT(lockDir);
 
-   numEntries = File_ListDirectory(lockDir, &fileList);
+   numEntries = FileListDirectoryRobust(lockDir, &fileList);
 
    if (numEntries == -1) {
       Log(LGPFX" %s: Could not read the directory '%s': %d\n",
@@ -843,14 +847,14 @@ Scanner(ConstUnicode lockDir,    // IN:
                ASSERT(index != UNICODE_INDEX_NOT_FOUND);
 
                temp = Unicode_Replace(path, index, 1, U("M"));
-               FileDeletion(temp, FALSE);
+               FileDeletionRobust(temp, FALSE);
                Unicode_Free(temp);
 
                temp = Unicode_Replace(path, index, 1, U("E"));
-               FileDeletion(temp, FALSE);
+               FileDeletionRobust(temp, FALSE);
                Unicode_Free(temp);
 
-               FileRemoveDirectory(path);
+               FileRemoveDirectoryRobust(path);
 
                Unicode_Free(path);
 
@@ -942,7 +946,7 @@ FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
        *       matching the machineID and executionID.
        */
 
-      err = FileDeletion((Unicode) lockToken, FALSE);
+      err = FileDeletionRobust((Unicode) lockToken, FALSE);
 
       if (err && vmx86_debug) {
          Log(LGPFX" %s failed for '%s': %s\n",
@@ -956,7 +960,7 @@ FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
 
       Unicode_Free((Unicode) lockToken);
 
-      FileRemoveDirectory(lockDir); // just in case we can clean up
+      FileRemoveDirectoryRobust(lockDir); // just in case we can clean up
 
       Unicode_Free(lockDir);
    }
@@ -1014,7 +1018,7 @@ WaitForPossession(ConstUnicode lockDir,     // IN:
 
       while ((err = Sleeper(myValues, &loopCount)) == 0) {
          /* still there? */
-         err = FileAttributes(path, NULL);
+         err = FileAttributesRobust(path, NULL);
          if (err != 0) {
             if (err == ENOENT) {
                /* Not there anymore; locker unlocked or timed out */
@@ -1179,7 +1183,7 @@ MakeDirectory(ConstUnicode pathName)  // IN:
 
    ASSERT(pathName);
 
-   err = FileCreateDirectory(pathName);
+   err = FileCreateDirectoryRobust(pathName);
 
 #if !defined(_WIN32)
    umask(save);
@@ -1239,7 +1243,7 @@ CreateEntryDirectory(const char *machineID,    // IN:
       Unicode temp;
       FileData fileData;
 
-      err = FileAttributes(lockDir, &fileData);
+      err = FileAttributesRobust(lockDir, &fileData);
       if (err == 0) {
         /* The name exists. Deal with it... */
 
@@ -1259,7 +1263,7 @@ CreateEntryDirectory(const char *machineID,    // IN:
 
         if (fileData.fileType != FILE_TYPE_DIRECTORY) {
            /* Not a directory; attempt to remove the debris */
-           if (FileDeletion(lockDir, FALSE) != 0) {
+           if (FileDeletionRobust(lockDir, FALSE) != 0) {
               Warning(LGPFX" %s: '%s' exists and is not a directory.\n",
                       __FUNCTION__, UTF8(lockDir));
 
@@ -1316,7 +1320,7 @@ CreateEntryDirectory(const char *machineID,    // IN:
           * good member files.
           */
 
-         err = FileAttributes(*memberFilePath, NULL);
+         err = FileAttributesRobust(*memberFilePath, NULL);
 
          if (err != 0) {
             if (err == ENOENT) {
@@ -1330,7 +1334,7 @@ CreateEntryDirectory(const char *machineID,    // IN:
              }
          }
 
-         FileRemoveDirectory(*entryDirectory);
+         FileRemoveDirectoryRobust(*entryDirectory);
       } else {
           if (err != EEXIST) {
              Warning(LGPFX" %s creation failure on '%s': %s\n",
@@ -1454,11 +1458,11 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
       if (vmx86_debug) {
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, UTF8(entryFilePath),
-            strerror(FileAttributes(entryFilePath, NULL)));
+            strerror(FileAttributesRobust(entryFilePath, NULL)));
 
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, UTF8(memberFilePath),
-            strerror(FileAttributes(memberFilePath, NULL)));
+            strerror(FileAttributesRobust(memberFilePath, NULL)));
       }
 
       return err;
@@ -1574,8 +1578,8 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
    if (*err != 0) {
       /* clean up */
-      FileRemoveDirectory(entryDirectory);
-      FileRemoveDirectory(lockDir);
+      FileRemoveDirectoryRobust(entryDirectory);
+      FileRemoveDirectoryRobust(lockDir);
 
       goto bail;
    }
@@ -1586,9 +1590,9 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    if (*err != 0) {
       /* clean up */
       FileLockCloseFile(handle);
-      FileDeletion(entryFilePath, FALSE);
-      FileRemoveDirectory(entryDirectory);
-      FileRemoveDirectory(lockDir);
+      FileDeletionRobust(entryFilePath, FALSE);
+      FileRemoveDirectoryRobust(entryDirectory);
+      FileRemoveDirectoryRobust(lockDir);
 
       goto bail;
    }
@@ -1600,13 +1604,13 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    *err = CreateMemberFile(handle, &myValues, entryFilePath, memberFilePath);
 
    /* Remove entry directory; it has done its job */
-   FileRemoveDirectory(entryDirectory);
+   FileRemoveDirectoryRobust(entryDirectory);
 
    if (*err != 0) {
       /* clean up */
-      FileDeletion(entryFilePath, FALSE);
-      FileDeletion(memberFilePath, FALSE);
-      FileRemoveDirectory(lockDir);
+      FileDeletionRobust(entryFilePath, FALSE);
+      FileDeletionRobust(memberFilePath, FALSE);
+      FileRemoveDirectoryRobust(lockDir);
 
       goto bail;
    }
@@ -1620,8 +1624,8 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 
    case EAGAIN:
       /* clean up */
-      FileDeletion(memberFilePath, FALSE);
-      FileRemoveDirectory(lockDir);
+      FileDeletionRobust(memberFilePath, FALSE);
+      FileRemoveDirectoryRobust(lockDir);
 
       /* FALL THROUGH */
    default:
@@ -1743,7 +1747,7 @@ FileLockHackVMX(ConstUnicode pathName)  // IN:
    if (err == 0) {
       /* if no members are valid, clean up */
       if (myValues.lamportNumber == 1) {
-         FileDeletion(pathName, FALSE);
+         FileDeletionRobust(pathName, FALSE);
       }
    } else {
       if (vmx86_debug) {
@@ -1753,8 +1757,8 @@ FileLockHackVMX(ConstUnicode pathName)  // IN:
    }
 
    /* clean up */
-   FileRemoveDirectory(entryDirectory);
-   FileRemoveDirectory(lockDir);
+   FileRemoveDirectoryRobust(entryDirectory);
+   FileRemoveDirectoryRobust(lockDir);
 
 bail:
 

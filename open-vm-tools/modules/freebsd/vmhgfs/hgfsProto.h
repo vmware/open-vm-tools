@@ -291,6 +291,7 @@ typedef uint64 HgfsAttrFlags;
 #define HGFS_ATTR_HIDDEN      (1 << 0)
 #define HGFS_ATTR_SYSTEM      (1 << 1)
 #define HGFS_ATTR_ARCHIVE     (1 << 2)
+#define HGFS_ATTR_HIDDEN_FORCED (1 << 3)
 
 
 /*

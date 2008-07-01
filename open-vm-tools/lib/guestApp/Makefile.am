@@ -15,8 +15,19 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+
+# We build this library in two flavors:  with X11 and without X11.  This is
+# because the X11 code supports only GuestApp_OpenUrl, and we'd like to not
+# force an X11 dependency on applications that don't need one (e.g., guestd).
+
 noinst_LIBRARIES = libGuestApp.a
+noinst_LIBRARIES += libGuestAppX11.a
 
 libGuestApp_a_SOURCES =
 libGuestApp_a_SOURCES += guestApp.c
 libGuestApp_a_SOURCES += guestAppPosix.c
+
+libGuestAppX11_a_SOURCES = $(libGuestApp_a_SOURCES)
+libGuestAppX11_a_SOURCES += guestAppPosixX11.c
+
+libGuestAppX11_a_CPPFLAGS = -DGUESTAPP_HAS_X11

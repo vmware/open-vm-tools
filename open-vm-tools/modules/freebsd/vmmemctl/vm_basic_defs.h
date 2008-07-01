@@ -466,12 +466,23 @@ typedef int pid_t;
  */
 
 #undef DEBUG_ONLY
+#undef SL_DEBUG_ONLY
+#undef VMX86_SL_DEBUG
 #ifdef VMX86_DEBUG
-#define vmx86_debug   1
-#define DEBUG_ONLY(x) x
+#define vmx86_debug      1
+#define DEBUG_ONLY(x)    x
+/*
+ * Be very, very, very careful with SL_DEBUG. Pls ask ganesh or min before 
+ * using it.
+ */
+#define VMX86_SL_DEBUG
+#define vmx86_sl_debug   1
+#define SL_DEBUG_ONLY(x) x
 #else
-#define vmx86_debug   0
+#define vmx86_debug      0
 #define DEBUG_ONLY(x)
+#define vmx86_sl_debug   0
+#define SL_DEBUG_ONLY(x)
 #endif
 
 #ifdef VMX86_STATS
@@ -563,6 +574,12 @@ typedef int pid_t;
 #define VMW_INVALID_HANDLE INVALID_HANDLE_VALUE
 #else
 #define VMW_INVALID_HANDLE (-1)
+#endif
+
+#ifdef _WIN32
+#define fsync(fd) _commit(fd)
+#define fileno(f) _fileno(f)
+#else
 #endif
 
 /*

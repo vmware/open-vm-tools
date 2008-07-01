@@ -62,7 +62,7 @@ Vix_TranslateSystemError(int systemError) // IN
 {
    VixError err = VIX_E_FAIL;
 #ifdef _WIN32
-   LPVOID lpMsgBuf;
+   Unicode msg;
 
    switch (systemError) {
    case ERROR_ACCESS_DENIED:
@@ -112,13 +112,13 @@ Vix_TranslateSystemError(int systemError) // IN
    default:
       err = VIX_E_FAIL;
    }
-   Win32U_FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                 NULL, systemError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                 (LPTSTR) &lpMsgBuf, 0, NULL);
+   msg = Win32U_FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                              NULL, systemError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                              NULL);
 
    Log("Foundry operation failed with system error: %s (%d), translated to %"FMT64"d\n",
-       lpMsgBuf, systemError, err);
-   LocalFree(lpMsgBuf);
+       msg, systemError, err);
+   Unicode_Free(msg);
 
 #else // linux, other *nix
    switch (systemError) {

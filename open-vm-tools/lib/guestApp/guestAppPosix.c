@@ -35,13 +35,8 @@ extern "C" {
 
 #include "guestApp.h"
 #include "str.h"
-#include "escape.h"
 #include "vm_assert.h"
-
-static char *gBrowserEscaped = NULL; // a shell escaped browser path
-static Bool gBrowserIsNewNetscape = FALSE;
-
-void GuestAppDetectBrowser(void);
+#include "guestAppPosixInt.h"
 
 
 /*
@@ -64,115 +59,11 @@ Bool
 GuestApp_OpenUrl(const char *url, // IN
                  Bool maximize)   // IN: open the browser maximized? Ignored for now.
 {
-   char *buf = NULL;
-   char *urlEscaped = NULL;
-   Bool success = FALSE;
-   int ret;
-
-   ASSERT(url);
-
-   if (!gBrowserEscaped) {
-      GuestAppDetectBrowser();
-   }
-
-   if (!gBrowserEscaped) {
-      goto abort;
-   }
-   urlEscaped = (char*)Escape_Sh(url, strlen(url), NULL);
-   if (!urlEscaped) {
-      goto abort;
-   }
-
-   if (gBrowserIsNewNetscape) {
-      buf = Str_Asprintf(NULL, 
-                          "%s -remote 'openURL('%s', new-window)' >/dev/null 2>&1 &", 
-                          gBrowserEscaped, urlEscaped);
-   } else {
-      buf = Str_Asprintf(NULL, "%s %s >/dev/null 2>&1 &", gBrowserEscaped, urlEscaped);
-   }
-
-   if (buf == NULL) {
-      goto abort;
-   }
-     
-   ret = system(buf);
-
-   /*
-    * If the program terminated other than by exit() or return, i.e., was
-    * hit by a signal, or if the exit status indicates something other
-    * than success, then the URL wasn't opened and we should indicate
-    * failure.
-    */
-   if (!WIFEXITED(ret) || (WEXITSTATUS(ret) != 0)) {
-      goto abort;
-   }
-
-   success = TRUE;
- abort:
-   free(buf);
-   free(urlEscaped);
-   
-   return success;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestAppDetectBrowser -- 
- *
- *	Figure out what browser to use, and note if it is a new Netscape.
- *      Copied from apps/vmuiLinux/app.cc
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-GuestAppDetectBrowser(void)
-{
-   char *buf;
-
-   if (gBrowserEscaped) {
-      free(gBrowserEscaped);
-      gBrowserEscaped = NULL;
-      gBrowserIsNewNetscape = FALSE;
-   }
-
-   if (getenv("GNOME_DESKTOP_SESSION_ID") != NULL &&
-       GuestApp_FindProgram("gnome-open")) {
-      buf = "gnome-open";
-   } else if (getenv("KDE_FULL_SESSION") != NULL && 
-              !strcmp(getenv("KDE_FULL_SESSION"), "true") &&
-              GuestApp_FindProgram("konqueror")) {
-      buf = "konqueror";
-   } else if (GuestApp_FindProgram("mozilla-firefox")) {
-      buf = "mozilla-firefox";
-   } else if (GuestApp_FindProgram("firefox")) {
-      buf = "firefox";
-   } else if (GuestApp_FindProgram("mozilla")) {
-      buf = "mozilla";
-   } else if (GuestApp_FindProgram("netscape")) {
-      buf = "netscape";
-   } else {
-      return;
-   }
-
-   /*
-    * netscape >= 6.2 has a bug, in that if we try to reuse an existing 
-    * window, and fail, it will return a success code.  We have to test for this 
-    * eventuality, so we can handle it better.
-    */
-   if (!strcmp(buf, "netscape")) {
-      gBrowserIsNewNetscape =
-        (system("netscape -remote 'openURL(file:/some/bad/path.htm, new-window'") == 0);
-   }
-   gBrowserEscaped = (char *)Escape_Sh(buf, strlen(buf), NULL);
+#ifdef GUESTAPP_HAS_X11
+   return GuestAppX11OpenUrl(url, maximize);
+#else
+   return FALSE;
+#endif
 }
 
 
@@ -219,6 +110,7 @@ GuestApp_FindProgram(const char *program)
    }
    return FALSE;
 }
+
 
 #ifdef __cplusplus
 }

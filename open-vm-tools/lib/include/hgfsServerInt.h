@@ -336,10 +336,9 @@ HgfsNameStatus
 HgfsServerGetAccess(char *in,                    // IN:  CP filename to check
                     size_t inSize,               // IN:  Size of name in
                     HgfsOpenMode mode,           // IN:  Requested access mode
-		    uint32 caseFlags,            // IN:  Case-sensitivity flags
+                    uint32 caseFlags,            // IN:  Case-sensitivity flags
                     char **bufOut,               // OUT: File name in local fs
-                    size_t *outLen,              // OUT: Length of name out
-                    HgfsSharedFolder **share);   // OUT: Shared Folder
+                    size_t *outLen);             // OUT: Length of name out
 
 Bool
 HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check

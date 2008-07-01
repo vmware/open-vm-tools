@@ -42,26 +42,19 @@
  * Internal global variables
  */
 
-Bool     gCanSetResolution;     // Initialized via ResolutionBackendInit()
-Bool     gCanSetTopology;       // Initialized via ResolutionBackendInit()
 
 /*
- * Must either be TOOLS_DAEMON_NAME or TOOLS_DND_NAME.  See vm_app.h.
+ * Describes current state of the library.
  */
-static char     gTcloChannel[MAX(sizeof TOOLS_DAEMON_NAME,
-                                 sizeof TOOLS_DND_NAME)];
+ResolutionInfoType resolutionInfo = { .initialized = FALSE };
 
 
 /*
  * Local function prototypes
  */
 
-static Bool     ResolutionRpcInSetCB(char const **result, size_t *resultLen,
-                                     const char *name, const char *args,
-                                     size_t argsSize, void *clientData);
-static Bool     TopologyRpcInSetCB(char const **result, size_t *resultLen,
-                                   const char *name, const char *args,
-                                   size_t argsSize, void *clientData);
+static Bool ResolutionResolutionSetCB(RpcInData *data);
+static Bool ResolutionDisplayTopologySetCB(RpcInData *data);
 
 
 /*
@@ -86,64 +79,159 @@ static Bool     TopologyRpcInSetCB(char const **result, size_t *resultLen,
  */
 
 Bool
-Resolution_Init(const char *tcloChannel,        // IN:
-                InitHandle handle)              // IN:
+Resolution_Init(const char *tcloChannel,
+                        // IN: TCLO channel name; used during capability registration
+                        //     to tell the VMX whether Resolution_Set is being handled
+                        //     by VMwareService/guestd or VMwareUser/vmware-user.
+                InitHandle handle)
+                        // IN: Back-end specific handle, if needed.  E.g., in the X11
+                        //     case, this refers to the X11 display handle.
 {
-   gCanSetResolution = FALSE;
-   gCanSetTopology = FALSE;
+   // Shorter-named convenience alias.  I expect this to be optimized out.
+   ResolutionInfoType *resInfo = &resolutionInfo;
 
+   ASSERT(resInfo->initialized == FALSE);
    ASSERT((strcmp(tcloChannel, TOOLS_DAEMON_NAME) == 0) ||
           (strcmp(tcloChannel, TOOLS_DND_NAME)) == 0);
+
+   /*
+    * Blank out the resolutionInfo field, then copy user's arguments.
+    */
+   memset(resInfo, 0, sizeof *resInfo);
+
+   strncpy(resInfo->tcloChannel, tcloChannel, sizeof resInfo->tcloChannel);
+   resInfo->tcloChannel[sizeof resInfo->tcloChannel - 1] = '\0';
 
    if (!ResolutionBackendInit(handle)) {
       return FALSE;
    }
 
-   strncpy(gTcloChannel, tcloChannel, sizeof gTcloChannel);
-   gTcloChannel[sizeof gTcloChannel - 1] = '\0';
+   resInfo->initialized = TRUE;
 
    return TRUE;
-}
-
-
-/*-----------------------------------------------------------------------------
- *
- * Resolution_Register --
- *
- *      Register the capability and resolution setting callbacks.
- *
- * Results:
- *      TRUE on success, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Resolution_Register(RpcIn *rpcIn)
-{
-   if (!rpcIn) {
-      return FALSE;
-   }
-
-   if (gCanSetResolution) {
-      RpcIn_RegisterCallback(rpcIn, "Resolution_Set", ResolutionRpcInSetCB, NULL);
-   }
-
-   if (gCanSetTopology) {
-      RpcIn_RegisterCallback(rpcIn, "DisplayTopology_Set", TopologyRpcInSetCB, NULL);
-   }
-
-   return Resolution_RegisterCapability();
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Resolution_RegisterCapability --
+ * Resolution_Cleanup --
+ *
+ *      Shutdown the library, free resources, etc.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Resolution_* calls will fail until user next calls Resolution_Init().
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Resolution_Cleanup(void)
+{
+   // Shorter-named convenience alias.  I expect this to be optimized out.
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
+   if (!resInfo->initialized) {
+      return;
+   }
+
+   Resolution_UnregisterCaps();
+   Resolution_CleanupBackdoor();
+   ResolutionBackendCleanup();
+
+   ASSERT(!resInfo->cbResolutionRegistered);
+   ASSERT(!resInfo->cbTopologyRegistered);
+   ASSERT(!resInfo->rpcIn);
+}
+
+
+/*-----------------------------------------------------------------------------
+ *
+ * Resolution_InitBackdoor --
+ *
+ *      Register RpcIn callbacks for supported/available RpcIn commands.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Resolution_Set & DisplayTopology_Set callbacks may be registered.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Resolution_InitBackdoor(RpcIn *rpcIn)
+{
+   // Shorter-named convenience alias.  I expect this to be optimized out.
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
+   ASSERT(resInfo->initialized);
+   ASSERT(rpcIn);
+
+   resInfo->rpcIn = rpcIn;
+
+   if (resInfo->canSetResolution) {
+      RpcIn_RegisterCallbackEx(resInfo->rpcIn, "Resolution_Set",
+                               ResolutionResolutionSetCB, NULL);
+      resInfo->cbResolutionRegistered = TRUE;
+   }
+
+   if (resInfo->canSetTopology) {
+      RpcIn_RegisterCallbackEx(resInfo->rpcIn, "DisplayTopology_Set",
+                               ResolutionDisplayTopologySetCB, NULL);
+      resInfo->cbTopologyRegistered = TRUE;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Resolution_CleanupBackdoor --
+ *
+ *      Unregisters RpcIn callbacks.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Resolution callbacks are removed.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Resolution_CleanupBackdoor(void)
+{
+   // Shorter-named convenience alias.  I expect this to be optimized out.
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
+   if (!resInfo->initialized || !resInfo->rpcIn) {
+      return;
+   }
+
+   if (resInfo->cbResolutionRegistered) {
+      RpcIn_UnregisterCallback(resInfo->rpcIn, "Resolution_Set");
+      resInfo->cbResolutionRegistered = FALSE;
+   }
+
+   if (resInfo->cbTopologyRegistered) {
+      RpcIn_UnregisterCallback(resInfo->rpcIn, "DisplayTopology_Set");
+      resInfo->cbTopologyRegistered = FALSE;
+   }
+
+   resInfo->rpcIn = FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Resolution_RegisterCaps --
  *
  *      Register the "Resolution_Set" capability. Sometimes this needs to
  *      be done separately from the TCLO callback registration, so we
@@ -160,9 +248,16 @@ Resolution_Register(RpcIn *rpcIn)
  */
 
 Bool
-Resolution_RegisterCapability(void)
+Resolution_RegisterCaps(void)
 {
-   if (gCanSetResolution) {
+   // Shorter-named convenience alias.  I expect this to be optimized out.
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
+   if (!resInfo->initialized) {
+      return FALSE;
+   }
+
+   if (resInfo->canSetResolution) {
       if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_set 1")) {
          Debug("%s: Unable to register resolution set capability\n",
                __FUNCTION__);
@@ -170,19 +265,19 @@ Resolution_RegisterCapability(void)
       }
 
       if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_server %s 1",
-                          gTcloChannel)) {
+                          resInfo->tcloChannel)) {
          Debug("%s: Unable to register resolution server capability\n",
                __FUNCTION__);
 
-         /* 
-          * Note that we do not return false so that we stay backwards 
-          * compatible with old vmx code (Workstation 6/ESX 3.5) that doesn't 
+         /*
+          * Note that we do not return false so that we stay backwards
+          * compatible with old vmx code (Workstation 6/ESX 3.5) that doesn't
           * handle resolution_server.
           */
       }
    }
 
-   if (gCanSetTopology) {
+   if (resInfo->canSetTopology) {
       if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 2")) {
          Debug("%s: Unable to register topology set capability\n",
                __FUNCTION__);
@@ -206,9 +301,9 @@ Resolution_RegisterCapability(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Resolution_UnregisterCapability --
+ * Resolution_UnregisterCaps --
  *
- *      Unregister the "Resolution_Set" capability.
+ *      Unregister the "Resolution_Set" and "DisplayTopology_Set" capabilities.
  *
  * Results:
  *      TRUE on success
@@ -221,34 +316,36 @@ Resolution_RegisterCapability(void)
  */
 
 Bool
-Resolution_UnregisterCapability(void)
+Resolution_UnregisterCaps(void)
 {
+   // Shorter-named convenience alias.  I expect this to be optimized out.
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
    /*
     * RpcIn doesn't have an unregister facility, so all we need to do
     * here is unregister the capability.
     */
 
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_set 0")) {
-      Debug("%s: Unable to unregister ResolutionSet capability\n", 
+      Debug("%s: Unable to unregister ResolutionSet capability\n",
 	    __FUNCTION__);
       return FALSE;
    }
 
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_server %s 0",
-		       gTcloChannel)) {
+		       resInfo->tcloChannel)) {
       Debug("%s: Unable to unregister resolution server capability\n",
 	    __FUNCTION__);
 
-      /* 
+      /*
        * Don't return false here so that an older vmx (Workstation 6/ESX 3.5)
-       * that that supports resolution_set and not resolution_server will 
+       * that that supports resolution_set and not resolution_server will
        * still work.
        */
    }
 
-   if (gCanSetTopology &&
-       (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 0")
-        || !RpcOut_sendOne(NULL, NULL, "tools.capability.display_global_offset 0"))) {
+   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set 0") ||
+       !RpcOut_sendOne(NULL, NULL, "tools.capability.display_global_offset 0")) {
       Debug("%s: Unable to unregister TopologySet capability\n",
 	    __FUNCTION__);
       /*
@@ -268,7 +365,7 @@ Resolution_UnregisterCapability(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * ResolutionRpcInSetCB  --
+ * ResolutionResolutionSetCB  --
  *
  *      Handler for TCLO 'Resolution_Set'.
  *
@@ -282,42 +379,36 @@ Resolution_UnregisterCapability(void)
  */
 
 static Bool
-ResolutionRpcInSetCB(char const **result,     // OUT
-                     size_t *resultLen,       // OUT
-                     const char *name,        // IN
-                     const char *args,        // IN
-                     size_t argsSize,         // unused
-                     void *clientData)        // unused
-
+ResolutionResolutionSetCB(RpcInData *data)      // IN/OUT:
 {
    uint32 width = 0 ;
    uint32 height = 0;
    unsigned int index = 0;
+   Bool retval = FALSE;
 
    /* parse the width and height */
-   if (!StrUtil_GetNextUintToken(&width, &index, args, " ")) {
+   if (!StrUtil_GetNextUintToken(&width, &index, data->args, " ")) {
       goto invalid_arguments;
    }
-   if (!StrUtil_GetNextUintToken(&height, &index, args, "")) {
+   if (!StrUtil_GetNextUintToken(&height, &index, data->args, "")) {
       goto invalid_arguments;
    }
 
-   return RpcIn_SetRetVals(result, resultLen, "",
-                           ResolutionSetResolution(width, height));
+   retval = ResolutionSetResolution(width, height);
 
 invalid_arguments:
-   return RpcIn_SetRetVals(result, resultLen, "Invalid arguments", FALSE);
+   return RPCIN_SETRETVALS(data, retval ? "" : "Invalid arguments", retval);
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * TopologyRpcInSetCB  --
+ * ResolutionDisplayTopologySetCB  --
  *
  *      Handler for TCLO 'DisplayTopology_Set'.
  *
- *      Routine unmarshals RPC arguments and passes over to backend
+ *      Routine unmarshals RPC arguments and passes over to back-end
  *      TopologySet().
  *
  * Results:
@@ -330,16 +421,12 @@ invalid_arguments:
  */
 
 static Bool
-TopologyRpcInSetCB(char const **result,     // OUT
-                   size_t *resultLen,       // OUT
-                   const char *name,        // IN
-                   const char *args,        // IN
-                   size_t argsSize,         // unused
-                   void *clientData)        // unused
+ResolutionDisplayTopologySetCB(RpcInData *data) // IN/OUT:
 {
    DisplayTopologyInfo *displays = NULL;
    unsigned int count, i;
    Bool success = FALSE;
+   const char *p;
 
    /*
     * The argument string will look something like:
@@ -349,8 +436,8 @@ TopologyRpcInSetCB(char const **result,     // OUT
     *    3 , 0 0 640 480 , 640 0 800 600 , 0 480 640 480
     */
 
-   if (sscanf(args, "%u", &count) != 1) {
-      return RpcIn_SetRetVals(result, resultLen,
+   if (sscanf(data->args, "%u", &count) != 1) {
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected \"count\"",
                               FALSE);
    }
@@ -359,36 +446,34 @@ TopologyRpcInSetCB(char const **result,     // OUT
 
    displays = malloc(sizeof *displays * count);
    if (!displays) {
-      RpcIn_SetRetVals(result, resultLen,
+      RPCIN_SETRETVALS(data,
                        "Failed to alloc buffer for display info",
                        FALSE);
       goto out;
    }
 
-   for (i = 0; i < count; i++) {
-      args = strchr(args, ',');
-      if (!args) {
-         RpcIn_SetRetVals(result, resultLen,
+   for (p = data->args, i = 0; i < count; i++) {
+      p = strchr(p, ',');
+      if (!p) {
+         RPCIN_SETRETVALS(data,
                           "Expected comma separated display list",
                           FALSE);
          goto out;
       }
-      args++; /* Skip past the , */
+      p++; /* Skip past the , */
 
-      if (sscanf(args, " %d %d %d %d ", &displays[i].x,
+      if (sscanf(p, " %d %d %d %d ", &displays[i].x,
                  &displays[i].y, &displays[i].width, &displays[i].height) != 4) {
-         RpcIn_SetRetVals(result, resultLen,
+         RPCIN_SETRETVALS(data,
                           "Expected x, y, w, h in display entry",
                           FALSE);
          goto out;
       }
    }
 
-   success = ResolutionSetTopology(result, resultLen, count, displays);
+   success = ResolutionSetTopology(count, displays);
 
-   if (success) {
-      RpcIn_SetRetVals(result, resultLen, "", TRUE);
-   }
+   RPCIN_SETRETVALS(data, success ? "" : "ResolutionSetTopology failed", success);
 
 out:
    free(displays);

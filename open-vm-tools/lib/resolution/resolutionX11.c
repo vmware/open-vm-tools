@@ -51,13 +51,23 @@
 
 
 /*
+ * Describes the state of the X11 back-end of lib/resolution.
+ */
+typedef struct {
+   Display      *display;       // X11 connection / display context
+   Window       rootWindow;     // points to display's root window
+   Bool         canUseVMwareCtrl;
+                                // TRUE if VMwareCtrl extension available
+   Bool         canUseVMwareCtrlTopologySet;
+                                // TRUE if VMwareCtrl extension supports topology set
+} ResolutionInfoX11Type;
+
+
+/*
  * Global variables
  */
 
-static Display *gXDisplay;
-static Window   gXRoot;
-static Bool     gCanUseVMwareCtrl;
-static Bool     gCanUseVMwareCtrlTopologySet;
+ResolutionInfoX11Type   resolutionInfoX11;
 
 
 /*
@@ -66,6 +76,7 @@ static Bool     gCanUseVMwareCtrlTopologySet;
 
 static Bool ResolutionCanSet(void);
 static Bool TopologyCanSet(void);
+static Bool SelectResolution(uint32 width, uint32 height);
 
 
 /*
@@ -91,26 +102,55 @@ static Bool TopologyCanSet(void);
  */
 
 Bool
-ResolutionBackendInit(InitHandle handle)  // IN: user's X11 display
+ResolutionBackendInit(InitHandle handle) // IN: User's X11 display.
 {
-   int major;   // throwaway variables
-   int minor;
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   ResolutionInfoType *resInfo = &resolutionInfo;
+   int dummy1;
+   int dummy2;
 
-   gXDisplay = handle;
+   memset(resInfoX, 0, sizeof *resInfoX);
 
-   if (gXDisplay == NULL) {
+   resInfoX->display = handle;
+
+   if (resInfoX->display == NULL) {
       Warning("%s: Called with invalid X display!\n", __func__);
       return FALSE;
    }
 
-   gXRoot = DefaultRootWindow(gXDisplay);
-   gCanUseVMwareCtrl = VMwareCtrl_QueryVersion(gXDisplay, &major, &minor);
-   gCanUseVMwareCtrlTopologySet = FALSE;
+   resInfoX->display = handle;
+   resInfoX->rootWindow = DefaultRootWindow(resInfoX->display);
+   resInfoX->canUseVMwareCtrl = VMwareCtrl_QueryVersion(resInfoX->display, &dummy1,
+                                                        &dummy2);
+   resInfoX->canUseVMwareCtrlTopologySet = FALSE;
 
-   gCanSetResolution = ResolutionCanSet();
-   gCanSetTopology = TopologyCanSet();
+   resInfo->canSetResolution = ResolutionCanSet();
+   resInfo->canSetTopology = TopologyCanSet();
 
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ResolutionBackendCleanup --
+ *
+ *      Frees (no) resources associated with the X11 Resolution_Set back-end.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+ResolutionBackendCleanup(void)
+{
+   return;
 }
 
 
@@ -118,14 +158,16 @@ ResolutionBackendInit(InitHandle handle)  // IN: user's X11 display
  *
  * ResolutionSetResolution --
  *
- *      Given a width and height, find the biggest resolution that will "fit".
- *      This is called as a result of the resolution set request from the vmx.
+ *      Given a width and height, define a custom resolution (if VMwareCtrl is
+ *      available), then issue a change resolution request via XRandR.
+ *
+ *      This is called as a result of the Resolution_Set request from the vmx.
  *
  * Results:
  *      TRUE if we are able to set to the exact size requested, FALSE otherwise.
  *
  * Side effects:
- *      The screen resolution of will change.
+ *      The screen resolution will change.
  *
  *-----------------------------------------------------------------------------
  */
@@ -134,18 +176,10 @@ Bool
 ResolutionSetResolution(uint32 width,  // IN
                         uint32 height) // IN
 {
-   XRRScreenConfiguration* xrrConfig;
-   XRRScreenSize *xrrSizes;
-   Rotation xrrCurRotation;
-   uint32  xrrNumSizes;
-   uint32 i;
-   uint32 bestFitIndex = 0;
-   uint64 bestFitSize = 0;
-   uint64 potentialSize;
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   ASSERT(resolutionInfo.canSetResolution);
 
-   ASSERT(gCanSetResolution);
-
-   if (gCanUseVMwareCtrl) {
+   if (resInfoX->canUseVMwareCtrl) {
       /*
        * If so, use the VMWARE_CTRL extension to provide a custom resolution
        * which we'll find as an exact match from XRRConfigSizes() (unless
@@ -154,39 +188,11 @@ ResolutionSetResolution(uint32 width,  // IN
        * As such, we don't care if this succeeds or fails, we'll make a best
        * effort attempt to change resolution anyway.
        */
-      VMwareCtrl_SetRes(gXDisplay, DefaultScreen(gXDisplay), width, height);
+      VMwareCtrl_SetRes(resInfoX->display, DefaultScreen(resInfoX->display),
+                        width, height);
    }
 
-   xrrConfig = XRRGetScreenInfo(gXDisplay, gXRoot);
-   xrrSizes = XRRConfigSizes(xrrConfig, &xrrNumSizes);
-   XRRConfigCurrentConfiguration(xrrConfig, &xrrCurRotation);
-
-   /*
-    * Iterate thru the list finding the best fit that is still <= in both width 
-    * and height. 
-    */
-   for (i = 0; i < xrrNumSizes; i++) {
-      potentialSize = xrrSizes[i].width * xrrSizes[i].height;
-      if (xrrSizes[i].width <= width && xrrSizes[i].height <= height && 
-          potentialSize > bestFitSize ) {
-         bestFitSize = potentialSize;
-         bestFitIndex = i;
-      }
-   }
-
-   if (bestFitSize > 0) {
-      Debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
-            xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
-      XRRSetScreenConfig(gXDisplay, xrrConfig, gXRoot, bestFitIndex, xrrCurRotation,
-                         GDK_CURRENT_TIME);
-   } else {
-      Debug("Can't find a suitable guest resolution, ignoring request for %dx%d\n",
-            width, height);
-   }
-
-   XRRFreeScreenConfigInfo(xrrConfig);
-   return xrrSizes[bestFitIndex].width == width && 
-          xrrSizes[bestFitIndex].height == height;
+   return SelectResolution(width, height);
 }
 
 
@@ -214,14 +220,15 @@ ResolutionSetResolution(uint32 width,  // IN
  */
 
 Bool
-ResolutionSetTopology(char const **result,      // OUT: error message goes here
-                      size_t *resultLen,        // OUT: length of result
-                      unsigned int ndisplays,   // IN:  number of elements in topology
-                      DisplayTopologyInfo *topology) // IN: array of display geometries
+ResolutionSetTopology(unsigned int ndisplays,
+                        // IN:  number of elements in topology
+                      DisplayTopologyInfo *topology)
+                        // IN: array of display geometries
 {
 #ifdef NO_MULTIMON
    return FALSE;
 #else
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
    Bool success = FALSE;
    unsigned int i;
    xXineramaScreenInfo *displays = NULL;
@@ -230,7 +237,7 @@ ResolutionSetTopology(char const **result,      // OUT: error message goes here
    int minX = 0;
    int minY = 0;
 
-   ASSERT(gCanSetTopology);
+   ASSERT(resolutionInfo.canSetTopology);
 
    /*
     * Allocate xXineramaScreenInfo array & translate from DisplayTopologyInfo.
@@ -273,16 +280,14 @@ ResolutionSetTopology(char const **result,      // OUT: error message goes here
       displays[i].y_org -= minY;
    }
 
-   if (!VMwareCtrl_SetTopology(gXDisplay, DefaultScreen(gXDisplay), displays,
+   if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display), displays,
                                ndisplays)) {
-      RpcIn_SetRetVals(result, resultLen, "Failed to set topology in the driver.",
-                       FALSE);
+      Debug("Failed to set topology in the driver.\n");
       goto out;
    }
 
-   if (!ResolutionSetResolution(maxX - minX, maxY - minY)) {
-      RpcIn_SetRetVals(result, resultLen, "Failed to set new resolution.",
-                       FALSE);
+   if (!SelectResolution(maxX - minX, maxY - minY)) {
+      Debug("Failed to set new resolution.\n");
       goto out;
    }
 
@@ -320,6 +325,7 @@ out:
 static Bool
 ResolutionCanSet(void)
 {
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
    FileIODescriptor fd;
    FileIOResult res;
    int64 filePos = 0;
@@ -332,12 +338,12 @@ ResolutionCanSet(void)
    unsigned int tokPos;
 
    /* See if the randr X module is loaded */
-   if (!XRRQueryVersion(gXDisplay, &major, &minor) ) {
+   if (!XRRQueryVersion(resInfoX->display, &major, &minor) ) {
       return FALSE;
    }
 
    /* See if the VMWARE_CTRL extension is supported */
-   if (gCanUseVMwareCtrl) {
+   if (resInfoX->canUseVMwareCtrl) {
       return TRUE;
    }
 
@@ -413,7 +419,7 @@ ResolutionCanSet(void)
  *      TRUE if we're able to reset topology, otherwise FALSE.
  *
  * Side effects:
- *      gCanUseVMwareCtrlTopologySet will be set to TRUE on success.
+ *      resInfoX->canUseVMwareCtrlTopologySet will be set to TRUE on success.
  *
  *-----------------------------------------------------------------------------
  */
@@ -421,21 +427,86 @@ ResolutionCanSet(void)
 static Bool
 TopologyCanSet(void)
 {
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
 #ifdef NO_MULTIMON
-   gCanUseVMwareCtrlTopologySet = FALSE;
+   resInfoX->canUseVMwareCtrlTopologySet = FALSE;
 #else
    int major;
    int minor;
 
-   if (gCanUseVMwareCtrl && XineramaQueryVersion(gXDisplay, &major, &minor)) {
+   if (resInfoX->canUseVMwareCtrl && XineramaQueryVersion(resInfoX->display, &major,
+                                                          &minor)) {
       /*
        * We need both a new enough VMWARE_CTRL and Xinerama for this to work.
        */
-      gCanUseVMwareCtrlTopologySet = (major > 0) || (major == 0 && minor >= 2);
+      resInfoX->canUseVMwareCtrlTopologySet = (major > 0) || (major == 0 && minor >= 2);
    } else {
-      gCanUseVMwareCtrlTopologySet = FALSE;
+      resInfoX->canUseVMwareCtrlTopologySet = FALSE;
    }
 #endif
 
-   return gCanUseVMwareCtrlTopologySet;
+   return resInfoX->canUseVMwareCtrlTopologySet;
+}
+
+
+/*-----------------------------------------------------------------------------
+ *
+ * SelectResolution --
+ *
+ *      Given a width and height, find the biggest resolution that will "fit".
+ *      This is called as a result of the resolution set request from the vmx.
+ *
+ * Results:
+ *      TRUE if we are able to set to the exact size requested, FALSE otherwise.
+ *
+ * Side effects:
+ *      The screen resolution of will change.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+SelectResolution(uint32 width,  // IN
+                 uint32 height) // IN
+{
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   XRRScreenConfiguration* xrrConfig;
+   XRRScreenSize *xrrSizes;
+   Rotation xrrCurRotation;
+   uint32  xrrNumSizes;
+   uint32 i;
+   uint32 bestFitIndex = 0;
+   uint64 bestFitSize = 0;
+   uint64 potentialSize;
+
+   xrrConfig = XRRGetScreenInfo(resInfoX->display, resInfoX->rootWindow);
+   xrrSizes = XRRConfigSizes(xrrConfig, &xrrNumSizes);
+   XRRConfigCurrentConfiguration(xrrConfig, &xrrCurRotation);
+
+   /*
+    * Iterate thru the list finding the best fit that is still <= in both width
+    * and height.
+    */
+   for (i = 0; i < xrrNumSizes; i++) {
+      potentialSize = xrrSizes[i].width * xrrSizes[i].height;
+      if (xrrSizes[i].width <= width && xrrSizes[i].height <= height &&
+          potentialSize > bestFitSize ) {
+         bestFitSize = potentialSize;
+         bestFitIndex = i;
+      }
+   }
+
+   if (bestFitSize > 0) {
+      Debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
+            xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
+      XRRSetScreenConfig(resInfoX->display, xrrConfig, resInfoX->rootWindow,
+                         bestFitIndex, xrrCurRotation, GDK_CURRENT_TIME);
+   } else {
+      Debug("Can't find a suitable guest resolution, ignoring request for %dx%d\n",
+            width, height);
+   }
+
+   XRRFreeScreenConfigInfo(xrrConfig);
+   return xrrSizes[bestFitIndex].width == width &&
+          xrrSizes[bestFitIndex].height == height;
 }

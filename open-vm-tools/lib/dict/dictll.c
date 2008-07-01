@@ -332,11 +332,6 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
    char *myLine;
    size_t myLineLen;
 
-   if (stream != stdin && ftell(stream) == 0) {
-      // Tolerate UTF-8 files from Windows Notepad that start with funny bytes.
-      DictLL_ReadUTF8BOM(stream);
-   }
-
    ASSERT(stream);
    ASSERT(line);
    ASSERT(name);
@@ -522,8 +517,6 @@ DictLL_ReadUTF8BOM(FILE *file) // IN/OUT
    if (file == stdin) {
       return FALSE;
    }
-
-   ASSERT(ftell(file) == 0);
 
    found =    fread(buf, sizeof buf, 1, file) == 1
            && memcmp(UTF8_BOM, buf, sizeof buf) == 0;

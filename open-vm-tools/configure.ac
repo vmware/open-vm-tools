@@ -34,7 +34,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.06.20-100027],
+   [2008.07.01-102166],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -158,6 +158,12 @@ CPPFLAGS="$CPPFLAGS -DUSING_AUTOCONF=1"
 ###
 AC_PROG_CPP
 AC_PROG_CC
+
+# This allows features like per-target compiler flags.  I.e., you can compile
+# one copy of the same sources twice with different flags.  (See lib/guestApp
+# for an example.)
+AM_PROG_CC_C_O
+
 AC_PROG_INSTALL
 # Needed for creating the archives in lib/ and the shared libraries.
 AC_PROG_LIBTOOL

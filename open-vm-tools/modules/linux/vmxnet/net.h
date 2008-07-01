@@ -49,27 +49,88 @@
 #define ETHER_MAX_QUEUED_PACKET 1600
 
 
-/* 
- * State's that a NIC can be in currently we only use this 
+/*
+ * State's that a NIC can be in currently we only use this
  * in VLance but if we implement/emulate new adapters that
- * we also want to be able to morph a new corresponding 
+ * we also want to be able to morph a new corresponding
  * state should be added.
  */
 
 #define LANCE_CHIP  0x2934
 #define VMXNET_CHIP 0x4392
 
-/* 
+/*
  * Size of reserved IO space needed by the LANCE adapter and
  * the VMXNET adapter. If you add more ports to Vmxnet than
  * there is reserved space you must bump VMXNET_CHIP_IO_RESV_SIZE.
  * The sizes must be powers of 2.
  */
 
-#define LANCE_CHIP_IO_RESV_SIZE  0x20 
+#define LANCE_CHIP_IO_RESV_SIZE  0x20
 #define VMXNET_CHIP_IO_RESV_SIZE 0x40
 
 #define MORPH_PORT_SIZE 4
 
-#endif // VMWARE_DEVICES_NET_H
 
+#ifdef USERLEVEL
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Net_AddAddrToLADRF --
+ *
+ *      Given a MAC address, sets the corresponding bit in the LANCE style
+ *      Logical Address Filter 'ladrf'.
+ *      The caller should have initialized the ladrf to all 0's, as this
+ *      function only ORs on a bit in the array.
+ *      'addr' is presumed to be ETHER_ADDR_LEN in size;
+ *      'ladrf' is presumed to point to a 64-bit vector.
+ *
+ *      Derived from a long history of derivations, originally inspired by
+ *      sample code from the AMD "Network Products: Ethernet Controllers 1998
+ *      Data Book, Book 2", pages 1-53..1-55.
+ *
+ * Returns:
+ *      None.
+ *
+ * Side effects:
+ *      Updates 'ladrf'.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Net_AddAddrToLadrf(const uint8 *addr,  // IN: pointer to MAC address
+                   uint8 *ladrf)       // IN/OUT: pointer to ladrf
+{
+#define CRC_POLYNOMIAL_BE 0x04c11db7UL	/* Ethernet CRC, big endian */
+
+   uint16 hashcode;
+   int32 crc = 0xffffffff;		/* init CRC for each address */
+   int32 j;
+   int32 bit;
+   int32 byte;
+
+   ASSERT(addr);
+   ASSERT(ladrf);
+
+   for (byte = 0; byte < ETHER_ADDR_LEN; byte++) {  /* for each address byte */
+      /* process each address bit */
+      for (bit = *addr++, j = 0;
+           j < 8;
+           j++, bit >>= 1) {
+	 crc = (crc << 1) ^ ((((crc < 0 ? 1 : 0) ^ bit) & 0x01) ?
+               CRC_POLYNOMIAL_BE : 0);
+      }
+   }
+   hashcode = (crc & 1);	       /* hashcode is 6 LSb of CRC ... */
+   for (j = 0; j < 5; j++) {	       /* ... in reverse order. */
+      hashcode = (hashcode << 1) | ((crc>>=1) & 1);
+   }
+
+   ladrf[hashcode >> 3] |= 1 << (hashcode & 0x07);
+}
+
+#endif // USERLEVEL
+
+#endif // VMWARE_DEVICES_NET_H

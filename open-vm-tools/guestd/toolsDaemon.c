@@ -78,6 +78,10 @@ extern "C" {
 #include "deployPkg.h"
 #endif
 
+#ifdef TOOLSDAEMON_HAS_RESOLUTION
+#   include "resolution.h"
+#endif
+
 /* in 1/100 of a second */
 #define RPCIN_POLL_TIME      10
 /* sync the time once a minute */
@@ -86,6 +90,10 @@ extern "C" {
 /*
  * Table mapping state changes to their conf file names.
  */
+/*
+ * Bug 294328:  Mac OS guests do not (yet) support the state change RPCs.
+ */
+#ifndef __APPLE__
 static const char *stateChgConfNames[] = {
    NULL,                     /* NONE */
    CONFNAME_POWEROFFSCRIPT,  /* HALT */
@@ -94,6 +102,7 @@ static const char *stateChgConfNames[] = {
    CONFNAME_RESUMESCRIPT,    /* RESUME */
    CONFNAME_SUSPENDSCRIPT,   /* SUSPEND */
 };
+#endif
 
 DblLnkLst_Links *ToolsDaemonEventQueue = NULL;  // main loop event queue
 static char *guestTempDirectory = NULL;
@@ -164,6 +173,14 @@ ToolsDaemon_SyncTime(Bool syncBackward)
       hostSecs = bp.out.ax.word;
    }
    hostUsecs = bp.out.bx.word;
+
+   /*
+    * maxTimeLag is computed by the VMX as the sum of two things:
+    * 1) A threshold that keeps the tools from being over eager about
+    *    resetting the time when it is only a little bit off.
+    * 2) The current backlog of timer interrupts that still need to be
+    *    delivered to the guest.
+    */
    maxTimeLag = bp.out.cx.word;
 
    if (hostSecs <= 0) {
@@ -197,10 +214,14 @@ ToolsDaemon_SyncTime(Bool syncBackward)
 #endif
 
    /*
-    * Adjust the guest OS time to equal the host OS time if the
-    * difference is significant
+    * Adjust the guest OS time to equal the host OS time if:
+    * 1) The guest OS is behind the host OS by more than maxTimeLag.
+    * 2) The guest OS is ahead of the host OS and syncBackward
+    *    is specified. syncBackwards is set to TRUE when the tools
+    *    daemon starts and when the timesync feature is toggled from
+    *    FALSE => TRUE.
     */
-   if (diff > maxTimeLag || (diff < -maxTimeLag && syncBackward)) {
+   if (diff > maxTimeLag || syncBackward) {
       if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
           Warning("Unable to set the guest OS time: %s.\n\n",
                   Msg_ErrString());
@@ -794,6 +815,10 @@ ToolsDaemonStateChangeDone(Bool status,  // IN
 
 
 /*
+ * Bug 294328:  Mac OS guests do not (yet) support the state change RPCs.
+ */
+#ifndef __APPLE__
+/*
  *-----------------------------------------------------------------------------
  *
  * ToolsDaemonTcloStateChange --
@@ -894,6 +919,7 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
    return RpcIn_SetRetVals(result, resultLen, "Invalid state change command",
                            FALSE);
 }
+#endif // ifndef __APPLE__
 
 
 /*
@@ -979,6 +1005,14 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
    }
 #endif
 
+#ifdef TOOLSDAEMON_HAS_RESOLUTION
+   Resolution_RegisterCaps();
+#endif
+
+   /*
+    * Bug 294328:  Mac OS guests do not (yet) support the state change RPCs.
+    */
+#ifndef __APPLE__
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.statechange")) {
       Debug("ToolsDaemonTcloCapReg: VMware doesn't support tools.capability.statechange. "
             "Trying .haltreboot\n");
@@ -992,6 +1026,7 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
       Debug("ToolsDaemonTcloCapReg: VMX doesn't support "
             "tools.capability.softpowerop_retry.");
    }
+#endif  // ifndef __APPLE__
 
 /*
  * This is a _WIN32 || linux check, with the additional check since linux is
@@ -1339,8 +1374,6 @@ ToolsDaemonTcloError(void *clientData,   // IN
 Bool
 ToolsDaemon_Init_Backdoor(ToolsDaemon_Data * data) // IN/OUT
 {
-   int i;
-
    data->in = RpcIn_Construct(ToolsDaemonEventQueue);
    if (data->in == NULL) {
       Warning("Unable to create the RpcIn object.\n\n");
@@ -1371,10 +1404,18 @@ ToolsDaemon_Init_Backdoor(ToolsDaemon_Data * data) // IN/OUT
    RpcIn_RegisterCallback(data->in, "Set_Option",
                           ToolsDaemonTcloSetOption, data);
 
-   for (i = 0; i < ARRAYSIZE(stateChangeCmdTable); i++) {
-      RpcIn_RegisterCallback(data->in, stateChangeCmdTable[i].tcloCmd,
-                             ToolsDaemonTcloStateChange, data);
+   /*
+    * Bug 294328:  Mac OS guests do not (yet) support the state change RPCs.
+    */
+#ifndef __APPLE__
+   {
+      int i;
+      for (i = 0; i < ARRAYSIZE(stateChangeCmdTable); i++) {
+         RpcIn_RegisterCallback(data->in, stateChangeCmdTable[i].tcloCmd,
+                                ToolsDaemonTcloStateChange, data);
+      }
    }
+#endif // ifndef __APPLE__
 
 #if !defined(N_PLAT_NLM)
    FoundryToolsDaemon_RegisterRoutines(data->in,
@@ -1388,6 +1429,10 @@ ToolsDaemon_Init_Backdoor(ToolsDaemon_Data * data) // IN/OUT
       Warning("Could not initialize HGFS server\n");
       return FALSE;
    }
+#endif
+
+#ifdef TOOLSDAEMON_HAS_RESOLUTION
+   Resolution_InitBackdoor(data->in);
 #endif
 
 #if !defined(__FreeBSD__) && !defined(sun) && !defined(N_PLAT_NLM)
@@ -1458,7 +1503,7 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
    }
 #endif
 
-#ifdef VMX86_DEBUG
+#if defined(VMX86_DEBUG) && !defined(__APPLE__)
    {
       int i;
 
@@ -1477,6 +1522,12 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
       Warning("Unable to create the event queue.\n\n");
       goto error;
    }
+
+#ifdef TOOLSDAEMON_HAS_RESOLUTION
+   if (!Resolution_Init(TOOLS_DAEMON_NAME, NULL)) {
+      Debug("%s: Unable to initialize Guest Fit feature\n", __func__);
+   }
+#endif
 
    /*
     * Load the conf file, then setup a periodic check and reload.
@@ -1592,6 +1643,10 @@ ToolsDaemon_Cleanup(ToolsDaemon_Data *data) // IN
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_min 0 0")) {
       Debug("%s: Unable to clear minimum resolution\n", __FUNCTION__);
    }
+#endif
+
+#ifdef TOOLSDAEMON_HAS_RESOLUTION
+   Resolution_Cleanup();
 #endif
 
 #if defined(_WIN32) || defined(linux)

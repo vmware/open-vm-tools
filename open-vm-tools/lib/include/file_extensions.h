@@ -53,7 +53,7 @@
 #define MAINMEM_FILE_EXTENSION "vmem"
 #define SUSPEND_FILE_EXTENSION "vmss"
 #define CHECKPOINT_FILE_EXTENSION "vmsn"
-#define VPLAY_FILE_EXTENSION "log"
+#define VPLAY_FILE_EXTENSION "vmlog"
 #define SNAPSHOT_METADATA_EXTENSION "vmsd"
 #define CHECKPOINT_FILE_EXTENSION_OLD "cpt"   // Obsolete synonym for vmsn
 

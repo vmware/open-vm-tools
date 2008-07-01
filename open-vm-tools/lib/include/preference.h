@@ -30,7 +30,6 @@ extern void Preference_IDontWantPoll(void);
 extern Bool Preference_Init(void);
 extern Bool Preference_InitEx(struct KeyLocatorState *klState);
 extern void Preference_Exit(void);
-extern void Preference_Reset(void);
 extern Bool Preference_GetBool(Bool defaultValue, const char *fmt);
 extern int32 Preference_GetTriState(int32 defaultValue, const char *fmt);
 extern int32 Preference_GetLong(int32 defaultValue, const char *fmt);

@@ -413,13 +413,13 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
       if ( (dladdr(encl_func_addr, &dli)  != 0) ||
            (dladdr((void *)_Unwind_GetIP(ctx), &dli) != 0 )) {
          data->outFunc(data->outFuncData,
-                      "Backtrace[%u] %016lx rip=%016lx in function %s "
+                      "SymBacktrace[%u] %016lx rip=%016lx in function %s "
                       "in object %s loaded at %016lx\n",
                       data->frameNr, cfa, _Unwind_GetIP(ctx),
                       dli.dli_sname, dli.dli_fname, dli.dli_fbase);
       } else {
          data->outFunc(data->outFuncData,
-                      "Backtrace/no symbols[%u] %016lx rip=%016lx \n",
+                      "SymBacktrace[%u] %016lx rip=%016lx \n",
                       data->frameNr, cfa, _Unwind_GetIP(ctx));
       }
       data->frameNr++;
@@ -528,12 +528,12 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
          break;
       }
       if ( dladdr((uintptr_t *)x[1], &dli)  != 0 ) {
-         outFunc(outFuncData, "Backtrace[%d] %#08x eip %#08x in function %s "
+         outFunc(outFuncData, "SymBacktrace[%d] %#08x eip %#08x in function %s "
                               "in object %s loaded at %#08x\n",
                                i, x[0], x[1], dli.dli_sname, dli.dli_fname,
                                 dli.dli_fbase);
       } else {
-         outFunc(outFuncData, "Backtrace/no symbol info[%d] %#08x eip %#08x \n", i, x[0], x[1]);
+         outFunc(outFuncData, "SymBacktrace[%d] %#08x eip %#08x \n", i, x[0], x[1]);
       }
       x = (uintptr_t *) x[0];
    }

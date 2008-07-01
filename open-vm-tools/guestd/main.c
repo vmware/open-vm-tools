@@ -59,7 +59,7 @@
 #include "vmBackup.h"
 #include "codeset.h"
 
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #include "socketMgr.h"
 #endif
 
@@ -68,6 +68,7 @@
 #   include "miscSolaris.h"
 #endif
 
+/* XXX Refactor this.  Push VM_GUESTD_MOUNTS_HGFS to whomever builds this file. */
 #if defined(sun)
 #   define VM_GUESTD_MOUNTS_HGFS 1
 #   define VM_GUESTD_RUNS_HGFS_PSERVER 1
@@ -93,7 +94,12 @@
 #include "guestd_version.h"
 
 #include "embed_version.h"
+/*
+ * XXX VM_EMBED_VERSION is ELF-specific, and Mac OS doesn't grok that.
+ */
+#ifndef __APPLE__
 VM_EMBED_VERSION(GUESTD_VERSION_STRING);
+#endif
 
 /*
  * Global constants
@@ -858,7 +864,7 @@ GuestdSleep(uint64 numUsecs,                 // IN
    int maxFd;                       /* Max fd of all Fd sets */
    fd_set readFds;                  /* Read fd set to select on */
    fd_set writeFds;
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
    SocketSelectable *sockReadFds = NULL;
    SocketSelectable *sockWriteFds = NULL;
    int numSockReadFds = 0;
@@ -905,7 +911,7 @@ GuestdSleep(uint64 numUsecs,                 // IN
    }
 #endif
 
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
    SocketMgr_GetSelectables(SOCKETMGR_IN,
                             &sockReadFds,
                             &numSockReadFds);
@@ -963,7 +969,7 @@ GuestdSleep(uint64 numUsecs,                 // IN
          curAsyncProc = NULL;
       }
 
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
       for (index = 0; index < numSockReadFds; index++) {
          if (FD_ISSET(sockReadFds[index], &readFds)) {
             SocketMgr_ProcessSelectable(sockReadFds[index], SOCKETMGR_IN);
@@ -978,7 +984,7 @@ GuestdSleep(uint64 numUsecs,                 // IN
 #endif
    }
 
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
    free((void *) sockReadFds);
    free((void *) sockWriteFds);
 #endif
@@ -1074,7 +1080,9 @@ GuestdDaemon(GuestApp_Dict **pConfDict,       // IN/OUT
     */
    syncProvider = VmBackup_NewSyncDriverProvider();
    if (syncProvider != NULL) {
-      VmBackup_Init(data->in, ToolsDaemonEventQueue, syncProvider);
+      Bool loggingEnabled = GuestApp_GetDictEntryBool(*pConfDict, CONFNAME_LOG);
+      VmBackup_Init(data->in, ToolsDaemonEventQueue, syncProvider, 
+                    loggingEnabled);
    } else {
       Debug("No vmBackup implementation available!\n");
    }
@@ -1249,50 +1257,6 @@ GuestdAlreadyRunning(char const *pidFileName) // IN
    }
 
    return FALSE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestdWritePidfile --
- *
- *    Write a pid into a pidfile
- *
- * Return value:
- *    TRUE on success
- *    FALSE on failure (detail is displayed)
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-GuestdWritePidfile(char const *fileName, // IN
-                   pid_t pid)            // IN
-{
-   FILE *pidFile;
-
-   pidFile = fopen(fileName, "w+");
-   if (pidFile == NULL) {
-      fprintf(stderr, "Unable to open the \"%s\" PID file: %s.\n\n", fileName,
-              strerror(errno));
-
-      return FALSE;
-   }
-
-   fprintf(pidFile, "%"FMTPID"\n", pid);
-
-   if (fclose(pidFile)) {
-      fprintf(stderr, "Unable to close the \"%s\" PID file: %s.\n\n", fileName,
-              strerror(errno));
-
-      return FALSE;
-   }
-
-   return TRUE;
 }
 
 
@@ -1527,13 +1491,11 @@ main(int argc,    // IN: Number of command line arguments
    }
 
    if (pidFile) {
-      if (daemon(FALSE, FALSE)) {
+      if (!System_Daemon(FALSE, FALSE, pidFile)) {
          fprintf(stderr, "Unable to daemonize: %s\n", strerror(errno));
          GuestApp_FreeDict(confDict);
          exit(1);
       }
-      /* From here on we are detached from controlling terminal. */
-      GuestdWritePidfile(pidFile, getpid());
    }
 
    retVal = GuestdDaemonWrapper(&confDict) ? 0 : 1;

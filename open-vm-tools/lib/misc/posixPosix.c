@@ -1812,7 +1812,7 @@ Posix_Getpwent(void)
 
 #if !defined(VM_SYSTEM_HAS_GETPWNAM_R) || \
    !defined(VM_SYSTEM_HAS_GETPWUID_R) || \
-   !defined(VM_SYSTEM_HAS_GETGRNAM_R)
+   !defined(VM_SYSTEM_HAS_GETGRNAM_R) // {
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1855,10 +1855,10 @@ CopyFieldIntoBuf(const char *src,
 }
 
 
-#endif
+#endif // }
 
 
-#if !defined(VM_SYSTEM_HAS_GETPWNAM_R) || !defined(VM_SYSTEM_HAS_GETPWUID_R)
+#if !defined(VM_SYSTEM_HAS_GETPWNAM_R) || !defined(VM_SYSTEM_HAS_GETPWUID_R) // {
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1910,10 +1910,10 @@ PasswdCopy(struct passwd *orig, // IN
 
    return new;
 }
-#endif
+#endif // }
 
 
-#ifndef VM_SYSTEM_HAS_GETPWNAM_R
+#ifndef VM_SYSTEM_HAS_GETPWNAM_R // {
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2019,10 +2019,10 @@ EmulateGetpwuid_r(uid_t uid,              // IN
       return ENOENT;
    }
 }
-#endif
+#endif // }
 
 
-#ifndef VM_SYSTEM_HAS_GETGRNAM_R
+#ifndef VM_SYSTEM_HAS_GETGRNAM_R // {
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2107,10 +2107,10 @@ GroupCopy(struct group *orig, // IN
 
    return new;
 }
-#endif
+#endif // }
 
 
-#ifndef VM_SYSTEM_HAS_GETGRNAM_R
+#ifndef VM_SYSTEM_HAS_GETGRNAM_R // {
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2162,7 +2162,7 @@ EmulateGetgrnam_r(const char *name,       // IN
       return ENOENT;
    }
 }
-#endif
+#endif // }
 
 
 /*
@@ -2387,7 +2387,7 @@ exit:
 }
 
 
-#if !defined(sun)
+#if !defined(sun) // {
 /*
  *----------------------------------------------------------------------
  *
@@ -2446,7 +2446,7 @@ Posix_GetGroupList(ConstUnicode user,    // IN:
 }
 
 
-#endif
+#endif // }
 
 /*
  *----------------------------------------------------------------------
@@ -2944,6 +2944,89 @@ exit:
       return NULL;
    }
    return m;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Posix_Printf --
+ *
+ *      Wrapper around printf. [w]printf can only print characters from
+ *      the local character set.  So instead we use ConsoleWriteW which can
+ *      print characters from the entire Unicode character set. 
+ *
+ * Returns:
+ *      Returns the number of characters printed out.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+Posix_Printf(ConstUnicode format,
+             ...)
+{
+   va_list args;
+   Unicode output;
+   char *outCurr;
+   int numChars;
+
+   va_start(args, format);
+   output = Str_Vasprintf(NULL, format, args);
+   va_end(args);
+
+   if (!PosixConvertToCurrent(output, &outCurr)) {
+      return -1;
+   }
+   numChars = printf(outCurr);
+
+   free(output);
+   free(outCurr);
+   return numChars;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Posix_Fprintf --
+ *
+ *      Wrapper around fprintf. 
+ *      
+ * Returns:
+ *      Returns the number of bytes characters printed out.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+Posix_Fprintf(FILE *stream,
+              ConstUnicode format,
+              ...)
+{
+   va_list args;
+   Unicode output;
+   char *outCurr;
+   int nOutput;
+
+   va_start(args, format);
+   output = Str_Vasprintf(NULL, format, args);
+   va_end(args);
+
+   if (!PosixConvertToCurrent(output, &outCurr)) {
+      return -1;
+   }
+   nOutput = fprintf(stream, "%s", outCurr);
+
+   free(output);
+   free(outCurr);
+   return nOutput;
 }
 
 

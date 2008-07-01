@@ -76,6 +76,8 @@ int Posix_Access(ConstUnicode pathName, int mode);
 int Posix_Stat(ConstUnicode pathName, struct stat *statbuf);
 int Posix_Chmod(ConstUnicode pathName, mode_t mode);
 void Posix_Perror(ConstUnicode str);
+int Posix_Printf(ConstUnicode format, ...);
+int Posix_Fprintf(FILE *stream, ConstUnicode format, ...);
 
 #if !defined(N_PLAT_NLM)
 int Posix_Mkdir(ConstUnicode pathName, mode_t mode);
@@ -169,6 +171,10 @@ int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 
 #if defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
+#include <winbase.h>
+#include "vm_atomic.h"
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -220,9 +226,6 @@ Posix_GetHostName(Unicode name, // OUT
  *
  *      Wrapper for gethostbyname().
  *
- *      XXX TODO: It returns a pointer to static data and is not thread-
- *      safe.  Better switch to Posix_GetAddrInfo.
- *
  * Results:
  *      NULL    Error
  *      !NULL   Pointer to hostent structure
@@ -236,12 +239,34 @@ Posix_GetHostName(Unicode name, // OUT
 static INLINE struct hostent*
 Posix_GetHostByName(ConstUnicode name)  // IN
 {
-   static struct hostent shostent = {0};  // XXX: use TLS to be thread-safe
+   static Atomic_uint32 atomicIndex = {TLS_OUT_OF_INDEXES};
+   uint32 hostentIndex;
+   struct hostent *shostent;
    char *nameMBCS;
    struct hostent *hostentMBCS;
    struct hostent *ret = NULL;
 
    ASSERT(name);
+
+   /*
+    * To make this wrapper thread-safe, we need to allocate one struct hostent
+    * per thread.  The pointer to that structure is stored in TLS.  The TLS
+    * index is allocated the first time this wrapper is called (in a process).
+    * We use atomic operations to make sure we only allocate one TLS index.
+    */
+
+   if ((hostentIndex = Atomic_Read(&atomicIndex)) == TLS_OUT_OF_INDEXES) {
+      uint32 newIndex = TlsAlloc();
+
+      ASSERT_NOT_IMPLEMENTED(newIndex != TLS_OUT_OF_INDEXES);
+      Atomic_Init();
+      hostentIndex = Atomic_ReadIfEqualWrite(&atomicIndex, TLS_OUT_OF_INDEXES, newIndex);
+      if (hostentIndex == TLS_OUT_OF_INDEXES) {
+         hostentIndex = newIndex;
+      } else {
+         TlsFree(newIndex);
+      }
+   }
 
    nameMBCS = (char *)Unicode_GetAllocBytes(name, STRING_ENCODING_DEFAULT);
 
@@ -249,22 +274,38 @@ Posix_GetHostByName(ConstUnicode name)  // IN
       hostentMBCS = gethostbyname(nameMBCS);
 
       if (hostentMBCS != NULL) {
-         Unicode_Free(shostent.h_name);
-         if (shostent.h_aliases) {
-            Unicode_FreeList(shostent.h_aliases, -1);
-            shostent.h_aliases = NULL;
+         shostent = (struct hostent *)TlsGetValue(hostentIndex);
+         if (shostent == NULL) {
+            /*
+             * Allocate the structure the first time this wrapper is called
+             * within a thread and re-use it afterwards.
+             */
+
+            BOOL retTLS;
+
+            shostent = (struct hostent *)Util_SafeMalloc(sizeof *shostent);
+            retTLS = TlsSetValue(hostentIndex, shostent);
+            ASSERT_NOT_IMPLEMENTED(retTLS);
+            shostent->h_name = NULL;
+            shostent->h_aliases = NULL;
          }
 
-         shostent.h_name = Unicode_Alloc(hostentMBCS->h_name,
-                                         STRING_ENCODING_DEFAULT);
-         if (hostentMBCS->h_aliases) {
-            shostent.h_aliases = Unicode_AllocList(hostentMBCS->h_aliases, -1,
-                                                   STRING_ENCODING_DEFAULT);
+         Unicode_Free(shostent->h_name);
+         if (shostent->h_aliases) {
+            Unicode_FreeList(shostent->h_aliases, -1);
+            shostent->h_aliases = NULL;
          }
-         shostent.h_addrtype = hostentMBCS->h_addrtype;
-         shostent.h_length = hostentMBCS->h_length;
-         shostent.h_addr_list = hostentMBCS->h_addr_list;
-         ret = &shostent;
+
+         shostent->h_name = Unicode_Alloc(hostentMBCS->h_name,
+                                          STRING_ENCODING_DEFAULT);
+         if (hostentMBCS->h_aliases) {
+            shostent->h_aliases = Unicode_AllocList(hostentMBCS->h_aliases, -1,
+                                                    STRING_ENCODING_DEFAULT);
+         }
+         shostent->h_addrtype = hostentMBCS->h_addrtype;
+         shostent->h_length = hostentMBCS->h_length;
+         shostent->h_addr_list = hostentMBCS->h_addr_list;
+         ret = shostent;
       }
    } else {
       /* There has been an error converting from UTF-8 to local encoding. */

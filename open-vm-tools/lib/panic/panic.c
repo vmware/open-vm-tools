@@ -423,6 +423,8 @@ Panic_GetCoreDumpFileName(void)
  *      A nice default implementation that basic Panic can call if you don't
  *      want to write your own.  The VMX of course has its own.
  *
+ *      TODO: Figure out how to trigger the Mac OS X Crash Reporter.
+ *
  * Results:
  *      None.
  *

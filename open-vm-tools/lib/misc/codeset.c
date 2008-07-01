@@ -634,19 +634,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
           (CSGTG_IGNORE == flags));
 
    if (dontUseIcu) {
-      /*
-       * Fall back.
-       *
-       * XXX CodeSetOld_GenericToGenericDb only supports certain
-       * flags, so make it happy.
-       */
-#if !defined USE_ICONV
-      flags = 0;
-#elif defined __linux__
-      if (flags != 0) {
-	 flags = CSGTG_TRANSLIT | CSGTG_IGNORE;
-      }
-#endif
+      // fall back
       return CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn, codeOut,
                                            flags, db);
    }
@@ -970,7 +958,7 @@ CodeSet_CurrentToUtf8(const char *bufIn,  // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSet_Utf16leToUtf8_Db --
+ * CodeSet_Utf16leToUtf8Db --
  *
  *    Append the content of a buffer (that uses the UTF-16LE encoding) to a
  *    DynBuf (that uses the UTF-8 encoding).
@@ -986,15 +974,15 @@ CodeSet_CurrentToUtf8(const char *bufIn,  // IN
  */
 
 Bool
-CodeSet_Utf16leToUtf8_Db(const char *bufIn, // IN
-                         size_t sizeIn,     // IN
-                         DynBuf *db)        // IN
+CodeSet_Utf16leToUtf8Db(const char *bufIn, // IN
+                        size_t sizeIn,     // IN
+                        DynBuf *db)        // IN
 {
    /*
     * Fallback if necessary.
     */
    if (dontUseIcu) {
-      return CodeSetOld_Utf16leToUtf8_Db(bufIn, sizeIn, db);
+      return CodeSetOld_Utf16leToUtf8Db(bufIn, sizeIn, db);
    }
 
    return CodeSet_GenericToGenericDb("UTF-16LE", bufIn, sizeIn, "UTF-8", 0,
@@ -1041,7 +1029,7 @@ CodeSet_Utf16leToUtf8(const char *bufIn,  // IN
    }
 
    DynBuf_Init(&db);
-   ok = CodeSet_Utf16leToUtf8_Db(bufIn, sizeIn, &db);
+   ok = CodeSet_Utf16leToUtf8Db(bufIn, sizeIn, &db);
    return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 

@@ -63,13 +63,15 @@ libMisc_la_LIBADD =
 am__libMisc_la_SOURCES_DIST = ../atomic.c ../base64.c ../codesetOld.c \
 	../dbllnklst.c ../dynarray.c ../dynbuf.c ../escape.c \
 	../hashTable.c ../hostinfo_misc.c ../hostname.c ../idLinux.c \
-	../iovector.c ../machineID.c ../miscSolaris.c ../random.c \
-	../timeutil.c ../util_misc.c ../vmstdio.c ../codeset.c
+	../iovector.c ../machineID.c ../miscSolaris.c ../posixDlopen.c \
+	../posixPosix.c ../random.c ../timeutil.c ../util_misc.c \
+	../vmstdio.c ../codeset.c
 @NO_ICU_TRUE@am__objects_1 = codeset.lo
 am_libMisc_la_OBJECTS = atomic.lo base64.lo codesetOld.lo dbllnklst.lo \
 	dynarray.lo dynbuf.lo escape.lo hashTable.lo hostinfo_misc.lo \
 	hostname.lo idLinux.lo iovector.lo machineID.lo miscSolaris.lo \
-	random.lo timeutil.lo util_misc.lo vmstdio.lo $(am__objects_1)
+	posixDlopen.lo posixPosix.lo random.lo timeutil.lo \
+	util_misc.lo vmstdio.lo $(am__objects_1)
 libMisc_la_OBJECTS = $(am_libMisc_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -232,8 +234,9 @@ noinst_LTLIBRARIES = libMisc.la
 libMisc_la_SOURCES = ../atomic.c ../base64.c ../codesetOld.c \
 	../dbllnklst.c ../dynarray.c ../dynbuf.c ../escape.c \
 	../hashTable.c ../hostinfo_misc.c ../hostname.c ../idLinux.c \
-	../iovector.c ../machineID.c ../miscSolaris.c ../random.c \
-	../timeutil.c ../util_misc.c ../vmstdio.c $(am__append_1)
+	../iovector.c ../machineID.c ../miscSolaris.c ../posixDlopen.c \
+	../posixPosix.c ../random.c ../timeutil.c ../util_misc.c \
+	../vmstdio.c $(am__append_1)
 AM_CFLAGS = @LIB_MISC_CPPFLAGS@
 all: all-am
 
@@ -301,6 +304,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/iovector.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/machineID.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/miscSolaris.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posixDlopen.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posixPosix.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timeutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util_misc.Plo@am__quote@
@@ -424,6 +429,20 @@ miscSolaris.lo: ../miscSolaris.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../miscSolaris.c' object='miscSolaris.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o miscSolaris.lo `test -f '../miscSolaris.c' || echo '$(srcdir)/'`../miscSolaris.c
+
+posixDlopen.lo: ../posixDlopen.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT posixDlopen.lo -MD -MP -MF $(DEPDIR)/posixDlopen.Tpo -c -o posixDlopen.lo `test -f '../posixDlopen.c' || echo '$(srcdir)/'`../posixDlopen.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/posixDlopen.Tpo $(DEPDIR)/posixDlopen.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../posixDlopen.c' object='posixDlopen.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o posixDlopen.lo `test -f '../posixDlopen.c' || echo '$(srcdir)/'`../posixDlopen.c
+
+posixPosix.lo: ../posixPosix.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT posixPosix.lo -MD -MP -MF $(DEPDIR)/posixPosix.Tpo -c -o posixPosix.lo `test -f '../posixPosix.c' || echo '$(srcdir)/'`../posixPosix.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/posixPosix.Tpo $(DEPDIR)/posixPosix.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../posixPosix.c' object='posixPosix.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o posixPosix.lo `test -f '../posixPosix.c' || echo '$(srcdir)/'`../posixPosix.c
 
 random.lo: ../random.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT random.lo -MD -MP -MF $(DEPDIR)/random.Tpo -c -o random.lo `test -f '../random.c' || echo '$(srcdir)/'`../random.c

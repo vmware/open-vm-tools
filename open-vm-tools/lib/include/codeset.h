@@ -298,9 +298,9 @@ CodeSet_CurrentToUtf8(const char *bufIn,  // IN
                       size_t *sizeOut);   // OUT
 
 Bool
-CodeSet_Utf16leToUtf8_Db(const char *bufIn,   // IN
-                         size_t sizeIn,       // IN
-                         DynBuf *db);         // IN
+CodeSet_Utf16leToUtf8Db(const char *bufIn,   // IN
+                        size_t sizeIn,       // IN
+                        DynBuf *db);         // IN
 
 Bool
 CodeSet_Utf16leToUtf8(const char *bufIn,   // IN

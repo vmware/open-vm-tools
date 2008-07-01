@@ -70,8 +70,8 @@ vmware_user_OBJECTS = $(am_vmware_user_OBJECTS)
 vmware_user_DEPENDENCIES = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/ghIntegrationStub/libghIntegrationStub.a \
-	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
-	../lib/guestRpc/libGuestRpc.a \
+	../lib/guestApp/libGuestAppX11.a \
+	../lib/guestInfo/libGuestInfo.a ../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
 	../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a \
 	../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a \
@@ -258,8 +258,8 @@ AM_CFLAGS = @GTK_CPPFLAGS@ @VMWARE_USER_CPPFLAGS@ \
 vmware_user_LDADD = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
 	../lib/ghIntegrationStub/libghIntegrationStub.a \
-	../lib/guestApp/libGuestApp.a ../lib/guestInfo/libGuestInfo.a \
-	../lib/guestRpc/libGuestRpc.a \
+	../lib/guestApp/libGuestAppX11.a \
+	../lib/guestInfo/libGuestInfo.a ../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
 	../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a \
 	../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a \

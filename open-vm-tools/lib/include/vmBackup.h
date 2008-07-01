@@ -87,6 +87,7 @@ typedef struct VmBackupState {
    void        *scripts;
    const char  *configDir;
    ssize_t     currentScript;
+   Bool        loggingEnabled;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);
@@ -113,7 +114,8 @@ typedef struct VmBackupSyncProvider {
 
 Bool VmBackup_Init(RpcIn *rpcin,
                    DblLnkLst_Links *eventQueue,
-                   VmBackupSyncProvider *provider);
+                   VmBackupSyncProvider *provider,
+                   Bool loggingEnabled);
 
 void VmBackup_Shutdown(RpcIn *rpcin);
 

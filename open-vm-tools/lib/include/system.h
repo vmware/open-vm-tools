@@ -83,9 +83,23 @@ OS_TYPE System_GetOSType(void);
 OS_DETAIL_TYPE System_GetOSDetailType(void);
 int32 System_GetSPVersion(void);
 Bool System_IsLoginScreenActive(void);
+Bool System_IsScreenSaverActive(void);
+Bool System_IsScreenSaverRunning(void);
 Bool System_StartDesktopSwitchThread(DesktopSwitchThreadArgs *args);
-void System_KillDesktopSwitchThread(void);
+Bool System_KillDesktopSwitchThread(void);
+Bool System_DisableAndKillScreenSaver(void);
 #endif
 
+
+/*
+ * TODO:  Targets' make/SCons files, or perhaps the entire build infrastructure
+ *        as a whole, should define a POSIX_LIKE_ENVIRONMENT variable which is
+ *        then acted upon and translates to a -DPOSIX_LIKE_ENVIRONMENT
+ *        preprocessor option.
+ */
+#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+Bool System_WritePidFile(const char *fileName, pid_t pid);
+Bool System_Daemon(Bool nochdir, Bool noclose, const char *pidFile);
+#endif
 
 #endif /* __SYSTEM_H__ */

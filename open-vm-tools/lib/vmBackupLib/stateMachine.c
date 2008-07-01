@@ -56,6 +56,7 @@
 #include "strutil.h"
 #include "util.h"
 #include "vmstdio.h"
+#include "conf.h"
 
 #define VMBACKUP_ENQUEUE_EVENT() {                                      \
    gBackupState->timerEvent = EventManager_Add(gEventQueue,             \
@@ -68,6 +69,7 @@
 static DblLnkLst_Links *gEventQueue = NULL;
 static VmBackupState *gBackupState = NULL;
 static VmBackupSyncProvider *gSyncProvider = NULL;
+static Bool gLoggingEnabled = FALSE;
 
 static void DebugOutput(const char *fmt, ...);
 
@@ -464,6 +466,7 @@ VmBackupStart(char const **result,     // OUT
 
    gBackupState->SendEvent = VmBackupSendEvent;
    gBackupState->pollPeriod = 100;
+   gBackupState->loggingEnabled = gLoggingEnabled;
 
    if (argsSize > 0) {
       int generateManifests = 0;
@@ -617,7 +620,8 @@ VmBackupSnapshotDone(char const **result,    // OUT
 Bool
 VmBackup_Init(RpcIn *rpcin,                     // IN
               DblLnkLst_Links *eventQueue,      // IN
-              VmBackupSyncProvider *provider)   // IN
+              VmBackupSyncProvider *provider,   // IN
+              Bool loggingEnabled)              // IN
 {
    DebugOutput("*** %s\n", __FUNCTION__);
    ASSERT(gEventQueue == NULL);
@@ -628,6 +632,7 @@ VmBackup_Init(RpcIn *rpcin,                     // IN
    ASSERT(provider->snapshotDone != NULL);
    ASSERT(provider->release != NULL);
 
+   gLoggingEnabled = loggingEnabled;
    RpcIn_RegisterCallback(rpcin,
                           VMBACKUP_PROTOCOL_START,
                           VmBackupStart,
@@ -699,21 +704,21 @@ VmBackup_Shutdown(RpcIn *rpcin)
 static void 
 DebugOutput(const char *fmt, ...)
 {
-#ifdef VMX86_DEBUG
-   char *str;
+   if (gLoggingEnabled) {
+      char *str;
+      va_list args;
 
-   va_list args;
-   va_start(args, fmt);
-   str = Str_Vasprintf(NULL, fmt, args);
-   va_end(args);
-   if (str != NULL) {
-#if defined(_WIN32)
-      OutputDebugString(str);
+      va_start(args, fmt);
+      str = Str_Vasprintf(NULL, fmt, args);
+      va_end(args);
+      if (str != NULL) {
+#if defined _WIN32
+         OutputDebugString(str);
 #else
-      fprintf(stderr, "%s", str);
+         fprintf(stderr, "%s", str);
 #endif
-      free(str);
+         free(str);
+      }
    }
-#endif
 }
 

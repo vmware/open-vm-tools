@@ -31,7 +31,7 @@
 // pull in setresuid()/setresgid() if possible
 #define  _GNU_SOURCE
 #include <unistd.h>
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #include <asm/param.h>
 #include <locale.h>
 #include <sys/stat.h>
@@ -109,20 +109,32 @@ static Bool ProcMgrKill(pid_t pid,
 
 #if defined(linux) && !defined(GLIBC_VERSION_23)
 /*
- * Implements the system calls (they are not wrapped by glibc til 2.3.2)
+ * Implements the system calls (they are not wrapped by glibc til 2.3.2).
+ *
+ * The _syscall3 macro from the Linux kernel headers is not PIC-safe.
+ * See: http://bugzilla.kernel.org/show_bug.cgi?id=7302
+ *
+ * (In fact, newer Linux kernels don't even define _syscall macros anymore.)
  */
-static
-_syscall3(int, setresuid,
-          uid_t, ruid,
-          uid_t, euid,
-          uid_t, suid);
 
-static
-_syscall3(int, setresgid,
-          gid_t, rgid,
-          gid_t, egid,
-          gid_t, sgid);
+static INLINE int
+setresuid(uid_t ruid,
+          uid_t euid,
+          uid_t suid)
+{
+   return syscall(__NR_setresuid, ruid, euid, suid);
+}
+
+
+static INLINE int
+setresgid(gid_t ruid,
+          gid_t euid,
+          gid_t suid)
+{
+   return syscall(__NR_setresgid, ruid, euid, suid);
+}
 #endif
+
 
 /*
  *----------------------------------------------------------------------
@@ -146,7 +158,7 @@ ProcMgr_ProcList *
 ProcMgr_ListProcesses(void)
 {
    ProcMgr_ProcList *procList = NULL;
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
    Bool failed = FALSE;
    DynBuf dbProcId;
    DynBuf dbProcCmd;
@@ -441,7 +453,7 @@ abort:
       ProcMgr_FreeProcList(procList);
       procList = NULL;
    }
-#endif // !defined(__FreeBSD__) && !defined(sun)
+#endif // !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 
    return procList;
 }
@@ -876,26 +888,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 static Bool
 ProcMgr_IsProcessRunning(pid_t pid)
 {
-   /* 
-    * if its not linux, assume its gone
-    */
-#if !defined(__FreeBSD__) && !defined(sun)
-   char procname[256];
-   int ret;
-   struct stat st;
-
-   snprintf(procname, sizeof procname, "/proc/%"FMTPID, pid);
-
-   /*
-    * will fail if its gone or we don't have permission; both are
-    * FALSE cases
-    */
-   ret = stat(procname, &st);
-   if (0 == ret) {
-      return TRUE;
-   }
-#endif
-   return FALSE;
+   return ((kill(pid, 0) == -1) && (errno == ESRCH));
 }
 
 

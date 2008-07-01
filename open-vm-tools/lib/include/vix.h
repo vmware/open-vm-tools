@@ -56,6 +56,7 @@ enum {
    VIX_HANDLETYPE_NETWORK              = 5,
    VIX_HANDLETYPE_JOB                  = 6,
    VIX_HANDLETYPE_SNAPSHOT             = 7,
+   VIX_HANDLETYPE_PROPERTY_LIST        = 9,
    VIX_HANDLETYPE_METADATA_CONTAINER   = 11
 };
 
@@ -148,6 +149,8 @@ enum {
    VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST    = 3033,
    VIX_E_INTERACTIVE_SESSION_NOT_PRESENT        = 3034,
    VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,          
+   VIX_E_UNABLE_TO_REPLAY_VM                    = 3039,
+
 
    /* VM Errors */ 
    VIX_E_VM_NOT_FOUND                           = 4000,
@@ -242,6 +245,7 @@ enum {
    VIX_E_DISK_ENCODING                          = 16061,
    VIX_E_DISK_CANTREPAIR                        = 16062,
    VIX_E_DISK_INVALIDDISK                       = 16063,
+   VIX_E_DISK_NOLICENSE                         = 16064,
 
    /* Crypto Library Errors */
    VIX_E_CRYPTO_UNKNOWN_ALGORITHM               = 17000,
@@ -452,7 +456,7 @@ enum {
  * parameter.
  */
 enum {
-   VIX_API_VERSION      = 4
+   VIX_API_VERSION      = -1
 };
 
 VixHandle VixHost_Connect(int apiVersion,

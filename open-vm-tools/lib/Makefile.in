@@ -48,6 +48,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@HAVE_X11_TRUE@am__append_1 = resolution
+@HAVE_X11_TRUE@am__append_2 = unityStub
 subdir = lib
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -69,7 +71,14 @@ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = guestRpc auth backdoor conf dict dnd dynxdr err \
+	eventManager file foundryMsg ghIntegrationStub guestApp \
+	guestInfo hgfs hgfsBd hgfsServer hgfsServerManagerGuest \
+	hgfsServerPolicyGuest deployPkg impersonate message misc \
+	netUtil panic panicDefault printer procMgr resolution rpcIn \
+	rpcOut rpcVmx SLPv2Parser socketMgr strUtil string stubs sync \
+	syncDriver system toolsLogger unicode unityStub user vixTools \
+	vmBackupLib vmCheck vmSignal wiper
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -215,10 +224,10 @@ SUBDIRS = guestRpc auth backdoor conf dict dnd dynxdr err eventManager \
 	file foundryMsg ghIntegrationStub guestApp guestInfo hgfs \
 	hgfsBd hgfsServer hgfsServerManagerGuest hgfsServerPolicyGuest \
 	deployPkg impersonate message misc netUtil panic panicDefault \
-	printer procMgr resolution rpcIn rpcOut rpcVmx SLPv2Parser \
-	socketMgr strUtil string stubs sync syncDriver system \
-	toolsLogger unicode unityStub user vixTools vmBackupLib \
-	vmCheck vmSignal wiper
+	printer procMgr $(am__append_1) rpcIn rpcOut rpcVmx \
+	SLPv2Parser socketMgr strUtil string stubs sync syncDriver \
+	system toolsLogger unicode $(am__append_2) user vixTools \
+	vmBackupLib vmCheck vmSignal wiper
 all: all-recursive
 
 .SUFFIXES:

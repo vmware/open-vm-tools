@@ -80,17 +80,18 @@ OBJS += stubs.o
 OBJS += super.o
 
 # Additional components
+OBJS +=	backdoor.o
 OBJS +=	cpName.o
 OBJS +=	cpNameLinux.o
 OBJS += cpNameLite.o
-OBJS +=	hgfsUtil.o
-OBJS +=	staticEscape.o
-OBJS +=	backdoor.o
 OBJS +=	hgfsBd.o
+OBJS +=	hgfsEscapeLinux.o
+OBJS +=	hgfsUtil.o
 OBJS +=	kernelStubsLinux.o
 OBJS +=	message.o
 OBJS +=  messageBackdoor.o
 OBJS +=	rpcout.o
+OBJS +=	staticEscape.o
 
 ifeq ($(MACHINE),x86_64)
 OBJS += backdoorGcc64.o

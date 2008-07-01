@@ -106,7 +106,7 @@ Scripts_Create(GtkWidget* mainWnd)
 
    /* Only root can edit scripts. */
    if (geteuid() != 0) {
-      label = 
+      label =
          gtk_label_new("This option is enabled only if you run VMware Tools as root.");
       gtk_widget_show(label);
       gtk_box_pack_start(GTK_BOX(scriptstab), label, FALSE, FALSE, 0);
@@ -115,7 +115,11 @@ Scripts_Create(GtkWidget* mainWnd)
       gtk_widget_show(hbox);
       gtk_box_pack_start(GTK_BOX(scriptstab), hbox, FALSE, FALSE, 0);
 
+      #if GTK2
+      label = gtk_label_new_with_mnemonic("Script _Event");
+      #else
       label = gtk_label_new("Script Event");
+      #endif
       gtk_widget_show(label);
       gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -124,7 +128,7 @@ Scripts_Create(GtkWidget* mainWnd)
       gtk_box_pack_start(GTK_BOX(hbox), scriptsCombo, TRUE, TRUE, 0);
       items = g_list_append(items, SCRIPT_SUSPEND);
       items = g_list_append(items, SCRIPT_RESUME);
-      items = g_list_append(items, SCRIPT_OFF); 
+      items = g_list_append(items, SCRIPT_OFF);
       items = g_list_append(items, SCRIPT_ON);
       gtk_combo_set_popdown_strings(GTK_COMBO(scriptsCombo), items);
       gtk_combo_set_use_arrows(GTK_COMBO(scriptsCombo), TRUE);
@@ -133,7 +137,11 @@ Scripts_Create(GtkWidget* mainWnd)
       gtk_signal_connect(GTK_OBJECT(GTK_COMBO(scriptsCombo)->entry), "changed",
                          GTK_SIGNAL_FUNC(Scripts_OnComboChanged), NULL);
 
+#ifdef GTK2
+      scriptsUseScript = gtk_check_button_new_with_mnemonic("_Use Script");
+#else
       scriptsUseScript = gtk_check_button_new_with_label("Use Script");
+#endif
       gtk_widget_show(scriptsUseScript);
       gtk_box_pack_start(GTK_BOX(scriptstab), scriptsUseScript, FALSE, FALSE, 0);
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptsUseScript), TRUE);
@@ -157,7 +165,7 @@ Scripts_Create(GtkWidget* mainWnd)
           GuestApp_FindProgram("gnome-terminal")) {
          termApp = "gnome-terminal";
          termAppOption = "-x";
-      } else if (getenv("KDE_FULL_SESSION") != NULL && 
+      } else if (getenv("KDE_FULL_SESSION") != NULL &&
                  !strcmp(getenv("KDE_FULL_SESSION"), "true") &&
                  GuestApp_FindProgram("konsole")) {
          termApp = "konsole";
@@ -172,35 +180,48 @@ Scripts_Create(GtkWidget* mainWnd)
          termAppOption = "-x";
       }
 
-      scriptsDefaultScript = 
+#ifdef GTK2
+      scriptsDefaultScript =
+         gtk_radio_button_new_with_mnemonic(NULL,("_Default Script"));
+#else
+      scriptsDefaultScript =
          gtk_radio_button_new_with_label(NULL,("Default Script"));
+#endif
       gtk_widget_show(scriptsDefaultScript);
       gtk_box_pack_start(GTK_BOX(scriptstab), scriptsDefaultScript, FALSE, FALSE, 0);
-      radiobtn_group  = 
+      radiobtn_group  =
          gtk_radio_button_group(GTK_RADIO_BUTTON(scriptsDefaultScript));
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptsDefaultScript), TRUE);
       gtk_signal_connect(GTK_OBJECT(scriptsDefaultScript), "toggled",
                          GTK_SIGNAL_FUNC(Scripts_OnDefaultScriptToggled), NULL);
-      
+
+#ifdef GTK2
+      scriptsCustomScript = gtk_radio_button_new_with_mnemonic(NULL,("_Custom Script"));
+#else
       scriptsCustomScript = gtk_radio_button_new_with_label(NULL,("Custom Script"));
+#endif
       gtk_widget_show(scriptsCustomScript);
       gtk_box_pack_start(GTK_BOX(scriptstab), scriptsCustomScript, FALSE, FALSE, 0);
       gtk_radio_button_set_group(GTK_RADIO_BUTTON(scriptsCustomScript),
                                  radiobtn_group);
-      
+
       hbox = gtk_hbox_new(FALSE, 10);
       gtk_widget_show(hbox);
       gtk_box_pack_start(GTK_BOX(scriptstab), hbox, FALSE, FALSE, 0);
       gtk_widget_set_usize(hbox, -1, 25);
-      
+
       scriptsPath = gtk_entry_new();
       gtk_widget_show(scriptsPath);
       gtk_box_pack_start(GTK_BOX(hbox), scriptsPath, TRUE, TRUE, 0);
       gtk_widget_set_sensitive(scriptsPath, FALSE);
       gtk_signal_connect(GTK_OBJECT(scriptsPath), "changed",
                          GTK_SIGNAL_FUNC(Scripts_PathOnChanged), NULL);
-      
+
+#ifdef GTK2
+      scriptsBrowse = gtk_button_new_with_mnemonic("_Browse...");
+#else
       scriptsBrowse = gtk_button_new_with_label("Browse...");
+#endif
       gtk_widget_show(scriptsBrowse);
       if (termApp) {
          gtk_box_pack_start(GTK_BOX(hbox), scriptsBrowse, FALSE, FALSE, 0);
@@ -209,38 +230,50 @@ Scripts_Create(GtkWidget* mainWnd)
       }
       gtk_widget_set_usize(scriptsBrowse, 70, 6);
       gtk_widget_set_sensitive(scriptsBrowse, FALSE);
-      gtk_signal_connect(GTK_OBJECT(scriptsBrowse), "clicked", 
+      gtk_signal_connect(GTK_OBJECT(scriptsBrowse), "clicked",
                          GTK_SIGNAL_FUNC(Scripts_OnBrowse), NULL);
 
       /* Only create edit button if there is an available X terminal app. */
       if (termApp) {
+#ifdef GTK2
+         scriptsEdit = gtk_button_new_with_mnemonic("_Edit...");
+#else
          scriptsEdit = gtk_button_new_with_label("Edit...");
+#endif
          gtk_widget_show(scriptsEdit);
          gtk_box_pack_end(GTK_BOX(hbox), scriptsEdit, FALSE, FALSE, 0);
          gtk_widget_set_usize(scriptsEdit, 70, 25);
-         gtk_signal_connect(GTK_OBJECT(scriptsEdit), "clicked", 
+         gtk_signal_connect(GTK_OBJECT(scriptsEdit), "clicked",
                             GTK_SIGNAL_FUNC(Scripts_OnEdit), NULL);
       }
 
       hbox = gtk_hbox_new(FALSE, 10);
       gtk_widget_show(hbox);
       gtk_box_pack_end(GTK_BOX(scriptstab), hbox, FALSE, FALSE, 0);
-      
+
+#ifdef GTK2
+      scriptsRun = gtk_button_new_with_mnemonic("_Run Now");
+#else
       scriptsRun = gtk_button_new_with_label("Run Now");
+#endif
       gtk_widget_show(scriptsRun);
       gtk_box_pack_end(GTK_BOX(hbox), scriptsRun, FALSE, FALSE, 0);
       gtk_widget_set_usize(scriptsRun, 70, 25);
-      gtk_signal_connect(GTK_OBJECT(scriptsRun), "clicked", 
+      gtk_signal_connect(GTK_OBJECT(scriptsRun), "clicked",
                          GTK_SIGNAL_FUNC(Scripts_OnRun), NULL);
 
+#ifdef GTK2
+      scriptsApply = gtk_button_new_with_mnemonic("_Apply");
+#else
       scriptsApply = gtk_button_new_with_label("Apply");
+#endif
       gtk_widget_show(scriptsApply);
       gtk_box_pack_end(GTK_BOX(hbox), scriptsApply, FALSE, FALSE, 0);
       gtk_widget_set_usize(scriptsApply, 70, 6);
       gtk_widget_set_sensitive(scriptsApply, FALSE);
-      gtk_signal_connect(GTK_OBJECT(scriptsApply), "clicked", 
+      gtk_signal_connect(GTK_OBJECT(scriptsApply), "clicked",
                          GTK_SIGNAL_FUNC(Scripts_OnApply), NULL);
-      
+
       gtk_signal_emit_by_name(GTK_OBJECT(GTK_COMBO(scriptsCombo)->entry), "changed");
 
    }
@@ -253,8 +286,8 @@ Scripts_Create(GtkWidget* mainWnd)
  *
  * Scripts_UpdateEnabled --
  *
- *      Update the enabled/disabled state of the widgets on the Scripts tab. 
- * 
+ *      Update the enabled/disabled state of the widgets on the Scripts tab.
+ *
  * Results:
  *      None.
  *
@@ -268,9 +301,9 @@ void
 Scripts_UpdateEnabled(void)
 {
    Bool enabledUse, enabledCustom;
-   
+
    enabledUse = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scriptsUseScript));
-   enabledCustom = 
+   enabledCustom =
       gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(scriptsCustomScript));
    gtk_widget_set_sensitive(scriptsDefaultScript, enabledUse);
    gtk_widget_set_sensitive(scriptsCustomScript, enabledUse);
@@ -282,7 +315,7 @@ Scripts_UpdateEnabled(void)
    gtk_widget_set_sensitive(scriptsBrowse, enabledUse && enabledCustom);
 }
 
-   
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -290,8 +323,8 @@ Scripts_UpdateEnabled(void)
  *
  *      Callback for the gtk signal "changed" on the Scripts tab's combo box.
  *      Lookup the script paths based on the entry selected and update the UI
- *      to match the contents of confDict. It temporarily blocks the  "toggled" 
- *      signals because the callbacks for those signal should only be called 
+ *      to match the contents of confDict. It temporarily blocks the  "toggled"
+ *      signals because the callbacks for those signal should only be called
  *      if a user makes a change, not when the state is changed internally
  *
  * Results:
@@ -306,7 +339,7 @@ Scripts_UpdateEnabled(void)
 void
 Scripts_OnComboChanged(gpointer entry, // IN: the entry selected
                        gpointer data)  // IN: unused
-{   
+{
    const char *path, *defaultPath;
    const char *currentState;
    currentState = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(scriptsCombo)->entry));
@@ -317,10 +350,10 @@ Scripts_OnComboChanged(gpointer entry, // IN: the entry selected
       path = GuestApp_GetDictEntry(confDict, CONFNAME_RESUMESCRIPT);
       defaultPath = GuestApp_GetDictEntryDefault(confDict, CONFNAME_RESUMESCRIPT);
    } else if (strcmp(currentState, SCRIPT_OFF) == 0) {
-      path = GuestApp_GetDictEntry(confDict, CONFNAME_POWEROFFSCRIPT);      
+      path = GuestApp_GetDictEntry(confDict, CONFNAME_POWEROFFSCRIPT);
       defaultPath = GuestApp_GetDictEntryDefault(confDict, CONFNAME_POWEROFFSCRIPT);
    } else if (strcmp(currentState, SCRIPT_ON) == 0) {
-      path = GuestApp_GetDictEntry(confDict, CONFNAME_POWERONSCRIPT);      
+      path = GuestApp_GetDictEntry(confDict, CONFNAME_POWERONSCRIPT);
       defaultPath = GuestApp_GetDictEntryDefault(confDict, CONFNAME_POWERONSCRIPT);
    } else {
       path = "";
@@ -331,7 +364,7 @@ Scripts_OnComboChanged(gpointer entry, // IN: the entry selected
                                     GTK_SIGNAL_FUNC(Scripts_OnUseScriptToggled),
                                     NULL);
    gtk_signal_handler_block_by_func(GTK_OBJECT(scriptsDefaultScript),
-                                    GTK_SIGNAL_FUNC(Scripts_OnDefaultScriptToggled), 
+                                    GTK_SIGNAL_FUNC(Scripts_OnDefaultScriptToggled),
                                     NULL);
    if (strcmp(path, "") == 0) {
       gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptsUseScript), FALSE);
@@ -355,7 +388,7 @@ Scripts_OnComboChanged(gpointer entry, // IN: the entry selected
                                       GTK_SIGNAL_FUNC(Scripts_OnDefaultScriptToggled),
                                       NULL);
    gtk_widget_set_sensitive(scriptsApply, FALSE);
- 
+
    gtk_signal_handler_unblock_by_func(GTK_OBJECT(scriptsUseScript),
                                       GTK_SIGNAL_FUNC(Scripts_OnUseScriptToggled),
                                       NULL);
@@ -464,7 +497,7 @@ Scripts_OnApply(gpointer btn,  // IN: unused
       if (enabledDef) {
          path = GuestApp_GetDictEntryDefault(confDict, confName);
       } else {
-         path = gtk_editable_get_chars(GTK_EDITABLE(scriptsPath), 0, -1); 
+         path = gtk_editable_get_chars(GTK_EDITABLE(scriptsPath), 0, -1);
       }
    }
 
@@ -588,15 +621,15 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
    char path[PATH_MAX];
    const char *defaultPath;
    struct stat statBuf;
-   
+
    scriptsFileDlg = gtk_file_selection_new("Select a file");
    gtk_widget_show(scriptsFileDlg);
 
    defaultPath = gtk_entry_get_text(GTK_ENTRY(scriptsPath));
    Str_Strcpy(path, defaultPath, sizeof path);
 
-   /* 
-    * If the filename represents a directory but does not end with a path 
+   /*
+    * If the filename represents a directory but does not end with a path
     * separator, append a path separator to it so that the file chooser will
     * start off in that directory instead of its parent.
     */
@@ -625,9 +658,9 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
                                         cancel_button),
                              "clicked", (GtkSignalFunc)gtk_widget_destroy,
                              GTK_OBJECT(scriptsFileDlg));
-   gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->selection_entry), 
+   gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->selection_entry),
                       "changed",
-                      (GtkSignalFunc)Scripts_BrowseOnChanged, 
+                      (GtkSignalFunc)Scripts_BrowseOnChanged,
                       GTK_FILE_SELECTION(scriptsFileDlg)->ok_button);
 
 
@@ -635,9 +668,9 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
    while (gtk_events_pending() || scriptsFileDlg != NULL) {
       gtk_main_iteration();
    }
-   
+
    if (*path != 0) {
-      gtk_entry_set_text(GTK_ENTRY(scriptsPath), path); 
+      gtk_entry_set_text(GTK_ENTRY(scriptsPath), path);
       gtk_widget_set_sensitive(scriptsApply, TRUE);
    }
 }
@@ -676,7 +709,7 @@ Scripts_BrowseOnChanged(gpointer entry, // IN: selection_entry
  * Scripts_BrowseOnOk --
  *
  *      Callback for the gtk signal "clicked" on the Scripts file browser OK
- *      button.  Set "okPressed" to 1 so the Scripts_OnBrowse code knows to 
+ *      button.  Set "okPressed" to 1 so the Scripts_OnBrowse code knows to
  *      quit looping and that OK was the reason we closed.
  *
  * Results:

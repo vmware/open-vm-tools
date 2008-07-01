@@ -339,8 +339,8 @@ typedef uint8 *TCA;  /* Pointer into TC (usually). */
  * Type big enough to hold an integer between 0..100
  */
 typedef uint8 Percent;
-#define asPercent(v)	((Percent)(v))
-#define CHOOSE_PERCENT  asPercent(-1)
+#define AsPercent(v)	((Percent)(v))
+#define CHOOSE_PERCENT  AsPercent(101)
 
 
 typedef uintptr_t VA;
@@ -371,6 +371,9 @@ typedef User_CartelID User_SessionID;
 
 typedef User_CartelID User_CartelGroupID;
 #define INVALID_CARTELGROUP_ID INVALID_CARTEL_ID
+
+typedef uint32 Worldlet_ID;
+#define INVALID_WORLDLET_ID ((Worldlet_ID)0)
 
 /* world page number */
 typedef uint32    WPN;

@@ -96,8 +96,8 @@
 #define PRODUCT_VMLS_SHORT_NAME "VMLS"
 #define PRODUCT_VMLS_NAME MAKE_NAME("License Server")
 
-#define PRODUCT_LICENSE_SHORT_NAME "LICENSE"
-#define PRODUCT_LICENSE_NAME MAKE_NAME("License Infrastructure")
+#define PRODUCT_VLICENSE_SHORT_NAME "VLICENSE"
+#define PRODUCT_VLICENSE_NAME MAKE_NAME("License Infrastructure")
 
 #define PRODUCT_P2V_SHORT_NAME "P2V"
 #define PRODUCT_P2V_NAME MAKE_NAME("P2V Assistant")
@@ -231,7 +231,7 @@
       || defined(VMX86_SYSIMAGE) \
       || defined(VMX86_VCB)      \
       || defined(VMX86_VMLS)     \
-      || defined(VMX86_LICENSE)  \
+      || defined(VMX86_VLICENSE) \
       || defined(VMX86_P2V)      \
       || defined(VMX86_DDK))
 #   if defined(_WIN32)
@@ -292,8 +292,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VCB_NAME
 #elif defined(VMX86_VMLS)
 # define PRODUCT_SHORT_NAME PRODUCT_VMLS_NAME
-#elif defined(VMX86_LICENSE)
-# define PRODUCT_SHORT_NAME PRODUCT_LICENSE_NAME
+#elif defined(VMX86_VLICENSE)
+# define PRODUCT_SHORT_NAME PRODUCT_VLICENSE_NAME
 #elif defined(VMX86_DDK)
 # define PRODUCT_SHORT_NAME PRODUCT_DDK_NAME
 #endif
@@ -506,9 +506,9 @@
  * Since there is no separate product defined for Ace Mgmt Server
  * (i.e. PRODUCT=xxx when running makefile), we can not used the
  * generic PRODUCT_NAME_STRING_FOR_LICENSE definition.
- * As a result, the specific ACE_MGMT_SERVER_PRODUCT_NAME_FOR_LICENSE 
+ * As a result, the specific ACE_MGMT_SERVER_PRODUCT_NAME_FOR_LICENSE
  * is used instead.
- * A similar reason is used also for the PRODUCT_VERSION_STRING_FOR_LICENSE 
+ * A similar reason is used also for the PRODUCT_VERSION_STRING_FOR_LICENSE
  * definition in the vm_version.h
  */
 

@@ -65,16 +65,16 @@ libMisc_a_LIBADD =
 am__libMisc_a_SOURCES_DIST = atomic.c base64.c codesetOld.c \
 	dbllnklst.c dynarray.c dynbuf.c escape.c hashTable.c \
 	hostinfo_misc.c hostname.c idLinux.c iovector.c machineID.c \
-	miscSolaris.c random.c timeutil.c util_misc.c vmstdio.c \
-	posixPosix.c posixDlopen.c codeset.c
+	miscSolaris.c posixDlopen.c posixPosix.c random.c timeutil.c \
+	util_misc.c vmstdio.c codeset.c
 @NO_ICU_TRUE@am__objects_1 = codeset.$(OBJEXT)
 am_libMisc_a_OBJECTS = atomic.$(OBJEXT) base64.$(OBJEXT) \
 	codesetOld.$(OBJEXT) dbllnklst.$(OBJEXT) dynarray.$(OBJEXT) \
 	dynbuf.$(OBJEXT) escape.$(OBJEXT) hashTable.$(OBJEXT) \
 	hostinfo_misc.$(OBJEXT) hostname.$(OBJEXT) idLinux.$(OBJEXT) \
 	iovector.$(OBJEXT) machineID.$(OBJEXT) miscSolaris.$(OBJEXT) \
-	random.$(OBJEXT) timeutil.$(OBJEXT) util_misc.$(OBJEXT) \
-	vmstdio.$(OBJEXT) posixPosix.$(OBJEXT) posixDlopen.$(OBJEXT) \
+	posixDlopen.$(OBJEXT) posixPosix.$(OBJEXT) random.$(OBJEXT) \
+	timeutil.$(OBJEXT) util_misc.$(OBJEXT) vmstdio.$(OBJEXT) \
 	$(am__objects_1)
 libMisc_a_OBJECTS = $(am_libMisc_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -248,8 +248,8 @@ noinst_LIBRARIES = libMisc.a
 libMisc_a_SOURCES = atomic.c base64.c codesetOld.c dbllnklst.c \
 	dynarray.c dynbuf.c escape.c hashTable.c hostinfo_misc.c \
 	hostname.c idLinux.c iovector.c machineID.c miscSolaris.c \
-	random.c timeutil.c util_misc.c vmstdio.c posixPosix.c \
-	posixDlopen.c $(am__append_1)
+	posixDlopen.c posixPosix.c random.c timeutil.c util_misc.c \
+	vmstdio.c $(am__append_1)
 AM_CFLAGS = @LIB_MISC_CPPFLAGS@
 SUBDIRS = shared
 all: all-recursive

@@ -37,7 +37,8 @@
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 
-#include "escBitvector.h"
+#include "vm_assert.h"
+#include "hgfsEscape.h"
 #include "cpName.h"
 #include "cpNameLite.h"
 #include "hgfsUtil.h"
@@ -45,8 +46,6 @@
 #include "request.h"
 #include "fsutil.h"
 #include "hgfsProto.h"
-#include "staticEscape.h"
-#include "vm_assert.h"
 #include "vm_basic_types.h"
 
 static struct inode *HgfsInodeLookup(struct super_block *sb,
@@ -441,7 +440,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       }
 
       /* Unescape the CP name. */
-      result = HgfsUnescapeBuffer(fileName, result);
+      result = HgfsEscape_Undo(fileName, result);
       *fileNameLength = result;
    }
    req->payloadSize = reqSize + result;
@@ -592,95 +591,6 @@ HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
    }
 
    return 0;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsEscapeBuffer --
- *
- *    Escape any characters that are not legal in a linux filename,
- *    which is just the character "/". We also of course have to
- *    escape the escape character, which is "%".
- *
- *    sizeBufOut must account for the NUL terminator.
- *
- *    XXX: See the comments in staticEscape.c and staticEscapeW.c to understand
- *    why this interface sucks.
- *
- * Results:
- *    On success, the size (excluding the NUL terminator) of the
- *    escaped, NUL terminated buffer.
- *    On failure (bufOut not big enough to hold result), negative value.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-HgfsEscapeBuffer(char const *bufIn, // IN:  Buffer with unescaped input
-                 uint32 sizeIn,     // IN:  Size of input buffer (chars)
-                 uint32 sizeBufOut, // IN:  Size of output buffer (bytes)
-                 char *bufOut)      // OUT: Buffer for escaped output
-{
-   /*
-    * This is just a wrapper around the more general escape
-    * routine; we pass it the correct bitvector and the
-    * buffer to escape. [bac]
-    */
-   EscBitVector bytesToEsc;
-
-   ASSERT(bufIn);
-   ASSERT(bufOut);
-
-   /* Set up the bitvector for "/" and "%" */
-   EscBitVector_Init(&bytesToEsc);
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'%');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'/');
-
-   return StaticEscape_Do('%',
-                          &bytesToEsc,
-                          bufIn,
-                          sizeIn,
-                          sizeBufOut,
-                          bufOut);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsUnescapeBuffer --
- *
- *    Unescape a buffer that was escaped using HgfsEscapeBuffer.
- *
- *    The unescaping is done in place in the input buffer, and
- *    can not fail.
- *
- * Results:
- *    The size (excluding the NUL terminator) of the unescaped, NUL
- *    terminated buffer.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-HgfsUnescapeBuffer(char *bufIn,   // IN: Buffer to be unescaped
-                   uint32 sizeIn) // IN: Size of input buffer
-{
-   /*
-    * This is just a wrapper around the more general unescape
-    * routine; we pass it the correct escape character and the
-    * buffer to unescape. [bac]
-    */
-   ASSERT(bufIn);
-   return StaticEscape_Undo('%', bufIn, sizeIn);
 }
 
 

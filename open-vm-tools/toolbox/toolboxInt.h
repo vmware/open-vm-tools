@@ -45,11 +45,19 @@
 
 #define MAX_DEVICES 50  /* maximum number of devices we'll show */
 
+#if GTK2
+#define TAB_LABEL_OPTIONS "_Options"
+#define TAB_LABEL_DEVICES "De_vices"
+#define TAB_LABEL_SCRIPTS "Scrip_ts"
+#define TAB_LABEL_SHRINK "Shrin_k"
+#define TAB_LABEL_ABOUT "A_bout"
+#else
 #define TAB_LABEL_OPTIONS "Options"
 #define TAB_LABEL_DEVICES "Devices"
 #define TAB_LABEL_SCRIPTS "Scripts"
 #define TAB_LABEL_SHRINK "Shrink"
 #define TAB_LABEL_ABOUT "About"
+#endif
 
 void OnViewportSizeRequest(GtkWidget *widget, GtkRequisition *requisition,
                            gpointer user_data);

@@ -38,6 +38,7 @@
 
 #include "cpName.h"
 #include "cpNameLite.h"
+#include "hgfsEscape.h"
 #include "hgfsProto.h"
 #include "hgfsUtil.h"
 #include "inode.h"
@@ -284,7 +285,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(fileName, result);
+   result = HgfsEscape_Undo(fileName, result);
    *fileNameLength = result;
    req->payloadSize = reqSize + result;
 
@@ -729,7 +730,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
       }
 
       /* Unescape the CP name. */
-      result = HgfsUnescapeBuffer(fileName, result);
+      result = HgfsEscape_Undo(fileName, result);
       *fileNameLength = result;
    }
    req->payloadSize = reqSize + result;
@@ -861,7 +862,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(fileName, result);
+   result = HgfsEscape_Undo(fileName, result);
    *fileNameLength = result;
    req->payloadSize = requestSize + result;
 
@@ -1411,7 +1412,7 @@ retry:
    }
 
    /* Unescape the old CP name. */
-   result = HgfsUnescapeBuffer(oldName, result);
+   result = HgfsEscape_Undo(oldName, result);
    *oldNameLength = result;
    reqSize += result;
 
@@ -1462,7 +1463,7 @@ retry:
    }
 
    /* Unescape the new CP name. */
-   result = HgfsUnescapeBuffer(newName, result);
+   result = HgfsEscape_Undo(newName, result);
    *newNameLength = result;
    reqSize += result;
    req->payloadSize = reqSize;
@@ -1596,7 +1597,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
    }
 
    /* Unescape the symlink CP name. */
-   result = HgfsUnescapeBuffer(symlinkName, result);
+   result = HgfsEscape_Undo(symlinkName, result);
    *symlinkNameLength = result;
    req->payloadSize = requestSize + result;
 
@@ -1642,7 +1643,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
    CPNameLite_ConvertTo(targetName, targetNameBytes - 1, '/');
 
    /* Unescape the target CP-lite name. */
-   result = HgfsUnescapeBuffer(targetName, targetNameBytes - 1);
+   result = HgfsEscape_Undo(targetName, targetNameBytes - 1);
    *targetNameLength = result;
    req->payloadSize += result;
 

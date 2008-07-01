@@ -25,7 +25,6 @@
  *     user.
  */
 
-
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -71,7 +70,7 @@ VM_EMBED_VERSION(VMWAREUSER_VERSION_STRING);
 static char THIS_FILE[] = __FILE__;
 #endif
 
-#define WINDOW_TITLE    "vmware-user"
+#define VMUSER_TITLE    "vmware-user"
 #define LOCK_ATOM_NAME  "vmware-user-lock"
 
 #define INVALID_VALUE "Invalid option"
@@ -109,12 +108,19 @@ static Bool QueryX11Lock(Display *dpy, Window w, Atom lockAtom);
  */
 
 static Bool gOpenUrlRegistered;
-static Bool gResolutionSetRegistered;
 static Bool gDnDRegistered;
 static Bool gCopyPasteRegistered;
 static Bool gHgfsServerRegistered;
 static pid_t gParentPid;
 static char gLogFilePath[PATH_MAX];
+
+/*
+ * The following are flags set by our signal handler.  They are evaluated
+ * in main() only if gtk_main() ever returns.
+ */
+static Bool gReloadSelf;        // Set by SIGUSR2; triggers reload.
+static Bool gYieldBlock;        // Set by SIGUSR1; triggers DND shutdown
+static Bool gSigExit;           // Set by all but SIGUSR1; triggers app shutdown
 
 /*
  * From vmwareuserInt.h
@@ -145,8 +151,8 @@ static int const gSignals[] = {
    SIGINT,
    SIGQUIT,
    SIGTERM,
-   SIGUSR1,
-   SIGUSR2,
+   SIGUSR1,     // yield vmblock, uninit DnD
+   SIGUSR2,     // reload vmware-user
    SIGPIPE
 };
 
@@ -173,6 +179,7 @@ void VMwareUserCleanupRpc(void)
       Unity_UnregisterCaps();
       GHI_Cleanup();
       Unity_Cleanup();
+      Resolution_Cleanup();
 
       if (gHgfsServerRegistered) {
          HgfsServerManager_Unregister(gRpcIn, TOOLS_DND_NAME);
@@ -185,10 +192,6 @@ void VMwareUserCleanupRpc(void)
       if (gOpenUrlRegistered) {
          FoundryToolsDaemon_UnregisterOpenUrl();
          gOpenUrlRegistered = FALSE;
-      }
-      if (gResolutionSetRegistered) {
-         Resolution_UnregisterCapability();
-         gResolutionSetRegistered = FALSE;
       }
       if (gDnDRegistered) {
          DnD_Unregister(gHGWnd, gGHWnd);
@@ -215,14 +218,31 @@ void VMwareUserCleanupRpc(void)
  *      None.
  *
  * Side effects:
- *      The application will close.
+ *      Application will break out of the gtk_main() loop.  One or more of the
+ *      signal flags (gReloadSelf, gYieldBlock, gSigExit) may be set.  For all
+ *      signals but SIGUSR1, VMwareUserCleanupRpc() will be called.
  *
  *-----------------------------------------------------------------------------
  */
 
 void VMwareUserSignalHandler(int sig) // IN
 {
-   VMwareUserCleanupRpc();
+   switch (sig) {
+   case SIGUSR1:
+      gYieldBlock = TRUE;
+      break;
+   case SIGUSR2:
+      gReloadSelf = TRUE;
+      gSigExit = TRUE;
+      break;
+   default:
+      gSigExit = TRUE;
+   }
+
+   if (gSigExit) {
+      VMwareUserCleanupRpc();
+   }
+
    gtk_main_quit();
 }
 
@@ -406,11 +426,6 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
    } else {
       FoundryToolsDaemon_RegisterOpenUrlCapability();
    }
-   if (!gResolutionSetRegistered) {
-      gResolutionSetRegistered = Resolution_Register(gRpcIn);
-   } else {
-      Resolution_RegisterCapability();
-   }
    if (!gDnDRegistered) {
       gDnDRegistered = DnD_Register(gHGWnd, gGHWnd);
       if (gDnDRegistered) {
@@ -442,6 +457,7 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
    }
 
    Unity_RegisterCaps();
+   Resolution_RegisterCaps();
 
    return RpcIn_SetRetVals(result, resultLen, "", TRUE);
 }
@@ -683,11 +699,13 @@ int
 main(int argc, char *argv[])
 {
    gOpenUrlRegistered = FALSE;
-   gResolutionSetRegistered = FALSE;
    gDnDRegistered = FALSE;
    gCopyPasteRegistered = FALSE;
    gHgfsServerRegistered = FALSE;
    gBlockFd = -1;
+   gReloadSelf = FALSE;
+   gYieldBlock = FALSE;
+   gSigExit = FALSE;
    struct sigaction olds[ARRAYSIZE(gSignals)];
    int index;
    GuestApp_Dict *confDict = Conf_Load();
@@ -833,16 +851,12 @@ main(int argc, char *argv[])
 
    Unity_Init(confDict, NULL);
    GHI_Init(NULL, NULL);
+   Resolution_Init(TOOLS_DND_NAME, gXDisplay);
 
    gRpcIn = RpcIn_Construct(gEventQueue);
    if (gRpcIn == NULL) {
       Warning("Unable to create the RpcIn object.\n\n");
       return -1;
-   }
-
-   /* Not fatal. */
-   if (Resolution_Init(TOOLS_DND_NAME, gXDisplay) == FALSE) {
-      Warning("Unable to initialize Guest Fit feature.\n\n");
    }
 
    if (!RpcIn_start(gRpcIn, RPCIN_POLL_TIME, VMwareUserRpcInResetCB,
@@ -858,6 +872,7 @@ main(int argc, char *argv[])
 
    Unity_InitBackdoor(gRpcIn);
    GHI_InitBackdoor(gRpcIn);
+   Resolution_InitBackdoor(gRpcIn);
 
 #if !defined(N_PLAT_NLM) && !defined(sun)
    {
@@ -880,10 +895,34 @@ main(int argc, char *argv[])
 
    Pointer_Register(gUserMainWidget);
 
-   /*
-    * We'll block here until the window is destroyed or a signal is recieved
-    */
-   gtk_main();
+   for (;;) {
+      /*
+       * We'll block here until the window is destroyed or a signal is recieved
+       */
+      gtk_main();
+
+      if (gSigExit) {
+         break;
+      }
+
+      /* XXX Refactor this. */
+      if (gYieldBlock) {
+         Debug("Yielding vmblock descriptor.\n");
+         if (gDnDRegistered) {
+            DnD_Unregister(gHGWnd, gGHWnd);
+            gDnDRegistered = FALSE;
+         }
+         if (gCopyPasteRegistered) {
+            CopyPaste_Unregister(gUserMainWidget);
+            gCopyPasteRegistered = FALSE;
+         }
+         if (gBlockFd >= 0 && !DnD_UninitializeBlocking(gBlockFd)) {
+            Debug("vmware-user failed to uninitialize blocking.\n");
+         }
+         gBlockFd = -1;
+         gYieldBlock = FALSE;
+      }
+   }
 
    if (runningInForeignVM) {
       ForeignTools_Shutdown();
@@ -893,6 +932,18 @@ main(int argc, char *argv[])
 
    if (gBlockFd >= 0 && !DnD_UninitializeBlocking(gBlockFd)) {
       Debug("vmware-user failed to uninitialize blocking.\n");
+   }
+
+   /*
+    * SIGUSR2 sets this to TRUE, indicating that we should relaunch ourselves.
+    * This is useful during a Tools upgrade where we'd like to automatically
+    * restart a new vmware-user binary.
+    *
+    * NB:  This just makes a best effort and relies on the user's PATH
+    * environment variable.  If it fails for any reason, then we'll just exit.
+    */
+   if (gReloadSelf) {
+      execlp(VMUSER_TITLE, VMUSER_TITLE, NULL);
    }
 
    return 0;
@@ -920,7 +971,7 @@ main(int argc, char *argv[])
  *
  * Side effects:
  *      Errors may be sent to stderr.
- *      Window will have a title of WINDOW_TITLE.
+ *      Window will have a title of VMUSER_TITLE.
  *      Window, if not already directly parented by the root, will be.
  *
  *      dpy will point to our default display (ex: $DISPLAY).
@@ -947,7 +998,7 @@ InitGdkWindow(GdkDisplay **defaultDisplay,      // OUT: default display
    }
 
    myGroupLeader = gdk_display_get_default_group(myDefaultDisplay);
-   gdk_window_set_title(myGroupLeader, WINDOW_TITLE);
+   gdk_window_set_title(myGroupLeader, VMUSER_TITLE);
 
    /*
     * Sanity check:  Set the override redirect property on our group leader
@@ -1108,7 +1159,7 @@ AcquireDisplayLock(void)
       /* Skip unless window is named vmware-user. */
       if ((XFetchName(defaultDisplay, children[index], &name) == 0) ||
           (name == NULL) ||
-          strcmp(name, WINDOW_TITLE)) {
+          strcmp(name, VMUSER_TITLE)) {
          XFree(name);
          continue;
       }

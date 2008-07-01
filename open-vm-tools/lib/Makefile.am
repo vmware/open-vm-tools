@@ -44,7 +44,9 @@ SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer
 SUBDIRS += procMgr
-SUBDIRS += resolution
+if HAVE_X11
+   SUBDIRS += resolution
+endif
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut
 SUBDIRS += rpcVmx
@@ -58,7 +60,9 @@ SUBDIRS += syncDriver
 SUBDIRS += system
 SUBDIRS += toolsLogger
 SUBDIRS += unicode
-SUBDIRS += unityStub
+if HAVE_X11
+   SUBDIRS += unityStub
+endif
 SUBDIRS += user
 SUBDIRS += vixTools
 SUBDIRS += vmBackupLib

@@ -751,6 +751,13 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_SERVER20_BETA2_V_MNR     7
 #define   TOOLS_VERSION_SERVER20_BETA2_V_BASE    1
 
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_SERVER20_RC1       TOOLS_VERSION_TO_UINT(TOOLS_VERSION_SERVER20_RC1_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_SERVER20_RC1_V_MJR     7
+#define   TOOLS_VERSION_SERVER20_RC1_V_MNR     7
+#define   TOOLS_VERSION_SERVER20_RC1_V_BASE    2
+
 /*
  * XXX: Chromium (WS 6.5) releases should have 7.8.x numbers.
  * We still haven't used that range (beta 1 was released with 7.7.1).
@@ -762,6 +769,13 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_WS65_BETA1_V_MJR     7
 #define   TOOLS_VERSION_WS65_BETA1_V_MNR     8
 #define   TOOLS_VERSION_WS65_BETA1_V_BASE    0
+
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_WS65_BETA2     TOOLS_VERSION_TO_UINT(TOOLS_VERSION_WS65_BETA2_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_WS65_BETA2_V_MJR     7
+#define   TOOLS_VERSION_WS65_BETA2_V_MNR     8
+#define   TOOLS_VERSION_WS65_BETA2_V_BASE    1
 
 #ifndef RC_INVOKED
 #define   TOOLS_VERSION_FUSION15_BETA1     TOOLS_VERSION_TO_UINT(TOOLS_VERSION_FUSION15_BETA1_V)

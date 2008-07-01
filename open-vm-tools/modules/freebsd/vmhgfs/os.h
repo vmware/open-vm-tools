@@ -118,6 +118,13 @@ extern void os_thread_release(OS_THREAD_T thread);
 extern void os_thread_exit(int errorCode);
 
 extern int os_add_atomic(unsigned int *address, int amount);
+extern int os_component_to_utf8_decomposed(const char *bufIn, uint32 bufInSize, char *bufOut,
+                                           size_t *sizeOut, uint32 bufOutSize);
+extern int os_component_to_utf8_precomposed(const char *bufIn, uint32 bufInSize, char *bufOut,
+                                            size_t *sizeOut, uint32 bufOutSize);
+extern int os_path_to_utf8_precomposed(const char *bufIn, uint32 bufInSize, char *bufOut,
+                                       uint32 bufOutSize);
+extern Bool os_utf8_conversion_needed(void);
 
 
 #endif // ifndef _OS_H_

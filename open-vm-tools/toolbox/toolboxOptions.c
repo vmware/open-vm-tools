@@ -65,9 +65,17 @@ Options_Create(GtkWidget* mainWnd)
    /* Load the correct strings for the UI. */
    VmCheck_GetVersion(&version, &type);
    if (type == VMX_TYPE_SCALABLE_SERVER) {
+#ifdef GTK2
+      optionsTimeSync = gtk_check_button_new_with_mnemonic("_Time synchronization between the virtual machine\nand the ESX Server.");
+#else
       optionsTimeSync = gtk_check_button_new_with_label("Time synchronization between the virtual machine\nand the ESX Server.");
+#endif
    } else {
+#ifdef GTK2
+      optionsTimeSync = gtk_check_button_new_with_mnemonic("_Time synchronization between the virtual machine\nand the host operating system.");
+#else
       optionsTimeSync = gtk_check_button_new_with_label("Time synchronization between the virtual machine\nand the host operating system.");
+#endif
    }
 
    gtk_widget_show(optionsTimeSync);
@@ -91,7 +99,7 @@ Options_Create(GtkWidget* mainWnd)
  *
  *      Callback for the gtk signal "toggled" on the Options tab's timesync
  *      checkbox. Sends the new and old values thru the backdoor. The VMX
- *      should turn time syncing on or off. 
+ *      should turn time syncing on or off.
  *
  * Results:
  *      None.

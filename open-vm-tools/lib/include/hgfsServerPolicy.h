@@ -71,8 +71,7 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,         // IN:
                               size_t nameInLen,           // IN:
                               HgfsOpenMode mode,          // IN:
                               size_t *sharePathLen,       // OUT:
-                              char const **sharePath,     // OUT:
-                              HgfsSharedFolder **share);  // OUT:
+                              char const **sharePath);    // OUT:
 HgfsNameStatus
 HgfsServerPolicy_GetShareMode(char const *nameIn,        // IN: Share name to retrieve
                               size_t nameInLen,          // IN: Length of Share name

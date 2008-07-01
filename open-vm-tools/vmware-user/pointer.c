@@ -194,8 +194,9 @@ PointerUpdatePointerLoop(void* clientData) // IN: unused
          if (hostX != guestX || hostY != guestY) {
             GuestApp_SetPos(guestX,guestY);
          }
-         if (gHostClipboardTries-- > 0 ) {
-            if (gHostClipboardTries < 6 && 
+         if (gHostClipboardTries > 0) {
+            gHostClipboardTries--;
+            if (gHostClipboardTries < 6 &&
                 CopyPaste_GetBackdoorSelections()) {
                gHostClipboardTries = 0;
             }

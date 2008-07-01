@@ -54,6 +54,10 @@
 #define HGFS_IS_ROOT_VNODE(sip, vp)                             \
          (sip->rootVnode == vp)
 
+#define DIRSEPC '/'
+#define DIRSEPS "/"
+#define DIRSEPSLEN 1
+
 /*
  *  Types
  */
@@ -87,5 +91,9 @@ int HgfsMakeFullName(const char *path, uint32_t pathLen, const char *file,
 void HgfsAttrToBSD(struct vnode *vp, const HgfsAttrV2 *hgfsAttrV2, HGFS_VNODE_ATTR *vap);
 Bool HgfsSetattrCopy(HGFS_VNODE_ATTR *vap, HgfsAttr *hgfsAttr, HgfsAttrChanges *update);
 int HgfsStatusToBSD(HgfsStatus hgfsStatus);
+Bool HgfsAttemptToCreateShare(const char *path, int flag);
+int HgfsNameFromWireEncoding(const char *bufIn, uint32 bufInSize, char *bufOut, uint32 bufOutSize);
+int HgfsNameToWireEncoding(const char *bufIn, uint32 bufInSize, char *bufOut, uint32 bufOutSize);
+
 
 #endif // _HGFS_FSUTIL_H_

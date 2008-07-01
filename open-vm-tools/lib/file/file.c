@@ -1966,11 +1966,18 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
  *
  * File_ReplaceExtension --
  *
- *      Replaces the extension in input with newExtension as long as it is
- *      listed in ...
+ *      Replaces the extension in input with newExtension.
+ *
+ *      If the old extension exists in the list of extensions specified in ...,
+ *      truncate it before appending the new extension.
+ *
+ *      If the extension is not found in the list, the newExtension is
+ *      just appended.
+ *
+ *      If there isn't a list of extensions specified (numExtensions == 0),
+ *      truncate the old extension unconditionally.
  *
  *      NB: newExtension and the extension list must have .'s.
- *          If the extension is not found the newExtension is just appended.
  *
  * Results:
  *      The name with newExtension added to it. The caller is responsible to
@@ -2003,6 +2010,8 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
    index = Unicode_FindLast(base, U("."));
 
    if (index != UNICODE_INDEX_NOT_FOUND) {
+      Unicode oldBase = base;
+
       if (numExtensions) {
          uint32 i;
 
@@ -2020,15 +2029,19 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
 
             if (Unicode_CompareRange(base, index, -1,
                                      oldExtension, 0, -1, FALSE) == 0) {
-               base = Unicode_Truncate(base, index); // remove '.'
+               base = Unicode_Truncate(oldBase, index); // remove '.'
                break;
             }
          }
 
          va_end(arguments);
       } else {
-         /* Always truncate the old extension. */
-         base = Unicode_Truncate(base, index); // remove '.'
+         /* Always truncate the old extension if extension list is empty . */
+         base = Unicode_Truncate(oldBase, index); // remove '.'
+      }
+
+      if (oldBase != base) {
+         Unicode_Free(oldBase);
       }
    }
 

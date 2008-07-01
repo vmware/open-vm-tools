@@ -46,6 +46,7 @@ typedef enum AutorunState {
 /* Defines */
 #define VMX_SHUTDOWN_ORDER    0x100    // Application reserved last shutdown range.
 #define UI_SHUTDOWN_ORDER     0x300    // Application reserved first shutdown range.
+#define TOOLS_SHUTDOWN_ORDER  0x100    // Application reserved last shutdown range 
 
 /* Function declarations */
 
@@ -201,6 +202,16 @@ Bool W32Util_AllowAdminCOM(void);
 
 Unicode W32Util_GetAppDataPath(void);
 Unicode W32Util_RobustGetLongPath(ConstUnicode path);
+
+typedef enum SecureObjectType {
+   SecureObject_Process,
+   SecureObject_Thread
+} SecureObjectType;
+
+PSECURITY_DESCRIPTOR W32Util_ConstructSecureObjectSD(HANDLE hToken,
+                                                     SecureObjectType type);
+Bool W32Util_ReplaceObjectSD(HANDLE hObject,
+                             const PSECURITY_DESCRIPTOR pSD);
 
 #endif // _WIN32
 #endif // WIN32UTIL_H_

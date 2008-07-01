@@ -254,6 +254,21 @@ struct VixMsgProgressEvent {
 VixMsgProgressEvent;
 
 
+/*
+ * This is an event sent from the VMX to all clients when some property changes.
+ * It may be used for any runtime property.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgPropertyChangedEvent {
+   VixMsgEventHeader        eventHeader;
+   int                      options;
+   uint32                   propertyListSize;
+}
+#include "vmware_pack_end.h"
+VixMsgPropertyChangedEvent;
+
+
 
 /*
  * **********************************************************
@@ -915,10 +930,12 @@ struct VixMsgSetSnapshotInfoRequest {
 
    int32                      snapshotId;
    int32                      clientFlags;
+   int32                      numTierUIDs;
 
    uint32                     displayNameLength;
    uint32                     descriptionLength;
    uint32                     propertyListLength;
+   uint32                     tierUIDListLength;
 
    /*
     * Followed by:

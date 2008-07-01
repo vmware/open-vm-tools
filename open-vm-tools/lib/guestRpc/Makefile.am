@@ -24,6 +24,8 @@ nodist_libGuestRpc_a_SOURCES =
 nodist_libGuestRpc_a_SOURCES += nicinfo.h
 nodist_libGuestRpc_a_SOURCES += nicinfo_xdr.c
 
+# XXX: Autoreconf complains about this and recommends using AM_CFLAGS instead.
+# Neither that nor libGuestRpc_a_CFLAGS work, though. What gives?
 CFLAGS += -Wno-unused
 
 CLEANFILES =

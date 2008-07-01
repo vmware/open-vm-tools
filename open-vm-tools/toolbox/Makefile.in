@@ -68,7 +68,7 @@ am_vmware_toolbox_OBJECTS = debugStdio.$(OBJEXT) toolbox-gtk.$(OBJEXT) \
 vmware_toolbox_OBJECTS = $(am_vmware_toolbox_OBJECTS)
 vmware_toolbox_DEPENDENCIES = ../lib/conf/libConf.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
-	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
+	../lib/guestApp/libGuestAppX11.a ../lib/hgfs/libHgfs.a \
 	../lib/procMgr/libProcMgr.a ../lib/rpcIn/libRpcIn.a \
 	../lib/rpcOut/libRpcOut.a ../lib/strUtil/libStrUtil.a \
 	../lib/string/libString.a ../lib/system/libSystem.a \
@@ -242,7 +242,7 @@ AM_CFLAGS = @GTK_CPPFLAGS@
 # the alphabetical order so their symbols are properly resolved.
 vmware_toolbox_LDADD = ../lib/conf/libConf.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
-	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
+	../lib/guestApp/libGuestAppX11.a ../lib/hgfs/libHgfs.a \
 	../lib/procMgr/libProcMgr.a ../lib/rpcIn/libRpcIn.a \
 	../lib/rpcOut/libRpcOut.a ../lib/strUtil/libStrUtil.a \
 	../lib/string/libString.a ../lib/system/libSystem.a \

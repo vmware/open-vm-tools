@@ -144,7 +144,7 @@ ToolsMainCleanupRpc(void)
       gRpcInCtlPanel = NULL;
    }
 
-   /* Remove timeout so event queue isn't pumped after being destroyed. */ 
+   /* Remove timeout so event queue isn't pumped after being destroyed. */
    gtk_timeout_remove(gTimeoutId);
    ASSERT(gEventQueue);
    EventManager_Destroy(gEventQueue);
@@ -156,7 +156,7 @@ ToolsMainCleanupRpc(void)
  *
  * ToolsMainSignalHandler  --
  *
- *      Handler for Posix signals. We do this to ensure that we exit 
+ *      Handler for Posix signals. We do this to ensure that we exit
  *      gracefully.
  *
  * Results:
@@ -300,7 +300,11 @@ ToolsMain_MsgBox(gchar *title, // IN: dialog's title
    gtk_widget_show(label);
    gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), label);
 
+#ifdef GTK2
+   okbtn = gtk_button_new_with_mnemonic("_OK");
+#else
    okbtn = gtk_button_new_with_label("OK");
+#endif
    gtk_widget_show(okbtn);
    gtk_box_pack_end(GTK_BOX(GTK_DIALOG(dialog)->action_area), okbtn, FALSE, FALSE, 0);
    gtk_widget_set_usize(okbtn, 70, 25);
@@ -351,14 +355,22 @@ ToolsMain_YesNoBox(gchar *title, gchar *msg)
    gtk_widget_show(label);
    gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), label);
 
+#ifdef GTK2
+   btn = gtk_button_new_with_mnemonic("_Yes");
+#else
    btn = gtk_button_new_with_label("Yes");
+#endif
    gtk_widget_show(btn);
    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), btn, FALSE, FALSE, 0);
    gtk_widget_set_usize(btn, 70, 25);
    gtk_signal_connect(GTK_OBJECT(btn), "clicked",
                       GTK_SIGNAL_FUNC(ToolsMain_YesNoBoxOnClicked), &ret);
 
+#ifdef GTK2
+   btn = gtk_button_new_with_mnemonic("_No");
+#else
    btn = gtk_button_new_with_label("No");
+#endif
    gtk_widget_show(btn);
    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), btn, FALSE, FALSE, 0);
    gtk_widget_set_usize(btn, 70, 25);
@@ -527,31 +539,51 @@ ToolsMain_Create(void)
    gtk_box_pack_start(GTK_BOX(vbox), notebookMain, TRUE, TRUE, 0);
    gtk_container_set_border_width(GTK_CONTAINER(notebookMain), 0);
 
+#ifdef GTK2
+   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Options_Create(ToolsMain),
+                            gtk_label_new_with_mnemonic(TAB_LABEL_OPTIONS));
+#else
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Options_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_OPTIONS));
+#endif
 
-   /* 
-    * Beginning with ACE1, a VM could be configured to prevent editing of 
-    * device state from the guest. So we enable the devices page only if the 
+   /*
+    * Beginning with ACE1, a VM could be configured to prevent editing of
+    * device state from the guest. So we enable the devices page only if the
     * command fails (meaning we're pre-ACE1), or if the command succeeds and
     * we're allowed to edit the devices.
     */
    if (!RpcOut_sendOne(&result, &resultLen, "vmx.capability.edit_devices") ||
        strcmp(result, "0") != 0) {
-      gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), 
+#ifdef GTK2
+      gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain),
                                Devices_Create(ToolsMain),
-                               gtk_label_new(TAB_LABEL_DEVICES));
+                               gtk_label_new_with_mnemonic(TAB_LABEL_DEVICES));
+#else
+      gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain),
+                               Devices_Create(ToolsMain),
+                               gtk_label_newl(TAB_LABEL_DEVICES));
+#endif
    } else {
       Debug("User not allowed to edit devices");
    }
    free(result);
 
+#ifdef GTK2
+   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Scripts_Create(ToolsMain),
+                         gtk_label_new_with_mnemonic(TAB_LABEL_SCRIPTS));
+   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Shrink_Create(ToolsMain),
+                            gtk_label_new_with_mnemonic(TAB_LABEL_SHRINK));
+   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), About_Create(ToolsMain),
+                            gtk_label_new_with_mnemonic(TAB_LABEL_ABOUT));
+#else
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Scripts_Create(ToolsMain),
                          gtk_label_new(TAB_LABEL_SCRIPTS));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Shrink_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_SHRINK));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), About_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_ABOUT));
+#endif
 
    hbox = gtk_hbutton_box_new();
    gtk_button_box_set_spacing(GTK_BUTTON_BOX(hbox), 10);
@@ -559,19 +591,27 @@ ToolsMain_Create(void)
    gtk_widget_show(hbox);
    gtk_box_pack_end(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-   /* 
+   /*
     * The HIG says that the Help button should be in the lower left, and all
     * other buttons in the lower right.
     *
     * See http://developer.gnome.org/projects/gup/hig/2.0/windows-alert.html#alert-button-order
     */
+#ifdef GTK2
+   btn = gtk_button_new_with_mnemonic("_Help");
+#else
    btn = gtk_button_new_with_label("Help");
+#endif
    gtk_widget_show(btn);
    gtk_box_pack_start(GTK_BOX(hbox), btn, FALSE, FALSE, 0);
    gtk_signal_connect(GTK_OBJECT(btn), "clicked", GTK_SIGNAL_FUNC(ToolsMain_OnHelp),
                       notebookMain);
 
+#ifdef GTK2
+   btn = gtk_button_new_with_mnemonic("_Close");
+#else
    btn = gtk_button_new_with_label("Close");
+#endif
    gtk_widget_show(btn);
    gtk_box_pack_start(GTK_BOX(hbox), btn, FALSE, FALSE, 0);
    gtk_signal_connect_object(GTK_OBJECT(btn), "clicked",
@@ -836,8 +876,11 @@ ShowUsage(char const *prog)
            "\n"
            "   %s --minimize|--iconify\n"
            "      Start the toolbox window minimized.\n"
+           "\n"
+           "   %s --version\n"
+           "      Show the VMware(R) Tools version.\n"
            "\n",
-           prog, prog);
+           prog, prog, prog);
 }
 
 
@@ -861,11 +904,11 @@ int
 main(int argc, char *argv[])
 {
    char *tmp;
-   Bool optIconify, optHelp;
+   Bool optIconify, optHelp, optVersion;
    struct sigaction olds[ARRAYSIZE(gSignals)];
    GuestApp_Dict *pConfDict;
 
-   /* 
+   /*
     * Setup the path to the help directory. We assume that this binary lives in
     * "LIBDIR/<some_bin_path>" and that the help directory is "LIBDIR/hlp".
     *
@@ -922,12 +965,15 @@ main(int argc, char *argv[])
    /* Default values */
    optIconify = FALSE;
    optHelp = FALSE;
+   optVersion = FALSE;
 
    if (argc == 2) {
       if (strcmp(argv[1], "--iconify") == 0) {
          optIconify = TRUE;
       } else if (strcmp(argv[1], "--minimize") == 0) {
-            optIconify = TRUE;
+         optIconify = TRUE;
+      } else if (strcmp(argv[1], "--version") == 0) {
+         optVersion = TRUE;
       } else {
          optHelp = TRUE;
       }
@@ -937,6 +983,10 @@ main(int argc, char *argv[])
 
    if (optHelp) {
       ShowUsage(argv[0]);
+      exit(0);
+   }
+   if (optVersion) {
+      printf("VMware(R) Tools version %s\n", TOOLS_VERSION);
       exit(0);
    }
 
@@ -998,9 +1048,9 @@ main(int argc, char *argv[])
     */
    gTimeoutId = gtk_timeout_add(0, &EventQueuePump, NULL);
 
-   /* 
-    * We'll block here until the window is destroyed or a 
-    * signal is received. 
+   /*
+    * We'll block here until the window is destroyed or a
+    * signal is received.
     */
    gtk_main();
 

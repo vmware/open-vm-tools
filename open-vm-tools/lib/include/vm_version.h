@@ -149,7 +149,7 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
-#define VIE_FILEVERSION 3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VIE_FILEVERSION 3,2,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * This string can be a little more "free form".  The license
@@ -198,15 +198,15 @@
 #define SYSIMAGE_VERSION "4.0.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
-#define VCB_VERSION "e.x.p"
-#define VCB_FILE_VERSION 1,0,0,0
+#define VCB_VERSION "4.0.0"
+#define VCB_FILE_VERSION 4,0,0,0
 #define VPX_VERSION "e.x.p"
 #define WBC_VERSION "e.x.p"
 #define SDK_VERSION "e.x.p"
 #define FOUNDRY_VERSION "e.x.p"
 #define FOUNDRY_FILE_VERSION 1,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
-#define LICENSE_VERSION "e.x.p"
+#define VLICENSE_VERSION "e.x.p"
 #define DDK_VERSION "e.x.p"
 #define VIM_API_VERSION "4.0"
 #define VIPERL_VERSION "1.1.0"
@@ -236,7 +236,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.06.20"
+#define TOOLS_VERSION "2008.07.01"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -284,8 +284,8 @@
 #  define PRODUCT_VERSION_NUMBER FOUNDRY_VERSION
 #elif defined(VMX86_VMLS)
 #  define PRODUCT_VERSION_NUMBER VMLS_VERSION
-#elif defined(VMX86_LICENSE)
-#  define PRODUCT_VERSION_NUMBER LICENSE_VERSION
+#elif defined(VMX86_VLICENSE)
+#  define PRODUCT_VERSION_NUMBER VLICENSE_VERSION
 #elif defined(VMX86_DDK)
 #  define PRODUCT_VERSION_NUMBER DDK_VERSION
 #elif defined(VMX86_TOOLS)

@@ -31,7 +31,7 @@
 #endif
 
 
-#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
 #   error This file should not be compiled
 #endif
 
@@ -58,7 +58,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__APPLE__)
 #include "ifaddrs.h"
 #endif
 
@@ -94,7 +94,7 @@
  *----------------------------------------------------------------------
  */
 
-#ifndef __FreeBSD__ /* { */
+#if !defined(__FreeBSD__) && !defined(__APPLE__) /* { */
 char *
 NetUtil_GetPrimaryIP(void)
 {
@@ -168,7 +168,7 @@ error:
    return NULL;
 }
 
-#else /* } FreeBSD { */
+#else /* } FreeBSD || APPLE { */
 
 char *
 NetUtil_GetPrimaryIP(void)

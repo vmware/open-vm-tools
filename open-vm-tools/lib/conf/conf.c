@@ -125,14 +125,6 @@ Conf_Load(void)
    GuestApp_SetDictEntryDefault(confDict, CONFNAME_MAX_WIPERSIZE,
                                 CONFVAL_MAX_WIPERSIZE_DEFAULT);
 
-   GuestApp_SetDictEntryDefault(confDict,
-                                CONFNAME_RESOLUTION_MIN_WIDTH,
-                                CONFVAL_RESOLUTION_MIN_WIDTH_DEFAULT);
-
-   GuestApp_SetDictEntryDefault(confDict,
-                                CONFNAME_RESOLUTION_MIN_HEIGHT,
-                                CONFVAL_RESOLUTION_MIN_HEIGHT_DEFAULT);
-
    /* Load the user-configured values from the conf file if it's there */
    GuestApp_LoadDict(confDict);
 

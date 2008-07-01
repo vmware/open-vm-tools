@@ -1,4 +1,85 @@
-2008-06-13  Elliot Lee  <elliot@vmware.com>
+2008-07-01  Adar Dembo  <adar@vmware.com>
+	* Resync with internal trunk (2008.06.30)
+
+	* configure.ac, lib/guestApp/*, toolbox/Makefile.am,
+	vmware-user/Makefile.am: Split lib/guestApp into two libraries, one
+	with X11 functionality, and one without. Improved detection of
+	gnome-open.
+
+	* guestd/*, lib/netUtil/netUtilLinux.c: guestd now compiles for MacOS
+	guests.
+	
+	* guestd/main.c, lib/include/system.h, lib/system/systemLinux.c:
+	Refactored GuestdWritePidfile into System_Daemon.
+
+	* guestd/toolsDaemon.c: Fixed a backwards time synchronization issue.
+	Thanks to Eric Castan for reporting the bug.
+
+	* lib/conf/conf.c, lib/include/conf.h: Removed obsolete configuration
+	keys and values.
+
+	* lib/file/*, lib/dict/*, lib/foundryMsg/*, lib/include/backdoor_def.h,
+	lib/include/codeset.h, lib/include/config.h,
+	lib/include/file_extensions.h, lib/include/fileInt.h,
+	lib/include/loglevel_user.h, lib/include/msg.h, lib/include/msgid.h,
+	lib/include/posix.h, lib/include/preference.h, lib/include/unity.h,
+	lib/include/vixCommands.h, lib/include/vix.h,
+	lib/include/vmbackup_def.h, lib/include/vmBackup.h,
+	lib/include/vm_basic_defs.h, lib/include/vm_basic_types.h,
+	lib/include/vm_product.h, lib/include/win32util.h,
+	lib/include/x86cpuid.h, lib/misc/codeset.c, lib/misc/codesetOld.c,
+	lib/misc/codesetOld.h, lib/misc/posixPosix.c, lib/strUtil/strutil.c,
+	lib/user/hostinfoPosix.c, lib/user/util.c,
+	lib/vmBackupLib/stateMachine.c, modules/*/vmxnet/net.h: Changes from
+	work unrelated to open-vm-tools on the internal trunk.
+
+	* lib/guestRpc/Makefile.am: Added comment about misuse of CFLAGS.
+
+	* lib/hgfsServer/hgfsServer.c: Corrected pointer arithmetic so that
+	new node and search allocation works consistently in 64-bit apps.
+
+	* lib/hgfsServer/hgfsServerLinux.c, lib/include/hgfsProto.h: Added
+	HGFS_ATTR_HIDDEN_FORCED and set it when returning hidden files.
+	
+	* lib/hgfsServer/*, lib/hgfsServerPolicy/hgfsServerPolicyGuest.c,
+	lib/include/hgfsServerInt.h, lib/include/hgfsServerPolicy.h:
+	Refactored and cleaned up some code.
+
+	* lib/include/resolution.h, lib/resolution/*,
+	vmware-user/vmware-user.c: Refactored some functions.
+
+	* lib/include/vm_legal.h: Added another patent to the patent string.
+
+	* lib/include/vm_tools_version.h: Added a pair of Tools version macros.
+
+	* lib/include/vm_version.h: Bumped Tools product version.
+
+	* lib/Makefile.am: Included a fix for compilation --without-x. Thanks to
+	Mark Foster for reporting the issue.
+
+	* lib/misc/Makefile.am, lib/misc/shared/Makefile.am: Realphabetized
+	some sources and added missing source files.
+
+	* lib/misc/posixWin32.c: Removed unneeded file from tree.
+
+	* lib/procMgr/procMgrPosix.c: Made safe for -fPIC and for MacOS.
+
+	* modules/*/*/*: Reflected changes from elsewhere.
+
+	* modules/freebsd/vmhgfs/*: Added some code to handle codeset
+	conversions between UTF-8 precomposed and decomposed strings.
+
+	* modules/linux/vmhgfs/*: Refactored string escaping/unescaping code.
+
+	* toolbox/*: Added mnemonics for some buttons.
+
+	* vmware-user/pointer.c: Fixed bug in clipboard retry behavior.
+
+	* vmware-user/vmware-user.c: Added handlers for SIGUSR1 and SIGUSR2
+	to facilitate smooth vmware-user upgrades with respect to the vmblock
+	kernel module.
+	
+2008-06-20  Elliot Lee  <elliot@vmware.com>
 
 	* Resync with internal trunk (2008.06.13)
 

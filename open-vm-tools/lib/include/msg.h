@@ -33,34 +33,9 @@
 #include <stdarg.h>
 #include "err.h"
 #include "vm_basic_types.h"
+#include "msgid.h"
 #include "msgfmt.h"
 
-/*
- * Message ID macros
- *
- * Use as in
- *	Msg_Append(MSGID(file.openFailed) "Failed to open file %s: %s.\n"
- *		   fileName, Msg_ErrString())
- *	Msg_Append(MSGID(mks.powerOnFailed) "Power on failed.\n")
- * or
- *	Msg_Hint(TRUE, HINT_OK,
- *		 MSGID(mks.noDGA) "No full screen mode.\n").
- *
- * Don't make MSG_MAGIC_LEN (sizeof MSG_MAGIC - 1), since
- * that may cause the string to be in the object file, even
- * when it's not used at run time.  And we are trying
- * to avoid littering the output with the magic string.
- *
- * -- edward
- */
-
-#define MSG_MAGIC	"@&!*@*@"
-#define MSG_MAGIC_LEN	7
-#define MSGID(id)	MSG_MAGIC "(msg." #id ")"
-#define BUTTONID(id)	MSG_MAGIC "(button." #id ")"
-
-// the X hides MSG_MAGIC so it won't appear in the object file
-#define MSG_MAGICAL(s)	(strncmp(s, MSG_MAGIC"X", MSG_MAGIC_LEN) == 0)
 
 #define INVALID_MSG_CODE (-1)
 
@@ -254,42 +229,6 @@ EXTERN void Msg_GetCallback(MsgCallback *cb);
 #define Msg_ErrString() (Err_ErrString())
 #define Msg_Errno2String(errorNumber) ( \
     Err_Errno2String(errorNumber) )
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Msg_StripMSGID --
- *
- *      Returns the string that is inside the MSGID() or if it doesn't
- *      have a MSGID just return the string.
- *
- * Results:
- *      The non localized string.
- *
- * Side Effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE const char *
-Msg_StripMSGID(const char *idString)    // IN
-{
-   if (idString && MSG_MAGICAL(idString)) {
-      const char *strp;
-
-      /*
-       * Find the beginning of the ID (idp) and the string (strp).
-       */
-
-      strp = idString + MSG_MAGIC_LEN;
-      strp++;
-      strp = strchr(strp, ')');
-      strp++;
-      return strp;
-   }
-   return idString;
-}
 
 #ifdef _WIN32
 EXTERN const char *Msg_HResult2String(long hr);

@@ -36,6 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <time.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -428,3 +429,206 @@ System_SetEnv(Bool global,      // IN
 #endif
 } // System_SetEnv
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * System_WritePidfile --
+ *
+ *      Write a PID into a pidfile.
+ *
+ *      Originally from the POSIX guestd as GuestdWritePidfile.
+ *
+ * Return value:
+ *      TRUE on success
+ *      FALSE on failure (detail is displayed on stderr)
+ *
+ * Side effects:
+ *      This function is not thread-safe.  May display error messages on
+ *      stderr.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+System_WritePidfile(char const *fileName, // IN: Path where we'll write pid
+                    pid_t pid)            // IN: C'mon, really?
+{
+   FILE *pidFile;
+   Bool success = FALSE;
+
+   pidFile = fopen(fileName, "w+");
+   if (pidFile == NULL) {
+      fprintf(stderr, "Unable to open the \"%s\" PID file: %s.\n\n", fileName,
+              strerror(errno));
+
+      return FALSE;
+   }
+
+   if (fprintf(pidFile, "%"FMTPID"\n", pid) < 0) {
+      fprintf(stderr, "Unable to write the \"%s\" PID file: %s.\n\n", fileName,
+              strerror(errno));
+   } else {
+      success = TRUE;
+   }
+
+   if (fclose(pidFile)) {
+      fprintf(stderr, "Unable to close the \"%s\" PID file: %s.\n\n", fileName,
+              strerror(errno));
+
+      return FALSE;
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * System_Daemon --
+ *
+ *      Analog to daemon(3), but optionally guarantees child's PID is written
+ *      to a pidfile before the parent exits.
+ *
+ *      Originally from the short-lived Mac OS guestd, as Mac OS X does not
+ *      provide daemon(3).  Additionally, the "optionally guaranteed pidfile"
+ *      concept is another motivation for this function.
+ *
+ * Results:
+ *      TRUE on success.
+ *      FALSE on any failure (e.g., fork, setsid, WritePidfile, etc.)
+ *
+ * Side effects:
+ *      Parent will exit if fork() succeeds.
+ *      Caller is expected to be able to catch SIGPIPE.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+System_Daemon(Bool nochdir,
+                 // IN: If TRUE, will -not- chdir("/").
+              Bool noclose,
+                 // IN: If TRUE, will -not- redirect stdin, stdout, and stderr
+                 //     to /dev/null.
+              const char *pidFile)
+                 // IN: If non-NULL, will write the child's PID to this file.
+{
+   int fds[2];
+   pid_t child;
+   char buf;
+
+   if (pipe(fds) == -1) {
+      fprintf(stderr, "pipe failed: %s\n", strerror(errno));
+      return FALSE;
+   }
+
+   child = fork();
+   if (child == -1) {
+      fprintf(stderr, "fork failed: %s\n", strerror(errno));
+      return FALSE;
+   }
+
+   if (child) { /* Parent */
+      ssize_t actual;
+
+      /* Close unused write end of the pipe. */
+      close(fds[1]);
+
+      /*
+       * Wait for the child to finish its critical initialization before the
+       * parent exits.
+       */
+      do {
+         actual = read(fds[0], &buf, sizeof buf);
+      } while (actual == -1 && errno == EINTR);
+
+      if (actual == -1) {
+         fprintf(stderr, "read from pipe failed: %s\n", strerror(errno));
+         _exit(EXIT_FAILURE);
+      }
+
+      _exit(EXIT_SUCCESS);
+   } else { /* Child */
+      /* Close unused read end of the pipe. */
+      close(fds[0]);
+
+      /*
+       * The parent's caller might want to kill the child as soon as the
+       * parent exits, so better guarantee that by that time the child's PID
+       * has been written to the PID file.
+       *
+       * Note that because the parent knows the child's PID, the parent
+       * could do this if needed. But because the parent cannot do the
+       * setsid() below, the child might as well do both things here.
+       */
+      if (pidFile) {
+         if (!System_WritePidfile(pidFile, getpid())) {
+            goto kidfail;
+         }
+      }
+
+      /*
+       * The parent's caller might want to destroy the session as soon as
+       * the parent exits, so better guarantee that by that time the child
+       * has created its own new session.
+       */
+      if (setsid() == -1) {
+         fprintf(stderr, "setsid failed: %s\n", strerror(errno));
+         goto kidfail;
+      }
+
+      /*
+       * The child has finished its critical initialization. Notify the
+       * parent that it can exit.
+       *
+       * We are writing the first byte to the pipe. This cannot possibly
+       * block (otherwise communication over a pipe would be impossible).
+       * Consequently it cannot be interrupted by a signal either.
+       *
+       * See pipe(7) for more information.
+       *
+       * The caller registered a signal handler for SIGPIPE, right?!  We
+       * won't treat EPIPE as an error, because we'd like to carry on with
+       * our own life, even if our parent -did- abandon us.  ;_;
+       */
+      write(fds[1], &buf, sizeof buf);
+      close(fds[1]);
+
+      if (!nochdir && (chdir("/") == -1)) {
+         fprintf(stderr, "chdir failed: %s\n", strerror(errno));
+         return FALSE;
+      }
+
+      if (!noclose) {
+         /*
+          * The child has finished its initialization, and does not need to
+          * output anything to stderr anymore. Re-assign all standard file
+          * file descriptors.
+          */
+         int nullFd;
+
+         nullFd = open("/dev/null", O_RDWR);
+         if (nullFd == -1) {
+            fprintf(stderr, "open of /dev/null failed: %s\n",
+                    strerror(errno));
+            return FALSE;
+         }
+
+         if ((dup2(nullFd, STDIN_FILENO) == -1) ||
+             (dup2(nullFd, STDOUT_FILENO) == -1) ||
+             (dup2(nullFd, STDERR_FILENO) == -1)) {
+            fprintf(stderr, "dup2 failed: %s\n", strerror(errno));
+            close(nullFd);
+            return FALSE;
+         }
+      }
+   }
+
+   return TRUE;
+
+kidfail:
+   close(fds[1]);
+   return FALSE;
+}

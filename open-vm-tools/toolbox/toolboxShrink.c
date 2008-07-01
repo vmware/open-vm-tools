@@ -84,7 +84,7 @@ Shrink_Create(GtkWidget *mainWnd)
    /* Only root can do shrink. */
    if (geteuid() != 0) {
       Debug("User not allowed to do shrink");
-      label = 
+      label =
          gtk_label_new("This option is enabled only if you run VMware Tools as root.");
       gtk_widget_show(label);
       gtk_box_pack_start(GTK_BOX(shrinktab), label, FALSE, FALSE, 0);
@@ -99,10 +99,10 @@ Shrink_Create(GtkWidget *mainWnd)
       gtk_widget_show(scrollwin);
       gtk_box_pack_start(GTK_BOX(shrinktab), scrollwin, TRUE, TRUE, 0);
       gtk_container_set_border_width(GTK_CONTAINER(scrollwin), 0);
-      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin), 
+      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
                                      GTK_POLICY_AUTOMATIC,
                                      GTK_POLICY_AUTOMATIC);
-      viewport = 
+      viewport =
          gtk_viewport_new(
             gtk_scrolled_window_get_hadjustment(
                GTK_SCROLLED_WINDOW(scrollwin)),
@@ -134,7 +134,11 @@ Shrink_Create(GtkWidget *mainWnd)
       gtk_widget_show(hbox);
       gtk_box_pack_end(GTK_BOX(shrinktab), hbox, FALSE, FALSE, 0);
 
+#ifdef GTK2
+      button = gtk_button_new_with_mnemonic("_Shrink");
+#else
       button = gtk_button_new_with_label("Shrink");
+#endif
       gtk_widget_show(button);
       gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
       gtk_widget_set_usize(button, 70, 25);
@@ -160,7 +164,7 @@ Shrink_Create(GtkWidget *mainWnd)
                      memcpy(partkb, &(plist->partitions[i]), sizeof (WiperPartition));
                      items  = partkb->mountPoint;
                      newrow = gtk_clist_append(GTK_CLIST(shrinkList), &items);
-                     gtk_clist_set_row_data(GTK_CLIST(shrinkList), newrow, 
+                     gtk_clist_set_row_data(GTK_CLIST(shrinkList), newrow,
                                             partkb);
                   }
                }
@@ -213,7 +217,7 @@ Shrink_Create(GtkWidget *mainWnd)
  *-----------------------------------------------------------------------------
  */
 
-void 
+void
 Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
                        gpointer user_data) // IN: unused
 {
@@ -224,13 +228,13 @@ Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
    GtkWidget *mainWnd = GTK_WIDGET(user_data);
    slist = GTK_CLIST(shrinkList)->selection;
    if (slist) {
-      if (!ToolsMain_YesNoBox("Shrink Disk", 
+      if (!ToolsMain_YesNoBox("Shrink Disk",
                                 "Do you want to prepare the disk(s) for shrinking?\n")) {
          return;
-      }  
+      }
       do {
          rnum =  GPOINTER_TO_UINT(slist->data);
-         part = (WiperPartition *)(gtk_clist_get_row_data(GTK_CLIST(shrinkList), 
+         part = (WiperPartition *)(gtk_clist_get_row_data(GTK_CLIST(shrinkList),
                                                           rnum));
          if (Shrink_DoWipe(part, mainWnd)) {
             disks_to_shrink++;
@@ -262,8 +266,8 @@ Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
  * Shrink_DoWipe  --
  *
  *      Wipe a single partition, displaying a modal dialog with a progress
- *      bar. This function works similar to Win32's DoModal in that it blocks 
- *      the caller and pumps its own messages, returning only when the wiper 
+ *      bar. This function works similar to Win32's DoModal in that it blocks
+ *      the caller and pumps its own messages, returning only when the wiper
  *      operation is done or canceled.
  *
  * Results:
@@ -284,7 +288,7 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
    int progress = 0;
    unsigned char *err;
 
-   /* 
+   /*
     * Verify that shrinking is still possible before going through with the
     * wiping. This obviously isn't atomic, but it should take care of
     * the case where the user takes a snapshot with the toolbox open.
@@ -312,27 +316,31 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
    gdk_window_set_icon(shrinkWipeDlg->window, NULL, pixmap, bitmask);
    gtk_signal_connect(GTK_OBJECT(shrinkWipeDlg), "destroy",
                       GTK_SIGNAL_FUNC(Shrink_OnWipeDestroy), shrinkWipeDlg);
-   
+
    shrinkWipeProgress = gtk_progress_bar_new();
    gtk_widget_show(shrinkWipeProgress);
    gtk_progress_set_show_text(GTK_PROGRESS(shrinkWipeProgress), TRUE);
-   gtk_progress_set_format_string(GTK_PROGRESS(shrinkWipeProgress), 
+   gtk_progress_set_format_string(GTK_PROGRESS(shrinkWipeProgress),
                                   "Preparing to shrink... (%p%%)");
    gtk_progress_set_text_alignment(GTK_PROGRESS(shrinkWipeProgress), 0, 0.5);
    gtk_progress_set_activity_mode(GTK_PROGRESS(shrinkWipeProgress), FALSE);
-   gtk_progress_bar_set_bar_style(GTK_PROGRESS_BAR(shrinkWipeProgress), 
+   gtk_progress_bar_set_bar_style(GTK_PROGRESS_BAR(shrinkWipeProgress),
                                   GTK_PROGRESS_CONTINUOUS);
    gtk_progress_bar_set_orientation(GTK_PROGRESS_BAR(shrinkWipeProgress),
                                     GTK_PROGRESS_LEFT_TO_RIGHT);
-   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(shrinkWipeDlg)->vbox), 
+   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(shrinkWipeDlg)->vbox),
                       shrinkWipeProgress, FALSE, FALSE, 0);
 
+#ifdef GTK2
+   btn = gtk_button_new_with_mnemonic("_Cancel");
+#else
    btn = gtk_button_new_with_label("Cancel");
+#endif
    gtk_widget_show(btn);
-   gtk_box_pack_end(GTK_BOX(GTK_DIALOG(shrinkWipeDlg)->action_area), btn, 
+   gtk_box_pack_end(GTK_BOX(GTK_DIALOG(shrinkWipeDlg)->action_area), btn,
                     FALSE, FALSE, 0);
    gtk_widget_set_usize(btn, 70, 25);
-   gtk_signal_connect_object(GTK_OBJECT(btn), "clicked", 
+   gtk_signal_connect_object(GTK_OBJECT(btn), "clicked",
                              GTK_SIGNAL_FUNC(gtk_widget_destroy),
                              GTK_OBJECT(shrinkWipeDlg));
 
@@ -353,19 +361,19 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
          wiper = NULL;
          gtk_widget_destroy(shrinkWipeDlg);
       } else {
-         gtk_progress_set_percentage(GTK_PROGRESS(shrinkWipeProgress), 
+         gtk_progress_set_percentage(GTK_PROGRESS(shrinkWipeProgress),
                                      progress/100.0);
       }
 
       while (gtk_events_pending()) {
          gtk_main_iteration();
       }
-      
+
    }
-   
+
    if (progress >= 100) {
       wiper = NULL;
-      gtk_widget_destroy(shrinkWipeDlg); 
+      gtk_widget_destroy(shrinkWipeDlg);
       return TRUE;
    } else {
       return FALSE;
@@ -379,8 +387,8 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
  * Shrink_OnWipeDestroy  --
  *
  *      Callback for the gtk signal "destroy" on the wipe progress dialog.
- *      Cancel the wipe operation, setting global variables so the loop in 
- *      Shrink_DoWipe will exit. 
+ *      Cancel the wipe operation, setting global variables so the loop in
+ *      Shrink_DoWipe will exit.
  *
  * Results:
  *      None.
@@ -391,7 +399,7 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
  *-----------------------------------------------------------------------------
  */
 
-void 
+void
 Shrink_OnWipeDestroy(GtkWidget *widget,     // IN: the cancel button
                      gpointer user_data) // IN: unused
 {

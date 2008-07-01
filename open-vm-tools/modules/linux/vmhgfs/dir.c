@@ -32,6 +32,7 @@
 #include "compat_slab.h"
 
 #include "cpName.h"
+#include "hgfsEscape.h"
 #include "hgfsProto.h"
 #include "hgfsUtil.h"
 #include "module.h"
@@ -401,7 +402,7 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
    }
 
    /* Unescape the CP name. */
-   result = HgfsUnescapeBuffer(name, result);
+   result = HgfsEscape_Undo(name, result);
    *nameLength = (uint32) result;
    req->payloadSize = requestSize + result;
 
@@ -655,10 +656,10 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
        * CP name format, but that is done implicitely here since we
        * are guaranteed to have just one path component per dentry.
        */
-      result = HgfsEscapeBuffer(attr.fileName,
-                                strlen(attr.fileName),
-                                escNameLength,
-                                escName);
+      result = HgfsEscape_Do(attr.fileName,
+			     strlen(attr.fileName),
+			     escNameLength,
+			     escName);
       kfree(attr.fileName);
 
       /*
@@ -669,7 +670,7 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
        * incrementing file->f_pos and repeating the loop to get the
        * next dentry.
        *
-       * HgfsEscapeBuffer returns a negative value if the escaped
+       * HgfsEscape_Do returns a negative value if the escaped
        * output didn't fit in the specified output size, so we can
        * just check its return value.
        */

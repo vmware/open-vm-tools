@@ -32,12 +32,12 @@ libMisc_a_SOURCES += idLinux.c
 libMisc_a_SOURCES += iovector.c
 libMisc_a_SOURCES += machineID.c
 libMisc_a_SOURCES += miscSolaris.c
+libMisc_a_SOURCES += posixDlopen.c
+libMisc_a_SOURCES += posixPosix.c
 libMisc_a_SOURCES += random.c
 libMisc_a_SOURCES += timeutil.c
 libMisc_a_SOURCES += util_misc.c
 libMisc_a_SOURCES += vmstdio.c
-libMisc_a_SOURCES += posixPosix.c
-libMisc_a_SOURCES += posixDlopen.c
 
 if NO_ICU
 libMisc_a_SOURCES += codeset.c
