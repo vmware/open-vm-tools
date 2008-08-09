@@ -1,3 +1,160 @@
+2008-08-08  Adar Dembo  <adar@vmware.com>
+	* Resync with internal trunk (2008.07.24)
+
+	* configure.ac, */Makefile.am: Landed support for command line Toolbox,
+	Unity, vsock, and vmci. Refactored and reformatted a few things.
+	Improved portability by using $(SED) and AC_PROG_SED instead of "sed",
+	$(MKDIR_P) and AC_PROG_MKDIR_P instead of "mkdir -p", $(LN_S) and
+	AC_PROG_LN_S instead of "ln -s". Changed icu feature detection and
+	linking to rely on C++ linker instead of C linker. Fixed module
+	compilation checks on FreeBSD. Fixed $(DESTDIR) handling (patch by Mike
+	Auty). Refactored lib/strUtil into lib/misc. Changed hgfsmounter
+	install hook to symlink mount.vmhgfs. Renamed libghIntegrationStub to
+	libGhIntegrationStub. Fixed compilation of lib/guestApp when using
+	--without-x (reported by Martin Preishuber). Renamed libunityStub to
+	libUnityStub. Fix build on FreeBSD by using ":=" instead of "=" when
+	exporting module directories. The vmware-user desktop link now executes
+	vmware-user-suid-wrapper. Properly install vmware-user-suid-wrapper.
+
+	* */foundryToolsDaemon.c, lib/vixTools/vixTools.c: Use a larger result
+	packet when handling impersonated HGFS requests (since HGFSv3 uses
+	larger packets).
+
+	* guestd/main.c: Moved foreign VM check.
+
+	* guestd/toolsDaemon.*: Added plumbing for HGFS usability library
+	calls.
+
+	* hgfsmounter/hgfsmounter.c: Added support for passing options to
+	the MacOS HGFS driver.
+
+	* lib/appUtil/*, lib/include/appUtil.h: New library for Unity support.
+
+	* lib/auth/authPosix.c: Don't try using PAM from the Tools.
+	
+	* lib/dnd/dndCommon.c, lib/dnd/dndLinux.c, lib/file/file.c,
+	lib/file/fileIOPosix.c, lib/file/filePosix.c, lib/include/dnd.h,
+	lib/include/loglevel_user.h, lib/include/panic.h, lib/include/posix.h,
+	lib/include/strutil.h, lib/unicode/unicodeBase.h,
+	lib/include/unicodeOperations.h, lib/include/vix.h,
+	lib/include/vm_app.h, lib/include/vm_assert.h,
+	lib/include/vm_product.h, lib/include/x86cpuid.h, lib/misc/codeset.c,
+	lib/misc/hashTable.c, lib/misc/strutil.c, lib/misc/timeutil.c,
+	lib/panic/panic.c, lib/string/bsd_vsnprintf.c, lib/strUtil/*,
+	lib/unicode/unicodeCommon.c, lib/unicode/unicodeSimpleBase.c,
+	lib/unicode/unicodeStatic.c, lib/user/hostinfoPosix.c,
+	lib/user/util.c, lib/user/utilPosix.c: Changes from work unrelated to
+	open-vm-tools on the internal trunk.
+
+	* lib/backdoor/backdoorInt.h, lib/deployPkg/runDeployPkgInt.h,
+	lib/dnd/dndInt.h, lib/file/fileInt.h, lib/guestInfo/guestInfoInt.h,
+	lib/hgfs/cpNameInt.h, lib/hgfsServer/hgfsServerInt.h,
+	lib/impersonate/impersonateInt.h, lib/include/backdoorInt.h,
+	lib/include/bsd_output_int.h, lib/include/cpNameInt.h,
+	lib/include/dndInt.h, lib/include/fileInt.h,
+	lib/include/guestInfoInt.h, lib/hgfsServer/hgfsServerInt.h,
+	lib/include/impersonateInt.h, lib/include/runDeployPkgInt.h,
+	lib/include/toolsLoggerInt.h, lib/include/unicodeInt.h,
+	lib/string/bsd_output_int.h, lib/toolsLogger/toolsLoggerInt.h,
+	lib/unicode/unicodeInt.h: Moved some internal header files out of
+	the general include directory and into the appropriate libraries.
+
+	* lib/ghIntegration/*: New library for Unity support.
+
+	* lib/guestApp/guestAppPosixX11.c: Reset the value of LD_LIBRARY_PATH
+	before running the web browser.
+
+	* lib/guestInfo/guestInfoPosix.c, lib/include/guest_os.h: Fixed a typo
+	in Mandriva guest detection. Added Asianux.
+
+	* lib/guestInfo/guestInfoServer.c: Fixed behavior for sending nicInfo
+	updates to the host (patch by Jason Lunz).
+
+	* lib/guestRpc/ghi*.*: New xdr protocol for Unity support.
+
+	* lib/guestRpc/nicinfo.x: Correctly applied LGPL to file.
+
+	* lib/hgfs/cpNameLinux.c: Allow building for versions of Solaris newer
+	than 10.
+
+	* lib/hgfsServer/hgfsServer.c,
+	lib/hgfsServerPolicyGuest/hgfsServerPolicyGuest.c,
+	lib/include/hgfsServerPolicy.h: Provide an override setting for
+	disabling case conversion during file lookups.
+
+	* lib/hgfsServer/hgfsServerLinux.c: Only perform case insensitive
+	file lookups if a case sensitive lookup fails.
+
+	* lib/image/imageUtilPng.c, lib/include/imageUtil.h,
+	lib/include/imageUtilTypes.h: New library for
+	Unity support.
+
+	* lib/include/conf.h, toolbox/toolbox-gtk.c: Robustified the help page
+	discovery mechanism.
+
+	* lib/include/dndGuest.h: Allow inclusion of header into source files
+	without GTK2 support.
+
+	* lib/unity/*, lib/include/guestCaps.h, lib/include/unityCommon.h: New
+	library for Unity support.
+
+	* lib/include/hgfsUtil.h: Fixed a precedence issue in a macro.
+
+	* lib/raster/*, lib/include/rasterConv.h: New library for Unity support.
+
+	* lib/region/*, lib/include/region.h: New library for Unity support.
+
+	* lib/include/system.h: Added new OS type for WinXP 64-bit, reformatted
+	enums.
+
+	* lib/unityWindowTracker/*, lib/include/unityWindowTracker.h: New
+	library for Unity support.
+
+	* lib/include/vm_version.h: Bumped TOOLS_VERSION.
+
+	* lib/wiper/wiperPosix.c: Replaced BSD_VERSION with __FreeBSD_version.
+
+	* modules/*/*/*: Reflected changes from elsewhere.
+
+	* modules/freebsd/vmhgfs/*: Reflected changes from MacOS HGFS work, and
+	fixed file permissions so that they're not all owned by root.
+
+	* modules/linux/vmblock/linux/dentry.c: Changed d_revalidate to
+	properly invalidate negative dentries.
+
+	* modules/linux/vmci/*: Landed the Virtual Machine Communication
+	Interface guest module.
+
+	* modules/linux/vmmemctl/os.c: Fixed vmmemctl to build on 2.6.26
+	(reported by Pavol Rusnak).
+
+	* modules/linux/vmsync/sync.c: Fixed vmsync to build on 2.6.26
+	(reported by Pavol Rusnak).
+
+	* modules/linux/vsock/*: Landed the VMCI sockets interface module.
+
+	* modules/linux/vmxnet/vmxnet.c, modules/linux/vmxnet/vmxnet2_def.h,
+	modules/linux/vmxnet/vmxnetInt.h: Increased rx ring size for enhanced
+	vmxnet2.
+
+	* toolbox/*: Refactored pieces of GTK Toolbox and landed the command
+	line Toolbox. Fixed mnemonic collisions in the GTK Toolbox.
+
+	* vmware-user/copyPaste.c: Fixed several bugs with file copy paste
+	behavior.
+
+	* vmware-user/notify.c, vmware-user/vmware-user.c,
+	vmware-user/vmwareuserInt.h: Added stubs for notification framework.
+
+	* vmware-user/pointer.c: Reverted fix for bug with clipboard retry
+	behavior.
+
+	* vmware-user/vmware-user.c: Fixed build with gtk 1.2 (reported by
+	Stephen Duncan). Added signal handlers for SIGUSR1/SIGUSR2 used by
+	VMware Tools installer to reload vmware-user cleanly during a Tools
+	upgrader. Reload vmware-user on a fatal X I/O error. Don't panic if
+	run outside of a VM. Don't leave Unity mode on a Tools reset.
+	
 2008-07-01  Adar Dembo  <adar@vmware.com>
 	* Resync with internal trunk (2008.06.30)
 

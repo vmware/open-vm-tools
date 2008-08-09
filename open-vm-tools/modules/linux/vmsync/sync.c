@@ -677,9 +677,9 @@ init_module(void)
    }
 
    /* Create /proc/driver/vmware-sync */
-   controlProcEntry = create_proc_entry("vmware-sync",
+   controlProcEntry = create_proc_entry("driver/vmware-sync",
                                         S_IFREG | S_IRUSR | S_IRGRP | S_IROTH,
-                                        proc_root_driver);
+                                        NULL);
    if (!controlProcEntry) {
       printk(KERN_ERR "vmsync: could not create /proc/driver/vmware-sync\n");
       kmem_cache_destroy(gSyncStateCache);
@@ -711,7 +711,7 @@ init_module(void)
 void
 cleanup_module(void)
 {
-   remove_proc_entry("vmware-sync", proc_root_driver);
+   remove_proc_entry("driver/vmware-sync", NULL);
    kmem_cache_destroy(gSyncStateCache);
    kmem_cache_destroy(gBlockDeviceCache);
 }

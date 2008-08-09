@@ -467,7 +467,7 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
 #ifndef _WIN32
    va_list orgap;          /* original argument pointer */
 #endif
-   char *convbuf;      /* wide to multibyte conversion result */
+   char *convbuf = NULL;      /* wide to multibyte conversion result */
    BSDFmt_StrBuf sbuf;
 
    /*
@@ -988,8 +988,10 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
             wchar_t *wcp;
 
             /* Argument is wchar_t * */
-            if (convbuf != NULL)
+            if (convbuf != NULL) {
                free(convbuf);
+               convbuf = NULL;
+            }
             if ((wcp = GETARG(wchar_t *)) == NULL)
                cp = "(null)";
             else {
@@ -1231,8 +1233,10 @@ error:
    if (dtoaresult != NULL)
       freedtoa(dtoaresult);
 #endif
-   if (convbuf != NULL)
+   if (convbuf != NULL) {
       free(convbuf);
+      convbuf = NULL;
+   }
    if (sbuf.error) {
       ret = EOF;
    }

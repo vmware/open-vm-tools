@@ -37,11 +37,11 @@ A million repetitions of "a"
 #if defined(USERLEVEL) || defined(_WIN32)
 #   include <string.h>
 #   if defined(_WIN32)
-#      include <memory.h> 
+#      include <memory.h>
 #   endif
 #endif
 
-#if defined(sun) && defined(SOL10)
+#if defined(sun) && !defined(SOL9)
 #include <memory.h>
 #endif
 
@@ -56,7 +56,7 @@ A million repetitions of "a"
 
 #if defined(__APPLE__)
 #      include <string.h>
-#endif 
+#endif
 
 #ifdef USERLEVEL
 #include "vmware.h"
@@ -112,7 +112,7 @@ R(CHAR64LONG16 *block, uint32 *f, int i)
       round = 0xCA62C1D6 + F3(b,c,d);
    }
    if (i < 16) {
-#ifdef LITTLE_ENDIAN 
+#ifdef LITTLE_ENDIAN
       blk = Bswap(block->l[i]);
 #else
       blk = block->l[i];
@@ -127,7 +127,7 @@ R(CHAR64LONG16 *block, uint32 *f, int i)
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-static void 
+static void
 _SHA1Transform(uint32 state[5], unsigned char buffer[64])
 {
     int i;

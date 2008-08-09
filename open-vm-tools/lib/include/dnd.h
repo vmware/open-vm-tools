@@ -143,9 +143,8 @@ typedef struct DnDTransportBuffer {
 /*
  * Windows-specific functions
  */
-EXTERN uint32 DnD_GetClipboardFormatFromName(ConstUnicode pFormatName);
 EXTERN Unicode DnD_GetClipboardFormatName(UINT cf);
-EXTERN HGLOBAL  DnD_CopyStringToGlobal(ConstUnicode str);
+EXTERN HGLOBAL DnD_CopyStringToGlobal(ConstUnicode str);
 EXTERN HGLOBAL DnD_CopyDWORDToGlobal(DWORD *pDWORD);
 EXTERN HGLOBAL DnD_CreateHDrop(ConstUnicode path, ConstUnicode fileList);
 EXTERN HGLOBAL DnD_CreateHDropForGuest(ConstUnicode path,
@@ -184,7 +183,7 @@ EXTERN char *DnD_UriListGetNextFile(char const *uriList,
  */
 ConstUnicode DnD_GetFileRoot(void);
 char *DnD_CreateStagingDirectory(void);
-Bool DnD_DeleteStagingFiles(ConstUnicode fileList, Bool onReboot);
+Bool DnD_DeleteStagingFiles(ConstUnicode stagingDir, Bool onReboot);
 Bool DnD_DataContainsIllegalCharacters(const char *data,
                                        const size_t dataSize);
 Bool DnD_PrependFileRoot(ConstUnicode fileRoot, char **src, size_t *srcSize);

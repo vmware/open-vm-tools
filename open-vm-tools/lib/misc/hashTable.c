@@ -716,10 +716,12 @@ again:
 
    oldEntry = HashTableLookup(ht, keyStr, hash);
    if (oldEntry != NULL) {
-      if (ht->copyKey) {
-	 free((char *) entry->keyStr);
+      if(entry != NULL) {
+         if (ht->copyKey) {
+            free((char *) entry->keyStr);
+         }
+         free(entry);
       }
-      free(entry);
       return oldEntry;
    }
 

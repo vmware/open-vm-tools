@@ -289,7 +289,7 @@ Util_MakeSafeTemp(ConstUnicode tag,  // IN (OPT):
       File_GetPathName(tag, &dir, &fileName);
    } else {
       dir = Util_GetSafeTmpDir(TRUE);
-      fileName = Unicode_Duplicate(tag ? tag : U("vmware"));
+      fileName = Unicode_Duplicate(tag ? tag : "vmware");
    }
 
    fd = File_MakeTempEx(dir, fileName, presult);
@@ -414,7 +414,7 @@ UtilFindExistingSafeTmpDir(uid_t userId,             // IN
 
    for (i = 0; i < numFiles; i++) {
        if (Unicode_StartsWith(fileList[i], pattern)) {
-          Unicode path = Unicode_Join(baseTmpDir, U(DIRSEPS), fileList[i],
+          Unicode path = Unicode_Join(baseTmpDir, DIRSEPS, fileList[i],
                                       NULL);
 
           if (File_IsDirectory(path) &&

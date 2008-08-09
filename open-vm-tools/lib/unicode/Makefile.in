@@ -49,7 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@NO_ICU_TRUE@am__append_1 = unicodeICU.c
+@HAVE_ICU_TRUE@am__append_1 = unicodeICU.c
 subdir = lib/unicode
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -66,7 +66,7 @@ am__libUnicode_a_SOURCES_DIST = unicodeCommon.c unicodeSimpleBase.c \
 	unicodeSimpleCaseFolding.c unicodeSimpleTypes.c \
 	unicodeSimpleOperations.c unicodeSimpleTransforms.c \
 	unicodeStatic.c unicodeICU.c
-@NO_ICU_TRUE@am__objects_1 = unicodeICU.$(OBJEXT)
+@HAVE_ICU_TRUE@am__objects_1 = unicodeICU.$(OBJEXT)
 am_libUnicode_a_OBJECTS = unicodeCommon.$(OBJEXT) \
 	unicodeSimpleBase.$(OBJEXT) unicodeSimpleCaseFolding.$(OBJEXT) \
 	unicodeSimpleTypes.$(OBJEXT) unicodeSimpleOperations.$(OBJEXT) \
@@ -134,8 +134,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -171,6 +175,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -179,6 +185,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@

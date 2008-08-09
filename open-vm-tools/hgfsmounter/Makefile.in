@@ -64,8 +64,8 @@ PROGRAMS = $(sbin_PROGRAMS)
 am_mount_vmhgfs_OBJECTS = hgfsmounter.$(OBJEXT) \
 	stub-user-util.$(OBJEXT)
 mount_vmhgfs_OBJECTS = $(am_mount_vmhgfs_OBJECTS)
-mount_vmhgfs_DEPENDENCIES = ../lib/string/libString.a \
-	../lib/strUtil/libStrUtil.a \
+mount_vmhgfs_DEPENDENCIES = ../lib/misc/libMisc.a \
+	../lib/string/libString.a \
 	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
 	../lib/stubs/libStubs.a
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -129,8 +129,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -166,6 +170,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -174,6 +180,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -225,8 +233,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-mount_vmhgfs_LDADD = ../lib/string/libString.a \
-	../lib/strUtil/libStrUtil.a \
+mount_vmhgfs_LDADD = ../lib/misc/libMisc.a ../lib/string/libString.a \
 	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
 	../lib/stubs/libStubs.a
 mount_vmhgfs_SOURCES = hgfsmounter.c stub-user-util.c
@@ -436,7 +443,6 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@FREEBSD_FALSE@uninstall-hook:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-sbinPROGRAMS \
@@ -519,14 +525,21 @@ uninstall-am: uninstall-sbinPROGRAMS
 
 
 @FREEBSD_TRUE@install-exec-hook:
-@FREEBSD_TRUE@	$(MV) $(sbindir)/mount.vmhgfs $(sbindir)/mount_vmhgfs
-@FREEBSD_TRUE@	chown root $(sbindir)/mount_vmhgfs
-@FREEBSD_TRUE@	chmod u+s $(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	$(MV) $(DESTDIR)$(sbindir)/mount.vmhgfs \
+@FREEBSD_TRUE@		$(DESTDIR)$(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	chown root $(DESTDIR)$(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	chmod u+s $(DESTDIR)$(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	-$(LN_S) $(DESTDIR)$(sbindir)/mount_vmhgfs \
+@FREEBSD_TRUE@		$(DESTDIR)/sbin/mount_vmhgfs &> /dev/null
 @FREEBSD_TRUE@uninstall-hook:
-@FREEBSD_TRUE@	$(RM) -f $(sbindir)/mount_vmhgfs
+@FREEBSD_TRUE@	-$(RM) -f $(DESTDIR)$(sbindir)/mount_vmhgfs &> /dev/null
 @FREEBSD_FALSE@install-exec-hook:
-@FREEBSD_FALSE@	chown root $(sbindir)/mount.vmhgfs
-@FREEBSD_FALSE@	chmod u+s $(sbindir)/mount.vmhgfs
+@FREEBSD_FALSE@	chown root $(DESTDIR)$(sbindir)/mount.vmhgfs
+@FREEBSD_FALSE@	chmod u+s $(DESTDIR)$(sbindir)/mount.vmhgfs
+@FREEBSD_FALSE@	-$(LN_S) $(DESTDIR)$(sbindir)/mount.vmhgfs \
+@FREEBSD_FALSE@		$(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
+@FREEBSD_FALSE@uninstall-hook:
+@FREEBSD_FALSE@	-$(RM) -f $(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

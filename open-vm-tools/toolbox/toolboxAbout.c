@@ -31,7 +31,7 @@
 #include "str.h"
 
 #include "bigIcon.xpm"
-#include "toolboxInt.h"
+#include "toolboxGtkInt.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

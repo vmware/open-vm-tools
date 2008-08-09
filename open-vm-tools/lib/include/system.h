@@ -44,34 +44,40 @@ char *System_GetEnv(Bool global, char *valueName);
 int System_SetEnv(Bool global, char *valueName, char *value);
 
 #ifdef _WIN32
-typedef enum {OS_WIN95 = 1, 
-              OS_WIN98 = 2, 
-              OS_WINME = 3, 
-              OS_WINNT = 4, 
-              OS_WIN2K = 5, 
-              OS_WINXP = 6, 
-              OS_WIN2K3 = 7,
-              OS_VISTA  = 8,
-              OS_UNKNOWN = 9} OS_TYPE;
+typedef enum {
+   OS_WIN95 = 1,
+   OS_WIN98 = 2,
+   OS_WINME = 3,
+   OS_WINNT = 4,
+   OS_WIN2K = 5,
+   OS_WINXP = 6,
+   OS_WIN2K3 = 7,
+   OS_VISTA  = 8,
+   OS_UNKNOWN = 9
+} OS_TYPE;
 
-typedef enum {OS_DETAIL_WIN95           = 1,
-              OS_DETAIL_WIN98           = 2,
-              OS_DETAIL_WINME           = 3,
-              OS_DETAIL_WINNT           = 4,
-              OS_DETAIL_WIN2K           = 5,
-              OS_DETAIL_WIN2K_PRO       = 6,
-              OS_DETAIL_WIN2K_SERV      = 7,
-              OS_DETAIL_WIN2K_ADV_SERV  = 8,
-              OS_DETAIL_WINXP           = 9,
-              OS_DETAIL_WINXP_HOME      = 10,
-              OS_DETAIL_WINXP_PRO       = 11,
-              OS_DETAIL_WIN2K3          = 12,
-              OS_DETAIL_WIN2K3_WEB      = 13,
-              OS_DETAIL_WIN2K3_ST       = 14,
-              OS_DETAIL_WIN2K3_EN       = 15,
-              OS_DETAIL_WIN2K3_BUS      = 16,
-              OS_DETAIL_VISTA           = 17,
-              OS_DETAIL_UNKNOWN         = 18} OS_DETAIL_TYPE;
+typedef enum {
+   OS_DETAIL_WIN95           = 1,
+   OS_DETAIL_WIN98           = 2,
+   OS_DETAIL_WINME           = 3,
+   OS_DETAIL_WINNT           = 4,
+   OS_DETAIL_WIN2K           = 5,
+   OS_DETAIL_WIN2K_PRO       = 6,
+   OS_DETAIL_WIN2K_SERV      = 7,
+   OS_DETAIL_WIN2K_ADV_SERV  = 8,
+   OS_DETAIL_WINXP           = 9,
+   OS_DETAIL_WINXP_HOME      = 10,
+   OS_DETAIL_WINXP_PRO       = 11,
+   OS_DETAIL_WINXP_X64_PRO   = 12,
+   OS_DETAIL_WIN2K3          = 13,
+   OS_DETAIL_WIN2K3_WEB      = 14,
+   OS_DETAIL_WIN2K3_ST       = 15,
+   OS_DETAIL_WIN2K3_EN       = 16,
+   OS_DETAIL_WIN2K3_BUS      = 17,
+   OS_DETAIL_VISTA           = 18,
+   OS_DETAIL_UNKNOWN         = 19
+} OS_DETAIL_TYPE;
+
 typedef void (*DesktopSwitchNotifyCB)(void *);
 typedef struct {
    DesktopSwitchNotifyCB cb;   // callback to invoke.

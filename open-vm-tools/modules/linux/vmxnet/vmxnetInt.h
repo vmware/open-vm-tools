@@ -73,7 +73,7 @@ typedef struct Vmxnet_Private {
    Vmxnet2_DriverData	       *dd;
    const char 		       *name;
    struct net_device_stats	stats;
-   struct sk_buff	       *rxSkbuff[VMXNET2_MAX_NUM_RX_BUFFERS];
+   struct sk_buff	       *rxSkbuff[ENHANCED_VMXNET2_MAX_NUM_RX_BUFFERS];
    struct page                 *rxPages[VMXNET2_MAX_NUM_RX_BUFFERS2];
    struct Vmxnet2_TxBuf         txBufInfo[VMXNET2_MAX_NUM_TX_BUFFERS_TSO];
    spinlock_t                   txLock;

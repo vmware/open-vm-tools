@@ -53,17 +53,21 @@ typedef struct ToolsDaemon_Data {
    const char *execLogPath;
    Bool inError;
    int errorCount;
-   GuestApp_Dict *optionsDict;      // the options we get from VMware
-   GuestApp_Dict **pConfDict;       // the name/value pairs from the conf file
+   GuestApp_Dict *optionsDict;         // the options we get from VMware
+   GuestApp_Dict **pConfDict;          // the name/value pairs from the conf file
    struct Event *timeSyncEvent;
    uint32 timeSyncPeriod;
    struct Event *oldOptionsLoop;
-   ToolsDaemon_Callback *haltCB;    // callback when we do a soft halt
-   void *haltCBData;                // its data
-   ToolsDaemon_Callback *rebootCB;  // callback when we do a soft reboot
-   void *rebootCBData;              // its data
-   ToolsDaemon_Callback *resetCB;   // callback when we receive a reset
-   void *resetCBData;               // its data
+   ToolsDaemon_Callback *haltCB;       // callback when we do a soft halt
+   void *haltCBData;                   // its data
+   ToolsDaemon_Callback *rebootCB;     // callback when we do a soft reboot
+   void *rebootCBData;                 // its data
+   ToolsDaemon_Callback *resetCB;      // callback when we receive a reset
+   void *resetCBData;                  // its data
+   ToolsDaemon_Callback *linkHgfsCB;   // callback to create hgfs link on desktop
+   void *linkHgfsCBData;               // its data
+   ToolsDaemon_Callback *unlinkHgfsCB; // callback to remove hgfs link on desktop
+   void *unlinkHgfsCBData;             // its data
    GuestOsState stateChgInProgress;
    GuestOsState lastFailedStateChg;
    ProcMgr_AsyncProc *asyncProc;
@@ -73,14 +77,18 @@ typedef struct ToolsDaemon_Data {
 
 
 ToolsDaemon_Data *
-ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
-                 const char *execLogPath,       // IN
-                 ToolsDaemon_Callback haltCB,   // IN
-                 void *haltCBData,              // IN
-                 ToolsDaemon_Callback rebootCB, // IN
-                 void *rebootCBData,            // IN
-                 ToolsDaemon_Callback resetCB,  // IN
-                 void *resetCBData);            // IN
+ToolsDaemon_Init(GuestApp_Dict **pConfDict,         // IN
+                 const char *execLogPath,           // IN
+                 ToolsDaemon_Callback haltCB,       // IN
+                 void *haltCBData,                  // IN
+                 ToolsDaemon_Callback rebootCB,     // IN
+                 void *rebootCBData,                // IN
+                 ToolsDaemon_Callback resetCB,      // IN
+                 void *resetCBData,                 // IN
+		 ToolsDaemon_Callback linkHgfsCB,   // IN
+		 void *linkHgfsCBData,              // IN
+		 ToolsDaemon_Callback unlinkHgfsCB, // IN
+		 void *unlinkHgfsCBData);           // IN
 
 Bool
 ToolsDaemon_Init_Backdoor(ToolsDaemon_Data *data); // IN/OUT

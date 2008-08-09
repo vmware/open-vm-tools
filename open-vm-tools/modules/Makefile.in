@@ -86,8 +86,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -123,6 +127,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -131,6 +137,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -359,20 +367,22 @@ all: modules
 modules: $(MODULES)
 
 $(MODULES):
-	$(MAKE) -C "$(MODULES_OS)/$@"
+	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) -C "$(MODULES_OS)/$@"
 
-@LINUX_TRUE@export vmblockdir = $(MODULES_DIR)/fs/vmblock
-@LINUX_TRUE@export vmhgfsdir = $(MODULES_DIR)/fs/vmhgfs
-@LINUX_TRUE@export vmmemctldir = $(MODULES_DIR)/drivers/misc
-@LINUX_TRUE@export vmsyncdir = $(MODULES_DIR)/drivers/misc
-@LINUX_TRUE@export vmxnetdir = $(MODULES_DIR)/drivers/net
-@LINUX_TRUE@export DEPMOD = depmod -a
+@LINUX_TRUE@export vmblockdir := $(MODULES_DIR)/fs/vmblock
+@LINUX_TRUE@export vmcidir := $(MODULES_DIR)/drivers/misc
+@LINUX_TRUE@export vmhgfsdir := $(MODULES_DIR)/fs/vmhgfs
+@LINUX_TRUE@export vmmemctldir := $(MODULES_DIR)/drivers/misc
+@LINUX_TRUE@export vmsyncdir := $(MODULES_DIR)/drivers/misc
+@LINUX_TRUE@export vmxnetdir := $(MODULES_DIR)/drivers/net
+@LINUX_TRUE@export vsockdir := $(MODULES_DIR)/net/vsock
+@LINUX_TRUE@export DEPMOD := depmod -a
 
-@FREEBSD_TRUE@export vmblockdir = $(MODULES_DIR)
-@FREEBSD_TRUE@export vmhgfsdir = $(MODULES_DIR)
-@FREEBSD_TRUE@export vmmemctldir = $(MODULES_DIR)
-@FREEBSD_TRUE@export vmsyncdir = $(MODULES_DIR)
-@FREEBSD_TRUE@export vmxnetdir = $(MODULES_DIR)
+@FREEBSD_TRUE@export vmblockdir := $(MODULES_DIR)
+@FREEBSD_TRUE@export vmhgfsdir := $(MODULES_DIR)
+@FREEBSD_TRUE@export vmmemctldir := $(MODULES_DIR)
+@FREEBSD_TRUE@export vmsyncdir := $(MODULES_DIR)
+@FREEBSD_TRUE@export vmxnetdir := $(MODULES_DIR)
 
 distclean-local:
 clean-local:
@@ -383,13 +393,13 @@ clean-local:
 
 install-exec-hook:
 	for MOD in $(MODULES); do \
-		$(INSTALL) -d `eval echo '$$'$${MOD}dir`; \
-		$(INSTALL) -m644 $(MODULES_OS)/$$MOD/$$MOD.ko `eval echo '$$'$${MOD}dir`; \
+		$(INSTALL) -d $(DESTDIR)`eval echo '$$'$${MOD}dir`; \
+		$(INSTALL) -m644 $(MODULES_OS)/$$MOD/$$MOD.ko $(DESTDIR)`eval echo '$$'$${MOD}dir`; \
 	done
 	eval "$$DEPMOD"
 uninstall-hook:
 	for MOD in $(MODULES); do \
-		$(RM) -f `eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null; \
+		$(RM) -f $(DESTDIR)`eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null; \
 	done
 	eval "$$DEPMOD"
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

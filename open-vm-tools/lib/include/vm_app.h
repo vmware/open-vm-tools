@@ -52,6 +52,7 @@ typedef struct GuestOsStateChangeCmd {
    unsigned int id;
    char const *name;
    char const *tcloCmd;
+   char const *configOption;
 } GuestOsStateChangeCmd;
 
 /*
@@ -117,11 +118,16 @@ typedef struct GuestOsStateChangeCmd {
  * The table of state change cmds corresponding to tclo commands.
  */
 static const GuestOsStateChangeCmd stateChangeCmdTable[] = {
-   { GUESTOS_STATECHANGE_POWERON, "poweron", "OS_PowerOn" },
-   { GUESTOS_STATECHANGE_RESUME,  "resume",  "OS_Resume" },
-   { GUESTOS_STATECHANGE_SUSPEND, "suspend", "OS_Suspend" },
-   { GUESTOS_STATECHANGE_HALT,    "halt",    "OS_Halt" },
-   { GUESTOS_STATECHANGE_REBOOT,  "reboot",  "OS_Reboot" },
+   { GUESTOS_STATECHANGE_POWERON, "poweron",
+     "OS_PowerOn", "vmx/cfgState/val/toolScripts/afterPowerOn" },
+   { GUESTOS_STATECHANGE_RESUME,  "resume",
+     "OS_Resume" , "vmx/cfgState/val/toolScripts/afterResume" },
+   { GUESTOS_STATECHANGE_SUSPEND, "suspend",
+     "OS_Suspend" , "vmx/cfgState/val/toolScripts/beforeSuspend" },
+   { GUESTOS_STATECHANGE_HALT,    "halt",
+     "OS_Halt", "vmx/cfgState/val/toolScripts/beforePowerOff" },
+   { GUESTOS_STATECHANGE_REBOOT,  "reboot",
+     "OS_Reboot", "vmx/cfgState/val/toolScripts/beforePowerOff" },
 };
 
 

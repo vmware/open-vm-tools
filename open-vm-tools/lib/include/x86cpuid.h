@@ -166,6 +166,7 @@ typedef enum {
 #define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
 #define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
 
+#define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
 
 /*
  * FIELDDEF can be defined to process the CPUID information provided
@@ -627,10 +628,12 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_PII_05     5
 #define CPUID_MODEL_CELERON_06 6
 #define CPUID_MODEL_PM_09      9
+#define CPUID_MODEL_PM_0D      13
 #define CPUID_MODEL_PM_0E      14    // Yonah / Sossaman
 #define CPUID_MODEL_CORE_0F    15    // Conroe / Merom
 #define CPUID_MODEL_CORE_17    0x17  // Penryn
 #define CPUID_MODEL_NEHALEM_1A 0x1a  // Nehalem / Gainestown
+#define CPUID_MODEL_ATOM_1C    0x1c  // Silverthorne / Diamondville
 #define CPUID_MODEL_CORE_1D    0x1d  // Dunnington
 
 #define CPUID_MODEL_PIII_07    7
@@ -692,6 +695,7 @@ CPUID_UARCH_IS_PENTIUM_M(uint32 v) // IN: %eax from CPUID with %eax=1.
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_PM_09 ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_PM_0D ||
            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_PM_0E);
 }
 
@@ -878,6 +882,17 @@ CPUID_CountsCPUIDAsBranch(uint32 v) /* %eax from CPUID with %eax=1 */
             (CPUID_EFFECTIVE_MODEL(v) > CPUID_MODEL_CORE_0F ||
              (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_CORE_0F &&
               CPUID_STEPPING(v) >= 9)));
+}
+
+/*
+ * On Merom and later Intel chips, not present PDPTEs with reserved bits
+ * set do not fault with a #GP. See PR# 109120.
+ */
+static INLINE Bool
+CPUID_FaultOnNPReservedPDPTE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   return !(CPUID_FAMILY_IS_P6(v) &&
+            (CPUID_EFFECTIVE_MODEL(v) >= CPUID_MODEL_CORE_0F));
 }
 
 

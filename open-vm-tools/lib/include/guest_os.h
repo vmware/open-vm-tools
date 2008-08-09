@@ -143,6 +143,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_ARCH "Arch" 
 #define STR_OS_ARKLINUX "Arklinux" 
 #define STR_OS_AUROX "Aurox" 
+#define STR_OS_ASIANUX "asianux" 
 #define STR_OS_BLACKCAT "BlackCat" 
 #define STR_OS_COBALT "Cobalt" 
 #define STR_OS_CONECTIVA "Conectiva" 
@@ -156,7 +157,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_LINUX_PPC "Linux-PPC" 
 #define STR_OS_MANDRAKE "mandrake" 
 #define STR_OS_MANDRAKE_FULL "Mandrake Linux"   
-#define STR_OS_MANDRAVIA "Mandriva"    
+#define STR_OS_MANDRIVA "mandriva"    
 #define STR_OS_MKLINUX "MkLinux"    
 #define STR_OS_NOVELL "nld9"    
 #define STR_OS_NOVELL_FULL "Novell Linux Desktop 9" 
@@ -304,6 +305,5 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_64BIT_SUFFIX "-64"
 #define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
 #define STR_OS_EMPTY ""
-
 
 #endif

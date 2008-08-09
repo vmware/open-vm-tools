@@ -692,7 +692,49 @@ Unicode_GetAllocBytes(ConstUnicode str,        // IN:
       return NULL;
    }
 
-   return UnicodeGetAllocBytesInternal(str, encoding, NULL);
+   return UnicodeGetAllocBytesInternal(str, encoding, -1, NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_GetAllocBytesWithLength --
+ *
+ *      Allocates and returns a buffer into which the contents of the unicode
+ *      string of the specified length are extracted using the specified
+ *      encoding.
+ *
+ *      NOTE: The buffer returned is always NUL terminated.  The length of
+ *            the NUL can depend on the encoding.  UTF-16 NUL is "\0\0";
+ *            UTF-32 NUL is "\0\0\0\0".
+ *
+ *      NULL is returned for NULL argument.
+ *
+ * Results:
+ *      NULL if argument is NULL.
+ *      Otherwise, pointer to the dynamically allocated memory
+ *      or NULL on conversion failure.
+ *      The caller is responsible to free the memory allocated
+ *      by this routine.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+Unicode_GetAllocBytesWithLength(ConstUnicode str,        // IN:
+                                StringEncoding encoding, // IN:
+                                ssize_t lengthInBytes)   // IN:
+{
+   if (str == NULL) {
+      return NULL;
+   }
+   ASSERT(lengthInBytes >= 0);
+
+   return UnicodeGetAllocBytesInternal(str, encoding, lengthInBytes, NULL);
 }
 
 
@@ -720,41 +762,43 @@ Unicode_GetAllocBytes(ConstUnicode str,        // IN:
 void *
 UnicodeGetAllocBytesInternal(ConstUnicode ustr,       // IN
                              StringEncoding encoding, // IN
+                             ssize_t lengthInBytes,   // IN
                              size_t *retLength)       // OUT: optional
 {
    const char *utf8Str = ustr;
-   size_t len;
    char *result = NULL;
 
    ASSERT(ustr != NULL);
 
    encoding = Unicode_ResolveEncoding(encoding);
 
-   len = strlen(utf8Str);
+   if (lengthInBytes == -1) {
+      lengthInBytes = Unicode_LengthInBytes(ustr, STRING_ENCODING_UTF8);
+   }
 
    switch (encoding) {
    case STRING_ENCODING_US_ASCII:
-      if (!UnicodeSanityCheck(utf8Str, len, encoding)) {
+      if (!UnicodeSanityCheck(utf8Str, lengthInBytes, encoding)) {
 	 break;
       }
       // fall through
    case STRING_ENCODING_UTF8:
-      result = Util_SafeMalloc(len + 1);
-      memcpy(result, utf8Str, len + 1);
+      result = Util_SafeMalloc(lengthInBytes + 1);
+      memcpy(result, utf8Str, lengthInBytes + 1);
       if (retLength != NULL) {
-	 *retLength = len;
+	 *retLength = lengthInBytes;
       }
       break;
 
    case STRING_ENCODING_UTF16_LE:
-      if (!CodeSet_Utf8ToUtf16le(utf8Str, len, &result, retLength)) {
+      if (!CodeSet_Utf8ToUtf16le(utf8Str, lengthInBytes, &result, retLength)) {
 	 // input should be valid UTF-8, no conversion error possible
 	 ASSERT_MEM_ALLOC(FALSE);
       }
       break;
 
    default:
-      if (!CodeSet_GenericToGeneric("UTF-8", utf8Str, len,
+      if (!CodeSet_GenericToGeneric("UTF-8", utf8Str, lengthInBytes,
 				    Unicode_EncodingEnumToName(encoding),
 				    CSGTG_NORMAL,
 				    &result, retLength)) {

@@ -575,15 +575,15 @@ ProxyUse(ConstUnicode pathName,  // IN:
     * Construct the path to the directory that contains the filePath.
     */
 
-   index = Unicode_FindLast(pathName, U("/"));
+   index = Unicode_FindLast(pathName, "/");
 
    if (index == UNICODE_INDEX_NOT_FOUND) {
-      path = Unicode_Duplicate(U("."));
+      path = Unicode_Duplicate(".");
    } else {
       Unicode temp;
 
       temp = Unicode_Substr(pathName, 0, index + 1);
-      path = Unicode_Append(temp, U("."));
+      path = Unicode_Append(temp, ".");
       Unicode_Free(temp);
    }
 

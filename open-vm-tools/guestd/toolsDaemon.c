@@ -41,6 +41,7 @@ extern "C" {
 #   include <windows.h>
 #   include "win95.h"
 #   include "win32u.h"
+#   include "hgfsUsabilityLib.h"
 #endif
 
 
@@ -844,6 +845,7 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
                            void *clientData)        // IN
 {
    int i;
+   ProcMgr_ProcArgs procArgs;
    ToolsDaemon_Data *data = (ToolsDaemon_Data *)clientData;
 
    ASSERT(data);
@@ -874,15 +876,24 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
             return RpcIn_SetRetVals(result, resultLen, "", TRUE);
          }
 #ifdef N_PLAT_NLM
+         procArgs = NULL;
          scriptCmd = Str_Asprintf(NULL, "%s", script);
 #elif !defined(_WIN32)
+         procArgs = NULL;
          ASSERT(data->execLogPath);
          scriptCmd = Str_Asprintf(NULL, "(%s) 2>&1 >> %s",
                                   script, data->execLogPath);
 #else
+         /*
+          * Pass the CREATE_NO_WINDOW flag to CreateProcess so that the
+          * cmd.exe window will not be visible to the user in the guest.
+          */
+         memset(&procArgs, 0, sizeof procArgs);
+         procArgs.bInheritHandles = TRUE;
+         procArgs.dwCreationFlags = CREATE_NO_WINDOW;
+
          {
             char systemDir[1024 * 3];
-
             Win32U_GetSystemDirectory(systemDir, sizeof systemDir);
             scriptCmd = Str_Asprintf(NULL, "%s\\cmd.exe /c \"%s\"", systemDir, script);
          }
@@ -894,7 +905,7 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
                                     "Could not format cmd to run scritps",
                                     FALSE);
          }
-         data->asyncProc = ProcMgr_ExecAsync(scriptCmd, NULL);
+         data->asyncProc = ProcMgr_ExecAsync(scriptCmd, &procArgs);
 
          if (data->asyncProc) {
             data->asyncProcCb = ToolsDaemonStateChangeDone;
@@ -1095,6 +1106,10 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
    }
 #endif
 
+#if defined(WIN32)
+   HgfsUsability_RegisterServiceCaps();
+#endif
+
    return RpcIn_SetRetVals(result, resultLen, "", TRUE);
 }
 
@@ -1162,7 +1177,7 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
                          size_t argsSize,         // Ignored
                          void *clientData)        // IN
 {
-   Bool retVal;
+   Bool retVal = FALSE;
    char *option;
    char *value;
    unsigned int index = 0;
@@ -1205,6 +1220,18 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
          goto invalid_value;
       }
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_STARTUP) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
+   } else if (strcmp(option, TOOLSOPTION_LINK_ROOT_HGFS_SHARE) == 0) {
+      /*
+       * Check to make sure that we actually support creating the link
+       * on this platform.
+       */
+      if (!data->linkHgfsCB || !data->unlinkHgfsCB) {
+	 goto invalid_option;
+      }
+
       if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
          goto invalid_value;
       }
@@ -1302,6 +1329,21 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
                goto exit;
             }
          }
+      }
+   } else if (strcmp(option, TOOLSOPTION_LINK_ROOT_HGFS_SHARE) == 0) {
+      if (strcmp(value, "1") == 0) {
+	 /* Validated that data->linkHgfsCB existed above. */
+	 retVal = data->linkHgfsCB(data->linkHgfsCBData);
+      } else if (strcmp(value, "0") == 0) {
+	 /* Validated that data->unlinkHgfsCB existed above. */
+	 retVal = data->unlinkHgfsCB(data->unlinkHgfsCBData);
+      }
+
+      if (!retVal) {
+	 RpcIn_SetRetVals(result, resultLen,
+			  "Could not link/unlink root share.",
+			  retVal = FALSE);
+	 goto exit;
       }
    }
 
@@ -1461,14 +1503,18 @@ ToolsDaemon_Init_Backdoor(ToolsDaemon_Data * data) // IN/OUT
  */
 
 ToolsDaemon_Data *
-ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
-                 const char *execLogPath,       // IN
-                 ToolsDaemon_Callback haltCB,   // IN
-                 void *haltCBData,              // IN
-                 ToolsDaemon_Callback rebootCB, // IN
-                 void *rebootCBData,            // IN
-                 ToolsDaemon_Callback resetCB,  // IN
-                 void *resetCBData)             // IN
+ToolsDaemon_Init(GuestApp_Dict **pConfDict,         // IN
+                 const char *execLogPath,           // IN
+                 ToolsDaemon_Callback haltCB,       // IN
+                 void *haltCBData,                  // IN
+                 ToolsDaemon_Callback rebootCB,     // IN
+                 void *rebootCBData,                // IN
+                 ToolsDaemon_Callback resetCB,      // IN
+                 void *resetCBData,                 // IN
+                 ToolsDaemon_Callback linkHgfsCB,   // IN
+		 void *linkHgfsCBData,              // IN
+                 ToolsDaemon_Callback unlinkHgfsCB, // IN
+		 void *unlinkHgfsCBData)            // IN
 {
    ToolsDaemon_Data *data;
 
@@ -1495,6 +1541,10 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,     // IN
    data->lastFailedStateChg = GUESTOS_STATECHANGE_NONE;
    data->resetCB = resetCB;
    data->resetCBData = resetCBData;
+   data->linkHgfsCB = linkHgfsCB;
+   data->linkHgfsCBData = linkHgfsCBData;
+   data->unlinkHgfsCB = unlinkHgfsCB;
+   data->unlinkHgfsCBData = unlinkHgfsCBData;
    data->timeSyncPeriod = 0;
 
 #if ALLOW_TOOLS_IN_FOREIGN_VM
@@ -1643,6 +1693,8 @@ ToolsDaemon_Cleanup(ToolsDaemon_Data *data) // IN
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.resolution_min 0 0")) {
       Debug("%s: Unable to clear minimum resolution\n", __FUNCTION__);
    }
+
+   HgfsUsability_UnregisterServiceCaps();
 #endif
 
 #ifdef TOOLSDAEMON_HAS_RESOLUTION

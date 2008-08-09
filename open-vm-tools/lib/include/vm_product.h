@@ -344,8 +344,16 @@
 #      define PRODUCT_OS "Linux"
 #   endif
 
+/*
+ * Note: changing PRODUCT_NAME_FOR_LICENSE and PRODUCT_LICENSE_VERSION
+ * or macros it cleverly depends on (such as PRODUCT_NAME) requires a
+ * coordinated dormant license file change. Otherwise licensing for
+ * that product may break because the Licensecheck API is being passed
+ * a parameter that no longer match the content of the dormant license
+ * file.
+ */
 #   if defined(VMX86_SERVER)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
+#      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_ESX_SMP_NAME
 #   elif defined(VMX86_DESKTOP)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for " PRODUCT_OS

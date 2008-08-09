@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,69 +19,41 @@
 /*
  * toolboxInt.h --
  *
- *     Common defines used by the gtk toolbox
+ *     Common defines used by the toolbox-cmd and toolbox-gtk
  */
 #ifndef _TOOLBOX_INT_H_
-# define _TOOLBOX_INT_H_
+#define _TOOLBOX_INT_H_
 
-#include <X11/Xlib.h>
-#include <gtk/gtk.h>
-#include <gdk/gdkx.h>
-#undef Bool
 #include "vm_basic_types.h"
 #include "vm_version.h"
 #include "dbllnklst.h"
+#include "wiper.h"
+#include "vmcheck.h"
+#include "removable_device.h"
+#include "guestApp.h"
+#include "conf.h"
+#include "file.h"
+#include "wiper.h"
+#include "backdoor_def.h"
+#include "backdoor.h"
+#include "vm_app.h"
 
-
-#define RPCIN_POLL_TIME        10  /* in 1/1000ths of a second */
-#define DEVICES_POLL_TIME     100  /* in 1/1000ths of a second */
-#define WIPER_POLL_TIME        10  /* in 1/1000ths of a second */
-#define POST_RESET_TIME       100  /* in 1/1000ths of a second */
-
-#define SCRIPT_SUSPEND "Suspend Guest Operating System"
-#define SCRIPT_RESUME  "Resume Guest Operating System"
-#define SCRIPT_OFF     "Shut Down Guest Operating System"
-#define SCRIPT_ON      "Power On Guest Operating System"
 
 #define MAX_DEVICES 50  /* maximum number of devices we'll show */
+#define SHRINK_DISABLED_ERR "Shrink disk is disabled for this virtual machine." \
+                            "Shrinking is disabled for linked clones, parents of " \
+			    "linked clones, pre-allocated disks, snapshots, and " \
+			    "other factors. See the User's manual for more " \
+			    "information.\n"
+#define SHRINK_FEATURE_ERR "The shrink feature is not available,\n\n" \
+			    "either because you are running an old version of a VMware product, or " \
+			    "because too many communication channels are open.\n\n If you are running " \
+			    "an old version of a VMware product, you should consider upgrading.\n\n" \
+			    "If too many communication channels are open, you should power off your " \
+			    "virtual machine and then power it back on\n." 
+#define SHRINK_CONFLICT_ERR "Error, The Toolbox believes disk shrinking is " \
+			    "enabled while the host believes it is disabled. " \
+			    "Please close and reopen the Toolbox to synchronize " \
+			    "it with the host.\n"
 
-#if GTK2
-#define TAB_LABEL_OPTIONS "_Options"
-#define TAB_LABEL_DEVICES "De_vices"
-#define TAB_LABEL_SCRIPTS "Scrip_ts"
-#define TAB_LABEL_SHRINK "Shrin_k"
-#define TAB_LABEL_ABOUT "A_bout"
-#else
-#define TAB_LABEL_OPTIONS "Options"
-#define TAB_LABEL_DEVICES "Devices"
-#define TAB_LABEL_SCRIPTS "Scripts"
-#define TAB_LABEL_SHRINK "Shrink"
-#define TAB_LABEL_ABOUT "About"
-#endif
-
-void OnViewportSizeRequest(GtkWidget *widget, GtkRequisition *requisition,
-                           gpointer user_data);
-
-Bool ToolsMain_YesNoBox(gchar* title, gchar *msg);
-void ToolsMain_MsgBox(gchar* title, gchar *msg);
-void ToolsMain_OnDestroy(GtkWidget *widget, gpointer data);
-
-GtkWidget* About_Create(GtkWidget* mainWnd);
-GtkWidget* Devices_Create(GtkWidget* mainWnd);
-GtkWidget* Options_Create(GtkWidget* mainWnd);
-GtkWidget* Scripts_Create(GtkWidget* mainWnd);
-GtkWidget* Shrink_Create(GtkWidget* mainWnd);
-
-void Options_OnTimeSyncToggled(gpointer btn, gpointer data);
-void Devices_OnDeviceToggled(gpointer btn, gpointer data);
-void Pointer_SetXCursorPos(int x, int y);
-void Scripts_OnApply(gpointer btn, gpointer data);
-
-extern GdkPixmap* pixmap;
-extern GdkBitmap* bitmask;
-extern GdkColormap* colormap;
-extern GtkWidget *optionsTimeSync;
-extern DblLnkLst_Links *gEventQueue;
-extern GtkWidget *scriptsApply;
-
-#endif // _TOOLBOX_INT_H_
+#endif /*_TOOLBOX_INT_H_*/

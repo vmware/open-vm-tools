@@ -38,8 +38,9 @@ libMisc_a_SOURCES += random.c
 libMisc_a_SOURCES += timeutil.c
 libMisc_a_SOURCES += util_misc.c
 libMisc_a_SOURCES += vmstdio.c
+libMisc_a_SOURCES += strutil.c
 
-if NO_ICU
+if HAVE_ICU
 libMisc_a_SOURCES += codeset.c
 endif
 

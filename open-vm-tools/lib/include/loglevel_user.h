@@ -142,6 +142,7 @@
    LOGLEVEL_VAR(vmLock), \
    LOGLEVEL_VAR(buslogic), \
    LOGLEVEL_VAR(lsilogic), \
+   LOGLEVEL_VAR(pvscsi), \
    LOGLEVEL_VAR(diskVmnix), \
    LOGLEVEL_VAR(hbaCommon), \
    LOGLEVEL_VAR(backdoor), \
@@ -182,6 +183,7 @@
    LOGLEVEL_VAR(duiMKS), \
    LOGLEVEL_VAR(worker), \
    LOGLEVEL_VAR(duiDevices), \
+   LOGLEVEL_VAR(duiProxyApps), \
    LOGLEVEL_VAR(uwt), /* lib/unityWindowTracker */ \
    LOGLEVEL_VAR(cui), \
    LOGLEVEL_VAR(automation), \

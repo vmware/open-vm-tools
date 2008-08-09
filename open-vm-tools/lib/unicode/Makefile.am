@@ -26,6 +26,6 @@ libUnicode_a_SOURCES += unicodeSimpleOperations.c
 libUnicode_a_SOURCES += unicodeSimpleTransforms.c
 libUnicode_a_SOURCES += unicodeStatic.c
 
-if NO_ICU
+if HAVE_ICU
 libUnicode_a_SOURCES += unicodeICU.c
 endif

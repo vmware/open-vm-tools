@@ -1422,8 +1422,8 @@ ToolsDaemonTcloMountHGFS(char const **result,     // OUT
  *
  *      We do this funky "allocate an HGFS packet with extra
  *      room for foundry error codes" to avoid copying buffers
- *      around.  The HGFS packet buffer is roughly 6k, so it would
- *      be bad to copy that for every packet.
+ *      around.  The HGFS packet buffer is roughly 62k for large V3 Hgfs request
+ *      or 6k for other request , so it would be bad to copy that for every packet.
  *
  *      It is guaranteed that we will not be called twice
  *      at the same time, so it is safe for resultPacket to be static.
@@ -1460,7 +1460,7 @@ ToolsDaemonHgfsImpersonated(char const **result,     // OUT
 #define OTHER_TEXT_SIZE 4                /* strlen(space zero space quote) */
    static char resultPacket[STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
                               + OTHER_TEXT_SIZE
-                              + HGFS_PACKET_MAX];
+                              + HGFS_LARGE_PACKET_MAX];
    char *hgfsReplyPacket = resultPacket
                              + STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
                              + OTHER_TEXT_SIZE;

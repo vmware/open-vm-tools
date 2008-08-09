@@ -23,7 +23,6 @@ vmware_hgfsclient_LDADD += ../lib/guestApp/libGuestApp.a
 vmware_hgfsclient_LDADD += ../lib/hgfs/libHgfs.a
 vmware_hgfsclient_LDADD += ../lib/hgfsBd/libHgfsBd.a
 vmware_hgfsclient_LDADD += ../lib/rpcOut/libRpcOut.a
-vmware_hgfsclient_LDADD += ../lib/strUtil/libStrUtil.a
 vmware_hgfsclient_LDADD += ../lib/string/libString.a
 vmware_hgfsclient_LDADD += ../lib/toolsLogger/libToolsLogger.a
 vmware_hgfsclient_LDADD += ../lib/vmCheck/libVmCheck.a
@@ -41,8 +40,17 @@ vmware_hgfsclient_LDADD += ../lib/unicode/libUnicode.a
 vmware_hgfsclient_LDADD += ../lib/sync/libSync.a
 vmware_hgfsclient_LDADD += ../lib/misc/libMisc.a
 vmware_hgfsclient_LDADD += ../lib/stubs/libStubs.a
-vmware_hgfsclient_LDADD += @ICU_LIBS@
 
 vmware_hgfsclient_SOURCES =
 vmware_hgfsclient_SOURCES += hgfsclient.c
 vmware_hgfsclient_SOURCES += stub-user-util.c
+
+if HAVE_ICU
+   vmware_hgfsclient_LDADD += @ICU_LIBS@
+   vmware_hgfsclient_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+                            $(LIBTOOLFLAGS) --mode=link $(CXX) \
+                            $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
+                            $(LDFLAGS) -o $@
+else
+   vmware_hgfsclient_LINK = $(LINK)
+endif

@@ -3087,7 +3087,7 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    Bool impersonatingVMWareUser = FALSE;
    char *hgfsPacket;
    size_t hgfsPacketSize = 0;
-   static char hgfsReplyPacket[HGFS_PACKET_MAX];
+   static char hgfsReplyPacket[HGFS_LARGE_PACKET_MAX];
 
    if ((NULL == requestMsg) || (0 == requestMsg->hgfsPacketSize)) {
       ASSERT(0);

@@ -26,7 +26,7 @@ typedef struct {
    HWND detWnd;
 } UnityDnD;
 
-#else
+#elif defined(GTK2)
 
 #include <gtk/gtk.h>
 
@@ -36,8 +36,12 @@ typedef struct {
 } UnityDnD;
 
 
-#endif
+#else
 
+/* Probably compiling a stub. */
+typedef struct UnityDnD UnityDnD;
+   
+#endif
 
 #endif // _DND_GUEST_H_
 

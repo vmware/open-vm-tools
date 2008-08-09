@@ -55,6 +55,20 @@ static int HgfsDoGetattrByName(const char *path, HgfsSuperInfo *sip, HgfsAttrV2 
 static int HgfsDoGetattrByHandle(HgfsHandle handle, HgfsSuperInfo *sip, HgfsAttrV2 *hgfsAttrV2);
 #endif
 
+#define HGFS_FILE_OPEN_MASK (HGFS_OPEN_VALID_MODE | \
+                             HGFS_OPEN_VALID_FLAGS | \
+                             HGFS_OPEN_VALID_SPECIAL_PERMS | \
+                             HGFS_OPEN_VALID_OWNER_PERMS | \
+                             HGFS_OPEN_VALID_GROUP_PERMS | \
+                             HGFS_OPEN_VALID_OTHER_PERMS | \
+                             HGFS_OPEN_VALID_FILE_NAME)
+
+#define HGFS_CREATE_DIR_MASK (HGFS_CREATE_DIR_VALID_FILE_NAME | \
+                              HGFS_CREATE_DIR_VALID_SPECIAL_PERMS | \
+                              HGFS_CREATE_DIR_VALID_OWNER_PERMS | \
+                              HGFS_CREATE_DIR_VALID_GROUP_PERMS | \
+                              HGFS_CREATE_DIR_VALID_OTHER_PERMS)
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -470,10 +484,10 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
 {
    HgfsSuperInfo *sip;
    HgfsKReqHandle req;
-   HgfsRequestSetattr *request;
-   HgfsReplySetattr *reply;
    char *fullPath = NULL;
    uint32 fullPathLen;
+   HgfsRequestSetattrV2 *requestV2;
+   HgfsReplySetattrV2 *replyV2;
    int ret;
 
    sip = HGFS_VP_TO_SIP(vp);
@@ -483,15 +497,15 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
       return EIO;
    }
 
-   request = (HgfsRequestSetattr *)HgfsKReq_GetPayload(req);
-   HGFS_INIT_REQUEST_HDR(request, req, HGFS_OP_SETATTR);
+   requestV2 = (HgfsRequestSetattrV2 *)HgfsKReq_GetPayload(req);
+   HGFS_INIT_REQUEST_HDR(requestV2, req, HGFS_OP_SETATTR_V2);
 
    /*
-    * Fill the attributes and update fields of the request.  If no updates are
+    * Fill the attributes and hint fields of the request.  If no updates are
     * needed then we will just return success without sending the request.
     */
-   if (HgfsSetattrCopy(vap, &request->attr, &request->update) == FALSE) {
-      DEBUG(VM_DEBUG_DONE, "don't need to update attributes.\n");
+   if (HgfsSetattrCopy(vap, &requestV2->attr, &requestV2->hints) == FALSE) {
+      DEBUG(VM_DEBUG_COMM, "don't need to update attributes.\n");
       ret = 0;
       goto destroyOut;
    }
@@ -504,37 +518,37 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
     * filesystem characters.
     */
    ret = HgfsNameToWireEncoding(fullPath, fullPathLen + 1,
-                                request->fileName.name,
-                                HGFS_PACKET_MAX - (sizeof *request - 1));
+                                requestV2->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *requestV2 - 1));
 
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
       goto destroyOut;
    }
 
-   request->fileName.length = ret;
+   requestV2->fileName.length = ret;
 
    /* The request's size includes the request and filename. */
-   HgfsKReq_SetPayloadSize(req, sizeof *request + request->fileName.length);
+   HgfsKReq_SetPayloadSize(req, sizeof *requestV2 + requestV2->fileName.length);
 
-   if (request->update) {
+   if (requestV2->attr.mask) {
       ret = HgfsSubmitRequest(sip, req);
       if (ret) {
          /* HgfsSubmitRequest() destroys the request if necessary. */
          goto out;
       }
 
-      reply = (HgfsReplySetattr *)HgfsKReq_GetPayload(req);
+      replyV2 = (HgfsReplySetattrV2 *)HgfsKReq_GetPayload(req);
 
-      if (HgfsValidateReply(req, sizeof *reply) != 0) {
+      if (HgfsValidateReply(req, sizeof *replyV2) != 0) {
          DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
          ret = EPROTO;
          goto destroyOut;
       }
 
-      ret = HgfsStatusToBSD(reply->header.status);
+      ret = HgfsStatusToBSD(replyV2->header.status);
       if (ret) {
-	 goto destroyOut;
+         goto destroyOut;
       }
    } /* else { they were trying to set filerev or vaflags, which we ignore } */
 
@@ -1026,9 +1040,9 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
     */
    ret = HgfsGetOpenFileHandle(vp, &handle);
    if (ret) {
-      DEBUG(VM_DEBUG_FAIL, "could not get handle.\n");
-      return EINVAL;
-   }
+         DEBUG(VM_DEBUG_FAIL, "could not get handle.\n");
+         return EINVAL;
+      }
 
    /*
     * Here we loop around HgfsDoRead with requests less than or equal to
@@ -1206,8 +1220,8 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
 {
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(dvp);
    HgfsKReqHandle req;
-   HgfsRequestCreateDir *request;
-   HgfsReplyCreateDir *reply;
+   HgfsRequestCreateDirV2 *requestV2;
+   HgfsReplyCreateDirV2 *replyV2;
    char *fullName = NULL;       // allocated from M_TEMP; free when done.
    uint32 fullNameLen;
    int ret;
@@ -1251,10 +1265,14 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    }
 
    /* Initialize the request's contents. */
-   request = (HgfsRequestCreateDir *)HgfsKReq_GetPayload(req);
-   HGFS_INIT_REQUEST_HDR(request, req, HGFS_OP_CREATE_DIR);
-
-   request->permissions = (mode & S_IRWXU) >> HGFS_ATTR_MODE_SHIFT;
+   requestV2 = (HgfsRequestCreateDirV2 *)HgfsKReq_GetPayload(req);
+   HGFS_INIT_REQUEST_HDR(requestV2, req, HGFS_OP_CREATE_DIR_V2);
+   requestV2->mask = HGFS_CREATE_DIR_MASK;
+   requestV2->specialPerms = (mode & (S_ISUID | S_ISGID | S_ISVTX)) >>
+                              HGFS_ATTR_SPECIAL_PERM_SHIFT;
+   requestV2->ownerPerms = (mode & S_IRWXU) >> HGFS_ATTR_OWNER_PERM_SHIFT;
+   requestV2->groupPerms = (mode & S_IRWXG) >> HGFS_ATTR_GROUP_PERM_SHIFT;
+   requestV2->otherPerms = mode & S_IRWXO;
 
    /*
     * Convert an input string to utf8 precomposed form, convert it to
@@ -1262,18 +1280,18 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
     * filesystem characters.
     */
    ret = HgfsNameToWireEncoding(fullName, fullNameLen + 1,
-                                request->fileName.name,
-                                HGFS_PACKET_MAX - (sizeof *request - 1));
+                                requestV2->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *requestV2 - 1));
 
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL,"Could not encode to wire format");
       goto destroyOut;
    }
 
-   request->fileName.length = ret;
+   requestV2->fileName.length = ret;
 
    /* Set the size of this request. */
-   HgfsKReq_SetPayloadSize(req, sizeof *request + request->fileName.length);
+   HgfsKReq_SetPayloadSize(req, sizeof *requestV2 + requestV2->fileName.length);
 
    /* Send the request to guestd. */
    ret = HgfsSubmitRequest(sip, req);
@@ -1282,15 +1300,15 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
       goto out;
    }
 
-   reply = (HgfsReplyCreateDir *)HgfsKReq_GetPayload(req);
+   replyV2 = (HgfsReplyCreateDirV2 *)HgfsKReq_GetPayload(req);
 
-   if (HgfsValidateReply(req, sizeof *reply) != 0) {
+   if (HgfsValidateReply(req, sizeof *replyV2) != 0) {
       DEBUG(VM_DEBUG_FAIL, "invalid reply received.\n");
       ret = EPROTO;
       goto destroyOut;
    }
 
-   ret = HgfsStatusToBSD(reply->header.status);
+   ret = HgfsStatusToBSD(replyV2->header.status);
    if (ret) {
       goto destroyOut;
    }
@@ -1500,10 +1518,10 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
              int permissions)           // IN: Permissions of open (only when creating)
 {
    HgfsKReqHandle req;
-   HgfsRequestOpen *request;
-   HgfsReplyOpen *reply;
    char *fullPath = NULL;
    uint32 fullPathLen;
+   HgfsRequestOpenV2 *requestV2;
+   HgfsReplyOpenV2 *replyV2;
    int ret;
 
    ASSERT(sip);
@@ -1539,8 +1557,9 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       return EIO;
    }
 
-   request = (HgfsRequestOpen *)HgfsKReq_GetPayload(req);
-   HGFS_INIT_REQUEST_HDR(request, req, HGFS_OP_OPEN);
+   requestV2 = (HgfsRequestOpenV2 *)HgfsKReq_GetPayload(req);
+   HGFS_INIT_REQUEST_HDR(requestV2, req, HGFS_OP_OPEN_V2);
+   requestV2->mask = HGFS_FILE_OPEN_MASK;
 
    /* Convert FreeBSD modes to Hgfs modes */
    ret = HgfsGetOpenMode((uint32_t)flag);
@@ -1550,8 +1569,8 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       goto destroyOut;
    }
 
-   request->mode = ret;
-   DEBUG(VM_DEBUG_COMM, "open mode is %x\n", request->mode);
+   requestV2->mode = ret;
+   DEBUG(VM_DEBUG_COMM, "open mode is %x\n", requestV2->mode);
 
    /* Convert FreeBSD flags to Hgfs flags */
    ret = HgfsGetOpenFlags((uint32_t)flag);
@@ -1561,32 +1580,37 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       goto destroyOut;
    }
 
-   request->flags = ret;
-   DEBUG(VM_DEBUG_COMM, "open flags are %x\n", request->flags);
+   requestV2->flags = ret;
+   DEBUG(VM_DEBUG_COMM, "open flags are %x\n", requestV2->flags);
 
-   request->permissions = (permissions & S_IRWXU) >> HGFS_ATTR_MODE_SHIFT;
-   DEBUG(VM_DEBUG_COMM, "permissions are %o\n", request->permissions);
+   requestV2->specialPerms = (permissions & (S_ISUID | S_ISGID | S_ISVTX)) >>
+                              HGFS_ATTR_SPECIAL_PERM_SHIFT;
+   requestV2->ownerPerms = (permissions & S_IRWXU) >> HGFS_ATTR_OWNER_PERM_SHIFT;
+   requestV2->groupPerms = (permissions & S_IRWXG) >> HGFS_ATTR_GROUP_PERM_SHIFT;
+   requestV2->otherPerms = permissions & S_IRWXO;
 
    fullPath = HGFS_VP_TO_FILENAME(vp);
    fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
-
+   
+   DEBUG(VM_DEBUG_COMM, "permissions are %o\n", permissions);
+   
    /*
     * Convert an input string to utf8 precomposed form, convert it to
     * the cross platform name format and finally unescape any illegal
     * filesystem characters.
     */
    ret = HgfsNameToWireEncoding(fullPath, fullPathLen + 1,
-                                request->fileName.name,
-                                HGFS_PACKET_MAX - (sizeof *request - 1));
+                                requestV2->fileName.name,
+                                HGFS_PACKET_MAX - (sizeof *requestV2 - 1));
 
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL, "Could not encode to wire format");
       goto destroyOut;
    }
-   request->fileName.length = ret;
+   requestV2->fileName.length = ret;
 
    /* Packet size includes the request and its payload. */
-   HgfsKReq_SetPayloadSize(req, request->fileName.length + sizeof *request);
+   HgfsKReq_SetPayloadSize(req, requestV2->fileName.length + sizeof *requestV2);
 
    ret = HgfsSubmitRequest(sip, req);
    if (ret) {
@@ -1595,15 +1619,15 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       goto out;
    }
 
-   reply = (HgfsReplyOpen *)HgfsKReq_GetPayload(req);
+   replyV2 = (HgfsReplyOpenV2 *)HgfsKReq_GetPayload(req);
 
-   if (HgfsValidateReply(req, sizeof reply->header) != 0) {
+   if (HgfsValidateReply(req, sizeof replyV2->header) != 0) {
       DEBUG(VM_DEBUG_FAIL, "request not valid.\n");
       ret = EPROTO;
       goto destroyOut;
    }
 
-   ret = HgfsStatusToBSD(reply->header.status);
+   ret = HgfsStatusToBSD(replyV2->header.status);
    if (ret) {
       goto destroyOut;
    }
@@ -1612,10 +1636,10 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     * We successfully received a reply, so we need to save the handle in
     * this file's HgfsOpenFile and return success.
     */
-   ret = HgfsSetOpenFileHandle(vp, reply->file);
+   ret = HgfsSetOpenFileHandle(vp, replyV2->file);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "couldn't assign handle %d (%s)\n",
-            reply->file, HGFS_VP_TO_FILENAME(vp));
+            replyV2->file, HGFS_VP_TO_FILENAME(vp));
       ret = EINVAL;
       goto destroyOut;
    }

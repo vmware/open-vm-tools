@@ -241,12 +241,21 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
 
 
 /*
- * Compile-time assertions
+ * Compile-time assertions.
+ *
+ * ASSERT_ON_COMPILE does not use the common
+ * switch (0) { case 0: case (e): ; } trick because some compilers (e.g. MSVC)
+ * generate code for it.
+ *
+ * The implementation uses both enum and typedef because the typedef alone is
+ * insufficient; gcc allows arrays to be declared with non-constant expressions
+ * (even in typedefs, where it makes no sense).
  */
 
 #define ASSERT_ON_COMPILE(e) \
    do { \
-      typedef char AssertOnCompileType[(e) ? 1 : -1]; \
+      enum { AssertOnCompileMisused = ((e) ? 1 : -1) }; \
+      typedef char AssertOnCompileFailed[AssertOnCompileMisused]; \
    } while (0)
 
 

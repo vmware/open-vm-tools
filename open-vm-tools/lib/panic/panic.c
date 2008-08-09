@@ -221,6 +221,31 @@ Panic_GetCoreDumpFlags(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * Panic_SetCoreDumpFlags --
+ *
+ *      Although the core dump flags are read at init time, we may want to
+ *      update this value later. This is especially true because the default
+ *      value is read before the VM config is established.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Updates global struct panicState.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Panic_SetCoreDumpFlags(int flags)   // IN
+{
+   panicState.coreDumpFlags = flags;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Panic_LoopOnPanic --
  *
  *    Loop until debugger intervention, if so configured.

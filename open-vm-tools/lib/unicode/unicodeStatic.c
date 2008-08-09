@@ -22,10 +22,6 @@
  *      Manages memory for static ConstUnicode literal strings
  *      created like:
  *
- *         ConstUnicode foo = U("foo");
- *
- *      and
- *
  *         ConstUnicode c = U_UNESCAPE("Copyright \\u00A9 VMware, Inc.");
  *
  *      Uses two HashTables to hold static ConstUnicode strings. Static
@@ -88,7 +84,7 @@ UnicodeHashFree(void *v)  // IN:
  *
  * Unicode_GetStatic --
  *
- *      Helper function for U() and U_UNESCAPE() macros.
+ *      Helper function for the U_UNESCAPE() macro.
  *
  *      Given a NUL-terminated ASCII string, returns a ConstUnicode
  *      string containing the string's contents.

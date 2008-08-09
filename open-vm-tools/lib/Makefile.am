@@ -17,17 +17,25 @@
 
 SUBDIRS =
 SUBDIRS += guestRpc
+if ENABLE_UNITY
+   SUBDIRS += appUtil
+endif
 SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf
 SUBDIRS += dict
+SUBDIRS += deployPkg
 SUBDIRS += dnd
 SUBDIRS += dynxdr
 SUBDIRS += err
 SUBDIRS += eventManager
 SUBDIRS += file
 SUBDIRS += foundryMsg
-SUBDIRS += ghIntegrationStub
+if ENABLE_UNITY
+   SUBDIRS += ghIntegration
+else
+   SUBDIRS += ghIntegrationStub
+endif
 SUBDIRS += guestApp
 SUBDIRS += guestInfo
 SUBDIRS += hgfs
@@ -35,7 +43,9 @@ SUBDIRS += hgfsBd
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
-SUBDIRS += deployPkg
+if ENABLE_UNITY
+   SUBDIRS += image
+endif
 SUBDIRS += impersonate
 SUBDIRS += message
 SUBDIRS += misc
@@ -44,6 +54,10 @@ SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer
 SUBDIRS += procMgr
+if ENABLE_UNITY
+   SUBDIRS += raster
+   SUBDIRS += region
+endif
 if HAVE_X11
    SUBDIRS += resolution
 endif
@@ -52,7 +66,6 @@ SUBDIRS += rpcOut
 SUBDIRS += rpcVmx
 SUBDIRS += SLPv2Parser
 SUBDIRS += socketMgr
-SUBDIRS += strUtil
 SUBDIRS += string
 SUBDIRS += stubs
 SUBDIRS += sync
@@ -60,7 +73,10 @@ SUBDIRS += syncDriver
 SUBDIRS += system
 SUBDIRS += toolsLogger
 SUBDIRS += unicode
-if HAVE_X11
+if ENABLE_UNITY
+   SUBDIRS += unity
+   SUBDIRS += unityWindowTracker
+else
    SUBDIRS += unityStub
 endif
 SUBDIRS += user

@@ -26,6 +26,10 @@
 # $CUSTOM_GTK_LIBS - link-time flags to find and link the Gtk libraries.
 # $CUSTOM_PROCPS_CPPFLAGS - compile-time flags to find procps headers
 # $CUSTOM_PROCPS_LIBS - link-time flags to find and link the procps library.
+# $CUSTOM_URIPARSER_CPPFLAGS - compile-time flags to find the uriparser headers
+# $CUSTOM_URIPARSER_LIBS - link-time flags to find and link the uriparser library
+# $CUSTOM_ZLIB_CPPFLAGS - compile-time flags to find the zlib headers
+# $CUSTOM_ZLIB_LIBS - link-time flags to find and link the zlib library
 ################################################################################
 
 ###
@@ -34,7 +38,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.07.01-102166],
+   [2008.08.08-109361],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -126,13 +130,22 @@ if test "$os" = "linux"; then
    fi
 fi
 
+# Arguments for disabling individual open-vm-tools features.
 AC_ARG_ENABLE(
    multimon,
    AS_HELP_STRING(
       [--disable-multimon],
       [Disables multimon, enabled by default]),
-   [MULTIMON_ENABLED="$enableval"],
-   [MULTIMON_ENABLED="yes"])
+   [enable_multimon="$enableval"],
+   [enable_multimon="yes"])
+
+AC_ARG_ENABLE(
+   unity,
+   AS_HELP_STRING(
+      [--disable-unity],
+      [Disables Unity, enabled by default]),
+   [enable_unity="$enableval"],
+   [enable_unity="yes"])
 
 AM_INIT_AUTOMAKE
 
@@ -156,6 +169,7 @@ CPPFLAGS="$CPPFLAGS -DUSING_AUTOCONF=1"
 ###
 ### Programs
 ###
+# Compiler and preprocessor
 AC_PROG_CPP
 AC_PROG_CC
 
@@ -164,7 +178,12 @@ AC_PROG_CC
 # for an example.)
 AM_PROG_CC_C_O
 
+# Needed for the various install and uninstall hooks.
 AC_PROG_INSTALL
+AC_PROG_SED
+AC_PROG_LN_S
+AC_PROG_MKDIR_P
+
 # Needed for creating the archives in lib/ and the shared libraries.
 AC_PROG_LIBTOOL
 if test "$ac_cv_prog_AR" = false; then
@@ -190,7 +209,8 @@ AC_PATH_XTRA
 
 # If the user explicitly disables X11, then don't try to detect the X-related libraries
 if test "$have_x" = "disabled"; then
-   MULTIMON_ENABLED="no"
+   enable_multimon="no"
+   enable_unity="no"
 elif test "$have_x" != "yes"; then
    AC_MSG_ERROR(
       [The X11 libraries were not found. Please configure without X11 (using --without-x), or install the libX11 devel package(s).])
@@ -208,7 +228,7 @@ else
       [#include <X11/Xlib.h>
        #include <X11/Xproto.h>])
 
-   if test "$MULTIMON_ENABLED" != "no"; then
+   if test "$enable_multimon" != "no"; then
       AC_CHECK_LIB(
 	 [Xinerama],
 	 [XineramaQueryVersion],
@@ -234,6 +254,118 @@ else
       [AC_MSG_ERROR(
 	 [libXtst not found. Please configure without X11 (using --without-x) or install the libXtst devel package(s).])],
       [$COMMON_XLIBS])
+
+   # If we're building with support for Unity, we'll need a few additional
+   # libraries.
+   if test "$enable_unity" != "no"; then
+
+           # Unity needs the X11 Screen Saver extension library. It should be
+	   # in the same place as the X11 libraries, so no need for any fancy
+	   # path checking.
+           AC_CHECK_LIB(
+              [Xss],
+              [XScreenSaverQueryExtension],
+              [COMMON_XLIBS="-lXss $COMMON_XLIBS"],
+              [AC_MSG_ERROR(
+	         [libXss not found. Please configure without Unity (using --disable-unity) or install the libXss devel package.])],
+              [$COMMON_XLIBS])
+
+           # Check for the uriparser library and headers. The upstream uriparser
+           # doesn't appear to ship with either a pkg-config file or a
+           # uriparser-config binary, so we'll look for it the old-fashioned
+           # way.
+           #
+           # Note that we look for uriFreeQueryListA because it's a relatively
+           # new symbol that our code needs (it isn't present in the uriparser
+           # that shipped with Ubuntu Hardy).
+           ORIGINAL_LDFLAGS="$LDFLAGS"
+           LDFLAGS="$CUSTOM_URIPARSER_LIBS $LDFLAGS"
+           AC_CHECK_LIB(
+              [uriparser],
+              [uriFreeQueryListA],
+              [if test -n "$CUSTOM_URIPARSER_LIBS"; then
+                       URIPARSER_LIBS="$CUSTOM_URIPARSER_LIBS"
+               else
+                       URIPARSER_LIBS="-luriparser"
+               fi],
+              [AC_MSG_ERROR(
+                 [uriparser library not found or is too old. Please configure without Unity (using --disable-unity) or install the liburiparser devel package.])])
+           LDFLAGS="$ORIGINAL_LDFLAGS"
+
+           if test -n "$CUSTOM_URIPARSER_CPPFLAGS"; then
+                   URIPARSER_CPPFLAGS="$CUSTOM_URIPARSER_CPPFLAGS"
+           else
+                   # XXX: No pkg-config and no uriparser-config means we need to
+	           # hard-code a sensible default.
+	           URIPARSER_CPPFLAGS="-I/usr/include/uriparser"
+           fi
+           ORIGINAL_CPPFLAGS="$CPPFLAGS"
+           CPPFLAGS="$URIPARSER_CPPFLAGS $CPPFLAGS"
+           AC_CHECK_HEADER(
+              [Uri.h],
+              [],
+              [AC_MSG_ERROR(
+                 [uriparser headers not found. Please configure without Unity (using --disable-unity) or install the liburiparser devel package])])
+           CPPFLAGS="$ORIGINAL_CPPFLAGS"
+
+           # Check for libpng using pkg-config, or barring that, using
+           # libpng-config.
+           if test "$HAVE_PKG_CONFIG" = "yes"; then
+              AC_MSG_CHECKING([for libpng (via pkg-config)])
+              if pkg-config --exists libpng12; then
+                      LIBPNG_CPPFLAGS="`pkg-config --cflags libpng12`"
+	              LIBPNG_LIBS="`pkg-config --libs libpng12`"
+                      AC_MSG_RESULT([yes])
+              else
+                      AC_MSG_RESULT([no])
+              fi
+           else
+              AC_PATH_PROG(
+                 [LIBPNG_CONFIG],
+                 [libpng-config],
+                 [no])
+              if test "$LIBPNG_CONFIG" != "no"; then
+                      LIBPNG_CPPFLAGS="`$LIBPNG_CONFIG --cflags`"
+                      LIBPNG_LIBS="`$LIBPNG_CONFIG --libs`"
+              fi
+           fi
+           if test -z "$LIBPNG_CPPFLAGS"; then
+              AC_MSG_ERROR(
+                 [libpng not found. Please configure without Unity (using --disable-unity) or install the libpng devel package])
+           fi
+
+           # Check for the zlib library and headers. Like uriparser, there
+           # isn't a pkg-config or zlib-config file.
+           ORIGINAL_LDFLAGS="$LDFLAGS"
+           LDFLAGS="$CUSTOM_ZLIB_LIBS $LDFLAGS"
+           AC_CHECK_LIB(
+              [z],
+              [zlibVersion],
+              [if test -n "$CUSTOM_ZLIB_LIBS"; then
+                       ZLIB_LIBS="$CUSTOM_ZLIB_LIBS"
+               else
+                       ZLIB_LIBS="-lz"
+               fi],
+              [AC_MSG_ERROR(
+                 [zlib library not found. Please configure without Unity (using --disable-unity) or install the zlib devel package.])])
+           LDFLAGS="$ORIGINAL_LDFLAGS"
+
+           if test -n "$CUSTOM_ZLIB_CPPFLAGS"; then
+                   ZLIB_CPPFLAGS="$CUSTOM_ZLIB_CPPFLAGS"
+           else
+                   # XXX: No pkg-config and no zlib-config means we need to
+	           # hard-code a sensible default.
+	           ZLIB_CPPFLAGS="-I/usr/include"
+           fi
+           ORIGINAL_CPPFLAGS="$CPPFLAGS"
+           CPPFLAGS="$ZLIB_CPPFLAGS $CPPFLAGS"
+           AC_CHECK_HEADER(
+              [zlib.h],
+              [],
+              [AC_MSG_ERROR(
+                 [zlib headers not found. Please configure without Unity (using --disable-unity) or install the zlib devel package])])
+           CPPFLAGS="$ORIGINAL_CPPFLAGS"
+   fi # End of library checks for Unity.
 
    if test -n "$CUSTOM_GTK_CPPFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
    # Check to see if we have some version of GTK. gtk_accel_group_add
@@ -294,6 +426,11 @@ else
       elif test "$HAVE_GTK1" = "yes"; then
       # Gtk 1.2
 	 gtkPackageName="gtk+"
+
+         # Unity requires Gtk 2.0.
+         if test "$enable_unity" != "no"; then
+            AC_MSG_ERROR([The Unity feature requires Gtk+ 2.0. Please install the Gtk+ 2.0 devel packages or configure without Unity (using --disable-unity)])
+         fi
       else
       # We found Gtk+ 2.0 that turned out to have a non-working
       # pkg-config setup, AND Gtk 1.2 wasn't installed.
@@ -308,6 +445,11 @@ else
       elif test "$HAVE_PKG_CONFIG" = "yes"; then
 	 GTK_CPPFLAGS="$GTK_CPPFLAGS $(pkg-config --cflags $gtkPackageName)"
 	 GTK_LIBS="$GTK_LIBS $(pkg-config --libs $gtkPackageName)"
+	 # Unity requires libgdk_pixbuf_xlib, which most systems don't seem to
+ 	 # provide via "pkg-config --libs gtk+-2.0".
+ 	 if test "$enable_unity" != "no"; then
+	    GTK_LIBS="$GTK_LIBS -lgdk_pixbuf_xlib-2.0"
+	 fi
       # Otherwise, we have a problem.
       else
 	 AC_MSG_ERROR([pkg-config not found. Get pkg-config or set CUSTOM_GTK_CPPFLAGS and CUSTOM_GTK_LIBS to specify gtk header file and library locations.])
@@ -366,7 +508,7 @@ fi
 
 if test "$with_procps" = "yes"; then
 	ORIGINAL_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$CUSTOM_PROCPS_LDFLAGS $LDFLAGS"
+	LDFLAGS="$CUSTOM_PROCPS_LIBS $LDFLAGS"
 	AC_CHECK_LIB(
 	   [proc-3.2.7],
 	   [getstat],
@@ -460,10 +602,39 @@ if test "$with_icu" = "yes"; then
 		ICU_CPPFLAGS="`$ICU_CONFIG --cppflags` -DUSE_ICU"
 		ICU_LIBS="`$ICU_CONFIG --ldflags`"
 
+	        # The icu components are built with C++, so we need to use the
+		# C++ linker when linking icu into our applications and when
+		# performing configuration tests against icu.
+		#
+		# XXX: Getting automake to choose between the C linker and the
+		# C++ linker depending on HAVE_ICU was a royal pain in the ass.
+		# The classic way to do this is to define an optional source
+		# file for a program with an extension of .cxx, using
+		# nodist_EXTRA_fooprogram_SOURCES. This causes automake's
+		# linker detection algorithm to see a C++ source file and
+		# automatically set up the C++ linker and link line for us.
+		# Unfortunately, said linker detection doesn't obey
+		# conditionals, which means that it'd always pick the C++
+		# linker, regardless of the value of HAVE_ICU. Instead, we are
+		# forced to manually set the correct linker in fooprogram_LINK.
+		# However, since none of our programs actually contain C++
+		# code, automake doesn't make the CXXLINK variable (which
+		# contains the linker as well as all link flags) available to
+		# us, so we must hard-code the entire link line into
+		# fooprogram_LINK. Not exactly a futureproof solution...
+		#
+		# Additional references on this problem:
+		# http://sources.redhat.com/ml/automake/1999-10/msg00101.html
+		# http://lists.gnu.org/archive/html/bug-automake/2008-04/msg00010.html
+		# http://www.gnu.org/software/automake/manual/automake.html#Libtool-Convenience-Libraries
+		# http://www.gnu.org/software/automake/manual/automake.html#C_002b_002b-Support
+		AC_PROG_CXX
+		AC_LANG_PUSH([C++])
 		AC_CHECK_LIB([icuuc],
 			     [ucasemap_utf8ToTitle_3_8],
 			     [have_ICU_38="yes"],,
 			     [$ICU_LIBS])
+		AC_LANG_POP([C++])
 
 		if test "$have_ICU_38" = "yes"; then
 			ICU_CPPFLAGS="$ICU_CPPFLAGS -DHAVE_ICU_38"
@@ -513,7 +684,7 @@ AC_CHECK_HEADER(
    [HAVE_WCHAR_H="yes"],
    [HAVE_WCHAR_H="no"])
 
-if test "$MULTIMON_ENABLED" != "no"; then
+if test "$enable_multimon" != "no"; then
    AC_CHECK_HEADER(
       [X11/extensions/panoramiXproto.h],
       [],
@@ -649,10 +820,10 @@ if test "$os" = "linux"; then
    CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE"
 
    if test "$osVersion" -ge 202000; then
-      MODULES="$MODULES vmxnet vmmemctl"
+      MODULES="$MODULES vmmemctl vmxnet"
    fi
    if test "$osVersion" -ge 204000; then
-      MODULES="$MODULES vmhgfs vmblock"
+      MODULES="$MODULES vmblock vmci vmhgfs vsock"
       buildHgfsmounter=yes
    fi
    if test "$osVersion" -ge 206006; then
@@ -663,14 +834,14 @@ fi
 if test "$os" = "freebsd"; then
    MODULES_DIR="/boot/modules"
 
-   if test "$osVersion" -gt 302000; then
+   if test "$osVersion" -ge 302000; then
       MODULES="$MODULES vmmemctl"
    fi
-   if test "$osVersion" -gt 409000; then
+   if test "$osVersion" -ge 409000; then
       MODULES="$MODULES vmxnet"
    fi
-   if test "$osVersion" -gt 600000; then
-      MODULES="$MODULES vmhgfs vmblock"
+   if test "$osVersion" -ge 600000; then
+      MODULES="$MODULES vmblock vmhgfs"
       buildHgfsmounter=yes
    fi
 fi
@@ -702,17 +873,20 @@ AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
-AM_CONDITIONAL(NO_ICU, test "$with_icu" = "yes")
+AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
+AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible
 
-# If control reaches this point and multimon is still enabled, then we know all of the
-# tests for required components have passed and it's safe to allow multimon.
-# Otherwise, it should be disabled.
-if test "$MULTIMON_ENABLED" = "no"; then
+# If control reaches this point and multimon is still enabled, then we know
+# all of the tests for required components have passed and it's safe to allow
+# multimon. Otherwise, it should be disabled.
+if test "$enable_multimon" = "no"; then
+   # XXX: For consistency, change this to ENABLE_MULTIMON. This will require
+   # some additional code cleanup.
    AC_DEFINE([NO_MULTIMON], 1, [Define to 1 if building without multimon support.])
 fi
 
@@ -744,6 +918,7 @@ fi
 ### General substs
 
 AC_SUBST([TARGET_OS])
+AC_SUBST([KERNEL_RELEASE])
 AC_SUBST([MODULES_OS])
 AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
@@ -757,6 +932,12 @@ AC_SUBST([PROCPS_LIBS])
 AC_SUBST([ICU_CPPFLAGS])
 AC_SUBST([ICU_LIBS])
 AC_SUBST([PAM_PREFIX])
+AC_SUBST([URIPARSER_CPPFLAGS])
+AC_SUBST([URIPARSER_LIBS])
+AC_SUBST([LIBPNG_CPPFLAGS])
+AC_SUBST([LIBPNG_LIBS])
+AC_SUBST([ZLIB_CPPFLAGS])
+AC_SUBST([ZLIB_LIBS])
 
 ### Lib substs
 
@@ -782,6 +963,7 @@ AC_SUBST([VMWARE_USER_LDADD])
 AC_CONFIG_FILES([                      \
    Makefile                            \
    lib/Makefile                        \
+   lib/appUtil/Makefile                \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
    lib/backdoor/shared/Makefile        \
@@ -793,6 +975,7 @@ AC_CONFIG_FILES([                      \
    lib/eventManager/Makefile           \
    lib/file/Makefile                   \
    lib/foundryMsg/Makefile             \
+   lib/ghIntegration/Makefile          \
    lib/ghIntegrationStub/Makefile      \
    lib/guestApp/Makefile               \
    lib/guestInfo/Makefile              \
@@ -803,6 +986,7 @@ AC_CONFIG_FILES([                      \
    lib/hgfsServerManagerGuest/Makefile \
    lib/hgfsServerPolicyGuest/Makefile  \
    lib/deployPkg/Makefile              \
+   lib/image/Makefile                  \
    lib/impersonate/Makefile            \
    lib/message/Makefile                \
    lib/message/shared/Makefile         \
@@ -813,6 +997,8 @@ AC_CONFIG_FILES([                      \
    lib/panicDefault/Makefile           \
    lib/printer/Makefile                \
    lib/procMgr/Makefile                \
+   lib/raster/Makefile                 \
+   lib/region/Makefile                 \
    lib/resolution/Makefile             \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
@@ -820,7 +1006,6 @@ AC_CONFIG_FILES([                      \
    lib/rpcVmx/Makefile                 \
    lib/SLPv2Parser/Makefile            \
    lib/socketMgr/Makefile              \
-   lib/strUtil/Makefile                \
    lib/string/Makefile                 \
    lib/string/shared/Makefile          \
    lib/stubs/Makefile                  \
@@ -831,7 +1016,9 @@ AC_CONFIG_FILES([                      \
    lib/system/Makefile                 \
    lib/toolsLogger/Makefile            \
    lib/unicode/Makefile                \
+   lib/unity/Makefile                  \
    lib/unityStub/Makefile              \
+   lib/unityWindowTracker/Makefile     \
    lib/user/Makefile                   \
    lib/vixTools/Makefile               \
    lib/vmBackupLib/Makefile            \

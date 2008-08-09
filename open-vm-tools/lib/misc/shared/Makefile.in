@@ -49,7 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@NO_ICU_TRUE@am__append_1 = ../codeset.c
+@HAVE_ICU_TRUE@am__append_1 = ../codeset.c
 subdir = lib/misc/shared
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -66,7 +66,7 @@ am__libMisc_la_SOURCES_DIST = ../atomic.c ../base64.c ../codesetOld.c \
 	../iovector.c ../machineID.c ../miscSolaris.c ../posixDlopen.c \
 	../posixPosix.c ../random.c ../timeutil.c ../util_misc.c \
 	../vmstdio.c ../codeset.c
-@NO_ICU_TRUE@am__objects_1 = codeset.lo
+@HAVE_ICU_TRUE@am__objects_1 = codeset.lo
 am_libMisc_la_OBJECTS = atomic.lo base64.lo codesetOld.lo dbllnklst.lo \
 	dynarray.lo dynbuf.lo escape.lo hashTable.lo hostinfo_misc.lo \
 	hostname.lo idLinux.lo iovector.lo machineID.lo miscSolaris.lo \
@@ -134,8 +134,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -171,6 +175,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -179,6 +185,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@

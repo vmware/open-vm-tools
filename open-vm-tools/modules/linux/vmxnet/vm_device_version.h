@@ -53,6 +53,7 @@
 #define PCI_DEVICE_ID_VMWARE_BRIDGE     0x0790
 #define PCI_DEVICE_ID_VMWARE_ROOTPORT   0x07A0
 #define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
+#define PCI_DEVICE_ID_VMWARE_PVSCSI     0x07C0
 
 /* The hypervisor device might grow.  Please leave room
  * for 7 more subfunctions.

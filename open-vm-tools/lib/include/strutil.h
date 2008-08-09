@@ -26,7 +26,10 @@
 #ifndef STRUTIL_H
 #define STRUTIL_H
 
+#include <stdarg.h>
+
 #include "fileIO.h"
+#include "dynbuf.h"
 
 char * StrUtil_GetNextToken(unsigned int *index, const char *str,
                             const char *delimiters);
@@ -48,5 +51,9 @@ size_t StrUtil_GetLongestLineLength(const char *buf, size_t bufLength);
 Bool StrUtil_StartsWith(const char *s, const char *prefix);
 Bool StrUtil_CaselessStartsWith(const char *s, const char *prefix);
 Bool StrUtil_EndsWith(const char *s, const char *suffix);
+
+Bool StrUtil_VDynBufPrintf(DynBuf *b, const char *fmt, va_list args);
+Bool StrUtil_DynBufPrintf(DynBuf *b, const char *fmt, ...);
+void StrUtil_SafeDynBufPrintf(DynBuf *b, const char *fmt, ...);
 
 #endif /* STRUTIL_H */

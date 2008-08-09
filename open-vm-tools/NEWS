@@ -1,3 +1,44 @@
+open-vm-tools 2008.08.08 changes:
+	* Unity for X11 guests has been added. Unity is implemented within
+	vmware-user and requires no additional setup beyond setting up the
+	vmware-user application itself. Unity should work with Fusion 1.x
+	releases as well as with the upcoming Workstation 6.5 release. Our
+	in-house testing was with Linux guests, and they should mostly work.
+	There is very little standing in the way of FreeBSD/Solaris support,
+	though we've never built or tested Unity for those platforms.
+
+	* The VMCI Linux kernel module has been added. This module provides
+	high-speed datagram and socket interfaces for guest<->guest and
+	host<->guest communication. It should work for all kernels beginning
+	with 2.4, and for VMware products beginning with Workstation 6.5.
+
+	* The VMCI sockets Linux kernel module has been added. It provides
+	both datagram and stream socket interfaces to userlevel for use with
+	VMCI. As with VMCI, it should work for kernels 2.4 or later, and for
+	VMware products beginning with Workstation 6.5.
+
+	* The command-line Toolbox has been added. This application provides
+	the same functionality as the GTK Toolbox, but with a scriptable
+	command-line interface. It also has some statistic retrieval commands
+	that aren't found in the GTK Toolbox.
+
+	* Fixed compilation of vmsync and vmmemctl Linux kernel modules on
+	2.6.26. Thanks to Pavol Rusnak for the report (Sourceforge bug 2032683).
+
+	* Fixed an issue with guestd's nicInfo updating mechanism. Thanks to
+	Jason Lunz for the patch (not tracked on Sourceforge).
+
+	* Fixed handling of $(DESTDIR) in automake. Thanks to Mike Auty for
+	the patch (Sourceforge bug 2018802).
+
+	* Fixed build of vmware-user using gtk 1.2. Thanks to Stephen Duncan
+	for the report (Sourceforge bug 2014338).
+
+	* Fixed compilation of lib/guestApp when using --without-x. Thanks to
+	Martin Preishuber for the report (Sourceforge bug 2013568).
+
+	* As usual, other bug fixes.
+
 open-vm-tools 2008.07.01 changes:
 	* Fixed a backwards time synchronization issue (not tracked on
 	Sourceforge). Thanks to Eric Castan for reporting it.

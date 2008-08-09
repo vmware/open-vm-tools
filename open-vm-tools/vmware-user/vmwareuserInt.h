@@ -75,6 +75,9 @@ Bool CopyPaste_IsRpcCPSupported(void);
 
 Bool Pointer_Register(GtkWidget* mainWnd);
 
+Bool Notify_Init(void);
+void Notify_Cleanup(void);
+
 extern RpcIn *gRpcIn;
 extern Display *gXDisplay;
 extern Window gXRoot;

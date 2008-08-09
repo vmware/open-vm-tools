@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "toolboxInt.h"
+#include "toolboxGtkInt.h"
 #include "removable_device.h"
 #include "guestApp.h"
 #include "eventManager.h"

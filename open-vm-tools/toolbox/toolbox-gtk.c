@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "toolboxInt.h"
+#include "toolboxGtkInt.h"
 #include "vm_assert.h"
 #include "vm_app.h"
 #include "eventManager.h"
@@ -42,6 +42,7 @@
 #include "smallIcon.xpm"
 #include "conf.h"
 #include "toolboxgtk_version.h"
+#include "util.h"
 
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXGTK_VERSION_STRING);
@@ -62,13 +63,23 @@ static char THIS_FILE[] = __FILE__;
 /*
  * Globals
  */
-static char hlpDir[PATH_MAX];
+static char *hlpDir = NULL;
 static Display *gXDisplay;
 static Window gXRoot;
 RpcIn *gRpcInCtlPanel;
 static GtkWidget *toolsMain;
 static Bool optionAutoHide;
 static guint gTimeoutId;
+
+/* Help pages. These need to be in the same order as the tabs in the UI. */
+static const char *gHelpPages[] = {
+   "index.html",
+   "tools_options.htm",
+   "tools_devices.htm",
+   "tools_scripts.htm",
+   "tools_shrink.htm",
+   "tools_about.htm",
+};
 
 /*
  * All signals that:
@@ -197,12 +208,17 @@ ToolsMain_OpenHelp(const char *help) // IN
 {
    char helpPage[1000];
 
+   if (hlpDir == NULL) {
+      ToolsMain_MsgBox("Error", "Unable to determine where help pages are stored.");
+      return;
+   }
+
    if (help == NULL) {
       ToolsMain_MsgBox("Error", "No help was found for the page.");
       return;
    }
 
-   Str_Snprintf(helpPage, sizeof helpPage, "file:%s%s", hlpDir, help);
+   Str_Snprintf(helpPage, sizeof helpPage, "file:%s/%s", hlpDir, help);
    if (!GuestApp_OpenUrl(helpPage, FALSE)) {
       ToolsMain_MsgBox("Help Unavailable",
                        "Sorry, but help requires a web browser.  You may need "
@@ -233,8 +249,7 @@ void
 ToolsMain_OnHelp(gpointer btn,  // IN: Unused
                  gpointer data) // IN: notebook containing all tabs
 {
-   char *text;
-   GtkWidget *curPage;
+   gint page;
    GtkNotebook *nb;
 
    nb = GTK_NOTEBOOK(data);
@@ -242,21 +257,19 @@ ToolsMain_OnHelp(gpointer btn,  // IN: Unused
       return;
    }
 
-   curPage = gtk_notebook_get_nth_page(nb, gtk_notebook_get_current_page(nb));
-   gtk_label_get(GTK_LABEL(gtk_notebook_get_tab_label(nb,curPage)), &text);
-   if (strcmp(text, TAB_LABEL_OPTIONS) == 0) {
-      ToolsMain_OpenHelp("tools_options.htm");
-   } else if (strcmp(text, TAB_LABEL_DEVICES) == 0) {
-      ToolsMain_OpenHelp("tools_devices.htm");
-   } else if (strcmp(text, TAB_LABEL_SCRIPTS) == 0) {
-      ToolsMain_OpenHelp("tools_scripts.htm");
-   } else if (strcmp(text, TAB_LABEL_SHRINK) == 0) {
-      ToolsMain_OpenHelp("tools_shrink.htm");
-   } else if (strcmp(text, TAB_LABEL_ABOUT) == 0) {
-   ToolsMain_OpenHelp("tools_about.htm");
-   } else {
-      ToolsMain_OpenHelp("index.htm");
+   page = gtk_notebook_get_current_page(nb) + 1;
+   ASSERT(page > 0);
+
+   if (page >= ARRAYSIZE(gHelpPages)) {
+      char *text;
+      GtkWidget *curPage;
+      curPage = gtk_notebook_get_nth_page(nb, page - 1);
+      gtk_label_get(GTK_LABEL(gtk_notebook_get_tab_label(nb,curPage)), &text);
+      Warning("No help page for tab %s, defaulting to index.\n", text);
+      page = 0;
    }
+
+   ToolsMain_OpenHelp(gHelpPages[page]);
 }
 
 
@@ -310,6 +323,8 @@ ToolsMain_MsgBox(gchar *title, // IN: dialog's title
    gtk_widget_set_usize(okbtn, 70, 25);
    gtk_signal_connect_object(GTK_OBJECT(okbtn), "clicked",
                              GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(dialog));
+   GTK_WIDGET_SET_FLAGS(okbtn, GTK_CAN_DEFAULT);
+   gtk_widget_grab_default(okbtn);
    gtk_widget_show_all(dialog);
 }
 
@@ -562,7 +577,7 @@ ToolsMain_Create(void)
 #else
       gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain),
                                Devices_Create(ToolsMain),
-                               gtk_label_newl(TAB_LABEL_DEVICES));
+                               gtk_label_new(TAB_LABEL_DEVICES));
 #endif
    } else {
       Debug("User not allowed to edit devices");
@@ -853,6 +868,54 @@ OnViewportSizeRequest(GtkWidget *widget,           // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * InitHelpDir --
+ *
+ *      Queries the Tools config dictionary for the location of the Toolbox
+ *      Help docs.  If not found, will try to fall back to semi-safe defaults.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      If a suitable directory was found, hlpDir will point to a buffer
+ *      containing it.  Otherwise it will remain NULL.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+InitHelpDir(GuestApp_Dict *pConfDict)   // IN
+{
+   const char *tmpDir = NULL;
+
+   ASSERT(hlpDir == NULL);
+
+   tmpDir = GuestApp_GetDictEntry(pConfDict, CONFNAME_HELPDIR);
+   if (!tmpDir || !File_Exists(tmpDir)) {
+      unsigned int i;
+
+      static const char *candidates[] = {
+         "/usr/lib/vmware-tools/hlp",        // Linux, Solaris
+         "/usr/local/lib/vmware-tools/hlp",  // FreeBSD
+      };
+
+      for (i = 0; i < ARRAYSIZE(candidates); i++) {
+         if (File_Exists(candidates[i])) {
+            tmpDir = candidates[i];
+            break;
+         }
+      }
+   }
+
+   if (tmpDir) {
+      hlpDir = Util_SafeStrdup(tmpDir);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * ShowUsage --
  *
  *      Print out usage information to stdout.
@@ -892,7 +955,7 @@ ShowUsage(char const *prog)
  *      This is main
  *
  * Results:
- *      0 on success, -1 otherwise
+ *      0 on success.
  *
  * Side effects:
  *      The linux toolbox ui will run and do a variety of tricks for your
@@ -903,33 +966,14 @@ ShowUsage(char const *prog)
 int
 main(int argc, char *argv[])
 {
-   char *tmp;
    Bool optIconify, optHelp, optVersion;
    struct sigaction olds[ARRAYSIZE(gSignals)];
    GuestApp_Dict *pConfDict;
 
-   /*
-    * Setup the path to the help directory. We assume that this binary lives in
-    * "LIBDIR/<some_bin_path>" and that the help directory is "LIBDIR/hlp".
-    *
-    * If for some reason this isn't true (if argv[0] lacks enough parent
-    * directories) we'll still initialize the help directory path to something,
-    * but subsequent help requests will probably fail.
-    */
-   Str_Strcpy(hlpDir, argv[0], sizeof hlpDir);
-   tmp = Str_Strrchr(hlpDir, '/');
-   if (tmp) {
-      *tmp-- = '\0';
-      tmp = Str_Strrchr(hlpDir, '/');
-      if (tmp) {
-         *tmp = '\0';
-      }
-   }
-   Str_Strcat(hlpDir, "/hlp/", sizeof hlpDir);
-
    if (!VmCheck_IsVirtualWorld()) {
 #ifndef ALLOW_TOOLS_IN_FOREIGN_VM
-      Panic("The VMware Toolbox must be run inside a virtual machine.\n");
+      Warning("The VMware Toolbox must be run inside a virtual machine.\n");
+      return 1;
 #else
       runningInForeignVM = TRUE;
 #endif
@@ -943,6 +987,7 @@ main(int argc, char *argv[])
    pConfDict = Conf_Load();
    Debug_Set(GuestApp_GetDictEntryBool(pConfDict, CONFNAME_LOG), DEBUG_PREFIX);
    Debug_EnableToFile(GuestApp_GetDictEntry(pConfDict, CONFNAME_LOGFILE), FALSE);
+   InitHelpDir(pConfDict);
    GuestApp_FreeDict(pConfDict);
 
    optionAutoHide = FALSE;
@@ -1058,6 +1103,7 @@ main(int argc, char *argv[])
 
    gdk_pixmap_unref(pixmap);
    gdk_bitmap_unref(bitmask);
+   free(hlpDir);
 
    return 0;
 }

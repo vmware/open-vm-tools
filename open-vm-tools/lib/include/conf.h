@@ -78,9 +78,12 @@
 #define CONFNAME_SHOW_WIRELESS_ICON "wirelessIcon.enable"
 
 /*
- * This is the bin direcotry the user chose while installing the tools
+ * Directory containing Help files accessed via the Toolbox's "Help"
+ * button.  For now, intended only for toolbox-gtk.
  */
-#define CONFNAME_BINDIR                       "bindir"
+#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#   define CONFNAME_HELPDIR                        "helpdir"
+#endif
 
 /* Default maximum size of wiper file in MB */
 #define CONFVAL_MAX_WIPERSIZE_DEFAULT         "512"

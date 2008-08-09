@@ -1239,6 +1239,7 @@ DnDGtkDataRequestCB(GtkWidget *widget,                // IN
       if (info == DRAG_TARGET_INFO_URI_LIST) {
          size_t newLen;
          char *escapedComponent;
+         int escIndex;
          int bytesToEsc[256] = { 0, };
 
          /* We escape the following characters based on RFC 1630. */
@@ -1247,6 +1248,11 @@ DnDGtkDataRequestCB(GtkWidget *widget,                // IN
          bytesToEsc['*'] = 1;
          bytesToEsc['!'] = 1;
          bytesToEsc['%'] = 1;  /* Escape character */
+
+         /* Escape non-ASCII characters so we can pass UTF-8 filenames */
+         for (escIndex = 0x80; escIndex < 0x100; escIndex++) {
+            bytesToEsc[escIndex] = 1;
+         }
 
          escapedComponent = Escape_Do('%', bytesToEsc, begin, len, &newLen);
          if (escapedComponent) {

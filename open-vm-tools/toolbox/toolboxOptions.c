@@ -22,7 +22,7 @@
  *     The options tab for the linux gtk toolbox
  */
 
-#include "toolboxInt.h"
+#include "toolboxGtkInt.h"
 #include "vm_version.h"
 #include "vm_app.h"
 #include "guestApp.h"
@@ -66,13 +66,13 @@ Options_Create(GtkWidget* mainWnd)
    VmCheck_GetVersion(&version, &type);
    if (type == VMX_TYPE_SCALABLE_SERVER) {
 #ifdef GTK2
-      optionsTimeSync = gtk_check_button_new_with_mnemonic("_Time synchronization between the virtual machine\nand the ESX Server.");
+      optionsTimeSync = gtk_check_button_new_with_mnemonic("Time _synchronization between the virtual machine\nand the ESX Server.");
 #else
       optionsTimeSync = gtk_check_button_new_with_label("Time synchronization between the virtual machine\nand the ESX Server.");
 #endif
    } else {
 #ifdef GTK2
-      optionsTimeSync = gtk_check_button_new_with_mnemonic("_Time synchronization between the virtual machine\nand the host operating system.");
+      optionsTimeSync = gtk_check_button_new_with_mnemonic("Time _synchronization between the virtual machine\nand the host operating system.");
 #else
       optionsTimeSync = gtk_check_button_new_with_label("Time synchronization between the virtual machine\nand the host operating system.");
 #endif

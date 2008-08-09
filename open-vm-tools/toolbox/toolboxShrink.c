@@ -26,7 +26,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "toolboxInt.h"
+#include "toolboxGtkInt.h"
 #include "debug.h"
 #include "guestApp.h"
 #include "wiper.h"
@@ -171,11 +171,7 @@ Shrink_Create(GtkWidget *mainWnd)
                WiperPartition_Close(plist);
             }
          } else {
-            label = gtk_label_new("Shrink disk is disabled for this virtual machine. "
-                                  "Shrinking is disabled for linked clones, parents of "
-                                  "linked clones, pre-allocated disks, snapshots, and "
-                                  "other factors. See the User's manual for more "
-                                  "information.");
+            label = gtk_label_new(SHRINK_DISABLED_ERR);
             gtk_widget_show(label);
             gtk_container_add(GTK_CONTAINER(ebox), label);
             gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
@@ -183,7 +179,7 @@ Shrink_Create(GtkWidget *mainWnd)
             gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
          }
       } else {
-         label = gtk_label_new("The shrink feature is not available,\n\neither because you are running an old version of a VMware product, or because too many communication channels are open.\n\nIf you are running an old version of a VMware product, you should consider upgrading.\n\nIf too many communication channels are open, you should power off your virtual machine and then power it back on.");
+         label = gtk_label_new(SHRINK_FEATURE_ERR);
          gtk_widget_show(label);
          gtk_container_add(GTK_CONTAINER(ebox), label);
          gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
@@ -298,10 +294,7 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
    }
 
    if (!performShrink) {
-      ToolsMain_MsgBox("Error", "The Toolbox believes disk shrinking is "
-                       "enabled while the host believes it is disabled. "
-                       "Please close and reopen the Toolbox to synchronize "
-                       "it with the host.\n");
+      ToolsMain_MsgBox("Error", SHRINK_CONFLICT_ERR);
       return FALSE;
    }
 

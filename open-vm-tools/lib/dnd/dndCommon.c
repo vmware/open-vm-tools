@@ -110,7 +110,7 @@ DnD_CreateStagingDirectory(void)
 
          if (File_IsEmptyDirectory(stagingDir) &&
              DnDStagingDirectoryUsable(stagingDir)) {
-               ret = Unicode_Append(stagingDir, U(DIRSEPS));
+               ret = Unicode_Append(stagingDir, DIRSEPS);
                /*
                 * We can use this directory.  Make sure to continue to loop
                 * so we don't leak the remaining stagindDirList[i]s.
@@ -165,7 +165,8 @@ exit:
  *
  * DnD_DeleteStagingFiles --
  *
- *    Attempts to delete all files in the filelist.
+ *    Attempts to delete all files in the staging directory. This does not
+ *    delete the directory itself.
  *
  * Results:
  *    TRUE if all files were deleted. FALSE if there was an error.
@@ -177,55 +178,57 @@ exit:
  */
 
 Bool
-DnD_DeleteStagingFiles(ConstUnicode fileList,  // IN:
-                       Bool onReboot)          // IN:
+DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
+                       Bool onReboot)            // IN:
 {
    Bool ret = TRUE;
-   UnicodeIndex start = 0;
 
-   ASSERT(fileList);
+   ASSERT(stagingDir);
+   ASSERT(File_IsDirectory(stagingDir));
 
-   /*
-    * The list of files is composed of a concatenation of path names, each
-    * ending with '|' character. Select each one and delete it.
-    */
+   if (onReboot) {
+      if (File_UnlinkDelayed(stagingDir)) {
+         ret = FALSE;
+      }
+   } else {
+      int i;
+      int numFiles;
+      Unicode base;
+      Unicode *fileList = NULL;
 
-   while (TRUE) {
-      Unicode fileName;
-      UnicodeIndex index;
-
-      index = Unicode_FindSubstrInRange(fileList, start, -1,
-                                        U("|"), 0, 1);
-
-      if (index == UNICODE_INDEX_NOT_FOUND) {
-         break;
-      } else {
-         fileName = Unicode_Substr(fileList, start, index - start);
+      if (!File_Exists(stagingDir)) {
+         return TRUE;
       }
 
-      if (onReboot) {
-         if (File_UnlinkDelayed(fileName)) {
-            ret = FALSE;
-         }
-      } else {
+      /* get list of files in current directory */
+      numFiles = File_ListDirectory(stagingDir, &fileList);
 
-         if (File_IsFile(fileName)) {
-            /* File_Unlink() returns -1 on error */
-            if (File_Unlink(fileName) == -1) {
-               ret = FALSE;
-            }
-         } else if (File_IsDirectory(fileName)) {
-            /* File_DeleteDirectoryTree() returns false on error */
-            if (!File_DeleteDirectoryTree(fileName)) {
+      if (numFiles == -1) {
+         return FALSE;
+      }
+
+      /* delete everything in the directory */
+      base = Unicode_Append(stagingDir, DIRSEPS);
+
+      for (i = 0; i < numFiles; i++) {
+         Unicode curPath;
+
+         curPath = Unicode_Append(base, fileList[i]);
+
+         if (File_IsDirectory(curPath)) {
+            if (!File_DeleteDirectoryTree(curPath)) {
                ret = FALSE;
             }
          } else {
-            ret = FALSE;
+            if (File_Unlink(curPath) == -1) {
+               ret = FALSE;
+            }
          }
-      }
-      Unicode_Free(fileName);
 
-      start = index + 1;
+         Unicode_Free(curPath);
+      }
+
+      Unicode_Free(base);
    }
 
    return ret;

@@ -39,7 +39,7 @@ libMisc_la_SOURCES += ../timeutil.c
 libMisc_la_SOURCES += ../util_misc.c
 libMisc_la_SOURCES += ../vmstdio.c
 
-if NO_ICU
+if HAVE_ICU
 libMisc_la_SOURCES += ../codeset.c
 endif
 

@@ -27,7 +27,15 @@ vmware_xferlogs_LDADD += ../lib/rpcOut/libRpcOut.a
 vmware_xferlogs_LDADD += ../lib/message/libMessage.a
 vmware_xferlogs_LDADD += ../lib/backdoor/libBackdoor.a
 vmware_xferlogs_LDADD += ../lib/misc/libMisc.a
-vmware_xferlogs_LDADD += @ICU_LIBS@
 
 vmware_xferlogs_SOURCES =
 vmware_xferlogs_SOURCES += xferlogs.c
+
+if HAVE_ICU
+   vmware_xferlogs_LDADD += @ICU_LIBS@
+   vmware_xferlogs_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+                          $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
+                          $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+else
+   vmware_xferlogs_LINK = $(LINK)
+endif

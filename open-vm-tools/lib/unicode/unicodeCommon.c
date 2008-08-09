@@ -424,7 +424,7 @@ Unicode_CanGetBytesWithEncoding(ConstUnicode ustr,        // IN
    if (ustr == NULL) {
       return TRUE;
    }
-   if ((tmp = UnicodeGetAllocBytesInternal(ustr, encoding, NULL)) == NULL) {
+   if ((tmp = UnicodeGetAllocBytesInternal(ustr, encoding, -1, NULL)) == NULL) {
       return FALSE;
    }
    free(tmp);

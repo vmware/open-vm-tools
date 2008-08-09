@@ -570,82 +570,78 @@ HgfsMakeFullName(const char *path,      // IN:  Path of directory containing fil
 
 Bool
 HgfsSetattrCopy(HGFS_VNODE_ATTR *vap,    // IN:  Attributes to change to
-                HgfsAttr *hgfsAttr,      // OUT: Hgfs attributes to fill in
-                HgfsAttrChanges *update) // OUT: Hgfs attribute changes to make
+                HgfsAttrV2 *hgfsAttrV2,  // OUT: Hgfs attributes to fill in
+                HgfsAttrHint *hints)     // OUT: Hgfs attribute hints
 {
    Bool ret = FALSE;
 
    ASSERT(vap);
-   ASSERT(hgfsAttr);
-   ASSERT(update);
+   ASSERT(hgfsAttrV2);
+   ASSERT(hints);
 
-   memset(hgfsAttr, 0, sizeof *hgfsAttr);
-   memset(update, 0, sizeof *update);
+   memset(hgfsAttrV2, 0, sizeof *hgfsAttrV2);
+   memset(hints, 0, sizeof *hints);
 
    /*
     * Hgfs supports changing these attributes:
     * o mode bits (permissions)
+    * o uid/gid
     * o size
     * o access/write times
     */
 
-#if defined(__APPLE__)
-   if (VATTR_IS_ACTIVE(vap, va_mode)) {
+   if (HGFS_VATTR_MODE_IS_ACTIVE(vap, HGFS_VA_MODE)){
       DEBUG(VM_DEBUG_COMM, "updating permissions.\n");
-      *update |= HGFS_ATTR_PERMISSIONS;
-      hgfsAttr->permissions = (vap->va_mode & S_IRWXU) >> HGFS_ATTR_MODE_SHIFT;
+      hgfsAttrV2->mask |= HGFS_ATTR_VALID_SPECIAL_PERMS |
+                          HGFS_ATTR_VALID_OWNER_PERMS |
+                          HGFS_ATTR_VALID_GROUP_PERMS |
+                          HGFS_ATTR_VALID_OTHER_PERMS;
+      hgfsAttrV2->specialPerms = (vap->HGFS_VA_MODE & (S_ISUID | S_ISGID |
+                                  S_ISVTX)) >> HGFS_ATTR_SPECIAL_PERM_SHIFT;
+      hgfsAttrV2->ownerPerms = (vap->HGFS_VA_MODE & S_IRWXU) >>
+                                HGFS_ATTR_OWNER_PERM_SHIFT;
+      hgfsAttrV2->groupPerms = (vap->HGFS_VA_MODE & S_IRWXG) >>
+                                HGFS_ATTR_GROUP_PERM_SHIFT;
+      hgfsAttrV2->otherPerms = vap->HGFS_VA_MODE & S_IRWXO;
       ret = TRUE;
    }
 
-   if (VATTR_IS_ACTIVE(vap, va_data_size)) {
-      DEBUG(VM_DEBUG_COMM, "updating size.\n");
-      *update |= HGFS_ATTR_SIZE;
-      hgfsAttr->size = vap->va_data_size;
+   if (HGFS_VATTR_IS_ACTIVE(vap, HGFS_VA_UID)) {
+      DEBUG(VM_DEBUG_COMM, "updating user id.\n");
+      hgfsAttrV2->mask |= HGFS_ATTR_VALID_USERID;
+      hgfsAttrV2->userId = vap->HGFS_VA_UID;
       ret = TRUE;
    }
 
-   if (VATTR_IS_ACTIVE(vap, va_access_time)) {
+   if (HGFS_VATTR_IS_ACTIVE(vap, HGFS_VA_GID)) {
+      DEBUG(VM_DEBUG_COMM, "updating group id.\n");
+      hgfsAttrV2->mask |= HGFS_ATTR_VALID_GROUPID;
+      hgfsAttrV2->groupId = vap->HGFS_VA_GID;
+      ret = TRUE;
+   }
+
+   if (HGFS_VATTR_IS_ACTIVE(vap, HGFS_VA_ACCESS_TIME_SEC)) {
       DEBUG(VM_DEBUG_COMM, "updating access time.\n");
-      *update |= HGFS_ATTR_ACCESS_TIME;
-      hgfsAttr->accessTime = HGFS_GET_TIME(vap->va_access_time);
+      *hints |= HGFS_ATTR_HINT_SET_ACCESS_TIME;
+      hgfsAttrV2->mask |= HGFS_ATTR_VALID_ACCESS_TIME;
+      hgfsAttrV2->accessTime = HGFS_GET_TIME(vap->HGFS_VA_ACCESS_TIME);
       ret = TRUE;
    }
 
-   if (VATTR_IS_ACTIVE(vap, va_modify_time)) {
+   if (HGFS_VATTR_IS_ACTIVE(vap, HGFS_VA_MODIFY_TIME_SEC)) {
       DEBUG(VM_DEBUG_COMM, "updating write time.\n");
-      *update |= HGFS_ATTR_WRITE_TIME;
-      hgfsAttr->writeTime = HGFS_GET_TIME(vap->va_modify_time);
-      ret = TRUE;
-   }
-#elif defined(__FreeBSD__)
-   if (vap->va_mode != (mode_t)VNOVAL) {
-      DEBUG(VM_DEBUG_COMM, "updating permissions.\n");
-      *update |= HGFS_ATTR_PERMISSIONS;
-      hgfsAttr->permissions = (vap->va_mode & S_IRWXU) >> HGFS_ATTR_MODE_SHIFT;
+      *hints |= HGFS_ATTR_HINT_SET_WRITE_TIME;
+      hgfsAttrV2->mask |= HGFS_ATTR_VALID_WRITE_TIME;
+      hgfsAttrV2->writeTime = HGFS_GET_TIME(vap->HGFS_VA_MODIFY_TIME);
       ret = TRUE;
    }
 
-   if (vap->va_size != (u_quad_t)VNOVAL) {
+   if (HGFS_VATTR_SIZE_IS_ACTIVE(vap, HGFS_VA_DATA_SIZE)) {
       DEBUG(VM_DEBUG_COMM, "updating size.\n");
-      *update |= HGFS_ATTR_SIZE;
-      hgfsAttr->size = vap->va_size;
+      hgfsAttrV2->mask |= HGFS_ATTR_VALID_SIZE;
+      hgfsAttrV2->size = vap->HGFS_VA_DATA_SIZE;
       ret = TRUE;
    }
-
-   if (vap->va_atime.tv_sec != VNOVAL) {
-      DEBUG(VM_DEBUG_COMM, "updating access time.\n");
-      *update |= HGFS_ATTR_ACCESS_TIME;
-      hgfsAttr->accessTime = HGFS_GET_TIME(vap->va_atime);
-      ret = TRUE;
-   }
-
-   if (vap->va_mtime.tv_sec != VNOVAL) {
-      DEBUG(VM_DEBUG_COMM, "updating write time.\n");
-      *update |= HGFS_ATTR_WRITE_TIME;
-      hgfsAttr->writeTime = HGFS_GET_TIME(vap->va_mtime);
-      ret = TRUE;
-   }
-#endif
 
    return ret;
 }
@@ -673,6 +669,9 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
               const HgfsAttrV2 *hgfsAttrV2, // IN:  Hgfs attributes to copy
               HGFS_VNODE_ATTR *vap)         // OUT: BSD attributes to fill
 {
+   short mode = 0;
+   HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
+
    ASSERT(vp);
    ASSERT(hgfsAttrV2);
    ASSERT(vap);
@@ -689,93 +688,118 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
    VATTR_NULL(vap);
 #endif
 
-   /* Set the file type. */
-   switch (hgfsAttrV2->type) {
-   case HGFS_FILE_TYPE_REGULAR:
-      VATTR_RETURN(vap, va_type, VREG);
-      DEBUG(VM_DEBUG_ATTR, " Type: VREG\n");
-      break;
+   if ((hgfsAttrV2->mask & HGFS_ATTR_VALID_TYPE)) {
+      /* Set the file type. */
+      switch (hgfsAttrV2->type) {
+      case HGFS_FILE_TYPE_REGULAR:
+         HGFS_VATTR_TYPE_RETURN(vap, VREG);
+         DEBUG(VM_DEBUG_ATTR, " Type: VREG\n");
+         break;
 
-   case HGFS_FILE_TYPE_DIRECTORY:
-      VATTR_RETURN(vap, va_type, VDIR);
-      DEBUG(VM_DEBUG_ATTR, " Type: VDIR\n");
-      break;
+      case HGFS_FILE_TYPE_DIRECTORY:
+         HGFS_VATTR_TYPE_RETURN(vap, VDIR);
+         DEBUG(VM_DEBUG_ATTR, " Type: VDIR\n");
+         break;
 
-   default:
-      /*
-       * There are only the above two filetypes.  If there is an error
-       * elsewhere that provides another value, we set the Solaris type to
-       * none and ASSERT in devel builds.
-       */
-      VATTR_RETURN(vap, va_type, VNON);
-      DEBUG(VM_DEBUG_FAIL, "invalid HgfsFileType provided.\n");
-      ASSERT(0);
+      default:
+         /*
+          * There are only the above two filetypes.  If there is an error
+          * elsewhere that provides another value, we set the Solaris type to
+          * none and ASSERT in devel builds.
+          */
+         HGFS_VATTR_TYPE_RETURN(vap, VNON);
+         DEBUG(VM_DEBUG_FAIL, "invalid HgfsFileType provided.\n");
+      }
+   } else {
+      HGFS_VATTR_TYPE_RETURN(vap, VNON);
+      DEBUG(VM_DEBUG_FAIL, "invalid HgfsFileType provided\n");
    }
 
-   /* We only have permissions for owners. */
-   VATTR_RETURN(vap, va_mode, (hgfsAttrV2->ownerPerms << HGFS_ATTR_MODE_SHIFT));
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_SPECIAL_PERMS) {
+      mode |= hgfsAttrV2->specialPerms << HGFS_ATTR_SPECIAL_PERM_SHIFT;
+   }
 
-   VATTR_RETURN(vap, va_nlink, 1);               /* fake */
-   VATTR_RETURN(vap, va_uid, 0);                 /* XXX root? */
-   VATTR_RETURN(vap, va_gid, 0);                 /* XXX root? */
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_OWNER_PERMS) {
+      mode |= hgfsAttrV2->ownerPerms << HGFS_ATTR_OWNER_PERM_SHIFT;
+   }
 
-   VATTR_RETURN(vap, va_fsid, HGFS_VP_TO_STATFS(vp)->f_fsid.val[0]);
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_GROUP_PERMS) {
+      mode |= hgfsAttrV2->groupPerms << HGFS_ATTR_GROUP_PERM_SHIFT;
+   }
+
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_OWNER_PERMS) {
+      mode |= hgfsAttrV2->otherPerms;
+   }
+
+   HGFS_VATTR_MODE_RETURN(vap, mode);
+
+   HGFS_VATTR_NLINK_RETURN(vap, 1);               /* fake */
+
+   if (sip->uidSet || (hgfsAttrV2->mask & HGFS_ATTR_VALID_USERID) == 0) {
+      HGFS_VATTR_UID_RETURN(vap, sip->uid);
+   } else {
+      HGFS_VATTR_UID_RETURN(vap, hgfsAttrV2->userId);
+   }
+
+   if (sip->gidSet || (hgfsAttrV2->mask & HGFS_ATTR_VALID_GROUPID) == 0) {
+      HGFS_VATTR_GID_RETURN(vap, sip->gid);
+   } else {
+      HGFS_VATTR_GID_RETURN(vap, hgfsAttrV2->groupId);
+   }
+
+   HGFS_VATTR_FSID_RETURN(vap, HGFS_VP_TO_STATFS(vp)->f_fsid.val[0]);
 
    /* Get the node id calculated for this file in HgfsVnodeGet() */
-   VATTR_RETURN(vap, va_fileid, HGFS_VP_TO_NODEID(vp));
+   HGFS_VATTR_FILEID_RETURN(vap, HGFS_VP_TO_NODEID(vp));
    DEBUG(VM_DEBUG_ATTR, "*HgfsAttrToBSD: fileName %s\n",
          HGFS_VP_TO_FILENAME(vp));
 
-    /*
-     * Some of the attribute names or meanings have changed slightly between
-     * OS X and FreeBSD. We handle these special case items here.
-     */
+   DEBUG(VM_DEBUG_ATTR, " Setting size to %"FMT64"u\n", hgfsAttrV2->size);
 
-    DEBUG(VM_DEBUG_ATTR, " Setting size to %"FMT64"u\n", hgfsAttrV2->size);
+   HGFS_VATTR_BLOCKSIZE_RETURN(vap, HGFS_BLOCKSIZE);
 
-#if defined(__APPLE__)
-    DEBUG(VM_DEBUG_ATTR, " Node ID: %"FMT64"u\n", vap->va_fileid);
-
-    /* va_iosize is the Optimal I/O blocksize. */
-    VATTR_RETURN(vap, va_iosize, HGFS_BLOCKSIZE);
-    VATTR_RETURN(vap, va_data_size, hgfsAttrV2->size);
-
-    HGFS_SET_TIME(vap->va_access_time, hgfsAttrV2->accessTime);
-    HGFS_SET_TIME(vap->va_modify_time, hgfsAttrV2->writeTime);
-
-   /* Since Windows doesn't keep ctime, we may need to use mtime instead. */
-   if (HGFS_SET_TIME(vap->va_create_time, hgfsAttrV2->attrChangeTime)) {
-      vap->va_create_time = vap->va_modify_time;
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_SIZE) {
+      HGFS_VATTR_BYTES_RETURN(vap, hgfsAttrV2->size);
+      HGFS_VATTR_SIZE_RETURN(vap, hgfsAttrV2->size);
    }
 
-   /* HGFS_SET_TIME does not mark the attribute as supported (unlike
+   /* 
+    * HGFS_SET_TIME does not mark the attribute as supported (unlike
     * VATTR_RETURN on OS X) so we have to do it explicitly with calls to
-    * VATTR_SET_SUPPORTED.
+    * VATTR_SET_SUPPORTED. For FreeBSD, HGFS_VATTR_*_SET_SUPPORTED is just a NULL
+    * macro.
     */
-   VATTR_SET_SUPPORTED(vap, va_access_time);
-   VATTR_SET_SUPPORTED(vap, va_modify_time);
-   VATTR_SET_SUPPORTED(vap, va_create_time);
 
-#elif defined(__FreeBSD__)
-    DEBUG(VM_DEBUG_ATTR, " Node ID: %ld\n", vap->va_fileid);
-
-    VATTR_RETURN(vap, va_bytes, hgfsAttrV2->size);
-    VATTR_RETURN(vap, va_size, hgfsAttrV2->size);
-    VATTR_RETURN(vap, va_blocksize, HGFS_BLOCKSIZE);
-
-    HGFS_SET_TIME(vap->va_atime, hgfsAttrV2->accessTime);
-    HGFS_SET_TIME(vap->va_mtime, hgfsAttrV2->writeTime);
-   /* Since Windows doesn't keep ctime, we may need to use mtime instead. */
-   if (HGFS_SET_TIME(vap->va_ctime, hgfsAttrV2->attrChangeTime)) {
-      vap->va_ctime = vap->va_mtime;
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
+      HGFS_SET_TIME(vap->HGFS_VA_ACCESS_TIME, hgfsAttrV2->accessTime);
+      HGFS_VATTR_ACCESS_TIME_SET_SUPPORTED(vap);
    }
 
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_WRITE_TIME) {
+      HGFS_SET_TIME(vap->HGFS_VA_MODIFY_TIME, hgfsAttrV2->writeTime);
+      HGFS_VATTR_MODIFY_TIME_SET_SUPPORTED(vap);
+   }
+
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_CHANGE_TIME) {
+      /* Since Windows doesn't keep ctime, we may need to use mtime instead. */
+      if (HGFS_SET_TIME(vap->HGFS_VA_CREATE_TIME, hgfsAttrV2->attrChangeTime)) {
+         if (hgfsAttrV2->mask & HGFS_ATTR_VALID_WRITE_TIME) {
+            vap->HGFS_VA_CREATE_TIME = vap->HGFS_VA_MODIFY_TIME;
+            HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap);
+         }
+      }
+   }
+
+#if defined(__FreeBSD__)
    /*
     * This is only set for FreeBSD as there does not seem to be an analogous
     * attribute for OS X.
     */
    DEBUG(VM_DEBUG_ATTR, " Setting birthtime\n");
-   HGFS_SET_TIME(vap->va_birthtime, hgfsAttrV2->creationTime);
+
+   if (hgfsAttrV2->mask & HGFS_ATTR_VALID_CREATE_TIME) {
+      HGFS_SET_TIME(vap->va_birthtime, hgfsAttrV2->creationTime);
+   }
 
 #endif
 

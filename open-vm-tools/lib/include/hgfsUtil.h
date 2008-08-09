@@ -101,7 +101,7 @@ struct timespec {
 #endif
 
 #define HGFS_NAME_BUFFER_SIZE(request) (HGFS_PACKET_MAX - (sizeof *request - 1))
-#define HGFS_NAME_BUFFER_SIZET(sizet) (HGFS_PACKET_MAX - (sizet) - 1)
+#define HGFS_NAME_BUFFER_SIZET(sizet) (HGFS_PACKET_MAX - ((sizet) - 1))
 
 #ifndef _WIN32
 /*

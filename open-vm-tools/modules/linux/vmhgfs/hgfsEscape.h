@@ -33,8 +33,11 @@ int HgfsEscape_DoW(wchar_t const *bufIn, // IN
 		   uint32 sizeBufOut,    // IN (bytes)
 		   wchar_t *bufOut);     // OUT
 
-int HgfsEscape_UndoW(char *bufIn,    // IN
-		     uint32 sizeIn); // IN
+int HgfsEscape_UndoWToA(char *bufIn,    // IN
+		                  uint32 sizeIn); // IN
+
+int HgfsEscape_UndoW(wchar_t *bufIn,   // IN
+                     uint32 sizeIn);   // IN
 #else
 int HgfsEscape_Do(char const *bufIn,   // IN
 		  uint32 sizeIn,       // IN (chars)

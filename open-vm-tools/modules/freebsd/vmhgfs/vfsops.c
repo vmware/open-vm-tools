@@ -36,6 +36,7 @@
 #include "hgfs_kernel.h"
 #include "request.h"
 #include "debug.h"
+#include "hgfsDevLinux.h"
 #include "os.h"
 #include "compat_freebsd.h"
 
@@ -115,7 +116,11 @@ HgfsVfsMount(struct mount *mp,  // IN: structure representing the file system
    int ret = 0;
    char *target;
    int error;
-   int len;
+   int size;
+   Bool *uidSet = NULL;
+   int *uid = NULL;
+   Bool *gidSet = NULL;
+   int *gid = NULL;
 
    /*
     * - Examine/validate mount flags from userland.
@@ -188,10 +193,47 @@ HgfsVfsMount(struct mount *mp,  // IN: structure representing the file system
 
    vfs_getnewfsid(mp);
 
-   error = vfs_getopt(mp->mnt_optnew, "target", (void **)&target, &len);
-   if (error || target[len - 1] != '\0') {
+   error = vfs_getopt(mp->mnt_optnew, "target", (void **)&target, &size);
+   if (error || target[size - 1] != '\0') {
       target = "host:hgfs";
    }
+
+   /* Get uidSet */
+   error = vfs_getopt(mp->mnt_optnew, "uidSet", (void**)&uidSet, &size);
+
+   if (!error && size == sizeof(Bool) && uidSet) {
+      sip->uidSet = *uidSet;
+   } else {
+      sip->uidSet = FALSE;
+   }
+
+   /* Get uid */
+   error = vfs_getopt(mp->mnt_optnew, "uid", (void**)&uid, &size);
+
+   if (!error && size == sizeof(int) && uid) {
+      sip->uid = *uid;
+   } else {
+      sip->uidSet = FALSE;
+   }
+
+   /* Get gidSet */
+   error = vfs_getopt(mp->mnt_optnew, "gidSet", (void**)&gidSet, &size);
+
+   if (!error && size == sizeof(Bool) && gidSet) {
+      sip->gidSet = *gidSet;
+   } else {
+      sip->gidSet = FALSE;
+   }
+
+   /* Get gid */
+   error = vfs_getopt(mp->mnt_optnew, "gid", (void**)&gid, &size);
+
+   if (!error && size == sizeof(int) && gid) {
+      sip->gid = *gid;
+   } else {
+      sip->gidSet = FALSE;
+   }
+
    vfs_mountedfrom(mp, target);
 
    DEBUG(VM_DEBUG_LOAD, "Exit\n");

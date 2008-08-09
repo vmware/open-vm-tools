@@ -1624,7 +1624,12 @@ HgfsServerConvertCase(const char *sharePath,              // IN
    *convertedFileName = NULL;
    *convertedFileNameLength = 0;
 
-   if (caseFlags == HGFS_FILE_NAME_CASE_INSENSITIVE) {
+   /*
+    * Case-insensitive lookup is expensive, do it only if the flag is set
+    * and file is inaccessible using the case passed to us. We use access(2)
+    * call to check if the passed case of the file name is correct.
+    */
+   if (caseFlags == HGFS_FILE_NAME_CASE_INSENSITIVE && access(fileName, F_OK) == -1) {
       LOG(4, ("%s: Case insensitive lookup, fileName: %s, flags: %u.\n",
               __FUNCTION__, fileName, caseFlags));
       error = HgfsCaseInsensitiveLookup(sharePath, sharePathLength,

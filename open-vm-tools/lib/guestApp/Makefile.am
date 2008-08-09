@@ -21,13 +21,14 @@
 # force an X11 dependency on applications that don't need one (e.g., guestd).
 
 noinst_LIBRARIES = libGuestApp.a
-noinst_LIBRARIES += libGuestAppX11.a
 
 libGuestApp_a_SOURCES =
 libGuestApp_a_SOURCES += guestApp.c
 libGuestApp_a_SOURCES += guestAppPosix.c
 
+if HAVE_X11
+noinst_LIBRARIES += libGuestAppX11.a
 libGuestAppX11_a_SOURCES = $(libGuestApp_a_SOURCES)
 libGuestAppX11_a_SOURCES += guestAppPosixX11.c
-
 libGuestAppX11_a_CPPFLAGS = -DGUESTAPP_HAS_X11
+endif

@@ -654,7 +654,7 @@ Unicode_RemoveRange(ConstUnicode destination,
                     UnicodeIndex start,
                     UnicodeIndex length)
 {
-   return Unicode_ReplaceRange(destination, start, length, U(""), 0, 0);
+   return Unicode_ReplaceRange(destination, start, length, "", 0, 0);
 }
 
 

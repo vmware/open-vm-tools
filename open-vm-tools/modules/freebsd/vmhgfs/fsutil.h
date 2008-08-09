@@ -58,18 +58,108 @@
 #define DIRSEPS "/"
 #define DIRSEPSLEN 1
 
+#define HGFS_VA_MODE va_mode
+#define HGFS_VA_UID va_uid
+#define HGFS_VA_GID va_gid
+#define HGFS_VA_TYPE va_type
+#define HGFS_VA_NLINK va_nlink
+#define HGFS_VA_FSID va_fsid
+#define HGFS_VA_FILEID va_fileid
+
+#define HGFS_VATTR_TYPE_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_type, val)
+
+#define HGFS_VATTR_MODE_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_mode, val)
+
+#define HGFS_VATTR_NLINK_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_nlink, val)
+
+#define HGFS_VATTR_UID_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_uid, val)
+
+#define HGFS_VATTR_GID_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_gid, val)
+
+#define HGFS_VATTR_FSID_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_fsid, val)
+
+#define HGFS_VATTR_FILEID_RETURN(vap, val)                         \
+        VATTR_RETURN(vap, va_fileid, val)
+
+#if defined(__APPLE__)
+   #define HGFS_VA_DATA_SIZE va_data_size
+   #define HGFS_VA_DATA_BYTES va_data_size
+   #define HGFS_VA_ACCESS_TIME_SEC va_access_time
+   #define HGFS_VA_ACCESS_TIME va_access_time
+   #define HGFS_VA_MODIFY_TIME_SEC va_modify_time
+   #define HGFS_VA_MODIFY_TIME va_modify_time
+   #define HGFS_VA_CREATE_TIME_SEC va_create_time
+   #define HGFS_VA_CREATE_TIME va_create_time
+   #define HGFS_VA_BLOCK_SIZE va_iosize
+   #define HGFS_VATTR_IS_ACTIVE(vap, attr)                      \
+           VATTR_IS_ACTIVE(vap, attr)
+   #define HGFS_VATTR_MODE_IS_ACTIVE(vap, mode)                 \
+           VATTR_IS_ACTIVE(vap, mode)
+   #define HGFS_VATTR_SIZE_IS_ACTIVE(vap, size)                 \
+           VATTR_IS_ACTIVE(vap, size)
+   #define HGFS_VATTR_BLOCKSIZE_RETURN(vap, val)                \
+           VATTR_RETURN(vap, va_iosize, val)
+   #define HGFS_VATTR_BYTES_RETURN(vap, val)
+   #define HGFS_VATTR_SIZE_RETURN(vap, val)                     \
+           VATTR_RETURN(vap, va_data_size, val)
+   #define HGFS_VATTR_ACCESS_TIME_SET_SUPPORTED(vap)            \
+           VATTR_SET_SUPPORTED(vap, va_access_time)
+   #define HGFS_VATTR_MODIFY_TIME_SET_SUPPORTED(vap)            \
+           VATTR_SET_SUPPORTED(vap, va_modify_time)
+   #define HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap)            \
+           VATTR_SET_SUPPORTED(vap, va_create_time)
+
+#elif defined(__FreeBSD__)
+   #define HGFS_VA_DATA_SIZE va_size
+   #define HGFS_VA_DATA_BYTES va_bytes
+   #define HGFS_VA_ACCESS_TIME_SEC va_atime.tv_sec
+   #define HGFS_VA_ACCESS_TIME va_atime
+   #define HGFS_VA_MODIFY_TIME_SEC va_mtime.tv_sec
+   #define HGFS_VA_MODIFY_TIME va_mtime
+   #define HGFS_VA_CREATE_TIME_SEC va_ctime.tv_sec
+   #define HGFS_VA_CREATE_TIME va_ctime
+   #define HGFS_VA_BLOCK_SIZE va_blocksize
+   #define HGFS_VATTR_IS_ACTIVE(vap, attr)                      \
+           (vap->attr != VNOVAL)
+   #define HGFS_VATTR_MODE_IS_ACTIVE(vap, mode)                 \
+           (vap->mode != (mode_t)VNOVAL)
+   #define HGFS_VATTR_SIZE_IS_ACTIVE(vap, size)                 \
+           (vap->size != (u_quad_t)VNOVAL)
+   #define VATTR_SET_SUPPORTED(vap, time) 
+   #define HGFS_VATTR_BLOCKSIZE_RETURN(vap, val)                \
+           VATTR_RETURN(vap, va_blocksize, val)
+   #define HGFS_VATTR_BYTES_RETURN(vap, val)                    \
+           VATTR_RETURN(vap, va_bytes, val)
+   #define HGFS_VATTR_SIZE_RETURN(vap, val)                     \
+           VATTR_RETURN(vap, va_size, val)
+
+   /* NULL macros */
+   #define HGFS_VATTR_ACCESS_TIME_SET_SUPPORTED(vap)          
+   #define HGFS_VATTR_MODIFY_TIME_SET_SUPPORTED(vap)
+   #define HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap)
+#endif
+
 /*
  *  Types
  */
 
 /*
  * Hgfs permissions are similar to Unix permissions in that they both include
- * bits for read vs. write vs. execute permissions.  However, Hgfs is only
- * concerned with file owners, meaning no "group" or "other" bits, so we need to
- * translate between Hgfs and Unix permissions with a simple bitshift.  The
- * shift value corresponds to omitting the "group" and "other" bits.
+ * bits for read vs. write vs. execute permissions. Since permissions of
+ * owner, groups and others are passed as individual components by Hgfs, 
+ * we need simple bit shift operations for translation between Hgfs and Unix
+ * permissions.
  */
-#define HGFS_ATTR_MODE_SHIFT    6
+
+#define HGFS_ATTR_SPECIAL_PERM_SHIFT 9
+#define HGFS_ATTR_OWNER_PERM_SHIFT 6
+#define HGFS_ATTR_GROUP_PERM_SHIFT 3
 
 /* Solaris times support nsecs, so only use these functions directly */
 #define HGFS_SET_TIME(unixtm, nttime)                   \
@@ -89,7 +179,7 @@ int HgfsGetOpenFlags(uint32 flags);
 int HgfsMakeFullName(const char *path, uint32_t pathLen, const char *file,
 		     size_t fileLen, char *outBuf, ssize_t bufSize);
 void HgfsAttrToBSD(struct vnode *vp, const HgfsAttrV2 *hgfsAttrV2, HGFS_VNODE_ATTR *vap);
-Bool HgfsSetattrCopy(HGFS_VNODE_ATTR *vap, HgfsAttr *hgfsAttr, HgfsAttrChanges *update);
+Bool HgfsSetattrCopy(HGFS_VNODE_ATTR *vap, HgfsAttrV2 *hgfsAttrV2, HgfsAttrHint *hints);
 int HgfsStatusToBSD(HgfsStatus hgfsStatus);
 Bool HgfsAttemptToCreateShare(const char *path, int flag);
 int HgfsNameFromWireEncoding(const char *bufIn, uint32 bufInSize, char *bufOut, uint32 bufOutSize);
