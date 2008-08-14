@@ -2981,7 +2981,7 @@ Posix_Printf(ConstUnicode format,
    if (!PosixConvertToCurrent(output, &outCurr)) {
       return -1;
    }
-   numChars = printf(outCurr);
+   numChars = printf("%s", outCurr);
 
    free(output);
    free(outCurr);

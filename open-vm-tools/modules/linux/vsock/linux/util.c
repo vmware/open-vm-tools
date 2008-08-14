@@ -154,7 +154,7 @@ VSockVmciLogPkt(char const *function,   // IN
       goto error;
    }
 
-   Log(buf);
+   Log("%s", buf);
 
    return;
 

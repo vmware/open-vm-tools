@@ -25,8 +25,7 @@ export vmsyncdir := $(MODULES_DIR)
 export vmxnetdir := $(MODULES_DIR)
 endif FREEBSD
 
-## Automake will supplement its own "distclean" and "clean" targets with these.
-distclean-local:
+## Automake will supplement its own "clean" targets with this.
 clean-local:
 	for MOD in $(MODULES); do \
 	   $(MAKE) -C "$(MODULES_OS)/$$MOD" clean || exit 1; \

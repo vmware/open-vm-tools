@@ -1232,8 +1232,12 @@ GuestdAlreadyRunning(char const *pidFileName) // IN
 
    pidFile = fopen(pidFileName, "r");
    if (pidFile) {
-      fscanf(pidFile, "%"FMTPID"\n", &pid);
+      int ret;
+      ret = fscanf(pidFile, "%"FMTPID"\n", &pid);
       fclose(pidFile);
+      if (ret != -1) {
+        return FALSE;
+      }
 
       /*
        * XXX There is an assumption that if the process with pid is alive,

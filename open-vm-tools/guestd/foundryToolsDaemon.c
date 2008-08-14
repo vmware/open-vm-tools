@@ -1381,7 +1381,9 @@ ToolsDaemonTcloMountHGFS(char const **result,     // OUT
     * from the contents of /etc/fstab, and invoke custom mount programs like the
     * one needed for HGFS.
     */
-   system("mount -a -t vmhgfs");
+   if (system("mount -a -t vmhgfs") == -1) {
+      err = VIX_E_FAIL;
+   }
 #endif
 
    /*
