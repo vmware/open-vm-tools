@@ -52,7 +52,7 @@ if HAVE_X11
    vmware_toolbox_LDADD += ../lib/guestApp/libGuestAppX11.a
    vmware_toolbox_LDADD += $(COMMON)
 
-   vmware_toolbox_LDADD += -lX11
+   vmware_toolbox_LDADD += @COMMON_XLIBS@
    vmware_toolbox_LDADD += @GTK_LIBS@
 
    vmware_toolbox_SOURCES =
