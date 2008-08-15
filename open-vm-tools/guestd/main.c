@@ -1235,7 +1235,7 @@ GuestdAlreadyRunning(char const *pidFileName) // IN
       int ret;
       ret = fscanf(pidFile, "%"FMTPID"\n", &pid);
       fclose(pidFile);
-      if (ret != -1) {
+      if (ret != 1) {
         return FALSE;
       }
 

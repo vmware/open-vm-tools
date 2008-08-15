@@ -554,8 +554,6 @@ System_Daemon(Bool nochdir,
 
       _exit(EXIT_SUCCESS);
    } else { /* Child */
-      int ret;
-
       /* Close unused read end of the pipe. */
       close(fds[0]);
 
@@ -598,12 +596,12 @@ System_Daemon(Bool nochdir,
        * won't treat EPIPE as an error, because we'd like to carry on with
        * our own life, even if our parent -did- abandon us.  ;_;
        */
-      ret = write(fds[1], &buf, sizeof buf);
-      close(fds[1]);
-      if (ret == -1) {
+      if (write(fds[1], &buf, sizeof buf) == -1) {
          fprintf(stderr, "write failed: %s\n", strerror(errno));
+         close(fds[1]);
          return FALSE;
       }
+      close(fds[1]);
 
       if (!nochdir && (chdir("/") == -1)) {
          fprintf(stderr, "chdir failed: %s\n", strerror(errno));
