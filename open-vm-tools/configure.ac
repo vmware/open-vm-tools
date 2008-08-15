@@ -215,10 +215,16 @@ elif test "$have_x" != "yes"; then
    AC_MSG_ERROR(
       [The X11 libraries were not found. Please configure without X11 (using --without-x), or install the libX11 devel package(s).])
 else
-   LIBS="$LIBS $X_LIBS"
    CPPFLAGS="$CPPFLAGS $X_CFLAGS"
-   COMMON_XLIBS="-lX11"
-   COMMON_XLIBS="-lXext $COMMON_XLIBS"
+   COMMON_XLIBS="$X_PRE_LIBS $X_LIBS -lX11 $X_EXTRA_LIBS"
+
+   AC_CHECK_LIB(
+      [Xext],
+      [XeviQueryVersion],
+      [COMMON_XLIBS="-lXext $COMMON_XLIBS"],
+      [AC_MSG_ERROR(
+         [libXext not found. Please configure without X11 (using --without-x), or install the libXext devel package(s).])],
+      [$COMMON_XLIBS])
 
    AC_CHECK_HEADER(
       [X11/extensions/extutil.h],
@@ -239,13 +245,20 @@ else
    fi
 
    AC_CHECK_LIB(
+      [Xrender],
+      [XRenderQueryVersion],
+      [COMMON_XLIBS="-lXrender $COMMON_XLIBS"],
+      [AC_MSG_ERROR(
+         [libXrender not found. Please configure without X11 (using --without-x), or install the libXrender devel package(s).])],
+      [$COMMON_XLIBS])
+
+   AC_CHECK_LIB(
       [Xrandr],
       [XRRQueryVersion],
-      [COMMON_XLIBS="-lXrandr $COMMON_XLIBS"
-       COMMON_XLIBS="-lXrender $COMMON_XLIBS"],
+      [COMMON_XLIBS="-lXrandr $COMMON_XLIBS"],
       [AC_MSG_ERROR(
 	 [libXrandr not found. Please configure without X11 (using --without-x) or install the libXrandr devel package(s).])],
-      [-lXrender $COMMON_XLIBS])
+      [$COMMON_XLIBS])
 
    AC_CHECK_LIB(
       [Xtst],
