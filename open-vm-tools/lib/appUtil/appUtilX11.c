@@ -694,30 +694,37 @@ char *
 AppUtil_CanonicalizeAppName(const char *appName, // IN
                             const char *cwd)     // IN
 {
-   char *ctmp;
+   char *fullAppName;
    ASSERT(appName);
 
    if (appName[0] == '/') {
-      return g_strdup(appName);
+      fullAppName = g_strdup(appName);
+      goto exit;
    }
 
-   ctmp = g_find_program_in_path(appName);
-   if (ctmp) {
-      return ctmp;
+   fullAppName = g_find_program_in_path(appName);
+   if (fullAppName) {
+      goto exit;
    }
 
    if (cwd) {
       char cbuf[PATH_MAX];
 
-      getcwd(cbuf, sizeof cbuf);
-      chdir(cwd);
-      ctmp = Posix_RealPath(appName);
-      chdir(cbuf);
-
-      return ctmp;
+      if (getcwd(cbuf, sizeof cbuf) == NULL) {
+         goto exit;
+      }
+      if (chdir(cwd) == -1) {
+         goto exit;
+      }
+      fullAppName = Posix_RealPath(appName);
+      if (chdir(cbuf) == -1) {
+         free(fullAppName);
+         fullAppName = NULL;
+      }
    }
 
-   return NULL;
+ exit:
+   return fullAppName;
 }
 
 
