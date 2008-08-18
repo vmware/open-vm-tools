@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +32,7 @@
  *      Start recording proccess. 
  *
  * Results:
- *      TRUE if the call is successful.
+ *      TRUE if the call is successful, FALSE otherwise.
  *
  * Side effects:
  *      Host VMware product starts recording this vm.
@@ -54,7 +54,7 @@ Record_StartRecording(void)
  *      Stop recording proccess, 
  *
  * Results:
- *      TRUE if the call is successful.
+ *      TRUE if the call is successful, FALSE otherwise.
  *
  * Side effects:
  *      Host VMware product stops recording this vm.
