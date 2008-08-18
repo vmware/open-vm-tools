@@ -189,7 +189,7 @@ ToolboxCmdHelp(char *progName)
           "   script\n"
           "   disk\n"
           "   stat\n"
-	  "   record\n\n"
+          "   record\n\n"
           "For additional information please visit http://www.vmware.com/support/\n\n",
           progName, progName, progName, progName);
 }
@@ -337,10 +337,10 @@ static void
 RecordHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
    printf("record: control recording process inside guest\n"
-	  "Usage: %s record <subcommand>\n\n"
-	  "Subcommands\n"
-	  "   start: start recording\n"
-	  "   stop: stop recording\n", progName);
+          "Usage: %s record <subcommand>\n\n"
+          "Subcommands\n"
+          "   start: start recording\n"
+          "   stop: stop recording\n", progName);
 }
 
 
@@ -636,11 +636,11 @@ RecordCommand(char **argv, // IN: Command line arguments
 {
    if (CheckArgumentLength(argv, argc)) {
       if (strcmp(argv[optind], "start") == 0) {
-	 return Record_StartRecording();
+         return Record_StartRecording();
       } else if (strcmp(argv[optind], "stop") == 0) {
-   	 return Record_StopRecording();
+         return Record_StopRecording();
       } else {
-	 fprintf(stderr, "Unknown subcommand");
+         fprintf(stderr, "Unknown subcommand");
       }
    }
    RecordHelp(argv[0]);

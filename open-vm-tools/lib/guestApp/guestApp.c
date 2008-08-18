@@ -1865,7 +1865,7 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
  */
 
 uint16
-GuestApp_ControlRecord(int mode) // IN: flag of starting or stopping recording
+GuestApp_ControlRecord(int32 mode) // IN: flag of starting or stopping recording
 {
    Backdoor_proto bp;
    bp.in.size = mode;

@@ -68,12 +68,12 @@ Record_Create(GtkWidget* mainWnd)
    gtk_box_pack_start(GTK_BOX(hbox[1]), startbtn, FALSE, FALSE, 10);
    gtk_widget_set_usize(startbtn, 70, 25);
    gtk_signal_connect(GTK_OBJECT(startbtn), "clicked",
-             	      GTK_SIGNAL_FUNC(Record_OnStart), NULL);
+                      GTK_SIGNAL_FUNC(Record_OnStart), NULL);
    gtk_widget_show(stopbtn);
    gtk_box_pack_end(GTK_BOX(hbox[1]), stopbtn, FALSE, FALSE, 10);
    gtk_widget_set_usize(stopbtn, 70, 6);
    gtk_signal_connect(GTK_OBJECT(stopbtn), "clicked",
-		      GTK_SIGNAL_FUNC(Record_OnStop), NULL);
+                      GTK_SIGNAL_FUNC(Record_OnStop), NULL);
    return recordtab;
 }
 
@@ -94,8 +94,8 @@ Record_Create(GtkWidget* mainWnd)
  *-----------------------------------------------------------------------------
  */
 void
-Record_OnStart(gpointer btn,	// IN: unused
-	       gpointer data)	// IN: unused
+Record_OnStart(gpointer btn,    // IN: unused
+               gpointer data)   // IN: unused
 {
    GuestApp_ControlRecord(1);
 }
@@ -118,7 +118,7 @@ Record_OnStart(gpointer btn,	// IN: unused
  */
 void
 Record_OnStop(gpointer btn,    // IN: unused
-               gpointer data)   // IN: unused
+              gpointer data)   // IN: unused
 {
    GuestApp_ControlRecord(2);
 }
