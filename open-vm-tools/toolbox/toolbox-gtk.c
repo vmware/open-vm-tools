@@ -586,16 +586,20 @@ ToolsMain_Create(void)
 
 #ifdef GTK2
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Scripts_Create(ToolsMain),
-                         gtk_label_new_with_mnemonic(TAB_LABEL_SCRIPTS));
+                            gtk_label_new_with_mnemonic(TAB_LABEL_SCRIPTS));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Shrink_Create(ToolsMain),
                             gtk_label_new_with_mnemonic(TAB_LABEL_SHRINK));
+   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Record_Create(ToolsMain),
+                            gtk_label_new_with_mnemonic(TAB_LABEL_RECORD));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), About_Create(ToolsMain),
                             gtk_label_new_with_mnemonic(TAB_LABEL_ABOUT));
 #else
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Scripts_Create(ToolsMain),
-                         gtk_label_new(TAB_LABEL_SCRIPTS));
+                            gtk_label_new(TAB_LABEL_SCRIPTS));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Shrink_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_SHRINK));
+   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Record_Create(ToolsMain),
+                            gtk_lable_new(TAB_LABEL_RECORD));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), About_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_ABOUT));
 #endif

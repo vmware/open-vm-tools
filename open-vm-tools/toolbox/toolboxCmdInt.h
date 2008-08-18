@@ -80,4 +80,10 @@ int Stat_GetMemorySwapped(void);
 int Stat_GetMemoryLimit(void);
 int Stat_GetMemoryReservation(void);
 
+/*
+ * Record commands
+ */
+Bool Record_StartRecording(void);
+Bool Record_StopRecording(void);
+
 #endif /*_TOOLBOX_CMD_H_*/

@@ -63,6 +63,7 @@ if HAVE_X11
    vmware_toolbox_SOURCES += toolboxOptions.c
    vmware_toolbox_SOURCES += toolboxScripts.c
    vmware_toolbox_SOURCES += toolboxShrink.c
+   vmware_toolbox_SOURCES += toolboxRecord.c
 
 # Here's something wacky: automake will muck up the translation of this
 # conditional if it is indented. For more details, see:
@@ -106,6 +107,7 @@ vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-shrink.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-stat.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-time.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-record.c
 
 if HAVE_ICU
    vmware_toolbox_cmd_LDADD += @ICU_LIBS@

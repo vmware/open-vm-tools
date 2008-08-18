@@ -71,13 +71,14 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am__vmware_toolbox_SOURCES_DIST = debugStdio.c toolbox-gtk.c \
 	toolboxAbout.c toolboxDevices.c toolboxOptions.c \
-	toolboxScripts.c toolboxShrink.c
+	toolboxScripts.c toolboxShrink.c toolboxRecord.c 
 @HAVE_X11_TRUE@am_vmware_toolbox_OBJECTS = debugStdio.$(OBJEXT) \
 @HAVE_X11_TRUE@	toolbox-gtk.$(OBJEXT) toolboxAbout.$(OBJEXT) \
 @HAVE_X11_TRUE@	toolboxDevices.$(OBJEXT) \
 @HAVE_X11_TRUE@	toolboxOptions.$(OBJEXT) \
 @HAVE_X11_TRUE@	toolboxScripts.$(OBJEXT) \
-@HAVE_X11_TRUE@	toolboxShrink.$(OBJEXT)
+@HAVE_X11_TRUE@	toolboxShrink.$(OBJEXT)  \
+@HAVE_X11_TRUE@ toolboxRecord.$(OBJEXT) 
 vmware_toolbox_OBJECTS = $(am_vmware_toolbox_OBJECTS)
 am__DEPENDENCIES_1 =
 @HAVE_X11_TRUE@vmware_toolbox_DEPENDENCIES =  \
@@ -86,7 +87,8 @@ am__DEPENDENCIES_1 =
 am_vmware_toolbox_cmd_OBJECTS = debugStdio.$(OBJEXT) \
 	toolbox-cmd.$(OBJEXT) toolboxcmd-devices.$(OBJEXT) \
 	toolboxcmd-scripts.$(OBJEXT) toolboxcmd-shrink.$(OBJEXT) \
-	toolboxcmd-stat.$(OBJEXT) toolboxcmd-time.$(OBJEXT)
+	toolboxcmd-stat.$(OBJEXT) toolboxcmd-time.$(OBJEXT) \
+	toolboxcmd-record.$(OBJEXT)
 vmware_toolbox_cmd_OBJECTS = $(am_vmware_toolbox_cmd_OBJECTS)
 vmware_toolbox_cmd_DEPENDENCIES = ../libguestlib/libguestlib.la \
 	../lib/guestInfo/libGuestInfo.a ../lib/guestApp/libGuestApp.a \
@@ -279,7 +281,7 @@ COMMON = ../lib/conf/libConf.a ../lib/eventManager/libEventManager.a \
 @HAVE_X11_TRUE@vmware_toolbox_SOURCES = debugStdio.c toolbox-gtk.c \
 @HAVE_X11_TRUE@	toolboxAbout.c toolboxDevices.c \
 @HAVE_X11_TRUE@	toolboxOptions.c toolboxScripts.c \
-@HAVE_X11_TRUE@	toolboxShrink.c
+@HAVE_X11_TRUE@	toolboxShrink.c toolboxRecord.c
 @HAVE_ICU_FALSE@@HAVE_X11_TRUE@vmware_toolbox_LINK = $(LINK)
 @HAVE_ICU_TRUE@@HAVE_X11_TRUE@vmware_toolbox_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
 @HAVE_ICU_TRUE@@HAVE_X11_TRUE@                         $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
@@ -290,7 +292,7 @@ vmware_toolbox_cmd_LDADD = ../libguestlib/libguestlib.la \
 	$(COMMON) $(am__append_3)
 vmware_toolbox_cmd_SOURCES = debugStdio.c toolbox-cmd.c \
 	toolboxcmd-devices.c toolboxcmd-scripts.c toolboxcmd-shrink.c \
-	toolboxcmd-stat.c toolboxcmd-time.c
+	toolboxcmd-stat.c toolboxcmd-time.c toolboxcmd-record.c
 @HAVE_ICU_FALSE@vmware_toolbox_cmd_LINK = $(LINK)
 @HAVE_ICU_TRUE@vmware_toolbox_cmd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
 @HAVE_ICU_TRUE@                             $(LIBTOOLFLAGS) --mode=link $(CXX) \
@@ -384,6 +386,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-shrink.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-stat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-time.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxRecord.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-record.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

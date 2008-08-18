@@ -195,6 +195,8 @@ WCHAR *GuestApp_GetDictEntryDefaultW(GuestApp_Dict *dict,
 Bool GuestApp_FindProgram(const char *program);
 #endif
 
+uint16
+GuestApp_ControlRecord(int mode); //  IN
 #ifdef __cplusplus
 }
 #endif

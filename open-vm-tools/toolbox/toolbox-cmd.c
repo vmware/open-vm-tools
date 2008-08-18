@@ -71,11 +71,13 @@ static int DiskCommand(char **argv, int argc);
 static int StatCommand(char **argv, int argc);
 static int ScriptCommand(char **argv, int argc);
 static int TimeSyncCommand(char **argv, int argc);
+static int RecordCommand(char **argv, int argc);
 static void DeviceHelp(char *progName);
 static void DiskHelp(char *progName);
 static void ScriptHelp(char *progName);
 static void StatHelp(char *progName);
 static void TimeSyncHelp(char *progName);
+static void RecordHelp(char *progName);
 static void ToolboxCmdHelp(char *progName);
 static const CmdTable * ParseCommand(char **argv, int argc);
 static Bool CheckArgumentLength(char **argv, int argc);
@@ -91,6 +93,7 @@ static const CmdTable commands[] = {
    { "disk", DiskCommand, TRUE, DiskHelp},
    { "stat", StatCommand, FALSE, StatHelp},
    { "device", DeviceCommand, FALSE, DeviceHelp},
+   { "record", RecordCommand, FALSE, RecordHelp},
    { "help", HelpCommand, FALSE, ToolboxCmdHelp},
    { NULL, } };
 
@@ -185,7 +188,8 @@ ToolboxCmdHelp(char *progName)
           "   device\n"
           "   script\n"
           "   disk\n"
-          "   stat\n\n"
+          "   stat\n"
+	  "   record\n\n"
           "For additional information please visit http://www.vmware.com/support/\n\n",
           progName, progName, progName, progName);
 }
@@ -311,6 +315,32 @@ StatHelp(char *progName) // IN: The name of the program obtained from argv[0]
           "   memres: Prints memory reservation\n"
           "   cpures: Prints cpu reservation\n"
           "   cpulimit: Prints cput limit\n", progName);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StatHelp --
+ *
+ *      Prints the help for the stat command.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RecordHelp(char *progName) // IN: The name of the program obtained from argv[0]
+{
+   printf("record: control recording process inside guest\n"
+	  "Usage: %s record <subcommand>\n\n"
+	  "Subcommands\n"
+	  "   start: start recording\n"
+	  "   stop: stop recording\n", progName);
 }
 
 
@@ -582,7 +612,40 @@ TimeSyncCommand(char **argv, // IN: command line arguments
    return EX_USAGE;
 }
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RecordCommand --
+ *
+ *      Parse and Handle recording commands.
+ *
+ * Results:
+ *      Returns EXIT_SUCCESS on success.
+ *      Returns the appropriate exit code errors.
+ *
+ * Side effects:
+ *      Might start and stop recording, guest os may be suspended
+ *      to wait for the recording panel in host.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
+static int
+RecordCommand(char **argv, // IN: Command line arguments
+              int argc)    // IN: Length of command line argumenst
+{
+   if (CheckArgumentLength(argv, argc)) {
+      if (strcmp(argv[optind], "start") == 0) {
+	 return Record_StartRecording();
+      } else if (strcmp(argv[optind], "stop") == 0) {
+   	 return Record_StopRecording();
+      } else {
+	 fprintf(stderr, "Unknown subcommand");
+      }
+   }
+   RecordHelp(argv[0]);
+   return EX_USAGE;
+}
 /*
  *-----------------------------------------------------------------------------
  *

@@ -48,12 +48,14 @@
 #define TAB_LABEL_DEVICES "De_vices"
 #define TAB_LABEL_SCRIPTS "Scri_pts"
 #define TAB_LABEL_SHRINK "Shrin_k"
+#define TAB_LABEL_RECORD "_Record"
 #define TAB_LABEL_ABOUT "Abo_ut"
 #else
 #define TAB_LABEL_OPTIONS "Options"
 #define TAB_LABEL_DEVICES "Devices"
 #define TAB_LABEL_SCRIPTS "Scripts"
 #define TAB_LABEL_SHRINK "Shrink"
+#define TAB_LABEL_RECORD "Record"
 #define TAB_LABEL_ABOUT "About"
 #endif
 
@@ -69,6 +71,7 @@ GtkWidget* Devices_Create(GtkWidget* mainWnd);
 GtkWidget* Options_Create(GtkWidget* mainWnd);
 GtkWidget* Scripts_Create(GtkWidget* mainWnd);
 GtkWidget* Shrink_Create(GtkWidget* mainWnd);
+GtkWidget* Record_Create(GtkWidget* mainWnd);
 
 void Options_OnTimeSyncToggled(gpointer btn, gpointer data);
 void Devices_OnDeviceToggled(gpointer btn, gpointer data);
