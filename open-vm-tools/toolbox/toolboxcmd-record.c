@@ -24,12 +24,13 @@
 
 #include "toolboxCmdInt.h"
 
+
 /*
  *-----------------------------------------------------------------------------
  *
  * Record_StartRecording --
  *
- *      Start recording proccess. 
+ *      Start recording process. 
  *
  * Results:
  *      TRUE if the call is successful, FALSE otherwise.
@@ -43,15 +44,16 @@
 Bool
 Record_StartRecording(void) 
 {
-   return (GuestApp_ControlRecord(1) == 1);
+   return GuestApp_ControlRecord(1);
 }
+
 
 /*
  *-----------------------------------------------------------------------------
  *
  * Record_StopRecording --
  *
- *      Stop recording proccess, 
+ *      Stop recording process, 
  *
  * Results:
  *      TRUE if the call is successful, FALSE otherwise.
@@ -65,6 +67,6 @@ Record_StartRecording(void)
 Bool
 Record_StopRecording(void)
 {
-   return (GuestApp_ControlRecord(2) == 1);
+   return GuestApp_ControlRecord(2);
 }
 

@@ -1847,6 +1847,7 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
 }
 #endif
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1856,7 +1857,7 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
  *    mode 1 for start and mode 2 for stop.
  *
  * Results:
- *    1 if the call is successful.
+ *    TRUE on success and FALSE on failure.
  *
  * Side effects:
  *    Host VMware product starts or stops recording this vm.
@@ -1864,14 +1865,14 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
  *-----------------------------------------------------------------------------
  */
 
-uint16
+Bool
 GuestApp_ControlRecord(int32 mode) // IN: flag of starting or stopping recording
 {
    Backdoor_proto bp;
    bp.in.size = mode;
    bp.in.cx.halfs.low = BDOOR_CMD_STATELOGGER;
    Backdoor(&bp);
-   return bp.out.ax.halfs.low;
+   return (bp.out.ax.halfs.low == 1);
 }
 
 #ifdef __cplusplus

@@ -93,7 +93,7 @@ static const CmdTable commands[] = {
    { "disk", DiskCommand, TRUE, DiskHelp},
    { "stat", StatCommand, FALSE, StatHelp},
    { "device", DeviceCommand, FALSE, DeviceHelp},
-   { "record", RecordCommand, FALSE, RecordHelp},
+   { "record", RecordCommand, TRUE, RecordHelp},
    { "help", HelpCommand, FALSE, ToolboxCmdHelp},
    { NULL, } };
 
@@ -317,12 +317,13 @@ StatHelp(char *progName) // IN: The name of the program obtained from argv[0]
           "   cpulimit: Prints cput limit\n", progName);
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
- * StatHelp --
+ * RecordHelp --
  *
- *      Prints the help for the stat command.
+ *      Prints the help for the record command.
  *
  * Results:
  *      None.
@@ -612,6 +613,7 @@ TimeSyncCommand(char **argv, // IN: command line arguments
    return EX_USAGE;
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -646,6 +648,8 @@ RecordCommand(char **argv, // IN: Command line arguments
    RecordHelp(argv[0]);
    return EX_USAGE;
 }
+
+
 /*
  *-----------------------------------------------------------------------------
  *
