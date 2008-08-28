@@ -532,7 +532,7 @@ File_FullPath(ConstUnicode pathName)  // IN:
    } else {
       Unicode path;
 
-      path = Unicode_Join(cwd, U(DIRSEPS), pathName, NULL);
+      path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
 
       temp = Posix_RealPath(path);
 
@@ -573,7 +573,7 @@ File_IsFullPath(ConstUnicode pathName)  // IN:
 {
    /* start with a slash? */
    return (pathName == NULL) ? FALSE :
-                               Unicode_StartsWith(pathName, U(DIRSEPS));
+                               Unicode_StartsWith(pathName, DIRSEPS);
 }
 
 
@@ -823,7 +823,7 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
 
    ASSERT(File_IsFullPath(*canPath));
 
-   if (Unicode_Compare(*canPath, U(DIRSEPS)) == 0) {
+   if (Unicode_Compare(*canPath, DIRSEPS) == 0) {
       return TRUE;
    }
  
@@ -835,7 +835,7 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
    if (Unicode_IsEmpty(pathName)) {
       /* empty string which denotes "/" */
       Unicode_Free(pathName);
-      *canPath = Unicode_Duplicate(U("/")); 
+      *canPath = Unicode_Duplicate("/"); 
    } else {
       *canPath = pathName;
    }
@@ -1664,7 +1664,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
        * way to check if a file is the same is using real path. So said Satyam.
        */
 
-      if (fs1 && Unicode_StartsWith(fs1, U(VCFS_MOUNT_POINT))) {
+      if (fs1 && Unicode_StartsWith(fs1, VCFS_MOUNT_POINT)) {
          Bool res;
 
          res = (!fs2 || Unicode_Compare(fs1, fs2) != 0) ? FALSE : TRUE;
@@ -1894,7 +1894,7 @@ FilePosixCreateTestFileSize(ConstUnicode dirName, // IN: directory to create lar
    Unicode path;
    FileIODescriptor fd;
 
-   temp = Unicode_Append(dirName, U("/.vmBigFileTest"));
+   temp = Unicode_Append(dirName, "/.vmBigFileTest");
    posixFD = File_MakeTemp(temp, &path);
    Unicode_Free(temp);
 

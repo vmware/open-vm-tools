@@ -104,6 +104,7 @@ enum {
    VIX_E_BUFFER_TOOSMALL                        = 24,
    VIX_E_OBJECT_NOT_FOUND                       = 25,
    VIX_E_HOST_NOT_CONNECTED                     = 26,
+   VIX_E_UNFINISHED_JOB                         = 29,
 
 
    /* Handle Errors */
@@ -199,6 +200,8 @@ enum {
    VIX_E_SNAPSHOT_INDEPENDENTDISK               = 13016,
    VIX_E_SNAPSHOT_NONUNIQUE_NAME                = 13017,
    VIX_E_SNAPSHOT_MEMORY_ON_INDEPENDENT_DISK    = 13018,
+   VIX_E_SNAPSHOT_MAXSNAPSHOTS                  = 13019,
+   VIX_E_SNAPSHOT_MIN_FREE_SPACE                = 13020,
 
    /* Host Errors */
    VIX_E_HOST_DISK_INVALID_VALUE                = 14003,
@@ -552,7 +555,8 @@ enum {
    VIX_VMPOWEROP_NORMAL                      = 0,
    VIX_VMPOWEROP_FROM_GUEST                  = 0x0004,
    VIX_VMPOWEROP_SUPPRESS_SNAPSHOT_POWERON   = 0x0080,
-   VIX_VMPOWEROP_LAUNCH_GUI                  = 0x0200
+   VIX_VMPOWEROP_LAUNCH_GUI                  = 0x0200,
+   VIX_VMPOWEROP_START_VM_PAUSED             = 0x1000,
 };
 
 /*

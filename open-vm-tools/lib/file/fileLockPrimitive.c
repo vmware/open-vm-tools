@@ -160,7 +160,7 @@ RemoveLockingFile(ConstUnicode lockDir,   // IN:
    ASSERT(lockDir);
    ASSERT(fileName);
 
-   path = Unicode_Join(lockDir, U(DIRSEPS), fileName, NULL);
+   path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
    err = FileDeletionRobust(path, FALSE);
 
@@ -288,7 +288,7 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
    ASSERT(lockDir);
    ASSERT(fileName);
 
-   path = Unicode_Join(lockDir, U(DIRSEPS), fileName, NULL);
+   path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
    err = FileLockOpenFile(path, O_RDONLY, &handle);
 
@@ -470,21 +470,21 @@ FileLockValidName(ConstUnicode fileName) // IN:
    ASSERT(fileName);
 
    /* The fileName must start with the ASCII character, 'M', 'D' or 'E' */
-   if (Unicode_FindSubstrInRange(U("MDE"), 0, -1, fileName, 0,
+   if (Unicode_FindSubstrInRange("MDE", 0, -1, fileName, 0,
                                  1) == UNICODE_INDEX_NOT_FOUND) {
       return FALSE;
    }
 
    /* The fileName must contain 5 ASCII digits after the initial character */
    for (i = 0; i < 5; i++) {
-      if (Unicode_FindSubstrInRange(U("0123456789"), 0, -1, fileName, i + 1,
+      if (Unicode_FindSubstrInRange("0123456789", 0, -1, fileName, i + 1,
                                     1) == UNICODE_INDEX_NOT_FOUND) {
          return FALSE;
       }
    }
 
    /* The fileName must terminate with the appropriate suffix string */
-   return Unicode_EndsWith(fileName, U(FILELOCK_SUFFIX));
+   return Unicode_EndsWith(fileName, FILELOCK_SUFFIX);
 }
 
 
@@ -513,7 +513,7 @@ ActivateLockList(ConstUnicode dirName,  // IN:
 
    ASSERT(dirName);
 
-   ASSERT(Unicode_StartsWith(dirName, U("D")));
+   ASSERT(Unicode_StartsWith(dirName, "D"));
 
    /* Search the list for a matching entry */
    for (ptr = myValues->lockList; ptr != NULL; ptr = ptr->next) {
@@ -659,7 +659,7 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
        * this will cleaned-up.
        */
 
-      if (Unicode_StartsWith(fileList[i], U("D"))) {
+      if (Unicode_StartsWith(fileList[i], "D")) {
          if (cleanUp) {
             err = ActivateLockList(fileList[i], myValues);
             if (err != 0) {
@@ -687,7 +687,7 @@ ScanDirectory(ConstUnicode lockDir,     // IN:
       char       buffer[FILELOCK_DATA_SIZE];
 
       if ((fileList[i] == NULL) ||
-          (Unicode_StartsWith(fileList[i], U("E")))) {
+          (Unicode_StartsWith(fileList[i], "E"))) {
          continue;
       }
 
@@ -836,21 +836,21 @@ Scanner(ConstUnicode lockDir,    // IN:
                Unicode path;
                UnicodeIndex index;
 
-               ASSERT(Unicode_StartsWith(ptr->dirName, U("D")));
+               ASSERT(Unicode_StartsWith(ptr->dirName, "D"));
 
                Log(LGPFX" %s discarding %s data from '%s'.\n",
                    __FUNCTION__, UTF8(ptr->dirName), UTF8(lockDir));
 
-               path = Unicode_Join(lockDir, U(DIRSEPS), ptr->dirName, NULL);
+               path = Unicode_Join(lockDir, DIRSEPS, ptr->dirName, NULL);
 
-               index = Unicode_FindLast(path, U("D"));
+               index = Unicode_FindLast(path, "D");
                ASSERT(index != UNICODE_INDEX_NOT_FOUND);
 
-               temp = Unicode_Replace(path, index, 1, U("M"));
+               temp = Unicode_Replace(path, index, 1, "M");
                FileDeletionRobust(temp, FALSE);
                Unicode_Free(temp);
 
-               temp = Unicode_Replace(path, index, 1, U("E"));
+               temp = Unicode_Replace(path, index, 1, "E");
                FileDeletionRobust(temp, FALSE);
                Unicode_Free(temp);
 
@@ -937,7 +937,7 @@ FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
       Unicode lockDir;
 
       /* The lock directory path */
-      lockDir = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
+      lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
 
       /*
        * The lock token is the (unicode) path of the lock file.
@@ -1014,7 +1014,7 @@ WaitForPossession(ConstUnicode lockDir,     // IN:
 
       loopCount = 0;
 
-      path = Unicode_Join(lockDir, U(DIRSEPS), fileName, NULL);
+      path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
       while ((err = Sleeper(myValues, &loopCount)) == 0) {
          /* still there? */
@@ -1298,14 +1298,14 @@ CreateEntryDirectory(const char *machineID,    // IN:
       *memberName = Unicode_Format("M%05u%s", randomNumber, FILELOCK_SUFFIX);
 
       temp = Unicode_Format("D%05u%s", randomNumber, FILELOCK_SUFFIX);
-      *entryDirectory = Unicode_Join(lockDir, U(DIRSEPS), temp, NULL);
+      *entryDirectory = Unicode_Join(lockDir, DIRSEPS, temp, NULL);
       Unicode_Free(temp);
 
       temp = Unicode_Format("E%05u%s", randomNumber, FILELOCK_SUFFIX);
-      *entryFilePath = Unicode_Join(lockDir, U(DIRSEPS), temp, NULL);
+      *entryFilePath = Unicode_Join(lockDir, DIRSEPS, temp, NULL);
       Unicode_Free(temp);
 
-      *memberFilePath = Unicode_Join(lockDir, U(DIRSEPS), *memberName, NULL);
+      *memberFilePath = Unicode_Join(lockDir, DIRSEPS, *memberName, NULL);
 
       err = MakeDirectory(*entryDirectory);
 
@@ -1516,7 +1516,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    ASSERT(err);
 
    /* Construct the locking directory path */
-   lockDir = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
+   lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
 
    /* establish our values */
 
@@ -1720,7 +1720,7 @@ FileLockHackVMX(ConstUnicode pathName)  // IN:
    ASSERT(pathName);
 
    /* first the locking directory path name */
-   lockDir = Unicode_Append(pathName, U(FILELOCK_SUFFIX));
+   lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
 
    /* establish our values */
    myValues.machineID = (char *) FileLockGetMachineID(); // don't free this!

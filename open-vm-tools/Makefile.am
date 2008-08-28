@@ -22,7 +22,6 @@
 X11_SUBDIRS =
 X11_SUBDIRS += vmware-user
 X11_SUBDIRS += vmware-user-suid-wrapper
-X11_SUBDIRS += toolbox
 
 SUBDIRS =
 SUBDIRS += lib
@@ -38,6 +37,7 @@ SUBDIRS += checkvm
 SUBDIRS += libguestlib
 SUBDIRS += xferlogs
 SUBDIRS += scripts
+SUBDIRS += toolbox
 if !SOLARIS
 if WITH_KERNEL_MODULES
 SUBDIRS += modules

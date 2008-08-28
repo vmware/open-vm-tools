@@ -18,8 +18,8 @@
 sbin_PROGRAMS = mount.vmhgfs
 
 mount_vmhgfs_LDADD =
+mount_vmhgfs_LDADD += ../lib/misc/libMisc.a
 mount_vmhgfs_LDADD += ../lib/string/libString.a
-mount_vmhgfs_LDADD += ../lib/strUtil/libStrUtil.a
 mount_vmhgfs_LDADD += ../lib/panicDefault/libPanicDefault.a
 mount_vmhgfs_LDADD += ../lib/panic/libPanic.a
 mount_vmhgfs_LDADD += ../lib/stubs/libStubs.a
@@ -30,13 +30,20 @@ mount_vmhgfs_SOURCES += stub-user-util.c
 
 if FREEBSD
 install-exec-hook:
-	$(MV) $(sbindir)/mount.vmhgfs $(sbindir)/mount_vmhgfs
-	chown root $(sbindir)/mount_vmhgfs
-	chmod u+s $(sbindir)/mount_vmhgfs
+	$(MV) $(DESTDIR)$(sbindir)/mount.vmhgfs \
+		$(DESTDIR)$(sbindir)/mount_vmhgfs
+	chown root $(DESTDIR)$(sbindir)/mount_vmhgfs
+	chmod u+s $(DESTDIR)$(sbindir)/mount_vmhgfs
+	-$(LN_S) $(DESTDIR)$(sbindir)/mount_vmhgfs \
+		$(DESTDIR)/sbin/mount_vmhgfs &> /dev/null
 uninstall-hook:
-	$(RM) -f $(sbindir)/mount_vmhgfs
+	-$(RM) -f $(DESTDIR)$(sbindir)/mount_vmhgfs &> /dev/null
 else
 install-exec-hook:
-	chown root $(sbindir)/mount.vmhgfs
-	chmod u+s $(sbindir)/mount.vmhgfs
+	chown root $(DESTDIR)$(sbindir)/mount.vmhgfs
+	chmod u+s $(DESTDIR)$(sbindir)/mount.vmhgfs
+	-$(LN_S) $(DESTDIR)$(sbindir)/mount.vmhgfs \
+		$(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
+uninstall-hook:
+	-$(RM) -f $(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
 endif !FREEBSD

@@ -18,9 +18,15 @@
 noinst_LIBRARIES = libGuestRpc.a
 
 libGuestRpc_a_SOURCES =
+libGuestRpc_a_SOURCES += ghiGetBinaryHandlers_xdr.c
+libGuestRpc_a_SOURCES += ghiProtocolHandler_xdr.c
 libGuestRpc_a_SOURCES += nicinfo_xdr.c
 
 nodist_libGuestRpc_a_SOURCES =
+nodist_libGuestRpc_a_SOURCES += ghiGetBinaryHandlers.h
+nodist_libGuestRpc_a_SOURCES += ghiGetBinaryHandlers_xdr.c
+nodist_libGuestRpc_a_SOURCES += ghiProtocolHandler.h
+nodist_libGuestRpc_a_SOURCES += ghiProtocolHandler_xdr.c
 nodist_libGuestRpc_a_SOURCES += nicinfo.h
 nodist_libGuestRpc_a_SOURCES += nicinfo_xdr.c
 
@@ -29,18 +35,48 @@ nodist_libGuestRpc_a_SOURCES += nicinfo_xdr.c
 CFLAGS += -Wno-unused
 
 CLEANFILES =
+CLEANFILES += ghiGetBinaryHandlers.h
+CLEANFILES += ghiGetBinaryHandlers_xdr.c
+CLEANFILES += ghiProtocolHandler.h
+CLEANFILES += ghiProtocolHandler_xdr.c
 CLEANFILES += nicinfo.h
 CLEANFILES += nicinfo_xdr.c
 
 EXTRA_DIST =
+EXTRA_DIST += ghiGetBinaryHandlers.x
+EXTRA_DIST += ghiProtocolHandler.x
 EXTRA_DIST += nicinfo.x
+
+## `make clean` should also remove the copied headers.
+clean-local:
+	$(RM) -rf $(top_builddir)/lib/include/guestrpc
+
+ghiGetBinaryHandlers.h: ghiGetBinaryHandlers.x
+	$(RPCGEN) -h -o $@ ghiGetBinaryHandlers.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiGetBinaryHandlers_xdr.c: ghiGetBinaryHandlers.x ghiGetBinaryHandlers.h
+	$(RPCGEN) -c -o $@ ghiGetBinaryHandlers.x
+
+ghiProtocolHandler.h: ghiProtocolHandler.x
+	$(RPCGEN) -h -o $@ ghiProtocolHandler.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiProtocolHandler_xdr.c: ghiProtocolHandler.x ghiProtocolHandler.h
+	$(RPCGEN) -c -o $@ ghiProtocolHandler.x
 
 nicinfo.h: nicinfo.x
 	$(RPCGEN) -h -o $@ nicinfo.x
-	sed 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
 	mv $@.tmp $@
-	mkdir -p $(top_builddir)/include/guestrpc
-	cp $@ $(top_builddir)/include/guestrpc
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
 
 nicinfo_xdr.c: nicinfo.x nicinfo.h
 	$(RPCGEN) -c -o $@ nicinfo.x

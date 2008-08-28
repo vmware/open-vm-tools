@@ -69,18 +69,16 @@ static int HgfsVnodeGetInt(struct vnode **vpp,
 			   const char *fileName,
 			   HgfsFileType fileType,
 			   HgfsFileHashTable *htp,
-			   Bool lockHtp,
 			   Bool rootVnode);
 
 /* Allocation/initialization/free of open file state */
 static HgfsOpenFile *HgfsAllocOpenFile(const char *fileName, HgfsFileType fileType,
-                                       HgfsFileHashTable *htp,
-                                       Bool lockHtp);
+                                       HgfsFileHashTable *htp);
 static void HgfsFreeOpenFile(HgfsOpenFile *ofp, HgfsFileHashTable *htp);
 
 /* Acquiring/releasing file state */
 static HgfsFile *HgfsGetFile(const char *fileName, HgfsFileType fileType,
-			     HgfsFileHashTable *htp, Bool lockHtp);
+			     HgfsFileHashTable *htp);
 static void HgfsReleaseFile(HgfsFile *fp, HgfsFileHashTable *htp);
 static int HgfsInitFile(HgfsFile *fp, const char *fileName, HgfsFileType fileType);
 
@@ -127,7 +125,7 @@ HgfsVnodeGet(struct vnode **vpp,        // OUT: Filled with address of created v
              HgfsFileType fileType,     // IN:  Type of file
              HgfsFileHashTable *htp)    // IN:  File hash table
 {
-   return HgfsVnodeGetInt(vpp, sip, vfsp, fileName, fileType, htp, TRUE, FALSE);
+   return HgfsVnodeGetInt(vpp, sip, vfsp, fileName, fileType, htp, FALSE);
 }
 
 
@@ -157,7 +155,7 @@ HgfsVnodeGetRoot(struct vnode **vpp,      // OUT: Filled with address of created
 		 HgfsFileType fileType,   // IN:  Type of file
 		 HgfsFileHashTable *htp)  // IN:  File hash table
 {
-   return HgfsVnodeGetInt(vpp, sip, vfsp, fileName, fileType, htp, TRUE, TRUE);
+   return HgfsVnodeGetInt(vpp, sip, vfsp, fileName, fileType, htp, TRUE);
 }
 
 
@@ -1031,7 +1029,6 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
                 const char *fileName,      // IN:   Name of this file
                 HgfsFileType fileType,     // IN:   Tyoe of file
                 HgfsFileHashTable *htp,    // IN:   File hash
-                Bool lockHtp,              // IN:   Whether to lock the file hash table
 		Bool rootVnode)            // IN:   Is this a root vnode?
 {
    struct vnode *vp;
@@ -1092,7 +1089,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
     * initialize the per-open-file state, as well as locate (or create if
     * necessary) the per-file state.
     */
-   vp->v_data = (void *)HgfsAllocOpenFile(fileName, fileType, htp, lockHtp);
+   vp->v_data = (void *)HgfsAllocOpenFile(fileName, fileType, htp);
    if (vp->v_data == NULL) {
       ret = ENOMEM;
       goto vnodeError;
@@ -1123,7 +1120,6 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
 		const char *fileName,      // IN
 		HgfsFileType fileType,     // IN
 		HgfsFileHashTable *htp,    // IN
-		Bool lockHtp,              // IN
 		Bool rootVnode)            // IN
 {
    ASSERT(vpp);
@@ -1171,7 +1167,8 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
 
    default:
       /* Hgfs only supports directories and regular files */
-      goto vnodeError;
+      ret = EINVAL;
+      goto out;
    }
 
    /*
@@ -1180,12 +1177,12 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
     * necessary) the per-file state.
     */
 
-   HgfsOpenFile *ofp = HgfsAllocOpenFile(fileName, fileType, htp, lockHtp);
+   HgfsOpenFile *ofp = HgfsAllocOpenFile(fileName, fileType, htp);
 
    params.vnfs_fsnode = (void *)ofp;
    if (params.vnfs_fsnode == NULL) {
       ret = ENOMEM;
-      goto vnodeError;
+      goto out;
    }
 
 
@@ -1213,6 +1210,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    /* Cleanup points for errors. */
 vnodeError:
    vnode_put(vp);
+out:
    return ret;
 }
 #else
@@ -1242,8 +1240,7 @@ vnodeError:
 static HgfsOpenFile *
 HgfsAllocOpenFile(const char *fileName,         // IN: Name of file
                   HgfsFileType fileType,        // IN: Type of file
-                  HgfsFileHashTable *htp,       // IN: Hash table
-                  Bool lockHtp)                 // IN: Whether to lock the hash table
+                  HgfsFileHashTable *htp)       // IN: Hash table
 {
    HgfsOpenFile *ofp;
 
@@ -1255,6 +1252,7 @@ HgfsAllocOpenFile(const char *fileName,         // IN: Name of file
     */
    ofp = os_malloc(sizeof *ofp, M_ZERO | M_WAITOK);
    if (!ofp) {
+      DEBUG(VM_DEBUG_FAIL, "Failed to allocate memory");
       return NULL;
    }
 
@@ -1284,7 +1282,7 @@ HgfsAllocOpenFile(const char *fileName,         // IN: Name of file
    /*
     * Now we get a reference to the underlying per-file state.
     */
-   ofp->hgfsFile = HgfsGetFile(fileName, fileType, htp, lockHtp);
+   ofp->hgfsFile = HgfsGetFile(fileName, fileType, htp);
    if (!ofp->hgfsFile) {
       goto destroyOut;
    }
@@ -1358,41 +1356,39 @@ HgfsFreeOpenFile(HgfsOpenFile *ofp,             // IN: Open file to free
 
 /* Acquiring/releasing file state */
 
- /*
-  *----------------------------------------------------------------------------
-  *
-  * HgfsGetFile --
-  *
-  *      Gets the file for the provided filename.
-  *
-  * Results:
-  *      Returns a pointer to the file on success, NULL on error.
-  *
-  * Side effects:
-  *      None.
-  *
-  *----------------------------------------------------------------------------
-  */
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsGetFile --
+ *
+ *      Gets the file for the provided filename.
+ *
+ * Results:
+ *      Returns a pointer to the file on success, NULL on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
 
- static HgfsFile *
- HgfsGetFile(const char *fileName,       // IN: Filename to get file for
-	     HgfsFileType fileType,      // IN: Type of file
-	     HgfsFileHashTable *htp,     // IN: Hash table to look in
-	     Bool lockHtp)               // IN: Whether to lock the hash table
- {
-    HgfsFile *fp;
-    int err;
+static HgfsFile *
+HgfsGetFile(const char *fileName,       // IN: Filename to get file for
+	    HgfsFileType fileType,      // IN: Type of file
+	    HgfsFileHashTable *htp)     // IN: Hash table to look in
+{
+   HgfsFile *fp;
+   HgfsFile *newfp;
+   int err;
 
-    ASSERT(fileName);
-    ASSERT(htp);
+   ASSERT(fileName);
+   ASSERT(htp);
 
    /*
     * We try to find the file in the hash table.  If it exists we increment its
     * reference count and return it.
     */
-   if (lockHtp) {
-      os_mutex_lock(htp->mutex);
-   }
+   os_mutex_lock(htp->mutex);
 
    fp = HgfsFindFile(fileName, htp);
    if (fp) {
@@ -1400,48 +1396,66 @@ HgfsFreeOpenFile(HgfsOpenFile *ofp,             // IN: Open file to free
       os_mutex_lock(fp->mutex);
       fp->refCount++;
       os_mutex_unlock(fp->mutex);
-
-      if (lockHtp) {
-         os_mutex_unlock(htp->mutex);
-      }
-
-      return fp;
+      goto out;
    }
 
-    /*
-     * If it doesn't exist we create one, initialize it, and add it to the hash
-     * table.  (M_NOWAIT set because sleeping while holding a lock is
-     * forbidden.)
-     */
-    fp = os_malloc(sizeof *fp, M_ZERO | M_NOWAIT);
-
-    if (!fp) {
-       /* fp is NULL already */
-       goto out;
-    }
-
-    DEBUG(VM_DEBUG_INFO, "HgfsGetFile: allocated HgfsFile for %s.\n", fileName);
-
-    err = HgfsInitFile(fp, fileName, fileType);
-    if (err) {
-       os_free(fp, sizeof(*fp));
-       fp = NULL;
-       goto out;
-    }
+   /* Drop the lock here, since we can block on os_malloc */
+   os_mutex_unlock(htp->mutex);
 
    /*
-    * This is guaranteed to not add a duplicate since we checked above and have
-    * held the lock until now.
+    * If it doesn't exist we create one. Ideally this should never fail, since 
+    * we are ready to block till we get memory. Note that while we are creating
+    * HgfsFile, other thread(s) could also be creating HgfsFile at the same time.
+    * Thus once we get memory, we acquire the lock and check hash table to detect
+    * any race condition.     
     */
-    HgfsAddFile(fp, htp);
+   newfp = os_malloc(sizeof *newfp, M_ZERO | M_WAITOK);
 
- out:
-    if (lockHtp) {
-       os_mutex_unlock(htp->mutex);
-    }
-    DEBUG(VM_DEBUG_DONE, "HgfsGetFile: done\n");
-    return fp;
- }
+   if (!newfp) {
+      /* newfp is NULL already */
+      DEBUG(VM_DEBUG_FAIL, "Failed to allocate memory");
+      return NULL;
+   }
+
+   /* Acquire the lock and check for races */
+   os_mutex_lock(htp->mutex);
+
+   fp = HgfsFindFile(fileName, htp);
+   if (fp) {
+      /* 
+       * Some other thread allocated HgfsFile before us. Free newfp 
+       * and get the reference on this file.
+       */
+      os_free(newfp, sizeof(*newfp));
+      os_mutex_lock(fp->mutex);
+      fp->refCount++;
+      os_mutex_unlock(fp->mutex);
+      goto out;
+   }
+
+   DEBUG(VM_DEBUG_INFO, "HgfsGetFile: allocated HgfsFile for %s.\n", fileName);
+
+   err = HgfsInitFile(newfp, fileName, fileType);
+   if (err) {
+      os_free(newfp, sizeof(*newfp));
+      newfp = NULL;
+      goto out;
+   }
+
+   /*
+    * This is guaranteed to not add a duplicate since after acquiring the lock on the 
+    * hash table, we rechecked above to detect if the file was present and have held 
+    * the lock until now.
+    */
+   HgfsAddFile(newfp, htp);
+   fp = newfp;
+
+out:
+   os_mutex_unlock(htp->mutex);
+
+   DEBUG(VM_DEBUG_DONE, "HgfsGetFile: done\n");
+   return fp;
+}
 
 
 /*

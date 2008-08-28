@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = vmware-user-suid-wrapper
+bin_PROGRAMS = vmware-user-suid-wrapper
 
 # We shouldn't impose on users' installation preferences, so just provide
 # a sane default and let them override it at configure or make time.

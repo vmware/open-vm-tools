@@ -259,7 +259,7 @@ HgfsDumpAllNodes(void)
 
    Log("Dumping all nodes\n");
    for (i = 0; i < numNodes; i++) {
-      Log("handle %u, name \"%s\", localdev %u, localInum %"FMT64"u %u\n",
+      Log("handle %u, name \"%s\", localdev %"FMT64"u, localInum %"FMT64"u %u\n",
           nodeArray[i].handle,
           nodeArray[i].utf8Name ? nodeArray[i].utf8Name : "NULL",
           nodeArray[i].localId.volumeId,
@@ -2506,6 +2506,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    char *tempPtr;
    HgfsInternalStatus result;
    uint32 startIndex = 0;
+   HgfsShareOptions shareOptions;
 
    ASSERT(cpName);
    ASSERT(bufOut);
@@ -2537,6 +2538,13 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("HgfsServerGetAccess: No such share (%s) or access denied\n",
               cpName));
+      return nameStatus;
+   }
+
+   /* Get the config options. */
+   nameStatus = HgfsServerPolicy_GetShareOptions(cpName, len, &shareOptions);
+   if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+      LOG(4, ("HgfsServerGetAccess: no matching share: %s.\n", cpName));
       return nameStatus;
    }
 
@@ -2672,8 +2680,12 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    }
 #endif /* defined(__APPLE__) */
 
-   /* Convert file name to proper case as per the policy. */
-   if (HgfsServerCaseConversionRequired()) {
+   /*
+    * Convert file name to proper case if host default config option is not set
+    * and case conversion is required for this platform.
+    */
+   if (!HgfsServerPolicy_IsShareOptionSet(shareOptions, HGFS_SHARE_HOST_DEFAULT_CASE) &&
+       HgfsServerCaseConversionRequired()) {
       result = HgfsServerConvertCase(sharePath, sharePathLen, myBufOut,
                                      myBufOutLen, caseFlags,
                                      &convertedMyBufOut, &convertedMyBufOutLen);

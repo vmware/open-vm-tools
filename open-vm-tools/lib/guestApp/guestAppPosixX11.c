@@ -41,6 +41,7 @@ extern "C" {
 #include "guestApp.h"
 #include "str.h"
 #include "escape.h"
+#include "util.h"
 #include "vm_assert.h"
 
 static char *gBrowserEscaped = NULL; // a shell escaped browser path
@@ -74,6 +75,7 @@ GuestAppX11OpenUrl(const char *url, // IN
 {
    char *buf = NULL;
    char *urlEscaped = NULL;
+   char *ldPath = NULL;
    Bool success = FALSE;
    int ret;
 
@@ -91,18 +93,53 @@ GuestAppX11OpenUrl(const char *url, // IN
       goto abort;
    }
 
-   if (gBrowserIsNewNetscape) {
-      buf = Str_Asprintf(NULL, 
-                          "%s -remote 'openURL('%s', new-window)' >/dev/null 2>&1 &", 
-                          gBrowserEscaped, urlEscaped);
+   /*
+    * Get the original LD_LIBRARY_PATH, so the installed applications
+    * don't try to use our versions of the libraries.
+    *
+    * From bora/apps/lib/lui/browser.cc::ResetEnvVars():
+    *
+    * For each variable we care about, there are three possible states:
+    * 1) The variable was not considered for saving.
+    *    This is indicated by VMWARE_<foo>'s first character not being
+    *    set to either "1" or "0".
+    *    We should not manipulate <foo>.
+    * 2) The variable was considered but was not set.
+    *    VMWARE_<foo> is set to "0".
+    *    We should unset <foo>.
+    * 3) The variable was considered and was set.
+    *    VMWARE_<foo> is set to "1" + "<value of foo>".
+    *    We should set <foo> back to the saved value.
+    *
+    * XXX: There are other variables that may need resetting (for a list, check
+    * bora/apps/lib/lui/browser.cc or the wrapper scripts), but that would
+    * require some more refactoring of this code (not using system(3), for
+    * example).
+    */
+   ldPath = getenv("VMWARE_LD_LIBRARY_PATH");
+   if (ldPath != NULL && strlen(ldPath) > 0 && ldPath[0] == '1') {
+      ldPath++;
+      ldPath = Escape_Sh(ldPath, strlen(ldPath), NULL);
+      ASSERT_MEM_ALLOC(ldPath);
    } else {
-      buf = Str_Asprintf(NULL, "%s %s >/dev/null 2>&1 &", gBrowserEscaped, urlEscaped);
+      ldPath = Util_SafeStrdup("");
+   }
+
+   if (gBrowserIsNewNetscape) {
+      buf = Str_Asprintf(NULL,
+                         "LD_LIBRARY_PATH=%s %s -remote 'openURL('%s', new-window)' "
+                         ">/dev/null 2>&1 &",
+                         ldPath, gBrowserEscaped, urlEscaped);
+   } else {
+      buf = Str_Asprintf(NULL,
+                         "LD_LIBRARY_PATH=%s %s %s >/dev/null 2>&1 &",
+                         ldPath, gBrowserEscaped, urlEscaped);
    }
 
    if (buf == NULL) {
       goto abort;
    }
-     
+
    ret = system(buf);
 
    /*
@@ -119,7 +156,8 @@ GuestAppX11OpenUrl(const char *url, // IN
  abort:
    free(buf);
    free(urlEscaped);
-   
+   free(ldPath);
+
    return success;
 }
 
@@ -127,7 +165,7 @@ GuestAppX11OpenUrl(const char *url, // IN
 /*
  *----------------------------------------------------------------------
  *
- * GuestAppDetectBrowser -- 
+ * GuestAppDetectBrowser --
  *
  *	Figure out what browser to use, and note if it is a new Netscape.
  *      Copied from apps/vmuiLinux/app.cc
@@ -136,7 +174,7 @@ GuestAppX11OpenUrl(const char *url, // IN
  *      None.
  *
  * Side effects:
- *      This routine is not thread-safe. 
+ *      This routine is not thread-safe.
  *
  *----------------------------------------------------------------------
  */
@@ -196,8 +234,8 @@ GuestAppDetectBrowser(void)
    }
 
    /*
-    * netscape >= 6.2 has a bug, in that if we try to reuse an existing 
-    * window, and fail, it will return a success code.  We have to test for this 
+    * netscape >= 6.2 has a bug, in that if we try to reuse an existing
+    * window, and fail, it will return a success code.  We have to test for this
     * eventuality, so we can handle it better.
     */
    if (!strcmp(buf, "netscape")) {

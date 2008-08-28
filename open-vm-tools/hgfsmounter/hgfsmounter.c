@@ -820,9 +820,13 @@ main(int argc,          // IN
    Bool doMtab = TRUE;
 #endif
    char c;
-   int i, result = EXIT_FAILURE, flags = 0, mntRes = -1;
+   int i;
+   int result = EXIT_FAILURE;
+   int flags = 0;
+   int mntRes = -1;
    char *optionString = NULL;
-   const char *shareNameHost, *shareNameDir;
+   const char *shareNameHost = NULL;
+   const char *shareNameDir = NULL;
    struct stat statBuf;
    HgfsMountInfo mountInfo;
    char *canonicalizedPath = NULL;
@@ -956,12 +960,20 @@ main(int argc,          // IN
                             {"target", sizeof("target")},
                             {shareName, strlen(shareName) + 1},
                             {"fspath", sizeof("fspath")},
-                            {(void *)mountPoint, strlen(mountPoint) + 1}};
+                            {(void *)mountPoint, strlen(mountPoint) + 1},
+                            {"uidSet", sizeof("uidSet")},
+                            {&mountInfo.uidSet, sizeof(mountInfo.uidSet)},
+                            {"uid", sizeof("uid")},
+                            {&mountInfo.uid, sizeof(mountInfo.uid)},
+                            {"gidSet", sizeof("gidSet")},
+                            {&mountInfo.gidSet, sizeof(mountInfo.gidSet)},
+                            {"gid", sizeof("gid")},
+                            {&mountInfo.gid, sizeof(mountInfo.gid)}};
 
       mntRes = nmount(iov, ARRAYSIZE(iov), flags);
    }
 #elif defined(__APPLE__)
-   mntRes = mount(HGFS_NAME, mountPoint, flags, NULL);
+   mntRes = mount(HGFS_NAME, mountPoint, flags, &mountInfo);
 #endif
    if (mntRes) {
       perror("Error: cannot mount filesystem");

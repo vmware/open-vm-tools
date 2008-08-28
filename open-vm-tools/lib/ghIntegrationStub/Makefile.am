@@ -15,9 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libghIntegrationStub.a
+noinst_LIBRARIES = libGhIntegrationStub.a
 
-libghIntegrationStub_a_SOURCES =
-libghIntegrationStub_a_SOURCES += ghIntegrationStub.c
+libGhIntegrationStub_a_SOURCES =
+libGhIntegrationStub_a_SOURCES += ghIntegrationStub.c
 
 AM_CFLAGS = @LIB_FILE_CPPFLAGS@

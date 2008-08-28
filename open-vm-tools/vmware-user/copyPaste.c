@@ -78,6 +78,7 @@
 #include "vmblock.h"
 #include "file.h"
 #include "codeset.h"
+#include "escape.h"
 
 
 /*
@@ -652,6 +653,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    /* Build up selection data */
    while ((len = CPName_GetComponentGeneric(begin, end, "", &next)) != 0) {
       const size_t origTextLen = textLen;
+      Bool freeBegin = FALSE;
 
       if (len < 0) {
          Debug("CopyPasteSelectionGetCB: error getting next component\n");
@@ -659,6 +661,37 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
             free(text);
          }
          return;
+      }
+
+      /*
+       * A URI list will expect the provided path to be escaped.  If we cannot
+       * escape the path for some reason we just use the unescaped version and
+       * hope that it works.
+       */
+      if (selection_data->target == gFCPAtom[FCP_TARGET_INFO_URI_LIST]) {
+         size_t newLen;
+         char *escapedComponent;
+         int escIndex;
+         int bytesToEsc[256] = { 0, };
+
+         /* We escape the following characters based on RFC 1630. */
+         bytesToEsc['#'] = 1;
+         bytesToEsc['?'] = 1;
+         bytesToEsc['*'] = 1;
+         bytesToEsc['!'] = 1;
+         bytesToEsc['%'] = 1;  /* Escape character */
+
+         /* Escape non-ASCII characters so we can pass UTF-8 filenames */
+         for (escIndex = 0x80; escIndex < 0x100; escIndex++) {
+            bytesToEsc[escIndex] = 1;
+         }
+
+         escapedComponent = Escape_Do('%', bytesToEsc, begin, len, &newLen);
+         if (escapedComponent) {
+            begin = escapedComponent;
+            len = newLen;
+            freeBegin = TRUE;
+         }
       }
 
       /*
@@ -682,6 +715,10 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
       Str_Snprintf(text + origTextLen - 1,
                    textLen - origTextLen + 1,
                    "%s%s%s", pre, begin, gnomeFCP && next == end ? "" : post);
+
+      if (freeBegin) {
+         free((void *)begin);
+      }
 
       /* Iterate to next component */
       begin = next;

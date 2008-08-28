@@ -31,7 +31,7 @@
 # include <syslimits.h>
 #endif
 
-#include "toolboxInt.h"
+#include "toolboxGtkInt.h"
 #include "guestApp.h"
 #include "conf.h"
 #include "str.h"
@@ -115,11 +115,11 @@ Scripts_Create(GtkWidget* mainWnd)
       gtk_widget_show(hbox);
       gtk_box_pack_start(GTK_BOX(scriptstab), hbox, FALSE, FALSE, 0);
 
-      #if GTK2
-      label = gtk_label_new_with_mnemonic("Script _Event");
-      #else
+#ifdef GTK2
+      label = gtk_label_new_with_mnemonic("Script Even_t");
+#else
       label = gtk_label_new("Script Event");
-      #endif
+#endif
       gtk_widget_show(label);
       gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -136,8 +136,9 @@ Scripts_Create(GtkWidget* mainWnd)
       gtk_entry_set_editable(GTK_ENTRY(GTK_COMBO(scriptsCombo)->entry), FALSE);
       gtk_signal_connect(GTK_OBJECT(GTK_COMBO(scriptsCombo)->entry), "changed",
                          GTK_SIGNAL_FUNC(Scripts_OnComboChanged), NULL);
-
 #ifdef GTK2
+      gtk_label_set_mnemonic_widget(GTK_LABEL(label), GTK_COMBO(scriptsCombo)->entry);
+
       scriptsUseScript = gtk_check_button_new_with_mnemonic("_Use Script");
 #else
       scriptsUseScript = gtk_check_button_new_with_label("Use Script");
@@ -196,7 +197,7 @@ Scripts_Create(GtkWidget* mainWnd)
                          GTK_SIGNAL_FUNC(Scripts_OnDefaultScriptToggled), NULL);
 
 #ifdef GTK2
-      scriptsCustomScript = gtk_radio_button_new_with_mnemonic(NULL,("_Custom Script"));
+      scriptsCustomScript = gtk_radio_button_new_with_mnemonic(NULL,("Cu_stom Script"));
 #else
       scriptsCustomScript = gtk_radio_button_new_with_label(NULL,("Custom Script"));
 #endif

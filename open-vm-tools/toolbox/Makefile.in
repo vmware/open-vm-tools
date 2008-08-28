@@ -49,7 +49,14 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = vmware-toolbox$(EXEEXT)
+bin_PROGRAMS = $(am__EXEEXT_1) vmware-toolbox-cmd$(EXEEXT)
+@HAVE_X11_TRUE@am__append_1 = vmware-toolbox
+
+# Here's something wacky: automake will muck up the translation of this
+# conditional if it is indented. For more details, see:
+# http://osdir.com/ml/sysutils.automake.general/2002-10/msg00064.html
+@HAVE_ICU_TRUE@@HAVE_X11_TRUE@am__append_2 = @ICU_LIBS@
+@HAVE_ICU_TRUE@am__append_3 = @ICU_LIBS@
 subdir = toolbox
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -58,27 +65,32 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
+@HAVE_X11_TRUE@am__EXEEXT_1 = vmware-toolbox$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_vmware_toolbox_OBJECTS = debugStdio.$(OBJEXT) toolbox-gtk.$(OBJEXT) \
-	toolboxAbout.$(OBJEXT) toolboxDevices.$(OBJEXT) \
-	toolboxOptions.$(OBJEXT) toolboxScripts.$(OBJEXT) \
-	toolboxShrink.$(OBJEXT)
+am__vmware_toolbox_SOURCES_DIST = debugStdio.c toolbox-gtk.c \
+	toolboxAbout.c toolboxDevices.c toolboxOptions.c \
+	toolboxScripts.c toolboxShrink.c
+@HAVE_X11_TRUE@am_vmware_toolbox_OBJECTS = debugStdio.$(OBJEXT) \
+@HAVE_X11_TRUE@	toolbox-gtk.$(OBJEXT) toolboxAbout.$(OBJEXT) \
+@HAVE_X11_TRUE@	toolboxDevices.$(OBJEXT) \
+@HAVE_X11_TRUE@	toolboxOptions.$(OBJEXT) \
+@HAVE_X11_TRUE@	toolboxScripts.$(OBJEXT) \
+@HAVE_X11_TRUE@	toolboxShrink.$(OBJEXT)
 vmware_toolbox_OBJECTS = $(am_vmware_toolbox_OBJECTS)
-vmware_toolbox_DEPENDENCIES = ../lib/conf/libConf.a \
-	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
-	../lib/guestApp/libGuestAppX11.a ../lib/hgfs/libHgfs.a \
-	../lib/procMgr/libProcMgr.a ../lib/rpcIn/libRpcIn.a \
-	../lib/rpcOut/libRpcOut.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/system/libSystem.a \
-	../lib/user/libUser.a ../lib/vmCheck/libVmCheck.a \
-	../lib/vmSignal/libVmSignal.a ../lib/wiper/libWiper.a \
-	../lib/err/libErr.a ../lib/backdoor/libBackdoor.a \
-	../lib/dict/libDict.a ../lib/message/libMessage.a \
-	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a ../lib/panicDefault/libPanicDefault.a \
-	../lib/panic/libPanic.a ../lib/stubs/libStubs.a
+am__DEPENDENCIES_1 =
+@HAVE_X11_TRUE@vmware_toolbox_DEPENDENCIES =  \
+@HAVE_X11_TRUE@	../lib/guestApp/libGuestAppX11.a $(COMMON) \
+@HAVE_X11_TRUE@	$(am__DEPENDENCIES_1)
+am_vmware_toolbox_cmd_OBJECTS = debugStdio.$(OBJEXT) \
+	toolbox-cmd.$(OBJEXT) toolboxcmd-devices.$(OBJEXT) \
+	toolboxcmd-scripts.$(OBJEXT) toolboxcmd-shrink.$(OBJEXT) \
+	toolboxcmd-stat.$(OBJEXT) toolboxcmd-time.$(OBJEXT)
+vmware_toolbox_cmd_OBJECTS = $(am_vmware_toolbox_cmd_OBJECTS)
+vmware_toolbox_cmd_DEPENDENCIES = ../libguestlib/libguestlib.la \
+	../lib/guestInfo/libGuestInfo.a ../lib/guestApp/libGuestApp.a \
+	$(COMMON) $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -91,8 +103,9 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(vmware_toolbox_SOURCES)
-DIST_SOURCES = $(vmware_toolbox_SOURCES)
+SOURCES = $(vmware_toolbox_SOURCES) $(vmware_toolbox_cmd_SOURCES)
+DIST_SOURCES = $(am__vmware_toolbox_SOURCES_DIST) \
+	$(vmware_toolbox_cmd_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -140,8 +153,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -177,6 +194,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -185,6 +204,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -236,27 +257,46 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CFLAGS = @GTK_CPPFLAGS@
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of
 # the alphabetical order so their symbols are properly resolved.
-vmware_toolbox_LDADD = ../lib/conf/libConf.a \
-	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
-	../lib/guestApp/libGuestAppX11.a ../lib/hgfs/libHgfs.a \
+COMMON = ../lib/conf/libConf.a ../lib/eventManager/libEventManager.a \
+	../lib/file/libFile.a ../lib/hgfs/libHgfs.a \
 	../lib/procMgr/libProcMgr.a ../lib/rpcIn/libRpcIn.a \
-	../lib/rpcOut/libRpcOut.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/system/libSystem.a \
-	../lib/user/libUser.a ../lib/vmCheck/libVmCheck.a \
-	../lib/vmSignal/libVmSignal.a ../lib/wiper/libWiper.a \
-	../lib/err/libErr.a ../lib/backdoor/libBackdoor.a \
-	../lib/dict/libDict.a ../lib/message/libMessage.a \
-	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a ../lib/panicDefault/libPanicDefault.a \
-	../lib/panic/libPanic.a ../lib/stubs/libStubs.a -lX11 \
-	@GTK_LIBS@ @ICU_LIBS@ $(am__empty)
-vmware_toolbox_SOURCES = debugStdio.c toolbox-gtk.c toolboxAbout.c \
-	toolboxDevices.c toolboxOptions.c toolboxScripts.c \
-	toolboxShrink.c
+	../lib/rpcOut/libRpcOut.a ../lib/string/libString.a \
+	../lib/system/libSystem.a ../lib/user/libUser.a \
+	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
+	../lib/wiper/libWiper.a ../lib/err/libErr.a \
+	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
+	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
+	../lib/sync/libSync.a ../lib/misc/libMisc.a \
+	../lib/panicDefault/libPanicDefault.a ../lib/panic/libPanic.a \
+	../lib/stubs/libStubs.a
+@HAVE_X11_TRUE@AM_CFLAGS = @GTK_CPPFLAGS@
+@HAVE_X11_TRUE@vmware_toolbox_LDADD =  \
+@HAVE_X11_TRUE@	../lib/guestApp/libGuestAppX11.a $(COMMON) \
+@HAVE_X11_TRUE@	-lX11 @GTK_LIBS@ $(am__append_2)
+@HAVE_X11_TRUE@vmware_toolbox_SOURCES = debugStdio.c toolbox-gtk.c \
+@HAVE_X11_TRUE@	toolboxAbout.c toolboxDevices.c \
+@HAVE_X11_TRUE@	toolboxOptions.c toolboxScripts.c \
+@HAVE_X11_TRUE@	toolboxShrink.c
+@HAVE_ICU_FALSE@@HAVE_X11_TRUE@vmware_toolbox_LINK = $(LINK)
+@HAVE_ICU_TRUE@@HAVE_X11_TRUE@vmware_toolbox_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+@HAVE_ICU_TRUE@@HAVE_X11_TRUE@                         $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
+@HAVE_ICU_TRUE@@HAVE_X11_TRUE@                         $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+
+vmware_toolbox_cmd_LDADD = ../libguestlib/libguestlib.la \
+	../lib/guestInfo/libGuestInfo.a ../lib/guestApp/libGuestApp.a \
+	$(COMMON) $(am__append_3)
+vmware_toolbox_cmd_SOURCES = debugStdio.c toolbox-cmd.c \
+	toolboxcmd-devices.c toolboxcmd-scripts.c toolboxcmd-shrink.c \
+	toolboxcmd-stat.c toolboxcmd-time.c
+@HAVE_ICU_FALSE@vmware_toolbox_cmd_LINK = $(LINK)
+@HAVE_ICU_TRUE@vmware_toolbox_cmd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+@HAVE_ICU_TRUE@                             $(LIBTOOLFLAGS) --mode=link $(CXX) \
+@HAVE_ICU_TRUE@                             $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
+@HAVE_ICU_TRUE@                             $(LDFLAGS) -o $@
+
 all: all-am
 
 .SUFFIXES:
@@ -320,7 +360,10 @@ clean-binPROGRAMS:
 	done
 vmware-toolbox$(EXEEXT): $(vmware_toolbox_OBJECTS) $(vmware_toolbox_DEPENDENCIES) 
 	@rm -f vmware-toolbox$(EXEEXT)
-	$(LINK) $(vmware_toolbox_OBJECTS) $(vmware_toolbox_LDADD) $(LIBS)
+	$(vmware_toolbox_LINK) $(vmware_toolbox_OBJECTS) $(vmware_toolbox_LDADD) $(LIBS)
+vmware-toolbox-cmd$(EXEEXT): $(vmware_toolbox_cmd_OBJECTS) $(vmware_toolbox_cmd_DEPENDENCIES) 
+	@rm -f vmware-toolbox-cmd$(EXEEXT)
+	$(vmware_toolbox_cmd_LINK) $(vmware_toolbox_cmd_OBJECTS) $(vmware_toolbox_cmd_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -329,12 +372,18 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debugStdio.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolbox-cmd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolbox-gtk.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxAbout.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxDevices.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxOptions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxScripts.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxShrink.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-devices.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-scripts.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-shrink.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-stat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/toolboxcmd-time.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -493,8 +542,6 @@ install-data-am:
 install-dvi: install-dvi-am
 
 install-exec-am: install-binPROGRAMS
-	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 
 install-html: install-html-am
 
@@ -527,38 +574,36 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-binPROGRAMS
-	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
 
-.MAKE: install-am install-exec-am install-strip uninstall-am
+.MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-binPROGRAMS \
 	clean-generic clean-libtool ctags distclean distclean-compile \
 	distclean-generic distclean-libtool distclean-tags distdir dvi \
 	dvi-am html html-am info info-am install install-am \
 	install-binPROGRAMS install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-exec-hook \
-	install-html install-html-am install-info install-info-am \
-	install-man install-pdf install-pdf-am install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-hook
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am tags uninstall uninstall-am \
+	uninstall-binPROGRAMS
 
 
-install-exec-hook:
-	$(INSTALL) -d $(datadir)/applications/
-	$(INSTALL) -m 644 ../scripts/common/vmware-toolbox.desktop \
-		$(datadir)/applications/
-	$(SED) -i s/Exec=.*/Exec=vmware-toolbox/ \
-		$(datadir)/applications/vmware-toolbox.desktop
-	$(INSTALL) -d /usr/share/pixmaps/vmware
-	$(INSTALL) -m 644 bigIcon.xpm \
-		/usr/share/pixmaps/vmware/vmware-toolbox.xpm
-uninstall-hook:
-	-$(RM) -f $(datadir)/share/applications/vmware-toolbox.desktop
-	-$(RM) -rf /usr/share/pixmaps/vmware
+@HAVE_X11_TRUE@   install-exec-hook:
+@HAVE_X11_TRUE@	$(INSTALL) -d $(DESTDIR)$(datadir)/applications/
+@HAVE_X11_TRUE@	$(INSTALL) -m 644 ../scripts/common/vmware-toolbox.desktop \
+@HAVE_X11_TRUE@		$(DESTDIR)$(datadir)/applications/
+@HAVE_X11_TRUE@	$(SED) -i s/Exec=.*/Exec=vmware-toolbox/ \
+@HAVE_X11_TRUE@		$(DESTDIR)$(datadir)/applications/vmware-toolbox.desktop
+@HAVE_X11_TRUE@	$(INSTALL) -d $(DESTDIR)/usr/share/pixmaps/vmware
+@HAVE_X11_TRUE@	$(INSTALL) -m 644 bigIcon.xpm \
+@HAVE_X11_TRUE@		$(DESTDIR)/usr/share/pixmaps/vmware/vmware-toolbox.xpm
+@HAVE_X11_TRUE@   uninstall-hook:
+@HAVE_X11_TRUE@	-$(RM) -f $(DESTDIR)$(datadir)/share/applications/vmware-toolbox.desktop
+@HAVE_X11_TRUE@	-$(RM) -rf $(DESTDIR)/usr/share/pixmaps/vmware
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

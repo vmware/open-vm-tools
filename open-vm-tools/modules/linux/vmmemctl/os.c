@@ -54,6 +54,14 @@
 #ifdef	CONFIG_PROC_FS
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
+/*
+ * The get_info callback of proc_dir_entry was removed in 2.6.26.
+ * We must therefore use the seq_file interface from that point on.
+ */
+#define VMW_USE_SEQ_FILE
+#include <linux/seq_file.h>
+#endif
 #endif	/* CONFIG_PROC_FS */
 
 #if	LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
@@ -192,8 +200,18 @@ typedef struct {
 
 #ifdef	CONFIG_PROC_FS
 #if	LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-static int os_proc_read(char *, char **, off_t, int);
 static struct proc_dir_entry *global_proc_entry;
+#ifdef VMW_USE_SEQ_FILE
+static int os_proc_open(struct inode *, struct file *);
+static struct file_operations global_proc_fops = {
+   .open = os_proc_open,
+   .read = seq_read,
+   .llseek = seq_lseek,
+   .release = single_release,
+};
+#else
+static int os_proc_read(char *, char **, off_t, int);
+#endif /* VMW_USE_SEQ_FILE */
 #else
 static int os_proc_read(char *, char **, off_t, int, int);
 static struct proc_dir_entry global_proc_entry = {
@@ -490,6 +508,47 @@ os_yield(void)
 }
 
 #ifdef	CONFIG_PROC_FS
+#ifdef VMW_USE_SEQ_FILE
+static int os_proc_show(struct seq_file *f,
+			void *data)
+{
+   os_status *s = &global_state.status;
+   char *buf = NULL;
+   int err = -1;
+
+   if (s->handler == NULL) {
+      err = 0;
+      goto out;
+   }
+
+   buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+   if (buf == NULL) {
+      err = -ENOMEM;
+      goto out;
+   }
+
+   s->handler(buf);
+   
+   if (seq_puts(f, buf) != 0) {
+      err = -ENOSPC;
+      goto out;
+   }
+
+   err = 0;
+
+  out:
+   kfree(buf);
+
+   return err;
+}
+
+static int os_proc_open(struct inode *inode,
+			struct file *file)
+{
+   return single_open(file, os_proc_show, NULL);
+}
+
+#else
 #if	LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 static int os_proc_read(char *buf,
                         char **start,
@@ -513,6 +572,7 @@ static int os_proc_read(char *buf,
    /* invoke registered handler */
    return(s->handler(buf));
 }
+#endif /* VMW_USE_SEQ_FILE */
 #endif
 
 void CDECL
@@ -550,7 +610,11 @@ os_init(const char *name,
 #if	LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
    global_proc_entry = create_proc_entry("vmmemctl", S_IFREG | S_IRUGO, NULL);
    if (global_proc_entry != NULL) {
+#ifdef VMW_USE_SEQ_FILE
+      global_proc_entry->proc_fops = &global_proc_fops;
+#else
       global_proc_entry->get_info = os_proc_read;
+#endif /* VMW_USE_SEQ_FILE */
    }
 #else
    proc_register(&proc_root, &global_proc_entry);

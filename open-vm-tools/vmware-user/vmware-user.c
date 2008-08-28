@@ -97,10 +97,10 @@ void VMwareUserRpcInErrorCB    (void *clientdata, char const *status);
 extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam);
 extern void ForeignTools_Shutdown(void);
 
-static Bool InitGdkWindow(GdkDisplay **dpy, GdkWindow **groupLeader,
-                          GdkWindow **rootWindow);
+static Bool InitGroupLeader(Window *groupLeader, Window *rootWindow);
 static Bool AcquireDisplayLock(void);
 static Bool QueryX11Lock(Display *dpy, Window w, Atom lockAtom);
+static void ReloadSelf(void);
 
 
 /*
@@ -363,9 +363,6 @@ VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
    if (gCopyPasteRegistered) {
       CopyPaste_OnReset();
    }
-   if (Unity_IsSupported()) {
-      Unity_Exit();
-   }
    return RPCIN_SETRETVALS(data, "ATR " TOOLS_DND_NAME, TRUE);
 }
 
@@ -574,14 +571,16 @@ VMwareUserRpcInSetOptionCB(char const **result,     // OUT
  *
  * VMwareUserXIOErrorHandler --
  *
- *      Handler for all X I/O errors. Xlib documentation says we should not return
- *      when handling I/O errors.
+ *      Handler for all X I/O errors. Xlib documentation says we should not
+ *      return when handling I/O errors.
  *
  * Results:
- *      1, but really we don't ever return.
+ *      On success, and assuming we're called inside the parent vmware-user
+ *      process (see comment below), we attempt to restart ourselves.  On
+ *      failure, we'll exit with EXIT_FAILURE.
  *
  * Side effects:
- *      Exits the application.
+ *      This function does not return.
  *
  *-----------------------------------------------------------------------------
  */
@@ -598,10 +597,13 @@ int VMwareUserXIOErrorHandler(Display *dpy)
    Debug("> VMwareUserXIOErrorHandler\n");
    if (my_pid == gParentPid) {
       VMwareUserCleanupRpc();
+      ReloadSelf();
+      exit(EXIT_FAILURE);
    } else {
       Debug("VMwareUserXIOErrorHandler hit from forked() child, not cleaning Rpc\n");
+      _exit(EXIT_FAILURE);
    }
-   exit(1);
+
    return 1;
 }
 
@@ -687,7 +689,7 @@ VMwareUserConfFileLoop(void *clientData) // IN
  *      This is main
  *
  * Results:
- *      0 on success, -1 otherwise
+ *      Returns either EXIT_SUCCESS or EXIT_FAILURE appropriately.
  *
  * Side effects:
  *      The linux toolbox ui will run and do a variety of tricks for your
@@ -708,18 +710,22 @@ main(int argc, char *argv[])
    gSigExit = FALSE;
    struct sigaction olds[ARRAYSIZE(gSignals)];
    int index;
-   GuestApp_Dict *confDict = Conf_Load();
+   GuestApp_Dict *confDict;
    const char *pathName;
+   Bool notifyPresent = TRUE;
 
    Atomic_Init();
 
    if (!VmCheck_IsVirtualWorld()) {
 #ifndef ALLOW_TOOLS_IN_FOREIGN_VM
-      Panic("vmware-user must be run inside a virtual machine.\n");
+      Warning("vmware-user must be run inside a virtual machine.\n");
+      return EXIT_SUCCESS;
 #else
       runningInForeignVM = TRUE;
 #endif
    }
+
+   confDict = Conf_Load();
 
    /* Set to system locale. */
    setlocale(LC_CTYPE, "");
@@ -736,7 +742,7 @@ main(int argc, char *argv[])
     */
    if (AcquireDisplayLock() == FALSE) {
       Warning("Another instance of vmware-user already running.  Exiting.\n");
-      return -1;
+      return EXIT_FAILURE;
    }
 
    gParentPid = getpid();
@@ -836,13 +842,13 @@ main(int argc, char *argv[])
    gEventQueue = EventManager_Init();
    if (gEventQueue == NULL) {
       Warning("Unable to create the event queue.\n\n");
-      return -1;
+      return EXIT_FAILURE;
    }
 
    if (runningInForeignVM) {
       Bool success = ForeignTools_Initialize(confDict);
       if (!success) {
-         return -1;
+         return EXIT_FAILURE;
       }
    }
 
@@ -853,16 +859,23 @@ main(int argc, char *argv[])
    GHI_Init(NULL, NULL);
    Resolution_Init(TOOLS_DND_NAME, gXDisplay);
 
+   if (!Notify_Init()) {
+#ifdef USE_NOTIFICATION
+      Warning("Unable to initialize notification system.\n\n");
+#endif
+      notifyPresent = FALSE;
+   }
+
    gRpcIn = RpcIn_Construct(gEventQueue);
    if (gRpcIn == NULL) {
       Warning("Unable to create the RpcIn object.\n\n");
-      return -1;
+      return EXIT_FAILURE;
    }
 
    if (!RpcIn_start(gRpcIn, RPCIN_POLL_TIME, VMwareUserRpcInResetCB,
                     NULL, VMwareUserRpcInErrorCB, NULL)) {
       Warning("Unable to start the receive loop.\n\n");
-      return -1;
+      return EXIT_FAILURE;
    }
 
    RpcIn_RegisterCallback(gRpcIn, "Capabilities_Register",
@@ -934,6 +947,10 @@ main(int argc, char *argv[])
       Debug("vmware-user failed to uninitialize blocking.\n");
    }
 
+   if (notifyPresent) {
+      Notify_Cleanup();
+   }
+
    /*
     * SIGUSR2 sets this to TRUE, indicating that we should relaunch ourselves.
     * This is useful during a Tools upgrade where we'd like to automatically
@@ -943,26 +960,25 @@ main(int argc, char *argv[])
     * environment variable.  If it fails for any reason, then we'll just exit.
     */
    if (gReloadSelf) {
-      execlp(VMUSER_TITLE, VMUSER_TITLE, NULL);
+      ReloadSelf();
    }
 
-   return 0;
+   return EXIT_SUCCESS;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * InitGdkWindow --
+ * InitGroupLeader --
  *
  *      This routine sets a few properties related to our main window created
  *      by {gdk,gtk}_init.  Specifically this routine sets the window title,
  *      sets the override_redirect X11 property, and reparents it to the root
  *      window,
  *
- *      In addition, this routine will return GDK handles for the following
+ *      In addition, this routine will return Xlib handles for the following
  *      objects:
- *        - This application's default display (think $DISPLAY)
  *        - Main or group leader window
  *        - Display's root window
  *
@@ -982,23 +998,36 @@ main(int argc, char *argv[])
  */
 
 static Bool
-InitGdkWindow(GdkDisplay **defaultDisplay,      // OUT: default display
-              GdkWindow **groupLeader,          // OUT: group leader window
-              GdkWindow **rootWindow)           // OUT: root window
+InitGroupLeader(Window *groupLeader,    // OUT: group leader window
+                Window *rootWindow)     // OUT: root window
 {
-   GdkDisplay *myDefaultDisplay;
-   GdkWindow *myGroupLeader;
-   GdkWindow *myRootWindow;
+   Window myGroupLeader;
+   Window myRootWindow;
+   XSetWindowAttributes attr = { .override_redirect = True };
 
-   myDefaultDisplay = gdk_display_get_default();
+   ASSERT(groupLeader);
+   ASSERT(rootWindow);
 
-   if (myDefaultDisplay == NULL) {
-      Warning("%s: unable to get default display\n", __func__);
-      return FALSE;
+#if GTK_CHECK_VERSION(2,0,0)
+   {
+      GdkDisplay *gdkDisplay = gdk_display_get_default();
+      GdkWindow *gdkLeader = gdk_display_get_default_group(gdkDisplay);
+      myGroupLeader = GDK_WINDOW_XWINDOW(gdkLeader);
    }
+#else
+   /*
+    * This requires digging around in gdk 1.x private code.  However, we'll
+    * assume that GTK 1.x isn't going anywhere, so this should remain stable.
+    */
+   myGroupLeader = gdk_leader_window;
+#endif
 
-   myGroupLeader = gdk_display_get_default_group(myDefaultDisplay);
-   gdk_window_set_title(myGroupLeader, VMUSER_TITLE);
+   myRootWindow = GDK_ROOT_WINDOW();
+
+   ASSERT(myGroupLeader);
+   ASSERT(myRootWindow);
+
+   XStoreName(GDK_DISPLAY(), myGroupLeader, VMUSER_TITLE);
 
    /*
     * Sanity check:  Set the override redirect property on our group leader
@@ -1006,12 +1035,11 @@ InitGdkWindow(GdkDisplay **defaultDisplay,      // OUT: default display
     * This makes sure that (a) a window manager can't re-parent our window,
     * and (b) that we remain a top-level window.
     */
-   myRootWindow = gdk_get_default_root_window();
-   gdk_window_set_override_redirect(myGroupLeader, True);
-   gdk_window_reparent(myGroupLeader, myRootWindow, 10, 10);
-   gdk_display_sync(myDefaultDisplay);
+   XChangeWindowAttributes(GDK_DISPLAY(), myGroupLeader, CWOverrideRedirect,
+                           &attr);
+   XReparentWindow(GDK_DISPLAY(), myGroupLeader, myRootWindow, 10, 10);
+   XSync(GDK_DISPLAY(), FALSE);
 
-   *defaultDisplay = myDefaultDisplay;
    *groupLeader = myGroupLeader;
    *rootWindow = myRootWindow;
 
@@ -1062,7 +1090,7 @@ static Bool
 AcquireDisplayLock(void)
 {
    Display *defaultDisplay;     // Current default X11 display.
-   Window queryWindow;          // Root window of defaultDisplay; used as root node
+   Window rootWindow;           // Root window of defaultDisplay; used as root node
                                 // passed to XQueryTree().
    Window groupLeader;          // Our instance's window group leader.  This is
                                 // implicitly created by gtk_init().
@@ -1070,35 +1098,22 @@ AcquireDisplayLock(void)
    Window *children = NULL;     // Array of windows returned by XQueryTree().
    unsigned int nchildren;      // Length of children.
 
-   Window parent, root;         // Throwaway window IDs for XQueryTree().
+   Window dummy1, dummy2;       // Throwaway window IDs for XQueryTree().
    Atom lockAtom;               // Refers to the "vmware-user-lock" X11 Atom.
 
    unsigned int index;
    Bool alreadyLocked = FALSE;  // Set to TRUE if we discover lock is held.
    Bool retval = FALSE;
 
-   {
-      GdkDisplay *defaultDisplayGdk;
-      GdkWindow *groupLeaderGdk;
-      GdkWindow *rootWindowGdk;
+   defaultDisplay = GDK_DISPLAY();
 
-      /*
-       * Reset some of our main window's settings & fetch GDK handles for
-       * the default display, group leader, and root window.
-       */
-      if (InitGdkWindow(&defaultDisplayGdk, &groupLeaderGdk,
-                        &rootWindowGdk) == FALSE) {
-         Warning("%s: unable to initialize main window.\n", __func__);
-         return FALSE;
-      }
-
-      /*
-       * Since the rest of this routine works in terms of Xlib rather than
-       * GDK, convert GDK handles to backing Xlib handles.
-       */
-      defaultDisplay = gdk_x11_display_get_xdisplay(defaultDisplayGdk);
-      queryWindow = GDK_WINDOW_XWINDOW(rootWindowGdk);
-      groupLeader = GDK_WINDOW_XWINDOW(groupLeaderGdk);
+   /*
+    * Reset some of our main window's settings & fetch Xlib handles for
+    * the GDK group leader and root windows.
+    */
+   if (InitGroupLeader(&groupLeader, &rootWindow) == FALSE) {
+      Warning("%s: unable to initialize main window.\n", __func__);
+      return FALSE;
    }
 
    /*
@@ -1140,7 +1155,7 @@ AcquireDisplayLock(void)
     * without ungrabbing the server first.
     */
 
-   if (XQueryTree(defaultDisplay, queryWindow, &root, &parent, &children,
+   if (XQueryTree(defaultDisplay, rootWindow, &dummy1, &dummy2, &children,
                   &nchildren) == 0) {
       Warning("%s: XQueryTree failed\n", __func__);
       goto out;
@@ -1245,4 +1260,31 @@ QueryX11Lock(Display *dpy,      // IN: X11 display to query
    XFree(data);
 
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ReloadSelf --
+ *
+ *      Re-launch vmware-user by attempting to execute VMUSER_TITLE
+ *      ('vmware-user'), relying on the user's search path.
+ *
+ * Results:
+ *      On success, vmware-user is relaunched in our stead.  On failure, we
+ *      exit with EXIT_FAILURE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+ReloadSelf(void)
+{
+   Debug("> %s\n", __func__);
+   execlp(VMUSER_TITLE, VMUSER_TITLE, NULL);
+   exit(EXIT_FAILURE);
 }

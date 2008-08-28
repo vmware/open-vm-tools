@@ -125,7 +125,7 @@ xmitFile(char *filename) //IN : file to be transmitted.
    RpcVMX_Log("%s: %s: ver - %d", LOG_START_MARK, filename, LOG_VERSION);
    while ((readLen = fread(buf, 1, sizeof buf, fp)) > 0 ) {
       if (Base64_Encode(buf, readLen, base64Buf, sizeof base64B - 1, NULL)) {
-         RpcVMX_Log(base64B);
+         RpcVMX_Log("%s", base64B);
       } else {
          Warning("Error in Base64_Encode\n");
          goto exit;
@@ -261,7 +261,7 @@ main(int argc, char *argv[])
       usage();
       return -1;
    } if (argc == 2) {
-      RpcVMX_Log(argv[1]);
+      RpcVMX_Log("%s", argv[1]);
       return 0;
    }
 

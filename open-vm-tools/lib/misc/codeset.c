@@ -62,6 +62,12 @@
 #   include <errno.h>
 #   include <su.h>
 #   include <sys/stat.h>
+#   include "hostinfo.h"
+#   include "hostType.h"
+#endif
+
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
 #endif
 
 #include <stdio.h>
@@ -140,7 +146,7 @@ DEBUG_ONLY(static Bool initedIcu = FALSE;)
  *----------------------------------------------------------------------------
  */
 
-utf16_t *
+static utf16_t *
 CodeSetGetModulePath(HANDLE hModule) // IN
 {
    utf16_t *pathW = NULL;
@@ -170,6 +176,87 @@ CodeSetGetModulePath(HANDLE hModule) // IN
 
   exit:
    return pathW;
+}
+
+#elif vmx86_devel // _WIN32
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetGetModulePath --
+ *
+ *	Retrieve the full path to the executable. Not supported under
+ *	VMvisor. Based on HostInfo_GetModulePath, simplified for safe
+ *	use before ICU is initialized.
+ *
+ * Results:
+ *      On success: The allocated, NUL-terminated file path.  
+ *         Note: This path can be a symbolic or hard link; it's just one
+ *         possible path to access the executable.
+ *         
+ *      On failure: NULL.
+ *
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+CodeSetGetModulePath(uint32 priv)
+{
+   char path[PATH_MAX];
+   Bool ret = FALSE;
+#if defined(__APPLE__)
+   uint32_t size;
+#else
+   ssize_t size;
+   Bool isSuper = FALSE;
+#endif
+
+   if ((priv != HGMP_PRIVILEGE) && (priv != HGMP_NO_PRIVILEGE)) {
+      return NULL;
+   }
+
+#if defined(__APPLE__)
+   size = sizeof path;
+   if (_NSGetExecutablePath(path, &size)) {
+      goto exit;
+   }
+
+#else
+#if defined(VMX86_SERVER)
+   if (HostType_OSIsPureVMK()) {
+      goto exit;
+   }
+#endif
+
+   if (priv == HGMP_PRIVILEGE) {
+      isSuper = IsSuperUser();
+      SuperUser(TRUE);
+   }
+
+   size = readlink("/proc/self/exe", path, sizeof path);
+   if (-1 == size) {
+      SuperUser(isSuper);
+      goto exit;
+   }
+
+   path[size] = '\0';
+
+   if (priv == HGMP_PRIVILEGE) {
+      SuperUser(isSuper);
+   }
+#endif
+
+   ret = TRUE;
+
+  exit:
+   if (ret) {
+      return strdup(path);
+   } else {
+      return NULL;
+   }
 }
 
 #endif // _WIN32
@@ -275,7 +362,6 @@ CodeSet_Init(void)
    /*
     * Devel builds use toolchain directory first.
     */
-
    {
       WCHAR icuFilePath[MAX_PATH] = { 0 };
       DWORD n = ExpandEnvironmentStringsW(ICU_DATA_FILE_PATH,
@@ -298,7 +384,6 @@ CodeSet_Init(void)
    /*
     * Data file must be in current module directory.
     */
-
    modPath = CodeSetGetModulePath(NULL);
    if (!modPath) {
       goto exit;
@@ -324,7 +409,6 @@ CodeSet_Init(void)
    /*
     * Check for file existence.
     */
-
    attribs = GetFileAttributesW((LPCWSTR) DynBuf_Get(&dbpath));
 
    if ((INVALID_FILE_ATTRIBUTES == attribs) ||
@@ -335,7 +419,6 @@ CodeSet_Init(void)
    /*
     * Convert path to local encoding using system APIs (old codeset).
     */
-
    if (!CodeSetOld_Utf16leToCurrent(DynBuf_Get(&dbpath),
                                     DynBuf_GetSize(&dbpath),
                                     &path, NULL)) {
@@ -345,22 +428,54 @@ CodeSet_Init(void)
 #else // } _WIN32 {
 
 #if vmx86_devel
-   /*
-    * Devel builds use toolchain directory first.
-    */
+   {
+      char *modPath;
+      char *lastSlash;
 
-   if (stat(ICU_DATA_FILE_PATH, &finfo) >= 0 && !S_ISDIR(finfo.st_mode)) {
-      if ((path = strdup(ICU_DATA_FILE_PATH)) == NULL) {
-	 goto exit;
+      /*
+       * Devel builds use toolchain directory first.
+       */
+      if (stat(ICU_DATA_FILE_PATH, &finfo) >= 0 && !S_ISDIR(finfo.st_mode)) {
+         if ((path = strdup(ICU_DATA_FILE_PATH)) == NULL) {
+            goto exit;
+         }
+         goto found;
       }
-      goto found;
+
+      /*
+       * Then we try module directory, if we can get it.
+       */
+      modPath = CodeSetGetModulePath(HGMP_PRIVILEGE);
+      if (modPath) {
+         lastSlash = strrchr(modPath, DIRSEPC);
+         if (lastSlash) {
+            *lastSlash = '\0';
+
+            if (DynBuf_Append(&dbpath, modPath, strlen(modPath)) &&
+                DynBuf_Append(&dbpath, DIRSEPS, strlen(DIRSEPS)) &&
+                DynBuf_Append(&dbpath, ICU_DATA_FILE,
+                              strlen(ICU_DATA_FILE)) &&
+                DynBuf_Append(&dbpath, "\0", 1)) {
+
+               if ((stat((const char *) DynBuf_Get(&dbpath), &finfo) >= 0) &&
+                   !S_ISDIR(finfo.st_mode)) {
+                  free(modPath);
+                  path = DynBuf_Detach(&dbpath);
+                  goto found;
+               } else {
+                  DynBuf_SetSize(&dbpath, 0);
+               }
+            }
+         }
+
+         free(modPath);
+      }
    }
-#endif
+#endif // vmx86_devel
 
    /*
     * Data file must be in POSIX_ICU_DIR.
     */
-
    if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR)) ||
        !DynBuf_Append(&dbpath, DIRSEPS, strlen(DIRSEPS)) ||
        !DynBuf_Append(&dbpath, ICU_DATA_FILE, strlen(ICU_DATA_FILE)) ||
@@ -371,7 +486,6 @@ CodeSet_Init(void)
    /*
     * Check for file existence. (DO NOT CHANGE TO 'stat' WRAPPER).
     */
-
    path = (char *) DynBuf_Detach(&dbpath);
    if (stat(path, &finfo) < 0 || S_ISDIR(finfo.st_mode)) {
       goto exit;
@@ -406,7 +520,6 @@ found:
 #ifdef _WIN32
    free(modPath);
 #endif
-
    free(path);
    DynBuf_Destroy(&dbpath);
 

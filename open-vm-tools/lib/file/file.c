@@ -645,11 +645,11 @@ FileFirstSlashIndex(ConstUnicode pathName,    // IN:
    ASSERT(pathName);
 
    firstFS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
-                                       U("/"), 0, 1);
+                                       "/", 0, 1);
 
 #if defined(_WIN32)
    firstBS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
-                                       U("\\"), 0, 1);
+                                       "\\", 0, 1);
 
    if ((firstFS != UNICODE_INDEX_NOT_FOUND) &&
        (firstBS != UNICODE_INDEX_NOT_FOUND)) {
@@ -692,11 +692,11 @@ FileLastSlashIndex(ConstUnicode pathName,    // IN:
    ASSERT(pathName);
 
    lastFS = Unicode_FindLastSubstrInRange(pathName, startIndex, -1,
-                                          U("/"), 0, 1);
+                                          "/", 0, 1);
 
 #if defined(_WIN32)
    lastBS = Unicode_FindLastSubstrInRange(pathName, startIndex, -1,
-                                          U("\\"), 0, 1);
+                                          "\\", 0, 1);
 
    if ((lastFS != UNICODE_INDEX_NOT_FOUND) &&
        (lastBS != UNICODE_INDEX_NOT_FOUND)) {
@@ -770,8 +770,8 @@ File_SplitName(ConstUnicode pathName,  // IN:
 
 #if defined(_WIN32)
    if ((pathLen > 2) &&
-       (Unicode_StartsWith(pathName, U("\\\\")) ||
-        Unicode_StartsWith(pathName, U("//")))) {
+       (Unicode_StartsWith(pathName, "\\\\") ||
+        Unicode_StartsWith(pathName, "//"))) {
       /* UNC path */
       volEnd = FileFirstSlashIndex(pathName, 2);
 
@@ -787,7 +787,7 @@ File_SplitName(ConstUnicode pathName,  // IN:
          }
       }
    } else if ((pathLen >= 2) &&
-              (Unicode_FindSubstrInRange(pathName, 1, 1, U(":"), 0,
+              (Unicode_FindSubstrInRange(pathName, 1, 1, ":", 0,
                                          1) != UNICODE_INDEX_NOT_FOUND)) {
       /* drive-letter path */
       volEnd = 2;
@@ -796,10 +796,10 @@ File_SplitName(ConstUnicode pathName,  // IN:
    if (volEnd > 0) {
       vol = Unicode_Substr(pathName, 0, volEnd);
    } else {
-      vol = Unicode_Duplicate(U(""));
+      vol = Unicode_Duplicate("");
    }
 #else
-   vol = Unicode_Duplicate(U(""));
+   vol = Unicode_Duplicate("");
 #endif /* _WIN32 */
 
    /*
@@ -812,7 +812,7 @@ File_SplitName(ConstUnicode pathName,  // IN:
    if (baseBegin >= volEnd) {
       bas = Unicode_Substr(pathName, baseBegin, -1);
    } else {
-      bas = Unicode_Duplicate(U(""));
+      bas = Unicode_Duplicate("");
    }
 
    /*
@@ -824,7 +824,7 @@ File_SplitName(ConstUnicode pathName,  // IN:
    if (length > 0) {
       dir = Unicode_Substr(pathName, volEnd, length);
    } else {
-      dir = Unicode_Duplicate(U(""));
+      dir = Unicode_Duplicate("");
    }
 
    /*
@@ -1035,7 +1035,7 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
    *presult = NULL;
 
    /* construct base full pathname to use */
-   basePath = Unicode_Join(dir, U(DIRSEPS), fileName, NULL);
+   basePath = Unicode_Join(dir, DIRSEPS, fileName, NULL);
 
    for (var = 0; var < 0xFFFFFFFF; var++) {
       Unicode temp;
@@ -1135,7 +1135,7 @@ File_MakeTemp(ConstUnicode tag,  // IN (OPT):
       File_GetPathName(tag, &dir, &fileName);
    } else {
       dir = File_GetTmpDir(TRUE);
-      fileName = Unicode_Duplicate(tag ? tag : U("vmware"));
+      fileName = Unicode_Duplicate(tag ? tag : "vmware");
    }
 
    fd = File_MakeTempEx(dir, fileName, presult);
@@ -1765,7 +1765,7 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
    }
 
    /* delete everything in the directory */
-   base = Unicode_Append(pathName, U(DIRSEPS));
+   base = Unicode_Append(pathName, DIRSEPS);
 
    for (i = 0; i < numFiles; i++) {
       Unicode curPath;
@@ -2003,11 +2003,11 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
    
    ASSERT(pathName);
    ASSERT(newExtension);
-   ASSERT(Unicode_StartsWith(newExtension, U(".")));
+   ASSERT(Unicode_StartsWith(newExtension, "."));
 
    File_GetPathName(pathName, &path, &base);
 
-   index = Unicode_FindLast(base, U("."));
+   index = Unicode_FindLast(base, ".");
 
    if (index != UNICODE_INDEX_NOT_FOUND) {
       Unicode oldBase = base;
@@ -2025,7 +2025,7 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
          for (i = 0; i < numExtensions ; i++) {
             Unicode oldExtension = va_arg(arguments, Unicode);
 
-            ASSERT(Unicode_StartsWith(oldExtension, U(".")));
+            ASSERT(Unicode_StartsWith(oldExtension, "."));
 
             if (Unicode_CompareRange(base, index, -1,
                                      oldExtension, 0, -1, FALSE) == 0) {
@@ -2048,7 +2048,7 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
    if (Unicode_IsEmpty(path)) {
       result = Unicode_Append(base, newExtension);
    } else {
-      result = Unicode_Join(path, U(DIRSEPS), base, newExtension, NULL);
+      result = Unicode_Join(path, DIRSEPS, base, newExtension, NULL);
    }
 
    Unicode_Free(path);

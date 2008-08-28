@@ -24,7 +24,7 @@
  *
  */
 
-#if defined(sun) && defined(SOL10)
+#if defined(sun) && !defined(SOL9)
 #include <memory.h>
 #endif
 

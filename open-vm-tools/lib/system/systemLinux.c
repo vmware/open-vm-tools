@@ -358,7 +358,10 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
       cmd = "shutdown -h now";
 #endif
    }
-   system(cmd);
+   if (system(cmd) == -1) {
+      fprintf(stderr, "Unable to execute %s command: \"%s\"\n",
+              reboot ? "reboot" : "shutdown", cmd);
+   }
 }
 
 
@@ -593,7 +596,11 @@ System_Daemon(Bool nochdir,
        * won't treat EPIPE as an error, because we'd like to carry on with
        * our own life, even if our parent -did- abandon us.  ;_;
        */
-      write(fds[1], &buf, sizeof buf);
+      if (write(fds[1], &buf, sizeof buf) == -1) {
+         fprintf(stderr, "write failed: %s\n", strerror(errno));
+         close(fds[1]);
+         return FALSE;
+      }
       close(fds[1]);
 
       if (!nochdir && (chdir("/") == -1)) {

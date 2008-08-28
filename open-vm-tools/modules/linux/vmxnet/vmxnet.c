@@ -705,9 +705,10 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    unsigned int irq_line;
    /* VMware's version of the magic number */
    unsigned int low_vmware_version;
-   unsigned int numRxBuffers, numRxBuffers2;
+   unsigned int numRxBuffers, numRxBuffers2, maxNumRxBuffers, defNumRxBuffers;
    unsigned int numTxBuffers, maxNumTxBuffers, defNumTxBuffers;
    Bool morphed = FALSE;
+   Bool enhanced = FALSE;
    int i;
    unsigned int driverDataSize;
 
@@ -912,19 +913,37 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
    printk("\n");
 
-   /* determine rx/tx ring sizes */
+   /* check if this is enhanced vmxnet device */
+   if ((lp->features & VMXNET_FEATURE_TSO) && 
+       (lp->features & VMXNET_FEATURE_JUMBO_FRAME)) {
+	enhanced = TRUE;
+   }
+
+   /* determine rx/tx ring sizes */ 
+   if (enhanced) {
+      maxNumRxBuffers = ENHANCED_VMXNET2_MAX_NUM_RX_BUFFERS;
+      defNumRxBuffers = ENHANCED_VMXNET2_DEFAULT_NUM_RX_BUFFERS;
+   } else {
+      maxNumRxBuffers = VMXNET2_MAX_NUM_RX_BUFFERS;
+      defNumRxBuffers = VMXNET2_DEFAULT_NUM_RX_BUFFERS;
+   }
+
    outl(VMXNET_CMD_GET_NUM_RX_BUFFERS, dev->base_addr + VMXNET_COMMAND_ADDR);
    numRxBuffers = inl(dev->base_addr + VMXNET_COMMAND_ADDR);
-   if (numRxBuffers == 0 || numRxBuffers > VMXNET2_MAX_NUM_RX_BUFFERS) {
-      numRxBuffers = VMXNET2_DEFAULT_NUM_RX_BUFFERS;
+   if (numRxBuffers == 0 || numRxBuffers > maxNumRxBuffers) {
+      numRxBuffers = defNumRxBuffers;
    }
 
    if (lp->jumboFrame || lp->lpd) {
       numRxBuffers2 = numRxBuffers * 4;
+      if (numRxBuffers2 > VMXNET2_MAX_NUM_RX_BUFFERS2) {
+         numRxBuffers2 = VMXNET2_MAX_NUM_RX_BUFFERS2;
+      }
    } else {
       numRxBuffers2 = 1;
    }
 
+   printk("numRxBuffers = %d, numRxBuffers2 = %d\n", numRxBuffers, numRxBuffers2);
    if (lp->tso || lp->jumboFrame) {
       maxNumTxBuffers = VMXNET2_MAX_NUM_TX_BUFFERS_TSO;
       defNumTxBuffers = VMXNET2_DEFAULT_NUM_TX_BUFFERS_TSO;

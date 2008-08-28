@@ -1051,6 +1051,8 @@ GuestdDaemon(GuestApp_Dict **pConfDict,       // IN/OUT
    data = ToolsDaemon_Init(pConfDict, EXEC_LOG,
                            GuestdExecuteHalt, pConfDict,
                            GuestdExecuteReboot, pConfDict,
+                           NULL, NULL,
+                           NULL, NULL,
                            NULL, NULL);
    if (!data) {
       Warning("Unable to start guestd.\n");
@@ -1230,8 +1232,12 @@ GuestdAlreadyRunning(char const *pidFileName) // IN
 
    pidFile = fopen(pidFileName, "r");
    if (pidFile) {
-      fscanf(pidFile, "%"FMTPID"\n", &pid);
+      int ret;
+      ret = fscanf(pidFile, "%"FMTPID"\n", &pid);
       fclose(pidFile);
+      if (ret != 1) {
+        return FALSE;
+      }
 
       /*
        * XXX There is an assumption that if the process with pid is alive,
@@ -1342,6 +1348,15 @@ main(int argc,    // IN: Number of command line arguments
    const char *arguments[1];
    int argumentIndex;
    int expectedArgumentIndex;
+
+   if (!VmCheck_IsVirtualWorld()) {
+#ifndef ALLOW_TOOLS_IN_FOREIGN_VM
+      Warning("The VMware service must be run from within a virtual machine.\n");
+      return 0;
+#else
+      runningInForeignVM = TRUE;
+#endif
+   }
 
    confDict = Conf_Load();
 
@@ -1458,14 +1473,6 @@ main(int argc,    // IN: Number of command line arguments
 
    if (help) {
       GuestdUsage(argv[0], 0);
-   }
-
-   if (!VmCheck_IsVirtualWorld()) {
-#ifndef ALLOW_TOOLS_IN_FOREIGN_VM
-      Panic("The VMware service must be run from within a virtual machine.\n");
-#else
-      runningInForeignVM = TRUE;
-#endif
    }
 
    if (rpci) {

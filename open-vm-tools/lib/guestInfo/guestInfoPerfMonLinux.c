@@ -180,7 +180,9 @@ GuestInfoMonitorReadMeminfo(GuestMemInfo *vmStats)   // OUT: filled vmstats
    }
 
    while(!feof(fp)) {
-      fscanf(fp, "%s %"FMT64"u", buf, &value);
+      if (fscanf(fp, "%s %"FMT64"u", buf, &value) != 2) {
+         continue;
+      }
       if (StrUtil_StartsWith(buf, "MemTotal")) {
          vmStats->memTotal = value;
       }

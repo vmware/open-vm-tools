@@ -28,7 +28,11 @@ vmware_user_LDADD += ../lib/conf/libConf.a
 vmware_user_LDADD += ../lib/dnd/libDnd.a
 vmware_user_LDADD += ../lib/eventManager/libEventManager.a
 vmware_user_LDADD += ../lib/file/libFile.a
-vmware_user_LDADD += ../lib/ghIntegrationStub/libghIntegrationStub.a
+if ENABLE_UNITY
+   vmware_user_LDADD += ../lib/ghIntegration/libGhIntegration.a
+else
+   vmware_user_LDADD += ../lib/ghIntegrationStub/libGhIntegrationStub.a
+endif
 vmware_user_LDADD += ../lib/guestApp/libGuestAppX11.a
 vmware_user_LDADD += ../lib/guestInfo/libGuestInfo.a
 vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.a
@@ -44,12 +48,16 @@ vmware_user_LDADD += ../lib/rpcOut/libRpcOut.a
 vmware_user_LDADD += ../lib/rpcVmx/libRpcVmx.a
 vmware_user_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.a
 vmware_user_LDADD += ../lib/socketMgr/libSocketMgr.a
-vmware_user_LDADD += ../lib/strUtil/libStrUtil.a
 vmware_user_LDADD += ../lib/string/libString.a
 vmware_user_LDADD += ../lib/sync/libSync.a
 vmware_user_LDADD += ../lib/syncDriver/libSyncDriver.a
 vmware_user_LDADD += ../lib/system/libSystem.a
-vmware_user_LDADD += ../lib/unityStub/libunityStub.a
+if ENABLE_UNITY
+   vmware_user_LDADD += ../lib/unity/libUnity.a
+   vmware_user_LDADD += ../lib/unityWindowTracker/libUnityWindowTracker.a
+else
+   vmware_user_LDADD += ../lib/unityStub/libUnityStub.a
+endif
 vmware_user_LDADD += ../lib/user/libUser.a
 vmware_user_LDADD += ../lib/vixTools/libVixTools.a
 vmware_user_LDADD += ../lib/vmCheck/libVmCheck.a
@@ -72,11 +80,21 @@ vmware_user_LDADD += ../lib/auth/libAuth.a
 vmware_user_LDADD += ../lib/panicDefault/libPanicDefault.a
 vmware_user_LDADD += ../lib/panic/libPanic.a
 vmware_user_LDADD += ../lib/stubs/libStubs.a
+if ENABLE_UNITY
+   vmware_user_LDADD += ../lib/appUtil/libAppUtil.a
+   vmware_user_LDADD += ../lib/image/libImage.a
+   vmware_user_LDADD += ../lib/raster/libRaster.a
+   vmware_user_LDADD += ../lib/region/libRegion.a
+endif
 vmware_user_LDADD += -lcrypt
 vmware_user_LDADD += @GTK_LIBS@
 vmware_user_LDADD += @VMWARE_USER_LDADD@
 vmware_user_LDADD += @COMMON_XLIBS@
-vmware_user_LDADD += @ICU_LIBS@
+if ENABLE_UNITY
+   vmware_user_LDADD += @URIPARSER_LIBS@
+   vmware_user_LDADD += @LIBPNG_LIBS@
+   vmware_user_LDADD += @ZLIB_LIBS@
+endif
 
 vmware_user_SOURCES =
 vmware_user_SOURCES += copyPaste.c
@@ -85,12 +103,22 @@ vmware_user_SOURCES += dnd.c
 vmware_user_SOURCES += foreignVMToolsDaemon.c
 vmware_user_SOURCES += foreignVMToolsNetworking.c
 vmware_user_SOURCES += foundryToolsDaemon.c
+vmware_user_SOURCES += notify.c
 vmware_user_SOURCES += pointer.c
 vmware_user_SOURCES += vmware-user.c
 
+if HAVE_ICU
+   vmware_user_LDADD += @ICU_LIBS@
+   vmware_user_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+                      $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
+                      $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+else
+   vmware_user_LINK = $(LINK)
+endif
+
 install-exec-hook:
-	$(INSTALL) -d $(datadir)/applications/
+	$(INSTALL) -d $(DESTDIR)$(datadir)/applications/
 	$(INSTALL) -m 644 ../scripts/common/vmware-user.desktop \
-		$(datadir)/applications/
+		$(DESTDIR)$(datadir)/applications/
 uninstall-hook:
-	-$(RM) -f $(datadir)/applications/vmware-user.desktop
+	-$(RM) -f $(DESTDIR)$(datadir)/applications/vmware-user.desktop

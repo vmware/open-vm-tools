@@ -15,10 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libunityStub.a
+noinst_LIBRARIES = libUnityStub.a
 
-libunityStub_a_SOURCES =
-libunityStub_a_SOURCES += unityStub.c
+libUnityStub_a_SOURCES =
+libUnityStub_a_SOURCES += unityStub.c
 
 AM_CFLAGS = @GTK_CPPFLAGS@
 AM_CFLAGS += @LIB_FILE_CPPFLAGS@

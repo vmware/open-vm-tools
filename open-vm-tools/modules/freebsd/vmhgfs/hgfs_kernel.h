@@ -133,6 +133,10 @@ typedef HgfsRequest     HgfsRequestHeader;
  * in HgfsVfsMount() and destroyed in HgfsVfsUnmount().
  */
 typedef struct HgfsSuperInfo {
+   Bool uidSet;
+   uid_t uid;
+   Bool gidSet;
+   gid_t gid;
    /* Request container */
    HgfsKReqContainerHandle reqs;        /* See request.h. */
    /* For filesystem */

@@ -447,40 +447,36 @@ Hostinfo_SystemUpTime(void)
 {
 #if defined(__APPLE__)
    return HostinfoMacAbsTimeNS() / 1000ULL;
-#else
-#if defined(VMX86_SERVER)
-   if (HostType_OSIsPureVMK()) {
-      uint64 uptime;
-      VMK_ReturnStatus status;
+#elif defined(VMX86_SERVER)
+   uint64 uptime;
+   VMK_ReturnStatus status;
 
-      status = VMKernel_GetUptimeUS(&uptime);
-      if (status != VMK_OK) {
-	 return 0;
+   if (VmkSyscall_Init(FALSE, NULL, 0)) {
+      status = CosVmnix_GetUptimeUS(&uptime);
+      if (status == VMK_OK) {
+         return uptime;
       }
-
-      return uptime;
-   } else {
-#endif /* ifdef VMX86_SERVER */
-      int res;
-      double uptime;
-      FILE *f;
-
-      f = Posix_Fopen("/proc/uptime", "r");
-      if (!f) {
-         Warning(LGPFX" Failed to open /proc/uptime: %s\n", Msg_ErrString());
-         return 0;
-      }
-
-      res = fscanf(f, "%lf", &uptime);
-      fclose(f);
-      if (res != 1) {
-         Warning(LGPFX" Failed to parse /proc/uptime\n");
-         return 0;
-      }
-      return uptime * 1000 * 1000;
-#if defined(VMX86_SERVER)
    }
-#endif /* ifdef VMX86_SERVER */
+
+   return 0;
+#else
+   int res;
+   double uptime;
+   FILE *f;
+
+   f = Posix_Fopen("/proc/uptime", "r");
+   if (!f) {
+      Warning(LGPFX" Failed to open /proc/uptime: %s\n", Msg_ErrString());
+      return 0;
+   }
+
+   res = fscanf(f, "%lf", &uptime);
+   fclose(f);
+   if (res != 1) {
+      Warning(LGPFX" Failed to parse /proc/uptime\n");
+      return 0;
+   }
+   return uptime * 1000 * 1000;
 #endif
 }
 
@@ -1442,7 +1438,7 @@ Hostinfo_GetModulePath(uint32 priv)
       SuperUser(TRUE);
    }
 
-   path = Posix_ReadLink(U("/proc/self/exe"));
+   path = Posix_ReadLink("/proc/self/exe");
 
    if (priv == HGMP_PRIVILEGE) {
       SuperUser(isSuper);
@@ -1546,20 +1542,20 @@ Hostinfo_GetUser()
    char buffer[BUFSIZ];
    struct passwd pw;
    struct passwd *ppw = &pw;
-   char *env = NULL;
+   Unicode env = NULL;
    Unicode name = NULL;
 
    if ((Posix_Getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
        (ppw != NULL)) {
       if (pw.pw_name) {
-         name = Unicode_Alloc(pw.pw_name, STRING_ENCODING_DEFAULT);
+         name = Unicode_Duplicate(pw.pw_name);
       }
    }
 
    if (!name) {
       env = Posix_Getenv("USER");
       if (env) {
-         name = Unicode_Alloc(env, STRING_ENCODING_DEFAULT);
+         name = Unicode_Duplicate(env);
       }
    }
    return name;

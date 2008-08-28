@@ -48,8 +48,14 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@HAVE_X11_TRUE@am__append_1 = resolution
-@HAVE_X11_TRUE@am__append_2 = unityStub
+@ENABLE_UNITY_TRUE@am__append_1 = appUtil
+@ENABLE_UNITY_TRUE@am__append_2 = ghIntegration
+@ENABLE_UNITY_FALSE@am__append_3 = ghIntegrationStub
+@ENABLE_UNITY_TRUE@am__append_4 = image
+@ENABLE_UNITY_TRUE@am__append_5 = raster region
+@HAVE_X11_TRUE@am__append_6 = resolution
+@ENABLE_UNITY_TRUE@am__append_7 = unity unityWindowTracker
+@ENABLE_UNITY_FALSE@am__append_8 = unityStub
 subdir = lib
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -71,14 +77,15 @@ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = guestRpc auth backdoor conf dict dnd dynxdr err \
-	eventManager file foundryMsg ghIntegrationStub guestApp \
-	guestInfo hgfs hgfsBd hgfsServer hgfsServerManagerGuest \
-	hgfsServerPolicyGuest deployPkg impersonate message misc \
-	netUtil panic panicDefault printer procMgr resolution rpcIn \
-	rpcOut rpcVmx SLPv2Parser socketMgr strUtil string stubs sync \
-	syncDriver system toolsLogger unicode unityStub user vixTools \
-	vmBackupLib vmCheck vmSignal wiper
+DIST_SUBDIRS = guestRpc appUtil auth backdoor conf dict deployPkg dnd \
+	dynxdr err eventManager file foundryMsg ghIntegration \
+	ghIntegrationStub guestApp guestInfo hgfs hgfsBd hgfsServer \
+	hgfsServerManagerGuest hgfsServerPolicyGuest image impersonate \
+	message misc netUtil panic panicDefault printer procMgr raster \
+	region resolution rpcIn rpcOut rpcVmx SLPv2Parser socketMgr \
+	string stubs sync syncDriver system toolsLogger unicode unity \
+	unityWindowTracker unityStub user vixTools vmBackupLib vmCheck \
+	vmSignal wiper
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -124,8 +131,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -161,6 +172,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -169,6 +182,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -220,14 +235,15 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = guestRpc auth backdoor conf dict dnd dynxdr err eventManager \
-	file foundryMsg ghIntegrationStub guestApp guestInfo hgfs \
-	hgfsBd hgfsServer hgfsServerManagerGuest hgfsServerPolicyGuest \
-	deployPkg impersonate message misc netUtil panic panicDefault \
-	printer procMgr $(am__append_1) rpcIn rpcOut rpcVmx \
-	SLPv2Parser socketMgr strUtil string stubs sync syncDriver \
-	system toolsLogger unicode $(am__append_2) user vixTools \
-	vmBackupLib vmCheck vmSignal wiper
+SUBDIRS = guestRpc $(am__append_1) auth backdoor conf dict deployPkg \
+	dnd dynxdr err eventManager file foundryMsg $(am__append_2) \
+	$(am__append_3) guestApp guestInfo hgfs hgfsBd hgfsServer \
+	hgfsServerManagerGuest hgfsServerPolicyGuest $(am__append_4) \
+	impersonate message misc netUtil panic panicDefault printer \
+	procMgr $(am__append_5) $(am__append_6) rpcIn rpcOut rpcVmx \
+	SLPv2Parser socketMgr string stubs sync syncDriver system \
+	toolsLogger unicode $(am__append_7) $(am__append_8) user \
+	vixTools vmBackupLib vmCheck vmSignal wiper
 all: all-recursive
 
 .SUFFIXES:

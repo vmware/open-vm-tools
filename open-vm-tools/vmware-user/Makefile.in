@@ -50,6 +50,18 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = vmware-user$(EXEEXT)
+@ENABLE_UNITY_TRUE@am__append_1 = ../lib/ghIntegration/libGhIntegration.a
+@ENABLE_UNITY_FALSE@am__append_2 = ../lib/ghIntegrationStub/libGhIntegrationStub.a
+@ENABLE_UNITY_TRUE@am__append_3 = ../lib/unity/libUnity.a \
+@ENABLE_UNITY_TRUE@	../lib/unityWindowTracker/libUnityWindowTracker.a
+@ENABLE_UNITY_FALSE@am__append_4 = ../lib/unityStub/libUnityStub.a
+@ENABLE_UNITY_TRUE@am__append_5 = ../lib/appUtil/libAppUtil.a \
+@ENABLE_UNITY_TRUE@	../lib/image/libImage.a \
+@ENABLE_UNITY_TRUE@	../lib/raster/libRaster.a \
+@ENABLE_UNITY_TRUE@	../lib/region/libRegion.a
+@ENABLE_UNITY_TRUE@am__append_6 = @URIPARSER_LIBS@ @LIBPNG_LIBS@ \
+@ENABLE_UNITY_TRUE@	@ZLIB_LIBS@ $(am__empty)
+@HAVE_ICU_TRUE@am__append_7 = @ICU_LIBS@
 subdir = vmware-user
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -64,12 +76,13 @@ PROGRAMS = $(bin_PROGRAMS)
 am_vmware_user_OBJECTS = copyPaste.$(OBJEXT) debugStdio.$(OBJEXT) \
 	dnd.$(OBJEXT) foreignVMToolsDaemon.$(OBJEXT) \
 	foreignVMToolsNetworking.$(OBJEXT) \
-	foundryToolsDaemon.$(OBJEXT) pointer.$(OBJEXT) \
-	vmware-user.$(OBJEXT)
+	foundryToolsDaemon.$(OBJEXT) notify.$(OBJEXT) \
+	pointer.$(OBJEXT) vmware-user.$(OBJEXT)
 vmware_user_OBJECTS = $(am_vmware_user_OBJECTS)
+am__DEPENDENCIES_1 =
 vmware_user_DEPENDENCIES = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
-	../lib/ghIntegrationStub/libghIntegrationStub.a \
+	$(am__append_1) $(am__append_2) \
 	../lib/guestApp/libGuestAppX11.a \
 	../lib/guestInfo/libGuestInfo.a ../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
@@ -80,19 +93,20 @@ vmware_user_DEPENDENCIES = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/resolution/libResolution.a ../lib/rpcIn/libRpcIn.a \
 	../lib/rpcOut/libRpcOut.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/SLPv2Parser/libSLPv2Parser.a \
-	../lib/socketMgr/libSocketMgr.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/sync/libSync.a \
-	../lib/syncDriver/libSyncDriver.a ../lib/system/libSystem.a \
-	../lib/unityStub/libunityStub.a ../lib/user/libUser.a \
-	../lib/vixTools/libVixTools.a ../lib/vmCheck/libVmCheck.a \
-	../lib/vmSignal/libVmSignal.a ../lib/wiper/libWiper.a \
-	../lib/err/libErr.a ../lib/foundryMsg/libFoundryMsg.a \
+	../lib/socketMgr/libSocketMgr.a ../lib/string/libString.a \
+	../lib/sync/libSync.a ../lib/syncDriver/libSyncDriver.a \
+	../lib/system/libSystem.a $(am__append_3) $(am__append_4) \
+	../lib/user/libUser.a ../lib/vixTools/libVixTools.a \
+	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
+	../lib/wiper/libWiper.a ../lib/err/libErr.a \
+	../lib/foundryMsg/libFoundryMsg.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
 	../lib/dynxdr/libDynxdr.a ../lib/hgfs/libHgfs.a \
 	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
 	../lib/misc/libMisc.a ../lib/procMgr/libProcMgr.a \
 	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
-	../lib/panic/libPanic.a ../lib/stubs/libStubs.a
+	../lib/panic/libPanic.a ../lib/stubs/libStubs.a \
+	$(am__append_5) $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -154,8 +168,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -191,6 +209,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -199,6 +219,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -257,7 +279,7 @@ AM_CFLAGS = @GTK_CPPFLAGS@ @VMWARE_USER_CPPFLAGS@ \
 # the alphabetical order so their symbols are properly resolved.
 vmware_user_LDADD = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
-	../lib/ghIntegrationStub/libghIntegrationStub.a \
+	$(am__append_1) $(am__append_2) \
 	../lib/guestApp/libGuestAppX11.a \
 	../lib/guestInfo/libGuestInfo.a ../lib/guestRpc/libGuestRpc.a \
 	../lib/hgfsServer/libHgfsServer.a \
@@ -268,24 +290,29 @@ vmware_user_LDADD = ../lib/conf/libConf.a ../lib/dnd/libDnd.a \
 	../lib/resolution/libResolution.a ../lib/rpcIn/libRpcIn.a \
 	../lib/rpcOut/libRpcOut.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/SLPv2Parser/libSLPv2Parser.a \
-	../lib/socketMgr/libSocketMgr.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/sync/libSync.a \
-	../lib/syncDriver/libSyncDriver.a ../lib/system/libSystem.a \
-	../lib/unityStub/libunityStub.a ../lib/user/libUser.a \
-	../lib/vixTools/libVixTools.a ../lib/vmCheck/libVmCheck.a \
-	../lib/vmSignal/libVmSignal.a ../lib/wiper/libWiper.a \
-	../lib/err/libErr.a ../lib/foundryMsg/libFoundryMsg.a \
+	../lib/socketMgr/libSocketMgr.a ../lib/string/libString.a \
+	../lib/sync/libSync.a ../lib/syncDriver/libSyncDriver.a \
+	../lib/system/libSystem.a $(am__append_3) $(am__append_4) \
+	../lib/user/libUser.a ../lib/vixTools/libVixTools.a \
+	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
+	../lib/wiper/libWiper.a ../lib/err/libErr.a \
+	../lib/foundryMsg/libFoundryMsg.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
 	../lib/dynxdr/libDynxdr.a ../lib/hgfs/libHgfs.a \
 	../lib/message/libMessage.a ../lib/unicode/libUnicode.a \
 	../lib/misc/libMisc.a ../lib/procMgr/libProcMgr.a \
 	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
-	../lib/panic/libPanic.a ../lib/stubs/libStubs.a -lcrypt \
-	@GTK_LIBS@ @VMWARE_USER_LDADD@ @COMMON_XLIBS@ @ICU_LIBS@ \
-	$(am__empty)
+	../lib/panic/libPanic.a ../lib/stubs/libStubs.a \
+	$(am__append_5) -lcrypt @GTK_LIBS@ @VMWARE_USER_LDADD@ \
+	@COMMON_XLIBS@ $(am__append_6) $(am__append_7)
 vmware_user_SOURCES = copyPaste.c debugStdio.c dnd.c \
 	foreignVMToolsDaemon.c foreignVMToolsNetworking.c \
-	foundryToolsDaemon.c pointer.c vmware-user.c
+	foundryToolsDaemon.c notify.c pointer.c vmware-user.c
+@HAVE_ICU_FALSE@vmware_user_LINK = $(LINK)
+@HAVE_ICU_TRUE@vmware_user_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+@HAVE_ICU_TRUE@                      $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
+@HAVE_ICU_TRUE@                      $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+
 all: all-am
 
 .SUFFIXES:
@@ -349,7 +376,7 @@ clean-binPROGRAMS:
 	done
 vmware-user$(EXEEXT): $(vmware_user_OBJECTS) $(vmware_user_DEPENDENCIES) 
 	@rm -f vmware-user$(EXEEXT)
-	$(LINK) $(vmware_user_OBJECTS) $(vmware_user_LDADD) $(LIBS)
+	$(vmware_user_LINK) $(vmware_user_OBJECTS) $(vmware_user_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -363,6 +390,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foreignVMToolsDaemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foreignVMToolsNetworking.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/foundryToolsDaemon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/notify.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pointer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vmware-user.Po@am__quote@
 
@@ -578,11 +606,11 @@ uninstall-am: uninstall-binPROGRAMS
 
 
 install-exec-hook:
-	$(INSTALL) -d $(datadir)/applications/
+	$(INSTALL) -d $(DESTDIR)$(datadir)/applications/
 	$(INSTALL) -m 644 ../scripts/common/vmware-user.desktop \
-		$(datadir)/applications/
+		$(DESTDIR)$(datadir)/applications/
 uninstall-hook:
-	-$(RM) -f $(datadir)/applications/vmware-user.desktop
+	-$(RM) -f $(DESTDIR)$(datadir)/applications/vmware-user.desktop
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -140,16 +140,6 @@
  */
 typedef uint32 Vmxnet_DDMagic;
 
-
-/*
- * Max number of packet patterns in a single filter & maximum packet size
- * that can match a filter.  Used by vmxnet wake-on-packet-pattern-receive.
- */
-
-#define MAX_NUM_FILTER_PTTRNS   6
-#define MAX_PKT_FILTER_SIZE   128
-
-
 /*
  * Wake packet pattern commands sent through VMXNET_WAKE_PKT_PATTERNS port
  */
@@ -177,23 +167,4 @@ typedef union Vmxnet_WakePktCmd {
    } pktPttrn;
 } Vmxnet_WakePktCmd;
 
-
-/*
- * Representation for packet filter pattern set, needs to fit w/i an MPN
- */
-
-typedef struct Vmxnet_PttrnBytes {
-   uint8 byteOff; /* offset within packet of pattern byte */
-   uint8 byteVal; /* value of pattern byte within packet */
-} Vmxnet_PttrnBytes;
-
-typedef struct Vmxnet_PktFltrPttrns {
-   uint8 prevCmd; /* to check sanity of VMXNET_PM_OPCODE_START..END sequence */
-   uint8 nmPttrns; /* count patterns 1..MAX_NUM_FILTER_PTTRNS */
-   uint8 nmPttrnBytes[MAX_NUM_FILTER_PTTRNS]; /* 1..MAX_PKT_FILTER_SIZE */
-   Vmxnet_PttrnBytes pttrnBytes[MAX_NUM_FILTER_PTTRNS][MAX_PKT_FILTER_SIZE];
-} Vmxnet_PktFltrPttrns;
-
 #endif /* _VMXNET_DEF_H_ */
-
-

@@ -43,7 +43,6 @@ vmware_guestd_LDADD += ../lib/rpcOut/libRpcOut.a
 vmware_guestd_LDADD += ../lib/rpcVmx/libRpcVmx.a
 vmware_guestd_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.a
 vmware_guestd_LDADD += ../lib/socketMgr/libSocketMgr.a
-vmware_guestd_LDADD += ../lib/strUtil/libStrUtil.a
 vmware_guestd_LDADD += ../lib/string/libString.a
 vmware_guestd_LDADD += ../lib/sync/libSync.a
 vmware_guestd_LDADD += ../lib/syncDriver/libSyncDriver.a
@@ -74,7 +73,6 @@ else
    HGFS_BD =
 endif
 vmware_guestd_LDADD += $(HGFS_BD)
-vmware_guestd_LDADD += @ICU_LIBS@
 vmware_guestd_LDADD += @GUESTD_LDADD@
 
 vmware_guestd_SOURCES =
@@ -84,6 +82,15 @@ vmware_guestd_SOURCES += foreignVMToolsNetworking.c
 vmware_guestd_SOURCES += foundryToolsDaemon.c
 vmware_guestd_SOURCES += main.c
 vmware_guestd_SOURCES += toolsDaemon.c
+
+if HAVE_ICU
+   vmware_guestd_LDADD += @ICU_LIBS@
+   vmware_guestd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+                        $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
+                        $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+else
+   vmware_guestd_LINK = $(LINK)
+endif
 
 if LINUX
 if PAMD
@@ -96,8 +103,8 @@ endif PAMD
 endif LINUX
 
 install-exec-hook:
-	$(INSTALL) -d /etc/vmware-tools
-	echo 'disable-tools-version = "true"' > /etc/vmware-tools/tools.conf
+	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools
+	echo 'disable-tools-version = "true"' > $(DESTDIR)/etc/vmware-tools/tools.conf
 
 uninstall-hook:
-	$(RM) -rf /etc/vmware-tools
+	$(RM) -rf $(DESTDIR)/etc/vmware-tools

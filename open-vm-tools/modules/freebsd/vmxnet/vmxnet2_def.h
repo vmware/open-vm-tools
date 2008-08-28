@@ -40,8 +40,13 @@
 #define VMXNET2_MAX_NUM_RX_BUFFERS		128
 #define VMXNET2_DEFAULT_NUM_RX_BUFFERS	        100
 
+
+/* size of the rx ring when enhanced vmxnet is used */
+#define ENHANCED_VMXNET2_MAX_NUM_RX_BUFFERS     512 
+#define ENHANCED_VMXNET2_DEFAULT_NUM_RX_BUFFERS 150 
+
 /* size of the 2nd rx ring */
-#define VMXNET2_MAX_NUM_RX_BUFFERS2             512
+#define VMXNET2_MAX_NUM_RX_BUFFERS2             2048 
 #define VMXNET2_DEFAULT_NUM_RX_BUFFERS2	        512
 
 /* size of the tx ring */

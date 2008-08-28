@@ -484,6 +484,69 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerPolicy_GetShareOptions --
+ *
+ *    Get the HGFS share config options by looking at the requested name,
+ *    finding the matching share (if any).
+ *
+ * Results:
+ *    HGFS_NAME_STATUS_COMPLETE on success, and HGFS_NAME_STATUS_DOES_NOT_EXIST
+ *    if no matching share.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsNameStatus
+HgfsServerPolicy_GetShareOptions(char const *nameIn,         // IN: Share name
+                      size_t nameInLen,                      // IN: Length of share name
+                      HgfsShareOptions *configOptions)       // OUT: Share config options
+{
+   HgfsSharedFolder *share;
+
+   ASSERT(nameIn);
+   ASSERT(configOptions);
+
+   share = HgfsServerPolicyGetShare(&myState, nameIn, nameInLen);
+   if (!share) {
+      LOG(4, ("HgfsServerPolicy_GetShareOptions: No matching share name.\n"));
+      return HGFS_NAME_STATUS_DOES_NOT_EXIST;
+   }
+   *configOptions = share->configOptions;
+   return HGFS_NAME_STATUS_COMPLETE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerPolicy_IsShareOptionSet --
+ *
+ *    Check if the specified config option is set.
+ *
+ * Results:
+ *    TRUE if set.
+ *    FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerPolicy_IsShareOptionSet(HgfsShareOptions configOptions, // IN: config options
+                                  uint32 option)                  // IN: option to check
+{
+   return (configOptions & option) == option;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerPolicy_GetShareMode --
  *
  *    Get the access mode for a share by looking at the requested

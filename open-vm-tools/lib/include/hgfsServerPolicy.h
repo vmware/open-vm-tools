@@ -37,6 +37,9 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc *invalidateObjects);
 Bool
 HgfsServerPolicy_Cleanup(void);
 
+
+typedef uint32 HgfsShareOptions;
+
 /*
  * Structure representing one shared folder. We maintain a list of
  * these to check accesses against.
@@ -54,7 +57,11 @@ typedef struct HgfsSharedFolder {
    size_t pathLen;      /* Length of path string */
    Bool readAccess;     /* Read permission for this share */
    Bool writeAccess;    /* Write permission for this share */
+   HgfsShareOptions configOptions; /* User-config options. */
 } HgfsSharedFolder;
+
+/* Per share user configurable options. */
+#define HGFS_SHARE_HOST_DEFAULT_CASE  (1 << 0)
 
 typedef struct HgfsServerPolicy_ShareList {
    size_t count;
@@ -76,6 +83,14 @@ HgfsNameStatus
 HgfsServerPolicy_GetShareMode(char const *nameIn,        // IN: Share name to retrieve
                               size_t nameInLen,          // IN: Length of Share name
                               HgfsOpenMode *mode);       // OUT: Share's access mode
+HgfsNameStatus
+HgfsServerPolicy_GetShareOptions(char const *nameIn,        // IN: Share name
+                          size_t nameInLen,                 // IN: Share name length
+                          HgfsShareOptions *configOptions); // OUT: Share config options
+
+Bool
+HgfsServerPolicy_IsShareOptionSet(HgfsShareOptions shareOptions,  // IN: Config options
+                                  uint32 option);                 // IN: Option to check
 
 void
 HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: list to free

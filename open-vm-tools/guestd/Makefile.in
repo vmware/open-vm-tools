@@ -51,6 +51,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 sbin_PROGRAMS = vmware-guestd$(EXEEXT)
+@HAVE_ICU_TRUE@am__append_1 = @ICU_LIBS@
 subdir = guestd
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -69,6 +70,7 @@ am_vmware_guestd_OBJECTS = debugStdio.$(OBJEXT) \
 	toolsDaemon.$(OBJEXT)
 vmware_guestd_OBJECTS = $(am_vmware_guestd_OBJECTS)
 @SOLARIS_TRUE@am__DEPENDENCIES_1 = ../lib/hgfsBd/libHgfsBd.a
+am__DEPENDENCIES_2 =
 vmware_guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/conf/libConf.a ../lib/dnd/libDnd.a ../lib/err/libErr.a \
 	../lib/eventManager/libEventManager.a ../lib/file/libFile.a \
@@ -83,10 +85,10 @@ vmware_guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/procMgr/libProcMgr.a ../lib/rpcIn/libRpcIn.a \
 	../lib/rpcOut/libRpcOut.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/SLPv2Parser/libSLPv2Parser.a \
-	../lib/socketMgr/libSocketMgr.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/sync/libSync.a \
-	../lib/syncDriver/libSyncDriver.a ../lib/system/libSystem.a \
-	../lib/user/libUser.a ../lib/vixTools/libVixTools.a \
+	../lib/socketMgr/libSocketMgr.a ../lib/string/libString.a \
+	../lib/sync/libSync.a ../lib/syncDriver/libSyncDriver.a \
+	../lib/system/libSystem.a ../lib/user/libUser.a \
+	../lib/vixTools/libVixTools.a \
 	../lib/vmBackupLib/libVmBackupLib.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/wiper/libWiper.a ../lib/dict/libDict.a \
@@ -95,7 +97,7 @@ vmware_guestd_DEPENDENCIES = ../lib/backdoor/libBackdoor.a \
 	../lib/misc/libMisc.a ../lib/foundryMsg/libFoundryMsg.a \
 	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
 	../lib/panic/libPanic.a ../lib/stubs/libStubs.a \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 pamSCRIPT_INSTALL = $(INSTALL_SCRIPT)
 SCRIPTS = $(pam_SCRIPTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -159,8 +161,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -196,6 +202,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -204,6 +212,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -274,10 +284,10 @@ vmware_guestd_LDADD = ../lib/backdoor/libBackdoor.a \
 	../lib/procMgr/libProcMgr.a ../lib/rpcIn/libRpcIn.a \
 	../lib/rpcOut/libRpcOut.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/SLPv2Parser/libSLPv2Parser.a \
-	../lib/socketMgr/libSocketMgr.a ../lib/strUtil/libStrUtil.a \
-	../lib/string/libString.a ../lib/sync/libSync.a \
-	../lib/syncDriver/libSyncDriver.a ../lib/system/libSystem.a \
-	../lib/user/libUser.a ../lib/vixTools/libVixTools.a \
+	../lib/socketMgr/libSocketMgr.a ../lib/string/libString.a \
+	../lib/sync/libSync.a ../lib/syncDriver/libSyncDriver.a \
+	../lib/system/libSystem.a ../lib/user/libUser.a \
+	../lib/vixTools/libVixTools.a \
 	../lib/vmBackupLib/libVmBackupLib.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/wiper/libWiper.a ../lib/dict/libDict.a \
@@ -286,12 +296,17 @@ vmware_guestd_LDADD = ../lib/backdoor/libBackdoor.a \
 	../lib/misc/libMisc.a ../lib/foundryMsg/libFoundryMsg.a \
 	../lib/auth/libAuth.a ../lib/panicDefault/libPanicDefault.a \
 	../lib/panic/libPanic.a ../lib/stubs/libStubs.a $(HGFS_BD) \
-	@ICU_LIBS@ @GUESTD_LDADD@ $(am__empty)
+	@GUESTD_LDADD@ $(am__append_1)
 @SOLARIS_FALSE@HGFS_BD = 
 @SOLARIS_TRUE@HGFS_BD = ../lib/hgfsBd/libHgfsBd.a
 vmware_guestd_SOURCES = debugStdio.c foreignVMToolsDaemon.c \
 	foreignVMToolsNetworking.c foundryToolsDaemon.c main.c \
 	toolsDaemon.c
+@HAVE_ICU_FALSE@vmware_guestd_LINK = $(LINK)
+@HAVE_ICU_TRUE@vmware_guestd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+@HAVE_ICU_TRUE@                        $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
+@HAVE_ICU_TRUE@                        $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+
 @LINUX_TRUE@@PAMD_TRUE@@THIRTY_TWO_BIT_USERSPACE_FALSE@pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd-x64
 @LINUX_TRUE@@PAMD_TRUE@@THIRTY_TWO_BIT_USERSPACE_TRUE@pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd
 all: all-am
@@ -357,7 +372,7 @@ clean-sbinPROGRAMS:
 	done
 vmware-guestd$(EXEEXT): $(vmware_guestd_OBJECTS) $(vmware_guestd_DEPENDENCIES) 
 	@rm -f vmware-guestd$(EXEEXT)
-	$(LINK) $(vmware_guestd_OBJECTS) $(vmware_guestd_LDADD) $(LIBS)
+	$(vmware_guestd_LINK) $(vmware_guestd_OBJECTS) $(vmware_guestd_LDADD) $(LIBS)
 install-pamSCRIPTS: $(pam_SCRIPTS)
 	@$(NORMAL_INSTALL)
 	test -z "$(pamdir)" || $(MKDIR_P) "$(DESTDIR)$(pamdir)"
@@ -605,11 +620,11 @@ uninstall-am: uninstall-pamSCRIPTS uninstall-sbinPROGRAMS
 
 
 install-exec-hook:
-	$(INSTALL) -d /etc/vmware-tools
-	echo 'disable-tools-version = "true"' > /etc/vmware-tools/tools.conf
+	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools
+	echo 'disable-tools-version = "true"' > $(DESTDIR)/etc/vmware-tools/tools.conf
 
 uninstall-hook:
-	$(RM) -rf /etc/vmware-tools
+	$(RM) -rf $(DESTDIR)/etc/vmware-tools
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

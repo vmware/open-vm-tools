@@ -42,27 +42,11 @@ extern "C" {
 
 
 /*
- * Static Unicode string literal macros.
- *
- * Given an ASCII const char * literal ("abcd"), returns a static
- * ConstUnicode string.
- *
- * These strings are never freed, so this is not to be used for
- * general runtime Unicode string creation. Instead, use it to
- * replace:
- *
- *   const char *extension = ".vmdk";
- *
- * with:
- *
- *   ConstUnicode extension = U(".vmdk");
- */
-
-#define U(x) Unicode_GetStatic(x, FALSE)
-
-/*
- * Same as U(), but also unescapes \\uABCD to Unicode code point
+ * Unescapes \\uABCD in string literals to Unicode code point
  * U+ABCD, and \\U001FABCD to Unicode code point U+1FABCD.
+ *
+ * The resulting string is never freed, so this is not to be used for
+ * general runtime Unicode string creation.
  *
  * Use to replace:
  *
@@ -339,6 +323,10 @@ Bool Unicode_CopyBytes(void *destBuffer,
 
 void *Unicode_GetAllocBytes(ConstUnicode str,
                             StringEncoding encoding);
+
+void *Unicode_GetAllocBytesWithLength(ConstUnicode str,
+                                      StringEncoding encoding,
+                                      ssize_t lengthInBytes);
 
 
 /*

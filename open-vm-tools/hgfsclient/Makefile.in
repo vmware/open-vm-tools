@@ -50,6 +50,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = vmware-hgfsclient$(EXEEXT)
+@HAVE_ICU_TRUE@am__append_1 = @ICU_LIBS@
 subdir = hgfsclient
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -64,17 +65,18 @@ PROGRAMS = $(bin_PROGRAMS)
 am_vmware_hgfsclient_OBJECTS = hgfsclient.$(OBJEXT) \
 	stub-user-util.$(OBJEXT)
 vmware_hgfsclient_OBJECTS = $(am_vmware_hgfsclient_OBJECTS)
+am__DEPENDENCIES_1 =
 vmware_hgfsclient_DEPENDENCIES = ../lib/conf/libConf.a \
 	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
 	../lib/hgfsBd/libHgfsBd.a ../lib/rpcOut/libRpcOut.a \
-	../lib/strUtil/libStrUtil.a ../lib/string/libString.a \
-	../lib/toolsLogger/libToolsLogger.a \
+	../lib/string/libString.a ../lib/toolsLogger/libToolsLogger.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
 	../lib/err/libErr.a ../lib/file/libFile.a \
 	../lib/message/libMessage.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a ../lib/stubs/libStubs.a
+	../lib/misc/libMisc.a ../lib/stubs/libStubs.a \
+	$(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -136,8 +138,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -173,6 +179,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -181,6 +189,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -238,15 +248,20 @@ top_srcdir = @top_srcdir@
 vmware_hgfsclient_LDADD = ../lib/conf/libConf.a \
 	../lib/guestApp/libGuestApp.a ../lib/hgfs/libHgfs.a \
 	../lib/hgfsBd/libHgfsBd.a ../lib/rpcOut/libRpcOut.a \
-	../lib/strUtil/libStrUtil.a ../lib/string/libString.a \
-	../lib/toolsLogger/libToolsLogger.a \
+	../lib/string/libString.a ../lib/toolsLogger/libToolsLogger.a \
 	../lib/vmCheck/libVmCheck.a ../lib/vmSignal/libVmSignal.a \
 	../lib/backdoor/libBackdoor.a ../lib/dict/libDict.a \
 	../lib/err/libErr.a ../lib/file/libFile.a \
 	../lib/message/libMessage.a ../lib/rpcVmx/libRpcVmx.a \
 	../lib/unicode/libUnicode.a ../lib/sync/libSync.a \
-	../lib/misc/libMisc.a ../lib/stubs/libStubs.a @ICU_LIBS@
+	../lib/misc/libMisc.a ../lib/stubs/libStubs.a $(am__append_1)
 vmware_hgfsclient_SOURCES = hgfsclient.c stub-user-util.c
+@HAVE_ICU_FALSE@vmware_hgfsclient_LINK = $(LINK)
+@HAVE_ICU_TRUE@vmware_hgfsclient_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
+@HAVE_ICU_TRUE@                            $(LIBTOOLFLAGS) --mode=link $(CXX) \
+@HAVE_ICU_TRUE@                            $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
+@HAVE_ICU_TRUE@                            $(LDFLAGS) -o $@
+
 all: all-am
 
 .SUFFIXES:
@@ -310,7 +325,7 @@ clean-binPROGRAMS:
 	done
 vmware-hgfsclient$(EXEEXT): $(vmware_hgfsclient_OBJECTS) $(vmware_hgfsclient_DEPENDENCIES) 
 	@rm -f vmware-hgfsclient$(EXEEXT)
-	$(LINK) $(vmware_hgfsclient_OBJECTS) $(vmware_hgfsclient_LDADD) $(LIBS)
+	$(vmware_hgfsclient_LINK) $(vmware_hgfsclient_OBJECTS) $(vmware_hgfsclient_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

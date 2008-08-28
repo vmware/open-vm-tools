@@ -49,7 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@NO_ICU_TRUE@am__append_1 = codeset.c
+@HAVE_ICU_TRUE@am__append_1 = codeset.c
 subdir = lib/misc
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -66,8 +66,8 @@ am__libMisc_a_SOURCES_DIST = atomic.c base64.c codesetOld.c \
 	dbllnklst.c dynarray.c dynbuf.c escape.c hashTable.c \
 	hostinfo_misc.c hostname.c idLinux.c iovector.c machineID.c \
 	miscSolaris.c posixDlopen.c posixPosix.c random.c timeutil.c \
-	util_misc.c vmstdio.c codeset.c
-@NO_ICU_TRUE@am__objects_1 = codeset.$(OBJEXT)
+	util_misc.c vmstdio.c strutil.c codeset.c
+@HAVE_ICU_TRUE@am__objects_1 = codeset.$(OBJEXT)
 am_libMisc_a_OBJECTS = atomic.$(OBJEXT) base64.$(OBJEXT) \
 	codesetOld.$(OBJEXT) dbllnklst.$(OBJEXT) dynarray.$(OBJEXT) \
 	dynbuf.$(OBJEXT) escape.$(OBJEXT) hashTable.$(OBJEXT) \
@@ -75,7 +75,7 @@ am_libMisc_a_OBJECTS = atomic.$(OBJEXT) base64.$(OBJEXT) \
 	iovector.$(OBJEXT) machineID.$(OBJEXT) miscSolaris.$(OBJEXT) \
 	posixDlopen.$(OBJEXT) posixPosix.$(OBJEXT) random.$(OBJEXT) \
 	timeutil.$(OBJEXT) util_misc.$(OBJEXT) vmstdio.$(OBJEXT) \
-	$(am__objects_1)
+	strutil.$(OBJEXT) $(am__objects_1)
 libMisc_a_OBJECTS = $(am_libMisc_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -148,8 +148,12 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+KERNEL_RELEASE = @KERNEL_RELEASE@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
+LIBPNG_CONFIG = @LIBPNG_CONFIG@
+LIBPNG_CPPFLAGS = @LIBPNG_CPPFLAGS@
+LIBPNG_LIBS = @LIBPNG_LIBS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_AUTH_CPPFLAGS = @LIB_AUTH_CPPFLAGS@
@@ -185,6 +189,8 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 TARGET_OS = @TARGET_OS@
+URIPARSER_CPPFLAGS = @URIPARSER_CPPFLAGS@
+URIPARSER_LIBS = @URIPARSER_LIBS@
 VERSION = @VERSION@
 VMWARE_USER_CPPFLAGS = @VMWARE_USER_CPPFLAGS@
 VMWARE_USER_LDADD = @VMWARE_USER_LDADD@
@@ -193,6 +199,8 @@ X_CFLAGS = @X_CFLAGS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_LIBS = @X_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+ZLIB_CPPFLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -249,7 +257,7 @@ libMisc_a_SOURCES = atomic.c base64.c codesetOld.c dbllnklst.c \
 	dynarray.c dynbuf.c escape.c hashTable.c hostinfo_misc.c \
 	hostname.c idLinux.c iovector.c machineID.c miscSolaris.c \
 	posixDlopen.c posixPosix.c random.c timeutil.c util_misc.c \
-	vmstdio.c $(am__append_1)
+	vmstdio.c strutil.c $(am__append_1)
 AM_CFLAGS = @LIB_MISC_CPPFLAGS@
 SUBDIRS = shared
 all: all-recursive
@@ -317,6 +325,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posixDlopen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/posixPosix.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutil.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timeutil.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util_misc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vmstdio.Po@am__quote@

@@ -75,7 +75,7 @@
 ConstUnicode
 DnD_GetFileRoot(void)
 {
-   return U("/tmp/VMwareDnD/");
+   return "/tmp/VMwareDnD/";
 }
 
 

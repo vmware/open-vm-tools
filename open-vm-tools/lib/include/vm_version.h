@@ -236,7 +236,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.07.01"
+#define TOOLS_VERSION "2008.08.08"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -306,13 +306,21 @@
  * If platforms are on different version numbers, manage it here.
  */
 
+/*
+ * Note: changing PRODUCT_NAME_FOR_LICENSE and PRODUCT_LICENSE_VERSION
+ * or macros it cleverly depends on (such as PRODUCT_NAME) requires a
+ * coordinated dormant license file change. Otherwise licensing for
+ * that product may break because the Licensecheck API is being passed
+ * a parameter that no longer match the content of the dormant license
+ * file.
+ */
 #if defined(VMX86_TOOLS)
 /* This product doesn't use a license */
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE ""
 #  define PRODUCT_LICENSE_VERSION "0.0"
 #else
 #  if defined(VMX86_SERVER)
-#    define PRODUCT_LICENSE_VERSION "2.0"
+#    define PRODUCT_LICENSE_VERSION "4.0"
 #  elif defined(VMX86_WGS_MIGRATION)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_WGS)
@@ -396,7 +404,7 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_30 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.0"
 #define PRODUCT_VERSION_SCALABLE_SERVER_31 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.5"
 #define PRODUCT_VERSION_WGS_1 PRODUCT_WGS_BRIEF_NAME " 1.x"
-#define PRODUCT_VERSION_WGS_2 PRODUCT_WGS_BRIEF_NAME " 2.x"
+#define PRODUCT_VERSION_WGS_2 PRODUCT_WGS_BRIEF_NAME " 2.0"
 #define PRODUCT_VERSION_GSX_2 PRODUCT_GSX_BRIEF_NAME " 2.x"
 #define PRODUCT_VERSION_GSX_3 PRODUCT_GSX_BRIEF_NAME " 3.x"
 #define PRODUCT_VERSION_WORKSTATION_4 PRODUCT_WORKSTATION_BRIEF_NAME " 4.x"
@@ -408,7 +416,7 @@
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_25 "ACE 2.5"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
-#define PRODUCT_VERSION_MAC_DESKTOP_15 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.5"
+#define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.0"
 
 
 /*

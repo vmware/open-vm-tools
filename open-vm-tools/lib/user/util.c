@@ -711,7 +711,7 @@ UtilDoTildeSubst(Unicode user)  // IN - name of user
    Unicode str = NULL;
 
    if (*user == '\0') {
-      str = Unicode_Duplicate(Posix_Getenv(U("HOME")));
+      str = Unicode_Duplicate(Posix_Getenv("HOME"));
       if (str == NULL) {
          Log("Could not expand environment variable HOME.\n");
       }
@@ -775,8 +775,8 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
    /*
     * quick exit
     */
-   if (!Unicode_StartsWith(fileName, U("~")) && 
-       Unicode_Find(fileName, U("$")) == UNICODE_INDEX_NOT_FOUND) {
+   if (!Unicode_StartsWith(fileName, "~") && 
+       Unicode_Find(fileName, "$") == UNICODE_INDEX_NOT_FOUND) {
       return copy;
    }
 
@@ -890,7 +890,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
 	 }
 #endif
 	 if (expand == NULL) {
-	    expand = Unicode_Duplicate(U("unknown"));
+	    expand = Unicode_Duplicate("unknown");
 	 }
       } else {
 	 Warning("Environment variable '%s' not defined in '%s'.\n",
@@ -900,7 +900,7 @@ Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
           * Strip off the env variable string from the pathname.
           */
 
-	 expand = Unicode_Duplicate(U(""));
+	 expand = Unicode_Duplicate("");
 
 #else    // _WIN32
 

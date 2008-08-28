@@ -77,10 +77,20 @@ DentryOpRevalidate(struct dentry *dentry,  // IN: dentry revalidating
    struct dentry *actualDentry;
    int ret;
 
-   if (!dentry || !dentry->d_inode) {
+   if (!dentry) {
       Warning("DentryOpRevalidate: invalid args from kernel\n");
       return 0;
    }
+
+   /*
+    * If a dentry does not have an inode associated with it then
+    * we are dealing with a negative dentry. Always invalidate a negative
+    * dentry which will cause a fresh lookup.
+    */
+   if (!dentry->d_inode) {
+      return 0;
+   }
+
 
    iinfo = INODE_TO_IINFO(dentry->d_inode);
    if (!iinfo) {

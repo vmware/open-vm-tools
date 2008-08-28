@@ -71,6 +71,26 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName);
 #endif
 
 /*
+ * Local substitution for localtime_r() for those platforms
+ * that don't have one.
+*/
+#ifdef SOL9
+#include <synch.h>
+static mutex_t LT_MUTEX = DEFAULTMUTEX;
+static struct tm* localtime_r(time_t* secs, struct tm* tp)
+{
+   if (!secs || !tp) {
+      return NULL;
+   }
+   mutex_lock(&LT_MUTEX);
+   memcpy(tp, localtime(secs), sizeof *tp);
+   mutex_unlock(&LT_MUTEX);
+   return tp;
+}
+#endif
+
+
+/*
  *----------------------------------------------------------------------
  *
  * TimeUtil_DaysAdd --
@@ -653,15 +673,15 @@ TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,   // IN
  *    current timezone (non-negative value).
  *
  * Side effects:
- *    On Linux, calls localtime() which sets the system globals
- *    'timezone' and 'tzname'
+ *    On non-Win32 platforms, calls localtime_r() which sets globals
+ *    variables (e.g. 'timezone' and 'tzname' for Linux)
  *
  *----------------------------------------------------------------------
  */
 int
 TimeUtil_GetLocalWindowsTimeZoneIndex(void)
 {
-   int utcOffsetMins = 0;
+   int utcStdOffMins = 0;
    int winTimeZoneIndex = (-1);
 
 #if defined(_WIN32)
@@ -674,7 +694,7 @@ TimeUtil_GetLocalWindowsTimeZoneIndex(void)
    }
 
    /* 'Bias' = diff between UTC and local standard time */
-   utcOffsetMins = 0-tz.Bias; // already in minutes
+   utcStdOffMins = 0-tz.Bias; // already in minutes
 
    /* Get TZ name */
    nameLen = wcslen(tz.StandardName);
@@ -688,23 +708,32 @@ TimeUtil_GetLocalWindowsTimeZoneIndex(void)
 #else // NOT _WIN32
 
    /*
-    * Use localtime(), but we only need its side effects:
-    * external 'timezone' = diff between UTC and local standard time
-    * external 'tzname[0]' contains Std timezone name
-    * see 'man localtime'
+    * Use localtime_r() to get offset between our local
+    * time and UTC. This varies by platform. Also, the structure
+    * fields are named "*gmt*" but the man pages claim offsets are
+    * to UTC, not GMT.
     */
 
    time_t now = time(NULL);
+   struct tm tim;
+   localtime_r(&now, &tim);
 
-   #ifdef __FreeBSD__
-   struct tm* tmp = localtime(&now);
-   utcOffsetMins = tmp->tm_gmtoff/60; // secs->mins
-   #elif defined __APPLE__
-   struct tm* tmp = localtime(&now);
-   utcOffsetMins = tmp->tm_gmtoff/60; // secs->mins
+   #if defined SOL9 || defined SOL10 || defined N_PLAT_NLM
+      /*
+       * Offset is to standard (no need for DST adjustment).
+       * Negative is east of prime meridian.
+       */
+      utcStdOffMins = 0 - timezone/60;
    #else
-   localtime(&now);
-   utcOffsetMins = timezone/60; // secs->mins
+      /*
+       * FreeBSD, Apple, Linux only:
+       * Offset is to local (need to adjust for DST).
+       * Negative is west of prime meridian.
+       */
+      utcStdOffMins = tim.tm_gmtoff/60;
+      if (tim.tm_isdst) {
+         utcStdOffMins -= 60;
+      }
    #endif
 
    /* can't figure this out directly for non-Win32 */
@@ -714,7 +743,7 @@ TimeUtil_GetLocalWindowsTimeZoneIndex(void)
 
    /* If we don't have it yet, look up windowsCode. */
    if (winTimeZoneIndex < 0) {
-      winTimeZoneIndex = TimeUtilFindIndexByUTCOffset(utcOffsetMins);
+      winTimeZoneIndex = TimeUtilFindIndexByUTCOffset(utcStdOffMins);
    }
 
    return winTimeZoneIndex;
@@ -732,6 +761,7 @@ TimeUtil_GetLocalWindowsTimeZoneIndex(void)
  *
  * Parameters:
  *    utcStdOffMins   Offset to look for (in minutes)
+ *                    <0 is west of PM, >0 is east of PM.
  *
  * Results:
  *    Returns Windows TZ Index (>=0) if found, else -1.

@@ -33,6 +33,7 @@
 #include "vm_version.h"
 #include "posix.h"
 #include "auth.h"
+#include "str.h"
 
 #ifdef USE_PAM
 #  include "file.h"
@@ -105,8 +106,15 @@ AuthLoadPAM(void)
    }
    pam_library = Posix_Dlopen(CURRENT_PAM_LIBRARY, RTLD_LAZY | RTLD_GLOBAL);
    if (!pam_library) {
-#if !defined(VMX86_TOOLS)
-      char liblocation[FILE_MAXPATH];
+#if defined(VMX86_TOOLS)
+      /*
+       * XXX do we even try to configure the pam libraries?
+       * potential nightmare on all the possible guest OSes
+       */
+      Log("System PAM libraries are unusable: %s\n", dlerror());
+      return FALSE;
+#else
+      char *liblocation;
       char *libdir;
 
       libdir = LocalConfig_GetPathName(DEFAULT_LIBDIRECTORY, CONFIG_VMWAREDIR);
@@ -114,23 +122,18 @@ AuthLoadPAM(void)
          Log("System PAM library unusable and bundled one not found.\n");
          return FALSE;
       }
-      snprintf(liblocation, sizeof liblocation, "%s/lib/%s/%s", libdir,
-               CURRENT_PAM_LIBRARY, CURRENT_PAM_LIBRARY);
+      liblocation = Str_SafeAsprintf(NULL, "%s/lib/%s/%s", libdir,
+                                     CURRENT_PAM_LIBRARY, CURRENT_PAM_LIBRARY);
       free(libdir);
 
       pam_library = Posix_Dlopen(liblocation, RTLD_LAZY | RTLD_GLOBAL);
       if (!pam_library) {
          Log("Neither system nor bundled (%s) PAM libraries usable: %s\n",
              liblocation, dlerror());
+         free(liblocation);
          return FALSE;
       }
-#else
-      /*
-       * XXX do we even try to configure the pam libraries?
-       * potential nightmare on all the possible guest OSes
-       */
-      Log("System PAM libraries are unusable: %s\n", dlerror());
-      return FALSE;
+      free(liblocation);
 #endif
    }
    for (i = 0; i < ARRAYSIZE(authPAMImported); i++) {

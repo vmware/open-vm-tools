@@ -72,6 +72,7 @@ EXTERN Bool Panic_GetCoreDumpOnPanic(void);
 EXTERN void Panic_SetCoreDumpFileName(const char *fileName);
 EXTERN const char *Panic_GetCoreDumpFileName(void);
 EXTERN int  Panic_GetCoreDumpFlags(void);
+EXTERN void Panic_SetCoreDumpFlags(int flags);
 
 /*
  * Extra debugging information that Panic module knows how to dump.

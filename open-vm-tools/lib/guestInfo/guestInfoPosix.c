@@ -199,7 +199,7 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
       char macAddress[NICINFO_MAC_LEN];
       char ipAddress[NICINFO_MAX_IP_LEN];
 
-      Str_Sprintf(macAddress, sizeof macAddress,
+      Str_Sprintf(macAddress, sizeof macAddress, "%s",
                   addr_ntoa(&entry->intf_link_addr));
       nic = GuestInfoAddNicEntry(nicInfo, macAddress);
 
@@ -395,8 +395,8 @@ GetShortName(char *distro,             // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_LINUX_FROM_SCRATCH, distroShortSize);
    } else if (strstr(distroLower, "linux-ppc")) {
       Str_Strcpy(distroShort, STR_OS_LINUX_PPC, distroShortSize);
-   } else if (strstr(distroLower, "mandravia")) {
-      Str_Strcpy(distroShort, STR_OS_MANDRAVIA, distroShortSize);
+   } else if (strstr(distroLower, "mandriva")) {
+      Str_Strcpy(distroShort, STR_OS_MANDRIVA, distroShortSize);
    } else if (strstr(distroLower, "mklinux")) {
       Str_Strcpy(distroShort, STR_OS_MKLINUX, distroShortSize);
    } else if (strstr(distroLower, "pld")) {

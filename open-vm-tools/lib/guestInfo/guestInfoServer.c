@@ -828,16 +828,16 @@ NicInfoChanged(GuestNicList *nicInfo)  // IN
       }
 
       /* Which IP addresses have been modified for this NIC? */
-      for (j = 0; j < matchedNic->ips.ips_len; j++) {
-         VmIpAddress *cachedIp = &cachedNic->ips.ips_val[i];
+      for (j = 0; j < cachedNic->ips.ips_len; j++) {
+         VmIpAddress *cachedIp = &cachedNic->ips.ips_val[j];
          Bool foundIP = FALSE;
          u_int k;
 
          for (k = 0; k < matchedNic->ips.ips_len; k++) {
             VmIpAddress *matchedIp = &matchedNic->ips.ips_val[k];
-            if (strncmp(cachedIp->ipAddress,
-                        matchedIp->ipAddress,
-                        NICINFO_MAX_IP_LEN)) {
+            if (0 == strncmp(cachedIp->ipAddress,
+                             matchedIp->ipAddress,
+                             NICINFO_MAX_IP_LEN)) {
                foundIP = TRUE;
                break;
             }
