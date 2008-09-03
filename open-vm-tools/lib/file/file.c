@@ -948,12 +948,7 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
 Unicode
 File_StripSlashes(ConstUnicode path) // IN
 {
-   Unicode volume, dir, base;
-
-   /*
-    * Degenerate cases.
-    */
-
+   Unicode result, volume, dir, base;
 
    /*
     * SplitName handles all drive letter/UNC/whatever cases, all we
@@ -980,12 +975,18 @@ File_StripSlashes(ConstUnicode path) // IN
          i--;
       }
 
-      free(dir);
+      Unicode_Free(dir);
       dir = Unicode_AllocWithLength(dir2, i, STRING_ENCODING_UTF8);
       free(dir2);
    }
 
-   return Unicode_Join(volume, dir, base, NULL);
+   result = Unicode_Join(volume, dir, base, NULL);
+
+   Unicode_Free(volume);
+   Unicode_Free(dir);
+   Unicode_Free(base);
+
+   return result;
 }
 
 

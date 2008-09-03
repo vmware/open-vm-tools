@@ -75,10 +75,10 @@ ImageUtilReadPngCallback(png_structp png_ptr,   // IN: PNG file info structure
  *      data in the provided out parameters. 
  *
  * Results:
- *      Lots. 
+ *      TRUE if successful, FALSE otherwise.
  *
  * Side effects:
- *      Reads PNG from disk. 
+ *      Reads a PNG image from memory.
  *
  *----------------------------------------------------------------------------
  */
@@ -86,7 +86,8 @@ ImageUtilReadPngCallback(png_structp png_ptr,   // IN: PNG file info structure
 Bool 
 ImageUtil_ReadPNGBuffer(ImageInfo *image,          // OUT
                         const unsigned char *data, // IN
-                        size_t dataLen)            // IN
+                        size_t dataLen,            // IN
+                        int pngReadFlags)          // IN
 {
    png_structp png_ptr;
    png_infop info_ptr;
@@ -103,6 +104,8 @@ ImageUtil_ReadPNGBuffer(ImageInfo *image,          // OUT
    if (!image || !data || !dataLen) {
       return FALSE;
    }
+
+   memset(image, 0, sizeof *image);
 
    pngData = Util_SafeCalloc(1, sizeof *pngData);
    pngData->data = (char *) data;
@@ -150,22 +153,26 @@ ImageUtil_ReadPNGBuffer(ImageInfo *image,          // OUT
    bytes_per_line = png_get_rowbytes(png_ptr, info_ptr);
 
    if (color_type == PNG_COLOR_TYPE_RGB_ALPHA) {
-      /*
-       * Strip out alpha
-       */
-      png_set_strip_alpha(png_ptr);
+      image->depth = 24;
+      if (pngReadFlags & IMAGE_PNG_READ_KEEP_ALPHA) {
+         image->bpp = 32;
+      } else {
+         png_set_strip_alpha(png_ptr);
 
-      /* Update the bytes_per_line now that we've eliminated the alpha channel */
-      png_read_update_info(png_ptr, info_ptr);
-      bytes_per_line = png_get_rowbytes(png_ptr, info_ptr);
+         /* Update the bytes_per_line now that we've eliminated the alpha channel */
+         png_read_update_info(png_ptr, info_ptr);
+         bytes_per_line = png_get_rowbytes(png_ptr, info_ptr);
 
-      png_get_IHDR(png_ptr, info_ptr, 
-                   &width, &height, 
-                   &channel_depth, &color_type, &interlace_type, 
-                   &compression_type, &filter_type);
-      image->bpp = 24;
+         png_get_IHDR(png_ptr, info_ptr, 
+                      &width, &height, 
+                      &channel_depth, &color_type, &interlace_type, 
+                      &compression_type, &filter_type);
+
+         image->bpp = 24;
+      }
+
    } else if (color_type == PNG_COLOR_TYPE_RGB) {
-      image->bpp = 24;  
+      image->depth = image->bpp = 24;  
    } else if (color_type == PNG_COLOR_TYPE_PALETTE) {
       /*
        * Load palette
@@ -176,7 +183,7 @@ ImageUtil_ReadPNGBuffer(ImageInfo *image,          // OUT
          bytes_per_line = png_get_rowbytes(png_ptr, info_ptr);
       }
 
-      image->bpp = 8; 
+      image->depth = image->bpp = 8; 
 
       png_get_PLTE(png_ptr, info_ptr, &palette, &num_palette);
       ASSERT(num_palette <= 256); 
@@ -194,10 +201,12 @@ ImageUtil_ReadPNGBuffer(ImageInfo *image,          // OUT
       goto exit;
    }
 
+   ASSERT(image->depth != 0);
+   ASSERT(image->bpp != 0);
+
    image->width = width;
    image->height = height;
    image->bytesPerLine = DWORD_ALIGN(bytes_per_line);
-   image->depth = image->bpp;
    image->flags = 0;
 
    /* BGR instead of RGB - Intel byte-order is backwards */
@@ -289,7 +298,7 @@ ImageUtil_ConstructPNGBuffer(const ImageInfo *image, // IN
                              DynBuf *imageData)      // OUT
 
 {
-   ImagePngOptions options;
+   ImagePngWriteOptions options;
 
    options.zlibCompressLevel = -1;
    options.stripAlphaChannel = TRUE;
@@ -317,9 +326,9 @@ ImageUtil_ConstructPNGBuffer(const ImageInfo *image, // IN
  */
 
 Bool
-ImageUtil_ConstructPNGBufferEx(const ImageInfo *image,         // IN
-                               const ImagePngOptions *options, // IN
-                               DynBuf *imageData)              // OUT
+ImageUtil_ConstructPNGBufferEx(const ImageInfo *image,              // IN
+                               const ImagePngWriteOptions *options, // IN
+                               DynBuf *imageData)                   // OUT
 {
    png_structp png_ptr;
    png_infop info_ptr;
@@ -475,7 +484,8 @@ ImageUtil_ConstructPNGBufferEx(const ImageInfo *image,         // IN
       data = Util_SafeMalloc(bytes_per_line * image->height);
 
       Raster_ConvertPixels(data, bytes_per_line, 24,
-                           image->data, image->bytesPerLine, image->depth,
+                           image->data, image->bytesPerLine,
+                           Raster_GetBPPDepth(image->depth, image->bpp),
                            FALSE, NULL, 0, 0, 0, 0,
                            image->width, image->height);
    }

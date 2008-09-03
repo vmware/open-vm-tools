@@ -31,20 +31,26 @@ extern "C" {
 
 #include <sys/wait.h>
 
+#include <stdio.h>
 #include <stdlib.h>     // for free, system
 #include <string.h>
 #include <strings.h>
+
+#include <glib.h>
 
 #include <X11/Xlib.h>
 #undef Bool
 
 #include "guestApp.h"
+#include "guestAppPosixInt.h"
 #include "str.h"
 #include "escape.h"
 #include "util.h"
 #include "vm_assert.h"
+#include "system.h"
+#include "debug.h"
 
-static char *gBrowserEscaped = NULL; // a shell escaped browser path
+static const char *gBrowser = NULL; // browser path
 static Bool gBrowserIsNewNetscape = FALSE;
 static XErrorHandler gDefaultXErrorHandler;
 
@@ -73,74 +79,70 @@ Bool
 GuestAppX11OpenUrl(const char *url, // IN
                    Bool maximize)   // IN: open the browser maximized? Ignored for now.
 {
-   char *buf = NULL;
-   char *urlEscaped = NULL;
-   char *ldPath = NULL;
+   gboolean spawnSuccess;
+   GError *gerror;
+
+   char *argv[4];
+   char *newNetscapeBuf = NULL;
    Bool success = FALSE;
    int ret;
 
    ASSERT(url);
 
-   if (!gBrowserEscaped) {
+   if (!gBrowser) {
       GuestAppDetectBrowser();
    }
 
-   if (!gBrowserEscaped) {
+   if (!gBrowser) {
       goto abort;
-   }
-   urlEscaped = (char*)Escape_Sh(url, strlen(url), NULL);
-   if (!urlEscaped) {
-      goto abort;
-   }
-
-   /*
-    * Get the original LD_LIBRARY_PATH, so the installed applications
-    * don't try to use our versions of the libraries.
-    *
-    * From bora/apps/lib/lui/browser.cc::ResetEnvVars():
-    *
-    * For each variable we care about, there are three possible states:
-    * 1) The variable was not considered for saving.
-    *    This is indicated by VMWARE_<foo>'s first character not being
-    *    set to either "1" or "0".
-    *    We should not manipulate <foo>.
-    * 2) The variable was considered but was not set.
-    *    VMWARE_<foo> is set to "0".
-    *    We should unset <foo>.
-    * 3) The variable was considered and was set.
-    *    VMWARE_<foo> is set to "1" + "<value of foo>".
-    *    We should set <foo> back to the saved value.
-    *
-    * XXX: There are other variables that may need resetting (for a list, check
-    * bora/apps/lib/lui/browser.cc or the wrapper scripts), but that would
-    * require some more refactoring of this code (not using system(3), for
-    * example).
-    */
-   ldPath = getenv("VMWARE_LD_LIBRARY_PATH");
-   if (ldPath != NULL && strlen(ldPath) > 0 && ldPath[0] == '1') {
-      ldPath++;
-      ldPath = Escape_Sh(ldPath, strlen(ldPath), NULL);
-      ASSERT_MEM_ALLOC(ldPath);
-   } else {
-      ldPath = Util_SafeStrdup("");
    }
 
    if (gBrowserIsNewNetscape) {
-      buf = Str_Asprintf(NULL,
-                         "LD_LIBRARY_PATH=%s %s -remote 'openURL('%s', new-window)' "
-                         ">/dev/null 2>&1 &",
-                         ldPath, gBrowserEscaped, urlEscaped);
+      /*
+       * Per RFC 2616 §3.2.1, HTTP places no bound on URIs.  (Besides, this url
+       * could really be -any- URI.)  I.e., that's why I'm eating the cost of
+       * allocating memory instead of playing with a static buffer.
+       */
+      newNetscapeBuf = Str_Asprintf(NULL, "openURL('%s', new-window)", url);
+      if (!newNetscapeBuf) {
+         goto abort;
+      }
+      argv[0] = (char *)gBrowser;
+      argv[1] = "-remote";
+      argv[2] = newNetscapeBuf;
+      argv[3] = NULL;
    } else {
-      buf = Str_Asprintf(NULL,
-                         "LD_LIBRARY_PATH=%s %s %s >/dev/null 2>&1 &",
-                         ldPath, gBrowserEscaped, urlEscaped);
+      argv[0] = (char *)gBrowser;
+      argv[1] = (char *)url;
+      argv[2] = NULL;
    }
 
-   if (buf == NULL) {
+   spawnSuccess = g_spawn_sync(NULL,     // inherit working directory
+                               argv,
+                               /*
+                                * XXX  Please don't hate me for casting off the
+                                * qualifier here.  Glib does -not- modify the
+                                * environment, at least not in the parent process,
+                                * but their prototype does not specify this argument
+                                * as being const.
+                                */
+                               (char **)guestAppSpawnEnviron,
+                               G_SPAWN_SEARCH_PATH
+                                  | G_SPAWN_STDOUT_TO_DEV_NULL
+                                  | G_SPAWN_STDERR_TO_DEV_NULL,
+                               NULL,     // no child setup routine
+                               NULL,     // param for child setup routine
+                               NULL,     // container for stdout
+                               NULL,     // container for stderr
+                               &ret,     // waitpid-style value
+                               &gerror); // GSpawnError
+
+   if (!spawnSuccess) {
+      Debug("%s: Unable to launch browser '%s': %d: %s\n", __func__, gBrowser,
+            gerror->code, gerror->message);
+      g_error_free(gerror);
       goto abort;
    }
-
-   ret = system(buf);
 
    /*
     * If the program terminated other than by exit() or return, i.e., was
@@ -153,11 +155,9 @@ GuestAppX11OpenUrl(const char *url, // IN
    }
 
    success = TRUE;
- abort:
-   free(buf);
-   free(urlEscaped);
-   free(ldPath);
 
+abort:
+   free(newNetscapeBuf);
    return success;
 }
 
@@ -182,25 +182,24 @@ GuestAppX11OpenUrl(const char *url, // IN
 void
 GuestAppDetectBrowser(void)
 {
-   char *buf = NULL;
+   const char *buf = NULL;
 
-   if (gBrowserEscaped) {
-      free(gBrowserEscaped);
-      gBrowserEscaped = NULL;
+   if (gBrowser) {
+      gBrowser = NULL;
       gBrowserIsNewNetscape = FALSE;
    }
 
    /*
     * XXX Since splitting guestd and vmware-user, vmware-user may be launched
-    * by a -display- manager rather than a session manager, rendering tests for
-    * "GNOME_DESKTOP_SESSION_ID" or "KDE_FULL_SESSION" environment variables
-    * faulty.
+    * by a -display- manager rather than a session manager, rendering exclusive
+    * tests for "GNOME_DESKTOP_SESSION_ID" or "KDE_FULL_SESSION" environment
+    * variables insufficient.
     *
-    * The workaround (*cough*hack*cough*) for the GNOME case is to instead query
-    * the root X11 window, and testing for the existence of a "gnome-session"
+    * The workaround (*cough*hack*cough*) for the GNOME case is to additionally
+    * query the root X11 window, and testing for the existence of a "gnome-session"
     * window.  (The assumption is that if gnome-session is attached to our X11
-    * display, the user really is running a GNOME session.)  For KDE, we look
-    * for "ksmserver".
+    * display, the user really is running a GNOME session.)  For KDE, we look for
+    * "ksmserver".
     *
     * XXX Pull this out s.t. we need only traverse the list of clients once.
     * XXX Added gnome-panel, startkde as they were previously in xautostart.conf.
@@ -213,11 +212,14 @@ GuestAppDetectBrowser(void)
     *     in a GNOME session.
     * XXX This code should be destroyed.
     */
-   if ((GuestAppFindX11Client("gnome-session") ||
+   if ((getenv("GNOME_DESKTOP_SESSION_ID") != NULL ||
+        GuestAppFindX11Client("gnome-session") ||
         GuestAppFindX11Client("gnome-panel")) &&
        GuestApp_FindProgram("gnome-open")) {
       buf = "gnome-open";
-   } else if ((GuestAppFindX11Client("ksmserver") ||
+   } else if (((getenv("KDE_FULL_SESSION") != NULL &&
+                !strcmp(getenv("KDE_FULL_SESSION"), "true")) ||
+               GuestAppFindX11Client("ksmserver") ||
                GuestAppFindX11Client("startkde")) &&
               GuestApp_FindProgram("konqueror")) {
       buf = "konqueror";
@@ -242,7 +244,7 @@ GuestAppDetectBrowser(void)
       gBrowserIsNewNetscape =
         (system("netscape -remote 'openURL(file:/some/bad/path.htm, new-window'") == 0);
    }
-   gBrowserEscaped = (char *)Escape_Sh(buf, strlen(buf), NULL);
+   gBrowser = buf;
 }
 
 

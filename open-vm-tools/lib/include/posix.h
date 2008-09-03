@@ -119,6 +119,7 @@ int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 DIR *Posix_OpenDir(ConstUnicode pathName);
 int Posix_System(ConstUnicode command);
 int Posix_Putenv(Unicode name);
+void Posix_Unsetenv(ConstUnicode name);
 
 /*
  * These functions return dynamically allocated stings that have to be
@@ -255,6 +256,7 @@ Posix_GetHostByName(ConstUnicode name)  // IN
 
    if (nameMBCS != NULL) {
       hostentMBCS = gethostbyname(nameMBCS);
+      free(nameMBCS);
 
       if (hostentMBCS != NULL) {
          newhostent = (struct hostent *)Util_SafeMalloc(sizeof *newhostent);
@@ -586,6 +588,7 @@ exit:
 #define Posix_Execve execve
 #define Posix_Execvp execvp
 #define Posix_Fopen fopen
+#define Posix_Fprintf fprintf
 #define Posix_Freopen freopen
 #define Posix_Getenv getenv
 #define Posix_GetGroupList getgrouplist
@@ -609,6 +612,7 @@ exit:
 #define Posix_Pathconf pathconf
 #define Posix_Perror perror
 #define Posix_Popen popen
+#define Posix_Printf printf
 #define Posix_Putenv putenv
 #define Posix_Rename rename
 #define Posix_Rmdir rmdir
@@ -621,6 +625,7 @@ exit:
 #define Posix_Truncate truncate
 #define Posix_Umount umount
 #define Posix_Unlink unlink
+#define Posix_Unsetenv unsetenv
 #define Posix_Utime utime
 #define Posix_Utimes utimes
 #endif

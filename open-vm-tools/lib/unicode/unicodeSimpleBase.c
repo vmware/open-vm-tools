@@ -458,7 +458,7 @@ Unicode_BytesRequired(ConstUnicode str,        // IN
 
    switch (encoding) {
    case STRING_ENCODING_UTF8:
-      return strlen(utf8) + 1;
+      return strlen((const char *)utf8) + 1;
    case STRING_ENCODING_US_ASCII:
    case STRING_ENCODING_ISO_8859_1:
    case STRING_ENCODING_WINDOWS_1252:

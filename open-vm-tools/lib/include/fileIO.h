@@ -50,9 +50,7 @@
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
 
-#if !defined(__FreeBSD__)
 #include "iovector.h"        // for struct iovec
-#endif
 
 #if defined(VMX86_STATS)
 
@@ -291,6 +289,7 @@ FileIOResult FileIO_Writev(FileIODescriptor *fd,
                            int count,
                            size_t totalSize,
                            size_t *bytesWritten);
+#endif
 
 FileIOResult FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
                            struct iovec *entries,  // IN: Vector to read into
@@ -313,7 +312,6 @@ FileIOResult FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
                            void const *buf,        // IN: Buffer to write from
                            size_t len,             // IN: Length of the buffer
                            uint64 offset);         // IN: Offset to start writing
-#endif
 
 FileIOResult FileIO_Access(ConstUnicode pathName,
                            int accessMode);

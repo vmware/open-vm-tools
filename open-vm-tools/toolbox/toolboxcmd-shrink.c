@@ -23,15 +23,19 @@
  */
 
 
-#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include <signal.h>
+#ifndef _WIN32
+#   include <signal.h>
+#endif
+
 #include "toolboxCmdInt.h"
 
-
+#ifndef _WIN32
 static void ShrinkWiperDestroy(int signal);
+#endif
+
 static WiperPartition_List * ShrinkGetMountPoints(void);
 static WiperPartition * ShrinkGetPartition(char *mountPoint, int quiet_flag);
 static Wiper_State *wiper = NULL;
@@ -92,11 +96,11 @@ ShrinkGetPartition(char *mountPoint, // IN: mount point
                    int quiet_flag)   // IN: Verbosity flag
 {
    int i;
+   WiperPartition *part;
    WiperPartition_List *plist = ShrinkGetMountPoints();
    if (!plist) {
       return NULL;
    }
-   WiperPartition *part;
    part = (WiperPartition *) malloc(sizeof *part);
    for (i = 0; i < plist->size; i++) {
       if (strcmp(plist->partitions[i].mountPoint, mountPoint) == 0) {
@@ -171,7 +175,9 @@ Shrink_DoShrink(char *mountPoint, // IN: mount point
    int progress = 0;
    unsigned char *err;
    WiperPartition *part;
+#ifndef _WIN32
    signal(SIGINT, ShrinkWiperDestroy);
+#endif
    part = ShrinkGetPartition(mountPoint, quiet_flag);
    if (part == NULL) {
       fprintf(stderr, "Unable to find partition\n");
@@ -231,6 +237,7 @@ Shrink_DoShrink(char *mountPoint, // IN: mount point
 }
 
 
+#ifndef _WIN32
 /*
  *-----------------------------------------------------------------------------
  *
@@ -258,3 +265,4 @@ ShrinkWiperDestroy(int signal)	// IN: Signal caught
    printf("Disk shrink canceled\n");
    exit(EXIT_SUCCESS);
 }
+#endif

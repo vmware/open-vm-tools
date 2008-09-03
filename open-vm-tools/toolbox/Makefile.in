@@ -60,7 +60,10 @@ bin_PROGRAMS = $(am__EXEEXT_1) vmware-toolbox-cmd$(EXEEXT)
 subdir = toolbox
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in COPYING
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -92,7 +95,7 @@ vmware_toolbox_cmd_DEPENDENCIES = ../libguestlib/libguestlib.la \
 	../lib/guestInfo/libGuestInfo.a ../lib/guestApp/libGuestApp.a \
 	$(COMMON) $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I.@am__isrc@
-depcomp = $(SHELL) $(top_srcdir)/depcomp
+depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -132,18 +135,19 @@ DEPDIR = @DEPDIR@
 DNET_CONFIG = @DNET_CONFIG@
 DNET_CPPFLAGS = @DNET_CPPFLAGS@
 DNET_LIBS = @DNET_LIBS@
-ECHO = @ECHO@
+DSYMUTIL = @DSYMUTIL@
+DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
-F77 = @F77@
-FFLAGS = @FFLAGS@
+FGREP = @FGREP@
 GREP = @GREP@
 GTK_CPPFLAGS = @GTK_CPPFLAGS@
 GTK_LIBS = @GTK_LIBS@
 GUESTD_LDADD = @GUESTD_LDADD@
+HAVE_CXX = @HAVE_CXX@
 HAVE_PKG_CONFIG = @HAVE_PKG_CONFIG@
 ICU_CONFIG = @ICU_CONFIG@
 ICU_CPPFLAGS = @ICU_CPPFLAGS@
@@ -154,6 +158,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 KERNEL_RELEASE = @KERNEL_RELEASE@
+LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
 LIBPNG_CONFIG = @LIBPNG_CONFIG@
@@ -176,6 +181,8 @@ MKDIR_P = @MKDIR_P@
 MODULES = @MODULES@
 MODULES_DIR = @MODULES_DIR@
 MODULES_OS = @MODULES_OS@
+NM = @NM@
+NMEDIT = @NMEDIT@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
@@ -212,7 +219,7 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
-ac_ct_F77 = @ac_ct_F77@
+ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -243,6 +250,7 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -275,7 +283,7 @@ COMMON = ../lib/conf/libConf.a ../lib/eventManager/libEventManager.a \
 @HAVE_X11_TRUE@AM_CFLAGS = @GTK_CPPFLAGS@
 @HAVE_X11_TRUE@vmware_toolbox_LDADD =  \
 @HAVE_X11_TRUE@	../lib/guestApp/libGuestAppX11.a $(COMMON) \
-@HAVE_X11_TRUE@	-lX11 @GTK_LIBS@ $(am__append_2)
+@HAVE_X11_TRUE@	@COMMON_XLIBS@ @GTK_LIBS@ $(am__append_2)
 @HAVE_X11_TRUE@vmware_toolbox_SOURCES = debugStdio.c toolbox-gtk.c \
 @HAVE_X11_TRUE@	toolboxAbout.c toolboxDevices.c \
 @HAVE_X11_TRUE@	toolboxOptions.c toolboxScripts.c \

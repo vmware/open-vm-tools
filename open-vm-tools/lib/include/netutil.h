@@ -28,15 +28,16 @@
 #ifndef __NETUTIL_H__
 #define __NETUTIL_H__
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <iphlpapi.h>
+#include <windows.h>
+#endif
+
 #include "vm_basic_types.h"
 
 #if !defined(N_PLAT_NLM)
 #  include "guestInfo.h"
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#include <iphlpapi.h>
 #endif
 
 
@@ -62,6 +63,11 @@ Bool NetUtil_ReleaseRenewIP(Bool release);
 /* Wrappers for functions in iphlpapi.dll */
 PFIXED_INFO NetUtil_GetNetworkParams(void);
 PIP_ADAPTER_INFO NetUtil_GetAdaptersInfo(void);
+ULONG NetUtil_GetAdaptersAddresses(ULONG Family,
+                                   ULONG Flags,
+                                   PVOID rsvd,
+                                   PIP_ADAPTER_ADDRESSES adap_addresses,
+                                   PULONG SizePointer);
 
 #endif
 

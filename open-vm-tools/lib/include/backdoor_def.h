@@ -79,7 +79,7 @@
 #define BDOOR_CMD_GETUUID               19
 #define BDOOR_CMD_GETMEMSIZE            20
 #define BDOOR_CMD_HOSTCOPY              21 /* Devel only */
-/* BDOOR_CMD_GETOS2INTCURSOR, 22, is very old and defunct. Reuse. */
+#define BDOOR_CMD_SERVICE_VM            22 /* prototype only */         
 #define BDOOR_CMD_GETTIME               23 /* Deprecated. Use GETTIMEFULL. */
 #define BDOOR_CMD_STOPCATCHUP           24
 #define BDOOR_CMD_PUTCHR	        25 /* Devel only */

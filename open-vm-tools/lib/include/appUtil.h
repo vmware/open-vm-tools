@@ -65,6 +65,7 @@ HICON AppUtil_GetWindowIcon(HWND hwnd,
                             uint32 iconSize);
 
 void AppUtil_BuildGlobalApplicationList(void);
+char *AppUtil_ActionURIForCommandLine(const WCHAR *commandLineUtf16);
 
 #endif //_WIN32
 

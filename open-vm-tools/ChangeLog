@@ -1,3 +1,142 @@
+2008-09-03  Adar Dembo  <adar@vmware.com>
+	* Resync with internal trunk (2008.08.29)
+
+	* Makefile.am, aclocal.m4, m4/*: Moved macros to 'm4' subdir.
+
+	* compile, config.guess, config.sub, config/*, depcomp, install-sh,
+	ltmain.sh, missing: Moved auxiliary build tools to 'config' subdir.
+
+	* configure.ac: Moved macros and auxiliary build tools into separate
+	subdirectories. Added command line option to force the use of gtk1 over
+	gtk2. Cosmetic fixes. Reworked libicu detection. Switched over to
+	libtool-2.2. Added library check for new gdk symbol. Added library
+	check for libnotify. Reworked use of macros from AC_PATH_XTRA and
+	some X11 library checks.
+
+	* */foundryToolsDaemon.c, toolbox/toolbox-cmd.c, guestd/main.c,
+	lib/guestInfo/guestInfoPerfMonLinux.c, lib/guestInfo/guestInfoPosix.c,
+	lib/misc/posixPosix.c, lib/panic/panic.c, lib/system/systemLinux.c,
+	modules/linux/vsock/linux/util.c, xferlogs/xferlogs.c: Added checks for
+	return codes of certain functions and passed %s to formatted string
+	functions where appropriate (needed to compile on Ubuntu Intrepid).
+
+	* lib/appUtil/appUtilX11.c: Fixed command line skipping logic and added
+	more icon paths. Removed unnecessary chdir(2) canonicalization logic.
+
+	* lib/deployPkg/runDeployPkgPosix.c, lib/file/fileIO.c,
+	lib/file/fileIOPosix.c, lib/file/fileLockPrimitive.c,
+	lib/file/filePosix.c, lib/hgfsServer/hgfsServerLinux.c,
+	lib/include/bsdfmt.h, lib/include/file.h, lib/include/fileIO.h,
+	lib/include/iovector.h, lib/include/msgfmt.h, lib/include/str.h,
+	lib/include/vm_basic_defs.h, lib/include/vm_basic_types.h,
+	lib/misc/hostname.c, lib/misc/idLinux.c, lib/misc/posixPosix.c,
+	lib/SLPv2Parser/*.c, lib/wiper/wiperPosix.c, toolbox/toolboxScripts.c:
+	Added FreeBSD compatibility glue.
+
+	* guestd/toolsDaemon.c, lib/file/file.c,
+	lib/foundryMsg/foundryPropertyListCommon.c, lib/image/imageUtilPng.c,
+	lib/include/appUtil.h, lib/include/backdoor_def.h, lib/include/conf.h,
+	lib/include/cpuid_info.h, lib/include/guest_os.h,
+	lib/include/hostinfo.h, lib/include/imageUtil.h,
+	lib/include/imageUtilTypes.h, lib/include/log.h,
+	lib/include/loglevel_user.h, lib/include/netutil.h,
+	lib/include/posix.h, lib/include/timeutil.h, lib/include/util.h,
+	lib/include/uuid.h, lib/include/vix.h, lib/include/vixOpenSource.h,
+	lib/include/vm_atomic.h, lib/include/vm_legal.h,
+	lib/include/vm_version.h, lib/include/x86cpuid.h,
+	lib/misc/codesetOld.c, lib/misc/timeutil.c, lib/string/bsd_vsnprintf.c,
+	lib/user/util.c, lib/user/utilPosix.c, lib/vixTools/vixTools.c,
+	modules/linux/*/vmci_kernel_if.h, modules/linux/vmxnet/compat_timer.h,
+	toolbox/toolboxCmdInt.h, toolbox/toolboxcmd-*.c:
+	Changes from work unrelated to open-vm-tools on internal trunk.
+
+	* lib/ghIntegration/ghIntegration.c,
+	lib/guestRpc/ghiGetBinaryHandlers.x: Don't send oversized messages.
+	Increased maximum number of binary handlers.
+
+	* lib/ghIntegration/ghIntegrationX11.c, lib/guestApp/guestAppPosix.c,
+	lib/include/guestApp.h, lib/include/system.h, lib/system/systemLinux.c,
+	toolbox/toolbox-gtk.c: Improved "run program" functionality by
+	restoring program environment and stripping any VMware wrapper script
+	changes to LD_LIBRARY_PATH.
+
+	* lib/guestApp/guestAppPosixX11.c: Now using glib to open URLs instead
+	of system(3). Improved gnome and kde session detection.
+
+	* lib/guestApp/Makefile.am: This library needed GTK_CPPFLAGS too.
+
+	* lib/guestInfo/guestInfoInt.h, lib/guestInfo/guestInfoPosix.c,
+	lib/guestInfo/guestInfoServer.c: Added logic to optionally convert
+	subnet mask to an ASCII string.
+
+	* lib/guestRpc/Makefile.am: Cleaned up generated xdr headers better.
+
+	* lib/hgfsServer/hgfsServer.c, lib/hgfsServer/hgfsServerInt.h,
+	lib/hgfsServer/hgfsServerLinux.c: Fixed	problems when packing V3
+	replies.
+
+	* lib/hgfsServer/hgfsServerLinux.c: Fixed UTF-8 normal form D/C
+	conversions on the root directory.
+
+	* lib/include/dndGuest.h: Changed preprocessor usage to allow gtk1 to
+	access UnityDnD.
+
+	* lib/include/dnd.h, vmware-user/copyPaste.c: Code motion.
+
+	* lib/include/guestCaps.h: Resort the capabilities table.
+
+	* lib/include/rpcin.h, lib/rpcIn/rpcin.c, : Beginnings of the Tools
+	core services. This is a full-fledged refactoring of the Tools
+	userlevel apps to a "service" vs. "plugin" programming model.
+
+	* lib/include/vmblock.h, modules/*/vmblock/block.c,
+	modules/*/vmblock/stubs.c, modules/*/vmblock/stubs.h: Changes needed
+	to support the fuse-based implementation of vmblock (coming soon).
+
+	* lib/include/vm_tools_version.h: Some Tools version bumps.
+	
+	* modules/*/*/*: Reflected changes from elsewhere.
+
+	* modules/*/*/compat/compat_stdarg.h: Added compatibility wrappers for
+	stdarg features.
+
+	* modules/freebsd/vmhgfs/debug.*: Cosmetic fixes.
+
+	* modules/freebsd/vmhgfs/*: Make driver compliant with HGFSv3.
+
+	* modules/*/vmmemctl/vmballoon.c: Allow module to yield the processor
+	when allocating many pages.
+
+	* modules/linux/*/autoconf/cachector1.c,
+	modules/linux/*/include/compat_sched.h,
+	modules/linux/*/include/compat_semaphore.h,
+	modules/linux/*/include/compat_slab.h,
+	modules/linux/vmblock/linux/filesystem.c,
+	modules/linux/*/Makefile.kernel,
+	modules/linux/vmhgfs/bdhandler.c, modules/linux/vmhgfs/filesystem.c,
+	modules/linux/vmhgfs/module.h, modules/linux/vmhgfs/request.c,
+	modules/linux/vmsync/sync.c, modules/linux/vsock/linux/af_vsock.c: Fix
+	modules for 2.6.27 kernels.
+
+	* modules/linux/*/Makefile: Fixed DRIVER target.
+
+	* modules/linux/vmci/vmci_drv.c: Moved interrupt registration to be
+	after driver initialization.
+
+	* modules/linux/vsock/linux/af_vsock.c,
+	modules/linux/vsock/linux/af_vsock.c: Added optimized flow control
+	protocol.
+
+	* toolbox/toolboxScripts.c, toolbox/toolboxShrink.c: Cosmetic fixes.
+
+	* vmware-user/copyPaste.c, vmware-user/dnd.c: Fixed edge case behavior
+	with file copy paste and DnD.
+
+	* vmware-user/modconfig.c, vmware-user/notify.c,
+	vmware-user/vmware-user.c, vmware-user/vmwareuserInt.h: Added stubbed
+	modconfig module out-of-date notification framework. Not useful for
+	open-vm-tools, hence the stubs.
+
 2008-08-08  Adar Dembo  <adar@vmware.com>
 	* Resync with internal trunk (2008.07.24)
 

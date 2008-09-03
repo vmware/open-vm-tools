@@ -84,6 +84,14 @@ typedef struct {
    void *cbdata;               // data to pass to callback
 } DesktopSwitchThreadArgs;
 
+/*
+ * The value returned by System_GetServiceState if the current state of the
+ * vmtools service can't be determined. We need to use a value that is not
+ * already used for a real state. The current values run from 0x1 to 0x7, so
+ * 0xffffffff should be fairly safe (cf. winsvc.h).
+ */
+#define VM_SERVICE_STATE_UNKNOWN 0xffffffff
+
 BOOL System_SetProcessPrivilege(char *lpszPrivilege, Bool bEnablePrivilege);
 OS_TYPE System_GetOSType(void);
 OS_DETAIL_TYPE System_GetOSDetailType(void);
@@ -94,6 +102,7 @@ Bool System_IsScreenSaverRunning(void);
 Bool System_StartDesktopSwitchThread(DesktopSwitchThreadArgs *args);
 Bool System_KillDesktopSwitchThread(void);
 Bool System_DisableAndKillScreenSaver(void);
+DWORD System_GetServiceState(LPCWSTR szServiceName);
 #endif
 
 
@@ -106,6 +115,10 @@ Bool System_DisableAndKillScreenSaver(void);
 #if !defined(_WIN32) && !defined(N_PLAT_NLM)
 Bool System_WritePidFile(const char *fileName, pid_t pid);
 Bool System_Daemon(Bool nochdir, Bool noclose, const char *pidFile);
+const char **System_GetNativeEnviron(const char **compatEnviron);
+void System_FreeNativeEnviron(const char **nativeEnviron);
+int System_UnsetEnv(const char *variableName);
+char *System_SetLDPath(const char *path, const Bool native);
 #endif
 
 #endif /* __SYSTEM_H__ */

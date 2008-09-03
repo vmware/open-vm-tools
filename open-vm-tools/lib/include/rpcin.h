@@ -27,7 +27,11 @@
 #ifndef __RPCIN_H__
 #   define __RPCIN_H__
 
-#include "dbllnklst.h"
+#if defined(VMTOOLS_USE_GLIB)
+#  include <glib.h>
+#else
+#  include "dbllnklst.h"
+#endif
 
 /* Helper macro for porting old callbacks that currently use RpcIn_SetRetVals. */
 #define RPCIN_SETRETVALS(data, val, retVal)                                \
@@ -49,6 +53,7 @@ typedef struct RpcInData {
    size_t resultLen;
    Bool freeResult;
    /* Client data. */
+   void *appCtx;
    void *clientData;
 } RpcInData;
 
@@ -59,6 +64,17 @@ typedef struct RpcInData {
  */
 typedef Bool (*RpcIn_Callback)(RpcInData *data);
 
+
+#if defined(VMTOOLS_USE_GLIB)
+
+RpcIn *RpcIn_Construct(GMainLoop *mainLoop,
+                       RpcIn_Callback dispatch,
+                       gpointer clientData);
+
+Bool RpcIn_start(RpcIn *in, unsigned int delay,
+                 RpcIn_ErrorFunc *errorFunc, void *errorData);
+
+#else
 
 /*
  * Type for old RpcIn callbacks. Don't use this anymore - this is here
@@ -73,12 +89,10 @@ typedef Bool
                      void *clientData);       // IN
 
 RpcIn *RpcIn_Construct(DblLnkLst_Links *eventQueue);
-void RpcIn_Destruct(RpcIn *in);
+
 Bool RpcIn_start(RpcIn *in, unsigned int delay,
                  RpcIn_Callback resetCallback, void *resetClientData,
                  RpcIn_ErrorFunc *errorFunc, void *errorData);
-Bool RpcIn_restart(RpcIn *in);
-Bool RpcIn_stop(RpcIn *in);
 
 /*
  * Don't use this function anymore - it's here only for backwards compatibility.
@@ -90,6 +104,13 @@ void RpcIn_RegisterCallback(RpcIn *in, const char *name,
 void RpcIn_RegisterCallbackEx(RpcIn *in, const char *name,
                               RpcIn_Callback callback, void *clientData);
 void RpcIn_UnregisterCallback(RpcIn *in, const char *name);
+
+#endif
+
+void RpcIn_Destruct(RpcIn *in);
+Bool RpcIn_restart(RpcIn *in);
+Bool RpcIn_stop(RpcIn *in);
+
 unsigned int RpcIn_SetRetVals(char const **result, size_t *resultLen,
                               const char *resultVal, Bool retVal);
 #endif /* __RPCIN_H__ */

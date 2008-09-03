@@ -50,7 +50,6 @@
 #include "codeset.h"
 #include "imageUtil.h"
 #include "strutil.h"
-#include "posix.h"
 #include <paths.h>
 #include <mntent.h>
 #include "vm_atomic.h"
@@ -146,6 +145,7 @@ struct _GHIPlatform {
 
    int nextMenuHandle;
    GHashTable *menuHandles;
+   GHashTable *vmwareEnv;
 };
 
 #ifdef GTK2
@@ -190,6 +190,8 @@ typedef struct {
 static void GHIPlatformSetMenuTracking(GHIPlatform *ghip,
                                        Bool isEnabled);
 static char *GHIPlatformUriPathToString(UriPathSegmentA *path);
+static Bool GHIRestoreVMwareEnviron(GHIPlatform *ghip);
+static Bool GHISetVMwareEnviron(GHIPlatform *ghip);
 
 
 /*
@@ -201,6 +203,7 @@ static const char *desktopDirs[] = {
    "/opt/kde3/share/applications",
    "/opt/kde4/share/applications",
    "/opt/kde/share/applications",
+   "/usr/share/applnk",
    "~/.local/share/applications"
 };
 
@@ -401,25 +404,55 @@ GHIPlatformUnregisterCaps(GHIPlatform *ghip) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * GHIPlatformFreeMenuHandle --
+ * GHIPlatformFreeValue --
  *
- *      Frees a GHIMenuHandle entry, usually in the GHIPlatform->menuHandles hash table.
+ *      Frees a hash table entry. Typically called from a g_hashtable
+ *      iterator. Just the value is destroyed, not the key.
  *      Also called directly from GHIPlatformCloseStartMenu.
  *
  * Results:
- *      TRUE to indicate that the menu handle should be removed from the hash table.
+ *      TRUE always.
  *
  * Side effects:
- *      The specified GHIMenuHandle will no longer be valid.
+ *      The specified value will no longer be valid.
  *
  *-----------------------------------------------------------------------------
  */
 
 static gboolean
-GHIPlatformFreeMenuHandle(gpointer key,       // IN
-                          gpointer value,     // IN
-                          gpointer user_data) // IN
+GHIPlatformFreeValue(gpointer key,       // IN
+                     gpointer value,     // IN
+                     gpointer user_data) // IN
 {
+   g_free(value);
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIPlatformFreeKeyAndValue --
+ *
+ *      Frees a hash table entry. Typically called from a g_hashtable
+ *      iterator. Both the key, and the value are freed.
+ *
+ * Results:
+ *      TRUE always.
+ *
+ * Side effects:
+ *      The specified value will no longer be valid.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+GHIPlatformFreeKeyAndValue(gpointer key,       // IN
+                           gpointer value,     // IN
+                           gpointer user_data) // IN
+{
+   g_free(key);
    g_free(value);
 
    return TRUE;
@@ -449,7 +482,7 @@ GHIPlatformCleanupMenuEntries(GHIPlatform *ghip) // IN
 {
 #ifdef GTK2
    if (ghip->menuHandles) {
-      g_hash_table_foreach_remove(ghip->menuHandles, GHIPlatformFreeMenuHandle, NULL);
+      g_hash_table_foreach_remove(ghip->menuHandles, GHIPlatformFreeValue, NULL);
       g_hash_table_destroy(ghip->menuHandles);
       ghip->menuHandles = NULL;
    }
@@ -490,6 +523,11 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
    GHIPlatformSetMenuTracking(ghip, FALSE);
    g_array_free(ghip->directoriesTracked, TRUE);
    ghip->directoriesTracked = NULL;
+   if (ghip->vmwareEnv) {
+      g_hash_table_foreach_remove(ghip->vmwareEnv, GHIPlatformFreeKeyAndValue, NULL);
+      g_hash_table_destroy(ghip->vmwareEnv);
+      ghip->vmwareEnv = NULL;
+   }
    free(ghip);
 }
 
@@ -1035,10 +1073,12 @@ GHIPlatformReadDesktopFile(GHIPlatform *ghip, // IN
       for (i = 0; i < argc; i++) {
          /*
           * The Exec= line in the .desktop file may list other boring helper apps before
-          * the name of the main app. getproxy is a common one. We need to skip those arguments in the cmdline.
+          * the name of the main app. getproxy is a common one. We need to skip those
+          * arguments in the cmdline.
           */
          if (!AppUtil_AppIsSkippable(argv[i])) {
             exe = g_strdup(argv[i]);
+            break;
          }
       }
       g_strfreev(argv);
@@ -1050,7 +1090,7 @@ GHIPlatformReadDesktopFile(GHIPlatform *ghip, // IN
    if (exe && *exe != '/') {
       char *ctmp;
 
-      ctmp = g_find_program_in_path(exe);
+      ctmp = AppUtil_CanonicalizeAppName(exe, NULL);
       g_free(exe);
       exe = ctmp;
    }
@@ -1614,7 +1654,7 @@ GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
    }
 
    g_hash_table_remove(ghip->menuHandles, GINT_TO_POINTER(gmh->handleID));
-   GHIPlatformFreeMenuHandle(NULL, gmh, NULL);
+   GHIPlatformFreeValue(NULL, gmh, NULL);
 
    return TRUE;
 #else // !GTK2
@@ -2146,11 +2186,13 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
 
    if (GHIPlatformCombineArgs(ghip, fileUtf8, &fullArgv, &fullArgc) &&
        fullArgc > 0) {
+      GHIRestoreVMwareEnviron(ghip);
       retval = g_spawn_async(NULL, fullArgv, NULL,
                              G_SPAWN_SEARCH_PATH |
                              G_SPAWN_STDOUT_TO_DEV_NULL |
                              G_SPAWN_STDERR_TO_DEV_NULL,
                              NULL, NULL, NULL, NULL);
+      GHISetVMwareEnviron(ghip);
    }
 
    g_strfreev(fullArgv);
@@ -2398,4 +2440,160 @@ GHIPlatformGetProtocolHandlers(GHIPlatform *ghip,                           // U
                                GHIProtocolHandlerList *protocolHandlerList) // IN
 {
    return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHISetVMwareVariable --
+ *
+ *      Sets the environment variable passed in to the value passed in. 
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      The specified environment variable is set. 
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+GHISetVMwareVariable(gpointer key,       // IN
+                     gpointer value,     // IN
+                     gpointer user_data) // IN (unused)
+{
+   if (value) {
+      System_SetEnv(TRUE, key, value);
+   } else {
+      System_UnsetEnv(key);
+   }
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * GHIRestoreVMwareEnviron --
+ *
+ *     For each VMWARE_FOO in the environment, putenv its value as FOO
+ *     and save off the previous value of FOO for later restore (iff this
+ *     is the first time we are called, e.g., the hash table was not yet
+ *     created.) This is called by GHIPlatformShellOpen on Linux only to 
+ *     undo what the vmwareuser wrapper script did to the environment,
+ *     before we fork and exec.
+ *
+ * Results:
+ *     TRUE on success
+ *     FALSE on error
+ *
+ * Side effects:
+ *     None
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static Bool
+GHIRestoreVMwareEnviron(GHIPlatform *ghip) // IN
+{
+   extern char **environ;
+   char **p;
+   Bool addToHash = FALSE;
+
+   if (!ghip->vmwareEnv) {
+      ghip->vmwareEnv = g_hash_table_new(g_str_hash, g_str_equal);
+      addToHash = TRUE;
+   }
+
+   if (!ghip->vmwareEnv) {
+      return FALSE;
+   }
+
+   for (p = environ; p && *p; p++) {
+      if (!StrUtil_StartsWith(*p, "VMWARE_")) {
+         continue;
+      }
+
+      /*
+       * So we have a variable that starts with VMWARE_. This variable
+       * was created by the wrapper script that launches us, for each 
+       * variable in the parent environment it modified. For example, if
+       * the variable it changes is LD_LIBRARY_PATH, then the variable
+       * VMWARE_LD_LIBRARY_PATH will hold the value before the wrapper
+       * script modified it. In Unix, we get this variable in the 
+       * environ extern as VMWARE_LD_LIBRARY_PATH=value. So, we want to
+       * get the lhs of the "=", skip past the VMWARE_ prefix to get to
+       * the variable name, and extract the rhs of the "=" to get the
+       * value.
+       */
+      char *lhs;
+      char *rhs;
+      unsigned int index;
+
+      index = 0;
+      lhs = StrUtil_GetNextToken(&index, *p, "=");
+      if (lhs) {
+         index++;
+         rhs = StrUtil_GetNextToken(&index, *p, "");
+         if (rhs && *rhs) {
+            char *q;
+            q = lhs + sizeof "VMWARE_" - 1;
+            if (*q) {
+               Debug("%s: restoring %s\n", __FUNCTION__, q);
+               if (addToHash) {
+                  g_hash_table_insert(ghip->vmwareEnv, g_strdup(q),
+                                      System_GetEnv(TRUE, q));
+               }
+               /*
+                * If the value is "0", the script told us that
+                * there was no corresponding variable in the 
+                * environment. XXX why it was compelled to create
+                * the VMWARE_ counterpart is unclear. It should have
+                * been set with a value like "VMWARE_UNSET_ENV" 
+                * because "0" is conceivably a value that is legit
+                * in some instances. Here, we assume no legit var
+                * had a value of "0". See bug 313450.
+                */
+               if (strcmp(rhs, "0") == 0) {
+                  System_UnsetEnv(q);
+               } else if (*rhs == '1') {
+                  System_SetEnv(TRUE, q, rhs + 1);
+               }
+            }
+         }
+         free(rhs);
+      }
+      free(lhs);
+   }
+   return TRUE;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * GHISetVMwareEnviron --
+ *
+ *     Restore each environment variable in the hash table to the values
+ *     assigned by the wrapper script when vmware-user was executed.
+ *
+ * Results:
+ *     TRUE on success
+ *     FALSE on error
+ *
+ * Side effects:
+ *     None
+ *
+ *------------------------------------------------------------------------------
+ */
+
+static Bool
+GHISetVMwareEnviron(GHIPlatform *ghip)   // IN
+{
+   if (!ghip->vmwareEnv) {
+      return FALSE;
+   }
+   g_hash_table_foreach(ghip->vmwareEnv, GHISetVMwareVariable, NULL);
+   return TRUE;
 }

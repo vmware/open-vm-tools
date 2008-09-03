@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-#ifndef _LOG_H_
-#define _LOG_H_
+#ifndef VMWARE_LOG_H
+#define VMWARE_LOG_H
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
@@ -31,16 +31,30 @@ typedef void (LogBasicFunc)(const char *fmt, va_list args);
 
 struct LogState;
 
+typedef struct
+{
+   const char *fileName;             // File name, if known
+   const char *config;               // Config variable to look up
+   const char *suffix;               // Suffix to generate log file name
+   const char *appName;              // App name for log header
+   const char *appVersion;           // App version for log header
+   Bool logging;                     // Logging is enabled or not
+   Bool append;                      // Append to log file
+   unsigned int keepOld;             // Number of old logs to keep
+   unsigned int throttleThreshold;   // Threshold for throttling
+   unsigned int throttleBytesPerSec; // BPS for throttle
+   Bool switchFile;                  // Switch the initial log file
+   unsigned int rotateSize;          // Size at which log should be rotated
+} LogInitParams;
+
+EXTERN void Log_GetInitDefaults(const char *fileName, const char *config,
+                                const char *suffix, LogInitParams *params);
+
 EXTERN Bool Log_Init(const char *fileName, const char *config, const char *suffix);
 EXTERN Bool Log_InitForApp(const char *fileName, const char *config,
                            const char *suffix, const char *appName,
                            const char *appVersion);
-EXTERN Bool Log_InitEx(const char *fileName, const char *config, const char *suffix,
-                       const char *appName, const char *appVersion,
-                       Bool logging, Bool append,
-                       unsigned int keepOld, unsigned int throttleThreshold, 
-                       unsigned int throttleBytesPerSec, Bool switchFile, 
-                       unsigned int rotateSize);
+EXTERN Bool Log_InitEx(const LogInitParams *params);
 EXTERN void Log_Exit(void);
 EXTERN void Log_SetConfigDir(const char *configDir);
 EXTERN void Log_SetLockFunc(void (*f)(Bool locking));
@@ -111,4 +125,4 @@ EXTERN void Log_Time(VmTimeType *time, int count, const char *message);
 EXTERN void Log_Histogram(uint32 n, uint32 histo[], int nbuckets,
 			  const char *message, int *count, int limit);
 
-#endif
+#endif /* VMWARE_LOG_H */

@@ -44,6 +44,15 @@ typedef struct {
 typedef struct {
    unsigned int width;
    unsigned int height;
+   
+   /*
+    * 'depth' is the color depth (in bits per pixel) used for the image. 'bpp'
+    * is the number of bits actually consumed per pixel in memory. (For
+    * example, an image that uses 5 bits for each of R, G, B has depth=15 and
+    * bpp=16.  It's always true that depth <= bpp.  
+    * 
+    * Also see the comment to Raster_ConvertPixels.
+    */
    unsigned int depth;
    unsigned int bpp;
    unsigned int bytesPerLine;
@@ -65,6 +74,10 @@ typedef struct {
 typedef struct {
    int zlibCompressLevel;
    Bool stripAlphaChannel;
-} ImagePngOptions;
+} ImagePngWriteOptions;
+
+typedef enum {
+   IMAGE_PNG_READ_KEEP_ALPHA = (1 << 0),
+} ImagePngReadFlags;
 
 #endif // _IMAGEUTIL_TYPES_H_

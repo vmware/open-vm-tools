@@ -1244,8 +1244,10 @@ GuestInfoAddIpAddress(GuestNic *nic,                    // IN/OUT
  *      Add an IPV4 subnet mask to the IpAddress in ASCII form.
  *
  * Results:
- *      The 'n' bits subnet mask is converted to an ASCII string as a
- *      hexadecimal number (0xffffff00) and added to the IPAddressEntry
+ *      If convertToMask is true the 'n' bits subnet mask is converted
+ *      to an ASCII string as a hexadecimal number (0xffffff00) and
+ *      added to the IPAddressEntry. If convertToMask is false the value
+ *      is added to the IPAddressEntry in string form - ie '24'
  *
  * Side effects:
  *      None.
@@ -1255,27 +1257,32 @@ GuestInfoAddIpAddress(GuestNic *nic,                    // IN/OUT
 
 void
 GuestInfoAddSubnetMask(VmIpAddress *ipAddressEntry,            // IN/OUT
-                       const uint32 subnetMaskBits)            // IN
+                       const uint32 subnetMaskBits,            // IN
+                       Bool convertToMask)                     // IN
 {
    int i;
    uint32 subnetMask = 0;
 
    ASSERT(ipAddressEntry);
-   ASSERT(subnetMaskBits <= 32);
 
-   /*
-    * Convert the subnet mask from a number of bits (ie. '24') to
-    * hexadecimal notation such 0xffffff00
-    */
-   for (i = 0; i < subnetMaskBits; i++) {
-      subnetMask |= (0x80000000 >> i);
+   if (convertToMask && (subnetMaskBits <= 32)) {
+      /*
+       * Convert the subnet mask from a number of bits (ie. '24') to
+       * hexadecimal notation such 0xffffff00
+       */
+      for (i = 0; i < subnetMaskBits; i++) {
+         subnetMask |= (0x80000000 >> i);
+      }
+
+      // Convert the hexadecimal value to a string and add to the IpAddress Entry
+      Str_Sprintf(ipAddressEntry->subnetMask,
+                  sizeof ipAddressEntry->subnetMask,
+                  "0x%x", subnetMask);
+   } else {
+      Str_Sprintf(ipAddressEntry->subnetMask,
+                  sizeof ipAddressEntry->subnetMask,
+                  "%d", subnetMaskBits);
    }
-
-   // Convert the hexadecimal value to a string and add to the IpAddress Entry
-   Str_Sprintf(ipAddressEntry->subnetMask,
-               sizeof ipAddressEntry->subnetMask,
-               "0x%x", subnetMask);
-
    return;
 }
 

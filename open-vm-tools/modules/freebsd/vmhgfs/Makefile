@@ -29,6 +29,7 @@ HEADERS += vnopscommon.h
 HEADERS += os.h
 HEADERS += compat_freebsd.h
 HEADERS += compat_vop.h
+HEADERS += vfsopscommon.h
 
 COMMON_SRCS := cpName.c
 COMMON_SRCS += cpNameLinux.c
@@ -52,6 +53,7 @@ COMMON_HGFS_SRCS += worker.c
 COMMON_HGFS_SRCS += fsutil.c
 COMMON_HGFS_SRCS += vnopscommon.c
 COMMON_HGFS_SRCS += state.c
+COMMON_HGFS_SRCS += vfsopscommon.c
 
 MODULE_SRCS := vnops.c
 MODULE_SRCS += vfsops.c

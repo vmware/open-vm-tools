@@ -26,6 +26,7 @@
 #define _UUID_H_
 
 #define INCLUDE_ALLOW_USERLEVEL 
+#define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h" 
 
 #define UUID_SIZE 16

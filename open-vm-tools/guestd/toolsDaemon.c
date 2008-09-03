@@ -39,7 +39,6 @@ extern "C" {
 
 #ifdef _WIN32
 #   include <windows.h>
-#   include "win95.h"
 #   include "win32u.h"
 #   include "hgfsUsabilityLib.h"
 #endif

@@ -304,9 +304,9 @@ os_mutex_alloc_init(const char *mtxName) // IN
 /*
  *----------------------------------------------------------------------------
  *
- * os_mutex_destroy --
+ * os_mutex_free --
  *
- *      Destroy a FreeBSD mutex in an OS independent way.
+ *      Frees a FreeBSD mutex in an OS independent way.
  *
  * Results:
  *      None.
@@ -318,7 +318,7 @@ os_mutex_alloc_init(const char *mtxName) // IN
  */
 
 void
-os_mutex_destroy(OS_MUTEX_T *mtx) // IN
+os_mutex_free(OS_MUTEX_T *mtx) // IN
 {
    mtx_destroy(mtx);
    os_free(mtx, sizeof *mtx);
@@ -401,9 +401,9 @@ os_rw_lock_alloc_init(const char *lckName) // IN
 /*
  *----------------------------------------------------------------------------
  *
- * os_rw_lock_destory --
+ * os_rw_lock_free --
  *
- *      Destroy a FreeBSD rwlock in an OS independent way.
+ *      Frees a FreeBSD rwlock in an OS independent way.
  *
  * Results:
  *      None.
@@ -415,7 +415,7 @@ os_rw_lock_alloc_init(const char *lckName) // IN
  */
 
 void
-os_rw_lock_destroy(OS_RWLOCK_T *lck) // IN
+os_rw_lock_free(OS_RWLOCK_T *lck) // IN
 {
    sx_destroy(lck);
    os_free(lck, sizeof *lck);

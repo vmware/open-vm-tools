@@ -55,6 +55,15 @@
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <sys/sysctl.h>
+#elif defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#if !defined(RLIMIT_AS)
+#  if defined(RLIMIT_VMEM)
+#     define RLIMIT_AS RLIMIT_VMEM
+#  else
+#     define RLIMIT_AS RLIMIT_RSS
+#  endif
+#endif
 #else
 #if !defined(USING_AUTOCONF) || defined(HAVE_SYS_VFS_H)
 #include <sys/vfs.h>
@@ -66,10 +75,6 @@
 #define HAVE_SYSINFO 1
 #endif
 #endif
-#endif
-#if defined(__FreeBSD__)
-#include <sys/types.h>
-#include <sys/sysctl.h>
 #endif
 
 #include "vmware.h"
@@ -110,7 +115,7 @@
  * Local functions
  */
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
 static char *HostinfoGetCpuInfo(int nCpu, char *name);
 #if !defined(VMX86_SERVER)
 static Bool HostinfoGetMemInfo(char *name, unsigned int *value);
@@ -254,13 +259,6 @@ HostinfoMacAbsTimeNS(void)
    mach_timebase_info_data_t *ptr;
    static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
 
-#if defined(VMX86_DEBUG)
-   SyncMutex *lck;
-
-   static Atomic_Ptr lckStorage;
-   static VmTimeType lastTimeRead;
-#endif
-
    /* Insure that the time base values are correct. */
    ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
 
@@ -278,20 +276,7 @@ HostinfoMacAbsTimeNS(void)
       ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
    }
 
-#if defined(VMX86_DEBUG)
-   /* assert that mach_absolute_time is always increasing */
-   lck = SyncMutex_CreateSingleton(&lckStorage);
-   SyncMutex_Lock(lck);
-
    raw = mach_absolute_time();
-
-   ASSERT(raw >= lastTimeRead);
-   lastTimeRead = raw;
-
-   SyncMutex_Unlock(lck);
-#else
-   raw = mach_absolute_time();
-#endif
 
    if ((ptr->numer == 1) && (ptr->denom == 1)) {
       /* The scaling values are unity, save some time/arithmetic */
@@ -301,15 +286,15 @@ HostinfoMacAbsTimeNS(void)
       return ((double) raw) * (((double) ptr->numer) / ((double) ptr->denom));
    }
 }
-#else
+#endif
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoSystemTimerUS --
+ * HostinfoRawSystemTimerUS --
  *
- *      Obtain the system timer for non-Mac systems.
+ *      Obtain the raw system timer value.
  *
  * Results:
  *      Relative time in microseconds or zero if a failure.
@@ -320,9 +305,12 @@ HostinfoMacAbsTimeNS(void)
  *-----------------------------------------------------------------------------
  */
 
-static VmTimeType
-HostinfoSystemTimerUS(void)
+VmTimeType
+Hostinfo_RawSystemTimerUS(void)
 {
+#if defined(__APPLE__)
+   return HostinfoMacAbsTimeNS() / 1000ULL;
+#else
 #if defined(VMX86_SERVER)
    if (HostType_OSIsPureVMK()) {
       uint64 uptime;
@@ -349,8 +337,8 @@ HostinfoSystemTimerUS(void)
 #if defined(VMX86_SERVER)
    }
 #endif /* ifdef VMX86_SERVER */
+#endif /* ifdef __APPLE__ */
 }
-#endif
 
 
 /*
@@ -362,6 +350,8 @@ HostinfoSystemTimerUS(void)
  *      is valid (finish-time - start-time) only within a single process.
  *      Don't send a time obtained this way to another process and expect
  *      a relative time measurement to be correct.
+ *
+ *      This timer is documented to never go backwards.
  *
  * Results:
  *      Relative time in microseconds or zero if a failure.
@@ -378,9 +368,6 @@ HostinfoSystemTimerUS(void)
 VmTimeType
 Hostinfo_SystemTimerUS(void)
 {
-#if defined(__APPLE__)
-   return HostinfoMacAbsTimeNS() / 1000ULL;
-#else
    SyncMutex *lck;
    VmTimeType curTime;
    VmTimeType newTime;
@@ -390,15 +377,16 @@ Hostinfo_SystemTimerUS(void)
    static VmTimeType lastTimeRead;
    static VmTimeType lastTimeReset;
 
-   curTime = HostinfoSystemTimerUS();
-
-   if (curTime == 0) {
-      return 0;
-   }
-
    /* Get and take lock. */
    lck = SyncMutex_CreateSingleton(&lckStorage);
    SyncMutex_Lock(lck);
+
+   curTime = Hostinfo_RawSystemTimerUS();
+
+   if (curTime == 0) {
+      newTime = 0;
+      goto exit;
+   }
 
    /*
     * Don't let time be negative or go backward.  We do this by
@@ -415,11 +403,11 @@ Hostinfo_SystemTimerUS(void)
 
    lastTimeRead = newTime;
 
+exit:
    /* Release lock. */
    SyncMutex_Unlock(lck);
 
    return newTime;
-#endif
 }
 
 /*
@@ -459,27 +447,54 @@ Hostinfo_SystemUpTime(void)
    }
 
    return 0;
-#else
+#elif defined(__linux__)
    int res;
    double uptime;
-   FILE *f;
+   int fd;
+   char buf[256];
 
-   f = Posix_Fopen("/proc/uptime", "r");
-   if (!f) {
-      Warning(LGPFX" Failed to open /proc/uptime: %s\n", Msg_ErrString());
-      return 0;
+   static Atomic_Int fdStorage = { -1 };
+
+   fd = Atomic_ReadInt(&fdStorage);
+
+   /* Do we need to open the file the first time through? */
+   if (UNLIKELY(fd == -1)) {
+      fd = open("/proc/uptime", O_RDONLY);
+
+      if (fd == -1) {
+         Warning(LGPFX" Failed to open /proc/uptime: %s\n", Msg_ErrString());
+         return 0;
+      }
+
+      /* Try to swap ours in. If we lose the race, close our fd */
+      if (Atomic_ReadIfEqualWriteInt(&fdStorage, -1, fd) != -1) {
+         close(fd);
+      }
+
+      /* Get the winning fd - either ours or theirs, doesn't matter anymore */
+      fd = Atomic_ReadInt(&fdStorage);
    }
 
-   res = fscanf(f, "%lf", &uptime);
-   fclose(f);
-   if (res != 1) {
+   ASSERT(fd != -1);
+
+   res = pread(fd, buf, sizeof buf - 1, 0);
+   if (res == -1) {
+      Warning(LGPFX" Failed to pread /proc/uptime: %s\n", Msg_ErrString());
+      return 0;
+   }
+   ASSERT(res < sizeof buf);
+   buf[res] = '\0';
+
+   if (sscanf(buf, "%lf", &uptime) != 1) {
       Warning(LGPFX" Failed to parse /proc/uptime\n");
       return 0;
    }
+
    return uptime * 1000 * 1000;
+#else
+NOT_IMPLEMENTED();
 #endif
 }
-
 
 
 /*
@@ -682,9 +697,19 @@ Hostinfo_NumCPUs(void)
    uint32 out;
    size_t outSize = sizeof out;
 
+#if __FreeBSD__version >= 500019
    if (sysctlbyname("kern.smp.cpus", &out, &outSize, NULL, 0) == -1) {
       return -1;
    }
+#else
+   if (sysctlbyname("machdep.smp_cpus", &out, &outSize, NULL, 0) == -1) {
+      if (errno == ENOENT) {
+         out = 1;
+      } else {
+         return -1;
+      }
+   }
+#endif
 
    return out;
 #else
@@ -762,18 +787,29 @@ Bool
 Hostinfo_GetRatedCpuMhz(int32 cpuNumber, // IN
                         uint32 *mHz)     // OUT
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
+
+#  if defined(__APPLE__)
+#     define CPUMHZ_SYSCTL_NAME "hw.cpufrequency_max"
+#  elif __FreeBSD__version >= 50011
+#     define CPUMHZ_SYSCTL_NAME "hw.clockrate"
+#  endif
+
+#  if defined(CPUMHZ_SYSCTL_NAME)
    uint32 hz;
    size_t hzSize = sizeof hz;
 
    // 'cpuNumber' is ignored: Intel Macs are always perfectly symetric.
 
-   if (sysctlbyname("hw.cpufrequency_max", &hz, &hzSize, NULL, 0) == -1) {
+   if (sysctlbyname(CPUMHZ_SYSCTL_NAME, &hz, &hzSize, NULL, 0) == -1) {
       return FALSE;
    }
 
    *mHz = hz / 1000000;
    return TRUE;
+#  else
+   return FALSE;
+#  endif
 #else
    float fMhz = 0;
    char *readVal = HostinfoGetCpuInfo(cpuNumber, "cpu MHz");
@@ -811,13 +847,19 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber, // IN
 char *
 Hostinfo_GetCpuDescription(uint32 cpuNumber) // IN
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#  if defined(__APPLE__)
+#     define CPUDESC_SYSCTL_NAME "machdep.cpu.brand_string"
+#  else
+#     define CPUDESC_SYSCTL_NAME "hw.model"
+#  endif
+
    char *desc;
    size_t descSize;
 
    // 'cpuNumber' is ignored: Intel Macs are always perfectly symetric.
 
-   if (sysctlbyname("machdep.cpu.brand_string", NULL, &descSize, NULL, 0)
+   if (sysctlbyname(CPUDESC_SYSCTL_NAME, NULL, &descSize, NULL, 0)
           == -1) {
       return NULL;
    }
@@ -827,7 +869,7 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber) // IN
       return NULL;
    }
 
-   if (sysctlbyname("machdep.cpu.brand_string", desc, &descSize, NULL, 0)
+   if (sysctlbyname(CPUDESC_SYSCTL_NAME, desc, &descSize, NULL, 0)
           == -1) {
       free(desc);
       return NULL;
@@ -851,6 +893,7 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber) // IN
 
 
 #if !defined(__APPLE__)
+#if !defined(__FreeBSD__)
 /*
  *----------------------------------------------------------------------
  *
@@ -911,9 +954,8 @@ HostinfoGetCpuInfo(int nCpu,         // IN
    fclose(f);
    return value; 
 }
+#endif /* __FreeBSD__ */
 
-
-#if !defined(VMX86_SERVER)
 /*
  *----------------------------------------------------------------------
  *
@@ -1076,17 +1118,17 @@ HostinfoSysinfo(uint64 *totalRam, // OUT: Total RAM in bytes
    NOT_IMPLEMENTED();
 #endif // ifdef HAVE_SYSINFO
 }
-#endif // ifndef VMX86_SERVER
 #endif // ifndef __APPLE__
 
 
+#if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
 /*
  *-----------------------------------------------------------------------------
  *
- * Hostinfo_GetMemoryInfoInPages --
+ * HostinfoGetLinuxMemoryInfoInPages --
  *
  *      Obtain the minimum memory to be maintained, total memory available, and
- *      free memory available on the host in pages.
+ *      free memory available on the host (Linux or COS) in pages.
  *
  * Results:
  *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
@@ -1099,61 +1141,10 @@ HostinfoSysinfo(uint64 *totalRam, // OUT: Total RAM in bytes
  */
 
 Bool
-Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,     // OUT
-                              unsigned int *maxSize,     // OUT
-                              unsigned int *currentSize) // OUT
+HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,     // OUT
+                                  unsigned int *maxSize,     // OUT
+                                  unsigned int *currentSize) // OUT
 {
-#if defined(__APPLE__)
-   mach_msg_type_number_t count;
-   vm_statistics_data_t stat;
-   kern_return_t error;
-
-   /*
-    * Largely inspired by
-    * darwinsource-10.4.5/top-15/libtop.c::libtop_p_vm_sample().
-    */
-
-   count = HOST_VM_INFO_COUNT;
-   error = host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)&stat,
-                           &count);
-   if (error != KERN_SUCCESS || count != HOST_VM_INFO_COUNT) {
-      Warning("%s: Unable to retrieve host vm stats.\n", __FUNCTION__);
-      return FALSE;
-   }
-
-   // XXX Figure out this value.
-   *minSize = 128;
-
-   // XXX Hopefully this includes cached memory as well. We should check.
-   *currentSize = stat.free_count;
-
-   /*
-    * Includes kernel memory. This is the same amount as reported by the
-    * "hw.physmem" sysctl, which is itself slightly lower than the amount
-    * reported by the "hw.memsize" sysctl, which is the physical RAM size.
-    */
-   *maxSize =   stat.free_count
-              + stat.wire_count + stat.active_count + stat.inactive_count;
-
-   return TRUE;
-#elif defined(VMX86_SERVER)
-   uint64 total; 
-   uint64 free;
-   VMK_ReturnStatus status;
-
-   if (VmkSyscall_Init(FALSE, NULL, 0)) {
-      status = CosVmnix_GetMemSize(&total, &free);
-      if (status == VMK_OK) {
-         *minSize = 128;
-         *maxSize = total / PAGE_SIZE;
-         *currentSize = free / PAGE_SIZE;
-
-         return TRUE;
-      }
-   }
-
-   return FALSE;
-#else 
    uint64 total; 
    uint64 free;
    unsigned int cached = 0;
@@ -1198,8 +1189,127 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,     // OUT
    }
 
    return TRUE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetMemoryInfoInPages --
+ *
+ *      Obtain the minimum memory to be maintained, total memory available, and
+ *      free memory available on the host in pages.
+ *
+ * Results:
+ *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,     // OUT
+                              unsigned int *maxSize,     // OUT
+                              unsigned int *currentSize) // OUT
+{
+#if defined(__APPLE__)
+   mach_msg_type_number_t count;
+   vm_statistics_data_t stat;
+   kern_return_t error;
+   uint64_t memsize;
+   size_t memsizeSize = sizeof memsize;
+
+   /*
+    * Largely inspired by
+    * darwinsource-10.4.5/top-15/libtop.c::libtop_p_vm_sample().
+    */
+
+   count = HOST_VM_INFO_COUNT;
+   error = host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)&stat,
+                           &count);
+   if (error != KERN_SUCCESS || count != HOST_VM_INFO_COUNT) {
+      Warning("%s: Unable to retrieve host vm stats.\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   // XXX Figure out this value.
+   *minSize = 128;
+
+   /*
+    * XXX Hopefully this includes cached memory as well. We should check.
+    * No. It returns only completely used pages.
+    */
+   *currentSize = stat.free_count;
+
+   /*
+    * Adding up the stat values does not sum to 100% of physical memory.
+    * The correct value is available from sysctl so we do that instead.
+    */
+   if (sysctlbyname("hw.memsize", &memsize, &memsizeSize, NULL, 0) == -1) {
+      Warning("%s: Unable to retrieve host vm hw.memsize.\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   *maxSize = memsize / PAGE_SIZE;
+   return TRUE;
+#elif defined(VMX86_SERVER)
+   uint64 total; 
+   uint64 free;
+   VMK_ReturnStatus status;
+
+   if (VmkSyscall_Init(FALSE, NULL, 0)) {
+      status = CosVmnix_GetMemSize(&total, &free);
+      if (status == VMK_OK) {
+         *minSize = 128;
+         *maxSize = total / PAGE_SIZE;
+         *currentSize = free / PAGE_SIZE;
+
+         return TRUE;
+      }
+   }
+
+   return FALSE;
+#else
+   return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
 #endif
 }
+
+
+#ifdef VMX86_SERVER
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetCOSMemoryInfoInPages --
+ *
+ *      Obtain the minimum memory to be maintained, total memory available, and
+ *      free memory available on the COS in pages.
+ *
+ * Results:
+ *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,     // OUT
+                                 unsigned int *maxSize,     // OUT
+                                 unsigned int *currentSize) // OUT
+{
+   if (HostType_OSIsPureVMK()) {
+      return FALSE;
+   } else {
+      return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
+   }
+}
+#endif
 
 
 /*
@@ -1547,8 +1657,8 @@ Hostinfo_GetUser()
 
    if ((Posix_Getpwuid_r(getuid(), &pw, buffer, sizeof buffer, &ppw) == 0) &&
        (ppw != NULL)) {
-      if (pw.pw_name) {
-         name = Unicode_Duplicate(pw.pw_name);
+      if (ppw->pw_name) {
+         name = Unicode_Duplicate(ppw->pw_name);
       }
    }
 

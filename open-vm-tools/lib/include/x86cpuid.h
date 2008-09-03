@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2008 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,6 +162,7 @@ typedef enum {
 #define CPUID_INTEL_VENDOR_STRING       "GenuntelineI"
 #define CPUID_AMD_VENDOR_STRING         "AuthcAMDenti"
 #define CPUID_CYRIX_VENDOR_STRING       "CyriteadxIns"
+#define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
 #define CPUID_INTEL_VENDOR_STRING_FIXED "GenuineIntel"
 #define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
 #define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
@@ -640,6 +641,43 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_PIII_08    8
 #define CPUID_MODEL_PIII_0A    10
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_IsVendor{AMD,Intel} --
+ *
+ *      Determines if the vendor string in cpuid id0 is from {AMD,Intel}.
+ *
+ * Results:
+ *      True iff vendor string is CPUID_{AMD,INTEL}_VENDOR_STRING
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+CPUID_IsRawVendor(CPUIDRegs *id0, const char* vendor)
+{
+   // hard to get strcmp() in some environments, so do it in the raw
+   return (id0->ebx == *(const uint32 *) (vendor + 0) &&
+           id0->ecx == *(const uint32 *) (vendor + 4) &&
+           id0->edx == *(const uint32 *) (vendor + 8));   
+}
+
+static INLINE Bool
+CPUID_IsVendorAMD(CPUIDRegs *id0)
+{
+   return CPUID_IsRawVendor(id0, CPUID_AMD_VENDOR_STRING);
+}
+
+static INLINE Bool
+CPUID_IsVendorIntel(CPUIDRegs *id0)
+{
+   return CPUID_IsRawVendor(id0, CPUID_INTEL_VENDOR_STRING);
+}
+
+
 static INLINE uint32
 CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */
 {
@@ -837,10 +875,7 @@ CPUID_ID0RequiresFence(CPUIDRegs *id0)
    if (id0->eax == 0) {
       return FALSE;
    }
-   // hard to get strcmp() in some environments, so do it in the raw
-   return (id0->ebx == *(uint32 *) (CPUID_AMD_VENDOR_STRING + 0) &&
-           id0->ecx == *(uint32 *) (CPUID_AMD_VENDOR_STRING + 4) &&
-           id0->edx == *(uint32 *) (CPUID_AMD_VENDOR_STRING + 8));
+   return CPUID_IsVendorAMD(id0);
 }
 
 static INLINE Bool

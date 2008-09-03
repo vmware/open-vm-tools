@@ -37,6 +37,8 @@
 #include "rpcout.h"
 #include "rpcin.h"
 
+#include "guestApp.h"
+
 /*
  * These must be the same as the minimum values used by the lots_of_modlines()
  * function in config.pl
@@ -75,8 +77,43 @@ Bool CopyPaste_IsRpcCPSupported(void);
 
 Bool Pointer_Register(GtkWidget* mainWnd);
 
-Bool Notify_Init(void);
+#if defined(USING_AUTOCONF) && defined(HAVE_LIBNOTIFY)
+#if defined(USE_NOTIFY_DLOPEN)
+#error "USE_NOTIFY_SO and USE_NOTIFY_DLOPEN cannot be simultaneously defined"
+#endif
+
+#define USE_NOTIFY_SO
+#endif
+
+#if defined(USE_NOTIFY_SO) || defined(USE_NOTIFY_DLOPEN)
+#define USE_NOTIFY
+#endif
+
+#ifdef USE_NOTIFY
+#ifdef USE_NOTIFY_DLOPEN
+struct NotifyNotification;
+typedef struct NotifyNotification NotifyNotification;
+#endif
+
+typedef struct
+{
+   GtkStatusIcon *statusIcon;
+   NotifyNotification *notification;
+   GtkWidget *menu;
+} Notifier;
+extern const char *vmLibDir;
+
+Bool Notify_Init(GuestApp_Dict *confDict);
 void Notify_Cleanup(void);
+Bool Notify_Notify(int secs, const char *shortMsg, const char *longMsg,
+                   GtkWidget *menu,
+                   gboolean (*callback)(GtkWidget *, Notifier *));
+
+#ifdef USE_NOTIFY_DLOPEN
+Bool Modules_Init(void);
+void Modules_Cleanup(void);
+#endif
+#endif
 
 extern RpcIn *gRpcIn;
 extern Display *gXDisplay;

@@ -100,6 +100,6 @@
  * Global functions
  */
 
-void HgfsDebugPrintVattr(const HGFS_VNODE_ATTR *vap);
+void HgfsDebugPrintVattr(const HgfsVnodeAttr *vap);
 
 #endif // _DEBUG_H_

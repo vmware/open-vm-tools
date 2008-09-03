@@ -98,6 +98,10 @@ extern "C" {
  */
 #define BALLOON_PAGE_ALLOC_FAILURE	(1000)
 
+// Maximum number of page allocations without yielding processor
+#define BALLOON_ALLOC_YIELD_THRESHOLD   (1024)
+
+
 /*
  * Types
  */
@@ -1004,7 +1008,7 @@ BalloonIncreaseRateAlloc(Balloon *b, uint32 nAlloc)
 static int
 BalloonInflate(Balloon *b, uint32 target)
 {
-   int status;
+   int status, allocations = 0;
    uint32 i, nAllocNoSleep, nAllocCanSleep;
 
    /* 
@@ -1046,6 +1050,11 @@ BalloonInflate(Balloon *b, uint32 target)
           */
          b->slowPageAllocationCycles = SLOW_PAGE_ALLOCATION_CYCLES;
          break;
+      }
+
+      if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
+         os_yield();
+         allocations = 0;
       }
    }
 
@@ -1101,6 +1110,11 @@ BalloonInflate(Balloon *b, uint32 target)
          /* release non-balloonable pages, fail */
          Balloon_ErrorPagesFree(b);
          return(status);
+      }
+
+      if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
+         os_yield();
+         allocations = 0;
       }
    }
 

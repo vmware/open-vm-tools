@@ -24,8 +24,10 @@
 
 #include <sys/types.h> /* Needed before sys/vfs.h with glibc 2.0 --hpreg */
 
-#if !__FreeBSD__
-# if !__APPLE__
+#if defined(__FreeBSD__)
+# include <sys/param.h>
+#else
+# if !defined(__APPLE__)
 #  include <sys/vfs.h>
 # endif
 # include <limits.h>
@@ -163,11 +165,11 @@ FileDeletion(ConstUnicode pathName,   // IN:
    int err;
    char *linkPath = NULL;
    char *primaryPath = Unicode_GetAllocBytes(pathName,
-					     STRING_ENCODING_DEFAULT);
+                                             STRING_ENCODING_DEFAULT);
 
    if (primaryPath == NULL && pathName != NULL) {
       Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
-	  __FUNCTION__, UTF8(pathName));
+          __FUNCTION__, UTF8(pathName));
       return UNICODE_CONVERSION_ERRNO;
    }
 
@@ -337,6 +339,7 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
     * XXX See PR 158284. It is not clear what the side-effects are of this
     * function being incorrect for VMFS files.
     */
+
    if (HostType_OSIsPureVMK()) {
       return FALSE;
    }
@@ -470,11 +473,12 @@ FileStripFwdSlashes(ConstUnicode pathName)  // IN:
     * Copy over if not DIRSEPC. If yes, copy over only if previous
     * character was not DIRSEPC.
     */
+
    while (*ptr != '\0') {
       if (*ptr == DIRSEPC) {
          if (prev != ptr - 1) {
-	    *cptr++ = *ptr;
-	 }
+            *cptr++ = *ptr;
+         }
          prev = ptr;
       } else {
          *cptr++ = *ptr;
@@ -628,10 +632,10 @@ File_GetTimes(ConstUnicode pathName,      // IN:
 
 #if defined(__FreeBSD__)
    /*
-    * FreeBSD: All supported versions have timestamps with nanosecond resolution.
-    *          FreeBSD 5+ has also file creation time.
+    * FreeBSD: All supported versions have timestamps with nanosecond
+    * resolution. FreeBSD 5+ has also file creation time.
     */
-#   if BSD_VERSION >= 50
+#   if defined(__FreeBSD_version) && __FreeBSD_version >= 500043
    *createTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_birthtimespec);
 #   endif
    *accessTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_atimespec);
@@ -642,6 +646,7 @@ File_GetTimes(ConstUnicode pathName,      // IN:
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.
     */
+
 #   if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 3)
    {
       /*
@@ -650,6 +655,7 @@ File_GetTimes(ConstUnicode pathName,      // IN:
        * instead of zeroes, we get automatically nanosecond timestamps
        * when running on host which provides them.
        */
+
       struct timespec timeBuf;
 
       timeBuf.tv_sec  = statBuf.st_atime;
@@ -735,7 +741,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
    path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
    if (path == NULL) {
       Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
-	  __FUNCTION__, UTF8(pathName));
+          __FUNCTION__, UTF8(pathName));
       return FALSE;
    }
 
@@ -755,6 +761,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
     * Preserve old times if new time <= 0.
     * XXX Need a better implementation to preserve tv_usec.
     */
+
    aTime->tv_sec = statBuf.st_atime;
    aTime->tv_usec = 0;
    wTime->tv_sec = statBuf.st_mtime;
@@ -826,7 +833,7 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
    if (Unicode_Compare(*canPath, DIRSEPS) == 0) {
       return TRUE;
    }
- 
+
    File_GetPathName(*canPath, &pathName, &baseName);
 
    Unicode_Free(baseName);
@@ -835,7 +842,7 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
    if (Unicode_IsEmpty(pathName)) {
       /* empty string which denotes "/" */
       Unicode_Free(pathName);
-      *canPath = Unicode_Duplicate("/"); 
+      *canPath = Unicode_Duplicate("/");
    } else {
       *canPath = pathName;
    }
@@ -881,7 +888,7 @@ FileGetStats(ConstUnicode pathName,      // IN:
 
       FilePosixGetParent(&dupPath);
    }
-   
+
    Unicode_Free(dupPath);
 
    return retval;
@@ -917,7 +924,7 @@ File_GetFreeSpace(ConstUnicode pathName)  // IN: File name
       ret = -1;
       goto end;
    }
-   
+
    if (!FileGetStats(fullPath, &statfsbuf)) {
       Warning("%s: Couldn't statfs\n", __func__);
       ret = -1;
@@ -927,9 +934,12 @@ File_GetFreeSpace(ConstUnicode pathName)  // IN: File name
    ret = (uint64)statfsbuf.f_bavail * statfsbuf.f_bsize;
 
 #if defined(VMX86_SERVER)
-   // The following test is never true on VMvisor but we do not care as
-   // this is only intended for callers going through vmkfs. Direct callers
-   // as we are always get the right answer from statfs above.
+   /*
+    * The following test is never true on VMvisor but we do not care as
+    * this is only intended for callers going through vmkfs. Direct callers
+    * as we are always get the right answer from statfs above.
+    */
+
    if (statfsbuf.f_type == VMFS_MAGIC_NUMBER) {
       int fd;
       FS_FreeSpaceArgs args = { 0 };
@@ -943,13 +953,13 @@ File_GetFreeSpace(ConstUnicode pathName)  // IN: File name
          Warning(LGPFX" %s: open of %s failed with: %s\n", __func__,
                  UTF8(directory), Msg_ErrString());
       } else {
-	 if (ioctl(fd, IOCTLCMD_VMFS_GET_FREE_SPACE, &args) == -1) {
+         if (ioctl(fd, IOCTLCMD_VMFS_GET_FREE_SPACE, &args) == -1) {
             Warning(LGPFX" %s: ioctl on %s failed with: %s\n", __func__,
                     UTF8(fullPath), Msg_ErrString());
-	 } else {
-	    ret = args.bytesFree;
+         } else {
+            ret = args.bytesFree;
          }
-	 close(fd);
+         close(fd);
       }
 
       Unicode_Free(directory);
@@ -1188,7 +1198,7 @@ File_OnVMFS(ConstUnicode pathName)
    Bool ret;
    struct statfs statfsbuf;
 
-   // XXX See Vmfs_IsVMFSDir. Same caveat about fs exclusion.
+   /* XXX See Vmfs_IsVMFSDir. Same caveat about fs exclusion. */
    if (HostType_OSIsPureVMK()) {
       return TRUE;
    }
@@ -1205,18 +1215,18 @@ File_OnVMFS(ConstUnicode pathName)
 
       fullPath = File_FullPath(pathName);
       if (fullPath == NULL) {
-	 ret = FALSE;
-	 goto end;
+         ret = FALSE;
+         goto end;
       }
-   
+
       err = FileGetStats(fullPath, &statfsbuf);
 
       Unicode_Free(fullPath);
 
       if (err == -1) {
-	 Warning(LGPFX" %s: Couldn't statfs\n", __FUNCTION__);
-	 ret = FALSE;
-	 goto end;
+         Warning(LGPFX" %s: Couldn't statfs\n", __FUNCTION__);
+         ret = FALSE;
+         goto end;
       }
    }
 
@@ -1260,7 +1270,7 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
       ret = -1;
       goto end;
    }
-   
+
    if (!FileGetStats(fullPath, &statfsbuf)) {
       Warning(LGPFX" %s: Couldn't statfs\n", __func__);
       ret = -1;
@@ -1322,6 +1332,7 @@ File_GetUniqueFileSystemID(char const *path) // IN: File path
     *
     * See bug 61646 for why we care.
     */
+
    if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) == 0) {
       char vmfsVolumeName[FILE_MAXPATH];
 
@@ -1376,7 +1387,7 @@ FilePosixLookupMountPoint(char const *canPath, // IN: Canonical file path
       return NULL;
    }
 
-   // XXX getmntent() is not thread-safe. Use getmntent_r() instead.
+   /* XXX getmntent() is not thread-safe. Use getmntent_r() instead. */
    while ((mnt = getmntent(f)) != NULL) {
       /*
        * NB: A call to realpath is not needed as getmntent() already
@@ -1386,6 +1397,7 @@ FilePosixLookupMountPoint(char const *canPath, // IN: Canonical file path
        *     a filesystem that the caller of the function is not at
        *     all expecting.
        */
+
       if (strcmp(mnt->mnt_dir, canPath) == 0) {
          endmntent(f);
 
@@ -1397,6 +1409,7 @@ FilePosixLookupMountPoint(char const *canPath, // IN: Canonical file path
           * apart in /etc/mtab: the option recorded there is, in both cases,
           * always "bind".
           */
+
          *bind = strstr(mnt->mnt_opts, "bind") != NULL;
 
          return Util_SafeStrdup(mnt->mnt_fsname);
@@ -1467,7 +1480,7 @@ FilePosixGetBlockDevice(char const *path) // IN: File path
 retry:
    Str_Strcpy(canPath2, canPath, sizeof canPath2);
 
-   // Find the nearest ancestor of 'canPath' that is a mount point.
+   /* Find the nearest ancestor of 'canPath' that is a mount point. */
    for (;;) {
       char *x;
       Bool bind;
@@ -1500,6 +1513,7 @@ retry:
              *    /bind/exit14/home -> exit14:/vol/vol0/home
              *    /rbind/exit14/home -> exit14:/vol/vol0/home
              */
+
             Bool rbind = TRUE;
 
             if (rbind) {
@@ -1529,6 +1543,7 @@ retry:
              * possible for the mounts to get into a loop, so limit the total
              * number of retries to something reasonable like 10.
              */
+
             retries++;
             if (retries > 10) {
                Warning(LGPFX" %s: The --[r]bind mount count exceeds %u. Giving "
@@ -1542,7 +1557,7 @@ retry:
          return ptr;
       }
 
-// XXX temporary work-around until this function is Unicoded.
+/* XXX temporary work-around until this function is Unicoded. */
       x = Util_SafeStrdup(canPath);
       failed = FilePosixGetParent(&x);
       Str_Strcpy(canPath, x, sizeof canPath);
@@ -1552,6 +1567,7 @@ retry:
        * Prevent an infinite loop in case FilePosixLookupMountPoint() even
        * fails on "/".
        */
+
       if (failed) {
          return NULL;
       }
@@ -1684,6 +1700,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
     * First take care of the easy checks.  If the paths are identical, or if
     * the inode numbers don't match, we're done.
     */
+
    if (Unicode_Compare(path1, path2) == 0) {
       return TRUE;
    }
@@ -1732,6 +1749,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
     * and the paths point to a cloned file system, then the we will return a
     * false positive.
     */
+
    if ((st1.st_dev == st2.st_dev) &&
        (st1.st_mode == st2.st_mode) &&
        (st1.st_nlink == st2.st_nlink) &&
@@ -1848,7 +1866,7 @@ FileIsVMFS(ConstUnicode pathName)  // IN: file name to test
    struct statfs statfsbuf;
 
 #if defined(VMX86_SERVER)
-   // XXX See Vmfs_IsVMFSFile. Same caveat about fs exclusion.
+   /* XXX See Vmfs_IsVMFSFile. Same caveat about fs exclusion. */
    if (HostType_OSIsPureVMK()) {
       return TRUE;
    }
@@ -1901,7 +1919,7 @@ FilePosixCreateTestFileSize(ConstUnicode dirName, // IN: directory to create lar
    if (posixFD == -1) {
       return FALSE;
    }
-   
+
    fd = FileIO_CreateFDPosix(posixFD, O_RDWR);
 
    retVal = FileIO_SupportsFileSize(&fd, fileSize);
@@ -1999,14 +2017,14 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
       File_GetPathName(fullPath, &parentPath, NULL);
 
       supported = FilePosixCreateTestFileSize(parentPath, fileSize);
-      
+
       free(fsType);
       Unicode_Free(fullPath);
       Unicode_Free(parentPath);
 
       return supported;
    }
-   
+
 #endif
    Log(LGPFX" %s: did not execute properly\n", __func__);
    return FALSE; /* happy compiler */
@@ -2036,7 +2054,7 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    Unicode fullPath;
 
    Bool supported = FALSE;
-   Unicode parentPath = NULL;
+   Unicode folderPath = NULL;
 
    /* All supported filesystems can hold at least 2GB - 1 files. */
    if (fileSize <= 0x7FFFFFFF) {
@@ -2050,6 +2068,7 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
     * a vmdk created in (setting filePath only to the disk name, not the entire
     * path.
     */
+
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
       Log(LGPFX" %s: Error acquiring full path\n", __func__);
@@ -2057,16 +2076,23 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    }
 
    /* 
-    * We then truncate the name to point to the parent directory of the file
-    * created so we can get accurate results from FileIsVMFS.
+    * This function expects a filename. If given one, truncate the name to point
+    * to the parent directory so we can get accurate results from FileIsVMFS.
+    * If handed a directory directly, no truncation is necessary.
     */
-   File_SplitName(fullPath, NULL, &parentPath, NULL);
+
+   if (File_IsDirectory(pathName)) {
+      folderPath = Unicode_Duplicate(fullPath);
+   } else {
+      File_SplitName(fullPath, NULL, &folderPath, NULL);
+   }
 
    /* 
     * We know that VMFS supports large files - But they have limitations
     * See function File_VMFSSupportsFileSize() - PR 146965
     */
-   if (FileIsVMFS(parentPath)) {
+
+   if (FileIsVMFS(folderPath)) {
       supported = File_VMFSSupportsFileSize(pathName, fileSize);
       goto out;
    }
@@ -2087,11 +2113,12 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    /*
     * On unknown filesystems create temporary file and use it as a test.
     */
-   supported = FilePosixCreateTestFileSize(parentPath, fileSize);
+
+   supported = FilePosixCreateTestFileSize(folderPath, fileSize);
 
 out:
    Unicode_Free(fullPath);
-   Unicode_Free(parentPath);
+   Unicode_Free(folderPath);
 
    return supported;
 }
@@ -2252,6 +2279,7 @@ File_IsWritableDir(ConstUnicode dirName)  // IN:
       /* Root can read or write any file. Well... This is not completely true
          because of read-only filesystems and NFS root squashing... What a
          nightmare --hpreg */
+
       return TRUE;
    }
 
@@ -2413,21 +2441,21 @@ FileIsGroupsMember(gid_t gid)
 
       res = getgroups(nr_members, members);
       if (res == -1) {
-	 Warning(LGPFX" %s: Couldn't getgroups\n", __FUNCTION__);
-	 ret = FALSE;
-	 goto end;
+         Warning(LGPFX" %s: Couldn't getgroups\n", __FUNCTION__);
+         ret = FALSE;
+         goto end;
       }
 
       if (res == nr_members) {
-	 break;
+         break;
       }
 
       /* Was bug 17760 --hpreg */
       new = realloc(members, res * sizeof *members);
       if (new == NULL) {
-	 Warning(LGPFX" %s: Couldn't realloc\n", __FUNCTION__);
-	 ret = FALSE;
-	 goto end;
+         Warning(LGPFX" %s: Couldn't realloc\n", __FUNCTION__);
+         ret = FALSE;
+         goto end;
       }
 
       members = new;
@@ -2436,8 +2464,8 @@ FileIsGroupsMember(gid_t gid)
 
    for (res = 0; res < nr_members; res++) {
       if (members[res] == gid) {
-	 ret = TRUE;
-	 goto end;
+         ret = TRUE;
+         goto end;
       }
    }
    ret = FALSE;
@@ -2456,6 +2484,8 @@ end:
  *	Make a .vmx file executable. This is sometimes necessary 
  *      to enable MKS access to the VM.
  *
+ *      Owner always gets rwx.  Group/other get x where r is set.
+ *
  * Results:
  *	FALSE if error
  *
@@ -2468,11 +2498,19 @@ end:
 Bool
 File_MakeCfgFileExecutable(ConstUnicode pathName)
 {
-   return Posix_Chmod(pathName,
-                      S_IRUSR | S_IWUSR | S_IXUSR |  // rwx by user
-                      S_IRGRP | S_IXGRP |            // rx by group
-                      S_IROTH | S_IXOTH              // rx by others
-                     ) == 0;
+   struct stat s;
+
+   if (Posix_Stat(pathName, &s) == 0) {
+      mode_t newMode = s.st_mode;
+
+      newMode |= S_IRUSR | S_IWUSR | S_IXUSR;
+
+      ASSERT_ON_COMPILE(S_IRGRP >> 2 == S_IXGRP && S_IROTH >> 2 == S_IXOTH);
+      newMode |= ((newMode & (S_IRGRP | S_IROTH)) >> 2);
+
+      return newMode == s.st_mode || Posix_Chmod(pathName, newMode);
+   }
+   return FALSE;
 }
 
 

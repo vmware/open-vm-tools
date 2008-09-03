@@ -44,10 +44,10 @@
  */
 
 /* Sets the values of request headers properly */
-#define HGFS_INIT_REQUEST_HDR(request, req, _op)                \
+#define HGFS_INIT_REQUEST_HDR(header, req, _op)                \
          do {                                                   \
-            request->header.id = HgfsKReq_GetId(req);           \
-            request->header.op = _op;                           \
+            header->id = HgfsKReq_GetId(req);           \
+            header->op = _op;                           \
          } while(0)
 
 /* Determine if this is the root vnode. */
@@ -170,7 +170,7 @@
 /* Utility functions */
 
 int HgfsSubmitRequest(HgfsSuperInfo *sip, HgfsKReqHandle req);
-int HgfsValidateReply(HgfsKReqHandle req, uint32_t minSize);
+int HgfsGetStatus(HgfsKReqHandle req, uint32_t minSize);
 int HgfsEscapeBuffer(char const *bufIn, uint32 sizeIn,
                             uint32 sizeBufOut, char *bufOut);
 int HgfsUnescapeBuffer(char *bufIn, uint32 sizeIn);
@@ -178,8 +178,8 @@ int HgfsGetOpenMode(uint32 flags);
 int HgfsGetOpenFlags(uint32 flags);
 int HgfsMakeFullName(const char *path, uint32_t pathLen, const char *file,
 		     size_t fileLen, char *outBuf, ssize_t bufSize);
-void HgfsAttrToBSD(struct vnode *vp, const HgfsAttrV2 *hgfsAttrV2, HGFS_VNODE_ATTR *vap);
-Bool HgfsSetattrCopy(HGFS_VNODE_ATTR *vap, HgfsAttrV2 *hgfsAttrV2, HgfsAttrHint *hints);
+void HgfsAttrToBSD(struct vnode *vp, const HgfsAttrV2 *hgfsAttrV2, HgfsVnodeAttr *vap);
+Bool HgfsSetattrCopy(HgfsVnodeAttr *vap, HgfsAttrV2 *hgfsAttrV2, HgfsAttrHint *hints);
 int HgfsStatusToBSD(HgfsStatus hgfsStatus);
 Bool HgfsAttemptToCreateShare(const char *path, int flag);
 int HgfsNameFromWireEncoding(const char *bufIn, uint32 bufInSize, char *bufOut, uint32 bufOutSize);

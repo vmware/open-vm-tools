@@ -56,6 +56,7 @@ typedef enum {
    HGFSU_CAP_MIRROR_PICTURES   = 11, // supports remapping GOS Pictures to HGFS
    HGFSU_CAP_DESKTOP_SHORTCUT  = 12, // supports creating HGFS link on GOS Desktop
    HGFSU_CAP_MAP_DRIVE         = 13, // supports mapping a GOS drive letter to HGFS
+   GHI_CAP_SET_HANDLER         = 14, // supports setting the handler for types/protocols
 } GuestCapabilities;
 
 typedef struct {
@@ -79,16 +80,30 @@ typedef struct {
  *  vmdb schema, since these strings are used as vmdb keys.
  */
 
+/*
+ * This table must be sorted such that it can be indexed using the 
+ * GuestCapabilities enum above. RPC calls pass the value, and the
+ * handler code uses it as an index. In other words, the value of the 
+ * caps field at index i must be equal to i as well. This is because
+ * the code that looks up entries in this table assume as much. It
+ * also means we don't need the cap field, or, to justify its existence,
+ * the lookup code should be converted to loop through the table and
+ * return the entry where cap == the value passed in the RPC call.
+ * Moral of the story, new entries always at the bottom of the table
+ * and the cap field must be set to the offset in the array (and make
+ * sure the enum in GuestCapabilities is also set to that offset).
+ */
+
 static GuestCapElem guestCapTable[] = {
    { UNITY_CAP_START_MENU,        UNITY_CAP_VMDB_PATH, "startmenu" },
    { UNITY_CAP_VIRTUAL_DESK,      UNITY_CAP_VMDB_PATH, "virtualdesk" },
    { UNITY_CAP_WORK_AREA,         UNITY_CAP_VMDB_PATH, "workarea" },
    { UNITY_CAP_MULTI_MON,         UNITY_CAP_VMDB_PATH, "multimon" },
 
-   { GHI_CAP_CMD_SHELL_ACTION,    GHI_CAP_VMDB_PATH,   "cmdShellAction" },
    { GHI_CAP_SHELL_ACTION_BROWSE, GHI_CAP_VMDB_PATH,   "shellActionBrowse" },
-   { GHI_CAP_SHELL_ACTION_RUN,    GHI_CAP_VMDB_PATH,   "shellActionRun" },
    { GHI_CAP_SHELL_LOCATION_HGFS, GHI_CAP_VMDB_PATH,   "shellLocationHGFS" },
+   { GHI_CAP_SHELL_ACTION_RUN,    GHI_CAP_VMDB_PATH,   "shellActionRun" },
+   { GHI_CAP_CMD_SHELL_ACTION,    GHI_CAP_VMDB_PATH,   "cmdShellAction" },
 
    { HGFSU_CAP_MIRROR_DESKTOP,    HGFSU_CAP_VMDB_PATH, "mirrorDesktop" },
    { HGFSU_CAP_MIRROR_DOCUMENTS,  HGFSU_CAP_VMDB_PATH, "mirrorDocuments" },
@@ -96,6 +111,7 @@ static GuestCapElem guestCapTable[] = {
    { HGFSU_CAP_MIRROR_PICTURES,   HGFSU_CAP_VMDB_PATH, "mirrorPictures" },
    { HGFSU_CAP_DESKTOP_SHORTCUT,  HGFSU_CAP_VMDB_PATH, "createShortcut" },
    { HGFSU_CAP_MAP_DRIVE,         HGFSU_CAP_VMDB_PATH, "mapDrive" },
+   { GHI_CAP_SET_HANDLER,         GHI_CAP_VMDB_PATH,   "setHandler" },
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

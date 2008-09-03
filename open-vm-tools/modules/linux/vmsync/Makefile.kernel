@@ -26,6 +26,7 @@ INCLUDE := -I.
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
+EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
 
 obj-m += $(DRIVER).o
 

@@ -25,7 +25,8 @@
 /* os.h includes necessary OS-specific headers. */
 #include "os.h"
 
-#ifdef linux
+#if defined(vmblock_fuse)
+#elif defined(linux)
 # include "vmblockInt.h"
 #elif defined(sun)
 # include "module.h"
@@ -338,7 +339,7 @@ BlockWaitOnFile(const char *filename,   // IN: file to block on
     */
    if (cookie == NULL) {
       os_read_lock(&blockedFilesLock);
-      block = GetBlock(filename, NULL);
+      block = GetBlock(filename, OS_UNKNOWN_BLOCKER);
       os_read_unlock(&blockedFilesLock);
 
       if (!block) {
@@ -407,7 +408,7 @@ BlockLookup(const char *filename,               // IN: pathname to test for
    os_read_lock(&blockedFilesLock);
 
    block = GetBlock(filename, blocker);
-   
+
    os_read_unlock(&blockedFilesLock);
 
    return block;

@@ -419,8 +419,17 @@ GHITcloGetBinaryHandlers(RpcInData *data)        // IN/OUT
 
    DynXdr_Create(&xdrs);
    if (!GHIPlatformGetBinaryHandlers(ghiPlatformData, binaryPathUtf8, &xdrs)) {
-      Debug("%s: Could not get binary filetypes.\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Could not get binary filetypes", FALSE);
+      DynXdr_Destroy(&xdrs, FALSE);
+      goto exit;
+   }
+
+   /*
+    * If the serialized data exceeds our maximum message size we have little choice
+    * but to fail the request and log the oversize message.
+    */
+   if (xdr_getpos(&xdrs) > GUESTMSG_MAX_IN_SIZE) {
+      ret = RPCIN_SETRETVALS(data, "Filetype list too large", FALSE);
       DynXdr_Destroy(&xdrs, FALSE);
       goto exit;
    }

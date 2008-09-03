@@ -75,6 +75,15 @@ typedef struct TimeUtil_Expiration {
 } TimeUtil_Expiration;
 
 
+EXTERN Bool TimeUtil_StringToDate(TimeUtil_Date *d,    // IN/OUT
+                                  const char *date);   // IN: 'YYYYMMDD' or 'YYYY/MM/DD' or 'YYYY-MM-DD'
+
+EXTERN Bool TimeUtil_DaysSubstract(TimeUtil_Date *d,  // IN/OUT
+                                   unsigned int nr);  // IN
+
+EXTERN int TimeUtil_DeltaDays(TimeUtil_Date *left,   // IN
+                              TimeUtil_Date *right); // IN
+
 EXTERN void TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
                              unsigned int nr); // IN
 

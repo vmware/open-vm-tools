@@ -18,6 +18,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+# These flags get passed to aclocal when autoreconf calls it, and tell aclocal
+# that all of our macros are in the 'm4' subdirectory.
+ACLOCAL_AMFLAGS = -I m4
+
 # These subdirectories require X, and may be disabled using --without-x
 X11_SUBDIRS =
 X11_SUBDIRS += vmware-user

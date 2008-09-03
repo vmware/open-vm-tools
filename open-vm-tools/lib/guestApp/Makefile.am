@@ -31,4 +31,5 @@ noinst_LIBRARIES += libGuestAppX11.a
 libGuestAppX11_a_SOURCES = $(libGuestApp_a_SOURCES)
 libGuestAppX11_a_SOURCES += guestAppPosixX11.c
 libGuestAppX11_a_CPPFLAGS = -DGUESTAPP_HAS_X11
+libGuestAppX11_a_CPPFLAGS += @GTK_CPPFLAGS@
 endif

@@ -43,11 +43,17 @@ extern void Hostinfo_MachineID(uint32 *hostNameHash,
 extern Bool Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,
                                           unsigned int *maxSize,
 				          unsigned int *currentSize);
+#ifdef VMX86_SERVER
+extern Bool Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,
+                                             unsigned int *maxSize,
+                                             unsigned int *currentSize);
+#endif
 extern Bool Hostinfo_GetRatedCpuMhz(int32 cpuNumber,
                                     uint32 *mHz);
 extern char* Hostinfo_GetCpuDescription(uint32 cpuNumber);
 extern void Hostinfo_GetTimeOfDay(VmTimeType *time);
 extern VmTimeType Hostinfo_SystemUpTime(void);
+extern VmTimeType Hostinfo_RawSystemTimerUS(void);
 extern VmTimeType Hostinfo_SystemTimerUS(void);
 extern int Hostinfo_OSVersion(int i);
 extern const char *Hostinfo_OSVersionString(void);

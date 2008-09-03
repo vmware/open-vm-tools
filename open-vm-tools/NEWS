@@ -1,3 +1,17 @@
+open-vm-tools 2009.09.03 changes:
+	* Fixed an issue where open-vm-tools fails to configure when using
+	--without-icu. Thanks to Timo Gurr for reporting the issue (Sourceforge
+	bug 2046262).
+
+	* Fixed failed build on Ubuntu Intrepid and Fedora 9. Thanks to Nathan
+	Charles for reporting the issue (Sourceforge bug 2048423).
+
+	* Fixed kernel module build issues on 2.6.27 pre-release kernels.
+	Thanks to Dominique Leuenberger for reporting the issue (Sourceforge
+	bug 2071170).
+
+	* ...and other bug fixes.
+
 open-vm-tools 2008.08.08 changes:
 	* Unity for X11 guests has been added. Unity is implemented within
 	vmware-user and requires no additional setup beyond setting up the

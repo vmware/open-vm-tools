@@ -52,15 +52,19 @@
 #if defined(__FreeBSD__)
 #define HGFS_VP_TO_VTYPE(vp)                                    \
                 (vp->v_type)
+#define HGFS_VPP_GET_IOCOUNT(vpp)                                   \
+                (vref(*vpp)) 
 #elif defined(__APPLE__)
 #define HGFS_VP_TO_VTYPE(vp)                                    \
                 (vnode_vtype(vp))
+#define HGFS_VPP_GET_IOCOUNT(vpp)                                 \
+                (vnode_get(*vpp))
 #endif
 
 /* Internal Vnops functions used by both FreeBSD and Mac OS */
 int HgfsReaddirInt(struct vnode *vp, struct uio *uiop, int *eofp);
-int HgfsSetattrInt(struct vnode *vp, HGFS_VNODE_ATTR *vap);
-int HgfsGetattrInt(struct vnode *vp, HGFS_VNODE_ATTR *vap);
+int HgfsSetattrInt(struct vnode *vp, HgfsVnodeAttr *vap);
+int HgfsGetattrInt(struct vnode *vp, HgfsVnodeAttr *vap);
 int HgfsRmdirInt(struct vnode *dvp, struct vnode *vp,
 		 struct componentname *cnp);
 int HgfsRemoveInt(struct vnode *vp);

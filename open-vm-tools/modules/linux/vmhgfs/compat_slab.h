@@ -57,14 +57,29 @@
  * Up to 2.6.23 kmem_cache constructor has three arguments - pointer to block to
  * prepare (aka "this"), from which cache it came, and some unused flags.  After
  * 2.6.23 flags were removed, and order of "this" and cache parameters was swapped...
+ * Since 2.6.27-rc2 everything is different again, and ctor has only one argument.
+ *
+ * HAS_3_ARGS has precedence over HAS_2_ARGS if both are defined.
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 23) && !defined(VMW_KMEMCR_CTOR_HAS_3_ARGS)
 #  define VMW_KMEMCR_CTOR_HAS_3_ARGS
 #endif
-#ifdef VMW_KMEMCR_CTOR_HAS_3_ARGS
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26) && !defined(VMW_KMEMCR_CTOR_HAS_2_ARGS)
+#  define VMW_KMEMCR_CTOR_HAS_2_ARGS
+#endif
+
+#if defined(VMW_KMEMCR_CTOR_HAS_3_ARGS)
 typedef void compat_kmem_cache_ctor(void *, compat_kmem_cache *, unsigned long);
-#else
+#define COMPAT_KMEM_CACHE_CTOR_ARGS(arg) void *arg, \
+                                         compat_kmem_cache *cache, \
+                                         unsigned long flags
+#elif defined(VMW_KMEMCR_CTOR_HAS_2_ARGS)
 typedef void compat_kmem_cache_ctor(compat_kmem_cache *, void *);
+#define COMPAT_KMEM_CACHE_CTOR_ARGS(arg) compat_kmem_cache *cache, \
+                                         void *arg
+#else
+typedef void compat_kmem_cache_ctor(void *);
+#define COMPAT_KMEM_CACHE_CTOR_ARGS(arg) void *arg
 #endif
 
 #endif /* __COMPAT_SLAB_H__ */

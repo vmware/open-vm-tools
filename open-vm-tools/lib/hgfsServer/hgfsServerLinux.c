@@ -40,6 +40,13 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#if defined(__FreeBSD__)
+#   include <sys/param.h>
+#else
+#   include <wchar.h>
+#   include <wctype.h>
+#endif
+
 #include "vmware.h"
 #include "hgfsServerPolicy.h" // for security policy
 #include "hgfsServerInt.h"
@@ -185,7 +192,8 @@ getdents_linux(unsigned int fd,
 #endif
 
 
-#if defined(sun) || defined(linux) || (defined(__FreeBSD__) && BSD_VERSION < 49)
+#if defined(sun) || defined(linux) || \
+    (defined(__FreeBSD_version) && __FreeBSD_version < 490000)
 /*
  * Implements futimes(), which was introduced in glibc 2.3.3. FreeBSD 3.2
  * doesn't have it, but 4.9 does. Unfortunately, these early FreeBSD versions
@@ -1983,7 +1991,7 @@ HgfsStat(struct stat *stats,        // IN: stat information
     * FreeBSD: All supported versions have timestamps with nanosecond resolution.
     *          FreeBSD 5+ has also file creation time.
     */
-#   if BSD_VERSION >= 50
+#   if __IS_FREEBSD_VER__(500043)
    attr->creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_birthtimespec);
 #   else
    attr->creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_atimespec);
@@ -2031,7 +2039,7 @@ HgfsStat(struct stat *stats,        // IN: stat information
            attr->specialPerms, attr->ownerPerms, attr->groupPerms,
            attr->otherPerms, attr->size));
 #ifdef __FreeBSD__
-#   if !defined(VM_X86_64) && BSD_VERSION >= 50
+#   if !defined(VM_X86_64) && __FreeBSD_version >= 500043
 #      define FMTTIMET ""
 #   else
 #      define FMTTIMET "l"
@@ -3426,6 +3434,9 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
       char *sharePath;
       size_t sharePathLen;
       size_t fullNameLen;
+      size_t entryNameLen;
+      char *entryName = NULL;
+      Bool freeEntryName = FALSE;
 
       length = strlen(dent->d_name);
 
@@ -3460,6 +3471,29 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
             free(dent);
             continue;
          }
+
+#if defined(__APPLE__)
+         /*
+          * HGFS clients receive names in unicode normal form C,
+          * (precomposed) so Mac hosts must convert from normal form D
+          * (decomposed).
+          */
+         if (!CodeSet_Utf8FormDToUtf8FormC((const char *)dent->d_name,
+                                           length,
+                                           &entryName,
+                                           &entryNameLen)) {
+            LOG(4, ("HgfsServerSearchRead: Unable to normalize form C \"%s\"\n",
+                    dent->d_name));
+            /* Skip this entry and continue. */
+            free(dent);
+            continue;
+         }
+
+         freeEntryName = TRUE;
+#else /* defined(__APPLE__) */
+         entryName = dent->d_name;
+         entryNameLen = length;
+#endif /* defined(__APPLE__) */
          break;
       case DIRECTORY_SEARCH_TYPE_BASE:
 
@@ -3501,6 +3535,13 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
                continue;
             }
          }
+
+	 /*
+	  * No conversion needed on OS X because dent->d_name is the shareName
+	  * that was converted to normal form C in hgfsServerPolicyHost.
+	  */
+	 entryName = dent->d_name;
+	 entryNameLen = length;
          break;
       case DIRECTORY_SEARCH_TYPE_OTHER:
 
@@ -3517,51 +3558,21 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
 
       free(search.utf8Dir);
 
-      {
-         size_t entryNameLen;
-         char *entryName = NULL;
-         Bool freeEntryName = FALSE;
+      LOG(4, ("HgfsServerSearchRead: dent name is \"%s\" len = %"FMTSZ"u\n",
+	      entryName, entryNameLen));
 
-#if defined(__APPLE__)
+      /*
+       * XXX: HgfsPackSearchReadReply will error out if the dent we
+       * give it is too large for the packet. Prior to
+       * HgfsPackSearchReadReply, we'd skip the dent and return the next
+       * one with success. Now we return an error. This may be a non-issue
+       * since what filesystems allow dent lengths as high as 6144 bytes?
+       */
+      status = HgfsPackSearchReadReply(entryName, entryNameLen, &attr,
+				       packetOut, packetSize) ? 0 : EPROTO;
 
-         /*
-          * HGFS clients receive names in unicode normal form C,
-          * (precomposed) so Mac hosts must convert from normal form D
-          * (decomposed).
-          */
-         if (!CodeSet_Utf8FormDToUtf8FormC((const char *)dent->d_name,
-                                           length,
-                                           &entryName,
-                                           &entryNameLen)) {
-            LOG(4, ("HgfsServerSearchRead: Unable to normalize form C \"%s\"\n",
-                    dent->d_name));
-            /* Skip this entry and continue. */
-            free(dent);
-            continue;
-         }
-
-         freeEntryName = TRUE;
-#else /* defined(__APPLE__) */
-         entryName = dent->d_name;
-         entryNameLen = length;
-#endif /* defined(__APPLE__) */
-
-         LOG(4, ("HgfsServerSearchRead: dent name is \"%s\" len = %"FMTSZ"u\n",
-                 entryName, entryNameLen));
-
-         /*
-          * XXX: HgfsPackSearchReadReply will error out if the dent we
-          * give it is too large for the packet. Prior to
-          * HgfsPackSearchReadReply, we'd skip the dent and return the next
-          * one with success. Now we return an error. This may be a non-issue
-          * since what filesystems allow dent lengths as high as 6144 bytes?
-          */
-         status = HgfsPackSearchReadReply(entryName, entryNameLen, &attr,
-                                          packetOut, packetSize) ? 0 : EPROTO;
-
-         if (freeEntryName) {
-            free(entryName);
-         }
+      if (freeEntryName) {
+	 free(entryName);
       }
 
       free(dent);
@@ -3737,7 +3748,9 @@ HgfsServerSetattr(char const *packetIn, // IN: incoming packet
                                    hints,
 				   caseFlags);
    }
-   if (!HgfsPackSetattrReply(packetOut, packetSize)) {
+   if (!HgfsPackSetattrReply(((HgfsRequest *)packetIn)->op,
+                             packetOut,
+                             packetSize)) {
       status = EPROTO;
    }
 
@@ -3825,7 +3838,9 @@ HgfsServerCreateDir(char const *packetIn, // IN: incoming packet
       LOG(4, ("HgfsServerCreateDir: error: %s\n", strerror(error)));
       return error;
    }
-   return HgfsPackCreateDirReply(packetOut, packetSize) ? 0 : EPROTO;
+   return HgfsPackCreateDirReply(((HgfsRequest *)packetIn)->op,
+                                 packetOut, packetSize) ?
+             0 : EPROTO;
 }
 
 
@@ -3909,7 +3924,9 @@ HgfsServerDeleteFile(char const *packetIn, // IN: incoming packet
       return error;
    }
 
-   return HgfsPackDeleteReply(packetOut, packetSize) ? 0 : EPROTO;
+   return HgfsPackDeleteReply(((HgfsRequest *)packetIn)->op,
+                              packetOut, packetSize) ?
+             0 : EPROTO;
 }
 
 
@@ -3999,7 +4016,9 @@ HgfsServerDeleteDir(char const *packetIn, // IN: incoming packet
       return error;
    }
 
-   return HgfsPackDeleteReply(packetOut, packetSize) ? 0 : EPROTO;
+   return HgfsPackDeleteReply(((HgfsRequest *)packetIn)->op,
+                              packetOut, packetSize) ?
+             0 : EPROTO;
 }
 
 
@@ -4168,7 +4187,8 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
     * the client to see success anyway, because the rename succeeded.
     */
    HgfsUpdateNodeNames(localOldName, localNewName);
-   status = HgfsPackRenameReply(packetOut, packetSize) ?
+   status = HgfsPackRenameReply(((HgfsRequest *)packetIn)->op,
+                                 packetOut, packetSize) ?
                0 : EPROTO;
 
   exit:

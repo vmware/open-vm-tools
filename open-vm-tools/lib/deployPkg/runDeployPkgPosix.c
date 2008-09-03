@@ -34,6 +34,13 @@
 
 #define LIBPATH_DEPLOYPKG "/usr/lib/libDeployPkg.so"
 
+#ifndef RTLD_LOCAL
+/*
+ * Needed for very old FreeBSD versions...
+ */
+#define RTLD_LOCAL 0
+#endif
+
 /*
  *----------------------------------------------------------------------
  *

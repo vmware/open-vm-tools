@@ -48,9 +48,19 @@
 
 #include "vmware.h"
 #include "message.h"
-#include "eventManager.h"
 #include "rpcin.h"
-#include "dbllnklst.h"
+
+#if defined(VMTOOLS_USE_GLIB)
+
+#define RPCIN_SCHED_EVENT(in, src) do {                                       \
+   (in)->nextEvent = src;                                                     \
+   g_source_set_callback((in)->nextEvent, RpcInLoop, (in), NULL);             \
+   g_source_attach((in)->nextEvent, g_main_loop_get_context((in)->mainLoop)); \
+} while (0)
+
+#else /* VMTOOLS_USE_GLIB */
+
+#include "eventManager.h"
 
 /* Which event queue should RPC events be added to? */
 static DblLnkLst_Links *gTimerEventQueue;
@@ -78,15 +88,24 @@ typedef struct RpcInCallbackList {
    void *clientData;
 } RpcInCallbackList;
 
+#endif /* VMTOOLS_USE_GLIB */
+
 struct RpcIn {
+#if defined(VMTOOLS_USE_GLIB)
+   GSource *nextEvent;
+   GMainLoop *mainLoop;
+   RpcIn_Callback dispatch;
+   gpointer clientData;
+#else
    RpcInCallbackList *callbacks;
+   Event *nextEvent;
+#endif
 
    Message_Channel *channel;
    unsigned int delay;   /* The delay of the previous iteration of RpcInLoop */
    unsigned int maxDelay;  /* The maximum delay to schedule in RpcInLoop */
    RpcIn_ErrorFunc *errorFunc;
    void *errorData;
-   Event *nextEvent;
 
    /*
     * State of the result associated to the last TCLO request we received
@@ -102,6 +121,15 @@ struct RpcIn {
    size_t last_resultLen;
 };
 
+
+/* 
+ * The following functions are only needed in the non-glib version of the
+ * library. The glib version of the library only deals with the transport
+ * aspects of the code - RPC dispatching and other RPC-layer concerns are
+ * handled by the rpcChannel abstraction library, or by the application.
+ */
+ 
+#if !defined(VMTOOLS_USE_GLIB)
 
 /*
  *-----------------------------------------------------------------------------
@@ -156,144 +184,6 @@ RpcIn_Construct(DblLnkLst_Links *eventQueue)
 /*
  *-----------------------------------------------------------------------------
  *
- * RpcIn_Destruct --
- *
- *      Destructor for the RpcIn object.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Frees all memory associated with the RpcIn object, resets the global
- *      timer event queue.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-RpcIn_Destruct(RpcIn *in) // IN
-{
-   ASSERT(in);
-   ASSERT(in->channel == NULL);
-   ASSERT(in->nextEvent == NULL);
-   ASSERT(in->mustSend == FALSE);
-
-   while (in->callbacks) {
-      RpcInCallbackList *p;
-
-      p = in->callbacks->next;
-      free((void *) in->callbacks->name);
-      free(in->callbacks);
-      in->callbacks = p;
-   }
-
-   gTimerEventQueue = NULL;
-   free(in);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcInSend --
- *
- *      Send the last result back to VMware
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure
- *
- * Side-effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-RpcInSend(RpcIn *in) // IN
-{
-   Bool status;
-
-   ASSERT(in);
-   ASSERT(in->channel);
-   ASSERT(in->mustSend);
-
-   status = Message_Send(in->channel, (unsigned char *)in->last_result,
-                         in->last_resultLen);
-   if (status == FALSE) {
-      Debug("RpcIn: couldn't send back the last result\n");
-   }
-
-   free(in->last_result);
-   in->last_result = NULL;
-   in->last_resultLen = 0;
-   in->mustSend = FALSE;
-
-   return status;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcIn_stop --
- *
- *      Stop the background loop that receives RPC from VMware
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure
- *
- * Side-effects:
- *      Try to send the last result and to close the channel
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-RpcIn_stop(RpcIn *in) // IN
-{
-   Bool status;
-
-   ASSERT(in);
-
-   status = TRUE;
-
-   if (in->nextEvent) {
-      /* The loop is started. Stop it */
-      EventManager_Remove(in->nextEvent);
-
-      in->nextEvent = NULL;
-   }
-
-   if (in->channel) {
-      /* The channel is open */
-
-      if (in->mustSend) {
-         /* There is a final result to send back. Try to send it */
-         if (RpcInSend(in) == FALSE) {
-            status = FALSE;
-         }
-
-         ASSERT(in->mustSend == FALSE);
-      }
-
-      /* Try to close the channel */
-      if (Message_Close(in->channel) == FALSE) {
-         Debug("RpcIn: couldn't close channel\n");
-         status = FALSE;
-      }
-
-      in->channel = NULL;
-   }
-
-   return status;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * RpcInLookupCallback --
  *
  *      Lookup a callback struct in our list.
@@ -324,310 +214,6 @@ RpcInLookupCallback(RpcIn *in,        // IN
    }
 
    return NULL;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcInLoop --
- *
- *    The background loop that receives RPC from VMware
- *
- * Result
- *    TRUE on success
- *    FALSE on failure (never happens in this implementation)
- *
- * Side-effects
- *    May call the error routine in which case the loop is
- *    stopped.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-RpcInLoop(void *clientData) // IN
-{
-   RpcIn *in;
-   char const *errmsg;
-   char const *reply;
-   size_t repLen;
-
-   in = (RpcIn *)clientData;
-   ASSERT(in);
-
-   /* The event has fired: it is no longer valid */
-   ASSERT(in->nextEvent);
-   in->nextEvent = NULL;
-
-   /* This is very important: this is the only way to signal the existence
-      of this guest application to VMware */
-   ASSERT(in->channel);
-   ASSERT(in->mustSend);
-   if (RpcInSend(in) == FALSE) {
-      errmsg = "RpcIn: Unable to send";
-      goto error;
-   }
-
-   if (Message_Receive(in->channel, (unsigned char **)(char**)&reply, &repLen)
-          == FALSE) {
-      errmsg = "RpcIn: Unable to receive";
-      goto error;
-   }
-
-   if (repLen) {
-      unsigned int status;
-      char const *statusStr;
-      unsigned int statusLen;
-      char *result;
-      size_t resultLen;
-      char *cmd;
-      unsigned int index = 0;
-      Bool freeResult = FALSE;
-      RpcInCallbackList *cb = NULL;
-
-      /*
-       * Execute the RPC
-       */
-
-      cmd = StrUtil_GetNextToken(&index, reply, " ");
-      if (cmd != NULL) {
-         cb = RpcInLookupCallback(in, cmd);
-         free(cmd);
-         if (cb) {
-            result = NULL;
-            if (cb->type == RPCIN_CB_OLD) {
-               status = cb->callback.oldCb((char const **) &result, &resultLen, cb->name,
-                                           reply + cb->length, repLen - cb->length,
-                                           cb->clientData);
-            } else {
-               RpcInData data = { cb->name,
-                                  reply + cb->length,
-                                  repLen - cb->length,
-                                  NULL,
-                                  0,
-                                  FALSE,
-                                  cb->clientData };
-               status = cb->callback.newCb(&data);
-               result = data.result;
-               resultLen = data.resultLen;
-               freeResult = data.freeResult;
-            }
-
-            ASSERT(result);
-         } else {
-            status = FALSE;
-            result = "Unknown Command";
-            resultLen = strlen(result);
-         }
-      } else {
-         status = FALSE;
-         result = "Bad command";
-         resultLen = strlen(result);
-      }
-
-      if (status) {
-         statusStr = "OK ";
-         statusLen = 3;
-      } else {
-         statusStr = "ERROR ";
-         statusLen = 6;
-      }
-
-      in->last_result = (char *)malloc(statusLen + resultLen);
-      if (in->last_result == NULL) {
-         errmsg = "RpcIn: Not enough memory";
-         goto error;
-      }
-      memcpy(in->last_result, statusStr, statusLen);
-      memcpy(in->last_result + statusLen, result, resultLen);
-      in->last_resultLen = statusLen + resultLen;
-      
-      if (freeResult) {
-         free(result);
-      }
-
-#if 0 /* Costly in non-debug cases --hpreg */
-      if (strlen(reply) <= 128) {
-         Debug("Tclo: Done executing '%s'; result='%s'\n", reply, result);
-      } else {
-         Debug("Tclo: reply string too long to display\n");
-      }
-#endif
-
-      /*
-       * Run the event pump (in case VMware sends a long sequence of RPCs and
-       * perfoms a time-consuming job) and continue to loop immediately
-       */
-      in->delay = 0;
-   } else {
-      /*
-       * Nothing to execute
-       */
-
-      /* No request -> No result */
-      ASSERT(in->last_result == NULL);
-      ASSERT(in->last_resultLen == 0);
-
-      /*
-       * Continue to loop in a while. Use an exponential back-off, doubling
-       * the time to wait each time there isn't a new message, up to the max
-       * delay.
-       */
-
-      if (in->delay < in->maxDelay) {
-         if (in->delay > 0) {
-            /*
-             * Catch overflow.
-             */
-            in->delay = ((in->delay * 2) > in->delay) ? (in->delay * 2) : in->maxDelay;
-         } else {
-            in->delay = 1;
-         }
-         in->delay = MIN(in->delay, in->maxDelay);
-      }
-   }
-
-   ASSERT(in->mustSend == FALSE);
-   in->mustSend = TRUE;
-
-   in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
-   if (in->nextEvent == NULL) {
-      errmsg = "RpcIn: Unable to run the loop";
-      goto error;
-   }
-
-   return TRUE;
-
-error:
-   RpcIn_stop(in);
-
-   /* Call the error routine */
-   (*in->errorFunc)(in->errorData, errmsg);
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcIn_start --
- *
- *    Start the background loop that receives RPC from VMware
- *
- * Result
- *    TRUE on success
- *    FALSE on failure
- *
- * Side-effects
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-RpcIn_start(RpcIn *in,                    // IN
-            unsigned int delay,           // IN
-            RpcIn_Callback resetCallback, // IN
-            void *resetClientData,        // IN
-            RpcIn_ErrorFunc *errorFunc,   // IN
-            void *errorData)              // IN
-{
-   ASSERT(in);
-
-   in->delay = 0;
-   in->maxDelay = delay;
-   in->errorFunc = errorFunc;
-   in->errorData = errorData;
-
-   ASSERT(in->channel == NULL);
-   in->channel = Message_Open(0x4f4c4354);
-   if (in->channel == NULL) {
-      Debug("RpcIn_start: couldn't open channel with TCLO protocol\n");
-      goto error;
-   }
-
-   /* No initial result */
-   ASSERT(in->last_result == NULL);
-   ASSERT(in->last_resultLen == 0);
-   ASSERT(in->mustSend == FALSE);
-   in->mustSend = TRUE;
-
-   ASSERT(in->nextEvent == NULL);
-   in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
-   if (in->nextEvent == NULL) {
-      Debug("RpcIn_start: couldn't start the loop\n");
-      goto error;
-   }
-
-   /* Register the 'reset' handler */
-   if (resetCallback) {
-      RpcIn_RegisterCallbackEx(in, "reset", resetCallback, resetClientData);
-   }
-
-   RpcIn_RegisterCallbackEx(in, "ping", RpcInPingCallback, NULL);
-
-   return TRUE;
-
-error:
-   RpcIn_stop(in);
-
-   return FALSE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcIn_restart --
- *
- *    Stops/starts the background loop that receives RPC from VMware.
- *    Keeps already registered callbacks. Regardless of the value returned,
- *    callers are still expected to call RpcIn_stop() when done using rpcin,
- *    to properly release used resources.
- *
- * Result
- *    TRUE on success
- *    FALSE on failure
- *
- * Side-effects
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-RpcIn_restart(RpcIn *in)  // IN
-{
-   ASSERT(in);
-
-   if (RpcIn_stop(in) == FALSE) {
-      return FALSE;
-   }
-
-   ASSERT(in->channel == NULL);
-   in->channel = Message_Open(0x4f4c4354);
-   if (in->channel == NULL) {
-      Debug("RpcIn_restart: couldn't open channel with TCLO protocol\n");
-      return FALSE;
-   }
-
-   if (in->last_result) {
-      free(in->last_result);
-      in->last_result = NULL;
-   }
-   in->last_resultLen = 0;
-   in->mustSend = TRUE;
-
-   ASSERT(in->nextEvent == NULL);
-   in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
-   if (in->nextEvent == NULL) {
-      Debug("RpcIn_restart: couldn't start the loop\n");
-      return FALSE;
-   }
-
-   return TRUE;
 }
 
 
@@ -773,6 +359,551 @@ RpcIn_UnregisterCallback(RpcIn *in,               // IN
    }
    free((void *)cur->name);
    free(cur);
+}
+
+
+#else /* VMTOOLS_USE_GLIB */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcIn_Construct --
+ *
+ *      Constructor for the RpcIn object. Ties the RpcIn loop to the given
+ *      glib main loop, and uses the given callback to dispatch incoming
+ *      RPC messages.
+ *
+ *      The dispatch callback receives data in a slightly different way than
+ *      the regular RPC callbacks. Basically, the raw data from the backdoor
+ *      is provided in the "args" field of the RpcInData struct, and "name"
+ *      is NULL. So the dispatch function is responsible for parsing the RPC
+ *      message, and preparing the RpcInData instance for proper use by the
+ *      final consumer.
+ *
+ * Results:
+ *      New RpcIn object.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+RpcIn *
+RpcIn_Construct(GMainLoop *mainLoop,      // IN
+                RpcIn_Callback dispatch,  // IN
+                gpointer clientData)      // IN
+{
+   RpcIn *result;
+
+   ASSERT(mainLoop != NULL);
+   ASSERT(dispatch != NULL);
+
+   result = calloc(1, sizeof *result);
+   if (result != NULL) {
+      result->mainLoop = mainLoop;
+      result->clientData = clientData;
+      result->dispatch = dispatch;
+   }
+   return result;
+}
+
+#endif /* VMTOOLS_USE_GLIB */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcIn_Destruct --
+ *
+ *      Destructor for the RpcIn object.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Frees all memory associated with the RpcIn object, resets the global
+ *      timer event queue.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+RpcIn_Destruct(RpcIn *in) // IN
+{
+   ASSERT(in);
+   ASSERT(in->channel == NULL);
+   ASSERT(in->nextEvent == NULL);
+   ASSERT(in->mustSend == FALSE);
+
+#if !defined(VMTOOLS_USE_GLIB)
+   while (in->callbacks) {
+      RpcInCallbackList *p;
+
+      p = in->callbacks->next;
+      free((void *) in->callbacks->name);
+      free(in->callbacks);
+      in->callbacks = p;
+   }
+
+   gTimerEventQueue = NULL;
+#endif
+
+   free(in);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInSend --
+ *
+ *      Send the last result back to VMware
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure
+ *
+ * Side-effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+RpcInSend(RpcIn *in) // IN
+{
+   Bool status;
+
+   ASSERT(in);
+   ASSERT(in->channel);
+   ASSERT(in->mustSend);
+
+   status = Message_Send(in->channel, (unsigned char *)in->last_result,
+                         in->last_resultLen);
+   if (status == FALSE) {
+      Debug("RpcIn: couldn't send back the last result\n");
+   }
+
+   free(in->last_result);
+   in->last_result = NULL;
+   in->last_resultLen = 0;
+   in->mustSend = FALSE;
+
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcIn_stop --
+ *
+ *      Stop the background loop that receives RPC from VMware
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure
+ *
+ * Side-effects:
+ *      Try to send the last result and to close the channel
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+RpcIn_stop(RpcIn *in) // IN
+{
+   Bool status;
+
+   ASSERT(in);
+
+   status = TRUE;
+
+   if (in->nextEvent) {
+      /* The loop is started. Stop it */
+#if defined(VMTOOLS_USE_GLIB)
+      g_source_destroy(in->nextEvent);
+#else
+      EventManager_Remove(in->nextEvent);
+#endif
+      in->nextEvent = NULL;
+   }
+
+   if (in->channel) {
+      /* The channel is open */
+
+      if (in->mustSend) {
+         /* There is a final result to send back. Try to send it */
+         if (RpcInSend(in) == FALSE) {
+            status = FALSE;
+         }
+
+         ASSERT(in->mustSend == FALSE);
+      }
+
+      /* Try to close the channel */
+      if (Message_Close(in->channel) == FALSE) {
+         Debug("RpcIn: couldn't close channel\n");
+         status = FALSE;
+      }
+
+      in->channel = NULL;
+   }
+
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcInLoop --
+ *
+ *    The background loop that receives RPC from VMware
+ *
+ * Result
+ *    Always FALSE for the glib implementation (to force unregistration of the
+ *    timer; this function will re-schedule the callback).
+ *    TRUE on success
+ *    FALSE on failure (never happens in this implementation)
+ *
+ * Side-effects
+ *    May call the error routine in which case the loop is
+ *    stopped.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if defined(VMTOOLS_USE_GLIB)
+static gboolean
+#else
+static Bool
+#endif
+RpcInLoop(void *clientData) // IN
+{
+   RpcIn *in;
+   char const *errmsg;
+   char const *reply;
+   size_t repLen;
+
+   in = (RpcIn *)clientData;
+   ASSERT(in);
+
+   /* The event has fired: it is no longer valid */
+   ASSERT(in->nextEvent);
+   in->nextEvent = NULL;
+
+   /* This is very important: this is the only way to signal the existence
+      of this guest application to VMware */
+   ASSERT(in->channel);
+   ASSERT(in->mustSend);
+   if (RpcInSend(in) == FALSE) {
+      errmsg = "RpcIn: Unable to send";
+      goto error;
+   }
+
+   if (Message_Receive(in->channel, (unsigned char **)(char**)&reply, &repLen)
+          == FALSE) {
+      errmsg = "RpcIn: Unable to receive";
+      goto error;
+   }
+
+   if (repLen) {
+      unsigned int status;
+      char const *statusStr;
+      unsigned int statusLen;
+      char *result;
+      size_t resultLen;
+      Bool freeResult = FALSE;
+
+      /*
+       * Execute the RPC
+       */
+
+#if defined(VMTOOLS_USE_GLIB)
+      RpcInData data = { NULL, reply, repLen, NULL, 0, FALSE, NULL, in->clientData };
+
+      status = in->dispatch(&data);
+      result = data.result;
+      resultLen = data.resultLen;
+      freeResult = data.freeResult;
+#else
+      char *cmd;
+      unsigned int index = 0;
+      RpcInCallbackList *cb = NULL;
+
+      cmd = StrUtil_GetNextToken(&index, reply, " ");
+      if (cmd != NULL) {
+         cb = RpcInLookupCallback(in, cmd);
+         free(cmd);
+         if (cb) {
+            result = NULL;
+            if (cb->type == RPCIN_CB_OLD) {
+               status = cb->callback.oldCb((char const **) &result, &resultLen, cb->name,
+                                           reply + cb->length, repLen - cb->length,
+                                           cb->clientData);
+            } else {
+               RpcInData data = { cb->name,
+                                  reply + cb->length,
+                                  repLen - cb->length,
+                                  NULL,
+                                  0,
+                                  FALSE,
+                                  NULL,
+                                  cb->clientData };
+               status = cb->callback.newCb(&data);
+               result = data.result;
+               resultLen = data.resultLen;
+               freeResult = data.freeResult;
+            }
+
+            ASSERT(result);
+         } else {
+            status = FALSE;
+            result = "Unknown Command";
+            resultLen = strlen(result);
+         }
+      } else {
+         status = FALSE;
+         result = "Bad command";
+         resultLen = strlen(result);
+      }
+#endif
+
+      if (status) {
+         statusStr = "OK ";
+         statusLen = 3;
+      } else {
+         statusStr = "ERROR ";
+         statusLen = 6;
+      }
+
+      in->last_result = (char *)malloc(statusLen + resultLen);
+      if (in->last_result == NULL) {
+         errmsg = "RpcIn: Not enough memory";
+         goto error;
+      }
+      memcpy(in->last_result, statusStr, statusLen);
+      memcpy(in->last_result + statusLen, result, resultLen);
+      in->last_resultLen = statusLen + resultLen;
+      
+      if (freeResult) {
+         free(result);
+      }
+
+#if 0 /* Costly in non-debug cases --hpreg */
+      if (strlen(reply) <= 128) {
+         Debug("Tclo: Done executing '%s'; result='%s'\n", reply, result);
+      } else {
+         Debug("Tclo: reply string too long to display\n");
+      }
+#endif
+
+      /*
+       * Run the event pump (in case VMware sends a long sequence of RPCs and
+       * perfoms a time-consuming job) and continue to loop immediately
+       */
+      in->delay = 0;
+   } else {
+      /*
+       * Nothing to execute
+       */
+
+      /* No request -> No result */
+      ASSERT(in->last_result == NULL);
+      ASSERT(in->last_resultLen == 0);
+
+      /*
+       * Continue to loop in a while. Use an exponential back-off, doubling
+       * the time to wait each time there isn't a new message, up to the max
+       * delay.
+       */
+
+      if (in->delay < in->maxDelay) {
+         if (in->delay > 0) {
+            /*
+             * Catch overflow.
+             */
+            in->delay = ((in->delay * 2) > in->delay) ? (in->delay * 2) : in->maxDelay;
+         } else {
+            in->delay = 1;
+         }
+         in->delay = MIN(in->delay, in->maxDelay);
+      }
+   }
+
+   ASSERT(in->mustSend == FALSE);
+   in->mustSend = TRUE;
+
+#if defined(VMTOOLS_USE_GLIB)
+   RPCIN_SCHED_EVENT(in, g_timeout_source_new(in->delay * 10));
+#else
+   in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
+#endif
+   if (in->nextEvent == NULL) {
+      errmsg = "RpcIn: Unable to run the loop";
+      goto error;
+   }
+
+#if defined(VMTOOLS_USE_GLIB)
+   return FALSE;
+#else
+   return TRUE;
+#endif
+
+error:
+   RpcIn_stop(in);
+
+   /* Call the error routine */
+   (*in->errorFunc)(in->errorData, errmsg);
+
+#if defined(VMTOOLS_USE_GLIB)
+   return FALSE;
+#else
+   return TRUE;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcIn_start --
+ *
+ *    Start the background loop that receives RPC from VMware
+ *
+ * Result
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side-effects
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if defined(VMTOOLS_USE_GLIB)
+Bool
+RpcIn_start(RpcIn *in,                    // IN
+            unsigned int delay,           // IN
+            RpcIn_ErrorFunc *errorFunc,   // IN
+            void *errorData)              // IN
+#else
+Bool
+RpcIn_start(RpcIn *in,                    // IN
+            unsigned int delay,           // IN
+            RpcIn_Callback resetCallback, // IN
+            void *resetClientData,        // IN
+            RpcIn_ErrorFunc *errorFunc,   // IN
+            void *errorData)              // IN
+#endif
+{
+   ASSERT(in);
+
+   in->delay = 0;
+   in->maxDelay = delay;
+   in->errorFunc = errorFunc;
+   in->errorData = errorData;
+
+   ASSERT(in->channel == NULL);
+   in->channel = Message_Open(0x4f4c4354);
+   if (in->channel == NULL) {
+      Debug("RpcIn_start: couldn't open channel with TCLO protocol\n");
+      goto error;
+   }
+
+   /* No initial result */
+   ASSERT(in->last_result == NULL);
+   ASSERT(in->last_resultLen == 0);
+   ASSERT(in->mustSend == FALSE);
+   in->mustSend = TRUE;
+
+   ASSERT(in->nextEvent == NULL);
+#if defined(VMTOOLS_USE_GLIB)
+   RPCIN_SCHED_EVENT(in, g_timeout_source_new(in->delay * 10));
+#else
+   in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
+   if (in->nextEvent == NULL) {
+      Debug("RpcIn_start: couldn't start the loop\n");
+      goto error;
+   }
+#endif
+
+#if !defined(VMTOOLS_USE_GLIB)
+   /* Register the 'reset' handler */
+   if (resetCallback) {
+      RpcIn_RegisterCallbackEx(in, "reset", resetCallback, resetClientData);
+   }
+
+   RpcIn_RegisterCallbackEx(in, "ping", RpcInPingCallback, NULL);
+#endif
+
+   return TRUE;
+
+error:
+   RpcIn_stop(in);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RpcIn_restart --
+ *
+ *    Stops/starts the background loop that receives RPC from VMware.
+ *    Keeps already registered callbacks. Regardless of the value returned,
+ *    callers are still expected to call RpcIn_stop() when done using rpcin,
+ *    to properly release used resources.
+ *
+ * Result
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side-effects
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+RpcIn_restart(RpcIn *in)  // IN
+{
+   ASSERT(in);
+
+   if (RpcIn_stop(in) == FALSE) {
+      return FALSE;
+   }
+
+   ASSERT(in->channel == NULL);
+   in->channel = Message_Open(0x4f4c4354);
+   if (in->channel == NULL) {
+      Debug("RpcIn_restart: couldn't open channel with TCLO protocol\n");
+      return FALSE;
+   }
+
+   if (in->last_result) {
+      free(in->last_result);
+      in->last_result = NULL;
+   }
+   in->last_resultLen = 0;
+   in->mustSend = TRUE;
+
+   ASSERT(in->nextEvent == NULL);
+#if defined(VMTOOLS_USE_GLIB)
+   RPCIN_SCHED_EVENT(in, g_idle_source_new());
+#else
+   in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
+#endif
+   if (in->nextEvent == NULL) {
+      Debug("RpcIn_restart: couldn't start the loop\n");
+      return FALSE;
+   }
+
+   return TRUE;
 }
 
 

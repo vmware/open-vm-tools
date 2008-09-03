@@ -166,7 +166,7 @@ Hostinfo_HostName(void)
 
    return result;
 }
-#elif defined(linux)		// Linux
+#elif defined(linux)
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <netdb.h>
@@ -245,6 +245,7 @@ Hostinfo_HostName(void)
 Unicode
 Hostinfo_HostName(void)
 {
-   return Unicode_Format("%s: unimplemented for OS", __FUNCTION__);
+   return Unicode_Alloc("Hostinfo_HostName: unimplemented for OS", 
+                        STRING_ENCODING_US_ASCII);
 }
 #endif

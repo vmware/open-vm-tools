@@ -54,6 +54,7 @@
 /* The maximum number of arguments we can hold */
 #define DNDMSG_MAX_ARGS 64
 
+/* Linux only defines. Should be in separate dndLinux.h */
 /* Strings used for formatting various types of data */
 #define DND_URI_LIST_PRE     "file://"
 #define DND_URI_LIST_PRE_KDE "file:"
@@ -65,6 +66,21 @@
 #define FCP_GNOME_LIST_PRE   "file://"
 #define FCP_GNOME_LIST_POST  "\n"
 
+/* FCP target used in gnome. */
+#define FCP_TARGET_NAME_GNOME_COPIED_FILES   "x-special/gnome-copied-files"
+#define FCP_TARGET_INFO_GNOME_COPIED_FILES   0
+/* FCP target used in KDE. */
+#define FCP_TARGET_NAME_URI_LIST             "text/uri-list"
+#define FCP_TARGET_INFO_URI_LIST             1
+/* Number of FCP targets. */
+#define NR_FCP_TARGETS                       2
+
+#define FCP_COPY_DELAY                       1000000  // 1 second
+#define TARGET_NAME_TIMESTAMP                "TIMESTAMP"
+
+#define DRAG_TARGET_NAME_URI_LIST  "text/uri-list"
+#define DRAG_LEAVE_TIMEOUT         500
+
 /* Guest detection window width and height. */
 #define DRAG_DET_WINDOW_WIDTH 15
 
@@ -74,6 +90,7 @@ typedef enum
    CPFORMAT_TEXT,       /* NUL terminated UTF-8. */
    CPFORMAT_FILELIST,
    CPFORMAT_RTF,
+   CPFORMAT_FILELIST_URI,
    CPFORMAT_MAX,
 } DND_CPFORMAT;
 

@@ -39,6 +39,7 @@
 #include "hgfsDevLinux.h"
 #include "os.h"
 #include "compat_freebsd.h"
+#include "vfsopscommon.h"
 
 /*
  * Local functions (prototypes)
@@ -191,6 +192,7 @@ HgfsVfsMount(struct mount *mp,  // IN: structure representing the file system
    mp->mnt_kern_flag |= MNTK_MPSAFE;
    MNT_IUNLOCK(mp);
 
+   /* Get a new unique filesystem ID */
    vfs_getnewfsid(mp);
 
    error = vfs_getopt(mp->mnt_optnew, "target", (void **)&target, &size);
@@ -236,9 +238,20 @@ HgfsVfsMount(struct mount *mp,  // IN: structure representing the file system
 
    vfs_mountedfrom(mp, target);
 
+   /*
+    * Fill in the statfs structure. Note that even if HgfsStatfsInt
+    * fails, we shall just log the error and move on, since it is
+    * not a critical operation.
+    */
+   error = HgfsStatfsInt(vp, &mp->mnt_stat);
+   if (error) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsStatfsInt failed with ret = %d\n", ret);
+      error = 0;
+   }
+
    DEBUG(VM_DEBUG_LOAD, "Exit\n");
 
-  out:
+out:
    if (error) {
       os_free(sip, sizeof *sip);
    }
@@ -326,7 +339,7 @@ HgfsVfsUnmount(struct mount *mp, int mntflags, struct thread *td)
  *      "VFS_STATFS(9) - return file system status."
  *
  * Results:
- *      Zero (always succeeds).
+ *      Zero on success and non-zero error code on failure.
  *
  * Side effects:
  *      Caller's statfs structure is populated.
@@ -337,9 +350,34 @@ HgfsVfsUnmount(struct mount *mp, int mntflags, struct thread *td)
 static int
 HgfsVfsStatfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 {
+   int ret = 0;
+   struct vnode *vp;
+
+   /* We always want HGFS_BLOCKSIZE to be a power of two */
+   ASSERT_ON_COMPILE(HGFS_IS_POWER_OF_TWO(HGFS_BLOCKSIZE));
+
+   /* 
+    * This fills in file system ID and the type number that
+    * we got from a call to vfs_getnewfsid() in HgfsVfsMount()
+    */
    bcopy(&mp->mnt_stat, sbp, sizeof mp->mnt_stat);
 
-   return 0;
+   ret = HgfsVfsRoot(mp, LK_SHARED, &vp, td);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsVfsRoot failed\n");
+      return ret;
+   }
+
+   ret = HgfsStatfsInt(vp, sbp);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsStatfsInt failed with ret = %d\n", ret);
+      goto out;
+   }
+
+out:
+   /* Drop the reference and shared lock that we acquired in HgfsVfsRoot */
+   vput(vp);
+   return ret;
 }
 
 /*

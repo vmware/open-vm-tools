@@ -32,9 +32,9 @@
 /*
  * Ugly definition of struct iovec.
  */
-#if __linux__ || sun || __APPLE__
+#if defined(__linux__) || defined(sun) || defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/uio.h>    // for struct iovec
-#else // if __linux__ || sun || __APPLE__
+#else
 
 #ifndef HAS_IOVEC
 struct iovec {

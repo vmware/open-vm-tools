@@ -79,6 +79,7 @@
 #include "file.h"
 #include "codeset.h"
 #include "escape.h"
+#include "hostinfo.h"
 
 
 /*
@@ -96,15 +97,6 @@ GdkAtom GDK_SELECTION_TYPE_TIMESTAMP;
 #ifndef GDK_SELECTION_TYPE_UTF8_STRING
 GdkAtom GDK_SELECTION_TYPE_UTF8_STRING;
 #endif
-
-/* FCP target used in gnome. */
-#define FCP_TARGET_NAME_GNOME_COPIED_FILES   "x-special/gnome-copied-files"
-#define FCP_TARGET_INFO_GNOME_COPIED_FILES   0
-/* FCP target used in KDE. */
-#define FCP_TARGET_NAME_URI_LIST             "text/uri-list"
-#define FCP_TARGET_INFO_URI_LIST             1
-/* Number of FCP targets. */
-#define NR_FCP_TARGETS                       2
 
 typedef struct FCPGHState {
    char *fileList;
@@ -158,6 +150,7 @@ int gHGFCPFileTransferStatus;
 static char gFileRoot[DND_MAX_PATH];
 static size_t gFileRootSize;
 static Bool gIsOwner;
+static VmTimeType gHGGetListTime;
 
 /*
  * Forward Declarations
@@ -510,6 +503,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    size_t textLen = 1;
    Bool blockAdded = FALSE;
    Bool gnomeFCP = FALSE;
+   VmTimeType curTime;
 
    if ((widget == NULL) || (selection_data == NULL)) {
       Debug("CopyPasteSelectionGetCB: Error, widget or selection_data is invalid\n");
@@ -554,6 +548,17 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
 
    if (!gHGIsClipboardFCP) {
       Debug("CopyPasteSelectionGetCB: no file list available\n");
+      return;
+   }
+
+   /*
+    * KDE may ask for clipboard content right after clipboard owner changed,
+    * and cause unexpected HG file copy. So HG FCP will return nothing for 1
+    * second after switch from host OS to guest OS. Please refer to bug 301971.
+    */
+   Hostinfo_GetTimeOfDay(&curTime);
+   if (curTime - gHGGetListTime < FCP_COPY_DELAY) {
+      Debug("%s: waiting for delay\n", __FUNCTION__);
       return;
    }
 
@@ -1614,6 +1619,7 @@ exit:
    free(sTotalSize);
    free(sListSize);
    free(stagingDirName);
+   Hostinfo_GetTimeOfDay(&gHGGetListTime);
    return RpcIn_SetRetVals(result, resultLen, retStr, ret);
 }
 

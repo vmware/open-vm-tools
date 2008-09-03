@@ -27,7 +27,6 @@
 #include "driver-config.h"
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -38,6 +37,7 @@
 #include "compat_kernel.h"
 #include "compat_kthread.h"
 #include "compat_sched.h"
+#include "compat_semaphore.h"
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 #include "compat_string.h"
@@ -200,16 +200,8 @@ HgfsComputeBlockBits(unsigned long blockSize)
  *-----------------------------------------------------------------------------
  */
 
-#ifdef VMW_KMEMCR_CTOR_HAS_3_ARGS
 static void
-HgfsInodeCacheCtor(void *slabElem,           // IN: slab item to initialize
-                   compat_kmem_cache *cache, // IN: cache slab is from
-                   unsigned long flags)      // IN: flags associated with allocation
-#else
-static void
-HgfsInodeCacheCtor(compat_kmem_cache *cache, // IN: cache slab is from
-                   void *slabElem)           // IN: slab item to initialize
-#endif
+HgfsInodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem)) // IN: slab item to initialize
 {
 #ifdef VMW_EMBED_INODE
    HgfsInodeInfo *iinfo = (HgfsInodeInfo *)slabElem;

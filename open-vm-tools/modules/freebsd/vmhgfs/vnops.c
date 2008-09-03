@@ -44,36 +44,6 @@
 #include "fsutil.h"
 #include "vnopscommon.h"
 
-/*
- * Macros
- */
-
-/*
- * Hgfs permissions are similar to Unix permissions in that they both include
- * bits for read vs. write vs. execute permissions.  However, Hgfs is only
- * concerned with file owners, meaning no "group" or "other" bits, so we need to
- * translate between Hgfs and Unix permissions with a simple bitshift.  The
- * shift value corresponds to omitting the "group" and "other" bits.
- */
-#define HGFS_ATTR_MODE_SHIFT    6
-
-/* Sets the values of request headers properly */
-#define HGFS_INIT_REQUEST_HDR(request, req, _op)                \
-         do {                                                   \
-            request->header.id = HgfsKReq_GetId(req);           \
-            request->header.op = _op;                           \
-         } while(0)
-
-/* FreeBSD times support nsecs, so only use these functions directly */
-#define HGFS_SET_TIME(unixtm, nttime)                   \
-         HgfsConvertFromNtTimeNsec(&unixtm, nttime)
-#define HGFS_GET_TIME(unixtm)                           \
-         HgfsConvertTimeSpecToNtTime(&unixtm)
-
-/* Determine if this is the root vnode. */
-#define HGFS_IS_ROOT_VNODE(sip, vp)                     \
-                (sip->rootVnode == vp)
-
 
 /*
  * Local functions (prototypes)

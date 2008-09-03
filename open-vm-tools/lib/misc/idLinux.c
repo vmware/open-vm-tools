@@ -99,7 +99,7 @@ static AuthorizationRef IdAuthCreateWithFork(void);
 #endif
 
 
-#if !defined(__APPLE__) && !defined(sun) && !defined(__FreeBSD__)
+#if !defined(__APPLE__)
 /*
  *----------------------------------------------------------------------------
  *
@@ -121,6 +121,9 @@ static AuthorizationRef IdAuthCreateWithFork(void);
 int
 Id_SetUid(uid_t euid)		// IN: new euid
 {
+#if defined(__FreeBSD__) || defined(sun)
+   return setuid(euid);
+#elif defined(linux)
    if (uid32) {
       int r = syscall(SYS_setuid32, euid);
       if (r != -1 || errno != ENOSYS) {
@@ -129,6 +132,9 @@ Id_SetUid(uid_t euid)		// IN: new euid
       uid32 = 0;
    }
    return syscall(SYS_setuid, euid);
+#else
+#   error "Id_SetUid is not implemented for this platform"
+#endif
 }
 #endif
 
@@ -157,12 +163,8 @@ Id_SetGid(gid_t egid)		// IN: new egid
 #if defined(__APPLE__)
    Warning("XXXMACOS: implement %s\n", __func__);
    return -1;
-#elif defined(sun)
-   Warning("XXXSolaris: implement %s\n", __FUNCTION__);
-   return -1;
-#elif defined(__FreeBSD__)
-   Warning("XXXFreeBSD: implement %s\n", __FUNCTION__);
-   return -1;
+#elif defined(sun) || defined(__FreeBSD__)
+   return setgid(egid);
 #else
    if (uid32) {
       int r = syscall(SYS_setgid32, egid);
@@ -198,16 +200,9 @@ Id_SetRESUid(uid_t uid,		// IN: new uid
 	     uid_t euid,	// IN: new effective uid
 	     uid_t suid)	// IN: new saved uid
 {
-#if defined(__APPLE__)
-   Warning("XXXMACOS: implement %s\n", __func__);
-   return -1;
-#elif defined(sun)
-   Warning("XXXSolaris: implement %s\n", __FUNCTION__);
-   return -1;
-#elif defined(__FreeBSD__)
-   Warning("XXXFreeBSD: implement %s\n", __FUNCTION__);
-   return -1;
-#else
+#if (defined(__FreeBSD__) && __FreeBSD_version >= 500043)
+   return setresuid(uid, euid, suid);
+#elif defined(linux)
    if (uid32) {
       int r = syscall(SYS_setresuid32, uid, euid, suid);
       if (r != -1 || errno != ENOSYS) {
@@ -216,6 +211,9 @@ Id_SetRESUid(uid_t uid,		// IN: new uid
       uid32 = 0;
    }
    return syscall(SYS_setresuid, uid, euid, suid);
+#else
+   Warning("XXX: implement %s\n", __func__);
+   return -1;
 #endif
 }
 
@@ -243,13 +241,9 @@ Id_SetRESGid(gid_t gid,		// IN: new gid
 	     gid_t egid,	// IN: new effective gid
 	     gid_t sgid)	// IN: new saved gid
 {
-#ifdef sun
-   Warning("XXXSolaris: implement %s\n", __FUNCTION__);
-   return -1;
-#elif defined(__FreeBSD__)
-   Warning("XXXFreeBSD: implement %s\n", __FUNCTION__);
-   return -1;
-#else
+#if (defined(__FreeBSD__) && __FreeBSD_version >= 500043)
+   return setresgid(gid, egid, sgid);
+#elif defined(linux)
    if (uid32) {
       int r = syscall(SYS_setresgid32, gid, egid, sgid);
       if (r != -1 || errno != ENOSYS) {
@@ -258,6 +252,9 @@ Id_SetRESGid(gid_t gid,		// IN: new gid
       uid32 = 0;
    }
    return syscall(SYS_setresgid, gid, egid, sgid);
+#else
+   Warning("XXX: implement %s\n", __func__);
+   return -1;
 #endif
 }
 #endif
@@ -289,12 +286,8 @@ Id_SetREUid(uid_t uid,		// IN: new uid
 #if defined(__APPLE__)
    Warning("XXXMACOS: implement %s\n", __func__);
    return -1;
-#elif defined(sun)
-   Warning("XXXSolaris: implement %s\n", __FUNCTION__);
-   return -1;
-#elif defined(__FreeBSD__)
-   Warning("XXXFreeBSD: implement %s\n", __FUNCTION__);
-   return -1;
+#elif defined(sun) || defined(__FreeBSD__)
+   return setreuid(uid, euid);
 #else
    if (uid32) {
       int r = syscall(SYS_setreuid32, uid, euid);
@@ -308,7 +301,7 @@ Id_SetREUid(uid_t uid,		// IN: new uid
 }
 
 
-#if !defined(__APPLE__) && !defined(sun) && !defined(__FreeBSD__)
+#if !defined(__APPLE__)
 /*
  *----------------------------------------------------------------------------
  *
@@ -332,6 +325,9 @@ int
 Id_SetREGid(gid_t gid,		// IN: new gid
 	    gid_t egid)		// IN: new effective gid
 {
+#if defined(sun) || defined(__FreeBSD__)
+   return setregid(gid, egid);
+#else
    if (uid32) {
       int r = syscall(SYS_setregid32, gid, egid);
       if (r != -1 || errno != ENOSYS) {
@@ -340,6 +336,7 @@ Id_SetREGid(gid_t gid,		// IN: new gid
       uid32 = 0;
    }
    return syscall(SYS_setregid, gid, egid);
+#endif
 }
 #endif
 

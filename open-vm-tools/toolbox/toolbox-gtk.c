@@ -43,6 +43,7 @@
 #include "conf.h"
 #include "toolboxgtk_version.h"
 #include "util.h"
+#include "system.h"
 
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXGTK_VERSION_STRING);
@@ -70,6 +71,7 @@ RpcIn *gRpcInCtlPanel;
 static GtkWidget *toolsMain;
 static Bool optionAutoHide;
 static guint gTimeoutId;
+static const char **gNativeEnviron;
 
 /* Help pages. These need to be in the same order as the tabs in the UI. */
 static const char *gHelpPages[] = {
@@ -964,7 +966,9 @@ ShowUsage(char const *prog)
  *-----------------------------------------------------------------------------
  */
 int
-main(int argc, char *argv[])
+main(int argc,                  // IN: ARRAY_SIZEOF(argv)
+     char *argv[],              // IN: argument vector
+     const char *envp[])        // IN: environment vector
 {
    Bool optIconify, optHelp, optVersion;
    struct sigaction olds[ARRAYSIZE(gSignals)];
@@ -1036,6 +1040,13 @@ main(int argc, char *argv[])
    }
 
    /*
+    * Determine our pre-VMware wrapper native environment for use with spawned
+    * applications.
+    */
+   gNativeEnviron = System_GetNativeEnviron(envp);
+   GuestApp_SetSpawnEnviron(gNativeEnviron);
+
+   /*
     * See bug 73119. Some distros (SUSE 9.2 64-bit) set LC_CTYPE to the UTF-8 version of
     * the locale. This makes the toolbox use a bad font. If we don't cal gtk_set_locale(),
     * we're unaffected by this. The potential downside is that our app won't be localized.
@@ -1100,6 +1111,7 @@ main(int argc, char *argv[])
    gtk_main();
 
    Signal_ResetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals));
+   System_FreeNativeEnviron(gNativeEnviron);
 
    gdk_pixmap_unref(pixmap);
    gdk_bitmap_unref(bitmask);

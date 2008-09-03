@@ -704,6 +704,17 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
          flags |= GROUPING;
          thousands_sep = *(localeconv()->thousands_sep);
          grouping = localeconv()->grouping;
+
+	 /*
+	  * Grouping should not begin with 0, but it nevertheless
+	  * does (see bug 281072) and makes the formatting code
+	  * behave badly, so we fix it up.
+	  */
+
+	 if (grouping != NULL && *grouping == '\0') {
+	    static char g[] = { CHAR_MAX, '\0' };
+	    grouping = g;
+	 }
          goto rflag;
       case '.':
          if ((ch = *fmt++) == '*') {

@@ -141,7 +141,6 @@ Shrink_Create(GtkWidget *mainWnd)
 #endif
       gtk_widget_show(button);
       gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
-      gtk_widget_set_usize(button, 70, 25);
       gtk_widget_set_sensitive(button, FALSE);
       gtk_signal_connect(GTK_OBJECT(button), "clicked",
                          GTK_SIGNAL_FUNC(Shrink_OnShrinkClicked), mainWnd);

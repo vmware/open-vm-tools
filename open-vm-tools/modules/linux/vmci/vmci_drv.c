@@ -292,23 +292,27 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    vmci_dev.enabled = TRUE;
    pci_set_drvdata(pdev, &vmci_dev);
 
-   if (request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED, 
-                   "vmci", &vmci_dev)) {
-      printk(KERN_ERR "vmci: irq %u in use\n", vmci_dev.irq);
-      goto unlock;
-   }
-
    /* 
-    * We do global initialization here because we need datagrams for event 
-    * init. If we ever support more than one VMCI device we will have to 
-    * create seperate LateInit/EarlyExit functions that can be used to do
-    * initialization/cleanup that depends on the device being accessible.
+    * We do global initialization here because we need datagrams for
+    * event init. If we ever support more than one VMCI device we will
+    * have to create seperate LateInit/EarlyExit functions that can be
+    * used to do initialization/cleanup that depends on the device
+    * being accessible.  We need to initialize VMCI components before
+    * requesting an irq - the VMCI interrupt handler uses these
+    * components, and it may be invoked once request_irq() has
+    * registered the handler (as the irq line may be shared).
     */
    VMCIProcess_Init();
    VMCIDatagram_Init();
    VMCIEvent_Init();
    VMCIUtil_Init();
    VMCIQueuePair_Init();
+
+   if (request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED, 
+                   "vmci", &vmci_dev)) {
+      printk(KERN_ERR "vmci: irq %u in use\n", vmci_dev.irq);
+      goto components_exit;
+   }
 
    printk(KERN_INFO "Registered vmci device.\n");
 
@@ -322,6 +326,11 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
    return 0;
 
+ components_exit:
+   VMCIQueuePair_Exit();
+   VMCIUtil_Exit();
+   VMCIEvent_Exit();
+   VMCIProcess_Exit();
  unlock:
    up(&vmci_dev.lock);
  release:

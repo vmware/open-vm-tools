@@ -27,11 +27,11 @@
 #include "driver-config.h"
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <linux/list.h>
 #include <linux/signal.h>
 #include "compat_kernel.h"
 #include "compat_sched.h"
+#include "compat_semaphore.h"
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 

@@ -50,7 +50,7 @@ const GHI_HANDLERS_ACTIONURI_MAX_PATH = 1040;
  * Maximum number of filetypes that may be encoded in a single
  * XDR array.
  */
-const GHI_MAX_NUM_BINARY_HANDLERS = 32;
+const GHI_MAX_NUM_BINARY_HANDLERS = 128;
 
 struct GHIBinaryHandlersIconDetails {
    /*
