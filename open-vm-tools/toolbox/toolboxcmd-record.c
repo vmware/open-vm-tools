@@ -44,7 +44,12 @@
 Bool
 Record_StartRecording(void) 
 {
-   return GuestApp_ControlRecord(1);
+   if (GuestApp_ControlRecord(1) == TRUE) {
+      return TRUE;
+   } else {
+      fprintf(stderr, RECORD_VMX_DISABLED);
+      return FALSE;
+   }
 }
 
 
@@ -67,6 +72,11 @@ Record_StartRecording(void)
 Bool
 Record_StopRecording(void)
 {
-   return GuestApp_ControlRecord(2);
+   if (GuestApp_ControlRecord(2) == FALSE) {
+      return TRUE;
+   } else {
+      fprintf(stderr, RECORD_VMX_DISABLED);
+      return FALSE;
+   }
 }
 

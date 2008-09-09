@@ -117,7 +117,9 @@ static void
 RecordOnStart(gpointer btn,    // IN: unused
               gpointer data)   // IN: unused
 {
-   GuestApp_ControlRecord(1);
+   if (GuestApp_ControlRecord(1) == FALSE) {
+      ToolsMain_MsgBox(NULL, RECORD_VMX_DISABLED);
+   }
 }
 
 
@@ -142,6 +144,8 @@ static void
 RecordOnStop(gpointer btn,    // IN: unused
              gpointer data)   // IN: unused
 {
-   GuestApp_ControlRecord(2);
+   if (GuestApp_ControlRecord(2)) {
+      ToolsMain_MsgBox(NULL, RECORD_VMX_DISABLED);
+   }
 }
 

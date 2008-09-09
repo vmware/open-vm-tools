@@ -55,5 +55,8 @@
 			    "enabled while the host believes it is disabled. " \
 			    "Please close and reopen the Toolbox to synchronize " \
 			    "it with the host.\n"
+#define RECORD_VMX_DISABLED "Error, this operation is prevented by current vmx setting.\n" \
+                            "To enable it, add the following option to your vmx file:\n\n" \
+                            "   isolation.tools.stateLoggerControl.disable = \"FALSE\"\n" \
 
 #endif /*_TOOLBOX_INT_H_*/
