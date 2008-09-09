@@ -72,7 +72,7 @@ Record_StartRecording(void)
 Bool
 Record_StopRecording(void)
 {
-   if (GuestApp_ControlRecord(2) == FALSE) {
+   if (GuestApp_ControlRecord(2) == TRUE) {
       return TRUE;
    } else {
       fprintf(stderr, RECORD_VMX_DISABLED);

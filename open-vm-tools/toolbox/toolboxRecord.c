@@ -144,7 +144,7 @@ static void
 RecordOnStop(gpointer btn,    // IN: unused
              gpointer data)   // IN: unused
 {
-   if (GuestApp_ControlRecord(2)) {
+   if (GuestApp_ControlRecord(2) == FALSE) {
       ToolsMain_MsgBox(NULL, RECORD_VMX_DISABLED);
    }
 }
