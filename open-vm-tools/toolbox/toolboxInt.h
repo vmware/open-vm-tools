@@ -55,7 +55,7 @@
 			    "enabled while the host believes it is disabled. " \
 			    "Please close and reopen the Toolbox to synchronize " \
 			    "it with the host.\n"
-#define RECORD_VMX_DISABLED "Error, this operation is prevented by current vmx setting.\n" \
+#define RECORD_VMX_ERR      "Error, this operation is prevented by current vmx setting.\n" \
                             "There may be reasons as follows:\n" \
                             "1. Controlling is disabled by vmx." \
                             "To enable it, add the following option to your vmx file:\n" \

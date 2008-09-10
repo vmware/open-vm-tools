@@ -1853,8 +1853,9 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
  *
  * GuestApp_ControlRecord --
  *
- *    Start or stop recording proccess, flagged by mode. 
- *    mode 1 for start and mode 2 for stop.
+ *    Start or stop recording process, flagged by mode. 
+ *    Mode definition is in 
+ *    "lib/include/statelogger_backdoor_def.h".
  *
  * Results:
  *    TRUE on success and FALSE on failure.

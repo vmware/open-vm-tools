@@ -26,6 +26,7 @@
 
 #include "toolboxGtkInt.h"
 #include "debug.h"
+#include "statelogger_backdoor_def.h"
 
 static void RecordOnStart(gpointer, gpointer);
 static void RecordOnStop(gpointer, gpointer);
@@ -117,8 +118,8 @@ static void
 RecordOnStart(gpointer btn,    // IN: unused
               gpointer data)   // IN: unused
 {
-   if (GuestApp_ControlRecord(1) == FALSE) {
-      ToolsMain_MsgBox(NULL, RECORD_VMX_DISABLED);
+   if (GuestApp_ControlRecord(STATELOGGER_BKDR_START_LOGGING) == FALSE) {
+      ToolsMain_MsgBox(NULL, RECORD_VMX_ERR);
    }
 }
 
@@ -144,8 +145,8 @@ static void
 RecordOnStop(gpointer btn,    // IN: unused
              gpointer data)   // IN: unused
 {
-   if (GuestApp_ControlRecord(2) == FALSE) {
-      ToolsMain_MsgBox(NULL, RECORD_VMX_DISABLED);
+   if (GuestApp_ControlRecord(STATELOGGER_BKDR_STOP_LOGGING) == FALSE) {
+      ToolsMain_MsgBox(NULL, RECORD_VMX_ERR);
    }
 }
 

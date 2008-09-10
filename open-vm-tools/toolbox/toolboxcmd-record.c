@@ -23,6 +23,7 @@
  */
 
 #include "toolboxCmdInt.h"
+#include "statelogger_backdoor_def.h"
 
 
 /*
@@ -44,10 +45,10 @@
 Bool
 Record_StartRecording(void) 
 {
-   if (GuestApp_ControlRecord(1) == TRUE) {
+   if (GuestApp_ControlRecord(STATELOGGER_BKDR_START_LOGGING) == TRUE) {
       return TRUE;
    } else {
-      fprintf(stderr, RECORD_VMX_DISABLED);
+      fprintf(stderr, RECORD_VMX_ERR);
       return FALSE;
    }
 }
@@ -72,10 +73,10 @@ Record_StartRecording(void)
 Bool
 Record_StopRecording(void)
 {
-   if (GuestApp_ControlRecord(2) == TRUE) {
+   if (GuestApp_ControlRecord(STATELOGGER_BKDR_STOP_LOGGING) == TRUE) {
       return TRUE;
    } else {
-      fprintf(stderr, RECORD_VMX_DISABLED);
+      fprintf(stderr, RECORD_VMX_ERR);
       return FALSE;
    }
 }
