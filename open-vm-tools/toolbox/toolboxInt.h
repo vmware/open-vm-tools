@@ -56,7 +56,11 @@
 			    "Please close and reopen the Toolbox to synchronize " \
 			    "it with the host.\n"
 #define RECORD_VMX_DISABLED "Error, this operation is prevented by current vmx setting.\n" \
-                            "To enable it, add the following option to your vmx file:\n\n" \
-                            "   isolation.tools.stateLoggerControl.disable = \"FALSE\"\n" \
+                            "There may be reasons as follows:\n" \
+                            "1. Controlling is disabled by vmx." \
+                            "To enable it, add the following option to your vmx file:\n" \
+                            "   isolation.tools.stateLoggerControl.disable = \"FALSE\"\n\n" \
+                            "2. You may want to start recording when you are already in it.\n\n" \
+                            "3. You may want to stop recording when you are not in recording.\n\n" \
 
 #endif /*_TOOLBOX_INT_H_*/
