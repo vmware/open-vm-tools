@@ -57,6 +57,7 @@ Record_Create(GtkWidget* mainWnd)
    GtkWidget *label;
    recordtab = gtk_vbox_new(FALSE, 50);
    gtk_widget_show(recordtab);
+   gtk_container_set_border_width(GTK_CONTAINER(recordtab), 10);
    /* Only root can do recording. */
    if (geteuid() != 0) {
       Debug("User not allowed to do recording");
