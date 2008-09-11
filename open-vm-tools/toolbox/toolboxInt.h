@@ -55,12 +55,12 @@
 			    "enabled while the host believes it is disabled. " \
 			    "Please close and reopen the Toolbox to synchronize " \
 			    "it with the host.\n"
-#define RECORD_VMX_ERR      "Error, this operation is prevented by current vmx setting.\n" \
-                            "There may be reasons as follows:\n" \
-                            "1. Controlling is disabled by vmx." \
-                            "To enable it, add the following option to your vmx file:\n" \
-                            "   isolation.tools.stateLoggerControl.disable = \"FALSE\"\n\n" \
-                            "2. You may want to start recording when you are already in it.\n\n" \
-                            "3. You may want to stop recording when you are not in recording.\n\n" \
+#define RECORD_VMX_ERR      "Error, the Record/Replay control operation failed. This could be for " \
+                            "one of the following reasons:\n" \
+                            "1. You are running an old version of a VMware product.\n\n" \
+                            "2. Your product has disabled these controls. To enable them, consult " \
+                            "the product documentation.\n\n" \
+                            "3. You tried to start a recording while already recording.\n\n" \
+                            "4. You tried to stop a recording while not recording.\n\n" \
 
 #endif /*_TOOLBOX_INT_H_*/
