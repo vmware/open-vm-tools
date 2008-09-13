@@ -24,7 +24,6 @@
 # etc.), this script also accepts:
 # $CUSTOM_GTK_CPPFLAGS - compile-time flags to find Gtk headers.
 # $CUSTOM_GTK_LIBS - link-time flags to find and link the Gtk libraries.
-# $CUSTOM_PROCPS_CPPFLAGS - compile-time flags to find procps headers
 # $CUSTOM_PROCPS_LIBS - link-time flags to find and link the procps library.
 # $CUSTOM_URIPARSER_CPPFLAGS - compile-time flags to find the uriparser headers
 # $CUSTOM_URIPARSER_LIBS - link-time flags to find and link the uriparser library
@@ -592,29 +591,6 @@ if test "$with_procps" = "yes"; then
 
 	GUESTD_LDADD="$GUESTD_LDADD $PROCPS_LIBS"
 	VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
-
-	# On Debian, the 'libproc-dev' package does not contain the libproc
-	# shared object; it is provided in the 'procps' package. Having the
-	# 'procps' package installed without 'libproc-dev' would lead to
-	# compilation errors down the line, so to avoid that we explicitly
-	# check for one of the libproc headers that is consumed in the build.
-	if test -n "$CUSTOM_PROCPS_CPPFLAGS"; then
-		PROCPS_CPPFLAGS="$CUSTOM_PROCPS_CPPFLAGS"
-	else
-		# XXX: Unfortunately, the libproc devel package doesn't appear
-		# to ship with a configuration script or pkg-config manifest
-		# file, so there's no portable way to get the location of its
-		# headers. For now we default to /usr/include.
-		PROCPS_CPPFLAGS="-I/usr/include"
-	fi
-	ORIGINAL_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$PROCPS_CPPFLAGS $CPPFLAGS"
-	AC_CHECK_HEADER(
-	   [proc/sysinfo.h],
-	   [],
-	   [AC_MSG_ERROR(
-	      [libproc headers not found. Please configure without procps (using --without-procps) or install libproc devel package])])
-	CPPFLAGS="$ORIGINAL_CPPFLAGS"
 fi
 
 if test "$with_procps" != "yes"; then
@@ -1003,7 +979,6 @@ AC_SUBST([GTK_CPPFLAGS])
 AC_SUBST([GTK_LIBS])
 AC_SUBST([DNET_CPPFLAGS])
 AC_SUBST([DNET_LIBS])
-AC_SUBST([PROCPS_CPPFLAGS])
 AC_SUBST([PROCPS_LIBS])
 AC_SUBST([ICU_CPPFLAGS])
 AC_SUBST([ICU_LIBS])

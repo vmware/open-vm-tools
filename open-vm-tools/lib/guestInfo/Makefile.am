@@ -24,6 +24,5 @@ libGuestInfo_a_SOURCES += guestInfoPosix.c
 libGuestInfo_a_SOURCES += guestInfoPerfMonLinux.c
 
 AM_CFLAGS = $(DNET_CPPFLAGS)
-AM_CFLAGS += $(PROCPS_CPPFLAGS)
 AM_CFLAGS += -I$(top_builddir)/include
 
