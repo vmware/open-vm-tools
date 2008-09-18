@@ -150,12 +150,16 @@ typedef char      int8;
 #include <stdlib.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <sys/param.h> /* For __FreeBSD_version */         
+#endif
+
 #if !defined(USING_AUTOCONF)
 #   if defined(__FreeBSD__) || defined(sun)
 #      ifdef KLD_MODULE
 #         include <sys/types.h>
 #      else
-#         if (BSD_VERSION >= 50)
+#         if !defined(VMKERNEL) && (__FreeBSD_version >= 500043)
 #            include <inttypes.h>
 #            include <sys/types.h>
 #         else

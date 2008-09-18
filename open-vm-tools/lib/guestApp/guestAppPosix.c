@@ -38,6 +38,13 @@ extern "C" {
 #include "vm_assert.h"
 #include "guestAppPosixInt.h"
 
+/*
+ * This variable is passed along to g_spawn_sync when launching (for example)
+ * a web browser.  If NULL, the child will inherit the parent's environment.
+ * Users may set it with GuestApp_SetSpawnEnviron.
+ */
+const char **guestAppSpawnEnviron = NULL;
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -84,7 +91,7 @@ GuestApp_OpenUrl(const char *url, // IN
  */
 
 Bool
-GuestApp_FindProgram(const char *program)
+GuestApp_FindProgram(const char *program) // IN: Wanted program name
 {
    const char *path = getenv("PATH");
    char *p;
@@ -109,6 +116,31 @@ GuestApp_FindProgram(const char *program)
       return TRUE;
    }
    return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_SetSpawnEnviron --
+ *
+ *      Records a separate environment used when spawning applications.
+ *
+ * Results:
+ *      guestAppSpawnEnviron will point to caller's argument.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+GuestApp_SetSpawnEnviron(const char **spawnEnviron)
+                            // IN; Environment used when spawning.  (Does not involve
+                            // Barry White, candlelight, etc.)
+{
+   guestAppSpawnEnviron = spawnEnviron;
 }
 
 

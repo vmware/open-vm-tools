@@ -23,7 +23,6 @@
  */
 
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -100,7 +99,7 @@ static int
 GetConfEntry(char *apm,        // IN: apm name
              ScriptType type)  // IN: Script type (default or current)
 {
-   const char *entry;
+   const char *entry = NULL;
    GuestApp_Dict *confDict;
    char *confName;
    confDict = Conf_Load();

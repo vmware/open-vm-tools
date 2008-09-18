@@ -29,8 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #if defined(_WIN32)
 #include <windows.h>
@@ -373,14 +373,14 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
     *
     * Here is picture of valid forms:
     *
-    * 0 1 2 3 4 5 6    Comment
+    * 0 1 2 3 4 5 6   Comment
     *-------------------------
     * A B C D         contents, no payload, no list entries
     * A B C D [       contents, no payload, no list entries
     * A B C D P       contents, a payload,  no list entries
     * A B C D [ x     contents, no payload, one list entry
     * A B C D P x     contents, a payload,  one list entry
-    * A B C D [ x y   contents, no payload, two list entries,
+    * A B C D [ x y   contents, no payload, two list entries
     * A B C D P x y   contents, a payload,  two list entries
     */
 
@@ -1178,10 +1178,12 @@ MakeDirectory(ConstUnicode pathName)  // IN:
 #if !defined(_WIN32)
    mode_t save;
 
-   save = umask(0);
-#endif
-
    ASSERT(pathName);
+
+   save = umask(0);
+#else
+   ASSERT(pathName);
+#endif
 
    err = FileCreateDirectoryRobust(pathName);
 
@@ -1336,7 +1338,8 @@ CreateEntryDirectory(const char *machineID,    // IN:
 
          FileRemoveDirectoryRobust(*entryDirectory);
       } else {
-          if (err != EEXIST) {
+          if ((err != EEXIST) &&  // Another process/thread created it...
+              (err != ENOENT)) {  // lockDir is gone...
              Warning(LGPFX" %s creation failure on '%s': %s\n",
                      __FUNCTION__, UTF8(*entryDirectory), strerror(err));
 

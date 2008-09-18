@@ -578,6 +578,8 @@ Util_ZeroFreeStringW(wchar_t *str)  // IN
  *      The list either has a specified length or is
  *      argv-style NULL terminated (if length is negative).
  *
+ *      The list can be NULL, in which case no operation is performed.
+ *
  * Results:
  *      None
  *
@@ -591,6 +593,11 @@ static INLINE void
 Util_FreeList(void **list,      // IN/OUT: the list to free
               ssize_t length)   // IN: the length
 {
+   if (list == NULL) {
+      ASSERT(length <= 0);
+      return;
+   }
+
    if (length >= 0) {
       ssize_t i;
 

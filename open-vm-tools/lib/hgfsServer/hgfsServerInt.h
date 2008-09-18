@@ -469,7 +469,8 @@ HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
 			uint32 *caseFlags);         // OUT: case-sensitivity flags
 
 Bool
-HgfsPackDeleteReply(char *packetOut,               // IN/OUT: outgoing packet
+HgfsPackDeleteReply(HgfsOp deleteOp,               // IN: delete operation version
+                    char *packetOut,               // IN/OUT: outgoing packet
                     size_t *packetSize);           // IN/OUT: size of packet
 
 Bool
@@ -486,7 +487,8 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
 			uint32 *newCaseFlags);      // OUT: new case-sensitivity flags
 
 Bool
-HgfsPackRenameReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackRenameReply(HgfsOp renameOp,           // IN: rename operation version
+                    char *packetOut,           // IN/OUT: outgoing packet
                     size_t *packetSize);       // IN/OUT: size of packet
 
 Bool
@@ -521,7 +523,8 @@ HgfsUnpackSetattrRequest(char const *packetIn,            // IN: request packet
 			 uint32 *caseFlags);              // OUT: case-sensitivity flags
 
 Bool
-HgfsPackSetattrReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackSetattrReply(HgfsOp setattrOp,          // IN: setattrOp operation version
+                     char *packetOut,           // IN/OUT: outgoing packet
                      size_t *packetSize);       // IN/OUT: size of packet
 
 
@@ -531,7 +534,8 @@ HgfsUnpackCreateDirRequest(char const *packetIn,     // IN: incoming packet
                            HgfsCreateDirInfo *info); // IN/OUT: info struct
 
 Bool
-HgfsPackCreateDirReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackCreateDirReply(HgfsOp createdirOp,        // IN: createdirOp operation version
+                       char *packetOut,           // IN/OUT: outgoing packet
                        size_t *packetSize);       // IN/OUT: size of packet
 
 /* Node cache functions. */

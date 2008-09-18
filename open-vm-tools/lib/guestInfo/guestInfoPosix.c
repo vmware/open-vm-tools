@@ -215,7 +215,7 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
                                     ipAddress,
                                     INFO_IP_ADDRESS_FAMILY_IPV4);
          if (ip) {
-            GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits);
+            GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits, TRUE);
          }
          /* Walk the list of alias's and add those that are IPV4 or IPV6 */
          for (i = 0; i < entry->intf_alias_num; i++) {
@@ -227,7 +227,7 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
                                           ipAddress,
                                           INFO_IP_ADDRESS_FAMILY_IPV4);
                if (ip) {
-                  GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits);
+                  GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits, TRUE);
                }
             } else if (entry->intf_alias_addrs[i].addr_type == ADDR_TYPE_IP6) {
                memcpy(ipAddress,

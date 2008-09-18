@@ -27,9 +27,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
-#ifndef NO_PROCPS
-# include <proc/sysinfo.h>
-#endif
 
 #include "vmware.h"
 #include "guestInfo.h"
@@ -37,6 +34,7 @@
 #include "debug.h"
 
 #ifndef NO_PROCPS
+#include "vm_procps.h"
 static void GuestInfoMonitorGetStat(GuestMemInfo *vmStats);
 static Bool GuestInfoMonitorReadMeminfo(GuestMemInfo *vmStats);
 #endif

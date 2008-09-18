@@ -1245,11 +1245,6 @@ FileIO_Sync(const FileIODescriptor *file) // IN
    return fsync(file->posix);
 }
 
-/*
- * readv & writev are not available in the FreeBSD or Solaris Tools builds
- */
-#if !defined(VMX86_TOOLS) || (!defined(__FreeBSD__) && !defined(sun))
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1572,7 +1567,7 @@ FileIO_Writev(FileIODescriptor *fd,     // IN
 }
 
 
-#if defined(GLIBC_VERSION_21) || defined(__APPLE__)
+#if defined(GLIBC_VERSION_21) || defined(__APPLE__) || defined(__FreeBSD__)
 
 /*
  *----------------------------------------------------------------------
@@ -1778,8 +1773,7 @@ exit:
 
    return fret;
 }
-#endif /* defined(GLIBC_VERSION_21) || defined(__APPLE__) */
-#endif /* !defined(VMX86_TOOLS) || !(defined(FreeBSD) || defined(sun)) */
+#endif /* defined(GLIBC_VERSION_21) || defined(__APPLE__) || defined(__FreeBSD__) */
 #endif /* !defined(N_PLAT_NLM) */
 
 /*

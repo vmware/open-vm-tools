@@ -27,8 +27,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if defined(__FreeBSD__) && BSD_VERSION >= 53
-# include <syslimits.h>
+#if defined(__FreeBSD__)
+#include <sys/param.h>
+#if __FreeBSD_version >= 530000
+#include <syslimits.h>
+#endif
 #endif
 
 #include "toolboxGtkInt.h"
@@ -209,7 +212,6 @@ Scripts_Create(GtkWidget* mainWnd)
       hbox = gtk_hbox_new(FALSE, 10);
       gtk_widget_show(hbox);
       gtk_box_pack_start(GTK_BOX(scriptstab), hbox, FALSE, FALSE, 0);
-      gtk_widget_set_usize(hbox, -1, 25);
 
       scriptsPath = gtk_entry_new();
       gtk_widget_show(scriptsPath);
@@ -229,7 +231,6 @@ Scripts_Create(GtkWidget* mainWnd)
       } else {
          gtk_box_pack_end(GTK_BOX(hbox), scriptsBrowse, FALSE, FALSE, 0);
       }
-      gtk_widget_set_usize(scriptsBrowse, 70, 6);
       gtk_widget_set_sensitive(scriptsBrowse, FALSE);
       gtk_signal_connect(GTK_OBJECT(scriptsBrowse), "clicked",
                          GTK_SIGNAL_FUNC(Scripts_OnBrowse), NULL);
@@ -243,7 +244,6 @@ Scripts_Create(GtkWidget* mainWnd)
 #endif
          gtk_widget_show(scriptsEdit);
          gtk_box_pack_end(GTK_BOX(hbox), scriptsEdit, FALSE, FALSE, 0);
-         gtk_widget_set_usize(scriptsEdit, 70, 25);
          gtk_signal_connect(GTK_OBJECT(scriptsEdit), "clicked",
                             GTK_SIGNAL_FUNC(Scripts_OnEdit), NULL);
       }
@@ -259,7 +259,6 @@ Scripts_Create(GtkWidget* mainWnd)
 #endif
       gtk_widget_show(scriptsRun);
       gtk_box_pack_end(GTK_BOX(hbox), scriptsRun, FALSE, FALSE, 0);
-      gtk_widget_set_usize(scriptsRun, 70, 25);
       gtk_signal_connect(GTK_OBJECT(scriptsRun), "clicked",
                          GTK_SIGNAL_FUNC(Scripts_OnRun), NULL);
 
@@ -270,7 +269,6 @@ Scripts_Create(GtkWidget* mainWnd)
 #endif
       gtk_widget_show(scriptsApply);
       gtk_box_pack_end(GTK_BOX(hbox), scriptsApply, FALSE, FALSE, 0);
-      gtk_widget_set_usize(scriptsApply, 70, 6);
       gtk_widget_set_sensitive(scriptsApply, FALSE);
       gtk_signal_connect(GTK_OBJECT(scriptsApply), "clicked",
                          GTK_SIGNAL_FUNC(Scripts_OnApply), NULL);

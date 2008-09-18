@@ -3457,7 +3457,7 @@ abort:
     */
    currentUid = geteuid();
 
-   if (currentUid != pwd.pw_uid) {
+   if (currentUid != ppwd->pw_uid) {
       err = VIX_E_INTERACTIVE_SESSION_USER_MISMATCH;
       goto abort;
    }

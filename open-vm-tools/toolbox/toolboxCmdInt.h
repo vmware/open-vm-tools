@@ -26,11 +26,42 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
-#include <sysexits.h>
+#ifdef _WIN32
+#   include "getoptwin32.h"
+#else
+#   include <getopt.h>
+#   include <sysexits.h>
+#   include <unistd.h>
+#endif
 
 #include "toolboxInt.h"
 #include "vmGuestLib.h"
+
+/*
+ * Some platforms (such as Win32) don't have sysexits.h and thus don't have
+ * generic program exit codes.
+ */
+
+#ifndef EX_USAGE
+#define EX_USAGE 64
+#endif
+
+#ifndef EX_UNAVAILABLE
+#define EX_UNAVAILABLE 69
+#endif
+
+#ifndef EX_OSFILE
+#define EX_OSFILE 72
+#endif
+
+#ifndef EX_TEMPFAIL
+#define EX_TEMPFAIL 75
+#endif
+
+#ifndef EX_NOPERM
+#define EX_NOPERM 77
+#endif
+
 /*
  * Devices Operations
  */

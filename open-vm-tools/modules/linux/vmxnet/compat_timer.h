@@ -56,6 +56,7 @@ compat_del_timer_sync(struct timer_list *timer) // IN
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 #   include <linux/delay.h>
 #   define compat_msleep_interruptible(msecs) msleep_interruptible(msecs)
+#   define compat_msleep(msecs) msleep(msecs)
 #else
 #   include <linux/sched.h>
 /* 
@@ -77,6 +78,13 @@ static inline void
 compat_msleep_interruptible(unsigned long msecs) // IN
 {
    set_current_state(TASK_INTERRUPTIBLE);
+   schedule_timeout(msecs_to_jiffies(msecs) + 1);
+}
+
+static inline void
+compat_msleep(unsigned long msecs) // IN
+{
+   set_current_state(TASK_UNINTERRUPTIBLE);
    schedule_timeout(msecs_to_jiffies(msecs) + 1);
 }
 #endif

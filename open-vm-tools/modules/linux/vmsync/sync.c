@@ -40,7 +40,6 @@
 
 #include <asm/bug.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <asm/string.h>
 #include <linux/buffer_head.h>
 #include <linux/proc_fs.h>
@@ -48,6 +47,7 @@
 #include "compat_fs.h"
 #include "compat_module.h"
 #include "compat_namei.h"
+#include "compat_semaphore.h"
 #include "compat_slab.h"
 #include "compat_workqueue.h"
 
@@ -576,18 +576,11 @@ VmSyncRelease(struct inode *inode,  // IN
  *-----------------------------------------------------------------------------
  */
 
-#ifdef VMW_KMEMCR_CTOR_HAS_3_ARGS
 static void
-VmSyncBlockDeviceCtor(void *slabelem,           // IN
-                      compat_kmem_cache *cache, // IN
-                      unsigned long flags)      // IN
-#else
-static void
-VmSyncBlockDeviceCtor(compat_kmem_cache *cache, // IN
-                      void *slabelem)           // IN
-#endif
+VmSyncBlockDeviceCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabelem))  // IN
 {
-   VmSyncBlockDevice *dev = (VmSyncBlockDevice *) slabelem;
+   VmSyncBlockDevice *dev = slabelem;
+
    INIT_LIST_HEAD(&dev->list);
    dev->bdev = NULL;
    dev->sb = NULL;
@@ -610,18 +603,11 @@ VmSyncBlockDeviceCtor(compat_kmem_cache *cache, // IN
  *-----------------------------------------------------------------------------
  */
 
-#ifdef VMW_KMEMCR_CTOR_HAS_3_ARGS
 static void
-VmSyncStateCtor(void *slabelem,           // IN
-                compat_kmem_cache *cache, // IN
-                unsigned long flags)      // IN
-#else
-static void
-VmSyncStateCtor(compat_kmem_cache *cache, // IN
-                void *slabelem)           // IN
-#endif
+VmSyncStateCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabelem))  // IN
 {
-   VmSyncState *state = (VmSyncState *) slabelem;
+   VmSyncState *state = slabelem;
+
    INIT_LIST_HEAD(&state->devices);
    COMPAT_INIT_DELAYED_WORK(&state->thawTask,
                             VmSyncThawDevicesCallback, &state);

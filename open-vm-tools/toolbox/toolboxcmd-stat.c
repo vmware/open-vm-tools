@@ -159,20 +159,34 @@ Stat_MemorySize(void)
 int
 Stat_HostTime(void)
 {
-   uint32 time;
-   struct tm tm;
+   int64 hostSecs;
+   int64 hostUsecs;
+   time_t sec;
    char buf[256];
    Backdoor_proto bp;
-   bp.in.cx.halfs.low = BDOOR_CMD_GETTIME;
+
+   bp.in.cx.halfs.low = BDOOR_CMD_GETTIMEFULL;
    Backdoor(&bp);
-   time = bp.out.ax.word;
-   if (time < 0) {
+   if (bp.out.ax.word == BDOOR_MAGIC) {
+      hostSecs = ((uint64)bp.out.si.word << 32) | bp.out.dx.word;
+   } else {
+      /* Falling back to older command. */
+      bp.in.cx.halfs.low = BDOOR_CMD_GETTIME;
+      Backdoor(&bp);
+      hostSecs = bp.out.ax.word;
+   }
+   hostUsecs = bp.out.bx.word;
+
+   if (hostSecs <= 0) {
       fprintf(stderr, "Unable to get host time\n");
       return EX_TEMPFAIL;
    }
-   sprintf(buf, "%u", time);
-   strptime(buf, "%s", &tm);
-   strftime(buf, sizeof(buf), "%d %b %Y %H:%M:%S", &tm);
+   
+   sec = hostSecs + (hostUsecs / 1000000);
+   if (strftime(buf, sizeof buf, "%d %b %Y %H:%M:%S", localtime(&sec)) == 0) {
+      fprintf(stderr, "Unable to format host time\n");
+      return EX_TEMPFAIL;
+   }
    printf("%s\n", buf);
    return EXIT_SUCCESS;
 }

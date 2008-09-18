@@ -20,7 +20,12 @@
 #   define __COMPAT_SEMAPHORE_H__
 
 
-#include <asm/semaphore.h>
+/* <= 2.6.25 have asm only, 2.6.26 has both, and 2.6.27-rc2+ has linux only. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+#   include <asm/semaphore.h>
+#else
+#   include <linux/semaphore.h>
+#endif
 
 
 /*

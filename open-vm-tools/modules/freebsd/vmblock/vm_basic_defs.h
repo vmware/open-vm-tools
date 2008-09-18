@@ -51,6 +51,10 @@
 #include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
 
+/* Checks for FreeBSD, filtering out VMKERNEL. */
+#define __IS_FREEBSD__ (!defined(VMKERNEL) && defined(__FreeBSD__))
+#define __IS_FREEBSD_VER__(ver) (__IS_FREEBSD__ && __FreeBSD_version >= (ver))
+
 #if defined _WIN32 && defined USERLEVEL
    #include <stddef.h>  /*
                          * We re-define offsetof macro from stddef, make 
@@ -64,7 +68,8 @@
  * Simple macros
  */
 
-#if defined __APPLE__ && !defined KERNEL
+#if (defined __APPLE__ || defined __FreeBSD__) && \
+    (!defined KERNEL && !defined _KERNEL && !defined VMKERNEL && !defined __KERNEL__)
 #   include <stddef.h>
 #else
 // XXX the __cplusplus one matches that of VC++, to prevent redefinition warning
@@ -352,7 +357,7 @@ GetCallerFrameAddr(void)
  * guarantee.  Bummer.  --Jeremy.
  */
 
-#if defined(N_PLAT_NLM) || defined(__FreeBSD__)
+#if defined(N_PLAT_NLM)
 /* We do not have YIELD() as we do not need it yet... */
 #elif defined(_WIN32)
 #      define YIELD()		Sleep(0)

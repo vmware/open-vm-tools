@@ -48,7 +48,7 @@
  */
 
 void
-HgfsDebugPrintVattr(const HGFS_VNODE_ATTR *vap)
+HgfsDebugPrintVattr(const HgfsVnodeAttr *vap)
 {
    DEBUG(VM_DEBUG_STRUCT, " va_type: %d\n", vap->va_type);
    DEBUG(VM_DEBUG_STRUCT, " va_mode: %o\n", vap->va_mode);

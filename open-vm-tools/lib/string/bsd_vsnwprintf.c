@@ -743,6 +743,17 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
          flags |= GROUPING;
          thousands_sep = (wchar_t) *(localeconv()->thousands_sep);
          grouping = localeconv()->grouping;
+
+	 /*
+	  * Grouping should not begin with 0, but it nevertheless
+	  * does (see bug 281072) and makes the formatting code
+	  * behave badly, so we fix it up.
+	  */
+
+	 if (grouping != NULL && *grouping == '\0') {
+	    static char g[] = { CHAR_MAX, '\0' };
+	    grouping = g;
+	 }
          goto rflag;
       case '.':
          if ((ch = *fmt++) == '*') {

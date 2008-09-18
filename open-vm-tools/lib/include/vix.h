@@ -149,9 +149,9 @@ enum {
    VIX_E_LOGIN_TYPE_NOT_SUPPORTED               = 3032,
    VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST    = 3033,
    VIX_E_INTERACTIVE_SESSION_NOT_PRESENT        = 3034,
-   VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,          
+   VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,
    VIX_E_UNABLE_TO_REPLAY_VM                    = 3039,
-
+   VIX_E_CANNOT_POWER_ON_VM                     = 3040,
 
    /* VM Errors */ 
    VIX_E_VM_NOT_FOUND                           = 4000,
@@ -282,6 +282,18 @@ enum {
    VIX_E_NOT_A_DIRECTORY                        = 20002,
    VIX_E_NO_SUCH_PROCESS                        = 20003,
    VIX_E_FILE_NAME_TOO_LONG                     = 20004,
+
+   /* Tools install errors */
+   VIX_E_TOOLS_INSTALL_NO_IMAGE                 = 21000,
+   VIX_E_TOOLS_INSTALL_IMAGE_INACCESIBLE        = 21001,
+   VIX_E_TOOLS_INSTALL_NO_DEVICE                = 21002,
+   VIX_E_TOOLS_INSTALL_DEVICE_NOT_CONNECTED     = 21003,
+   VIX_E_TOOLS_INSTALL_CANCELLED                = 21004,
+   VIX_E_TOOLS_INSTALL_INIT_FAILED              = 21005,
+   VIX_E_TOOLS_INSTALL_AUTO_NOT_SUPPORTED       = 21006,
+   VIX_E_TOOLS_INSTALL_GUEST_NOT_READY          = 21007,
+   VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008,
+   VIX_E_TOOLS_INSTALL_ERROR                    = 21009,
 };
 
 const char *Vix_GetErrorText(VixError err, const char *locale);

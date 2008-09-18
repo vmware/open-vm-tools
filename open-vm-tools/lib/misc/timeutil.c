@@ -33,6 +33,7 @@
 #else
 #  include <sys/time.h>
 #endif
+#include <ctype.h>
 
 #include "vmware.h"
 /* For HARD_EXPIRE --hpreg */
@@ -44,6 +45,7 @@
 #ifdef _WIN32
 #include "win32u.h"
 #endif
+
 
 /*
  * NT time of the Unix epoch:
@@ -58,6 +60,24 @@
 #define UNIX_S32_MAX (UNIX_EPOCH + (uint64)0x80000000 * 10000000)
 
 /*
+ * Days in month defines. The month is 1 - 12.
+ * Notice that there are 28 days in february. It will updated for leap year
+ * as necessary by the function using this defines.
+ */
+#define DAYS_IN_MONTH { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+
+
+/*
+ * Local Definitions
+ */
+
+static void TimeUtilInit(TimeUtil_Date *d);
+static Bool TimeUtilLoadDate(TimeUtil_Date *d, const char *date);
+static Bool TimeUtilIsLeapYear(unsigned int year);
+static Bool TimeUtilIsValidDate(unsigned int year, unsigned int month, unsigned int day);
+
+
+/*
  * Function to guess Windows TZ Index by using time offset in
  * a lookup table
  */
@@ -70,10 +90,11 @@ static int TimeUtilFindIndexByUTCOffset(int utcToStdOffsetMins);
 static int Win32TimeUtilLookupZoneIndex(const char* targetName);
 #endif
 
+
 /*
  * Local substitution for localtime_r() for those platforms
  * that don't have one.
-*/
+ */
 #ifdef SOL9
 #include <synch.h>
 static mutex_t LT_MUTEX = DEFAULTMUTEX;
@@ -88,6 +109,265 @@ static struct tm* localtime_r(time_t* secs, struct tm* tp)
    return tp;
 }
 #endif
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtil_StringToDate --
+ *
+ *    Initialize the date object with value from the string argument,
+ *    while the time will be left unmodified.
+ *    The string 'date' needs to be in the format of 'YYYYMMDD' or
+ *    'YYYY/MM/DD' or 'YYYY-MM-DD'.
+ *    Unsuccesful initialization will leave the 'd' argument unmodified.
+ *
+ * Results:
+ *    TRUE or FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
+                      const char *date)  // IN
+{
+   /*
+    * Reduce the string to a known and handled format: YYYYMMDD.
+    * Then, passed to internal function TimeUtilLoadDate.
+    */
+   if (strlen(date) == 8) {
+      /* 'YYYYMMDD' */
+      return TimeUtilLoadDate(d, date);
+   } else if (strlen(date) == 10) {
+      /* 'YYYY/MM/DD' */
+      char temp[16] = { 0 };
+
+      if (!(((date[4] != '/') || (date[7] != '/')) ||
+           ((date[4] != '-') || (date[7] != '-')))) {
+         return FALSE;
+      }
+
+      Str_Strcpy(temp, date, sizeof(temp));
+      temp[4] = date[5];
+      temp[5] = date[6];
+      temp[6] = date[8];
+      temp[7] = date[9];
+      temp[8] = '\0';
+
+      return TimeUtilLoadDate(d, temp);
+   } else {
+      return FALSE;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtil_DeltaDays --
+ *
+ *    Seach for number of days differences between the two date
+ *    arguments.
+ *    This function is ignoring the time. It will be as if the time
+ *    is midnight (00:00:00).
+ *
+ * Results:
+ *    number of days:
+ *    - 0 (if 'left' and 'right' are of the same date (ignoring the time).
+ *    - negative, if 'left' is of a later date than 'right'
+ *    - positive, if 'right' is of a later date than 'left'
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+TimeUtil_DeltaDays(TimeUtil_Date *left,  // IN
+                   TimeUtil_Date *right) // IN
+{
+   TimeUtil_Date temp1;
+   TimeUtil_Date temp2;
+   TimeUtil_Date temp;
+
+   int days = 0;
+   Bool inverted = FALSE;
+
+   ASSERT(left);
+   ASSERT(right);
+   ASSERT(TimeUtilIsValidDate(left->year, left->month, left->day));
+   ASSERT(TimeUtilIsValidDate(right->year, right->month, right->day));
+
+   TimeUtilInit(&temp1);
+   TimeUtilInit(&temp2);
+   TimeUtilInit(&temp);
+
+   temp1.year = left->year;
+   temp1.month = left->month;
+   temp1.day = left->day;
+   temp2.year = right->year;
+   temp2.month = right->month;
+   temp2.day = right->day;
+
+   if (!TimeUtil_DateLowerThan(&temp1, &temp2) &&
+       !TimeUtil_DateLowerThan(&temp2, &temp1)) {
+      return 0;
+   } else if (TimeUtil_DateLowerThan(&temp1, &temp2)) {
+      inverted = FALSE;
+   } else if (TimeUtil_DateLowerThan(&temp2, &temp1)) {
+      inverted = TRUE;
+      temp = temp1;
+      temp1 = temp2;
+      temp2 = temp;
+   }
+
+   days = 1;
+   TimeUtil_DaysAdd(&temp1, 1);
+   while (TimeUtil_DateLowerThan(&temp1, &temp2)) {
+      days++;
+      TimeUtil_DaysAdd(&temp1, 1);
+   }
+
+   if (inverted) {
+      return -days;
+   } else {
+      return days;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtil_DaysSubstract --
+ *
+ *    substracts 'nr' days from 'd'.
+ *
+ *    Simple algorithm - which can be improved as necessary:
+ *    - get rough days estimation, also guarantee that the estimation is
+ *      lower than the actual result.
+ *    - 'add' a day-by-day to arrive at actual result.
+ *    'd' will be unchanged if the function failed.
+ *
+ * TODO:
+ *    This function can be combined with DaysAdd(), where it
+ *    accepts integer (positive for add, negative for substract).
+ *    But, that cannot be done without changing the DaysAdd function
+ *    signature.
+ *    When this utility get rewritten, this can be updated.
+ *
+ * Results:
+ *    TRUE or FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+TimeUtil_DaysSubstract(TimeUtil_Date *d,   // IN
+                       unsigned int nr)    // IN
+{
+   TimeUtil_Date temp;
+   int subYear = 0;
+   int subMonth = 0;
+   int subDay = 0;
+
+   TimeUtil_Date estRes;
+   int estYear = 0;
+   int estMonth = 0;
+   int estDay = 0;
+
+   unsigned int dayCount = nr;
+
+   ASSERT(d);
+
+   TimeUtilInit(&temp);
+   TimeUtilInit(&estRes);
+
+   /*
+    * Use lower bound for the following conversion:
+    * 365 (instead of 366) days in a year
+    * 30 (instead of 31) days in a month.
+    *
+    *   To account that feb has fewer #days than 30, we will
+    *   intentionally substract an additional 2 days for each year
+    *   and an additional 3 days.
+    */
+   dayCount = dayCount + 3 + 2 * (dayCount / 365);
+
+   subYear = dayCount / 365;
+   dayCount = dayCount % 365;
+   subMonth = dayCount / 30;
+   subDay = dayCount % 30;
+
+   estDay = d->day - subDay;
+   while (estDay <= 0) {
+      estDay = estDay + 30;
+      subMonth++;
+   }
+   estMonth = d->month - subMonth;
+   while (estMonth <= 0) {
+      estMonth = estMonth + 12;
+      subYear++;
+   }
+   estYear = d->year - subYear;
+   if (estYear <= 0) {
+      return FALSE;
+   }
+
+   /*
+    * making sure on the valid range, without checking
+    * for leap year, etc.
+    */
+   if ((estDay > 28) && (estMonth == 2)) {
+      estDay = 28;
+   }
+
+   estRes.year = estYear;
+   estRes.month = estMonth;
+   estRes.day = estDay;
+
+   /*
+    * we also copy the time from the original argument in making
+    * sure that it does not play role in the comparison.
+    */
+   estRes.hour = d->hour;
+   estRes.minute = d->minute;
+   estRes.second = d->second;
+
+   /*
+    * At this point, we should have an estimated result which
+    * guaranteed to be lower than the actual result. Otherwise,
+    * infinite loop will happen.
+    */
+   ASSERT(TimeUtil_DateLowerThan(&estRes, d));
+
+   /*
+    * Perform the actual precise adjustment
+    * Done by moving up (moving forward) the estimated a day at a time
+    *    until they are the correct one (i.e. estDate + arg #day = arg date)
+    */
+   temp = estRes;
+   TimeUtil_DaysAdd(&temp, nr);
+   while (TimeUtil_DateLowerThan(&temp, d)) {
+      TimeUtil_DaysAdd(&temp, 1);
+      TimeUtil_DaysAdd(&estRes, 1);
+   }
+
+   d->year = estRes.year;
+   d->month = estRes.month;
+   d->day = estRes.day;
+
+   return TRUE;
+}
 
 
 /*
@@ -111,18 +391,14 @@ void
 TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
                  unsigned int nr)  // IN
 {
-   static unsigned int monthdays[13] = { 0,
-      31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+   static unsigned int monthdays[13] = DAYS_IN_MONTH;
    unsigned int i;
 
    /*
     * Initialize the table
     */
 
-   if (   (d->year % 4) == 0
-       && (   (d->year % 100) != 0
-           || (d->year % 400) == 0)) {
-      /* Leap year */
+   if (TimeUtilIsLeapYear(d->year)) {
       monthdays[2] = 29;
    } else {
       monthdays[2] = 28;
@@ -145,10 +421,7 @@ TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
              * Update the table
              */
 
-            if (   (d->year % 4) == 0
-                && (   (d->year % 100) != 0
-                    || (d->year % 400) == 0)) {
-               /* Leap year */
+            if (TimeUtilIsLeapYear(d->year)) {
                monthdays[2] = 29;
             } else {
                monthdays[2] = 28;
@@ -747,6 +1020,198 @@ TimeUtil_GetLocalWindowsTimeZoneIndex(void)
    }
 
    return winTimeZoneIndex;
+}
+
+
+/*
+ ***********************************************************************
+ *
+ * Local Functions
+ *
+ ***********************************************************************
+ */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtilInit --
+ *
+ *    Initialize everything to zero
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+TimeUtilInit(TimeUtil_Date *d)
+{
+   ASSERT(d);
+
+   d->year = 0;
+   d->month = 0;
+   d->day = 0;
+   d->hour = 0;
+   d->minute = 0;
+   d->second = 0;
+
+   return;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtilIsValidDate --
+ *
+ *    Check whether the args represent a valid date.
+ *
+ * Results:
+ *    TRUE or FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+TimeUtilIsValidDate(unsigned int year,   // IN
+                    unsigned int month,  // IN
+                    unsigned int day)    // IN
+{
+   static unsigned int monthdays[13] = DAYS_IN_MONTH;
+
+   /*
+    * Initialize the table
+    */
+   if (TimeUtilIsLeapYear(year)) {
+      monthdays[2] = 29;
+   } else {
+      monthdays[2] = 28;
+   }
+
+   if ((year >= 1) &&
+       (month >= 1) && (month <= 12) &&
+       (day >= 1) && (day <= monthdays[month])) {
+      return TRUE;
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtilIsLeapYear --
+ *
+ *    Check whether the argument represents a leap year.
+ *
+ * Results:
+ *    TRUE or FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+TimeUtilIsLeapYear(unsigned int year)  // IN
+{
+   if ((year % 4) == 0 &&
+       ((year % 100) != 0 ||
+        (year % 400) == 0)) {
+      return TRUE;
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtilLoadDate --
+ *
+ *    Initialize the date object with value from the string argument,
+ *    while the time will be left unmodified.
+ *    The string 'date' needs to be in the format of 'YYYYMMDD'.
+ *    Unsuccesful initialization will leave the 'd' argument unmodified.
+ *
+ * Results:
+ *    TRUE or FALSE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+TimeUtilLoadDate(TimeUtil_Date *d,  // IN/OUT
+                 const char *date)  // IN
+{
+   char temp[16] = { 0 };
+   int i = 0;
+   char *end = NULL;
+
+   int32 year = 0;
+   int32 month = 0;
+   int32 day = 0;
+
+   ASSERT(d);
+   ASSERT(date);
+
+   if (strlen(date) != 8) {
+      return FALSE;
+   }
+   for (i = 0; i < strlen(date); i++) {
+      if (isdigit((int) date[i]) == 0) {
+         return FALSE;
+      }
+   }
+
+   temp[0] = date[0];
+   temp[1] = date[1];
+   temp[2] = date[2];
+   temp[3] = date[3];
+   temp[4] = '\0';
+   year = strtol(temp, &end, 10);
+   if (*end != '\0') {
+      return FALSE;
+   }
+
+   temp[0] = date[4];
+   temp[1] = date[5];
+   temp[2] = '\0';
+   month = strtol(temp, &end, 10);
+   if (*end != '\0') {
+      return FALSE;
+   }
+
+   temp[0] = date[6];
+   temp[1] = date[7];
+   temp[2] = '\0';
+   day = strtol(temp, &end, 10);
+   if (*end != '\0') {
+      return FALSE;
+   }
+
+   if (!TimeUtilIsValidDate((unsigned int) year, (unsigned int) month, (unsigned int) day)) {
+      return FALSE;
+   }
+
+   d->year = (unsigned int) year;
+   d->month = (unsigned int) month;
+   d->day = (unsigned int) day;
+
+   return TRUE;
 }
 
 

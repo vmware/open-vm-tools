@@ -33,6 +33,12 @@
 
 
 /*
+ * Environment used when launching applications.
+ */
+extern const char **guestAppSpawnEnviron;
+
+
+/*
  * Global functions
  */
 

@@ -446,11 +446,8 @@ FileIO_StatsExit(const FileIODescriptor *fd)  // IN:
 }
 
 
-/*
- * Pwrite & Pread are not available in the FreeBSD tools build VM
- */
-#if !defined(VMX86_TOOLS) || !defined(__FreeBSD__)
-#if defined(_WIN32) || defined(GLIBC_VERSION_21) || defined(__APPLE__)
+#if defined(_WIN32) || defined(GLIBC_VERSION_21) || defined(__APPLE__) || \
+    defined(__FreeBSD__)
 /*
  *----------------------------------------------------------------------
  *
@@ -522,7 +519,6 @@ FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
 
    return FileIO_Pwritev(fd, &iov, 1, offset, len);
 }
-#endif
 #endif
 
 

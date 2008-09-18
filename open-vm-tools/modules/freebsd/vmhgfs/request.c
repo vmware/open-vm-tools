@@ -124,7 +124,7 @@ HgfsKReq_SysInit(void)
    if (ret != 0) {
       os_cv_destroy(&hgfsKReqWorkItemCv);
       os_zone_destroy(hgfsKReqZone);
-      os_mutex_destroy(hgfsKReqWorkItemLock);
+      os_mutex_free(hgfsKReqWorkItemLock);
       return HGFS_ERR;
    }
 
@@ -169,7 +169,7 @@ HgfsKReq_SysFini(void)
    os_thread_release(hgfsKReqWorkerThread);
    os_zone_destroy(hgfsKReqZone);
    os_cv_destroy(&hgfsKReqWorkItemCv);
-   os_mutex_destroy(hgfsKReqWorkItemLock);
+   os_mutex_free(hgfsKReqWorkItemLock);
 
    return 0;
 }
@@ -236,7 +236,7 @@ HgfsKReq_FreeContainer(HgfsKReqContainerHandle container) // IN: file system's
    ASSERT(container);
    ASSERT(DblLnkLst_IsLinked(&container->list) == FALSE);
 
-   os_mutex_destroy(container->listLock);
+   os_mutex_free(container->listLock);
    os_free(container, sizeof(*container));
 }
 
@@ -583,7 +583,8 @@ HgfsKReq_GetId(HgfsKReqHandle request) // IN: Request to get the ID for
  *
  *      Return a pointer to the payload area of a request.  Callers may write
  *      Hgfs packet data directly to this area.  It's guaranteed to hold at
- *      most HGFS_PACKET_MAX (6144) bytes.
+ *      most HGFS_PACKET_MAX (6144) bytes. For Hgfs version 3, the caller should
+ *      explicitly write request header (HgfsRequest) into this area.
  *
  * Results:
  *      Pointer to the payload area.
@@ -595,7 +596,7 @@ HgfsKReq_GetId(HgfsKReqHandle request) // IN: Request to get the ID for
  */
 
 char *
-HgfsKReq_GetPayload(HgfsKReqHandle request)     // IN:
+HgfsKReq_GetPayload(HgfsKReqHandle request)  // IN: Request to get pointer to payload 
 {
    ASSERT(request);
 
@@ -648,7 +649,7 @@ HgfsKReq_GetPayloadSize(HgfsKReqHandle request) // IN: Request to get the size o
 
 void
 HgfsKReq_SetPayloadSize(HgfsKReqHandle request, // IN: Request object
-                        size_t payloadSize) // IN: New payload size
+                        size_t payloadSize)     // IN: New payload size
 {
    ASSERT(request);
    ASSERT(payloadSize <= HGFS_PACKET_MAX);
@@ -777,7 +778,7 @@ HgfsKReqZFini(void *mem,     // IN: Pointer to object leaving the UMA cache
    HgfsKReqObject *req = (HgfsKReqObject *)mem;
    ASSERT(size == sizeof *req);
    ASSERT(req->state == HGFS_REQ_UNUSED);
-   os_mutex_destroy(req->stateLock);
+   os_mutex_free(req->stateLock);
    os_cv_destroy(&req->stateCv);
 }
 

@@ -36,9 +36,9 @@
 # include <sys/ucred.h>
 # include <sys/mount.h>
 # include <fstab.h>
-# if __FreeBSD_version >= 500000
+# if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 #  include <libgen.h>
-# endif /* __FreeBSD_version < 500000 */
+# endif /* __FreeBSD_version >= 500000 */
 #endif
 #include <unistd.h>
 

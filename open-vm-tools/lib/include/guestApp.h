@@ -192,6 +192,7 @@ WCHAR *GuestApp_GetDictEntryDefaultW(GuestApp_Dict *dict,
 #endif
 
 #ifndef _WIN32
+void GuestApp_SetSpawnEnviron(const char **spawnEnviron);
 Bool GuestApp_FindProgram(const char *program);
 #endif
 

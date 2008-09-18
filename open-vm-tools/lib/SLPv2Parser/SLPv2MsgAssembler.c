@@ -23,6 +23,7 @@
 #ifdef WIN32
 #include <Winsock.h>
 #else
+#include <sys/types.h>
 #include <netinet/in.h>
 #endif
 #include <string.h>

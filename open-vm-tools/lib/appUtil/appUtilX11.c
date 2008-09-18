@@ -101,13 +101,16 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
                          const char *iconName) // IN
 {
    char *myIconName;
+   char *baseIconName;
    /*
     * Use the GtkIconTheme to track down any available icons for this app.
     */
    GtkIconTheme *iconTheme = NULL;
    char *ctmp2;
-   Bool foundIt; // Did we find this icon in the GtkIconTheme?
+   Bool foundItInTheme; // Did we find this icon in the GtkIconTheme?
+   Bool foundItInFile; // Did we find this icon directly in a file?
    static const char *extraIconPaths[] = {
+      "/usr/share/icons",
       "/usr/share/pixmaps",
       "/usr/local/share/pixmaps",
       "/usr/local/share/icons",
@@ -122,12 +125,14 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
 
    ASSERT(iconName);
 
-   iconNameLen = strlen(iconName) + 1;
-   myIconName = g_alloca(iconNameLen); // We need to modify the name sometimes
-   Str_Strcpy(myIconName, iconName, iconNameLen);
+   Debug("Collecting icons named %s\n", iconName);
 
-   ctmp2 = strrchr(myIconName, '.');
-   if (*myIconName != '/' && ctmp2 && strlen(ctmp2) <= 5) {
+   iconNameLen = strlen(iconName) + 1;
+   baseIconName = g_alloca(iconNameLen); // We need to modify the name sometimes
+   Str_Strcpy(baseIconName, iconName, iconNameLen);
+
+   ctmp2 = strrchr(baseIconName, '.');
+   if (*baseIconName != '/' && ctmp2 && strlen(ctmp2) <= 5) {
       /*
        * If it's a plain filename that we could possibly feed into GtkIconTheme as an
        * icon ID, trim the file extension to turn it into an icon ID string and make
@@ -138,44 +143,9 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
 
    iconTheme = gtk_icon_theme_get_default();
    g_object_ref(G_OBJECT(iconTheme));
-   foundIt = AppUtilIconThemeReallyHasIcon(iconTheme, myIconName);
-   if (!foundIt) {
-      /*
-       * Try looking through some auxiliary icon themes.
-       */
-      int i;
-      static const char *extraThemes[] = {
-         /*
-          * Some other icon themes to try.
-          */
-         "hicolor",
-         "Bluecurve",
-         "HighContrast-SVG",
-         "HighContrastLargePrint",
-         NULL
-      };
-      g_object_unref(G_OBJECT(iconTheme));
-      iconTheme = gtk_icon_theme_new();
-      for (i = 0; i < ARRAYSIZE(extraIconPaths); i++) {
-         if (extraIconPaths[i]) {
-            if (g_file_test(extraIconPaths[i], G_FILE_TEST_EXISTS)) {
-               gtk_icon_theme_append_search_path(iconTheme, extraIconPaths[i]);
-            } else {
-               extraIconPaths[i] = NULL;
-            }
-         }
-      }
+   foundItInTheme = AppUtilIconThemeReallyHasIcon(iconTheme, baseIconName);
 
-      for (i = 0; extraThemes[i]; i++) {
-         gtk_icon_theme_set_custom_theme(iconTheme, extraThemes[i]);
-         foundIt = AppUtilIconThemeReallyHasIcon(iconTheme, myIconName);
-         if (foundIt) {
-            break;
-         }
-      }
-   }
-
-   if (!foundIt) {
+   if (!foundItInTheme) {
       /*
        * Try looking for it as a non-GtkIconTheme managed file, to deal with older
        * systems.
@@ -197,6 +167,7 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
                g_snprintf(ctmp2, PATH_MAX, "%s/%s", extraIconPaths[i], iconName);
                if (g_file_test(ctmp2, G_FILE_TEST_EXISTS)) {
                   myIconName = ctmp2;
+                  foundItInFile = TRUE;
                }
             } else {
                static const char *iconExtensions[] = {
@@ -213,17 +184,58 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
                              iconName, iconExtensions[j]);
                   if (g_file_test(ctmp2, G_FILE_TEST_EXISTS)) {
                      myIconName = ctmp2;
+                     foundItInFile = TRUE;
                      break;
                   }
                }
             }
          }
       } else {
+         myIconName = g_alloca(iconNameLen + 1);
          Str_Strcpy(myIconName, iconName, iconNameLen);
+         foundItInFile = TRUE;
       }
    }
 
-   if (foundIt) {
+   if (!foundItInTheme && !foundItInFile) {
+      /*
+       * Try looking through some auxiliary icon themes.
+       */
+      int i;
+      static const char *extraThemes[] = {
+         /*
+          * Some other icon themes to try.
+          */
+         "hicolor",
+         "Bluecurve",
+         "HighContrast-SVG",
+         "HighContrastLargePrint",
+         "crystalsvg",
+         "slick",
+         NULL
+      };
+      g_object_unref(G_OBJECT(iconTheme));
+      iconTheme = gtk_icon_theme_new();
+      for (i = 0; i < ARRAYSIZE(extraIconPaths); i++) {
+         if (extraIconPaths[i]) {
+            if (g_file_test(extraIconPaths[i], G_FILE_TEST_EXISTS)) {
+               gtk_icon_theme_append_search_path(iconTheme, extraIconPaths[i]);
+            } else {
+               extraIconPaths[i] = NULL;
+            }
+         }
+      }
+
+      for (i = 0; extraThemes[i]; i++) {
+         gtk_icon_theme_set_custom_theme(iconTheme, extraThemes[i]);
+         foundItInTheme = AppUtilIconThemeReallyHasIcon(iconTheme, baseIconName);
+         if (foundItInTheme) {
+            break;
+         }
+      }
+   }
+
+   if (foundItInTheme) {
       /*
        * If we know this icon can be loaded via GtkIconTheme, do so.
        */
@@ -231,7 +243,8 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
       int i;
       Bool needToUseScalable;
 
-      iconSizes = gtk_icon_theme_get_icon_sizes(iconTheme, myIconName);
+      iconSizes = gtk_icon_theme_get_icon_sizes(iconTheme, baseIconName);
+      Debug("Loading icon %s from iconTheme\n", baseIconName);
 
       ASSERT(iconSizes);
       needToUseScalable = (iconSizes[0] == -1 && iconSizes[1] == 0);
@@ -254,10 +267,10 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
             thisSize = 64; // Render SVG icons to 64x64
          }
 
-         iconInfo = gtk_icon_theme_lookup_icon(iconTheme, myIconName, thisSize, 0);
+         iconInfo = gtk_icon_theme_lookup_icon(iconTheme, baseIconName, thisSize, 0);
 
          if (!iconInfo) {
-            Debug("Couldn't find %s icon for size %d\n", myIconName, thisSize);
+            Debug("Couldn't find %s icon for size %d\n", baseIconName, thisSize);
             continue;
          }
 
@@ -270,7 +283,7 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
          if (pixbuf) {
             g_ptr_array_add(pixbufs, pixbuf);
          } else {
-            Debug("WARNING: Not even a built-in pixbuf for icon %s\n", myIconName);
+            Debug("WARNING: Not even a built-in pixbuf for icon %s\n", baseIconName);
          }
 
          gtk_icon_info_free(iconInfo);
@@ -278,8 +291,9 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
 
       g_free(iconSizes);
 
-   } else if (myIconName && myIconName[0] == '/') {
+   } else if (foundItInFile && myIconName && myIconName[0] == '/') {
       GdkPixbuf *pixbuf;
+      Debug("Loading icon %s from file\n", myIconName);
       pixbuf = gdk_pixbuf_new_from_file(myIconName, NULL);
       if (pixbuf) {
          g_ptr_array_add(pixbufs, pixbuf);
@@ -654,8 +668,7 @@ AppUtil_AppIsSkippable(const char *appName)
       "python2.4",
       "python2.3",
       "python2.2",
-      "perl",
-      "getproxy"
+      "perl"
    };
    char cbuf[PATH_MAX];
    int i;
@@ -694,37 +707,37 @@ char *
 AppUtil_CanonicalizeAppName(const char *appName, // IN
                             const char *cwd)     // IN
 {
-   char *fullAppName;
+   char *ctmp;
    ASSERT(appName);
 
    if (appName[0] == '/') {
-      fullAppName = g_strdup(appName);
+      ctmp = g_strdup(appName);
       goto exit;
    }
 
-   fullAppName = g_find_program_in_path(appName);
-   if (fullAppName) {
+   ctmp = g_find_program_in_path(appName);
+   if (ctmp) {
       goto exit;
    }
 
-   if (cwd) {
-      char cbuf[PATH_MAX];
+   /*
+    * It's probably safe to assume that cwd is an absolute path (at the time of
+    * writing, it is derived from /proc), but let's check to be sure.
+    */
+   if (cwd && cwd[0] == '/') {
 
-      if (getcwd(cbuf, sizeof cbuf) == NULL) {
-         goto exit;
-      }
-      if (chdir(cwd) == -1) {
-         goto exit;
-      }
-      fullAppName = Posix_RealPath(appName);
-      if (chdir(cbuf) == -1) {
-         free(fullAppName);
-         fullAppName = NULL;
+      /* Don't add any unnecessary path separators. */
+      char *cbuf = Str_Asprintf(NULL, "%s%s%s", cwd,
+                                cwd[strlen(cwd) - 1] == '/' ? "" : "/",
+                                appName);
+      if (cbuf) {
+         ctmp = Posix_RealPath(cbuf);
+         free(cbuf);
       }
    }
 
  exit:
-   return fullAppName;
+   return ctmp;
 }
 
 

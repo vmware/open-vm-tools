@@ -397,9 +397,10 @@ static struct proto_ops vsockVmciStreamOps = {
 #endif
 
 static struct file_operations vsockVmciDeviceOps = {
-   .ioctl = VSockVmciDevIoctl,
 #ifdef HAVE_UNLOCKED_IOCTL
    .unlocked_ioctl = VSockVmciDevUnlockedIoctl,
+#else
+   .ioctl = VSockVmciDevIoctl,
 #endif
 #ifdef HAVE_COMPAT_IOCTL
    .compat_ioctl = VSockVmciDevUnlockedIoctl,
@@ -420,7 +421,7 @@ typedef struct VSockRecvPktInfo {
    VSockPacket pkt;
 } VSockRecvPktInfo;
 
-static spinlock_t registrationLock = SPIN_LOCK_UNLOCKED;
+static DECLARE_MUTEX(registrationMutex);
 static int devOpenCount = 0;
 static int vsockVmciSocketCount = 0;
 #ifdef VMX86_TOOLS
@@ -431,6 +432,10 @@ static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 
 /* Comment this out to compare with old protocol. */
 #define VSOCK_OPTIMIZATION_WAITING_NOTIFY 1
+#if defined(VMX86_TOOLS) && defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
+/* Comment this out to remove flow control for "new" protocol */
+#  define VSOCK_OPTIMIZATION_FLOW_CONTROL 1
+#endif
 
 /* Comment this out to turn off datagram counting. */
 //#define VSOCK_CONTROL_PACKET_COUNT 1
@@ -530,14 +535,14 @@ VSockVmci_GetAFValue(void)
 {
    int afvalue;
 
-   spin_lock(&registrationLock);
+   down(&registrationMutex);
 
    afvalue = vsockVmciFamilyOps.family;
    if (!VSOCK_AF_IS_REGISTERED(afvalue)) {
       afvalue = VSockVmciRegisterAddressFamily();
    }
 
-   spin_unlock(&registrationLock);
+   up(&registrationMutex);
    return afvalue;
 }
 
@@ -597,18 +602,64 @@ static Bool
 VSockVmciNotifyWaitingWrite(VSockVmciSock *vsk)    // IN
 {
 #ifdef VSOCK_OPTIMIZATION_WAITING_NOTIFY
+   Bool retval;
+   uint64 notifyLimit;
+  
    if (!vsk->peerWaitingWrite) {
       return FALSE;
    }
 
+#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
    /*
-    * For now we ignore the wait information and just see if there is any room
-    * to write anything.  Note that improving this function to be more
-    * intelligent will not require a protocol change and will retain
-    * compatibility between endpoints with mixed versions of this function.
+    * When the sender blocks, we take that as a sign that the sender
+    * is faster than the receiver. To reduce the transmit rate of the
+    * sender, we delay the sending of the read notification by
+    * decreasing the writeNotifyWindow. The notification is delayed
+    * until the number of bytes used in the queue drops below the
+    * writeNotifyWindow.
     */
-   return VMCIQueue_FreeSpace(vsk->consumeQ,
-                              vsk->produceQ, vsk->consumeSize) > 0;
+
+   if (!vsk->peerWaitingWriteDetected) {
+      vsk->peerWaitingWriteDetected = TRUE;
+      vsk->writeNotifyWindow -= PAGE_SIZE;
+      if (vsk->writeNotifyWindow < vsk->writeNotifyMinWindow) {
+         vsk->writeNotifyWindow = vsk->writeNotifyMinWindow;
+      }
+   }
+   notifyLimit = vsk->consumeSize - vsk->writeNotifyWindow;
+#else
+   notifyLimit = 0;
+#endif // VSOCK_OPTIMIZATION_FLOW_CONTROL
+
+   /*
+    * For now we ignore the wait information and just see if the free
+    * space exceeds the notify limit.  Note that improving this
+    * function to be more intelligent will not require a protocol
+    * change and will retain compatibility between endpoints with
+    * mixed versions of this function.
+    *
+    * The notifyLimit is used to delay notifications in the case where
+    * flow control is enabled. Below the test is expressed in terms of
+    * free space in the queue:
+    *   if freeSpace > ConsumeSize - writeNotifyWindow then notify
+    * An alternate way of expressing this is to rewrite the expression
+    * to use the data ready in the receive queue:
+    *   if writeNotifyWindow > bufferReady then notify
+    * as freeSpace == ConsumeSize - bufferReady.
+    */
+   retval = VMCIQueue_FreeSpace(vsk->consumeQ, vsk->produceQ, vsk->consumeSize) >
+            notifyLimit;
+#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
+   if (retval) {
+      /*
+       * Once we notify the peer, we reset the detected flag so the
+       * next wait will again cause a decrease in the window size.
+       */
+
+      vsk->peerWaitingWriteDetected = FALSE;
+   }
+#endif // VSOCK_OPTIMIZATION_FLOW_CONTROL
+   return retval;
 #else
    return TRUE;
 #endif
@@ -1473,7 +1524,9 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    sk->compat_sk_ack_backlog++;
 
    pending->compat_sk_state = SS_CONNECTING;
-   vpending->produceSize = vpending->consumeSize = pkt->u.size;
+   vpending->produceSize = vpending->consumeSize =
+                           vpending->writeNotifyWindow = pkt->u.size;
+   
 
    /*
     * We might never receive another message for this socket and it's not
@@ -1875,7 +1928,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    vsk->qpHandle = handle;
    vsk->produceQ = produceQ;
    vsk->consumeQ = consumeQ;
-   vsk->produceSize = vsk->consumeSize = pkt->u.size;
+   vsk->produceSize = vsk->consumeSize = vsk->writeNotifyWindow = pkt->u.size;
    vsk->attachSubId = attachSubId;
    vsk->detachSubId = detachSubId;
 
@@ -2334,6 +2387,11 @@ VSockVmciSendWaitingRead(struct sock *sk,    // IN
 
    vsk = vsock_sk(sk);
 
+   if (vsk->writeNotifyWindow < vsk->consumeSize) {
+      vsk->writeNotifyWindow = MIN(vsk->writeNotifyWindow + PAGE_SIZE,
+                                   vsk->consumeSize);
+   }
+
    VMCIQueue_GetPointers(vsk->consumeQ, vsk->produceQ, &tail, &head);
    roomLeft = vsk->consumeSize - head;
    if (roomNeeded >= roomLeft) {
@@ -2349,7 +2407,70 @@ VSockVmciSendWaitingRead(struct sock *sk,    // IN
    return TRUE;
 #endif
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciSendReadNotification --
+ *
+ *      Sends a read notification to this socket's peer.
+ *
+ * Results:
+ *      >= 0 if the datagram is sent successfully, negative error value
+ *      otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+VSockVmciSendReadNotification(struct sock *sk)  // IN
+{
+   VSockVmciSock *vsk;
+   Bool sentRead;
+   unsigned int retries;
+   int err;
+
+   ASSERT(sk);
+
+   vsk = vsock_sk(sk);
+   sentRead = FALSE;
+   retries = 0;
+   err = 0;
+
+   if (VSockVmciNotifyWaitingWrite(vsk)) {
+      /*
+       * Notify the peer that we have read, retrying the send on failure up to our
+       * maximum value.  XXX For now we just log the failure, but later we should
+       * schedule a work item to handle the resend until it succeeds.  That would
+       * require keeping track of work items in the vsk and cleaning them up upon
+       * socket close.
+       */
+      while (!(vsk->peerShutdown & RCV_SHUTDOWN) &&
+             !sentRead &&
+             retries < VSOCK_MAX_DGRAM_RESENDS) {
+         err = VSOCK_SEND_READ(sk);
+         if (err >= 0) {
+            sentRead = TRUE;
+         }
+
+         retries++;
+      }
+
+      if (retries >= VSOCK_MAX_DGRAM_RESENDS) {
+         Warning("unable to send read notification to peer for socket %p.\n", sk);
+      } else {
+#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
+         vsk->peerWaitingWrite = FALSE;
 #endif
+      }
+   }
+   return err;
+}
+#endif // VMX86_TOOLS
 
 
 /*
@@ -2433,9 +2554,9 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
     * If we go this far, we know the socket family is registered, so there's no
     * need to register it now.
     */
-   spin_lock(&registrationLock);
+   down(&registrationMutex);
    vsockVmciSocketCount++;
-   spin_unlock(&registrationLock);
+   up(&registrationMutex);
 
    sock_init_data(sock, sk);
 
@@ -2455,10 +2576,13 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    vsk->produceQ = vsk->consumeQ = NULL;
    vsk->produceQGeneration = vsk->consumeQGeneration = 0;
    vsk->produceSize = vsk->consumeSize = 0;
+   vsk->writeNotifyWindow = 0;
+   vsk->writeNotifyMinWindow = PAGE_SIZE;
    vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
    vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
    vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
    vsk->peerWaitingRead = vsk->peerWaitingWrite = FALSE;
+   vsk->peerWaitingWriteDetected = FALSE;
    memset(&vsk->peerWaitingReadInfo, 0, sizeof vsk->peerWaitingReadInfo);
    memset(&vsk->peerWaitingWriteInfo, 0, sizeof vsk->peerWaitingWriteInfo);
    vsk->listener = NULL;
@@ -2610,10 +2734,10 @@ VSockVmciSkDestruct(struct sock *sk) // IN
    kfree(vsock_sk(sk));
 #endif
 
-   spin_lock(&registrationLock);
+   down(&registrationMutex);
    vsockVmciSocketCount--;
    VSockVmciTestUnregister();
-   spin_unlock(&registrationLock);
+   up(&registrationMutex);
 
 #ifdef VSOCK_CONTROL_PACKET_COUNT
    {
@@ -4296,7 +4420,11 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
 #if defined(VMX86_TOOLS) && defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
    uint64 consumeHead;
    uint64 produceTail;
+#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
+   Bool notifyOnBlock;
 #endif
+#endif
+
    COMPAT_DEFINE_WAIT(wait);
 
    sk = sock->sk;
@@ -4304,6 +4432,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    err = 0;
    retries = 0;
    sentRead = FALSE;
+#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
+   notifyOnBlock = FALSE;
+#endif
 
    lock_sock(sk);
 
@@ -4336,6 +4467,25 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
    copied = 0;
 
+#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
+   if (vsk->writeNotifyMinWindow < target + 1) {
+      ASSERT(target < vsk->consumeSize);
+      vsk->writeNotifyMinWindow = target + 1;
+      if (vsk->writeNotifyWindow < vsk->writeNotifyMinWindow) {
+         /*
+          * If the current window is smaller than the new minimal
+          * window size, we need to reevaluate whether we need to
+          * notify the sender. If the number of ready bytes are
+          * smaller than the new window, we need to send a
+          * notification to the sender before we block.
+          */
+
+         vsk->writeNotifyWindow = vsk->writeNotifyMinWindow;
+         notifyOnBlock = TRUE;
+      }
+   }
+#endif
+
    compat_init_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
    while ((ready = VMCIQueue_BufReady(vsk->consumeQ,
@@ -4366,6 +4516,16 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
          err = -EHOSTUNREACH;
          goto outWait;
       }
+
+#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
+      if (notifyOnBlock) {
+         err = VSockVmciSendReadNotification(sk);
+         if (err < 0) {
+            goto outWait;
+         }
+         notifyOnBlock = FALSE;
+      }
+#endif
 
       release_sock(sk);
       timeout = schedule_timeout(timeout);
@@ -4438,33 +4598,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
       }
    }
 
-   if (VSockVmciNotifyWaitingWrite(vsk)) {
-      /*
-       * Notify the peer that we have read, retrying the send on failure up to our
-       * maximum value.  XXX For now we just log the failure, but later we should
-       * schedule a work item to handle the resend until it succeeds.  That would
-       * require keeping track of work items in the vsk and cleaning them up upon
-       * socket close.
-       */
-      while (!(vsk->peerShutdown & RCV_SHUTDOWN) &&
-             !sentRead &&
-             retries < VSOCK_MAX_DGRAM_RESENDS) {
-         err = VSOCK_SEND_READ(sk);
-         if (err >= 0) {
-            sentRead = TRUE;
-         }
-
-         retries++;
-      }
-
-      if (retries >= VSOCK_MAX_DGRAM_RESENDS) {
-         Warning("unable to send read notification to peer for socket %p.\n", sk);
-         goto outWait;
-      } else {
-#if defined(VMX86_TOOLS) && defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-         vsk->peerWaitingWrite = FALSE;
-#endif
-      }
+   err = VSockVmciSendReadNotification(sk);
+   if (err < 0) {
+      goto outWait;
    }
 
    ASSERT(copied <= INT_MAX);
@@ -4685,9 +4821,9 @@ int
 VSockVmciDevOpen(struct inode *inode,  // IN
                  struct file *file)    // IN
 {
-   spin_lock(&registrationLock);
+   down(&registrationMutex);
    devOpenCount++;
-   spin_unlock(&registrationLock);
+   up(&registrationMutex);
    return 0;
 }
 
@@ -4713,10 +4849,10 @@ int
 VSockVmciDevRelease(struct inode *inode,  // IN
                     struct file *file)    // IN
 {
-   spin_lock(&registrationLock);
+   down(&registrationMutex);
    devOpenCount--;
    VSockVmciTestUnregister();
-   spin_unlock(&registrationLock);
+   up(&registrationMutex);
    return 0;
 }
 
@@ -4883,9 +5019,9 @@ VSockVmciExit(void)
 {
    unregister_ioctl32_handlers();
    misc_deregister(&vsockVmciDevice);
-   spin_lock(&registrationLock);
+   down(&registrationMutex);
    VSockVmciUnregisterAddressFamily();
-   spin_unlock(&registrationLock);
+   up(&registrationMutex);
 
    VSockVmciUnregisterProto();
 }

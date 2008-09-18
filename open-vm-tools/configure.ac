@@ -24,7 +24,6 @@
 # etc.), this script also accepts:
 # $CUSTOM_GTK_CPPFLAGS - compile-time flags to find Gtk headers.
 # $CUSTOM_GTK_LIBS - link-time flags to find and link the Gtk libraries.
-# $CUSTOM_PROCPS_CPPFLAGS - compile-time flags to find procps headers
 # $CUSTOM_PROCPS_LIBS - link-time flags to find and link the procps library.
 # $CUSTOM_URIPARSER_CPPFLAGS - compile-time flags to find the uriparser headers
 # $CUSTOM_URIPARSER_LIBS - link-time flags to find and link the uriparser library
@@ -38,7 +37,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.08.08-109361],
+   [2008.09.03-114782],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -62,6 +61,11 @@ unset TEST_CC
 # helps autoconf verify that it really has found the source tree.
 AC_CONFIG_SRCDIR([checkvm/checkvm.c])
 
+# Keep the top-level directory tidy by putting auxiliary build tools and local
+# macros in separate subdirectories.
+AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_MACRO_DIR([m4])
+
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
@@ -83,19 +87,19 @@ esac
 # to getOsVersion()
 AC_ARG_WITH([kernel-modules],
 	    [AS_HELP_STRING([--without-kernel-modules],
-		[Do not compile or install the kernel modules])],
+		[does not compile or install the kernel modules])],
 	    [],
 	    [with_kernel_modules=yes])
 
 AC_ARG_WITH([kernel-release],
 	    [AS_HELP_STRING([--with-kernel-release],
-		[Specify the kernel release you want to build against])],
+		[specifies the kernel release you want to build against])],
 	    [KERNEL_RELEASE="$withval"],
 	    [KERNEL_RELEASE=`uname -r`])
 
 AC_ARG_WITH([linuxdir],
 	    [AS_HELP_STRING([--with-linuxdir],
-		[Specify the Linux directory you want to use])],
+		[specifies the Linux directory you want to use])],
 	    [LINUXDIR="$withval"],
 	    [LINUXDIR=/lib/modules/$KERNEL_RELEASE])
 
@@ -130,12 +134,12 @@ if test "$os" = "linux"; then
    fi
 fi
 
-# Arguments for disabling individual open-vm-tools features.
+# Arguments for disabling individual open-vm-tools features or libraries.
 AC_ARG_ENABLE(
    multimon,
    AS_HELP_STRING(
       [--disable-multimon],
-      [Disables multimon, enabled by default]),
+      [disables multimon, enabled by default]),
    [enable_multimon="$enableval"],
    [enable_multimon="yes"])
 
@@ -143,9 +147,24 @@ AC_ARG_ENABLE(
    unity,
    AS_HELP_STRING(
       [--disable-unity],
-      [Disables Unity, enabled by default]),
+      [disables Unity, enabled by default]),
    [enable_unity="$enableval"],
    [enable_unity="yes"])
+
+AC_ARG_WITH(
+   gtk2,
+   AS_HELP_STRING(
+      [--without-gtk2],
+      [compiles without Gtk 2.0 (falls back on Gtk 1.2)]),
+   [with_gtk2="$withval"],
+   [with_gtk2="yes"])
+
+# If we're not going to use Gtk 2.0, disable Unity. It may be possible to
+# get Unity working with Gtk 1.2 (it used to in the past), but that will
+# require a great deal of work.
+if test "$with_gtk2" != "yes"; then
+   enable_unity="no"
+fi
 
 AM_INIT_AUTOMAKE
 
@@ -169,9 +188,13 @@ CPPFLAGS="$CPPFLAGS -DUSING_AUTOCONF=1"
 ###
 ### Programs
 ###
-# Compiler and preprocessor
+# C preprocessor and compiler.
 AC_PROG_CPP
 AC_PROG_CC
+
+# C++ compiler. Note that unlike AC_PROG_CC, this call does not trigger an
+# error if no C++ compiler was found; it'll just set the variable CXX to 'g++'.
+AC_PROG_CXX
 
 # This allows features like per-target compiler flags.  I.e., you can compile
 # one copy of the same sources twice with different flags.  (See lib/guestApp
@@ -390,22 +413,26 @@ else
 	 [gtk_accel_group_add],
 	 [HAVE_GTK1="yes"],,
 	 [$CUSTOM_GTK_LIBS])
-      AC_CHECK_LIB(
-	 [gtk-x11-2.0],
-	 [gtk_tree_view_new],
-	 [HAVE_GTK2="yes"],,
-	 [$CUSTOM_GTK_LIBS])
+      if test "$with_gtk2" != "no"; then
+         AC_CHECK_LIB(
+	    [gtk-x11-2.0],
+	    [gtk_tree_view_new],
+	    [HAVE_GTK2="yes"],,
+	    [$CUSTOM_GTK_LIBS])
+      fi
    fi
 
    # Sometimes pkg-config can find stuff that AC_CHECK_LIB can't, so we use that as well.
    if test "$HAVE_PKG_CONFIG" = "yes"; then
-      AC_MSG_CHECKING([for Gtk+ 2.0 (via pkg-config)])
-      if pkg-config --exists gtk+-2.0; then
-	 HAVE_GTK2="yes"
-         AC_MSG_RESULT([yes])
-      else
-         AC_MSG_RESULT([no])
-      fi
+      if test "$with_gtk2" != "no"; then
+         AC_MSG_CHECKING([for Gtk+ 2.0 (via pkg-config)])
+         if pkg-config --exists gtk+-2.0; then
+	    HAVE_GTK2="yes"
+            AC_MSG_RESULT([yes])
+         else
+            AC_MSG_RESULT([no])
+         fi
+     fi
 
       AC_MSG_CHECKING([for Gtk+ 1.x (via pkg-config)])
       # The latter half of the test is because pkg-config's fallback
@@ -433,11 +460,11 @@ else
       fi
 
       if test "$HAVE_GTK2" = "yes"; then
-      # Gtk 2.0
+         # Gtk 2.0
 	 GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK2"
 	 gtkPackageName="gtk+-2.0"
       elif test "$HAVE_GTK1" = "yes"; then
-      # Gtk 1.2
+         # Gtk 1.2
 	 gtkPackageName="gtk+"
 
          # Unity requires Gtk 2.0.
@@ -458,16 +485,37 @@ else
       elif test "$HAVE_PKG_CONFIG" = "yes"; then
 	 GTK_CPPFLAGS="$GTK_CPPFLAGS $(pkg-config --cflags $gtkPackageName)"
 	 GTK_LIBS="$GTK_LIBS $(pkg-config --libs $gtkPackageName)"
-	 # Unity requires libgdk_pixbuf_xlib, which most systems don't seem to
- 	 # provide via "pkg-config --libs gtk+-2.0".
- 	 if test "$enable_unity" != "no"; then
-	    GTK_LIBS="$GTK_LIBS -lgdk_pixbuf_xlib-2.0"
-	 fi
       # Otherwise, we have a problem.
       else
 	 AC_MSG_ERROR([pkg-config not found. Get pkg-config or set CUSTOM_GTK_CPPFLAGS and CUSTOM_GTK_LIBS to specify gtk header file and library locations.])
       fi
 
+      # Check for a sufficiently new installation of Gtk 2.0. This symbol is, at
+      # the time of writing, used in vmware-user. We must perform this check
+      # after GTK_LIBS has been set up. Note: we don't actually use the
+      # resultant HAVE_NEW_GTK2 variable; it's just set so that the default
+      # action, which will append gdk-x11-2.0 to LIBS, isn't taken.
+      if test "$HAVE_GTK2" == "yes"; then
+         AC_CHECK_LIB(
+            [gdk-x11-2.0],
+            [gdk_display_get_default_group],
+            [HAVE_NEW_GTK2="yes"],
+            [AC_MSG_ERROR(
+               [Gtk 2.0 installation may be too old. Please upgrade your Gtk 2.0 packages or configure without Gtk 2.0 (using --without-gtk2)])]
+            [$GTK_LIBS])
+      fi
+
+      # Unity requires libgdk_pixbuf_xlib, which most systems don't seem to
+      # provide via "pkg-config --libs gtk+-2.0".
+      if test "$enable_unity" != "no"; then
+         AC_CHECK_LIB(
+            [gdk_pixbuf_xlib-2.0],
+            [gdk_pixbuf_xlib_init],
+            [GTK_LIBS="$GTK_LIBS -lgdk_pixbuf_xlib-2.0"],
+            [AC_MSG_ERROR(
+               [gdk_pixbuf_xlib-2.0 not found. Make sure your Gtk 2.0 installation is sane, or configure without Unity (using --disable-unity).])],
+            [$GTK_LIBS])
+      fi
    else
       AC_MSG_ERROR([libgtk not found. Please install the gtk devel package(s).])
    fi
@@ -480,6 +528,13 @@ AC_CHECK_LIB(
     GUESTD_LDADD="$GUESTD_LDADD -lcrypt"],
    [AC_MSG_ERROR(
       [libcrypt not found. Please install the libc/libcrypt devel package(s).])])
+
+AC_CHECK_LIB(
+   [notify],
+   [notify_init],
+   [HAVE_NOTIFY="yes"
+    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lnotify"],
+   [AC_MSG_WARN([libnotify not found; notification disabled])])
 
 AC_CHECK_FUNCS(
    dlopen,
@@ -505,14 +560,14 @@ AC_CHECK_LIB(
 # PAM prefix
 AC_ARG_WITH([pam-prefix],
 	    [AS_HELP_STRING([--with-pam-prefix],
-		[specify where pam files go. Default is $(sysconfdir)])],
+		[specifies where pam files go. Default is $(sysconfdir)])],
 	    [PAM_PREFIX="$withval"],
 	    [PAM_PREFIX='$(sysconfdir)'])
 
 if test "$os" = "linux"; then
         AC_ARG_WITH([procps],
 	    [AS_HELP_STRING([--without-procps],
-		[compile without libproc (disables support for meminfo)])],
+		[compiles without libproc (disables support for meminfo)])],
 	    [],
 	    [with_procps=yes])
 else
@@ -536,29 +591,6 @@ if test "$with_procps" = "yes"; then
 
 	GUESTD_LDADD="$GUESTD_LDADD $PROCPS_LIBS"
 	VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
-
-	# On Debian, the 'libproc-dev' package does not contain the libproc
-	# shared object; it is provided in the 'procps' package. Having the
-	# 'procps' package installed without 'libproc-dev' would lead to
-	# compilation errors down the line, so to avoid that we explicitly
-	# check for one of the libproc headers that is consumed in the build.
-	if test -n "$CUSTOM_PROCPS_CPPFLAGS"; then
-		PROCPS_CPPFLAGS="$CUSTOM_PROCPS_CPPFLAGS"
-	else
-		# XXX: Unfortunately, the libproc devel package doesn't appear
-		# to ship with a configuration script or pkg-config manifest
-		# file, so there's no portable way to get the location of its
-		# headers. For now we default to /usr/include.
-		PROCPS_CPPFLAGS="-I/usr/include"
-	fi
-	ORIGINAL_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$PROCPS_CPPFLAGS $CPPFLAGS"
-	AC_CHECK_HEADER(
-	   [proc/sysinfo.h],
-	   [],
-	   [AC_MSG_ERROR(
-	      [libproc headers not found. Please configure without procps (using --without-procps) or install libproc devel package])])
-	CPPFLAGS="$ORIGINAL_CPPFLAGS"
 fi
 
 if test "$with_procps" != "yes"; then
@@ -567,7 +599,7 @@ fi
 
 AC_ARG_WITH([dnet],
 	    [AS_HELP_STRING([--without-dnet],
-	    [compile without libdnet (disables support for nicinfo)])],
+	    [compiles without libdnet (disables support for nicinfo)])],
 	    [],
 	    [with_dnet=yes])
 
@@ -601,7 +633,7 @@ fi
 
 AC_ARG_WITH([icu],
             [AS_HELP_STRING([--without-icu],
-              [disable support for ICU])],
+              [disables support for ICU])],
             [],
             [with_icu=yes])
 
@@ -615,9 +647,10 @@ if test "$with_icu" = "yes"; then
 		ICU_CPPFLAGS="`$ICU_CONFIG --cppflags` -DUSE_ICU"
 		ICU_LIBS="`$ICU_CONFIG --ldflags`"
 
-	        # The icu components are built with C++, so we need to use the
-		# C++ linker when linking icu into our applications and when
-		# performing configuration tests against icu.
+		# The icu components are built with C++, so we need to ensure
+		# that the C++ linker actually exists, and use it when linking
+		# icu into our applications and when performing configuration
+		# tests against icu.
 		#
 		# XXX: Getting automake to choose between the C linker and the
 		# C++ linker depending on HAVE_ICU was a royal pain in the ass.
@@ -641,7 +674,13 @@ if test "$with_icu" = "yes"; then
 		# http://lists.gnu.org/archive/html/bug-automake/2008-04/msg00010.html
 		# http://www.gnu.org/software/automake/manual/automake.html#Libtool-Convenience-Libraries
 		# http://www.gnu.org/software/automake/manual/automake.html#C_002b_002b-Support
-		AC_PROG_CXX
+		AC_CHECK_TOOL(
+		   [HAVE_CXX],
+		   [$CXX])
+		if test -z "$HAVE_CXX"; then   
+		        AC_MSG_ERROR(
+			   [No C++ compiler was found on your PATH. Please configure without ICU (using --without-icu) or install a C++ compiler.])
+		fi
 		AC_LANG_PUSH([C++])
 		AC_CHECK_LIB([icuuc],
 			     [ucasemap_utf8ToTitle_3_8],
@@ -940,7 +979,6 @@ AC_SUBST([GTK_CPPFLAGS])
 AC_SUBST([GTK_LIBS])
 AC_SUBST([DNET_CPPFLAGS])
 AC_SUBST([DNET_LIBS])
-AC_SUBST([PROCPS_CPPFLAGS])
 AC_SUBST([PROCPS_LIBS])
 AC_SUBST([ICU_CPPFLAGS])
 AC_SUBST([ICU_LIBS])

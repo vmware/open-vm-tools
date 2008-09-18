@@ -712,7 +712,9 @@ main(int argc, char *argv[])
    int index;
    GuestApp_Dict *confDict;
    const char *pathName;
+#ifdef USE_NOTIFY
    Bool notifyPresent = TRUE;
+#endif
 
    Atomic_Init();
 
@@ -859,12 +861,14 @@ main(int argc, char *argv[])
    GHI_Init(NULL, NULL);
    Resolution_Init(TOOLS_DND_NAME, gXDisplay);
 
-   if (!Notify_Init()) {
-#ifdef USE_NOTIFICATION
+#ifdef USE_NOTIFY
+   if (!Notify_Init(confDict)) {
       Warning("Unable to initialize notification system.\n\n");
-#endif
       notifyPresent = FALSE;
    }
+
+   Modules_Init();
+#endif
 
    gRpcIn = RpcIn_Construct(gEventQueue);
    if (gRpcIn == NULL) {
@@ -947,9 +951,13 @@ main(int argc, char *argv[])
       Debug("vmware-user failed to uninitialize blocking.\n");
    }
 
+#ifdef USE_NOTIFY
+   Modules_Cleanup();
+
    if (notifyPresent) {
       Notify_Cleanup();
    }
+#endif
 
    /*
     * SIGUSR2 sets this to TRUE, indicating that we should relaunch ourselves.

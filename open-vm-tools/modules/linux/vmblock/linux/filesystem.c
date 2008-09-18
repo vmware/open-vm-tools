@@ -411,19 +411,11 @@ error_inode:
  *----------------------------------------------------------------------------
  */
 
-#ifdef VMW_KMEMCR_CTOR_HAS_3_ARGS
 static void
-InodeCacheCtor(void *slabElem,           // IN: allocated slab item to initialize
-               compat_kmem_cache *cache, // IN: cache slab is from
-               unsigned long flags)      // IN: flags associated with allocation
-#else
-static void
-InodeCacheCtor(compat_kmem_cache *cache, // IN: cache slab is from
-               void *slabElem)           // IN: allocated slab item to initialize
-#endif
+InodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem))  // IN: allocated slab item to initialize
 {
 #ifdef VMW_EMBED_INODE
-   VMBlockInodeInfo *iinfo = (VMBlockInodeInfo *)slabElem;
+   VMBlockInodeInfo *iinfo = slabElem;
 
    inode_init_once(&iinfo->inode);
 #endif

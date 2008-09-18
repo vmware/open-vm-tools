@@ -58,7 +58,7 @@
  * Macros
  */
 
-#define HGFS_PAYLOAD_MAX(reply)         (HGFS_PACKET_MAX - sizeof *reply)
+#define HGFS_PAYLOAD_MAX(size)         (HGFS_PACKET_MAX - size)
 #define HGFS_FS_NAME                    "vmhgfs"
 #define HGFS_FS_NAME_LONG               "VMware Hgfs client"
 /*
@@ -157,9 +157,9 @@ typedef struct HgfsSuperInfo {
  * single function signatures.
  */
 #if defined(__FreeBSD__)
-   typedef struct vattr HGFS_VNODE_ATTR;
+   typedef struct vattr HgfsVnodeAttr;
 #elif defined(__APPLE__)
-   typedef struct vnode_attr HGFS_VNODE_ATTR;
+   typedef struct vnode_attr HgfsVnodeAttr;
 #endif
 
 #if defined(__FreeBSD__)

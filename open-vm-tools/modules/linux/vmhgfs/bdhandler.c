@@ -26,18 +26,19 @@
 #include "driver-config.h"
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <linux/errno.h>
-#include <linux/timer.h>
 #include "compat_completion.h"
 #include "compat_kernel.h"
 #include "compat_kthread.h"
 #include "compat_list.h"
 #include "compat_sched.h"
+#include "compat_semaphore.h"
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 #include "compat_version.h"
 
+/* Must be included after semaphore.h. */
+#include <linux/timer.h>
 /* Must be included after sched.h. */
 #include <linux/smp_lock.h>
 

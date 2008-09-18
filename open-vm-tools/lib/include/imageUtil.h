@@ -39,9 +39,9 @@ typedef struct tagDIBINFOHEADER {
 } DIBINFOHEADER, FAR *LPDIBINFOHEADER, *PDIBINFOHEADER;
 
 BOOL ImageUtil_SavePNG(LPDIBINFOHEADER image, ConstUnicode fileName);
-EXTERN HBITMAP ImageUtil_LoadPNG(ConstUnicode fileName);
+EXTERN HBITMAP ImageUtil_LoadPNG(ConstUnicode fileName, int pngReadFlags);
 EXTERN HBITMAP ImageUtil_LoadPNGFromBuffer(const unsigned char *imageData,
-                                           unsigned int dataLen);
+                                           unsigned int dataLen, int pngReadFlags);
 EXTERN HBITMAP ImageUtil_LoadImage(ConstUnicode filename, unsigned int width,
                                                           unsigned int height);
 
@@ -65,7 +65,8 @@ Bool ImageUtil_SavePNG(const XImage *image,
 #define DWORD_ALIGN(x)             ((((x)+3) >> 2) << 2)
 
 EXTERN Bool ImageUtil_ReadPNG(ImageInfo *image,
-                              ConstUnicode pathName);
+                              ConstUnicode pathName,
+                              int pngReadFlags);
 
 EXTERN Bool ImageUtil_WriteImage(const ImageInfo *image,
                                  ConstUnicode pathName,
@@ -73,10 +74,11 @@ EXTERN Bool ImageUtil_WriteImage(const ImageInfo *image,
 
 EXTERN Bool ImageUtil_ReadPNGBuffer(ImageInfo *image,
                                     const unsigned char *imageData,
-                                    size_t dataLen);
+                                    size_t dataLen,
+                                    int pngReadFlags);
 EXTERN Bool ImageUtil_ConstructPNGBuffer(const ImageInfo *image, DynBuf *imageData);
 EXTERN Bool ImageUtil_ConstructPNGBufferEx(const ImageInfo *image,
-                                           const ImagePngOptions *options,
+                                           const ImagePngWriteOptions *options,
                                            DynBuf *imageData);
 EXTERN Bool ImageUtil_ConstructBMPBuffer(const ImageInfo *image, DynBuf *imageData);
 EXTERN Bool ImageUtil_ConstructBuffer(const ImageInfo *image, ImageType imageType,

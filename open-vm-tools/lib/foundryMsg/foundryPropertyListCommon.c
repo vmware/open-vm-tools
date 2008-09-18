@@ -486,6 +486,7 @@ VixPropertyList_Deserialize(VixPropertyListImpl *propList,     // IN
              * process. Admittedly we've already bounds checked it, but this is
              * pretty easy to handle.
              */
+            free(property->value.blobValue.blobContents);
             property->value.blobValue.blobContents = malloc(*lengthPtr);
             if (NULL == property->value.blobValue.blobContents) {
                err = VIX_E_OUT_OF_MEMORY;

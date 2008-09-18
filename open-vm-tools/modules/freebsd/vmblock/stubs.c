@@ -35,6 +35,8 @@
  *      Common stubs.
  */
 
+#include <stdarg.h>
+
 #include "os.h"
 
 /*

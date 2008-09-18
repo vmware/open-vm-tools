@@ -423,16 +423,22 @@ extern void VixAssert(const char *cond, const char *file, int lineNum);
 #define  VIX_ASSERT(cond)
 #endif
 
+#define DEFAULT_VIX_LOG_LEVEL    0
 
-#define  VIX_DEBUG_LEVEL(logLevel, s) if (logLevel <= vixDebugGlobalSpewLevel) \
+#define VIX_DEBUG_LEVEL(logLevel, s) if (logLevel <= vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \
        Log("Vix: [%lu %s:%d]: %s", (unsigned long)Util_GetCurrentThreadId(),    \
            VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 
-#define  VIX_DEBUG(s) if (0 !=  vixDebugGlobalSpewLevel) \
+#define VIX_DEBUG(s) if (0 !=  vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \
        Log("Vix: [%lu %s:%d]: %s", (unsigned long)Util_GetCurrentThreadId(),    \
+           VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
+       free(debugString); }
+
+#define VIX_DEBUG_ALWAYS(s) {  char *debugString = VixAllocDebugString s; \
+       Log("Vix: [%lu %s:%d]: %s", (unsigned long) Util_GetCurrentThreadId(),         \
            VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 

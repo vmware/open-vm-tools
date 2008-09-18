@@ -85,6 +85,14 @@
 #   define CONFNAME_HELPDIR                        "helpdir"
 #endif
 
+/*
+ * Directory containing the tools library files.  Currently only intended
+ * for vmware-user.
+ */
+#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#   define CONFNAME_LIBDIR                        "libdir"
+#endif
+
 /* Default maximum size of wiper file in MB */
 #define CONFVAL_MAX_WIPERSIZE_DEFAULT         "512"
 

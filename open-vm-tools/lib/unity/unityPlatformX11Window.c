@@ -1301,17 +1301,23 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
    } else
 #endif
    {
-      UnityRect actualRect;
-      Window actualWindow;
+      if (up->desktopInfo.currentDesktop == upw->desktopNumber) {
+         UnityRect actualRect;
+         Window actualWindow;
 
-      UPWindowGetActualWindowAndPosition(up, upw, moveResizeRect, &winAttr, &actualWindow, &actualRect);
+         UPWindowGetActualWindowAndPosition(up, upw, moveResizeRect, &winAttr, &actualWindow, &actualRect);
 
-      XMoveResizeWindow(up->display, actualWindow,
-                        actualRect.x, actualRect.y,
-                        actualRect.width, actualRect.height);
-      Debug("MoveResizeWindow implemented using XMoveResizeWindow (requested (%d, %d) +(%d, %d) on %#lx\n",
-            actualRect.x, actualRect.y, actualRect.width, actualRect.height,
-            actualWindow);
+         XMoveResizeWindow(up->display, actualWindow,
+                           actualRect.x, actualRect.y,
+                           actualRect.width, actualRect.height);
+         Debug("MoveResizeWindow implemented using XMoveResizeWindow (requested (%d, %d) +(%d, %d) on %#lx\n",
+               actualRect.x, actualRect.y, actualRect.width, actualRect.height,
+               actualWindow);
+      } else {
+         Debug("Trying to move window %#lx that is on desktop %d instead of the current desktop %u\n",
+               upw->toplevelWindow, upw->desktopNumber, up->desktopInfo.currentDesktop);
+         return FALSE;
+      }
    }
 
    /*
@@ -1919,11 +1925,8 @@ UnityPlatformGetIconData(UnityPlatform *up,       // IN
        || (upw->iconPng.type != iconType)) {
       GPtrArray *pixbufs;
       Bool gotIcons = FALSE;
-      char *windowPath;
 
-      windowPath = UnityX11GetWindowPath(up, upw);
-      pixbufs = AppUtil_CollectIconArray(windowPath, upw->clientWindow);
-      g_free(windowPath);
+      pixbufs = AppUtil_CollectIconArray(NULL, upw->clientWindow);
 
       if (pixbufs && pixbufs->len) {
          GdkPixbuf *pixbuf;
@@ -2006,6 +2009,7 @@ UnityPlatformRestoreWindow(UnityPlatform *up,    // IN
       return FALSE;
    }
 
+   Debug("UnityPlatformRestoreWindow(%#lx)\n", upw->toplevelWindow);
    if (upw->isMinimized) {
       Atom data[5] = {0, 0, 0, 0, 0};
 
@@ -2023,11 +2027,13 @@ UnityPlatformRestoreWindow(UnityPlatform *up,    // IN
       }
 
       data[0] = _NET_WM_STATE_REMOVE;
-      data[1] = up->atoms._NET_WM_STATE_MINIMIZED;
-      data[2] = up->atoms._NET_WM_STATE_HIDDEN;
+      data[1] = up->atoms._NET_WM_STATE_HIDDEN;
+      data[2] = up->atoms._NET_WM_STATE_MINIMIZED;
       data[3] = 2; // Message is from the pager/taskbar
       UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
                                      up->atoms._NET_WM_STATE, 32, 4, data);
+   } else {
+      Debug("Window %#x is already restored\n", window);
    }
 
    return TRUE;
@@ -2812,6 +2818,7 @@ UPWindowUpdateDesktop(UnityPlatform *up,        // IN
          desktopId = up->desktopInfo.guestDesktopToUnity[guestDesktop];
       }
 
+      Debug("Window %#lx is now on desktop %d\n", upw->toplevelWindow, desktopId);
       UnityWindowTracker_ChangeWindowDesktop(up->tracker,
                                              upw->toplevelWindow,
                                              desktopId);
@@ -2909,24 +2916,26 @@ UPWindowUpdateState(UnityPlatform *up,        // IN
       attrsAreSet[UNITY_WINDOW_ATTR_FULLSCREENED] =
       attrsAreSet[UNITY_WINDOW_ATTR_ATTN_WANTED] = TRUE;
 
-   if (XGetWindowProperty(up->display, mainWindow, up->atoms.WM_STATE, 0,
-                          1024, False, AnyPropertyType,
-                          &propertyType, &propertyFormat, &itemsReturned,
-                          &bytesRemaining, (unsigned char **) &valueReturned)
-       != Success) {
-      /*
-       * Some random error occurred - perhaps the window disappeared
-       */
-      return;
-   }
+   if (!UnityPlatformWMProtocolSupported(up, UNITY_X11_WM__NET_WM_STATE_HIDDEN)) {
+      if (XGetWindowProperty(up->display, mainWindow, up->atoms.WM_STATE, 0,
+                             1024, False, AnyPropertyType,
+                             &propertyType, &propertyFormat, &itemsReturned,
+                             &bytesRemaining, (unsigned char **) &valueReturned)
+          != Success) {
+         /*
+          * Some random error occurred - perhaps the window disappeared
+          */
+         return;
+      }
 
-   if (propertyType == up->atoms.WM_STATE
-       && propertyFormat == 32
-       && itemsReturned
-       && valueReturned[0] == IconicState) {
-      isMinimized = TRUE;
+      if (propertyType == up->atoms.WM_STATE
+          && propertyFormat == 32
+          && itemsReturned
+          && valueReturned[0] == IconicState) {
+         isMinimized = TRUE;
+      }
+      XFree(valueReturned);
    }
-   XFree(valueReturned);
 
    if (XGetWindowProperty(up->display, mainWindow, up->atoms._NET_WM_STATE, 0,
                           1024, False, AnyPropertyType,
@@ -2954,7 +2963,21 @@ UPWindowUpdateState(UnityPlatform *up,        // IN
           * Unfortunately, the HIDDEN attribute is used by some WM's to mean
           * "minimized" when they should really be separate.
           */
-         isMinimized = TRUE;
+
+         uint32 cDesk = -1;
+         uint32 gDesk;
+
+         /*
+          * Only push minimize state for windows on the same desktop.
+          */
+         if (UPWindowGetDesktop(up, upw, &gDesk)) {
+            cDesk = UnityX11GetCurrentDesktop(up);
+            if (cDesk == gDesk) {
+               isMinimized = TRUE;
+            }
+         } else {
+            Debug("%s: Unable to get window desktop\n", __FUNCTION__);
+         }
          continue;
       } else if (valueReturned[i] == up->atoms._NET_WM_STATE_MAXIMIZED_HORZ) {
          haveHorizMax = TRUE;
@@ -3005,14 +3028,24 @@ UPWindowUpdateState(UnityPlatform *up,        // IN
 
       newState = info->state;
       if (isMinimized) {
-         newState |= UNITY_WINDOW_STATE_MINIMIZED;
+         if (! (newState & UNITY_WINDOW_STATE_MINIMIZED)) {
+            Debug("Enabling minimized attribute for window %#lx/%#lx\n",
+                  upw->toplevelWindow, upw->clientWindow);
+            newState |= UNITY_WINDOW_STATE_MINIMIZED;
+         }
       } else {
-         newState &= ~UNITY_WINDOW_STATE_MINIMIZED;
+         if ((newState & UNITY_WINDOW_STATE_MINIMIZED)) {
+            Debug("Disabling minimized attribute for window %#lx/%#lx\n",
+                  upw->toplevelWindow, upw->clientWindow);
+            newState &= ~UNITY_WINDOW_STATE_MINIMIZED;
+         }
       }
 
-      UnityWindowTracker_ChangeWindowState(up->tracker,
-                                           upw->toplevelWindow,
-                                           newState);
+      if (newState != info->state) {
+         UnityWindowTracker_ChangeWindowState(up->tracker,
+                                              upw->toplevelWindow,
+                                              newState);
+      }
 
       upw->isMinimized = isMinimized;
       upw->isMaximized = (haveHorizMax && haveVertMax);
@@ -3260,14 +3293,21 @@ UnityPlatformMinimizeWindow(UnityPlatform *up,    // IN
    if (!upw->isMinimized) {
       Atom data[5] = {0, 0, 0, 0, 0};
 
+      Debug("Minimizing window %#x\n", window);
       upw->isMinimized = TRUE;
       data[0] = _NET_WM_STATE_ADD;
-      data[1] = up->atoms._NET_WM_STATE_MINIMIZED;
+      if (UnityPlatformWMProtocolSupported(up, UNITY_X11_WM__NET_WM_STATE_MINIMIZED)) {
+         data[1] = up->atoms._NET_WM_STATE_MINIMIZED;
+      } else {
+         data[1] = up->atoms._NET_WM_STATE_HIDDEN;
+      }
       data[3] = 2; // Message is from a pager/taskbar/etc.
       UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
                                      up->atoms._NET_WM_STATE, 32, 4, data);
 
       XIconifyWindow(up->display, upw->clientWindow, 0);
+   } else {
+      Debug("Window %#x is already minimized\n", window);
    }
 
 

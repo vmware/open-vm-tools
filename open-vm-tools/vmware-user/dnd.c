@@ -805,12 +805,14 @@ DnDRpcInMouseUngrabCB(char const **result,      // OUT
 
    if (!StrUtil_GetNextIntToken(&xPos, &index, args, " ")) {
       Warning("DnDRpcInMouseUngrabCB: could not parse x coordinate\n");
+      RpcOut_sendOne(NULL, NULL, "dnd.notpending");
       return RpcIn_SetRetVals(result, resultLen,
                               "Failed to parse x coordinate", FALSE);
    }
 
    if (!StrUtil_GetNextIntToken(&yPos, &index, args, " ")) {
       Warning("DnDRpcInMouseUngrabCB: could not parse y coordinate\n");
+      RpcOut_sendOne(NULL, NULL, "dnd.notpending");
       return RpcIn_SetRetVals(result, resultLen,
                               "Failed to parse y coordinate", FALSE);
    }
@@ -838,6 +840,7 @@ DnDRpcInMouseUngrabCB(char const **result,      // OUT
     */
    if (!DnDGHFakeDrag(mainWnd)) {
       Warning("DnDRpcInMouseUngrabCB: could not fake X events\n");
+      RpcOut_sendOne(NULL, NULL, "dnd.notpending");
       return RpcIn_SetRetVals(result, resultLen,
                               "error faking X events", FALSE);
    }
@@ -852,6 +855,7 @@ DnDRpcInMouseUngrabCB(char const **result,      // OUT
                                      DnDGHXEventTimeout, mainWnd);
    if (!gGHState.event) {
       Warning("DnDRpcInMouseUngrabCB: could not create event\n");
+      RpcOut_sendOne(NULL, NULL, "dnd.notpending");
       return RpcIn_SetRetVals(result, resultLen,
                               "could not create timeout event", FALSE);
    }
@@ -1568,6 +1572,7 @@ DnDGtkDragDataReceivedCB(GtkWidget *widget,          // IN
    return;
 
 error:
+   RpcOut_sendOne(NULL, NULL, "dnd.notpending");
    DnDGHCancel(widget);
 }
 
@@ -2331,6 +2336,8 @@ DnDGHXEventTimeout(void *clientData) // IN: our widget
    GtkWidget *widget = (GtkWidget *)clientData;
 
    Debug("DnDGHXEventTimeout time out \n");
+
+   RpcOut_sendOne(NULL, NULL, "dnd.notpending");
 
    if (!gGHState.dragInProgress && !gUnity) {
       gtk_widget_hide(widget);

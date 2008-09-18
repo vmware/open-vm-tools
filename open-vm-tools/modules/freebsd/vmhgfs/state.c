@@ -330,7 +330,7 @@ void
 HgfsDestroyFileHashTable(HgfsFileHashTable *htp)
 {
    ASSERT(htp);
-   os_mutex_destroy(htp->mutex);
+   os_mutex_free(htp->mutex);
 }
 
 
@@ -1062,7 +1062,11 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    /*
     * Return a locked vnode to the caller.
     */
-   compat_lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
+   ret = compat_lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, curthread);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "Fatal: could not acquire lock on vnode\n");
+      goto destroyVnode;
+   }
 
    /*
     * Now we'll initialize the vnode.  We need to set the file type, vnode
@@ -1081,7 +1085,8 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
 
    default:
       /* Hgfs only supports directories and regular files */
-      goto vnodeError;
+      ret = EPERM;
+      goto destroyOut;
    }
 
    /*
@@ -1092,7 +1097,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    vp->v_data = (void *)HgfsAllocOpenFile(fileName, fileType, htp);
    if (vp->v_data == NULL) {
       ret = ENOMEM;
-      goto vnodeError;
+      goto destroyOut;
    }
 
    /* If this is going to be the root vnode, we have to mark it as such. */
@@ -1107,7 +1112,9 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    return 0;
 
    /* Cleanup points for errors. */
-vnodeError:
+destroyOut:
+   compat_lockmgr(vp->v_vnlock, LK_RELEASE, NULL, curthread);
+destroyVnode:
    vrele(vp);
    return ret;
 }
@@ -1198,7 +1205,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    if (ret != 0) {
       DEBUG(VM_DEBUG_FAIL, "Failed to create vnode");
       ret = EINVAL;
-      goto vnodeError;
+      goto destroyVnode;
    }
 
    /* Fill in the provided address with the new vnode. */
@@ -1208,7 +1215,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    return 0;
 
    /* Cleanup points for errors. */
-vnodeError:
+destroyVnode:
    vnode_put(vp);
 out:
    return ret;
@@ -1294,16 +1301,16 @@ destroyOut:
    ASSERT(ofp);
 
    if (ofp->handleMutex) {
-      os_mutex_destroy(ofp->handleMutex);
+      os_mutex_free(ofp->handleMutex);
    }
 
    if (ofp->modeMutex) {
-      os_mutex_destroy(ofp->modeMutex);
+      os_mutex_free(ofp->modeMutex);
    }
 
 #if defined(__APPLE__)
    if (ofp->rwFileLock) {
-      os_rw_lock_destroy(ofp->rwFileLock);
+      os_rw_lock_free(ofp->rwFileLock);
    }
 #endif
 
@@ -1345,10 +1352,10 @@ HgfsFreeOpenFile(HgfsOpenFile *ofp,             // IN: Open file to free
     * Then we destroy anything initialized and free the open file.
     */
 #if defined(__APPLE__)
-   os_rw_lock_destroy(ofp->rwFileLock);
+   os_rw_lock_free(ofp->rwFileLock);
 #endif
-   os_mutex_destroy(ofp->handleMutex);
-   os_mutex_destroy(ofp->modeMutex);
+   os_mutex_free(ofp->handleMutex);
+   os_mutex_free(ofp->modeMutex);
 
    os_free(ofp, sizeof *ofp);
 }
@@ -1498,7 +1505,7 @@ HgfsReleaseFile(HgfsFile *fp,           // IN: File to release
       DEBUG(VM_DEBUG_INFO, "HgfsReleaseFile: freeing HgfsFile for %s.\n",
             fp->fileName);
 
-      os_mutex_destroy(fp->mutex);
+      os_mutex_free(fp->mutex);
       os_free(fp, sizeof *fp);
       return;
    }

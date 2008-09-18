@@ -25,11 +25,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <getopt.h>
-#include <unistd.h>
 
 #include "toolboxCmdInt.h"
 #include "toolboxcmd_version.h"
+#include "system.h"
 
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXCMD_VERSION_STRING);
@@ -52,6 +51,11 @@ const typedef struct CmdTable {
 
 static int quiet_flag; /* Flag set by `--quiet'. */
 
+/*
+ * Sadly, our home-brewed implementation of getopt() doesn't come with an
+ * implementation of getopt_long().
+ */
+#ifndef _WIN32
 static struct option long_options[] = {
    /* quiet sets a flag */
    { "quiet", no_argument, 0, 'q' },
@@ -60,6 +64,9 @@ static struct option long_options[] = {
    { "help", no_argument, 0, 'h' },
    { "version", no_argument, 0, 'v' },
    { 0, 0, 0, 0 } };
+#endif
+
+static const char *options = "hqv";
 
 /*
  * Local Functions
@@ -79,7 +86,7 @@ static void StatHelp(char *progName);
 static void TimeSyncHelp(char *progName);
 static void RecordHelp(char *progName);
 static void ToolboxCmdHelp(char *progName);
-static const CmdTable * ParseCommand(char **argv, int argc);
+static CmdTable *ParseCommand(char **argv, int argc);
 static Bool CheckArgumentLength(char **argv, int argc);
 
 
@@ -87,7 +94,7 @@ static Bool CheckArgumentLength(char **argv, int argc);
  * The commands table.
  * Must go after function declarations
  */
-static const CmdTable commands[] = {
+static CmdTable commands[] = {
    { "timesync", TimeSyncCommand, FALSE, TimeSyncHelp},
    { "script", ScriptCommand, TRUE, ScriptHelp},
    { "disk", DiskCommand, TRUE, DiskHelp},
@@ -219,7 +226,7 @@ TimeSyncHelp(char *progName) // IN: The name of the program obtained from argv[0
           "Usage: %s timesync <subcommand>\n\n"
           "Subcommands\n"
           "   enable: enable time sync\n"
-          "   disbale: disable time sync\n"
+          "   disable: disable time sync\n"
           "   status: display the time sync status\n", progName);
 }
 
@@ -666,7 +673,7 @@ RecordCommand(char **argv, // IN: Command line arguments
  *-----------------------------------------------------------------------------
  */
 
-static const CmdTable *
+static CmdTable *
 ParseCommand(char **argv, // IN: Command line arguments
              int argc)    // IN: Length of command line arguments
 {
@@ -713,11 +720,10 @@ main(int argc,    // IN: length of command line arguments
    /*
     * Check if we are in a VM
     */
-   /*
    if (!VmCheck_IsVirtualWorld()) {
       fprintf(stderr, "toolbox-cmd must be run inside a virtual machine.\n");
       exit(EXIT_FAILURE);
-   } */
+   }
 
    if (argc < 2) {
       ToolboxCmdHelp(argv[0]);
@@ -730,7 +736,11 @@ main(int argc,    // IN: length of command line arguments
    while (1) {
       int option_index = 0;
 
-      c = getopt_long(argc, argv, "hqv", long_options, &option_index);
+#ifdef _WIN32
+      c = getopt(argc, argv, options);
+#else
+      c = getopt_long(argc, argv, options, long_options, &option_index);
+#endif
 
       /* Detect the end of the options. */
       if (c == -1)
@@ -764,13 +774,14 @@ main(int argc,    // IN: length of command line arguments
     * execute corresponding command
     */
    if (optind < argc) {
-      const CmdTable *cmd = ParseCommand(argv, argc);
+      CmdTable *cmd = ParseCommand(argv, argc);
       if (cmd->command == NULL) {
          ToolboxCmdHelp(argv[0]);
 	 return EX_USAGE;
       }
-      if (cmd->requireRoot && geteuid() != 0) {
-	 fprintf(stderr,"You must be root to perform %s operations", cmd->command);
+      if (cmd->requireRoot && !System_IsUserAdmin()) {
+	 fprintf(stderr,"You must be root to perform %s operations\n",
+                 cmd->command);
 	 return EX_NOPERM;
       }
       return cmd->func(argv, argc);

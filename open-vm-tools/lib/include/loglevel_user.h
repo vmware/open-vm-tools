@@ -69,6 +69,7 @@
    LOGLEVEL_VAR(usb), \
    LOGLEVEL_VAR(vusbmouse), \
    LOGLEVEL_VAR(vusbkeyboard), \
+   LOGLEVEL_VAR(hidQueue), \
    LOGLEVEL_VAR(pci_1394), \
    LOGLEVEL_VAR(1394), \
    LOGLEVEL_VAR(pci_vlance), \
@@ -102,6 +103,7 @@
    LOGLEVEL_VAR(checkpoint), \
    LOGLEVEL_VAR(dumper), \
    LOGLEVEL_VAR(migrate), \
+   LOGLEVEL_VAR(fsresx), \
    \
    /* user/gui */ \
    LOGLEVEL_VAR(gui), \
@@ -195,6 +197,7 @@
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(vmxvmdbCallbacks), \
    LOGLEVEL_VAR(guestInstall), \
+   LOGLEVEL_VAR(migrateVM), \
    LOGLEVEL_VAR(vmUpsellController), \
    LOGLEVEL_VAR(objc), /* lib/objc */ \
 

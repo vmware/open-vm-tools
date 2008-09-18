@@ -28,6 +28,9 @@
 #define _GNU_SOURCE
 #endif
 
+#include "vm_ctype.h"
+#include "safetime.h"
+
 #if defined(_WIN32)
 # include <winsock2.h> // also includes windows.h
 # include <io.h>
@@ -35,8 +38,6 @@
 # include "coreDump.h"
 #endif
 
-#include "vm_ctype.h"
-#include "safetime.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <limits.h>

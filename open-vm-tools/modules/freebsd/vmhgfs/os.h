@@ -95,12 +95,12 @@ void *os_malloc(size_t size, int flags);
 void os_free(void *mem, size_t size);
 
 extern OS_MUTEX_T *os_mutex_alloc_init(const char *mtxName);
-extern void os_mutex_destroy(OS_MUTEX_T *mtx);
+extern void os_mutex_free(OS_MUTEX_T *mtx);
 extern void os_mutex_lock(OS_MUTEX_T *mtx);
 extern void os_mutex_unlock(OS_MUTEX_T *mtx);
 
 extern OS_RWLOCK_T *os_rw_lock_alloc_init(const char *lckName);
-extern void os_rw_lock_destroy(OS_RWLOCK_T *lck);
+extern void os_rw_lock_free(OS_RWLOCK_T *lck);
 extern void os_rw_lock_lock_shared(OS_RWLOCK_T *lck);
 extern void os_rw_lock_lock_exclusive(OS_RWLOCK_T *lck);
 extern void os_rw_lock_unlock_shared(OS_RWLOCK_T *lck);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2008 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,9 +26,8 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-#include "x86cpuid.h"
 #include "vm_basic_asm.h"
-
+#include "x86cpuid.h"
 
 
 typedef struct CPUID0 {
@@ -65,6 +64,66 @@ typedef struct CPUIDSummary {
    CPUID81 id81;
    CPUIDRegs id88, id8a;
 } CPUIDSummary;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUIDSummary_RegsFromCpuid0 --
+ *
+ *      Fills in the given CPUIDRegs struct with the values from the CPUID0 struct.
+ *
+ * Results:
+ *      Returns the CPUIDRegs pointer passed in.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE CPUIDRegs*
+CPUIDSummary_RegsFromCpuid0(CPUID0* id0In,
+                            CPUIDRegs* id0Out)
+{
+   id0Out->eax = id0In->numEntries;
+   id0Out->ebx = *(uint32 *) (id0In->name + 0);
+   id0Out->edx = *(uint32 *) (id0In->name + 4);
+   id0Out->ecx = *(uint32 *) (id0In->name + 8);
+   return id0Out;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUIDSummary_SafeToUseMC0_CTL --
+ *
+ *      Determines whether it is safe to write to the MCE control
+ *      register MC0_CTL.
+ *      Known safe:     P4, Nahalem, All AMD.
+ *      Known not safe: P6, Core, Core2, Penryn
+ *      Don't know:     P2, P3
+ *
+ * Results:
+ *      True iff it is known to be safe.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+CPUIDSummary_SafeToUseMC0_CTL(CPUIDSummary* cpuidSummary)
+{
+   CPUIDRegs id0;
+
+   CPUIDSummary_RegsFromCpuid0(&cpuidSummary->id0, &id0);   
+   return CPUID_IsVendorAMD(&id0) ||
+      (CPUID_IsVendorIntel(&id0) &&
+       (CPUID_FAMILY_IS_PENTIUM4(id0.eax) ||
+        CPUID_UARCH_IS_NEHALEM(cpuidSummary->id1.version)));
+}
+
 
 /* The following two functions return the number of cores per package
    and set *numThreadsPerCore to the number of hardware threads per core. */ 

@@ -42,7 +42,10 @@ extern "C"{
 #elif defined(_WIN32)
 #define FILE_MAXPATH	MAX_PATH
 #else
-# if defined(__FreeBSD__) && BSD_VERSION >= 53
+# ifdef __FreeBSD__
+#  include <sys/param.h> // For __FreeBSD_version
+# endif
+# if defined(__FreeBSD__) && __FreeBSD_version >= 503000
 #  include <syslimits.h>  // PATH_MAX
 # else 
 #  include <limits.h>  // PATH_MAX

@@ -110,6 +110,8 @@ typedef enum {
    UNITY_X11_WM__NET_WM_ACTION_MAXIMIZE_VERT,
    UNITY_X11_WM__NET_FRAME_EXTENTS,
    UNITY_X11_WM__NET_WM_STRUT_PARTIAL,
+   UNITY_X11_WM__NET_WM_STATE_HIDDEN,
+   UNITY_X11_WM__NET_WM_STATE_MINIMIZED,
 
    UNITY_X11_MAX_WM_PROTOCOLS
 } UnityX11WMProtocol;
@@ -253,6 +255,7 @@ struct _UnityPlatform {
       Atom savedLayoutData[4];
       size_t savedNumDesktops;
       uint32 savedCurrentDesktop;
+      uint32 currentDesktop;
    } desktopInfo;
 
    Bool isRunning;

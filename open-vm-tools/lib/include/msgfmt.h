@@ -171,12 +171,10 @@ void MsgFmt_UnswizzleArgs(MsgFmt_Arg *args,
 
 MsgFmt_Arg* MsgFmt_CopyArgs(MsgFmt_Arg* copyArgs,
                             int numArgs);
-#ifdef HAS_BSD_PRINTF
 int MsgFmt_Snprintf(char *buf, size_t size, const char *format,
                     const MsgFmt_Arg *args, int numArgs);
 char *MsgFmt_Asprintf(size_t *length, const char *format,
                       const MsgFmt_Arg *args, int numArgs);
-#endif
 
 
 #endif // ifndef _MSGFMT_H_

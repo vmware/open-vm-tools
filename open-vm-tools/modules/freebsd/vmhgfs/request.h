@@ -77,10 +77,12 @@ extern HgfsKReqState           HgfsKReq_GetState(HgfsKReqHandle req);
 
 extern uint32_t                HgfsKReq_GetId(HgfsKReqHandle req);
 extern char *                  HgfsKReq_GetPayload(HgfsKReqHandle req);
+extern char *                  HgfsKReq_GetPayload_V3(HgfsKReqHandle req);
+extern char *                  HgfsKRep_GetPayload_V3(HgfsKReqHandle req);
 extern size_t                  HgfsKReq_GetPayloadSize(HgfsKReqHandle req);
 extern void                    HgfsKReq_SetPayloadSize(HgfsKReqHandle req,
                                                        size_t newSize);
 
 
-#endif /* __REQUEST_H_ */
+#endif /* _REQUEST_H_ */
 

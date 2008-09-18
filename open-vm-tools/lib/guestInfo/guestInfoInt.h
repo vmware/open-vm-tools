@@ -45,6 +45,7 @@ VmIpAddress *GuestInfoAddIpAddress(GuestNic *nic,
                                    const char *ipAddr,
                                    const uint32 af_type);
 void GuestInfoAddSubnetMask(VmIpAddress *ipAddressEntry,
-                            const uint32 subnetMaskBits);
+                            const uint32 subnetMaskBits,
+                            Bool convertToMask);
 
 #endif

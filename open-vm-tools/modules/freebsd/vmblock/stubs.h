@@ -38,7 +38,7 @@
 #ifndef __STUBS_H__
 #define __STUBS_H__
 
-#ifdef linux
+#if defined(linux) && !defined(vmblock_fuse)
 # include "driver-config.h"
 # include "compat_version.h"
 #endif

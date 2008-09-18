@@ -3736,7 +3736,7 @@ HgfsUnpackDeleteRequest(char const *packetIn,        // IN: request packet
  *    keep the code simple.
  *
  * Results:
- *    Always TRUE.
+ *    TRUE if valid op version reply filled, FALSE otherwise.
  *
  * Side effects:
  *    None
@@ -3745,24 +3745,38 @@ HgfsUnpackDeleteRequest(char const *packetIn,        // IN: request packet
  */
 
 Bool
-HgfsPackDeleteReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackDeleteReply(HgfsOp deleteOp,           // IN: delete operation version
+                    char *packetOut,           // IN/OUT: outgoing packet
                     size_t *packetSize)        // IN/OUT: size of packet
 
 {
-   HgfsRequest *header = (HgfsRequest *)packetOut;
-
+   Bool result = TRUE;
    ASSERT(packetOut);
    ASSERT(packetSize);
 
-   if (header->op == HGFS_OP_DELETE_FILE_V3 || header->op == HGFS_OP_DELETE_DIR_V3) {
+   switch (deleteOp) {
+   case HGFS_OP_DELETE_FILE_V3:
+   case HGFS_OP_DELETE_DIR_V3: {
       HgfsReplyDeleteV3 *reply = (HgfsReplyDeleteV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
       reply->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
-   } else {
-      *packetSize = sizeof(HgfsReplyDelete);
+      break;
    }
+   case HGFS_OP_DELETE_FILE_V2:
+   case HGFS_OP_DELETE_FILE:
+   case HGFS_OP_DELETE_DIR_V2:
+   case HGFS_OP_DELETE_DIR:
+      *packetSize = sizeof(HgfsReplyDelete);
+      break;
+   default:
+      LOG(4, ("HgfsPackDeleteReply: invalid op code %d\n",
+              deleteOp));
+      result = FALSE;
+      break;
+   }
+   ASSERT(result);
 
-   return TRUE;
+   return result;
 }
 
 
@@ -4014,7 +4028,7 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
  *    keep the code simple.
  *
  * Results:
- *    Always TRUE.
+ *    TRUE if valid op and reply set, FALSE otherwise.
  *
  * Side effects:
  *    None
@@ -4023,24 +4037,36 @@ HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
  */
 
 Bool
-HgfsPackRenameReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackRenameReply(HgfsOp renameOp,           // IN: rename operation version
+                    char *packetOut,           // IN/OUT: outgoing packet
                     size_t *packetSize)        // IN/OUT: size of packet
 
 {
-   HgfsRequest *header = (HgfsRequest *)packetOut;
-
+   Bool result = TRUE;
    ASSERT(packetOut);
    ASSERT(packetSize);
 
-   if (header->op == HGFS_OP_RENAME_V3) {
+   switch (renameOp) {
+   case HGFS_OP_RENAME_V3: {
       HgfsReplyRenameV3 *reply = (HgfsReplyRenameV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
       reply->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
-   } else {
+      break;
+   }
+   case HGFS_OP_RENAME_V2:
+   case HGFS_OP_RENAME:
       *packetSize = sizeof(HgfsReplyRename);
+      break;
+   default:
+      LOG(4, ("HgfsPackRenameReply: invalid op code %d\n",
+              renameOp));
+      result = FALSE;
+      break;
    }
 
-   return TRUE;
+   ASSERT(result);
+
+   return result;
 }
 
 
@@ -4861,7 +4887,7 @@ HgfsUnpackSetattrRequest(char const *packetIn,       // IN: request packet
  *    keep the code simple.
  *
  * Results:
- *    Always TRUE.
+ *    TRUE if valid op and reply set, FALSE otherwise.
  *
  * Side effects:
  *    None
@@ -4870,25 +4896,37 @@ HgfsUnpackSetattrRequest(char const *packetIn,       // IN: request packet
  */
 
 Bool
-HgfsPackSetattrReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackSetattrReply(HgfsOp setattrOp,          // IN: setattr operation version
+                     char *packetOut,           // IN/OUT: outgoing packet
                      size_t *packetSize)        // IN/OUT: size of packet
 
 {
-   HgfsRequest *header = (HgfsRequest *)packetOut;
+   Bool result = TRUE;
 
    ASSERT(packetOut);
    ASSERT(packetSize);
 
-   if (header->op == HGFS_OP_SETATTR_V3) {
+   switch (setattrOp) {
+   case HGFS_OP_SETATTR_V3: {
       HgfsReplySetattrV3 *reply =
                          (HgfsReplySetattrV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
       reply->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
-   } else {
+      break;
+   }
+   case HGFS_OP_SETATTR_V2:
+   case HGFS_OP_SETATTR:
       *packetSize = sizeof(HgfsReplySetattr);
+      break;
+   default:
+      result = FALSE;
+      LOG(4, ("HgfsPackSetattrReply: invalid op code %d\n",
+              setattrOp));
+      break;
    }
 
-   return TRUE;
+   ASSERT(result);
+   return result;
 }
 
 
@@ -5051,7 +5089,7 @@ HgfsUnpackCreateDirRequest(char const *packetIn,    // IN: incoming packet
  *    keep the code simple.
  *
  * Results:
- *    Always TRUE.
+ *    TRUE if valid op and reply set, FALSE otherwise.
  *
  * Side effects:
  *    None
@@ -5060,25 +5098,38 @@ HgfsUnpackCreateDirRequest(char const *packetIn,    // IN: incoming packet
  */
 
 Bool
-HgfsPackCreateDirReply(char *packetOut,           // IN/OUT: outgoing packet
+HgfsPackCreateDirReply(HgfsOp createdirOp,        // IN: create dir operation version
+                       char *packetOut,           // IN/OUT: outgoing packet
                        size_t *packetSize)        // IN/OUT: size of packet
 
 {
-   HgfsRequest *header = (HgfsRequest *)packetOut;
+   Bool result = TRUE;
 
    ASSERT(packetOut);
    ASSERT(packetSize);
 
-   if (header->op == HGFS_OP_CREATE_DIR_V3) {
+   switch (createdirOp) {
+   case HGFS_OP_CREATE_DIR_V3: {
       HgfsReplyCreateDirV3 *reply =
                            (HgfsReplyCreateDirV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
       reply->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
-   } else {
+      break;
+   }
+   case HGFS_OP_CREATE_DIR_V2:
+   case HGFS_OP_CREATE_DIR:
       *packetSize = sizeof(HgfsReplyCreateDir);
+      break;
+   default:
+      LOG(4, ("HgfsPackCreateDirReply: invalid op code %d\n",
+              createdirOp));
+      result = FALSE;
+      break;
    }
 
-   return TRUE;
+   ASSERT(result);
+
+   return result;
 }
 
 

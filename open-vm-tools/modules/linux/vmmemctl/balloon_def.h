@@ -71,20 +71,4 @@
 #define	BALLOON_ERROR_RESET		(7)
 #define	BALLOON_ERROR_BUSY		(8)
 
-/*
- * types
- */
-
-typedef struct {
-   // platform -> VMM
-   uint32 target;	// target balloon size (in pages)
-
-   // platform <- VMM
-   uint32 size;		// current balloon size (in pages)
-   uint32 nOps;		// stats: operation count
-   uint32 nReset;	// stats: reset count
-   uint32 guestType;	// guest OS identifier
-   uint32 maxSize;	// predicted max balloon size (in pages)
-} Balloon_BalloonInfo;
-
 #endif	/* _BALLOON_DEF_H */

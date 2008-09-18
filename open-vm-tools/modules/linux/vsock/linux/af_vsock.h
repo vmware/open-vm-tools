@@ -63,8 +63,11 @@ typedef struct VSockVmciSock {
    uint64 queuePairSize;
    uint64 queuePairMinSize;
    uint64 queuePairMaxSize;
+   uint64 writeNotifyWindow;
+   uint64 writeNotifyMinWindow;
    Bool peerWaitingRead;
    Bool peerWaitingWrite;
+   Bool peerWaitingWriteDetected;
    VSockWaitingInfo peerWaitingReadInfo;
    VSockWaitingInfo peerWaitingWriteInfo;
    VMCIId attachSubId;

@@ -1372,16 +1372,18 @@ ToolsDaemonTcloMountHGFS(char const **result,     // OUT
 {
    VixError err = VIX_OK;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
-   Debug(">ToolsDaemonTcloMountHGFS\n");
 
 #if defined(linux)
+   int ret;
+
    /*
     * We need to call the mount program, not the mount system call. The
     * mount program does several additional things, like compute the mount options
     * from the contents of /etc/fstab, and invoke custom mount programs like the
     * one needed for HGFS.
     */
-   if (system("mount -a -t vmhgfs") == -1) {
+   ret = system("mount -a -t vmhgfs");
+   if (ret == -1 || WIFSIGNALED(ret) || (WIFEXITED(ret) && WEXITSTATUS(ret))) {
       err = VIX_E_FAIL;
    }
 #endif
@@ -1397,7 +1399,6 @@ ToolsDaemonTcloMountHGFS(char const **result,     // OUT
                Err_Errno());
    RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
 
-   Debug("<ToolsDaemonTcloMountHGFS\n");
    return TRUE;
 } // ToolsDaemonTcloMountHGFS
 

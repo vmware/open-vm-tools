@@ -31,6 +31,7 @@
 #include <sys/time.h>
 
 #include <X11/extensions/Xinerama.h>
+#include <X11/extensions/XTest.h>
 
 typedef struct {
    Window realWindowID;
@@ -171,6 +172,31 @@ UnityPlatformInit(UnityWindowTracker *tracker, // IN
    }
    XSetErrorHandler(UnityPlatformXErrorHandler);
    XSynchronize(up->display, TRUE); // So error counting works properly...
+
+   /*
+    * Certain applications, like gnome-session during logout, may grab the X
+    * server before displaying a modal window.  With the server grabbed, we're
+    * unable to correctly track and display windows.
+    *
+    * The following snippet attempts to work around this by using the XTest
+    * extension's ability to make ourselves impervious to X server grabs.
+    */
+   {
+      int dummy1;
+      int dummy2;
+      int major;
+      int minor;
+
+      if ((XTestQueryExtension(up->display, &dummy1, &dummy2,
+                               &major, &minor) == True) &&
+          ((major > 2) || (major == 2 && minor >= 2))) {
+         if (XTestGrabControl(up->display, True) != 1) {
+            Debug("XTestGrabControl failed.\n");
+         }
+      } else {
+         Debug("XTest extension not available.\n");
+      }
+   }
 
    /*
     * Set up a callback in the glib main loop to listen for incoming X events on the
@@ -878,6 +904,10 @@ UnityX11GetWMProtocols(UnityPlatform *up) // IN
             up->wmProtocols[UNITY_X11_WM__NET_FRAME_EXTENTS] = TRUE;
          } else if (valueReturned[i] == up->atoms._NET_WM_STRUT_PARTIAL) {
             up->wmProtocols[UNITY_X11_WM__NET_WM_STRUT_PARTIAL] = TRUE;
+         } else if (valueReturned[i] == up->atoms._NET_WM_STATE_HIDDEN) {
+            up->wmProtocols[UNITY_X11_WM__NET_WM_STATE_HIDDEN] = TRUE;
+         } else if (valueReturned[i] == up->atoms._NET_WM_STATE_MINIMIZED) {
+            up->wmProtocols[UNITY_X11_WM__NET_WM_STATE_MINIMIZED] = TRUE;
          }
       }
    }
@@ -1304,12 +1334,15 @@ UnityPlatformHandleEvents(gboolean errorOccurred,  // IN
          ev->realWindowID = UnityPlatformGetRealEventWindow(up, &ev->xevent);
 
          /*
-          * Restack dnd detection winodw when the desktop window overlaps
-          * detection window.
+          * Restack dnd detection window when either
+          *   1.  the desktop window may overlap detection window, or
+          *   2.  a window is inserted directly above the desktop (and therefore
+          *       below the DND window).
           */
          if (up->desktopWindow &&
-             ev->realWindowID == up->desktopWindow->toplevelWindow &&
-             ev->xevent.type == ConfigureNotify) {
+             ev->xevent.type == ConfigureNotify &&
+             (up->desktopWindow->toplevelWindow == ev->realWindowID ||
+              up->desktopWindow->toplevelWindow == ev->xevent.xconfigure.above)) {
             restackDetWnd = TRUE;
          }
 
@@ -1678,6 +1711,7 @@ UnityX11SetCurrentDesktop(UnityPlatform *up,     // IN
    ASSERT(up);
    ASSERT(up->rootWindows->windows);
 
+   up->desktopInfo.currentDesktop = currentDesktop;
    data[0] = currentDesktop;
    data[1] = UnityPlatformGetServerTime(up);
    UnityPlatformSendClientMessage(up,
@@ -2782,8 +2816,8 @@ UnityPlatformSetDesktopConfig(UnityPlatform *up,                             // 
     * communicate it to the window manager & pager.
     */
    up->desktopInfo.layoutData[0] = _NET_WM_ORIENTATION_HORZ; // Orientation
-   up->desktopInfo.layoutData[1] = (desktopSpread.y + 1); // # of columns
-   up->desktopInfo.layoutData[2] = (desktopSpread.x + 1); // # of rows
+   up->desktopInfo.layoutData[1] = (desktopSpread.x + 1); // # of columns
+   up->desktopInfo.layoutData[2] = (desktopSpread.y + 1); // # of rows
    up->desktopInfo.layoutData[3] = _NET_WM_TOPLEFT; // Starting corner
 
    if (((desktopSpread.x + 1) * (desktopSpread.y + 1)) >= desktopConfig->desktopCount

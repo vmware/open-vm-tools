@@ -2054,7 +2054,7 @@ CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
 	 if ((flags & CSGTG_TRANSLIT) != 0) {
 	    DynBuf_Append(db, "\x1a", 1);
 	 }
-	 if ((n = CodeSetOldGetUtf8(p, end, NULL)) > 0) {
+	 if ((n = CodeSetOldGetUtf8((char *)p, (char *)end, NULL)) > 0) {
 	    p += n - 1;
 	 }
 	 last = p + 1;

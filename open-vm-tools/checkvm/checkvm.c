@@ -43,6 +43,8 @@
 #include "embed_version.h"
 VM_EMBED_VERSION(CHECKVM_VERSION_STRING);
 
+
+
 #ifdef __GNUC__
 
 /*

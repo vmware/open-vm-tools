@@ -233,8 +233,7 @@ UtilGetUserName(uid_t uid) // IN
       return NULL;
    }
 
-   if (   Posix_Getpwuid_r(uid, &pw, memPool, memPoolSize, &pw_p) != 0
-       || pw_p != &pw) {
+   if (Posix_Getpwuid_r(uid, &pw, memPool, memPoolSize, &pw_p) != 0) {
       free(memPool);
       Warning("UtilGetUserName: Unable to retrieve the username associated "
               "with user ID %u.\n",
@@ -242,7 +241,7 @@ UtilGetUserName(uid_t uid) // IN
       return NULL;
    }
 
-   userName = strdup(pw.pw_name);
+   userName = strdup(pw_p->pw_name);
    free(memPool);
    if (userName == NULL) {
       Warning("UtilGetUserName: Not enough memory.\n");

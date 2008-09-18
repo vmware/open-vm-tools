@@ -84,25 +84,25 @@
 #define ENCODE_DATE(year, month, day) ((year) * ((DATE_MONTH_MAX + 1) * (DATE_DAY_MAX + 1)) + (month) * (DATE_DAY_MAX + 1) + (day))
 #if !defined(VMX86_DEVEL) && defined(BUILD_EXPIRE)
 #   if defined(VMX86_SERVER)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_WGS)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_DESKTOP)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_P2V)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_V2V)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_SYSIMAGE)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_VCB)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_VPX)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_WBC)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   elif defined(VMX86_SDK)
-#      define HARD_EXPIRE ENCODE_DATE(2008, 07, 31)
+#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
 #   endif
 #endif
 
@@ -236,7 +236,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.08.08"
+#define TOOLS_VERSION "2008.09.03"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

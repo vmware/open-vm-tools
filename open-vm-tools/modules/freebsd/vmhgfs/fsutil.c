@@ -116,14 +116,14 @@ HgfsSubmitRequest(HgfsSuperInfo *sip,   // IN: Superinfo containing request list
 /*
  *----------------------------------------------------------------------------
  *
- * HgfsValidateReply --
- *
- *    Validates a reply to ensure that its state is set appropriately and the
- *    reply is at least the minimum expected size and not greater than the
- *    maximum allowed packet size.
+ * HgfsGetStatus --
+ *    
+ *    Gets the status of the reply packet. If the size of the reply packet
+ *    does not lie between the minimum expected size and maximum allowed packet
+ *    size, then EPROTO is returned.   
  *
  * Results:
- *    Returns zero on success, and a non-zero on error.
+ *    Returns zero on success, and an error code on error.
  *
  * Side effects:
  *    None.
@@ -132,26 +132,48 @@ HgfsSubmitRequest(HgfsSuperInfo *sip,   // IN: Superinfo containing request list
  */
 
 int
-HgfsValidateReply(HgfsKReqHandle req,    // IN: Request that contains reply data
-                  uint32_t minSize)      // IN: Minimum size expected for the reply
+HgfsGetStatus(HgfsKReqHandle req,    // IN: Request that contains reply data
+              uint32_t minSize)      // IN: Minimum size expected for the reply
 {
+   HgfsReply *replyHeader;
+   size_t repSize = 0;
+   int ret = 0;
+
    ASSERT(req);
    ASSERT(minSize <= HGFS_PACKET_MAX);  /* we want to know if this fails */
 
    switch (HgfsKReq_GetState(req)) {
+
    case HGFS_REQ_ERROR:
       DEBUG(VM_DEBUG_FAIL, "received reply with error.\n");
-      return -1;
+      ret = EPROTO;
+      break;
 
    case HGFS_REQ_COMPLETED:
-      if ((HgfsKReq_GetPayloadSize(req) < minSize) || (HgfsKReq_GetPayloadSize(req) > HGFS_PACKET_MAX)) {
+      repSize = HgfsKReq_GetPayloadSize(req);
+      /*
+       * Server sets the packet size equal to size of HgfsReply when it
+       * encounters an error. In order to return correct error code, 
+       * we should first check the status and then check if packet size
+       * lies between minimum expected size and maximum allowed packet size.
+       */
+
+      if (repSize >= sizeof *replyHeader) {
+         replyHeader = (HgfsReply *)HgfsKReq_GetPayload(req);
+         ret = HgfsStatusToBSD(replyHeader->status);
+         if (ret) {
+            break;
+         }
+      }
+
+      if (repSize < minSize || repSize > HGFS_PACKET_MAX) {
          DEBUG(VM_DEBUG_FAIL, "successfully "
                "completed reply is too small/big: !(%d < %" FMTSZ "d < %d).\n",
-               minSize, HgfsKReq_GetPayloadSize(req), HGFS_PACKET_MAX);
-         return -1;
-      } else {
-         return 0;
+               minSize, repSize, HGFS_PACKET_MAX);
+         ret = EPROTO;   
       }
+      break;
+
    /*
     * If we get here then there is a programming error in this module:
     *  HGFS_REQ_UNUSED should be for requests in the free list
@@ -161,8 +183,10 @@ HgfsValidateReply(HgfsKReqHandle req,    // IN: Request that contains reply data
     */
    default:
       NOT_REACHED();
-      return -1;        /* avoid compiler warning */
+      ret = EPROTO;        /* avoid compiler warning */
    }
+
+   return ret;
 }
 
 
@@ -569,7 +593,7 @@ HgfsMakeFullName(const char *path,      // IN:  Path of directory containing fil
  */
 
 Bool
-HgfsSetattrCopy(HGFS_VNODE_ATTR *vap,    // IN:  Attributes to change to
+HgfsSetattrCopy(HgfsVnodeAttr *vap,      // IN:  Attributes to change to
                 HgfsAttrV2 *hgfsAttrV2,  // OUT: Hgfs attributes to fill in
                 HgfsAttrHint *hints)     // OUT: Hgfs attribute hints
 {
@@ -667,7 +691,7 @@ HgfsSetattrCopy(HGFS_VNODE_ATTR *vap,    // IN:  Attributes to change to
 void
 HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
               const HgfsAttrV2 *hgfsAttrV2, // IN:  Hgfs attributes to copy
-              HGFS_VNODE_ATTR *vap)         // OUT: BSD attributes to fill
+              HgfsVnodeAttr *vap)           // OUT: BSD attributes to fill
 {
    short mode = 0;
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
@@ -751,10 +775,6 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
 
    /* Get the node id calculated for this file in HgfsVnodeGet() */
    HGFS_VATTR_FILEID_RETURN(vap, HGFS_VP_TO_NODEID(vp));
-   DEBUG(VM_DEBUG_ATTR, "*HgfsAttrToBSD: fileName %s\n",
-         HGFS_VP_TO_FILENAME(vp));
-
-   DEBUG(VM_DEBUG_ATTR, " Setting size to %"FMT64"u\n", hgfsAttrV2->size);
 
    HGFS_VATTR_BLOCKSIZE_RETURN(vap, HGFS_BLOCKSIZE);
 
@@ -963,7 +983,8 @@ HgfsAttemptToCreateShare(const char *path,  // IN: Path
  *      3) Cross platform string is finally unescaped.
  *
  * Results:
- *      Returns 0 on success and an error code on failure.
+ *      Returns the size (excluding the NULL terminator)  on success and
+ *      negative error code on failure.
  *
  * Side effects:
  *      None.
@@ -985,12 +1006,13 @@ HgfsNameToWireEncoding(const char *bufIn,  // IN: Buffer to be normalized
       /* Allocating precomposed buffer to be equal to Output buffer. */
       precomposedBuf = os_malloc(bufOutSize, M_WAITOK);
       if (!precomposedBuf) {
-         return ENOMEM;
+         return -ENOMEM;
       }
 
       ret = os_path_to_utf8_precomposed(bufIn, bufInSize, precomposedBuf, bufOutSize);
       if (ret < 0) {
          DEBUG(VM_DEBUG_FAIL, "os_path_to_utf8_precomposed failed.");
+         ret = -EINVAL;
          goto out;
       }
       utf8Buf = precomposedBuf;
@@ -1002,7 +1024,7 @@ HgfsNameToWireEncoding(const char *bufIn,  // IN: Buffer to be normalized
    if (ret < 0) {
       DEBUG(VM_DEBUG_FAIL,
             "CPName_ConvertTo: Conversion to cross platform name failed.\n");
-      ret = ENAMETOOLONG;
+      ret = -ENAMETOOLONG;
       goto out;
    }
 
@@ -1023,7 +1045,8 @@ out:
  *      2) Decomposed string is finally escaped.
  *
  * Results:
- *      Returns 0 on success and an error code on failure.
+ *      Returns the size (excluding the NULL terminator)  on success and
+ *      negative error code on failure.
  *
  * Side effects:
  *      None.
@@ -1049,7 +1072,7 @@ HgfsNameFromWireEncoding(const char *bufIn,  // IN: Buffer to be encoded
        */
       decomposedBuf = os_malloc(bufOutSize, M_WAITOK);
       if (!decomposedBuf) {
-         return ENOMEM;
+         return -ENOMEM;
       }
       /*
        * Convert the input buffer into decomposed form. Higher layers in
@@ -1063,6 +1086,7 @@ HgfsNameFromWireEncoding(const char *bufIn,  // IN: Buffer to be encoded
        */
       if (ret < 0){
          DEBUG(VM_DEBUG_FAIL, "os_component_to_utf8_decomposed failed.\n");
+         ret = -EINVAL;
          goto out;
       }
       utf8Buf = decomposedBuf;

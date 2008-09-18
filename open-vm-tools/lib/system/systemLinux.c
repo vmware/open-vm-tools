@@ -64,12 +64,49 @@
 #include "debug.h"
 #include "posix.h"
 #include "unicode.h"
+#include "dynbuf.h"
+#include "hashTable.h"
+#include "strutil.h"
 
 #define MAX_IFACES      4
 #define LOOPBACK        "lo"
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16
 #endif
+
+
+/*
+ * Data types
+ */
+
+/*
+ * DynBuf container used by SNEForEachCallback.
+ *
+ * The SNE prefix is short for "System Native Environ".
+ */
+
+typedef struct {
+   DynBuf *nativeEnvironStrings;        // FOO=BAR<NUL>BAZ=BOOM<NUL><NUL>
+   DynBuf *nativeEnvironOffsets;        // off_ts relative to nativeEnvironStrings->data
+} SNEBufs;
+
+
+/*
+ * Local function prototypes
+ */
+
+
+/*
+ * "System Native Environ" (SNE) helpers.
+ */
+static HashTable *SNEBuildHash(const char **nativeEnviron);
+static const char **SNEHashToEnviron(HashTable *environTable);
+static int SNEForEachCallback(const char *key, void *value, void *clientData);
+
+
+/*
+ * Global functions
+ */
 
 
 /*
@@ -365,6 +402,31 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *  
+ * System_IsUserAdmin -- 
+ *
+ *    On Windows this functions checks if the calling user has membership in
+ *    the Administrators group (for NT platforms). On POSIX machines, we simply
+ *    check if the user's effective UID is root.
+ * 
+ * Return value: 
+ *    TRUE if the user has an effective UID of root.
+ *    FALSE if not.
+ * 
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+System_IsUserAdmin(void)
+{
+   return geteuid() == 0;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -431,6 +493,113 @@ System_SetEnv(Bool global,      // IN
    return Posix_Setenv(valueName, value, 1);
 #endif
 } // System_SetEnv
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * System_UnsetEnv --
+ *
+ *    Unset environment variable. 
+ *
+ * Results:
+ *    0 if success, -1 otherwise.
+ *
+ * Side effects:
+ *    Unsets the environment variable.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+System_UnsetEnv(const char *valueName) // IN: UTF-8
+{
+#if defined(sun)
+   return(-1);
+#else
+   Posix_Unsetenv(valueName);
+   return 0;
+#endif
+} // System_UnsetEnv
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * System_SetLDPath --
+ *
+ *    Set LD_LIBRARY_PATH. If native is TRUE, use VMWARE_LD_LIBRARY_PATH 
+ *    as the value (and ignore the path argument, which should be set to
+ *    NULL in this case). If native is FALSE, use the passed in path (and
+ *    if that path is NULL, unsetenv the value).
+ *
+ * Results:
+ *    The previous value of the environment variable. The caller is
+ *    responsible for calling free() on this pointer.
+ *
+ * Side effects:
+ *    Manipulates the value of LD_LIBRARY_PATH variable. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+System_SetLDPath(const char *path,      // IN: UTF-8
+                 const Bool native)     // IN: If TRUE, ignore path and use VMware value
+{
+   char *vmldpath = NULL;
+   char *tmppath = NULL;
+   char *oldpath;
+
+   ASSERT(!native || path == NULL);
+
+   /*
+    * Get the original LD_LIBRARY_PATH, so the installed applications
+    * don't try to use our versions of the libraries.
+    *
+    * From bora/apps/lib/lui/browser.cc::ResetEnvVars():
+    *
+    * For each variable we care about, there are three possible states:
+    * 1) The variable was not considered for saving.
+    *    This is indicated by VMWARE_<foo>'s first character not being
+    *    set to either "1" or "0".
+    *    We should not manipulate <foo>.
+    * 2) The variable was considered but was not set.
+    *    VMWARE_<foo> is set to "0".
+    *    We should unset <foo>.
+    * 3) The variable was considered and was set.
+    *    VMWARE_<foo> is set to "1" + "<value of foo>".
+    *    We should set <foo> back to the saved value.
+    *
+    * XXX: There are other variables that may need resetting (for a list, check
+    * bora/apps/lib/lui/browser.cc or the wrapper scripts), but that would
+    * require some more refactoring of this code (not using system(3), for
+    * example).
+    */
+   oldpath = System_GetEnv(TRUE, "LD_LIBRARY_PATH");
+   if (native == TRUE) {
+      char *p = NULL;
+      vmldpath = tmppath = System_GetEnv(TRUE, "VMWARE_LD_LIBRARY_PATH");
+      if (vmldpath && strlen(vmldpath) && vmldpath[0] == '1') {
+         vmldpath++;
+      } else {
+         vmldpath = p = Util_SafeStrdup("");
+      }
+      if (System_SetEnv(TRUE, "LD_LIBRARY_PATH", vmldpath) == -1) {
+         Debug("%s: failed to set LD_LIBRARY_PATH\n", __FUNCTION__);
+      }
+      free(tmppath);
+      free(p);
+   } else if (path) {
+      /*
+       * Set LD_LIBRARY_PATH to the specified value. 
+       */
+      System_SetEnv(TRUE, "LD_LIBRARY_PATH", (char *) path);
+   } else {
+      System_UnsetEnv("LD_LIBRARY_PATH");
+   }
+   return oldpath;
+} // System_SetLDPath
 
 
 /*
@@ -638,4 +807,311 @@ System_Daemon(Bool nochdir,
 kidfail:
    close(fds[1]);
    return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * System_GetNativeEnviron --
+ *
+ *      Returns a copy of the native / unwrapped environment.
+ *
+ *      VMware's compatibility library wrappers override certain environment
+ *      variables to make use of shipped libraries.  This creates the
+ *      "compatibility environment".  Overridden variables are saved into
+ *      corresponding VMWARE_-prefixed variables.  This routine recreates the
+ *      "native environment" by restoring VMWARE_-prefixed variable values to
+ *      their native equivalents.
+ *
+ *      Every value created by the wrapper begins with a 1 or 0 to indicate
+ *      whether the value was set in the native environment.  Based on this:
+ *        VMWARE_FOO="1foo"     -> FOO="foo"
+ *        VMWARE_FOO="1"        -> FOO=""
+ *        VMWARE_FOO="0"        -> FOO is unset in the native environment
+ *
+ *      Variables without the VMWARE_ prefix are just copied over to the new
+ *      environment.  Note, of course, that VMWARE_-prefixed variables take
+ *      precedence.  (I.e., when we encounter a VMWARE_ prefix, we'll
+ *      unconditionally record the value.  For all other variables, we'll
+ *      copy only if that variable had not already been set.)
+ *
+ * Results:
+ *      An array of strings representing the native environment.  (I.e.,
+ *      use it as you would environ(7).)  NB:  Memory allocation failures
+ *      are considered fatal.
+ *
+ * Side effects:
+ *      This routine allocates memory.  It's up to the caller to free it by
+ *      passing the returned value to System_FreeNativeEnviron.
+ *
+ *      This routine assumes that keys will show up in environ only once each.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char **
+System_GetNativeEnviron(const char **compatEnviron)
+                           // IN: original "compatibility" environment
+{
+   HashTable *environTable;
+   const char **nativeEnviron;
+
+   environTable = SNEBuildHash(compatEnviron);
+   nativeEnviron = SNEHashToEnviron(environTable);
+
+   HashTable_Free(environTable);
+
+   return nativeEnviron;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * System_FreeNativeEnviron --
+ *
+ *      Frees memory allocated by System_GetNativeEnviron.
+ *
+ * Results:
+ *      Frees memory.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+System_FreeNativeEnviron(const char **nativeEnviron)
+                            // IN: environment returned by System_GetNativeEnviron
+{
+   /*
+    * nativeEnviron is an array of strings, and all of the strings are located in a
+    * single contiguous buffer.  This makes freeing both array and buffer easy.
+    */
+   char *stringBuf = (char *)*nativeEnviron;
+
+   free(stringBuf);
+   free(nativeEnviron);
+}
+
+
+/*
+ * Local functions
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SNEBuildHash --
+ *
+ *      Compile hash table of environment variables.  See System_GetNativeEnviron
+ *      for rules on precedence.
+ *
+ * Results:
+ *      Pointer to populated hash table.  This cannot fail, as any memory failures
+ *      within the HashTable and StrUtil libraries are considered fatal.
+ *
+ * Side effects:
+ *      Caller is responsible for freeing returned table with HashTable_Free.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HashTable *
+SNEBuildHash(const char **compatEnviron)
+                // IN: original "compatibility" environment
+{
+   HashTable *environTable;
+   const char **p;
+
+   /*
+    * Number of buckets picked arbitrarily.  We're more interested in having an
+    * associative array than raw table performance.
+    */
+   environTable = HashTable_Alloc(64, HASH_STRING_KEY | HASH_FLAG_COPYKEY, free);
+
+   for (p = compatEnviron; p && *p; p++) {
+      const size_t prefixLength = sizeof "VMWARE_" - 1;
+      char *key;
+      char *value;
+      unsigned int index;
+
+      index = 0;
+      key = StrUtil_GetNextToken(&index, *p, "=");
+      if (!key) {
+         /* XXX Must empty environment variables still contain a '=' delimiter? */
+         Debug("%s: Encountered environment entry without '='.\n", __func__);
+         continue;
+      }
+
+      /*
+       * Copy the value beginning after the '=' delimiter (even if it's empty).
+       */
+      ++index;
+      value = Util_SafeStrdup(&(*p)[index]);
+
+      if (StrUtil_StartsWith(key, "VMWARE_") &&
+          key[prefixLength] != '\0' &&
+          (value[0] == '0' || value[0] == '1')) {
+         /*
+          * Okay, this appears to be one of the wrapper's variables, so let's
+          * figure out the original environment variable name (by just indexing
+          * past the prefix) and value (by indexing past the "was this variable
+          * in the native environment?" marker).
+          */
+         char *realKey = &key[prefixLength];
+         char *realValue = (value[0] == '0') ? NULL : Util_SafeStrdup(&value[1]);
+         HashTable_ReplaceOrInsert(environTable, realKey, realValue);
+      } else {
+         HashTable_LookupOrInsert(environTable, key, value);
+      }
+
+      /*
+       * The hash table makes a copy of our key, and it takes ownership of inserted
+       * values (via our passed freeing function).  So that means we're responsible
+       * for freeing 'key', but -not- 'value'.
+       */
+      free(key);
+   }
+
+   return environTable;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SNEHashToEnviron --
+ *
+ *      Builds up an array of strings representing a new environment based on
+ *      the caller's hash table.
+ *
+ * Results:
+ *      Pointer to the new environment.  As memory allocation failures are
+ *      considered fatal, this routine will not return NULL.
+ *
+ * Side effects:
+ *      This is expected to be returned to System_GetNativeEnviron's caller,
+ *      and s/he is to free it via System_FreeNativeEnviron.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static const char **
+SNEHashToEnviron(HashTable *environTable)   // IN:
+{
+   DynBuf nativeEnvironOffsets;
+   DynBuf nativeEnvironStrings;
+
+   SNEBufs anonBufs = {
+      .nativeEnvironStrings = &nativeEnvironStrings,
+      .nativeEnvironOffsets = &nativeEnvironOffsets,
+   };
+
+   const char **nativeEnviron;
+   off_t *offsetIter;
+   char *stringsBase;
+
+   unsigned int numStrings;
+   unsigned int i;
+
+   DynBuf_Init(&nativeEnvironStrings);
+   DynBuf_Init(&nativeEnvironOffsets);
+
+   /*
+    * Write out strings and string offsets to the dynbufs.
+    */
+   HashTable_ForEach(environTable, SNEForEachCallback, &anonBufs);
+   ASSERT_MEM_ALLOC(DynBuf_Trim(&nativeEnvironStrings));
+
+   /*
+    * Allocate final buffer to contain the string array.  Include extra entry
+    * for terminator.
+    */
+   numStrings = DynBuf_GetSize(&nativeEnvironOffsets) / sizeof *offsetIter;
+   nativeEnviron = Util_SafeCalloc(1 + numStrings, sizeof *nativeEnviron);
+
+   stringsBase = DynBuf_Get(&nativeEnvironStrings);
+   offsetIter = DynBuf_Get(&nativeEnvironOffsets);
+
+   for (i = 0; i < numStrings; i++, offsetIter++) {
+      nativeEnviron[i] = stringsBase + *offsetIter;
+   }
+   nativeEnviron[i] = NULL;
+
+   /*
+    * Cleanup.
+    *
+    * Note the subtle difference in how these are handled:
+    *   - The offsets are used only to build the array of strings, which is why that
+    *     dynbuf is destroyed.
+    *   - The buffer containing all of the environment strings, however, is persistent
+    *     and is actually returned to the caller (indirectly via nativeEnviron).  As
+    *     such it's only detached from the DynBuf.
+    */
+   DynBuf_Destroy(&nativeEnvironOffsets);
+   DynBuf_Detach(&nativeEnvironStrings);
+
+   return nativeEnviron;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SNEForEachCallback --
+ *
+ *      Given a key (environment variable name) and value, appends a string of
+ *      "key=value" to the nativeEnvironStrings DynBuf.  Also appends a pointer
+ *      to the new string to the nativeEnviron DynBuf.
+ *
+ * Results:
+ *      Always zero.  Memory allocation failures are considered fatal.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+SNEForEachCallback(const char *key,     // IN: environment variable
+                   void *value,         // IN: environment value
+                   void *clientData)    // IN/OUT: DynBuf container (SNEBufs)
+{
+   DynBuf *nativeEnvironStrings = ((SNEBufs *)clientData)->nativeEnvironStrings;
+   DynBuf *nativeEnvironOffsets = ((SNEBufs *)clientData)->nativeEnvironOffsets;
+   size_t itemSize;
+   char *itemBuf;
+   off_t itemOffset;
+
+   /*
+    * A NULL value indicates that this variable is not to be set.
+    */
+   if (value == NULL) {
+      return 0;
+   }
+
+   /* Determine the length of the new string inc. '=' delimiter and NUL. */
+   itemSize = strlen(key) + strlen(value) + sizeof "=";
+   itemBuf = Util_SafeMalloc(itemSize);
+
+   /* Create new "key=value" string. */
+   snprintf(itemBuf, itemSize, "%s=%s", key, (char *)value);
+
+   ASSERT_MEM_ALLOC(DynBuf_AppendString(nativeEnvironStrings, itemBuf));
+
+   /*
+    * Get the relative offset of our newly added string (relative to the DynBuf's base
+    * address), and then append that to nativeEnvironOffsets.
+    */
+   itemOffset = DynBuf_GetSize(nativeEnvironStrings) - itemSize;
+   ASSERT_MEM_ALLOC(DynBuf_Append(nativeEnvironOffsets, &itemOffset, sizeof itemOffset));
+
+   free(itemBuf);
+
+   return 0;
 }

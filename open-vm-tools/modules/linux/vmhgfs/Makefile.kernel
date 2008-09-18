@@ -30,6 +30,7 @@ EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c, -DVMW_HAVE_E
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/maxbytes.c, -DVMW_SB_HAS_MAXBYTES, )
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
+EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
 
 # Note: These tests are inverted
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/getsb1.c,, -DVMW_GETSB_2618)

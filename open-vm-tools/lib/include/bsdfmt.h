@@ -69,8 +69,17 @@ typedef intptr_t ptrdiff_t;
 
 /* For u_int and u_long, and other types we might want. */
 #include <unistd.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <stddef.h>
+
+#if defined(__FreeBSD__) && __FreeBSD_version < 500029
+#define INTMAX_MAX   9223372036854775807LL
+#define UINTMAX_MAX  18446744073709551615ULL
+typedef int64        intmax_t;
+typedef uint64       uintmax_t;
+typedef int32        wint_t;
+#endif
 
 #endif // }
 

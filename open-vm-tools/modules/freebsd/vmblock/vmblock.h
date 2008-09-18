@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2008 VMware, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,25 @@
  * vmblock.h --
  *
  *   User-level interface to the vmblock device.
+ *
+ *   VMBLOCK_DEVICE should be opened with VMBLOCK_DEVICE_MODE mode. Then
+ *   VMBLOCK_CONTROL should be called to perform blocking operations.
+ *   The links which can be blocked are in the directory VMBLOCK_MOUNT_POINT.
+ *
+ *   VMBLOCK_CONTROL takes the file descriptor of the VMBLOCK_DEVICE, an
+ *   operation, and the path of the target of the file being operated on (if
+ *   applicable).
+ *
+ *   The operation should be one of:
+ *   VMBLOCK_ADD_FILEBLOCK
+ *   VMBLOCK_DEL_FILEBLOCK
+ *   VMBLOCK_LIST_FILEBLOCKS
+ *
+ *   path should be something in /tmp/VMwareDnD/ rather than in
+ *   VMBLOCK_MOUNT_POINT.
+ *
+ *   VMBLOCK_CONTROL returns 0 on success or returns -1 and sets errno on
+ *   failure.
  */
 
 #ifndef _VMBLOCK_H_
@@ -48,7 +67,69 @@
 #define VMBLOCK_FS_NAME                "vmblock"
 
 /* Commands for the control half of vmblock driver */
-#if defined(linux)
+#if defined(vmblock_fuse)
+# include <unistd.h>
+# include <limits.h>
+# include <string.h>
+# include <errno.h>
+# include "vm_basic_types.h"
+# define VMBLOCK_ADD_FILEBLOCK        'a'
+# define VMBLOCK_DEL_FILEBLOCK        'd'
+# ifdef VMX86_DEVEL
+#  define VMBLOCK_LIST_FILEBLOCKS     'l'
+# endif /* VMX86_DEVEL */
+/*
+ * Some of the following names don't actually make much sense on their own.
+ * They're used for consistency with the other ports. See the file header for
+ * explanations of what they're used for.
+ */
+# define VMBLOCK_DEVICE_NAME          "dev"
+# define VMBLOCK_CONTROL_MOUNTPOINT   "blockdir"
+# define VMBLOCK_DEVICE               "/tmp/vmblock/" VMBLOCK_DEVICE_NAME
+# define VMBLOCK_DEVICE_MODE          O_WRONLY
+# define VMBLOCK_MOUNT_POINT          "/tmp/vmblock/" VMBLOCK_CONTROL_MOUNTPOINT
+static INLINE ssize_t
+         VMBLOCK_CONTROL(int fd, char op, const char *path)
+{
+   /*
+    * buffer needs room for an operation character and a string with max length
+    * PATH_MAX - 1.
+    */
+
+   char buffer[PATH_MAX];
+   size_t pathLength;
+
+   pathLength = strlen(path);
+   if (pathLength >= PATH_MAX) {
+      errno = ENAMETOOLONG;
+      return -1;
+   }
+
+   buffer[0] = op;
+   memcpy(buffer + 1, path, pathLength);
+
+   /*
+    * The lseek is only to prevent the file pointer from overflowing;
+    * vmblock-fuse ignores the file pointer / offset. Overflowing the file
+    * pointer causes write to fail:
+    * http://article.gmane.org/gmane.comp.file-systems.fuse.devel/6648
+    * There's also a race condition here where many threads all calling
+    * VMBLOCK_CONTROL at the same time could have all their seeks executed one
+    * after the other, followed by all the writes. Again, it's not a problem
+    * unless the file pointer overflows which is very unlikely with 32 bit
+    * offsets and practically impossible with 64 bit offsets.
+    */
+
+   if (lseek(fd, 0, SEEK_SET) < 0) {
+      return -1;
+   }
+   if (write(fd, buffer, pathLength + 1) < 0) {
+      return -1;
+   }
+   return 0;
+}
+
+#elif defined(linux)
 # define VMBLOCK_ADD_FILEBLOCK          98
 # define VMBLOCK_DEL_FILEBLOCK          99
 # ifdef VMX86_DEVEL

@@ -24,9 +24,14 @@
 
 typedef struct {
    HWND detWnd;
+   void (*setMode) (Bool);
 } UnityDnD;
 
-#elif defined(GTK2)
+/*
+ * Callers who desire the gtk implementation must include at least one gtk
+ * header before this one.
+ */
+#elif defined(GTK_CHECK_VERSION)
 
 #include <gtk/gtk.h>
 

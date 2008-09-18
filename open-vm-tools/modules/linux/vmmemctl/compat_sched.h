@@ -271,4 +271,21 @@ static inline int compat_try_to_freeze(void) { return 0; }
 #define compat_set_freezable() do {} while (0)
 #endif
 
+/*
+ * Since 2.6.27-rc2 kill_proc() is gone... Replacement (GPL-only!)
+ * API is available since 2.6.19.  Use them from 2.6.27-rc1 up.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+typedef int compat_pid;
+#define compat_find_get_pid(pid) (pid)
+#define compat_put_pid(pid) do { } while (0)
+#define compat_kill_pid(pid, sig, flag) kill_proc(pid, sig, flag)
+#else
+typedef struct pid * compat_pid;
+#define compat_find_get_pid(pid) find_get_pid(pid)
+#define compat_put_pid(pid) put_pid(pid)
+#define compat_kill_pid(pid, sig, flag) kill_pid(pid, sig, flag)
+#endif
+
+
 #endif /* __COMPAT_SCHED_H__ */

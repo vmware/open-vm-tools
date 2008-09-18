@@ -152,7 +152,7 @@ Atomic_VolatileToAtomic(volatile uint32 *var)
 // The freebsd assembler doesn't know the lfence instruction
 #if defined(__GNUC__) &&                                                \
      __GNUC__ >= 3 &&                                                   \
-    !defined(BSD_VERSION) &&                                            \
+    (defined(__VMKERNEL__) || !defined(__FreeBSD__)) &&                 \
     (!defined(MODULE) || defined(__VMKERNEL_MODULE__)) &&               \
     !defined(__APPLE__) /* PR136775 */
 #define ATOMIC_USE_FENCE
