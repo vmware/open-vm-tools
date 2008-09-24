@@ -197,7 +197,7 @@ Bool GuestApp_FindProgram(const char *program);
 #endif
 
 Bool
-GuestApp_ControlRecord(int32 mode); //  IN
+GuestApp_ControlRecord(int32 command); //  IN
 #ifdef __cplusplus
 }
 #endif

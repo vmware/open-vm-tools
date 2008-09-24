@@ -100,7 +100,7 @@ static CmdTable commands[] = {
    { "disk", DiskCommand, TRUE, DiskHelp},
    { "stat", StatCommand, FALSE, StatHelp},
    { "device", DeviceCommand, FALSE, DeviceHelp},
-   { "record", RecordCommand, TRUE, RecordHelp},
+   { "record", RecordCommand, FALSE, RecordHelp},
    { "help", HelpCommand, FALSE, ToolboxCmdHelp},
    { NULL, } };
 

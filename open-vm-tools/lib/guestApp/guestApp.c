@@ -1853,8 +1853,8 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
  *
  * GuestApp_ControlRecord --
  *
- *    Start or stop recording process, flagged by mode. 
- *    Mode definition is in statelogger_backdoor_def.h.
+ *    Start or stop recording process, flagged by command. 
+ *    Command definition is in statelogger_backdoor_def.h.
  *
  * Results:
  *    TRUE on success and FALSE on failure.
@@ -1866,10 +1866,10 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
  */
 
 Bool
-GuestApp_ControlRecord(int32 mode) // IN: flag of starting or stopping recording
+GuestApp_ControlRecord(int32 command) // IN: flag of starting or stopping recording
 {
    Backdoor_proto bp;
-   bp.in.size = mode;
+   bp.in.size = command;
    bp.in.cx.halfs.low = BDOOR_CMD_STATELOGGER;
    Backdoor(&bp);
    return (bp.out.ax.halfs.low == 1);
