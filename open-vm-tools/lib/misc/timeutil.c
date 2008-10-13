@@ -111,6 +111,43 @@ static struct tm* localtime_r(time_t* secs, struct tm* tp)
 #endif
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * TimeUtil_MakeTime --
+ *
+ *    Converts a TimeUtil_Date to a time_t.
+ *
+ * Results:
+ *    A time_t.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+time_t
+TimeUtil_MakeTime(const TimeUtil_Date *d) // IN
+{
+   struct tm t;
+
+   ASSERT(d != NULL);
+
+   memset(&t, 0, sizeof t);
+
+   t.tm_mday = d->day;
+   t.tm_mon = d->month - 1;
+   t.tm_year = d->year - 1900;
+
+   t.tm_sec = d->second;
+   t.tm_min = d->minute;
+   t.tm_hour = d->hour;
+   t.tm_isdst = -1; /* Unknown. */
+
+   return mktime(&t);
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -134,7 +171,7 @@ static struct tm* localtime_r(time_t* secs, struct tm* tp)
 
 Bool
 TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
-                      const char *date)  // IN
+                      char const *date)  // IN
 {
    /*
     * Reduce the string to a known and handled format: YYYYMMDD.
@@ -171,9 +208,8 @@ TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
  *
  * TimeUtil_DeltaDays --
  *
- *    Seach for number of days differences between the two date
- *    arguments.
- *    This function is ignoring the time. It will be as if the time
+ *    Calculate the number of days between the two date arguments.
+ *    This function ignores the time. It will be as if the time
  *    is midnight (00:00:00).
  *
  * Results:
@@ -189,8 +225,8 @@ TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
  */
 
 int
-TimeUtil_DeltaDays(TimeUtil_Date *left,  // IN
-                   TimeUtil_Date *right) // IN
+TimeUtil_DeltaDays(TimeUtil_Date const *left,  // IN
+                   TimeUtil_Date const *right) // IN
 {
    TimeUtil_Date temp1;
    TimeUtil_Date temp2;
@@ -245,9 +281,9 @@ TimeUtil_DeltaDays(TimeUtil_Date *left,  // IN
 /*
  *----------------------------------------------------------------------
  *
- * TimeUtil_DaysSubstract --
+ * TimeUtil_DaysSubtract --
  *
- *    substracts 'nr' days from 'd'.
+ *    Subtracts 'nr' days from 'd'.
  *
  *    Simple algorithm - which can be improved as necessary:
  *    - get rough days estimation, also guarantee that the estimation is
@@ -257,7 +293,7 @@ TimeUtil_DeltaDays(TimeUtil_Date *left,  // IN
  *
  * TODO:
  *    This function can be combined with DaysAdd(), where it
- *    accepts integer (positive for add, negative for substract).
+ *    accepts integer (positive for addition, negative for subtraction).
  *    But, that cannot be done without changing the DaysAdd function
  *    signature.
  *    When this utility get rewritten, this can be updated.
@@ -272,8 +308,8 @@ TimeUtil_DeltaDays(TimeUtil_Date *left,  // IN
  */
 
 Bool
-TimeUtil_DaysSubstract(TimeUtil_Date *d,   // IN
-                       unsigned int nr)    // IN
+TimeUtil_DaysSubtract(TimeUtil_Date *d,   // IN/OUT
+                      unsigned int nr)    // IN
 {
    TimeUtil_Date temp;
    int subYear = 0;
@@ -297,8 +333,8 @@ TimeUtil_DaysSubstract(TimeUtil_Date *d,   // IN
     * 365 (instead of 366) days in a year
     * 30 (instead of 31) days in a month.
     *
-    *   To account that feb has fewer #days than 30, we will
-    *   intentionally substract an additional 2 days for each year
+    *   To account for February having fewer than 30 days, we will
+    *   intentionally subtract an additional 2 days for each year
     *   and an additional 3 days.
     */
    dayCount = dayCount + 3 + 2 * (dayCount / 365);

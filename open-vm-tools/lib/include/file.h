@@ -55,6 +55,14 @@ extern "C"{
 
 #define FILE_SEARCHPATHTOKEN ";"
 
+
+/*
+ * Opaque, platform-specific stucture for supporting the directory walking API.
+ */
+
+typedef struct WalkDirContextImpl WalkDirContextImpl;
+typedef const WalkDirContextImpl *WalkDirContext;
+
 #if defined(__APPLE__)
 typedef enum {
    FILEMACOS_UNMOUNT_SUCCESS,
@@ -76,6 +84,8 @@ EXTERN char *FileMacos_DiskDevToDiskName(char const *bsdDiskDev);
 
 EXTERN char *FileMacos_SliceDevToSliceUUID(char const *bsdSliceDev);
 EXTERN char *FileMacos_SliceUUIDToSliceDev(char const *uuid);
+#elif defined VMX86_SERVER
+EXTERN int File_GetVMFSBlockSize(ConstUnicode pathName, uint32 *blockSize);
 #endif
 
 EXTERN Bool File_Exists(ConstUnicode pathName);
@@ -110,6 +120,15 @@ EXTERN Bool File_DeleteDirectoryTree(ConstUnicode pathName);
 
 EXTERN int File_ListDirectory(ConstUnicode pathName,
                               Unicode **ids);
+
+/*
+ * Simple file-system walk.
+ */
+
+EXTERN WalkDirContext File_WalkDirectoryStart(ConstUnicode parentPath);
+EXTERN Bool File_WalkDirectoryNext(WalkDirContext context,
+                                   Unicode *path);
+EXTERN void File_WalkDirectoryEnd(WalkDirContext context);
 
 EXTERN Bool File_IsWritableDir(ConstUnicode dirName);
 

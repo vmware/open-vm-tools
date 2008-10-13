@@ -21,6 +21,7 @@ libGuestRpc_a_SOURCES =
 libGuestRpc_a_SOURCES += ghiGetBinaryHandlers_xdr.c
 libGuestRpc_a_SOURCES += ghiProtocolHandler_xdr.c
 libGuestRpc_a_SOURCES += nicinfo_xdr.c
+libGuestRpc_a_SOURCES += unityActive_xdr.c
 
 nodist_libGuestRpc_a_SOURCES =
 nodist_libGuestRpc_a_SOURCES += ghiGetBinaryHandlers.h
@@ -29,6 +30,8 @@ nodist_libGuestRpc_a_SOURCES += ghiProtocolHandler.h
 nodist_libGuestRpc_a_SOURCES += ghiProtocolHandler_xdr.c
 nodist_libGuestRpc_a_SOURCES += nicinfo.h
 nodist_libGuestRpc_a_SOURCES += nicinfo_xdr.c
+nodist_libGuestRpc_a_SOURCES += unityActive.h
+nodist_libGuestRpc_a_SOURCES += unityActive_xdr.c
 
 # XXX: Autoreconf complains about this and recommends using AM_CFLAGS instead.
 # Neither that nor libGuestRpc_a_CFLAGS work, though. What gives?
@@ -41,11 +44,14 @@ CLEANFILES += ghiProtocolHandler.h
 CLEANFILES += ghiProtocolHandler_xdr.c
 CLEANFILES += nicinfo.h
 CLEANFILES += nicinfo_xdr.c
+CLEANFILES += unityActive.h
+CLEANFILES += unityActive_xdr.c
 
 EXTRA_DIST =
 EXTRA_DIST += ghiGetBinaryHandlers.x
 EXTRA_DIST += ghiProtocolHandler.x
 EXTRA_DIST += nicinfo.x
+EXTRA_DIST += unityActive.x
 
 ## `make clean` should also remove the copied headers.
 clean-local:
@@ -80,4 +86,14 @@ nicinfo.h: nicinfo.x
 
 nicinfo_xdr.c: nicinfo.x nicinfo.h
 	$(RPCGEN) -c -o $@ nicinfo.x
+
+unityActive.h: unityActive.x
+	$(RPCGEN) -h -o $@ unityActive.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+unityActive_xdr.c: unityActive.x unityActive.h
+	$(RPCGEN) -c -o $@ unityActive.x
 

@@ -880,6 +880,9 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber) // IN
 #ifdef VMX86_SERVER
    if (HostType_OSIsVMK()) {
       char mName[48];
+
+      // VMKernel treats mName as an in/out parameter so terminate it.
+      mName[0] = '\0';
       if (VMKernel_GetCPUModelName(mName, cpuNumber, sizeof(mName)) == VMK_OK) {
 	 mName[sizeof(mName) - 1] = '\0';
          return strdup(mName);
@@ -1056,7 +1059,8 @@ HostinfoGetMemInfo(char *name,          //IN
  *      Retrieve system information on a Linux system.
  *    
  * Results:
- *      TRUE on success: '*totalRam' and '*freeRam' are set if not NULL
+ *      TRUE on success: '*totalRam', '*freeRam', '*totalSwap' and '*freeSwap'
+ *                       are set if not NULL
  *      FALSE on failure
  *
  * Side effects:
@@ -1070,8 +1074,10 @@ HostinfoGetMemInfo(char *name,          //IN
  */
 
 static Bool
-HostinfoSysinfo(uint64 *totalRam, // OUT: Total RAM in bytes
-                uint64 *freeRam)  // OUT: Free RAM in bytes
+HostinfoSysinfo(uint64 *totalRam,  // OUT: Total RAM in bytes
+                uint64 *freeRam,   // OUT: Free RAM in bytes
+                uint64 *totalSwap, // OUT: Total swap in bytes
+                uint64 *freeSwap)  // OUT: Free swap in bytes
 {
 #ifdef HAVE_SYSINFO
    // Found in linux/include/kernel.h for a 2.5.6 kernel --hpreg
@@ -1111,6 +1117,12 @@ HostinfoSysinfo(uint64 *totalRam, // OUT: Total RAM in bytes
    }
    if (freeRam) {
       *freeRam = (uint64)si.freeram * si.mem_unit;
+   }
+   if (totalSwap) {
+      *totalSwap = (uint64)si.totalswap * si.mem_unit;
+   }
+   if (freeSwap) {
+      *freeSwap = (uint64)si.freeswap * si.mem_unit;
    }
 
    return TRUE;
@@ -1165,7 +1177,7 @@ HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,     // OUT
     * leave that to be done in serverd/MUI.
     */
 
-   if (HostinfoSysinfo(&total, &free) == FALSE) {
+   if (HostinfoSysinfo(&total, &free, NULL, NULL) == FALSE) {
       return FALSE;
    }
 
@@ -1186,6 +1198,46 @@ HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,     // OUT
    HostinfoGetMemInfo("Cached:", &cached);
    if (currentSize) {
       *currentSize = free / PAGE_SIZE + cached / (PAGE_SIZE / 1024);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoGetSwapInfoInPages --
+ *
+ *      Obtain the total swap and free swap on the host (Linux or COS) in pages.
+ *
+ * Results:
+ *      TRUE on success: '*totalSwap' and '*freeSwap' are set if not NULL
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,     // OUT
+                            unsigned int *freeSwap)      // OUT
+{
+   uint64 total; 
+   uint64 free;
+
+   if (HostinfoSysinfo(NULL, NULL, &total, &free) == FALSE) {
+      return FALSE;
+   }
+
+   if (totalSwap != NULL) {
+      *totalSwap = total / PAGE_SIZE;
+   }
+
+   if (freeSwap != NULL) {
+      *freeSwap = free / PAGE_SIZE;
    }
 
    return TRUE;

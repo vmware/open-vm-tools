@@ -210,6 +210,12 @@ typedef struct HgfsSearch {
    /* Length of directory name (does not include nul terminator) */
    size_t utf8DirLen;
 
+   /* Share name. */
+   char *utf8ShareName;
+
+   /* Share name length. */
+   size_t utf8ShareNameLen;
+
    /* Directory entries for this search */
    DirectoryEntry **dents;
 
@@ -276,6 +282,7 @@ typedef struct HgfsFileAttrInfo {
    uint32 userId;                /* User identifier, ignored by Windows */
    uint32 groupId;               /* group identifier, ignored by Windows */
    uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
+   uint32 volumeId;              /* Volume Id of the volune on which the file resides */
 } HgfsFileAttrInfo;
 
 typedef struct HgfsCreateDirInfo {
@@ -347,6 +354,7 @@ HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
 HgfsInternalStatus
 HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
                   size_t baseDirLen,        // IN: Length of directory
+                  Bool followSymlinks,      // IN: followSymlinks config option
                   DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
                   int *numDents);           // OUT: Number of DirectoryEntrys
 
@@ -354,6 +362,7 @@ HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                         size_t baseDirLen,        // IN: Length of directory
                         DirectorySearchType type, // IN: Kind of search
+                        char const *shareName,    // IN: Share name
                         HgfsHandle *handle);      // OUT: Search handle
 
 HgfsInternalStatus

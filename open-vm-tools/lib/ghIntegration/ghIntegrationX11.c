@@ -966,6 +966,345 @@ GHIPlatformGetDesktopName(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * GHIPlatformIsMenuItemAllowed --
+ *
+ *      This routine tells the caller, based on policies defined by the .desktop file,
+ *      whether the requested application should be displayed in the Unity menus.
+ *
+ * Results:
+ *      TRUE if the item should be displayed, FALSE if it should not be.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+GHIPlatformIsMenuItemAllowed(GHIPlatform *ghip, // IN:
+                             GKeyFile *keyfile) // IN:
+{
+   const char *dtname;
+
+   ASSERT(ghip);
+   ASSERT(keyfile);
+
+   /*
+    * Examine the "NoDisplay" and "Hidden" properties.
+    */
+   if (g_key_file_get_boolean(keyfile,
+			      G_KEY_FILE_DESKTOP_GROUP,
+			      G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY,
+			      NULL) ||
+       g_key_file_get_boolean(keyfile,
+                              G_KEY_FILE_DESKTOP_GROUP,
+                              G_KEY_FILE_DESKTOP_KEY_HIDDEN,
+                              NULL)) {
+      Debug("%s: contains either NoDisplay or Hidden keys.\n", __func__);
+      return FALSE;
+   }
+
+   /*
+    * NB: This may return NULL.
+    * XXX Perhaps that should be changed to return an empty string?
+    */
+   dtname = GHIPlatformGetDesktopName();
+
+   /*
+    * Check our desktop environment name against the OnlyShowIn and NotShowIn
+    * lists.
+    *
+    * NB:  If the .desktop file defines OnlyShowIn as an empty string, we
+    * effectively ignore it.  (Another interpretation would be that an application
+    * shouldn't appear at all, but that's what the NoDisplay and Hidden keys are
+    * for.)
+    *
+    * XXX I didn't see anything in the Key-value file parser reference, but I'm
+    * wondering if there's some other GLib string list searching goodness that
+    * would obviate the boilerplate-ish code below.
+    */
+   {
+      gchar **onlyShowList = NULL;
+      gsize nstrings;
+
+      onlyShowList = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
+                                                G_KEY_FILE_DESKTOP_KEY_ONLY_SHOW_IN,
+                                                &nstrings, NULL);
+      if (onlyShowList && nstrings) {
+         Bool matchedOnlyShowIn = FALSE;
+         int i;
+
+         if (dtname) {
+            for (i = 0; i < nstrings; i++) {
+               if (strcasecmp(dtname, onlyShowList[i]) == 0) {
+                  matchedOnlyShowIn = TRUE;
+                  break;
+               }
+            }
+         }
+
+         if (!matchedOnlyShowIn) {
+            Debug("%s: OnlyShowIn does not include our desktop environment, %s.\n",
+                  __func__, dtname ? dtname : "(not set)");
+            g_strfreev(onlyShowList);
+            return FALSE;
+         }
+      }
+      g_strfreev(onlyShowList);
+   }
+
+   if (dtname) {
+      gchar **notShowList = NULL;
+      gsize nstrings;
+      int i;
+
+      notShowList = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
+                                               G_KEY_FILE_DESKTOP_KEY_NOT_SHOW_IN,
+                                               &nstrings, NULL);
+      if (notShowList && nstrings) {
+         for (i = 0; i < nstrings; i++) {
+            if (strcasecmp(dtname, notShowList[i]) == 0) {
+               Debug("%s: NotShowIn includes our desktop environment, %s.\n",
+                     __func__, dtname);
+               g_strfreev(notShowList);
+               return FALSE;
+            }
+         }
+      }
+      g_strfreev(notShowList);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIPlatformGetExecFromKeyFile --
+ *
+ *      Given a GLib GKeyFile, extract path(s) from the TryExec or Exec
+ *      keys, normalize them, and return them to the caller.
+ *
+ * Results:
+ *      Returns a string pointer to an absolute executable pathname on success or
+ *      NULL on failure.
+ *
+ * Side effects:
+ *      This routine returns memory allocated by GLib.  Caller is responsible
+ *      for freeing it via g_free.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gchar *
+GHIPlatformGetExecFromKeyfile(GHIPlatform *ghip, // IN
+                              GKeyFile *keyfile) // IN
+{
+   gchar *exe = NULL;
+
+   /*
+    * TryExec is supposed to be a path to an executable without arguments that,
+    * if set but not found or not executable, indicates that this menu item should
+    * be skipped.
+    */
+   {
+      gchar *tryExec;
+
+      tryExec = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
+                                      G_KEY_FILE_DESKTOP_KEY_TRY_EXEC, NULL);
+      if (tryExec) {
+         gchar *ctmp;
+         ctmp = g_find_program_in_path(tryExec);
+
+         if (ctmp == NULL) {
+            Debug("%s: Entry has TryExec=%s, but it was not found in our PATH.\n",
+                  __func__, tryExec);
+            g_free(tryExec);
+            return NULL;
+         }
+
+         g_free(ctmp);
+         g_free(tryExec);
+      }
+   }
+
+   /*
+    * Next up:  Look up Exec key and do some massaging to skip over common interpreters.
+    */
+   {
+      char *exec;
+      char **argv;
+      int argc;
+      int i;
+      gboolean parsed;
+
+      exec = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
+                                   G_KEY_FILE_DESKTOP_KEY_EXEC, NULL);
+
+      if (!exec) {
+         Debug("%s: Missing Exec key.\n", __func__);
+         return NULL;
+      }
+
+      parsed = g_shell_parse_argv(exec, &argc, &argv, NULL);
+      g_free(exec);
+
+      if (!parsed) {
+         Debug("%s: Unable to parse shell arguments.\n", __func__);
+         return NULL;
+      }
+
+      for (i = 0; i < argc; i++) {
+         /*
+          * The Exec= line in the .desktop file may list other boring helper apps before
+          * the name of the main app. getproxy is a common one. We need to skip those
+          * arguments in the cmdline.
+          */
+         if (!AppUtil_AppIsSkippable(argv[i])) {
+            exe = g_strdup(argv[i]);
+            break;
+         }
+      }
+      g_strfreev(argv);
+   }
+
+   /*
+    * Turn it into a full path.  Yes, if we can't get an absolute path, we'll return
+    * NULL.
+    */
+   if (exe && *exe != '/') {
+      gchar *ctmp;
+
+      ctmp = g_find_program_in_path(exe);
+      g_free(exe);
+      exe = ctmp;
+      if (!exe) {
+         Debug("%s: Unable to find program in PATH.\n", __func__);
+      }
+   }
+
+   return exe;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIPlatformAddMenuItem --
+ *
+ *      Examines an application's .desktop file and inserts it into an appropriate
+ *      Unity application menu.
+ *
+ * Results:
+ *      A new GHIMenuItem will be created.  If our desired menu directory doesn't
+ *      already exist, then we'll create that, too.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
+                       const char *keyfilePath, // IN:
+                       GKeyFile *keyfile,       // IN:
+                       char *exePath)           // IN:
+{
+   /*
+    * A list of categories that a .desktop file should be in in order to be relayed to
+    * the host.
+    *
+    * NB: "Other" is a generic category where we dump applications for which we can't
+    * determine an appropriate category.  This is "safe" as long as menu-spec doesn't
+    * register it, and I don't expect that to happen any time soon.  It is -extremely-
+    * important that "Other" be the final entry in this list.
+    */
+   static const char *validCategories[] = {
+     "AudioVideo",
+     "Development",
+     "Education",
+     "Game",
+     "Graphics",
+     "Network",
+     "Office",
+     "Settings",
+     "System",
+     "Utility",
+     "Other"
+   };
+
+   GHIMenuDirectory *gmd;
+   GHIMenuItem *gmi;
+   Bool foundIt = FALSE;
+   char **categories = NULL;
+   gsize numcats;
+   int kfIndex;                 // keyfile categories index/iterator
+   int vIndex;                  // validCategories index/iterator
+
+   /*
+    * Figure out if this .desktop file is in a category we want to put on our menus,
+    * and if so which one...
+    */
+   categories = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
+                                           G_KEY_FILE_DESKTOP_KEY_CATEGORIES,
+                                           &numcats, NULL);
+   if (categories) {
+      for (kfIndex = 0; kfIndex < numcats && !foundIt; kfIndex++) {
+         /*
+          * NB:  See validCategories' comment re: "Other" being the final, default
+          * category.  It explains why we condition on ARRAYSIZE() - 1.
+          */
+         for (vIndex = 0; vIndex < ARRAYSIZE(validCategories) - 1; vIndex++) {
+            if (!strcasecmp(categories[kfIndex], validCategories[vIndex])) {
+               foundIt = TRUE;
+               break;
+            }
+         }
+      }
+      g_strfreev(categories);
+   }
+
+   /*
+    * If not found, fall back to "Other".
+    */
+   if (!foundIt) {
+      vIndex = ARRAYSIZE(validCategories) - 1;
+   }
+
+   /*
+    * We have all the information we need to create the new GHIMenuItem.
+    */
+   gmi = g_new0(GHIMenuItem, 1);
+   gmi->keyfilePath = g_strdup(keyfilePath);
+   gmi->keyfile = keyfile;
+   gmi->exepath = exePath;
+
+   gmd = g_tree_lookup(ghip->apps, validCategories[vIndex]);
+
+   if (!gmd) {
+      /*
+       * A GHIMenuDirectory object does not yet exist for the validCategory
+       * that this .desktop is in, so create that object.
+       */
+      gmd = g_new0(GHIMenuDirectory, 1);
+      gmd->dirname = validCategories[vIndex];
+      gmd->items = g_ptr_array_new();
+      g_tree_insert(ghip->apps, (gpointer)validCategories[vIndex], gmd);
+      Debug("Created new category '%s'\n", gmd->dirname);
+   }
+
+   g_ptr_array_add(gmd->items, gmi);
+   g_hash_table_insert(ghip->appsByExecutable, gmi->exepath, gmi);
+   g_hash_table_insert(ghip->appsByDesktopEntry, gmi->keyfilePath, gmi);
+   Debug("Loaded desktop item for %s into %s\n", gmi->exepath, gmd->dirname);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * GHIPlatformReadDesktopFile --
  *
  *      Reads a .desktop file into our internal representation of the available
@@ -984,178 +1323,42 @@ static void
 GHIPlatformReadDesktopFile(GHIPlatform *ghip, // IN
                            const char *path)  // IN
 {
-   /*
-    * A list of categories that a .desktop file should be in in order to be relayed to
-    * the host.
-    */
-   static const char *validCategories[] = {
-     "AudioVideo",
-     "Development",
-     "Education",
-     "Game",
-     "Graphics",
-     "Network",
-     "Office",
-     "Settings",
-     "System",
-     "Utility"
-   };
-   char **categories = NULL;
-   gsize numcats;
    GKeyFile *keyfile = NULL;
-   int i;
-   int j;
-   GHIMenuDirectory *gmd;
-   GHIMenuItem *gmi;
-   char *exe = NULL;
-   char *ctmp = NULL;
-   const char *dtname;
+   gchar *exe = NULL;
+
+   Debug("%s: Analyzing %s.\n", __func__, path);
+
+   /*
+    * First load our .desktop file into a GLib GKeyFile structure.  Then perform
+    * some rudimentary policy checks based on keys like NoDisplay and OnlyShowIn.
+    */
 
    keyfile = g_key_file_new();
    if (!keyfile) {
+      Debug("%s: g_key_file_new failed.\n", __func__);
       return;
    }
 
-   if (!g_key_file_load_from_file(keyfile, path, 0, NULL)) {
-      return;
-   }
-
-   if (g_key_file_get_boolean(keyfile,
-			      G_KEY_FILE_DESKTOP_GROUP,
-			      G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY,
-			      NULL) ||
-       g_key_file_get_boolean(keyfile,
-                              G_KEY_FILE_DESKTOP_GROUP,
-                              G_KEY_FILE_DESKTOP_KEY_HIDDEN,
-                              NULL)) {
+   if (!g_key_file_load_from_file(keyfile, path, 0, NULL) ||
+       !GHIPlatformIsMenuItemAllowed(ghip, keyfile)) {
       g_key_file_free(keyfile);
+      Debug("%s: Unable to load .desktop file or told to skip it.\n", __func__);
       return;
    }
 
-   dtname = GHIPlatformGetDesktopName();
-   ctmp = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                G_KEY_FILE_DESKTOP_KEY_ONLY_SHOW_IN, NULL);
-   if (ctmp && (!dtname || strcasecmp(dtname, ctmp) != 0)) {
-      goto exit;
-   }
-   g_free(ctmp);
-
-   ctmp = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                G_KEY_FILE_DESKTOP_KEY_NOT_SHOW_IN, NULL);
-   if (ctmp && dtname && strcasecmp(dtname, ctmp) == 0) {
-      goto exit;
-   }
-   g_free(ctmp);
-   ctmp = NULL;
-
-   exe = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                               G_KEY_FILE_DESKTOP_KEY_TRY_EXEC, NULL);
-   if (!exe) {
-      char *ctmp;
-      char **argv;
-      int argc;
-      gboolean res;
-
-      ctmp = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                   G_KEY_FILE_DESKTOP_KEY_EXEC, NULL);
-
-      if (!ctmp) {
-         g_key_file_free(keyfile);
-         return;
-      }
-
-      res = g_shell_parse_argv(ctmp, &argc, &argv, NULL);
-      if (!res) {
-         return;
-      }
-
-      g_free(ctmp);
-      for (i = 0; i < argc; i++) {
-         /*
-          * The Exec= line in the .desktop file may list other boring helper apps before
-          * the name of the main app. getproxy is a common one. We need to skip those
-          * arguments in the cmdline.
-          */
-         if (!AppUtil_AppIsSkippable(argv[i])) {
-            exe = g_strdup(argv[i]);
-            break;
-         }
-      }
-      g_strfreev(argv);
-   }
-
    /*
-    * Turn it into a full path.
+    * Okay, policy checks passed.  Next up, obtain a normalized executable path,
+    * and if successful insert it into our menus.
     */
-   if (exe && *exe != '/') {
-      char *ctmp;
 
-      ctmp = AppUtil_CanonicalizeAppName(exe, NULL);
-      g_free(exe);
-      exe = ctmp;
-   }
-
-   /*
-    * Figure out if this .desktop file is in a category we want to put on our menus,
-    * and if so which one...
-    */
+   exe = GHIPlatformGetExecFromKeyfile(ghip, keyfile);
    if (exe) {
-      categories = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                              G_KEY_FILE_DESKTOP_KEY_CATEGORIES,
-                                              &numcats, NULL);
+      /* The following routine takes ownership of keyfile and exec. */
+      GHIPlatformAddMenuItem(ghip, path, keyfile, exe);
+   } else {
+      Debug("%s: Could not find executable for %s\n", __func__, path);
+      g_key_file_free(keyfile);
    }
-
-   /*
-    * If we couldn't find the executable on the $PATH, or the .desktop file is listed as
-    * "do not display", then skip it.
-    */
-   if (exe && categories) {
-      for (i = 0; i < numcats; i++) {
-         for (j = 0; j < ARRAYSIZE(validCategories); j++) {
-            if (!strcasecmp(categories[i], validCategories[j])) {
-               /*
-                * We have all the information we need to create the new GHIMenuItem.
-                */
-               gmi = g_new0(GHIMenuItem, 1);
-               gmi->keyfilePath = g_strdup(path);
-               gmi->keyfile = keyfile;
-               gmi->exepath = exe;
-
-               g_strfreev(categories);
-               gmd = g_tree_lookup(ghip->apps, validCategories[j]);
-
-               if (!gmd) {
-                  /*
-                   * A GHIMenuDirectory object does not yet exist for the validCategory
-                   * that this .desktop is in, so create that object.
-                   */
-                  gmd = g_new0(GHIMenuDirectory, 1);
-                  gmd->dirname = validCategories[j];
-                  gmd->items = g_ptr_array_new();
-                  g_tree_insert(ghip->apps, (gpointer)validCategories[j], gmd);
-                  Debug("Created new category '%s'\n", gmd->dirname);
-               }
-
-               g_ptr_array_add(gmd->items, gmi);
-               g_hash_table_insert(ghip->appsByExecutable, gmi->exepath, gmi);
-               g_hash_table_insert(ghip->appsByDesktopEntry, gmi->keyfilePath, gmi);
-               Debug("Loaded desktop item for %s\n", gmi->exepath);
-
-	       return;
-            }
-         }
-      }
-   }
-
- exit:
-   /*
-    * If everything didn't work out, free all the misc memory that was allocated.
-    */
-   Debug("Could not find validCategories in categories of %s\n", path);
-   g_free(exe);
-   g_free(ctmp);
-   g_strfreev(categories);
-   g_key_file_free(keyfile);
 }
 
 
@@ -1199,7 +1402,9 @@ GHIPlatformReadApplicationsDir(GHIPlatform *ghip, // IN
       struct stat sbuf;
       int subpathLen;
 
-      if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) {
+      if (!strcmp(dent->d_name, ".") ||
+          !strcmp(dent->d_name, "..") ||
+          !strcmp(dent->d_name, ".hidden")) {
 	continue;
       }
 

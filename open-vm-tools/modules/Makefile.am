@@ -13,8 +13,11 @@ export vmhgfsdir := $(MODULES_DIR)/fs/vmhgfs
 export vmmemctldir := $(MODULES_DIR)/drivers/misc
 export vmsyncdir := $(MODULES_DIR)/drivers/misc
 export vmxnetdir := $(MODULES_DIR)/drivers/net
+export vmxnet3dir := $(MODULES_DIR)/drivers/net
 export vsockdir := $(MODULES_DIR)/net/vsock
+if WITH_ROOT_PRIVILEGES
 export DEPMOD := depmod -a
+endif WITH_ROOT_PRIVILEGES
 endif LINUX
 
 if FREEBSD

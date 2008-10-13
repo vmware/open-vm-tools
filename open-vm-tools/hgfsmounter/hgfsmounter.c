@@ -858,7 +858,21 @@ main(int argc,          // IN
          break;
 #endif
       case 'o':
-         optionString = strdup(optarg);
+         if (optionString == NULL) {
+            optionString = strdup(optarg);
+         } else {
+            size_t newLength;
+            char *savedString = optionString;
+            newLength = strlen(optionString) + strlen(",") +
+                        strlen(optarg) + sizeof '\0';
+            optionString = realloc(optionString, newLength);
+            if (optionString != NULL) {
+               Str_Strcat(optionString, ",", newLength);
+               Str_Strcat(optionString, optarg, newLength);
+            } else {
+               free(savedString);
+            }
+         }
          if (optionString == NULL) {
             printf("Error: could not allocate memory for options\n");
             goto out;

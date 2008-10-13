@@ -75,10 +75,6 @@ A million repetitions of "a"
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
-#if defined(_WIN32)
-#define Bswap(x) ((rol((x), 24) & 0xff00ff00) | (rol((x), 8) & 0x00ff00ff))
-#endif
-
 #define F0(w,x,y) ((w&(x^y))^y)
 #define F1(w,x,y) (w^x^y)
 #define F2(w,x,y) (((w|x)&y)|(w&x))

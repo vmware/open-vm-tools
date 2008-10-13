@@ -39,5 +39,5 @@ $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)
 
 clean:
 	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
-	Module.symvers Modules.symvers \
+	Module.symvers Modules.symvers Module.markers modules.order \
 	$(foreach dir,./ linux/,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))

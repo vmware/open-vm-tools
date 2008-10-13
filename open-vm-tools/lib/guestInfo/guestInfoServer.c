@@ -47,9 +47,9 @@
 #include "guestInfoInt.h"
 #include "buildNumber.h"
 #include "system.h"
-#include "wiper.h" // for WiperPartition functions
 #include "guest_msg_def.h" // For GUESTMSG_MAX_IN_SIZE
 #include "xdrutil.h"
+#include "wiper.h"
 
 #define GUESTINFO_DEFAULT_DELIMITER ' '
 
@@ -123,6 +123,12 @@ GuestInfoServer_Init(DblLnkLst_Links *eventQueue) // IN: queue for event loop
                          GuestInfoGather, NULL)) {
       Debug("Unable to add initial event.\n");
       return FALSE;
+   }
+   
+   /* Initialize the wiper library. */
+   if (!Wiper_Init(NULL)) {
+      Debug("GetDiskInfo: ERROR: could not initialize wiper library\n");
+      gDisableQueryDiskInfo = TRUE;
    }
 
    return TRUE;
@@ -284,10 +290,20 @@ GuestInfoGather(void *clientData)   // IN: unused
    /* Get NIC information. */
    if (!GuestInfoGetNicInfo(&nicInfo)) {
       Debug("Failed to get nic info.\n");
-   } else {
-      if (!GuestInfoUpdateVmdb(INFO_IPADDRESS, &nicInfo)) {
+   } else if (NicInfoChanged(&nicInfo)) {
+      if (GuestInfoUpdateVmdb(INFO_IPADDRESS, &nicInfo)) {
+         /*
+          * Update the cache. Release the memory previously used by the cache,
+          * and copy the new information into the cache.
+          */
+         VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
+         gInfoCache.nicInfo = nicInfo;
+      } else {
          Debug("Failed to update VMDB.\n");
       }
+   } else {
+      Debug("Nic info not changed.\n");
+      VMX_XDR_FREE(xdr_GuestNicList, &nicInfo);
    }
 
    /* Send the uptime to VMX so that it can detect soft resets. */
@@ -460,7 +476,7 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
       break;
 
    case INFO_IPADDRESS:
-      if (NicInfoChanged((GuestNicList *)info)) {
+      {
          static Bool isCmdV1 = FALSE;
          char *reply = NULL;
          size_t replyLen;
@@ -554,15 +570,6 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
          Debug("GuestInfo: Updated new NIC information\n");
          free(reply);
          reply = NULL;
-
-         /*
-          * Update the cache. Release the memory previously used by the cache,
-          * and copy the new information into the cache.
-          */
-         VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
-         gInfoCache.nicInfo = *(GuestNicList *)info;
-      } else {
-         Debug("GuestInfo: Nic info not changed.\n");
       }
       break;
 
@@ -982,94 +989,6 @@ DiskInfoChanged(PGuestDiskInfo diskInfo)     // IN:
 /*
  *----------------------------------------------------------------------
  *
- * GuestInfoGetDiskInfo --
- *
- *      Get disk information.
- *
- * Results:
- *
- *      TRUE if successful, FALSE otherwise.
- *
- * Side effects:
- *
- *	     Allocates memory for di->partitionList.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestInfoGetDiskInfo(PGuestDiskInfo di) // IN/OUT
-{
-   int i = 0;
-   WiperPartition_List *pl = NULL;
-   unsigned int partCount = 0;
-   uint64 freeBytes = 0;
-   uint64 totalBytes = 0;
-   WiperPartition nextPartition;
-   unsigned int partNameSize = 0;
-   Bool success = FALSE;
-
-   ASSERT(di);
-   partNameSize = sizeof (di->partitionList)[0].name;
-   di->numEntries = 0;
-   di->partitionList = NULL;
-
-    /* Get partition list. */
-   if (!Wiper_Init(NULL)) {
-      Debug("GetDiskInfo: ERROR: could not initialize wiper library\n");
-      return FALSE;
-   }
-
-   pl = WiperPartition_Open();
-   if (pl == NULL) {
-      Debug("GetDiskInfo: ERROR: could not get partition list\n");
-      return FALSE;
-   }
-
-   for (i = 0; i < pl->size; i++) {
-      nextPartition = pl->partitions[i];
-      if (!strlen(nextPartition.comment)) {
-         PPartitionEntry newPartitionList;
-         unsigned char *error;
-         error = WiperSinglePartition_GetSpace(&nextPartition, &freeBytes, &totalBytes);
-         if (strlen(error)) {
-            Debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
-                  nextPartition.mountPoint, error);
-            goto out;
-         }
-
-         if (strlen(nextPartition.mountPoint) + 1 > partNameSize) {
-            Debug("GetDiskInfo: ERROR: Partition name buffer too small\n");
-            goto out;
-         }
-
-         newPartitionList = realloc(di->partitionList,
-                                    (partCount + 1) * sizeof *di->partitionList);
-         if (newPartitionList == NULL) {
-            Debug("GetDiskInfo: ERROR: could not allocate partition list.\n");
-            goto out;
-         }
-         di->partitionList = newPartitionList;
-
-         Str_Strcpy((di->partitionList)[partCount].name, nextPartition.mountPoint,
-                        partNameSize);
-         (di->partitionList)[partCount].freeBytes = freeBytes;
-         (di->partitionList)[partCount].totalBytes = totalBytes;
-         partCount++;
-      }
-   }
-
-   di->numEntries = partCount;
-   success = TRUE;
-  out:
-   WiperPartition_Close(pl);
-   return success;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * GuestInfoClearCache --
  *
  *    Clears the cached guest info data.
@@ -1094,50 +1013,6 @@ GuestInfoClearCache(void)
 
    VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
    memset(&gInfoCache.nicInfo, 0, sizeof gInfoCache.nicInfo);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GetAvailableDiskSpace --
- *
- *    Get the amount of disk space available on the volume the FCP (file copy/
- *    paste) staging area is in. DnD and FCP use same staging area in guest.
- *    But it is only called in host->guest FCP case. DnD checks guest available
- *    disk space in host side (UI).
- *
- * Results:
- *    Available disk space size if succeed, otherwise 0.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-uint64
-GetAvailableDiskSpace(char *pathName)
-{
-   WiperPartition p;
-   uint64 freeBytes  = 0;
-   uint64 totalBytes = 0;
-   char *wiperError;
-
-   Wiper_Init(NULL);
-
-   if (strlen(pathName) > sizeof p.mountPoint) {
-      Debug("GetAvailableDiskSpace: gFileRoot path too long\n");
-      return 0;
-   }
-   Str_Strcpy((char *)p.mountPoint, pathName, sizeof p.mountPoint);
-   wiperError = (char *)WiperSinglePartition_GetSpace(&p, &freeBytes, &totalBytes);
-   if (strlen(wiperError) > 0) {
-      Debug("GetAvailableDiskSpace: error using wiper lib: %s\n", wiperError);
-      return 0;
-   }
-   Debug("GetAvailableDiskSpace: free bytes is %"FMT64"u\n", freeBytes);
-   return freeBytes;
 }
 
 
@@ -1170,146 +1045,4 @@ GuestInfoServer_SendUptime(void)
    free(uptime);
    return ret;
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfoAddNicEntry --
- *
- *      Add a Nic entry into GuestNicInfo.  macAddress of the NicEntry is
- *      initialized with the input parameter
- *
- * Results:
- *      Newly allocated GuestNic, NULL on failure.
- *
- * Side effects:
- *	     Number of Nic entries is bumped up by 1.
- *----------------------------------------------------------------------
- */
-
-GuestNic *
-GuestInfoAddNicEntry(GuestNicList *nicInfo,                    // IN/OUT
-                     const char macAddress[NICINFO_MAC_LEN])   // IN
-{
-   GuestNic *newNic;
-
-   newNic = XDRUTIL_ARRAYAPPEND(nicInfo, nics, 1);
-   if (newNic != NULL) {
-      Str_Strcpy(newNic->macAddress, macAddress, sizeof newNic->macAddress);
-   }
-
-   return newNic;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfoAddIpAddress --
- *
- *      Add an IP address entry into the GuestNic.
- *
- * Results:
- *      Newly allocated IP address struct.
- *
- * Side effects:
- *      Number of IP addresses on the NIC is bumped up by 1.
- *
- *----------------------------------------------------------------------
- */
-
-VmIpAddress *
-GuestInfoAddIpAddress(GuestNic *nic,                    // IN/OUT
-                      const char *ipAddr,               // IN
-                      const uint32 af_type)             // IN
-{
-   VmIpAddress *ip;
-
-   ip = XDRUTIL_ARRAYAPPEND(nic, ips, 1);
-   if (ip != NULL) {
-      Str_Strcpy(ip->ipAddress, ipAddr, sizeof ip->ipAddress);
-      ip->addressFamily = af_type;
-   }
-
-   return ip;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfoAddSubnetMask --
- *
- *      Add an IPV4 subnet mask to the IpAddress in ASCII form.
- *
- * Results:
- *      If convertToMask is true the 'n' bits subnet mask is converted
- *      to an ASCII string as a hexadecimal number (0xffffff00) and
- *      added to the IPAddressEntry. If convertToMask is false the value
- *      is added to the IPAddressEntry in string form - ie '24'
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-GuestInfoAddSubnetMask(VmIpAddress *ipAddressEntry,            // IN/OUT
-                       const uint32 subnetMaskBits,            // IN
-                       Bool convertToMask)                     // IN
-{
-   int i;
-   uint32 subnetMask = 0;
-
-   ASSERT(ipAddressEntry);
-
-   if (convertToMask && (subnetMaskBits <= 32)) {
-      /*
-       * Convert the subnet mask from a number of bits (ie. '24') to
-       * hexadecimal notation such 0xffffff00
-       */
-      for (i = 0; i < subnetMaskBits; i++) {
-         subnetMask |= (0x80000000 >> i);
-      }
-
-      // Convert the hexadecimal value to a string and add to the IpAddress Entry
-      Str_Sprintf(ipAddressEntry->subnetMask,
-                  sizeof ipAddressEntry->subnetMask,
-                  "0x%x", subnetMask);
-   } else {
-      Str_Sprintf(ipAddressEntry->subnetMask,
-                  sizeof ipAddressEntry->subnetMask,
-                  "%d", subnetMaskBits);
-   }
-   return;
-}
-
-
-#if defined(N_PLAT_NLM)
-/*
- *----------------------------------------------------------------------------
- *
- * GuestInfo_GetSystemBitness --
- *
- *      Determines the operating system's bitness.
- *
- * Return value:
- *      32 or 64 on success, negative value on failure. Check errno for more
- *      details of error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-int
-GuestInfo_GetSystemBitness(void)
-{
-   return 32;
-}
-#endif // defined(N_PLAT_NLM)
-
 

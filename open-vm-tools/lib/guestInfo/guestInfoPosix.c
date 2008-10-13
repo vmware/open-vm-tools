@@ -171,6 +171,55 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 /*
  *-----------------------------------------------------------------------------
  *
+ * RecordNetworkAddress --
+ *
+ *      Massages a dnet(3)-style interface address (IPv4 or IPv6) and stores it
+ *      as part of a GuestNic structure.
+ *
+ * Results:
+ *      If addr is IPv4 or IPv6, it will be appended to the GuestNic's list of
+ *      IP addresses.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+RecordNetworkAddress(GuestNic *nic,             // IN: operand NIC
+                     const struct addr *addr)   // IN: dnet(3) address to process
+{
+   char ipAddress[NICINFO_MAX_IP_LEN];
+   VmIpAddress *ip = NULL;
+
+   switch (addr->addr_type) {
+   case ADDR_TYPE_IP:
+      /*
+       * GuestNicInfo clients expect IPv4 addresses and netmasks to be stored
+       * as strings in separate fields.  As such, we'll use ip_ntop instead of
+       * addr_ntop to get a string without the netmask bits.
+       */
+      ip_ntop(&addr->addr_ip, ipAddress, sizeof ipAddress);
+      ip = GuestInfoAddIpAddress(nic, ipAddress, INFO_IP_ADDRESS_FAMILY_IPV4);
+      if (ip) {
+         GuestInfoAddSubnetMask(ip, addr->addr_bits, TRUE);
+      }
+      break;
+   case ADDR_TYPE_IP6:
+      memcpy(ipAddress, addr_ntoa(addr), sizeof ipAddress);
+      GuestInfoAddIpAddress(nic, ipAddress, INFO_IP_ADDRESS_FAMILY_IPV6);
+      break;
+   default:
+      Debug("%s: Unknown address type: %hu\n", __func__, addr->addr_type);
+      break;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * ReadInterfaceDetails --
  *
  *      Callback function called by libdnet when iterating over all the
@@ -197,7 +246,6 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
    if ((entry->intf_type & INTF_TYPE_ETH) == INTF_TYPE_ETH) {
       GuestNic *nic;
       char macAddress[NICINFO_MAC_LEN];
-      char ipAddress[NICINFO_MAX_IP_LEN];
 
       Str_Sprintf(macAddress, sizeof macAddress, "%s",
                   addr_ntoa(&entry->intf_link_addr));
@@ -207,36 +255,18 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
          return -1;
       }
 
-      if (entry->intf_addr.addr_type == ADDR_TYPE_IP) {
-         VmIpAddress *ip = NULL;
-         /* Use ip_ntop instead of addr_ntop since we don't want the netmask bits. */
-         ip_ntop(&entry->intf_addr.addr_ip, ipAddress, sizeof ipAddress);
-         ip = GuestInfoAddIpAddress(nic,
-                                    ipAddress,
-                                    INFO_IP_ADDRESS_FAMILY_IPV4);
-         if (ip) {
-            GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits, TRUE);
-         }
-         /* Walk the list of alias's and add those that are IPV4 or IPV6 */
-         for (i = 0; i < entry->intf_alias_num; i++) {
-            if (entry->intf_alias_addrs[i].addr_type == ADDR_TYPE_IP) {
-               ip_ntop(&entry->intf_alias_addrs[i].addr_ip,
-                       ipAddress,
-                       sizeof ipAddress);
-               ip = GuestInfoAddIpAddress(nic,
-                                          ipAddress,
-                                          INFO_IP_ADDRESS_FAMILY_IPV4);
-               if (ip) {
-                  GuestInfoAddSubnetMask(ip, entry->intf_addr.addr_bits, TRUE);
-               }
-            } else if (entry->intf_alias_addrs[i].addr_type == ADDR_TYPE_IP6) {
-               memcpy(ipAddress,
-                      addr_ntoa(&entry->intf_alias_addrs[i]),
-                      sizeof ipAddress);
-               GuestInfoAddIpAddress(nic,
-                                     ipAddress,
-                                     INFO_IP_ADDRESS_FAMILY_IPV6);
-            }
+      /* Record the "primary" address. */
+      if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
+          entry->intf_addr.addr_type == ADDR_TYPE_IP6) {
+         RecordNetworkAddress(nic, &entry->intf_addr);
+      }
+
+      /* Walk the list of alias's and add those that are IPV4 or IPV6 */
+      for (i = 0; i < entry->intf_alias_num; i++) {
+         const struct addr *alias = &entry->intf_alias_addrs[i];
+         if (alias->addr_type == ADDR_TYPE_IP ||
+             alias->addr_type == ADDR_TYPE_IP6) {
+            RecordNetworkAddress(nic, alias);
          }
       }
    }
@@ -244,6 +274,7 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
    return 0;
 }
 #endif
+
 
 /*
  *-----------------------------------------------------------------------------

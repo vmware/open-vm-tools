@@ -78,6 +78,27 @@
 
 
 /*
+ * Prior to 2.5.65, struct sock contained individual fields for certain
+ * socket flags including SOCK_DONE. Between 2.5.65 and 2.5.71 these were
+ * replaced with a bitmask but the generic bit test functions were used.
+ * In 2.5.71, these were replaced with socket specific functions.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 71)
+# define compat_sock_test_done(sk)      sock_flag(sk, SOCK_DONE)
+# define compat_sock_set_done(sk)       sock_set_flag(sk, SOCK_DONE)
+# define compat_sock_reset_done(sk)     sock_reset_flag(sk, SOCK_DONE)
+#elif LINUX_VERISON_CODE >= KERNEL_VERSION(2, 5, 65)
+# define compat_sock_test_done(sk)      test_bit(SOCK_DONE, &(sk)->flags)
+# define compat_sock_set_done(sk)       __set_bit(SOCK_DONE, &(sk)->flags)
+# define compat_sock_reset_done(sk)     __clear_bit(SOCK_DONE, &(sk)->flags)
+#else
+# define compat_sock_test_done(sk)      (sk)->done
+# define compat_sock_set_done(sk)       ((sk)->done = 1)
+# define compat_sock_reset_done(sk)     ((sk)->done = 0)
+#endif
+
+
+/*
  * Prior to 2.6.24, there was no sock network namespace member. In 2.6.26, it
  * was hidden behind accessor functions so that its behavior could vary
  * depending on the value of CONFIG_NET_NS.
@@ -106,7 +127,27 @@
  * program to check the interface for sk_filter().
  */
 # ifndef VMW_HAVE_NEW_SKFILTER
-#  define compat_sk_filter(sk, skb, needlock)  sk_filter(skb, (sk)->filter)
+/* 
+ * Up until 2.4.21 for the 2.4 series and 2.5.60 for the 2.5 series,
+ * callers to sk->filter were responsible for ensuring that the filter
+ * was not NULL.
+ * Additionally, the new version of sk_filter returns 0 or -EPERM on error
+ * while the old function returned 0 or 1. Return -EPERM here as well to
+ * be consistent.
+ */
+#  define compat_sk_filter(sk, skb, needlock)           \
+    ({                                                  \
+       int rc = 0;                                      \
+                                                        \
+       if ((sk)->filter) {                              \
+	  rc = sk_filter(skb, (sk)->filter);            \
+          if (rc) {                                     \
+             rc = -EPERM;                               \
+          }                                             \
+       }                                                \
+                                                        \
+       rc;                                              \
+    })
 # else
 #  define compat_sk_filter(sk, skb, needlock)  sk_filter(sk, skb, needlock)
 # endif

@@ -113,7 +113,8 @@
 #define BDOOR_CMD_ISGOSDARWIN           52
 #define BDOOR_CMD_DEBUGEVENT            53
 #define BDOOR_CMD_OSNOTMACOSXSERVER     54
-#define BDOOR_CMD_MAX                   55
+#define BDOOR_CMD_GETTIMEFULL_WITH_LAG  55
+#define BDOOR_CMD_MAX                   56
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

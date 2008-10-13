@@ -1085,6 +1085,29 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
    }
 
    if (encIn == encOut) {
+      if (encIn == STRING_ENCODING_UTF8) {
+         if (!CodeSetOld_Utf8ToUtf16le(bufIn, sizeIn, &bufOut, &sizeOut)) {
+            goto exit;
+         }
+      } else if (encIn == STRING_ENCODING_UTF16_LE) {
+         if (!CodeSetOld_Utf16leToUtf8(bufIn, sizeIn, &bufOut, &sizeOut)) {
+            goto exit;
+         }
+      } else if (encIn == STRING_ENCODING_UTF16_BE) {
+         if (!CodeSetOld_Utf16beToUtf8(bufIn, sizeIn, &bufOut, &sizeOut)) {
+            goto exit;
+         }
+      } else if (encIn == STRING_ENCODING_US_ASCII) {
+         if (!CodeSetOld_AsciiToUtf8(bufIn, sizeIn, 0, &bufOut, &sizeOut)) {
+            goto exit;
+         }
+      } else if (encIn == rawCurEnc) {
+         if (!CodeSetOld_CurrentToUtf8(bufIn, sizeIn, &bufOut, &sizeOut)) {
+            goto exit;
+         }
+      }
+      free(bufOut);
+      bufOut = NULL;
       if (!DynBuf_Append(db, bufIn, sizeIn)) {
          goto exit;
       }
@@ -1384,9 +1407,6 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
                            size_t sizeIn, // IN
                            DynBuf *db)          // IN
 {
-#if defined(_WIN32)
-   return CodeSetOldUtf16leToGeneric(bufIn, sizeIn, CP_UTF8, db);
-#else
    const uint16 *utf16In;
    size_t numCodeUnits;
    size_t codeUnitIndex;
@@ -1498,7 +1518,6 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
    }
 
    return TRUE;
-#endif
 }
 
 
@@ -2217,7 +2236,7 @@ CodeSetOld_Validate(const char *buf,   // IN: the string
  */
 
 Bool
-CodeSetOld_Init(void)
+CodeSetOld_Init(UNUSED_PARAM(const char *dataDir))
 {
    return TRUE;
 }

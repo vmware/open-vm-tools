@@ -160,8 +160,14 @@
  *
  * Manage version numbers for each product here.
  *
- *  NOTE:  BE AWARE that Makefiles and build scripts depend
+ *  NOTE:  BE AWARE that Scons/Makefiles and build scripts depend
  *         on these defines.
+ *
+ *         In particular, only the first quoted token after the
+ *         macro name will be used for the macro value by the build
+ *         system.  Also, if VERSION_MAJOR, VERSION_MINOR, and
+ *         VERSION_MAINT macros are defined, they override the
+ *         VERSION macro in the build system.
  *
  */
 
@@ -177,17 +183,54 @@
  * - A change that deprecates or obsoletes any existing interfaces
  *   requires a major version bump.
  */
-#define API_SCRIPTING_VERSION "e.x.p"
+#define API_SCRIPTING_VERSION "4.1.0"
+#define API_VMDB_VERSION "4.1.0"
 
-#define API_VMDB_VERSION "e.x.p"
-#define ESX_VERSION "e.x.p"
+/*
+ * When updating the ESX_VERSION* and ESX_RELEASE* macros, you will also
+ * need to update:
+ *
+ *   > bora/install/server/weasel/packages.xml
+ *   > bora/support/gobuild/targets/server.py
+ *   > console-os26/SOURCES/kernel-2.6.spec
+ *
+ * Rules for updating the ESX_RELEASE_* macros:
+ *
+ * Set UPDATE to 0 for all experimental/prerelease/and initial major and minor
+ * releases.  Increment update for each update release.
+ *
+ * Set PATCH to 0 for all experimental builds.  Increment it for each build
+ * that will be delivered externally.
+ *
+ * THEORETICAL EXAMPLES:
+ *
+ * 4.0.0-0.0: experimental version
+ * 4.0.0-0.1: beta 1
+ * 4.0.0-0.2: beta 2
+ * 4.0.0-0.3; rc1
+ * 4.0.0-0.4: GA
+ * 4.0.0-0.5: patch 1
+ * 4.0.0-0.6: patch 2
+ * 4.0.0-1.7: update 1
+ * 4.0.0-1.8: patch 3
+ */
+#define ESX_VERSION_MAJOR "4"
+#define ESX_VERSION_MINOR "1"
+#define ESX_VERSION_MAINT "0"
+#define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
+                    ESX_VERSION_MAINT
+#define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
+                                ESX_VERSION_MAINT
+#define ESX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
+#define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
 #define WORKSTATION_VERSION "e.x.p"
 #define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
 #define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
-#define MUI_VERSION "e.x.p"
-#define CONSOLE_VERSION "e.x.p"
+#define MUI_VERSION "4.1.0"
+#define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
 #define PLAYER_VERSION "e.x.p"
@@ -202,9 +245,9 @@
 #define VCB_FILE_VERSION 4,0,0,0
 #define VPX_VERSION "e.x.p"
 #define WBC_VERSION "e.x.p"
-#define SDK_VERSION "e.x.p"
+#define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "e.x.p"
-#define FOUNDRY_FILE_VERSION 1,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define FOUNDRY_FILE_VERSION 1,6,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "e.x.p"
 #define DDK_VERSION "e.x.p"
@@ -236,7 +279,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.09.03"
+#define TOOLS_VERSION "2008.10.10"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -390,7 +433,7 @@
 #define CONFIG_VERSION_MSNAP            "8"     /* Multiple Snapshots */
 #define CONFIG_VERSION_WS5              "8"     /* WS5.0 */
 
-#define VMVISOR_VERSION "99.99.99"
+#define VMVISOR_VERSION "4.1.0"
 
 
 /*

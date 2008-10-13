@@ -83,7 +83,7 @@
  */
 
 Bool
-File_Exists(ConstUnicode pathName)  // IN:
+File_Exists(ConstUnicode pathName)  // IN: May be NULL.
 {
    return FileIO_IsSuccess(FileIO_Access(pathName, FILEIO_ACCESS_EXISTS));
 }
@@ -200,8 +200,6 @@ File_UnlinkNoFollow(ConstUnicode pathName)  // IN:
 }
 
 
-
-
 /*
  *----------------------------------------------------------------------
  *
@@ -315,10 +313,11 @@ File_DeleteEmptyDirectory(ConstUnicode pathName)  // IN:
  *      Return the old machineID, the one based on Hostinfo_MachineID.
  *
  * Results:
- *      The machineID is returned.
+ *      The machineID is returned. It should not be freed.
  *
  * Side effects:
- *      None.
+ *      Memory allocated for the machineID is never freed, however the
+ *      memory is cached - there is no memory leak.
  *
  *----------------------------------------------------------------------
  */
@@ -382,7 +381,7 @@ GetOldMachineID(void)
  *      fails drop back to the older machineID method.
  *
  * Results:
- *      The machineID is returned.
+ *      The machineID is returned. It should not be freed.
  *
  * Side effects:
  *      Memory allocated for the machineID is never freed, however the
@@ -425,7 +424,7 @@ FileLockGetMachineID(void)
 #endif
 
       if (q == NULL) {
-         p = (char *) GetOldMachineID();
+         p = Util_SafeStrdup(GetOldMachineID());
       } else {
          p = Str_SafeAsprintf(NULL, "uuid=%s", q);
          free(q);

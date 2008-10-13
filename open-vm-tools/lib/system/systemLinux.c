@@ -42,6 +42,9 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <netdb.h>
+#if !defined(__APPLE__)
+#include <sys/timex.h>
+#endif
 #ifdef sun
 # include <sys/sockio.h>
 #endif
@@ -72,6 +75,18 @@
 #define LOOPBACK        "lo"
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16
+#endif
+
+/*
+ * The interval between two ticks (in usecs) can only be altered by 10%,
+ * and the default value is 10000. So the values 900000L and 1000000L
+ * divided by USER_HZ, which is 100.
+ */
+#ifdef __linux__
+#   define USER_HZ               100			/* from asm/param.h  */
+#   define TICK_INCR_NOMINAL    (1000000L / USER_HZ)	/* nominal tick increment */
+#   define TICK_INCR_MAX        (1100000L / USER_HZ)	/* maximum tick increment */
+#   define TICK_INCR_MIN        (900000L / USER_HZ)	/* minimum tick increment */
 #endif
 
 
@@ -129,6 +144,7 @@ static int SNEForEachCallback(const char *key, void *value, void *clientData);
  * Side effects:
  *    None
  *
+ *----------------------------------------------------------------------
  */
 
 uint64
@@ -171,11 +187,9 @@ System_Uptime(void)
  *      the guest OS.
  *
  * Results:
- *      
  *      TRUE/FALSE: success/failure
  *
  * Side effects:
- *
  *	None.
  *
  *----------------------------------------------------------------------
@@ -204,18 +218,216 @@ System_GetCurrentTime(int64 *secs,  // OUT
 /*
  *----------------------------------------------------------------------
  *
+ * System_EnableTimeSlew --
+ *
+ *      Slew the clock so that the time difference is covered within
+ *      the timeSyncPeriod. timeSyncPeriod is the interval of the time
+ *      sync loop and we intend to catch up delta us.
+ *
+ *      timeSyncPeriod is ignored on FreeBSD and Solaris.
+ *
+ * Results:
+ *      TRUE/FALSE: success/failure
+ *
+ * Side effects:
+ *      This changes the tick frequency and hence needs to be reset
+ *      after the time sync is achieved.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+System_EnableTimeSlew(int64 delta,            // IN: Time difference in us
+                      uint32 timeSyncPeriod)  // IN: Time interval in 100th of a second
+{
+#if defined(__FreeBSD__) || defined(sun)
+
+   struct timeval tx;
+   struct timeval oldTx;
+   int error;
+
+   tx.tv_sec = delta / 1000000L;
+   tx.tv_usec = delta % 1000000L;
+
+   error = adjtime(&tx, &oldTx);
+   if (error) {
+      Log("%s: adjtime failed\n", __FUNCTION__);
+      return FALSE;
+   }
+   Log("%s: time slew start.\n", __FUNCTION__);
+   return TRUE;
+
+#elif defined(__linux__) /* For Linux. */
+
+   struct timex tx;
+   int error;
+   uint64 tick;
+   uint64 timeSyncPeriodUS = timeSyncPeriod * 10000L;
+
+   ASSERT(timeSyncPeriod);
+
+   /*
+    * Set the tick so that delta time is corrected in timeSyncPeriod period.
+    * tick is the number of microseconds added per clock tick. We adjust this
+    * so that we get the desired delta + the timeSyncPeriod in timeSyncPeriod
+    * interval.
+    */
+   tx.modes = ADJ_TICK;
+   tick = (timeSyncPeriodUS + delta) / ((timeSyncPeriod / 100) * USER_HZ);
+   if (tick > TICK_INCR_MAX) {
+      tick = TICK_INCR_MAX;
+   } else if (tick < TICK_INCR_MIN) {
+      tick = TICK_INCR_MIN;
+   }
+   tx.tick = tick;
+
+   error = adjtimex(&tx);
+   if (error == -1) {
+      Log("%s: adjtimex failed: %d %s\n", __FUNCTION__, error, strerror(errno));
+         return FALSE;
+   }
+   Log("%s: time slew start: %ld\n", __FUNCTION__, tx.tick);
+   return TRUE;
+
+#else /* Apple */
+
+   return FALSE;
+
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * System_DisableTimeSlew --
+ *
+ *      Disable time slewing, setting the tick frequency to default.
+ *
+ * Results:
+ *      TRUE/FALSE: success/failure
+ *
+ * Side effects:
+ *      If failed to disable the tick frequency, system time will
+ *      not reflect the actual time - will be behind.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+System_DisableTimeSlew(void)
+{
+#if defined(__FreeBSD__) || defined(sun)
+
+   struct timeval tx = {0};
+   int error;
+
+   error = adjtime(&tx, NULL);
+   if (error) {
+      Log("%s: adjtime failed\n", __FUNCTION__);
+      return FALSE;
+   }
+   return TRUE;
+
+#elif defined(__linux__) /* For Linux. */
+
+   struct timex tx;
+   int error;
+
+   tx.modes = ADJ_TICK;
+   tx.tick = TICK_INCR_NOMINAL;
+
+   error = adjtimex(&tx);
+   if (error == -1) {
+      Log("%s: adjtimex failed: %d %s\n", __FUNCTION__, error,
+            strerror(errno));
+      return FALSE;
+   }
+   Log("%s: time slew end - %d\n", __FUNCTION__, error);
+   return TRUE;
+
+#else /* Apple */
+   return TRUE;
+
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * System_IsTimeSlewEnabled --
+ *
+ *      Returns TRUE if time slewing has been enabled.
+ *
+ * Results:
+ *      TRUE/FALSE: enabled/disabled
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+System_IsTimeSlewEnabled(void)
+{
+#if defined(__FreeBSD__) || defined(sun)
+
+   struct timeval oldTx;
+   int error;
+
+   /* 
+    * Solaris needs first argument non-NULL and zero
+    * to get the old timeval value.
+    */
+#if defined(sun)
+   struct timeval tx = {0};
+   error = adjtime(&tx, &oldTx);
+#else
+   error = adjtime(NULL, &oldTx);
+#endif
+   if (error) {
+      Log("%s: adjtime failed: %s.\n", __FUNCTION__, strerror(errno));
+      return FALSE;
+   }
+   return ((oldTx.tv_sec || oldTx.tv_usec) ? TRUE : FALSE);
+
+#elif defined(__linux__) /* For Linux. */
+
+   struct timex tx = {0};
+   int error;
+
+   error = adjtimex(&tx);
+   if (error == -1) {
+      Log("%s: adjtimex failed: %d %s\n", __FUNCTION__, error,
+            strerror(errno));
+      return FALSE;
+   }
+   return ((tx.tick == TICK_INCR_NOMINAL) ? FALSE : TRUE);
+
+#else /* Apple */
+
+   return FALSE;
+
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * System_AddToCurrentTime --
  *
  *      Adjust the current system time by adding the given number of
  *      seconds & milliseconds.
  *
  * Results:
- *      
  *      TRUE/FALSE: success/failure
  *
  * Side effects:
- *
- *	None.
+ *      This function disables any time slewing to correctly set the guest
+ *      time.
  *
  *----------------------------------------------------------------------
  */
@@ -225,14 +437,18 @@ System_AddToCurrentTime(int64 deltaSecs,  // IN
                         int64 deltaUsecs) // IN
 {
    struct timeval tv;
+   int64 newTime;
    int64 secs;
    int64 usecs;
-   int64 newTime;
    
    if (!System_GetCurrentTime(&secs, &usecs)) {
       return FALSE;
    }
    
+   if (System_IsTimeSlewEnabled()) {
+      System_DisableTimeSlew();
+   }
+
    newTime = (secs + deltaSecs) * 1000000L + (usecs + deltaUsecs);
    ASSERT(newTime > 0);
    
@@ -345,12 +561,10 @@ System_GetTimeAsString(void)
  *    Is this an ACPI system?
  *
  * Results:
- *      
  *    TRUE if this is an ACPI system.
  *    FALSE if this is not an ACPI system.   
  *
  * Side effects:
- *
  *	None.
  *
  *----------------------------------------------------------------------

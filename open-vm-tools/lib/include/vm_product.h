@@ -189,25 +189,32 @@
 
 /*
  * previously shipped plugin mimetypes (updated as we ship them)
+ *
+ * XXX It is important that the mimetypes be listed in strictly decreasing
+ *     order by version. Server 2.0 Web Access (WBC) only checks the first VMRC
+ *     mimetype for compatibility, and others might make the same mistake in
+ *     the future.
  */
 #define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
+   "application/x-vmware-vmrc;version=2.5.0.116460" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-vmrc;version=2.5.0.0"
 
 /*
  * legacy plugin mimetypes (currently unused but here for reference)
  */
 #define PRODUCT_VMRC_PLUGIN_LEGACY_MIMETYPES \
-   "application/x-vmware-mks;version=2.5.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-mks;version=2.1.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-mks;version=2.0.1.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-mks;version=2.0.0.0" PRODUCT_VMRC_MIMETYPE_SEPARATOR
 
 /*
  * All supported plugin mimetypes
+ *
+ * NB: See above for constraints on the ordering of this list.
  */
 #define PRODUCT_VMRC_PLUGIN_MIMETYPES \
-   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_SEPARATOR \
-   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES PRODUCT_VMRC_MIMETYPE_TERMINATOR
+   PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   PRODUCT_VMRC_PLUGIN_CURRENT_MIMETYPE PRODUCT_VMRC_MIMETYPE_TERMINATOR
 
 /*
  * TODO: This properly lives in productState, but we need it here to

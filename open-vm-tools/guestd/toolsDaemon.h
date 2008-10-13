@@ -57,6 +57,8 @@ typedef struct ToolsDaemon_Data {
    GuestApp_Dict **pConfDict;          // the name/value pairs from the conf file
    struct Event *timeSyncEvent;
    uint32 timeSyncPeriod;
+   uint32 slewPercentCorrection;
+   Bool slewCorrection;
    struct Event *oldOptionsLoop;
    ToolsDaemon_Callback *haltCB;       // callback when we do a soft halt
    void *haltCBData;                   // its data
@@ -73,6 +75,7 @@ typedef struct ToolsDaemon_Data {
    ProcMgr_AsyncProc *asyncProc;
    ProcMgr_Callback *asyncProcCb;
    void *asyncProcCbData;
+   Bool toolScriptOption[GUESTOS_STATECHANGE_LAST]; // toolsScript option from vmx
 } ToolsDaemon_Data;
 
 
@@ -104,7 +107,9 @@ void
 ToolsDaemon_Cleanup_Backdoor(ToolsDaemon_Data *data); // IN/OUT
 
 Bool
-ToolsDaemon_SyncTime(Bool syncBackward);
+ToolsDaemon_SyncTime(Bool syncBackward,         // IN
+                     Bool syncOnce,             // IN
+                     void *toolsDaemonData);    // IN
 
 Bool
 ToolsDaemon_SetOsPhase(Bool stateChangeSucceeded,

@@ -797,6 +797,9 @@ ProcessCreationTime(pid_t pid)
       }
 
       if (sscanf(p, "%"FMT64"u", &creationTime) != 1) {
+         Warning(LGPFX" %s creationTime conversion error on %s.\n",
+                 __FUNCTION__, p);
+
          creationTime = 0;
       }
    } else {
@@ -814,7 +817,7 @@ ProcessCreationTime(pid_t pid)
     struct kinfo_proc  info;
     int                mib[4];
   
-    // Request information about the specified process
+    /* Request information about the specified process */
     mib[0] = CTL_KERN;
     mib[1] = KERN_PROC;
     mib[2] = KERN_PROC_PID;
@@ -824,7 +827,7 @@ ProcessCreationTime(pid_t pid)
     size = sizeof(info);
     err = sysctl(mib, ARRAYSIZE(mib), &info, &size, NULL, 0);
 
-    // Log any failures
+    /* Log any failures */
     if (err == -1) {
        Warning(LGPFX" %s sysctl for pid %d failed: %s\n", __FUNCTION__,
                pid, strerror(errno));
@@ -832,7 +835,7 @@ ProcessCreationTime(pid_t pid)
        return 0;
     }
 
-    // Return the process creation time
+    /* Return the process creation time */
     return (info.kp_proc.p_starttime.tv_sec * CONST64U(1000000)) +
             info.kp_proc.p_starttime.tv_usec;
 }
@@ -868,7 +871,7 @@ FileLockValidOwner(const char *executionID, // IN:
 {
    int pid;
 
-   // Validate the PID.
+   /* Validate the PID. */
    if (sscanf(executionID, "%d", &pid) != 1) {
       Warning(LGPFX" %s pid conversion error on %s. Assuming valid.\n",
               __FUNCTION__, executionID);
@@ -880,7 +883,7 @@ FileLockValidOwner(const char *executionID, // IN:
       return FALSE;
    }
 
-   // If there is a payload perform additional validation.
+   /* If there is a payload perform additional validation. */
    if ((payload != NULL) && (strncmp(payload, "pc=", 3) == 0)) {
       uint64 fileCreationTime;
       uint64 processCreationTime;
@@ -897,7 +900,7 @@ FileLockValidOwner(const char *executionID, // IN:
          return TRUE;
       }
 
-      // Non-matching process creation times -> pid is not the creator
+      /* Non-matching process creation times -> pid is not the creator */
       processCreationTime = ProcessCreationTime(pid);
 
       if ((fileCreationTime != 0) &&
@@ -1206,6 +1209,63 @@ FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
    Unicode_Free(fullPath);
 
    return err;
+}
+
+#else
+
+/*
+ * Stub functions for unsupported platforms.
+ */
+ 
+int
+FileLockCloseFile(FILELOCK_FILE_HANDLE handle) // IN
+{
+   NOT_IMPLEMENTED();
+}
+
+
+char *
+FileLockGetExecutionID(void)
+{
+   NOT_IMPLEMENTED();
+}
+
+
+int
+FileLockOpenFile(ConstUnicode pathName,        // IN
+                 int flags,                    // IN
+                 FILELOCK_FILE_HANDLE *handle) // OUT
+{
+
+   NOT_IMPLEMENTED();
+}
+
+
+int
+FileLockReadFile(FILELOCK_FILE_HANDLE handle,  // IN
+                 void *buf,                    // IN
+                 uint32 requestedBytes,        // IN
+                 uint32 *resultantBytes)       // OUT
+{
+   NOT_IMPLEMENTED();
+}
+
+
+Bool
+FileLockValidOwner(const char *executionID, // IN
+                   const char *payload)     // IN
+{
+   NOT_IMPLEMENTED();
+}
+
+
+int
+FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN
+                  void *buf,                    // IN
+                  uint32 requestedBytes,        // IN
+                  uint32 *resultantBytes)       // OUT
+{
+   NOT_IMPLEMENTED();
 }
 
 #endif /* !__FreeBSD__ && !sun */

@@ -30,6 +30,6 @@ EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/skblin.c, -DVMW_SKB_L
 obj-m += $(DRIVER).o
 
 clean:
-	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko \
-	       .tmp_versions Module.symvers Modules.symvers \
+	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
+	       Module.symvers Modules.symvers Module.markers modules.order \
 	       $(foreach dir,./,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))

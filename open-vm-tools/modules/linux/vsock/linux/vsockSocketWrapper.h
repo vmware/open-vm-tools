@@ -107,6 +107,10 @@
 #  define EALREADY            VMK_EALREADY
 #  define ENOTSOCK            VMK_NOT_A_SOCKET
 #  define EDESTADDRREQ        VMK_EDESTADDRREQ
+   /*
+    * Do not change EMSGSIZE definition without changing uses of
+    * VMK_LIMIT_EXCEEDED in userSocketVmci.c's implementation of recvmsg().
+    */
 #  define EMSGSIZE            VMK_LIMIT_EXCEEDED
 #  define EPROTOTYPE          VMK_NOT_SUPPORTED
 #  define ENOPROTOOPT         VMK_NOT_SUPPORTED

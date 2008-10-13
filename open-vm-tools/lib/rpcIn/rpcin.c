@@ -593,6 +593,9 @@ RpcInLoop(void *clientData) // IN
 
    /* The event has fired: it is no longer valid */
    ASSERT(in->nextEvent);
+#if defined(VMTOOLS_USE_GLIB)
+   g_source_unref(in->nextEvent);
+#endif
    in->nextEvent = NULL;
 
    /* This is very important: this is the only way to signal the existence

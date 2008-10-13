@@ -196,12 +196,15 @@ static int VSockVmciRecvConnected(struct sock *sk, VSockPacket *pkt);
 #endif
 static int __VSockVmciBind(struct sock *sk, struct sockaddr_vm *addr);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
-static struct sock *__VSockVmciCreate(struct socket *sock, unsigned int priority);
+static struct sock *__VSockVmciCreate(struct socket *sock, unsigned int priority,
+                                      unsigned short type);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-static struct sock *__VSockVmciCreate(struct socket *sock, gfp_t priority);
+static struct sock *__VSockVmciCreate(struct socket *sock, gfp_t priority,
+				      unsigned short type);
 #else
 static struct sock *__VSockVmciCreate(struct net *net,
-                                      struct socket *sock, gfp_t priority);
+                                      struct socket *sock, gfp_t priority,
+                                      unsigned short type);
 #endif
 static int VSockVmciRegisterAddressFamily(void);
 static void VSockVmciUnregisterAddressFamily(void);
@@ -1119,6 +1122,13 @@ VSockVmciHandleDetach(struct sock *sk) // IN
       ASSERT(vsk->produceQ);
       ASSERT(vsk->consumeQ);
 
+#ifdef VMX86_TOOLS
+      if (sk->compat_sk_type == SOCK_STREAM &&
+	  sk->compat_sk_state == SS_CONNECTED) {
+	 compat_sock_set_done(sk);
+      }
+#endif
+
       /* On a detach the peer will not be sending or receiving anymore. */
       vsk->peerShutdown = SHUTDOWN_MASK;
 
@@ -1481,9 +1491,10 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-   pending = __VSockVmciCreate(NULL, GFP_KERNEL);
+   pending = __VSockVmciCreate(NULL, GFP_KERNEL, sk->compat_sk_type);
 #else
-   pending = __VSockVmciCreate(compat_sock_net(sk), NULL, GFP_KERNEL);
+   pending = __VSockVmciCreate(compat_sock_net(sk), NULL, GFP_KERNEL,
+			       sk->compat_sk_type);
 #endif
    if (!pending) {
       VSOCK_SEND_RESET(sk, pkt);
@@ -2479,6 +2490,9 @@ VSockVmciSendReadNotification(struct sock *sk)  // IN
  * __VSockVmciCreate --
  *
  *    Does the work to create the sock structure.
+ *    Note: If sock is NULL then the type field must be non-zero.
+ *          Otherwise, sock is non-NULL and the type of sock is used in the
+ *          newly created socket.
  *
  * Results:
  *    sock structure on success, NULL on failure.
@@ -2493,20 +2507,26 @@ VSockVmciSendReadNotification(struct sock *sk)  // IN
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
 static struct sock *
 __VSockVmciCreate(struct socket *sock,   // IN: Owning socket, may be NULL
-                  unsigned int priority) // IN: Allocation flags
+                  unsigned int priority, // IN: Allocation flags
+                  unsigned short type)   // IN: Socket type if sock is NULL
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
 static struct sock *
 __VSockVmciCreate(struct socket *sock,   // IN: Owning socket, may be NULL
-                  gfp_t priority)        // IN: Allocation flags
+                  gfp_t priority,        // IN: Allocation flags
+                  unsigned short type)   // IN: Socket type if sock is NULL
 #else
 static struct sock *
 __VSockVmciCreate(struct net *net,       // IN: Network namespace
                   struct socket *sock,   // IN: Owning socket, may be NULL
-                  gfp_t priority)        // IN: Allocation flags
+                  gfp_t priority,        // IN: Allocation flags
+                  unsigned short type)   // IN: Socket type if sock is NULL
+
 #endif
 {
    struct sock *sk;
    VSockVmciSock *vsk;
+
+   ASSERT((sock && !type) || (!sock && type));
 
    vsk = NULL;
 
@@ -2560,6 +2580,15 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
 
    sock_init_data(sock, sk);
 
+   /*
+    * sk->compat_sk_type is normally set in sock_init_data, but only if
+    * sock is non-NULL. We make sure that our sockets always have a type
+    * by setting it here if needed.
+    */
+   if (!sock) {
+      sk->compat_sk_type = type;
+   }
+
    vsk = vsock_sk(sk);
    VSockAddr_Init(&vsk->localAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
    VSockAddr_Init(&vsk->remoteAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
@@ -2567,6 +2596,7 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    sk->compat_sk_destruct = VSockVmciSkDestruct;
    sk->compat_sk_backlog_rcv = VSockVmciQueueRcvSkb;
    sk->compat_sk_state = SS_UNCONNECTED;
+   compat_sock_reset_done(sk);
 
    INIT_LIST_HEAD(&vsk->boundTable);
    INIT_LIST_HEAD(&vsk->connectedTable);
@@ -3518,6 +3548,7 @@ VSockVmciPoll(struct file *file,    // IN
    mask = 0;
 
    if (sk->compat_sk_err) {
+      /* Signify that there has been an error on this socket. */
       mask |= POLLERR;
    }
 
@@ -3587,8 +3618,22 @@ VSockVmciPoll(struct file *file,    // IN
        * that happens is a few extra datagrams are sent.
        */
       if (sk->compat_sk_state == SS_CONNECTED) {
-         VSockVmciSendWaitingWrite(sk, 1);
-         VSockVmciSendWaitingRead(sk, 1);
+         if (VMCIQueue_FreeSpace(vsk->produceQ,
+                                 vsk->consumeQ, vsk->produceSize) == 0) {
+            /*
+             * Only send waiting write if the queue is full, otherwise we end
+             * up in an infinite WAITING_WRITE, READ, WAITING_WRITE, READ, etc.
+             * loop.  Treat failing to send the notification as a socket error,
+             * passing that back through the mask.
+             */
+           if (!VSockVmciSendWaitingWrite(sk, 1)) {
+              mask |= POLLERR;
+           }
+         }
+
+         if (!VSockVmciSendWaitingRead(sk, 1)) {
+            mask |= POLLERR;
+         }
       }
 
       release_sock(sk);
@@ -3710,6 +3755,7 @@ VSockVmciShutdown(struct socket *sock,  // IN
 
 #ifdef VMX86_TOOLS
    if (sk->compat_sk_type == SOCK_STREAM && mode) {
+      compat_sock_reset_done(sk);
       VSOCK_SEND_SHUTDOWN(sk, mode);
    }
 #endif
@@ -3972,53 +4018,53 @@ VSockVmciStreamGetsockopt(struct socket *sock,          // IN
                           char __user *optval,          // OUT
                           int __user * optlen)          // IN/OUT
 {
-   int err;
-   int len;
-   struct sock *sk;
-   VSockVmciSock *vsk;
-   uint64 val;
+    int err;
+    int len;
+    struct sock *sk;
+    VSockVmciSock *vsk;
+    uint64 val;
 
-   if (level != VSockVmci_GetAFValue()) {
-      return -ENOPROTOOPT;
-   }
+    if (level != VSockVmci_GetAFValue()) {
+       return -ENOPROTOOPT;
+    }
 
-   if ((err = get_user(len, optlen)) != 0) {
-      return err;
-   }
-   if (len < sizeof val) {
-      return -EINVAL;
-   }
+    if ((err = get_user(len, optlen)) != 0) {
+       return err;
+    }
+    if (len < sizeof val) {
+       return -EINVAL;
+    }
 
-   len = sizeof val;
+    len = sizeof val;
 
-   err = 0;
-   sk = sock->sk;
-   vsk = vsock_sk(sk);
+    err = 0;
+    sk = sock->sk;
+    vsk = vsock_sk(sk);
 
-   switch (optname) {
-   case SO_VMCI_BUFFER_SIZE:
-      val = vsk->queuePairSize;
-      break;
+    switch (optname) {
+    case SO_VMCI_BUFFER_SIZE:
+       val = vsk->queuePairSize;
+       break;
 
-   case SO_VMCI_BUFFER_MAX_SIZE:
-      val = vsk->queuePairMaxSize;
-      break;
+    case SO_VMCI_BUFFER_MAX_SIZE:
+       val = vsk->queuePairMaxSize;
+       break;
 
-   case SO_VMCI_BUFFER_MIN_SIZE:
-      val = vsk->queuePairMinSize;
-      break;
+    case SO_VMCI_BUFFER_MIN_SIZE:
+       val = vsk->queuePairMinSize;
+       break;
 
-   default:
-      return -ENOPROTOOPT;
-   }
+    default:
+       return -ENOPROTOOPT;
+    }
 
-   if ((err = put_user(val, (uint64 __user *)optval)) != 0) {
-      return err;
-   }
-   if ((err = put_user(len, optlen)) != 0) {
-      return err;
-   }
-   return 0;
+    if ((err = copy_to_user(optval, &val, len)) != 0) {
+       return -EFAULT;
+    }
+    if ((err = put_user(len, optlen)) != 0) {
+       return -EFAULT;
+    }
+    return 0;
 }
 #endif
 
@@ -4439,7 +4485,16 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    lock_sock(sk);
 
    if (sk->compat_sk_state != SS_CONNECTED) {
-      err = -ENOTCONN;
+      /*
+       * Recvmsg is supposed to return 0 if a peer performs an orderly shutdown.
+       * Differentiate between that case and when a peer has not connected or a
+       * local shutdown occured with the SOCK_DONE flag.
+       */
+      if (compat_sock_test_done(sk)) {
+	 err = 0;
+      } else {
+	 err = -ENOTCONN;
+      }
       goto out;
    }
 
@@ -4449,7 +4504,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    }
 
    if (sk->compat_sk_shutdown & RCV_SHUTDOWN) {
-      err = -EPIPE;
+      err = 0;
       goto out;
    }
 
@@ -4551,7 +4606,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    } else if ((vsk->peerShutdown & SEND_SHUTDOWN) &&
               VMCIQueue_BufReady(vsk->consumeQ,
                                  vsk->produceQ, vsk->consumeSize) < target) {
-      err = -EPIPE;
+      err = 0;
       goto outWait;
    }
 
@@ -4594,6 +4649,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
                              vsk->produceQ, vsk->consumeSize) <= 0) {
          sk->compat_sk_shutdown |= RCV_SHUTDOWN;
          sk->compat_sk_state = SS_UNCONNECTED;
+	 compat_sock_set_done(sk);
          sk->compat_sk_state_change(sk);
       }
    }
@@ -4674,9 +4730,9 @@ VSockVmciCreate(struct net *net,      // IN
    sock->state = SS_UNCONNECTED;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-   return __VSockVmciCreate(sock, GFP_KERNEL) ? 0 : -ENOMEM;
+   return __VSockVmciCreate(sock, GFP_KERNEL, 0) ? 0 : -ENOMEM;
 #else
-   return __VSockVmciCreate(net, sock, GFP_KERNEL) ? 0 : -ENOMEM;
+   return __VSockVmciCreate(net, sock, GFP_KERNEL, 0) ? 0 : -ENOMEM;
 #endif
 }
 

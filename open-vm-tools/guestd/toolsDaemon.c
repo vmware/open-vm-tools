@@ -41,6 +41,7 @@ extern "C" {
 #   include <windows.h>
 #   include "win32u.h"
 #   include "hgfsUsabilityLib.h"
+#   include "ServiceHelpers.h"
 #endif
 
 
@@ -86,6 +87,8 @@ extern "C" {
 #define RPCIN_POLL_TIME      10
 /* sync the time once a minute */
 #define TIME_SYNC_TIME     6000
+/* only PERCENT_CORRECTION percent is corrected everytime */
+#define PERCENT_CORRECTION   50
 
 /*
  * Table mapping state changes to their conf file names.
@@ -129,10 +132,13 @@ void ToolsDaemon_ShutdownForeignVM(void);
  */
 
 Bool
-ToolsDaemon_SyncTime(Bool syncBackward)
+ToolsDaemon_SyncTime(Bool slewCorrection,  // IN: Is clock slewing enabled?
+                     Bool syncOnce,        // IN: Is this function called in a loop?
+                     void *toolsData)      // IN: Opaque data
 {
    Backdoor_proto bp;
    int64 maxTimeLag;
+   int64 interruptLag;
    int64 guestSecs;
    int64 guestUsecs;
    int64 hostSecs;
@@ -140,6 +146,8 @@ ToolsDaemon_SyncTime(Bool syncBackward)
    int64 diffSecs;
    int64 diffUsecs;
    int64 diff;
+   ToolsDaemon_Data *data = (ToolsDaemon_Data *) toolsData;
+   Bool timeLagCall = FALSE;
 #ifdef VMX86_DEBUG
    static int64 lastHostSecs = 0;
    int64 secs1, usecs1;
@@ -151,36 +159,64 @@ ToolsDaemon_SyncTime(Bool syncBackward)
    Debug("Daemon: Synchronizing time\n");
 
    /* 
-    * Get the host OS time & the max lag limit. The GETTIME backdoor command
-    * suffers from a 136-year overflow problem that cannot be corrected
-    * without breaking backwards compatibility with older Tools. Instead, we
-    * introduced the newer BDOOR_CMD_GETTIMEFULL (which is overflow safe), and
-    * we'll try it before falling back on the unsafe BDOOR_CMD_GETTIME.
+    * We need 3 things from the host, and there exist 3 different versions of
+    * the calls (described further below):
+    * 1) host time
+    * 2) maximum time lag allowed (config option), which is a 
+    *    threshold that keeps the tools from being over eager about
+    *    resetting the time when it is only a little bit off.
+    * 3) interrupt lag
     *
-    * Note that BDOOR_CMD_GETTIMEFULL will not touch EAX when it succeeds. So
-    * we check for errors by comparing EAX to BDOOR_MAGIC, which was set by the
-    * call to Backdoor() prior to touching the backdoor port.
+    * First 2 versions of the call add interrupt lag to the maximum allowed
+    * time lag, where as in the last call it is returned separately.
+    *
+    * Three versions of the call:
+    *
+    * - BDOOR_CMD_GETTIME: suffers from a 136-year overflow problem that
+    *   cannot be corrected without breaking backwards compatibility with
+    *   older Tools. So, we have the newer BDOOR_CMD_GETTIMEFULL, which is
+    *   overflow safe.
+    *
+    * - BDOOR_CMD_GETTIMEFULL: overcomes the problem above.
+    *
+    * - BDOOR_CMD_GETTIMEFULL_WITH_LAG: Both BDOOR_CMD_GETTIMEFULL and
+    *   BDOOR_CMD_GETTIME returns max lag limit as interrupt lag + the maximum
+    *   allowed time lag. BDOOR_CMD_GETTIMEFULL_WITH_LAG separates these two
+    *   values. This is helpful when synchronizing time backwards by slewing
+    *   the clock.
+    *
+    * We use BDOOR_CMD_GETTIMEFULL_WITH_LAG first and fall back to
+    * BDOOR_CMD_GETTIMEFULL or BDOOR_CMD_GETTIME.
+    *
+    * Note that BDOOR_CMD_GETTIMEFULL and BDOOR_CMD_GETTIMEFULL_WITH_LAG will
+    * not touch EAX when it succeeds. So we check for errors by comparing EAX to
+    * BDOOR_MAGIC, which was set by the call to Backdoor() prior to touching the
+    * backdoor port.
     */
-   bp.in.cx.halfs.low = BDOOR_CMD_GETTIMEFULL;
+   bp.in.cx.halfs.low = BDOOR_CMD_GETTIMEFULL_WITH_LAG;
    Backdoor(&bp);
    if (bp.out.ax.word == BDOOR_MAGIC) {
       hostSecs = ((uint64)bp.out.si.word << 32) | bp.out.dx.word;
+      interruptLag = bp.out.di.word;
+      timeLagCall = TRUE;
+      Debug("Using BDOOR_CMD_GETTIMEFULL_WITH_LAG\n");
    } else {
-      Debug("New get time command not supported by current host, attempting "
-            "older command.\n");
-      bp.in.cx.halfs.low = BDOOR_CMD_GETTIME;
+      Debug("BDOOR_CMD_GETTIMEFULL_WITH_LAG not supported by current host, attempting "
+            "BDOOR_CMD_GETTIMEFULL\n");
+      interruptLag = 0;
+      bp.in.cx.halfs.low = BDOOR_CMD_GETTIMEFULL;
       Backdoor(&bp);
-      hostSecs = bp.out.ax.word;
+      if (bp.out.ax.word == BDOOR_MAGIC) {
+         hostSecs = ((uint64)bp.out.si.word << 32) | bp.out.dx.word;
+      } else {
+         Debug("BDOOR_CMD_GETTIMEFULL not supported by current host, attempting "
+               "BDOOR_CMD_GETTIME\n");
+         bp.in.cx.halfs.low = BDOOR_CMD_GETTIME;
+         Backdoor(&bp);
+         hostSecs = bp.out.ax.word;
+      }
    }
    hostUsecs = bp.out.bx.word;
-
-   /*
-    * maxTimeLag is computed by the VMX as the sum of two things:
-    * 1) A threshold that keeps the tools from being over eager about
-    *    resetting the time when it is only a little bit off.
-    * 2) The current backlog of timer interrupts that still need to be
-    *    delivered to the guest.
-    */
    maxTimeLag = bp.out.cx.word;
 
    if (hostSecs <= 0) {
@@ -192,9 +228,7 @@ ToolsDaemon_SyncTime(Bool syncBackward)
 
    /* Get the guest OS time */
    if (!System_GetCurrentTime(&guestSecs, &guestUsecs)) {
-      Warning("Unable to retrieve the guest OS time: %s.\n\n",
-              Msg_ErrString());
-
+      Warning("Unable to retrieve the guest OS time: %s.\n\n", Msg_ErrString());
       return FALSE;
    }
 
@@ -202,7 +236,7 @@ ToolsDaemon_SyncTime(Bool syncBackward)
    diffUsecs = hostUsecs - guestUsecs;
    if (diffUsecs < 0) {
       diffSecs -= 1;
-      diffUsecs += 1000000L;
+      diffUsecs += 1000000U;
    }
    diff = diffSecs * 1000000L + diffUsecs;
 
@@ -210,24 +244,64 @@ ToolsDaemon_SyncTime(Bool syncBackward)
    Debug("Daemon: Guest clock lost %.6f secs; limit=%.2f; "
          "%"FMT64"d secs since last update\n",
          diff / 1000000.0, maxTimeLag / 1000000.0, hostSecs - lastHostSecs);
+   Debug("Daemon: %d, %d, %"FMT64"d, %"FMT64"d, %"FMT64"d.\n",
+         syncOnce, slewCorrection, diff, maxTimeLag, interruptLag);
    lastHostSecs = hostSecs;
 #endif
 
-   /*
-    * Adjust the guest OS time to equal the host OS time if:
-    * 1) The guest OS is behind the host OS by more than maxTimeLag.
-    * 2) The guest OS is ahead of the host OS and syncBackward
-    *    is specified. syncBackwards is set to TRUE when the tools
-    *    daemon starts and when the timesync feature is toggled from
-    *    FALSE => TRUE.
-    */
-   if (diff > maxTimeLag || syncBackward) {
-      if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
-          Warning("Unable to set the guest OS time: %s.\n\n",
-                  Msg_ErrString());
-
-          return FALSE;
+   if (syncOnce) {
+      /*
+       * Non-loop behavior:
+       *
+       * Perform a step correction if:
+       * 1) The guest OS is behind the host OS by more than maxTimeLag + interruptLag.
+       * 2) The guest OS is ahead of the host OS.
+       */
+      if (diff > maxTimeLag + interruptLag) {
+         System_DisableTimeSlew();
+         if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
+            Warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
+            return FALSE;
+         }
       }
+   } else {
+
+      /*
+       * Loop behavior:
+       *
+       * If guest is behind host by more than maxTimeLag + interruptLag
+       * perform a step correction to the guest clock and ask the monitor
+       * to drop its accumulated catchup (interruptLag).
+       *
+       * Otherwise, perform a slew correction.  Adjust the guest's clock
+       * rate to be either faster or slower than nominal real time, such
+       * that we expect to correct correctionPercent percent of the error
+       * during this synchronization cycle.
+       */
+
+      if (diff > maxTimeLag + interruptLag) {
+         System_DisableTimeSlew();
+         if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
+            Warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
+            return FALSE;
+         }
+      } else if (slewCorrection && timeLagCall) {
+         int64 slewDiff;
+
+         /* Don't consider interruptLag during clock slewing. */
+         slewDiff = diff - interruptLag;
+
+         /* Correct only data->slewPercentCorrection percent error. */
+         slewDiff = (data->slewPercentCorrection * slewDiff) / 100;
+
+         if (!System_EnableTimeSlew(slewDiff, data->timeSyncPeriod)) {
+            Warning("Unable to slew the guest OS time: %s.\n\n", Msg_ErrString());
+            return FALSE;
+         }
+      } else {
+         System_DisableTimeSlew();
+      }
+   }
 
 #ifdef VMX86_DEBUG
       System_GetCurrentTime(&secs2, &usecs2);
@@ -236,11 +310,11 @@ ToolsDaemon_SyncTime(Bool syncBackward)
             secs1, usecs1, secs2, usecs2);
 #endif
 
-      /*
-       * We have just synchronized the guest time to the host time. Ask
-       * VMware to reset to normal the rate of timer interrupts it forwards
-       * from the host to the guest.
-       */
+   /*
+    * If we have stepped the time, ask TimeTracker to reset to normal the rate
+    * of timer interrupts it forwards from the host to the guest.
+    */
+   if (!System_IsTimeSlewEnabled()) {
       bp.in.cx.halfs.low = BDOOR_CMD_STOPCATCHUP;
       Backdoor(&bp);
    }
@@ -273,7 +347,6 @@ ToolsDaemonConfFileLoop(void *clientData) // IN
 
    ASSERT(pConfDict);
 
-
    /*
     * With the addition of the Sync Driver we can get into a state
     * where the system drive is frozen, preventing the completion of
@@ -292,6 +365,7 @@ ToolsDaemonConfFileLoop(void *clientData) // IN
       if (Conf_ReloadFile(pConfDict)) {
          GuestInfoServer_DisableDiskInfoQuery(
             GuestApp_GetDictEntryBool(*pConfDict, CONFNAME_DISABLEQUERYDISKINFO));
+
          Debug_Set(GuestApp_GetDictEntryBool(*pConfDict, CONFNAME_LOG),
                    DEBUG_PREFIX);
          Debug_EnableToFile(GuestApp_GetDictEntry(*pConfDict, CONFNAME_LOGFILE),
@@ -334,21 +408,21 @@ static Bool
 ToolsDaemonTimeSyncLoop(void *clientData) // IN
 {
    ToolsDaemon_Data *data = (ToolsDaemon_Data *)clientData;
-   uint32 period = 0;
 
    ASSERT(data);
 
    /* The event has fired: it is no longer valid */
    data->timeSyncEvent = NULL;
 
-   if (!ToolsDaemon_SyncTime(FALSE)) {
+   if (!data->timeSyncPeriod) {
+      data->timeSyncPeriod = TIME_SYNC_TIME;
+   }
+   if (!ToolsDaemon_SyncTime(data->slewCorrection, FALSE, clientData)) {
       Warning("Unable to synchronize time.\n\n");
-
       return FALSE;
    }
 
-   period = data->timeSyncPeriod ? data->timeSyncPeriod * 100 : TIME_SYNC_TIME;
-   data->timeSyncEvent = EventManager_Add(ToolsDaemonEventQueue, period,
+   data->timeSyncEvent = EventManager_Add(ToolsDaemonEventQueue, data->timeSyncPeriod,
                                           ToolsDaemonTimeSyncLoop, data);
    if (data->timeSyncEvent == NULL) {
       Warning("Unable to run the \"time synchronization\" loop.\n\n");
@@ -385,37 +459,15 @@ ToolsDaemonDisableWinTimeDaemon(void)
    DWORD timeIncrement;
    DWORD error;
    BOOL timeAdjustmentDisabled;
-   Bool success = FALSE;
-   /* Below needed for privilege junk. */
-   TOKEN_PRIVILEGES tp;
-   LUID luid;
-   HANDLE token = INVALID_HANDLE_VALUE;
+   BOOL success = FALSE;
 
    /*
     * We need the SE_SYSTEMTIME_NAME privilege to make the change; get
-    * the privilege now (or bail it if we can't).
+    * the privilege now (or bail if we can't).
     */
-   if (!OpenProcessToken(GetCurrentProcess(),
-			 TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
-			 &token)) {
-      error = GetLastError();
-      Debug("OpenProcessToken failed: %d", error);
-      goto exit;
-   }
-   if (!LookupPrivilegeValue(NULL, SE_SYSTEMTIME_NAME, &luid)) {
-      error = GetLastError();
-      Debug("LookupPrivilegeValue(SE_SYSTEMTIME_NAME) failed: %d", error);
-      goto exit;
-   }
-
-   memset(&tp, 0, sizeof tp);
-   tp.PrivilegeCount = 1;
-   tp.Privileges[0].Luid = luid;
-   tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-   if (!AdjustTokenPrivileges(token, FALSE, &tp, sizeof tp, NULL, NULL)) {
-      error = GetLastError();
-      Debug("AdjustTokenPrivileges failed: %d", error);
-      goto exit;
+   success = System_SetProcessPrivilege(SE_SYSTEMTIME_NAME, TRUE);
+   if (!success) {
+      return FALSE;
    }
 
    /* Actually try to stop the time daemon. */
@@ -458,10 +510,8 @@ ToolsDaemonDisableWinTimeDaemon(void)
    success = TRUE;
 
   exit:
-   if (token != INVALID_HANDLE_VALUE) {
-      CloseHandle(token);
-   }
    Debug("Stopping time daemon %s.\n", success ? "succeeded" : "failed");
+   System_SetProcessPrivilege(SE_SYSTEMTIME_NAME, FALSE);
    return success;
 }
 #endif
@@ -509,6 +559,7 @@ ToolsDaemonStartStopTimeSyncLoop(ToolsDaemon_Data *data, // IN
       return TRUE;
    } else if (!start && data->timeSyncEvent != NULL) {
       Debug("Daemon: Stopping time sync loop\n");
+      System_DisableTimeSlew();
       EventManager_Remove(data->timeSyncEvent);
       data->timeSyncEvent = NULL;
 
@@ -863,11 +914,20 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
       if (strcmp(name, stateChangeCmdTable[i].tcloCmd) == 0) {
          const char *script;
          char *scriptCmd;
+         unsigned int stateId;
 
-         data->stateChgInProgress = (GuestOsState) stateChangeCmdTable[i].id;
+         stateId = stateChangeCmdTable[i].id;
+         data->stateChgInProgress = (GuestOsState)stateId;
+
+         /* Check for the toolScripts option. */
+         if (!data->toolScriptOption[stateId]) {
+            ToolsDaemonStateChangeDone(TRUE, data);
+            Debug("Script for %s not configured to run\n", stateChangeCmdTable[i].tcloCmd);
+            return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+         }
 
          script = GuestApp_GetDictEntry(*data->pConfDict,
-                                        stateChgConfNames[stateChangeCmdTable[i].id]);
+                                        stateChgConfNames[stateId]);
          ASSERT(script);
          if (strlen(script) == 0) {
             ToolsDaemonStateChangeDone(TRUE, data);
@@ -1107,6 +1167,9 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
 
 #if defined(WIN32)
    HgfsUsability_RegisterServiceCaps();
+   if (System_GetOSType() >= OS_VISTA) {
+      ServiceHelpers_SendResolutionCaps();
+   }
 #endif
 
    return RpcIn_SetRetVals(result, resultLen, "", TRUE);
@@ -1138,9 +1201,9 @@ ToolsDaemonTcloTimeSync(char const **result,     // OUT
                         size_t argsSize,         // Ignored
                         void *clientData)        // Ignored
 {
-   Bool syncBackward = strcmp(args, "1")==0;
+   Bool slewCorrection = !strcmp(args, "1");
 
-   if (!ToolsDaemon_SyncTime(syncBackward)) {
+   if (!ToolsDaemon_SyncTime(slewCorrection, TRUE, clientData)) {
       return RpcIn_SetRetVals(result, resultLen,
                               "Unable to sync time", FALSE);
    } else {
@@ -1200,6 +1263,16 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
       if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
          goto invalid_value;
       }
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_SLEWCORRECTION) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERCENTCORRECTION) == 0) {
+      int32 percent;
+      if (!StrUtil_StrToInt(&percent, value) || percent == 0 || percent > 100) {
+         goto invalid_value;
+      }
+      Debug("Daemon: update the slew correction percent.\n");
    } else if (strcmp(option, TOOLSOPTION_COPYPASTE) == 0) {
       if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
          goto invalid_value;
@@ -1234,6 +1307,26 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
       if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
          goto invalid_value;
       }
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_POWERON) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_POWEROFF) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_SUSPEND) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_RESUME) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_REBOOT) == 0) {
+      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+         goto invalid_value;
+      }
    } else {
       goto invalid_option;
    }
@@ -1249,17 +1342,9 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
        * Try the one-shot time sync if time sync transitions from
        * 'off' to 'on'.
        */
-      if (oldTimeSyncValue == 0 && start) {
-         const char *backwardsAllowed;
-         
-         backwardsAllowed = GuestApp_GetDictEntry(data->optionsDict, 
-                                                  TOOLSOPTION_SYNCTIME_ENABLE);
-         /* 
-          * Preserve backwards compatibility: VMX may not ever send us this
-          * option, so value may be NULL.
-          */
-         ToolsDaemon_SyncTime(backwardsAllowed && 
-                              strcmp(backwardsAllowed, "1") == 0);
+      if (oldTimeSyncValue == 0 && start &&
+          GuestApp_GetDictEntry(data->optionsDict, TOOLSOPTION_SYNCTIME_ENABLE)) {
+         ToolsDaemon_SyncTime(data->slewCorrection, TRUE, clientData);
       }
       oldTimeSyncValue = start;
       
@@ -1269,6 +1354,14 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
                           "Unable to start/stop time sync loop",
                           retVal = FALSE);
          goto exit;
+      }
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_SLEWCORRECTION) == 0) {
+      data->slewCorrection = strcmp(value, "0");
+      Debug("Daemon: Setting slewCorrection, %d.\n", data->slewCorrection);
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERCENTCORRECTION) == 0) {
+      int32 percent;
+      if (StrUtil_StrToInt(&percent, value)) {
+         data->slewPercentCorrection = percent;
       }
    } else if (strcmp(option, TOOLSOPTION_BROADCASTIP) == 0 &&
               strcmp(value, "1") == 0) {
@@ -1295,7 +1388,7 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
        * just remember the new sync period value.
        */
       if (period != data->timeSyncPeriod) {
-         data->timeSyncPeriod = period;
+         data->timeSyncPeriod = period * 100;
 
          if (data->timeSyncEvent != NULL) {
             Bool status;
@@ -1321,7 +1414,7 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
          timeSyncStartup = FALSE;
 
          if (syncStartupOk) {
-            if (!ToolsDaemon_SyncTime(TRUE)) {
+            if (!ToolsDaemon_SyncTime(TRUE, TRUE, clientData)) {
                RpcIn_SetRetVals(result, resultLen,
                                 "Unable to sync time during startup",
                                 retVal = FALSE);
@@ -1344,6 +1437,21 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
 			  retVal = FALSE);
 	 goto exit;
       }
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_POWERON) == 0) {
+      data->toolScriptOption[GUESTOS_STATECHANGE_POWERON] =
+                                strcmp(value, "0") ? TRUE : FALSE;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_POWEROFF) == 0) {
+      data->toolScriptOption[GUESTOS_STATECHANGE_HALT] =
+                                strcmp(value, "0") ? TRUE : FALSE;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_SUSPEND) == 0) {
+      data->toolScriptOption[GUESTOS_STATECHANGE_SUSPEND] =
+                                strcmp(value, "0") ? TRUE : FALSE;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_RESUME) == 0) {
+      data->toolScriptOption[GUESTOS_STATECHANGE_RESUME] =
+                                strcmp(value, "0") ? TRUE : FALSE;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_REBOOT) == 0) {
+      data->toolScriptOption[GUESTOS_STATECHANGE_REBOOT] =
+                                strcmp(value, "0") ? TRUE : FALSE;
    }
 
    /* success! */
@@ -1516,6 +1624,7 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,         // IN
 		 void *unlinkHgfsCBData)            // IN
 {
    ToolsDaemon_Data *data;
+   int i;
 
 #ifndef N_PLAT_NLM
    Atomic_Init();
@@ -1545,6 +1654,12 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,         // IN
    data->unlinkHgfsCB = unlinkHgfsCB;
    data->unlinkHgfsCBData = unlinkHgfsCBData;
    data->timeSyncPeriod = 0;
+   data->slewPercentCorrection = PERCENT_CORRECTION;
+   data->slewCorrection = TRUE;
+
+   for (i = 0; i < GUESTOS_STATECHANGE_LAST; i++) {
+      data->toolScriptOption[i] = TRUE;
+   }
 
 #if ALLOW_TOOLS_IN_FOREIGN_VM
    if (!VmCheck_IsVirtualWorld()) {
@@ -1554,8 +1669,6 @@ ToolsDaemon_Init(GuestApp_Dict **pConfDict,         // IN
 
 #if defined(VMX86_DEBUG) && !defined(__APPLE__)
    {
-      int i;
-
       /* Make sure the confDict has all the confs we need */
       for (i = 0; i < ARRAYSIZE(stateChangeCmdTable); i++) {
          const char *confName;

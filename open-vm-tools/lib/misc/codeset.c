@@ -265,6 +265,53 @@ CodeSetGetModulePath(uint32 priv)
 /*
  *-----------------------------------------------------------------------------
  *
+ * CodeSet_GetAltPathName --
+ *
+ *	The Unicode path is probably not compatible in the current encoding.
+ *	Try to convert the path into a short name so it may work with
+ *      local encoding.
+ *
+ *      XXX -- this function is a temporary fix. It should be removed once 
+ *             we fix the 3rd party library pathname issue.
+ *
+ * Results:
+ *      NULL, or a char string (free with free).
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+CodeSet_GetAltPathName(const utf16_t *pathW) // IN
+{
+   char *path = NULL;
+#if defined(_WIN32)
+   utf16_t shortPathW[_MAX_PATH];
+
+   ASSERT(pathW);
+
+   if (GetShortPathNameW(pathW, shortPathW, ARRAYSIZE(shortPathW)) == 0) {
+      goto exit;
+   }
+
+   if (!CodeSetOld_Utf16leToCurrent((const char *)shortPathW,
+                                    wcslen(shortPathW) * sizeof *shortPathW,
+                                    &path, NULL)) {
+      goto exit;
+   }
+
+  exit:
+#endif // _WIN32
+
+   return path;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * CodeSet_DontUseIcu --
  *
  *    Tell codeset not to load or use ICU (or stop using it if it's
@@ -319,7 +366,8 @@ CodeSet_DontUseIcu(void)
  */
 
 Bool
-CodeSet_Init(void)
+CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current code page.
+                                     //     Default is used if NULL.
 {
    DynBuf dbpath;
 #ifdef _WIN32
@@ -381,48 +429,87 @@ CodeSet_Init(void)
    }
 #endif
 
-   /*
-    * Data file must be in current module directory.
-    */
-   modPath = CodeSetGetModulePath(NULL);
-   if (!modPath) {
-      goto exit;
-   }
+   if (icuDataDir) {
+      /*
+       * Data file must be in the specified directory.
+       */
+      size_t length = strlen(icuDataDir);
 
-   lastSlash = wcsrchr(modPath, DIRSEPC_W);
-   if (!lastSlash) {
-      goto exit;
-   }
+      if (!DynBuf_Append(&dbpath, icuDataDir, length)) {
+         goto exit;
+      }
+      if (length && icuDataDir[length - 1] != DIRSEPC) {
+         if (!DynBuf_Append(&dbpath, DIRSEPS, strlen(DIRSEPS))) {
+            goto exit;
+         }
+      }
+      if (!DynBuf_Append(&dbpath, ICU_DATA_FILE, strlen(ICU_DATA_FILE)) ||
+          !DynBuf_Append(&dbpath, "\0", 1)) {
+         goto exit;
+      }
 
-   *lastSlash = L'\0';
+      /*
+       * Check for file existence.
+       */
+      attribs = GetFileAttributesA(DynBuf_Get(&dbpath));
 
-   if (!DynBuf_Append(&dbpath, modPath,
-                      wcslen(modPath) * sizeof(utf16_t)) ||
-       !DynBuf_Append(&dbpath, DIRSEPS_W,
-                      wcslen(DIRSEPS_W) * sizeof(utf16_t)) ||
-       !DynBuf_Append(&dbpath, ICU_DATA_FILE_W,
-                      wcslen(ICU_DATA_FILE_W) * sizeof(utf16_t)) ||
-       !DynBuf_Append(&dbpath, L"\0", 2)) {
-      goto exit;
-   }
+      if ((INVALID_FILE_ATTRIBUTES == attribs) ||
+          (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
+         goto exit;
+      }
 
-   /*
-    * Check for file existence.
-    */
-   attribs = GetFileAttributesW((LPCWSTR) DynBuf_Get(&dbpath));
+      path = (char *) DynBuf_Detach(&dbpath);
+   } else {
+      /*
+       * Data file must be in current module directory.
+       */
+      modPath = CodeSetGetModulePath(NULL);
+      if (!modPath) {
+         goto exit;
+      }
 
-   if ((INVALID_FILE_ATTRIBUTES == attribs) ||
-       (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
-      goto exit;
-   }
+      lastSlash = wcsrchr(modPath, DIRSEPC_W);
+      if (!lastSlash) {
+         goto exit;
+      }
 
-   /*
-    * Convert path to local encoding using system APIs (old codeset).
-    */
-   if (!CodeSetOld_Utf16leToCurrent(DynBuf_Get(&dbpath),
-                                    DynBuf_GetSize(&dbpath),
-                                    &path, NULL)) {
-      goto exit;
+      *lastSlash = L'\0';
+
+      if (!DynBuf_Append(&dbpath, modPath,
+                         wcslen(modPath) * sizeof(utf16_t)) ||
+          !DynBuf_Append(&dbpath, DIRSEPS_W,
+                         wcslen(DIRSEPS_W) * sizeof(utf16_t)) ||
+          !DynBuf_Append(&dbpath, ICU_DATA_FILE_W,
+                         wcslen(ICU_DATA_FILE_W) * sizeof(utf16_t)) ||
+          !DynBuf_Append(&dbpath, L"\0", 2)) {
+         goto exit;
+      }
+
+      /*
+       * Check for file existence.
+       */
+      attribs = GetFileAttributesW((LPCWSTR) DynBuf_Get(&dbpath));
+
+      if ((INVALID_FILE_ATTRIBUTES == attribs) ||
+          (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
+         goto exit;
+      }
+
+      /*
+       * Convert path to local encoding using system APIs (old codeset).
+       */
+      if (!CodeSetOld_Utf16leToCurrent(DynBuf_Get(&dbpath),
+                                       DynBuf_GetSize(&dbpath),
+                                       &path, NULL)) {
+
+         /*
+          * The unicode path is not compatible in the current encoding.
+          */
+         path = CodeSet_GetAltPathName(DynBuf_Get(&dbpath));
+         if (!path) {
+            goto exit;
+         }
+      }
    }
 
 #else // } _WIN32 {
@@ -474,9 +561,12 @@ CodeSet_Init(void)
 #endif // vmx86_devel
 
    /*
-    * Data file must be in POSIX_ICU_DIR.
+    * Data file is either in POSIX_ICU_DIR or user specified dir.
     */
-   if (!DynBuf_Append(&dbpath, POSIX_ICU_DIR, strlen(POSIX_ICU_DIR)) ||
+   if (!icuDataDir) {
+      icuDataDir = POSIX_ICU_DIR;
+   }
+   if (!DynBuf_Append(&dbpath, icuDataDir, strlen(icuDataDir)) ||
        !DynBuf_Append(&dbpath, DIRSEPS, strlen(DIRSEPS)) ||
        !DynBuf_Append(&dbpath, ICU_DATA_FILE, strlen(ICU_DATA_FILE)) ||
        !DynBuf_Append(&dbpath, "\0", 1)) {
@@ -514,6 +604,10 @@ found:
       if (CODESET_CAN_FALLBACK_ON_NON_ICU) {
          ret = TRUE;
          dontUseIcu = TRUE;
+
+#ifdef _WIN32
+         OutputDebugStringW(L"CodeSet_Init: no ICU\n");
+#endif
       }
    }
 

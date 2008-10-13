@@ -2266,7 +2266,7 @@ miSubtract(regD, regM, regS)
     }
  
     /* Add those rectangles in region 1 that aren't in region 2,
-       do yucky substraction for overlaps, and
+       do yucky subtraction for overlaps, and
        just throw away rectangles in region 2 that aren't in region 1 */
     if (!miRegionOp(regD, regM, regS, miSubtractO, TRUE, FALSE, &overlap))
 	return FALSE;
@@ -2326,7 +2326,7 @@ miInverse(newReg, reg1, invRect)
     }
 
     /* Add those rectangles in region 1 that aren't in region 2,
-       do yucky substraction for overlaps, and
+       do yucky subtraction for overlaps, and
        just throw away rectangles in region 2 that aren't in region 1 */
     invReg.extents = *invRect;
     invReg.data = (RegDataPtr)NULL;

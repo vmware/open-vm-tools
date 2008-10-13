@@ -27,6 +27,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#if defined(linux)
+#include <sys/wait.h>
+#include <mntent.h>
+#include <paths.h>
+#endif
+
 
 #ifdef _WIN32
 #include <io.h>
@@ -49,10 +55,17 @@
 #include "vm_version.h"
 #include "vm_app.h"
 #include "message.h"
-#include "eventManager.h"
-#include "debug.h"
-#include "rpcout.h"
-#include "rpcin.h"
+
+#if defined(VMTOOLS_USE_GLIB)
+#  include "vixPluginInt.h"
+#  include "vmtools.h"
+#else
+#  include "debug.h"
+#  include "eventManager.h"
+#  include "rpcin.h"
+#  include "rpcout.h"
+#endif
+
 #include "util.h"
 #include "strutil.h"
 #include "str.h"
@@ -71,6 +84,10 @@
 #include "system.h"
 #include "codeset.h"
 
+#if defined(linux)
+#include "hgfsDevLinux.h"
+#endif
+
 #ifndef __FreeBSD__
 #include "netutil.h"
 #endif
@@ -83,7 +100,9 @@
 #include "vixTools.h"
 #include "vixOpenSource.h"
 
+#if !defined(VMTOOLS_USE_GLIB)
 static DblLnkLst_Links *globalEventQueue;   // event queue for main event loop
+#endif
 
 #define GUESTMSG_MAX_IN_SIZE (64 * 1024) /* vmx/main/guest_msg.c */
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
@@ -91,10 +110,10 @@ static DblLnkLst_Links *globalEventQueue;   // event queue for main event loop
 #if defined(linux) || defined(_WIN32)
 
 # if defined(_WIN32)
-#  define DECLARE_SYNCDRIVER_ERROR(name) DWORD name = ERROR_SUCCESS;
+#  define DECLARE_SYNCDRIVER_ERROR(name) DWORD name = ERROR_SUCCESS
 #  define SYNCDRIVERERROR ERROR_GEN_FAILURE
 # else
-#  define DECLARE_SYNCDRIVER_ERROR(name) int name = 0;
+#  define DECLARE_SYNCDRIVER_ERROR(name) int name = 0
 #  define SYNCDRIVERERROR errno
 # endif
 
@@ -109,56 +128,25 @@ static char *ToolsDaemonTcloGetQuotedString(const char *args,
 static char * ToolsDaemonTcloGetEncodedQuotedString(const char *args,
                                                     const char **endOfArg);
 
-Bool ToolsDaemonTcloReceiveVixCommand(char const **result,
-                                      size_t *resultLen,
-                                      const char *name,
-                                      const char *args,
-                                      size_t argsSize,
-                                      void *clientData);
-
-static Bool ToolsDaemonTcloCheckUserAccount(char const **result,
-                                            size_t *resultLen,
-                                            const char *name,
-                                            const char *args,
-                                            size_t argsSize,
-                                            void *clientData);
+Bool ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
 #if !defined(N_PLAT_NLM)
-static Bool ToolsDaemonHgfsImpersonated(char const **result,
-                                        size_t *resultLen,
-                                        const char *name,
-                                        const char *args,
-                                        size_t argsSize,
-                                        void *clientData);
+Bool ToolsDaemonHgfsImpersonated(RpcInData *data);
 #endif
 
 #if defined(linux) || defined(_WIN32)
-static Bool ToolsDaemonTcloSyncDriverFreeze(char const **result,
-                                            size_t *resultLen,
-                                            const char *name,
-                                            const char *args,
-                                            size_t argsSize,
-                                            void *clientData);
+Bool ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 
-static Bool ToolsDaemonTcloSyncDriverThaw(char const **result,
-                                          size_t *resultLen,
-                                          const char *name,
-                                          const char *args,
-                                          size_t argsSize,
-                                          void *clientData);
+Bool ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
 #endif
 
-static Bool ToolsDaemonTcloMountHGFS(char const **result,
-                                     size_t *resultLen,
-                                     const char *name,
-                                     const char *args,
-                                     size_t argsSize,
-                                     void *clientData);
+Bool ToolsDaemonTcloMountHGFS(RpcInData *data);
 
 void ToolsDaemonTcloReportProgramCompleted(const char *requestName,
                                            VixError err,
                                            int exitCode,
-                                           int64 pid);
+                                           int64 pid,
+                                           void *clientData);
 
 /*
  * These constants are a bad hack. I really should generate the result 
@@ -189,12 +177,7 @@ static Bool thisProcessRunsAsRoot = FALSE;
  */
 
 Bool
-FoundryToolsDaemonRunProgram(char const **result,     // OUT
-                             size_t *resultLen,       // OUT
-                             const char *name,        // IN
-                             const char *args,        // IN
-                             size_t argsSize,         // Ignored
-                             void *clientData)        // IN
+FoundryToolsDaemonRunProgram(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
    char *requestName = NULL;
@@ -208,18 +191,23 @@ FoundryToolsDaemonRunProgram(char const **result,     // OUT
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    ProcMgr_Pid pid;
+#if defined(VMTOOLS_USE_GLIB)
+   GMainLoop *eventQueue = ((ToolsAppCtx *)data->appCtx)->mainLoop;
+#else
+   DblLnkLst_Links *eventQueue = data->clientData;
+#endif
 
    /*
     * Parse the arguments. Some of these are optional, so they
     * may be NULL.
     */
-   requestName = ToolsDaemonTcloGetQuotedString(args, &args);
-   commandLine = ToolsDaemonTcloGetEncodedQuotedString(args, &args);
-   commandLineArgs = ToolsDaemonTcloGetEncodedQuotedString(args, &args);
-   credentialTypeStr = ToolsDaemonTcloGetQuotedString(args, &args);
-   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(args, &args);
-   directoryPath = ToolsDaemonTcloGetQuotedString(args, &args);
-   environmentVariables = ToolsDaemonTcloGetQuotedString(args, &args);
+   requestName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   commandLine = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
+   commandLineArgs = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
+   credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   directoryPath = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   environmentVariables = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Make sure we are passed the correct arguments.
@@ -249,6 +237,7 @@ FoundryToolsDaemonRunProgram(char const **result,     // OUT
                                 commandLineArgs,
                                 0,
                                 userToken,
+                                eventQueue,
                                 (int64 *) &pid);
 
 abort:
@@ -267,7 +256,7 @@ abort:
                err,
                Err_Errno(),
                (int64) pid);
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 
    /*
     * These were allocated by ToolsDaemonTcloGetQuotedString.
@@ -302,15 +291,9 @@ abort:
  */
 
 Bool
-FoundryToolsDaemonGetToolsProperties(char const **result,     // OUT
-                                     size_t *resultLen,       // OUT
-                                     const char *name,        // IN
-                                     const char *args,        // IN
-                                     size_t argsSize,         // Ignored
-                                     void *clientData)        // IN
+FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
-   GuestApp_Dict **confDictRef;
    int additionalError = 0;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    char *serializedBuffer = NULL;
@@ -319,11 +302,16 @@ FoundryToolsDaemonGetToolsProperties(char const **result,     // OUT
    size_t base64BufferLength = 0;
    Bool success;
    char *returnBuffer = NULL;
+#if defined(VMTOOLS_USE_GLIB)
+   GKeyFile *confDictRef;
+#else
+   GuestApp_Dict **confDictRef;
+#endif
    
    /*
     * Collect some values about the host.
     */
-   confDictRef = (GuestApp_Dict **) clientData;
+   confDictRef = data->clientData;
 
    err = VixTools_GetToolsPropertiesImpl(confDictRef,
                                          &serializedBuffer,
@@ -364,7 +352,7 @@ abort:
                err,
                additionalError,
                returnBuffer);
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 
    free(serializedBuffer);
    free(base64Buffer);
@@ -390,12 +378,7 @@ abort:
  */
 
 Bool
-ToolsDaemonTcloCheckUserAccount(char const **result,     // OUT
-                                size_t *resultLen,       // OUT
-                                const char *name,        // IN
-                                const char *args,        // IN
-                                size_t argsSize,         // Ignored
-                                void *clientData)        // IN
+ToolsDaemonTcloCheckUserAccount(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
    char *credentialTypeStr = NULL;
@@ -408,8 +391,8 @@ ToolsDaemonTcloCheckUserAccount(char const **result,     // OUT
    /*
     * Parse the argument
     */
-   credentialTypeStr = ToolsDaemonTcloGetQuotedString(args, &args);
-   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(args, &args);
+   credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Make sure we are passed the correct arguments.
@@ -445,7 +428,7 @@ abort:
                "%"FMT64"d %d",
                err,
                Err_Errno());
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 
    /*
     * These were allocated by ToolsDaemonTcloGetQuotedString.
@@ -456,6 +439,31 @@ abort:
    return TRUE;
 } // ToolsDaemonTcloCheckUserAccount
 
+#if defined(VMTOOLS_USE_GLIB)
+
+/**
+ * Initializes internal state of the Foundry daemon.
+ *
+ * @param[in]  ctx      Application context.
+ */
+
+void
+FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx)
+{
+   thisProcessRunsAsRoot = (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0);
+   (void) VixTools_Initialize(thisProcessRunsAsRoot,
+                              ToolsDaemonTcloReportProgramCompleted,
+                              ctx);
+
+#if defined(linux) || defined(_WIN32)
+   if (thisProcessRunsAsRoot) {
+      Impersonate_Init();
+   }
+#endif
+
+}
+
+#else
 
 /*
  *-----------------------------------------------------------------------------
@@ -491,9 +499,9 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
    thisProcessRunsAsRoot = runAsRoot;
    globalEventQueue = eventQueue;
 
-   (void) VixTools_Initialize(thisProcessRunsAsRoot, 
-                              globalEventQueue,
-                              ToolsDaemonTcloReportProgramCompleted);
+   (void) VixTools_Initialize(thisProcessRunsAsRoot,
+                              ToolsDaemonTcloReportProgramCompleted,
+                              NULL);
 
 #if defined(linux) || defined(_WIN32)
    /*
@@ -507,32 +515,32 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
    }
 #endif
 
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_RUN_PROGRAM,
-                          FoundryToolsDaemonRunProgram,
-                          NULL);
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_GET_PROPERTIES,
-                          FoundryToolsDaemonGetToolsProperties,
-                          confDictRef);
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_CHECK_USER_ACCOUNT,
-                          ToolsDaemonTcloCheckUserAccount,
-                          NULL);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_RUN_PROGRAM,
+                            FoundryToolsDaemonRunProgram,
+                            eventQueue);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_GET_PROPERTIES,
+                            FoundryToolsDaemonGetToolsProperties,
+                            confDictRef);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_CHECK_USER_ACCOUNT,
+                            ToolsDaemonTcloCheckUserAccount,
+                            NULL);
 #if !defined(N_PLAT_NLM)
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET,
-                          ToolsDaemonHgfsImpersonated,
-                          NULL);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET,
+                            ToolsDaemonHgfsImpersonated,
+                            NULL);
 #endif
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_COMMAND,
-                          ToolsDaemonTcloReceiveVixCommand,
-                          confDictRef);
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_MOUNT_VOLUME_LIST,
-                          ToolsDaemonTcloMountHGFS,
-                          NULL);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_COMMAND,
+                            ToolsDaemonTcloReceiveVixCommand,
+                            confDictRef);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_MOUNT_VOLUME_LIST,
+                            ToolsDaemonTcloMountHGFS,
+                            NULL);
 
 #if defined(linux) || defined(_WIN32)
 
@@ -550,14 +558,14 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
        * Win2k) but the running of the scripts is implemented using
        * VIX_BACKDOORCOMMAND_RUN_PROGRAM.
        */
-      RpcIn_RegisterCallback(in,
-                             VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE,
-                             ToolsDaemonTcloSyncDriverFreeze,
-                             NULL);
-      RpcIn_RegisterCallback(in,
-                             VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW,
-                             ToolsDaemonTcloSyncDriverThaw,
-                             NULL);
+      RpcIn_RegisterCallbackEx(in,
+                               VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE,
+                               ToolsDaemonTcloSyncDriverFreeze,
+                               eventQueue);
+      RpcIn_RegisterCallbackEx(in,
+                               VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW,
+                               ToolsDaemonTcloSyncDriverThaw,
+                               NULL);
    } else {
       Debug("FoundryToolsDaemon: Failed to init SyncDriver, skipping command handlers.\n");
    }
@@ -565,6 +573,7 @@ FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                    // IN
    inited = TRUE;
 } // FoundryToolsDaemon_RegisterRoutines
 
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -668,6 +677,7 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
 }
 
 
+#if !defined(VMTOOLS_USE_GLIB)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -685,13 +695,8 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-ToolsDaemonTcloOpenUrl(char const **result,     // OUT
-                       size_t *resultLen,       // OUT
-                       const char *name,        // IN
-                       const char *args,        // IN
-                       size_t argsSize,         // Ignored
-                       void *clientData)        // IN
+Bool
+ToolsDaemonTcloOpenUrl(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    VixError err = VIX_OK;
@@ -707,11 +712,11 @@ ToolsDaemonTcloOpenUrl(char const **result,     // OUT
    /*
     * Parse the arguments
     */
-   url = ToolsDaemonTcloGetEncodedQuotedString(args, &args);
-   windowState = ToolsDaemonTcloGetQuotedString(args, &args);
+   url = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
+   windowState = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
    // These parameters at the end are optional, so they may be NULL.
-   credentialTypeStr = ToolsDaemonTcloGetQuotedString(args, &args);
-   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(args, &args);
+   credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Validate the arguments.
@@ -755,7 +760,7 @@ abort:
     * foundry error and a guest-OS-specific error.
     */
    Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 
    /*
     * These were allocated by ToolsDaemonTcloGetQuotedString.
@@ -787,13 +792,8 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-ToolsDaemonTcloSetPrinter(char const **result,     // OUT
-                          size_t *resultLen,       // OUT
-                          const char *name,        // IN
-                          const char *args,        // IN
-                          size_t argsSize,         // Ignored
-                          void *clientData)        // IN
+Bool
+ToolsDaemonTcloSetPrinter(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
 #if defined(_WIN32)
@@ -807,8 +807,8 @@ ToolsDaemonTcloSetPrinter(char const **result,     // OUT
    /*
     * Parse the arguments
     */
-   printerName = ToolsDaemonTcloGetQuotedString(args, &args);
-   defaultString = ToolsDaemonTcloGetQuotedString(args, &args);
+   printerName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   defaultString = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Validate the arguments.
@@ -855,7 +855,7 @@ abort:
     * foundry error and a guest-OS-specific error.
     */
    Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 
    /*
     * These were allocated by ToolsDaemonTcloGetQuotedString.
@@ -872,10 +872,11 @@ abort:
                "%d %d 0",
                VIX_E_OP_NOT_SUPPORTED_ON_GUEST,
                Err_Errno());
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
    return TRUE;
 #endif
 }
+#endif
 
 
 /*
@@ -896,29 +897,29 @@ abort:
  */
 
 #if defined(linux) || defined(_WIN32)
-static Bool
-ToolsDaemonTcloSyncDriverFreeze(char const **result,     // OUT
-                                size_t *resultLen,       // OUT
-                                const char *name,        // IN
-                                const char *args,        // IN
-                                size_t argsSize,         // Ignored
-                                void *clientData)        // IN
+Bool
+ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    VixError err = VIX_OK;
    char *driveList = NULL;
    char *timeout = NULL;
    int timeoutVal;
-   Event *cbEvent;
    DECLARE_SYNCDRIVER_ERROR(sysError);
+#if defined(VMTOOLS_USE_GLIB)
+   ToolsAppCtx *ctx = data->appCtx;
+   GSource *timer;
+#else
+   Event *cbEvent;
+#endif
    
    Debug(">ToolsDaemonTcloSyncDriverFreeze\n");
 
    /*
     * Parse the arguments
     */
-   driveList = ToolsDaemonTcloGetQuotedString(args, &args);
-   timeout = ToolsDaemonTcloGetQuotedString(args, &args);
+   driveList = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   timeout = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Validate the arguments.
@@ -961,7 +962,12 @@ ToolsDaemonTcloSyncDriverFreeze(char const **result,     // OUT
    /* Start the timer callback to automatically thaw. */
    if (0 != timeoutVal) {
       Debug("ToolsDaemonTcloSyncDriverFreeze: Starting timer callback %d\n", timeoutVal);
-      cbEvent = EventManager_Add(globalEventQueue,
+#if defined(VMTOOLS_USE_GLIB)
+      timer = g_timeout_source_new(timeoutVal * 10);
+      VMTOOLSAPP_ATTACH_SOURCE(ctx, timer, ToolsDaemonSyncDriverThawCallback, NULL, NULL);
+      g_source_unref(timer);
+#else
+      cbEvent = EventManager_Add(data->clientData,
                                  timeoutVal,
                                  ToolsDaemonSyncDriverThawCallback,
                                  NULL);
@@ -975,6 +981,7 @@ ToolsDaemonTcloSyncDriverFreeze(char const **result,     // OUT
          sysError = SYNCDRIVERERROR;
          goto abort;
       }
+#endif
    }
 
 abort:
@@ -990,7 +997,7 @@ abort:
     */
    Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
    Debug("<ToolsDaemonTcloSyncDriverFreeze\n");
-   return RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   return RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 }
 #endif
 
@@ -1057,13 +1064,8 @@ exit:
  */
 
 #if defined(linux) || defined(_WIN32)
-static Bool
-ToolsDaemonTcloSyncDriverThaw(char const **result,     // OUT
-                              size_t *resultLen,       // OUT
-                              const char *name,        // IN
-                              const char *args,        // IN
-                              size_t argsSize,         // Ignored
-                              void *clientData)        // IN
+Bool
+ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    VixError err = VIX_OK;
@@ -1095,10 +1097,11 @@ ToolsDaemonTcloSyncDriverThaw(char const **result,     // OUT
     */
    Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
    Debug("<ToolsDaemonTcloSyncDriverThaw\n");
-   return RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   return RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 }
 #endif
 
+#if !defined(VMTOOLS_USE_GLIB)
 
 /*
  *-----------------------------------------------------------------------------
@@ -1153,10 +1156,10 @@ Bool
 FoundryToolsDaemon_RegisterOpenUrl(RpcIn *in) // IN
 {
    /* Register the TCLO handler. */
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_OPEN_URL,
-                          ToolsDaemonTcloOpenUrl,
-                          NULL);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_OPEN_URL,
+                            ToolsDaemonTcloOpenUrl,
+                            NULL);
    /*
     * Inform the VMX that we support opening urls in the guest; the UI
     * and VMX need to know about this capability in advance (rather than
@@ -1275,10 +1278,10 @@ FoundryToolsDaemon_RegisterSetPrinter(RpcIn *in) // IN
    }
 
    /* Register the TCLO handler. */
-   RpcIn_RegisterCallback(in,
-                          VIX_BACKDOORCOMMAND_SET_GUEST_PRINTER,
-                          ToolsDaemonTcloSetPrinter,
-                          NULL);
+   RpcIn_RegisterCallbackEx(in,
+                            VIX_BACKDOORCOMMAND_SET_GUEST_PRINTER,
+                            ToolsDaemonTcloSetPrinter,
+                            NULL);
    /*
     * Inform the VMX that we support setting the guest printer; the UI
     * and VMX need to know about this capability in advance (rather than
@@ -1346,6 +1349,8 @@ FoundryToolsDaemon_UnregisterSetPrinter(RpcIn *in) // IN
    return TRUE;
 }
 
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1363,28 +1368,46 @@ FoundryToolsDaemon_UnregisterSetPrinter(RpcIn *in) // IN
  */
 
 Bool
-ToolsDaemonTcloMountHGFS(char const **result,     // OUT
-                         size_t *resultLen,       // OUT
-                         const char *name,        // IN
-                         const char *args,        // IN
-                         size_t argsSize,         // Ignored
-                         void *clientData)        // IN
+ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
 
 #if defined(linux)
-   int ret;
+   /*
+    * Look for a vmhgfs mount at /mnt/hgfs. If one exists, nothing
+    * else needs to be done.  If one doesn't exist, then mount at
+    * that location.
+    */
+   FILE *mtab;
+   struct mntent *mnt;
+   Bool vmhgfsMntFound = FALSE;
+   if ((mtab = setmntent(_PATH_MOUNTED, "r")) == NULL) {
+      err = VIX_E_FAIL;
+   } else {
+      while ((mnt = getmntent(mtab)) != NULL) {
+         if ((strcmp(mnt->mnt_fsname, ".host:/") == 0) &&
+             (strcmp(mnt->mnt_type, HGFS_NAME) == 0) &&
+             (strcmp(mnt->mnt_dir, "/mnt/hgfs") == 0)) {
+             vmhgfsMntFound = TRUE;
+             break;
+         }
+      }
+      endmntent(mtab);
+   }
 
+   if (vmhgfsMntFound) {
    /*
     * We need to call the mount program, not the mount system call. The
-    * mount program does several additional things, like compute the mount options
-    * from the contents of /etc/fstab, and invoke custom mount programs like the
-    * one needed for HGFS.
+    * mount program does several additional things, like compute the mount
+    * options from the contents of /etc/fstab, and invoke custom mount
+    * programs like the one needed for HGFS.
     */
-   ret = system("mount -a -t vmhgfs");
-   if (ret == -1 || WIFSIGNALED(ret) || (WIFEXITED(ret) && WEXITSTATUS(ret))) {
-      err = VIX_E_FAIL;
+      int ret = system("mount -t vmhgfs .host:/ /mnt/hgfs");
+      if (ret == -1 || WIFSIGNALED(ret) ||
+          (WIFEXITED(ret) && WEXITSTATUS(ret) != 0)) {
+         err = VIX_E_FAIL;
+      }
    }
 #endif
 
@@ -1397,7 +1420,7 @@ ToolsDaemonTcloMountHGFS(char const **result,     // OUT
                "%"FMT64"d %d",
                err,
                Err_Errno());
-   RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
 
    return TRUE;
 } // ToolsDaemonTcloMountHGFS
@@ -1444,16 +1467,11 @@ ToolsDaemonTcloMountHGFS(char const **result,     // OUT
  */
 
 Bool
-ToolsDaemonHgfsImpersonated(char const **result,     // OUT
-                            size_t *resultLen,       // OUT
-                            const char *name,        // IN
-                            const char *args,        // IN
-                            size_t argsSize,         // IN: Size of args
-                            void *clientData)        // Unused
+ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
 {
    VixError err;
    size_t hgfsPacketSize = 0;
-   const char *origArgs = args;
+   const char *origArgs = data->args;
    Bool impersonatingVMWareUser = FALSE;
    char *credentialTypeStr = NULL;
    char *obfuscatedNamePassword = NULL;
@@ -1486,8 +1504,8 @@ ToolsDaemonHgfsImpersonated(char const **result,     // OUT
    /*
     * Get the authentication information.
     */
-   credentialTypeStr = ToolsDaemonTcloGetQuotedString(args, &args);
-   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(args, &args);
+   credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
+   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Make sure we are passed the correct arguments.
@@ -1503,21 +1521,21 @@ ToolsDaemonHgfsImpersonated(char const **result,     // OUT
     * since it will try to eat trailing spaces after a quoted string,
     * and the HGFS packet might begin with a space.
     */
-   if (((args - origArgs) >= argsSize) || ('#' != *args)) {
+   if (((data->args - origArgs) >= data->argsSize) || ('#' != *(data->args))) {
       /*
        * Buffer too small or we got an unexpected token.
        */
       err = VIX_E_FAIL;
       goto abort;
    }
-   args++;
+   data->args++;
    
    /*
     * At this point args points to the HGFS packet.
     * If we're pointing beyond the end of the buffer, we'll
     * get a negative HGFS packet length and abort.
     */
-   hgfsPacketSize = argsSize - (args - origArgs);
+   hgfsPacketSize = data->argsSize - (data->args - origArgs);
    if (hgfsPacketSize <= 0) {
       err = VIX_E_FAIL;
       goto abort;
@@ -1539,7 +1557,7 @@ ToolsDaemonHgfsImpersonated(char const **result,     // OUT
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
     */
-   HgfsServer_DispatchPacket(args,              // packet in buf
+   HgfsServer_DispatchPacket(data->args,        // packet in buf
                              hgfsReplyPacket,   // packet out buf
                              &hgfsPacketSize);  // in/out size
 
@@ -1555,10 +1573,10 @@ abort:
    free(credentialTypeStr);
    free(obfuscatedNamePassword);
 
-   *result = resultPacket;
-   *resultLen = STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
-                  + OTHER_TEXT_SIZE
-                  + hgfsPacketSize;
+   data->result = resultPacket;
+   data->resultLen = STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
+                        + OTHER_TEXT_SIZE
+                        + hgfsPacketSize;
    
    /*
     * Render the foundry error codes into the buffer.
@@ -1583,7 +1601,7 @@ abort:
       actualUsed = Str_Snprintf(resultPacket,
                                 STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING,
                                 "1 0 #");
-      *resultLen = actualUsed;
+      data->resultLen = actualUsed;
    } else {
       /*
        * We computed the string length correctly.  Great!
@@ -1634,10 +1652,23 @@ void
 ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
                                       VixError err,               // IN
                                       int exitCode,               // IN
-                                      int64 pid)                  // IN
+                                      int64 pid,                  // IN
+                                      void *clientData)           // IN
 {
    Bool sentResult;
 
+#if defined(VMTOOLS_USE_GLIB)
+   ToolsAppCtx *ctx = clientData;
+   gchar *msg = g_strdup_printf("%s %s %"FMT64"d %d %d %"FMT64"d",
+                                VIX_BACKDOORCOMMAND_RUN_PROGRAM_DONE,
+                                requestName,
+                                err,
+                                Err_Errno(),
+                                exitCode,
+                                (int64) pid);
+   sentResult = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);
+   g_free(msg);
+#else
    sentResult = RpcOut_sendOne(NULL,
                                NULL,
                                "%s %s %"FMT64"d %d %d %"FMT64"d",
@@ -1647,6 +1678,8 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
                                Err_Errno(),
                                exitCode,
                                (int64) pid);
+#endif
+
    if (!sentResult) {
       Warning("Unable to send results from polling the result program.\n\n");
    }
@@ -1670,12 +1703,7 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
  */
 
 Bool
-ToolsDaemonTcloReceiveVixCommand(char const **result,     // OUT
-                                 size_t *resultLen,       // OUT
-                                 const char *name,        // IN
-                                 const char *args,        // IN
-                                 size_t argsSize,         // IN: Size of args
-                                 void *clientData)        // IN
+ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
    char *requestName = NULL;
@@ -1686,39 +1714,47 @@ ToolsDaemonTcloReceiveVixCommand(char const **result,     // OUT
    size_t resultValueLength = 0;
    Bool deleteResultValue = FALSE;
    char *destPtr = NULL;
-   GuestApp_Dict **confDictRef;
    int vixPrefixDataSize = (MAX64_DECIMAL_DIGITS * 2)
                              + (sizeof(' ') * 2)
                              + sizeof('\0');
+
    /*
-    * Our temporary buffer will be the same size as what the 
+    * Our temporary buffer will be the same size as what the
     * Tclo/RPC system can handle, which is GUESTMSG_MAX_IN_SIZE.
     */
    static char tcloBuffer[GUESTMSG_MAX_IN_SIZE];
-   
-   
-   requestName = ToolsDaemonTcloGetQuotedString(args, &args);
+
+#if defined(VMTOOLS_USE_GLIB)
+   ToolsAppCtx *ctx = data->appCtx;
+   GMainLoop *eventQueue = ctx->mainLoop;
+   GKeyFile *confDictRef = ctx->config;
+#else
+   DblLnkLst_Links *eventQueue = globalEventQueue;
+   GuestApp_Dict **confDictRef = data->clientData;
+#endif
+
+   requestName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
     * Skip the NULL, char, and then the rest of the buffer should just 
     * be a Vix command object.
     */
-   while (*args) {
-      args += 1;
+   while (*data->args) {
+      data->args += 1;
    }
-   args += 1;
-   err = VixMsg_ValidateMessage((char *) args, argsSize);
+   data->args += 1;
+   err = VixMsg_ValidateMessage((char *) data->args, data->argsSize);
    if (VIX_OK != err) {
       goto abort;
    }
-   requestMsg = (VixCommandRequestHeader *) args;
-   confDictRef = (GuestApp_Dict **) clientData;
+   requestMsg = (VixCommandRequestHeader *) data->args;
    maxResultBufferSize = sizeof(tcloBuffer) - vixPrefixDataSize;
 
    err = VixTools_ProcessVixCommand(requestMsg,
                                     requestName,
                                     maxResultBufferSize,
                                     confDictRef,
+                                    eventQueue,
                                     &resultValue,
                                     &resultValueLength,
                                     &deleteResultValue);
@@ -1768,7 +1804,7 @@ abort:
    if ((NULL != requestMsg)
          && (requestMsg->commonHeader.commonFlags & VIX_COMMAND_GUEST_RETURNS_BINARY)) {
       *(destPtr++) = '#';
-      *resultLen = destPtr - tcloBuffer + sizeof '#' + resultValueLength;
+      data->resultLen = destPtr - tcloBuffer + sizeof '#' + resultValueLength;
    }
 
    /*
@@ -1783,10 +1819,10 @@ abort:
    if ((NULL == requestMsg)
          || !(requestMsg->commonHeader.commonFlags & VIX_COMMAND_GUEST_RETURNS_BINARY)) {
       *(destPtr++) = 0;
-      *resultLen = strlen(tcloBuffer);
+      data->resultLen = strlen(tcloBuffer) + 1;
    }
    
-   *result = tcloBuffer;
+   data->result = tcloBuffer;
 
    if (deleteResultValue) {
       free(resultValue);

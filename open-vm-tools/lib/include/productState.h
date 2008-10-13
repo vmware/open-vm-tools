@@ -42,6 +42,7 @@ typedef enum {
    PRODUCT_PLAYER = 1 << 3,
    PRODUCT_TOOLS = 1 << 4,
    PRODUCT_VDM_CLIENT = 1 << 5,
+   PRODUCT_CVP = 1 << 6,
    /* etc */
 } Product;
 typedef uint64 ProductMask;

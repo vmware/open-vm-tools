@@ -35,7 +35,6 @@ else
 endif
 vmware_user_LDADD += ../lib/guestApp/libGuestAppX11.a
 vmware_user_LDADD += ../lib/guestInfo/libGuestInfo.a
-vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.a
 vmware_user_LDADD += ../lib/hgfsServer/libHgfsServer.a
 vmware_user_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a
 vmware_user_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a
@@ -58,6 +57,7 @@ if ENABLE_UNITY
 else
    vmware_user_LDADD += ../lib/unityStub/libUnityStub.a
 endif
+vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.a
 vmware_user_LDADD += ../lib/user/libUser.a
 vmware_user_LDADD += ../lib/vixTools/libVixTools.a
 vmware_user_LDADD += ../lib/vmCheck/libVmCheck.a

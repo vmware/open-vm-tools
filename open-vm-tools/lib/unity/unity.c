@@ -112,7 +112,10 @@
 #include "unity.h"
 #include "unityPlatform.h"
 #include "unityDebug.h"
-
+#include "dynxdr.h"
+#include "guestrpc/unityActive.h"
+#include "guestCaps.h"
+#include "appUtil.h"
 #include <stdio.h>
 
 /*
@@ -129,11 +132,16 @@ typedef struct UnityState {
 
 static UnityState unity;
 
+static GuestCapabilities unityCaps[] = {
+   UNITY_CAP_STATUS_UNITY_ACTIVE
+};
+
 
 /*
  * Helper Functions
  */
 
+static Bool UnityUpdateState(void);
 static void UnityUpdateCallbackFn(void *param, UnityUpdate *update);
 static Bool UnityTcloGetUpdate(char const **result, size_t *resultLen, const char *name,
                                const char *args, size_t argsSize, void *clientData);
@@ -552,6 +560,7 @@ Unity_RegisterCaps(void)
     */
 
    UnityPlatformRegisterCaps(unity.up);
+   AppUtil_SendGuestCaps(unityCaps, ARRAYSIZE(unityCaps), TRUE);
 }
 
 
@@ -588,6 +597,7 @@ Unity_UnregisterCaps(void)
    if (!RpcOut_sendOne(NULL, NULL, UNITY_RPC_UNITY_CAP" 0")) {
       Debug("Failed to unregister Unity capability\n");
    }
+   AppUtil_SendGuestCaps(unityCaps, ARRAYSIZE(unityCaps), FALSE);
 }
 
 
@@ -660,6 +670,8 @@ UnityTcloEnter(char const **result,     // OUT
       unity.isEnabled = TRUE;
    }
 
+   UnityUpdateState();
+
    return RpcIn_SetRetVals(result, resultLen, "", TRUE);
 }
 
@@ -692,6 +704,7 @@ UnityTcloExit(char const **result,     // OUT
 
    Unity_Exit();
 
+   UnityUpdateState();
    return RpcIn_SetRetVals(result, resultLen, "", TRUE);
 }
 
@@ -1174,9 +1187,10 @@ UnityUpdateCallbackFn(void *param,          // IN: dynbuf
       if (titleUtf8 &&
           (DynBuf_GetSize(&update->u.changeWindowTitle.titleUtf8) ==
            strlen(titleUtf8) + 1)) {
-         Str_Sprintf(data, sizeof data, "title %u %s",
-                     update->u.changeWindowTitle.id,
-                     (const char*)titleUtf8);
+           Str_Sprintf(data, sizeof data, "title %u ",
+                       update->u.changeWindowTitle.id);
+           Str_Strncat(data, sizeof data, titleUtf8, sizeof data - strlen(data) - 1);
+           data[sizeof data - 1] = '\0';
       } else {
          Str_Sprintf(data, sizeof data, "title %u",
                      update->u.changeWindowTitle.id);
@@ -1664,7 +1678,10 @@ UnityTcloMoveResizeWindow(char const **result,     // OUT
  *
  * UnityTcloSetDesktopConfig --
  *
- *     RPC handler for 'unity.set.desktop.config'.
+ *     RPC handler for 'unity.set.desktop.config'. The RPC takes the form of:
+ *     {1,1} {1,2} {2,1} {2,2} 1
+ *     for a 2 x 2 virtual desktop where the upper right {1,2} is the currently
+ *     active desktop.
  *
  * Results:
  *     TRUE if everything is successful.
@@ -1687,6 +1704,7 @@ UnityTcloSetDesktopConfig(char const **result,  // OUT
    unsigned int index = 0;
    char *desktopStr = NULL;
    char *errorMsg;
+   uint32 initialDesktopIndex = 0;
 
    Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
 
@@ -1701,19 +1719,27 @@ UnityTcloSetDesktopConfig(char const **result,  // OUT
       UnityVirtualDesktop desktop;
       uint32 desktopCount = unity.virtDesktopArray.desktopCount;
 
-      int res = sscanf(desktopStr, "{%d,%d}", &desktop.x, &desktop.y);
-      free(desktopStr);
-      if (res == 2) {
+      if (sscanf(desktopStr, "{%d,%d}", &desktop.x, &desktop.y) == 2) {
          if (desktopCount >= MAX_VIRT_DESK - 1) {
             errorMsg = "Invalid arguments: too many desktops";
             goto error;
          }
          unity.virtDesktopArray.desktops[desktopCount] = desktop;
          unity.virtDesktopArray.desktopCount++;
+      } else if (sscanf(desktopStr, "%u", &initialDesktopIndex) == 1) {
+         if (initialDesktopIndex >= unity.virtDesktopArray.desktopCount) {
+            errorMsg = "Invalid arguments: current desktop is out of bounds";
+            goto error;
+         }
+         /* All done with arguments at this point - stop processing */
+         free(desktopStr);
+         break;
       } else {
          errorMsg = "Invalid arguments: invalid desktop config";
          goto error;
       }
+      free(desktopStr);
+      desktopStr = NULL;
    }
 
    /*
@@ -1725,10 +1751,16 @@ UnityTcloSetDesktopConfig(char const **result,  // OUT
       goto error;
    }
 
+   if (!UnityPlatformSetInitialDesktop(unity.up, initialDesktopIndex)) {
+      errorMsg = "Could not set initial desktop";
+      goto error;
+   }
+
    return RpcIn_SetRetVals(result, resultLen,
                            "",
                            TRUE);
 error:
+   free(desktopStr);
    unity.virtDesktopArray.desktopCount = 0;
    Debug("%s: %s\n", __FUNCTION__, errorMsg);
 
@@ -1767,6 +1799,11 @@ UnityTcloSetDesktopActive(char const **result,  // OUT
    char *errorMsg;
 
    Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+
+   if (unity.isEnabled == FALSE) {
+      errorMsg = "Unity not enabled - cannot change active desktop";
+      goto error;
+   }
 
    if (sscanf(args, " %d", &desktopId) != 1) {
       errorMsg = "Invalid arguments: expected \"desktopId\"";
@@ -1835,6 +1872,11 @@ UnityTcloSetWindowDesktop(char const **result,  // OUT
 
    Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
 
+   if (unity.isEnabled == FALSE) {
+      errorMsg = "Unity not enabled - cannot set window desktop";
+      goto error;
+   }
+
    if (sscanf(args, " %u %d", &windowId, &desktopId) != 2) {
       errorMsg = "Invalid arguments: expected \"windowId desktopId\"";
       goto error;
@@ -1865,4 +1907,61 @@ error:
    return RpcIn_SetRetVals(result, resultLen,
                            errorMsg,
                            FALSE);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UnityUpdateState --
+ *
+ *     Communicate unity state changes to vmx.  
+ *
+ * Results:
+ *     TRUE if everything is successful.
+ *     FALSE otherwise.
+ *
+ * Side effects:
+ *     None. 
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+UnityUpdateState(void)
+{
+   Bool ret = TRUE;
+   XDR xdrs;
+   UnityActiveProto message;
+   char *val;
+
+   if (DynXdr_Create(&xdrs) == NULL) {
+      return FALSE;
+   }
+
+   val = Str_Asprintf(NULL, "%s ", UNITY_RPC_UNITY_ACTIVE);
+   if (!val || !DynXdr_AppendRaw(&xdrs, val, strlen(val))) {
+      Debug("%s: Failed to create state string.\n", __FUNCTION__);
+      ret = FALSE;
+      goto out;
+   }
+   memset(&message, 0, sizeof message);
+   message.ver = UNITY_ACTIVE_V1;
+   message.UnityActiveProto_u.unityActive = unity.isEnabled;
+   if (!xdr_UnityActiveProto(&xdrs, &message)) {
+      Debug("%s: Failed to append message content.\n", __FUNCTION__);
+      ret = FALSE;
+      goto out;
+   }
+
+   if (!RpcOut_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs), NULL, NULL)) {
+      Debug("%s: Failed to send Unity state RPC.\n", __FUNCTION__);
+      ret = FALSE;
+   } else {
+      Debug("%s: success\n", __FUNCTION__);
+   }
+out:
+   free(val);
+   DynXdr_Destroy(&xdrs, TRUE);
+   return ret;
 }

@@ -256,6 +256,12 @@ struct _UnityPlatform {
       size_t savedNumDesktops;
       uint32 savedCurrentDesktop;
       uint32 currentDesktop;
+      /*
+       * Set by the set.desktop.active RPC to indicate which desktop the host is in
+       * when we enter Unity.
+       */
+      uint32 initialDesktop;
+#define UNITY_X11_INITIALDESKTOP_UNSET  MAX_UINT32
    } desktopInfo;
 
    Bool isRunning;
@@ -327,6 +333,20 @@ struct UnityPlatformWindow {
    Bool isHidden;
    Bool isMinimized;
    Bool isMaximized;
+
+   /*
+    * When a client window is reparented by a window manager, a ReparentNotify event
+    * is generated.  We're interested in this event, because it tells us that the
+    * relationship between this UnityPlatformWindow and its top-level and client
+    * windows has changed.
+    *
+    * Per ICCCM §4.1.3.1, we identify the client window as the window within a
+    * tree possessing the WM_STATE property.  Unfortunately, this property may
+    * not yet be set when we receive ReparentNotify.  If that's the case, this flag
+    * is raised such that once we do see a WM_STATE change related to one of
+    * our windows (via a PropertyNotify event), we may act accordingly.
+    */
+   Bool waitingForWmState;
 };
 
 /*

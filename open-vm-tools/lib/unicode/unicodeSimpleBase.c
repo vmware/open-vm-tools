@@ -141,6 +141,14 @@ UnicodeAllocInternal(const void *buffer,      // IN
  *      Otherwise, buffer must be of the specified length, but does
  *      not need to be NUL-terminated.
  *
+ *      This function should not be used for heuristic determination of
+ *      encodings.  Since the test looks for bit patterns in the buffer
+ *      that are invalid in the specified encoding, negative results
+ *      guarantee the buffer is not in the specified encoding, but positive
+ *      results are inconclusive.  Source buffers containing pure ASCII
+ *      will pass all 8-bit encodings, and all source buffers will pass 
+ *      a windows-1252 test since win-1252 maps all 256 8-bit combinations.
+ *
  * Results:
  *      TRUE if the buffer is valid, FALSE if it's not.
  *

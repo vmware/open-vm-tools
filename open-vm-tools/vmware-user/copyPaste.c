@@ -80,6 +80,7 @@
 #include "codeset.h"
 #include "escape.h"
 #include "hostinfo.h"
+#include "wiper.h"
 
 
 /*
@@ -563,7 +564,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    }
 
    if (gHGFCPFileTransferStatus == FCP_FILE_TRANSFER_NOT_YET) {
-      if (GetAvailableDiskSpace(gFileRoot) < gHGFCPTotalSize) {
+      if (GuestInfo_GetAvailableDiskSpace(gFileRoot) < gHGFCPTotalSize) {
          Debug("CopyPasteSelectionGetCB no enough space to copy file from host.\n");
          return;
       }
@@ -1924,6 +1925,7 @@ CopyPaste_Register(GtkWidget* mainWnd)
                           CopyPasteRpcInGHFinishCB, NULL);
 
    CopyPasteStateInit();
+   Wiper_Init(NULL);
 
    return CopyPaste_RegisterCapability();
 }

@@ -103,6 +103,8 @@ Bool UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,
                                       uint32 numWorkAreas);
 Bool UnityPlatformSetDesktopConfig(UnityPlatform *up,
                                    const UnityVirtualDesktopArray *desktops);
+Bool UnityPlatformSetInitialDesktop(UnityPlatform *up,
+                                    UnityDesktopId desktopId);
 Bool UnityPlatformSetDesktopActive(UnityPlatform *up,
                                    UnityDesktopId desktopId);
 Bool UnityPlatformSetWindowDesktop(UnityPlatform *up,

@@ -52,7 +52,6 @@ typedef struct GuestOsStateChangeCmd {
    unsigned int id;
    char const *name;
    char const *tcloCmd;
-   char const *configOption;
 } GuestOsStateChangeCmd;
 
 /*
@@ -78,6 +77,13 @@ typedef struct GuestOsStateChangeCmd {
 #define TOOLSOPTION_SYNCTIME_PERIOD "synctime.period"
 #define TOOLSOPTION_SYNCTIME_ENABLE "time.synchronize.tools.enable"
 #define TOOLSOPTION_SYNCTIME_STARTUP "time.synchronize.tools.startup"
+#define TOOLSOPTION_SCRIPTS_POWERON "toolScripts.afterPowerOn"
+#define TOOLSOPTION_SCRIPTS_POWEROFF "toolScripts.beforePowerOff"
+#define TOOLSOPTION_SCRIPTS_RESUME "toolScripts.afterResume"
+#define TOOLSOPTION_SCRIPTS_SUSPEND "toolScripts.beforeSuspend"
+#define TOOLSOPTION_SCRIPTS_REBOOT "toolScripts.beforePowerOff"
+#define TOOLSOPTION_SYNCTIME_SLEWCORRECTION "time.synchronize.tools.slewCorrection"
+#define TOOLSOPTION_SYNCTIME_PERCENTCORRECTION "time.synchronize.tools.percentCorrection"
 #define TOOLSOPTION_MAP_ROOT_HGFS_SHARE "mapRootHgfsShare"
 #define TOOLSOPTION_LINK_ROOT_HGFS_SHARE "linkRootHgfsShare"
 
@@ -118,16 +124,11 @@ typedef struct GuestOsStateChangeCmd {
  * The table of state change cmds corresponding to tclo commands.
  */
 static const GuestOsStateChangeCmd stateChangeCmdTable[] = {
-   { GUESTOS_STATECHANGE_POWERON, "poweron",
-     "OS_PowerOn", "vmx/cfgState/val/toolScripts/afterPowerOn" },
-   { GUESTOS_STATECHANGE_RESUME,  "resume",
-     "OS_Resume" , "vmx/cfgState/val/toolScripts/afterResume" },
-   { GUESTOS_STATECHANGE_SUSPEND, "suspend",
-     "OS_Suspend" , "vmx/cfgState/val/toolScripts/beforeSuspend" },
-   { GUESTOS_STATECHANGE_HALT,    "halt",
-     "OS_Halt", "vmx/cfgState/val/toolScripts/beforePowerOff" },
-   { GUESTOS_STATECHANGE_REBOOT,  "reboot",
-     "OS_Reboot", "vmx/cfgState/val/toolScripts/beforePowerOff" },
+   { GUESTOS_STATECHANGE_POWERON, "poweron", "OS_PowerOn" },
+   { GUESTOS_STATECHANGE_RESUME,  "resume", "OS_Resume" },
+   { GUESTOS_STATECHANGE_SUSPEND, "suspend", "OS_Suspend" },
+   { GUESTOS_STATECHANGE_HALT,    "halt", "OS_Halt" },
+   { GUESTOS_STATECHANGE_REBOOT,  "reboot", "OS_Reboot" },
 };
 
 

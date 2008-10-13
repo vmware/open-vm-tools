@@ -222,6 +222,7 @@ UnityPlatformInit(UnityWindowTracker *tracker, // IN
    up->allWindows = HashTable_Alloc(128, HASH_INT_KEY, NULL);
    up->specialWindows = HashTable_Alloc(32, HASH_INT_KEY, NULL);
    up->desktopWindow = NULL;
+   up->desktopInfo.initialDesktop = UNITY_X11_INITIALDESKTOP_UNSET;
 
    /*
     * Find the values of all the atoms
@@ -830,6 +831,7 @@ UnityPlatformKillHelperThreads(UnityPlatform *up) // IN
    free(uswList);
 
    XSync(up->display, TRUE);
+   up->desktopInfo.initialDesktop = UNITY_X11_INITIALDESKTOP_UNSET;
    up->isRunning = FALSE;
 
    Debug("Leaving unity mode\n");
@@ -953,8 +955,22 @@ UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
 
       UnityPlatformSyncDesktopConfig(up);
 
-      activeDesktop = UnityWindowTracker_GetActiveDesktop(up->tracker);
-      UnityPlatformSetDesktopActive(up, activeDesktop);
+      if (up->desktopInfo.initialDesktop != UNITY_X11_INITIALDESKTOP_UNSET) {
+         Debug("%s: Setting activeDesktop to initialDesktop (%u).\n", __func__,
+               up->desktopInfo.initialDesktop);
+         activeDesktop = up->desktopInfo.initialDesktop;
+      } else {
+         activeDesktop = UnityWindowTracker_GetActiveDesktop(up->tracker);
+      }
+      if (UnityPlatformSetDesktopActive(up, activeDesktop)) {;
+         /*
+          * XXX Rather than setting this directly here, should we instead wait for a
+          * PropertyNotify event from the window manager to one of the root windows?
+          * Doing so may be safer in that it confirms that our request was honored by
+          * the window manager.
+          */
+         UnityWindowTracker_ChangeActiveDesktop(up->tracker, activeDesktop);
+      }
    }
 
    if (up->needWorkAreas) {
@@ -1810,6 +1826,7 @@ USRootWindowsUpdateCurrentDesktop(UnityPlatform *up,       // IN
    }
 
    unityDesktop = up->desktopInfo.guestDesktopToUnity[currentDesktop];
+   Debug("%s: currentDesktop %u, unityDesktop %u\n", __func__, currentDesktop, unityDesktop);
    UnityWindowTracker_ChangeActiveDesktop(up->tracker, unityDesktop);
 }
 
@@ -2884,6 +2901,32 @@ UnityPlatformSetDesktopConfig(UnityPlatform *up,                             // 
    UnityPlatformSyncDesktopConfig(up);
 
    return TRUE;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnityPlatformSetInitialDesktop --
+ *
+ *     Set a desktop specified by the desktop id as the initial state. 
+ *
+ * Results:
+ *     Returns TRUE if successful, and FALSE otherwise.
+ *
+ * Side effects:
+ *     Some windows might be hidden and some shown.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+Bool
+UnityPlatformSetInitialDesktop(UnityPlatform *up,         // IN
+                               UnityDesktopId desktopId)  // IN
+{
+   ASSERT(up);
+   up->desktopInfo.initialDesktop = desktopId;
+   return UnityPlatformSetDesktopActive(up, desktopId);
 }
 
 

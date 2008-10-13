@@ -29,6 +29,15 @@
 #   define __VIX_TOOLS_DAEMON_H__
 
 
+#if defined(VMTOOLS_USE_GLIB)
+
+#include "vmtoolsApp.h"
+
+void
+FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
+
+#else /* not vix plugin */
+
 #include "vm_basic_types.h"
 #include "rpcin.h"
 #include "guestApp.h"
@@ -47,5 +56,6 @@ Bool FoundryToolsDaemon_RegisterOpenUrl(RpcIn *in);
 Bool FoundryToolsDaemon_RegisterOpenUrlCapability(void);
 Bool FoundryToolsDaemon_UnregisterOpenUrl(void);
 
+#endif
 
 #endif /* __VIX_TOOLS_DAEMON_H__ */

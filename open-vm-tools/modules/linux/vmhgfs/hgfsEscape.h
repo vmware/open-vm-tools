@@ -28,13 +28,15 @@
 #define __HGFS_ESCAPE_H__
 
 #if defined(WIN32)
+int HgfsEscape_GetSizeW(wchar_t const *bufIn, // IN
+                        uint32 sizeIn);       // IN (chars)
 int HgfsEscape_DoW(wchar_t const *bufIn, // IN
 		   uint32 sizeIn,        // IN (chars)
 		   uint32 sizeBufOut,    // IN (bytes)
 		   wchar_t *bufOut);     // OUT
 
-int HgfsEscape_UndoWToA(char *bufIn,    // IN
-		                  uint32 sizeIn); // IN
+int HgfsEscape_Undo(char *bufIn,    // IN
+                    uint32 sizeIn); // IN
 
 int HgfsEscape_UndoW(wchar_t *bufIn,   // IN
                      uint32 sizeIn);   // IN

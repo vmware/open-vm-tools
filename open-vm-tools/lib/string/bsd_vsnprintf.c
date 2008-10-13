@@ -874,6 +874,11 @@ bsd_vsnprintf(char **outbuf, size_t bufSize, const char *fmt0, va_list ap)
             if (expt == 9999)
                expt = INT_MAX;
          }
+         /* Our dtoa / ldtoa call strdup(), which can fail. PR319844 */
+         if (dtoaresult == NULL) {
+            sbuf.error = TRUE;
+            goto error;
+         }
          if (signflag)
             sign = '-';
          if (expt == INT_MAX) {   /* inf or nan */

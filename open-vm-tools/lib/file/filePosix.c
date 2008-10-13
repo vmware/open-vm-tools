@@ -87,6 +87,31 @@ static char *FilePosixNearestExistingAncestor(char const *path);
 
 
 /*
+ * XXX
+ * FTS is not available on all posix platforms that we care about.
+ * We depend on FTS for a simple pre-order file traversal. For the Windows
+ * implementation we need to write our own traversal code anyway. When that
+ * happens the prosix version should be updated to use the generic code.
+ */
+
+#if defined(__USE_FILE_OFFSET64) || defined(sun)
+# define CAN_USE_FTS 0
+#else
+# define CAN_USE_FTS 1
+#endif
+
+#if CAN_USE_FTS
+# include <fts.h>
+
+struct WalkDirContextImpl
+{
+   FTS *fts;
+};
+
+#endif
+
+
+/*
  * Local functions
  */
 
@@ -859,7 +884,8 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
  *      Calls statfs on a full path (eg. something returned from File_FullPath)
  *
  * Results:
- *      -1 if error
+ *      TRUE	statfs succeeded
+ *	FALSE	unable to statfs anything along the path
  *
  * Side effects:
  *      None
@@ -1110,7 +1136,7 @@ done:
  *----------------------------------------------------------------------
  */
 
-static int
+int
 File_GetVMFSBlockSize(ConstUnicode pathName,  // IN: File name to test
                       uint32 *blockSize)      // IN/OUT: VMFS block size
 {
@@ -2232,6 +2258,190 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
 
    return (errno = err) == 0 ? count : -1;
 }
+
+
+#if CAN_USE_FTS
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_WalkDirectoryStart --
+ *
+ *      Start a directory tree walk at 'parentPath'.
+ *
+ *      To read each entry, repeatedly pass the returned context to
+ *      File_WalkDirectoryNext() until that function returns FALSE.
+ *
+ *      When done, pass the returned context to File_WalkDirectoryEnd().
+ *
+ *      A pre-order, logical traversal will be completed; hard links and
+ *      symbolic links that do not cause a cycle are followed in the directory
+ *      traversal.
+ *
+ *      We assume no thread will change the working directory between the calls
+ *      to File_WalkDirectoryStart and File_WalkDirectoryEnd.
+ *
+ * Results:
+ *      A context used in subsequent calls to File_WalkDirectoryNext() or NULL
+ *      if an error is encountered.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+WalkDirContext
+File_WalkDirectoryStart(ConstUnicode parentPath) // IN
+{
+   WalkDirContextImpl *context;
+   char * const traversalRoots[] =
+      { Unicode_GetAllocBytes(parentPath, STRING_ENCODING_DEFAULT), NULL };
+
+   context = malloc(sizeof *context);
+   if (!context) {
+      return NULL;
+   }
+
+   context->fts = fts_open(traversalRoots,
+                           FTS_LOGICAL|FTS_NOSTAT|FTS_NOCHDIR,
+                           NULL);
+   if (!context->fts) {
+      free(context);
+      context = NULL;
+   }
+
+   free(traversalRoots[0]);
+
+   return context;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_WalkDirectoryNext --
+ *
+ *      Get the next entry in a directory traversal started with
+ *      File_WalkDirectoryStart.
+ *
+ * Results:
+ *      TRUE iff the traversal hasn't completed.
+ *
+ *      If TRUE, *path holds an allocated string prefixed by parentPath that
+ *      the caller must free (see Unicode_Free).
+ *
+ *      If FALSE, errno is 0 iff the walk completed sucessfully.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_WalkDirectoryNext(WalkDirContext context, // IN
+                       Unicode *path)          // OUT
+{
+   FTSENT *nextEntry;
+
+   ASSERT(context);
+   ASSERT(context->fts);
+   ASSERT(path);
+
+   do {
+      nextEntry = fts_read(context->fts);
+      /*
+       * We'll skip any entries that cannot be read, are errors, or
+       * are the second traversal (post-order) of a directory.
+       */
+      if (   nextEntry
+          && nextEntry->fts_info != FTS_DNR
+          && nextEntry->fts_info != FTS_ERR
+          && nextEntry->fts_info != FTS_DP) {
+         *path = Unicode_AllocWithLength(nextEntry->fts_path,
+                                         nextEntry->fts_pathlen,
+                                         STRING_ENCODING_DEFAULT);
+         return TRUE;
+      }
+   } while (nextEntry);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_WalkDirectoryEnd --
+ *
+ *      End the directory traversal.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      The context is now invalid.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+File_WalkDirectoryEnd(WalkDirContext context) // IN
+{
+   ASSERT(context);
+   ASSERT(context->fts);
+
+   if (fts_close(context->fts) == -1) {
+      Log(LGPFX" %s: failed to close fts: %p\n", __FUNCTION__, context->fts);
+   }
+   free((WalkDirContextImpl *)context);
+}
+
+#else
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_WalkDirectoryStart --
+ * File_WalkDirectoryNext --
+ * File_WalkDirectoryEnd --
+ *
+ *      XXX FTS is not supported on this posix variant. See above.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      ASSERTs.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+WalkDirContext
+File_WalkDirectoryStart(ConstUnicode parentPath) // IN
+{
+   NOT_IMPLEMENTED();
+}
+
+
+Bool
+File_WalkDirectoryNext(WalkDirContext context, // IN
+                       Unicode *path)          // OUT
+{
+   NOT_IMPLEMENTED();
+}
+
+
+void
+File_WalkDirectoryEnd(WalkDirContext context) // IN
+{
+   NOT_IMPLEMENTED();
+}
+
+
+#endif // CAN_USE_FTS
 
 
 /*

@@ -1,3 +1,23 @@
+open-vm-tools 2009.10.13 changes:
+	* The vmxnet3 Linux kernel module has been added. This module provides
+	better network performance for the guest. The corresponding virtual
+	hardware is available beginning with Workstation 6.5, though
+	performance benefits are unlikely to be realized until a later VMware
+	product release. The module should work for all kernels beginning with
+	2.6.
+
+	* The open-vm-tools no longer depend on libproc-dev. Several people
+	reported this issue (Sourceforge bug 1960947).
+
+	* Added a command line argument to skip privileged operations during
+	make install (--without-root-privileges).
+
+	* Guestd now supports backwards time synchronization, though the
+	corresponding hypervisor-side changes are not yet part of any shipping
+	VMware products.
+	
+	* Assortment of bug fixes.
+
 open-vm-tools 2009.09.03 changes:
 	* Fixed an issue where open-vm-tools fails to configure when using
 	--without-icu. Thanks to Timo Gurr for reporting the issue (Sourceforge

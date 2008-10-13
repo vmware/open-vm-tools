@@ -124,7 +124,7 @@ DynXdrGetPos(DYNXDR_GETPOS_CONST XDR *xdrs) // IN
 }
 
 
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) || (defined(sun) && (defined(_LP64) || defined(_KERNEL)))
 /*
  *-----------------------------------------------------------------------------
  *
@@ -134,6 +134,9 @@ DynXdrGetPos(DYNXDR_GETPOS_CONST XDR *xdrs) // IN
  *
  *    XXX: This seems to be a glibc-only extenstion. It's present since at
  *    least glibc 2.1, according to their CVS.
+ *
+ *    XXX: Investigate this further.  This XDR operation exists in Solaris
+ *    since at least Solaris 9.
  *
  * Results:
  *    TRUE: all ok
@@ -146,8 +149,8 @@ DynXdrGetPos(DYNXDR_GETPOS_CONST XDR *xdrs) // IN
  */
 
 static bool_t
-DynXdrPutInt32(XDR *xdrs,           // IN/OUT
-               const int32_t *ip)   // IN
+DynXdrPutInt32(XDR *xdrs,                       // IN/OUT
+               DYNXDR_CONST int32_t *ip)        // IN
 {
    int32_t out = htonl(*ip);
    DynXdrData *priv = (DynXdrData *) xdrs->x_private;
@@ -205,19 +208,29 @@ XDR *
 DynXdr_Create(XDR *in)  // IN
 {
    static struct xdr_ops dynXdrOps = {
+      /*
+       * Yes, these macros are a little redundant, but I figure it helps with
+       * readability to group the sun/_KERNEL bits together.
+       */
+#if !defined(sun) || (defined(sun) && !defined(_KERNEL))
       NULL,             /* x_getlong */
       DynXdrPutLong,    /* x_putlong */
+#endif
       NULL,             /* x_getbytes */
       DynXdrPutBytes,   /* x_putbytes */
       DynXdrGetPos,     /* x_getpostn */
       NULL,             /* x_setpostn */
       NULL,             /* x_inline */
-      NULL              /* x_destroy */
+      NULL,             /* x_destroy */
 #if defined(__GLIBC__)
-      , NULL,           /* x_getint32 */
-      DynXdrPutInt32    /* x_putint32 */
+      NULL,             /* x_getint32 */
+      DynXdrPutInt32,   /* x_putint32 */
 #elif defined(__APPLE__)
-      , NULL            /* x_control */
+      NULL,             /* x_control */
+#elif defined(sun) && (defined(_LP64) || defined(_KERNEL))
+      NULL,             /* x_control */
+      NULL,             /* x_getint32 */
+      DynXdrPutInt32,   /* x_putint32 */
 #endif
    };
 

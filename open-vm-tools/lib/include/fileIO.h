@@ -368,6 +368,9 @@ int FileIO_PrivilegedPosixOpen(ConstUnicode pathName,
                                int flags);
 #endif
 
+FILE *FileIO_DescriptorToStream(FileIODescriptor *fd);
+
+ConstUnicode FileIO_Filename(FileIODescriptor *fd);
 
 /*
  *-------------------------------------------------------------------------

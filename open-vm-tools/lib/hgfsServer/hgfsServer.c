@@ -155,6 +155,9 @@ SyncMutex hgfsIOLock;
 
 /* Local functions. */
 
+static Bool HgfsServerCheckPathPrefix(const char *path,
+				      const char *share,
+				      size_t shareLen);
 static Bool HgfsAddToCacheInternal(HgfsHandle handle);
 static Bool HgfsIsCachedInternal(HgfsHandle handle);
 static Bool HgfsRemoveLruNode(void);
@@ -163,7 +166,8 @@ static void HgfsRemoveSearchInternal(HgfsSearch *search);
 static HgfsSearch *HgfsSearchHandle2Search(HgfsHandle handle);
 static HgfsHandle HgfsSearch2SearchHandle(HgfsSearch const *search);
 static HgfsSearch *HgfsAddNewSearch(char const *utf8Dir,
-                                    DirectorySearchType type);
+                                    DirectorySearchType type,
+                                    char const *utf8ShareName);
 
 
 /*
@@ -1577,6 +1581,8 @@ HgfsGetNewSearch(void)
          DblLnkLst_Init(&newMem[i].links);
          newMem[i].utf8Dir = NULL;
          newMem[i].utf8DirLen = 0;
+         newMem[i].utf8ShareName = NULL;
+         newMem[i].utf8ShareNameLen = 0;
          newMem[i].dents = NULL;
          newMem[i].numDents = 0;
 
@@ -1672,6 +1678,14 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
    memcpy(copy->utf8Dir, original->utf8Dir, copy->utf8DirLen);
    copy->utf8Dir[copy->utf8DirLen] = '\0';
 
+   copy->utf8ShareName = malloc(original->utf8ShareNameLen + 1);
+   if (copy->utf8ShareName == NULL) {
+      goto exit;
+   }
+   copy->utf8ShareNameLen = original->utf8ShareNameLen;
+   memcpy(copy->utf8ShareName, original->utf8ShareName, copy->utf8ShareNameLen);
+   copy->utf8ShareName[copy->utf8ShareNameLen] = '\0';
+
    /* No dents for the copy, they consume too much memory and aren't needed. */
    copy->dents = NULL;
    copy->numDents = 0;
@@ -1707,8 +1721,9 @@ exit:
  */
 
 HgfsSearch *
-HgfsAddNewSearch(char const *utf8Dir,      // IN: UTF8 name of dir to search in
-                 DirectorySearchType type) // IN: What kind of search is this?
+HgfsAddNewSearch(char const *utf8Dir,       // IN: UTF8 name of dir to search in
+                 DirectorySearchType type,  // IN: What kind of search is this?
+                 char const *utf8ShareName) // IN: Share name containing the directory
 {
    HgfsSearch *newSearch;
 
@@ -1727,13 +1742,18 @@ HgfsAddNewSearch(char const *utf8Dir,      // IN: UTF8 name of dir to search in
    newSearch->handle = hgfsHandleCounter++;
 
    newSearch->utf8DirLen = strlen(utf8Dir);
-   newSearch->utf8Dir = malloc(newSearch->utf8DirLen + 1);
+   newSearch->utf8Dir = strdup(utf8Dir);
    if (newSearch->utf8Dir == NULL) {
       HgfsRemoveSearchInternal(newSearch);
       return NULL;
    }
-   memcpy(newSearch->utf8Dir, utf8Dir, newSearch->utf8DirLen);
-   newSearch->utf8Dir[newSearch->utf8DirLen] = '\0';
+
+   newSearch->utf8ShareNameLen = strlen(utf8ShareName);
+   newSearch->utf8ShareName = strdup(utf8ShareName);
+   if (newSearch->utf8ShareName == NULL) {
+      HgfsRemoveSearchInternal(newSearch);
+      return NULL;
+   }
 
    LOG(4, ("HgfsAddNewSearch: got new search, handle %u\n",
            HgfsSearch2SearchHandle(newSearch)));
@@ -1779,6 +1799,7 @@ HgfsRemoveSearchInternal(HgfsSearch *search) // IN
    }
 
    free(search->utf8Dir);
+   free(search->utf8ShareName);
 
    /* Prepend at the beginning of the list */
    DblLnkLst_LinkFirst(&searchFreeList, &search->links);
@@ -2322,20 +2343,15 @@ HgfsServer_InvalidateObjects(DblLnkLst_Links *shares) // IN: List of new shares
       LOG(4, ("HgfsServer_InvalidateObjects: Examining node with fd %d (%s)\n",
               handle, nodeArray[i].utf8Name));
 
-      /*
-       * For each share, is the node within the share? The answer is yes if the
-       * share's path is a prefix for the node's path. To make sure we don't
-       * get any false positives, check for a path separator (or nul
-       * terminator) right after the matched prefix.
-       */
+      /* For each share, is the node within the share? */
       for (l = shares->next; l != shares; l = l->next) {
          HgfsSharedFolder *share;
 
          share = DblLnkLst_Container(l, HgfsSharedFolder, links);
          ASSERT(share);
-         if ((strncmp(nodeArray[i].utf8Name, share->path, share->pathLen) == 0)
-             && (*(nodeArray[i].utf8Name + share->pathLen) == DIRSEPC ||
-                 *(nodeArray[i].utf8Name + share->pathLen) == '\0')) {
+	 if (HgfsServerCheckPathPrefix(nodeArray[i].utf8Name,
+				       share->path,
+				       share->pathLen)) {
             LOG(4, ("HgfsServer_InvalidateObjects: Node is still valid\n"));
             break;
          }
@@ -2371,18 +2387,15 @@ HgfsServer_InvalidateObjects(DblLnkLst_Links *shares) // IN: List of new shares
       LOG(4, ("HgfsServer_InvalidateObjects: Examining search (%s)\n",
               searchArray[i].utf8Dir));
 
-      /*
-       * For each share, is the search within the share? We apply the same
-       * heuristic as was used for the nodes above.
-       */
+      /* For each share, is the search within the share? */
       for (l = shares->next; l != shares; l = l->next) {
          HgfsSharedFolder *share;
 
          share = DblLnkLst_Container(l, HgfsSharedFolder, links);
          ASSERT(share);
-         if ((strncmp(searchArray[i].utf8Dir, share->path, share->pathLen) == 0)
-             && (*(searchArray[i].utf8Dir + share->pathLen) == DIRSEPC ||
-                 *(searchArray[i].utf8Dir + share->pathLen) == '\0')) {
+         if (HgfsServerCheckPathPrefix(searchArray[i].utf8Dir,
+				       share->path,
+				       share->pathLen)) {
             LOG(4, ("HgfsServer_InvalidateObjects: Search is still valid\n"));
             break;
          }
@@ -2398,6 +2411,66 @@ HgfsServer_InvalidateObjects(DblLnkLst_Links *shares) // IN: List of new shares
    SyncMutex_Unlock(&hgfsSearchArrayLock);
 
    LOG(4, ("HgfsServer_InvalidateObjects: Ending\n"));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerCheckPathPrefix --
+ *
+ *      Given a path and a Hgfs host share path, check to see if the given
+ *      share is a prefix of the path.
+ *
+ * Results:
+ *      TRUE if share is a prefix of path.
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsServerCheckPathPrefix(const char *path,  // IN: Path to check
+                          const char *share, // IN: Prefix of path
+                          size_t shareLen)   // IN: Length of share
+{
+   ASSERT(path);
+   ASSERT(share);
+
+   /* First make sure that share is a prefix of path. */
+   if (strncmp(path, share, shareLen) != 0) {
+      return FALSE;
+   }
+
+   /*
+    * Special case. The root share on Linux or Apple ("/") will not be followed
+    * by a second path separator. In this case, no additional checks besides the
+    * initial prefix check are needed. Just return success.
+    */
+   if (shareLen == 1 && *share == DIRSEPC) {
+      return TRUE;
+   }
+
+   /*
+    * Now check to prevent false positives. In particular, consider the case
+    * where we have two shares: shareName and shareName1.
+    * Given the path /shareName1/test, the above check will allow through both
+    * shareName and shareName1. Check to make sure that the given share is
+    * a full path component.
+    */
+
+   if (*(path + shareLen) == DIRSEPC) {
+      return TRUE;
+   }
+
+   if (*(path + shareLen) == '\0') {
+      return TRUE;
+   }
+
+   return FALSE;
 }
 
 
@@ -2705,20 +2778,23 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
       ASSERT(myBufOut);
    }
 
-   /*
-    * Verify that either the path is same as share path or the path until the
-    * parent directory is within the share.
-    *
-    * XXX: Symlink check could become susceptible to TOCTOU (time-of-check, time-of-use)
-    * attack when we move to asynchrounous HGFS operations. We should use the resolved
-    * file path for further file system operations, instead of using the one passed
-    * from the client.
-    */
-   result = HgfsServerHasSymlink(myBufOut, myBufOutLen, sharePath, sharePathLen);
-   if (result != 0) {
-      LOG(4, ("HgfsServerGetAccess: parent path contains a symlink\n"));
-      nameStatus = HGFS_NAME_STATUS_FAILURE;
-      goto error;
+   /* Check for symlinks if the followSymlinks option is not set. */
+   if (!HgfsServerPolicy_IsShareOptionSet(shareOptions, HGFS_SHARE_FOLLOW_SYMLINKS)) {
+      /*
+       * Verify that either the path is same as share path or the path until the
+       * parent directory is within the share.
+       *
+       * XXX: Symlink check could become susceptible to TOCTOU (time-of-check, time-of-use)
+       * attack when we move to asynchrounous HGFS operations. We should use the resolved
+       * file path for further file system operations, instead of using the one passed
+       * from the client.
+       */
+      result = HgfsServerHasSymlink(myBufOut, myBufOutLen, sharePath, sharePathLen);
+      if (result != 0) {
+         LOG(4, ("HgfsServerGetAccess: parent path contains a symlink\n"));
+         nameStatus = HGFS_NAME_STATUS_FAILURE;
+         goto error;
+      }
    }
 
    {
@@ -3021,25 +3097,44 @@ HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                         size_t baseDirLen,        // IN: Length of directory
                         DirectorySearchType type, // IN: Kind of search
+                        char const *shareName,    // IN: Share name containing the directory
                         HgfsHandle *handle)       // OUT: Search handle
 {
    HgfsSearch *search = NULL;
    HgfsInternalStatus status = 0;
+   HgfsNameStatus nameStatus;
    int numDents;
+   Bool followSymlinks;
+   HgfsShareOptions configOptions;
 
    ASSERT(baseDir);
    ASSERT(handle);
    ASSERT(type == DIRECTORY_SEARCH_TYPE_DIR);
+   ASSERT(shareName);
 
    SyncMutex_Lock(&hgfsSearchArrayLock);
-   search = HgfsAddNewSearch(baseDir, type);
+   search = HgfsAddNewSearch(baseDir, type, shareName);
    if (!search) {
       LOG(4, ("HgfsServerSearchRealDir: failed to get new search\n"));
       status = HGFS_INTERNAL_STATUS_ERROR;
       goto out;
    }
 
-   status = HgfsServerScandir(baseDir, baseDirLen, &search->dents, &numDents);
+   /* Get the config options. */
+   nameStatus = HgfsServerPolicy_GetShareOptions(shareName, strlen(shareName),
+                                                 &configOptions);
+   if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+      LOG(4, ("HgfsServerSearchRealDir: no matching share: %s.\n", shareName));
+      status = HGFS_INTERNAL_STATUS_ERROR;
+      HgfsRemoveSearchInternal(search);
+      goto out;
+   }
+
+   followSymlinks = HgfsServerPolicy_IsShareOptionSet(configOptions,
+                                                      HGFS_SHARE_FOLLOW_SYMLINKS);
+
+   status = HgfsServerScandir(baseDir, baseDirLen, followSymlinks,
+                              &search->dents, &numDents);
    if (status != 0) {
       LOG(4, ("HgfsServerSearchRealDir: couldn't scandir\n"));
       HgfsRemoveSearchInternal(search);
@@ -3091,7 +3186,7 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
    ASSERT(handle);
 
    SyncMutex_Lock(&hgfsSearchArrayLock);
-   search = HgfsAddNewSearch("", type);
+   search = HgfsAddNewSearch("", type, "");
    if (!search) {
       LOG(4, ("HgfsServerSearchVirtualDir: failed to get new search\n"));
       status = HGFS_INTERNAL_STATUS_ERROR;
@@ -4313,6 +4408,7 @@ HgfsPackGetattrReply(HgfsFileAttrInfo *attr,     // IN: attr stucture
       reply->attr.userId = attr->userId;
       reply->attr.groupId = attr->groupId;
       reply->attr.hostFileId = attr->hostFileId;
+      reply->attr.volumeId = attr->volumeId;
       reply->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply) + utf8TargetNameLen;
       break;
@@ -4359,6 +4455,7 @@ HgfsPackGetattrReply(HgfsFileAttrInfo *attr,     // IN: attr stucture
       reply->attr.userId = attr->userId;
       reply->attr.groupId = attr->groupId;
       reply->attr.hostFileId = attr->hostFileId;
+      reply->attr.volumeId = attr->volumeId;
       *packetSize = sizeof *reply + utf8TargetNameLen;
       break;
    }

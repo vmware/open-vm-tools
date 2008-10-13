@@ -34,23 +34,17 @@ struct GuestApp_Dict;
 typedef void (*VixToolsReportProgramDoneProcType)(const char *requestName,
                                                   VixError err,
                                                   int exitCode,
-                                                  int64 pid);
+                                                  int64 pid,
+                                                  void *clientData);
 
 VixError VixTools_Initialize(Bool thisProcessRunsAsRootArg,
-                             struct DblLnkLst_Links *globalEventQueue,
-                             VixToolsReportProgramDoneProcType reportProgramDoneProc);
+                             VixToolsReportProgramDoneProcType reportProgramDoneProc,
+                             void *clientData);
 
 void VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam);
 
-void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProc);
-
-VixError VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,
-                                    char *requestName,
-                                    size_t maxResultBufferSize,
-                                    struct GuestApp_Dict **confDictRef,
-                                    char **resultBuffer,
-                                    size_t *resultLen,
-                                    Bool *deleteResultBufferResult);
+void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProc,
+                                    void *clientData);
 
 /*
  * These are internal procedures that are exposed for the legacy
@@ -61,11 +55,40 @@ VixError VixToolsRunProgramImpl(char *requestName,
                                 char *commandLineArgs,
                                 int runProgramOptions,
                                 void *userToken,
+                                void *eventQueue,
                                 int64 *pid);
 
+#if defined(VMTOOLS_USE_GLIB)
+#  include <glib.h>
+
+VixError VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,
+                                         char **resultBuffer,
+                                         size_t *resultBufferLength);
+
+VixError VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,
+                                    char *requestName,
+                                    size_t maxResultBufferSize,
+                                    GKeyFile *confDictRef,
+                                    GMainLoop *eventQueue,
+                                    char **resultBuffer,
+                                    size_t *resultLen,
+                                    Bool *deleteResultBufferResult);
+
+#else
 VixError VixTools_GetToolsPropertiesImpl(struct GuestApp_Dict **confDictRef,
                                          char **resultBuffer,
                                          size_t *resultBufferLength);
+
+VixError VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,
+                                    char *requestName,
+                                    size_t maxResultBufferSize,
+                                    struct GuestApp_Dict **confDictRef,
+                                    DblLnkLst_Links *eventQueue,
+                                    char **resultBuffer,
+                                    size_t *resultLen,
+                                    Bool *deleteResultBufferResult);
+
+#endif
 
 Bool VixToolsImpersonateUserImpl(char const *credentialTypeStr, 
                                  int credentialType,

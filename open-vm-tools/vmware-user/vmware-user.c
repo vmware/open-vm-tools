@@ -94,7 +94,8 @@ Bool VMwareUserRpcInCapRegCB   (char const **result, size_t *resultLen,
                                 size_t argsSize, void *clientData);
 void VMwareUserRpcInErrorCB    (void *clientdata, char const *status);
 
-extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam);
+extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam,
+                                    DblLnkLst_Links *eventQueue);
 extern void ForeignTools_Shutdown(void);
 
 static Bool InitGroupLeader(Window *groupLeader, Window *rootWindow);
@@ -848,7 +849,7 @@ main(int argc, char *argv[])
    }
 
    if (runningInForeignVM) {
-      Bool success = ForeignTools_Initialize(confDict);
+      Bool success = ForeignTools_Initialize(confDict, gEventQueue);
       if (!success) {
          return EXIT_FAILURE;
       }

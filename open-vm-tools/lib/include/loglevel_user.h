@@ -119,9 +119,12 @@
    \
    /* user/sound */ \
    LOGLEVEL_VAR(sound), \
+   LOGLEVEL_VAR(hdaudio), \
+   LOGLEVEL_VAR(pci_hdaudio), \
    \
    /* user/disklib */ \
    LOGLEVEL_VAR(disklib), \
+   LOGLEVEL_VAR(dmg), \
    LOGLEVEL_VAR(sparseChecker), \
    LOGLEVEL_VAR(dataCache), \
    /* more */ \

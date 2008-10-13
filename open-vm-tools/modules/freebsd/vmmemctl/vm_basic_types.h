@@ -255,7 +255,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       /* BSD/Darwin, Linux */
       #define FMTSZ     "z"
 
-      #ifdef VM_X86_64
+      #if defined(VM_X86_64) || defined(__APPLE__)
          #define FMTPD  "l"
       #else
          #define FMTPD  ""
@@ -696,6 +696,52 @@ typedef void * UserVA;
 #define ALIGNED(n) __attribute__((__aligned__(n)))
 #else
 #define ALIGNED(n)
+#endif
+
+/*
+ ***********************************************************************
+ * STRUCT_OFFSET_CHECK --                                    */ /**
+ *
+ * \brief Check if the actual offsef of a member in a structure 
+ *        is what is expected
+ * 
+ *
+ * \param[in]  STRUCT       Structure the member is a part of.
+ * \param[in]  MEMBER       Member to check the offset of.
+ * \param[in]  OFFSET       Expected offset of MEMBER in STRUCTURE.
+ * \param[in]  DEBUG_EXTRA  Additional bytes to be added to OFFSET to
+ *                          compensate for extra info in debug builds.
+ *
+ ***********************************************************************
+ */
+#ifdef VMX86_DEBUG
+#define STRUCT_OFFSET_CHECK(STRUCT, MEMBER, OFFSET, DEBUG_EXTRA) \
+  ASSERT_ON_COMPILE(vmk_offsetof(STRUCT, MEMBER) == (OFFSET + DEBUG_EXTRA))
+#else
+#define STRUCT_OFFSET_CHECK(STRUCT, MEMBER, OFFSET, DEBUG_EXTRA) \
+  ASSERT_ON_COMPILE(vmk_offsetof(STRUCT, MEMBER) == OFFSET)
+#endif
+
+/*
+ ***********************************************************************
+ * STRUCT_SIZE_CHECK --                                      */ /**
+ *
+ * \brief Check if the actual size of a structure is what is expected
+ * 
+ *
+ * \param[in]  STRUCT       Structure whose size is to be checked.
+ * \param[in]  SIZE         Expected size of STRUCT.
+ * \param[in]  DEBUG_EXTRA  Additional bytes to be added to SIZE to
+ *                          compensate for extra info in debug builds.
+ *
+ ***********************************************************************
+ */
+#ifdef VMX86_DEBUG
+#define STRUCT_SIZE_CHECK(STRUCT, SIZE, DEBUG_EXTRA) \
+  ASSERT_ON_COMPILE(sizeof(STRUCT) == (SIZE + DEBUG_EXTRA))
+#else
+#define STRUCT_SIZE_CHECK(STRUCT, SIZE, DEBUG_EXTRA) \
+  ASSERT_ON_COMPILE(sizeof(STRUCT) == SIZE)
 #endif
 
 /*

@@ -51,6 +51,6 @@ $(DRIVER)-y := $(filter-out backdoorGcc64.o, $($(DRIVER)-y))
 endif
 
 clean:
-	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko \
-	       .tmp_versions Module.symvers Modules.symvers \
+	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
+	       Module.symvers Modules.symvers Module.markers modules.order \
 	       $(foreach dir,./,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))

@@ -468,6 +468,8 @@ const char *Unicode_EncodingEnumToName(StringEncoding encoding);
 StringEncoding Unicode_EncodingNameToEnum(const char *encodingName);
 Bool Unicode_IsEncodingValid(StringEncoding encoding);
 void Unicode_Init(int argc, char ***argv, char ***envp);
+void Unicode_InitEx(int argc, char ***argv, char ***envp,
+                    const char *icuDataDir);
 #if defined (_WIN32)
 void Unicode_InitW(int argc, utf16_t **wargv, utf16_t **wenvp,
                    char ***argv, char ***envp);

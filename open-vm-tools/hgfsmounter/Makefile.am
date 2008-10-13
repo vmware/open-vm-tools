@@ -32,16 +32,20 @@ if FREEBSD
 install-exec-hook:
 	$(MV) $(DESTDIR)$(sbindir)/mount.vmhgfs \
 		$(DESTDIR)$(sbindir)/mount_vmhgfs
-	chown root $(DESTDIR)$(sbindir)/mount_vmhgfs
+if WITH_ROOT_PRIVILEGES
 	chmod u+s $(DESTDIR)$(sbindir)/mount_vmhgfs
+endif WITH_ROOT_PRIVILEGES
+	-$(MKDIR_P) $(DESTDIR)/sbin
 	-$(LN_S) $(DESTDIR)$(sbindir)/mount_vmhgfs \
 		$(DESTDIR)/sbin/mount_vmhgfs &> /dev/null
 uninstall-hook:
 	-$(RM) -f $(DESTDIR)$(sbindir)/mount_vmhgfs &> /dev/null
 else
 install-exec-hook:
-	chown root $(DESTDIR)$(sbindir)/mount.vmhgfs
+if WITH_ROOT_PRIVILEGES
 	chmod u+s $(DESTDIR)$(sbindir)/mount.vmhgfs
+endif WITH_ROOT_PRIVILEGES
+	-$(MKDIR_P) $(DESTDIR)/sbin
 	-$(LN_S) $(DESTDIR)$(sbindir)/mount.vmhgfs \
 		$(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
 uninstall-hook:

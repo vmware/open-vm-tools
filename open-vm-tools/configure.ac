@@ -37,7 +37,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.09.03-114782],
+   [2008.10.10-123053],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -82,7 +82,14 @@ case "$host_cpu" in
       ;;
 esac
 
-# Kernel args
+# Operational arguments.
+AC_ARG_WITH([root-privileges],
+	    [AS_HELP_STRING([--without-root-privileges],
+	       [does not perform any operations that require root privileges])],
+	    [],
+	    [with_root_privileges=yes])
+
+# Kernel arguments.
 # The kernel args have to go here otherwise the KERNEL_RELEASE won't be visible
 # to getOsVersion()
 AC_ARG_WITH([kernel-modules],
@@ -878,6 +885,9 @@ if test "$os" = "linux"; then
       MODULES="$MODULES vmblock vmci vmhgfs vsock"
       buildHgfsmounter=yes
    fi
+   if test "$osVersion" -ge 206000; then
+      MODULES="$MODULES vmxnet3"
+   fi
    if test "$osVersion" -ge 206006; then
       MODULES="$MODULES vmsync"
    fi
@@ -929,6 +939,7 @@ AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
+AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible

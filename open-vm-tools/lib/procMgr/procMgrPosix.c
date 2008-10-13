@@ -295,12 +295,65 @@ ProcMgr_ListProcesses(void)
       numRead = read(cmdFd, cmdLineTemp, sizeof cmdLineTemp - sizeof(char));
       close(cmdFd);
 
-      if (1 > numRead) {
-         continue;
-      }
-      for (replaceLoop = 0 ; replaceLoop < (numRead - 1) ; replaceLoop++) {
-         if ('\0' == cmdLineTemp[replaceLoop]) {
-            cmdLineTemp[replaceLoop] = ' ';
+      if (numRead > 0) {
+         for (replaceLoop = 0 ; replaceLoop < (numRead - 1) ; replaceLoop++) {
+            if ('\0' == cmdLineTemp[replaceLoop]) {
+               cmdLineTemp[replaceLoop] = ' ';
+            }
+         }
+      } else {
+         /*
+          * Some procs don't have a command line text, so read a name from
+          * the 'status' file (should be the first line). If unable to get a name,
+          * the process is still real, so it should be included in the list, just 
+          * without a name.
+          */
+         cmdFd = -1;
+         numRead = 0;
+
+         if (snprintf(cmdFilePath,
+                      sizeof cmdFilePath,
+                      "/proc/%s/status",
+                      ent->d_name) != -1) {
+            cmdFd = open(cmdFilePath, O_RDONLY);
+         }
+         if (cmdFd != -1) {
+            numRead = read(cmdFd, cmdLineTemp, sizeof(cmdLineTemp) - sizeof(char));
+            close(cmdFd);
+
+            if (numRead < 0) {
+               cmdLineTemp[0] = '\0';
+            } else {
+               cmdLineTemp[numRead] = '\0';
+            }
+         }
+         if (numRead > 0) {
+            /* 
+             * Extract the part with just the name, by reading until the first
+             * space, then reading the next non-space word after that, and
+             * ignoring everything else. The format looks like this:
+             *     "^Name:[ \t]*(.*)$"
+             * for example:
+             *     "Name:    nfsd"
+             */
+            const char* nameStart = NULL;
+            char* copyItr = NULL;
+
+            /* Skip non-whitespace. */
+            for (nameStart = cmdLineTemp; *nameStart && 
+                                          *nameStart != ' ' &&
+                                          *nameStart != '\t' &&
+                                          *nameStart != '\n'; ++nameStart);
+            /* Skip whitespace. */
+            for (;*nameStart && 
+                  (*nameStart == ' ' ||
+                   *nameStart == '\t' ||
+                   *nameStart == '\n'); ++nameStart);
+            /* Copy the name to the start of the string and null term it. */
+            for (copyItr = cmdLineTemp; *nameStart && *nameStart != '\n';) {
+               *(copyItr++) = *(nameStart++);
+            }
+            *copyItr = '\0';
          }
       }
 
@@ -313,7 +366,11 @@ ProcMgr_ListProcesses(void)
        * bytes from /proc/#/cmdline -- we left just enough space to add
        * NUL termination at the end.
        */
-      cmdLineTemp[numRead] = '\0';
+      if (numRead < 0) {
+         cmdLineTemp[0] = '\0';
+      } else {
+         cmdLineTemp[numRead] = '\0';
+      }
 
       /*
        * Get the inode information for this process.  This gives us
@@ -1333,7 +1390,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
       goto failure;
    }
    // now user
-   ret = setresuid(ppw->pw_gid, ppw->pw_gid, 0);
+   ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
    if (ret < 0) {
       Warning("Failed to setresuid() for user %s\n", user);
       goto failure;
@@ -1389,7 +1446,7 @@ ProcMgr_ImpersonateUserStop(void)
    }
 
    // first change back user
-   ret = setresuid(ppw->pw_gid, ppw->pw_gid, 0);
+   ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
    if (ret < 0) {
       Warning("Failed to setresuid() for root\n");
       return FALSE;

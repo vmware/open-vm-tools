@@ -261,9 +261,17 @@
 #define CSGTG_TRANSLIT  0x0001  /* Transliterate unknown characters. */
 #define CSGTG_IGNORE    0x0002  /* Skip over untranslatable characters. */
 
+/*
+ * XXX -- this function is a temporary fix. It should be removed once we fix
+ *        the 3rd party library pathname issue.
+ */
+char *
+CodeSet_GetAltPathName(const utf16_t *pathW); // IN
+
 
 Bool
-CodeSet_Init(void);
+CodeSet_Init(const char *icuDataDir); // IN: ICU datafile directory in current page,
+                                      // can be NULL.
 
 void
 CodeSet_DontUseIcu(void);

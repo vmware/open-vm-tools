@@ -92,6 +92,7 @@
 
 VixLockType                         globalLock;
 static struct FoundryWorkerThread   *selectThread;
+static DblLnkLst_Links              *gEventQueue;
 
 ForeignVMToolsConnection            *activeConnectionList = NULL;
 ForeignVMToolsCommand               *globalCommandList = NULL;
@@ -105,7 +106,8 @@ static ForeignVMToolsCommand *ForeignToolsGetActiveCommand(const char *name);
 static void ForeignToolsSendRunProgramResponse(const char *requestName,
                                                VixError resultErr,
                                                int exitCode,
-                                               int64 pid);
+                                               int64 pid,
+                                               void *clientData);
 
 static VixError ForeignToolsGetUserCredentialForGuest(ForeignVMToolsConnection *connectionState,
                                                       ForeignVMToolsCommand *commandState);
@@ -136,12 +138,14 @@ static VixError ForeignToolsGetToolsState(ForeignVMToolsCommand *asyncCommand,
  */
 
 Bool
-ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam)     // IN
+ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam,     // IN
+                        DblLnkLst_Links *eventQueue)              // IN
 {
    VixError err = VIX_OK;
    Bool success = TRUE;
 
    MessageStub_RegisterTransport();
+   gEventQueue = eventQueue;
 
    /*
     * Initialize the limited global state that protects us when 
@@ -160,7 +164,7 @@ ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam)     // IN
    configDictionary = configDictionaryParam;
 
    VixTools_SetConsoleUserPolicy(TRUE); // allowConsoleUserOpsParam
-   VixTools_SetRunProgramCallback(ForeignToolsSendRunProgramResponse);
+   VixTools_SetRunProgramCallback(ForeignToolsSendRunProgramResponse, NULL);
 
    success = ForeignTools_InitializeNetworking();
    if (!success) {
@@ -394,7 +398,8 @@ void
 ForeignToolsSendRunProgramResponse(const char *requestName, // IN
                                    VixError resultErr,      // IN
                                    int exitCode,            // IN
-                                   int64 pid)               // IN
+                                   int64 pid,               // IN
+                                   void *clientData)        // IN
 {
    VixError err = VIX_OK;
    int additionalError = 0;
@@ -880,7 +885,7 @@ abort:
 
 VixError
 ForeignToolsGetToolsState(ForeignVMToolsCommand *asyncCommand,   // IN
-                          VixMsgTrivialRequest *requestMsg)    // IN
+                          VixMsgTrivialRequest *requestMsg)     // IN
 {
    VixError err = VIX_OK;
    VixPropertyListImpl propList;
@@ -901,6 +906,7 @@ ForeignToolsGetToolsState(ForeignVMToolsCommand *asyncCommand,   // IN
                                     asyncCommand->asyncOpName,
                                     1024 * 1024, // maxResultBufferSize,
                                     &configDictionary,
+                                    gEventQueue,
                                     &base64Buffer,
                                     &base64BufferLength,
                                     &deleteResultValue);
@@ -1078,6 +1084,7 @@ ForeignToolsProcessMessage(ForeignVMToolsConnection *connectionState)     //IN
                                           commandState->asyncOpName,
                                           1024 * 1024, // maxResultBufferSize,
                                           &configDictionary,
+                                          gEventQueue,
                                           &dummyResponse,
                                           &dummyResponseLength,
                                           &deleteResultValue);
@@ -1129,6 +1136,7 @@ ForeignToolsProcessMessage(ForeignVMToolsConnection *connectionState)     //IN
                                              commandState->asyncOpName,
                                              1024 * 1024, // maxResultBufferSize,
                                              &configDictionary,
+                                             gEventQueue,
                                              &(commandState->responseBody),
                                              &(commandState->responseBodyLength),
                                              &deleteResultValue);
@@ -1153,6 +1161,7 @@ ForeignToolsProcessMessage(ForeignVMToolsConnection *connectionState)     //IN
                                           commandState->asyncOpName,
                                           1024 * 1024, // maxResultBufferSize,
                                           &configDictionary,
+                                          gEventQueue,
                                           &(commandState->responseBody),
                                           &(commandState->responseBodyLength),
                                           &deleteResultValue);

@@ -36,6 +36,9 @@ uint64 System_Uptime(void);
 Bool System_GetCurrentTime(int64 *secs, int64 *usecs);
 Bool System_AddToCurrentTime(int64 deltaSecs, int64 deltaUsecs);
 Unicode System_GetTimeAsString(void);
+Bool System_EnableTimeSlew(int64 delta, uint32 timeSyncPeriod);
+Bool System_DisableTimeSlew(void);
+Bool System_IsTimeSlewEnabled(void);
 Bool System_IsACPI(void);
 void System_Shutdown(Bool reboot);
 Bool System_IsUserAdmin(void);
@@ -92,7 +95,7 @@ typedef struct {
  */
 #define VM_SERVICE_STATE_UNKNOWN 0xffffffff
 
-BOOL System_SetProcessPrivilege(char *lpszPrivilege, Bool bEnablePrivilege);
+BOOL System_SetProcessPrivilege(LPCTSTR lpszPrivilege, Bool bEnablePrivilege);
 OS_TYPE System_GetOSType(void);
 OS_DETAIL_TYPE System_GetOSDetailType(void);
 int32 System_GetSPVersion(void);

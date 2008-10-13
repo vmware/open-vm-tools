@@ -32,6 +32,7 @@
 
 #include "vm_assert.h"
 #include "util.h"
+#include "hashTable.h"
 
 static char *UnicodeNormalizeEncodingName(const char *encoding);
 
@@ -2168,6 +2169,13 @@ static struct xRef {
 
 
 /*
+ * Thread-safe hash table to speed up encoding name -> IANA table
+ * index lookups.
+ */
+static HashTable *encCache = NULL;
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * UnicodeNormalizeEncodingName --
@@ -2235,6 +2243,11 @@ UnicodeIANALookup(const char *encodingName) // IN
    int i;
    int j;
    int acp;
+   void *idx;
+
+   if (encCache && HashTable_Lookup(encCache, encodingName, (void **) &idx)) {
+      return (int)(uintptr_t)idx;
+   }
 
    name = UnicodeNormalizeEncodingName(encodingName);
    
@@ -2282,6 +2295,11 @@ UnicodeIANALookup(const char *encodingName) // IN
 done:
    free(name);
    free(candidate);
+
+   if (encCache) {
+      HashTable_Insert(encCache, encodingName, (void *)(uintptr_t)i);
+   }
+
    return i;
 }
 
@@ -2415,11 +2433,11 @@ Unicode_IsEncodingValid(StringEncoding encoding)  // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Unicode_Init --
+ * Unicode_InitEx --
  *
  *      Convert argv and environment from default encoding into unicode
  *	and initialize the cache of the native code set name used to
- *	resolve STRING_ENCODING_DEFAULT.  
+ *	resolve STRING_ENCODING_DEFAULT.
  *
  * Results:
  *	returns on success
@@ -2434,9 +2452,10 @@ Unicode_IsEncodingValid(StringEncoding encoding)  // IN
  */
 
 void
-Unicode_Init(int argc,        // IN
-             char ***argv,    // IN/OUT
-             char ***envp)    // IN/OUT
+Unicode_InitEx(int argc,                // IN
+               char ***argv,            // IN/OUT
+               char ***envp,            // IN/OUT
+               const char *icuDataDir)  // IN
 {
 #if !defined(__APPLE__) && !defined(VMX86_SERVER)
    char **list;
@@ -2447,25 +2466,32 @@ Unicode_Init(int argc,        // IN
     * Always init the codeset module first.
     */
 
-   if (!CodeSet_Init()) {
+   if (!CodeSet_Init(icuDataDir)) {
       Panic("Failed to initialize codeset.\n");
-      exit(1);
+      goto bail;
    }
 
-#if defined(__APPLE__) || defined(VMX86_SERVER)
+   encCache = HashTable_Alloc(128, HASH_ISTRING_KEY | HASH_FLAG_ATOMIC |
+                              HASH_FLAG_COPYKEY, free);
+   if (encCache == NULL) {
+      Panic("HashTable_Alloc failed.\n");
+      goto bail;
+   }
 
-   return;  // native encoding is UTF-8
-
-#else
+   // UTF-8 native encoding for these two
+#if !defined(__APPLE__) && !defined(VMX86_SERVER)
 
    encoding = Unicode_EncodingNameToEnum(CodeSet_GetCurrentCodeSet());
    if (!Unicode_IsEncodingValid(encoding)) {
+      Panic("Unsupported local character encoding \"%s\".\n",
+            Unicode_EncodingEnumToName(STRING_ENCODING_DEFAULT));
       goto bail;
    }
 
    if (argv) {
       list = Unicode_AllocList(*argv, argc + 1, STRING_ENCODING_DEFAULT);
       if (!list) {
+         Panic("Unicode_AllocList1 failed.\n");
          goto bail;
       }
       *argv = list;
@@ -2474,28 +2500,34 @@ Unicode_Init(int argc,        // IN
    if (envp) {
       list = Unicode_AllocList(*envp, -1, STRING_ENCODING_DEFAULT);
       if (!list) {
+         Panic("Unicode_AllocList2 failed.\n");
          goto bail;
       }
       *envp = list;
    }
+#endif // !__APPLE__ && !VMX86_SERVER
 
    return;
 
 bail:
-   Panic("Unsupported local character encoding \"%s\".\n",
-          Unicode_EncodingEnumToName(STRING_ENCODING_DEFAULT));
    exit(1);
+}
 
-#endif // __APPLE__
+void
+Unicode_Init(int argc,        // IN
+             char ***argv,    // IN/OUT
+             char ***envp)    // IN/OUT
+{
+   Unicode_InitEx(argc, argv, envp, NULL);
 }
 
 #if defined(_WIN32)
 void
-Unicode_InitW(int argc,         // IN
-              utf16_t **wargv,  // IN
-              utf16_t **wenvp,  // IN
-              char ***argv,     // OUT
-              char ***envp)     // OUT
+Unicode_InitW(int argc,               // IN
+              utf16_t **wargv,        // IN
+              utf16_t **wenvp,        // IN
+              char ***argv,           // OUT
+              char ***envp)           // OUT
 {
    char **list;
    StringEncoding encoding;
@@ -2504,13 +2536,22 @@ Unicode_InitW(int argc,         // IN
     * Always init the codeset module first.
     */
 
-   if (!CodeSet_Init()) {
+   if (!CodeSet_Init(NULL)) {
       Panic("Failed to initialize codeset.\n");
-      exit(1);
+      goto bail;
+   }
+
+   encCache = HashTable_Alloc(128, HASH_ISTRING_KEY | HASH_FLAG_ATOMIC |
+                              HASH_FLAG_COPYKEY, free);
+   if (encCache == NULL) {
+      Panic("HashTable_Alloc failed.\n");
+      goto bail;
    }
 
    encoding = Unicode_EncodingNameToEnum(CodeSet_GetCurrentCodeSet());
    if (!Unicode_IsEncodingValid(encoding)) {
+      Panic("Unsupported character encoding \"%s\".\n",
+            Unicode_EncodingEnumToName(encoding));
       goto bail;
    }
 
@@ -2519,6 +2560,7 @@ Unicode_InitW(int argc,         // IN
    if (wargv) {
       list = Unicode_AllocList((char **)wargv, argc + 1, STRING_ENCODING_UTF16);
       if (!list) {
+         Panic("Unicode_AllocList1 failed.\n");
          goto bail;
       }
       *argv = list;
@@ -2527,6 +2569,7 @@ Unicode_InitW(int argc,         // IN
    if (wenvp) {
       list = Unicode_AllocList((char **)wenvp, -1, STRING_ENCODING_UTF16);
       if (!list) {
+         Panic("Unicode_AllocList2 failed.\n");
          goto bail;
       }
       *envp = list;
@@ -2535,8 +2578,6 @@ Unicode_InitW(int argc,         // IN
    return;
 
 bail:
-   Panic("Unsupported character encoding \"%s\".\n",
-          Unicode_EncodingEnumToName(encoding));
    exit(1);
 }
-#endif
+#endif // _WIN32

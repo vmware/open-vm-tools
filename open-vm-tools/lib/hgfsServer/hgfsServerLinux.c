@@ -266,6 +266,7 @@ static HgfsInternalStatus HgfsGetattrResolveAlias(char const *fileName,
                                                   char **targetName);
 
 static HgfsInternalStatus HgfsGetattrFromName(char *fileName,
+                                              HgfsShareOptions configOptions,
                                               HgfsFileAttrInfo *attr,
                                               char **targetName);
 
@@ -909,6 +910,7 @@ HgfsGetFd(HgfsHandle hgfsHandle,    // IN:  HGFS file handle
 
 static HgfsInternalStatus
 HgfsValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
+                 int followSymlinks,         // IN: followSymlinks config option
                  HgfsLocalId *localId,       // OUT: Local unique file ID
                  int *fileDesc)              // OUT: Handle to the file
 {
@@ -955,6 +957,14 @@ HgfsValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
                   openInfo->groupPerms << 3 : (openPerms & S_IRWXU) >> 3;
    openPerms |= openInfo->mask & HGFS_OPEN_VALID_OTHER_PERMS ?
                   openInfo->otherPerms : (openPerms & S_IRWXU) >> 6;
+
+   /*
+    * By default we don't follow symlinks, O_NOFOLLOW is always set.
+    * Unset it if followSymlinks config option is specified.
+    */
+   if (followSymlinks) {
+      openFlags &= ~O_NOFOLLOW;
+   }
 
    /*
     * Try to open the file with the requested mode, flags and permissions.
@@ -1338,15 +1348,42 @@ HgfsConvertComponentCase(char *currentComponent,           // IN
       goto exit;
    }
 
+   /* 
+    * Unicode_CompareIgnoreCase crashes with invalid unicode strings,
+    * validate it before passing it to Unicode_* functions.
+    */
+   if (!Unicode_IsBufferValid(currentComponent, -1, STRING_ENCODING_UTF8)) {
+      /* Invalid unicode string, return failure. */
+      ret = EINVAL;
+      goto exit;
+   }
+
    /*
     * Read all of the directory entries. For each one, convert the name
     * to lower case and then compare it to the lower case component.
     */
    while ((dirent = readdir(dir))) {
+      Unicode dentryNameU;
+      int cmpResult;
+
       dentryName = dirent->d_name;
       dentryNameLen = strlen(dentryName);
 
-      if (Unicode_CompareIgnoreCase(currentComponent, dentryName) == 0) {
+      /* 
+       * Unicode_CompareIgnoreCase crashes with invalid unicode strings,
+       * validate and convert it appropriately before passing it to Unicode_* functions.
+       */
+      if (!Unicode_IsBufferValid(dentryName, dentryNameLen, STRING_ENCODING_DEFAULT)) {
+         /* Invalid unicode string, skip the entry. */
+         continue;
+      }
+
+      dentryNameU = Unicode_Alloc(dentryName, STRING_ENCODING_DEFAULT);
+
+      cmpResult = Unicode_CompareIgnoreCase(currentComponent, dentryNameU);
+      Unicode_Free(dentryNameU);
+
+      if (cmpResult == 0) {
          /*
           * The current directory entry is a case insensitive match to
           * the specified component. Malloc and copy the current directory entry.
@@ -1709,20 +1746,30 @@ HgfsServerCaseConversionRequired()
  */
 
 static HgfsInternalStatus
-HgfsGetattrFromName(char *fileName,             // IN/OUT:  Input filename
-                    HgfsFileAttrInfo *attr,     // OUT: Struct to copy into
-                    char **targetName)          // OUT: Symlink target filename
+HgfsGetattrFromName(char *fileName,                    // IN/OUT:  Input filename
+                    HgfsShareOptions configOptions,    // IN: Share config options
+                    HgfsFileAttrInfo *attr,            // OUT: Struct to copy into
+                    char **targetName)                 // OUT: Symlink target filename
 {
    HgfsInternalStatus status = 0;
    struct stat stats;
    int error;
    char *myTargetName = NULL;
 
+   ASSERT(fileName);
    ASSERT(attr);
+
    LOG(4, ("HgfsGetattrFromName: getting attrs for \"%s\"\n", fileName));
 
-   errno = 0;
-   error = Posix_Lstat(fileName, &stats);
+   /* Check the config option to determine if we should follow symlinks. */
+   if (HgfsServerPolicy_IsShareOptionSet(configOptions, HGFS_SHARE_FOLLOW_SYMLINKS)) {
+      errno = 0;
+      error = Posix_Stat(fileName, &stats);
+   } else {
+      errno = 0;
+      error = Posix_Lstat(fileName, &stats);
+   }
+
    if (error) {
       status = errno;
       LOG(4, ("HgfsGetattrFromName: error stating file: %s\n",
@@ -2056,6 +2103,7 @@ HgfsStat(struct stat *stats,        // IN: stat information
    attr->userId = stats->st_uid;
    attr->groupId = stats->st_gid;
    attr->hostFileId = stats->st_ino;
+   attr->volumeId = stats->st_dev;
    attr->mask = HGFS_ATTR_VALID_TYPE |
       HGFS_ATTR_VALID_SIZE |
       HGFS_ATTR_VALID_CREATE_TIME |
@@ -2068,7 +2116,8 @@ HgfsStat(struct stat *stats,        // IN: stat information
       HGFS_ATTR_VALID_OTHER_PERMS |
       HGFS_ATTR_VALID_USERID |
       HGFS_ATTR_VALID_GROUPID |
-      HGFS_ATTR_VALID_FILEID;
+      HGFS_ATTR_VALID_FILEID |
+      HGFS_ATTR_VALID_VOLID;
 }
 
 
@@ -2490,7 +2539,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
                     size_t cpNameSize,        // IN: Name length
                     HgfsFileAttrInfo *attr,   // IN: attrs to set
                     HgfsAttrHint hints,       // IN: attr hints
-		    uint32 caseFlags)         // IN: case-sensitivity flags
+                    uint32 caseFlags)         // IN: case-sensitivity flags
 {
    HgfsInternalStatus status = 0, timesStatus;
    HgfsNameStatus nameStatus;
@@ -2505,6 +2554,7 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
    Bool timesChanged = FALSE;
    Bool idChanged = FALSE;
    HgfsServerLock serverLock;
+   HgfsShareOptions configOptions;
 
    nameStatus = HgfsServerGetAccess(cpName,
                                     cpNameSize,
@@ -2520,19 +2570,29 @@ HgfsSetattrFromName(char *cpName,             // IN: Name
 
    ASSERT(localName);
 
-   /*
-    * Verify that the pathname isn't a symlink. Some of the following
-    * syscalls (chmod, for example) will follow a link. So we need to
-    * verify the final component too. The parent has already been verified
-    * in HgfsServerGetAccess.
-    *
-    * XXX: This is racy. But clients interested in preventing a race should
-    * have sent us a Setattr packet with a valid HGFS handle.
-    */
-   if (File_IsSymLink(localName)) {
-      LOG(4, ("HgfsSetattrFromName: pathname contains a symlink\n"));
-      status = EINVAL;
-      goto exit_free;
+   /* Get the config options. */
+   nameStatus = HgfsServerPolicy_GetShareOptions(cpName, cpNameSize,
+                                                 &configOptions);
+   if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+      LOG(4, ("HgfsSetattrFromName: no matching share: %s.\n", cpName));
+      goto exit;
+   }
+
+   if (!HgfsServerPolicy_IsShareOptionSet(configOptions, HGFS_SHARE_FOLLOW_SYMLINKS)) {
+      /*
+       * If followSymlink option is not set, verify that the pathname isn't a
+       * symlink. Some of the following syscalls (chmod, for example) will follow
+       * a link. So we need to verify the final component too. The parent has
+       * already been verified in HgfsServerGetAccess.
+       *
+       * XXX: This is racy. But clients interested in preventing a race should
+       * have sent us a Setattr packet with a valid HGFS handle.
+       */
+      if (File_IsSymLink(localName)) {
+         LOG(4, ("HgfsSetattrFromName: pathname contains a symlink\n"));
+         status = EINVAL;
+         goto exit_free;
+      }
    }
 
    LOG(4, ("HgfsSetattrFromName: setting attrs for \"%s\"\n", localName));
@@ -2655,6 +2715,7 @@ exit:
 HgfsInternalStatus
 HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
                   size_t baseDirLen,        // IN: Ignored
+                  Bool followSymlinks,      // IN: followSymlinks config option
                   DirectoryEntry ***dents,  // OUT: Array of DirectoryEntrys
                   int *numDents)            // OUT: Number of DirectoryEntrys
 {
@@ -2662,6 +2723,7 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
    DirectoryEntry **myDents = NULL;
    int myNumDents = 0;
    HgfsInternalStatus status = 0;
+   int openFlags = O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
 
    /*
     * XXX: glibc uses 8192 (BUFSIZ) when it can't get st_blksize from a stat.
@@ -2669,8 +2731,13 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
     */
    char buffer[8192];
 
-   /* We want a directory. No FIFOs and no symlinks. */
-   result = Posix_Open(baseDir, O_NONBLOCK | O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+   /* Follow symlinks if config option is set. */
+   if (followSymlinks) {
+      openFlags &= ~O_NOFOLLOW;
+   }
+
+   /* We want a directory. No FIFOs. Symlinks only if config option is set. */
+   result = Posix_Open(baseDir, openFlags);
    if (result < 0) {
       status = errno;
       LOG(4, ("HgfsServerScandir: error in open: %d (%s)\n", status,
@@ -2825,6 +2892,8 @@ HgfsServerOpen(char const *packetIn, // IN: incoming packet
    HgfsFileOpenInfo openInfo;
    char *localName = NULL;
    HgfsServerLock serverLock = HGFS_LOCK_NONE;
+   HgfsShareOptions configOptions;
+   int followSymlinks;
 
    ASSERT(packetSize);
 
@@ -2890,8 +2959,21 @@ HgfsServerOpen(char const *packetIn, // IN: incoming packet
       goto exit;
    }
 
+   /* Get the config options. */
+   nameStatus = HgfsServerPolicy_GetShareOptions(openInfo.cpName,
+                                                 openInfo.cpNameSize,
+                                                 &configOptions);
+   if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+      LOG(4, ("HgfsServerSearchRead: no matching share: %s.\n", openInfo.cpName));
+      status = ENOENT;
+      goto exit;
+   }
+
+   followSymlinks = HgfsServerPolicy_IsShareOptionSet(configOptions,
+                                                      HGFS_SHARE_FOLLOW_SYMLINKS);
+
    /* See if the name is valid, and if so add it and return the handle. */
-   status = HgfsValidateOpen(&openInfo, &localId, &newFd);
+   status = HgfsValidateOpen(&openInfo, followSymlinks, &localId, &newFd);
    if (status == 0) {
       ASSERT(newFd >= 0);
 
@@ -3326,12 +3408,29 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
                                     &baseDirLen);
    switch (nameStatus) {
    case HGFS_NAME_STATUS_COMPLETE:
-      ASSERT(baseDir);
+   {
+      char const *inEnd;
+      char *next;
+      int len;
 
-      LOG(4, ("HgfsServerSearchOpen: searching in \"%s\"\n", baseDir));
+      ASSERT(baseDir);
+      LOG(4, ("HgfsServerSearchOpen: searching in \"%s\", %s.\n", baseDir, dirName));
+
+      inEnd = dirName + dirNameLength;
+
+      /* Get the first component. */
+      len = CPName_GetComponentGeneric(dirName, inEnd, "", (char const **) &next);
+      if (len < 0) {
+         LOG(4, ("HgfsServerSearchOpen: get first component failed\n"));
+         status = ENOENT;
+         goto exit;
+      }
+
+      LOG(4, ("HgfsServerSearchOpen: dirName: %s.\n", dirName));
       status = HgfsServerSearchRealDir(baseDir,
                                        baseDirLen,
                                        DIRECTORY_SEARCH_TYPE_DIR,
+                                       dirName,
                                        &handle);
       free(baseDir);
       if (status != 0) {
@@ -3339,6 +3438,7 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
          goto exit;
       }
       break;
+   }
 
    case HGFS_NAME_STATUS_INCOMPLETE_BASE:
       /*
@@ -3407,6 +3507,7 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
    HgfsHandle hgfsSearchHandle;
    DirectoryEntry *dent;
    HgfsSearch search;
+   HgfsShareOptions configOptions = 0;
 
    ASSERT(packetSize);
 
@@ -3425,6 +3526,19 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
       LOG(4, ("HgfsServerSearchRead: handle %u is invalid\n",
               hgfsSearchHandle));
       return EBADF;
+   }
+
+   /* Get the config options. */
+   if (search.utf8ShareNameLen != 0) {
+      nameStatus = HgfsServerPolicy_GetShareOptions(search.utf8ShareName,
+                                                    search.utf8ShareNameLen,
+                                                    &configOptions);
+      if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+         LOG(4, ("HgfsServerSearchRead: no matching share: %s.\n", search.utf8ShareName));
+         free(search.utf8Dir);
+         free(search.utf8ShareName);
+         return ENOENT;
+      }
    }
 
    while ((dent = HgfsGetSearchResult(hgfsSearchHandle,
@@ -3454,6 +3568,7 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
             LOG(4, ("HgfsServerSearchRead: could not allocate space for "
                     "\"%s\\%s\"\n", search.utf8Dir, dent->d_name));
             free(search.utf8Dir);
+            free(search.utf8ShareName);
             free(dent);
             return ENOMEM;
          }
@@ -3462,7 +3577,8 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
          memcpy(&fullName[search.utf8DirLen + 1], dent->d_name, length + 1);
 
          LOG(4, ("HgfsServerSearchRead: about to stat \"%s\"\n", fullName));
-         status = HgfsGetattrFromName(fullName, &attr, NULL);
+
+         status = HgfsGetattrFromName(fullName, configOptions, &attr, NULL);
          free(fullName);
 
          if (status != 0) {
@@ -3520,9 +3636,11 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
                LOG(4, ("HgfsServerSearchRead: No such share or access denied\n"));
                free(dent);
                free(search.utf8Dir);
+               free(search.utf8ShareName);
                return HgfsConvertFromNameStatus(nameStatus);
             }
-            status = HgfsGetattrFromName(sharePath, &attr, NULL);
+
+            status = HgfsGetattrFromName(sharePath, configOptions, &attr, NULL);
             if (status != 0) {
                /*
                 * The dent no longer exists. Remove it from the search and get
@@ -3557,6 +3675,7 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
       }
 
       free(search.utf8Dir);
+      free(search.utf8ShareName);
 
       LOG(4, ("HgfsServerSearchRead: dent name is \"%s\" len = %"FMTSZ"u\n",
 	      entryName, entryNameLen));
@@ -3581,6 +3700,7 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
 
    /* No entry at this offset */
    free(search.utf8Dir);
+   free(search.utf8ShareName);
    LOG(4, ("HgfsServerSearchRead: no entry\n"));
    return HgfsPackSearchReadReply(NULL, 0, &attr, packetOut, packetSize) ?
              0 :
@@ -3621,6 +3741,7 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
    uint32 targetNameLen;
    HgfsHandle file = HGFS_INVALID_HANDLE; /* file handle from driver */
    uint32 caseFlags = 0;
+   HgfsShareOptions configOptions;
 
    ASSERT(packetSize);
 
@@ -3659,6 +3780,7 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
                                        caseFlags,
                                        &localName,
                                        NULL);
+
       switch (nameStatus) {
       case HGFS_NAME_STATUS_INCOMPLETE_BASE:
          /*
@@ -3673,7 +3795,17 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
          /* This is a regular lookup; proceed as usual */
          ASSERT(localName);
 
-         status = HgfsGetattrFromName(localName, &attr, &targetName);
+         /* Get the config options. */
+         nameStatus = HgfsServerPolicy_GetShareOptions(cpName, cpNameSize,
+                                                       &configOptions);
+         if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+            LOG(4, ("HgfsServerGetattr: no matching share: %s.\n", cpName));
+            free(localName);
+            status = ENOENT;
+            goto exit;
+         }
+
+         status = HgfsGetattrFromName(localName, configOptions, &attr, &targetName);
          free(localName);
          if (status != 0) {
             goto exit;
@@ -4156,12 +4288,22 @@ HgfsServerRename(char const *packetIn, // IN: incoming packet
 
    if (hints & HGFS_RENAME_HINT_NO_REPLACE_EXISTING) {
       HgfsFileAttrInfo attr;
+      HgfsShareOptions configOptions;
+
+      /* Get the config options. */
+      nameStatus = HgfsServerPolicy_GetShareOptions(cpNewName, cpNewNameLen,
+                                                    &configOptions);
+      if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+         LOG(4, ("HgfsServerRename: no matching share: %s.\n", cpNewName));
+         status = ENOENT;
+         goto exit;
+      }
 
       /*
        * We were asked to avoid replacing an existing file,
        * so fail if the target exists.
        */
-      status = HgfsGetattrFromName(localNewName, &attr, NULL);
+      status = HgfsGetattrFromName(localNewName, configOptions, &attr, NULL);
       if (status == 0) {
          /* The target exists, and so must fail the rename. */
          LOG(4, ("HgfsServerRename: error: target %s exists\n", localNewName));
@@ -4268,7 +4410,7 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
        * Clients should retry using the file name.
        */
       if (requestV3->fileName.flags & HGFS_FILE_NAME_USE_FILE_DESC) {
-         LOG(4, ("HgfsServerSearchOpen: Doesn't support file handle.\n"));
+         LOG(4, ("HgfsServerQueryVolume: Doesn't support file handle.\n"));
          return EPARAMETERNOTSUPPORTED;
       }
 
@@ -4284,7 +4426,7 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
       fileName = requestV3->fileName.name;
       fileNameLength = requestV3->fileName.length;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
-      LOG(4, ("HgfsServerSearchOpen: HGFS_OP_SEARCH_OPEN_V3\n"));
+      LOG(4, ("HgfsServerQueryVolume: HGFS_OP_QUERY_VOLUME_INFO_V3\n"));
    } else {
       HgfsRequestQueryVolume *request = (HgfsRequestQueryVolume *)packetIn;
       HgfsReplyQueryVolume *reply = (HgfsReplyQueryVolume *)packetOut;
@@ -4504,6 +4646,7 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
    uint32 symlinkNameLength;
    char *targetName;
    uint32 targetNameLength;
+   HgfsShareOptions configOptions;
 
    ASSERT(packetIn);
    ASSERT(packetOut);
@@ -4607,10 +4750,23 @@ HgfsServerSymlinkCreate(char const *packetIn, // IN: incoming packet
 
    /* It is now safe to read the target file name */
 
+   /* Get the config options. */
+   nameStatus = HgfsServerPolicy_GetShareOptions(symlinkName, symlinkNameLength,
+                                                 &configOptions);
+   if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+      LOG(4, ("HgfsServerSymlinkCreate: no matching share: %s.\n", symlinkName));
+      return HgfsConvertFromNameStatus(nameStatus);
+   }
+
    /* Convert from CPName-lite to normal and NUL-terminate. */
    memcpy(localTargetName, targetName, targetNameLength);
    CPNameLite_ConvertFrom(localTargetName, targetNameLength, DIRSEPC);
    localTargetName[targetNameLength] = '\0';
+
+   /* Prohibit symlink ceation if symlink following is enabled. */
+   if (HgfsServerPolicy_IsShareOptionSet(configOptions, HGFS_SHARE_FOLLOW_SYMLINKS)) {
+      return EPERM;
+   }
 
    LOG(4, ("HgfsServerSymlinkCreate: creating \"%s\" linked to \"%s\"\n",
            localSymlinkName, localTargetName));

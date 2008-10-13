@@ -339,6 +339,23 @@ typedef uint64 HgfsAttrValid;
 #define HGFS_ATTR_VALID_USERID            (1 << 12)
 #define HGFS_ATTR_VALID_GROUPID           (1 << 13)
 #define HGFS_ATTR_VALID_FILEID            (1 << 14)
+#define HGFS_ATTR_VALID_VOLID             (1 << 15)
+/* 
+ * Add our file and volume identifiers.
+ * NOTE: On Windows hosts, the file identifier is not guaranteed to be valid
+ *       particularly with FAT. A defrag operation could cause it to change.
+ *       Therefore, to not confuse older clients, and non-Windows
+ *       clients we have added a separate flag.
+ *       The Windows client will check for both flags for the
+ *       file ID, and return the information to the guest application.
+ *       However, it will use the ID internally, when it has an open
+ *       handle on the server.
+ *       Non-Windows clients need the file ID to be always guaranteed,
+ *       which is to say, that the ID remains constant over the course of the
+ *       file's lifetime, and will use the HGFS_ATTR_VALID_FILEID flag
+ *       only to determine if the ID is valid.
+ */
+#define HGFS_ATTR_VALID_NON_STATIC_FILEID (1 << 16)
 
 
 /*
@@ -382,7 +399,8 @@ struct HgfsAttrV2 {
    uint32 userId;                /* User identifier, ignored by Windows */
    uint32 groupId;               /* group identifier, ignored by Windows */
    uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
-   uint64 reserved1;             /* Reserved for future use */
+   uint32 volumeId;              /* volume identifier, non-zero is valid. */
+   uint32 reserved1;             /* Reserved for future use */
    uint64 reserved2;             /* Reserved for future use */
 }
 #include "vmware_pack_end.h"

@@ -163,14 +163,6 @@ BOOL W32Util_SetSecurityDescriptorSid(PSECURITY_DESCRIPTOR sd, PSID sid,
                                       PACL *pAcl);
 BOOL W32Util_GetThreadHandle(HANDLE *handle);
 
-#ifdef VMX86_DEVEL
-BOOL W32Util_HookImportedFunction(HMODULE         hModule,
-                                  LPCSTR          szImportMod,
-                                  LPCSTR          szFuncToHook,
-                                  FARPROC         newProc,
-                                  FARPROC        *pOrigFunc);
-#endif
-
 Bool W32Util_AccessCheck(HANDLE token, 
                          PSECURITY_DESCRIPTOR pSecurityDescriptor, 
                          int desiredAccess);

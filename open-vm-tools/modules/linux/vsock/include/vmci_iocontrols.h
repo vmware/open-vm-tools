@@ -145,11 +145,28 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(SOCKETS_SEND_TO),
    IOCTLCMD(SOCKETS_SET_SOCK_OPT),
    IOCTLCMD(SOCKETS_SHUTDOWN),
-   IOCTLCMD(SOCKETS_SOCKET),
+   IOCTLCMD(SOCKETS_SOCKET), /* 1989 on Linux. */
    /* END VMCI SOCKETS */
 
+   /*
+    * We reserve a range of 5 ioctls for VMCI Sockets to grow.  We cannot
+    * reserve many ioctls here since we are close to overlapping with vmmon
+    * ioctls.  Define a meta-ioctl if running out of this binary space.
+    */
    // Must be last.
-   IOCTLCMD(SOCKETS_LAST)
+   IOCTLCMD(SOCKETS_LAST) = IOCTLCMD(SOCKETS_SOCKET) + 5, /* 1994 on Linux. */
+
+   /*
+    * The VSockets ioctls occupy the block above.  We define a new range of
+    * VMCI ioctls to maintain binary compatibility between the user land and
+    * the kernel driver.  Careful, vmmon ioctls start from 2001, so this means
+    * we can add only 5 new VMCI ioctls.  Define a meta-ioctl if running out of
+    * this binary space.
+    */
+
+   IOCTLCMD(FIRST2),
+   IOCTLCMD(SET_NOTIFY) = IOCTLCMD(FIRST2), /* 1995 on Linux. */
+   IOCTLCMD(LAST2),
 };
 
 
@@ -339,6 +356,13 @@ typedef struct VMCICptBufInfo {
    int32       result;
    uint32      _pad;
 } VMCICptBufInfo;
+
+/* Used to pass notify flag's address to the host driver. */
+typedef struct VMCISetNotifyInfo {
+   VA64        notifyUVA;
+   int32       result;
+   uint32      _pad;
+} VMCISetNotifyInfo;
 
 
 #ifdef __APPLE__

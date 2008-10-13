@@ -1,3 +1,108 @@
+2008-10-13  Adar Dembo  <adar@vmware.com>
+	* Resync with internal trunk (2008.10.09)
+
+	* configure.ac, modules/Makefile.am: Added a command-line option to
+	skip privileged operations during make install (requested by Dennis
+	Leroy). Integrated new vmxnet3 kernel module.
+
+	* configure.ac, lib/guestInfo/Makefile.am,
+	lib/guestInfo/guestInfoPerfMonLinux.c, lib/include/vm_procps.h:
+	Removed open-vm-tools dependency on libproc-dev by providing some procps
+	bits and pieces in our own vm_procps.h (Sourceforge bug 1960947).
+
+	* hgfsmounter/Makefile.am: Removed chown calls. Only call chmod
+	if we're running as root (requested by Dennis Leroy).
+
+	* */foreignVMToolsDaemon.c, */foundryToolsDaemon.[ch],
+	lib/guestInfo/guestInfo.c, lib/guestInfo/guestInfoServer.c,
+	lib/include/guestInfoServer.h, lib/include/vixTools.h,
+	lib/rpcin/rpcin.c, lib/vixTools/vixTools.c, vmware-user/copyPaste.c,
+	vmware-user/vmware-user.c: More refactoring from the Tools core
+	services project.
+
+	* */foundryToolsDaemon.c: Changed HGFS mounting behavior such that the
+	global HGFS share is mounted at /mnt/hgfs instead of relying on
+	"mount -a".
+
+	* guestd/toolsDaemon.[ch], lib/include/backdoor_def.h,
+	lib/include/system.h, lib/include/vm_app.h, lib/system/systemLinux.c:
+	Added backwards time synchronization functionality. Moved Tools scripts
+	checking from VMX to guestd.
+
+	* hgfsmounter/hgfsmounter.c: Added handling for multiple "-o" flags on
+	the command line.
+
+	* lib/dynxdr/dynxdr.c: Fixed x_putint32 behavior on 64-bit Solaris.
+
+	* lib/file/*, lib/include/codeset.h, lib/include/file.h,
+	lib/include/fileIO.h, lib/include/hostinfo.h,
+	lib/include/loglevel_user.h, lib/include/productState.h,
+	lib/include/timeutil.h, lib/include/unicodeTypes.h,
+	lib/include/vixCommands.h, lib/include/vix.h,
+	lib/include/vm_basic_asm.h, lib/include/vm_basic_types.h,
+	lib/include/vm_legal.h, lib/include/vm_product.h,
+	lib/include/win32util.h, lib/include/x86cpuid.h, lib/misc/codeset.c,
+	lib/misc/codesetOld.[ch], lib/misc/posixPosix.c, lib/misc/timeutil.c,
+	lib/region/region.c, lib/string/bsd_vsnprintf.c, lib/unicode/*,
+	lib/user/hostinfoPosix.c, modules/freebsd/vmhgfs/sha1.c,
+	modules/*/*/vm_device_version.h, modules/linux/*/vmci_iocontrols.h,
+	modules/linux/*/vmci_version.h, modules/linux/vmhgfs/hgfsEscape.h:
+	Changes from work unrelated to open-vm-tools on internal trunk.
+
+	* lib/ghIntegration/ghIntegrationX11.c: Fixed some bugs in menu-spec and
+	desktop-entry-spec support in Linux guests.
+
+	* lib/guestApp/guestApp.c, lib/include/guestApp.h,
+	lib/include/statelogger_backdoor_def.h, toolbox/Makefile.am,
+	toolbox/toolbox-cmd.c, toolbox/toolbox-gtk.c, toolbox/toolboxCmdInt.h,
+	toolbox/toolboxGtkInt.h, toolbox/toolboxInt.h, toolbox/toolboxRecord.c,
+	toolbox/toolboxcmd-record.c: Patches from Yiwen Zhang to add basic
+	record/replay controls to the gtk and command-line toolbox apps.
+
+	* lib/guestInfo/guestInfoPosix.c: Fixed a bug where we assumed the
+	primary interface's addresses were all IPv4 addresses.
+
+	* lib/guestInfo/guestInfoServer.c: Fixed a memory leak.
+
+	* lib/guestRpc/Makefile.am, lib/guestRpc/unityActive.x,
+	lib/include/guestCaps.h, lib/include/unityCommon.h, lib/unity/unity.c,
+	vmware-user/Makefile.am: Added new unityActive xdr protocol, used for
+	tracking whether Unity is enabled or not.
+
+	* lib/hgfsServer/hgfsServer.c, lib/hgfsServer/hgfsServerLinux.c,
+	lib/hgfsServerPolicyGuest/hgfsServerPolicyGuest.c,
+	lib/include/hgfsProto.h: Fixed bug where we were invalidating HGFS
+	handles on the share of entire drive ("/"). Added optional symlink
+	following behavior to HGFS server. Fixed a UTF-8 validation issue.
+	Added volume ID field to attribute fields.
+
+	* lib/include/vm_tools_version.h: Bumped internal Tools backdoor
+	version.
+
+	* lib/include/vm_version.h: Bumped TOOLS_VERSION.
+
+	* lib/procMgr/progMgrPosix.c: Fixed impersonation behavior so that
+	uids are passed to setresuid instead of gids. Added alternate way to
+	list processes in situations where a process lacks a command line.
+
+	* lib/region/region.c: Reforked xorg miregion.c and apply open-vm-tools
+	specific patches.
+
+	* lib/unity/*, lib/unityWindowTracker/unityWindowTracker.c: Fixed an
+	overflow that lead to a panic when a window title exceeded 1024 bytes.
+	Fixed some initialization assumptions when using virtual desktops.
+
+	* lib/unity/unityPlatformX11Window.c: Fixed an issue with restacking
+	windows above non-existent windows. Other minor fixes.
+
+	* modules/*/*/*: Reflected changes from elsewhere.
+
+	* modules/linux/*/Makefile.kernel: Changed clean target to remove
+	Module.markers and modules.order.
+
+	* modules/linux/vsock/include/compat_sock.h,
+	modules/linux/vsock/*: Fixed several issues in vsock.
+
 2008-09-03  Adar Dembo  <adar@vmware.com>
 	* Resync with internal trunk (2008.08.29)
 

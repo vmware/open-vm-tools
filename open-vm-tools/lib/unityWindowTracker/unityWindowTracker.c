@@ -183,6 +183,7 @@ UnityWindowTracker_AddWindow(UnityWindowTracker *tracker,         // IN
       LOG(2, ("Unity adding new window (id:%d)\n", id));
       HashTable_Insert(tracker->windows, (const char *)(long)id, info);
       info->changed |= UNITY_CHANGED_ADDED;
+      info->changed |= UNITY_CHANGED_WINDOW_DESKTOP;
    } else {
       info->changed &= ~UNITY_CHANGED_REMOVED;
       LOG(2, ("Window already exists in UnityAddWindow (id:%d)\n", id));

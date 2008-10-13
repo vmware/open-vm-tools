@@ -446,6 +446,31 @@ FileIO_StatsExit(const FileIODescriptor *fd)  // IN:
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_Filename --
+ *
+ *      Returns the filename that was used to open a FileIODescriptor
+ *
+ * Results:
+ *      Filename. You DON'T own the memory - use Unicode_Duplicate if
+ *      you want to keep it for yourself. In particular, if the file
+ *      gets closed the string will almost certainly become invalid.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+ConstUnicode
+FileIO_Filename(FileIODescriptor *fd) // IN
+{
+   return fd->fileName;
+}
+
+
 #if defined(_WIN32) || defined(GLIBC_VERSION_21) || defined(__APPLE__) || \
     defined(__FreeBSD__)
 /*

@@ -34,7 +34,7 @@ void GuestInfoServer_Main(void *data);
 Bool GuestInfoServer_Init(DblLnkLst_Links * eventQueue);
 void GuestInfoServer_Cleanup(void);
 void GuestInfoServer_VMResumedNotify(void);
-uint64 GetAvailableDiskSpace(char *pathName);
+uint64 GuestInfo_GetAvailableDiskSpace(char *pathName);
 void GuestInfoServer_DisableDiskInfoQuery(Bool disable);
 Bool GuestInfoServer_SendUptime(void);
 

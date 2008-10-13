@@ -43,6 +43,10 @@ extern void Hostinfo_MachineID(uint32 *hostNameHash,
 extern Bool Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,
                                           unsigned int *maxSize,
 				          unsigned int *currentSize);
+#ifdef __linux__
+extern Bool Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,
+                                        unsigned int *freeSwap);
+#endif
 #ifdef VMX86_SERVER
 extern Bool Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,
                                              unsigned int *maxSize,

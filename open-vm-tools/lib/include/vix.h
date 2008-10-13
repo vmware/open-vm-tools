@@ -161,11 +161,6 @@ enum {
    VIX_E_VM_ALREADY_LOADED                      = 4004,
    VIX_E_VM_ALREADY_UP_TO_DATE                  = 4006,
 
-   /* Wrapper Errors */
-   VIX_E_WRAPPER_WORKSTATION_NOT_INSTALLED      = 5001,
-   VIX_E_WRAPPER_VERSION_NOT_FOUND              = 5002,
-   VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 5003,
- 
    /* Property Errors */
    VIX_E_UNRECOGNIZED_PROPERTY                  = 6000,
    VIX_E_INVALID_PROPERTY_VALUE                 = 6001,
@@ -294,6 +289,11 @@ enum {
    VIX_E_TOOLS_INSTALL_GUEST_NOT_READY          = 21007,
    VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008,
    VIX_E_TOOLS_INSTALL_ERROR                    = 21009,
+
+   /* Wrapper Errors */
+   VIX_E_WRAPPER_WORKSTATION_NOT_INSTALLED      = 22001,
+   VIX_E_WRAPPER_VERSION_NOT_FOUND              = 22002,
+   VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 22003,
 };
 
 const char *Vix_GetErrorText(VixError err, const char *locale);
@@ -823,12 +823,10 @@ VixHandle VixVM_CreateTempFileInGuest(VixHandle vmHandle,
                                       VixEventProc *callbackProc,
                                       void *clientData);
 
-#ifndef VIX_HIDE_FROM_JAVA
 VixHandle VixVM_GetFileInfoInGuest(VixHandle vmHandle,
                                    const char *pathName,
                                    VixEventProc *callbackProc,
                                    void *clientData);
-#endif   // VIX_HIDE_FROM_JAVA
 
 
 /* 

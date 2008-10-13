@@ -62,6 +62,7 @@ typedef struct HgfsSharedFolder {
 
 /* Per share user configurable options. */
 #define HGFS_SHARE_HOST_DEFAULT_CASE  (1 << 0)
+#define HGFS_SHARE_FOLLOW_SYMLINKS    (1 << 1)
 
 typedef struct HgfsServerPolicy_ShareList {
    size_t count;

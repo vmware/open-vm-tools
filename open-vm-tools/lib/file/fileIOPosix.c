@@ -161,7 +161,11 @@ FileIOErrno2Result(int error) // IN: errno to convert
       return FILEIO_WRITE_ERROR_NOSPC;
    case EFBIG:
       return FILEIO_WRITE_ERROR_FBIG;
-#ifdef EDQUOT
+#if defined(VMX86_SERVER)
+   case EBUSY:
+      return FILEIO_LOCK_FAILED;
+#endif
+#if defined(EDQUOT)
    case EDQUOT:
       return FILEIO_WRITE_ERROR_DQUOT;
 #endif
@@ -733,24 +737,24 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
     * lockfiles.
     */
    if ((access & (FILEIO_OPEN_EXCLUSIVE_LOCK |
-		  FILEIO_OPEN_MULTIWRITER_LOCK)) != 0 ||
+                  FILEIO_OPEN_MULTIWRITER_LOCK)) != 0 ||
        (access & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE |
-		  FILEIO_OPEN_LOCKED)) ==
+                  FILEIO_OPEN_LOCKED)) ==
        (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_LOCKED)) {
       if (File_OnVMFS(pathName)) {
          access &= ~FILEIO_OPEN_LOCKED;
-	 if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
-	    flags |= O_MULTIWRITER_LOCK;
-	 } else {
-	    flags |= O_EXCLUSIVE_LOCK;
-	 }
+         if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
+            flags |= O_MULTIWRITER_LOCK;
+         } else {
+            flags |= O_EXCLUSIVE_LOCK;
+         }
       }
    }
 #endif
 
    FileIO_Init(file, pathName);
    ret = FileIO_Lock(file, access);
-   if (ret != FILEIO_SUCCESS) {
+   if (!FileIO_IsSuccess(ret)) {
       goto error;
    }
 
@@ -1850,12 +1854,16 @@ FileIO_GetSizeByPath(ConstUnicode pathName)  // IN:
  */
 
 FileIOResult
-FileIO_Access(ConstUnicode pathName,  // IN: path name to be tested
-              int accessMode)         // IN: access modes to be asserted
+FileIO_Access(ConstUnicode pathName,  // IN: Path name to be tested. May be NULL.
+              int accessMode)         // IN: Access modes to be asserted
 {
-   int mode;
+   int mode = 0;
 
-   mode = 0;
+   if (pathName == NULL) {
+      errno = EFAULT;
+      return FILEIO_ERROR;
+   }
+
    if (accessMode & FILEIO_ACCESS_READ) {
       mode |= R_OK;
    }
@@ -2016,6 +2024,68 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
    }
    return fd;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_DescriptorToStream
+ *
+ *      Return a FILE * stream equivalent to the given FileIODescriptor.
+ *      This is the logical equivalent of Posix dup() then fdopen().
+ *
+ *      Since the passed descriptor and returned FILE * represent the same
+ *      underlying file, and their cursor is shared, you should avoid
+ *      interleaving uses to both.
+ *
+ * Results:
+ *      A FILE * representing the same underlying file as the passed descriptor
+ *      NULL if there was an error.
+ *      Caller should fclose the returned descriptor when finished.
+ *
+ * Side effects:
+ *      New fd allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+FILE *
+FileIO_DescriptorToStream(FileIODescriptor *fdesc)    // IN
+{
+   int dupFd;
+   const char *mode;
+   int tmpFlags;
+   FILE *stream;
+
+   /* The file you pass us should be valid and opened for *something* */
+   ASSERT(FileIO_IsValid(fdesc));
+   ASSERT((fdesc->flags & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE)) != 0);
+   tmpFlags = fdesc->flags & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE);
+
+   dupFd = dup(fdesc->posix);
+   if (dupFd == -1) {
+      return NULL;
+   }
+
+
+
+   if (tmpFlags == (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE)) {
+      mode = "r+";
+   } else if (tmpFlags == FILEIO_OPEN_ACCESS_WRITE) {
+      mode = "w";
+   } else {  /* therefore (tmpFlags == FILEIO_OPEN_ACCESS_READ) */
+      mode = "r";
+   }
+
+   stream = fdopen(dupFd, mode);
+
+   if (stream == NULL) {
+      close(dupFd);
+   }
+
+   return stream;
+}
+
 
 #if defined(__APPLE__)
 

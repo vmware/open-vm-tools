@@ -722,26 +722,50 @@ uint32set(void *dst, uint32 val, size_t count)
 /*
  *-----------------------------------------------------------------------------
  *
- * Bswap --
+ * Bswap32 --
  *
- *    Swap the 4 bytes of "v" as follows: 3210 -> 0123.
+ *      Swap the 4 bytes of "v" as follows: 3210 -> 0123.
  *
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __GNUC__ // {
 static INLINE uint32
-Bswap(uint32 v)
+Bswap32(uint32 v) // IN
 {
-   /* Checked against the Intel manual and GCC --hpreg */
+#ifdef __GNUC__ // {
+   /* Checked against the Intel manual and GCC. --hpreg */
    __asm__(
-      "bswap %0" 
+      "bswap %0"
       : "=r" (v)
       : "0" (v)
    );
    return v;
-}
+#else // } {
+   return    (v >> 24)
+          | ((v >>  8) & 0xFF00)
+          | ((v & 0xFF00) <<  8)
+          |  (v << 24)          ;
 #endif // }
+}
+#define Bswap Bswap32
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Bswap64 --
+ *
+ *      Swap the 8 bytes of "v" as follows: 76543210 -> 01234567.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Bswap64(uint64 v) // IN
+{
+   return ((uint64)Bswap((uint32)v) << 32) | Bswap((uint32)(v >> 32));
+}
+
 
 #ifdef __GNUC__ // {
 /*

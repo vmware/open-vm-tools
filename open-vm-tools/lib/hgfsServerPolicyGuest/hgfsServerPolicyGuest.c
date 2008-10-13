@@ -500,16 +500,26 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
  */
 
 HgfsNameStatus
-HgfsServerPolicy_GetShareOptions(char const *nameIn,         // IN: Share name
-                      size_t nameInLen,                      // IN: Length of share name
-                      HgfsShareOptions *configOptions)       // OUT: Share config options
+HgfsServerPolicy_GetShareOptions(char const *nameIn,             // IN: Share name
+                                 size_t nameInLen,               // IN: Share name length
+                                 HgfsShareOptions *configOptions)// OUT: Config options
 {
    HgfsSharedFolder *share;
+   char const *inEnd;
+   char *next;
+   int len;
 
    ASSERT(nameIn);
    ASSERT(configOptions);
 
-   share = HgfsServerPolicyGetShare(&myState, nameIn, nameInLen);
+   inEnd = nameIn + nameInLen;
+   len = CPName_GetComponentGeneric(nameIn, inEnd, "", (char const **) &next);
+   if (len < 0) {
+      LOG(4, ("HgfsServerPolicy_GetShareOptions: get first component failed\n"));
+      return HGFS_NAME_STATUS_FAILURE;
+   }
+
+   share = HgfsServerPolicyGetShare(&myState, nameIn, len);
    if (!share) {
       LOG(4, ("HgfsServerPolicy_GetShareOptions: No matching share name.\n"));
       return HGFS_NAME_STATUS_DOES_NOT_EXIST;

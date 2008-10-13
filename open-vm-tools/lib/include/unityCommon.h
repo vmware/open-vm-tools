@@ -58,6 +58,7 @@
 #define UNITY_RPC_DESKTOP_CONFIG_SET      "unity.desktop.config.set"
 #define UNITY_RPC_DESKTOP_ACTIVE_SET      "unity.desktop.active.set"
 #define UNITY_RPC_WINDOW_DESKTOP_SET      "unity.window.desktop.set"
+#define UNITY_RPC_UNITY_ACTIVE            "unity.active"
 
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
 #define GHI_RPC_SET_GUEST_HANDLER                     "ghi.guest.handler.set"

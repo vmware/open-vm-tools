@@ -175,8 +175,7 @@ Posix_Creat(ConstUnicode pathName, // IN:
  *      Open a file via POSIX fopen()
  *
  * Results:
- *      -1	Error
- *      >= 0	File descriptor (success)
+ *      A file pointer, or NULL on error.
  *
  * Side effects:
  *      errno is set on error

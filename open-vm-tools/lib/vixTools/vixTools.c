@@ -49,8 +49,17 @@
 #include "vm_version.h"
 #include "vm_app.h"
 #include "message.h"
-#include "eventManager.h"
-#include "debug.h"
+
+#if defined(VMTOOLS_USE_GLIB)
+#  define G_LOG_DOMAIN  "vix"
+#  define Debug         g_debug
+#  define Warning       g_warning
+#  include <glib.h>
+#else
+#  include "debug.h"
+#  include "eventManager.h"
+#endif
+
 #include "util.h"
 #include "strutil.h"
 #include "str.h"
@@ -83,6 +92,7 @@
 
 #ifdef _WIN32
 #include "registryWin32.h"
+#include "win32u.h"
 #endif /* _WIN32 */
 
 #define SECONDS_BETWEEN_POLL_TEST_FINISHED     1
@@ -113,7 +123,10 @@ typedef struct VixToolsRunProgramState {
    char                 *userName;
    char                 *password;
 
+   void                 *eventQueue;
+#if !defined(VMTOOLS_USE_GLIB)
    struct Event         *timeSyncEvent;
+#endif
 } VixToolsRunProgramState;
 
 
@@ -122,13 +135,17 @@ typedef struct VixToolsRunProgramState {
  */
 static Bool thisProcessRunsAsRoot = FALSE;
 static Bool allowConsoleUserOps = FALSE;
-static DblLnkLst_Links *globalEventQueue;   // event queue for main event loop
-VixToolsReportProgramDoneProcType reportProgramDoneProc = NULL;
+static VixToolsReportProgramDoneProcType reportProgramDoneProc = NULL;
+static void *reportProgramDoneData = NULL;
 
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
                                     char **result);
 
+#if defined(VMTOOLS_USE_GLIB)
+static gboolean VixToolsMonitorAsyncProc(void *clientData);
+#else
 static Bool VixToolsMonitorAsyncProc(void *clientData);
+#endif
 
 static void VixToolsPrintFileInfo(char *filePathName,
                                   char *fileName,
@@ -177,6 +194,7 @@ static VixError VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsRunScript(VixCommandRequestHeader *requestMsg,
                                   char *requestName,
+                                  void *eventQueue,
                                   char **result);
 
 static VixError VixToolsOpenUrl(VixCommandRequestHeader *requestMsg);
@@ -235,14 +253,14 @@ static Bool VixToolsPidRefersToThisProcess(ProcMgr_Pid pid);
 
 VixError
 VixTools_Initialize(Bool thisProcessRunsAsRootParam,                                // IN
-                    DblLnkLst_Links *globalEventQueueParam,                         //IN
-                    VixToolsReportProgramDoneProcType reportProgramDoneProcParam)   // IN
+                    VixToolsReportProgramDoneProcType reportProgramDoneProcParam,   // IN
+                    void *clientData)                                               // IN
 {
    VixError err = VIX_OK;
 
    thisProcessRunsAsRoot = thisProcessRunsAsRootParam;
-   globalEventQueue = globalEventQueueParam;
    reportProgramDoneProc = reportProgramDoneProcParam;
+   reportProgramDoneData = clientData;
 
    return(err);
 } // VixTools_Initialize
@@ -294,9 +312,11 @@ VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam)     // IN
  */
 
 void
-VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProcParam) // IN
+VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProcParam, // IN
+                               void *clientData)                                             // IN
 {
    reportProgramDoneProc = reportProgramDoneProcParam;
+   reportProgramDoneData = clientData;
 } // VixTools_SetRunProgramCallback
 
 
@@ -319,6 +339,7 @@ VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDo
 VixError
 VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
                     char *requestName,                   // IN
+                    void *eventQueue,                    // IN
                     char **result)                       // OUT
 {
    VixError err = VIX_OK;
@@ -366,6 +387,7 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
                                 commandLineArgs,
                                 runProgramRequest->runProgramOptions,
                                 userToken,
+                                eventQueue,
                                 &pid);
    
 abort:
@@ -404,6 +426,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
                        char *commandLineArgs,  // IN
                        int  runProgramOptions, // IN
                        void *userToken,        // IN
+                       void *eventQueue,       // IN
                        int64 *pid)             // OUT,OPTIONAL
 {
    VixError err = VIX_OK;
@@ -418,6 +441,9 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    Bool forcedRoot = FALSE;
    ProcMgr_ProcArgs procArgs;
    STARTUPINFO si;
+#endif
+#if defined(VMTOOLS_USE_GLIB)
+   GSource *timer;
 #endif
 
    if (NULL != pid) {
@@ -536,7 +562,14 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    /*
     * Start a periodic procedure to check the app periodically
     */
-   asyncState->timeSyncEvent = EventManager_Add(globalEventQueue,
+   asyncState->eventQueue = eventQueue;
+#if defined(VMTOOLS_USE_GLIB)
+   timer = g_timeout_source_new(SECONDS_BETWEEN_POLL_TEST_FINISHED * 1000);
+   g_source_set_callback(timer, VixToolsMonitorAsyncProc, asyncState, NULL);
+   g_source_attach(timer, g_main_loop_get_context(eventQueue));
+   g_source_unref(timer);
+#else
+   asyncState->timeSyncEvent = EventManager_Add(eventQueue,
                                                 SECONDS_BETWEEN_POLL_TEST_FINISHED * 100,
                                                 VixToolsMonitorAsyncProc,
                                                 asyncState);
@@ -544,6 +577,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
       err = VIX_E_OUT_OF_MEMORY;
       goto abort;
    }
+#endif
 
    /*
     * VixToolsMonitorAsyncProc will clean asyncState up when the program finishes.
@@ -571,8 +605,8 @@ abort:
  *    completes.
  *
  * Return value:
- *    TRUE on success
- *    FALSE on failure (detail is displayed)
+ *    TRUE on non-glib implementation.
+ *    FALSE on glib implementation.
  *
  * Side effects:
  *    None
@@ -580,7 +614,11 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
+#if defined(VMTOOLS_USE_GLIB)
+static gboolean
+#else
 static Bool
+#endif
 VixToolsMonitorAsyncProc(void *clientData) // IN
 {
    VixError err = VIX_OK;
@@ -589,12 +627,17 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    int exitCode = 0;
    ProcMgr_Pid pid = -1;
    int result = -1;
+#if defined(VMTOOLS_USE_GLIB)
+   GSource *timer;
+#endif
 
    asyncState = (VixToolsRunProgramState *)clientData;
    ASSERT(asyncState);
 
+#if !defined(VMTOOLS_USE_GLIB)
    /* The event has fired: it is no longer valid */
    asyncState->timeSyncEvent = NULL;
+#endif
 
    /*
     * Check if the program has completed.
@@ -604,10 +647,17 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
       goto done;
    }
 
+#if defined(VMTOOLS_USE_GLIB)
+   timer = g_timeout_source_new(SECONDS_BETWEEN_POLL_TEST_FINISHED * 1000);
+   g_source_set_callback(timer, VixToolsMonitorAsyncProc, asyncState, NULL);
+   g_source_attach(timer, g_main_loop_get_context(asyncState->eventQueue));
+   g_source_unref(timer);
+   return FALSE;
+#else
    /*
     * If it's still running, check back later.
     */
-   asyncState->timeSyncEvent = EventManager_Add(globalEventQueue,
+   asyncState->timeSyncEvent = EventManager_Add(asyncState->eventQueue,
                                                 SECONDS_BETWEEN_POLL_TEST_FINISHED * 100,
                                                 VixToolsMonitorAsyncProc,
                                                 asyncState);
@@ -617,6 +667,7 @@ VixToolsMonitorAsyncProc(void *clientData) // IN
    }
 
    return TRUE;
+#endif
 
 done:
    
@@ -640,12 +691,17 @@ done:
       (*reportProgramDoneProc)(asyncState->requestName, 
                                err,
                                exitCode,
-                               (int64) pid);
+                               (int64) pid,
+                               reportProgramDoneData);
    }
 
    VixToolsFreeRunProgramState(asyncState);
 
+#if defined(VMTOOLS_USE_GLIB)
+   return FALSE;
+#else
    return TRUE;
+#endif
 } // VixToolsMonitorAsyncProc
 
 
@@ -693,17 +749,24 @@ FoundryToolsDaemon_TranslateSystemErr(void)
  *-----------------------------------------------------------------------------
  */
 
+#if defined(VMTOOLS_USE_GLIB)
+VixError
+VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
+                                char **resultBuffer,              // OUT
+                                size_t *resultBufferLength)       // OUT
+#else
 VixError
 VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
                                 char **resultBuffer,              // OUT
                                 size_t *resultBufferLength)       // OUT
+#endif
 {
    VixError err = VIX_OK;
    VixPropertyListImpl propList;
    char *serializedBuffer = NULL;
    size_t serializedBufferLength = 0;
 #if !defined(__FreeBSD__) && !defined(sun)
-   char guestName[512];
+   char *guestName;
    int osFamily;
    char *packageList = NULL;
    const char *powerOffScript = NULL;
@@ -721,21 +784,22 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
    
    /*
     * Collect some values about the host.
+    *
+    * XXX: 512 is the old hardcoded value for the size of the "guestName"
+    * buffer. Since Win32U_GetComputerName returns a new buffer, we do this
+    * hack, since the GuestInfo API expects a pre-allocated buffer.
     */
-   foundHostName = GuestInfo_GetFqdn(sizeof(guestName), guestName);
+   guestName = Util_SafeMalloc(512);
+   foundHostName = GuestInfo_GetFqdn(512, guestName);
    if (!foundHostName) {
+      free(guestName);
 #ifdef _WIN32
-      DWORD guestNameSize;
-
       /*
        * Give it another try to read NetBIOS name.
        */
-      guestNameSize = sizeof guestName / sizeof *guestName;
-      if (!GetComputerName(guestName, &guestNameSize)) {
-         guestName[0] = 0;
-      }
+      guestName = Win32U_GetComputerName();
 #else
-      guestName[0] = 0;
+      guestName = Util_SafeStrdup("");
 #endif
    }
 
@@ -760,12 +824,25 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
     */
    packageList = "";
 
+#if defined(VMTOOLS_USE_GLIB)
+   if (confDictRef != NULL) {
+      powerOffScript = g_key_file_get_string(confDictRef, "powerops", 
+                                             CONFNAME_POWEROFFSCRIPT, NULL);
+      powerOnScript = g_key_file_get_string(confDictRef, "powerops",
+                                            CONFNAME_POWERONSCRIPT, NULL);
+      resumeScript = g_key_file_get_string(confDictRef, "powerops",
+                                           CONFNAME_RESUMESCRIPT, NULL);
+      suspendScript = g_key_file_get_string(confDictRef, "powerops",
+                                            CONFNAME_SUSPENDSCRIPT, NULL);
+   }
+#else
    if ((NULL != confDictRef) && (NULL != *confDictRef)) {
       powerOffScript = GuestApp_GetDictEntry(*confDictRef, CONFNAME_POWEROFFSCRIPT);
       powerOnScript = GuestApp_GetDictEntry(*confDictRef, CONFNAME_POWERONSCRIPT);
       resumeScript = GuestApp_GetDictEntry(*confDictRef, CONFNAME_RESUMESCRIPT);
       suspendScript = GuestApp_GetDictEntry(*confDictRef, CONFNAME_SUSPENDSCRIPT);
    }
+#endif
    tempDir = File_GetTmpDir(TRUE);
 
    /*
@@ -883,6 +960,7 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
 
 abort:
    VixPropertyList_RemoveAllWithoutHandles(&propList);
+   free(guestName);
    free(serializedBuffer);
    free(tempDir);
 #else
@@ -916,6 +994,7 @@ abort:
 } // VixTools_GetToolsPropertiesImpl
 
 
+#if 0
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1021,6 +1100,7 @@ abort:
 
    return err;
 } // VixToolsSetProperties
+#endif
 
 
 /*
@@ -2326,6 +2406,7 @@ abort:
 VixError
 VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
                   char *requestName,                    // IN
+                  void *eventQueue,                     // IN
                   char **result)                        // OUT
 {
    VixError err = VIX_OK;
@@ -2351,6 +2432,9 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
 #if defined(_WIN32)
    Bool forcedRoot = FALSE;
    ProcMgr_ProcArgs procArgs;
+#endif
+#if defined(VMTOOLS_USE_GLIB)
+   GSource *timer;
 #endif
 
    scriptRequest = (VixMsgRunScriptRequest *) requestMsg;
@@ -2550,13 +2634,20 @@ if (0 == *interpreterName) {
 
    pid = (int64) ProcMgr_GetPid(asyncState->procState);
 
+   asyncState->eventQueue = eventQueue;
+#if defined(VMTOOLS_USE_GLIB)
+   timer = g_timeout_source_new(SECONDS_BETWEEN_POLL_TEST_FINISHED * 1000);
+   g_source_set_callback(timer, VixToolsMonitorAsyncProc, asyncState, NULL);
+   g_source_attach(timer, g_main_loop_get_context(eventQueue));
+   g_source_unref(timer);
+#else
    /*
     * Start a periodic procedure to check the app periodically.
     * We always run this (regardless of whether the VIX_RUNPROGRAM_RETURN_IMMEDIATELY
     * flag is set), since we need to clean up the temp file after the script is
     * done running.
     */
-   asyncState->timeSyncEvent = EventManager_Add(globalEventQueue,
+   asyncState->timeSyncEvent = EventManager_Add(eventQueue,
                                                 SECONDS_BETWEEN_POLL_TEST_FINISHED * 100,
                                                 VixToolsMonitorAsyncProc,
                                                 asyncState);
@@ -2564,6 +2655,7 @@ if (0 == *interpreterName) {
       err = VIX_E_OUT_OF_MEMORY;
       goto abort;
    }
+#endif
 
    /*
     * VixToolsMonitorAsyncProc will clean asyncState up when the program finishes.
@@ -3526,14 +3618,27 @@ VixToolsPidRefersToThisProcess(ProcMgr_Pid pid)  // IN
  *-----------------------------------------------------------------------------
  */
 
+#if defined(VMTOOLS_USE_GLIB)
+VixError
+VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
+                           char *requestName,                     // IN
+                           size_t maxResultBufferSize,            // IN
+                           GKeyFile *confDictRef,                 // IN
+                           GMainLoop *eventQueue,                 // IN
+                           char **resultBuffer,                   // OUT
+                           size_t *resultLen,                     // OUT
+                           Bool *deleteResultBufferResult)        // OUT
+#else
 VixError
 VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
                            char *requestName,                     // IN
                            size_t maxResultBufferSize,            // IN
                            GuestApp_Dict **confDictRef,           // IN
+                           DblLnkLst_Links *eventQueue,           // IN
                            char **resultBuffer,                   // OUT
                            size_t *resultLen,                     // OUT
                            Bool *deleteResultBufferResult)        // OUT
+#endif
 {
    VixError err = VIX_OK;
    char *resultValue = NULL;
@@ -3642,13 +3747,13 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
       ////////////////////////////////////
       case VIX_COMMAND_RUN_SCRIPT_IN_GUEST:
-         err = VixToolsRunScript(requestMsg, requestName, &resultValue);
+         err = VixToolsRunScript(requestMsg, requestName, eventQueue, &resultValue);
          // resultValue is static. Do not free it.
          break;
 
       ////////////////////////////////////
       case VIX_COMMAND_RUN_PROGRAM:
-         err = VixTools_RunProgram(requestMsg, requestName, &resultValue);
+         err = VixTools_RunProgram(requestMsg, requestName, eventQueue, &resultValue);
          // resultValue is static. Do not free it.
          break;
 

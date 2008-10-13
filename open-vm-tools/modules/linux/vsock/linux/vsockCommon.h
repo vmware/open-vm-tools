@@ -91,6 +91,7 @@
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 #include "vmci_sockets.h"
+#include "vmci_sockets_kernel.h"
 #include "vsockAddr.h"
 #include "vsockSocketWrapper.h"
 

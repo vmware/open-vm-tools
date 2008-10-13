@@ -204,7 +204,7 @@ CodeSetOld_Validate(const char *buf,   // IN: the string
                     const char *code); // IN: encoding
 
 Bool
-CodeSetOld_Init(void);
+CodeSetOld_Init(const char *dataDir);  // UNUSED
 
 
 #endif /* __CODESET_OLD_H__ */

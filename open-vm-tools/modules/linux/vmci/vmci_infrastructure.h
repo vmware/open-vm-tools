@@ -17,11 +17,11 @@
  *********************************************************/
 
 /*
- * vmci_infrastructure.h -- 
- * 
+ * vmci_infrastructure.h --
+ *
  *      This file implements the VMCI infrastructure.
- */ 
- 
+ */
+
 #ifndef _VMCI_INFRASTRUCTURE_H_
 #define _VMCI_INFRASTRUCTURE_H_
 
@@ -66,12 +66,12 @@ typedef enum {
  *
  *  VMCI_Hash --
  *
- *     Hash function used by the Simple Datagram API. Based on the djb2 
+ *     Hash function used by the Simple Datagram API. Based on the djb2
  *     hash function by Dan Bernstein.
- * 
+ *
  *  Result:
  *     Returns guest call size.
- *     
+ *
  *  Side effects:
  *     None.
  *
@@ -82,14 +82,14 @@ static INLINE int
 VMCI_Hash(VMCIHandle handle, // IN
           unsigned size)     // IN
 {
-   int i;
-   int hash = 5381;
-   uint64 handleValue = (uint64)handle.resource << 32 | handle.context;
+   unsigned     i;
+   int          hash        = 5381;
+   const uint64 handleValue = QWORD(handle.resource, handle.context);
 
    for (i = 0; i < sizeof handle; i++) {
-      hash = ((hash << 5) + hash) + (uint8)(handleValue >> (i*8));
+      hash = ((hash << 5) + hash) + (uint8)(handleValue >> (i * 8));
    }
-   return hash & (size -1);
+   return hash & (size - 1);
 }
 
 #endif // _VMCI_INFRASTRUCTURE_H_

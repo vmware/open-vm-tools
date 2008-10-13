@@ -1515,22 +1515,6 @@ VixMsgMountHGFSRequest;
 
 /*
  * **********************************************************
- * Wait for the VM to be in a specific state.
- */
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgWaitForState {
-   VixCommandRequestHeader header;
-   int32 state;
-   int32 options;
-}
-#include "vmware_pack_end.h"
-VixMsgWaitForState;
-
-
-/*
- * **********************************************************
  * Get the state of all USB devices.
  */
 
@@ -2074,7 +2058,6 @@ enum {
 
    VIX_COMMAND_LIST_USB_DEVICES                 = 109,
    VIX_COMMAND_CONNECT_HOST                     = 110,
-   VIX_COMMAND_WAIT_FOR_OPPORTUNE_MOMENT        = 111,
 
    VIX_COMMAND_CREATE_LINKED_CLONE              = 112,
 
@@ -2146,7 +2129,9 @@ enum {
    VIX_COMMAND_SET_SNAPSHOT_INFO                = 155,
    VIX_COMMAND_SNAPSHOT_SET_MRU                 = 156,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 157,
+   VIX_COMMAND_LOGOUT_HOST                      = 157,
+
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 158,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
