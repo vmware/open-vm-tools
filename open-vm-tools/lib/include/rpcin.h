@@ -67,7 +67,7 @@ typedef Bool (*RpcIn_Callback)(RpcInData *data);
 
 #if defined(VMTOOLS_USE_GLIB)
 
-RpcIn *RpcIn_Construct(GMainLoop *mainLoop,
+RpcIn *RpcIn_Construct(GMainContext *mainCtx,
                        RpcIn_Callback dispatch,
                        gpointer clientData);
 

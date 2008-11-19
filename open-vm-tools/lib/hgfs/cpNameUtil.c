@@ -188,8 +188,20 @@ CPNameUtil_WindowsConvertToRoot(char const *nameIn, // IN:  buf to convert
    fullName = (char *)Util_SafeMalloc(fullNameLen + 1);
 
    memcpy(fullName, partialName, partialNameLen);
+
    memcpy(fullName + partialNameLen, partialNameSuffix, partialNameSuffixLen);
-   memcpy(fullName + partialNameLen + partialNameSuffixLen, nameIn, nameLen);
+   if (nameIn[1] == ':') {
+      /*
+       * If the name is in format "<drive letter>:" strip out ':' from it
+       * because the rest of the code assumes that driver letter in a 
+       * platform independent name is represented by a single character without colon.
+       */
+      fullName[partialNameLen + partialNameSuffixLen] = nameIn[0];
+      memcpy(fullName + partialNameLen + partialNameSuffixLen + 1, nameIn + 2, nameLen - 2);
+      fullNameLen--;
+   } else {
+      memcpy(fullName + partialNameLen + partialNameSuffixLen, nameIn, nameLen);
+   }
    fullName[fullNameLen] = '\0';
 
    /* CPName_ConvertTo strips out the ':' character */

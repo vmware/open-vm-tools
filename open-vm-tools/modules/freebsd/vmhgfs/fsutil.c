@@ -32,7 +32,8 @@
 
 #include "fsutil.h"
 #include "cpName.h"
-#include "staticEscape.h"
+#include "hgfsEscape.h"
+#include "cpNameLite.h"
 #include "os.h"
 
 #if defined(__APPLE__)
@@ -187,102 +188,6 @@ HgfsGetStatus(HgfsKReqHandle req,    // IN: Request that contains reply data
    }
 
    return ret;
-}
-
-
-/*
- * XXX: These were taken directly from hgfs/solaris/vnode.c.  Should we
- * move them to hgfsUtil.c or similar?  (And Solaris took them from the Linux
- * implementation.)
- */
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsEscapeBuffer --
- *
- *    Escape any characters that are not legal in a linux filename,
- *    which is just the character "/". We also of course have to
- *    escape the escape character, which is "%".
- *
- *    sizeBufOut must account for the NUL terminator.
- *
- *    XXX: See the comments in staticEscape.c and staticEscapeW.c to understand
- *    why this interface sucks.
- *
- * Results:
- *    On success, the size (excluding the NUL terminator) of the
- *    escaped, NUL terminated buffer.
- *    On failure (bufOut not big enough to hold result), negative value.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-HgfsEscapeBuffer(char const *bufIn, // IN:  Buffer with unescaped input
-                 uint32 sizeIn,     // IN:  Size of input buffer (chars)
-                 uint32 sizeBufOut, // IN:  Size of output buffer (bytes)
-                 char *bufOut)      // OUT: Buffer for escaped output
-{
-   /*
-    * This is just a wrapper around the more general escape
-    * routine; we pass it the correct bitvector and the
-    * buffer to escape. [bac]
-    */
-   EscBitVector bytesToEsc;
-
-   ASSERT(bufIn);
-   ASSERT(bufOut);
-
-   /* Set up the bitvector for "/" and "%" */
-   EscBitVector_Init(&bytesToEsc);
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'%');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'/');
-
-   return StaticEscape_Do('%',
-                          &bytesToEsc,
-                          bufIn,
-                          sizeIn,
-                          sizeBufOut,
-                          bufOut);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsUnescapeBuffer --
- *
- *    Unescape a buffer that was escaped using HgfsEscapeBuffer.
- *
- *    The unescaping is done in place in the input buffer, and
- *    can not fail.
- *
- * Results:
- *    The size (excluding the NUL terminator) of the unescaped, NUL
- *    terminated buffer.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-HgfsUnescapeBuffer(char *bufIn,   // IN: Buffer to be unescaped
-                   uint32 sizeIn) // IN: Size of input buffer
-{
-   /*
-    * This is just a wrapper around the more general unescape
-    * routine; we pass it the correct escape characer and the
-    * buffer to unescape. [bac]
-    */
-   ASSERT(bufIn);
-   return StaticEscape_Undo('%', bufIn, sizeIn);
 }
 
 /*
@@ -676,7 +581,7 @@ HgfsSetattrCopy(HgfsVnodeAttr *vap,      // IN:  Attributes to change to
  *
  * HgfsAttrToBSD --
  *
- *    Maps Hgfs attributes to Solaris attributes, filling the provided Solaris
+ *    Maps Hgfs attributes to MAC OS/BSD attributes, filling the provided BSD
  *    attribute structure appropriately.
  *
  * Results:
@@ -725,9 +630,14 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
          DEBUG(VM_DEBUG_ATTR, " Type: VDIR\n");
          break;
 
+      case HGFS_FILE_TYPE_SYMLINK:
+         HGFS_VATTR_TYPE_RETURN(vap, VLNK);
+         DEBUG(VM_DEBUG_ATTR, " Type: VLNK\n");
+         break;
+
       default:
          /*
-          * There are only the above two filetypes.  If there is an error
+          * There are only the above three filetypes.  If there is an error
           * elsewhere that provides another value, we set the Solaris type to
           * none and ASSERT in devel builds.
           */
@@ -1028,7 +938,6 @@ HgfsNameToWireEncoding(const char *bufIn,  // IN: Buffer to be normalized
       goto out;
    }
 
-   ret = HgfsUnescapeBuffer(bufOut, ret); // Cannot fail
 out:
    if (precomposedBuf != NULL) {
       os_free(precomposedBuf, bufOutSize);
@@ -1041,8 +950,8 @@ out:
  *----------------------------------------------------------------------------
  *
  * HgfsNameFromWireEncoding --
- *      1) Input string is converted into decomposed form.
- *      2) Decomposed string is finally escaped.
+ *      1) Converts input from CPName form if necessary.
+ *      2) Result is converted into decomposed form.
  *
  * Results:
  *      Returns the size (excluding the NULL terminator)  on success and
@@ -1056,49 +965,65 @@ out:
 
 int
 HgfsNameFromWireEncoding(const char *bufIn,  // IN: Buffer to be encoded
-                         uint32 bufInSize,   // IN: Size of input buffer
+                         uint32 inputLength, // IN: Number of characters in the input
                          char *bufOut,       // OUT: Encoded buffer will be stored here
                          uint32 bufOutSize)  // IN: Size of output buffer
 {
-   char *decomposedBuf = NULL; //Allocated from M_TEMP; free when done
-   const char *utf8Buf;
-   size_t lenOut;
+   size_t escapedLen;
    int ret = 0;
 
+   /* Output buffer needs one additional byte for NUL terminator. */
+   if (inputLength >= bufOutSize) {
+      return -ENOMEM;
+   }
+   escapedLen = HgfsEscape_GetSize(bufIn, inputLength);
+   if (escapedLen != 0) {
+      HgfsEscape_Do(bufIn, inputLength, bufOutSize, bufOut);
+   } else {
+      escapedLen = inputLength;
+      memcpy(bufOut, bufIn, inputLength);
+   }
+   CPNameLite_ConvertFrom(bufOut, escapedLen, '/');
+
    if (os_utf8_conversion_needed()) {
-      /* 
-       * The decomposed form a string can be a lot bigger than the input 
-       * buffer size. We allocate a buffer equal to the output buffer.  
+      size_t decomposedLen;
+      char *decomposedBuf = NULL;
+      /*
+       * The decomposed form a string can be a lot bigger than the input
+       * buffer size. We allocate a buffer equal to the output buffer.
        */
       decomposedBuf = os_malloc(bufOutSize, M_WAITOK);
       if (!decomposedBuf) {
+         DEBUG(VM_DEBUG_FAIL, "Not enough memory for decomposed buffer size %d.\n",
+			   bufOutSize);
          return -ENOMEM;
       }
       /*
        * Convert the input buffer into decomposed form. Higher layers in
        * MacOS X expects the name to be in decomposed form.
        */
-      ret = os_component_to_utf8_decomposed(bufIn, bufInSize, decomposedBuf,
-                                             &lenOut, bufOutSize);
+      ret = os_component_to_utf8_decomposed(bufOut, escapedLen, decomposedBuf,
+                                            &decomposedLen, bufOutSize);
       /*
        * If the decomposed name didn't fit in the buffer or it contained
        * illegal utf8 characters, return back to the caller.
+       * os_component_to_utf8_decomposed returns 0 on success or OS_ERR on failure.
        */
-      if (ret < 0){
+      if (ret != 0){
          DEBUG(VM_DEBUG_FAIL, "os_component_to_utf8_decomposed failed.\n");
          ret = -EINVAL;
-         goto out;
+      } else {
+         if (decomposedLen < bufOutSize) {
+            ret = decomposedLen;
+            memcpy(bufOut, decomposedBuf, decomposedLen + 1);
+          } else {
+            DEBUG(VM_DEBUG_FAIL, "Output buffer is too small.\n");
+            ret = -ENOMEM;
+         }
       }
-      utf8Buf = decomposedBuf;
-   } else {
-      utf8Buf = bufIn;
-   }
-
-    /* Escape any illegal characters */
-    ret = HgfsEscapeBuffer(utf8Buf, strlen(utf8Buf), bufOutSize, bufOut);
-out:
-   if (decomposedBuf != NULL) {
       os_free(decomposedBuf, bufOutSize);
+   } else {
+      ret = escapedLen;
    }
    return ret;
 }

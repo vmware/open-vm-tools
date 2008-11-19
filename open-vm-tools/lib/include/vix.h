@@ -104,8 +104,10 @@ enum {
    VIX_E_BUFFER_TOOSMALL                        = 24,
    VIX_E_OBJECT_NOT_FOUND                       = 25,
    VIX_E_HOST_NOT_CONNECTED                     = 26,
+   VIX_E_INVALID_UTF8_STRING                    = 27,
+   VIX_E_OPERATION_ALREADY_IN_PROGRESS          = 31,
    VIX_E_UNFINISHED_JOB                         = 29,
-
+   VIX_E_NEED_KEY                               = 30,
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,
@@ -151,7 +153,7 @@ enum {
    VIX_E_INTERACTIVE_SESSION_NOT_PRESENT        = 3034,
    VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,
    VIX_E_UNABLE_TO_REPLAY_VM                    = 3039,
-   VIX_E_CANNOT_POWER_ON_VM                     = 3040,
+   VIX_E_CANNOT_POWER_ON_VM                     = 3041,
 
    /* VM Errors */ 
    VIX_E_VM_NOT_FOUND                           = 4000,
@@ -244,6 +246,8 @@ enum {
    VIX_E_DISK_CANTREPAIR                        = 16062,
    VIX_E_DISK_INVALIDDISK                       = 16063,
    VIX_E_DISK_NOLICENSE                         = 16064,
+   VIX_E_DISK_NODEVICE                          = 16065,
+   VIX_E_DISK_UNSUPPORTEDDEVICE                 = 16066,
 
    /* Crypto Library Errors */
    VIX_E_CRYPTO_UNKNOWN_ALGORITHM               = 17000,

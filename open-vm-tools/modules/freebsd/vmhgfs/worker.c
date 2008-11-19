@@ -136,9 +136,9 @@ HgfsKReqWorker(void *arg)
          break;
       case HGFS_REQ_ABANDONED:
       case HGFS_REQ_ERROR:
+         os_mutex_unlock(req->stateLock);
+         os_mutex_unlock(hgfsKReqWorkItemLock);
          goto done;
-	 os_mutex_unlock(hgfsKReqWorkItemLock);
-         break;
       default:
          panic("Request object (%p) in unknown state: %u", req, req->state);
       }

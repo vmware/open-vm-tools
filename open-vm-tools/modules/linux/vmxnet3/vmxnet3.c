@@ -481,6 +481,47 @@ vmxnet3_intr(int irq, void *dev_id)
    return COMPAT_IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet3_netpoll --
+ *
+ *    netpoll callback.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+ 
+static void
+vmxnet3_netpoll(struct net_device *netdev)
+{
+   struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
+   int irq;
+
+#ifdef CONFIG_PCI_MSI
+   if (adapter->intr.type == VMXNET3_IT_MSIX) {
+      irq = adapter->intr.msix_entries[0].vector;
+   } else 
+#endif
+   {
+      irq = adapter->pdev->irq;
+   }
+
+   disable_irq(irq);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
+   vmxnet3_intr(irq, netdev, NULL);
+#else
+   vmxnet3_intr(irq, netdev);
+#endif
+   enable_irq(irq);
+}
+#endif
 
 /*
  *----------------------------------------------------------------------------
@@ -833,7 +874,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb,
          ctx->eth_ip_hdr_size = 14;
          ctx->l4_hdr_size = 0;
          /* copy as much as allowed */
-         ctx->copy_size = min((unsigned int)VMXNET3_HDR_COPY_SIZE, skb->len);
+         ctx->copy_size = min((unsigned int)VMXNET3_HDR_COPY_SIZE, skb_headlen(skb));
       }
 
       /* make sure headers are accessible directly */
@@ -842,7 +883,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb,
       }
    }
 
-   if (ctx->copy_size > VMXNET3_HDR_COPY_SIZE) {
+   if (UNLIKELY(ctx->copy_size > VMXNET3_HDR_COPY_SIZE)) {
       tq->stats.oversized_hdr++;
       ctx->copy_size = 0;
       return 0;
@@ -904,14 +945,14 @@ vmxnet3_prepare_tso(struct sk_buff *skb,
 /*
  *----------------------------------------------------------------------------
  *
- * vmxnet3_tq_prepare_tx --
+ * vmxnet3_tq_xmit --
  *
- *    fill tx descriptors for the given pkt
+ *    transmit a pkt thru a given tq
  *
  * Result:
- *    VMXNET3_TX_OK:      descriptors are setup successfully
- *    VMXNET3_TX_DROPPED: error occured, the pkt is dropped
- *    VMXNET3_TX_FULL:    tx ring is full, queue is NOT stopped
+ *    COMPAT_NETDEV_TX_OK:      descriptors are setup successfully
+ *    COMPAT_NETDEV_TX_OK:      error occured, the pkt is dropped
+ *    COMPAT_NETDEV_TX_BUSY:    tx ring is full, queue is stopped
  *
  * Side-effects:
  *    1. tx ring may be changed
@@ -921,27 +962,21 @@ vmxnet3_prepare_tso(struct sk_buff *skb,
  */
 
 static int
-vmxnet3_tq_prepare_tx(struct sk_buff *skb,
-                      struct vmxnet3_tx_queue *tq,
-                      struct vmxnet3_adapter *adapter)
+vmxnet3_tq_xmit(struct sk_buff *skb,
+                struct vmxnet3_tx_queue *tq,
+                struct vmxnet3_adapter *adapter,
+                struct net_device *netdev)
 {
-   uint32 count;
    int ret;
+   uint32 count;
+   unsigned long flags;
    struct vmxnet3_tx_ctx ctx;
    Vmxnet3_GenericDesc *gdesc;
 
    /* conservatively estimate # of descriptors to use */
    count = VMXNET3_TXD_NEEDED(skb_headlen(skb)) + skb_shinfo(skb)->nr_frags + 1;
 
-   if (count > vmxnet3_cmd_ring_desc_avail(&tq->tx_ring)) {
-      tq->stats.tx_ring_full++;
-      printk(KERN_INFO "tx queue stopped on %s, next2comp %u next2fill %u\n",
-             adapter->netdev->name, tq->tx_ring.next2comp, tq->tx_ring.next2fill);
-      return VMXNET3_TX_FULL;
-   }
-
    ctx.ipv4 = (skb->protocol == __constant_ntohs(ETH_P_IP));
-   ctx.ipv6 = (skb->protocol == __constant_ntohs(ETH_P_IPV6));
 
    ctx.mss = compat_skb_mss(skb);
    if (ctx.mss) {
@@ -961,6 +996,9 @@ vmxnet3_tq_prepare_tx(struct sk_buff *skb,
             goto drop_pkt;
          }
          tq->stats.linearized++;
+
+         /* recalculate the # of descriptors to use */
+         count = VMXNET3_TXD_NEEDED(skb_headlen(skb)) + 1;
       }
    }
 
@@ -974,7 +1012,8 @@ vmxnet3_tq_prepare_tx(struct sk_buff *skb,
          }
       } else {
          if (skb->ip_summed == VM_TX_CHECKSUM_PARTIAL) {
-            if (UNLIKELY(ctx.eth_ip_hdr_size + compat_skb_csum_offset(skb) > VMXNET3_MAX_CSUM_OFFSET)) {
+            if (UNLIKELY(ctx.eth_ip_hdr_size + compat_skb_csum_offset(skb) > 
+                         VMXNET3_MAX_CSUM_OFFSET)) {
                goto hdr_too_big;
             }
          }
@@ -982,6 +1021,18 @@ vmxnet3_tq_prepare_tx(struct sk_buff *skb,
    } else {
       tq->stats.drop_hdr_inspect_err++;
       goto drop_pkt;
+   }
+
+   spin_lock_irqsave(&tq->tx_lock, flags);
+
+   if (count > vmxnet3_cmd_ring_desc_avail(&tq->tx_ring)) {
+      tq->stats.tx_ring_full++;
+      VMXNET3_LOG("tx queue stopped on %s, next2comp %u next2fill %u\n",
+                  adapter->netdev->name, tq->tx_ring.next2comp, tq->tx_ring.next2fill);
+
+      vmxnet3_tq_stop(tq, adapter);
+      spin_unlock_irqrestore(&tq->tx_lock, flags);
+      return COMPAT_NETDEV_TX_BUSY;
    }
 
    /* fill tx descs related to addr & len */
@@ -1021,14 +1072,23 @@ vmxnet3_tq_prepare_tx(struct sk_buff *skb,
    VMXNET3_LOG("txd[%u]: SOP 0x%"FMT64"x 0x%x 0x%x\n",
                (uint32)((Vmxnet3_GenericDesc *)ctx.sop_txd - tq->tx_ring.base),
                gdesc->txd.addr, gdesc->dword[2], gdesc->dword[3]);
-   return VMXNET3_TX_OK;
+
+   spin_unlock_irqrestore(&tq->tx_lock, flags);
+
+   if (tq->shared->txNumDeferred >= tq->shared->txThreshold) {
+      tq->shared->txNumDeferred = 0;
+      VMXNET3_WRITE_BAR0_REG(adapter, VMXNET3_REG_TXPROD, tq->tx_ring.next2fill);
+   }
+   netdev->trans_start = jiffies;
+
+   return COMPAT_NETDEV_TX_OK;
 
 hdr_too_big:
    tq->stats.drop_oversized_hdr++;
 drop_pkt:
    tq->stats.drop_total++;
    compat_dev_kfree_skb(skb, FREE_WRITE);
-   return VMXNET3_TX_DROPPED;
+   return COMPAT_NETDEV_TX_OK;
 }
 
 
@@ -1054,28 +1114,8 @@ vmxnet3_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
    struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
    struct vmxnet3_tx_queue *tq = &adapter->tx_queue;
-   int ret = COMPAT_NETDEV_TX_OK;
-   unsigned long flags;
 
-   spin_lock_irqsave(&tq->tx_lock, flags);
-
-   ret = vmxnet3_tq_prepare_tx(skb, tq, adapter);
-   if (ret == VMXNET3_TX_OK) {
-      if (tq->shared->txNumDeferred >= tq->shared->txThreshold) {
-         tq->shared->txNumDeferred = 0;
-         VMXNET3_WRITE_BAR0_REG(adapter, VMXNET3_REG_TXPROD, tq->tx_ring.next2fill);
-      }
-      netdev->trans_start = jiffies;
-      ret = COMPAT_NETDEV_TX_OK;
-   } else if (ret == VMXNET3_TX_FULL) {
-      vmxnet3_tq_stop(tq, adapter);
-      ret = COMPAT_NETDEV_TX_BUSY;
-   } else {
-      ret = COMPAT_NETDEV_TX_OK;
-   }
-
-   spin_unlock_irqrestore(&tq->tx_lock, flags);
-   return ret;
+   return vmxnet3_tq_xmit(skb, tq, adapter, netdev);
 }
 
 
@@ -2038,6 +2078,51 @@ err:
 /*
  *----------------------------------------------------------------------------
  *
+ * vmxnet3_vlan_features --
+ *
+ *      Inherit net_device features from real device to VLAN device.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Modifies VLAN net_device's features.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+vmxnet3_vlan_features(struct vmxnet3_adapter *adapter,  // IN:
+                      uint16_t vid,                     // IN:
+                      Bool allvids)                     // IN:
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
+   struct net_device *v_netdev;
+
+   if (adapter->vlan_grp) {
+      if (allvids) {
+         for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+            v_netdev = compat_vlan_group_get_device(adapter->vlan_grp, vid);
+            if (v_netdev) {
+               v_netdev->features |= adapter->netdev->features;
+               compat_vlan_group_set_device(adapter->vlan_grp, vid, v_netdev);
+            }
+         }
+      } else {
+         v_netdev = compat_vlan_group_get_device(adapter->vlan_grp, vid);
+         if (v_netdev) {
+            v_netdev->features |= adapter->netdev->features;
+            compat_vlan_group_set_device(adapter->vlan_grp, vid, v_netdev);
+         }
+      }
+   }
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * vmxnet3_vlan_rx_register --
  *
  *    Called to enable/disable VLAN stripping.
@@ -2128,7 +2213,7 @@ vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
       uint32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
       Bool activeVlan = FALSE;
 
-      for (vid = 0; vid < 4096; vid++) {
+      for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
          if (compat_vlan_group_get_device(adapter->vlan_grp, vid)) {
             VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
             activeVlan = TRUE;
@@ -2164,6 +2249,7 @@ vmxnet3_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
    struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
    uint32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
 
+   vmxnet3_vlan_features(adapter, vid, FALSE);
    VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
    VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_UPDATE_VLAN_FILTERS);
 }
@@ -3023,6 +3109,10 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, Bool dma64)
       printk(" highDMA");
    }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
+   netdev->vlan_features = netdev->features;
+#endif
+
    printk("\n");
 }
 
@@ -3159,11 +3249,65 @@ vmxnet3_get_tx_csum(struct net_device *netdev)
 static int
 vmxnet3_set_tx_csum(struct net_device *netdev, uint32 val)
 {
+   struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
    if (val) {
       netdev->features |= NETIF_F_HW_CSUM;
    } else {
       netdev->features &= ~ NETIF_F_HW_CSUM;
    }
+   vmxnet3_vlan_features(adapter, 0, TRUE);
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet3_set_sg --
+ *
+ *      Ethtool op to change Scatter/gather IO feature.
+ *
+ * Results:
+ *      0 on success.
+ *
+ * Side effects:
+ *      Change SG feature on any VLAN interfaces associated with netdev.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+vmxnet3_set_sg(struct net_device *netdev, uint32 val)
+{
+   struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
+   ethtool_op_set_sg(netdev, val);
+   vmxnet3_vlan_features(adapter, 0, TRUE);
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet3_set_tso --
+ *
+ *      Ethtool op to change TCP Segmentation Offload feature.
+ *
+ * Results:
+ *      0 on success.
+ *
+ * Side effects:
+ *      Change TSO feature on any VLAN interfaces associated with netdev.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+vmxnet3_set_tso(struct net_device *netdev, uint32 val)
+{
+   struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
+   ethtool_op_set_tso(netdev, val);
+   vmxnet3_vlan_features(adapter, 0, TRUE);
    return 0;
 }
 
@@ -3795,9 +3939,9 @@ vmxnet3_ethtool_ops = {
    .get_tx_csum       = vmxnet3_get_tx_csum,
    .set_tx_csum       = vmxnet3_set_tx_csum,
    .get_sg            = ethtool_op_get_sg,
-   .set_sg            = ethtool_op_set_sg,
+   .set_sg            = vmxnet3_set_sg,
    .get_tso           = ethtool_op_get_tso,
-   .set_tso           = ethtool_op_set_tso,
+   .set_tso           = vmxnet3_set_tso,
    .get_strings       = vmxnet3_get_strings,
    .get_stats_count   = vmxnet3_get_stats_count,
    .get_ethtool_stats = vmxnet3_get_ethtool_stats,
@@ -4104,6 +4248,10 @@ vmxnet3_probe_device(struct pci_dev *pdev,
    netdev->vlan_rx_register = vmxnet3_vlan_rx_register;
    netdev->vlan_rx_add_vid  = vmxnet3_vlan_rx_add_vid;
    netdev->vlan_rx_kill_vid = vmxnet3_vlan_rx_kill_vid;
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+   netdev->poll_controller  = vmxnet3_netpoll;
+#endif
 
    COMPAT_SET_MODULE_OWNER(netdev);
    COMPAT_SET_NETDEV_DEV(netdev, &pdev->dev);

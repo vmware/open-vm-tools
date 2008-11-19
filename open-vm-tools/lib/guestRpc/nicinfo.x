@@ -43,9 +43,16 @@ const NICINFO_MAX_NICS     = 16;
 const NICINFO_MAC_LEN      = 18;
 
 struct VmIpAddress {
+   /*
+    * Corresponds to public/guestInfo.h::GuestInfoIPAddressFamilyType.
+    */
    uint32      addressFamily;
    Bool        dhcpEnabled;
    char        ipAddress[NICINFO_MAX_IP_LEN];
+   /*
+    * For IPv4, may be either a hexadecimal mask ("0xffffff00") or CIDR-style
+    * prefix length ("24").  For IPv6, will only be a prefix length.
+    */
    char        subnetMask[NICINFO_MAX_IP_LEN];
 };
 

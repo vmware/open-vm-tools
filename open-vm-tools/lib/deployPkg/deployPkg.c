@@ -27,8 +27,14 @@
 #include <time.h>
 
 #include "debug.h"
+#include "vm_assert.h"
+#if defined(VMTOOLS_USE_GLIB)
+#  define G_LOG_DOMAIN  "deployPkg"
+#  define Debug         g_debug
+#  define Warning       g_warning
+#  include "vmtoolsApp.h"
+#endif
 #include "rpcout.h"
-#include "rpcin.h"
 #include "util.h"
 #include "str.h"
 #include "strutil.h"
@@ -40,20 +46,8 @@
 
 static char *DeployPkgGetTempDir(void);
 
-/* TCLO handlers */
-static Bool DeployPkgTcloBegin(char const **result,
-                               size_t *resultLen,
-                               const char *name,
-                               const char *args,
-                               size_t argSize,
-                               void *clientData);
-static Bool DeployPkgTcloDeploy(char const **result,
-                                size_t *resultLen,
-                                const char *name,
-                                const char *args,
-                                size_t argSize,
-                                void *clientData);
 
+#if !defined(VMTOOLS_USE_GLIB)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -75,11 +69,12 @@ DeployPkg_Register(RpcIn *in)    // IN
 {
    Debug("DeployPkg_Register got called\n");
 
-   RpcIn_RegisterCallback(in, "deployPkg.begin", DeployPkgTcloBegin, NULL);
-   RpcIn_RegisterCallback(in, "deployPkg.deploy", DeployPkgTcloDeploy, NULL);
+   RpcIn_RegisterCallbackEx(in, "deployPkg.begin", DeployPkg_TcloBegin, NULL);
+   RpcIn_RegisterCallbackEx(in, "deployPkg.deploy", DeployPkg_TcloDeploy, NULL);
 
    srand(time(NULL));
 }
+#endif
 
 
 /*
@@ -100,13 +95,8 @@ DeployPkg_Register(RpcIn *in)    // IN
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-DeployPkgTcloBegin(char const **result,     // OUT
-                   size_t *resultLen,       // OUT
-                   const char *name,        // Ignored
-                   const char *args,        // Ignored
-                   size_t argSize,          // Ignored
-                   void *clientData)        // Ignored
+Bool
+DeployPkg_TcloBegin(RpcInData *data)   // IN
 {
    static char resultBuffer[FILE_MAXPATH];
    char *tempDir = DeployPkgGetTempDir();
@@ -116,9 +106,9 @@ DeployPkgTcloBegin(char const **result,     // OUT
    if (tempDir) {
       Str_Strcpy(resultBuffer, tempDir, sizeof resultBuffer);
       free(tempDir);
-      return RpcIn_SetRetVals(result, resultLen, resultBuffer, TRUE);
+      return RPCIN_SETRETVALS(data, resultBuffer, TRUE);
    }
-   return RpcIn_SetRetVals(result, resultLen, "failed to get temp dir", FALSE);
+   return RPCIN_SETRETVALS(data, "failed to get temp dir", FALSE);
 }
 
 
@@ -139,13 +129,8 @@ DeployPkgTcloBegin(char const **result,     // OUT
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-DeployPkgTcloDeploy(char const **result,     // OUT
-                    size_t *resultLen,       // OUT
-                    const char *name,        // Ignored
-                    const char *args,        // IN: package filename
-                    size_t argSize,          // Ignored
-                    void *clientData)        // Ignored
+Bool
+DeployPkg_TcloDeploy(RpcInData *data)  // IN
 {
    char errMsg[2048];
    ToolsDeployPkgError ret;
@@ -153,14 +138,27 @@ DeployPkgTcloDeploy(char const **result,     // OUT
    char *white = " \t\r\n";
 
    /* Set state to DEPLOYING. */
+#if defined(VMTOOLS_USE_GLIB)
+   gchar *msg;
+   ToolsAppCtx *ctx = data->appCtx;
+
+   msg = g_strdup_printf("deployPkg.update.state %d",
+                         TOOLSDEPLOYPKG_DEPLOYING);
+   if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+      g_warning("DeployPkgTcloDeploy failed update state to "
+              "TOOLSDEPLOYPKG_DEPLOYING\n");
+   }
+   g_free(msg);
+#else
    if (!RpcOut_sendOne(NULL, NULL, "deployPkg.update.state %d",
                        TOOLSDEPLOYPKG_DEPLOYING)) {
       Warning("DeployPkgTcloDeploy failed update state to "
               "TOOLSDEPLOYPKG_DEPLOYING\n");
    }
+#endif
 
    /* The package filename is in args. First clean up extra whitespace: */
-   argCopy = Util_SafeStrdup(args);
+   argCopy = Util_SafeStrdup(data->args);
    pkgStart = argCopy;
    while (*pkgStart != '\0' && Str_Strchr(white, *pkgStart) != NULL) {
       pkgStart++;
@@ -173,7 +171,17 @@ DeployPkgTcloDeploy(char const **result,     // OUT
 
    /* Now make sure the package exists */
    if (!File_Exists(pkgStart)) {
-      Warning("Package file '%s' doesn't exist!!\n", pkgStart);
+#if defined(VMTOOLS_USE_GLIB)
+      msg = g_strdup_printf("deployPkg.update.state %d %d Package file %s not found",
+                            TOOLSDEPLOYPKG_DEPLOYING,
+                            TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
+                            pkgStart);
+      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+         g_warning("DeployPkgTcloDeploy failed update state to "
+                   "TOOLSDEPLOYPKG_DEPLOYING\n");
+      }
+      g_free(msg);
+#else
       if (!RpcOut_sendOne(NULL, NULL, 
                           "deployPkg.update.state %d %d Package file %s not found",
                           TOOLSDEPLOYPKG_DEPLOYING, 
@@ -182,20 +190,34 @@ DeployPkgTcloDeploy(char const **result,     // OUT
          Warning("DeployPkgTcloDeploy failed update state to "
                  "TOOLSDEPLOYPKG_DEPLOYING\n");
       }
+#endif
+      Warning("Package file '%s' doesn't exist!!\n", pkgStart);
       goto ExitPoint;
    }
 
    /* Unpack the package and run the command. */
    ret = DeployPkgDeployPkgInGuest(pkgStart, errMsg, sizeof errMsg);
    if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
-      Warning("DeployPkgInGuest failed, error = %d\n", ret);
-      if (!RpcOut_sendOne(NULL, NULL, "deployPkg.update.state %d %d %s", 
-                          TOOLSDEPLOYPKG_DEPLOYING, 
+#if defined(VMTOOLS_USE_GLIB)
+      msg = g_strdup_printf("deployPkg.update.state %d %d %s",
+                            TOOLSDEPLOYPKG_DEPLOYING,
+                            TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
+                            errMsg);
+      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+         g_warning("DeployPkgTcloDeploy failed update state to "
+                   "TOOLSDEPLOYPKG_DEPLOYING\n");
+      }
+      g_free(msg);
+#else
+      if (!RpcOut_sendOne(NULL, NULL, "deployPkg.update.state %d %d %s",
+                          TOOLSDEPLOYPKG_DEPLOYING,
                           TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
                           errMsg)) {
          Warning("DeployPkgTcloDeploy failed update state to "
                  "TOOLSDEPLOYPKG_DEPLOYING\n");
       }
+#endif
+      Warning("DeployPkgInGuest failed, error = %d\n", ret);
    }
 
  ExitPoint:
@@ -216,7 +238,7 @@ DeployPkgTcloDeploy(char const **result,     // OUT
    }
 
    free(argCopy);
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 

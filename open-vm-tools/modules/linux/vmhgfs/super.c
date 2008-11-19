@@ -35,7 +35,6 @@
 
 #include "hgfsProto.h"
 #include "escBitvector.h"
-#include "hgfsEscape.h"
 #include "cpName.h"
 #include "hgfsUtil.h"
 #include "request.h"
@@ -321,8 +320,6 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
       return -EINVAL;
    }
 
-   /* Unescape the CP name. */
-   result = HgfsEscape_Undo(name, result);
    *nameLength = (uint32) result;
    req->payloadSize = requestSize + result;
 

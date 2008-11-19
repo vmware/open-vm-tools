@@ -55,7 +55,7 @@
 #define RPCIN_SCHED_EVENT(in, src) do {                                       \
    (in)->nextEvent = src;                                                     \
    g_source_set_callback((in)->nextEvent, RpcInLoop, (in), NULL);             \
-   g_source_attach((in)->nextEvent, g_main_loop_get_context((in)->mainLoop)); \
+   g_source_attach((in)->nextEvent, (in)->mainCtx);                           \
 } while (0)
 
 #else /* VMTOOLS_USE_GLIB */
@@ -93,7 +93,7 @@ typedef struct RpcInCallbackList {
 struct RpcIn {
 #if defined(VMTOOLS_USE_GLIB)
    GSource *nextEvent;
-   GMainLoop *mainLoop;
+   GMainContext *mainCtx;
    RpcIn_Callback dispatch;
    gpointer clientData;
 #else
@@ -391,18 +391,18 @@ RpcIn_UnregisterCallback(RpcIn *in,               // IN
  */
 
 RpcIn *
-RpcIn_Construct(GMainLoop *mainLoop,      // IN
+RpcIn_Construct(GMainContext *mainCtx,    // IN
                 RpcIn_Callback dispatch,  // IN
                 gpointer clientData)      // IN
 {
    RpcIn *result;
 
-   ASSERT(mainLoop != NULL);
+   ASSERT(mainCtx != NULL);
    ASSERT(dispatch != NULL);
 
    result = calloc(1, sizeof *result);
    if (result != NULL) {
-      result->mainLoop = mainLoop;
+      result->mainCtx = mainCtx;
       result->clientData = clientData;
       result->dispatch = dispatch;
    }

@@ -243,7 +243,7 @@ GuestInfoGather(void *clientData)   // IN: unused
    memset(&nicInfo, 0, sizeof nicInfo);
 
    /* Send tools version. */
-   if (!GuestInfoUpdateVmdb(INFO_TOOLS_VERSION, BUILD_NUMBER)) {
+   if (!GuestInfoUpdateVmdb(INFO_BUILD_NUMBER, BUILD_NUMBER)) {
       /*
        * An older vmx talking to new tools wont be able to handle
        * this message. Continue, if thats the case.
@@ -451,7 +451,7 @@ GuestInfoUpdateVmdb(GuestInfoType infoType, // IN: guest information type
 
    switch (infoType) {
    case INFO_DNS_NAME:
-   case INFO_TOOLS_VERSION:
+   case INFO_BUILD_NUMBER:
    case INFO_OS_NAME:
    case INFO_OS_NAME_FULL:
    case INFO_UPTIME:

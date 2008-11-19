@@ -95,6 +95,9 @@ GuestApp_LoadDict(GuestApp_Dict *dict); // IN
 Bool
 GuestApp_WriteDict(GuestApp_Dict *dict); // IN
 
+const char *
+GuestApp_GetDefaultScript(const char *confName); // IN
+
 Bool
 GuestApp_GetUnifiedLoopCap(const char *channel); // IN
 
@@ -174,6 +177,14 @@ GuestApp_RpcSendOneCPName(char const *cmd, // IN: RPCI command
                           size_t argSize); // IN: size of arg
 
 Bool GuestApp_OpenUrl(const char *url, Bool maximize);
+
+typedef enum {
+   GUESTAPP_ABSMOUSE_UNAVAILABLE,
+   GUESTAPP_ABSMOUSE_AVAILABLE,
+   GUESTAPP_ABSMOUSE_UNKNOWN
+} GuestAppAbsoluteMouseState;
+
+GuestAppAbsoluteMouseState GuestApp_GetAbsoluteMouseState(void);
 
 #if defined(_WIN32)
 void GuestApp_SetDictEntryW(GuestApp_Dict *dict,

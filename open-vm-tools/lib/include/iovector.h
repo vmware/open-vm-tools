@@ -38,7 +38,7 @@
 
 #ifndef HAS_IOVEC
 struct iovec {
-   uint8 *iov_base; /* Starting address.  */
+   void *iov_base; /* Starting address.  */
    size_t iov_len;  /* Length in bytes.  */
 };
 #endif   // HAS_IOVEC

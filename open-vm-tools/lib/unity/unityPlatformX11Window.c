@@ -2271,7 +2271,7 @@ UnityPlatformGetIconData(UnityPlatform *up,       // IN
 /*
  *----------------------------------------------------------------------------
  *
- * UnityPlatformRestoreWindow --
+ * UnityPlatformUnminimizeWindow --
  *
  *      Tell the window to restore from the minimized state to its original
  *      size.
@@ -2286,8 +2286,8 @@ UnityPlatformGetIconData(UnityPlatform *up,       // IN
  */
 
 Bool
-UnityPlatformRestoreWindow(UnityPlatform *up,    // IN
-                           UnityWindowId window) // IN
+UnityPlatformUnminimizeWindow(UnityPlatform *up,    // IN
+                              UnityWindowId window) // IN
 {
    UnityPlatformWindow *upw;
 
@@ -2300,7 +2300,7 @@ UnityPlatformRestoreWindow(UnityPlatform *up,    // IN
       return FALSE;
    }
 
-   Debug("UnityPlatformRestoreWindow(%#lx)\n", upw->toplevelWindow);
+   Debug("%s(%#lx)\n", __func__, upw->toplevelWindow);
    if (upw->isMinimized) {
       Atom data[5] = {0, 0, 0, 0, 0};
 
@@ -2711,7 +2711,7 @@ UPWindow_ProcessEvent(UnityPlatform *up,        // IN
 
    case MapNotify:
       /*
-       * This is here because we want to set input focus as part of RestoreWindow, but
+       * This is here because we want to set input focus as part of UnminimizeWindow, but
        * can't call XSetInputFocus until the window has actually been shown.
        */
       if (upw->wantInputFocus && upw->clientWindow) {
@@ -3517,116 +3517,6 @@ UPWindow_ProtocolSupported(const UnityPlatform *up,        // IN
    ASSERT(proto < UNITY_X11_MAX_WIN_PROTOCOLS);
 
    return upw->windowProtocols[proto];
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityPlatformShowWindow --
- *
- *      Makes hidden Window visible. If the Window is already visible, it stays
- *      visible. Window reappears at its original location. A minimized window
- *      reappears as minimized.
- *
- * Results:
- *
- *      FALSE if the Window handle is invalid.
- *      TRUE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-UnityPlatformShowWindow(UnityPlatform *up,    // IN
-                        UnityWindowId window) // IN
-{
-   UnityPlatformWindow *upw;
-
-   ASSERT(up);
-
-   upw = UPWindow_Lookup(up, window);
-
-   if (!upw || !upw->clientWindow) {
-      Debug("Hiding FAILED!\n");
-      return FALSE;
-   }
-
-   if (upw->isHidden) {
-      Atom data[5] = {0, 0, 0, 0, 0};
-
-      /*
-       * Unfortunately the _NET_WM_STATE messages only work for windows that are already
-       * mapped, i.e. not iconified or withdrawn.
-       */
-      if (!upw->isMinimized) {
-         XMapRaised(up->display, upw->clientWindow);
-      }
-
-      data[0] = _NET_WM_STATE_REMOVE;
-      data[1] = up->atoms._NET_WM_STATE_HIDDEN;
-      data[3] = 2; // Message is from the pager/taskbar
-      UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
-                                     up->atoms._NET_WM_STATE, 32, 4, data);
-
-      upw->wantInputFocus = TRUE;
-      upw->isHidden = FALSE;
-   }
-
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * UnityPlatformHideWindow --
- *
- *      Hides window. If the window is already hidden it stays hidden. Hides
- *      maximized and minimized windows too.
- *
- * Results:
- *      FALSE if the Window handle is invalid.
- *      TRUE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-UnityPlatformHideWindow(UnityPlatform *up,    // IN
-                        UnityWindowId window) // IN
-{
-   UnityPlatformWindow *upw;
-
-   ASSERT(up);
-
-   upw = UPWindow_Lookup(up, window);
-
-   if (!upw
-      || !upw->clientWindow) {
-      Debug("Hiding FAILED!\n");
-      return FALSE;
-   }
-
-   if (!upw->isHidden) {
-      Atom data[5] = {0, 0, 0, 0, 0};
-
-      upw->isHidden = TRUE;
-
-      data[0] = _NET_WM_STATE_ADD;
-      data[1] = up->atoms._NET_WM_STATE_HIDDEN;
-      data[3] = 2; // Message is from a pager/taskbar/etc.
-      UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
-                                     up->atoms._NET_WM_STATE, 32, 4, data);
-   }
-
-   return TRUE;
 }
 
 

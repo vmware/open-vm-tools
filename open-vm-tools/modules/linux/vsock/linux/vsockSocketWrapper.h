@@ -96,6 +96,8 @@
 #  define ECONNREFUSED        WSAECONNREFUSED
 #  define EHOSTDOWN           WSAEHOSTDOWN
 #  define EHOSTUNREACH        WSAEHOSTUNREACH
+#  define __ELOCALSHUTDOWN    ESHUTDOWN
+#  define __EPEERSHUTDOWN     ECONNABORTED
 #else
 #if defined(VMKERNEL)
 #  define EINTR               VMK_WAIT_INTERRUPTED
@@ -135,6 +137,9 @@
 #  define ECONNREFUSED        VMK_ECONNREFUSED
 #  define EHOSTDOWN           VMK_EHOSTDOWN
 #  define EHOSTUNREACH        VMK_EHOSTUNREACH
+#  define EPIPE               VMK_BROKEN_PIPE
+#  define __ELOCALSHUTDOWN    EPIPE
+#  define __EPEERSHUTDOWN     EPIPE
 #endif // VMKERNEL
 #endif // _WIN32
 

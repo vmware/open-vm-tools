@@ -77,6 +77,8 @@ typedef enum GuestOSType {
    GUEST_OS_OPENSERVER5         = GUEST_OS_BASE + 40,
    GUEST_OS_OPENSERVER6         = GUEST_OS_BASE + 41,
    GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 42,
+   GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 43,
+   GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 44,
 } GuestOSType;
 
 
@@ -92,6 +94,7 @@ typedef enum GuestOSFamilyType {
    GUEST_OS_FAMILY_NETWARE     = 0x0080
 } GuestOSFamilyType;
 
+#define ALLOS           (~CONST64U(0))
 #define B(guest)	((uint64) 1 << ((guest) - GUEST_OS_BASE))
 #define BS(suf)		B(GUEST_OS_##suf)
 #define ALLWIN9X	(BS(WIN95) | BS(WIN98) | BS(WINME))
@@ -122,15 +125,16 @@ typedef enum GuestOSFamilyType {
 #define ALLSOLARIS      (BS(SOLARIS6) | BS(SOLARIS7) | BS(SOLARIS8) | \
                          BS(SOLARIS9) | BS(SOLARIS10) | BS(SOLARIS10_64))
 #define ALLNETWARE      (BS(NETWARE4) | BS(NETWARE5) | BS(NETWARE6))
-#define ALLLINUX32      (BS(UBUNTU) | BS(OTHER24XLINUX) | BS(VMKERNEL) | \
-                         BS(OTHER26XLINUX) | BS(OTHERLINUX))
-#define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | \
-                         BS(OTHER26XLINUX_64))
+#define ALL26XLINUX32   (BS(OTHER26XLINUX) | BS(DEBIAN45) | BS(UBUNTU))
+#define ALL26XLINUX64   (BS(OTHER26XLINUX_64) | BS(DEBIAN45_64))
+#define ALLLINUX32      (BS(OTHER24XLINUX) | BS(VMKERNEL) | \
+                         BS(OTHERLINUX) | ALL26XLINUX32)
+#define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | ALL26XLINUX64)
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
 #define ALLDARWIN       (BS(DARWIN) | BS(DARWIN_64))
-#define ALL64           (ALLWIN64 | ALLLINUX64 | BS(LONGHORN_64) | \
+#define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
-                         BS(WINVISTA_64) | BS(DARWIN_64) | BS(OTHER_64))
+                         BS(DARWIN_64) | BS(OTHER_64))
 
 
 /*

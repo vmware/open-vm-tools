@@ -24,6 +24,7 @@
 #define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL
+#define INCLUDE_ALLOW_VMMEXT
 #include "includeCheck.h"
 
 #include "vm_basic_asm.h"

@@ -31,6 +31,12 @@
 #include "guestApp.h"
 
 #ifdef N_PLAT_NLM
+#define CONF_FILE         "tools.cfg"
+#else
+#define CONF_FILE         "tools.conf"
+#endif
+
+#ifdef N_PLAT_NLM
 #   define CONFVAL_POWERONSCRIPT_DEFAULT  "POWERON.NCF"
 #   define CONFVAL_POWEROFFSCRIPT_DEFAULT "POWEROFF.NCF"
 #   define CONFVAL_RESUMESCRIPT_DEFAULT   "RESUME.NCF"

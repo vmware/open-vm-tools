@@ -38,7 +38,6 @@
 
 #include "cpName.h"
 #include "cpNameLite.h"
-#include "hgfsEscape.h"
 #include "hgfsProto.h"
 #include "hgfsUtil.h"
 #include "inode.h"
@@ -284,8 +283,6 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
       goto out;
    }
 
-   /* Unescape the CP name. */
-   result = HgfsEscape_Undo(fileName, result);
    *fileNameLength = result;
    req->payloadSize = reqSize + result;
 
@@ -729,8 +726,6 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
          return -EINVAL;
       }
 
-      /* Unescape the CP name. */
-      result = HgfsEscape_Undo(fileName, result);
       *fileNameLength = result;
    }
    req->payloadSize = reqSize + result;
@@ -861,8 +856,6 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       return -EINVAL;
    }
 
-   /* Unescape the CP name. */
-   result = HgfsEscape_Undo(fileName, result);
    *fileNameLength = result;
    req->payloadSize = requestSize + result;
 
@@ -1411,8 +1404,6 @@ retry:
       goto out;
    }
 
-   /* Unescape the old CP name. */
-   result = HgfsEscape_Undo(oldName, result);
    *oldNameLength = result;
    reqSize += result;
 
@@ -1462,8 +1453,6 @@ retry:
       goto out;
    }
 
-   /* Unescape the new CP name. */
-   result = HgfsEscape_Undo(newName, result);
    *newNameLength = result;
    reqSize += result;
    req->payloadSize = reqSize;
@@ -1596,8 +1585,6 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
       return -EINVAL;
    }
 
-   /* Unescape the symlink CP name. */
-   result = HgfsEscape_Undo(symlinkName, result);
    *symlinkNameLength = result;
    req->payloadSize = requestSize + result;
 
@@ -1642,8 +1629,6 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
    /* Convert target name to CPName-lite format. */
    CPNameLite_ConvertTo(targetName, targetNameBytes - 1, '/');
 
-   /* Unescape the target CP-lite name. */
-   result = HgfsEscape_Undo(targetName, targetNameBytes - 1);
    *targetNameLength = result;
    req->payloadSize += result;
 

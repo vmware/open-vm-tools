@@ -50,6 +50,7 @@
 #include "vmware.h"
 #include "hgfsServerPolicy.h" // for security policy
 #include "hgfsServerInt.h"
+#include "hgfsEscape.h"
 #include "str.h"
 #include "cpNameLite.h"
 #include "hgfsUtil.h"  // for cross-platform time conversion
@@ -318,6 +319,8 @@ static HgfsInternalStatus HgfsSetattrFromName(char *cpName,
                                               HgfsFileAttrInfo *attr,
                                               HgfsAttrHint hints,
 					      uint32 caseFlags);
+
+static Bool HgfsIsShareRoot(char const *cpName, size_t cpNameSize);
 
 #ifdef HGFS_OPLOCKS
 /*
@@ -2479,7 +2482,7 @@ HgfsSetattrFromFd(HgfsHandle file,         // IN: file descriptor
    timesStatus = HgfsSetattrTimes(&statBuf, attr, hints,
                                   &times[0], &times[1], &timesChanged);
    if (timesStatus == 0 && timesChanged) {
-      Bool superUser;
+      uid_t uid;
 
       LOG(4, ("HgfsSetattrFromFd: setting new times\n"));
 
@@ -2488,15 +2491,15 @@ HgfsSetattrFromFd(HgfsHandle file,         // IN: file descriptor
        * superuser briefly to set the files times using futimes. Otherwise
        * return an error.
        */
-      superUser = IsSuperUser();
-      if (!superUser && getuid() != statBuf.st_uid) {
+
+      if (!Id_IsSuperUser() && (getuid() != statBuf.st_uid)) {
          LOG(4, ("HgfsSetattrFromFd: only owner of file %u or root can call "
                  "futimes\n", fd));
          /* XXX: Linux kernel says both EPERM and EACCES are valid here. */
          status = EPERM;
          goto exit;
       }
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
       /*
        * XXX Newer glibc provide also lutimes() and futimes()
        *     when we politely ask with -D_GNU_SOURCE -D_BSD_SOURCE
@@ -2508,7 +2511,7 @@ HgfsSetattrFromFd(HgfsHandle file,         // IN: file descriptor
                  fd, strerror(error)));
          status = error;
       }
-      SuperUser(superUser);
+      Id_EndSuperUser(uid);
    } else if (timesStatus != 0) {
       status = timesStatus;
    }
@@ -2779,6 +2782,8 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
             goto exit;
          }
          memcpy(myDents[myNumDents], newDent, newDent->d_reclen);
+         HgfsEscape_Undo(myDents[myNumDents]->d_name,
+                         strlen(myDents[myNumDents]->d_name)+ 1);
 
          /*
           * Dent is done. Bump the offset to the batched buffer to process the
@@ -3419,7 +3424,7 @@ HgfsServerSearchOpen(char const *packetIn, // IN: incoming packet
       inEnd = dirName + dirNameLength;
 
       /* Get the first component. */
-      len = CPName_GetComponentGeneric(dirName, inEnd, "", (char const **) &next);
+      len = CPName_GetComponent(dirName, inEnd, (char const **) &next);
       if (len < 0) {
          LOG(4, ("HgfsServerSearchOpen: get first component failed\n"));
          status = ENOENT;
@@ -3640,17 +3645,18 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
                return HgfsConvertFromNameStatus(nameStatus);
             }
 
+            /*
+             * Server needs to produce list of shares that is consistent with
+             * the list defined in UI. If a share can't be accessed because of
+             * problems on the host, the server still enumerates it and
+             * returns to the client.
+             */
             status = HgfsGetattrFromName(sharePath, configOptions, &attr, NULL);
             if (status != 0) {
                /*
-                * The dent no longer exists. Remove it from the search and get
-                * the next dent instead.
+                * The dent no longer exists. Log the event.
                 */
-               LOG(4, ("HgfsServerSearchRead: stat FAILED, removing\n"));
-               free(HgfsGetSearchResult(hgfsSearchHandle, requestedOffset,
-                                        TRUE));
-               free(dent);
-               continue;
+               LOG(4, ("HgfsServerSearchRead: stat FAILED\n"));
             }
          }
 
@@ -3679,6 +3685,12 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
 
       LOG(4, ("HgfsServerSearchRead: dent name is \"%s\" len = %"FMTSZ"u\n",
 	      entryName, entryNameLen));
+
+
+      /*
+       * We need to unescape the name before sending it back to the client
+       */
+      HgfsEscape_Undo(entryName, entryNameLen + 1);
 
       /*
        * XXX: HgfsPackSearchReadReply will error out if the dent we
@@ -3808,6 +3820,16 @@ HgfsServerGetattr(char const *packetIn, // IN: incoming packet
          status = HgfsGetattrFromName(localName, configOptions, &attr, &targetName);
          free(localName);
          if (status != 0) {
+            /*
+             * If it is a dangling share server should not return ENOENT
+             * to the client because it causes confusion: a name that is returned
+             * by directory enumeration should not produce "name not found"
+             * error.
+             * Replace it with a more appropriate error code: no such device.
+             */
+            if (status == ENOENT && HgfsIsShareRoot(cpName, cpNameSize)) {
+               status = ENXIO;
+            }
             goto exit;
          }
          break;
@@ -4583,13 +4605,6 @@ HgfsServerQueryVolume(char const *packetIn, // IN: incoming packet
       if (!HgfsRemoveSearch(handle)) {
          LOG(4, ("HgfsServerQueryVolume: could not close search on base\n"));
       }
-      if (shares == failed) {
-         /*
-          * We failed to query any of the shares.  We return the error from the
-          * first share failure.
-          */
-         return firstErr;
-      }
       break;
    case HGFS_NAME_STATUS_COMPLETE:
       ASSERT(utf8Name);
@@ -4991,4 +5006,37 @@ HgfsAckOplockBreak(ServerLockData *lockData, // IN: server lock info
    free(lockData);
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsIsShareRoot --
+ *
+ *    Checks if the cpName represents the root directory for a share.
+ *    Components in CPName format are separated by NUL characters. 
+ *    CPName for the root of a share contains only one component thus
+ *    it does not have any embedded '\0' characters in the name.
+ *
+ * Results:
+ *    TRUE if it is the root directory, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HgfsIsShareRoot(char const *cpName,         // IN: name to test
+                size_t cpNameSize)          // IN: length of the name
+{
+   size_t i;
+   for (i = 0; i < cpNameSize; i++) {
+      if (cpName[i] == '\0') {
+         return FALSE;
+      }
+   }
+   return TRUE;
+}
 

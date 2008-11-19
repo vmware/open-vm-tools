@@ -649,7 +649,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
 
    /*
     * Set begin to first non-NUL character and end to last NUL character to
-    * prevent errors in calling CPName_GetComponentGeneric().
+    * prevent errors in calling CPName_GetComponent().
     */
    for(begin = gHostClipboardBuf; *begin == '\0'; begin++)
       ;
@@ -657,7 +657,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    ASSERT(end);
 
    /* Build up selection data */
-   while ((len = CPName_GetComponentGeneric(begin, end, "", &next)) != 0) {
+   while ((len = CPName_GetComponent(begin, end, &next)) != 0) {
       const size_t origTextLen = textLen;
       Bool freeBegin = FALSE;
 
@@ -956,6 +956,9 @@ CopyPasteRpcInGHSetDataCB(char const **result,  // OUT
    }
 
    /* First check which one is newer, primary selection or clipboard. */
+   gGuestSelPrimaryTime = 0;
+   gGuestSelClipboardTime = 0;
+
    gWaitingOnGuestSelection = TRUE;
    gtk_selection_convert(gUserMainWidget,
                          GDK_SELECTION_PRIMARY,
@@ -975,6 +978,7 @@ CopyPasteRpcInGHSetDataCB(char const **result,  // OUT
       source = gGuestSelClipboardBuf;
    }
 
+try_again:
    /* Check if it is file list in the active selection. */
    for (iAtom = 0; iAtom < NR_FCP_TARGETS; iAtom++) {
       gWaitingOnGuestSelection = TRUE;
@@ -1104,6 +1108,23 @@ CopyPasteRpcInGHSetDataCB(char const **result,  // OUT
                               GDK_SELECTION_TYPE_STRING,
                               GDK_CURRENT_TIME);
          while (gWaitingOnGuestSelection) gtk_main_iteration();
+      }
+
+      /*
+       * With 'cut' operation OpenOffice will put data into clipboard but
+       * set same timestamp for both clipboard and primary selection.
+       * If primary timestamp is same as clipboard timestamp, we should try
+       * clipboard again if primary selection is empty. For details please
+       * refer to bug 300780.
+       */
+      if (source[0] == '\0' &&
+          gGuestSelPrimaryTime == gGuestSelClipboardTime &&
+          gGuestSelPrimaryTime != 0) {
+         gGuestSelPrimaryTime = 0;
+         gGuestSelClipboardTime = 0;
+         activeSelection = GDK_SELECTION_CLIPBOARD;
+         source = gGuestSelClipboardBuf;
+         goto try_again;
       }
 
       if (source[0] != '\0') {
@@ -1278,7 +1299,7 @@ CopyPasteGHFileListGetNext(char **fileName,       // OUT: fill with filename loc
    ASSERT(end);
 
    /* Get the length of this filename and a pointer to the next one */
-   len = CPName_GetComponentGeneric(gFcpGHState.fileListNext, end, "", &next);
+   len = CPName_GetComponent(gFcpGHState.fileListNext, end, &next);
    if (len < 0) {
       Warning("CopyPasteGHFileListGetNext: error retrieving next component\n");
       return FALSE;
@@ -1539,17 +1560,6 @@ CopyPasteHGSetFileList(char const **result,     // OUT
    data = (char *)Util_SafeCalloc(1, listSize + 1);
    memcpy(data, args + index, listSize);
    data[listSize] = '\0';
-
-   /*
-    * This data could have come from either a Windows or Linux host.
-    * Therefore, we need to verify that it doesn't contain any illegal
-    * characters for the current platform.
-    */
-   if (DnD_DataContainsIllegalCharacters(data, listSize)) {
-      Debug("CopyPasteHGSetFileList: data contains illegal characters\n");
-      retStr = DND_ILLEGAL_CHARACTERS;
-      goto exit;
-   }
 
    if (gBlockFd > 0) {
       /*

@@ -225,11 +225,9 @@ typedef struct {
 } UnityCommandElem;
 
 static UnityCommandElem unityCommandTable[] = {
-   { UNITY_RPC_WINDOW_RESTORE, UnityPlatformRestoreWindow },
    { UNITY_RPC_WINDOW_CLOSE, UnityPlatformCloseWindow },
-   { UNITY_RPC_WINDOW_SHOW, UnityPlatformShowWindow },
-   { UNITY_RPC_WINDOW_HIDE, UnityPlatformHideWindow },
    { UNITY_RPC_WINDOW_MINIMIZE, UnityPlatformMinimizeWindow },
+   { UNITY_RPC_WINDOW_UNMINIMIZE, UnityPlatformUnminimizeWindow },
    { UNITY_RPC_WINDOW_MAXIMIZE, UnityPlatformMaximizeWindow },
    { UNITY_RPC_WINDOW_UNMAXIMIZE, UnityPlatformUnmaximizeWindow },
    /* Add more commands and handlers above this. */
@@ -275,6 +273,30 @@ Bool
 Unity_IsSupported(void)
 {
    return UnityPlatformIsSupported() || unity.forceEnable;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Unity_IsActive --
+ *
+ *      Determine whether we are in Unity mode at this moment. 
+ *
+ * Results:
+ *      TRUE if Unity is active.
+ *      FALSE is Unity is not active.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+Unity_IsActive(void)
+{
+   return unity.isEnabled;
 }
 
 
@@ -416,8 +438,6 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
                              UnityTcloGetUpdate, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_WINDOW_PATH,
                              UnityTcloGetWindowPath, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_RESTORE,
-                             UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_SETTOP,
                              UnityTcloSetTopWindowGroup, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_CLOSE,
@@ -432,11 +452,9 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_EXIT, UnityTcloExit, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MOVE_RESIZE,
                              UnityTcloMoveResizeWindow, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_SHOW,
-                             UnityTcloWindowCommand, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_HIDE,
-                             UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MINIMIZE,
+                             UnityTcloWindowCommand, NULL);
+      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_UNMINIMIZE,
                              UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MAXIMIZE,
                              UnityTcloWindowCommand, NULL);

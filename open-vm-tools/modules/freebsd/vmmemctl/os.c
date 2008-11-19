@@ -35,12 +35,14 @@
  * Includes
  */
 
+#include "vm_basic_types.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/conf.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -104,6 +106,8 @@ MALLOC_DEFINE(M_VMMEMCTL, "vmmemctl", "vmmemctl metadata");
 
 static os_state global_state;
 
+static void vmmemctl_init_sysctl(void);
+static void vmmemctl_deinit_sysctl(void);
 
 /*
  * Simple Wrappers
@@ -399,6 +403,8 @@ void os_init(const char *name,
    os_pmap_init(pmap);
    os_balloonobject_create();
 
+   vmmemctl_init_sysctl();
+
    /* log device load */
    printf("%s initialized\n", state->status.name_verbose);
 }
@@ -408,6 +414,8 @@ void os_cleanup(void)
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
    os_status *status = &state->status;
+
+   vmmemctl_deinit_sysctl();
 
    os_balloonobject_delete();
    os_pmap_free(pmap);
@@ -448,6 +456,106 @@ static int vmmemctl_load(module_t mod, int cmd, void *arg)
 
    return(err);
 }
+
+/* All these interfaces got added in 4.x, so we support 5.0 and above with them */
+#if __FreeBSD_version >= 500000
+
+static struct sysctl_oid *oid = NULL;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmmemctl_sysctl --
+ *
+ *      This gets called to provide the sysctl output when requested.
+ *
+ * Results:
+ *      Error, if any
+ *
+ * Side effects:
+ *      Data is written into user-provided buffer
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+vmmemctl_sysctl(SYSCTL_HANDLER_ARGS)
+{
+   char stats[PAGE_SIZE];
+   size_t len;
+
+   len = 1 + global_state.status.handler(stats);
+
+   return SYSCTL_OUT(req, stats, len);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmmemctl_init_sysctl --
+ *
+ *      Init out sysctl, to be used for providing driver state.
+ *
+ * Results:
+ *      none
+ *
+ * Side effects:
+ *      Sn OID for a sysctl is registered
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+vmmemctl_init_sysctl(void)
+{
+   oid =  sysctl_add_oid(NULL, SYSCTL_STATIC_CHILDREN(_vm), OID_AUTO,
+                         global_state.status.name, CTLTYPE_STRING | CTLFLAG_RD,
+                         0, 0, vmmemctl_sysctl, "A",
+                         global_state.status.name_verbose);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmmemctl_deinit_sysctl --
+ *
+ *      Undo vmmemctl_init_sysctl(). Remove the sysctl we installed.
+ *
+ * Results:
+ *      none
+ *
+ * Side effects:
+ *      Sn OID for a sysctl is unregistered
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+vmmemctl_deinit_sysctl(void)
+{
+   if (oid) {
+      sysctl_remove_oid(oid,1,0);
+   }
+}
+
+#else
+
+static void
+vmmemctl_init_sysctl(void)
+{
+   printf("Not providing sysctl for FreeBSD below 5.0\n");
+}
+
+static void
+vmmemctl_deinit_sysctl(void)
+{
+   printf("Not uninstalling sysctl for FreeBSD below 5.0\n");
+}
+
+#endif
 
 /*
  * FreeBSD 3.2 does not have DEV_MODULE

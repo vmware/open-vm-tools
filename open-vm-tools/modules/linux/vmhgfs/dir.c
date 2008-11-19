@@ -401,8 +401,6 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
       return -EINVAL;
    }
 
-   /* Unescape the CP name. */
-   result = HgfsEscape_Undo(name, result);
    *nameLength = (uint32) result;
    req->payloadSize = requestSize + result;
 

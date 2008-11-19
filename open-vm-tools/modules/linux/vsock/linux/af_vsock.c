@@ -143,7 +143,7 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #ifdef VMX86_TOOLS
 # include "vmciGuestKernelAPI.h"
 #else
-# include "vmciDatagram.h"
+# include "vmciHostKernelAPI.h"
 #endif
 
 #include "af_vsock.h"
@@ -700,10 +700,78 @@ VSockVmciNotifyWaitingRead(VSockVmciSock *vsk)  // IN
     * endpoints with mixed versions of this function.
     */
    return VMCIQueue_BufReady(vsk->produceQ,
-                             vsk->consumeQ, vsk->produceSize) > 0;
+			     vsk->consumeQ, vsk->produceSize) > 0;
 #else
    return TRUE;
 #endif
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciHandleWrote --
+ *
+ *      Handles an incoming wrote message.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciHandleWrote(struct sock *sk,            // IN
+		     VSockPacket *pkt,           // IN: unused
+		     Bool bottomHalf,            // IN: unused
+		     struct sockaddr_vm *dst,    // IN: unused
+		     struct sockaddr_vm *src)    // IN: unused
+{
+#ifdef VSOCK_OPTIMIZATION_WAITING_NOTIFY
+   VSockVmciSock *vsk;
+
+   vsk = vsock_sk(sk);
+   vsk->sentWaitingRead = FALSE;
+#endif
+
+   sk->compat_sk_data_ready(sk, 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciHandleRead --
+ *
+ *      Handles an incoming read message.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciHandleRead(struct sock *sk,            // IN
+		    VSockPacket *pkt,           // IN: unused
+		    Bool bottomHalf,            // IN: unused
+		    struct sockaddr_vm *dst,    // IN: unused
+		    struct sockaddr_vm *src)    // IN: unused
+{
+#ifdef VSOCK_OPTIMIZATION_WAITING_NOTIFY
+   VSockVmciSock *vsk;
+
+   vsk = vsock_sk(sk);
+   vsk->sentWaitingWrite = FALSE;
+#endif
+
+   sk->compat_sk_write_space(sk);
 }
 
 
@@ -983,11 +1051,11 @@ VSockVmciRecvStreamCB(void *data,           // IN
    if (!compat_sock_owned_by_user(sk) && sk->compat_sk_state == SS_CONNECTED) {
       switch (pkt->type) {
       case VSOCK_PACKET_TYPE_WROTE:
-         sk->compat_sk_data_ready(sk, 0);
-         processPkt = FALSE;
+	 VSockVmciHandleWrote(sk, pkt, TRUE, &dst, &src);
+	 processPkt = FALSE;
          break;
       case VSOCK_PACKET_TYPE_READ:
-         sk->compat_sk_write_space(sk);
+	 VSockVmciHandleRead(sk, pkt, TRUE, &dst, &src);
          processPkt = FALSE;
          break;
       case VSOCK_PACKET_TYPE_WAITING_WRITE:
@@ -2028,11 +2096,11 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
       break;
 
    case VSOCK_PACKET_TYPE_WROTE:
-      sk->compat_sk_data_ready(sk, 0);
+      VSockVmciHandleWrote(sk, pkt, FALSE, NULL, NULL);
       break;
 
    case VSOCK_PACKET_TYPE_READ:
-      sk->compat_sk_write_space(sk);
+      VSockVmciHandleRead(sk, pkt, FALSE, NULL, NULL);
       break;
 
    case VSOCK_PACKET_TYPE_WAITING_WRITE:
@@ -2323,7 +2391,8 @@ out:
  *      Sends a waiting write notification to this socket's peer.
  *
  * Results:
- *      TRUE if the datagram is sent successfully, FALSE otherwise.
+ *      TRUE if the datagram is sent successfully or does not need to be sent.
+ *      FALSE otherwise.
  *
  * Side effects:
  *      Our peer will notify us when there is room to write in to our produce
@@ -2343,10 +2412,15 @@ VSockVmciSendWaitingWrite(struct sock *sk,   // IN
    uint64 tail;
    uint64 head;
    uint64 roomLeft;
+   Bool ret;
 
    ASSERT(sk);
 
    vsk = vsock_sk(sk);
+
+   if (vsk->sentWaitingWrite) {
+      return TRUE;
+   }
 
    VMCIQueue_GetPointers(vsk->produceQ, vsk->consumeQ, &tail, &head);
    roomLeft = vsk->produceSize - tail;
@@ -2359,7 +2433,11 @@ VSockVmciSendWaitingWrite(struct sock *sk,   // IN
       waitingInfo.generation = vsk->produceQGeneration - 1;
    }
 
-   return VSOCK_SEND_WAITING_WRITE(sk, &waitingInfo) > 0;
+   ret = VSOCK_SEND_WAITING_WRITE(sk, &waitingInfo) > 0;
+   if (ret) {
+      vsk->sentWaitingWrite = TRUE;
+   }
+   return ret;
 #else
    return TRUE;
 #endif
@@ -2393,10 +2471,15 @@ VSockVmciSendWaitingRead(struct sock *sk,    // IN
    uint64 tail;
    uint64 head;
    uint64 roomLeft;
+   Bool ret;
 
    ASSERT(sk);
 
    vsk = vsock_sk(sk);
+
+   if (vsk->sentWaitingRead) {
+      return TRUE;
+   }
 
    if (vsk->writeNotifyWindow < vsk->consumeSize) {
       vsk->writeNotifyWindow = MIN(vsk->writeNotifyWindow + PAGE_SIZE,
@@ -2413,7 +2496,11 @@ VSockVmciSendWaitingRead(struct sock *sk,    // IN
       waitingInfo.generation = vsk->consumeQGeneration;
    }
 
-   return VSOCK_SEND_WAITING_READ(sk, &waitingInfo) > 0;
+   ret = VSOCK_SEND_WAITING_READ(sk, &waitingInfo) > 0;
+   if (ret) {
+      vsk->sentWaitingRead = TRUE;
+   }
+   return ret;
 #else
    return TRUE;
 #endif
@@ -2612,6 +2699,7 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
    vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
    vsk->peerWaitingRead = vsk->peerWaitingWrite = FALSE;
+   vsk->sentWaitingRead = vsk->sentWaitingWrite = FALSE;
    vsk->peerWaitingWriteDetected = FALSE;
    memset(&vsk->peerWaitingReadInfo, 0, sizeof vsk->peerWaitingReadInfo);
    memset(&vsk->peerWaitingWriteInfo, 0, sizeof vsk->peerWaitingWriteInfo);
@@ -3585,55 +3673,65 @@ VSockVmciPoll(struct file *file,    // IN
       vsk = vsock_sk(sk);
 
       /*
-       * Listening sockets that have connections in their accept queue and
-       * connected sockets that have consumable data can be read.  Sockets
-       * whose connections have been close, reset, or terminated should also be
-       * considered read, and we check the shutdown flag for that.
+       * Listening sockets that have connections in their accept queue can be read.
        */
-      if ((sk->compat_sk_state == SS_LISTEN &&
-           !VSockVmciIsAcceptQueueEmpty(sk)) ||
-          (!VMCI_HANDLE_INVALID(vsk->qpHandle) &&
-           !(sk->compat_sk_shutdown & RCV_SHUTDOWN) &&
-           VMCIQueue_BufReady(vsk->consumeQ,
-                              vsk->produceQ, vsk->consumeSize)) ||
-           sk->compat_sk_shutdown) {
+      if (sk->compat_sk_state == SS_LISTEN && !VSockVmciIsAcceptQueueEmpty(sk)) {
+	 mask |= POLLIN | POLLRDNORM;
+      }
+
+      /*
+       * If there is something in the queue then we can read.
+       */
+      if (!VMCI_HANDLE_INVALID(vsk->qpHandle) &&
+	  !(sk->compat_sk_shutdown & RCV_SHUTDOWN)) {
+	 if (VMCIQueue_BufReady(vsk->consumeQ,
+				vsk->produceQ, vsk->consumeSize)) {
+	    mask |= POLLIN | POLLRDNORM;
+	 } else {
+	    /*
+	     * We can't read right now because there is nothing in the queue.
+	     * Notify the other size that we are waiting.
+	     */
+	    if (sk->compat_sk_state == SS_CONNECTED) {
+	       if (!VSockVmciSendWaitingRead(sk, 1)) {
+		  mask |= POLLERR;
+	       }
+	    }
+	 }
+      }
+
+      /*
+       * Sockets whose connections have been close, reset, or terminated should also
+       * be considered read, and we check the shutdown flag for that.
+       */
+      if (sk->compat_sk_shutdown) {
           mask |= POLLIN | POLLRDNORM;
       }
 
       /*
        * Connected sockets that can produce data can be written.
        */
-      if (sk->compat_sk_state == SS_CONNECTED &&
-          !(sk->compat_sk_shutdown & SEND_SHUTDOWN) &&
-          VMCIQueue_FreeSpace(vsk->produceQ,
-                              vsk->consumeQ, vsk->produceSize) > 0) {
-         mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
-      }
-
-      /*
-       * Connected sockets also need to notify their peer that they are
-       * waiting.  Optimally these calls would happen in the code that decides
-       * whether the caller will wait or not, but that's core kernel code and
-       * this is the best we can do.  If the caller doesn't sleep, the worst
-       * that happens is a few extra datagrams are sent.
-       */
       if (sk->compat_sk_state == SS_CONNECTED) {
-         if (VMCIQueue_FreeSpace(vsk->produceQ,
-                                 vsk->consumeQ, vsk->produceSize) == 0) {
-            /*
-             * Only send waiting write if the queue is full, otherwise we end
-             * up in an infinite WAITING_WRITE, READ, WAITING_WRITE, READ, etc.
-             * loop.  Treat failing to send the notification as a socket error,
-             * passing that back through the mask.
+	 if (!(sk->compat_sk_shutdown & SEND_SHUTDOWN)) {
+	    int64 produceQFreeSpace =
+	       VMCIQueue_FreeSpace(vsk->produceQ,
+				   vsk->consumeQ, vsk->produceSize);
+	    if (produceQFreeSpace > 0) {
+	       mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+	    } else if (produceQFreeSpace == 0) {
+	       /*
+		* This is a connected socket but we can't currently send data. Notify
+		* the peer that we are waiting if the queue is full.
+		* We only send a waiting write if the queue is full because otherwise
+		* we end up in an infinite WAITING_WRITE, READ, WAITING_WRITE, READ, etc.
+		* loop. Treat failing to send the notification as a socket error, passing
+		* that back through the mask.
              */
-           if (!VSockVmciSendWaitingWrite(sk, 1)) {
-              mask |= POLLERR;
-           }
-         }
-
-         if (!VSockVmciSendWaitingRead(sk, 1)) {
-            mask |= POLLERR;
-         }
+	       if (!VSockVmciSendWaitingWrite(sk, 1)) {
+		  mask |= POLLERR;
+	       }
+	    }
+	 }
       }
 
       release_sock(sk);

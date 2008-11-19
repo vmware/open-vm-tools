@@ -73,6 +73,7 @@
 #include <stdio.h>
 #include "vmware.h"
 #include "vm_product.h"
+#include "vm_atomic.h"
 #include "unicode/ucnv.h"
 #include "unicode/putil.h"
 #include "file.h"
@@ -119,7 +120,13 @@
  */
 
 static Bool dontUseIcu = TRUE;
+
+#ifdef _WIN32
+static Bool initedIcu = FALSE;
+static Atomic_Ptr sCriticalSection;
+#else // Posix
 DEBUG_ONLY(static Bool initedIcu = FALSE;)
+#endif
 
 
 /*
@@ -178,6 +185,74 @@ CodeSetGetModulePath(HANDLE hModule) // IN
    return pathW;
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CodeSetEnterCriticalSection --
+ *
+ *      Initialize critical section atomically, and enter that critical section.
+ *
+ * Returns:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+CodeSetEnterCriticalSection(void)
+{
+   CRITICAL_SECTION *cs = Atomic_ReadPtr(&sCriticalSection);
+
+   // Initalize critical section atomically.
+   if (cs == NULL) {
+      CRITICAL_SECTION *newcs = Util_SafeMalloc(sizeof *newcs);
+      InitializeCriticalSection(newcs);
+
+      Atomic_Init();
+      cs = Atomic_ReadIfEqualWritePtr(&sCriticalSection, NULL, newcs);
+
+      if (cs == NULL) {
+	 cs = newcs;
+      } else {
+         DeleteCriticalSection(newcs);
+	 free(newcs);
+      }
+   }
+
+   ASSERT(cs);
+   EnterCriticalSection(cs);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CodeSetLeaveCriticalSection --
+ *
+ *      Leave critical section.
+ *
+ * Returns:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+CodeSetLeaveCriticalSection(void)
+{
+   CRITICAL_SECTION *cs = Atomic_ReadPtr(&sCriticalSection);
+
+   ASSERT(cs);
+   LeaveCriticalSection(cs);
+}
+
 #elif vmx86_devel // _WIN32
 
 /*
@@ -211,7 +286,7 @@ CodeSetGetModulePath(uint32 priv)
    uint32_t size;
 #else
    ssize_t size;
-   Bool isSuper = FALSE;
+   uid_t uid = -1;
 #endif
 
    if ((priv != HGMP_PRIVILEGE) && (priv != HGMP_NO_PRIVILEGE)) {
@@ -232,20 +307,21 @@ CodeSetGetModulePath(uint32 priv)
 #endif
 
    if (priv == HGMP_PRIVILEGE) {
-      isSuper = IsSuperUser();
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
    }
 
    size = readlink("/proc/self/exe", path, sizeof path);
    if (-1 == size) {
-      SuperUser(isSuper);
+      if (priv == HGMP_PRIVILEGE) {
+         Id_EndSuperUser(uid);
+      }
       goto exit;
    }
 
    path[size] = '\0';
 
    if (priv == HGMP_PRIVILEGE) {
-      SuperUser(isSuper);
+      Id_EndSuperUser(uid);
    }
 #endif
 
@@ -347,7 +423,8 @@ CodeSet_DontUseIcu(void)
  *    directory. If already inited, returns the current state (init
  *    failed/succeeded).
  *
- *    Call while single-threaded.
+ *    For Windows, CodeSet_Init is thread-safe (with critical section).
+ *    For Linux/Apple, call while single-threaded.
  *
  *    *********** WARNING ***********
  *    Do not call CodeSet_Init directly, it is called already by
@@ -380,10 +457,22 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
    char *path = NULL;
    Bool ret = FALSE;
 
+#ifdef _WIN32
+   CodeSetEnterCriticalSection();
+#endif
+
    DynBuf_Init(&dbpath);
 
+#ifdef _WIN32
+   if (initedIcu) {
+      // Nothing to be initialized.
+      ret = TRUE;
+      goto exit;
+   }
+#else // Posix
    DEBUG_ONLY(ASSERT(!initedIcu);)
    DEBUG_ONLY(initedIcu = TRUE;)
+#endif
 
 #ifdef USE_ICU
    /*
@@ -616,6 +705,11 @@ found:
 #endif
    free(path);
    DynBuf_Destroy(&dbpath);
+
+#ifdef _WIN32
+   initedIcu = ret;
+   CodeSetLeaveCriticalSection();
+#endif
 
    return ret;
 }

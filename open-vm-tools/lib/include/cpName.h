@@ -92,12 +92,6 @@ CPName_ConvertFromRoot(char const **bufIn, // IN/OUT: Input to convert
                        char **bufOut);     // IN/OUT: Output buffer
 
 int
-CPName_GetComponentGeneric(char const *begin,  // IN: Beginning of buffer
-                           char const *end,    // IN: End of buffer
-                           char const *illegal, // IN: Illegal characters
-                           char const **next); // OUT: Next component
-
-int
 CPName_GetComponent(char const *begin,  // IN: Beginning of buffer
                     char const *end,    // IN: End of buffer
                     char const **next); // OUT: Next component

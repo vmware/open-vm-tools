@@ -31,7 +31,20 @@ obj-m += $(DRIVER).o
 
 $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)/*.c)))
 
+T := /tmp
+MODPOST_VMCI_SYMVERS := $(T)/VMwareVMCIModule.symvers
+
 clean:
 	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
 	       Module.symvers Modules.symvers Module.markers modules.order \
+	       $(MODPOST_VMCI_SYMVERS) \
 	       $(foreach dir,./,$(addprefix $(dir),.*.cmd .*.o.flags *.o)))
+
+#
+# If this build generated a Module.symvers, copy it to a public place where
+# the VMCI Sockets build will be able to find it.
+#
+postbuild::
+ifeq ($(call vm_check_file,$(SRCROOT)/Module.symvers), yes)
+	cp -f $(SRCROOT)/Module.symvers $(MODPOST_VMCI_SYMVERS)
+endif

@@ -80,35 +80,6 @@ DnD_GetFileRoot(void)
 
 
 /*
- *----------------------------------------------------------------------------
- *
- * DnD_DataContainsIllegalCharacters --
- *
- *    Determines whether the provided data buffer contains any illegal
- *    characters for this platform.
- *
- *    On Linux, the only illegal character is / (the directory separator).
- *
- * Results:
- *    TRUE if data contains any illegal characters, FALSE otherwise.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-DnD_DataContainsIllegalCharacters(const char *data,      // IN
-                                  const size_t dataSize) // IN
-{
-   ASSERT(data);
-
-   return DnDDataContainsIllegalCharacters(data, dataSize, DIRSEPS);
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * DnD_PrependFileRoot --
@@ -309,15 +280,14 @@ DnD_UriListGetNextFile(char const *uriList,  // IN    : text/uri-list string
 int
 DnD_InitializeBlocking(void)
 {
-   Bool wasSuperUser;
+   uid_t uid;
    Bool found = FALSE;
    int blockFd = -1;
    MNTHANDLE fp;
    DECLARE_MNTINFO(mnt);
 
    /* root access is needed for opening the vmblock device */
-   wasSuperUser = IsSuperUser();
-   SuperUser(TRUE);
+   uid = Id_BeginSuperUser();
 
    /* Make sure the vmblock file system is mounted. */
    fp = OPEN_MNTFILE("r");
@@ -357,7 +327,8 @@ DnD_InitializeBlocking(void)
            VMBLOCK_DEVICE));
 
 out:
-   SuperUser(wasSuperUser);
+   Id_EndSuperUser(uid);
+
    return blockFd;
 }
 

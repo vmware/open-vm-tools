@@ -1176,7 +1176,7 @@ done:
  *----------------------------------------------------------------------
  */
 
-static int
+int
 File_GetVMFSfsType(ConstUnicode pathName,  // IN: File name to test
                    char **fsType)          // IN/OUT: VMFS fsType
 {

@@ -36,6 +36,7 @@
 #include "random.h"
 #include "util.h"
 #include "cpNameUtil.h"
+#include "hgfsEscape.h"
 #include "hgfsServerPolicy.h"
 #include "hgfsVirtualDir.h"
 #include "unicodeOperations.h"
@@ -184,7 +185,15 @@ DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
    Bool ret = TRUE;
 
    ASSERT(stagingDir);
-   ASSERT(File_IsDirectory(stagingDir));
+
+   if (!File_Exists(stagingDir)) {
+      /* The stagingDir is already gone. */
+      return TRUE;
+   }
+
+   if (!File_IsDirectory(stagingDir)) {
+      return FALSE;
+   }
 
    if (onReboot) {
       if (File_UnlinkDelayed(stagingDir)) {
@@ -195,10 +204,6 @@ DnD_DeleteStagingFiles(ConstUnicode stagingDir,  // IN:
       int numFiles;
       Unicode base;
       Unicode *fileList = NULL;
-
-      if (!File_Exists(stagingDir)) {
-         return TRUE;
-      }
 
       /* get list of files in current directory */
       numFiles = File_ListDirectory(stagingDir, &fileList);
@@ -289,52 +294,6 @@ DnDCreateRootStagingDirectory(void)
 /*
  *----------------------------------------------------------------------------
  *
- * DnDDataContainsIllegalCharacters --
- *
- *    Determines whether the data buffer contains any of the illegal
- *    characters.  This is the common code used by platform-dependent
- *    implementations of DnD_DataContainsIllegalCharacters().
- *
- * Results:
- *    TRUE if data contains any illegalChars, FALSE otherwise.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-DnDDataContainsIllegalCharacters(const char *data,          // IN: buffer
-                                 const size_t dataSize,           // IN: size of buffer
-                                 const char *illegalChars)  // IN: chars to look for
-{
-   size_t i;
-
-   ASSERT(data);
-   ASSERT(illegalChars);
-
-   /* We don't just call strchr(3) here since data may contain NUL characters. */
-   for (i = 0; i < dataSize; i++) {
-      const char *currIllegalChar = illegalChars;
-
-      while (*currIllegalChar != '\0') {
-         if (data[i] == *currIllegalChar) {
-            LOG(1, ("DnDDataContainsIllegalCharacters: found illegal character \'%c\'\n",
-                    data[i]));
-            return TRUE;
-         }
-         currIllegalChar++;
-      }
-   }
-
-   return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * DnDPrependFileRoot --
  *
  *    Given a buffer of '\0' delimited filenames, this prepends the file root
@@ -378,18 +337,19 @@ DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
    rootLen = strlen(fileRoot);
 
    /*
-    * To prevent CPName_GetComponentGeneric() errors, we set begin to the first
+    * To prevent CPName_GetComponent() errors, we set begin to the first
     * Non-NUL character in *src, and end to the last NUL character in *src.  We
     * assume that the components are delimited with single NUL characters; if
-    * that is not true, CPName_GetComponentGeneric() will fail.
+    * that is not true, CPName_GetComponent() will fail.
     */
    for (begin = *src; *begin == '\0'; begin++)
       ;
    end = CPNameUtil_Strrchr(*src, *srcSize, '\0');
 
    /* Get the length of this component, and a pointer to the next */
-   while ((len = CPName_GetComponentGeneric(begin, end, "", &next)) != 0) {
+   while ((len = CPName_GetComponent(begin, end, &next)) != 0) {
       size_t origNewDataLen = newDataLen;
+      int escapedLen;
 
       if (len < 0) {
          Log("DnDPrependFileRoot: error getting next component\n");
@@ -403,15 +363,28 @@ DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
        * Append this component to our list: allocate one more for NUL on first
        * pass and delimiter on all other passes.
        */
-      newDataLen += rootLen + len + 1;
-      newData = (char *)Util_SafeRealloc(newData, newDataLen);
+      escapedLen = HgfsEscape_GetSize(begin, len);
+      if (0 == escapedLen) {
+         newDataLen += rootLen + len + 1;
+         newData = (char *)Util_SafeRealloc(newData, newDataLen);
 
-      if (!firstPass) {
-         ASSERT(origNewDataLen > 0);
-         newData[origNewDataLen - 1] = delimiter;
+         if (!firstPass) {
+            ASSERT(origNewDataLen > 0);
+            newData[origNewDataLen - 1] = delimiter;
+         }
+         memcpy(newData + origNewDataLen, fileRoot, rootLen);
+         memcpy(newData + origNewDataLen + rootLen, begin, len);
+      } else {
+         newDataLen += rootLen + 1;
+         newData = (char *)Util_SafeRealloc(newData, newDataLen);
+
+         if (!firstPass) {
+            ASSERT(origNewDataLen > 0);
+            newData[origNewDataLen - 1] = delimiter;
+         }
+         memcpy(newData + origNewDataLen, fileRoot, rootLen);
+         HgfsEscape_Do(begin, len, escapedLen, newData + origNewDataLen + rootLen);
       }
-      memcpy(newData + origNewDataLen, fileRoot, rootLen);
-      memcpy(newData + origNewDataLen + rootLen, begin, len);
       newData[newDataLen - 1] = '\0';
 
       firstPass = FALSE;

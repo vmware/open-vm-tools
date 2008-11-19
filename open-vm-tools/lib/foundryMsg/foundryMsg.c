@@ -37,6 +37,381 @@
 static char PlainToObfuscatedCharMap[256];
 static char ObfuscatedToPlainCharMap[256];
 
+
+/*
+ * An entry in the command info table. There is one VixCommandInfo per op
+ * code, and each entry contains a description of the op code plus security-
+ * related metadata.
+ */
+typedef struct VixCommandInfo {
+   int                         opCode;
+   const char                  *commandName;
+   VixCommandSecurityCategory  category;
+   Bool                        used;     // Is there an opcode for this entry?
+} VixCommandInfo;
+
+#define VIX_DEFINE_COMMAND_INFO(x, category) { x, #x, category, TRUE }
+#define VIX_DEFINE_UNUSED_COMMAND  { 0, NULL, VIX_COMMAND_CATEGORY_UNKNOWN, FALSE }
+
+/*
+ * Contains the information for every VIX command op code. This table is
+ * organized to allow for direct look up, so it must be complete. Any index
+ * that does not correspond to a valid VIX op code must be marked with
+ * VIX_DEFINE_UNUSED_COMMAND.
+ *
+ * When you add or remove a command to vixCommands.h, this table needs to
+ * be updated as well. When adding a new command, you need to give it a
+ * security category. There are descriptions of the categories in vixCommands.h
+ * where they are defined, but in general, if the command affects the host or
+ * a VM (but not the guest), then the command should be CATEGORY_PRIVILEGED.
+ * If the command is a guest command (a command the runs inside the guest
+ * OS) than it should be CATEGORY_ALWAYS_ALLOWED. Also, if a command is
+ * required to establish a connection with the VMX, it needs to be
+ * CATEGORY_ALWAYS_ALLOWED.
+ */
+
+static const VixCommandInfo vixCommandInfoTable[] = {
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_UNKNOWN,
+                           VIX_COMMAND_CATEGORY_UNKNOWN),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_POWERON,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_POWEROFF,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_RESET,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_SUSPEND,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_RUN_PROGRAM,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_PROPERTY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_PROPERTY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_KEYSTROKES,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_READ_REGISTRY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_WRITE_REGISTRY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_COPY_FILE_FROM_GUEST_TO_HOST,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_COPY_FILE_FROM_HOST_TO_GUEST,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_SNAPSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_SNAPSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REVERT_TO_SNAPSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_CLONE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DELETE_GUEST_FILE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GUEST_FILE_EXISTS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FIND_VM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CALL_PROCEDURE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REGISTRY_KEY_EXISTS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_WIN32_WINDOW_MESSAGE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CONSOLIDATE_SNAPSHOTS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_INSTALL_TOOLS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CANCEL_INSTALL_TOOLS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_UPGRADE_VIRTUAL_HARDWARE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_NIC_BANDWIDTH,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_DISK,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_FLOPPY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_RELOAD_VM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DELETE_VM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SYNCDRIVER_FREEZE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SYNCDRIVER_THAW,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_ADD_DISK,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_REMOVE_DISK,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_GUEST_PRINTER,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_WAIT_FOR_TOOLS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_RUNNING_VM_SNAPSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CONSOLIDATE_RUNNING_VM_SNAPSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_NUM_SHARED_FOLDERS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_SHARED_FOLDER_STATE, 
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_EDIT_SHARED_FOLDER_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_SHARED_FOLDER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ADD_SHARED_FOLDER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_RUN_SCRIPT_IN_GUEST,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_OPEN_VM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_DISK_PROPERTIES,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_OPEN_URL,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   /* GET_HANDLE_STATE is needed for the initial handshake */
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_HANDLE_STATE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_HANDLE_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_WORKING_COPY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DISCARD_WORKING_COPY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SAVE_WORKING_COPY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CAPTURE_SCREEN,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_VMDB_VALUES,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_VMDB_VALUES,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_READ_XML_FILE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_TOOLS_STATE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CHANGE_SCREEN_RESOLUTION,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DIRECTORY_EXISTS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DELETE_GUEST_REGISTRY_KEY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DELETE_GUEST_DIRECTORY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_TEMPORARY_FILE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LIST_PROCESSES,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_MOVE_GUEST_FILE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_DIRECTORY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CHECK_USER_ACCOUNT,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LIST_DIRECTORY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REGISTER_VM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_UNREGISTER_VM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   /* CREATE_SESSION_KEY is needed for the initial handshake */
+   VIX_DEFINE_COMMAND_INFO(VIX_CREATE_SESSION_KEY_COMMAND,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VMXI_HGFS_SEND_PACKET_COMMAND,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_KILL_PROCESS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_VM_FORK_COMMAND,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LOGOUT_IN_GUEST,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_READ_VARIABLE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_WRITE_VARIABLE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CONNECT_DEVICE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_IS_DEVICE_CONNECTED,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_FILE_INFO,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_FILE_INFO,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_MOUSE_EVENTS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_OPEN_TEAM,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FIND_HOST_DEVICES,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ANSWER_MESSAGE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ENABLE_SHARED_FOLDERS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_MOUNT_HGFS_FOLDERS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_EXTEND_DISK,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   
+   /*
+    * vProbes are only available remotely through VIX, so we should
+    * let them through. If they get added to the VMODL with their own
+    * permissions, then we will have to revisit.
+    */
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_VPROBES_VERSION,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_VPROBES,
+                    VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VPROBE_GET_GLOBALS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VPROBE_LOAD,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VPROBE_RESET,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   
+   /* LIST_USB_DEVICES is needed for the initial handshake. */
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LIST_USB_DEVICES,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CONNECT_HOST,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CREATE_LINKED_CLONE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_STOP_SNAPSHOT_LOG_RECORDING,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_STOP_SNAPSHOT_LOG_PLAYBACK,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   /*
+    * HOWTO: Adding a new Vix Command. Step 2b.
+    * Take the command you added to vixCommands.h, and add it to this
+    * table. The command needs to go in the index that matches the command
+    * ID as specified in the enum in vixCommands.h.
+    */
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SAMPLE_COMMAND,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_GUEST_NETWORKING_CONFIG,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FAULT_TOLERANCE_REGISTER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FAULT_TOLERANCE_UNREGISTER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FAULT_TOLERANCE_CONTROL,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FAULT_TOLERANCE_QUERY_SECONDARY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_PAUSE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VM_UNPAUSE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_SNAPSHOT_LOG_INFO,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_REPLAY_SPEED,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ANSWER_USER_MESSAGE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_CLIENT_LOCALE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_PERFORMANCE_DATA,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REFRESH_RUNTIME_PROPERTIES,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_SNAPSHOT_SCREENSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ADD_TIMEMARKER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_WAIT_FOR_USER_ACTION_IN_GUEST,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VMDB_END_TRANSACTION,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VMDB_SET,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CHANGE_VIRTUAL_HARDWARE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_PLUG_CPU,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_PLUG_MEMORY,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_ADD_DEVICE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_REMOVE_DEVICE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   
+   /* The debugger stuff is also only available through VIX. */
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DEBUGGER_ATTACH,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DEBUGGER_DETACH,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_DEBUGGER_SEND_COMMAND,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_RECORD_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_RECORD_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_RECORD_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_REPLAY_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_REPLAY_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_REPLAY_STATE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   
+   VIX_DEFINE_UNUSED_COMMAND,
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   /* GET_VMX_DEVICE_STATE is needed for the initial handshake. */   
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_VMX_DEVICE_STATE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_NUM_TIMEMARKERS,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_TIMEMARKER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_TIMEMARKER,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SET_SNAPSHOT_INFO,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SNAPSHOT_SET_MRU,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LOGOUT_HOST,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_PLUG_BEGIN_BATCH,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_HOT_PLUG_COMMIT_BATCH,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_TRANSFER_CONNECTION,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_TRANSFER_REQUEST,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_TRANSFER_FINAL_DATA,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+
+};
+
+
+static const VixCommandInfo *VixGetCommandInfoForOpCode(int opCode);
+
 static void VixMsgInitializeObfuscationMapping(void);
 
 static char *VixMsgEncodeBuffer(const uint8 *buffer,
@@ -65,12 +440,12 @@ static char *VixMsgDecodeBuffer(const char *str,
  */
 
 VixCommandResponseHeader *
-VixMsg_AllocResponseMsg(VixCommandRequestHeader *requestHeader,   // IN
-                        VixError error,                           // IN
-                        uint32 additionalError,                   // IN
-                        size_t responseBodyLength,                // IN
-                        void *responseBody,                       // IN
-                        size_t *responseMsgLength)                // OUT
+VixMsg_AllocResponseMsg(const VixCommandRequestHeader *requestHeader, // IN
+                        VixError error,                               // IN
+                        uint32 additionalError,                       // IN
+                        size_t responseBodyLength,                    // IN
+                        const void *responseBody,                     // IN
+                        size_t *responseMsgLength)                    // OUT
 {
    char *responseBuffer = NULL;
    VixCommandResponseHeader *responseHeader;
@@ -134,11 +509,11 @@ VixMsg_AllocResponseMsg(VixCommandRequestHeader *requestHeader,   // IN
  */
 
 void
-VixMsg_InitResponseMsg(VixCommandResponseHeader *responseHeader,  // IN
-                       VixCommandRequestHeader *requestHeader,    // IN
-                       VixError error,                            // IN
-                       uint32 additionalError,                    // IN
-                       size_t totalMessageSize)                   // IN
+VixMsg_InitResponseMsg(VixCommandResponseHeader *responseHeader,     // IN
+                       const VixCommandRequestHeader *requestHeader, // IN
+                       VixError error,                               // IN
+                       uint32 additionalError,                       // IN
+                       size_t totalMessageSize)                      // IN
 {
    size_t responseBodyLength;
 
@@ -282,10 +657,10 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
  */
 
 VixError
-VixMsg_ValidateMessage(void *vMsg,       // IN
+VixMsg_ValidateMessage(const void *vMsg, // IN
                        size_t msgLength) // IN
 {
-   VixMsgHeader *message;
+   const VixMsgHeader *message;
 
    if ((NULL == vMsg) || (msgLength < sizeof *message)) {
       return VIX_E_INVALID_MESSAGE_HEADER;
@@ -336,11 +711,11 @@ VixMsg_ValidateMessage(void *vMsg,       // IN
  */
 
 VixError
-VixMsg_ValidateRequestMsg(void *vMsg,       // IN
+VixMsg_ValidateRequestMsg(const void *vMsg, // IN
                           size_t msgLength) // IN
 {
    VixError err;
-   VixCommandRequestHeader *message;
+   const VixCommandRequestHeader *message;
 
    err = VixMsg_ValidateMessage(vMsg, msgLength);
    if (VIX_OK != err) {
@@ -383,11 +758,11 @@ VixMsg_ValidateRequestMsg(void *vMsg,       // IN
  */
 
 VixError
-VixMsg_ValidateResponseMsg(void *vMsg,       // IN
+VixMsg_ValidateResponseMsg(const void *vMsg, // IN
                            size_t msgLength) // IN
 {
    VixError err;
-   VixCommandResponseHeader *message;
+   const VixCommandResponseHeader *message;
 
    if ((NULL == vMsg) || (msgLength < sizeof *message)) {
       return VIX_E_INVALID_MESSAGE_HEADER;
@@ -561,7 +936,7 @@ VixMsgInitializeObfuscationMapping(void)
  *       This function does 2 things:
  *          * It removes spaces, quotes and other characters that may make 
  *             parsing params in a string difficult. The name and password is
- *             passed fromt he VMX to the tools through the backdoor as a 
+ *             passed from the VMX to the tools through the backdoor as a 
  *             string containing quoted parameters.
  *
  *          * It means that somebody doing a trivial string search on 
@@ -920,3 +1295,155 @@ abort:
    return(resultStr);
 } // VixMsgDecodeBuffer
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixAsyncOp_ValidateCommandInfoTable --
+ *
+ *      Checkes that the command info table is generally well-formed.
+ *      Makes sure that the table is big enough to contain all the
+ *      command op codes and that they are present in the right order.
+ *
+ * Results:
+ *      Bool
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+VixMsg_ValidateCommandInfoTable(void)
+{
+   int i;
+
+   /*
+    * Check at compile time that there is as many entries in the
+    * command info table as there are commands. We need the +1 since
+    * VIX_COMMAND_UNKNOWN is in the table and its opcode is -1.
+    *
+    * If this has failed for you, you've probably added a new command to VIX
+    * without adding it to the command info table above.
+    */
+   ASSERT_ON_COMPILE(ARRAYSIZE(vixCommandInfoTable) 
+                        == (VIX_COMMAND_LAST_NORMAL_COMMAND + 1));
+
+   /*
+    * Iterated over all the elements in the command info table to make
+    * sure that op code matches the index (they are shifted by one because
+    * of VIX_COMMAND_UNKNOWN) and that every used entry has a non-NULL name.
+    */
+   for (i = 0; i < ARRAYSIZE(vixCommandInfoTable); i++) {
+      if (vixCommandInfoTable[i].used &&
+          ((vixCommandInfoTable[i].opCode != (i - 1)) ||
+           (NULL == vixCommandInfoTable[i].commandName))) {
+         Warning("%s: Mismatch or NULL in command with op code %d at "
+                 "index %d.\n",
+                 __FUNCTION__, vixCommandInfoTable[i].opCode, i);
+         return FALSE;
+      }
+   }
+
+   return TRUE;
+} // VixMsg_ValidateCommandInfoTable
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixAsyncOp_GetDebugStrForOpCode --
+ *
+ *      Get a human readable string representing the given op code, or
+ *      "Unrecognized op" if the op code is invalid.
+ *
+ * Results:
+ *      const char *
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+VixAsyncOp_GetDebugStrForOpCode(int opCode)  // IN
+{
+   const char *opName = "Unrecognized op";
+   const VixCommandInfo *commandInfo;
+
+   commandInfo = VixGetCommandInfoForOpCode(opCode);
+   if (NULL != commandInfo) {
+      opName = commandInfo->commandName;
+      ASSERT(NULL != opName);
+   }
+
+   return opName;
+} // VixAsyncOp_GetDebugStrForOpCode
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_GetCommandSecurityCategory --
+ *
+ *      Get the security category asociated with the given op code.
+ *
+ * Results:
+ *      VixCommandSecurityCategory: the security category for the op code,
+ *      or VIX_COMMAND_CATEGORY_UNKNOWN is the op code is invalid.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixCommandSecurityCategory
+VixMsg_GetCommandSecurityCategory(int opCode)  // IN
+{
+   VixCommandSecurityCategory category = VIX_COMMAND_CATEGORY_UNKNOWN;
+   const VixCommandInfo *commandInfo;
+
+   commandInfo = VixGetCommandInfoForOpCode(opCode);
+   if (NULL != commandInfo) {
+      category = commandInfo->category;
+   }
+
+   return category;
+} // VixMsg_GetCommandSecurityCategory
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixGetCommandInfoForOpCode --
+ *
+ *      Looks up the information for an opcode from the global op code table.
+ *
+ * Results:
+ *      A const pointer to the command info struct for the opCode, or NULL
+ *      if the op code is invalid.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static const VixCommandInfo *
+VixGetCommandInfoForOpCode(int opCode)  // IN
+{
+   const VixCommandInfo *commandInfo = NULL;
+
+   if ((opCode >= VIX_COMMAND_UNKNOWN) &&
+       (opCode < VIX_COMMAND_LAST_NORMAL_COMMAND)) {
+      /* Add 1 to the op code, since VIX_COMMAND_UNKNOWN is -1 */
+      if (vixCommandInfoTable[opCode + 1].used) {
+         commandInfo = &vixCommandInfoTable[opCode + 1];
+      }
+   }
+
+   return commandInfo;
+} // VixGetCommandInfoForOpCode

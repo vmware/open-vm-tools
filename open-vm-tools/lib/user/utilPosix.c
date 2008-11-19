@@ -133,7 +133,7 @@ Util_BumpNoFds(uint32 *cur,     // OUT
    }
 
    if (lim.rlim_cur != RLIM_INFINITY && lim.rlim_cur < fdsDesired) {
-      Bool needSuperUser;
+      Bool needSu;
 
       /*
        * First attempt to raise limit ourselves.
@@ -148,9 +148,9 @@ Util_BumpNoFds(uint32 *cur,     // OUT
        * rlim_max may need to be increased as well.
        */
 
-      needSuperUser = lim.rlim_max != RLIM_INFINITY && lim.rlim_max < fdsDesired;
+      needSu = lim.rlim_max != RLIM_INFINITY && lim.rlim_max < fdsDesired;
 
-      if (needSuperUser) {
+      if (needSu) {
 	 lim.rlim_max = fdsDesired;
       } else { 
          err = setrlimit(RLIMIT_NOFILE, &lim) < 0 ? errno : 0;
@@ -162,11 +162,10 @@ Util_BumpNoFds(uint32 *cur,     // OUT
        * after.
        */
 
-      if (err == EPERM || needSuperUser) {
-         Bool wasSuper = IsSuperUser();
-         SuperUser(TRUE);
+      if (err == EPERM || needSu) {
+         uid_t uid = Id_BeginSuperUser();
          err = setrlimit(RLIMIT_NOFILE, &lim) < 0 ? errno : 0;
-         SuperUser(wasSuper);
+         Id_EndSuperUser(uid);
       }
 
       /*

@@ -76,6 +76,7 @@ typedef struct UnityVirtualDesktopArray {
 
 void Unity_Init(GuestApp_Dict *conf, int* blockedWnd);
 void Unity_InitBackdoor(struct RpcIn *rpcIn);
+Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);
 void Unity_SetActiveDnDDetWnd(UnityDnD *state);
 void Unity_Exit(void);

@@ -454,6 +454,7 @@ Hostinfo_SystemUpTime(void)
    char buf[256];
 
    static Atomic_Int fdStorage = { -1 };
+   static Atomic_uint32 logFailedPread = { 1 };
 
    fd = Atomic_ReadInt(&fdStorage);
 
@@ -479,8 +480,28 @@ Hostinfo_SystemUpTime(void)
 
    res = pread(fd, buf, sizeof buf - 1, 0);
    if (res == -1) {
-      Warning(LGPFX" Failed to pread /proc/uptime: %s\n", Msg_ErrString());
-      return 0;
+      /*
+       * In case some kernel broke pread (like 2.6.28-rc1), have a fall-back
+       * instead of spewing the log.  This should be rare.  Using a lock
+       * around lseek and read does not work here as it will deadlock with
+       * allocTrack/fileTrack enabled.
+       */
+
+      if (Atomic_ReadIfEqualWrite(&logFailedPread, 1, 0) == 1) {
+         Warning(LGPFX" Failed to pread /proc/uptime: %s\n", Msg_ErrString());
+      }
+      fd = open("/proc/uptime", O_RDONLY);
+      if (fd == -1) {
+         Warning(LGPFX" Failed to retry open /proc/uptime: %s\n",
+                 Msg_ErrString());
+         return 0;
+      }
+      res = read(fd, buf, sizeof buf - 1);
+      close(fd);
+      if (res == -1) {
+         Warning(LGPFX" Failed to read /proc/uptime: %s\n", Msg_ErrString());
+         return 0;
+      }
    }
    ASSERT(res < sizeof buf);
    buf[res] = '\0';
@@ -1569,7 +1590,7 @@ Hostinfo_GetModulePath(uint32 priv)
 #if defined(__APPLE__)
    uint32_t pathSize = FILE_MAXPATH;
 #else
-   Bool isSuper = FALSE;
+   uid_t uid = -1;
 #endif
 
    if ((priv != HGMP_PRIVILEGE) && (priv != HGMP_NO_PRIVILEGE)) {
@@ -1587,7 +1608,7 @@ Hostinfo_GetModulePath(uint32 priv)
 
 #else
 #if defined(VMX86_SERVER)
-   if (HostType_OSIsPureVMK()) {
+   if (HostType_OSIsVMK()) {
       return NULL;
    }
 #endif
@@ -1596,14 +1617,13 @@ Hostinfo_GetModulePath(uint32 priv)
    ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
 
    if (priv == HGMP_PRIVILEGE) {
-      isSuper = IsSuperUser();
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
    }
 
    path = Posix_ReadLink("/proc/self/exe");
 
    if (priv == HGMP_PRIVILEGE) {
-      SuperUser(isSuper);
+      Id_EndSuperUser(uid);
    }
 
    if (path == NULL) {

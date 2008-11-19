@@ -30,19 +30,17 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 #include "vm_basic_types.h"
+#include "vm_assert.h"
 
 #if defined(__APPLE__)
 
 #include <sys/types.h>
 #include <unistd.h>
 
-void Id_SetSuperUser(Bool yes);
 int Id_SetGid(gid_t egid);
 int Id_SetREUid(uid_t ruid, uid_t euid);
 int Id_SetRESUid(uid_t ruid, uid_t euid, uid_t suid);
 
-#define IsSuperUser() (0 == geteuid())
-#define SuperUser(yes) Id_SetSuperUser(yes)
 #define Id_GetEUid() geteuid()
 
 void *Id_AuthGetLocal();
@@ -113,17 +111,17 @@ Id_SetEGid(gid_t egid)
 {
    return Id_SetRESGid((gid_t)-1, egid, (gid_t)-1);
 }
-
-#define IsSuperUser()	(0 == geteuid())
-#define SuperUser(yes)	((void) ((yes) ? Id_SetEUid(0) : Id_SetEUid(getuid())))
-
-#else /* linux */
-
-// XXX does Windows need this?
-#define IsSuperUser()	TRUE
-#define SuperUser(yes)	
-
 #endif /* linux */
+
+#if defined(_WIN32) || defined(N_PLAT_NLM)
+#define Id_BeginSuperUser() (-1)
+#define Id_EndSuperUser(uid)
+#define Id_IsSuperUser() TRUE
+#else
+#define Id_IsSuperUser() (0 == geteuid())
+uid_t Id_BeginSuperUser(void);
+void Id_EndSuperUser(uid_t uid);
+#endif
 
 #endif /* USER_SU_H */
 

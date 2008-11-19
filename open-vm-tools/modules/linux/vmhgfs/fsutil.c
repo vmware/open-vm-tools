@@ -38,7 +38,6 @@
 #include "compat_spinlock.h"
 
 #include "vm_assert.h"
-#include "hgfsEscape.h"
 #include "cpName.h"
 #include "cpNameLite.h"
 #include "hgfsUtil.h"
@@ -439,8 +438,6 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
          goto out;
       }
 
-      /* Unescape the CP name. */
-      result = HgfsEscape_Undo(fileName, result);
       *fileNameLength = result;
    }
    req->payloadSize = reqSize + result;

@@ -513,7 +513,7 @@ HgfsServerPolicy_GetShareOptions(char const *nameIn,             // IN: Share na
    ASSERT(configOptions);
 
    inEnd = nameIn + nameInLen;
-   len = CPName_GetComponentGeneric(nameIn, inEnd, "", (char const **) &next);
+   len = CPName_GetComponent(nameIn, inEnd, (char const **) &next);
    if (len < 0) {
       LOG(4, ("HgfsServerPolicy_GetShareOptions: get first component failed\n"));
       return HGFS_NAME_STATUS_FAILURE;

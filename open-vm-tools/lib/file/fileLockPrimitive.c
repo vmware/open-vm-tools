@@ -276,6 +276,7 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
    FILELOCK_FILE_HANDLE handle;
    uint32 len;
    char *argv[FL_MAX_ARGS];
+   char *saveptr;
    int err;
    Unicode path;
    FileData fileData;
@@ -351,14 +352,15 @@ FileLockMemberValues(ConstUnicode lockDir,     // IN:
 
    /* Extract and validate the lock file data. */
    for (argc = 0; argc < FL_MAX_ARGS; argc++) {
-      argv[argc] = strtok((argc == 0) ? buffer : NULL, " ");
+      argv[argc] = strtok_r((argc == 0) ? buffer : NULL, " ", &saveptr);
 
       if (argv[argc] == NULL) {
          break;
       }
    }
 
-   if ((argc < 4) || ((argc == FL_MAX_ARGS) && (strtok(NULL, " ") != NULL))) {
+   if ((argc < 4) || ((argc == FL_MAX_ARGS) &&
+                       (strtok_r(NULL, " ", &saveptr) != NULL))) {
       goto corrupt;
    }
 

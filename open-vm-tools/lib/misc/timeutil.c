@@ -92,26 +92,6 @@ static int Win32TimeUtilLookupZoneIndex(const char* targetName);
 
 
 /*
- * Local substitution for localtime_r() for those platforms
- * that don't have one.
- */
-#ifdef SOL9
-#include <synch.h>
-static mutex_t LT_MUTEX = DEFAULTMUTEX;
-static struct tm* localtime_r(time_t* secs, struct tm* tp)
-{
-   if (!secs || !tp) {
-      return NULL;
-   }
-   mutex_lock(&LT_MUTEX);
-   memcpy(tp, localtime(secs), sizeof *tp);
-   mutex_unlock(&LT_MUTEX);
-   return tp;
-}
-#endif
-
-
-/*
  *----------------------------------------------------------------------
  *
  * TimeUtil_MakeTime --

@@ -201,8 +201,6 @@ EXTERN char *DnD_UriListGetNextFile(char const *uriList,
 ConstUnicode DnD_GetFileRoot(void);
 char *DnD_CreateStagingDirectory(void);
 Bool DnD_DeleteStagingFiles(ConstUnicode stagingDir, Bool onReboot);
-Bool DnD_DataContainsIllegalCharacters(const char *data,
-                                       const size_t dataSize);
 Bool DnD_PrependFileRoot(ConstUnicode fileRoot, char **src, size_t *srcSize);
 int DnD_LegacyConvertToCPName(const char *nameIn,
                               size_t bufOutSize,

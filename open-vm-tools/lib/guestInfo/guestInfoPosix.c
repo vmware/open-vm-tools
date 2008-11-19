@@ -207,8 +207,11 @@ RecordNetworkAddress(GuestNic *nic,             // IN: operand NIC
       }
       break;
    case ADDR_TYPE_IP6:
-      memcpy(ipAddress, addr_ntoa(addr), sizeof ipAddress);
-      GuestInfoAddIpAddress(nic, ipAddress, INFO_IP_ADDRESS_FAMILY_IPV6);
+      ip6_ntop(&addr->addr_ip6, ipAddress, sizeof ipAddress);
+      ip = GuestInfoAddIpAddress(nic, ipAddress, INFO_IP_ADDRESS_FAMILY_IPV6);
+      if (ip) {
+         GuestInfoAddSubnetMask(ip, addr->addr_bits, FALSE);
+      }
       break;
    default:
       Debug("%s: Unknown address type: %hu\n", __func__, addr->addr_type);

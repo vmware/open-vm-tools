@@ -91,7 +91,7 @@ OBJS +=	kernelStubsLinux.o
 OBJS +=	message.o
 OBJS +=  messageBackdoor.o
 OBJS +=	rpcout.o
-OBJS +=	staticEscape.o
+OBJS +=	hgfsEscape.o
 
 ifeq ($(MACHINE),x86_64)
 OBJS += backdoorGcc64.o

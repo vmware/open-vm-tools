@@ -64,6 +64,8 @@ static GtkWidget *scriptsBrowse;
 static GtkWidget *scriptsFileDlg;
 static GtkWidget *scriptsCombo;
 
+static int scriptsUseFileDlg;
+
 void Scripts_UpdateEnabled(void);
 void Scripts_OnComboChanged(gpointer entry, gpointer data);
 void Scripts_OnUseScriptToggled(gpointer entry, gpointer data);
@@ -72,6 +74,8 @@ void Scripts_OnBrowse(gpointer btn, gpointer data);
 void Scripts_OnEdit(gpointer btn, gpointer data);
 void Scripts_OnRun(gpointer btn, gpointer data);
 void Scripts_BrowseOnOk(gpointer btn, gpointer data);
+void Scripts_BrowseOnCancel(gpointer btn, gpointer data);
+gint Scripts_BrowseOnClose(GtkWidget *widget, GdkEvent *event, gpointer data);
 void Scripts_BrowseOnChanged(gpointer entry, gpointer data);
 void Scripts_PathOnChanged(GtkEditable *editable, gpointer data);
 
@@ -622,6 +626,9 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
    struct stat statBuf;
 
    scriptsFileDlg = gtk_file_selection_new("Select a file");
+
+   scriptsUseFileDlg = TRUE;
+
    gtk_widget_show(scriptsFileDlg);
 
    defaultPath = gtk_entry_get_text(GTK_ENTRY(scriptsPath));
@@ -650,25 +657,26 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
                                 GTK_SELECTION_BROWSE);
 #endif
    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->ok_button),
-                       "clicked", (GtkSignalFunc)Scripts_BrowseOnOk, &path);
-   gtk_signal_connect(GTK_OBJECT(scriptsFileDlg), "destroy",
-                      (GtkSignalFunc)gtk_widget_destroyed, &scriptsFileDlg);
-   gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->
-                                        cancel_button),
-                             "clicked", (GtkSignalFunc)gtk_widget_destroy,
-                             GTK_OBJECT(scriptsFileDlg));
+                      "clicked", GTK_SIGNAL_FUNC(Scripts_BrowseOnOk), &path);
+   gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->cancel_button),
+                      "clicked", GTK_SIGNAL_FUNC(Scripts_BrowseOnCancel), NULL);
+   gtk_signal_connect(GTK_OBJECT(scriptsFileDlg),
+                      "delete_event", GTK_SIGNAL_FUNC(Scripts_BrowseOnClose), NULL);
    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(scriptsFileDlg)->selection_entry),
-                      "changed",
-                      (GtkSignalFunc)Scripts_BrowseOnChanged,
+                      "changed", GTK_SIGNAL_FUNC(Scripts_BrowseOnChanged), 
                       GTK_FILE_SELECTION(scriptsFileDlg)->ok_button);
 
 
    /* Block here and pump messages */
-   while (gtk_events_pending() || scriptsFileDlg != NULL) {
+   while (gtk_events_pending() || scriptsUseFileDlg) {
       gtk_main_iteration();
    }
 
-   if (*path != 0) {
+   if (scriptsFileDlg != NULL) {
+      gtk_widget_destroy(scriptsFileDlg);
+   }
+
+   if (*path != 0 && strcmp(path, defaultPath) != 0) {
       gtk_entry_set_text(GTK_ENTRY(scriptsPath), path);
       gtk_widget_set_sensitive(scriptsApply, TRUE);
    }
@@ -707,9 +715,42 @@ Scripts_BrowseOnChanged(gpointer entry, // IN: selection_entry
  *
  * Scripts_BrowseOnOk --
  *
- *      Callback for the gtk signal "clicked" on the Scripts file browser OK
- *      button.  Set "okPressed" to 1 so the Scripts_OnBrowse code knows to
- *      quit looping and that OK was the reason we closed.
+ *      Callback for the gtk signal "clicked" on the Scripts File Browser OK
+ *      button. We save the selected path, hide the File Browser and set the
+ *      flag for File Browser use to FALSE so that to quit looping.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+*/
+
+void
+Scripts_BrowseOnOk(gpointer btn,  // IN: OK button
+                   gpointer data) // IN: path
+{
+   const char *ret;
+
+   gtk_widget_hide(scriptsFileDlg);
+
+   scriptsUseFileDlg = FALSE;
+
+   ret = gtk_file_selection_get_filename(GTK_FILE_SELECTION(scriptsFileDlg));
+   strncpy((char*)data, ret, PATH_MAX);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Scripts_BrowseOnCancel --
+ *
+ *      Callback for the gtk signal "clicked" on the Scripts File Browser 
+ *      Cancel button. We hide the File Browser and set the flag for 
+ *      File Browser use to FALSE so that to quit looping.
  *
  * Results:
  *      None.
@@ -721,16 +762,44 @@ Scripts_BrowseOnChanged(gpointer entry, // IN: selection_entry
  */
 
 void
-Scripts_BrowseOnOk(gpointer btn,  // IN: OK button
-                   gpointer data) // IN: path
+Scripts_BrowseOnCancel(gpointer btn,  // IN: OK button
+                       gpointer data) // IN: data
 {
-   const char *ret;
+   gtk_widget_hide(scriptsFileDlg);
 
-   ret = gtk_file_selection_get_filename(GTK_FILE_SELECTION(scriptsFileDlg));
-   strncpy((char*)data, ret, PATH_MAX);
-   gtk_widget_destroy(scriptsFileDlg);
+   scriptsUseFileDlg = FALSE;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Scripts_BrowseOnClose --
+ *
+ *      Callback for the gtk signal "delete_event" on the Scripts File Browser 
+ *      Close button from titlebar. We hide the File Browser and set the flag 
+ *      for File Browser use to FALSE so that to quit looping and return TRUE
+ *      so that not to destroy the window object until we get out of events
+ *      loop, after that we will destroy the window.
+ *
+ * Results:
+ *      FALSE if you want the widget to be destroyed or TRUE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+gint
+Scripts_BrowseOnClose(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+   gtk_widget_hide(scriptsFileDlg);
+
+   scriptsUseFileDlg = FALSE;
+
+   return TRUE;
+}
 
 /*
  *----------------------------------------------------------------------------

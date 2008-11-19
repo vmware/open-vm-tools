@@ -24,6 +24,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "vm_assert.h"
+#include "vmxrpc.h"
 #include "xdrutil.h"
 
 
@@ -62,6 +64,49 @@ XdrUtil_ArrayAppend(void **array,      // IN/OUT
       memset(ret, 0, elemSz * elemCnt);
       *array = newarray;
       *arrayLen = *arrayLen + elemCnt;
+   }
+
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * XdrUtil_Deserialize --
+ *
+ *    Deserializes the given data into the provided destination, using the
+ *    given XDR function.
+ *
+ * Results:
+ *    Whether deserialization was successful.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+XdrUtil_Deserialize(const void *data,  // IN
+                    size_t dataLen,    // IN
+                    void *xdrProc,     // IN
+                    void *dest)        // IN
+{
+   Bool ret;
+   xdrproc_t proc = xdrProc;
+   XDR xdrs;
+
+   ASSERT(data != NULL);
+   ASSERT(xdrProc != NULL);
+   ASSERT(dest != NULL);
+
+   xdrmem_create(&xdrs, (char *) data, dataLen, XDR_DECODE);
+   ret = (Bool) proc(&xdrs, dest);
+   xdr_destroy(&xdrs);
+
+   if (!ret) {
+      VMX_XDR_FREE(proc, dest);
    }
 
    return ret;

@@ -114,7 +114,6 @@ struct vmxnet3_tq_driver_stats {
 
 struct vmxnet3_tx_ctx {
    Bool   ipv4;
-   Bool   ipv6;
    uint16 mss;
    uint32 eth_ip_hdr_size; /* only valid for pkts requesting tso or csum offloading */
    uint32 l4_hdr_size;     /* only valid if mss != 0 */
@@ -252,10 +251,6 @@ struct vmxnet3_stat_desc {
 #define VMXNET3_WAKE_QUEUE_THRESHOLD(tq)  (5)
 #define VMXNET3_RX_ALLOC_THRESHOLD(rq, ring_idx, adapter) \
    ((rq)->rx_ring[ring_idx].size >> 3)
-
-#define VMXNET3_TX_OK           0
-#define VMXNET3_TX_DROPPED      1
-#define VMXNET3_TX_FULL         2
 
 #define VMXNET3_GET_ADDR_LO(dma)   ((uint32)(dma))
 #define VMXNET3_GET_ADDR_HI(dma)   ((uint32)(((uint64)(dma)) >> 32))

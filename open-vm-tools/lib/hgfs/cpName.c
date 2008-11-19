@@ -31,11 +31,12 @@
 #include "cpName.h"
 #include "cpNameInt.h"
 #include "vm_assert.h"
+#include "hgfsEscape.h"
 
 /*
  *----------------------------------------------------------------------
  *
- * CPName_GetComponentGeneric --
+ * CPName_GetComponent --
  *
  *    Get the next component of the CP name.
  *
@@ -43,9 +44,6 @@
  *    pointer, and a pointer to the next component in the buffer, if
  *    any. The "next" pointer is set to "end" if there is no next
  *    component.
- *
- *    'illegal' is a string of characters that are not allowed to
- *    be present in the pre-converted CP name.
  *
  * Results:
  *    length (not including NUL termination) >= 0 of next
@@ -59,10 +57,9 @@
  */
 
 int
-CPName_GetComponentGeneric(char const *begin,   // IN: Beginning of buffer
-                           char const *end,     // IN: End of buffer
-                           char const *illegal, // IN: Illegal characters
-                           char const **next)   // OUT: Start of next component
+CPName_GetComponent(char const *begin,   // IN: Beginning of buffer
+                    char const *end,     // IN: End of buffer
+                    char const **next)   // OUT: Start of next component
 {
    char const *walk;
    char const *myNext;
@@ -71,7 +68,6 @@ CPName_GetComponentGeneric(char const *begin,   // IN: Beginning of buffer
    ASSERT(begin);
    ASSERT(end);
    ASSERT(next);
-   ASSERT(illegal);
    ASSERT(begin <= end);
 
    for (walk = begin; ; walk++) {
@@ -86,7 +82,7 @@ CPName_GetComponentGeneric(char const *begin,   // IN: Beginning of buffer
          /* Found a NUL */
 
          if (walk == begin) {
-            Log("CPName_GetComponentGeneric: error: first char can't be NUL\n");
+            Log("CPName_GetComponent: error: first char can't be NUL\n");
             return -1;
          }
 
@@ -98,45 +94,67 @@ CPName_GetComponentGeneric(char const *begin,   // IN: Beginning of buffer
 
          break;
       }
-
-      /*
-       * Make sure the input buffer does not contain any illegal
-       * characters. In particular, we want to make sure that there
-       * are no path separator characters in the name. Since the
-       * cross-platform name format by definition does not use path
-       * separators, this is an error condition, and is likely the
-       * sign of an attack. See bug 27926. [bac]
-       *
-       * The test above ensures that *walk != NUL here, so we don't
-       * need to test it again before calling strchr().
-       */
-      if (strchr(illegal, *walk) != NULL) {
-         Log("CPName_GetComponentGeneric: error: Illegal char \"%c\" found in "
-             "input\n", *walk);
-         return -1;
-      }
    }
 
    len = walk - begin;
 
-   /* 
-    * We're only interested in looking for dot/dotdot if the illegal character
-    * string isn't empty. These characters are only relevant when the resulting
-    * string is to be passed down to the filesystem. Some callers (such as the
-    * HGFS server, when dealing with actual filenames) do care about this 
-    * validation, but others (like DnD, hgFileCopy, and the HGFS server when
-    * converting share names) just want to convert a CPName down to a 
-    * nul-terminated string. 
-    */
-   if (strcmp(illegal, "") != 0 &&
-       ((len == 1 && memcmp(begin, ".", 1) == 0) ||
-        (len == 2 && memcmp(begin, "..", 2) == 0))) {
-      Log("CPName_GetComponentGeneric: error: found dot/dotdot\n");
-      return -1;
-   }
-
    *next = myNext;
    return ((int) len);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPNameEscapeAndConvertFrom --
+ *
+ *    Converts a cross-platform name representation into a string for
+ *    use in the local filesystem.
+ *    Escapes illegal characters as a part of convertion.
+ *    This is a cross-platform implementation and takes the path separator
+ *    argument as an argument. The path separator is prepended before each
+ *    additional path component, so this function never adds a trailing path
+ *    separator.
+ *
+ * Results:
+ *    0 on success.
+ *    error < 0 on failure (the converted string did not fit in
+ *    the buffer provided or the input was invalid).
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+CPNameEscapeAndConvertFrom(char const **bufIn, // IN/OUT: Input to convert
+                           size_t *inSize,     // IN/OUT: Size of input
+                           size_t *outSize,    // IN/OUT: Size of output buffer
+                           char **bufOut,      // IN/OUT: Output buffer
+                           char pathSep)       // IN: Path separator character
+{
+   int result;
+   size_t inputSize;
+   inputSize = HgfsEscape_GetSize(*bufIn, *inSize);
+   if (inputSize != 0) {
+      char *savedBufOut = *bufOut;
+      char const *savedOutConst = savedBufOut;
+      size_t savedOutSize = *outSize;
+      if (inputSize > *outSize) {
+         Log("CPNameEscapeAndConvertFrom: error: not enough room for escaping\n");
+         return -1;
+      }
+
+      /* Leaving space for the leading path separator, thus output to savedBufOut + 1. */
+      *inSize = HgfsEscape_Do(*bufIn, *inSize, savedOutSize, savedBufOut + 1);
+      result = CPNameConvertFrom(&savedOutConst, inSize, outSize, bufOut, pathSep);
+      *bufIn += *inSize;
+      *inSize = 0;
+   } else {
+      result = CPNameConvertFrom(bufIn, inSize, outSize, bufOut, pathSep);
+   }
+   return result;
 }
 
 
@@ -174,6 +192,7 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
    char const *inEnd;
    size_t myOutSize;
    char *out;
+   Bool inPlaceConvertion = (*bufIn == *bufOut);
 
    ASSERT(bufIn);
    ASSERT(inSize);
@@ -181,6 +200,9 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
    ASSERT(bufOut);
 
    in = *bufIn;
+   if (inPlaceConvertion) {
+      in++; // Skip place for the leading path separator.
+   }
    inEnd = in + *inSize;
    myOutSize = *outSize;
    out = *bufOut;
@@ -196,6 +218,13 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
          return len;
       }
 
+      /* Bug 27926 - preventing escaping from shared folder. */
+      if ((len == 1 && *in == '.') ||
+          (len == 2 && in[0] == '.' && in[1] == '.')) {
+         Log("CPNameConvertFrom: error: found dot/dotdot\n");
+         return -1;
+      }
+
       if (len == 0) {
          /* No more component */
          break;
@@ -209,7 +238,9 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
       myOutSize = (size_t) newLen;
 
       *out++ = pathSep;
-      memcpy(out, in, len);
+      if (!inPlaceConvertion) {
+         memcpy(out, in, len);
+      }
       out += len;
 
       in = next;
@@ -308,7 +339,7 @@ CPName_LinuxConvertTo(char const *nameIn, // IN:  Buf to convert
                       size_t bufOutSize,  // IN:  Size of the output buffer
                       char *bufOut)       // OUT: Output buffer
 {
-   return CPNameConvertTo(nameIn, bufOutSize, bufOut, '/', NULL);
+   return CPNameConvertTo(nameIn, bufOutSize, bufOut, '/');
 }
 
 
@@ -339,7 +370,7 @@ CPName_WindowsConvertTo(char const *nameIn, // IN:  Buf to convert
                         size_t bufOutSize,  // IN:  Size of the output buffer
                         char *bufOut)       // OUT: Output buffer
 {
-   return CPNameConvertTo(nameIn, bufOutSize, bufOut, '\\', ":");
+   return CPNameConvertTo(nameIn, bufOutSize, bufOut, '\\');
 }
 
 
@@ -350,6 +381,10 @@ CPName_WindowsConvertTo(char const *nameIn, // IN:  Buf to convert
  *
  *    Makes a cross-platform name representation from the input string
  *    and writes it into the output buffer.
+ *    HGFS convention is to echange names between guest and host in uescaped form.
+ *    Both ends perform necessary name escaping according to its own rules
+ *    to avoid presenitng invalid file names to OS. Thus the name needs to be unescaped
+ *    as a part of conversion to host-independent format.
  *
  * Results:
  *    On success, returns the number of bytes used in the
@@ -366,10 +401,9 @@ int
 CPNameConvertTo(char const *nameIn, // IN:  Buf to convert
                 size_t bufOutSize,  // IN:  Size of the output buffer
                 char *bufOut,       // OUT: Output buffer
-                char pathSep,       // IN:  path separator to use
-                char *ignores)      // IN:  chars to not transfer to output
+                char pathSep)       // IN:  path separator to use
 {
-   char const *origOut = bufOut;
+   char *origOut = bufOut;
    char const *endOut = bufOut + bufOutSize;
    size_t cpNameLength = 0;
 
@@ -381,31 +415,10 @@ CPNameConvertTo(char const *nameIn, // IN:  Buf to convert
       nameIn++;
    }
 
-   /*
-    * Copy the string to the output buf, converting all path separators into
-    * '\0' and ignoring the specified characters.
-    */
+    /* Copy the string to the output buf, converting all path separators into '\0'. */
    for (; *nameIn != '\0' && bufOut < endOut; nameIn++) {
-      if (ignores) {
-         char *currIgnore = ignores;
-         Bool ignore = FALSE;
-
-         while (*currIgnore != '\0') {
-            if (*nameIn == *currIgnore) {
-               ignore = TRUE;
-               break;
-            }
-            currIgnore++;
-         }
-
-         if (!ignore) {
-            *bufOut = (*nameIn == pathSep) ? '\0' : *nameIn;
-            bufOut++;
-         }
-      } else {
-         *bufOut = (*nameIn == pathSep) ? '\0' : *nameIn;
-         bufOut++;
-      }
+      *bufOut = (*nameIn == pathSep) ? '\0' : *nameIn;
+      bufOut++;
    }
 
    /*
@@ -427,6 +440,7 @@ CPNameConvertTo(char const *nameIn, // IN:  Buf to convert
    while ((cpNameLength >= 1) && (origOut[cpNameLength - 1] == 0)) {
       cpNameLength--;
    }
+   cpNameLength = HgfsEscape_Undo(origOut, cpNameLength);
 
    /* Return number of bytes used */
    return (int) cpNameLength;

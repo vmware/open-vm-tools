@@ -20,11 +20,6 @@
  * cryptoError.h --
  *
  *      Error code for cryptographic infrastructure library.
- *
- *      NOTE: This header file is within the FIPS crypto boundary and
- *      thus should not change in such a way as to break the interface
- *      to the vmcryptolib library. See bora/make/mk/README_FIPS for
- *      more information.
  */
 
 #ifndef VMWARE_CRYPTOERROR_H
@@ -60,10 +55,7 @@ typedef int CryptoError;
 #define CRYPTO_ERROR_UNKNOWN_ERROR      ((CryptoError) 9)
 #define CRYPTO_ERROR_NAME_NOT_FOUND     ((CryptoError) 10)
 #define CRYPTO_ERROR_NO_CRYPTO          ((CryptoError) 11)
-#define CRYPTO_ERROR_FIPS_SELF_TEST     ((CryptoError) 12)
-#define CRYPTO_ERROR_FIPS_INTEGRITY     ((CryptoError) 13)
-#define CRYPTO_ERROR_FIPS_CRNGT_FAIL    ((CryptoError) 14)
-#define CRYPTO_ERROR_LOCK_FAILURE       ((CryptoError) 15)
+#define CRYPTO_ERROR_LOCK_FAILURE       ((CryptoError) 12)
 
 EXTERN const char *
 CryptoError_ToString(CryptoError error);

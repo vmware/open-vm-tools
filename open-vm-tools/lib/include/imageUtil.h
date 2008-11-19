@@ -85,4 +85,11 @@ EXTERN Bool ImageUtil_ConstructBuffer(const ImageInfo *image, ImageType imageTyp
                                       DynBuf *imageData);
 EXTERN void ImageUtil_FreeImageData(ImageInfo *image);
 
+EXTERN Bool ImageUtil_CopyImageRect(const ImageInfo *srcImage,
+                                    uint32 x,
+                                    uint32 y,
+                                    uint32 width,
+                                    uint32 height,
+                                    ImageInfo *dstImage);
+
 #endif // _IMAGEUTIL_H_

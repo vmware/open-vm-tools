@@ -377,7 +377,7 @@ typedef uint32    PageNum;
 typedef unsigned  MemHandle;
 typedef int32     World_ID;
 
-#define INVALID_WORLD_ID ((World_ID)0)
+#define INVALID_WORLD_ID ((World_ID)-1)
 
 typedef World_ID User_CartelID;
 #define INVALID_CARTEL_ID INVALID_WORLD_ID
@@ -389,7 +389,7 @@ typedef User_CartelID User_CartelGroupID;
 #define INVALID_CARTELGROUP_ID INVALID_CARTEL_ID
 
 typedef uint32 Worldlet_ID;
-#define INVALID_WORLDLET_ID ((Worldlet_ID)0)
+#define INVALID_WORLDLET_ID ((Worldlet_ID)-1)
 
 /* world page number */
 typedef uint32    WPN;
@@ -482,8 +482,8 @@ typedef void * UserVA;
 #define INVALID_MPN  ((MPN)-1)
 #define MEMREF_MPN   ((MPN)-2)
 #define RESERVED_MPN ((MPN) 0)
-/* Support 39 bits of address space, minus one page. */
-#define MAX_MPN      ((MPN) 0x07ffffff)
+/* Support 43 bits of address space. */
+#define MAX_MPN      ((MPN)0x7fffffff)
 
 #define INVALID_LPN ((LPN)-1)
 #define INVALID_VPN ((VPN)-1)

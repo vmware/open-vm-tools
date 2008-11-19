@@ -61,7 +61,7 @@ DeployPkgLog_Open()
    char logPath[2048];
 
 #ifdef _WIN32
-   DWORD ret = GetTempPath(sizeof logPath, logPath);
+   DWORD ret = GetTempPathA(sizeof logPath, logPath);
 
    if (ret == 0) {
       return;

@@ -371,6 +371,7 @@ ProxySendResults(int sock_fd,    // IN:
 {
    struct iovec iov;
    struct msghdr msg;
+   char cmsgBuf[CMSG_SPACE(sizeof send_fd)];
 
    iov.iov_base = &send_errno;
    iov.iov_len = sizeof send_errno;
@@ -380,7 +381,6 @@ ProxySendResults(int sock_fd,    // IN:
       msg.msg_controllen = 0;
    } else {
       struct cmsghdr *cmsg;
-      char cmsgBuf[CMSG_SPACE(sizeof send_fd)];
 
       msg.msg_control = cmsgBuf;
       msg.msg_controllen = sizeof cmsgBuf;
@@ -697,7 +697,7 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
               FileIOOpenAction action,   // IN:
               int mode)                  // IN: mode_t for creation
 {
-   Bool su = FALSE;
+   uid_t uid = -1;
    int fd = -1;
    int flags = 0;
    int error;
@@ -789,8 +789,7 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
    file->flags = access;
 
    if (access & FILEIO_OPEN_PRIVILEGED) {
-      su = IsSuperUser();
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
    }
 
    flags |= 
@@ -804,7 +803,7 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
    error = errno;
 
    if (access & FILEIO_OPEN_PRIVILEGED) {
-      SuperUser(su);
+      Id_EndSuperUser(uid);
    }
 
    errno = error;
@@ -1980,6 +1979,35 @@ FileIO_SupportsFileSize(const FileIODescriptor *fd,  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIO_GetModTime --
+ *
+ *      Retrieve last modification time.
+ *
+ * Results:
+ *      Return POSIX epoch time or -1 on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int64
+FileIO_GetModTime(const FileIODescriptor *fd)
+{
+   struct stat statbuf;
+
+   if (fstat(fd->posix, &statbuf) == 0) {
+      return statbuf.st_mtime;
+   } else {
+      return -1;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_PrivilegedPosixOpen --
  *
  *      Opens file with elevated privileges.
@@ -1997,8 +2025,9 @@ int
 FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
                            int flags)              // IN:
 {
-   Bool suNeeded = FALSE;
    int fd;
+   Bool suDone;
+   uid_t uid = -1;
 
    if (pathName == NULL) {
       errno = EFAULT;
@@ -2007,21 +2036,29 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
 
    /*
     * I've said *opens*.  I want you really think twice before creating files
-    * with elevated privileges, so for them you have to use SuperUser()
+    * with elevated privileges, so for them you have to use Id_BeginSuperUser()
     * yourself.
     */
+
    ASSERT((flags & (O_CREAT | O_TRUNC)) == 0);
-   suNeeded = !IsSuperUser();
-   if (suNeeded) {
-      SuperUser(TRUE);
+
+   if (Id_IsSuperUser()) {
+      suDone = FALSE;
+   } else {
+      uid = Id_BeginSuperUser();
+      suDone = TRUE;
    }
+
    fd = Posix_Open(pathName, flags, 0);
-   if (suNeeded) {
+
+   if (suDone) {
       int error = errno;
 
-      SuperUser(FALSE);
+      Id_EndSuperUser(uid);
       errno = error;
    }
+
+
    return fd;
 }
 
@@ -2050,7 +2087,8 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
  */
 
 FILE *
-FileIO_DescriptorToStream(FileIODescriptor *fdesc)    // IN
+FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
+                          Bool textMode)            // IN: unused
 {
    int dupFd;
    const char *mode;
@@ -2066,8 +2104,6 @@ FileIO_DescriptorToStream(FileIODescriptor *fdesc)    // IN
    if (dupFd == -1) {
       return NULL;
    }
-
-
 
    if (tmpFlags == (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE)) {
       mode = "r+";

@@ -33,7 +33,6 @@
 #include "compat_slab.h"
 
 #include "cpName.h"
-#include "hgfsEscape.h"
 #include "hgfsProto.h"
 #include "module.h"
 #include "request.h"
@@ -335,8 +334,6 @@ HgfsPackOpenRequest(struct inode *inode, // IN: Inode of the file to open
       return -EINVAL;
    }
 
-   /* Unescape the CP name. */
-   result = HgfsEscape_Undo(name, result);
    *nameLength = (uint32) result;
    req->payloadSize = requestSize + result;
 

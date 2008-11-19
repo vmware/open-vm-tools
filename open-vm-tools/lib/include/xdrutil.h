@@ -67,5 +67,8 @@
 void *
 XdrUtil_ArrayAppend(void **array, u_int *arrayLen, size_t elemSz, u_int elemCnt);
 
+Bool
+XdrUtil_Deserialize(const void *data, size_t dataLen, void *xdrProc, void *dest);
+
 #endif /* _XDRUTIL_H_ */
 

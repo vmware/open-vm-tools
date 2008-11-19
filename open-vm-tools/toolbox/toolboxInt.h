@@ -40,10 +40,10 @@
 
 
 #define MAX_DEVICES 50  /* maximum number of devices we'll show */
-#define SHRINK_DISABLED_ERR "Shrink disk is disabled for this virtual machine." \
+#define SHRINK_DISABLED_ERR "Shrink disk is disabled for this virtual machine.\n\n" \
                             "Shrinking is disabled for linked clones, parents of " \
-			    "linked clones, pre-allocated disks, snapshots, and " \
-			    "other factors. See the User's manual for more " \
+			    "linked clones, \npre-allocated disks, snapshots, and " \
+			    "other factors. \nSee the User's manual for more " \
 			    "information.\n"
 #define SHRINK_FEATURE_ERR "The shrink feature is not available,\n\n" \
 			    "either because you are running an old version of a VMware product, or " \
@@ -52,7 +52,7 @@
 			    "If too many communication channels are open, you should power off your " \
 			    "virtual machine and then power it back on\n." 
 #define SHRINK_CONFLICT_ERR "Error, The Toolbox believes disk shrinking is " \
-			    "enabled while the host believes it is disabled. " \
+			    "enabled while the host believes it is disabled.\n\n " \
 			    "Please close and reopen the Toolbox to synchronize " \
 			    "it with the host.\n"
 #define RECORD_VMX_ERR      "Error, the Record/Replay control operation failed. This could be for " \

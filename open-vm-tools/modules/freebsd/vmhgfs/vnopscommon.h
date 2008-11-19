@@ -75,6 +75,7 @@ int HgfsLookupInt(struct vnode *dvp, struct vnode **vpp,
 int HgfsCreateInt(struct vnode *dvp, struct vnode **vpp,
 		  struct componentname *cnp, int mode);
 int HgfsReadInt(struct vnode *vp, struct uio *uiop);
+int HgfsReadlinkInt(struct vnode *vp, struct uio *uiop);
 int HgfsWriteInt(struct vnode *vp, struct uio *uiop, int ioflag);
 int HgfsMkdirInt(struct vnode *dvp, struct vnode **vpp,
 		 struct componentname *cnp, int mode);
@@ -82,4 +83,9 @@ int HgfsRenameInt(struct vnode *fvp,
 		  struct vnode *tdvp, struct vnode *tvp,
 		  struct componentname *tcnp);
 int HgfsAccessInt(struct vnode *vp, int mode);
+int HgfsSymlinkInt(struct vnode *dvp,
+                   struct vnode **vpp,
+                   struct componentname *cnp,
+                   char *targetName);
+
 #endif // _HGFS_VNOPS_COMMON_H_

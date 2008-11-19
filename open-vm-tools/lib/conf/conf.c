@@ -39,14 +39,6 @@
 #include "debug.h"
 
 
-#ifdef N_PLAT_NLM
-#define CONF_FILE         "tools.cfg"
-#else
-#define CONF_FILE         "tools.conf"
-#endif
-
-
-
 /*
  *----------------------------------------------------------------------
  *

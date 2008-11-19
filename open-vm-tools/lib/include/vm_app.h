@@ -81,7 +81,6 @@ typedef struct GuestOsStateChangeCmd {
 #define TOOLSOPTION_SCRIPTS_POWEROFF "toolScripts.beforePowerOff"
 #define TOOLSOPTION_SCRIPTS_RESUME "toolScripts.afterResume"
 #define TOOLSOPTION_SCRIPTS_SUSPEND "toolScripts.beforeSuspend"
-#define TOOLSOPTION_SCRIPTS_REBOOT "toolScripts.beforePowerOff"
 #define TOOLSOPTION_SYNCTIME_SLEWCORRECTION "time.synchronize.tools.slewCorrection"
 #define TOOLSOPTION_SYNCTIME_PERCENTCORRECTION "time.synchronize.tools.percentCorrection"
 #define TOOLSOPTION_MAP_ROOT_HGFS_SHARE "mapRootHgfsShare"

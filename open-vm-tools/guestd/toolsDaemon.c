@@ -1323,10 +1323,6 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
       if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
          goto invalid_value;
       }
-   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_REBOOT) == 0) {
-      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
-         goto invalid_value;
-      }
    } else {
       goto invalid_option;
    }
@@ -1442,15 +1438,13 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
                                 strcmp(value, "0") ? TRUE : FALSE;
    } else if (strcmp(option, TOOLSOPTION_SCRIPTS_POWEROFF) == 0) {
       data->toolScriptOption[GUESTOS_STATECHANGE_HALT] =
+      data->toolScriptOption[GUESTOS_STATECHANGE_REBOOT] =
                                 strcmp(value, "0") ? TRUE : FALSE;
    } else if (strcmp(option, TOOLSOPTION_SCRIPTS_SUSPEND) == 0) {
       data->toolScriptOption[GUESTOS_STATECHANGE_SUSPEND] =
                                 strcmp(value, "0") ? TRUE : FALSE;
    } else if (strcmp(option, TOOLSOPTION_SCRIPTS_RESUME) == 0) {
       data->toolScriptOption[GUESTOS_STATECHANGE_RESUME] =
-                                strcmp(value, "0") ? TRUE : FALSE;
-   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_REBOOT) == 0) {
-      data->toolScriptOption[GUESTOS_STATECHANGE_REBOOT] =
                                 strcmp(value, "0") ? TRUE : FALSE;
    }
 

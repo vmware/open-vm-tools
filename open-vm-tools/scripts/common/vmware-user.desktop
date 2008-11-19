@@ -1,6 +1,9 @@
 [Desktop Entry]
+Type=Application
 Encoding=UTF-8
+# NB: Generation of the Open VM Tools tarball depends on this line.  If you change it
+# be sure to also fix up OVT staging targets.
 Exec=vmware-user-suid-wrapper
 Name=VMware User Agent
-X-KDE-autostart-phase=1
 NoDisplay=true
+X-KDE-autostart-phase=1

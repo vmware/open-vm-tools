@@ -1,3 +1,104 @@
+2008-11-18  Marcelo Vanzin  <mvanzin@vmware.com>
+	* Resync with internal trunk (2008.11.14)
+
+	* lib/include/vm_version.h: Bumped TOOLS_VERSION.
+
+	* guestd/toolsDaemon.c, lib/include/vm_app.h: changes related to host-side
+	  configuration of power operations.
+
+	* hgfsclient/hgfsclient.c, lib/dnd/dndCommon.c, lib/dnd/dndLinux.c,
+	  lib/hgfs/*, lib/hgfsServer/*, lib/include/cpName.h, lib/include/dnd.h,
+	  lib/include/hgfsEscape.h, lib/include/staticEscape.h, modules/*/vmhgfs/*,
+	  vmware-user/dnd.c: refactor the HGFS character escaping code; escape
+	  invalid characters when the sender allows characters in the file name that
+	  the receiver does not allow.
+
+   * lib/hgfsServer/hgfsServerLinux.c: return proper error code when the
+     remote path points to a non-existent directory.
+
+	* lib/deployPkg/deployPkg.c, lib/deployPkg/deployPkgLog.c,
+	  lib/include/deployPkg.h, lib/include/rpcin.h, lib/rpcin/rpcin.c:
+     refactoring for the Tools Core Services project.
+
+	* lib/dnd/dndCommon.c: don't ASSERT if the staging directory is not
+	  actually a directory.
+
+	* lib/dynxdr/xdrutil.c, lib/include/xdrutil.h: more XDR-related utility
+	  functions.
+
+	* lib/file/file.c, lib/file/fileLockPrimitive.c, lib/include/vm_basic_defs.h:
+	  replace use of strtok with strtok_r.
+
+	* lib/guestApp/guestApp.c, lib/include/guestApp.h: more utility functions.
+
+	* lib/guestApp/guestApp.c, lib/include/backdoor_def.h, vmware-user/pointer.c:
+	  add the ability to detect whether the mouse hardware can be used in
+     absolute mode, which allows for auto grab / auto ungrab to work.
+
+	* lib/guestInfo/guestInfo.c, lib/guestInfo/guestInfoPosix.c,
+     lib/guestRpc/nicinfo.x: provide the prefix length of an IPv6 address in a
+     separate field of the NicInfo struct.
+
+	* lib/guestInfo/guestInfoPerfMonLinux.c: reduce log spew.
+
+	* lib/guestInfo/guestInfoServer.c, lib/include/guestInfo.h: changes related
+	  to how the VMware code in the host handles Tools version information.
+
+	* lib/include/unityCommon.h: changes related to documenting the Unity API.
+
+	* lib/include/unity.h, lib/unity/*: remove a few unused RPCs, add a new
+	  function used to notify the host of the status of Unity.
+
+	* modules/freebsd/vmhgfs/state.c, modules/vmhgfs/freebsd/vnops.c,
+     modules/vmhgfs/freebsd/vnopscommon.*: support symlinks on FreeBSD and
+     Mac OS.
+
+   * modules/freebsd/vmhgfs/worker.c: fix mutex not being unlocked in some
+     error paths.
+
+	* modules/linux/dkms.conf: add rudimentary dkms support.
+
+	* modules/linux/pvscsi/*: add a driver for VMware's paravirtualized SCSI
+	  device.
+
+	* modules/linux/*/Makefile, modules/linux/vmci/Makefile.kernel,
+	  modules/linux/vsock/Makefile.kernel: add support for exporing symbols,
+	  needed for dependent modules to load if a kernel >= 2.6.26 is compiled
+	  with CONFIG_MODVERSIONS. Make the vsock module reference the vmci module's
+	  symbols.
+
+	* modules/vmmemctl/freebsd/os.c: add sysctl to get driver status. Information
+	  can be retrieved with "sysctl vm.vmmemctl".
+
+   * modules/linux/vmci/vmci_defs.h, modules/linux/vmci/vmci_call_defs.h,
+     modules/linux/vsock/vmciHostKernelAPI.h: changes related to VMCI work
+     on VMware ESX.
+
+	* modules/linux/vsock/linux/*: improve performance of some applications by
+	  improving the poll behavior and sending less packets when waiting
+	  for a response.
+
+   * modules/linux/vmsnc/sync.c: fix panic on kernels < 2.6.20.
+
+	* modules/linux/vmxnet3/vmxnet3.c, modules/linux/vmxnet3/vmxnet3_int.h,
+     modules/linux/vmxnet3/vmxnet3_version.h: inherit net device features to
+     avoid having the kernel setting the PSH flag on every TCP packet (among
+     other issues).
+
+	* modules/*/*/*: Reflected changes from elsewhere.
+
+	* scripts/common/vmware-user.desktop: add missing "Type" information; fixes
+	  auto-start of vmware-user on Ubuntu 8.10.
+
+	* toolbox/*: fix a GTK+ warning caused when trying to unref a dialog
+	  instance from a signal callback.
+
+	* vmware-user/copyPaste.c: work around an issue when OpenOffice's "cut"
+	  command is used; it sets the timestamp of both the clipboard and the
+	  primary selection, but only puts data in the clipboard.
+
+	* Other files: minor refactorings, and changes unrelated to open-vm-tools.
+
 2008-10-13  Adar Dembo  <adar@vmware.com>
 	* Resync with internal trunk (2008.10.09)
 

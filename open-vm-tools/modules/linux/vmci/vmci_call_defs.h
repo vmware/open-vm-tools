@@ -51,9 +51,6 @@ typedef struct VMCIDatagram {
    uint64     payloadSize;
 } VMCIDatagram;
 
-typedef int
-(*VMCIDatagramRecvCB)(void *clientData,   // IN: client data for handler
-                      VMCIDatagram *msg); // IN: 
 
 /* Flag for creating a wellknown handle instead of a per context handle. */
 #define VMCI_FLAG_WELLKNOWN_DG_HND 0x1
@@ -166,6 +163,13 @@ typedef struct VMCI_EventData {
     * Event payload is put here.
     */
 } VMCI_EventData;
+
+
+/* Callback needed for correctly waiting on events. */
+
+typedef int
+(*VMCIDatagramRecvCB)(void *clientData,   // IN: client data for handler
+                      VMCIDatagram *msg); // IN: 
 
 
 /*

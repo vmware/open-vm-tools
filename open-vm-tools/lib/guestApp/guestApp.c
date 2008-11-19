@@ -39,6 +39,7 @@ extern "C" {
 #include "hgfs.h"
 #include "backdoor.h"
 #include "backdoor_def.h"
+#include "conf.h"
 #include "rpcout.h"
 #include "debug.h"
 #include "strutil.h"
@@ -848,6 +849,40 @@ GuestApp_WriteDict(GuestApp_Dict *dict)  // IN/OUT
    return retVal;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_GetDefaultScript --
+ *
+ *    Returns the default power script for the given configuration option.
+ *
+ * Results:
+ *    Script name on success, NULL of the option is not recognized.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+GuestApp_GetDefaultScript(const char *confName) // IN
+{
+   const char *value = NULL;
+   if (strcmp(confName, CONFNAME_SUSPENDSCRIPT) == 0) {
+      value = CONFVAL_SUSPENDSCRIPT_DEFAULT;
+   } else if (strcmp(confName, CONFNAME_RESUMESCRIPT) == 0) {
+      value = CONFVAL_RESUMESCRIPT_DEFAULT;
+   } else if (strcmp(confName, CONFNAME_POWEROFFSCRIPT) == 0) {
+      value = CONFVAL_POWEROFFSCRIPT_DEFAULT;
+   } else if (strcmp(confName, CONFNAME_POWERONSCRIPT) == 0) {
+      value = CONFVAL_POWERONSCRIPT_DEFAULT;
+   }
+   return value;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1219,6 +1254,42 @@ Bool
 GuestApp_IsHgfsCapable(void)
 {
    return RpcOut_sendOne(NULL, NULL, HGFS_SYNC_REQREP_CLIENT_CMD);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GuestApp_IsMouseAbsolute
+ *
+ *    Are the host/guest capable of using absolute mouse mode?
+ *
+ * Results:
+ *    TRUE if host is in absolute mouse mode, FALSE otherwise.
+ *
+ * Side effects:
+ *    Issues Tools RPC.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+GuestAppAbsoluteMouseState
+GuestApp_GetAbsoluteMouseState(void)
+{
+   Backdoor_proto bp;
+   GuestAppAbsoluteMouseState state = GUESTAPP_ABSMOUSE_UNKNOWN;
+
+   if (!runningInForeignVM) {
+      bp.in.cx.halfs.low = BDOOR_CMD_ISMOUSEABSOLUTE;
+      Backdoor(&bp);
+      if (bp.out.ax.word == 0) {
+         state = GUESTAPP_ABSMOUSE_UNAVAILABLE;
+      } else if (bp.out.ax.word == 1) {
+         state = GUESTAPP_ABSMOUSE_AVAILABLE;
+      }
+   }
+
+   return state;
 }
 
 

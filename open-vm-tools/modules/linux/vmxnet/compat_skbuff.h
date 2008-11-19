@@ -143,9 +143,11 @@ compat_skb_linearize(struct sk_buff *skb)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 4)
 #   define compat_skb_headlen(skb)         skb_headlen(skb)
 #   define compat_pskb_may_pull(skb, len)  pskb_may_pull(skb, len)
+#   define compat_skb_is_nonlinear(skb)    skb_is_nonlinear(skb)
 #else
 #   define compat_skb_headlen(skb)         (skb)->len
 #   define compat_pskb_may_pull(skb, len)  1
+#   define compat_skb_is_nonlinear(skb)    0
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 12)

@@ -72,15 +72,12 @@ Bool UnityPlatformGetNativeWindowPath(UnityPlatform *up,
 Bool UnityPlatformGetBinaryInfo(UnityPlatform *up,
                                 const char *pathUtf8,
                                 DynBuf *buf);
-Bool UnityPlatformRestoreWindow(UnityPlatform *up,
-                                UnityWindowId window);
 Bool UnityPlatformSetTopWindowGroup(UnityPlatform *up,
                                     UnityWindowId *windows,
                                     unsigned int windowCount);
 Bool UnityPlatformCloseWindow(UnityPlatform *up, UnityWindowId window);
-Bool UnityPlatformShowWindow(UnityPlatform *up, UnityWindowId window);
-Bool UnityPlatformHideWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformMinimizeWindow(UnityPlatform *up, UnityWindowId window);
+Bool UnityPlatformUnminimizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformMaximizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformUnmaximizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformGetWindowContents(UnityPlatform *up,

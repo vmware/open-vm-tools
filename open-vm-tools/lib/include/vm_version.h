@@ -279,7 +279,7 @@
  *
  * XXX: The extract-macro script should be updated to handle this special case.
  */
-#define TOOLS_VERSION "2008.10.10"
+#define TOOLS_VERSION "2008.11.18"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -290,6 +290,7 @@
 #define VIM_EESX_PRODUCT_LINE_ID "embeddedEsx"
 #define VIM_ESX_PRODUCT_LINE_ID "esx"
 #define VIM_GSX_PRODUCT_LINE_ID "gsx"
+#define VIM_WS_PRODUCT_LINE_ID "ws"
 
 #define PRODUCT_API_SCRIPTING_VERSION API_SCRIPTING_VERSION " " BUILD_NUMBER
 

@@ -77,6 +77,7 @@ EXTERN void Log_BackupOldFiles(const char *fileName);
 EXTERN void Log_UpdateState(Bool enable, Bool append, unsigned keepOld,
                             size_t rotateSize, Bool fastRotation);
 EXTERN Bool Log_SwitchFile(const char *fileName, const char *config, Bool copy);
+EXTERN Bool Log_CopyFile(const char *fileName);
 
 /* Logging that uses the custom guest throttling configuration. */
 EXTERN void GuestLog_Init(void);

@@ -381,8 +381,6 @@ AppUtil_CollectIconArray(const char *iconName,        // IN
 {
    GPtrArray *pixbufs;
 
-   ASSERT(iconName != NULL || windowID != None);
-
    pixbufs = g_ptr_array_new();
 
    if (iconName) {

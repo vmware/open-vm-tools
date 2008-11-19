@@ -30,7 +30,6 @@
 #include "debug.h"
 #include "vnopscommon.h"
 #include "cpName.h"
-#include "staticEscape.h"
 #include "os.h"
 
 /* Local function prototypes */
@@ -50,7 +49,9 @@ int HgfsDelete(HgfsSuperInfo *sip, const char *filename, HgfsOp op);
 static int HgfsDoGetattrInt(const char *path, const HgfsHandle handle, HgfsSuperInfo *sip,
 			    HgfsAttrV2 *hgfsAttrV2);
 static int HgfsDoGetattrByName(const char *path, HgfsSuperInfo *sip, HgfsAttrV2 *hgfsAttrV2);
-
+int HgfsReadlinkInt(struct vnode *vp, struct uio *uiop);
+static int HgfsQueryAttrInt(const char *path, HgfsHandle handle, HgfsSuperInfo *sip,
+                            HgfsKReqHandle req);
 #if 0
 static int HgfsDoGetattrByHandle(HgfsHandle handle, HgfsSuperInfo *sip, HgfsAttrV2 *hgfsAttrV2);
 #endif
@@ -354,7 +355,7 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
        * Convert an input string to utf8 decomposed form and then escape its
        * buffer.
        */
-      ret = HgfsNameFromWireEncoding(nameBuf, sizeof nameBuf, dirp->d_name,
+      ret = HgfsNameFromWireEncoding(nameBuf, strlen(nameBuf), dirp->d_name,
                                      sizeof dirp->d_name);
       /* 
        * If the name didn't fit in the buffer or illegal utf8 characters
@@ -2456,6 +2457,264 @@ out:
 /*
  *----------------------------------------------------------------------------
  *
+ * HgfsReadlinkInt --
+ *
+ *      Reads a symbolic link target.
+ *
+ * Results:
+ *      Either 0 on success or a BSD error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+HgfsReadlinkInt(struct vnode *vp,   // IN : File vnode
+                struct uio *uiop)   // OUT: Attributes from hgfs server
+{
+   HgfsKReqHandle req;
+   int ret = 0;
+   HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
+   /* This operation is valid only for symbolic links. */
+   if (HGFS_VP_TO_VTYPE(vp) != VLNK) {
+      DEBUG(VM_DEBUG_FAIL, "Must be a symbolic link.\n");
+      return EINVAL;
+   }
+
+   req = HgfsKReq_AllocateRequest(sip->reqs);
+   if (!req) {
+      return ENOMEM;
+   }
+
+   ret = HgfsQueryAttrInt(HGFS_VP_TO_FILENAME(vp), 0, sip, req);
+   if (ret == 0) {
+      HgfsReplyGetattrV3 *reply;
+      HgfsReply *replyHeader;
+      uint32 outLength;
+      char* outBuffer;
+      outLength = HGFS_UIOP_TO_RESID(uiop);
+      outBuffer = os_malloc(outLength, M_WAITOK);
+      if (outBuffer != NULL) {
+         replyHeader = (HgfsReply *)HgfsKReq_GetPayload(req);
+         reply = (HgfsReplyGetattrV3 *)HGFS_REP_GET_PAYLOAD_V3(replyHeader);
+         if (reply->symlinkTarget.name[reply->symlinkTarget.length - 1] == '\0') {
+            ret = EINVAL; // Not a well formed name
+         } else {
+            ret = HgfsNameFromWireEncoding(reply->symlinkTarget.name,
+                                           reply->symlinkTarget.length,
+                                           outBuffer, outLength);
+            if (ret >= 0) {
+               ret = uiomove(outBuffer, MIN(ret, outLength), uiop);
+               if (ret != 0) {
+                  DEBUG(VM_DEBUG_FAIL, "Failed %d copying into user buffer.\n", ret);
+               }
+            } else {
+               ret = -ret;  // HgfsNameFromWireEncoding returns negative error code
+               DEBUG(VM_DEBUG_FAIL, "Failed %d converting link from wire format.\n", ret);
+               DEBUG(VM_DEBUG_FAIL, "Link length is %d, name is %s\n",
+                     reply->symlinkTarget.length, reply->symlinkTarget.name);
+            }
+         }
+         os_free(outBuffer, outLength);
+      } else {
+         DEBUG(VM_DEBUG_FAIL, "No memory for symlink name.\n");
+         ret = ENOMEM;
+      }
+      HgfsKReq_ReleaseRequest(sip->reqs, req);
+   } else {
+      DEBUG(VM_DEBUG_FAIL, "Error %d reading symlink name.\n", ret);
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsSymlnikInt --
+ *
+ *      Creates symbolic link on the host.
+ *
+ * Results:
+ *      Either 0 on success or a BSD error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+HgfsSymlinkInt(struct vnode *dvp,         // IN : directory vnode
+               struct vnode **vpp,        // OUT: pointer to new symlink vnode
+               struct componentname *cnp, // IN : pathname to component
+               char *targetName)          // IN : Symbolic link target
+{
+   HgfsSuperInfo *sip = HGFS_VP_TO_SIP(dvp);
+   HgfsKReqHandle req = NULL;
+   HgfsRequest *requestHeader;
+   HgfsReply *replyHeader;
+   HgfsRequestSymlinkCreateV3 *request;
+   HgfsReplySymlinkCreateV3 *reply;
+   uint32 reqSize;
+   uint32 repSize;
+   uint32 reqBufferSize;
+   int ret;
+   char *fullName = NULL;
+   uint32 fullNameLen;
+   HgfsFileNameV3 *fileNameP;
+   int nameOffset;
+
+   DEBUG(VM_DEBUG_ENTRY, "dvp=%p (%s), dirname=%s, vpp=%p\n",
+                         dvp, HGFS_VP_TO_FILENAME(dvp), cnp->cn_nameptr,
+                         *vpp);
+
+   fullName = os_malloc(MAXPATHLEN, M_WAITOK);
+   if (!fullName) {
+      ret = ENOMEM;
+      goto out;
+   }
+
+   req = HgfsKReq_AllocateRequest(sip->reqs);
+   if (!req) {
+      ret = ENOMEM;
+      goto out;
+   }
+
+   ret = HgfsMakeFullName(HGFS_VP_TO_FILENAME(dvp),        // Parent directory
+                          HGFS_VP_TO_FILENAME_LENGTH(dvp), // Length of name
+                          cnp->cn_nameptr,                 // Name of file to create
+                          cnp->cn_namelen,                 // Length of filename
+                          fullName,                        // Buffer to write full name
+                          MAXPATHLEN);                     // Size of this buffer
+
+   if (ret < 0) {
+      DEBUG(VM_DEBUG_FAIL, "couldn't create full path name.\n");
+      ret = ENAMETOOLONG;
+      goto out;
+   }
+   fullNameLen = ret;
+
+   /* Initialize the request's contents. */
+   requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
+   request = (HgfsRequestSymlinkCreateV3 *)HGFS_REQ_GET_PAYLOAD_V3(requestHeader);
+
+   HGFS_INIT_REQUEST_HDR(requestHeader, req, HGFS_OP_CREATE_SYMLINK_V3);
+
+   request->reserved = 0;
+
+   request->symlinkName.flags = 0;
+   request->symlinkName.fid = HGFS_INVALID_HANDLE;
+   request->symlinkName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+
+   reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+
+   /*
+    * Convert an input string to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   ret = HgfsNameToWireEncoding(fullName, fullNameLen + 1,
+                                request->symlinkName.name,
+                                reqBufferSize);
+
+   if (ret < 0) {
+      DEBUG(VM_DEBUG_FAIL,"Could not encode file name to wire format");
+      ret = -ret;
+      goto out;
+   }
+   request->symlinkName.length = ret;
+   reqSize += ret;
+
+   fileNameP = (HgfsFileNameV3 *)((char*)&request->symlinkName +
+                                  sizeof request->symlinkName +
+                                  request->symlinkName.length);
+   fileNameP->flags = 0;
+   fileNameP->fid = HGFS_INVALID_HANDLE;
+   fileNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
+
+   /*
+    * Currently we have different name formats for file names and for symbolic
+    * link targets. Flie names are always absolute and on-wire representation does
+    * not include leading path separator. HgfsNameToWireEncoding removes
+	* leading path separator from the name. However symbolic link targets may be
+	* either absolute or relative. To distinguish between them the leading path separator
+	* must be preserved for absolute symbolic link target.
+	* In the long term we should fix the protocol and have only one name
+	* format which is suitable for all names.
+	* The following code compensates for this problem before there is such
+	* universal name representation.  
+	*/
+   if (*targetName == '/') {
+      fileNameP->length = 1;
+      reqSize += 1;
+      *fileNameP->name = '\0';
+      targetName++;
+   } else {
+      fileNameP->length = 0;
+   }
+   /*
+    * Convert symbolic link target to utf8 precomposed form, convert it to
+    * the cross platform name format and finally unescape any illegal
+    * filesystem characters.
+    */
+   nameOffset = fileNameP->name - (char*)requestHeader;
+   ret = HgfsNameToWireEncoding(targetName, strlen(targetName) + 1,
+                                fileNameP->name + fileNameP->length,
+                                HGFS_PACKET_MAX - nameOffset -
+                                fileNameP->length);
+   if (ret < 0) {
+      DEBUG(VM_DEBUG_FAIL,"Could not encode file name to wire format");
+      ret = -ret;
+      goto out;
+   }
+   fileNameP->length += ret;
+
+   reqSize += ret;
+
+   /* Set the size of this request. */
+   HgfsKReq_SetPayloadSize(req, reqSize);
+
+   ret = HgfsSubmitRequest(sip, req);
+   if (ret) {
+      /* Request is destroyed in HgfsSubmitRequest() if necessary. */
+      req = NULL;
+      goto out;
+   }
+
+   replyHeader = (HgfsReply *)HgfsKReq_GetPayload(req);
+   reply = (HgfsReplySymlinkCreateV3 *)HGFS_REP_GET_PAYLOAD_V3(replyHeader);
+   repSize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
+   ret = HgfsGetStatus(req, repSize);
+   if (ret == 0) {
+      ret = HgfsVnodeGet(vpp, sip, HGFS_VP_TO_MP(dvp), fullName,
+                         HGFS_FILE_TYPE_SYMLINK, &sip->fileHashTable);
+      if (ret) {
+         ret = EIO;
+      }
+   } else {
+      DEBUG(VM_DEBUG_FAIL, "Error encountered with ret = %d\n", ret);
+   }
+
+   ASSERT(ret != 0 || *vpp != NULL);
+
+out:
+   if (req) {
+      HgfsKReq_ReleaseRequest(sip->reqs, req);
+   }
+   if (fullName != NULL) {
+      os_free(fullName, MAXPATHLEN);
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * HgfsDoGetattrByName --
  *
  *      Send a name getattr request to the hgfs server and put the result in
@@ -2537,13 +2796,6 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
 		 HgfsAttrV2 *hgfsAttrV2) // OUT: Attributes from hgfs server
 {
    HgfsKReqHandle req;
-   HgfsRequest *requestHeader;
-   HgfsReply *replyHeader;
-   HgfsRequestGetattrV3 *request;
-   HgfsReplyGetattrV3 *reply;
-   uint32 reqSize;
-   uint32 repSize;
-   uint32 reqBufferSize;
    int ret = 0;
 
    ASSERT(hgfsAttrV2);
@@ -2552,6 +2804,57 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
    if (!req) {
       return ENOMEM;
    }
+
+   ret = HgfsQueryAttrInt(path, handle, sip, req);
+   if (ret == 0) {
+      HgfsReplyGetattrV3 *reply;
+      HgfsReply *replyHeader;
+      replyHeader = (HgfsReply *)HgfsKReq_GetPayload(req);
+      reply = (HgfsReplyGetattrV3 *)HGFS_REP_GET_PAYLOAD_V3(replyHeader);
+
+      /* Fill out hgfsAttrV2 with the results from the server. */
+      memcpy(hgfsAttrV2, &reply->attr, sizeof *hgfsAttrV2);
+      HgfsKReq_ReleaseRequest(sip->reqs, req);
+   }
+   return ret;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsQueryAttrInt --
+ *
+ *      Internal function that actually sends a getattr request to the hgfs
+ *      server and puts the results in hgfsAttrV2. This function does
+ *      a getattr by filename if path is non-NULL. Otherwise it does a getattr by
+ *      handle.
+ *
+ *
+ * Results:
+ *      Either 0 on success or a BSD error code on failure. When function
+ *      succeeds a valid hgfs request is returned and it must be de-allocaed
+ *      by the caller.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+HgfsQueryAttrInt(const char *path,       // IN : Path to get attributes for
+		 HgfsHandle handle,      // IN : Handle to get attribues for
+		 HgfsSuperInfo *sip,     // IN : SuperInfo block for hgfs mount
+		 HgfsKReqHandle req)     // IN/OUT: preacllocated hgfs request
+{
+   HgfsRequest *requestHeader;
+   HgfsReply *replyHeader;
+   HgfsRequestGetattrV3 *request;
+   HgfsReplyGetattrV3 *reply;
+   uint32 reqSize;
+   uint32 repSize;
+   uint32 reqBufferSize;
+   int ret = 0;
 
    requestHeader = (HgfsRequest *)HgfsKReq_GetPayload(req);
    request = (HgfsRequestGetattrV3 *)HGFS_REQ_GET_PAYLOAD_V3(requestHeader);
@@ -2648,11 +2951,10 @@ HgfsDoGetattrInt(const char *path,       // IN : Path to get attributes for
       goto destroyOut;
    }
 
-   /* Fill out hgfsAttrV2 with the results from the server. */
-   memcpy(hgfsAttrV2, &reply->attr, sizeof *hgfsAttrV2);
-
 destroyOut:
-   HgfsKReq_ReleaseRequest(sip->reqs, req);
+   if (ret != 0) {
+      HgfsKReq_ReleaseRequest(sip->reqs, req);
+   }
 
 out:
    return ret;

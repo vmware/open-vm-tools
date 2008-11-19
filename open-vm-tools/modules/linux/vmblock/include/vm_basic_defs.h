@@ -361,8 +361,12 @@ GetCallerFrameAddr(void)
 
 #ifdef _WIN32 // {
 
-#define  snprintf  _snprintf
+#define snprintf  _snprintf
 #define	vsnprintf _vsnprintf
+#define strtok_r  strtok_s
+
+typedef int uid_t;
+typedef int gid_t;
 
 static INLINE void
 sleep(unsigned int sec)

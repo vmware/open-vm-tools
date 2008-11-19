@@ -610,7 +610,7 @@ VmSyncStateCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabelem))  // IN
 
    INIT_LIST_HEAD(&state->devices);
    COMPAT_INIT_DELAYED_WORK(&state->thawTask,
-                            VmSyncThawDevicesCallback, &state);
+                            VmSyncThawDevicesCallback, state);
    init_MUTEX(&state->lock);
 }
 

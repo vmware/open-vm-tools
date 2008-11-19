@@ -77,12 +77,17 @@ HKEY W32Util_OpenUserRegKey(REGSAM access);
 
 LPTOP_LEVEL_EXCEPTION_FILTER W32Util_SetUnhandledExceptionFilter(void);
 
-/*
- * Duplicated from util.h, including this header introduces
- * other problems such as dependencies on vm_assert.h, as well
- * as redefining Windows macros in windows-specific files.
- * So we define it here also.
- */
+
+Bool W32Util_CreateProcessArgv(ConstUnicode lpApplicationName,            
+                               ConstUnicode *argv,                        
+                               LPSECURITY_ATTRIBUTES lpProcessAttributes, 
+                               LPSECURITY_ATTRIBUTES lpThreadAttributes,  
+                               BOOL bInheritHandles,                      
+                               DWORD dwCreationFlags,                     
+                               LPVOID lpEnvironment,                      
+                               ConstUnicode lpCurrentDirectory,           
+                               LPSTARTUPINFOA lpStartupInfo,              
+                               LPPROCESS_INFORMATION lpProcessInformation);
 
 void W32Util_SplitCommandLine(char *commandLine,
                               int maxArgs,

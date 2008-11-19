@@ -68,6 +68,8 @@ typedef struct VSockVmciSock {
    Bool peerWaitingRead;
    Bool peerWaitingWrite;
    Bool peerWaitingWriteDetected;
+   Bool sentWaitingRead;
+   Bool sentWaitingWrite;
    VSockWaitingInfo peerWaitingReadInfo;
    VSockWaitingInfo peerWaitingWriteInfo;
    VMCIId attachSubId;

@@ -28,9 +28,17 @@
 #define __TOOLS_DEPLOY_H__
 
 
-#include "rpcin.h"
+#if defined(VMTOOLS_USE_GLIB)
+#  include "rpcChannel.h"
+#else
+#  include "rpcin.h"
 
 void DeployPkg_Register(RpcIn *in); // IN
 
+#endif
+
+/* TCLO handlers */
+Bool DeployPkg_TcloBegin(RpcInData *data);
+Bool DeployPkg_TcloDeploy(RpcInData *data);
 
 #endif /* __TOOLS_DEPLOY_H__ */

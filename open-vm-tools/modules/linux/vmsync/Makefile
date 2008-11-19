@@ -97,8 +97,17 @@ export VM_CC
 
 MAKEOVERRIDES := $(filter-out CC=%,$(MAKEOVERRIDES))
 
-$(DRIVER_KO):
+#
+# Define a setup target that gets built before the actual driver.
+# This target may not be used at all, but if it is then it will be defined
+# in Makefile.kernel
+#
+prebuild:: ;
+postbuild:: ;
+
+$(DRIVER_KO): prebuild
 	make -C $(BUILD_DIR) SUBDIRS=$$PWD SRCROOT=$$PWD/$(SRCROOT) modules
+	make -C $$PWD SRCROOT=$$PWD/$(SRCROOT) postbuild
 
 else
 

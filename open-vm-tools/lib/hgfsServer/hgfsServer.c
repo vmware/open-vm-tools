@@ -2587,11 +2587,9 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    inEnd = cpName + cpNameSize;
 
    /*
-    * Get first component. We bypass the higher level CPName_GetComponent
-    * function so we'll have more control over the illegal characters, which,
-    * for the share name, should be none.
+    * Get first component.
     */
-   len = CPName_GetComponentGeneric(cpName, inEnd, "", (char const **) &next);
+   len = CPName_GetComponent(cpName, inEnd, (char const **) &next);
    if (len < 0) {
       LOG(4, ("HgfsServerGetAccess: get first component failed\n"));
       return HGFS_NAME_STATUS_FAILURE;
@@ -2691,6 +2689,7 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    /* Convert the rest of the input name (if any) to a local name */
    tempSize = sizeof tempBuf;
    tempPtr = tempBuf;
+
 
    if (CPName_ConvertFrom((char const **) &cpName,
                           &cpNameSize,
@@ -2858,12 +2857,7 @@ HgfsServerIsSharedFolderOnly(char const *cpName,// IN:  Cross-platform filename 
 
    inEnd = cpName + cpNameSize;
 
-   /*
-    * Get first component. We bypass the higher level CPName_GetComponent
-    * function so we'll have more control over the illegal characters, which,
-    * for the share name, should be none.
-    */
-   len = CPName_GetComponentGeneric(cpName, inEnd, "", &next);
+   len = CPName_GetComponent(cpName, inEnd, &next);
    ASSERT(len > 0);
    return (next == inEnd);
 }
@@ -3395,11 +3389,9 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    inEnd = openInfo->cpName + openInfo->cpNameSize;
 
    /*
-    * Get first component. We bypass the higher level CPName_GetComponent
-    * function so we'll have more control over the illegal characters, which,
-    * for the share name, should be none.
+    * Get first component.
     */
-   len = CPName_GetComponentGeneric(openInfo->cpName, inEnd, "", &next);
+   len = CPName_GetComponent(openInfo->cpName, inEnd, &next);
    if (len < 0) {
       LOG(4, ("HgfsServerGetAccess: get first component failed\n"));
       return FALSE;

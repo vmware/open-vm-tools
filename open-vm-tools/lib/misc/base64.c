@@ -54,6 +54,61 @@ static const char Base64[] =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const char Pad64 = '=';
 
+// Special markers
+enum {
+   ILLEGAL = -1, EOM = -2, WS = -3
+};
+
+/*
+ * Reverse byte map used for decoding. Except for specials (negative values), contains the index
+ * into Base64[] where given value is found, ie: base64Reverse[Base64[n]] = n, for 0 <= n < 64
+ *
+ * This static initialization replaces, and should have identical result to, this runtime init:
+ *
+ *  for (i = 0; i < 256; ++i) {
+ *     base64Reverse[i] = isspace(i) ? WS : ILLEGAL;
+ *  }
+ *  base64Reverse['\0']  = EOM;
+ *  base64Reverse['=']   = EOM;
+ *  for (i = 0; Base64[i]; ++i) {
+ *     base64Reverse[(unsigned)Base64[i]] = (char) i;
+ *  }
+ */
+
+static const char base64Reverse[256] = {
+   EOM,     ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 00-07 */
+   ILLEGAL, WS,      WS,      WS,      WS,      WS,      ILLEGAL, ILLEGAL,   /* 08-0F */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 10-17 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 18-1F */
+   WS,      ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 20-27 */
+   ILLEGAL, ILLEGAL, ILLEGAL, 62,      ILLEGAL, ILLEGAL, ILLEGAL, 63,        /* 28-2F */
+   52,      53,      54,      55,      56,      57,      58,      59,        /* 30-37 */
+   60,      61,      ILLEGAL, ILLEGAL, ILLEGAL, EOM,     ILLEGAL, ILLEGAL,   /* 38-3F */
+   ILLEGAL, 0,       1,       2,       3,       4,       5,       6,         /* 40-47 */
+   7,       8,       9,       10,      11,      12,      13,      14,        /* 48-4F */
+   15,      16,      17,      18,      19,      20,      21,      22,        /* 50-57 */
+   23,      24,      25,      ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 58-5F */
+   ILLEGAL, 26,      27,      28,      29,      30,      31,      32,        /* 60-67 */
+   33,      34,      35,      36,      37,      38,      39,      40,        /* 68-6F */
+   41,      42,      43,      44,      45,      46,      47,      48,        /* 70-77 */
+   49,      50,      51,      ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 78-7F */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 80-87 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 88-8F */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 90-97 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* 98-9F */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* A0-A7 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* A8-AF */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* B0-B7 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* B8-BF */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* C0-C7 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* C8-CF */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* D0-D7 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* D8-DF */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* E0-E7 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* E8-EF */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL,   /* F0-F7 */
+   ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL, ILLEGAL }; /* F8-FF */
+
 /* (From RFC1521 and draft-ietf-dnssec-secext-03.txt)
    The following encoding technique is taken from RFC 1521 by Borenstein
    and Freed.  It is reproduced here in a slightly edited form for
@@ -278,37 +333,15 @@ Base64_Decode(char const *in,         // IN
               size_t      outSize,    // IN
               size_t     *dataLength) // OUT
 {
-   static char base64Reverse[256];
-   static Bool base64ReverseInit = 0;
-
    uint32 b = 0;
    int n = 0;
    uintptr_t i = 0;
-
-   // Special markers
-   enum {
-      ILLEGAL = -1, EOM = -2, WS = -3
-   };
 
    ASSERT(in);
    ASSERT(out || outSize == 0);
    ASSERT(dataLength);
 
    *dataLength = 0;
-
-   if (!base64ReverseInit) {
-      // Default is illegal chars (or whitespace)
-      for (i = 0; i < 256; ++i) {
-         base64Reverse[i] = isspace(i) ? WS : ILLEGAL;
-      }
-      base64Reverse['\0']  = EOM;
-      base64Reverse['=']   = EOM;
-
-      for (i = 0; Base64[i]; ++i) {
-         base64Reverse[(unsigned)Base64[i]] = (char) i;
-      }
-      base64ReverseInit = 1;
-   }
 
    i = 0;
    for (;;) {

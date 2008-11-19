@@ -443,17 +443,6 @@ DnDRpcInDataSetCB(char const **result,  // OUT
          format, CPName_Print(data, dataSize), dataSize);
 
    /*
-    * This data could have come from either a Windows or Linux host.
-    * Therefore, we need to verify that it doesn't contain any illegal
-    * characters for the current platform.
-    */
-   if (DnD_DataContainsIllegalCharacters(data, dataSize)) {
-      Debug("DnDRpcInDataSetCB: data contains illegal characters\n");
-      retStr = DND_ILLEGAL_CHARACTERS;
-      goto out;
-   }
-
-   /*
     * Here we take the last component of the actual file root, which is
     * a temporary directory for this DnD operation, and append it to the mount
     * point for vmblock.  This is where we want the target application to
@@ -1215,7 +1204,7 @@ DnDGtkDataRequestCB(GtkWidget *widget,                // IN
 
    /*
     * Set begin to first non-NUL character and end to last NUL character to
-    * prevent errors in calling CPName_GetComponentGeneric().
+    * prevent errors in calling CPName_GetComponent().
     */
    for(begin = gDnDData; *begin == '\0'; begin++)
       ;
@@ -1223,7 +1212,7 @@ DnDGtkDataRequestCB(GtkWidget *widget,                // IN
    ASSERT(end);
 
    /* Build up selection data */
-   while ((len = CPName_GetComponentGeneric(begin, end, "", &next)) != 0) {
+   while ((len = CPName_GetComponent(begin, end, &next)) != 0) {
       const size_t origTextLen = textLen;
       Bool freeBegin = FALSE;
 
@@ -2187,7 +2176,7 @@ DnDGHFileListGetNext(char **fileName,       // OUT: fill with filename location
    ASSERT(end);
 
    /* Get the length of this filename and a pointer to the next one */
-   len = CPName_GetComponentGeneric(gGHState.dndFileListNext, end, "", &next);
+   len = CPName_GetComponent(gGHState.dndFileListNext, end, &next);
    if (len < 0) {
       Warning("DnDGHFileListGetNext: error retrieving next component\n");
       return FALSE;

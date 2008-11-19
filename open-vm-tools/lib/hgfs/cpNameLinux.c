@@ -31,46 +31,7 @@
 #include "cpName.h"
 #include "cpNameInt.h"
 #include "vm_assert.h"
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CPName_GetComponent --
- *
- *    Get the next component of the CP name.
- *
- *    Returns the length of the component starting with the begin
- *    pointer, and a pointer to the next component in the buffer, if
- *    any. The "next" pointer is set to "end" if there is no next
- *    component.
- *
- * Results:
- *    length (not including NUL termination) >= 0 of next
- *    component on success.
- *    error < 0 on failure (invalid component).
- *
- * Side effects:
- *    None
- *
- *----------------------------------------------------------------------
- */
-
-int
-CPName_GetComponent(char const *begin,  // IN: Beginning of buffer
-                    char const *end,    // IN: End of buffer
-                    char const **next)  // OUT: Start of next component
-{
-   ASSERT(begin);
-   ASSERT(end);
-   ASSERT(next);
-
-   /*
-    * '/' is not a legal character on Linux, since it is a path
-    * separator.
-    */
-   return CPName_GetComponentGeneric(begin, end, "/", next);
-}
+#include "hgfsEscape.h"
 
 
 /*
@@ -104,7 +65,7 @@ CPName_ConvertFrom(char const **bufIn, // IN/OUT: Input to convert
    ASSERT(outSize);
    ASSERT(bufOut);
 
-   return CPNameConvertFrom(bufIn, inSize, outSize, bufOut, '/');
+   return CPNameEscapeAndConvertFrom(bufIn, inSize, outSize, bufOut, '/');
 }
 
 
@@ -188,6 +149,10 @@ CPName_ConvertFromRoot(char const **bufIn, // IN/OUT: Input to convert
  *
  *    Makes a cross-platform name representation from the Linux path input
  *    string and writes it into the output buffer.
+ *    If the name being converter may be a result a of name escaping the
+ *    function performs unescaping. HGFS convention is to always exchange
+ *    unescaped names between guest and host and to perform necessary
+ *    name escaping on both ends.
  *
  * Results:
  *    On success, returns the number of bytes used in the
@@ -205,5 +170,10 @@ CPName_ConvertTo(char const *nameIn, // IN:  Buf to convert
                  size_t bufOutSize,  // IN:  Size of the output buffer
                  char *bufOut)       // OUT: Output buffer
 {
-   return CPName_LinuxConvertTo(nameIn, bufOutSize, bufOut);
+   int result;
+   result = CPName_LinuxConvertTo(nameIn, bufOutSize, bufOut);
+   if (result > 0) {
+      result = HgfsEscape_Undo(bufOut, result);
+   }
+   return result;
 }

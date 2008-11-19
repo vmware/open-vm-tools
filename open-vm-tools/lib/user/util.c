@@ -1430,11 +1430,7 @@ end:
 int
 Util_HasAdminPriv(void)
 {
-#ifdef N_PLAT_NLM
-   return 1;
-#elif !defined(_WIN32)
-   return IsSuperUser() ? 1 : 0;
-#else
+#if defined(_WIN32)
    HANDLE token = INVALID_HANDLE_VALUE;
    int ret = -1;
 
@@ -1474,6 +1470,8 @@ end:
    }
 
    return ret;
+#else
+   return Id_IsSuperUser() ? 1 : 0;
 #endif
 }
 

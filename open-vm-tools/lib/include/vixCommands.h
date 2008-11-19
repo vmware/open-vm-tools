@@ -855,6 +855,92 @@ VixMsgHotRemoveDeviceRequest;
 
 /*
  * **********************************************************
+ * Hot plug begin batch.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgHotPlugBeginBatchRequest {
+   VixCommandRequestHeader header;
+   int32                   flags;
+}
+#include "vmware_pack_end.h"
+VixMsgHotPlugBeginBatchRequest;
+
+
+/*
+ * **********************************************************
+ * Hot plug commit batch.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgHotPlugCommitBatchRequest {
+   VixCommandRequestHeader header;
+   int32                   status;
+}
+#include "vmware_pack_end.h"
+VixMsgHotPlugCommitBatchRequest;
+
+
+/*
+ * **********************************************************
+ * Transfer connection.  Besides fields here you are supposed to
+ * receive file descriptor OOB.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgTransferConnectionRequest {
+   VixCommandRequestHeader header;
+   Bool                    isPrivileged;
+   uint32                  cryptoLength;
+   uint32                  fdLength;
+/* uint8                   cryptoData[]; */
+/* uint8                   fdData[]; */
+}
+#include "vmware_pack_end.h"
+VixMsgTransferConnectionRequest;
+
+
+/*
+ * **********************************************************
+ * Pass data.  Besides fields here you may receive also
+ * file descriptor.  Data is just command which was pending
+ * on original connection already transferred via
+ * TransferConnectionRequest.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgTransferRequestRequest {
+   VixCommandRequestHeader header;
+   uint32                  dataLength;
+   uint32                  fdLength;
+/* uint8                   data[]; */
+/* uint8                   fdData[]; */
+}
+#include "vmware_pack_end.h"
+VixMsgTransferRequestRequest;
+
+
+/*
+ * **********************************************************
+ * Pass final data.  Besides fields here you may receive also
+ * file descriptor.  Data is just what was already received
+ * on the socket passed by TransferConnectionRequest.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgTransferFinalDataRequest {
+   VixCommandRequestHeader header;
+   uint32                  dataLength;
+   uint32                  fdLength;
+/* uint8                   data[]; */
+/* uint8                   fdData[]; */
+}
+#include "vmware_pack_end.h"
+VixMsgTransferFinalDataRequest;
+
+
+/*
+ * **********************************************************
  * Create a snapshot of a running VM.
  */
 typedef
@@ -1435,6 +1521,7 @@ struct VixMsgVProbeLoadResponse {
    VixCommandResponseHeader header;
    uint32 numWarnings;
    uint32 numErrors;
+   uint32 instanceID;
    char   warningsAndErrors[1]; /* variable length */
 }
 #include "vmware_pack_end.h"
@@ -1944,7 +2031,29 @@ VixMsgWaitForUserActionResponse;
 #define VIX_SLPV2_PROPERTY_IP_ADDR                 "IP"
 #define VIX_SLPV2_PROPERTY_MAC_ADDR                "Mac"
 
+/*
+ * The security classifications for async op types/op code. Each op code
+ * is given a security category, and the VMX uses that category to determine
+ * whether a client is allowed to perform the given command.
+ */
+typedef enum VixCommandSecurityCategory {
+   
+   /* The default for unknown commands */
+   VIX_COMMAND_CATEGORY_UNKNOWN,
+   
+   /*
+    * A command that should be executed in the guest OS by the VIX Tools.
+    * component. These are allowed for all connection types.
+    */
+   VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED,
 
+   /*
+    * A command that only allowed by privileged connections; in the VI
+    * world this is means that only Hostd is allowed to perform these
+    * commands.
+    */
+   VIX_COMMAND_CATEGORY_PRIVILEGED,
+} VixCommandSecurityCategory;
 
 /*
  * This is the list of all Vix commands
@@ -2064,12 +2173,14 @@ enum {
    VIX_COMMAND_STOP_SNAPSHOT_LOG_RECORDING      = 113,
    VIX_COMMAND_STOP_SNAPSHOT_LOG_PLAYBACK       = 114,
    /*
-    * HOWTO: Adding a new Vix Command. Step 2.
+    * HOWTO: Adding a new Vix Command. Step 2a.
     *
     * Add a new ID for your new function prototype here. BE CAREFUL. The
     * OFFICIAL list of id's is in the bfg-main tree, in bora/lib/public/vixCommands.h.
     * When people add new command id's in different tree, they may collide and use
     * the same ID values. This can merge without conflicts, and cause runtime bugs.
+    * Once a new command is added here, a command info field needs to be added
+    * in bora/lib/foundryMsg. as well.
     */
    VIX_COMMAND_SAMPLE_COMMAND                   = 115,
 
@@ -2131,7 +2242,14 @@ enum {
 
    VIX_COMMAND_LOGOUT_HOST                      = 157,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 158,
+   VIX_COMMAND_HOT_PLUG_BEGIN_BATCH             = 158,
+   VIX_COMMAND_HOT_PLUG_COMMIT_BATCH            = 159,
+
+   VIX_COMMAND_TRANSFER_CONNECTION              = 160,
+   VIX_COMMAND_TRANSFER_REQUEST                 = 161,
+   VIX_COMMAND_TRANSFER_FINAL_DATA              = 162,
+
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 163,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
@@ -2227,30 +2345,32 @@ enum VixRunProgramResultValues {
  */
 
 #ifndef VIX_HIDE_FROM_JAVA
-struct VixCommandRequestHeader *VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,
-                                                       int opCode,
-                                                       uint64 cookie,
-                                                       int credentialType,
-                                                       const char *userNamePassword);
+struct VixCommandRequestHeader *
+VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,
+                       int opCode,
+                       uint64 cookie,
+                       int credentialType,
+                       const char *userNamePassword);
 
-struct VixCommandResponseHeader *VixMsg_AllocResponseMsg(struct VixCommandRequestHeader *requestHeader,
-                                                         VixError error,
-                                                         uint32 additionalError,
-                                                         size_t responseBodyLength,
-                                                         void *responseBody,
-                                                         size_t *responseMsgLength);
+struct VixCommandResponseHeader *
+VixMsg_AllocResponseMsg(const struct VixCommandRequestHeader *requestHeader,
+                        VixError error,
+                        uint32 additionalError,
+                        size_t responseBodyLength,
+                        const void *responseBody,
+                        size_t *responseMsgLength);
 
 void VixMsg_InitResponseMsg(struct VixCommandResponseHeader *responseHeader,
-                            struct VixCommandRequestHeader *requestHeader,
+                            const struct VixCommandRequestHeader *requestHeader,
                             VixError error,
                             uint32 additionalError,
                             size_t totalMessageLength);
 
-VixError VixMsg_ValidateMessage(void *vMsg, size_t msgLength);
+VixError VixMsg_ValidateMessage(const void *vMsg, size_t msgLength);
 
-VixError VixMsg_ValidateRequestMsg(void *vMsg, size_t msgLength);
+VixError VixMsg_ValidateRequestMsg(const void *vMsg, size_t msgLength);
 
-VixError VixMsg_ValidateResponseMsg(void *vMsg, size_t msgLength);
+VixError VixMsg_ValidateResponseMsg(const void *vMsg, size_t msgLength);
 
 VixError VixMsg_ParseWriteVariableRequest(VixMsgWriteVariableRequest *msg,
                                           char **valueName,
@@ -2266,6 +2386,13 @@ Bool VixMsg_DeObfuscateNamePassword(const char *packagedName,
 char *VixMsg_EncodeString(const char *str);
 
 char *VixMsg_DecodeString(const char *str);
+
+Bool VixMsg_ValidateCommandInfoTable(void);
+
+const char *VixAsyncOp_GetDebugStrForOpCode(int opCode);
+
+VixCommandSecurityCategory VixMsg_GetCommandSecurityCategory(int opCode);
+
 #endif   // VIX_HIDE_FROM_JAVA
 
 

@@ -63,7 +63,7 @@
 #  define VMCI_SOCKETS_AF_VALUE AF_VMCI /* Defined in uwvmkAPI.h. */
    /* The address family is fixed in the vmkernel. */
 #  define VMCISock_GetAFValue() VMCI_SOCKETS_AF_VALUE
-#  include "vmci_queue_pair_vmk.h"
+#  include "vmciHostKernelAPI.h"
 #  define Uint64ToPtr(_ui) ((void *)(uint64)(_ui))
 #  define PtrToUint64(_p)  ((uint64)(_p))
 #else

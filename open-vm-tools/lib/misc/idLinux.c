@@ -40,9 +40,10 @@
 #if defined(__linux__)
 #ifndef GLIBC_VERSION_21
 /*
- * SYS_ constants for glibc 2.0, some of which may already be defined on some of those
- * older systems.
+ * SYS_ constants for glibc 2.0, some of which may already be defined on
+ * some of those older systems.
  */
+
 #ifndef SYS_setresuid
 #define SYS_setresuid          164
 #endif
@@ -345,42 +346,6 @@ Id_SetREGid(gid_t gid,		// IN: new gid
 /*
  *----------------------------------------------------------------------------
  *
- * Id_SetSuperUser --
- *
- *      If the calling process does not have euid root, do nothing.
- *      If the calling process has euid root, make the calling thread acquire
- *      or release euid root.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------------
- */
-
-void
-Id_SetSuperUser(Bool yes) // IN: TRUE to acquire super user, FALSE to release
-{
-   if (!IsSuperUser() == !yes) {
-      // settid(2) fails on spurious transitions.
-      return;
-   }
-
-   if (yes) {
-      syscall(SYS_settid, KAUTH_UID_NONE, KAUTH_GID_NONE /* Ignored. */);
-   } else {
-      if (syscall(SYS_settid, getuid(), getgid()) == -1) {
-         Log("Failed to release super user privileges.\n");
-      }
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * IdAuthCreate --
  *
  *      Create an Authorization session.
@@ -397,7 +362,7 @@ Id_SetSuperUser(Bool yes) // IN: TRUE to acquire super user, FALSE to release
  * Side effects:
  *      See IdAuthCreateWithFork.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 static AuthorizationRef
@@ -457,7 +422,7 @@ IdAuthCreate(void)
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * IdAuthCreateWithFork --
  *
@@ -475,7 +440,7 @@ IdAuthCreate(void)
  * Side effects:
  *      The current process is forked.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 static AuthorizationRef
@@ -604,7 +569,7 @@ static Atomic_Ptr procAuth = { 0 };
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * IdAuthGet --
  *
@@ -618,7 +583,7 @@ static Atomic_Ptr procAuth = { 0 };
  *      If the process' Authorization session does not exist yet, it is
  *      created.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 static AuthorizationRef
@@ -642,7 +607,7 @@ IdAuthGet(void)
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * Id_AuthGetLocal --
  *
@@ -656,7 +621,7 @@ IdAuthGet(void)
  *      If the process' Authorization session does not exist yet, it is
  *      created.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 void *
@@ -667,7 +632,7 @@ Id_AuthGetLocal(void)
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * Id_AuthGetExternal --
  *
@@ -680,7 +645,7 @@ Id_AuthGetLocal(void)
  * Side effects:
  *      None
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 void *
@@ -712,7 +677,7 @@ Id_AuthGetExternal(size_t *size) // OUT
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * Id_AuthSet --
  *
@@ -726,7 +691,7 @@ Id_AuthGetExternal(size_t *size) // OUT
  * Side effects:
  *      None
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 Bool
@@ -766,7 +731,7 @@ Id_AuthSet(void const *buf, // IN
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * Id_AuthCheck --
  *
@@ -784,7 +749,7 @@ Id_AuthSet(void const *buf, // IN
  *      focus if Id_AuthSet() was previously called with a
  *      cross-process ref to a GUI process.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 Bool
@@ -837,5 +802,81 @@ Id_AuthCheck(char const *right,                // IN
              kAuthorizationFlagExtendRights,
              NULL) == errAuthorizationSuccess;
 }
+#endif
 
+#if !defined(_WIN32)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Id_BeginSuperUser --
+ *
+ *      Transition the calling thread from whatever its current effective
+ *      user is to effectively root.
+ *
+ * Results:
+ *      Returns the uid of the effective user from before the transition to
+ *      effectively root. A "-1" is used to indicate that the thread was
+ *      already root when this routine was called.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+uid_t
+Id_BeginSuperUser(void)
+{
+   uid_t uid = Id_GetEUid();
+
+   ASSERT_NOT_IMPLEMENTED(uid != (uid_t) -1);
+
+   if (uid == 0) {
+      uid = (uid_t) -1; // already root; nothing to do
+   } else {
+#if defined(__APPLE__)
+      syscall(SYS_settid, KAUTH_UID_NONE, KAUTH_GID_NONE /* Ignored. */);
+#else
+      Id_SetRESUid((uid_t) -1, (uid_t) 0, (uid_t) -1); // effectively root
+#endif
+      return uid;
+   }
+
+   return uid;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Id_EndSuperUser --
+ *
+ *      Transition the calling thread from effective root user to
+ *      another user.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      When transitioning from being effectively root to the specified
+ *      user (uid) the effective gid of the calling thread may be lost.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+Id_EndSuperUser(uid_t uid)  // IN:
+{
+   if ((uid != (uid_t) -1) && (uid != Id_GetEUid())) {
+      ASSERT(uid != 0);  // Don't allow cheating like this
+
+#if defined(__APPLE__)
+      if (syscall(SYS_settid, uid, getgid()) == -1) {
+         Log("Failed to release super user privileges.\n");
+      }
+#else
+      Id_SetRESUid((uid_t) -1, uid, (uid_t) -1); // revert to uid
+#endif
+   }
+}
 #endif

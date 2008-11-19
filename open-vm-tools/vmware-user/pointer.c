@@ -34,6 +34,7 @@
 #include "guestApp.h"
 #include "eventManager.h"
 
+static GuestAppAbsoluteMouseState absoluteMouseState = GUESTAPP_ABSMOUSE_UNKNOWN;
 static Bool mouseIsGrabbed;
 static uint8 gHostClipboardTries = 0;
 
@@ -209,7 +210,8 @@ PointerUpdatePointerLoop(void* clientData) // IN: unused
 
    }
 
-   if (!CopyPaste_IsRpcCPSupported()) {
+   if (!CopyPaste_IsRpcCPSupported() ||
+       (absoluteMouseState == GUESTAPP_ABSMOUSE_UNAVAILABLE)) {
       EventManager_Add(gEventQueue, POINTER_POLL_TIME, PointerUpdatePointerLoop,
                        clientData);
    }
@@ -236,6 +238,7 @@ PointerUpdatePointerLoop(void* clientData) // IN: unused
 Bool
 Pointer_Register(GtkWidget* mainWnd)
 {
+   absoluteMouseState = GuestApp_GetAbsoluteMouseState();
    PointerUpdatePointerLoop(mainWnd);
    mouseIsGrabbed = FALSE;
    return TRUE;

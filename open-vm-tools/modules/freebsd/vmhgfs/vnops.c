@@ -33,7 +33,6 @@
 #include <sys/dirent.h>         // for struct dirent
 
 #include "cpName.h"
-#include "staticEscape.h"
 
 #include "hgfsUtil.h"
 
@@ -66,6 +65,8 @@ static vop_readdir_t	HgfsVopReaddir;
 static vop_inactive_t   HgfsVopInactive;
 static vop_reclaim_t	HgfsVopReclaim;
 static vop_print_t	HgfsVopPrint;
+static vop_readlink_t   HgfsVopReadlink;
+static vop_symlink_t    HgfsVopSymlink;
 
 /*
  * Global data
@@ -93,6 +94,8 @@ struct vop_vector HgfsVnodeOps = {
    .vop_inactive        = HgfsVopInactive,
    .vop_reclaim         = HgfsVopReclaim,
    .vop_print           = HgfsVopPrint,
+   .vop_readlink        = HgfsVopReadlink,
+   .vop_symlink         = HgfsVopSymlink,
 };
 
 
@@ -771,5 +774,75 @@ static int
 HgfsVopPrint(struct vop_print_args *ap)
 {
    return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsVopReadlink --
+ *
+ *      Invoked when a user calls readlink(2) on a file in our filesystem.
+ *
+ * Results:
+ *      Returns zero on success and an error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+HgfsVopReadlink(struct vop_readlink_args *ap)
+/*
+struct vop_readlink_args {
+   vnode  *vp;              // IN : vnode of file
+   struct uio *uio;         // OUT: location to copy symlink name.
+   struct ucred *cred;      // IN   : caller's credentials
+};
+*/
+{
+   struct vnode *vp = ap->a_vp;
+   struct uio *uiop = ap->a_uio;
+
+   return HgfsReadlinkInt(vp, uiop);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsVopSymlink --
+ *
+ *      Invoked when a user calls symlink(2) to create a symbolic link.
+ *
+ * Results:
+ *      Returns zero on success and an error code on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+HgfsVopSymlink(struct vop_symlink_args *ap)
+/*
+struct vop_symlink_args {
+   vnode *dvp;                  // IN : vnode of directory
+   vnode **vp;                  // OUT: location to place resultant vnode
+   struct componentname *cnp;   // IN : symlink pathname info
+   struct vatttr *vap;          // IN : attributes to create new object with
+   char *target;                // IN : Target name
+};
+*/
+{
+   struct vnode **vp = ap->a_vpp;
+   struct vnode *dvp = ap->a_dvp;
+   struct componentname *cnp = ap->a_cnp;
+   char *target = ap->a_target;
+
+   return HgfsSymlinkInt(dvp, vp, cnp, target);
 }
 

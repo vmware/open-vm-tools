@@ -29,7 +29,7 @@
 #include "vmcheck.h"
 #include "toolsLogger.h"
 #include "escBitvector.h"
-#include "staticEscape.h"
+#include "hgfsEscape.h"
 #include "hgfs.h"
 #include "hgfsBd.h"
 #include "hgfsProto.h"
@@ -49,10 +49,7 @@ VM_EMBED_VERSION(HGFSCLIENT_VERSION_STRING);
 RpcOut *gChannel = NULL;
 char *gPacketBuffer = NULL;
 static GuestApp_Dict *gConfDict = NULL;
-static int HgfsEscapeBuffer(char const *bufIn,
-                            uint32 sizeIn,
-                            uint32 sizeBufOut,
-                            char *bufOut);
+
 static Bool HgfsClient_Open(HgfsHandle *rootHandle);
 static HgfsFileName *HgfsClient_Read(HgfsHandle rootHandle,
                                      int offset);
@@ -179,122 +176,6 @@ Panic(const char *fmt, // IN: Duh
    exit(255);
    NOT_REACHED();
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsEscapeBuffer --
- *
- *    Escape any characters that are not legal in a filename.
- *
- *    sizeBufOut must account for the NUL terminator.
- *
- *    This function is based on code in the Linux driver.
- *
- *    XXX: See the comments in staticEscape.c and staticEscapeW.c to understand
- *    why this interface sucks.
- *
- * Results:
- *    On success, the size (excluding the NUL terminator) of the
- *    escaped, NUL terminated buffer.
- *    On failure (bufOut not big enough to hold result), negative value.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static int
-HgfsEscapeBuffer(char const *bufIn, // IN:  Buffer with unescaped input
-                 uint32 sizeIn,     // IN:  Size of input buffer (chars)
-                 uint32 sizeBufOut, // IN:  Size of output buffer (bytes)
-                 char *bufOut)      // OUT: Buffer for escaped output
-{
-   int result;
-
-   /*
-    * This is just a wrapper around the more general escape
-    * routine; we pass it the correct bitvector and the
-    * buffer to escape.
-    */
-   EscBitVector bytesToEsc;
-
-   ASSERT(bufIn);
-   ASSERT(bufOut);
-
-   /* Set up the bitvector for "/" and "%" */
-   EscBitVector_Init(&bytesToEsc);
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'%');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'/');
-
-#if defined(_WIN32)
-   /* Windows can't handle these characters either. */
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'\\');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'*');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'?');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)':');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'\"');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'<');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'>');
-   EscBitVector_Set(&bytesToEsc, (unsigned char)'|');
-#endif
-
-   result = StaticEscape_Do('%',
-                            &bytesToEsc,
-                            bufIn,
-                            sizeIn,
-                            sizeBufOut,
-                            bufOut);
-
-#if defined (_WIN32)
-   {
-      /* 
-       * Windows needs to escape a '.' if it's the last character in
-       * a filename. But not if the filename is actually '.' or '..'!
-       */
-      char escapedPeriod[5];     // To contain the escaped equivalent of '.'
-      int escapedPeriodSize;
-      EscBitVector periodToEsc;
-      
-      /* Don't escape if filename is '.' or '..'. */
-      if ((strcmp(bufIn, ".") == 0) || 
-          (strcmp(bufIn, "..") == 0)) {
-         return result;
-      }
-      
-      /* But if the last character is '.', escape it. */
-      if (sizeIn && bufIn[sizeIn - 1] == '.') {
-         EscBitVector_Init(&periodToEsc);
-         EscBitVector_Set(&periodToEsc, (unsigned char)'.');
-         
-         escapedPeriodSize = StaticEscape_Do('%', &periodToEsc, ".", 
-                                             sizeof ".", sizeof escapedPeriod, 
-                                             escapedPeriod);
-         
-         if (escapedPeriodSize < 0) {
-            return escapedPeriodSize;
-         }
-
-         if (result + escapedPeriodSize > sizeBufOut) {
-            return -1;
-         }
-            
-         /* 
-          * Overwrite the trailing '.' in the output buffer with its 
-          * escaped equivalent. 
-          */
-         Str_Strcpy(bufOut + result - 1, escapedPeriod, 
-                    sizeBufOut - result + 1);
-         result += (escapedPeriodSize - sizeof (char));
-      }
-   }
-#endif
-
-   return result;
-}
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -513,7 +394,7 @@ HgfsClient_PrintShares(void)
        * Escape this filename. If we get back a negative result, it means that
        * the escaped filename is too big, so skip this share.
        */
-      if (HgfsEscapeBuffer(fileName->name, fileName->length,
+      if (HgfsEscape_Do(fileName->name, fileName->length,
                            sizeof escapedName, escapedName) < 0) {
          continue;
       } 

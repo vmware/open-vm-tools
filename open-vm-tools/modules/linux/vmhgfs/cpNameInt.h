@@ -40,6 +40,12 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
                   char **bufOut,      // IN/OUT: Output buffer
                   char pathSep);      // IN: Path separator character
 
+int
+CPNameEscapeAndConvertFrom(char const **bufIn, // IN/OUT: Input to convert
+                           size_t *inSize,     // IN/OUT: Size of input
+                           size_t *outSize,    // IN/OUT: Size of output buffer
+                           char **bufOut,      // IN/OUT: Output buffer
+                           char pathSep);      // IN: Path separator character
 
 /*
  * Common code for CPName_ConvertTo
@@ -48,7 +54,6 @@ int
 CPNameConvertTo(char const *nameIn, // IN:  Buf to convert
                 size_t bufOutSize,  // IN:  Size of the output buffer
                 char *bufOut,       // OUT: Output buffer
-                char pathSep,       // IN:  path separator to use
-                char *ignores);     // IN:  chars to not transfer to output
+                char pathSep);      // IN:  path separator to use
 
 #endif /* __CP_NAME_INT_H__ */

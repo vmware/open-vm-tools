@@ -156,18 +156,19 @@ typedef enum {
    CPUID_VENDOR_INTEL,
    CPUID_VENDOR_AMD,
    CPUID_VENDOR_CYRIX,
+   CPUID_VENDOR_VIA,
    CPUID_NUM_VENDORS
 } CpuidVendors;
 
 #define CPUID_INTEL_VENDOR_STRING       "GenuntelineI"
 #define CPUID_AMD_VENDOR_STRING         "AuthcAMDenti"
 #define CPUID_CYRIX_VENDOR_STRING       "CyriteadxIns"
+#define CPUID_VIA_VENDOR_STRING         "CentaulsaurH"
 #define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
 #define CPUID_INTEL_VENDOR_STRING_FIXED "GenuineIntel"
 #define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
 #define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
-
-#define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
+#define CPUID_VIA_VENDOR_STRING_FIXED   "CentaurHauls"
 
 /*
  * FIELDDEF can be defined to process the CPUID information provided
@@ -356,7 +357,9 @@ FLAGDEF(   A, EBX, INTEL,   2,  1, PMC_REF_CYCLES,      NA,  IGNORE, 0, FALSE)  
 FLAGDEF(   A, EBX, INTEL,   3,  1, PMC_LAST_LVL_CREF,   NA,  IGNORE, 0, FALSE)            \
 FLAGDEF(   A, EBX, INTEL,   4,  1, PMC_LAST_LVL_CMISS,  NA,  IGNORE, 0, FALSE)            \
 FLAGDEF(   A, EBX, INTEL,   5,  1, PMC_BR_INST_RETIRED, NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   6,  1, PMC_BR_MISS_RETIRED, NA,  IGNORE, 0, FALSE)
+FLAGDEF(   A, EBX, INTEL,   6,  1, PMC_BR_MISS_RETIRED, NA,  IGNORE, 0, FALSE)            \
+FIELDDEF(  A, EDX, INTEL,   0,  5, PMC_FIXED_NUM,       NA,  IGNORE, 0, FALSE)            \
+FIELDDEF(  A, EDX, INTEL,   5,  8, PMC_FIXED_SIZE,      NA,  IGNORE, 0, FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_80                                              \

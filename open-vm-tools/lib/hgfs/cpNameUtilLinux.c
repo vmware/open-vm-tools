@@ -113,7 +113,7 @@ CPNameUtilConvertUtf8FormCAndD(const char *cpNameToConvert,   // IN:
    begin = cpNameToConvert;
    end = cpNameToConvert + cpNameToConvertLen - 1;
    /* Get the length of this component, and a pointer to the next. */
-   while ((len = CPName_GetComponentGeneric(begin, end, "", &next)) != 0) {
+   while ((len = CPName_GetComponent(begin, end, &next)) != 0) {
       uint32 origNewDataLen = newDataLen;
 
       if (len < 0) {

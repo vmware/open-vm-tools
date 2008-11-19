@@ -269,9 +269,9 @@ FileLockGetPid(void)
 static Bool
 RemoveStaleLockFile(const char *lockFileName)      // IN:
 {
-   Bool su;
-   int  ret;
-   int  saveErrno;
+   uid_t uid;
+   int ret;
+   int saveErrno;
 
    ASSERT(lockFileName);
 
@@ -279,11 +279,10 @@ RemoveStaleLockFile(const char *lockFileName)      // IN:
    Log(LGPFX" Found a previous instance of lock file '%s'. "
        "It will be removed automatically.\n", lockFileName);
 
-   su = IsSuperUser();
-   SuperUser(TRUE);
+   uid = Id_BeginSuperUser();
    ret = unlink(lockFileName);
    saveErrno = errno;
-   SuperUser(su);
+   Id_EndSuperUser(uid);
 
    if (ret < 0) {
       Warning(LGPFX" Failed to remove stale lock file %s (%s).\n",
@@ -318,23 +317,21 @@ GetLockFileValues(const char *lockFileName, // IN:
                   char *hostID)             // OUT:
 {
    char *p;
-   Bool su;
    int  saveErrno;
    FILE *lockFile;
    char line[1000];
    Bool deleteLockFile;
-
+   uid_t uid;
    int status;
 
    ASSERT(lockFileName);
    ASSERT(pid);
    ASSERT(hostID);
 
-   su = IsSuperUser();
-   SuperUser(TRUE);
+   uid = Id_BeginSuperUser();
    lockFile = Posix_Fopen(lockFileName, "r");
    saveErrno = errno;
-   SuperUser(su);
+   Id_EndSuperUser(uid);
 
    if (lockFile == NULL) {
       Warning(LGPFX" Failed to open existing lock file %s (%s).\n",
@@ -399,7 +396,7 @@ GetLockFileValues(const char *lockFileName, // IN:
 static Bool
 IsValidProcess(int pid)       // IN:
 {
-   Bool su;
+   uid_t uid;
    int err;
    Bool ret;
 
@@ -409,12 +406,9 @@ IsValidProcess(int pid)       // IN:
    }
 #endif
 
-   su = IsSuperUser();
-   SuperUser(TRUE);
-
+   uid = Id_BeginSuperUser();
    err = (kill(pid, 0) == -1) ? errno : 0;
-
-   SuperUser(su);
+   Id_EndSuperUser(uid);
 
    switch (err) {
    case 0:
@@ -464,13 +458,13 @@ CreateLockFile(const char *lockFileName, // IN:
    int  status = 1;
    int  saveErrno;
    Bool useLinking = IsLinkingAvailable(lockFileName);
-   Bool su = IsSuperUser();
+   uid_t uid;
 
    if (useLinking) {
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
       lockFD = creat(lockFileLink, 0444);
       saveErrno = errno;
-      SuperUser(su);
+      Id_EndSuperUser(uid);
 
       if (lockFD == -1) {
          Log(LGPFX" Failed to create new lock file %s (%s).\n",
@@ -487,11 +481,11 @@ CreateLockFile(const char *lockFileName, // IN:
        * can be eliminated. -- johnh
        */
 
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
       lockFD = Posix_Open(lockFileName, O_CREAT | O_EXCL | O_WRONLY,
                                 S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
       saveErrno = errno;
-      SuperUser(su);
+      Id_EndSuperUser(uid);
 
       if (lockFD == -1) {
          Log(LGPFX" Failed to create new lock file %s (%s).\n",
@@ -513,19 +507,19 @@ CreateLockFile(const char *lockFileName, // IN:
       goto exit;
    }
 
-   SuperUser(TRUE);
+   uid = Id_BeginSuperUser();
 
    if (useLinking && (link(lockFileLink, lockFileName) < 0)) {
       status = (errno == EEXIST) ? 0 : -1;
    }
 
-   SuperUser(su);
+   Id_EndSuperUser(uid);
 
 exit:
    if (useLinking) {
-      SuperUser(TRUE);
+      uid = Id_BeginSuperUser();
       err = unlink(lockFileLink);
-      SuperUser(su);
+      Id_EndSuperUser(uid);
 
       if (err < 0) {
          Warning(LGPFX" Failed to remove temporary lock file %s (%s).\n",
@@ -652,9 +646,9 @@ exit:
 Bool
 FileLock_UnlockDevice(const char *deviceName)  // IN:
 {
-   Bool su;
-   int  ret;
-   int  saveErrno;
+   uid_t uid;
+   int ret;
+   int saveErrno;
    char *path;
 
    ASSERT(deviceName);
@@ -663,11 +657,10 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
 
    LOG(1, ("Releasing lock %s.\n", path));
 
-   su = IsSuperUser();
-   SuperUser(TRUE);
+   uid = Id_BeginSuperUser();
    ret = unlink(path);
    saveErrno = errno;
-   SuperUser(su);
+   Id_EndSuperUser(uid);
 
    if (ret < 0) {
       Log(LGPFX" Cannot remove lock file %s (%s).\n",
@@ -884,7 +877,7 @@ FileLockValidOwner(const char *executionID, // IN:
    }
 
    /* If there is a payload perform additional validation. */
-   if ((payload != NULL) && (strncmp(payload, "pc=", 3) == 0)) {
+   if (payload != NULL) {
       uint64 fileCreationTime;
       uint64 processCreationTime;
 
@@ -893,7 +886,7 @@ FileLockValidOwner(const char *executionID, // IN:
        * created the lock file.
        */
 
-      if (sscanf(payload + 3, "%"FMT64"u", &fileCreationTime) != 1) {
+      if (sscanf(payload, "%"FMT64"u", &fileCreationTime) != 1) {
          Warning(LGPFX" %s payload conversion error on %s. Assuming valid.\n",
                  __FUNCTION__, payload);
 

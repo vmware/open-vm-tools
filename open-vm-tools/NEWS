@@ -1,3 +1,19 @@
+open-vm-tools 2009.11.18 changes:
+	* The pvscsi Linux kernel module has been added (for kernels >= 2.6.8).
+     It provides access to VMware's new paravirtualized SCSI device.
+
+	* The HGFS driver and user-level code has seen a lot of refactoring to
+	enable more consistent name escaping. The FreeBSD driver now supports
+	symlinks.
+
+	* The Linux module makefiles now support exporting symbol version files,
+	allowing modules with dependencies (such as vsock, which depends on vmci)
+	to correctly build and load on Linux >= 2.6.26 with CONFIG_MODVERSIONS.
+   
+   * Rudimentary support for dkms.
+
+	* Assortment of bug fixes.
+
 open-vm-tools 2009.10.13 changes:
 	* The vmxnet3 Linux kernel module has been added. This module provides
 	better network performance for the guest. The corresponding virtual

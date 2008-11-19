@@ -1083,6 +1083,10 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
       vp->v_type = VDIR;
       break;
 
+   case HGFS_FILE_TYPE_SYMLINK:
+      vp->v_type = VLNK;
+      break;
+
    default:
       /* Hgfs only supports directories and regular files */
       ret = EPERM;
@@ -1170,6 +1174,10 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
 
    case HGFS_FILE_TYPE_DIRECTORY:
       params.vnfs_vtype = VDIR;
+      break;
+
+   case HGFS_FILE_TYPE_SYMLINK:
+      params.vnfs_vtype = VLNK;
       break;
 
    default:
