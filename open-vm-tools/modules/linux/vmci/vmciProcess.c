@@ -41,6 +41,7 @@
 #include "circList.h"
 #include "vmciUtil.h"
 #include "vmciGuestKernelAPI.h"
+#include "vmciCommonInt.h"
 
 static ListItem *processList = NULL;
 static VMCILock processLock;

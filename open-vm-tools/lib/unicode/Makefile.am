@@ -15,17 +15,17 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libUnicode.a
+noinst_LTLIBRARIES = libUnicode.la
 
-libUnicode_a_SOURCES =
-libUnicode_a_SOURCES += unicodeCommon.c
-libUnicode_a_SOURCES += unicodeSimpleBase.c
-libUnicode_a_SOURCES += unicodeSimpleCaseFolding.c
-libUnicode_a_SOURCES += unicodeSimpleTypes.c
-libUnicode_a_SOURCES += unicodeSimpleOperations.c
-libUnicode_a_SOURCES += unicodeSimpleTransforms.c
-libUnicode_a_SOURCES += unicodeStatic.c
+libUnicode_la_SOURCES =
+libUnicode_la_SOURCES += unicodeCommon.c
+libUnicode_la_SOURCES += unicodeSimpleBase.c
+libUnicode_la_SOURCES += unicodeSimpleCaseFolding.c
+libUnicode_la_SOURCES += unicodeSimpleTypes.c
+libUnicode_la_SOURCES += unicodeSimpleOperations.c
+libUnicode_la_SOURCES += unicodeSimpleTransforms.c
+libUnicode_la_SOURCES += unicodeStatic.c
 
 if HAVE_ICU
-libUnicode_a_SOURCES += unicodeICU.c
+libUnicode_la_SOURCES += unicodeICU.c
 endif

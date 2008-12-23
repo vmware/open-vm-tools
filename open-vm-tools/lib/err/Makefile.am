@@ -15,8 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libErr.a
+noinst_LTLIBRARIES = libErr.la
 
-libErr_a_SOURCES =
-libErr_a_SOURCES += err.c
-libErr_a_SOURCES += errPosix.c
+libErr_la_SOURCES =
+libErr_la_SOURCES += err.c
+libErr_la_SOURCES += errPosix.c

@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libHgfsBd.a
+noinst_LTLIBRARIES = libHgfsBd.la
 
-libHgfsBd_a_SOURCES =
-libHgfsBd_a_SOURCES += hgfsBd.c
+libHgfsBd_la_SOURCES =
+libHgfsBd_la_SOURCES += hgfsBd.c

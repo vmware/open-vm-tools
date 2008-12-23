@@ -15,13 +15,13 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libHgfs.a
+noinst_LTLIBRARIES = libHgfs.la
 
-libHgfs_a_SOURCES =
-libHgfs_a_SOURCES += cpName.c
-libHgfs_a_SOURCES += cpNameLite.c
-libHgfs_a_SOURCES += cpNameLinux.c
-libHgfs_a_SOURCES += cpNameUtil.c
-libHgfs_a_SOURCES += cpNameUtilLinux.c
-libHgfs_a_SOURCES += hgfsUtil.c
-libHgfs_a_SOURCES += hgfsEscape.c
+libHgfs_la_SOURCES =
+libHgfs_la_SOURCES += cpName.c
+libHgfs_la_SOURCES += cpNameLite.c
+libHgfs_la_SOURCES += cpNameLinux.c
+libHgfs_la_SOURCES += cpNameUtil.c
+libHgfs_la_SOURCES += cpNameUtilLinux.c
+libHgfs_la_SOURCES += hgfsUtil.c
+libHgfs_la_SOURCES += hgfsEscape.c

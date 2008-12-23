@@ -248,6 +248,41 @@ Str_Strcpy(char *buf,       // OUT
    return memcpy(buf, src, len + 1);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Str_Strlen --
+ *
+ *      Calculate length of the string.
+ *
+ * Results:
+ *      Length of s not including the terminating '\0' character. 
+ *      If there is no '\0' for first maxLen bytes, then it
+ *      returns maxLen.
+ *
+ * Side Effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+size_t
+Str_Strlen(const char *s,  	// IN 
+	   size_t maxLen)     	// IN
+
+{
+   const char *end;
+
+   ASSERT(s != NULL);
+
+   if ((end = memchr(s, '\0', maxLen)) == NULL) {
+      return maxLen;
+   } 
+   return end - s;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *

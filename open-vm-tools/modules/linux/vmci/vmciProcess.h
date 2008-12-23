@@ -32,12 +32,8 @@
 
 #include "vmci_defs.h"
 #include "vmci_handle_array.h"
-#include "circList.h"
 
-typedef struct VMCIProcess {
-   ListItem        listItem;          /* For global process list. */
-   VMCIId          pid;               /* Process id. */
-} VMCIProcess;
+typedef struct VMCIProcess VMCIProcess;
 
 void VMCIProcess_Init(void);
 void VMCIProcess_Exit(void);

@@ -598,19 +598,25 @@ UnityPlatformSetTaskbarVisible(UnityPlatform *up,   // IN
    for (i = 0; i < numWindows; i++) {
       if (UNITY_WINDOW_TYPE_DOCK == allWindows[i]->windowType) {
          Window dockWindow;
+         UnityPlatformWindow *upw = allWindows[i];
 
-         dockWindow = allWindows[i]->clientWindow;
+         dockWindow = upw->clientWindow;
          if (!dockWindow) {
-            dockWindow = allWindows[i]->toplevelWindow;
+            dockWindow = upw->toplevelWindow;
          }
 
          if (currentSetting) {
             XMapWindow(up->display, dockWindow);
          } else {
+            /* Preserve _NET_WM_DESKTOP across unmap. */
+            if (!upw->wantSetDesktopNumberOnUnmap) {
+               upw->wantSetDesktopNumberOnUnmap = TRUE;
+               upw->onUnmapDesktopNumber = upw->desktopNumber;
+            }
             XWithdrawWindow(up->display, dockWindow, 0);
          }
 
-         UPWindow_CheckRelevance(up, allWindows[i], NULL);
+         UPWindow_CheckRelevance(up, upw, NULL);
       }
    }
 

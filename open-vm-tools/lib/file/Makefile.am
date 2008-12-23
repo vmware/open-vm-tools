@@ -15,14 +15,14 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libFile.a
+noinst_LTLIBRARIES = libFile.la
 
-libFile_a_SOURCES = 
-libFile_a_SOURCES += file.c
-libFile_a_SOURCES += filePosix.c
-libFile_a_SOURCES += fileIO.c
-libFile_a_SOURCES += fileIOPosix.c
-libFile_a_SOURCES += fileLockPrimitive.c
-libFile_a_SOURCES += fileLockPosix.c
+libFile_la_SOURCES = 
+libFile_la_SOURCES += file.c
+libFile_la_SOURCES += filePosix.c
+libFile_la_SOURCES += fileIO.c
+libFile_la_SOURCES += fileIOPosix.c
+libFile_la_SOURCES += fileLockPrimitive.c
+libFile_la_SOURCES += fileLockPosix.c
 
 AM_CFLAGS = @LIB_FILE_CPPFLAGS@

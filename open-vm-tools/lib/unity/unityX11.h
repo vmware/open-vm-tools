@@ -298,6 +298,7 @@ struct UnityPlatformWindow {
    Window rootWindow;
    int screenNumber;
    int desktopNumber;
+   int onUnmapDesktopNumber;    ///< @sa wantSetDesktopNumberOnUnmap
    UnityPlatformWindow *higherWindow;
    UnityPlatformWindow *lowerWindow;
 
@@ -317,6 +318,20 @@ struct UnityPlatformWindow {
    Bool isViewable;
    Bool wasViewable;
    Bool wantInputFocus;
+   /**
+    * Indicates we wish to force a value of _NET_CURRENT_DESKTOP across XUnmapWindow.
+    *
+    * When we unmap a window, its _NET_CURRENT_DESKTOP property is cleared.  There are
+    * some circumstances in which this behavior is undesirable.  (E.g., once we hide
+    * the KDE taskbar, it will only appear on desktop #0 after exiting Unity, as KDE
+    * doesn't automatically remap panel/dock windows as sticky windows.)
+    *
+    * Setting this flag (in combination with setting onUnmapDesktopNumber) causes
+    * us to reset the _NET_CURRENT_DESKTOP property in response to receiving its
+    * PropertyDelete.  If a PropertyNewValue arrives before the -Delete, we'll query
+    * and record the new value into onUnmapDesktopNumber (if the property exists).
+    */
+   Bool wantSetDesktopNumberOnUnmap;
 
    /*
     * Mini state-machine:

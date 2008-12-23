@@ -25,18 +25,27 @@
 #ifndef _EMBED_VERSION_H_
 #define _EMBED_VERSION_H_
 
-/* 
+/*
  * Using section attributes, embed the specified version in the "modinfo"
  * section of the ELF binary. We don't do this on Windows, where the PE format
- * already has version information stuffed inside it.
+ * already has version information stuffed inside it, nor on Mac OS X, which
+ * doesn't use ELF.
  *
  * We can't declare vm_version as static, otherwise it may get optimized out.
  * I've seen this when building with gcc 4.1, but not with 3.3.
+ *
+ * The argument to the macro should be the base name for the version number
+ * macros to embed in the final binary, as described in vm_version.h (see
+ * declaration of VM_VERSION_TO_STR).
  */
-#ifndef _WIN32
-#define VM_EMBED_VERSION(ver)                                                 \
-const char vm_version[]                                                       \
+#if !defined(_WIN32) && !defined(__APPLE__)
+
+#include "vm_version.h"
+
+#define VM_EMBED_VERSION(ver)                                    \
+const char vm_version[]                                          \
    __attribute__((section(".modinfo"), unused)) = "version=" ver
+
 #else
 #define VM_EMBED_VERSION(ver)
 #endif

@@ -112,13 +112,6 @@ struct WalkDirContextImpl
 
 
 /*
- * Local functions
- */
-
-static Bool FileIsGroupsMember(gid_t gid);
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * FileRemoveDirectory --
@@ -2447,7 +2440,74 @@ File_WalkDirectoryEnd(WalkDirContext context) // IN
 /*
  *----------------------------------------------------------------------
  *
- * File_IsWritableDir --
+ * FileIsGroupsMember --
+ *
+ *	Determine if a gid is in the gid list of the current process
+ *
+ * Results:
+ *	FALSE if error (reported to the user)
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+FileIsGroupsMember(gid_t gid)
+{
+   int nr_members;
+   gid_t *members;
+   int res;
+   int ret;
+
+   members = NULL;
+   nr_members = 0;
+   for (;;) {
+      gid_t *new;
+
+      res = getgroups(nr_members, members);
+      if (res == -1) {
+         Warning(LGPFX" %s: Couldn't getgroups\n", __FUNCTION__);
+         ret = FALSE;
+         goto end;
+      }
+
+      if (res == nr_members) {
+         break;
+      }
+
+      /* Was bug 17760 --hpreg */
+      new = realloc(members, res * sizeof *members);
+      if (new == NULL) {
+         Warning(LGPFX" %s: Couldn't realloc\n", __FUNCTION__);
+         ret = FALSE;
+         goto end;
+      }
+
+      members = new;
+      nr_members = res;
+   }
+
+   for (res = 0; res < nr_members; res++) {
+      if (members[res] == gid) {
+         ret = TRUE;
+         goto end;
+      }
+   }
+   ret = FALSE;
+
+end:
+   free(members);
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIsWritableDir --
  *
  *	Determine in a non-intrusive way if the user can create a file in a
  *	directory
@@ -2467,16 +2527,11 @@ File_WalkDirectoryEnd(WalkDirContext context) // IN
  */
 
 Bool
-File_IsWritableDir(ConstUnicode dirName)  // IN:
+FileIsWritableDir(ConstUnicode dirName)  // IN:
 {
    int err;
    uid_t euid;
    FileData fileData;
-
-   if (dirName == NULL) {
-      errno = EFAULT;
-      return FALSE;
-   }
 
    err = FileAttributes(dirName, &fileData);
 
@@ -2531,7 +2586,7 @@ FileTryDir(const char *dirName) // IN: Is this a writable directory?
    }
 
    edirName = Util_ExpandString(dirName);
-   if (edirName != NULL && File_IsWritableDir(edirName)) {
+   if (edirName != NULL && FileIsWritableDir(edirName)) {
       return edirName;
    }
    free(edirName);
@@ -2619,72 +2674,6 @@ File_GetTmpDir(Bool useConf) // IN: Use the config file?
 
 #undef HOSTINFO_TRYDIR
 
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIsGroupsMember --
- *
- *	Determine if a gid is in the gid list of the current process
- *
- * Results:
- *	FALSE if error (reported to the user)
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-FileIsGroupsMember(gid_t gid)
-{
-   int nr_members;
-   gid_t *members;
-   int res;
-   int ret;
-
-   members = NULL;
-   nr_members = 0;
-   for (;;) {
-      gid_t *new;
-
-      res = getgroups(nr_members, members);
-      if (res == -1) {
-         Warning(LGPFX" %s: Couldn't getgroups\n", __FUNCTION__);
-         ret = FALSE;
-         goto end;
-      }
-
-      if (res == nr_members) {
-         break;
-      }
-
-      /* Was bug 17760 --hpreg */
-      new = realloc(members, res * sizeof *members);
-      if (new == NULL) {
-         Warning(LGPFX" %s: Couldn't realloc\n", __FUNCTION__);
-         ret = FALSE;
-         goto end;
-      }
-
-      members = new;
-      nr_members = res;
-   }
-
-   for (res = 0; res < nr_members; res++) {
-      if (members[res] == gid) {
-         ret = TRUE;
-         goto end;
-      }
-   }
-   ret = FALSE;
-
-end:
-   free(members);
-
-   return ret;
-}
 
 /*
  *----------------------------------------------------------------------

@@ -853,6 +853,45 @@ File_SplitName(ConstUnicode pathName,  // IN:
 /*
  *---------------------------------------------------------------------------
  *
+ * File_PathJoin --
+ *
+ *      Join the dirName and baseName together to create a (full) path but
+ *      don't add a DIRSEPS unless necessary.
+ *
+ *      File_PathJoin("a", "b")  -> "a/b"
+ *      File_PathJoin("a/", "b") -> "a/b"
+ *
+ * Results: 
+ *      The constructed path which must be freed by the caller.
+ *
+ * Side effects: 
+ *      None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+Unicode
+File_PathJoin(ConstUnicode dirName,   // IN:
+              ConstUnicode baseName)  // IN:
+{
+   Unicode result;
+
+   ASSERT(dirName);
+   ASSERT(baseName);
+
+   if (Unicode_EndsWith(dirName, DIRSEPS)) {
+      result = Unicode_Append(dirName, baseName);
+   } else {
+      result = Unicode_Join(dirName, DIRSEPS, baseName, NULL);
+   }
+
+   return result;
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
  * File_GetPathName --
  *
  *      Behaves like File_SplitName by splitting the fullpath into
@@ -2093,16 +2132,18 @@ File_ExpandAndCheckDir(const char *dirName)
 
    if (dirName != NULL) {
       edirName = Util_ExpandString(dirName);
-      if (edirName != NULL) {
-	 if (File_IsWritableDir(edirName) == TRUE) {
-            if (edirName[strlen(edirName) - 1] == DIRSEPC) {
-               edirName[strlen(edirName) - 1] = '\0';
-            }
-	    return edirName;
-	 }
-	 free(edirName);
+
+      if ((edirName != NULL) && FileIsWritableDir(edirName)) {
+         size_t len = strlen(edirName) - 1;
+
+         if (edirName[len] == DIRSEPC) {
+            edirName[len] = '\0';
+         }
+
+	 return edirName;
       }
    }
+
    return NULL;
 }
 

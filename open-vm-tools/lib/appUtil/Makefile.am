@@ -15,10 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libAppUtil.a
+noinst_LTLIBRARIES = libAppUtil.la
 
-libAppUtil_a_SOURCES =
-libAppUtil_a_SOURCES += appUtil.c
-libAppUtil_a_SOURCES += appUtilX11.c
+libAppUtil_la_SOURCES =
+libAppUtil_la_SOURCES += appUtil.c
+libAppUtil_la_SOURCES += appUtilX11.c
 
 AM_CFLAGS = @GTK_CPPFLAGS@

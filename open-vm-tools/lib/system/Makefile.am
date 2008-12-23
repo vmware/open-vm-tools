@@ -15,6 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libSystem.a
+noinst_LTLIBRARIES = libSystem.la
 
-libSystem_a_SOURCES = systemLinux.c
+libSystem_la_SOURCES =
+libSystem_la_SOURCES += systemLinux.c

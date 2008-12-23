@@ -18,14 +18,14 @@
 lib_LTLIBRARIES = libguestlib.la
 
 libguestlib_la_LIBADD =
-libguestlib_la_LIBADD += ../lib/rpcOut/shared/libRpcOut.la
-libguestlib_la_LIBADD += ../lib/string/shared/libString.la
-libguestlib_la_LIBADD += ../lib/stubs/shared/libStubs.la
+libguestlib_la_LIBADD += ../lib/rpcOut/libRpcOut.la
+libguestlib_la_LIBADD += ../lib/string/libString.la
+libguestlib_la_LIBADD += ../lib/stubs/libStubs.la
 # In the absence of the linker options --start-group and --end-group (which can't
 # be put in LDADD), we need to bring the following libraries out of the alphebetical
 # order so their symbols are properly resolved.
-libguestlib_la_LIBADD += ../lib/message/shared/libMessage.la
-libguestlib_la_LIBADD += ../lib/backdoor/shared/libBackdoor.la
+libguestlib_la_LIBADD += ../lib/message/libMessage.la
+libguestlib_la_LIBADD += ../lib/backdoor/libBackdoor.la
 
 libguestlib_la_SOURCES =
 libguestlib_la_SOURCES += vmGuestLib.c

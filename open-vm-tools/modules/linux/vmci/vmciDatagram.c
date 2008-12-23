@@ -35,18 +35,20 @@
 #elif defined(SOLARIS)
 #  include <sys/ddi.h>
 #  include <sys/sunddi.h>
+#elif defined(__APPLE__)
 #else
 #  error "Platform not support by VMCI datagram API."
 #endif // linux
 
+#include "vmci_kernel_if.h"
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 #include "vmci_defs.h"
-#include "vmci_kernel_if.h"
 #include "vmci_infrastructure.h"
 #include "vmciInt.h"
 #include "vmciUtil.h"
 #include "vmciDatagram.h"
+#include "vmciCommonInt.h"
 
 typedef struct DatagramHashEntry {
    struct DatagramHashEntry  *next;

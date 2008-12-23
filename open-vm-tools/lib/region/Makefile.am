@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libRegion.a
+noinst_LTLIBRARIES = libRegion.la
 
-libRegion_a_SOURCES =
-libRegion_a_SOURCES += region.c
+libRegion_la_SOURCES =
+libRegion_la_SOURCES += region.c

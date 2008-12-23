@@ -15,15 +15,13 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libBackdoor.a
+noinst_LTLIBRARIES = libBackdoor.la
 
-libBackdoor_a_SOURCES =
-libBackdoor_a_SOURCES += backdoor.c
+libBackdoor_la_SOURCES =
+libBackdoor_la_SOURCES += backdoor.c
 if THIRTY_TWO_BIT_USERSPACE
-   libBackdoor_a_SOURCES += backdoorGcc32.c
+   libBackdoor_la_SOURCES += backdoorGcc32.c
 else
-   libBackdoor_a_SOURCES += backdoorGcc64.c
+   libBackdoor_la_SOURCES += backdoorGcc64.c
 endif
 
-SUBDIRS =
-SUBDIRS += shared

@@ -139,14 +139,14 @@ int miFindMaxBand(RegionPtr prgn);
  * the y1 to y2 area spanned by the band), then the rectangle may be broken
  * down into two or more smaller rectangles stacked one atop the other. 
  *
- *  -----------				    -----------
- *  |         |				    |         |		    band 0
- *  |         |  --------		    -----------  --------
- *  |         |  |      |  in y-x banded    |         |  |      |   band 1
- *  |         |  |      |  form is	    |         |  |      |
- *  -----------  |      |		    -----------  --------
- *               |      |				 |      |   band 2
- *               --------				 --------
+ *  -----------                              -----------
+ *  |         |                              |         |             band 0
+ *  |         |  --------                    -----------  --------
+ *  |         |  |      |  in y-x banded     |         |  |      |   band 1
+ *  |         |  |      |  form is           |         |  |      |
+ *  -----------  |      |                    -----------  --------
+ *               |      |                                 |      |   band 2
+ *               --------                                 --------
  *
  * An added constraint on the rectangles is that they must cover as much
  * horizontal area as possible: no two rectangles within a band are allowed
@@ -336,6 +336,10 @@ miPrintRegion(RegionPtr rgn)
                  rects[i].info.Present3d.sid,
                  rects[i].info.Present3d.srcx, rects[i].info.Present3d.srcy);
          break;
+      case LockRect:
+         Warning(" LockRect ");
+      case FenceRect:
+         Warning(" FenceRect fence: 0x%x", rects[i].info.Fence.fenceId);
       default:
          Warning(" UNKNOWN!");
          break;
@@ -375,6 +379,7 @@ miRectInfosEqual(RectInfo *info1,
 
    switch (info1->type) {
    case UpdateRect:
+   case LockRect:
       return TRUE;
    case ROPFillRect:
       return (info1->ROPFill.rop == info2->ROPFill.rop &&
@@ -383,6 +388,8 @@ miRectInfosEqual(RectInfo *info1,
       return (info1->Present3d.sid == info2->Present3d.sid &&
               info1->Present3d.srcx == info2->Present3d.srcx &&
               info1->Present3d.srcy == info2->Present3d.srcy);
+   case FenceRect:
+      return (info1->Fence.fenceId == info2->Fence.fenceId);
    default:
       NOT_IMPLEMENTED();
    }

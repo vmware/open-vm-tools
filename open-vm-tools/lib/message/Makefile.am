@@ -15,12 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libMessage.a
+noinst_LTLIBRARIES = libMessage.la
 
-libMessage_a_SOURCES =
-libMessage_a_SOURCES += message.c
-libMessage_a_SOURCES += messageBackdoor.c
-libMessage_a_SOURCES += messageStub.c
+libMessage_la_SOURCES =
+libMessage_la_SOURCES += message.c
+libMessage_la_SOURCES += messageBackdoor.c
+libMessage_la_SOURCES += messageStub.c
 
-SUBDIRS =
-SUBDIRS += shared

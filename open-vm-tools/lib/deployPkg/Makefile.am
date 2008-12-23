@@ -15,9 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libDeployPkg.a
+noinst_LTLIBRARIES = libDeployPkg.la
 
-libDeployPkg_a_SOURCES =
-libDeployPkg_a_SOURCES += deployPkgLog.c
-libDeployPkg_a_SOURCES += deployPkg.c
-libDeployPkg_a_SOURCES += runDeployPkgPosix.c
+libDeployPkg_la_SOURCES =
+libDeployPkg_la_SOURCES += deployPkgLog.c
+libDeployPkg_la_SOURCES += deployPkg.c
+libDeployPkg_la_SOURCES += runDeployPkgPosix.c

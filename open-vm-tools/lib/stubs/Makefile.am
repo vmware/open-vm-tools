@@ -15,15 +15,21 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libStubs.a
+noinst_LTLIBRARIES = libStubs.la
 
-libStubs_a_SOURCES =
-libStubs_a_SOURCES += stub-config.c
-libStubs_a_SOURCES += stub-log.c
-libStubs_a_SOURCES += stub-warning.c
-libStubs_a_SOURCES += stub-user-msg.c
-libStubs_a_SOURCES += stub-user-panic.c
+libStubs_la_SOURCES =
+libStubs_la_SOURCES += stub-config.c
+libStubs_la_SOURCES += stub-log.c
+libStubs_la_SOURCES += stub-warning.c
+libStubs_la_SOURCES += stub-user-msg.c
+libStubs_la_SOURCES += stub-user-panic.c
 
-SUBDIRS =
-SUBDIRS += shared
+if ENABLE_CORE_SERVICES
+noinst_LTLIBRARIES += libStubsCS.la
+
+libStubsCS_la_SOURCES =
+libStubsCS_la_SOURCES += stub-config.c
+libStubsCS_la_SOURCES += stub-user-msg.c
+libStubsCS_la_SOURCES += stub-user-panic.c
+endif
 

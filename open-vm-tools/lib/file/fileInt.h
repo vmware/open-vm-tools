@@ -233,6 +233,8 @@ EXTERN Bool FileLockValidOwner(const char *executionID,
 
 EXTERN Bool FileLockValidName(ConstUnicode fileName);
 
+EXTERN Bool FileIsWritableDir(ConstUnicode dirName);
+
 #if defined(__APPLE__)
 EXTERN int PosixFileOpener(ConstUnicode pathName,
                            int flags,

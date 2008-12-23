@@ -100,31 +100,33 @@ LoadLibNotify(void)
     * define them above, with file-level scope, and then add them to this
     * list.
     */
-   struct FuncEntry
    {
-      void **funcPtr;
-      const char *symName;
-   } vtable[] = {
-      { (void **) &notify_init, "notify_init" },
-      { (void **) &notify_uninit, "notify_uninit" },
-      { (void **) &notify_notification_show, "notify_notification_show" },
-      { (void **) &notify_notification_new_with_status_icon,
-         "notify_notification_new_with_status_icon" },
-      { (void **) &notify_notification_set_timeout,
-         "notify_notification_set_timeout" },
-      { NULL, NULL }
-   };
+      struct FuncEntry
+      {
+         void **funcPtr;
+         const char *symName;
+      } vtable[] = {
+         { (void **) &notify_init, "notify_init" },
+         { (void **) &notify_uninit, "notify_uninit" },
+         { (void **) &notify_notification_show, "notify_notification_show" },
+         { (void **) &notify_notification_new_with_status_icon,
+           "notify_notification_new_with_status_icon" },
+         { (void **) &notify_notification_set_timeout,
+           "notify_notification_set_timeout" },
+         { NULL, NULL }
+      };
 
-   /*
-    * Load each of the above symbols from libnotify, checking to make sure
-    * that they exist.
-    */
-   for (i = 0; vtable[i].funcPtr != NULL; i++) {
-      *(vtable[i].funcPtr) = dlsym(libNotifyHandle, vtable[i].symName);
-      if ( *(vtable[i].funcPtr) == NULL) {
-         Debug("Could not find %s in libnotify\n", vtable[i].symName);
-         UnloadLibNotify();
-         return FALSE;
+      /*
+       * Load each of the above symbols from libnotify, checking to make sure
+       * that they exist.
+       */
+      for (i = 0; vtable[i].funcPtr != NULL; i++) {
+         *(vtable[i].funcPtr) = dlsym(libNotifyHandle, vtable[i].symName);
+         if ( *(vtable[i].funcPtr) == NULL) {
+            Debug("Could not find %s in libnotify\n", vtable[i].symName);
+            UnloadLibNotify();
+            return FALSE;
+         }
       }
    }
 
@@ -275,12 +277,13 @@ Notify_Notify(int secs,                  // IN: Number of seconds to display
                                          // IN: The left-click callback
 {
    char *iconPath;
+   Notifier *n;
 
    if (!initialized) {
       return FALSE;
    }
 
-   Notifier *n = g_new0(Notifier, 1);
+   n = g_new0(Notifier, 1);
    iconPath = Str_Asprintf(NULL, "%s/share/icons/vmware.png", vmLibDir);
    n->statusIcon = gtk_status_icon_new_from_file(iconPath);
    gtk_status_icon_set_tooltip(n->statusIcon, shortMsg);

@@ -22,6 +22,8 @@
 # In addition to the usual environment variables and command line
 # arguments that a configure script usually takes (CFLAGS, LDFLAGS,
 # etc.), this script also accepts:
+# $CUSTOM_GLIB2_CPPFLAGS - compile-time flags to find Glib headers.
+# $CUSTOM_GLIB2_LIBS - link-time flags to find Glib libraries.
 # $CUSTOM_GTK_CPPFLAGS - compile-time flags to find Gtk headers.
 # $CUSTOM_GTK_LIBS - link-time flags to find and link the Gtk libraries.
 # $CUSTOM_PROCPS_LIBS - link-time flags to find and link the procps library.
@@ -37,7 +39,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.11.18-130226],
+   [8.0.0-137267],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -237,6 +239,37 @@ fi
 
 AC_PATH_XTRA
 
+#
+# Check for glib 2.6.0 or greater.
+# XXX: glib < 2.6 should become an error once the code that needs it is the default.
+#
+if test "$HAVE_PKG_CONFIG" = "yes"; then
+   AC_MSG_CHECKING([for glib >= 2.6.0 (via pkg-config)])
+   if pkg-config --exists 'glib-2.0 >= 2.6.0'; then
+      GLIB2_CPPFLAGS="`pkg-config --cflags glib-2.0`"
+      GLIB2_LIBS="`pkg-config --libs glib-2.0`"
+      have_glib_26="yes"
+      AC_MSG_RESULT([yes])
+  else
+      have_glib_26="no"
+      AC_MSG_RESULT([no])
+  fi
+else
+   # g_key_file_new (and related) functions were added in glib 2.6. That's the
+   # minimum version supported by the Core Services code.
+   AC_CHECK_LIB(
+      [glib-2.0],
+      [g_key_file_new],
+      [have_glib_26="yes"],
+      [AC_MSG_WARN([glib 2 is older than 2.6.0, some features will be disabled.])],
+      [$CUSTOM_GLIB2_LIBS])
+   if test "$have_glib_26" = "yes"; then
+      GLIB2_CPPFLAGS="$CUSTOM_GLIB2_CPPFLAGS"
+      GLIB2_LIBS="$CUSTOM_GLIB2_LIBS"
+   fi
+fi
+
+
 # If the user explicitly disables X11, then don't try to detect the X-related libraries
 if test "$have_x" = "disabled"; then
    enable_multimon="no"
@@ -272,6 +305,11 @@ else
 	 [AC_MSG_ERROR(
 	    [libXinerama not found. Please configure without multimon (using --disable-multimon), configure without X11 (using --without-x), or install the libXinerama devel package(s).])],
 	 [$COMMON_XLIBS])
+   else
+      if test "$enable_unity" != "no"; then
+         AC_MSG_WARN([Disabling Unity due to --disable-multimon.])
+         enable_unity="no"
+      fi
    fi
 
    AC_CHECK_LIB(
@@ -858,8 +896,11 @@ done
 CPPFLAGS="$CPPFLAGS -DVMX86_TOOLS"
 CPPFLAGS="$CPPFLAGS -DNO_CORE_ICU"
 
+BUILDDIR="`pwd`"
+
 INCLUDE_DIR="`cd $srcdir; pwd`/lib/include"
-CPPFLAGS="$CPPFLAGS -I$INCLUDE_DIR"
+BLD_INCLUDE_DIR="$BUILDDIR/lib/include"
+CPPFLAGS="$CPPFLAGS -I$INCLUDE_DIR -I$BLD_INCLUDE_DIR"
 
 ### OS/arch-specific flags / actions
 
@@ -890,6 +931,9 @@ if test "$os" = "linux"; then
    fi
    if test "$osVersion" -ge 206006; then
       MODULES="$MODULES vmsync"
+   fi
+   if test "$osVersion" -ge 206008; then
+      MODULES="$MODULES pvscsi"
    fi
 fi
 
@@ -940,6 +984,7 @@ AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
+AM_CONDITIONAL(ENABLE_CORE_SERVICES, test "$have_glib_26" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible
@@ -978,6 +1023,11 @@ if test "$HAVE_WCHAR_H" = "yes"; then
    LIB_STRING_CPPFLAGS="$LIB_STRING_CPPFLAGS -DGLIBC_VERSION_22"
 fi
 
+### Core Services definitions.
+
+VMTOOLS_LIBS="$BUILDDIR/libvmtools/libvmtools.la"
+VMTOOLS_CPPFLAGS="-DVMTOOLS_USE_GLIB $GLIB2_CPPFLAGS"
+
 ### General substs
 
 AC_SUBST([TARGET_OS])
@@ -986,6 +1036,8 @@ AC_SUBST([MODULES_OS])
 AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
 AC_SUBST([COMMON_XLIBS])
+AC_SUBST([GLIB2_CPPFLAGS])
+AC_SUBST([GLIB2_LIBS])
 AC_SUBST([GTK_CPPFLAGS])
 AC_SUBST([GTK_LIBS])
 AC_SUBST([DNET_CPPFLAGS])
@@ -998,6 +1050,8 @@ AC_SUBST([URIPARSER_CPPFLAGS])
 AC_SUBST([URIPARSER_LIBS])
 AC_SUBST([LIBPNG_CPPFLAGS])
 AC_SUBST([LIBPNG_LIBS])
+AC_SUBST([VMTOOLS_CPPFLAGS])
+AC_SUBST([VMTOOLS_LIBS])
 AC_SUBST([ZLIB_CPPFLAGS])
 AC_SUBST([ZLIB_LIBS])
 
@@ -1011,6 +1065,9 @@ AC_SUBST([LIB_MISC_CPPFLAGS])
 AC_SUBST([LIB_PROC_MGR_CPPFLAGS])
 AC_SUBST([LIB_STRING_CPPFLAGS])
 AC_SUBST([LIB_USER_CPPFLAGS])
+
+LIBVMTOOLS_LIBADD="$GUESTD_LDADD"
+AC_SUBST([LIBVMTOOLS_LIBADD])
 
 ### Program substs
 
@@ -1028,7 +1085,6 @@ AC_CONFIG_FILES([                      \
    lib/appUtil/Makefile                \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
-   lib/backdoor/shared/Makefile        \
    lib/conf/Makefile                   \
    lib/dict/Makefile                   \
    lib/dnd/Makefile                    \
@@ -1051,9 +1107,7 @@ AC_CONFIG_FILES([                      \
    lib/image/Makefile                  \
    lib/impersonate/Makefile            \
    lib/message/Makefile                \
-   lib/message/shared/Makefile         \
    lib/misc/Makefile                   \
-   lib/misc/shared/Makefile            \
    lib/netUtil/Makefile                \
    lib/panic/Makefile                  \
    lib/panicDefault/Makefile           \
@@ -1064,16 +1118,12 @@ AC_CONFIG_FILES([                      \
    lib/resolution/Makefile             \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
-   lib/rpcOut/shared/Makefile          \
    lib/rpcVmx/Makefile                 \
    lib/SLPv2Parser/Makefile            \
    lib/socketMgr/Makefile              \
    lib/string/Makefile                 \
-   lib/string/shared/Makefile          \
    lib/stubs/Makefile                  \
-   lib/stubs/shared/Makefile           \
    lib/sync/Makefile                   \
-   lib/sync/shared/Makefile            \
    lib/syncDriver/Makefile             \
    lib/system/Makefile                 \
    lib/toolsLogger/Makefile            \
@@ -1095,6 +1145,7 @@ AC_CONFIG_FILES([                      \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
    libguestlib/Makefile                \
+   libvmtools/Makefile                 \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    scripts/Makefile		       \

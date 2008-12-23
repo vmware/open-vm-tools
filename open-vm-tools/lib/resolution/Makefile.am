@@ -15,13 +15,13 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libResolution.a
+noinst_LTLIBRARIES = libResolution.la
 
 AM_CPPFLAGS =
 AM_CPPFLAGS += -DRESOLUTION_X11
 AM_CPPFLAGS += @GTK_CPPFLAGS@
 
-libResolution_a_SOURCES =
-libResolution_a_SOURCES += resolution.c
-libResolution_a_SOURCES += resolutionX11.c
-libResolution_a_SOURCES += libvmwarectrl.c
+libResolution_la_SOURCES =
+libResolution_la_SOURCES += resolution.c
+libResolution_la_SOURCES += resolutionX11.c
+libResolution_la_SOURCES += libvmwarectrl.c

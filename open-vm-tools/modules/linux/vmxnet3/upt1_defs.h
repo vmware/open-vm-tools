@@ -19,6 +19,10 @@
 /* upt1_defs.h
  *
  *      Definitions for UPTv1
+ *
+ *      Some of the defs are duplicated in vmkapi_net_upt.h, because
+ *      vmkapi_net_upt.h cannot distribute with OSS yet and vmkapi headers can
+ *      only include vmkapi headers. Make sure they are kept in sync!
  */
 
 #ifndef _UPT1_DEFS_H
@@ -28,20 +32,6 @@
 #define UPT1_MAX_RX_QUEUES  64
 
 #define UPT1_MAX_INTRS  (UPT1_MAX_TX_QUEUES + UPT1_MAX_RX_QUEUES)
-
-typedef
-#include "vmware_pack_begin.h"
-struct UPT1_RingDesc {
-   uint64 basePA;    /* physical addr of the ring */
-   uint16 size;      /* # of descriptors */
-   uint16 prodIdx;   /* index of the descriptor the producer of the ring 
-                      * will write to next */
-   uint16 consIdx;   /* index of the descriptor the consumer of the ring 
-                      * will read next */
-   uint16 pad;
-}
-#include "vmware_pack_end.h"
-UPT1_RingDesc;
 
 typedef
 #include "vmware_pack_begin.h"
@@ -62,22 +52,6 @@ UPT1_TxStats;
 
 typedef
 #include "vmware_pack_begin.h"
-struct UPT1_TxQueueState {
-   UPT1_RingDesc txRing;
-   UPT1_RingDesc dataRing;
-   UPT1_RingDesc compRing;
-   uint8         tcGen;    /* value of the TCGEN register */
-   uint8         intrIdx;  /* which MSI/MSI-X vector to use for the tx queue */
-   Bool          stopped;  /* is the queue stopped? */
-   uint8         pad;
-   uint32        error;    /* error code if the queue is stopped due to error */
-   UPT1_TxStats  stats;    /* stats for the tx queue */
-}
-#include "vmware_pack_end.h"
-UPT1_TxQueueState;
-
-typedef
-#include "vmware_pack_begin.h"
 struct UPT1_RxStats {
    uint64 LROPktsRxOK;    /* LRO pkts */
    uint64 LROBytesRxOK;   /* bytes from LRO pkts */
@@ -94,39 +68,10 @@ struct UPT1_RxStats {
 #include "vmware_pack_end.h"
 UPT1_RxStats;
 
-typedef
-#include "vmware_pack_begin.h"
-struct UPT1_RxQueueState {
-   UPT1_RingDesc rxRing[2];
-   UPT1_RingDesc compRing;
-   uint8         rcGen;     /* value of the RCGEN register */
-   uint8         intrIdx;   /* which MSI/MSI-X vector to use for the rx queue */
-   Bool          stopped;   /* is the queue stopped? */
-   uint8         pad;
-   uint32        error;     /* error code if the queue is stopped due to error */
-   UPT1_RxStats  stats;     /* stats for the rx queue */
-}
-#include "vmware_pack_end.h"
-UPT1_RxQueueState;
-
-/* physical dev intr type */
-typedef enum {
-   UPT1_IT_MSI = 1,
-   UPT1_IT_MSIX
-} UPT1_IntrType;
-
 /* interrupt moderation level */
 #define UPT1_IML_NONE     0 /* no interrupt moderation */
 #define UPT1_IML_HIGHEST  7 /* least intr generated */
 #define UPT1_IML_ADAPTIVE 8 /* adpative intr moderation */
-
-typedef struct UPT1_IntrState {
-   UPT1_IntrType type;
-   Bool  autoMask;
-   uint8 numIntrs;      /* # of MSI/MSI-X vectors allocated */
-   uint8 *modLevels;    /* interrupt moderation level */
-   uint8 *imr;          /* IMR register values */
-} UPT1_IntrState;
 
 /* values for UPT1_RSSConf.hashFunc */
 #define UPT1_RSS_HASH_TYPE_NONE      0x0

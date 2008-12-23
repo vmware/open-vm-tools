@@ -3,10 +3,13 @@ all: modules
 .PHONY: modules $(MODULES)
 modules: $(MODULES)
 
+modulesrc = $(top_srcdir)/modules
+
 $(MODULES):
-	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) -C "$(MODULES_OS)/$@"
+	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) -C "$(modulesrc)/$(MODULES_OS)/$@"
 
 if LINUX
+export pvscsidir := $(MODULES_DIR)/drivers/scsi
 export vmblockdir := $(MODULES_DIR)/fs/vmblock
 export vmcidir := $(MODULES_DIR)/drivers/misc
 export vmhgfsdir := $(MODULES_DIR)/fs/vmhgfs
@@ -30,19 +33,22 @@ endif FREEBSD
 
 ## Automake will supplement its own "clean" targets with this.
 clean-local:
-	for MOD in $(MODULES); do \
-	   $(MAKE) -C "$(MODULES_OS)/$$MOD" clean || exit 1; \
+	for MOD in $(MODULES); do 															\
+	   if [ -d "$(modulesrc)/$(MODULES_OS)/$$MOD" ]; then						\
+	      $(MAKE) -C "$(modulesrc)/$(MODULES_OS)/$$MOD" clean || exit 1; \
+	   fi																						\
 	done
-	$(RM) -f $(MODULES_OS)/*.o $(MODULES_OS)/*.ko
+	$(RM) -f $(modulesrc)/$(MODULES_OS)/*.o $(modulesrc)/$(MODULES_OS)/*.ko
 
 install-exec-hook:
-	for MOD in $(MODULES); do \
-		$(INSTALL) -d $(DESTDIR)`eval echo '$$'$${MOD}dir`; \
-		$(INSTALL) -m644 $(MODULES_OS)/$$MOD/$$MOD.ko $(DESTDIR)`eval echo '$$'$${MOD}dir`; \
+	for MOD in $(MODULES); do 													\
+	   $(INSTALL) -d $(DESTDIR)`eval echo '$$'$${MOD}dir`; 			\
+	   $(INSTALL) -m644 $(modulesrc)/$(MODULES_OS)/$$MOD/$$MOD.ko	\
+	      $(DESTDIR)`eval echo '$$'$${MOD}dir`; 							\
 	done
 	eval "$$DEPMOD"
 uninstall-hook:
 	for MOD in $(MODULES); do \
-		$(RM) -f $(DESTDIR)`eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null; \
+	   $(RM) -f $(DESTDIR)`eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null; \
 	done
 	eval "$$DEPMOD"

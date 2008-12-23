@@ -81,6 +81,7 @@ DynBuf_Destroy(DynBuf *b) // IN
 
    free(b->data);
    b->data = NULL;
+   b->allocated = 0;
 }
 
 
@@ -164,6 +165,7 @@ DynBuf_Attach(DynBuf *b,    // IN
               void *data)   // IN
 {
    ASSERT(b);
+   ASSERT((size == 0) == (data == NULL));
 
    free(b->data);
    b->data = data;
@@ -197,6 +199,7 @@ DynBuf_Detach(DynBuf *b) // IN
 
    data = b->data;
    b->data = NULL;
+   b->allocated = 0;
 
    return data;
 }
@@ -227,10 +230,24 @@ DynBufRealloc(DynBuf *b,            // IN
 
    ASSERT(b);
 
-   new_data = realloc(b->data, new_allocated);
-   if (new_data == NULL) {
-      /* Not enough memory */
-      return FALSE;
+   if (b->data != NULL && new_allocated != 0) {
+      new_data = realloc(b->data, new_allocated);
+      if (new_data == NULL) {
+         /* Not enough memory */
+         return FALSE;
+      }
+   } else {
+      free(b->data);
+      if (new_allocated != 0) {
+         new_data = malloc(new_allocated);
+         if (new_data == NULL) {
+            /* Not enough memory */
+            return FALSE;
+         }
+      } else {
+         /* We now have no buffer. */
+         new_data = NULL;
+      }
    }
 
    b->data = new_data;

@@ -15,13 +15,12 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libGhIntegration.a
+noinst_LTLIBRARIES = libGhIntegration.la
 
-libGhIntegration_a_SOURCES =
-libGhIntegration_a_SOURCES += ghIntegration.c
-libGhIntegration_a_SOURCES += ghIntegrationX11.c
+libGhIntegration_la_SOURCES =
+libGhIntegration_la_SOURCES += ghIntegration.c
+libGhIntegration_la_SOURCES += ghIntegrationX11.c
 
 AM_CFLAGS = @GTK_CPPFLAGS@
 AM_CFLAGS += @URIPARSER_CPPFLAGS@
 AM_CFLAGS += @LIB_FILE_CPPFLAGS@
-AM_CFLAGS += -I$(top_builddir)/include

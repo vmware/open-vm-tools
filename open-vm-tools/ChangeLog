@@ -1,3 +1,74 @@
+2008-11-23  Marcelo Vanzin  <mvanzin@vmware.com>
+	* Resync with internal trunk (2008.12.19)
+
+	* configure.ac, */Makefile.am: standardize on using libtool archives for
+	  the libraries. This also means several makefiles were removed, since
+	  there's no need to build two archives of the same library anymore.
+
+	* configure.ac: add logic to detect glib 2.6; this is the minimum version
+	  required by the "Core Services" project. Currently it's an optional
+	  dependency.
+
+	* configure.ac: disable Unity when user specifies --disable-multimon.
+
+	* configure.ac: actually build the pvscsi modules if the detected kernel
+	  version supports it.
+
+	* configure.ac, Makefile.am, lib/guestInfo/Makefile.am,
+	  lib/stubs/Makefile.am, libvmtools/*, lib/include/vmtools.h: add the
+	  "vmtools" shared library used in the "Core Services" project. The library
+	  is a collection of a lot of other libraries used by most VMware Tools
+	  programs, and adds some functionality on top of glib that is used in the
+	  "Core Services" project. Currently no other components from that project
+	  are available as part of open-vm-tools.
+
+	* lib/deployPkg/deployPkgLog.h, lib/deployPkg/toolsDeployPkg.h: moved private
+	  headers out of the public header directory.
+
+	* lib/guestRpc/Makefile.am, modules/Makefile.am: fix the makefiles so that
+	  it's possible to build open-vm-tools from a directory different from the
+	  source dir.
+
+	* lib/hgfsServer/hgfsServer.c: changes to support aliases on Mac OS hosts.
+
+	* lib/hgfsServer/hgfsServerLinux.c: changes to map Windows attributes to
+	  Mac OS FileInfo.
+
+	* lib/include/circList.h: removed unused file.
+
+	* lib/include/unityCommon.h, lib/unity/unity.c: changes to add documentation
+	  to various application RPCs used in Tools.
+
+	* lib/misc/posixPosix.c, toolbox/toolboxScripts.c: fix include path for
+	  syslimits.h on FreeBSD.
+
+	* lib/unity/unityPlatformX11.c: better detection of the guest's work area
+	  boundaries; fixes a problem when dragging a Window in Unity mode with
+	  the host's task bar on the left/right of screen would result in weird
+	  behavior.
+
+	* lib/unity/unityPlatformX11Settings.c, lib/unity/unityPlatformX11Window.c,
+	  lib/unity/unityX11.h: preserve the _NET_WM_DESKTOP setting when hiding
+	  windows; this fixes a problem where hiding a panel and later restoring it
+	  would result in the wrong _NET_WM_DESKTOP property being set for the panel,
+	  causing it to only display on the first virtual desktop.
+
+	* modules/linux/vmci/*: minor changes related to internal development of the
+	  Mac OS drivers.
+
+	* modules/linux/vmhgfs/page.c: fix HGFS driver for kernel 2.6.28.
+
+	* modules/linux/vsock/linux/af_vsock.c: added code to gather some performance
+	  statistics for the driver.
+
+	* toolbox/toolbox-gtk.c: a few fixes to the help functionality.
+
+	* vmware-user/vmware-user.c, vmware-user-suid-wrapper/main.c: change the
+	  "blockFd" argument to have an extra dash so it follows the convention of
+	  common command line parsing libraries.
+
+	* Other bug fixes and changes in shared code that don't affect open-vm-tools.
+
 2008-11-18  Marcelo Vanzin  <mvanzin@vmware.com>
 	* Resync with internal trunk (2008.11.14)
 

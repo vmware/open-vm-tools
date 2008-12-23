@@ -15,10 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libImage.a
+noinst_LTLIBRARIES = libImage.la
 
-libImage_a_SOURCES =
-libImage_a_SOURCES += imageUtilPng.c
+libImage_la_SOURCES =
+libImage_la_SOURCES += imageUtilPng.c
 
 AM_CFLAGS =
 AM_CFLAGS += @LIBPNG_CPPFLAGS@

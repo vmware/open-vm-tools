@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libPrinter.a
+noinst_LTLIBRARIES = libPrinter.la
 
-libPrinter_a_SOURCES =
-libPrinter_a_SOURCES += printer.c
+libPrinter_la_SOURCES =
+libPrinter_la_SOURCES += printer.c

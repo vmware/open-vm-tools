@@ -79,6 +79,7 @@ EXTERN int Str_Snprintf(char *buf, size_t len,
 			const char *fmt, ...) PRINTF_DECL(3, 4);
 EXTERN int Str_Vsnprintf(char *buf, size_t len,
 			 const char *fmt, va_list args);
+EXTERN size_t Str_Strlen(const char *src, size_t maxLen);
 EXTERN char *Str_Strnstr(const char *src, const char *sub, size_t n);
 EXTERN char *Str_Strcpy(char *dst, const char *src, size_t maxLen);
 EXTERN char *Str_Strcat(char *dst, const char *src, size_t maxLen);

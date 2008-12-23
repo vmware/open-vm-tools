@@ -31,23 +31,11 @@
 #include "vmci_defs.h"
 #include "vmci_kernel_if.h"
 #include "vmci_infrastructure.h"
-#include "circList.h"
 #include "vmciGuestKernelAPI.h"
 #include "vmci_iocontrols.h"
 
-typedef struct DatagramQueueEntry {
-   ListItem listItem; /* For queuing. */
-   VMCIDatagram *dg;  /* Pending datagram. */
-} DatagramQueueEntry;
-
-typedef struct VMCIDatagramProcess {
-   VMCILock   datagramQueueLock;
-   VMCIHandle handle;
-   VMCIHost   host;
-   uint32     pendingDatagrams;
-   size_t     datagramQueueSize;
-   ListItem   *datagramQueue;
-} VMCIDatagramProcess;
+typedef struct DatagramQueueEntry DatagramQueueEntry;
+typedef struct VMCIDatagramProcess VMCIDatagramProcess;
 
 void VMCIDatagram_Init(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);

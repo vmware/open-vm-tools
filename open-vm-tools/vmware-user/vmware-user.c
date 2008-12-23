@@ -76,7 +76,7 @@ static char THIS_FILE[] = __FILE__;
 #define INVALID_VALUE "Invalid option"
 #define INVALID_OPTION "Invalid value"
 #define INVALID_COMMAND "Invalid command format"
-#define OPTION_BLOCK_FD "-blockFd"
+#define OPTION_BLOCK_FD "--blockFd"
 
 /*
  * Forward Declarations
@@ -701,6 +701,14 @@ VMwareUserConfFileLoop(void *clientData) // IN
 int
 main(int argc, char *argv[])
 {
+   struct sigaction olds[ARRAYSIZE(gSignals)];
+   int index;
+   GuestApp_Dict *confDict;
+   const char *pathName;
+#ifdef USE_NOTIFY
+   Bool notifyPresent = TRUE;
+#endif
+
    gOpenUrlRegistered = FALSE;
    gDnDRegistered = FALSE;
    gCopyPasteRegistered = FALSE;
@@ -709,13 +717,6 @@ main(int argc, char *argv[])
    gReloadSelf = FALSE;
    gYieldBlock = FALSE;
    gSigExit = FALSE;
-   struct sigaction olds[ARRAYSIZE(gSignals)];
-   int index;
-   GuestApp_Dict *confDict;
-   const char *pathName;
-#ifdef USE_NOTIFY
-   Bool notifyPresent = TRUE;
-#endif
 
    Atomic_Init();
 

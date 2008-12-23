@@ -435,7 +435,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
    dg = (VMCIDatagram *)dgInBuffer; 
    remainingBytes = currentDgInBufferSize;
    
-   while (dg->dst.resource != VMCI_ERROR_INVALID_RESOURCE || remainingBytes > PAGE_SIZE) {
+   while (dg->dst.resource != VMCI_INVALID_ID || remainingBytes > PAGE_SIZE) {
       unsigned dgInSize;
       
       /*
@@ -443,7 +443,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
        * start on any page boundary in the buffer. 
        */
 
-      if (dg->dst.resource == VMCI_ERROR_INVALID_RESOURCE) {
+      if (dg->dst.resource == VMCI_INVALID_ID) {
          ASSERT(remainingBytes > PAGE_SIZE);
          dg = (VMCIDatagram *)ROUNDUP((uintptr_t)dg + 1, PAGE_SIZE);
          ASSERT((uint8 *)dg < dgInBuffer + currentDgInBufferSize);

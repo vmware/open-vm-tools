@@ -116,6 +116,7 @@
    LOGLEVEL_VAR(mksHostOps), \
    LOGLEVEL_VAR(mksGLManager), \
    LOGLEVEL_VAR(mksGLShader), \
+   LOGLEVEL_VAR(vdpPlugin), \
    \
    /* user/sound */ \
    LOGLEVEL_VAR(sound), \
@@ -190,13 +191,14 @@
    LOGLEVEL_VAR(worker), \
    LOGLEVEL_VAR(duiDevices), \
    LOGLEVEL_VAR(duiProxyApps), \
+   LOGLEVEL_VAR(docker), \
    LOGLEVEL_VAR(uwt), /* lib/unityWindowTracker */ \
    LOGLEVEL_VAR(cui), \
    LOGLEVEL_VAR(automation), \
    LOGLEVEL_VAR(oemDevice), \
    LOGLEVEL_VAR(cptOps), \
    LOGLEVEL_VAR(VProbeExec), \
-   LOGLEVEL_VAR(VProbeVP), \
+   LOGLEVEL_VAR(VP), \
    LOGLEVEL_VAR(device), \
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(vmxvmdbCallbacks), \

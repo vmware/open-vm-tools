@@ -15,10 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libFoundryMsg.a
+noinst_LTLIBRARIES = libFoundryMsg.la
 
-libFoundryMsg_a_SOURCES =
-libFoundryMsg_a_SOURCES += foundryMsg.c
-libFoundryMsg_a_SOURCES += foundryThreads.c
-libFoundryMsg_a_SOURCES += foundryPropertyListCommon.c
-libFoundryMsg_a_SOURCES += vixTranslateErrOpenSource.c
+libFoundryMsg_la_SOURCES =
+libFoundryMsg_la_SOURCES += foundryMsg.c
+libFoundryMsg_la_SOURCES += foundryThreads.c
+libFoundryMsg_la_SOURCES += foundryPropertyListCommon.c
+libFoundryMsg_la_SOURCES += vixTranslateErrOpenSource.c

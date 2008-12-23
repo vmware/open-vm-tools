@@ -30,6 +30,13 @@
 #include "guiddef.h"
 #endif
 
+/* LSILogic 53C1030 Parallel SCSI controller
+ * LSILogic SAS1068 SAS controller
+ */
+#define PCI_VENDOR_ID_LSILOGIC          0x1000
+#define PCI_DEVICE_ID_LSI53C1030        0x0030
+#define PCI_DEVICE_ID_LSISAS1068        0x0054
+
 /* Our own PCI IDs
  *    VMware SVGA II (Unified VGA)
  *    VMware SVGA (PCI Accelerator)

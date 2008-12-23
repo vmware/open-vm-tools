@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libToolsLogger.a
+noinst_LTLIBRARIES = libToolsLogger.la
 
-libToolsLogger_a_SOURCES =
-libToolsLogger_a_SOURCES += logger.c
+libToolsLogger_la_SOURCES =
+libToolsLogger_la_SOURCES += logger.c

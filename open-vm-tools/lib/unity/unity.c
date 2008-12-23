@@ -16,88 +16,25 @@
  *
  *********************************************************/
 
-/*
- * Unity.c --
+/**
+ * @file unity.c
  *
- *    Unity window manager intergration tools service.
+ *    Unity: Guest window manager integration service.
  *
- *    RPC Usage:
- *       unity.get.update [incremental]
+ * This file implements the guest-side Unity agent as part of the VMware Tools.
+ * It contains entry points for embedding within the VMware Tools User Agent and
+ * handles the GuestRpc (TCLO) interface.
  *
- *    The tools service response to requests for windows events via the
- *    "unity.get.update" RPC from the host.  Upon receiving the RPC, the
- *    service will crawl the window manager, taking note of the positions,
- *    window regions, etc for every window in the system.  The service
- *    will reply describing the current state.
+ * UnityWindowTracker updates are sent to the MKS in two ways:
+ *    @li @ref UNITY_RPC_GET_UPDATE GuestRpc (host-to-guest).
+ *    @li @ref UNITY_RPC_PUSH_UPDATE_CMD GuestRpc (guest-to-host).
  *
- *    If the intial request included the "incremental" argument, a list
- *    of all the changes to the windowing system  since the last
- *    unity.get.update request will be sent (e.g. if a window moves
- *    or has been destroyed).
+ * @note Looking for the old "unity.get.update" return syntax?  See @ref
+ * UNITY_RPC_GET_UPDATE and @ref UnityGetUpdateReturn instead.
  *
- *    If the "incremental" argument is not present, the entire state
- *    of the windowing system is returned.
- *
- *    The reply to the RPC is a double null terminated list of null
- *    terminated strings.  Each string in the list has one of the following
- *    formats:
- *
- *     add <windowid>
- *        A window with the specified integer windowid has just been
- *        created.
- *
- *     remove <windowid>
- *        The window with integer windowid has been removed.  Get rid of it.
- *
- *     move <windowid> <x1> <y1> <x2> <y2>
- *        The window with specified integer windowid has moved or resized
- *        such that its top left corner rests at x1,y1 and its bottom right
- *        at x2,y2.
- *
- *     region <windowid> <numrects>
- *        The window with specified windowid has a not-rectangular window
- *        region (e.g. the curved corner windows in Windows XP).  Immediately,
- *        after this messages are numrects messages with the following format:
- *
- *        rect <x1> <y1> <x2> <y2>
- *            Defines a rectangle in the coordinate system of the window
- *            for this region (not the coordinate system of the desktop!!)
- *
- *        The actual window region is the union of all the rectangles in the
- *        list.  A value of 0 for numrects indicates that the window region
- *        should be ignored (i.e. the window region is identical to the
- *        bounds of the window).
- *
- *     title <windowid> <title>
- *        A window with the specified integer windowid has just changed its
- *        title.
- *
- *     zorder <num windows> <window id 1> <window id 2> ... <window id n>
- *        Z order of windows from top to bottom(or front to rear)
- *
- *     attr <windowid> <attr> <enabled>
- *        The window with specified windowid has an attribute enabled/disabled.
- *
- *     type <windowid> <type>
- *        The window with specified windowid is of a certain type
- *
- *     icon <windowid> <icontype>
- *        The window with specified windowid has changed an icon of the specified
- *        type.
- *
- *     desktop <windowid> <desktopid>
- *        The window with specified windowid has been moved to a different desktop.
- *
- *     activedesktop <desktopid>
- *        The desktop with specified desktopid has become active.
- *
- *     The guest is also capable of pushing incremental updates to the VMX.
- *     When we enter Unity (upon getting "unity.enter" command from the VMX),
- *     start a separate Unity window update thread. This thread will gather
- *     window updates from the guest, and send them to the VMX (if there are
- *     any updates to be sent).
- *     The incremental updates will be sent using 'tools.unity.push.update' command.
- *
+ * @sa
+ *    @li UnityRpcHG
+ *    @li UnityRpcGH
  */
 
 #include "vmware.h"
@@ -730,10 +667,15 @@ UnityTcloExit(char const **result,     // OUT
 /*
  *----------------------------------------------------------------------------
  *
- * UnityTcloGetWindowInfo --
+ * UnityTcloGetWindowPath --
  *
- *     RPC handler for 'unity.get.window.info'. Get required window info
- *     and send it back to the VMX.
+ *      RPC handler for UNITY_RPC_GET_WINDOW_PATH.
+ *
+ *      Get the information needed to re-launch a window and retrieve further
+ *      information on it.  Returns double-NUL-terminated buffer consisting of
+ *      NUL-terminated strings "windowPath" and "execPath" strings, the first
+ *      uniquely identifying the window and the second uniquely identifying the
+ *      window's owning executable.
  *
  * Results:
  *     TRUE if everything is successful.

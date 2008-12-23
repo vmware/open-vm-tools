@@ -1511,7 +1511,6 @@ GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific 
 {
 #ifdef GTK2
    char temp[64];
-   ASSERT(ghip);
    GHIMenuHandle *gmh;
    int itemCount = 0;
    Bool retval = FALSE;
@@ -2716,6 +2715,10 @@ GHIRestoreVMwareEnviron(GHIPlatform *ghip) // IN
    }
 
    for (p = environ; p && *p; p++) {
+      char *lhs;
+      char *rhs;
+      unsigned int index;
+
       if (!StrUtil_StartsWith(*p, "VMWARE_")) {
          continue;
       }
@@ -2732,10 +2735,6 @@ GHIRestoreVMwareEnviron(GHIPlatform *ghip) // IN
        * the variable name, and extract the rhs of the "=" to get the
        * value.
        */
-      char *lhs;
-      char *rhs;
-      unsigned int index;
-
       index = 0;
       lhs = StrUtil_GetNextToken(&index, *p, "=");
       if (lhs) {

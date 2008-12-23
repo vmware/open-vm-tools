@@ -118,7 +118,7 @@
 #if defined(VMX86_DESKTOP)
    #define PRODUCT_VERSION    6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_TOOLS)
-   #define PRODUCT_VERSION    TOOLS_VERSION_CURRENT_CSV,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
@@ -236,6 +236,7 @@
 #define PLAYER_VERSION "e.x.p"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
+#define FUSION_VERSION "2.0"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "4.0.0"
@@ -274,12 +275,9 @@
         VMRC_PLUGIN_VERSION_MAJOR,VMRC_PLUGIN_VERSION_MINOR,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
- * When setting the Tools product version, please use the string corresponding
- * to TOOLS_VERSION_CURRENT_STR from vm_tools_version.h.
- *
- * XXX: The extract-macro script should be updated to handle this special case.
+ * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
-#define TOOLS_VERSION "2008.11.18"
+#define TOOLS_VERSION "2008.12.23"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

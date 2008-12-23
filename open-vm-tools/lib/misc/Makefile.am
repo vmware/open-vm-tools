@@ -15,36 +15,34 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libMisc.a
+noinst_LTLIBRARIES = libMisc.la
 
-libMisc_a_SOURCES =
-libMisc_a_SOURCES += atomic.c
-libMisc_a_SOURCES += base64.c
-libMisc_a_SOURCES += codesetOld.c
-libMisc_a_SOURCES += dbllnklst.c
-libMisc_a_SOURCES += dynarray.c
-libMisc_a_SOURCES += dynbuf.c
-libMisc_a_SOURCES += escape.c
-libMisc_a_SOURCES += hashTable.c
-libMisc_a_SOURCES += hostinfo_misc.c
-libMisc_a_SOURCES += hostname.c
-libMisc_a_SOURCES += idLinux.c
-libMisc_a_SOURCES += iovector.c
-libMisc_a_SOURCES += machineID.c
-libMisc_a_SOURCES += miscSolaris.c
-libMisc_a_SOURCES += posixDlopen.c
-libMisc_a_SOURCES += posixPosix.c
-libMisc_a_SOURCES += random.c
-libMisc_a_SOURCES += timeutil.c
-libMisc_a_SOURCES += util_misc.c
-libMisc_a_SOURCES += vmstdio.c
-libMisc_a_SOURCES += strutil.c
+libMisc_la_SOURCES =
+libMisc_la_SOURCES += atomic.c
+libMisc_la_SOURCES += base64.c
+libMisc_la_SOURCES += codesetOld.c
+libMisc_la_SOURCES += dbllnklst.c
+libMisc_la_SOURCES += dynarray.c
+libMisc_la_SOURCES += dynbuf.c
+libMisc_la_SOURCES += escape.c
+libMisc_la_SOURCES += hashTable.c
+libMisc_la_SOURCES += hostinfo_misc.c
+libMisc_la_SOURCES += hostname.c
+libMisc_la_SOURCES += idLinux.c
+libMisc_la_SOURCES += iovector.c
+libMisc_la_SOURCES += machineID.c
+libMisc_la_SOURCES += miscSolaris.c
+libMisc_la_SOURCES += posixDlopen.c
+libMisc_la_SOURCES += posixPosix.c
+libMisc_la_SOURCES += random.c
+libMisc_la_SOURCES += timeutil.c
+libMisc_la_SOURCES += util_misc.c
+libMisc_la_SOURCES += vmstdio.c
+libMisc_la_SOURCES += strutil.c
 
 if HAVE_ICU
-libMisc_a_SOURCES += codeset.c
+libMisc_la_SOURCES += codeset.c
 endif
 
 AM_CFLAGS = @LIB_MISC_CPPFLAGS@
 
-SUBDIRS =
-SUBDIRS += shared

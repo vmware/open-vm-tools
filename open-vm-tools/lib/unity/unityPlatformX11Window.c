@@ -77,6 +77,9 @@ static void UPWindowSetWindows(UnityPlatform *up,
                                UnityPlatformWindow *upw,
                                Window toplevelWindow,
                                Window clientWindow);
+static void UPWindowSetEWMHDesktop(UnityPlatform *up,
+                                   UnityPlatformWindow *upw,
+                                   uint32 ewmhDesktopId);
 
 
 #ifdef VMX86_DEVEL
@@ -1036,6 +1039,12 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
                   return;
                }
             } else if (event->atom == up->atoms._NET_WM_DESKTOP) {
+               if (upw->wantSetDesktopNumberOnUnmap &&
+                   event->state == PropertyDelete) {
+                  UPWindowSetEWMHDesktop(up, upw, upw->onUnmapDesktopNumber);
+                  upw->wantSetDesktopNumberOnUnmap = FALSE;
+                  return;
+               }
                regetDesktop = TRUE;
             } else if (event->atom != up->atoms._NET_WM_WINDOW_TYPE) {
                return;
@@ -1064,6 +1073,10 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
          break;
 
       case MapNotify:
+         if (upw->wantSetDesktopNumberOnUnmap) {
+            Debug("%s: Expected PropertyDelete before MapNotify.\n", __func__);
+            upw->wantSetDesktopNumberOnUnmap = FALSE;
+         }
          regetDesktop = TRUE;
          break;
 
@@ -1120,6 +1133,10 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
       if (regetDesktop) {
          if (!UPWindowGetDesktop(up, upw, &upw->desktopNumber)) {
             upw->desktopNumber = -1;
+         } else {
+            if (upw->wantSetDesktopNumberOnUnmap) {
+               upw->onUnmapDesktopNumber = upw->desktopNumber;
+            }
          }
       }
       if (upw->desktopNumber < up->desktopInfo.numDesktops
@@ -3703,7 +3720,6 @@ UnityPlatformSetWindowDesktop(UnityPlatform *up,         // IN
                               UnityDesktopId desktopId)  // IN
 {
    UnityPlatformWindow *upw;
-   Atom data[5] = {0, 0, 0, 0, 0};
    uint32 guestDesktopId;
 
    ASSERT(up);
@@ -3727,8 +3743,44 @@ UnityPlatformSetWindowDesktop(UnityPlatform *up,         // IN
    ASSERT(desktopId < up->desktopInfo.numDesktops);
    guestDesktopId = up->desktopInfo.unityDesktopToGuest[desktopId];
 
+   UPWindowSetEWMHDesktop(up, upw, guestDesktopId);
+
+   return TRUE;
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UPWindowSetEWMHDesktop --
+ *
+ *     Move the window to the specified desktop.  ewmhDesktopId corresponds
+ *     to a desktop index to be used with _NET_WM_DESKTOP.
+ *
+ * Results:
+ *     This will directly change _NET_WM_DESKTOP of an unmapped window,
+ *     and will instead request the window manager to update that property
+ *     for a mapped window.
+ *
+ * Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+
+static void
+UPWindowSetEWMHDesktop(UnityPlatform *up,               // IN
+                       UnityPlatformWindow *upw,        // IN
+                       uint32 ewmhDesktopId)            // IN
+{
+   Atom data[5] = {0, 0, 0, 0, 0};
+
+   ASSERT(up);
+   ASSERT(upw);
+
    if (!upw->isViewable) {
-     Atom currentDesktop = guestDesktopId; // Cast for 64-bit correctness.
+     Atom currentDesktop = ewmhDesktopId; // Cast for 64-bit correctness.
 
      /*
       * Sending the _NET_WM_DESKTOP client message only works if the
@@ -3742,13 +3794,11 @@ UnityPlatformSetWindowDesktop(UnityPlatform *up,         // IN
 		     XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&currentDesktop, 1);
    }
 
-   data[0] = guestDesktopId;
+   data[0] = ewmhDesktopId;
    data[1] = 2; // Indicates that this was requested by the pager/taskbar/etc.
    UnityPlatformSendClientMessage(up,
 				  upw->rootWindow,
 				  upw->clientWindow,
 				  up->atoms._NET_WM_DESKTOP,
 				  32, 5, data);
-
-   return TRUE;
 }

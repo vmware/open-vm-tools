@@ -657,6 +657,10 @@ HgfsServerConvertCase(const char *sharePath,             // IN: share path in qu
 Bool
 HgfsServerCaseConversionRequired(void);
 
+char*
+HgfsBuildRelativePath(const char* source,    // IN: source file name
+                      const char* target);   // IN: target file name
+
 /* All oplock-specific functionality is defined here. */
 #ifdef HGFS_OPLOCKS
 void

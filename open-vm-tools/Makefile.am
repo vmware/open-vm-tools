@@ -39,6 +39,9 @@ if BUILD_HGFSMOUNTER
 endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
+if ENABLE_CORE_SERVICES
+   SUBDIRS += libvmtools
+endif
 SUBDIRS += xferlogs
 SUBDIRS += scripts
 SUBDIRS += toolbox

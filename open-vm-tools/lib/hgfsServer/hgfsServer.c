@@ -36,10 +36,13 @@
 
 #if defined(_WIN32)
 #include <io.h>
+#define HGFS_PARENT_DIR "..\\"
 #else
 #include <unistd.h>
 #define stricmp strcasecmp
+#define HGFS_PARENT_DIR "../"
 #endif // _WIN32
+#define HGFS_PARENT_DIR_LEN 3
 
 #define LOGLEVEL_MODULE hgfs
 #include "loglevel_user.h"
@@ -5377,6 +5380,95 @@ HgfsServer_ExitState(void)
    SyncMutex_Destroy(&hgfsNodeArrayLock);
 
    HgfsServerPlatformDestroy();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsBuildRelativePath --
+ *
+ *    Generates relative file path which need to be used a symbolic link target which
+ *    would generate target name defined in "target" if the path to symbolic link
+ *    file defined in the "source".
+ *    Both source and target parameters represent absolute paths.
+ *
+ * Results:
+ *    Allocated path that caller must free.
+ *    NULL if there is a low memory condition.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char*
+HgfsBuildRelativePath(const char* source,    // IN: source file name
+                      const char* target)    // IN: target file name
+{
+   const char *relativeSource = source;
+   const char *relativeTarget = target;
+   const char* sourceSep;
+   const char* targetSep;
+   int level = 0;
+   size_t targetSize;
+   char *result;
+   char *currentPosition;
+    /*  First remove the part of the path which is common between source and target */
+   while (*relativeSource != '\0' && *relativeTarget != '\0') {
+      sourceSep = strchr(relativeSource, DIRSEPC);
+      targetSep = strchr(relativeTarget, DIRSEPC);
+      if (sourceSep == NULL || targetSep == NULL) {
+         break;
+      }
+      if ((sourceSep - relativeSource) != (targetSep - relativeTarget)) {
+         break;
+      }
+      if (strncmp(relativeSource, relativeTarget, (targetSep - relativeTarget)) != 0) {
+         break;
+      }
+      relativeSource = sourceSep + 1;
+      relativeTarget = targetSep + 1;
+   };
+   /*
+    *  Find out how many directories deep the source file is from the common part of the
+    *  path.
+    */
+   while(*relativeSource != '\0') {
+      sourceSep = strchr(relativeSource, DIRSEPC);
+      if (sourceSep != NULL) {
+         /* Several consecutive separators mean only one level. */
+         while (*sourceSep == DIRSEPC) {
+            sourceSep++;
+         }
+         if (*sourceSep != '\0') {
+            level++;
+            relativeSource = sourceSep;
+         } else {
+            break;
+         }
+      } else {
+         break;
+      }
+   }
+
+   /*
+    * Consruct relative path by adding level number of "../"
+    * to the relative target path.
+    */
+   targetSize = level * HGFS_PARENT_DIR_LEN + strlen(relativeTarget) + sizeof '\0';
+   result = malloc(targetSize);
+   currentPosition = result;
+   if (result != NULL) {
+      while (level != 0) {
+         memcpy(currentPosition, HGFS_PARENT_DIR, HGFS_PARENT_DIR_LEN);
+         level--;
+         currentPosition += HGFS_PARENT_DIR_LEN;
+      }
+      memcpy(currentPosition, relativeTarget, strlen(relativeTarget) + sizeof '\0');
+   }
+   return result;
 }
 
 #ifdef HGFS_OPLOCKS

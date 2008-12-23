@@ -36,11 +36,11 @@ typedef SOCKET Socket;
 #else    // _WIN32
 typedef int SocketSelectable;
 typedef int Socket;
-#define INVALID_SOCKET     -1
+#define INVALID_SOCKET     (-1)
 #endif   // _WIN32
 
 
-#define SOCKET_INFINITE_TIMEOUT   -1
+#define SOCKET_INFINITE_TIMEOUT   (-1)
 
 
 typedef enum SocketMgrError {

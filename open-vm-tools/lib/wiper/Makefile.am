@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libWiper.a
+noinst_LTLIBRARIES = libWiper.la
 
-libWiper_a_SOURCES =
-libWiper_a_SOURCES += wiperPosix.c
+libWiper_la_SOURCES =
+libWiper_la_SOURCES += wiperPosix.c

@@ -1133,15 +1133,16 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
 		HgfsFileHashTable *htp,    // IN
 		Bool rootVnode)            // IN
 {
+   struct vnode *vp;
+   struct vnode_fsparam params;
+   int ret = 0;
+   HgfsOpenFile *ofp;
+
    ASSERT(vpp);
    ASSERT(sip);
    ASSERT(vfsp);
    ASSERT(fileName);
    ASSERT(htp);
-
-   struct vnode *vp;
-   struct vnode_fsparam params;
-   int ret = 0;
 
    params.vnfs_mp         = vfsp;
    params.vnfs_str        = NULL;
@@ -1192,7 +1193,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
     * necessary) the per-file state.
     */
 
-   HgfsOpenFile *ofp = HgfsAllocOpenFile(fileName, fileType, htp);
+   ofp = HgfsAllocOpenFile(fileName, fileType, htp);
 
    params.vnfs_fsnode = (void *)ofp;
    if (params.vnfs_fsnode == NULL) {

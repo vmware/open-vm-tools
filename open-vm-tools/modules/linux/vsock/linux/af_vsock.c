@@ -132,6 +132,7 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #endif
 
 #include "vmware.h"
+#include "vm_basic_math.h"
 
 #include "vsockCommon.h"
 #include "vsockPacket.h"
@@ -440,10 +441,19 @@ static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 #  define VSOCK_OPTIMIZATION_FLOW_CONTROL 1
 #endif
 
-/* Comment this out to turn off datagram counting. */
-//#define VSOCK_CONTROL_PACKET_COUNT 1
-#ifdef VSOCK_CONTROL_PACKET_COUNT
+/*
+ * Define VSOCK_GATHER_STATISTICS to turn on statistics gathering.
+ * Currently this consists of 2 types of stats:
+ * 1. The number of control datagram messages sent.
+ * 2. The level of queuepair fullness (in 10% buckets) whenever data is
+ *    about to be enqueued or dequeued from the queuepair.
+ */
+//#define VSOCK_GATHER_STATISTICS 1
+#ifdef VSOCK_GATHER_STATISTICS
+#define VSOCK_NUM_QUEUE_LEVEL_BUCKETS 10
 uint64 controlPacketCount[VSOCK_PACKET_TYPE_MAX];
+uint64 consumeQueueLevel[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
+uint64 produceQueueLevel[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
@@ -551,6 +561,11 @@ VSockVmci_GetAFValue(void)
 
 
 /*
+ * Helper functions.
+ */
+
+
+/*
  *----------------------------------------------------------------------------
  *
  * VSockVmciTestUnregister --
@@ -578,10 +593,46 @@ VSockVmciTestUnregister(void)
    }
 }
 
-
+#ifdef VSOCK_GATHER_STATISTICS
 /*
- * Helper functions.
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciUpdateQueueBucketCount --
+ *
+ *      Given a queue, determine how much data is enqueued and add that to
+ *      the specified queue level statistic bucket.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
  */
+
+static inline void
+VSockVmciUpdateQueueBucketCount(VMCIQueue *mainQueue,  // IN
+                                VMCIQueue *otherQueue, // IN
+				uint64 mainQueueSize,  // IN
+                                uint64 queueLevel[])   // IN
+{
+   uint64 bucket = 0;
+   uint32 remainder = 0;
+   uint64 dataReady = VMCIQueue_BufReady(mainQueue,
+					 otherQueue,
+					 mainQueueSize);
+   /*
+    * We can't do 64 / 64 = 64 bit divides on linux because it requires a libgcc
+    * which is not linked into the kernel module. Since this code is only used by
+    * developers we just limit the mainQueueSize to be less than MAX_UINT for now.
+    */
+   ASSERT(mainQueueSize <= MAX_UINT32);
+   Div643264(dataReady * 10, mainQueueSize, &bucket, &remainder);
+   ASSERT(bucket < VSOCK_NUM_QUEUE_LEVEL_BUCKETS);
+   ++queueLevel[bucket];
+}
+#endif
 
 
 #ifdef VMX86_TOOLS
@@ -2157,7 +2208,7 @@ VSockVmciSendControlPktBH(struct sockaddr_vm *src,      // IN
    VSockPacket_Init(&pkt, src, dst, type, size, mode, wait, handle);
 
    LOG_PACKET(&pkt);
-#ifdef VSOCK_CONTROL_PACKET_COUNT
+#ifdef VSOCK_GATHER_STATISTICS
    controlPacketCount[pkt.type]++;
 #endif
    return VMCIDatagram_Send(&pkt.dg);
@@ -2226,7 +2277,7 @@ VSockVmciSendControlPkt(struct sock *sk,        // IN
       return VSockVmci_ErrorToVSockError(err);
    }
 
-#ifdef VSOCK_CONTROL_PACKET_COUNT
+#ifdef VSOCK_GATHER_STATISTICS
    controlPacketCount[pkt->type]++;
 #endif
 
@@ -2857,13 +2908,24 @@ VSockVmciSkDestruct(struct sock *sk) // IN
    VSockVmciTestUnregister();
    up(&registrationMutex);
 
-#ifdef VSOCK_CONTROL_PACKET_COUNT
+#ifdef VSOCK_GATHER_STATISTICS
    {
       uint32 index;
       for (index = 0; index < ARRAYSIZE(controlPacketCount); index++) {
          Warning("Control packet count: Type = %u, Count = %"FMT64"u\n",
                  index, controlPacketCount[index]);
       }
+
+      for (index = 0; index < ARRAYSIZE(consumeQueueLevel); index++) {
+         Warning("Consume Bucket: %u Count: %"FMT64"u\n",
+                 index, consumeQueueLevel[index]);
+      }
+
+      for (index = 0; index < ARRAYSIZE(produceQueueLevel); index++) {
+         Warning("Produce Bucket: %u Count: %"FMT64"u\n",
+                 index, produceQueueLevel[index]);
+      }
+
    }
 #endif
 }
@@ -2984,12 +3046,21 @@ VSockVmciUnregisterProto(void)
    proto_unregister(&vsockVmciProto);
 #endif
 
-#ifdef VSOCK_CONTROL_PACKET_COUNT
+#ifdef VSOCK_GATHER_STATISTICS
    {
       uint32 index;
       for (index = 0; index < ARRAYSIZE(controlPacketCount); index++) {
          controlPacketCount[index] = 0;
       }
+
+      for (index = 0; index < ARRAYSIZE(consumeQueueLevel); index++) {
+	 consumeQueueLevel[index] = 0;
+      }
+
+      for (index = 0; index < ARRAYSIZE(produceQueueLevel); index++) {
+	 produceQueueLevel[index] = 0;
+      }
+
    }
 #endif
 }
@@ -4315,6 +4386,13 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
          goto outWait;
       }
 
+#if defined(VSOCK_GATHER_STATISTICS)
+      VSockVmciUpdateQueueBucketCount(vsk->produceQ,
+				      vsk->consumeQ,
+				      vsk->produceSize,
+				      produceQueueLevel);
+#endif
+
       /*
        * Note that enqueue will only write as many bytes as are free in the
        * produce queue, so we don't need to ensure len is smaller than the queue
@@ -4707,6 +4785,13 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
       err = 0;
       goto outWait;
    }
+#if defined(VSOCK_GATHER_STATISTICS)
+   VSockVmciUpdateQueueBucketCount(vsk->consumeQ,
+				   vsk->produceQ,
+				   vsk->consumeSize,
+				   consumeQueueLevel);
+#endif
+
 
    /*
     * Now consume up to len bytes from the queue.  Note that since we have the

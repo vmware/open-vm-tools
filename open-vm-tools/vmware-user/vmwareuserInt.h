@@ -1,4 +1,3 @@
-
 /*********************************************************
  * Copyright (C) 2005 VMware, Inc. All rights reserved.
  *
@@ -48,7 +47,7 @@
 
 #define RPCIN_POLL_TIME        10  /* in 1/1000ths of a second */
 #define POINTER_POLL_TIME      15  /* in 1/1000ths of a second */
-#define UNGRABBED_POS -100
+#define UNGRABBED_POS (-100)
 #define DEBUG_PREFIX           "vmusr"
 
 #define FCP_FILE_TRANSFER_NOT_YET            0

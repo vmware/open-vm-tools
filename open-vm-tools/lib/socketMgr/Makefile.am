@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libSocketMgr.a
+noinst_LTLIBRARIES = libSocketMgr.la
 
-libSocketMgr_a_SOURCES =
-libSocketMgr_a_SOURCES += socketMgr.c
+libSocketMgr_la_SOURCES =
+libSocketMgr_la_SOURCES += socketMgr.c

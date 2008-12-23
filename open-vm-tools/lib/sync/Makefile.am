@@ -15,11 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libSync.a
+noinst_LTLIBRARIES = libSync.la
 
-libSync_a_SOURCES =
-libSync_a_SOURCES += syncMutex.c
-libSync_a_SOURCES += syncWaitQPosix.c
+libSync_la_SOURCES =
+libSync_la_SOURCES += syncMutex.c
+libSync_la_SOURCES += syncWaitQPosix.c
 
-SUBDIRS =
-SUBDIRS += shared

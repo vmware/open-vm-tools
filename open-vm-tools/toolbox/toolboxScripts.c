@@ -29,9 +29,7 @@
 #include <sys/stat.h>
 #if defined(__FreeBSD__)
 #include <sys/param.h>
-#if __FreeBSD_version >= 530000
-#include <syslimits.h>
-#endif
+#include <sys/syslimits.h>
 #endif
 
 #include "toolboxGtkInt.h"

@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libUnityWindowTracker.a
+noinst_LTLIBRARIES = libUnityWindowTracker.la
 
-libUnityWindowTracker_a_SOURCES =
-libUnityWindowTracker_a_SOURCES += unityWindowTracker.c
+libUnityWindowTracker_la_SOURCES =
+libUnityWindowTracker_la_SOURCES += unityWindowTracker.c

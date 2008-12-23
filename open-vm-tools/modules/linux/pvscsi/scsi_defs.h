@@ -382,7 +382,9 @@ typedef struct {
 	 tio	     :1,   // device supports TERMINATE I/O PROCESS message
 	 aen	     :1;   // asynchronous event notification capability
    uint8 optlen;	   // length of additional data that follows
-   uint8	     :8;
+   uint8       :4,
+         tpgs  :2,         // Target Portal Group Support
+               :2;
 #define SCSI_TPGS_NONE                       0x0
 #define SCSI_TPGS_IMPLICIT_ONLY              0x1
 #define SCSI_TPGS_IMPLICIT		     SCSI_TPGS_IMPLICIT_ONLY 
@@ -431,7 +433,9 @@ typedef struct {
 	 tio	     :1,   // device supports TERMINATE I/O PROCESS message
 	 aen	     :1;   // asynchronous event notification capability
    uint8 optlen;	   // length of additional data that follows
-   uint8	     :8;
+   uint8       :4,
+         tpgs  :2,         // Target Portal Group Support
+               :2;
    uint8 adr16	     :1,   // device supports 16-bit wide SCSI addresses
 	 adr32	     :1,   // device supports 32-bit wide SCSI addresses
 	 arq	     :1,
@@ -552,6 +556,34 @@ struct SCSIInqPage83ResponseDescriptor {
 }
 #include "vmware_pack_end.h"
 SCSIInqPage83ResponseDescriptor;
+
+/* Page83 structs differ for SCSI2. */
+typedef
+#include "vmware_pack_begin.h"
+struct SCSI2InqPage83ResponseHeader {
+   uint8  devClass      :5,
+          pQual         :3;
+   uint8  pageCode;
+   uint8  reserved;
+   uint8  pageLength;
+}
+#include "vmware_pack_end.h"
+SCSI2InqPage83ResponseHeader;
+
+typedef
+#include "vmware_pack_begin.h"
+struct SCSI2InqPage83ResponseDescriptor {
+   /* Identification Descriptor follows */
+   uint8  codeSet     :4, 
+          reserved    :4; 
+   uint8  idType      :4, 
+          association :2,
+          reserved1   :2; 
+   uint8  reserved2;
+   uint8  idLength;
+}
+#include "vmware_pack_end.h"
+SCSI2InqPage83ResponseDescriptor;
 
 typedef
 #include "vmware_pack_begin.h"

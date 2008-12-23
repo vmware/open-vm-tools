@@ -450,7 +450,7 @@ StartVMwareUser(char *const envp[])
          Error("could not parse file descriptor (%d)\n", fd);
          argv[1] = NULL;
       } else {
-         argv[1] = "-blockFd";
+         argv[1] = "--blockFd";
          argv[2] = fdStr;
          argv[3] = NULL;
       }

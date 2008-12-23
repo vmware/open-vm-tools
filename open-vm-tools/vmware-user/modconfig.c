@@ -177,6 +177,10 @@ GetMenu(void)
 Bool
 Modules_Init(void)
 {
+   const char *libdir;
+   char *moduleListPath;
+   GList *modules, *modulesNotInstalled;
+
    if (!InstallerDB_Init("/etc/vmware-tools", TRUE)) {
       return FALSE;
    }
@@ -194,10 +198,10 @@ Modules_Init(void)
       return FALSE;
    }
 
-   const char *libdir = InstallerDB_GetLibDir();
-   char *moduleListPath = g_build_filename(libdir, "modules/modules.xml", NULL);
-   GList *modules = ModConf_GetModulesList(moduleListPath);
-   GList *modulesNotInstalled = ModConf_GetModulesNotInstalled(modules);
+   libdir = InstallerDB_GetLibDir();
+   moduleListPath = g_build_filename(libdir, "modules/modules.xml", NULL);
+   modules = ModConf_GetModulesList(moduleListPath);
+   modulesNotInstalled = ModConf_GetModulesNotInstalled(modules);
 
    if (modulesNotInstalled != NULL) {
       Notify_Notify(30, "Kernel modules out-of-date",

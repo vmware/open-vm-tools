@@ -62,6 +62,15 @@ static int HgfsDoWritepage(HgfsHandle handle,
                            struct page *page,
                            unsigned pageFrom,
                            unsigned pageTo);
+static void HgfsDoWriteBegin(struct page *page,
+                             unsigned pageFrom,
+                             unsigned pageTo);
+static int HgfsDoWriteEnd(struct file *file,
+                          struct page *page,
+                          unsigned pageFrom,
+                          unsigned pageTo,
+                          loff_t writeTo,
+                          unsigned copied);
 
 /* HGFS address space operations. */
 static int HgfsReadpage(struct file *file,
@@ -72,6 +81,31 @@ static int HgfsWritepage(struct page *page,
 #else
 static int HgfsWritepage(struct page *page);
 #endif
+
+/*
+ * Write aop interface has changed in 2.6.28. Specifically,
+ * the page locking semantics and requirement to handle
+ * short writes. We already handle short writes, so no major
+ * changes needed. write_begin is expected to return a locked
+ * page and write_end is expected to unlock the page and drop
+ * the reference before returning.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+static int HgfsWriteBegin(struct file *file,
+                          struct address_space *mapping,
+                          loff_t pos,
+                          unsigned len,
+                          unsigned flags,
+                          struct page **page,
+                          void **clientData);
+static int HgfsWriteEnd(struct file *file,
+                        struct address_space *mapping,
+                        loff_t pos,
+                        unsigned len,
+                        unsigned copied,
+                        struct page *page,
+                        void *clientData);
+#else
 static int HgfsPrepareWrite(struct file *file,
                             struct page *page,
                             unsigned pageFrom,
@@ -80,13 +114,19 @@ static int HgfsCommitWrite(struct file *file,
                            struct page *page,
                            unsigned pageFrom,
                            unsigned pageTo);
+#endif
 
 /* HGFS address space operations structure. */
 struct address_space_operations HgfsAddressSpaceOperations = {
    .readpage      = HgfsReadpage,
    .writepage     = HgfsWritepage,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+   .write_begin   = HgfsWriteBegin,
+   .write_end     = HgfsWriteEnd,
+#else
    .prepare_write = HgfsPrepareWrite,
    .commit_write  = HgfsCommitWrite,
+#endif
 #ifdef HGFS_ENABLE_WRITEBACK
    .set_page_dirty = __set_page_dirty_nobuffers,
 #endif
@@ -698,14 +738,14 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsPrepareWrite --
+ * HgfsDoWriteBegin --
  *
- *      Called by the generic write path to set up a write request for a page.
- *      We're expected to do any pre-allocation and housekeeping prior to
- *      receiving the write.
+ *      Helper function for HgfsWriteBegin / HgfsPrepareWrite.
+ *
+ *      Initialize the page if the file is to be appended.
  *
  * Results:
- *      Always zero.
+ *      None.
  *
  * Side effects:
  *      None.
@@ -713,12 +753,12 @@ HgfsWritepage(struct page *page)             // IN: Page to write from
  *-----------------------------------------------------------------------------
  */
 
-static int
-HgfsPrepareWrite(struct file *file,  // IN: Ignored
-                 struct page *page,  // IN: Page to prepare
-                 unsigned pageFrom,  // IN: Beginning page offset
-                 unsigned pageTo)    // IN: Ending page offset
+static void
+HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
+                 unsigned pageFrom,         // IN: Starting page offset
+                 unsigned pageTo)           // IN: Ending page offset
 {
+   ASSERT(page);
 #ifdef HGFS_ENABLE_WRITEBACK
    loff_t offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
    loff_t currentFileSize = compat_i_size_read(page->mapping->host);
@@ -742,6 +782,35 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
       flush_dcache_page(page);
    }
 #endif
+}
+
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsPrepareWrite --
+ *
+ *      Called by the generic write path to set up a write request for a page.
+ *      We're expected to do any pre-allocation and housekeeping prior to
+ *      receiving the write.
+ *
+ * Results:
+ *      Always zero.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsPrepareWrite(struct file *file,  // IN: Ignored
+                 struct page *page,  // IN: Page to prepare
+                 unsigned pageFrom,  // IN: Beginning page offset
+                 unsigned pageTo)    // IN: Ending page offset
+{
+   HgfsDoWriteBegin(page, pageFrom, pageTo);
 
    /*
     * Prior to 2.4.10, our caller expected to call page_address(page) between
@@ -758,48 +827,94 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
    return 0;
 }
 
+#else
+
 
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsCommitWrite --
+ * HgfsWriteBegin --
  *
- *    This function is the more common write path for HGFS, called from
- *    generic_file_buffered_write. It is much simpler for us than
- *    HgfsWritepage above: the caller has obtained a reference to the page
- *    and will unlock it when we're done. And we don't need to worry about
- *    properly marking the writeback bit, either. See mm/filemap.c in the
- *    kernel for details about how we are called.
+ *      Called by the generic write path to set up a write request for a page.
+ *      We're expected to do any pre-allocation and housekeeping prior to
+ *      receiving the write.
+ *
+ *      This function is expected to return a locked page.
  *
  * Results:
- *    Zero on succes, non-zero on error.
+ *      Zero on success, non-zero error otherwise.
  *
  * Side effects:
- *    None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 static int
-HgfsCommitWrite(struct file *file, // IN: File we're writing to
-                struct page *page, // IN: Page we're writing from
-                unsigned pageFrom, // IN: Beginning page offset
-                unsigned pageTo)   // IN: Ending page offset
+HgfsWriteBegin(struct file *file,             // IN: File to be written
+               struct address_space *mapping, // IN: Mapping
+               loff_t pos,                    // IN: File position
+               unsigned len,                  // IN: Bytes to be written
+               unsigned flags,                // IN: Write flags
+               struct page **pagePtr,         // OUT: Locked page
+               void **clientData)             // OUT: Opaque to pass to write_end, unused
+{
+   pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+   unsigned pageFrom = pos & (PAGE_CACHE_SHIFT - 1);
+   unsigned pageTo = pos + len;
+   struct page *page;
+
+   page = __grab_cache_page(mapping, index);
+   if (page == NULL) {
+      return -ENOMEM;
+   }
+   *pagePtr = page;
+
+   HgfsDoWriteBegin(page, pageFrom, pageTo);
+   return 0;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsDoWriteEnd --
+ *
+ *      Helper function for HgfsWriteEnd.
+ *
+ *      This function updates the inode->i_size, conditionally marks the page
+ *      updated and carries out the actual write in case of partial page writes.
+ *
+ * Results:
+ *      Zero on succes, non-zero on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
+               struct page *page, // IN: Page we're writing from
+               unsigned pageFrom, // IN: Starting page offset
+               unsigned pageTo,   // IN: Ending page offset
+               loff_t writeTo,    // IN: File position to write to
+               unsigned copied)   // IN: Number of bytes copied to the page
 {
    HgfsHandle handle;
    struct inode *inode;
    loff_t currentFileSize;
    loff_t offset;
-   loff_t writeTo;
 
    ASSERT(file);
    ASSERT(page);
    inode = page->mapping->host;
    currentFileSize = compat_i_size_read(inode);
    offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
-   writeTo = offset + pageTo;
 
-   /* See coment in HgfsPrepareWrite. */
+   /* See comment in HgfsPrepareWrite. */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 10)
    kunmap(page);
 #endif
@@ -809,14 +924,14 @@ HgfsCommitWrite(struct file *file, // IN: File we're writing to
    }
 
    /* We wrote a complete page, so it is up to date. */
-   if ((pageTo - pageFrom) == PAGE_CACHE_SIZE) {
+   if (copied == PAGE_CACHE_SIZE) {
       SetPageUptodate(page);
    }
 
 #ifdef HGFS_ENABLE_WRITEBACK
    /*
     * Check if this is a partial write to a new page, which was
-    * initialized in HgfsPrepareWrite.
+    * initialized in HgfsDoWriteBegin.
     */
    if ((offset >= currentFileSize) ||
        ((pageFrom == 0) && (writeTo >= currentFileSize))) {
@@ -835,13 +950,109 @@ HgfsCommitWrite(struct file *file, // IN: File we're writing to
    /*
     * We've recieved a partial write to page that is not uptodate, so
     * do the write now while the page is still locked.  Another
-    * alternative would be to read the page in HgfsPrepareWrite, which
+    * alternative would be to read the page in HgfsDoWriteBegin, which
     * would make it uptodate (ie a complete cached page).
     */
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsCommitWrite: writing to handle %u\n",
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: writing to handle %u\n", __FUNCTION__,
            handle));
    return HgfsDoWritepage(handle, page, pageFrom, pageTo);
 }
 
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsCommitWrite --
+ *
+ *      This function is the more common write path for HGFS, called from
+ *      generic_file_buffered_write. It is much simpler for us than
+ *      HgfsWritepage above: the caller has obtained a reference to the page
+ *      and will unlock it when we're done. And we don't need to worry about
+ *      properly marking the writeback bit, either. See mm/filemap.c in the
+ *      kernel for details about how we are called.
+ *
+ * Results:
+ *      Zero on succes, non-zero on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsCommitWrite(struct file *file,    // IN: File to write
+                struct page *page,    // IN: Page to write from
+                unsigned pageFrom,    // IN: Starting page offset
+                unsigned pageTo)      // IN: Ending page offset
+{
+   loff_t offset;
+   loff_t writeTo;
+   unsigned copied;
+
+   ASSERT(page);
+   ASSERT(file);
+
+   offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+   writeTo = offset + pageTo;
+   copied = pageTo - pageFrom;
+
+   return HgfsDoWriteEnd(file, page, pageFrom, pageTo, writeTo, copied);
+}
+
+#else
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsWriteEnd --
+ *
+ *      This function is the more common write path for HGFS, called from
+ *      generic_file_buffered_write. It is much simpler for us than
+ *      HgfsWritepage above: write_begin has obtained a reference to the page
+ *      and we will unlock it when we're done. And we don't need to worry about
+ *      properly marking the writeback bit, either. See mm/filemap.c in the
+ *      kernel for details about how we are called.
+ *
+ *      This function should unlock the page and reduce the refcount.
+ *
+ * Results:
+ *      Number of bytes written or negative error
+ *
+ * Side effects:
+ *      Unlocks the page and drops the reference.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsWriteEnd(struct file *file,              // IN: File to write
+             struct address_space *mapping,  // IN: Mapping
+             loff_t pos,                     // IN: File position
+             unsigned len,                   // IN: len passed from write_begin
+             unsigned copied,                // IN: Number of actually copied bytes
+             struct page *page,              // IN: Page to write from
+             void *clientData)               // IN: From write_begin, unused.
+{
+   unsigned pageFrom = pos & (PAGE_CACHE_SIZE - 1);
+   unsigned pageTo = pageFrom + copied;
+   loff_t writeTo = pos + copied;
+   int ret;
+
+   ASSERT(file);
+   ASSERT(mapping);
+   ASSERT(page);
+
+   ret = HgfsDoWriteEnd(file, page, pageFrom, pageTo, writeTo, copied);
+   if (ret == 0) {
+      ret = copied;
+   }
+
+   compat_unlock_page(page);
+   page_cache_release(page);
+   return ret;
+}
+#endif

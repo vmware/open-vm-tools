@@ -15,10 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libHgfsServer.a
+noinst_LTLIBRARIES = libHgfsServer.la
 
-libHgfsServer_a_SOURCES =
-libHgfsServer_a_SOURCES += hgfsServer.c
-libHgfsServer_a_SOURCES += hgfsServerLinux.c
+libHgfsServer_la_SOURCES =
+libHgfsServer_la_SOURCES += hgfsServer.c
+libHgfsServer_la_SOURCES += hgfsServerLinux.c
 
 AM_CFLAGS = @LIB_HGFS_SERVER_CPPFLAGS@

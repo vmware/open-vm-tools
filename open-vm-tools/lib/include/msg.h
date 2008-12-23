@@ -89,8 +89,13 @@ typedef struct MsgCallback {
    HintResult (*hint)(HintOptions options,
 		      const char *msgID, const char *message);
 
-   void *(*lazyProgressStart)(const char *msgID, const char *message);
-   void  (*lazyProgress)(void *handle, int percent);
+   void *(*lazyProgressStart)(const char *msgID,
+                              const char *message,
+                              Bool allowCancel);
+   Bool  (*lazyProgress)(void *handle,
+                         const char *msgID,
+                         const char *message,
+                         int percent);
    void  (*lazyProgressEnd)(void *handle);
 
    void (*postList)(MsgSeverity severity, Msg_List *messages);
@@ -147,9 +152,15 @@ EXTERN int Msg_Progress(int percentDone, Bool cancelButton, const char *idFmt,
 EXTERN int Msg_ProgressScaled(int percentDone, int opsDone, int opsTotal,
                               Bool cancelButton);
 
-EXTERN void *Msg_LazyProgressStart(const char *idFmt, ...)
-       PRINTF_DECL(1, 2);
-EXTERN void Msg_LazyProgress(void *handle, int percent);
+EXTERN void *Msg_LazyProgressStart(Bool allowCancel,
+                                   const char *idFmt,
+                                   ...)
+       PRINTF_DECL(2, 3);
+EXTERN Bool Msg_LazyProgress(void *handle,
+                             int percent,
+                             const char *idFmt,
+                             ...)
+       PRINTF_DECL(3, 4);
 EXTERN void Msg_LazyProgressEnd(void *handle);
 
 

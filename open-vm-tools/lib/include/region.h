@@ -107,6 +107,8 @@ typedef enum {
    UpdateRect,
    ROPFillRect,
    Present3dRect,
+   LockRect,
+   FenceRect,
    MaxRect
 } RectInfoType;
 
@@ -121,6 +123,9 @@ typedef struct RectInfo {
          uint32 sid;
          uint32 srcx, srcy;
       } Present3d;
+      struct {
+         uint32 fenceId;
+      } Fence;
       /* add more here, then update miRectInfosEqual and miPrintRegion. */
    };
 } RectInfo, *RectInfoPtr;

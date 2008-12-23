@@ -95,8 +95,6 @@ typedef char           Bool;
 #endif
 
 #ifdef _MSC_VER
-typedef unsigned __int64 uint64;
-typedef signed __int64 int64;
 
 #pragma warning (3 :4505) // unreferenced local function
 #pragma warning (disable :4018) // signed/unsigned mismatch
@@ -106,6 +104,45 @@ typedef signed __int64 int64;
 #pragma warning (disable :4267) // truncation of 'size_t'
 #pragma warning (disable :4146) // unary minus operator applied to unsigned type, result still unsigned
 #pragma warning (disable :4142) // benign redefinition of type
+
+#endif
+
+#if defined(__APPLE__) || defined(HAVE_STDINT_H)
+
+/*
+ * TODO: This is a C99 standard header.  We should be able to test for
+ * #if __STDC_VERSION__ >= 199901L, but that breaks the Netware build
+ * (which doesn't have stdint.h).
+ */
+
+#include <stdint.h>
+
+typedef uint64_t uint64;
+typedef int64_t int64;
+typedef uint32_t uint32;
+typedef int32_t int32;
+typedef uint16_t uint16;
+typedef int16_t int16;
+typedef uint8_t uint8;
+
+/*
+ * XXX: int8_t is defined to be 'signed char' on Mac hosts.
+ *
+ * Unfortunately, GCC 4.0.1 warns when doing pointer assignment or
+ * comparison between signed char * and char * (even if char is
+ * signed).
+ *
+ * If we want to use int8_t to define int8, we need to go through and
+ * replace uses of char * with signed char * to prevent warnings.
+ */
+typedef char int8;
+
+#else /* !HAVE_STDINT_H */
+
+#ifdef _MSC_VER
+
+typedef unsigned __int64 uint64;
+typedef signed __int64 int64;
 
 #elif __GNUC__
 /* The Xserver source compiles with -ansi -pendantic */
@@ -123,7 +160,7 @@ typedef long long int64;
 #endif
 #else
 #error - Need compiler define for int64/uint64
-#endif
+#endif /* _MSC_VER */
 
 typedef unsigned int       uint32;
 typedef unsigned short     uint16;
@@ -132,6 +169,8 @@ typedef unsigned char      uint8;
 typedef int       int32;
 typedef short     int16;
 typedef char      int8;
+
+#endif /* HAVE_STDINT_H */
 
 /*
  * FreeBSD (for the tools build) unconditionally defines these in
@@ -154,9 +193,6 @@ typedef char      int8;
 #endif
 #ifdef HAVE_SYS_INTTYPES_H
 #include <sys/inttypes.h>
-#endif
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
 #endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -243,6 +279,12 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTPD      "I"
       #define FMTH       "I"
    #endif
+#elif defined __APPLE__
+   /* Mac OS hosts use the same formatters for 32- and 64-bit. */
+   #define FMT64 "ll"
+   #define FMTSZ "z"
+   #define FMTPD "l"
+   #define FMTH ""
 #elif __GNUC__
    #define FMTH ""
    #if defined(N_PLAT_NLM) || defined(sun) || \
@@ -264,10 +306,10 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
       || (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L) \
       || (defined(_POSIX2_VERSION) && _POSIX2_VERSION >= 200112L)
-      /* BSD/Darwin, Linux */
+      /* BSD, Linux */
       #define FMTSZ     "z"
 
-      #if defined(VM_X86_64) || defined(__APPLE__)
+      #if defined(VM_X86_64)
          #define FMTPD  "l"
       #else
          #define FMTPD  ""
@@ -283,7 +325,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
    #endif
    #ifdef VM_X86_64
       #define FMT64     "l"
-   #elif defined(sun) || defined(__APPLE__) || defined(__FreeBSD__)
+   #elif defined(sun) || defined(__FreeBSD__)
       #define FMT64     "ll"
    #else
       #define FMT64     "L"

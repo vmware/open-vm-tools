@@ -24,67 +24,67 @@ AM_CFLAGS += -I$(top_builddir)/include
 AM_CFLAGS += -DRESOLUTION_X11
 
 vmware_user_LDADD =
-vmware_user_LDADD += ../lib/conf/libConf.a
-vmware_user_LDADD += ../lib/dnd/libDnd.a
-vmware_user_LDADD += ../lib/eventManager/libEventManager.a
-vmware_user_LDADD += ../lib/file/libFile.a
+vmware_user_LDADD += ../lib/conf/libConf.la
+vmware_user_LDADD += ../lib/dnd/libDnd.la
+vmware_user_LDADD += ../lib/eventManager/libEventManager.la
+vmware_user_LDADD += ../lib/file/libFile.la
 if ENABLE_UNITY
-   vmware_user_LDADD += ../lib/ghIntegration/libGhIntegration.a
+   vmware_user_LDADD += ../lib/ghIntegration/libGhIntegration.la
 else
-   vmware_user_LDADD += ../lib/ghIntegrationStub/libGhIntegrationStub.a
+   vmware_user_LDADD += ../lib/ghIntegrationStub/libGhIntegrationStub.la
 endif
-vmware_user_LDADD += ../lib/guestApp/libGuestAppX11.a
-vmware_user_LDADD += ../lib/guestInfo/libGuestInfo.a
-vmware_user_LDADD += ../lib/hgfsServer/libHgfsServer.a
-vmware_user_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.a
-vmware_user_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.a
-vmware_user_LDADD += ../lib/impersonate/libImpersonate.a
-vmware_user_LDADD += ../lib/netUtil/libNetUtil.a
-vmware_user_LDADD += ../lib/printer/libPrinter.a
-vmware_user_LDADD += ../lib/resolution/libResolution.a
-vmware_user_LDADD += ../lib/rpcIn/libRpcIn.a
-vmware_user_LDADD += ../lib/rpcOut/libRpcOut.a
-vmware_user_LDADD += ../lib/rpcVmx/libRpcVmx.a
-vmware_user_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.a
-vmware_user_LDADD += ../lib/socketMgr/libSocketMgr.a
-vmware_user_LDADD += ../lib/string/libString.a
-vmware_user_LDADD += ../lib/sync/libSync.a
-vmware_user_LDADD += ../lib/syncDriver/libSyncDriver.a
-vmware_user_LDADD += ../lib/system/libSystem.a
+vmware_user_LDADD += ../lib/guestApp/libGuestAppX11.la
+vmware_user_LDADD += ../lib/guestInfo/libGuestInfo.la
+vmware_user_LDADD += ../lib/hgfsServer/libHgfsServer.la
+vmware_user_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.la
+vmware_user_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
+vmware_user_LDADD += ../lib/impersonate/libImpersonate.la
+vmware_user_LDADD += ../lib/netUtil/libNetUtil.la
+vmware_user_LDADD += ../lib/printer/libPrinter.la
+vmware_user_LDADD += ../lib/resolution/libResolution.la
+vmware_user_LDADD += ../lib/rpcIn/libRpcIn.la
+vmware_user_LDADD += ../lib/rpcOut/libRpcOut.la
+vmware_user_LDADD += ../lib/rpcVmx/libRpcVmx.la
+vmware_user_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.la
+vmware_user_LDADD += ../lib/socketMgr/libSocketMgr.la
+vmware_user_LDADD += ../lib/string/libString.la
+vmware_user_LDADD += ../lib/sync/libSync.la
+vmware_user_LDADD += ../lib/syncDriver/libSyncDriver.la
+vmware_user_LDADD += ../lib/system/libSystem.la
 if ENABLE_UNITY
-   vmware_user_LDADD += ../lib/unity/libUnity.a
-   vmware_user_LDADD += ../lib/unityWindowTracker/libUnityWindowTracker.a
+   vmware_user_LDADD += ../lib/unity/libUnity.la
+   vmware_user_LDADD += ../lib/unityWindowTracker/libUnityWindowTracker.la
 else
-   vmware_user_LDADD += ../lib/unityStub/libUnityStub.a
+   vmware_user_LDADD += ../lib/unityStub/libUnityStub.la
 endif
-vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.a
-vmware_user_LDADD += ../lib/user/libUser.a
-vmware_user_LDADD += ../lib/vixTools/libVixTools.a
-vmware_user_LDADD += ../lib/vmCheck/libVmCheck.a
-vmware_user_LDADD += ../lib/vmSignal/libVmSignal.a
-vmware_user_LDADD += ../lib/wiper/libWiper.a
+vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.la
+vmware_user_LDADD += ../lib/user/libUser.la
+vmware_user_LDADD += ../lib/vixTools/libVixTools.la
+vmware_user_LDADD += ../lib/vmCheck/libVmCheck.la
+vmware_user_LDADD += ../lib/vmSignal/libVmSignal.la
+vmware_user_LDADD += ../lib/wiper/libWiper.la
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of
 # the alphabetical order so their symbols are properly resolved.
-vmware_user_LDADD += ../lib/err/libErr.a
-vmware_user_LDADD += ../lib/foundryMsg/libFoundryMsg.a
-vmware_user_LDADD += ../lib/backdoor/libBackdoor.a
-vmware_user_LDADD += ../lib/dict/libDict.a
-vmware_user_LDADD += ../lib/dynxdr/libDynxdr.a
-vmware_user_LDADD += ../lib/hgfs/libHgfs.a
-vmware_user_LDADD += ../lib/message/libMessage.a
-vmware_user_LDADD += ../lib/unicode/libUnicode.a
-vmware_user_LDADD += ../lib/misc/libMisc.a
-vmware_user_LDADD += ../lib/procMgr/libProcMgr.a
-vmware_user_LDADD += ../lib/auth/libAuth.a
-vmware_user_LDADD += ../lib/panicDefault/libPanicDefault.a
-vmware_user_LDADD += ../lib/panic/libPanic.a
-vmware_user_LDADD += ../lib/stubs/libStubs.a
+vmware_user_LDADD += ../lib/err/libErr.la
+vmware_user_LDADD += ../lib/foundryMsg/libFoundryMsg.la
+vmware_user_LDADD += ../lib/backdoor/libBackdoor.la
+vmware_user_LDADD += ../lib/dict/libDict.la
+vmware_user_LDADD += ../lib/dynxdr/libDynxdr.la
+vmware_user_LDADD += ../lib/hgfs/libHgfs.la
+vmware_user_LDADD += ../lib/message/libMessage.la
+vmware_user_LDADD += ../lib/unicode/libUnicode.la
+vmware_user_LDADD += ../lib/misc/libMisc.la
+vmware_user_LDADD += ../lib/procMgr/libProcMgr.la
+vmware_user_LDADD += ../lib/auth/libAuth.la
+vmware_user_LDADD += ../lib/panicDefault/libPanicDefault.la
+vmware_user_LDADD += ../lib/panic/libPanic.la
+vmware_user_LDADD += ../lib/stubs/libStubs.la
 if ENABLE_UNITY
-   vmware_user_LDADD += ../lib/appUtil/libAppUtil.a
-   vmware_user_LDADD += ../lib/image/libImage.a
-   vmware_user_LDADD += ../lib/raster/libRaster.a
-   vmware_user_LDADD += ../lib/region/libRegion.a
+   vmware_user_LDADD += ../lib/appUtil/libAppUtil.la
+   vmware_user_LDADD += ../lib/image/libImage.la
+   vmware_user_LDADD += ../lib/raster/libRaster.la
+   vmware_user_LDADD += ../lib/region/libRegion.la
 endif
 vmware_user_LDADD += -lcrypt
 vmware_user_LDADD += @GTK_LIBS@

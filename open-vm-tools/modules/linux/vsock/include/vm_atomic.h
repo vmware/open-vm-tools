@@ -1417,6 +1417,39 @@ Atomic_ReadDec64(Atomic_uint64 *var) // IN
 #endif
 
 
+#ifdef VMKERNEL
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CMPXCHG1B --
+ *
+ *      Compare and exchange a single byte.
+ *
+ * Results:
+ *      The value read from ptr.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+static INLINE uint8
+CMPXCHG1B(volatile uint8 *ptr, // IN
+          uint8 oldVal,        // IN
+          uint8 newVal)        // IN
+{
+   uint8 val;
+   __asm__ __volatile__("lock; cmpxchgb %b2, %1"
+                        : "=a" (val),
+                          "+m" (*ptr)
+                        : "r" (newVal),
+                          "0" (oldVal)
+                        : "cc");
+   return val;
+}
+#endif
+
+
 /*
  * Usage of this helper struct is strictly reserved to the following
  * function. --hpreg

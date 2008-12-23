@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libVmCheck.a
+noinst_LTLIBRARIES = libVmCheck.la
 
-libVmCheck_a_SOURCES =
-libVmCheck_a_SOURCES += vmcheck.c
+libVmCheck_la_SOURCES =
+libVmCheck_la_SOURCES += vmcheck.c

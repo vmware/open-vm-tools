@@ -114,8 +114,11 @@
 #define BDOOR_CMD_DEBUGEVENT            53
 #define BDOOR_CMD_OSNOTMACOSXSERVER     54
 #define BDOOR_CMD_GETTIMEFULL_WITH_LAG  55
-#define BDOOR_CMD_ACPI_HOTPLUG          56
-#define BDOOR_CMD_MAX                   57
+#define BDOOR_CMD_ACPI_HOTPLUG_DEVICE   56
+#define BDOOR_CMD_ACPI_HOTPLUG_MEMORY   57
+#define BDOOR_CMD_ACPI_HOTPLUG_CBRET    58
+#define BDOOR_CMD_GET_HOST_VIDEO_MODES  59
+#define BDOOR_CMD_MAX                   60
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

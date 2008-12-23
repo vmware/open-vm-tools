@@ -15,14 +15,21 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libGuestInfo.a
+noinst_LTLIBRARIES = libGuestInfo.la
 
-libGuestInfo_a_SOURCES =
-libGuestInfo_a_SOURCES += guestInfo.c
-libGuestInfo_a_SOURCES += guestInfoServer.c
-libGuestInfo_a_SOURCES += guestInfoPosix.c
-libGuestInfo_a_SOURCES += guestInfoPerfMonLinux.c
+libGuestInfo_la_SOURCES =
+libGuestInfo_la_SOURCES += guestInfo.c
+libGuestInfo_la_SOURCES += guestInfoServer.c
+libGuestInfo_la_SOURCES += guestInfoPosix.c
+libGuestInfo_la_SOURCES += guestInfoPerfMonLinux.c
+
+if ENABLE_CORE_SERVICES
+noinst_LTLIBRARIES += libGuestInfoCS.la
+
+libGuestInfoCS_la_SOURCES =
+libGuestInfoCS_la_SOURCES += guestInfo.c
+libGuestInfoCS_la_SOURCES += guestInfoPosix.c
+endif
 
 AM_CFLAGS = $(DNET_CPPFLAGS)
-AM_CFLAGS += -I$(top_builddir)/include
 

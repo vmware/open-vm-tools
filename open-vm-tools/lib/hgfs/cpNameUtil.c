@@ -286,4 +286,43 @@ CPNameUtil_Utf8FormCToUtf8FormHost(const char *cpUtf8FormCName,   // IN:
 }
 
 
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CPNameUitl_CharReplace --
+ *
+ *    A simple function to replace all oldChar's with newChar's in a binary
+ *    buffer. This is used for either replacing NULL with local DIRSPEC to
+ *    convert from relative cross-platform name to local relative name, or
+ *    replacing local DIRSEPC with NULL to convert from local relative name
+ *    to relative cross-platform file name 
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+CPNameUtil_CharReplace(char *buf,      // IN/OUT
+                       size_t bufSize, // IN
+                       char oldChar,   // IN
+                       char newChar)   // IN
+
+{
+   size_t i;
+
+   ASSERT(buf);
+
+   for (i = 0; i < bufSize; i++) {
+      if (buf[i] == oldChar) {
+         buf[i] = newChar;
+      }
+   }
+}
+
+
 #endif /* __KERNEL__ */

@@ -18,15 +18,15 @@
 bin_PROGRAMS = vmware-xferlogs
 
 vmware_xferlogs_LDADD =
-vmware_xferlogs_LDADD += ../lib/rpcVmx/libRpcVmx.a
-vmware_xferlogs_LDADD += ../lib/string/libString.a
+vmware_xferlogs_LDADD += ../lib/rpcVmx/libRpcVmx.la
+vmware_xferlogs_LDADD += ../lib/string/libString.la
 # In the absence of the linker options --start-group and --end-group (which can't
 # be put in LDADD), we need to bring the following libraries out of the alphebetical
 # order so their symbols are properly resolved.
-vmware_xferlogs_LDADD += ../lib/rpcOut/libRpcOut.a
-vmware_xferlogs_LDADD += ../lib/message/libMessage.a
-vmware_xferlogs_LDADD += ../lib/backdoor/libBackdoor.a
-vmware_xferlogs_LDADD += ../lib/misc/libMisc.a
+vmware_xferlogs_LDADD += ../lib/rpcOut/libRpcOut.la
+vmware_xferlogs_LDADD += ../lib/message/libMessage.la
+vmware_xferlogs_LDADD += ../lib/backdoor/libBackdoor.la
+vmware_xferlogs_LDADD += ../lib/misc/libMisc.la
 
 vmware_xferlogs_SOURCES =
 vmware_xferlogs_SOURCES += xferlogs.c

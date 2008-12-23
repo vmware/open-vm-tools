@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libSyncDriver.a
+noinst_LTLIBRARIES = libSyncDriver.la
 
-libSyncDriver_a_SOURCES =
-libSyncDriver_a_SOURCES += syncDriverPosix.c
+libSyncDriver_la_SOURCES =
+libSyncDriver_la_SOURCES += syncDriverPosix.c

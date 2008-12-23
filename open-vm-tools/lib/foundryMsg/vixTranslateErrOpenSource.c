@@ -82,6 +82,8 @@ Vix_TranslateSystemError(int systemError) // IN
    case ERROR_SHARING_VIOLATION:
    case ERROR_SEEK:
    case ERROR_CANNOT_MAKE:
+      Log("%s: system error = %d\n", __FUNCTION__,
+          systemError);
       err = VIX_E_FILE_ERROR;
       break;
    case ERROR_HANDLE_DISK_FULL:
@@ -145,6 +147,8 @@ Vix_TranslateSystemError(int systemError) // IN
    case ENOTDIR:
    case ENOTEMPTY:
    case EROFS:
+      Log("%s: system error = %d\n", __FUNCTION__,
+                        systemError);
       err = VIX_E_FILE_ERROR;
       break;
    case ENODEV:
@@ -279,6 +283,8 @@ Vix_TranslateCryptoError(CryptoError cryptoError) // IN
    } else if (CRYPTO_ERROR_BAD_PASSWORD == cryptoError) {
       return VIX_E_CRYPTO_BAS_PASSWORD;
    } else if (CRYPTO_ERROR_IO_ERROR == cryptoError) {
+      Log("%s: crypto error = %d\n", __FUNCTION__,
+          (int)cryptoError);
       return VIX_E_FILE_ERROR;
    } else if (CRYPTO_ERROR_UNKNOWN_ERROR == cryptoError) {
       return VIX_E_FAIL;

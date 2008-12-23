@@ -15,13 +15,13 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libUnity.a
+noinst_LTLIBRARIES = libUnity.la
 
-libUnity_a_SOURCES =
-libUnity_a_SOURCES += unity.c
-libUnity_a_SOURCES += unityPlatformX11.c
-libUnity_a_SOURCES += unityPlatformX11Settings.c
-libUnity_a_SOURCES += unityPlatformX11Window.c
+libUnity_la_SOURCES =
+libUnity_la_SOURCES += unity.c
+libUnity_la_SOURCES += unityPlatformX11.c
+libUnity_la_SOURCES += unityPlatformX11Settings.c
+libUnity_la_SOURCES += unityPlatformX11Window.c
 
 AM_CFLAGS = @GTK_CPPFLAGS@
 AM_CFLAGS += @LIB_FILE_CPPFLAGS@

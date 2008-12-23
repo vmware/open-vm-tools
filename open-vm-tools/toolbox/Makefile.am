@@ -16,32 +16,32 @@
 ################################################################################
 
 COMMON =
-COMMON += ../lib/conf/libConf.a
-COMMON += ../lib/eventManager/libEventManager.a
-COMMON += ../lib/file/libFile.a
-COMMON += ../lib/hgfs/libHgfs.a
-COMMON += ../lib/procMgr/libProcMgr.a
-COMMON += ../lib/rpcIn/libRpcIn.a
-COMMON += ../lib/rpcOut/libRpcOut.a
-COMMON += ../lib/string/libString.a
-COMMON += ../lib/system/libSystem.a
-COMMON += ../lib/user/libUser.a
-COMMON += ../lib/vmCheck/libVmCheck.a
-COMMON += ../lib/vmSignal/libVmSignal.a
-COMMON += ../lib/wiper/libWiper.a
+COMMON += ../lib/conf/libConf.la
+COMMON += ../lib/eventManager/libEventManager.la
+COMMON += ../lib/file/libFile.la
+COMMON += ../lib/hgfs/libHgfs.la
+COMMON += ../lib/procMgr/libProcMgr.la
+COMMON += ../lib/rpcIn/libRpcIn.la
+COMMON += ../lib/rpcOut/libRpcOut.la
+COMMON += ../lib/string/libString.la
+COMMON += ../lib/system/libSystem.la
+COMMON += ../lib/user/libUser.la
+COMMON += ../lib/vmCheck/libVmCheck.la
+COMMON += ../lib/vmSignal/libVmSignal.la
+COMMON += ../lib/wiper/libWiper.la
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of
 # the alphabetical order so their symbols are properly resolved.
-COMMON += ../lib/err/libErr.a
-COMMON += ../lib/backdoor/libBackdoor.a
-COMMON += ../lib/dict/libDict.a
-COMMON += ../lib/message/libMessage.a
-COMMON += ../lib/unicode/libUnicode.a
-COMMON += ../lib/sync/libSync.a
-COMMON += ../lib/misc/libMisc.a
-COMMON += ../lib/panicDefault/libPanicDefault.a
-COMMON += ../lib/panic/libPanic.a
-COMMON += ../lib/stubs/libStubs.a
+COMMON += ../lib/err/libErr.la
+COMMON += ../lib/backdoor/libBackdoor.la
+COMMON += ../lib/dict/libDict.la
+COMMON += ../lib/message/libMessage.la
+COMMON += ../lib/unicode/libUnicode.la
+COMMON += ../lib/sync/libSync.la
+COMMON += ../lib/misc/libMisc.la
+COMMON += ../lib/panicDefault/libPanicDefault.la
+COMMON += ../lib/panic/libPanic.la
+COMMON += ../lib/stubs/libStubs.la
 
 bin_PROGRAMS =
 if HAVE_X11
@@ -49,7 +49,7 @@ if HAVE_X11
 
    AM_CFLAGS = @GTK_CPPFLAGS@
    vmware_toolbox_LDADD =
-   vmware_toolbox_LDADD += ../lib/guestApp/libGuestAppX11.a
+   vmware_toolbox_LDADD += ../lib/guestApp/libGuestAppX11.la
    vmware_toolbox_LDADD += $(COMMON)
 
    vmware_toolbox_LDADD += @COMMON_XLIBS@
@@ -91,23 +91,25 @@ endif
 	-$(RM) -rf $(DESTDIR)/usr/share/pixmaps/vmware
 endif
 
-bin_PROGRAMS += vmware-toolbox-cmd
+if ENABLE_CORE_SERVICES
+   bin_PROGRAMS += vmware-toolbox-cmd
 
-vmware_toolbox_cmd_LDADD =
-vmware_toolbox_cmd_LDADD += ../libguestlib/libguestlib.la
-vmware_toolbox_cmd_LDADD += ../lib/guestInfo/libGuestInfo.a
-vmware_toolbox_cmd_LDADD += ../lib/guestApp/libGuestApp.a
-vmware_toolbox_cmd_LDADD += $(COMMON)
+   vmware_toolbox_cmd_LDADD =
+   vmware_toolbox_cmd_LDADD += ../libguestlib/libguestlib.la
+   vmware_toolbox_cmd_LDADD += @VMTOOLS_LIBS@
 
-vmware_toolbox_cmd_SOURCES =
-vmware_toolbox_cmd_SOURCES += debugStdio.c
-vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
-vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
-vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
-vmware_toolbox_cmd_SOURCES += toolboxcmd-shrink.c
-vmware_toolbox_cmd_SOURCES += toolboxcmd-stat.c
-vmware_toolbox_cmd_SOURCES += toolboxcmd-time.c
-vmware_toolbox_cmd_SOURCES += toolboxcmd-record.c
+   vmware_toolbox_cmd_CPPFLAGS =
+   vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+
+   vmware_toolbox_cmd_SOURCES =
+   vmware_toolbox_cmd_SOURCES += debugStdio.c
+   vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-shrink.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-stat.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-time.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-record.c
 
 if HAVE_ICU
    vmware_toolbox_cmd_LDADD += @ICU_LIBS@
@@ -118,3 +120,6 @@ if HAVE_ICU
 else
    vmware_toolbox_cmd_LINK = $(LINK)
 endif
+
+endif
+

@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libHgfsServerPolicyGuest.a
+noinst_LTLIBRARIES = libHgfsServerPolicyGuest.la
 
-libHgfsServerPolicyGuest_a_SOURCES =
-libHgfsServerPolicyGuest_a_SOURCES += hgfsServerPolicyGuest.c
+libHgfsServerPolicyGuest_la_SOURCES =
+libHgfsServerPolicyGuest_la_SOURCES += hgfsServerPolicyGuest.c

@@ -450,11 +450,15 @@ Base64_DecodedLength(char const *src, size_t srcLength) {
    ASSERT(src);
 
    length = srcLength / 4 * 3;
-   if (src[srcLength-1] == '=') {
-      length--;
-   }
-   if (src[srcLength-2] == '=') {
-      length--;
+   // PR 303173 - do the following check to avoid a negative value returned
+   // from this function. Note: length can only be in a multiple of 3
+   if (length > 2) {
+      if (src[srcLength-1] == '=') {
+         length--;
+      }
+      if (src[srcLength-2] == '=') {
+         length--;
+      }
    }
    return length;
 }

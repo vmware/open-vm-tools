@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libPanicDefault.a
+noinst_LTLIBRARIES = libPanicDefault.la
 
-libPanicDefault_a_SOURCES =
-libPanicDefault_a_SOURCES += panic.c
+libPanicDefault_la_SOURCES =
+libPanicDefault_la_SOURCES += panic.c

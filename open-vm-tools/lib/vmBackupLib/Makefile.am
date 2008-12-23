@@ -15,9 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libVmBackupLib.a
+noinst_LTLIBRARIES = libVmBackupLib.la
 
-libVmBackupLib_a_SOURCES =
-libVmBackupLib_a_SOURCES += scriptOps.c
-libVmBackupLib_a_SOURCES += stateMachine.c
-libVmBackupLib_a_SOURCES += syncDriverOps.c
+libVmBackupLib_la_SOURCES =
+libVmBackupLib_la_SOURCES += scriptOps.c
+libVmBackupLib_la_SOURCES += stateMachine.c
+libVmBackupLib_la_SOURCES += syncDriverOps.c

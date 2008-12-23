@@ -15,9 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libProcMgr.a
+noinst_LTLIBRARIES = libProcMgr.la
 
-libProcMgr_a_SOURCES =
-libProcMgr_a_SOURCES += procMgrPosix.c
+libProcMgr_la_SOURCES =
+libProcMgr_la_SOURCES += procMgrPosix.c
 
 AM_CFLAGS = @LIB_PROC_MGR_CPPFLAGS@

@@ -92,8 +92,16 @@ Random_Crypto(unsigned int size, // IN
    /*
     * We use /dev/urandom and not /dev/random because it is good enough and
     * because it cannot block. --hpreg
+    *
+    * Bug 352496: On ESX, /dev/urandom is proxied into COS, and hence is
+    * expensive. The VMkernel RNG is available through VMFS and is not proxied.
+    * So we use that instead.
     */
+#ifdef VMX86_SERVER
+   fd = open("/vmfs/devices/char/vmkdriver/urandom", O_RDONLY);
+#else
    fd = open("/dev/urandom", O_RDONLY);
+#endif
    if (fd < 0) {
       error = errno;
       Log("Random_Crypto: Failed to open: %d\n", error);

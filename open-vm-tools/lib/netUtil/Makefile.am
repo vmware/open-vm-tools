@@ -15,9 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libNetUtil.a
+noinst_LTLIBRARIES = libNetUtil.la
 
-libNetUtil_a_SOURCES =
-libNetUtil_a_SOURCES += netUtilLinux.c
-AM_CFLAGS = -I$(top_builddir)/include
+libNetUtil_la_SOURCES =
+libNetUtil_la_SOURCES += netUtilLinux.c
 

@@ -63,5 +63,9 @@ Bool CPNameUtil_Utf8FormCToUtf8FormHost(const char *cpUtf8FormCName,
                                         char **cpConvertedName,
                                         size_t *cpConvertedNameLen);
 
+void CPNameUtil_CharReplace(char *buf,
+                            size_t bufSize,
+                            char oldChar,
+                            char newChar);
 
 #endif /* __CP_NAME_UTIL_H__ */

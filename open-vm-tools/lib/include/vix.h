@@ -60,8 +60,15 @@ enum {
    VIX_HANDLETYPE_METADATA_CONTAINER   = 11
 };
 
+/*
+ * The "//{{ Begin VIX_ERROR  }}" and "//{{ End VIX_ERROR }}" lines are
+ * to bracket the error code definitions that will be copied over
+ * to vixDiskLib.h during build time. If you modify these two lines, please
+ * make sure you also change bora/lib/distribute/vixDiskLib.h and
+ * bora/support/scripts/replaceVixErrors.py
+ */
 
-
+// {{ Begin VIX_ERROR }}
 /*
  * An error is a 64-bit value. If there is no error, then the value is
  * set to VIX_OK. If there is an error, then the least significant bits
@@ -293,12 +300,15 @@ enum {
    VIX_E_TOOLS_INSTALL_GUEST_NOT_READY          = 21007,
    VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008,
    VIX_E_TOOLS_INSTALL_ERROR                    = 21009,
+   VIX_E_TOOLS_INSTALL_ALREADY_UP_TO_DATE       = 21010,
 
    /* Wrapper Errors */
    VIX_E_WRAPPER_WORKSTATION_NOT_INSTALLED      = 22001,
    VIX_E_WRAPPER_VERSION_NOT_FOUND              = 22002,
    VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 22003,
 };
+
+// {{ End VIX_ERROR }}
 
 const char *Vix_GetErrorText(VixError err, const char *locale);
 

@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libRpcVmx.a
+noinst_LTLIBRARIES = libRpcVmx.la
 
-libRpcVmx_a_SOURCES =
-libRpcVmx_a_SOURCES += rpcvmx.c
+libRpcVmx_la_SOURCES =
+libRpcVmx_la_SOURCES += rpcvmx.c

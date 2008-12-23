@@ -1138,6 +1138,9 @@ FileIO_Read(FileIODescriptor *fd,       // IN
             continue;
          }
          fret = FileIOErrno2Result(errno);
+         if (FILEIO_ERROR == fret) {
+            Log("read failed, errno=%d, %s\n", errno, strerror(errno));
+         }
          break;
       }
 
@@ -2152,6 +2155,8 @@ FileIO_ResetExcludedFromTimeMachine(char const *pathName) // IN
    char xattr;
    ssize_t gXattrResult = getxattr(pathName, XATTR_BACKUP_REENABLED,
                                    &xattr, sizeof(xattr), 0, 0);
+   int sXattrResult;
+
    if (gXattrResult != -1) {
       // We have already seen this file, don't touch it again.
       goto exit;
@@ -2167,8 +2172,8 @@ FileIO_ResetExcludedFromTimeMachine(char const *pathName) // IN
       goto exit;
    }
    xattr = '1';
-   int sXattrResult = setxattr(pathName, XATTR_BACKUP_REENABLED,
-                               &xattr, sizeof(xattr), 0, 0);
+   sXattrResult = setxattr(pathName, XATTR_BACKUP_REENABLED,
+                           &xattr, sizeof(xattr), 0, 0);
    if (sXattrResult == -1) {
       LOG_ONCE((LGPFX" %s Couldn't set xattr on path [%s]: %s.\n",
                 __func__, pathName, strerror(errno)));

@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libDict.a
+noinst_LTLIBRARIES = libDict.la
 
-libDict_a_SOURCES =
-libDict_a_SOURCES += dictll.c
+libDict_la_SOURCES =
+libDict_la_SOURCES += dictll.c

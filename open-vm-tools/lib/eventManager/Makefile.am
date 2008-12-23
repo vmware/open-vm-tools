@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libEventManager.a
+noinst_LTLIBRARIES = libEventManager.la
 
-libEventManager_a_SOURCES =
-libEventManager_a_SOURCES += eventManager.c
+libEventManager_la_SOURCES =
+libEventManager_la_SOURCES += eventManager.c

@@ -1415,11 +1415,13 @@ CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
    }
 
 #if defined(__APPLE__)
-   DynBuf db;
-   Bool ok;
-   DynBuf_Init(&db);
-   ok = CodeSet_Utf8Normalize(bufIn, sizeIn, TRUE, &db);
-   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
+   {
+      DynBuf db;
+      Bool ok;
+      DynBuf_Init(&db);
+      ok = CodeSet_Utf8Normalize(bufIn, sizeIn, TRUE, &db);
+      return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
+   }
 #else
    NOT_IMPLEMENTED();
 #endif
@@ -1462,11 +1464,13 @@ CodeSet_Utf8FormCToUtf8FormD(const char *bufIn,     // IN
    }
 
 #if defined(__APPLE__)
-   DynBuf db;
-   Bool ok;
-   DynBuf_Init(&db);
-   ok = CodeSet_Utf8Normalize(bufIn, sizeIn, FALSE, &db);
-   return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
+   {
+      DynBuf db;
+      Bool ok;
+      DynBuf_Init(&db);
+      ok = CodeSet_Utf8Normalize(bufIn, sizeIn, FALSE, &db);
+      return CodeSetDynBufFinalize(ok, &db, bufOut, sizeOut);
+   }
 #else
    NOT_IMPLEMENTED();
 #endif

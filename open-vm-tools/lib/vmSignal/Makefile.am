@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libVmSignal.a
+noinst_LTLIBRARIES = libVmSignal.la
 
-libVmSignal_a_SOURCES =
-libVmSignal_a_SOURCES += vmsignal.c
+libVmSignal_la_SOURCES =
+libVmSignal_la_SOURCES += vmsignal.c

@@ -15,9 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libDynxdr.a
+noinst_LTLIBRARIES = libDynxdr.la
 
-libDynxdr_a_SOURCES = 
-libDynxdr_a_SOURCES += dynxdr.c
-libDynxdr_a_SOURCES += xdrutil.c
+libDynxdr_la_SOURCES = 
+libDynxdr_la_SOURCES += dynxdr.c
+libDynxdr_la_SOURCES += xdrutil.c
 

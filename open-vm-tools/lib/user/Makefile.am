@@ -15,12 +15,12 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libUser.a
+noinst_LTLIBRARIES = libUser.la
 
-libUser_a_SOURCES =
-libUser_a_SOURCES += hostinfo.c
-libUser_a_SOURCES += hostinfoPosix.c
-libUser_a_SOURCES += util.c
-libUser_a_SOURCES += utilPosix.c
+libUser_la_SOURCES =
+libUser_la_SOURCES += hostinfo.c
+libUser_la_SOURCES += hostinfoPosix.c
+libUser_la_SOURCES += util.c
+libUser_la_SOURCES += utilPosix.c
 
 AM_CFLAGS = @LIB_USER_CPPFLAGS@

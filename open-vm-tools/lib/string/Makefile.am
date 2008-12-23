@@ -15,16 +15,14 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libString.a
+noinst_LTLIBRARIES = libString.la
 
-libString_a_SOURCES =
-libString_a_SOURCES += bsd_output_shared.c
-libString_a_SOURCES += bsd_vsnprintf.c
-libString_a_SOURCES += bsd_vsnwprintf.c
-libString_a_SOURCES += convertutf.c
-libString_a_SOURCES += str.c
+libString_la_SOURCES =
+libString_la_SOURCES += bsd_output_shared.c
+libString_la_SOURCES += bsd_vsnprintf.c
+libString_la_SOURCES += bsd_vsnwprintf.c
+libString_la_SOURCES += convertutf.c
+libString_la_SOURCES += str.c
 
 AM_CFLAGS = @LIB_STRING_CPPFLAGS@
 
-SUBDIRS =
-SUBDIRS += shared

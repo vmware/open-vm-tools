@@ -75,11 +75,12 @@ static const char **gNativeEnviron;
 
 /* Help pages. These need to be in the same order as the tabs in the UI. */
 static const char *gHelpPages[] = {
-   "index.html",
+   "index.htm",
    "tools_options.htm",
    "tools_devices.htm",
    "tools_scripts.htm",
    "tools_shrink.htm",
+   NULL,                        // Record/Replay
    "tools_about.htm",
 };
 
@@ -215,9 +216,14 @@ ToolsMain_OpenHelp(const char *help) // IN
       return;
    }
 
-   if (help == NULL) {
-      ToolsMain_MsgBox("Error", "No help was found for the page.");
-      return;
+   Str_Snprintf(helpPage, sizeof helpPage, "file:%s/%s", hlpDir, help);
+
+   {
+      const gchar *localPath = &helpPage[sizeof "file:" - 1];
+      if (help == NULL || !g_file_test(localPath, G_FILE_TEST_IS_REGULAR)) {
+         ToolsMain_MsgBox("Error", "No Help page was found for this tab.");
+         return;
+      }
    }
 
    Str_Snprintf(helpPage, sizeof helpPage, "file:%s/%s", hlpDir, help);
@@ -586,6 +592,11 @@ ToolsMain_Create(void)
    }
    free(result);
 
+   /**
+    * @note If adding or removing tabs to the notebook, make sure to update
+    *       @ref gHelpPages.  The indices between these tabs directly correspond
+    *       to that variable's list of pages.
+    */
 #ifdef GTK2
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Scripts_Create(ToolsMain),
                             gtk_label_new_with_mnemonic(TAB_LABEL_SCRIPTS));

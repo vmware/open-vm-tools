@@ -52,6 +52,7 @@
 #include "vmciEvent.h"
 #include "vmciQueuePairInt.h"
 #include "vmci_version.h"
+#include "vmciCommonInt.h"
 
 #define LGPFX "VMCI: "
 #define VMCI_DEVICE_MINOR_NUM 0

@@ -15,10 +15,10 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libImpersonate.a
+noinst_LTLIBRARIES = libImpersonate.la
 
-libImpersonate_a_SOURCES =
-libImpersonate_a_SOURCES += impersonate.c
-libImpersonate_a_SOURCES += impersonatePosix.c
+libImpersonate_la_SOURCES =
+libImpersonate_la_SOURCES += impersonate.c
+libImpersonate_la_SOURCES += impersonatePosix.c
 
 AM_CFLAGS = @LIB_IMPERSONATE_CPPFLAGS@

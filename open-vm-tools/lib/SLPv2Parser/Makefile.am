@@ -15,9 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libSLPv2Parser.a
+noinst_LTLIBRARIES = libSLPv2Parser.la
 
-libSLPv2Parser_a_SOURCES =
-libSLPv2Parser_a_SOURCES += SLPv2MsgParser.c
-libSLPv2Parser_a_SOURCES += SLPv2Match.c
-libSLPv2Parser_a_SOURCES += SLPv2MsgAssembler.c
+libSLPv2Parser_la_SOURCES =
+libSLPv2Parser_la_SOURCES += SLPv2MsgParser.c
+libSLPv2Parser_la_SOURCES += SLPv2Match.c
+libSLPv2Parser_la_SOURCES += SLPv2MsgAssembler.c

@@ -15,9 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LIBRARIES = libVixTools.a
+noinst_LTLIBRARIES = libVixTools.la
 
-libVixTools_a_SOURCES =
-libVixTools_a_SOURCES += vixTools.c
-AM_CFLAGS = -I$(top_builddir)/include
+libVixTools_la_SOURCES =
+libVixTools_la_SOURCES += vixTools.c
 

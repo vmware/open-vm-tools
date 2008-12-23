@@ -328,9 +328,10 @@ DnDRpcInEnterCB(char const **result,     // OUT
    unsigned int index = 0;
    int nFormats;
    int i;
+   GtkWidget *mainWnd;
 
    Debug("Got DnDRpcInEnterCB\n");
-   GtkWidget *mainWnd = GTK_WIDGET(clientData);
+   mainWnd = GTK_WIDGET(clientData);
    if (mainWnd == NULL) {
       return RpcIn_SetRetVals(result, resultLen,
                               "bad clientData passed to callback", FALSE);
@@ -2435,8 +2436,9 @@ Bool
 DnD_Register(GtkWidget *hgWnd, // IN: The widget to register as a drag source.
              GtkWidget *ghWnd) // IN: The widget to register as a drag target.
 {
-   gDragCtx = NULL;
    uint32 i;
+
+   gDragCtx = NULL;
 
    ASSERT(hgWnd);
    ASSERT(ghWnd);
