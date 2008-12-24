@@ -39,7 +39,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [8.0.0-137267],
+   [2008.12.23-137496],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
