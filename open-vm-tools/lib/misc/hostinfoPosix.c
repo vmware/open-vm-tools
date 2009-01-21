@@ -18,15 +18,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#if defined(_WIN32)
-#include <windows.h>
-#include <winbase.h>
-#else
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/utsname.h>
+#include <fcntl.h>
+#if defined(sun)
+#include <sys/systeminfo.h>
+#endif
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <errno.h>
+#if defined(__FreeBSD__) || defined(__APPLE__)
+# include <sys/sysctl.h>
 #endif
 
 #include "vmware.h"
@@ -34,94 +40,19 @@
 #include "safetime.h"
 #include "str.h"
 
+#define SYSINFO_STRING_32       "i386"
+#define SYSINFO_STRING_64       "amd64"
+#define MAX_ARCH_NAME_LEN       sizeof SYSINFO_STRING_32 > sizeof SYSINFO_STRING_64 ? \
+                                   sizeof SYSINFO_STRING_32 : \
+                                   sizeof SYSINFO_STRING_64
+
 static Bool hostinfoOSVersionInitialized;
 
-#if defined(_WIN32)
-static int hostinfoOSVersion[4];
-static DWORD hostinfoOSPlatform;
-#else
 #if defined(__APPLE__)
 #define SYS_NMLN _SYS_NAMELEN
 #endif
 static int hostinfoOSVersion[3];
 static char hostinfoOSVersionString[SYS_NMLN];
-#endif
-
-
-#if defined(_WIN32)
-/*
- *----------------------------------------------------------------------
- *
- * HostinfoOSVersionInit --
- *
- *      Compute the OS version information
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      hostinfoOS* variables are filled in.
- *
- *----------------------------------------------------------------------
- */
-
-void
-HostinfoOSVersionInit(void)
-{
-   OSVERSIONINFO info;
-   OSVERSIONINFOEX infoEx;
-
-   if (hostinfoOSVersionInitialized) {
-      return;
-   }
-
-   info.dwOSVersionInfoSize = sizeof (info);
-   if (!GetVersionEx(&info)) {
-      Warning("Unable to get OS version.\n");
-      NOT_IMPLEMENTED();
-   }
-   ASSERT(ARRAYSIZE(hostinfoOSVersion) >= 4);
-   hostinfoOSVersion[0] = info.dwMajorVersion;
-   hostinfoOSVersion[1] = info.dwMinorVersion;
-   hostinfoOSVersion[2] = info.dwBuildNumber & 0xffff;
-   /*
-    * Get the service pack number. We don't care much about NT4 hosts
-    * so we can use OSVERSIONINFOEX without checking for Windows NT 4.0 SP6 
-    * or later versions.
-    */
-   infoEx.dwOSVersionInfoSize = sizeof infoEx;
-   if (GetVersionEx((OSVERSIONINFO*)&infoEx)) {
-      hostinfoOSVersion[3] = infoEx.wServicePackMajor;
-   }
-   hostinfoOSPlatform = info.dwPlatformId;
-
-   hostinfoOSVersionInitialized = TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Hostinfo_OSIsWinNT --
- *
- *      This is Windows NT or descendant.
- *
- * Results:
- *      TRUE if Windows NT or descendant.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_OSIsWinNT(void)
-{
-   HostinfoOSVersionInit();
-   return hostinfoOSPlatform == VER_PLATFORM_WIN32_NT;
-}
-#else
 
 
 /*
@@ -192,9 +123,9 @@ const char *
 Hostinfo_OSVersionString(void)
 {
    HostinfoOSVersionInit();
+
    return hostinfoOSVersionString;
 }
-#endif
 
 
 /*
@@ -218,6 +149,7 @@ int
 Hostinfo_OSVersion(int i)
 {
    HostinfoOSVersionInit();
+
    return i < ARRAYSIZE(hostinfoOSVersion) ? hostinfoOSVersion[i] : 0;
 }
 
@@ -242,17 +174,85 @@ Hostinfo_OSVersion(int i)
 void 
 Hostinfo_GetTimeOfDay(VmTimeType *time)
 {
-#if defined(_WIN32)
-   struct _timeb t;
-
-   _ftime(&t);
-
-   *time = (t.time * 1000000) + t.millitm * 1000;
-#else  // assume POSIX
    struct timeval tv;
 
    gettimeofday(&tv, NULL);
 
    *time = ((int64)tv.tv_sec * 1000000) + tv.tv_usec;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetSystemBitness --
+ *
+ *      Determines the operating system's bitness.
+ *
+ * Return value:
+ *      32 or 64 on success, negative value on failure. Check errno for more
+ *      details of error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+Hostinfo_GetSystemBitness(void)
+{
+#if defined(linux)
+   struct utsname u;
+
+   if (uname(&u) < 0) {
+      return -1;
+   }
+   if (strstr(u.machine, "x86_64")) {
+      return 64;
+   } else {
+      return 32;
+   }
+#elif defined(N_PLAT_NLM)
+   return 32;
+#else
+   char buf[MAX_ARCH_NAME_LEN] = { 0 };
+
+#if defined(__FreeBSD__) || defined(__APPLE__)
+   int mib[2];
+   size_t len;
+
+   len = sizeof buf;
+   mib[0] = CTL_HW;
+   mib[1] = HW_MACHINE;
+
+   if (sysctl(mib, ARRAYSIZE(mib), buf, &len, NULL, 0) < 0) {
+      return -1;
+   }
+#elif defined(sun)
+#if !defined(SOL10)
+   /*
+    * XXX: This is bad.  We define SI_ARCHITECTURE_K to what it is on Solaris
+    * 10 so that we can use a single guestd build for Solaris 9 and 10.  In the
+    * future we should have the Solaris 9 build just return 32 -- since it did
+    * not support 64-bit x86 -- and let the Solaris 10 headers define
+    * SI_ARCHITECTURE_K, then have the installer symlink to the correct binary.
+    * For now, though, we'll share a single build for both versions.
+    */
+#  define SI_ARCHITECTURE_K  518
+# endif
+
+   if (sysinfo(SI_ARCHITECTURE_K, buf, sizeof buf) < 0) {
+      return -1;
+   }
+
+   if (strcmp(buf, SYSINFO_STRING_32) == 0) {
+      return 32;
+   } else if (strcmp(buf, SYSINFO_STRING_64) == 0) {
+      return 64;
+   }
+#endif
+
+   return -1;
 #endif
 }

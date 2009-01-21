@@ -29,6 +29,9 @@
 #define _DYNARRAY_H_
 
 #include "dynbuf.h"
+#include "vm_basic_types.h"
+#include "vm_assert.h"
+
 
 typedef struct DynArray {
    DynBuf buf;
@@ -55,26 +58,166 @@ DynArray_Init(DynArray *a, unsigned int count, size_t width);
 void
 DynArray_Destroy(DynArray *a);
 
-void *
-DynArray_AddressOf(const DynArray *a, unsigned int i);
-
-unsigned int
-DynArray_Count(const DynArray *a);
-
 Bool
 DynArray_SetCount(DynArray *a, unsigned int c);
-
-unsigned int
-DynArray_AllocCount(const DynArray *a);
-
-Bool
-DynArray_Trim(DynArray *a);
 
 void
 DynArray_QSort(DynArray *a, DynArrayCmp compare);
 
-Bool
-DynArray_Copy(DynArray *src, DynArray *dest);
+unsigned int
+DynArray_AllocCount(const DynArray *a);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynArray_Trim --
+ *
+ *      Resize the array to fit exactly DynArray_Count() elements.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure (why?  who knows...)
+ *
+ * Side effects:
+ *      Resizes the array
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+DynArray_Trim(DynArray *a)    // IN/OUT
+{
+   ASSERT(a);
+
+   return DynBuf_Trim(&a->buf);
+}
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynArray_AddressOf --
+ *
+ *      Fetch a pointer to the address of the ith element.
+ *
+ * Results:
+ *      The pointer to the ith element or NULL if the index is out of
+ *      bounds.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+DynArray_AddressOf(const DynArray *a,   // IN
+                   unsigned int i)      // IN
+{
+   uintptr_t offset = i * a->width;
+
+   ASSERT(a);
+
+   if (offset + a->width <= DynBuf_GetSize(&a->buf)) {
+      return offset + (uint8 *)DynBuf_Get(&a->buf);
+   }
+
+   return NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynArray_AddressOfUnsafe --
+ *
+ *      Fetch a pointer to the address of the ith element. Only call
+ *      this if you already know that 'i' is valid. The index is not
+ *      checked against the size of the array.
+ *
+ * Results:
+ *      Always returns a pointer to the ith element.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+DynArray_AddressOfUnsafe(const DynArray *a,   // IN
+                         unsigned int i)      // IN
+{
+   uintptr_t offset = i * a->width;
+
+   ASSERT(a);
+   ASSERT(offset + a->width <= DynBuf_GetSize(&a->buf));
+
+   return offset + (uint8 *)DynBuf_Get(&a->buf);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynArray_Count --
+ *
+ *      Returns the number of elements in the array.
+ *
+ *      XXX: This is relatively slow, since we do an integer division.
+ *           Avoid calling this in inner loops.
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE unsigned int
+DynArray_Count(const DynArray *a)       // IN
+{
+   ASSERT(a);
+
+   return (unsigned int) (DynBuf_GetSize(&a->buf) / a->width);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynArray_Copy --
+ *
+ *      Copies all data and metadata from src Dynarray to dest DynArray.
+ *
+ *      Dest should be an initialized DynArray of size zero.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+DynArray_Copy(DynArray *src,        // IN
+              DynArray *dest)       // OUT
+{
+   ASSERT(src);
+   ASSERT(dest);
+   ASSERT(dest->width);
+   ASSERT(dest->width == src->width);
+   ASSERT(DynArray_AllocCount(dest) == 0);
+
+   return DynBuf_Copy(&src->buf, &dest->buf);
+}
+
 
 /*
  * Use the following macros to define your own DynArray type to

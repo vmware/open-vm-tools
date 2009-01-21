@@ -323,40 +323,43 @@ typedef int32 UnityDesktopId;
  * Unity window attributes are boolean flags that can be set in combination on a window.
  * If they are not set by the guest, it is up to the host to decide on a reasonable
  * default.
- *
- * @attention
- * If you add attributes here, please also update unityAttributeNames in
- * unityWindowTracker.c.
  */
 typedef enum {
-   UNITY_WINDOW_ATTR_BORDERLESS = 0,
-   UNITY_WINDOW_ATTR_MINIMIZABLE = 1,
-   UNITY_WINDOW_ATTR_MAXIMIZABLE = 2,
-   UNITY_WINDOW_ATTR_MAXIMIZED = 3,
-   UNITY_WINDOW_ATTR_CLOSABLE = 5,
-   UNITY_WINDOW_ATTR_HAS_TITLEBAR = 6,
-   UNITY_WINDOW_ATTR_VISIBLE = 7,
-   UNITY_WINDOW_ATTR_CHILD_WINDOW = 8,
-   UNITY_WINDOW_ATTR_HAS_TOOLBAR_BTN = 9,
-   UNITY_WINDOW_ATTR_BELONGS_TO_APP = 10,
-   UNITY_WINDOW_ATTR_DROPSHADOWED = 11,
-   UNITY_WINDOW_ATTR_ALWAYS_ABOVE = 12,
-   UNITY_WINDOW_ATTR_ALWAYS_BELOW = 13,
-   UNITY_WINDOW_ATTR_DISABLED = 14,
-   UNITY_WINDOW_ATTR_NOACTIVATE = 15,
-   UNITY_WINDOW_ATTR_SYSMENU = 16,
+   UNITY_WINDOW_ATTR_BORDERLESS = 0,        ///< @deprecated
+   UNITY_WINDOW_ATTR_MINIMIZABLE = 1,       ///< Can be minimized.
+   UNITY_WINDOW_ATTR_MAXIMIZABLE = 2,       ///< Can be maximized.
+   UNITY_WINDOW_ATTR_MAXIMIZED = 3,         /**< Is maximized.  @note Not mutually exclusive
+                                                 with @ref UNITY_WINDOW_STATE_MINIMIZED. */
+   UNITY_WINDOW_ATTR_CLOSABLE = 5,          ///< Supports closing.
+   UNITY_WINDOW_ATTR_HAS_TITLEBAR = 6,      ///< @deprecated 
+   UNITY_WINDOW_ATTR_VISIBLE = 7,           ///< @deprecated 
+   UNITY_WINDOW_ATTR_CHILD_WINDOW = 8,      ///< @deprecated 
+   UNITY_WINDOW_ATTR_HAS_TASKBAR_BTN = 9,   /**< Should appear in the taskbar.
+                                                 @todo Consider deprecation? */
+   UNITY_WINDOW_ATTR_MOVABLE = 10,          ///< Can be moved around the desktop. 
+   UNITY_WINDOW_ATTR_RESIZABLE = 11,        ///< Can be resized. 
+   UNITY_WINDOW_ATTR_ALWAYS_ABOVE = 12,     ///< Should stay on top of stack. 
+   UNITY_WINDOW_ATTR_ALWAYS_BELOW = 13,     ///< Should stay at bottom of stack. 
+   UNITY_WINDOW_ATTR_DISABLED = 14,         ///< Keyboard, mouse input is disabled.
+   UNITY_WINDOW_ATTR_NOACTIVATE = 15,       /**< Does not raise to foreground via mouse
+                                                 click, alt-tab, etc. */
+   UNITY_WINDOW_ATTR_SYSMENU = 16,          /**< Window includes system menu (e.g., on
+                                                 Windows, right-click the taskbar
+                                                 button). */
    UNITY_WINDOW_ATTR_TOOLWINDOW = 17,
-   UNITY_WINDOW_ATTR_APPWINDOW = 18,
-   UNITY_WINDOW_ATTR_FULLSCREENABLE = 19,
-   UNITY_WINDOW_ATTR_FULLSCREENED = 20,
-   UNITY_WINDOW_ATTR_ATTN_WANTED = 21,
-   UNITY_WINDOW_ATTR_SHADEABLE = 22,
-   UNITY_WINDOW_ATTR_SHADED = 23,
-   UNITY_WINDOW_ATTR_STICKABLE = 24,
-   UNITY_WINDOW_ATTR_STICKY = 25,
-   UNITY_WINDOW_ATTR_MODAL = 26,
+   UNITY_WINDOW_ATTR_APPWINDOW = 18,        /**< Application window.  Should appear in
+                                                 task switchers, etc. */
+   UNITY_WINDOW_ATTR_FULLSCREENABLE = 19,   ///< @deprecated
+   UNITY_WINDOW_ATTR_FULLSCREENED = 20,     ///< @deprecated
+   UNITY_WINDOW_ATTR_ATTN_WANTED = 21,      ///< Application wants user's attention.
+   UNITY_WINDOW_ATTR_SHADEABLE = 22,        ///< @deprecated 
+   UNITY_WINDOW_ATTR_SHADED = 23,           ///< @deprecated 
+   UNITY_WINDOW_ATTR_STICKABLE = 24,        ///< Can be made sticky.
+   UNITY_WINDOW_ATTR_STICKY = 25,           ///< Window should appear on all desktops.
+   UNITY_WINDOW_ATTR_MODAL = 26,            /**< Modal window.
+                                                 @todo But relative to which app? */
 
-   UNITY_MAX_ATTRIBUTES // Not a valid attribute
+   UNITY_MAX_ATTRIBUTES                     ///< Final, sentinel attribute entry.
 } UnityWindowAttribute;
 
 typedef enum {

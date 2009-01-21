@@ -58,6 +58,7 @@
 #  include <sys/mutex.h>
 #  include <sys/poll.h>
 #  include <sys/semaphore.h>
+#  include <sys/kmem.h>
 #endif
 
 #include "vm_basic_types.h"
@@ -86,6 +87,7 @@
   typedef unsigned long VMCILockFlags;
   typedef semaphore_t VMCIEvent;
   typedef IOLock *VMCIMutex;
+  typedef void *VMCIPpnList; /* Actually a pointer to the C++ Object IOMemoryDescriptor */
 #elif defined(_WIN32)
   typedef KSPIN_LOCK VMCILock;
   typedef KIRQL VMCILockFlags;
@@ -96,6 +98,8 @@
   typedef kmutex_t VMCILock;
   typedef unsigned long VMCILockFlags;
   typedef ksema_t VMCIEvent;
+  typedef kmutex_t VMCIMutex;
+  typedef PPN *VMCIPpnList; /* List of PPNs in produce/consume queue. */
 #endif // VMKERNEL
 
 /* Callback needed for correctly waiting on events. */
@@ -231,22 +235,29 @@ void VMCI_DestroyEvent(VMCIEvent *event);
 void VMCI_SignalEvent(VMCIEvent *event);
 void VMCI_WaitOnEvent(VMCIEvent *event, VMCIEventReleaseCB releaseCB, 
 		      void *clientData);
+#if (defined(__linux__) || defined(_WIN32)) && !defined(VMKERNEL)
+Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
+                                   VMCIEventReleaseCB releaseCB,
+                                   void *clientData);
+#endif
 
-/* XXX TODO for VMKERNEL (host) and Solaris (guest). */
 #if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
-                           defined(__APPLE__))
+                           defined(__APPLE__) || defined(SOLARIS))
 int VMCI_CopyFromUser(void *dst, const void *src, size_t len);
 #endif
 
-#if !defined(SOLARIS)
 int VMCIMutex_Init(VMCIMutex *mutex);
 void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
 void VMCIMutex_Release(VMCIMutex *mutex);
-#endif
 
-/* XXX TODO for Solaris (guest). */
-#if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32))
+#if defined(SOLARIS)
+int VMCIKernelIf_Init(void);
+void VMCIKernelIf_Exit(void);
+#endif		/* SOLARIS  */
+
+#if !defined(VMKERNEL) && (defined(__linux__) || defined(_WIN32) || \
+                           defined(SOLARIS) || defined(__APPLE__))
 VA VMCI_AllocQueueKVA(uint64 size);
 void VMCI_FreeQueueKVA(VA va, uint64 size);
 typedef struct PPNSet {
@@ -260,6 +271,19 @@ int VMCI_AllocPPNSet(VA produceVA, uint64 numProducePages, VA consumeVA,
                      uint64 numConsumePages, PPNSet *ppnSet);
 void VMCI_FreePPNSet(PPNSet *ppnSet);
 int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
+#endif
+
+#if (defined(_WIN32) || defined(__linux__)) && !defined(VMKERNEL) && \
+   !defined(VMX86_TOOLS)
+struct PageStoreAttachInfo;
+struct VMCIQueue;
+
+int VMCIHost_GetUserMemory(struct PageStoreAttachInfo *attach);
+void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach);
+int VMCIHost_FinishAttach(struct PageStoreAttachInfo *attach,
+                          struct VMCIQueue *produceQ,
+			  struct VMCIQueue *detachQ);
+void VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach);
 #endif
 
 #endif // _VMCI_KERNEL_IF_H_

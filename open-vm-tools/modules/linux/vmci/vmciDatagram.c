@@ -335,7 +335,7 @@ DatagramHandleUniqueLocked(VMCIHandle handle)
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIDatagram_CreateHnd --
+ * VMCIDatagramCreateHndInt --
  *
  *      Creates a datagram endpoint and returns a handle to it.
  *
@@ -348,17 +348,12 @@ DatagramHandleUniqueLocked(VMCIHandle handle)
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIDatagram_CreateHnd);
-#endif
-
 int
-VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
-                       uint32 flags,               // IN:
-                       VMCIDatagramRecvCB recvCB,  // IN:
-                       void *clientData,           // IN:
-                       VMCIHandle *outHandle)      // OUT:
-   
+VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
+                         uint32 flags,               // IN:
+                         VMCIDatagramRecvCB recvCB,  // IN:
+                         void *clientData,           // IN:
+                         VMCIHandle *outHandle)      // OUT:
 {
    int result;
    DatagramHashEntry *entry;
@@ -375,7 +370,7 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
    }
 
    if ((flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
-      VMCIDatagramWellKnownMapMsg wkMsg;  
+      VMCIDatagramWellKnownMapMsg wkMsg;
       if (resourceID == VMCI_INVALID_ID) {
 	 return VMCI_ERROR_INVALID_ARGS;
       }
@@ -405,7 +400,7 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
    if (entry == NULL) {
       return VMCI_ERROR_NO_MEM;
    }
-   
+
    entry->handle = handle;
    entry->flags = flags;
    entry->recvCB = recvCB;
@@ -426,7 +421,95 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
    return VMCI_SUCCESS;
 }
 
-		      
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIDatagram_CreateHnd --
+ *
+ *      Creates a datagram endpoint and returns a handle to it.
+ *
+ * Results:
+ *      Returns handle if success, negative errno value otherwise.
+ *
+ * Side effects:
+ *      Datagram endpoint is created both in guest and on host.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef __linux__
+EXPORT_SYMBOL(VMCIDatagram_CreateHnd);
+#endif
+
+int
+VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
+                       uint32 flags,               // IN:
+                       VMCIDatagramRecvCB recvCB,  // IN:
+                       void *clientData,           // IN:
+                       VMCIHandle *outHandle)      // OUT:
+{
+   return VMCIDatagramCreateHndInt(resourceID, flags, recvCB, clientData, outHandle);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIDatagramDestroyHndInt --
+ *
+ *      Destroys a handle.
+ *
+ * Results:
+ *      VMCI_SUCCESS or error code.
+ *
+ * Side effects:
+ *      Host and guest state is cleaned up.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIDatagramDestroyHndInt(VMCIHandle handle)       // IN
+{
+   DatagramHashEntry *entry = DatagramHashGetEntry(handle);
+   if (entry == NULL) {
+      return VMCI_ERROR_NOT_FOUND;
+   }
+
+   DatagramHashRemoveEntry(entry->handle);
+
+   /*
+    * We wait for destroyEvent to be signalled. The resource is released
+    * as part of the wait.
+    */
+   VMCI_WaitOnEvent(&entry->destroyEvent, DatagramReleaseCB, entry);
+
+
+   if ((entry->flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
+      int result;
+      VMCIDatagramWellKnownMapMsg wkMsg;
+
+      wkMsg.hdr.dst.context = VMCI_HYPERVISOR_CONTEXT_ID;
+      wkMsg.hdr.dst.resource = VMCI_DATAGRAM_REMOVE_MAP;
+      wkMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
+      wkMsg.hdr.payloadSize = sizeof wkMsg - VMCI_DG_HEADERSIZE;
+      wkMsg.wellKnownID = entry->handle.resource;
+      result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
+      if (result < VMCI_SUCCESS) {
+	 VMCI_LOG(("Failed to remove well-known mapping for resource %d.\n",
+		   entry->handle.resource));
+      }
+   }
+
+   /* We know we are now holding the last reference so we can free the entry. */
+   VMCI_DestroyEvent(&entry->destroyEvent);
+   VMCI_FreeKernelMem(entry, sizeof *entry);
+
+   return VMCI_SUCCESS;
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -450,41 +533,7 @@ EXPORT_SYMBOL(VMCIDatagram_DestroyHnd);
 int
 VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
 {
-   DatagramHashEntry *entry = DatagramHashGetEntry(handle);
-   if (entry == NULL) {
-      return VMCI_ERROR_NOT_FOUND;
-   }
-   
-   DatagramHashRemoveEntry(entry->handle);
-
-   /*
-    * We wait for destroyEvent to be signalled. The resource is released
-    * as part of the wait.
-    */
-   VMCI_WaitOnEvent(&entry->destroyEvent, DatagramReleaseCB, entry);
-
-   
-   if ((entry->flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
-      int result;
-      VMCIDatagramWellKnownMapMsg wkMsg;
-
-      wkMsg.hdr.dst.context = VMCI_HYPERVISOR_CONTEXT_ID;
-      wkMsg.hdr.dst.resource = VMCI_DATAGRAM_REMOVE_MAP;
-      wkMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
-      wkMsg.hdr.payloadSize = sizeof wkMsg - VMCI_DG_HEADERSIZE;
-      wkMsg.wellKnownID = entry->handle.resource;
-      result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
-      if (result < VMCI_SUCCESS) {
-	 VMCI_LOG(("Failed to remove well-known mapping for resource %d.\n",
-		   entry->handle.resource));
-      }
-   }
-   
-   /* We know we are now holding the last reference so we can free the entry. */
-   VMCI_DestroyEvent(&entry->destroyEvent);
-   VMCI_FreeKernelMem(entry, sizeof *entry);
-
-   return VMCI_SUCCESS;
+   return VMCIDatagramDestroyHndInt(handle);
 }
 
 

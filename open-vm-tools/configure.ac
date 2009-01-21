@@ -22,6 +22,8 @@
 # In addition to the usual environment variables and command line
 # arguments that a configure script usually takes (CFLAGS, LDFLAGS,
 # etc.), this script also accepts:
+# $CUSTOM_FUSE_CPPFLAGS - compile-time flags to find FUSE headers.
+# $CUSTOM_FUSE_LIBS - link-time flags to find FUSE libraries.
 # $CUSTOM_GLIB2_CPPFLAGS - compile-time flags to find Glib headers.
 # $CUSTOM_GLIB2_LIBS - link-time flags to find Glib libraries.
 # $CUSTOM_GTK_CPPFLAGS - compile-time flags to find Gtk headers.
@@ -39,7 +41,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2008.12.23-137496],
+   [2009.01.21-142982],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -269,6 +271,49 @@ else
    fi
 fi
 
+#
+# Check for fuse.
+#
+if test "$HAVE_PKG_CONFIG" = "yes"; then
+   AC_MSG_CHECKING([for fuse (via pkg-config)])
+   if pkg-config --exists 'fuse'; then
+      FUSE_CPPFLAGS="`pkg-config --cflags fuse`"
+      FUSE_LIBS="`pkg-config --libs fuse`"
+      have_fuse="yes"
+      AC_MSG_RESULT([yes])
+  else
+      have_fuse="no"
+      AC_MSG_RESULT([no])
+  fi
+else
+   ORIGINAL_LDFLAGS="$LDFLAGS"
+   LDFLAGS="$CUSTOM_FUSE_LIBS $LDFLAGS"
+   AC_CHECK_LIB(
+      [fuse],
+      [fuse_main],
+      [have_fuse="yes";
+       if test -n "$CUSTOM_FUSE_LIBS"; then
+          FUSE_LIBS="$CUSTOM_FUSE_LIBS"
+       else
+          FUSE_LIBS="-lfuse"
+       fi],
+      [have_fuse="no"; AC_MSG_WARN([Fuse is missing, vmblock-fuse will be disabled.])])
+   LDFLAGS="$ORIGINAL_LDFLAGS"
+
+   if test "$have_fuse" = "yes"; then
+      ORIGINAL_CPPFLAGS="$CPPFLAGS"
+      CPPFLAGS="$CUSTOM_FUSE_CPPFLAGS $CPPFLAGS"
+      AC_CHECK_HEADER(
+         [fuse.h],
+         [if test -n "$CUSTOM_FUSE_CPPFLAGS"; then
+             FUSE_CPPFLAGS="$CUSTOM_FUSE_CPPFLAGS"
+	  else
+	     FUSE_CPPFLAGS="-I/usr/include"
+          fi],
+         [have_fuse="no"; AC_MSG_WARN([Can't locate fuse headers, vmblock-fuse will be disabled.])])
+      CPPFLAGS="$ORIGINAL_CPPFLAGS"
+   fi
+fi
 
 # If the user explicitly disables X11, then don't try to detect the X-related libraries
 if test "$have_x" = "disabled"; then
@@ -970,6 +1015,7 @@ if test "$os" = "solaris"; then
    # uname -r on Solaris 10 reports "5.10"
    if test "$osVersion" -ge 510000; then
       CPPFLAGS="$CPPFLAGS -DSOL10"
+      MODULES="$MODULES vmhgfs"
    fi
 fi
 
@@ -985,6 +1031,8 @@ AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
 AM_CONDITIONAL(ENABLE_CORE_SERVICES, test "$have_glib_26" = "yes")
+AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
+AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible
@@ -1054,6 +1102,8 @@ AC_SUBST([VMTOOLS_CPPFLAGS])
 AC_SUBST([VMTOOLS_LIBS])
 AC_SUBST([ZLIB_CPPFLAGS])
 AC_SUBST([ZLIB_LIBS])
+AC_SUBST([FUSE_CPPFLAGS])
+AC_SUBST([FUSE_LIBS])
 
 ### Lib substs
 
@@ -1148,6 +1198,7 @@ AC_CONFIG_FILES([                      \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \
    modules/Makefile                    \
+   vmblock-fuse/Makefile               \
    scripts/Makefile		       \
 ])
 

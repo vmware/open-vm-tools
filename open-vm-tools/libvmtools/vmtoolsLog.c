@@ -47,6 +47,7 @@
 #  define  DEFAULT_HANDLER    VMToolsLogFile
 #endif
 
+#define LOGGING_GROUP         "logging"
 #define MAX_DOMAIN_LEN        64
 
 /*
@@ -75,6 +76,21 @@
                                  (gLogEnabled && ((data)->mask & (level))))
 
 
+static void
+VMToolsLogFile(const gchar *domain,
+               GLogLevelFlags level,
+               const gchar *message,
+               gpointer _data);
+
+#if defined(G_PLATFORM_WIN32)
+static void
+VMToolsLogOutputDebugString(const gchar *domain,
+                            GLogLevelFlags level,
+                            const gchar *message,
+                            gpointer _data);
+#endif
+
+
 typedef struct LogHandlerData {
    GLogLevelFlags    mask;
    FILE             *file;
@@ -85,6 +101,7 @@ static gboolean gEnableCoreDump = TRUE;
 static gboolean gLogEnabled = FALSE;
 static guint gPanicCount = 0;
 static LogHandlerData *gDefaultData = NULL;
+static GLogFunc gDefaultLogFunc = DEFAULT_HANDLER;
 
 /* Internal functions. */
 
@@ -309,6 +326,147 @@ VMTools_InitLogging(void)
 }
 
 
+/**
+ * Configures the given log domain based on the data provided in the given
+ * dictionary. If the log domain being configured doesn't match the default
+ * (@see VMTools_GetDefaultLogDomain()), and no specific handler is defined
+ * for the domain, the handler is inherited from the default domain, instead
+ * of using the default handler. This allows reusing the same log file, for
+ * example, while maintaining the ability to enable different log levels
+ * for different domains.
+ *
+ * For the above to properly work, the default log domain has to be configured
+ * before any other domains.
+ *
+ * @param[in]  domain      Name of domain being configured.
+ * @param[in]  cfg         Dictionary with config data.
+ */
+
+static void
+VMToolsConfigLogDomain(const gchar *domain,
+                       GKeyFile *cfg)
+{
+   gchar *handler = NULL;
+   gchar *level = NULL;
+   gchar *logpath = NULL;
+   gchar key[128];
+
+   GLogFunc handlerFn = NULL;
+   GLogLevelFlags levelsMask;
+   LogHandlerData *data;
+   FILE *logfile = NULL;
+
+   /* Arbitrary limit. */
+   if (strlen(domain) > MAX_DOMAIN_LEN) {
+      g_warning("Domain name too long: %s\n", domain);
+      goto exit;
+   } else if (strlen(domain) == 0) {
+      g_warning("Invalid domain declaration, missing name.\n");
+      goto exit;
+   }
+
+   Str_Sprintf(key, sizeof key, "%s.level", domain);
+   level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+   if (level == NULL) {
+#ifdef VMX86_DEBUG
+      level = g_strdup("message");
+#else
+      level = g_strdup("warning");
+#endif
+   }
+
+   /* Parse the handler information. */
+   Str_Sprintf(key, sizeof key, "%s.handler", domain);
+   handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+
+   if (handler == NULL) {
+      if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
+         handlerFn = DEFAULT_HANDLER;
+      } else {
+         handlerFn = gDefaultLogFunc;
+      }
+   } else if (strcmp(handler, "std") == 0) {
+      handlerFn = VMToolsLogFile;
+   } else if (strcmp(handler, "file") == 0) {
+      /* Don't set up the file sink if logging is disabled. */
+      if (strcmp(level, "none") != 0) {
+         handlerFn = VMToolsLogFile;
+         Str_Sprintf(key, sizeof key, "%s.data", domain);
+         logpath = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+         if (logpath == NULL) {
+            g_warning("Missing log path for file handler (%s).\n", domain);
+            goto exit;
+         }
+      }
+#if defined(G_PLATFORM_WIN32)
+   } else if (strcmp(handler, "outputdebugstring") == 0) {
+      handlerFn = VMToolsLogOutputDebugString;
+#endif
+   } else {
+      g_warning("Unknown log handler: %s\n", handler);
+      goto exit;
+   }
+
+   /* Parse the log level configuration, and build the mask. */
+   if (strcmp(level, "error") == 0) {
+      levelsMask = G_LOG_LEVEL_ERROR;
+   } else if (strcmp(level, "critical") == 0) {
+      levelsMask = G_LOG_LEVEL_ERROR |
+                   G_LOG_LEVEL_CRITICAL;
+   } else if (strcmp(level, "warning") == 0) {
+      levelsMask = G_LOG_LEVEL_ERROR |
+                   G_LOG_LEVEL_CRITICAL |
+                   G_LOG_LEVEL_WARNING;
+   } else if (strcmp(level, "message") == 0) {
+      levelsMask = G_LOG_LEVEL_ERROR |
+                   G_LOG_LEVEL_CRITICAL |
+                   G_LOG_LEVEL_WARNING |
+                   G_LOG_LEVEL_MESSAGE;
+   } else if (strcmp(level, "info") == 0) {
+      levelsMask = G_LOG_LEVEL_ERROR |
+                   G_LOG_LEVEL_CRITICAL |
+                   G_LOG_LEVEL_WARNING |
+                   G_LOG_LEVEL_MESSAGE |
+                   G_LOG_LEVEL_INFO;
+   } else if (strcmp(level, "debug") == 0) {
+      levelsMask = ALL_LOG_LEVELS;
+   } else if (strcmp(level, "none") == 0) {
+      levelsMask = 0;
+   } else {
+      g_warning("Unknown log level (%s): %s\n", domain, level);
+      goto exit;
+   }
+
+   /* Initialize the log file, if using the "file" handler. */
+   if (logpath != NULL) {
+      logfile = VMToolsLogOpenFile(logpath);
+      if (logfile == NULL) {
+         g_warning("Couldn't open log file (%s): %s\n", domain, logpath);
+         goto exit;
+      }
+   }
+
+   data = g_malloc0(sizeof *data);
+   data->mask = levelsMask;
+   data->file = logfile;
+
+   if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
+      g_free(gDefaultData);
+      gDefaultData = data;
+      gDefaultLogFunc = handlerFn;
+      g_log_set_default_handler(handlerFn, data);
+   } else if (handler == NULL) {
+      data->file = gDefaultData->file;
+   }
+
+   g_log_set_handler(domain, ALL_LOG_LEVELS, handlerFn, data);
+
+exit:
+   g_free(handler);
+   g_free(logpath);
+   g_free(level);
+}
+
 
 /* Public API. */
 
@@ -353,137 +511,46 @@ VMTools_SetDefaultLogDomain(const gchar *domain)
 void
 VMTools_ConfigLogging(GKeyFile *cfg)
 {
-   const gchar *group = "logging";
    gchar **list;
    gchar **curr;
 
-   if (!g_key_file_has_group(cfg, group)) {
+   if (!g_key_file_has_group(cfg, LOGGING_GROUP)) {
       return;
    }
 
-   list = g_key_file_get_keys(cfg, group, NULL, NULL);
+   /*
+    * Configure the default domain first. See function documentation for
+    * VMToolsConfigLogDomain() for the reason.
+    */
+   VMToolsConfigLogDomain(VMTools_GetDefaultLogDomain(), cfg);
+
+   list = g_key_file_get_keys(cfg, LOGGING_GROUP, NULL, NULL);
 
    for (curr = list; curr != NULL && *curr != NULL; curr++) {
       gchar *domain = *curr;
-      gchar *handler;
-      gchar *level = NULL;
-      gchar *logpath = NULL;
-      gchar key[128];
-      guint handlerId;
-
-      GLogFunc handlerFn = NULL;
-      GLogLevelFlags levelsMask;
-      LogHandlerData *data;
-      FILE *logfile = NULL;
 
       /* Check whether it's a domain "declaration". */
       if (!g_str_has_suffix(domain, ".level")) {
          continue;
       }
 
-      level = g_key_file_get_string(cfg, group, domain, NULL);
-
       /* Trims ".level" from the key to get the domain name. */
       domain[strlen(domain) - 6] = '\0';
 
-      /* Arbitrary limit. */
-      if (strlen(domain) > MAX_DOMAIN_LEN) {
-         g_warning("Domain name too long: %s\n", domain);
-         continue;
-      } else if (strlen(domain) == 0) {
-         g_warning("Invalid domain declaration, missing name.\n");
-         continue;
-      }
-
-      /* Parse the handler information. */
-      Str_Sprintf(key, sizeof key, "%s.handler", domain);
-      handler = g_key_file_get_string(cfg, group, key, NULL);
-
-      if (handler == NULL) {
-         handlerFn = DEFAULT_HANDLER;
-      } else if (strcmp(handler, "std") == 0) {
-         handlerFn = VMToolsLogFile;
-      } else if (strcmp(handler, "file") == 0) {
-         /* Don't set up the file sink if logging is disabled. */
-         if (strcmp(level, "none") != 0) {
-            handlerFn = VMToolsLogFile;
-            Str_Sprintf(key, sizeof key, "%s.data", domain);
-            logpath = g_key_file_get_string(cfg, group, key, NULL);
-            if (logpath == NULL) {
-               g_warning("Missing log path for file handler (%s).\n", domain);
-               goto next;
-            }
-         }
-#if defined(G_PLATFORM_WIN32)
-      } else if (strcmp(handler, "outputdebugstring") == 0) {
-         handlerFn = VMToolsLogOutputDebugString;
-#endif
-      } else {
-         g_warning("Unknown log handler: %s\n", handler);
-         goto next;
-      }
-
-      /* Parse the log level configuration, and build the mask. */
-      if (strcmp(level, "error") == 0) {
-         levelsMask = G_LOG_LEVEL_ERROR;
-      } else if (strcmp(level, "critical") == 0) {
-         levelsMask = G_LOG_LEVEL_ERROR |
-                      G_LOG_LEVEL_CRITICAL;
-      } else if (strcmp(level, "warning") == 0) {
-         levelsMask = G_LOG_LEVEL_ERROR |
-                      G_LOG_LEVEL_CRITICAL |
-                      G_LOG_LEVEL_WARNING;
-      } else if (strcmp(level, "message") == 0) {
-         levelsMask = G_LOG_LEVEL_ERROR |
-                      G_LOG_LEVEL_CRITICAL |
-                      G_LOG_LEVEL_WARNING |
-                      G_LOG_LEVEL_MESSAGE;
-      } else if (strcmp(level, "info") == 0) {
-         levelsMask = G_LOG_LEVEL_ERROR |
-                      G_LOG_LEVEL_CRITICAL |
-                      G_LOG_LEVEL_WARNING |
-                      G_LOG_LEVEL_MESSAGE |
-                      G_LOG_LEVEL_INFO;
-      } else if (strcmp(level, "debug") == 0) {
-         levelsMask = ALL_LOG_LEVELS;
-      } else if (strcmp(level, "none") == 0) {
-         levelsMask = 0;
-      } else {
-         g_warning("Unknown log level (%s): %s\n", domain, level);
-         goto next;
-      }
-
-      /* Initialize the log file, if using the "file" handler. */
-      if (logpath != NULL) {
-         logfile = VMToolsLogOpenFile(logpath);
-         if (logfile == NULL) {
-            g_warning("Couldn't open log file (%s): %s\n", domain, logpath);
-            goto next;
-         }
-      }
-
-      data = g_malloc0(sizeof *data);
-      data->mask = levelsMask;
-      data->file = logfile;
-
+      /* Skip the default domain. */
       if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
-         g_free(gDefaultData);
-         gDefaultData = NULL;
-         g_log_set_default_handler(handlerFn, data);
+         continue;
       }
-      handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS, handlerFn, data);
 
-   next:
-      g_free(handler);
-      g_free(logpath);
-      g_free(level);
+      VMToolsConfigLogDomain(domain, cfg);
    }
 
    g_strfreev(list);
 
-   gLogEnabled = g_key_file_get_boolean(cfg, group, "log", NULL);
-   if (g_key_file_has_key(cfg, group, "enableCoreDump", NULL)) {
-      gEnableCoreDump = g_key_file_get_boolean(cfg, group, "enableCoreDump", NULL);
+   gLogEnabled = g_key_file_get_boolean(cfg, LOGGING_GROUP, "log", NULL);
+   if (g_key_file_has_key(cfg, LOGGING_GROUP, "enableCoreDump", NULL)) {
+      gEnableCoreDump = g_key_file_get_boolean(cfg, LOGGING_GROUP,
+                                               "enableCoreDump", NULL);
    }
 }
 

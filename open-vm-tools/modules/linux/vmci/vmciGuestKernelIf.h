@@ -28,10 +28,6 @@
 #ifndef _VMCI_GUEST_KERNEL_IF_H_
 #define _VMCI_GUEST_KERNEL_IF_H_
 
-#if !defined(linux) && !defined(_WIN32) && !defined(SOLARIS)
-#error "Platform not supported."
-#endif
-
 #if defined(_WIN32)
 #include <ntddk.h>
 #endif 
@@ -54,6 +50,9 @@
 #elif defined(SOLARIS)
   typedef uint8_t * VMCIIoPort;
   typedef ddi_acc_handle_t VMCIIoHandle;
+#elif defined(__APPLE__)
+  typedef unsigned short int VMCIIoPort;
+  typedef void *VMCIIoHandle;
 #endif // VMKERNEL
 
 void VMCI_ReadPortBytes(VMCIIoHandle handle, VMCIIoPort port, uint8 *buffer,

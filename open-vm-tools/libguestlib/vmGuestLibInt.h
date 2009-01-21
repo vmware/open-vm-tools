@@ -38,7 +38,7 @@
  * Current version of the VMGuestLibData structure
  */
 
-#define   VMGUESTLIB_DATA_VERSION 2
+#define   VMGUESTLIB_DATA_VERSION 3
 
 
 /* Stat types with a valid bit per stat. */
@@ -115,6 +115,14 @@ VMGuestLibDataV1;
 
 #endif // #if 0
 
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 version;
+   VMSessionId sessionId;
+}
+#include "vmware_pack_end.h"
+VMGuestLibHeader;
 
 /*
  * This is version 2 of the data structure GuestLib uses to obtain
@@ -125,8 +133,8 @@ VMGuestLibDataV1;
 typedef
 #include "vmware_pack_begin.h"
 struct VMGuestLibDataV2 {
-   uint32 version;
-   VMSessionId sessionId;
+   /* Header */
+   VMGuestLibHeader hdr;
 
    /* Statistics */
 
@@ -168,5 +176,37 @@ struct VMGuestLibDataV2 {
 #include "vmware_pack_end.h"
 VMGuestLibDataV2;
 
+
+/*
+ * This is version 3 of the data structure GuestLib uses to obtain stats over
+ * the backdoor from the VMX/VMKernel. It is not exposed to users of the
+ * GuestLib API. This struct is sent on the wire.
+ *
+ * The buffer contains a variable length array of statistics, that are
+ * marshalled from XDR spec generated code. Each data field has a discriminant
+ * preceding the payload, which enables the client to detect fields that it
+ * doesn't recognize.
+ *
+ * V3 is a superset of V2 and a major protocol change. Any extensions to the
+ * wire protocol that just add statistics, can do so within V3. Just update the
+ * .x file to add a new discriminant for the union, at the end of the list. V3
+ * clients may assume that the fields are ordered on the wire in increasing order 
+ * of the discriminant list. So, a client may stop processing at the first 
+ * unrecognized field. V3 payload contains all available guestlib statistics
+ * supported by the host.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct VMGuestLibDataV3 {
+   /* Header */
+   VMGuestLibHeader hdr;
+
+   /* Statistics */
+   uint32 dataSize;
+   char data[0];
+}
+#include "vmware_pack_end.h"
+VMGuestLibDataV3;
 
 #endif /* _VM_GUEST_LIB_INT_H_ */

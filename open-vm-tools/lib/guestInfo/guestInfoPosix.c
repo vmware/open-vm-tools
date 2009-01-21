@@ -55,6 +55,7 @@
 #include "sys/utsname.h"
 #include "sys/ioctl.h"
 #include "vmware.h"
+#include "hostinfo.h"
 #include "guestInfoInt.h"
 #include "debug.h"
 #include "str.h"
@@ -63,12 +64,6 @@
 #include "guestInfo.h"
 
 #define DISTRO_BUF_SIZE 255
-
-#define SYSINFO_STRING_32       "i386"
-#define SYSINFO_STRING_64       "amd64"
-#define MAX_ARCH_NAME_LEN       sizeof SYSINFO_STRING_32 > sizeof SYSINFO_STRING_64 ? \
-                                   sizeof SYSINFO_STRING_32 : \
-                                   sizeof SYSINFO_STRING_64
 
 typedef struct lsb_distro_info {
    char *name;
@@ -758,7 +753,7 @@ GuestInfoGetOSName(unsigned int outBufFullLen,      // IN: length of osNameFull 
       }
    }
 
-   if (GuestInfo_GetSystemBitness() == 64) {
+   if (Hostinfo_GetSystemBitness() == 64) {
       if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > outBufLen) {
          Debug("GuestInfoGetOSName: Error: buffer too small\n");
          return FALSE;
@@ -776,74 +771,4 @@ GuestInfoGetOSName(unsigned int outBufFullLen,      // IN: length of osNameFull 
    }
 
    return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * GuestInfo_GetSystemBitness --
- *
- *      Determines the operating system's bitness.
- *
- * Return value:
- *      32 or 64 on success, negative value on failure. Check errno for more
- *      details of error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-int
-GuestInfo_GetSystemBitness(void)
-{
-   char buf[MAX_ARCH_NAME_LEN] = { 0 };
-#if defined(__FreeBSD__) || defined(__APPLE__)
-   int mib[2];
-   size_t len;
-
-   len = sizeof buf;
-   mib[0] = CTL_HW;
-   mib[1] = HW_MACHINE;
-
-   if (sysctl(mib, ARRAYSIZE(mib), buf, &len, NULL, 0) < 0) {
-      return -1;
-   }
-#elif defined(sun)
-# if !defined(SOL10)
-   /*
-    * XXX: This is bad.  We define SI_ARCHITECTURE_K to what it is on Solaris
-    * 10 so that we can use a single guestd build for Solaris 9 and 10.  In the
-    * future we should have the Solaris 9 build just return 32 -- since it did
-    * not support 64-bit x86 -- and let the Solaris 10 headers define
-    * SI_ARCHITECTURE_K, then have the installer symlink to the correct binary.
-    * For now, though, we'll share a single build for both versions.
-    */
-#  define SI_ARCHITECTURE_K  518
-# endif
-   if (sysinfo(SI_ARCHITECTURE_K, buf, sizeof buf) < 0) {
-      return -1;
-   }
-#elif defined(linux)
-   struct utsname u;
-
-   if (uname(&u) < 0) {
-      return -1;
-   }
-   if (strstr(u.machine, "x86_64")) {
-      return 64;
-   } else {
-      return 32;
-   }
-#endif
-
-   if (strcmp(buf, SYSINFO_STRING_32) == 0) {
-      return 32;
-   } else if (strcmp(buf, SYSINFO_STRING_64) == 0) {
-      return 64;
-   }
-
-   return -1;
 }

@@ -874,7 +874,9 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
  *
  * FileGetStats --
  *
- *      Calls statfs on a full path (eg. something returned from File_FullPath)
+ *      Calls statfs on a full path (eg. something returned from File_FullPath).
+ *      If doNotAscend is FALSE, climb up the directory chain and call statfs
+ *      on each level until it succeeds.
  *
  * Results:
  *      TRUE	statfs succeeded
@@ -888,6 +890,7 @@ FilePosixGetParent(Unicode *canPath)  // IN/OUT: Canonical file path
 
 static Bool
 FileGetStats(ConstUnicode pathName,      // IN:
+             Bool doNotAscend,           // IN:
              struct statfs *pstatfsbuf)  // OUT:
 {
    Bool retval = TRUE;
@@ -895,7 +898,7 @@ FileGetStats(ConstUnicode pathName,      // IN:
 
    while (Posix_Statfs(dupPath ? dupPath : pathName,
                              pstatfsbuf) == -1) {
-      if (errno != ENOENT) {
+      if (errno != ENOENT || doNotAscend) {
          retval = FALSE;
          break;
       }
@@ -920,7 +923,9 @@ FileGetStats(ConstUnicode pathName,      // IN:
  * File_GetFreeSpace --
  *
  *      Return the free space (in bytes) available to the user on a disk where
- *      a file is or would be
+ *      a file is or would be.  If doNotAscend is FALSE, the helper function
+ *      ascends the directory chain on system call errors in order to obtain
+ *      the file system information.
  *
  * Results:
  *      -1 if error (reported to the user)
@@ -932,7 +937,8 @@ FileGetStats(ConstUnicode pathName,      // IN:
  */
 
 uint64
-File_GetFreeSpace(ConstUnicode pathName)  // IN: File name
+File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
+                  Bool doNotAscend)       // IN: Do not ascend dir chain
 {
    uint64 ret;
    Unicode fullPath;
@@ -944,8 +950,8 @@ File_GetFreeSpace(ConstUnicode pathName)  // IN: File name
       goto end;
    }
 
-   if (!FileGetStats(fullPath, &statfsbuf)) {
-      Warning("%s: Couldn't statfs\n", __func__);
+   if (!FileGetStats(fullPath, doNotAscend, &statfsbuf)) {
+      Warning("%s: Couldn't statfs %s\n", __func__, fullPath);
       ret = -1;
       goto end;
    }
@@ -1238,7 +1244,7 @@ File_OnVMFS(ConstUnicode pathName)
          goto end;
       }
 
-      err = FileGetStats(fullPath, &statfsbuf);
+      err = FileGetStats(fullPath, FALSE, &statfsbuf);
 
       Unicode_Free(fullPath);
 
@@ -1290,7 +1296,7 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
       goto end;
    }
 
-   if (!FileGetStats(fullPath, &statfsbuf)) {
+   if (!FileGetStats(fullPath, FALSE, &statfsbuf)) {
       Warning(LGPFX" %s: Couldn't statfs\n", __func__);
       ret = -1;
       goto end;

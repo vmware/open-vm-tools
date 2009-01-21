@@ -49,7 +49,7 @@
  * Use PATENTS_STRING for showing the patents string in plaintext form.
  * PATENTS_FMT_STRING can be used with PATENTS_URL for creating hyperlinks.
  */
-#define PATENTS_STRING_BASE "This product is protected by U.S. and international copyright and\nintellectual property laws. This product is covered by one or more\npatents listed at "
+#define PATENTS_STRING_BASE "This product is protected by U.S. and international copyright and\nintellectual property laws. VMware products are covered by one or\nmore patents listed at "
 #define PATENTS_STRING PATENTS_STRING_BASE "<" PATENTS_URL ">."
 #define PATENTS_FMT_STRING PATENTS_STRING_BASE "%s."
 #define PATENTS_URL "http://www.vmware.com/go/patents"

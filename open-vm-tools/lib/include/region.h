@@ -200,6 +200,9 @@ extern RegDataRec miBrokenData;
   RECT_SETBOX((r), (rx1), (ry1), ((rx2) - (rx1)), ((ry2) - (ry1))); \
 } while (FALSE)
 
+#define RECT_SETVMRECT(r, vmr) \
+  RECT_SETRECT((r), (vmr)->left,  (vmr)->top,  (vmr)->right,  (vmr)->bottom)
+
 /*
  * This will only work if the intersection is not empty.
  */

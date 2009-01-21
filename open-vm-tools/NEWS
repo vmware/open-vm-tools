@@ -1,4 +1,17 @@
-open-vm-tools 2009.12.23 changes:
+open-vm-tools 2009.01.21 changes:
+   * First open source release of the HGFS module for Solaris, under the CDDL.
+   Other modules are expected to be added in the upcoming releases.
+
+   * Added an implementation of vmblock on top of FUSE; vmware-user still
+   doesn't use this module even if it is available, though.
+
+   * Linux modules now add the "supported" tag used by Novell in their
+   SLES 10 SP2 release when loading modules.
+
+   * Fix compilation of modules in newer Linux kernels which don't include
+   $(LINUXINCLUDE) in the compiler flags anymore.
+
+open-vm-tools 2008.12.23 changes:
 	* Lots of makefile cleanup with the switch to using libtool archives.
 
 	* Automatically disable Unity if multimon support is disabled.

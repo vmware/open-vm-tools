@@ -36,6 +36,8 @@
 
 #include "vm_basic_defs.h"  // for offsetof()
 
+#define SCSI_MAX_CMD_LEN   16
+
 /*
  * Non-exhaustive list of SCSI operation codes.  Note that
  * some codes are defined differently according to the target
@@ -207,6 +209,7 @@
 #define SCSI_SENSE_KEY_UNIT_ATTENTION  0x6   // the LUN has been reset (bus reset of medium change)
 #define SCSI_SENSE_KEY_DATA_PROTECT    0x7   // access to the data is blocked
 #define SCSI_SENSE_KEY_BLANK_CHECK     0x8   // reached an unexpected written or unwritten region of the medium
+#define SCSI_SENSE_KEY_VENDOR_SPECIFIC 0x9   // report vendor specific condition
 #define SCSI_SENSE_KEY_COPY_ABORTED    0xa   // COPY, COMPARE, or COPY AND VERIFY was aborted
 #define SCSI_SENSE_KEY_ABORTED_CMD     0xb   // the target aborted the command
 #define SCSI_SENSE_KEY_EQUAL	       0xc   // comparison for SEARCH DATA was unsuccessful

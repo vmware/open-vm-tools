@@ -707,12 +707,6 @@ struct vop_inactive_args {
 };
 */
 {
-   /*
-    * On FreeBSD we can always call vgone because there is no possibility that the
-    * vnode is being shared by more than one open file.
-    */
-   vgone(ap->a_vp);
-
    return 0;
 }
 
@@ -746,7 +740,7 @@ struct vop_reclaim_args {
 
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
 
-   HgfsVnodePut(vp, &sip->fileHashTable);
+   HgfsReleaseVnodeContext(vp, &sip->fileHashTable);
    vp->v_data = NULL;
 
    return 0;

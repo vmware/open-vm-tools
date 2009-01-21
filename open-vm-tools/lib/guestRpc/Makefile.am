@@ -20,6 +20,7 @@ noinst_LTLIBRARIES = libGuestRpc.la
 libGuestRpc_la_SOURCES =
 libGuestRpc_la_SOURCES += ghiGetBinaryHandlers_xdr.c
 libGuestRpc_la_SOURCES += ghiProtocolHandler_xdr.c
+libGuestRpc_la_SOURCES += guestlibV3_xdr.c
 libGuestRpc_la_SOURCES += nicinfo_xdr.c
 libGuestRpc_la_SOURCES += unityActive_xdr.c
 
@@ -33,6 +34,8 @@ CLEANFILES += ghiGetBinaryHandlers.h
 CLEANFILES += ghiGetBinaryHandlers_xdr.c
 CLEANFILES += ghiProtocolHandler.h
 CLEANFILES += ghiProtocolHandler_xdr.c
+CLEANFILES += guestlibV3.h
+CLEANFILES += guestlibV3_xdr.c
 CLEANFILES += nicinfo.h
 CLEANFILES += nicinfo_xdr.c
 CLEANFILES += unityActive.h
@@ -41,6 +44,7 @@ CLEANFILES += unityActive_xdr.c
 EXTRA_DIST =
 EXTRA_DIST += ghiGetBinaryHandlers.x
 EXTRA_DIST += ghiProtocolHandler.x
+EXTRA_DIST += guestlibV3.x
 EXTRA_DIST += nicinfo.x
 EXTRA_DIST += unityActive.x
 
@@ -85,7 +89,17 @@ nicinfo.h: nicinfo.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then            \
 	   cp $(top_srcdir)/lib/guestRpc/nicinfo.x $(builddir);  \
 	fi
-	$(RPCGEN) -h -o $@ nicinfo.x
+	$(RPCGEN) -h -o $@ $<
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+guestlibV3.h: guestlibV3.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then               \
+	   cp $(top_srcdir)/lib/guestRpc/guestlibV3.x $(builddir);  \
+	fi
+	$(RPCGEN) -h -o $@ $<
 	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
 	mv $@.tmp $@
 	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
@@ -93,6 +107,9 @@ nicinfo.h: nicinfo.x
 
 nicinfo_xdr.c: nicinfo.x nicinfo.h
 	$(RPCGEN) -c -o $@ nicinfo.x
+
+guestlibV3_xdr.c: guestlibV3.x guestlibV3.h
+	$(RPCGEN) -c -o $@ guestlibV3.x
 
 unityActive.h: unityActive.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then               \

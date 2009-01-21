@@ -46,15 +46,12 @@
 
 /* Conversion between different state structures */
 #if defined(__FreeBSD__)
-#  define HGFS_VP_TO_OFP(vp)                            \
-           ((HgfsOpenFile *)(vp)->v_data)
+#  define HGFS_VP_TO_FP(vp)                            \
+           ((HgfsFile *)(vp)->v_data)
 #elif defined(__APPLE__)
-#  define HGFS_VP_TO_OFP(vp)                            \
-           ((HgfsOpenFile *)vnode_fsnode(vp))
+#  define HGFS_VP_TO_FP(vp)                            \
+           ((HgfsFile *)vnode_fsnode(vp))
 #endif
-
-#define HGFS_VP_TO_FP(vp)                               \
-         ((HgfsFile *)(HGFS_VP_TO_OFP(vp))->hgfsFile)
 
 #define HGFS_FP_TO_VP(fp)                               \
          (fp)->vnodep
@@ -74,11 +71,9 @@
 #define HGFS_VP_TO_RWLOCKP(vp)                          \
          &(HGFS_VP_TO_RWLOCK(vp))
 
-#define HGFS_VP_TO_HGFSFILETYPE(vp)                     \
-         HGFS_VP_TO_FP(vp)->fileType
+#define HGFS_VP_TO_PERMISSIONS(vp)                      \
+         HGFS_VP_TO_FP(vp)->permissions
 
-#define HGFS_OFP_TO_FP(ofp)                             \
-         (ofp)->hgfsFile
 
 /*
  * Types
@@ -109,39 +104,26 @@ typedef struct HgfsFile {
    char fileName[MAXPATHLEN + 1];
    uint32_t fileNameLength;
    ino_t nodeId;
-   /*
-    * The file type is saved so additional per-open-file vnodes can be
-    * recreated from a Hgfs file without sending a request to the Hgfs server.
-    */
-   HgfsFileType fileType;
-
-   OS_MUTEX_T *mutex;
-   uint32_t refCount;
-} HgfsFile;
-
-/*
- * State kept per vnode, which implies per open file within a process.
- *
- * Once created, the hgfsFile and vnode/vnodep values are read-only.  The
- * handle and mode will change throughout this structure's existence.
- */
-typedef struct HgfsOpenFile {
-   /*
-    * Pointer to the single Hgfs file state structure shared amongst all open
-    * instances of this file.
-    */
-   HgfsFile *hgfsFile;
 
    /*
-    * A pointer back to the vnode this open-file state is for.
+    * A pointer back to the vnode this HgfsFile is for.
     */
    struct vnode *vnodep;
 
    /*
-    * Mode specified for this file to be created with.  This is necessary
+    * A pointer back to the parent directory vnode.
+    */
+   struct vnode *parent;
+
+   /*
+    * Mode (permissions) specified for this file to be created with.  This is necessary
     * because create is called with the mode then open is called without it.
     * We save this value in create and access it in open.
+    * This field is set during initialization of HGFS and is never changed.
     */
+   int permissions;
+
+   /* Mode that was used to open the handle on the host */
    HgfsMode mode;
    Bool modeIsSet;
    OS_MUTEX_T *modeMutex;
@@ -152,7 +134,7 @@ typedef struct HgfsOpenFile {
     */
    uint32_t handleRefCount;
    HgfsHandle handle;
-   OS_MUTEX_T *handleMutex;
+   OS_RWLOCK_T *handleLock;
 
    /*
     * One big difference between the OS X and FreeBSD VFS layers is that the
@@ -164,7 +146,7 @@ typedef struct HgfsOpenFile {
    OS_RWLOCK_T *rwFileLock;
 #endif
 
-} HgfsOpenFile;
+} HgfsFile;
 
 /* The hash table for file state. */
 typedef struct HgfsFileHashTable {
@@ -175,11 +157,12 @@ typedef struct HgfsFileHashTable {
 /* Forward declaration to prevent circular dependency between this and hgfsbsd.h. */
 struct HgfsSuperInfo;
 
-int HgfsVnodeGet(struct vnode **vpp, struct HgfsSuperInfo *sip, struct mount *vfsp,
-		 const char *fileName, HgfsFileType fileType, HgfsFileHashTable *htp);
+int HgfsVnodeGet(struct vnode **vpp, struct vnode *dp, struct HgfsSuperInfo *sip,
+                 struct mount *vfsp, const char *fileName, HgfsFileType fileType,
+                 HgfsFileHashTable *htp, Bool createFile, int permissions);
 int HgfsVnodeGetRoot(struct vnode **vpp, struct HgfsSuperInfo *sip, struct mount *vfsp,
 		     const char *fileName, HgfsFileType fileType, HgfsFileHashTable *htp);
-int HgfsVnodePut(struct vnode *vp, HgfsFileHashTable *htp);
+int HgfsReleaseVnodeContext(struct vnode *vp, HgfsFileHashTable *htp);
 void HgfsNodeIdGet(HgfsFileHashTable *ht, const char *fileName,
                    uint32_t fileNameLength, ino_t *outNodeId);
 int HgfsInitFileHashTable(HgfsFileHashTable *htp);
@@ -187,22 +170,10 @@ void HgfsDestroyFileHashTable(HgfsFileHashTable *htp);
 Bool HgfsFileHashTableIsEmpty(struct HgfsSuperInfo *sip, HgfsFileHashTable *htp);
 
 /* Handle get/set/clear functions */
-int HgfsSetOpenFileHandle(struct vnode *vp, HgfsHandle handle);
+void HgfsSetOpenFileHandle(struct vnode *vp, HgfsHandle handle, HgfsMode openMode);
 int HgfsGetOpenFileHandle(struct vnode *vp, HgfsHandle *outHandle);
-int HgfsReleaseOpenFileHandle(struct vnode *vp, Bool *closed);
-Bool HgfsShouldCloseOpenFileHandle(struct vnode *vp);
-Bool HgfsHandleIsSet(struct vnode *vp);
+int HgfsReleaseOpenFileHandle(struct vnode *vp, HgfsHandle *handleToClose);
+int HgfsCheckAndReferenceHandle(struct vnode *vp, int requestedOpenMode);
 int HgfsHandleIncrementRefCount(struct vnode *vp);
-
-/* Mode get/set/clear functions */
-int HgfsSetOpenFileMode(struct vnode *vp, HgfsMode mode);
-int HgfsGetOpenFileMode(struct vnode *vp, HgfsMode *outMode);
-int HgfsClearOpenFileMode(struct vnode *);
-
-/* HgfsFile locking functions */
-int HgfsFileLock(struct vnode *vp, HgfsLockType type);
-int HgfsFileLockOfp(HgfsOpenFile *ofp, HgfsLockType type);
-int HgfsFileUnlock(struct vnode *vp, HgfsLockType type);
-int HgfsFileUnlockOfp(HgfsOpenFile *ofp, HgfsLockType type);
 
 #endif /* _STATE_H_ */

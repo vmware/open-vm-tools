@@ -1,0 +1,78 @@
+Solaris kadb cheat sheet
+=========================
+
+Setting up
+----------
+ See Chapter 18 of Solaris' 9 "Writing Device Drivers"
+ (http://docs.sun.com/db/doc/806-5222)
+
+ If using a tip connection, boot with 'b kadb -d' and at the break for __start,
+ create a deferred breakpoint with this command: hgfs# HgfsDevAttach:b
+
+Breakpoints
+-----------
+ Deferred: <module># <symbol>:b
+ Regular : <symbol>:b
+ 
+ - Regular will complain if symbol isn't found.
+
+ Examples:
+  hgfs# HgfsDevAttach:b  --> deferred breakpoint for HgfsDevAttach
+                             takes effect when hgfs module is loaded
+  HgfsGetNewReq:b        --> breakpoint for HgfsGetNewReq
+ 
+  Commands at breakpoints:
+  :c : continue
+  :s : single step
+  :e : single step over function calls
+  :u : stop after return to caller of current function
+  :d : delete breakpoint
+  :z : delete allbreakpoints
+  
+
+Viewing
+-------
+
+ <symbol>,<count>/<modifier>
+
+ <symbol>  : symbol name, as in HgfsDevAttach, or address
+ <count>   : number of items to show
+ <modifier>: see pg. 348 "Writing Device Drivers" for complete list
+             Common:
+              d,D : 2,4-byte decimal
+              x,X : 2,4-byte hex
+              K   : 4-byte hex for 32 bit progs (use this for pointers)
+              u,U : 2,4-byte unsigned decimal
+              c,C : character, without or with ^escape notation
+              s,S : string, without or with ^escape notation
+              i   : instructions
+              a   : prints address in symbolic form
+              w,W : 2,4-byte write
+
+ Examples:
+  HgfsGetNewReq,24/ai --> see first 24 instructions of HgfsGetNewReq
+  0x01234567,24/X     --> see 24 4-byte words at that address in hex
+  *0x1234567,24/X     --> see the 24 4-byte words at memory address
+                          specified in 0x1234567
+  
+Macros
+------
+$r : view registers
+$c : stack trace
+$b : display breakpoints
+
+
+Pager (pause after <lines> lines)
+-----
+ 0t<lines>::more
+
+
+Registers
+---------
+
+ Display a single register: <(register)=K
+ Set value of a register  : (value)>(register)
+
+ Examples:
+  <eip=K          Display the current contents of eip
+  0xdf78b1f8>eip  Set the value of eip to 0xdf78b1f8

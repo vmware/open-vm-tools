@@ -42,11 +42,12 @@ SUBDIRS += libguestlib
 if ENABLE_CORE_SERVICES
    SUBDIRS += libvmtools
 endif
+if HAVE_FUSE
+   SUBDIRS += vmblock-fuse
+endif
 SUBDIRS += xferlogs
 SUBDIRS += scripts
 SUBDIRS += toolbox
-if !SOLARIS
 if WITH_KERNEL_MODULES
-SUBDIRS += modules
-endif
+   SUBDIRS += modules
 endif

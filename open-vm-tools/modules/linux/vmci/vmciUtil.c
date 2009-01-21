@@ -43,6 +43,8 @@
 #  include <sys/ddi.h>
 #  include <sys/sunddi.h>
 #  include <sys/disp.h>
+#elif defined(__APPLE__)
+#  include <IOKit/IOLib.h>
 #else 
 #error "platform not supported."
 #endif //linux
@@ -336,6 +338,12 @@ VMCI_InInterrupt()
    return in_interrupt();
 #elif defined(SOLARIS)
    return servicing_interrupt();   /* servicing_interrupt is not part of DDI. */
+#elif defined(__APPLE__)
+   /*
+    * All interrupt servicing is handled by IOKit functions, by the time the IOService
+    * interrupt handler is called we're no longer in an interrupt dispatch level.
+    */
+   return false;
 #endif //
 }
 

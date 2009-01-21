@@ -1,0 +1,170 @@
+-----------------------
+| VMBlock Fuse Design |
+-----------------------
+
+Filesystem User Interface
+-------------------------
+Reexports /tmp/VMwareDnD. I'll call this the target directory.
+
+Mount point will contain:
+    * /blockdir/
+    * /dev
+    * /version - Proposed, not implemented.
+
+/blockdir/ - Contains symlinks to the contents of the target directory. In the linux port
+this is called /mountPoint/; it is created by the blocking driver and then the fs is
+mounted there. That's kind of confusing here, because we don't have 2 separate pieces.
+It's just a special directory within the file system.
+
+/dev - Control file. Control operations happen by opening this file and doing a write on
+it. The data that we write is a character representing the operation to be done,
+sometimes followed by the path of the file to be blocked or unblocked (its original path,
+eg: "/tmp/VMwareDnD/foo/bar"). The count argument to write must be the length of the
+string. This will be the length of the path + 1 for the operation character.
+
+COMMAND                        OPERATION CHARACTER    EXAMPLE
+Add block                      a                      write(fd, "a/some/path/in/target/dir", 25)
+Delete block                   d                      write(fd, "d/another/path/in/target/dir", 28)
+List blocks (only available    l (lower case L)       write(fd, "l", 1)
+    with VMX86_DEVEL)
+
+I was hoping to use the same interface as the linux kernel port, but doing writes with
+too-long sizes through fuse isn't supported and may not always work.
+
+When an entry in /blockdir/ is blocked, any readlink() on that entry will block.
+
+The control file is owned and only writable by root. We might want to change that (more
+below). Right now we have a wrapper with root priveleges acquire a vmblock control file
+descriptor, but we want to get rid of it. Specifically, this will be useful for remote
+DnD where there might not be a process with root permission.
+
+/version - NEW. XXX: Maybe we want to add a read-only file which contains a version
+number? This would allow us to make changes later and have it be easy for the tools to
+know what they can do.
+
+
+Internal Design
+---------------
+Uses FUSE's default multithreaded mode where normally, each filesystem request is serviced
+by it's own thread. This will allow accesses to block without preventing new accesses.
+
+IMPORTANT: Please read the deadlock section for more about the threading model.
+
+I'm using the common blocking code that the rest of the vmblock implementations share. It
+stores blocks as a linked list of structs which contain the direct path of the file being
+blocked (eg: "/tmp/VMwareDnD/foo/bar"), variables to link it into the list, an id of the
+control file which caused the block, a completion/condition variable, and a reference
+count. The purpose of the ref count is so that the block instance is only cleaned up once
+all threads waiting on it have woken up. Or more specifically, so that the last thread to
+wake up knows that the block isn't being used any more and will clean it up.
+
+The common blocking code uses a few constructs which are defined by port specific headers
+(os.h). For vmblock-fuse, the global blocked list will be protected by a pthread rwlock.
+Blocking will be done by waiting on condition variables. The completion type is a struct
+containing a mutex, condition variable, and done int (treated as a bool). Macros are
+defined to manipulate these properly. The atomic type used for reference counting is a
+vm_atomic type.
+
+
+Deadlock
+--------
+Older versions of fuse are limited to having 10 worker threads for processing filesystem
+requests. Once this limit is exceeded, fuse will block any operation until a thread
+becomes available to handle it. So if a block is placed on a file and many requests to
+access it are made and block, the filesystem will deadlock.
+
+This limit has been removed in fuse 2.6.0.
+The macfuse patch to fuse doesn't seem to affect this functionality and it's based off of
+fuse 2.7. I haven't testing it on macfuse though.
+
+Another possible deadlock from a fuse-devel email:
+
+On Wed, 9 Jul 2008, bargav yaarov wrote:
+
+> I have a point within my read handler where I hold a pthread_rwlock_t. At the same
+> time, another read handler is blocked waiting to acquire this lock. Now, if I attempt
+> to unmount at this time, the fuse library code calls pthread_cancel() against the
+> handling thread and I am left in a deadlocked state. How do you suggest I handle this
+> situation?
+
+Actually, CVS version of fuse has a fix for this:
+
+    * Only enable cancelation when reading a request, otherwise cancellation could happen
+      with a mutex held, which could hang the process on umount
+
+... OK, I put out a prerelease so there's no need to mess with CVS:
+
+http://sourceforge.net/project/showfiles.php?group_id=121684&package_id=140422
+
+XXX: Check if I hit this problem.
+
+
+Testing
+-------
+    * Some unit tests for fsops functions- bora/modules/vmblock/test/fuse-fsops-test.cpp.
+    * Existing full vmblock tester- bora/modules/vmblock/test/vmblocktest.c.
+    * Very simple testing program to block and unblock a single file- demo.c.
+
+
+Enforcing Permissions
+---------------------
+The vmblock-fuse code correctly report the file permissions but doesn't check them. It
+should be mounted with the "-o default_permissions" option which will tell fuse to do the
+checking for us.
+
+If the filesystem it going to be mounted by a non-root user for system wide use, it
+should also be given the "-o allow_other" option to allow users other than the one that
+mounted it to be able to use it. This will require enabling the "user_allow_other" option
+in /etc/fuse.conf.
+
+
+API
+---
+There are some helper functions, macros, and constants in the public header vmblock.h.
+I've added a new set of them which work with vmblock-fuse and I hope make using it API
+compatible with the other vmblock ports. I need to look at users of vmblock to make sure
+they access vmblock via the header the way I expect.
+
+
+Blocking Indexing Software
+--------------------------
+There are a number of program which may be running on various systems which index the
+contents of the computer. If an indexer was to hit a blocked file, it would get stuck
+which is undesireable. For the linux kernel port, the blocked files are in /proc which
+shouldn't be indexed. On solaris and freebsd, it's in /var/run which I guess is also not
+normally indexed. Right now, vmblock-fuse gets mounted for system wide use in
+/tmp/vmblock/.
+
+(s)locate/updatedb (linux)
+On ubuntu 8.04, /etc/updatedb.conf it set to ignore /tmp. I would guess this is pretty
+standard.
+
+beagle (linux)
+According to http://beagle-project.org/Indexing_Data, by default, everything in $(HOME)
+is indexed.
+
+spotlight (mac)
+I don't know if /tmp even exists on macs. I need to revisit this once I get vmblock-fuse
+running on mac.
+
+google desktop search (windows, linux)
+On linux, doesn't index /tmp. Also doesn't index hidden (.*) directories. This might be
+useful to know later on. In case it matters, a list of things that it doesn't search on
+windows is at http://desktop.google.com/support/bin/answer.py?answer=12634.
+
+
+Unprivileged User Blocking
+--------------------------
+If I have time later on, I'd like to investigate having non-root users be able to create
+blocks. This will be helpful for scenarios where we don't have a process with root
+privileges to do our blocking for us, like remote copy/paste. The security aspects need
+some careful thought but I'd like to jot down some notes on thoughts Elliot and I had
+about possible ways to do this.
+
+    * Have control file be accessible by any user as far as vmblock-fuse is concerned.
+      Have each user mount their own copy of vmblock which only they can access. Possibly
+      in their home dir. This will basically work with the current code if mounted
+      without the default_permissions option. I might want to change the permissions it
+      shows on the files.
+    * Have a single vmblock-fuse mount. Any user can add blocks but those blocks only
+      apply to accesses by that user.

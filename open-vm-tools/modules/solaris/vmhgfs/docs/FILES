@@ -1,0 +1,30 @@
+Files
+=====
+
+Driver (hgfs/solaris/)
+----------------------------------
+hgfsSolaris.h    - definitions global to all parts of module
+module.{c,h}     - module initialization routines (_init(), _fini()) and
+                   structures (struct modlinkage, struct modlfs, ...)
+filesystem.{c,h} - filesystem level functions (mount(), unmount())
+hgfsState.{c,h}  - maintains internal state of filesystem (HgfsOpenFile, HgfsFile)
+vnode.c          - file level functions (open(), read(), close())
+device.{c,h}     - device interface (attach(), detach(), open(), read(),
+                   close())
+request.{c,h}    - functions that initialize, allocate, and manipulate requests
+                   and the lists that they are on
+debug.{c,h}      - debugging routines and macros
+
+Misc (hgfs/solaris/docs)
+------------------------------------
+hgfs.conf             - must be place in /usr/kernel/drv/
+append-to-devlink.tab - must append this text to /etc/devlink.tab to generate
+                        symlink /dev/vmware-hgfs
+
+Docs (hgfs/solaris/docs)
+------------------------------------
+BUILD                 - build instructions
+synchronization.txt   - outline of how components are synchronized
+request-lifecycle.txt - outline of how requests travel through driver
+kadb.txt              - cheat sheet for Solaris' kernel debugger
+hgfs-9-to-10.txt      - notes for porting from Solaris 9 to 10

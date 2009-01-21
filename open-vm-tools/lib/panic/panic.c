@@ -478,7 +478,16 @@ Panic_Panic(const char *format,
 
    fputs(buf, stderr);
 #ifdef _WIN32
-   Win32U_OutputDebugString(buf);
+   /*
+    * This would nominally be Win32U_OutputDebugString.  However,
+    * OutputDebugString is unusual in that the W version converts
+    * to local encoding and calls the A version.
+    *
+    * Since any such conversion is risky (read: can Panic) and
+    * we haven't yet hit the loop detection, we will conservatively
+    * dump UTF-8 via the A version.
+    */
+   OutputDebugStringA(buf);
 #endif
 
    /*
@@ -504,6 +513,15 @@ Panic_Panic(const char *format,
       Util_ExitProcessAbruptly(1);
       NOT_REACHED();
    }
+
+#ifdef _WIN32
+   /*
+    * Output again, in a way that we hope localizes correctly.  Since
+    * we are converting, this can Panic, so it must run after loop
+    * detection.
+    */
+   Win32U_OutputDebugString(buf);
+#endif
 
    /*
     * Log panic information, and make sure we don't remove

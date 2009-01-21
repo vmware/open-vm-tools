@@ -256,7 +256,12 @@
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "4.0.0"
 #define VDM_VERSION "e.x.p"
+#define VMSAFE_VERSION "e.x.p"
+#define VDDK_VERSION          "1.1.0"
+#define VDDK_FILE_VERSION      1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define OVFTOOL_VERSION "1.0.0"
 #define VDM_CLIENT_VERSION "e.x.p"
+#define OVFTOOL_VERSION "1.0.0"
 
 // VMRC_PLUGIN_VERSION should match PLAYER_VERSION but can't be e.x.p
 #ifndef MAKESTR
@@ -277,7 +282,7 @@
 /*
  * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
-#define TOOLS_VERSION "2008.12.23"
+#define TOOLS_VERSION "2009.01.21"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -332,6 +337,8 @@
 #  define PRODUCT_VERSION_NUMBER DDK_VERSION
 #elif defined(VMX86_TOOLS)
 #  define PRODUCT_VERSION_NUMBER TOOLS_VERSION
+#elif defined(VMX86_VDDK)
+#  define PRODUCT_VERSION_NUMBER VDDK_VERSION
 #endif
 
 /*

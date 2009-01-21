@@ -41,6 +41,7 @@ extern "C" {
 #   include <windows.h>
 #   include "win32u.h"
 #   include "hgfsUsabilityLib.h"
+#   include "rescaps.h"
 #   include "ServiceHelpers.h"
 #endif
 
@@ -837,6 +838,13 @@ ToolsDaemonStateChangeDone(Bool status,  // IN
     */
    if (status || data->lastFailedStateChg == data->stateChgInProgress) {
       status = TRUE;
+#ifdef _WIN32
+      if (data->stateChgInProgress == GUESTOS_STATECHANGE_REBOOT || data->stateChgInProgress == GUESTOS_STATECHANGE_HALT) {
+         if (System_GetOSType() >= OS_VISTA) {
+            DISABLE_RES_CAPS();
+         }
+      }
+#endif
       if (data->stateChgInProgress == GUESTOS_STATECHANGE_REBOOT) {
          Debug("Initiating reboot\n");
          status = data->rebootCB(data->rebootCBData);

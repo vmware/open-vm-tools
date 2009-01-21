@@ -71,18 +71,26 @@
 
 /*
  * Address structure for VSockets VMCI sockets. The address family should be
- * set to AF_VMCI.
+ * set to AF_VMCI. The structure members should all align on their natural
+ * boundaries without resorting to compiler packing directives.
  */
+
 struct sockaddr_vm {
+#if defined(__APPLE__)
+   unsigned char svm_len;                           // Mac OS has the length first.
+#endif // __APPLE__
    sa_family_t svm_family;                          // AF_VMCI.
    unsigned short svm_reserved1;                    // Reserved.
    unsigned int svm_port;                           // Port.
    unsigned int svm_cid;                            // Context id.
    unsigned char svm_zero[sizeof(struct sockaddr) - // Same size as sockaddr.
-                          sizeof(sa_family_t) -
-                          sizeof(unsigned short) -
-                          sizeof(unsigned int) -
-                          sizeof(unsigned int)];
+#if defined(__APPLE__)
+                             sizeof(unsigned char) -
+#endif // __APPLE__
+                             sizeof(sa_family_t) -
+                             sizeof(unsigned short) -
+                             sizeof(unsigned int) -
+                             sizeof(unsigned int)];
 };
 
 
@@ -135,7 +143,11 @@ struct sockaddr_vm {
 #  endif // WINNT_DDK
 #else // _WIN32
 #if defined(linux) && !defined(VMKERNEL)
-#  ifndef __KERNEL__
+#  ifdef __KERNEL__
+   void VMCISock_KernelRegister(void);
+   void VMCISock_KernelDeregister(void);
+   int VMCISock_GetAFValue(void);
+#  else // __KERNEL__
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #  include <fcntl.h>
@@ -145,6 +157,7 @@ struct sockaddr_vm {
 #  include <stdio.h>
 
 #  define VMCI_SOCKETS_DEFAULT_DEVICE      "/dev/vsock"
+#  define VMCI_SOCKETS_CLASSIC_ESX_DEVICE  "/vmfs/devices/char/vsock/vsock"
 #  define IOCTL_VMCI_SOCKETS_GET_AF_VALUE  1976
 #  define IOCTL_VMCI_SOCKETS_GET_LOCAL_CID 1977
 
@@ -187,7 +200,10 @@ struct sockaddr_vm {
 
       fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
       if (fd < 0) {
-         return -1;
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         if (fd < 0) {
+            return -1;
+         }
       }
 
       if (ioctl(fd, IOCTL_VMCI_SOCKETS_GET_AF_VALUE, &family) < 0) {
@@ -223,7 +239,10 @@ struct sockaddr_vm {
 
       fd = open(VMCI_SOCKETS_DEFAULT_DEVICE, O_RDWR);
       if (fd < 0) {
-         return VMADDR_CID_ANY;
+         fd = open(VMCI_SOCKETS_CLASSIC_ESX_DEVICE, O_RDWR);
+         if (fd < 0) {
+            return VMADDR_CID_ANY;
+         }
       }
 
       if (ioctl(fd, IOCTL_VMCI_SOCKETS_GET_LOCAL_CID, &contextId) < 0) {

@@ -19,50 +19,20 @@
 /*
  * imageUtil.h --
  *
+ *      Image manipulation routines.
  */
 
 #ifndef _IMAGEUTIL_H_
 #define _IMAGEUTIL_H_
 
+#include "vmware.h"
 #include "imageUtilTypes.h"
 #include "dynbuf.h"
 #include "unicodeTypes.h"
 
 #ifdef _WIN32
-
-typedef char Bool;
-
-typedef struct tagDIBINFOHEADER {
-   BITMAPINFOHEADER  bmiHeader;
-   RGBQUAD           bmiColors[256];
-   LPBYTE            bitmapBits;
-} DIBINFOHEADER, FAR *LPDIBINFOHEADER, *PDIBINFOHEADER;
-
-BOOL ImageUtil_SavePNG(LPDIBINFOHEADER image, ConstUnicode fileName);
-EXTERN HBITMAP ImageUtil_LoadPNG(ConstUnicode fileName, int pngReadFlags);
-EXTERN HBITMAP ImageUtil_LoadPNGFromBuffer(const unsigned char *imageData,
-                                           unsigned int dataLen, int pngReadFlags);
-EXTERN HBITMAP ImageUtil_LoadImage(ConstUnicode filename, unsigned int width,
-                                                          unsigned int height);
-
-#else
-#ifndef NO_X11_XLIB_H    /* XXX Carbon and X both define 'Cursor'
-                          * but we don't use ImgUtil_SavePNG in mksQuartz.h
-                          * Remove after we have implemeted imageUtil with
-                          * Quartz.
-                          */
-#include <X11/Xlib.h>
-#undef Bool                            // XXX conflict with vm_basic_types.h
-#define XBool int
-#undef Cursor
-
-Bool ImageUtil_SavePNG(const XImage *image,
-                       unsigned int numColors, unsigned short colors[256][3],
-                       const char *fileName);
-#endif //USE_IMAGE_UTIL_H
+#include "imageUtilWin32.h"
 #endif
-
-#define DWORD_ALIGN(x)             ((((x)+3) >> 2) << 2)
 
 EXTERN Bool ImageUtil_ReadPNG(ImageInfo *image,
                               ConstUnicode pathName,

@@ -137,6 +137,7 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(SOCKETS_GET_SOCK_NAME),
    IOCTLCMD(SOCKETS_GET_SOCK_OPT),
    IOCTLCMD(SOCKETS_GET_VM_BY_NAME),
+   IOCTLCMD(SOCKETS_IOCTL),
    IOCTLCMD(SOCKETS_LISTEN),
    IOCTLCMD(SOCKETS_RECV),
    IOCTLCMD(SOCKETS_RECV_FROM),
@@ -145,27 +146,28 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(SOCKETS_SEND_TO),
    IOCTLCMD(SOCKETS_SET_SOCK_OPT),
    IOCTLCMD(SOCKETS_SHUTDOWN),
-   IOCTLCMD(SOCKETS_SOCKET), /* 1989 on Linux. */
+   IOCTLCMD(SOCKETS_SOCKET), /* 1990 on Linux. */
    /* END VMCI SOCKETS */
 
    /*
-    * We reserve a range of 5 ioctls for VMCI Sockets to grow.  We cannot
+    * We reserve a range of 4 ioctls for VMCI Sockets to grow.  We cannot
     * reserve many ioctls here since we are close to overlapping with vmmon
     * ioctls.  Define a meta-ioctl if running out of this binary space.
     */
    // Must be last.
-   IOCTLCMD(SOCKETS_LAST) = IOCTLCMD(SOCKETS_SOCKET) + 5, /* 1994 on Linux. */
+   IOCTLCMD(SOCKETS_LAST) = IOCTLCMD(SOCKETS_SOCKET) + 4, /* 1994 on Linux. */
 
    /*
     * The VSockets ioctls occupy the block above.  We define a new range of
     * VMCI ioctls to maintain binary compatibility between the user land and
     * the kernel driver.  Careful, vmmon ioctls start from 2001, so this means
-    * we can add only 5 new VMCI ioctls.  Define a meta-ioctl if running out of
+    * we can add only 4 new VMCI ioctls.  Define a meta-ioctl if running out of
     * this binary space.
     */
 
    IOCTLCMD(FIRST2),
    IOCTLCMD(SET_NOTIFY) = IOCTLCMD(FIRST2), /* 1995 on Linux. */
+   IOCTLCMD(VMCID_RPC),
    IOCTLCMD(LAST2),
 };
 
@@ -174,6 +176,14 @@ enum IOCTLCmd_VMCI {
 /*
  * Windows VMCI ioctl definitions.
  */
+
+/*
+ * The first is the device name in user-mode.  The next two are for registering
+ * or opening the device in kernel-mode, and are always in UNICODE.
+ */
+#define VMCI_DEVICE_NAME         TEXT("\\\\.\\VMCI")
+#define VMCI_DEVICE_NAME_PATH    L"\\Device\\vmci"
+#define VMCI_DEVICE_LINK_PATH    L"\\DosDevices\\vmci"
 
 /* These values cannot be changed since some of the ioctl values are public. */
 #define FILE_DEVICE_VMCI         0x8103
@@ -246,6 +256,8 @@ enum IOCTLCmd_VMCI {
                VMCIIOCTL_BUFFERED(SOCKETS_GET_SOCK_OPT)
 #define IOCTL_VMCI_SOCKETS_GET_VM_BY_NAME \
                VMCIIOCTL_BUFFERED(SOCKETS_GET_VM_BY_NAME)
+#define IOCTL_VMCI_SOCKETS_IOCTL \
+               VMCIIOCTL_BUFFERED(SOCKETS_IOCTL)
 #define IOCTL_VMCI_SOCKETS_LISTEN \
                VMCIIOCTL_BUFFERED(SOCKETS_LISTEN)
 #define IOCTL_VMCI_SOCKETS_RECV \
@@ -265,6 +277,11 @@ enum IOCTLCmd_VMCI {
 #define IOCTL_VMCI_SOCKETS_SOCKET \
                VMCIIOCTL_BUFFERED(SOCKETS_SOCKET)
 /* END VMCI SOCKETS */
+
+/* BEGIN VMCI USER SPACE DAEMON */
+#define IOCTL_VMCI_VMCID_RPC \
+               VMCIIOCTL_BUFFERED(VMCID_RPC)
+/* END VMCI USER SPACE DAEMON */
 
 #endif // _WIN32
 
@@ -364,6 +381,32 @@ typedef struct VMCISetNotifyInfo {
    uint32      _pad;
 } VMCISetNotifyInfo;
 
+/* User space daemon command numbers. */
+typedef enum VMCIDRequestType {
+    VMCID_REQ_NEW_PAGE_STORE,
+    VMCID_REQ_FREE_PAGE_STORE,
+    VMCID_REQ_ATTACH_PAGE_STORE,
+    VMCID_REQ_DETACH_PAGE_STORE,
+} VMCIDRequestType;
+
+#define VMCI_VMCID_INVALID_REQ  CONST64U(-1)
+
+/* Used to pass requests/responses to the user space daemon. */
+typedef struct VMCIDRpc {
+    uint64           reqId;
+    uint32           reqType;
+    uint32           reqResult;
+    /* Passing page file names */
+    VA64             producePageFile; /* User VA. */
+    VA64             consumePageFile; /* User VA. */
+    uint64           producePageFileSize; /* Size of the file name array. */
+    uint64           consumePageFileSize; /* Size of the file name array. */
+    /* Used for attach/detach */
+    VA64             produceVA;
+    VA64             consumeVA;
+    uint64           numProducePages;
+    uint64           numConsumePages;
+} VMCIDRpc;
 
 #ifdef __APPLE__
 /*

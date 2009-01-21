@@ -1,0 +1,132 @@
+The lifecycle of a request in the Solaris HGFS code
+===================================================
+
+Note that this design is based almost entirely on the Linux HGFS code.
+
+Data Structures
+---------------
+- A preallocated request pool array. (requestPool[])
+- A list of the current free requests. (reqFreeList)
+- A list of the currently pending requests (reqList)
+
+Request States
+--------------
+- Unused:
+   This is a request's initial state and it guarantees that the
+   request is on the free request list.  Requests are placed back in
+   this state after the Abandoned, Error, or Completed states.
+   
+- Allocated: 
+   The request has been allocated to a client and is not on any of
+   the lists.
+   
+- Submitted:
+   The request has been filled out and has been placed on the pending
+   request list.  The request may leave the pending request list while
+   still in this state.
+   
+- Abandoned:
+   The client was interrupted while waiting for the reply and has
+   left the request to be cleaned up when a reply comes.  The request 
+   is either still on the pending list or is not on any list, and will
+   be accessed by its index into the requestPool array.
+   
+- Error:
+   An error occurred while submitting the request or awaiting the
+   reply.  The request is not on any lists.
+
+- Completed: 
+   The reply for this request has been received correctly.  The
+   request is not on any lists.
+             
+
+State Transition
+-----------------
+
+Each request starts as Unused and is then Allocated and Submitted.  After the
+request is submitted, the request can be Abandoned, can have an Error occur, or
+can Complete successfully.  Each of these states transitions back to the Unused
+state.
+
+--> Unused --> Allocated --> Submitted ---> Abandoned ------> Unused
+                                       \                   /
+                                        --> Error -------->
+                                        \                /
+                                         -> Completed -->
+
+Functions
+---------
+These functions will affect the state of requests and their locations on the
+lists.
+
+- HgfsInitRequestList():
+   This will initialize each request's state to UNUSED and ID to its index into
+   the requestPool array.  Each request will also be added to the free request
+   list (reqFreeList).
+
+- HgfsCancelAllRequests():
+   Iterates over the pending request list and the request pool and cancels each
+   request.  If a request is abandoned it must clean up for the interrupted
+   process; if the requester is waiting, set the request state to error and wake
+   up the client.
+
+- HgfsGetNewReq():
+   Takes an UNUSED request off the free list (reqFreeList) and sets its state
+   to ALLOCATED.  The request will not be on any lists after this function is
+   completed.
+
+- HgfsEnqueueRequest():
+   Puts an ALLOCATED request on to the pending request list (reqList) and sets
+   its state to SUBMITTED.  The request should not be on any of the lists when
+   this function is called.  This function will also assume that the list lock
+   is held since most callers of this function will need to enqueue and do
+   other operations atomically.
+
+- HgfsDequeueRequest():
+   Takes a SUBMITTED or ERROR request from the pending request list (reqList).
+   The request will not be on any lists after this function is completed.  For
+   the reason noted above, this function also assumes the list lock is held by
+   the caller.
+
+- HgfsDestroyReq():
+   Puts a COMPLETED, ERROR, or ABANDONED request on to the free list
+   (reqFreeList) and sets its state to UNUSED.  The request should not be on
+   any lists when this function is called.
+
+- HgfsReqSetState():
+   Will set the state of the specified request to the specified value.  This
+   abstraction is to help prevent forgetting to lock the state's mutex.
+
+- HgfsReqGetState():
+   Will return the state of the specified request.  This abstraction is to help
+   prevent forgetting to lock the state's mutex.
+
+
+Submitting a request
+--------------------
+
+{
+   request = HgfsGetNewReq(superinfo);
+   if (request is NULL) {
+      return error
+   }
+
+   Fill in specific request information in request->packet
+      - header.id and header.op of specific request struct
+        should be set
+      - request specific information should be filled in
+      - request->packetSize should be set
+   
+   if (HgfsSubmitRequest(superinfo, request) fails) {
+      return error
+   }
+
+   if (HgfsValidateReply(request, minimum size) fails) {
+      HgfsDestroyReq(superinfo, request);
+      return error
+   }
+
+   Process reply and give to client
+
+   HgfsDestroyReq(superinfo, request);
+}

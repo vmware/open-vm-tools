@@ -121,7 +121,7 @@ endif
 endif
 
 vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
-	$(CPPFLAGS) $(CFLAGS) $(CFLAGS_KERNEL) \
+	$(CPPFLAGS) $(CFLAGS) $(CFLAGS_KERNEL) $(LINUXINCLUDE) \
 	$(EXTRA_CFLAGS) -Iinclude2/asm/mach-default \
 	-DKBUILD_BASENAME=\"$(DRIVER)\" \
 	-Werror -S -o /dev/null -xc $(1) \

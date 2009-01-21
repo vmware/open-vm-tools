@@ -72,10 +72,10 @@
     (!defined KERNEL && !defined _KERNEL && !defined VMKERNEL && !defined __KERNEL__)
 #   include <stddef.h>
 #else
-// XXX the __cplusplus one matches that of VC++, to prevent redefinition warning
+// XXX the _WIN32 one matches that of VC++, to prevent redefinition warning
 // XXX the other one matches that of gcc3.3.3/glibc2.2.4 to prevent redefinition warnings
 #ifndef offsetof
-#ifdef __cplusplus
+#ifdef _WIN32
 #define offsetof(s,m)   (size_t)&(((s *)0)->m)
 #else
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)

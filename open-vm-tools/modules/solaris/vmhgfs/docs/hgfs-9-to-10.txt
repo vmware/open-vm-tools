@@ -1,0 +1,145 @@
+Notes for porting Hgfs from Solaris 9 to 10
+===========================================
+
+Note that Solaris 10 is a beta and still in development, so these notes may
+become outdated.  They are based on the headers in build 52.
+
+vnode.h
+-------
+o Now use vn_make_ops() to create vnodeops
+   int vn_make_ops(const char *, const fs_operation_def_t *, vnodeops_t **);
+   void vn_freevnodeops(vnodeops_t *);
+
+o Now use vfs_makefsops()/vfs_setfsops() to create vfsops
+   (see vfs.h notes)
+
+o There is a new structure struct fs_operation_def_t:
+  
+   typedef int (*fs_generic_func_p) ();
+   
+   typedef struct fs_operation_def {
+      char *name;                /* name of operation (NUL terminated) */
+      fs_generic_func_p func;    /* function implementing operation */
+   } fs_operation_def_t;
+
+  The name is likely one of the VOPNAME_* macros.
+
+o vnodes should only be created by calls to vn_alloc(); they may not be embedded
+  in fs-specific structures; vnodes may change size.  Definitions for related
+  vnode allocation/freeing functions are:
+   vnode_t *vn_alloc(int);
+   void    vn_reinit(vnode_t *);
+   void    vn_free(vnode_t *);
+
+  Note that the vn_free() function destroys the vnode's mutex so doing so
+  yourself will crash the system.
+
+o There are a quite a few new vnode manipulation functions; see vnode.h.
+  
+o v_vfsmountedhere member of struct vnode is private, perhaps we shouldn't touch
+  it; it is also protected by vn_vfswlock in vnode.c
+
+o A number of private members were added to struct vnode -- shouldn't affect us
+
+o New structure struct caller_context contains PID of caller, system ID, and
+  a caller identifier.  This structure is now passed in as the last argument to:
+   o vop_read
+   o vop_write
+   o vop_setattr
+   o vop_rwlock
+   o vop_rwunlock
+   o vop_space
+
+o vop_shrlock now takes an additional cred_t * argument as its last argument
+
+o A new vnodeop was added:
+   int (*vop_vnevent)(vnode_t *, vnevent_t);
+  
+  This likely has to do "something" to the vnode depending on the value of
+  vnevent_t.  It is likely that this is required since the vnode now stores the
+  cached path of the file in its private char *v_path member.  Can we use
+  vnevent_*() for help, or do these call us?  How about the new vn_setpath*(),
+  vn_path(), and vn_copypath() functions?  (We should use the VN_SETPATH() macro
+  instead of calling vn_setpath() directly.)
+
+o vnevent_t is a new enum with the following definition:
+   typedef enum vnevent {
+      VE_SUPPORT     = 0,        /* Query */
+      VE_RENAME_SRC  = 1,        /* Rename, with vnode as source */
+      VE_RENAME_DEST = 2,        /* Rename, with vnode as target/dest */
+      VE_REMOVE      = 3,        /* Remove of vnode's name */
+      VE_RMDIR       = 4         /* Remove of directory vnode's name */
+   } vnevent_t;
+
+o A new macro VN_SET_VFS_TYPE_DEV(vp, vfsp, type, dev) was created, but it is
+  trivial.
+
+o VN_CMP() now calls vn_getops() rather than dereferencing the vnode's vn_ops
+  member.  (We should use this to access that variable too, it seems.)
+
+o There is no more VN_INIT() macro, but it was trivial anyhow.
+
+
+vfs.h
+-----
+o Filesystems now must supply their list of vfs operations using:
+   int vfs_setfsops(int, const fs_operation_def_t *, vfsops_t **);
+
+o There are also functions for filesystems to make, free, etc vfs operation
+  structures:
+   int  vfs_makefsops(const fs_operation_def_t *, vfsops_t **);
+   void vfs_freevfsops(vfsops_t *);
+   int  vfs_freevfsops_by_type(int);
+   void vfs_setops(vfs_t *, vfsops_t *);
+   vfsops_t *vfs_getops(vfs_t *vfsp);
+   <there are some more: see vfs.h>
+
+  The names placed in fs_operation_def_t->name are likely one of the VFSNAME_*
+  macros.
+
+o This isn't relevant to our layer, but the vfs now keeps filesystems in
+  a double linked circular list rather than a singly linked list.  There are
+  also issues with zones: each zone has a list of its own mounts.
+
+o The vfs_op member of struct vfs should never be directly accessed; use the
+  accessor functions described above.
+
+o There is a new function in struct vfsops:
+   int (*vfs_vnstate)(vfs_t *, vnode_t *, vntrans_t);
+
+o vntrans_t is a new enum that is either VNTRANS_EXISTS, VNTRANS_IDLED,
+  VNTRANS_RECLAIMED, or VNTRANS_DESTROYED.
+
+o The function pointer vsw_init member of struct vfssw now has the definition:
+   int (*vsw_init)(int, char *)
+
+  Also, the vsw_optproto and vsw_vfsops members are no longer pointers.
+
+  Since we will not be directly including this structure in our modlfs anymore
+  (see modctl.h notes), these differences probably don't matter.
+
+o There is a new structure (that will be used in our modlfs now instead of
+  struct vfssw).
+  
+  typedef struct vfsdef_v2 {
+     int       def_version;             /* structure version, must be first */
+     char      *name;                   /* filesystem type name */
+     int       (*init) (int, char *);   /* init routine */
+     int       flags;                   /* fs flags */
+     mntopts_t *optproto;               /* mount options table prototype */
+  } vfsdef_v2;
+
+  Note that build 58 contains the same structure but it is called vfsdef_v3.
+
+o There are a few other additional macros and functions that likely won't matter
+  to us.
+  
+modctl.h
+--------
+o struct modlfs now has a struct vfsdef_v3 instead of a struct vfssw
+o other changes don't seem relevant
+
+devops.h
+--------
+o There are no changes to struct cb_ops, struct dev_ops, or any of the command
+  enums taken by these functions.

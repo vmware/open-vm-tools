@@ -143,7 +143,7 @@ VMCIHandleArray_AppendEntry(VMCIHandleArray **arrayPtr,
       /* reallocate. */
       uint32 arraySize = sizeof array->capacity + sizeof array->size +
          array->capacity * sizeof(VMCIHandle);
-      VMCIHandleArray *newArray = 
+      VMCIHandleArray *newArray = (VMCIHandleArray *)
 	      VMCI_AllocKernelMem(arraySize + array->capacity * sizeof(VMCIHandle),
                              VMCI_MEMORY_NONPAGED);
       if (newArray == NULL) {
@@ -178,7 +178,7 @@ static INLINE VMCIHandle
 VMCIHandleArray_RemoveEntry(VMCIHandleArray *array,
                             VMCIHandle entryHandle)
 {
-   int i;
+   uint32 i;
    VMCIHandle handle = VMCI_INVALID_HANDLE;
 
    ASSERT(array);
@@ -293,7 +293,7 @@ static INLINE Bool
 VMCIHandleArray_HasEntry(const VMCIHandleArray *array,
                          VMCIHandle entryHandle)
 {
-   int i;
+   uint32 i;
 
    ASSERT(array);
    for (i = 0; i < array->size; i++) {

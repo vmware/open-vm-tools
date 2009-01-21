@@ -1812,6 +1812,88 @@ FileIO_GetSize(const FileIODescriptor *fd)  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIO_GetAllocSize --
+ *
+ *      Get allocated size of file.
+ *
+ * Results:
+ *      Size of file or -1.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int64
+FileIO_GetAllocSize(const FileIODescriptor *fd)  // IN
+{
+   struct stat s;
+
+   ASSERT(fd);
+
+#if __linux__ && defined(N_PLAT_NLM)
+   /* Netware doesn't have st_blocks.  Just fall back to GetSize. */ 
+   return FileIO_GetSize(fd);
+#else
+   /*
+    * If you don't like the magic number 512, yell at the people
+    * who wrote sys/stat.h and tell them to add a #define for it.
+    */
+   return (fstat(fd->posix, &s) == -1) ? -1 : s.st_blocks * 512;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_SetAllocSize --
+ *
+ *      Set allocated size of file, allocating new blocks if needed.
+ *      It is an error for size to be less than the current size.
+ *
+ * Results:
+ *      TRUE on success.  Sets errno on failure.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN
+                    uint64 size)                 // IN
+{
+#ifdef __APPLE__
+   fstore_t prealloc;
+   uint64 curSize;
+
+   curSize = FileIO_GetAllocSize(fd);
+
+   if (curSize > size) {
+      errno = EINVAL;
+      return FALSE;
+   }
+
+   prealloc.fst_flags = 0;
+   prealloc.fst_posmode = F_PEOFPOSMODE;
+   prealloc.fst_offset = 0;
+   prealloc.fst_length = size - curSize;
+   prealloc.fst_bytesalloc = 0;
+
+   return fcntl(fd->posix, F_PREALLOCATE, &prealloc) != -1;
+#else
+   errno = EINVAL;
+   return FALSE;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_GetSizeByPath --
  *
  *      Get size of a file specified by path. 

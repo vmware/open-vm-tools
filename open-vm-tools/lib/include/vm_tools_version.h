@@ -855,6 +855,13 @@ typedef uint32 ToolsVersion;
 #define   TOOLS_VERSION_FUSION15_UPDATE1_V_MNR      9
 #define   TOOLS_VERSION_FUSION15_UPDATE1_V_BASE     4
 
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_FUSION15_UPDATE2    TOOLS_VERSION_TO_UINT(TOOLS_VERSION_FUSION15_UPDATE2_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_FUSION15_UPDATE2_V_MJR      7
+#define   TOOLS_VERSION_FUSION15_UPDATE2_V_MNR      9
+#define   TOOLS_VERSION_FUSION15_UPDATE2_V_BASE     5
+
 /*
  * At the request of CPD, ESX 4.0 receives its own major version (8.0.0).
  */

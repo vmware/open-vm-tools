@@ -71,6 +71,7 @@
 #include "vixCommands.h"
 #include "base64.h"
 #include "guestInfo.h"
+#include "hostinfo.h"
 #include "hgfsServer.h"
 #include "hgfs.h"
 #include "system.h"
@@ -814,7 +815,7 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
       osNameFull[0] = 0;
       osName[0] = 0;
    }
-   wordSize = GuestInfo_GetSystemBitness();
+   wordSize = Hostinfo_GetSystemBitness();
    if (wordSize <= 0) {
       wordSize = 32;
    }

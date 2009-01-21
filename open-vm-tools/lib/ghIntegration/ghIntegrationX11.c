@@ -37,6 +37,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifndef GTK2
+#error "Gtk 2.0 is required"
+#endif
+
+#include <glib.h>
+#include <gdk-pixbuf/gdk-pixbuf-core.h>
+
+// gdkx.h includes Xlib.h, which #defines Bool.
+#include <gdk/gdkx.h>
+#undef Bool
+
 #include "vmware.h"
 #include "base64.h"
 #include "rpcin.h"
@@ -62,15 +73,7 @@
    (((textrange).afterLast - (textrange).first) == strlen((str))        \
     && !strncmp((textrange).first, (str), (textrange).afterLast - (textrange).first))
 
-#ifndef GTK2
-#error "Gtk 2.0 is required"
-#endif
-
 #include "appUtil.h"
-
-#include <glib.h>
-#include <gdk-pixbuf/gdk-pixbuf-core.h>
-#include <gdk/gdkx.h>
 
 /*
  * The following defines appear in newer versions of glib 2.x, so
@@ -829,8 +832,8 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
     * Stick the app name into 'buf'.
     */
    if (ghm) {
-      ctmp = g_key_file_get_string(ghm->keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                   G_KEY_FILE_DESKTOP_KEY_NAME, NULL);
+      ctmp = g_key_file_get_locale_string(ghm->keyfile, G_KEY_FILE_DESKTOP_GROUP,
+                                   G_KEY_FILE_DESKTOP_KEY_NAME, NULL, NULL);
       if (!ctmp) {
          ctmp = g_path_get_basename(realCmd);
       }
@@ -1781,14 +1784,10 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
 
          gmi = g_ptr_array_index(gmh->gmd->items, itemIndex);
 
-         /*
-          * XXX I should get_locale_string here for the localizedItemName, if there's a
-          * way to do it in the guest user's current language.
-          */
-         localizedItemName = g_key_file_get_string(gmi->keyfile,
-                                                   G_KEY_FILE_DESKTOP_GROUP,
-                                                   G_KEY_FILE_DESKTOP_KEY_NAME,
-                                                   NULL);
+         localizedItemName = g_key_file_get_locale_string(gmi->keyfile,
+                                                          G_KEY_FILE_DESKTOP_GROUP,
+                                                          G_KEY_FILE_DESKTOP_KEY_NAME,
+                                                          NULL, NULL);
          freeLocalItemName = TRUE;
          itemName = g_strdup_printf("%s/%s/%s", UNITY_START_MENU_LAUNCH_FOLDER,
                                     gmh->gmd->dirname, localizedItemName);
@@ -2303,12 +2302,11 @@ GHIPlatformCombineArgs(GHIPlatform *ghip,            // IN
                switch (thisarg[1]) {
                case 'c': // %c expands to the .desktop's Name=
                   {
-                     // XXX Should use the translated version
                      char *ctmp =
-                        g_key_file_get_string(ghm->keyfile,
-                                              G_KEY_FILE_DESKTOP_GROUP,
-                                              G_KEY_FILE_DESKTOP_KEY_NAME,
-                                              NULL);
+                        g_key_file_get_locale_string(ghm->keyfile,
+                                                     G_KEY_FILE_DESKTOP_GROUP,
+                                                     G_KEY_FILE_DESKTOP_KEY_NAME,
+                                                     NULL, NULL);
                      if (ctmp) {
                         g_ptr_array_add(fullargs, ctmp);
                      }

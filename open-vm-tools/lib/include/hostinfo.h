@@ -54,12 +54,13 @@ extern Bool Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,
 #endif
 extern Bool Hostinfo_GetRatedCpuMhz(int32 cpuNumber,
                                     uint32 *mHz);
-extern char* Hostinfo_GetCpuDescription(uint32 cpuNumber);
+extern char *Hostinfo_GetCpuDescription(uint32 cpuNumber);
 extern void Hostinfo_GetTimeOfDay(VmTimeType *time);
 extern VmTimeType Hostinfo_SystemUpTime(void);
 extern VmTimeType Hostinfo_RawSystemTimerUS(void);
 extern VmTimeType Hostinfo_SystemTimerUS(void);
 extern int Hostinfo_OSVersion(int i);
+extern int Hostinfo_GetSystemBitness(void);
 extern const char *Hostinfo_OSVersionString(void);
 extern Bool Hostinfo_OSIsSMP(void);
 #if defined(_WIN32)

@@ -165,10 +165,10 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 /*
  * Prototypes
  */
-
 int VSockVmci_GetAFValue(void);
 
 /* Internal functions. */
+static int VSockVmciGetAFValue(void);
 static int VSockVmciRecvDgramCB(void *data, VMCIDatagram *dg);
 #ifdef VMX86_TOOLS
 static int VSockVmciRecvStreamCB(void *data, VMCIDatagram *dg);
@@ -207,6 +207,7 @@ static struct sock *__VSockVmciCreate(struct net *net,
                                       struct socket *sock, gfp_t priority,
                                       unsigned short type);
 #endif
+static inline void VSockVmciTestUnregister(void);
 static int VSockVmciRegisterAddressFamily(void);
 static void VSockVmciUnregisterAddressFamily(void);
 
@@ -428,6 +429,7 @@ typedef struct VSockRecvPktInfo {
 static DECLARE_MUTEX(registrationMutex);
 static int devOpenCount = 0;
 static int vsockVmciSocketCount = 0;
+static int vsockVmciKernClientCount = 0;
 #ifdef VMX86_TOOLS
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static Bool vmciDevicePresent = FALSE;
@@ -530,6 +532,136 @@ kmem_cache_t *vsockCachep;
 /*
  *----------------------------------------------------------------------------
  *
+ * VMCISock_GetAFValue --
+ *
+ *      Kernel interface that allows external kernel modules to get the current
+ *      VMCI Sockets address family.
+ *      This version of the function is exported to kernel clients and should not
+ *      change.
+ *
+ * Results:
+ *      The address family on success, a negative error on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+VMCISock_GetAFValue(void)
+{
+   int afvalue;
+
+   down(&registrationMutex);
+
+   /*
+    * Kernel clients are required to explicitly register themselves before they
+    * can use VMCI Sockets.
+    */
+   if (vsockVmciKernClientCount <= 0) {
+      afvalue = -1;
+      goto exit;
+   }
+
+   afvalue = VSockVmciGetAFValue();
+
+exit:
+   up(&registrationMutex);
+   return afvalue;
+
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCISock_KernelRegister --
+ *
+ *      Allows a kernel client to register with VMCI Sockets. Must be called
+ *      before VMCISock_GetAFValue within a kernel module. Note that we don't
+ *      actually register the address family until the first time the module
+ *      needs to use it.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCISock_KernelRegister(void)
+{
+   down(&registrationMutex);
+   vsockVmciKernClientCount++;
+   up(&registrationMutex);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCISock_KernelDeregister --
+ *
+ *      Allows a kernel client to unregister with VMCI Sockets. Every call
+ *      to VMCISock_KernRegister must be matched with a call to
+ *      VMCISock_KernUnregister.
+ *
+ * Results:
+        None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCISock_KernelDeregister(void)
+{
+   down(&registrationMutex);
+   vsockVmciKernClientCount--;
+   VSockVmciTestUnregister();
+   up(&registrationMutex);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciGetAFValue --
+ *
+ *      Returns the address family value being used.
+ *      Note: The registration mutex must be held when calling this function.
+ *
+ * Results:
+ *      The address family on success, a negative error on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+VSockVmciGetAFValue(void)
+{
+   int afvalue;
+
+   afvalue = vsockVmciFamilyOps.family;
+   if (!VSOCK_AF_IS_REGISTERED(afvalue)) {
+      afvalue = VSockVmciRegisterAddressFamily();
+   }
+
+   return afvalue;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmci_GetAFValue --
  *
  *      Returns the address family value being used.
@@ -549,13 +681,9 @@ VSockVmci_GetAFValue(void)
    int afvalue;
 
    down(&registrationMutex);
-
-   afvalue = vsockVmciFamilyOps.family;
-   if (!VSOCK_AF_IS_REGISTERED(afvalue)) {
-      afvalue = VSockVmciRegisterAddressFamily();
-   }
-
+   afvalue = VSockVmciGetAFValue();
    up(&registrationMutex);
+
    return afvalue;
 }
 
@@ -586,7 +714,8 @@ VSockVmci_GetAFValue(void)
 static inline void
 VSockVmciTestUnregister(void)
 {
-   if (devOpenCount <= 0 && vsockVmciSocketCount <= 0) {
+   if (devOpenCount <= 0 && vsockVmciSocketCount <= 0 &&
+       vsockVmciKernClientCount <= 0) {
       if (VSOCK_AF_IS_REGISTERED(vsockVmciFamilyOps.family)) {
          VSockVmciUnregisterAddressFamily();
       }
@@ -5273,3 +5402,10 @@ MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
 MODULE_VERSION(VSOCK_DRIVER_VERSION_STRING);
 MODULE_LICENSE("GPL v2");
+/*
+ * Starting with SLE10sp2, Novell requires that IHVs sign a support agreement
+ * with them and mark their kernel modules as externally supported via a
+ * change to the module header. If this isn't done, the module will not load
+ * by default (i.e., neither mkinitrd nor modprobe will accept it).
+ */
+MODULE_INFO(supported, "external");

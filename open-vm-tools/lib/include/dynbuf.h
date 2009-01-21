@@ -27,6 +27,7 @@
 
 #include <string.h>
 #include "vm_basic_types.h"
+#include "vm_assert.h"
 
 
 typedef struct DynBuf {
@@ -41,9 +42,6 @@ DynBuf_Init(DynBuf *b); // IN
 
 void
 DynBuf_Destroy(DynBuf *b); // IN
-
-void *
-DynBuf_Get(DynBuf const *b); // IN
 
 void *
 DynBuf_AllocGet(DynBuf const *b); // IN
@@ -68,19 +66,111 @@ DynBuf_Append(DynBuf *b,        // IN
 Bool
 DynBuf_Trim(DynBuf *b); // IN
 
-size_t
-DynBuf_GetSize(DynBuf const *b); // IN
-
-void
-DynBuf_SetSize(DynBuf *b,    // IN
-               size_t size); // IN
-
-size_t
-DynBuf_GetAllocatedSize(DynBuf const *b); // IN
-
 Bool
 DynBuf_Copy(DynBuf *src,    // IN
             DynBuf *dest);  // OUT
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_Get --
+ *
+ *      Retrieve a pointer to the data contained in a dynamic buffer --hpreg
+ *
+ * Results:
+ *      The pointer to the data
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+DynBuf_Get(DynBuf const *b) // IN
+{
+   ASSERT(b);
+
+   return b->data;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_GetSize --
+ *
+ *      Returns the current size of the dynamic buffer --hpreg
+ *
+ * Results:
+ *      The current size of the dynamic buffer
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE size_t
+DynBuf_GetSize(DynBuf const *b) // IN
+{
+   ASSERT(b);
+
+   return b->size;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_SetSize --
+ *
+ *      Set the current size of a dynamic buffer --hpreg
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+DynBuf_SetSize(DynBuf *b,   // IN
+               size_t size) // IN
+{
+   ASSERT(b);
+   ASSERT(size <= b->allocated);
+
+   b->size = size;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_GetAllocatedSize --
+ *
+ *      Returns the current allocated size of the dynamic buffer --hpreg
+ *
+ * Results:
+ *      The current allocated size of the dynamic buffer
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE size_t
+DynBuf_GetAllocatedSize(DynBuf const *b) // IN
+{
+   ASSERT(b);
+
+   return b->allocated;
+}
 
 
 /*

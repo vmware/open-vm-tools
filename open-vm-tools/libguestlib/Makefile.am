@@ -17,6 +17,9 @@
 
 lib_LTLIBRARIES = libguestlib.la
 
+AM_CFLAGS =
+AM_CFLAGS += -I$(top_builddir)/include
+
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += ../lib/rpcOut/libRpcOut.la
 libguestlib_la_LIBADD += ../lib/string/libString.la
@@ -26,6 +29,7 @@ libguestlib_la_LIBADD += ../lib/stubs/libStubs.la
 # order so their symbols are properly resolved.
 libguestlib_la_LIBADD += ../lib/message/libMessage.la
 libguestlib_la_LIBADD += ../lib/backdoor/libBackdoor.la
+libguestlib_la_LIBADD += ../lib/guestRpc/libGuestRpc.la
 
 libguestlib_la_SOURCES =
 libguestlib_la_SOURCES += vmGuestLib.c

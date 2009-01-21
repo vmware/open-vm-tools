@@ -152,7 +152,8 @@ EXTERN Unicode File_FullPath(ConstUnicode pathName);
 
 EXTERN Bool File_IsFullPath(ConstUnicode pathName);
 
-EXTERN uint64 File_GetFreeSpace(ConstUnicode pathName);
+EXTERN uint64 File_GetFreeSpace(ConstUnicode pathName,
+                                Bool doNotAscend);
 
 EXTERN uint64 File_GetCapacity(ConstUnicode pathName);
 

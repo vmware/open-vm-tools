@@ -26,6 +26,13 @@
 #ifndef _VSOCK_COMMON_H_
 #define _VSOCK_COMMON_H_
 
+/*
+ * VMCISockGetAFValueInt is defined separately from VMCISock_GetAFValue because
+ * it is used in several different contexts. In particular it is called from
+ * vsockAddr.c which gets compiled into both our kernel modules as well as
+ * the user level vsock library. In the linux kernel we need different behavior
+ * than external kernel modules using VMCI Sockets api inside the kernel.
+ */
 
 #if defined(_WIN32)
 #  define VMCI_SOCKETS_AF_VALUE 28
@@ -51,8 +58,10 @@
 #     define _INC_WINDOWS
 #     include "vmci_queue_pair.h"
       /* In the kernel we can't call into the provider. */
-#     define VMCISock_GetAFValue() VMCI_SOCKETS_AF_VALUE
+#     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  else // WINNT_DDK
+      /* In userland, just use the normal exported userlevel api. */
+#     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #     include <windows.h>
 #  endif // WINNT_DDK
 #  define Uint64ToPtr(_ui) ((void *)(uint64)(_ui))
@@ -62,7 +71,7 @@
 #  include "uwvmkAPI.h"
 #  define VMCI_SOCKETS_AF_VALUE AF_VMCI /* Defined in uwvmkAPI.h. */
    /* The address family is fixed in the vmkernel. */
-#  define VMCISock_GetAFValue() VMCI_SOCKETS_AF_VALUE
+#  define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  include "vmciHostKernelAPI.h"
 #  define Uint64ToPtr(_ui) ((void *)(uint64)(_ui))
 #  define PtrToUint64(_p)  ((uint64)(_p))
@@ -75,12 +84,15 @@
 #     if defined(VMX86_TOOLS)
 #        include "vmci_queue_pair.h"
 #     endif
-      /*
-       * In the kernel we call back into af_vsock.c to get the address family
-       * being used.  Otherwise an ioctl(2) is performed (see vmci_sockets.h).
-       */
+    /*
+     * In the kernel we call back into af_vsock.c to get the address family
+     * being used.  Otherwise an ioctl(2) is performed (see vmci_sockets.h).
+     */
       extern int VSockVmci_GetAFValue(void);
-#     define VMCISock_GetAFValue() VSockVmci_GetAFValue()
+#     define VMCISockGetAFValueInt() VSockVmci_GetAFValue()
+#  else // __KERNEL__
+      /* In userland, just use the normal exported userlevel api. */
+#     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #  endif
 #endif // linux
 #endif // VMKERNEL

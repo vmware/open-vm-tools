@@ -37,6 +37,8 @@
 #elif defined(SOLARIS)
 #  include <sys/ddi.h>
 #  include <sys/sunddi.h>
+#elif defined(__APPLE__)
+#  include <IOKit/IOLib.h>
 #else
 #  error "Platform not support by VMCI datagram API."
 #endif // linux

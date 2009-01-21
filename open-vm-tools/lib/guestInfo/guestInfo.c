@@ -200,32 +200,6 @@ GuestInfo_GetOSName(unsigned int outBufFullLen, // IN
 }
 
 
-#if defined(N_PLAT_NLM)
-/*
- *----------------------------------------------------------------------------
- *
- * GuestInfo_GetSystemBitness --
- *
- *      Determines the operating system's bitness.
- *
- * Return value:
- *      32 or 64 on success, negative value on failure. Check errno for more
- *      details of error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-int
-GuestInfo_GetSystemBitness(void)
-{
-   return 32;
-}
-#endif // defined(N_PLAT_NLM)
-
-
 /**
  * Add a NIC into the given list. The macAddress of the new GuestNic is
  * initialized with the given address.

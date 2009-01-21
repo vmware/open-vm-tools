@@ -914,3 +914,10 @@ MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Machine Communication Interface");
 MODULE_VERSION(VMCI_DRIVER_VERSION_STRING);
 MODULE_LICENSE("GPL v2");
+/*
+ * Starting with SLE10sp2, Novell requires that IHVs sign a support agreement
+ * with them and mark their kernel modules as externally supported via a
+ * change to the module header. If this isn't done, the module will not load
+ * by default (i.e., neither mkinitrd nor modprobe will accept it).
+ */
+MODULE_INFO(supported, "external");

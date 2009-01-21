@@ -1,0 +1,101 @@
+Solaris HGFS Synchronization
+============================
+
+The Solaris synchronization primitives that will be used are mutexes and
+condition variables.  Mutexes will protect access to shared resources
+and condition variables will synchronize the order of the operations by
+those accessing these resources.
+
+Synchronization must be achieved in two directions.  First, a client
+that requests an operation on a HGFS file must wait for the reply from
+the HGFS server.  Second, guestd must wait for requests to be made when
+it queries the HGFS device and there are no pending requests.
+
+To enable this synchronization, the superinfo structure will contain
+these elements:
+- a list of outgoing requests (reqList)
+- a condition variable for waiting until and signaling when requests are put
+  on an empty list (reqCondVar)
+- a flag which indicates whether guestd is waiting for a request
+  (guestdWaiting)
+- a mutex to protect access to these components (reqMutex)
+
+Additionally, each request structure should contain:
+- a condition variable for waiting for and signaling of replies to
+  /this/ request (condVar)
+- a flag indicating whether the requesting thread has been interrupted
+  and is no longer waiting for the reply (abandoned)
+
+The filesystem half of the driver will place requests onto reqList with
+the following pseudocode:
+{
+ Acquire and initialize request structure from free request list
+ mutex_enter(superinfo's reqMutex)
+ 
+ HgfsEnqueueRequest(request list, request)
+ 
+ if (superinfo's guestdWaiting is set) {
+   cv_signal(superinfo's reqCondVar)
+ }
+ 
+ cv_wait_sig(request's condVar, superinfo's reqMutex)
+ if (cv_wait_sig() was interrupted) {
+   request's abandoned = TRUE
+   release mutex and return EINTR
+ }
+ 
+ mutex_exit(superinfo's reqMutex)
+ 
+ Read reply in request's packet
+ When done, put request structure back on free list
+}
+
+Note that the calls to cv_signal() and cv_wait_sig() above must be atomic,
+otherwise a reply could come and incur a signal before cv_wait_sig() is
+called.  Therefore, the superinfo's reqMutex must also be passed to the
+cv_wait_sig() on the request structure's condition variable.
+
+The device half of the driver will check for and take requests of the
+request list with the following pseudocode (HgfsDevRead()):
+{
+   mutex_enter(superinfo's reqMutex)
+   
+   if (request list is empty) {
+      superinfo's guestdWaiting = TRUE
+      cv_wait_sig(superinfo's reqCondVar, superinfo's reqMutex)
+      if (cv_wait_sig() was interrupted) {
+         superinfo's guestdWaiting = FALSE
+         release mutex and return EINTR
+      }
+      superinfo's guestdWaiting = FALSE
+   }
+
+   Take next request off request list
+   
+   mutex_exit(superinfo's reqMutex)
+
+   Submit request to guestd
+}
+
+When a reply is received, the device half of the driver will handle it
+with the following pseudocode (HgfsDevWrite()):
+{
+   Read in and verify the reply from guestd
+   Get pointer to the request structure from the handle in reply
+   Copy reply payload to the request packet
+
+   mutex_enter(superinfo's reqMutex)
+   if (request's abandoned is set) {
+      Clean up on behalf of interrupted thread
+      - place request back on free list
+      return <guestd doesn't care about this "error">
+   }
+   cv_signal(request's condVar)
+   mutex_exit(superinfo's reqMutex)
+}
+
+
+
+
+
+

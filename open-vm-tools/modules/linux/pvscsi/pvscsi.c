@@ -66,6 +66,13 @@ MODULE_DESCRIPTION(PVSCSI_LINUX_DRIVER_DESC);
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(PVSCSI_DRIVER_VERSION_STRING);
+/*
+ * Starting with SLE10sp2, Novell requires that IHVs sign a support agreement
+ * with them and mark their kernel modules as externally supported via a
+ * change to the module header. If this isn't done, the module will not load
+ * by default (i.e., neither mkinitrd nor modprobe will accept it).
+ */
+MODULE_INFO(supported, "external");
 
 #define PVSCSI_DRIVER_VECTORS_USED	1
 #define DEFAULT_PAGES_PER_RING		8
@@ -375,11 +382,14 @@ static int __devinit pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
  */
 static int __devinit pvscsi_allocate_sg(struct pvscsi_adapter *adapter)
 {
-	unsigned i, max;
-	struct pvscsi_ctx *ctx = adapter->cmd_map;
+	struct pvscsi_ctx *ctx;
+	unsigned max;
+	int i;
 
+        ctx = adapter->cmd_map;
 	max = adapter->req_depth;
 	ASSERT_ON_COMPILE(sizeof(struct PVSCSISGList) <= PAGE_SIZE);
+
 	for (i = 0; i < max; ++i, ++ctx) {
 		ctx->sgl = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		BUG_ON((long)ctx->sgl & ~PAGE_MASK);

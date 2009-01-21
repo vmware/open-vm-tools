@@ -455,16 +455,19 @@ Util_GetCurrentThreadId(void)
     */
 
    static int useTid = 1;
+#if defined(VMX86_SERVER) && defined(VMX86_VMX) // ESX with userworld VMX
+   static __thread pid_t tid = -1;
+#else
    pid_t tid;
-
-   // ESX with userworld VMX
-#if defined(VMX86_SERVER)
-   if (HostType_OSIsVMK()) {
-      return User_GetTid();
-   }
 #endif
 
+
    if (useTid) {
+#if defined(VMX86_SERVER) && defined(VMX86_VMX) // ESX with userworld VMX
+      if (tid != -1) {
+         return tid;
+      }
+#endif
       tid = gettid();
       if (tid != (pid_t)-1) {
          return tid;

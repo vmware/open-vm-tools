@@ -438,6 +438,92 @@ StrUtil_StrToSizet(size_t *out,     // OUT: The output value
 }
 
 
+#ifndef N_PLAT_NLM // NetWare Tools ask for unresolved _GLOBAL_OFFSET_TABLE...
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_CapacityToSectorType --
+ *
+ *      Converts a string containing a measure of disk capacity (such as
+ *      "100MB" or "1.5k") into an unadorned and primitive quantity of sector
+ *      capacity. The comment before the switch statement describes the kinds of
+ *      disk capacity expressible.
+ *
+ * Results:
+ *      TRUE if conversion was successful, FALSE otherwise.
+ *      Value is stored in 'out', which is left undefined in the FALSE case.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
+                             const char *str,    // IN: String to parse
+                             unsigned int bytes) // IN: Bytes per unit in an
+                                                 //     unadorned string
+
+{
+   double quantity;
+   char *rest;
+
+   ASSERT(out);
+   ASSERT(str);
+
+   errno = 0;
+   quantity = strtod(str, &rest);
+   if (errno == ERANGE) {
+      return FALSE;
+   }
+
+   /* Skip over any whitespace in the suffix. */
+   while (*rest == ' ' || *rest == '\t') {
+      rest++;
+   }
+   if (*rest != '\0') {
+      uint64 shift;
+
+      /*
+       * [kK], [mM], [gG], and [tT] represent kilo, mega, giga, and tera
+       * byte quantities respectively. [bB] represents a singular byte
+       * quantity. [sS] represents a sector quantity. 
+       *
+       * All other suffixes are ignored, which also means a suffix like
+       * "MB" will be treated as 'M'.
+       */
+      switch (*rest) {
+      case 's': case 'S':          shift = 9;  break;
+      case 'k': case 'K':          shift = 10; break;
+      case 'm': case 'M':          shift = 20; break;
+      case 'g': case 'G':          shift = 30; break;
+      case 't': case 'T':          shift = 40; break;
+      case 'b': case 'B': default: shift = 0;  break;
+      }
+      quantity *= (double)(1 << shift);
+   } else {
+      /*
+       * No suffix, so multiply by the number of bytes per unit as specified by
+       * the caller.
+       */
+      quantity *= (double)bytes;
+   }
+
+   /*
+    * Convert from "number of bytes" to "number of sectors", rounding up or down
+    * appropriately.
+    *
+    * XXX: We should use DISKLIB_SECTOR_SIZE, but do we really want the disklib
+    * header dependencies in this file?
+    *
+    */
+   *out = (SectorType)((quantity + 256) / 512);
+   return TRUE;
+}
+#endif
+                
+
 /*
  *-----------------------------------------------------------------------------
  *

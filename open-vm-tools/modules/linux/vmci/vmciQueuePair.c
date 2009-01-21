@@ -29,6 +29,8 @@
 #  include <linux/module.h>
 #elif defined(_WIN32)
 #  include <wdm.h>
+#elif defined(__APPLE__)
+#  include <IOKit/IOLib.h>
 #endif /* __linux__ */
 
 #include "vm_assert.h"
@@ -404,7 +406,7 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
 #  define VMCIQP_OFFSET_OF(Struct, field) ((uintptr_t)&(((Struct *)0)->field))
 #ifdef __linux__
    ASSERT_ON_COMPILE(VMCIQP_OFFSET_OF(VMCIQueue, page) == PAGE_SIZE);
-#else
+#elif !defined(SOLARIS)
    ASSERT_ON_COMPILE(VMCIQP_OFFSET_OF(VMCIQueue, buffer) == PAGE_SIZE);
 #endif
 #  undef VMCIQP_OFFSET_OF

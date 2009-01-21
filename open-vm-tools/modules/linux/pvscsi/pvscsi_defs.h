@@ -40,7 +40,7 @@ enum PVSCSIRegOffset {
    PVSCSI_REG_OFFSET_LAST_STS_0     =  0x100,
    PVSCSI_REG_OFFSET_LAST_STS_1     =  0x104,
    PVSCSI_REG_OFFSET_LAST_STS_2     =  0x108,
-   PVSCSI_REG_OFFSET_LAST_STS_3     =  0x10C,
+   PVSCSI_REG_OFFSET_LAST_STS_3     =  0x10c,
    PVSCSI_REG_OFFSET_INTR_STATUS    = 0x100c,
    PVSCSI_REG_OFFSET_INTR_MASK      = 0x2010,
    PVSCSI_REG_OFFSET_KICK_NON_RW_IO = 0x3014,
@@ -194,6 +194,13 @@ struct CmdDescAbortCmd {
    uint32 _pad;
 };
 
+/*
+ * Note:
+ * - reqRingNumPages and cmpRingNumPages need to be power of two.
+ * - reqRingNumPages and cmpRingNumPages need to be different from 0,
+ * - reqRingNumPages and cmpRingNumPages need to be inferior to
+ *   PVSCSI_SETUP_RINGS_MAX_NUM_PAGES.
+ */
 
 #define PVSCSI_SETUP_RINGS_MAX_NUM_PAGES        32
 struct CmdDescSetupRings {

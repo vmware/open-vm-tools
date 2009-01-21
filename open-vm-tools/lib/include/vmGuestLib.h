@@ -50,7 +50,8 @@ typedef enum {
    VMGUESTLIB_ERROR_MEMORY,                      // Not enough memory
    VMGUESTLIB_ERROR_BUFFER_TOO_SMALL,            // Buffer too small
    VMGUESTLIB_ERROR_INVALID_HANDLE,              // Handle is invalid
-   VMGUESTLIB_ERROR_INVALID_ARG                  // One or more arguments were invalid
+   VMGUESTLIB_ERROR_INVALID_ARG,                 // One or more arguments were invalid
+   VMGUESTLIB_ERROR_UNSUPPORTED_VERSION          // The host doesn't support this request
 } VMGuestLibError;
 
 

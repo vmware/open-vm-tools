@@ -38,7 +38,7 @@
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 
-#if defined(__linux__) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32) || defined(SOLARIS)
    /* XXX TODO for other guests. */
 #  include "vmci_queue_pair.h"
 #endif
@@ -70,7 +70,7 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 /* VMCI Discovery Service API. */
 int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
-#if defined(__linux__) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32) || defined(SOLARIS)
 /* VMCI QueuePair API.  XXX TODO for other guests. */
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,

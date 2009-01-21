@@ -2929,7 +2929,7 @@ UnityPlatformSetDesktopConfig(UnityPlatform *up,                             // 
     */
    i = 0;
    memset(guestDesktopLayout, 0xFF, sizeof guestDesktopLayout); // Set all entries to -1
-   if (up->desktopInfo.layoutData[0] == _NET_WM_ORIENTATION_VERT) {
+   if (up->desktopInfo.layoutData[0] == _NET_WM_ORIENTATION_HORZ) {
       for (y = 0; y <= desktopSpread.y; y++) {
          for (x = 0; x <= desktopSpread.x; x++) {
             if (unityDesktopLayout[x][y] >= 0) {

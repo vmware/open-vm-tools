@@ -380,6 +380,52 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
 /*
  *----------------------------------------------------------------------
  *
+ * VMCIEventSubscribe --
+ *
+ *      Subscribe to given event.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCIEventSubscribe(VMCI_Event event,        // IN
+                   VMCI_EventCB callback,   // IN
+                   void *callbackData,      // IN
+                   VMCIId *subscriptionID)  // OUT
+{
+   int retval;
+   VMCISubscription *s = NULL;
+
+   if (subscriptionID == NULL) {
+      VMCI_LOG(("VMCIEvent: Invalid arguments.\n"));
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   s = VMCI_AllocKernelMem(sizeof *s, VMCI_MEMORY_NONPAGED);
+   if (s == NULL) {
+      return VMCI_ERROR_NO_MEM;
+   }
+
+   retval = VMCIEventRegisterSubscription(s, event, callback, callbackData);
+   if (retval < VMCI_SUCCESS) {
+      VMCI_FreeKernelMem(s, sizeof *s);
+      return retval;
+   }
+
+   *subscriptionID = s->id;
+   return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * VMCIEvent_Subscribe --
  *
  *      Subscribe to given event.
@@ -403,27 +449,44 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
                     void *callbackData,      // IN
                     VMCIId *subscriptionID)  // OUT
 {
-   int retval;
-   VMCISubscription *s = NULL;  
-   
-   if (subscriptionID == NULL) {
-      VMCI_LOG(("VMCIEvent: Invalid arguments.\n"));
-      return VMCI_ERROR_INVALID_ARGS;
-   }
+   return VMCIEventSubscribe(event, callback, callbackData, subscriptionID);
+}
 
-   s = VMCI_AllocKernelMem(sizeof *s, VMCI_MEMORY_NONPAGED);
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIEventUnsubscribe --
+ *
+ *      Unsubscribe to given event. Removes it from list and frees it. 
+ *      Will return callbackData if requested by caller.
+ *
+ * Results:
+ *      VMCI_SUCCESS on success, error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+VMCIEventUnsubscribe(VMCIId subID)   // IN
+{
+   VMCISubscription *s;
+
+   /*
+    * Return subscription. At this point we know noone else is accessing
+    * the subscription so we can free it.
+    */
+   s = VMCIEventUnregisterSubscription(subID);
    if (s == NULL) {
-      return VMCI_ERROR_NO_MEM;
-   }
-   
-   retval = VMCIEventRegisterSubscription(s, event, callback, callbackData);
-   if (retval < VMCI_SUCCESS) {
-      VMCI_FreeKernelMem(s, sizeof *s);
-      return retval;
-   }
+      return VMCI_ERROR_NOT_FOUND;
 
-   *subscriptionID = s->id;
-   return retval;
+   }
+   VMCI_FreeKernelMem(s, sizeof *s);
+
+   return VMCI_SUCCESS;
 }
 
 
@@ -432,7 +495,7 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
  *
  * VMCIEvent_Unsubscribe --
  *
- *      Unsubscribe to given event. Removes it from list and frees it. 
+ *      Unsubscribe to given event. Removes it from list and frees it.
  *      Will return callbackData if requested by caller.
  *
  * Results:
@@ -451,18 +514,5 @@ EXPORT_SYMBOL(VMCIEvent_Unsubscribe);
 int
 VMCIEvent_Unsubscribe(VMCIId subID)   // IN
 {
-   VMCISubscription *s;
-
-   /* 
-    * Return subscription. At this point we know noone else is accessing
-    * the subscription so we can free it. 
-    */
-   s = VMCIEventUnregisterSubscription(subID);
-   if (s == NULL) {
-      return VMCI_ERROR_NOT_FOUND;
-
-   }
-   VMCI_FreeKernelMem(s, sizeof *s);
-
-   return VMCI_SUCCESS;
+   return VMCIEventUnsubscribe(subID);
 }

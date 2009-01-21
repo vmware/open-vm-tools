@@ -39,11 +39,13 @@ Bool StrUtil_GetNextUintToken(uint32 *out, unsigned int *index, const char *str,
                               const char *delimiters);
 Bool StrUtil_GetNextInt64Token(int64 *out, unsigned int *index, const char *str,
                               const char *delimiters);
+Bool StrUtil_DecimalStrToUint(unsigned int *out, const char **str);
 Bool StrUtil_StrToInt(int32 *out, const char *str);
 Bool StrUtil_StrToUint(uint32 *out, const char *str);
 Bool StrUtil_StrToInt64(int64 *out, const char *str);
 Bool StrUtil_StrToSizet(size_t *out, const char *str);
-Bool StrUtil_DecimalStrToUint(unsigned int *out, const char **str);
+Bool StrUtil_CapacityToSectorType(SectorType *out, const char *str,
+                                  unsigned int bytes);
 char * StrUtil_FormatSizeInBytesUnlocalized(uint64 size);
 
 size_t StrUtil_GetLongestLineLength(const char *buf, size_t bufLength);

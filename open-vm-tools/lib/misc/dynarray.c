@@ -85,63 +85,6 @@ DynArray_Destroy(DynArray *a)    // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * DynArray_AddressOf --
- *
- *      Fetch a pointer to the address of the ith element.
- *
- * Results:
- *      The pointer to the ith element or NULL if the index is out of
- *      bounds.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void *
-DynArray_AddressOf(const DynArray *a,   // IN
-                   unsigned int i)      // IN
-{
-   uint8 *result = NULL;
-
-   ASSERT(a);
-
-   if (i < DynArray_Count(a)) {
-      result = ((uint8 *)DynBuf_Get(&a->buf)) + (i * a->width);
-   }
-   return result;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DynArray_Count --
- *
- *      Returns the number of elements in the array.
- *
- * Results:
- *      See above.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-unsigned int
-DynArray_Count(const DynArray *a)       // IN
-{
-   ASSERT(a);
-
-   return (unsigned int) (DynBuf_GetSize(&a->buf) / a->width);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * DynArray_SetCount --
  *
  *      Sets the number of elements in the array.   This may enlarge
@@ -190,6 +133,9 @@ DynArray_SetCount(DynArray *a,          // IN/OUT
  *      DynArray_AllocCount is within some threshold of DynArray_Count.
  *      It won't buy you much).
  *
+ *      XXX: This is relatively slow, since we do an integer division.
+ *           Avoid calling this in inner loops.
+ *
  * Results:
  *      See above.
  *
@@ -205,32 +151,6 @@ DynArray_AllocCount(const DynArray *a)  // IN
    ASSERT(a);
 
    return (unsigned int) (DynBuf_GetAllocatedSize(&a->buf) / a->width);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DynArray_Trim --
- *
- *      Resize the array to fit exactly DynArray_Count() elements.
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure (why?  who knows...)
- *
- * Side effects:
- *      Resizes the array
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-DynArray_Trim(DynArray *a)    // IN/OUT
-{
-   ASSERT(a);
-
-   return DynBuf_Trim(&a->buf);
 }
 
 
@@ -263,36 +183,3 @@ DynArray_QSort(DynArray *a,             // IN/OUT
    arrayBuf = DynBuf_Get(&a->buf);
    qsort(arrayBuf, DynArray_Count(a), a->width, compare);
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DynArray_Copy --
- *
- *      Copies all data and metadata from src Dynarray to dest DynArray.
- *      
- *      Dest should be an initialized DynArray of size zero.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-DynArray_Copy(DynArray *src,        // IN
-              DynArray *dest)       // OUT
-{
-   ASSERT(src);
-   ASSERT(dest);
-   ASSERT(dest->width);
-   ASSERT(dest->width == src->width);
-   ASSERT(DynArray_AllocCount(dest) == 0);
-
-   return DynBuf_Copy(&src->buf, &dest->buf);
-}
-

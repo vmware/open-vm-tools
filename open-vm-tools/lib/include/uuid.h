@@ -31,6 +31,7 @@
 
 #define UUID_SIZE 16
 #define UUID_STRSIZE (2*UUID_SIZE + 1)
+#define	UUID_MAXLEN 48
 
 Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE], const char *text);
 char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
