@@ -30,9 +30,9 @@
 #endif
 
 #include "compat_module.h"
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
+//#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 #include <linux/moduleparam.h>
-#endif
+//#endif
 
 #include "compat_slab.h"
 #include "compat_spinlock.h"
@@ -155,6 +155,7 @@ static struct pci_driver vmxnet3_driver = {
 #endif
 };
 
+static int disable_lro = 0;
 
 /*
  *----------------------------------------------------------------------------
@@ -3101,8 +3102,10 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, Bool dma64)
    printk(" tsoIPv6");
 #endif
 
-   adapter->lro = TRUE;
-   printk(" lro");
+   if (!disable_lro) {
+      adapter->lro = TRUE;
+      printk(" lro");
+   }
 
    if (dma64) {
       netdev->features |= NETIF_F_HIGHDMA;
@@ -4558,5 +4561,5 @@ MODULE_VERSION(VMXNET3_DRIVER_VERSION_STRING);
  * by default (i.e., neither mkinitrd nor modprobe will accept it).
  */
 MODULE_INFO(supported, "external");
-
+module_param(disable_lro, int, 0);
 

@@ -332,8 +332,12 @@ VixPropertyList_Serialize(VixPropertyListImpl    *propList,       // IN
 abort:
    if (VIX_OK != err) {
       free(serializeBuffer);
-      *resultBuffer = NULL;
-      *resultSize = 0;
+      if (NULL != resultBuffer) {
+         *resultBuffer = NULL;
+      }
+      if (NULL != resultSize) {
+         *resultSize = 0;
+      }
    }
 
    return err;

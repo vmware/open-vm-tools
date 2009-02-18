@@ -180,16 +180,17 @@ static INLINE Bool
 WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
                   struct stat *s)       // IN: stat(2) info of fs source
 {
-   int major;
+   int majorN;
 
-   major = (s->st_rdev >> 8) & 0xFF;
-   if (! (   (major == 3)  /* First MFM, RLL and IDE hard disk/CD-ROM
+   majorN = major(s->st_rdev);
+   if (! (   (majorN == 3)  /* First MFM, RLL and IDE hard disk/CD-ROM
                               interface. Inside a VM, this is simply the First
                               IDE hard disk/CD-ROM interface because we don't
                               support others */
-             || (major == 22) /* Second IDE hard disk/CD-ROM interface */
-             || (major == 8)  /* SCSI disk devices */
-             || (major == 43) /* Network block device */)) {
+             || (majorN == 22) /* Second IDE hard disk/CD-ROM interface */
+             || (majorN == 8)  /* SCSI disk devices */
+             || (majorN == 43) /* Network block device */
+             || (majorN == 259) /* Disks in 2.6.27 */)) {
       return FALSE;
    }
 

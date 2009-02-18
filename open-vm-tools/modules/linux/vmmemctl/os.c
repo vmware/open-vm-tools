@@ -417,7 +417,9 @@ static int os_timer_thread_loop(void *data)
    /* main loop */
    while (1) {
       /* sleep for specified period */
-      wait_event_interruptible_timeout(t->delay, compat_kthread_should_stop(),
+      wait_event_interruptible_timeout(t->delay,
+                                       compat_wait_check_freezing() ||
+                                       compat_kthread_should_stop(),
                                        t->period);
       compat_try_to_freeze();
       if (compat_kthread_should_stop()) {

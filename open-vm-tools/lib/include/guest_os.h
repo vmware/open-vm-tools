@@ -72,13 +72,15 @@ typedef enum GuestOSType {
    GUEST_OS_SOLARIS10           = GUEST_OS_BASE + 35,
    GUEST_OS_SOLARIS10_64        = GUEST_OS_BASE + 36,
    GUEST_OS_VMKERNEL            = GUEST_OS_BASE + 37,
-   GUEST_OS_DARWIN              = GUEST_OS_BASE + 38,
-   GUEST_OS_DARWIN_64           = GUEST_OS_BASE + 39,
-   GUEST_OS_OPENSERVER5         = GUEST_OS_BASE + 40,
-   GUEST_OS_OPENSERVER6         = GUEST_OS_BASE + 41,
-   GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 42,
-   GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 43,
-   GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 44,
+   GUEST_OS_DARWIN9             = GUEST_OS_BASE + 38, // Mac OS 10.5
+   GUEST_OS_DARWIN9_64          = GUEST_OS_BASE + 39,
+   GUEST_OS_DARWIN10            = GUEST_OS_BASE + 40, // Mac OS 10.6
+   GUEST_OS_DARWIN10_64         = GUEST_OS_BASE + 41,
+   GUEST_OS_OPENSERVER5         = GUEST_OS_BASE + 42,
+   GUEST_OS_OPENSERVER6         = GUEST_OS_BASE + 43,
+   GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 44,
+   GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 45,
+   GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 46,
 } GuestOSType;
 
 
@@ -131,10 +133,12 @@ typedef enum GuestOSFamilyType {
                          BS(OTHERLINUX) | ALL26XLINUX32)
 #define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | ALL26XLINUX64)
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
-#define ALLDARWIN       (BS(DARWIN) | BS(DARWIN_64))
+#define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10))
+#define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64))
+#define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
-                         BS(DARWIN_64) | BS(OTHER_64))
+                         ALLDARWIN64 | BS(OTHER_64))
 
 
 /*
@@ -267,6 +271,14 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_ENTERPRISE_CORE_FULL "Windows Server 2008 Enterprise Edition (core installation)"
 #define STR_OS_WIN_2008_ENTERPRISE_ITANIUM "winServer2008EnterpriseItanium-32"
 #define STR_OS_WIN_2008_ENTERPRISE_ITANIUM_FULL "Windows Server 2008 Enterprise Edition for Itanium-based Systems"
+#define STR_OS_WIN_2008_MEDIUM_MANAGEMENT "winServer2008MediumManagement-32"
+#define STR_OS_WIN_2008_MEDIUM_MANAGEMENT_FULL "Windows Essential Business Server Management Server"
+#define STR_OS_WIN_2008_MEDIUM_MESSAGING "winServer2008MediumMessaging-32"
+#define STR_OS_WIN_2008_MEDIUM_MESSAGING_FULL "Windows Essential Business Server Messaging Server"
+#define STR_OS_WIN_2008_MEDIUM_SECURITY "winServer2008MediumSecurity-32"
+#define STR_OS_WIN_2008_MEDIUM_SECURITY_FULL "Windows Essential Business Server Security Server"
+#define STR_OS_WIN_2008_SERVER_FOR_SMALLBUSINESS "winServer2008ForSmallBusiness-32"
+#define STR_OS_WIN_2008_SERVER_FOR_SMALLBUSINESS_FULL "Windows Server 2008 for Windows Essential Server Solutions"
 #define STR_OS_WIN_2008_SMALL_BUSINESS "winServer2008SmallBusiness-32"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_FULL "Windows Server 2008 Small Business Server"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM "winServer2008SmallBusinessPremium-32"
@@ -275,8 +287,18 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_STANDARD_FULL "Windows Server 2008 Standard Edition"
 #define STR_OS_WIN_2008_STANDARD_CORE "winServer2008StandardCore-32"
 #define STR_OS_WIN_2008_STANDARD_CORE_FULL "Windows Server 2008 Standard Edition (core installation)"
+#define STR_OS_WIN_2008_STORAGE_ENTERPRISE "winServer2008StorageEnterprise-32"
+#define STR_OS_WIN_2008_STORAGE_ENTERPRISE_FULL "Windows Server 2008 Storage Server Enterprise"
+#define STR_OS_WIN_2008_STORAGE_EXPRESS "winServer2008StorageExpress-32"
+#define STR_OS_WIN_2008_STORAGE_EXPRESS_FULL "Windows Server 2008 Storage Server Express"
+#define STR_OS_WIN_2008_STORAGE_STANDARD "winServer2008StorageStandard-32"
+#define STR_OS_WIN_2008_STORAGE_STANDARD_FULL "Windows Server 2008 Storage Server Standard"
+#define STR_OS_WIN_2008_STORAGE_WORKGROUP "winServer2008StorageWorkgroup-32"
+#define STR_OS_WIN_2008_STORAGE_WORKGROUP_FULL "Windows Server 2008 Storage Server Workgroup"
 #define STR_OS_WIN_2008_WEB_SERVER "winServer2008Web-32"
 #define STR_OS_WIN_2008_WEB_SERVER_FULL "Windows Server 2008 Web Server Edition"
+
+/* Windows 64-bit */
 #define STR_OS_WIN_VISTA_ULTIMATE_X64 "winVistaUltimate-64"
 #define STR_OS_WIN_VISTA_HOME_PREMIUM_X64 "winVistaHomePremium-64"
 #define STR_OS_WIN_VISTA_HOME_BASIC_X64 "winVistaHomeBasic-64"
@@ -289,11 +311,23 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_ENTERPRISE_X64 "winServer2008Enterprise-64"
 #define STR_OS_WIN_2008_ENTERPRISE_CORE_X64 "winServer2008EnterpriseCore-64"
 #define STR_OS_WIN_2008_ENTERPRISE_ITANIUM_X64 "winServer2008EnterpriseItanium-64"
+#define STR_OS_WIN_2008_MEDIUM_MANAGEMENT_X64 "winServer2008MediumManagement-64"
+#define STR_OS_WIN_2008_MEDIUM_MESSAGING_X64 "winServer2008MediumMessaging-64"
+#define STR_OS_WIN_2008_MEDIUM_SECURITY_X64 "winServer2008MediumSecurity-64"
+#define STR_OS_WIN_2008_SERVER_FOR_SMALLBUSINESS_X64 "winServer2008ForSmallBusiness-64"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_X64 "winServer2008SmallBusiness-64"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM_X64 "winServer2008SmallBusinessPremium-64"
 #define STR_OS_WIN_2008_STANDARD_X64 "winServer2008Standard-64"
 #define STR_OS_WIN_2008_STANDARD_CORE_X64 "winServer2008StandardCore-64"
+#define STR_OS_WIN_2008_STORAGE_ENTERPRISE_X64 "winServer2008StorageEnterprise-64"
+#define STR_OS_WIN_2008_STORAGE_EXPRESS_X64 "winServer2008StorageExpress-64"
+#define STR_OS_WIN_2008_STORAGE_STANDARD_X64 "winServer2008StorageStandard-64"
+#define STR_OS_WIN_2008_STORAGE_WORKGROUP_X64 "winServer2008StorageWorkgroup-64"
 #define STR_OS_WIN_2008_WEB_SERVER_X64 "winServer2008Web-64"
+
+/* XXX */
+#define STR_OS_HYPERV "winHyperV"
+#define STR_OS_HYPERV_FULL "Hyper-V Server"
 
 /* Modifiers for Windows Vista and Windows Server 2008 */
 #define STR_OS_WIN_32_BIT_EXTENSION ", 32-bit"

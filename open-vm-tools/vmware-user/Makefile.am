@@ -19,13 +19,21 @@ bin_PROGRAMS = vmware-user
 
 AM_CFLAGS =
 AM_CFLAGS += @GTK_CPPFLAGS@
+if HAVE_GTKMM
+   AM_CFLAGS += @GTKMM_CPPFLAGS@
+endif
 AM_CFLAGS += @VMWARE_USER_CPPFLAGS@
 AM_CFLAGS += -I$(top_builddir)/include
 AM_CFLAGS += -DRESOLUTION_X11
+AM_CFLAGS += -I$(top_srcdir)/services/plugins/vix
+
+AM_CXXFLAGS = $(AM_CFLAGS)
 
 vmware_user_LDADD =
 vmware_user_LDADD += ../lib/conf/libConf.la
-vmware_user_LDADD += ../lib/dnd/libDnd.la
+if HAVE_GTKMM
+   vmware_user_LDADD += ../lib/dndGuest/libDndGuest.la
+endif
 vmware_user_LDADD += ../lib/eventManager/libEventManager.la
 vmware_user_LDADD += ../lib/file/libFile.la
 if ENABLE_UNITY
@@ -70,6 +78,7 @@ vmware_user_LDADD += ../lib/err/libErr.la
 vmware_user_LDADD += ../lib/foundryMsg/libFoundryMsg.la
 vmware_user_LDADD += ../lib/backdoor/libBackdoor.la
 vmware_user_LDADD += ../lib/dict/libDict.la
+vmware_user_LDADD += ../lib/dnd/libDnd.la
 vmware_user_LDADD += ../lib/dynxdr/libDynxdr.la
 vmware_user_LDADD += ../lib/hgfs/libHgfs.la
 vmware_user_LDADD += ../lib/message/libMessage.la
@@ -87,7 +96,14 @@ if ENABLE_UNITY
    vmware_user_LDADD += ../lib/region/libRegion.la
 endif
 vmware_user_LDADD += -lcrypt
+vmware_user_LDADD += -lstdc++
+if LINUX
+vmware_user_LDADD += -lgcc_s
+endif
 vmware_user_LDADD += @GTK_LIBS@
+if HAVE_GTKMM
+   vmware_user_LDADD += @GTKMM_LIBS@
+endif
 vmware_user_LDADD += @VMWARE_USER_LDADD@
 vmware_user_LDADD += @COMMON_XLIBS@
 if ENABLE_UNITY
@@ -98,14 +114,21 @@ endif
 
 vmware_user_SOURCES =
 vmware_user_SOURCES += copyPaste.c
+if HAVE_GTKMM
+   vmware_user_SOURCES += copyPasteUI.cpp
+endif
+vmware_user_SOURCES += copyPasteWrapper.cpp
 vmware_user_SOURCES += debugStdio.c
 vmware_user_SOURCES += dnd.c
 vmware_user_SOURCES += foreignVMToolsDaemon.c
 vmware_user_SOURCES += foreignVMToolsNetworking.c
-vmware_user_SOURCES += foundryToolsDaemon.c
+vmware_user_SOURCES += $(top_srcdir)/services/plugins/vix/foundryToolsDaemon.c
 vmware_user_SOURCES += notify.c
 vmware_user_SOURCES += pointer.c
-vmware_user_SOURCES += vmware-user.c
+if HAVE_GTKMM
+   vmware_user_SOURCES += stringxx/string.cc
+endif
+vmware_user_SOURCES += vmware-user.cpp
 
 if HAVE_ICU
    vmware_user_LDADD += @ICU_LIBS@
@@ -118,7 +141,7 @@ endif
 
 install-exec-hook:
 	$(INSTALL) -d $(DESTDIR)$(datadir)/applications/
-	$(INSTALL) -m 644 ../scripts/common/vmware-user.desktop \
+	$(INSTALL) -m 644 $(top_srcdir)/scripts/common/vmware-user.desktop \
 		$(DESTDIR)$(datadir)/applications/
 uninstall-hook:
-	-$(RM) -f $(DESTDIR)$(datadir)/applications/vmware-user.desktop
+	rm -f $(DESTDIR)$(datadir)/applications/vmware-user.desktop

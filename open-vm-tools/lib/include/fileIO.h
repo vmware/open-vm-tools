@@ -329,7 +329,7 @@ Bool    FileIO_SetAllocSize(const FileIODescriptor *fd, uint64 size);
 
 int64   FileIO_GetSizeByPath(ConstUnicode pathName);
 
-int     FileIO_Close(FileIODescriptor *file);
+Bool    FileIO_Close(FileIODescriptor *file);
 
 uint32  FileIO_GetFlags(FileIODescriptor *file);
 

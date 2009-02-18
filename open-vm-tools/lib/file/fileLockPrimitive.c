@@ -1180,12 +1180,10 @@ MakeDirectory(ConstUnicode pathName)  // IN:
 #if !defined(_WIN32)
    mode_t save;
 
-   ASSERT(pathName);
-
    save = umask(0);
-#else
-   ASSERT(pathName);
 #endif
+
+   ASSERT(pathName);
 
    err = FileCreateDirectoryRobust(pathName);
 
@@ -1253,9 +1251,9 @@ CreateEntryDirectory(const char *machineID,    // IN:
 
         if (fileData.fileType == FILE_TYPE_REGULAR) {
            /*
-            * It's a file. Assume this is an (active?) old style lock
-            * and err on the safe side - don't remove it (and
-            * automatically upgrade to a new style lock).
+            * It's a file. Assume this is an (active?) old style lock and
+            * err on the safe side - don't remove it (and automatically
+            * upgrade to a new style lock).
             */
 
             Log(LGPFX" %s: '%s' exists; an old style lock file?\n",

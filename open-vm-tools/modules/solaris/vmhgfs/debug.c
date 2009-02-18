@@ -145,7 +145,8 @@ HgfsDebugPrintVfs(char *str, struct vfs *vfsp)
  */
 
 INLINE void
-HgfsDebugPrintVnode(uint32 level, char *str, struct vnode *vnodep)
+HgfsDebugPrintVnode(uint32 level, char *str,
+                    struct vnode *vnodep, Bool printFileName)
 {
    ASSERT(str);
    ASSERT(vnodep);
@@ -172,7 +173,7 @@ HgfsDebugPrintVnode(uint32 level, char *str, struct vnode *vnodep)
    DEBUG(level, " v_locality      : %p\n", vnodep->v_locality);
    DEBUG(level, " v_nbllock       : %p\n", &vnodep->v_nbllock);
 
-   if (HGFS_VP_TO_OFP(vnodep) && HGFS_VP_TO_FP(vnodep)) {
+   if (printFileName && HGFS_VP_TO_OFP(vnodep) && HGFS_VP_TO_FP(vnodep)) {
       DEBUG(level, " filename        : %s\n", HGFS_VP_TO_FILENAME(vnodep));
    }
 }
@@ -410,11 +411,6 @@ HgfsDebugPrintReqPool(const char *str)
 
 
 /*
- * Gotta have Panic. Stolen from vmnix.
- * (Then stolen from hgfs/driver/linux/main.c and tweaked for Solaris)
- */
-
-/*
  * There is a problem in Solaris 9's header files when using the va_start
  * and va_end macros, so we manually do what the preprocessor would have
  * done here.
@@ -426,42 +422,18 @@ HgfsDebugPrintReqPool(const char *str)
  * argument.
  */
 #ifdef SOL9
-# define compat_va_list char *
 # define compat_va_start(arg, fmt) arg = ((char *)__builtin_next_arg(fmt))
 # define compat_va_end(arg)
 #else
-# define compat_va_list  va_list
 # define compat_va_start(arg, fmt) va_start(arg, fmt)
 # define compat_va_end(arg)        va_end(arg)
 #endif
 
-void
-Panic(const char *fmt, ...) // IN
-{
-   compat_va_list args;
-   char buffer[1024];
-   volatile char *p = NULL;
-
-   compat_va_start(args, fmt);
-   vsprintf(buffer, fmt, args);
-   compat_va_end(args);
-
-   cmn_err(HGFS_ERROR, "%s", buffer);
-
-   /* force segfault */
-   buffer[0] = *p;
-   while (1) ; // avoid compiler warning
-}
-
-
-/*
- * For compatibility with existing code.
- */
-void
-Log(const char *fmt, ...)
+static void
+vLog(const char *fmt,
+     va_list args)
 {
 #ifdef VM_DEBUG_LEV
-   compat_va_list args;
    char buffer[1024];
 
    /*
@@ -469,14 +441,42 @@ Log(const char *fmt, ...)
     * aren't even going to print the log.
     */
    if (VM_DEBUG_LOG & VM_DEBUG_LEV) {
-      compat_va_start(args, fmt);
       vsprintf(buffer, fmt, args);
-      compat_va_end(args);
-
       cmn_err(HGFS_DEBUG, "%s", buffer);
    }
 #endif
 }
+
+
+/*
+ * For compatibility with existing code.
+ */
+
+void
+Log(const char *fmt, ...)     // IN: format string, etc
+{
+   va_list args;
+
+   compat_va_start(args, fmt);
+   vLog(fmt, args);
+   compat_va_end(args);
+}
+
+
+/*
+ * For compatibility with existing code.
+ */
+
+void
+Debug(const char *fmt, ...)   // IN: format string, etc.
+{
+   va_list args;
+
+   compat_va_start(args, fmt);
+   vLog(fmt, args);
+   compat_va_end(args);
+}
+
 
 #undef compat_va_list
 #undef compat_va_start

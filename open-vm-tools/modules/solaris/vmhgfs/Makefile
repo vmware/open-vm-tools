@@ -45,37 +45,52 @@ CFLAGS   += -Wall -Werror
 CFLAGS   += $(GLOBAL_DEFS)
 CFLAGS   += $(CC_WARNINGS)
 CFLAGS   += -DVMX86_TOOLS
-CFLAGS   += -D_KERNEL
 
 ifdef VMX86_DEVEL
 CFLAGS   += -DVMX86_DEVEL
 endif
-ifdef VMX86_DEBUG		# For assertions
+ifdef VMX86_DEBUG               # For assertions
 CFLAGS   += -DVMX86_DEBUG
 endif
-ifdef VMX86_LOG			# For debug logging
+ifdef VMX86_LOG                 # For debug logging
 CFLAGS   += -DVM_DEBUGGING_ON
 endif
 
 ##
 ## Objects needed to build the HGFS kernel module
 ##
-SOLHGFS_OBJS := debug.o
-SOLHGFS_OBJS += device.o
-SOLHGFS_OBJS += filesystem.o
-SOLHGFS_OBJS += hgfsState.o
-SOLHGFS_OBJS += module.o
-SOLHGFS_OBJS += request.o
-SOLHGFS_OBJS += vnode.o
-SOLHGFS_OBJS += cpName.o
-SOLHGFS_OBJS += cpNameLinux.o
-SOLHGFS_OBJS += dbllnklst.o
-SOLHGFS_OBJS += hgfsEscape.o
-SOLHGFS_OBJS += hgfsUtil.o
-SOLHGFS_OBJS += sha1.o
+SOLHGFS_KRN_OBJS := debug.o
+SOLHGFS_KRN_OBJS += filesystem.o
+SOLHGFS_KRN_OBJS += hgfsBdGlue.o
+SOLHGFS_KRN_OBJS += hgfsState.o
+SOLHGFS_KRN_OBJS += kernelStubsSolaris.o
+SOLHGFS_KRN_OBJS += module.o
+SOLHGFS_KRN_OBJS += request.o
+SOLHGFS_KRN_OBJS += vnode.o
 
-SOLHGFS_32_OBJS := $(addprefix i386/, $(SOLHGFS_OBJS))
-SOLHGFS_64_OBJS := $(addprefix amd64/, $(SOLHGFS_OBJS))
+SOLHGFS_32_KRN_OBJS := $(addprefix i386/, $(SOLHGFS_KRN_OBJS))
+SOLHGFS_64_KRN_OBJS := $(addprefix amd64/, $(SOLHGFS_KRN_OBJS))
+
+SOLHGFS_LIB_OBJS := backdoor.o
+SOLHGFS_LIB_OBJS += cpName.o
+SOLHGFS_LIB_OBJS += cpNameLinux.o
+SOLHGFS_LIB_OBJS += dbllnklst.o
+SOLHGFS_LIB_OBJS += hgfsBd.o
+SOLHGFS_LIB_OBJS += hgfsEscape.o
+SOLHGFS_LIB_OBJS += hgfsUtil.o
+SOLHGFS_LIB_OBJS += message.o
+SOLHGFS_LIB_OBJS += messageBackdoor.o
+SOLHGFS_LIB_OBJS += rpcout.o
+SOLHGFS_LIB_OBJS += sha1.o
+
+SOLHGFS_32_LIB_OBJS := $(addprefix i386/, $(SOLHGFS_LIB_OBJS))
+SOLHGFS_32_LIB_OBJS += i386/backdoorGcc32.o
+
+SOLHGFS_64_LIB_OBJS := $(addprefix amd64/, $(SOLHGFS_LIB_OBJS))
+SOLHGFS_64_LIB_OBJS += amd64/backdoorGcc64.o
+
+SOLHGFS_32_OBJS := $(SOLHGFS_32_KRN_OBJS) $(SOLHGFS_32_LIB_OBJS)
+SOLHGFS_64_OBJS := $(SOLHGFS_64_KRN_OBJS) $(SOLHGFS_64_LIB_OBJS)
 
 MODULE_32 := i386/$(MODULE)
 MODULE_64 := amd64/$(MODULE)
@@ -112,7 +127,11 @@ $(MODULE_32): $(SOLHGFS_32_OBJS)
 	@echo "Linking          $(MODULE_32)"
 	$(LD) $(LDFLAGS_32) -r -o $(MODULE_32) $(SOLHGFS_32_OBJS)
 
-$(SOLHGFS_32_OBJS): i386/%.o: %.c
+$(SOLHGFS_32_KRN_OBJS): i386/%.o: %.c
+	@echo "Compiling        $(<F)"
+	$(CC) $(CFLAGS_32) -D_KERNEL -c $< -o $@
+
+$(SOLHGFS_32_LIB_OBJS): i386/%.o: %.c
 	@echo "Compiling        $(<F)"
 	$(CC) $(CFLAGS_32) -c $< -o $@
 
@@ -121,14 +140,18 @@ $(MODULE_64): $(SOLHGFS_64_OBJS)
 	@echo "Linking          $(MODULE_64)"
 	$(LD) $(LDFLAGS_64) -r -o $(MODULE_64) $(SOLHGFS_64_OBJS)
 
-$(SOLHGFS_64_OBJS): amd64/%.o: %.c
+$(SOLHGFS_64_KRN_OBJS): amd64/%.o: %.c
+	@echo "Compiling        $(<F)"
+	$(CC) $(CFLAGS_64) -D_KERNEL -c $< -o $@
+
+$(SOLHGFS_64_LIB_OBJS): amd64/%.o: %.c
 	@echo "Compiling        $(<F)"
 	$(CC) $(CFLAGS_64) -c $< -o $@
 
 clean:
 	@echo "Cleaning directories"
-	@rm -f $(MODULE_32) $(SOLHGFS_32_OBJS) i386
-	@rm -r $(MODULE_64) $(SOLHGFS_32_OBJS) amd64
+	@rm -rf $(MODULE_32) $(SOLHGFS_32_OBJS) i386
+	@rm -rf $(MODULE_64) $(SOLHGFS_32_OBJS) amd64
 
 install:
 	@echo "Installing modules"

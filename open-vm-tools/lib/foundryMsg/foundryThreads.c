@@ -68,6 +68,8 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
 {
    VixError err = VIX_OK;
    FoundryWorkerThread *threadState = NULL;
+   static const char *createThreadFailureMsg =
+      "%s: thread creation failed with error %d.\n";
 
    ASSERT(proc);
 
@@ -86,6 +88,7 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
                                             0,
                                             &(threadState->threadId));
    if (NULL == threadState->threadHandle) {
+      Log(createThreadFailureMsg, __FUNCTION__, GetLastError());
       err = VIX_E_OUT_OF_MEMORY;
       goto abort;
    }
@@ -103,6 +106,7 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
                               FoundryThreadWrapperProc, 
                               threadState);
       if (0 != result) {
+         Log(createThreadFailureMsg, __FUNCTION__, result);
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
@@ -130,6 +134,7 @@ abort:
  *      None.
  *
  * Side effects:
+ *      May block while the given thread stops.
  *
  *-----------------------------------------------------------------------------
  */
@@ -137,32 +142,34 @@ abort:
 void
 FoundryThreads_StopThread(FoundryWorkerThread *threadState)    // IN
 {
+#ifdef _WIN32
+   DWORD waitResult;
+#endif
+
+   if (NULL == threadState) {
+      ASSERT(0);
+      return;
+   }
+
    /*
-    * Stop the poll thread.
+    * Stop the thread.
     */
    threadState->stopThread = TRUE;
 
-   if (NULL != threadState) {
+   ASSERT(!FoundryThreads_IsCurrentThread(threadState));
+
 #ifdef _WIN32
-      DWORD waitResult;
-
-      ASSERT(threadState->threadId != GetCurrentThreadId());
-
-      waitResult = WaitForSingleObject(threadState->threadHandle, 30000);
-      if (WAIT_OBJECT_0 != waitResult) {
-         TerminateThread(threadState->threadHandle, 0x1);
-      }
-
-      CloseHandle(threadState->threadHandle);
-      threadState->threadHandle = NULL;
-#else
-      pthread_join(threadState->threadInfo, NULL);
-      threadState->threadInfo = 0;
-#endif
+   waitResult = WaitForSingleObject(threadState->threadHandle, 30000);
+   if (WAIT_OBJECT_0 != waitResult) {
+      TerminateThread(threadState->threadHandle, 0x1);
    }
+#else
+   pthread_join(threadState->threadInfo, NULL);
+#endif
 
-   free(threadState);
+   FoundryThreads_Free(threadState);
 }
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -175,6 +182,7 @@ FoundryThreads_StopThread(FoundryWorkerThread *threadState)    // IN
  *      None.
  *
  * Side effects:
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -189,10 +197,11 @@ FoundryThreads_Free(FoundryWorkerThread *threadState)    // IN
 #else
       threadState->threadInfo = 0;
 #endif
-   }
 
-   free(threadState);
+      free(threadState);
+   }
 }
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -217,21 +226,10 @@ FoundryThreads_IsCurrentThread(struct FoundryWorkerThread *threadState)     // I
       return FALSE;
    }
 #ifdef _WIN32
-   {
-      Util_ThreadID id = GetCurrentThreadId();
-      if (id == threadState->threadId) {
-	 return TRUE;
-      }
-   }
+   return (GetCurrentThreadId() == threadState->threadId);
 #else
-   {
-      pthread_t id = pthread_self();
-      if (pthread_equal(id, threadState->threadInfo)) {
-	 return TRUE;
-      }
-   }
+   return pthread_equal(pthread_self(), threadState->threadInfo);
 #endif
-   return FALSE;
 }
 
 
@@ -263,10 +261,11 @@ FoundryThreadWrapperProc(void *threadParameter)      // IN
 
    threadState = (FoundryWorkerThread *) threadParameter;
    if (NULL == threadState) {
+      ASSERT(0);
       goto abort;
    }
-   
-   if (NULL != threadState) {
+
+   if (NULL != threadState->threadProc) {
       (*(threadState->threadProc))(threadState);
    }
 

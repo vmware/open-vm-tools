@@ -206,7 +206,7 @@ VmCheck_IsVirtualWorld(void)
    if (version != VERSION_MAGIC) {
       Debug("The version of this program is incompatible with your %s.\n"
             "For information on updating your VMware Tools please see\n"
-            "http://www.vmware.com/support/reference/common/info_tools.html.\n"
+            "http://www.vmware.com/info?id=99\n"
             "\n", PRODUCT_LINE_NAME);
       return FALSE;
    }

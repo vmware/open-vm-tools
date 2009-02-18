@@ -26,6 +26,9 @@ SUBDIRS += conf
 SUBDIRS += dict
 SUBDIRS += deployPkg
 SUBDIRS += dnd
+if HAVE_GTKMM
+   SUBDIRS += dndGuest
+endif
 SUBDIRS += dynxdr
 SUBDIRS += err
 SUBDIRS += eventManager
@@ -61,6 +64,7 @@ endif
 if HAVE_X11
    SUBDIRS += resolution
 endif
+SUBDIRS += rpcChannel
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut
 SUBDIRS += rpcVmx

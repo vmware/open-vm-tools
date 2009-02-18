@@ -6,7 +6,8 @@ modules: $(MODULES)
 modulesrc = $(top_srcdir)/modules
 
 $(MODULES):
-	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) $(EXTRA_ARGS) -C "$(modulesrc)/$(MODULES_OS)/$@"
+	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) MV=mv RM=rm $(EXTRA_ARGS) \
+	   -C "$(modulesrc)/$(MODULES_OS)/$@"
 
 if LINUX
 export pvscsidir := $(MODULES_DIR)/drivers/scsi
@@ -22,14 +23,6 @@ if WITH_ROOT_PRIVILEGES
 export DEPMOD := depmod -a
 endif WITH_ROOT_PRIVILEGES
 endif LINUX
-
-if FREEBSD
-export vmblockdir := $(MODULES_DIR)
-export vmhgfsdir := $(MODULES_DIR)
-export vmmemctldir := $(MODULES_DIR)
-export vmsyncdir := $(MODULES_DIR)
-export vmxnetdir := $(MODULES_DIR)
-endif FREEBSD
 
 if SOLARIS
 export vmhgfsdir := $(MODULES_DIR)
@@ -48,19 +41,27 @@ endif
 clean-local:
 	for MOD in $(MODULES); do                                              \
 	   if [ -d "$(modulesrc)/$(MODULES_OS)/$$MOD" ]; then                  \
-	      $(MAKE) VM_UNAME=$(KERNEL_RELEASE)                               \
+	      $(MAKE) VM_UNAME=$(KERNEL_RELEASE) MV=mv RM=rm                   \
 	             -C "$(modulesrc)/$(MODULES_OS)/$$MOD" clean || exit 1;    \
 	   fi                                                                  \
 	done
-	$(RM) -f $(modulesrc)/$(MODULES_OS)/*.o $(modulesrc)/$(MODULES_OS)/*.ko
+	rm -f $(modulesrc)/$(MODULES_OS)/*.o $(modulesrc)/$(MODULES_OS)/*.ko
 
 install-exec-hook:
 if SOLARIS
 	for MOD in $(MODULES); do                                              \
-	   $(MAKE) VM_UNAME=$(KERNEL_RELEASE)                                  \
+	   $(MAKE) VM_UNAME=$(KERNEL_RELEASE) MV=mv RM=rm                      \
 	      -C "$(modulesrc)/$(MODULES_OS)/$$MOD" install || exit 1;         \
 	done
-else
+endif
+if FREEBSD
+	for MOD in $(MODULES); do                                              \
+	   $(INSTALL) -d $(DESTDIR)$(MODULES_DIR);                             \
+	   $(INSTALL) -m644 $(modulesrc)/$(MODULES_OS)/$$MOD.ko                \
+	      $(DESTDIR)$(MODULES_DIR);                                        \
+	done
+endif
+if LINUX
 	for MOD in $(MODULES); do                                              \
 	   $(INSTALL) -d $(DESTDIR)`eval echo '$$'$${MOD}dir`;                 \
 	   $(INSTALL) -m644 $(modulesrc)/$(MODULES_OS)/$$MOD/$$MOD.ko          \
@@ -71,6 +72,6 @@ endif
 
 uninstall-hook:
 	for MOD in $(MODULES); do                                              \
-	   $(RM) -f $(DESTDIR)`eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null;\
+	   rm -f $(DESTDIR)`eval echo '$$'$${MOD}dir`/$$MOD.ko &> /dev/null;\
 	done
 	eval "$$DEPMOD"

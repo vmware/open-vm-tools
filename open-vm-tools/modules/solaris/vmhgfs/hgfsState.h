@@ -172,7 +172,7 @@ int HgfsFileNameToVnode(const char *fileName, struct vnode **vpp,
                         HgfsFileHashTable *htp);
 void HgfsNodeIdGet(HgfsFileHashTable *ht, const char *fileName,
                    uint32_t fileNameLength, ino64_t *outNodeId);
-int HgfsInitFileHashTable(HgfsFileHashTable *htp);
+void HgfsInitFileHashTable(HgfsFileHashTable *htp);
 Bool HgfsFileHashTableIsEmpty(struct HgfsSuperInfo *sip, HgfsFileHashTable *htp);
 
 /* Handle get/set/clear functions */

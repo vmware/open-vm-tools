@@ -25,7 +25,11 @@
 
 #include "hgfsSolaris.h"
 
-int HgfsSetVnodeOps(HgfsSuperInfo *sip, struct vnode *vp);
+int HgfsSetVnodeOps(struct vnode *vp);
 inline HgfsSuperInfo *HgfsGetSuperInfo(void);
+void HgfsInitSuperInfo(struct vfs *vfsp);
+void HgfsClearSuperInfo(void);
+int HgfsMakeVnodeOps(void);
+void HgfsFreeVnodeOps(void);
 
 #endif

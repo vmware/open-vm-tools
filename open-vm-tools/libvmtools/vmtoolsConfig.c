@@ -124,6 +124,7 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
       { CONFNAME_REBOOT, "vmsvc", CONFNAME_REBOOT, CFG_STRING, NULL },
       /* HGFS options. */
       { CONFNAME_MOUNT_POINT, "hgfs", CONFNAME_MOUNT_POINT, CFG_STRING, NULL },
+#else
       /* Tray options. */
       { CONFNAME_SHOW_WIRELESS_ICON, "vmtray", CONFNAME_SHOW_WIRELESS_ICON, CFG_BOOLEAN, NULL },
 #endif

@@ -278,6 +278,7 @@ HgfsBdHandler(void *data) // Ignored
       wait_event_interruptible(hgfsReqThreadWait,
                                test_bit(HGFS_REQ_THREAD_SEND,
                                         &hgfsReqThreadFlags) ||
+                               compat_wait_check_freezing() ||
                                compat_kthread_should_stop());
 
       /*

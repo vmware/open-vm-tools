@@ -1252,3 +1252,61 @@ VMGuestLib_GetResourcePoolPath(VMGuestLibHandle handle, // IN
 
    return error;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetCpuStolenMs --
+ *
+ *      Retrieve CPU stolen.
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetCpuStolenMs(VMGuestLibHandle handle, // IN
+                          uint64 *cpuStolenMs)     // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         cpuStolenMs, cpuStolenMs,
+                         GUESTLIB_CPU_STOLEN_MS);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemTargetSizeMB --
+ *
+ *      Retrieve Memory Target Size.
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemTargetSizeMB(VMGuestLibHandle handle, // IN
+                              uint64 *memTargetSizeMB) // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memTargetSizeMB, memTargetSizeMB,
+                         GUESTLIB_MEM_TARGET_SIZE_MB);
+   return error;
+}
+
+

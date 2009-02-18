@@ -1,0 +1,60 @@
+################################################################################
+### Copyright 2009 VMware, Inc.  All rights reserved.
+###
+### This program is free software; you can redistribute it and/or modify
+### it under the terms of version 2 of the GNU General Public License as
+### published by the Free Software Foundation.
+###
+### This program is distributed in the hope that it will be useful,
+### but WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with this program; if not, write to the Free Software
+### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+################################################################################
+
+noinst_LTLIBRARIES = libtestPlugin.la
+
+libtestPlugin_la_CPPFLAGS =
+libtestPlugin_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
+libtestPlugin_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+
+libtestPlugin_la_LDFLAGS =
+libtestPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
+
+libtestPlugin_la_LIBADD =
+libtestPlugin_la_LIBADD += @GOBJECT_LIBS@
+libtestPlugin_la_LIBADD += @VMTOOLS_LIBS@
+libtestPlugin_la_LIBADD += @XDR_LIBS@
+
+libtestPlugin_la_SOURCES =
+libtestPlugin_la_SOURCES += testData_xdr.c
+libtestPlugin_la_SOURCES += testPlugin.c
+
+BUILT_SOURCES =
+BUILT_SOURCES += testData_xdr.c
+BUILT_SOURCES += testData.h
+
+# XXX: see explanation in lib/guestRpc/Makefile.am
+CFLAGS += -Wno-unused
+
+CLEANFILES =
+CLEANFILES += testData_xdr.c
+CLEANFILES += testData.h
+
+EXTRA_DIST =
+EXTRA_DIST += testData.x
+
+testData.h: testData.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                   \
+	   cp -f $(top_srcdir)/tests/testPlugin/testData.x $(builddir); \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/testData.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+
+testData_xdr.c: testData.x testData.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/testData.x
+

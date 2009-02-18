@@ -116,9 +116,6 @@ GuestApp_GetConfPath(void);
 char *
 GuestApp_GetLogPath(void);
 
-char *
-GuestApp_GetCmdOutput(const char *cmd); // IN
-
 Bool
 GuestApp_IsHgfsCapable(void);
 

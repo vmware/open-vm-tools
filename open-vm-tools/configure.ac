@@ -21,18 +21,14 @@
 ################################################################################
 # In addition to the usual environment variables and command line
 # arguments that a configure script usually takes (CFLAGS, LDFLAGS,
-# etc.), this script also accepts:
-# $CUSTOM_FUSE_CPPFLAGS - compile-time flags to find FUSE headers.
-# $CUSTOM_FUSE_LIBS - link-time flags to find FUSE libraries.
-# $CUSTOM_GLIB2_CPPFLAGS - compile-time flags to find Glib headers.
-# $CUSTOM_GLIB2_LIBS - link-time flags to find Glib libraries.
-# $CUSTOM_GTK_CPPFLAGS - compile-time flags to find Gtk headers.
-# $CUSTOM_GTK_LIBS - link-time flags to find and link the Gtk libraries.
-# $CUSTOM_PROCPS_LIBS - link-time flags to find and link the procps library.
-# $CUSTOM_URIPARSER_CPPFLAGS - compile-time flags to find the uriparser headers
-# $CUSTOM_URIPARSER_LIBS - link-time flags to find and link the uriparser library
-# $CUSTOM_ZLIB_CPPFLAGS - compile-time flags to find the zlib headers
-# $CUSTOM_ZLIB_LIBS - link-time flags to find and link the zlib library
+# etc.), this script also accepts variables of the form:
+#
+#  CUSTOM_LIB_CPPFLAGS: compile-time flags for LIB
+#  CUSTOM_LIB_LIBS: link-time flags for LIB
+#  RPCGENFLAGS: extra flags to pass to rpcgen
+#
+# The following libraries are currently tested: DNET, FUSE, GLIB2, GMODULE,
+# GOBJECT, GTHREAD, GTK, GTKMM, LIBPNG, PROCPS, URIPARSER, ZLIB
 ################################################################################
 
 ###
@@ -41,7 +37,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2009.01.21-142982],
+   [2009.02.18-148847],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -166,13 +162,19 @@ AC_ARG_WITH(
    gtk2,
    AS_HELP_STRING(
       [--without-gtk2],
-      [compiles without Gtk 2.0 (falls back on Gtk 1.2)]),
+      [compiles without Gtk 2.0]),
    [with_gtk2="$withval"],
    [with_gtk2="yes"])
 
-# If we're not going to use Gtk 2.0, disable Unity. It may be possible to
-# get Unity working with Gtk 1.2 (it used to in the past), but that will
-# require a great deal of work.
+AC_ARG_WITH(
+   gtkmm,
+   AS_HELP_STRING(
+      [--without-gtkmm],
+      [compiles without Gtkmm, sigc++, and related libs]),
+   [with_gtkmm="$withval"],
+   [with_gtkmm="yes"])
+
+# If we're not going to use Gtk 2.0, disable Unity.
 if test "$with_gtk2" != "yes"; then
    enable_unity="no"
 fi
@@ -242,78 +244,84 @@ fi
 AC_PATH_XTRA
 
 #
-# Check for glib 2.6.0 or greater.
-# XXX: glib < 2.6 should become an error once the code that needs it is the default.
+# Check for libintl.h. When configuring using "--without-x", /usr/local/include
+# may not be added to the include path, so code that use glib's i18n functions
+# would fail to compile because it can't find libintl.h.
 #
-if test "$HAVE_PKG_CONFIG" = "yes"; then
-   AC_MSG_CHECKING([for glib >= 2.6.0 (via pkg-config)])
-   if pkg-config --exists 'glib-2.0 >= 2.6.0'; then
-      GLIB2_CPPFLAGS="`pkg-config --cflags glib-2.0`"
-      GLIB2_LIBS="`pkg-config --libs glib-2.0`"
-      have_glib_26="yes"
-      AC_MSG_RESULT([yes])
-  else
-      have_glib_26="no"
-      AC_MSG_RESULT([no])
-  fi
-else
-   # g_key_file_new (and related) functions were added in glib 2.6. That's the
-   # minimum version supported by the Core Services code.
-   AC_CHECK_LIB(
-      [glib-2.0],
-      [g_key_file_new],
-      [have_glib_26="yes"],
-      [AC_MSG_WARN([glib 2 is older than 2.6.0, some features will be disabled.])],
-      [$CUSTOM_GLIB2_LIBS])
-   if test "$have_glib_26" = "yes"; then
-      GLIB2_CPPFLAGS="$CUSTOM_GLIB2_CPPFLAGS"
-      GLIB2_LIBS="$CUSTOM_GLIB2_LIBS"
-   fi
+AC_CHECK_HEADER([libintl.h],
+                [],
+                [have_libintl=no],
+                [])
+if test "$have_libintl" = "no"; then
+   unset ac_cv_header_libintl_h
+   CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+   AC_CHECK_HEADER([libintl.h],
+                   [],
+                   [AC_MSG_ERROR([libintl.h not found. Make sure you have the gettext headers installed.])],
+                   [])
+fi
+
+#
+# Check for glib 2.6.0 or greater.
+#
+AC_VMW_CHECK_LIB([glib-2.0],
+                 [GLIB2],
+                 [glib-2.0],
+                 [],
+                 [2.6.0],
+                 [glib.h],
+                 [g_key_file_new],
+                 [],
+                 [AC_MSG_ERROR([glib >= 2.6.0 is required.])])
+AC_VMW_CHECK_LIB([gmodule-2.0],
+                 [GMODULE],
+                 [gmodule-2.0],
+                 [],
+                 [2.6.0],
+                 [],
+                 [],
+                 [],
+                 [AC_MSG_ERROR([gmodule >= 2.6.0 is required.])])
+AC_VMW_CHECK_LIB([gobject-2.0],
+                 [GOBJECT],
+                 [gobject-2.0],
+                 [],
+                 [2.6.0],
+                 [glib-object.h],
+                 [],
+                 [],
+                 [AC_MSG_ERROR([gobject >= 2.6.0 is required.])])
+AC_VMW_CHECK_LIB([gthread-2.0],
+                 [GTHREAD],
+                 [gthread-2.0],
+                 [],
+                 [2.6.0],
+                 [],
+                 [],
+                 [],
+                 [AC_MSG_ERROR([glib >= 2.6.0 is required.])])
+AC_CHECK_PROG([have_genmarshal],
+              [glib-genmarshal],
+              [yes],
+              [no])
+
+if test "$have_genmarshal" != "yes"; then
+   AC_MSG_ERROR([glib-genmarshal is required; make sure it's available in your path.])
 fi
 
 #
 # Check for fuse.
 #
-if test "$HAVE_PKG_CONFIG" = "yes"; then
-   AC_MSG_CHECKING([for fuse (via pkg-config)])
-   if pkg-config --exists 'fuse'; then
-      FUSE_CPPFLAGS="`pkg-config --cflags fuse`"
-      FUSE_LIBS="`pkg-config --libs fuse`"
-      have_fuse="yes"
-      AC_MSG_RESULT([yes])
-  else
-      have_fuse="no"
-      AC_MSG_RESULT([no])
-  fi
-else
-   ORIGINAL_LDFLAGS="$LDFLAGS"
-   LDFLAGS="$CUSTOM_FUSE_LIBS $LDFLAGS"
-   AC_CHECK_LIB(
-      [fuse],
-      [fuse_main],
-      [have_fuse="yes";
-       if test -n "$CUSTOM_FUSE_LIBS"; then
-          FUSE_LIBS="$CUSTOM_FUSE_LIBS"
-       else
-          FUSE_LIBS="-lfuse"
-       fi],
-      [have_fuse="no"; AC_MSG_WARN([Fuse is missing, vmblock-fuse will be disabled.])])
-   LDFLAGS="$ORIGINAL_LDFLAGS"
-
-   if test "$have_fuse" = "yes"; then
-      ORIGINAL_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="$CUSTOM_FUSE_CPPFLAGS $CPPFLAGS"
-      AC_CHECK_HEADER(
-         [fuse.h],
-         [if test -n "$CUSTOM_FUSE_CPPFLAGS"; then
-             FUSE_CPPFLAGS="$CUSTOM_FUSE_CPPFLAGS"
-	  else
-	     FUSE_CPPFLAGS="-I/usr/include"
-          fi],
-         [have_fuse="no"; AC_MSG_WARN([Can't locate fuse headers, vmblock-fuse will be disabled.])])
-      CPPFLAGS="$ORIGINAL_CPPFLAGS"
-   fi
-fi
+AC_VMW_CHECK_LIB([fuse],
+                 [FUSE],
+                 [fuse],
+                 [],
+                 [],
+                 [fuse.h],
+                 [fuse_main],
+                 [have_fuse=yes],
+                 [have_fuse=no;
+                  AC_MSG_WARN([Fuse is missing, vmblock-fuse will be disabled.])])
 
 # If the user explicitly disables X11, then don't try to detect the X-related libraries
 if test "$have_x" = "disabled"; then
@@ -404,196 +412,63 @@ else
            # Note that we look for uriFreeQueryListA because it's a relatively
            # new symbol that our code needs (it isn't present in the uriparser
            # that shipped with Ubuntu Hardy).
-           ORIGINAL_LDFLAGS="$LDFLAGS"
-           LDFLAGS="$CUSTOM_URIPARSER_LIBS $LDFLAGS"
-           AC_CHECK_LIB(
-              [uriparser],
-              [uriFreeQueryListA],
-              [if test -n "$CUSTOM_URIPARSER_LIBS"; then
-                       URIPARSER_LIBS="$CUSTOM_URIPARSER_LIBS"
-               else
-                       URIPARSER_LIBS="-luriparser"
-               fi],
-              [AC_MSG_ERROR(
-                 [uriparser library not found or is too old. Please configure without Unity (using --disable-unity) or install the liburiparser devel package.])])
-           LDFLAGS="$ORIGINAL_LDFLAGS"
+           if test -z "$CUSTOM_URIPARSER_CPPFLAGS"; then
+              # XXX: No pkg-config and no uriparser-config means we need to
+              # hard-code a sensible default.
+              CUSTOM_URIPARSER_CPPFLAGS="-I/usr/include/uriparser"
+           fi
+           AC_VMW_CHECK_LIB([uriparser],
+                            [URIPARSER],
+                            [],
+                            [],
+                            [],
+                            [Uri.h],
+                            [uriFreeQueryListA],
+                            [],
+                            [AC_MSG_ERROR([uriparser library not found or is too old. Please configure without Unity (using --disable-unity) or install the liburiparser devel package.])])
 
-           if test -n "$CUSTOM_URIPARSER_CPPFLAGS"; then
-                   URIPARSER_CPPFLAGS="$CUSTOM_URIPARSER_CPPFLAGS"
-           else
-                   # XXX: No pkg-config and no uriparser-config means we need to
-	           # hard-code a sensible default.
-	           URIPARSER_CPPFLAGS="-I/usr/include/uriparser"
-           fi
-           ORIGINAL_CPPFLAGS="$CPPFLAGS"
-           CPPFLAGS="$URIPARSER_CPPFLAGS $CPPFLAGS"
-           AC_CHECK_HEADER(
-              [Uri.h],
-              [],
-              [AC_MSG_ERROR(
-                 [uriparser headers not found. Please configure without Unity (using --disable-unity) or install the liburiparser devel package])])
-           CPPFLAGS="$ORIGINAL_CPPFLAGS"
-
-           # Check for libpng using pkg-config, or barring that, using
-           # libpng-config.
-           if test "$HAVE_PKG_CONFIG" = "yes"; then
-              AC_MSG_CHECKING([for libpng (via pkg-config)])
-              if pkg-config --exists libpng12; then
-                      LIBPNG_CPPFLAGS="`pkg-config --cflags libpng12`"
-	              LIBPNG_LIBS="`pkg-config --libs libpng12`"
-                      AC_MSG_RESULT([yes])
-              else
-                      AC_MSG_RESULT([no])
-              fi
-           else
-              AC_PATH_PROG(
-                 [LIBPNG_CONFIG],
-                 [libpng-config],
-                 [no])
-              if test "$LIBPNG_CONFIG" != "no"; then
-                      LIBPNG_CPPFLAGS="`$LIBPNG_CONFIG --cflags`"
-                      LIBPNG_LIBS="`$LIBPNG_CONFIG --libs`"
-              fi
-           fi
-           if test -z "$LIBPNG_CPPFLAGS"; then
-              AC_MSG_ERROR(
-                 [libpng not found. Please configure without Unity (using --disable-unity) or install the libpng devel package])
-           fi
+           # Check for libpng.
+           AC_VMW_CHECK_LIB([png12],
+                            [LIBPNG],
+                            [libpng12],
+                            [libpng-config],
+                            [],
+                            [png.h],
+                            [png_access_version_number],
+                            [],
+                            [AC_MSG_ERROR([libpng not found. Please configure without Unity (using --disable-unity) or install the libpng devel package])])
 
            # Check for the zlib library and headers. Like uriparser, there
            # isn't a pkg-config or zlib-config file.
-           ORIGINAL_LDFLAGS="$LDFLAGS"
-           LDFLAGS="$CUSTOM_ZLIB_LIBS $LDFLAGS"
-           AC_CHECK_LIB(
-              [z],
-              [zlibVersion],
-              [if test -n "$CUSTOM_ZLIB_LIBS"; then
-                       ZLIB_LIBS="$CUSTOM_ZLIB_LIBS"
-               else
-                       ZLIB_LIBS="-lz"
-               fi],
-              [AC_MSG_ERROR(
-                 [zlib library not found. Please configure without Unity (using --disable-unity) or install the zlib devel package.])])
-           LDFLAGS="$ORIGINAL_LDFLAGS"
-
-           if test -n "$CUSTOM_ZLIB_CPPFLAGS"; then
-                   ZLIB_CPPFLAGS="$CUSTOM_ZLIB_CPPFLAGS"
-           else
-                   # XXX: No pkg-config and no zlib-config means we need to
-	           # hard-code a sensible default.
-	           ZLIB_CPPFLAGS="-I/usr/include"
+           if test -z "$CUSTOM_ZLIB_CPPFLAGS"; then
+              # XXX: No pkg-config and no zlib-config means we need to
+              # hard-code a sensible default.
+              CUSTOM_ZLIB_CPPFLAGS="-I/usr/include"
            fi
-           ORIGINAL_CPPFLAGS="$CPPFLAGS"
-           CPPFLAGS="$ZLIB_CPPFLAGS $CPPFLAGS"
-           AC_CHECK_HEADER(
-              [zlib.h],
-              [],
-              [AC_MSG_ERROR(
-                 [zlib headers not found. Please configure without Unity (using --disable-unity) or install the zlib devel package])])
-           CPPFLAGS="$ORIGINAL_CPPFLAGS"
+           AC_VMW_CHECK_LIB([z],
+                            [ZLIB],
+                            [],
+                            [],
+                            [],
+                            [zlib.h],
+                            [zlibVersion],
+                            [],
+                            [AC_MSG_ERROR([zlib library not found. Please configure without Unity (using --disable-unity) or install the zlib devel package.])])
    fi # End of library checks for Unity.
 
-   if test -n "$CUSTOM_GTK_CPPFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
-   # Check to see if we have some version of GTK. gtk_accel_group_add
-   # is a random function that is present in Gtk 1.2 but not Gtk
-   # 2.0. Similarly, gtk_tree_view_new is a random function in Gtk 2.0
-   # which is not present in Gtk 1.2.
-      AC_CHECK_LIB(
-	 [gtk],
-	 [gtk_accel_group_add],
-	 [HAVE_GTK1="yes"],,
-	 [$CUSTOM_GTK_LIBS])
-      if test "$with_gtk2" != "no"; then
-         AC_CHECK_LIB(
-	    [gtk-x11-2.0],
-	    [gtk_tree_view_new],
-	    [HAVE_GTK2="yes"],,
-	    [$CUSTOM_GTK_LIBS])
-      fi
-   fi
-
-   # Sometimes pkg-config can find stuff that AC_CHECK_LIB can't, so we use that as well.
-   if test "$HAVE_PKG_CONFIG" = "yes"; then
-      if test "$with_gtk2" != "no"; then
-         AC_MSG_CHECKING([for Gtk+ 2.0 (via pkg-config)])
-         if pkg-config --exists gtk+-2.0; then
-	    HAVE_GTK2="yes"
-            AC_MSG_RESULT([yes])
-         else
-            AC_MSG_RESULT([no])
-         fi
-     fi
-
-      AC_MSG_CHECKING([for Gtk+ 1.x (via pkg-config)])
-      # The latter half of the test is because pkg-config's fallback
-      # to gtk-config is broken on systems such as Ubuntu that use
-      # bash-completion for unknown commands. (On Ubuntu, typing
-      # 'gtk-config' on a system that doesn't have libgtk1.2-dev
-      # installed outputs hints about using apt-get, in addition to the
-      # regular bash "command not found" message.)
-      if pkg-config --exists gtk+ \
-	 && test -n "`pkg-config --libs gtk+ 2>/dev/null | grep -v '^ *$'`"; then
-	 HAVE_GTK1="yes"
-         AC_MSG_RESULT([yes])
-      else
-         AC_MSG_RESULT([no])
-      fi
-   fi
-
-   if test "$HAVE_GTK1" = "yes" -o "$HAVE_GTK2" = "yes"; then
-      # This bit is to fix builds on OpenSolaris B71, where
-      # 'pkg-config --cflags gtk+-2.0' gives an error.
-      if test "$HAVE_GTK2" = "yes" -a "$HAVE_PKG_CONFIG" = "yes" \
-	 && ! pkg-config --exists gtk+-2.0 \
-	 && test -z "$CUSTOM_GTK_CPPFLAGS" -a -z "$CUSTOM_GTK_LIBS"; then
-         HAVE_GTK2="no"
-      fi
-
-      if test "$HAVE_GTK2" = "yes"; then
-         # Gtk 2.0
-	 GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK2"
-	 gtkPackageName="gtk+-2.0"
-      elif test "$HAVE_GTK1" = "yes"; then
-         # Gtk 1.2
-	 gtkPackageName="gtk+"
-
-         # Unity requires Gtk 2.0.
-         if test "$enable_unity" != "no"; then
-            AC_MSG_ERROR([The Unity feature requires Gtk+ 2.0. Please install the Gtk+ 2.0 devel packages or configure without Unity (using --disable-unity)])
-         fi
-      else
-      # We found Gtk+ 2.0 that turned out to have a non-working
-      # pkg-config setup, AND Gtk 1.2 wasn't installed.
-	 AC_MSG_ERROR([The Gtk+ library installed on your system is not fully functional. Please contact your OS vendor.])
-      fi
-
-      # Prefer flags specified, in the environment, by the user.
-      if test -n "$CUSTOM_GTK_CPPFLAGS" -o -n "$CUSTOM_GTK_LIBS"; then
-	 GTK_CPPFLAGS="$GTK_CPPFLAGS $CUSTOM_GTK_CPPFLAGS"
-	 GTK_LIBS="$GTK_LIBS $CUSTOM_GTK_LIBS"
-      # Use pkg-config if available and there are no user-specified flags.
-      elif test "$HAVE_PKG_CONFIG" = "yes"; then
-	 GTK_CPPFLAGS="$GTK_CPPFLAGS $(pkg-config --cflags $gtkPackageName)"
-	 GTK_LIBS="$GTK_LIBS $(pkg-config --libs $gtkPackageName)"
-      # Otherwise, we have a problem.
-      else
-	 AC_MSG_ERROR([pkg-config not found. Get pkg-config or set CUSTOM_GTK_CPPFLAGS and CUSTOM_GTK_LIBS to specify gtk header file and library locations.])
-      fi
-
-      # Check for a sufficiently new installation of Gtk 2.0. This symbol is, at
-      # the time of writing, used in vmware-user. We must perform this check
-      # after GTK_LIBS has been set up. Note: we don't actually use the
-      # resultant HAVE_NEW_GTK2 variable; it's just set so that the default
-      # action, which will append gdk-x11-2.0 to LIBS, isn't taken.
-      if test "$HAVE_GTK2" == "yes"; then
-         AC_CHECK_LIB(
-            [gdk-x11-2.0],
-            [gdk_display_get_default_group],
-            [HAVE_NEW_GTK2="yes"],
-            [AC_MSG_ERROR(
-               [Gtk 2.0 installation may be too old. Please upgrade your Gtk 2.0 packages or configure without Gtk 2.0 (using --without-gtk2)])]
-            [$GTK_LIBS])
-      fi
+   # Check whether we have gtk+ 2.0.
+   if test "$with_gtk2" != "no"; then
+      # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
+      # needed by vmware-user.
+      AC_VMW_CHECK_LIB([gtk-x11-2.0],
+                       [GTK],
+                       [gtk+-2.0],
+                       [],
+                       [2.4.0],
+                       [gtk/gtk.h],
+                       [gdk_display_get_default_group],
+                       [GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK2"],
+                       [AC_MSG_ERROR([Gtk+ 2.0 library not found or too old. Please configure without Gtk+ support (using --without-gtk2) or install the Gtk+ 2.0 devel package.])])
 
       # Unity requires libgdk_pixbuf_xlib, which most systems don't seem to
       # provide via "pkg-config --libs gtk+-2.0".
@@ -602,20 +477,33 @@ else
             [gdk_pixbuf_xlib-2.0],
             [gdk_pixbuf_xlib_init],
             [GTK_LIBS="$GTK_LIBS -lgdk_pixbuf_xlib-2.0"],
-            [AC_MSG_ERROR(
-               [gdk_pixbuf_xlib-2.0 not found. Make sure your Gtk 2.0 installation is sane, or configure without Unity (using --disable-unity).])],
+            [AC_MSG_ERROR([gdk_pixbuf_xlib-2.0 not found. Make sure your Gtk 2.0 installation is sane, or configure without Unity (using --disable-unity).])],
             [$GTK_LIBS])
       fi
-   else
-      AC_MSG_ERROR([libgtk not found. Please install the gtk devel package(s).])
+   fi
+
+   #
+   # Check for gtkmm 2.4.0 or greater.
+   #
+
+   if test "$with_gtkmm" != "no"; then
+      CUSTOM_GTKMM_CPPFLAGS="$CUSTOM_GTKMM_CPPFLAGS $GTK_CPPFLAGS"
+      AC_VMW_CHECK_LIBXX([gtkmm-2.4],
+                         [GTKMM],
+                         [gtkmm-2.4],
+                         [],
+                         [2.4.0],
+                         [gtkmm.h],
+                         [],
+                         [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                         [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
    fi
 fi # End of checks for X libraries
 
 AC_CHECK_LIB(
    [crypt],
    [crypt],
-   [HAVE_CRYPT="yes"
-    GUESTD_LDADD="$GUESTD_LDADD -lcrypt"],
+   [HAVE_CRYPT="yes"],
    [AC_MSG_ERROR(
       [libcrypt not found. Please install the libc/libcrypt devel package(s).])])
 
@@ -642,8 +530,7 @@ AC_CHECK_FUNCS([fcvt])
 AC_CHECK_LIB(
    [pthread],
    [pthread_mutex_init],
-   [GUESTD_LDADD="$GUESTD_LDADD -lpthread"
-    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lpthread"],
+   [HAVE_PTHREAD=yes],
    [AC_MSG_ERROR(
       [libpthread not found. Please install the libc/libpthread devel package(s).])])
 
@@ -665,22 +552,21 @@ else
 fi
 
 if test "$with_procps" = "yes"; then
-	ORIGINAL_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$CUSTOM_PROCPS_LIBS $LDFLAGS"
-	AC_CHECK_LIB(
-	   [proc-3.2.7],
-	   [getstat],
-	   [if test -n "$CUSTOM_PROCPS_LIBS"; then
-		    PROCPS_LIBS="$CUSTOM_PROCPS_LIBS"
-	    else
-		    PROCPS_LIBS="-lproc-3.2.7"
-	    fi],
-	   [AC_MSG_ERROR(
-	      [libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
-	LDFLAGS="$ORIGINAL_LDFLAGS"
-
-	GUESTD_LDADD="$GUESTD_LDADD $PROCPS_LIBS"
-	VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
+   # XXX: Force CUSTOM_PROCPS_LIBS to have something so that AC_VMW_CHECK_LIB
+   # properly performs the library check.
+   if test -z "$CUSTOM_PROCPS_LIBS"; then
+      CUSTOM_PROCPS_LIBS="-L/lib"
+   fi
+   AC_VMW_CHECK_LIB([proc-3.2.7],
+                    [PROCPS],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [getstat],
+                    [GUESTD_LDADD="$GUESTD_LDADD $PROCPS_LIBS";
+                     VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"],
+                    [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
 fi
 
 if test "$with_procps" != "yes"; then
@@ -694,24 +580,38 @@ AC_ARG_WITH([dnet],
 	    [with_dnet=yes])
 
 if test "$with_dnet" = "yes"; then
+   have_dnet=0
 
 	# On Debian, dnet is installed via the libdumbnet package. We need to
 	# detect this so that our source files include dumbnet.h instead of
 	# dnet.h, which is part of a different package altogether.
-	AC_CHECK_PROGS([DNET_CONFIG],
-		       [dumbnet-config dnet-config],
-		       [no])
+   AC_VMW_CHECK_LIB([dumbnet],
+                    [DNET],
+                    [],
+                    [dumbnet-config],
+                    [],
+                    [dumbnet.h],
+                    [intf_open],
+                    [have_dnet=1;
+                     AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting Debian's libdumbnet for libdnet.])],
+                    [])
 
-	if test "$DNET_CONFIG" != no; then
-		DNET_CPPFLAGS="`$DNET_CONFIG --cflags`"
-		DNET_LIBS="`$DNET_CONFIG --libs`"
+   if test $have_dnet -eq 0; then
+      AC_VMW_CHECK_LIB([dnet],
+                       [DNET],
+                       [],
+                       [dnet-config],
+                       [],
+                       [dnet.h],
+                       [intf_open],
+                       [have_dnet=1],
+                       [])
+   fi
 
-		GUESTD_LDADD="$GUESTD_LDADD $DNET_LIBS"
-		VMWARE_USER_LDADD="$VMWARE_USER_LDADD $DNET_LIBS"
-		if test "$DNET_CONFIG" == dumbnet-config; then
-		AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting Debian's libdumbnet for libdnet.])
-		fi
-	else
+   if test $have_dnet -eq 1; then
+      GUESTD_LDADD="$GUESTD_LDADD $DNET_LIBS"
+      VMWARE_USER_LDADD="$VMWARE_USER_LDADD $DNET_LIBS"
+   else
 		AC_MSG_ERROR(
 		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
 	fi
@@ -727,67 +627,34 @@ AC_ARG_WITH([icu],
             [],
             [with_icu=yes])
 
+if test "$have_x" = "yes" -o "$with_icu" = "yes"; then
+   AC_CHECK_TOOL([have_cxx], [$CXX], [no])
+   if test "$have_cxx" = "no"; then
+      AC_MSG_ERROR([C++ compiler not found. Make sure you have a C++ compiler installed or configure without X11 (using --without-x) and without ICU (using --without-icu).])
+   fi
+fi
+
 if test "$with_icu" = "yes"; then
+   AC_VMW_CHECK_LIBXX([icuuc],
+                      [ICU],
+                      [],
+                      [icu-config],
+                      [],
+                      [unicode/utf.h],
+                      [],
+                      [ICU_CPPFLAGS="$ICU_CPPFLAGS -DUSE_ICU"],
+                      [AC_MSG_ERROR([ICU library not found. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])])
+   # Check whether we have ICU 3.8.
+   AC_LANG_PUSH([C++])
+   AC_CHECK_LIB([icuuc],
+                [ucasemap_utf8ToTitle_3_8],
+                [ICU_CPPFLAGS="$ICU_CPPFLAGS -DHAVE_ICU_38"],
+                [],
+                [$ICU_LIBS])
+   AC_LANG_POP([C++])
 
-	AC_PATH_PROG([ICU_CONFIG],
-		     [icu-config],
-		     [no])
-
-	if test "$ICU_CONFIG" != no; then
-		ICU_CPPFLAGS="`$ICU_CONFIG --cppflags` -DUSE_ICU"
-		ICU_LIBS="`$ICU_CONFIG --ldflags`"
-
-		# The icu components are built with C++, so we need to ensure
-		# that the C++ linker actually exists, and use it when linking
-		# icu into our applications and when performing configuration
-		# tests against icu.
-		#
-		# XXX: Getting automake to choose between the C linker and the
-		# C++ linker depending on HAVE_ICU was a royal pain in the ass.
-		# The classic way to do this is to define an optional source
-		# file for a program with an extension of .cxx, using
-		# nodist_EXTRA_fooprogram_SOURCES. This causes automake's
-		# linker detection algorithm to see a C++ source file and
-		# automatically set up the C++ linker and link line for us.
-		# Unfortunately, said linker detection doesn't obey
-		# conditionals, which means that it'd always pick the C++
-		# linker, regardless of the value of HAVE_ICU. Instead, we are
-		# forced to manually set the correct linker in fooprogram_LINK.
-		# However, since none of our programs actually contain C++
-		# code, automake doesn't make the CXXLINK variable (which
-		# contains the linker as well as all link flags) available to
-		# us, so we must hard-code the entire link line into
-		# fooprogram_LINK. Not exactly a futureproof solution...
-		#
-		# Additional references on this problem:
-		# http://sources.redhat.com/ml/automake/1999-10/msg00101.html
-		# http://lists.gnu.org/archive/html/bug-automake/2008-04/msg00010.html
-		# http://www.gnu.org/software/automake/manual/automake.html#Libtool-Convenience-Libraries
-		# http://www.gnu.org/software/automake/manual/automake.html#C_002b_002b-Support
-		AC_CHECK_TOOL(
-		   [HAVE_CXX],
-		   [$CXX])
-		if test -z "$HAVE_CXX"; then   
-		        AC_MSG_ERROR(
-			   [No C++ compiler was found on your PATH. Please configure without ICU (using --without-icu) or install a C++ compiler.])
-		fi
-		AC_LANG_PUSH([C++])
-		AC_CHECK_LIB([icuuc],
-			     [ucasemap_utf8ToTitle_3_8],
-			     [have_ICU_38="yes"],,
-			     [$ICU_LIBS])
-		AC_LANG_POP([C++])
-
-		if test "$have_ICU_38" = "yes"; then
-			ICU_CPPFLAGS="$ICU_CPPFLAGS -DHAVE_ICU_38"
-		fi
-
-		# Easier to give all modules the ICU defines/includes...
-		CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
-	else
-		AC_MSG_ERROR(
-		   [icu-config was not found on your PATH. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])
-	fi
+   # Easier to give all modules the ICU defines/includes...
+   CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
 fi
 
 AC_PATH_PROG(
@@ -941,11 +808,22 @@ done
 CPPFLAGS="$CPPFLAGS -DVMX86_TOOLS"
 CPPFLAGS="$CPPFLAGS -DNO_CORE_ICU"
 
+# -fvisibility is used by "core service" plugins, but not required.
+ORIGINAL_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden"
+AC_MSG_CHECKING([for GCC flag -fvisibility])
+AC_TRY_COMPILE([],
+               [return 0;],
+               [PLUGIN_CPPFLAGS="-fvisibility=hidden -DGCC_EXPLICIT_EXPORT";
+                AC_MSG_RESULT(yes)],
+               [AC_MSG_RESULT(no)])
+CFLAGS="$ORIGINAL_CFLAGS"
+
 BUILDDIR="`pwd`"
 
 INCLUDE_DIR="`cd $srcdir; pwd`/lib/include"
 BLD_INCLUDE_DIR="$BUILDDIR/lib/include"
-CPPFLAGS="$CPPFLAGS -I$INCLUDE_DIR -I$BLD_INCLUDE_DIR"
+CPPFLAGS="-I$INCLUDE_DIR -I$BLD_INCLUDE_DIR $CPPFLAGS"
 
 ### OS/arch-specific flags / actions
 
@@ -1017,6 +895,11 @@ if test "$os" = "solaris"; then
       CPPFLAGS="$CPPFLAGS -DSOL10"
       MODULES="$MODULES vmhgfs"
    fi
+
+   # We build vmxnet on Solaris 9 and 10
+   if test "$osVersion" -lt 511000 -a "$osVersion" -ge 509000; then
+      MODULES="$MODULES vmxnet"
+   fi
 fi
 
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
@@ -1030,9 +913,9 @@ AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
-AM_CONDITIONAL(ENABLE_CORE_SERVICES, test "$have_glib_26" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
+AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible
@@ -1065,16 +948,48 @@ fi
 
 if test "$HAVE_CRYPT" = "yes"; then
    LIB_AUTH_CPPFLAGS="$LIB_AUTH_CPPFLAGS -DGLIBC_VERSION_22"
+   GUESTD_LDADD="$GUESTD_LDADD -lcrypt"
+   VIX_LIBADD="$VIX_LIBADD -lcrypt"
 fi
 
 if test "$HAVE_WCHAR_H" = "yes"; then
    LIB_STRING_CPPFLAGS="$LIB_STRING_CPPFLAGS -DGLIBC_VERSION_22"
 fi
 
+if test "$HAVE_PTHREAD" = "yes"; then
+   GUESTD_LDADD="$GUESTD_LDADD -lpthread"
+   VIX_LIBADD="$VIX_LIBADD -lpthread"
+   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lpthread"
+fi
+
 ### Core Services definitions.
 
-VMTOOLS_LIBS="$BUILDDIR/libvmtools/libvmtools.la"
+VMTOOLS_LIBS="$BUILDDIR/libvmtools/libvmtools.la $GLIB2_LIBS"
 VMTOOLS_CPPFLAGS="-DVMTOOLS_USE_GLIB $GLIB2_CPPFLAGS"
+
+PLUGIN_CPPFLAGS="$VMTOOLS_CPPFLAGS $PLUGIN_CPPFLAGS"
+
+# For plugins, we'd like to build shared libraries but not install them in the
+# usual shared library destination. Problem is, "noinst_LTLIBRARIES" does not
+# create shared libraries by itself: the "rpath" flag seems to be needed to tell
+# libtool it should create one. All I've found as far as documentation goes is
+# this:
+#
+# http://lists.gnu.org/archive/html/libtool/2007-07/msg00065.html
+#
+# The other options are common options we use when building shared libraries.
+PLUGIN_LDFLAGS="-rpath `pwd` -Wl,-z,defs -Wl,-lc"
+
+# In Solaris, the XDR-related functions are not in libc like in Linux and
+# FreeBSD, so binaries need to be linked to some extra libraries.
+XDR_LIBS=
+if test "$os" = "solaris"; then
+   XDR_LIBS="-lnsl -lrpcsvc"
+fi
+
+# Installation directories for core services plugins.
+VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
+VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
 ### General substs
 
@@ -1084,26 +999,15 @@ AC_SUBST([MODULES_OS])
 AC_SUBST([MODULES_DIR])
 AC_SUBST([MODULES])
 AC_SUBST([COMMON_XLIBS])
-AC_SUBST([GLIB2_CPPFLAGS])
-AC_SUBST([GLIB2_LIBS])
-AC_SUBST([GTK_CPPFLAGS])
-AC_SUBST([GTK_LIBS])
-AC_SUBST([DNET_CPPFLAGS])
-AC_SUBST([DNET_LIBS])
-AC_SUBST([PROCPS_LIBS])
-AC_SUBST([ICU_CPPFLAGS])
-AC_SUBST([ICU_LIBS])
 AC_SUBST([PAM_PREFIX])
-AC_SUBST([URIPARSER_CPPFLAGS])
-AC_SUBST([URIPARSER_LIBS])
-AC_SUBST([LIBPNG_CPPFLAGS])
-AC_SUBST([LIBPNG_LIBS])
+AC_SUBST([PLUGIN_CPPFLAGS])
+AC_SUBST([PLUGIN_LDFLAGS])
 AC_SUBST([VMTOOLS_CPPFLAGS])
 AC_SUBST([VMTOOLS_LIBS])
-AC_SUBST([ZLIB_CPPFLAGS])
-AC_SUBST([ZLIB_LIBS])
-AC_SUBST([FUSE_CPPFLAGS])
-AC_SUBST([FUSE_LIBS])
+AC_SUBST([RPCGENFLAGS])
+AC_SUBST([XDR_LIBS])
+AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
+AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
 
 ### Lib substs
 
@@ -1122,7 +1026,7 @@ AC_SUBST([LIBVMTOOLS_LIBADD])
 ### Program substs
 
 AC_SUBST([GUESTD_LDADD])
-
+AC_SUBST([VIX_LIBADD])
 AC_SUBST([VMWARE_USER_CPPFLAGS])
 AC_SUBST([VMWARE_USER_LDADD])
 
@@ -1138,6 +1042,7 @@ AC_CONFIG_FILES([                      \
    lib/conf/Makefile                   \
    lib/dict/Makefile                   \
    lib/dnd/Makefile                    \
+   lib/dndGuest/Makefile               \
    lib/dynxdr/Makefile                 \
    lib/err/Makefile                    \
    lib/eventManager/Makefile           \
@@ -1166,6 +1071,7 @@ AC_CONFIG_FILES([                      \
    lib/raster/Makefile                 \
    lib/region/Makefile                 \
    lib/resolution/Makefile             \
+   lib/rpcChannel/Makefile             \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
    lib/rpcVmx/Makefile                 \
@@ -1188,6 +1094,17 @@ AC_CONFIG_FILES([                      \
    lib/vmSignal/Makefile               \
    lib/wiper/Makefile                  \
    guestd/Makefile                     \
+   services/Makefile                   \
+   services/vmtoolsd/Makefile          \
+   services/plugins/Makefile           \
+   services/plugins/guestInfo/Makefile \
+   services/plugins/hgfsServer/Makefile \
+   services/plugins/powerOps/Makefile  \
+   services/plugins/resolutionSet/Makefile \
+   services/plugins/timeSync/Makefile  \
+   services/plugins/vix/Makefile       \
+   services/plugins/vixUser/Makefile   \
+   services/plugins/vmbackup/Makefile  \
    vmware-user/Makefile                \
    vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
@@ -1199,6 +1116,10 @@ AC_CONFIG_FILES([                      \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
+   tests/Makefile                      \
+   tests/vmrpcdbg/Makefile             \
+   tests/testDebug/Makefile            \
+   tests/testPlugin/Makefile           \
    scripts/Makefile		       \
 ])
 

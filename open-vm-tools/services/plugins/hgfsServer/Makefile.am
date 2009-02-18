@@ -1,0 +1,41 @@
+################################################################################
+### Copyright 2009 VMware, Inc.  All rights reserved.
+###
+### This program is free software; you can redistribute it and/or modify
+### it under the terms of version 2 of the GNU General Public License as
+### published by the Free Software Foundation.
+###
+### This program is distributed in the hope that it will be useful,
+### but WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with this program; if not, write to the Free Software
+### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+################################################################################
+
+noinst_LTLIBRARIES = libhgfsServer.la
+
+libhgfsServer_la_CPPFLAGS =
+libhgfsServer_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+
+libhgfsServer_la_LDFLAGS =
+libhgfsServer_la_LDFLAGS += @PLUGIN_LDFLAGS@
+
+libhgfsServer_la_LIBADD =
+libhgfsServer_la_LIBADD += @VMTOOLS_LIBS@
+libhgfsServer_la_LIBADD += $(top_builddir)/lib/hgfsServer/libHgfsServer.la
+libhgfsServer_la_LIBADD += $(top_builddir)/lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
+
+libhgfsServer_la_SOURCES =
+libhgfsServer_la_SOURCES += hgfsPlugin.c
+
+install-exec-local:
+	mkdir -p $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
+	cp -L $(builddir)/.libs/libhgfsServer.so $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
+if HAVE_X11
+	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
+	cp -L $(builddir)/.libs/libhgfsServer.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
+endif
+

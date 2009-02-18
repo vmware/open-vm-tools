@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include "compat_completion.h"
+#include "compat_cred.h"
 #include "compat_dcache.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
@@ -256,13 +257,13 @@ HgfsInitSuperInfo(HgfsMountInfo *mountInfo) // IN: Passed down from the user
    if (si->uidSet) {
       si->uid = mountInfo->uid;
    } else {
-      si->uid = current->uid;
+      si->uid = current_uid();
    }
    si->gidSet = mountInfo->gidSet;
    if (si->gidSet) {
       si->gid = mountInfo->gid;
    } else {
-      si->gid = current->gid;
+      si->gid = current_gid();
    }
    si->fmask = mountInfo->fmask;
    si->dmask = mountInfo->dmask;

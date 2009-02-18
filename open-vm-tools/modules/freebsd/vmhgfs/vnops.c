@@ -216,7 +216,7 @@ struct vop_open_args {
    struct vnode *vp = ap->a_vp;
    int mode = ap->a_mode;
 
-   return HgfsOpenInt(vp, mode);
+   return HgfsOpenInt(vp, mode, FALSE);
 }
 
 
@@ -326,8 +326,30 @@ struct vop_access_args {
 {
    struct vnode *vp = ap->a_vp;
    int mode = ap->a_mode;
+   HgfsAccessMode accessMode = 0;
+   Bool isDir = vp->v_type == VDIR;
+   if (mode & VREAD) {
+      accessMode |= isDir ? HGFS_MODE_LIST_DIRECTORY : HGFS_MODE_READ_DATA;
+      accessMode |=  HGFS_MODE_READ_ATTRIBUTES;
+   }
+   if (mode & VWRITE) {
+      if (isDir) {
+         accessMode |= HGFS_MODE_ADD_FILE | HGFS_MODE_ADD_SUBDIRECTORY |
+                       HGFS_MODE_DELETE | HGFS_MODE_DELETE_CHILD |
+                       HGFS_MODE_WRITE_ATTRIBUTES;
+      } else {
+         accessMode |= HGFS_MODE_WRITE_DATA | HGFS_MODE_ADD_SUBDIRECTORY |
+                       HGFS_MODE_DELETE | HGFS_MODE_WRITE_ATTRIBUTES;
+      }
+   }
+   if (mode & VAPPEND) {
+      accessMode |= isDir ? HGFS_MODE_ADD_SUBDIRECTORY : HGFS_MODE_APPEND_DATA;
+   }
+   if (mode & VEXEC) {
+      accessMode |= isDir ? HGFS_MODE_TRAVERSE_DIRECTORY : HGFS_MODE_GENERIC_EXECUTE;
+   }
 
-   return HgfsAccessInt(vp, mode);
+   return HgfsAccessInt(vp, accessMode);
 }
 
 
@@ -433,7 +455,7 @@ struct vop_read_args {
    struct vnode *vp = ap->a_vp;
    struct uio *uiop = ap->a_uio;
 
-   return HgfsReadInt(vp, uiop);
+   return HgfsReadInt(vp, uiop, FALSE);
 }
 
 
@@ -469,7 +491,7 @@ struct vop_write_args {
    struct uio *uiop = ap->a_uio;
    int ioflag = ap->a_ioflag;
 
-   return HgfsWriteInt(vp, uiop, ioflag);
+   return HgfsWriteInt(vp, uiop, ioflag, FALSE);
 }
 
 

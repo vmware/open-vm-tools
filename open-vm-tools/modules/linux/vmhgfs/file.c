@@ -28,6 +28,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/signal.h>
+#include "compat_cred.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_slab.h"
@@ -634,7 +635,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
             iparent = dparent->d_inode;
 
             HgfsSetUidGid(iparent, file->f_dentry,
-                          current->fsuid, current->fsgid);
+                          current_fsuid(), current_fsgid());
 
             dput(dparent);
          }

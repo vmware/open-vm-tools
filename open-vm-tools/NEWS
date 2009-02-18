@@ -1,15 +1,33 @@
+open-vm-tools 2009.02.18 changes:
+	* open-vm-tools now depend on glib 2.6.0 as a minimum requirement.
+
+	* Added vmxnet module for Solaris, and reworked the HGFS module so it
+	works without help from vmware-guestd.
+
+	* Added implementation of new DnD protocol, which adds a dependency on
+	a C++ compiler and the gtkmm library to vmware-user.
+
+	* The code from the "core services" has been added to open-vm-tools,
+	including a few tests. vmtoolsd + plugins are now capable of replacing
+	vmware-guestd (vmware-user still needs to have some features ported
+	over), but this code is still not to be considered as stable as the
+	legacy services, so vmware-guestd is still included.
+
+	* A few fixes for compatibility with non-GNU toolchains, newer Linux
+	kernels and old gcc compilers.
+
 open-vm-tools 2009.01.21 changes:
-   * First open source release of the HGFS module for Solaris, under the CDDL.
-   Other modules are expected to be added in the upcoming releases.
+	* First open source release of the HGFS module for Solaris, under the CDDL.
+	Other modules are expected to be added in the upcoming releases.
 
-   * Added an implementation of vmblock on top of FUSE; vmware-user still
-   doesn't use this module even if it is available, though.
+	* Added an implementation of vmblock on top of FUSE; vmware-user still
+	doesn't use this module even if it is available, though.
 
-   * Linux modules now add the "supported" tag used by Novell in their
-   SLES 10 SP2 release when loading modules.
+	* Linux modules now add the "supported" tag used by Novell in their
+	SLES 10 SP2 release when loading modules.
 
-   * Fix compilation of modules in newer Linux kernels which don't include
-   $(LINUXINCLUDE) in the compiler flags anymore.
+	* Fix compilation of modules in newer Linux kernels which don't include
+	$(LINUXINCLUDE) in the compiler flags anymore.
 
 open-vm-tools 2008.12.23 changes:
 	* Lots of makefile cleanup with the switch to using libtool archives.

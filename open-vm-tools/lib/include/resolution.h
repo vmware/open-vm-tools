@@ -67,7 +67,7 @@
 #   undef Bool
 typedef Display *       InitHandle;
 
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(RESOLUTION_WIN32)
 typedef void *          InitHandle;
 #else
 #   error Unknown display backend

@@ -24,6 +24,7 @@
  */
 
 #include <sys/param.h>          /* MAXNAMELEN */
+#include <sys/file.h>           /* FKIOCTL */
 
 #include "hgfsSolaris.h"
 #include "hgfsState.h"
@@ -54,6 +55,15 @@ int HgfsFreevfs(struct vfs *vfsp);
 void HgfsFreevfs(struct vfs *vfsp);
 #endif
 #endif
+
+#if HGFS_VFS_VERSION > 2
+static vfsops_t *hgfsVfsOpsP;
+#endif
+
+/*
+ * Fileystem type number given to us upon initialization.
+ */
+static int hgfsType;
 
 
 #if HGFS_VFS_VERSION == 2
@@ -129,7 +139,7 @@ HgfsInit(int fstype,    // IN: Filesystem type
    int ret;
 
    /* Construct the VFS operations array to give to vfs_setfsops() */
-   fs_operation_def_t vfsOpsArr[] = {
+   static fs_operation_def_t vfsOpsArr[] = {
       HGFS_VOP(VFSNAME_MOUNT, vfs_mount, HgfsMount),
       HGFS_VOP(VFSNAME_UNMOUNT, vfs_unmount, HgfsUnmount),
       HGFS_VOP(VFSNAME_ROOT, vfs_root, HgfsRoot),
@@ -154,22 +164,56 @@ HgfsInit(int fstype,    // IN: Filesystem type
 
    DEBUG(VM_DEBUG_ENTRY, "HgfsInit: fstype=%d, name=\"%s\"\n", fstype, name);
 
-   /* Set our filesystem type. */
-   hgfsType = fstype;
-
    /* Assign VFS operations to our filesystem. */
-   ret = vfs_setfsops(hgfsType, vfsOpsArr, NULL);
+   ret = vfs_setfsops(fstype, vfsOpsArr, &hgfsVfsOpsP);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "HgfsInit: vfs_setfsops returned %d\n", ret);
       return ret;
    }
 
+   ret = HgfsMakeVnodeOps();
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsInit: could not register HGFS Vnode Ops.\n");
+      vfs_freevfsops_by_type(fstype);
+      ret = EIO;
+      return ret;
+   }
+
+   /* Set our filesystem type. */
+   hgfsType = fstype;
    DEBUG(VM_DEBUG_DONE, "HgfsInit: done. (fstype=%d)\n", hgfsType);
 
    return 0;
 }
 
 #endif
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsFreeVfsOps --
+ *
+ *    Free VFS Ops created when we initialized the filesystem.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    Resets hgfsVfsOpsP back to NULL.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+
+void
+HgfsFreeVfsOps(void)
+{
+#if HGFS_VFS_VERSION > 2
+   if (hgfsVfsOpsP) {
+      vfs_freevfsops_by_type(hgfsType);
+   }
+#endif
+}
 
 
 /*
@@ -212,73 +256,48 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
    DEBUG(VM_DEBUG_ENTRY, "HgfsMount().\n");
 
    //HgfsDebugPrintVfs("HgfsMount", vfsp);
-   //HgfsDebugPrintVnode(VM_DEBUG_STRUCT, "HgfsMount", vnodep);
+   //HgfsDebugPrintVnode(VM_DEBUG_STRUCT, "HgfsMount", vnodep, FALSE);
    //HgfsDebugPrintMounta("HgfsMount", mntp);
    //HgfsDebugPrintCred("HgfsMount", credp);
-
-   /*
-    * Initial sanity checks to ensure that:
-    * - device side has allocated our superinfo struct (see HgfsDevAttach())
-    * - the device has been sucecssfully opened
-    * - caller is root
-    * - data provided by caller is the expected size
-    *
-    * Note that this is the one place in the filesystem that we call
-    * ddi_get_soft_state() directly to get the superinfo pointer.  All other
-    * places use the HgfsGetSuperInfo() wrapper which only returns the
-    * superinfo if the filesystem is in fact mounted.
-    */
-   sip = (HgfsSuperInfo *)ddi_get_soft_state(superInfoHead, hgfsInstance);
-   if (!sip) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsMount: superinfo has not been allocated/set\n");
-      return ENXIO;
-   }
-
-   if (!sip->devOpen) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsMount: device has not been opened\n");
-      return ENXIO;
-   }
 
    if (!HgfsSuser(credp)) {
       return EPERM;
    }
 
    if (mntp->datalen != sizeof *mountData) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: bad data size (%lu vs %lu).\n",
+            (unsigned long) mntp->datalen,
+            (unsigned long) sizeof *mountData);
       return EINVAL;
    }
 
-   /*
-    * If mount data is in kernel space, just cast pointer; otherwise we need
-    * to safely copy it from user space.
-    */
-   if (mntp->flags & MS_SYSSPACE) {
-      mountData = (HgfsMountData *)mntp->dataptr;
-      DEBUG(VM_DEBUG_LOAD, "HgfsMount(): mount data was in kernel space.\n");
-   } else {
-      mountData = (HgfsMountData *)kmem_zalloc(sizeof *mountData, HGFS_ALLOC_FLAG);
-#     if HGFS_ALLOC_FLAG != KM_SLEEP
-      /* This check is not needed if HGFS_ALLOC_FLAG == KM_SLEEP */
-      if (!mountData) {
-         return ENOMEM;
-      }
-#     endif
+   mountData = kmem_zalloc(sizeof *mountData, HGFS_ALLOC_FLAG);
+   if (!mountData) {
+      return ENOMEM;
+   }
 
-      if (ddi_copyin(mntp->dataptr, mountData,
-                     sizeof *mountData, HGFS_COPYIN_FLAGS) == -1) {
-         DEBUG(VM_DEBUG_FAIL, "HgfsMount: couldn't copy in mount data.\n");
-         ret = EFAULT;
-         goto out;
-      }
+   if (ddi_copyin(mntp->dataptr, mountData, sizeof *mountData,
+                  mntp->flags & MS_SYSSPACE ? FKIOCTL : 0) == -1) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: couldn't copy mount data.\n");
+      ret = EFAULT;
+      goto out;
    }
 
    /*
-    * Make sure mount data matches what guestd will send us.
+    * Make sure mount data matches what mount program will send us.
     */
    if (mountData->magic != HGFS_MAGIC) {
-        DEBUG(VM_DEBUG_FAIL, "HgfsMount: received invalid magic value: %x\n",
-             mountData->magic);
-        ret = EINVAL;
-        goto out;
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: received invalid magic value: %x\n",
+            mountData->magic);
+      ret = EINVAL;
+      goto out;
+   }
+
+   /* We support only one instance of hgfs, at least for now */
+   if (HgfsGetSuperInfo()) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: HGFS is already mounted somewhere\n");
+      ret = EBUSY;
+      goto out;
    }
 
    /*
@@ -286,9 +305,9 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
     * construct the filesystem id.
     */
    if ((dev = getudev()) == -1) {
-        DEBUG(VM_DEBUG_FAIL, "HgfsMount(): getudev() failed.\n");
-        ret = ENXIO;
-        goto out;
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount(): getudev() failed.\n");
+      ret = ENXIO;
+      goto out;
    }
 
    DEBUG(VM_DEBUG_LOAD, "HgfsMount: dev=%lu\n", dev);
@@ -334,10 +353,14 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
    vnodep->v_vfsmountedhere = vfsp;
 #  endif
 
-   /* We need to initialize the File hash table before getting our first vnode. */
-   ret = HgfsInitFileHashTable(&sip->fileHashTable);
-   if (ret) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsMount: couldn't initialize hash table.\n");
+   HgfsInitSuperInfo(vfsp);
+
+   sip = HgfsGetSuperInfo();
+   vfsp->vfs_data = (caddr_t)sip;
+
+   if (!sip->transportInit()) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsMount: failed to start transport.\n");
+      HgfsClearSuperInfo();
       ret = EIO;
       goto out;
    }
@@ -357,6 +380,8 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
                       &sip->fileHashTable);             // File hash table
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "HgfsMount: couldn't get root vnode.\n");
+      sip->transportCleanup();
+      HgfsClearSuperInfo();
       ret = EIO;
       goto out;
    }
@@ -366,25 +391,14 @@ HgfsMount(struct vfs *vfsp,     // IN: Filesystem to mount
    sip->rootVnode->v_flag |= VROOT;
    mutex_exit(&sip->rootVnode->v_lock);
 
-   /*
-    * Fill in value(s) for the HGFS superinfo structure and link it to this
-    * filesystem's VFS structure.
-    */
-   sip->vfsp = vfsp;
-
-   vfsp->vfs_data = (caddr_t)sip;
-
    /* XXX do this? */
    VN_HOLD(vnodep);
 
+   DEBUG(VM_DEBUG_DONE, "HgfsMount() done.\n");
    ret = 0;     /* Return success */
 
-   DEBUG(VM_DEBUG_DONE, "HgfsMount() done.\n");
-
 out:
-   if (!(mntp->flags & MS_SYSSPACE)) {
-      kmem_free(mountData, sizeof *mountData);
-   }
+   kmem_free(mountData, sizeof *mountData);
    return ret;
 }
 
@@ -411,14 +425,14 @@ HgfsUnmount(struct vfs *vfsp,   // IN: This filesystem
             struct cred *credp) // IN: Credentials of caller
 {
    HgfsSuperInfo *sip;
+   int ret;
+
+   DEBUG(VM_DEBUG_ENTRY, "HgfsUnmount().\n");
 
    if (!vfsp || !credp) {
       cmn_err(HGFS_ERROR, "HgfsUnmount: NULL input from Kernel.\n");
       return EINVAL;
    }
-
-   DEBUG(VM_DEBUG_ENTRY, "HgfsUnmount().\n");
-   HgfsDebugPrintVnode(VM_DEBUG_STRUCT, "HgfsUnmount", vfsp->vfs_vnodecovered);
 
    /*
     * Initial check to ensure caller is root.
@@ -436,28 +450,26 @@ HgfsUnmount(struct vfs *vfsp,   // IN: This filesystem
       DEBUG(VM_DEBUG_ALWAYS, "HgfsUnmount: vfsp != sip->vfsp.\n");
    }
 
+   HgfsDebugPrintVnode(VM_DEBUG_STRUCT, "HgfsUnmount",
+                       vfsp->vfs_vnodecovered, FALSE);
+
+   /* Take the request lock to prevent submitting new requests */
+   mutex_enter(&sip->reqMutex);
+
    /*
     * Make sure there are no active files (besides the root vnode which we
     * release at the end of the function).
     */
    HgfsDebugPrintFileHashTable(&sip->fileHashTable, VM_DEBUG_STATE);
-   if (!HgfsFileHashTableIsEmpty(sip, &sip->fileHashTable)) {
-      /*
-       * If the force flag was specified, we'll cancel all requests and perform
-       * the unmount.  Otherwise, we'll just return EBUSY.
-       */
-      if (mflag & MS_FORCE) {
-         HgfsCancelAllRequests(sip);
-      } else {
-         DEBUG(VM_DEBUG_FAIL, "HgfsUnmount: there are still active files.\n");
-         return EBUSY;
-      }
+
+   if (!HgfsFileHashTableIsEmpty(sip, &sip->fileHashTable) &&
+       !(mflag & MS_FORCE)) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsUnmount: there are still active files.\n");
+      ret = EBUSY;
+      goto out;
    }
 
-   /* Send an unclean unmount warning to syslog. */
-   if (!sip->devOpen) {
-      cmn_err(HGFS_ERROR, "HgfsUnmount: unclean unmount; device was closed.\n");
-   }
+   HgfsCancelAllRequests(sip);
 
    /*
     * Set unmounted flag in vfs structure.
@@ -465,22 +477,33 @@ HgfsUnmount(struct vfs *vfsp,   // IN: This filesystem
    vfsp->vfs_flag |= VFS_UNMOUNTED;
 
    /*
+    * Close transport channel, we should not be gettign any more requests.
+    */
+   sip->transportCleanup();
+
+   /*
     * Clean up fields in vnode structure of mount point and release hold on
     * vnodes for mount.
     */
 #  if HGFS_VFS_VERSION == 2
-   (vfsp->vfs_vnodecovered)->v_vfsmountedhere = NULL;
+   vfsp->vfs_vnodecovered->v_vfsmountedhere = NULL;
 #  endif
    VN_RELE(vfsp->vfs_vnodecovered);
-   VN_RELE( HGFS_ROOT_VNODE(sip) );
+   VN_RELE(HGFS_ROOT_VNODE(sip));
 
    /*
     * Signify to the device half that the filesystem has been unmounted.
     */
-   sip->vfsp = NULL;
    HGFS_ROOT_VNODE(sip) = NULL;
+   HgfsClearSuperInfo();
 
-   return 0;
+   ret = 0;
+
+out:
+   mutex_exit(&sip->reqMutex);
+
+   DEBUG(VM_DEBUG_DONE, "HgfsUnmount() done.\n");
+   return ret;
 }
 
 

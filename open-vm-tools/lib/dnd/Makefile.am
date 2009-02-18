@@ -18,5 +18,7 @@
 noinst_LTLIBRARIES = libDnd.la
 
 libDnd_la_SOURCES =
+libDnd_la_SOURCES += dndClipboard.c
 libDnd_la_SOURCES += dndCommon.c
 libDnd_la_SOURCES += dndLinux.c
+libDnd_la_SOURCES += dndMsg.c

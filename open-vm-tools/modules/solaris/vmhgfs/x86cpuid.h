@@ -438,7 +438,7 @@ FLAGDEF(  87, EDX, AMD,     4,  1, TM,                  NA,  IGNORE, 0, FALSE)  
 FLAGDEF(  87, EDX, AMD,     5,  1, STC,                 NA,  IGNORE, 0, FALSE)            \
 FLAGDEF(  87, EDX, AMD,     6,  1, 100MHZSTEPS,         NA,  IGNORE, 0, FALSE)            \
 FLAGDEF(  87, EDX, AMD,     7,  1, HWPSTATE,            NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     8,  1, TSC_INVARIANT,       NA,  IGNORE, 0, FALSE)            \
+FLAGDEF(  87, EDX, COMMON,  8,  1, TSC_INVARIANT,       NA,  IGNORE, 0, FALSE)            \
 FIELDDEFA(88, EAX, COMMON,  0,  8, PHYSBITS,            NA,  IGNORE, 0, FALSE, PHYS_BITS) \
 FIELDDEFA(88, EAX, COMMON,  8,  8, VIRTBITS,            NA,  IGNORE, 0, FALSE, VIRT_BITS) \
 FIELDDEFA(88, ECX, AMD,     0,  8, CORE_COUNT,          NA,  IGNORE, 0, FALSE, AMD_CORE_COUNT) \
@@ -642,6 +642,9 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_PIII_08    8
 #define CPUID_MODEL_PIII_0A    10
 
+/* AMD model information */
+#define CPUID_MODEL_BARCELONA_02 0x02 // Barcelona (both Opteron & Phenom kind)
+
 /*
  *----------------------------------------------------------------------
  *
@@ -811,6 +814,17 @@ CPUID_FAMILY_IS_K8STAR(uint32 _eax)
     */
    return CPUID_FAMILY_IS_K8(_eax) || CPUID_FAMILY_IS_K8L(_eax) ||
           CPUID_FAMILY_IS_K8MOBILE(_eax);
+}
+
+/*
+ * AMD Barcelona (of either Opteron or Phenom kind).
+ */
+static INLINE Bool
+CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is AMD. */
+   return CPUID_FAMILY_IS_K8L(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_BARCELONA_02;
 }
 
 

@@ -475,7 +475,6 @@ __VSockVmciInConnectedTable(struct sock *sk)     // IN
 }
 
 
-#ifdef VMX86_TOOLS
 /*
  *----------------------------------------------------------------------------
  *
@@ -854,4 +853,3 @@ VSockVmciIsPending(struct sock *sk)     // IN: socket
    vsk = vsock_sk(sk);
    return !list_empty(&vsk->pendingLinks);
 }
-#endif

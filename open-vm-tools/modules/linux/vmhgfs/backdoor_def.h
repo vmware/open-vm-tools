@@ -118,7 +118,8 @@
 #define BDOOR_CMD_ACPI_HOTPLUG_MEMORY   57
 #define BDOOR_CMD_ACPI_HOTPLUG_CBRET    58
 #define BDOOR_CMD_GET_HOST_VIDEO_MODES  59
-#define BDOOR_CMD_MAX                   60
+#define BDOOR_CMD_ACPI_HOTPLUG_CPU      60
+#define BDOOR_CMD_MAX                   61
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

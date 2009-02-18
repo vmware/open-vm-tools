@@ -25,12 +25,15 @@
 #ifndef __DEBUG_H_
 #define __DEBUG_H_
 
+#ifdef _KERNEL
+
 #include <sys/vnode.h>
 #include <sys/vfs.h>
 
 #include "hgfsSolaris.h"
 #include "filesystem.h"
 
+#endif
 
 /*
  * Debugging
@@ -71,7 +74,6 @@
 #define VM_DEBUG_LEV    (VM_DEBUG_ALWAYS | VM_DEBUG_FAIL)
 #endif
 
-
 #ifdef VM_DEBUG_LEV
 #define DEBUG(type, args...)    \
              ((type & VM_DEBUG_LEV) ? (cmn_err(HGFS_DEBUG, args)) : 0)
@@ -83,18 +85,24 @@
 /*
  * Prototypes
  */
+
+#ifdef _KERNEL
+
 INLINE void HgfsDebugPrintVfssw(char *str, struct vfssw *vfsswp);
 INLINE void HgfsDebugPrintVfs(char *str, struct vfs *vfsp);
-INLINE void HgfsDebugPrintVnode(uint32 level, char *str, struct vnode *vnodep);
+INLINE void HgfsDebugPrintVnode(uint32 level, char *str,
+                                struct vnode *vnodep, Bool printFileName);
 INLINE void HgfsDebugPrintCred(char *str, struct cred *credp);
 INLINE void HgfsDebugPrintMounta(char *str, struct mounta *mntp);
 INLINE void HgfsDebugPrintVattr(const struct vattr *vap);
 void HgfsDebugPrintReqList(DblLnkLst_Links *listAnchor);
 void HgfsDebugPrintReq(const char *str, HgfsReq *req);
 void HgfsDebugPrintReqPool(const char *str);
-void Panic(const char *fmt, ...);
-void Log(const char *fmt, ...);
 
+#endif
+
+void Log(const char *fmt, ...);
+void Debug(const char *fmt, ...);
 
 
 #endif /* __DEBUG_H_ */

@@ -1318,13 +1318,13 @@ end:
  *      Returns a string which uniquely identifies the underlying filesystem
  *      for a given path.
  *
- *      'path' can be relative (including empty) or absolute, and any number of
- *      non-existing components at the end of 'path' are simply ignored.
+ *      'path' can be relative (including empty) or absolute, and any number
+ *      of non-existing components at the end of 'path' are simply ignored.
  *
  *      XXX: On Posix systems, we choose the underlying device's name as the
- *           unique ID. I make no claim that this is 100% unique so if you need
- *           this functionality to be 100% perfect, I suggest you think about
- *           it more deeply than I did. -meccleston
+ *           unique ID. I make no claim that this is 100% unique so if you
+ *           need this functionality to be 100% perfect, I suggest you think
+ *           about it more deeply than I did. -meccleston
  *
  * Results:
  *      On success: Allocated and NUL-terminated filesystem ID.
@@ -2090,8 +2090,8 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
     * We acquire the full path name for testing in 
     * FilePosixCreateTestFileSize().  This is also done in the event that
     * a user tries to create a virtual disk in the directory that they want
-    * a vmdk created in (setting filePath only to the disk name, not the entire
-    * path.
+    * a vmdk created in (setting filePath only to the disk name, not the
+    * entire path.
     */
 
    fullPath = File_FullPath(pathName);
@@ -2101,9 +2101,9 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    }
 
    /* 
-    * This function expects a filename. If given one, truncate the name to point
-    * to the parent directory so we can get accurate results from FileIsVMFS.
-    * If handed a directory directly, no truncation is necessary.
+    * This function expects a filename. If given one, truncate the name to
+    * point to the parent directory so we can get accurate results from
+    * FileIsVMFS. If handed a directory directly, no truncation is necessary.
     */
 
    if (File_IsDirectory(pathName)) {
@@ -2724,10 +2724,11 @@ File_MakeCfgFileExecutable(ConstUnicode pathName)
  *
  * File_GetSizeAlternate --
  *
- *      An alternate way to determine the filesize. Useful for finding problems
- *      with files on remote fileservers, such as described in bug 19036.
- *      However, in Linux we do not have an alternate way, yet, to determine the
- *      problem, so we call back into the regular getSize function.
+ *      An alternate way to determine the filesize. Useful for finding
+ *      problems with files on remote fileservers, such as described in bug
+ *      19036. However, in Linux we do not have an alternate way, yet, to
+ *      determine the problem, so we call back into the regular getSize
+ *      function.
  *
  * Results:
  *      Size of file or -1.

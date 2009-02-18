@@ -412,8 +412,9 @@ IdAuthCreate(void)
          if (ret == errAuthorizationSuccess) {
             return auth;
          } else {
-            Warning("%s: AuthorizationCreate failed, error %ld.\n",
-                    __FUNCTION__, ret);
+            ASSERT_ON_COMPILE(sizeof ret == sizeof (int32));
+            Warning("%s: AuthorizationCreate failed, error %d.\n",
+                    __FUNCTION__, (int32)ret);
             return NULL;
          }
       }

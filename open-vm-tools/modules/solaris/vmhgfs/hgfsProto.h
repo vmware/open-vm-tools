@@ -176,6 +176,55 @@ typedef uint8 HgfsPermissions;
 #define HGFS_PERM_WRITE 2
 #define HGFS_PERM_EXEC  1
 
+/*
+ * Access mode bits.
+ *
+ * Different operating systems have different set of file access mode.
+ * Here are constants that are rich enough to describe all access modes in an OS
+ * independent way.
+ */
+
+typedef uint32 HgfsAccessMode;
+/*
+ * Generic access rights control coarse grain access for the file.
+ * A particular generic rigth can be expanded into different set of specific rights
+ * on different OS.
+ */
+
+/*
+ * HGFS_MODE_GENERIC_READ means ability to read file data and read various file
+ * attributes and properties.
+ */
+#define HGFS_MODE_GENERIC_READ        (1 << 0)
+/*
+ * HGFS_MODE_GENERIC_WRITE means ability to write file data and updaate various file
+ * attributes and properties.
+ */
+#define HGFS_MODE_GENERIC_WRITE       (1 << 1)
+/*
+ * HGFS_MODE_GENERIC_EXECUE means ability to execute file. For network redirectors
+ * ability to execute usualy implies ability to read data; for local file systems
+ * HGFS_MODE_GENERIC_EXECUTE does not imply ability to read data.
+ */
+#define HGFS_MODE_GENERIC_EXECUTE     (1 << 2)
+
+/* Specific rights define fine grain access modes. */
+#define HGFS_MODE_READ_DATA           (1 << 3)  // Ability to read file data
+#define HGFS_MODE_WRITE_DATA          (1 << 4)  // Ability to writge file data
+#define HGFS_MODE_APPEND_DATA         (1 << 5)  // Appending data to the end of file
+#define HGFS_MODE_DELETE              (1 << 6)  // Ability to delete the file
+#define HGFS_MODE_TRAVERSE_DIRECTORY  (1 << 7)  // Ability to access files in a directory 
+#define HGFS_MODE_LIST_DIRECTORY      (1 << 8)  // Ability to list file names
+#define HGFS_MODE_ADD_SUBDIRECTORY    (1 << 9)  // Ability to create a new subdirectory
+#define HGFS_MODE_ADD_FILE            (1 << 10) // Ability to create a new file
+#define HGFS_MODE_DELETE_CHILD        (1 << 11) // Ability to delete file/subdirectory
+#define HGFS_MODE_READ_ATTRIBUTES     (1 << 12) // Ability to read attributes
+#define HGFS_MODE_WRITE_ATTRIBUTES    (1 << 13) // Ability to write attributes
+#define HGFS_MODE_READ_EXTATTRIBUTES  (1 << 14) // Ability to read extended attributes
+#define HGFS_MODE_WRITE_EXTATTRIBUTES (1 << 15) // Ability to write extended attributes
+#define HGFS_MODE_READ_SECURITY       (1 << 16) // Ability to read permissions/ACLs/owner
+#define HGFS_MODE_WRITE_SECURITY      (1 << 17) // Ability to change permissions/ACLs
+#define HGFS_MODE_TAKE_OWNERSHIP      (1 << 18) // Ability to change file owner/group
 
 /*
  * Server-side locking (oplocks and leases).
@@ -354,6 +403,15 @@ typedef uint64 HgfsAttrValid;
  *       only to determine if the ID is valid.
  */
 #define HGFS_ATTR_VALID_NON_STATIC_FILEID (1 << 16)
+/*
+ * File permissions that are in effect for the user which runs HGFS server.
+ * Client needs to know effective permissions in order to implement access(2).
+ * Client can't derive it from group/owner/other permissions because of two resaons:
+ * 1. It does not know user/group id of the user which runs HGFS server
+ * 2. Effective permissions account for additional restrictions that may be imposed
+ *    by host file system, for example by ACL.
+ */
+#define HGFS_ATTR_VALID_EFFECTIVE_PERMS   (1 << 17)
 
 
 /*
@@ -398,7 +456,7 @@ struct HgfsAttrV2 {
    uint32 groupId;               /* group identifier, ignored by Windows */
    uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
    uint32 volumeId;              /* volume identifier, non-zero is valid. */
-   uint32 reserved1;             /* Reserved for future use */
+   uint32 effectivePerms;        /* Permissions in effect for the user on the host. */
    uint64 reserved2;             /* Reserved for future use */
 }
 #include "vmware_pack_end.h"

@@ -60,7 +60,7 @@
 #define HGFS_FSTYPE          HGFS_FS_NAME
 
 /*
- * Struct passed from user (guestd) to kernel (fs module)
+ * Struct passed from mount program to kernel (fs module)
  */
 typedef struct HgfsMountData {
    uint32_t magic;
@@ -104,6 +104,7 @@ typedef struct HgfsMountData {
 /* To abstract Solaris 9 and 10 differences in suser() calls */
 int HgfsSuser(struct cred *cr);
 
+void HgfsFreeVfsOps(void);
 
 /*
  * Extern variables

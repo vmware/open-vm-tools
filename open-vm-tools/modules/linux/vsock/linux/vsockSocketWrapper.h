@@ -98,6 +98,7 @@
 #  define EHOSTUNREACH        WSAEHOSTUNREACH
 #  define __ELOCALSHUTDOWN    ESHUTDOWN
 #  define __EPEERSHUTDOWN     ECONNABORTED
+#  define __ECONNINPROGRESS   EWOULDBLOCK
 #else
 #if defined(VMKERNEL)
 #  define EINTR               VMK_WAIT_INTERRUPTED
@@ -140,6 +141,7 @@
 #  define EPIPE               VMK_BROKEN_PIPE
 #  define __ELOCALSHUTDOWN    EPIPE
 #  define __EPEERSHUTDOWN     EPIPE
+#  define __ECONNINPROGRESS   EINPROGRESS
 #endif // VMKERNEL
 #endif // _WIN32
 

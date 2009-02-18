@@ -158,48 +158,6 @@ GuestInfo_GetDiskInfo(PGuestDiskInfo di)     // IN/OUT
 }
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestInfoGetOSName --
- *
- *      Return OS version information.
- *
- *      osFullName format:
- *        Linux/POSIX:
- *          <OS NAME> <OS RELEASE> <SPECIFIC_DISTRO_INFO>
- *        An example of such string would be:
- *          Linux 2.4.18-3 Red Hat Linux release 7.3 (Valhalla)
- *
- *        Win32:
- *          <OS NAME> <SERVICE PACK> (BUILD <BUILD_NUMBER>)
- *        An example of such string would be:
- *          Windows XP Professional Service Pack 2 (Build 2600)
- *
- *      osName contains an os name in the same format that is used
- *      in .vmx file.
- *
- * Results:
- *      Returns TRUE on success and FALSE on failure.
- *      Returns the guest's full OS name (osNameFull)
- *      Returns the guest's OS name in the same format as .vmx file (osName)
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-GuestInfo_GetOSName(unsigned int outBufFullLen, // IN
-                    unsigned int outBufLen,     // IN
-                    char *osNameFull,           // OUT
-                    char *osName)               // OUT
-{
-   return GuestInfoGetOSName(outBufFullLen, outBufLen, osNameFull, osName);
-}
-
-
 /**
  * Add a NIC into the given list. The macAddress of the new GuestNic is
  * initialized with the given address.

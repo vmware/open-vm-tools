@@ -30,9 +30,6 @@
 #define VMXNET_MIN_MTU                  (ETH_MIN_FRAME_LEN - 14)
 #define VMXNET_MAX_MTU                  (16 * 1024 - 18)
 
-/* Largest address able to be shared between the driver and the device */
-#define SHARED_MEM_MAX 0xFFFFFFFF
-
 typedef enum Vmxnet_TxStatus {
    VMXNET_CALL_TRANSMIT,
    VMXNET_DEFER_TRANSMIT,
@@ -71,6 +68,8 @@ struct Vmxnet2_TxBuf {
  */
 typedef struct Vmxnet_Private {
    Vmxnet2_DriverData	       *dd;
+   dma_addr_t                   ddPA;
+   size_t                       ddSize;
    const char 		       *name;
    struct net_device_stats	stats;
    struct sk_buff	       *rxSkbuff[ENHANCED_VMXNET2_MAX_NUM_RX_BUFFERS];
@@ -100,9 +99,9 @@ typedef struct Vmxnet_Private {
    Bool                         lpd;
    
    Bool                         morphed;           // Indicates whether adapter is morphed
-   void                        *ddAllocated;
-   char                        *txBufferStartRaw;
+   size_t                       txBufferSize;
    char                        *txBufferStart;
+   dma_addr_t                   txBufferPA;
    struct pci_dev              *pdev;
    struct timer_list            linkCheckTimer;
 } Vmxnet_Private;

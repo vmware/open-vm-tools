@@ -119,7 +119,6 @@ extern Display *gXDisplay;
 extern Window gXRoot;
 extern DblLnkLst_Links *gEventQueue;
 extern GtkWidget *gUserMainWidget;
-extern Bool optionCopyPaste;
 extern int gBlockFd;
 
 #endif // _VMWAREUSER_INT_H_

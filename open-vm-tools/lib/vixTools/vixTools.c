@@ -811,7 +811,8 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
 #else
    osFamily = GUEST_OS_FAMILY_LINUX;
 #endif
-   if (!(GuestInfo_GetOSName(sizeof osNameFull, sizeof osName, osNameFull, osName))) {
+   if (!(Hostinfo_GetOSName(sizeof osNameFull, sizeof osName, osNameFull,
+                            osName))) {
       osNameFull[0] = 0;
       osName[0] = 0;
    }

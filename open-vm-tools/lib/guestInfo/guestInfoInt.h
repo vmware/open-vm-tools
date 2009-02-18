@@ -35,8 +35,6 @@ Bool GuestInfoGetFqdn(int outBufLen, char fqdn[]);
 Bool GuestInfoGetNicInfo(GuestNicList *nicInfo);
 void GuestInfoMemset(void * mem, int value, unsigned int size);
 Bool GuestInfoGetDiskInfo(PGuestDiskInfo di);
-Bool GuestInfoGetOSName(unsigned int outBufFullLen, unsigned int outBufLen,
-                        char *osNameFull, char *osName);
 Bool GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
 
 GuestNic *GuestInfoAddNicEntry(GuestNicList *nicInfo,

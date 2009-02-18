@@ -452,6 +452,15 @@ UPWindowSetWindows(UnityPlatform *up,        // IN
       XSelectInput(up->display, upw->clientWindow, 0);
       HashTable_Delete(up->allWindows, GUINT_TO_POINTER(upw->clientWindow));
    }
+#if defined(VM_HAVE_X11_SHAPE_EXT)
+   if (up->shapeEventBase) {
+      XShapeSelectInput(up->display, upw->toplevelWindow, 0);
+
+      if (upw->clientWindow) {
+         XShapeSelectInput(up->display, upw->clientWindow, 0);
+      }
+   }
+#endif
 
    /*
     * Okay, now we may have two UnityPlatformWindows running around, one each for
@@ -490,6 +499,10 @@ UPWindowSetWindows(UnityPlatform *up,        // IN
 #if defined(VM_HAVE_X11_SHAPE_EXT)
    if (up->shapeEventBase) {
       XShapeSelectInput(up->display, toplevelWindow, ShapeNotifyMask);
+
+      if (upw->clientWindow) {
+         XShapeSelectInput(up->display, upw->clientWindow, ShapeNotifyMask);
+      }
    }
 #endif
 
@@ -1711,7 +1724,6 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
    int numQueryArgs;
    int i;
    int err;
-   char *ctmp = NULL;
    char **argv;
    char *windowQueryString = NULL;
    char *execQueryString = NULL;
@@ -1736,6 +1748,7 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
    }
 
    if (argv[0][0] != '/') {
+      char *ctmp = NULL;
       if ((ctmp = AppUtil_CanonicalizeAppName(argv[0], cwd))) {
          char **newArgv;
          newArgv = alloca(argc * sizeof argv[0]);
@@ -2531,6 +2544,31 @@ UPWindowUpdateShape(UnityPlatform *up,        // IN
    }
    XFree(rects); rects = NULL;
    rectCount = 0;
+
+   /*
+    * The X Shape Extension operates on unshaped windows by using default bounding
+    * and clipping regions.  I.e., XShapeGetRectangles will return a single rectangle
+    * for an unshaped window.  Without the following test, we'd end up informing the
+    * Unity client that this window can be described by a single rectangle region,
+    * and it'd expect further region updates when the window's geometry changes.
+    *
+    * This wouldn't be a problem, except we don't receive XShapeEvents on these
+    * windows when they're resized.  To work around this, we make sure that the UWT
+    * knows that unshaped windows are exactly that.
+    */
+   {
+      int bShaped;
+      int cShaped;
+      int dummy;
+
+      XShapeQueryExtents(up->display, upw->toplevelWindow,
+                         &bShaped, &dummy, &dummy, &dummy, &dummy,
+                         &cShaped, &dummy, &dummy, &dummy, &dummy);
+      if (!bShaped && !cShaped) {
+         UnityWindowTracker_ChangeWindowRegion(up->tracker, upw->toplevelWindow, 0);
+         return;
+      }
+   }
 
    UnityPlatformResetErrorCount(up);
 

@@ -24,12 +24,10 @@ libStubs_la_SOURCES += stub-warning.c
 libStubs_la_SOURCES += stub-user-msg.c
 libStubs_la_SOURCES += stub-user-panic.c
 
-if ENABLE_CORE_SERVICES
 noinst_LTLIBRARIES += libStubsCS.la
 
 libStubsCS_la_SOURCES =
 libStubsCS_la_SOURCES += stub-config.c
 libStubsCS_la_SOURCES += stub-user-msg.c
 libStubsCS_la_SOURCES += stub-user-panic.c
-endif
 

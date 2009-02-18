@@ -315,9 +315,11 @@ Bool
 Util_IsAbsolutePath(const char *path)  // IN: path to check
 {
 #if defined(__linux__) || defined(__APPLE__)
+   // path[0] is valid even for the empty string.
    return path && path[0] == DIRSEPC;
 #elif defined(_WIN32)
-   if (!path) {
+   // if the length is 2, path[2] will be valid because of the null terminator.
+   if (!path || strlen(path) < 2) {
       return FALSE;
    }
 

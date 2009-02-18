@@ -29,8 +29,6 @@
 
 typedef void (LogBasicFunc)(const char *fmt, va_list args);
 
-struct LogState;
-
 typedef struct
 {
    const char *fileName;             // File name, if known

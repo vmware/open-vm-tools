@@ -61,13 +61,17 @@
 #   endif
 #   include <stdarg.h>
 #   include <string.h>
+# elif defined(sun)
+#   include "vm_basic_types.h"
+#   include <sys/types.h>
+#   include <sys/varargs.h>
 #endif
 
 /*
  * Function Prototypes
  */
 
-#if defined(linux) || defined(__APPLE__)     /* if (linux) || (__APPLE__) { */
+#if defined(linux) || defined(__APPLE__) || defined (sun)
 
 #  ifdef linux                               /* if (linux) { */
 char *strdup(const char *source);

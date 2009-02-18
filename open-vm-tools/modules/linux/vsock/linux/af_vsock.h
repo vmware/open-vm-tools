@@ -30,6 +30,12 @@
 #include "vsockPacket.h"
 #include "compat_workqueue.h"
 
+#if defined(VMX86_TOOLS)
+#   include "vmciGuestKernelAPI.h"
+#else
+#   include "vmciHostKernelAPI.h"
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 5)
 # define vsock_sk(__sk)    ((VSockVmciSock *)(__sk)->user_data)
 # define sk_vsock(__vsk)   ((__vsk)->sk)
@@ -51,7 +57,6 @@ typedef struct VSockVmciSock {
    struct list_head boundTable;
    struct list_head connectedTable;
    VMCIHandle dgHandle;           /* For SOCK_DGRAM only. */
-#ifdef VMX86_TOOLS
    /* Rest are SOCK_STREAM only. */
    VMCIHandle qpHandle;
    VMCIQueue *produceQ;
@@ -90,7 +95,6 @@ typedef struct VSockVmciSock {
    Bool rejected;
    compat_delayed_work dwork;
    uint32 peerShutdown;
-#endif
 } VSockVmciSock;
 
 #endif /* __AF_VSOCK_H__ */

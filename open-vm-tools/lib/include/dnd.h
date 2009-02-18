@@ -77,6 +77,12 @@
 
 #define FCP_COPY_DELAY                       1000000  // 1 second
 #define TARGET_NAME_TIMESTAMP                "TIMESTAMP"
+#define TARGET_NAME_STRING                   "STRING"
+#define TARGET_NAME_TEXT_PLAIN               "text/plain"
+#define TARGET_NAME_UTF8_STRING              "UTF8_STRING"
+#define TARGET_NAME_COMPOUND_TEXT            "COMPOUND_TEXT"
+#define TARGET_NAME_APPLICATION_RTF          "application/rtf"
+#define TARGET_NAME_TEXT_RICHTEXT            "text/richtext"
 
 #define DRAG_TARGET_NAME_URI_LIST  "text/uri-list"
 #define DRAG_LEAVE_TIMEOUT         500

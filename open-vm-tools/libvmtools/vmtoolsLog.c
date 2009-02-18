@@ -213,13 +213,16 @@ VMToolsLogFormat(const gchar *message,
        * we detect whether the original message already had a new line, and
        * remove it, to avoid having two newlines when printing our log messages.
        */
-      if (msgCurr[len - 2] == '\n') {
+      if (msgCurr != NULL && msgCurr[len - 2] == '\n') {
          msgCurr[len - 1] = '\0';
       }
    }
 
-   free(msg);
-   return msgCurr;
+   if (msgCurr != NULL) {
+      free(msg);
+      return msgCurr;
+   }
+   return msg;
 }
 
 

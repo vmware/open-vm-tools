@@ -152,40 +152,63 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
        */
       if (iconName[0] != '/') {
          char *ctmp2;
-         char *ctmpext;
          int i;
 
+         static const char *iconExtensions[] = {
+            "",         // MUST be first entry.
+            ".png",
+            ".xpm",
+            ".gif",
+            ".svg",
+         };
+
          myIconName = NULL;
-         ctmpext = strrchr(iconName, '.');
+
          ctmp2 = g_alloca(PATH_MAX);
          for (i = 0; !myIconName && i < ARRAYSIZE(extraIconPaths); i++) {
+            int j;
+
             if (!extraIconPaths[i]) {
                continue;
             }
 
-            if (ctmpext) {
-               g_snprintf(ctmp2, PATH_MAX, "%s/%s", extraIconPaths[i], iconName);
-               if (g_file_test(ctmp2, G_FILE_TEST_EXISTS)) {
-                  myIconName = ctmp2;
-                  foundItInFile = TRUE;
+            /*
+             * Per Desktop Entry Specification and Icon Theme Specification, I don't
+             * believe that the iconName, unless it's an absolute path, should include
+             * the file extension.
+             *
+             * However, empirical evidence shows that -many- applications ignore that
+             * and may specify an icon of, for example, "foo.png".  We'll also handle
+             * those special cases here.
+             */
+            for (j = 0; !myIconName && j < ARRAYSIZE(iconExtensions); j++) {
+               g_snprintf(ctmp2, PATH_MAX, "%s/%s%s", extraIconPaths[i], iconName,
+                          iconExtensions[j]);
+               if (!g_file_test(ctmp2, G_FILE_TEST_EXISTS)) {
+                  continue;
                }
-            } else {
-               static const char *iconExtensions[] = {
-                  ".png",
-                  ".xpm",
-                  ".gif",
-                  ".svg",
-               };
-               int j;
 
-               for (j = 0; j < ARRAYSIZE(iconExtensions); j++) {
-                  g_snprintf(ctmp2, PATH_MAX, "%s/%s%s",
-                             extraIconPaths[i],
-                             iconName, iconExtensions[j]);
-                  if (g_file_test(ctmp2, G_FILE_TEST_EXISTS)) {
-                     myIconName = ctmp2;
-                     foundItInFile = TRUE;
-                     break;
+               if (j != 0) {
+                  /*
+                   * Case 1:  We located an icon by appending an image extension to
+                   * IconName.  Success!
+                   */
+                  myIconName = ctmp2;           // Will break "i" loop.
+                  foundItInFile = TRUE;
+                  break;
+               } else {
+                  /*
+                   * Case 2:  We found an icon without appending an extension.  Verify
+                   * that the filename contains a valid image extension.
+                   */
+                  int k;
+                  char *ctmpext = strrchr(ctmp2, '.');
+                  for (k = 1; ctmpext && k < ARRAYSIZE(iconExtensions); k++) {
+                     if (strcmp(ctmpext, iconExtensions[k]) == 0) {
+                        myIconName = ctmp2;     // Will break "i" loop.
+                        foundItInFile = TRUE;
+                        break;
+                     }
                   }
                }
             }

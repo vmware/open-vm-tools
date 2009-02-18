@@ -451,7 +451,6 @@ VixMsg_AllocResponseMsg(const VixCommandRequestHeader *requestHeader, // IN
    VixCommandResponseHeader *responseHeader;
    size_t totalMessageSize;
 
-   ASSERT(responseBodyLength >= 0);
    ASSERT((NULL != responseBody) || (0 == responseBodyLength));
 
    /*
@@ -518,9 +517,9 @@ VixMsg_InitResponseMsg(VixCommandResponseHeader *responseHeader,     // IN
    size_t responseBodyLength;
 
    ASSERT(NULL != responseHeader);
+   ASSERT(totalMessageSize >= sizeof(VixCommandResponseHeader));
 
    responseBodyLength = totalMessageSize - sizeof(VixCommandResponseHeader);
-   ASSERT(responseBodyLength >= 0);
 
    /*
     * Fill in the response header.

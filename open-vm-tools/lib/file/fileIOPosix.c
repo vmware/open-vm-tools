@@ -49,7 +49,7 @@
 #include "su.h"
 
 #if defined(__APPLE__)
-#include <sys/socket.h>
+#include "sysSocket.h" // Don't move this: it fixes a system header.
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -1196,8 +1196,8 @@ FileIO_Truncate(FileIODescriptor *file, // IN
  *      Close a file
  *
  * Results:
- *      On success: 0
- *      On failure: non-zero
+ *      TRUE: an error occured
+ *      FALSE: no error occured
  *
  * Side effects:
  *      None
@@ -1205,14 +1205,14 @@ FileIO_Truncate(FileIODescriptor *file, // IN
  *----------------------------------------------------------------------
  */
 
-int
+Bool
 FileIO_Close(FileIODescriptor *file) // IN
 {
-   int retval;
+   int err;
 
    ASSERT(file);
 
-   retval = close(file->posix);
+   err = (close(file->posix) == -1) ? errno : 0;
 
    FileIO_StatsExit(file);
 
@@ -1221,7 +1221,11 @@ FileIO_Close(FileIODescriptor *file) // IN
    FileIO_Cleanup(file);
    FileIO_Invalidate(file);
 
-   return retval;
+   if (err) {
+      errno = err;
+   }
+
+   return err != 0;
 }
 
 

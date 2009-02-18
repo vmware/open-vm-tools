@@ -196,9 +196,28 @@ static INLINE void
 AtomicEpilogue(void)
 {
 #ifdef ATOMIC_USE_FENCE
+#ifdef VMM
+      /* The monitor conditionally patches out the lfence when not needed.*/
+      /* Construct a MonitorPatchTextEntry in the .patchtext section. */
+   asm volatile ("1:\n\t"
+                 "lfence\n\t"
+                 "2:\n\t"
+                 ".pushsection .patchtext\n\t"
+#ifdef VMM32
+                 ".long 1b\n\t"
+                 ".long 0\n\t"
+                 ".long 2b\n\t"
+                 ".long 0\n\t"
+#else 
+                 ".quad 1b\n\t"
+                 ".quad 2b\n\t"
+#endif
+                 ".popsection\n\t" ::: "memory");
+#else
    if (UNLIKELY(AtomicUseFence)) {
       asm volatile ("lfence" ::: "memory");
    }
+#endif
 #endif
 }
 

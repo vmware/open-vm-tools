@@ -20,8 +20,10 @@
 /*
  * os.h --
  *
- *   Implementation OS X / FreeBSD independent memory allocation and
+ *   Wrappers for OS specific functions that are different between OS X and FreeBsd.
+ *   1. Implementation OS X / FreeBSD independent memory allocation and
  *   thread synchronization routines.
+ *   2. Interaction with memory manager/pager.
  */
 
 #ifndef _OS_H_
@@ -126,5 +128,8 @@ extern int os_path_to_utf8_precomposed(const char *bufIn, uint32 bufInSize, char
                                        uint32 bufOutSize);
 extern Bool os_utf8_conversion_needed(void);
 
+// Memory manager/pager functions
+void os_SetSize(struct vnode *vp, off_t newSize);
+int os_FlushRange(struct vnode *vp, off_t start, uint32_t length);
 
 #endif // ifndef _OS_H_

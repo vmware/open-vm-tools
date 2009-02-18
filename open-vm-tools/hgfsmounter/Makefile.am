@@ -30,7 +30,7 @@ mount_vmhgfs_SOURCES += stub-user-util.c
 
 if FREEBSD
 install-exec-hook:
-	$(MV) $(DESTDIR)$(sbindir)/mount.vmhgfs \
+	mv $(DESTDIR)$(sbindir)/mount.vmhgfs \
 		$(DESTDIR)$(sbindir)/mount_vmhgfs
 if WITH_ROOT_PRIVILEGES
 	chmod u+s $(DESTDIR)$(sbindir)/mount_vmhgfs
@@ -39,7 +39,7 @@ endif WITH_ROOT_PRIVILEGES
 	-$(LN_S) $(DESTDIR)$(sbindir)/mount_vmhgfs \
 		$(DESTDIR)/sbin/mount_vmhgfs &> /dev/null
 uninstall-hook:
-	-$(RM) -f $(DESTDIR)$(sbindir)/mount_vmhgfs &> /dev/null
+	rm -f $(DESTDIR)$(sbindir)/mount_vmhgfs
 else
 install-exec-hook:
 if WITH_ROOT_PRIVILEGES
@@ -49,5 +49,5 @@ endif WITH_ROOT_PRIVILEGES
 	-$(LN_S) $(DESTDIR)$(sbindir)/mount.vmhgfs \
 		$(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
 uninstall-hook:
-	-$(RM) -f $(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
+	rm -f $(DESTDIR)/sbin/mount.vmhgfs
 endif !FREEBSD

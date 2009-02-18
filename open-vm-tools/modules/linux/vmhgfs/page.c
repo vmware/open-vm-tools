@@ -31,6 +31,7 @@
 #include "compat_page-flags.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
+#include "compat_pagemap.h"
 #ifdef HGFS_ENABLE_WRITEBACK
 #include <linux/writeback.h>
 #endif
@@ -758,10 +759,16 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
                  unsigned pageFrom,         // IN: Starting page offset
                  unsigned pageTo)           // IN: Ending page offset
 {
+#ifndef HGFS_ENABLE_WRITEBACK
    ASSERT(page);
-#ifdef HGFS_ENABLE_WRITEBACK
-   loff_t offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
-   loff_t currentFileSize = compat_i_size_read(page->mapping->host);
+#else
+   loff_t offset;
+   loff_t currentFileSize;
+
+   ASSERT(page);
+
+   offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+   currentFileSize = compat_i_size_read(page->mapping->host);
 
    /*
     * If we are doing a partial write into a new page (beyond end of
@@ -864,7 +871,7 @@ HgfsWriteBegin(struct file *file,             // IN: File to be written
    unsigned pageTo = pos + len;
    struct page *page;
 
-   page = __grab_cache_page(mapping, index);
+   page = compat_grab_cache_page_write_begin(mapping, index, flags);
    if (page == NULL) {
       return -ENOMEM;
    }

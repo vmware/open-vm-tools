@@ -41,6 +41,7 @@
 #include "util.h"
 #include "rpcout.h"
 #include "rpcvmx.h"
+#include "hostinfo.h"
 #include "guestInfo.h"
 #include "guestApp.h"
 #include "guestInfoServer.h"
@@ -253,7 +254,8 @@ GuestInfoGather(void *clientData)   // IN: unused
    }
 
    /* Gather all the relevant guest information. */
-   if (!GuestInfoGetOSName(sizeof osNameFull, sizeof osName, osNameFull, osName)) {
+   if (!Hostinfo_GetOSName(sizeof osNameFull, sizeof osName, osNameFull,
+                           osName)) {
       Debug("Failed to get OS info.\n");
    } else {
       if (!GuestInfoUpdateVmdb(INFO_OS_NAME_FULL, osNameFull)) {

@@ -60,10 +60,14 @@ if HAVE_X11
    vmware_toolbox_SOURCES += toolbox-gtk.c
    vmware_toolbox_SOURCES += toolboxAbout.c
    vmware_toolbox_SOURCES += toolboxDevices.c
+   vmware_toolbox_SOURCES += toolboxInt.c
    vmware_toolbox_SOURCES += toolboxOptions.c
    vmware_toolbox_SOURCES += toolboxScripts.c
    vmware_toolbox_SOURCES += toolboxShrink.c
-   vmware_toolbox_SOURCES += toolboxRecord.c
+   vmware_toolbox_SOURCES += $(top_srcdir)/libvmtools/vmtoolsConfig.c
+
+   vmware_toolbox_CPPFLAGS =
+   vmware_toolbox_CPPFLAGS += -DG_LOG_DOMAIN=\"toolbox\"
 
 # Here's something wacky: automake will muck up the translation of this
 # conditional if it is indented. For more details, see:
@@ -87,29 +91,27 @@ endif
 	$(INSTALL) -m 644 bigIcon.xpm \
 		$(DESTDIR)/usr/share/pixmaps/vmware/vmware-toolbox.xpm
    uninstall-hook:
-	-$(RM) -f $(DESTDIR)$(datadir)/share/applications/vmware-toolbox.desktop
-	-$(RM) -rf $(DESTDIR)/usr/share/pixmaps/vmware
+	rm -f $(DESTDIR)$(datadir)/share/applications/vmware-toolbox.desktop
+	rm -rf $(DESTDIR)/usr/share/pixmaps/vmware
 endif
 
-if ENABLE_CORE_SERVICES
-   bin_PROGRAMS += vmware-toolbox-cmd
+bin_PROGRAMS += vmware-toolbox-cmd
 
-   vmware_toolbox_cmd_LDADD =
-   vmware_toolbox_cmd_LDADD += ../libguestlib/libguestlib.la
-   vmware_toolbox_cmd_LDADD += @VMTOOLS_LIBS@
+vmware_toolbox_cmd_LDADD =
+vmware_toolbox_cmd_LDADD += ../libguestlib/libguestlib.la
+vmware_toolbox_cmd_LDADD += @VMTOOLS_LIBS@
 
-   vmware_toolbox_cmd_CPPFLAGS =
-   vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+vmware_toolbox_cmd_CPPFLAGS =
+vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
 
-   vmware_toolbox_cmd_SOURCES =
-   vmware_toolbox_cmd_SOURCES += debugStdio.c
-   vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
-   vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
-   vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
-   vmware_toolbox_cmd_SOURCES += toolboxcmd-shrink.c
-   vmware_toolbox_cmd_SOURCES += toolboxcmd-stat.c
-   vmware_toolbox_cmd_SOURCES += toolboxcmd-time.c
-   vmware_toolbox_cmd_SOURCES += toolboxcmd-record.c
+vmware_toolbox_cmd_SOURCES =
+vmware_toolbox_cmd_SOURCES += debugStdio.c
+vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-shrink.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-stat.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-time.c
 
 if HAVE_ICU
    vmware_toolbox_cmd_LDADD += @ICU_LIBS@
@@ -119,7 +121,5 @@ if HAVE_ICU
                              $(LDFLAGS) -o $@
 else
    vmware_toolbox_cmd_LINK = $(LINK)
-endif
-
 endif
 

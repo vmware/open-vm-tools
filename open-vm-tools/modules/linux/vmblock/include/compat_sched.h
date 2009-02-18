@@ -272,6 +272,20 @@ static inline int compat_try_to_freeze(void) { return 0; }
 #endif
 
 /*
+ * Around 2.6.27 kernel stopped sending signals to kernel
+ * threads being frozen, instead threads have to check
+ * freezing() or use wait_event_freezable(). Unfortunately
+ * wait_event_freezable() completely hides the fact that
+ * thread was frozen from calling code and sometimes we do
+ * want to know that.
+ */
+#ifdef PF_FREEZER_NOSIG
+#define compat_wait_check_freezing() freezing(current)
+#else
+#define compat_wait_check_freezing() (0)
+#endif
+
+/*
  * Since 2.6.27-rc2 kill_proc() is gone... Replacement (GPL-only!)
  * API is available since 2.6.19.  Use them from 2.6.27-rc1 up.
  */

@@ -29,6 +29,7 @@
 #include "compat_slab.h"
 #include "compat_spinlock.h"
 #include "compat_pci.h"
+#include "compat_pci_mapping.h"
 #include "compat_init.h"
 #include "compat_timer.h"
 #include <asm/dma.h>
@@ -97,9 +98,23 @@ static int debug = -1;
 #undef VMXNET_DO_ZERO_COPY
 #endif
 
-#if defined(MAX_SKB_FRAGS) && ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,18) ) && ( LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 0) )
+#if defined(MAX_SKB_FRAGS) && \
+    ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,18) ) && \
+    ( LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 0) )
 #define VMXNET_DO_ZERO_COPY
 #endif
+
+#define VMXNET_GET_LO_ADDR(dma)   ((uint32)(dma))
+#define VMXNET_GET_HI_ADDR(dma)   ((uint16)(((uint64)(dma)) >> 32))
+#define VMXNET_GET_DMA_ADDR(sge)  ((dma_addr_t)((((uint64)(sge).addrHi) << 32) | \
+                                                (sge).addrLow))
+
+#define VMXNET_FILL_SG(sg, dma, size)\
+do{\
+   (sg).addrLow = VMXNET_GET_LO_ADDR(dma);\
+   (sg).addrHi  = VMXNET_GET_HI_ADDR(dma);\
+   (sg).length  = size;\
+} while (0)
 
 #ifdef VMXNET_DO_ZERO_COPY
 #include <net/checksum.h>
@@ -128,17 +143,6 @@ static int debug = -1;
 
 #define PKT_OF_IPV4(skb) PKT_OF_PROTO(skb, ETH_TYPE_IP)
 
-#define VMXNET_GET_LO_ADDR(dma)   ((uint32)(dma))
-#define VMXNET_GET_HI_ADDR(dma)   ((uint16)(((uint64)(dma)) >> 32))
-#define VMXNET_GET_DMA_ADDR(sge)  ((dma_addr_t)((((uint64)(sge).addrHi) << 32) | (sge).addrLow))
-
-#define VMXNET_FILL_SG(sg, dma, size)\
-do{\
-   (sg).addrLow = VMXNET_GET_LO_ADDR(dma);\
-   (sg).addrHi  = VMXNET_GET_HI_ADDR(dma);\
-   (sg).length  = size;\
-} while (0)
-
 #if defined(NETIF_F_TSO)
 #define VMXNET_DO_TSO
 
@@ -150,6 +154,15 @@ do{\
 #endif
 
 #endif // VMXNET_DO_ZERO_COPY
+
+#ifdef VMXNET_DO_TSO
+static int disable_lro = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
+   module_param(disable_lro, int, 0);
+#else
+   MODULE_PARM(disable_lro, "i");
+#endif
+#endif
 
 #ifdef VMXNET_DEBUG
 #define VMXNET_LOG(msg...) printk(KERN_ERR msg)
@@ -710,7 +723,6 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    Bool morphed = FALSE;
    Bool enhanced = FALSE;
    int i;
-   unsigned int driverDataSize;
 
    i = compat_pci_enable_device(pdev);
    if (i) {
@@ -904,7 +916,8 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    }
 
    if ((lp->capabilities & VMNET_CAP_LPD) &&
-       (lp->features & VMXNET_FEATURE_LPD)) {
+       (lp->features & VMXNET_FEATURE_LPD) &&
+       !disable_lro) {
       lp->lpd = TRUE;
       printk(" lpd");
    }
@@ -958,37 +971,28 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
       numTxBuffers = defNumTxBuffers;
    }
 
-   driverDataSize =
-            sizeof(Vmxnet2_DriverData) +
-            (numRxBuffers + numRxBuffers2) * sizeof(Vmxnet2_RxRingEntry) +
-            numTxBuffers * sizeof(Vmxnet2_TxRingEntry);
-   VMXNET_LOG("vmxnet: numRxBuffers=((%d+%d)*%d) numTxBuffers=(%d*%d) driverDataSize=%d\n",
+   lp->ddSize = sizeof(Vmxnet2_DriverData) +
+                   (numRxBuffers + numRxBuffers2) * sizeof(Vmxnet2_RxRingEntry) +
+                   numTxBuffers * sizeof(Vmxnet2_TxRingEntry);
+   VMXNET_LOG("vmxnet: numRxBuffers=((%d+%d)*%d) numTxBuffers=(%d*%d) ddSize=%d\n",
               numRxBuffers, numRxBuffers2, (uint32)sizeof(Vmxnet2_RxRingEntry),
               numTxBuffers, (uint32)sizeof(Vmxnet2_TxRingEntry),
-              driverDataSize);
-   lp->ddAllocated = kmalloc(driverDataSize + 15, GFP_DMA | GFP_KERNEL);
-
-   if (!lp->ddAllocated) {
+              (int)lp->ddSize);
+   lp->dd = kmalloc(lp->ddSize, GFP_KERNEL | GFP_DMA);
+   if (!lp->dd) {
       printk(KERN_ERR "Unable to allocate memory for driver data\n");
       goto free_dev;
    }
-   if ((uintptr_t)virt_to_bus(lp->ddAllocated) > SHARED_MEM_MAX) {
-      printk(KERN_ERR
-             "Unable to initialize driver data, address outside of shared area (0x%p)\n",
-             (void*)virt_to_bus(lp->ddAllocated));
-      goto free_dev_dd;
-   }
-
-   /* Align on paragraph boundary */
-   lp->dd = (Vmxnet2_DriverData*)(((unsigned long)lp->ddAllocated + 15) & ~15UL);
-   memset(lp->dd, 0, driverDataSize);
+   lp->ddPA = compat_pci_map_single(lp->pdev, lp->dd, lp->ddSize,
+                                    PCI_DMA_BIDIRECTIONAL);
+   memset(lp->dd, 0, lp->ddSize);
    spin_lock_init(&lp->txLock);
    lp->numRxBuffers = numRxBuffers;
    lp->numRxBuffers2 = numRxBuffers2;
    lp->numTxBuffers = numTxBuffers;
    /* So that the vmkernel can check it is compatible */
    lp->dd->magic = VMXNET2_MAGIC;
-   lp->dd->length = driverDataSize;
+   lp->dd->length = lp->ddSize;
    lp->name = VMXNET_CHIP_NAME;
 
    /*
@@ -1020,16 +1024,13 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    lp->dd->txBufferPhysLength = 0;
 
    if (lp->partialHeaderCopyEnabled) {
-      unsigned int txBufferSize;
-
-      txBufferSize = numTxBuffers * TX_PKT_HEADER_SIZE;
-      lp->txBufferStartRaw = kmalloc(txBufferSize + PAGE_SIZE,
-                                     GFP_DMA | GFP_KERNEL);
-      if (lp->txBufferStartRaw) {
-         lp->txBufferStart = (char*)((unsigned long)(lp->txBufferStartRaw + PAGE_SIZE - 1) &
-                                     (unsigned long)~(PAGE_SIZE - 1));
-         lp->dd->txBufferPhysStart = virt_to_phys(lp->txBufferStart);
-         lp->dd->txBufferPhysLength = txBufferSize;
+      lp->txBufferSize = numTxBuffers * TX_PKT_HEADER_SIZE;
+      lp->txBufferStart = kmalloc(lp->txBufferSize, GFP_KERNEL | GFP_DMA);
+      if (lp->txBufferStart) {
+         lp->txBufferPA = compat_pci_map_single(lp->pdev, lp->txBufferStart,
+                                                lp->txBufferSize, PCI_DMA_TODEVICE);
+         lp->dd->txBufferPhysStart = lp->txBufferPA;
+         lp->dd->txBufferPhysLength = lp->txBufferSize;
          lp->dd->txPktMaxSize = TX_PKT_HEADER_SIZE;
       } else {
          lp->partialHeaderCopyEnabled = FALSE;
@@ -1088,8 +1089,16 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    pci_set_drvdata(pdev, dev);
    return 0;
 
-free_dev_dd:;
-   kfree(lp->ddAllocated);
+free_dev_dd:
+#ifdef VMXNET_DO_ZERO_COPY
+   if (lp->partialHeaderCopyEnabled && lp->txBufferStart) {
+      compat_pci_unmap_single(pdev, lp->txBufferPA, lp->txBufferSize,
+                              PCI_DMA_TODEVICE);
+      kfree(lp->txBufferStart);
+   }
+#endif
+   compat_pci_unmap_single(lp->pdev, lp->ddPA, lp->ddSize, PCI_DMA_BIDIRECTIONAL);
+   kfree(lp->dd);
 free_dev:;
    compat_free_netdev(dev);
 morph_back:;
@@ -1166,12 +1175,15 @@ vmxnet_remove_device(struct pci_dev* pdev)
    }
 
 #ifdef VMXNET_DO_ZERO_COPY
-   if (lp->partialHeaderCopyEnabled){
-      kfree(lp->txBufferStartRaw);
+   if (lp->partialHeaderCopyEnabled && lp->txBufferStart) {
+      compat_pci_unmap_single(pdev, lp->txBufferPA, lp->txBufferSize,
+                              PCI_DMA_TODEVICE);
+      kfree(lp->txBufferStart);
    }
 #endif
 
-   kfree(lp->ddAllocated);
+   compat_pci_unmap_single(lp->pdev, lp->ddPA, lp->ddSize, PCI_DMA_BIDIRECTIONAL);
+   kfree(lp->dd);
    compat_free_netdev(dev);
    compat_pci_disable_device(pdev);
 }
@@ -1221,7 +1233,7 @@ vmxnet_init_ring(struct net_device *dev)
               (uint64)offset, dd->length);
 
    for (i = 0; i < lp->numRxBuffers; i++) {
-      lp->rxSkbuff[i] = dev_alloc_skb(PKT_BUF_SZ);
+      lp->rxSkbuff[i] = dev_alloc_skb(PKT_BUF_SZ + COMPAT_NET_IP_ALIGN);
       if (lp->rxSkbuff[i] == NULL) {
          unsigned int j;
 
@@ -1233,7 +1245,10 @@ vmxnet_init_ring(struct net_device *dev)
 	 return -ENOMEM;
       }
 
-      lp->rxRing[i].paddr = virt_to_bus(compat_skb_tail_pointer(lp->rxSkbuff[i]));
+      skb_reserve(lp->rxSkbuff[i], COMPAT_NET_IP_ALIGN);
+
+      lp->rxRing[i].paddr = compat_pci_map_single(lp->pdev, lp->rxSkbuff[i]->data,
+                                                  PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
       lp->rxRing[i].bufferLength = PKT_BUF_SZ;
       lp->rxRing[i].actualLength = 0;
       lp->rxRing[i].ownership = VMXNET2_OWNERSHIP_NIC;
@@ -1322,7 +1337,7 @@ vmxnet_open(struct net_device *dev)
 {
    struct Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
    unsigned int ioaddr = dev->base_addr;
-   u32 paddr;
+   uint32 ddPA;
 
    if (dev->irq == 0 ||	request_irq(dev->irq, &vmxnet_interrupt,
 			            COMPAT_IRQF_SHARED, lp->name, (void *)dev)) {
@@ -1330,18 +1345,16 @@ vmxnet_open(struct net_device *dev)
    }
 
    if (vmxnet_debug > 1) {
-      printk(KERN_DEBUG "%s: vmxnet_open() irq %d lp %#x.\n",
-	     dev->name, dev->irq,
-	     (u32) virt_to_bus(lp));
+      printk(KERN_DEBUG "%s: vmxnet_open() irq %d lp %p.\n",
+	     dev->name, dev->irq, lp);
    }
 
    if (vmxnet_init_ring(dev)) {
       return -ENOMEM;
    }
 
-   paddr = virt_to_bus(lp->dd);
-
-   outl(paddr, ioaddr + VMXNET_INIT_ADDR);
+   ddPA = VMXNET_GET_LO_ADDR(lp->ddPA); // lp->dd was allocated out of ZONE_DMA32
+   outl(ddPA, ioaddr + VMXNET_INIT_ADDR);
    outl(lp->dd->length, ioaddr + VMXNET_INIT_LENGTH);
 
 #ifdef VMXNET_DO_ZERO_COPY
@@ -1588,12 +1601,16 @@ check_tx_queue(struct net_device *dev)
 	 break;
       }
 #ifdef VMXNET_DO_ZERO_COPY
-      if (lp->zeroCopyTx){
+      if (lp->zeroCopyTx) {
          VMXNET_LOG("unmap txRing[%u]\n", dd->txDriverCur);
          vmxnet_unmap_buf(skb, &lp->txBufInfo[dd->txDriverCur], xre, lp->pdev);
-      }
+      } else
 #endif
-
+      {
+         compat_pci_unmap_single(lp->pdev, xre->sg.sg[0].addrLow,
+                                 xre->sg.sg[0].length,
+                                 PCI_DMA_TODEVICE);
+      }
       if (lp->txBufInfo[dd->txDriverCur].eop) {
          compat_dev_kfree_skb_irq(skb, FREE_WRITE);
       }
@@ -1716,7 +1733,8 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
                return VMXNET_DEFER_TRANSMIT;
             }
          }
-         if (UNLIKELY(*(uint16*)(skb->data + ETH_FRAME_TYPE_LOCATION) == ETH_TYPE_VLAN_TAG)) {
+         if (UNLIKELY(*(uint16*)(skb->data + ETH_FRAME_TYPE_LOCATION) ==
+                      ETH_TYPE_VLAN_TAG)) {
             headerSize += VLAN_TAG_LENGTH;
             if (UNLIKELY(skb_headlen(skb) < headerSize)) {
 
@@ -1780,7 +1798,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
             return VMXNET_DEFER_TRANSMIT;
          }
 
-         xre->sg.sg[0].addrLow = (uint32)dd->txBufferPhysStart + pos;
+         xre->sg.sg[0].addrLow = dd->txBufferPhysStart + pos;
          xre->sg.sg[0].addrHi = 0;
          xre->sg.sg[0].length = headerSize;
          vmxnet_map_pkt(skb, headerSize, lp, 1);
@@ -1804,6 +1822,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
 #endif
    {
       struct Vmxnet2_TxBuf *tb;
+      dma_addr_t dmaAddr;
 
       spin_lock_irqsave(&lp->txLock, flags);
 
@@ -1818,9 +1837,8 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
 
       lp->numTxPending ++;
 
-      xre->sg.sg[0].addrLow = virt_to_bus(skb->data);
-      xre->sg.sg[0].addrHi = 0;
-      xre->sg.sg[0].length = skb->len;
+      dmaAddr = compat_pci_map_single(lp->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
+      VMXNET_FILL_SG(xre->sg.sg[0], dmaAddr, skb->len);
       xre->sg.length = 1;
       xre->flags = 0;
 
@@ -2068,7 +2086,7 @@ vmxnet_rx(struct net_device *dev)
       skb = lp->rxSkbuff[dd->rxDriverNext];
 
       /* refill the rx ring */
-      newSkb = dev_alloc_skb(PKT_BUF_SZ);
+      newSkb = dev_alloc_skb(PKT_BUF_SZ + COMPAT_NET_IP_ALIGN);
       if (UNLIKELY(newSkb == NULL)) {
          printk(KERN_DEBUG "%s: Memory squeeze, dropping packet.\n", dev->name);
 #ifdef VMXNET_DO_ZERO_COPY
@@ -2079,12 +2097,16 @@ vmxnet_rx(struct net_device *dev)
          lp->stats.rx_errors++;
          goto next_pkt;
       }
+      skb_reserve(newSkb, COMPAT_NET_IP_ALIGN);
+
+      compat_pci_unmap_single(lp->pdev, rre->paddr, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+      skb_put(skb, rre->actualLength);
 
       lp->rxSkbuff[dd->rxDriverNext] = newSkb;
-      rre->paddr = virt_to_bus(newSkb->data);
+      rre->paddr = compat_pci_map_single(lp->pdev, newSkb->data,
+                                         PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
       rre->bufferLength = PKT_BUF_SZ;
 
-      skb_put(skb, rre->actualLength);
 
 #ifdef VMXNET_DO_ZERO_COPY
       if (rre->flags & VMXNET2_RX_WITH_FRAG) {
@@ -2299,6 +2321,8 @@ vmxnet_close(struct net_device *dev)
 
    for (i = 0; i < lp->numRxBuffers; i++) {
       if (lp->rxSkbuff[i] != NULL) {
+         compat_pci_unmap_single(lp->pdev, lp->rxRing[i].paddr,
+                                 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 	 compat_dev_kfree_skb(lp->rxSkbuff[i], FREE_WRITE);
 	 lp->rxSkbuff[i] = NULL;
       }
@@ -2307,7 +2331,8 @@ vmxnet_close(struct net_device *dev)
    if (lp->jumboFrame || lp->lpd) {
       for (i = 0; i < lp->numRxBuffers2; i++) {
          if (lp->rxPages[i] != NULL) {
-            pci_unmap_page(lp->pdev, lp->rxRing2[i].paddr, PAGE_SIZE, PCI_DMA_FROMDEVICE);
+            pci_unmap_page(lp->pdev, lp->rxRing2[i].paddr, PAGE_SIZE,
+                           PCI_DMA_FROMDEVICE);
             put_page(lp->rxPages[i]);
             lp->rxPages[i] = NULL;
          }

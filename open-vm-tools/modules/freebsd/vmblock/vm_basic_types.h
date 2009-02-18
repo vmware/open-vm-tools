@@ -350,6 +350,9 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
 #ifdef _MSC_VER
 #define CONST64(c) c##I64
 #define CONST64U(c) c##uI64
+#elif defined __APPLE__
+#define CONST64(c) c##LL
+#define CONST64U(c) c##uLL
 #elif __GNUC__
 #ifdef VM_X86_64
 #define CONST64(c) c##L
@@ -501,10 +504,11 @@ typedef uint64 MPN64;
  */
 typedef VA32 UserVA32;
 typedef VA64 UserVA64;
-typedef UserVA32 UserVAConst; /* Userspace ptr to data that we may only read. */
+typedef UserVA64 UserVAConst; /* Userspace ptr to data that we may only read. */
+typedef UserVA32 UserVA32Const; /* Userspace ptr to data that we may only read. */
 typedef UserVA64 UserVA64Const; /* Used by 64-bit syscalls until conversion is finished. */
 #ifdef VMKERNEL
-typedef UserVA32 UserVA;
+typedef UserVA64 UserVA;
 #else
 typedef void * UserVA;
 #endif

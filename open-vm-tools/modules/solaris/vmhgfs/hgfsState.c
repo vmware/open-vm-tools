@@ -170,7 +170,7 @@ HgfsVnodeGet(struct vnode **vpp,        // OUT: Filled with address of created v
     * Now set the vnode operations.  This is handled differently on Solaris
     * 9 and 10, and we call HgfsSetVnodeOps() to take care of this for us.
     */
-   if (HgfsSetVnodeOps(sip, vp) != 0) {
+   if (HgfsSetVnodeOps(vp) != 0) {
       goto vnode_error;
    }
 
@@ -483,7 +483,7 @@ HgfsNodeIdGet(HgfsFileHashTable *htp,   // IN:  File hash table
  *    Initializes the hash table used to track per-file state.
  *
  * Results:
- *    Returns 0 on success and a non-zero error code on failure.
+ *    None.
  *
  * Side effects:
  *    None.
@@ -491,7 +491,7 @@ HgfsNodeIdGet(HgfsFileHashTable *htp,   // IN:  File hash table
  *----------------------------------------------------------------------------
  */
 
-int
+void
 HgfsInitFileHashTable(HgfsFileHashTable *htp)   // IN: Hash table to initialize
 {
    int i;
@@ -503,8 +503,6 @@ HgfsInitFileHashTable(HgfsFileHashTable *htp)   // IN: Hash table to initialize
    for (i = 0; i < ARRAYSIZE(htp->hashTable); i++) {
       DblLnkLst_Init(&htp->hashTable[i]);
    }
-
-   return 0;
 }
 
 

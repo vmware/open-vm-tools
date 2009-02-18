@@ -78,13 +78,11 @@ static int DiskCommand(char **argv, int argc);
 static int StatCommand(char **argv, int argc);
 static int ScriptCommand(char **argv, int argc);
 static int TimeSyncCommand(char **argv, int argc);
-static int RecordCommand(char **argv, int argc);
 static void DeviceHelp(char *progName);
 static void DiskHelp(char *progName);
 static void ScriptHelp(char *progName);
 static void StatHelp(char *progName);
 static void TimeSyncHelp(char *progName);
-static void RecordHelp(char *progName);
 static void ToolboxCmdHelp(char *progName);
 static CmdTable *ParseCommand(char **argv, int argc);
 static Bool CheckArgumentLength(char **argv, int argc);
@@ -100,7 +98,6 @@ static CmdTable commands[] = {
    { "disk", DiskCommand, TRUE, DiskHelp},
    { "stat", StatCommand, FALSE, StatHelp},
    { "device", DeviceCommand, FALSE, DeviceHelp},
-   { "record", RecordCommand, FALSE, RecordHelp},
    { "help", HelpCommand, FALSE, ToolboxCmdHelp},
    { NULL, } };
 
@@ -155,14 +152,14 @@ CheckArgumentLength(char **argv, // IN: The command line arguments.
 static void
 DeviceHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("device: enable, disable, list devices, or get a device status"
+   printf("device: functions related to the virtual machine's hardware devices\n"
           "Usage: %s device <subcommand> [args]\n"
           "    dev is the name of the device.\n\n"
           "Subcommands:\n"
-          "   enable <dev>: enables the device dev\n"
+          "   enable <dev>: enable the device dev\n"
           "   disable <dev>: disable the device dev\n"
-          "   list: list enabled and disabled devices\n"
-          "   status <dev>: prints the status of device dev\n", progName);
+          "   list: list all available devices\n"
+          "   status <dev>: print the status of a device\n", progName);
 }
 
 
@@ -185,20 +182,20 @@ DeviceHelp(char *progName) // IN: The name of the program obtained from argv[0]
 static void
 ToolboxCmdHelp(char *progName)
 {
-   printf("usage: %s <command> [options] [subcommand]\n"
+   printf("Usage: %s <command> [options] [subcommand]\n"
           "Type \'%s help <command>\' for help on a specific command.\n"
           "Type \'%s --version' to see the Vmware Tools version.\n"
-          "Type \'%s --quiet to supress stdout printing\n"
-          "Most commands take a subcommand\n\n"
+          "Use --quiet to suppress stdout output.\n"
+          "Most commands take a subcommand.\n\n"
           "Available commands:\n"
           "   timesync\n"
           "   device\n"
           "   script\n"
           "   disk\n"
           "   stat\n"
-          "   record\n\n"
+          "\n"
           "For additional information please visit http://www.vmware.com/support/\n\n",
-          progName, progName, progName, progName);
+          progName, progName, progName);
 }
 
 
@@ -221,13 +218,12 @@ ToolboxCmdHelp(char *progName)
 static void
 TimeSyncHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("timesync: enable, disable, or check the status of time "
-          "sync on the guest OS\n"
+   printf("timesync: functions for controlling time synchronization on the guest OS\n"
           "Usage: %s timesync <subcommand>\n\n"
           "Subcommands\n"
-          "   enable: enable time sync\n"
-          "   disable: disable time sync\n"
-          "   status: display the time sync status\n", progName);
+          "   enable: enable time synchronization\n"
+          "   disable: disable time synchronization\n"
+          "   status: print the time synchronization status\n", progName);
 }
 
 
@@ -250,14 +246,14 @@ TimeSyncHelp(char *progName) // IN: The name of the program obtained from argv[0
 static void
 ScriptHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("script: enable, disable, set, or set to default a particular script\n"
-          "Usage: %s script <power|resume|suspend|shutdown>  <subcomamnd> [args]\n\n"
+   printf("script: control the scripts run in response to power operations\n"
+          "Usage: %s script <power|resume|suspend|shutdown> <subcomamnd> [args]\n\n"
           "Subcommands:\n"
-          "   enable: enables and restores the script to the default one\n"
-          "   disable: disables a particular script\n"
-          "   set <full_path>: sets a script to the script given by full_path\n"
-          "   default: returns the path to the default script\n"
-          "   current: returns the path to the current script\n", progName);
+          "   enable: enable the given script and restore its path to the default\n"
+          "   disable: disable the given script\n"
+          "   set <full_path>: set the given script to the given path\n"
+          "   default: print the default path of the given script\n"
+          "   current: print the current path of the given script\n", progName);
 }
 
 
@@ -308,47 +304,20 @@ DiskHelp(char *progName) // IN: The name of the program obtained from argv[0]
 static void
 StatHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("stat: usefull guest and host information\n"
+   printf("stat: print useful guest and host information\n"
           "Usage: %s state <subcommand>\n\n"
           "Subcommands\n"
-          "   hosttime: gets the time host time\n"
-          "   memory: gets the virtual machine memory in MBs\n"
-          "   speed: gets the virtual machine speed in MHz\n"
+          "   hosttime: print the host time\n"
+          "   memory: print the virtual machine memory in MBs\n"
+          "   speed: print the CPU speed in MHz\n"
           "ESX guests only subcommands\n"
-          "   sessionid: Prints the current the session id\n"
-          "   balloon: Prints memory ballooning\n"
-          "   swap: Prints memory swapping\n"
-          "   memlimit: Prins memery limit\n"
-          "   memres: Prints memory reservation\n"
-          "   cpures: Prints cpu reservation\n"
-          "   cpulimit: Prints cput limit\n", progName);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RecordHelp --
- *
- *      Prints the help for the record command.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-RecordHelp(char *progName) // IN: The name of the program obtained from argv[0]
-{
-   printf("record: control recording process inside guest\n"
-          "Usage: %s record <subcommand>\n\n"
-          "Subcommands\n"
-          "   start: start recording\n"
-          "   stop: stop recording\n", progName);
+          "   sessionid: print the current session id\n"
+          "   balloon: print memory ballooning information\n"
+          "   swap: print memory swapping information\n"
+          "   memlimit: print memory limit information\n"
+          "   memres: print memory reservation information\n"
+          "   cpures: print CPU reservation information\n"
+          "   cpulimit: print CPU limit information\n", progName);
 }
 
 
@@ -624,42 +593,6 @@ TimeSyncCommand(char **argv, // IN: command line arguments
 /*
  *-----------------------------------------------------------------------------
  *
- * RecordCommand --
- *
- *      Parse and Handle recording commands.
- *
- * Results:
- *      Returns EXIT_SUCCESS on success.
- *      Returns the appropriate exit code errors.
- *
- * Side effects:
- *      Might start and stop recording, guest os may be suspended
- *      to wait for the recording panel in host.
- *
- *-----------------------------------------------------------------------------
- */
-
-static int
-RecordCommand(char **argv, // IN: Command line arguments
-              int argc)    // IN: Length of command line argumenst
-{
-   if (CheckArgumentLength(argv, argc)) {
-      if (strcmp(argv[optind], "start") == 0) {
-         return Record_StartRecording();
-      } else if (strcmp(argv[optind], "stop") == 0) {
-         return Record_StopRecording();
-      } else {
-         fprintf(stderr, "Unknown subcommand");
-      }
-   }
-   RecordHelp(argv[0]);
-   return EX_USAGE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * ParseCommand --
  *
  *      Parse the non optional command line arguments.
@@ -721,7 +654,7 @@ main(int argc,    // IN: length of command line arguments
     * Check if we are in a VM
     */
    if (!VmCheck_IsVirtualWorld()) {
-      fprintf(stderr, "toolbox-cmd must be run inside a virtual machine.\n");
+      fprintf(stderr, "%s must be run inside a virtual machine.\n", argv[0]);
       exit(EXIT_FAILURE);
    }
 

@@ -1,74 +1,206 @@
-2009-01-21  Marcelo Vanzin  <mvanzin@vmware.com>
-   * Resync with internal trunk (2009.01.19)
+2009-02-18	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.01.13)
 
-   * configure.ac: detect the presence of FUSE libraries.
+	* configure.ac, m4/vmtools.m4: clean up a lot of the library detection code.
 
-   * configure.ac, Makefile.am: compile kernel modules for Solaris, and
-     vmblock-fuse module if FUSE is available.
+	* configure.ac: remove support for gtk+ 1.2 (code already depended on it in
+	  any case); enforce need for glib 2.6.0 or later due to new code being
+	  added; add detection for gtkmm; check for C++ compiler when it's needed;
+	  reorder the include path to avoid clashing with system headers in some
+	  situations.
 
-   * lib/ghIntegration/ghIntegrationX11.c: retrieved localized application
-     names.
+	* guestd/foundryToolsDaemon.*, vmware-user/foundryToolsDaemon.*,
+	  guestd/Makefile.am, vmware-user/Makefile.am: moved shared source files to
+	  a new place to avoid duplication.
 
-   * lib/guestInfo/guestInfo.c, lib/guestInfo/guestInfoPosix.c,
-     lib/include/hostinfo.h, lib/misc/hostinfo_misc.c, lib/misc/hostinfoPosic.c,
-     lib/vixTools/vixTools.c: refactoring to move code shared with other VMware
-     products to a common library.
+	* hgfsmounter/hgfsmounter.c: add support for Solaris.
 
-   * lib/guestRpc/guestlibV3.x, lib/guestRpc/Makefile.am,
-     lib/include/vmGuestLib.h, libguestlib/*: add new iteration of the
-     "guestlib" protocol. This is a more extensible solution than the current
-     protocol, and should make it easier to add new information when needed.
+	* lib/appUtil/appUtilX11.c: fix loading of icons when the name has a period.
 
-   * lib/include/dynarray.h, lib/include/dynbuf.h, lib/misc/dynarray.c,
-     lib/misc/dynbuf.c: make some DynArray/DynBuf functions inline for speed.
+	* lib/dnd/dndClipboard.c, lib/dnd/dndInt.h, lib/dnd/dndMsg.c,
+	  lib/dnd/Makefile.am, lib/dndGuest/*, lib/include/copyPasteBase.h,
+	  lib/include/copyPaste.hh, lib/include/copyPasteRpc.hh,
+	  lib/include/copyPasteRpcV3.hh, lib/include/dndBase.h,
+	  lib/include/dndClipboard.h, lib/include/dndFileContentsUtil.h,
+	  lib/include/dndFileList.hh, lib/include/dnd.h, lib/include/dnd.hh,
+	  lib/include/dndInt.h, lib/include/dndMsg.h, lib/include/dndRpc.hh,
+	  lib/include/dndRpcV3.hh, lib/include/dndTransportGuestRpc.hh,
+	  lib/include/dndTransport.hh, lib/include/libExport.hh,
+	  vmware-user/copyPaste.cpp, vmware-user/copyPasteUI.{cpp,h},
+	  vmware-user/copyPasteV3.h, vmware-user/copyPasteWrapper.{cpp,h},
+	  vmware-user/dnd.cpp, vmware-user/Makefile.am,
+	  vmware-user/vmware-user.{c,cpp}, vmware-user/vmwareuserInt.h,
+	  vmware-user/stringxx/string.{cc,hh}, vmware-user/stringxx/ubstr_t.hh: add
+	  support for new version of the DnD protocol.
 
-   * lib/include/unityCommon.h: more documentation about the Unity protocol.
+	* lib/guestInfo/guestInfoPerfMonLinux.c: fix problem with overwriting flags
+	  after GuestInfoMonitorReadMeminfo() was called.
 
-   * lib/unity/unityPlatformX11.c: fix Unity<->guest desktop ID mappings.
+	* lib/guestRpc/guestlibV3.x, lib/include/vmGuestLib.h,
+	  libguestlib/vmGuestLib.c: add new host stats.
 
-   * libvmtools/vmtoolsLog.c: change the way log domains are configured; now
-     sub-domains inherit the default handler for the app if no handler is
-     specified.
+	* lib/guestRpc/Makefile.am: fix a few compatibility issues with non-GNU
+	  versions of make.
 
-   * modules/freebsd/vmhgfs/state.c, modules/freebsd/vmhgfs/state.h,
-     modules/freebsd/vmhgfs/vnopscommon.{c,h}: implement support for mmap on
-     the Mac OS driver, which allows running executables from an HGFS
-     share. The FreeBSD module still does not support this functionality.
+	* lib/hgfsServer/hgfsServer.c, lib/hgfsServer/hgfsServerInt.h,
+	  lib/hgfsServer/hgfsServerLinux.c, */hgfsProto.h,
+	  modules/freebsd/vmhgfs/vnops.c, modules/freebsd/vmhgfs/vnopscommon.{c,h}:
+	  don't trust the local VFS layer, check the HGFS server to see if an
+	  operation would succeed.
 
-   * modules/freebsd/vmhgfs/transport.{c,h}: refactoring for sharing structure
-     definitions.
+	* lib/include/rpcChannel.h, lib/rpcChannel/*: add new Guest RPC channel
+	  abstraction library used by the new "core services" code.
 
-   * modules/linux/pvscsi/pvscsi.c, modules/linux/vmblock/linux/module.c,
-     modules/linux/vmci/vmci_drv.c, modules/linux/hgfs/module.c,
-     modules/linux/vmmemctl/os.c, modules/linux/vmsync/sync.c,
-     modules/linux/vmxnet/vmxnet.c, modules/linux/vmxnet3/vmxnet3.c: add support
-     for Novell's proprietary module info tag ("supported").
+	* lib/include/vmrpcdbg.h, tests/*: add test code from the "core services"
+	  project.
 
-   * modules/linux/vmci/vmciKernelIf.c: add support for VMCI queue pairs on
-     the host. This does not affect the driver when it runs inside virtual
-     machines.
+	* lib/include/vmtoolsApp.h, lib/include/vmtoolsd_version.h,
+	  services/vmtoolsd/*: add "vmtoolsd", the new service "shell" used in the
+	  "core services" project.
 
-   * modules/linux/vmci/*.h, modules/linux/vsock/*.h: some changes in the common
-     code to support Mac OS X, and also queue pairs on the Solaris VMCI module.
+	* lib/unity/unityPlatformX11Window.c: don't send initial "region" updates for
+	  shaped windows. This works around an issue where resizing a shaped window
+	  would not work as expected in Unity mode.
 
-   * modules/linux/vsock/af_vsock.{c,h}: add functions for registering with
-     the vsock driver from within the kernel.
+	* lib/wiper/wiperPosix.c: fix major number detection for disks on newer Linux
+	  kernels.
 
-   * modules/linux/*/Makefile: add $(LINUXINCLUDE) to the compiler flags; this
-     allows compiling the modules against recent kernels which removed that
-     from $(KBUILD_CPPFLAGS).
+	* libvmtools/Makefile.am: link more libraries needed by vmtoolsd and the new
+	  plugins.
 
-   * modules/Makefile.am: add support for compiling Solaris kernel modules.
+	* modules/linux/pvscsi/pvscsi.c, modules/linux/pvscsi/pvscsi_version.h: use
+	  PCI-specific memory allocation functions and update driver version.
 
-   * modules/solaris/vmhgfs/*: initial release of the Solaris HGFS driver in
-     open-vm-tools. Driver is licensed under the CDDL 1.0.
+	* modules/linux/vmci/vmciKernelIf.c: disable queue pair support in the host
+	  version of the driver on older Linux kernels. This doesn't affect the
+	  guest driver.
 
-   * vmblock-fuse/*: add the user-level implementation of the vmblock driver,
-     which is build on top of FUSE, to open-vm-tools. vmware-user hasn't yet
-     been modified to use this version of vmblock.
+	* modules/linux/vmci/vmci_queue_pair.h: implement MSG_PEEK support on
+	  Linux driver.
 
-   * vmware-user/copyPaseV3.h: new header introduced during development of the
-     next version of copy paste / DnD for X11 platforms.
+	* modules/linux/vmhgfs/bdhandler.c, modules/linux/vmhgfs/compat_sched.h,
+	  modules/linux/vmmemctl/os.c: fix issue with HGFS module interfering with
+	  suspend / hibernation on newer Linux kernels (bug #2523263).
+
+	* modules/linux/vmhgfs/compat_cred.h, modules/linux/vmhgfs/file.c,
+	  modules/linux/vmhgfs/filesystem.c, modules/linux/vmhgfs/inode.c: changes
+	  for compatibility with newer Linux kernels, where it's not possible to
+	  change fsuid/capabilities directly anymore.
+
+	* modules/linux/vmhgfs/compat_pagemap.h, modules/linux/vmhgfs/page.c:
+	  fix warning, and compatibility changes for newer Linux kernels
+	  (2.6.28.1 and newer; bug #2530616).
+
+	* modules/linux/vmhgfs/inode.c: fix creation of symlinks (bug #2531303).
+
+	* modules/linux/vmxnet/vmxnet.c: use PCI-specific memory allocation
+	  functions.
+
+	* modules/linux/vmxnet/vmxnet.c, modules/linux/vmxnet3/vmxnet3.c: add option
+	  to disable LRO.
+
+	* modules/linux/vsock/af_inet.{c,h}, modules/linux/vsock/util.{c,h}: add
+	  MSG_PEEK support; remove ifdefs that were disabling support for queue
+	  pairs on the host kernel module; fix compilation with certain versions
+	  of gcc (bug #2531283).
+
+	* modules/solaris/vmhgfs/*: move backdoor handling code to the HGFS driver;
+	  this makes the user-level code to handle the driver (currently in
+	  vmware-guestd) obsolete.
+
+	* modules/solaris/vmxnet/*: add vmxnet driver for Solaris, under the CDDL.
+
+	* services/plugins/*: add all currently available "core services" plugins.
+	  The current set of plugins provide the functionality available in
+	  vmware-guestd; there are a few plugins that replace functionality from
+	  vmware-user, but not all features are ported yet (and vmtoolsd - with
+	  vmware-user plugins - and vmware-user cannot run at the same time).
+
+	* toolbox/toolboxAbout.c: fix the copyright character.
+
+	* toolbox/toolbox-cmd.c: reword a few messages, fix typos.
+
+	* toolbox/toolboxCmdInt.h, toolbox/toolboxcmd-record.c,
+	  toolbox/toolbox-gtk.c, toolbox/toolboxRecord.c: remove the "record"
+	  functionality from tools (due to internal request).
+
+	* toolbox/toolboxInt.c, toolbox/toolboxScripts.c, toolbox/toolbox-scripts.c:
+	  changes to use the new config file format used by the "core services" code.
+
+	* */Makefile.am: make sure 'rm' and 'mv' are being used instead of $(RM) and
+	  $(MV) (which are not defined by automake; bug #2492040).
+
+2009-01-21	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.01.19)
+
+	* configure.ac: detect the presence of FUSE libraries.
+
+	* configure.ac, Makefile.am: compile kernel modules for Solaris, and
+	  vmblock-fuse module if FUSE is available.
+
+	* lib/ghIntegration/ghIntegrationX11.c: retrieved localized application
+	  names.
+
+	* lib/guestInfo/guestInfo.c, lib/guestInfo/guestInfoPosix.c,
+	  lib/include/hostinfo.h, lib/misc/hostinfo_misc.c, lib/misc/hostinfoPosic.c,
+	  lib/vixTools/vixTools.c: refactoring to move code shared with other VMware
+	  products to a common library.
+
+	* lib/guestRpc/guestlibV3.x, lib/guestRpc/Makefile.am,
+	  lib/include/vmGuestLib.h, libguestlib/*: add new iteration of the
+	  "guestlib" protocol. This is a more extensible solution than the current
+	  protocol, and should make it easier to add new information when needed.
+
+	* lib/include/dynarray.h, lib/include/dynbuf.h, lib/misc/dynarray.c,
+	  lib/misc/dynbuf.c: make some DynArray/DynBuf functions inline for speed.
+
+	* lib/include/unityCommon.h: more documentation about the Unity protocol.
+
+	* lib/unity/unityPlatformX11.c: fix Unity<->guest desktop ID mappings.
+
+	* libvmtools/vmtoolsLog.c: change the way log domains are configured; now
+	  sub-domains inherit the default handler for the app if no handler is
+	  specified.
+
+	* modules/freebsd/vmhgfs/state.c, modules/freebsd/vmhgfs/state.h,
+	  modules/freebsd/vmhgfs/vnopscommon.{c,h}: implement support for mmap on
+	  the Mac OS driver, which allows running executables from an HGFS
+	  share. The FreeBSD module still does not support this functionality.
+
+	* modules/freebsd/vmhgfs/transport.{c,h}: refactoring for sharing structure
+	  definitions.
+
+	* modules/linux/pvscsi/pvscsi.c, modules/linux/vmblock/linux/module.c,
+	  modules/linux/vmci/vmci_drv.c, modules/linux/hgfs/module.c,
+	  modules/linux/vmmemctl/os.c, modules/linux/vmsync/sync.c,
+	  modules/linux/vmxnet/vmxnet.c, modules/linux/vmxnet3/vmxnet3.c: add support
+	  for Novell's proprietary module info tag ("supported").
+
+	* modules/linux/vmci/vmciKernelIf.c: add support for VMCI queue pairs on
+	  the host. This does not affect the driver when it runs inside virtual
+	  machines.
+
+	* modules/linux/vmci/*.h, modules/linux/vsock/*.h: some changes in the common
+	  code to support Mac OS X, and also queue pairs on the Solaris VMCI module.
+
+	* modules/linux/vsock/af_vsock.{c,h}: add functions for registering with
+	  the vsock driver from within the kernel.
+
+	* modules/linux/*/Makefile: add $(LINUXINCLUDE) to the compiler flags; this
+	  allows compiling the modules against recent kernels which removed that
+	  from $(KBUILD_CPPFLAGS).
+
+	* modules/Makefile.am: add support for compiling Solaris kernel modules.
+
+	* modules/solaris/vmhgfs/*: initial release of the Solaris HGFS driver in
+	  open-vm-tools. Driver is licensed under the CDDL 1.0.
+
+	* vmblock-fuse/*: add the user-level implementation of the vmblock driver,
+	  which is build on top of FUSE, to open-vm-tools. vmware-user hasn't yet
+	  been modified to use this version of vmblock.
+
+	* vmware-user/copyPaseV3.h: new header introduced during development of the
+	  next version of copy paste / DnD for X11 platforms.
 
 
 2008-11-23  Marcelo Vanzin  <mvanzin@vmware.com>

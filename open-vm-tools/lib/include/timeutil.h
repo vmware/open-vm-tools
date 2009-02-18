@@ -119,6 +119,6 @@ EXTERN Bool TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,    // IN
                                          SYSTEMTIME *systemTime);     // OUT
 #endif
 
-EXTERN int TimeUtil_GetLocalWindowsTimeZoneIndex(void);
+EXTERN int TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName);
 
 #endif // _TIMEUTIL_H_

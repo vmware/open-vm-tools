@@ -134,7 +134,7 @@ About_Create(GtkWidget* mainWnd)
    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
 
-#ifdef _GTK2_
+#ifdef GTK2
    Str_Snprintf(buf1, sizeof buf1, "%s %s",
                 UTF8_COPYRIGHT_STRING,
                 RIGHT_RESERVED);

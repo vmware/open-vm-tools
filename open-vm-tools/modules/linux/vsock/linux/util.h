@@ -86,7 +86,6 @@ struct sock *__VSockVmciFindConnectedSocket(struct sockaddr_vm *src,
 Bool __VSockVmciInBoundTable(struct sock *sk);
 Bool __VSockVmciInConnectedTable(struct sock *sk);
 
-#ifdef VMX86_TOOLS
 struct sock *VSockVmciGetPending(struct sock *listener, VSockPacket *pkt);
 void VSockVmciReleasePending(struct sock *pending);
 void VSockVmciAddPending(struct sock *listener, struct sock *pending);
@@ -97,7 +96,6 @@ void VSockVmciRemoveAccept(struct sock *listener, struct sock *connected);
 Bool VSockVmciInAcceptQueue(struct sock *sk);
 Bool VSockVmciIsAcceptQueueEmpty(struct sock *sk);
 Bool VSockVmciIsPending(struct sock *sk);
-#endif
 
 static INLINE void VSockVmciInsertBound(struct list_head *list, struct sock *sk);
 static INLINE void VSockVmciInsertConnected(struct list_head *list, struct sock *sk);

@@ -39,15 +39,15 @@ if BUILD_HGFSMOUNTER
 endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
-if ENABLE_CORE_SERVICES
-   SUBDIRS += libvmtools
-endif
+SUBDIRS += libvmtools
+SUBDIRS += scripts
+SUBDIRS += services
+SUBDIRS += toolbox
 if HAVE_FUSE
    SUBDIRS += vmblock-fuse
 endif
 SUBDIRS += xferlogs
-SUBDIRS += scripts
-SUBDIRS += toolbox
+SUBDIRS += tests
 if WITH_KERNEL_MODULES
    SUBDIRS += modules
 endif

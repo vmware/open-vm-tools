@@ -74,6 +74,12 @@
 #define HGFS_VP_TO_PERMISSIONS(vp)                      \
          HGFS_VP_TO_FP(vp)->permissions
 
+#define HGFS_VP_TO_MMAPPED(vp)                          \
+         HGFS_VP_TO_FP(vp)->mmapped
+
+#define HGFS_VP_TO_FILESIZE(vp)                          \
+         HGFS_VP_TO_FP(vp)->fileSize
+
 
 /*
  * Types
@@ -146,6 +152,20 @@ typedef struct HgfsFile {
    OS_RWLOCK_T *rwFileLock;
 #endif
 
+   /* TRUE indicates that memory mapping has been established for the file. */
+   Bool mmapped;
+   /*
+    * TRUE if the handle has an additional reference which is the
+    * result of reading file before opening which occurs on MAC OS.
+    */
+   Bool implicitlyOpened;
+   /*
+    * File size. HGFS must tell memory management system when file size is changed.
+    * It implies that HGFS has to know if a write request writes data beyond EOF thus
+    * it has to maintain local copy of file size that is kept in sync with the size
+    * reported to memory manager/pager.
+    */
+   off_t fileSize;
 } HgfsFile;
 
 /* The hash table for file state. */
@@ -159,7 +179,8 @@ struct HgfsSuperInfo;
 
 int HgfsVnodeGet(struct vnode **vpp, struct vnode *dp, struct HgfsSuperInfo *sip,
                  struct mount *vfsp, const char *fileName, HgfsFileType fileType,
-                 HgfsFileHashTable *htp, Bool createFile, int permissions);
+                 HgfsFileHashTable *htp, Bool createFile, int permissions,
+                 off_t fileSize);
 int HgfsVnodeGetRoot(struct vnode **vpp, struct HgfsSuperInfo *sip, struct mount *vfsp,
 		     const char *fileName, HgfsFileType fileType, HgfsFileHashTable *htp);
 int HgfsReleaseVnodeContext(struct vnode *vp, HgfsFileHashTable *htp);
@@ -170,10 +191,12 @@ void HgfsDestroyFileHashTable(HgfsFileHashTable *htp);
 Bool HgfsFileHashTableIsEmpty(struct HgfsSuperInfo *sip, HgfsFileHashTable *htp);
 
 /* Handle get/set/clear functions */
-void HgfsSetOpenFileHandle(struct vnode *vp, HgfsHandle handle, HgfsMode openMode);
+void HgfsSetOpenFileHandle(struct vnode *vp, HgfsHandle handle,
+                           HgfsMode openMode, Bool implicit);
 int HgfsGetOpenFileHandle(struct vnode *vp, HgfsHandle *outHandle);
-int HgfsReleaseOpenFileHandle(struct vnode *vp, HgfsHandle *handleToClose);
-int HgfsCheckAndReferenceHandle(struct vnode *vp, int requestedOpenMode);
+int HgfsReleaseOpenFileHandle(struct vnode *vp, Bool mnomap, HgfsHandle *handleToClose);
+int HgfsCheckAndReferenceHandle(struct vnode *vp, Bool mmap, int requestedOpenMode);
 int HgfsHandleIncrementRefCount(struct vnode *vp);
+void HgfsSetFileSize(struct vnode *vp, off_t newSize);
 
 #endif /* _STATE_H_ */

@@ -82,12 +82,13 @@ static int HgfsVnodeGetInt(struct vnode **vpp,
                            HgfsFileHashTable *htp,
                            Bool rootVnode,
                            Bool createFile,
-                           int permissions);
+                           int permissions,
+                           off_t fileSize);
 
 /* Allocation/initialization/free of open file state */
 static HgfsFile *HgfsAllocFile(const char *fileName, HgfsFileType fileType,
                                struct vnode *dvp, HgfsFileHashTable *htp,
-                               int permissions);
+                               int permissions, off_t fileSize);
 
 /* Acquiring/releasing file state */
 static HgfsFile *HgfsInsertFile(const char *fileName,
@@ -95,7 +96,7 @@ static HgfsFile *HgfsInsertFile(const char *fileName,
                                 HgfsFileHashTable *htp);
 static void HgfsReleaseFile(HgfsFile *fp, HgfsFileHashTable *htp);
 static int HgfsInitFile(HgfsFile *fp, struct vnode *dvp, const char *fileName,
-                        HgfsFileType fileType, int permissions);
+                        HgfsFileType fileType, int permissions, off_t fileSize);
 static void HgfsFreeFile(HgfsFile *fp);
 
 /* Adding/finding/removing file state from hash table */
@@ -145,10 +146,11 @@ HgfsVnodeGet(struct vnode **vpp,        // OUT: Filled with address of created v
              HgfsFileType fileType,     // IN:  Type of file
              HgfsFileHashTable *htp,    // IN:  File hash table
              Bool createFile,           // IN:  Creating a new file or open existing?
-             int permissions)           // IN: Permissions for the created file
+             int permissions,           // IN: Permissions for the created file
+             off_t fileSize)            // IN: File size if the vnode is VREG
 {
    return HgfsVnodeGetInt(vpp, dvp, sip, vfsp, fileName, fileType, htp, FALSE,
-                          createFile, permissions);
+                          createFile, permissions, fileSize);
 }
 
 
@@ -178,7 +180,8 @@ HgfsVnodeGetRoot(struct vnode **vpp,      // OUT: Filled with address of created
 		 HgfsFileType fileType,   // IN:  Type of file
 		 HgfsFileHashTable *htp)  // IN:  File hash table
 {
-   return HgfsVnodeGetInt(vpp, NULL, sip, vfsp, fileName, fileType, htp, TRUE, FALSE, 0);
+   return HgfsVnodeGetInt(vpp, NULL, sip, vfsp, fileName, fileType, htp, TRUE,
+                          FALSE, 0, 0);
 }
 
 
@@ -430,7 +433,7 @@ HgfsFileHashTableIsEmpty(HgfsSuperInfo *sip,            // IN: Superinfo
  * Results:
  *      Returns 0 if the handle is set and had been referenced,
  *              EACCES if the handle is set but has an incompatible open mode,
- *              ENOENT if no hadnle is set for the vnode
+ *              ENOENT if no handle is set for the vnode
  *
  * Side effects:
  *      None.
@@ -440,10 +443,11 @@ HgfsFileHashTableIsEmpty(HgfsSuperInfo *sip,            // IN: Superinfo
 
 int
 HgfsCheckAndReferenceHandle(struct vnode *vp,       // IN: Vnode to check handle of
+                            Bool mmap,              // IN: True if it is mmap call
                             int requestedOpenMode)  // IN: Requested open mode
 {
    HgfsFile *fp;
-   Bool ret;
+   int ret;
 
    ASSERT(vp);
 
@@ -453,9 +457,29 @@ HgfsCheckAndReferenceHandle(struct vnode *vp,       // IN: Vnode to check handle
    ret = fp->handleRefCount ? 0 : ENOENT;
    if (ret == 0) {
       if (HgfsIsModeCompatible(requestedOpenMode, fp->mode)) {
-         fp->handleRefCount++;
+         DEBUG(VM_DEBUG_LOG, "Handle exists, %d %d %d\n",
+               mmap, fp->mmapped, fp->handleRefCount);
+         /*
+          * Do nothing for subsequent mmap requests since OS invokes mnomap only once
+          * for multiple mmap calls. 
+          */
+         if (!mmap || !fp->mmapped) {
+            if (fp->implicitlyOpened) {
+               /*
+                * Consider it a regular open from now on.
+                * Handle already had been referenced, no need to increment
+                * count.
+                */
+               fp->implicitlyOpened = FALSE;
+               DEBUG(VM_DEBUG_LOG, "Clear implicitly opened flag\n");
+            } else {
+               fp->handleRefCount++;
+            }
+            fp->mmapped = fp->mmapped || mmap;
+         }
       } else {
          ret = EACCES;
+         DEBUG(VM_DEBUG_LOG, "Incompatible modes: %d %d\n", requestedOpenMode, fp->mode);
       }
    }
 
@@ -485,7 +509,8 @@ HgfsCheckAndReferenceHandle(struct vnode *vp,       // IN: Vnode to check handle
 void
 HgfsSetOpenFileHandle(struct vnode *vp,          // IN: Vnode to set handle for
                       HgfsHandle handle,         // IN: Value of handle
-                      HgfsMode openMode)         // IN: Mode assosiated with the handle
+                      HgfsMode openMode,         // IN: Mode assosiated with the handle
+                      Bool implicit)             // IN: TRUE if not in VNOP_OPEN context
 {
    HgfsFile *fp;
 
@@ -497,6 +522,7 @@ HgfsSetOpenFileHandle(struct vnode *vp,          // IN: Vnode to set handle for
    fp->handle = handle;
    fp->mode = openMode;
    fp->handleRefCount = 1;
+   fp->implicitlyOpened = implicit;
 
    DEBUG(VM_DEBUG_STATE, "HgfsSetOpenFileHandle: set handle for %s to %d\n",
          HGFS_VP_TO_FILENAME(vp), fp->handle);
@@ -560,6 +586,7 @@ HgfsGetOpenFileHandle(struct vnode *vp,          // IN:  Vnode to get handle for
  *      Returns new handle reference count.
  *      When the returned value is 0 returns the file handle which need to be closed
  *      on the host.
+ *      Returns special value -1 if the handle had not been open.
  *
  * Side effects:
  *      None.
@@ -568,10 +595,11 @@ HgfsGetOpenFileHandle(struct vnode *vp,          // IN:  Vnode to get handle for
  */
 
 int
-HgfsReleaseOpenFileHandle(struct vnode *vp,            // IN
-                          HgfsHandle *handleToClose)   // OUT
+HgfsReleaseOpenFileHandle(struct vnode *vp,            // IN: correspondent vnode
+                          Bool mnomap,                 // IN: True if called from mnomap
+                          HgfsHandle *handleToClose)   // OUT: Host handle to close
 {
-   int ret;
+   int ret = -1;
    HgfsFile *fp;
 
    ASSERT(vp);
@@ -582,21 +610,25 @@ HgfsReleaseOpenFileHandle(struct vnode *vp,            // IN
    os_rw_lock_lock_exclusive(fp->handleLock);
 
    /* Make sure the reference count is not going negative! */
-   ASSERT(fp->handleRefCount > 0);
+   ASSERT(fp->handleRefCount >= 0);
 
-   --fp->handleRefCount;
-   ret = fp->handleRefCount;
+   if (fp->handleRefCount > 0) {
+      --fp->handleRefCount;
+      ret = fp->handleRefCount;
+      if (mnomap) {
+         fp->mmapped = FALSE;
+      }
 
-   /* If the reference count has gone to zero, clear the handle. */
-   if (ret == 0) {
-      DEBUG(VM_DEBUG_LOG, "closing directory handle\n");
-      *handleToClose = fp->handle;
-      fp->handle = 0;
-   } else {
-      DEBUG(VM_DEBUG_LOG, "ReleaseOpenFileHandle with a refcount of: %d\n",
-	         fp->handleRefCount);
+      /* If the reference count has gone to zero, clear the handle. */
+      if (ret == 0) {
+         DEBUG(VM_DEBUG_LOG, "closing directory handle\n");
+         *handleToClose = fp->handle;
+         fp->handle = 0;
+      } else {
+         DEBUG(VM_DEBUG_LOG, "ReleaseOpenFileHandle with a refcount of: %d\n",
+	            fp->handleRefCount);
+      }
    }
-
    os_rw_lock_unlock_exclusive(fp->handleLock);
 
    return ret;
@@ -638,6 +670,7 @@ HgfsLookupExistingVnode(const char* fileName,
    /* First verify if a vnode for the filename is already allocated. */
    existingFp = HgfsFindFile(fileName, htp);
    if (existingFp != NULL) {
+      DEBUG(VM_DEBUG_LOG, "Found existing vnode for %s\n", fileName);
       if (failIfExist) {
          err = EEXIST;
       } else {
@@ -694,7 +727,8 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
                 HgfsFileHashTable *htp,    // IN:   File hash
                 Bool rootVnode,            // IN:   Is this a root vnode?
                 Bool fileCreate,           // IN:   Is it a new file creation?
-                int permissions)           // IN:   Permissions for new files
+                int permissions,           // IN:   Permissions for new files
+                off_t fileSize)            // IN:   Size of the file
 {
    struct vnode *vp;
    int ret;
@@ -762,7 +796,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of creat
    }
 
    /* We now allocate our private open file structure.    */
-   fp = (void *)HgfsAllocFile(fileName, fileType, dvp, htp, permissions);
+   fp = (void *)HgfsAllocFile(fileName, fileType, dvp, htp, permissions, fileSize);
    if (fp == NULL) {
       ret = ENOMEM;
       goto destroyOut;
@@ -821,7 +855,8 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
                 HgfsFileHashTable *htp,    // IN
                 Bool rootVnode,            // IN
                 Bool fileCreate,           // IN
-                int permissions)           // IN
+                int permissions,           // IN
+                off_t fileSize)            // IN
 {
    struct vnode *vp;
    struct vnode_fsparam params;
@@ -842,13 +877,13 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    }
 
    params.vnfs_mp         = vfsp;
-   params.vnfs_str        = NULL;
-   params.vnfs_dvp        = NULL;
+   params.vnfs_str        = "hgfs";
+   params.vnfs_dvp        = dvp;
    params.vnfs_fsnode     = NULL;
    params.vnfs_vops       = HgfsVnodeOps;
    params.vnfs_marksystem = FALSE;
    params.vnfs_rdev       = 0;
-   params.vnfs_filesize   = 0;
+   params.vnfs_filesize   = fileSize;
    params.vnfs_cnp        = NULL;
    /* Do not let OS X cache vnodes for us. */
    params.vnfs_flags      = VNFS_NOCACHE | VNFS_CANTCACHE;
@@ -884,7 +919,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
       goto out;
    }
 
-   fp = HgfsAllocFile(fileName, fileType, dvp, htp, permissions);
+   fp = HgfsAllocFile(fileName, fileType, dvp, htp, permissions, fileSize);
 
    params.vnfs_fsnode = (void *)fp;
    if (params.vnfs_fsnode == NULL) {
@@ -958,7 +993,8 @@ HgfsAllocFile(const char *fileName,         // IN: Name of file
               HgfsFileType fileType,        // IN: Type of file
               struct vnode *dvp,            // IN: Parent directory vnode
               HgfsFileHashTable *htp,       // IN: Hash table
-              int permissions)              // IN: permissions for creating new files
+              int permissions,              // IN: permissions for creating new files
+              off_t fileSize)               // IN: file size
 {
    HgfsFile *fp;
    fp = os_malloc(sizeof *fp, M_ZERO | M_WAITOK);
@@ -966,7 +1002,7 @@ HgfsAllocFile(const char *fileName,         // IN: Name of file
    if (fp != NULL) {
       DEBUG(VM_DEBUG_INFO, "HgfsGetFile: allocated HgfsFile for %s.\n", fileName);
 
-      if (HgfsInitFile(fp, dvp, fileName, fileType, permissions) != 0) {
+      if (HgfsInitFile(fp, dvp, fileName, fileType, permissions, fileSize) != 0) {
          DEBUG(VM_DEBUG_FAIL, "Failed to initialize HgfsFile");
          os_free(fp, sizeof(*fp));
          fp = NULL;
@@ -1001,7 +1037,7 @@ HgfsAllocFile(const char *fileName,         // IN: Name of file
 static HgfsFile *
 HgfsInsertFile(const char *fileName,       // IN: Filename to get file for
                HgfsFile *fp,               // IN: HgfsFile object to insert
-	            HgfsFileHashTable *htp)     // IN: Hash table to look in
+               HgfsFileHashTable *htp)     // IN: Hash table to look in
 {
    HgfsFile *existingFp = NULL;
 
@@ -1015,21 +1051,21 @@ HgfsInsertFile(const char *fileName,       // IN: Filename to get file for
    os_mutex_lock(htp->mutex);
 
    existingFp = HgfsFindFile(fileName, htp);
-   if (existingFp) { // HgfsFile with this name alrady exists
+   if (existingFp) { // HgfsFile with this name already exists
       int ret = vnode_get(existingFp->vnodep);
       if (ret != 0) {
          /*
           * It is not clear why vnode_get may fail while there is HgfsFile in
           * our hash table. Most likely it will never happen.
           * However if this ever occur the safest approach is to remove
-          * the HgsfFle structure from the hash table but do dont free it.
+          * the HgfsFile structure from the hash table but do dont free it.
           * It should be freed later on when the vnode is recycled.
           */
          DblLnkLst_Unlink1(&existingFp->listNode);
          existingFp = NULL;
       }
    }
-   if (existingFp) {
+   if (existingFp == NULL) {
       HgfsAddFile(fp, htp);
    }
 
@@ -1100,7 +1136,8 @@ HgfsInitFile(HgfsFile *fp,              // IN: File to initialize
              struct vnode *dvp,         // IN: Paretn directory vnode
              const char *fileName,      // IN: Name of file
              HgfsFileType fileType,     // IN: Type of file
-             int permissions)           // IN: Permissions for new files
+             int permissions,           // IN: Permissions for new files
+             off_t fileSize)            // IN: File size
 {
    int len;
 
@@ -1137,6 +1174,9 @@ HgfsInitFile(HgfsFile *fp,              // IN: File to initialize
 
    fp->handleRefCount = 0;
    fp->handle = 0;
+   fp->implicitlyOpened = FALSE;
+   fp->mmapped = FALSE;
+   fp->fileSize = fileSize;
 
    fp->handleLock = os_rw_lock_alloc_init("hgfs_rw_handle_lock");
    if (!fp->handleLock) {
@@ -1205,7 +1245,7 @@ destroyOut:
  */
 
 void
-HgfsFreeFile(HgfsFile *fp)
+HgfsFreeFile(HgfsFile *fp)   // IN: HgfsFile structure to free
 {
    ASSERT(fp);
    os_rw_lock_free(fp->handleLock);
@@ -1218,6 +1258,33 @@ HgfsFreeFile(HgfsFile *fp)
       vnode_rele(fp->parent);
    }
    os_free(fp, sizeof *fp);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsMarkFileMmapped --
+ *
+ *      Sets/Clears mmap flag in HgfsFile structure
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsMarkFileMmapped(struct vnode *vp,    // vnode which state is being changed
+                    Bool mmapped)        // New mapping state
+{
+   HgfsFile *fp;
+   ASSERT(vp);
+   fp = HGFS_VP_TO_FP(vp);
+   fp->mmapped = mmapped;
 }
 
 /* Adding/finding/removing file state from hash table */
@@ -1504,3 +1571,34 @@ HgfsIsModeCompatible(HgfsMode requestedMode,   // IN: Requested open mode
            requestedMode == existingMode);
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsSetFileSize --
+ *
+ *      Notifies virtual memory system that file size has changed.
+ *      Required for memory mapped files to work properly.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsSetFileSize(struct vnode *vp,  // IN: vnode which file size has changed
+                off_t newSize)     // IN: new value for file size
+{
+   HgfsFile *fp;
+
+   ASSERT(vp);
+   fp = HGFS_VP_TO_FP(vp);
+   if (fp->fileSize != newSize) {
+      fp->fileSize = newSize;
+      os_SetSize(vp, newSize);
+   }
+}

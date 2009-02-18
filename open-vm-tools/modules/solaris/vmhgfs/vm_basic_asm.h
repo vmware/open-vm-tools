@@ -851,4 +851,21 @@ RDTSC(void)
 #error No compiler defined for RDTSC
 #endif /* __GNUC__  */
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DEBUGBREAK --
+ *
+ *    Does an int3 for MSVC / GCC. This is a macro to make sure int3 is
+ *    always inlined.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef _MSC_VER
+#define DEBUGBREAK()   __debugbreak()
+#else
+#define DEBUGBREAK()   __asm__ (" int $3 ")
+#endif
+
 #endif

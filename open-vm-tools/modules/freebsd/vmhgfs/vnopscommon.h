@@ -69,23 +69,26 @@ int HgfsRmdirInt(struct vnode *dvp, struct vnode *vp,
 		 struct componentname *cnp);
 int HgfsRemoveInt(struct vnode *vp);
 int HgfsCloseInt(struct vnode *vp, int mode);
-int HgfsOpenInt(struct vnode *vp, int fflag);
+int HgfsOpenInt(struct vnode *vp, int fflag, Bool implicit);
 int HgfsLookupInt(struct vnode *dvp, struct vnode **vpp,
 		  struct componentname *cnp);
 int HgfsCreateInt(struct vnode *dvp, struct vnode **vpp,
 		  struct componentname *cnp, int mode);
-int HgfsReadInt(struct vnode *vp, struct uio *uiop);
+int HgfsReadInt(struct vnode *vp, struct uio *uiop, Bool pagingIo);
 int HgfsReadlinkInt(struct vnode *vp, struct uio *uiop);
-int HgfsWriteInt(struct vnode *vp, struct uio *uiop, int ioflag);
+int HgfsWriteInt(struct vnode *vp, struct uio *uiop,
+                 int ioflag, Bool pagingIo);
 int HgfsMkdirInt(struct vnode *dvp, struct vnode **vpp,
 		 struct componentname *cnp, int mode);
 int HgfsRenameInt(struct vnode *fvp,
 		  struct vnode *tdvp, struct vnode *tvp,
 		  struct componentname *tcnp);
-int HgfsAccessInt(struct vnode *vp, int mode);
+int HgfsAccessInt(struct vnode *vp, HgfsAccessMode mode);
 int HgfsSymlinkInt(struct vnode *dvp,
                    struct vnode **vpp,
                    struct componentname *cnp,
                    char *targetName);
+int HgfsMmapInt(struct vnode *vp, int accessMode);
+int HgfsMnomapInt(struct vnode *vp);
 
 #endif // _HGFS_VNOPS_COMMON_H_

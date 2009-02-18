@@ -844,7 +844,7 @@ VMCIQueue_EnqueueV(VMCIQueue *produceQueue,       // IN:
  *
  * Results:
  *      VMCI_ERROR_QUEUEPAIR_NODATA if no data was available to dequeue.
- *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue 
+ *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *      (as defined by the queue size).
  *      Otherwise the number of bytes dequeued is returned.
  *
@@ -860,7 +860,8 @@ __VMCIQueue_Dequeue(VMCIQueue *produceQueue,                    // IN:
                     const uint64 consumeQSize,                  // IN:
                     void *buf,                                  // IN:
                     size_t bufSize,                             // IN:
-                    VMCIMemcpyFromQueueFunc memcpyFromQueue)    // IN:
+                    VMCIMemcpyFromQueueFunc memcpyFromQueue,    // IN:
+                    Bool updateConsumer)                        // IN:
 {
    const int64 bufReady = VMCIQueue_BufReady(consumeQueue, produceQueue,
                                              consumeQSize);
@@ -884,7 +885,11 @@ __VMCIQueue_Dequeue(VMCIQueue *produceQueue,                    // IN:
       memcpyFromQueue(buf, 0, consumeQueue, head, tmp);
       memcpyFromQueue(buf, tmp, consumeQueue, 0, written - tmp);
    }
-   AddPointer(&VMCIQueue_GetHeader(produceQueue)->consumerHead, written, consumeQSize);
+
+   if (updateConsumer) {
+      AddPointer(&VMCIQueue_GetHeader(produceQueue)->consumerHead, written,
+		 consumeQSize);
+   }
    return written;
 }
 
@@ -918,7 +923,7 @@ VMCIQueue_Dequeue(VMCIQueue *produceQueue,       // IN:
                   size_t bufSize)                // IN:
 {
    return __VMCIQueue_Dequeue(produceQueue, consumeQueue, consumeQSize,
-                              buf, bufSize, VMCIMemcpyFromQueue);
+                              buf, bufSize, VMCIMemcpyFromQueue, TRUE);
 }
 
 
@@ -952,7 +957,75 @@ VMCIQueue_DequeueV(VMCIQueue *produceQueue,       // IN:
                    size_t iovSize)                // IN:
 {
    return __VMCIQueue_Dequeue(produceQueue, consumeQueue, consumeQSize,
-                              (void *)iov, iovSize, VMCIMemcpyFromQueueV);
+                              (void *)iov, iovSize, VMCIMemcpyFromQueueV, TRUE);
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueue_Peek --
+ *
+ *      Reads data (if available) from the given consume queue. Copies data
+ *      to the provided user buffer but does not update the consumer counter
+ *	of the queue.
+ *
+ * Results:
+ *      VMCI_ERROR_QUEUEPAIR_NODATA if no data was available to dequeue.
+ *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue 
+ *      (as defined by the queue size).
+ *      Otherwise the number of bytes copied to user buffer is returned.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE ssize_t
+VMCIQueue_Peek(VMCIQueue *produceQueue,       // IN:
+               const VMCIQueue *consumeQueue, // IN:
+               const uint64 consumeQSize,     // IN:
+               void *buf,                     // IN:
+               size_t bufSize)                // IN:
+{
+   return __VMCIQueue_Dequeue(produceQueue, consumeQueue, consumeQSize,
+                              buf, bufSize, VMCIMemcpyFromQueue, FALSE);
+}
+
+
+#if defined(SOLARIS) || (defined(__linux__) && defined(__KERNEL__))
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueue_PeekV --
+ *
+ *      Reads data (if available) from the given consume queue. Copies data
+ *      to the provided user iovec but does not update the consumer counter
+ *	of the queue.
+ *
+ * Results:
+ *      VMCI_ERROR_QUEUEPAIR_NODATA if no data was available to dequeue.
+ *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
+ *      (as defined by the queue size).
+ *      Otherwise the number of bytes copied to user iovec is returned.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE ssize_t
+VMCIQueue_PeekV(VMCIQueue *produceQueue,       // IN:
+                const VMCIQueue *consumeQueue, // IN:
+                const uint64 consumeQSize,     // IN:
+                struct iovec *iov,             // IN:
+                size_t iovSize)                // IN:
+{
+   return __VMCIQueue_Dequeue(produceQueue, consumeQueue, consumeQSize,
+                              (void *)iov, iovSize, VMCIMemcpyFromQueueV, FALSE);
 }
 #endif
 

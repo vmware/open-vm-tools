@@ -333,7 +333,9 @@ static HgfsInternalStatus HgfsSetattrFromName(char *cpName,
 static Bool HgfsIsShareRoot(char const *cpName, size_t cpNameSize);
 static HgfsInternalStatus HgfsGetHiddenXAttr(char const *fileName, Bool *attribute);
 static HgfsInternalStatus HgfsSetHiddenXAttr(char const *fileName, Bool value);
-
+static HgfsInternalStatus HgfsEffectivePermissions(char *fileName,
+                                                   Bool readOnlyShare,
+                                                   uint32 *permissions);
 #ifdef HGFS_OPLOCKS
 /*
  *-----------------------------------------------------------------------------
@@ -1196,6 +1198,8 @@ HgfsGetattrResolveAlias(char const *fileName,       // IN:  Input filename
    Boolean wasAliased;
    OSStatus osStatus;
 
+   ASSERT_ON_COMPILE(sizeof osStatus == sizeof (int32));
+
    /*
     * Create and resolve an FSRef of the desired path. We pass FALSE to
     * resolveAliasChains because aliases to aliases should behave as
@@ -1205,7 +1209,7 @@ HgfsGetattrResolveAlias(char const *fileName,       // IN:  Input filename
    osStatus = FSPathMakeRef(fileName, &fileRef, NULL);
    if (osStatus != noErr) {
       LOG(4, ("HgfsGetattrResolveAlias: could not create file reference: "
-              "error %lu\n", osStatus));
+              "error %d\n", (int32)osStatus));
       goto exit;
    }
    /*
@@ -1225,7 +1229,7 @@ HgfsGetattrResolveAlias(char const *fileName,       // IN:  Input filename
                                                &wasAliased, kResolveAliasFileNoUI);
    if (osStatus != noErr) {
       LOG(4, ("HgfsGetattrResolveAlias: could not resolve reference: error "
-              "%lu\n", osStatus));
+              "%d\n", (int32)osStatus));
       goto exit;
    }
 
@@ -1779,6 +1783,42 @@ HgfsServerCaseConversionRequired()
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsEffectivePermissions --
+ *
+ *    Get permissions that are in efffect for the current user.
+ *
+ * Results:
+ *    Zero on success.
+ *    Non-zero on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsEffectivePermissions(char *fileName,          // IN: Input filename
+                         Bool readOnlyShare,      // IN: Share name
+                         uint32 *permissions)     // OUT: Effective permissions
+{
+   *permissions = 0;
+   if (access(fileName, R_OK) == 0) {
+      *permissions |= HGFS_PERM_READ;
+   }
+   if (access(fileName, X_OK) == 0) {
+      *permissions |= HGFS_PERM_EXEC;
+   }
+   if (!readOnlyShare && (access(fileName, W_OK) == 0)) {
+      *permissions |= HGFS_PERM_WRITE;
+   }
+   return 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsGetattrFromName --
  *
  *    Performs a stat operation on the given filename, and, if it is a symlink,
@@ -1786,6 +1826,12 @@ HgfsServerCaseConversionRequired()
  *    readlink to get it. If not a symlink, the targetName argument is
  *    untouched. Does necessary translation between Unix file stats and the
  *    HgfsFileAttrInfo formats.
+ *    NOTE: The function is different from HgfsGetAttrFromId: this function returns
+ *    effectve permissions while HgfsGetAttrFromId does not.
+ *    The reason for this asymmetry is that effective permissions are needed
+ *    to get a new handle. If the file is already opened then
+ *    getting effective permissions does not have any value. However getting
+ *    effective permissions would hurt perfomance and should be avoided.
  *
  * Results:
  *    Zero on success.
@@ -1953,6 +1999,22 @@ HgfsGetattrFromName(char *fileName,                    // IN/OUT:  Input filenam
     * This will be ignored by Linux, Solaris clients.
     */
    HgfsGetHiddenAttr(fileName, attr);
+
+   /* Get effective permissions if we can */
+   if (!(S_ISLNK(stats.st_mode))) {
+      HgfsOpenMode shareMode;
+      uint32 permissions;
+      HgfsNameStatus nameStatus;
+      nameStatus = HgfsServerPolicy_GetShareMode(shareName, strlen(shareName),
+                                                 &shareMode);
+      if (nameStatus == HGFS_NAME_STATUS_COMPLETE &&
+          HgfsEffectivePermissions(fileName,
+                                   shareMode == HGFS_OPEN_MODE_READ_ONLY,
+                                   &permissions) == 0) {
+         attr->mask |= HGFS_ATTR_VALID_EFFECTIVE_PERMS;
+         attr->effectivePerms = permissions;
+      }
+   }
 
 exit:
    free(myTargetName);
@@ -3677,14 +3739,17 @@ HgfsServerSearchRead(char const *packetIn, // IN: incoming packet
 
          status = HgfsGetattrFromName(fullName, configOptions, search.utf8ShareName,
                                       &attr, NULL);
-         free(fullName);
-
          if (status != 0) {
-            LOG(4, ("HgfsServerSearchRead: stat FAILED, removing\n"));
-            free(HgfsGetSearchResult(hgfsSearchHandle, requestedOffset, TRUE));
-            free(dent);
-            continue;
+            HgfsOp savedOp = attr.requestType;
+            LOG(4, ("HgfsServerSearchRead: stat FAILED %s (%d)\n",
+                    fullName, status));
+            memset(&attr, 0, sizeof attr);
+            attr.requestType = savedOp;
+            attr.type = HGFS_FILE_TYPE_REGULAR;
+            attr.mask = 0;
          }
+
+         free(fullName);
 
 #if defined(__APPLE__)
          /*

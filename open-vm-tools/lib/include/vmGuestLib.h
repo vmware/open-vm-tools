@@ -366,6 +366,20 @@ VMGuestLibError VMGuestLib_GetResourcePoolPath(VMGuestLibHandle handle, // IN
                                                size_t *bufferSize,      // IN/OUT
                                                char *pathBuffer);       // OUT
 
+/*
+ * CPU stolen time. The time (in ms) that the VM was runnable but not scheduled
+ * to run.
+ */
+
+VMGuestLibError VMGuestLib_GetCpuStolenMs(VMGuestLibHandle handle, // IN
+                                          uint64 *cpuStolenMs);    // OUT
+/*
+ * Memory Target Size.
+ */
+
+VMGuestLibError VMGuestLib_GetMemTargetSizeMB(VMGuestLibHandle handle,  // IN
+                                              uint64 *memTargetSizeMB); // OUT
+
 
 #ifdef __cplusplus
 }

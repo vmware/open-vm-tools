@@ -66,10 +66,12 @@ enum GuestLibV3TypeIds {
    GUESTLIB_ELAPSED_MS            = 17,
    GUESTLIB_RESOURCE_POOL_PATH    = 18,
 
+   GUESTLIB_CPU_STOLEN_MS         = 19,
+   GUESTLIB_MEM_TARGET_SIZE_MB    = 20,
    /*------ Add any new statistics above this line. ------- */
 
    /*------ Bump this when adding to this list. -------*/
-   GUESTLIB_MAX_STATISTIC_ID      = 19
+   GUESTLIB_MAX_STATISTIC_ID      = 21
 };
 
 union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
@@ -113,5 +115,10 @@ union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
 
    case GUESTLIB_RESOURCE_POOL_PATH:
       struct GuestLibV3String resourcePoolPath;
+
+   case GUESTLIB_CPU_STOLEN_MS:
+      struct GuestLibV3StatUint64 cpuStolenMs;
+   case GUESTLIB_MEM_TARGET_SIZE_MB:
+      struct GuestLibV3StatUint64 memTargetSizeMB;
 };
 

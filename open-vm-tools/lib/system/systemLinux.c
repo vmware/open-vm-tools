@@ -658,8 +658,8 @@ System_IsUserAdmin(void)
  */
 
 char *
-System_GetEnv(Bool global,       // IN
-              char *valueName)   // IN: UTF-8
+System_GetEnv(Bool global,           // IN
+              const char *valueName) // IN: UTF-8
 {
    char *result;
    
@@ -698,8 +698,8 @@ System_GetEnv(Bool global,       // IN
 
 int
 System_SetEnv(Bool global,      // IN
-              char *valueName,  // IN: UTF-8
-              char *value)      // IN: UTF-8
+              const char *valueName,  // IN: UTF-8
+              const char *value)      // IN: UTF-8
 {
 #if defined(sun)
    return(-1);

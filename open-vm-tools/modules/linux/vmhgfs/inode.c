@@ -28,6 +28,7 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 
+#include "compat_cred.h"
 #include "compat_fs.h"
 #include "compat_highmem.h"
 #include "compat_kernel.h"
@@ -1194,7 +1195,7 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
              * a Linux machine and as root, but we might as well give it
              * a go.
              */
-            HgfsSetUidGid(dir, dentry, current->fsuid, current->fsgid);
+            HgfsSetUidGid(dir, dentry, current_fsuid(), current_fsgid());
          }
 
          /*
@@ -1629,8 +1630,8 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
    /* Convert target name to CPName-lite format. */
    CPNameLite_ConvertTo(targetName, targetNameBytes - 1, '/');
 
-   *targetNameLength = result;
-   req->payloadSize += result;
+   *targetNameLength = targetNameBytes - 1;
+   req->payloadSize += targetNameBytes - 1;
 
    return 0;
 }

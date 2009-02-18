@@ -4404,6 +4404,7 @@ HgfsPackGetattrReply(HgfsFileAttrInfo *attr,     // IN: attr stucture
       reply->attr.groupId = attr->groupId;
       reply->attr.hostFileId = attr->hostFileId;
       reply->attr.volumeId = attr->volumeId;
+      reply->attr.effectivePerms = attr->effectivePerms;
       reply->reserved = 0;
       *packetSize = HGFS_REP_PAYLOAD_SIZE_V3(reply) + utf8TargetNameLen;
       break;

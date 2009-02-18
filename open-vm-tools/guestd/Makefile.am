@@ -19,6 +19,7 @@ sbin_PROGRAMS = vmware-guestd
 pamdir = $(PAM_PREFIX)/pam.d
 
 AM_CFLAGS = -I$(top_builddir)/include
+AM_CFLAGS += -I$(top_srcdir)/services/plugins/vix
 
 vmware_guestd_LDADD =
 vmware_guestd_LDADD += ../lib/backdoor/libBackdoor.la
@@ -79,7 +80,7 @@ vmware_guestd_SOURCES =
 vmware_guestd_SOURCES += debugStdio.c
 vmware_guestd_SOURCES += foreignVMToolsDaemon.c
 vmware_guestd_SOURCES += foreignVMToolsNetworking.c
-vmware_guestd_SOURCES += foundryToolsDaemon.c
+vmware_guestd_SOURCES += $(top_srcdir)/services/plugins/vix/foundryToolsDaemon.c
 vmware_guestd_SOURCES += main.c
 vmware_guestd_SOURCES += toolsDaemon.c
 
@@ -107,4 +108,4 @@ install-exec-hook:
 	echo 'disable-tools-version = "true"' > $(DESTDIR)/etc/vmware-tools/tools.conf
 
 uninstall-hook:
-	$(RM) -rf $(DESTDIR)/etc/vmware-tools
+	rm -rf $(DESTDIR)/etc/vmware-tools

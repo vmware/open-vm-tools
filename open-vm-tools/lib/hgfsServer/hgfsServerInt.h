@@ -283,6 +283,7 @@ typedef struct HgfsFileAttrInfo {
    uint32 groupId;               /* group identifier, ignored by Windows */
    uint64 hostFileId;            /* File Id of the file on host: inode_t on Linux */
    uint32 volumeId;              /* Volume Id of the volune on which the file resides */
+   uint32 effectivePerms;        /* Permissions in effect for the current user */
 } HgfsFileAttrInfo;
 
 typedef struct HgfsCreateDirInfo {

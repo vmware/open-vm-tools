@@ -26,28 +26,6 @@
 #include "filesystem.h"
 
 /*
- * Device driver EXTERNs
- */
-
-/* Functions for the cb_ops structure (see driver.c) */
-EXTERN int HgfsDevOpen(dev_t *devp, int flag, int otyp, cred_t *credp);
-EXTERN int HgfsDevClose(dev_t dev, int flag, int otyp, cred_t *credp);
-EXTERN int HgfsDevRead(dev_t dev, uio_t *uiop, cred_t *credp);
-EXTERN int HgfsDevWrite(dev_t dev, uio_t *uiop, cred_t *credp);
-EXTERN int HgfsDevChpoll(dev_t dev, short int events, int anyyet,
-                         short int *reventsp, struct pollhead **phpp);
-
-/* Functions for the dev_ops structure (see driver.c) */
-EXTERN int HgfsDevGetinfo(dev_info_t *dip, ddi_info_cmd_t infocmd,
-                          void *arg, void **result);
-EXTERN int HgfsDevAttach(dev_info_t *dip, ddi_attach_cmd_t cmd);
-EXTERN int HgfsDevDetach(dev_info_t *dip, ddi_detach_cmd_t cmd);
-
-/* Struct needed in struct modldrv */
-EXTERN struct mod_ops mod_driverops;
-
-
-/*
  * Filesystem EXTERNs
  */
 

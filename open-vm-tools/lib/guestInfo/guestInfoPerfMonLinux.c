@@ -65,9 +65,10 @@ GuestInfo_PerfMon(GuestMemInfo *vmStats)   // OUT: filled vmstats
 {
 #ifndef NO_PROCPS
    ASSERT(vmStats);
+   vmStats->flags = 0;
    GuestInfoMonitorGetStat(vmStats);
    if (GuestInfoMonitorReadMeminfo(vmStats)) {
-      vmStats->flags = LINUX_MEMINFO_FLAGS;
+      vmStats->flags |= LINUX_MEMINFO_FLAGS;
       return TRUE;
    }
 #endif

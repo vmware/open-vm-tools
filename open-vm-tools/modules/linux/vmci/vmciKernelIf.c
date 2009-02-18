@@ -1425,10 +1425,18 @@ VMCIHost_FinishAttach(PageStoreAttachInfo *attach,      // IN
    consumeQ->queueHeaderPtr = kmap(attach->consumePages[0]);
    consumeQ->page = &attach->consumePages[1];
 #else
+   /*
+    * Host queue pair support for earlier kernels temporarily
+    * disabled. See bug 365496.
+    */
+
+   ASSERT_NOT_IMPLEMENTED(FALSE);
+#if 0 
    produceQ->queueHeaderPtr = kmap(attach->produceIoBuf->maplist[0]);
    produceQ->page = &attach->produceIoBuf->maplist[1];
    consumeQ->queueHeaderPtr = kmap(attach->consumeIoBuf->maplist[0]);
    consumeQ->page = &attach->consumeIoBuf->maplist[1];
+#endif
 #endif
 
    return VMCI_SUCCESS;
@@ -1461,8 +1469,16 @@ VMCIHost_DetachMappings(PageStoreAttachInfo *attach)    // IN
    kunmap(attach->producePages[0]);
    kunmap(attach->consumePages[0]);
 #else
+   /*
+    * Host queue pair support for earlier kernels temporarily
+    * disabled. See bug 365496.
+    */
+
+   ASSERT_NOT_IMPLEMENTED(FALSE);
+#if 0
    kunmap(attach->produceIoBuf->maplist[0]);
    kunmap(attach->consumeIoBuf->maplist[0]);
+#endif
 #endif
 }
 
@@ -1487,10 +1503,10 @@ VMCIHost_DetachMappings(PageStoreAttachInfo *attach)    // IN
 int
 VMCIHost_GetUserMemory(PageStoreAttachInfo *attach)         // IN/OUT
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
    int retval;
    int err = VMCI_SUCCESS;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 
    attach->producePages =
       VMCI_AllocKernelMem(attach->numProducePages * sizeof attach->producePages[0],
@@ -1567,7 +1583,13 @@ errorDealloc:
    return err;
 
 #else
+   /*
+    * Host queue pair support for earlier kernels temporarily
+    * disabled. See bug 365496.
+    */
 
+   ASSERT_NOT_IMPLEMENTED(FALSE);
+#if 0
    attach->produceIoBuf = VMCI_AllocKernelMem(sizeof *attach->produceIoBuf,
                                               VMCI_MEMORY_NORMAL);
    if (attach->produceIoBuf == NULL) {
@@ -1611,7 +1633,9 @@ out:
       }
    }
    return err;
-
+#else
+   return FALSE;
+#endif
 #endif
 }
 
@@ -1663,6 +1687,13 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach)         // IN
                       attach->numConsumePages *
                       sizeof attach->consumePages[0]);
 #else
+   /*
+    * Host queue pair support for earlier kernels temporarily
+    * disabled. See bug 365496.
+    */
+
+   ASSERT_NOT_IMPLEMENTED(FALSE);
+#if 0
    mark_dirty_kiobuf(attach->produceIoBuf,
                      attach->numProducePages * PAGE_SIZE);
    unmap_kiobuf(attach->produceIoBuf);
@@ -1675,6 +1706,7 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach)         // IN
                       sizeof *attach->produceIoBuf);
    VMCI_FreeKernelMem(attach->consumeIoBuf,
                       sizeof *attach->consumeIoBuf);
+#endif
 #endif
 }
 

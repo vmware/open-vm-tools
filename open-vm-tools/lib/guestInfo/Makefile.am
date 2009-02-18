@@ -23,13 +23,11 @@ libGuestInfo_la_SOURCES += guestInfoServer.c
 libGuestInfo_la_SOURCES += guestInfoPosix.c
 libGuestInfo_la_SOURCES += guestInfoPerfMonLinux.c
 
-if ENABLE_CORE_SERVICES
 noinst_LTLIBRARIES += libGuestInfoCS.la
 
 libGuestInfoCS_la_SOURCES =
 libGuestInfoCS_la_SOURCES += guestInfo.c
 libGuestInfoCS_la_SOURCES += guestInfoPosix.c
-endif
 
 AM_CFLAGS = $(DNET_CPPFLAGS)
 

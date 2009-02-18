@@ -69,6 +69,15 @@ typedef struct DynXdrData {
 #  define DYNXDR_SIZE_T u_int
 #endif
 
+/*
+ * Mac OS 64-bit defines the parameter to "x_putlong" as an int.
+ */
+#if defined __APPLE__ && defined __LP64__
+#  define DYNXDR_LONG int
+#else
+#  define DYNXDR_LONG long
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -177,11 +186,16 @@ DynXdrPutInt32(XDR *xdrs,                       // IN/OUT
  */
 
 static bool_t
-DynXdrPutLong(XDR *xdrs,               // IN/OUT
-              DYNXDR_CONST long *lp)   // IN
+DynXdrPutLong(XDR *xdrs,                    // IN/OUT
+              DYNXDR_CONST DYNXDR_LONG *lp) // IN
 {
-   int32 out = htonl((int32)*lp);
+   int32 out;
    DynXdrData *priv = (DynXdrData *) xdrs->x_private;
+
+#ifdef __APPLE__
+   ASSERT_ON_COMPILE(sizeof *lp <= sizeof (int32));
+#endif
+   out = htonl((int32)*lp);
    return DynBuf_Append(&priv->data, &out, sizeof out);
 }
 

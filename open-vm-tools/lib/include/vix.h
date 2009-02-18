@@ -161,6 +161,7 @@ enum {
    VIX_E_INTERACTIVE_SESSION_USER_MISMATCH      = 3035,
    VIX_E_UNABLE_TO_REPLAY_VM                    = 3039,
    VIX_E_CANNOT_POWER_ON_VM                     = 3041,
+   VIX_E_NO_DISPLAY_SERVER                      = 3043,
 
    /* VM Errors */ 
    VIX_E_VM_NOT_FOUND                           = 4000,
@@ -301,6 +302,7 @@ enum {
    VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008,
    VIX_E_TOOLS_INSTALL_ERROR                    = 21009,
    VIX_E_TOOLS_INSTALL_ALREADY_UP_TO_DATE       = 21010,
+   VIX_E_TOOLS_INSTALL_IN_PROGRESS              = 21011,
 
    /* Wrapper Errors */
    VIX_E_WRAPPER_WORKSTATION_NOT_INSTALLED      = 22001,

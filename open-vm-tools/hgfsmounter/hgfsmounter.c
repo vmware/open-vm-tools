@@ -39,6 +39,7 @@
 #if defined(__FreeBSD__) || defined(__APPLE__)
 #   include <sys/uio.h>
 #   include <sys/param.h>
+
 #   define MS_MANDLOCK 0
 #   define MS_RDONLY MNT_RDONLY
 #   define MS_SYNCHRONOUS MNT_SYNCHRONOUS
@@ -71,10 +72,8 @@
  *  10.4 one. Once this is built against the newer library, this should be changed.
  */
 #     define MS_NOATIME 0
+#  endif
 #endif
-
-#endif
-
 
 #include <sys/mount.h>
 #include <pwd.h>
@@ -85,7 +84,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef MOUNTED // defined in mntent.h
+#ifdef MOUNTED /* defined in mntent.h */
 /*
  * If VM_HAVE_MTAB is set, hgfsmounter will update /etc/mtab. This is not necessary on
  * systems such as FreeBSD (and possibly Solaris) that don't have a mtab or the mntent.h
@@ -126,29 +125,22 @@
 #define LOG(format, ...) (beVerbose ? printf(format, ##__VA_ARGS__) : 0)
 #endif
 
+typedef struct MountOptions {
+   char *opt;           /* Option name */
+   int flag;            /* Corresponding flag */
+   Bool set;            /* Whether the flag should be set or reset */
+   char *helpMsg;       /* Help message for the option */
+   char *logMsg;        /* Log message to emit when option was detected */
+   /* Special handler for more complex options */
+   Bool (*handler)(const char *opt,
+                   HgfsMountInfo *mountInfo, int *flags);
+} MountOptions;
+
 static char *thisProgram;
 static char *thisProgramBase;
 static char *shareName;
 static char *mountPoint;
 static Bool beVerbose = FALSE;
-
-static void PrintVersion(void);
-static void PrintUsage(void);
-static size_t GetPathMax(const char *path);
-static Bool ParseShareName(const char *shareName,
-                           const char **shareNameHost,
-                           const char **shareNameDir);
-static Bool ParseUid(const char *uidString,
-                     uid_t *uid);
-static Bool ParseGid(const char *gidString,
-                     gid_t *gid);
-static Bool ParseOptions(const char *optionString,
-                         HgfsMountInfo *mountInfo,
-                         int *flags);
-#ifdef VM_HAVE_MTAB
-static void UpdateMtab(HgfsMountInfo *mountInfo,
-                       int flags);
-#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -171,64 +163,6 @@ PrintVersion(void)
 {
    printf("%s version: %s\n", thisProgramBase, HGFSMOUNTER_VERSION_STRING);
    exit(EXIT_SUCCESS);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * PrintUsage --
- *
- *    Displays usage for the HGFS mounting utility, and exits with failure.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-PrintUsage(void)
-{
-   printf("Usage: %s <sharename> <dir> [-o <options>]\n", thisProgramBase);
-   printf("Mount the HGFS share, specified by name, to a local directory.\n");
-   printf("Share name must be in host:dir format.\n\nOptions:\n");
-   printf("  uid=<arg>             mount owner (by uid or username)\n");
-   printf("  gid=<arg>             mount group (by gid or groupname)\n");
-   printf("  fmask=<arg>           file umask (in octal)\n");
-   printf("  dmask=<arg>           directory umask (in octal)\n");
-   printf("  ro                    mount read-only\n");
-   printf("  rw                    mount read-write (default)\n");
-   printf("  nosuid                ignore suid/sgid bits\n");
-   printf("  suid                  allow suid/sgid bits (default)\n");
-#ifdef MS_NODEV
-   printf("  nodev                 prevent device node access\n");
-   printf("  dev                   allow device node access (default)\n");
-#endif
-   printf("  noexec                prevent program execution\n");
-   printf("  exec                  allow program execution (default)\n");
-   printf("  sync                  file writes are synchronous\n");
-   printf("  async                 file writes are asynchronous (default)\n");
-   printf("  mand                  allow mandatory locks\n");
-   printf("  nomand                prevent mandatory locks (default)\n");
-   printf("  noatime               do not update access times\n");
-   printf("  atime                 update access times (default)\n");
-   printf("  nodiratime            do not update directory access times\n");
-   printf("  adirtime              update directory access times (default)\n");
-   printf("  ttl=<arg>             time before file attributes must be\n");
-   printf("                        revalidated (in seconds). Improves\n");
-   printf("                        performance but decreases coherency.\n");
-   printf("                        Defaults to 1 if not set.\n");
-   printf("\n");
-   printf("This command is intended to be run from within /bin/mount by\n");
-   printf("passing the option '-t %s'. For example:\n", HGFS_NAME);
-   printf("  mount -t %s .host:/ /mnt/hgfs/\n", HGFS_NAME);
-   printf("  mount -t %s .host:/foo /mnt/foo\n", HGFS_NAME);
-   printf("  mount -t %s .host:/foo/bar /var/lib/bar\n", HGFS_NAME);
-   exit(EXIT_FAILURE);
 }
 
 
@@ -307,7 +241,8 @@ ParseShareName(const char *shareName,      // IN:  Share name to validate
                const char **shareNameHost, // OUT: Share name, host component
                const char **shareNameDir)  // OUT: Share name, dir component
 {
-   const char *colon, *dir;
+   const char *colon;
+   const char *dir;
 
    /* 1) Must be colon separated into host and dir. */
    colon = strchr(shareName, ':');
@@ -349,27 +284,40 @@ ParseShareName(const char *shareName,      // IN:  Share name to validate
  * ParseUid
  *
  *    A helper function to process a string containing either a user name
- *    or a uid and return the resulting uid.
+ *    or a uid and set up mountInfo accordingly.
  *
  * Results:
- *    TRUE on success, uid contains the user ID.
- *    FALSE on failure, uid is undefined.
+ *    TRUE on success, mountInfo modified appropriately, FALSE on failure.
  *
  * Side effects:
  *    None.
  *
  *-----------------------------------------------------------------------------
  */
-
+#ifndef sun
 static Bool
-ParseUid(const char *uidString, // IN:  String with uid
-         uid_t *uid)            // OUT: Converted uid
+ParseUid(const char *option,        // IN:  option string along with value
+         HgfsMountInfo *mountInfo,  // OUT: mount data
+         int *flags)                // OUT: mount flags
 {
    Bool success = FALSE;
-   uid_t myUid;
+   unsigned int idx = 0;
+   char *optString;
+   char *uidString;
+   uid_t myUid = 0;
 
-   ASSERT(uidString);
-   ASSERT(uid);
+   ASSERT(option);
+   ASSERT(mountInfo);
+   ASSERT(flags);
+
+   /* Figure where value starts, we don't need result, just index. */
+   optString = StrUtil_GetNextToken(&idx, option, "=");
+   ASSERT(optString);
+   uidString = StrUtil_GetNextToken(&idx, option, "=");
+   if (!uidString) {
+      LOG("Error getting the value for uid\n");
+      goto out;
+   }
 
    /*
     * The uid can be a direct value or a username which we must first
@@ -379,7 +327,6 @@ ParseUid(const char *uidString, // IN:  String with uid
       errno = 0;
       myUid = strtoul(uidString, NULL, 10);
       if (errno == 0) {
-         *uid = myUid;
          success = TRUE;
       } else {
          printf("Bad UID value \"%s\"\n", uidString);
@@ -390,14 +337,24 @@ ParseUid(const char *uidString, // IN:  String with uid
       if (!(pw = getpwnam(uidString))) {
          printf("Bad user name \"%s\"\n", uidString);
       } else {
-         *uid = pw->pw_uid;
+         myUid = pw->pw_uid;
          success = TRUE;
       }
       endpwent();
    }
+
+   if (success) {
+      mountInfo->uid = myUid;
+      mountInfo->uidSet = TRUE;
+      LOG("Setting mount owner to %"FMTUID"\n", myUid);
+   }
+
+   free(uidString);
+out:
+   free(optString);
    return success;
 }
-
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -405,27 +362,40 @@ ParseUid(const char *uidString, // IN:  String with uid
  * ParseGid
  *
  *    A helper function to process a string containing either a group name
- *    or a gid and return the resulting gid.
+ *    or a gid and set up mountInfo accordingly.
  *
  * Results:
- *    TRUE on success, gid contains the group ID.
- *    FALSE on failure, gid is undefined.
+ *    TRUE on success, mountInfo modified appropriately, FALSE on failure.
  *
  * Side effects:
  *    None.
  *
  *-----------------------------------------------------------------------------
  */
-
+#ifndef sun
 static Bool
-ParseGid(const char *gidString, // IN:  String with gid
-         gid_t *gid)            // OUT: Converted gid
+ParseGid(const char *option,        // IN:  option string along with value
+         HgfsMountInfo *mountInfo,  // OUT: mount data
+         int *flags)                // OUT: mount flags
 {
    Bool success = FALSE;
-   gid_t myGid;
+   unsigned int idx = 0;
+   char *optString;
+   char *gidString;
+   gid_t myGid = 0;
 
-   ASSERT(gidString);
-   ASSERT(gid);
+   ASSERT(option);
+   ASSERT(mountInfo);
+   ASSERT(flags);
+
+   /* Figure where value starts, we don't need result, just index. */
+   optString = StrUtil_GetNextToken(&idx, option, "=");
+   ASSERT(optString);
+   gidString = StrUtil_GetNextToken(&idx, option, "=");
+   if (!gidString) {
+      LOG("Error getting the value for gid\n");
+      goto out;
+   }
 
    /*
     * The gid can be a direct value or a group name which we must first
@@ -435,7 +405,6 @@ ParseGid(const char *gidString, // IN:  String with gid
       errno = 0;
       myGid = strtoul(gidString, NULL, 10);
       if (errno == 0) {
-         *gid = myGid;
          success = TRUE;
       } else {
          printf("Bad GID value \"%s\"\n", gidString);
@@ -446,14 +415,257 @@ ParseGid(const char *gidString, // IN:  String with gid
       if (!(gr = getgrnam(gidString))) {
          printf("Bad group name \"%s\"\n", gidString);
       } else {
-         *gid = gr->gr_gid;
+         myGid = gr->gr_gid;
          success = TRUE;
       }
       endpwent();
    }
+
+   if (success) {
+      mountInfo->gid = myGid;
+      mountInfo->gidSet = TRUE;
+      LOG("Setting mount group to %"FMTUID"\n", myGid);
+   }
+
+   free(gidString);
+out:
+   free(optString);
    return success;
 }
+#endif
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ParseMask
+ *
+ *    A helper function to parse a string containing File/Directory
+ *    mask value.
+ *
+ * Results:
+ *    TRUE on success,  along with the mask, FALSE on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+#ifndef sun
+static Bool
+ParseMask(const char *option,         // IN:  option string along with value
+          unsigned short *pmask)      // OUT: parsed mask
+{
+   Bool success = FALSE;
+   unsigned int idx = 0;
+   char *optString;
+   char *maskString;
+   unsigned short mask;
+
+   optString = StrUtil_GetNextToken(&idx, option, "=");
+   ASSERT(optString);
+   maskString = StrUtil_GetNextToken(&idx, option, "=");
+   if (!maskString) {
+      LOG("Error getting the value for %s\n", optString);
+      goto out;
+   }
+
+   /*
+    * The way to check for an overflow in strtol(3), according to its
+    * man page.
+    */
+   errno = 0;
+   mask = strtol(maskString, NULL, 8);
+   if (errno == 0) {
+      *pmask = mask;
+      success = TRUE;
+   } else {
+      LOG("Error, overflow in %s\n", optString);
+   }
+
+   free(maskString);
+out:
+   free(optString);
+   return success;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ParseFmask
+ *
+ *    A helper function to process a string containing File mask value.
+ *
+ * Results:
+ *    TRUE on success, mountInfo modified appropriately, FALSE on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+#ifndef sun
+static Bool
+ParseFmask(const char *option,         // IN:  option string along with value
+           HgfsMountInfo *mountInfo,   // OUT: mount data
+           int *flags)                 // OUT: mount flags
+{
+   ASSERT(option);
+   ASSERT(mountInfo);
+
+   if (ParseMask(option, &mountInfo->fmask)) {
+      LOG("Setting mount fmask to %o\n", mountInfo->fmask);
+      return TRUE;
+   }
+
+   return FALSE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ParseDmask
+ *
+ *    A helper function to process a string containing dmask value.
+ *
+ * Results:
+ *    TRUE on success, mountInfo modified appropriately, FALSE on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+#ifndef sun
+static Bool
+ParseDmask(const char *option,         // IN:  option string along with value
+           HgfsMountInfo *mountInfo,   // OUT: mount data
+           int *flags)                 // OUT: mount flags
+{
+   ASSERT(option);
+   ASSERT(mountInfo);
+
+   if (ParseMask(option, &mountInfo->fmask)) {
+      LOG("Setting mount dmask to %o\n", mountInfo->dmask);
+      return TRUE;
+   }
+
+   return FALSE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ParseTtl
+ *
+ *    A helper function to process a string containing TTL value.
+ *
+ * Results:
+ *    TRUE on success, mountInfo modified appropriately, FALSE on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+#ifndef sun
+static Bool
+ParseTtl(const char *option,        // IN:  option string along with value
+         HgfsMountInfo *mountInfo,  // OUT: mount data
+         int *flags)                // OUT: mount flags
+{
+   Bool success = FALSE;
+   unsigned int idx = 0;
+   char *optString;
+   int32 ttl;
+
+   ASSERT(option);
+   ASSERT(mountInfo);
+   ASSERT(flags);
+
+   /* Figure where value starts, we don't need result, just index. */
+   optString = StrUtil_GetNextToken(&idx, option, "=");
+   ASSERT(optString);
+
+   if (StrUtil_GetNextIntToken(&ttl, &idx, option, "=") && ttl > 0) {
+      LOG("Setting maximum attribute TTL to %u\n", ttl);
+      mountInfo->ttl = ttl;
+      success = TRUE;
+   } else {
+      LOG("Error getting the value for ttl\n");
+   }
+
+   free(optString);
+   return success;
+}
+#endif
+
+static MountOptions mountOptions[] = {
+   { "ro", MS_RDONLY, TRUE, "mount read-only",
+      "Setting mount read-only", NULL },
+   { "rw", MS_RDONLY, FALSE, "mount read-write",
+      "Setting mount read-write", NULL },
+   { "nosuid", MS_NOSUID, TRUE, "ignore suid/sgid bits",
+      "Setting mount option for allowing suid/sgid bits off", NULL },
+   { "suid", MS_NOSUID, FALSE, "allow suid/sgid bits (default)",
+      "Setting mount option for allowing suid/sgid bits on", NULL },
+
+#ifndef sun /* Solaris does not have any of these options */
+
+   { "uid=<arg>", 0, TRUE, "mount owner (by uid or username)",
+      NULL, ParseUid },
+   { "gid=<arg>", 0, TRUE, "mount group (by gid or groupname)",
+      NULL, ParseGid },
+   { "fmask=<arg>", 0, TRUE, "file umask (in octal)",
+      NULL, ParseFmask },
+   { "dmask=<arg>", 0, TRUE, "directory umask (in octal)",
+      NULL, ParseDmask },
+#ifdef MS_NODEV
+   { "nodev", MS_NODEV, TRUE, "prevent device node access",
+      "Setting mount option for accessing device nodes off", NULL },
+   { "dev", MS_NODEV, FALSE, "allow device node access (default)",
+      "Setting mount option for accessing device nodes on", NULL },
+#endif
+   { "noexec", MS_NOEXEC, TRUE, "prevent program execution",
+      "Setting mount option for program execution off", NULL },
+   { "exec", MS_NOEXEC, FALSE, "allow program execution (default)",
+      "Setting mount option for program execution on", NULL },
+   { "sync", MS_SYNCHRONOUS, TRUE, "file writes are synchronous",
+      "Setting mount synchronous writes", NULL },
+   { "async", MS_SYNCHRONOUS, FALSE, "file writes are asynchronous (default)",
+      "Setting mount synchronous writes", NULL },
+   { "mand", MS_MANDLOCK, TRUE, "allow mandatory locks",
+      "Setting mount option for allow mandatory locks on", NULL },
+   { "nomand", MS_MANDLOCK, FALSE, "prevent mandatory locks (default)",
+      "Setting mount option for allow mandatory locks off", NULL },
+   { "noatime", MS_NOATIME, TRUE, "do not update access times",
+      "Setting mount option for updating access times off", NULL },
+   { "atime", MS_NOATIME, FALSE, "update access times (default)",
+      "Setting mount option for updating access times on", NULL },
+   { "nodiratime", MS_NOATIME, TRUE, "do not update directory access times",
+      "Setting mount option for updating directory access times off", NULL },
+   { "diratime", MS_NOATIME, FALSE, "update access directory times (default)",
+      "Setting mount option for updating directory access times on", NULL },
+   { "ttl=<arg>", 0, TRUE,
+      "time before file attributes must be\n"
+      "revalidated (in seconds). Improves\n"
+      "performance but decreases coherency.\n"
+      "Defaults to 1 if not set.\n",
+      NULL, ParseTtl },
+   { "bind", MS_BIND, TRUE, "perform bind mount",
+      "Setting mount type to bind", NULL },
+   { "bind", MS_MOVE, TRUE, "move an existig mount point",
+      "Setting mount type to move", NULL },
+#endif
+
+   { "remount", MS_REMOUNT, TRUE, "remount already mounted filesystem",
+      "Setting mount type to remount", NULL }
+};
 
 /*
  *-----------------------------------------------------------------------------
@@ -480,9 +692,10 @@ ParseOptions(const char *optionString, // IN:  Option string to parse
              int *flags)               // OUT: Flags we might modify
 {
    unsigned int commaIndex = 0;
-   Bool valid, success = FALSE;
+   Bool success = FALSE;
    char *key = NULL;
    char *keyVal = NULL;
+   int i;
 
    ASSERT(optionString);
    ASSERT(mountInfo);
@@ -502,175 +715,101 @@ ParseOptions(const char *optionString, // IN:  Option string to parse
          goto out;
       }
 
-      /*
-       * Here are all our recognized option keys. Some have corresponding
-       * values, others don't.
-       */
-      if (strcmp(key, "fmask") == 0) {
-         char *fmaskString = StrUtil_GetNextToken(&equalsIndex, keyVal, "=");
-         if (fmaskString != NULL) {
-            unsigned short fmask;
+      for (i = 0; i < ARRAYSIZE(mountOptions); i++) {
+         Bool match = FALSE;
+         unsigned int idx = 0;
+         char *optName = StrUtil_GetNextToken(&idx, mountOptions[i].opt, "=");
 
-            /*
-             * The way to check for an overflow in strtol(3), according to its
-             * man page.
-             */
-            errno = 0;
-            fmask = strtol(fmaskString, NULL, 8);
-            free(fmaskString);
-            if (errno == 0) {
-               LOG("Setting mount fmask to %o\n", fmask);
-               mountInfo->fmask = fmask;
+         if (!optName) {
+            printf("Failed to parse option name, out of memory?\n");
+            goto out;
+         }
+
+         match = strcmp(key, optName) == 0;
+         free(optName);
+
+         if (match) {
+            if (mountOptions[i].handler) {
+               if (!mountOptions[i].handler(keyVal, mountInfo, flags)) {
+                  goto out;
+               }
             } else {
-               LOG("Error, overflow in fmask\n");
-               goto out;
+               if (mountOptions[i].set) {
+                  *flags |= mountOptions[i].flag;
+               } else {
+                  *flags &= ~mountOptions[i].flag;
+               }
+               LOG("%s\n", mountOptions[i].logMsg);
             }
-         } else {
-            LOG("Error getting the value for fmask\n");
-            goto out;
+            break;
          }
-      } else if (strcmp(key, "dmask") == 0) {
-         char *dmaskString = StrUtil_GetNextToken(&equalsIndex, keyVal, "=");
-         if (dmaskString != NULL) {
-            unsigned short dmask;
+      }
 
-            /*
-             * The way to check for an overflow in strtol(3), according to its
-             * man page.
-             */
-            errno = 0;
-            dmask = strtol(dmaskString, NULL, 8);
-            free(dmaskString);
-            if (errno == 0) {
-               LOG("Setting mount dmask to %o\n", dmask);
-               mountInfo->dmask = dmask;
-            } else {
-               LOG("Error, overflow in dmask\n");
-               goto out;
-            }
-         } else {
-            LOG("Error getting the value for dmask\n");
-            goto out;
-         }
-      } else if (strcmp(key, "uid") == 0) {
-         char *uidString = StrUtil_GetNextToken(&equalsIndex, keyVal, "=");
-         if (uidString != NULL) {
-            uid_t uid = 0;
-
-            valid = ParseUid(uidString, &uid);
-            free(uidString);
-            if (valid) {
-               mountInfo->uid = uid;
-               mountInfo->uidSet = TRUE;
-               LOG("Setting mount owner to %u\n", uid);
-            } else {
-               goto out;
-            }
-         } else {
-            LOG("Error getting the value for uid\n");
-            goto out;
-         }
-      } else if (strcmp(key, "gid") == 0) {
-         char *gidString = StrUtil_GetNextToken(&equalsIndex, keyVal, "=");
-         if (gidString != NULL) {
-            gid_t gid = 0;
-
-            valid = ParseGid(gidString, &gid);
-            free(gidString);
-            if (valid) {
-               mountInfo->gid = gid;
-               mountInfo->gidSet = TRUE;
-               LOG("Setting mount group to %u\n", gid);
-            } else {
-               goto out;
-            }
-         } else {
-            LOG("Error getting the value for gid\n");
-            goto out;
-         }
-      } else if (strcmp(key, "ttl") == 0) {
-         int32 ttl;
-
-         if (StrUtil_GetNextIntToken(&ttl, &equalsIndex, keyVal, "=") && ttl > 0) {
-            mountInfo->ttl = ttl;
-            LOG("Setting maximum attribute TTL to %u\n", ttl);
-         } else {
-            LOG("Error getting the value for ttl\n");
-            goto out;
-         }
-      } else if (strcmp(key, "rw") == 0) { // can we write to the mount?
-         *flags &= ~MS_RDONLY;
-         LOG("Setting mount read-write\n");
-      } else if (strcmp(key, "ro") == 0) {
-         *flags |= MS_RDONLY;
-         LOG("Setting mount read-only\n");
-      } else if (strcmp(key, "nosuid") == 0) { // allow suid and sgid bits?
-         *flags |= MS_NOSUID;
-         LOG("Setting mount option for allowing suid/sgid bits off\n");
-      } else if (strcmp(key, "suid") == 0) {
-         *flags &= ~MS_NOSUID;
-         LOG("Setting mount option for allowing suid/sgid bits on\n");
-#ifdef MS_NODEV
-      } else if (strcmp(key, "nodev") == 0) { // allow access to device nodes?
-         *flags |= MS_NODEV;
-         LOG("Setting mount option for accessing device nodes off\n");
-      } else if (strcmp(key, "dev") == 0) {
-         *flags &= ~MS_NODEV;
-         LOG("Setting mount option for accessing device nodes on\n");
-#endif
-      } else if (strcmp(key, "noexec") == 0) { // allow program execution?
-         *flags |= MS_NOEXEC;
-         LOG("Setting mount option for program execution off\n");
-      } else if (strcmp(key, "exec") == 0) {
-         *flags &= ~MS_NOEXEC;
-         LOG("Setting mount option for program execution on\n");
-      } else if (strcmp(key, "sync") == 0) { // meaningless at the moment
-         *flags |= MS_SYNCHRONOUS;
-         LOG("Setting mount synchronous writes\n");
-      } else if (strcmp(key, "async") == 0) {
-         *flags &= ~MS_SYNCHRONOUS;
-         LOG("Setting mount asynchronous writes\n");
-      } else if (strcmp(key, "mand") == 0) { // are mandatory locks allowed?
-         *flags |= MS_MANDLOCK;
-         LOG("Setting mount option for allow mandatory locks on\n");
-      } else if (strcmp(key, "nomand") == 0) {
-         *flags &= ~MS_MANDLOCK;
-         LOG("Setting mount option for allow mandatory locks off\n");
-      } else if (strcmp(key, "noatime") == 0) { // don't update access times?
-         *flags |= MS_NOATIME;
-         LOG("Setting mount option for updating access times off\n");
-      } else if (strcmp(key, "atime") == 0) {
-         *flags &= ~MS_NOATIME;
-         LOG("Setting mount option for updating access times on\n");
-      } else if (strcmp(key, "nodiratime") == 0) { // don't update dir atimes?
-         *flags |= MS_NODIRATIME;
-         LOG("Setting mount option for updating directory access times off\n");
-      } else if (strcmp(key, "diratime") == 0) {
-         *flags &= ~MS_NODIRATIME;
-         LOG("Setting mount option for updating directory access times on\n");
-      } else if (strcmp(key, "bind") == 0) { // bind mount?
-         *flags |= MS_BIND;
-         LOG("Setting mount type to bind\n");
-      } else if (strcmp(key, "move") == 0) { // move an existing mount?
-         *flags |= MS_MOVE;
-         LOG("Setting mount type to move\n");
-      } else if (strcmp(key, "remount") == 0) { // remount?
-         *flags |= MS_REMOUNT;
-         LOG("Setting mount type to remount\n");
-      } else {
+      if (i == ARRAYSIZE(mountOptions)) {
          LOG("Skipping unrecognized option \"%s\"\n", key);
       }
+
       free(key);
       free(keyVal);
       key = NULL;
       keyVal = NULL;
    }
+
    success = TRUE;
 
-  out:
+out:
    free(key);
    free(keyVal);
    return success;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PrintUsage --
+ *
+ *    Displays usage for the HGFS mounting utility, and exits with failure.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+PrintUsage(void)
+{
+   int i;
+
+   printf("Usage: %s <sharename> <dir> [-o <options>]\n", thisProgramBase);
+   printf("Mount the HGFS share, specified by name, to a local directory.\n");
+   printf("Share name must be in host:dir format.\n\nOptions:\n");
+
+   for (i = 0; i < ARRAYSIZE(mountOptions); i++) {
+      Bool printOptName = TRUE;
+      unsigned int tokidx = 0;
+      char *msg;
+
+      while ((msg = StrUtil_GetNextToken(&tokidx,
+                                         mountOptions[i].helpMsg,
+                                         "\n")) != NULL) {
+         printf("  %-15s       %s\n",
+                printOptName ? mountOptions[i].opt : "", msg);
+         free(msg);
+         printOptName = FALSE;
+      }
+   }
+
+   printf("\n");
+   printf("This command is intended to be run from within /bin/mount by\n");
+   printf("passing the option '-t %s'. For example:\n", HGFS_NAME);
+   printf("  mount -t %s .host:/ /mnt/hgfs/\n", HGFS_NAME);
+   printf("  mount -t %s .host:/foo /mnt/foo\n", HGFS_NAME);
+   printf("  mount -t %s .host:/foo/bar /var/lib/bar\n", HGFS_NAME);
+   exit(EXIT_FAILURE);
 }
 
 
@@ -923,6 +1062,8 @@ main(int argc,          // IN
 
    mountInfo.magicNumber = HGFS_SUPER_MAGIC;
    mountInfo.version = HGFS_PROTOCOL_VERSION;
+
+#ifndef sun
    mountInfo.fmask = 0;
    mountInfo.dmask = 0;
    mountInfo.uidSet = FALSE;
@@ -930,6 +1071,7 @@ main(int argc,          // IN
    mountInfo.ttl = HGFS_DEFAULT_TTL;
    mountInfo.shareNameHost = shareNameHost;
    mountInfo.shareNameDir = shareNameDir;
+#endif
 
    /*
     * This'll write the rest of the options into HgfsMountInfo and possibly
@@ -988,6 +1130,9 @@ main(int argc,          // IN
    }
 #elif defined(__APPLE__)
    mntRes = mount(HGFS_NAME, mountPoint, flags, &mountInfo);
+#elif defined(sun)
+   mntRes = mount(mountPoint, mountPoint, MS_DATA | flags, HGFS_NAME,
+                  &mountInfo, sizeof mountInfo);
 #endif
    if (mntRes) {
       perror("Error: cannot mount filesystem");

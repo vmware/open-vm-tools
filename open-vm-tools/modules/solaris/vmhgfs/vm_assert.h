@@ -81,10 +81,26 @@ EXTERN void WarningThrottled(uint32 *count, const char *fmt, ...)
  */
 
 #ifndef ASSERT_IFNOT
-   #ifdef __cplusplus
-      #define ASSERT_IFNOT(cond, panic) (UNLIKELY(!(cond)) ? (panic) : (void)0)
+   /*
+    * PR 271512: When compiling with gcc, catch assignments inside an ASSERT.
+    *
+    * 'UNLIKELY' is defined with __builtin_expect, which does not warn when passed an
+    * assignment (gcc bug 36050).
+    * To get around this, we put 'cond' in an 'if' statement and make sure it never gets
+    * executed by putting that inside of 'if (0)'.
+    * We use gcc's statement expression syntax to make ASSERT an expression because some
+    * code uses it that way.
+    *
+    * Since statement expression syntax is a gcc extension and since it's not clear if
+    * this is a problem with other compilers, the ASSERT definition was not changed for
+    * them.  Using a bare 'cond' with the ternary operator may provide a solution.
+    */
+   #ifdef __GNUC__
+      #define ASSERT_IFNOT(cond, panic)                                              \
+                 ({if (UNLIKELY(!(cond))) { panic; if (0) { if (cond) { ; } } } (void)0;})
    #else
-      #define ASSERT_IFNOT(cond, panic) (UNLIKELY(!(cond)) ? (panic) : 0)
+      #define ASSERT_IFNOT(cond, panic)                               \
+                 (UNLIKELY(!(cond)) ? (panic) : (void)0)
    #endif
 #endif
 

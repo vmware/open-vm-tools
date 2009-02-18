@@ -47,8 +47,6 @@ extern "C" {
 #include "dictll.h"
 #include "msg.h"
 #include "file.h"
-#include "dynbuf.h"
-#include "vmstdio.h"
 #include "codeset.h"
 #include "productState.h"
 #include "posix.h"
@@ -1149,86 +1147,6 @@ GuestApp_GetLogPath(void)
 #else
    /* XXX: Is this safe for EVERYONE who isn't Windows? */
    return strdup("/var/log");
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_GetCmdOutput --
- *
- *      Run a cmd & get its cmd line output
- *
- * Results:
- *      An allocated string or NULL if an error occurred.
- *
- * Side effects:
- *	The cmd is run.
- *
- *----------------------------------------------------------------------
- */
-
-char *
-GuestApp_GetCmdOutput(const char *cmd) // IN
-{
-#ifdef N_PLAT_NLM
-   Debug("Trying to execute command \"%s\" and catch its output... No way on NetWare...\n", cmd);
-   return NULL;
-#else
-   DynBuf db;
-   FILE *stream;
-   char *out = NULL;
-
-   DynBuf_Init(&db);
-
-   stream = Posix_Popen(cmd, "r");
-   if (stream == NULL) {
-      Debug("Unable to get output of command \"%s\"\n", cmd);
-
-      return NULL;
-   }
-
-   for (;;) {
-      char *line = NULL;
-      size_t size;
-
-      switch (StdIO_ReadNextLine(stream, &line, 0, &size)) {
-      case StdIO_Error:
-         goto close;
-         break;
-
-      case StdIO_EOF:
-         break;
-
-      case StdIO_Success:
-         break;
-
-      default:
-         ASSERT_NOT_IMPLEMENTED(FALSE);
-      }
-
-      if (line == NULL) {
-         break;
-      }
-
-      DynBuf_Append(&db, line, size);
-      free(line);
-   }
-
-   if (DynBuf_Get(&db)) {
-      out = (char *)DynBuf_AllocGet(&db);
-   }
- close:
-   DynBuf_Destroy(&db);
-
-#ifndef _WIN32
-   pclose(stream);
-#else
-   _pclose(stream);
-#endif
-
-   return out;
 #endif
 }
 

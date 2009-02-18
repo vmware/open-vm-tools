@@ -56,6 +56,7 @@ extern "C" {
 #include "guestApp.h"
 #include "rpcout.h"
 #include "rpcin.h"
+#include "hostinfo.h"
 #include "strutil.h"
 #include "str.h"
 #include "msg.h"
@@ -840,7 +841,7 @@ ToolsDaemonStateChangeDone(Bool status,  // IN
       status = TRUE;
 #ifdef _WIN32
       if (data->stateChgInProgress == GUESTOS_STATECHANGE_REBOOT || data->stateChgInProgress == GUESTOS_STATECHANGE_HALT) {
-         if (System_GetOSType() >= OS_VISTA) {
+         if (Hostinfo_GetOSType() >= OS_VISTA) {
             DISABLE_RES_CAPS();
          }
       }
@@ -1056,7 +1057,7 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
     * current UIs will treat as unsupported.
     */
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.display_topology_set %s",
-                       System_GetOSType() >= OS_WINXP ? "2" : "0")) {
+                       Hostinfo_GetOSType() >= OS_WINXP ? "2" : "0")) {
       Debug("ToolsDaemonTcloCapReg: Unable to register display topology set "
             "capability\n");
    }
@@ -1175,7 +1176,7 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
 
 #if defined(WIN32)
    HgfsUsability_RegisterServiceCaps();
-   if (System_GetOSType() >= OS_VISTA) {
+   if (Hostinfo_GetOSType() >= OS_VISTA) {
       ServiceHelpers_SendResolutionCaps();
    }
 #endif

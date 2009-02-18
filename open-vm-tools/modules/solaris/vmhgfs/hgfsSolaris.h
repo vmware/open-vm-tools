@@ -84,9 +84,6 @@
 /* Determines size of request pool */
 #define HGFS_MAX_OUTSTANDING_REQS       4
 
-/* For ddi_soft_state_init() call in _init() */
-#define HGFS_EXPECTED_INSTANCES         23
-
 /* HGFS cmn_err() levels */
 #define HGFS_ERROR                      (CE_WARN)
 
@@ -96,21 +93,11 @@
 #define HGFS_ERR_NODEV                  (-51)
 #define HGFS_ERR_INVAL                  (-52)
 
-/* This is what shows up after the ':' in the /devices entry */
-#define HGFS_DEV_NAME                   "vmware-hgfs"
-
 /*
  * Don't change this to KM_NOSLEEP without first making sure that we handle
  * the possibility of kmem_zalloc() failing: KM_SLEEP guarantees it won't fail
  */
 #define HGFS_ALLOC_FLAG                 (KM_SLEEP)
-
-/*
- * hgfsInstance is uninitialized when device is not open and hgfsType is
- * uninitialized before the file system initialization routine is called.
- */
-#define HGFS_INSTANCE_UNINITIALIZED     (-1)
-#define HGFS_TYPE_UNINITIALIZED         (-1)
 
 /* Accessing root inode and vnode */
 #define HGFS_ROOT_VNODE(sip)            (sip->rootVnode)
@@ -131,39 +118,6 @@ typedef HgfsRequest HgfsRequestHeader;
  * Kernel only structures and variables
  */
 #ifdef _KERNEL
-
-/*
- * The global state structure for the entire module.  This is allocated in
- * HgfsDevAttach() and deallocated in HgfsDevDetach().
- *
- * Note that reqMutex and reqFreeList are also used for synchronization between
- * the filesystem and driver.  See docs/synchronization.txt for details.
- */
-typedef struct HgfsSuperInfo {
-   dev_info_t *dip;                     /* Device information pointer */
-   Bool devOpen;                        /* Flag indicating whether device is open */
-   /* Poll */
-   struct pollhead hgfsPollhead;        /* Needed for chpoll() implementation */
-   Bool pollwakeupOnWrite;              /* Flag which indicates need to call
-                                           pollwakeup() on write() -- no mutex
-                                           since only modified in chpoll() */
-   /* Request list */
-   DblLnkLst_Links reqList;             /* Anchor for pending request list */
-   kmutex_t reqMutex;                   /* For protection of request list */
-   kcondvar_t reqCondVar;               /* For waiting on request list */
-   /* Free request list */
-   DblLnkLst_Links reqFreeList;         /* Anchor for free request list */
-   kmutex_t reqFreeMutex;               /* For protection of reqFreeList */
-   kcondvar_t reqFreeCondVar;           /* For waiting on free request list */
-   /* For filesystem */
-   struct vfs *vfsp;                    /* Our filesystem structure */
-   struct vnode *rootVnode;             /* Root vnode of the filesystem */
-   HgfsFileHashTable fileHashTable;     /* File hash table */
-#  if HGFS_VFS_VERSION > 2
-   /* We keep a pointer to the vnodeops the Kernel created for us in Sol 10 */
-   struct vnodeops *vnodeOps;           /* Operations on files */
-#  endif
-} HgfsSuperInfo;
 
 /*
  * Each request will traverse through this set of states.  See
@@ -191,14 +145,37 @@ typedef struct HgfsReq {
                                            signal presence of reply. Used with
                                            the reqMutex in HgfsSuperInfo. */
    HgfsReqState state;                  /* Indicates state of request */
-   kmutex_t stateLock;                  /* Protects state: only used in
-                                           HgfsReq{S,G}etState() */
-
    uint32_t id;                         /* The unique identifier of this request */
-
    uint32_t packetSize;                 /* Total size of packet */
    char packet[HGFS_PACKET_MAX];        /* Contains both requests and replies */
 } HgfsReq;
+
+
+/*
+ * The global state structure for the entire module.  This is allocated in
+ * HgfsDevAttach() and deallocated in HgfsDevDetach().
+ *
+ * Note that reqMutex and reqFreeList are also used for synchronization between
+ * the filesystem and driver.  See docs/synchronization.txt for details.
+ */
+typedef struct HgfsSuperInfo {
+   kmutex_t reqMutex;                   /* Serializes sending of requests */
+
+   /* Free request list */
+   DblLnkLst_Links reqFreeList;         /* Anchor for free request list */
+   kmutex_t reqFreeMutex;               /* For protection of reqFreeList */
+   kcondvar_t reqFreeCondVar;           /* For waiting on free request list */
+
+   /* For filesystem */
+   struct vfs *vfsp;                    /* Our filesystem structure */
+   struct vnode *rootVnode;             /* Root vnode of the filesystem */
+   HgfsFileHashTable fileHashTable;     /* File hash table */
+
+   int (*sendRequest)(HgfsReq *req);    /* Current transport's sent method */
+   void (*cancelRequest)(HgfsReq *req); /* Current transport's cancel method */
+   Bool (*transportInit)(void);
+   void (*transportCleanup)(void);
+} HgfsSuperInfo;
 
 
 /*
@@ -207,14 +184,6 @@ typedef struct HgfsReq {
 
 /* Pool of request structures */
 HgfsReq requestPool[HGFS_MAX_OUTSTANDING_REQS];
-
-/*
- * Fileystem type number.
- *
- * This needs to be stored here rather than in the Superinfo because the soft
- * state is not guaranteed to have been allocated when HgfsInit() is called.
- */
-int hgfsType;
 
 /*
  * Used to access shared state of driver and filesystem.  superInfoHead is

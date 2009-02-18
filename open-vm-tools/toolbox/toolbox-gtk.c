@@ -71,7 +71,7 @@ RpcIn *gRpcInCtlPanel;
 static GtkWidget *toolsMain;
 static Bool optionAutoHide;
 static guint gTimeoutId;
-static const char **gNativeEnviron;
+const char **gNativeEnviron;
 
 /* Help pages. These need to be in the same order as the tabs in the UI. */
 static const char *gHelpPages[] = {
@@ -80,7 +80,6 @@ static const char *gHelpPages[] = {
    "tools_devices.htm",
    "tools_scripts.htm",
    "tools_shrink.htm",
-   NULL,                        // Record/Replay
    "tools_about.htm",
 };
 
@@ -602,8 +601,6 @@ ToolsMain_Create(void)
                             gtk_label_new_with_mnemonic(TAB_LABEL_SCRIPTS));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Shrink_Create(ToolsMain),
                             gtk_label_new_with_mnemonic(TAB_LABEL_SHRINK));
-   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Record_Create(ToolsMain),
-                            gtk_label_new_with_mnemonic(TAB_LABEL_RECORD));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), About_Create(ToolsMain),
                             gtk_label_new_with_mnemonic(TAB_LABEL_ABOUT));
 #else
@@ -611,8 +608,6 @@ ToolsMain_Create(void)
                             gtk_label_new(TAB_LABEL_SCRIPTS));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Shrink_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_SHRINK));
-   gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), Record_Create(ToolsMain),
-                            gtk_lable_new(TAB_LABEL_RECORD));
    gtk_notebook_append_page(GTK_NOTEBOOK(notebookMain), About_Create(ToolsMain),
                             gtk_label_new(TAB_LABEL_ABOUT));
 #endif
@@ -901,13 +896,13 @@ OnViewportSizeRequest(GtkWidget *widget,           // IN
  */
 
 void
-InitHelpDir(GuestApp_Dict *pConfDict)   // IN
+InitHelpDir(GKeyFile *pConfDict) // IN
 {
-   const char *tmpDir = NULL;
+   gchar *tmpDir = NULL;
 
    ASSERT(hlpDir == NULL);
 
-   tmpDir = GuestApp_GetDictEntry(pConfDict, CONFNAME_HELPDIR);
+   tmpDir = g_key_file_get_string(pConfDict, "toolbox", CONFNAME_HELPDIR, NULL);
    if (!tmpDir || !File_Exists(tmpDir)) {
       unsigned int i;
 
@@ -918,14 +913,14 @@ InitHelpDir(GuestApp_Dict *pConfDict)   // IN
 
       for (i = 0; i < ARRAYSIZE(candidates); i++) {
          if (File_Exists(candidates[i])) {
-            tmpDir = candidates[i];
+            tmpDir = g_strdup(candidates[i]);
             break;
          }
       }
    }
 
    if (tmpDir) {
-      hlpDir = Util_SafeStrdup(tmpDir);
+      hlpDir = tmpDir;
    }
 }
 
@@ -987,7 +982,7 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
 {
    Bool optIconify, optHelp, optVersion;
    struct sigaction olds[ARRAYSIZE(gSignals)];
-   GuestApp_Dict *pConfDict;
+   GKeyFile *pConfDict;
 
    if (!VmCheck_IsVirtualWorld()) {
 #ifndef ALLOW_TOOLS_IN_FOREIGN_VM
@@ -1003,11 +998,14 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
       Panic("vmware-toolbox can't set signal handler\n");
    }
 
-   pConfDict = Conf_Load();
-   Debug_Set(GuestApp_GetDictEntryBool(pConfDict, CONFNAME_LOG), DEBUG_PREFIX);
-   Debug_EnableToFile(GuestApp_GetDictEntry(pConfDict, CONFNAME_LOGFILE), FALSE);
+   pConfDict = Toolbox_LoadToolsConf();
+   Debug_Set(g_key_file_get_boolean(pConfDict, "logging", CONFNAME_LOG, NULL),
+             DEBUG_PREFIX);
+   Debug_EnableToFile(g_key_file_get_string(pConfDict, "logging",
+                                            CONFNAME_LOGFILE, NULL),
+                      FALSE);
    InitHelpDir(pConfDict);
-   GuestApp_FreeDict(pConfDict);
+   g_key_file_free(pConfDict);
 
    optionAutoHide = FALSE;
 
@@ -1130,7 +1128,7 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
 
    gdk_pixmap_unref(pixmap);
    gdk_bitmap_unref(bitmask);
-   free(hlpDir);
+   g_free(hlpDir);
 
    return 0;
 }

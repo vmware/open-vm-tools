@@ -1,0 +1,42 @@
+This is an attempt to describe the VmBackup state machine using ASCII diagrams.
+
+=== Main State Machine ===
+
+The main state machine, implemented in stateMachine.c, works as follows:
+
+         -------------> IDLE <-----------|
+         |                |              |
+         | b, e           | a            |
+         |                |              |
+         |        e      \/              |
+   SCRIPT_ERROR <--- SCRIPT_FREEZE       |
+         ^                |              |
+         | d              | b            |
+         |        e      \/              | b, e
+    SYNC_ERROR <----- SYNC_FREEZE        |
+         ^                |              |
+         |                | c            |
+         |     e         \/              |
+         |-----------  SYNC_THAW         |
+                          |              |
+                          | d            |
+                         \/              |
+                      SCRIPT_THAW --------
+
+The transitions mean the following events / conditions:
+
+a. vmbackup.start RPC
+b. vmbackup operation is finished
+c. vmbackup.snapshotDone RPC
+d. sync provider operation is finished
+e. error condition: runtime error, or vmbackup.abort RPC
+
+Sending a vmbackup.start RPC while the state machine is not IDLE causes an
+error to be returned to the client, but the state machine is not changed.
+Same behavior occurs for multiple vmbackup.snapshotDone RPCs. Multiple
+vmbackup.abort messages are ignored.
+
+Transitions to IDLE cause the backup operation to be finalized, and a "done"
+event to be sent to the VMX. Transitions from IDLE cause a "reset" event to be
+sent to the VMX.
+

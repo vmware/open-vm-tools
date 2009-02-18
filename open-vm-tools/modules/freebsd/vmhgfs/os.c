@@ -27,12 +27,15 @@
 #  error "This os.c file can only be compiled for the FreeBSD kernel."
 #endif
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>         // for struct mtx
 #include <sys/kernel.h>
 #include <vm/uma.h>           // for uma_zone_t
 #include <sys/kthread.h>      // for kthread_create()
+#include <vm/vm.h>
+#include <vm/vm_extern.h>     // for vnode_pager_setsize
 
 #include "vm_basic_types.h"
 #include "os.h"
@@ -860,4 +863,57 @@ os_path_to_utf8_precomposed(char const *bufIn,  // IN
 {
    NOT_IMPLEMENTED();
    return OS_ERR;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * os_SetSize  --
+ *
+ *      Notifies memory management system that file size has been changed.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+void
+os_SetSize(struct vnode* vp,          // IN: vnode which size has changed
+           off_t newSize)             // IN: new file size
+{
+   vnode_pager_setsize(vp, newSize);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * os_FlushRange  --
+ *
+ *      Flushes dirty pages associated with the file.
+ *
+ * Results:
+ *      Always retun 0 (success) for now since it is NOOP.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+os_FlushRange(struct vnode *vp,    // IN: vnode which data needs flushing
+              off_t start,         // IN: starting offset in the file to flush
+              uint32_t length)     // IN: length of data to flush
+{
+   /*
+    * XXX: NOOP for now. This routine is needed to maintain coherence
+    *      between memory mapped data and data for read/write operations.
+    *      Will need to implement when adding support for memory mapped files to HGFS
+    *      for FreeBsd.
+    */
+   return 0;
 }

@@ -42,16 +42,15 @@
 #define VMCI_MINOR_VERSION(v)       ((v) & 0xffff)
 
 #include "vmci_defs.h"
-#ifdef VMKERNEL
+#if defined(VMKERNEL)
 #include "vm_atomic.h"
 #include "return_status.h"
 #include "util_copy_dist.h"
 #endif
-#include "vmci_defs.h"
 #include "vmci_call_defs.h"
 
-
-#ifdef VMKERNEL
+#if (defined(__linux__) || defined(_WIN32)) && !defined(VMKERNEL)
+#include "vmci_queue_pair.h"
 #endif
 
 
@@ -76,15 +75,19 @@ int VMCIDatagram_Send(VMCIDatagram *msg);
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
 			     void *clientData);
 
-int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback, 
+int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEvent_Unsubscribe(VMCIId subID);
 
-/* 
- * Since QP API for non-VMKernel hosts is defined in vmci_queue_pair.h, here
- * declarations are included only for VMKERNEL
+/*
+ * Queue pair operations for manipulating the content of a queue
+ * pair are defined in vmci_queue_pair.h for non-vmkernel hosts.
+ * Here we define the API for allocating and detaching from queue
+ * pairs for all hosts, and content manipulation functions for
+ * VMKERNEL.
  */
-#ifdef VMKERNEL
+
+#if defined(VMKERNEL)
 
 /*
  * For guest kernels, the VMCIQueue is directly mapped onto the
@@ -100,15 +103,10 @@ typedef struct VMCIQueue {
    struct QueuePairEntry *entry; // Endpoint state for the queue pair
 } VMCIQueue;
 
-
 /* VMCI Queuepair API  */
 void VMCIQueue_Init(const VMCIHandle handle, VMCIQueue *queue);
 void VMCIQueue_GetPointers(const VMCIQueue *produceQ, const VMCIQueue *consumeQ,
                            uint64 *producerTail, uint64 *consumerHead);
-int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
-                        uint64 produceSize, VMCIQueue **consumeQ,
-                        uint64 consumeSize, VMCIId peer, uint32 flags);
-int VMCIQueuePair_Detach(VMCIHandle handle);
 int64 VMCIQueue_FreeSpace(const VMCIQueue *produceQueue,
                           const VMCIQueue *consumeQueue,
                           const uint64 produceQSize);
@@ -136,6 +134,13 @@ ssize_t VMCIQueue_DequeueV(VMCIQueue *produceQueue, const VMCIQueue *consumeQueu
                            const uint64 consumeQSize, void *buf,
                            size_t bufSize, Util_BufferType bufType);
 #endif	/* VMKERNEL  */
+
+#if defined(VMKERNEL) || defined(__linux__) || defined(_WIN32)
+int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
+                         uint64 produceSize, VMCIQueue **consumeQ,
+                         uint64 consumeSize, VMCIId peer, uint32 flags);
+int VMCIQueuePair_Detach(VMCIHandle handle);
+#endif
 
 #endif /* !__VMCI_HOSTKERNELAPI_H__ */
 
