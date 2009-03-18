@@ -115,6 +115,7 @@ enum {
    VIX_E_OPERATION_ALREADY_IN_PROGRESS          = 31,
    VIX_E_UNFINISHED_JOB                         = 29,
    VIX_E_NEED_KEY                               = 30,
+   VIX_E_LICENSE                                = 32,
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,

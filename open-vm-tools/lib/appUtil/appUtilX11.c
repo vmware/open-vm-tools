@@ -689,7 +689,9 @@ AppUtil_AppIsSkippable(const char *appName)
       "python2.4",
       "python2.3",
       "python2.2",
-      "perl"
+      "perl",
+      "sh",
+      "bash",
    };
    char cbuf[PATH_MAX];
    int i;

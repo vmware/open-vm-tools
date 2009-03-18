@@ -108,16 +108,6 @@ postbuild:: ;
 $(DRIVER_KO): prebuild
 	make -C $(BUILD_DIR) SUBDIRS=$$PWD SRCROOT=$$PWD/$(SRCROOT) modules
 	make -C $$PWD SRCROOT=$$PWD/$(SRCROOT) postbuild
-
-else
-
-ifneq ($(VM_CCVER), $(VMCCVER))
-$(warning *** Inappropriate build environment: you wanted to use gcc \
- version $(VM_CCVER) while kernel attempts to use gcc version $(VMCCVER).)
-$(error For proper build you'll have to replace $(CC) with symbolic \
- link to $(VM_CC))
-endif
-
 endif
 
 vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \

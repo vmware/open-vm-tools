@@ -136,9 +136,7 @@ Str_Vsnprintf(char *str,          // OUT
    ASSERT(str != NULL);
    ASSERT(format != NULL);
 
-#ifndef HAS_BSD_PRINTF
-   retval = vsnprintf(str, size, format, ap);
-#elif defined __linux__
+#ifdef HAS_BSD_PRINTF
    {
       va_list aq;
 
@@ -147,7 +145,7 @@ Str_Vsnprintf(char *str,          // OUT
       va_end(aq);
    }
 #else
-   retval = bsd_vsnprintf(&str, size, format, ap);
+   retval = vsnprintf(str, size, format, ap);
 #endif
 
    /*
@@ -529,16 +527,13 @@ StrVasprintf_Internal(size_t *length,       // OUT
    int ret;
 
 #ifdef HAS_BSD_PRINTF
-   #ifdef __linux__
-      {
-	 va_list aq;
-	 va_copy(aq, arguments);
-	 ret = bsd_vsnprintf(&buf, 0, format, aq);
-	 va_end(aq);
-      }
-   #else
-      ret = bsd_vsnprintf(&buf, 0, format, arguments);
-   #endif
+   {
+      va_list aq;
+
+      va_copy(aq, arguments);
+      ret = bsd_vsnprintf(&buf, 0, format, aq);
+      va_end(aq);
+   }
 
 #elif !defined sun && !defined STR_NO_WIN32_LIBS
    ret = vasprintf(&buf, format, arguments);

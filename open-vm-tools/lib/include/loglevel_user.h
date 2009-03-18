@@ -88,6 +88,7 @@
    LOGLEVEL_VAR(vmxnet3), \
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(vcpuhotplug), \
+   LOGLEVEL_VAR(heci), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -206,6 +207,8 @@
    LOGLEVEL_VAR(migrateVM), \
    LOGLEVEL_VAR(vmUpsellController), \
    LOGLEVEL_VAR(objc), /* lib/objc */ \
+   LOGLEVEL_VAR(blit), /* lib/blit */ \
+   LOGLEVEL_VAR(vmnetBridge), \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

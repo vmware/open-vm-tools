@@ -16,13 +16,13 @@
  *
  *********************************************************/
 
-/*
- * unityPlatformX11.c --
+/**
+ * @file unityPlatformX11.c
  *
- *    Implementation of Unity for guest operating systems that use the X11 windowing
- *    system. This file holds the basic things such as initialization/destruction of the
- *    UnityPlatform object, overall event handling, and handling of some Unity
- *    RPCs that are not window-centric.
+ * Implementation of Unity for guest operating systems that use the X11 windowing
+ * system. This file holds the basic things such as initialization/destruction of the
+ * UnityPlatform object, overall event handling, and handling of some Unity
+ * RPCs that are not window-centric.
  */
 
 #include "unityX11.h"
@@ -142,23 +142,23 @@ UnityPlatformIsSupported(void)
  */
 
 UnityPlatform *
-UnityPlatformInit(UnityWindowTracker *tracker, // IN
-                  int *blockedWnd)             // UNUSED
+UnityPlatformInit(UnityWindowTracker *tracker,          // IN
+                  UnityUpdateChannel *updateChannel,    // IN
+                  int *blockedWnd)                      // UNUSED
 {
    UnityPlatform *up;
    char *displayName;
+
+   ASSERT(tracker);
+   ASSERT(updateChannel);
 
    Debug("UnityPlatformInit: Running\n");
 
    up = Util_SafeCalloc(1, sizeof *up);
    up->tracker = tracker;
+   up->updateChannel = updateChannel;
 
    up->savedScreenSaverTimeout = -1;
-
-   if (!UnityUpdateThreadInit(&up->updateData)) {
-      free(up);
-      return NULL;
-   }
 
    /*
     * Because GDK filters events heavily, and we need to do a lot of low-level X work, we
@@ -284,6 +284,7 @@ UnityPlatformInit(UnityWindowTracker *tracker, // IN
    INIT_ATOM(_NET_SUPPORTED);
    INIT_ATOM(_NET_FRAME_EXTENTS);
    INIT_ATOM(WM_CLASS);
+   INIT_ATOM(WM_CLIENT_LEADER);
    INIT_ATOM(WM_DELETE_WINDOW);
    INIT_ATOM(WM_ICON);
    INIT_ATOM(WM_NAME);
@@ -348,8 +349,6 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
       XCloseDisplay(up->display);
       up->display = NULL;
    }
-
-   UnityUpdateThreadCleanup(&up->updateData);
 
    free(up->desktopInfo.guestDesktopToUnity);
    up->desktopInfo.guestDesktopToUnity = NULL;
@@ -1183,41 +1182,6 @@ UnityPlatformUpdateWindowState(UnityPlatform *up,               // IN
 }
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityPlatformSendPendingUpdates --
- *
- *      Pushes any pending window tracker updates out to the host.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-UnityPlatformSendPendingUpdates(UnityPlatform *up, // IN
-                                int flags)         // IN
-{
-
-   DynBuf_SetSize(&up->updateData.updates, up->updateData.cmdSize);
-   UnityWindowTracker_RequestUpdates(up->tracker,
-                                     flags,
-                                     &up->updateData.updates);
-   DynBuf_AppendString(&up->updateData.updates, "");
-   if (DynBuf_GetSize(&up->updateData.updates) > (up->updateData.cmdSize + 1)) {
-      UnityPlatformDumpUpdate(up);
-      if (!UnitySendUpdates(&up->updateData)) {
-         Debug("UPDATE TRANSMISSION FAILED! --------------------\n");
-      }
-   }
-}
-
-
 #ifdef GTK2
 
 
@@ -1325,6 +1289,7 @@ UnityPlatformHandleEvents(gboolean errorOccurred,  // IN
    Bool restackDetWnd = FALSE;
 
    ASSERT(up);
+   ASSERT(up->isRunning);
 
    if (errorOccurred) {
       /*
@@ -1405,7 +1370,7 @@ UnityPlatformHandleEvents(gboolean errorOccurred,  // IN
          UnityPlatformStackDnDDetWnd(up);
       }
       UnityPlatformUpdateZOrder(up);
-      UnityPlatformSendPendingUpdates(up, UNITY_UPDATE_INCREMENTAL);
+      UnityPlatformDoUpdate(up, TRUE);
    }
 
    return TRUE;
@@ -1910,44 +1875,6 @@ UnityPlatformWMProtocolSupported(UnityPlatform *up,         // IN
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * UnityPlatformDumpUpdate --
- *
- *      Prints a Unity update via debug output...
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-UnityPlatformDumpUpdate(UnityPlatform *up) // IN
-{
-   int i, len;
-   char *buf;
-
-   return;
-
-   len = up->updateData.updates.size;
-   buf = alloca(len + 1);
-   memcpy(buf, up->updateData.updates.data, len);
-   buf[len] = '\0';
-   for (i = 0 ; i < len; i++) {
-      if (buf[i] == '\0') {
-         buf[i] = '!';
-      }
-   }
-
-   Debug("Sending update: %s\n", buf);
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * UnityPlatformSendClientMessageFull --
@@ -2197,6 +2124,11 @@ static void
 UnityPlatformStackDnDDetWnd(UnityPlatform *up)
 {
    static const Atom onDesktop[] = { 0xFFFFFFFF, 0, 0, 0, 0 };
+
+   if (!up->dnd.setMode || !up->dnd.detWnd) {
+      Debug("%s: DnD not yet initialized.\n", __func__);
+      return;
+   }
 
    if (!up->desktopWindow) {
       Debug("Desktop Window not cached. Tracker isn't populated.\n");
@@ -3042,4 +2974,48 @@ UnityPlatformSetDesktopActive(UnityPlatform *up,         // IN
    UnityX11SetCurrentDesktop(up, up->desktopInfo.unityDesktopToGuest[desktopId]);
 
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformDoUpdate --
+ *
+ *      This function is used to (possibly asynchronously) collect Unity window
+ *      updates and send them to the host via the RPCI update channel.
+ *
+ * Results:
+ *      Updates will be collected.  Updates may be sent.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
+                      Bool incremental)         // IN: Incremental vs. full update
+{
+   ASSERT(up);
+   ASSERT(up->updateChannel);
+
+   DynBuf_SetSize(&up->updateChannel->updates, up->updateChannel->cmdSize);
+
+   if (!incremental) {
+      UnityPlatformUpdateWindowState(up, up->tracker);
+   }
+
+   UnityWindowTracker_RequestUpdates(up->tracker,
+                                     incremental ? UNITY_UPDATE_INCREMENTAL : 0,
+                                     &up->updateChannel->updates);
+
+   DynBuf_AppendString(&up->updateChannel->updates, "");
+
+   if (DynBuf_GetSize(&up->updateChannel->updates) > (up->updateChannel->cmdSize + 1)) {
+      if (!UnitySendUpdates(up->updateChannel)) {
+         Debug("UPDATE TRANSMISSION FAILED! --------------------\n");
+      }
+   }
 }

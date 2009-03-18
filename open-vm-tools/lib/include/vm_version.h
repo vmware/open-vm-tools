@@ -282,7 +282,7 @@
 /*
  * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
-#define TOOLS_VERSION "2009.02.18"
+#define TOOLS_VERSION "2009.03.18"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

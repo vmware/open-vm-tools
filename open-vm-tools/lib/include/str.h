@@ -37,7 +37,7 @@
 #elif __APPLE__
 #include <stdlib.h>
 #endif
-#include <stdarg.h>
+#include "compat/compat_stdarg.h" // Provides stdarg.h plus va_copy
 
 #include "vm_basic_types.h"
 

@@ -65,9 +65,10 @@ GuestInfo_PerfMon(GuestMemInfo *vmStats)   // OUT: filled vmstats
 {
 #ifndef NO_PROCPS
    ASSERT(vmStats);
+   vmStats->flags = 0;
    GuestInfoMonitorGetStat(vmStats);
    if (GuestInfoMonitorReadMeminfo(vmStats)) {
-      vmStats->flags = LINUX_MEMINFO_FLAGS;
+      vmStats->flags |= LINUX_MEMINFO_FLAGS;
       return TRUE;
    }
 #endif
@@ -133,16 +134,6 @@ GuestInfoMonitorGetStat(GuestMemInfo *vmStats)   // OUT: filled vmstats
    vmStats->swapOutRate = (uint64)((*swapOut * kb_per_page * hz + cpuHalf) / cpuTotal);
    vmStats->ioInRate = (uint64)((*pageIn * kb_per_page * hz + cpuHalf) / cpuTotal);
    vmStats->ioOutRate = (uint64)((*pageOut * kb_per_page * hz + cpuHalf) / cpuTotal);
-
-
-   Debug("GuestInfoMonitorGetStat: GuestMemInfo: total: %"FMT64"u free: %"FMT64"u"\
-         "buff: %"FMT64"u cache: %"FMT64"u swapin: %"FMT64"u swapout: %"FMT64"u ioin:"\
-         "%"FMT64"u ioout: %"FMT64"u inactive: %"FMT64"u active: %"FMT64"u"\
-         "hugetotal: %"FMT64"u hugefree: %"FMT64"u\n", vmStats->memTotal,
-         vmStats->memFree, vmStats->memBuff, vmStats->memCache, vmStats->swapInRate,
-         vmStats->swapOutRate, vmStats->ioInRate, vmStats->ioOutRate,
-         vmStats->memInactive, vmStats->memActive, vmStats->hugePagesTotal,
-         vmStats->hugePagesFree);
 }
 
 
@@ -194,16 +185,6 @@ GuestInfoMonitorReadMeminfo(GuestMemInfo *vmStats)   // OUT: filled vmstats
       }
    }
    fclose(fp);
-
-   Debug("GuestInfoMonitorReadMeminfo: GuestMemInfo: total: %"FMT64"u free: %"FMT64"u"\
-         "buff: %"FMT64"u cache: %"FMT64"u swapin: %"FMT64"u swapout: %"FMT64"u ioin:"\
-         "%"FMT64"u ioout: %"FMT64"u inactive: %"FMT64"u active: %"FMT64"u"\
-         "hugetotal: %"FMT64"u hugefree: %"FMT64"u\n", vmStats->memTotal,
-         vmStats->memFree, vmStats->memBuff, vmStats->memCache, vmStats->swapInRate,
-         vmStats->swapOutRate, vmStats->ioInRate, vmStats->ioOutRate,
-         vmStats->memInactive, vmStats->memActive, vmStats->hugePagesTotal,
-         vmStats->hugePagesFree);
-
    return TRUE;
 }
 #endif

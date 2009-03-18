@@ -84,14 +84,6 @@
 #define CONFNAME_SHOW_WIRELESS_ICON "wirelessIcon.enable"
 
 /*
- * Directory containing Help files accessed via the Toolbox's "Help"
- * button.  For now, intended only for toolbox-gtk.
- */
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
-#   define CONFNAME_HELPDIR                        "helpdir"
-#endif
-
-/*
  * Directory containing the tools library files.  Currently only intended
  * for vmware-user.
  */

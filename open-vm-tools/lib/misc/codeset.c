@@ -75,6 +75,7 @@
 #include "vm_product.h"
 #include "vm_atomic.h"
 #include "unicode/ucnv.h"
+#include "unicode/udata.h"
 #include "unicode/putil.h"
 #include "file.h"
 #include "util.h"
@@ -120,13 +121,6 @@
  */
 
 static Bool dontUseIcu = TRUE;
-
-#ifdef _WIN32
-static Bool initedIcu = FALSE;
-static Atomic_Ptr sCriticalSection;
-#else // Posix
-DEBUG_ONLY(static Bool initedIcu = FALSE;)
-#endif
 
 
 /*
@@ -185,73 +179,6 @@ CodeSetGetModulePath(HANDLE hModule) // IN
    return pathW;
 }
 
-
-/*
- *----------------------------------------------------------------------------
- *
- * CodeSetEnterCriticalSection --
- *
- *      Initialize critical section atomically, and enter that critical section.
- *
- * Returns:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-CodeSetEnterCriticalSection(void)
-{
-   CRITICAL_SECTION *cs = Atomic_ReadPtr(&sCriticalSection);
-
-   // Initalize critical section atomically.
-   if (cs == NULL) {
-      CRITICAL_SECTION *newcs = Util_SafeMalloc(sizeof *newcs);
-      InitializeCriticalSection(newcs);
-
-      Atomic_Init();
-      cs = Atomic_ReadIfEqualWritePtr(&sCriticalSection, NULL, newcs);
-
-      if (cs == NULL) {
-	 cs = newcs;
-      } else {
-         DeleteCriticalSection(newcs);
-	 free(newcs);
-      }
-   }
-
-   ASSERT(cs);
-   EnterCriticalSection(cs);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * CodeSetLeaveCriticalSection --
- *
- *      Leave critical section.
- *
- * Returns:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-CodeSetLeaveCriticalSection(void)
-{
-   CRITICAL_SECTION *cs = Atomic_ReadPtr(&sCriticalSection);
-
-   ASSERT(cs);
-   LeaveCriticalSection(cs);
-}
 
 #elif vmx86_devel // _WIN32
 
@@ -451,28 +378,17 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
    DWORD attribs;
    utf16_t *modPath = NULL;
    utf16_t *lastSlash;
+   utf16_t *wpath;
+   HANDLE hFile;
+   HANDLE hMapping;
+   void *memMappedData = NULL;
 #else
    struct stat finfo;
 #endif
    char *path = NULL;
    Bool ret = FALSE;
 
-#ifdef _WIN32
-   CodeSetEnterCriticalSection();
-#endif
-
    DynBuf_Init(&dbpath);
-
-#ifdef _WIN32
-   if (initedIcu) {
-      // Nothing to be initialized.
-      ret = TRUE;
-      goto exit;
-   }
-#else // Posix
-   DEBUG_ONLY(ASSERT(!initedIcu);)
-   DEBUG_ONLY(initedIcu = TRUE;)
-#endif
 
 #ifdef USE_ICU
    /*
@@ -575,29 +491,24 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
       }
 
       /*
-       * Check for file existence.
+       * Since u_setDataDirectory can't handle UTF-16, we would have to
+       * now convert this path to local encoding. But that fails when
+       * the module is in a path containing characters not in the
+       * local encoding (see 282524). So we'll memory-map the file
+       * instead and call udata_setCommonData() below.
        */
-      attribs = GetFileAttributesW((LPCWSTR) DynBuf_Get(&dbpath));
-
-      if ((INVALID_FILE_ATTRIBUTES == attribs) ||
-          (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
+      wpath = (utf16_t *) DynBuf_Get(&dbpath);
+      hFile = CreateFileW(wpath, GENERIC_READ, 0, NULL, OPEN_ALWAYS, 0, NULL);
+      if (INVALID_HANDLE_VALUE == hFile) {
          goto exit;
       }
-
-      /*
-       * Convert path to local encoding using system APIs (old codeset).
-       */
-      if (!CodeSetOld_Utf16leToCurrent(DynBuf_Get(&dbpath),
-                                       DynBuf_GetSize(&dbpath),
-                                       &path, NULL)) {
-
-         /*
-          * The unicode path is not compatible in the current encoding.
-          */
-         path = CodeSet_GetAltPathName(DynBuf_Get(&dbpath));
-         if (!path) {
-            goto exit;
-         }
+      hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+      if (NULL == hMapping) {
+         goto exit;
+      }
+      memMappedData = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
+      if (NULL == memMappedData) {
+         goto exit;
       }
    }
 
@@ -676,10 +587,28 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 found:
 #endif
 
-   /*
-    * Tell ICU to use this directory.
-    */
-   u_setDataDirectory(path);
+#ifdef _WIN32
+   if (memMappedData) {
+      /*
+       * Tell ICU to use this mapped data.
+       */
+      UErrorCode uerr = U_ZERO_ERROR;
+      ASSERT(memMappedData);
+
+      udata_setCommonData(memMappedData, &uerr);
+      if (uerr != U_ZERO_ERROR) {
+         UnmapViewOfFile(memMappedData);
+         goto exit;
+      }
+   } else {
+#endif
+      /*
+       * Tell ICU to use this directory.
+       */
+      u_setDataDirectory(path);
+#ifdef _WIN32
+   }
+#endif
 
    dontUseIcu = FALSE;
    ret = TRUE;
@@ -702,14 +631,15 @@ found:
 
 #ifdef _WIN32
    free(modPath);
+   if (hMapping) {
+      CloseHandle(hMapping);
+   }
+   if (hFile) {
+      CloseHandle(hFile);
+   }
 #endif
    free(path);
    DynBuf_Destroy(&dbpath);
-
-#ifdef _WIN32
-   initedIcu = ret;
-   CodeSetLeaveCriticalSection();
-#endif
 
    return ret;
 }

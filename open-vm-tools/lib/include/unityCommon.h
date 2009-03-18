@@ -234,6 +234,7 @@
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
 #define GHI_RPC_SET_GUEST_HANDLER                     "ghi.guest.handler.set"
 #define GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER         "ghi.guest.handler.restoreDefault"
+#define GHI_RPC_OUTLOOK_SET_TEMP_FOLDER               "ghi.guest.outlook.set.tempFolder"
 /* @} */
 
 

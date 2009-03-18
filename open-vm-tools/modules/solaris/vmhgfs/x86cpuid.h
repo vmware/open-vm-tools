@@ -637,6 +637,7 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_NEHALEM_1A 0x1a  // Nehalem / Gainestown
 #define CPUID_MODEL_ATOM_1C    0x1c  // Silverthorne / Diamondville
 #define CPUID_MODEL_CORE_1D    0x1d  // Dunnington
+#define CPUID_MODEL_NEHALEM_1E 0x1e  // Lynnfield
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -756,18 +757,17 @@ CPUID_UARCH_IS_CORE(uint32 v) // IN: %eax from CPUID with %eax=1.
            model == CPUID_MODEL_CORE_1D);
 }
 
-
 /*
- * Intel Nehalem processors are: Nehalem, Gainestown.
+ * Intel Nehalem processors are: Nehalem, Gainestown, Lynnfield.
  */
 static INLINE Bool
 CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_NEHALEM_1A;
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_NEHALEM_1A ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_NEHALEM_1E);
 }
-
 
 static INLINE Bool
 CPUID_FAMILY_IS_K7(uint32 _eax)

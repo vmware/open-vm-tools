@@ -177,8 +177,8 @@ void Unicode_Free(Unicode str);
 Unicode *Unicode_AllocList(char **srcList, ssize_t length,
                            StringEncoding encoding);
 
-Unicode *Unicode_GetAllocList(Unicode const srcList[], ssize_t length, 
-                              StringEncoding encoding);
+char **Unicode_GetAllocList(Unicode const srcList[], ssize_t length,
+                            StringEncoding encoding);
 
 /*
  *-----------------------------------------------------------------------------

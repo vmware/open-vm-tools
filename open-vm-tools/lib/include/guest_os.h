@@ -186,13 +186,17 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_RED_HAT_EN_4_FULL "Red Hat Enterprise Linux 4"
 #define STR_OS_RED_HAT_FULL "Red Hat Linux"  
 #define STR_OS_SLACKWARE "Slackware"    
+#define STR_OS_SLES_10                  "sles10"
+#define STR_OS_SLES_10_FULL             "SUSE Linux Enterprise Server 10"
+#define STR_OS_SLES_11                  "sles11"
+#define STR_OS_SLES_11_FULL             "SUSE Linux Enterprise Server 11"
 #define STR_OS_SMESERVER "SMEServer"    
 #define STR_OS_SUN_DESK "sjds"    
 #define STR_OS_SUN_DESK_FULL "Sun Java Desktop System" 
 #define STR_OS_SUSE "suse"    
 #define STR_OS_SUSE_EN "sles"    
 #define STR_OS_SUSE_EN_FULL "SUSE Linux Enterprise Server" 
-#define STR_OS_SUSE_FULL "SUSE Linux"   
+#define STR_OS_SUSE_FULL "SUSE Linux"
 #define STR_OS_TINYSOFA "Tiny Sofa"   
 #define STR_OS_TURBO "turbolinux"    
 #define STR_OS_TURBO_FULL "Turbolinux"    
@@ -337,7 +341,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_FREEBSD "FreeBSD"
 
 /* Solaris */
-#define STR_OS_SOLARIS "Solaris"
+#define STR_OS_SOLARIS "solaris"
 
 /* All */
 #define STR_OS_64BIT_SUFFIX "-64"

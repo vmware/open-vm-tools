@@ -48,7 +48,8 @@ typedef struct
 EXTERN void Log_GetInitDefaults(const char *fileName, const char *config,
                                 const char *suffix, LogInitParams *params);
 
-EXTERN Bool Log_Init(const char *fileName, const char *config, const char *suffix);
+EXTERN Bool Log_Init(const char *fileName, const char *config,
+                     const char *suffix);
 EXTERN Bool Log_InitForApp(const char *fileName, const char *config,
                            const char *suffix, const char *appName,
                            const char *appVersion);

@@ -73,6 +73,7 @@
 #include "user_layout.h"
 #endif
 
+#if !defined(N_PLAT_NLM)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -132,6 +133,7 @@ Util_GetCanonicalPath(const char *path) // IN
 #endif
    return canonicalPath;
 }
+#endif
 
 
 #if defined(_WIN32)

@@ -9,6 +9,11 @@ $(MODULES):
 	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) MV=mv RM=rm $(EXTRA_ARGS) \
 	   -C "$(modulesrc)/$(MODULES_OS)/$@"
 
+if FREEBSD_CUSTOM_SYSDIR
+EXTRA_ARGS =
+EXTRA_ARGS += "SYSDIR=@SYSDIR@"
+endif
+
 if LINUX
 export pvscsidir := $(MODULES_DIR)/drivers/scsi
 export vmblockdir := $(MODULES_DIR)/fs/vmblock

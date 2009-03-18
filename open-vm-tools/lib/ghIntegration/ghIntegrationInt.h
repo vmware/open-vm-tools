@@ -64,6 +64,12 @@ void GHIPlatformUnregisterCaps(GHIPlatform *ghip);
 Bool GHIPlatformGetProtocolHandlers(GHIPlatform *ghip,
                                     GHIProtocolHandlerList *protocolHandlerList);
 
+/*
+ * Set the temporary folder used by Outlook to store attachments.
+ */
+Bool GHIPlatformSetOutlookTempFolder(GHIPlatform* ghip, const XDR* xdrs);
+
+
 /* Implemented by ghIntegration.c for use by the platform-specific code */
 Bool GHILaunchMenuChangeRPC(void);
 

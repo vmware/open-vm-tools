@@ -98,24 +98,27 @@ ToolsCoreIgnoreArg(const gchar *option,
 
 
 /**
- * Asks a running instance of a service to stop running.
+ * Signals a specific event in a running service instance.
  *
- * @param[in]  svcname     Name of the service to be killed.
+ * @param[in]  svcname     Name of the service to be signaled.
+ * @param[in]  evtFmt      Format string for the event name. It should expect
+ *                         a single string parameter.
  *
- * @return Whether killing the service was successful.
+ * @return Whether successfully signaled the running service.
  */
 
 static gboolean
-ToolsCoreKillService(const gchar *svcname)
+ToolsCoreSignalEvent(const gchar *svcname,
+                     const wchar_t *evtFmt)
 {
    gboolean ret = FALSE;
    gchar *msg;
    wchar_t *evt;
    HANDLE h = NULL;
 
-   g_assert(svcname != NULL);
+   ASSERT(svcname != NULL);
 
-   evt = Str_Aswprintf(NULL, QUIT_EVENT_NAME_FMT, svcname);
+   evt = Str_Aswprintf(NULL, evtFmt, svcname);
    if (evt == NULL) {
       g_printerr("Out of memory!\n");
       goto exit;
@@ -135,7 +138,7 @@ ToolsCoreKillService(const gchar *svcname)
 
 error:
    msg = g_win32_error_message(GetLastError());
-   g_printerr("Cannot open quit event: %s\n", msg);
+   g_printerr("Cannot open event: %s\n", msg);
    g_free(msg);
 
 exit:
@@ -166,6 +169,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    gboolean ret = FALSE;
    gboolean version = FALSE;
 #if defined(G_PLATFORM_WIN32)
+   gboolean dumpState = FALSE;
    gboolean kill = FALSE;
 #endif
    GOptionEntry clOptions[] = {
@@ -176,6 +180,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       { "cmd", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommand,
          N_("Sends an RPC command to the host and exits."), N_("command") },
 #if defined(G_PLATFORM_WIN32)
+      { "dump-state", 's', 0, G_OPTION_ARG_NONE, &dumpState,
+         N_("Dumps the internal state of a running service instance to the logs."), 0 },
       { "kill", 'k', 0, G_OPTION_ARG_NONE, &kill,
          N_("Stops a running instance of a tools service."), 0 },
       { "install", 'i', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, ToolsCoreIgnoreArg,
@@ -233,7 +239,10 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
 
 #if defined(G_PLATFORM_WIN32)
    if (kill) {
-      exit(ToolsCoreKillService(state->name) ? 0 : 1);
+      exit(ToolsCoreSignalEvent(state->name, QUIT_EVENT_NAME_FMT) ? 0 : 1);
+   }
+   if (dumpState) {
+      exit(ToolsCoreSignalEvent(state->name, DUMP_STATE_EVENT_NAME_FMT) ? 0 : 1);
    }
 #else
    /* If not running the "vmusr" service, ignore the blockFd parameter. */

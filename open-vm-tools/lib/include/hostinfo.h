@@ -85,6 +85,16 @@ extern Unicode Hostinfo_GetModulePath(uint32 priv);
 extern void Hostinfo_ResetProcessState(const int *keepFds, size_t numKeepFds);
 extern int Hostinfo_Execute(const char *command, char * const *args,
 			    Bool wait);
+typedef enum HostinfoDaemonizeFlags {
+   HOSTINFO_DAEMONIZE_DEFAULT = 0,
+   HOSTINFO_DAEMONIZE_NOCHDIR = (1 << 0),
+   HOSTINFO_DAEMONIZE_NOCLOSE = (1 << 1),
+   HOSTINFO_DAEMONIZE_EXIT    = (1 << 2),
+} HostinfoDaemonizeFlags;
+extern Bool Hostinfo_Daemonize(const char *path,
+                               char * const *args,
+                               HostinfoDaemonizeFlags flags,
+                               const char *pidPath);
 #endif
 
 extern Unicode Hostinfo_GetUser(void);

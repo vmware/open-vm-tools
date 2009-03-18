@@ -311,6 +311,39 @@ VMBlockHashRem(struct VMBlockNode *xp)  // IN: node to remove
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMBlockInsMntQueDtr --
+ *
+ *      Do filesystem specific cleanup when recycling a vnode on a failed
+ *      insmntque1 call.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if __FreeBSD_version >= 700055
+static void
+VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
+		    void *xp)         // IN: FS private data
+{
+   vp->v_data = NULL;
+   vp->v_vnlock = &vp->v_lock;
+   FREE(xp, M_VMBLOCKFSNODE);
+   vp->v_op = &dead_vnodeops;
+   (void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+   vgone(vp);
+   vput(vp);
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMBlockNodeGet --
  *
  *      Return a VMBlockNode mapped to the given lower layer vnode.
@@ -380,6 +413,14 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
    if (vp->v_vnlock == NULL) {
       panic("VMBlockNodeGet: Passed a NULL vnlock.\n");
    }
+
+   /* Before FreeBSD 7, insmntque was called by getnewvnode. */
+#if __FreeBSD_version >= 700055
+   error = insmntque1(vp, mp, VMBlockInsMntQueDtr, xp);
+   if (error != 0) {
+      return error;
+   }
+#endif
 
    /*
     * Atomically insert our new node into the hash or vget existing if

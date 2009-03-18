@@ -32,6 +32,7 @@
 #include "dndFileList.hh"
 
 extern "C" {
+   #include "vmwareuserInt.h"
    #include "vmblock.h"
    #include "vm_app.h"
    #include "file.h"
@@ -42,6 +43,7 @@ extern "C" {
    #include "debug.h"
    #include "cpNameUtil.h"
    #include "rpcout.h"
+   #include "eventManager.h"
 }
 
 /*
@@ -65,8 +67,44 @@ CopyPasteUI::CopyPasteUI()
    mHGStagingDir(""),
    mIsClipboardOwner(false),
    mClipTimePrev(0),
-   mPrimTimePrev(0)
+   mPrimTimePrev(0),
+   mHGGetFilesInitiated(false),
+   mFileTransferDone(false),
+   mBlockAdded(false),
+   mBlockFd(-1),
+   mInited(false)
 {
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPasteUI::Init --
+ *
+ *    Initialize copy paste UI class and register for V3 or greater copy
+ *    paste.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteUI::Init()
+{
+
+   if (mInited) {
+      return;
+   }
+
+   mInited = true;
+   CPClipboard_Init(&mClipboard);
+
    Gtk::TargetEntry gnome(FCP_TARGET_NAME_GNOME_COPIED_FILES);
    Gtk::TargetEntry kde(FCP_TARGET_NAME_URI_LIST);
    gnome.set_info(FCP_TARGET_INFO_GNOME_COPIED_FILES);
@@ -74,8 +112,6 @@ CopyPasteUI::CopyPasteUI()
 
    mListTargets.push_back(gnome);
    mListTargets.push_back(kde);
-
-   CPClipboard_Init(&mClipboard);
 
    /* Tell the VMX about the copyPaste version we support. */
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.copypaste_version 3")) {
@@ -224,8 +260,8 @@ CopyPasteUI::GetCurrentTime(void)
  *
  * CopyPasteUI::LocalGetFileRequestCB --
  *
- *      Callback from a file paste request from another host application.
- *      Begins copying the files from guest to host and return the file list.
+ *      Callback from a file paste request from another guest application.
+ *      Begins copying the files from host to guest and return the file list.
  *
  * Results:
  *      None.
@@ -243,19 +279,24 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
    Debug("%s: enter.\n", __FUNCTION__);
    mHGCopiedUriList = "";
    VmTimeType curTime;
+   mBlockAdded = false;
 
    curTime = GetCurrentTime();
 
    /*
     * Some applications may ask for clipboard contents right after clipboard
-    * owner changed. So GH FCP will return nothing for some time after switch
+    * owner changed. So HG FCP will return nothing for some time after switch
     * from guest OS to host OS.
     */
    if ((curTime - mHGGetListTime) < FCP_COPY_DELAY) {
+      Debug("%s: time delta less than FCP_COPY_DELAY, returning.\n",
+            __FUNCTION__);
       return;
    }
 
    if (!mIsClipboardOwner || !mCP.IsCopyPasteAllowed()) {
+      Debug("%s: not clipboard ownder, or copy paste not allowed, returning.\n",
+            __FUNCTION__);
       return;
    }
 
@@ -263,13 +304,14 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
          sd.get_target().c_str());
 
    /* Copy the files. */
-   if (!mHGGetFilesInitated) {
+   if (!mHGGetFilesInitiated) {
       utf::string str;
       utf::string hgStagingDir;
       utf::string stagingDirName;
       utf::string pre;
       utf::string post;
       size_t index = 0;
+      mFileTransferDone = false;
 
       hgStagingDir = static_cast<utf::string>(mCP.GetFiles());
       Debug("%s: Getting files. Staging dir: %s", __FUNCTION__,
@@ -279,7 +321,16 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
          Debug("%s: Can not create staging directory\n", __FUNCTION__);
          return;
       }
-      mHGGetFilesInitated = true;
+      mHGGetFilesInitiated = true;
+
+      if (DnD_AddBlock(mBlockFd, hgStagingDir.c_str())) {
+         Debug("%s: add block mBlockFd %d.\n", __FUNCTION__, mBlockFd);
+         mHGStagingDir = hgStagingDir;
+         mBlockAdded = true;
+      } else {
+         Debug("%s: unable to add block fd %d dir %s.\n",
+                __FUNCTION__, mBlockFd, hgStagingDir.c_str());
+      }
 
       /* Provide URIs for each path in the guest's file list. */
       if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
@@ -318,6 +369,44 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
    if (0 == mHGCopiedUriList.bytes()) {
       Debug("%s: Can not get uri list\n", __FUNCTION__);
       return;
+   }
+
+   if (!mBlockAdded) {
+      /*
+       * If there is no blocking driver, wait here till file copy is done.
+       * 2 reasons to keep this:
+       * 1. If run vmware-user stand-alone as non-root, blocking driver can
+       *    not be opened. Debug purpose only.
+       * 2. Other platforms (Solaris, etc) may also use this code,
+       *    and there is no blocking driver yet.
+       *
+       * Polling here will not be sufficient for large files (experiments
+       * showed it was sufficient for a 256MB file, and failed for a 1GB
+       * file, but those numbers are of course context-sensitive and so YMMV).
+       * The reason is we are executing in the context of gtkmm callback, and
+       * apparently it only has so much patience regarding how quickly we
+       * return.
+       */
+      Debug("%s no blocking driver, waiting for "
+            "HG file copy done ...\n", __FUNCTION__);
+      while (mFileTransferDone == false) {
+         struct timeval tv;
+         int nr;
+
+         tv.tv_sec = 0;
+         nr = EventManager_ProcessNext(gEventQueue, (uint64 *)&tv.tv_usec);
+         if (nr != 1) {
+            Debug("%s: unexpected end of loop: returned "
+                  "value is %d.\n", __FUNCTION__, nr);
+            return;
+         }
+         if (select(0, NULL, NULL, NULL, &tv) == -1) {
+            Debug("%s: error in select (%s).\n", __FUNCTION__,
+                  strerror(errno));
+            return;
+         }
+      }
+      Debug("%s: file transfer done!\n", __FUNCTION__);
    }
 
    Debug("%s: providing file list [%s]\n", __FUNCTION__,
@@ -510,7 +599,7 @@ CopyPasteUI::LocalReceivedTargetsCB(const Glib::StringArrayHandle& targetsArray)
  * CopyPasteUI::LocalReceivedFileListCB --
  *
  *      Got clipboard or primary selection file list. Parse it and add
- *      it to the crossplaform clipboard. Send clipboard to the guest.
+ *      it to the crossplaform clipboard. Send clipboard to the host.
  *
  * Results:
  *      None.
@@ -541,7 +630,7 @@ CopyPasteUI::LocalReceivedFileListCB(const Gtk::SelectionData& sd)        // IN
  * CopyPasteUI::LocalReceivedTextCB --
  *
  *      Got clipboard (or primary selection) text, add to local clipboard
- *      cache and send clipboard to guest.
+ *      cache and send clipboard to host.
  *
  * Results:
  *      None.
@@ -595,7 +684,7 @@ CopyPasteUI::LocalReceivedTextCB(const Glib::ustring& text)        // IN
  *
  * CopyPasteUI::LocalGetSelectionFileList --
  *
- *      Contruct local file list and remote file list from selection data.
+ *      Construct local file list and remote file list from selection data.
  *      Called by both DnD and FCP.
  *
  * Results:
@@ -617,6 +706,8 @@ CopyPasteUI::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // IN
    size_t index = 0;
    DnDFileList fileList;
    DynBuf buf;
+   uint64 totalSize = 0;
+   int64 size;
 
    /*
     * Turn the uri list into two \0  delimited lists. One for full paths and
@@ -651,12 +742,26 @@ CopyPasteUI::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // IN
        */
       newRelPath = Str_Strrchr(newPath, DIRSEPC) + 1; // Point to char after '/'
 
+      /*
+       * XXX For directory, value is -1, so if there is any directory,
+       * total size is not accurate.
+       */
+      if ((size = File_GetSize(newPath)) >= 0) {
+         totalSize += size;
+      } else {
+         Debug("%s: Unable to get file size for %s\n", __FUNCTION__, newPath);
+      }
+
+      Debug("%s: Adding newPath '%s' newRelPath '%s'\n", __FUNCTION__,
+            newPath, newRelPath);
       fileList.AddFile(newPath, newRelPath);
       free(newPath);
    }
 
    DynBuf_Init(&buf);
-   fileList.ToCPClipboard(&buf, true);
+   fileList.SetFileSize(totalSize);
+   Debug("%s: totalSize is %"FMT64"u\n", __FUNCTION__, totalSize);
+   fileList.ToCPClipboard(&buf, false);
    CPClipboard_SetItem(&mClipboard, CPFORMAT_FILELIST, DynBuf_Get(&buf),
                        DynBuf_GetSize(&buf));
    DynBuf_Destroy(&buf);
@@ -794,6 +899,7 @@ CopyPasteUI::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    void *buf;
    size_t sz;
 
+   Debug("%s: enter\n", __FUNCTION__);
    if (!clip) {
       Debug("%s: No clipboard contents.", __FUNCTION__);
       return;
@@ -827,46 +933,9 @@ CopyPasteUI::GetRemoteClipboardCB(const CPClipboard *clip) // IN
 
       mIsClipboardOwner = TRUE;
       mHGGetListTime = GetCurrentTime();
-      mHGGetFilesInitated = FALSE;
+      mHGGetFilesInitiated = false;
       mHGCopiedUriList = "";
    }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CopyPasteUI::GetLocalFiles --
- *
- *    Invoke the copy files from host to guest.
- *
- * Results:
- *    true if the request was sent. false otherwise.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-bool
-CopyPasteUI::GetLocalFiles(void)
-{
-   Debug("%s: enter try to start HG file copy.\n", __FUNCTION__);
-#if defined(NOT_YET)
-   ASSERT_IN_SAFE_CONTEXT(mSyncWnd);
-#endif
-
-   mHGStagingDir = mCP.GetFiles();
-
-#if defined(NOT_YET)
-   if (mHGStagingDir.empty()) {
-      mDataObject->NotifyGetFilesDone(false);
-      return false;
-   }
-   mDataObject->SetStagingDir(mHGStagingDir);
-#endif
-   return true;
 }
 
 
@@ -893,20 +962,26 @@ void
 CopyPasteUI::GetLocalFilesDone(bool success)
 {
    Debug("%s: enter success %d\n", __FUNCTION__, success);
+
+   if (mBlockAdded) {
+      Debug("%s: removing block mBlockFd %d\n", __FUNCTION__, mBlockFd);
+      DnD_RemoveBlock(mBlockFd, mHGStagingDir.c_str());
+      mBlockAdded = false;
+   }
+
+   mFileTransferDone = true;
    if (success) {
       /*
        * Mark current staging dir to be deleted on next reboot for FCP. The
        * file will not be deleted after reboot if it is moved to another
-       * location by target application. 
+       * location by target application.
        */
       DnD_DeleteStagingFiles(mHGStagingDir.c_str(), TRUE);
    } else {
       /* Copied files are already removed in common layer. */
       mHGStagingDir.clear();
    }
-#if defined(NOT_YET)
-   mDataObject->NotifyGetFilesDone(success);
-#endif
+   mHGGetFilesInitiated = false;
 }
 
 

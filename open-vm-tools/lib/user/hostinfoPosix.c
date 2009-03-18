@@ -77,6 +77,14 @@
 #endif
 #endif
 
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <paths.h>
+#endif
+
+#ifndef _PATH_DEVNULL
+#define _PATH_DEVNULL "/dev/null"
+#endif
+
 #include "vmware.h"
 #include "hostType.h"
 #include "hostinfo.h"
@@ -1524,6 +1532,336 @@ Hostinfo_Execute(const char *command,
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_Daemonize --
+ *
+ *      Cross-platform daemon(3)-like wrapper.
+ *
+ *      Restarts the current process as a daemon, given the path to the
+ *      process (usually from Hostinfo_GetModulePath).  This means:
+ *
+ *         * You're detached from your parent.  (Your parent doesn't
+ *           need to wait for you to exit.)
+ *         * Your process no longer has a controlling terminal or
+ *           process group.
+ *         * Your stdin/stdout/stderr fds are redirected to /dev/null.
+ *         * Your main() function is called with the specified NULL-terminated
+ *           argument list.
+ *
+ *      (Don't forget that the first string in args is argv[0] -- the
+ *      name of the process).
+ *
+ *      Unless 'flags' contains HOSTINFO_DAEMONIZE_NOCHDIR, then the
+ *      current directory of the daemon process is set to "/".
+ *
+ *      Unless 'flags' contains HOSTINFO_DAEMONIZE_NOCLOSE, then all stdio
+ *      file descriptors of the daemon process are redirected to /dev/null.
+ *
+ *      If 'flags' contains HOSTINFO_DAEMONIZE_EXIT, then upon successful
+ *      launch of the daemon, the original process will exit.
+ *
+ *      If pidPath is non-NULL, then upon success, writes the PID
+ *      (as a US-ASCII string followed by a newline) of the daemon
+ *      process to that path.
+ *
+ * Results:
+ *      FALSE if the process could not be daemonized.  Err_Errno() contains
+ *      the error on failure.
+ *      TRUE if 'flags' does not contain HOSTINFO_DAEMONIZE_EXIT and
+ *      the process was daemonized.
+ *      Otherwise, if the process was daemonized, this function does
+ *      not return, and flow continues from your own main() function.
+ *
+ * Side effects:
+ *      The current process is restarted with the given arguments.
+ *      The process state is reset (see Hostinfo_ResetProcessState).
+ *      A new session is created (so the process has no controlling terminal).
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
+                                                 // path to exec
+                   char * const *args,           // IN: NULL-terminated UTF-8
+                                                 // argv list
+                   HostinfoDaemonizeFlags flags, // IN: flags
+                   const char *pidPath)          // IN/OPT: NUL-terminated
+                                                 // UTF-8 path to write PID
+{
+   /*
+    * We use the double-fork method to make a background process whose
+    * parent is init instead of the original process.
+    *
+    * We do this instead of calling daemon(), because daemon() is
+    * deprecated on Mac OS 10.5 hosts, and calling it causes a compiler
+    * warning.
+    *
+    * We must exec() after forking, because Mac OS library frameworks
+    * depend on internal Mach ports, which are not correctly propagated
+    * across fork calls.  exec'ing reinitializes the frameworks, which
+    * causes them to reopen their Mach ports.
+    */
+   int childPid;
+   int pipeFds[2] = { -1, -1 };
+   uint32 err = EINVAL;
+   char *pathLocalEncoding = NULL;
+   char *pidPathLocalEncoding = NULL;
+   char **argsLocalEncoding = NULL;
+
+   ASSERT_ON_COMPILE(sizeof (errno) <= sizeof err);
+
+   if (pipe(pipeFds) == -1) {
+      err = Err_Errno();
+      Warning("%s: Couldn't create pipe, error %u.\n",
+              __FUNCTION__, err);
+      goto cleanup;
+   }
+
+   if (fcntl(F_SETFD, pipeFds[1], 1) == -1) {
+      err = Err_Errno();
+      Warning("%s: Couldn't set close-on-exec for fd %d, error %u.\n",
+              __FUNCTION__, pipeFds[1], err);
+      goto cleanup;
+   }
+
+   // Convert the strings from UTF-8 before we fork.
+   pathLocalEncoding = Unicode_GetAllocBytes(path, STRING_ENCODING_DEFAULT);
+   if (!pathLocalEncoding) {
+      Warning("%s: Couldn't convert path [%s] to default encoding.\n",
+              __FUNCTION__, path);
+      goto cleanup;
+   }
+
+   if (pidPath) {
+      pidPathLocalEncoding =
+         Unicode_GetAllocBytes(pidPath, STRING_ENCODING_DEFAULT);
+      if (!pidPathLocalEncoding) {
+         Warning("%s: Couldn't convert path [%s] to default encoding.\n",
+                 __FUNCTION__, pidPath);
+         goto cleanup;
+      }
+   }
+
+   argsLocalEncoding = Unicode_GetAllocList(args, STRING_ENCODING_DEFAULT, -1);
+   if (!argsLocalEncoding) {
+      Warning("%s: Couldn't convert arguments to default encoding.\n",
+              __FUNCTION__);
+      goto cleanup;
+   }
+
+   childPid = fork();
+
+   switch (childPid) {
+   case -1:
+      err = Err_Errno();
+      Warning("%s: Couldn't fork first child, error %u.\n",
+              __FUNCTION__, err);
+      goto cleanup;
+   case 0:
+      // We're the first child.  Continue on.
+      break;
+   default:
+      {
+         // We're the original process.  Check if the first child exited.
+         int status;
+         FileIODescriptor pipeDesc;
+
+         close(pipeFds[1]);
+
+         pipeDesc = FileIO_CreateFDPosix(pipeFds[0], O_RDONLY);
+
+         waitpid(childPid, &status, 0);
+         if (WIFEXITED(status) && WEXITSTATUS(status) != EXIT_SUCCESS) {
+            Warning("%s: Child %d exited with error %d.\n",
+                    __FUNCTION__, childPid, WEXITSTATUS(status));
+            goto cleanup;
+         } else if (WIFSIGNALED(status)) {
+            Warning("%s: Child %d exited with signal %d.\n",
+                    __FUNCTION__, childPid, WTERMSIG(status));
+            goto cleanup;
+         }
+
+         /*
+          * Check if the second child exec'ed successfully.  If it had
+          * an error, it will write a uint32 errno to this pipe before
+          * exiting.  Otherwise, its end of the pipe will be closed on
+          * exec and this call will fail as expected.
+          */
+         if (FileIO_Read(&pipeDesc, &err, sizeof err, NULL) == FILEIO_SUCCESS) {
+            Warning("%s: Child could not exec %s, error %u.\n",
+                    __FUNCTION__, path, err);
+            goto cleanup;
+         }
+
+         err = 0;
+         goto cleanup;
+      }
+   }
+
+   /*
+    * Close all fds except for the write end of the error pipe (which
+    * we've already set to close on successful exec).
+    */
+   Hostinfo_ResetProcessState(&pipeFds[1], 1);
+
+   if (!(flags & HOSTINFO_DAEMONIZE_NOCLOSE) && setsid() == -1) {
+      Warning("%s: Couldn't create new session, error %d.\n",
+              __FUNCTION__, Err_Errno());
+      _exit(EXIT_FAILURE);
+   }
+
+   switch (fork()) {
+   case -1:
+      {
+         Warning("%s: Couldn't fork second child, error %d.\n",
+                 __FUNCTION__, Err_Errno());
+         _exit(EXIT_FAILURE);
+      }
+   case 0:
+      // We're the second child.  Continue on.
+      break;
+   default:
+      /*
+       * We're the first child.  We don't need to exist any more.
+       *
+       * Exiting here causes the second child to be reparented to the
+       * init process, so the original process doesn't need to wait
+       * for the child we forked off.
+       */
+      _exit(EXIT_SUCCESS);
+   }
+
+   /*
+    * We can't use our i18n wrappers for file manipulation at this
+    * point, since we've forked; internal library mutexes might be
+    * invalid.
+    */
+   if (!(flags & HOSTINFO_DAEMONIZE_NOCHDIR) && chdir("/") == -1) {
+      uint32 err = Err_Errno();
+      Warning("%s: Couldn't chdir to /, error %u.\n",
+              __FUNCTION__, err);
+      // Let the original process know we failed to chdir.
+      if (write(pipeFds[1], &err, sizeof err) == -1) {
+         Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
+                 Err_Errno(), err);
+      }
+      _exit(EXIT_FAILURE);
+   }
+
+   if (!(flags & HOSTINFO_DAEMONIZE_NOCLOSE)) {
+      int fd;
+
+      fd = open(_PATH_DEVNULL, O_RDONLY);
+      if (fd != -1) {
+         dup2(fd, STDIN_FILENO);
+         close(fd);
+      }
+
+      fd = open(_PATH_DEVNULL, O_WRONLY);
+      if (fd != -1) {
+         dup2(fd, STDOUT_FILENO);
+         dup2(fd, STDERR_FILENO);
+         close(fd);
+      }
+   }
+
+   if (pidPath) {
+      int64 pid;
+      char pidString[32];
+      int pidStringLen;
+      int pidPathFd;
+      FileIODescriptor pidDesc;
+
+      ASSERT_ON_COMPILE(sizeof (pid_t) <= sizeof pid);
+      ASSERT(pidPathLocalEncoding);
+
+      // See above comment about how we can't use our i18n wrappers here.
+      pidPathFd = open(pidPathLocalEncoding, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+
+      if (pidPathFd == -1) {
+         err = Err_Errno();
+         Warning("%s: Couldn't open PID path [%s], error %d.\n",
+                 __FUNCTION__, pidPath, err);
+         if (write(pipeFds[1], &err, sizeof err) == -1) {
+            Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
+                    Err_Errno(), err);
+         }
+         _exit(EXIT_FAILURE);
+      }
+
+      pid = getpid();
+      pidStringLen = Str_Sprintf(pidString, sizeof pidString,
+                                 "%"FMT64"d\n", pid);
+      if (pidStringLen <= 0) {
+         err = EINVAL;
+         if (write(pipeFds[1], &err, sizeof err) == -1) {
+            Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
+                    Err_Errno(), err);
+         }
+         _exit(EXIT_FAILURE);
+      }
+
+      pidDesc = FileIO_CreateFDPosix(pidPathFd, O_WRONLY);
+
+      if (FileIO_Write(&pidDesc, pidString, pidStringLen, NULL) !=
+          FILEIO_SUCCESS) {
+         err = Err_Errno();
+         Warning("%s: Couldn't write PID to path [%s], error %d.\n",
+                 __FUNCTION__, pidPath, err);
+         if (write(pipeFds[1], &err, sizeof err) == -1) {
+            Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
+                    Err_Errno(), err);
+         }
+         _exit(EXIT_FAILURE);
+      }
+
+      close(pidPathFd);
+   }
+
+   if (execv(pathLocalEncoding, argsLocalEncoding) == -1) {
+      uint32 err = Err_Errno();
+      Warning("%s: Couldn't exec %s, error %u.\n",
+              __FUNCTION__, path, err);
+      // Let the original process know we failed to exec.
+      if (write(pipeFds[1], &err, sizeof err) == -1) {
+         Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
+                 Err_Errno(), err);
+      }
+      _exit(EXIT_FAILURE);
+   }
+
+   NOT_REACHED();
+
+  cleanup:
+   if (pipeFds[0] != -1) {
+      close(pipeFds[0]);
+   }
+   if (pipeFds[1] != -1) {
+      close(pipeFds[1]);
+   }
+   Util_FreeStringList(argsLocalEncoding, -1);
+   free(pidPathLocalEncoding);
+   free(pathLocalEncoding);
+
+   if (err == 0) {
+      if (flags & HOSTINFO_DAEMONIZE_EXIT) {
+         _exit(EXIT_SUCCESS);
+      }
+   } else {
+      Err_SetErrno(err);
+
+      if (pidPath) {
+         File_Unlink(pidPath);
+      }
+   }
+
+   return (err == 0);
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * Hostinfo_OSIsSMP --
@@ -1569,11 +1907,19 @@ Hostinfo_OSIsSMP(void)
  *
  *	Retrieve the full path to the executable. Not supported under VMvisor.
  *
+ *      Note: If your process is running with elevated privileges
+ *      (setuid/setgid), treat the path returned by this function as
+ *      untrusted (for example, do not pass it to exec or open).
+ *
+ *      This function returns a path that is under the control of the
+ *      user.  An attacker could manipulate the path returned by this
+ *      function to elevate privileges.
+ *
  * Results:
- *      On success: The allocated, NUL-terminated file path.  
+ *      On success: The allocated, NUL-terminated file path.
  *         Note: This path can be a symbolic or hard link; it's just one
  *         possible path to access the executable.
- *         
+ *
  *      On failure: NULL.
  *
  * Side effects:

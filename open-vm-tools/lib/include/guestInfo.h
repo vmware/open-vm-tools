@@ -16,10 +16,23 @@
  *
  *********************************************************/
 
-/*
- * guestInfo.h --
+/**
+ * @file guestInfo.h
  *
- *    Common declarations that aid in sending guest information to the host.
+ * Common declarations that aid in sending guest information to the host.
+ */
+
+/**
+ * @defgroup vmtools_guestInfoAPI GuestInfo API Reference
+ * @{
+ *
+ * @brief APIs implementing the GuestInfo feature.
+ *
+ * Definitions below are used for communication across the backdoor between
+ * the VMware Tools Service (running in the guest) and the VMX (running in
+ * the host).
+ *
+ * @sa @ref vmtools_guestInfo for a high level overview.
  */
 
 #ifndef _GUEST_INFO_H_
@@ -32,7 +45,9 @@
 
 #include "dbllnklst.h"
 #include "guestStats.h"
+#ifndef N_PLAT_NLM
 #include "guestrpc/nicinfo.h"
+#endif // #ifndef N_PLAT_NLM
 
 #define GUEST_INFO_COMMAND "SetGuestInfo"
 #define MAX_VALUE_LEN 100
@@ -42,6 +57,9 @@
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
 #define GUESTINFO_TIME_INTERVAL_MSEC 3000  /* time interval in msec */
+
+/* Value to be used when "primary" IP address is indeterminable. */
+#define GUESTINFO_IP_UNKNOWN "unknown"
 
 typedef enum {
    INFO_ERROR,       /* Zero is unused so that errors in atoi can be caught. */
@@ -94,6 +112,7 @@ typedef struct _DiskInfo {
  * Global functions
  */
 
+#ifndef N_PLAT_NLM
 extern Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
 extern Bool GuestInfo_GetNicInfo(GuestNicList *nicInfo);
 extern Bool GuestInfo_GetDiskInfo(PGuestDiskInfo di);
@@ -101,6 +120,10 @@ extern Bool GuestInfo_GetOSName(unsigned int outBufFullLen,
                                 unsigned int outBufLen, char *osNameFull,
                                 char *osName);
 extern int GuestInfo_GetSystemBitness(void);
+#endif // #ifndef N_PLAT_NLM
+
+/**
+ * @}
+ */
 
 #endif // _GUEST_INFO_H_
-

@@ -1,3 +1,17 @@
+open-vm-tools 2009.03.18 changes:
+	* Mostly a bug fix release.
+
+	* Solaris vmxnet3 driver was added; open-vm-tools now should also compile on
+	OpenSolaris (tested on 08.11), as long as the --without-gtkmm option is used.
+
+	* The new DnD V3 protocol is now available in open-vm-tools.
+
+	* Added "rpctool", a simple, stand-alone tool to send RPC commands to the
+	host software.
+
+	* vmtoolsd is now preferred in lieu of vmware-guestd; vmware-guestd will
+	most probably be completely removed in the next release.
+
 open-vm-tools 2009.02.18 changes:
 	* open-vm-tools now depend on glib 2.6.0 as a minimum requirement.
 

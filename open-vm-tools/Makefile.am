@@ -29,6 +29,7 @@ X11_SUBDIRS += vmware-user-suid-wrapper
 
 SUBDIRS =
 SUBDIRS += lib
+SUBDIRS += libvmtools
 SUBDIRS += guestd
 if HAVE_X11
    SUBDIRS += $(X11_SUBDIRS)
@@ -39,7 +40,7 @@ if BUILD_HGFSMOUNTER
 endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
-SUBDIRS += libvmtools
+SUBDIRS += rpctool
 SUBDIRS += scripts
 SUBDIRS += services
 SUBDIRS += toolbox

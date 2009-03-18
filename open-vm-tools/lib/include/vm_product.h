@@ -245,7 +245,7 @@
       || defined(VMX86_P2V)      \
       || defined(VMX86_DDK)      \
       || defined(VMX86_VDDK))
-#   if defined(_WIN32)
+#   if defined(_WIN32) || defined(__APPLE__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
        * XXX above are not defined in defs-globaldefs.mk -- Edward A. Waugh

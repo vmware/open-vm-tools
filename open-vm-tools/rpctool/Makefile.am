@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2007 VMware, Inc.  All rights reserved.
+### Copyright 2009 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -15,7 +15,14 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libToolsLogger.la
+bin_PROGRAMS = vmware-rpctool
 
-libToolsLogger_la_SOURCES =
-libToolsLogger_la_SOURCES += logger.c
+vmware_rpctool_SOURCES =
+vmware_rpctool_SOURCES += rpctool.c
+
+vmware_rpctool_LDADD =
+vmware_rpctool_LDADD += ../lib/rpcOut/libRpcOut.la
+vmware_rpctool_LDADD += ../lib/message/libMessage.la
+vmware_rpctool_LDADD += ../lib/backdoor/libBackdoor.la
+vmware_rpctool_LDADD += ../lib/string/libString.la
+

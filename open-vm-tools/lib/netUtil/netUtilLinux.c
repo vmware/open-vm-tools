@@ -70,10 +70,65 @@
 #include "str.h"
 
 #define MAX_IFACES      4
-#define LOOPBACK        "lo"
+#define LOOPBACK        "lo"    // XXX: We would have a problem with something like "loa0".
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ValidateConvertAddress --
+ *
+ *      Helper routine validates an address as a return value for
+ *      NetUtil_GetPrimaryIP.
+ *
+ * Results:
+ *      Returns TRUE with sufficient result stored in outputBuffer on success.
+ *      Returns FALSE with "" stored in outputBuffer on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+ValidateConvertAddress(const char *ifaceName,           // IN: interface name
+                       const struct sockaddr_in *addr,  // IN: network address to
+                                                        //     evaluate
+                       char ipstr[INET_ADDRSTRLEN])     // OUT: converted address
+                                                        //      stored here
+{
+   /*
+    * 1.  Ensure this isn't a loopback device.
+    * 2.  Ensure this is an (IPv4) internet address.
+    */
+   if (ifaceName[0] == '\0' ||
+       strncmp(ifaceName, LOOPBACK, sizeof LOOPBACK - 1) == 0 ||
+       addr->sin_family != AF_INET) {
+      goto invalid;
+   }
+
+   /*
+    * Branches separated because it just looked really silly to lump the
+    * initial argument checking and actual conversion logic together.
+    */
+
+   /*
+    * 3.  Attempt network to presentation conversion.
+    * 4.  Ensure the IP isn't all zeros.
+    */
+   if (inet_ntop(AF_INET, (void *)&addr->sin_addr, ipstr, INET_ADDRSTRLEN) != NULL &&
+       strcmp(ipstr, "0.0.0.0") != 0) {
+      return TRUE;
+   }
+
+invalid:
+   ipstr[0] = '\0';
+   return FALSE;
+}
 
 
 /*
@@ -84,12 +139,12 @@
  *      Get the primary IP for this machine.
  *
  * Results:
- *      
- *      The IP or NULL if an error occurred.
+ *      If applicable address found, returns string of said IP address.
+ *      If applicable address not found, returns an empty string.
+ *      If an error occurred, returns NULL.
  *
  * Side effects:
- *
- *	None.
+ *	Caller is responsible for free()ing returned string.
  *
  *----------------------------------------------------------------------
  */
@@ -101,12 +156,12 @@ NetUtil_GetPrimaryIP(void)
    int sd, i;
    struct ifconf iflist;
    struct ifreq ifaces[MAX_IFACES];
-   char *ipstr;
+   char ipstr[INET_ADDRSTRLEN] = "";
 
    /* Get a socket descriptor to give to ioctl(). */
    sd = socket(PF_INET, SOCK_STREAM, 0);
    if (sd < 0) {
-      goto error;
+      return NULL;
    }
 
    memset(&iflist, 0, sizeof iflist);
@@ -118,54 +173,22 @@ NetUtil_GetPrimaryIP(void)
 
    if (ioctl(sd, SIOCGIFCONF, &iflist) < 0) {
       close(sd);
-      goto error;
+      return NULL;
    }
 
    close(sd);
 
    /* Loop through the list of interfaces provided by ioctl(). */
    for (i = 0; i < (sizeof ifaces/sizeof *ifaces); i++) {
-      /*
-       * Find the first interface whose name is not blank and isn't a
-       * loopback device.  This should be the primary interface.
-       */
-      if ((*ifaces[i].ifr_name != '\0') &&
-          (strncmp(ifaces[i].ifr_name, LOOPBACK, strlen(LOOPBACK)) != 0)) {
-         struct sockaddr_in *addr;
-
-         /*
-          * Allocate memory to return to caller; they must free this if we
-          * don't return error.
-          */
-         ipstr = calloc(1, INET_ADDRSTRLEN);
-         if (!ipstr) {
-            goto error;
-         }
-
-         addr = (struct sockaddr_in *)(&ifaces[i].ifr_addr);
-
-         /* Convert this address to dotted decimal */
-         if (inet_ntop(AF_INET, (void *)&addr->sin_addr,
-                       ipstr, INET_ADDRSTRLEN) == NULL) {
-            goto error_free;
-         }
-
-         /* We'd rather return NULL than an IP of zeros. */
-         if (strcmp(ipstr, "0.0.0.0") == 0) {
-            goto error_free;
-         }
-
-         return ipstr;
+      if (ValidateConvertAddress(ifaces[i].ifr_name,
+                                 (struct sockaddr_in *)&ifaces[i].ifr_addr,
+                                 ipstr)) {
+         break;
       }
    }
 
-   /* Making it through loop means no non-loopback devices were found. */
-   return NULL;
-
-error_free:
-   free(ipstr);
-error:
-   return NULL;
+   /* Success.  Here, caller, you can throw this away. */
+   return strdup(ipstr);
 }
 
 #else /* } FreeBSD || APPLE { */
@@ -175,7 +198,7 @@ NetUtil_GetPrimaryIP(void)
 {
    struct ifaddrs *ifaces;
    struct ifaddrs *curr;
-   char ipstr[INET_ADDRSTRLEN];
+   char ipstr[INET_ADDRSTRLEN] = "";
 
    /*
     * getifaddrs(3) creates a NULL terminated linked list of interfaces for us
@@ -185,45 +208,15 @@ NetUtil_GetPrimaryIP(void)
       return NULL;
    }
 
-   if (!ifaces) {
-      return NULL;
-   }
-
    /*
     * We traverse the list until there are no more interfaces or we have found
     * the primary interface.  This function defines the primary interface to be
     * the first non-loopback, internet interface in the interface list.
     */
    for(curr = ifaces; curr != NULL; curr = curr->ifa_next) {
-      struct sockaddr_in *addr;
-
-      /* Ensure this isn't a loopback device. */
-      if (strncmp(curr->ifa_name, LOOPBACK, strlen(LOOPBACK)) == 0) {
-         continue;
-      }
-
-      addr = (struct sockaddr_in *)(curr->ifa_addr);
-
-      /* Ensure this is an (IPv4) internet interface. */
-      if (addr->sin_family == AF_INET) {
-         memset(ipstr, 0, sizeof ipstr);
-
-         /* Attempt network to presentation conversion. */
-         if (inet_ntop(AF_INET, (void *)&addr->sin_addr, ipstr, sizeof ipstr) == NULL) {
-            continue;
-         }
-
-         /* If the IP is all zeros we'll try for another interface. */
-         if (strcmp(ipstr, "0.0.0.0") == 0) {
-            /* Empty the string so we never return "0.0.0.0". */
-            ipstr[0] = '\0';
-            continue;
-         }
-
-         /*
-          * We have found the primary interface and its dotted-decimal IP is
-          * in ipstr.
-          */
+      if (ValidateConvertAddress(curr->ifa_name,
+                                 (struct sockaddr_in *)curr->ifa_addr,
+                                 ipstr)) {
          break;
       }
    }
@@ -231,11 +224,8 @@ NetUtil_GetPrimaryIP(void)
    /* Tell FreeBSD to free our linked list. */
    freeifaddrs(ifaces);
 
-   /*
-    * If ipstr is blank, just return NULL.  Otherwise, we create a copy of the
-    * string and return the pointer; the caller must free this memory.
-    */
-   return (ipstr[0] == '\0') ? NULL : strdup(ipstr);
+   /* Success.  Here, caller, you can throw this away. */
+   return strdup(ipstr);
 }
 #endif /* } */
 

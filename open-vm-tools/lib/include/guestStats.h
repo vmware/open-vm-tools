@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-/*
- * guestStats.h --
+/**
+ * @file guestStats.h
  *
  *    Common declarations that aid in sending guest statistics to the vmx
  *    and may be further to vmkernel.
@@ -33,21 +33,21 @@
 typedef
 #include "vmware_pack_begin.h"
 struct GuestMemInfo {
-   uint32 version;            /* MemInfo structure version. */
-   uint32 flags;              /* Indicates which stats are valid. */
-   uint64 memTotal;           /* Total physical memory in Kb. */
-   uint64 memFree;            /* Physical memory available in Kb. */
-   uint64 memBuff;            /* Physical memory used as buffer cache in Kb. */
-   uint64 memCache;           /* Physical memory used as cache in Kb. */
-   uint64 memActive;          /* Physical memory actively in use in Kb (working set) */
-   uint64 memInactive;        /* Physical memory inactive in Kb (cold pages) */
-   uint64 swapInRate;         /* Memory swapped out in Kb / sec. */
-   uint64 swapOutRate;        /* Memory swapped out in Kb / sec. */
-   uint64 ioInRate;           /* Amount of I/O in Kb / sec. */
-   uint64 ioOutRate;          /* Amount of I/O out in Kb / sec. */
-   uint64 hugePagesTotal;     /* Total number of huge pages. */
-   uint64 hugePagesFree;      /* Available number of huge pages. */
-   uint64 memPinned;          /* Unreclaimable physical memory in 4K page size. */
+   uint32 version;            ///< MemInfo structure version. 
+   uint32 flags;              ///< Indicates which stats are valid. 
+   uint64 memTotal;           ///< Total physical memory in Kb. 
+   uint64 memFree;            ///< Physical memory available in Kb. 
+   uint64 memBuff;            ///< Physical memory used as buffer cache in Kb. 
+   uint64 memCache;           ///< Physical memory used as cache in Kb. 
+   uint64 memActive;          ///< Physical memory actively in use in Kb (working set) 
+   uint64 memInactive;        ///< Physical memory inactive in Kb (cold pages) 
+   uint64 swapInRate;         ///< Memory swapped out in Kb / sec. 
+   uint64 swapOutRate;        ///< Memory swapped out in Kb / sec. 
+   uint64 ioInRate;           ///< Amount of I/O in Kb / sec. 
+   uint64 ioOutRate;          ///< Amount of I/O out in Kb / sec. 
+   uint64 hugePagesTotal;     ///< Total number of huge pages. 
+   uint64 hugePagesFree;      ///< Available number of huge pages. 
+   uint64 memPinned;          ///< Unreclaimable physical memory in 4K page size. 
 }
 #include "vmware_pack_end.h"
 GuestMemInfo;

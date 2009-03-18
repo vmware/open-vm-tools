@@ -45,6 +45,7 @@ CFLAGS   += -Wall -Werror
 CFLAGS   += $(GLOBAL_DEFS)
 CFLAGS   += $(CC_WARNINGS)
 CFLAGS   += -DVMX86_TOOLS
+CFLAGS   += -I.
 
 ifdef VMX86_DEVEL
 CFLAGS   += -DVMX86_DEVEL
@@ -159,10 +160,3 @@ install:
 	chmod 755 /kernel/drv/$(MODULE)
 	cp $(MODULE_64) /kernel/drv/amd64
 	chmod 755 /kernel/drv/amd64/$(MODULE)
-	cp docs/hgfs.conf /kernel/drv/vmhgfs.conf
-	chmod 644 /kernel/drv/vmhgfs.conf
-	grep $(MODULE) /etc/name_to_major > /dev/null 2>&1; \
-	if [ ! $$? = 0 ]; then \
-	   cat docs/append-to-devlink.tab >> /etc/devlink.tab; \
-	   /usr/sbin/add_drv -m "* 0644 root sys" vmhgfs; \
-	fi

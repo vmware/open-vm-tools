@@ -205,6 +205,7 @@ struct _UnityPlatform {
       _NET_SUPPORTED,
       _NET_FRAME_EXTENTS,
       WM_CLASS,
+      WM_CLIENT_LEADER,
       WM_DELETE_WINDOW,
       WM_ICON,
       WM_NAME,
@@ -214,7 +215,7 @@ struct _UnityPlatform {
    } atoms;
 
    UnityWindowTracker *tracker;
-   UnityUpdateThreadData updateData;
+   UnityUpdateChannel *updateChannel;
 
    /*
     * This tracks all toplevel windows, whether or not they are showing through to the
@@ -384,13 +385,15 @@ Bool UPWindow_ProtocolSupported(const UnityPlatform *up,
 UnityPlatformWindow *UPWindow_Lookup(UnityPlatform *up, Window window);
 void UPWindow_SetUserTime(UnityPlatform *up,
                           UnityPlatformWindow *upw);
+void UPWindow_SetEWMHDesktop(UnityPlatform *up,
+                             UnityPlatformWindow *upw,
+                             uint32 ewmhDesktopId);
 
 /*
  * Implemented by unityPlatformX11.c
  */
 Bool UnityPlatformWMProtocolSupported(UnityPlatform *up, UnityX11WMProtocol proto);
 Bool UnityPlatformIsRootWindow(UnityPlatform *up, Window window);
-void UnityPlatformSendPendingUpdates(UnityPlatform *up, int flags);
 uint32 UnityX11GetCurrentDesktop(UnityPlatform *up);
 void UnityX11SetCurrentDesktop(UnityPlatform *up, uint32 currentDesktop);
 Time UnityPlatformGetServerTime(UnityPlatform *up);
@@ -403,7 +406,6 @@ Time UnityPlatformGetServerTime(UnityPlatform *up);
 
 int UnityPlatformGetErrorCount(UnityPlatform *up);
 void UnityPlatformResetErrorCount(UnityPlatform *up);
-void UnityPlatformDumpUpdate(UnityPlatform *up);
 Bool UnityPlatformSetTaskbarVisible(UnityPlatform *up, Bool currentSetting);
 void UnityPlatformSendClientMessage(UnityPlatform *up, Window destWindow,
 				    Window w, Atom messageType,

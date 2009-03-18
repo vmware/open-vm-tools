@@ -1,5 +1,153 @@
+2009-03-18	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.03.13)
+
+	* configure.ac: check for FreeBSD kernel tree when building modules; warn
+	  about which version of make to use when building kernel modules on FreeBSD
+	  and Solaris; add compiler defines for identifying Solaris 9 and 11.
+
+	* configure.ac, modules/Makefile.am: handle SYSDIR on FreeBSD.
+
+	* guestd/main.c, modules/solaris/vmhgfs/Makefile: remove HGFS-related that
+	  is now obsolete with the recent changes to the HGFS module on Solaris.
+
+	* guestd/toolsDaemon.c: default to the configuration dir when the power
+	  script path is not absolute.
+
+	* guestd/toolsDaemon.c, lib/include/guestInfo.h, lib/netUtil/netUtilLinux.c:
+	  handle case when all network interfaces have been disabled and send an
+	  "unknown" IP address to the host.
+
+	* guestd/toolsDaemon.c, services/vmtoolsd/toolsRpc.c: always send
+	  TOOLS_VERSION_UNMANAGED from an open-vm-tools build, so there's no need for
+	  a config file option anymore.
+
+	* hgfsclient/*: make it link to libvmtools to avoid code duplication.
+
+	* lib/appUtil/appUtil.c: update list of "skippable" apps when figuring out
+	  an application's path.
+
+	* lib/auth/authPosix.c, scripts/linux/pam.d/*, guestd/Makefile.am,
+	  services/vmtoolsd/Makefile.am : change the name of the PAM application to
+	  "vmtoolsd" to reflect the new service name.
+
+	* lib/dnd/dndFileContentsUtil.h, lib/dnd/dndInt.h, lib/dndGuest/*.hh, and
+	  corresponding files in lib/include: relocate private headers.
+
+	* lib/ghIntegration/ghIntegration.c, lib/ghIntegration/ghIntegrationInt.h,
+	  lib/ghIntegration/ghIntegrationX11.c, lib/include/unityCommon.h: glue code
+	  for Outlook mirrored folder, which does not affect open-vm-tools.
+
+	* lib/guestRpc/guestlibV3.x, lib/include/vmGuestLib.h,
+	  libguestlib/vmGuestLib.c: add new guestlib counters.
+
+	* lib/include/conf.h, toolbox/toolbox-gtk.c: remove the need for the
+	  "helpdir" config option; this doesn't really affect open-vm-tools since the
+	  help files are not yet included.
+
+	* lib/include/guest_os.h, lib/misc/hostinfoPosix.c: more guest OS names; fix
+	  name used to identify Solaris to match what VMware's host code expects.
+
+	* lib/include/guestStats.h: documentation changes.
+
+	* lib/include/hostinfo.h, lib/user/hostinfoPosix.c: add a new function that
+	  behaves like daemon(3), but is more Mac OS-friendly.
+
+	* lib/include/toolsLogger.h, lib/Makefile.am, lib/toolsLogger/*: removed
+	  library, which is not used anymore.
+
+	* lib/include/vm_basic_types.h, lib/misc/timeutil.c: fixes to compile under
+	  (Open) Solaris 11.
+
+	* lib/include/vmtoolsApp.h, services/plugins/vmbackup/stateMachine.c,
+	  services/vmtoolsd/mainLoop.c, services/vmtoolsd/mainPosix.c,
+	  services/vmtoolsd/serviceObj.c, services/vmtoolsd/toolsCoreInt.h: add new
+	  signal handler to gather debugging information from a running vmtoolsd
+	  instance.
+
+	* lib/misc/posixPosix.c: fix off-by-one error.
+
+	* lib/unity/unity.c, lib/unity/unityPlatform.h, lib/unity/unityPlatformX11.c,
+	  lib/unity/unityPlatformX11Settings.c: always send Unity updates using RPCI;
+	  this avoids a possible race between replying to an incoming RPC and sending
+	  an Unity update from a different thread; also, API documentation updates.
+
+	* lib/unity/unityPlatformX11.c: verify the DnD detection window was
+	  initialized before actually using it.
+
+	* lib/unity/unityPlatformX11Settings.c, lib/unity/unityPlatformX11Window.c:
+	  reset _NET_WM_DESKTOP as necessary before exiting Unity; this could cause
+	  guest taskbars to disappear when in Unity mode.
+
+	* lib/unity/unityPlatformX11.c, lib/unity/unityPlatformX11Window.c,
+	  lib/unity/unityX11.h: examine WM_CLIENT_LEADER when gathering application
+	  information; certain applications use this property to define the window
+	  where the WM_COMMAND property should be.
+
+	* lib/vixTools/vixTools.c: do not follow symlinks when deleting files in the
+	  guest using the VIX API.
+
+	* libvmtools/vmtools.c, libvmtools/vmtoolsLog.c: allow the logging subsystem
+	  to be re-configured, and clean up the logging data when unloading the
+	  library; allow ${USER} and ${PID} to be used in log file paths.
+
+	* modules/freebsd/vmblock/subr.c, modules/freebsd/vmblock/vnops.c: fix kernel
+	  panic on FreeBSD 7.
+
+	* modules/linux/*/Makefile: remove GCC version check.
+
+	* modules/linux/*/compat_wait.h: fix COMPAT_DEFINE_WAIT for "vanilla" 2.4
+	  kernels.
+
+	* modules/linux/vmhgfs/Makefile.normal: fix build of HGFS module on 2.4
+	  kernels.
+
+	* modules/linux/vmxnet/*, modules/linux/vmxnet3/*: avoid using compat
+	  functions when they're not needed; add compatibility functions for
+	  newer Linux kernels.
+
+	* modules/linux/vsock/linux/af_vsock.c: fix two races; one when the socket
+	  state changed between calls to VSockVmciRecvStreamCB and
+	  VSockVmciRecvPktWork, and another when trying to read from the socket after
+	  a RST arrived after the socket got a detach notification.
+
+	* modules/solaris/vmxnet3/*: add Solaris vmxnet3 driver.
+
+	* rpctool/*: add "rpctool", a simple, stand-alone tool to send RPC commands
+	  to the host software.
+
+	* services/plugins/guestInfo/guestInfoServer.c: don't cache configuration
+	  data.
+
+	* services/plugins/guestInfo/perfMonLinux.c: fix problem with overwriting
+	  flags after GuestInfoMonitorReadMeminfo() was called. (Same as fix to
+	  lib/guestInfo on previous release.)
+
+	* services/plugins/powerOps/powerOps.c: handle power ops-related options
+	  sent from the host.
+
+	* services/vmtoolsd/mainLoop.c: handle re-loading the configuration file.
+
+	* services/vmtoolsd/mainPosix.c: exec after forking on Mac OS, since
+	  CoreFoundation classes don't work after a fork.
+
+	* services/vmtoolsd/pluginMgr.c: allow both 32 and 64 bit plugins to be
+	  installed on Solaris by loading them from the appropriate directory;
+	  add library loading code that is not really needed (nor used) in
+	  open-vm-tools.
+
+	* services/vmtoolsd/toolsRpc.c: send another "capability" the host expects
+	  from Tools.
+
+	* toolbox/toolbox-gtk.c: add F1 shortcut to invoke help.
+
+	* toolbox/toolboxScripts.c: fix issue with freeing data that should not be
+	  freed.
+
+	* vmware-user/*: implement the new DnD protocol (V3).
+
+
 2009-02-18	Marcelo Vanzin	 <mvanzin@vmware.com>
-	* Resync with internal trunk (2009.01.13)
+	* Resync with internal trunk (2009.02.13)
 
 	* configure.ac, m4/vmtools.m4: clean up a lot of the library detection code.
 

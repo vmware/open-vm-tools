@@ -65,7 +65,7 @@ CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/maxbytes.c, -DVMW_SB_HAS_M
 CC_OPTS += -DVMW_KMEMCR_HAS_DTOR
 
 # Core driver components
-OBJS = bdhandler.o
+OBJS =  bdhandler.o
 OBJS += dentry.o
 OBJS += dir.o
 OBJS += file.o
@@ -83,15 +83,14 @@ OBJS += super.o
 OBJS +=	backdoor.o
 OBJS +=	cpName.o
 OBJS +=	cpNameLinux.o
-OBJS += cpNameLite.o
+OBJS +=	cpNameLite.o
 OBJS +=	hgfsBd.o
-OBJS +=	hgfsEscapeLinux.o
+OBJS +=	hgfsEscape.o
 OBJS +=	hgfsUtil.o
 OBJS +=	kernelStubsLinux.o
 OBJS +=	message.o
-OBJS +=  messageBackdoor.o
+OBJS +=	messageBackdoor.o
 OBJS +=	rpcout.o
-OBJS +=	hgfsEscape.o
 
 ifeq ($(MACHINE),x86_64)
 OBJS += backdoorGcc64.o

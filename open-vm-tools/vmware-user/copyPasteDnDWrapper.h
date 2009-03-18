@@ -17,39 +17,40 @@
  *********************************************************/
 
 /**
- * @file copyPasteWrapper.h
+ * @file copyPasteDnDWrapper.h
  * 
  * This singleton class implements a wrapper around various versions of
  * copy and paste.
  *
  */
 
-#ifndef COPYPASTEWRAPPER_H
-#define COPYPASTEWRAPPER_H
+#ifndef COPYPASTEDNDWRAPPER_H
+#define COPYPASTEDNDWRAPPER_H
 
 #if defined(HAVE_GTKMM)
 #include "copyPasteUI.h"
 #endif
 
-class CopyPasteWrapper
+class CopyPasteDnDWrapper
 {
 public:
-   ~CopyPasteWrapper();
-   void SetUserData(const void *userData);
+   ~CopyPasteDnDWrapper();
+   static CopyPasteDnDWrapper *GetInstance();
    bool Register();
    void Unregister();
-   static CopyPasteWrapper *GetInstance();
    int GetVersion();
    void SetIsRegistered(bool isRegistered);
    bool IsRegistered();
    void OnReset();
+   void SetBlockFd(int blockFd);
+   void SetUserData(const void *userData);
 private:
    /*
     * We're a singleton, so it is a compile time error to call these.
     */
-   CopyPasteWrapper();
-   CopyPasteWrapper(const CopyPasteWrapper &wrapper);
-   CopyPasteWrapper& operator=(const CopyPasteWrapper &wrapper);
+   CopyPasteDnDWrapper();
+   CopyPasteDnDWrapper(const CopyPasteDnDWrapper &wrapper);
+   CopyPasteDnDWrapper& operator=(const CopyPasteDnDWrapper &wrapper);
 private:
 #if defined(HAVE_GTKMM)
    CopyPasteUI *m_copyPasteUI;
@@ -57,7 +58,8 @@ private:
    bool m_isRegistered;
    const void *m_userData;
    int m_version;
-   static CopyPasteWrapper *m_instance;
+   static CopyPasteDnDWrapper *m_instance;
+   int mBlockFd;
 };
 
-#endif // COPYPASTEWRAPPER_H
+#endif // COPYPASTEDNDWRAPPER_H

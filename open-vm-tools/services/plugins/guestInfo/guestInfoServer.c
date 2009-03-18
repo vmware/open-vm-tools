@@ -72,11 +72,6 @@ typedef struct _GuestInfoCache{
 } GuestInfoCache;
 
 
-/*
- * Local variables.
- */
-static gboolean gDisableQueryDiskInfo = FALSE;
-
 /* Local cache of the guest information that was last sent to vmx. */
 static GuestInfoCache gInfoCache;
 
@@ -221,6 +216,7 @@ GuestInfoGather(gpointer data)
    char name[255];
    char osNameFull[MAX_VALUE_LEN];
    char osName[MAX_VALUE_LEN];
+   gboolean disableQueryDiskInfo;
    GuestNicList nicInfo;
    GuestDiskInfo diskInfo;
 #if defined(_WIN32) || defined(linux)
@@ -255,7 +251,11 @@ GuestInfoGather(gpointer data)
       }
    }
 
-   if (!gDisableQueryDiskInfo) {
+   disableQueryDiskInfo = g_key_file_get_boolean(ctx->config,
+                                                 "guestinfo",
+                                                 CONFNAME_DISABLEQUERYDISKINFO,
+                                                 NULL);
+   if (!disableQueryDiskInfo) {
       if (!GuestInfo_GetDiskInfo(&diskInfo)) {
          g_warning("Failed to get disk info.\n");
       } else {
@@ -1027,11 +1027,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    memset(&gInfoCache, 0, sizeof gInfoCache);
    vmResumed = FALSE;
-
-   gDisableQueryDiskInfo = g_key_file_get_boolean(ctx->config,
-                                                  "guestinfo",
-                                                  CONFNAME_DISABLEQUERYDISKINFO,
-                                                  NULL);
 
    /* Add the first timer event. */
    src = g_timeout_source_new(GUESTINFO_TIME_INTERVAL_MSEC * 10);

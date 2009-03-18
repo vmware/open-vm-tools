@@ -1335,27 +1335,7 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
          }
       }
 
-#ifdef _WIN32
-      resultInt = File_UnlinkIfExists(pathName);
-#else
-      /*
-       * UnlinkIfExists() chases the symlink and tries to delete
-       * what it points to.  We don't want this, and rather than
-       * fight with bora/lib/file, just do it here ourselves.
-       */
-      {
-         char *primaryPath = Unicode_GetAllocBytes(pathName,
-                                                   STRING_ENCODING_DEFAULT);
-         if (NULL != primaryPath) {
-            resultInt = (unlink(primaryPath) == -1) ? errno : 0;
-            resultInt = (resultInt == ENOENT) ? 0 : resultInt;
-            free(primaryPath);
-         } else {
-            resultInt = UNICODE_CONVERSION_ERRNO;
-         }
-      }
-#endif
-
+      resultInt = File_UnlinkNoFollow(pathName);
       if (0 != resultInt) {
          err = FoundryToolsDaemon_TranslateSystemErr();
       }
@@ -3039,7 +3019,11 @@ VixToolsFreeRunProgramState(VixToolsRunProgramState *asyncState) // IN
    }
 
    if (NULL != asyncState->tempScriptFilePath) {
-      File_UnlinkIfExists(asyncState->tempScriptFilePath);
+      /*
+       * Use UnlinkNoFollow() since we created the file and we know it is not
+       * a symbolic link.
+       */
+      File_UnlinkNoFollow(asyncState->tempScriptFilePath);
    }
    if (NULL != asyncState->procState) {
       ProcMgr_Free(asyncState->procState);

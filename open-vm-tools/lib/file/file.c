@@ -1214,7 +1214,7 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
    FileIOResult fretR;
 
    do {
-      unsigned char buf[1024];
+      unsigned char buf[8 * 1024];
       size_t actual;
       FileIOResult fretW;
 
@@ -1291,6 +1291,11 @@ File_CopyFromFdToName(FileIODescriptor src,  // IN:
                  "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
                  Msg_ErrString());
       result = FALSE;
+   }
+
+   if (result == FALSE) {
+      /* The copy failed: ensure the destination file is removed */
+      File_Unlink(dstName);
    }
 
    return result;
@@ -1471,6 +1476,11 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
                  "Unable to close the '%s' file: %s.\n\n", UTF8(dstName),
                  Msg_ErrString());
       result = FALSE;
+   }
+
+   if (result == FALSE) {
+      /* The copy failed: ensure the destination file is removed */
+      File_Unlink(dstName);
    }
 
    return result;

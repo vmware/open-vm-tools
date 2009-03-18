@@ -29,12 +29,14 @@
 
 #include <glib-object.h>
 #include <gmodule.h>
+#include <time.h>
 #include "vmrpcdbg.h"
 #include "vmtoolsApp.h"
 
 /* Used by the Windows implementation to communicate with other processes. */
 #if defined(G_PLATFORM_WIN32)
 #  define QUIT_EVENT_NAME_FMT         L"Global\\VMwareToolsQuitEvent_%s"
+#  define DUMP_STATE_EVENT_NAME_FMT   L"Global\\VMwareToolsDumpStateEvent_%s"
 #endif
 
 /** Defines the internal data about a plugin. */
@@ -47,6 +49,7 @@ typedef struct ToolsPlugin {
 typedef struct ToolsServiceState {
    gchar         *name;
    gchar         *configFile;
+   time_t         configMtime;
    gboolean       log;
    gboolean       mainService;
    gchar         *pluginPath;
@@ -70,6 +73,9 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
 
 void
 ToolsCore_Cleanup(ToolsServiceState *state);
+
+void
+ToolsCore_DumpState(ToolsServiceState *state);
 
 const char *
 ToolsCore_GetTcloName(ToolsServiceState *state);

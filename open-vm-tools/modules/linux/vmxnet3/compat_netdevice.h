@@ -178,6 +178,23 @@ compat_alloc_netdev(int priv_size,
 #   define compat_netdev_priv(netdev)   netdev_priv(netdev)
 #endif
 
+/*
+ * All compat_* business is good but when we can we should just provide
+ * missing implementation to ease upstreaming task.
+ */
+#ifndef HAVE_ALLOC_NETDEV
+#define alloc_netdev(sz, name, setup)  compat_alloc_netdev(sz, name, setup)
+#define alloc_etherdev(sz)             compat_alloc_etherdev(sz)
+#endif
+
+#ifndef HAVE_FREE_NETDEV
+#define free_netdev(dev)               kfree(dev)
+#endif
+
+#ifndef HAVE_NETDEV_PRIV
+#define netdev_priv(dev)               ((dev)->priv)
+#endif
+
 #if defined(NETDEV_TX_OK)
 #   define COMPAT_NETDEV_TX_OK    NETDEV_TX_OK
 #   define COMPAT_NETDEV_TX_BUSY  NETDEV_TX_BUSY
@@ -186,55 +203,56 @@ compat_alloc_netdev(int priv_size,
 #   define COMPAT_NETDEV_TX_BUSY  1
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,43))
+#ifndef HAVE_NETIF_QUEUE
 static inline void
-compat_netif_start_queue(struct device *dev)
+netif_start_queue(struct device *dev)
 {
    clear_bit(0, &dev->tbusy);
 }
 
 static inline void
-compat_netif_stop_queue(struct device *dev)
+netif_stop_queue(struct device *dev)
 {
    set_bit(0, &dev->tbusy);
 }
 
 static inline int
-compat_netif_queue_stopped(struct device *dev)
+netif_queue_stopped(struct device *dev)
 {
    return test_bit(0, &dev->tbusy);
 }
 
 static inline void
-compat_netif_wake_queue(struct device *dev)
+netif_wake_queue(struct device *dev)
 {
    clear_bit(0, &dev->tbusy);
    mark_bh(NET_BH);
 }
 
 static inline int
-compat_netif_running(struct device *dev)
+netif_running(struct device *dev)
 {
    return dev->start == 0;
 }
 
 static inline int
-compat_netif_carrier_ok(struct device *dev)
+netif_carrier_ok(struct device *dev)
 {
    return 1;
 }
 
 static inline void
-compat_netif_carrier_on(struct device *dev)
+netif_carrier_on(struct device *dev)
 {
 }
 
 static inline void
-compat_netif_carrier_off(struct device *dev)
+netif_carrier_off(struct device *dev)
 {
 }
+#endif
 
-#else
+/* Keep compat_* defines for now */
 #define compat_netif_start_queue(dev)   netif_start_queue(dev)
 #define compat_netif_stop_queue(dev)    netif_stop_queue(dev)
 #define compat_netif_queue_stopped(dev) netif_queue_stopped(dev)
@@ -243,7 +261,6 @@ compat_netif_carrier_off(struct device *dev)
 #define compat_netif_carrier_ok(dev)    netif_carrier_ok(dev)
 #define compat_netif_carrier_on(dev)    netif_carrier_on(dev)
 #define compat_netif_carrier_off(dev)   netif_carrier_off(dev)
-#endif
 
 /* unregister_netdevice_notifier was not safe prior to 2.6.17 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 17) && \
@@ -266,7 +283,15 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 #define compat_netif_napi_add(dev, napi, poll, quota) \
    netif_napi_add(dev, napi, poll, quota)
+
+#ifdef VMW_NETIF_SINGLE_NAPI_PARM
+#define compat_netif_rx_complete(dev, napi) netif_rx_complete(napi)
+#define compat_netif_rx_schedule(dev, napi) netif_rx_schedule(napi)
+#else
+#define compat_netif_rx_complete(dev, napi) netif_rx_complete(dev, napi)
 #define compat_netif_rx_schedule(dev, napi) netif_rx_schedule(dev, napi)
+#endif
+
 #define compat_napi_enable(dev, napi)       napi_enable(napi)
 #define compat_napi_disable(dev, napi)      napi_disable(napi)
 #else

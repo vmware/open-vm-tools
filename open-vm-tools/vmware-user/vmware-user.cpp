@@ -25,7 +25,7 @@
  * user.
  */
 
-#include "copyPasteWrapper.h"
+#include "copyPasteDnDWrapper.h"
 
 extern "C" {
 #include <errno.h>
@@ -134,7 +134,7 @@ static Bool gSigExit;           // Set by all but SIGUSR1; triggers app shutdown
  */
 RpcIn *gRpcIn;
 Display *gXDisplay;
-GtkWidget *gUserMainWidget;
+GtkWidget *gUserMainWidget = NULL;
 
 GtkWidget *gHGWnd;
 GtkWidget *gGHWnd;
@@ -145,7 +145,7 @@ Bool optionDnD;
 Bool gCanUseVMwareCtrl;
 Bool gCanUseVMwareCtrlTopologySet;
 guint gTimeoutId;
-int gBlockFd;
+int gBlockFd = -1;
 
 /*
  * All signals that:
@@ -204,7 +204,7 @@ void VMwareUserCleanupRpc(void)
          gDnDRegistered = FALSE;
       }
 
-      CopyPasteWrapper *p = CopyPasteWrapper::GetInstance();
+      CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
       if (p && p->IsRegistered()) {
          p->Unregister();
       }
@@ -375,7 +375,7 @@ VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
    if (gDnDRegistered) {
       DnD_OnReset(gHGWnd, gGHWnd);
    }
-   CopyPasteWrapper *p = CopyPasteWrapper::GetInstance();
+   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
    if (p) {
       p->OnReset();
    }
@@ -472,7 +472,7 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
  *
  * VMwareUserRegisterCopyPaste
  *
- *      Call the CopyPasteWrapper singleton to register, or unregister,
+ *      Call the CopyPasteDnDWrapper singleton to register, or unregister,
  *      copy and paste with the host. The wrapper class will try whatever
  *      versions are supported, in highest to lowest order when registering.
  *
@@ -488,7 +488,7 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
 static void
 VMwareUserRegisterCopyPaste(bool reg)  // IN: if TRUE, register, else unregister
 {
-   CopyPasteWrapper *p = CopyPasteWrapper::GetInstance();
+   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
    if (p) {
       p->SetUserData(static_cast<void *>(gUserMainWidget));
       if (reg) {
@@ -770,6 +770,7 @@ main(int argc, char *argv[])
    gtk_init(&argc, &argv);
 #endif
 
+
    /*
     * Running more than 1 VMware user process (vmware-user) per X11 session
     * invites bad juju.  The following routine ensures that only one instance
@@ -856,14 +857,23 @@ main(int argc, char *argv[])
     * initialize it and pass block fd in. If manually run vmware-user, here will
     * try to initialize the blocking driver.
     */
+
    if (gBlockFd < 0) {
       gBlockFd = DnD_InitializeBlocking();
       if (gBlockFd < 0) {
-         Warning("vmware-user failed to initialize blocking driver.\n");
+         Debug("%s: vmware-user failed to initialize blocking driver.\n",
+         __FUNCTION__);
       }
    }
 
    gUserMainWidget = VMwareUser_CreateWindow();
+
+   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
+   if (p) {
+      p->SetUserData(static_cast<void *>(gUserMainWidget));
+      p->SetBlockFd(gBlockFd);
+   }
+
    gHGWnd = VMwareUser_CreateWindow();
    gGHWnd = VMwareUser_CreateWindow();
    /*
@@ -969,7 +979,7 @@ main(int argc, char *argv[])
             DnD_Unregister(gHGWnd, gGHWnd);
             gDnDRegistered = FALSE;
          }
-         CopyPasteWrapper *p = CopyPasteWrapper::GetInstance();
+         CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
          if (p) {
             p->Unregister();
          }

@@ -22,16 +22,15 @@
  *    Packet constants, types and functions.
  */
 
-#if defined(_WIN32) || defined(VMKERNEL)
+#ifndef _VSOCK_PACKET_H_
+#define _VSOCK_PACKET_H_
+
+#if defined(_WIN32) || defined(VMKERNEL) || defined(__APPLE__)
 # include "vsockOSInt.h"
 #else
 # define VSockOS_ClearMemory(_dst, _sz)   memset(_dst, 0, _sz)
 # define VSockOS_Memcpy(_dst, _src, _sz)  memcpy(_dst, _src, _sz)
 #endif
-
-
-#ifndef _VSOCK_PACKET_H_
-#define _VSOCK_PACKET_H_
 
 
 /* If the packet format changes in a release then this should change too. */

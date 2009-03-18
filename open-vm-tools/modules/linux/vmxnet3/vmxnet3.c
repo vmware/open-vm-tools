@@ -155,7 +155,7 @@ static struct pci_driver vmxnet3_driver = {
 #endif
 };
 
-static int disable_lro = 0;
+static int disable_lro;
 
 /*
  *----------------------------------------------------------------------------
@@ -381,12 +381,11 @@ vmxnet3_poll(struct napi_struct *napi, int budget)
 {
    struct vmxnet3_adapter *adapter = container_of(napi, struct vmxnet3_adapter, napi);
    int rxd_done, txd_done;
-   struct net_device *netdev = adapter->netdev;
 
    vmxnet3_do_poll(adapter, budget, &txd_done, &rxd_done);
 
    if (rxd_done < budget) {
-      netif_rx_complete(netdev, napi);
+      compat_netif_rx_complete(adapter->netdev, napi);
       vmxnet3_enable_intr(adapter, 0);
    }
    return rxd_done;
@@ -410,7 +409,7 @@ static int
 vmxnet3_poll(struct net_device *poll_dev, int *budget)
 {
    int rxd_done, txd_done, quota;
-   struct vmxnet3_adapter *adapter = poll_dev->priv;
+   struct vmxnet3_adapter *adapter = netdev_priv(poll_dev);
 
    quota = min(*budget, poll_dev->quota);
 
@@ -452,7 +451,7 @@ vmxnet3_intr(int irq, void *dev_id)
 #endif
 {
    struct net_device *dev = dev_id;
-   struct vmxnet3_adapter *adapter = dev->priv;
+   struct vmxnet3_adapter *adapter = netdev_priv(dev);
 
    if (UNLIKELY(adapter->intr.type == VMXNET3_IT_INTX)) {
       uint32 icr = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_ICR);
@@ -468,7 +467,7 @@ vmxnet3_intr(int irq, void *dev_id)
       vmxnet3_disable_intr(adapter, 0);
    }
 
-   compat_netif_rx_schedule(dev, &adapter->napi); 
+   compat_netif_rx_schedule(dev, &adapter->napi);
 
 #else
    vmxnet3_tq_tx_complete(&adapter->tx_queue, adapter);

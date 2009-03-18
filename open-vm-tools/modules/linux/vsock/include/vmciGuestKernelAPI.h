@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmciGuestKernelAPI.h --
  *
  *    Kernel API exported from the VMCI guest driver.
@@ -38,10 +38,7 @@
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 
-#if defined(__linux__) || defined(_WIN32) || defined(SOLARIS)
-   /* XXX TODO for other guests. */
-#  include "vmci_queue_pair.h"
-#endif
+#include "vmci_queue_pair.h"
 
 /* VMCI Device Usage API. */
 Bool VMCI_DeviceGet(void);
@@ -63,19 +60,16 @@ uint32 VMCI_Version(void);
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
 			     void *clientData);
 
-int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback, 
+int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEvent_Unsubscribe(VMCIId subID);
 
 /* VMCI Discovery Service API. */
 int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
-#if defined(__linux__) || defined(_WIN32) || defined(SOLARIS)
-/* VMCI QueuePair API.  XXX TODO for other guests. */
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags);
 int VMCIQueuePair_Detach(VMCIHandle handle);
-#endif
 
 #endif /* !__VMCI_GUESTKERNELAPI_H__ */

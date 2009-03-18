@@ -193,10 +193,16 @@ do {									\
 
 /*
  * DEFINE_WAIT() and friends were added in 2.5.39 and backported to 2.4.28.
+ *
+ * Unfortunately it is not true. While some distros may have done it the
+ * change has never made it into vanilla 2.4 kernel. Instead of testing
+ * particular kernel versions let's just test for presence of DEFINE_WAIT
+ * when figuring out whether we need to provide replacement implementation
+ * or simply alias existing one.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 28) || \
-   (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 0) && \
-    LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 39))
+
+#ifndef DEFINE_WAIT
+
 # define COMPAT_DEFINE_WAIT(_wait)                              \
    DECLARE_WAITQUEUE(_wait, current)
 # define compat_init_prepare_to_wait(_sleep, _wait, _state)     \
@@ -211,7 +217,9 @@ do {									\
       __set_current_state(_state);                              \
       remove_wait_queue(_sleep, _wait);                         \
    } while (0)
+
 #else
+
 # define COMPAT_DEFINE_WAIT(_wait)                              \
    DEFINE_WAIT(_wait)
 # define compat_init_prepare_to_wait(_sleep, _wait, _state)     \
@@ -220,6 +228,7 @@ do {									\
    prepare_to_wait(_sleep, _wait, _state)
 # define compat_finish_wait(_sleep, _wait, _state)              \
    finish_wait(_sleep, _wait)
-#endif
+
+#endif /* #ifndef DEFINE_WAIT */
 
 #endif /* __COMPAT_WAIT_H__ */

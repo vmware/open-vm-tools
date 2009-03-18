@@ -374,8 +374,11 @@ GetCallerFrameAddr(void)
 #ifdef _WIN32 // {
 
 #define snprintf  _snprintf
-#define	vsnprintf _vsnprintf
 #define strtok_r  strtok_s
+
+#if (_MSC_VER < 1500)
+#define	vsnprintf _vsnprintf
+#endif
 
 typedef int uid_t;
 typedef int gid_t;

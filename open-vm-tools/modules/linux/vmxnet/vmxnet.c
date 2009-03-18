@@ -32,10 +32,6 @@
 #include "compat_pci_mapping.h"
 #include "compat_init.h"
 #include "compat_timer.h"
-#include <asm/dma.h>
-#include <asm/page.h>
-#include <asm/uaccess.h>
-
 #include "compat_ethtool.h"
 #include "compat_netdevice.h"
 #include "compat_skbuff.h"
@@ -45,6 +41,10 @@
 #include <linux/delay.h>
 #endif
 #include "compat_interrupt.h"
+
+#include <asm/page.h>
+#include <asm/uaccess.h>
+#include <asm/delay.h>
 
 #include "vm_basic_types.h"
 #include "vmnet_def.h"
@@ -198,7 +198,7 @@ static struct pci_driver vmxnet_driver = {
 static int
 vmxnet_change_mtu(struct net_device *dev, int new_mtu)
 {
-   struct Vmxnet_Private *lp = (struct Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
 
    if (new_mtu < VMXNET_MIN_MTU || new_mtu > VMXNET_MAX_MTU) {
       return -EINVAL;
@@ -272,7 +272,7 @@ static void
 vmxnet_get_drvinfo(struct net_device *dev,
                    struct ethtool_drvinfo *drvinfo)
 {
-   struct Vmxnet_Private *lp = dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
 
    strncpy(drvinfo->driver, vmxnet_driver.name, sizeof(drvinfo->driver));
    drvinfo->driver[sizeof(drvinfo->driver) - 1] = '\0';
@@ -310,7 +310,7 @@ static int
 vmxnet_set_tso(struct net_device *dev, u32 data)
 {
    if (data) {
-      struct Vmxnet_Private *lp = (struct Vmxnet_Private *)dev->priv;
+      struct Vmxnet_Private *lp = netdev_priv(dev);
 
       if (!lp->tso) {
          return -EINVAL;
@@ -462,7 +462,7 @@ vmxnet_set_tso(struct net_device *dev, void *addr)
    }
 
    if (value.data) {
-      struct Vmxnet_Private *lp = (struct Vmxnet_Private *)dev->priv;
+      struct Vmxnet_Private *lp = netdev_priv(dev);
 
       if (!lp->tso) {
          return -EINVAL;
@@ -634,7 +634,7 @@ vmxnet_exit(void)
 static void
 vmxnet_tx_timeout(struct net_device *dev)
 {
-   compat_netif_wake_queue(dev);
+   netif_wake_queue(dev);
 }
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,43) */
 
@@ -660,11 +660,10 @@ vmxnet_link_check(unsigned long data)   // IN: netdevice pointer
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,43)
    struct net_device *dev = (struct net_device *)data;
-   struct Vmxnet_Private *lp;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    uint32 status;
    int ok;
 
-   lp = dev->priv;
    status = inl(dev->base_addr + VMXNET_STATUS_ADDR);
    ok = (status & VMXNET_STATUS_CONNECTED) != 0;
    if (ok != netif_carrier_ok(dev)) {
@@ -839,13 +838,13 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
       }
    }
 
-   dev = compat_alloc_etherdev(sizeof *lp);
+   dev = alloc_etherdev(sizeof *lp);
    if (!dev) {
       printk(KERN_ERR "Unable to allocate ethernet device\n");
       goto morph_back;
    }
 
-   lp = dev->priv;
+   lp = netdev_priv(dev);
    lp->pdev = pdev;
 
    dev->base_addr = ioaddr;
@@ -1099,14 +1098,14 @@ free_dev_dd:
 #endif
    compat_pci_unmap_single(lp->pdev, lp->ddPA, lp->ddSize, PCI_DMA_BIDIRECTIONAL);
    kfree(lp->dd);
-free_dev:;
-   compat_free_netdev(dev);
-morph_back:;
+free_dev:
+   free_netdev(dev);
+morph_back:
    if (morphed) {
       /* Morph back to LANCE hw. */
       outw(LANCE_CHIP, ioaddr - MORPH_PORT_SIZE);
    }
-release_reg:;
+release_reg:
    release_region(reqIOAddr, reqIOSize);
 pci_disable:;
    compat_pci_disable_device(pdev);
@@ -1133,7 +1132,7 @@ static void
 vmxnet_remove_device(struct pci_dev* pdev)
 {
    struct net_device *dev = pci_get_drvdata(pdev);
-   struct Vmxnet_Private *lp = dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
 
    /*
     * Do this before device is gone so we never call netif_carrier_* after
@@ -1184,7 +1183,7 @@ vmxnet_remove_device(struct pci_dev* pdev)
 
    compat_pci_unmap_single(lp->pdev, lp->ddPA, lp->ddSize, PCI_DMA_BIDIRECTIONAL);
    kfree(lp->dd);
-   compat_free_netdev(dev);
+   free_netdev(dev);
    compat_pci_disable_device(pdev);
 }
 
@@ -1207,7 +1206,7 @@ vmxnet_remove_device(struct pci_dev* pdev)
 static int
 vmxnet_init_ring(struct net_device *dev)
 {
-   struct Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    Vmxnet2_DriverData *dd = lp->dd;
    unsigned int i;
    size_t offset;
@@ -1335,7 +1334,7 @@ vmxnet_init_ring(struct net_device *dev)
 static int
 vmxnet_open(struct net_device *dev)
 {
-   struct Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    unsigned int ioaddr = dev->base_addr;
    uint32 ddPA;
 
@@ -1365,7 +1364,7 @@ vmxnet_open(struct net_device *dev)
 #endif
 
    lp->dd->txStopped = FALSE;
-   compat_netif_start_queue(dev);
+   netif_start_queue(dev);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,43)
    dev->interrupt = 0;
@@ -1589,7 +1588,7 @@ vmxnet_map_pkt(struct sk_buff *skb,
 static void
 check_tx_queue(struct net_device *dev)
 {
-   Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    Vmxnet2_DriverData *dd = lp->dd;
    int completed = 0;
 
@@ -1625,8 +1624,8 @@ check_tx_queue(struct net_device *dev)
       lp->numTxPending -= completed;
 
       // XXX conditionally wake up the queue based on the # of freed entries
-      if (compat_netif_queue_stopped(dev)) {
-	 compat_netif_wake_queue(dev);
+      if (netif_queue_stopped(dev)) {
+         netif_wake_queue(dev);
          dd->txStopped = FALSE;
       }
    }
@@ -1657,7 +1656,7 @@ Vmxnet_TxStatus
 vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
 {
    Vmxnet_TxStatus status = VMXNET_DEFER_TRANSMIT;
-   struct Vmxnet_Private *lp = (struct Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    Vmxnet2_DriverData *dd = lp->dd;
    unsigned long flags;
    Vmxnet2_TxRingEntry *xre;
@@ -1698,7 +1697,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
       /* check for the availability of tx ring entries */
       if (dd->txRingLength - lp->numTxPending < txEntries) {
          dd->txStopped = TRUE;
-         compat_netif_stop_queue(dev);
+         netif_stop_queue(dev);
          check_tx_queue(dev);
 
          spin_unlock_irqrestore(&lp->txLock, flags);
@@ -1828,7 +1827,7 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
 
       if (lp->txBufInfo[dd->txDriverNext].skb != NULL) {
          dd->txStopped = TRUE;
-         compat_netif_stop_queue(dev);
+         netif_stop_queue(dev);
          check_tx_queue(dev);
 
          spin_unlock_irqrestore(&lp->txLock, flags);
@@ -2057,7 +2056,7 @@ vmxnet_rx_frags(Vmxnet_Private *lp, struct sk_buff *skb)
 static int
 vmxnet_rx(struct net_device *dev)
 {
-   Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    Vmxnet2_DriverData *dd = lp->dd;
 
    if (!lp->devOpen) {
@@ -2187,7 +2186,7 @@ vmxnet_interrupt(int irq, void *dev_id)
    }
 
 
-   lp = (struct Vmxnet_Private *)dev->priv;
+   lp = netdev_priv(dev);
    outl(VMXNET_CMD_INTR_ACK, dev->base_addr + VMXNET_COMMAND_ADDR);
 
    dd = lp->dd;
@@ -2208,8 +2207,8 @@ vmxnet_interrupt(int irq, void *dev_id)
       spin_unlock(&lp->txLock);
    }
 
-   if (compat_netif_queue_stopped(dev) && !lp->dd->txStopped) {
-      compat_netif_wake_queue(dev);
+   if (netif_queue_stopped(dev) && !lp->dd->txStopped) {
+      netif_wake_queue(dev);
    }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,43)
@@ -2269,7 +2268,7 @@ static int
 vmxnet_close(struct net_device *dev)
 {
    unsigned int ioaddr = dev->base_addr;
-   Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
    int i;
    unsigned long flags;
 
@@ -2281,7 +2280,7 @@ vmxnet_close(struct net_device *dev)
    dev->start = 0;
 #endif
 
-   compat_netif_stop_queue(dev);
+   netif_stop_queue(dev);
 
    lp->devOpen = FALSE;
 
@@ -2362,7 +2361,7 @@ vmxnet_close(struct net_device *dev)
 static int
 vmxnet_load_multicast (struct net_device *dev)
 {
-    Vmxnet_Private *lp = (Vmxnet_Private *) dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
     volatile u16 *mcast_table = (u16 *)lp->dd->LADRF;
     struct dev_mc_list *dmi = dev->mc_list;
     char *addrs;
@@ -2423,7 +2422,7 @@ static void
 vmxnet_set_multicast_list(struct net_device *dev)
 {
    unsigned int ioaddr = dev->base_addr;
-   Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   struct Vmxnet_Private *lp = netdev_priv(dev);
 
    lp->dd->ifflags = ~(VMXNET_IFF_PROMISC
                       |VMXNET_IFF_BROADCAST
@@ -2473,7 +2472,7 @@ vmxnet_set_mac_address(struct net_device *dev, void *p)
    unsigned int ioaddr = dev->base_addr;
    int i;
 
-   if (compat_netif_running(dev))
+   if (netif_running(dev))
       return -EBUSY;
 
    memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
@@ -2503,7 +2502,7 @@ vmxnet_set_mac_address(struct net_device *dev, void *p)
 static struct net_device_stats *
 vmxnet_get_stats(struct net_device *dev)
 {
-   Vmxnet_Private *lp = (Vmxnet_Private *)dev->priv;
+   Vmxnet_Private *lp = netdev_priv(dev);
 
    return &lp->stats;
 }

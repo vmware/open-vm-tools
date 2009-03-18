@@ -27,7 +27,6 @@
 #include "vmware.h"
 #include "guestApp.h"
 #include "vmcheck.h"
-#include "toolsLogger.h"
 #include "escBitvector.h"
 #include "hgfsEscape.h"
 #include "hgfs.h"
@@ -35,6 +34,7 @@
 #include "hgfsProto.h"
 #include "conf.h"
 #include "str.h"
+#include "vmtools.h"
 
 #include "hgfsclient_version.h"
 #include "embed_version.h"
@@ -48,7 +48,6 @@ VM_EMBED_VERSION(HGFSCLIENT_VERSION_STRING);
 
 RpcOut *gChannel = NULL;
 char *gPacketBuffer = NULL;
-static GuestApp_Dict *gConfDict = NULL;
 
 static Bool HgfsClient_Open(HgfsHandle *rootHandle);
 static HgfsFileName *HgfsClient_Read(HgfsHandle rootHandle,
@@ -58,124 +57,6 @@ static Bool HgfsClient_PrintShares(void);
 static Bool HgfsClient_Init(void);
 static Bool HgfsClient_Cleanup(void);
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Debug --
- *
- *    Debugging output. Useless to the end user.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void 
-Debug(const char *fmt, // IN: Duh
-      ...)             // IN: Variadic arguments to duh
-{
-#ifdef VMX86_DEVEL
-   va_list args;
-
-   va_start(args, fmt);
-   ToolsLogger_LogV(TOOLSLOG_TYPE_LOG, fmt, args);
-   va_end(args);
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Log --
- *
- *    Log something. Slightly more important than Debug, but less important
- *    than Warning.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void 
-Log(const char *fmt, // IN: Duh
-    ...)             // IN: Variadic arguments to duh
-{
-   va_list args;
-
-   va_start(args, fmt);
-   ToolsLogger_LogV(TOOLSLOG_TYPE_LOG, fmt, args);
-   va_end(args);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Warning --
- *
- *    Warn the user of something. Probably fairly important, but not as
- *    critical as Panic.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Warning(const char *fmt, // IN: Duh
-        ...)             // IN: Variadic arguments to duh
-{
-   va_list args;
-
-   va_start(args, fmt);
-   ToolsLogger_LogV(TOOLSLOG_TYPE_WARNING, fmt, args);
-   va_end(args);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Panic --
- *
- *    Warn the user and quit the app. Something very bad must have happened.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Panic(const char *fmt, // IN: Duh
-      ...)             // IN: Variadic arguments to duh
-{
-   va_list args;
-
-   va_start(args, fmt);
-   ToolsLogger_LogV(TOOLSLOG_TYPE_PANIC, fmt, args);
-   va_end(args);
-
-   exit(255);
-   NOT_REACHED();
-}
 
 /*
  *-----------------------------------------------------------------------------
@@ -435,9 +316,20 @@ static Bool
 HgfsClient_Init(void)
 {
    Bool success = FALSE;
+   gchar *confFile;
+   GKeyFile *conf;
 
-   gConfDict = Conf_Load();
-   ToolsLogger_Init("hgfsclient", gConfDict);
+   confFile = VMTools_GetToolsConfFile();
+   conf = VMTools_LoadConfig(confFile, G_KEY_FILE_NONE, FALSE);
+
+   if (conf != NULL) {
+      VMTools_ConfigLogging(conf);
+      g_key_file_free(conf);
+      conf = NULL;
+   }
+
+   g_free(confFile);
+   confFile = NULL;
 
    if (!VmCheck_IsVirtualWorld()) {
       Warning("This application must be run in a Virtual Machine.\n");
@@ -500,10 +392,6 @@ HgfsClient_Cleanup(void)
          Warning("Failed to close RPC channel\n");
          success = FALSE;
       }
-   }
-   ToolsLogger_Cleanup();
-   if (gConfDict) {
-      GuestApp_FreeDict(gConfDict);
    }
    return success;
 }

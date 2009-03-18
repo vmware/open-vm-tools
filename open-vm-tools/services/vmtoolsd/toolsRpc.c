@@ -89,6 +89,8 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
 static Bool
 ToolsCoreRpcCapReg(RpcInData *data)
 {
+   char *confPath = GuestApp_GetConfPath();
+   gchar *msg;
    GArray *pcaps = NULL;
    ToolsServiceState *state = data->clientData;
 
@@ -103,22 +105,34 @@ ToolsCoreRpcCapReg(RpcInData *data)
       g_array_free(pcaps, TRUE);
    }
 
+   /* Tell the host the location of the conf directory. */
+   msg = g_strdup_printf("tools.capability.guest_conf_directory %s", confPath);
+   if (!RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+      g_debug("Unable to register guest conf directory capability.\n");
+   }
+   free(msg);
+   msg = NULL;
+
    /* Send the tools version to the VMX. */
    if (state->mainService) {
+      uint32 version;
       char *result = NULL;
       size_t resultLen;
-      gboolean disableVersion;
       gchar *toolsVersion;
-      GError *err = NULL;
+
+#if defined(OPEN_VM_TOOLS)
+      version = TOOLS_VERSION_UNMANAGED;
+#else
+      gboolean disableVersion;
 
       disableVersion = g_key_file_get_boolean(state->ctx.config,
                                               "vmtools",
                                               CONFNAME_DISABLETOOLSVERSION,
-                                              &err);
-      g_clear_error(&err);
-      toolsVersion = g_strdup_printf("tools.set.version %u",
-                                     disableVersion ? TOOLS_VERSION_UNMANAGED
-                                                    : TOOLS_VERSION_CURRENT);
+                                              NULL);
+      version = disableVersion ? TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
+#endif
+
+      toolsVersion = g_strdup_printf("tools.set.version %u", version);
 
       if (!RpcChannel_Send(state->ctx.rpc, toolsVersion, strlen(toolsVersion) + 1,
                            &result, &resultLen)) {
@@ -128,6 +142,7 @@ ToolsCoreRpcCapReg(RpcInData *data)
       g_free(toolsVersion);
    }
 
+   free(confPath);
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
 

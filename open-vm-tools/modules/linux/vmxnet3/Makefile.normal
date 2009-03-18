@@ -61,6 +61,7 @@ INCLUDE += $(shell $(CC) $(CC_OPTS) $(INCLUDE) \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
 CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
+CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/netif_num_params.c, -DVMW_NETIF_SINGLE_NAPI_PARM, )
 
 OBJS := vmxnet3.o
 

@@ -31,6 +31,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <glib/gstdio.h>
+#if defined(G_PLATFORM_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 #include "vmtools.h"
 #include "codeset.h"
@@ -38,6 +43,7 @@
 #  include "coreDump.h"
 #endif
 #include "file.h"
+#include "hostinfo.h"
 #include "str.h"
 #include "system.h"
 
@@ -90,10 +96,14 @@ VMToolsLogOutputDebugString(const gchar *domain,
                             gpointer _data);
 #endif
 
+void VMTools_ResetLogging(gboolean cleanDefault);
 
 typedef struct LogHandlerData {
+   gchar            *domain;
    GLogLevelFlags    mask;
    FILE             *file;
+   guint             handlerId;
+   gboolean          inherited;
 } LogHandlerData;
 
 static gchar *gLogDomain = NULL;
@@ -102,6 +112,7 @@ static gboolean gLogEnabled = FALSE;
 static guint gPanicCount = 0;
 static LogHandlerData *gDefaultData = NULL;
 static GLogFunc gDefaultLogFunc = DEFAULT_HANDLER;
+static GPtrArray *gDomains = NULL;
 
 /* Internal functions. */
 
@@ -118,6 +129,7 @@ static FILE *
 VMToolsLogOpenFile(const gchar *path)
 {
    FILE *logfile = NULL;
+   gchar *pathLocal;
 
    g_assert(path != NULL);
    if (File_Exists(path)) {
@@ -130,7 +142,10 @@ VMToolsLogOpenFile(const gchar *path)
       }
       free(bakFile);
    }
-   logfile = g_fopen(path, "w");
+
+   pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
+   logfile = g_fopen(pathLocal, "w");
+   VMTOOLS_RELEASE_FILENAME_LOCAL(pathLocal);
    return logfile;
 }
 
@@ -311,25 +326,6 @@ VMToolsLogFile(const gchar *domain,
 
 
 /**
- * Initializes the default log handler.
- */
-
-void
-VMTools_InitLogging(void)
-{
-   gDefaultData = g_malloc0(sizeof *gDefaultData);
-   gDefaultData->mask = G_LOG_LEVEL_ERROR |
-                        G_LOG_LEVEL_CRITICAL |
-                        G_LOG_LEVEL_WARNING;
-#if defined(VMX86_DEBUG)
-   gDefaultData->mask |= G_LOG_LEVEL_MESSAGE;
-#endif
-   gLogDomain = g_strdup("vmtools");
-   g_log_set_default_handler(DEFAULT_HANDLER, gDefaultData);
-}
-
-
-/**
  * Configures the given log domain based on the data provided in the given
  * dictionary. If the log domain being configured doesn't match the default
  * (@see VMTools_GetDefaultLogDomain()), and no specific handler is defined
@@ -399,6 +395,38 @@ VMToolsConfigLogDomain(const gchar *domain,
          if (logpath == NULL) {
             g_warning("Missing log path for file handler (%s).\n", domain);
             goto exit;
+         } else {
+            /*
+             * Do some variable expansion in the input string. Currently only
+             * ${USER} and ${PID} are expanded.
+             */
+            gchar *vars[] = {
+               "${USER}",  NULL,
+               "${PID}",   NULL
+            };
+            size_t i;
+
+            vars[1] = Hostinfo_GetUser();
+            vars[3] = g_strdup_printf("%"FMTPID, getpid());
+
+            for (i = 0; i < ARRAYSIZE(vars); i += 2) {
+               char *last = logpath;
+               char *start;
+               while ((start = strstr(last, vars[i])) != NULL) {
+                  gchar *tmp;
+                  char *end = start + strlen(vars[i]);
+                  size_t offset = (start - last) + strlen(vars[i+1]);
+
+                  *start = '\0';
+                  tmp = g_strdup_printf("%s%s%s", logpath, vars[i+1], end);
+                  g_free(logpath);
+                  logpath = tmp;
+                  last = logpath + offset;
+               }
+            }
+
+            free(vars[1]);
+            g_free(vars[3]);
          }
       }
 #if defined(G_PLATFORM_WIN32)
@@ -450,19 +478,32 @@ VMToolsConfigLogDomain(const gchar *domain,
    }
 
    data = g_malloc0(sizeof *data);
+   data->domain = g_strdup(domain);
    data->mask = levelsMask;
    data->file = logfile;
 
    if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
-      g_free(gDefaultData);
-      gDefaultData = data;
+      /* Replace the default log configuration before freeing the old data. */
+      LogHandlerData *old = gDefaultData;
+      LogHandlerData *gdata = g_malloc0(sizeof *gdata);
+
+      memcpy(gdata, data, sizeof *gdata);
+      g_log_set_default_handler(handlerFn, gdata);
+
+      gDefaultData = gdata;
       gDefaultLogFunc = handlerFn;
-      g_log_set_default_handler(handlerFn, data);
+      g_free(old);
    } else if (handler == NULL) {
+      ASSERT(data->file == NULL);
       data->file = gDefaultData->file;
+      data->inherited = TRUE;
    }
 
-   g_log_set_handler(domain, ALL_LOG_LEVELS, handlerFn, data);
+   if (gDomains == NULL) {
+      gDomains = g_ptr_array_new();
+   }
+   g_ptr_array_add(gDomains, data);
+   data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS, handlerFn, data);
 
 exit:
    g_free(handler);
@@ -517,6 +558,8 @@ VMTools_ConfigLogging(GKeyFile *cfg)
    gchar **list;
    gchar **curr;
 
+   VMTools_ResetLogging(FALSE);
+
    if (!g_key_file_has_group(cfg, LOGGING_GROUP)) {
       return;
    }
@@ -570,6 +613,70 @@ void
 VMTools_EnableLogging(gboolean enable)
 {
    gLogEnabled = enable;
+}
+
+
+/**
+ * Resets the vmtools logging subsystem, freeing up data and optionally
+ * restoring the original glib configuration.
+ *
+ * @param[in]  cleanDefault   Whether to clean up the default handler and
+ *                            restore the original glib handler.
+ */
+
+void
+VMTools_ResetLogging(gboolean cleanDefault)
+{
+   gboolean oldLogEnabled = gLogEnabled;
+
+   /* Disable logging while we're playing with the configuration. */
+   gLogEnabled = FALSE;
+
+   if (cleanDefault) {
+      g_log_set_default_handler(g_log_default_handler, NULL);
+   }
+
+   if (gDomains != NULL) {
+      guint i;
+      for (i = 0; i < gDomains->len; i++) {
+         LogHandlerData *data = g_ptr_array_index(gDomains, i);
+         g_log_remove_handler(data->domain, data->handlerId);
+         if (data->file != NULL && !data->inherited) {
+            fclose(data->file);
+         }
+         g_free(data->domain);
+         g_free(data);
+      }
+      g_ptr_array_free(gDomains, TRUE);
+      gDomains = NULL;
+   }
+
+   if (gDefaultData != NULL) {
+      g_free(gDefaultData);
+      gDefaultData = NULL;
+   }
+
+   if (cleanDefault && gLogDomain != NULL) {
+      g_free(gLogDomain);
+      gLogDomain = NULL;
+   }
+
+   gDefaultLogFunc = DEFAULT_HANDLER;
+
+   if (!cleanDefault) {
+      if (gLogDomain == NULL) {
+         gLogDomain = g_strdup("vmtools");
+      }
+      gDefaultData = g_malloc0(sizeof *gDefaultData);
+      gDefaultData->mask = G_LOG_LEVEL_ERROR |
+                           G_LOG_LEVEL_CRITICAL |
+                           G_LOG_LEVEL_WARNING;
+#if defined(VMX86_DEBUG)
+      gDefaultData->mask |= G_LOG_LEVEL_MESSAGE;
+#endif
+      gLogEnabled = oldLogEnabled;
+      g_log_set_default_handler(gDefaultLogFunc, gDefaultData);
+   }
 }
 
 

@@ -380,7 +380,85 @@ VMGuestLibError VMGuestLib_GetCpuStolenMs(VMGuestLibHandle handle, // IN
 VMGuestLibError VMGuestLib_GetMemTargetSizeMB(VMGuestLibHandle handle,  // IN
                                               uint64 *memTargetSizeMB); // OUT
 
+/*
+ * Number of physical CPU cores on the host machine.
+ */
 
+VMGuestLibError
+VMGuestLib_GetHostNumCpuCores(VMGuestLibHandle handle,   // IN
+                              uint32 *hostNumCpuCores);  // OUT
+
+/*
+ * Total CPU time used by host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostCpuUsedMs(VMGuestLibHandle handle,  // IN
+                            uint64 *hostCpuUsedMs);   // OUT
+
+/*
+ * Total memory swapped out on the host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemSwappedMB(VMGuestLibHandle handle,     // IN
+                               uint64 *hostMemSwappedMB);   // OUT
+
+/*
+ * Total COW (Copy-On-Write) memory on host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemSharedMB(VMGuestLibHandle handle,   // IN
+                              uint64 *hostMemSharedMB);  // OUT
+
+/*
+ * Total consumed memory on host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemUsedMB(VMGuestLibHandle handle,  // IN
+                            uint64 *hostMemUsedMB);   // OUT
+
+/*
+ * Total memory available to host OS kernel.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemPhysMB(VMGuestLibHandle handle,  // IN
+                            uint64 *hostMemPhysMB);   // OUT
+
+/*
+ * Total physical memory free on host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemPhysFreeMB(VMGuestLibHandle handle,    // IN
+                                uint64 *hostMemPhysFreeMB); // OUT
+
+/*
+ * Total host kernel memory overhead.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemKernOvhdMB(VMGuestLibHandle handle,     // IN
+                                uint64 *hostMemKernOvhdMB);  // OUT
+
+/*
+ * Total mapped memory on host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemMappedMB(VMGuestLibHandle handle,  // IN
+                              uint64 *hostMemMappedMB); // OUT
+
+/*
+ * Total unmapped memory on host.
+ */
+
+VMGuestLibError
+VMGuestLib_GetHostMemUnmappedMB(VMGuestLibHandle handle,    // IN
+                                uint64 *hostMemUnmappedMB); // OUT
 #ifdef __cplusplus
 }
 #endif

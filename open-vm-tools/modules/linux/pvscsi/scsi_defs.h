@@ -238,6 +238,7 @@
 #define SCSI_ASC_UNRECOVERED_READ_ERROR                         0x11  // Unrecovered read error
 #define SCSI_ASC_PARAM_LIST_LENGTH_ERROR                        0x1a  // parameter list length error
 #define SCSI_ASC_INVALID_COMMAND_OPERATION      		0x20  // invalid command operation code
+#define SCSI_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE             0x21  // Invalid LBA
 #define SCSI_ASC_INVALID_FIELD_IN_CDB                           0x24
 #define SCSI_ASC_LU_NOT_SUPPORTED                               0x25  // LU has been removed
 #define SCSI_ASC_INVALID_FIELD_IN_PARAMETER_LIST                0x26

@@ -28,7 +28,7 @@
 #  RPCGENFLAGS: extra flags to pass to rpcgen
 #
 # The following libraries are currently tested: DNET, FUSE, GLIB2, GMODULE,
-# GOBJECT, GTHREAD, GTK, GTKMM, LIBPNG, PROCPS, URIPARSER, ZLIB
+# GOBJECT, GTHREAD, GTK, GTKMM, ICU, LIBPNG, PROCPS, URIPARSER, ZLIB
 ################################################################################
 
 ###
@@ -37,7 +37,7 @@
 
 AC_INIT(
    [open-vm-tools],
-   [2009.02.18-148847],
+   [2009.03.18],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -133,12 +133,25 @@ case "$host_os" in
       ;;
 esac
 osVersion="`getOsVersion`"
-if test "$os" = "linux"; then
-   if test "$with_kernel_modules" = "yes"; then
-      if test ! -d "$LINUXDIR/kernel/"; then
-      	 AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
-      fi
-   fi
+
+if test "$with_kernel_modules" = "yes"; then
+   case "$os" in
+      linux)
+         if test ! -d "$LINUXDIR/kernel/"; then
+             AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
+         fi
+         ;;
+
+      freebsd)
+         freebsd_sysdir=/usr/src/sys
+         if test -n "$SYSDIR"; then
+            freebsd_sysdir="$SYSDIR"
+         fi
+         if test ! -f "$freebsd_sysdir/conf/kmod.mk"; then
+            AC_MSG_ERROR([FreeBSD kernel tree not found. Please install the kernel sources (or provide the location using SYSDIR) or configure using --without-kernel-modules.])
+         fi
+         ;;
+   esac
 fi
 
 # Arguments for disabling individual open-vm-tools features or libraries.
@@ -196,7 +209,7 @@ AM_INIT_AUTOMAKE
 # CPPFLAGS is intended for preprocessor options (-D and -I mainly)
 # CFLAGS is intended for compiler options (-O, -f, -W, and so forth)
 
-CPPFLAGS="$CPPFLAGS -DUSING_AUTOCONF=1"
+CPPFLAGS="$CPPFLAGS -DUSING_AUTOCONF=1 -DOPEN_VM_TOOLS"
 
 ###
 ### Programs
@@ -873,6 +886,13 @@ if test "$os" = "freebsd"; then
       MODULES="$MODULES vmblock vmhgfs"
       buildHgfsmounter=yes
    fi
+
+   if test "$with_kernel_modules" = "yes"; then
+      echo "****************************************************************"
+      echo "   You are building FreeBSD kernel modules. Make sure you use   "
+      echo "   'make' to build open-vm-tools, and not GNU make ('gmake').   "
+      echo "****************************************************************"
+   fi
 fi
 
 if test "$os" = "solaris"; then
@@ -890,9 +910,22 @@ if test "$os" = "solaris"; then
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lnsl"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lrpcsvc"
 
-   # uname -r on Solaris 10 reports "5.10"
-   if test "$osVersion" -ge 510000; then
+   # Setup defines to identify the OS version.
+   if test "$osVersion" -eq 509000; then
+      CPPFLAGS="$CPPFLAGS -DSOL9"
+   fi
+   if test "$osVersion" -eq 510000; then
       CPPFLAGS="$CPPFLAGS -DSOL10"
+   fi
+   if test "$osVersion" -eq 511000; then
+      CPPFLAGS="$CPPFLAGS -DSOL11"
+   fi
+
+   # Choose which modules to compile
+   if test "$osVersion" -eq 510000; then
+      MODULES="$MODULES vmblock"
+   fi
+   if test "$osVersion" -ge 510000; then
       MODULES="$MODULES vmhgfs"
    fi
 
@@ -900,12 +933,28 @@ if test "$os" = "solaris"; then
    if test "$osVersion" -lt 511000 -a "$osVersion" -ge 509000; then
       MODULES="$MODULES vmxnet"
    fi
+
+   # Vmxnet3 is built on Solaris 10 only and only if GLDv3 is installed
+   if test "$osVersion" -eq 510000; then
+      AC_CHECK_HEADER(
+         [sys/mac.h],
+         [MODULES="$MODULES vmxnet3"],
+         [AC_MSG_WARN([GLDv3 (sys/mac.h) is not installed, vmxnet3 will not be compiled.])])
+   fi
+
+   if test "$with_kernel_modules" = "yes"; then
+      echo "****************************************************************"
+      echo "   You are building Solaris kernel modules. Make sure you use   "
+      echo "   GNU make to build open-vm-tools.                             "
+      echo "****************************************************************"
+   fi
 fi
 
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd")
+AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR, test "$os" = "freebsd" -a -n "$SYSDIR")
 AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
@@ -1008,6 +1057,12 @@ AC_SUBST([RPCGENFLAGS])
 AC_SUBST([XDR_LIBS])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
 AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
+if test "$os" = "freebsd" -a -n "$SYSDIR"; then
+   # If SYSDIR is not defined, AC_SUBST expands to nothing, so we need something
+   # inside this block.
+   true
+   AC_SUBST([SYSDIR])
+fi
 
 ### Lib substs
 
@@ -1082,7 +1137,6 @@ AC_CONFIG_FILES([                      \
    lib/sync/Makefile                   \
    lib/syncDriver/Makefile             \
    lib/system/Makefile                 \
-   lib/toolsLogger/Makefile            \
    lib/unicode/Makefile                \
    lib/unity/Makefile                  \
    lib/unityStub/Makefile              \
@@ -1111,6 +1165,7 @@ AC_CONFIG_FILES([                      \
    hgfsclient/Makefile                 \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
+   rpctool/Makefile                    \
    libguestlib/Makefile                \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \

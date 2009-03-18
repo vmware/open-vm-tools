@@ -251,7 +251,7 @@ Auth_AuthenticateUser(const char *user,       //IN
       PAM_username = user;
       PAM_password = pass;
 #if defined(VMX86_TOOLS)
-      pam_error = dlpam_start("vmware-guestd", PAM_username, &PAM_conversation, &pamh);
+      pam_error = dlpam_start("vmtoolsd", PAM_username, &PAM_conversation, &pamh);
 #else
       pam_error = dlpam_start("vmware-authd", PAM_username, &PAM_conversation, &pamh);
 #endif

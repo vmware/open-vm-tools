@@ -567,12 +567,11 @@ Scripts_OnEdit(gpointer btn,  // IN: unused
    editor = Posix_Getenv("EDITOR");
    if (editor == NULL || strlen(editor) == 0) {
       Debug("EDITOR not set, defaulting to vi.\n");
-      free(editor);
       editor = g_find_program_in_path("vi");
       if (editor == NULL) {
          ToolsMain_MsgBox("Error",
                           "Cannot edit script because the an editor was not found.");
-         goto exit;
+         return;
       } else {
          /*
           * Make sure "editor" is allocated with malloc(), so that the call to
@@ -582,6 +581,13 @@ Scripts_OnEdit(gpointer btn,  // IN: unused
          editor = Util_SafeStrdup(tmp);
          g_free(tmp);
       }
+   } else {
+      /*
+       * Strings retuned by Posix_Getenv should not be freed
+       * so we make a duplicate that can be freed so we can
+       * have a common code path below.
+       */
+      editor = Util_SafeStrdup(editor);
    }
 
    scriptName = gtk_entry_get_text(GTK_ENTRY(scriptsPath));
@@ -602,7 +608,6 @@ Scripts_OnEdit(gpointer btn,  // IN: unused
       g_free(msg);
    }
 
-exit:
    free(editor);
 }
 

@@ -66,6 +66,7 @@ typedef struct PowerOpState {
    GPid                 pid;
 #endif
    ToolsAppCtx         *ctx;
+   gboolean             scriptEnabled[GUESTOS_STATECHANGE_LAST];
 } PowerOpState;
 
 
@@ -92,6 +93,51 @@ PowerOpsCapabilityCb(gpointer src,
    };
 
    return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
+}
+
+
+/**
+ * Handles power ops-related options.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The app context.
+ * @param[in]  option   Option being set.
+ * @param[in]  value    Option value.
+ * @param[in]  plugin   Plugin registration data.
+ *
+ * @return TRUE on success.
+ */
+
+static gboolean
+PowerOpsSetOption(gpointer src,
+                  ToolsAppCtx *ctx,
+                  const gchar *option,
+                  const gchar *value,
+                  ToolsPluginData *plugin)
+{
+   gboolean enabled;
+   PowerOpState *state = plugin->_private;
+
+   if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+      return FALSE;
+   }
+
+   enabled = (strcmp(value, "1") == 0);
+
+   if (strcmp(option, TOOLSOPTION_SCRIPTS_POWERON) == 0) {
+      state->scriptEnabled[GUESTOS_STATECHANGE_POWERON] = enabled;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_POWEROFF) == 0) {
+      state->scriptEnabled[GUESTOS_STATECHANGE_HALT] =
+         state->scriptEnabled[GUESTOS_STATECHANGE_REBOOT] = enabled;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_SUSPEND) == 0) {
+      state->scriptEnabled[GUESTOS_STATECHANGE_SUSPEND] = enabled;
+   } else if (strcmp(option, TOOLSOPTION_SCRIPTS_RESUME) == 0) {
+      state->scriptEnabled[GUESTOS_STATECHANGE_RESUME] = enabled;
+   } else {
+      return FALSE;
+   }
+
+   return TRUE;
 }
 
 
@@ -365,6 +411,14 @@ PowerOpsStateChange(RpcInData *data)
 
          state->stateChgInProgress = stateChangeCmdTable[i].id;
 
+         /* Check for the toolScripts option. */
+         if (!state->scriptEnabled[stateChangeCmdTable[i].id]) {
+            PowerOpsStateChangeDone(state, TRUE);
+            g_debug("Script for %s not configured to run\n",
+                    stateChangeCmdTable[i].tcloCmd);
+            return RPCIN_SETRETVALS(data, "", TRUE);
+         }
+
          script = g_key_file_get_string(state->ctx->config,
                                         "powerops",
                                         stateChgConfNames[stateChangeCmdTable[i].id],
@@ -435,6 +489,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_CAPABILITIES, PowerOpsCapabilityCb, NULL },
+      { TOOLS_CORE_SIG_SET_OPTION, PowerOpsSetOption, &regData },
       { TOOLS_CORE_SIG_SHUTDOWN, PowerOpsShutdown, &regData }
    };
    ToolsAppReg regs[] = {
@@ -446,16 +501,20 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    state->ctx = ctx;
    state->pid = INVALID_PID;
 
+   for (i = 0; i < GUESTOS_STATECHANGE_LAST; i++) {
+      state->scriptEnabled[i] = TRUE;
+   }
+
    regs[0].data = g_array_sized_new(FALSE,
                                     TRUE,
                                     sizeof (RpcChannelCallback),
                                     ARRAYSIZE(stateChangeCmdTable));
 
    for (i = 0; i < ARRAYSIZE(stateChangeCmdTable); i++) {
-      RpcChannelCallback *cb = &g_array_index(regs[0].data, RpcChannelCallback, i);
-      cb->name = stateChangeCmdTable[i].tcloCmd;
-      cb->callback = PowerOpsStateChange;
-      cb->clientData = state;
+      RpcChannelCallback cb = { stateChangeCmdTable[i].tcloCmd,
+                                PowerOpsStateChange,
+                                state, NULL, NULL, 0 };
+      g_array_append_val(regs[0].data, cb);
    }
 
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));

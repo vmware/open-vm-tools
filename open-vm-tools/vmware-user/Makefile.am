@@ -117,7 +117,7 @@ vmware_user_SOURCES += copyPaste.c
 if HAVE_GTKMM
    vmware_user_SOURCES += copyPasteUI.cpp
 endif
-vmware_user_SOURCES += copyPasteWrapper.cpp
+vmware_user_SOURCES += copyPasteDnDWrapper.cpp
 vmware_user_SOURCES += debugStdio.c
 vmware_user_SOURCES += dnd.c
 vmware_user_SOURCES += foreignVMToolsDaemon.c

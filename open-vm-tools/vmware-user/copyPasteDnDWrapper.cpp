@@ -17,14 +17,14 @@
  *********************************************************/
 
 /**
- * @file copyPasteWrapper.cpp
+ * @file copyPasteDnDWrapper.cpp
  * 
  * This singleton class implements a wrapper around various versions of
  * copy and paste protocols, and provides some convenience functions that
  * help to make VMwareUser a bit cleaner. 
  */
 
-#include "copyPasteWrapper.h"
+#include "copyPasteDnDWrapper.h"
 extern "C" {
 #include "vmwareuserInt.h"
 #include "debug.h"
@@ -32,23 +32,23 @@ extern "C" {
 
 
 /**
- * CopyPasteWrapper is a singleton, here is a pointer to its only instance.
+ * CopyPasteDnDWrapper is a singleton, here is a pointer to its only instance.
  */
-CopyPasteWrapper *CopyPasteWrapper::m_instance = 0;
+CopyPasteDnDWrapper *CopyPasteDnDWrapper::m_instance = 0;
 
 /**
  *
- * Get an instance of CopyPasteWrapper, which is an application singleton.  
+ * Get an instance of CopyPasteDnDWrapper, which is an application singleton.  
  *
- * @return a pointer to the singleton CopyPasteWrapper object, or NULL if
+ * @return a pointer to the singleton CopyPasteDnDWrapper object, or NULL if
  * for some reason it could not be allocated.
  */
 
-CopyPasteWrapper *
-CopyPasteWrapper::GetInstance()
+CopyPasteDnDWrapper *
+CopyPasteDnDWrapper::GetInstance()
 {
    if (!m_instance) {
-      m_instance = new CopyPasteWrapper;
+      m_instance = new CopyPasteDnDWrapper;
    }
    return m_instance;
 }
@@ -59,7 +59,7 @@ CopyPasteWrapper::GetInstance()
  * Constructor.
  */
 
-CopyPasteWrapper::CopyPasteWrapper() :
+CopyPasteDnDWrapper::CopyPasteDnDWrapper() :
 #if defined(HAVE_GTKMM)
    m_copyPasteUI(NULL),
 #endif
@@ -75,7 +75,7 @@ CopyPasteWrapper::CopyPasteWrapper() :
  * Destructor.
  */
 
-CopyPasteWrapper::~CopyPasteWrapper()
+CopyPasteDnDWrapper::~CopyPasteDnDWrapper()
 {
    if (IsRegistered()) {
       Unregister();
@@ -95,9 +95,25 @@ CopyPasteWrapper::~CopyPasteWrapper()
  */
 
 void
-CopyPasteWrapper::SetUserData(const void *userData)
+CopyPasteDnDWrapper::SetUserData(const void *userData)
 {
+   Debug("%s: enter %lx\n", __FUNCTION__, (unsigned long) userData);
    m_userData = userData;
+}
+
+
+/**
+ *
+ * Set block fd.
+ *
+ * @param[in] blockFd blockFd specified as command line arg by VMwareUser.
+ */
+
+void
+CopyPasteDnDWrapper::SetBlockFd(int blockFd)
+{
+   Debug("%s: enter %d\n", __FUNCTION__, blockFd);
+   mBlockFd = blockFd;
 }
 
 
@@ -110,8 +126,9 @@ CopyPasteWrapper::SetUserData(const void *userData)
  */
 
 bool
-CopyPasteWrapper::Register()
+CopyPasteDnDWrapper::Register()
 {
+   Debug("%s: mBlockFd %d\n", __FUNCTION__, mBlockFd);
    if (IsRegistered()) {
       return TRUE;
    }
@@ -125,6 +142,9 @@ CopyPasteWrapper::Register()
    Debug("%s: enter\n", __FUNCTION__);
    m_copyPasteUI = new CopyPasteUI();
    if (m_copyPasteUI) {
+      Debug("%s: Setting block fd to %d\n", __FUNCTION__, mBlockFd);
+      m_copyPasteUI->SetBlockFd(mBlockFd);
+      m_copyPasteUI->Init();
       SetIsRegistered(TRUE);
       int version = GetVersion();
       Debug("%s: version is %d\n", __FUNCTION__, version);
@@ -138,8 +158,10 @@ CopyPasteWrapper::Register()
    }
 #endif
    if (!IsRegistered()) {
+      Debug("%s: Registering legacy m_userData %lx\n", __FUNCTION__, (long unsigned int) m_userData);
       SetIsRegistered(CopyPaste_Register((GtkWidget *)m_userData));
       if (IsRegistered()) {
+      Debug("%s: Registering capability\n", __FUNCTION__);
          if (!CopyPaste_RegisterCapability()) {
             Unregister();
          }
@@ -154,7 +176,7 @@ CopyPasteWrapper::Register()
  */
 
 void
-CopyPasteWrapper::Unregister()
+CopyPasteDnDWrapper::Unregister()
 {
    if (!IsRegistered()) {
       return;
@@ -182,7 +204,7 @@ CopyPasteWrapper::Unregister()
  */
 
 int
-CopyPasteWrapper::GetVersion()
+CopyPasteDnDWrapper::GetVersion()
 {
    if (IsRegistered()) {
       m_version = CopyPaste_GetVmxCopyPasteVersion();
@@ -200,7 +222,7 @@ CopyPasteWrapper::GetVersion()
  */
 
 void
-CopyPasteWrapper::SetIsRegistered(bool isRegistered)
+CopyPasteDnDWrapper::SetIsRegistered(bool isRegistered)
 {
    m_isRegistered = isRegistered;
 }
@@ -214,7 +236,7 @@ CopyPasteWrapper::SetIsRegistered(bool isRegistered)
  */
 
 bool
-CopyPasteWrapper::IsRegistered()
+CopyPasteDnDWrapper::IsRegistered()
 {
    return m_isRegistered;
 }
@@ -222,11 +244,11 @@ CopyPasteWrapper::IsRegistered()
 
 /**
  *
- * Handle reset by calling protocol dependent handlers. 
+ * Handle reset by calling protocol dependent handlers.
  */
 
 void
-CopyPasteWrapper::OnReset()
+CopyPasteDnDWrapper::OnReset()
 {
    Debug("%s: enter\n", __FUNCTION__);
    if (IsRegistered()) {

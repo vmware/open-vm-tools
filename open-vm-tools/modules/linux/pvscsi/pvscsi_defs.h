@@ -178,10 +178,10 @@ enum PVSCSICommands {
  * Command descriptors.
  */
 
-struct CmdDescIssueSCSI {
+typedef struct CmdDescIssueSCSI {
    PA     reqAddr;
    PA     cmpAddr;
-};
+} CmdDescIssueSCSI;
 
 struct CmdDescResetDevice {
    uint32 target;

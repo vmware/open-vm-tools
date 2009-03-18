@@ -28,8 +28,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <glib/gstdio.h>
+#include "file.h"
 #include "system.h"
 #include "unicode.h"
+#include "util.h"
 #include "vmtools.h"
 
 #if !defined(__APPLE__)
@@ -60,6 +62,24 @@ ToolsCoreSigHandler(const siginfo_t *info,
 
 
 /**
+ * Handles a USR1 signal; logs the current service state.
+ *
+ * @param[in]  info     Unused.
+ * @param[in]  data     Unused.
+ *
+ * @return TRUE
+ */
+
+gboolean
+ToolsCoreSigUsrHandler(const siginfo_t *info,
+                       gpointer data)
+{
+   ToolsCore_DumpState(&gState);
+   return TRUE;
+}
+
+
+/**
  * Tools daemon entry function.
  *
  * @param[in] argc   Argument count.
@@ -72,13 +92,78 @@ int
 main(int argc,
      char *argv[])
 {
+   int i;
    int ret = EXIT_FAILURE;
+   char **argvCopy;
    GSource *src;
 
    Unicode_Init(argc, &argv, NULL);
 
-   if (!ToolsCore_ParseCommandLine(&gState, argc, argv)) {
+   /*
+    * ToolsCore_ParseCommandLine() uses g_option_context_parse(), which modifies
+    * argv. We don't want that to happen, so we make a copy of the array and
+    * use that as the argument instead.
+    */
+   argvCopy = g_malloc(argc * sizeof *argvCopy);
+   for (i = 0; i < argc; i++) {
+      argvCopy[i] = argv[i];
+   }
+
+   if (!ToolsCore_ParseCommandLine(&gState, argc, argvCopy)) {
+      g_free(argvCopy);
       goto exit;
+   }
+   g_free(argvCopy);
+   argvCopy = NULL;
+
+   if (gState.pidFile != NULL) {
+#if defined(__APPLE__)
+      /*
+       * The Mac OS main loop uses CoreFoundation classes, and that does not
+       * work with fork(). So we must exec() after the fork or the daemon
+       * will crash.
+       *
+       * We at least make sure that argv[0] is an absolute path before
+       * exec'ing; but all other path arguments should have been given
+       * as absolute paths if '--background' was used, or things may not
+       * work as expected.
+       */
+      if (!g_path_is_absolute(argv[0])) {
+         char *cwd = File_Cwd(NULL);
+         char *abs = g_strdup_printf("%s%c%s", cwd, DIRSEPC, argv[0]);
+         vm_free(cwd);
+         argv[0] = abs;
+      }
+
+      /*
+       * Need to remove --background from the command line or we'll get
+       * into an infinite loop. ToolsCore_ParseCommandLine() already
+       * validated that "-b" has an argument, so it's safe to assume the
+       * data is there.
+       */
+      for (i = 1; i < argc; i++) {
+         if (strcmp(argv[i], "--background") == 0 ||
+             strcmp(argv[i], "-b") == 0) {
+            int j;
+            for (j = i + 2; j < argc; j++) {
+               argv[j - 2] = argv[j];
+            }
+            argv[j - 2] = NULL;
+            break;
+         }
+      }
+
+      if (System_Daemon(FALSE, FALSE, gState.pidFile)) {
+         execv(argv[0], argv);
+         _exit(1);
+      } else {
+         goto exit;
+      }
+#else
+      if (!System_Daemon(FALSE, FALSE, gState.pidFile)) {
+         goto exit;
+      }
+#endif
    }
 
    if (!ToolsCore_Setup(&gState)) {
@@ -105,10 +190,9 @@ main(int argc,
                             ToolsCoreSigHandler, gState.ctx.mainLoop, NULL);
    g_source_unref(src);
 
-   if (gState.pidFile != NULL &&
-       !System_Daemon(FALSE, FALSE, gState.pidFile)) {
-      goto exit;
-   }
+   src = VMTools_NewSignalSource(SIGUSR1);
+   VMTOOLSAPP_ATTACH_SOURCE(&gState.ctx, src, ToolsCoreSigUsrHandler, NULL, NULL);
+   g_source_unref(src);
 
    ret = ToolsCore_Run(&gState);
 

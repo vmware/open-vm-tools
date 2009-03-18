@@ -25,12 +25,16 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <gdk/gdkkeysyms.h>
 
 #include "toolboxGtkInt.h"
 #include "vm_assert.h"
 #include "vm_app.h"
 #include "eventManager.h"
 #include "guestApp.h"
+#if !defined(OPEN_VM_TOOLS)
+#  include "installerdb.h"
+#endif
 #include "vmcheck.h"
 #include "debug.h"
 #include "strutil.h"
@@ -108,25 +112,29 @@ GtkWidget *optionsTimeSync;
 GtkWidget *scriptsApply;
 DblLnkLst_Links *gEventQueue;
 
-void ToolsMainCleanupRpc(void);
-void ToolsMainSignalHandler(int sig);
-void ToolsMain_OnDestroy(GtkWidget *widget, gpointer data);
-void ToolsMain_YesNoBoxOnClicked(GtkButton *btn, gpointer user_data);
-void ToolsMain_OnHelp(gpointer btn, gpointer data);
-void ToolsMain_OpenHelp(const char *help);
+static void ToolsMainCleanupRpc(void);
+static void ToolsMainSignalHandler(int sig);
+static void ToolsMain_OnDestroy(GtkWidget *widget, gpointer data);
+static void ToolsMain_YesNoBoxOnClicked(GtkButton *btn, gpointer user_data);
+static void ToolsMain_OnHelp(gpointer btn, gpointer data);
+static void ToolsMain_OpenHelp(const char *help);
+static gint ToolsMain_CheckF1Help(GtkWidget *widget, GdkEventKey *event,
+                                  gpointer data);
 
-GtkWidget* ToolsMain_Create(void);
+static GtkWidget* ToolsMain_Create(void);
 
 
-Bool RpcInResetCB(RpcInData *data);
-Bool RpcInSetOptionCB(char const **result, size_t *resultLen, const char *name,
-                      const char *args, size_t argsSize, void *clientData);
-Bool RpcInCapRegCB(char const **result, size_t *resultLen, const char *name,
-                   const char *args, size_t argsSize, void *clientData);
-void RpcInErrorCB(void *clientdata, char const *status);
-gint EventQueuePump(gpointer data);
+static Bool RpcInResetCB(RpcInData *data);
+static Bool RpcInSetOptionCB(char const **result, size_t *resultLen,
+                             const char *name, const char *args,
+                             size_t argsSize, void *clientData);
+static Bool RpcInCapRegCB(char const **result, size_t *resultLen,
+                          const char *name, const char *args,
+                          size_t argsSize, void *clientData);
+static void RpcInErrorCB(void *clientdata, char const *status);
+static gint EventQueuePump(gpointer data);
 
-void ShowUsage(char const *prog);
+static void ShowUsage(char const *prog);
 
 
 /*
@@ -145,7 +153,7 @@ void ShowUsage(char const *prog);
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 ToolsMainCleanupRpc(void)
 {
    if (gRpcInCtlPanel) {
@@ -181,7 +189,8 @@ ToolsMainCleanupRpc(void)
  *-----------------------------------------------------------------------------
  */
 
-void ToolsMainSignalHandler(int sig) // IN
+static void
+ToolsMainSignalHandler(int sig) // IN
 {
    /* We want to kill the event manager before gtk_main_quit. */
    ToolsMainCleanupRpc();
@@ -205,7 +214,7 @@ void ToolsMainSignalHandler(int sig) // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 ToolsMain_OpenHelp(const char *help) // IN
 {
    char helpPage[1000];
@@ -252,7 +261,7 @@ ToolsMain_OpenHelp(const char *help) // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 ToolsMain_OnHelp(gpointer btn,  // IN: Unused
                  gpointer data) // IN: notebook containing all tabs
 {
@@ -279,6 +288,37 @@ ToolsMain_OnHelp(gpointer btn,  // IN: Unused
    ToolsMain_OpenHelp(gHelpPages[page]);
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsMain_CheckF1Help --
+ *
+ *      Snooper function to detect F1 key press and display appropriate help
+ *      page to the user.
+ *
+ * Results:
+ *      TRUE if user pressed F1.
+ *      FALSE if user pressed any other key and it should be processed further.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gint
+ToolsMain_CheckF1Help(GtkWidget *widget,    // IN: Unused
+                      GdkEventKey *event,   // IN: event that was snooped
+                      gpointer data)        // IN: notebook containing all tabs
+{
+   if (event->type != GDK_KEY_PRESS || event->keyval != GDK_F1) {
+      return FALSE; /* pass event further */
+   }
+
+   ToolsMain_OnHelp(NULL, data);
+   return TRUE;
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -427,7 +467,7 @@ ToolsMain_YesNoBox(gchar *title, gchar *msg)
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 ToolsMain_YesNoBoxOnClicked(GtkButton *btn,     // IN: clicked button
                            gpointer user_data) // OUT: pointer to result value
 {
@@ -461,7 +501,7 @@ ToolsMain_YesNoBoxOnClicked(GtkButton *btn,     // IN: clicked button
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 ToolsMain_OnDestroy(GtkWidget *widget, // IN: Unused
                     gpointer data)     // IN: Unused
 {
@@ -496,7 +536,7 @@ ToolsMain_OnDestroy(GtkWidget *widget, // IN: Unused
  *-----------------------------------------------------------------------------
  */
 
-gint
+static gint
 EventQueuePump(gpointer data) // IN: Unused
 {
    int ret;
@@ -533,7 +573,7 @@ EventQueuePump(gpointer data) // IN: Unused
  *-----------------------------------------------------------------------------
  */
 
-GtkWidget*
+static GtkWidget*
 ToolsMain_Create(void)
 {
    GtkWidget *ToolsMain;
@@ -639,6 +679,9 @@ ToolsMain_Create(void)
 #else
    btn = gtk_button_new_with_label("Close");
 #endif
+
+   gtk_key_snooper_install(ToolsMain_CheckF1Help, notebookMain);
+
    gtk_widget_show(btn);
    gtk_box_pack_start(GTK_BOX(hbox), btn, FALSE, FALSE, 0);
    gtk_signal_connect_object(GTK_OBJECT(btn), "clicked",
@@ -667,7 +710,7 @@ ToolsMain_Create(void)
  *-----------------------------------------------------------------------------
  */
 
-Bool
+static Bool
 RpcInResetCB(RpcInData *data) // IN/OUT
 {
    Debug("----------toolbox: Received 'reset' from vmware\n");
@@ -692,7 +735,7 @@ RpcInResetCB(RpcInData *data) // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 RpcInErrorCB(void *clientdata, char const *status)
 {
    Warning("Error in the RPC recieve loop: %s\n", status);
@@ -720,7 +763,7 @@ RpcInErrorCB(void *clientdata, char const *status)
  *-----------------------------------------------------------------------------
  */
 
-Bool
+static Bool
 RpcInSetOptionCB(char const **result,     // OUT
                  size_t *resultLen,       // OUT
                  const char *name,        // IN
@@ -812,7 +855,7 @@ RpcInSetOptionCB(char const **result,     // OUT
  *-----------------------------------------------------------------------------
  */
 
-Bool
+static Bool
 RpcInCapRegCB(char const **result,     // OUT
               size_t *resultLen,       // OUT
               const char *name,        // IN
@@ -882,8 +925,8 @@ OnViewportSizeRequest(GtkWidget *widget,           // IN
  *
  * InitHelpDir --
  *
- *      Queries the Tools config dictionary for the location of the Toolbox
- *      Help docs.  If not found, will try to fall back to semi-safe defaults.
+ *      Queries the location db for the location of the Toolbox Help docs.
+ *      If not found, will try to fall back to semi-safe defaults.
  *
  * Results:
  *      None.
@@ -895,14 +938,27 @@ OnViewportSizeRequest(GtkWidget *widget,           // IN
  *-----------------------------------------------------------------------------
  */
 
-void
-InitHelpDir(GKeyFile *pConfDict) // IN
+static void
+InitHelpDir(void)
 {
    gchar *tmpDir = NULL;
 
    ASSERT(hlpDir == NULL);
 
-   tmpDir = g_key_file_get_string(pConfDict, "toolbox", CONFNAME_HELPDIR, NULL);
+   /*
+    * XXX: open-vm-tools doesn't have an installer db, nor does it have help
+    * files yet IIRC.
+    */
+#if !defined(OPEN_VM_TOOLS)
+   if (InstallerDB_Init("/etc/vmware-tools", TRUE)) {
+      const char *libdir = InstallerDB_GetLibDir();
+      if (libdir != NULL) {
+         tmpDir = g_strdup_printf("%s/hlp", libdir);
+      }
+      InstallerDB_DeInit();
+   }
+#endif
+
    if (!tmpDir || !File_Exists(tmpDir)) {
       unsigned int i;
 
@@ -941,7 +997,7 @@ InitHelpDir(GKeyFile *pConfDict) // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+static void
 ShowUsage(char const *prog)
 {
    fprintf(stderr,
@@ -1004,7 +1060,7 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
    Debug_EnableToFile(g_key_file_get_string(pConfDict, "logging",
                                             CONFNAME_LOGFILE, NULL),
                       FALSE);
-   InitHelpDir(pConfDict);
+   InitHelpDir();
    g_key_file_free(pConfDict);
 
    optionAutoHide = FALSE;

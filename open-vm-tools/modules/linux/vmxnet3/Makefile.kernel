@@ -26,6 +26,7 @@ INCLUDE := -I.
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
 EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
+EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/netif_num_params.c, -DVMW_NETIF_SINGLE_NAPI_PARM, )
 
 obj-m += $(DRIVER).o
 

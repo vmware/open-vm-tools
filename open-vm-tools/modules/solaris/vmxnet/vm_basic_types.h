@@ -881,11 +881,11 @@ typedef void * UserVA;
 #endif
 
 /*
- * Format modifier for printing uid_t.  On sun the uid_t is a ulong, but on
- * Linux it's an int.
+ * Format modifier for printing uid_t.  On Solaris 10 and earlier, uid_t
+ * is a ulong, but on other platforms it's an unsigned int.
  * Use this like this: printf("The uid is %"FMTUID".\n", uid);
  */
-#ifdef sun
+#if defined(sun) && !defined(SOL11)
 #   ifdef VM_X86_64
 #      define FMTUID "u"
 #   else

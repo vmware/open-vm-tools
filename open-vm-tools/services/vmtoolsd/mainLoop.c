@@ -74,6 +74,60 @@ ToolsCoreInitializeDebug(ToolsServiceState *state)
 
 
 /**
+ * Reloads the config file and re-configure the logging subsystem if the
+ * log file was updated. If the config file is being loaded for the first
+ * time, try to upgrade it to the new version if an old version is
+ * detected.
+ *
+ * @param[in]  clientData  Service state.
+ *
+ * @return TRUE.
+ */
+
+static gboolean
+ToolsCoreReloadConfig(gpointer clientData)
+{
+   ToolsServiceState *state = clientData;
+   char *confFile = state->configFile;
+   gboolean loaded = TRUE;
+
+   if (confFile == NULL) {
+      confFile = VMTools_GetToolsConfFile();
+   }
+
+   if (state->ctx.config == NULL) {
+      state->ctx.config = VMTools_LoadConfig(confFile,
+                                             G_KEY_FILE_NONE,
+                                             state->mainService);
+      state->configMtime = time(NULL);
+      if (state->ctx.config == NULL) {
+         /* Couldn't load the config file. Just create an empty dictionary. */
+         state->ctx.config = g_key_file_new();
+      }
+   } else if (VMTools_ReloadConfig(confFile,
+                                   G_KEY_FILE_NONE,
+                                   &state->ctx.config,
+                                   &state->configMtime)) {
+      g_debug("Config file reloaded.\n");
+   } else {
+      loaded = FALSE;
+   }
+
+   if (loaded) {
+      VMTools_ConfigLogging(state->ctx.config);
+      if (state->log) {
+         VMTools_EnableLogging(state->log);
+      }
+   }
+
+   if (state->configFile == NULL) {
+      g_free(confFile);
+   }
+   return TRUE;
+}
+
+
+/**
  * Cleans up the main loop after it has executed. After this function
  * returns, the fields of the state object shouldn't be used anymore.
  *
@@ -113,6 +167,70 @@ ToolsCore_Cleanup(ToolsServiceState *state)
 
 
 /**
+ * Logs some information about the runtime state of the service: loaded
+ * plugins, registered GuestRPC callbacks, etc. Also fires a signal so
+ * that plugins can log their state if they want to.
+ *
+ * @param[in]  state    The service state.
+ */
+
+void
+ToolsCore_DumpState(ToolsServiceState *state)
+{
+   guint i;
+
+   g_message("VM Tools Service '%s':\n", state->name);
+   g_message("   Plugin path: %s\n", state->pluginPath);
+
+   if (state->plugins != NULL) {
+      for (i = 0; i < state->plugins->len; i++) {
+         ToolsPlugin *plugin = g_ptr_array_index(state->plugins, i);
+         GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
+         guint j;
+
+         g_message("   Plugin: %s\n", plugin->data->name);
+
+         if (regs == NULL) {
+            g_message("      No registrations.\n");
+            continue;
+         }
+
+         for (j = 0; j < regs->len; j++) {
+            guint k;
+            ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
+
+            switch (reg->type) {
+            case TOOLS_APP_GUESTRPC:
+               for (k = 0; k < reg->data->len; k++) {
+                  RpcChannelCallback *cb = &g_array_index(reg->data,
+                                                          RpcChannelCallback,
+                                                          k);
+                  g_message("      RPC callback: %s\n", cb->name);
+               }
+               break;
+
+            case TOOLS_APP_SIGNALS:
+               for (k = 0; k < reg->data->len; k++) {
+                  ToolsPluginSignalCb *sig = &g_array_index(reg->data,
+                                                            ToolsPluginSignalCb,
+                                                            k);
+                  g_message("      Signal callback: %s\n", sig->signame);
+               }
+               break;
+            }
+         }
+      }
+   } else {
+      g_message("   No plugins loaded.");
+   }
+
+   g_signal_emit_by_name(state->ctx.serviceObj,
+                         TOOLS_CORE_SIG_DUMP_STATE,
+                         &state->ctx);
+}
+
+
+/**
  * Returns the name of the TCLO app name. This will only return non-NULL
  * if the service is either the tools "guestd" or "userd" service.
  *
@@ -146,33 +264,13 @@ gboolean
 ToolsCore_Setup(ToolsServiceState *state)
 {
    GMainContext *gctx;
-   char *confFile = state->configFile;
-
-   if (confFile == NULL) {
-      confFile = VMTools_GetToolsConfFile();
-   }
 
    if (!g_thread_supported()) {
       g_thread_init(NULL);
    }
 
    VMTools_SetDefaultLogDomain(state->name);
-
-   /* Load the tools config file. */
-   if (confFile != NULL) {
-      state->ctx.config = VMTools_LoadConfig(confFile,
-                                             G_KEY_FILE_NONE,
-                                             state->mainService);
-      if (state->ctx.config == NULL) {
-         /* Couldn't load the config file. Just create an empty dictionary. */
-         state->ctx.config = g_key_file_new();
-      }
-   }
-
-   VMTools_ConfigLogging(state->ctx.config);
-   if (state->log) {
-      VMTools_EnableLogging(state->log);
-   }
+   ToolsCoreReloadConfig(state);
 
    /* Initializes the app context. */
    gctx = g_main_context_default();
@@ -217,9 +315,6 @@ error:
    }
 
 exit:
-   if (state->configFile == NULL) {
-      g_free(confFile);
-   }
    return (state->ctx.mainLoop != NULL);
 }
 
@@ -235,6 +330,7 @@ exit:
 int
 ToolsCore_Run(ToolsServiceState *state)
 {
+   g_timeout_add(CONF_POLL_TIME * 10, ToolsCoreReloadConfig, state);
 #if defined(__APPLE__)
    ToolsCore_CFRunLoop(state);
 #else

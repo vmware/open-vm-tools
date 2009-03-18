@@ -2799,3 +2799,35 @@ GHISetVMwareEnviron(GHIPlatform *ghip)   // IN
    g_hash_table_foreach(ghip->vmwareEnv, GHISetVMwareVariable, NULL);
    return TRUE;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GHIPlatformSetOutlookTempFolder --
+ *
+ *    Set the temporary folder used by Microsoft Outlook to store attachments
+ *    opened by the user.
+ *
+ *    XXX While we probably won't ever need to implement this for Linux, we
+ *        still the definition of this function in the X11 back-end.
+ *
+ * Results:
+ *    TRUE if successful, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+GHIPlatformSetOutlookTempFolder(GHIPlatform *ghip,  // IN: platform-specific state
+                                const XDR *xdrs)    // IN: XDR Serialized arguments
+{
+   ASSERT(ghip);
+   ASSERT(xdrs);
+
+   return FALSE;
+}
+

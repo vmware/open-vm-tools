@@ -16,6 +16,8 @@
 ################################################################################
 
 bin_PROGRAMS = vmtoolsd
+pamdir = $(PAM_PREFIX)/pam.d
+
 
 vmtoolsd_CPPFLAGS =
 vmtoolsd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
@@ -67,3 +69,19 @@ if HAVE_ICU
 else
    vmtoolsd_LINK = $(LINK)
 endif
+
+if LINUX
+if PAMD
+if THIRTY_TWO_BIT_USERSPACE
+pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/vmtoolsd
+else
+pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/vmtoolsd-x64
+endif !THIRTY_TWO_BIT_USERSPACE
+endif PAMD
+endif LINUX
+
+install-exec-hook:
+	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools
+
+uninstall-hook:
+	rm -rf $(DESTDIR)/etc/vmware-tools

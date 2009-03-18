@@ -30,6 +30,11 @@
 #include "vmtools.h"
 
 
+#ifdef USE_APPLOADER
+static Bool (*LoadDependencies)(char *libName);
+#endif
+
+
 /**
  * Compares two strings. To be used with g_ptr_array_sort.
  *
@@ -75,10 +80,15 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
       if (state->mainService ||
           strcmp(state->name, VMTOOLS_USER_SERVICE) == 0) {
          char *instPath;
+         char *subdir = "";
+#if defined(sun) && defined(__x86_64__)
+         subdir = "/amd64";
+#endif
          instPath = GuestApp_GetInstallPath();
-         state->pluginPath = g_strdup_printf("%s%cplugins%c%s",
+         state->pluginPath = g_strdup_printf("%s%cplugins%s%c%s",
                                              instPath,
                                              DIRSEPC,
+                                             subdir,
                                              DIRSEPC,
                                              state->name);
          vm_free(instPath);
@@ -112,6 +122,24 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    g_ptr_array_sort(plugins, ToolsCoreStrPtrCompare);
 
    state->plugins = g_ptr_array_new();
+
+#ifdef USE_APPLOADER
+   {
+      Bool ret = FALSE;
+      GModule *mainModule = g_module_open(NULL, G_MODULE_BIND_LAZY);
+      ASSERT(mainModule);
+
+      ret = g_module_symbol(mainModule, "AppLoader_LoadLibraryDependencies",
+                            (gpointer *)&LoadDependencies);
+      g_module_close(mainModule);
+
+      if (!ret) {
+         g_critical("Unable to locate library dependency loading function.\n");
+         goto exit;
+      }
+   }
+#endif
+
    for (i = 0; i < plugins->len; i++) {
       gchar *entry;
       gchar *path;
@@ -127,6 +155,13 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
          g_warning("File '%s' is not a regular file, skipping.\n", entry);
          goto next;
       }
+
+#ifdef USE_APPLOADER
+      if (!LoadDependencies(path)) {
+         g_warning("Loading of library dependencies for %s failed.\n", entry);
+         goto next;
+      }
+#endif
 
       module = g_module_open(path, G_MODULE_BIND_LOCAL);
       if (module == NULL) {
@@ -306,4 +341,3 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
    g_ptr_array_free(state->plugins, TRUE);
    state->plugins = NULL;
 }
-

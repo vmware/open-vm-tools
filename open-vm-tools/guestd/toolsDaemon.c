@@ -69,6 +69,7 @@ extern "C" {
 #include "foundryToolsDaemon.h"
 #include "util.h"
 #include "vmcheck.h"
+#include "guestInfo.h"
 
 #ifndef N_PLAT_NLM
 #include "vm_atomic.h"
@@ -921,7 +922,7 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
 
    for (i = 0; i < ARRAYSIZE(stateChangeCmdTable); i++) {
       if (strcmp(name, stateChangeCmdTable[i].tcloCmd) == 0) {
-         const char *script;
+         char *script;
          char *scriptCmd;
          unsigned int stateId;
 
@@ -935,13 +936,22 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
             return RpcIn_SetRetVals(result, resultLen, "", TRUE);
          }
 
-         script = GuestApp_GetDictEntry(*data->pConfDict,
-                                        stateChgConfNames[stateId]);
-         ASSERT(script);
+         script = Util_SafeStrdup(GuestApp_GetDictEntry(*data->pConfDict,
+                                                        stateChgConfNames[stateId]));
+         Debug("Script to execute is: %s\n", script);
          if (strlen(script) == 0) {
             ToolsDaemonStateChangeDone(TRUE, data);
             Debug("No script to run\n");
+            free(script);
             return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+         } else if (!Util_IsAbsolutePath(script)) {
+            char *absScript;
+            char *installDir = GuestApp_GetInstallPath();
+            ASSERT_MEM_ALLOC(installDir);
+            absScript = Str_Asprintf(NULL, "%s%c%s", installDir, DIRSEPC, script);
+            ASSERT_MEM_ALLOC(absScript);
+            free(script);
+            script = absScript;
          }
 #ifdef N_PLAT_NLM
          procArgs = NULL;
@@ -983,10 +993,12 @@ ToolsDaemonTcloStateChange(char const **result,     // OUT
             goto startError;
          }
 
+         free(script);
          free(scriptCmd);
          return RpcIn_SetRetVals(result, resultLen, "", TRUE);
 
       startError:
+         free(script);
          free(scriptCmd);
          Debug("Error starting script\n");   
          return RpcIn_SetRetVals(result, resultLen, "Error starting script",
@@ -1031,6 +1043,7 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
    unsigned int minResolutionHeight;
 #endif
    ToolsDaemon_Data *data;
+   uint32 version;
 
    data = (ToolsDaemon_Data *)clientData;
    ASSERT(data);
@@ -1160,10 +1173,14 @@ ToolsDaemonTcloCapReg(char const **result,     // OUT
     * can override the Tools version such that the VMX treats the Tools as not
     * to be managed by the VMware platform.
     */
-   if (!RpcOut_sendOne(NULL, NULL, "tools.set.version %u",
-                       GuestApp_GetDictEntryBool(*data->pConfDict,
-                                                 CONFNAME_DISABLETOOLSVERSION) ?
-                       TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT)) {
+#if defined(OPEN_VM_TOOLS)
+   version = TOOLS_VERSION_UNMANAGED;
+#else
+   version = GuestApp_GetDictEntryBool(*data->pConfDict,
+                                       CONFNAME_DISABLETOOLSVERSION) ?
+               TOOLS_VERSION_UNMANAGED : TOOLS_VERSION_CURRENT;
+#endif
+   if (!RpcOut_sendOne(NULL, NULL, "tools.set.version %u", version)) {
       Debug("Daemon: Error setting tools version during 'Capabilities_Register'"
             "request.\n");
    }
@@ -1377,10 +1394,13 @@ ToolsDaemonTcloSetOption(char const **result,     // OUT
       if (ip == NULL) {
          RpcIn_SetRetVals(result, resultLen, "Error getting IP address of guest",
                           retVal = FALSE);
+         RpcOut_sendOne(NULL, NULL, "info-set guestinfo.ip %s",
+                        GUESTINFO_IP_UNKNOWN);
          goto exit;
       }
 
-      RpcOut_sendOne(NULL, NULL, "info-set guestinfo.ip %s", ip);
+      RpcOut_sendOne(NULL, NULL, "info-set guestinfo.ip %s",
+                     ip[0] == '\0' ? GUESTINFO_IP_UNKNOWN : ip);
       free(ip);
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERIOD) == 0) {
       uint32 period = atoi(value);

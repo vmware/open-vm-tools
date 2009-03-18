@@ -62,7 +62,6 @@ void OnViewportSizeRequest(GtkWidget *widget, GtkRequisition *requisition,
 
 Bool ToolsMain_YesNoBox(gchar* title, gchar *msg);
 void ToolsMain_MsgBox(gchar* title, gchar *msg);
-void ToolsMain_OnDestroy(GtkWidget *widget, gpointer data);
 
 GtkWidget* About_Create(GtkWidget* mainWnd);
 GtkWidget* Devices_Create(GtkWidget* mainWnd);

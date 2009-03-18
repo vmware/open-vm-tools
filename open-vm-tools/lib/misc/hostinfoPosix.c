@@ -392,7 +392,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       }
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
-         Str_Strcpy(distroShort, STR_OS_SUSE_EN, distroShortSize);
+         if (strstr(distroLower, "server 11")) {
+            Str_Strcpy(distroShort, STR_OS_SLES_11, distroShortSize);
+         } else if (strstr(distroLower, "server 10")) {
+            Str_Strcpy(distroShort, STR_OS_SLES_10, distroShortSize);
+         } else {
+            Str_Strcpy(distroShort, STR_OS_SUSE_EN, distroShortSize);
+         }
       } else if (strstr(distroLower, "sun")) {
          Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
       } else if (strstr(distroLower, "novell")) {
@@ -810,18 +816,16 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
    } else if (strstr(osNameFull, "SunOS")) {
       size_t nameLen = sizeof STR_OS_SOLARIS - 1;
       size_t releaseLen = 0;
-      char *periodPtr;
+      char solarisRelease[3] = "";
 
       /*
        * Solaris releases report their version as "x.y". For our supported
        * releases it seems that x is always "5", and is ignored in favor of
-       * y for the version number. We'll be naive and look for the first
-       * period, and use the entire string after that as the version number.
+       * y for the version number.
        */
 
-      periodPtr = Str_Strchr(buf.release, '.');
-      if (periodPtr != NULL) {
-         releaseLen = (buf.release + strlen(buf.release)) - periodPtr;
+      if (sscanf(buf.release, "5.%2[0-9]", solarisRelease) == 1) {
+         releaseLen = strlen(solarisRelease);
       }
 
       if (nameLen + releaseLen + 1 > outBufLen) {
@@ -829,7 +833,7 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
          return FALSE;
       }
 
-      Str_Strcpy(osName, STR_OS_SOLARIS, outBufLen);
+      Str_Snprintf(osName, outBufLen, "%s%s", STR_OS_SOLARIS, solarisRelease);
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {

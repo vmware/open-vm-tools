@@ -39,7 +39,7 @@
  * We use defines rather than typedefs here to avoid causing problems for files that
  * don't have a vnode_if.h available.
  */
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700055
 #   define compat_vop_lock_t vop_lock1_t
 #   define compat_vop_lock_args struct vop_lock1_args
 #   define COMPAT_VOP_LOCK_OP_ELEMENT vop_lock1

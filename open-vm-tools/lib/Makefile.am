@@ -75,7 +75,6 @@ SUBDIRS += stubs
 SUBDIRS += sync
 SUBDIRS += syncDriver
 SUBDIRS += system
-SUBDIRS += toolsLogger
 SUBDIRS += unicode
 if ENABLE_UNITY
    SUBDIRS += unity

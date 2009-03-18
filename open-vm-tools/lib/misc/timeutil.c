@@ -1011,7 +1011,7 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning
       struct tm tim;
       localtime_r(&now, &tim);
 
-      #if defined SOL9 || defined SOL10 || defined N_PLAT_NLM
+      #if defined(sun) || defined N_PLAT_NLM
          /*
           * Offset is to standard (no need for DST adjustment).
           * Negative is east of prime meridian.

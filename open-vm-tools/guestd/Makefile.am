@@ -16,7 +16,6 @@
 ################################################################################
 
 sbin_PROGRAMS = vmware-guestd
-pamdir = $(PAM_PREFIX)/pam.d
 
 AM_CFLAGS = -I$(top_builddir)/include
 AM_CFLAGS += -I$(top_srcdir)/services/plugins/vix
@@ -93,19 +92,3 @@ else
    vmware_guestd_LINK = $(LINK)
 endif
 
-if LINUX
-if PAMD
-if THIRTY_TWO_BIT_USERSPACE
-pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd
-else
-pam_SCRIPTS = ../scripts/linux/pam.d/vmware-guestd-x64
-endif !THIRTY_TWO_BIT_USERSPACE
-endif PAMD
-endif LINUX
-
-install-exec-hook:
-	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools
-	echo 'disable-tools-version = "true"' > $(DESTDIR)/etc/vmware-tools/tools.conf
-
-uninstall-hook:
-	rm -rf $(DESTDIR)/etc/vmware-tools

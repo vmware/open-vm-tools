@@ -66,6 +66,45 @@ VmBackupEnableSync(void);
 
 
 /**
+ * Returns a string representation of the given state machine state.
+ *
+ * @param[in]  state    State of interest.
+ *
+ * @return A string representation of the state.
+ */
+
+static const char *
+VmBackupGetStateName(VmBackupMState state)
+{
+   switch (state) {
+   case VMBACKUP_MSTATE_IDLE:
+      return "IDLE";
+
+   case VMBACKUP_MSTATE_SCRIPT_FREEZE:
+      return "SCRIPT_FREEZE";
+
+   case VMBACKUP_MSTATE_SYNC_FREEZE:
+      return "SYNC_FREEZE";
+
+   case VMBACKUP_MSTATE_SYNC_THAW:
+      return "SYNC_THAW";
+
+   case VMBACKUP_MSTATE_SCRIPT_THAW:
+      return "SCRIPT_THAW";
+
+   case VMBACKUP_MSTATE_SCRIPT_ERROR:
+      return "SCRIPT_ERROR";
+
+   case VMBACKUP_MSTATE_SYNC_ERROR:
+      return "SYNC_ERROR";
+
+   default:
+      NOT_IMPLEMENTED();
+   }
+}
+
+
+/**
  * Sends a keep alive backup event to the VMX.
  *
  * @param[in]  clientData     Unused.
@@ -246,7 +285,8 @@ VmBackupOnError(void)
       break;
 
    default:
-      g_error("Unexpected machine state on error: %d\n", gBackupState->machineState);
+      g_error("Unexpected machine state on error: %s\n",
+              VmBackupGetStateName(gBackupState->machineState));
    }
 
    return (gBackupState->machineState == VMBACKUP_MSTATE_IDLE);
@@ -370,7 +410,8 @@ VmBackupAsyncCallback(void *clientData)
       break;
 
    default:
-      g_error("Unexpected machine state: %d\n", gBackupState->machineState);
+      g_error("Unexpected machine state: %s\n",
+              VmBackupGetStateName(gBackupState->machineState));
    }
 
 exit:
@@ -530,6 +571,8 @@ VmBackupSnapshotDone(RpcInData *data)
    if (gBackupState == NULL) {
       return RPCIN_SETRETVALS(data, "Error: no backup in progress", FALSE);
    } else if (gBackupState->machineState != VMBACKUP_MSTATE_SYNC_FREEZE) {
+      g_warning("Error: unexpected state for snapshot done message: %s",
+                VmBackupGetStateName(gBackupState->machineState));
       return RPCIN_SETRETVALS(data,
                               "Error: unexpected state for snapshot done message.",
                               FALSE);
@@ -545,6 +588,28 @@ VmBackupSnapshotDone(RpcInData *data)
          gBackupState->machineState = VMBACKUP_MSTATE_SYNC_THAW;
       }
       return RPCIN_SETRETVALS(data, "", TRUE);
+   }
+}
+
+
+/**
+ * Prints some information about the plugin's state to the log.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      Unused.
+ * @param[in]  data     Unused.
+ */
+
+static void
+VmBackupDumpState(gpointer src,
+                  ToolsAppCtx *ctx,
+                  gpointer data)
+{
+   if (gBackupState == NULL) {
+      g_message("Backup is idle.\n");
+   } else {
+      g_message("Backup is in state: %s\n",
+                VmBackupGetStateName(gBackupState->machineState));
    }
 }
 
@@ -631,6 +696,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
       };
       ToolsPluginSignalCb sigs[] = {
+         { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
          { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
          { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },
       };

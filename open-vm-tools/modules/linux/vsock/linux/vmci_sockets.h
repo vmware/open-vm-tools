@@ -36,6 +36,11 @@
 #  else
 #    include <sys/socket.h>
 #  endif // __KERNEL__
+#else // linux && !VMKERNEL
+#  if defined(__APPLE__)
+#    include <sys/socket.h>
+#    include <string.h>
+#  endif // __APPLE__
 #endif // linux && !VMKERNEL
 #endif
 
@@ -97,14 +102,14 @@ struct sockaddr_vm {
 #if defined(_WIN32)
 #  if !defined(WINNT_DDK)
 #  include <winioctl.h>
-#  define VMCI_SOCKETS_DEVICE          TEXT("\\\\.\\VMCI")
+#  define VMCI_SOCKETS_DEVICE          L"\\\\.\\VMCI"
 #  define VMCI_SOCKETS_GET_AF_VALUE    0x81032068
 #  define VMCI_SOCKETS_GET_LOCAL_CID   0x8103206c
 
    static __inline int VMCISock_GetAFValue(void)
    {
-      HANDLE device = CreateFile(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
-                                 OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+      HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
+                                  OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
       if (INVALID_HANDLE_VALUE != device) {
          DWORD ioReturn;
          int afvalue;
@@ -123,8 +128,8 @@ struct sockaddr_vm {
 
    static __inline unsigned int VMCISock_GetLocalCID(void)
    {
-      HANDLE device = CreateFile(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
-                                 OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+      HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
+                                  OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
       if (INVALID_HANDLE_VALUE != device) {
          DWORD ioReturn;
          unsigned int cid;
@@ -253,6 +258,11 @@ struct sockaddr_vm {
       return contextId;
    }
 #  endif // __KERNEL__
+#else
+#if defined(__APPLE__) && !defined(KERNEL)
+extern int VMCISock_GetAFValue(void);
+extern unsigned int VMCISock_GetLocalCID(void);
+#endif // __APPLE__ && !KERNEL
 #endif // linux && !VMKERNEL
 #endif // _WIN32
 

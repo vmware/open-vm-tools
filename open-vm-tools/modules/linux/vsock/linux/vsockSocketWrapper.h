@@ -51,6 +51,32 @@
 #  define SHUTDOWN_MASK       3
 #endif // _WIN32 || VMKERNEL
 
+/*
+ * For signalling sockets.  These are defined as standard on Windows.  We do
+ * not use them on Linux.  So define them here only for VMKernel.
+ */
+#if defined(_WIN32)
+#  define SOCKET_EVENT_READ    FD_READ
+#  define SOCKET_EVENT_WRITE   FD_WRITE
+#  define SOCKET_EVENT_ACCEPT  FD_ACCEPT
+#  define SOCKET_EVENT_CONNECT FD_CONNECT
+#  define SOCKET_EVENT_CLOSE   FD_CLOSE
+#else
+#if defined(VMKERNEL)
+#  define SOCKET_EVENT_READ    0x1
+#  define SOCKET_EVENT_WRITE   0x2
+#  define SOCKET_EVENT_ACCEPT  0x8
+#  define SOCKET_EVENT_CONNECT 0x10
+#  define SOCKET_EVENT_CLOSE   0x20
+#endif // VMKERNEL
+#endif // _WIN32
+
+/*
+ * Custom socket control option values.  These are internal.  The public ones
+ * are in vmci_sockets.h.  As with the public options, use the address family
+ * as the option level.
+ */
+#define SO_VMCI_EVENT_ENUMERATE_SELECT 1000
 
 /*
  * Error codes.

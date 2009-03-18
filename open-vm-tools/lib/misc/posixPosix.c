@@ -1333,7 +1333,7 @@ Posix_ReadLink(ConstUnicode pathName)  // IN:
       return NULL;
    }
 
-   bytes = readlink(path, link, sizeof link);
+   bytes = readlink(path, link, sizeof link - 1);
    ASSERT_NOT_IMPLEMENTED(bytes < (ssize_t) sizeof link);
 
    free(path);

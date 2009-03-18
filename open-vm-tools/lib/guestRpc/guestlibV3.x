@@ -68,10 +68,22 @@ enum GuestLibV3TypeIds {
 
    GUESTLIB_CPU_STOLEN_MS         = 19,
    GUESTLIB_MEM_TARGET_SIZE_MB    = 20,
+
+   /* Host specific counters. */
+   GUESTLIB_HOST_CPU_NUM_CORES    = 21,
+   GUESTLIB_HOST_CPU_USED_MS      = 22,
+   GUESTLIB_HOST_MEM_SWAPPED_MB   = 23,
+   GUESTLIB_HOST_MEM_SHARED_MB    = 24,
+   GUESTLIB_HOST_MEM_USED_MB      = 25,
+   GUESTLIB_HOST_MEM_PHYS_MB      = 26,
+   GUESTLIB_HOST_MEM_PHYS_FREE_MB = 27,
+   GUESTLIB_HOST_MEM_KERN_OVHD_MB = 28,
+   GUESTLIB_HOST_MEM_MAPPED_MB    = 29,
+   GUESTLIB_HOST_MEM_UNMAPPED_MB  = 30,
    /*------ Add any new statistics above this line. ------- */
 
    /*------ Bump this when adding to this list. -------*/
-   GUESTLIB_MAX_STATISTIC_ID      = 21
+   GUESTLIB_MAX_STATISTIC_ID      = 31
 };
 
 union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
@@ -120,5 +132,26 @@ union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
       struct GuestLibV3StatUint64 cpuStolenMs;
    case GUESTLIB_MEM_TARGET_SIZE_MB:
       struct GuestLibV3StatUint64 memTargetSizeMB;
+
+   case GUESTLIB_HOST_CPU_NUM_CORES:
+      struct GuestLibV3StatUint32 hostCpuNumCores;
+   case GUESTLIB_HOST_CPU_USED_MS:
+      struct GuestLibV3StatUint64 hostCpuUsedMs;
+   case GUESTLIB_HOST_MEM_SWAPPED_MB:
+      struct GuestLibV3StatUint64 hostMemSwappedMB;
+   case GUESTLIB_HOST_MEM_SHARED_MB:
+      struct GuestLibV3StatUint64 hostMemSharedMB;
+   case GUESTLIB_HOST_MEM_USED_MB:
+      struct GuestLibV3StatUint64 hostMemUsedMB;
+   case GUESTLIB_HOST_MEM_PHYS_MB:
+      struct GuestLibV3StatUint64 hostMemPhysMB;
+   case GUESTLIB_HOST_MEM_PHYS_FREE_MB:
+      struct GuestLibV3StatUint64 hostMemPhysFreeMB;
+   case GUESTLIB_HOST_MEM_KERN_OVHD_MB:
+      struct GuestLibV3StatUint64 hostMemKernOvhdMB;
+   case GUESTLIB_HOST_MEM_MAPPED_MB:
+      struct GuestLibV3StatUint64 hostMemMappedMB;
+   case GUESTLIB_HOST_MEM_UNMAPPED_MB:
+      struct GuestLibV3StatUint64 hostMemUnmappedMB;
 };
 

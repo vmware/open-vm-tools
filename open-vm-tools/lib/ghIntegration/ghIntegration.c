@@ -81,6 +81,11 @@ static Bool GHITcloShellAction(char const **result,
 static Bool GHITcloSetGuestHandler(RpcInData *data);
 static Bool GHITcloRestoreDefaultGuestHandler(RpcInData *data);
 
+/*
+ * Wrapper function for the "ghi.guest.outlook.set.tempFolder" RPC.
+ */
+static Bool GHITcloSetOutlookTempFolder(RpcInData* data);
+
 static Bool GHIUpdateHost(GHIProtocolHandlerList *handlers);
 
 DynBuf gTcloUpdate;
@@ -258,6 +263,8 @@ GHI_InitBackdoor(struct RpcIn *rpcIn)   // IN
                                GHITcloSetGuestHandler, NULL);
       RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER,
                                GHITcloRestoreDefaultGuestHandler, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_OUTLOOK_SET_TEMP_FOLDER,
+                               GHITcloSetOutlookTempFolder, NULL);
    }
 }
 
@@ -965,3 +972,76 @@ GHIUpdateHost(GHIProtocolHandlerList *handlers) // IN: type specific information
    }
    return status;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GHITcloSetOutlookTempFolder --
+ *
+ *    Handler for the 'ghi.guest.outlook.set.tempFolder' RPC.
+ *
+ * Results:
+ *    If the RPC fails, return FALSE. Otherwise, returns TRUE.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
+{
+   Bool ret = FALSE;
+   XDR xdrs;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   // Check our arguments.
+   ASSERT(data);
+   ASSERT(data->name);
+   ASSERT(data->argsSize > 0);
+
+   if (!(data && data->name && data->argsSize > 0)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /*
+    * Build an XDR Stream from the argument data.
+    *
+    * Note that the argument data begins with args + 1 since there is a space
+    * between the RPC name and the XDR serialization.
+    */
+   xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
+
+   // Call the platform implementation of our RPC.
+   ret = GHIPlatformSetOutlookTempFolder(ghiPlatformData, &xdrs);
+
+   // Destroy the XDR stream.
+   xdr_destroy(&xdrs);
+
+   if (ret == FALSE) {
+      Debug("%s: Failed to set Outlook temporary folder.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Failed to set Outlook temporary folder", FALSE);
+      goto exit;
+   }
+
+   /*
+    * We don't have any out parameters, so we write empty values into the
+    * result fields of the RpcInData structure.
+    */
+   RPCIN_SETRETVALS(data, "", FALSE);
+
+   // Set our return value and return to the caller.
+   ret = TRUE;
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+

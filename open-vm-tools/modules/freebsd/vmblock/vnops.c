@@ -188,7 +188,7 @@
 #include <sys/filedesc.h>
 #include <sys/kdb.h>
 #include "compat_freebsd.h"
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700055
 #include <sys/priv.h>
 #endif
 
@@ -698,7 +698,10 @@ struct vop_open_args {
    int fflag;           // IN: fdesc flags (see fcntl(2))
    struct ucred *cred;  // IN: caller's credentials (usually real uid vs euid)
    struct thread *td;   // IN: calling thread's context      
-   int fdidx;           // IN: file descriptor number alloc'd to this open()
+   FreeBSD <= 6 --
+      int fdidx;        // IN: file descriptor number alloc'd to this open()
+   FreeBSD >= 7 --
+      struct file *fp   // IN: struct associated with this particular open()
 };
 */
 {
@@ -724,7 +727,7 @@ struct vop_open_args {
        *      readdir() of the filesystem root for non-privileged users.
        */
       if ((retval = suser(ap->a_td)) == 0) {
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700055
          fp = ap->a_fp;
 #else
          fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
@@ -1082,7 +1085,7 @@ struct vop_rename_args {
       vrele(fvp);
       return EXDEV;
    }
-   
+
    return VMBlockVopBypass((struct vop_generic_args *)ap);
 }
 
@@ -1110,11 +1113,11 @@ struct vop_rename_args {
 static int
 VMBlockVopLock(compat_vop_lock_args *ap)
 /*
-struct {
-   struct vnode *a_vp;    // IN: vnode operand 
-   int a_flags;           // IN: lockmgr(9) flags
-   struct thread *a_td;   // IN: calling thread's context
-} *ap;
+struct vop_lock_args {
+   struct vnode *vp;    // IN: vnode operand
+   int flags;           // IN: lockmgr(9) flags
+   struct thread *td;   // IN: calling thread's context
+};
 */
 {
    struct vnode *vp = ap->a_vp;

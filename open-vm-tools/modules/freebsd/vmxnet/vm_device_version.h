@@ -92,7 +92,8 @@
  *    Intel 82443BX (440 BX North Bridge and AGP Bridge)
  *    Intel 82545EM (e1000, server adapter, single port)
  *    Intel 82546EB (e1000, server adapter, dual port)
- *    Intel ICH7_16 (Hight Definition Audio controller)
+ *    Intel ICH7_16 (High Definition Audio controller)
+ *    Intel HECI (as embedded in ich9m)
  */
 #define PCI_VENDOR_ID_INTEL             0x8086
 #define PCI_DEVICE_ID_INTEL_82439TX     0x7100
@@ -106,6 +107,7 @@
 #define PCI_DEVICE_ID_INTEL_82545EM     0x100f
 #define PCI_DEVICE_ID_INTEL_82546EB     0x1010
 #define PCI_DEVICE_ID_INTEL_ICH7_16     0x27d8
+#define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 
 
 /************* Strings for IDE Identity Fields **************************/

@@ -164,14 +164,15 @@ FileRename(ConstUnicode oldName,  // IN:
  *----------------------------------------------------------------------
  *
  *  FileDeletion --
- *	Delete the specified file
+ *	     Delete the specified file.  A NULL pathName will result in an error
+ *	     and errno will be set to EFAULT.
  *
  * Results:
  *	0	success
  *	> 0	failure (errno)
  *
  * Side effects:
- *      May change the host file system.
+ *      May change the host file system.  errno may be set.
  *
  *----------------------------------------------------------------------
  */
@@ -182,13 +183,17 @@ FileDeletion(ConstUnicode pathName,   // IN:
 {
    int err;
    char *linkPath = NULL;
-   char *primaryPath = Unicode_GetAllocBytes(pathName,
-                                             STRING_ENCODING_DEFAULT);
+   char *primaryPath;
 
-   if (primaryPath == NULL && pathName != NULL) {
+   if (pathName == NULL) {
+      errno = EFAULT;
+      return errno;
+   } else if ((primaryPath = Unicode_GetAllocBytes(pathName,
+                               STRING_ENCODING_DEFAULT)) == NULL) {
       Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
           __FUNCTION__, UTF8(pathName));
-      return UNICODE_CONVERSION_ERRNO;
+      errno = UNICODE_CONVERSION_ERRNO;
+      return errno;
    }
 
    if (handleLink) {
@@ -1799,13 +1804,14 @@ File_IsSameFile(ConstUnicode path1,  // IN:
  * File_Replace --
  *
  *      Replace old file with new file, and attempt to reproduce
- *      file permissions.
+ *      file permissions.  A NULL value for either the oldName or
+ *      newName will result in failure and errno will be set to EFAULT.
  *
  * Results:
  *      TRUE on success.
  *
  * Side effects:
- *      None.
+ *      errno may be set.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1820,16 +1826,22 @@ File_Replace(ConstUnicode oldName,  // IN: old file
    char *oldPath = NULL;
    struct stat st;
 
-   newPath = Unicode_GetAllocBytes(newName, STRING_ENCODING_DEFAULT);
-   if (newPath == NULL && newName != NULL) {
+   if (newName == NULL) {
+      status = EFAULT;
+      goto bail;
+   } else if ((newPath = Unicode_GetAllocBytes(newName,
+                           STRING_ENCODING_DEFAULT)) == NULL) {
       status = UNICODE_CONVERSION_ERRNO;
       Msg_Append(MSGID(filePosix.replaceConversionFailed)
                  "Failed to convert file path \"%s\" to current encoding\n",
                  newName);
       goto bail;
    }
-   oldPath = Unicode_GetAllocBytes(oldName, STRING_ENCODING_DEFAULT);
-   if (oldPath == NULL && oldName != NULL) {
+   if (oldName == NULL) {
+      status = EFAULT;
+      goto bail;
+   } else if ((oldPath = Unicode_GetAllocBytes(oldName,
+                           STRING_ENCODING_DEFAULT)) == NULL) {
       status = UNICODE_CONVERSION_ERRNO;
       Msg_Append(MSGID(filePosix.replaceConversionFailed)
                  "Failed to convert file path \"%s\" to current encoding\n",

@@ -23,7 +23,7 @@
  *
  * This file implements the guest-side Unity agent as part of the VMware Tools.
  * It contains entry points for embedding within the VMware Tools User Agent and
- * handles the GuestRpc (TCLO) interface.
+ * handles the GuestRpc (TCLO, RPCI) interface.
  *
  * UnityWindowTracker updates are sent to the MKS in two ways:
  *    @li @ref UNITY_RPC_GET_UPDATE GuestRpc (host-to-guest).
@@ -55,6 +55,7 @@
 #include "appUtil.h"
 #include <stdio.h>
 
+
 /*
  * Singleton object for tracking the state of the service.
  */
@@ -63,7 +64,7 @@ typedef struct UnityState {
    Bool forceEnable;
    Bool isEnabled;
    UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
-
+   UnityUpdateChannel updateChannel;            // Unity update transmission channel.
    UnityPlatform *up; // Platform-specific state
 } UnityState;
 
@@ -270,9 +271,17 @@ Unity_Init(GuestApp_Dict *conf, // IN
    UnityWindowTracker_Init(&unity.tracker, UnityUpdateCallbackFn);
 
    /*
+    * Initialize the update channel.
+    */
+   if (UnityUpdateChannelInit(&unity.updateChannel) == FALSE) {
+      Warning("%s: Unable to initialize Unity update channel.\n", __FUNCTION__);
+      return;
+   }
+
+   /*
     * Initialize the host-specific portion of the unity service.
     */
-   unity.up = UnityPlatformInit(&unity.tracker, blockedWnd);
+   unity.up = UnityPlatformInit(&unity.tracker, &unity.updateChannel, blockedWnd);
 
    /*
     * Init our global dynbuf used to send results back.
@@ -323,20 +332,20 @@ Unity_Cleanup(void)
 
    Debug("%s\n", __FUNCTION__);
 
+
    /*
     * Exit Unity.
     */
-
    Unity_Exit();
 
    /*
     * Do one-time final platform-specific cleanup.
     */
-
    up = unity.up;
    unity.up = NULL;
    UnityPlatformCleanup(up);
 
+   UnityUpdateChannelCleanup(&unity.updateChannel);
    UnityWindowTracker_Cleanup(&unity.tracker);
    DynBuf_Destroy(&gTcloUpdate);
 }
@@ -973,31 +982,36 @@ UnityTcloGetUpdate(char const **result,     // OUT
                    size_t argsSize,         // ignored
                    void *clientData)        // ignored
 {
-   DynBuf *buf = &gTcloUpdate;
-   uint32 flags = 0;
+   Bool incremental = FALSE;
 
-   // Debug("UnityTcloGetUpdate name:%s args:'%s'", name, args);
+   Debug("UnityTcloGetUpdate name:%s args:'%s'", name, args);
 
    /*
     * Specify incremental or non-incremetal updates based on whether or
     * not the client set the "incremental" arg.
     */
    if (strstr(name, "incremental")) {
-      flags |= UNITY_UPDATE_INCREMENTAL;
+      incremental = TRUE;
    }
 
-   DynBuf_SetSize(buf, 0);
-
-   UnityGetUpdateCommon(flags, buf);
+   /*
+    * Call into platform-specific implementation to gather and send updates
+    * back via RPCI.  (This is done to ensure all updates are sent to the
+    * Unity server in sequence via the same channel.)
+    */
+   UnityPlatformDoUpdate(unity.up, incremental);
 
    /*
-    * Write the final result into the result out parameters.
+    * To maintain compatibility, we'll return a successful but empty response.
     */
-   *result = (char *)DynBuf_Get(buf);
-   *resultLen = DynBuf_GetSize(buf);
+   *result = "";
+   *resultLen = 0;
 
    /*
     * Give the debugger a crack to do something interesting at this point
+    *
+    * XXX Not sure if this is worth keeping around since this routine no
+    * longer returns updates directly.
     */
    UnityDebug_OnUpdate();
 
@@ -1219,7 +1233,7 @@ UnityUpdateCallbackFn(void *param,          // IN: dynbuf
 /*
  *-----------------------------------------------------------------------------
  *
- * UnityUpdateThreadInit --
+ * UnityUpdateChannelInit --
  *
  *      Initialize the state for the update thread.
  *
@@ -1235,34 +1249,33 @@ UnityUpdateCallbackFn(void *param,          // IN: dynbuf
  */
 
 Bool
-UnityUpdateThreadInit(UnityUpdateThreadData *updateData) // IN
+UnityUpdateChannelInit(UnityUpdateChannel *updateChannel) // IN
 {
-   ASSERT(updateData);
+   ASSERT(updateChannel);
 
-   updateData->flags = UNITY_UPDATE_INCREMENTAL;
-   updateData->rpcOut = NULL;
-   updateData->cmdSize = 0;
+   updateChannel->rpcOut = NULL;
+   updateChannel->cmdSize = 0;
 
-   DynBuf_Init(&updateData->updates);
-   DynBuf_AppendString(&updateData->updates, UNITY_RPC_PUSH_UPDATE_CMD " ");
+   DynBuf_Init(&updateChannel->updates);
+   DynBuf_AppendString(&updateChannel->updates, UNITY_RPC_PUSH_UPDATE_CMD " ");
 
    /* Exclude the null. */
-   updateData->cmdSize = DynBuf_GetSize(&updateData->updates) - 1;
+   updateChannel->cmdSize = DynBuf_GetSize(&updateChannel->updates) - 1;
 
-   updateData->rpcOut = RpcOut_Construct();
-   if (updateData->rpcOut == NULL) {
+   updateChannel->rpcOut = RpcOut_Construct();
+   if (updateChannel->rpcOut == NULL) {
       goto error;
    }
 
-   if (!RpcOut_start(updateData->rpcOut)) {
-      RpcOut_Destruct(updateData->rpcOut);
+   if (!RpcOut_start(updateChannel->rpcOut)) {
+      RpcOut_Destruct(updateChannel->rpcOut);
       goto error;
    }
 
    return TRUE;
 
 error:
-   DynBuf_Destroy(&updateData->updates);
+   DynBuf_Destroy(&updateChannel->updates);
 
    return FALSE;
 }
@@ -1271,7 +1284,7 @@ error:
 /*
  *-----------------------------------------------------------------------------
  *
- * UnityUpdateThreadCleanup --
+ * UnityUpdateChannelCleanup --
  *
  *      Cleanup the unity update thread state.
  *
@@ -1286,18 +1299,56 @@ error:
  */
 
 void
-UnityUpdateThreadCleanup(UnityUpdateThreadData *updateData) // IN
+UnityUpdateChannelCleanup(UnityUpdateChannel *updateChannel) // IN
 {
-   ASSERT(updateData);
+   if (updateChannel && updateChannel->rpcOut) {
+      RpcOut_stop(updateChannel->rpcOut);
+      RpcOut_Destruct(updateChannel->rpcOut);
+      updateChannel->rpcOut = NULL;
 
-   if (updateData->rpcOut) {
-      RpcOut_stop(updateData->rpcOut);
-      RpcOut_Destruct(updateData->rpcOut);
-      updateData->rpcOut = NULL;
-
-      DynBuf_Destroy(&updateData->updates); // Avoid double-free by guarding this as well
+      DynBuf_Destroy(&updateChannel->updates); // Avoid double-free by guarding this as well
    }
 }
+
+
+#ifdef VMX86_DEVEL
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DumpUpdate --
+ *
+ *      Prints a Unity update via debug output.  NUL is represented as '!'.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+DumpUpdate(UnityUpdateChannel *updateChannel)   // IN
+{
+   int i, len;
+   char *buf = NULL;
+
+   len = updateChannel->updates.size;
+   buf = Util_SafeMalloc(len + 1);
+   memcpy(buf, updateChannel->updates.data, len);
+   buf[len] = '\0';
+   for (i = 0 ; i < len; i++) {
+      if (buf[i] == '\0') {
+         buf[i] = '!';
+      }
+   }
+
+   Debug("%s: Sending update: %s\n", __FUNCTION__, buf);
+
+   free(buf);
+}
+#endif // ifdef VMX86_DEVEL
 
 
 /*
@@ -1306,7 +1357,7 @@ UnityUpdateThreadCleanup(UnityUpdateThreadData *updateData) // IN
  * UnitySendUpdates --
  *
  *      Gather and send a round of unity updates. The caller is responsible
- *      for gathering updates into updateData->updates buffer prior to the
+ *      for gathering updates into updateChannel->updates buffer prior to the
  *      function call. This function should only be called if there's data
  *      in the update buffer to avoid sending empty update string to the VMX.
  *
@@ -1321,21 +1372,25 @@ UnityUpdateThreadCleanup(UnityUpdateThreadData *updateData) // IN
  */
 
 Bool
-UnitySendUpdates(UnityUpdateThreadData *updateData) // IN
+UnitySendUpdates(UnityUpdateChannel *updateChannel) // IN
 {
    char const *myReply;
    size_t myRepLen;
    Bool retry = FALSE;
 
-   ASSERT(updateData);
-   ASSERT(updateData->rpcOut);
+   ASSERT(updateChannel);
+   ASSERT(updateChannel->rpcOut);
 
    /* Send 'tools.unity.push.update <updates>' to the VMX. */
 
+#ifdef VMX86_DEVEL
+   DumpUpdate(updateChannel);
+#endif
+
 retry_send:
-   if (!RpcOut_send(updateData->rpcOut,
-                    (char *)DynBuf_Get(&updateData->updates),
-                    DynBuf_GetSize(&updateData->updates),
+   if (!RpcOut_send(updateChannel->rpcOut,
+                    (char *)DynBuf_Get(&updateChannel->updates),
+                    DynBuf_GetSize(&updateChannel->updates),
                     &myReply, &myRepLen)) {
 
       /*
@@ -1348,8 +1403,8 @@ retry_send:
       if (!retry) {
          retry = TRUE;
          Debug("%s: could not send rpc. Reopening channel.\n", __FUNCTION__);
-         RpcOut_stop(updateData->rpcOut);
-         if (!RpcOut_start(updateData->rpcOut)) {
+         RpcOut_stop(updateChannel->rpcOut);
+         if (!RpcOut_start(updateChannel->rpcOut)) {
             Debug("%s: could not reopen rpc channel. Exiting...\n", __FUNCTION__);
             return FALSE;
          }

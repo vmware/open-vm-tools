@@ -47,13 +47,13 @@ class CopyPasteUI : public sigc::trackable
 public:
    CopyPasteUI();
    virtual ~CopyPasteUI();
+   void Init();
    void VmxCopyPasteVersionChanged(struct RpcIn *rpcIn,
                                    uint32 version);
    void SetCopyPasteAllowed(bool isCopyPasteAllowed)
       { mCP.SetCopyPasteAllowed(isCopyPasteAllowed); }
    void Reset(void);
-   bool GetLocalFiles(void);
-
+   void SetBlockFd(int fd) {Debug("Setting mBlockFd to %d\n", fd); mBlockFd = fd;};
 private:
 
    /* hg */
@@ -81,7 +81,7 @@ private:
    // Member variables
    CopyPaste mCP;
    bool mClipboardEmpty;
-   std::string mHGStagingDir;
+   utf::string mHGStagingDir;
    std::list<Gtk::TargetEntry> mListTargets;
    bool mIsClipboardOwner;
    uint64 mClipTime;
@@ -92,10 +92,14 @@ private:
    CPClipboard mClipboard;
 
    /* File vars. */
-   bool mHGGetFilesInitated;
+   bool mHGGetFilesInitiated;
    VmTimeType mHGGetListTime;
    utf::string mHGCopiedUriList;
    utf::utf8string mHGFCPData;
+   bool mFileTransferDone;
+   bool mBlockAdded;
+   int mBlockFd;
+   bool mInited;
 };
 
 #endif // COPYPASTE_UI_H
