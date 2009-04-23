@@ -142,11 +142,9 @@ RpcDebugStart(RpcChannel *chan)
  * messages to send.
  *
  * @param[in]  chan  Unused.
- *
- * @return TRUE.
  */
 
-static Bool
+static void
 RpcDebugStop(RpcChannel *chan)
 {
    DbgChannelData *data = chan->_private;
@@ -154,7 +152,6 @@ RpcDebugStop(RpcChannel *chan)
       g_source_unref(data->msgTimer);
       data->msgTimer = NULL;
    }
-   return TRUE;
 }
 
 
@@ -262,11 +259,9 @@ exit:
  * Does nothing.
  *
  * @param[in]  chan     The RPC channel instance.
- *
- * @return TRUE.
  */
 
-static Bool
+static void
 RpcDebugShutdown(RpcChannel *chan)
 {
    DbgChannelData *cdata = chan->_private;
@@ -275,7 +270,6 @@ RpcDebugShutdown(RpcChannel *chan)
       RpcDebug_DecRef(chan->appCtx);
    }
    g_free(chan->_private);
-   return TRUE;
 }
 
 

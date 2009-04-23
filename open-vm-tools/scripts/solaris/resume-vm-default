@@ -25,13 +25,6 @@
 echo `date` ": Executing '$0'"
 echo
 
-scriptsdir="`dirname $0`/scripts/`basename $0`.d"
-if [ -d "$scriptsdir" ]; then
-   for scriptfile in "$scriptsdir"/*; do
-      [ -x "$scriptfile" ] && "$scriptfile" resume-vm
-   done
-fi
-
 ACTIVELIST=/var/run/vmware-active-nics
 
 if [ -f $ACTIVELIST ] ; then
@@ -41,3 +34,11 @@ if [ -f $ACTIVELIST ] ; then
    done
    rm $ACTIVELIST
 fi
+
+scriptsdir="`dirname $0`/scripts/`basename $0`.d"
+if [ -d "$scriptsdir" ]; then
+   for scriptfile in "$scriptsdir"/*; do
+      [ -x "$scriptfile" ] && "$scriptfile" resume-vm
+   done
+fi
+

@@ -69,17 +69,17 @@ endif
 
 CC_OPTS := -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS) 
 
-INCLUDE := -I$(SRCROOT)/include
+INCLUDE += -I$(SRCROOT)/include
 INCLUDE += -I$(SRCROOT)/linux
 INCLUDE += -I$(SRCROOT)/common
 INCLUDE += -I$(HEADER_DIR)
 
-INCLUDE += $(shell $(CC) $(INCLUDE) -E $(SRCROOT)/autoconf/geninclude.c \
+INCLUDE += $(shell $(CC) $(INCLUDE) -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/skas1.c,   -DVMW_SKAS_MMAP, )
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c,   -DVMW_HAVE_EPOLL, )
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/skas1.c,   -DVMW_SKAS_MMAP, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPOLL, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
 CC_OPTS += -DVMW_KMEMCR_HAS_DTOR
 
 LINUX_OBJS := module.o

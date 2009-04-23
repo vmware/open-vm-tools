@@ -81,7 +81,6 @@ DWORD System_GetServiceState(LPCWSTR szServiceName);
  */
 #if !defined(_WIN32) && !defined(N_PLAT_NLM)
 Bool System_WritePidFile(const char *fileName, pid_t pid);
-Bool System_Daemon(Bool nochdir, Bool noclose, const char *pidFile);
 const char **System_GetNativeEnviron(const char **compatEnviron);
 void System_FreeNativeEnviron(const char **nativeEnviron);
 int System_UnsetEnv(const char *variableName);

@@ -84,7 +84,6 @@ else
 endif
 SUBDIRS += user
 SUBDIRS += vixTools
-SUBDIRS += vmBackupLib
 SUBDIRS += vmCheck
 SUBDIRS += vmSignal
 SUBDIRS += wiper

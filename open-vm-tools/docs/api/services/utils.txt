@@ -1,0 +1,93 @@
+/*********************************************************
+ * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of VMware Inc. nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission of VMware Inc.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *********************************************************/
+
+/**
+
+@defgroup vmtools_utils Utility Functions
+
+@brief A collection of useful functions for when writing applications.
+
+This module contains functions for loading configuration data, logging, and
+extensions to the glib API that are useful when writing applications.
+
+@section vmtools_utils_log Configuring Logging
+
+Logging is configurable on a per-domain basis. The configuration options
+for each domain are:
+
+   - level: minimum log level to log. Also used to declare specific log
+     domain configurations.
+     - Valid values: error, critical, warning, message, info, debug, none
+     - This value is required when configuring a domain.
+   - handler: the handler to use when logging.
+     - Valid values: std, outputdebugstring (Win32-only), file
+     - Default: "std" on Unix, "outputdebugstring" on Windows.
+   - data: optional configuration data for the handler.
+     - Required for the "file" handler (path to log file).
+
+Logging configuration should be under the "[logging]" group in the
+application's configuration file.
+
+Each application can specify a default log domain (which defaults to
+"vmtools"). If no handler is specified for a particular domain when
+logging, the default handler will be used. The default logging level
+for the default domain is "warning" in non-debug builds, and "message"
+in debug builds.
+
+Example of logging configuration in the config file:
+
+@verbatim
+[logging]
+# Turns on logging globally. It can still be disabled for each domain.
+log = true
+
+# Disables core dumps on fatal errors; they're enabled by default.
+enableCoreDump = false
+
+# Defines the "vmsvc" domain, logging to stdout/stderr.
+vmsvc.level = info
+vmsvc.handler = std
+
+# Defines the "unity" domain, logging to a file.
+unity.level = warning
+unity.handler = file
+unity.data = /tmp/unity.log
+
+# Defines the "vmtoolsd" domain, and disable logging for it.
+vmtoolsd.level = none
+@endverbatim
+
+Log file names can contain variable references. Currently, only two variables
+are expanded: @a ${USER} expands to the current user's login name, and @a ${PID}
+expands to the current process's ID. So, for example, @a log.${USER}.${PID}.txt
+would expand to "log.jdoe.1234.txt" for user "jdoe" if the process ID were 1234.
+
+*/
+

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2009 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -187,7 +187,7 @@ typedef char      int8;
 #endif
 
 #ifdef __FreeBSD__
-#include <sys/param.h> /* For __FreeBSD_version */         
+#include <sys/param.h> /* For __FreeBSD_version */
 #endif
 
 #if !defined(USING_AUTOCONF)
@@ -195,8 +195,10 @@ typedef char      int8;
 #      ifdef KLD_MODULE
 #         include <sys/types.h>
 #      else
-#         if !defined(VMKERNEL) && (__FreeBSD_version >= 500043)
-#            include <inttypes.h>
+#         if __FreeBSD_version >= 500043
+#            if !defined(VMKERNEL)
+#               include <inttypes.h>
+#            endif
 #            include <sys/types.h>
 #         else
 #            include <sys/inttypes.h>
@@ -369,6 +371,18 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
     #define CONST3264(a) (a)
     #define CONST3264U(a) (a)
 #endif
+
+#define MIN_INT8   ((int8)0x80)
+#define MAX_INT8   ((int8)0x7f)
+
+#define MIN_UINT8  ((uint8)0)
+#define MAX_UINT8  ((uint8)0xff)
+
+#define MIN_INT16  ((int16)0x8000)
+#define MAX_INT16  ((int16)0x7fff)
+
+#define MIN_UINT16 ((uint16)0)
+#define MAX_UINT16 ((uint16)0xffff)
 
 #define MIN_INT32  ((int32)0x80000000)
 #define MAX_INT32  ((int32)0x7fffffff)
@@ -748,9 +762,9 @@ typedef void * UserVA;
  ***********************************************************************
  * STRUCT_OFFSET_CHECK --                                    */ /**
  *
- * \brief Check if the actual offsef of a member in a structure 
+ * \brief Check if the actual offsef of a member in a structure
  *        is what is expected
- * 
+ *
  *
  * \param[in]  STRUCT       Structure the member is a part of.
  * \param[in]  MEMBER       Member to check the offset of.
@@ -773,7 +787,7 @@ typedef void * UserVA;
  * STRUCT_SIZE_CHECK --                                      */ /**
  *
  * \brief Check if the actual size of a structure is what is expected
- * 
+ *
  *
  * \param[in]  STRUCT       Structure whose size is to be checked.
  * \param[in]  SIZE         Expected size of STRUCT.

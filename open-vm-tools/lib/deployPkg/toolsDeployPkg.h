@@ -24,9 +24,9 @@
 
 
 /*
- * toolsDeployPkg.h 
+ * toolsDeployPkg.h
  *
- *   -- Define constants & exported methods related to tools package deployment.
+ *   -- Define constants related to tools package deployment.
  */
 
 typedef enum {
@@ -46,8 +46,5 @@ typedef enum {
    TOOLSDEPLOYPKG_ERROR_COPY_FAILED,
    TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
 } ToolsDeployPkgError;
-
-Bool ToolsDeployPkg_PowerOn(void);
-void ToolsDeployPkg_Begin(void);
 
 #endif //__TOOLS_DEPLOYPKG_H_

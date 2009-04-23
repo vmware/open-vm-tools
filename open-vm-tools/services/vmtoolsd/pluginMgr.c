@@ -165,7 +165,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
 
       module = g_module_open(path, G_MODULE_BIND_LOCAL);
       if (module == NULL) {
-         g_warning("Opening plugin '%s' failed.\n", entry);
+         g_warning("Opening plugin '%s' failed: %s.\n", entry, g_module_error());
          goto next;
       }
 

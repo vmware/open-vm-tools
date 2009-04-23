@@ -1,0 +1,68 @@
+/*********************************************************
+ * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of VMware Inc. nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission of VMware Inc.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *********************************************************/
+
+/**
+
+@defgroup vmtools_debug Debugging Tools Plugins
+
+@brief Defines functions and interfaces for debugging Tools plugins.
+
+This module provides functions for writing "debug plugins" - plugins which
+provide functionality for driving the Tools Services when they're running in
+"debug mode". Debug plugins are dynamically loaded by providing specific
+command-line options to the Tools service process.
+
+@section vmtools_debug_how How debug plugins work
+
+Currently, there's only support for GuestRPC-based debug plugins.
+
+The debug library implements an RPC channel that can be driven by a debug
+plugin, according to information provided by the plugin at load time.
+
+The debug plugin can provide two types of information:
+
+   - RPCs to be sent to the application: these are input to the application,
+     and can be tied to a validation function to make sure the response from
+     the application is correct.
+
+   - Validation functions for "outgoing" RPCs: these are functions called in
+     response to RPCs initiated by the applications; they can be mapped to
+     specific RPC command strings, to make writing the plugin easier.
+
+For more details, check the RpcDebugPlugin data structure.
+
+Plugins that depend on events that are not only responses to RPC messages (such
+as timer-based outgoing RPCs) should make sure they tell the library that it
+should not stop running by incrementing its ref count (see RpcDebug_IncRef()).
+When the test is complete, the code can then call RpcDebug_DecRef() and, when
+the ref count reaches zero, the main application loop will be stopped.
+
+*/
+

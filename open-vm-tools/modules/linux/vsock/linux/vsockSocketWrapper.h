@@ -40,7 +40,11 @@
 #  endif
 #endif
 
-#if defined(_WIN32) || defined(VMKERNEL)
+#if defined __APPLE__
+#  define MSG_NOSIGNAL			0
+#endif // __APPLE__
+
+#if defined(_WIN32) || defined(VMKERNEL) || defined __APPLE__
 #  define SS_FREE             0
 #  define SS_UNCONNECTED      1
 #  define SS_CONNECTING       2
@@ -62,7 +66,7 @@
 #  define SOCKET_EVENT_CONNECT FD_CONNECT
 #  define SOCKET_EVENT_CLOSE   FD_CLOSE
 #else
-#if defined(VMKERNEL)
+#if defined(VMKERNEL)  || defined(__APPLE__)
 #  define SOCKET_EVENT_READ    0x1
 #  define SOCKET_EVENT_WRITE   0x2
 #  define SOCKET_EVENT_ACCEPT  0x8
@@ -168,6 +172,12 @@
 #  define __ELOCALSHUTDOWN    EPIPE
 #  define __EPEERSHUTDOWN     EPIPE
 #  define __ECONNINPROGRESS   EINPROGRESS
+#else
+#if defined(__APPLE__)
+#  define __ELOCALSHUTDOWN    ESHUTDOWN
+#  define __EPEERSHUTDOWN     ECONNABORTED
+#  define __ECONNINPROGRESS   EINPROGRESS
+#endif // __APPLE
 #endif // VMKERNEL
 #endif // _WIN32
 
@@ -188,13 +198,17 @@
 #  define closesocket(_s)     close((_s))
    typedef int32              SOCKET;
 #else
-#if defined(linux)
+#if defined(linux) || defined(__APPLE__)
 #  define SOCKET_ERROR        (-1)
 #  define INVALID_SOCKET      ((SOCKET) -1)
 #  define sockerr()           errno
 #  define sockerr2err(_e)     (((_e) > 0) ? -(_e) : (_e))
 #  define sockcleanup()       do {} while (0)
+#if defined(linux)
 #  define closesocket(_s)     close((_s))
+#else
+#  define closesocket(_s)	VMCISock_close(_s)
+#endif
    typedef int32              SOCKET;
 #endif // linux
 #endif // VMKERNEL

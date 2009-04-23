@@ -38,25 +38,9 @@
 #  define VMCI_SOCKETS_AF_VALUE 28
 #  if defined(WINNT_DDK)
 #     define _WIN2K_COMPAT_SLIST_USAGE
-      /*
-       * wdm.h has to come first, otherwise NTDDI_VERSION gets all confused
-       * and we start pulling in the wrong versions of the Ke() routines.
-       */
-#     include <wdm.h>
 #     include <ntddk.h>
 #     include <windef.h>
-      /*
-       * Using ntifs.h for these functions does not play nicely with having
-       * wdm.h first.  So rather than include that header, we pull these in
-       * directly.
-       */
-      NTKERNELAPI HANDLE PsGetCurrentProcessId(VOID);
-      NTKERNELAPI NTSTATUS PsSetCreateProcessNotifyRoutine(
-         PCREATE_PROCESS_NOTIFY_ROUTINE, BOOLEAN);
-      NTSYSAPI NTSTATUS NTAPI
-         ZwWaitForSingleObject(HANDLE, BOOLEAN, PLARGE_INTEGER);
 #     define _INC_WINDOWS
-#     include "vmci_queue_pair.h"
       /* In the kernel we can't call into the provider. */
 #     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  else // WINNT_DDK
@@ -94,6 +78,24 @@
       /* In userland, just use the normal exported userlevel api. */
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #  endif
+#else
+#if defined(__APPLE__)
+#  if defined(KERNEL)
+#     include "vmci_queue_pair.h"
+
+/*
+ * XXX: These defines are NOT 64 bit safe - they need to be revisited as part
+ * of any work to support 64 bit kernels.
+ */
+#     define Uint64ToPtr(_ui) ((void *)(uint32)(_ui))
+#     define PtrToUint64(_p)  ((uint64)(_p))
+
+#     define VMCI_SOCKETS_AF_VALUE PF_SYSTEM
+#     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
+#  else // KERNEL
+#     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
+#  endif // KERNEL
+#endif // __APPLE__
 #endif // linux
 #endif // VMKERNEL
 #endif // _WIN32
@@ -102,8 +104,13 @@
 #include "vmware_pack_init.h"
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
+#include "vmci_sockets_int.h"
 #include "vmci_sockets.h"
-#include "vmci_sockets_kernel.h"
+
+#if defined(WINNT_DDK)
+#  include <winsock2.h>
+#endif // WINNT_DDK
+
 #include "vsockAddr.h"
 #include "vsockSocketWrapper.h"
 

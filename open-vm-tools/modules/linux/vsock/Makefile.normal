@@ -68,20 +68,20 @@ endif
 
 CC_OPTS := -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS) 
 
-INCLUDE := -I$(SRCROOT)/include
+INCLUDE += -I$(SRCROOT)/include
 INCLUDE += -I$(SRCROOT)/linux
 INCLUDE += -I$(SRCROOT)/common
 INCLUDE += -I$(HEADER_DIR)
 
-INCLUDE += $(shell $(CC) $(INCLUDE) -E $(SRCROOT)/autoconf/geninclude.c \
+INCLUDE += $(shell $(CC) $(INCLUDE) -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/skas1.c,   -DVMW_SKAS_MMAP, )
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c,   -DVMW_HAVE_EPOLL, )
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/skas1.c,   -DVMW_SKAS_MMAP, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPOLL, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
 
 # This test is inverted.
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/sk_filter.c,, -DVMW_HAVE_NEW_SKFILTER )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/sk_filter.c,, -DVMW_HAVE_NEW_SKFILTER )
 
 CC_OPTS += -DVMW_KMEMCR_HAS_DTOR
 
@@ -91,6 +91,14 @@ LINUX_OBJS += util.o
 LINUX_OBJS += driverLog.o
 LINUX_DEPS := ${LINUX_OBJS:.o=.d}
 OBJS := $(LINUX_OBJS)
+
+ifdef OVT_SOURCE_PATH
+driverLog.o: $(OVT_SOURCE_DIR)/modules/linux/shared/driverLog.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+else
+driverLog.o: shared/driverLog.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+endif
 
 ####
 #### Make Targets are beneath here.

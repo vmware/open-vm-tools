@@ -209,6 +209,7 @@
    LOGLEVEL_VAR(objc), /* lib/objc */ \
    LOGLEVEL_VAR(blit), /* lib/blit */ \
    LOGLEVEL_VAR(vmnetBridge), \
+   LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

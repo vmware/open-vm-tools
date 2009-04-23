@@ -83,13 +83,6 @@ Conf_Load(void)
    // don't free path; it's used by the dict
    
    /* Set default conf values */
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_HALT, CONFVAL_HALT_DEFAULT);
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_REBOOT, CONFVAL_REBOOT_DEFAULT);
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_MOUNT_POINT,
-			        CONFVAL_MOUNT_POINT_DEFAULT);
-#endif
-   
    path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
                        CONFVAL_POWERONSCRIPT_DEFAULT);
    ASSERT_NOT_IMPLEMENTED(path);

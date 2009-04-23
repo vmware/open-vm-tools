@@ -225,6 +225,10 @@ VixError VixPropertyList_Deserialize(VixPropertyListImpl *propListImpl,
                                      const char *buffer,
                                      size_t bufferSize);
  
+VixError VixPropertyList_DeserializeNoClobber(VixPropertyListImpl *propListImpl,
+                                              const char *buffer,
+                                              size_t bufferSize);
+
 VixError VixPropertyList_GetString(struct VixPropertyListImpl *propList,
                                    int propertyID,
                                    int index,

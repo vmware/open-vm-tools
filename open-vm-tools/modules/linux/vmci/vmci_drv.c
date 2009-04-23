@@ -522,7 +522,7 @@ vmci_ioctl(struct inode *inode,  // IN
          break;
       }
       ASSERT(!devHndl->obj);
-      retval = VMCIProcess_Create((VMCIProcess **) &devHndl->obj, -1);
+      retval = VMCIProcess_Create((VMCIProcess **) &devHndl->obj);
       if (retval != 0) {
          printk("VMCI: Failed to create process.\n");
          break;

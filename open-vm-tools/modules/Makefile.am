@@ -6,7 +6,8 @@ modules: $(MODULES)
 modulesrc = $(top_srcdir)/modules
 
 $(MODULES):
-	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) MV=mv RM=rm $(EXTRA_ARGS) \
+	$(MAKE) VM_UNAME=$(KERNEL_RELEASE) MV=mv RM=rm    \
+	   OVT_SOURCE_DIR=$(abs_top_srcdir) $(EXTRA_ARGS) \
 	   -C "$(modulesrc)/$(MODULES_OS)/$@"
 
 if FREEBSD_CUSTOM_SYSDIR

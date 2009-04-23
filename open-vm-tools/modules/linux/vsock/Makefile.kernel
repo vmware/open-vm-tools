@@ -20,17 +20,17 @@
 vm_product_defines = $(if $(findstring tools,$(1)), -DVMX86_TOOLS,)
 CC_OPTS += $(call vm_product_defines, $(PRODUCT))
 
-INCLUDE := -I.
-INCLUDE := -I$(SRCROOT)/include
+INCLUDE += -I.
+INCLUDE += -I$(SRCROOT)/include
 INCLUDE += -I$(SRCROOT)/linux
 INCLUDE += -I$(SRCROOT)/common
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c,   -DVMW_HAVE_EPOLL, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPOLL, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
 
 # This test is inverted.
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/sk_filter.c,, -DVMW_HAVE_NEW_SKFILTER )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/sk_filter.c,, -DVMW_HAVE_NEW_SKFILTER )
 
 T := /tmp
 MODPOST_VMCI_SYMVERS := $(wildcard $(T)/VMwareVMCIModule.symvers)
@@ -38,6 +38,22 @@ MODPOST_VMCI_SYMVERS := $(wildcard $(T)/VMwareVMCIModule.symvers)
 obj-m += $(DRIVER).o
 
 $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)/linux/*.c)))
+
+#
+# In open-vm-tools, need to compile the common sources from the shared directory.
+#
+DRIVERLOG   := driverLog.o
+$(DRIVER)-y += $(DRIVERLOG)
+
+VSOCK_PATH  := $(shell cd $(SRCROOT) && pwd)
+ifdef OVT_SOURCE_DIR
+DRIVERLOG_PATH := $(OVT_SOURCE_DIR)/modules/linux/shared
+else
+DRIVERLOG_PATH := $(VSOCK_PATH)/shared
+endif
+
+$(addprefix $(VSOCK_PATH)/,$(DRIVERLOG)): $(VSOCK_PATH)/%.o: $(DRIVERLOG_PATH)/%.c
+	$(Q)$(rule_cc_o_c)
 
 clean:
 	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \

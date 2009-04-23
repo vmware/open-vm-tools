@@ -57,7 +57,8 @@ typedef enum {
    HGFSU_CAP_DESKTOP_SHORTCUT           = 12, // supports creating HGFS link on GOS Desktop
    HGFSU_CAP_MAP_DRIVE                  = 13, // supports mapping a GOS drive letter to HGFS
    GHI_CAP_SET_HANDLER                  = 14, // supports setting the handler for types/protocols
-   UNITY_CAP_STATUS_UNITY_ACTIVE        = 15, // supports GuestRpc bits for Unity Status 
+   UNITY_CAP_STATUS_UNITY_ACTIVE        = 15, // supports GuestRpc bits for Unity Status
+   GHI_CAP_SET_OUTLOOK_TEMP_FOLDER      = 16  // supports setting the Outlook temp folder
 } GuestCapabilities;
 
 typedef struct {
@@ -82,9 +83,9 @@ typedef struct {
  */
 
 /*
- * This table must be sorted such that it can be indexed using the 
+ * This table must be sorted such that it can be indexed using the
  * GuestCapabilities enum above. RPC calls pass the value, and the
- * handler code uses it as an index. In other words, the value of the 
+ * handler code uses it as an index. In other words, the value of the
  * caps field at index i must be equal to i as well. This is because
  * the code that looks up entries in this table assume as much. It
  * also means we don't need the cap field, or, to justify its existence,
@@ -114,6 +115,7 @@ static GuestCapElem guestCapTable[] = {
    { HGFSU_CAP_MAP_DRIVE,                  HGFSU_CAP_VMDB_PATH, "mapDrive" },
    { GHI_CAP_SET_HANDLER,                  GHI_CAP_VMDB_PATH,   "setHandler" },
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
+   { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" }
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

@@ -399,8 +399,8 @@ DnD::OnHGDrop(void)
          return;
       }
 
-      mRpc->HGDropDone(cpName, cpNameSize);
       sourceDropChanged.emit();
+      mRpc->HGDropDone(cpName, cpNameSize);
    } else {
       /* For non-file formats, the DnD is done. Hide detection window. */
       updateDetWndChanged.emit(false, 0, 0);
@@ -723,5 +723,6 @@ DnD::ResetDnD(void)
 {
    OnHGCancel();
    OnGHCancel();
+   reset.emit();
 }
 

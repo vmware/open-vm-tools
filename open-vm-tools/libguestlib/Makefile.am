@@ -21,19 +21,10 @@ AM_CFLAGS =
 AM_CFLAGS += -I$(top_builddir)/include
 
 libguestlib_la_LIBADD =
-libguestlib_la_LIBADD += ../lib/rpcOut/libRpcOut.la
-libguestlib_la_LIBADD += ../lib/string/libString.la
-libguestlib_la_LIBADD += ../lib/stubs/libStubs.la
-# In the absence of the linker options --start-group and --end-group (which can't
-# be put in LDADD), we need to bring the following libraries out of the alphebetical
-# order so their symbols are properly resolved.
-libguestlib_la_LIBADD += ../lib/message/libMessage.la
-libguestlib_la_LIBADD += ../lib/backdoor/libBackdoor.la
-libguestlib_la_LIBADD += ../lib/guestRpc/libGuestRpc.la
+libguestlib_la_LIBADD += @VMTOOLS_LIBS@
 
 libguestlib_la_SOURCES =
 libguestlib_la_SOURCES += vmGuestLib.c
-libguestlib_la_SOURCES += vmGuestLibPanic.c
 
 libguestlib_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.

@@ -277,7 +277,7 @@ static void
 DiskHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
    printf("disk: perform disk shrink operations\n"
-          "Usage: %s shrink <subcommand> [args]\n\n"
+          "Usage: %s disk <subcommand> [args]\n\n"
           "Subcommands\n"
           "   list: list available mountpoints\n"
           "   shrink <mount-point>: shrinks a file system at the given mountpoint\n",

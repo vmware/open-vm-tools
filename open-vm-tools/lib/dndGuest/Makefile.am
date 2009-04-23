@@ -32,4 +32,5 @@ libDndGuest_la_SOURCES  += copyPaste.cc
 libDndGuest_la_SOURCES  += copyPasteRpcV3.cc
 libDndGuest_la_SOURCES  += dnd.cc
 libDndGuest_la_SOURCES  += dndFileList.cc
+libDndGuest_la_SOURCES  += dndRpcV3.cc
 libDndGuest_la_SOURCES  += dndTransportGuestRpc.cc

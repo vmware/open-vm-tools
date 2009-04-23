@@ -1,3 +1,19 @@
+open-vm-tools 2009.04.23 changes:
+	* Implemented copy & paste support for RTF data and file contents.
+
+	* guestd has been removed from open-vm-tools; vmtoolsd is now the only
+	option for the main tools service.
+
+	* Added vmblock and vmmemctl modules for Solaris (under the CDDL).
+
+	* vmware-user can now work with both vmblock-fuse and vmblock.
+
+	* Linux HGFS now has a stream-based (TCP, vsock) transport, still under
+	development.
+
+	* First batch of changes to cleanup duplicated files in the source tree.
+	Most duplicated files in the Linux kernel modules have been cleaned up.
+
 open-vm-tools 2009.03.18 changes:
 	* Mostly a bug fix release.
 

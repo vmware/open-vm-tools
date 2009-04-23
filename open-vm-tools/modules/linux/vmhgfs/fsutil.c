@@ -825,7 +825,7 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
 
   retry:
 
-   opUsed = atomic_read(&hgfsVersionGetattr);
+   opUsed = hgfsVersionGetattr;
    result = HgfsPackGetattrRequest(req, dentry, allowHandleReuse, opUsed, attr);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: no attrs\n"));
@@ -872,12 +872,12 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
          if (attr->requestType == HGFS_OP_GETATTR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: Version 3 "
                     "not supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR_V2);
+            hgfsVersionGetattr = HGFS_OP_GETATTR_V2;
             goto retry;
          } else if (attr->requestType == HGFS_OP_GETATTR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateGetattr: Version 2 "
                     "not supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionGetattr, HGFS_OP_GETATTR);
+            hgfsVersionGetattr = HGFS_OP_GETATTR;
             goto retry;
          }
 

@@ -88,13 +88,6 @@ rescue_NIC() {
 # main
 #
 
-scriptsdir="`dirname $0`/scripts/`basename $0`.d"
-if [ -d "$scriptsdir" ]; then
-    for scriptfile in "$scriptsdir"/*; do
-	[ -x "$scriptfile" ] && "$scriptfile" resume-vm
-    done
-fi
-
 network=`find_networking_script`
 if [ "$network" != "error" ]; then
    "$network" restart
@@ -107,6 +100,13 @@ fi
 
 if [ $status -eq 0 ]; then
     rescue_NIC
+fi
+
+scriptsdir="`dirname $0`/scripts/`basename $0`.d"
+if [ -d "$scriptsdir" ]; then
+    for scriptfile in "$scriptsdir"/*; do
+	[ -x "$scriptfile" ] && "$scriptfile" resume-vm
+    done
 fi
 
 exit "$status"

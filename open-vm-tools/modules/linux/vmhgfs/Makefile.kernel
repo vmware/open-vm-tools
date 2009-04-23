@@ -21,21 +21,26 @@
 ####  VMware vmhgfs Makefile to be distributed externally
 ####
 
-INCLUDE := -I.
+INCLUDE += -I.
+
+ifdef OVT_SOURCE_DIR
+INCLUDE += -I$(call VMLIB_PATH,backdoor)
+INCLUDE += -I$(call VMLIB_PATH,hgfs)
+endif
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c, -DVMW_HAVE_EPOLL, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/maxbytes.c, -DVMW_SB_HAS_MAXBYTES, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c, -DVMW_HAVE_EPOLL, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/maxbytes.c, -DVMW_SB_HAS_MAXBYTES, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
 
 # Note: These tests are inverted
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/getsb1.c,, -DVMW_GETSB_2618)
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/statfs1.c,, -DVMW_STATFS_2618)
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/inode1.c,, -DVMW_INODE_2618)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/getsb1.c,, -DVMW_GETSB_2618)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/statfs1.c,, -DVMW_STATFS_2618)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/inode1.c,, -DVMW_INODE_2618)
 
 obj-m += $(DRIVER).o
 

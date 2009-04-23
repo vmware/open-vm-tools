@@ -1,0 +1,5 @@
+The files in this directory are components of the VMware Memory
+Control driver.  This version of the driver will only work on an x86
+system running Solaris 9 or later with a 32-bit kernel.  This driver
+will be installed by the installer of the VMware Tools for Solaris
+package.

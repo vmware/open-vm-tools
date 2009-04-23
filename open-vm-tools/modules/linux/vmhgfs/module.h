@@ -53,6 +53,9 @@ extern int LOGLEVEL_THRESHOLD;
 #define LOG(level, args)
 #endif
 
+extern char *HOST_IP;
+extern int HOST_PORT;
+
 /* Blocksize to be set in superblock. (XXX how is this used?) */
 #define HGFS_BLOCKSIZE 1024
 
@@ -142,13 +145,6 @@ extern int LOGLEVEL_THRESHOLD;
 #define FILE_SET_FI_P(file, info) do { (file)->private_data = info; } while (0)
 #define FILE_GET_FI_P(file)         ((HgfsFileInfo *)(file)->private_data)
 
-/*
- * When waking up the request handler thread, these are the possible operations
- * one can ask it to perform.
- */
-#define HGFS_REQ_THREAD_SEND  (1 << 0)
-#define HGFS_REQ_THREAD_EXIT  (1 << 1)
-
 /* Data kept in each superblock in sb->u. */
 typedef struct HgfsSuperInfo {
    uid_t uid;                       /* UID of user who mounted this fs. */
@@ -213,19 +209,6 @@ typedef struct HgfsFileInfo {
  */
 extern spinlock_t hgfsBigLock;
 
-/*
- * The request handler thread uses hgfsReqThreadWait to wake up and handle
- * IO. Possible operations include:
- *   -Sending outgoing HGFS requests.
- *   -Shutting down the request handler thread.
- *
- * Finally, we use hgfsReqThread to synchronize the stopping of the
- * backdoor handler thread.
- */
-extern long hgfsReqThreadFlags;
-extern wait_queue_head_t hgfsReqThreadWait;
-extern struct task_struct *hgfsReqThread;
-
 /* Hgfs filesystem structs. */
 extern struct super_operations HgfsSuperOperations;
 extern struct dentry_operations HgfsDentryOperations;
@@ -239,24 +222,21 @@ extern struct address_space_operations HgfsAddressSpaceOperations;
 /* Other global state. */
 extern compat_kmem_cache *hgfsReqCache;
 extern compat_kmem_cache *hgfsInodeCache;
-extern RpcOut *hgfsRpcOut;
-extern unsigned int hgfsIdCounter;
-extern struct list_head hgfsReqsUnsent;
 
-extern atomic_t hgfsVersionOpen;
-extern atomic_t hgfsVersionRead;
-extern atomic_t hgfsVersionWrite;
-extern atomic_t hgfsVersionClose;
-extern atomic_t hgfsVersionSearchOpen;
-extern atomic_t hgfsVersionSearchRead;
-extern atomic_t hgfsVersionSearchClose;
-extern atomic_t hgfsVersionGetattr;
-extern atomic_t hgfsVersionSetattr;
-extern atomic_t hgfsVersionCreateDir;
-extern atomic_t hgfsVersionDeleteFile;
-extern atomic_t hgfsVersionDeleteDir;
-extern atomic_t hgfsVersionRename;
-extern atomic_t hgfsVersionQueryVolumeInfo;
-extern atomic_t hgfsVersionCreateSymlink;
+extern HgfsOp hgfsVersionOpen;
+extern HgfsOp hgfsVersionRead;
+extern HgfsOp hgfsVersionWrite;
+extern HgfsOp hgfsVersionClose;
+extern HgfsOp hgfsVersionSearchOpen;
+extern HgfsOp hgfsVersionSearchRead;
+extern HgfsOp hgfsVersionSearchClose;
+extern HgfsOp hgfsVersionGetattr;
+extern HgfsOp hgfsVersionSetattr;
+extern HgfsOp hgfsVersionCreateDir;
+extern HgfsOp hgfsVersionDeleteFile;
+extern HgfsOp hgfsVersionDeleteDir;
+extern HgfsOp hgfsVersionRename;
+extern HgfsOp hgfsVersionQueryVolumeInfo;
+extern HgfsOp hgfsVersionCreateSymlink;
 
 #endif // _HGFS_DRIVER_MODULE_H_

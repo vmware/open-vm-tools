@@ -945,7 +945,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 static Bool
 ProcMgr_IsProcessRunning(pid_t pid)
 {
-   return ((kill(pid, 0) == -1) && (errno == ESRCH));
+   return ((kill(pid, 0) == 0) || (errno == EPERM));
 }
 
 

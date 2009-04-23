@@ -72,8 +72,8 @@ typedef struct RpcChannelCallback {
 
 
 typedef Bool (*RpcChannelStartFn)(struct RpcChannel *);
-typedef Bool (*RpcChannelStopFn)(struct RpcChannel *);
-typedef Bool (*RpcChannelShutdownFn)(struct RpcChannel *);
+typedef void (*RpcChannelStopFn)(struct RpcChannel *);
+typedef void (*RpcChannelShutdownFn)(struct RpcChannel *);
 typedef Bool (*RpcChannelSendFn)(struct RpcChannel *,
                                  char *data,
                                  size_t dataLen,

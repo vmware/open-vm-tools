@@ -21,11 +21,15 @@
 ####  VMware vmballoon Makefile to be distributed externally
 ####
 
-INCLUDE := -I.
+INCLUDE += -I.
+
+ifdef OVT_SOURCE_DIR
+INCLUDE += -I$(call VMLIB_PATH,backdoor)
+endif
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c,   -DVMW_HAVE_EPOLL, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPOLL, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
 
 obj-m += $(DRIVER).o
 

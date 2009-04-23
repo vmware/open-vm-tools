@@ -18,18 +18,22 @@
 
 /**
  * @file copyPasteDnDWrapper.cpp
- * 
+ *
  * This singleton class implements a wrapper around various versions of
- * copy and paste protocols, and provides some convenience functions that
- * help to make VMwareUser a bit cleaner. 
+ * copy and paste and dnd protocols, and provides some convenience functions
+ * that help to make VMwareUser a bit cleaner.
  */
 
 #include "copyPasteDnDWrapper.h"
+
 extern "C" {
 #include "vmwareuserInt.h"
 #include "debug.h"
+#include "dndGuest.h"
+#include "unity.h"
 }
 
+class DragDetWnd;
 
 /**
  * CopyPasteDnDWrapper is a singleton, here is a pointer to its only instance.
@@ -53,6 +57,28 @@ CopyPasteDnDWrapper::GetInstance()
    return m_instance;
 }
 
+#if defined(HAVE_GTKMM)
+extern "C" {
+
+/**
+ *
+ * Enter or leave unity mode.
+ *
+ * @param[in] mode enter unity mode if TRUE, else leave.
+ */
+
+void
+CopyPasteDnDWrapper_SetUnityMode(Bool mode)
+{
+   CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
+
+   if (wrapper) {
+      wrapper->SetUnityMode(mode);
+   }
+}
+
+}
+#endif
 
 /**
  *
@@ -62,10 +88,17 @@ CopyPasteDnDWrapper::GetInstance()
 CopyPasteDnDWrapper::CopyPasteDnDWrapper() :
 #if defined(HAVE_GTKMM)
    m_copyPasteUI(NULL),
+   m_dndUI(NULL),
 #endif
-   m_isRegistered(FALSE),
+   m_isCPRegistered(FALSE),
+   m_isDnDRegistered(FALSE),
    m_userData(NULL),
-   m_version(-1)
+   m_cpVersion(-1),
+   m_dndVersion(-1),
+   m_isLegacy(false),
+   m_hgWnd(NULL),
+   m_ghWnd(NULL),
+   m_eventQueue(NULL)
 {
 }
 
@@ -77,8 +110,11 @@ CopyPasteDnDWrapper::CopyPasteDnDWrapper() :
 
 CopyPasteDnDWrapper::~CopyPasteDnDWrapper()
 {
-   if (IsRegistered()) {
-      Unregister();
+   if (IsCPRegistered()) {
+      UnregisterCP();
+   }
+   if (IsDnDRegistered()) {
+      UnregisterDnD();
    }
 }
 
@@ -110,10 +146,10 @@ CopyPasteDnDWrapper::SetUserData(const void *userData)
  */
 
 void
-CopyPasteDnDWrapper::SetBlockFd(int blockFd)
+CopyPasteDnDWrapper::SetBlockControl(DnDBlockControl *blockCtrl)
 {
-   Debug("%s: enter %d\n", __FUNCTION__, blockFd);
-   mBlockFd = blockFd;
+   Debug("%s: enter %p (%d)\n", __func__, blockCtrl, blockCtrl->fd);
+   m_blockCtrl = blockCtrl;
 }
 
 
@@ -126,10 +162,10 @@ CopyPasteDnDWrapper::SetBlockFd(int blockFd)
  */
 
 bool
-CopyPasteDnDWrapper::Register()
+CopyPasteDnDWrapper::RegisterCP()
 {
-   Debug("%s: mBlockFd %d\n", __FUNCTION__, mBlockFd);
-   if (IsRegistered()) {
+   Debug("%s: m_blockCtrl %p\n", __func__, m_blockCtrl);
+   if (IsCPRegistered()) {
       return TRUE;
    }
 
@@ -139,36 +175,118 @@ CopyPasteDnDWrapper::Register()
     */
 
 #if defined(HAVE_GTKMM)
-   Debug("%s: enter\n", __FUNCTION__);
-   m_copyPasteUI = new CopyPasteUI();
-   if (m_copyPasteUI) {
-      Debug("%s: Setting block fd to %d\n", __FUNCTION__, mBlockFd);
-      m_copyPasteUI->SetBlockFd(mBlockFd);
-      m_copyPasteUI->Init();
-      SetIsRegistered(TRUE);
-      int version = GetVersion();
-      Debug("%s: version is %d\n", __FUNCTION__, version);
-      if (version >= 3) {
-         m_copyPasteUI->VmxCopyPasteVersionChanged(gRpcIn, version);
-         m_copyPasteUI->SetCopyPasteAllowed(TRUE);
-      } else {
-         Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
-         Unregister();
-      }
-   }
-#endif
-   if (!IsRegistered()) {
-      Debug("%s: Registering legacy m_userData %lx\n", __FUNCTION__, (long unsigned int) m_userData);
-      SetIsRegistered(CopyPaste_Register((GtkWidget *)m_userData));
-      if (IsRegistered()) {
-      Debug("%s: Registering capability\n", __FUNCTION__);
-         if (!CopyPaste_RegisterCapability()) {
-            Unregister();
+   if (!IsCPRegistered()) {
+      m_copyPasteUI = new CopyPasteUI();
+      if (m_copyPasteUI) {
+         Debug("%s: Setting block control to %p (fd %d)\n",
+               __func__, m_blockCtrl, m_blockCtrl->fd);
+         m_copyPasteUI->SetBlockControl(m_blockCtrl);
+         m_copyPasteUI->Init();
+         SetCPIsRegistered(TRUE);
+         int version = GetCPVersion();
+         Debug("%s: version is %d\n", __FUNCTION__, version);
+         if (version >= 3) {
+            m_copyPasteUI->VmxCopyPasteVersionChanged(gRpcIn, version);
+            m_copyPasteUI->SetCopyPasteAllowed(TRUE);
+            m_isLegacy = false;
+         } else {
+            Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
+            UnregisterCP();
          }
       }
    }
-   return IsRegistered();
+
+#endif
+   if (!IsCPRegistered()) {
+      Debug("%s: Registering legacy m_userData %lx\n",
+            __func__, (long unsigned int) m_userData);
+      SetCPIsRegistered(CopyPaste_Register((GtkWidget *)m_userData));
+      if (IsCPRegistered()) {
+         Debug("%s: Registering capability\n", __FUNCTION__);
+         if (!CopyPaste_RegisterCapability()) {
+            UnregisterCP();
+         }
+         else {
+            m_isLegacy = true;
+         }
+      }
+   }
+
+   return IsCPRegistered();
 }
+
+
+/**
+ *
+ * Register DnD capabilities with the VMX. Try newest version
+ * first, then fall back to the legacy implementation.
+ *
+ * @return TRUE on success, FALSE on failure
+ */
+
+bool
+CopyPasteDnDWrapper::RegisterDnD()
+{
+   /*
+    * Try to get version 3, and if that fails, go for the compatibility
+    * versions (1 and 2).
+    */
+
+#if defined(HAVE_GTKMM)
+   if (!IsDnDRegistered()) {
+      m_dndUI = new DnDUI(m_eventQueue);
+      if (m_dndUI) {
+         Debug("%s: Setting block control to %p (fd %d)\n",
+               __func__, m_blockCtrl, m_blockCtrl->fd);
+         m_dndUI->SetBlockControl(m_blockCtrl);
+
+         m_dndUI->Init();
+
+         UnityDnD state;
+         state.detWnd = m_dndUI->GetDetWndAsWidget(true);
+         state.setMode = CopyPasteDnDWrapper_SetUnityMode;
+         Unity_SetActiveDnDDetWnd(&state);
+
+         SetDnDIsRegistered(TRUE);
+         int version = GetDnDVersion();
+         Debug("%s: dnd version is %d\n", __FUNCTION__, version);
+         if (version >= 3) {
+            Debug("%s: calling VmxDnDVersionChanged (version %d) and SetDnDAllowed\n",
+               __FUNCTION__, version);
+            m_dndUI->VmxDnDVersionChanged(gRpcIn, version);
+            m_dndUI->SetDnDAllowed(TRUE);
+            m_isLegacy = false;
+         } else {
+            Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
+            UnregisterDnD();
+         }
+      }
+   }
+
+#endif
+   if (!IsDnDRegistered()) {
+      Debug("%s: legacy registering dnd capability\n", __FUNCTION__);
+      if (m_isLegacy) {
+         SetDnDIsRegistered(DnD_Register(m_hgWnd, m_ghWnd));
+         if (IsDnDRegistered()) {
+            Debug("%s: setting up detwnd for Unity\n", __FUNCTION__);
+            UnityDnD state;
+            state.detWnd = m_ghWnd;
+            state.setMode = DnD_SetMode;
+            Unity_SetActiveDnDDetWnd(&state);
+         }
+      }
+   } else if (m_isLegacy && DnD_GetVmxDnDVersion() > 1) {
+      Debug("%s: legacy registering dnd capability\n", __FUNCTION__);
+      if (!DnD_RegisterCapability()) {
+         Debug("%s: legacy unable to register dnd capability\n", __FUNCTION__);
+         UnregisterDnD();
+      }
+   }
+   Debug("%s: dnd is registered? %d\n", __FUNCTION__, (int) IsDnDRegistered());
+   return IsDnDRegistered();
+}
+
 
 /**
  *
@@ -176,23 +294,48 @@ CopyPasteDnDWrapper::Register()
  */
 
 void
-CopyPasteDnDWrapper::Unregister()
+CopyPasteDnDWrapper::UnregisterCP()
 {
-   if (!IsRegistered()) {
+   Debug("%s: enter\n", __FUNCTION__);
+   if (IsCPRegistered()) {
+#if defined(HAVE_GTKMM)
+      if (m_copyPasteUI) {
+         delete m_copyPasteUI;
+         m_copyPasteUI = NULL;
+      } else {
+#endif
+         CopyPaste_Unregister((GtkWidget *)m_userData);
+#if defined(HAVE_GTKMM)
+      }
+#endif
+      SetCPIsRegistered(FALSE);
+      m_cpVersion = -1;
+   }
+}
+
+
+/**
+ *
+ * Unregister DnD capabilities and do general cleanup.
+ */
+
+void
+CopyPasteDnDWrapper::UnregisterDnD()
+{
+   Debug("%s: enter\n", __FUNCTION__);
+   if (IsDnDRegistered()) {
+      if (m_isLegacy) {
+         DnD_Unregister(m_hgWnd, m_ghWnd);
+#if defined(HAVE_GTKMM)
+      } else if (m_dndUI) {
+         delete m_dndUI;
+         m_dndUI = NULL;
+#endif
+      }
+      m_dndVersion = -1;
+      SetDnDIsRegistered(false);
       return;
    }
-#if defined(HAVE_GTKMM)
-   if (m_copyPasteUI) {
-      delete m_copyPasteUI;
-      m_copyPasteUI = NULL;
-   } else {
-#endif
-      CopyPaste_Unregister((GtkWidget *)m_userData);
-#if defined(HAVE_GTKMM)
-   }
-#endif
-   SetIsRegistered(FALSE);
-   m_version = -1;
 }
 
 
@@ -200,45 +343,95 @@ CopyPasteDnDWrapper::Unregister()
  *
  * Get the version of the copy paste protocol being wrapped.
  *
- * @return copy paste protocol version. 
+ * @return copy paste protocol version.
  */
 
 int
-CopyPasteDnDWrapper::GetVersion()
+CopyPasteDnDWrapper::GetCPVersion()
 {
-   if (IsRegistered()) {
-      m_version = CopyPaste_GetVmxCopyPasteVersion();
+   if (IsCPRegistered()) {
+      m_cpVersion = CopyPaste_GetVmxCopyPasteVersion();
    }
-   Debug("%s: got version %d\n", __FUNCTION__, m_version);
-   return m_version;
+   Debug("%s: got version %d\n", __FUNCTION__, m_cpVersion);
+   return m_cpVersion;
 }
+
+
+/**
+ *
+ * Get the version of the DnD protocol being wrapped.
+ *
+ * @return DnD protocol version.
+ */
+
+int
+CopyPasteDnDWrapper::GetDnDVersion()
+{
+   if (IsDnDRegistered()) {
+      m_dndVersion = DnD_GetVmxDnDVersion();
+   }
+   Debug("%s: got version %d\n", __FUNCTION__, m_dndVersion);
+   return m_dndVersion;
+}
+
 
 /**
  *
  * Set a flag indicating that we are wrapping an initialized and registered
  * copy paste implementation, or not.
  *
- * @param[in] isRegistered If TRUE, protocol is registered, otherwise FALSE. 
+ * @param[in] isRegistered If TRUE, protocol is registered, otherwise FALSE.
  */
 
 void
-CopyPasteDnDWrapper::SetIsRegistered(bool isRegistered)
+CopyPasteDnDWrapper::SetCPIsRegistered(bool isRegistered)
 {
-   m_isRegistered = isRegistered;
+   m_isCPRegistered = isRegistered;
 }
+
 
 /**
  *
- * Get the flag indication that we are wrapping an initialized and registered
+ * Get the flag indicating that we are wrapping an initialized and registered
  * copy paste implementation, or not.
  *
- * @return TRUE if copy paste is initialized, otherwise FALSE. 
+ * @return TRUE if copy paste is initialized, otherwise FALSE.
  */
 
 bool
-CopyPasteDnDWrapper::IsRegistered()
+CopyPasteDnDWrapper::IsCPRegistered()
 {
-   return m_isRegistered;
+   return m_isCPRegistered;
+}
+
+
+/**
+ *
+ * Set a flag indicating that we are wrapping an initialized and registered
+ * DnD implementation, or not.
+ *
+ * @param[in] isRegistered If TRUE, protocol is registered, otherwise FALSE.
+ */
+
+void
+CopyPasteDnDWrapper::SetDnDIsRegistered(bool isRegistered)
+{
+   m_isDnDRegistered = isRegistered;
+}
+
+
+/**
+ *
+ * Get the flag indicating that we are wrapping an initialized and registered
+ * DnD implementation, or not.
+ *
+ * @return TRUE if DnD is initialized, otherwise FALSE.
+ */
+
+bool
+CopyPasteDnDWrapper::IsDnDRegistered()
+{
+   return m_isDnDRegistered;
 }
 
 
@@ -251,13 +444,16 @@ void
 CopyPasteDnDWrapper::OnReset()
 {
    Debug("%s: enter\n", __FUNCTION__);
-   if (IsRegistered()) {
-      Unregister();
+   if (IsDnDRegistered()) {
+      UnregisterDnD();
    }
-   Register();
-   if (!IsRegistered()) {
-      Debug("%s: unable to reset!\n", __FUNCTION__);
+   if (IsCPRegistered()) {
+      UnregisterCP();
+   }
+   RegisterCP();
+   RegisterDnD();
+   if (!IsDnDRegistered() || !IsCPRegistered()) {
+      Debug("%s: unable to reset fully!\n", __FUNCTION__);
    }
 }
-
 

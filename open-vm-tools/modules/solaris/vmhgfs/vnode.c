@@ -86,13 +86,15 @@ static int HgfsFileClose(HgfsSuperInfo *sip, struct vnode *vp);
 static int HgfsGetNextDirEntry(HgfsSuperInfo *sip, HgfsHandle handle,
                                uint32_t offset, char *nameOut, Bool *done);
 static int HgfsDoRead(HgfsSuperInfo *sip, HgfsHandle handle, uint64_t offset,
-                      uint32_t size, uio_t *uiop);
+                      uint32_t size, uio_t *uiop, uint32_t *count);
 static int HgfsDoWrite(HgfsSuperInfo *sip, HgfsHandle handle, int ioflag,
-                       uint64_t offset, uint32_t size, uio_t *uiop);
+                       uint64_t offset, uint32_t size, uio_t *uiop,
+                       uint32_t *count);
 static int HgfsDelete(HgfsSuperInfo *sip, char *filename, HgfsOp op);
 
 static int HgfsSubmitRequest(HgfsSuperInfo *sip, HgfsReq *req);
 static int HgfsValidateReply(HgfsReq *req, uint32_t minSize);
+static int HgfsStatusConvertToSolaris(HgfsStatus hgfsStatus);
 static void HgfsAttrToSolaris(struct vnode *vp, const HgfsAttr *hgfsAttr,
                               struct vattr *solAttr);
 static Bool HgfsSetattrCopy(struct vattr *solAttr, int flags,
@@ -665,38 +667,35 @@ HgfsRead(struct vnode *vp,              // IN: Vnode of file to read
     */
    do {
       uint32_t size;
+      uint32_t count;
 
-      DEBUG(VM_DEBUG_INFO, "HgfsRead: offset=%"FMT64"d, uio_loffset=%lld\n",
-            offset, uiop->uio_loffset);
-      DEBUG(VM_DEBUG_HANDLE, "HgfsRead: ** handle=%d, file=%s\n",
-            handle, HGFS_VP_TO_FILENAME(vp));
+      DEBUG(VM_DEBUG_INFO, "%s: offset=%"FMT64"d, uio_loffset=%lld\n",
+            __func__, offset, uiop->uio_loffset);
+      DEBUG(VM_DEBUG_HANDLE, "%s: ** handle=%d, file=%s\n",
+            __func__, handle, HGFS_VP_TO_FILENAME(vp));
 
       /* Request at most HGFS_IO_MAX bytes */
       size = (uiop->uio_resid > HGFS_IO_MAX) ? HGFS_IO_MAX : uiop->uio_resid;
 
       /* Send one read request. */
-      ret = HgfsDoRead(sip, handle, offset, size, uiop);
-      if (ret == 0) {
+      ret = HgfsDoRead(sip, handle, offset, size, uiop, &count);
+      if (ret) {
+         DEBUG(VM_DEBUG_FAIL, "%s: HgfsDoRead() failed.\n", __func__);
+         return ret;
+      }
+
+      if (count == 0) {
          /* On end of file we return success */
-         DEBUG(VM_DEBUG_DONE, "HgfsRead: end of file reached.\n");
+         DEBUG(VM_DEBUG_DONE, "%s: end of file reached.\n", __func__);
          return 0;
-      } else  if (ret < 0) {
-         /*
-          * HgfsDoRead() returns the negative of an appropriate error code to
-          * differentiate between success and error cases.  We flip the sign
-          * and return the appropriate error code.  See the HgfsDoRead()
-          * function header for a fuller explanation.
-          */
-         DEBUG(VM_DEBUG_FAIL, "HgfsRead: HgfsDoRead() failed.\n");
-         return -ret;
       }
 
       /* Bump the offset past where we have already read. */
-      offset += ret;
+      offset += count;
    } while (uiop->uio_resid);
 
    /* We fulfilled the user's read request, so return success. */
-   DEBUG(VM_DEBUG_DONE, "HgfsRead: done.\n");
+   DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
    return 0;
 }
 
@@ -785,6 +784,7 @@ HgfsWrite(struct vnode *vp,             // IN: Vnode of file to write to
     */
    do {
       uint32_t size;
+      uint32_t count;
 
       DEBUG(VM_DEBUG_INFO, "HgfsWrite: ** offset=%"FMT64"d, uio_loffset=%lld\n",
             offset, uiop->uio_loffset);
@@ -795,19 +795,14 @@ HgfsWrite(struct vnode *vp,             // IN: Vnode of file to write to
       size = (uiop->uio_resid > HGFS_IO_MAX) ? HGFS_IO_MAX : uiop->uio_resid;
 
       /* Send one write request. */
-      ret = HgfsDoWrite(sip, handle, ioflag, offset, size, uiop);
-      if (ret < 0) {
-         /*
-          * As in HgfsRead(), we need to flip the sign.  See the comment in the
-          * function header of HgfsDoWrite() for a more complete explanation.
-          */
-         DEBUG(VM_DEBUG_INFO, "HgfsWrite: HgfsDoWrite failed, returning %d\n", -ret);
-         return -ret;
+      ret = HgfsDoWrite(sip, handle, ioflag, offset, size, uiop, &count);
+      if (ret) {
+         DEBUG(VM_DEBUG_FAIL, "%s: HgfsDoRead() failed.\n", __func__);
+         return ret;
       }
 
       /* Increment the offest by the amount already written. */
-      offset += ret;
-
+      offset += count;
    } while (uiop->uio_resid);
 
    /* We have completed the user's write request, so return success. */
@@ -987,34 +982,31 @@ HgfsGetattr(struct vnode *vp,      // IN: Vnode of file to get attributes for
       goto out;
    }
 
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
+   } else {
       /* Make sure we got all of the attributes */
       if (req->packetSize != sizeof *reply) {
-         DEBUG(VM_DEBUG_FAIL, "HgfsGetattr: packet too small.\n");
+         DEBUG(VM_DEBUG_FAIL, "%s: packet too small.\n", __func__);
          ret = EIO;
-         break;
+      } else {
+
+         DEBUG(VM_DEBUG_COMM, "%s: received reply for ID %d\n",
+               __func__, reply->header.id);
+         DEBUG(VM_DEBUG_COMM, " status: %d (see hgfsProto.h)\n",
+               reply->header.status);
+         DEBUG(VM_DEBUG_COMM, " file type: %d\n", reply->attr.type);
+         DEBUG(VM_DEBUG_COMM, " file size: %"FMT64"u\n", reply->attr.size);
+         DEBUG(VM_DEBUG_COMM, " permissions: %o\n", reply->attr.permissions);
+         DEBUG(VM_DEBUG_COMM, "%s: filename %s\n", __func__, HGFS_VP_TO_FILENAME(vp));
+
+         /* Map the Hgfs attributes into the Solaris attributes */
+         HgfsAttrToSolaris(vp, &reply->attr, vap);
+
+         DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
       }
-
-      DEBUG(VM_DEBUG_COMM, "HgfsGetattr: received reply for ID %d\n",
-            reply->header.id);
-      DEBUG(VM_DEBUG_COMM, " status: %d (see hgfsProto.h)\n",
-            reply->header.status);
-      DEBUG(VM_DEBUG_COMM, " file type: %d\n", reply->attr.type);
-      DEBUG(VM_DEBUG_COMM, " file size: %"FMT64"u\n", reply->attr.size);
-      DEBUG(VM_DEBUG_COMM, " permissions: %o\n", reply->attr.permissions);
-      DEBUG(VM_DEBUG_COMM, "HgfsGetattr: filename %s\n", HGFS_VP_TO_FILENAME(vp));
-
-      /* Map the Hgfs attributes into the Solaris attributes */
-      HgfsAttrToSolaris(vp, &reply->attr, vap);
-
-      DEBUG(VM_DEBUG_DONE, "HgfsGetattr: done.\n");
-      break;
-
-   /* We'll add other error codes based on status here */
-   default:
-      ret = EIO;
-      break;
    }
 
 out:
@@ -1129,31 +1121,13 @@ HgfsSetattr(struct vnode *vp,       // IN: Vnode of file to get attributes for
       goto out;
    }
 
-   switch(reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      /* Success handled after switch. */
-      break;
-
-   case HGFS_STATUS_NO_SUCH_FILE_OR_DIR:
-   case HGFS_STATUS_INVALID_NAME:
-      DEBUG(VM_DEBUG_FAIL, "HgfsSetattr: no such file or directory.\n");
-      ret = ENOENT;
-      goto out;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsSetattr: operation not permitted.\n");
-      ret = EPERM;
-      goto out;
-
-   default:
-      DEBUG(VM_DEBUG_FAIL, "HgfsSetattr: default error.\n");
-      ret = EPROTO;
-      goto out;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
+   } else {
+      DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
    }
-
-   /* Success */
-   ret = 0;
-   DEBUG(VM_DEBUG_DONE, "HgfsSetattr: done.\n");
 
 out:
    HgfsDestroyReq(sip, req);
@@ -1448,36 +1422,17 @@ HgfsLookup(struct vnode *dvp,      // IN:  Directory to look in
    DEBUG(VM_DEBUG_COMM, " file size: %"FMT64"u\n", reply->attr.size);
    DEBUG(VM_DEBUG_COMM, " permissions: %o\n", reply->attr.permissions);
 
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      /* Ensure packet contains correct amount of data */
-      if (req->packetSize != sizeof *reply) {
-         DEBUG(VM_DEBUG_COMM,
-               "HgfsLookup: invalid packet size received for \"%s\".\n", nm);
-         ret = EIO;
-         goto out;
-      }
-      /* Success */
-      break;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_LOG, "HgfsLookup: operation not permitted on \"%s\".\n", nm);
-      ret = EACCES;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed for [%s] with error %d.\n",
+            __func__, nm, ret);
       goto out;
+   }
 
-   case HGFS_STATUS_NO_SUCH_FILE_OR_DIR:
-   case HGFS_STATUS_INVALID_NAME:
-      /*
-       * Note, this is necessary because before creating a file Solaris does
-       * a lookup to make sure it doesn't already exist.  We need to return
-       * ENOENT in this case.
-       */
-      DEBUG(VM_DEBUG_LOG, "HgfsLookup: \"%s\" does not exist.\n", nm);
-      ret = ENOENT;
-      goto out;
-
-   default:
-      DEBUG(VM_DEBUG_LOG, "HgfsLookup: error on \"%s\".\n", nm);
+   /* Ensure packet contains correct amount of data */
+   if (req->packetSize != sizeof *reply) {
+      DEBUG(VM_DEBUG_COMM, "%s: invalid packet size received for [%s].\n",
+            __func__, nm);
       ret = EIO;
       goto out;
    }
@@ -1500,6 +1455,7 @@ HgfsLookup(struct vnode *dvp,      // IN:  Directory to look in
       ret = EIO;
       goto out;
    }
+
    /* HgfsVnodeGet guarantees this. */
    ASSERT(*vpp);
 
@@ -1898,42 +1854,13 @@ HgfsRename(struct vnode *sdvp,     // IN: Source directory that contains file to
    }
 
    /* Return appropriate value. */
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      /* Handled after switch. */
-      break;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsRename: operation not permitted.\n");
-      ret = EACCES;
-      goto out;
-
-   case HGFS_STATUS_NOT_DIRECTORY:
-      DEBUG(VM_DEBUG_FAIL, "HgfsRename: not a directory.\n");
-      ret = ENOTDIR;
-      goto out;
-
-   case HGFS_STATUS_DIR_NOT_EMPTY:
-      DEBUG(VM_DEBUG_FAIL, "HgfsRename: directory not empty.\n");
-      ret = EEXIST;
-      goto out;
-
-   case HGFS_STATUS_NO_SUCH_FILE_OR_DIR:
-   case HGFS_STATUS_INVALID_NAME:
-      DEBUG(VM_DEBUG_FAIL, "HgfsRename: no such file or directory.\n");
-      ret = ENOENT;
-      goto out;
-
-   default:
-      DEBUG(VM_DEBUG_FAIL, "HgfsRename: default error.\n");
-      ret = EPROTO;
-      goto out;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
+   } else {
+      DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
    }
-
-
-   /* Successfully renamed file. */
-   ret = 0;
-   DEBUG(VM_DEBUG_DONE, "HgfsRename: done.\n");
 
 out:
    HgfsDestroyReq(sip, req);
@@ -2063,23 +1990,10 @@ HgfsMkdir(struct vnode *dvp,      // IN: Vnode of directory to create directory 
       goto out;
    }
 
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      /* Handled below switch. */
-      break;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsMkdir: operation not permitted.\n");
-      ret = EACCES;
-      goto out;
-
-   case HGFS_STATUS_FILE_EXISTS:
-      DEBUG(VM_DEBUG_FAIL, "HgfsMkdir: directory already exists.\n");
-      ret = EEXIST;
-      goto out;
-
-   default:
-      ret = EPROTO;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
       goto out;
    }
 
@@ -3718,26 +3632,16 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
    DEBUG(VM_DEBUG_COMM, " status: %d (see hgfsProto.h)\n", reply->header.status);
    DEBUG(VM_DEBUG_COMM, " handle: %d\n", reply->search);
 
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      if (req->packetSize != sizeof *reply) {
-         DEBUG(VM_DEBUG_FAIL, "HgfsDirOpen: incorrect packet size.\n");
-         ret = EIO;
-         goto out;
-      }
-      /* Success handled after switch. */
-      break;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDirOpen: operation not permitted (%s).\n",
-            HGFS_VP_TO_FILENAME(vp));
-      ret = EACCES;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed for [%s] with error %d.\n",
+            __func__, HGFS_VP_TO_FILENAME(vp), ret);
       goto out;
+   }
 
-   default:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDirOpen: default error (%s).\n",
-            HGFS_VP_TO_FILENAME(vp));
-      ret = EPROTO;
+   if (req->packetSize != sizeof *reply) {
+      DEBUG(VM_DEBUG_FAIL, "HgfsDirOpen: incorrect packet size.\n");
+      ret = EIO;
       goto out;
    }
 
@@ -3751,12 +3655,11 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
       goto out;
    }
 
-   ret = 0;     /* Return success */
+   DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
 
 out:
    /* Make sure we put the request back on the list */
    HgfsDestroyReq(sip, req);
-   DEBUG(VM_DEBUG_DONE, "HgfsDirOpen: done\n");
    return ret;
 }
 
@@ -3864,46 +3767,16 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       goto out;
    }
 
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      if (req->packetSize != sizeof *reply) {
-         DEBUG(VM_DEBUG_FAIL, "HgfsFileOpen: size of reply is incorrect.\n");
-         ret = EIO;
-         goto out;
-      }
-
-      /* Success case is handled after switch. */
-      break;
-
-   case HGFS_STATUS_NO_SUCH_FILE_OR_DIR:
-   case HGFS_STATUS_INVALID_NAME:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileOpen: no such file \"%s\".\n",
-            HGFS_VP_TO_FILENAME(vp));
-      ret = ENOENT;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed for [%s] with error %d.\n",
+            __func__, HGFS_VP_TO_FILENAME(vp), ret);
       goto out;
+   }
 
-   case HGFS_STATUS_FILE_EXISTS:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileOpen: \"%s\" exists.\n",
-            HGFS_VP_TO_FILENAME(vp));
-      ret = EEXIST;
-      goto out;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileOpen: operation not permitted on %s.\n",
-            HGFS_VP_TO_FILENAME(vp));
-      ret = EACCES;
-      goto out;
-
-   case HGFS_STATUS_ACCESS_DENIED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileOpen: access denied on %s.\n",
-            HGFS_VP_TO_FILENAME(vp));
-      ret = EACCES;
-      goto out;
-
-   default:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileOpen: default/unknown error %d.\n",
-            reply->header.status);
-      ret = EACCES;
+   if (req->packetSize != sizeof *reply) {
+      DEBUG(VM_DEBUG_FAIL, "%s: size of reply is incorrect.\n", __func__);
+      ret = EIO;
       goto out;
    }
 
@@ -3920,8 +3793,7 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
       goto out;
    }
 
-   ret = 0;
-
+   DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
 
 out:
    HgfsDestroyReq(sip, req);
@@ -4002,23 +3874,24 @@ HgfsDirClose(HgfsSuperInfo *sip,        // IN: Superinfo pointer
    DEBUG(VM_DEBUG_COMM, " status: %d (see hgfsProto.h)\n", reply->header.status);
 
    /* Ensure server was able to close directory. */
-   if (reply->header.status != HGFS_STATUS_SUCCESS) {
-      ret = EIO;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
       goto out;
    }
 
    /* Now clear this open file's handle for future use. */
    ret = HgfsClearOpenFileHandle(vp);
    if (ret) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsDirClose: couldn't clear handle.\n");
+      DEBUG(VM_DEBUG_FAIL, "%s: couldn't clear handle.\n", __func__);
       ret = EINVAL;
       req->state = HGFS_REQ_ERROR;
       goto out;
    }
 
    /* The directory was closed successfully so we return success. */
-   ret = 0;
-
+   DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
 
 out:
    HgfsDestroyReq(sip, req);
@@ -4091,38 +3964,26 @@ HgfsFileClose(HgfsSuperInfo *sip,       // IN: Superinfo pointer
 
    reply = (HgfsReplyClose *)req->packet;
 
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      /*
-       * We already verified the size of the reply above since this reply type
-       * only contains a header, so we just clear the handle and return success.
-       */
-      ret = HgfsClearOpenFileHandle(vp);
-      if (ret) {
-         DEBUG(VM_DEBUG_FAIL, "HgfsFileClose: couldn't clear handle.\n");
-         ret = EINVAL;
-         req->state = HGFS_REQ_ERROR;
-         goto out;
-      }
-
-      ret = 0;
-      goto out;
-
-   case HGFS_STATUS_INVALID_HANDLE:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileClose: invalid handle error.\n");
-      ret = EPROTO;
-      goto out;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileClose: operation not permitted error.\n");
-      ret = EACCES;
-      goto out;
-
-   default:
-      DEBUG(VM_DEBUG_FAIL, "HgfsFileClose: other/unknown error.\n");
-      ret = EPROTO;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
       goto out;
    }
+
+   /*
+    * We already verified the size of the reply above since this reply type
+    * only contains a header, so we just clear the handle and return success.
+    */
+   ret = HgfsClearOpenFileHandle(vp);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: couldn't clear handle.\n", __func__);
+      ret = EINVAL;
+      req->state = HGFS_REQ_ERROR;
+      goto out;
+   }
+
+   DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
 
 out:
    HgfsDestroyReq(sip, req);
@@ -4206,23 +4067,24 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    DEBUG(VM_DEBUG_COMM, " status: %d (see hgfsProto.h)\n", reply->header.status);
 
    /* Now ensure the server didn't have an error */
-   if (reply->header.status != HGFS_STATUS_SUCCESS) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsGetNextDirEntry: server didn't return success (%d).\n",
-            reply->header.status);
-      ret = EINVAL;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
       goto out;
    }
 
    /* Make sure we got an entire reply (excluding filename) */
    if (req->packetSize < sizeof *reply) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsGetNextDirEntry: server didn't provide entire reply.\n");
+      DEBUG(VM_DEBUG_FAIL, "%s: server didn't provide entire reply.\n",
+            __func__);
       ret = EIO;
       goto out;
    }
 
    /* See if there are no more filenames to read */
    if (reply->fileName.length <= 0) {
-      DEBUG(VM_DEBUG_DONE, "HgfsGetNextDirEntry: no more directory entries.\n");
+      DEBUG(VM_DEBUG_DONE, "%s: no more directory entries.\n", __func__);
       *done = TRUE;
       ret = 0;         /* return success */
       goto out;
@@ -4231,7 +4093,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    /* Make sure filename isn't too long */
    if ((reply->fileName.length > MAXNAMELEN) ||
        (reply->fileName.length > HGFS_PAYLOAD_MAX(reply)) ) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsGetNextDirEntry: filename is too long.\n");
+      DEBUG(VM_DEBUG_FAIL, "%s: filename is too long.\n", __func__);
       ret = EOVERFLOW;
       goto out;
    }
@@ -4245,7 +4107,8 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    nameOut[reply->fileName.length] = '\0';
    ret = 0;
 
-   DEBUG(VM_DEBUG_DONE, "HgfsGetNextDirEntry: done.\n");
+   DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
+
 out:
    HgfsDestroyReq(sip, req);
    return ret;
@@ -4263,17 +4126,12 @@ out:
  *    This function is called repeatedly by HgfsRead() with requests of size
  *    less than or equal to HGFS_IO_MAX.
  *
- *    Note that we return the negative of an appropriate error code in this
- *    function so we can differentiate between success and failure.  On success
- *    we need to return the number of bytes read, but Solaris' error codes are
- *    positive so we negate them before returning.  If callers want to return
- *    these error codes to the Kernel, they will need to flip their sign.
- *
  * Results:
- *   Returns number of bytes read on success and a negative value on error.
+ *   Returns 0 on success and a positive value on error.
  *
  * Side effects:
- *   On success, size bytes are written into the user's buffer.
+ *   On success, up to 'size' bytes are written into the user's buffer.
+ *   Actual number of bytes written passed back in 'count' argument.
  *
  *----------------------------------------------------------------------------
  */
@@ -4283,7 +4141,8 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
            HgfsHandle handle,   // IN: Server's handle to read from
            uint64_t offset,     // IN: File offset to read at
            uint32_t size,       // IN: Number of bytes to read
-           uio_t *uiop)         // IN: Defines user's read request
+           uio_t *uiop,         // IN: Defines user's read request
+           uint32_t *count)     // OUT: Number of bytes read
 {
    HgfsReq *req;
    HgfsRequestRead *request;
@@ -4293,12 +4152,13 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
    ASSERT(sip);
    ASSERT(uiop);
    ASSERT(size <= HGFS_IO_MAX); // HgfsRead() should guarantee this
+   ASSERT(count);
 
-   DEBUG(VM_DEBUG_ENTRY, "HgfsDoRead: entry.\n");
+   DEBUG(VM_DEBUG_ENTRY, "%s: entry.\n", __func__);
 
    req = HgfsGetNewReq(sip);
    if (!req) {
-      return -EIO;
+      return EIO;
    }
 
    request = (HgfsRequestRead *)req->packet;
@@ -4313,11 +4173,7 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
 
    ret = HgfsSubmitRequest(sip, req);
    if (ret) {
-      /*
-       * We need to flip the sign of the return value to indicate error; see
-       * the comment in the function header.
-       */
-      ret = -ret;
+      DEBUG(VM_DEBUG_FAIL, "%s: HgfsSubmitRequest failed.\n", __func__);
       goto out;
    }
 
@@ -4325,14 +4181,15 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
 
    /* Ensure we got an entire header. */
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsDoRead: invalid reply received.\n");
-      ret = -EPROTO;
+      DEBUG(VM_DEBUG_FAIL, "%s: invalid reply received.\n"i, __func__);
+      ret = EPROTO;
       goto out;
    }
 
-   if (reply->header.status != HGFS_STATUS_SUCCESS) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsDoRead: request not completed successfully.\n");
-      ret = -EACCES;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
       goto out;
    }
 
@@ -4342,33 +4199,29 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
     *  o actualSize is zero, which indicates the end of the file (and success)
     *  o actualSize is greater than size, which indicates a server error
     */
-   if (reply->actualSize <= size) {
-      /* If we didn't get any data, we don't need to copy to the user. */
-      if (reply->actualSize == 0) {
-         goto success;
-      }
-
-      /* Perform the copy to the user */
-      ret = uiomove(reply->payload, reply->actualSize, UIO_READ, uiop);
-      if (ret) {
-         ret = -EIO;
-         goto out;
-      }
-
-      /* We successfully copied the payload to the user's buffer */
-      goto success;
-
-   } else {
+   if (reply->actualSize > size) {
       /* We got too much data: server error. */
-      DEBUG(VM_DEBUG_FAIL, "HgfsDoRead: received too much data in payload.\n");
-      ret = -EPROTO;
+      DEBUG(VM_DEBUG_FAIL, "%s: received too much data in payload.\n",
+            __func__);
+      ret = EPROTO;
       goto out;
    }
 
+   /* Perform the copy to the user if we have something to copy */
+   if (reply->actualSize > 0) {
+      ret = uiomove(reply->payload, reply->actualSize, UIO_READ, uiop);
+      if (ret) {
+         DEBUG(VM_DEBUG_FAIL, "%s: uiomove failed, rc: %d\n.",
+               __func__, ret);
+         ret = EIO;
+         goto out;
+      }
+   }
 
-success:
-   ret = reply->actualSize;
-   DEBUG(VM_DEBUG_DONE, "HgfsDoRead: successfully read %d bytes to user.\n", ret);
+   *count = reply->actualSize;
+   DEBUG(VM_DEBUG_DONE, "%s: successfully read %d bytes to user.\n",
+         __func__, *count);
+
 out:
    HgfsDestroyReq(sip, req);
    return ret;
@@ -4386,17 +4239,12 @@ out:
  *    This function is called repeatedly by HgfsWrite() with requests of size
  *    less than or equal to HGFS_IO_MAX.
  *
- *    Note that we return the negative of an appropriate error code in this
- *    function so we can differentiate between success and failure.  On success
- *    we need to return the number of bytes written, but Solaris' error codes are
- *    positive so we negate them before returning.  If callers want to return
- *    these error codes to the kernel, they will need to flip their sign.
- *
  * Results:
- *   Returns number of bytes written on success and a negative value on error.
+ *   Returns number 0 on success and a positive value on error.
  *
  * Side effects:
- *   On success, size bytes are written to the file specified by the handle.
+ *   On success, up to 'size' bytes are written to the file specified by the
+ *   handle. Actual number of bytes written passed back in 'count' argument.
  *
  *----------------------------------------------------------------------------
  */
@@ -4407,7 +4255,8 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
             int ioflag,         // IN: Flags for write
             uint64_t offset,    // IN: Where in the file to begin writing
             uint32_t size,      // IN: How much data to write
-            uio_t *uiop)        // IN: Describes user's write request
+            uio_t *uiop,        // IN: Describes user's write request
+            uint32_t *count)    // OUT: number of bytes written
 {
    HgfsReq *req;
    HgfsRequestWrite *request;
@@ -4417,10 +4266,13 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    ASSERT(sip);
    ASSERT(uiop);
    ASSERT(size <= HGFS_IO_MAX); // HgfsWrite() guarantees this
+   ASSERT(count);
+
+   DEBUG(VM_DEBUG_ENTRY, "%s: entry.\n", __func__);
 
    req = HgfsGetNewReq(sip);
    if (!req) {
-      return -EIO;
+      return EIO;
    }
 
    request = (HgfsRequestWrite *)req->packet;
@@ -4432,18 +4284,19 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    request->requiredSize = size;
 
    if (ioflag & FAPPEND) {
-      DEBUG(VM_DEBUG_COMM, "HgfsDoWrite: writing in append mode.\n");
+      DEBUG(VM_DEBUG_COMM, "%s: writing in append mode.\n", __func__);
       request->flags |= HGFS_WRITE_APPEND;
    }
 
-   DEBUG(VM_DEBUG_COMM, "HgfsDoWrite: requesting write of %d bytes.\n", size);
+   DEBUG(VM_DEBUG_COMM, "%s: requesting write of %d bytes.\n",
+         __func__, size);
 
    /* Copy the data the user wants to write into the payload. */
    ret = uiomove(request->payload, request->requiredSize, UIO_WRITE, uiop);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL,
-            "HgfsDoWrite: uiomove(9F) failed copying data from user.\n");
-      ret = -EIO;
+            "%s: uiomove(9F) failed copying data from user.\n", __func__);
+      ret = EIO;
       /* We need to set the request state to error before destroying. */
       req->state = HGFS_REQ_ERROR;
       goto out;
@@ -4454,40 +4307,35 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
 
    ret = HgfsSubmitRequest(sip, req);
    if (ret) {
-      /*
-       * As in HgfsDoRead(), we need to flip the sign of the error code
-       * returned by HgfsSubmitRequest().
-       */
-      DEBUG(VM_DEBUG_FAIL, "HgfsDoWrite: HgfsSubmitRequest failed.\n");
-      ret = -ret;
+      DEBUG(VM_DEBUG_FAIL, "%s: HgfsSubmitRequest failed.\n", __func__);
       goto out;
    }
 
    reply = (HgfsReplyWrite *)req->packet;
 
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsDoWrite: invalid reply received.\n");
-      ret = -EPROTO;
+      DEBUG(VM_DEBUG_FAIL, "%s: invalid reply received.\n", __func__);
+      ret = EPROTO;
       goto out;
    }
 
-   if (reply->header.status != HGFS_STATUS_SUCCESS) {
-      DEBUG(VM_DEBUG_FAIL, "HgfsDoWrite: write failed (status=%d).\n",
-            reply->header.status);
-      ret = -EACCES;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
       goto out;
    }
 
    if (req->packetSize != sizeof *reply) {
-      DEBUG(VM_DEBUG_FAIL,
-            "HgfsDoWrite: invalid size of reply on successful reply.\n");
-      ret = -EPROTO;
+      DEBUG(VM_DEBUG_FAIL, "%s: invalid size of reply on successful reply.\n",
+            __func__);
+      ret = EPROTO;
       goto out;
    }
 
    /* The write was completed successfully, so return the amount written. */
-   ret = reply->actualSize;
-   DEBUG(VM_DEBUG_DONE, "HgfsDoWrite: wrote %d bytes.\n", ret);
+   *count = reply->actualSize;
+   DEBUG(VM_DEBUG_DONE, "%s: wrote %d bytes.\n", __func__, *count);
 
 out:
    HgfsDestroyReq(sip, req);
@@ -4568,44 +4416,13 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
    }
 
    /* Return the appropriate value. */
-   switch (reply->header.status) {
-   case HGFS_STATUS_SUCCESS:
-      ret = 0;
-      break;
-
-   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDelete: operation not permitted.\n");
-      ret = EACCES;
-      goto out;
-
-   case HGFS_STATUS_NOT_DIRECTORY:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDelete: not a directory.\n");
-      ret = ENOTDIR;
-      goto out;
-
-   case HGFS_STATUS_DIR_NOT_EMPTY:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDelete: directory not empty.\n");
-      ret = EEXIST;
-      goto out;
-
-   case HGFS_STATUS_NO_SUCH_FILE_OR_DIR:
-   case HGFS_STATUS_INVALID_NAME:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDelete: no such file or directory.\n");
-      ret = ENOENT;
-      goto out;
-   case HGFS_STATUS_ACCESS_DENIED:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDelete: access denied.\n");
-
-      /* XXX: Add retry behavior after removing r/o bit. */
-      ret = EACCES;
-      goto out;
-   default:
-      DEBUG(VM_DEBUG_FAIL, "HgfsDelete: default error.\n");
-      ret = EPROTO;
-      goto out;
+   ret = HgfsStatusConvertToSolaris(reply->header.status);
+   if (ret) {
+      DEBUG(VM_DEBUG_FAIL, "%s: failed with error %d.\n",
+            __func__, ret);
+   } else {
+      DEBUG(VM_DEBUG_DONE, "%s: done.\n", __func__);
    }
-
-   DEBUG(VM_DEBUG_DONE, "HgfsDelete: done.\n");
 
 out:
    HgfsDestroyReq(sip, req);
@@ -5026,6 +4843,82 @@ HgfsValidateReply(HgfsReq *req,         // IN: Request that contains reply data
    default:
       NOT_REACHED();
       return -1;        /* avoid compiler warning */
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsStatusConvertToSolaris --
+ *
+ *    Convert a cross-platform HGFS status code to its kernel specific
+ *    counterpart.
+ *
+ *    Rather than encapsulate the status codes within an array indexed by the
+ *    various HGFS status codes, we explicitly enumerate them in a switch
+ *    statement, saving the reader some time when matching HGFS status codes
+ *    against Solaris status codes.
+ *
+ * Results:
+ *    Zero if the converted status code represents success, positive error
+ *    otherwise. Unknown status codes are converted to EPROTO.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+HgfsStatusConvertToSolaris(HgfsStatus hgfsStatus) // IN: Status code to convert
+{
+   switch (hgfsStatus) {
+   case HGFS_STATUS_SUCCESS:
+      return 0;
+
+   case HGFS_STATUS_NO_SUCH_FILE_OR_DIR:
+   case HGFS_STATUS_INVALID_NAME:
+      return ENOENT;
+
+   case HGFS_STATUS_INVALID_HANDLE:
+      return EBADF;
+
+   case HGFS_STATUS_OPERATION_NOT_PERMITTED:
+      return EPERM;
+
+   case HGFS_STATUS_FILE_EXISTS:
+      return EEXIST;
+
+   case HGFS_STATUS_NOT_DIRECTORY:
+      return ENOTDIR;
+
+   case HGFS_STATUS_DIR_NOT_EMPTY:
+      return ENOTEMPTY;
+
+   case HGFS_STATUS_PROTOCOL_ERROR:
+      return EPROTO;
+
+   case HGFS_STATUS_ACCESS_DENIED:
+   case HGFS_STATUS_SHARING_VIOLATION:
+      return EACCES;
+
+   case HGFS_STATUS_NO_SPACE:
+      return ENOSPC;
+
+   case HGFS_STATUS_OPERATION_NOT_SUPPORTED:
+      return EOPNOTSUPP;
+
+   case HGFS_STATUS_NAME_TOO_LONG:
+      return ENAMETOOLONG;
+
+   case HGFS_STATUS_GENERIC_ERROR:
+      return EIO;
+
+   default:
+      DEBUG(VM_DEBUG_LOG,
+            "VMware hgfs: %s: unknown error: %u\n", __func__, hgfsStatus);
+      return EPROTO;
    }
 }
 

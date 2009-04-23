@@ -223,6 +223,8 @@
 #define UNITY_RPC_SHOW_TASKBAR            "unity.show.taskbar"
 #define UNITY_RPC_WINDOW_MOVE_RESIZE      "unity.window.move_resize"
 #define UNITY_RPC_DESKTOP_WORK_AREA_SET   "unity.desktop.work_area.set"
+#define UNITY_RPC_WINDOW_SHOW             "unity.window.show"
+#define UNITY_RPC_WINDOW_HIDE             "unity.window.hide"
 #define UNITY_RPC_WINDOW_MINIMIZE         "unity.window.minimize"
 #define UNITY_RPC_WINDOW_UNMINIMIZE       "unity.window.restore"
 #define UNITY_RPC_WINDOW_MAXIMIZE         "unity.window.maximize"
@@ -235,6 +237,9 @@
 #define GHI_RPC_SET_GUEST_HANDLER                     "ghi.guest.handler.set"
 #define GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER         "ghi.guest.handler.restoreDefault"
 #define GHI_RPC_OUTLOOK_SET_TEMP_FOLDER               "ghi.guest.outlook.set.tempFolder"
+#define GHI_RPC_OUTLOOK_RESTORE_TEMP_FOLDER           "ghi.guest.outlook.restore.tempFolder"
+#define GHI_RPC_TRASH_FOLDER_ACTION                   "ghi.guest.trashFolder.action"
+#define GHI_RPC_TRASH_FOLDER_GET_ICON                 "ghi.guest.trashFolder.getIcon"
 /* @} */
 
 
@@ -250,6 +255,7 @@
 #define UNITY_RPC_SHOW_TASKBAR_CAP        "tools.capability.unity.taskbar"
 #define GHI_RPC_LAUNCHMENU_CHANGE         "tools.ghi.launchmenu.change"
 #define GHI_RPC_PROTOCOL_HANDLER_INFO     "tools.ghi.protocolhandler.info"
+#define GHI_RPC_TRASH_FOLDER_STATE        "ghi.guest.trashFolder.state"
 #define UNITY_RPC_UNITY_ACTIVE            "unity.active"
 
 #define GHI_RPC_HOST_SHELL_ACTION         "ghi.host.shell.action"
@@ -275,11 +281,15 @@
  * @li @ref UNITY_START_MENU_RESOLVED_LAUNCH_FOLDER is the same contents as
  * @ref UNITY_START_MENU_LAUNCH_FOLDER however each item that is a shortcut
  * (link) is resolved into its destination path.
+ *
+ * @li @ref UNITY_START_MENU_RECENT_DOCUMENTS_FOLDER is the list of recently
+ * used documents for the guest.
  */
-#define UNITY_START_MENU_LAUNCH_FOLDER          "VMGuestLaunchItems"
-#define UNITY_START_MENU_FIXED_FOLDER           "VMGuestFixedItems"
-#define UNITY_START_MENU_ALL_HANDLERS_FOLDER    "VMGuestAllHandlers"
-#define UNITY_START_MENU_RESOLVED_LAUNCH_FOLDER "VMGuestResolvedItems"
+#define UNITY_START_MENU_LAUNCH_FOLDER           "VMGuestLaunchItems"
+#define UNITY_START_MENU_FIXED_FOLDER            "VMGuestFixedItems"
+#define UNITY_START_MENU_ALL_HANDLERS_FOLDER     "VMGuestAllHandlers"
+#define UNITY_START_MENU_RESOLVED_LAUNCH_FOLDER  "VMGuestResolvedItems"
+#define UNITY_START_MENU_RECENT_DOCUMENTS_FOLDER "VMGuestRecentDocuments"
 /* @} */
 
 
@@ -628,6 +638,22 @@ newHeight ::= ? post-op window height ? ;
 <work_areas> := <count>{ ',' x y width height } 
 <count> := number of work areas to follow, 0 or greater 
 @endverbatim
+
+
+   @def         UNITY_RPC_WINDOW_SHOW
+   @brief       Make the specified window visible.
+   @code
+   UNITY_RPC_WINDOW_SHOW UnityWindowId
+   @endcode
+   @param[in] UnityWindowId UnityWindowId of window to show
+
+
+   @def         UNITY_RPC_WINDOW_HIDE
+   @brief       Hide the specified window.
+   @code
+   UNITY_RPC_WINDOW_HIDE UnityWindowId
+   @endcode
+   @param[in] UnityWindowId UnityWindowId of window to hide
 
 
    @def         UNITY_RPC_WINDOW_MINIMIZE    

@@ -233,7 +233,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
    }
 
   retry:
-   opUsed = atomic_read(&hgfsVersionSearchRead);
+   opUsed = hgfsVersionSearchRead;
    if (opUsed == HGFS_OP_SEARCH_READ_V3) {
       HgfsRequest *header;
       HgfsRequestSearchReadV3 *request;
@@ -282,12 +282,12 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
          if (attr->requestType == HGFS_OP_SEARCH_READ_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: Version 3 "
                     "not supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ_V2);
+            hgfsVersionSearchRead = HGFS_OP_SEARCH_READ_V2;
             goto retry;
          } else if (attr->requestType == HGFS_OP_SEARCH_READ_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: Version 2 "
                     "not supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionSearchRead, HGFS_OP_SEARCH_READ);
+            hgfsVersionSearchRead = HGFS_OP_SEARCH_READ;
             goto retry;
          }
 
@@ -456,7 +456,7 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
    }
 
   retry:
-   opUsed = atomic_read(&hgfsVersionSearchOpen);
+   opUsed = hgfsVersionSearchOpen;
    if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
       replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REP_PAYLOAD_V3(req))->search;
    } else {
@@ -490,7 +490,7 @@ HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
          if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionSearchOpen, HGFS_OP_SEARCH_OPEN);
+            hgfsVersionSearchOpen = HGFS_OP_SEARCH_OPEN;
             goto retry;
          }
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
@@ -807,7 +807,7 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
    }
 
  retry:
-   opUsed = atomic_read(&hgfsVersionSearchClose);
+   opUsed = hgfsVersionSearchClose;
    if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
       HgfsRequestSearchCloseV3 *request;
       HgfsRequest *header;
@@ -847,7 +847,7 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
          if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionSearchClose, HGFS_OP_SEARCH_CLOSE);
+            hgfsVersionSearchClose = HGFS_OP_SEARCH_CLOSE;
             goto retry;
          }
          break;

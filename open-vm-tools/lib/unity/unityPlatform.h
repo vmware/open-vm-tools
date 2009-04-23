@@ -78,6 +78,8 @@ Bool UnityPlatformSetTopWindowGroup(UnityPlatform *up,
                                     UnityWindowId *windows,
                                     unsigned int windowCount);
 Bool UnityPlatformCloseWindow(UnityPlatform *up, UnityWindowId window);
+Bool UnityPlatformShowWindow(UnityPlatform *up, UnityWindowId window);
+Bool UnityPlatformHideWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformMinimizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformUnminimizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformMaximizeWindow(UnityPlatform *up, UnityWindowId window);

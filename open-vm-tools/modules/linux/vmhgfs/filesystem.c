@@ -36,7 +36,6 @@
 #include "compat_dcache.h"
 #include "compat_fs.h"
 #include "compat_kernel.h"
-#include "compat_kthread.h"
 #include "compat_sched.h"
 #include "compat_semaphore.h"
 #include "compat_slab.h"
@@ -48,8 +47,8 @@
 /* Must be included after sched.h. */
 #include <linux/smp_lock.h>
 
-#include "bdhandler.h"
 #include "filesystem.h"
+#include "transport.h"
 #include "hgfsDevLinux.h"
 #include "hgfsProto.h"
 #include "hgfsUtil.h"
@@ -71,34 +70,27 @@
 
 /* Synchronization primitives. */
 spinlock_t hgfsBigLock = SPIN_LOCK_UNLOCKED;
-long hgfsReqThreadFlags;
-wait_queue_head_t hgfsReqThreadWait;
-struct task_struct *hgfsReqThread;
-COMPAT_KTHREAD_DECLARE_STOP_INFO();
 
 /* Other variables. */
 compat_kmem_cache *hgfsReqCache = NULL;
 compat_kmem_cache *hgfsInodeCache = NULL;
-RpcOut *hgfsRpcOut = NULL;
-unsigned int hgfsIdCounter = 0;
-struct list_head hgfsReqsUnsent;
 
 /* Global protocol version switch. */
-atomic_t hgfsVersionOpen;
-atomic_t hgfsVersionRead;
-atomic_t hgfsVersionWrite;
-atomic_t hgfsVersionClose;
-atomic_t hgfsVersionSearchOpen;
-atomic_t hgfsVersionSearchRead;
-atomic_t hgfsVersionSearchClose;
-atomic_t hgfsVersionGetattr;
-atomic_t hgfsVersionSetattr;
-atomic_t hgfsVersionCreateDir;
-atomic_t hgfsVersionDeleteFile;
-atomic_t hgfsVersionDeleteDir;
-atomic_t hgfsVersionRename;
-atomic_t hgfsVersionQueryVolumeInfo;
-atomic_t hgfsVersionCreateSymlink;
+HgfsOp hgfsVersionOpen;
+HgfsOp hgfsVersionRead;
+HgfsOp hgfsVersionWrite;
+HgfsOp hgfsVersionClose;
+HgfsOp hgfsVersionSearchOpen;
+HgfsOp hgfsVersionSearchRead;
+HgfsOp hgfsVersionSearchClose;
+HgfsOp hgfsVersionGetattr;
+HgfsOp hgfsVersionSetattr;
+HgfsOp hgfsVersionCreateDir;
+HgfsOp hgfsVersionDeleteFile;
+HgfsOp hgfsVersionDeleteDir;
+HgfsOp hgfsVersionRename;
+HgfsOp hgfsVersionQueryVolumeInfo;
+HgfsOp hgfsVersionCreateSymlink;
 
 /* Private functions. */
 static inline unsigned long HgfsComputeBlockBits(unsigned long blockSize);
@@ -107,6 +99,7 @@ static HgfsSuperInfo *HgfsInitSuperInfo(HgfsMountInfo *mountInfo);
 static int HgfsReadSuper(struct super_block *sb,
                          void *rawData,
                          int flags);
+static void HgfsResetOps(void);
 
 
 /* HGFS filesystem high-level operations. */
@@ -564,6 +557,44 @@ HgfsReadSuper24(struct super_block *sb,
 }
 #endif
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsResetOps --
+ *
+ *      Reset ops with more than one opcode back to the desired opcode.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsResetOps(void)
+{
+   hgfsVersionOpen            = HGFS_OP_OPEN_V3;
+   hgfsVersionRead            = HGFS_OP_READ_V3;
+   hgfsVersionWrite           = HGFS_OP_WRITE_V3;
+   hgfsVersionClose           = HGFS_OP_CLOSE_V3;
+   hgfsVersionSearchOpen      = HGFS_OP_SEARCH_OPEN_V3;
+   hgfsVersionSearchRead      = HGFS_OP_SEARCH_READ_V3;
+   hgfsVersionSearchClose     = HGFS_OP_SEARCH_CLOSE_V3;
+   hgfsVersionGetattr         = HGFS_OP_GETATTR_V3;
+   hgfsVersionSetattr         = HGFS_OP_SETATTR_V3;
+   hgfsVersionCreateDir       = HGFS_OP_CREATE_DIR_V3;
+   hgfsVersionDeleteFile      = HGFS_OP_DELETE_FILE_V3;
+   hgfsVersionDeleteDir       = HGFS_OP_DELETE_DIR_V3;
+   hgfsVersionRename          = HGFS_OP_RENAME_V3;
+   hgfsVersionQueryVolumeInfo = HGFS_OP_QUERY_VOLUME_INFO_V3;
+   hgfsVersionCreateSymlink   = HGFS_OP_CREATE_SYMLINK_V3;
+}
+
+
 /*
  * Public function implementations.
  */
@@ -587,13 +618,7 @@ HgfsReadSuper24(struct super_block *sb,
 Bool
 HgfsInitFileSystem(void)
 {
-   Bool success = FALSE;
-
    /* Initialize primitives. */
-   INIT_LIST_HEAD(&hgfsReqsUnsent);
-   init_waitqueue_head(&hgfsReqThreadWait);
-   hgfsReqThread = NULL;
-   hgfsReqThreadFlags = 0;
    HgfsResetOps();
 
    /* Setup the request slab allocator. */
@@ -604,7 +629,7 @@ HgfsInitFileSystem(void)
                                            NULL);
    if (hgfsReqCache == NULL) {
       printk(KERN_WARNING "VMware hgfs: failed to create request allocator\n");
-      goto exit;
+      goto error_caches;
    }
 
    /* Setup the inode slab allocator. */
@@ -615,15 +640,11 @@ HgfsInitFileSystem(void)
                                              HgfsInodeCacheCtor);
    if (hgfsInodeCache == NULL) {
       printk(KERN_WARNING "VMware hgfs: failed to create inode allocator\n");
-      goto exit;
+      goto error_caches;
    }
 
-   /* Create backdoor handler. */
-   hgfsReqThread = compat_kthread_run(HgfsBdHandler, NULL, HGFS_NAME);
-   if (IS_ERR(hgfsReqThread)) {
-      printk(KERN_WARNING "VMware hgfs: failed to create kernel thread\n");
-      goto exit;
-   }
+   /* Initialize the transport. */
+   HgfsTransportInit();
 
    /*
     * Register the filesystem. This should be the last thing we do
@@ -631,29 +652,22 @@ HgfsInitFileSystem(void)
     */
    if (register_filesystem(&hgfsType)) {
       printk(KERN_WARNING "VMware hgfs: failed to register filesystem\n");
-      goto exit;
+      goto error_caches;
    }
    LOG(4, (KERN_DEBUG "VMware hgfs: Module Loaded\n"));
 #ifdef HGFS_ENABLE_WRITEBACK
    LOG(4, (KERN_DEBUG "VMware hgfs: writeback cache enabled\n"));
 #endif
-   success = TRUE;
+   return TRUE;
 
-  exit:
-
-   /* Cleanup if an error occurred. */
-   if (success == FALSE) {
-      if (!IS_ERR(hgfsReqThread)) {
-         compat_kthread_stop(hgfsReqThread);
-      }
-      if (hgfsInodeCache != NULL) {
-         kmem_cache_destroy(hgfsInodeCache);
-      }
-      if (hgfsReqCache != NULL) {
-         kmem_cache_destroy(hgfsReqCache);
-      }
+error_caches:
+   if (hgfsInodeCache != NULL) {
+      kmem_cache_destroy(hgfsInodeCache);
    }
-   return success;
+   if (hgfsReqCache != NULL) {
+      kmem_cache_destroy(hgfsReqCache);
+   }
+   return FALSE;
 }
 
 
@@ -695,8 +709,8 @@ HgfsCleanupFileSystem(void)
       success = FALSE;
    }
 
-   /* Kill the backdoor handler thread. */
-   compat_kthread_stop(hgfsReqThread);
+   /* Transport cleanup. */
+   HgfsTransportExit();
 
    /* Destroy the inode and request slabs. */
    kmem_cache_destroy(hgfsInodeCache);

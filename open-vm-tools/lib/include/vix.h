@@ -309,6 +309,7 @@ enum {
    VIX_E_WRAPPER_WORKSTATION_NOT_INSTALLED      = 22001,
    VIX_E_WRAPPER_VERSION_NOT_FOUND              = 22002,
    VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 22003,
+   VIX_E_WRAPPER_PLAYER_NOT_INSTALLED           = 22004,
 };
 
 // {{ End VIX_ERROR }}
@@ -479,6 +480,7 @@ enum {
    VIX_SERVICEPROVIDER_DEFAULT               = 1,
    VIX_SERVICEPROVIDER_VMWARE_SERVER         = 2,
    VIX_SERVICEPROVIDER_VMWARE_WORKSTATION    = 3,
+   VIX_SERVICEPROVIDER_VMWARE_PLAYER         = 4,
    VIX_SERVICEPROVIDER_VMWARE_VI_SERVER      = 10,
 };
 
@@ -636,7 +638,9 @@ VixHandle VixVM_Delete(VixHandle vmHandle,
                        void *clientData);
 
 /*
- * This is the state of an individual VM.
+ * This is the state of an individual VM.  These values are bitwise flags.
+ * The actual value returned for may be a bitwise OR of one more of these
+ * flags, along with other reserved values not documented here.
  */
 
 typedef int VixPowerState;

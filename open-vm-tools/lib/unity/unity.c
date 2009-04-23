@@ -164,6 +164,8 @@ typedef struct {
 
 static UnityCommandElem unityCommandTable[] = {
    { UNITY_RPC_WINDOW_CLOSE, UnityPlatformCloseWindow },
+   { UNITY_RPC_WINDOW_SHOW, UnityPlatformShowWindow },
+   { UNITY_RPC_WINDOW_HIDE, UnityPlatformHideWindow },
    { UNITY_RPC_WINDOW_MINIMIZE, UnityPlatformMinimizeWindow },
    { UNITY_RPC_WINDOW_UNMINIMIZE, UnityPlatformUnminimizeWindow },
    { UNITY_RPC_WINDOW_MAXIMIZE, UnityPlatformMaximizeWindow },
@@ -398,6 +400,10 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_EXIT, UnityTcloExit, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MOVE_RESIZE,
                              UnityTcloMoveResizeWindow, NULL);
+      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_SHOW,
+                             UnityTcloWindowCommand, NULL);
+      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_HIDE,
+                             UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MINIMIZE,
                              UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_UNMINIMIZE,

@@ -94,6 +94,7 @@
 
 #include "driver-config.h"
 
+#define EXPORT_SYMTAB
 #include <linux/kmod.h>
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -433,7 +434,21 @@ static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 uint64 controlPacketCount[VSOCK_PACKET_TYPE_MAX];
 uint64 consumeQueueLevel[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
 uint64 produceQueueLevel[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
-#endif
+
+#define VSOCK_STATS_STREAM_CONSUME_HIST(vsk)           \
+   VSockVmciUpdateQueueBucketCount((vsk)->consumeQ,    \
+                                   (vsk)->produceQ,    \
+                                   (vsk)->consumeSize, \
+                                   consumeQueueLevel)
+#define VSOCK_STATS_STREAM_PRODUCE_HIST(vsk)           \
+   VSockVmciUpdateQueueBucketCount((vsk)->produceQ,    \
+                                   (vsk)->consumeQ,    \
+                                   (vsk)->produceSize, \
+                                   produceQueueLevel)
+#else
+#define VSOCK_STATS_STREAM_CONSUME_HIST(vsk)
+#define VSOCK_STATS_STREAM_PRODUCE_HIST(vsk)
+#endif // VSOCK_GATHER_STATISTICS
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 5)
@@ -498,7 +513,6 @@ kmem_cache_t *vsockCachep;
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_READ,         \
                            0, 0, _waitInfo, VMCI_INVALID_HANDLE)
 
-
 #ifdef VMX86_LOG
 # define LOG_PACKET(_pkt)  VSockVmciLogPkt(__FUNCTION__, __LINE__, _pkt)
 #else
@@ -546,8 +560,52 @@ VMCISock_GetAFValue(void)
 exit:
    up(&registrationMutex);
    return afvalue;
-
 }
+EXPORT_SYMBOL(VMCISock_GetAFValue);
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCISock_GetLocalCID --
+ *
+ *      Kernel interface that allows external kernel modules to get the current
+ *      VMCI context id.
+ *      This version of the function is exported to kernel clients and should not
+ *      change.
+ *
+ * Results:
+ *      The context id on success, a negative error on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+VMCISock_GetLocalCID(void)
+{
+   int cid;
+
+   down(&registrationMutex);
+
+   /*
+    * Kernel clients are required to explicitly register themselves before they
+    * can use VMCI Sockets.
+    */
+   if (vsockVmciKernClientCount <= 0) {
+      cid = -1;
+      goto exit;
+   }
+
+   cid = VMCI_GetContextID();
+
+exit:
+   up(&registrationMutex);
+   return cid;
+}
+EXPORT_SYMBOL(VMCISock_GetLocalCID);
 
 
 /*
@@ -576,6 +634,7 @@ VMCISock_KernelRegister(void)
    vsockVmciKernClientCount++;
    up(&registrationMutex);
 }
+EXPORT_SYMBOL(VMCISock_KernelRegister);
 
 
 /*
@@ -604,6 +663,7 @@ VMCISock_KernelDeregister(void)
    VSockVmciTestUnregister();
    up(&registrationMutex);
 }
+EXPORT_SYMBOL(VMCISock_KernelDeregister);
 
 
 /*
@@ -4520,12 +4580,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
          goto outWait;
       }
 
-#if defined(VSOCK_GATHER_STATISTICS)
-      VSockVmciUpdateQueueBucketCount(vsk->produceQ,
-				      vsk->consumeQ,
-				      vsk->produceSize,
-				      produceQueueLevel);
-#endif
+      VSOCK_STATS_STREAM_PRODUCE_HIST(vsk);
 
       /*
        * Note that enqueue will only write as many bytes as are free in the
@@ -4914,13 +4969,8 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
       err = 0;
       goto outWait;
    }
-#if defined(VSOCK_GATHER_STATISTICS)
-   VSockVmciUpdateQueueBucketCount(vsk->consumeQ,
-				   vsk->produceQ,
-				   vsk->consumeSize,
-				   consumeQueueLevel);
-#endif
 
+   VSOCK_STATS_STREAM_CONSUME_HIST(vsk);
 
    /*
     * Now consume up to len bytes from the queue.  Note that since we have the

@@ -109,6 +109,7 @@ static Bool AcquireDisplayLock(void);
 static Bool QueryX11Lock(Display *dpy, Window w, Atom lockAtom);
 static void ReloadSelf(void);
 static void VMwareUserRegisterCopyPaste(bool reg);
+static void VMwareUserRegisterDnD(bool reg);
 
 
 /*
@@ -145,7 +146,7 @@ Bool optionDnD;
 Bool gCanUseVMwareCtrl;
 Bool gCanUseVMwareCtrlTopologySet;
 guint gTimeoutId;
-int gBlockFd = -1;
+DnDBlockControl gBlockCtrl = { -1 };
 
 /*
  * All signals that:
@@ -199,14 +200,11 @@ void VMwareUserCleanupRpc(void)
          FoundryToolsDaemon_UnregisterOpenUrl();
          gOpenUrlRegistered = FALSE;
       }
-      if (gDnDRegistered) {
-         DnD_Unregister(gHGWnd, gGHWnd);
-         gDnDRegistered = FALSE;
-      }
 
       CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
-      if (p && p->IsRegistered()) {
-         p->Unregister();
+      if (p) {
+         p->UnregisterDnD();
+         p->UnregisterCP();
       }
       RpcIn_Destruct(gRpcIn);
       gRpcIn = NULL;
@@ -372,9 +370,6 @@ Bool
 VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
 {
    Debug("----------toolbox: Received 'reset' from vmware\n");
-   if (gDnDRegistered) {
-      DnD_OnReset(gHGWnd, gGHWnd);
-   }
    CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
    if (p) {
       p->OnReset();
@@ -439,21 +434,8 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
    } else {
       FoundryToolsDaemon_RegisterOpenUrlCapability();
    }
-   if (!gDnDRegistered) {
-      gDnDRegistered = DnD_Register(gHGWnd, gGHWnd);
-      if (gDnDRegistered) {
-         UnityDnD state;
-         state.detWnd = gGHWnd;
-         state.setMode = DnD_SetMode;
-         Unity_SetActiveDnDDetWnd(&state);
-      }
-   } else if (DnD_GetVmxDnDVersion() > 1) {
-      if (!DnD_RegisterCapability()) {
-         DnD_Unregister(gHGWnd, gGHWnd);
-         gDnDRegistered = FALSE;
-      }
-   }
 
+   VMwareUserRegisterDnD(TRUE);
    VMwareUserRegisterCopyPaste(TRUE);
 
    if (!HgfsServerManager_CapReg(TOOLS_DND_NAME, gHgfsServerRegistered)) {
@@ -473,8 +455,9 @@ VMwareUserRpcInCapRegCB(char const **result,     // OUT
  * VMwareUserRegisterCopyPaste
  *
  *      Call the CopyPasteDnDWrapper singleton to register, or unregister,
- *      copy and paste with the host. The wrapper class will try whatever
- *      versions are supported, in highest to lowest order when registering.
+ *      copy and paste with the host. The wrapper class will try
+ *      whatever versions are supported, in highest to lowest order when
+ *      registering.
  *
  * Results:
  *      None.
@@ -492,9 +475,44 @@ VMwareUserRegisterCopyPaste(bool reg)  // IN: if TRUE, register, else unregister
    if (p) {
       p->SetUserData(static_cast<void *>(gUserMainWidget));
       if (reg) {
-         p->Register();
+         p->RegisterCP();
       } else {
-         p->Unregister();
+         p->UnregisterCP();
+      }
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMwareUserRegisterDnD
+ *
+ *      Call the CopyPasteDnDWrapper singleton to register, or unregister,
+ *      drag and drop with the host. The wrapper class will try
+ *      whatever versions are supported, in highest to lowest order when
+ *      registering.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Drag and drop capabilities will be (un)registered.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VMwareUserRegisterDnD(bool reg)  // IN: if TRUE, register, else unregister
+{
+   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
+   if (p) {
+      p->SetUserData(static_cast<void *>(gUserMainWidget));
+      p->SetEventQueue(gEventQueue);
+      if (reg) {
+         p->RegisterDnD();
+      } else {
+         p->UnregisterDnD();
       }
    }
 }
@@ -736,14 +754,15 @@ main(int argc, char *argv[])
    int index;
    GuestApp_Dict *confDict;
    const char *pathName;
+   int blockFd = -1;
 #ifdef USE_NOTIFY
    Bool notifyPresent = TRUE;
 #endif
+   Bool usingBlock;
 
    gOpenUrlRegistered = FALSE;
    gDnDRegistered = FALSE;
    gHgfsServerRegistered = FALSE;
-   gBlockFd = -1;
    gReloadSelf = FALSE;
    gYieldBlock = FALSE;
    gSigExit = FALSE;
@@ -803,22 +822,36 @@ main(int argc, char *argv[])
              * blocking driver if it is not root. If guestd autostarts vmware-user,
              * guestd will first initialize it and pass block fd in with -blockFd.
              */
-            if (index + 1 == argc) {
+            if (++index >= argc) {
                Warning("The \""OPTION_BLOCK_FD"\" option on the command line requires an "
                        "argument.\n");
             }
 
-            index++;
-            if (!StrUtil_StrToInt(&gBlockFd, argv[index])) {
+            if (!StrUtil_StrToInt(&blockFd, argv[index])) {
                Warning("The \""OPTION_BLOCK_FD"\" option on the command line requires a "
                        "valid integer.\n");
-               gBlockFd = -1;
+               blockFd = -1;
             }
-            Debug("vmware-user got blockFd = %d\n", gBlockFd);
+            Debug("vmware-user got blockFd = %d\n", blockFd);
          } else {
             Warning("Invalid \"%s\" option on the command line.\n", argv[index]);
          }
       }
+   }
+
+   /*
+    * vmware-user runs as current active account, and can not initialize blocking
+    * driver if it is not root. If guestd autostarts vmware-user, guestd will first
+    * initialize it and pass block fd in. If manually run vmware-user, here will
+    * try to initialize the blocking driver.
+    */
+   usingBlock = blockFd >= 0 ?
+                DnD_CompleteBlockInitialization(blockFd, &gBlockCtrl) :
+                DnD_InitializeBlocking(&gBlockCtrl);
+
+   if (!usingBlock) {
+      Debug("%s: vmware-user failed to initialize blocking driver.\n",
+            __FUNCTION__);
    }
 
    if (Signal_SetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals),
@@ -851,28 +884,7 @@ main(int argc, char *argv[])
       Debug_EnableToFile(NULL, FALSE);
    }
 
-   /*
-    * vmware-user runs as current active account, and can not initialize blocking
-    * driver if it is not root. If guestd autostarts vmware-user, guestd will first
-    * initialize it and pass block fd in. If manually run vmware-user, here will
-    * try to initialize the blocking driver.
-    */
-
-   if (gBlockFd < 0) {
-      gBlockFd = DnD_InitializeBlocking();
-      if (gBlockFd < 0) {
-         Debug("%s: vmware-user failed to initialize blocking driver.\n",
-         __FUNCTION__);
-      }
-   }
-
    gUserMainWidget = VMwareUser_CreateWindow();
-
-   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
-   if (p) {
-      p->SetUserData(static_cast<void *>(gUserMainWidget));
-      p->SetBlockFd(gBlockFd);
-   }
 
    gHGWnd = VMwareUser_CreateWindow();
    gGHWnd = VMwareUser_CreateWindow();
@@ -891,6 +903,15 @@ main(int argc, char *argv[])
    if (gEventQueue == NULL) {
       Warning("Unable to create the event queue.\n\n");
       return EXIT_FAILURE;
+   }
+
+   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
+   if (p) {
+      p->SetUserData(static_cast<void *>(gUserMainWidget));
+      p->SetBlockControl(&gBlockCtrl);
+      p->SetEventQueue(gEventQueue);
+      p->SetHGWnd(gHGWnd);
+      p->SetGHWnd(gGHWnd);
    }
 
    if (runningInForeignVM) {
@@ -972,21 +993,17 @@ main(int argc, char *argv[])
          break;
       }
 
-      /* XXX Refactor this. */
       if (gYieldBlock) {
-         Debug("Yielding vmblock descriptor.\n");
-         if (gDnDRegistered) {
-            DnD_Unregister(gHGWnd, gGHWnd);
-            gDnDRegistered = FALSE;
-         }
          CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
          if (p) {
-            p->Unregister();
+            p->UnregisterDnD();
+            p->UnregisterCP();
          }
-         if (gBlockFd >= 0 && !DnD_UninitializeBlocking(gBlockFd)) {
+
+         if (DnD_BlockIsReady(&gBlockCtrl) &&
+             !DnD_UninitializeBlocking(&gBlockCtrl)) {
             Debug("vmware-user failed to uninitialize blocking.\n");
          }
-         gBlockFd = -1;
          gYieldBlock = FALSE;
       }
    }
@@ -997,7 +1014,8 @@ main(int argc, char *argv[])
 
    Signal_ResetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals));
 
-   if (gBlockFd >= 0 && !DnD_UninitializeBlocking(gBlockFd)) {
+   if (DnD_BlockIsReady(&gBlockCtrl) &&
+       !DnD_UninitializeBlocking(&gBlockCtrl)) {
       Debug("vmware-user failed to uninitialize blocking.\n");
    }
 

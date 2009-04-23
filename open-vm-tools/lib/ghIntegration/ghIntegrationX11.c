@@ -148,7 +148,9 @@ struct _GHIPlatform {
 
    int nextMenuHandle;
    GHashTable *menuHandles;
-   GHashTable *vmwareEnv;
+
+   /** Pre-wrapper script environment.  See @ref System_GetNativeEnviron. */
+   const char **nativeEnviron;
 };
 
 #ifdef GTK2
@@ -193,8 +195,6 @@ typedef struct {
 static void GHIPlatformSetMenuTracking(GHIPlatform *ghip,
                                        Bool isEnabled);
 static char *GHIPlatformUriPathToString(UriPathSegmentA *path);
-static Bool GHIRestoreVMwareEnviron(GHIPlatform *ghip);
-static Bool GHISetVMwareEnviron(GHIPlatform *ghip);
 
 
 /*
@@ -335,10 +335,12 @@ GHIPlatform *
 GHIPlatformInit(VMU_ControllerCB *vmuControllerCB,  // IN
                 void *ctx)                          // IN
 {
+   extern const char **environ;
    GHIPlatform *ghip;
 
    ghip = Util_SafeCalloc(1, sizeof *ghip);
    ghip->directoriesTracked = g_array_new(FALSE, FALSE, sizeof(GHIDirectoryWatch));
+   ghip->nativeEnviron = System_GetNativeEnviron(environ);
    AppUtil_Init();
 
    return ghip;
@@ -431,35 +433,6 @@ GHIPlatformFreeValue(gpointer key,       // IN
 
    return TRUE;
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformFreeKeyAndValue --
- *
- *      Frees a hash table entry. Typically called from a g_hashtable
- *      iterator. Both the key, and the value are freed.
- *
- * Results:
- *      TRUE always.
- *
- * Side effects:
- *      The specified value will no longer be valid.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-GHIPlatformFreeKeyAndValue(gpointer key,       // IN
-                           gpointer value,     // IN
-                           gpointer user_data) // IN
-{
-   g_free(key);
-   g_free(value);
-
-   return TRUE;
-}
 #endif // GTK2
 
 
@@ -526,10 +499,9 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
    GHIPlatformSetMenuTracking(ghip, FALSE);
    g_array_free(ghip->directoriesTracked, TRUE);
    ghip->directoriesTracked = NULL;
-   if (ghip->vmwareEnv) {
-      g_hash_table_foreach_remove(ghip->vmwareEnv, GHIPlatformFreeKeyAndValue, NULL);
-      g_hash_table_destroy(ghip->vmwareEnv);
-      ghip->vmwareEnv = NULL;
+   if (ghip->nativeEnviron) {
+      System_FreeNativeEnviron(ghip->nativeEnviron);
+      ghip->nativeEnviron = NULL;
    }
    free(ghip);
 }
@@ -2388,13 +2360,20 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
 
    if (GHIPlatformCombineArgs(ghip, fileUtf8, &fullArgv, &fullArgc) &&
        fullArgc > 0) {
-      GHIRestoreVMwareEnviron(ghip);
-      retval = g_spawn_async(NULL, fullArgv, NULL,
+      retval = g_spawn_async(NULL, fullArgv,
+                            /*
+                             * XXX  Please don't hate me for casting off the qualifier
+                             * here.  Glib does -not- modify the environment, at
+                             * least not in the parent process, but their prototype
+                             * does not specify this argument as being const.
+                             *
+                             * Comment stolen from GuestAppX11OpenUrl.
+                             */
+                             (char **)ghip->nativeEnviron,
                              G_SPAWN_SEARCH_PATH |
                              G_SPAWN_STDOUT_TO_DEV_NULL |
                              G_SPAWN_STDERR_TO_DEV_NULL,
                              NULL, NULL, NULL, NULL);
-      GHISetVMwareEnviron(ghip);
    }
 
    g_strfreev(fullArgv);
@@ -2646,162 +2625,6 @@ GHIPlatformGetProtocolHandlers(GHIPlatform *ghip,                           // U
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHISetVMwareVariable --
- *
- *      Sets the environment variable passed in to the value passed in. 
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      The specified environment variable is set. 
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHISetVMwareVariable(gpointer key,       // IN
-                     gpointer value,     // IN
-                     gpointer user_data) // IN (unused)
-{
-   if (value) {
-      System_SetEnv(TRUE, key, value);
-   } else {
-      System_UnsetEnv(key);
-   }
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * GHIRestoreVMwareEnviron --
- *
- *     For each VMWARE_FOO in the environment, putenv its value as FOO
- *     and save off the previous value of FOO for later restore (iff this
- *     is the first time we are called, e.g., the hash table was not yet
- *     created.) This is called by GHIPlatformShellOpen on Linux only to 
- *     undo what the vmwareuser wrapper script did to the environment,
- *     before we fork and exec.
- *
- * Results:
- *     TRUE on success
- *     FALSE on error
- *
- * Side effects:
- *     None
- *
- *------------------------------------------------------------------------------
- */
-
-static Bool
-GHIRestoreVMwareEnviron(GHIPlatform *ghip) // IN
-{
-   extern char **environ;
-   char **p;
-   Bool addToHash = FALSE;
-
-   if (!ghip->vmwareEnv) {
-      ghip->vmwareEnv = g_hash_table_new(g_str_hash, g_str_equal);
-      addToHash = TRUE;
-   }
-
-   if (!ghip->vmwareEnv) {
-      return FALSE;
-   }
-
-   for (p = environ; p && *p; p++) {
-      char *lhs;
-      char *rhs;
-      unsigned int index;
-
-      if (!StrUtil_StartsWith(*p, "VMWARE_")) {
-         continue;
-      }
-
-      /*
-       * So we have a variable that starts with VMWARE_. This variable
-       * was created by the wrapper script that launches us, for each 
-       * variable in the parent environment it modified. For example, if
-       * the variable it changes is LD_LIBRARY_PATH, then the variable
-       * VMWARE_LD_LIBRARY_PATH will hold the value before the wrapper
-       * script modified it. In Unix, we get this variable in the 
-       * environ extern as VMWARE_LD_LIBRARY_PATH=value. So, we want to
-       * get the lhs of the "=", skip past the VMWARE_ prefix to get to
-       * the variable name, and extract the rhs of the "=" to get the
-       * value.
-       */
-      index = 0;
-      lhs = StrUtil_GetNextToken(&index, *p, "=");
-      if (lhs) {
-         index++;
-         rhs = StrUtil_GetNextToken(&index, *p, "");
-         if (rhs && *rhs) {
-            char *q;
-            q = lhs + sizeof "VMWARE_" - 1;
-            if (*q) {
-               Debug("%s: restoring %s\n", __FUNCTION__, q);
-               if (addToHash) {
-                  g_hash_table_insert(ghip->vmwareEnv, g_strdup(q),
-                                      System_GetEnv(TRUE, q));
-               }
-               /*
-                * If the value is "0", the script told us that
-                * there was no corresponding variable in the 
-                * environment. XXX why it was compelled to create
-                * the VMWARE_ counterpart is unclear. It should have
-                * been set with a value like "VMWARE_UNSET_ENV" 
-                * because "0" is conceivably a value that is legit
-                * in some instances. Here, we assume no legit var
-                * had a value of "0". See bug 313450.
-                */
-               if (strcmp(rhs, "0") == 0) {
-                  System_UnsetEnv(q);
-               } else if (*rhs == '1') {
-                  System_SetEnv(TRUE, q, rhs + 1);
-               }
-            }
-         }
-         free(rhs);
-      }
-      free(lhs);
-   }
-   return TRUE;
-}
-
-
-/*
- *------------------------------------------------------------------------------
- *
- * GHISetVMwareEnviron --
- *
- *     Restore each environment variable in the hash table to the values
- *     assigned by the wrapper script when vmware-user was executed.
- *
- * Results:
- *     TRUE on success
- *     FALSE on error
- *
- * Side effects:
- *     None
- *
- *------------------------------------------------------------------------------
- */
-
-static Bool
-GHISetVMwareEnviron(GHIPlatform *ghip)   // IN
-{
-   if (!ghip->vmwareEnv) {
-      return FALSE;
-   }
-   g_hash_table_foreach(ghip->vmwareEnv, GHISetVMwareVariable, NULL);
-   return TRUE;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformSetOutlookTempFolder --
@@ -2831,3 +2654,73 @@ GHIPlatformSetOutlookTempFolder(GHIPlatform *ghip,  // IN: platform-specific sta
    return FALSE;
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GHIPlatformRestoreOutlookTempFolder --
+ *
+ *    Set the temporary folder used by Microsoft Outlook to store attachments
+ *    opened by the user.
+ *
+ * Results:
+ *    TRUE if successful, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+GHIPlatformRestoreOutlookTempFolder(GHIPlatform *ghip)  // IN: platform-specific state
+{
+   ASSERT(ghip);
+
+   return FALSE;
+}
+
+
+/**
+ * @brief Performs an action on the Trash (aka Recycle Bin) folder.
+ *
+ * Performs an action on the Trash (aka Recycle Bin) folder. Currently, the
+ * only supported actions are to open the folder, or empty it.
+ *
+ * @param[in] ghip Pointer to platform-specific GHI data.
+ * @param[in] xdrs Pointer to XDR serialized arguments.
+ *
+ * @retval TRUE  The action was performed.
+ * @retval FALSE The action couldn't be performed.
+ */
+
+Bool
+GHIPlatformTrashFolderAction(GHIPlatform *ghip,
+                             const XDR   *xdrs)
+{
+   ASSERT(ghip);
+   ASSERT(xdrs);
+   return FALSE;
+}
+
+
+/* @brief Returns the icon of the Trash (aka Recycle Bin) folder.
+ *
+ * Gets the icon of the Trash (aka Recycle Bin) folder, and returns it
+ * to the host.
+ *
+ * @param[in]  ghip Pointer to platform-specific GHI data.
+ * @param[out] xdrs Pointer to XDR serialized data to send to the host.
+ *
+ * @retval TRUE  The icon was fetched successfully.
+ * @retval FALSE The icon could not be fetched.
+ */
+
+Bool
+GHIPlatformTrashFolderGetIcon(GHIPlatform *ghip,
+                              XDR         *xdrs)
+{
+   ASSERT(ghip);
+   ASSERT(xdrs);
+   return FALSE;
+}

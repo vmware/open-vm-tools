@@ -69,8 +69,9 @@ RpcChannelRestart(gpointer _chan)
 {
    RpcChannel *chan = _chan;
 
-   if (!chan->stop(chan) || !chan->start(chan)) {
-      g_warning("Channel reset failed [%d]\n", chan->rpcErrorCount);
+   chan->stop(chan);
+   if (!chan->start(chan)) {
+      g_warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
       if (chan->resetCb != NULL) {
          chan->resetCb(chan, FALSE, chan->resetData);
       }
@@ -148,10 +149,11 @@ RpcChannelReset(RpcInData *data)
    gchar *msg;
    RpcChannel *chan = data->clientData;
 
-   g_assert(chan->resetCheck == NULL);
-   chan->resetCheck = g_idle_source_new();
-   g_source_set_callback(chan->resetCheck, RpcChannelCheckReset, chan, NULL);
-   g_source_attach(chan->resetCheck, chan->mainCtx);
+   if (chan->resetCheck == NULL) {
+      chan->resetCheck = g_idle_source_new();
+      g_source_set_callback(chan->resetCheck, RpcChannelCheckReset, chan, NULL);
+      g_source_attach(chan->resetCheck, chan->mainCtx);
+   }
 
    msg = Str_Asprintf(NULL, "ATR %s", chan->appName);
    ASSERT_MEM_ALLOC(msg);
@@ -368,8 +370,8 @@ RpcChannel_Destroy(RpcChannel *chan)
 {
    size_t i;
 
-   if (chan->shutdown != NULL && !chan->shutdown(chan)) {
-      return FALSE;
+   if (chan->shutdown != NULL) {
+      chan->shutdown(chan);
    }
 
    RpcChannel_UnregisterCallback(chan, &chan->resetReg);

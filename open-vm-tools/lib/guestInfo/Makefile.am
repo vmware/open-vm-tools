@@ -19,15 +19,7 @@ noinst_LTLIBRARIES = libGuestInfo.la
 
 libGuestInfo_la_SOURCES =
 libGuestInfo_la_SOURCES += guestInfo.c
-libGuestInfo_la_SOURCES += guestInfoServer.c
 libGuestInfo_la_SOURCES += guestInfoPosix.c
-libGuestInfo_la_SOURCES += guestInfoPerfMonLinux.c
-
-noinst_LTLIBRARIES += libGuestInfoCS.la
-
-libGuestInfoCS_la_SOURCES =
-libGuestInfoCS_la_SOURCES += guestInfo.c
-libGuestInfoCS_la_SOURCES += guestInfoPosix.c
 
 AM_CFLAGS = $(DNET_CPPFLAGS)
 

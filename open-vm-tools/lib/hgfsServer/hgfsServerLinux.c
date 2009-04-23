@@ -358,6 +358,7 @@ static HgfsInternalStatus HgfsEffectivePermissions(char *fileName,
 static void
 HgfsServerSigOplockBreak(int sigNum,       // IN: Signal number
                          siginfo_t *info,  // IN: Additional info about signal
+                         ucontext_t *u,    // IN: Interrupted context (regs etc)
                          void *clientData) // IN: Ignored
 {
    ServerLockData *lockData;

@@ -407,6 +407,7 @@ PowerOpsStateChange(RpcInData *data)
       if (strcmp(data->name, stateChangeCmdTable[i].tcloCmd) == 0) {
          gchar *script;
          const char *result;
+         const char *confName;
          Bool ret;
 
          state->stateChgInProgress = stateChangeCmdTable[i].id;
@@ -419,9 +420,10 @@ PowerOpsStateChange(RpcInData *data)
             return RPCIN_SETRETVALS(data, "", TRUE);
          }
 
+         confName = stateChgConfNames[stateChangeCmdTable[i].id];
          script = g_key_file_get_string(state->ctx->config,
                                         "powerops",
-                                        stateChgConfNames[stateChangeCmdTable[i].id],
+                                        confName,
                                         NULL);
 
          if (script == NULL) {
@@ -429,7 +431,7 @@ PowerOpsStateChange(RpcInData *data)
             char *dfltPath;
             const char *dfltScript;
 
-            dfltScript = GuestApp_GetDefaultScript(stateChangeCmdTable[i].name);
+            dfltScript = GuestApp_GetDefaultScript(confName);
             if (dfltScript == NULL) {
                g_debug("No default script to run for state change %s.\n",
                        stateChangeCmdTable[i].name);

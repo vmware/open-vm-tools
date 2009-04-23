@@ -35,9 +35,10 @@
 ### Initialization
 ###
 
+TOOLS_VERSION="2009.04.23"
 AC_INIT(
    [open-vm-tools],
-   [2009.03.18],
+   [2009.04.23],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -186,6 +187,14 @@ AC_ARG_WITH(
       [compiles without Gtkmm, sigc++, and related libs]),
    [with_gtkmm="$withval"],
    [with_gtkmm="yes"])
+
+AC_ARG_ENABLE(
+   docs,
+   AS_HELP_STRING(
+      [--disable-docs],
+      [disables generation of API documentation; by default, docs are built if doxygen is available.]),
+   [enable_docs="$enableval"],
+   [enable_docs="yes"])
 
 # If we're not going to use Gtk 2.0, disable Unity.
 if test "$with_gtk2" != "yes"; then
@@ -533,7 +542,7 @@ AC_CHECK_FUNCS(
    [AC_CHECK_LIB(
       dl,
       dlopen,
-      GUESTD_LDADD="$GUESTD_LDADD -ldl",
+      LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -ldl",
       [AC_MSG_ERROR(
          [dlopen was not found, but is required for open-vm-tools to function properly. Please contact your OS vendor.])])])
 
@@ -577,8 +586,7 @@ if test "$with_procps" = "yes"; then
                     [],
                     [],
                     [getstat],
-                    [GUESTD_LDADD="$GUESTD_LDADD $PROCPS_LIBS";
-                     VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"],
+                    [VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"],
                     [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
 fi
 
@@ -622,7 +630,7 @@ if test "$with_dnet" = "yes"; then
    fi
 
    if test $have_dnet -eq 1; then
-      GUESTD_LDADD="$GUESTD_LDADD $DNET_LIBS"
+      LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $DNET_LIBS"
       VMWARE_USER_LDADD="$VMWARE_USER_LDADD $DNET_LIBS"
    else
 		AC_MSG_ERROR(
@@ -838,7 +846,44 @@ INCLUDE_DIR="`cd $srcdir; pwd`/lib/include"
 BLD_INCLUDE_DIR="$BUILDDIR/lib/include"
 CPPFLAGS="-I$INCLUDE_DIR -I$BLD_INCLUDE_DIR $CPPFLAGS"
 
+###
+### Documentation.
+###
+
+if test "$enable_docs" = "yes"; then
+   AC_CHECK_PROG([have_doxygen],
+                 [doxygen],
+                 [yes],
+                 [no])
+   if test "$have_doxygen" = "no"; then
+      AC_MSG_WARN([doxygen not found; API documentation will not be generated.])
+   else
+      AC_CHECK_PROG([HAVE_DOT],
+                    [dot],
+                    [yes],
+                    [no])
+      if test "$HAVE_DOT" = "yes"; then
+         DOT=dot
+      else
+         DOT=
+      fi
+      AC_SUBST([DOT])
+
+      AC_PATH_PROG([MSCGEN],
+                   [mscgen],
+                   [no])
+      if test "$MSCGEN" != "no"; then
+         MSCGEN_DIR="`dirname $MSCGEN`"
+      else
+         MSCGEN_DIR=
+      fi
+      AC_SUBST([MSCGEN_DIR])
+   fi
+fi
+
+###
 ### OS/arch-specific flags / actions
+###
 
 MODULES=""
 MODULES_OS="$os"
@@ -899,9 +944,9 @@ if test "$os" = "solaris"; then
    LIB_IMPERSONATE_CPPFLAGS="$LIB_IMPERSONATE_CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
    LIB_USER_CPPFLAGS="$LIB_USER_CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
 
-   GUESTD_LDADD="$GUESTD_LDADD -lsocket"
-   GUESTD_LDADD="$GUESTD_LDADD -lnsl"
-   GUESTD_LDADD="$GUESTD_LDADD -lrpcsvc"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lsocket"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lnsl"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrpcsvc"
 
    VMWARE_USER_CPPFLAGS="$VMWARE_USER_CPPFLAGS -I/usr/X11/include/"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lXext"
@@ -922,16 +967,13 @@ if test "$os" = "solaris"; then
    fi
 
    # Choose which modules to compile
-   if test "$osVersion" -eq 510000; then
-      MODULES="$MODULES vmblock"
-   fi
    if test "$osVersion" -ge 510000; then
-      MODULES="$MODULES vmhgfs"
+      MODULES="$MODULES vmhgfs vmblock"
    fi
 
-   # We build vmxnet on Solaris 9 and 10
+   # We build vmxnet and vmballoon on Solaris 9 and 10
    if test "$osVersion" -lt 511000 -a "$osVersion" -ge 509000; then
-      MODULES="$MODULES vmxnet"
+      MODULES="$MODULES vmxnet vmmemctl"
    fi
 
    # Vmxnet3 is built on Solaris 10 only and only if GLDv3 is installed
@@ -962,6 +1004,7 @@ AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(PAMD, test -d /etc/pam.d)
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
+AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
@@ -997,7 +1040,7 @@ fi
 
 if test "$HAVE_CRYPT" = "yes"; then
    LIB_AUTH_CPPFLAGS="$LIB_AUTH_CPPFLAGS -DGLIBC_VERSION_22"
-   GUESTD_LDADD="$GUESTD_LDADD -lcrypt"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lcrypt"
    VIX_LIBADD="$VIX_LIBADD -lcrypt"
 fi
 
@@ -1006,7 +1049,7 @@ if test "$HAVE_WCHAR_H" = "yes"; then
 fi
 
 if test "$HAVE_PTHREAD" = "yes"; then
-   GUESTD_LDADD="$GUESTD_LDADD -lpthread"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lpthread"
    VIX_LIBADD="$VIX_LIBADD -lpthread"
    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lpthread"
 fi
@@ -1042,6 +1085,7 @@ VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
 ### General substs
 
+AC_SUBST([TOOLS_VERSION])
 AC_SUBST([TARGET_OS])
 AC_SUBST([KERNEL_RELEASE])
 AC_SUBST([MODULES_OS])
@@ -1074,13 +1118,10 @@ AC_SUBST([LIB_MISC_CPPFLAGS])
 AC_SUBST([LIB_PROC_MGR_CPPFLAGS])
 AC_SUBST([LIB_STRING_CPPFLAGS])
 AC_SUBST([LIB_USER_CPPFLAGS])
-
-LIBVMTOOLS_LIBADD="$GUESTD_LDADD"
 AC_SUBST([LIBVMTOOLS_LIBADD])
 
 ### Program substs
 
-AC_SUBST([GUESTD_LDADD])
 AC_SUBST([VIX_LIBADD])
 AC_SUBST([VMWARE_USER_CPPFLAGS])
 AC_SUBST([VMWARE_USER_LDADD])
@@ -1143,11 +1184,9 @@ AC_CONFIG_FILES([                      \
    lib/unityWindowTracker/Makefile     \
    lib/user/Makefile                   \
    lib/vixTools/Makefile               \
-   lib/vmBackupLib/Makefile            \
    lib/vmCheck/Makefile                \
    lib/vmSignal/Makefile               \
    lib/wiper/Makefile                  \
-   guestd/Makefile                     \
    services/Makefile                   \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
@@ -1175,6 +1214,8 @@ AC_CONFIG_FILES([                      \
    tests/vmrpcdbg/Makefile             \
    tests/testDebug/Makefile            \
    tests/testPlugin/Makefile           \
+   docs/Makefile                       \
+   docs/api/Makefile                   \
    scripts/Makefile		       \
 ])
 

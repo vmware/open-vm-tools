@@ -53,15 +53,24 @@ else
 CC_KFLAGS += -DCPU=586 $(call check_gcc,-march=i586,-m486)
 endif
 
-INCLUDE := -I$(HEADER_DIR)
+INCLUDE += -I$(HEADER_DIR)
+ifeq ($(USE_SHARED_DIR),1)
+INCLUDE += -I$(call VMLIB_PATH,backdoor)
+endif
+
 
 INCLUDE += $(shell $(CC) $(CC_OPTS) $(INCLUDE) \
-	   -E $(SRCROOT)/autoconf/geninclude.c \
+	   -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
+ifdef OVT_SOURCE_DIR
+INCLUDE += -I$(call VMLIB_PATH,backdoor)
+endif
+
+
 CC_OPTS := -g3 -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS)
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c,   -DVMW_HAVE_EPOLL, )
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPOLL, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
 
 OBJS += os.o
 OBJS += vmballoon.o

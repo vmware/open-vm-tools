@@ -43,49 +43,46 @@ typedef struct BackdoorChannel {
  * Stops a channel, optionally destroying the channel. It's safe to call
  * this function more than once.
  *
+ * @internal This function does a best effort at tearing down the host-side
+ *           channels, but if the host returns any failure, it still shuts
+ *           down the guest channels. See bug 388777 for details.
+ *
  * @param[in]  chan     The RPC channel instance.
  * @param[in]  destroy  Whether to destroy the channels.
- *
- * @return TRUE on success.
  */
 
-static Bool
+static void
 RpcInStopChannel(RpcChannel *chan,
                  gboolean destroy)
 {
-   gboolean ret = TRUE;
    BackdoorChannel *bdoor = chan->_private;
 
    ASSERT(chan->appName != NULL);
    if (bdoor->out != NULL) {
-      if (!bdoor->outStarted || RpcOut_stop(bdoor->out)) {
-         if (destroy) {
-            RpcOut_Destruct(bdoor->out);
-            bdoor->out = NULL;
-         }
-         bdoor->outStarted = FALSE;
-      } else {
-         ret = FALSE;
+      if (bdoor->outStarted) {
+         RpcOut_stop(bdoor->out);
       }
+      if (destroy) {
+         RpcOut_Destruct(bdoor->out);
+         bdoor->out = NULL;
+      }
+      bdoor->outStarted = FALSE;
    } else {
       ASSERT(!bdoor->outStarted);
    }
 
    if (bdoor->in != NULL) {
-      if (!bdoor->inStarted || RpcIn_stop(bdoor->in)) {
-         if (destroy) {
-            RpcIn_Destruct(bdoor->in);
-            bdoor->in = NULL;
-         }
-         bdoor->inStarted = FALSE;
-      } else {
-         ret = FALSE;
+      if (bdoor->inStarted) {
+         RpcIn_stop(bdoor->in);
       }
+      if (destroy) {
+         RpcIn_Destruct(bdoor->in);
+         bdoor->in = NULL;
+      }
+      bdoor->inStarted = FALSE;
    } else {
       ASSERT(!bdoor->inStarted);
    }
-
-   return ret;
 }
 
 
@@ -126,14 +123,12 @@ RpcInStart(RpcChannel *chan)
  * down the "in" one wasn't, for example, although that's unlikely.
  *
  * @param[in]  chan     The RPC channel instance.
- *
- * @return TRUE on success.
  */
 
-static Bool
+static void
 RpcInShutdown(RpcChannel *chan)
 {
-   return RpcInStopChannel(chan, TRUE);
+   RpcInStopChannel(chan, TRUE);
 }
 
 
@@ -148,10 +143,10 @@ RpcInShutdown(RpcChannel *chan)
  * @return TRUE on success.
  */
 
-static Bool
+static void
 RpcInStop(RpcChannel *chan)
 {
-   return RpcInStopChannel(chan, FALSE);
+   RpcInStopChannel(chan, FALSE);
 }
 
 

@@ -564,7 +564,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
     * version exactly once and use the pointers later.
     */
 
-   opUsed = atomic_read(&hgfsVersionOpen);
+   opUsed = hgfsVersionOpen;
    result = HgfsPackOpenRequest(inode, file, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: error packing request\n"));
@@ -646,7 +646,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
          if (opUsed == HGFS_OP_OPEN_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 3 not "
                     "supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN_V2);
+            hgfsVersionOpen = HGFS_OP_OPEN_V2;
             goto retry;
          }
 
@@ -654,7 +654,7 @@ HgfsOpen(struct inode *inode,  // IN: Inode of the file to open
          if (opUsed == HGFS_OP_OPEN_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: Version 2 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionOpen, HGFS_OP_OPEN);
+            hgfsVersionOpen = HGFS_OP_OPEN;
             goto retry;
          }
 
@@ -1035,7 +1035,7 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
    }
 
  retry:
-   opUsed = atomic_read(&hgfsVersionClose);
+   opUsed = hgfsVersionClose;
    if (opUsed == HGFS_OP_CLOSE_V3) {
       HgfsRequest *header;
       HgfsRequestCloseV3 *request;
@@ -1075,7 +1075,7 @@ HgfsRelease(struct inode *inode,  // IN: Inode that this file points to
          if (opUsed == HGFS_OP_CLOSE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRelease: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionClose, HGFS_OP_CLOSE);
+            hgfsVersionClose = HGFS_OP_CLOSE;
             goto retry;
          }
          break;

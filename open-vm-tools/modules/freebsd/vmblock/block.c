@@ -530,8 +530,13 @@ GetBlock(const char *filename,          // IN: file to find block for
 {
    struct DblLnkLst_Links *curr;
 
-   /* XXX The following is only temporary. */
-#ifdef __FreeBSD__
+   /*
+    * On FreeBSD we have a mechanism to assert (but not simply check)
+    * that a lock is held. Since semantic is different (panic that
+    * happens if assertion fails can not be suppressed) we are using
+    * different name.
+    */
+#ifdef os_assert_rwlock_held
    os_assert_rwlock_held(&blockedFilesLock);
 #else
    ASSERT(os_rwlock_held(&blockedFilesLock));

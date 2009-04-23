@@ -107,10 +107,12 @@ EXTERN void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 #define LOG_DEFAULT_KEEPOLD 3
 #endif
 
+#define LOG_NO_BPS_LIMIT        0xFFFFFFFF
+
 #ifdef VMX86_RELEASE
 #define LOG_DEFAULT_THROTTLE_BPS       1000
 #else
-#define LOG_DEFAULT_THROTTLE_BPS       0
+#define LOG_DEFAULT_THROTTLE_BPS       LOG_NO_BPS_LIMIT
 #endif
 
 #define LOG_DEFAULT_THROTTLE_THRESHOLD 1000000

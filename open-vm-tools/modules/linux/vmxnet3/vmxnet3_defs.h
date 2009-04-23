@@ -47,6 +47,10 @@
 #define VMXNET3_REG_ICR   0x38   /* Interrupt Cause Register */
 #define VMXNET3_REG_ECR   0x40   /* Event Cause Register */
 
+#define VMXNET3_REG_WSAL  0xF00  /* Wireless Shared Address Lo  */
+#define VMXNET3_REG_WSAH  0xF08  /* Wireless Shared Address Hi  */
+#define VMXNET3_REG_WCMD  0xF18  /* Wireless Command */
+
 /* BAR 0 */
 #define VMXNET3_REG_IMR      0x0   /* Interrupt Mask Register */
 #define VMXNET3_REG_TXPROD   0x600 /* Tx Producer Index */
@@ -588,4 +592,7 @@ do {\
 
 #define VMXNET3_LINK_UP         (10000 << 16 | 1)    // 10 Gbps, up
 #define VMXNET3_LINK_DOWN       0
+
+#define VMXWIFI_DRIVER_SHARED_LEN 8192
+
 #endif /* _VMXNET3_DEFS_H_ */

@@ -54,14 +54,14 @@ endif
 
 CC_OPTS := -g3 -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS)
 
-INCLUDE := -I$(HEADER_DIR)
+INCLUDE += -I$(HEADER_DIR)
 
 INCLUDE += $(shell $(CC) $(CC_OPTS) $(INCLUDE) \
-	   -E $(SRCROOT)/autoconf/geninclude.c \
+	   -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/netif_num_params.c, -DVMW_NETIF_SINGLE_NAPI_PARM, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/netif_num_params.c, , -DVMW_NETIF_SINGLE_NAPI_PARM)
 
 OBJS := vmxnet3.o
 

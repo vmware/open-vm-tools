@@ -18,6 +18,7 @@
 noinst_LTLIBRARIES = libGuestRpc.la
 
 libGuestRpc_la_SOURCES =
+libGuestRpc_la_SOURCES += cpFileContents_xdr.c
 libGuestRpc_la_SOURCES += ghiGetBinaryHandlers_xdr.c
 libGuestRpc_la_SOURCES += ghiProtocolHandler_xdr.c
 libGuestRpc_la_SOURCES += guestlibV3_xdr.c
@@ -30,6 +31,8 @@ libGuestRpc_la_SOURCES += unityActive_xdr.c
 CFLAGS += -Wno-unused
 
 CLEANFILES =
+CLEANFILES += cpFileContents.h
+CLEANFILES += cpFileContents_xdr.c
 CLEANFILES += ghiGetBinaryHandlers.h
 CLEANFILES += ghiGetBinaryHandlers_xdr.c
 CLEANFILES += ghiProtocolHandler.h
@@ -42,6 +45,7 @@ CLEANFILES += unityActive.h
 CLEANFILES += unityActive_xdr.c
 
 EXTRA_DIST =
+EXTRA_DIST += cpFileContents.x
 EXTRA_DIST += ghiGetBinaryHandlers.x
 EXTRA_DIST += ghiProtocolHandler.x
 EXTRA_DIST += guestlibV3.x
@@ -58,6 +62,19 @@ clean-local:
 # Rules to invoke rpcgen. rpcgen will generate funny paths in the generated
 # files if not invoked in the same directory as the source file, so we need
 # to copy the sources to the build dir before compiling them.
+
+cpFileContents.h: cpFileContents.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
+	   cp -f $(top_srcdir)/lib/guestRpc/cpFileContents.x $(builddir); \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/cpFileContents.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+cpFileContents_xdr.c: cpFileContents.x cpFileContents.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/cpFileContents.x
 
 ghiGetBinaryHandlers.h: ghiGetBinaryHandlers.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                           \

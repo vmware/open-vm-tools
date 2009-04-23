@@ -27,13 +27,12 @@
 
 
 #if defined(_WIN32)
-#  include <winsock2.h>
+#  if !defined(_DDK_DRIVER_)
+#     include <winsock2.h>
+#  endif // _DDK_DRIVER_
 #else // _WIN32
 #if defined(linux) && !defined(VMKERNEL)
-#  if defined(__KERNEL__)
-#    include "driver-config.h"
-#    include "compat_sock.h"
-#  else
+#  if !defined(__KERNEL__)
 #    include <sys/socket.h>
 #  endif // __KERNEL__
 #else // linux && !VMKERNEL
@@ -100,58 +99,50 @@ struct sockaddr_vm {
 
 
 #if defined(_WIN32)
-#  if !defined(WINNT_DDK)
-#  include <winioctl.h>
-#  define VMCI_SOCKETS_DEVICE          L"\\\\.\\VMCI"
-#  define VMCI_SOCKETS_GET_AF_VALUE    0x81032068
-#  define VMCI_SOCKETS_GET_LOCAL_CID   0x8103206c
-
-   static __inline int VMCISock_GetAFValue(void)
-   {
-      HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
-                                  OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
-      if (INVALID_HANDLE_VALUE != device) {
-         DWORD ioReturn;
-         int afvalue;
-         if (DeviceIoControl(device, VMCI_SOCKETS_GET_AF_VALUE, &afvalue,
-                             sizeof afvalue, &afvalue, sizeof afvalue,
-                             &ioReturn, NULL)) {
+#  if !defined(_DDK_DRIVER_)
+#     include <winioctl.h>
+#     define VMCI_SOCKETS_DEVICE          L"\\\\.\\VMCI"
+#     define VMCI_SOCKETS_GET_AF_VALUE    0x81032068
+#     define VMCI_SOCKETS_GET_LOCAL_CID   0x8103206c
+      static __inline int VMCISock_GetAFValue(void)
+      {
+         int afvalue = -1;
+         HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
+                                     OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+         if (INVALID_HANDLE_VALUE != device) {
+            DWORD ioReturn;
+            DeviceIoControl(device, VMCI_SOCKETS_GET_AF_VALUE, &afvalue,
+                            sizeof afvalue, &afvalue, sizeof afvalue,
+                            &ioReturn, NULL);
             CloseHandle(device);
             device = INVALID_HANDLE_VALUE;
-            return afvalue;
          }
-         CloseHandle(device);
-         device = INVALID_HANDLE_VALUE;
+         return afvalue;
       }
-      return -1;
-   }
-
-   static __inline unsigned int VMCISock_GetLocalCID(void)
-   {
-      HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
-                                  OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
-      if (INVALID_HANDLE_VALUE != device) {
-         DWORD ioReturn;
-         unsigned int cid;
-         if (DeviceIoControl(device, VMCI_SOCKETS_GET_LOCAL_CID, &cid,
-                             sizeof cid, &cid, sizeof cid, &ioReturn,
-                             NULL)) {
+   
+      static __inline unsigned int VMCISock_GetLocalCID(void)
+      {
+         unsigned int cid = VMADDR_CID_ANY;
+         HANDLE device = CreateFileW(VMCI_SOCKETS_DEVICE, GENERIC_READ, 0, NULL,
+                                     OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+         if (INVALID_HANDLE_VALUE != device) {
+            DWORD ioReturn;
+            DeviceIoControl(device, VMCI_SOCKETS_GET_LOCAL_CID, &cid,
+                            sizeof cid, &cid, sizeof cid, &ioReturn,
+                            NULL);
             CloseHandle(device);
             device = INVALID_HANDLE_VALUE;
-            return cid;
          }
-         CloseHandle(device);
-         device = INVALID_HANDLE_VALUE;
+         return cid;
       }
-      return VMADDR_CID_ANY;
-   }
-#  endif // WINNT_DDK
+#  endif // _DDK_DRIVER_
 #else // _WIN32
 #if defined(linux) && !defined(VMKERNEL)
 #  ifdef __KERNEL__
    void VMCISock_KernelRegister(void);
    void VMCISock_KernelDeregister(void);
    int VMCISock_GetAFValue(void);
+   int VMCISock_GetLocalCID(void);
 #  else // __KERNEL__
 #  include <sys/types.h>
 #  include <sys/stat.h>

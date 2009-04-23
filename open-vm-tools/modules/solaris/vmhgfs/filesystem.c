@@ -764,13 +764,11 @@ HgfsReserved(struct vfs *vfsp,
  *----------------------------------------------------------------------------
  */
 
-#if HGFS_VFS_VERSION > 2
 #if HGFS_VFS_VERSION == 3
-int
+int HgfsFreevfs(vfs_t *vfsp)
 #else
-void
+void HgfsFreevfs(vfs_t *vfsp)
 #endif
-HgfsFreevfs(struct vfs *vfsp)
 {
    DEBUG(VM_DEBUG_ENTRY, "HgfsFreevfs().\n");
 
@@ -794,7 +792,6 @@ HgfsFreevfs(struct vfs *vfsp)
    return 0;
 #endif
 }
-#endif
 
 
 #if HGFS_VFS_VERSION > 2

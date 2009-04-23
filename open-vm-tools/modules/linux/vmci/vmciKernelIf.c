@@ -77,9 +77,9 @@
  */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-#  define VMCIKVaToMPN(__VA) page_to_pfn(vmalloc_to_page((void *)(__VA)))
+#  define VMCIKVaToMPN(_ptr) page_to_pfn(vmalloc_to_page(_ptr))
 #else
-#  define VMCIKVaToMPN(__VA) PgtblKVa2MPN(__VA)
+#  define VMCIKVaToMPN(_ptr) PgtblKVa2MPN((VA)_ptr)
 #endif
 
 /*
@@ -584,11 +584,11 @@ VMCI_FreeBuffer(VMCIBuffer buf, // IN:
  */
 
 int
-VMCI_CopyToUser(void *dst,        // OUT
-                const void *src,  // IN
-                unsigned int len) // IN
+VMCI_CopyToUser(VA64 dst,        // OUT: Destination user VA.
+                const void *src, // IN: Source kernel VA.
+                size_t len)      // IN: Number of bytes to copy.
 {
-   return copy_to_user(dst, src, len) ? -EFAULT : 0;
+   return copy_to_user(VMCIVA64ToPtr(dst), src, len) ? -EFAULT : 0;
 }
 
 
@@ -612,11 +612,11 @@ VMCI_CopyToUser(void *dst,        // OUT
  */
 
 int
-VMCI_CopyFromUser(void *dst,        // OUT
-                  const void *src,  // IN
-                  size_t len)       // IN
+VMCI_CopyFromUser(void *dst,  // OUT: Kernel VA
+                  VA64 src,   // IN: User VA
+                  size_t len) // IN
 {
-   return copy_from_user(dst, src, len);
+   return copy_from_user(dst, VMCIVA64ToPtr(src), len);
 }
 
 
@@ -851,7 +851,7 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCI_AllocQueueKVA --
+ * VMCI_AllocQueue --
  *
  *      Allocates kernel memory for the queue header (1 page) plus the
  *      translation structure for offset -> page mappings.  Allocates physical
@@ -859,7 +859,7 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
  *      structure.
  *
  * Results:
- *      The VA on success, NULL otherwise.
+ *      Pointer to the queue on success, NULL otherwise.
  *
  * Side effects:
  *      Memory is allocated.
@@ -867,8 +867,8 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
  *-----------------------------------------------------------------------------
  */
 
-VA
-VMCI_AllocQueueKVA(uint64 size) // IN: size of queue (not including header)
+void *
+VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
 {
    const uint64 numPages = CEILING(size, PAGE_SIZE);
    VMCIQueue *queue;
@@ -895,14 +895,14 @@ VMCI_AllocQueueKVA(uint64 size) // IN: size of queue (not including header)
          }
       }
    }
-   return (VA)queue;
+   return queue;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCI_FreeQueueKVA --
+ * VMCI_FreeQueue --
  *
  *      Frees kernel memory for a given queue (header plus translation
  *      structure).  Frees all physical pages that held the buffers for this
@@ -918,10 +918,10 @@ VMCI_AllocQueueKVA(uint64 size) // IN: size of queue (not including header)
  */
 
 void
-VMCI_FreeQueueKVA(VA va,       // IN:
-                  uint64 size) // IN: size of queue (not including header)
+VMCI_FreeQueue(void *q,     // IN:
+               uint64 size) // IN: size of queue (not including header)
 {
-   VMCIQueue *queue = (VMCIQueue *)va;
+   VMCIQueue *queue = q;
 
    if (queue) {
       uint64 i;
@@ -954,19 +954,17 @@ VMCI_FreeQueueKVA(VA va,       // IN:
  */
 
 int
-VMCI_AllocPPNSet(VA produceVA,           // IN:
+VMCI_AllocPPNSet(void *produceQ,         // IN:
                  uint64 numProducePages, // IN: for queue plus header
-                 VA consumeVA,           // IN:
+                 void *consumeQ,         // IN:
                  uint64 numConsumePages, // IN: for queue plus header
                  PPNSet *ppnSet)         // OUT:
 {
    VMCIPpnList producePPNs;
    VMCIPpnList consumePPNs;
    uint64 i;
-   VMCIQueue *produceQ = (VMCIQueue *)produceVA;
-   VMCIQueue *consumeQ = (VMCIQueue *)consumeVA;
 
-   if (!produceVA || !numProducePages || !consumeVA || !numConsumePages ||
+   if (!produceQ || !numProducePages || !consumeQ || !numConsumePages ||
        !ppnSet) {
       return VMCI_ERROR_INVALID_ARGS;
    }
@@ -990,11 +988,11 @@ VMCI_AllocPPNSet(VA produceVA,           // IN:
       return VMCI_ERROR_NO_MEM;
    }
 
-   producePPNs[0] = VMCIKVaToMPN(produceVA);
+   producePPNs[0] = VMCIKVaToMPN(produceQ);
    for (i = 1; i < numProducePages; i++) {
       unsigned long pfn;
 
-      producePPNs[i] = pfn = page_to_pfn(produceQ->page[i - 1]);
+      producePPNs[i] = pfn = page_to_pfn(((VMCIQueue *)produceQ)->page[i - 1]);
 
       /*
        * Fail allocation if PFN isn't supported by hypervisor.
@@ -1005,11 +1003,11 @@ VMCI_AllocPPNSet(VA produceVA,           // IN:
          goto ppnError;
       }
    }
-   consumePPNs[0] = VMCIKVaToMPN(consumeVA);
+   consumePPNs[0] = VMCIKVaToMPN(consumeQ);
    for (i = 1; i < numConsumePages; i++) {
       unsigned long pfn;
 
-      consumePPNs[i] = pfn = page_to_pfn(consumeQ->page[i - 1]);
+      consumePPNs[i] = pfn = page_to_pfn(((VMCIQueue *)consumeQ)->page[i - 1]);
 
       /*
        * Fail allocation if PFN isn't supported by hypervisor.

@@ -1045,6 +1045,98 @@ VixMsgSetSnapshotInfoResponse;
 
 
 /*
+ * Rolling Tier operations.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgAddRollingTierRequest {
+   VixCommandRequestHeader    header;
+   int32                      options;
+   uint32                     interval;
+   int                        maximum;
+   uint32                     clientFlags;
+   uint32                     propertyListLength;
+   /*
+    * Followed by:
+    *   serialized property list.
+    */
+}
+#include "vmware_pack_end.h"  
+VixMsgAddRollingTierRequest;
+   
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgAddRollingTierResponse {
+   VixCommandResponseHeader  header;
+   uint32                     tierUid;
+   uint32                     propertyListLength;
+   /*
+    * Followed by:
+    *   serialized property list.
+    */
+}
+#include "vmware_pack_end.h"  
+VixMsgAddRollingTierResponse;
+   
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgRemoveRollingTierRequest {
+   VixCommandRequestHeader    header;
+
+   int32                      options;
+   int32                      tierUid;
+   uint32                     propertyListLength;
+   /*
+    * Followed by:
+    *   serialized property list.
+    */
+}  
+#include "vmware_pack_end.h"
+VixMsgRemoveRollingTierRequest;
+   
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgRemoveRollingTierResponse {
+   VixCommandResponseHeader  header;
+   uint32                     propertyListLength;
+   /*
+    * Followed by:
+    *   serialized property list.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgRemoveRollingTierResponse;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListRollingTierRequest {
+   VixCommandRequestHeader    header;
+
+   int32                      options;
+   uint32                     propertyListLength;
+   /*
+    * Followed by:
+    *   serialized property list.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgListRollingTierRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListRollingTierResponse {
+   VixCommandResponseHeader  header;
+   uint32                     propertyListLength;
+   /*
+    * Followed by:
+    *   serialized property list.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgListRollingTierResponse;
+
+
+/*
  * Fork a running VM.
  */
 typedef
@@ -2249,7 +2341,15 @@ enum {
    VIX_COMMAND_TRANSFER_REQUEST                 = 161,
    VIX_COMMAND_TRANSFER_FINAL_DATA              = 162,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 163,
+   VIX_COMMAND_ADD_ROLLING_SNAPSHOT_TIER        = 163,
+   VIX_COMMAND_REMOVE_ROLLING_SNAPSHOT_TIER     = 164,
+   VIX_COMMAND_LIST_ROLLING_SNAPSHOT_TIER       = 165,
+
+   VIX_COMMAND_ADD_ROLLING_SNAPSHOT_TIER_VMX    = 166,
+   VIX_COMMAND_REMOVE_ROLLING_SNAPSHOT_TIER_VMX = 167,
+   VIX_COMMAND_LIST_ROLLING_SNAPSHOT_TIER_VMX   = 168,
+
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 169,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

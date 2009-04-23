@@ -95,6 +95,7 @@ typedef struct MsgCallback {
    Bool  (*lazyProgress)(void *handle,
                          const char *msgID,
                          const char *message,
+                         Bool allowCancel,
                          int percent);
    void  (*lazyProgressEnd)(void *handle);
 
@@ -157,10 +158,11 @@ EXTERN void *Msg_LazyProgressStart(Bool allowCancel,
                                    ...)
        PRINTF_DECL(2, 3);
 EXTERN Bool Msg_LazyProgress(void *handle,
+                             Bool allowCancel,
                              int percent,
                              const char *idFmt,
                              ...)
-       PRINTF_DECL(3, 4);
+       PRINTF_DECL(4, 5);
 EXTERN void Msg_LazyProgressEnd(void *handle);
 
 

@@ -71,7 +71,7 @@ CopyPasteUI::CopyPasteUI()
    mHGGetFilesInitiated(false),
    mFileTransferDone(false),
    mBlockAdded(false),
-   mBlockFd(-1),
+   mBlockCtrl(0),
    mInited(false)
 {
 }
@@ -97,7 +97,6 @@ CopyPasteUI::CopyPasteUI()
 void
 CopyPasteUI::Init()
 {
-
    if (mInited) {
       return;
    }
@@ -323,14 +322,16 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       }
       mHGGetFilesInitiated = true;
 
-      if (DnD_AddBlock(mBlockFd, hgStagingDir.c_str())) {
-         Debug("%s: add block mBlockFd %d.\n", __FUNCTION__, mBlockFd);
-         mHGStagingDir = hgStagingDir;
+      if (DnD_BlockIsReady(mBlockCtrl) && mBlockCtrl->AddBlock(mBlockCtrl->fd, hgStagingDir.c_str())) {
+         Debug("%s: add block for %s.\n",
+               __FUNCTION__, hgStagingDir.c_str());
          mBlockAdded = true;
       } else {
-         Debug("%s: unable to add block fd %d dir %s.\n",
-                __FUNCTION__, mBlockFd, hgStagingDir.c_str());
+         Debug("%s: unable to add block for %s.\n",
+               __FUNCTION__, hgStagingDir.c_str());
       }
+
+      mHGStagingDir = hgStagingDir;
 
       /* Provide URIs for each path in the guest's file list. */
       if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
@@ -356,8 +357,12 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       while ((str = GetNextPath(mHGFCPData, index).c_str()).bytes() != 0) {
          Debug("%s: Path: %s", __FUNCTION__, str.c_str());
          mHGCopiedUriList += pre;
-         mHGCopiedUriList += VMBLOCK_MOUNT_POINT;
-         mHGCopiedUriList += DIRSEPS + stagingDirName + DIRSEPS + str + post;
+         if (mBlockAdded) {
+            mHGCopiedUriList += mBlockCtrl->blockRoot;
+            mHGCopiedUriList += DIRSEPS + stagingDirName + DIRSEPS + str + post;
+         } else {
+            mHGCopiedUriList += DIRSEPS + hgStagingDir + DIRSEPS + str + post;
+         }
       }
 
       /* Nautilus does not expect FCP_GNOME_LIST_POST after the last uri. See bug 143147. */
@@ -388,7 +393,8 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
        * return.
        */
       Debug("%s no blocking driver, waiting for "
-            "HG file copy done ...\n", __FUNCTION__);
+            "HG file copy done ... mFileTransferDone is %d\n", __FUNCTION__,
+            (int) mFileTransferDone);
       while (mFileTransferDone == false) {
          struct timeval tv;
          int nr;
@@ -413,6 +419,65 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
          mHGCopiedUriList.c_str());
 
    sd.set(sd.get_target().c_str(), mHGCopiedUriList.c_str());
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPasteUI::LocalGetTextOrRTFRequestCB --
+ *
+ *      Callback from a text or RTF paste request from another guest application.
+ *      H->G copy paste only.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteUI::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
+                                        guint info)             // Ignored
+{
+   if (!mCP.IsCopyPasteAllowed()) {
+      return;
+   }
+
+   const utf::string target = sd.get_target().c_str();
+
+   Debug("%s: Got paste request, target is %s\n",
+         __FUNCTION__, target.c_str());
+
+   if (target == TARGET_NAME_APPLICATION_RTF ||
+       target == TARGET_NAME_TEXT_RICHTEXT) {
+      if (0 == mHGRTFData.bytes()) {
+         Debug("%s: Can not get valid RTF data\n", __FUNCTION__);
+         return;
+      }
+
+      Debug("%s: providing RTF data, size %"FMTSZ"u\n",
+            __FUNCTION__, mHGRTFData.bytes());
+
+      sd.set(target.c_str(), mHGRTFData.c_str());
+   }
+
+   if (target == TARGET_NAME_STRING ||
+       target == TARGET_NAME_TEXT_PLAIN ||
+       target == TARGET_NAME_UTF8_STRING ||
+       target == TARGET_NAME_COMPOUND_TEXT) {
+      if (0 == mHGTextData.bytes()) {
+         Debug("%s: Can not get valid text data\n", __FUNCTION__);
+         return;
+      }
+      Debug("%s: providing plain text, size %"FMTSZ"u\n",
+            __FUNCTION__, mHGTextData.bytes());
+
+      sd.set(target.c_str(), mHGTextData.c_str());
+   }
 }
 
 
@@ -499,7 +564,6 @@ CopyPasteUI::LocalClipboardTimestampCB(const Gtk::SelectionData& sd)  // IN
 void
 CopyPasteUI::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
 {
-   bool unchanged = FALSE;
    int length = sd.get_length();
    Debug("%s: enter sd.get_length() is %d.\n", __FUNCTION__, length);
    if (length == 4) {
@@ -517,16 +581,8 @@ CopyPasteUI::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
    if (mClipTime > mPrimTime) {
       mGHSelection = GDK_SELECTION_CLIPBOARD;
       Debug("%s: mClipTimePrev: %"FMT64"u.", __FUNCTION__, mClipTimePrev);
-      unchanged = mClipTime <= mClipTimePrev;
    } else {
       Debug("%s: mPrimTimePrev: %"FMT64"u.", __FUNCTION__, mPrimTimePrev);
-      unchanged = mPrimTime <= mPrimTimePrev;
-   }
-
-   if (unchanged) {
-      Debug("%s: clipboard is unchanged, get out\n", __FUNCTION__);
-      CPClipboard_SetChanged(&mClipboard, FALSE);
-      return;
    }
 
    mPrimTimePrev = mPrimTime;
@@ -587,6 +643,50 @@ CopyPasteUI::LocalReceivedTargetsCB(const Glib::StringArrayHandle& targetsArray)
       return;
    }
 
+   /* Try to get image data from clipboard. */
+   Glib::RefPtr<Gdk::Pixbuf> img = refClipboard->wait_for_image();
+   if (img) {
+      gchar *buf = NULL;
+      gsize bufSize;
+
+      img->save_to_buffer(buf, bufSize, Glib::ustring("png"));
+      if (bufSize > 0  &&
+          bufSize <= (int)DNDMSG_MAX_ARGSZ &&
+          CPClipboard_SetItem(&mClipboard, CPFORMAT_IMG_PNG,
+                              buf, bufSize)) {
+         mCP.SetRemoteClipboard(&mClipboard);
+         Debug("%s: Got PNG: %"FMTSZ"u\n", __FUNCTION__, bufSize);
+      } else {
+         Debug("%s: Failed to get PNG\n", __FUNCTION__);
+      }
+      g_free(buf);
+      return;
+   }
+
+   /*
+    * Try to get RTF data from local clipboard. 2 targets are supported, and
+    * both share same callback because data is same.
+    */
+   if (std::find(targets.begin(),
+                 targets.end(),
+                 TARGET_NAME_APPLICATION_RTF) != targets.end()) {
+      Debug("%s: TARGET_NAME_APPLICATION_RTF available\n", __FUNCTION__);
+      refClipboard->request_contents(TARGET_NAME_APPLICATION_RTF,
+                                     sigc::mem_fun(this,
+                                                   &CopyPasteUI::LocalReceivedRTFCB));
+      return;
+   }
+
+   if (std::find(targets.begin(),
+                 targets.end(),
+                 TARGET_NAME_TEXT_RICHTEXT) != targets.end()) {
+      Debug("%s: TARGET_NAME_TEXT_RICHTEXT available\n", __FUNCTION__);
+      refClipboard->request_contents(TARGET_NAME_TEXT_RICHTEXT,
+                                     sigc::mem_fun(this,
+                                                   &CopyPasteUI::LocalReceivedRTFCB));
+      return;
+   }
+
    Debug("%s: ask for text\n", __FUNCTION__);
    refClipboard->request_text(sigc::mem_fun(this,
                                             &CopyPasteUI::LocalReceivedTextCB));
@@ -621,6 +721,49 @@ CopyPasteUI::LocalReceivedFileListCB(const Gtk::SelectionData& sd)        // IN
       LocalGetSelectionFileList(sd);
       mCP.SetRemoteClipboard(&mClipboard);
    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CopyPasteUI::LocalReceivedRTFCB --
+ *
+ *      Got clipboard (or primary selection) RTF text, add to local
+ *      clipboard cache and send clipboard to host.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+CopyPasteUI::LocalReceivedRTFCB(const Gtk::SelectionData& sd) // IN
+{
+   utf::string source = sd.get_data_as_string().c_str();
+   Glib::RefPtr<Gtk::Clipboard> refClipboard = Gtk::Clipboard::get(mGHSelection);
+
+   /* Add NUL terminator. */
+   if (source.bytes() > 0 &&
+       source.bytes() < DNDMSG_MAX_ARGSZ &&
+       CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF, source.c_str(),
+                           source.bytes() + 1)) {
+      Debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.bytes());
+   } else {
+      Debug("%s: Failed to get RTF\n", __FUNCTION__);
+   }
+
+   /*
+    * Still should try to get plain text. LocalReceivedTextCB will send data
+    * to guest.
+    */
+   Debug("%s: ask for text\n", __FUNCTION__);
+   refClipboard->request_text(sigc::mem_fun(this,
+                                            &CopyPasteUI::LocalReceivedTextCB));
 }
 
 
@@ -676,6 +819,70 @@ CopyPasteUI::LocalReceivedTextCB(const Glib::ustring& text)        // IN
    CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT, source.c_str(),
                        source.bytes() + 1);
    mCP.SetRemoteClipboard(&mClipboard);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPasteUI::LocalGetFileContentsRequestCB --
+ *
+ *      Callback from a file paste request from another guest application.
+ *      Return the file list.
+ *
+ *      H->G only.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteUI::LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, // IN
+                                           guint info)             // IN
+{
+   std::vector<utf::string>::const_iterator iter;
+   utf::string uriList = "";
+   utf::string pre;
+   utf::string post;
+
+   /* Provide URIs for each path in the guest's file list. */
+   if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
+      uriList = "copy\n";
+      pre = FCP_GNOME_LIST_PRE;
+      post = FCP_GNOME_LIST_POST;
+   } else if (FCP_TARGET_INFO_URI_LIST == info) {
+      pre = DND_URI_LIST_PRE_KDE;
+      post = DND_URI_LIST_POST;
+   } else {
+      Debug("%s: Unknown request target: %s\n",
+            __FUNCTION__, sd.get_target().c_str());
+      return;
+   }
+
+   for (iter = mHGFileContentsList.begin();
+        iter != mHGFileContentsList.end();
+        iter++) {
+      uriList += pre + *iter + post;
+   }
+
+   /* Nautilus does not expect FCP_GNOME_LIST_POST after the last uri. See bug 143147. */
+   if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
+      uriList.erase(uriList.size() - 1, 1);
+   }
+
+   if (0 == uriList.bytes()) {
+      Debug("%s: Can not get uri list\n", __FUNCTION__);
+      return;
+   }
+
+   Debug("%s: providing file list [%s]\n", __FUNCTION__, uriList.c_str());
+
+   sd.set(sd.get_target().c_str(), uriList.c_str());
 }
 
 
@@ -769,6 +976,48 @@ CopyPasteUI::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * CopyPasteUI::GetLastDirName --
+ *
+ *      Try to get last directory name from a full path name.
+ *
+ * Results:
+ *      Last dir name in the full path name if sucess, empty str otherwise
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+utf::string
+CopyPasteUI::GetLastDirName(const utf::string &str)     // IN
+{
+   utf::string ret;
+   size_t start;
+   size_t end;
+
+   end = str.bytes() - 1;
+   if (end >= 0 && DIRSEPC == str[end]) {
+      end--;
+   }
+
+   if (end <= 0 || str[0] != DIRSEPC) {
+      return "";
+   }
+
+   start = end;
+
+   while (str[start] != DIRSEPC) {
+      start--;
+   }
+
+   return str.substr(start + 1, end - start);
+}
+
+
+/*
  *----------------------------------------------------------------------------
  *
  * CopyPasteUI::GetNextPath --
@@ -832,47 +1081,6 @@ CopyPasteUI::GetNextPath(utf::utf8string& str,    // IN: NUL-delimited path list
 /*
  *-----------------------------------------------------------------------------
  *
- * CopyPasteUI::GetLastDirName --
- *
- *      Try to get last directory name from a full path name.
- *
- * Results:
- *      Last dir name in the full path name if sucess, empty str otherwise
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-utf::string
-CopyPasteUI::GetLastDirName(const utf::string &str)     // IN
-{
-   utf::string ret;
-   size_t start;
-   size_t end;
-
-   end = str.bytes() - 1;
-   if (end >= 0 && DIRSEPC == str[end]) {
-      end--;
-   }
-
-   if (end <= 0 || str[0] != DIRSEPC) {
-      return "";
-   }
-
-   start = end;
-
-   while (str[start] != DIRSEPC) {
-      start--;
-   }
-
-   return str.substr(start + 1, end - start);
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
  * CopyPasteUI::GetRemoteClipboardCB --
  *
  *    Invoked when got data from host. Update the internal data to get the file
@@ -913,10 +1121,64 @@ CopyPasteUI::GetRemoteClipboardCB(const CPClipboard *clip) // IN
       Debug("%s: Cleared local clipboard", __FUNCTION__);
    }
 
-   if (CPClipboard_GetItem(clip, CPFORMAT_TEXT, &buf, &sz)) {
-      Debug("%s: Text data: %s.\n", __FUNCTION__, (char *)buf);
-      refClipboard->set_text((const char *) buf);
-      refPrimary->set_text((const char *) buf);
+   mHGTextData.clear();
+   mHGRTFData.clear();
+   mHGFCPData.clear();
+
+   if (CPClipboard_ItemExists(clip, CPFORMAT_TEXT) ||
+       CPClipboard_ItemExists(clip, CPFORMAT_RTF)) {
+      std::list<Gtk::TargetEntry> targets;
+
+      if (CPClipboard_GetItem(clip, CPFORMAT_TEXT, &buf, &sz)) {
+         Gtk::TargetEntry stringText(TARGET_NAME_STRING);
+         Gtk::TargetEntry plainText(TARGET_NAME_TEXT_PLAIN);
+         Gtk::TargetEntry utf8Text(TARGET_NAME_UTF8_STRING);
+         Gtk::TargetEntry compountText(TARGET_NAME_COMPOUND_TEXT);
+
+         Debug("%s: Text data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+         targets.push_back(stringText);
+         targets.push_back(plainText);
+         targets.push_back(utf8Text);
+         targets.push_back(compountText);
+         mHGTextData = utf::string((const char *)buf);
+
+         mIsClipboardOwner = TRUE;
+      }
+
+      if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
+         Debug("%s: RTF data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+         Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
+         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
+
+         targets.push_back(appRtf);
+         targets.push_back(textRtf);
+         mHGRTFData = utf::string((const char *)buf);
+
+         mIsClipboardOwner = TRUE;
+      }
+
+      refClipboard->set(targets,
+                        sigc::mem_fun(this, &CopyPasteUI::LocalGetTextOrRTFRequestCB),
+                        sigc::mem_fun(this, &CopyPasteUI::LocalClearClipboardCB));
+      refPrimary->set(targets,
+                      sigc::mem_fun(this, &CopyPasteUI::LocalGetTextOrRTFRequestCB),
+                      sigc::mem_fun(this, &CopyPasteUI::LocalClearClipboardCB));
+      return;
+   }
+
+   if (CPClipboard_GetItem(clip, CPFORMAT_IMG_PNG, &buf, &sz)) {
+      Debug("%s: PNG data, size %"FMTSZ"u.\n", __FUNCTION__, sz);
+      /* Try to load buf into pixbuf, and write to local clipboard. */
+      Glib::RefPtr<Gdk::PixbufLoader> loader = Gdk::PixbufLoader::create();
+
+      if (loader) {
+         loader->write((const guint8 *)buf, sz);
+         loader->close();
+
+         refClipboard->set_image(loader->get_pixbuf());
+         refPrimary->set_image(loader->get_pixbuf());
+      }
+      return;
    }
    if (CPClipboard_GetItem(clip, CPFORMAT_FILELIST, &buf, &sz)) {
       Debug("%s: File data.\n", __FUNCTION__);
@@ -936,6 +1198,214 @@ CopyPasteUI::GetRemoteClipboardCB(const CPClipboard *clip) // IN
       mHGGetFilesInitiated = false;
       mHGCopiedUriList = "";
    }
+
+   if (CPClipboard_ItemExists(clip, CPFORMAT_FILECONTENTS)) {
+      Debug("%s: File contents data\n", __FUNCTION__);
+      if (LocalPrepareFileContents(clip)) {
+         refClipboard->set(mListTargets,
+                           sigc::mem_fun(this, &CopyPasteUI::LocalGetFileContentsRequestCB),
+                           sigc::mem_fun(this, &CopyPasteUI::LocalClearClipboardCB));
+         refPrimary->set(mListTargets,
+                         sigc::mem_fun(this, &CopyPasteUI::LocalGetFileContentsRequestCB),
+                         sigc::mem_fun(this, &CopyPasteUI::LocalClearClipboardCB));
+         mIsClipboardOwner = TRUE;
+      }
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CopyPasteUI::LocalPrepareFileContents --
+ *
+ *      Try to extract file contents from mClipboard. Write all files to a
+ *      temporary staging directory. Construct uri list.
+ *
+ * Results:
+ *      true if success, false otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+bool
+CopyPasteUI::LocalPrepareFileContents(const CPClipboard *clip) // IN
+{
+   void *buf = NULL;
+   size_t sz = 0;
+   XDR xdrs;
+   CPFileContents fileContents;
+   CPFileContentsList *contentsList = NULL;
+   size_t nFiles = 0;
+   CPFileItem *fileItem = NULL;
+   Unicode tempDir = NULL;
+   size_t i = 0;
+   bool ret = false;
+
+   if (!CPClipboard_GetItem(clip, CPFORMAT_FILECONTENTS, &buf, &sz)) {
+      Debug("%s: CPClipboard_GetItem failed\n", __FUNCTION__);
+      return false;
+   }
+
+   /* Extract file contents from buf. */
+   xdrmem_create(&xdrs, (char *)buf, sz, XDR_DECODE);
+   memset(&fileContents, 0, sizeof fileContents);
+
+   if (!xdr_CPFileContents(&xdrs, &fileContents)) {
+      Debug("%s: xdr_CPFileContents failed.\n", __FUNCTION__);
+      xdr_destroy(&xdrs);
+      return false;
+   }
+   xdr_destroy(&xdrs);
+
+   contentsList = fileContents.CPFileContents_u.fileContentsV1;
+   if (!contentsList) {
+      Debug("%s: invalid contentsList.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   nFiles = contentsList->fileItem.fileItem_len;
+   if (0 == nFiles) {
+      Debug("%s: invalid nFiles.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   fileItem = contentsList->fileItem.fileItem_val;
+   if (!fileItem) {
+      Debug("%s: invalid fileItem.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   /*
+    * Write files into a temporary staging directory. These files will be moved
+    * to final destination, or deleted on next reboot.
+    */
+   tempDir = DnD_CreateStagingDirectory();
+   if (!tempDir) {
+      Debug("%s: DnD_CreateStagingDirectory failed.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   mHGFileContentsList.clear();
+
+   for (i = 0; i < nFiles; i++) {
+      utf::string fileName;
+      utf::string filePathName;
+      VmTimeType createTime = -1;
+      VmTimeType accessTime = -1;
+      VmTimeType writeTime = -1;
+      VmTimeType attrChangeTime = -1;
+
+      if (!fileItem[i].cpName.cpName_val ||
+          0 == fileItem[i].cpName.cpName_len) {
+         Debug("%s: invalid fileItem[%"FMTSZ"u].cpName.\n", __FUNCTION__, i);
+         goto exit;
+      }
+
+      /*
+       * '\0' is used as directory separator in cross-platform name. Now turn
+       * '\0' in data into DIRSEPC.
+       *
+       * Note that we don't convert the final '\0' into DIRSEPC so the string
+       * is NUL terminated.
+       */
+      CPNameUtil_CharReplace(fileItem[i].cpName.cpName_val,
+                             fileItem[i].cpName.cpName_len - 1,
+                             '\0',
+                             DIRSEPC);
+      fileName = fileItem[i].cpName.cpName_val;
+      filePathName = tempDir;
+      filePathName += DIRSEPS + fileName;
+
+      if (fileItem[i].validFlags & CP_FILE_VALID_TYPE &&
+          CP_FILE_TYPE_DIRECTORY == fileItem[i].type) {
+         if (!File_CreateDirectory(filePathName.c_str())) {
+            goto exit;
+         }
+         Debug("%s: created directory [%s].\n",
+                   __FUNCTION__, filePathName.c_str());
+      } else if (fileItem[i].validFlags & CP_FILE_VALID_TYPE &&
+                 CP_FILE_TYPE_REGULAR == fileItem[i].type) {
+         FileIODescriptor file;
+         FileIOResult fileErr;
+
+         FileIO_Invalidate(&file);
+
+         fileErr = FileIO_Open(&file,
+                               filePathName.c_str(),
+                               FILEIO_ACCESS_WRITE,
+                               FILEIO_OPEN_CREATE_EMPTY);
+         if (!FileIO_IsSuccess(fileErr)) {
+            goto exit;
+         }
+
+         fileErr = FileIO_Write(&file,
+                                fileItem[i].content.content_val,
+                                fileItem[i].content.content_len,
+                                NULL);
+
+         FileIO_Close(&file);
+         Debug("%s: created file [%s].\n", __FUNCTION__, filePathName.c_str());
+      } else {
+         /*
+          * Right now only Windows can provide CPFORMAT_FILECONTENTS data.
+          * Symlink file is not expected. Continue with next file if the
+          * type is not valid.
+          */
+         continue;
+      }
+
+      /* Update file time attributes. */
+      createTime = fileItem->validFlags & CP_FILE_VALID_CREATE_TIME ?
+         fileItem->createTime: -1;
+      accessTime = fileItem->validFlags & CP_FILE_VALID_ACCESS_TIME ?
+         fileItem->accessTime: -1;
+      writeTime = fileItem->validFlags & CP_FILE_VALID_WRITE_TIME ?
+         fileItem->writeTime: -1;
+      attrChangeTime = fileItem->validFlags & CP_FILE_VALID_CHANGE_TIME ?
+         fileItem->attrChangeTime: -1;
+
+      if (!File_SetTimes(filePathName.c_str(),
+                         createTime,
+                         accessTime,
+                         writeTime,
+                         attrChangeTime)) {
+         /* Not a critical error, only log it. */
+         Debug("%s: File_SetTimes failed with file [%s].\n",
+               __FUNCTION__, filePathName.c_str());
+      }
+
+      /* Update file permission attributes. */
+      if (fileItem->validFlags & CP_FILE_VALID_PERMS) {
+         if (Posix_Chmod(filePathName.c_str(),
+                         fileItem->permissions) < 0) {
+            /* Not a critical error, only log it. */
+            Debug("%s: Posix_Chmod failed with file [%s].\n",
+                  __FUNCTION__, filePathName.c_str());
+         }
+      }
+
+      /*
+       * If there is no DIRSEPC inside the fileName, this file/directory is a
+       * top level one. We only put top level name into uri list.
+       */
+      if (fileName.find(DIRSEPS, 0) == utf::string::npos) {
+         mHGFileContentsList.push_back(filePathName);
+      }
+   }
+   Debug("%s: created uri list\n", __FUNCTION__);
+   ret = true;
+
+exit:
+   xdr_free((xdrproc_t)xdr_CPFileContents, (char *)&fileContents);
+   if (tempDir && !ret) {
+      DnD_DeleteStagingFiles(tempDir, FALSE);
+   }
+   free(tempDir);
+   return ret;
 }
 
 
@@ -964,8 +1434,8 @@ CopyPasteUI::GetLocalFilesDone(bool success)
    Debug("%s: enter success %d\n", __FUNCTION__, success);
 
    if (mBlockAdded) {
-      Debug("%s: removing block mBlockFd %d\n", __FUNCTION__, mBlockFd);
-      DnD_RemoveBlock(mBlockFd, mHGStagingDir.c_str());
+      Debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
+      mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
       mBlockAdded = false;
    }
 

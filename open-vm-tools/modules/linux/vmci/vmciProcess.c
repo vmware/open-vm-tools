@@ -135,8 +135,7 @@ VMCIProcess_CheckHostCapabilities(void)
  */
 
 int
-VMCIProcess_Create(VMCIProcess **outProcess,     // IN
-                   int eventHnd)                 // IN
+VMCIProcess_Create(VMCIProcess **outProcess) // IN
 {
    VMCIProcess *process;
    VMCILockFlags flags;

@@ -26,6 +26,23 @@
 ####
 SRCROOT = .
 
+#
+# open-vm-tools doesn't replicate shared source files for different modules;
+# instead, files are kept in shared locations. So define a few useful macros
+# to be able to handle both cases cleanly.
+#
+INCLUDE      :=
+ifdef OVT_SOURCE_DIR
+AUTOCONF_DIR := $(OVT_SOURCE_DIR)/modules/linux/shared/autoconf
+VMLIB_PATH   = $(OVT_SOURCE_DIR)/lib/$(1)
+INCLUDE      += -I$(OVT_SOURCE_DIR)/modules/linux/shared
+INCLUDE      += -I$(OVT_SOURCE_DIR)/lib/include
+else
+AUTOCONF_DIR := $(SRCROOT)/shared/autoconf
+INCLUDE      += -I$(SRCROOT)/shared
+endif
+
+
 VM_UNAME = $(shell uname -r)
 
 # Header directory for the running kernel
@@ -34,7 +51,7 @@ HEADER_DIR = /lib/modules/$(VM_UNAME)/build/include
 BUILD_DIR = $(HEADER_DIR)/..
 
 DRIVER := vmxnet
-PRODUCT := @PRODUCT@
+PRODUCT := tools
 
 # Grep program
 GREP = /bin/grep

@@ -25,6 +25,9 @@
 echo `date` ": Executing '$0'"
 echo
 
+# Start the network.
+/etc/netstart
+
 scriptsdir="`dirname $0`/scripts/`basename $0`.d"
 if [ -d "$scriptsdir" ]; then
    for scriptfile in "$scriptsdir"/*; do
@@ -32,5 +35,3 @@ if [ -d "$scriptsdir" ]; then
    done
 fi
 
-# Start the network.
-/etc/netstart

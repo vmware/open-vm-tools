@@ -38,7 +38,7 @@ typedef struct VMCIProcess VMCIProcess;
 void VMCIProcess_Init(void);
 void VMCIProcess_Exit(void);
 Bool VMCIProcess_CheckHostCapabilities(void);
-int VMCIProcess_Create(VMCIProcess **outProcess, int eventHnd);
+int VMCIProcess_Create(VMCIProcess **outProcess);
 void VMCIProcess_Destroy(VMCIProcess *process);
 VMCIProcess *VMCIProcess_Get(VMCIId processID);
 		

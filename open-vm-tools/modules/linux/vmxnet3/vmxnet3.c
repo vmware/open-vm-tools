@@ -385,7 +385,7 @@ vmxnet3_poll(struct napi_struct *napi, int budget)
    vmxnet3_do_poll(adapter, budget, &txd_done, &rxd_done);
 
    if (rxd_done < budget) {
-      compat_netif_rx_complete(adapter->netdev, napi);
+      compat_napi_complete(adapter->netdev, napi);
       vmxnet3_enable_intr(adapter, 0);
    }
    return rxd_done;
@@ -419,7 +419,7 @@ vmxnet3_poll(struct net_device *poll_dev, int *budget)
    poll_dev->quota -= rxd_done;
 
    if (rxd_done < quota) {
-      netif_rx_complete(poll_dev);
+      compat_napi_complete(poll_dev, unused);
       vmxnet3_enable_intr(adapter, 0);
       return 0;
    }
@@ -467,7 +467,7 @@ vmxnet3_intr(int irq, void *dev_id)
       vmxnet3_disable_intr(adapter, 0);
    }
 
-   compat_netif_rx_schedule(dev, &adapter->napi);
+   compat_napi_schedule(dev, &adapter->napi);
 
 #else
    vmxnet3_tq_tx_complete(&adapter->tx_queue, adapter);

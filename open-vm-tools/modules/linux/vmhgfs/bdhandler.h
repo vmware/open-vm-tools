@@ -19,14 +19,16 @@
 /*
  * bdhandler.h --
  *
- * Background thread for handling backdoor requests and replies.
+ * Backdoor channel implementation.
  */
 
 #ifndef _HGFS_DRIVER_BDHANDLER_H_
 #define _HGFS_DRIVER_BDHANDLER_H_
 
-/* Public functions (with respect to the entire module). */
-void HgfsResetOps(void);
-int HgfsBdHandler(void *data);
+#include "transport.h"
+
+Bool HgfsBdChannelInit(void);
+
+extern HgfsTransportChannel bdChannel;
 
 #endif // _HGFS_DRIVER_BDHANDLER_H_

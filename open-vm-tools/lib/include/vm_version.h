@@ -236,7 +236,7 @@
 #define PLAYER_VERSION "e.x.p"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
-#define FUSION_VERSION "2.0"
+#define FUSION_VERSION "3.0"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "4.0.0"
@@ -282,7 +282,7 @@
 /*
  * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
-#define TOOLS_VERSION "2009.03.18"
+#define TOOLS_VERSION "2009.04.23"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

@@ -24,6 +24,7 @@ if HAVE_GTKMM
 endif
 AM_CFLAGS += @VMWARE_USER_CPPFLAGS@
 AM_CFLAGS += -I$(top_builddir)/include
+AM_CFLAGS += -I$(top_srcdir)/lib/dndGuest
 AM_CFLAGS += -DRESOLUTION_X11
 AM_CFLAGS += -I$(top_srcdir)/services/plugins/vix
 
@@ -31,9 +32,6 @@ AM_CXXFLAGS = $(AM_CFLAGS)
 
 vmware_user_LDADD =
 vmware_user_LDADD += ../lib/conf/libConf.la
-if HAVE_GTKMM
-   vmware_user_LDADD += ../lib/dndGuest/libDndGuest.la
-endif
 vmware_user_LDADD += ../lib/eventManager/libEventManager.la
 vmware_user_LDADD += ../lib/file/libFile.la
 if ENABLE_UNITY
@@ -78,6 +76,7 @@ vmware_user_LDADD += ../lib/err/libErr.la
 vmware_user_LDADD += ../lib/foundryMsg/libFoundryMsg.la
 vmware_user_LDADD += ../lib/backdoor/libBackdoor.la
 vmware_user_LDADD += ../lib/dict/libDict.la
+vmware_user_LDADD += ../lib/dndGuest/libDndGuest.la
 vmware_user_LDADD += ../lib/dnd/libDnd.la
 vmware_user_LDADD += ../lib/dynxdr/libDynxdr.la
 vmware_user_LDADD += ../lib/hgfs/libHgfs.la
@@ -120,6 +119,10 @@ endif
 vmware_user_SOURCES += copyPasteDnDWrapper.cpp
 vmware_user_SOURCES += debugStdio.c
 vmware_user_SOURCES += dnd.c
+if HAVE_GTKMM
+vmware_user_SOURCES += dndUI.cpp
+vmware_user_SOURCES += dragDetWnd.cpp
+endif
 vmware_user_SOURCES += foreignVMToolsDaemon.c
 vmware_user_SOURCES += foreignVMToolsNetworking.c
 vmware_user_SOURCES += $(top_srcdir)/services/plugins/vix/foundryToolsDaemon.c

@@ -57,6 +57,7 @@ static RpcDebugMsgMapping gRpcMessages[] = {
 };
 
 static gboolean gSignalReceived = FALSE;
+static ToolsAppCtx *gCtx;
 
 
 /**
@@ -196,7 +197,27 @@ static gboolean
 TestDebugSendNext(RpcDebugMsgMapping *rpcdata)
 {
    static RpcDebugMsgList msgList = { gRpcMessages, 0 };
-   return RpcDebug_SendNext(rpcdata, &msgList);
+   if (!RpcDebug_SendNext(rpcdata, &msgList)) {
+      /*
+       * Test for bug 391553: send two resets in sequence without
+       * pumping the main loop. The channel should handle the second
+       * reset successfully instead of asserting.
+       */
+      int i;
+      for (i = 0; i < 2; i++) {
+         RpcInData data;
+         memset(&data, 0, sizeof data);
+         data.clientData = gCtx->rpc;
+         data.appCtx = gCtx;
+         data.args = "reset";
+         data.argsSize = sizeof "reset";
+
+         g_debug("reset test %d\n", i + 1);
+         RpcChannel_Dispatch(&data);
+      }
+      return FALSE;
+   }
+   return TRUE;
 }
 
 
@@ -238,6 +259,7 @@ RpcDebugOnLoad(ToolsAppCtx *ctx)
       g_error("Failed to create test.rpcin.msg1 command.\n");
    }
 
+   gCtx = ctx;
    return &regData;
 }
 

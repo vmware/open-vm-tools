@@ -379,8 +379,8 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
    utf16_t *modPath = NULL;
    utf16_t *lastSlash;
    utf16_t *wpath;
-   HANDLE hFile;
-   HANDLE hMapping;
+   HANDLE hFile = INVALID_HANDLE_VALUE;
+   HANDLE hMapping = NULL;
    void *memMappedData = NULL;
 #else
    struct stat finfo;
@@ -634,7 +634,7 @@ found:
    if (hMapping) {
       CloseHandle(hMapping);
    }
-   if (hFile) {
+   if (hFile != INVALID_HANDLE_VALUE) {
       CloseHandle(hFile);
    }
 #endif

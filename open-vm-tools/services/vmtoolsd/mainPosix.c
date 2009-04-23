@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <glib/gstdio.h>
 #include "file.h"
-#include "system.h"
+#include "hostinfo.h"
 #include "unicode.h"
 #include "util.h"
 #include "vmtools.h"
@@ -117,16 +117,10 @@ main(int argc,
    argvCopy = NULL;
 
    if (gState.pidFile != NULL) {
-#if defined(__APPLE__)
       /*
-       * The Mac OS main loop uses CoreFoundation classes, and that does not
-       * work with fork(). So we must exec() after the fork or the daemon
-       * will crash.
-       *
-       * We at least make sure that argv[0] is an absolute path before
-       * exec'ing; but all other path arguments should have been given
-       * as absolute paths if '--background' was used, or things may not
-       * work as expected.
+       * If argv[0] is not an absolute path, make it so; all other path
+       * arguments should have been given as absolute paths if '--background'
+       * was used, or things may not work as expected.
        */
       if (!g_path_is_absolute(argv[0])) {
          char *cwd = File_Cwd(NULL);
@@ -144,26 +138,19 @@ main(int argc,
       for (i = 1; i < argc; i++) {
          if (strcmp(argv[i], "--background") == 0 ||
              strcmp(argv[i], "-b") == 0) {
-            int j;
-            for (j = i + 2; j < argc; j++) {
-               argv[j - 2] = argv[j];
-            }
-            argv[j - 2] = NULL;
+            memmove(argv + i, argv + i + 2, (argc - i - 2) * sizeof *argv);
+            argv[argc - 2] = NULL;
             break;
          }
       }
 
-      if (System_Daemon(FALSE, FALSE, gState.pidFile)) {
-         execv(argv[0], argv);
-         _exit(1);
-      } else {
+      if (!Hostinfo_Daemonize(argv[0],
+                              argv,
+                              HOSTINFO_DAEMONIZE_DEFAULT,
+                              gState.pidFile)) {
          goto exit;
       }
-#else
-      if (!System_Daemon(FALSE, FALSE, gState.pidFile)) {
-         goto exit;
-      }
-#endif
+      return 0;
    }
 
    if (!ToolsCore_Setup(&gState)) {

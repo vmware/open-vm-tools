@@ -184,7 +184,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
    }
 
  retry:
-   opUsed = atomic_read(&hgfsVersionRead);
+   opUsed = hgfsVersionRead;
    if (opUsed == HGFS_OP_READ_V3) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
@@ -256,7 +256,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
          if (opUsed == HGFS_OP_READ_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionRead, HGFS_OP_READ);
+            hgfsVersionRead = HGFS_OP_READ;
             goto retry;
          }
 	 break;
@@ -329,7 +329,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
    }
 
  retry:
-   opUsed = atomic_read(&hgfsVersionWrite);
+   opUsed = hgfsVersionWrite;
    if (opUsed == HGFS_OP_WRITE_V3) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
@@ -391,7 +391,7 @@ HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
          if (opUsed == HGFS_OP_WRITE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionWrite, HGFS_OP_WRITE);
+            hgfsVersionWrite = HGFS_OP_WRITE;
             goto retry;
          }
          break;

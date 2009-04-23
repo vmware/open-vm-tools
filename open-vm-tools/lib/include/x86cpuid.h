@@ -267,7 +267,7 @@ FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  MASK,   0, FALSE)  
 FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               NO,  MASK,   0, FALSE, MWAIT)     \
 FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  MASK,   0, FALSE, DSCPL)     \
 FLAGDEFA(  1, ECX, INTEL,  5,   1, VMX,                 NO,  MASK,   0, FALSE, VMX)       \
-FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  MASK,   0, FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  MASK,   0, FALSE) \
 FLAGDEF(   1, ECX, INTEL,  7,   1, EST,                 NO,  MASK,   0, FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  8,   1, TM2,                 NO,  MASK,   0, FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 9,   1, SSSE3,               YES, HOST,   0, TRUE,  SSSE3)     \
@@ -416,7 +416,7 @@ FLAGDEFA( 81, EDX, AMD,    22,  1, MMXEXT,              YES, HOST,   0, TRUE,  M
 FLAGDEF(  81, EDX, AMD,    23,  1, MMX,                 YES, HOST,   0, TRUE)             \
 FLAGDEF(  81, EDX, AMD,    24,  1, FXSAVE,              YES, HOST,   0, TRUE)             \
 FLAGDEFA( 81, EDX, AMD,    25,  1, FFXSR,               YES, HOST,   0, FALSE, FFXSR)     \
-FLAGDEF(  81, EDX, AMD,    26,  1, PDPE1GB,             NO,  MASK,   0, FALSE)            \
+FLAGDEF(  81, EDX, COMMON, 26,  1, PDPE1GB,             NO,  MASK,   0, FALSE)            \
 FLAGDEFA( 81, EDX, COMMON, 27,  1, RDTSCP,              YES, HOST,   0, TRUE,  RDTSCP)    \
 FLAGDEFA( 81, EDX, COMMON, 29,  1, LM,                  YES, TEST,   1, FALSE, LM) \
 FLAGDEFA( 81, EDX, AMD,    30,  1, 3DNOWPLUS,           YES, HOST,   0, TRUE,  3DNOWPLUS) \
@@ -456,6 +456,7 @@ FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  MASK,   0, FALSE)  
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            NO,  MASK,   0, FALSE)            \
 FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  MASK,   0, FALSE)
 
+
 #define CPUID_FIELD_DATA                                              \
    CPUID_FIELD_DATA_LEVEL_0                                           \
    CPUID_FIELD_DATA_LEVEL_1                                           \
@@ -466,6 +467,7 @@ FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  MASK,   0, FALSE)
    CPUID_FIELD_DATA_LEVEL_80                                          \
    CPUID_FIELD_DATA_LEVEL_81                                          \
    CPUID_FIELD_DATA_LEVEL_8x
+
 
 /*
  * Define all field and flag values as an enum.  The result is a full
@@ -610,6 +612,8 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
  * macros/functions for reading cpuid fields.
  */
 
+#define CPUID_FAMILY_EXTENDED 15
+
 /* Effective Intel CPU Families */
 #define CPUID_FAMILY_486      4
 #define CPUID_FAMILY_P5       5
@@ -624,7 +628,6 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_FAMILY_K8       15
 #define CPUID_FAMILY_K8L      16
 #define CPUID_FAMILY_K8MOBILE 17
-#define CPUID_FAMILY_EXTENDED 15
 
 /* Intel model information */
 #define CPUID_MODEL_PPRO       1
@@ -639,7 +642,6 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_NEHALEM_1A 0x1a  // Nehalem / Gainestown
 #define CPUID_MODEL_ATOM_1C    0x1c  // Silverthorne / Diamondville
 #define CPUID_MODEL_CORE_1D    0x1d  // Dunnington
-#define CPUID_MODEL_NEHALEM_1E 0x1e  // Lynnfield
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -766,9 +768,11 @@ static INLINE Bool
 CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
+   uint32 effectiveModel = CPUID_EFFECTIVE_MODEL(v);
+
    return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_NEHALEM_1A ||
-           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_NEHALEM_1E);
+          (
+           effectiveModel == CPUID_MODEL_NEHALEM_1A);
 }
 
 static INLINE Bool

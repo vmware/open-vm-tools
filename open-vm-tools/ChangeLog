@@ -1,3 +1,110 @@
+2009-04-23	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.04.17)
+
+	* configure.ac, Makefile.am, docs/*: build API docs for vmtools; the
+	  documentation files are provided under a BSD-style license.
+
+	* configure.ac, Makefile.am, guestd/*, lib/Makefile.am, lib/guestInfo/*,
+	  lib/include/vmbackup_def.h, lib/include/vmBackup.h, lib/vmBackupLib/*,
+	  libvmtools/Makefile.am, services/plugins/vmbackup/vmbackup_def.h: remove
+	  guestd from open-vm-tools, and clean up code in other places that was only
+	  there because of guestd.
+
+	* configure.ac, modules/solaris/vmblock/*, modules/solaris/vmmemctl/*: add
+	  Solaris vmblock and vmmemctl driver sources. The vmmemctl module also
+	  includes a user-level daemon (vmmemctld.c).
+
+	* lib/conf/conf.c, lib/include/conf.h, libvmtools/vmtoolsConfig.c: remove
+	  unused config options.
+
+	* lib/deployPkg/toolsDeployPkg.h: code refactoring.
+
+	* lib/dnd/dndClipboard.c: if size of clipboard exceeds the maximum backdoor
+	  packet size, only keep text data (dropping the RTF data).
+
+	* lib/dnd/dndLinux.c, lib/include/dnd.h, lib/include/vmblock.h,
+	  vmware-user/copyPaste.c, vmware-user/dnd.c, vmware-user/vmware-user.cpp,
+	  vmware-user/vmwareuserint.h, vmware-user-suid-wrapper/main.c: detect
+	  whether plain vmblock or vmblock-fuse is being used, allowing the same
+	  executable to be used with either.
+
+	* lib/dndGuest/*, vmware-user/copyPaseDnDWrapper.{cpp,h},
+	  vmware-user/dndUI.{cpp,h}, vmware-user/dragDetWnd.{cpp,h}:
+	  vmware-user/vmware-user.cpp: more DnD V3 protocol work.
+
+	* lib/ghIntegration/*, lib/include/guestCaps.h, lib/include/unityCommon.h:
+	  work related to mapping Outlook folders over HGFS and exposing the Windows
+	  Recycle Bin to the host (doesn't really affect open-vm-tools).
+
+	* lib/ghIntegration/ghIntegrationX11.c: restore the native environment when
+	  launching external applications. This doesn't really affect open-vm-tools.
+
+	* lib/guestRpc/*, vmware-user/copyPasteUI.{cpp,h}: implement RTF and file
+	  contents copy & paste.
+
+	* lib/include/circList.h, lib/include/vm_basic_math.h,
+	  lib/include/vm_device_version.h, modules/linux/*, modules/Makefile.am:
+	  changes to share files between the user space code and the kernel code,
+	  instead of duplicating the same source files in different places.
+
+	* lib/include/rpcChannel.h, lib/rpcChannel/*, tests/testDebug/testDebug.c,
+	  test/vmrpcdbg/debugChannel.c: some code cleanup, and fix crash when dealing
+	  with multiple reset messages.
+
+	* lib/include/system.h, lib/system/systemLinux.c,
+	  services/vmtoolsd/mainPosix.c: remove System_Daemon() (replaced with
+	  Hostinfo_Daemonize()).
+
+	* lib/include/unityCommon.h, lib/unity/*: ressurrect UNITY_RPC_WINDOW_SHOW
+	  and UNITY_RPC_WINDOW_HIDE RPCs.
+
+	* lib/procMgr/procMgrPosix.c: fix ProcMgr_IsProcessRunning().
+
+	* lib/system/systemLinux.c: fix shutdown / reboot commands on Solaris; fix
+	  rebuilding of native environment from variables set by VMware scripts (this
+	  last one doesn't really affect open-vm-tools).
+
+	* lib/unicode/unicodeSimpleTypes.c: speed up UnicodeIANALookup, and fix case
+	  where C++ constructors could call UnicodeIANALookup before Unicode_Init()
+	  was called by lazily creating the internal cache.
+
+	* libguestlib/*: link libguestlib against libvmtools. This avoids having
+	  two definitions of certain symbols (like Debug()) when an application
+	  links to both libraries.
+
+	* modules/linux/vmblock/linux/control.c: only set directory entry owner when
+	  needed.
+
+	* modules/linux/vmhgfs/bdhandler.{c,h}, modules/linux/vmhgfs/dir.c,
+	  modules/linux/vmhgfs/file.c, modules/linux/vmhgfs/filesystem.c,
+	  modules/linux/vmhgfs/fsutil.c, modules/linux/vmhgfs/inode.c,
+	  modules/linux/vmhgfs/module.{c,h}, modules/linux/vmhgfs/page.c,
+	  modules/linux/vmhgfs/request.{c,h}, modules/linux/vmhgfs/super.c,
+	  modules/linux/vmhgfs/tcp.{c,h}, modules/linux/vmhgfs/transport.{c,h}:
+	  cleanup use of atomic variables in HGFS; add a transport abstraction layer,
+	  and add an initial version of a socket-based transport (not yet stable and
+	  not yet supported by any released VMware product).
+
+	* modules/linux/vmxnet3/vmxnet3.c: fix build on kernel 2.6.29.
+
+	* modules/linux/vsock/af_vsock.c: export more functions to other kernel
+	  modules; some changes to statistics gathering code.
+
+	* modules/solaris/vmhgfs/filesystem.c: make module loadable on Solaris 9.
+
+	* modules/solaris/vmhgfs/vnode.c: unify mapping of HGFS to Solaris error
+	  codes.
+
+	* scripts/*: restart network before running user scripts in resume scripts.
+
+	* services/plugin/powerOps/powerOps.c: fix running default power scripts.
+
+	* services/vmtoolsd/pluginMgr.c: better error logging.
+
+	* toolbox/toolbox-cmd.c: fix help string.
+
+	* vmblock-fuse/block.c: fix vmblock-fuse compilation on FreeBSD.
+
 2009-03-18	Marcelo Vanzin	 <mvanzin@vmware.com>
 	* Resync with internal trunk (2009.03.13)
 

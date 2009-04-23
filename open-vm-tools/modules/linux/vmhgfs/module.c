@@ -48,6 +48,16 @@ MODULE_PARM(LOGLEVEL_THRESHOLD, "i");
 MODULE_PARM_DESC(LOGLEVEL_THRESHOLD, "Set verbosity (0 means no log, 10 means very verbose, 4 is default)");
 #endif
 
+char *HOST_IP = NULL;
+int HOST_PORT = 2000; /* Defaulted to 2000. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
+module_param(HOST_IP, charp, 0444);
+module_param(HOST_PORT, int, 0444);
+#else
+MODULE_PARM(HOST_IP, "s");
+MODULE_PARM(HOST_PORT, "i");
+#endif
+
 /* Module information. */
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Host/Guest File System");

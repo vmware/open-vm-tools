@@ -55,13 +55,13 @@ endif
 
 CC_OPTS := -g3 -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS)
 
-INCLUDE := -I. -I$(HEADER_DIR)
+INCLUDE += -I. -I$(HEADER_DIR)
 
 INCLUDE += $(shell $(CC) $(CC_OPTS) $(INCLUDE) \
-	   -E $(SRCROOT)/autoconf/geninclude.c \
+	   -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
-CC_OPTS += $(call vm_check_build, $(SRCROOT)/autoconf/epoll.c, -DVMW_HAVE_EPOLL, )
+CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c, -DVMW_HAVE_EPOLL, )
 
 OBJS := vmci_drv.o
 OBJS += vmciDatagram.o

@@ -21,7 +21,7 @@
 ####  VMware pvscsi Makefile to be distributed externally
 ####
 
-INCLUDE := -I.
+INCLUDE += -I.
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 

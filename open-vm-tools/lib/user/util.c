@@ -398,10 +398,7 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
                                        void *cbData)                // IN/OUT: Our status
 {
    struct UtilBacktraceFromPointerData *data = cbData;
-   uintptr_t cfa = _Unwind_GetCFA(ctx);
-   void *encl_func_addr;
-   Dl_info dli;
-   
+   uintptr_t cfa = _Unwind_GetCFA(ctx);   
 
    /*
     * Stack grows down.  So if we are below basePtr, do nothing...
@@ -410,9 +407,16 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
 #ifndef VM_X86_64
 #   error You should not build this on 32bit - there is no eh_frame there.
 #endif
-      encl_func_addr = _Unwind_FindEnclosingFunction((void *)_Unwind_GetIP(ctx));
-      if ( (dladdr(encl_func_addr, &dli)  != 0) ||
-           (dladdr((void *)_Unwind_GetIP(ctx), &dli) != 0 )) {
+      void *enclFuncAddr;
+      Dl_info dli;
+
+#ifdef __linux__
+      enclFuncAddr = _Unwind_FindEnclosingFunction((void *)_Unwind_GetIP(ctx));
+#else
+      enclFuncAddr = NULL;
+#endif
+      if (dladdr(enclFuncAddr, &dli) ||
+          dladdr((void *)_Unwind_GetIP(ctx), &dli)) {
          data->outFunc(data->outFuncData,
                       "SymBacktrace[%u] %016lx rip=%016lx in function %s "
                       "in object %s loaded at %016lx\n",
@@ -490,8 +494,8 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
 #if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
    /* 
     * We do a separate pass here that includes symbols in order to
-    * make sure the base backtrace that does not call dladdr etc.
-    * is safely produced
+    * make sure the base backtrace that does not call dladdr() etc.
+    * is safely produced.
     */
    data.basePtr = (uintptr_t)basePtr;
    data.outFunc = outFunc;
@@ -519,8 +523,8 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
 #if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
    /* 
     * We do a separate pass here that includes symbols in order to
-    * make sure the base backtrace that does not call dladdr etc.
-    * is safely produced
+    * make sure the base backtrace that does not call dladdr() etc.
+    * is safely produced.
     */
    x = basePtr;
    for (i = 0; i < 256; i++) {
@@ -528,7 +532,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
 	  (uintptr_t) x - (uintptr_t) basePtr > 0x8000) {
          break;
       }
-      if ( dladdr((uintptr_t *)x[1], &dli)  != 0 ) {
+      if (dladdr((uintptr_t *)x[1], &dli)) {
          outFunc(outFuncData, "SymBacktrace[%d] %#08x eip %#08x in function %s "
                               "in object %s loaded at %#08x\n",
                                i, x[0], x[1], dli.dli_sname, dli.dli_fname,

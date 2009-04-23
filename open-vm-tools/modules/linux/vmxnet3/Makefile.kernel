@@ -21,12 +21,12 @@
 ####  VMware vmxnet3 Makefile to be distributed externally
 ####
 
-INCLUDE := -I.
+INCLUDE += -I.
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
-EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/autoconf/netif_num_params.c, -DVMW_NETIF_SINGLE_NAPI_PARM, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/netif_num_params.c, , -DVMW_NETIF_SINGLE_NAPI_PARM)
 
 obj-m += $(DRIVER).o
 

@@ -30,7 +30,6 @@ X11_SUBDIRS += vmware-user-suid-wrapper
 SUBDIRS =
 SUBDIRS += lib
 SUBDIRS += libvmtools
-SUBDIRS += guestd
 if HAVE_X11
    SUBDIRS += $(X11_SUBDIRS)
 endif
@@ -52,3 +51,5 @@ SUBDIRS += tests
 if WITH_KERNEL_MODULES
    SUBDIRS += modules
 endif
+SUBDIRS += docs
+

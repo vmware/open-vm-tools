@@ -3602,6 +3602,116 @@ UPWindow_ProtocolSupported(const UnityPlatform *up,        // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * UnityPlatformShowWindow --
+ *
+ *      Makes hidden Window visible. If the Window is already visible, it stays
+ *      visible. Window reappears at its original location. A minimized window
+ *      reappears as minimized.
+ *
+ * Results:
+ *
+ *      FALSE if the Window handle is invalid.
+ *      TRUE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+UnityPlatformShowWindow(UnityPlatform *up,    // IN
+                        UnityWindowId window) // IN
+{
+   UnityPlatformWindow *upw;
+
+   ASSERT(up);
+
+   upw = UPWindow_Lookup(up, window);
+
+   if (!upw || !upw->clientWindow) {
+      Debug("Hiding FAILED!\n");
+      return FALSE;
+   }
+
+   if (upw->isHidden) {
+      Atom data[5] = {0, 0, 0, 0, 0};
+
+      /*
+       * Unfortunately the _NET_WM_STATE messages only work for windows that are already
+       * mapped, i.e. not iconified or withdrawn.
+       */
+      if (!upw->isMinimized) {
+         XMapRaised(up->display, upw->clientWindow);
+      }
+
+      data[0] = _NET_WM_STATE_REMOVE;
+      data[1] = up->atoms._NET_WM_STATE_HIDDEN;
+      data[3] = 2; // Message is from the pager/taskbar
+      UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
+                                     up->atoms._NET_WM_STATE, 32, 4, data);
+
+      upw->wantInputFocus = TRUE;
+      upw->isHidden = FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UnityPlatformHideWindow --
+ *
+ *      Hides window. If the window is already hidden it stays hidden. Hides
+ *      maximized and minimized windows too.
+ *
+ * Results:
+ *      FALSE if the Window handle is invalid.
+ *      TRUE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+UnityPlatformHideWindow(UnityPlatform *up,    // IN
+                        UnityWindowId window) // IN
+{
+   UnityPlatformWindow *upw;
+
+   ASSERT(up);
+
+   upw = UPWindow_Lookup(up, window);
+
+   if (!upw
+      || !upw->clientWindow) {
+      Debug("Hiding FAILED!\n");
+      return FALSE;
+   }
+
+   if (!upw->isHidden) {
+      Atom data[5] = {0, 0, 0, 0, 0};
+
+      upw->isHidden = TRUE;
+
+      data[0] = _NET_WM_STATE_ADD;
+      data[1] = up->atoms._NET_WM_STATE_HIDDEN;
+      data[3] = 2; // Message is from a pager/taskbar/etc.
+      UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
+                                     up->atoms._NET_WM_STATE, 32, 4, data);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * UnityPlatformMinimizeWindow --
  *
  *      Mimimizes window. If the window is already mimimized it stays minimized.

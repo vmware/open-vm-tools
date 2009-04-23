@@ -417,7 +417,10 @@ StartVMwareUser(char *const envp[])
     * "device" instead of calling DnD_InitializeBlocking() and bringing along
     * a whole host of libs.
     */
-   fd = open(VMBLOCK_DEVICE, VMBLOCK_DEVICE_MODE);
+   fd = open(VMBLOCK_FUSE_DEVICE, VMBLOCK_FUSE_DEVICE_MODE);
+   if (fd < 0) {
+      fd = open(VMBLOCK_DEVICE, VMBLOCK_DEVICE_MODE);
+   }
 
    uid = getuid();
    gid = getgid();

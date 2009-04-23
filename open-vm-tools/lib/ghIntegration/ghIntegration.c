@@ -86,6 +86,21 @@ static Bool GHITcloRestoreDefaultGuestHandler(RpcInData *data);
  */
 static Bool GHITcloSetOutlookTempFolder(RpcInData* data);
 
+/*
+ * Wrapper function for the "ghi.guest.outlook.restore.tempFolder" RPC.
+ */
+static Bool GHITcloRestoreOutlookTempFolder(RpcInData* data);
+
+/*
+ * Wrapper function for the "ghi.guest.trashFolder.action" RPC.
+ */
+static Bool GHITcloTrashFolderAction(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.trashFolder.getIcon" RPC.
+ */
+static Bool GHITcloTrashFolderGetIcon(RpcInData *data);
+
 static Bool GHIUpdateHost(GHIProtocolHandlerList *handlers);
 
 DynBuf gTcloUpdate;
@@ -245,10 +260,9 @@ GHI_InitBackdoor(struct RpcIn *rpcIn)   // IN
     */
 
    if (GHI_IsSupported()) {
+      /* "Old-style callbacks. */
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_BINARY_INFO,
                              GHITcloGetBinaryInfo, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_GET_BINARY_HANDLERS,
-                               GHITcloGetBinaryHandlers, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_OPEN_LAUNCHMENU,
                              GHITcloOpenStartMenu, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_LAUNCHMENU_ITEM,
@@ -259,12 +273,22 @@ GHI_InitBackdoor(struct RpcIn *rpcIn)   // IN
                              GHITcloShellOpen, NULL);
       RpcIn_RegisterCallback(rpcIn, GHI_RPC_GUEST_SHELL_ACTION,
                              GHITcloShellAction, NULL);
+
+      /* "New-style" callbacks. */
+      RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_GET_BINARY_HANDLERS,
+                               GHITcloGetBinaryHandlers, NULL);
       RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_SET_GUEST_HANDLER,
                                GHITcloSetGuestHandler, NULL);
       RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER,
                                GHITcloRestoreDefaultGuestHandler, NULL);
       RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_OUTLOOK_SET_TEMP_FOLDER,
                                GHITcloSetOutlookTempFolder, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_OUTLOOK_RESTORE_TEMP_FOLDER,
+                               GHITcloRestoreOutlookTempFolder, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRASH_FOLDER_ACTION,
+                               GHITcloTrashFolderAction, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRASH_FOLDER_GET_ICON,
+                               GHITcloTrashFolderGetIcon, NULL);
    }
 }
 
@@ -1012,7 +1036,7 @@ GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
          __FUNCTION__, data->name, data->argsSize);
 
    /*
-    * Build an XDR Stream from the argument data.
+    * Build an XDR stream from the argument data.
     *
     * Note that the argument data begins with args + 1 since there is a space
     * between the RPC name and the XDR serialization.
@@ -1045,3 +1069,274 @@ exit:
    return ret;
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * GHITcloRestoreOutlookTempFolder --
+ *
+ *    Handler for the 'ghi.guest.outlook.restore.tempFolder' RPC.
+ *
+ * Results:
+ *    If the RPC fails, return FALSE. Otherwise, returns TRUE.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+GHITcloRestoreOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
+{
+   Bool ret = FALSE;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   // Check our arguments. Note that this RPC doesn't have any arguments!
+   ASSERT(data);
+   ASSERT(data->name);
+   ASSERT(data->argsSize == 0);
+
+   if (!(data && data->name && data->argsSize == 0)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   // Call the platform implementation of our RPC.
+   ret = GHIPlatformRestoreOutlookTempFolder(ghiPlatformData);
+
+   if (ret == FALSE) {
+      Debug("%s: Failed to set Outlook temporary folder.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Failed to set Outlook temporary folder", FALSE);
+      goto exit;
+   }
+
+   /*
+    * We don't have any out parameters, so we write empty values into the
+    * result fields of the RpcInData structure.
+    */
+   RPCIN_SETRETVALS(data, "", FALSE);
+
+   // Set our return value and return to the caller.
+   ret = TRUE;
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+
+/**
+ * @brief Wrapper function for the ghi.guest.trashFolder.action RPC.
+ *
+ * params[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloTrashFolderAction(RpcInData *data)
+{
+   Bool ret = FALSE;
+   XDR xdrs;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+   ASSERT(data->argsSize > 0);
+
+   if (!(data && data->name && data->argsSize > 0)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /*
+    * Build an XDR stream from the argument data.
+    *
+    * Note that the argument data begins with args + 1 since there is a space
+    * between the RPC name and the XDR serialization.
+    */
+   xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
+
+   /* Call the platform implementation of our RPC. */
+   ret = GHIPlatformTrashFolderAction(ghiPlatformData, &xdrs);
+
+   /* Destroy the XDR stream. */
+   xdr_destroy(&xdrs);
+
+   if (ret == FALSE) {
+      Debug("%s: RPC failed.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "RPC failed", FALSE);
+      goto exit;
+   }
+
+   /*
+    * We don't have any out parameters, so we write empty values into the
+    * result fields of the RpcInData structure.
+    */
+   RPCIN_SETRETVALS(data, "", FALSE);
+
+   /* Set our return value and return to the caller. */
+   ret = TRUE;
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+
+/**
+ * @brief Send the ghi.guest.trashFolder.state RPC to the host.
+ *
+ * Send the ghi.guest.trashFolder.state RPC to the host. This function is used
+ * by the platform-specific GHI backends to notify the host when the state of
+ * the Trash (aka Recycle Bin) folder changes. Currently, the only information
+ * sent using this RPC is the empty/non-empty state of the Trash folder.
+ *
+ * @params[in] xdrs Pointer to XDR serialized arguments.
+ *
+ * @retval TRUE  The RPC was sent successfully.
+ * @retval FALSE The RPC was not sent.
+ */
+
+Bool
+GHISendTrashFolderStateRPC(XDR *xdrs)
+{
+   Bool ret = FALSE;
+   DynBuf outBuf;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(xdrs);
+
+   if (NULL == xdrs) {
+      Debug("%s: Invalid parameter.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   DynBuf_Init(&outBuf);
+
+   /* Append our RPC name and a space to the DynBuf. */
+   if (!DynBuf_Append(&outBuf,
+                      GHI_RPC_TRASH_FOLDER_STATE,
+                      strlen(GHI_RPC_TRASH_FOLDER_STATE))) {
+      Debug("%s: Failed to append RPC name to DynBuf.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   if (!DynBuf_Append(&outBuf, " ", 1)) {
+      Debug("%s: Failed to append space to DynBuf.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   /* Append the XDR serialized data to the DynBuf. */
+   if (!DynBuf_Append(&outBuf, DynXdr_Get(xdrs), xdr_getpos(xdrs)) )
+   {
+      Debug("%s: Failed to append XDR serialized data to DynBuf.\n",
+            __FUNCTION__);
+      goto exit;
+   }
+
+   if (!RpcOut_SendOneRaw(DynBuf_Get(&outBuf),
+                          DynBuf_GetSize(&outBuf),
+                          NULL,
+                          NULL)) {
+      Debug("%s: Failed to send RPC to host!\n", __FUNCTION__);
+      goto exit;
+   }
+
+   ret = TRUE;
+
+exit:
+   DynBuf_Destroy(&outBuf);
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+/**
+ * @brief Return the icon for the Trash folder (aka Recycle Bin) to the host.
+ *
+ * Get the icon for the Trash Folder (aka Recycle Bin) and return it to the
+ * host.
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloTrashFolderGetIcon(RpcInData *data)
+{
+   Bool ret = FALSE;
+   XDR xdrs;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+
+   if (!(data && data->name)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /* Create the XDR structure we'll use for the output of the RPC. */
+   if (NULL == DynXdr_Create(&xdrs)) {
+      Debug("%s: Failed to create DynXdr structure.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Failed to create XDR structure", FALSE);
+      goto exit;
+   }
+
+   /* Call the platform code to get the icon data. */
+   if (!GHIPlatformTrashFolderGetIcon(ghiPlatformData, &xdrs)) {
+      Debug("%s: Failed to get Trash folder icon.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Failed to get Trash folder icon", FALSE);
+      goto exit;
+   }
+
+   /*
+    * If the serialized data exceeds our maximum message size we have little
+    * choice but to fail the request and log the oversize message.
+    *
+    * XXX Shouldn't the RPC layer enforce the maximum message size?
+    */
+   if (xdr_getpos(&xdrs) > GUESTMSG_MAX_IN_SIZE) {
+      Debug("%s: Maximum message size exceeced! Got %d bytes of icon data.\n",
+            __FUNCTION__, xdr_getpos(&xdrs));
+      RPCIN_SETRETVALS(data, "Trash folder icon too large", FALSE);
+      goto exit;
+   }
+
+   /*
+    * Write the result into the RPC out parameters.
+    */
+   data->result = DynXdr_Get(&xdrs);
+   data->resultLen = xdr_getpos(&xdrs);
+   data->freeResult = TRUE;
+
+   ret = TRUE;
+
+exit:
+   /*
+    * If we were successful, then don't free the contents of the DynXdr; the
+    * buffer will be freed by the RPC layer.
+    */
+   DynXdr_Destroy(&xdrs, !ret);
+   return ret;
+}

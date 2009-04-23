@@ -312,7 +312,6 @@ VMCIEventRegisterSubscription(VMCISubscription *sub,   // IN
    sub->callbackData = callbackData;
    
    VMCIEventGrabLock(&subscriberLock, &flags);
-   ASSERT(subscriberArray);
    for (success = FALSE, attempts = 0;
 	success == FALSE && attempts < VMCI_EVENT_MAX_ATTEMPTS;
 	attempts++) {

@@ -205,7 +205,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT
 Bool
 Hostinfo_GetLoadAverage(uint32 *avg)      // IN/OUT
 {
-   float avg0;
+   float avg0 = 0;
 
    if (!HostinfoGetLoadAverage(&avg0, NULL, NULL)) {
       return FALSE;
@@ -234,7 +234,7 @@ Hostinfo_GetLoadAverage(uint32 *avg)      // IN/OUT
 void
 Hostinfo_LogLoadAverage(void)
 {
-   float avg0, avg1, avg2;
+   float avg0 = 0, avg1 = 0, avg2 = 0;
 
    if (!HostinfoGetLoadAverage(&avg0, &avg1, &avg2)) {
       return;
@@ -1611,6 +1611,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    char **argsLocalEncoding = NULL;
 
    ASSERT_ON_COMPILE(sizeof (errno) <= sizeof err);
+   ASSERT(args);
+   ASSERT(path && File_IsFile(path));
 
    if (pipe(pipeFds) == -1) {
       err = Err_Errno();
@@ -1619,7 +1621,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       goto cleanup;
    }
 
-   if (fcntl(F_SETFD, pipeFds[1], 1) == -1) {
+   if (fcntl(pipeFds[1], F_SETFD, 1) == -1) {
       err = Err_Errno();
       Warning("%s: Couldn't set close-on-exec for fd %d, error %u.\n",
               __FUNCTION__, pipeFds[1], err);
@@ -1821,8 +1823,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    if (execv(pathLocalEncoding, argsLocalEncoding) == -1) {
-      uint32 err = Err_Errno();
-      Warning("%s: Couldn't exec %s, error %u.\n",
+      err = Err_Errno();
+      Warning("%s: Couldn't exec %s, error %d.\n",
               __FUNCTION__, path, err);
       // Let the original process know we failed to exec.
       if (write(pipeFds[1], &err, sizeof err) == -1) {

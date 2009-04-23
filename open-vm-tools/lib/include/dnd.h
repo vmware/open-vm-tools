@@ -164,6 +164,16 @@ typedef struct DnDTransportBuffer {
                                                DND_TRANSPORT_PACKET_HEADER_SIZE)
 #define DND_MAX_TRANSPORT_LATENCY_TIME        3 * 1000000 /* 3 seconds. */
 
+/*
+ * Structure to access methods of currently used blocking mechanism.
+ */
+typedef struct DnDBlockControl {
+   int fd;
+   const char *blockRoot;
+   Bool (*AddBlock)(int blockFd, const char *blockPath);
+   Bool (*RemoveBlock)(int blockFd, const char *blockedPath);
+} DnDBlockControl;
+
 #ifdef _WIN32
 /*
  * Windows-specific functions
@@ -230,10 +240,19 @@ Bool DnD_CPNameListToDynBufArray(char *fileList,
 Unicode DnD_GetLastDirName(const char *str);
 
 /* vmblock support functions. */
-int DnD_InitializeBlocking(void);
-Bool DnD_UninitializeBlocking(int blockFd);
-Bool DnD_AddBlock(int blockFd, const char *blockPath);
-Bool DnD_RemoveBlock(int blockFd, const char *blockedPath);
+Bool DnD_InitializeBlocking(DnDBlockControl *blkCtrl);
+Bool DnD_UninitializeBlocking(DnDBlockControl *blkCtrl);
+Bool DnD_CompleteBlockInitialization(int fd, DnDBlockControl *blkCtrl);
+
+static INLINE Bool
+DnD_BlockIsReady(DnDBlockControl *blkCtrl)   // IN: blocking control structure
+{
+   if (blkCtrl->fd >= 0) {
+      ASSERT(blkCtrl->AddBlock && blkCtrl->RemoveBlock);
+      return TRUE;
+   }
+   return FALSE;
+}
 
 /* Transport layer big buffer support functions. */
 void DnD_TransportBufInit(DnDTransportBuffer *buf,

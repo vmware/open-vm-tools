@@ -69,8 +69,27 @@ Bool GHIPlatformGetProtocolHandlers(GHIPlatform *ghip,
  */
 Bool GHIPlatformSetOutlookTempFolder(GHIPlatform* ghip, const XDR* xdrs);
 
+/*
+ * Restore the temporary folder used by Outlook to store attachments.
+ */
+Bool GHIPlatformRestoreOutlookTempFolder(GHIPlatform* ghip);
+
+/*
+ * Perform an action on the Trash (aka Recycle Bin) folder, such as opening it
+ * or emptying it.
+ */
+Bool GHIPlatformTrashFolderAction(GHIPlatform* ghip, const XDR *xdrs);
+
+/* Get the icon for the Trash (aka Recycle Bin) folder. */
+Bool GHIPlatformTrashFolderGetIcon(GHIPlatform *ghip, XDR *xdrs);
 
 /* Implemented by ghIntegration.c for use by the platform-specific code */
 Bool GHILaunchMenuChangeRPC(void);
+
+/*
+ * Used by the platform-specific code to send the "tools.ghi.trash.change" RPC
+ * to the host.
+ */
+Bool GHISendTrashFolderStateRPC(XDR *xdrs);
 
 #endif

@@ -229,9 +229,9 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
 
   retry:
    if (op == HGFS_OP_DELETE_FILE) {
-      opUsed = atomic_read(&hgfsVersionDeleteFile);
+      opUsed = hgfsVersionDeleteFile;
    } else {
-      opUsed = atomic_read(&hgfsVersionDeleteDir);
+      opUsed = hgfsVersionDeleteDir;
    }
 
    if (opUsed == HGFS_OP_DELETE_FILE_V3 ||
@@ -346,12 +346,12 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
          if (opUsed == HGFS_OP_DELETE_DIR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionDeleteDir, HGFS_OP_DELETE_DIR);
+            hgfsVersionDeleteDir = HGFS_OP_DELETE_DIR;
             goto retry;
          } else if (opUsed == HGFS_OP_DELETE_FILE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: Version 3 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionDeleteFile, HGFS_OP_DELETE_FILE);
+            hgfsVersionDeleteFile = HGFS_OP_DELETE_FILE;
             goto retry;
          }
 
@@ -1165,7 +1165,7 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
    }
 
   retry:
-   opUsed = atomic_read(&hgfsVersionCreateDir);
+   opUsed = hgfsVersionCreateDir;
    result = HgfsPackCreateDirRequest(dentry, mode, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: error packing request\n"));
@@ -1208,12 +1208,12 @@ HgfsMkdir(struct inode *dir,     // IN: Inode of parent directory
          if (opUsed == HGFS_OP_CREATE_DIR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: Version 3 not "
                     "supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR_V2);
+            hgfsVersionCreateDir = HGFS_OP_CREATE_DIR_V2;
             goto retry;
          } else if (opUsed == HGFS_OP_CREATE_DIR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMkdir: Version 2 not "
                     "supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionCreateDir, HGFS_OP_CREATE_DIR);
+            hgfsVersionCreateDir = HGFS_OP_CREATE_DIR;
             goto retry;
          }
 
@@ -1359,7 +1359,7 @@ HgfsRename(struct inode *oldDir,      // IN: Inode of original directory
    }
 
 retry:
-   opUsed = atomic_read(&hgfsVersionRename);
+   opUsed = hgfsVersionRename;
    if (opUsed == HGFS_OP_RENAME_V3) {
       HgfsRequestRenameV3 *request = (HgfsRequestRenameV3 *)HGFS_REQ_PAYLOAD_V3(req);
       HgfsRequest *header = (HgfsRequest *)HGFS_REQ_PAYLOAD(req);
@@ -1467,7 +1467,7 @@ retry:
       if (result == -EPROTO) {
          /* Retry with older version(s). Set globally. */
          if (opUsed == HGFS_OP_RENAME_V3) {
-            atomic_set(&hgfsVersionRename, HGFS_OP_RENAME);
+            hgfsVersionRename = HGFS_OP_RENAME;
             goto retry;
          } else {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: server "
@@ -1677,7 +1677,7 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
    }
 
   retry:
-   opUsed = atomic_read(&hgfsVersionCreateSymlink);
+   opUsed = hgfsVersionCreateSymlink;
    result = HgfsPackSymlinkCreateRequest(dentry, symname, opUsed, req);
    if (result != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: error packing request\n"));
@@ -1698,7 +1698,7 @@ HgfsSymlink(struct inode *dir,     // IN: Inode of parent directory
          if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSymlink: Version 3 "
                     "not supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsVersionCreateSymlink, HGFS_OP_CREATE_SYMLINK);
+            hgfsVersionCreateSymlink = HGFS_OP_CREATE_SYMLINK;
             goto retry;
          } else {
             LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSymlink: symlink was not "
@@ -1813,7 +1813,7 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
 
   retry:
    /* Fill out the request packet. */
-   opUsed = atomic_read(&hgfsVersionSetattr);
+   opUsed = hgfsVersionSetattr;
    result = HgfsPackSetattrRequest(iattr, dentry, allowHandleReuse,
                                    opUsed, req, &changed);
    if (result != 0 || !changed) {
@@ -1890,12 +1890,12 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
          if (opUsed == HGFS_OP_SETATTR_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: Version 3 "
                     "not supported. Falling back to version 2.\n"));
-            atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR_V2);
+            hgfsVersionSetattr = HGFS_OP_SETATTR_V2;
             goto retry;
          } else if (opUsed == HGFS_OP_SETATTR_V2) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSetattr: Version 2 "
                     "not supported. Falling back to version 1.\n"));
-            atomic_set(&hgfsVersionSetattr, HGFS_OP_SETATTR);
+            hgfsVersionSetattr = HGFS_OP_SETATTR;
             goto retry;
          }
 

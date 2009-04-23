@@ -2171,13 +2171,6 @@ static struct xRef {
 
 
 /*
- * Thread-safe hash table to speed up encoding name -> IANA table
- * index lookups.
- */
-static HashTable *encCache = NULL;
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * UnicodeNormalizeEncodingName --
@@ -2207,6 +2200,7 @@ UnicodeNormalizeEncodingName(const char *encodingName) // IN
    currentResult = result;
 
    for (currentResult = result; *encodingName != '\0'; encodingName++) {
+      // The explicit cast from char to int is necessary for Netware builds.
       if (isalnum((int) *encodingName)) {
          *currentResult = tolower(*encodingName);
          currentResult++;
@@ -2239,27 +2233,41 @@ UnicodeNormalizeEncodingName(const char *encodingName) // IN
 static int
 UnicodeIANALookup(const char *encodingName) // IN
 {
-   char *name;
+   /*
+    * Thread-safe hash table to speed up encoding name -> IANA table
+    * index lookups.
+    */
+   static Atomic_Ptr htPtr;
+   static HashTable *encCache = NULL;
+
+   char *name = NULL;
    char *candidate = NULL;
    const char *p;
    int i;
    int j;
    int acp;
    void *idx;
+   size_t windowsPrefixLen = sizeof "windows-" - 1 /* NUL */;
 
-   if (encCache && HashTable_Lookup(encCache, encodingName, (void **) &idx)) {
+   if (UNLIKELY(encCache == NULL)) {
+      encCache = HashTable_AllocOnce(&htPtr, 128, HASH_ISTRING_KEY | HASH_FLAG_ATOMIC |
+                                     HASH_FLAG_COPYKEY, free);
+   }
+
+   if (encCache && HashTable_Lookup(encCache, encodingName, &idx)) {
       return (int)(uintptr_t)idx;
    }
 
-   name = UnicodeNormalizeEncodingName(encodingName);
-   
    /*
     * check for Windows-xxxx encoding names generated from GetACP()
     * code page numbers, see: CodeSetOld_GetCurrentCodeSet()
     */
-   if (!strncmp(encodingName, "windows-", strlen("windows-"))) {
-      p = encodingName + strlen("windows-");
+   if (   strncmp(encodingName, "windows-", windowsPrefixLen) == 0
+       || strncmp(encodingName, "Windows-", windowsPrefixLen) == 0) {
+      p = encodingName + windowsPrefixLen;
       acp = 0;
+
+      // The explicit cast from char to int is necessary for Netware builds.
       while (*p && isdigit((int)*p)) {
          acp *= 10;
          acp += *p - '0';
@@ -2273,11 +2281,21 @@ UnicodeIANALookup(const char *encodingName) // IN
          }
       }
    }
-   
+
+   // Try the raw names first to avoid the expense of normalizing everything.
+   for (i = 0; i < ARRAYSIZE(xRef); i++) {
+      for (j = 0; (p = xRef[i].names[j]) != NULL; j++) {
+         if (strcmp(encodingName, p) == 0) {
+            goto done;
+         }
+      }
+   }
+
+   name = UnicodeNormalizeEncodingName(encodingName);
    for (i = 0; i < ARRAYSIZE(xRef); i++) {
       for (j = 0; (p = xRef[i].names[j]) != NULL; j++) {
          candidate = UnicodeNormalizeEncodingName(p);
-         if (!strcmp(name, candidate)) {
+         if (strcmp(name, candidate) == 0) {
             goto done;
          }
          free(candidate);
@@ -2494,15 +2512,6 @@ UnicodeInitInternal(int argc,               // IN
    if (!CodeSet_Init(icuDataDir)) {
 #ifndef N_PLAT_NLM
       snprintf(panicMsg, sizeof panicMsg, "Failed to initialize codeset.\n");
-#endif
-      goto exit;
-   }
-
-   encCache = HashTable_Alloc(128, HASH_ISTRING_KEY | HASH_FLAG_ATOMIC |
-                              HASH_FLAG_COPYKEY, free);
-   if (encCache == NULL) {
-#ifndef N_PLAT_NLM
-      snprintf(panicMsg, sizeof panicMsg, "HashTable_Alloc failed.\n");
 #endif
       goto exit;
    }

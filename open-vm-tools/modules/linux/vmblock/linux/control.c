@@ -126,6 +126,42 @@ VMBlockCleanupControlOps(void)
 
 /* Private initialization/cleanup routines */
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMBlockSetProcEntryOwner --
+ *
+ *    Sets proc_dir_entry owner if necessary:
+ *
+ *    Before version 2.6.24 kernel prints nasty warning when in-use
+ *    directory entry is destroyed, which happens when module is unloaded.
+ *    We try to prevent this warning in most cases by setting owner to point
+ *    to our module, so long operations (like current directory pointing to
+ *    directory we created) prevent module from unloading.  Since 2.6.24 this
+ *    situation is handled without nastygrams, allowing module unload even
+ *    when current directory points to directory created by unloaded module,
+ *    so we do not have to set owner anymore.  And since 2.6.29 we must not
+ *    set owner at all, as there is none...
+ *
+ * Results:
+ *    None.  Always succeeds.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VMBlockSetProcEntryOwner(struct proc_dir_entry *entry) // IN/OUT: directory entry
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
+   entry->owner = THIS_MODULE;
+#endif
+}
+
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -156,7 +192,7 @@ SetupProcDevice(void)
       return -EINVAL;
    }
 
-   controlProcDirEntry->owner = THIS_MODULE;
+   VMBlockSetProcEntryOwner(controlProcDirEntry);
 
    /* Create /proc/fs/vmblock/mountPoint */
    controlProcMountpoint = proc_mkdir(VMBLOCK_CONTROL_MOUNTPOINT,
@@ -168,7 +204,7 @@ SetupProcDevice(void)
       return -EINVAL;
    }
 
-   controlProcMountpoint->owner = THIS_MODULE;
+   VMBlockSetProcEntryOwner(controlProcMountpoint);
 
    /* Create /proc/fs/vmblock/dev */
    controlProcEntry = create_proc_entry(VMBLOCK_CONTROL_DEVNAME,

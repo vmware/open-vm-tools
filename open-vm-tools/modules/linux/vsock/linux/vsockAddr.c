@@ -38,6 +38,8 @@
 #elif defined(VMKERNEL)
 # include "vm_libc.h"
 # include "return_status.h"
+#elif defined(__APPLE__)
+# include <sys/errno.h>
 #endif
 
 #include "vsockCommon.h"

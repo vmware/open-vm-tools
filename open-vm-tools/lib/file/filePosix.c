@@ -382,6 +382,9 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
    if (SMB_SUPER_MAGIC == sfbuf.f_type) {
       return TRUE;
    }
+   if (CIFS_SUPER_MAGIC == sfbuf.f_type) {
+      return TRUE;
+   }
    return FALSE;
 #endif
 }

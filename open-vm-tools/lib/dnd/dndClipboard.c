@@ -255,6 +255,35 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
       return FALSE;
    }
 
+   if (size >= CPCLIPITEM_MAX_SIZE_V3) {
+      return FALSE;
+   }
+
+   if (CPFORMAT_RTF == fmt) {
+      size_t textSize = clip->items[CPFormatToIndex(CPFORMAT_TEXT)].size;
+      if ((textSize + size) >= CPCLIPITEM_MAX_SIZE_V3) {
+         /*
+          * If both CPFORMAT_TEXT and CPFORMAT_RTF are availabe but total
+          * size is over limit, only keep CPFORMAT_TEXT.
+          */
+         return TRUE;
+      }
+   }
+
+   if (CPFORMAT_TEXT == fmt) {
+      size_t rtfSize = clip->items[CPFormatToIndex(CPFORMAT_RTF)].size;
+      if ((rtfSize + size) >= CPCLIPITEM_MAX_SIZE_V3) {
+         /*
+          * If both CPFORMAT_TEXT and CPFORMAT_RTF are availabe but total
+          * size is over limit, remove data for CPFORMAT_RTF and add data
+          * for CPFORMAT_TEXT.
+          */
+         if (!CPClipboard_ClearItem(clip, CPFORMAT_RTF)) {
+            return FALSE;
+         }
+      }
+   }
+
    item = &clip->items[CPFormatToIndex(fmt)];
 
    if (clipitem) {

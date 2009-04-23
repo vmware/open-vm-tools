@@ -578,16 +578,16 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
       gHGFCPFileTransferStatus = FCP_FILE_TRANSFERRING;
    }
 
-   if (gBlockFd > 0) {
+   if (DnD_BlockIsReady(&gBlockCtrl)) {
       /* Add a block on the staging directory for this command. */
-      if (DnD_AddBlock(gBlockFd, gFileRoot)) {
+      if (gBlockCtrl.AddBlock(gBlockCtrl.fd, gFileRoot)) {
          Debug("CopyPasteSelectionGetCB: add block [%s].\n", gFileRoot);
          blockAdded = TRUE;
       } else {
          Warning("CopyPasteSelectionGetCB: Unable to add block [%s].\n", gFileRoot);
       }
    }
-   
+
    if (!blockAdded) {
       /*
        * If there is no blocking driver, wait here till file copy is done.
@@ -1466,7 +1466,8 @@ CopyPasteRpcInHGDataFinishCB(char const **result,   // OUT
    ASSERT(gHGFCPFileTransferStatus == FCP_FILE_TRANSFERRING);
    gHGFCPFileTransferStatus = FCP_FILE_TRANSFERRED;
 
-   if (gBlockFd > 0 && !DnD_RemoveBlock(gBlockFd, gFileRoot)) {
+   if (DnD_BlockIsReady(&gBlockCtrl) &&
+       !gBlockCtrl.RemoveBlock(gBlockCtrl.fd, gFileRoot)) {
       Warning("CopyPasteRpcInHGDataFinishCB: Unable to remove block [%s].\n",
               gFileRoot);
    }
@@ -1520,6 +1521,7 @@ CopyPasteHGSetFileList(char const **result,     // OUT
    Bool ret = FALSE;
    char *retStr;
    int iAtom;
+   Bool usingDnDBlock;
 
    gHGFCPFileTransferStatus = FCP_FILE_TRANSFER_NOT_YET;
    /* Parse value string. */
@@ -1561,7 +1563,8 @@ CopyPasteHGSetFileList(char const **result,     // OUT
    memcpy(data, args + index, listSize);
    data[listSize] = '\0';
 
-   if (gBlockFd > 0) {
+   usingDnDBlock = DnD_BlockIsReady(&gBlockCtrl);
+   if (usingDnDBlock) {
       /*
        * Here we take the last component of the actual file root, which is
        * a temporary directory for this DnD operation, and append it to the
@@ -1575,18 +1578,18 @@ CopyPasteHGSetFileList(char const **result,     // OUT
          retStr = "error construct stagingDirName";
          goto exit;
       }
-      if (sizeof VMBLOCK_MOUNT_POINT - 1 +
+      if (strlen(gBlockCtrl.blockRoot) +
           (sizeof DIRSEPS - 1) * 2 + strlen(stagingDirName) >= sizeof mountDirName) {
          Debug("CopyPasteHGSetFileList: directory name too large.\n");
          retStr = "directory name too large";
          goto exit;
       }
       Str_Sprintf(mountDirName, sizeof mountDirName,
-                  VMBLOCK_MOUNT_POINT DIRSEPS"%s"DIRSEPS, stagingDirName);
+                  "%s" DIRSEPS "%s" DIRSEPS, gBlockCtrl.blockRoot, stagingDirName);
    }
 
    /* Add the file root to the relative paths received from host */
-   if (!DnD_PrependFileRoot(gBlockFd > 0 ? mountDirName : gFileRoot,
+   if (!DnD_PrependFileRoot(usingDnDBlock ? mountDirName : gFileRoot,
                             &data, &listSize)) {
       Debug("CopyPasteHGSetFileList: error prepending guest file root\n");
       retStr = "error prepending file root";
@@ -1993,7 +1996,8 @@ CopyPaste_OnReset(void)
 {
    if (gHGFCPFileTransferStatus == FCP_FILE_TRANSFERRING) {
       File_DeleteDirectoryTree(gFileRoot);
-      if (gBlockFd > 0 && !DnD_RemoveBlock(gBlockFd, gFileRoot)) {
+      if (DnD_BlockIsReady(&gBlockCtrl) &&
+          !gBlockCtrl.RemoveBlock(gBlockCtrl.fd, gFileRoot)) {
          Warning("CopyPasteRpcInHGDataFinishCB: Unable to remove block [%s].\n",
                  gFileRoot);
       }

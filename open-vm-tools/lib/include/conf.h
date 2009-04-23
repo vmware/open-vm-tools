@@ -42,23 +42,10 @@
 #   define CONFVAL_RESUMESCRIPT_DEFAULT   "RESUME.NCF"
 #   define CONFVAL_SUSPENDSCRIPT_DEFAULT  "SUSPEND.NCF"
 #elif ! defined(_WIN32)
-#   define CONFNAME_HALT                  "halt-command"
-#   define CONFNAME_REBOOT                "reboot-command"
-#   ifdef sun
-#      define CONFVAL_HALT_DEFAULT        "/usr/sbin/init 5"
-#      define CONFVAL_REBOOT_DEFAULT      "/usr/sbin/init 6"
-#   else
-#      define CONFVAL_HALT_DEFAULT        "/sbin/shutdown -h now"
-#      define CONFVAL_REBOOT_DEFAULT      "/sbin/shutdown -r now"
-#   endif
-
 #   define CONFVAL_POWERONSCRIPT_DEFAULT  "poweron-vm-default"
 #   define CONFVAL_POWEROFFSCRIPT_DEFAULT "poweroff-vm-default"
 #   define CONFVAL_RESUMESCRIPT_DEFAULT   "resume-vm-default"
 #   define CONFVAL_SUSPENDSCRIPT_DEFAULT  "suspend-vm-default"
-
-#   define CONFNAME_MOUNT_POINT           "mount-point"
-#   define CONFVAL_MOUNT_POINT_DEFAULT    "/hgfs"
 #else
 #   define CONFVAL_POWERONSCRIPT_DEFAULT  "poweron-vm-default.bat"
 #   define CONFVAL_POWEROFFSCRIPT_DEFAULT "poweroff-vm-default.bat"
