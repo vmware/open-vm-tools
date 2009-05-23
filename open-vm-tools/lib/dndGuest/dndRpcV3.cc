@@ -52,6 +52,13 @@ DnDRpcV3::DnDRpcV3(struct RpcIn *rpcIn) // IN
 {
    mTransport = new DnDTransportGuestRpc(rpcIn, "dnd.transport");
    mTransport->recvMsgChanged.connect(sigc::mem_fun(this, &DnDRpcV3::OnRecvMsg));
+
+   mHostMinorVersion = 0;
+   /* Tell host that current DnD version in guest side is 3.1. */
+   /* XXX Windows only for now. Linux implementation will be in shortly. */
+#if defined (_WIN32)
+   UpdateGuestVersion(3, 1);
+#endif // _WIN32
 }
 
 
@@ -74,6 +81,54 @@ DnDRpcV3::DnDRpcV3(struct RpcIn *rpcIn) // IN
 DnDRpcV3::~DnDRpcV3(void)
 {
    delete mTransport;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DnDRpcV3::UpdateGuestVersion --
+ *
+ *      Serialize DND_UPDATE_GUEST_VERSION message and forward to
+ *      transport layer.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+DnDRpcV3::UpdateGuestVersion(uint32 major, // IN
+                             uint32 minor) // IN
+{
+   DnDMsg msg;
+   DynBuf buf;
+
+   DnDMsg_Init(&msg);
+   DynBuf_Init(&buf);
+
+   DnDMsg_SetCmd(&msg, DND_UPDATE_GUEST_VERSION);
+
+   if (!DnDMsg_AppendArg(&msg, &major, sizeof major) ||
+       !DnDMsg_AppendArg(&msg, &minor, sizeof minor)) {
+      Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   if (!DnDMsg_Serialize(&msg, &buf)) {
+      Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
+
+exit:
+   DynBuf_Destroy(&buf);
+   DnDMsg_Destroy(&msg);
 }
 
 
@@ -535,6 +590,51 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
                 stagingDir.size());
       }
       hgFileCopyDoneChanged.emit(success, stagingDir);
+      break;
+   }
+   case  DND_UPDATE_MOUSE:
+   {
+      int32 x = 0;
+      int32 y = 0;
+
+      buf = DnDMsg_GetArg(&msg, 0);
+      if (DynBuf_GetSize(buf) == sizeof(int32)) {
+         memcpy(&x, (const char *)DynBuf_Get(buf), sizeof(int32));
+      } else {
+         break;
+      }
+
+      buf = DnDMsg_GetArg(&msg, 1);
+      if (DynBuf_GetSize(buf) == sizeof(int32)) {
+         memcpy(&y, (const char *)DynBuf_Get(buf), sizeof(int32));
+      } else {
+         break;
+      }
+
+      updateMouseChanged.emit(x, y);
+      break;
+   }
+   case DND_UPDATE_HOST_VERSION:
+   {
+      uint32 major = 0;
+
+      buf = DnDMsg_GetArg(&msg, 0);
+      if (DynBuf_GetSize(buf) == sizeof(uint32)) {
+         memcpy(&major, (const char *)DynBuf_Get(buf), sizeof(uint32));
+      } else {
+         break;
+      }
+
+      ASSERT(major == 3);
+
+      buf = DnDMsg_GetArg(&msg, 1);
+      if (DynBuf_GetSize(buf) == sizeof(uint32)) {
+         memcpy(&mHostMinorVersion, (const char *)DynBuf_Get(buf), sizeof(uint32));
+      } else {
+         break;
+      }
+      Debug("%s: got host DnD version %d.%d.\n",
+            __FUNCTION__, major, mHostMinorVersion);
       break;
    }
    default:

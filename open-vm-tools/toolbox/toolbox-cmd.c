@@ -305,7 +305,7 @@ static void
 StatHelp(char *progName) // IN: The name of the program obtained from argv[0]
 {
    printf("stat: print useful guest and host information\n"
-          "Usage: %s state <subcommand>\n\n"
+          "Usage: %s stat <subcommand>\n\n"
           "Subcommands\n"
           "   hosttime: print the host time\n"
           "   memory: print the virtual machine memory in MBs\n"
@@ -345,7 +345,7 @@ HelpCommand(char **argv, // IN: Command line arguments
    if (CheckArgumentLength(argv, argc)) {
       int i = 0;
       while (commands[i].command != 0) {
-	 if (strcmp(commands[i].command, argv[optind]) == 0) {
+	 if (toolbox_strcmp(commands[i].command, argv[optind]) == 0) {
             commands[i].helpFunc(argv[0]);
             return EXIT_SUCCESS;
          }
@@ -380,16 +380,16 @@ DeviceCommand(char **argv, // IN: Command line arguments
               int argc)    // IN: Length of command line argumenst
 {
    if (CheckArgumentLength(argv, argc)) {
-      if (strcmp(argv[optind], "list") == 0) {
+      if (toolbox_strcmp(argv[optind], "list") == 0) {
          return Devices_ListDevices();
       } else {
 	 char *subcommand = argv[optind++];
 	 if (optind < argc) {
-	    if (strcmp(subcommand, "status") == 0) {
+	    if (toolbox_strcmp(subcommand, "status") == 0) {
 	       return Devices_DeviceStatus(argv[optind]);
-	    } else if (strcmp(subcommand, "enable") == 0) {
+	    } else if (toolbox_strcmp(subcommand, "enable") == 0) {
 	       return Devices_EnableDevice(argv[optind], quiet_flag);
-	    } else if (strcmp(subcommand, "disable") == 0) {
+	    } else if (toolbox_strcmp(subcommand, "disable") == 0) {
 	       return Devices_DisableDevice(argv[optind], quiet_flag);
 	    } else {
 	       fprintf(stderr, "Unknown subcommand\n");
@@ -428,9 +428,9 @@ DiskCommand(char **argv, // IN: command line arguments
             int argc)    // IN: The length of the command line arguments
 {
    if (CheckArgumentLength(argv, argc)) {
-      if (strcmp(argv[optind], "list") == 0) {
+      if (toolbox_strcmp(argv[optind], "list") == 0) {
 	 return Shrink_List();
-      } else if (strcmp(argv[optind], "shrink") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "shrink") == 0) {
 	 optind++; // Position optind at the mountpoint
 	 if (optind < argc) {
 	    return Shrink_DoShrink(argv[optind], quiet_flag);
@@ -469,25 +469,25 @@ StatCommand(char **argv, // IN: Comand line arguments
             int argc)    // IN: Length of command line arguments
 {
    if (CheckArgumentLength(argv, argc)) {
-      if (strcmp(argv[optind], "memory") == 0) {
+      if (toolbox_strcmp(argv[optind], "memory") == 0) {
 	 return Stat_MemorySize();
-      } else if (strcmp(argv[optind], "hosttime") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "hosttime") == 0) {
 	 return Stat_HostTime();
-      } else if (strcmp(argv[optind], "sessionid") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "sessionid") == 0) {
 	 return Stat_GetSessionID();
-      } else if (strcmp(argv[optind], "balloon") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "balloon") == 0) {
 	 return Stat_GetMemoryBallooned();
-      } else if (strcmp(argv[optind], "swap") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "swap") == 0) {
 	 return Stat_GetMemorySwapped();
-      } else if (strcmp(argv[optind], "memlimit") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "memlimit") == 0) {
 	 return Stat_GetMemoryLimit();
-      } else if (strcmp(argv[optind], "memres") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "memres") == 0) {
 	 return Stat_GetMemoryReservation();
-      } else if (strcmp(argv[optind], "cpures") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "cpures") == 0) {
 	 return Stat_GetCpuReservation();
-      } else if (strcmp(argv[optind], "cpulimit") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "cpulimit") == 0) {
 	 return Stat_GetCpuLimit();
-      } else if (strcmp(argv[optind], "speed") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "speed") == 0) {
 	 return Stat_ProcessorSpeed();
       } else {
 	 fprintf(stderr, "Unknown subcommand\n");
@@ -527,11 +527,11 @@ ScriptCommand(char **argv, // IN: command line arguments.
 	 return EX_USAGE;
       }
 
-      if (strcmp(argv[optind], "default") == 0) {
+      if (toolbox_strcmp(argv[optind], "default") == 0) {
 	 return Script_GetDefault(apm);
-      } else if (strcmp(argv[optind], "current") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "current") == 0) {
 	 return Script_GetCurrent(apm);
-      } else if (strcmp(argv[optind], "set") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "set") == 0) {
 	 optind++;
 	 if (optind < argc) {
 	    return Script_Set(apm, argv[optind], quiet_flag);
@@ -540,9 +540,9 @@ ScriptCommand(char **argv, // IN: command line arguments.
 	    ScriptHelp(argv[0]);
 	    return EX_USAGE;
 	 }
-      } else if (strcmp(argv[optind], "enable") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "enable") == 0) {
 	 return Script_Enable(apm, quiet_flag);
-      } else if (strcmp(argv[optind], "disable") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "disable") == 0) {
 	 return Script_Disable(apm, quiet_flag);
       } else {
 	 fprintf(stderr, "Unknown subcommand");
@@ -575,11 +575,11 @@ TimeSyncCommand(char **argv, // IN: command line arguments
                 int argc)    // IN: The length of the command line arguments
 {
    if (CheckArgumentLength(argv, argc)) {
-      if (strcmp(argv[optind], "enable") == 0) {
+      if (toolbox_strcmp(argv[optind], "enable") == 0) {
 	 return TimeSync_Enable(quiet_flag);
-      } else if (strcmp(argv[optind], "disable") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "disable") == 0) {
 	 return TimeSync_Disable(quiet_flag);
-      } else if (strcmp(argv[optind], "status") == 0) {
+      } else if (toolbox_strcmp(argv[optind], "status") == 0) {
 	 return TimeSync_Status();
       } else {
 	 fprintf(stderr, "Unknown subcommand");
@@ -613,7 +613,7 @@ ParseCommand(char **argv, // IN: Command line arguments
    if (optind < argc) {
       int i = 0;
       while (commands[i].command != 0) {
-	 if (strcmp(commands[i].command, argv[optind]) == 0) {
+	 if (toolbox_strcmp(commands[i].command, argv[optind]) == 0) {
 	    return &commands[i];
 	 }
 	 i++;

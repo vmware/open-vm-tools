@@ -100,15 +100,33 @@ VMCIPtrToVA64(void const *ptr) // IN
  */
 
 #define VMCI_VERSION_SHIFT_WIDTH   16 /* Never change this. */
-#define VMCI_MAJOR_VERSION_VALUE    8 /* Bump major version number here. */
-#define VMCI_MINOR_VERSION_VALUE    0 /* Bump minor version number here. */
-
-/* Don't modify the next three macros. */
-#define VMCI_VERSION           (VMCI_MAJOR_VERSION_VALUE << \
-                                VMCI_VERSION_SHIFT_WIDTH |  \
-                                VMCI_MINOR_VERSION_VALUE)
+#define VMCI_MAKE_VERSION(_major, _minor)    ((_major) <<                \
+                                              VMCI_VERSION_SHIFT_WIDTH | \
+                                              (uint16) (_minor))
 #define VMCI_VERSION_MAJOR(v)  ((uint32) (v) >> VMCI_VERSION_SHIFT_WIDTH)
 #define VMCI_VERSION_MINOR(v)  ((uint16) (v))
+
+/*
+ * VMCI_VERSION is always the current version.  Subsequently listed
+ * versions are ways of detecting previous versions of the connecting
+ * application (i.e., VMX).
+ *
+ * VMCI_VERSION_HOSTQP: This version introduced host end point support
+ * for hosted products.
+ *
+ * VMCI_VERSION_PREHOSTQP: This is the version prior to the adoption of
+ * support for host end-points.
+ *
+ * VMCI_VERSION_PREVERS2: This fictional version number is intended to
+ * represent the version of a VMX which doesn't call into the driver
+ * with ioctl VERSION2 and thus doesn't establish its version with the
+ * driver.
+ */
+
+#define VMCI_VERSION                VMCI_VERSION_HOSTQP
+#define VMCI_VERSION_HOSTQP         VMCI_MAKE_VERSION(9, 0)
+#define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
+#define VMCI_VERSION_PREVERS2       VMCI_MAKE_VERSION(1, 0)
 
 #if defined(__linux__) || defined(__APPLE__) || defined(SOLARIS) || defined(VMKERNEL)
 /*
@@ -223,7 +241,6 @@ enum IOCTLCmd_VMCI {
 
    IOCTLCMD(FIRST2),
    IOCTLCMD(SET_NOTIFY) = IOCTLCMD(FIRST2), /* 1995 on Linux. */
-   IOCTLCMD(VMCID_RPC),
    IOCTLCMD(LAST2),
 };
 
@@ -334,11 +351,6 @@ enum IOCTLCmd_VMCI {
                VMCIIOCTL_BUFFERED(SOCKETS_SOCKET)
 /* END VMCI SOCKETS */
 
-/* BEGIN VMCI USER SPACE DAEMON */
-#define IOCTL_VMCI_VMCID_RPC \
-               VMCIIOCTL_BUFFERED(VMCID_RPC)
-/* END VMCI USER SPACE DAEMON */
-
 #endif // _WIN32
 
 
@@ -376,14 +388,52 @@ typedef struct VMCIQueuePairAllocInfo {
    uint32     _pad;
 } VMCIQueuePairAllocInfo;
 
+/*
+ * For backwards compatibility, here is a version of the
+ * VMCIQueuePairPageFileInfo before host support end-points was added.
+ * Note that the current version of that structure requires VMX to
+ * pass down the VA of the mapped file.  Before host support was added
+ * there was nothing of the sort.  So, when the driver sees the ioctl
+ * with a parameter that is the sizeof
+ * VMCIQueuePairPageFileInfo_NoHostQP then it can infer that the version
+ * of VMX running can't attach to host end points because it doesn't
+ * provide the VA of the mapped files.
+ *
+ * The Linux driver doesn't get an indication of the size of the
+ * structure passed down from user space.  So, to fix a long standing
+ * but unfiled bug, the _pad field has been renamed to version.
+ * Existing versions of VMX always initialize the PageFileInfo
+ * structure so that _pad, er, version is set to 0.
+ *
+ * A version value of 1 indicates that the size of the structure has
+ * been increased to include two UVA's: produceUVA and consumeUVA.
+ * These UVA's are of the mmap()'d queue contents backing files.
+ *
+ * In addition, if when VMX is sending down the
+ * VMCIQueuePairPageFileInfo structure it gets an error then it will
+ * try again with the _NoHostQP version of the file to see if an older
+ * VMCI kernel module is running.
+ */
+typedef struct VMCIQueuePairPageFileInfo_NoHostQP {
+   VMCIHandle handle;
+   VA64       producePageFile; /* User VA. */
+   VA64       consumePageFile; /* User VA. */
+   uint64     producePageFileSize; /* Size of the file name array. */
+   uint64     consumePageFileSize; /* Size of the file name array. */
+   int32      result;
+   uint32     version;         /* Was _pad. Must be 0. */
+} VMCIQueuePairPageFileInfo_NoHostQP;
+
 typedef struct VMCIQueuePairPageFileInfo {
    VMCIHandle handle;
    VA64       producePageFile; /* User VA. */
    VA64       consumePageFile; /* User VA. */
    uint64     producePageFileSize; /* Size of the file name array. */
-   uint64     consumePageFileSize; /* Size of the file name array. */ 
+   uint64     consumePageFileSize; /* Size of the file name array. */
    int32      result;
-   uint32     _pad;
+   uint32     version;   /* Was _pad. */
+   VA64       produceVA; /* User VA of the mapped file. */
+   VA64       consumeVA; /* User VA of the mapped file. */
 } VMCIQueuePairPageFileInfo;
 
 typedef struct VMCIQueuePairDetachInfo {
@@ -501,7 +551,6 @@ enum VMCrossTalkSockOpt {
    VMCI_SO_CTX_SET_CPT_STATE        = IOCTL_VMCI_CTX_SET_CPT_STATE, 
    VMCI_SO_GET_CONTEXT_ID           = IOCTL_VMCI_GET_CONTEXT_ID,
    VMCI_SO_USERFD,
-   VMCI_SO_VMCID_RPC                = IOCTL_VMCI_VMCID_RPC,
 };
 
 #  define VMCI_MACOS_HOST_DEVICE_BASE    "com.vmware.kext.vmci"

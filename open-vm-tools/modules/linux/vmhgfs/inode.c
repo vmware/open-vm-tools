@@ -27,6 +27,10 @@
 
 #include <linux/errno.h>
 #include <linux/pagemap.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+#include <linux/namei.h>
+#endif
 
 #include "compat_cred.h"
 #include "compat_fs.h"
@@ -118,6 +122,15 @@ static int HgfsRename(struct inode *oldDir,
 static int HgfsSymlink(struct inode *dir,
                        struct dentry *dentry,
                        const char *symname);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+static int HgfsPermission(struct inode *inode,
+                          int mask,
+                          struct nameidata *nameidata);
+#else
+static int HgfsPermission(struct inode *inode,
+                          int mask);
+#endif
 #ifdef HGFS_GETATTR_ONLY
 static int HgfsGetattr(struct vfsmount *mnt,
                        struct dentry *dentry,
@@ -143,6 +156,7 @@ struct inode_operations HgfsDirInodeOperations = {
    .unlink      = HgfsUnlink,
    .rename      = HgfsRename,
    .symlink     = HgfsSymlink,
+   .permission  = HgfsPermission,
    .setattr     = HgfsSetattr,
 
 #ifdef HGFS_GETATTR_ONLY
@@ -156,6 +170,7 @@ struct inode_operations HgfsDirInodeOperations = {
 
 /* HGFS inode operations structure for files. */
 struct inode_operations HgfsFileInodeOperations = {
+   .permission  = HgfsPermission,
    .setattr     = HgfsSetattr,
 
 #ifdef HGFS_GETATTR_ONLY
@@ -791,7 +806,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
       requestV3->ownerPerms = (mode & S_IRWXU) >> 6;
       requestV3->groupPerms = (mode & S_IRWXG) >> 3;
       requestV3->otherPerms = (mode & S_IRWXO);
-      requestV3->reserved = 0;
+      requestV3->fileAttr = 0;
       break;
    }
    case HGFS_OP_CREATE_DIR_V2: {
@@ -1719,6 +1734,116 @@ out:
    HgfsFreeRequest(req);
 
    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsAccessInt --
+ *
+ *      Check to ensure the user has the specified type of access to the file.
+ *
+ * Results:
+ *      Returns 0 if access is allowed and a non-zero error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+static int
+HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
+              int mask)              // IN: access mode requested.
+{
+
+   HgfsAttrInfo attr;
+   int ret;
+
+   if (!dentry) {
+      return 0;
+   }
+   ret = HgfsPrivateGetattr(dentry, &attr);
+   if (ret == 0) {
+      uint32 effectivePermissions;
+
+      if (attr.mask & HGFS_ATTR_VALID_EFFECTIVE_PERMS) {
+         effectivePermissions = attr.effectivePerms;
+      } else {
+         /*
+          * If the server did not return actual effective permissions then
+          * need to calculate ourselves. However we should avoid unnecessary
+          * denial of access so perform optimistic permissions calculation.
+          * It is safe since host enforces necessary restrictions regardless of
+          * the client's decisions.
+          */
+         effectivePermissions =
+            attr.ownerPerms | attr.groupPerms | attr.otherPerms;
+      }
+
+      if ((effectivePermissions & mask) != mask) {
+         ret = -EPERM;
+      }
+      LOG(8, ("VMware Hgfs: %s: effectivePermissions: %d, ret: %d\n",
+              __func__, effectivePermissions, ret));
+   } else {
+      LOG(4, ("VMware Hgfs: %s: HgfsPrivateGetattr failed.\n", __func__));
+   }
+   return ret;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPermission --
+ *
+ *    Check for access rights on Hgfs. Called from VFS layer for each
+ *    file access.
+ *
+ * Results:
+ *    Returns zero on success, or a negative error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+static int
+HgfsPermission(struct inode *inode, int mask, struct nameidata *nd)
+#else
+static int
+HgfsPermission(struct inode *inode, int mask)
+#endif
+{
+   LOG(8, ("VMware hgfs: %s: inode->mode: %8x mask: %8x\n", __func__,
+           inode->i_mode, mask));
+   /*
+    * For sys_access, we go to the host for permission checking;
+    * otherwise return 0.
+    *
+    * XXX When the kernel version is less than 2.6.0, we didn't have a good way
+    * to tell whether this is for sys_access. Simply returning 0 is not what we
+    * want. Need to fix it.
+    */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+   if (nd != NULL && (nd->flags & LOOKUP_ACCESS)) { /* For sys_access. */
+#else
+   if (mask & MAY_ACCESS) { /* For sys_access. */
+#endif
+      struct dentry *dentry;
+      dentry = list_entry(inode->i_dentry.next, struct dentry, d_alias);
+      return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
+   }
+#endif
+   return 0;
 }
 
 

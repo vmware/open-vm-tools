@@ -115,12 +115,7 @@ HgfsSendRequest(HgfsReq *req)       // IN/OUT: Outgoing request
 
    LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendRequest: Sending request id %d\n",
            req->id));
-
    ret = HgfsTransportSendRequest(req);
-   if (ret == 0) { /* Send succeeded. */
-      wait_event(req->queue, req->state == HGFS_REQ_STATE_COMPLETED);
-   } /* else send failed. */
-
    LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendRequest: request finished, "
            "return %d\n", ret));
    return ret;
@@ -211,8 +206,9 @@ HgfsCompleteReq(HgfsReq *req,       // IN: Request
    memcpy(HGFS_REQ_PAYLOAD(req), reply, replySize);
    req->payloadSize = replySize;
    req->state = HGFS_REQ_STATE_COMPLETED;
-   ASSERT(!list_empty(&req->list));
-   list_del_init(&req->list);
+   if (!list_empty(&req->list)) {
+      list_del_init(&req->list);
+   }
    /* Wake up the client process waiting for the reply to this request. */
    wake_up(&req->queue);
 }

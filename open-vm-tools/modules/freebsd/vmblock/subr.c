@@ -127,13 +127,7 @@ VMBlockInit(struct vfsconf *vfsp)       // ignored
    mtx_init(&hashMutex, "vmblock-hs", NULL, MTX_DEF);
    VMBlockPathnameZone = uma_zcreate("VMBlock", MAXPATHLEN, NULL, NULL, NULL,
                                      NULL, UMA_ALIGN_PTR, 0);
-
-   /*
-    * See block describing VMBlockFileOps in vnops.c.
-    */
-   VMBlockFileOps.fo_stat = vnops.fo_stat;
-   VMBlockFileOps.fo_flags = vnops.fo_flags;
-
+   VMBlockSetupFileOps();
    BlockInit();
    return 0;
 }

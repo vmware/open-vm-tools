@@ -510,11 +510,12 @@ GHITcloOpenStartMenu(char const **result,     // OUT
                      size_t *resultLen,       // OUT
                      const char *name,        // IN
                      const char *args,        // IN
-                     size_t argsSize,         // ignored
+                     size_t argsSize,         // IN
                      void *clientData)        // ignored
 {
    char *rootUtf8 = NULL;
    DynBuf *buf = &gTcloUpdate;
+   uint32 flags = 0;
    uint32 index = 0;
    Bool ret = TRUE;
 
@@ -534,8 +535,21 @@ GHITcloOpenStartMenu(char const **result,     // OUT
       goto exit;
    }
 
+   /*
+    * Skip the NULL after the root, and look for the flags. Old versions of
+    * the VMX don't send this parameter, so it's not an error if it is not
+    * present in the RPC.
+    */
+   if (++index < argsSize && sscanf(args + index, "%u", &flags) != 1) {
+      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
+      ret = RpcIn_SetRetVals(result, resultLen,
+                             "Invalid arguments. Expected flags",
+                             FALSE);
+      goto exit;
+   }
+
    DynBuf_SetSize(buf, 0);
-   if (!GHIPlatformOpenStartMenuTree(ghiPlatformData, rootUtf8, buf)) {
+   if (!GHIPlatformOpenStartMenuTree(ghiPlatformData, rootUtf8, flags, buf)) {
       Debug("%s: Could not open start menu.\n", __FUNCTION__);
       ret = RpcIn_SetRetVals(result, resultLen,
                              "Could not get start menu count",

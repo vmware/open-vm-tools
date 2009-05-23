@@ -38,9 +38,6 @@ extern "C" {
 #   include "vm_basic_types.h"
 #   include "removable_device.h"
 
-//#define ALLOW_TOOLS_IN_FOREIGN_VM 0
-extern Bool runningInForeignVM;
-
 typedef struct GuestApp_Dict GuestApp_Dict;
 
 uint32

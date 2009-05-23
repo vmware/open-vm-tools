@@ -30,7 +30,7 @@
 #include "hgfs.h"
 #include "hgfsServerPolicy.h"
 #include "hgfsServer.h"
-#include "hgfsServerManager.h"
+#include "hgfsChannel.h"
 #include "vm_app.h"
 #include "vm_assert.h"
 #include "vmtools.h"
@@ -40,6 +40,44 @@
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
+
+
+/**
+ * Sets up the channel for HGFS.
+ *
+ * NOTE: Initialize the Hgfs server for only for now.
+ * This will move into a separate file when full interface implemented.
+ *
+ * @param[in]  data  Unused RPC request data.
+ *
+ * @return TRUE on success, FALSE on error.
+ */
+
+Bool
+HgfsChannel_Init(void *data)     // IN: Unused rpc data
+{
+   HgfsServerSessionCallbacks *serverCBTable = NULL;
+   return HgfsServer_InitState(&serverCBTable);
+}
+
+
+/**
+ * Close up the channel for HGFS.
+ *
+ * NOTE: Close open sessions in the HGFS server currently.
+ * This will move into a separate file when full interface implemented.
+ *
+ * @param[in]  data  Unused RPC request data.
+ *
+ * @return None.
+ */
+
+void
+HgfsChannel_Exit(void *data)
+{
+   ASSERT(data != NULL);
+   HgfsServer_ExitState();
+}
 
 
 /**
@@ -64,7 +102,7 @@ HgfsServerRpcInDispatch(RpcInData *data)
    }
 
    packetSize = data->argsSize - 1;
-   HgfsServer_DispatchPacket(data->args + 1, packet, &packetSize);
+   HgfsServer_ProcessPacket(data->args + 1, packet, &packetSize, 0);
 
    data->result = packet;
    data->resultLen = packetSize;
@@ -148,7 +186,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       return NULL;
    }
 
-   if (!HgfsServer_InitState()) {
+   if (!HgfsChannel_Init(NULL)) {
       g_warning("HgfsServer_InitState() failed, aborting HGFS server init.\n");
       HgfsServerPolicy_Cleanup();
       return NULL;

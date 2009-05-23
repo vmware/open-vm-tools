@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libvixUser.la
+plugindir = @VMUSR_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libvixUser.la
 
 libvixUser_la_CPPFLAGS =
 libvixUser_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -32,8 +33,4 @@ libvixUser_la_LIBADD += $(top_builddir)/lib/guestApp/libGuestAppX11.la
 
 libvixUser_la_SOURCES =
 libvixUser_la_SOURCES += vixUser.c
-
-install-exec-local:
-	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libvixUser.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
 

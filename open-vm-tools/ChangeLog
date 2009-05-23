@@ -1,3 +1,166 @@
+2009-05-22	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.05.18)
+
+	* configure.ac, m4/vmtools.m4: check for PAM and enable PAM support when
+	  available.
+
+	* configure.ac, services/plugins/*/Makefile.am, tests/*/Makefile.am: avoid
+	  the "-rpath" hack to create plugins, using plugin_LTLIBRARIES instead (and
+	  manually fixing things when necessary). Thanks to Dominique Leuenberger for
+	  the suggestion (and sample patch).
+
+	* docs/api/Makefile.am: fix doc target directories.
+
+	* configure.ac, lib/Makefile.am, lib/deployPkg/*, lib/include/deployPkg.h:
+	  remove the deployPkg code, which depends on some VMware code that is not
+	  yet open source.
+
+	* lib/backdoor/*, lib/hgfs/*, lib/hgfsBd/*, lib/include/*,
+	  lib/include/compat/*, lib/message/*, lib/misc/dbllnklst.c,
+	  lib/rpcOut/rpcout.c: as part of sharing code between user-level code and
+	  kernel modules, some files have been tagged with more than one license.
+
+	* lib/dndGuest/*, lib/include/dndBase.h, lib/include/dndMsg.h,
+	  lib/include/unity*, lib/unity/unityPlatformX11.c: implement mouse movement
+	  from within the guest; this avoids a dependency on "unofficial" mouse APIs
+	  in the VMware host code, making DnD more reliable, and makes a few things
+	  (such as cancelling an ongoing DnD operation) easier.
+
+	* lib/file/filePosix.c: make File_FullPath()'s behavior consistent when the
+	  input path starts with a '/'.
+
+	* lib/ghIntegration/ghIntegration.c: send more info about the "start menu"
+	  contents to the host (only usable for Windows guests).
+
+	* lib/ghIntegration/ghIntegrationX11.c: prettify the category names of menu
+	  items. This is a temporary solution before actually reading this
+	  information from .desktop files.
+
+	* lib/guestApp/guestApp.c, libguestlib/vmGuestLib.c, lib/include/guestApp.h,
+	  toolbox/toolbox-gtk.c, vmware-user/foreignVM*, vmware-user/vmware-user.cpp,
+	  configure.ac, lib/Makefile.am, lib/include/socketMgr.h, lib/socketMgr.*:
+	  remove code related to "foreign VM" support, which was never really used.
+
+	* lib/guestInfo/guestInfo.c, lib/include/wiper.h, lib/wiper/wiperPosix.c:
+	  properly report disk info for LVM volumes.
+
+	* lib/hgfsServer/hgfsDirNotify*, lib/hgfsServer/hgfsServer.c: add support
+	  for directory / file monitoring. It's currently only implemented on
+	  Mac OS X.
+
+	* lib/hgfsServer/hgfsServer*: fix issue where it was possible to
+	  create a file on a read-only share on Windows hosts.
+
+	* lib/hgfsServer/hgfsServer*, lib/hgfsServerManagerGuest/*,
+	  lib/include/hgfs*.h, services/plugins/hgfsServer/hgfsPlugin.c,
+	  services/plugins/vix/foundryToolsDaemon.c: some refactoring caused by the
+	  work to make HGFS support pluggable transports.
+
+	* lib/include/procMgr.h, lib/procMgr/procMgrPosix.c:
+	  remove ProcMgr_GetAsyncStatus().
+
+	* lib/include/vmsupport.h, scripts/vm-support, xferlogs/xferlogs.c,
+	  services/plugins/guestInfo/guestInfoServer.c: new feature to automatically
+	  collect support data from the guest from the VMware UI.
+
+	* lib/panicDefault/*, lib/user/*: change file names to avoid clash with
+	  another file (Mac OS linker doesn't really like that).
+
+	* lib/rpcChannel/rpcChannel.c: try to reinitialize the outbound channel on
+	  failure.
+
+	* lib/vixTools/vixTools.c, lib/include/vixCommands.h,
+	  lib/include/vixOpenSource.h: add backend for new VIX API call to list the
+	  guest's filesystems.
+
+	* libvmtools/vmtoolsLog.c: lazily open the log file, instead of opening it
+	  during configuration of the log system. This way two processes can use the
+	  same conf file and not overwrite each other's log files (assuming the conf
+	  data is sane).
+
+	* modules/Makefile.am, modules/linux/vmci/Makefile.kernel,
+	  modules/linux/vsock/Makefile.kernel: don't store VMCI module symbols in
+	  /tmp during build; this avoids a possible symlink attack that could cause
+	  data to be overwritten when building open-vm-tools.
+
+	* modules/*/*, vmblock-fuse/*: remove a lot of duplicated files by either
+	  moving them to a shared location or reusing files that were already
+	  available elsewhere.
+
+	* modules/freebsd/vmblock/subr.c, modules/freebsd/vmblock/vmblock_k.h,
+	  modules/freebsd/vmblock/vnoops.c: fix a possible kernel crash caused by
+	  trying to read / write to the mount point (something vmware-user does to
+	  detect whether it's using fuse or non-fuse vmblock).
+
+	* modules/linux/pvscsi/*: adds support for a generic msg framework that is
+	  currently used to deliver hot-plug/unplug notifications; get rid of a few
+	  divisions; fix a bug where pvscsi_probe could return 0 (aka success) if
+	  a call to kmalloc() failed; remove a few unused fields.
+
+	* modules/linux/shared/vmci*: mostly changes related to the host VMCI drivers
+	  (removed user-level queue-pair daemon, added support for trusted VMCI
+	  endpoints) to keep binary compatibility between the host and guest VMCI
+	  drivers.
+
+	* modules/linux/hgfs/inode.c: check host's access rights when checking file
+	  permissions, so that permissions are correctly checked when the guest's
+	  user id is different from the host's user id.
+
+	* modules/linux/bdhandler.*, modules/linux/filesystem.c; modules/linux/tcp.*,
+	  modules/linux/transport.*,: postpone opening the channels so that module
+	  can load successfully even if shared folders are disabled on the host;
+	  fix a synchronization problem between recv and close/open; allow
+	  hibernation to work by timing out the recv thread; correctly handle
+	  failures in recv, including injecting a dummy error to the pending
+	  requests when the recv thread exits; move the recv code to the channel's
+	  implementation so that it can be simpler.
+
+	* modules/linux/vmxnet3/vmxnet3.c, modules/linux/shared/compat_pci.h: fix
+	  Wake-On-LAN for 2.6.27 and newer Linux guests.
+
+	* modules/linux/vsock/linux/*: changes to support trusted VMCI host apps;
+	  pull out notification and stats logging code into their own files.
+
+	* modules/solaris/vmhgfs/vnode.c: do not substitute errors returned by
+	  uiomove() calls with EIO, propagate returned error code (which is EFAULT)
+	  up the stack.
+
+	* services/vmtoolsd/Makefile.am, scripts/common/linux/pam.d/vmtoolsd-x64,
+	  scripts/common/linux/pam.d/64/vmtoolsd: install the 64-bit PAM config
+	  file with the correct name.
+
+	* services/plugins/powerOps/powerOps.c: fix running default scripts by
+	  making sure the path to the script is absolute.
+
+	* services/vmtoolsd/Makefile.am, services/vmtoolsd/pluginMgr.c: use info
+	  from the configure step to define the plugin path; this avoids requiring
+	  a symlink to be placed in /etc/vmware-tools for vmtoolsd to be able to
+	  find the plugins.
+
+	* services/vmtoolsd/toolsRpc.c: send the build information to the host so
+	  it's logged in the VM's logs.
+
+	* toolbox/toolbox-cmd.c, toolbox/toolboxcmd-*, toolbox/toolboxCmdInt.h:
+	  make string comparison case-insensitive on Win32.
+
+	* toolbox/toolboxcmd-shrink.c: properly finish the shrinking process by
+	  sending the "disk.shrink" RPC to the host.
+
+	* toolbox/toolboxScripts.c: fix showing default settings for power ops
+	  scripts (should show default script enabled, not script disabled).
+
+	* vmblock-fuse/Makefile.am: fix compilation on FreeBSD.
+
+	* vmware-user/copyPasteUI.cpp: disallow copy-paste text of size greater than
+	  4MB, instead of truncating the data.
+
+	* vmware-user/dndUI.*, lib/dndGuest/dnd.cc, lib/include/dndBase.h: remove
+	  drag timeout callback (which was not needed), and add new signal to
+	  indicate that a GH DnD was cancelled.
+
+	* vmware-user/Makefile.am: remove C++ link hack (not needed now since
+	  vmware-user has C++ code already).
+
 2009-04-23	Marcelo Vanzin	 <mvanzin@vmware.com>
 	* Resync with internal trunk (2009.04.17)
 

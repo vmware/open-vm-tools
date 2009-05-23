@@ -34,7 +34,8 @@ extern "C" {
    #include "eventManager.h"
 }
 
-#define UNGRAB_TIMEOUT 50 // 0.5 s
+#define UNGRAB_TIMEOUT 50     // 0.5 s
+#define HIDE_DET_WND_TIMER 50 // 0.5s
 
 
 /*
@@ -66,6 +67,34 @@ DnDUngrabTimeout(void *clientData)      // IN
 /*
  *---------------------------------------------------------------------
  *
+ * DnDHideDetWndTimer --
+ *
+ *      HideDetWndTimer callback.
+ *
+ * Results:
+ *      Always TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------
+ */
+
+static Bool
+DnDHideDetWndTimer(void *clientData)      // IN
+{
+   Debug("%s: entering\n", __FUNCTION__);
+   ASSERT(clientData);
+   DnD *dnd = (DnD *)clientData;
+   dnd->SetHideDetWndTimer(NULL);
+   dnd->UpdateDetWnd(false, 0, 0);
+   return TRUE;
+}
+
+
+/*
+ *---------------------------------------------------------------------
+ *
  * DnD::DnD --
  *
  *      Constructor for DnD.
@@ -85,6 +114,7 @@ DnD::DnD(DblLnkLst_Links *eventQueue) // IN
      mDnDAllowed(false),
      mStagingDir(""),
      mUngrabTimeout(NULL),
+     mHideDetWndTimer(NULL),
      mEventQueue(eventQueue)
 {
    mState = DNDSTATE_INVALID;
@@ -113,6 +143,16 @@ DnD::~DnD(void)
 {
    delete mRpc;
    CPClipboard_Destroy(&mClipboard);
+
+   /* Remove untriggered timers. */
+   if (mHideDetWndTimer) {
+      EventManager_Remove(mHideDetWndTimer);
+      mHideDetWndTimer = NULL;
+   }
+   if (mUngrabTimeout) {
+      EventManager_Remove(mUngrabTimeout);
+      mUngrabTimeout = NULL;
+   }
 }
 
 
@@ -179,6 +219,8 @@ DnD::VmxDnDVersionChanged(struct RpcIn *rpcIn, // IN
          sigc::mem_fun(this, &DnD::OnHGDrop));
       mRpc->hgFileCopyDoneChanged.connect(
          sigc::mem_fun(this, &DnD::OnHGFileCopyDone));
+      mRpc->updateMouseChanged.connect(
+         sigc::mem_fun(this, &DnD::OnUpdateMouse));
       mState = DNDSTATE_READY;
       Debug("%s: state changed to READY\n", __FUNCTION__);
    }
@@ -219,7 +261,7 @@ DnD::OnHGDragEnter(const CPClipboard *clip) // IN
    CPClipboard_Copy(&mClipboard, clip);
 
    /* Show detection window in (0, 0). */
-   updateDetWndChanged.emit(true, 0, 0);
+   UpdateDetWnd(true, 0, 0);
 
    /*
     * Ask host to simulate mouse click inside the detection window.
@@ -351,9 +393,23 @@ DnD::SetFeedback(DND_DROPEFFECT effect) // IN
 void
 DnD::OnHGCancel(void)
 {
+   /*
+    * UI layer should do all cleanup, and simulate a mouse drop inside the
+    * detection window to cancel the HG DnD. Because our detection window will
+    * ignore the drop, There will be no further action with the drop.
+    */
    sourceCancelChanged.emit();
+   /*
+    * Add a timer to hide the detection window after the drop. Without the
+    * timer, the drop may happen after the window is hidden, and some other
+    * applicationt may pick the drop up and cause unexpected action (like
+    * file copy/move).
+    */
    /* Hide detection window. */
-   updateDetWndChanged.emit(false, 0, 0);
+   if (NULL == mHideDetWndTimer) {
+      mHideDetWndTimer = EventManager_Add(mEventQueue, HIDE_DET_WND_TIMER,
+                                          DnDHideDetWndTimer, this);
+   }
    mState = DNDSTATE_READY;
    Debug("%s: state changed to READY\n", __FUNCTION__);
 }
@@ -389,6 +445,8 @@ DnD::OnHGDrop(void)
       return;
    }
 
+   sourceDropChanged.emit();
+
    if (CPClipboard_ItemExists(&mClipboard, CPFORMAT_FILELIST)) {
       /* Convert staging name to CP format. */
       cpNameSize = CPNameUtil_ConvertToRoot(mStagingDir.c_str(),
@@ -399,11 +457,10 @@ DnD::OnHGDrop(void)
          return;
       }
 
-      sourceDropChanged.emit();
       mRpc->HGDropDone(cpName, cpNameSize);
    } else {
       /* For non-file formats, the DnD is done. Hide detection window. */
-      updateDetWndChanged.emit(false, 0, 0);
+      UpdateDetWnd(false, 0, 0);
    }
    mState = DNDSTATE_READY;
    Debug("%s: state changed to READY\n", __FUNCTION__);
@@ -437,6 +494,30 @@ DnD::OnHGFileCopyDone(bool success,                  // IN
       mStagingDir.clear();
    }
    fileCopyDoneChanged.emit(success, stagingDir);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DnD::OnUpdateMouse --
+ *
+ *      Move mouse to position (x, y) with button down or up.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+DnD::OnUpdateMouse(int32 x,   // IN
+                   int32 y)   // IN
+{
+   updateMouseChanged.emit(x, y);
 }
 
 
@@ -535,7 +616,7 @@ DnD::OnGHUpdateUnityDetWnd(bool bShow,        // IN
        * window will be hidden to avoid blocking other windows. So use
        * this window to accept drop in cancel case.
        */
-      updateDetWndChanged.emit(bShow, 1, 1);
+      UpdateDetWnd(bShow, 1, 1);
    }
 
    /* Show/hide the full screent detection window. */
@@ -574,7 +655,7 @@ DnD::OnGHQueryPendingDrag(int32 x, // IN
    }
 
    /* Show detection window to detect pending GH DnD. */
-   updateDetWndChanged.emit(true, x, y);
+   UpdateDetWnd(true, x, y);
    mState = DNDSTATE_QUERY_EXITING;
    Debug("%s: state changed to QUERY_EXITING\n", __FUNCTION__);
 
@@ -609,6 +690,8 @@ DnD::OnGHQueryPendingDrag(int32 x, // IN
 void
 DnD::UngrabTimeout(void)
 {
+   mUngrabTimeout = NULL;
+
    if (mState != DNDSTATE_QUERY_EXITING) {
       /* Reset DnD for any wrong state. */
       Debug("%s: Bad state: %d\n", __FUNCTION__, mState);
@@ -619,8 +702,10 @@ DnD::UngrabTimeout(void)
    ASSERT(mRpc);
    mRpc->GHUngrabTimeout();
 
-   mUngrabTimeout = NULL;
-   OnGHCancel();
+
+   /* Hide detection window. */
+   UpdateDetWnd(false, 0, 0);
+   mState = DNDSTATE_READY;
 }
 
 
@@ -647,6 +732,18 @@ DnD::UngrabTimeout(void)
 void
 DnD::DragEnter(const CPClipboard *clip)
 {
+   if (DNDSTATE_DRAGGING_OUTSIDE == mState ||
+       DNDSTATE_DRAGGING_INSIDE == mState) {
+      /*
+       * In GH DnD case, if DnD already happened, user may drag back into guest
+       * VM and drag into the detection window again, and trigger the
+       * DragEnter. In this case, ignore the DragEnter.
+       *
+       * In HG DnD case, if DnD already happened, user may also drag into the
+       * detection window again. The DragEnter should also be ignored.
+       */
+      return;
+   }
    /*
     * In Unity mode, there is no QueryPendingDrag signal, so may get called
     * with state READY.
@@ -690,8 +787,23 @@ DnD::DragEnter(const CPClipboard *clip)
 void
 DnD::OnGHCancel(void)
 {
-   /* Hide detection window. */
-   updateDetWndChanged.emit(false, 0, 0);
+   ghCancel.emit();
+   /*
+    * UI layer should do all cleanup, and simulate a mouse drop inside the
+    * detection window to cancel the GH DnD. Because our detection window will
+    * ignore the drop, There will be no further action with the drop.
+    */
+   ghCancel.emit();
+   /*
+    * Add a timer to hide the detection window after the drop. Without the
+    * timer, the drop may happen after the window is hidden, and some other
+    * applicationt may pick the drop up and cause unexpected action (like
+    * file copy/move).
+    */
+   if (NULL == mHideDetWndTimer) {
+      mHideDetWndTimer = EventManager_Add(mEventQueue, HIDE_DET_WND_TIMER,
+                                          DnDHideDetWndTimer, this);
+   }
    /* Remove the timer. */
    if (mUngrabTimeout) {
       EventManager_Remove(mUngrabTimeout);
@@ -699,6 +811,35 @@ DnD::OnGHCancel(void)
    }
    mState = DNDSTATE_READY;
    Debug("%s: state changed to READY\n", __FUNCTION__);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DnD::UpdateDetWnd --
+ *
+ *      Update the detection window.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+DnD::UpdateDetWnd(bool show, // IN
+                  int32 x,   // IN
+                  int32 y)   // IN
+{
+   if (mHideDetWndTimer) {
+      EventManager_Remove(mHideDetWndTimer);
+      mHideDetWndTimer = NULL;
+   }
+   updateDetWndChanged.emit(show, x, y);
 }
 
 

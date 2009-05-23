@@ -64,6 +64,9 @@
 */
 #define WIPER_SECTOR_STEP 128
 
+/* Number of device numbers to store for device-mapper */
+#define WIPER_MAX_DM_NUMBERS 8
+
 #if defined(sun) || defined(__linux__)
 # define PROCFS "proc"
 #elif defined(__FreeBSD__) || defined(__APPLE__)
@@ -107,6 +110,11 @@ typedef struct WiperDiskString {
 } WiperDiskString;
 #endif
 
+#if defined(__linux__) && !defined(N_PLAT_NLM)
+static int dmNumEntries;
+static int dmNumbers[WIPER_MAX_DM_NUMBERS];
+#endif
+
 
 /* Variables */
 static Bool initDone = FALSE;
@@ -117,6 +125,7 @@ static INLINE Bool WiperIsDiskDevice(MNTINFO *mnt, struct stat *s);
 static void WiperPartitionFilter(WiperPartition *item, MNTINFO *mnt);
 static unsigned char *WiperGetSpace(WiperState *state, uint64 *free, uint64 *total);
 static void WiperClean(WiperState *state);
+static INLINE Bool WiperIsDeviceMapper(struct stat *s);
 
 /*
  *-----------------------------------------------------------------------------
@@ -329,7 +338,11 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
 #endif
 
    if (!WiperIsDiskDevice(mnt, &s)) {
-      item->comment = "Not a disk device";
+      if (WiperIsDeviceMapper(&s)) {
+         item->comment = WIPER_DEVICE_MAPPER_STRING;
+      } else {
+         item->comment = "Not a disk device";
+      }
       return;
    }
 
@@ -475,6 +488,7 @@ SingleWiperPartition_Open(const char *mountPoint)      // IN
 
          fp = NULL;
 
+         free(mntpt);
          return p;
       }
    }
@@ -487,6 +501,7 @@ SingleWiperPartition_Open(const char *mountPoint)      // IN
       (void) CLOSE_MNTFILE(fp);
       fp = NULL;
    }
+   free(mntpt);
    return NULL;
 }
 
@@ -517,6 +532,8 @@ WiperSinglePartition_GetSpace(const WiperPartition *p,  // IN
 #else
    struct statfs statfsbuf;
 #endif
+   uint64 blockSize;
+
    ASSERT(p);
 
 #ifdef sun
@@ -527,12 +544,18 @@ WiperSinglePartition_GetSpace(const WiperPartition *p,  // IN
       return "Unable to statfs() the mount point";
    }
 
+#ifdef sun
+   blockSize = statfsbuf.f_frsize;
+#else
+   blockSize = statfsbuf.f_bsize;
+#endif
+
    if (geteuid()== 0) {
-      *free = (uint64)statfsbuf.f_bfree * statfsbuf.f_bsize;
+      *free = (uint64)statfsbuf.f_bfree * blockSize;
    } else {
-      *free = (uint64)statfsbuf.f_bavail * statfsbuf.f_bsize;
+      *free = (uint64)statfsbuf.f_bavail * blockSize;
    }
-   *total = (uint64)statfsbuf.f_blocks * statfsbuf.f_bsize;
+   *total = (uint64)statfsbuf.f_blocks * blockSize;
 
    return "";
 }
@@ -955,8 +978,11 @@ Wiper_Cancel(Wiper_State **s)      // IN/OUT
  *
  * Wiper_Init --
  *
- *      On Linux and Solaris, this function is defined only to provide a
- *      uniform interface to the library.
+ *      On Solaris, this function is defined only to provide a uniform
+ *      interface to the library.  On Linux, the /proc/devices file is
+ *      read to initialize an array with device numbers that correspond
+ *      to the device-mapper devices.  This is to differentiate partitions
+ *      that use the device-mapper from other non-disk devices.
  *
  * Results:
  *      Always TRUE.
@@ -970,5 +996,72 @@ Wiper_Cancel(Wiper_State **s)      // IN/OUT
 Bool
 Wiper_Init(void *clientData)
 {
+#if defined(__linux__) && !defined(N_PLAT_NLM)
+   FILE *fp;
+   int deviceNum;
+   char deviceName[256];
+
+   dmNumEntries = 0;
+   fp = Posix_Fopen("/proc/devices", "r");
+   if (fp) {
+      while (!feof(fp)) {
+         if (fscanf(fp, "%d %255s\n", &deviceNum, deviceName) == 2) {
+            if (Str_Strncmp(deviceName, "device-mapper", sizeof deviceName) == 0) {
+               dmNumbers[dmNumEntries++] = deviceNum;
+               if (dmNumEntries >= WIPER_MAX_DM_NUMBERS) {
+                  break;
+               }
+            }
+         } else {
+            fgets(deviceName, sizeof deviceName, fp);
+         }
+      }
+
+      fclose(fp);
+   }
+#endif
+
    return initDone = TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * WiperIsDeviceMapper --
+ *
+ *      Determines whether a partition's device id corresponds to
+ *      the device-mapper device.
+ *
+ * Results:
+ *      TRUE if the device number matches a device-mapper device number
+ *      FALSE otherwise
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+WiperIsDeviceMapper(struct stat *s)    // IN
+{
+#if defined(__linux__) && !defined(N_PLAT_NLM)
+   int majorNumber;
+   int i;
+
+   ASSERT(s);
+
+   majorNumber = major(s->st_rdev);
+
+   for (i = 0; i < dmNumEntries; ++i) {
+      if (majorNumber == dmNumbers[i]) {
+         return TRUE;
+      }
+   }
+
+   return FALSE;
+#else
+   return FALSE;
+#endif
 }

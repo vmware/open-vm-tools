@@ -570,6 +570,10 @@ HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
          attrInfo->hostFileId = attrV2->hostFileId;
          attrInfo->mask |= HGFS_ATTR_VALID_FILEID;
       }
+      if (attrV2->mask & HGFS_ATTR_VALID_EFFECTIVE_PERMS) {
+         attrInfo->effectivePerms = attrV2->effectivePerms;
+         attrInfo->mask |= HGFS_ATTR_VALID_EFFECTIVE_PERMS;
+      }
    } else if (attrV1 != NULL) {
       /* Implicit mask for a Version 1 attr. */
       attrInfo->mask = HGFS_ATTR_VALID_TYPE |
@@ -577,7 +581,8 @@ HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
          HGFS_ATTR_VALID_ACCESS_TIME |
          HGFS_ATTR_VALID_WRITE_TIME |
          HGFS_ATTR_VALID_CHANGE_TIME |
-         HGFS_ATTR_VALID_OWNER_PERMS;
+         HGFS_ATTR_VALID_OWNER_PERMS |
+         HGFS_ATTR_VALID_EFFECTIVE_PERMS;
 
       attrInfo->type = attrV1->type;
       attrInfo->size = attrV1->size;
@@ -585,6 +590,7 @@ HgfsUnpackCommonAttr(HgfsReq *req,            // IN: Reply packet
       attrInfo->writeTime = attrV1->writeTime;
       attrInfo->attrChangeTime = attrV1->attrChangeTime;
       attrInfo->ownerPerms = attrV1->permissions;
+      attrInfo->effectivePerms = attrV1->permissions;
    }
 
    return 0;

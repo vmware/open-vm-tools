@@ -49,6 +49,8 @@ typedef enum {
 #define NATIVE_MAX_PATH 256
 #define MAX_WIPER_FILE_SIZE (2 << 30)   /* The maximum wiper file size in bytes */
 
+#define WIPER_DEVICE_MAPPER_STRING  "Device mapper partition"
+
 typedef struct WiperPartition {
    unsigned char mountPoint[NATIVE_MAX_PATH];
 

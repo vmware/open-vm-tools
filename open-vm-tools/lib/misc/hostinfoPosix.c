@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <errno.h>
 #if defined(__FreeBSD__) || defined(__APPLE__)
 # include <sys/sysctl.h>
 #endif
@@ -44,11 +43,13 @@
 #include "vmstdio.h"
 #include "posix.h"
 
-#define SYSINFO_STRING_32       "i386"
-#define SYSINFO_STRING_64       "amd64"
-#define MAX_ARCH_NAME_LEN       sizeof SYSINFO_STRING_32 > sizeof SYSINFO_STRING_64 ? \
-                                   sizeof SYSINFO_STRING_32 : \
-                                   sizeof SYSINFO_STRING_64
+#define SYSTEM_BITNESS_32 "i386"
+#define SYSTEM_BITNESS_64_SUN "amd64"
+#define SYSTEM_BITNESS_64_LINUX "x86_64"
+#define SYSTEM_BITNESS_MAXLEN \
+   MAX(sizeof SYSTEM_BITNESS_32, \
+   MAX(sizeof SYSTEM_BITNESS_64_SUN, \
+       sizeof SYSTEM_BITNESS_64_LINUX))
 
 static Bool hostinfoOSVersionInitialized;
 
@@ -259,8 +260,8 @@ Hostinfo_GetTimeOfDay(VmTimeType *time)
  *      Determines the operating system's bitness.
  *
  * Return value:
- *      32 or 64 on success, negative value on failure. Check errno for more
- *      details of error.
+ *      32 or 64 on success.
+ *      -1 on failure. Check errno for more details of error.
  *
  * Side effects:
  *      None.
@@ -271,35 +272,31 @@ Hostinfo_GetTimeOfDay(VmTimeType *time)
 int
 Hostinfo_GetSystemBitness(void)
 {
-#if defined(linux)
+#if defined __linux__
    struct utsname u;
 
    if (uname(&u) < 0) {
       return -1;
    }
-   if (strstr(u.machine, "x86_64")) {
+
+   if (strstr(u.machine, SYSTEM_BITNESS_64_LINUX)) {
       return 64;
    } else {
       return 32;
    }
-#elif defined(N_PLAT_NLM)
+#elif defined N_PLAT_NLM
    return 32;
 #else
-   char buf[MAX_ARCH_NAME_LEN] = { 0 };
+   char buf[SYSTEM_BITNESS_MAXLEN] = { '\0', };
+#   if defined __FreeBSD__ || defined __APPLE__
+   static int mib[2] = { CTL_HW, HW_MACHINE, };
+   size_t len = sizeof buf;
 
-#if defined(__FreeBSD__) || defined(__APPLE__)
-   int mib[2];
-   size_t len;
-
-   len = sizeof buf;
-   mib[0] = CTL_HW;
-   mib[1] = HW_MACHINE;
-
-   if (sysctl(mib, ARRAYSIZE(mib), buf, &len, NULL, 0) < 0) {
+   if (sysctl(mib, ARRAYSIZE(mib), buf, &len, NULL, 0) == -1) {
       return -1;
    }
-#elif defined(sun)
-#if !defined(SOL10)
+#   elif defined sun
+#      if !defined SOL10
    /*
     * XXX: This is bad.  We define SI_ARCHITECTURE_K to what it is on Solaris
     * 10 so that we can use a single guestd build for Solaris 9 and 10.  In the
@@ -308,19 +305,20 @@ Hostinfo_GetSystemBitness(void)
     * SI_ARCHITECTURE_K, then have the installer symlink to the correct binary.
     * For now, though, we'll share a single build for both versions.
     */
-#  define SI_ARCHITECTURE_K  518
-# endif
+#         define SI_ARCHITECTURE_K  518
+#      endif
 
    if (sysinfo(SI_ARCHITECTURE_K, buf, sizeof buf) < 0) {
       return -1;
    }
+#   endif
 
-   if (strcmp(buf, SYSINFO_STRING_32) == 0) {
+   if (strcmp(buf, SYSTEM_BITNESS_32) == 0) {
       return 32;
-   } else if (strcmp(buf, SYSINFO_STRING_64) == 0) {
+   } else if (   strcmp(buf, SYSTEM_BITNESS_64_SUN) == 0
+              || strcmp(buf, SYSTEM_BITNESS_64_LINUX) == 0) {
       return 64;
    }
-#endif
 
    return -1;
 #endif

@@ -116,6 +116,7 @@ enum {
    VIX_E_UNFINISHED_JOB                         = 29,
    VIX_E_NEED_KEY                               = 30,
    VIX_E_LICENSE                                = 32,
+   VIX_E_VM_HOST_DISCONNECTED                   = 34,
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,
@@ -264,7 +265,7 @@ enum {
    VIX_E_CRYPTO_INVALID_OPERATION               = 17002,
    VIX_E_CRYPTO_RANDOM_DEVICE                   = 17003,
    VIX_E_CRYPTO_NEED_PASSWORD                   = 17004,
-   VIX_E_CRYPTO_BAS_PASSWORD                    = 17005,
+   VIX_E_CRYPTO_BAD_PASSWORD                    = 17005,
    VIX_E_CRYPTO_NOT_IN_DICTIONARY               = 17006,
    VIX_E_CRYPTO_NO_CRYPTO                       = 17007,
    VIX_E_CRYPTO_ERROR                           = 17008,
@@ -310,6 +311,57 @@ enum {
    VIX_E_WRAPPER_VERSION_NOT_FOUND              = 22002,
    VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 22003,
    VIX_E_WRAPPER_PLAYER_NOT_INSTALLED           = 22004,
+
+   /* FuseMnt errors*/
+   VIX_E_MNTAPI_MOUNTPT_NOT_FOUND               = 24000,
+   VIX_E_MNTAPI_MOUNTPT_IN_USE                  = 24001,
+   VIX_E_MNTAPI_DISK_NOT_FOUND                  = 24002,
+   VIX_E_MNTAPI_DISK_NOT_MOUNTED                = 24003,
+   VIX_E_MNTAPI_DISK_IS_MOUNTED                 = 24004,
+   VIX_E_MNTAPI_DISK_NOT_SAFE                   = 24005,
+   VIX_E_MNTAPI_DISK_CANT_OPEN                  = 24006,
+   VIX_E_MNTAPI_CANT_READ_PARTS                 = 24007,
+   VIX_E_MNTAPI_UMOUNT_APP_NOT_FOUND            = 24008,
+   VIX_E_MNTAPI_UMOUNT                          = 24009,
+   VIX_E_MNTAPI_NO_MOUNTABLE_PARTITONS          = 24010,
+   VIX_E_MNTAPI_PARTITION_RANGE                 = 24011,
+   VIX_E_MNTAPI_PERM                            = 24012,
+   VIX_E_MNTAPI_DICT                            = 24013,
+   VIX_E_MNTAPI_DICT_LOCKED                     = 24014,
+   VIX_E_MNTAPI_OPEN_HANDLES                    = 24015,
+   VIX_E_MNTAPI_CANT_MAKE_VAR_DIR               = 24016,
+   VIX_E_MNTAPI_NO_ROOT                         = 24017,
+   VIX_E_MNTAPI_LOOP_FAILED                     = 24018,
+   VIX_E_MNTAPI_DAEMON                          = 24019,
+   VIX_E_MNTAPI_INTERNAL                        = 24020,
+   VIX_E_MNTAPI_SYSTEM                          = 24021,
+   VIX_E_MNTAPI_NO_CONNECTION_DETAILS           = 24022,
+   /* FuseMnt errors: Do not exceed 24299 */
+
+   /* VixMntapi errors*/
+   VIX_E_MNTAPI_INCOMPATIBLE_VERSION            = 24300,
+   VIX_E_MNTAPI_OS_ERROR                        = 24301,
+   VIX_E_MNTAPI_DRIVE_LETTER_IN_USE             = 24302,
+   VIX_E_MNTAPI_DRIVE_LETTER_ALREADY_ASSIGNED   = 24303,
+   VIX_E_MNTAPI_VOLUME_NOT_MOUNTED              = 24304,
+   VIX_E_MNTAPI_VOLUME_ALREADY_MOUNTED          = 24305,
+   VIX_E_MNTAPI_FORMAT_FAILURE                  = 24306,
+   VIX_E_MNTAPI_NO_DRIVER                       = 24307,
+   VIX_E_MNTAPI_ALREADY_OPENED                  = 24308,
+   VIX_E_MNTAPI_ITEM_NOT_FOUND                  = 24309,
+   VIX_E_MNTAPI_UNSUPPROTED_BOOT_LOADER         = 24310,
+   VIX_E_MNTAPI_UNSUPPROTED_OS                  = 24311,
+   VIX_E_MNTAPI_CODECONVERSION                  = 24312,
+   VIX_E_MNTAPI_REGWRITE_ERROR                  = 24313,
+   VIX_E_MNTAPI_UNSUPPORTED_FT_VOLUME           = 24314,
+   VIX_E_MNTAPI_PARTITION_NOT_FOUND             = 24315,
+   VIX_E_MNTAPI_PUTFILE_ERROR                   = 24316,
+   VIX_E_MNTAPI_GETFILE_ERROR                   = 24317,
+   VIX_E_MNTAPI_REG_NOT_OPENED                  = 24318,
+   VIX_E_MNTAPI_REGDELKEY_ERROR                 = 24319,
+   VIX_E_MNTAPI_CREATE_PARTITIONTABLE_ERROR     = 24320,
+   VIX_E_MNTAPI_OPEN_FAILURE                    = 24321,
+   VIX_E_MNTAPI_VOLUME_NOT_WRITABLE             = 24322,
 };
 
 // {{ End VIX_ERROR }}
@@ -526,8 +578,8 @@ VixHandle VixHost_UnregisterVM(VixHandle hostHandle,
 
 typedef int VixFindItemType;
 enum {
-    VIX_FIND_RUNNING_VMS         = 1,
-    VIX_FIND_REGISTERED_VMS      = 4,
+   VIX_FIND_RUNNING_VMS         = 1,
+   VIX_FIND_REGISTERED_VMS      = 4,
 };
 
 VixHandle VixHost_FindItems(VixHandle hostHandle,
@@ -536,6 +588,27 @@ VixHandle VixHost_FindItems(VixHandle hostHandle,
                             int32 timeout,
                             VixEventProc *callbackProc,
                             void *clientData);
+
+
+/*
+ * VixHost_OpenVM() supercedes VixVM_Open() since it allows for
+ * the passing of option flags and extra data in the form of a
+ * property list.
+ * It is recommended to use VixHost_OpenVM() instead of VixVM_Open().
+ */
+
+typedef int VixVMOpenOptions;
+enum {
+   VIX_VMOPEN_NORMAL  = 0x0,
+};
+
+VixHandle VixHost_OpenVM(VixHandle hostHandle,
+                         const char *vmxFilePathName,
+                         VixVMOpenOptions options,
+                         VixHandle propertyListHandle,
+                         VixEventProc *callbackProc,
+                         void *clientData);
+
 
 /*
  * Event pump

@@ -40,6 +40,11 @@
 
 #include "vmci_queue_pair.h"
 
+/*
+ * Note: APIs marked as compat are provided for compatibility with the host
+ *       only. These APIs don't really make sense in the context of the guest.
+ */
+
 /* VMCI Device Usage API. */
 Bool VMCI_DeviceGet(void);
 void VMCI_DeviceRelease(void);
@@ -48,6 +53,11 @@ void VMCI_DeviceRelease(void);
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
 			   VMCIDatagramRecvCB recvCB, void *clientData,
 			   VMCIHandle *outHandle);
+int VMCIDatagram_CreateHndPriv(VMCIId resourceID, uint32 flags,
+			       VMCIPrivilegeFlags privFlags,
+			       VMCIDatagramRecvCB recvCB, void *clientData,
+			       VMCIHandle *outHandle); /* Compat */
+
 int VMCIDatagram_DestroyHnd(VMCIHandle handle);
 int VMCIDatagram_Send(VMCIDatagram *msg);
 
@@ -64,12 +74,20 @@ int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEvent_Unsubscribe(VMCIId subID);
 
+/* VMCI Context API */
+
+VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID); /* Compat */
+
 /* VMCI Discovery Service API. */
 int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
 int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
                         uint64 produceSize, VMCIQueue **consumeQ,
                         uint64 consumeSize, VMCIId peer, uint32 flags);
+int VMCIQueuePair_AllocPriv(VMCIHandle *handle, VMCIQueue **produceQ,
+                            uint64 produceSize, VMCIQueue **consumeQ,
+                            uint64 consumeSize, VMCIId peer, uint32 flags,
+                            VMCIPrivilegeFlags privFlags); /* Compat */
 int VMCIQueuePair_Detach(VMCIHandle handle);
 
 #endif /* !__VMCI_GUESTKERNELAPI_H__ */

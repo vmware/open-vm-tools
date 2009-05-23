@@ -44,13 +44,16 @@
 #include "netutil.h"
 #include "rpcChannel.h"
 #include "rpcvmx.h"
+#include "procMgr.h"
 #include "str.h"
+#include "strutil.h"
 #include "system.h"
 #include "util.h"
 #include "vm_app.h"
 #include "vmtools.h"
 #include "vmtoolsApp.h"
 #include "xdrutil.h"
+#include "vmsupport.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -90,6 +93,88 @@ static Bool NicInfoChanged(GuestNicList *nicInfo);
 static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
 static int PrintNicInfo(GuestNicList *nicInfo, int (*PrintFunc)(const char *, ...));
+
+
+/**
+ * Lauches the VM support process in the guest when requested by the host.
+ *
+ * @param[in]  data     RPC request data.
+ *
+ * @return TRUE on success.
+ */
+
+static Bool
+GuestInfoVMSupport(RpcInData *data)
+{
+#if defined(_WIN32)
+
+    char vmSupportCmd[] = "vm-support.vbs";
+    char *vmSupportPath = NULL;
+    gchar *vmSupport = NULL;
+
+    SECURITY_ATTRIBUTES saProcess = {0}, saThread = {0};
+
+    ProcMgr_AsyncProc *vmSupportProc = NULL;
+    ProcMgr_ProcArgs vmSupportProcArgs = {0};
+
+    /*
+     * Construct the commandline to be passed during execution
+     * This will be the path of our vm-support.vbs
+     */
+    vmSupportPath = GuestApp_GetInstallPath();
+
+    if (vmSupportPath == NULL) {
+       return RPCIN_SETRETVALS(data,
+                               "GuestApp_GetInstallPath failed", FALSE);
+    }
+
+    /* Put together absolute vm-support filename. */
+    vmSupport = g_strdup_printf("cscript \"%s%s%s\" -u",
+                                vmSupportPath, DIRSEPS, vmSupportCmd);
+    vm_free(vmSupportPath);
+
+    saProcess.nLength = sizeof saProcess;
+    saProcess.bInheritHandle = TRUE;
+
+    saThread.nLength = sizeof saThread;
+
+    vmSupportProcArgs.lpProcessAttributes = &saProcess;
+    vmSupportProcArgs.lpThreadAttributes = &saThread;
+    vmSupportProcArgs.dwCreationFlags = CREATE_NO_WINDOW;
+
+    g_debug("Starting vm-support script - %s\n", vmSupport);
+    vmSupportProc = ProcMgr_ExecAsync(vmSupport, &vmSupportProcArgs);
+    g_free(vmSupport);
+
+    if (vmSupportProc == NULL) {
+       g_warning("Error starting vm-support script\n");
+       return RPCIN_SETRETVALS(data,
+                               "Error starting vm-support script", FALSE);
+    }
+
+    ProcMgr_Free(vmSupportProc);
+    return RPCIN_SETRETVALS(data, "", TRUE);
+
+#else
+
+     gchar *vmSupportCmdArgv[] = {"vm-support", "-u", NULL};
+
+     g_debug("Starting vm-support script - %s\n", vmSupportCmdArgv[0]);
+     if (!g_spawn_async(NULL, vmSupportCmdArgv, NULL,
+                        G_SPAWN_SEARCH_PATH |
+                        G_SPAWN_STDOUT_TO_DEV_NULL |
+                        G_SPAWN_STDERR_TO_DEV_NULL,
+                        NULL, NULL, NULL, NULL)) {
+        g_warning("Error starting vm-support script\n");
+        return RPCIN_SETRETVALS(data,
+                                "Error starting vm-support script", FALSE);
+     }
+
+     return RPCIN_SETRETVALS(data, "", TRUE);
+
+#endif
+}
+
 
 /**
  * Cleanup internal data on shutdown.
@@ -1013,6 +1098,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    GSource *src;
 
+   RpcChannelCallback rpcs[] = {
+      { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
+   };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
       { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
@@ -1020,6 +1108,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }
    };
    ToolsAppReg regs[] = {
+      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
       { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
    };
 

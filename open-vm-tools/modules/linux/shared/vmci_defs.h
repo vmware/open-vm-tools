@@ -87,7 +87,8 @@ typedef uint32 VMCI_Resource;
 #define VMCI_EVENT_UNSUBSCRIBE    9
 #define VMCI_QUEUEPAIR_ALLOC      10
 #define VMCI_QUEUEPAIR_DETACH     11
-#define VMCI_RESOURCE_MAX         12
+#define VMCI_VSOCK_VMX_LOOKUP     12
+#define VMCI_RESOURCE_MAX         13
 
 /* VMCI Ids. */
 typedef uint32 VMCIId;

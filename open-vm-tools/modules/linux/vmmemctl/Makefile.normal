@@ -63,11 +63,6 @@ INCLUDE += $(shell $(CC) $(CC_OPTS) $(INCLUDE) \
 	   -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
-ifdef OVT_SOURCE_DIR
-INCLUDE += -I$(call VMLIB_PATH,backdoor)
-endif
-
-
 CC_OPTS := -g3 -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS)
 CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPOLL, )
 CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
@@ -86,6 +81,21 @@ CFLAGS := $(CC_OPTS) $(INCLUDE)
 LIBS :=
 
 default: all
+
+#
+# In open-vm-tools, need to compile the common sources from the lib directory.
+#
+ifdef OVT_SOURCE_DIR
+LIBBACKDOOR_PATH := $(call VMLIB_PATH,backdoor)
+
+INCLUDE          += -I$(LIBBACKDOOR_PATH)
+
+LIBBACKDOOR      := backdoorGcc32.o
+LIBBACKDOOR      += backdoorGcc64.o
+
+$(LIBBACKDOOR): %.o: $(LIBBACKDOOR_PATH)/%.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+endif
 
 all: ../$(DRIVER).o
 

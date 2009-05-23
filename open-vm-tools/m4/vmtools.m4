@@ -208,3 +208,21 @@ AC_DEFUN([AC_VMW_CHECK_LIBXX],[
    AC_LANG_POP([C++])
 ])
 
+
+#
+# AC_VMW_LIB_ERROR(library, disable)
+#
+# Wrapper around AC_MSG_ERROR to print a standard message about missing libraries.
+#
+#     library ($1): name of missing library.
+#     disable ($2): configure argument to disable usage of the library.
+#     feature ($3): optional name of feature to be disabled; defaults to 'library'.
+#
+AC_DEFUN([AC_VMW_LIB_ERROR],[
+   feature="$3"
+   if test -z "$feature"; then
+      feature="$1"
+   fi
+   AC_MSG_ERROR([Cannot find $1 library. Please configure without $feature (using --without-$2), or install the $1 libraries and devel package(s).])
+])
+

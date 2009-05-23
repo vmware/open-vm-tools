@@ -16,6 +16,20 @@
  *
  *********************************************************/
 
+/*********************************************************
+ * The contents of this file are subject to the terms of the Common
+ * Development and Distribution License (the "License") version 1.0
+ * and no later version.  You may not use this file except in
+ * compliance with the License.
+ *
+ * You can obtain a copy of the License at
+ *         http://www.opensource.org/licenses/cddl1.php
+ *
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ *********************************************************/
+
 
 /*
  * hgfsProto.h --
@@ -119,6 +133,54 @@ typedef enum {
 /* XXX: Needs change when VMCI is supported. */
 #define HGFS_REQ_GET_PAYLOAD_V3(hgfsReq) ((char *)(hgfsReq) + sizeof(HgfsRequest))
 #define HGFS_REP_GET_PAYLOAD_V3(hgfsRep) ((char *)(hgfsRep) + sizeof(HgfsReply))
+
+/* Some fudged values for TCP over sockets. */
+#define HGFS_HOST_PORT 2000
+
+/* Socket packet magic. */
+#define HGFS_SOCKET_VERSION1   1
+
+/*
+ * Socket status codes.
+ */
+
+typedef enum {
+   HGFS_SOCKET_STATUS_SUCCESS,                  /* Socket header is good. */
+   HGFS_SOCKET_STATUS_SIZE_MISMATCH,            /* Size and version are incompatible. */
+   HGFS_SOCKET_STATUS_VERSION_NOT_SUPPORTED,    /* Version not handled by remote. */
+   HGFS_SOCKET_STATUS_INVALID_PACKETLEN,        /* Message len exceeds maximum. */
+} HgfsSocketStatus;
+
+/*
+ * Socket flags.
+ */
+
+typedef uint32 HgfsSocketFlags;
+
+/* Used by backdoor proxy socket client to Hgfs server (out of VMX process). */
+#define HGFS_SOCKET_SYNC         (1 << 0)
+
+/* Socket packet header. */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsSocketHeader {
+   uint32 version;            /* Header version. */
+   uint32 size;               /* Header size, should match for the specified version. */
+   HgfsSocketStatus status;   /* Status: always success when sending (ignored) valid on replies. */
+   uint32 packetLen;          /* The length of the packet to follow. */
+   HgfsSocketFlags flags;     /* The flags to indicate how to deal with the packet. */
+}
+#include "vmware_pack_end.h"
+HgfsSocketHeader;
+
+#define HgfsSocketHeaderInit(hdr, _version, _size, _status, _pktLen, _flags) \
+   do {                                                                      \
+      (hdr)->version    = (_version);                                        \
+      (hdr)->size       = (_size);                                           \
+      (hdr)->status     = (_status);                                         \
+      (hdr)->packetLen  = (_pktLen);                                         \
+      (hdr)->flags      = (_flags);                                          \
+   } while (0)
 
 
 /*
@@ -429,6 +491,7 @@ typedef uint64 HgfsCreateDirValid;
 #define HGFS_CREATE_DIR_VALID_GROUP_PERMS       (1 << 2)
 #define HGFS_CREATE_DIR_VALID_OTHER_PERMS       (1 << 3)
 #define HGFS_CREATE_DIR_VALID_FILE_NAME         (1 << 4)
+#define HGFS_CREATE_DIR_VALID_FILE_ATTR         (1 << 5)
 
 /*
  *  Version 2 of HgfsAttr
@@ -1242,7 +1305,7 @@ struct HgfsRequestCreateDirV3 {
    HgfsPermissions ownerPerms;
    HgfsPermissions groupPerms;
    HgfsPermissions otherPerms;
-   uint64 reserved;              /* Reserved for future use */
+   HgfsAttrFlags fileAttr;
    HgfsFileNameV3 fileName;
 }
 #include "vmware_pack_end.h"

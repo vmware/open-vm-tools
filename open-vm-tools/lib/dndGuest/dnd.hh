@@ -67,6 +67,9 @@ class DnD
       void UngrabTimeout(void);
       void ResetDnD(void);
       void HGDragStartDone(void);
+      void OnUpdateMouse(int32 x, int32 y);
+      void UpdateDetWnd(bool show, int32 x, int32 y);
+      void SetHideDetWndTimer(Event *e) { mHideDetWndTimer = e; }
 
    private:
       /* Callbacks from rpc. */
@@ -87,6 +90,7 @@ class DnD
       bool mDnDAllowed;
       std::string mStagingDir;
       Event *mUngrabTimeout;
+      Event *mHideDetWndTimer;
       DblLnkLst_Links *mEventQueue;
 };
 

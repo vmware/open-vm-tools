@@ -45,14 +45,12 @@ vmware_user_LDADD += ../lib/hgfsServer/libHgfsServer.la
 vmware_user_LDADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.la
 vmware_user_LDADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
 vmware_user_LDADD += ../lib/impersonate/libImpersonate.la
-vmware_user_LDADD += ../lib/netUtil/libNetUtil.la
 vmware_user_LDADD += ../lib/printer/libPrinter.la
 vmware_user_LDADD += ../lib/resolution/libResolution.la
 vmware_user_LDADD += ../lib/rpcIn/libRpcIn.la
 vmware_user_LDADD += ../lib/rpcOut/libRpcOut.la
 vmware_user_LDADD += ../lib/rpcVmx/libRpcVmx.la
 vmware_user_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.la
-vmware_user_LDADD += ../lib/socketMgr/libSocketMgr.la
 vmware_user_LDADD += ../lib/string/libString.la
 vmware_user_LDADD += ../lib/sync/libSync.la
 vmware_user_LDADD += ../lib/syncDriver/libSyncDriver.la
@@ -63,7 +61,6 @@ if ENABLE_UNITY
 else
    vmware_user_LDADD += ../lib/unityStub/libUnityStub.la
 endif
-vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.la
 vmware_user_LDADD += ../lib/user/libUser.la
 vmware_user_LDADD += ../lib/vixTools/libVixTools.la
 vmware_user_LDADD += ../lib/vmCheck/libVmCheck.la
@@ -72,6 +69,8 @@ vmware_user_LDADD += ../lib/wiper/libWiper.la
 # In the absence of the linker options --start-group and --end-group (which
 # can't be put in LDADD), we need to bring the following libraries out of
 # the alphabetical order so their symbols are properly resolved.
+vmware_user_LDADD += ../lib/netUtil/libNetUtil.la
+vmware_user_LDADD += ../lib/guestRpc/libGuestRpc.la
 vmware_user_LDADD += ../lib/err/libErr.la
 vmware_user_LDADD += ../lib/foundryMsg/libFoundryMsg.la
 vmware_user_LDADD += ../lib/backdoor/libBackdoor.la
@@ -82,9 +81,9 @@ vmware_user_LDADD += ../lib/dynxdr/libDynxdr.la
 vmware_user_LDADD += ../lib/hgfs/libHgfs.la
 vmware_user_LDADD += ../lib/message/libMessage.la
 vmware_user_LDADD += ../lib/unicode/libUnicode.la
+vmware_user_LDADD += ../lib/auth/libAuth.la
 vmware_user_LDADD += ../lib/misc/libMisc.la
 vmware_user_LDADD += ../lib/procMgr/libProcMgr.la
-vmware_user_LDADD += ../lib/auth/libAuth.la
 vmware_user_LDADD += ../lib/panicDefault/libPanicDefault.la
 vmware_user_LDADD += ../lib/panic/libPanic.la
 vmware_user_LDADD += ../lib/stubs/libStubs.la
@@ -105,6 +104,7 @@ if HAVE_GTKMM
 endif
 vmware_user_LDADD += @VMWARE_USER_LDADD@
 vmware_user_LDADD += @COMMON_XLIBS@
+vmware_user_LDADD += @ICU_LIBS@
 if ENABLE_UNITY
    vmware_user_LDADD += @URIPARSER_LIBS@
    vmware_user_LDADD += @LIBPNG_LIBS@
@@ -123,8 +123,6 @@ if HAVE_GTKMM
 vmware_user_SOURCES += dndUI.cpp
 vmware_user_SOURCES += dragDetWnd.cpp
 endif
-vmware_user_SOURCES += foreignVMToolsDaemon.c
-vmware_user_SOURCES += foreignVMToolsNetworking.c
 vmware_user_SOURCES += $(top_srcdir)/services/plugins/vix/foundryToolsDaemon.c
 vmware_user_SOURCES += notify.c
 vmware_user_SOURCES += pointer.c
@@ -132,15 +130,6 @@ if HAVE_GTKMM
    vmware_user_SOURCES += stringxx/string.cc
 endif
 vmware_user_SOURCES += vmware-user.cpp
-
-if HAVE_ICU
-   vmware_user_LDADD += @ICU_LIBS@
-   vmware_user_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
-                      $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
-                      $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-else
-   vmware_user_LINK = $(LINK)
-endif
 
 install-exec-hook:
 	$(INSTALL) -d $(DESTDIR)$(datadir)/applications/

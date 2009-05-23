@@ -42,6 +42,13 @@
 
 #if defined __APPLE__
 #  define MSG_NOSIGNAL			0
+
+/*
+ * Custom options for setting socket behavious in kVsockSetOptions.
+ * These values fall after the common Mac OS X Socket options
+ * in /usr/inclue/sys/socket.h
+ */
+#define SO_NONBLOCKING  0x1200
 #endif // __APPLE__
 
 #if defined(_WIN32) || defined(VMKERNEL) || defined __APPLE__

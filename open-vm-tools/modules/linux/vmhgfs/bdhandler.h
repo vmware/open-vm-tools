@@ -27,7 +27,7 @@
 
 #include "transport.h"
 
-Bool HgfsBdChannelInit(void);
+void HgfsBdChannelInit(void);
 
 extern HgfsTransportChannel bdChannel;
 

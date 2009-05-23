@@ -816,9 +816,18 @@ CopyPasteUI::LocalReceivedTextCB(const Glib::ustring& text)        // IN
    Debug("%s: Got text: %s", __FUNCTION__, source.c_str());
 
    /* Add NUL terminator. */
-   CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT, source.c_str(),
-                       source.bytes() + 1);
-   mCP.SetRemoteClipboard(&mClipboard);
+   if (source.bytes() > 0 &&
+       source.bytes() < CPCLIPITEM_MAX_SIZE_V3 &&
+       CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT, source.c_str(),
+                           source.bytes() + 1)) {
+      Debug("%s: got text, size %"FMTSZ"u\n", __FUNCTION__,  source.bytes());
+   } else {
+      Debug("%s: failed to get text\n", __FUNCTION__);
+   }
+
+   if (!CPClipboard_IsEmpty(&mClipboard)) {
+      mCP.SetRemoteClipboard(&mClipboard);
+   }
 }
 
 

@@ -25,38 +25,21 @@
  *    Common routines needed to register an HGFS server.
  */
 
-/* Data structures shared by hgfsServerManagerHost and hgfsServer. */
-typedef void (*HgfsServerReplyFunc)(const unsigned char *, unsigned int, void *);
 
-typedef struct ServerRequestRpcContext {
-   HgfsServerReplyFunc cb;
-   void *cbData;
-   char *request;
-} ServerRequestRpcContext;
+#ifndef VMX86_TOOLS
+#include "device_shared.h" // For DeviceLock and functions
 
-/* 
- * XXX: Gross hack. This variable should not be exposed beyond the HGFS server,
- * but we're under time constraints for bug 143548.
- *
- * In the future, perhaps HgfsServerManager should behave as a device and
- * implement PowerOn/PowerOff/Checkpoint functions, then this can be cleanly
- * abstracted.
- */
-extern uint32 hgfsHandleCounter;
+Bool Hgfs_PowerOn(void);
 
+void HgfsServerManager_GetDeviceLock(DeviceLock **lock);
 
+#else  /* VMX86_TOOLS */
 Bool HgfsServerManager_Register(void *rpcIn,
                                 const char *appName);
-
 void HgfsServerManager_Unregister(void *rpcIn,
                                   const char *appName);
-
-Bool HgfsServerManager_SendRequest(char *request,
-                                   uint32 requestSize,
-                                   HgfsServerReplyFunc cb,
-                                   void *cbData);
-
 Bool HgfsServerManager_CapReg(const char *appName,
                               Bool enable);
+#endif
 
 #endif // _HGFS_SERVER_MANAGER_H_

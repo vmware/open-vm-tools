@@ -55,6 +55,11 @@ ResolutionInfoType resolutionInfo;
 static Bool ResolutionResolutionSetCB(RpcInData *data);
 static Bool ResolutionDisplayTopologySetCB(RpcInData *data);
 
+#if defined(RESOLUTION_WIN32)
+static Bool ResolutionDisplayTopologyModesSetCB(RpcInData *data);
+void ResolutionSetSessionChangeCB(gpointer src, ToolsAppCtx *ctx, DWORD code, DWORD sessionID);
+#endif
+
 /*
  * Global function definitions
  */
@@ -105,6 +110,29 @@ ResolutionCleanup(void)
 }
 
 
+#if defined(RESOLUTION_WIN32)
+/**
+ *
+ * Handle WTS session state changes sent from Win32 SCM.
+ *
+ * @param[in] src unused src object
+ * @param[in] ctx unused tools app context
+ * @param[in] code state change code
+ * @param[in] session ID
+ */
+
+static void
+ResolutionSetSessionChangeCB(gpointer src,
+                             ToolsAppCtx *ctx,
+                             DWORD code,
+                             DWORD sessionID)
+{
+   Debug("%s: enter code %d sessionID %d\n", __FUNCTION__, code, sessionID);
+   ResolutionSetSessionChange(code, sessionID);
+}
+#endif
+
+
 /**
  *
  * Handler for TCLO 'Resolution_Set'.
@@ -136,6 +164,93 @@ ResolutionResolutionSetCB(RpcInData *data)
 invalid_arguments:
    return RPCIN_SETRETVALS(data, retval ? "" : "Invalid arguments", retval);
 }
+
+
+#if defined(RESOLUTION_WIN32)
+/**
+ *
+ * Handler for TCLO 'DisplayTopologyModes_Set'.
+ *
+ * Routine unmarshals RPC arguments and passes over to back-end
+ * ModesTopologySet().
+ *
+ * @note the following can be added as a unit test:
+ *
+ * RpcInData testdata;
+ * testdata.args = "10 0 1, 1111 111, 2222 222, 3333 333, 4444 444, 5555 555, 6666 666, 7777 777, 8888 888, 9999 999, 0000 000";
+ * ResolutionDisplayTopologyModesSetCB(&testdata);
+ *
+ * @param[in] data RPC data
+ * @return TRUE if we can reply, FALSE otherwise.
+ */
+
+static Bool
+ResolutionDisplayTopologyModesSetCB(RpcInData *data)
+{
+   DisplayTopologyInfo *displays = NULL;
+   unsigned int count;
+   unsigned int i;
+   unsigned int cmd;
+   unsigned int screen;
+   Bool success = FALSE;
+   const char *p;
+
+   Debug("%s: enter\n", __FUNCTION__);
+
+   /*
+    * The argument string will look something like:
+    *   <count> <screen> <cmd> [ , <w> <h> ] * count.
+    *
+    * e.g.
+    *    3 0 1, 640 480 , 800 600 , 1024 768
+    */
+
+   if (sscanf(data->args, "%u %u %u", &count, &screen, &cmd) != 3) {
+      Debug("%s: invalid arguments\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data,
+                              "Invalid arguments. Expected \"count\", \"screen\",  and \"cmd\"",
+                              FALSE);
+   }
+
+   displays = malloc(sizeof *displays * count);
+   if (!displays) {
+      Debug("%s: alloc failed\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data,
+                       "Failed to alloc buffer for display modes",
+                       FALSE);
+      goto out;
+   }
+
+   for (p = data->args, i = 0; i < count; i++) {
+      p = strchr(p, ',');
+      if (!p) {
+         Debug("%s: expected comma separated display modes list\n", __FUNCTION__);
+         RPCIN_SETRETVALS(data,
+                          "Expected comma separated display modes list",
+                          FALSE);
+         goto out;
+      }
+      p++; /* Skip past the , */
+
+      if (sscanf(p, " %d %d ", &displays[i].width, &displays[i].height) != 2) {
+         Debug("%s: expected w, h in display modes entry\n", __FUNCTION__);
+         RPCIN_SETRETVALS(data,
+                          "Expected w, h in display modes entry",
+                          FALSE);
+         goto out;
+      }
+   }
+
+   success = ResolutionSetTopologyModes(screen, cmd, count, displays);
+
+   RPCIN_SETRETVALS(data, success ? "" : "ResolutionSetTopologyModes failed", success);
+
+out:
+   free(displays);
+   Debug("%s: leave\n", __FUNCTION__);
+   return success;
+}
+#endif
 
 
 /**
@@ -283,18 +398,21 @@ ResolutionSetCapabilities(gpointer src,
    enum {
       RES_SET_IDX              = 0,
       DPY_TOPO_SET_IDX         = 1,
-      DPY_GLOBAL_OFFSET_IDX    = 2
+      DPY_GLOBAL_OFFSET_IDX    = 2,
+      DPY_TOPO_MODES_SET_IDX   = 3
    };
 
    ToolsAppCapability caps[] = {
       { TOOLS_CAP_OLD, "resolution_set", 0, 0 },
       { TOOLS_CAP_OLD, "display_topology_set", 0, 0 },
-      { TOOLS_CAP_OLD, "display_global_offset", 0, 0 }
+      { TOOLS_CAP_OLD, "display_global_offset", 0, 0 },
+      { TOOLS_CAP_NEW, NULL, CAP_SET_TOPO_MODES, 0 }
    };
 
    ResolutionInfoType *resInfo = &resolutionInfo;
    int resServerCap = 0;
 
+   Debug("%s: enter\n", __FUNCTION__);
    if (set) {
       if (!resInfo->initialized) {
          return FALSE;
@@ -306,9 +424,14 @@ ResolutionSetCapabilities(gpointer src,
       }
 
       if (resInfo->canSetTopology) {
+
          caps[DPY_TOPO_SET_IDX].value = 2;
          caps[DPY_GLOBAL_OFFSET_IDX].value = 1;
       }
+#if defined(RESOLUTION_WIN32)
+      Debug("%s: setting DPY_TOPO_MODES_SET_IDX to 1\n", __FUNCTION__);
+      caps[DPY_TOPO_MODES_SET_IDX].value = 1;
+#endif
    }
 
    ResolutionServerCapReg(ctx, resServerCap);
@@ -338,6 +461,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_CAPABILITIES, ResolutionSetCapabilities, &regData },
+#if defined(RESOLUTION_WIN32)
+      { TOOLS_CORE_SIG_SESSION_CHANGE, ResolutionSetSessionChangeCB, &regData },
+#endif
       { TOOLS_CORE_SIG_SHUTDOWN, ResolutionSetShutdown, &regData }
    };
    ToolsAppReg regs[] = {
@@ -361,7 +487,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
     */
    if (resInfo->canSetResolution || resInfo->canSetTopology) {
       int index = 0;
-      RpcChannelCallback rpcs[2];
+      RpcChannelCallback rpcs[3];
 
       memset(rpcs, '\0', sizeof rpcs);
 
@@ -375,11 +501,17 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          rpcs[index].name = "DisplayTopology_Set";
          rpcs[index].callback = ResolutionDisplayTopologySetCB;
          index++;
+#if defined(RESOLUTION_WIN32)
+         rpcs[index].name = "DisplayTopologyModes_Set";
+         rpcs[index].callback = ResolutionDisplayTopologyModesSetCB;
+         index++;
+#endif
       }
 
       regs[0].data = VMTools_WrapArray(rpcs, sizeof *rpcs, index);
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
    }
+
 
    return &regData;
 }

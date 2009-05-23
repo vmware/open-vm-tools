@@ -292,6 +292,7 @@
 #define UNITY_START_MENU_RECENT_DOCUMENTS_FOLDER "VMGuestRecentDocuments"
 /* @} */
 
+#define UNITY_START_MENU_FLAG_USE_PROGRAMS_FOLDER_AS_ROOT 1
 
 /*
  * Type definitions

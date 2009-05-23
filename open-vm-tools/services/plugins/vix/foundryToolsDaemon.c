@@ -1396,7 +1396,7 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
       endmntent(mtab);
    }
 
-   if (vmhgfsMntFound) {
+   if (!vmhgfsMntFound) {
    /*
     * We need to call the mount program, not the mount system call. The
     * mount program does several additional things, like compute the mount
@@ -1557,9 +1557,10 @@ ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
     */
-   HgfsServer_DispatchPacket(data->args,        // packet in buf
-                             hgfsReplyPacket,   // packet out buf
-                             &hgfsPacketSize);  // in/out size
+   HgfsServer_ProcessPacket(data->args,        // packet in buf
+                            hgfsReplyPacket,   // packet out buf
+                            &hgfsPacketSize,   // in/out size
+                            0);                // receive process flags
 
 abort:
    if (impersonatingVMWareUser) {

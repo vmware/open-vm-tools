@@ -369,7 +369,11 @@
 #      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_ESX_SMP_NAME
 #   elif defined(VMX86_DESKTOP)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for " PRODUCT_OS
+#      if defined(__APPLE__)
+#         define PRODUCT_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
+#      else
+#         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
+#      endif
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_WGS_MIGRATION)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for " PRODUCT_OS
@@ -471,7 +475,11 @@
  * another flavor of the product to run.
  */
 #   if defined(VMX86_DESKTOP)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for Win32"
+#      if defined(__APPLE__)
+#         define PRODUCT_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
+#      else
+#         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
+#      endif
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_WGS_MIGRATION)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for Win32"

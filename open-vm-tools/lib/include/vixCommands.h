@@ -2114,6 +2114,22 @@ struct VixMsgWaitForUserActionResponse {
 VixMsgWaitForUserActionResponse;
 
 
+/*
+ * **********************************************************
+ * List filesystems
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandListFileSystemsRequest {
+   VixCommandRequestHeader    header;
+
+   uint32                     options;
+   uint32                     propertyListSize;
+}
+#include "vmware_pack_end.h"
+VixCommandListFileSystemsRequest;
+
 
 
 /*
@@ -2349,7 +2365,9 @@ enum {
    VIX_COMMAND_REMOVE_ROLLING_SNAPSHOT_TIER_VMX = 167,
    VIX_COMMAND_LIST_ROLLING_SNAPSHOT_TIER_VMX   = 168,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 169,
+   VIX_COMMAND_LIST_FILESYSTEMS                 = 169,
+
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 170,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

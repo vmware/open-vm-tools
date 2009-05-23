@@ -39,7 +39,7 @@ typedef struct HgfsTransportChannelOps {
 
 typedef enum {
    HGFS_CHANNEL_UNINITIALIZED,
-   HGFS_CHANNEL_DISCONNECTED,
+   HGFS_CHANNEL_NOTCONNECTED,
    HGFS_CHANNEL_CONNECTED,
 } HgfsChannelStatus;
 
@@ -55,5 +55,8 @@ typedef struct HgfsTransportChannel {
 void HgfsTransportInit(void);
 void HgfsTransportExit(void);
 int HgfsTransportSendRequest(HgfsReq *req);
+void HgfsTransportProcessPacket(char *receivedPacket,
+                                size_t receivedSize);
+void HgfsTransportBeforeExitingRecvThread(void);
 
 #endif // _HGFS_DRIVER_TRANSPORT_H_

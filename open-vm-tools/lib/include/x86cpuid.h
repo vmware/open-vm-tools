@@ -16,6 +16,20 @@
  *
  *********************************************************/
 
+/*********************************************************
+ * The contents of this file are subject to the terms of the Common
+ * Development and Distribution License (the "License") version 1.0
+ * and no later version.  You may not use this file except in
+ * compliance with the License.
+ *
+ * You can obtain a copy of the License at
+ *         http://www.opensource.org/licenses/cddl1.php
+ *
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ *********************************************************/
+
 #ifndef _X86CPUID_H_
 #define _X86CPUID_H_
 
@@ -263,6 +277,7 @@ FIELDDEF(  1, EBX, COMMON,  8,  8, CLFL_SIZE,           ANY, IGNORE, 0, FALSE)  
 FIELDDEFA( 1, EBX, COMMON, 16,  8, LCPU_COUNT,          ANY, IGNORE, 0, FALSE, LCPU_COUNT) \
 FIELDDEFA( 1, EBX, COMMON, 24,  8, APICID,              ANY, IGNORE, 0, FALSE, APICID)    \
 FLAGDEFA(  1, ECX, COMMON, 0,   1, SSE3,                YES, HOST,   0, TRUE,  SSE3)      \
+FLAGDEFA(  1, ECX, INTEL,  1,   1, PCLMULQDQ,           YES, HOST,   0, TRUE, PCLMULQDQ)  \
 FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  MASK,   0, FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               NO,  MASK,   0, FALSE, MWAIT)     \
 FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  MASK,   0, FALSE, DSCPL)     \
@@ -282,6 +297,7 @@ FLAGDEF(   1, ECX, INTEL,  21,  1, X2APIC,              NO,  MASK,   0, FALSE)  
 FLAGDEF(   1, ECX, INTEL,  22,  1, MOVBE,               NO,  RSVD,   0, TRUE)             \
 FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, HOST,   0, TRUE,  POPCNT)    \
 FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  RSVD,   0, TRUE)             \
+FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, HOST,   0, TRUE, AES)        \
 FLAGDEF(   1, ECX, INTEL,  26,  1, XSAVE,               NO,  MASK,   0, FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  27,  1, OSXSAVE,             NO,  RSVD,   0, TRUE)             \
 FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, IGNORE, 0, FALSE, HYPERVISOR)\

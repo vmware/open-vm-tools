@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libresolutionSet.la
+plugindir = @VMUSR_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libresolutionSet.la
 
 libresolutionSet_la_CPPFLAGS =
 libresolutionSet_la_CPPFLAGS += @GTK_CPPFLAGS@
@@ -34,8 +35,4 @@ libresolutionSet_la_SOURCES =
 libresolutionSet_la_SOURCES += libvmwarectrl.c
 libresolutionSet_la_SOURCES += resolutionSet.c
 libresolutionSet_la_SOURCES += resolutionX11.c
-
-install-exec-local:
-	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libresolutionSet.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
 

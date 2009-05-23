@@ -30,7 +30,7 @@ vm_check_build = $(shell if $(CC) $(CC_OPTS) $(INCLUDE) -Werror -S -o /dev/null 
 DESTDIR := driver-$(VM_UNAME)
 
 ####
-####  DRIVERNAME should be untouched unless you have a good reason to change 
+####  DRIVERNAME should be untouched unless you have a good reason to change
 #### it.  The form below is how the scripts expect it.
 ####
 DRIVERNAME := $(DRIVER)-xxx-$(VM_UNAME)
@@ -53,7 +53,7 @@ endif
 #### If desparate, I think that bringing in <linux/bitops.h> might
 #### suffice.
 ####
-CC_WARNINGS := -Wall -Wstrict-prototypes 
+CC_WARNINGS := -Wall -Wstrict-prototypes
 # Don't use -pipe or egcs-2.91.66 (shipped with RedHat) will die
 CC_KFLAGS := -D__KERNEL__ -fno-strength-reduce -fno-omit-frame-pointer \
 	     -fno-common -DKBUILD_MODNAME=$(DRIVER)
@@ -67,7 +67,7 @@ else
 CC_KFLAGS += -DCPU=586 $(call check_gcc,-march=i586,-m486)
 endif
 
-CC_OPTS := -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS) 
+CC_OPTS := -O2 -DMODULE $(GLOBAL_DEFS) $(CC_KFLAGS) $(CC_WARNINGS)
 
 INCLUDE += -I$(SRCROOT)/include
 INCLUDE += -I$(SRCROOT)/linux
@@ -89,9 +89,11 @@ LINUX_OBJS += super.o
 LINUX_OBJS += file.o
 LINUX_OBJS += inode.o
 LINUX_OBJS += dentry.o
+ifndef OVT_SOURCE_DIR
 LINUX_OBJS += block.o
 LINUX_OBJS += stubs.o
 LINUX_OBJS += dbllnklst.o
+endif
 LINUX_DEPS := ${LINUX_OBJS:.o=.d}
 OBJS := $(LINUX_OBJS)
 
@@ -105,6 +107,30 @@ driver: setup deps
 
 setup:
 	@if [ -d $(DESTDIR) ] ; then true ; else mkdir $(DESTDIR); chmod 755 $(DESTDIR) ; fi
+
+#
+# In open-vm-tools, need to compile the common sources from the lib directory.
+#
+ifdef OVT_SOURCE_DIR
+VMBLOCK_SHARED_PATH := $(OVT_SOURCE_DIR)/modules/shared/vmblock
+LIBMISC_PATH        := $(call VMLIB_PATH,misc)
+
+LIBMISC             := dbllnklst.o
+
+VMBLOCK_SHARED      := block.o
+VMBLOCK_SHARED      += stubs.o
+
+INCLUDE             += -I$(VMBLOCK_SHARED_PATH)
+
+$(LIBMISC): %.o: $(LIBMISC_PATH)/%.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+
+$(VMBLOCK_SHARED): %.o: $(VMBLOCK_SHARED_PATH)/%.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+
+OBJS += $(LIBMISC)
+OBJS += $(VMBLOCK_SHARED)
+endif
 
 $(DRIVER) $(DRIVER).o ../$(DRIVER).o: $(DRIVERNAME)
 	cp -f $< $@
@@ -131,10 +157,10 @@ $(LINUX_DEPS): %.d: $(SRCROOT)/linux/%.c
 deps: setup
 	$(MAKE) -C $(DESTDIR) -f ../Makefile SRCROOT=../$(SRCROOT) driver_deps
 
-driver_deps: ${OBJS:.o=.d}
+driver_deps: ${LINUX_DEPS}
 
 ifdef INCLUDE_DEPS
-include ${OBJS:.o=.d}
+include ${LINUX_DEPS}
 endif
 
 .SILENT:

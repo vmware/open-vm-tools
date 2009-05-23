@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libguestInfo.la
+plugindir = @VMSVC_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libguestInfo.la
 
 libguestInfo_la_CPPFLAGS =
 libguestInfo_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -31,8 +32,4 @@ libguestInfo_la_LIBADD += @XDR_LIBS@
 libguestInfo_la_SOURCES =
 libguestInfo_la_SOURCES += guestInfoServer.c
 libguestInfo_la_SOURCES += perfMonLinux.c
-
-install-exec-local:
-	mkdir -p $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libguestInfo.so $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
 

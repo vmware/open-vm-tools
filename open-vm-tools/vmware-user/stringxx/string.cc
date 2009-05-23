@@ -34,7 +34,13 @@
 
 namespace utf {
 
-/* Initialize static scope variables */
+/*
+ * Initialize static scope variables,
+ *
+ * Note that with the way this is done, it's important not to delay load glib
+ * libraries. See bug 397373 for more details. If you're getting crazy values
+ * for utf::string::npos, check your linker flags.
+ */
 const string::size_type string::npos = Glib::ustring::npos;
 
 
@@ -286,6 +292,12 @@ string::string(const char *s,           // IN
  *
  *      Constructor.
  *
+ *      XXX: When initializing mUstr, we do a deep copy of the string data
+ *      instead of just calling mUstr(s). This is because Glib::ustring is very
+ *      smart about sharing storage, and zero_clear is very dumb. Once we get
+ *      rid of zero_clear and have a separate sensitive-string class, this can
+ *      go back to being simple.
+ *
  * Results:
  *      None.
  *
@@ -296,7 +308,7 @@ string::string(const char *s,           // IN
  */
 
 string::string(const Glib::ustring &s)    // IN
-   : mUstr(s),
+   : mUstr(s.c_str()),
      mUtf16Cache(NULL)
 {
    ASSERT(Validate(s));
@@ -310,6 +322,12 @@ string::string(const Glib::ustring &s)    // IN
  *
  *      Copy constructor.
  *
+ *      XXX: When initializing mUstr, we do a deep copy of the string data
+ *      instead of just calling mUstr(s). This is because Glib::ustring is very
+ *      smart about sharing storage, and zero_clear is very dumb. Once we get
+ *      rid of zero_clear and have a separate sensitive-string class, this can
+ *      go back to being simple.
+ *
  * Results:
  *      None.
  *
@@ -320,7 +338,7 @@ string::string(const Glib::ustring &s)    // IN
  */
 
 string::string(const string &s) // IN
-   : mUstr(s.mUstr),
+   : mUstr(s.mUstr.c_str()),
      mUtf16Cache(NULL)
 {
 }

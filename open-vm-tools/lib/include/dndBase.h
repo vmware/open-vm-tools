@@ -70,6 +70,11 @@ class LIB_EXPORT DnDBase
       sigc::signal<void> reset;
       sigc::signal<void> disable;
       sigc::signal<void> enable;
+      sigc::signal<void, int, int> updateMouseChanged;
+
+      /* Guest cancel signals. */
+      sigc::signal<void> ghCancel;
+
       /* cui DnD protocol layer API exposed to UI (all platforms). */
 
       /* Local UI as DnD source. */

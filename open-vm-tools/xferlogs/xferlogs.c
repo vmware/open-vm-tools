@@ -46,9 +46,12 @@
 #include <time.h>
 
 #include "vmware.h"
+#include "vmsupport.h"
 #include "rpcvmx.h"
+#include "rpcout.h"
 #include "base64.h"
 #include "str.h"
+#include "strutil.h"
 
 #include "xferlogs_version.h"
 #include "embed_version.h"
@@ -257,6 +260,7 @@ static void usage(void) {
 int
 main(int argc, char *argv[])
 {
+   int status;
    if (argc < 2) {
       usage();
       return -1;
@@ -269,6 +273,12 @@ main(int argc, char *argv[])
       xmitFile(argv[2]);
    } else if(!strncmp(argv[1], "dec", 3)) {
       extractFile(argv[2]);
+   } else if(!strncmp(argv[1], "upd", 3)) {
+      if (argc == 3 && StrUtil_StrToInt(&status, argv[2])) {
+         RpcOut_sendOne(NULL, NULL, RPC_VMSUPPORT_STATUS " %d", status);
+      } else {
+         return -1;
+      }
    } else {
       usage();
       return -1;

@@ -27,7 +27,7 @@
 
 #include "transport.h"
 
-Bool HgfsTcpChannelInit(void);
+void HgfsTcpChannelInit(void);
 
 extern HgfsTransportChannel tcpChannel;
 

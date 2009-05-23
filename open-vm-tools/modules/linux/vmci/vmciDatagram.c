@@ -19,7 +19,7 @@
 /* 
  * vmciDatagram.c --
  *
- *      Simple Datagram API for the Linux guest driver.
+ *      Simple Datagram API for the guest driver.
  */
 
 #ifdef __linux__
@@ -450,6 +450,70 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
                        VMCIHandle *outHandle)      // OUT:
 {
    return VMCIDatagramCreateHndInt(resourceID, flags, recvCB, clientData, outHandle);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIDatagram_CreateHndPriv --
+ *
+ *      API provided for compatibility with the host vmci API. This function
+ *      doesn't ever succeed since you can't ask for elevated privileges from
+ *      the guest. Use VMCIDatagram_CreateHnd instead.
+ *
+ * Results:
+ *      Returns a negative error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef __linux__
+EXPORT_SYMBOL(VMCIDatagram_CreateHndPriv);
+#endif
+
+int
+VMCIDatagram_CreateHndPriv(VMCIId resourceID,            // IN:
+                           uint32 flags,                 // IN:
+                           VMCIPrivilegeFlags privFlags, // IN:
+                           VMCIDatagramRecvCB recvCB,    // IN:
+                           void *clientData,             // IN:
+                           VMCIHandle *outHandle)        // OUT:
+{
+   return VMCI_ERROR_NO_ACCESS;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIDatagramCreateHndPriv --
+ *
+ *      API provided for compatibility with the host vmci API. This function
+ *      doesn't ever succeed since you can't ask for elevated privileges from
+ *      the guest. Use VMCIDatagramCreateHndInt instead.
+ *
+ * Results:
+ *      Returns VMCI_ERROR_NO_ACCESS.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIDatagramCreateHndPriv(VMCIId resourceID,            // IN:
+                          uint32 flags,                 // IN:
+                          VMCIPrivilegeFlags privFlags, // IN:
+                          VMCIDatagramRecvCB recvCB,    // IN:
+                          void *clientData,             // IN:
+                          VMCIHandle *outHandle)        // OUT:
+{
+   return VMCI_ERROR_NO_ACCESS;
 }
 
 

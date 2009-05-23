@@ -27,7 +27,11 @@
 #include "includeCheck.h"
 
 #ifdef _WIN32
+#ifdef __MINGW32__
+#include "initguid.h"
+#else
 #include "guiddef.h"
+#endif
 #endif
 
 /* LSILogic 53C1030 Parallel SCSI controller

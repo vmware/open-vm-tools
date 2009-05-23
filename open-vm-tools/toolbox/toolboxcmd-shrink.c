@@ -31,6 +31,7 @@
 #endif
 
 #include "toolboxCmdInt.h"
+#include "rpcout.h"
 
 #ifndef _WIN32
 static void ShrinkWiperDestroy(int signal);
@@ -103,7 +104,7 @@ ShrinkGetPartition(char *mountPoint, // IN: mount point
    }
    part = (WiperPartition *) malloc(sizeof *part);
    for (i = 0; i < plist->size; i++) {
-      if (strcmp(plist->partitions[i].mountPoint, mountPoint) == 0) {
+      if (toolbox_strcmp(plist->partitions[i].mountPoint, mountPoint) == 0) {
          memcpy(part, &plist->partitions[i], sizeof *part);
          WiperPartition_Close(plist);
          return part;
@@ -212,28 +213,37 @@ Shrink_DoShrink(char *mountPoint, // IN: mount point
          wiper = NULL;
       }
       if (!quiet_flag) {
-	 printf("\rProgress: %d [", progress);
-	 for (i = 0; i <= progress / 10; i++) {
-	    printf("=");
-	 }
-	 printf(">");
-	 for (; i <= 100 / 10; i++) {
-	    printf(" ");
-	 }
-	 printf("]");
+         printf("\rProgress: %d [", progress);
+         for (i = 0; i <= progress / 10; i++) {
+            printf("=");
+         }
+         printf(">");
+         for (; i <= 100 / 10; i++) {
+            printf(" ");
+            }
+         printf("]");
       }
    }
    if (progress >= 100) {
+      char *result;
+      size_t resultLen;
+      if (RpcOut_sendOne(&result, &resultLen, "disk.shrink")) {
+         if (!quiet_flag) {
+            printf("\nDisk shrinking complete\n");
+         }
+         wiper = NULL;
+         free(part);
+         return EXIT_SUCCESS;
+      }
       if (!quiet_flag) {
-         printf("\nDisk shrinking complete\n");
+         fprintf(stderr, "%s\n", result);
       }
       wiper = NULL;
       free(part);
-      return EXIT_SUCCESS;
-   } else {
-      fprintf(stderr, "Shrinking not completed\n");
-      return EX_TEMPFAIL;
    }
+
+   fprintf(stderr, "Shrinking not completed\n");
+   return EX_TEMPFAIL;
 }
 
 

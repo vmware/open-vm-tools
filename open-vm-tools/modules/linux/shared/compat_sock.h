@@ -57,6 +57,7 @@
 # define compat_sk_ack_backlog          ack_backlog
 # define compat_sk_max_ack_backlog      max_ack_backlog
 # define compat_sk_user_data            user_data
+# define compat_sk_rcvtimeo             rcvtimeo
 #else
 # define compat_sk_backlog_rcv          sk_backlog_rcv
 # define compat_sk_destruct             sk_destruct
@@ -76,6 +77,7 @@
 # define compat_sk_ack_backlog          sk_ack_backlog
 # define compat_sk_max_ack_backlog      sk_max_ack_backlog
 # define compat_sk_user_data            sk_user_data
+# define compat_sk_rcvtimeo             sk_rcvtimeo
 #endif
 
 

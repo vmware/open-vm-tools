@@ -45,19 +45,21 @@
 typedef struct HgfsAttrInfo {
    HgfsOp requestType;
    HgfsAttrValid mask;
-   HgfsFileType type;            /* File type */
-   uint64 size;                  /* File size (in bytes) */
-   uint64 accessTime;            /* Time of last access */
-   uint64 writeTime;             /* Time of last write */
-   uint64 attrChangeTime;        /* Time file attributes were last changed */
-   HgfsPermissions specialPerms; /* Special permissions bits */
-   HgfsPermissions ownerPerms;   /* Owner permissions bits */
-   HgfsPermissions groupPerms;   /* Group permissions bits */
-   HgfsPermissions otherPerms;   /* Other permissions bits */
-   uint32 userId;                /* UID */
-   uint32 groupId;               /* GID */
-   uint64 hostFileId;            /* Inode number */
-   char *fileName;               /* Either symlink target or filename */
+   HgfsFileType type;              /* File type */
+   uint64 size;                    /* File size (in bytes) */
+   uint64 accessTime;              /* Time of last access */
+   uint64 writeTime;               /* Time of last write */
+   uint64 attrChangeTime;          /* Time file attributes were last changed */
+   HgfsPermissions specialPerms;   /* Special permissions bits */
+   HgfsPermissions ownerPerms;     /* Owner permissions bits */
+   HgfsPermissions groupPerms;     /* Group permissions bits */
+   HgfsPermissions otherPerms;     /* Other permissions bits */
+   HgfsPermissions effectivePerms; /* Permissions in effect for the user on the
+                                      host. */
+   uint32 userId;                  /* UID */
+   uint32 groupId;                 /* GID */
+   uint64 hostFileId;              /* Inode number */
+   char *fileName;                 /* Either symlink target or filename */
 } HgfsAttrInfo;
 
 

@@ -45,6 +45,7 @@ typedef struct {
    Bool initialized;                    // TRUE if successfully initialized.
    Bool canSetResolution;               // TRUE if back-end supports Resolution_Set.
    Bool canSetTopology;                 // TRUE if back-end supports DisplayTopology_Set.
+   Bool isWDDM;                         // TRUE if the driver does WDDM.
 } ResolutionInfoType;
 
 
@@ -75,7 +76,10 @@ Bool ResolutionBackendInit(InitHandle handle);
 InitHandle ResolutionToolkitInit(void);
 void ResolutionBackendCleanup(void);
 Bool ResolutionSetResolution(uint32 width, uint32 height);
+#if defined(RESOLUTION_WIN32)
+void ResolutionSetSessionChange(DWORD code, DWORD sessionID);
+#endif
 Bool ResolutionSetTopology(unsigned int ndisplays, DisplayTopologyInfo displays[]);
-
+Bool ResolutionSetTopologyModes(unsigned int screen, unsigned int cmd, unsigned int ndisplays, DisplayTopologyInfo displays[]);
 
 #endif // ifndef _LIB_RESOLUTIONINT_H_

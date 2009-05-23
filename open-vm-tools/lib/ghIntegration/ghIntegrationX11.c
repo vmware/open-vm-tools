@@ -169,8 +169,9 @@ typedef struct {
  * Represents a "start menu folder" so to speak.
  */
 typedef struct {
-   const char *dirname; // The .desktop category that this object represents
-   GPtrArray *items;    // Array of pointers to GHIMenuItems
+   const char *dirname;         // The .desktop category that this object represents
+   const char *prettyDirname;   // (optional) A prettier version of dirname.
+   GPtrArray *items;            // Array of pointers to GHIMenuItems
 } GHIMenuDirectory;
 
 /*
@@ -562,9 +563,9 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,        // IN
          totalIconBytes += thisIconBytes;
       } else if (pixbufs->len == 1) {
          GdkPixbuf *newIcon;
-         double newWidth;
-         double newHeight;
-         double scaleFactor;
+         volatile double newWidth;
+         volatile double newHeight;
+         volatile double scaleFactor;
 
          newWidth = gdk_pixbuf_get_width(pixbuf);
          newHeight = gdk_pixbuf_get_height(pixbuf);
@@ -1195,19 +1196,25 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
     * determine an appropriate category.  This is "safe" as long as menu-spec doesn't
     * register it, and I don't expect that to happen any time soon.  It is -extremely-
     * important that "Other" be the final entry in this list.
+    *
+    * XXX See desktop-entry-spec and make use of .directory files.
     */
-   static const char *validCategories[] = {
-     "AudioVideo",
-     "Development",
-     "Education",
-     "Game",
-     "Graphics",
-     "Network",
-     "Office",
-     "Settings",
-     "System",
-     "Utility",
-     "Other"
+   static const char *validCategories[][2] = {
+      /*
+       * Bug 372348:
+       * menu-spec category     pretty string
+       */
+      { "AudioVideo",           "Sound & Video" },
+      { "Development",          0 },
+      { "Education",            0 },
+      { "Game",                 "Games" },
+      { "Graphics",             0 },
+      { "Network",              0 },
+      { "Office",               0 },
+      { "Settings",             0 },
+      { "System",               0 },
+      { "Utility",              0 },
+      { "Other",                0 }
    };
 
    GHIMenuDirectory *gmd;
@@ -1232,7 +1239,7 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
           * category.  It explains why we condition on ARRAYSIZE() - 1.
           */
          for (vIndex = 0; vIndex < ARRAYSIZE(validCategories) - 1; vIndex++) {
-            if (!strcasecmp(categories[kfIndex], validCategories[vIndex])) {
+            if (!strcasecmp(categories[kfIndex], validCategories[vIndex][0])) {
                foundIt = TRUE;
                break;
             }
@@ -1256,7 +1263,7 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
    gmi->keyfile = keyfile;
    gmi->exepath = exePath;
 
-   gmd = g_tree_lookup(ghip->apps, validCategories[vIndex]);
+   gmd = g_tree_lookup(ghip->apps, validCategories[vIndex][0]);
 
    if (!gmd) {
       /*
@@ -1264,9 +1271,10 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
        * that this .desktop is in, so create that object.
        */
       gmd = g_new0(GHIMenuDirectory, 1);
-      gmd->dirname = validCategories[vIndex];
+      gmd->dirname = validCategories[vIndex][0];
+      gmd->prettyDirname = validCategories[vIndex][1];
       gmd->items = g_ptr_array_new();
-      g_tree_insert(ghip->apps, (gpointer)validCategories[vIndex], gmd);
+      g_tree_insert(ghip->apps, (gpointer)validCategories[vIndex][0], gmd);
       Debug("Created new category '%s'\n", gmd->dirname);
    }
 
@@ -1482,6 +1490,7 @@ GHIPlatformReadAllApplications(GHIPlatform *ghip) // IN
 Bool
 GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific state
                              const char *rootUtf8,     // IN: root of the tree
+                             uint32 flags,             // IN: flags
                              DynBuf *buf)              // OUT: number of items
 {
 #ifdef GTK2
@@ -1740,7 +1749,9 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
          itemName = g_strdup_printf("%s/%s", UNITY_START_MENU_LAUNCH_FOLDER,
                                     traverseData.gmd->dirname);
          freeItemName = TRUE;
-         localizedItemName = (char *)traverseData.gmd->dirname;
+         localizedItemName = traverseData.gmd->prettyDirname ?
+            (char *)traverseData.gmd->prettyDirname :
+            (char *)traverseData.gmd->dirname;
       }
       break;
    case FIXED_FOLDER:

@@ -84,6 +84,11 @@ typedef enum {
 
    // Add future commands here.
    DND_GH_UPDATE_UNITY_DET_WND,
+
+   // New command after DnD version 3.1
+   DND_UPDATE_HOST_VERSION,
+   DND_UPDATE_GUEST_VERSION,
+   DND_UPDATE_MOUSE,
    DND_MAX,
 } DnDCommand;
 

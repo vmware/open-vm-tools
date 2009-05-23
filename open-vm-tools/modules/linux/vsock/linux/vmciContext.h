@@ -42,12 +42,14 @@ typedef struct VMCIContext VMCIContext;
 int VMCIContext_Init(void);
 void VMCIContext_Exit(void);
 int VMCIContext_InitContext(VMCIId cid, VMCIPrivilegeFlags flags,
-                            uintptr_t eventHnd, VMCIContext **context);
+                            uintptr_t eventHnd, int version,
+                            VMCIContext **context);
 #ifdef VMKERNEL
 int VMCIContext_SetDomainName(VMCIContext *context, const char *domainName);
 int VMCIContext_GetDomainName(VMCIId contextID, char *domainName,
                               size_t domainNameBufSize);
 #endif
+Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);
 int VMCIContext_EnqueueDatagram(VMCIId cid, VMCIDatagram *dg);
 int VMCIContext_DequeueDatagram(VMCIContext *context, size_t *maxSize, 
@@ -57,7 +59,7 @@ VMCIContext *VMCIContext_Get(VMCIId cid);
 void VMCIContext_Release(VMCIContext *context);
 Bool VMCIContext_Exists(VMCIId cid);
 
-VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID);
+VMCIPrivilegeFlags VMCIContext_GetPrivFlagsInt(VMCIId contextID);
 VMCIId VMCIContext_GetId(VMCIContext *context);
 int VMCIContext_AddGroupEntry(VMCIContext *context,
                               VMCIHandle entryHandle);
@@ -78,4 +80,9 @@ void VMCIContext_CheckAndSignalNotify(VMCIContext *context);
 void VMCIUnsetNotify(VMCIContext *context);
 #  endif
 #endif
+
+#ifdef VMKERNEL
+int VMCIContextID2HostVmID(VMCIId contextID, void *hostVmID, size_t hostVmIDLen);
+#endif
+
 #endif // _VMCI_CONTEXT_H_

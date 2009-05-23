@@ -123,8 +123,10 @@ prebuild:: ;
 postbuild:: ;
 
 $(DRIVER_KO): prebuild
-	make -C $(BUILD_DIR) SUBDIRS=$$PWD SRCROOT=$$PWD/$(SRCROOT) modules
-	make -C $$PWD SRCROOT=$$PWD/$(SRCROOT) postbuild
+	make -C $(BUILD_DIR) SUBDIRS=$$PWD SRCROOT=$$PWD/$(SRCROOT) \
+	  MODULEBUILDDIR=$(MODULEBUILDDIR) modules
+	make -C $$PWD SRCROOT=$$PWD/$(SRCROOT) \
+	  MODULEBUILDDIR=$(MODULEBUILDDIR) postbuild
 endif
 
 vm_check_build = $(shell if $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \

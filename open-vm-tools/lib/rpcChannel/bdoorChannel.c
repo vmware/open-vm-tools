@@ -183,6 +183,38 @@ RpcInSend(RpcChannel *chan,
    ret = RpcOut_send(bdoor->out, data, dataLen, &reply, &replyLen);
 
    /*
+    * This is a hack to try to work around bug 393650 without having to revert
+    * to the old behavior of opening and closing an RpcOut channel for every
+    * outgoing message. The issue here is that it's possible for the code to
+    * try to write to the channel when a "reset" has just happened. In these
+    * cases, the current RpcOut channel is not valid anymore, and we'll get an
+    * error. The RpcOut lib doesn't really reply with a useful error, but it
+    * does have consistent error messages starting with "RpcOut:".
+    *
+    * So, if the error is one of those messages, restart the RpcOut channel and
+    * try to send the message again. If this second attempt fails, then give up.
+    *
+    * This is not 100% break-proof: a reset can still occur after we open the
+    * new channel and before we try to re-send the message. But that's a race
+    * that we can't easily fix, and exists even in code that just uses the
+    * RpcOut_SendOne() API. Also, if some host handler returns an error that
+    * starts with "RpcOut:", it will trigger this; but I don't think we have
+    * any such handlers.
+    */
+   if (!ret && reply != NULL && replyLen > sizeof "RpcOut: " &&
+       g_str_has_prefix(reply, "RpcOut: ")) {
+      g_debug("RpcOut failure, restarting channel.\n");
+      RpcOut_stop(bdoor->out);
+      if (RpcOut_start(bdoor->out)) {
+         ret = RpcOut_send(bdoor->out, data, dataLen, &reply, &replyLen);
+      } else {
+         g_warning("Couldn't restart RpcOut channel; bad things may happen "
+                   "until the RPC channel is reset.\n");
+         bdoor->outStarted = FALSE;
+      }
+   }
+
+   /*
     * A lot of this logic is just replicated from rpcout.c:RpcOut_SendOneRaw().
     * Look there for comments about a few details.
     */

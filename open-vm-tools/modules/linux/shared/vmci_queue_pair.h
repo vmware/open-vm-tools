@@ -166,10 +166,17 @@ AddPointer(Atomic_uint64 *var, // IN:
  * type the VMCIQueue structure type is compiled.  The sixth is
  * located in a separate file and is used in the VMKernel context.
  *
+ * VMCIQueuePair_QueueIsMapped() is a macro used to determine if the
+ * VMCIQueue struct is backed by memory and thus can be enqueued to or
+ * dequeued from.  In host kernels, the macro checks the buffer
+ * pointer for the Queue which is populated in VMCIHost_FinishAttach()
+ * on the various platforms.
+ *
  *-----------------------------------------------------------------------------
  */
 
 #if defined(VMX86_TOOLS) || defined(VMX86_VMX)
+#  define VMCIQueuePair_QueueIsMapped(q)        (TRUE)
 #  if defined(__linux__) && defined(__KERNEL__)
       /*
        * Linux Kernel Guest.
@@ -229,6 +236,7 @@ AddPointer(Atomic_uint64 *var, // IN:
 	 VMCIQueueHeader *queueHeaderPtr;
 	 struct page **page;
       } VMCIQueue;
+#     define VMCIQueuePair_QueueIsMapped(q)	((q)->page != NULL)
 #  elif defined(__APPLE__)
       /*
        * Mac OS X Host
@@ -238,7 +246,8 @@ AddPointer(Atomic_uint64 *var, // IN:
        *
        * Also, the queue contents are managed dynamically by
        * mapping/unmapping the pages.  All we need is the VA64
-       * base address of the buffer to do that.
+       * base address of the buffer and the vm_map_t of the VMX
+       * process hosting the queue file (i.e. buffer).
        *
        * Note, too, that the buffer contains one page of queue
        * header information (head and tail pointers).  But, that
@@ -249,8 +258,10 @@ AddPointer(Atomic_uint64 *var, // IN:
        */
       typedef struct VMCIQueue {
 	 VMCIQueueHeader *queueHeaderPtr;
-	 VA64 buffer;
+	 ipc_port_t headerPort, contentPort;
+	 Bool attached;
       } VMCIQueue;
+#     define VMCIQueuePair_QueueIsMapped(q)     ((q)->attached != FALSE)
 #  else
       /*
        * Windows Host
@@ -267,6 +278,7 @@ AddPointer(Atomic_uint64 *var, // IN:
 	 VMCIQueueHeader *queueHeaderPtr;
 	 uint8 *buffer;
       } VMCIQueue;
+#define VMCIQueuePair_QueueIsMapped(q)          ((q)->buffer != NULL)
 #  endif
 #endif
 
@@ -296,6 +308,7 @@ AddPointer(Atomic_uint64 *var, // IN:
 static INLINE VMCIQueueHeader *
 VMCIQueue_GetHeader(const VMCIQueue *q)
 {
+   ASSERT_NOT_IMPLEMENTED(VMCIQueuePair_QueueIsMapped(q));
 #if defined(VMX86_TOOLS) || defined(VMX86_VMX)
    /*
     * All guest variants except Solaris have a complete queue header
@@ -432,6 +445,17 @@ typedef int VMCIMemcpyFromQueueFunc(void *dest, size_t destOffset,
  * VMCIMemcpy{To,From}Queue[v]() prototypes (and, in some cases, an
  * inline version).
  *
+ * Note that these routines are NOT SAFE to call on a host end-point
+ * until the guest end of the queue pair has attached -AND-
+ * SetPageStore().  The VMX crosstalk device will issue the
+ * SetPageStore() on behalf of the guest when the guest creates a
+ * QueuePair or attaches to one created by the host.  So, if the guest
+ * notifies the host that it's attached then the queue is safe to use.
+ * Also, if the host registers notification of the connection of the
+ * guest, then it will only receive that notification when the guest
+ * has issued the SetPageStore() call and not before (when the guest
+ * had attached).
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -477,6 +501,7 @@ VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                   size_t srcOffset,   // IN:
                   size_t size)        // IN:
 {
+   ASSERT_NOT_IMPLEMENTED(VMCIQueuePair_QueueIsMapped(queue));
    memcpy(queue->buffer + queueOffset, (uint8 *)src + srcOffset, size);
    return 0;
 }
@@ -506,6 +531,7 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
                     uint64 queueOffset,     // IN:
                     size_t size)            // IN:
 {
+   ASSERT_NOT_IMPLEMENTED(VMCIQueuePair_QueueIsMapped(queue));
    memcpy((uint8 *)dest + destOffset, queue->buffer + queueOffset, size);
    return 0;
 }
@@ -612,6 +638,15 @@ static INLINE void
 VMCIQueue_Init(const VMCIHandle handle, // IN:
                VMCIQueue *queue)        // IN:
 {
+   if (!VMCIQueuePair_QueueIsMapped(queue)) {
+      /*
+       * In this case, the other end (the guest) hasn't connected yet.
+       * When the guest does connect, the queue pointers will be
+       * reset.
+       */
+      return;
+   }
+
    ASSERT_NOT_IMPLEMENTED(VMCIQueue_CheckAlignment(queue));
    VMCIQueue_GetHeader(queue)->handle = handle;
    VMCIQueue_ResetPointers(queue);
@@ -641,10 +676,18 @@ VMCIQueueFreeSpaceInt(const VMCIQueue *produceQueue, // IN:
                       const uint64 produceQSize,     // IN:
                       uint64 *freeSpace)             // OUT:
 {
-   const uint64 tail = VMCIQueue_ProducerTail(produceQueue);
-   const uint64 head = VMCIQueue_ConsumerHead(consumeQueue);
+   uint64 tail;
+   uint64 head;
 
    ASSERT(freeSpace);
+
+   if (UNLIKELY(!VMCIQueuePair_QueueIsMapped(produceQueue) &&
+		!VMCIQueuePair_QueueIsMapped(consumeQueue))) {
+     return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+   }
+
+   tail = VMCIQueue_ProducerTail(produceQueue);
+   head = VMCIQueue_ConsumerHead(consumeQueue);
 
    if (tail >= produceQSize || head >= produceQSize) {
       return VMCI_ERROR_INVALID_SIZE;
@@ -725,6 +768,11 @@ VMCIQueue_BufReady(const VMCIQueue *consumeQueue, // IN:
    int retval;
    uint64 freeSpace;
 
+   if (UNLIKELY(!VMCIQueuePair_QueueIsMapped(produceQueue) &&
+		!VMCIQueuePair_QueueIsMapped(consumeQueue))) {
+      return VMCI_ERROR_QUEUEPAIR_NODATA;
+   }
+
    retval = VMCIQueueFreeSpaceInt(consumeQueue, produceQueue,
                                   consumeQSize, &freeSpace);
    if (retval != VMCI_SUCCESS) {
@@ -765,19 +813,26 @@ __VMCIQueue_Enqueue(VMCIQueue *produceQueue,               // IN:
                     size_t bufSize,                        // IN:
                     VMCIMemcpyToQueueFunc memcpyToQueue)   // IN:
 {
-   const int64 freeSpace = VMCIQueue_FreeSpace(produceQueue, consumeQueue,
-                                               produceQSize);
-   const uint64 tail = VMCIQueue_ProducerTail(produceQueue);
+   int64 freeSpace;
+   uint64 tail;
    size_t written;
 
-   if (!freeSpace) {
+   if (UNLIKELY(!VMCIQueuePair_QueueIsMapped(produceQueue) &&
+		!VMCIQueuePair_QueueIsMapped(consumeQueue))) {
+      return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
+   }
+
+   freeSpace = VMCIQueue_FreeSpace(produceQueue, consumeQueue,
+                                   produceQSize);   if (!freeSpace) {
       return VMCI_ERROR_QUEUEPAIR_NOSPACE;
    }
+
    if (freeSpace < 0) {
       return (ssize_t)freeSpace;
    }
 
    written = (size_t)(freeSpace > bufSize ? bufSize : freeSpace);
+   tail = VMCIQueue_ProducerTail(produceQueue);
    if (LIKELY(tail + written < produceQSize)) {
       memcpyToQueue(produceQueue, tail, buf, 0, written);
    } else {
@@ -890,11 +945,17 @@ __VMCIQueue_Dequeue(VMCIQueue *produceQueue,                    // IN:
                     VMCIMemcpyFromQueueFunc memcpyFromQueue,    // IN:
                     Bool updateConsumer)                        // IN:
 {
-   const int64 bufReady = VMCIQueue_BufReady(consumeQueue, produceQueue,
-                                             consumeQSize);
-   const uint64 head = VMCIQueue_ConsumerHead(produceQueue);
+   int64 bufReady;
+   uint64 head;
    size_t written;
 
+   if (UNLIKELY(!VMCIQueuePair_QueueIsMapped(produceQueue) &&
+		!VMCIQueuePair_QueueIsMapped(consumeQueue))) {
+      return VMCI_ERROR_QUEUEPAIR_NODATA;
+   }
+
+   bufReady = VMCIQueue_BufReady(consumeQueue, produceQueue,
+                                 consumeQSize);
    if (!bufReady) {
       return VMCI_ERROR_QUEUEPAIR_NODATA;
    }
@@ -903,6 +964,7 @@ __VMCIQueue_Dequeue(VMCIQueue *produceQueue,                    // IN:
    }
 
    written = (size_t)(bufReady > bufSize ? bufSize : bufReady);
+   head = VMCIQueue_ConsumerHead(produceQueue);
    if (LIKELY(head + written < consumeQSize)) {
       memcpyFromQueue(buf, 0, consumeQueue, head, written);
    } else {

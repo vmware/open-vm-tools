@@ -74,28 +74,29 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    GError *err = NULL;
    GPtrArray *plugins;
 
-   g_assert(g_module_supported());
+   ASSERT(g_module_supported());
 
    if (state->pluginPath == NULL) {
-      if (state->mainService ||
-          strcmp(state->name, VMTOOLS_USER_SERVICE) == 0) {
-         char *instPath;
-         char *subdir = "";
 #if defined(sun) && defined(__x86_64__)
-         subdir = "/amd64";
+      const char *subdir = "/amd64";
+#else
+      const char *subdir = "";
 #endif
-         instPath = GuestApp_GetInstallPath();
-         state->pluginPath = g_strdup_printf("%s%cplugins%s%c%s",
-                                             instPath,
-                                             DIRSEPC,
-                                             subdir,
-                                             DIRSEPC,
-                                             state->name);
-         vm_free(instPath);
-      } else {
-         g_warning("No plugin path provided for service '%s'.\n", state->name);
-         goto exit;
-      }
+      gchar *pluginRoot;
+
+#if defined(OPEN_VM_TOOLS)
+      pluginRoot = g_strdup(VMTOOLSD_PLUGIN_ROOT);
+#else
+      char *instPath = GuestApp_GetInstallPath();
+      pluginRoot = g_strdup_printf("%s%cplugins", instPath, DIRSEPC);
+      vm_free(instPath);
+#endif
+      state->pluginPath = g_strdup_printf("%s%s%c%s",
+                                          pluginRoot,
+                                          subdir,
+                                          DIRSEPC,
+                                          state->name);
+      g_free(pluginRoot);
    }
 
    if (!g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR)) {
@@ -183,7 +184,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
          goto next;
       }
 
-      g_assert(data->name != NULL);
+      ASSERT(data->name != NULL);
       g_module_make_resident(module);
       plugin = g_malloc(sizeof *plugin);
       plugin->module = module;

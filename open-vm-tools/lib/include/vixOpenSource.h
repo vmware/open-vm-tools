@@ -199,6 +199,7 @@ typedef struct VixPropertyValue
    } value;
 
    Bool                       isDirty;
+   Bool                       isSensitive;
    struct VixPropertyValue    *next;
 } VixPropertyValue;
 
@@ -376,6 +377,15 @@ enum {
 
 
 /*
+ * Options for VixVM_ListFileSystemsInGuest()
+ */
+enum {
+   VIX_FILESYSTEMS_SHOW_ALL     = 0x000,
+   VIX_FILESYSTEMS_HIDE_NETWORK = 0x001,
+};
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * VixDebug --
@@ -387,11 +397,11 @@ enum {
  *
  *      VIX_DEBUG(("test debug message: %s %d\n", stringArg, intArg));
  *       
- *       Output will got to logfile if VIX_DEBUG_PREFERNCE_NAME is non-zero
+ *       Output will go to logfile if VIX_DEBUG_PREFERENCE_NAME is non-zero
  *
  *      VIX_DEBUG_LEVEL(3, ("test debug message: %s %d\n", stringArg, intArg));
  *
- *       Output will got to logfile if VIX_DEBUG_PREFERNCE_NAME is >=
+ *       Output will go to logfile if VIX_DEBUG_PREFERENCE_NAME is >=
  *       the first argument to the macro.
  * 
  *-----------------------------------------------------------------------------

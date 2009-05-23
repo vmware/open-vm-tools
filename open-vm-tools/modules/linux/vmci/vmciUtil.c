@@ -544,3 +544,30 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
       }
    }
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCIContext_GetPrivFlags --
+ *
+ *      Provided for compatibility with the host VMCI API.
+ *
+ * Results:
+ *      Always returns VMCI_NO_PRIVILEGE_FLAGS.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#ifdef __linux__
+EXPORT_SYMBOL(VMCIContext_GetPrivFlags);
+#endif
+
+VMCIPrivilegeFlags
+VMCIContext_GetPrivFlags(VMCIId contextID) // IN
+{
+   return VMCI_NO_PRIVILEGE_FLAGS;
+}

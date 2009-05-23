@@ -102,6 +102,7 @@ typedef struct LogHandlerData {
    gchar            *domain;
    GLogLevelFlags    mask;
    FILE             *file;
+   gchar            *path;
    guint             handlerId;
    gboolean          inherited;
 } LogHandlerData;
@@ -131,19 +132,20 @@ VMToolsLogOpenFile(const gchar *path)
    FILE *logfile = NULL;
    gchar *pathLocal;
 
-   g_assert(path != NULL);
-   if (File_Exists(path)) {
+   ASSERT(path != NULL);
+   pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
+
+   if (g_file_test(path, G_FILE_TEST_EXISTS)) {
       /* Back up existing log file. */
-      char *bakFile = Str_Asprintf(NULL, "%s.old", path);
-      if (bakFile &&
-          !File_IsDirectory(bakFile) &&
-          0 == File_UnlinkIfExists(bakFile)) {  // remove old back up file.
-         File_Rename(path, bakFile);
+      gchar *bakFile = g_strdup_printf("%s.old", pathLocal);
+      if (!g_file_test(bakFile, G_FILE_TEST_IS_DIR) &&
+          (!g_file_test(bakFile, G_FILE_TEST_EXISTS) ||
+           g_unlink(bakFile) == 0)) {
+         g_rename(pathLocal, bakFile);
       }
-      free(bakFile);
+      g_free(bakFile);
    }
 
-   pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
    logfile = g_fopen(pathLocal, "w");
    VMTOOLS_RELEASE_FILENAME_LOCAL(pathLocal);
    return logfile;
@@ -312,8 +314,17 @@ VMToolsLogFile(const gchar *domain,
    if (SHOULD_LOG(level, data)) {
       char *msg = VMToolsLogFormat(message, domain, level, TRUE);
       if (msg != NULL) {
-         FILE *dest =  (data->file != NULL) ? data->file
-                          : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
+         FILE *dest;
+         data = data->inherited ? gDefaultData : data;
+         if (data->file == NULL && data->path != NULL) {
+            data->file = VMToolsLogOpenFile(data->path);
+            if (data->file == NULL) {
+               g_warning("Unable to open log file %s for domain %s.\n",
+                         data->domain, data->path);
+            }
+         }
+         dest = (data->file != NULL) ? data->file
+                  : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
          fputs(msg, dest);
          fflush(dest);
          free(msg);
@@ -353,7 +364,6 @@ VMToolsConfigLogDomain(const gchar *domain,
    GLogFunc handlerFn = NULL;
    GLogLevelFlags levelsMask;
    LogHandlerData *data;
-   FILE *logfile = NULL;
 
    /* Arbitrary limit. */
    if (strlen(domain) > MAX_DOMAIN_LEN) {
@@ -468,19 +478,11 @@ VMToolsConfigLogDomain(const gchar *domain,
       goto exit;
    }
 
-   /* Initialize the log file, if using the "file" handler. */
-   if (logpath != NULL) {
-      logfile = VMToolsLogOpenFile(logpath);
-      if (logfile == NULL) {
-         g_warning("Couldn't open log file (%s): %s\n", domain, logpath);
-         goto exit;
-      }
-   }
-
    data = g_malloc0(sizeof *data);
    data->domain = g_strdup(domain);
    data->mask = levelsMask;
-   data->file = logfile;
+   data->path = logpath;
+   logpath = NULL;
 
    if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
       /* Replace the default log configuration before freeing the old data. */
@@ -495,7 +497,6 @@ VMToolsConfigLogDomain(const gchar *domain,
       g_free(old);
    } else if (handler == NULL) {
       ASSERT(data->file == NULL);
-      data->file = gDefaultData->file;
       data->inherited = TRUE;
    }
 
@@ -503,7 +504,8 @@ VMToolsConfigLogDomain(const gchar *domain,
       gDomains = g_ptr_array_new();
    }
    g_ptr_array_add(gDomains, data);
-   data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS, handlerFn, data);
+   data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS | G_LOG_FATAL_MASK,
+                                       handlerFn, data);
 
 exit:
    g_free(handler);
@@ -641,9 +643,10 @@ VMTools_ResetLogging(gboolean cleanDefault)
       for (i = 0; i < gDomains->len; i++) {
          LogHandlerData *data = g_ptr_array_index(gDomains, i);
          g_log_remove_handler(data->domain, data->handlerId);
-         if (data->file != NULL && !data->inherited) {
+         if (data->file != NULL) {
             fclose(data->file);
          }
+         g_free(data->path);
          g_free(data->domain);
          g_free(data);
       }

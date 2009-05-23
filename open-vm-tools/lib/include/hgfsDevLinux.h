@@ -16,6 +16,20 @@
  *
  *********************************************************/
 
+/*********************************************************
+ * The contents of this file are subject to the terms of the Common
+ * Development and Distribution License (the "License") version 1.0
+ * and no later version.  You may not use this file except in
+ * compliance with the License.
+ *
+ * You can obtain a copy of the License at
+ *         http://www.opensource.org/licenses/cddl1.php
+ *
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ *********************************************************/
+
 /*
  * hgfsDev.h --
  * 
@@ -55,8 +69,13 @@ typedef struct HgfsMountInfo {
    unsigned short fmask;      // desired file mask
    unsigned short dmask;      // desired directory mask
    uint32 ttl;                // number of seconds before revalidating dentries
+#if defined(__APPLE__)
+   char shareNameHost[MAXPATHLEN]; // must be ".host"
+   char shareNameDir[MAXPATHLEN];  // desired share name for mounting
+#else
    const char *shareNameHost; // must be ".host"
    const char *shareNameDir;  // desired share name for mounting
+#endif
 #endif
 } HgfsMountInfo;
 

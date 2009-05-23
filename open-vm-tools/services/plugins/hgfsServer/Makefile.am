@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libhgfsServer.la
+plugindir = @VMSVC_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libhgfsServer.la
 
 libhgfsServer_la_CPPFLAGS =
 libhgfsServer_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -31,10 +32,8 @@ libhgfsServer_la_LIBADD += $(top_builddir)/lib/hgfsServerPolicyGuest/libHgfsServ
 libhgfsServer_la_SOURCES =
 libhgfsServer_la_SOURCES += hgfsPlugin.c
 
-install-exec-local:
-	mkdir -p $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libhgfsServer.so $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
 if HAVE_X11
+install-exec-local:
 	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
 	cp -L $(builddir)/.libs/libhgfsServer.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
 endif

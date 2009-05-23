@@ -1,3 +1,21 @@
+open-vm-tools 2009.05.22 changes:
+	* Mostly a cleanup and bug fix release.
+
+	* Fix a build issue where a symlink attack could cause the open-vm-tools
+	build to overwrite data (by placing a symlink in /tmp).
+
+	* Second (and last?) batch of changes to clean up duplicate files
+	in the source tree, including Solaris and FreeBSD kernel modules and
+	other module-specific shared files.
+
+	* Plugins now are properly built using plugins_LTLIBRARIES so that
+	"-rpath" doesn't need to be used (this would cause an RPATH entry to
+	be added to the final binary, which some tools didn't like). Thanks to
+	Dominique Leuenberger for the suggestion.
+
+	* open-vm-tools now properly detects PAM and enables PAM support in the
+	code.
+
 open-vm-tools 2009.04.23 changes:
 	* Implemented copy & paste support for RTF data and file contents.
 

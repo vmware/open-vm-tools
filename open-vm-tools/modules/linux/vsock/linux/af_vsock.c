@@ -133,7 +133,6 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #endif
 
 #include "vmware.h"
-#include "vm_basic_math.h"
 
 #include "vsockCommon.h"
 #include "vsockPacket.h"
@@ -142,6 +141,7 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include "vmci_iocontrols.h"
 
 #include "af_vsock.h"
+#include "stats.h"
 #include "util.h"
 #include "vsock_version.h"
 #include "driverLog.h"
@@ -169,16 +169,6 @@ static void VSockVmciPeerAttachCB(VMCIId subId,
                                   VMCI_EventData *ed, void *clientData);
 static void VSockVmciPeerDetachCB(VMCIId subId,
                                   VMCI_EventData *ed, void *clientData);
-static int VSockVmciSendControlPktBH(struct sockaddr_vm *src,
-                                     struct sockaddr_vm *dst,
-                                     VSockPacketType type,
-                                     uint64 size,
-                                     uint64 mode,
-                                     VSockWaitingInfo *wait,
-                                     VMCIHandle handle);
-static int VSockVmciSendControlPkt(struct sock *sk, VSockPacketType type,
-                                   uint64 size, uint64 mode,
-                                   VSockWaitingInfo *wait, VMCIHandle handle);
 static void VSockVmciRecvPktWork(compat_work_arg work);
 static int VSockVmciRecvListen(struct sock *sk, VSockPacket *pkt);
 static int VSockVmciRecvConnectingServer(struct sock *sk,
@@ -189,22 +179,19 @@ static int VSockVmciRecvConnectingClientNegotiate(struct sock *sk,
 static int VSockVmciRecvConnected(struct sock *sk, VSockPacket *pkt);
 static int __VSockVmciBind(struct sock *sk, struct sockaddr_vm *addr);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
-static struct sock *__VSockVmciCreate(struct socket *sock, unsigned int priority,
-                                      unsigned short type);
+static struct sock *__VSockVmciCreate(struct socket *sock, struct sock *parent,
+                                      unsigned int priority, unsigned short type);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-static struct sock *__VSockVmciCreate(struct socket *sock, gfp_t priority,
-				      unsigned short type);
+static struct sock *__VSockVmciCreate(struct socket *sock, struct sock *parent,
+                                      gfp_t priority, unsigned short type);
 #else
 static struct sock *__VSockVmciCreate(struct net *net,
-                                      struct socket *sock, gfp_t priority,
-                                      unsigned short type);
+                                      struct socket *sock, struct sock *parent,
+                                      gfp_t priority, unsigned short type);
 #endif
 static void VSockVmciTestUnregister(void);
 static int VSockVmciRegisterAddressFamily(void);
 static void VSockVmciUnregisterAddressFamily(void);
-static int64 VSockVmciStreamHasData(VSockVmciSock *vsk);
-static int64 VSockVmciStreamHasSpace(VSockVmciSock *vsk);
-
 
 /* Socket operations. */
 static void VSockVmciSkDestruct(struct sock *sk);
@@ -414,49 +401,11 @@ static Bool vmciDevicePresent = FALSE;
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 
-/* Comment this out to compare with old protocol. */
-#define VSOCK_OPTIMIZATION_WAITING_NOTIFY 1
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-/* Comment this out to remove flow control for "new" protocol */
-#  define VSOCK_OPTIMIZATION_FLOW_CONTROL 1
-#endif
-
-/*
- * Define VSOCK_GATHER_STATISTICS to turn on statistics gathering.
- * Currently this consists of 2 types of stats:
- * 1. The number of control datagram messages sent.
- * 2. The level of queuepair fullness (in 10% buckets) whenever data is
- *    about to be enqueued or dequeued from the queuepair.
- */
-//#define VSOCK_GATHER_STATISTICS 1
-#ifdef VSOCK_GATHER_STATISTICS
-#define VSOCK_NUM_QUEUE_LEVEL_BUCKETS 10
-uint64 controlPacketCount[VSOCK_PACKET_TYPE_MAX];
-uint64 consumeQueueLevel[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
-uint64 produceQueueLevel[VSOCK_NUM_QUEUE_LEVEL_BUCKETS];
-
-#define VSOCK_STATS_STREAM_CONSUME_HIST(vsk)           \
-   VSockVmciUpdateQueueBucketCount((vsk)->consumeQ,    \
-                                   (vsk)->produceQ,    \
-                                   (vsk)->consumeSize, \
-                                   consumeQueueLevel)
-#define VSOCK_STATS_STREAM_PRODUCE_HIST(vsk)           \
-   VSockVmciUpdateQueueBucketCount((vsk)->produceQ,    \
-                                   (vsk)->consumeQ,    \
-                                   (vsk)->produceSize, \
-                                   produceQueueLevel)
-#else
-#define VSOCK_STATS_STREAM_CONSUME_HIST(vsk)
-#define VSOCK_STATS_STREAM_PRODUCE_HIST(vsk)
-#endif // VSOCK_GATHER_STATISTICS
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 5)
 kmem_cache_t *vsockCachep;
 #endif
 #endif
-
-#define VSOCK_MAX_DGRAM_RESENDS       10
 
 /*
  * 64k is hopefully a reasonable default, but we should do some real
@@ -465,53 +414,6 @@ kmem_cache_t *vsockCachep;
 #define VSOCK_DEFAULT_QP_SIZE_MIN   128
 #define VSOCK_DEFAULT_QP_SIZE       65536
 #define VSOCK_DEFAULT_QP_SIZE_MAX   262144
-
-#define VSOCK_SEND_RESET_BH(_dst, _src, _pkt)                           \
-   ((_pkt)->type == VSOCK_PACKET_TYPE_RST) ?                            \
-      0 :                                                               \
-      VSockVmciSendControlPktBH(_dst, _src, VSOCK_PACKET_TYPE_RST, 0,   \
-                                0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_INVALID_BH(_dst, _src)                               \
-   VSockVmciSendControlPktBH(_dst, _src, VSOCK_PACKET_TYPE_INVALID, 0,  \
-                             0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_WROTE_BH(_dst, _src)                                 \
-   VSockVmciSendControlPktBH(_dst, _src, VSOCK_PACKET_TYPE_WROTE, 0,    \
-                             0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_READ_BH(_dst, _src)                                  \
-   VSockVmciSendControlPktBH(_dst, _src, VSOCK_PACKET_TYPE_READ, 0,     \
-                             0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_RESET(_sk, _pkt)                                     \
-   ((_pkt)->type == VSOCK_PACKET_TYPE_RST) ?                            \
-      0 :                                                               \
-      VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_RST,               \
-                              0, 0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_NEGOTIATE(_sk, _size)                                \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_NEGOTIATE,            \
-                           _size, 0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_QP_OFFER(_sk, _handle)                               \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_OFFER,                \
-                           0, 0, NULL, _handle)
-#define VSOCK_SEND_CONN_REQUEST(_sk, _size)                             \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_REQUEST,              \
-                           _size, 0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_ATTACH(_sk, _handle)                                 \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_ATTACH,               \
-                           0, 0, NULL, _handle)
-#define VSOCK_SEND_WROTE(_sk)                                           \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WROTE,                \
-                           0, 0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_READ(_sk)                                            \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_READ,                 \
-                           0, 0, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_SHUTDOWN(_sk, _mode)                                 \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_SHUTDOWN,             \
-                           0, _mode, NULL, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_WAITING_WRITE(_sk, _waitInfo)                        \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_WRITE,        \
-                           0, 0, _waitInfo, VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_WAITING_READ(_sk, _waitInfo)                         \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_READ,         \
-                           0, 0, _waitInfo, VMCI_INVALID_HANDLE)
 
 #ifdef VMX86_LOG
 # define LOG_PACKET(_pkt)  VSockVmciLogPkt(__FUNCTION__, __LINE__, _pkt)
@@ -729,6 +631,119 @@ VSockVmci_GetAFValue(void)
  * Helper functions.
  */
 
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciQueuePairAlloc --
+ *
+ *      Allocates or attaches to a queue pair. Tries to register with trusted
+ *      status if requested but does not fail if the queuepair could not be
+ *      allocate as trusted (running in the guest)
+ *
+ * Results:
+ *      0 on success. A VSock error on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+VSockVmciQueuePairAlloc(VMCIHandle *handle,   // IN/OUT
+                        VMCIQueue **produceQ, // OUT
+                        uint64 produceSize,   // IN
+                        VMCIQueue **consumeQ, // OUT
+                        uint64 consumeSize,   // IN
+                        VMCIId peer,          // IN
+                        uint32 flags,         // IN
+                        Bool trusted)         // IN
+{
+   int err = 0;
+   if (trusted) {
+      /*
+       * Try to allocate our queue pair as trusted. This will only work
+       * if vsock is running in the host.
+       */
+      err = VMCIQueuePair_AllocPriv(handle,
+                                    produceQ, produceSize,
+                                    consumeQ, consumeSize,
+                                    peer,
+                                    flags,
+                                    VMCI_PRIVILEGE_FLAG_TRUSTED);
+      if (err != VMCI_ERROR_NO_ACCESS) {
+         goto out;
+      }
+   }
+
+   err = VMCIQueuePair_Alloc(handle,
+                             produceQ, produceSize,
+                             consumeQ, consumeSize,
+                             peer,
+                             flags);
+out:
+   if (err < 0) {
+      Log("Could not attach to queue pair with %d\n", err);
+      err = VSockVmci_ErrorToVSockError(err);
+   }
+
+   return err;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciDatagramCreateHnd --
+ *
+ *      Creates a datagram handle. Tries to register with trusted
+ *      status if requested but does not fail if the handler could not be
+ *      allocated as trusted (running in the guest).
+ *
+ * Results:
+ *      0 on success. A VSock error on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+VSockVmciDatagramCreateHnd(VMCIId resourceID,            // IN
+                           uint32 flags,                 // IN
+                           VMCIDatagramRecvCB recvCB,    // IN
+                           void *clientData,             // IN
+                           VMCIHandle *outHandle,        // OUT
+                           Bool trusted)                 // IN
+{
+   int err = 0;
+   if (trusted) {
+      /*
+       * Try to allocate our datagram handler as trusted. This will only work
+       * if vsock is running in the host.
+       */
+      err = VMCIDatagram_CreateHndPriv(resourceID, flags,
+                                       VMCI_PRIVILEGE_FLAG_TRUSTED,
+                                       recvCB, clientData,
+                                       outHandle);
+
+      if (err != VMCI_ERROR_NO_ACCESS) {
+         goto out;
+      }
+   }
+
+   err = VMCIDatagram_CreateHnd(resourceID, flags,
+                                recvCB, clientData,
+                                outHandle);
+out:
+   if (err < 0) {
+      err = VSockVmci_ErrorToVSockError(err);
+   }
+
+   return err;
+}
+
 
 /*
  *----------------------------------------------------------------------------
@@ -759,336 +774,6 @@ VSockVmciTestUnregister(void)
    }
 }
 
-#ifdef VSOCK_GATHER_STATISTICS
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciUpdateQueueBucketCount --
- *
- *      Given a queue, determine how much data is enqueued and add that to
- *      the specified queue level statistic bucket.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciUpdateQueueBucketCount(VMCIQueue *mainQueue,  // IN
-                                VMCIQueue *otherQueue, // IN
-                                uint64 mainQueueSize,  // IN
-                                uint64 queueLevel[])   // IN
-{
-   uint64 bucket = 0;
-   uint32 remainder = 0;
-   uint64 dataReady = VMCIQueue_BufReady(mainQueue,
-                                         otherQueue,
-                                         mainQueueSize);
-   /*
-    * We can't do 64 / 64 = 64 bit divides on linux because it requires a libgcc
-    * which is not linked into the kernel module. Since this code is only used by
-    * developers we just limit the mainQueueSize to be less than MAX_UINT for now.
-    */
-   ASSERT(mainQueueSize <= MAX_UINT32);
-   Div643264(dataReady * 10, mainQueueSize, &bucket, &remainder);
-   ASSERT(bucket < VSOCK_NUM_QUEUE_LEVEL_BUCKETS);
-   ++queueLevel[bucket];
-}
-#endif
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciNotifyWaitingWrite --
- *
- *      Determines if the conditions have been met to notify a waiting writer.
- *
- * Results:
- *      TRUE if a notification should be sent, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static Bool
-VSockVmciNotifyWaitingWrite(VSockVmciSock *vsk)    // IN
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   Bool retval;
-   uint64 notifyLimit;
-  
-   if (!vsk->peerWaitingWrite) {
-      return FALSE;
-   }
-
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-   /*
-    * When the sender blocks, we take that as a sign that the sender
-    * is faster than the receiver. To reduce the transmit rate of the
-    * sender, we delay the sending of the read notification by
-    * decreasing the writeNotifyWindow. The notification is delayed
-    * until the number of bytes used in the queue drops below the
-    * writeNotifyWindow.
-    */
-
-   if (!vsk->peerWaitingWriteDetected) {
-      vsk->peerWaitingWriteDetected = TRUE;
-      vsk->writeNotifyWindow -= PAGE_SIZE;
-      if (vsk->writeNotifyWindow < vsk->writeNotifyMinWindow) {
-         vsk->writeNotifyWindow = vsk->writeNotifyMinWindow;
-      }
-   }
-   notifyLimit = vsk->consumeSize - vsk->writeNotifyWindow;
-#else
-   notifyLimit = 0;
-#endif // VSOCK_OPTIMIZATION_FLOW_CONTROL
-
-   /*
-    * For now we ignore the wait information and just see if the free
-    * space exceeds the notify limit.  Note that improving this
-    * function to be more intelligent will not require a protocol
-    * change and will retain compatibility between endpoints with
-    * mixed versions of this function.
-    *
-    * The notifyLimit is used to delay notifications in the case where
-    * flow control is enabled. Below the test is expressed in terms of
-    * free space in the queue:
-    *   if freeSpace > ConsumeSize - writeNotifyWindow then notify
-    * An alternate way of expressing this is to rewrite the expression
-    * to use the data ready in the receive queue:
-    *   if writeNotifyWindow > bufferReady then notify
-    * as freeSpace == ConsumeSize - bufferReady.
-    */
-   retval = VMCIQueue_FreeSpace(vsk->consumeQ, vsk->produceQ, vsk->consumeSize) >
-            notifyLimit;
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-   if (retval) {
-      /*
-       * Once we notify the peer, we reset the detected flag so the
-       * next wait will again cause a decrease in the window size.
-       */
-
-      vsk->peerWaitingWriteDetected = FALSE;
-   }
-#endif // VSOCK_OPTIMIZATION_FLOW_CONTROL
-   return retval;
-#else
-   return TRUE;
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciNotifyWaitingRead --
- *
- *      Determines if the conditions have been met to notify a waiting reader.
- *
- * Results:
- *      TRUE if a notification should be sent, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static Bool
-VSockVmciNotifyWaitingRead(VSockVmciSock *vsk)  // IN
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   if (!vsk->peerWaitingRead) {
-      return FALSE;
-   }
-
-   /*
-    * For now we ignore the wait information and just see if there is any data
-    * to read.  Note that improving this function to be more intelligent will
-    * not require a protocol change and will retain compatibility between
-    * endpoints with mixed versions of this function.
-    */
-   return VMCIQueue_BufReady(vsk->produceQ,
-			     vsk->consumeQ, vsk->produceSize) > 0;
-#else
-   return TRUE;
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciHandleWrote --
- *
- *      Handles an incoming wrote message.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciHandleWrote(struct sock *sk,            // IN
-		     VSockPacket *pkt,           // IN: unused
-		     Bool bottomHalf,            // IN: unused
-		     struct sockaddr_vm *dst,    // IN: unused
-		     struct sockaddr_vm *src)    // IN: unused
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VSockVmciSock *vsk;
-
-   vsk = vsock_sk(sk);
-   vsk->sentWaitingRead = FALSE;
-#endif
-
-   sk->compat_sk_data_ready(sk, 0);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciHandleRead --
- *
- *      Handles an incoming read message.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciHandleRead(struct sock *sk,            // IN
-		    VSockPacket *pkt,           // IN: unused
-		    Bool bottomHalf,            // IN: unused
-		    struct sockaddr_vm *dst,    // IN: unused
-		    struct sockaddr_vm *src)    // IN: unused
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VSockVmciSock *vsk;
-
-   vsk = vsock_sk(sk);
-   vsk->sentWaitingWrite = FALSE;
-#endif
-
-   sk->compat_sk_write_space(sk);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciHandleWaitingWrite --
- *
- *      Handles an incoming waiting write message.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      May send a notification to the peer, may update socket's wait info
- *      structure.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciHandleWaitingWrite(struct sock *sk,            // IN
-                            VSockPacket *pkt,           // IN
-                            Bool bottomHalf,            // IN
-                            struct sockaddr_vm *dst,    // IN
-                            struct sockaddr_vm *src)    // IN
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VSockVmciSock *vsk;
-
-   vsk = vsock_sk(sk);
-
-   vsk->peerWaitingWrite = TRUE;
-   memcpy(&vsk->peerWaitingWriteInfo, &pkt->u.wait,
-          sizeof vsk->peerWaitingWriteInfo);
-
-   if (VSockVmciNotifyWaitingWrite(vsk)) {
-      Bool sent;
-
-      if (bottomHalf) {
-         sent = VSOCK_SEND_READ_BH(dst, src) > 0;
-      } else {
-         sent = VSOCK_SEND_READ(sk) > 0;
-      }
-
-      if (sent) {
-         vsk->peerWaitingWrite = FALSE;
-      }
-   }
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciHandleWaitingRead --
- *
- *      Handles an incoming waiting read message.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      May send a notification to the peer, may update socket's wait info
- *      structure.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciHandleWaitingRead(struct sock *sk,             // IN
-                           VSockPacket *pkt,            // IN
-                           Bool bottomHalf,             // IN
-                           struct sockaddr_vm *dst,     // IN
-                           struct sockaddr_vm *src)     // IN
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VSockVmciSock *vsk;
-
-   vsk = vsock_sk(sk);
-
-   vsk->peerWaitingRead = TRUE;
-   memcpy(&vsk->peerWaitingReadInfo, &pkt->u.wait,
-          sizeof vsk->peerWaitingReadInfo);
-
-   if (VSockVmciNotifyWaitingRead(vsk)) {
-      Bool sent;
-
-      if (bottomHalf) {
-         sent = VSOCK_SEND_WROTE_BH(dst, src) > 0;
-      } else {
-         sent = VSOCK_SEND_WROTE(sk) > 0;
-      }
-
-      if (sent) {
-         vsk->peerWaitingRead = FALSE;
-      }
-   }
-#endif
-}
-
 
 /*
  *----------------------------------------------------------------------------
@@ -1112,8 +797,8 @@ VSockVmciHandleWaitingRead(struct sock *sk,             // IN
  */
 
 static int
-VSockVmciRecvDgramCB(void *data,           // IN
-                     VMCIDatagram *dg)     // IN
+VSockVmciRecvDgramCB(void *data,          // IN
+                     VMCIDatagram *dg)    // IN
 {
    struct sock *sk;
    size_t size;
@@ -1175,7 +860,8 @@ VSockVmciRecvStreamCB(void *data,           // IN
    struct sockaddr_vm dst;
    struct sockaddr_vm src;
    VSockPacket *pkt;
-   Bool processPkt;
+   VSockVmciSock *vsk;
+   Bool bhProcessPkt;
    int err;
 
    ASSERT(dg);
@@ -1183,7 +869,7 @@ VSockVmciRecvStreamCB(void *data,           // IN
 
    sk = NULL;
    err = VMCI_SUCCESS;
-   processPkt = TRUE;
+   bhProcessPkt = FALSE;
 
    /*
     * Ignore incoming packets from contexts without sockets, or resources that
@@ -1254,6 +940,25 @@ VSockVmciRecvStreamCB(void *data,           // IN
    }
 
    /*
+    * This handler is privileged when this module is running on the host.
+    * We will get datagram connect requests from all endpoints (even VMs that
+    * are in a restricted context). If we get one from a restricted context
+    * then the destination socket must be trusted.
+    *
+    * NOTE: We access the socket struct without holding the lock here. This
+    * is ok because the field we are interested is never modified outside
+    * of the create and destruct socket functions.
+    */
+   vsk = vsock_sk(sk);
+   if (VMCIContext_GetPrivFlags(VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src)) &
+       VMCI_PRIVILEGE_FLAG_RESTRICTED) {
+      if (!vsk->trusted) {
+         err = VMCI_ERROR_NO_ACCESS;
+         goto out;
+      }
+   }
+
+   /*
     * We do most everything in a work queue, but let's fast path the
     * notification of reads and writes to help data transfer performance.  We
     * can only do this if there is no process context code executing for this
@@ -1262,30 +967,12 @@ VSockVmciRecvStreamCB(void *data,           // IN
    bh_lock_sock(sk);
 
    if (!compat_sock_owned_by_user(sk) && sk->compat_sk_state == SS_CONNECTED) {
-      switch (pkt->type) {
-      case VSOCK_PACKET_TYPE_WROTE:
-	 VSockVmciHandleWrote(sk, pkt, TRUE, &dst, &src);
-	 processPkt = FALSE;
-         break;
-      case VSOCK_PACKET_TYPE_READ:
-	 VSockVmciHandleRead(sk, pkt, TRUE, &dst, &src);
-         processPkt = FALSE;
-         break;
-      case VSOCK_PACKET_TYPE_WAITING_WRITE:
-         VSockVmciHandleWaitingWrite(sk, pkt, TRUE, &dst, &src);
-         processPkt = FALSE;
-         break;
-
-      case VSOCK_PACKET_TYPE_WAITING_READ:
-         VSockVmciHandleWaitingRead(sk, pkt, TRUE, &dst, &src);
-         processPkt = FALSE;
-         break;
-      }
+      NOTIFYCALL(vsk, handleNotifyPkt, sk, pkt, TRUE, &dst, &src, &bhProcessPkt);
    }
 
    bh_unlock_sock(sk);
 
-   if (processPkt) {
+   if (!bhProcessPkt) {
       VSockRecvPktInfo *recvPktInfo;
 
       recvPktInfo = kmalloc(sizeof *recvPktInfo, GFP_ATOMIC);
@@ -1749,7 +1436,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
     */
    if (pkt->type != VSOCK_PACKET_TYPE_REQUEST ||
        pkt->u.size == 0) {
-      VSOCK_SEND_RESET(sk, pkt);
+      VSOCK_REPLY_RESET(pkt);
       return -EINVAL;
    }
 
@@ -1759,14 +1446,14 @@ VSockVmciRecvListen(struct sock *sk,   // IN
     * with a connection negotiation.
     */
    if (sk->compat_sk_ack_backlog >= sk->compat_sk_max_ack_backlog) {
-      VSOCK_SEND_RESET(sk, pkt);
+      VSOCK_REPLY_RESET(pkt);
       return -ECONNREFUSED;
    }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-   pending = __VSockVmciCreate(NULL, GFP_KERNEL, sk->compat_sk_type);
+   pending = __VSockVmciCreate(NULL, sk, GFP_KERNEL, sk->compat_sk_type);
 #else
-   pending = __VSockVmciCreate(compat_sock_net(sk), NULL, GFP_KERNEL,
+   pending = __VSockVmciCreate(compat_sock_net(sk), NULL, sk, GFP_KERNEL,
 			       sk->compat_sk_type);
 #endif
    if (!pending) {
@@ -1808,9 +1495,10 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    sk->compat_sk_ack_backlog++;
 
    pending->compat_sk_state = SS_CONNECTING;
-   vpending->produceSize = vpending->consumeSize =
-                           vpending->writeNotifyWindow = pkt->u.size;
-   
+   vpending->produceSize = vpending->consumeSize = pkt->u.size;
+
+   /* XXX Move this into the notify file. */
+   vpending->notify.writeNotifyWindow = pkt->u.size;
 
    /*
     * We might never receive another message for this socket and it's not
@@ -1931,16 +1619,14 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
    flags = VMCI_QPFLAG_ATTACH_ONLY;
    flags |= isLocal ? VMCI_QPFLAG_LOCAL : 0;
 
-   err = VMCIQueuePair_Alloc(&handle,
-                             &produceQ, vpending->produceSize,
-                             &consumeQ, vpending->consumeSize,
-                             VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
-                             flags);
+   err = VSockVmciQueuePairAlloc(&handle,
+                                 &produceQ, vpending->produceSize,
+                                 &consumeQ, vpending->consumeSize,
+                                 VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
+                                 flags,
+                                 vpending->trusted);
    if (err < 0) {
-      /* We cannot complete this connection: send a reset and close. */
-      Log("Could not attach to queue pair with %d\n", err);
       VSOCK_SEND_RESET(pending, pkt);
-      err = VSockVmci_ErrorToVSockError(err);
       skerr = -err;
       goto destroy;
    }
@@ -2191,13 +1877,13 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    handle = VMCI_INVALID_HANDLE;
    isLocal = vsk->remoteAddr.svm_cid == vsk->localAddr.svm_cid;
 
-   err = VMCIQueuePair_Alloc(&handle,
-                             &produceQ, pkt->u.size,
-                             &consumeQ, pkt->u.size,
-                             vsk->remoteAddr.svm_cid,
-                             isLocal ? VMCI_QPFLAG_LOCAL : 0);
-   if (err < VMCI_SUCCESS) {
-      err = VSockVmci_ErrorToVSockError(err);
+   err = VSockVmciQueuePairAlloc(&handle,
+                                 &produceQ, pkt->u.size,
+                                 &consumeQ, pkt->u.size,
+                                 vsk->remoteAddr.svm_cid,
+                                 isLocal ? VMCI_QPFLAG_LOCAL : 0,
+                                 vsk->trusted);
+   if (err < 0) {
       goto destroy;
    }
 
@@ -2212,7 +1898,12 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    vsk->qpHandle = handle;
    vsk->produceQ = produceQ;
    vsk->consumeQ = consumeQ;
-   vsk->produceSize = vsk->consumeSize = vsk->writeNotifyWindow = pkt->u.size;
+
+   vsk->produceSize = vsk->consumeSize = pkt->u.size;
+
+   /* XXX Move this into the notify file. */
+   vsk->notify.writeNotifyWindow = pkt->u.size;
+
    vsk->attachSubId = attachSubId;
    vsk->detachSubId = detachSubId;
 
@@ -2272,6 +1963,7 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
                        VSockPacket *pkt)     // IN
 {
    VSockVmciSock *vsk;
+   Bool pktProcessed = FALSE;
 
    ASSERT(sk);
    ASSERT(pkt);
@@ -2317,24 +2009,14 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
       sk->compat_sk_state_change(sk);
       break;
 
-   case VSOCK_PACKET_TYPE_WROTE:
-      VSockVmciHandleWrote(sk, pkt, FALSE, NULL, NULL);
-      break;
-
-   case VSOCK_PACKET_TYPE_READ:
-      VSockVmciHandleRead(sk, pkt, FALSE, NULL, NULL);
-      break;
-
-   case VSOCK_PACKET_TYPE_WAITING_WRITE:
-      VSockVmciHandleWaitingWrite(sk, pkt, FALSE, NULL, NULL);
-      break;
-
-   case VSOCK_PACKET_TYPE_WAITING_READ:
-      VSockVmciHandleWaitingRead(sk, pkt, FALSE, NULL, NULL);
-      break;
-
    default:
-      return -EINVAL;
+      vsk = vsock_sk(sk);
+      NOTIFYCALL(vsk, handleNotifyPkt, sk, pkt, FALSE, NULL, NULL,
+                 &pktProcessed);
+      if (!pktProcessed) {
+         return -EINVAL;
+      }
+      break;
    }
 
    return 0;
@@ -2344,9 +2026,102 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * __VSockVmciSendControlPkt --
+ *
+ *    Common code to send a control packet.
+ *
+ * Results:
+ *    Size of datagram sent on success, negative error code otherwise.
+ *    If convertError is TRUE, error code is a vsock error, otherwise,
+ *    result is a VMCI error code.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+__VSockVmciSendControlPkt(VSockPacket *pkt,           // IN
+                          struct sockaddr_vm *src,    // IN
+                          struct sockaddr_vm *dst,    // IN
+                          VSockPacketType type,       // IN
+                          uint64 size,                // IN
+                          uint64 mode,                // IN
+                          VSockWaitingInfo *wait,     // IN
+                          VMCIHandle handle,          // IN
+                          Bool convertError)          // IN
+{
+   int err;
+
+   ASSERT(pkt);
+   /*
+    * This function can be called in different contexts, so family value is not
+    * necessarily consistent.
+    */
+
+   VSOCK_ADDR_NOFAMILY_ASSERT(src);
+   VSOCK_ADDR_NOFAMILY_ASSERT(dst);
+
+   VSockPacket_Init(pkt, src, dst, type, size, mode, wait, handle);
+   LOG_PACKET(pkt);
+   VSOCK_STATS_CTLPKT_LOG(pkt->type);
+   err = VMCIDatagram_Send(&pkt->dg);
+   if (convertError && (err < 0)) {
+      return VSockVmci_ErrorToVSockError(err);
+   }
+
+   return err;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmciReplyControlPktFast --
+ *
+ *    Sends a control packet back to the source of an incoming packet.
+ *    The control packet is allocated in the stack.
+ *
+ * Results:
+ *    Size of datagram sent on success, negative error code otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+VSockVmciReplyControlPktFast(VSockPacket *pkt,       // IN
+                             VSockPacketType type,   // IN
+                             uint64 size,            // IN
+                             uint64 mode,            // IN
+                             VSockWaitingInfo *wait, // IN
+                             VMCIHandle handle)      // IN
+{
+   VSockPacket reply;
+   struct sockaddr_vm src, dst;
+
+   ASSERT(pkt);
+
+   if (pkt->type == VSOCK_PACKET_TYPE_RST) {
+      return 0;
+   } else {
+      VSockPacket_GetAddresses(pkt, &src, &dst);
+      return __VSockVmciSendControlPkt(&reply, &src, &dst, type,
+                                       size, mode, wait, handle, TRUE);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmciSendControlPktBH --
  *
- *    Sends a control packet from bottom-half context.
+ *    Sends a control packet from bottom-half context. The control packet is
+ *    static data to minimize the resource cost.
  *
  * Results:
  *    Size of datagram sent on success, negative error code otherwise.  Note
@@ -2359,7 +2134,7 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
  *----------------------------------------------------------------------------
  */
 
-static int
+int
 VSockVmciSendControlPktBH(struct sockaddr_vm *src,      // IN
                           struct sockaddr_vm *dst,      // IN
                           VSockPacketType type,         // IN
@@ -2376,13 +2151,8 @@ VSockVmciSendControlPktBH(struct sockaddr_vm *src,      // IN
     */
    static VSockPacket pkt;
 
-   VSockPacket_Init(&pkt, src, dst, type, size, mode, wait, handle);
-
-   LOG_PACKET(&pkt);
-#ifdef VSOCK_GATHER_STATISTICS
-   controlPacketCount[pkt.type]++;
-#endif
-   return VMCIDatagram_Send(&pkt.dg);
+   return __VSockVmciSendControlPkt(&pkt, src, dst, type,
+                                    size, mode, wait, handle, FALSE);
 }
 
 
@@ -2402,7 +2172,7 @@ VSockVmciSendControlPktBH(struct sockaddr_vm *src,      // IN
  *----------------------------------------------------------------------------
  */
 
-static int
+int
 VSockVmciSendControlPkt(struct sock *sk,        // IN
                         VSockPacketType type,   // IN
                         uint64 size,            // IN
@@ -2438,19 +2208,9 @@ VSockVmciSendControlPkt(struct sock *sk,        // IN
       return -ENOMEM;
    }
 
-   VSockPacket_Init(pkt, &vsk->localAddr, &vsk->remoteAddr,
-                    type, size, mode, wait, handle);
-
-   LOG_PACKET(pkt);
-   err = VMCIDatagram_Send(&pkt->dg);
+   err = __VSockVmciSendControlPkt(pkt, &vsk->localAddr, &vsk->remoteAddr,
+                                   type, size, mode, wait, handle, TRUE);
    kfree(pkt);
-   if (err < 0) {
-      return VSockVmci_ErrorToVSockError(err);
-   }
-
-#ifdef VSOCK_GATHER_STATISTICS
-   controlPacketCount[pkt->type]++;
-#endif
 
    return err;
 }
@@ -2564,9 +2324,10 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
          goto out;
       }
 
-      err = VMCIDatagram_CreateHnd(newAddr.svm_port, 0,
-                                   VSockVmciRecvDgramCB, sk,
-                                   &vsk->dgHandle);
+      err = VSockVmciDatagramCreateHnd(newAddr.svm_port, 0,
+                                       VSockVmciRecvDgramCB, sk,
+                                       &vsk->dgHandle,
+                                       vsk->trusted);
       if (err != VMCI_SUCCESS ||
           vsk->dgHandle.context == VMCI_INVALID_ID ||
           vsk->dgHandle.resource == VMCI_INVALID_ID) {
@@ -2606,193 +2367,6 @@ out:
 /*
  *----------------------------------------------------------------------------
  *
- * VSockVmciSendWaitingWrite --
- *
- *      Sends a waiting write notification to this socket's peer.
- *
- * Results:
- *      TRUE if the datagram is sent successfully or does not need to be sent.
- *      FALSE otherwise.
- *
- * Side effects:
- *      Our peer will notify us when there is room to write in to our produce
- *      queue.
- *
- *----------------------------------------------------------------------------
- */
-
-
-static Bool
-VSockVmciSendWaitingWrite(struct sock *sk,   // IN
-                          uint64 roomNeeded) // IN
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VSockVmciSock *vsk;
-   VSockWaitingInfo waitingInfo;
-   uint64 tail;
-   uint64 head;
-   uint64 roomLeft;
-   Bool ret;
-
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-
-   if (vsk->sentWaitingWrite) {
-      return TRUE;
-   }
-
-   VMCIQueue_GetPointers(vsk->produceQ, vsk->consumeQ, &tail, &head);
-   roomLeft = vsk->produceSize - tail;
-   if (roomNeeded + 1 >= roomLeft) {
-      /* Wraps around to current generation. */
-      waitingInfo.offset = roomNeeded + 1 - roomLeft;
-      waitingInfo.generation = vsk->produceQGeneration;
-   } else {
-      waitingInfo.offset = tail + roomNeeded + 1;
-      waitingInfo.generation = vsk->produceQGeneration - 1;
-   }
-
-   ret = VSOCK_SEND_WAITING_WRITE(sk, &waitingInfo) > 0;
-   if (ret) {
-      vsk->sentWaitingWrite = TRUE;
-   }
-   return ret;
-#else
-   return TRUE;
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciSendWaitingRead --
- *
- *      Sends a waiting read notification to this socket's peer.
- *
- * Results:
- *      TRUE if the datagram is sent successfully, FALSE otherwise.
- *
- * Side effects:
- *      Our peer will notify us when there is data to read from our consume
- *      queue.
- *
- *----------------------------------------------------------------------------
- */
-
-static Bool
-VSockVmciSendWaitingRead(struct sock *sk,    // IN
-                         uint64 roomNeeded)  // IN
-{
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VSockVmciSock *vsk;
-   VSockWaitingInfo waitingInfo;
-   uint64 tail;
-   uint64 head;
-   uint64 roomLeft;
-   Bool ret;
-
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-
-   if (vsk->sentWaitingRead) {
-      return TRUE;
-   }
-
-   if (vsk->writeNotifyWindow < vsk->consumeSize) {
-      vsk->writeNotifyWindow = MIN(vsk->writeNotifyWindow + PAGE_SIZE,
-                                   vsk->consumeSize);
-   }
-
-   VMCIQueue_GetPointers(vsk->consumeQ, vsk->produceQ, &tail, &head);
-   roomLeft = vsk->consumeSize - head;
-   if (roomNeeded >= roomLeft) {
-      waitingInfo.offset = roomNeeded - roomLeft;
-      waitingInfo.generation = vsk->consumeQGeneration + 1;
-   } else {
-      waitingInfo.offset = head + roomNeeded;
-      waitingInfo.generation = vsk->consumeQGeneration;
-   }
-
-   ret = VSOCK_SEND_WAITING_READ(sk, &waitingInfo) > 0;
-   if (ret) {
-      vsk->sentWaitingRead = TRUE;
-   }
-   return ret;
-#else
-   return TRUE;
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciSendReadNotification --
- *
- *      Sends a read notification to this socket's peer.
- *
- * Results:
- *      >= 0 if the datagram is sent successfully, negative error value
- *      otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static int
-VSockVmciSendReadNotification(struct sock *sk)  // IN
-{
-   VSockVmciSock *vsk;
-   Bool sentRead;
-   unsigned int retries;
-   int err;
-
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-   sentRead = FALSE;
-   retries = 0;
-   err = 0;
-
-   if (VSockVmciNotifyWaitingWrite(vsk)) {
-      /*
-       * Notify the peer that we have read, retrying the send on failure up to our
-       * maximum value.  XXX For now we just log the failure, but later we should
-       * schedule a work item to handle the resend until it succeeds.  That would
-       * require keeping track of work items in the vsk and cleaning them up upon
-       * socket close.
-       */
-      while (!(vsk->peerShutdown & RCV_SHUTDOWN) &&
-             !sentRead &&
-             retries < VSOCK_MAX_DGRAM_RESENDS) {
-         err = VSOCK_SEND_READ(sk);
-         if (err >= 0) {
-            sentRead = TRUE;
-         }
-
-         retries++;
-      }
-
-      if (retries >= VSOCK_MAX_DGRAM_RESENDS) {
-         Warning("unable to send read notification to peer for socket %p.\n", sk);
-      } else {
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-         vsk->peerWaitingWrite = FALSE;
-#endif
-      }
-   }
-   return err;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * __VSockVmciCreate --
  *
  *    Does the work to create the sock structure.
@@ -2813,23 +2387,27 @@ VSockVmciSendReadNotification(struct sock *sk)  // IN
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
 static struct sock *
 __VSockVmciCreate(struct socket *sock,   // IN: Owning socket, may be NULL
+                  struct sock *parent,   // IN: Parent socket, may be NULL
                   unsigned int priority, // IN: Allocation flags
                   unsigned short type)   // IN: Socket type if sock is NULL
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
 static struct sock *
 __VSockVmciCreate(struct socket *sock,   // IN: Owning socket, may be NULL
+                  struct sock *parent,   // IN: Parent socket, may be NULL
                   gfp_t priority,        // IN: Allocation flags
                   unsigned short type)   // IN: Socket type if sock is NULL
 #else
 static struct sock *
 __VSockVmciCreate(struct net *net,       // IN: Network namespace
                   struct socket *sock,   // IN: Owning socket, may be NULL
+                  struct sock *parent,   // IN: Parent socket, may be NULL
                   gfp_t priority,        // IN: Allocation flags
                   unsigned short type)   // IN: Socket type if sock is NULL
 
 #endif
 {
    struct sock *sk;
+   VSockVmciSock *psk;
    VSockVmciSock *vsk;
 
    ASSERT((sock && !type) || (!sock && type));
@@ -2909,24 +2487,26 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    vsk->dgHandle = VMCI_INVALID_HANDLE;
    vsk->qpHandle = VMCI_INVALID_HANDLE;
    vsk->produceQ = vsk->consumeQ = NULL;
-   vsk->produceQGeneration = vsk->consumeQGeneration = 0;
    vsk->produceSize = vsk->consumeSize = 0;
-   vsk->writeNotifyWindow = 0;
-   vsk->writeNotifyMinWindow = PAGE_SIZE;
    vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
    vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
    vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
-   vsk->peerWaitingRead = vsk->peerWaitingWrite = FALSE;
-   vsk->sentWaitingRead = vsk->sentWaitingWrite = FALSE;
-   vsk->peerWaitingWriteDetected = FALSE;
-   memset(&vsk->peerWaitingReadInfo, 0, sizeof vsk->peerWaitingReadInfo);
-   memset(&vsk->peerWaitingWriteInfo, 0, sizeof vsk->peerWaitingWriteInfo);
    vsk->listener = NULL;
    INIT_LIST_HEAD(&vsk->pendingLinks);
    INIT_LIST_HEAD(&vsk->acceptQueue);
    vsk->rejected = FALSE;
    vsk->attachSubId = vsk->detachSubId = VMCI_INVALID_ID;
    vsk->peerShutdown = 0;
+
+   if (parent) {
+      psk = vsock_sk(parent);
+      vsk->trusted = psk->trusted;
+   } else {
+      vsk->trusted = capable(CAP_NET_ADMIN);
+   }
+
+   vsk->notifyOps = &vSockVmciNotifyPktOps;
+   NOTIFYCALL(vsk, socketInit, sk);
 
    if (sock) {
       VSockVmciInsertBound(vsockUnboundSockets, sk);
@@ -3058,6 +2638,8 @@ VSockVmciSkDestruct(struct sock *sk) // IN
    VSockAddr_InitNoFamily(&vsk->localAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
    VSockAddr_InitNoFamily(&vsk->remoteAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
 
+   NOTIFYCALL(vsk, socketDestruct, sk);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 5)
    ASSERT(vsock_sk(sk) == vsk);
    kfree(vsock_sk(sk));
@@ -3068,26 +2650,10 @@ VSockVmciSkDestruct(struct sock *sk) // IN
    VSockVmciTestUnregister();
    up(&registrationMutex);
 
-#ifdef VSOCK_GATHER_STATISTICS
-   {
-      uint32 index;
-      for (index = 0; index < ARRAYSIZE(controlPacketCount); index++) {
-         Warning("Control packet count: Type = %u, Count = %"FMT64"u\n",
-                 index, controlPacketCount[index]);
-      }
 
-      for (index = 0; index < ARRAYSIZE(consumeQueueLevel); index++) {
-         Warning("Consume Bucket: %u Count: %"FMT64"u\n",
-                 index, consumeQueueLevel[index]);
-      }
+   VSOCK_STATS_CTLPKT_DUMP_ALL();
+   VSOCK_STATS_HIST_DUMP_ALL();
 
-      for (index = 0; index < ARRAYSIZE(produceQueueLevel); index++) {
-         Warning("Produce Bucket: %u Count: %"FMT64"u\n",
-                 index, produceQueueLevel[index]);
-      }
-
-   }
-#endif
 }
 
 
@@ -3204,23 +2770,7 @@ VSockVmciUnregisterProto(void)
    proto_unregister(&vsockVmciProto);
 #endif
 
-#ifdef VSOCK_GATHER_STATISTICS
-   {
-      uint32 index;
-      for (index = 0; index < ARRAYSIZE(controlPacketCount); index++) {
-         controlPacketCount[index] = 0;
-      }
-
-      for (index = 0; index < ARRAYSIZE(consumeQueueLevel); index++) {
-         consumeQueueLevel[index] = 0;
-      }
-
-      for (index = 0; index < ARRAYSIZE(produceQueueLevel); index++) {
-         produceQueueLevel[index] = 0;
-      }
-
-   }
-#endif
+   VSOCK_STATS_RESET();
 }
 
 
@@ -3265,9 +2815,11 @@ VSockVmciRegisterAddressFamily(void)
     * Create the datagram handle that we will use to send and receive all
     * VSocket control messages for this context.
     */
-   err = VMCIDatagram_CreateHnd(VSOCK_PACKET_RID, 0,
-                                VSockVmciRecvStreamCB, NULL, &vmciStreamHandle);
-   if (err != VMCI_SUCCESS ||
+    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID, 0,
+                                     VSockVmciRecvStreamCB, NULL,
+                                     &vmciStreamHandle,
+                                     TRUE);
+   if (err < 0 ||
        vmciStreamHandle.context == VMCI_INVALID_ID ||
        vmciStreamHandle.resource == VMCI_INVALID_ID) {
       Warning("Unable to create datagram handle. (%d)\n", err);
@@ -3393,7 +2945,7 @@ VSockVmciUnregisterAddressFamily(void)
  *----------------------------------------------------------------------------
  */
 
-static int64
+int64
 VSockVmciStreamHasData(VSockVmciSock *vsk) // IN
 {
    ASSERT(vsk);
@@ -3422,7 +2974,7 @@ VSockVmciStreamHasData(VSockVmciSock *vsk) // IN
  *----------------------------------------------------------------------------
  */
 
-static int64
+int64
 VSockVmciStreamHasSpace(VSockVmciSock *vsk) // IN
 {
    ASSERT(vsk);
@@ -3908,8 +3460,10 @@ VSockVmciPoll(struct file *file,    // IN
 {
    struct sock *sk;
    unsigned int mask;
+   VSockVmciSock *vsk;
 
    sk = sock->sk;
+   vsk = vsock_sk(sk);
 
    poll_wait(file, sk->compat_sk_sleep, wait);
    mask = 0;
@@ -3962,19 +3516,16 @@ VSockVmciPoll(struct file *file,    // IN
        */
       if (!VMCI_HANDLE_INVALID(vsk->qpHandle) &&
 	  !(sk->compat_sk_shutdown & RCV_SHUTDOWN)) {
-	 if (VSockVmciStreamHasData(vsk)) {
-	    mask |= POLLIN | POLLRDNORM;
-	 } else {
-	    /*
-	     * We can't read right now because there is nothing in the queue.
-	     * Notify the other size that we are waiting.
-	     */
-	    if (sk->compat_sk_state == SS_CONNECTED) {
-	       if (!VSockVmciSendWaitingRead(sk, 1)) {
-		  mask |= POLLERR;
-	       }
-	    }
-	 }
+         Bool dataReadyNow = FALSE;
+         int32 ret = 0;
+         NOTIFYCALLRET(vsk, ret, pollIn, sk, 1, &dataReadyNow);
+         if (ret < 0) {
+            mask |= POLLERR;
+         } else {
+            if (dataReadyNow) {
+               mask |= POLLIN | POLLRDNORM;
+            }
+         }
       }
 
       /*
@@ -3990,23 +3541,16 @@ VSockVmciPoll(struct file *file,    // IN
        */
       if (sk->compat_sk_state == SS_CONNECTED) {
 	 if (!(sk->compat_sk_shutdown & SEND_SHUTDOWN)) {
-	    int64 produceQFreeSpace =
-	       VSockVmciStreamHasSpace(vsk);
-	    if (produceQFreeSpace > 0) {
-	       mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
-	    } else if (produceQFreeSpace == 0) {
-	       /*
-		* This is a connected socket but we can't currently send data. Notify
-		* the peer that we are waiting if the queue is full.
-		* We only send a waiting write if the queue is full because otherwise
-		* we end up in an infinite WAITING_WRITE, READ, WAITING_WRITE, READ, etc.
-		* loop. Treat failing to send the notification as a socket error, passing
-		* that back through the mask.
-             */
-	       if (!VSockVmciSendWaitingWrite(sk, 1)) {
-		  mask |= POLLERR;
-	       }
-	    }
+            Bool spaceAvailNow = FALSE;
+            int32 ret = 0;
+            NOTIFYCALLRET(vsk, ret, pollOut, sk, 1, &spaceAvailNow);
+            if (ret < 0) {
+               mask |= POLLERR;
+            } else {
+               if (spaceAvailNow) {
+                  mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+               }
+            }
 	 }
       }
 
@@ -4482,10 +4026,8 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
    ssize_t totalWritten;
    long timeout;
    int err;
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   uint64 produceTail;
-   uint64 consumeHead;
-#endif
+   VSockVmciSendNotifyData sendData;
+
    COMPAT_DEFINE_WAIT(wait);
 
    sk = sock->sk;
@@ -4525,6 +4067,12 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
     * Wait for room in the produce queue to enqueue our user's data.
     */
    timeout = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
+
+   NOTIFYCALLRET(vsk, err, sendInit, sk, &sendData);
+   if (err < 0) {
+      goto out;
+   }
+
    compat_init_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
    while (totalWritten < len) {
@@ -4546,9 +4094,8 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
             goto outWait;
          }
 
-         /* Notify our peer that we are waiting for room to write. */
-         if (!VSockVmciSendWaitingWrite(sk, 1)) {
-            err = -EHOSTUNREACH;
+         NOTIFYCALLRET(vsk, err, sendPreBlock, sk, &sendData);
+         if (err < 0) {
             goto outWait;
          }
 
@@ -4582,16 +4129,17 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
 
       VSOCK_STATS_STREAM_PRODUCE_HIST(vsk);
 
+      NOTIFYCALLRET(vsk, err, sendPreEnqueue, sk, &sendData);
+      if (err < 0) {
+         goto outWait;
+      }
+
       /*
        * Note that enqueue will only write as many bytes as are free in the
        * produce queue, so we don't need to ensure len is smaller than the queue
        * size.  It is the caller's responsibility to check how many bytes we were
        * able to send.
        */
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-      VMCIQueue_GetPointers(vsk->produceQ, vsk->consumeQ,
-                            &produceTail, &consumeHead);
-#endif
 
       written = VMCIQueue_EnqueueV(vsk->produceQ, vsk->consumeQ,
                                    vsk->produceSize, msg->msg_iov,
@@ -4601,44 +4149,11 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
          goto outWait;
       }
 
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-      /*
-       * Detect a wrap-around to maintain queue generation.  Note that this is
-       * safe since we hold the socket lock across the two queue pair
-       * operations.
-       */
-      if (written >= vsk->produceSize - produceTail) {
-         vsk->produceQGeneration++;
-      }
-#endif
-
       totalWritten += written;
 
-      if (VSockVmciNotifyWaitingRead(vsk)) {
-         /*
-          * Notify the peer that we have written, retrying the send on failure up to
-          * our maximum value. See the XXX comment for the corresponding piece of
-          * code in StreamRecvmsg() for potential improvements.
-          */
-         while (!(vsk->peerShutdown & RCV_SHUTDOWN) &&
-                !sentWrote &&
-                retries < VSOCK_MAX_DGRAM_RESENDS) {
-            err = VSOCK_SEND_WROTE(sk);
-            if (err >= 0) {
-               sentWrote = TRUE;
-            }
-
-            retries++;
-         }
-
-         if (retries >= VSOCK_MAX_DGRAM_RESENDS) {
-            Warning("unable to send wrote notification to peer for socket %p.\n", sk);
-            goto outWait;
-         } else {
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-            vsk->peerWaitingRead = FALSE;
-#endif
-         }
+      NOTIFYCALLRET(vsk, err, sendPostEnqueue, sk, written, &sendData);
+      if (err < 0) {
+         goto outWait;
       }
    }
 
@@ -4821,29 +4336,17 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    VSockVmciSock *vsk;
    int err;
    int target;
+   ssize_t copied;
    int64 ready;
    long timeout;
-   ssize_t copied;
-   Bool sentRead;
-   unsigned int retries;
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   uint64 consumeHead;
-   uint64 produceTail;
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-   Bool notifyOnBlock;
-#endif
-#endif
+
+   VSockVmciRecvNotifyData recvData;
 
    COMPAT_DEFINE_WAIT(wait);
 
    sk = sock->sk;
    vsk = vsock_sk(sk);
    err = 0;
-   retries = 0;
-   sentRead = FALSE;
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-   notifyOnBlock = FALSE;
-#endif
 
    lock_sock(sk);
 
@@ -4885,24 +4388,10 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
    copied = 0;
 
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-   if (vsk->writeNotifyMinWindow < target + 1) {
-      ASSERT(target < vsk->consumeSize);
-      vsk->writeNotifyMinWindow = target + 1;
-      if (vsk->writeNotifyWindow < vsk->writeNotifyMinWindow) {
-         /*
-          * If the current window is smaller than the new minimal
-          * window size, we need to reevaluate whether we need to
-          * notify the sender. If the number of ready bytes are
-          * smaller than the new window, we need to send a
-          * notification to the sender before we block.
-          */
-
-         vsk->writeNotifyWindow = vsk->writeNotifyMinWindow;
-         notifyOnBlock = TRUE;
-      }
+   NOTIFYCALLRET(vsk, err, recvInit, sk, target, &recvData);
+   if (err < 0) {
+      goto out;
    }
-#endif
 
    compat_init_prepare_to_wait(sk->compat_sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
@@ -4927,21 +4416,10 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
          goto outWait;
       }
 
-      /* Notify our peer that we are waiting for data to read. */
-      if (!VSockVmciSendWaitingRead(sk, target)) {
-         err = -EHOSTUNREACH;
+      NOTIFYCALLRET(vsk, err, recvPreBlock, sk, target, &recvData);
+      if (err < 0) {
          goto outWait;
       }
-
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-      if (notifyOnBlock) {
-         err = VSockVmciSendReadNotification(sk);
-         if (err < 0) {
-            goto outWait;
-         }
-         notifyOnBlock = FALSE;
-      }
-#endif
 
       release_sock(sk);
       timeout = schedule_timeout(timeout);
@@ -4972,14 +4450,10 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
 
    VSOCK_STATS_STREAM_CONSUME_HIST(vsk);
 
-   /*
-    * Now consume up to len bytes from the queue.  Note that since we have the
-    * socket locked we should copy at least ready bytes.
-    */
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VMCIQueue_GetPointers(vsk->consumeQ, vsk->produceQ,
-                         &produceTail, &consumeHead);
-#endif
+   NOTIFYCALLRET(vsk, err, recvPreDequeue, sk, target, &recvData);
+   if (err < 0) {
+      goto outWait;
+   }
 
    if (flags & MSG_PEEK) {
       copied = VMCIQueue_PeekV(vsk->produceQ, vsk->consumeQ,
@@ -5001,16 +4475,6 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
     * copied something out of the queue pair instead of just peeking ahead.
     */
    if (!(flags & MSG_PEEK)) {
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-      /*
-       * Detect a wrap-around to maintain queue generation.  Note that this is
-       * safe since we hold the socket lock across the two queue pair
-       * operations.
-       */
-      if (copied >= vsk->consumeSize - consumeHead) {
-         vsk->consumeQGeneration++;
-      }
-#endif
 
       /*
        * If the other side has shutdown for sending and there is nothing more to
@@ -5025,11 +4489,12 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
             sk->compat_sk_state_change(sk);
          }
       }
+   }
 
-      err = VSockVmciSendReadNotification(sk);
-      if (err < 0) {
-         goto outWait;
-      }
+   NOTIFYCALLRET(vsk, err, recvPostDequeue, sk, target, copied,
+                 !(flags & MSG_PEEK), &recvData);
+   if (err < 0) {
+      goto outWait;
    }
 
    ASSERT(copied <= INT_MAX);
@@ -5096,9 +4561,9 @@ VSockVmciCreate(struct net *net,      // IN
    sock->state = SS_UNCONNECTED;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-   return __VSockVmciCreate(sock, GFP_KERNEL, 0) ? 0 : -ENOMEM;
+   return __VSockVmciCreate(sock, NULL, GFP_KERNEL, 0) ? 0 : -ENOMEM;
 #else
-   return __VSockVmciCreate(net, sock, GFP_KERNEL, 0) ? 0 : -ENOMEM;
+   return __VSockVmciCreate(net, sock, NULL, GFP_KERNEL, 0) ? 0 : -ENOMEM;
 #endif
 }
 

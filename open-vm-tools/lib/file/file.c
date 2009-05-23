@@ -2157,4 +2157,43 @@ File_ExpandAndCheckDir(const char *dirName)
    return NULL;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileSleeper
+ *
+ *	Sleep for the specified number of milliseconds plus some "slop time".
+ *      The "slop time" is added to provide some "jitter" on retries such
+ *      that two or more threads don't easily get into resonance.
+ *
+ * Results:
+ *      Sonambulistic behavior
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+FileSleeper(uint32 msecSleepTime)  // IN:
+{
+   static uint32 rng = 0;
+
+   rng = 1103515245*rng + 12345;  // simple, noisy RNG
+
+   /* Add some "slop" to the sleep time */
+   if (msecSleepTime < 50) {
+      msecSleepTime += rng & 1;
+   } else {
+      msecSleepTime += rng & 3;
+   }
+
+#if defined(_WIN32)
+   Sleep(msecSleepTime);
+#else
+   usleep(1000 * msecSleepTime);
+#endif
+}
 #endif // N_PLAT_NLM

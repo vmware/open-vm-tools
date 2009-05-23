@@ -55,7 +55,7 @@ extern "C" {
 #include "dnd.h"
 #include "syncDriver.h"
 #include "str.h"
-#include "guestApp.h" // for ALLOW_TOOLS_IN_FOREIGN_VM
+#include "guestApp.h"
 #include "unity.h"
 #include "ghIntegration.h"
 #include "resolution.h"
@@ -97,12 +97,6 @@ Bool VMwareUserRpcInCapRegCB   (char const **result, size_t *resultLen,
                                 const char *name, const char *args,
                                 size_t argsSize, void *clientData);
 void VMwareUserRpcInErrorCB    (void *clientdata, char const *status);
-
-extern "C" {
-extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam,
-                                    DblLnkLst_Links *eventQueue);
-extern void ForeignTools_Shutdown(void);
-}
 
 static Bool InitGroupLeader(Window *groupLeader, Window *rootWindow);
 static Bool AcquireDisplayLock(void);
@@ -770,12 +764,8 @@ main(int argc, char *argv[])
    Atomic_Init();
 
    if (!VmCheck_IsVirtualWorld()) {
-#ifndef ALLOW_TOOLS_IN_FOREIGN_VM
       Warning("vmware-user must be run inside a virtual machine.\n");
       return EXIT_SUCCESS;
-#else
-      runningInForeignVM = TRUE;
-#endif
    }
 
    confDict = Conf_Load();
@@ -914,13 +904,6 @@ main(int argc, char *argv[])
       p->SetGHWnd(gGHWnd);
    }
 
-   if (runningInForeignVM) {
-      Bool success = ForeignTools_Initialize(confDict, gEventQueue);
-      if (!success) {
-         return EXIT_FAILURE;
-      }
-   }
-
    EventManager_Add(gEventQueue, CONF_POLL_TIME, VMwareUserConfFileLoop,
                     &confDict);
 
@@ -1006,10 +989,6 @@ main(int argc, char *argv[])
          }
          gYieldBlock = FALSE;
       }
-   }
-
-   if (runningInForeignVM) {
-      ForeignTools_Shutdown();
    }
 
    Signal_ResetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals));

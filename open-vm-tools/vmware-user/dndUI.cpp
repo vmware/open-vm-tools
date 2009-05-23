@@ -68,7 +68,6 @@ DnDUI::DnDUI(DblLnkLst_Links *eventQueue)
       m_unityMode(false),
       m_inHGDrag(false),
       m_effect(DROP_UNKNOWN),
-      m_needsBlock(false),
       m_isFileDnD(false)
 {
    Debug("%s: enter\n", __FUNCTION__);
@@ -171,6 +170,8 @@ DnDUI::Init()
       sigc::mem_fun(this, &DnDUI::UpdateUnityDetWndCB));
    m_DnD->sourceCancelChanged.connect(
       sigc::mem_fun(this, &DnDUI::SourceCancelCB));
+   m_DnD->ghCancel.connect(
+      sigc::mem_fun(this, &DnDUI::GHCancelCB));
    m_DnD->sourceDropChanged.connect(
       sigc::mem_fun(this, &DnDUI::SourceDropCB));
 
@@ -180,6 +181,8 @@ DnDUI::Init()
       sigc::mem_fun(this, &DnDUI::LocalDragEndCB));
    m_detWnd->signal_drag_drop().connect(
       sigc::mem_fun(this, &DnDUI::LocalDragDropCB));
+   m_detWnd->signal_drag_begin().connect(
+      sigc::mem_fun(this, &DnDUI::LocalDragBeginCB));
 
    UpdateDetWndCB(false, 0, 0);
    UpdateUnityDetWndCB(false, 0);
@@ -365,7 +368,6 @@ DnDUI::RemoteDragStartCB(const CPClipboard *clip, std::string stagingDir)
    /* Tell Gtk that a drag should be started from this widget. */
    m_detWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
    m_blockAdded = false;
-   m_needsBlock = false;
    m_isFileDnD = false;
    SourceDragStartDone();
 }
@@ -618,6 +620,21 @@ DnDUI::SourceCancelCB(void)
 {
    Debug("%s: entering\n", __FUNCTION__);
    m_inHGDrag = false;
+   m_HGGetDataInProgress = false;
+   m_effect = DROP_UNKNOWN;
+   RemoveBlock();
+}
+
+
+/**
+ *
+ * Cancel current GH DnD.
+ */
+
+void
+DnDUI::GHCancelCB(void)
+{
+   ResetUIStateCB();
 }
 
 
@@ -630,12 +647,8 @@ DnDUI::SourceCancelCB(void)
 void
 DnDUI::SourceDropCB(void)
 {
+   Debug("%s: enter\n", __FUNCTION__);
    m_inHGDrag = false;
-
-   if (m_needsBlock) {
-      AddBlock();
-      m_needsBlock = false;
-   }
 }
 
 
@@ -657,7 +670,6 @@ DnDUI::GetLocalFilesDoneCB(bool success,
    stagingDir.clear();
    Reset();
    m_HGGetDataInProgress = false;
-   RemoveBlock();
 }
 
 
@@ -832,16 +844,6 @@ DnDUI::LocalDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
    }
    if (result != as.end()) {
       Debug("%s: found re-entrant drop target, pid %s\n", __FUNCTION__, pid );
-      if (m_GHDnDDataReceived) {
-         Debug("%s: re-entrant calling SetMouse()\n", __FUNCTION__);
-         m_DnD->SetMouse(x, y, true);
-      } else {
-         Debug("%s: re-entrant calling DragEnter()\n", __FUNCTION__);
-         m_localDragLeaveTimer.disconnect();
-         m_DnD->DragEnter(NULL);
-         m_GHDnDDataReceived = true;
-         m_VMIsSource = true;
-      }
       return true;
    }
 
@@ -929,38 +931,24 @@ void
 DnDUI::LocalDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc, guint time)
 {
    Debug("%s: enter\n", __FUNCTION__);
-   m_localDragLeaveTimer.disconnect();
-   m_localDragLeaveTimer = Glib::signal_timeout().connect(
-      sigc::bind_return(sigc::mem_fun(this, &DnDUI::LocalDragLeaveTimeout), false),
-      DRAG_LEAVE_TIMEOUT);
    m_feedbackChanged.disconnect();
    dc->drag_finish(true, dc->get_action() == Gdk::ACTION_MOVE, time);
+   ResetUIStateCB();
 }
 
 
 /**
  *
- * Gtk emits "drag_leave" both when the mouse leaves our widget (in which
- * case we should cancel the in progress dnd operation), and as part
- * of a "drag_drop" (in which case our drag_leave handler should NOT
- * cancel the operation. The trouble is, our drag_leave handler does not
- * have enough information to determine whether it's dealing with a
- * real leave or a drop. So, the drag_leave handler sets a timeout which
- * calls this function when it expires.
+ * "drag_begin" signal handler for GTK.
+ * Added to help understand Gtk+ state when looking at logs.
  *
- * If this function is called, it means a previous "drag_leave" signal is
- * really a leave and we should clean up the in-progress drag operation.
- *
- * @note side effects: cancel the drop operation and tell the host to
- * cancel its drop operation.
+ * @param[in] context drag context
  */
 
 void
-DnDUI::LocalDragLeaveTimeout(void)
+DnDUI::LocalDragBeginCB(const Glib::RefPtr<Gdk::DragContext>& context)
 {
    Debug("%s: enter\n", __FUNCTION__);
-   m_DnD->DragLeave(0, 0);
-   ResetUIStateCB();
 }
 
 
@@ -987,7 +975,6 @@ DnDUI::LocalDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    Glib::ustring target;
 
-   m_localDragLeaveTimer.disconnect();
    target = m_detWnd->drag_dest_find_target(dc);
 
    if (m_VMIsSource) {
@@ -1045,6 +1032,12 @@ DnDUI::LocalDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    const utf::string target = selection_data.get_target().c_str();
 
+   Debug("%s: enter\n", __FUNCTION__);
+
+   if (!m_inHGDrag) {
+      Debug("%s: not in drag, return\n", __FUNCTION__);
+   }
+
    if (target == DRAG_TARGET_NAME_URI_LIST &&
        CPClipboard_GetItem(&m_clipboard, CPFORMAT_FILELIST, &buf, &sz)) {
 
@@ -1088,10 +1081,30 @@ DnDUI::LocalDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
          }
       }
 
-      m_HGGetDataInProgress = true;
+      /*
+       * This seems to be the best place to do the blocking. If we do
+       * it in the source drop callback from the DnD layer, we often
+       * find ourselves adding the block too late; the user will (in
+       * GNOME, in the dest) be told that it could not find the file,
+       * and if you click retry, it is there, meaning the block was
+       * added too late).
+       *
+       * We find ourselves in this callback twice for each H->G DnD.
+       * We *must* always set the selection data, when called, or else
+       * the DnD for that context will fail, but we *must not* add the
+       * block twice or else things get confused. So we add a check to
+       * see if we are in the right state (no block yet added, and we
+       * are in a HG drag still, both must be true) when adding the block.
+       * Doing both of these addresses bug
+       * http://bugzilla.eng.vmware.com/show_bug.cgi?id=391661.
+       */
+      if (!m_blockAdded && m_inHGDrag) {
+         m_HGGetDataInProgress = true;
+         m_isFileDnD = true;
+         AddBlock();
+      }
       selection_data.set(DRAG_TARGET_NAME_URI_LIST, uriList.c_str());
-      m_needsBlock = true;
-      m_isFileDnD = true;
+      Debug("%s: exit\n", __FUNCTION__);
       return;
    }
 
@@ -1204,7 +1217,6 @@ DnDUI::LocalDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
    if (!m_GHDnDDataReceived) {
       Debug("%s: Drag entering.\n", __FUNCTION__);
       m_GHDnDDataReceived = true;
-      m_localDragLeaveTimer.disconnect();
       TargetDragEnter();
       m_feedbackChanged = m_DnD->updateFeedbackChanged.connect(
          sigc::bind(sigc::mem_fun(this, &DnDUI::SourceFeedbackChangedCB), dc));
@@ -1615,6 +1627,10 @@ DnDUI::GetDetWndAsWidget(const bool full)
 void
 DnDUI::AddBlock()
 {
+   if (m_blockAdded) {
+      Debug("%s: block already added\n", __FUNCTION__);
+      return;
+   }
    if (DnD_BlockIsReady(m_blockCtrl) && m_blockCtrl->AddBlock(m_blockCtrl->fd, m_HGStagingDir.c_str())) {
       m_blockAdded = true;
       Debug("%s: add block for %s.\n", __FUNCTION__, m_HGStagingDir.c_str());
@@ -1635,10 +1651,16 @@ DnDUI::AddBlock()
 void
 DnDUI::RemoveBlock()
 {
+   Debug("%s: enter\n", __FUNCTION__);
    if (m_blockAdded && !m_HGGetDataInProgress) {
       Debug("%s: removing block for %s\n", __FUNCTION__, m_HGStagingDir.c_str());
       m_blockCtrl->RemoveBlock(m_blockCtrl->fd, m_HGStagingDir.c_str());
       m_blockAdded = false;
+   } else {
+      Debug("%s: not removing block m_blockAdded %d m_HGGetDataInProgress %d\n",
+            __FUNCTION__,
+            m_blockAdded,
+            m_HGGetDataInProgress);
    }
 }
 

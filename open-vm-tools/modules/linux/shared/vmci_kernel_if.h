@@ -80,6 +80,7 @@
   typedef SP_IRQL VMCILockFlags;
   typedef Semaphore VMCIEvent;
   typedef Semaphore VMCIMutex;
+  typedef World_ID VMCIHostVmID;
 #elif defined(linux)
   typedef spinlock_t VMCILock;
   typedef unsigned long VMCILockFlags;
@@ -219,6 +220,9 @@ Bool VMCIHost_WaitForCallLocked(VMCIHost *hostContext,
                                 VMCILock *lock,
                                 VMCILockFlags *flags,
                                 Bool useBH);
+#ifdef VMKERNEL
+int VMCIHost_ContextToHostVmID(VMCIHost *hostContext, VMCIHostVmID *hostVmID);
+#endif
 
 void *VMCI_AllocKernelMem(size_t size, int flags);
 void VMCI_FreeKernelMem(void *ptr, size_t size);
@@ -290,7 +294,9 @@ void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach);
 int VMCIHost_FinishAttach(struct PageStoreAttachInfo *attach,
                           struct VMCIQueue *produceQ,
 			  struct VMCIQueue *detachQ);
-void VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach);
+void VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach,
+                             struct VMCIQueue *produceQ,
+                             struct VMCIQueue *detachQ);
 #endif
 
 

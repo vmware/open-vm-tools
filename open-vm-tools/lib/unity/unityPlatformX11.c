@@ -3019,3 +3019,58 @@ UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
       }
    }
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Unity_UnityToLocalPoint --
+ *
+ *      Initializes localPt structure based on the input unityPt structure.
+ *      Translate point from Unity coordinate to local coordinate.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *----------------------------------------------------------------------------
+ */
+
+void
+Unity_UnityToLocalPoint(UnityPoint *localPt, // IN/OUT
+                        UnityPoint *unityPt) // IN
+{
+   ASSERT(localPt);
+   ASSERT(unityPt);
+   localPt->x = unityPt->x;
+   localPt->y = unityPt->y;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Unity_LocalToUnityPoint --
+ *
+ *      Initializes unityPt structure based on the input localPt structure.
+ *      Translate point from local coordinate to Unity coordinate.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *----------------------------------------------------------------------------
+ */
+
+void
+Unity_LocalToUnityPoint(UnityPoint *unityPt, // IN/OUT
+                        UnityPoint *localPt) // IN
+{
+   ASSERT(unityPt);
+   ASSERT(localPt);
+   unityPt->x = localPt->x;
+   unityPt->y = localPt->y;
+}
+

@@ -60,6 +60,10 @@ INCLUDE += $(shell $(CC) $(CC_OPTS) $(INCLUDE) \
 	   -E $(AUTOCONF_DIR)/geninclude.c \
 	   | sed -n -e 's!^APATH!-I$(HEADER_DIR)/asm!p')
 
+ifdef OVT_SOURCE_DIR
+INCLUDE += -I$(OVT_SOURCE_DIR)/modules/shared/vmxnet
+endif
+
 CC_OPTS += $(call vm_check_build, $(AUTOCONF_DIR)/skblin.c, -DVMW_SKB_LINEARIZE_2618, )
 
 OBJS := vmxnet.o

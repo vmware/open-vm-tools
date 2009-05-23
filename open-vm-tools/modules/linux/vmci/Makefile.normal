@@ -80,6 +80,17 @@ LIBS :=
 
 default: all
 
+#
+# In open-vm-tools, need to compile the common sources from the lib directory.
+#
+ifdef OVT_SOURCE_DIR
+kernelStubsLinux.o: $(OVT_SOURCE_DIR)/modules/linux/shared/kernelStubsLinux.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+else
+kernelStubsLinux.o: shared/kernelStubsLinux.c
+	$(CC) $(CC_OPTS) $(INCLUDE) -c $<
+endif
+
 all: $(DRIVER).o
 
 $(DRIVERNAME): $(OBJS)

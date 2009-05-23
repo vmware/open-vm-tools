@@ -85,7 +85,7 @@ Devices_DeviceStatus(char *devName)  // IN: Device Name
    for (i = 0; i < MAX_DEVICES; i++) {
       RD_Info info;
       if (GuestApp_GetDeviceInfo(i, &info)
-          && strcmp(info.name, devName) == 0) {
+          && toolbox_strcmp(info.name, devName) == 0) {
          printf("%s\n", info.enabled ? "Enabled" : "Disabled");
          return EXIT_SUCCESS;
       }
@@ -124,7 +124,7 @@ DevicesSetStatus(char *devName,  // IN: device name
    for (dev_id = 0; dev_id < MAX_DEVICES; dev_id++) {
       RD_Info info;
       if (GuestApp_GetDeviceInfo(dev_id, &info)
-	  && strcmp(info.name, devName) == 0) {
+	  && toolbox_strcmp(info.name, devName) == 0) {
          if (!GuestApp_SetDeviceState(dev_id, enable)) {
             fprintf(stderr, "Unable to %s device %s\n", enable ? "connect"
                     : "disconnect", info.name);

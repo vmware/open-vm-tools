@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libtimeSync.la
+plugindir = @VMSVC_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libtimeSync.la
 
 libtimeSync_la_CPPFLAGS =
 libtimeSync_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -28,8 +29,4 @@ libtimeSync_la_LIBADD += @VMTOOLS_LIBS@
 
 libtimeSync_la_SOURCES =
 libtimeSync_la_SOURCES += timeSync.c
-
-install-exec-local:
-	mkdir -p $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libtimeSync.so $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
 

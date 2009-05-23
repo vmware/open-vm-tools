@@ -60,7 +60,7 @@ static Atomic_Ptr errPtrTable;
 				       HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL)
 #define PTRTABLE() HashTable_AllocOnce(&errPtrTable, HASHTABLE_SIZE, \
 				       HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL)
-#ifdef VMX86_DEBUG
+#if defined VMX86_DEBUG && defined __linux__
 Atomic_Ptr errStrTable;
 #define STRTABLE() HashTable_AllocOnce(&errStrTable, HASHTABLE_SIZE, \
 				       HASH_STRING_KEY | HASH_FLAG_ATOMIC, \
@@ -184,7 +184,7 @@ Err_Errno2String(Err_Number errorNumber) // IN
    oldInfo = HashTable_LookupOrInsert(ptrTable, info->string, info);
    ASSERT(oldInfo == info);
 
-#ifdef VMX86_DEBUG
+#if defined VMX86_DEBUG && defined __linux__
    {
       HashTable *strTable = STRTABLE();
       ErrInfo *i = HashTable_LookupOrInsert(strTable, info->string, info);
@@ -256,6 +256,7 @@ Err_String2Errno(const char *string) // IN
 Err_Number
 Err_String2ErrnoDebug(const char *string) // IN
 {
+#ifdef __linux__
    HashTable *strTable = STRTABLE();
    ErrInfo *info;
 
@@ -270,5 +271,8 @@ Err_String2ErrnoDebug(const char *string) // IN
 	  __FUNCTION__, info->number, string, string, info->string);
    }
    return info->number;
+#else
+   return ERR_INVALID;
+#endif
 }
 #endif

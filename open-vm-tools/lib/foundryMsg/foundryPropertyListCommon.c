@@ -112,8 +112,15 @@ VixPropertyList_RemoveAllWithoutHandles(VixPropertyListImpl *propList)   // IN
       propList->properties = property->next;
 
       if (VIX_PROPERTYTYPE_STRING == property->type) {
+         if (property->isSensitive) {
+            Util_ZeroString(property->value.strValue);
+         }
          free(property->value.strValue);
       } else if (VIX_PROPERTYTYPE_BLOB == property->type) {
+         if (property->isSensitive) {
+            Util_Zero(property->value.blobValue.blobContents,
+                      property->value.blobValue.blobSize);
+         }
          free(property->value.blobValue.blobContents);
       }
       
@@ -713,6 +720,7 @@ VixPropertyListAppendProperty(VixPropertyListImpl *propList,   // IN
    property->type = type;
    property->propertyID = propertyID;
    property->isDirty = TRUE;
+   property->isSensitive = FALSE;
 
    /*
     * We only have to initialize the values that we release, so

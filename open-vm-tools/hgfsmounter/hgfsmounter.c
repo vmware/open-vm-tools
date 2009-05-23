@@ -1069,8 +1069,13 @@ main(int argc,          // IN
    mountInfo.uidSet = FALSE;
    mountInfo.gidSet = FALSE;
    mountInfo.ttl = HGFS_DEFAULT_TTL;
+#if defined(__APPLE__)
+   strlcpy(mountInfo.shareNameHost, shareNameHost, MAXPATHLEN);
+   strlcpy(mountInfo.shareNameDir, shareNameDir, MAXPATHLEN);
+#else
    mountInfo.shareNameHost = shareNameHost;
    mountInfo.shareNameDir = shareNameDir;
+#endif
 #endif
 
    /*

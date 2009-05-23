@@ -143,6 +143,7 @@ typedef struct HgfsSuperInfo {
    struct mount *vfsp;                  /* Our filesystem structure */
    struct vnode *rootVnode;             /* Root vnode of the filesystem */
    HgfsFileHashTable fileHashTable;     /* File hash table */
+   char volumeName[MAXPATHLEN];         /* Name of the volume or share. */
 } HgfsSuperInfo;
 
 

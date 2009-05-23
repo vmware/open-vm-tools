@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libpowerOps.la
+plugindir = @VMSVC_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libpowerOps.la
 
 libpowerOps_la_CPPFLAGS =
 libpowerOps_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -28,8 +29,4 @@ libpowerOps_la_LIBADD += @VMTOOLS_LIBS@
 
 libpowerOps_la_SOURCES =
 libpowerOps_la_SOURCES += powerOps.c
-
-install-exec-local:
-	mkdir -p $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libpowerOps.so $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
 

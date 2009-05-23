@@ -104,8 +104,6 @@ typedef HRESULT (WINAPI *PSHGETFOLDERPATH)(HWND, int, HANDLE, DWORD, LPWSTR);
 static PSHGETFOLDERPATH pfnSHGetFolderPath = NULL;
 #endif
 
-Bool runningInForeignVM = FALSE;
-
 
 /*
  *----------------------------------------------------------------------
@@ -538,15 +536,11 @@ GuestApp_OldGetOptions(void)
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      return(0);
-   } else {
-      Debug("Retrieving tools options (old)\n");
+   Debug("Retrieving tools options (old)\n");
 
-      bp.in.cx.halfs.low = BDOOR_CMD_GETGUIOPTIONS;
-      Backdoor(&bp);
-      return bp.out.ax.word;
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_GETGUIOPTIONS;
+   Backdoor(&bp);
+   return bp.out.ax.word;
 }
 
 
@@ -571,13 +565,11 @@ GuestApp_OldSetOptions(uint32 options) // IN
 {
    Backdoor_proto bp;
 
-   if (!runningInForeignVM) {
-      Debug("Setting tools options (old)\n");
+   Debug("Setting tools options (old)\n");
 
-      bp.in.cx.halfs.low = BDOOR_CMD_SETGUIOPTIONS;
-      bp.in.size = options;
-      Backdoor(&bp);
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_SETGUIOPTIONS;
+   bp.in.size = options;
+   Backdoor(&bp);
 }
 
 
@@ -1197,14 +1189,12 @@ GuestApp_GetAbsoluteMouseState(void)
    Backdoor_proto bp;
    GuestAppAbsoluteMouseState state = GUESTAPP_ABSMOUSE_UNKNOWN;
 
-   if (!runningInForeignVM) {
-      bp.in.cx.halfs.low = BDOOR_CMD_ISMOUSEABSOLUTE;
-      Backdoor(&bp);
-      if (bp.out.ax.word == 0) {
-         state = GUESTAPP_ABSMOUSE_UNAVAILABLE;
-      } else if (bp.out.ax.word == 1) {
-         state = GUESTAPP_ABSMOUSE_AVAILABLE;
-      }
+   bp.in.cx.halfs.low = BDOOR_CMD_ISMOUSEABSOLUTE;
+   Backdoor(&bp);
+   if (bp.out.ax.word == 0) {
+      state = GUESTAPP_ABSMOUSE_UNAVAILABLE;
+   } else if (bp.out.ax.word == 1) {
+      state = GUESTAPP_ABSMOUSE_AVAILABLE;
    }
 
    return state;
@@ -1313,15 +1303,10 @@ GuestApp_GetPos(int16 *x, // OUT
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      *x = 0;
-      *y = 0;
-   } else {
-      bp.in.cx.halfs.low = BDOOR_CMD_GETPTRLOCATION;
-      Backdoor(&bp);
-      *x = bp.out.ax.word >> 16;
-      *y = bp.out.ax.word;
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_GETPTRLOCATION;
+   Backdoor(&bp);
+   *x = bp.out.ax.word >> 16;
+   *y = bp.out.ax.word;
 }
 
 
@@ -1348,11 +1333,9 @@ GuestApp_SetPos(uint16 x, // IN
 {
    Backdoor_proto bp;
 
-   if (!runningInForeignVM) {
-      bp.in.cx.halfs.low = BDOOR_CMD_SETPTRLOCATION;
-      bp.in.size = (x << 16) | y;
-      Backdoor(&bp);
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_SETPTRLOCATION;
+   bp.in.size = (x << 16) | y;
+   Backdoor(&bp);
 }
 
 
@@ -1389,13 +1372,9 @@ GuestApp_GetHostSelectionLen(void)
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      return(0);
-   } else {
-      bp.in.cx.halfs.low = BDOOR_CMD_GETSELLENGTH;
-      Backdoor(&bp);
-      return bp.out.ax.word;
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_GETSELLENGTH;
+   Backdoor(&bp);
+   return bp.out.ax.word;
 }
 
 
@@ -1420,13 +1399,9 @@ GuestAppGetNextPiece(void)
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      return(0); 
-   } else {
-      bp.in.cx.halfs.low = BDOOR_CMD_GETNEXTPIECE;
-      Backdoor(&bp);
-      return bp.out.ax.word;
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_GETNEXTPIECE;
+   Backdoor(&bp);
+   return bp.out.ax.word;
 }
 
 
@@ -1484,11 +1459,9 @@ GuestApp_SetSelLength(uint32 length) // IN
 {
    Backdoor_proto bp;
 
-   if (!runningInForeignVM) {
-      bp.in.cx.halfs.low = BDOOR_CMD_SETSELLENGTH;
-      bp.in.size = length;
-      Backdoor(&bp);
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_SETSELLENGTH;
+   bp.in.size = length;
+   Backdoor(&bp);
 }
 
 
@@ -1513,11 +1486,9 @@ GuestApp_SetNextPiece(uint32 data) // IN
 {
    Backdoor_proto bp;
 
-   if (!runningInForeignVM) {
-      bp.in.cx.halfs.low = BDOOR_CMD_SETNEXTPIECE;
-      bp.in.size = data;
-      Backdoor(&bp);
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_SETNEXTPIECE;
+   bp.in.size = data;
+   Backdoor(&bp);
 }
 
 
@@ -1544,14 +1515,10 @@ GuestApp_SetDeviceState(uint16 id,      // IN: Device ID
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      return(TRUE);
-   } else {
-      bp.in.cx.halfs.low = BDOOR_CMD_TOGGLEDEVICE;
-      bp.in.size = (connected ? 0x80000000 : 0) | id;
-      Backdoor(&bp);
-      return bp.out.ax.word ? TRUE : FALSE;
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_TOGGLEDEVICE;
+   bp.in.size = (connected ? 0x80000000 : 0) | id;
+   Backdoor(&bp);
+   return bp.out.ax.word ? TRUE : FALSE;
 }
 
 
@@ -1586,19 +1553,14 @@ GuestAppGetDeviceListElement(uint16 id,     // IN : Device ID
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      *data = 0;
-      return TRUE;
-   } else {
-      bp.in.cx.halfs.low = BDOOR_CMD_GETDEVICELISTELEMENT;
-      bp.in.size = (id << 16) | offset;
-      Backdoor(&bp);
-      if (bp.out.ax.word == FALSE) {
-         return FALSE;
-      }
-      *data = bp.out.bx.word;
-      return TRUE;
+   bp.in.cx.halfs.low = BDOOR_CMD_GETDEVICELISTELEMENT;
+   bp.in.size = (id << 16) | offset;
+   Backdoor(&bp);
+   if (bp.out.ax.word == FALSE) {
+      return FALSE;
    }
+   *data = bp.out.bx.word;
+   return TRUE;
 }
 
 
@@ -1675,14 +1637,10 @@ GuestApp_HostCopyStep(uint8 c) // IN
 {
    Backdoor_proto bp;
 
-   if (runningInForeignVM) {
-      return(0);
-   } else {
-      bp.in.cx.halfs.low = BDOOR_CMD_HOSTCOPY;
-      bp.in.size = c;
-      Backdoor(&bp);
-      return bp.out.ax.word;
-   }
+   bp.in.cx.halfs.low = BDOOR_CMD_HOSTCOPY;
+   bp.in.size = c;
+   Backdoor(&bp);
+   return bp.out.ax.word;
 }
 
 

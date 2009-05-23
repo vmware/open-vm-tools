@@ -39,6 +39,15 @@ KLDMOD	= t
 NOOBJ   = 1
 NO_OBJ  = 1
 
+.ifdef OVT_SOURCE_DIR
+   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
+   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/backdoor
+   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/freebsd/shared
+   VPATH  := $(OVT_SOURCE_DIR)/lib/backdoor
+.else
+   CFLAGS += -Ishared
+.endif
+
 .include <bsd.kmod.mk>
 
 .ifndef VERBOSE

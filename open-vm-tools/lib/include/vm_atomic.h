@@ -1906,6 +1906,17 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    typedef Atomic_uint ## size Atomic_ ## name;                               \
                                                                               \
                                                                               \
+   static INLINE void                                                         \
+   AtomicAssertOnCompile ## name(void)                                        \
+   {                                                                          \
+      enum { AssertOnCompileMisused =    8 * sizeof (in) == size              \
+                                      && 8 * sizeof (out) == size             \
+                                      && 8 * sizeof (cast) == size            \
+                                         ? 1 : -1 };                          \
+      typedef char AssertOnCompileFailed[AssertOnCompileMisused];             \
+   }                                                                          \
+                                                                              \
+                                                                              \
    static INLINE out                                                          \
    Atomic_Read ## name(Atomic_ ## name const *var)                            \
    {                                                                          \
@@ -2064,11 +2075,10 @@ Atomic_Write64(Atomic_uint64 *var, // IN
  */
 #if defined(__x86_64__)
 MAKE_ATOMIC_TYPE(Ptr, 64, void const *, void *, uintptr_t)
-MAKE_ATOMIC_TYPE(Int, 64, int, int, int)
 #else
 MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
-MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 #endif
+MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 
 
 /*

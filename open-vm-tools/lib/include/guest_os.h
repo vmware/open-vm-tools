@@ -31,6 +31,7 @@
  * vmcore/vmx/main/monitorControl.c, or similar. Don't rely on every supported
  * guest having an entry in this list.
  */
+
 typedef enum GuestOSType {
    GUEST_OS_BASE                = 0x5000,
 
@@ -81,6 +82,10 @@ typedef enum GuestOSType {
    GUEST_OS_UNIXWARE7           = GUEST_OS_BASE + 44,
    GUEST_OS_DEBIAN45            = GUEST_OS_BASE + 45,
    GUEST_OS_DEBIAN45_64         = GUEST_OS_BASE + 46,
+   GUEST_OS_WINSEVEN            = GUEST_OS_BASE + 47, // Windows 7
+   GUEST_OS_WINSEVEN_64         = GUEST_OS_BASE + 48, // Windows 7
+   GUEST_OS_WIN2008R2           = GUEST_OS_BASE + 49, // Server 2008 R2
+   GUEST_OS_WIN2008R2_64        = GUEST_OS_BASE + 50, // Server 2008 R2
 } GuestOSType;
 
 
@@ -116,9 +121,14 @@ typedef enum GuestOSFamilyType {
 #define ALLWINVISTA64   (BS(LONGHORN_64) | BS(WINVISTA_64))
 #define ALLWINVISTA     (ALLWINVISTA32 | ALLWINVISTA64)
 
+#define ALLWINSEVEN32   BS(WINSEVEN)
+#define ALLWINSEVEN64   BS(WINSEVEN_64)
+#define ALLWINSEVEN     (ALLWINSEVEN32 | ALLWINSEVEN64)
+
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
-                      ALLWINVISTA32)
-#define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | ALLWINVISTA64)
+                         ALLWINVISTA32 | ALLWINSEVEN32)
+#define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | ALLWINVISTA64 | \
+                         ALLWINSEVEN64)
 #define ALLWINNT	(ALLWINNT32 | ALLWINNT64)
 
 #define ALLWIN32	(ALLWIN9X | ALLWINNT32)
@@ -302,6 +312,17 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_WEB_SERVER "winServer2008Web-32"
 #define STR_OS_WIN_2008_WEB_SERVER_FULL "Windows Server 2008 Web Server Edition"
 
+/* Windows Server 2008 R2 */
+
+#define STR_OS_WIN_2008R2_STANDARD        "windows7srv-Std"
+#define STR_OS_WIN_2008R2_STANDARD_FULL   "Windows Server 2008 R2 Standard Edition"
+#define STR_OS_WIN_2008R2_ENTERPRISE      "windows7srv-Ent"
+#define STR_OS_WIN_2008R2_ENTERPRISE_FULL "Windows Server 2008 R2 Enterprise Edition"
+#define STR_OS_WIN_2008R2_DATACENTER      "windows7srv-Data"
+#define STR_OS_WIN_2008R2_DATACENTER_FULL "Windows Server 2008 R2 Datacenter Edition"
+#define STR_OS_WIN_2008R2_WEB_SERVER      "windows7srv-Web"
+#define STR_OS_WIN_2008R2_WEB_SERVER_FULL "Windows Web Server 2008 R2 Edition"
+
 /* Windows 64-bit */
 #define STR_OS_WIN_VISTA_ULTIMATE_X64 "winVistaUltimate-64"
 #define STR_OS_WIN_VISTA_HOME_PREMIUM_X64 "winVistaHomePremium-64"
@@ -328,6 +349,16 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_STORAGE_STANDARD_X64 "winServer2008StorageStandard-64"
 #define STR_OS_WIN_2008_STORAGE_WORKGROUP_X64 "winServer2008StorageWorkgroup-64"
 #define STR_OS_WIN_2008_WEB_SERVER_X64 "winServer2008Web-64"
+
+/* Windows 7 */
+#define STR_OS_WIN_SEVEN "windows7"
+#define STR_OS_WIN_SEVEN_X64 "windows7-64"
+#define STR_OS_WIN_SEVEN_FULL "Windows 7"
+
+/* Windows 2008 R2 */
+#define STR_OS_WIN_2008R2 "windows7srv"
+#define STR_OS_WIN_2008R2_X64 "windows7srv-64"
+#define STR_OS_WIN_2008R2_FULL "Windows Server 2008 R2"
 
 /* XXX */
 #define STR_OS_HYPERV "winHyperV"

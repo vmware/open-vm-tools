@@ -1458,7 +1458,9 @@ VMCIHost_FinishAttach(PageStoreAttachInfo *attach,      // IN
  */
 
 void
-VMCIHost_DetachMappings(PageStoreAttachInfo *attach)    // IN
+VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach,
+                        struct VMCIQueue *produceQ,
+                        struct VMCIQueue *detachQ)
 {
    /*
     * Unmap the header pages

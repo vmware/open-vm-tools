@@ -18,4 +18,4 @@
 noinst_LTLIBRARIES = libPanicDefault.la
 
 libPanicDefault_la_SOURCES =
-libPanicDefault_la_SOURCES += panic.c
+libPanicDefault_la_SOURCES += panicDefault.c

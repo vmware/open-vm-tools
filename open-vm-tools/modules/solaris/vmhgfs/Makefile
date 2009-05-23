@@ -96,6 +96,19 @@ SOLHGFS_64_OBJS := $(SOLHGFS_64_KRN_OBJS) $(SOLHGFS_64_LIB_OBJS)
 MODULE_32 := i386/$(MODULE)
 MODULE_64 := amd64/$(MODULE)
 
+ifdef OVT_SOURCE_DIR
+   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
+   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/backdoor
+   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/hgfs
+
+   VPATH  := $(OVT_SOURCE_DIR)/lib/backdoor
+   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/hgfs
+   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/hgfsBd
+   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/message
+   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/misc
+   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/rpcOut
+endif
+
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32
 LDFLAGS_32 := $(LDFLAGS)

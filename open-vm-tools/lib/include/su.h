@@ -47,7 +47,8 @@ void *Id_AuthGetLocal();
 void *Id_AuthGetExternal(size_t *size);
 Bool Id_AuthSet(void const *buf, size_t size);
 Bool Id_AuthCheck(char const *right,
-                  char const *localizedDescription);
+                  char const *localizedDescription,
+                  Bool showDialogIfNeeded);
 
 #elif (defined(__linux__) || defined(sun) || defined(__FreeBSD__)) && !defined(N_PLAT_NLM)
 

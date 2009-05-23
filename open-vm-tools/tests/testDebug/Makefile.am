@@ -15,7 +15,8 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libtestDebug.la
+plugindir = @TEST_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libtestDebug.la
 
 libtestDebug_la_CPPFLAGS =
 libtestDebug_la_CPPFLAGS += @GOBJECT_CPPFLAGS@

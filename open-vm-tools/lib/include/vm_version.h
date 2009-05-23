@@ -75,38 +75,6 @@
 #define BUILD_VERSION COMPILATION_OPTION BUILD_NUMBER
 
 
-/* Hard-coded expiration date */
-/* Please don't put 0 in the front if the month or date is single digital number,
- * otherwise ENCODE_DATE will treat it as an octal number.
- */
-#define DATE_DAY_MAX 31
-#define DATE_MONTH_MAX 12
-#define ENCODE_DATE(year, month, day) ((year) * ((DATE_MONTH_MAX + 1) * (DATE_DAY_MAX + 1)) + (month) * (DATE_DAY_MAX + 1) + (day))
-#if !defined(VMX86_DEVEL) && defined(BUILD_EXPIRE)
-#   if defined(VMX86_SERVER)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_WGS)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_DESKTOP)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_P2V)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_V2V)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_SYSIMAGE)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_VCB)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_VPX)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_WBC)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   elif defined(VMX86_SDK)
-#      define HARD_EXPIRE ENCODE_DATE(2009, 1, 31)
-#   endif
-#endif
-
-
 /*
  * Used in .rc files on the Win32 platform. We must use PRODUCT_BUILD_NUMBER
  * in numeric Win32 version numbers to stay below the 65k (circa) limit.
@@ -116,11 +84,13 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#elif defined(VMX86_VLICENSE)
+   #define PRODUCT_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #endif
@@ -190,7 +160,6 @@
  * When updating the ESX_VERSION* and ESX_RELEASE* macros, you will also
  * need to update:
  *
- *   > bora/install/server/weasel/packages.xml
  *   > bora/support/gobuild/targets/server.py
  *   > console-os26/SOURCES/kernel-2.6.spec
  *
@@ -236,7 +205,7 @@
 #define PLAYER_VERSION "e.x.p"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
-#define FUSION_VERSION "3.0"
+#define FUSION_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "4.0.0"
@@ -250,13 +219,14 @@
 #define FOUNDRY_VERSION "e.x.p"
 #define FOUNDRY_FILE_VERSION 1,6,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
-#define VLICENSE_VERSION "e.x.p"
+#define VLICENSE_VERSION "1.1.0"
 #define DDK_VERSION "e.x.p"
 #define VIM_API_VERSION "4.0"
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "4.0.0"
 #define VDM_VERSION "e.x.p"
-#define VMSAFE_VERSION "e.x.p"
+#define VMSAFE_VERSION        "1.1.0"
+#define VMSAFE_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDDK_VERSION          "1.1.0"
 #define VDDK_FILE_VERSION      1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "1.0.0"
@@ -282,7 +252,7 @@
 /*
  * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
-#define TOOLS_VERSION "2009.04.23"
+#define TOOLS_VERSION "2009.05.22"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -377,7 +347,11 @@
 #  elif defined(VMX86_ENTERPRISE_DESKTOP)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_DESKTOP)
-#    define PRODUCT_LICENSE_VERSION "6.0"
+#    if defined(__APPLE__)
+#      define PRODUCT_LICENSE_VERSION "3.0"
+#    else
+#      define PRODUCT_LICENSE_VERSION "7.0"
+#    endif
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_WBC)
@@ -393,6 +367,8 @@
 #  endif
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION " " BUILD_NUMBER
 #endif
+
+#define PLAYER_LICENSE_VERSION "6.0"
 
 /*
  * This is for ACE Management Server

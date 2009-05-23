@@ -57,6 +57,7 @@ class DnDRpcV3
       void OnRecvMsg(const uint8 *data, size_t dataSize);
       bool SendSingleCmd(DnDCommand cmd);
       bool SendCmdWithClip(DnDCommand cmd, const CPClipboard *clip);
+      void UpdateGuestVersion(uint32 major, uint32 minor);
 
       DnDTransport *mTransport;
 };

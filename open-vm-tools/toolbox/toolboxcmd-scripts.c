@@ -67,13 +67,13 @@ static int GetConfEntry(char *apm, ScriptType type);
 static char *
 GetConfName(char *apm) // IN: apm name.
 {
-   if (strcmp(apm, SCRIPT_SUSPEND) == 0) {
+   if (toolbox_strcmp(apm, SCRIPT_SUSPEND) == 0) {
       return CONFNAME_SUSPENDSCRIPT;
-   }else if (strcmp(apm, SCRIPT_RESUME) == 0) {
+   } else if (toolbox_strcmp(apm, SCRIPT_RESUME) == 0) {
       return CONFNAME_RESUMESCRIPT;
-   } else if (strcmp(apm, SCRIPT_OFF) == 0) {
+   } else if (toolbox_strcmp(apm, SCRIPT_OFF) == 0) {
       return CONFNAME_POWEROFFSCRIPT;
-   } else if (strcmp(apm, SCRIPT_ON) == 0) {
+   } else if (toolbox_strcmp(apm, SCRIPT_ON) == 0) {
      return CONFNAME_POWERONSCRIPT;
    } else {
       return NULL;

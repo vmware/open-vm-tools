@@ -17,28 +17,33 @@
 
 bin_PROGRAMS = vmware-vmblock-fuse
 
-# _XOPEN_SOURCE needs to be defined to at least 500 when compiling
-# vmblock-fuse's os.h to get pthread_rwlock_t.
+# _XOPEN_SOURCE needs to be defined to at least 600 when compiling
+# vmblock-fuse; it's needed by os.h to get pthread_rwlock_t and by fsops.c to
+# get lstat.
 # -D_FILE_OFFSET_BITS=64 required for fuse.
 
 AM_CFLAGS =
 AM_CFLAGS += -Dvmblock_fuse
-AM_CFLAGS += -D_XOPEN_SOURCE=500
+AM_CFLAGS += -U_XOPEN_SOURCE
+AM_CFLAGS += -D_XOPEN_SOURCE=600
 AM_CFLAGS += -DUSERLEVEL
 AM_CFLAGS += -D_FILE_OFFSET_BITS=64
 AM_CFLAGS += @FUSE_CPPFLAGS@
 AM_CFLAGS += @VMWARE_USER_CPPFLAGS@
+AM_CFLAGS += -I$(top_srcdir)/modules/shared/vmblock
+AM_CFLAGS += -I$(srcdir)
 
 vmware_vmblock_fuse_LDADD =
 vmware_vmblock_fuse_LDADD += ../lib/misc/libMisc.la
 vmware_vmblock_fuse_LDADD += @FUSE_LIBS@
 
 vmware_vmblock_fuse_SOURCES =
-vmware_vmblock_fuse_SOURCES += stubs.c
-vmware_vmblock_fuse_SOURCES += block.c
 vmware_vmblock_fuse_SOURCES += util.c
 vmware_vmblock_fuse_SOURCES += fsops.c
 vmware_vmblock_fuse_SOURCES += main.c
+
+vmware_vmblock_fuse_SOURCES += $(top_srcdir)/modules/shared/vmblock/block.c
+vmware_vmblock_fuse_SOURCES += $(top_srcdir)/modules/shared/vmblock/stubs.c
 
 if HAVE_ICU
    vmware_vmblock_fuse_LDADD += @ICU_LIBS@

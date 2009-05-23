@@ -47,6 +47,7 @@ class DnDRpc
       sigc::signal<void> hgCancelChanged;
       sigc::signal<void> hgDropChanged;
       sigc::signal<void, bool, const std::vector<uint8> > hgFileCopyDoneChanged;
+      sigc::signal<void, int32, int32> updateMouseChanged;
 
       /* GH DnD. */
       virtual bool GHDragEnter(const CPClipboard *clip) = 0;
@@ -57,6 +58,9 @@ class DnDRpc
       virtual bool HGDragStartDone(void) = 0;
       virtual bool HGUpdateFeedback(DND_DROPEFFECT feedback) = 0;
       virtual bool HGDropDone(const char *stagingDirCP, size_t sz) = 0;
+
+   protected:
+      uint32 mHostMinorVersion;
 };
 
 #endif // DND_RPC_HH

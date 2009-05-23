@@ -269,19 +269,21 @@ struct vop_vector VMBlockVnodeOps = {
    .vop_unlock =                  VMBlockVopUnlock,
 };
 
+
+
 /*
  * VMBlockFS file descriptor operations vector --
  *   There are a few special cases where we need to control behavior beyond
  *   the file system layer.  For this we define our own fdesc op vector,
  *   install our own handlers for these special cases, and fall back to the
- *   original vnode ops for everything else.
+ *   badfileops vnode ops for everything else.
  *
  *   VMBlock instances are keyed on/indexed by the file descriptor that received
  *   the ioctl request[1].  Since the relationship between file descriptors and
  *   vnodes is N:1, we need to intercept ioctl requests at the file descriptor
  *   level, rather than at the vnode level, in order to have a record of which
  *   descriptor received the request.  Similarly, we need to remove VMBlocks
- *   issued on a file descriptor when said descriptor is closed. 
+ *   issued on a file descriptor when said descriptor is closed.
  *
  *   NOTICE --
  *     This applies -only- when a user opens the FS mount point directly.  All
@@ -294,10 +296,34 @@ struct vop_vector VMBlockVnodeOps = {
  *     dies, even though the same descriptor is open.
  */
 
-struct fileops VMBlockFileOps = {
-   .fo_ioctl    = VMBlockFileIoctl,
-   .fo_close    = VMBlockFileClose,
-};
+static struct fileops VMBlockFileOps;
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMBlockSetupFileOps --
+ *
+ *      Sets up secial file operations vector used for root vnode _only_
+ *      (see the comment for VMBlockFileOps above).
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMBlockSetupFileOps(void)
+{
+   VMBlockFileOps = badfileops;
+   VMBlockFileOps.fo_stat = vnops.fo_stat;
+   VMBlockFileOps.fo_flags = vnops.fo_flags;
+   VMBlockFileOps.fo_ioctl = VMBlockFileIoctl;
+   VMBlockFileOps.fo_close = VMBlockFileClose;
+}
 
 
 /*

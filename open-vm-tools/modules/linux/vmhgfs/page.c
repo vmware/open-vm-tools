@@ -961,7 +961,7 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
     * would make it uptodate (ie a complete cached page).
     */
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: writing to handle %u\n", __FUNCTION__,
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: writing to handle %u\n", __func__,
            handle));
    return HgfsDoWritepage(handle, page, pageFrom, pageTo);
 }

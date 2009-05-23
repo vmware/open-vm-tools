@@ -46,6 +46,12 @@ int VMCIDatagramCreateHndInt(VMCIId resourceID,
                              VMCIDatagramRecvCB recvCB,
                              void *clientData,
                              VMCIHandle *outHandle);
+int VMCIDatagramCreateHndPriv(VMCIId resourceID,
+                              uint32 flags,
+                              VMCIPrivilegeFlags privFlags,
+                              VMCIDatagramRecvCB recvCB,
+                              void *clientData,
+                              VMCIHandle *outHandle); /* Compat */
 int VMCIDatagramDestroyHndInt(VMCIHandle handle);
 
 int VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,

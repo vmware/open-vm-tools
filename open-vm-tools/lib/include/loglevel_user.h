@@ -33,6 +33,7 @@
    LOGLEVEL_VAR(aio), \
    LOGLEVEL_VAR(passthrough), \
    LOGLEVEL_VAR(tools), \
+   LOGLEVEL_VAR(vsockLookup), \
    LOGLEVEL_VAR(license), \
    LOGLEVEL_VAR(vui), \
    LOGLEVEL_VAR(stats), \
@@ -209,7 +210,10 @@
    LOGLEVEL_VAR(objc), /* lib/objc */ \
    LOGLEVEL_VAR(blit), /* lib/blit */ \
    LOGLEVEL_VAR(vmnetBridge), \
-   LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */
+   LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
+   LOGLEVEL_VAR(pvfslib), \
+   LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
+   LOGLEVEL_VAR(button),
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

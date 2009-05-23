@@ -424,6 +424,42 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIQueuePair_AllocPriv --
+ *
+ *      Provided for compatibility with the host API. Always returns an error
+ *      since requesting privileges from the guest is not allowed. Use
+ *      VMCIQueuePair_Alloc instead.
+ *
+ * Results:
+ *      An error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef __linux__
+EXPORT_SYMBOL(VMCIQueuePair_AllocPriv);
+#endif
+
+int
+VMCIQueuePair_AllocPriv(VMCIHandle *handle,           // IN/OUT:
+                        VMCIQueue  **produceQ,        // OUT:
+                        uint64     produceSize,       // IN:
+                        VMCIQueue  **consumeQ,        // OUT:
+                        uint64     consumeSize,       // IN:
+                        VMCIId     peer,              // IN:
+                        uint32     flags,             // IN:
+                        VMCIPrivilegeFlags privFlags) // IN:
+{
+   return VMCI_ERROR_NO_ACCESS;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIQueuePair_Detach --
  *
  *      Detaches from a VMCI QueuePair. Only checks validity of input argument.

@@ -53,6 +53,8 @@ static int HgfsDoGetattrByName(const char *path, HgfsSuperInfo *sip, HgfsAttrV2 
 int HgfsReadlinkInt(struct vnode *vp, struct uio *uiop);
 static int HgfsQueryAttrInt(const char *path, HgfsHandle handle, HgfsSuperInfo *sip,
                             HgfsKReqHandle req);
+static int HgfsRefreshHandle(struct vnode *vp, HgfsSuperInfo *sip, HgfsHandle *handle);
+
 #if 0
 static int HgfsDoGetattrByHandle(HgfsHandle handle, HgfsSuperInfo *sip, HgfsAttrV2 *hgfsAttrV2);
 #endif
@@ -800,7 +802,6 @@ HgfsOpenInt(struct vnode *vp, // IN: Vnode to open.
 }
 
 
-
 /*
  *----------------------------------------------------------------------------
  *
@@ -1157,14 +1158,26 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
          /* On end of file we return success */
          DEBUG(VM_DEBUG_DONE, "end of file reached.\n");
          return 0;
-      } else  if (ret < 0) {
+      } else if (ret == -EBADF) { // Stale host handle
+         ret = HgfsRefreshHandle(vp, sip, &handle);
+         if (ret == 0) {
+            ret = HgfsDoRead(sip, handle, offset, size, uiop);
+            if (ret < 0) {
+               DEBUG(VM_DEBUG_FAIL, "Failed to read from a fresh handle.\n");
+               return -ret;
+            }
+         } else {
+            DEBUG(VM_DEBUG_FAIL, "Failed to get a fresh handle.\n");
+            return EBADF;
+         }
+      } else if (ret < 0) {
          /*
           * HgfsDoRead() returns the negative of an appropriate error code to
           * differentiate between success and error cases.  We flip the sign
           * and return the appropriate error code.  See the HgfsDoRead()
           * function header for a fuller explanation.
           */
-         DEBUG(VM_DEBUG_FAIL, "HgfsDoRead() failed.\n");
+         DEBUG(VM_DEBUG_FAIL, "HgfsDoRead() failed, error %d.\n", ret);
          return -ret;
       }
 
@@ -1260,7 +1273,21 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
 
       /* Send one write request. */
       ret = HgfsDoWrite(sip, handle, ioflag, offset, size, uiop);
-      if (ret < 0) {
+      if (ret == -EBADF) { // Stale host handle
+         ret = HgfsRefreshHandle(vp, sip, &handle);
+         if (ret == 0) {
+            ret = HgfsDoWrite(sip, handle, ioflag, offset, size, uiop);
+            if (ret < 0) {
+               DEBUG(VM_DEBUG_FAIL, "Failed to write to a fresh handle.\n");
+               error = -ret;
+               break;
+            }
+         } else {
+            DEBUG(VM_DEBUG_FAIL, "Failed to get a fresh handle, error %d.\n", ret);
+            error = EBADF;
+            break;
+         }
+      } else if (ret < 0) {
          /*
           * As in HgfsRead(), we need to flip the sign.  See the comment in the
           * function header of HgfsDoWrite() for a more complete explanation.
@@ -1372,7 +1399,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
 
    HGFS_INIT_REQUEST_HDR(requestHeader, req, HGFS_OP_CREATE_DIR_V3);
 
-   request->reserved = 0;
+   request->fileAttr = 0;
    request->mask = HGFS_CREATE_DIR_MASK;
    request->specialPerms = (mode & (S_ISUID | S_ISGID | S_ISVTX)) >>
                               HGFS_ATTR_SPECIAL_PERM_SHIFT;
@@ -1515,6 +1542,65 @@ HgfsDirOpen(HgfsSuperInfo *sip, // IN: Superinfo pointer
 /*
  *----------------------------------------------------------------------------
  *
+ * HgfsRequestHostFileHandle --
+ *
+ *    Sends a open request to the server to get a file handle.
+ *    If client needs a readonly handle the function first asks for
+ *    read-write handle since this handle may be shared between multiple
+ *    file descriptors. If getting read-write handle fails the function
+ *    sends another request for readonly handle.
+ *
+ * Results:
+ *      Returns zero on success and an error code on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+HgfsRequestHostFileHandle(HgfsSuperInfo *sip,   // IN: Superinfo pointer
+                          struct vnode *vp,     // IN: Vnode of file to open
+                          int *openMode,        // IN OUT: open mode
+                          int openFlags,        // IN: flags for the open request
+                          int permissions,      // IN: Permissions for new files
+                          HgfsHandle *handle)   // OUT: file handle
+{
+   char *fullPath;
+   uint32 fullPathLen;
+   int ret;
+
+   fullPath = HGFS_VP_TO_FILENAME(vp);
+   fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
+
+   /* First see if we can get the most permissive read/write open mode */
+   ret = HgfsSendOpenRequest(sip, HGFS_OPEN_MODE_READ_WRITE, openFlags,
+                             permissions, fullPath, fullPathLen, handle);
+   if (ret) {
+      if (ret == EACCES && HGFS_OPEN_MODE_READ_WRITE != *openMode) {
+         /*
+          * Failed to open in read/write open mode because of denied access.
+          * It means file's permissions do not allow opening for read/write.
+          * However caller does not need this mode and may be satisfied with
+          * less permissive mode.
+          * Try exact open mode now.
+          */
+         DEBUG(VM_DEBUG_FAIL, "RW mode failed, re-submitting original mode = %d.\n",
+               *openMode);
+         ret = HgfsSendOpenRequest(sip, *openMode, openFlags,
+                                   permissions, fullPath, fullPathLen, handle);
+      }
+   } else {
+      *openMode = HGFS_OPEN_MODE_READ_WRITE;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * HgfsFileOpen --
  *
  *      Invoked when HgfsOpen() is called with a vnode of type VREG.  Sends
@@ -1539,8 +1625,6 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
              int permissions,           // IN: Permissions of open (only when creating)
              Bool implicit)             // IN: TRUE if called outside of HgfsOpenInt
 {
-   char *fullPath = NULL;
-   uint32 fullPathLen;
    int ret;
    int openMode;
    int openFlags;
@@ -1597,37 +1681,14 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     */
    ret = HgfsCheckAndReferenceHandle(vp, FALSE, openMode);
    if (ret == ENOENT) {  // Handle is not set, need to get one from the host
-
-      int requestedMode = HGFS_OPEN_MODE_READ_WRITE;
-      fullPath = HGFS_VP_TO_FILENAME(vp);
-      fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
-
-      /* First see if we can get the most permissive read/write open mode */
-      ret = HgfsSendOpenRequest(sip, requestedMode, openFlags,
-                                permissions, fullPath, fullPathLen, &handle);
-      if (ret) {
-         if (ret == EACCES && HGFS_OPEN_MODE_READ_WRITE != openMode) {
-           /*
-            * Failed to open in read/write open mode because of denied access.
-            * It means file's permissions do not allow opening for read/write.
-            * However caller does not need this mode and may be satisfied with
-            * less permissive mode.
-            * Try exact open mode now.
-            */
-           DEBUG(VM_DEBUG_FAIL, "RW mode failed, re-submitting original mode = %d.\n",
-                 openMode);
-           requestedMode = openMode;
-           ret = HgfsSendOpenRequest(sip, requestedMode, openFlags,
-                                     permissions, fullPath, fullPathLen, &handle);
-         }
-      }
-
+      ret = HgfsRequestHostFileHandle(sip, vp, &openMode, openFlags,
+                                      permissions, &handle);
       /*
        * We successfully received a reply, so we need to save the handle in
        * this file's HgfsOpenFile and return success.
        */
       if (ret == 0) {
-         HgfsSetOpenFileHandle(vp, handle, requestedMode, implicit);
+         HgfsSetOpenFileHandle(vp, handle, openMode, implicit);
       }
    }
 
@@ -1635,6 +1696,53 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
 
 out:
    DEBUG(VM_DEBUG_LOG, "Exit (%d) %s.\n", ret,  HGFS_VP_TO_FILENAME(vp));
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsRefreshHandle --
+ *
+ *      Request a new HgfsHandle for the vnode. Needed when original handle
+ *      become stale because HGFS has been disabled and re-enabled or VM
+ *      has been suspened and then resumed.
+ *
+ * Results:
+ *      Returns zero on success and an error code on error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+HgfsRefreshHandle(struct vnode *vp,          // IN: Vnode of file to open
+                  HgfsSuperInfo *sip,        // IN: Superinfo pointer
+                  HgfsHandle *handle)        // IN OUT: Pointer to the stale handle
+{
+   int ret = 0;
+   HgfsFile *fp;
+
+   ASSERT(vp);
+   fp = HGFS_VP_TO_FP(vp);
+   ASSERT(fp);
+
+   os_rw_lock_lock_exclusive(fp->handleLock);
+   if (fp->handle != *handle) {
+      /* Handle has been refreshed in another thread. */
+      *handle = fp->handle;
+   } else {
+      /* Retrieve a new handle from the host. */
+      ret = HgfsRequestHostFileHandle(sip, vp, (int *)&fp->mode, HGFS_OPEN, 0, handle);
+      if (ret == 0) {
+         fp->handle = *handle;
+      }
+   }
+   os_rw_lock_unlock_exclusive(fp->handleLock);
+
    return ret;
 }
 
@@ -1809,7 +1917,7 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
    ret = HgfsGetStatus(req, sizeof *replyHeader);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "Error encountered with ret = %d\n", ret);
-      if (ret != EPROTO) {
+      if (ret != EPROTO && ret != EBADF) {
          ret = EACCES;
       }
       ret = -ret;
@@ -1956,7 +2064,7 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    ret = HgfsGetStatus(req, sizeof *replyHeader);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "Error encountered with ret = %d\n", ret);
-      if (ret != EPROTO) {
+      if (ret != EPROTO && ret != EBADF) {
          ret = EACCES;
       }
       ret = -ret;
@@ -2823,7 +2931,7 @@ HgfsAccessInt(struct vnode *vp,     // IN: Vnode to check access for
    HgfsSuperInfo *sip = HGFS_VP_TO_SIP(vp);
    HgfsAttrV2 hgfsAttrV2;
 
-   DEBUG(VM_DEBUG_FAIL, "HgfsAccessInt is called\n");
+   DEBUG(VM_DEBUG_ENTRY, "HgfsAccessInt is called\n");
 
    ret = HgfsDoGetattrByName(HGFS_VP_TO_FILENAME(vp), sip, &hgfsAttrV2);
    if (ret == 0) {

@@ -3749,6 +3749,9 @@ vmxnet3_set_wol(struct net_device *netdev,
    }
 
    adapter->wol = wol->wolopts;
+
+   compat_device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
    return 0;
 }
 

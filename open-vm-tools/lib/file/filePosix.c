@@ -544,7 +544,6 @@ File_FullPath(ConstUnicode pathName)  // IN:
 {
    Unicode cwd;
    Unicode ret;
-   Unicode temp;
 
    if ((pathName != NULL) && File_IsFullPath(pathName)) {
       cwd = NULL;
@@ -556,26 +555,25 @@ File_FullPath(ConstUnicode pathName)  // IN:
    }
 
    if ((pathName == NULL) || Unicode_IsEmpty(pathName)) {
-      temp = Unicode_Duplicate(cwd);
+      ret = Unicode_Duplicate(cwd);
    } else if (File_IsFullPath(pathName)) {
-      temp = Unicode_Duplicate(pathName);
+       ret = Posix_RealPath(pathName);
+       if (ret == NULL) {
+          ret = FileStripFwdSlashes(pathName);
+       }
    } else {
       Unicode path;
 
       path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
 
-      temp = Posix_RealPath(path);
+      ret = Posix_RealPath(path);
 
-      if (temp == NULL) {
-         temp = path;
-      } else {
-         Unicode_Free(path);
-      }
+      if (ret == NULL) {
+         ret = FileStripFwdSlashes(path);
+      } 
+      Unicode_Free(path);
    }
 
-   ret = FileStripFwdSlashes(temp);
-
-   Unicode_Free(temp);
    Unicode_Free(cwd);
 
    return ret;

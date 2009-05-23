@@ -94,7 +94,6 @@ public:
                                 guint info, guint time);
    void LocalGetSelection(const Gtk::SelectionData& sd);
    void LocalDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc, guint time);
-   void LocalDragLeaveTimeout(void);
    bool LocalDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc, int x, int y,
                         guint time);
 
@@ -105,13 +104,13 @@ public:
       Gtk::SelectionData& selection_data, guint info, guint time);
    void LocalDragEndCB(
       const Glib::RefPtr<Gdk::DragContext>& context);
+   void LocalDragBeginCB(
+      const Glib::RefPtr<Gdk::DragContext>& context);
 
 #if defined(DETWNDTEST)
    void CreateTestUI();
 #endif
 private:
-
-   sigc::connection m_localDragLeaveTimer;
 
    void AddBlock();
    void RemoveBlock();
@@ -123,6 +122,11 @@ private:
                           std::string stagingDir);
    void SourceDropCB(void);
    void SourceCancelCB(void);
+
+   /**
+    * Called when GH is completed.
+    */
+   void GHCancelCB(void);
 
    /**
     * Source functions for HG file transfer.
@@ -170,7 +174,6 @@ private:
    bool m_unityMode;
    bool m_inHGDrag;
    DND_DROPEFFECT m_effect;
-   bool m_needsBlock;
    bool m_isFileDnD;
 };
 

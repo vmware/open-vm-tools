@@ -67,6 +67,16 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
       }
       g_free(msg);
 
+      /*
+       * Log the Tools build number to the VMX log file. We don't really care
+       * if sending the message fails.
+       */
+      msg = g_strdup_printf("log %s: Version: %s",
+                            ToolsCore_GetTcloName(state),
+                            BUILD_NUMBER);
+      RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
+      g_free(msg);
+
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_RESET,
                             &state->ctx);

@@ -743,19 +743,22 @@ Id_AuthSet(void const *buf, // IN
  * Results:
  *      TRUE if the right was granted, FALSE if the user cancelled,
  *      entered the wrong password three times in a row, or if an
- *      error was encountered.
+ *      error was encountered, or if the Authorization session is 
+ *      invalid or has not been granted the 'right'.
  *
  * Side effects:
- *      Displays a dialog to the user.  The dialog grabs keyboard
- *      focus if Id_AuthSet() was previously called with a
- *      cross-process ref to a GUI process.
+ *      If showDialogIfNeeded is set and the specified Authorization session
+ *      does not have the required privilege, displays a dialog to the user.
+ *      The dialog grabs keyboard focus if Id_AuthSet() was previously called
+ *      with a cross-process ref to a GUI process.
  *
  *----------------------------------------------------------------------------
  */
 
 Bool
 Id_AuthCheck(char const *right,                // IN
-             char const *localizedDescription) // IN: UTF-8
+             char const *localizedDescription, // IN: UTF-8
+             Bool showDialogIfNeeded)          // IN
 {
    AuthorizationRef auth;
    AuthorizationItem rightsItems[1] = { { 0 } };
@@ -798,8 +801,9 @@ Id_AuthCheck(char const *right,                // IN
     */
    return AuthorizationCopyRights(auth, &rights,
              environment,
-             kAuthorizationFlagDefaults |
-             kAuthorizationFlagInteractionAllowed |
+             (showDialogIfNeeded ? kAuthorizationFlagInteractionAllowed |
+                                   kAuthorizationFlagDefaults :
+                                   kAuthorizationFlagDefaults) |
              kAuthorizationFlagExtendRights,
              NULL) == errAuthorizationSuccess;
 }

@@ -16,6 +16,20 @@
  *
  *********************************************************/
 
+/*********************************************************
+ * The contents of this file are subject to the terms of the Common
+ * Development and Distribution License (the "License") version 1.0
+ * and no later version.  You may not use this file except in
+ * compliance with the License.
+ *
+ * You can obtain a copy of the License at
+ *         http://www.opensource.org/licenses/cddl1.php
+ *
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ *********************************************************/
+
 /*
  * backdoor_def.h --
  *
@@ -99,7 +113,7 @@
 #define BDOOR_CMD_ABSPOINTER_DATA	39
 #define BDOOR_CMD_ABSPOINTER_STATUS	40
 #define BDOOR_CMD_ABSPOINTER_COMMAND	41
-#define BDOOR_CMD_TIMER_SPONGE          42
+#define BDOOR_CMD_TIMER_SPONGE          42 /* Not supported anymore */
 #define BDOOR_CMD_PATCH_ACPI_TABLES	43
 /* Catch-all to allow synchronous tests */
 #define BDOOR_CMD_DEVEL_FAKEHARDWARE	44 /* Debug only - needed in beta */
@@ -117,9 +131,11 @@
 #define BDOOR_CMD_ACPI_HOTPLUG_DEVICE   56
 #define BDOOR_CMD_ACPI_HOTPLUG_MEMORY   57
 #define BDOOR_CMD_ACPI_HOTPLUG_CBRET    58
-#define BDOOR_CMD_GET_HOST_VIDEO_MODES  59
+#define BDOOR_CMD_GET_HOST_VIDEO_MODES  59 /* Not in use */
 #define BDOOR_CMD_ACPI_HOTPLUG_CPU      60
-#define BDOOR_CMD_MAX                   61
+#define BDOOR_CMD_USB_HOTPLUG_MOUSE     61
+#define BDOOR_CMD_MAX                   62
+
 
 /* 
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,

@@ -24,7 +24,6 @@ SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf
 SUBDIRS += dict
-SUBDIRS += deployPkg
 SUBDIRS += dnd
 if HAVE_GTKMM
    SUBDIRS += dndGuest
@@ -69,7 +68,6 @@ SUBDIRS += rpcIn
 SUBDIRS += rpcOut
 SUBDIRS += rpcVmx
 SUBDIRS += SLPv2Parser
-SUBDIRS += socketMgr
 SUBDIRS += string
 SUBDIRS += stubs
 SUBDIRS += sync

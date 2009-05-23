@@ -586,5 +586,12 @@ pci_get_drvdata(struct pci_dev *pdev)
 #   define COMPAT_PCI_TO_DEV(dev)                  (dev)
 #endif
 
+/* 2.6.26 introduced the device_set_wakeup_enable() function */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+#   define compat_device_set_wakeup_enable(dev, val) do{}while(0)
+#else
+#   define compat_device_set_wakeup_enable(dev, val) \
+       device_set_wakeup_enable(dev, val)
+#endif
 
 #endif /* __COMPAT_PCI_H__ */

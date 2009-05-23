@@ -46,6 +46,7 @@ Bool GHIPlatformGetBinaryHandlers(GHIPlatform *ghip,
                                   XDR *xdrs);
 Bool GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,
                                   const char *rootUtf8,
+                                  uint32 flags,
                                   DynBuf *buf);
 Bool GHIPlatformGetStartMenuItem(GHIPlatform *ghip,
                                  uint32 handle,

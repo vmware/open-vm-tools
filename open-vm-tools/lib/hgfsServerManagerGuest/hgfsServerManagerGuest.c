@@ -29,10 +29,12 @@
 #include "rpcin.h"
 #include "hgfsServerPolicy.h"
 #include "hgfsServer.h"
+#include "hgfsChannel.h"
 #include "hgfsServerManager.h"
 #include "vm_app.h"
 #include "vm_assert.h"
 #include "hgfs.h"
+
 
 static Bool HgfsServerManagerRpcInDispatch(char const **result,
                                            size_t *resultLen,
@@ -40,6 +42,61 @@ static Bool HgfsServerManagerRpcInDispatch(char const **result,
                                            const char *args,
                                            size_t argsSize,
                                            void *clientData);
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsChannel_Init --
+ *
+ *      Sets up the channel for HGFS.
+ *
+ *      NOTE: Initialize the Hgfs server for only for now.
+ *      This will move into a separate file when full interface implemented.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsChannel_Init(void *data)     // IN: Unused rpc data
+{
+   HgfsServerSessionCallbacks *serverCBTable = NULL;
+   return HgfsServer_InitState(&serverCBTable);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsChannel_Exit --
+ *
+ *      Close the channel for HGFS.
+ *
+ *      NOTE: Close open sessions in the HGFS server currently.
+ *      This will move into a separate file when full interface implemented.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Closes the worker group and all the channels.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+HgfsChannel_Exit(void *data)  // IN: Unused rpc data
+{
+   ASSERT(data != NULL);
+   HgfsServer_ExitState();
+}
+
 
 /*
  *----------------------------------------------------------------------------
@@ -57,7 +114,7 @@ static Bool HgfsServerManagerRpcInDispatch(char const **result,
  *----------------------------------------------------------------------------
  */
 
-Bool
+static Bool
 HgfsServerManagerRpcInDispatch(char const **result,        // OUT
                                size_t *resultLen,          // OUT
                                const char *name,           // IN
@@ -77,7 +134,7 @@ HgfsServerManagerRpcInDispatch(char const **result,        // OUT
 
    ASSERT(args[0] == ' ');
    packetSize = argsSize - 1;
-   HgfsServer_DispatchPacket(args + 1, packet, &packetSize);
+   HgfsServer_ProcessPacket((char const *)(args + 1), packet, &packetSize, 0);
 
    *result = packet;
    *resultLen = packetSize;
@@ -148,29 +205,29 @@ HgfsServerManager_Register(void *rpcIn,         // IN: RpcIn channel
     */
    ASSERT(appName);
 
-   /* 
-    * Passing NULL here is safe because the shares maintained by the guest 
+   /*
+    * Passing NULL here is safe because the shares maintained by the guest
     * policy server never change, invalidating the need for an invalidate
     * function.
     */
    if (!HgfsServerPolicy_Init(NULL)) {
       return FALSE;
    }
-   
-   if (!HgfsServer_InitState()) {
+
+   if (!HgfsChannel_Init(myRpcIn)) {
       HgfsServerPolicy_Cleanup();
       return FALSE;
    }
 
    if (NULL != myRpcIn) {
-      RpcIn_RegisterCallback(myRpcIn, HGFS_SYNC_REQREP_CMD, 
+      RpcIn_RegisterCallback(myRpcIn, HGFS_SYNC_REQREP_CMD,
                              HgfsServerManagerRpcInDispatch, NULL);
    }
 
-   /* 
+   /*
     * Prior to WS55, the VMX did not know about the "hgfs_server"
     * capability. This doesn't mean that the HGFS server wasn't needed, it's
-    * just that the capability was introduced in CS 225439 so that the VMX 
+    * just that the capability was introduced in CS 225439 so that the VMX
     * could decide which HGFS server to communicate with.
     *
     * Long story short, we shouldn't care if this function fails.
@@ -211,33 +268,6 @@ HgfsServerManager_Unregister(void *rpcIn,         // IN: RpcIn channel
 
    HgfsServerManager_CapReg(appName, FALSE);
    RpcIn_UnregisterCallback(myRpcIn, HGFS_SYNC_REQREP_CMD);
-   HgfsServer_ExitState();
+   HgfsChannel_Exit(myRpcIn);
    HgfsServerPolicy_Cleanup();
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsServerManager_SendRequest --
- *
- *    This is just a stub, because the HGFS server running in the guest does
- *    not support sending out-of-band requests.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-HgfsServerManager_SendRequest(char *request,             // IN: Ignored
-                              uint32 requestSize,        // IN: Ignored
-                              HgfsServerReplyFunc cb,    // IN: Ignored
-                              void *cbData)              // IN: Ignored
-{
-   NOT_IMPLEMENTED();
 }

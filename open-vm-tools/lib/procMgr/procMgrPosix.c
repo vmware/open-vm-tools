@@ -1074,64 +1074,6 @@ ProcMgr_Kill(ProcMgr_AsyncProc *asyncProc) // IN
 /*
  *----------------------------------------------------------------------
  *
- * ProcMgr_GetAsyncStatus --
- *
- *      Get the return status of an async process.
- *      Must only be called once for any async process.
- *
- * Results:
- *      TRUE if the status was retrieved.
- *      FALSE if it couldn't be retrieved.
- *
- * Side effects:
- *	Does a waitpid() on the child to prevent zombification. 
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-ProcMgr_GetAsyncStatus(ProcMgr_AsyncProc *asyncProc, // IN
-                       Bool *status)                 // OUT
-{
-   Bool retVal = FALSE;
-  
-   ASSERT(status);
-   ASSERT(asyncProc);
-   ASSERT(asyncProc->waiterPid != -1);
-
-   if (FileIO_Read(&(asyncProc->fd), status, sizeof *status, NULL) !=
-       FILEIO_SUCCESS) {
-	 Warning("Error reading async process status.\n");
-      goto end;
-   }
-
-   if (FileIO_Read(&(asyncProc->fd), &(asyncProc->exitCode), 
-                   sizeof asyncProc->exitCode, NULL) !=
-       FILEIO_SUCCESS) {
-	 Warning("Error reading async process status.\n");
-      goto end;
-   }
-
-   asyncProc->validExitCode = TRUE;
-
-   Debug("Child w/ fd %x exited with status=%d\n", 
-         asyncProc->fd.posix, *status);
-
-   retVal = TRUE;
-
- end:
-   /* Read the pid so the processes don't become zombied */
-   Debug("Waiting on pid %"FMTPID" to de-zombify it\n", asyncProc->waiterPid);
-   waitpid(asyncProc->waiterPid, NULL, 0);
-   asyncProc->waiterPid = -1;
-
-   return retVal;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * ProcMgr_IsAsyncProcRunning --
  *
  *      Checks whether an async process is still running.
@@ -1236,13 +1178,14 @@ ProcMgr_GetPid(ProcMgr_AsyncProc *asyncProc)
  *
  * ProcMgr_GetExitCode --
  *
- *      Get the exit code status of an async process.
+ *      Get the exit code status of an async process. Waits on the child
+ *      process so that its resources are cleaned up.
  *
  * Results:
  *      0 if successful, -1 if not.
  *
  * Side effects:
- *	See ProcMgr_GetAsyncStatus().
+ *	     None.
  *
  *----------------------------------------------------------------------
  */
@@ -1254,22 +1197,39 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
    ASSERT(asyncProc);
    ASSERT(exitCode);
 
-   if (!asyncProc->validExitCode) {
-      Bool dummy;
+   *exitCode = -1;
 
-      if (!ProcMgr_GetAsyncStatus(asyncProc, &dummy)) {
-         *exitCode = -1;
-         return(-1);
+   if (asyncProc->waiterPid != -1) {
+      Bool status;
+
+      if (FileIO_Read(&(asyncProc->fd), &status, sizeof status, NULL) !=
+          FILEIO_SUCCESS) {
+         Warning("Error reading async process status.\n");
+         goto exit;
       }
 
-      if (!(asyncProc->validExitCode)) {
-         *exitCode = -1;
-         return(-1);
+      if (FileIO_Read(&(asyncProc->fd), &(asyncProc->exitCode),
+                      sizeof asyncProc->exitCode, NULL) !=
+          FILEIO_SUCCESS) {
+         Warning("Error reading async process status.\n");
+         goto exit;
       }
+
+      asyncProc->validExitCode = TRUE;
+
+      Debug("Child w/ fd %x exited with code=%d\n",
+            asyncProc->fd.posix, asyncProc->exitCode);
    }
 
    *exitCode = asyncProc->exitCode;
-   return(0);
+
+exit:
+   if (asyncProc->waiterPid != -1) {
+      Debug("Waiting on pid %"FMTPID" to de-zombify it\n", asyncProc->waiterPid);
+      waitpid(asyncProc->waiterPid, NULL, 0);
+      asyncProc->waiterPid = -1;
+   }
+   return (asyncProc->exitCode == -1) ? -1 : 0;
 }
 
 

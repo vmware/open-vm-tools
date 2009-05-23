@@ -89,6 +89,7 @@
 #include "stats_file.h"
 
 #include "unicodeOperations.h"
+#include "memaligned.h"
 
 #if defined(__APPLE__)
 #include "hostinfo.h"
@@ -114,6 +115,7 @@ static const int FileIO_OpenActions[] = {
  */
 typedef struct FilePosixOptions {
    Bool initialized;
+   Bool aligned;
    Bool enabled;
    int countThreshold;
    int sizeThreshold;
@@ -204,6 +206,14 @@ FileIO_OptionalSafeInitialize(void)
    if (!filePosixOptions.initialized) {
       filePosixOptions.enabled =
          Config_GetBool(TRUE, "filePosix.coalesce.enable");
+      /*
+       * Aligned malloc starts failing to allocate memory during
+       * heavy I/O on Linux.  We're not sure why -- maybe we
+       * are running out of mmaps?  Turn it off by default
+       * for now.
+       */
+      filePosixOptions.aligned =
+         Config_GetBool(FALSE, "filePosix.coalesce.aligned");
       filePosixOptions.countThreshold =
          Config_GetLong(5, "filePosix.coalesce.count");
       filePosixOptions.sizeThreshold =
@@ -326,8 +336,9 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
  *      Get sector size of underlying volume.
  *
  * Results:
- *      Always FALSE, there does not seem to be a way to query sectorSize
- *      from filename. XXX.
+ *      Always 512, there does not seem to be a way to query sectorSize
+ *      from filename.  But O_DIRECT boundary alignment constraint is
+ *      always 512, so use that.
  *
  * Side effects:
  *      None
@@ -341,9 +352,9 @@ FileIO_GetVolumeSectorSize(ConstUnicode pathName,  // IN:
 {
    ASSERT(sectorSize);
 
-   *sectorSize = 0;
+   *sectorSize = 512;
 
-   return FALSE;
+   return TRUE;
 }
 
 
@@ -1313,7 +1324,14 @@ FileIOCoalesce(struct iovec *inVec,     // IN:  Vector to coalesce from
    // XXX: Wouldn't it be nice if we could log from here!
    //LOG(5, ("FILE: Coalescing %s of %d elements and %d size\n",
    //        isWrite ? "write" : "read", inCount, inTotalSize));
-   cBuf = Util_SafeMalloc(sizeof(uint8) * inTotalSize);
+   if (filePosixOptions.aligned) {
+      cBuf = Aligned_Malloc(sizeof(uint8) * inTotalSize);
+   } else {
+      cBuf = Util_SafeMalloc(sizeof(uint8) * inTotalSize);
+   }
+   if (!cBuf) {
+      return FALSE;
+   }
 
   if (isWrite) {
       IOV_WriteIovToBuf(inVec, inCount, cBuf, inTotalSize);
@@ -1360,7 +1378,11 @@ FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
       IOV_WriteBufToIov(coVec->iov_base, actualSize, origVec, origVecCount);
    }
 
-   free(coVec->iov_base);
+   if (filePosixOptions.aligned) {
+      Aligned_Free(coVec->iov_base);
+   } else {
+      free(coVec->iov_base);
+   }
 }
 
 

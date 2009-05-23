@@ -20,3 +20,7 @@ SUBDIRS += vmrpcdbg
 SUBDIRS += testDebug
 SUBDIRS += testPlugin
 
+install-exec-local:
+	rm -f $(DESTDIR)$(TEST_PLUGIN_INSTALLDIR)/*.a
+	rm -f $(DESTDIR)$(TEST_PLUGIN_INSTALLDIR)/*.la
+

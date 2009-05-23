@@ -64,6 +64,11 @@ typedef struct UnityVirtualDesktop {
    int32 y;
 } UnityVirtualDesktop;
 
+typedef struct UnityPoint {
+   int32 x;
+   int32 y;
+} UnityPoint;
+
 /* 
  * Represents a virtual desktop configuration. 
  */
@@ -83,6 +88,8 @@ void Unity_Exit(void);
 void Unity_Cleanup(void);
 void Unity_RegisterCaps(void);
 void Unity_UnregisterCaps(void);
+void Unity_UnityToLocalPoint(UnityPoint *localPt, UnityPoint *unityPt);
+void Unity_LocalToUnityPoint(UnityPoint *unityPt, UnityPoint *localPt);
 #ifdef _WIN32
 HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif

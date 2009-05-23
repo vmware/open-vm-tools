@@ -141,7 +141,6 @@ typedef struct VMBlockNode {
  */
 
 extern struct vop_vector VMBlockVnodeOps;
-extern struct fileops VMBlockFileOps;
 extern uma_zone_t VMBlockPathnameZone;
 
 
@@ -155,6 +154,7 @@ int VMBlockNodeGet(struct mount *mp, struct vnode *target, struct vnode **vpp,
                    struct vnode *dvp);
 void VMBlockSetNodeName(struct vnode *vp, const char *name);
 void VMBlockHashRem(struct VMBlockNode *xp);
+void VMBlockSetupFileOps(void);
 int VMBlockVopBypass(struct vop_generic_args *ap);
 char *VMBlockBuildBlockName(struct vnode *vp);
 void VMBlockDestroyBlockName(char *name);

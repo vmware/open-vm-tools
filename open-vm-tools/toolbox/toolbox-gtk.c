@@ -1041,12 +1041,8 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
    GKeyFile *pConfDict;
 
    if (!VmCheck_IsVirtualWorld()) {
-#ifndef ALLOW_TOOLS_IN_FOREIGN_VM
       Warning("The VMware Toolbox must be run inside a virtual machine.\n");
       return 1;
-#else
-      runningInForeignVM = TRUE;
-#endif
    }
 
    if (Signal_SetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals),

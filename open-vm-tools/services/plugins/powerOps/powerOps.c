@@ -428,26 +428,47 @@ PowerOpsStateChange(RpcInData *data)
 
          if (script == NULL) {
             /* Use default script if not set in config file. */
-            char *dfltPath;
-            const char *dfltScript;
-
-            dfltScript = GuestApp_GetDefaultScript(confName);
+            const char *dfltScript = GuestApp_GetDefaultScript(confName);
             if (dfltScript == NULL) {
                g_debug("No default script to run for state change %s.\n",
                        stateChangeCmdTable[i].name);
                PowerOpsStateChangeDone(state, TRUE);
                return RPCIN_SETRETVALS(data, "", TRUE);
             }
-            dfltPath = GuestApp_GetInstallPath();
-            g_assert(dfltPath != NULL);
-            script = g_strdup_printf("%s%c%s", dfltPath, DIRSEPC, dfltScript);
-            vm_free(dfltPath);
+            script = g_strdup(dfltScript);
          } else if (strlen(script) == 0) {
             g_debug("No script to run for state change %s.\n",
                     stateChangeCmdTable[i].name);
             g_free(script);
             PowerOpsStateChangeDone(state, TRUE);
             return RPCIN_SETRETVALS(data, "", TRUE);
+         }
+
+         /* If script path is not absolute, assume the Tools install path. */
+         if (!g_path_is_absolute(script)) {
+            char *dfltPath;
+            char *tmp;
+
+            dfltPath = GuestApp_GetInstallPath();
+            g_assert(dfltPath != NULL);
+
+            /*
+             * Before the switch to vmtoolsd, the config file was saved with
+             * quotes around the script path to make the old VMware dict code
+             * happy. Now we need to undo that when modifying the script path.
+             *
+             * PowerOpsRunScript will "re-quote" the script path.
+             */
+            if (script[0] == '"') {
+                script[strlen(script) - 1] = '\0';
+                tmp = g_strdup_printf("%s%c%s", dfltPath, DIRSEPC, script + 1);
+            } else {
+               tmp = g_strdup_printf("%s%c%s", dfltPath, DIRSEPC, script);
+            }
+
+            g_free(script);
+            vm_free(dfltPath);
+            script = tmp;
          }
 
          if (PowerOpsRunScript(state, script)) {

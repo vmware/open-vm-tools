@@ -45,6 +45,29 @@ function banner {
 	echo
 }
 
+#	The status constants are important and have to be kept
+#	in sync with VMware Workstation implementation
+
+#	vm-support script is not running
+VMSUPPORT_NOT_RUNNING=0
+#	vm-support script is beginning
+VMSUPPORT_BEGINNING=1
+#	vm-support script running in progress
+VMSUPPORT_RUNNING=2
+#	vm-support script is ending
+VMSUPPORT_ENDING=3
+#	vm-support script failed
+VMSUPPORT_ERROR=10
+#	vm-support collection not supported
+VMSUPPORT_UNKNOWN=100
+
+#	Updates the VM with the current state
+
+function UpdateState {
+   if [ $update -eq 1 ]; then
+     vmware-xferlogs upd $1
+   fi
+}
 
 function UpdateSpinner {
         case $SPINNER in
@@ -153,6 +176,7 @@ function runcmd {
 	fi
 }
 
+update = 0
 
 # Parse args
 for option in $@
@@ -161,7 +185,9 @@ do
                 "-h")
                         usage
                 ;;
-
+                "-u")
+                        update=1
+                ;;
                 *)
                         usage
                 ;;
@@ -170,11 +196,13 @@ done
 
 #	Start message
 
+UpdateState $VMSUPPORT_BEGINNING
+
 banner "VMware Linux Support Script $VER"
 
 #	Check for root privledge
-        
-if [ $(id -u) != "0" ]; then                                                              
+
+if [ $(id -u) != "0" ]; then
         banner "You are not root, some system information can't be collected."
 fi
 
@@ -270,6 +298,8 @@ runcmd "ps auwwx" "/tmp/ps-auwwx.$$.txt"
 runcmd "ulimit -a" "/tmp/ulimit-a.$$.txt"
 runcmd "umask" "/tmp/umask.$$.txt"
 
+UpdateState $VMSUPPORT_RUNNING
+
 
 #	Perform the tar ('S' for sparse core files)
 
@@ -294,5 +324,7 @@ rm -rf $TARFILE
 if [ $? != 0 ]; then
 	banner "$OUTPUT_DIR was not successfully removed.  Please remove manually."
 fi
+
+UpdateState $VMSUPPORT_ENDING
 
 #	End

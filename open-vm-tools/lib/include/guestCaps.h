@@ -58,7 +58,11 @@ typedef enum {
    HGFSU_CAP_MAP_DRIVE                  = 13, // supports mapping a GOS drive letter to HGFS
    GHI_CAP_SET_HANDLER                  = 14, // supports setting the handler for types/protocols
    UNITY_CAP_STATUS_UNITY_ACTIVE        = 15, // supports GuestRpc bits for Unity Status
-   GHI_CAP_SET_OUTLOOK_TEMP_FOLDER      = 16  // supports setting the Outlook temp folder
+   GHI_CAP_SET_OUTLOOK_TEMP_FOLDER      = 16, // supports setting the Outlook temp folder
+   GHI_CAP_TRASH_FOLDER                 = 17, // supports ghi.guest.trashFolder.action,
+                                              // ghi.guest.trashFolder.state, and
+                                              // ghi.guest.trashFolder.getIcon commands
+   CAP_SET_TOPO_MODES                   = 18  // supports setting topology modes in video driver
 } GuestCapabilities;
 
 typedef struct {
@@ -76,6 +80,7 @@ typedef struct {
 #define UNITY_CAP_VMDB_PATH                  "guest/caps/unityFeatures"
 #define GHI_CAP_VMDB_PATH                    "guest/caps/ghiFeatures"
 #define HGFSU_CAP_VMDB_PATH                  "guest/caps/hgfsUsabilityFeatures"
+#define CAP_VMDB_PATH                        "guest/caps"
 
 /*
  * If you change these strings, make sure you also change the
@@ -115,7 +120,9 @@ static GuestCapElem guestCapTable[] = {
    { HGFSU_CAP_MAP_DRIVE,                  HGFSU_CAP_VMDB_PATH, "mapDrive" },
    { GHI_CAP_SET_HANDLER,                  GHI_CAP_VMDB_PATH,   "setHandler" },
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
-   { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" }
+   { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" },
+   { GHI_CAP_TRASH_FOLDER,                 GHI_CAP_VMDB_PATH,   "trashFolder" },
+   { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH, "displayTopologyModesSet" }
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

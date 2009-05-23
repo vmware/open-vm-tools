@@ -711,27 +711,25 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
    }
 
    if (hgfsAttrV2->mask & HGFS_ATTR_VALID_CHANGE_TIME) {
-      /* Since Windows doesn't keep ctime, we may need to use mtime instead. */
-      if (HGFS_SET_TIME(vap->HGFS_VA_CREATE_TIME, hgfsAttrV2->attrChangeTime)) {
-         if (hgfsAttrV2->mask & HGFS_ATTR_VALID_WRITE_TIME) {
-            vap->HGFS_VA_CREATE_TIME = vap->HGFS_VA_MODIFY_TIME;
-            HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap);
-         }
-      }
+      HGFS_SET_TIME(vap->HGFS_VA_CHANGE_TIME, hgfsAttrV2->attrChangeTime);
+      HGFS_VATTR_CHANGE_TIME_SET_SUPPORTED(vap);
    }
-
-#if defined(__FreeBSD__)
-   /*
-    * This is only set for FreeBSD as there does not seem to be an analogous
-    * attribute for OS X.
-    */
-   DEBUG(VM_DEBUG_ATTR, " Setting birthtime\n");
 
    if (hgfsAttrV2->mask & HGFS_ATTR_VALID_CREATE_TIME) {
-      HGFS_SET_TIME(vap->va_birthtime, hgfsAttrV2->creationTime);
+      /* Since Windows doesn't keep ctime, we may need to use mtime instead. */
+       HGFS_SET_TIME(vap->HGFS_VA_CREATE_TIME, hgfsAttrV2->creationTime);
+       HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap);
+   } else if (hgfsAttrV2->mask & HGFS_ATTR_VALID_WRITE_TIME) {
+       DEBUG(VM_DEBUG_ATTR, "Set create time from write time\n");
+       vap->HGFS_VA_CREATE_TIME = vap->HGFS_VA_MODIFY_TIME;
+       HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap);
+   } else {
+       DEBUG(VM_DEBUG_ATTR, "Do not set create time\n");
    }
 
-#endif
+   DEBUG(VM_DEBUG_ATTR, "Attrib mask %lld\n", hgfsAttrV2->mask);
+   DEBUG(VM_DEBUG_ATTR, "Supported %lld, active %lld\n", vap->va_supported,
+         vap->va_active);
 
    HgfsDebugPrintVattr(vap);
 }

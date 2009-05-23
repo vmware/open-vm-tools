@@ -29,6 +29,7 @@
 #ifndef _VMCI_SOCKETS_INT_H_
 #define _VMCI_SOCKETS_INT_H_
 
+#include "vm_basic_types.h"
 
 #if defined(_WIN32)
 #  if defined(_DDK_DRIVER_)
@@ -77,6 +78,9 @@
    ssize_t VMCISock_recv(int socket, void *buffer, size_t length, int flags);
    ssize_t VMCISock_sendto(int socket, const void *buffer, size_t length, int flags, const struct sockaddr *dest_addr, socklen_t dest_len);
    ssize_t VMCISock_recvfrom(int socket, void *buffer, size_t length, int flags, struct sockaddr *address, socklen_t *address_len);
+   int VMCISock_getpeername(int socket, struct sockaddr *address, socklen_t *address_len);
+   ssize_t VMCISock_writev(int socket, const struct iovec *iov, int iovcount);
+   int VMCISock_SetNonBlocking(int socket, Bool nonBlocking);
 #  endif // KERNEL
 #else
 #  define VMCISock_APIInit()
@@ -90,6 +94,8 @@
 #  define VMCISock_recv(_socket, _buffer, _length, _flags) recv(_socket, _buffer, _length, _flags)
 #  define VMCISock_sendto(_socket, _buffer, _length, _flags, _dest_addr, _dest_len) sendto(_socket, _buffer, _length, _flags, _dest_addr, _dest_len)
 #  define VMCISock_recvfrom(_socket, _buffer, _length, _flags, _address, _address_len) recvfrom(_socket, _buffer, _length, _flags, _address, _address_len)
+#  define VMCISock_getpeername(_socket, _address, _address_len) getpeername(_socket, _address, _address_len)
+#  define VMCISock_writev(_socket, _iov, _iovcount) writev(_socket, _iov, _iovcount)
 #endif // __APPLE__
 
 #endif // _VMCI_SOCKETS_INT_H_

@@ -29,7 +29,6 @@
 #include "str.h"
 #include "rpcout.h"
 #include "vmcheck.h"
-#include "guestApp.h" // for ALLOW_TOOLS_IN_FOREIGN_VM
 #include "util.h"
 #include "debug.h"
 #include "strutil.h"
@@ -255,12 +254,10 @@ VMGuestLib_OpenHandle(VMGuestLibHandle *handle) // OUT
 {
    VMGuestLibHandleType *data;
 
-#ifndef ALLOW_TOOLS_IN_FOREIGN_VM
    if (!VmCheck_IsVirtualWorld()) {
       Debug("VMGuestLib_OpenHandle: Not in a VM.\n");
       return VMGUESTLIB_ERROR_NOT_RUNNING_IN_VM;
    }
-#endif
 
    if (NULL == handle) {
       return VMGUESTLIB_ERROR_INVALID_ARG;

@@ -96,6 +96,11 @@
 #include "win32u.h"
 #endif /* _WIN32 */
 
+#ifdef linux
+#include "mntinfo.h"
+#include <sys/vfs.h>
+#endif
+
 #define SECONDS_BETWEEN_POLL_TEST_FINISHED     1
 
 #define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
@@ -205,6 +210,10 @@ static VixError VixToolsCheckUserAccount(VixCommandRequestHeader *requestMsg);
 static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
                                           char **result,
                                           size_t *resultValueResult);
+
+static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
+                                        char **result);
+
 
 #if defined(__linux__) || defined(_WIN32)
 static VixError VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,
@@ -2688,6 +2697,8 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
    VixCommandNamePassword *namePasswordStruct;
    int credentialType;
 
+   Debug(">%s\n", __FUNCTION__);
+
    credentialField = ((char *) requestMsg)
                            + requestMsg->commonHeader.headerLength 
                            + requestMsg->commonHeader.bodyLength;
@@ -2718,6 +2729,8 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       }
 #endif
    }
+
+   Debug("<%s\n", __FUNCTION__);
 
    return(err);
 } // VixToolsImpersonateUser
@@ -3141,7 +3154,7 @@ abort:
  *    The recipient of this string is ToolsDaemonHgfsImpersonated,
  *    which lives in foundryToolsDaemon.c.  It parses the authentication
  *    information, impersonates a user in the guest using
- *    ToolsDaemonImpersonateUser, and then calls HgfsServer_DispatchPacket
+ *    ToolsDaemonImpersonateUser, and then calls HgfsServerManager_ProcessPacket
  *    to issue the HGFS packet to the HGFS Server.  The HGFS Server
  *    replies with an HGFS packet, which will be forwarded back to
  *    us and handled in VMAutomationOnBackdoorCallReturns.
@@ -3188,9 +3201,10 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
     */
-   HgfsServer_DispatchPacket(hgfsPacket,        // packet in buf
-                             hgfsReplyPacket,   // packet out buf
-                             &hgfsPacketSize);  // in/out size
+   HgfsServer_ProcessPacket(hgfsPacket,        // packet in buf
+                            hgfsReplyPacket,   // packet out buf
+                            &hgfsPacketSize,   // in/out size
+                            0);                // in flags
 #endif
 
    if (NULL != resultValueResult) {
@@ -3208,6 +3222,112 @@ abort:
 
    return err;
 } // VixToolsProcessHgfsPacket
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListFileSystems --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
+                        char **result)                       // OUT
+{
+   VixError err = VIX_OK;
+   static char resultBuffer[MAX_PROCESS_LIST_RESULT_LENGTH];
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   char *destPtr;
+#ifdef linux
+   char *endDestPtr;
+   VixCommandListFileSystemsRequest *lfReq = (VixCommandListFileSystemsRequest *) requestMsg;
+   MNTHANDLE fp;
+   DECLARE_MNTINFO(mnt);
+   const char *mountfile = NULL;
+#endif
+
+   Debug(">%s\n", __FUNCTION__);
+
+   destPtr = resultBuffer;
+   *destPtr = 0;
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+#if defined(_WIN32)
+   // XXX TBD
+   err = VIX_E_NOT_SUPPORTED;
+#elif defined(linux)
+
+   endDestPtr = resultBuffer + sizeof(resultBuffer);
+
+   if (lfReq->options & VIX_FILESYSTEMS_HIDE_NETWORK) {
+      mountfile = "/etc/fstab";
+   } else {
+      mountfile = "/etc/mtab";
+   }
+
+   fp = Posix_Setmntent(mountfile, "r");
+   if (fp == NULL) {
+      Warning("failed to open mount file\n");
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
+
+   while (GETNEXT_MNTINFO(fp, mnt)) {
+      struct statfs statfsbuf;
+      uint64 size, freeSpace;
+
+      if (Posix_Statfs(MNTINFO_MNTPT(mnt), &statfsbuf)) {
+         Warning("%s unable to stat mount point %s\n",
+                 __FUNCTION__, MNTINFO_MNTPT(mnt));
+         continue;
+      }
+      size = (uint64) statfsbuf.f_blocks * (uint64) statfsbuf.f_bsize;
+      freeSpace = (uint64) statfsbuf.f_bfree * (uint64) statfsbuf.f_bsize;
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
+                             "<filesystem>"
+                             "<name>%s</name>"
+                             "<size>%"FMT64"u</size>"
+                             "<freeSpace>%"FMT64"u</freeSpace>"
+                             "<type>%s</type>"
+                             "</filesystem>",
+                             MNTINFO_NAME(mnt),
+                             size,
+                             freeSpace,
+                             MNTINFO_FSTYPE(mnt));
+
+   }
+   CLOSE_MNTFILE(fp);
+#else
+   err = VIX_E_NOT_SUPPORTED;
+#endif
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   *result = resultBuffer;
+
+   Debug("<%s\n", __FUNCTION__);
+
+   return(err);
+} // VixToolsListFileSystems
 
 
 /*
@@ -3643,6 +3763,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       *deleteResultBufferResult = FALSE;
    }
 
+   Debug("%s: command %d\n", __FUNCTION__, requestMsg->opCode);
 
    switch (requestMsg->opCode) {
       ////////////////////////////////////
@@ -3820,6 +3941,12 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          err = VixToolsSetProperties(requestMsg, confDictRef);
          break;
 #endif
+
+      ////////////////////////////////////
+      case VIX_COMMAND_LIST_FILESYSTEMS:
+         err = VixToolsListFileSystems(requestMsg, &resultValue);
+         // resultValue is static. Do not free it.
+         break;
 
       ////////////////////////////////////
       default:

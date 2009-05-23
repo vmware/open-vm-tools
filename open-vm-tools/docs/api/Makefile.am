@@ -38,6 +38,7 @@ build/index.html:
 	mkdir -p build
 	sed \
 	   -e 's,##{BUILD_DIR}##,$(top_builddir),'                \
+	   -e 's,##{BUILD_OUTPUT}##,build,'                       \
 	   -e 's,##{CPP_EXPAND}##,$(DOXYGEN_CPP_EXPAND),'         \
 	   -e 's,##{CPP_PREDEFINED}##,$(DOXYGEN_CPP_PREDEFINED),' \
 	   -e 's,##{DOT}##,@DOT@,'                                \
@@ -46,6 +47,7 @@ build/index.html:
 	   -e 's,##{MSCGEN_DIR}##,@MSCGEN_DIR@,'                  \
 	   -e 's,##{PROJECT_VERSION}##,@TOOLS_VERSION@,'          \
 	   -e 's,##{SOURCE_DIR}##,$(top_srcdir),'                 \
+	   -e 's,##{WARNING_LOG}##,warnings.log,'                 \
 	   $(top_srcdir)/docs/api/doxygen.conf > doxygen.parsed.conf
 	doxygen doxygen.parsed.conf > /dev/null
 

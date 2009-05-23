@@ -362,10 +362,14 @@ Scripts_OnComboChanged(gpointer entry, // IN: the entry selected
 
    if (confName != NULL) {
       path = g_key_file_get_string(confDict, "powerops", confName, NULL);
-      if (path == NULL) {
-         path = g_strdup("");
-      }
       defaultPath = GuestApp_GetDefaultScript(confName);
+      if (path == NULL) {
+         if (g_key_file_has_key(confDict, "powerops", confName, NULL)) {
+            path = g_strdup("");
+         } else {
+            path = g_strdup(defaultPath);
+         }
+      }
    } else {
       path = g_strdup("");
       defaultPath = "";

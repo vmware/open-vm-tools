@@ -281,7 +281,7 @@ Vix_TranslateCryptoError(CryptoError cryptoError) // IN
    } else if (CRYPTO_ERROR_NEED_PASSWORD == cryptoError) {
       return VIX_E_CRYPTO_NEED_PASSWORD;
    } else if (CRYPTO_ERROR_BAD_PASSWORD == cryptoError) {
-      return VIX_E_CRYPTO_BAS_PASSWORD;
+      return VIX_E_CRYPTO_BAD_PASSWORD;
    } else if (CRYPTO_ERROR_IO_ERROR == cryptoError) {
       Log("%s: crypto error = %d\n", __FUNCTION__,
           (int)cryptoError);

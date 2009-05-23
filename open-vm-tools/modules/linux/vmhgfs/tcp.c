@@ -35,10 +35,12 @@
 #include <linux/errno.h>
 
 #include "compat_kernel.h"
+#include "compat_kthread.h"
 #include "compat_mutex.h"
 #include "compat_version.h"
 #include "compat_sched.h"
 #include "compat_sock.h"
+#include "compat_timer.h"
 #include "vm_assert.h"
 
 #include "hgfsProto.h"
@@ -47,22 +49,9 @@
 #include "module.h"
 #include "tcp.h"
 
-#ifndef HGFS_TCP_SERVER
-/* Should be removed after server-side changes are checked in. */
-typedef struct HgfsTcpHeader {
-   uint32 version;        /* Packet magic. */
-   uint32 packetLen;      /* The length of the packet to follow. */
-} HgfsTcpHeader;
 
-#define HGFS_TCP_VERSION1 1
-#endif
-
-/* HGFS receive buffer. */
-typedef struct HgfsTcpRecvBuffer {
-   HgfsTcpHeader header;               /* Buffer for receiving header. */
-   char data[HGFS_PACKET_MAX];         /* Buffer for receiving packet. */
-   uint32 state;                       /* Reply receive state. */
-} HgfsTcpRecvBuffer;
+/* Socket recv timeout value, counted in HZ. */
+#define HGFS_SOCKET_RECV_TIMEOUT 10
 
 /* Recv states for the recvBuffer. */
 typedef enum {
@@ -70,10 +59,153 @@ typedef enum {
    HGFS_TCP_CONN_RECV_DATA,
 } HgfsTcpRecvState;
 
-/* No lock to protect recvBuffer. It is accessed only by the recv thread. */
-static HgfsTcpRecvBuffer recvBuffer;
+/* HGFS receive buffer. */
+typedef struct HgfsTcpRecvBuffer {
+   HgfsSocketHeader header;            /* Buffer for receiving header. */
+   char data[HGFS_PACKET_MAX];         /* Buffer for receiving packet. */
+   HgfsTcpRecvState state;             /* Reply receive state. */
+   int len;                            /* Number of bytes to receive. */
+   char *buf;                          /* Pointer to the buffer. */
+} HgfsTcpRecvBuffer;
+
+static HgfsTcpRecvBuffer recvBuffer;   /* Accessed only by the recv thread. */
+static struct task_struct *recvThread; /* The recv thread. */
 
 HgfsTransportChannel tcpChannel;
+
+
+/* Private functions. */
+static Bool HgfsTcpChannelOpen(void);
+static void HgfsTcpChannelClose(void);
+static int HgfsTcpChannelRecvAsync(char **replyPacket,
+                                   size_t *packetSize);
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTcpReceiveHandler --
+ *
+ *     Function run in background thread and wait on the data in the
+ *     connected channel.
+ *
+ * Results:
+ *     Always returns zero.
+ *
+ * Side effects:
+ *     Can be many.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsTcpReceiveHandler(void *dummyarg)
+{
+   char *receivedPacket = NULL;
+   size_t receivedSize = 0;
+   int ret = 0;
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: thread started\n", __func__));
+
+   compat_set_freezable();
+   for (;;) {
+      /* Kill yourself if told so. */
+      if (compat_kthread_should_stop()) {
+         LOG(6, (KERN_DEBUG "VMware hgfs: %s: told to exit\n", __func__));
+         break;
+      }
+
+      /* Check for suspend. */
+      if (compat_try_to_freeze()) {
+         LOG(6, (KERN_DEBUG "VMware hgfs: %s: closing transport and exiting "
+                 "the thread after resume.\n", __func__));
+         HgfsTcpChannelClose();
+         break;
+      }
+
+      /* Waiting on the data, may be blocked. */
+      ret = HgfsTcpChannelRecvAsync(&receivedPacket, &receivedSize);
+
+      /* The connection is not lost for the following returns, just continue. */
+      if (ret == -EINTR || ret == -ERESTARTSYS || ret == -EAGAIN) {
+         continue;
+      }
+
+      if (ret < 0) {
+         /* The connection is broken. Close it to free up the resources. */
+         HgfsTcpChannelClose();
+         if (!HgfsTcpChannelOpen()) {
+            /* We are unable to reconnect to the server, exit the thread. */
+            LOG(6, (KERN_DEBUG "VMware hgfs: %s: recv error: %d. Lost the "
+                    "connection to server.\n", __func__, ret));
+            break;
+         }
+      } else if (ret > 0) {
+         /* Process the received packet. */
+         HgfsTransportProcessPacket(receivedPacket, receivedSize);
+      }
+   }
+
+   HgfsTransportBeforeExitingRecvThread();
+   LOG(6, (KERN_DEBUG "VMware hgfs: %s: thread exited\n", __func__));
+   recvThread = NULL;
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTcpStopReceivingThread --
+ *
+ *     Helper function to stop channel handler thread.
+ *
+ * Results:
+ *     None
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsTcpStopReceivingThread(void)
+{
+   if (recvThread && current != recvThread) { /* Don't stop myself. */
+      /* Wake up socket by sending signal. */
+      force_sig(SIGKILL, recvThread);
+      compat_kthread_stop(recvThread);
+      recvThread = NULL;
+      LOG(8, ("VMware hgfs: %s: recv thread stopped.\n", __func__));
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTcpResetRecvBuffer --
+ *
+ *     Reset recv buffer.
+ *
+ * Results:
+ *     None
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsTcpResetRecvBuffer(void)
+{
+   recvBuffer.state = HGFS_TCP_CONN_RECV_HEADER;
+   recvBuffer.len = sizeof recvBuffer.header;
+   recvBuffer.buf = (char *)&recvBuffer.header;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -94,51 +226,120 @@ HgfsTransportChannel tcpChannel;
 static Bool
 HgfsTcpChannelOpen(void)
 {
-   int error;
-   struct socket *sock;
-   struct sockaddr_in addr;
+   Bool ret = FALSE;
 
    compat_mutex_lock(&tcpChannel.connLock);
-   if (tcpChannel.status == HGFS_CHANNEL_CONNECTED) {
-      compat_mutex_unlock(&tcpChannel.connLock);
-      return TRUE;
-   } else if (tcpChannel.status == HGFS_CHANNEL_UNINITIALIZED) {
-      compat_mutex_unlock(&tcpChannel.connLock);
-      return FALSE;
+   switch (tcpChannel.status) {
+   case HGFS_CHANNEL_UNINITIALIZED:
+      ret = FALSE;
+      LOG(4, ("%s: open tcp channel NOT UNINITIALIZED.\n", __func__));
+      break;
+   case HGFS_CHANNEL_CONNECTED:
+      ret = TRUE;
+      LOG(8, ("%s: open tcp channel CONNECTED.\n", __func__));
+      break;
+   case HGFS_CHANNEL_NOTCONNECTED: {
+      int error;
+      struct socket *sock;
+      struct sockaddr_in addr;
+
+      /*
+       * Ensure this function won't race with HgfsTcpChannelRecvAsync, which
+       * is called only by recvThread. If this thread is not the recv thread,
+       * make sure the recv thread is finished before we proceed.
+       */
+      ASSERT(!recvThread || current == recvThread);
+
+      if (!HOST_IP) {/* HOST_IP is defined in module.c. */
+         ret = FALSE;
+         break;
+      }
+
+      ASSERT(!tcpChannel.priv);
+
+      addr.sin_family = AF_INET;
+      addr.sin_addr.s_addr = in_aton(HOST_IP);
+      addr.sin_port = htons(HOST_PORT);
+
+      error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP,
+                                      &sock);
+      if (error < 0) {
+         LOG(4, ("%s: sock_create_kern failed: %d.\n", __func__, error));
+         ret = FALSE;
+         break;
+      }
+
+      error = sock->ops->connect(sock, (struct sockaddr *)&addr,
+                                 sizeof addr, 0);
+      if (error < 0) {
+         LOG(4, ("%s: connect failed: %d.\n", __func__, error));
+         sock_release(sock);
+         ret = FALSE;
+         break;
+      }
+      sock->sk->compat_sk_rcvtimeo = HGFS_SOCKET_RECV_TIMEOUT * HZ;
+
+      tcpChannel.priv = sock;
+      /* Reset receive buffer when a new connection is connected. */
+      HgfsTcpResetRecvBuffer();
+      tcpChannel.status = HGFS_CHANNEL_CONNECTED;
+
+      if (!recvThread) {
+         /* Creat the recv thread. */
+         recvThread = compat_kthread_run(HgfsTcpReceiveHandler,
+                                         NULL, "vmhgfs-rep");
+         if (IS_ERR(recvThread)) {
+            LOG(4, (KERN_ERR "VMware hgfs: %s: failed to create recv thread\n",
+                    __func__));
+            recvThread = NULL;
+            sock_release(sock);
+            ret = FALSE;
+            break;
+         }
+      }
+
+      LOG(8, ("%s: tcp channel conneted and the recv thread created.\n",
+              __func__));
+      ret = TRUE;
+      break;
+   }
+   default:
+      ASSERT(0); /* Not reached. */
+   }
+
+   compat_mutex_unlock(&tcpChannel.connLock);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTcpChannelCloseWork --
+ *
+ *     Close the tcp channel in an idempotent way.
+ *
+ * Results:
+ *     None
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsTcpChannelCloseWork(void)
+{
+   if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
+      return;
    }
 
    if (tcpChannel.priv != NULL) {
       sock_release(tcpChannel.priv);
+      tcpChannel.priv = NULL;
    }
-
-   addr.sin_family = AF_INET;
-   addr.sin_addr.s_addr = in_aton(HOST_IP);
-   addr.sin_port = htons(HOST_PORT);
-
-   error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
-   if (error < 0) {
-      LOG(8, ("%s: sock_create_kern failed: %d.\n", __FUNCTION__, error));
-      compat_mutex_unlock(&tcpChannel.connLock);
-      return FALSE;
-   }
-
-   error = sock->ops->connect(sock, (struct sockaddr *)&addr,
-                              sizeof addr, 0);
-   if (error < 0) {
-      LOG(8, ("%s: connect failed: %d.\n", __FUNCTION__, error));
-      if (sock) {
-         sock_release(sock);
-      }
-      compat_mutex_unlock(&tcpChannel.connLock);
-      return FALSE;
-   }
-
-   tcpChannel.priv = sock;
-
-   tcpChannel.status = HGFS_CHANNEL_CONNECTED;
-   LOG(8, ("%s: tcp channel conneted.\n", __FUNCTION__));
-   compat_mutex_unlock(&tcpChannel.connLock);
-   return TRUE;
+   tcpChannel.status = HGFS_CHANNEL_NOTCONNECTED;
 }
 
 
@@ -147,7 +348,8 @@ HgfsTcpChannelOpen(void)
  *
  * HgfsTcpChannelClose --
  *
- *     Close the tcp channel in an idempotent way.
+ *     See above.
+ *
  * Results:
  *     None
  *
@@ -160,19 +362,12 @@ HgfsTcpChannelOpen(void)
 static void
 HgfsTcpChannelClose(void)
 {
+   /* Stop the recv thread before we change the channel status. */
+   HgfsTcpStopReceivingThread();
    compat_mutex_lock(&tcpChannel.connLock);
-   if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
-      compat_mutex_unlock(&tcpChannel.connLock);
-      return;
-   }
-
-   if (tcpChannel.priv != NULL) {
-      sock_release(tcpChannel.priv);
-      tcpChannel.priv = NULL;
-   }
-   tcpChannel.status = HGFS_CHANNEL_DISCONNECTED;
+   HgfsTcpChannelCloseWork();
    compat_mutex_unlock(&tcpChannel.connLock);
-   LOG(8, ("%s: tcp channel closed.\n", __FUNCTION__));
+   LOG(8, ("VMware hgfs: %s: tcp channel closed.\n", __func__));
 }
 
 
@@ -200,9 +395,9 @@ HgfsTcpRecvMsg(struct socket *socket,   // IN: TCP socket
 {
    struct iovec iov;
    struct msghdr msg;
-   mm_segment_t fs;
    int ret;
    int flags = 0;
+   mm_segment_t oldfs = get_fs();
 
    memset(&msg, 0, sizeof msg);
    msg.msg_flags = flags;
@@ -211,12 +406,9 @@ HgfsTcpRecvMsg(struct socket *socket,   // IN: TCP socket
    iov.iov_base = buffer;
    iov.iov_len = bufferLen;
 
-   /* get_fs/set_fs give us more privilidges so that we are able to call
-      sock_recvmsg from kernel. */
-   fs = get_fs();
-   set_fs(get_ds());
+   set_fs(KERNEL_DS);
    ret = sock_recvmsg(socket, &msg, bufferLen, flags);
-   set_fs(fs);
+   set_fs(oldfs);
 
    return ret;
 }
@@ -227,10 +419,12 @@ HgfsTcpRecvMsg(struct socket *socket,   // IN: TCP socket
  *
  * HgfsTcpChannelRecvAsync --
  *
- *     Receive the packet.
+ *     Receive the packet. Note, the recv may timeout and return just
+ *     a part of the packet according to our setting of the socket.
  *
  * Results:
- *     On success returns number of bytes received.
+ *     On complete packet received, returns its size.
+ *     On part of the packet received, returns 0.
  *     On failure returns the negative errno.
  *
  * Side effects:
@@ -249,46 +443,140 @@ HgfsTcpChannelRecvAsync(char **replyPacket,   // IN/OUT: Reply buffer
    ASSERT(packetSize);
 
    if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Connection lost.\n", __FUNCTION__));
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Connection lost.\n", __func__));
       return -ENOTCONN;
    }
 
-   switch(recvBuffer.state) {
-   case HGFS_TCP_CONN_RECV_HEADER:
-      ret = HgfsTcpRecvMsg(tcpChannel.priv, (char *)&recvBuffer.header,
-                           sizeof(HgfsTcpHeader));
-      if (ret > 0) {
-         ASSERT(ret == sizeof(HgfsTcpHeader));
-         recvBuffer.state = HGFS_TCP_CONN_RECV_DATA;
+   LOG(10, (KERN_DEBUG "VMware hgfs: %s: receiving %s\n", __func__,
+            recvBuffer.state == 0? "header" : "data"));
+   ret = HgfsTcpRecvMsg(tcpChannel.priv, recvBuffer.buf, recvBuffer.len);
+   LOG(10, (KERN_DEBUG "VMware hgfs: %s: sock_recvmsg returns: %d\n",
+            __func__, ret));
+   if (ret > 0) {
+      ASSERT(ret <= recvBuffer.len);
+      recvBuffer.len -= ret;
+      if ( recvBuffer.len == 0) {
+         /* Complete header or reply packet received. */
+         switch(recvBuffer.state) {
+         case HGFS_TCP_CONN_RECV_HEADER:
+            ASSERT(recvBuffer.header.version == HGFS_SOCKET_VERSION1);
+            ASSERT(recvBuffer.header.size == sizeof recvBuffer.header);
+            ASSERT(recvBuffer.header.status == HGFS_SOCKET_STATUS_SUCCESS);
+            *packetSize = 0;
+            recvBuffer.state = HGFS_TCP_CONN_RECV_DATA;
+            recvBuffer.len = recvBuffer.header.packetLen;
+            recvBuffer.buf = &recvBuffer.data[0];
+            ret = 0; /* To indicate the reply packet is not fully received. */
+            break;
+         case HGFS_TCP_CONN_RECV_DATA:
+            *packetSize = recvBuffer.header.packetLen;
+            *replyPacket = &recvBuffer.data[0];
+            HgfsTcpResetRecvBuffer();
+            break;
+         default:
+            ASSERT(0);
+         }
+      } else if (recvBuffer.len > 0) { /* No complete packet received. */
+         recvBuffer.buf += ret;
          ret = 0;
-         LOG(8, (KERN_DEBUG "VMware hgfs: %s: header received. packet len: %d"
-                 "\n", __FUNCTION__, recvBuffer.header.packetLen));
       }
-      break;
-   case HGFS_TCP_CONN_RECV_DATA:
-      ret = HgfsTcpRecvMsg(tcpChannel.priv, &recvBuffer.data[0],
-                           recvBuffer.header.packetLen);
-      if (ret > 0) {
-         ASSERT(ret == recvBuffer.header.packetLen);
-         *packetSize = ret;
-         *replyPacket = &recvBuffer.data[0];
-         LOG(8, (KERN_DEBUG "VMware hgfs: %s: packet received. len: %d\n",
-                 __FUNCTION__, ret));
-         recvBuffer.state = HGFS_TCP_CONN_RECV_HEADER;
-      }
-      break;
-   default:
-      ASSERT(0);
+   }else if (ret == 0) { /* The connection is actually broken. */
+      ret = -ENOTCONN;
    }
 
-   if (ret < 0) {
-      LOG(8, (KERN_DEBUG "VMware hgfs: %s: sock_recvmsg returns: %d\n",
-              __FUNCTION__, ret));
-      /* The connection is not lost for these three cases. */
-      if (ret != -EINTR && ret != -ERESTARTSYS && ret != -EAGAIN) {
-         recvBuffer.state = HGFS_TCP_CONN_RECV_HEADER;
-         tcpChannel.status = HGFS_CHANNEL_DISCONNECTED;
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTcpSendMsg --
+ *
+ *     Send the message via the socket. Add the header before sending.
+ *
+ * Results:
+ *     On success returns 0;
+ *     On failure returns the negative errno.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsTcpSendMsg(struct socket *socket,   // IN: socket
+               char *buffer,            // IN: Buffer to send
+               size_t bufferLen)        // IN: Buffer length
+{
+   HgfsSocketHeader sockHeader;
+   struct iovec iov[2];
+   struct msghdr msg;
+   int totalLen;
+   int ret = 0;
+   int i = 0;
+   mm_segment_t oldfs = get_fs();
+
+   HgfsSocketHeaderInit(&sockHeader, HGFS_SOCKET_VERSION1, sizeof sockHeader,
+                        HGFS_SOCKET_STATUS_SUCCESS, bufferLen, 0);
+
+   memset(&msg, 0, sizeof msg);
+   iov[0].iov_base = &sockHeader;
+   iov[0].iov_len = sizeof sockHeader;
+   iov[1].iov_base = buffer;
+   iov[1].iov_len = bufferLen;
+   msg.msg_iov = &iov[0];
+   msg.msg_iovlen = 2;
+   totalLen = sizeof sockHeader + bufferLen;
+
+   while (totalLen > 0) {
+      set_fs(KERNEL_DS);
+      ret = sock_sendmsg(socket, &msg, totalLen);
+      set_fs(oldfs);
+      LOG(6, ("VMware hgfs: %s: sock_sendmsg returns %d.\n", __func__, ret));
+
+      if (ret == totalLen) { /* Common case. */
+         break;
       }
+
+      if (ret == -ENOSPC || ret == -EAGAIN) {
+         i++;
+         if (i > 12) {
+            LOG(2, ("VMware hgfs: %s: send stuck for 8 seconds.\n", __func__));
+            ret = -EIO;
+            break;
+         }
+         LOG(6, ("VMware hgfs: %s: Sleep for %d milliseconds before retry.\n",
+                 __func__, (1 << i)));
+         compat_msleep(1 << i);
+         continue;
+      } else if (ret < 0) {
+         break;
+      } else if (ret > totalLen) {
+         LOG(2, ("VMware hgfs: %s: sent more than expected bytes. Sent: %d, "
+                 "expected: %d\n", __func__, ret, totalLen));
+         break;
+      }
+
+      i = 0;
+      totalLen -= ret;
+      if (ret < iov[0].iov_len) {
+         /* Only part of the header has been sent out. */
+         iov[0].iov_base += ret;
+         iov[0].iov_len -= ret;
+      } else {
+         /* The header and part of the body have been sent out. */
+         int temp = ret - iov[0].iov_len;
+         iov[1].iov_base += temp;
+         iov[1].iov_len -= temp;
+         msg.msg_iov = &iov[1];
+         msg.msg_iovlen = 1;
+      }
+   }
+
+   if (ret > 0) {
+      ret = 0; /* Indicate success. */
    }
 
    return ret;
@@ -300,7 +588,7 @@ HgfsTcpChannelRecvAsync(char **replyPacket,   // IN/OUT: Reply buffer
  *
  * HgfsTcpChannelSendAsync --
  *
- *     Send the request via TCP channel. Add the header before sending.
+ *     Send the request via TCP channel.
  *
  * Results:
  *     0 on success, negative error on failure.
@@ -314,54 +602,31 @@ HgfsTcpChannelRecvAsync(char **replyPacket,   // IN/OUT: Reply buffer
 static int
 HgfsTcpChannelSendAsync(HgfsReq *req)    // IN: request to send
 {
-   HgfsTcpHeader sockHeader;
    struct socket *socket;
-   mm_segment_t fs;
-   struct msghdr msg;
-   struct iovec iov[2];
    int result;
 
    ASSERT(req);
    compat_mutex_lock(&tcpChannel.connLock);
    if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Connection lost\n", __FUNCTION__));
+      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Connection lost\n", __func__));
       compat_mutex_unlock(&tcpChannel.connLock);
       return -ENOTCONN;
    }
 
+   req->state = HGFS_REQ_STATE_SUBMITTED;
    socket = tcpChannel.priv;
-   memset(&msg, 0, sizeof msg);
-   sockHeader.version = HGFS_TCP_VERSION1;
-   sockHeader.packetLen = req->payloadSize;
 
-   msg.msg_iov = iov;
-   msg.msg_iovlen = 2;
+   result = HgfsTcpSendMsg(socket, HGFS_REQ_PAYLOAD(req), req->payloadSize);
 
-   iov[0].iov_base = &sockHeader;
-   iov[0].iov_len = sizeof sockHeader;
-   iov[1].iov_base = HGFS_REQ_PAYLOAD(req);
-   iov[1].iov_len = req->payloadSize;
-
-   /* get_fs/set_fs give us more privilidges so that we are able to call
-      sock_sendmsg from kernel. */
-   fs = get_fs();
-   set_fs(KERNEL_DS);
-   result = sock_sendmsg(socket, &msg, req->payloadSize);
-   set_fs(fs);
+   compat_mutex_unlock(&tcpChannel.connLock);
 
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: %s: sendmsg, err: %d.\n",
-              __FUNCTION__, result));
-      tcpChannel.status = HGFS_CHANNEL_DISCONNECTED;
-   } else  {
-      LOG(8, ("VMware hgfs: %s: sendmsg, bytes sent: %d.\n",
-              __FUNCTION__, result));
-      ASSERT(result == req->payloadSize + sizeof sockHeader);
-      req->state = HGFS_REQ_STATE_SUBMITTED;
-      result = 0;
+              __func__, result));
+      HgfsTcpChannelClose();
+      req->state = HGFS_REQ_STATE_UNSENT;
    }
 
-   compat_mutex_unlock(&tcpChannel.connLock);
    return result;
 }
 
@@ -371,7 +636,7 @@ HgfsTcpChannelSendAsync(HgfsReq *req)    // IN: request to send
  *
  * HgfsTcpChannelExit --
  *
- *     Tear down the channel and close TCP connection.
+ *     Tear down the channel.
  *
  * Results:
  *     None
@@ -385,12 +650,13 @@ HgfsTcpChannelSendAsync(HgfsReq *req)    // IN: request to send
 static void
 HgfsTcpChannelExit(void)
 {
+   HgfsTcpStopReceivingThread();
    compat_mutex_lock(&tcpChannel.connLock);
-   if (tcpChannel.priv != NULL) {
-      sock_release(tcpChannel.priv);
-      tcpChannel.priv = NULL;
+   if (tcpChannel.status != HGFS_CHANNEL_UNINITIALIZED) {
+      HgfsTcpChannelCloseWork();
+      tcpChannel.status = HGFS_CHANNEL_UNINITIALIZED;
+      LOG(8, ("VMware hgfs: %s: tcp channel exited.\n", __func__));
    }
-   tcpChannel.status = HGFS_CHANNEL_UNINITIALIZED;
    compat_mutex_unlock(&tcpChannel.connLock);
 }
 
@@ -400,10 +666,10 @@ HgfsTcpChannelExit(void)
  *
  * HgfsTcpChannelInit --
  *
- *     Initialize TCP channel and open the connection.
+ *     Initialize TCP channel.
  *
  * Results:
- *     TRUE on success, otherwise FALSE.
+ *     None
  *
  * Side effects:
  *     None
@@ -411,7 +677,7 @@ HgfsTcpChannelExit(void)
  *----------------------------------------------------------------------
  */
 
-Bool
+void
 HgfsTcpChannelInit(void)
 {
    tcpChannel.name = "tcp";
@@ -423,14 +689,8 @@ HgfsTcpChannelInit(void)
    tcpChannel.priv = NULL;
    compat_mutex_init(&tcpChannel.connLock);
 
-   /* Initialize hgfsConn. */
    memset(&recvBuffer, 0, sizeof recvBuffer);
-   recvBuffer.state = HGFS_TCP_CONN_RECV_HEADER;
-   tcpChannel.status = HGFS_CHANNEL_DISCONNECTED;
-
-   if (!HOST_IP) {/* HOST_IP is defined in module.c. */
-      return FALSE;
-   }
-
-   return TRUE;
+   HgfsTcpResetRecvBuffer();
+   recvThread = NULL;
+   tcpChannel.status = HGFS_CHANNEL_NOTCONNECTED;
 }

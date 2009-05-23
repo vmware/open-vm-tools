@@ -60,6 +60,11 @@ $(error "This makefile is only used for Solaris 9 and 10")
 endif # }
 endif # }
 
+ifdef OVT_SOURCE_DIR
+   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
+   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmxnet
+endif
+
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32
 LDFLAGS_32 := $(LDFLAGS)

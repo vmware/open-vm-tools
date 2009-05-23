@@ -96,6 +96,8 @@
    #define HGFS_VA_MODIFY_TIME va_modify_time
    #define HGFS_VA_CREATE_TIME_SEC va_create_time
    #define HGFS_VA_CREATE_TIME va_create_time
+   #define HGFS_VA_CHANGE_TIME_SEC va_change_time
+   #define HGFS_VA_CHANGE_TIME va_change_time
    #define HGFS_VA_BLOCK_SIZE va_iosize
    #define HGFS_VATTR_IS_ACTIVE(vap, attr)                      \
            VATTR_IS_ACTIVE(vap, attr)
@@ -114,6 +116,8 @@
            VATTR_SET_SUPPORTED(vap, va_modify_time)
    #define HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap)            \
            VATTR_SET_SUPPORTED(vap, va_create_time)
+   #define HGFS_VATTR_CHANGE_TIME_SET_SUPPORTED(vap)            \
+           VATTR_SET_SUPPORTED(vap, va_change_time)
 
 #elif defined(__FreeBSD__)
    #define HGFS_VA_DATA_SIZE va_size
@@ -122,8 +126,10 @@
    #define HGFS_VA_ACCESS_TIME va_atime
    #define HGFS_VA_MODIFY_TIME_SEC va_mtime.tv_sec
    #define HGFS_VA_MODIFY_TIME va_mtime
-   #define HGFS_VA_CREATE_TIME_SEC va_ctime.tv_sec
-   #define HGFS_VA_CREATE_TIME va_ctime
+   #define HGFS_VA_CHANGE_TIME_SEC va_ctime.tv_sec
+   #define HGFS_VA_CHANGE_TIME va_ctime
+   #define HGFS_VA_CREATE_TIME_SEC va_birthtime.tv_sec
+   #define HGFS_VA_CREATE_TIME va_birthtime
    #define HGFS_VA_BLOCK_SIZE va_blocksize
    #define HGFS_VATTR_IS_ACTIVE(vap, attr)                      \
            (vap->attr != VNOVAL)
@@ -140,9 +146,10 @@
            VATTR_RETURN(vap, va_size, val)
 
    /* NULL macros */
-   #define HGFS_VATTR_ACCESS_TIME_SET_SUPPORTED(vap)          
+   #define HGFS_VATTR_ACCESS_TIME_SET_SUPPORTED(vap)
    #define HGFS_VATTR_MODIFY_TIME_SET_SUPPORTED(vap)
    #define HGFS_VATTR_CREATE_TIME_SET_SUPPORTED(vap)
+   #define HGFS_VATTR_CHANGE_TIME_SET_SUPPORTED(vap)
 #endif
 
 /*

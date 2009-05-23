@@ -94,7 +94,9 @@ typedef enum HostinfoDaemonizeFlags {
 extern Bool Hostinfo_Daemonize(const char *path,
                                char * const *args,
                                HostinfoDaemonizeFlags flags,
-                               const char *pidPath);
+                               const char *pidPath,
+                               const int *openFds,
+                               size_t numFds);
 #endif
 
 extern Unicode Hostinfo_GetUser(void);
@@ -142,6 +144,7 @@ typedef enum {
    OS_WINXP                  = 6,
    OS_WIN2K3                 = 7,
    OS_VISTA                  = 8,
+   OS_WINSEVEN               = 9,    // Windows 7
    OS_UNKNOWN                = 99999 // last, highest value
 } OS_TYPE;
 
@@ -164,6 +167,7 @@ typedef enum {
    OS_DETAIL_WIN2K3_EN       = 16,
    OS_DETAIL_WIN2K3_BUS      = 17,
    OS_DETAIL_VISTA           = 18,
+   OS_DETAIL_WINSEVEN        = 19,    // Windows 7
    OS_DETAIL_UNKNOWN         = 99999  // last, highest value
 } OS_DETAIL_TYPE;
 

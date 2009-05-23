@@ -135,7 +135,6 @@ Bool ProcMgr_ExecSync(char const *cmd,       // UTF-8
 ProcMgr_AsyncProc *ProcMgr_ExecAsync(char const *cmd,     // UTF-8
                                      ProcMgr_ProcArgs *userArgs);
 void ProcMgr_Kill(ProcMgr_AsyncProc *asyncProc);
-Bool ProcMgr_GetAsyncStatus(ProcMgr_AsyncProc *asyncProc, Bool *status);
 Selectable ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc);
 ProcMgr_Pid ProcMgr_GetPid(ProcMgr_AsyncProc *asyncProc);
 Bool ProcMgr_IsAsyncProcRunning(ProcMgr_AsyncProc *asyncProc);
