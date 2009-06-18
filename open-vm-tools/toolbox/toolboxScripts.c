@@ -558,7 +558,7 @@ Scripts_OnEdit(gpointer btn,  // IN: unused
                gpointer data) // IN: unused
 {
    char *editor;
-   const char *scriptName;
+   char *scriptName;
    const char *argv[5];
    size_t idx = 0;
 
@@ -594,7 +594,7 @@ Scripts_OnEdit(gpointer btn,  // IN: unused
       editor = Util_SafeStrdup(editor);
    }
 
-   scriptName = gtk_entry_get_text(GTK_ENTRY(scriptsPath));
+   scriptName = Toolbox_GetScriptPath(gtk_entry_get_text(GTK_ENTRY(scriptsPath)));
    argv[idx++] = termApp;
    if (termAppOption != NULL && strlen(termAppOption) > 0) {
       argv[idx++] = termAppOption;
@@ -612,6 +612,7 @@ Scripts_OnEdit(gpointer btn,  // IN: unused
       g_free(msg);
    }
 
+   g_free(scriptName);
    free(editor);
 }
 
@@ -637,23 +638,15 @@ void
 Scripts_OnRun(gpointer btn,  // IN: unused
               gpointer data) // IN: unused
 {
-   const char *scriptName;
-   gchar *cmd = NULL;
+   char *scriptName;
 
-   scriptName = gtk_entry_get_text(GTK_ENTRY(scriptsPath));
-   if (!g_path_is_absolute(scriptName)) {
-      char *toolsPath = GuestApp_GetInstallPath();
-      ASSERT_MEM_ALLOC(toolsPath);
-      cmd = g_strdup_printf("%s%c%s", toolsPath, DIRSEPC, scriptName);
-      free(toolsPath);
-   }
-
-   if (!ProcMgr_ExecSync((cmd != NULL) ? cmd : scriptName, NULL)) {
+   scriptName = Toolbox_GetScriptPath(gtk_entry_get_text(GTK_ENTRY(scriptsPath)));
+   if (!ProcMgr_ExecSync(scriptName, NULL)) {
       ToolsMain_MsgBox("Error", "Failure executing script, please ensure the "
                        "file exists and is executable.");
    }
 
-   g_free(cmd);
+   g_free(scriptName);
 }
 
 

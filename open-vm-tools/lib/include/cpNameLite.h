@@ -40,10 +40,10 @@
 #ifndef __CP_NAME_LITE_H__
 #define __CP_NAME_LITE_H__
 
-#if defined(__KERNEL__) && defined(__linux__)
+#if defined __KERNEL__ && defined __linux__
 #  include "driver-config.h"
 #  include <linux/string.h>
-#elif defined(_KERNEL) && defined(__FreeBSD__)
+#elif defined _KERNEL && defined __FreeBSD__
 #  include <sys/libkern.h>
 #  define strchr(s,c)       index(s,c)
 #else

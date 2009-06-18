@@ -31,6 +31,9 @@ DOXYGEN_CPP_PREDEFINED += G_LOG_DOMAIN=
 
 DOXYGEN_CPP_EXPAND =
 
+DOXYGEN_EXTRA_PATTERNS =
+DOXYGEN_EXTRA_PATTERNS += *.txt
+
 # This rule has no dependencies, so it's executed every time. Not optimal,
 # but generation of the docs is pretty quick, and having the right dependencies
 # here is very non-trivial.
@@ -39,14 +42,18 @@ build/index.html:
 	sed \
 	   -e 's,##{BUILD_DIR}##,$(top_builddir),'                \
 	   -e 's,##{BUILD_OUTPUT}##,build,'                       \
+	   -e 's,##{CLIENT_ROOT}##,$(top_srcdir),'                \
 	   -e 's,##{CPP_EXPAND}##,$(DOXYGEN_CPP_EXPAND),'         \
 	   -e 's,##{CPP_PREDEFINED}##,$(DOXYGEN_CPP_PREDEFINED),' \
 	   -e 's,##{DOT}##,@DOT@,'                                \
+	   -e 's,##{FILE_PATTERNS}##,$(DOXYGEN_EXTRA_PATTERNS),'  \
 	   -e 's,##{HAVE_DOT}##,@HAVE_DOT@,'                      \
-	   -e 's,##{INPUT}##,$(DOXYGEN_INPUT),'                   \
+	   -e 's,##{INCLUDE_PATHS}##,$(top_srcdir)/lib/include,'  \
+	   -e 's,##{INPUT_PATHS}##,$(DOXYGEN_INPUT),'             \
 	   -e 's,##{MSCGEN_DIR}##,@MSCGEN_DIR@,'                  \
+	   -e 's,##{PERL}##,,'                                    \
+	   -e 's,##{PROJECT_NAME}##,@PACKAGE_STRING@,'            \
 	   -e 's,##{PROJECT_VERSION}##,@TOOLS_VERSION@,'          \
-	   -e 's,##{SOURCE_DIR}##,$(top_srcdir),'                 \
 	   -e 's,##{WARNING_LOG}##,warnings.log,'                 \
 	   $(top_srcdir)/docs/api/doxygen.conf > doxygen.parsed.conf
 	doxygen doxygen.parsed.conf > /dev/null

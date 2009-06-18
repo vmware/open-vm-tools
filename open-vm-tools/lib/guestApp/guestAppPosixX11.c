@@ -51,6 +51,7 @@ extern "C" {
 #include "debug.h"
 
 static const char *gBrowser = NULL; // browser path
+static Bool gBrowserIsMalloced = FALSE;
 static Bool gBrowserIsNewNetscape = FALSE;
 static XErrorHandler gDefaultXErrorHandler;
 
@@ -80,12 +81,11 @@ GuestAppX11OpenUrl(const char *url, // IN
                    Bool maximize)   // IN: open the browser maximized? Ignored for now.
 {
    gboolean spawnSuccess;
-   GError *gerror;
+   GError *gerror = NULL;
 
-   char *argv[4];
+   char **argv = NULL;
    char *newNetscapeBuf = NULL;
    Bool success = FALSE;
-   int ret;
 
    ASSERT(url);
 
@@ -107,56 +107,81 @@ GuestAppX11OpenUrl(const char *url, // IN
       if (!newNetscapeBuf) {
          goto abort;
       }
+      argv = g_malloc(4 * sizeof *argv);
       argv[0] = (char *)gBrowser;
       argv[1] = "-remote";
       argv[2] = newNetscapeBuf;
       argv[3] = NULL;
    } else {
-      argv[0] = (char *)gBrowser;
-      argv[1] = (char *)url;
-      argv[2] = NULL;
+      gint argc;
+      /*
+       * See GuestAppDetectBrowser(): our browser command could come from gconf,
+       * in which case it's a command line that we have to parse, so that we
+       * can put the URL in the right place before executing the child process.
+       */
+      if (!g_shell_parse_argv(gBrowser, &argc, &argv, &gerror)) {
+         Debug("Error parsing browser command line: %s\n", gerror->message);
+         g_clear_error(&gerror);
+         goto abort;
+      }
+      if (argc > 1) {
+         /*
+          * If the browser is a command line, we expect "%s" to be the URL
+          * placeholder. If not found, bail out.
+          */
+         gint i;
+         for (i = 0; i < argc; i++) {
+            if (strcmp(argv[i], "%s") == 0) {
+               argv[i] = (char *) url;
+               break;
+            }
+         }
+         if (i == argc) {
+            Debug("Browser command (%s) doesn't have an URL placeholder.\n", gBrowser);
+            goto abort;
+         }
+      } else {
+         g_free(argv);
+         argv = g_malloc(3 * sizeof *argv);
+         argv[0] = (char *)gBrowser;
+         argv[1] = (char *)url;
+         argv[2] = NULL;
+      }
    }
 
-   spawnSuccess = g_spawn_sync(NULL,     // inherit working directory
-                               argv,
-                               /*
+   /*
+    * Spawn the child and hope for the best. Do not block our UI while the
+    * help is showing.
+    */
+   spawnSuccess = g_spawn_async(NULL,     // inherit working directory
+                                argv,
+                                /*
                                 * XXX  Please don't hate me for casting off the
                                 * qualifier here.  Glib does -not- modify the
                                 * environment, at least not in the parent process,
                                 * but their prototype does not specify this argument
                                 * as being const.
                                 */
-                               (char **)guestAppSpawnEnviron,
-                               G_SPAWN_SEARCH_PATH
-                                  | G_SPAWN_STDOUT_TO_DEV_NULL
-                                  | G_SPAWN_STDERR_TO_DEV_NULL,
-                               NULL,     // no child setup routine
-                               NULL,     // param for child setup routine
-                               NULL,     // container for stdout
-                               NULL,     // container for stderr
-                               &ret,     // waitpid-style value
-                               &gerror); // GSpawnError
+                                (char **)guestAppSpawnEnviron,
+                                G_SPAWN_SEARCH_PATH
+                                 | G_SPAWN_STDOUT_TO_DEV_NULL
+                                 | G_SPAWN_STDERR_TO_DEV_NULL,
+                                NULL,     // no child setup routine
+                                NULL,     // param for child setup routine
+                                NULL,     // no child pid
+                                &gerror); // GSpawnError
 
    if (!spawnSuccess) {
       Debug("%s: Unable to launch browser '%s': %d: %s\n", __func__, gBrowser,
             gerror->code, gerror->message);
-      g_error_free(gerror);
-      goto abort;
-   }
-
-   /*
-    * If the program terminated other than by exit() or return, i.e., was
-    * hit by a signal, or if the exit status indicates something other
-    * than success, then the URL wasn't opened and we should indicate
-    * failure.
-    */
-   if (!WIFEXITED(ret) || (WEXITSTATUS(ret) != 0)) {
+      g_clear_error(&gerror);
       goto abort;
    }
 
    success = TRUE;
 
 abort:
+   g_free(argv);
    free(newNetscapeBuf);
    return success;
 }
@@ -185,7 +210,11 @@ GuestAppDetectBrowser(void)
    const char *buf = NULL;
 
    if (gBrowser) {
+      if (gBrowserIsMalloced) {
+         g_free((void *)gBrowser);
+      }
       gBrowser = NULL;
+      gBrowserIsMalloced = FALSE;
       gBrowserIsNewNetscape = FALSE;
    }
 
@@ -215,9 +244,48 @@ GuestAppDetectBrowser(void)
    if ((getenv("GNOME_DESKTOP_SESSION_ID") != NULL ||
         GuestAppFindX11Client("gnome-session") ||
         GuestAppFindX11Client("gnome-panel")) &&
-       GuestApp_FindProgram("gnome-open")) {
-      buf = "gnome-open";
-   } else if (((getenv("KDE_FULL_SESSION") != NULL &&
+       GuestApp_FindProgram("gconftool-2")) {
+      /*
+       * XXX: gnome-open is stupid and doesn't work if it receives a "file:" URL
+       * with a query string, since it thinks the query string is part of
+       * the path and refuses to open the URL. You can get the current browser
+       * by using gconftool-2, in which case the string we get will contain
+       * a "%s" where the URL should be, which is handled later.
+       */
+      char *argv[] = {
+         "gconftool-2",
+         "--get",
+         "/desktop/gnome/url-handlers/http/command"
+      };
+      gboolean success;
+      gchar *out = NULL;
+      gint status;
+      GError *err = NULL;
+
+      success =  g_spawn_sync(NULL,
+                              argv,
+                               (char **)guestAppSpawnEnviron,
+                               G_SPAWN_SEARCH_PATH | G_SPAWN_STDERR_TO_DEV_NULL,
+                               NULL,
+                               NULL,
+                               &out,
+                               NULL,
+                               &status,
+                               &err);
+      if (!success || !WIFEXITED(status) || WEXITSTATUS(status) != 0 ||
+          out == NULL || strlen(out) == 0) {
+          Warning("Failed to invoke gconftool-2: exit code %d (%s)\n",
+                  WEXITSTATUS(status),
+                  (err != NULL) ? err->message : "");
+          g_clear_error(&err);
+      } else {
+         buf = g_strchomp(out);
+         gBrowserIsMalloced = TRUE;
+         goto exit;
+      }
+   }
+
+   if (((getenv("KDE_FULL_SESSION") != NULL &&
                 !strcmp(getenv("KDE_FULL_SESSION"), "true")) ||
                GuestAppFindX11Client("ksmserver") ||
                GuestAppFindX11Client("startkde")) &&
@@ -235,6 +303,7 @@ GuestAppDetectBrowser(void)
       return;
    }
 
+exit:
    /*
     * netscape >= 6.2 has a bug, in that if we try to reuse an existing
     * window, and fail, it will return a success code.  We have to test for this

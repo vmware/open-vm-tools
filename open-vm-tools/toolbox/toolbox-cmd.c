@@ -685,7 +685,7 @@ main(int argc,    // IN: length of command line arguments
 	 exit(EXIT_SUCCESS);
 
       case 'v':
-	 printf("%s\n", TOOLBOXCMD_VERSION_STRING);
+	 printf("%s (%s)\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER);
 	 exit(EXIT_SUCCESS);
 
       case 'q':

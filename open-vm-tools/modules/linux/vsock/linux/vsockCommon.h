@@ -34,9 +34,9 @@
  * than external kernel modules using VMCI Sockets api inside the kernel.
  */
 
-#if defined(_WIN32)
+#if defined _WIN32
 #  define VMCI_SOCKETS_AF_VALUE 28
-#  if defined(WINNT_DDK)
+#  if defined WINNT_DDK
 #     define _WIN2K_COMPAT_SLIST_USAGE
 #     include <ntddk.h>
 #     include <windef.h>
@@ -48,24 +48,18 @@
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #     include <windows.h>
 #  endif // WINNT_DDK
-#  define Uint64ToPtr(_ui) ((void *)(uint64)(_ui))
-#  define PtrToUint64(_p)  ((uint64)(_p))
-#else
-#if defined(VMKERNEL)
+#elif defined VMKERNEL
 #  include "uwvmkAPI.h"
 #  define VMCI_SOCKETS_AF_VALUE AF_VMCI /* Defined in uwvmkAPI.h. */
    /* The address family is fixed in the vmkernel. */
 #  define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  include "vmciHostKernelAPI.h"
-#  define Uint64ToPtr(_ui) ((void *)(uint64)(_ui))
-#  define PtrToUint64(_p)  ((uint64)(_p))
-#else
-#if defined(linux)
-#  if defined(__KERNEL__)
+#elif defined linux
+#  if defined __KERNEL__
    /* Include compat_page.h now so PAGE_SIZE and friends don't get redefined. */
 #     include "driver-config.h"
 #     include "compat_page.h"
-#     if defined(VMX86_TOOLS)
+#     if defined VMX86_TOOLS
 #        include "vmci_queue_pair.h"
 #     endif
     /*
@@ -78,17 +72,9 @@
       /* In userland, just use the normal exported userlevel api. */
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #  endif
-#else
-#if defined(__APPLE__)
-#  if defined(KERNEL)
+#elif defined __APPLE__
+#  if defined KERNEL
 #     include "vmci_queue_pair.h"
-
-/*
- * XXX: These defines are NOT 64 bit safe - they need to be revisited as part
- * of any work to support 64 bit kernels.
- */
-#     define Uint64ToPtr(_ui) ((void *)(uint32)(_ui))
-#     define PtrToUint64(_p)  ((uint64)(_p))
 
 #     define VMCI_SOCKETS_AF_VALUE PF_SYSTEM
 #     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
@@ -96,18 +82,14 @@
 #     define VMCISockGetAFValueInt() VMCISock_GetAFValue()
 #  endif // KERNEL
 #endif // __APPLE__
-#endif // linux
-#endif // VMKERNEL
-#endif // _WIN32
 
 #include "vmware.h"
-#include "vmware_pack_init.h"
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 #include "vmci_sockets_int.h"
 #include "vmci_sockets.h"
 
-#if defined(WINNT_DDK)
+#if defined WINNT_DDK
 #  include <winsock2.h>
 #endif // WINNT_DDK
 
@@ -121,5 +103,58 @@
 #define VSOCK_MEMORY_NONPAGED (1 << 1)
 
 
-#endif // _VSOCK_COMMON_H_
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VSockVA64ToPtr --
+ *
+ *      Convert a VA64 to a pointer.
+ *
+ * Results:
+ *      Virtual address.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
+static INLINE void *
+VSockVA64ToPtr(VA64 va64) // IN
+{
+#ifdef VM_X86_64
+   ASSERT_ON_COMPILE(sizeof (void *) == 8);
+#else
+   ASSERT_ON_COMPILE(sizeof (void *) == 4);
+   // Check that nothing of value will be lost.
+   ASSERT(!(va64 >> 32));
+#endif
+   return (void *)(uintptr_t)va64;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VSockPtrToVA64 --
+ *
+ *      Convert a pointer to a VA64.
+ *
+ * Results:
+ *      Virtual address.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE VA64
+VSockPtrToVA64(void const *ptr) // IN
+{
+   ASSERT_ON_COMPILE(sizeof ptr <= sizeof (VA64));
+   return (VA64)(uintptr_t)ptr;
+}
+
+
+#endif // _VSOCK_COMMON_H_

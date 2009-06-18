@@ -550,7 +550,8 @@ vmci_ioctl(struct inode *inode,  // IN
 	 break;
       }
       
-      if (VMCIDatagramProcess_Create(&dgmProc, &createInfo) < VMCI_SUCCESS) {
+      if (VMCIDatagramProcess_Create(&dgmProc, &createInfo,
+                                     0 /* Unused */) < VMCI_SUCCESS) {
 	 retval = -EINVAL;
 	 break;
       }

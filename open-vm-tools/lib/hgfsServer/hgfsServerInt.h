@@ -755,12 +755,12 @@ HgfsServerPlatformInit(void);
 void
 HgfsServerPlatformDestroy(void);
 
-HgfsInternalStatus
+HgfsNameStatus
 HgfsServerHasSymlink(const char *fileName,      // IN: fileName to be checked
                      size_t fileNameLength,     // IN
                      const char *sharePath,     // IN: share path in question
                      size_t sharePathLen);      // IN
-HgfsInternalStatus
+HgfsNameStatus
 HgfsServerConvertCase(const char *sharePath,             // IN: share path in question
                       size_t sharePathLength,            // IN
                       char *fileName,                    // IN: filename to be looked up

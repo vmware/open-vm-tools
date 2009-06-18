@@ -452,7 +452,11 @@ typedef struct VMCIDatagramSendRecvInfo {
 typedef struct VMCIDatagramCreateInfo {
    VMCIId      resourceID;
    uint32      flags; 
+#ifdef _WIN32
    int         eventHnd;
+#else
+   int         _unused;
+#endif
    int         result;     // result of handle create operation
    VMCIHandle  handle;     // handle if successfull
 } VMCIDatagramCreateInfo;

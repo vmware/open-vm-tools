@@ -27,17 +27,17 @@
 
 #include <sys/param.h>
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #  include <sys/types.h>          // for log(9)
 #  include <sys/systm.h>          // for log(9)
 #  include <sys/syslog.h>         // for log(9), LOG_* macros
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #  include <kern/debug.h>         // for panic
 #endif
 
 #include <sys/vnode.h>            // for struct vattr
 
-#if defined(VMX86_DEVEL)
+#if defined VMX86_DEVEL
 #  include <pexpert/pexpert.h>    // for kprintf
 #endif
 
@@ -73,18 +73,18 @@
 #define VM_DEBUG_STATE          (1 << 19)
 #define VM_DEBUG_ALL            (~0)
 
-#if defined(VMX86_DEVEL)
+#if defined VMX86_DEVEL
 #  define VM_DEBUG_LEV (VM_DEBUG_ALWAYS | VM_DEBUG_FAIL)
 #endif
 
 #ifdef VM_DEBUG_LEV
-#  if defined(__FreeBSD__)
+#  if defined __FreeBSD__
 #    define DEBUG(type, fmt, ...)                                         \
                ((type & VM_DEBUG_LEV) ?                                   \
                 (log(LOG_NOTICE, "%s:%u: " fmt,                           \
                      __func__, __LINE__, ##__VA_ARGS__))                  \
                 : 0)
-#  elif defined(__APPLE__)
+#  elif defined __APPLE__
 #    define DEBUG(type, fmt, ...)                             \
                  ((type & VM_DEBUG_LEV) ?                     \
                   (kprintf("%s:%u: " fmt,                     \

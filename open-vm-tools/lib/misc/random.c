@@ -37,6 +37,9 @@
 #include "vmware.h"
 #include "random.h"
 
+#define ESX_RANDOM_DEVICE     "/vmfs/devices/char/vmkdriver/urandom"
+#define GENERIC_RANDOM_DEVICE "/dev/urandom"
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -59,62 +62,82 @@
  */
 
 Bool
-Random_Crypto(unsigned int size, // IN
-              void *buffer)      // OUT
+Random_Crypto(unsigned int size,  // IN:
+              void *buffer)       // OUT:
 {
 #if defined(_WIN32)
    HCRYPTPROV csp;
-   DWORD error;
 
    if (CryptAcquireContext(&csp, NULL, NULL, PROV_RSA_FULL,
                            CRYPT_VERIFYCONTEXT) == FALSE) {
-      error = GetLastError();
-      Log("Random_Crypto: CryptAcquireContext failed %d\n", error);
+      Log("%s: CryptAcquireContext failed %d\n", __FUNCTION__,
+          GetLastError());
       return FALSE;
    }
 
    if (CryptGenRandom(csp, size, buffer) == FALSE) {
       CryptReleaseContext(csp, 0);
-      error = GetLastError();
-      Log("Random_Crypto: CryptGenRandom failed %d\n", error);
+      Log("%s: CryptGenRandom failed %d\n", __FUNCTION__, GetLastError());
       return FALSE;
    }
 
    if (CryptReleaseContext(csp, 0) == FALSE) {
-      error = GetLastError();
-      Log("Random_Crypto: CryptReleaseContext failed %d\n", error);
+      Log("%s: CryptReleaseContext failed %d\n", __FUNCTION__,
+          GetLastError());
       return FALSE;
    }
 #else
    int fd;
-   int error;
 
    /*
     * We use /dev/urandom and not /dev/random because it is good enough and
     * because it cannot block. --hpreg
     *
     * Bug 352496: On ESX, /dev/urandom is proxied into COS, and hence is
-    * expensive. The VMkernel RNG is available through VMFS and is not proxied.
-    * So we use that instead.
+    * expensive. The VMkernel RNG is available through VMFS and is not
+    * proxied. So we use that instead.
     */
-#ifdef VMX86_SERVER
-   fd = open("/vmfs/devices/char/vmkdriver/urandom", O_RDONLY);
-#else
-   fd = open("/dev/urandom", O_RDONLY);
+
+#if defined(VMX86_SERVER)
+   /*
+    * ESX: attempt to use the wonderful random device.
+    */
+
+   fd = open(ESX_RANDOM_DEVICE, O_RDONLY);
+
+#if defined(VMX86_DEVEL)
+   /*
+    * On developer builds, attempt to fall back to the generic random
+    * device, even if it is much slower. This has a nice side-effect -
+    * some things built for ESX will actually work in a Linux hosted
+    * environment.
+    */
+
+   if (fd == -1) {
+      Log("%s: open of %s failed, attempting to use %s\n", __FUNCTION__,
+          ESX_RANDOM_DEVICE, GENERIC_RANDOM_DEVICE);
+
+      fd = open(GENERIC_RANDOM_DEVICE, O_RDONLY);
+   }
 #endif
-   if (fd < 0) {
-      error = errno;
-      Log("Random_Crypto: Failed to open: %d\n", error);
+#else
+   fd = open(GENERIC_RANDOM_DEVICE, O_RDONLY);
+#endif
+
+   if (fd == -1) {
+      Log("%s: Failed to open random device: %d\n", __FUNCTION__, errno);
       return FALSE;
    }
 
    /* Although /dev/urandom does not block, it can return short reads. */
    while (size > 0) {
       ssize_t bytesRead = read(fd, buffer, size);
+
       if (bytesRead == 0 || (bytesRead == -1 && errno != EINTR)) {
-         error = errno;
+         int error = errno;
+
          close(fd);
-         Log("Random_Crypto: Short read: %d\n", error);
+         Log("%s: Short read: %d\n", __FUNCTION__, error);
          return FALSE;
       }
       if (bytesRead > 0) {
@@ -123,9 +146,8 @@ Random_Crypto(unsigned int size, // IN
       }
    }
 
-   if (close(fd) < 0) {
-      error = errno;
-      Log("Random_Crypto: Failed to close: %d\n", error);
+   if (close(fd) == -1) {
+      Log("%s: Failed to close: %d\n", __FUNCTION__, errno);
       return FALSE;
    }
 #endif
@@ -167,7 +189,7 @@ struct rngstate {
 };
 
 void *
-Random_QuickSeed(uint32 seed) // IN:
+Random_QuickSeed(uint32 seed)  // IN:
 {
    struct rngstate *rs;
 
@@ -216,7 +238,7 @@ Random_QuickSeed(uint32 seed) // IN:
  */
 
 uint32
-Random_Quick(void *context)
+Random_Quick(void *context)  // IN/OUT:
 {
    uint32 y, z;
 

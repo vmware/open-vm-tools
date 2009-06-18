@@ -38,8 +38,9 @@ libvix_la_SOURCES += vixPlugin.c
 libvix_la_SOURCES += $(top_srcdir)/lib/vixTools/vixTools.c
 
 if HAVE_X11
-install-exec-local:
+install-data-hook:
 	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libvix.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
+	cp $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/libvix.so \
+	   $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
 endif
 

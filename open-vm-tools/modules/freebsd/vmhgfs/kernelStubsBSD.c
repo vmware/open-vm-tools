@@ -201,6 +201,9 @@ Str_Vasprintf(size_t *length,       // OUT
        * XXX Yes, this could overflow and spin forever when you get near 2GB
        *     allocations. I don't care. --rrdharan
        */
+
+      va_list tmpArgs;
+
       bufSize *= 2;
       buf = realloc(buf, bufSize);
 
@@ -208,8 +211,9 @@ Str_Vasprintf(size_t *length,       // OUT
          return NULL;
       }
 
-      retval = Str_Vsnprintf(buf, bufSize, format, arguments);
-
+      va_copy(tmpArgs, arguments);
+      retval = Str_Vsnprintf(buf, bufSize, format, tmpArgs);
+      va_end(tmpArgs);
    } while (retval == -1);
 
    if (length) {

@@ -86,20 +86,28 @@ static spinlock_t hgfsRepQueueLock;           /* Reply pending queue lock. */
 static Bool
 HgfsTransportSetupNewChannel(void)
 {
-   ASSERT(hgfsChannel == NULL);
-
-   HgfsTcpChannelInit();
-   if (tcpChannel.ops.open()) {
-      hgfsChannel = &tcpChannel;
-      return TRUE;
+   hgfsChannel = HgfsGetVSocketChannel();
+   if (hgfsChannel != NULL) {
+      if (hgfsChannel->ops.open(hgfsChannel)) {
+         return TRUE;
+      }
    }
 
-   HgfsBdChannelInit();
-   if (bdChannel.ops.open()) {
-      hgfsChannel = &bdChannel;
-      return TRUE;
+   hgfsChannel = HgfsGetTcpChannel();
+   if (hgfsChannel != NULL) {
+      if (hgfsChannel->ops.open(hgfsChannel)) {
+         return TRUE;
+      }
    }
 
+   hgfsChannel = HgfsGetBdChannel();
+   if (hgfsChannel != NULL) {
+      if (hgfsChannel->ops.open(hgfsChannel)) {
+         return TRUE;
+      }
+   }
+
+   hgfsChannel = NULL;
    return FALSE;
 }
 
@@ -124,7 +132,7 @@ static void
 HgfsTransportStopCurrentChannel(void)
 {
    if (hgfsChannel) {
-      hgfsChannel->ops.exit();
+      hgfsChannel->ops.exit(hgfsChannel);
       hgfsChannel = NULL;
    }
 }
@@ -349,14 +357,14 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
 
    HgfsTransportAddPendingRequest(req);
 
-   while ((ret = hgfsChannel->ops.send(req)) != 0) {
+   while ((ret = hgfsChannel->ops.send(hgfsChannel, req)) != 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: %s: send failed. Return %d\n",
               __func__, ret));
       if (ret == -EINTR) {
          /* Don't retry when we are interrupted by some signal. */
          goto out;
       }
-      if (!hgfsChannel->ops.open() && !HgfsTransportChannelFailover()) {
+      if (!hgfsChannel->ops.open(hgfsChannel) && !HgfsTransportChannelFailover()) {
          /* Can't establish a working channel, just report error. */
          ret = -EIO;
          goto out;

@@ -27,8 +27,7 @@
 
 #include "transport.h"
 
-void HgfsTcpChannelInit(void);
-
-extern HgfsTransportChannel tcpChannel;
+HgfsTransportChannel* HgfsGetTcpChannel(void);
+HgfsTransportChannel* HgfsGetVSocketChannel(void);
 
 #endif // _HGFS_DRIVER_TCP_H_

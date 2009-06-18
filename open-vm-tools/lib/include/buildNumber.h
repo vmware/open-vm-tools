@@ -1,12 +1,12 @@
 #define BUILD_NUMBER \
-	"build-167859"
+	"build-172495"
 #define BUILD_NUMBER_NUMERIC \
-	167859
+	172495
 #define BUILD_NUMBER_NUMERIC_STRING \
-	"167859"
+	"172495"
 #define PRODUCT_BUILD_NUMBER \
-	"product-build-557"
+	"product-build-584"
 #define PRODUCT_BUILD_NUMBER_NUMERIC \
-	557
+	584
 #define PRODUCT_BUILD_NUMBER_NUMERIC_STRING \
-	"557"
+	"584"

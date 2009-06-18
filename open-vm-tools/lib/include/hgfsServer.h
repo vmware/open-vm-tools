@@ -23,9 +23,23 @@
 #include "dbllnklst.h"
 
 /*
+ * Function used for sending updates of server state to the manager.
+ * Passed by the caller at session connect time.
+ */
+typedef void
+HgfsServerStateLoggerFunc(void *data,     // IN
+                          uint64 cookie); // IN
+
+typedef struct HgfsServerStateLogger {
+   HgfsServerStateLoggerFunc  *logger;       // logger callback
+   void                       *loggerData;   // logger callback private data
+} HgfsServerStateLogger;
+
+/*
  * Function used for sending replies to the client for a session.
  * Passed by the caller at session connect time.
  */
+
 
 /*
  * Send flags.
@@ -70,7 +84,7 @@ typedef struct HgfsServerSessionCallbacks {
    void (*sendComplete)(void *, char *);
 } HgfsServerSessionCallbacks;
 
-Bool HgfsServer_InitState(HgfsServerSessionCallbacks **);
+Bool HgfsServer_InitState(HgfsServerSessionCallbacks **, HgfsServerStateLogger *);
 void HgfsServer_ExitState(void);
 
 uint32 HgfsServer_GetHandleCounter(void);

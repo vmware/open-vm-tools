@@ -750,14 +750,6 @@ enum {
       VIX_VM_SUPPORT_HARDWARE_UPGRADE     = 0x0008,
 };
 
-
-/*
- * These are special names for an anonymous user and the system administrator.
- * The password is ignored if you specify these.
- */
-
-#define VIX_ANONYMOUS_USER_NAME        "__VMware_Vix_Guest_User_Anonymous__"
-
 /*
  * VIX_ADMINISTRATOR_USER_NAME and VIX_CONSOLE_USER_NAME are no longer
  * supported. If your code includes references to these constants please
@@ -1122,6 +1114,11 @@ VixHandle VixVM_UpgradeVirtualHardware(VixHandle vmHandle,
                                        int options,
                                        VixEventProc *callbackProc,
                                        void *clientData);
+
+enum {
+   VIX_INSTALLTOOLS_MOUNT_TOOLS_INSTALLER = 0x00,
+   VIX_INSTALLTOOLS_AUTO_UPGRADE   = 0x01
+};
 
 VixHandle VixVM_InstallTools(VixHandle vmHandle,
                              int options,

@@ -213,7 +213,8 @@
    LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(pvfslib), \
    LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
-   LOGLEVEL_VAR(button),
+   LOGLEVEL_VAR(button), \
+   LOGLEVEL_VAR(largepage),
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

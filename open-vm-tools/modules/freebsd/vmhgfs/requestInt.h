@@ -29,10 +29,10 @@
 #define INCLUDE_ALLOW_MODULE
 #include "includeCheck.h"
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #  include <sys/libkern.h>       // common string, memcpy, etc userland routines
 #  include <vm/uma.h>            // for the UMA (slab) allocator
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #  include <string.h>
 #endif
 

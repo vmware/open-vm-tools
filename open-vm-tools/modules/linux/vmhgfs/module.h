@@ -55,6 +55,7 @@ extern int LOGLEVEL_THRESHOLD;
 
 extern char *HOST_IP;
 extern int HOST_PORT;
+extern int HOST_VSOCKET_PORT;
 
 /* Blocksize to be set in superblock. (XXX how is this used?) */
 #define HGFS_BLOCKSIZE 1024
@@ -89,13 +90,13 @@ extern int HOST_PORT;
 
 #ifdef VMW_EMBED_INODE
 #define INODE_GET_II_P(_inode) container_of(_inode, HgfsInodeInfo, inode)
-#elif defined(VMW_INODE_2618)
+#elif defined VMW_INODE_2618
 #define INODE_GET_II_P(inode) ((HgfsInodeInfo *)(inode)->i_private)
 #else
 #define INODE_GET_II_P(inode) ((HgfsInodeInfo *)(inode)->u.generic_ip)
 #endif
 
-#if defined(VMW_INODE_2618)
+#if defined VMW_INODE_2618
 #define INODE_SET_II_P(inode, info) do { (inode)->i_private = (info); } while (0)
 #else
 #define INODE_SET_II_P(inode, info) do { (inode)->u.generic_ip = (info); } while (0)
@@ -166,6 +167,9 @@ typedef struct HgfsInodeInfo {
    /* Embedded inode. */
    struct inode inode;
 #endif
+
+   /* Inode number given by the host. */
+   uint64 hostFileId;
 
    /* Was the inode number for this inode generated via iunique()? */
    Bool isFakeInodeNumber;

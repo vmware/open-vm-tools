@@ -801,52 +801,6 @@ typedef void * UserVA;
 #endif
 
 /*
- ***********************************************************************
- * STRUCT_OFFSET_CHECK --                                    */ /**
- *
- * \brief Check if the actual offsef of a member in a structure
- *        is what is expected
- *
- *
- * \param[in]  STRUCT       Structure the member is a part of.
- * \param[in]  MEMBER       Member to check the offset of.
- * \param[in]  OFFSET       Expected offset of MEMBER in STRUCTURE.
- * \param[in]  DEBUG_EXTRA  Additional bytes to be added to OFFSET to
- *                          compensate for extra info in debug builds.
- *
- ***********************************************************************
- */
-#ifdef VMX86_DEBUG
-#define STRUCT_OFFSET_CHECK(STRUCT, MEMBER, OFFSET, DEBUG_EXTRA) \
-  ASSERT_ON_COMPILE(vmk_offsetof(STRUCT, MEMBER) == (OFFSET + DEBUG_EXTRA))
-#else
-#define STRUCT_OFFSET_CHECK(STRUCT, MEMBER, OFFSET, DEBUG_EXTRA) \
-  ASSERT_ON_COMPILE(vmk_offsetof(STRUCT, MEMBER) == OFFSET)
-#endif
-
-/*
- ***********************************************************************
- * STRUCT_SIZE_CHECK --                                      */ /**
- *
- * \brief Check if the actual size of a structure is what is expected
- *
- *
- * \param[in]  STRUCT       Structure whose size is to be checked.
- * \param[in]  SIZE         Expected size of STRUCT.
- * \param[in]  DEBUG_EXTRA  Additional bytes to be added to SIZE to
- *                          compensate for extra info in debug builds.
- *
- ***********************************************************************
- */
-#ifdef VMX86_DEBUG
-#define STRUCT_SIZE_CHECK(STRUCT, SIZE, DEBUG_EXTRA) \
-  ASSERT_ON_COMPILE(sizeof(STRUCT) == (SIZE + DEBUG_EXTRA))
-#else
-#define STRUCT_SIZE_CHECK(STRUCT, SIZE, DEBUG_EXTRA) \
-  ASSERT_ON_COMPILE(sizeof(STRUCT) == SIZE)
-#endif
-
-/*
  * __func__ is a stringified function name that is part of the C99 standard. The block
  * below defines __func__ on older systems where the compiler does not support that
  * macro.
@@ -1010,6 +964,27 @@ typedef int PollDevHandle;
 typedef wchar_t utf16_t;
 #else
 typedef uint16 utf16_t;
+#endif
+
+/*
+ * Define for point and rectangle types.  Defined here so they
+ * can be used by other externally facing headers in bora/public.
+ */
+
+typedef struct VMPoint {
+   int x, y;
+} VMPoint;
+
+#if defined _WIN32 && defined USERLEVEL
+struct tagRECT;
+typedef struct tagRECT VMRect;
+#else
+typedef struct VMRect {
+   int left;
+   int top;
+   int right;
+   int bottom;
+} VMRect;
 #endif
 
 #endif  /* _VM_BASIC_TYPES_H_ */

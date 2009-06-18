@@ -37,6 +37,7 @@ libMisc_la_SOURCES += posixPosix.c
 libMisc_la_SOURCES += random.c
 libMisc_la_SOURCES += timeutil.c
 libMisc_la_SOURCES += util_misc.c
+libMisc_la_SOURCES += utilMem.c
 libMisc_la_SOURCES += vmstdio.c
 libMisc_la_SOURCES += strutil.c
 

@@ -2069,7 +2069,6 @@ out:
 int
 HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
 {
-   HgfsAttrInfo attr;
    int error = 0;
    HgfsSuperInfo *si;
    unsigned long age;
@@ -2087,6 +2086,7 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
 
    age = jiffies - dentry->d_time;
    if (age > si->ttl) {
+      HgfsAttrInfo attr;
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRevalidate: dentry is too old, "
               "getting new attributes\n"));
       /*
@@ -2095,10 +2095,26 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
        */
       compat_filemap_write_and_wait(dentry->d_inode->i_mapping);
       attr.fileName = NULL;
-      error = HgfsPrivateGetattr(dentry,
-                                 &attr);
+      error = HgfsPrivateGetattr(dentry, &attr);
       if (!error) {
-         /* No error, so update inode's attributes and reset the age. */
+         /*
+          * If server provides file ID, we need to check whether it has changed
+          * since last revalidation. There might be a case that at server side
+          * the same file name has been used for other file during the period.
+          */
+         if (attr.mask & HGFS_ATTR_VALID_FILEID) {
+            HgfsInodeInfo *iinfo = INODE_GET_II_P(dentry->d_inode);
+            if (iinfo->hostFileId == 0) {
+               /* It should not happen, just in case. */
+               iinfo->hostFileId = attr.hostFileId;
+            } else if (iinfo->hostFileId != attr.hostFileId) {
+               LOG(4, ("VMware hgfs: %s: host file id mismatch. Expected "
+                       "%"FMT64"u, got %"FMT64"u.\n", __func__,
+                       iinfo->hostFileId, attr.hostFileId));
+               return -EINVAL;
+            }
+         }
+         /* Update inode's attributes and reset the age. */
          HgfsChangeFileAttributes(dentry->d_inode, &attr);
          HgfsDentryAgeReset(dentry);
          kfree(attr.fileName);

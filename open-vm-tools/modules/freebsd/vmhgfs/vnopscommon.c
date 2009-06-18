@@ -19,7 +19,7 @@
 /*
  * vnopscommon.c --
  *
- * Common VFS vnop implementations that are shared between both OS X and FreeBSD.
+ * Common VFS vnop implementations that are shared between both Mac OS and FreeBSD.
  */
 
 #include <sys/param.h>          // for everything
@@ -476,7 +476,7 @@ HgfsGetattrInt(struct vnode *vp,      // IN : vnode of the file
  *
  * HgfsSetattrInt --
  *
- *      Maps the MAC OS/FreeBsd attributes to Hgfs attributes (by calling
+ *      Maps the Mac OS/FreeBsd attributes to Hgfs attributes (by calling
  *      HgfsSetattrCopy()) and sends a set attribute request to the Hgfs server.
  *
  * Results:
@@ -850,7 +850,7 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
       if (fp->parent == NULL) {
          return EIO; // dvp is root directory
       } else {
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
          vref(fp->parent);
 #else
          vnode_get(fp->parent);
@@ -860,7 +860,7 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
       }
    }
    if (cnp->cn_namelen == 1 && *cnp->cn_nameptr == '.') {
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
       vref(dvp);
 #else
       vnode_get(dvp);
@@ -906,7 +906,7 @@ HgfsLookupInt(struct vnode *dvp,         // IN : directory vnode
       *vpp = sip->rootVnode;
       /*
        * If we are returning the root vnode, then we need to get a reference
-       * to it. Under OS X this gets an I/O Count.
+       * to it. Under Mac OS this gets an I/O Count.
        */
       HGFS_VPP_GET_IOCOUNT(vpp);
       goto out;
@@ -1143,7 +1143,7 @@ HgfsReadInt(struct vnode *vp, // IN    : Vnode to read from
    do {
       uint32_t size;
 
-      DEBUG(VM_DEBUG_INFO, "offset=%"FMT64"d, uio_offset=%jd\n",
+      DEBUG(VM_DEBUG_INFO, "offset=%"FMT64"d, uio_offset=%"FMT64"d\n",
             offset, HGFS_UIOP_TO_OFFSET(uiop));
       DEBUG(VM_DEBUG_HANDLE, "** handle=%d, file=%s\n",
             handle, HGFS_VP_TO_FILENAME(vp));
@@ -1263,7 +1263,7 @@ HgfsWriteInt(struct vnode *vp, // IN    : the vnode of the file
    do {
       uint32_t size;
 
-      DEBUG(VM_DEBUG_INFO, "** offset=%"FMT64"d, uio_offset=%jd\n",
+      DEBUG(VM_DEBUG_INFO, "** offset=%"FMT64"d, uio_offset=%"FMT64"d\n",
             offset, HGFS_UIOP_TO_OFFSET(uiop));
       DEBUG(VM_DEBUG_HANDLE, "** handle=%d, file=%s\n",
             handle, HGFS_VP_TO_FILENAME(vp));
@@ -1641,12 +1641,12 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
 
    /*
     * Check if the user is trying to create a new share. This check was
-    * mainly implemented to address the issue with OS X. When the user
+    * mainly implemented to address the issue with Mac OS. When the user
     * attempts to create a file in the root folder, the server returns ENOENT
-    * error code. However, OS X specifically checks for this case. If OS X asks for
+    * error code. However, Mac OS specifically checks for this case. If Mac OS asks for
     * the creation of a new file and if it gets ENOENT as a return error code, 
     * then it assumes that the error was because of some race condition and tries it
-    * again. Thus, returning ENOENT to the OS X puts the guest kernel into infinite
+    * again. Thus, returning ENOENT to the Mac OS puts the guest kernel into infinite
     * loop. In order to resolve this issue, before passing on the request to the
     * server, we validate if user is attempting to create a new share. If yes, 
     * we return EPERM as the error code.

@@ -40,17 +40,17 @@
 #ifdef __KERNEL__
 #  include "driver-config.h"
 #  include <linux/string.h>
-#elif defined(__FreeBSD__)
-#   if defined(_KERNEL)
+#elif defined __FreeBSD__
+#   if defined _KERNEL
 #      include <sys/libkern.h>
 #      define strchr(s,c)       index(s,c)
 #   else
 #      include <string.h>
 #   endif
 #   define memmove(s1,s2,n) bcopy(s2,s1,n) 
-#elif defined(__APPLE__) && defined(KERNEL)
+#elif defined __APPLE__ && defined KERNEL
 #  include <string.h>
-#elif !defined(sun)
+#elif !defined sun
 #  include <stdlib.h>
 #  include <string.h>
 #else
@@ -102,7 +102,7 @@ if (!HgfsProcessLastCharacter(b,s,p,c)) \
 /* There is no special processing for the last character on non-Windows platforms. */
 #define PROCESS_LAST_CHARACTER(b,s,p,c)
 
-#if defined(__APPLE__)
+#if defined __APPLE__
 /* These characters are illegal in MAC OS file names. */
 const char* HGFS_ILLEGAL_CHARS = "/:";
 const char* HGFS_SUBSTITUTE_CHARS = "!&";

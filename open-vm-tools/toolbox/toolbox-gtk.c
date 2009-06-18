@@ -78,13 +78,15 @@ static guint gTimeoutId;
 const char **gNativeEnviron;
 
 /* Help pages. These need to be in the same order as the tabs in the UI. */
+#define HELP_INDEX      "index.html"
+#define HELP_TOPIC(t)   HELP_INDEX "?context=vm_tools&topic=" #t
 static const char *gHelpPages[] = {
-   "index.htm",
-   "tools_options.htm",
-   "tools_devices.htm",
-   "tools_scripts.htm",
-   "tools_shrink.htm",
-   "tools_about.htm",
+   HELP_INDEX,
+   HELP_TOPIC(IDH_OPTIONS),
+   HELP_TOPIC(IDH_DEVICES),
+   HELP_TOPIC(IDH_SCRIPTS),
+   HELP_TOPIC(IDH_SHRINK),
+   HELP_TOPIC(IDH_ABOUT)
 };
 
 /*
@@ -217,30 +219,28 @@ ToolsMainSignalHandler(int sig) // IN
 static void
 ToolsMain_OpenHelp(const char *help) // IN
 {
-   char helpPage[1000];
+   gchar *helpPage;
 
    if (hlpDir == NULL) {
       ToolsMain_MsgBox("Error", "Unable to determine where help pages are stored.");
       return;
    }
 
-   Str_Snprintf(helpPage, sizeof helpPage, "file:%s/%s", hlpDir, help);
-
-   {
-      const gchar *localPath = &helpPage[sizeof "file:" - 1];
-      if (help == NULL || !g_file_test(localPath, G_FILE_TEST_IS_REGULAR)) {
-         ToolsMain_MsgBox("Error", "No Help page was found for this tab.");
-         return;
-      }
+   helpPage = g_strdup_printf("%s/%s", hlpDir, HELP_INDEX);
+   if (help == NULL || !g_file_test(helpPage, G_FILE_TEST_IS_REGULAR)) {
+      ToolsMain_MsgBox("Error", "No help was found.");
+      g_free(helpPage);
+      return;
    }
 
-   Str_Snprintf(helpPage, sizeof helpPage, "file:%s/%s", hlpDir, help);
+   g_free(helpPage);
+   helpPage = g_strdup_printf("file:%s/%s", hlpDir, help);
    if (!GuestApp_OpenUrl(helpPage, FALSE)) {
       ToolsMain_MsgBox("Help Unavailable",
                        "Sorry, but help requires a web browser.  You may need "
                        "to modify your PATH environment variable accordingly.");
-      return;
    }
+   g_free(helpPage);
 }
 
 

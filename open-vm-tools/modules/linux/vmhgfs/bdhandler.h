@@ -27,8 +27,6 @@
 
 #include "transport.h"
 
-void HgfsBdChannelInit(void);
-
-extern HgfsTransportChannel bdChannel;
+HgfsTransportChannel *HgfsGetBdChannel(void);
 
 #endif // _HGFS_DRIVER_BDHANDLER_H_

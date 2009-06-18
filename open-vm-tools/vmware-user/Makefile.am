@@ -75,7 +75,9 @@ vmware_user_LDADD += ../lib/err/libErr.la
 vmware_user_LDADD += ../lib/foundryMsg/libFoundryMsg.la
 vmware_user_LDADD += ../lib/backdoor/libBackdoor.la
 vmware_user_LDADD += ../lib/dict/libDict.la
+if HAVE_GTKMM
 vmware_user_LDADD += ../lib/dndGuest/libDndGuest.la
+endif
 vmware_user_LDADD += ../lib/dnd/libDnd.la
 vmware_user_LDADD += ../lib/dynxdr/libDynxdr.la
 vmware_user_LDADD += ../lib/hgfs/libHgfs.la

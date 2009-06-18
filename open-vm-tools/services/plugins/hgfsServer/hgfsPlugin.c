@@ -54,10 +54,10 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  */
 
 Bool
-HgfsChannel_Init(void *data)     // IN: Unused rpc data
+HgfsChannel_Init(void *data)     // IN: Unused data
 {
    HgfsServerSessionCallbacks *serverCBTable = NULL;
-   return HgfsServer_InitState(&serverCBTable);
+   return HgfsServer_InitState(&serverCBTable, NULL);
 }
 
 

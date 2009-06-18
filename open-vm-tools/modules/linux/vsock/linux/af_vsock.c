@@ -701,7 +701,7 @@ out:
  *      allocated as trusted (running in the guest).
  *
  * Results:
- *      0 on success. A VSock error on error.
+ *      0 on success. A VMCI error on error.
  *
  * Side effects:
  *      None.
@@ -737,10 +737,6 @@ VSockVmciDatagramCreateHnd(VMCIId resourceID,            // IN
                                 recvCB, clientData,
                                 outHandle);
 out:
-   if (err < 0) {
-      err = VSockVmci_ErrorToVSockError(err);
-   }
-
    return err;
 }
 
@@ -2823,7 +2819,7 @@ VSockVmciRegisterAddressFamily(void)
        vmciStreamHandle.context == VMCI_INVALID_ID ||
        vmciStreamHandle.resource == VMCI_INVALID_ID) {
       Warning("Unable to create datagram handle. (%d)\n", err);
-      return -ENOMEM;
+      return VSockVmci_ErrorToVSockError(err);
    }
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
@@ -2832,7 +2828,7 @@ VSockVmciRegisterAddressFamily(void)
                              &qpResumedSubId);
    if (err < VMCI_SUCCESS) {
       Warning("Unable to subscribe to QP resumed event. (%d)\n", err);
-      err = -ENOMEM;
+      err = VSockVmci_ErrorToVSockError(err);
       qpResumedSubId = VMCI_INVALID_ID;
       goto error;
    }

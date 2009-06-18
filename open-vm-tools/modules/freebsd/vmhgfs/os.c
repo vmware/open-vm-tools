@@ -23,7 +23,7 @@
  *      and thread synchronization routines.
  */
 
-#if !defined(_KERNEL)
+#if !defined _KERNEL
 #  error "This os.c file can only be compiled for the FreeBSD kernel."
 #endif
 
@@ -229,7 +229,7 @@ os_zone_free(OS_ZONE_T *zone, // IN
  *
  * os_malloc --
  *
- *      Malloc some memory in a FreeBSD / OS X kernel independent manner.
+ *      Malloc some memory in a FreeBSD / Mac OS kernel independent manner.
  *      This just calls the internal kernel malloc function. According to the
  *      FreeBSD commments, if M_WAITOK is passed to the flags, malloc will never
  *      return NULL.
@@ -256,7 +256,7 @@ os_malloc(size_t size, // IN
  *
  * os_free --
  *
- *      Free some memory in a FreeBSD / OS X kernel independent manner.
+ *      Free some memory in a FreeBSD / Mac OS kernel independent manner.
  *      This just calls the internal kernel free function.
  *
  * Results:
@@ -282,7 +282,7 @@ os_free(void *mem,   // IN
  * os_mutex_alloc_init --
  *
  *      Allocate and initialize a FreeBSD mutex in an OS independent way.
- *      Mtx_name is not used on OS X.
+ *      Mtx_name is not used on Mac OS.
  *
  * Results:
  *      A new mtx which has been allocated and is ready for use.
@@ -524,7 +524,7 @@ os_rw_lock_unlock_exclusive(OS_RWLOCK_T *lck) // IN
  *
  * os_cv_init --
  *
- *      Initialize a cv under FreeBSD. Under OS X, we are actually passed an
+ *      Initialize a cv under FreeBSD. Under Mac OS, we are actually passed an
  *      object address we will use in place of a cv in later functions. Here
  *      we simply do nothing.
  *
@@ -550,7 +550,7 @@ os_cv_init(OS_CV_T *cv,      // IN
  *
  * os_cv_destroy --
  *
- *      Destroy a cv under FreeBSD. Under OS X, we are actually passed an
+ *      Destroy a cv under FreeBSD. Under Mac OS, we are actually passed an
  *      object address we will use in place of a cv in later functions. Here
  *      we simply do nothing.
  *
@@ -574,7 +574,7 @@ os_cv_destroy(OS_CV_T *cv) // IN
  *
  * os_cv_signal --
  *
- *      Signal a thread to wakeup in a FreeBSD/OS X independent way.
+ *      Signal a thread to wakeup in a FreeBSD/Mac OS independent way.
  *
  * Results:
  *      None.
@@ -629,7 +629,7 @@ os_cv_wait(OS_CV_T *cv,      // IN
  *
  * os_thread_create --
  *
- *      Create an OS X or FreeBSD kernel thread in an OS independent way.
+ *      Create an Mac OS or FreeBSD kernel thread in an OS independent way.
  *
  * Results:
  *      None.
@@ -710,7 +710,7 @@ os_thread_release(OS_THREAD_T thread) // IN
  * Hgfsthreadexit --
  *
  *      Called when a thread is exiting. ErrorCode is returned as the thread exit code
- *      under FreeBSD and ignored under OS X.
+ *      under FreeBSD and ignored under Mac OS.
  *
  * Results:
  *      None.

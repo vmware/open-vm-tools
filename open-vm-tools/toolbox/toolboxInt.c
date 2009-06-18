@@ -36,6 +36,57 @@
 /*
  *-----------------------------------------------------------------------------
  *
+ * Toolbox_GetScriptPath --
+ *
+ *    Returns the absolute path to the given script. Relative paths
+ *    given as input to this function are considered to be relative
+ *    to the Tools "install" path.
+ *
+ * Results:
+ *    The absolute path of the script.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if defined(_WIN32)
+gchar *
+Toolbox_GetScriptPath(const wchar_t *scriptUtf16)  // IN
+#else
+gchar *
+Toolbox_GetScriptPath(const gchar *script)   // IN
+#endif
+{
+   gchar *ret;
+#if defined(_WIN32)
+   gchar *script;
+   GError *err = NULL;
+
+   script = g_utf16_to_utf8(scriptUtf16, -1, NULL, NULL, &err);
+   if (err != NULL) {
+      g_error("Error converting to UTF8: %s\n", err->message);
+   }
+#endif
+   if (!g_path_is_absolute(script)) {
+      char *toolsPath = GuestApp_GetInstallPath();
+      ASSERT_MEM_ALLOC(toolsPath);
+      ret = g_strdup_printf("%s%c%s", toolsPath, DIRSEPC, script);
+      free(toolsPath);
+   } else {
+      ret = g_strdup(script);
+   }
+#if defined(_WIN32)
+   g_free(script);
+#endif
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Toolbox_LoadToolsConf --
  *
  *    Load the Tools configuration file from the default location.

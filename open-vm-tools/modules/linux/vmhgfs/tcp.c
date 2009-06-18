@@ -49,6 +49,38 @@
 #include "module.h"
 #include "tcp.h"
 
+#ifdef INCLUDE_VSOCKETS
+
+#include "vmci_defs.h"
+#include "vmci_sockets.h"
+
+#else
+/*
+ *  At the moment I can't check in HGFS that is dependent on vsock
+ *  because of unresolved installer problems. Installer need to properly handle
+ *  dependecies between vmhgfs and vsock modules.
+ *  Following stub functions must be removed when installer problems are resolved.
+ *  Stubs for undefined functions.
+ */
+
+int
+VMCISock_GetAFValue (void)
+{
+   return -1;
+}
+
+void
+VMCISock_KernelDeregister(void)
+{
+}
+
+void
+VMCISock_KernelRegister(void)
+{
+}
+
+#endif
+
 
 /* Socket recv timeout value, counted in HZ. */
 #define HGFS_SOCKET_RECV_TIMEOUT 10
@@ -72,12 +104,16 @@ static HgfsTcpRecvBuffer recvBuffer;   /* Accessed only by the recv thread. */
 static struct task_struct *recvThread; /* The recv thread. */
 
 HgfsTransportChannel tcpChannel;
+HgfsTransportChannel vsocketChannel;
+typedef Bool (*HgfsConnect)(HgfsTransportChannel *);
 
 
 /* Private functions. */
-static Bool HgfsTcpChannelOpen(void);
-static void HgfsTcpChannelClose(void);
-static int HgfsTcpChannelRecvAsync(char **replyPacket,
+static Bool HgfsTcpChannelOpen(HgfsTransportChannel *);
+static Bool HgfsVSocketChannelOpen(HgfsTransportChannel *);
+static void HgfsSocketChannelClose(HgfsTransportChannel *);
+static int HgfsTcpChannelRecvAsync(HgfsTransportChannel *,
+                                   char **replyPacket,
                                    size_t *packetSize);
 
 
@@ -99,11 +135,12 @@ static int HgfsTcpChannelRecvAsync(char **replyPacket,
  */
 
 static int
-HgfsTcpReceiveHandler(void *dummyarg)
+HgfsTcpReceiveHandler(void *data)
 {
    char *receivedPacket = NULL;
    size_t receivedSize = 0;
    int ret = 0;
+   HgfsTransportChannel *channel = data;
 
    LOG(6, (KERN_DEBUG "VMware hgfs: %s: thread started\n", __func__));
 
@@ -119,12 +156,12 @@ HgfsTcpReceiveHandler(void *dummyarg)
       if (compat_try_to_freeze()) {
          LOG(6, (KERN_DEBUG "VMware hgfs: %s: closing transport and exiting "
                  "the thread after resume.\n", __func__));
-         HgfsTcpChannelClose();
+         channel->ops.close(channel);
          break;
       }
 
       /* Waiting on the data, may be blocked. */
-      ret = HgfsTcpChannelRecvAsync(&receivedPacket, &receivedSize);
+      ret = HgfsTcpChannelRecvAsync(channel, &receivedPacket, &receivedSize);
 
       /* The connection is not lost for the following returns, just continue. */
       if (ret == -EINTR || ret == -ERESTARTSYS || ret == -EAGAIN) {
@@ -133,8 +170,8 @@ HgfsTcpReceiveHandler(void *dummyarg)
 
       if (ret < 0) {
          /* The connection is broken. Close it to free up the resources. */
-         HgfsTcpChannelClose();
-         if (!HgfsTcpChannelOpen()) {
+         channel->ops.close(channel);
+         if (!channel->ops.open(channel)) {
             /* We are unable to reconnect to the server, exit the thread. */
             LOG(6, (KERN_DEBUG "VMware hgfs: %s: recv error: %d. Lost the "
                     "connection to server.\n", __func__, ret));
@@ -210,6 +247,190 @@ HgfsTcpResetRecvBuffer(void)
 /*
  *----------------------------------------------------------------------
  *
+ * HgfsTcpConnect --
+ *
+ *     Connect to HGFS TCP server.
+ *
+ * Results:
+ *     TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsTcpConnect(HgfsTransportChannel *channel)
+{
+   int error;
+   struct socket *sock;
+   struct sockaddr_in addr;
+   Bool ret = FALSE;
+
+   if (channel->priv != NULL) {
+      sock_release(channel->priv);
+      channel->priv = NULL;
+   }
+
+   addr.sin_family = AF_INET;
+   addr.sin_addr.s_addr = in_aton(HOST_IP);
+   addr.sin_port = htons(HOST_PORT);
+
+   error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP,
+                                   &sock);
+   if (error >= 0) {
+      error = sock->ops->connect(sock, (struct sockaddr *)&addr,
+                                 sizeof addr, 0);
+      if (error >= 0) {
+         channel->priv = sock;
+
+         /* Reset receive buffer when a new connection is connected. */
+         recvBuffer.state = HGFS_TCP_CONN_RECV_HEADER;
+
+         channel->status = HGFS_CHANNEL_CONNECTED;
+         LOG(8, ("%s: tcp channel connected.\n", __func__));
+         ret = TRUE;
+      } else {
+         LOG(8, ("%s: connect failed: %d.\n", __func__, error));
+         sock_release(sock);
+      }
+   } else {
+      LOG(8, ("%s: sock_create_kern failed: %d.\n", __func__, error));
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsVSocketConnect --
+ *
+ *     Connect to HGFS VSOCKET server.
+ *
+ * Results:
+ *     TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsVSocketConnect(HgfsTransportChannel *channel)
+{
+#ifdef INCLUDE_VSOCKETS
+   int error;
+   struct socket *sock;
+   struct sockaddr_vm addr;
+   int family;
+   Bool ret = FALSE;
+
+   memset(&addr, 0, sizeof addr);
+
+   family = VMCISock_GetAFValue();
+
+   addr.svm_family = family;
+   addr.svm_cid = VMCI_HOST_CONTEXT_ID;
+   addr.svm_port = HOST_VSOCKET_PORT;
+
+   error = compat_sock_create_kern(family, SOCK_STREAM, 0,
+                                   &sock);
+   if (error >= 0) {
+      error = sock->ops->connect(sock, (struct sockaddr *)&addr,
+                                 sizeof addr, 0);
+      if (error >= 0) {
+         channel->priv = sock;
+
+         /* Reset receive buffer when a new connection is connected. */
+         HgfsTcpResetRecvBuffer();
+         sock->sk->compat_sk_rcvtimeo = HGFS_SOCKET_RECV_TIMEOUT * HZ;
+
+         channel->status = HGFS_CHANNEL_CONNECTED;
+         LOG(8, ("%s: vsocket channel connected.\n", __func__));
+         ret = TRUE;
+      } else {
+         LOG(4, ("%s: connect failed: %d.\n", __func__, error));
+         sock_release(sock);
+      }
+   } else {
+      LOG(8, ("%s: sock_create_kern failed: %d.\n", __func__, error));
+   }
+   return ret;
+#else
+   return FALSE;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsSocketChannelOpen --
+ *
+ *     Connect to HGFS TCP or VSocket server in an idempotent way.
+ *
+ * Results:
+ *     TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsSocketChannelOpen(HgfsTransportChannel *channel,
+                      HgfsConnect connect)
+{
+   Bool ret = FALSE;
+
+   compat_mutex_lock(&channel->connLock);
+   switch (channel->status) {
+   case HGFS_CHANNEL_UNINITIALIZED:
+      ret = FALSE;
+      break;
+   case HGFS_CHANNEL_CONNECTED:
+      ret = TRUE;
+      break;
+   case HGFS_CHANNEL_NOTCONNECTED:
+      ret = connect(channel);
+
+      /*
+       * Ensure this function won't race with HgfsTcpChannelRecvAsync, which
+       * is called only by recvThread. If this thread is not the recv thread,
+       * make sure the recv thread is finished before we proceed.
+       */
+      ASSERT(!recvThread || current == recvThread);
+
+      if (ret && !recvThread) {
+         /* Create the recv thread. */
+         recvThread = compat_kthread_run(HgfsTcpReceiveHandler,
+                                         channel, "vmhgfs-rep");
+         if (IS_ERR(recvThread)) {
+            LOG(4, (KERN_ERR "VMware hgfs: %s: failed to create recv thread\n",
+                    __func__));
+            recvThread = NULL;
+            channel->ops.close(channel);
+            ret = FALSE;
+            break;
+         }
+      }
+      break;
+   default:
+      ASSERT(0); /* Not reached. */
+   }
+
+   compat_mutex_unlock(&channel->connLock);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * HgfsTcpChannelOpen --
  *
  *     Connect to HGFS TCP server in an idempotent way.
@@ -224,98 +445,39 @@ HgfsTcpResetRecvBuffer(void)
  */
 
 static Bool
-HgfsTcpChannelOpen(void)
+HgfsTcpChannelOpen(HgfsTransportChannel *channel)
 {
-   Bool ret = FALSE;
-
-   compat_mutex_lock(&tcpChannel.connLock);
-   switch (tcpChannel.status) {
-   case HGFS_CHANNEL_UNINITIALIZED:
-      ret = FALSE;
-      LOG(4, ("%s: open tcp channel NOT UNINITIALIZED.\n", __func__));
-      break;
-   case HGFS_CHANNEL_CONNECTED:
-      ret = TRUE;
-      LOG(8, ("%s: open tcp channel CONNECTED.\n", __func__));
-      break;
-   case HGFS_CHANNEL_NOTCONNECTED: {
-      int error;
-      struct socket *sock;
-      struct sockaddr_in addr;
-
-      /*
-       * Ensure this function won't race with HgfsTcpChannelRecvAsync, which
-       * is called only by recvThread. If this thread is not the recv thread,
-       * make sure the recv thread is finished before we proceed.
-       */
-      ASSERT(!recvThread || current == recvThread);
-
-      if (!HOST_IP) {/* HOST_IP is defined in module.c. */
-         ret = FALSE;
-         break;
-      }
-
-      ASSERT(!tcpChannel.priv);
-
-      addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = in_aton(HOST_IP);
-      addr.sin_port = htons(HOST_PORT);
-
-      error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP,
-                                      &sock);
-      if (error < 0) {
-         LOG(4, ("%s: sock_create_kern failed: %d.\n", __func__, error));
-         ret = FALSE;
-         break;
-      }
-
-      error = sock->ops->connect(sock, (struct sockaddr *)&addr,
-                                 sizeof addr, 0);
-      if (error < 0) {
-         LOG(4, ("%s: connect failed: %d.\n", __func__, error));
-         sock_release(sock);
-         ret = FALSE;
-         break;
-      }
-      sock->sk->compat_sk_rcvtimeo = HGFS_SOCKET_RECV_TIMEOUT * HZ;
-
-      tcpChannel.priv = sock;
-      /* Reset receive buffer when a new connection is connected. */
-      HgfsTcpResetRecvBuffer();
-      tcpChannel.status = HGFS_CHANNEL_CONNECTED;
-
-      if (!recvThread) {
-         /* Creat the recv thread. */
-         recvThread = compat_kthread_run(HgfsTcpReceiveHandler,
-                                         NULL, "vmhgfs-rep");
-         if (IS_ERR(recvThread)) {
-            LOG(4, (KERN_ERR "VMware hgfs: %s: failed to create recv thread\n",
-                    __func__));
-            recvThread = NULL;
-            sock_release(sock);
-            ret = FALSE;
-            break;
-         }
-      }
-
-      LOG(8, ("%s: tcp channel conneted and the recv thread created.\n",
-              __func__));
-      ret = TRUE;
-      break;
-   }
-   default:
-      ASSERT(0); /* Not reached. */
-   }
-
-   compat_mutex_unlock(&tcpChannel.connLock);
-   return ret;
+   return HgfsSocketChannelOpen(channel, HgfsTcpConnect);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * HgfsTcpChannelCloseWork --
+ * HgfsVSocketChannelOpen --
+ *
+ *     Connect to HGFS VSocket server in an idempotent way.
+ *
+ * Results:
+ *     TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsVSocketChannelOpen(HgfsTransportChannel *channel)
+{
+   return HgfsSocketChannelOpen(channel, HgfsVSocketConnect);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsSocketChannelCloseWork --
  *
  *     Close the tcp channel in an idempotent way.
  *
@@ -329,24 +491,24 @@ HgfsTcpChannelOpen(void)
  */
 
 static void
-HgfsTcpChannelCloseWork(void)
+HgfsTcpChannelCloseWork(HgfsTransportChannel *channel)
 {
-   if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
+   if (channel->status != HGFS_CHANNEL_CONNECTED) {
       return;
    }
 
-   if (tcpChannel.priv != NULL) {
-      sock_release(tcpChannel.priv);
-      tcpChannel.priv = NULL;
+   if (channel->priv != NULL) {
+      sock_release(channel->priv);
+      channel->priv = NULL;
    }
-   tcpChannel.status = HGFS_CHANNEL_NOTCONNECTED;
+   channel->status = HGFS_CHANNEL_NOTCONNECTED;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * HgfsTcpChannelClose --
+ * HgfsSocketChannelClose --
  *
  *     See above.
  *
@@ -360,16 +522,15 @@ HgfsTcpChannelCloseWork(void)
  */
 
 static void
-HgfsTcpChannelClose(void)
+HgfsSocketChannelClose(HgfsTransportChannel *channel)
 {
    /* Stop the recv thread before we change the channel status. */
    HgfsTcpStopReceivingThread();
-   compat_mutex_lock(&tcpChannel.connLock);
-   HgfsTcpChannelCloseWork();
-   compat_mutex_unlock(&tcpChannel.connLock);
+   compat_mutex_lock(&channel->connLock);
+   HgfsTcpChannelCloseWork(channel);
+   compat_mutex_unlock(&channel->connLock);
    LOG(8, ("VMware hgfs: %s: tcp channel closed.\n", __func__));
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -434,22 +595,23 @@ HgfsTcpRecvMsg(struct socket *socket,   // IN: TCP socket
  */
 
 static int
-HgfsTcpChannelRecvAsync(char **replyPacket,   // IN/OUT: Reply buffer
-                        size_t *packetSize)   // IN/OUT: Reply packet size
+HgfsTcpChannelRecvAsync(HgfsTransportChannel *channel, // IN:  Channel
+                        char **replyPacket,            // OUT: Reply buffer
+                        size_t *packetSize)            // OUT: Packet size
 {
    int ret = -EIO;
 
    ASSERT(replyPacket);
    ASSERT(packetSize);
 
-   if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
+   if (channel->status != HGFS_CHANNEL_CONNECTED) {
       LOG(6, (KERN_DEBUG "VMware hgfs: %s: Connection lost.\n", __func__));
       return -ENOTCONN;
    }
 
    LOG(10, (KERN_DEBUG "VMware hgfs: %s: receiving %s\n", __func__,
             recvBuffer.state == 0? "header" : "data"));
-   ret = HgfsTcpRecvMsg(tcpChannel.priv, recvBuffer.buf, recvBuffer.len);
+   ret = HgfsTcpRecvMsg(channel->priv, recvBuffer.buf, recvBuffer.len);
    LOG(10, (KERN_DEBUG "VMware hgfs: %s: sock_recvmsg returns: %d\n",
             __func__, ret));
    if (ret > 0) {
@@ -600,30 +762,31 @@ HgfsTcpSendMsg(struct socket *socket,   // IN: socket
  */
 
 static int
-HgfsTcpChannelSendAsync(HgfsReq *req)    // IN: request to send
+HgfsTcpChannelSendAsync(HgfsTransportChannel *channel, // IN:  Channel
+                        HgfsReq *req)                  // IN: request to send
 {
    struct socket *socket;
    int result;
 
    ASSERT(req);
-   compat_mutex_lock(&tcpChannel.connLock);
-   if (tcpChannel.status != HGFS_CHANNEL_CONNECTED) {
+   compat_mutex_lock(&channel->connLock);
+   if (channel->status != HGFS_CHANNEL_CONNECTED) {
       LOG(6, (KERN_DEBUG "VMware hgfs: %s: Connection lost\n", __func__));
-      compat_mutex_unlock(&tcpChannel.connLock);
+      compat_mutex_unlock(&channel->connLock);
       return -ENOTCONN;
    }
 
    req->state = HGFS_REQ_STATE_SUBMITTED;
-   socket = tcpChannel.priv;
+   socket = channel->priv;
 
    result = HgfsTcpSendMsg(socket, HGFS_REQ_PAYLOAD(req), req->payloadSize);
 
-   compat_mutex_unlock(&tcpChannel.connLock);
+   compat_mutex_unlock(&channel->connLock);
 
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: %s: sendmsg, err: %d.\n",
               __func__, result));
-      HgfsTcpChannelClose();
+      channel->ops.close(channel);
       req->state = HGFS_REQ_STATE_UNSENT;
    }
 
@@ -634,7 +797,7 @@ HgfsTcpChannelSendAsync(HgfsReq *req)    // IN: request to send
 /*
  *----------------------------------------------------------------------
  *
- * HgfsTcpChannelExit --
+ * HgfsSocketChannelExit --
  *
  *     Tear down the channel.
  *
@@ -648,25 +811,25 @@ HgfsTcpChannelSendAsync(HgfsReq *req)    // IN: request to send
  */
 
 static void
-HgfsTcpChannelExit(void)
+HgfsSocketChannelExit(HgfsTransportChannel* channel)  // IN OUT
 {
    HgfsTcpStopReceivingThread();
-   compat_mutex_lock(&tcpChannel.connLock);
-   if (tcpChannel.status != HGFS_CHANNEL_UNINITIALIZED) {
-      HgfsTcpChannelCloseWork();
-      tcpChannel.status = HGFS_CHANNEL_UNINITIALIZED;
+   compat_mutex_lock(&channel->connLock);
+   if (channel->status != HGFS_CHANNEL_UNINITIALIZED) {
+      HgfsTcpChannelCloseWork(channel);
+      channel->status = HGFS_CHANNEL_UNINITIALIZED;
       LOG(8, ("VMware hgfs: %s: tcp channel exited.\n", __func__));
    }
-   compat_mutex_unlock(&tcpChannel.connLock);
+   compat_mutex_unlock(&channel->connLock);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * HgfsTcpChannelInit --
+ * HgfsVSocketChannelExit --
  *
- *     Initialize TCP channel.
+ *     Tear down the channel.
  *
  * Results:
  *     None
@@ -677,15 +840,37 @@ HgfsTcpChannelExit(void)
  *----------------------------------------------------------------------
  */
 
-void
-HgfsTcpChannelInit(void)
+static void
+HgfsVSocketChannelExit(HgfsTransportChannel* channel)  // IN OUT
+{
+   HgfsSocketChannelExit(channel);
+   VMCISock_KernelDeregister();
+}
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsGetTcpChannel --
+ *
+ *     Initialize TCP channel.
+ *
+ * Results:
+ *     Pointer to a channel on success, otherwise NULL.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HgfsTransportChannel*
+HgfsGetTcpChannel(void)
 {
    tcpChannel.name = "tcp";
    tcpChannel.ops.open = HgfsTcpChannelOpen;
-   tcpChannel.ops.close = HgfsTcpChannelClose;
+   tcpChannel.ops.close = HgfsSocketChannelClose;
    tcpChannel.ops.send = HgfsTcpChannelSendAsync;
    tcpChannel.ops.recv = HgfsTcpChannelRecvAsync;
-   tcpChannel.ops.exit = HgfsTcpChannelExit;
+   tcpChannel.ops.exit = HgfsSocketChannelExit;
    tcpChannel.priv = NULL;
    compat_mutex_init(&tcpChannel.connLock);
 
@@ -693,4 +878,53 @@ HgfsTcpChannelInit(void)
    HgfsTcpResetRecvBuffer();
    recvThread = NULL;
    tcpChannel.status = HGFS_CHANNEL_NOTCONNECTED;
+
+   if (!HOST_IP) {/* HOST_IP is defined in module.c. */
+      return NULL;
+   }
+
+   return &tcpChannel;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsGetVSocketChannel --
+ *
+ *     Initialize VSocket channel.
+ *
+ * Results:
+ *     Pointer to a channel on success, otherwise NULL.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HgfsTransportChannel*
+HgfsGetVSocketChannel(void)
+{
+   vsocketChannel.name = "vsocket";
+   vsocketChannel.ops.open = HgfsVSocketChannelOpen;
+   vsocketChannel.ops.close = HgfsSocketChannelClose;
+   vsocketChannel.ops.send = HgfsTcpChannelSendAsync;
+   vsocketChannel.ops.recv = HgfsTcpChannelRecvAsync;
+   vsocketChannel.ops.exit = HgfsVSocketChannelExit;
+   vsocketChannel.priv = NULL;
+   compat_mutex_init(&vsocketChannel.connLock);
+
+   /* Initialize hgfsConn. */
+   memset(&recvBuffer, 0, sizeof recvBuffer);
+   HgfsTcpResetRecvBuffer();
+   recvThread = NULL;
+   vsocketChannel.status = HGFS_CHANNEL_NOTCONNECTED;
+
+   if (!HOST_VSOCKET_PORT) {/* HOST_VSOCKET_PORT is defined in module.c. */
+      return NULL;
+   }
+
+   VMCISock_KernelRegister();
+   return &vsocketChannel;
 }

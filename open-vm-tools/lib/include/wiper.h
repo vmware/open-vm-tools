@@ -84,7 +84,7 @@ typedef struct WiperInitData {
 #endif
 } WiperInitData;
 
-Bool Wiper_Init(void *clientData);
+Bool Wiper_Init(WiperInitData *clientData);
 WiperPartition_List *WiperPartition_Open(void);
 void WiperPartition_Close(WiperPartition_List *pl);
 

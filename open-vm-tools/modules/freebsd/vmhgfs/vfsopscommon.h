@@ -19,7 +19,7 @@
 /*
  * vfsopscommon.h --
  *
- * Common VFS vfsop implementations that are shared between both OS X and FreeBSD.
+ * Common VFS vfsop implementations that are shared between both Mac OS and FreeBSD.
  */
 
 #ifndef _HGFS_VFSOPS_COMMON_H_
@@ -35,9 +35,9 @@
 #define HGFS_CONVERT_TO_BLOCKS(bytes) (bytes / HGFS_BLOCKSIZE)
 #define HGFS_IS_POWER_OF_TWO(val) (val && !(val & (val - 1)))
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
    typedef struct statfs HgfsStatfs;
-#elif defined(__APPLE__)
+#elif defined __APPLE__
    typedef struct vfsstatfs HgfsStatfs;
 #endif
 

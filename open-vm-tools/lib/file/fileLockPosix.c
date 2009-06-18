@@ -1067,6 +1067,68 @@ FileLockGetExecutionID(void)
 
 
 /*
+ *---------------------------------------------------------------------------
+ *
+ * FileLockNormalizePath
+ *
+ *      Normalize the path of the file being locked. Locking a symbolic
+ *      link should place the lock next to the link, not where the link
+ *      points to.
+ *
+ * Results:
+ *      The normalized path
+ *
+ * Side effects:
+ *      None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static Unicode
+FileLockNormalizePath(ConstUnicode filePath)  // IN:
+{
+   Unicode result;
+   struct stat statbuf;
+
+   if ((Posix_Lstat(filePath, &statbuf) == 0) &&
+        (S_ISLNK(statbuf.st_mode))) {
+      Unicode fullPath;
+      Unicode baseDir = NULL;
+      Unicode fileName = NULL;
+
+      /*
+       * The file to be locked is a symbolic path. Place the lock file
+       * next to the file, not where the symbolic path points to.
+       */
+
+       File_GetPathName(filePath, &baseDir, &fileName);
+
+       fullPath = File_FullPath(baseDir);
+
+       if (fullPath == NULL) {
+          result = NULL;
+       } else {
+          result = Unicode_Join(fullPath, DIRSEPS, fileName, NULL);
+
+          Unicode_Free(fullPath);
+       }
+
+       Unicode_Free(baseDir);
+       Unicode_Free(fileName);
+   } else {
+      /*
+       * The stat failed or the file is not a symbolic link - do a fullpath
+       * on the argument path to normalize it.
+       */
+
+      result = File_FullPath(filePath);
+   }
+
+   return result;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * FileLock_Lock --
@@ -1094,20 +1156,20 @@ FileLockGetExecutionID(void)
  */
 
 void *
-FileLock_Lock(ConstUnicode filePath,        // IN:
-              const Bool readOnly,          // IN:
-              const uint32 msecMaxWaitTime, // IN:
-              int *err)                     // OUT:
+FileLock_Lock(ConstUnicode filePath,         // IN:
+              const Bool readOnly,           // IN:
+              const uint32 msecMaxWaitTime,  // IN:
+              int *err)                      // OUT:
 {
-   Unicode fullPath;
    void *lockToken;
+   Unicode normalizedPath;
    char creationTimeString[32];
 
    ASSERT(filePath);
    ASSERT(err);
 
-   fullPath = File_FullPath(filePath);
-   if (fullPath == NULL) {
+   normalizedPath = FileLockNormalizePath(filePath);
+   if (normalizedPath == NULL) {
       *err = EINVAL;
       return NULL;
    }
@@ -1115,10 +1177,10 @@ FileLock_Lock(ConstUnicode filePath,        // IN:
    Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
                ProcessCreationTime(FileLockGetPid()));
 
-   lockToken = FileLockIntrinsic(fullPath, !readOnly, msecMaxWaitTime,
+   lockToken = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
                                  creationTimeString, err);
 
-   Unicode_Free(fullPath);
+   Unicode_Free(normalizedPath);
 
    return lockToken;
 }
@@ -1146,19 +1208,19 @@ FileLock_Unlock(ConstUnicode filePath,  // IN:
                 const void *lockToken)  // IN:
 {
    int err;
-   Unicode fullPath;
+   Unicode normalizedPath;
 
    ASSERT(filePath);
    ASSERT(lockToken);
 
-   fullPath = File_FullPath(filePath);
-   if (fullPath == NULL) {
+   normalizedPath = FileLockNormalizePath(filePath);
+   if (normalizedPath == NULL) {
       return EINVAL;
    }
 
-   err = FileUnlockIntrinsic(fullPath, lockToken);
+   err = FileUnlockIntrinsic(normalizedPath, lockToken);
 
-   Unicode_Free(fullPath);
+   Unicode_Free(normalizedPath);
 
    return err;
 }
@@ -1188,18 +1250,18 @@ int
 FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
 {
    int err;
-   Unicode fullPath;
+   Unicode normalizedPath;
 
    ASSERT(filePath);
 
-   fullPath = File_FullPath(filePath);
-   if (fullPath == NULL) {
+   normalizedPath = FileLockNormalizePath(filePath);
+   if (normalizedPath == NULL) {
       return EINVAL;
    }
 
-   err = FileLockHackVMX(fullPath);
+   err = FileLockHackVMX(normalizedPath);
 
-   Unicode_Free(fullPath);
+   Unicode_Free(normalizedPath);
 
    return err;
 }
@@ -1211,7 +1273,7 @@ FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
  */
  
 int
-FileLockCloseFile(FILELOCK_FILE_HANDLE handle) // IN
+FileLockCloseFile(FILELOCK_FILE_HANDLE handle)  // IN:
 {
    NOT_IMPLEMENTED();
 }
@@ -1225,9 +1287,9 @@ FileLockGetExecutionID(void)
 
 
 int
-FileLockOpenFile(ConstUnicode pathName,        // IN
-                 int flags,                    // IN
-                 FILELOCK_FILE_HANDLE *handle) // OUT
+FileLockOpenFile(ConstUnicode pathName,         // IN:
+                 int flags,                     // IN:
+                 FILELOCK_FILE_HANDLE *handle)  // OUT:
 {
 
    NOT_IMPLEMENTED();
@@ -1235,28 +1297,28 @@ FileLockOpenFile(ConstUnicode pathName,        // IN
 
 
 int
-FileLockReadFile(FILELOCK_FILE_HANDLE handle,  // IN
-                 void *buf,                    // IN
-                 uint32 requestedBytes,        // IN
-                 uint32 *resultantBytes)       // OUT
+FileLockReadFile(FILELOCK_FILE_HANDLE handle,  // IN:
+                 void *buf,                    // IN:
+                 uint32 requestedBytes,        // IN:
+                 uint32 *resultantBytes)       // OUT:
 {
    NOT_IMPLEMENTED();
 }
 
 
 Bool
-FileLockValidOwner(const char *executionID, // IN
-                   const char *payload)     // IN
+FileLockValidOwner(const char *executionID,  // IN:
+                   const char *payload)      // IN:
 {
    NOT_IMPLEMENTED();
 }
 
 
 int
-FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN
-                  void *buf,                    // IN
-                  uint32 requestedBytes,        // IN
-                  uint32 *resultantBytes)       // OUT
+FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN:
+                  void *buf,                    // IN:
+                  uint32 requestedBytes,        // IN:
+                  uint32 *resultantBytes)       // OUT:
 {
    NOT_IMPLEMENTED();
 }

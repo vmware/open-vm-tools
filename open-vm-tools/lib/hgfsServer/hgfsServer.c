@@ -117,8 +117,10 @@ Bool alwaysUseHostTime = FALSE;
  * Monotonically increasing handle counter used to dish out HgfsHandles.
  * This value is checkpointed.
  */
-static Atomic_uint32 hgfsHandleCounter;
+static Atomic_uint32 hgfsHandleCounter = {0};
 
+
+static HgfsServerStateLogger *hgfsMgrData = NULL;
 
 /*
  * Session usage and locking.
@@ -165,9 +167,6 @@ static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
 static void HgfsServerSessionSendComplete(void *clientData, char *buffer);
 
-
-static Bool hgfsChangeNotificationSupported = FALSE;
-
 /*
  * Callback table passed to transport and any channels.
  */
@@ -179,6 +178,9 @@ HgfsServerSessionCallbacks hgfsServerSessionCBTable = {
    HgfsServerSessionInvalidateObjects,
    HgfsServerSessionSendComplete,
 };
+
+static Bool hgfsChangeNotificationSupported = FALSE;
+
 
 /* Local functions. */
 
@@ -345,7 +347,17 @@ HgfsServerGetHandleCounter(void)
 static uint32
 HgfsServerGetNextHandleCounter(void)
 {
-   return Atomic_FetchAndInc(&hgfsHandleCounter);
+   uint32 count = Atomic_FetchAndInc(&hgfsHandleCounter);
+   /*
+    * Call server manager for logging state updates.
+    * XXX - This will have to be reworked when the server is
+    * more concurrent than with the current access.
+    */
+   if (hgfsMgrData != NULL &&
+       hgfsMgrData->logger != NULL) {
+      hgfsMgrData->logger(hgfsMgrData->loggerData, count + 1);
+   }
+   return count;
 }
 
 
@@ -2666,11 +2678,13 @@ err:
  */
 
 Bool
-HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable)
+HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our callbacks
+                     HgfsServerStateLogger *serverMgrData)        // IN: mgr callback
 {
    ASSERT(callbackTable);
 
-   HgfsServerInitHandleCounter(0);
+   /* Save any server manager data for logging state updates.*/
+   hgfsMgrData = serverMgrData;
 
    maxCachedOpenNodes = Config_GetLong(MAX_CACHED_FILENODES,
                                        "hgfs.fdCache.maxNodes");
@@ -2735,7 +2749,6 @@ HgfsServer_ExitState(void)
    if (hgfsChangeNotificationSupported) {
       HgfsNotify_Shutdown();
    }
-
 
    HgfsServerPlatformDestroy();
 }
@@ -3530,7 +3543,6 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
    char tempBuf[HGFS_PATH_MAX];
    size_t tempSize;
    char *tempPtr;
-   HgfsInternalStatus result;
    uint32 startIndex = 0;
    HgfsShareOptions shareOptions;
 
@@ -3711,16 +3723,15 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
     */
    if (!HgfsServerPolicy_IsShareOptionSet(shareOptions, HGFS_SHARE_HOST_DEFAULT_CASE) &&
        HgfsServerCaseConversionRequired()) {
-      result = HgfsServerConvertCase(sharePath, sharePathLen, myBufOut,
-                                     myBufOutLen, caseFlags,
-                                     &convertedMyBufOut, &convertedMyBufOutLen);
+      nameStatus = HgfsServerConvertCase(sharePath, sharePathLen, myBufOut,
+                                         myBufOutLen, caseFlags,
+                                         &convertedMyBufOut, &convertedMyBufOutLen);
 
       /*
        * On success, use the converted file names for further operations.
        */
-      if (result != 0) {
+      if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, ("HgfsServerGetAccess: HgfsServerConvertCase failed.\n"));
-         nameStatus  = HGFS_NAME_STATUS_FAILURE;
          goto error;
       }
 
@@ -3741,10 +3752,10 @@ HgfsServerGetAccess(char *cpName,                  // IN:  Cross-platform filena
        * file path for further file system operations, instead of using the one passed
        * from the client.
        */
-      result = HgfsServerHasSymlink(myBufOut, myBufOutLen, sharePath, sharePathLen);
-      if (result != 0) {
-         LOG(4, ("HgfsServerGetAccess: parent path contains a symlink\n"));
-         nameStatus = HGFS_NAME_STATUS_FAILURE;
+      nameStatus = HgfsServerHasSymlink(myBufOut, myBufOutLen, sharePath, sharePathLen);
+      if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
+         LOG(4, ("HgfsServerGetAccess: parent path failed to be resolved: %d\n",
+                 nameStatus));
          goto error;
       }
    }

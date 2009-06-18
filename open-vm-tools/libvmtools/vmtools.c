@@ -92,7 +92,7 @@ VMToolsDllInit(void *lib)
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);
    g_assert(success);
-   success = Wiper_Init(&wiperData.resourceModule);
+   success = Wiper_Init(&wiperData);
    g_assert(success);
 #else
    VMTools_ResetLogging(FALSE);

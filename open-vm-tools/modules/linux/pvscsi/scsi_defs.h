@@ -359,8 +359,6 @@ typedef struct {
 #define SCSI_CLASS_OPTICAL 0x07	    // optical disk
 #define SCSI_CLASS_MEDIA   0x08	    // media changer
 #define SCSI_CLASS_COM	   0x09	    // communication device
-#define IDE_CLASS_CDROM    0x0a	    // IDE CD-ROM drive
-#define IDE_CLASS_OTHER    0x0b	    // Generic IDE
 #define SCSI_CLASS_RAID	   0x0c	    // RAID controller (SCSI-3, reserved in SCSI-2)
 #define SCSI_CLASS_SES 	   0x0d	    // SCSI Enclosure Services device (t10 SES)
 #define SCSI_CLASS_UNKNOWN 0x1f	    // unknown device

@@ -136,7 +136,6 @@ ShrinkGetMountPoints(void) // IN: Verbosity flag
 {
    if (GuestApp_IsDiskShrinkCapable()) {
       if (GuestApp_IsDiskShrinkEnabled()) {
-         Wiper_Init(NULL);
          return WiperPartition_Open();
       } else {
          fprintf(stderr,SHRINK_DISABLED_ERR);
@@ -181,9 +180,15 @@ Shrink_DoShrink(char *mountPoint, // IN: mount point
 #endif
    part = ShrinkGetPartition(mountPoint, quiet_flag);
    if (part == NULL) {
-      fprintf(stderr, "Unable to find partition\n");
+      fprintf(stderr, "Unable to find partition %s\n", mountPoint);
       return EX_OSFILE;
    }
+
+   if (strlen(part->comment) != 0) {
+      fprintf(stderr, "Partition %s is not shrinkable\n", part->mountPoint);
+      return EX_UNAVAILABLE;
+   }
+
    /*
     * Verify that shrinking is still possible before going through with the
     * wiping. This obviously isn't atomic, but it should take care of

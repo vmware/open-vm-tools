@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <sys/malloc.h>
 
-#if defined(__APPLE__)
+#if defined __APPLE__
 #  include <libkern/libkern.h>  // for rindex
 #endif
 
@@ -36,17 +36,17 @@
 #include "cpNameLite.h"
 #include "os.h"
 
-#if defined(__APPLE__)
+#if defined __APPLE__
 char *rindex(const char *ptr, int chr);
 #endif
 
 /*
- * OS X sets vnode attributes through the use of a VATTR_RETURN function.
+ * Mac OS sets vnode attributes through the use of a VATTR_RETURN function.
  * FreeBSD sets vnode attributes directly in the structure. To enable a shared
  * implementation of HgfsAttrToBSD and HgfsSetattrCopy, we define VATTR_RETURN
  * for FreeBSD.
  */
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #define VATTR_RETURN(vn, attr, val) \
    do { (vn)-> attr = (val); } while (0)
 #endif
@@ -224,9 +224,9 @@ HgfsGetOpenMode(uint32 flags) // IN: Open flags
     * Preprocessor wrapper kept for when this function is factored out
     * into a common file.
     */
-#if defined(_KERNEL) || defined(KERNEL)
+#if defined _KERNEL || defined KERNEL
    /*
-    * FreeBSD / OS X use different values from those in the linux kernel. These are defined in
+    * FreeBSD / Mac OS use different values from those in the linux kernel. These are defined in
     * <sys/fcntl.h>.
     */
    #undef O_RDONLY
@@ -581,7 +581,7 @@ HgfsSetattrCopy(HgfsVnodeAttr *vap,      // IN:  Attributes to change to
  *
  * HgfsAttrToBSD --
  *
- *    Maps Hgfs attributes to MAC OS/BSD attributes, filling the provided BSD
+ *    Maps Hgfs attributes to Mac OS/BSD attributes, filling the provided BSD
  *    attribute structure appropriately.
  *
  * Results:
@@ -610,10 +610,10 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
    DEBUG(VM_DEBUG_ENTRY, "%p -> %p\n", hgfsAttrV2, vap);
 
    /*
-    * Initialize all fields to zero. We don't need to do this for OS X
+    * Initialize all fields to zero. We don't need to do this for Mac OS
     * because the VATTR_RETURN macros take care of it for us.
     */
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
    VATTR_NULL(vap);
 #endif
 
@@ -695,7 +695,7 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
 
    /* 
     * HGFS_SET_TIME does not mark the attribute as supported (unlike
-    * VATTR_RETURN on OS X) so we have to do it explicitly with calls to
+    * VATTR_RETURN on Mac OS) so we have to do it explicitly with calls to
     * VATTR_SET_SUPPORTED. For FreeBSD, HGFS_VATTR_*_SET_SUPPORTED is just a NULL
     * macro.
     */
@@ -813,7 +813,7 @@ HgfsStatusToBSD(HgfsStatus hgfsStatus) // IN: Hgfs status msg to be converted
  * rindex --
  *
  *      Search a character string for the last instance of chr. This is only
- *      implemented for OS X because it is not exported by the OS X kernel.
+ *      implemented for Mac OS because it is not exported by the Mac OS kernel.
  *
  * Results:
  *      Pointer to the last instance of chr in the string.
@@ -824,7 +824,7 @@ HgfsStatusToBSD(HgfsStatus hgfsStatus) // IN: Hgfs status msg to be converted
  *----------------------------------------------------------------------------
  */
 
-#if defined(__APPLE__)
+#if defined __APPLE__
 char *
 rindex(const char *ptr, // IN: String to search.
        int chr)         // IN: Char to look for.
@@ -998,7 +998,7 @@ HgfsNameFromWireEncoding(const char *bufIn,  // IN: Buffer to be encoded
       }
       /*
        * Convert the input buffer into decomposed form. Higher layers in
-       * MacOS X expects the name to be in decomposed form.
+       * Mac OS expects the name to be in decomposed form.
        */
       ret = os_component_to_utf8_decomposed(bufOut, escapedLen, decomposedBuf,
                                             &decomposedLen, bufOutSize);

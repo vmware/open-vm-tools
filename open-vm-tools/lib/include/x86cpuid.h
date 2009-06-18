@@ -778,7 +778,7 @@ CPUID_UARCH_IS_CORE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 /*
- * Intel Nehalem processors are: Nehalem, Gainestown, Lynnfield.
+ * Intel Nehalem processors are: Nehalem, Gainestown, Lynnfield, Clarkdale.
  */
 static INLINE Bool
 CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
@@ -868,22 +868,22 @@ CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
  * WRMSR(TSC) clears the upper half of the TSC instead of using %edx.
  */
 static INLINE Bool
-CPUID_FullyWritableTSC(Bool isIntel, // IN
-                       uint32 v)     // IN: %eax from CPUID with %eax=1.
+CPUID_FullyWritableTSC(CpuidVendors vendor, // IN
+                       uint32 v)      // IN: %eax from CPUID with %eax=1.
 {
    /*
     * Returns FALSE if:
     *   - Intel && P6 (pre-core) or
     *   - Intel && P4 (model < 3) or
-    *   - !Intel && pre-K8 Opteron
-    * Otherwise, returns TRUE.
+    *   - AMD && pre-K8 Opteron
+    * Otherwise, returns TRUE (including for Via Nano).
     */
-   return !((isIntel &&
+   return !((vendor == CPUID_VENDOR_INTEL &&
              ((CPUID_FAMILY_IS_P6(v) &&
                CPUID_EFFECTIVE_MODEL(v) < CPUID_MODEL_PM_0E) ||
               (CPUID_FAMILY_IS_PENTIUM4(v) &&
                CPUID_EFFECTIVE_MODEL(v) < 3))) ||
-            (!isIntel &&
+            (vendor == CPUID_VENDOR_AMD &&
              CPUID_FAMILY(v) < CPUID_FAMILY_K8));
 }
 
@@ -1000,5 +1000,21 @@ CPUID_IsHypervisorLevel(uint32 level, uint32 *offset)
    return (level & 0xffffff00) == 0x40000000;
 }
 
+
+/* Intel and VIA allow use of sysenter/sysexit in longmode. AMD does not. */
+#define CPUID_HAS_SYSENTER64()  (!CPUFEATURE_IS_AMD())
+
+/* Intel and VIA behave the same, AMD is different. */
+#define CPUID_LOADING_NULL_LEAVES_BASE()   CPUFEATURE_IS_AMD()
+
+/* Intel and VIA ignore <op> on 64 bit JMPs. */
+#define CPUID_JMP64_IGNORES_OPSZ()  (!CPUFEATURE_IS_AMD())
+
+/*
+ * Hardware-assisted  virtualization supports one of two hypercalls:
+ * VMCALL for VT-x implementations (Intel or VIA) and VMMCALL for AMD-V
+ * implementations (AMD).
+ */
+#define CPUID_HYPERCALL_IS_VMCALL() (!CPUFEATURE_IS_AMD())
 
 #endif

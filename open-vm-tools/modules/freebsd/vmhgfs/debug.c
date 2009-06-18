@@ -59,7 +59,7 @@ HgfsDebugPrintVattr(const HgfsVnodeAttr *vap)
    DEBUG(VM_DEBUG_STRUCT, " va_filerev: %"FMT64"u\n", vap->va_filerev);
    DEBUG(VM_DEBUG_STRUCT, " va_vaflags: %x\n", vap->va_vaflags);
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
    /*
     * The next group of attributes have the same name but different sizes on
     * xnu-1228 and FreeBSD 6.2.
@@ -88,7 +88,7 @@ HgfsDebugPrintVattr(const HgfsVnodeAttr *vap)
          vap->va_birthtime.tv_nsec);
    DEBUG(VM_DEBUG_STRUCT, " va_bytes: %"FMT64"u\n", vap->va_bytes);
 
-#elif defined(__APPLE__)
+#elif defined __APPLE__
    /*
     * The next group of attributes have the same name but different sizes on
     * xnu-1228 and FreeBSD 6.2.
@@ -99,17 +99,14 @@ HgfsDebugPrintVattr(const HgfsVnodeAttr *vap)
    DEBUG(VM_DEBUG_STRUCT, " va_nlink: %"FMT64"u\n", vap->va_nlink);
 
    /* These attribute names have changed between xnu-1228 and FreeBSD 6.2. */
-   DEBUG(VM_DEBUG_STRUCT, " va_size: %ju\n", vap->va_data_size);
+   DEBUG(VM_DEBUG_STRUCT, " va_size: %"FMT64"u\n", vap->va_data_size);
    DEBUG(VM_DEBUG_STRUCT, " va_iosize: %u\n", vap->va_iosize);
-   /*
-    * XXX time_t is __int32_t on 32-bit architectures and __int64_t on 64-bit
-    * architectures.  Would this be better as add'l formats in vm_basic_types.h?
-    */
-   DEBUG(VM_DEBUG_STRUCT, " va_access_time.tv_sec: %jd\n", (intmax_t)vap->va_access_time.tv_sec);
+
+   DEBUG(VM_DEBUG_STRUCT, " va_access_time.tv_sec: %ld\n", vap->va_access_time.tv_sec);
    DEBUG(VM_DEBUG_STRUCT, " va_access_time.tv_nsec: %ld\n", vap->va_access_time.tv_nsec);
-   DEBUG(VM_DEBUG_STRUCT, " va_modify_time.tv_sec: %jd\n", (intmax_t)vap->va_modify_time.tv_sec);
+   DEBUG(VM_DEBUG_STRUCT, " va_modify_time.tv_sec: %ld\n", vap->va_modify_time.tv_sec);
    DEBUG(VM_DEBUG_STRUCT, " va_modify_time.tv_nsec: %ld\n", vap->va_modify_time.tv_nsec);
-   DEBUG(VM_DEBUG_STRUCT, " va_create_time.tv_sec: %jd\n", (intmax_t)vap->va_create_time.tv_sec);
+   DEBUG(VM_DEBUG_STRUCT, " va_create_time.tv_sec: %ld\n", vap->va_create_time.tv_sec);
    DEBUG(VM_DEBUG_STRUCT, " va_create_time.tv_nsec: %ld\n", vap->va_create_time.tv_nsec);
 #endif
 }

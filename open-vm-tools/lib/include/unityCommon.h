@@ -465,10 +465,11 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
                          @ref UNITY_RPC_GET_WINDOW_PATH.
    @return
    @verbatim
-<retval> := <name><nul><icon_data>{<icon_data>}
+<retval> := <name><nul><count><nul><icon_data>{<icon_data>}
 
 <name> := name of application
-<icon_data> := count<nul>width<nul>height<nul>size<nul>bgraData<nul><nul>
+<count> := number of icons returned
+<icon_data> := width<nul>height<nul>bgraSize<nul>bgraData<nul>
 <nul> := '\0'
 @endverbatim
    @note        Icon data is in BGRA format. An alpha channel value of 255 means

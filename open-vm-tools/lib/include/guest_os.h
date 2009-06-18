@@ -148,7 +148,7 @@ typedef enum GuestOSFamilyType {
 #define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
-                         ALLDARWIN64 | BS(OTHER_64))
+                         ALLDARWIN64 | BS(OTHER_64) | BS(VMKERNEL))
 
 
 /*
@@ -312,17 +312,6 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_WEB_SERVER "winServer2008Web-32"
 #define STR_OS_WIN_2008_WEB_SERVER_FULL "Windows Server 2008 Web Server Edition"
 
-/* Windows Server 2008 R2 */
-
-#define STR_OS_WIN_2008R2_STANDARD        "windows7srv-Std"
-#define STR_OS_WIN_2008R2_STANDARD_FULL   "Windows Server 2008 R2 Standard Edition"
-#define STR_OS_WIN_2008R2_ENTERPRISE      "windows7srv-Ent"
-#define STR_OS_WIN_2008R2_ENTERPRISE_FULL "Windows Server 2008 R2 Enterprise Edition"
-#define STR_OS_WIN_2008R2_DATACENTER      "windows7srv-Data"
-#define STR_OS_WIN_2008R2_DATACENTER_FULL "Windows Server 2008 R2 Datacenter Edition"
-#define STR_OS_WIN_2008R2_WEB_SERVER      "windows7srv-Web"
-#define STR_OS_WIN_2008R2_WEB_SERVER_FULL "Windows Web Server 2008 R2 Edition"
-
 /* Windows 64-bit */
 #define STR_OS_WIN_VISTA_ULTIMATE_X64 "winVistaUltimate-64"
 #define STR_OS_WIN_VISTA_HOME_PREMIUM_X64 "winVistaHomePremium-64"
@@ -351,14 +340,26 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008_WEB_SERVER_X64 "winServer2008Web-64"
 
 /* Windows 7 */
-#define STR_OS_WIN_SEVEN "windows7"
-#define STR_OS_WIN_SEVEN_X64 "windows7-64"
-#define STR_OS_WIN_SEVEN_FULL "Windows 7"
 
-/* Windows 2008 R2 */
-#define STR_OS_WIN_2008R2 "windows7srv"
+#define STR_OS_WIN_SEVEN     "windows7"
+#define STR_OS_WIN_SEVEN_X64 "windows7-64"
+
+#define STR_OS_WIN_SEVEN_GENERIC           "Windows 7"
+#define STR_OS_WIN_SEVEN_STARTER_FULL      "Windows 7 Starter"
+#define STR_OS_WIN_SEVEN_HOME_BASIC_FULL   "Windows 7 Home Basic"
+#define STR_OS_WIN_SEVEN_HOME_PREMIUM_FULL "Windows 7 Home Premium"
+#define STR_OS_WIN_SEVEN_ULTIMATE_FULL     "Windows 7 Ultimate"
+#define STR_OS_WIN_SEVEN_BUSINESS_FULL     "Windows 7 Business"
+
+/* Windows Server 2008 R2 (based on Windows 7) */
+
+#define STR_OS_WIN_2008R2     "windows7srv"
 #define STR_OS_WIN_2008R2_X64 "windows7srv-64"
-#define STR_OS_WIN_2008R2_FULL "Windows Server 2008 R2"
+
+#define STR_OS_WIN_2008R2_STANDARD_FULL   "Windows Server 2008 R2 Standard Edition"
+#define STR_OS_WIN_2008R2_ENTERPRISE_FULL "Windows Server 2008 R2 Enterprise Edition"
+#define STR_OS_WIN_2008R2_DATACENTER_FULL "Windows Server 2008 R2 Datacenter Edition"
+#define STR_OS_WIN_2008R2_WEB_SERVER_FULL "Windows Web Server 2008 R2 Edition"
 
 /* XXX */
 #define STR_OS_HYPERV "winHyperV"

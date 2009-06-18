@@ -493,6 +493,8 @@ HgfsConvertFromNameStatus(HgfsNameStatus status) // IN
       return ENOMEM;
    case HGFS_NAME_STATUS_TOO_LONG:
       return ENAMETOOLONG;
+   case HGFS_NAME_STATUS_NOT_A_DIRECTORY:
+      return ENOTDIR;
    default:
       NOT_IMPLEMENTED();
    }
@@ -1719,8 +1721,9 @@ exit:
  *    Converts the fileName to appropriate case depending upon flags.
  *
  * Results:
- *    Returns 0 if successful and converted path for fileName is returned in
- *    convertedFileName and it length in convertedFileNameLength.
+ *    Returns HGFS_NAME_STATUS_COMPLETE if successful and converted
+ *    path for fileName is returned in convertedFileName and it length in
+ *    convertedFileNameLength.
  *
  *    Otherwise returns non-zero integer without affecting fileName with
  *    convertedFileName and convertedFileNameLength set to NULL and 0
@@ -1733,7 +1736,7 @@ exit:
  *-----------------------------------------------------------------------------
  */
 
-HgfsInternalStatus
+HgfsNameStatus
 HgfsServerConvertCase(const char *sharePath,              // IN
                       size_t sharePathLength,             // IN
                       char *fileName,                     // IN
@@ -1743,6 +1746,8 @@ HgfsServerConvertCase(const char *sharePath,              // IN
                       size_t *convertedFileNameLength)    // OUT
 {
    int error = 0;
+   HgfsNameStatus nameStatus = HGFS_NAME_STATUS_COMPLETE;
+
    ASSERT(sharePath);
    ASSERT(fileName);
    ASSERT(convertedFileName);
@@ -1766,20 +1771,28 @@ HgfsServerConvertCase(const char *sharePath,              // IN
        * Success or non-ENOENT error code. HgfsCaseInsensitiveLookup can return ENOENT,
        * and its ok to continue if it is ENOENT.
        */
-      if (error == ENOENT) {
-         error = 0;
+      switch (error) {
+         case ENOENT:
+            nameStatus = HGFS_NAME_STATUS_COMPLETE;
+            break;
+         case ENOTDIR:
+            nameStatus = HGFS_NAME_STATUS_NOT_A_DIRECTORY;
+            break;
+         default:
+            nameStatus = HGFS_NAME_STATUS_FAILURE;
+            break;
       }
-      return error;
+      return nameStatus;
    }
 
    *convertedFileName = strdup(fileName);
    if (!*convertedFileName) {
-      error = errno;
+      nameStatus = HGFS_NAME_STATUS_OUT_OF_MEMORY;
       LOG(4, ("%s: strdup on fileName failed.\n", __FUNCTION__));
    } else {
       *convertedFileNameLength = fileNameLength;
    }
-   return error;
+   return nameStatus;
 }
 
 
@@ -5398,7 +5411,8 @@ exit:
  *             In /tmp, "."   "/tmp"              (0)  "/tmp"              (0)
  *
  * Results:
- *      0 if the given path has a symlink, non-zero errno otherwise.
+ *      HGFS_NAME_STATUS_COMPLETE if the given path has a symlink,
+        an appropriate name status error otherwise.
  *
  * Side effects:
  *      None.
@@ -5406,7 +5420,7 @@ exit:
  *----------------------------------------------------------------------
  */
 
-HgfsInternalStatus
+HgfsNameStatus
 HgfsServerHasSymlink(const char *fileName,	// IN
                      size_t fileNameLength,     // IN
                      const char *sharePath,	// IN
@@ -5415,6 +5429,7 @@ HgfsServerHasSymlink(const char *fileName,	// IN
    char *resolvedFileDirPath = NULL;
    char *fileDirName = NULL;
    HgfsInternalStatus status;
+   HgfsNameStatus nameStatus = HGFS_NAME_STATUS_COMPLETE;
 
    ASSERT(fileName);
    ASSERT(sharePath);
@@ -5431,7 +5446,6 @@ HgfsServerHasSymlink(const char *fileName,	// IN
    if (fileNameLength == 0 ||
        sharePathLength == 0 ||
        Str_Strcmp(sharePath, fileName) == 0) {
-      status = 0;
       goto exit;
    }
 
@@ -5446,7 +5460,7 @@ HgfsServerHasSymlink(const char *fileName,	// IN
       char *p;
       p = realloc(fileDirName, sizeof(DIRSEPS));
       if (p == NULL) {
-         status = errno;
+         nameStatus = HGFS_NAME_STATUS_OUT_OF_MEMORY;
          LOG(4, ("%s: failed to realloc fileDirName.\n", __FUNCTION__));
          goto exit;
       } else {
@@ -5461,7 +5475,19 @@ HgfsServerHasSymlink(const char *fileName,	// IN
     */
    resolvedFileDirPath = Posix_RealPath(fileDirName);
    if (resolvedFileDirPath == NULL) {
+      /* Let's return some meaningful errors if possible. */
       status = errno;
+      switch (status) {
+         case ENOENT:
+            nameStatus = HGFS_NAME_STATUS_DOES_NOT_EXIST;
+            break;
+         case ENOTDIR:
+            nameStatus = HGFS_NAME_STATUS_NOT_A_DIRECTORY;
+            break;
+         default:
+            nameStatus = HGFS_NAME_STATUS_FAILURE;
+            break;
+      }
       LOG(4, ("%s: realpath failed: fileDirName: %s: %s\n",
               __FUNCTION__, fileDirName, strerror(errno)));
       goto exit;
@@ -5469,18 +5495,16 @@ HgfsServerHasSymlink(const char *fileName,	// IN
 
    /* Resolved parent should match with the shareName. */
    if (Str_Strncmp(sharePath, resolvedFileDirPath, sharePathLength) != 0) {
-      status = EACCES;
+      nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
       LOG(4, ("%s: resolved parent do not match, parent: %s, resolved: %s#\n",
               __FUNCTION__, fileDirName, resolvedFileDirPath));
       goto exit;
    }
 
-   status = 0;
-
 exit:
    free(resolvedFileDirPath);
    free(fileDirName);
-   return status;
+   return nameStatus;
 }
 
 

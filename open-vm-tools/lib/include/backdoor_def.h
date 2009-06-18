@@ -133,7 +133,7 @@
 #define BDOOR_CMD_ACPI_HOTPLUG_CBRET    58
 #define BDOOR_CMD_GET_HOST_VIDEO_MODES  59 /* Not in use */
 #define BDOOR_CMD_ACPI_HOTPLUG_CPU      60
-#define BDOOR_CMD_USB_HOTPLUG_MOUSE     61
+#define BDOOR_CMD_USB_HOTPLUG_MOUSE     61 /* Not in use */
 #define BDOOR_CMD_MAX                   62
 
 

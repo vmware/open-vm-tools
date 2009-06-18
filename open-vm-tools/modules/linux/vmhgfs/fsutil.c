@@ -705,7 +705,7 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
    }
 
    inode->i_rdev = 0;  /* Device nodes are not supported */
-#if !defined(VMW_INODE_2618)
+#if !defined VMW_INODE_2618
    inode->i_blksize = HGFS_BLOCKSIZE;
 #endif
 
@@ -1026,6 +1026,9 @@ HgfsIget(struct super_block *sb,         // IN: Superblock of this fs
       }
 
       iinfo = INODE_GET_II_P(inode);
+      if (attr->mask & HGFS_ATTR_VALID_FILEID) {
+         iinfo->hostFileId = attr->hostFileId;
+      }
       iinfo->isFakeInodeNumber = isFakeInodeNumber;
       iinfo->isReferencedInode = TRUE;
       HgfsChangeFileAttributes(inode, attr);
@@ -1757,6 +1760,7 @@ HgfsDoReadInode(struct inode *inode)  // IN: Inode to initialize
 #endif
    INODE_SET_II_P(inode, iinfo);
    INIT_LIST_HEAD(&iinfo->files);
+   iinfo->hostFileId = 0;
    iinfo->isReferencedInode = FALSE;
    iinfo->isFakeInodeNumber = FALSE;
    iinfo->createdAndUnopened = FALSE;

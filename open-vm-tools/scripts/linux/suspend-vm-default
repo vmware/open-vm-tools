@@ -63,6 +63,32 @@ save_active_NIC_list() {
     fi
 }
 
+
+#
+# tranquilizeNetworkManager --
+#
+#    Put the NetworkManager daemon to sleep (maybe).
+#
+#    See http://projects.gnome.org/NetworkManager/developers/spec.html .
+#
+# Results:
+#    Sleep(true) request is sent to the NetworkManager D-Bus interface.
+#
+# Side effects:
+#    None.
+#
+
+tranquilizeNetworkManager() {
+   # `which' may be a bit noisy, so we'll shush it.
+   dbusSend=`which dbus-send 2>/dev/null`
+   if [ $? -eq 0 ]; then
+      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
+         /org/freedesktop/NetworkManager                                \
+         org.freedesktop.NetworkManager.Sleep boolean:true
+   fi
+}
+
+
 #
 # main
 #
@@ -86,5 +112,7 @@ else
    echo "networking script not found"
    status=1
 fi
+
+tranquilizeNetworkManager
 
 exit "$status"

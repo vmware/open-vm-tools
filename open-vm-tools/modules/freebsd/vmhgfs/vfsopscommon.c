@@ -19,7 +19,7 @@
 /*
  * vnopscommon.h --
  *
- * Common VFS vfsop implementations that are shared between both OS X and FreeBSD.
+ * Common VFS vfsop implementations that are shared between both Mac OS and FreeBSD.
  */
 
 #include <sys/param.h>          // for everything
@@ -38,7 +38,7 @@
  * HgfsStatfsInt --
  * 
  *      Hgfs statfs method. Called by HgfsVfsStatfs on FreeBSD and
- *      HgfsVfsGetattr on OS X.
+ *      HgfsVfsGetattr on Mac OS.
  *
  * Results:
  *      Returns 0 on success and an error code on error.

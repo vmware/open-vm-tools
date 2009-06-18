@@ -417,6 +417,11 @@ extern void VixDebugInit(int debugLevel, int apiTraceLevel,
 extern const char *VixDebug_GetFileBaseName(const char *path);
 extern void VixAssert(const char *cond, const char *file, int lineNum);
 
+extern void VixLogError(VixError err, const char *function, int line,
+            const char *fileName, unsigned long threadId, const char *fmt, ...)
+            PRINTF_DECL(6, 7);
+
+
 /*
  * preference name for client and vmx
  */
@@ -467,6 +472,12 @@ extern void VixAssert(const char *cond, const char *file, int lineNum);
        Log("VixApiLog: %lu %s %s\n", (unsigned long) Util_GetCurrentThreadId(),\
            __FUNCTION__, debugString);                               \
        free(debugString); }
+
+// If no MSG is given, a description of err is suplemented.
+#define VIX_ERROR(err) (VIX_ERROR_MSG(err, NULL))
+#define VIX_ERROR_MSG(err, ...) (VixLogError(err, __FUNCTION__, __LINE__, \
+      VixDebug_GetFileBaseName(__FILE__), \
+      (unsigned long)Util_GetCurrentThreadId(), __VA_ARGS__))
 
 #endif   // VIX_HIDE_FROM_JAVA
 

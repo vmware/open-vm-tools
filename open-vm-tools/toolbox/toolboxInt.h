@@ -57,6 +57,13 @@
 			    "Please close and reopen the Toolbox to synchronize " \
 			    "it with the host.\n"
 
+#if defined(_WIN32)
+gchar *
+Toolbox_GetScriptPath(const wchar_t *scriptUtf16);
+#else
+gchar *
+Toolbox_GetScriptPath(const gchar *script);
+#endif
 
 GKeyFile *
 Toolbox_LoadToolsConf(void);

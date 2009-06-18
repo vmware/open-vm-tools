@@ -84,9 +84,37 @@ rescue_NIC() {
    fi
 }
 
+
+#
+# wakeNetworkManager --
+#
+#    Wake the NetworkManager daemon (maybe).
+#
+#    See http://projects.gnome.org/NetworkManager/developers/spec.html .
+#
+# Results:
+#    Sleep(false)request is sent to the NetworkManager D-Bus interface.
+#
+# Side effects:
+#    None.
+#
+
+wakeNetworkManager() {
+   # `which' may be a bit noisy, so we'll shush it.
+   dbusSend=`which dbus-send 2>/dev/null`
+   if [ $? -eq 0 ]; then
+      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
+         /org/freedesktop/NetworkManager                                \
+         org.freedesktop.NetworkManager.Sleep boolean:false
+   fi
+}
+
+
 #
 # main
 #
+
+wakeNetworkManager
 
 network=`find_networking_script`
 if [ "$network" != "error" ]; then

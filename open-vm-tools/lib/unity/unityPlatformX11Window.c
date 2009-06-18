@@ -131,8 +131,11 @@ CompareStackingOrder(UnityPlatform *up,         // IN
       Window *children = NULL;
       unsigned int nchildren;
 
-      XQueryTree(up->display, rootWindow, &dummyroot, &dummyparent, &children,
-                 &nchildren);
+      if (!XQueryTree(up->display, rootWindow, &dummyroot, &dummyparent,
+                      &children, &nchildren)) {
+         Debug("%s: XQueryTree failed\n", __func__);
+         goto out;
+      }
 
       /*
        * Now, filter out all of the relevant top-level windows into a local buffer
@@ -1885,7 +1888,8 @@ UnityPlatformReadProcessPath(UnityPlatform *up,        // IN
    Str_Snprintf(cbuf, sizeof cbuf, "/proc/%d/cwd", pid);
    i = readlink(cbuf, cwdbuf, sizeof cwdbuf);
    if (i <= 0) {
-      return FALSE;
+      /* Lookup of cwd failed.  We'll try our best without it. */
+      i = 0;
    }
    cwdbuf[i] = '\0';
 
@@ -1911,7 +1915,8 @@ UnityPlatformReadProcessPath(UnityPlatform *up,        // IN
       }
       argv[argc] = NULL;
 
-      return UnityPlatformArgvToWindowPaths(up, upw, argv, argc, cwdbuf,
+      return UnityPlatformArgvToWindowPaths(up, upw, argv, argc,
+                                            cwdbuf[0] ? cwdbuf : NULL,
                                             windowUri, execUri);
    }
 #endif

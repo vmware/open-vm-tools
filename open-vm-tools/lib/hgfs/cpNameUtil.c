@@ -38,7 +38,7 @@
 
 
 /* Some of the headers below cannot be included in driver code */
-#if !defined(__KERNEL__) && !defined(_KERNEL) && !defined(KERNEL)
+#if !defined __KERNEL__ && !defined _KERNEL && !defined KERNEL
 
 #include "cpNameUtil.h"
 #include "hgfsServerPolicy.h"
@@ -270,7 +270,7 @@ CPNameUtil_Utf8FormHostToUtf8FormC(const char *cpNameToConvert,   // IN:
  * CPNameUtil_Utf8FormCToUtf8FormHost --
  *
  *    Convert from CP unicode form C (decomposed) name  used by the HGFS
- *    protocol to the host preferred format. On Mac OS X is unicode form D 
+ *    protocol to the host preferred format. On Mac OS is unicode form D 
  *    (precomposed), everyone else this stays as form C (precomposed).
  *
  *    Input/output name lengths include the nul-terminator so that the 

@@ -69,7 +69,7 @@ typedef struct HgfsMountInfo {
    unsigned short fmask;      // desired file mask
    unsigned short dmask;      // desired directory mask
    uint32 ttl;                // number of seconds before revalidating dentries
-#if defined(__APPLE__)
+#if defined __APPLE__
    char shareNameHost[MAXPATHLEN]; // must be ".host"
    char shareNameDir[MAXPATHLEN];  // desired share name for mounting
 #else

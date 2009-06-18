@@ -19,7 +19,7 @@
 /*
  * vnopscommon.h --
  *
- * Common VFS vnop implementations that are shared between both OS X and FreeBSD.
+ * Common VFS vnop implementations that are shared between both Mac OS and FreeBSD.
  */
 
 #ifndef _HGFS_VNOPS_COMMON_H_
@@ -32,14 +32,14 @@
  */
 
 /* Access uio struct information in a Mac OS / FreeBSD independent manner. */
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #define HGFS_UIOP_TO_RESID(uiop)                                \
                 ((uiop)->uio_resid)
 #define HGFS_UIOP_TO_OFFSET(uiop)                               \
                 ((uiop)->uio_offset)
 #define HGFS_UIOP_SET_OFFSET(uiop, offset)                      \
                 ((uiop)->uio_offset = (offset))
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #define HGFS_UIOP_TO_RESID(uiop)                                \
                 (uio_resid(uiop))
 #define HGFS_UIOP_TO_OFFSET(uiop)                               \
@@ -49,12 +49,12 @@
 #endif
 
 /* Access vnode struct information in a Mac OS / FreeBSD independent manner. */
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #define HGFS_VP_TO_VTYPE(vp)                                    \
                 (vp->v_type)
 #define HGFS_VPP_GET_IOCOUNT(vpp)                                   \
                 (vref(*vpp)) 
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #define HGFS_VP_TO_VTYPE(vp)                                    \
                 (vnode_vtype(vp))
 #define HGFS_VPP_GET_IOCOUNT(vpp)                                 \

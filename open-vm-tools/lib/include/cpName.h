@@ -44,16 +44,16 @@
 #ifdef __KERNEL__
 #  include "driver-config.h"
 #  include <linux/string.h>
-#elif defined(__FreeBSD__)
-#   if defined(_KERNEL)
+#elif defined __FreeBSD__
+#   if defined _KERNEL
 #      include <sys/libkern.h>
 #      define strchr(s,c)       index(s,c)
 #   else
 #      include <string.h>
 #   endif
-#elif defined(__APPLE__) && defined(KERNEL)
+#elif defined __APPLE__ && defined KERNEL
 #  include <string.h>
-#elif !defined(sun)
+#elif !defined sun
 #  include <stdlib.h>
 #  include <string.h>
 #endif
@@ -75,6 +75,7 @@ typedef enum {
    HGFS_NAME_STATUS_SYMBOLIC_LINK,       /* Name contains a symbolic link */
    HGFS_NAME_STATUS_OUT_OF_MEMORY,       /* Out of memory while processing */
    HGFS_NAME_STATUS_TOO_LONG,            /* Name has overly long component */
+   HGFS_NAME_STATUS_NOT_A_DIRECTORY,     /* Name has path component not a dir */
 } HgfsNameStatus;
 
 

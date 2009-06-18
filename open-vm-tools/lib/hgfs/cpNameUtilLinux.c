@@ -39,14 +39,14 @@
  */
 
 /* Some of the headers in cpNameUtil.c cannot be included in driver code */
-#if !defined(__KERNEL__) && !defined(_KERNEL) && !defined(KERNEL)
+#if !defined __KERNEL__ && !defined _KERNEL && !defined KERNEL
 
 #include "cpNameUtil.h"
 #include "cpNameUtilInt.h"
 
-#if defined(__APPLE__)
+#if defined __APPLE__
 #include "codeset.h"
-#endif /* defined(__APPLE__) */
+#endif /* defined __APPLE__ */
 #include "util.h"
 
 /*
@@ -87,7 +87,7 @@ CPNameUtil_ConvertToRoot(char const *nameIn, // IN:  buf to convert
  *    Helper conversion routine to convert between a CP format name 
  *    in unicode form C (precomposed) format which is used by the HGFS
  *    protocol requests and the unicode form D (decomposed) format,
- *    which is used on Mac OS X host (everyone else uses form C).
+ *    which is used on Mac OS host (everyone else uses form C).
  *
  * Results:
  *    TRUE if success result string is converted, FALSE otherwise.
@@ -106,7 +106,7 @@ CPNameUtilConvertUtf8FormCAndD(const char *cpNameToConvert,   // IN:
                                size_t *cpConvertedNameLen)    // OUT: includes nul
 {
    Bool status = TRUE;
-#if defined(__APPLE__)
+#if defined __APPLE__
    const char *begin;
    const char *end;
    const char *next;
@@ -174,12 +174,12 @@ exit:
          free(newData);
       }
    }
-#else /* defined(__APPLE__) */
+#else /* defined __APPLE__ */
    /* No conversion required return a copy of what is received. */
    *cpConvertedName = Util_SafeCalloc(1, cpNameToConvertLen);
    memcpy(*cpConvertedName, cpNameToConvert, cpNameToConvertLen);
    *cpConvertedNameLen = cpNameToConvertLen;
-#endif /* defined(__APPLE__) */
+#endif /* defined __APPLE__ */
    return status;
 }
 

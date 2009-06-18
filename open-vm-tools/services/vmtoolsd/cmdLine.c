@@ -225,7 +225,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    }
 
    if (version) {
-      g_print("%s %s\n", _("VMware Tools daemon, version"), VMTOOLSD_VERSION_STRING);
+      g_print("%s %s (%s)\n", _("VMware Tools daemon, version"),
+              VMTOOLSD_VERSION_STRING, BUILD_NUMBER);
       exit(0);
    }
 

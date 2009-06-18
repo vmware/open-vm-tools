@@ -27,7 +27,7 @@
 #include <sys/queue.h>
 #include <sys/fcntl.h>
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #  include <sys/libkern.h>
 #  include <sys/malloc.h>
 #  include "sha1.h"
@@ -35,11 +35,11 @@
 #define vnode_get(vnode) vget(vnode, LK_SHARED, curthread)
 #define vnode_rele(vnode) vrele(vnode)
 #define vnode_ref(vnode) vref(vnode)
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #  include <string.h>
 /*
- * The OS X kernel includes the same exact SHA1 routines as those
- * provided by bora/lib/misc. Use the kernel ones under OS X.
+ * The Mac OS kernel includes the same exact SHA1 routines as those
+ * provided by bora/lib/misc. Use the kernel ones under Mac OS.
  */
 #  include <libkern/crypto/sha1.h>
 #endif
@@ -59,10 +59,10 @@
 #define HGFS_IS_ROOT_FILE(sip, file)    (HGFS_VP_TO_FP(sip->rootVnode) == file)
 #define LCK_MTX_ASSERT(mutex)
 
-#if defined(__APPLE__)
+#if defined __APPLE__
 #  define SHA1_HASH_LEN SHA_DIGEST_LENGTH
 
-#if defined(VMX86_DEVEL)
+#if defined VMX86_DEVEL
 #undef LCK_MTX_ASSERT
 #define LCK_MTX_ASSERT(mutex) lck_mtx_assert(mutex, LCK_MTX_ASSERT_OWNED)
 #endif
@@ -716,7 +716,7 @@ HgfsLookupExistingVnode(const char* fileName,
  *----------------------------------------------------------------------------
  */
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 static int
 HgfsVnodeGetInt(struct vnode **vpp,        // OUT:  Filled with address of created vnode
                 struct vnode *dvp,         // IN:   Parent directory vnode
@@ -844,7 +844,7 @@ destroyVnode:
    return ret;
 }
 
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 static int
 HgfsVnodeGetInt(struct vnode **vpp,        // OUT
                 struct vnode *dvp,         // IN
@@ -885,7 +885,7 @@ HgfsVnodeGetInt(struct vnode **vpp,        // OUT
    params.vnfs_rdev       = 0;
    params.vnfs_filesize   = fileSize;
    params.vnfs_cnp        = NULL;
-   /* Do not let OS X cache vnodes for us. */
+   /* Do not let Mac OS cache vnodes for us. */
    params.vnfs_flags      = VNFS_NOCACHE | VNFS_CANTCACHE;
 
    if (rootVnode) {
@@ -1188,7 +1188,7 @@ HgfsInitFile(HgfsFile *fp,              // IN: File to initialize
       goto destroyOut;
    }
 
-#if defined(__APPLE__)
+#if defined __APPLE__
    fp->rwFileLock = os_rw_lock_alloc_init("hgfs_rw_file_lock");
    if (!fp->rwFileLock) {
       goto destroyOut;
@@ -1216,7 +1216,7 @@ destroyOut:
       os_mutex_free(fp->modeMutex);
    }
 
-#if defined(__APPLE__)
+#if defined __APPLE__
    if (fp->rwFileLock) {
       os_rw_lock_free(fp->rwFileLock);
    }
@@ -1250,7 +1250,7 @@ HgfsFreeFile(HgfsFile *fp)   // IN: HgfsFile structure to free
    ASSERT(fp);
    os_rw_lock_free(fp->handleLock);
    os_mutex_free(fp->modeMutex);
-#if defined(__APPLE__)
+#if defined __APPLE__
    DEBUG(VM_DEBUG_LOG, "Trace enter, fp = %p, Lock = %p .\n", fp, fp->rwFileLock);
    os_rw_lock_free(fp->rwFileLock);
 #endif

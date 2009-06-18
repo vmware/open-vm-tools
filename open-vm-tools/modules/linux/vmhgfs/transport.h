@@ -29,12 +29,13 @@
 /*
  * There are the operations a channel should implement.
  */
+struct HgfsTransportChannel;
 typedef struct HgfsTransportChannelOps {
-   Bool (*open)(void);
-   void (*close)(void);
-   int (*send)(HgfsReq *);
-   int (*recv)(char **, size_t *);
-   void (*exit)(void);
+   Bool (*open)(struct HgfsTransportChannel *);
+   void (*close)(struct HgfsTransportChannel *);
+   int (*send)(struct HgfsTransportChannel *, HgfsReq *);
+   int (*recv)(struct HgfsTransportChannel *, char **, size_t *);
+   void (*exit)(struct HgfsTransportChannel *);
 } HgfsTransportChannelOps;
 
 typedef enum {

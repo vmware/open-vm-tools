@@ -20,7 +20,7 @@
  * transport.c --
  *
  * Functions that prepare HGFS packages and send them to the host.
- * Implementations are shared between both OS X and FreeBSD.
+ * Implementations are shared between both Mac OS and FreeBSD.
  */
 
 #include <sys/param.h>          // for everything

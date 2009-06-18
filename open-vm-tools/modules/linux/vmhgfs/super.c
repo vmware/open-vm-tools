@@ -54,7 +54,7 @@ static void HgfsReadInode(struct inode *inode);
 #endif
 static void HgfsClearInode(struct inode *inode);
 static void HgfsPutSuper(struct super_block *sb);
-#if defined(VMW_STATFS_2618)
+#if defined VMW_STATFS_2618
 static int HgfsStatfs(struct dentry *dentry,
                       struct compat_kstatfs *stat);
 #else
@@ -345,7 +345,7 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
  *-----------------------------------------------------------------------------
  */
 
-#if defined(VMW_STATFS_2618)
+#if defined VMW_STATFS_2618
 static int
 HgfsStatfs(struct dentry *dentry,	// IN : The directory entry
            struct compat_kstatfs *stat) // OUT: Stat to fill in
@@ -365,7 +365,7 @@ HgfsStatfs(struct super_block *sb,	// IN : The superblock
    uint64 totalBytes;
 
    ASSERT(stat);
-#if defined(VMW_STATFS_2618)
+#if defined VMW_STATFS_2618
    ASSERT(dentry);
    ASSERT(dentry->d_sb);
    dentryToUse = dentry;

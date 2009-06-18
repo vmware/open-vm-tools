@@ -67,7 +67,7 @@ Bool
 HgfsChannel_Init(void *data)     // IN: Unused rpc data
 {
    HgfsServerSessionCallbacks *serverCBTable = NULL;
-   return HgfsServer_InitState(&serverCBTable);
+   return HgfsServer_InitState(&serverCBTable, NULL);
 }
 
 

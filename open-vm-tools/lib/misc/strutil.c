@@ -806,18 +806,18 @@ StrUtil_VDynBufPrintf(DynBuf *b,        // IN/OUT
       }
 
       /*
-       * Is there any allocated-but-not-occupied space? If so,
-       * try the printf. If there was no space to begin with, or
-       * Str_Vsnprintf() ran out of space, this will fail.
-       *
-       * Note that we don't need to copy the argument list, it's
-       * okay to iterate over the same va_list multiple times.
-       * Str_Vsnprintf() already does a va_copy on platforms that
-       * need it.
+       * Is there any allocated-but-not-occupied space? If so, try the printf.
+       * If there was no space to begin with, or Str_Vsnprintf() ran out of
+       * space, this will fail.
        */
 
       if (allocSize - size > 0) {
-         i = Str_Vsnprintf((char*)DynBuf_Get(b) + size, allocSize - size, fmt, args);
+         va_list tmpArgs;
+
+         va_copy(tmpArgs, args);
+         i = Str_Vsnprintf((char *) DynBuf_Get(b) + size, allocSize - size,
+                           fmt, tmpArgs);
+         va_end(tmpArgs);
       } else {
          i = -1;
       }

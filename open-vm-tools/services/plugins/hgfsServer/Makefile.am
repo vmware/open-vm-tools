@@ -33,8 +33,9 @@ libhgfsServer_la_SOURCES =
 libhgfsServer_la_SOURCES += hgfsPlugin.c
 
 if HAVE_X11
-install-exec-local:
+install-data-hook:
 	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
-	cp -L $(builddir)/.libs/libhgfsServer.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
+	cp $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/libhgfsServer.so \
+	   $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
 endif
 

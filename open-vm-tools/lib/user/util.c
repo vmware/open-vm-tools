@@ -258,10 +258,13 @@ Util_Checksumv(void *iov,      // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Util_LogWrapper --
+ * UtilLogWrapper --
  *
  *      Adapts the Log function to meet the interface required by backtracing
  *      functions by adding an ignored void* argument.
+ *
+ *      NOTE: This function needs to be static on linux (and any other
+ *      platform appLoader might be ported to).  See bug 403780.
  *
  * Results:
  *      Same effect as Log(fmt, ...)
@@ -271,16 +274,28 @@ Util_Checksumv(void *iov,      // IN
  *
  *-----------------------------------------------------------------------------
  */
-void
-Util_LogWrapper(void *ignored, const char *fmt, ...)
+
+static void
+UtilLogWrapper(void *ignored,    // IN:
+               const char *fmt,  // IN:
+               ...)              // IN:
 {
+   uint32 len;
    va_list ap;
    char thisLine[UTIL_BACKTRACE_LINE_LEN];
 
    va_start(ap, fmt);
-   Str_Vsnprintf(thisLine, UTIL_BACKTRACE_LINE_LEN-1, fmt, ap);
-   thisLine[UTIL_BACKTRACE_LINE_LEN-1] = '\0';
+   len = Str_Vsnprintf(thisLine, UTIL_BACKTRACE_LINE_LEN - 2, fmt, ap);
    va_end(ap);
+
+   if (len >= UTIL_BACKTRACE_LINE_LEN - 2) {
+      len = UTIL_BACKTRACE_LINE_LEN - 3;
+   }
+
+   if (thisLine[len - 1] != '\n') {
+      thisLine[len] = '\n';
+      thisLine[len + 1] = '\0';
+   }
 
    Log("%s", thisLine);
 }
@@ -340,6 +355,7 @@ UtilBacktraceToBufferCallback(struct _Unwind_Context *ctx, // IN: Unwind context
  *
  * Results:
  *      _URC_NO_REASON : Please continue with backtrace.
+ *      _URC_END_OF_STACK : Abort backtrace.
  *
  * Side effects:
  *      None.
@@ -357,10 +373,12 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
    /*
     * Stack grows down.  So if we are below basePtr, do nothing...
     */
-   if (cfa >= data->basePtr) {
+   if (cfa >= data->basePtr && data->frameNr < 500) {
 #ifndef VM_X86_64
 #   error You should not build this on 32bit - there is no eh_frame there.
 #endif
+      /* bump basePtr for glibc unwind bug, see [302237] */
+      data->basePtr = cfa + 8;
       /* Do output without leading '0x' to save some horizontal space... */
       data->outFunc(data->outFuncData,
                     "Backtrace[%u] %016lx rip=%016lx rbx=%016lx rbp=%016lx "
@@ -370,8 +388,9 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
                     _Unwind_GetGR(ctx, 12), _Unwind_GetGR(ctx, 13),
                     _Unwind_GetGR(ctx, 14), _Unwind_GetGR(ctx, 15));
       data->frameNr++;
+      return _URC_NO_REASON;
    }
-   return _URC_NO_REASON;
+   return _URC_END_OF_STACK;
 }
 
 #if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
@@ -403,13 +422,15 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
    /*
     * Stack grows down.  So if we are below basePtr, do nothing...
     */
-   if (cfa >= data->basePtr) {
+   if (cfa >= data->basePtr && data->frameNr < 500) {
 #ifndef VM_X86_64
 #   error You should not build this on 32bit - there is no eh_frame there.
 #endif
       void *enclFuncAddr;
       Dl_info dli;
 
+      /* bump basePtr for glibc unwind bug, see [302237] */
+      data->basePtr = cfa + 8;
 #ifdef __linux__
       enclFuncAddr = _Unwind_FindEnclosingFunction((void *)_Unwind_GetIP(ctx));
 #else
@@ -428,8 +449,9 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
                       data->frameNr, cfa, _Unwind_GetIP(ctx));
       }
       data->frameNr++;
+      return _URC_NO_REASON;
    }
-   return _URC_NO_REASON;
+   return _URC_END_OF_STACK;
 }
 #endif
 #endif
@@ -455,7 +477,7 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
 void
 Util_BacktraceFromPointer(uintptr_t *basePtr)
 {
-   Util_BacktraceFromPointerWithFunc(basePtr, Util_LogWrapper, NULL);
+   Util_BacktraceFromPointerWithFunc(basePtr, UtilLogWrapper, NULL);
 }
 
 
@@ -647,7 +669,7 @@ Util_Data2Buffer(char *buf,         // OUT
 void
 Util_Backtrace(int bugNr) // IN
 {
-   Util_BacktraceWithFunc(bugNr, Util_LogWrapper, NULL);
+   Util_BacktraceWithFunc(bugNr, UtilLogWrapper, NULL);
 }
 
 

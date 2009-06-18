@@ -22,7 +22,7 @@
  *	Worker thread to process issue Guest -> Host Hgfs requests.
  */
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #  include <sys/libkern.h>
 #endif
 

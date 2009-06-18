@@ -107,8 +107,8 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
     */
    GtkIconTheme *iconTheme = NULL;
    char *ctmp2;
-   Bool foundItInTheme; // Did we find this icon in the GtkIconTheme?
-   Bool foundItInFile; // Did we find this icon directly in a file?
+   Bool foundItInTheme = FALSE; // Did we find this icon in the GtkIconTheme?
+   Bool foundItInFile = FALSE;  // Did we find this icon directly in a file?
    static const char *extraIconPaths[] = {
       "/usr/share/icons",
       "/usr/share/pixmaps",
@@ -151,6 +151,10 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
        * systems.
        */
       if (iconName[0] != '/') {
+         gchar *iconSearchName;
+         gsize iconSearchNameSize;
+         gboolean triedOtherExts = FALSE;
+
          char *ctmp2;
          int i;
 
@@ -162,9 +166,18 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
             ".svg",
          };
 
+         /*
+          * Make a local copy of iconName in case we need to search for icons with
+          * alternate extensions.
+          */
+         iconSearchNameSize = strlen(iconName) + 1;
+         iconSearchName = g_alloca(iconSearchNameSize);
+         g_strlcpy(iconSearchName, iconName, iconSearchNameSize);
+
          myIconName = NULL;
 
          ctmp2 = g_alloca(PATH_MAX);
+tryingOtherExts:
          for (i = 0; !myIconName && i < ARRAYSIZE(extraIconPaths); i++) {
             int j;
 
@@ -182,7 +195,7 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
              * those special cases here.
              */
             for (j = 0; !myIconName && j < ARRAYSIZE(iconExtensions); j++) {
-               g_snprintf(ctmp2, PATH_MAX, "%s/%s%s", extraIconPaths[i], iconName,
+               g_snprintf(ctmp2, PATH_MAX, "%s/%s%s", extraIconPaths[i], iconSearchName,
                           iconExtensions[j]);
                if (!g_file_test(ctmp2, G_FILE_TEST_EXISTS)) {
                   continue;
@@ -210,6 +223,30 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
                         break;
                      }
                   }
+               }
+            }
+         }
+
+         /*
+          * No dice.  But we won't give up hope just yet!  In some cases, icon-foo.png
+          * may not exist while icon-foo.xpm does.  (Ex: Ubuntu 8.04's hwtest.)  We'll
+          * try once more by searching for an icon with an alternate extension.
+          */
+         if (!foundItInFile && !triedOtherExts) {
+            int extIndex;
+
+            triedOtherExts = TRUE;
+
+            /*
+             * Look to see if iconSearchName contains any of the known extensions
+             * listed above.  If so, chop it off, then reattempt the search.
+             */
+            for (extIndex = 1; extIndex < ARRAYSIZE(iconExtensions); extIndex++) {
+               if (g_str_has_suffix(iconSearchName, iconExtensions[extIndex])) {
+                  gchar *extension;
+                  extension = g_strrstr(iconSearchName, iconExtensions[extIndex]);
+                  *extension = '\0';
+                  goto tryingOtherExts;
                }
             }
          }

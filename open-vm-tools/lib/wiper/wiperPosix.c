@@ -994,7 +994,7 @@ Wiper_Cancel(Wiper_State **s)      // IN/OUT
  */
 
 Bool
-Wiper_Init(void *clientData)
+Wiper_Init(WiperInitData *clientData)
 {
 #if defined(__linux__) && !defined(N_PLAT_NLM)
    FILE *fp;
@@ -1012,8 +1012,9 @@ Wiper_Init(void *clientData)
                   break;
                }
             }
-         } else {
-            fgets(deviceName, sizeof deviceName, fp);
+         } else if (fgets(deviceName, sizeof deviceName, fp) != deviceName) {
+            Warning("%s: Error reading device name from /proc/devices.", __func__);
+            break;
          }
       }
 

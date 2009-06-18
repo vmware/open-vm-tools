@@ -56,7 +56,7 @@ static int HgfsGetOpenFlags(uint32 flags);
 /* HGFS file operations for files. */
 static int HgfsOpen(struct inode *inode,
                     struct file *file);
-#if defined(VMW_USE_AIO)
+#if defined VMW_USE_AIO
 static ssize_t HgfsAioRead(struct kiocb *iocb,
                            const struct iovec *iov,
                            unsigned long numSegs,
@@ -84,13 +84,13 @@ static int HgfsRelease(struct inode *inode,
                        struct file *file);
 
 #ifndef VMW_SENDFILE_NONE
-#if defined(VMW_SENDFILE_OLD)
+#if defined VMW_SENDFILE_OLD
 static ssize_t HgfsSendfile(struct file *file,
                             loff_t *offset,
                             size_t count,
                             read_actor_t actor,
                             void __user *target);
-#else /* defined(VMW_SENDFILE_NEW) */
+#else /* defined VMW_SENDFILE_NEW */
 static ssize_t HgfsSendfile(struct file *file,
                             loff_t *offset,
                             size_t count,
@@ -110,7 +110,7 @@ static ssize_t HgfsSpliceRead(struct file *file,
 struct file_operations HgfsFileFileOperations = {
    .owner      = THIS_MODULE,
    .open       = HgfsOpen,
-#if defined(VMW_USE_AIO)
+#if defined VMW_USE_AIO
    .aio_read   = HgfsAioRead,
    .aio_write  = HgfsAioWrite,
 #else
@@ -700,7 +700,7 @@ out:
 }
 
 
-#if defined(VMW_USE_AIO)
+#if defined VMW_USE_AIO
 /*
  *----------------------------------------------------------------------
  *
@@ -1123,14 +1123,14 @@ out:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(VMW_SENDFILE_OLD)
+#if defined VMW_SENDFILE_OLD
 static ssize_t
 HgfsSendfile(struct file *file,    // IN: File to read from
              loff_t *offset,       // IN/OUT: Where to start reading
              size_t count,         // IN: How much to read
              read_actor_t actor,   // IN: Routine to send a page of data
              void __user *target)  // IN: Destination file/socket
-#elif defined(VMW_SENDFILE_NEW)
+#elif defined VMW_SENDFILE_NEW
 static ssize_t
 HgfsSendfile(struct file *file,    // IN: File to read from
              loff_t *offset,       // IN/OUT: Where to start reading

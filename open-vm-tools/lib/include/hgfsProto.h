@@ -578,7 +578,7 @@ HgfsAttrV2;
  * --------------
  * HGFS protocol requests that contain file names as in the structure below,
  * should contain unicode normal form C (precomposed see explanation below)
- * characters therefore hosts such as Mac OS X which
+ * characters therefore hosts such as Mac OS which
  * use HFS+ and unicode form D should convert names before
  * processing or sending HGFS requests.
  *

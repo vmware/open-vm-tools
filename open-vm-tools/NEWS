@@ -1,3 +1,9 @@
+open-vm-tools 2009.06.18 changes:
+	* Mostly a bug fix release.
+
+	* vmhgfs now is able to use vsock as a transport (although backend support
+	for HGFS over vsock is not yet released in VMware products).
+
 open-vm-tools 2009.05.22 changes:
 	* Mostly a cleanup and bug fix release.
 

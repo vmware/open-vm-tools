@@ -125,7 +125,7 @@ EXTERN Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
 
 // backtrace functions and utilities
 
-#define UTIL_BACKTRACE_LINE_LEN (255)
+#define UTIL_BACKTRACE_LINE_LEN (511)
 typedef void (*Util_OutputFunc)(void *data, const char *fmt, ...);
 
 void Util_Backtrace(int bugNr);
@@ -139,8 +139,6 @@ void Util_BacktraceWithFunc(int bugNr,
 
 void Util_BacktraceToBuffer(uintptr_t *basePtr,
                             uintptr_t *buffer, int len);
-
-void Util_LogWrapper(void *ignored, const char *fmt, ...);
 
 int Util_CompareDotted(const char *s1, const char *s2);
 
@@ -263,172 +261,50 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
  *--------------------------------------------------------------------------
  */
 
+EXTERN void *Util_SafeInternalMalloc(int bugNumber, size_t size, char *file,
+                                     int lineno);
+
+EXTERN void *Util_SafeInternalRealloc(int bugNumber, void *ptr, size_t size,
+                                      char *file, int lineno);
+
+EXTERN void *Util_SafeInternalCalloc(int bugNumber, size_t nmemb,
+                                     size_t size, char *file, int lineno);
+
+EXTERN char *Util_SafeInternalStrdup(int bugNumber, const char *s,
+                                     char *file, int lineno);
+
+EXTERN char *Util_SafeInternalStrndup(int bugNumber, const char *s, size_t n,
+                                      char *file, int lineno);
+
 #define Util_SafeMalloc(_size) \
-   UtilSafeMallocInternal(-1, (_size), __FILE__, __LINE__)
+   Util_SafeInternalMalloc(-1, (_size), __FILE__, __LINE__)
 
 #define Util_SafeMallocBug(_bugNr, _size) \
-   UtilSafeMallocInternal((_bugNr), (_size), __FILE__, __LINE__)
+   Util_SafeInternalMalloc((_bugNr), (_size), __FILE__, __LINE__)
 
 #define Util_SafeRealloc(_ptr, _size) \
-   UtilSafeReallocInternal(-1, (_ptr), (_size), __FILE__, __LINE__)
+   Util_SafeInternalRealloc(-1, (_ptr), (_size), __FILE__, __LINE__)
 
 #define Util_SafeReallocBug(_bugNr, _ptr, _size) \
-   UtilSafeReallocInternal((_bugNr), (_ptr), (_size), __FILE__, __LINE__)
+   Util_SafeInternalRealloc((_bugNr), (_ptr), (_size), __FILE__, __LINE__)
 
 #define Util_SafeCalloc(_nmemb, _size) \
-   UtilSafeCallocInternal(-1, (_nmemb), (_size), __FILE__, __LINE__)
+   Util_SafeInternalCalloc(-1, (_nmemb), (_size), __FILE__, __LINE__)
 
 #define Util_SafeCallocBug(_bugNr, _nmemb, _size) \
-   UtilSafeCallocInternal((_bugNr), (_nmemb), (_size), __FILE__, __LINE__)
+   Util_SafeInternalCalloc((_bugNr), (_nmemb), (_size), __FILE__, __LINE__)
 
 #define Util_SafeStrndup(_str, _size) \
-   UtilSafeStrndupInternal(-1, (_str), (_size), __FILE__, __LINE__)
+   Util_SafeInternalStrndup(-1, (_str), (_size), __FILE__, __LINE__)
 
 #define Util_SafeStrndupBug(_bugNr, _str, _size) \
-   UtilSafeStrndupInternal((_bugNr), (_str), (_size), __FILE__, __LINE__)
+   Util_SafeInternalStrndup((_bugNr), (_str), (_size), __FILE__, __LINE__)
 
 #define Util_SafeStrdup(_str) \
-   UtilSafeStrdupInternal(-1, (_str), __FILE__, __LINE__)
+   Util_SafeInternalStrdup(-1, (_str), __FILE__, __LINE__)
 
 #define Util_SafeStrdupBug(_bugNr, _str) \
-   UtilSafeStrdupInternal((_bugNr), (_str), __FILE__, __LINE__)
-
-static INLINE void *
-UtilSafeMallocInternal(int bugNumber, size_t size, char *file, int lineno)
-{
-   void *result = malloc(size);
-
-   if (result == NULL && size != 0) {
-      if (bugNumber == -1) {
-         Panic("Unrecoverable memory allocation failure at %s:%d\n",
-               file, lineno);
-      } else {
-         Panic("Unrecoverable memory allocation failure at %s:%d.  Bug "
-               "number: %d\n", file, lineno, bugNumber);
-      }
-   }
-   return result;
-}
-
-static INLINE void *
-UtilSafeReallocInternal(int bugNumber, void *ptr, size_t size,
-                        char *file, int lineno)
-{
-   void *result = realloc(ptr, size);
-
-   if (result == NULL && size != 0) {
-      if (bugNumber == -1) {
-         Panic("Unrecoverable memory allocation failure at %s:%d\n",
-               file, lineno);
-      } else {
-         Panic("Unrecoverable memory allocation failure at %s:%d.  Bug "
-               "number: %d\n", file, lineno, bugNumber);
-      }
-   }
-   return result;
-}
-
-static INLINE void *
-UtilSafeCallocInternal(int bugNumber, size_t nmemb, size_t size,
-                       char *file, int lineno)
-{
-   void *result = calloc(nmemb, size);
-
-   if (result == NULL && nmemb != 0 && size != 0) {
-      if (bugNumber == -1) {
-         Panic("Unrecoverable memory allocation failure at %s:%d\n",
-               file, lineno);
-      } else {
-         Panic("Unrecoverable memory allocation failure at %s:%d.  Bug "
-               "number: %d\n", file, lineno, bugNumber);
-      }
-   }
-   return result;
-}
-
-#ifdef VMX86_SERVER
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 1)
-// XXX Prevents an "inlining failed" warning in vmkproxy.c.  Ugh.
-static INLINE char *
-UtilSafeStrdupInternal(int bugNumber, const char *s, char *file,
-                       int lineno) __attribute__((always_inline));
-#endif
-#endif
-
-static INLINE char *
-UtilSafeStrdupInternal(int bugNumber, const char *s, char *file,
-                       int lineno)
-{
-   char *result;
-
-   if (s == NULL) {
-      return NULL;
-   }
-#ifdef _WIN32
-   if ((result = _strdup(s)) == NULL) {
-#else
-   if ((result = strdup(s)) == NULL) {
-#endif
-      if (bugNumber == -1) {
-         Panic("Unrecoverable memory allocation failure at %s:%d\n",
-               file, lineno);
-      } else {
-         Panic("Unrecoverable memory allocation failure at %s:%d.  Bug "
-               "number: %d\n", file, lineno, bugNumber);
-      }
-   }
-   return result;
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UtilSafeStrndupInternal --
- *
- *      Returns a string consisting of first n characters of 's' if 's' has
- *      length >= 'n', otherwise returns a string duplicate of 's'.
- *
- * Results:
- *      Pointer to the duplicated string.
- *
- * Side effects:
- *      May Panic if ran out of memory.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE char *
-UtilSafeStrndupInternal(int bugNumber,    // IN
-                        const char *s,    // IN
-                        size_t n,         // IN
-			char *file,       // IN
-                        int lineno)       // IN
-{
-   size_t size;
-   char *copy;
-   const char *null;
-
-   if (s == NULL) {
-      return NULL;
-   }
-
-   null = (char *)memchr(s, '\0', n);
-   size = null ? null - s: n;
-   copy = (char *)malloc(size + 1);
-
-   if (copy == NULL) {
-      if (bugNumber == -1) {
-         Panic("Unrecoverable memory allocation failure at %s:%d\n",
-               file, lineno);
-      } else {
-         Panic("Unrecoverable memory allocation failure at %s:%d.  Bug "
-               "number: %d\n", file, lineno, bugNumber);
-      }
-   }
-
-   copy[size] = '\0';
-   return (char *)memcpy(copy, s, size);
-}
+   Util_SafeInternalStrdup((_bugNr), (_str), __FILE__, __LINE__)
 
 
 /*

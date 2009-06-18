@@ -82,6 +82,7 @@
 #include "codeset.h"
 #include "codesetOld.h"
 #include "str.h"
+#include "win32util.h"
 
 /*
  * Macros
@@ -466,9 +467,15 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
       path = (char *) DynBuf_Detach(&dbpath);
    } else {
       /*
-       * Data file must be in current module directory.
+       * Data file must be in the directory of the current module
+       * (i.e. the module that contains CodeSet_Init()).
        */
-      modPath = CodeSetGetModulePath(NULL);
+      HMODULE hModule = W32Util_GetModuleByAddress((void *) CodeSet_Init);
+      if (!hModule) {
+         goto exit;
+      }
+
+      modPath = CodeSetGetModulePath(hModule);
       if (!modPath) {
          goto exit;
       }
@@ -498,7 +505,8 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
        * instead and call udata_setCommonData() below.
        */
       wpath = (utf16_t *) DynBuf_Get(&dbpath);
-      hFile = CreateFileW(wpath, GENERIC_READ, 0, NULL, OPEN_ALWAYS, 0, NULL);
+      hFile = CreateFileW(wpath, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0,
+                          NULL);
       if (INVALID_HANDLE_VALUE == hFile) {
          goto exit;
       }

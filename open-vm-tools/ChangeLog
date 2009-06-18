@@ -1,3 +1,81 @@
+2009-06-18	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.06.15)
+
+	* docs/api/Makefile.am: replace all variables in the doxygen conf file with
+	  the correct values.
+
+	* lib/appUtil/appUtilX11.c: try alternate file extensions during icon search.
+	  Sometimes a package lists its icon as icon-foo.png, but the package didn't
+	  include icon-foo.png.	 Instead, it included icon-foo.xpm.	 Ex: Ubuntu
+	  8.04's hwtest.
+
+	* lib/guestApp/guestAppPosixX11.c: change detection of the default browser so
+	  that the new help system works; the help files are not yet available in
+	  open-vm-tools.
+
+	* lib/hgfs/*, lib/include/cpName.h, lib/include/cpNameLite.h,
+	  lib/include/hgfsUtil.h: avoid compiling certain parts of the source in
+	  kernel modules.
+
+	* lib/hgfsServer/*: return correct error when files / directories don't
+	  exist.
+
+	* lib/include/hgfsChannel.h, modules/linux/vmhgfs/*: added support for vsock
+	  channel for HGFS.
+
+	* lib/include/util.h, lib/misc/utilMem.c: un-inline a bunch of functions to
+	  reduce the size of binaries.
+
+	* lib/include/vm_tools_version.h: bumped Tools version.
+
+	* lib/resolution/resolutionX11.c: fix for issue where the host would send
+	  a "topology set" command with a top-left corner that was not (0, 0) and
+	  cause the screen to be reconfigured in the wrong way.
+
+	* lib/unity/unityPlatformX11Window.c: check for errors in calls to
+	  XQueryTree.
+
+	* lib/wiper/wiperPosix.c: check return of fgets() to avoid compiler warnings.
+
+	* libvmtools/vmtools.c: fix initialization of wiper library on Win32.
+
+	* modules/Makefile.am: install vsock header file on Linux.
+
+	* modules/freebsd/vmhgfs/*, modules/linux/vmci/*, modules/linux/vsock/*:
+	  changes related to 64-bit Mac drivers, don't affect either the FreeBSD
+	  or Linux drivers.
+
+	* modules/linux/vmhgfs/hgfs.h: removed duplicate file.
+
+	* modules/linux/vmhgfs/fsutil.c, modules/linux/vmhgfs/inode.c,
+	  modules/linux/vmhgfs/module.h: fix issue where two files would get the
+	  same inode number in some situations.
+
+	* modules/linux/vmxnet/vmxnet.c: re-probe vmxnet2 device features on resume
+	  from hibernate, to cover the case where a VM is resumed on a platform with
+	  a different version of the device backend (bug #2209565).
+
+	* scripts/resume-vm-default, scripts/suspend-vm-default: use NetworkManager
+	  to handle networking where it is available.
+
+	* services/plugins/hgfsServer/Makefile.am, services/plugins/vix/Makefile.am:
+	  fix installation of vmusr plugins that are shared with vmsvc.
+
+	* services/plugins/timeSync/timeSync.c: fix backwards time sync.
+
+	* services/vmtoolsd/cmdLine.c, toolbox/toolbox-cmd.c: print build number as
+	  part of "-v" output.
+
+	* toolbox/toolboxcmd-shrink.c: correctly ignore unsupported partitions when
+	  shrinking.
+
+	* toolbox/toolbox-gtk.c: changes for the new help system, not yet available
+	  for open-vm-tools.
+
+	* toolbox/toolboxInt.{c,h}, toolbox/toolboxScripts.c: some code refactoring.
+
+	* vmware-user/Makefile.am: fix linking when compiling without gtkmm.
+
 2009-05-22	Marcelo Vanzin	 <mvanzin@vmware.com>
 	* Resync with internal trunk (2009.05.18)
 

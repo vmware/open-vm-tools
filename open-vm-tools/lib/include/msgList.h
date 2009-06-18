@@ -17,35 +17,50 @@
  *********************************************************/
 
 /*
- * hgfsChannel.h --
- *
- *    Channel abstraction for the HGFS server.
+ * msgList.h  --
+ * 
+ *   Utilities to manipulate (stateless) lists of messages.
  */
 
-#ifndef _HGFSCHANNEL_H_
-#define _HGFSCHANNEL_H_
+#ifndef _MSGLIST_H_
+#define _MSGLIST_H_
 
+#define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
+#include "includeCheck.h"
+
+#include <string.h>
+#include <stdarg.h>
 #include "vm_basic_types.h"
-#include "dbllnklst.h"
-#include "hgfsServer.h"
+#include "msgid.h"
+#include "msgfmt.h"
+
 
 /*
- * Handle used by the server to identify files and searches. Used
- * by the driver to match server replies with pending requests.
+ * Data structures, types, and constants
  */
 
-typedef uint32 HgfsChannelId;
 
-typedef struct HgfsChannelCBTable {
-   Bool (*init)(HgfsChannelId, HgfsServerSessionCallbacks *, void **);
-   void (*exit)(void *);
-   void (*invalidateObjects)(DblLnkLst_Links *, void *);
-} HgfsChannelCBTable;
+typedef struct MsgList MsgList;
+struct MsgList {
+   MsgList *next;
+   char *id;
+   char *format;
+   MsgFmt_Arg *args;
+   int numArgs;
+};
 
+/*
+ * Functions
+ */
 
-/* For use by HgfsServerManager. */
-Bool HgfsChannel_Init(void *data);  /* Optional data, used in guest. */
-void HgfsChannel_Exit(void *data);  /* Optional data, used in guest. */
-void HgfsChannel_InvalidateObjects(DblLnkLst_Links *shares);
+EXTERN MsgList *MsgList_Create(const char *idFmt, ...);
+EXTERN MsgList *MsgList_VCreate(const char *idFmt, va_list args);
 
-#endif
+EXTERN void MsgList_Log(const MsgList *messages);
+EXTERN MsgList *MsgList_Copy(const MsgList *src);
+EXTERN void MsgList_Free(MsgList *messages);
+
+EXTERN const char *MsgList_GetMsgID(const MsgList *messages);
+
+#endif // ifndef _MSGLIST_H_

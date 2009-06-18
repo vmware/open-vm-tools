@@ -104,7 +104,7 @@ static void HgfsResetOps(void);
 
 /* HGFS filesystem high-level operations. */
 #if KERNEL_25_FS /* { */
-#   if defined(VMW_GETSB_2618)
+#   if defined VMW_GETSB_2618
 static int HgfsGetSb(struct file_system_type *fs_type,
                      int flags,
                      const char *dev_name,
@@ -464,7 +464,7 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
  */
 
 #if KERNEL_25_FS
-#if defined(VMW_GETSB_2618)
+#if defined VMW_GETSB_2618
 /*
  *-----------------------------------------------------------------------------
  *

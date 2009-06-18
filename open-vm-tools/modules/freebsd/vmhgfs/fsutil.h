@@ -87,7 +87,7 @@
 #define HGFS_VATTR_FILEID_RETURN(vap, val)                         \
         VATTR_RETURN(vap, va_fileid, val)
 
-#if defined(__APPLE__)
+#if defined __APPLE__
    #define HGFS_VA_DATA_SIZE va_data_size
    #define HGFS_VA_DATA_BYTES va_data_size
    #define HGFS_VA_ACCESS_TIME_SEC va_access_time
@@ -119,7 +119,7 @@
    #define HGFS_VATTR_CHANGE_TIME_SET_SUPPORTED(vap)            \
            VATTR_SET_SUPPORTED(vap, va_change_time)
 
-#elif defined(__FreeBSD__)
+#elif defined __FreeBSD__
    #define HGFS_VA_DATA_SIZE va_size
    #define HGFS_VA_DATA_BYTES va_bytes
    #define HGFS_VA_ACCESS_TIME_SEC va_atime.tv_sec

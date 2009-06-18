@@ -49,7 +49,14 @@
 #endif
 
 #if defined __APPLE__
-#include <string.h>
+#  include <string.h>
+#  ifdef __cplusplus
+class IOMemoryDescriptor;
+class IOMemoryMap;
+#  else
+typedef struct IOMemoryDescriptor IOMemoryDescriptor;
+typedef struct IOMemoryMap IOMemoryMap;
+#  endif
 #endif // __APPLE__
 
 #if defined(__linux__) && defined(__KERNEL__)
@@ -237,31 +244,32 @@ AddPointer(Atomic_uint64 *var, // IN:
 	 struct page **page;
       } VMCIQueue;
 #     define VMCIQueuePair_QueueIsMapped(q)	((q)->page != NULL)
-#  elif defined(__APPLE__)
+#  elif defined __APPLE__
       /*
-       * Mac OS X Host
+       * Mac OS Host
+       *
        * The VMCIQueueHeader has been created elsewhere and this
        * structure (VMCIQueue) needs a pointer to that
        * VMCIQueueHeader.
        *
        * Also, the queue contents are managed dynamically by
        * mapping/unmapping the pages.  All we need is the VA64
-       * base address of the buffer and the vm_map_t of the VMX
+       * base address of the buffer and the task_t of the VMX
        * process hosting the queue file (i.e. buffer).
        *
        * Note, too, that the buffer contains one page of queue
        * header information (head and tail pointers).  But, that
-       * for the life of the VMCIQueue structure's life the
+       * for the life of the VMCIQueue structure the
        * buffer value contains the address past the header info.
        * This modification happens during FinishAttach and is
        * never reversed.
        */
       typedef struct VMCIQueue {
-	 VMCIQueueHeader *queueHeaderPtr;
-	 ipc_port_t headerPort, contentPort;
-	 Bool attached;
+         VMCIQueueHeader *queueHeaderPtr;
+         IOMemoryDescriptor *pages;
+         IOMemoryMap *header;
       } VMCIQueue;
-#     define VMCIQueuePair_QueueIsMapped(q)     ((q)->attached != FALSE)
+#    define VMCIQueuePair_QueueIsMapped(q) ((q)->pages)
 #  else
       /*
        * Windows Host
@@ -822,16 +830,15 @@ __VMCIQueue_Enqueue(VMCIQueue *produceQueue,               // IN:
       return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
    }
 
-   freeSpace = VMCIQueue_FreeSpace(produceQueue, consumeQueue,
-                                   produceQSize);   if (!freeSpace) {
+   freeSpace = VMCIQueue_FreeSpace(produceQueue, consumeQueue, produceQSize);
+   if (!freeSpace) {
       return VMCI_ERROR_QUEUEPAIR_NOSPACE;
    }
-
    if (freeSpace < 0) {
       return (ssize_t)freeSpace;
    }
 
-   written = (size_t)(freeSpace > bufSize ? bufSize : freeSpace);
+   written = MIN((size_t)freeSpace, bufSize);
    tail = VMCIQueue_ProducerTail(produceQueue);
    if (LIKELY(tail + written < produceQSize)) {
       memcpyToQueue(produceQueue, tail, buf, 0, written);
@@ -954,8 +961,7 @@ __VMCIQueue_Dequeue(VMCIQueue *produceQueue,                    // IN:
       return VMCI_ERROR_QUEUEPAIR_NODATA;
    }
 
-   bufReady = VMCIQueue_BufReady(consumeQueue, produceQueue,
-                                 consumeQSize);
+   bufReady = VMCIQueue_BufReady(consumeQueue, produceQueue, consumeQSize);
    if (!bufReady) {
       return VMCI_ERROR_QUEUEPAIR_NODATA;
    }
@@ -963,7 +969,7 @@ __VMCIQueue_Dequeue(VMCIQueue *produceQueue,                    // IN:
       return (ssize_t)bufReady;
    }
 
-   written = (size_t)(bufReady > bufSize ? bufSize : bufReady);
+   written = MIN((size_t)bufReady, bufSize);
    head = VMCIQueue_ConsumerHead(produceQueue);
    if (LIKELY(head + written < consumeQSize)) {
       memcpyFromQueue(buf, 0, consumeQueue, head, written);

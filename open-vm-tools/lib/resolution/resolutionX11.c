@@ -234,8 +234,8 @@ ResolutionSetTopology(unsigned int ndisplays,
    xXineramaScreenInfo *displays = NULL;
    short maxX = 0;
    short maxY = 0;
-   int minX = 0;
-   int minY = 0;
+   int minX = 0x7FFF;
+   int minY = 0x7FFF;
 
    ASSERT(resolutionInfo.canSetTopology);
 

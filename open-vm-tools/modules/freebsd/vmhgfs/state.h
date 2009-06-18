@@ -45,10 +45,10 @@
 #define HGFS_HT_NR_BUCKETS             5
 
 /* Conversion between different state structures */
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #  define HGFS_VP_TO_FP(vp)                            \
            ((HgfsFile *)(vp)->v_data)
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #  define HGFS_VP_TO_FP(vp)                            \
            ((HgfsFile *)vnode_fsnode(vp))
 #endif
@@ -143,12 +143,12 @@ typedef struct HgfsFile {
    OS_RWLOCK_T *handleLock;
 
    /*
-    * One big difference between the OS X and FreeBSD VFS layers is that the
+    * One big difference between the Mac OS and FreeBSD VFS layers is that the
     * XNU kernel does not lock a vnode before it calls our VFS functions. As a
     * result, we have to provide our RwLock which is locked in macos/vnops.c
     * before any common functions are called.
     */
-#if defined(__APPLE__)
+#if defined __APPLE__
    OS_RWLOCK_T *rwFileLock;
 #endif
 
@@ -156,7 +156,7 @@ typedef struct HgfsFile {
    Bool mmapped;
    /*
     * TRUE if the handle has an additional reference which is the
-    * result of reading file before opening which occurs on MAC OS.
+    * result of reading file before opening which occurs on Mac OS.
     */
    Bool implicitlyOpened;
    /*

@@ -61,6 +61,7 @@ typedef struct TimeSyncData {
  *
  * @param[in]  slewCorrection    Is clock slewing enabled?
  * @param[in]  syncOnce          Is this function called in a loop?
+ * @param[in]  allowBackwardSync Can we sync time backwards when doing syncOnce?
  * @param[in]  _data             Time sync data.
  *
  * @return TRUE on success.
@@ -69,6 +70,7 @@ typedef struct TimeSyncData {
 static gboolean
 TimeSyncDoSync(Bool slewCorrection,
                Bool syncOnce,
+               Bool allowBackwardSync,
                void *_data)
 {
    Backdoor_proto bp;
@@ -191,7 +193,7 @@ TimeSyncDoSync(Bool slewCorrection,
        * 1) The guest OS is behind the host OS by more than maxTimeLag + interruptLag.
        * 2) The guest OS is ahead of the host OS.
        */
-      if (diff > maxTimeLag + interruptLag) {
+      if (diff > maxTimeLag + interruptLag || (diff < 0 && allowBackwardSync)) {
          System_DisableTimeSlew();
          if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
             g_warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
@@ -272,7 +274,7 @@ ToolsDaemonTimeSyncLoop(gpointer _data)
 
    g_assert(data != NULL);
 
-   if (!TimeSyncDoSync(data->slewCorrection, FALSE, data)) {
+   if (!TimeSyncDoSync(data->slewCorrection, FALSE, FALSE, data)) {
       g_warning("Unable to synchronize time.\n");
       if (data->timer != NULL) {
          g_source_unref(data->timer);
@@ -420,16 +422,39 @@ TimeSyncStartStopLoop(ToolsAppCtx *ctx,
 static Bool
 TimeSyncTcloHandler(RpcInData *data)
 {
-   Bool slewCorrection = !strcmp(data->args, "1");
+   Bool backwardSync = !strcmp(data->args, "1");
    TimeSyncData *syncData = data->clientData;
 
-   if (!TimeSyncDoSync(slewCorrection, TRUE, syncData)) {
+   if (!TimeSyncDoSync(syncData->slewCorrection, TRUE, backwardSync, syncData)) {
       return RPCIN_SETRETVALS(data, "Unable to sync time", FALSE);
    } else {
       return RPCIN_SETRETVALS(data, "", TRUE);
    }
 }
 
+
+/**
+ * Parses boolean option string.
+ *
+ * @param[in]  string     Option string to be parsed.
+ * @param[out] gboolean   Value of the option.
+ *
+ * @return TRUE on success.
+ */
+
+static gboolean
+ParseBoolOption(const gchar *string,
+                gboolean *value)
+{
+      if (strcmp(string, "1") == 0) {
+         *value = TRUE;
+      } else if (strcmp(string, "0") == 0) {
+         *value = FALSE;
+      } else {
+         return FALSE;
+      }
+      return TRUE;
+}
 
 /**
  * Handles a "Set_Option" callback. Processes the time sync related options.
@@ -451,13 +476,13 @@ TimeSyncSetOption(gpointer src,
                   ToolsPluginData *plugin)
 {
    TimeSyncData *data = plugin->_private;
+
    if (strcmp(option, TOOLSOPTION_SYNCTIME) == 0) {
       gboolean start;
 
-      if (strcmp(value, "1") != 0 && strcmp(value, "0") != 0) {
+      if (!ParseBoolOption(value, &start)) {
          return FALSE;
       }
-      start = (strcmp(value, "1") == 0);
 
       /*
        * Try the one-shot time sync if time sync transitions from
@@ -466,7 +491,7 @@ TimeSyncSetOption(gpointer src,
       if (data->timeSyncState == 0 && start &&
           g_key_file_get_boolean(ctx->config, "timeSync",
                                  TOOLSOPTION_SYNCTIME_ENABLE, NULL)) {
-         TimeSyncDoSync(data->slewCorrection, TRUE, data);
+         TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data);
       }
       data->timeSyncState = start;
 
@@ -506,6 +531,22 @@ TimeSyncSetOption(gpointer src,
             }
          }
       }
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_STARTUP) == 0) {
+      static gboolean doneAlready = FALSE;
+      gboolean doSync;
+
+      if (!ParseBoolOption(value, &doSync)) {
+         return FALSE;
+      }
+
+      if (doSync && !doneAlready &&
+            !TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data)) {
+         g_warning("Unable to sync time during startup.\n");
+         return FALSE;
+      }
+
+      doneAlready = TRUE;
+
    } else {
       return FALSE;
    }

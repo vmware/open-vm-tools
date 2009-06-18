@@ -38,7 +38,7 @@
  *
  */
 
-#if defined(sun) && !defined(SOL9)
+#if defined sun && !defined SOL9
 #include <memory.h>
 #endif
 

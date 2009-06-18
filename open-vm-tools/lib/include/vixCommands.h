@@ -1869,7 +1869,7 @@ enum VixMsgPostStateValues {
 
 /*
  * This is one string in the message. It corresponds to a
- * single Msg_List object.
+ * single MsgList object.
  */
 typedef
 #include "vmware_pack_begin.h"

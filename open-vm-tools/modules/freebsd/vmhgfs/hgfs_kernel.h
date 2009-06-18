@@ -73,13 +73,13 @@
 #define HGFS_ERR_NODEV                  (-51)
 #define HGFS_ERR_INVAL                  (-52)
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
 #  define HGFS_MP_TO_MNTFLAGS(mp)                               \
                 ((mp)->mnt_flag)
 #  define HGFS_MP_SET_SIP(mp, sip)                              \
                 ((mp)->mnt_data = (sip))
 #  define HGFS_VP_TO_MP(vp) ((vp)->v_mount)
-/* Return a pointer to mnt_stat to preserve the interface between OS X and FreeBSD. */
+/* Return a pointer to mnt_stat to preserve the interface between Mac OS and FreeBSD. */
 #  define HGFS_MP_TO_STATFS(mp) (&(mp)->mnt_stat)
    /* Getting to sip via any vnode */
 #  define HGFS_VP_TO_SIP(vp)                                    \
@@ -93,7 +93,7 @@
                 ((vp)->v_usecount > usecount)
 #  define HGFS_MP_IS_FORCEUNMOUNT(mp)                             \
                 (mp->mnt_kern_flag & MNTK_UNMOUNTF)
-#elif defined(__APPLE__)
+#elif defined __APPLE__
 #  define HGFS_MP_TO_MNTFLAGS(mp)                               \
                 (vfs_flags(mp))
 #  define HGFS_MP_SET_SIP(mp, sip)                              \
@@ -104,7 +104,7 @@
                 ((HgfsSuperInfo*)vfs_fsprivate(HGFS_VP_TO_MP(vp)))
 
 /*
- * No concept of vnode locks are exposed to the OS X VFS layer, so do nothing here for
+ * No concept of vnode locks are exposed to the Mac OS VFS layer, so do nothing here for
  * VI_LOCK AND VI_UNLOCK. However, make sure to call the lock functions before using
  * HGFS_VP_ISINUSE to preserve compatability with FreeBSD.
  */
@@ -152,21 +152,21 @@ typedef struct HgfsSuperInfo {
  */
 
 /*
- * The vnode attributes between OS X and FreeBSD are very similar but not exactly the
+ * The vnode attributes between Mac OS and FreeBSD are very similar but not exactly the
  * same. Fields have names have changed. However, only HgfsAttrToBSD and
  * HgfsSetattrCopy care about the differences so we mash the types together to enable
  * single function signatures.
  */
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
    typedef struct vattr HgfsVnodeAttr;
-#elif defined(__APPLE__)
+#elif defined __APPLE__
    typedef struct vnode_attr HgfsVnodeAttr;
 #endif
 
-#if defined(__FreeBSD__)
+#if defined __FreeBSD__
   /* Defined in vnops.c. */
   extern struct vop_vector HgfsVnodeOps;
-#elif defined(__APPLE__)
+#elif defined __APPLE__
   /* Export vnops.c file operations. */
   extern errno_t (**HgfsVnodeOps)(void *);
   extern struct vnodeopv_desc *HgfsVnodeOperationVectorDescList[1];

@@ -32,6 +32,7 @@
 Bool Hgfs_PowerOn(void);
 
 void HgfsServerManager_GetDeviceLock(DeviceLock **lock);
+Bool HgfsServerManager_ChangeState(Bool enable);
 
 #else  /* VMX86_TOOLS */
 Bool HgfsServerManager_Register(void *rpcIn,

@@ -277,7 +277,7 @@ VMCI_ReleaseLock_BH(VMCILock *lock,        // IN
 
 void
 VMCIHost_InitContext(VMCIHost *hostContext, // IN
-                     uintptr_t eventHnd)    // IN
+                     uintptr_t eventHnd)    // IN: Unused
 {
    init_waitqueue_head(&hostContext->waitQueue);
 }

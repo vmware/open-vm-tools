@@ -81,7 +81,7 @@ typedef struct HgfsMountData {
 
 #ifdef SOL9
  #define HGFS_VFS_VERSION       2
-#elif defined(SOL10)
+#elif defined SOL10
  #define HGFS_VFS_VERSION       3
 #else
  #define HGFS_VFS_VERSION       5
@@ -92,7 +92,7 @@ typedef struct HgfsMountData {
 #define HGFS_VFS_TO_SI(vfsp)	((HgfsSuperInfo *)vfsp->vfs_data)
 
 /* This macro is used for both vnode ops and vfs ops. */
-#if defined(SOL9) || defined(SOL10)
+#if defined SOL9 || defined SOL10
 #define HGFS_VOP(vopName, vopFn, hgfsFn) { vopName, hgfsFn }
 #else
 #define HGFS_VOP(vopName, vopFn, hgfsFn) { vopName, { .vopFn = hgfsFn } }

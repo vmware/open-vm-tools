@@ -852,8 +852,9 @@ DatagramProcessNotify(void *clientData,   // IN:
  */
 
 int
-VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,    // IN:
-                           VMCIDatagramCreateInfo *createInfo)  // IN:
+VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,    // OUT:
+                           VMCIDatagramCreateInfo *createInfo,  // IN:
+                           uintptr_t eventHnd)                  // IN:
 {
    VMCIDatagramProcess *dgmProc;
 
@@ -866,7 +867,7 @@ VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,    // IN:
 
    VMCI_InitLock(&dgmProc->datagramQueueLock, "VMCIDgmProc",
 		 VMCI_LOCK_RANK_MIDDLE_BH);
-   VMCIHost_InitContext(&dgmProc->host, createInfo->eventHnd);
+   VMCIHost_InitContext(&dgmProc->host, eventHnd);
    dgmProc->pendingDatagrams = 0;
    dgmProc->datagramQueueSize = 0;
    dgmProc->datagramQueue = NULL;

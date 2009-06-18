@@ -55,8 +55,9 @@
 
 #include <shlobj.h>
 
-FILEGROUPDESCRIPTORA *DnD_GroupDescWToGroupDescA(FILEGROUPDESCRIPTORW *groupDescW);
 Bool DnD_FileDescAToCPFileContents(FILEDESCRIPTORA *fileDescA,
+                                   CPFileItem* cpItem);
+Bool DnD_FileDescWToCPFileContents(FILEDESCRIPTORW *fileDescW,
                                    CPFileItem* cpItem);
 Bool DnD_CPFileContentsToFileDescA(CPFileItem* cpItem,
                                    FILEDESCRIPTORA *fileDescA,

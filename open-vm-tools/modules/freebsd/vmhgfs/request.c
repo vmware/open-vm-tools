@@ -111,7 +111,7 @@ HgfsKReq_SysInit(void)
    }
 
    /*
-    * This is a nop on OS X because we don't actually have a condition variable
+    * This is a nop on Mac OS because we don't actually have a condition variable
     * to initialize.
     */
    os_cv_init(&hgfsKReqWorkItemCv, HGFS_FS_NAME "_workcv");
