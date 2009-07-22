@@ -91,8 +91,8 @@ SOFTWARE.
 #define NullBox ((BoxPtr)0)
 #define NullRegion ((RegionPtr)0)
 
-#define R_MAXSHORT 32767
-#define R_MINSHORT (-R_MAXSHORT)
+#define R_MAXSHORT SHRT_MAX
+#define R_MINSHORT SHRT_MIN
 
 #define R_MAXINT 0x7FFFFFFF
 #define R_MININT 0x8FFFFFFF

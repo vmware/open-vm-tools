@@ -25,7 +25,7 @@
 #define G_LOG_DOMAIN "timeSync"
 
 /* sync the time once a minute */
-#define TIME_SYNC_TIME     60000
+#define TIME_SYNC_TIME     60
 /* only PERCENT_CORRECTION percent is corrected everytime */
 #define PERCENT_CORRECTION   50
 
@@ -51,7 +51,7 @@ typedef struct TimeSyncData {
    gboolean    slewCorrection;
    uint32      slewPercentCorrection;
    gint        timeSyncState;
-   uint32      timeSyncPeriod;         /* In milliseconds. */
+   uint32      timeSyncPeriod;         /* In seconds. */
    GSource    *timer;
 } TimeSyncData;
 
@@ -223,6 +223,7 @@ TimeSyncDoSync(Bool slewCorrection,
          }
       } else if (slewCorrection && timeLagCall) {
          int64 slewDiff;
+         int64 timeSyncPeriodUS = data->timeSyncPeriod * 1000000;
 
          /* Don't consider interruptLag during clock slewing. */
          slewDiff = diff - interruptLag;
@@ -230,7 +231,7 @@ TimeSyncDoSync(Bool slewCorrection,
          /* Correct only data->slewPercentCorrection percent error. */
          slewDiff = (data->slewPercentCorrection * slewDiff) / 100;
 
-         if (!System_EnableTimeSlew(slewDiff, data->timeSyncPeriod)) {
+         if (!System_EnableTimeSlew(slewDiff, timeSyncPeriodUS)) {
             g_warning("Unable to slew the guest OS time: %s.\n\n", Msg_ErrString());
             return FALSE;
          }
@@ -272,7 +273,7 @@ ToolsDaemonTimeSyncLoop(gpointer _data)
 {
    TimeSyncData *data = _data;
 
-   g_assert(data != NULL);
+   ASSERT(data != NULL);
 
    if (!TimeSyncDoSync(data->slewCorrection, FALSE, FALSE, data)) {
       g_warning("Unable to synchronize time.\n");
@@ -375,15 +376,15 @@ TimeSyncStartStopLoop(ToolsAppCtx *ctx,
                       TimeSyncData *data,
                       gboolean start)
 {
-   g_assert(data != NULL);
+   ASSERT(data != NULL);
 
    if (start && data->timer == NULL) {
       g_debug("Starting time sync loop.\n");
-      g_debug("New sync period is %d sec.\n", data->timeSyncPeriod / 1000);
+      g_debug("New sync period is %d sec.\n", data->timeSyncPeriod);
       if (!ToolsDaemonTimeSyncLoop(data)) {
          return FALSE;
       }
-      data->timer = g_timeout_source_new(data->timeSyncPeriod);
+      data->timer = g_timeout_source_new(data->timeSyncPeriod * 1000);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, data->timer, ToolsDaemonTimeSyncLoop, data, NULL);
 
 #if defined(_WIN32)
@@ -487,9 +488,11 @@ TimeSyncSetOption(gpointer src,
       /*
        * Try the one-shot time sync if time sync transitions from
        * 'off' to 'on'.
+       * Note that if TOOLSOPTION_SYNCTIME_ENABLE is absent from
+       * vmx config file it is considered to be TRUE.
        */
       if (data->timeSyncState == 0 && start &&
-          g_key_file_get_boolean(ctx->config, "timeSync",
+          g_key_file_get_boolean(ctx->config, "vmsvc",
                                  TOOLSOPTION_SYNCTIME_ENABLE, NULL)) {
          TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data);
       }
@@ -504,10 +507,15 @@ TimeSyncSetOption(gpointer src,
       g_debug("Daemon: Setting slewCorrection, %d.\n", data->slewCorrection);
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERCENTCORRECTION) == 0) {
       int32 percent;
+      g_debug("Daemon: Setting slewPercentCorrection to %s.\n", value);
       if (!StrUtil_StrToInt(&percent, value)) {
          return FALSE;
       }
-      data->slewPercentCorrection = percent;
+      if (percent <= 0 || percent > 100) {
+         data->slewPercentCorrection = PERCENT_CORRECTION;
+      } else {
+         data->slewPercentCorrection = percent;
+      }
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERIOD) == 0) {
       uint32 period;
 
@@ -521,7 +529,7 @@ TimeSyncSetOption(gpointer src,
        * not running, just remember the new sync period value.
        */
       if (period != data->timeSyncPeriod) {
-         data->timeSyncPeriod = (period > 0) ? period * 1000 : TIME_SYNC_TIME;
+         data->timeSyncPeriod = (period > 0) ? period : TIME_SYNC_TIME;
 
          if (data->timer != NULL) {
             TimeSyncStartStopLoop(ctx, data, FALSE);
@@ -606,7 +614,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
    };
 
-   data->slewCorrection = TRUE;
+   data->slewCorrection = FALSE;
    data->slewPercentCorrection = PERCENT_CORRECTION;
    data->timeSyncState = -1;
    data->timeSyncPeriod = TIME_SYNC_TIME;

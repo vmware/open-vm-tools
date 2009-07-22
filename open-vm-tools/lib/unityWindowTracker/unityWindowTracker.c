@@ -71,7 +71,7 @@ UnityWindowTracker_Init(UnityWindowTracker *tracker,     // IN
 {
    memset(tracker, 0, sizeof(UnityWindowTracker));
    tracker->cb = cb;
-   tracker->windows = HashTable_Alloc(128, HASH_INT_KEY, 
+   tracker->windows = HashTable_Alloc(128, HASH_INT_KEY,
                                       (HashTableFreeEntryFn)FreeWindowInfo);
 }
 
@@ -169,17 +169,48 @@ UnityWindowTracker_LookupWindow(UnityWindowTracker *tracker,      // IN
  */
 
 UnityWindowInfo *
-UnityWindowTracker_AddWindow(UnityWindowTracker *tracker,         // IN
-                             UnityWindowId id)                    // IN
+UnityWindowTracker_AddWindow(UnityWindowTracker *tracker,   // IN
+                             UnityWindowId id,              // IN
+                             DynBuf *windowPathUtf8,        // IN
+                             DynBuf *execPathUtf8)          // IN
 {
    UnityWindowInfo *info = UnityWindowTracker_LookupWindow(tracker, id);
    if (!info) {
+      size_t windowPathSize;
+      size_t execPathSize;
+
       info = (UnityWindowInfo *)Util_SafeCalloc(1, sizeof(UnityWindowInfo));
       info->tracker = tracker;
       info->id = id;
       info->type = UNITY_WINDOW_TYPE_NONE;
       info->desktopId = tracker->activeDesktopId;
       DynBuf_Init(&info->titleUtf8);
+      DynBuf_Init(&info->windowPathUtf8);
+      DynBuf_Init(&info->execPathUtf8);
+
+      /*
+       * Ensure that the provided paths only include one NUL terminator
+       * at the end of the buffer, or keep the paths empty otherwise.
+       */
+      windowPathSize = DynBuf_GetSize(windowPathUtf8);
+      if (windowPathSize > 0) {
+         Bool isNullTerminated = Str_Strlen((char *)DynBuf_Get(windowPathUtf8),
+                                            windowPathSize) == windowPathSize - 1;
+         ASSERT(isNullTerminated);
+         if (isNullTerminated) {
+            DynBuf_Copy(windowPathUtf8, &info->windowPathUtf8);
+         }
+      }
+      execPathSize = DynBuf_GetSize(execPathUtf8);
+      if (execPathSize > 0) {
+         Bool isNullTerminated = Str_Strlen((char *)DynBuf_Get(execPathUtf8),
+                                            execPathSize) == execPathSize - 1;
+         ASSERT(isNullTerminated);
+         if (isNullTerminated) {
+            DynBuf_Copy(execPathUtf8, &info->execPathUtf8);
+         }
+      }
+
       LOG(2, ("Unity adding new window (id:%d)\n", id));
       HashTable_Insert(tracker->windows, (const char *)(long)id, info);
       info->changed |= UNITY_CHANGED_ADDED;
@@ -215,11 +246,16 @@ UnityWindowTracker_AddWindow(UnityWindowTracker *tracker,         // IN
  */
 
 UnityWindowInfo *
-UnityWindowTracker_AddWindowWithData(UnityWindowTracker *tracker,         // IN
-                                     UnityWindowId id,                    // IN
-                                     void *data)                          // IN
+UnityWindowTracker_AddWindowWithData(UnityWindowTracker *tracker,    // IN
+                                     UnityWindowId id,               // IN
+                                     DynBuf *windowPathUtf8,         // IN
+                                     DynBuf *execPathUtf8,           // IN
+                                     void *data)                     // IN
 {
-   UnityWindowInfo *info = UnityWindowTracker_AddWindow(tracker, id);
+   UnityWindowInfo *info = UnityWindowTracker_AddWindow(tracker,
+                                                        id,
+                                                        windowPathUtf8,
+                                                        execPathUtf8);
 
    if (info) {
       if (info->data
@@ -816,7 +852,10 @@ UnityWindowTracker_SendUpdate(UnityWindowTracker *tracker,        // IN
 {
    switch (update->type) {
    case UNITY_UPDATE_ADD_WINDOW:
-      UnityWindowTracker_AddWindow(tracker, update->u.addWindow.id);
+      UnityWindowTracker_AddWindow(tracker,
+                                   update->u.addWindow.id,
+                                   &update->u.addWindow.windowPathUtf8,
+                                   &update->u.addWindow.execPathUtf8);
       break;
 
    case UNITY_UPDATE_MOVE_WINDOW:
@@ -1080,6 +1119,8 @@ FreeWindowInfo(UnityWindowInfo *info)              // IN
          miRegionDestroy(info->region);
       }
       DynBuf_Destroy(&info->titleUtf8);
+      DynBuf_Destroy(&info->windowPathUtf8);
+      DynBuf_Destroy(&info->execPathUtf8);
       free(info);
    }
 }
@@ -1234,7 +1275,17 @@ PushUpdates(const char *key,       // IN: window id
       if (!incremental || (info->changed & UNITY_CHANGED_ADDED)) {
          update.type = UNITY_UPDATE_ADD_WINDOW;
          update.u.addWindow.id = id;
+         DynBuf_Init(&update.u.addWindow.windowPathUtf8);
+         DynBuf_Init(&update.u.addWindow.execPathUtf8);
+         if (DynBuf_GetSize(&info->windowPathUtf8)) {
+            DynBuf_Copy(&info->windowPathUtf8, &update.u.addWindow.windowPathUtf8);
+         }
+         if (DynBuf_GetSize(&info->execPathUtf8)) {
+            DynBuf_Copy(&info->execPathUtf8, &update.u.addWindow.execPathUtf8);
+         }
          (*tracker->cb)(tracker->cbparam, &update);
+         DynBuf_Destroy(&update.u.addWindow.windowPathUtf8);
+         DynBuf_Destroy(&update.u.addWindow.execPathUtf8);
       }
       if (!incremental || (info->changed & UNITY_CHANGED_POSITION)) {
          update.type = UNITY_UPDATE_MOVE_WINDOW;

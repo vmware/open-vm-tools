@@ -351,10 +351,10 @@ exit:
 /*
  *----------------------------------------------------------------------------
  *
- * VSockAddr_SocketContext --
+ * VSockAddr_SocketContextStream --
  *
  *      Determines whether the provided context id represents a context that
- *      contains socket endpoints.
+ *      contains a stream socket endpoints.
  *
  * Results:
  *      TRUE if the context does have socket endpoints, FALSE otherwise.
@@ -366,7 +366,7 @@ exit:
  */
 
 Bool
-VSockAddr_SocketContext(uint32 cid)  // IN
+VSockAddr_SocketContextStream(uint32 cid)  // IN
 {
    uint32 i;
    VMCIId nonSocketContexts[] = {
@@ -378,6 +378,37 @@ VSockAddr_SocketContext(uint32 cid)  // IN
 
    for (i = 0; i < ARRAYSIZE(nonSocketContexts); i++) {
       if (cid == nonSocketContexts[i]) {
+         return FALSE;
+      }
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockAddr_SocketContextDgram --
+ *
+ *      Determines whether the provided <context id, resource id> represent
+ *      a protected datagram endpoint.
+ *
+ * Results:
+ *      TRUE if the context does have socket endpoints, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+VSockAddr_SocketContextDgram(uint32 cid,  // IN
+                             uint32 rid)  // IN
+{
+   if (cid == VMCI_HYPERVISOR_CONTEXT_ID) {
+      if (rid != VMCI_VSOCK_VMX_LOOKUP) {
          return FALSE;
       }
    }

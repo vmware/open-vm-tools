@@ -22,21 +22,9 @@
 #include <linux/stddef.h> /* for NULL */
 #include <net/sock.h>
 
-
 /*
  * Between 2.5.70 and 2.5.71 all sock members were renamed from XXX to sk_XXX.
- *
- * VMW_HAVE_SK_WMEM_ALLOC is defined in module Makefile if kernel's struct sock
- * has sk_wmem_alloc member. See vmnet's Makefile.kernel for details.
- * It also means that all modules including this file should do
- *
- * EXTRA_CFLAGS += $(call vm_check_build, $(SRCROOT)/socket.c,  -DVMW_HAVE_SK_WMEM_ALLOC, )
- *
- * in their Makefiles.
  */
-#ifndef VMW_HAVE_SK_WMEM_ALLOC
-#   define sk_wmem_alloc wmem_alloc
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 71)
 # define compat_sk_backlog_rcv          backlog_rcv

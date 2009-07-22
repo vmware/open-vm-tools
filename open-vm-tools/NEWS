@@ -1,3 +1,13 @@
+open-vm-tools 2009.07.22 changes:
+	* Better support for dkms by means of a script to help create a dkms tree.
+
+	* "make install" now also installs header files for public libraries, plus
+	a few fixes to incorrect install behavior.
+
+	* Lots of improvements to the new DnD code.
+
+	* This will be the last release with support for Linux kernels < 2.6.9.
+
 open-vm-tools 2009.06.18 changes:
 	* Mostly a bug fix release.
 

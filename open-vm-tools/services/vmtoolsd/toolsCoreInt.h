@@ -45,6 +45,22 @@ typedef struct ToolsPlugin {
    ToolsPluginData  *data;
 } ToolsPlugin;
 
+/** State of app providers. */
+typedef enum {
+   TOOLS_PROVIDER_IDLE,
+   TOOLS_PROVIDER_ACTIVE,
+   TOOLS_PROVIDER_ERROR,
+
+   /* Keep this as the last one, always. */
+   TOOLS_PROVIDER_MAX
+} ToolsAppProviderState;
+
+/** Defines the internal app provider data. */
+typedef struct ToolsAppProviderReg {
+   ToolsAppProvider       *prov;
+   ToolsAppProviderState   state;
+} ToolsAppProviderReg;
+
 /** Defines internal service state. */
 typedef struct ToolsServiceState {
    gchar         *name;
@@ -63,6 +79,7 @@ typedef struct ToolsServiceState {
    gchar         *debugPlugin;
    RpcDebugLibData  *debugData;
    ToolsAppCtx    ctx;
+   GArray        *providers;
 } ToolsServiceState;
 
 
@@ -73,6 +90,9 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
 
 void
 ToolsCore_Cleanup(ToolsServiceState *state);
+
+void
+ToolsCore_DumpPluginInfo(ToolsServiceState *state);
 
 void
 ToolsCore_DumpState(ToolsServiceState *state);

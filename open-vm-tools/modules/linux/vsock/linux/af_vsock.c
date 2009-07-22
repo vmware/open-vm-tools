@@ -871,7 +871,8 @@ VSockVmciRecvStreamCB(void *data,           // IN
     * Ignore incoming packets from contexts without sockets, or resources that
     * aren't vsock implementations.
     */
-   if (!VSockAddr_SocketContext(VMCI_HANDLE_TO_CONTEXT_ID(dg->src)) ||
+
+   if (!VSockAddr_SocketContextStream(VMCI_HANDLE_TO_CONTEXT_ID(dg->src)) ||
        VSOCK_PACKET_RID != VMCI_HANDLE_TO_RESOURCE_ID(dg->src)) {
       return VMCI_ERROR_NO_ACCESS;
    }
@@ -1491,10 +1492,10 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    sk->compat_sk_ack_backlog++;
 
    pending->compat_sk_state = SS_CONNECTING;
-   vpending->produceSize = vpending->consumeSize = pkt->u.size;
+   vpending->produceSize = vpending->consumeSize = qpSize;
 
    /* XXX Move this into the notify file. */
-   vpending->notify.writeNotifyWindow = pkt->u.size;
+   vpending->notify.writeNotifyWindow = qpSize;
 
    /*
     * We might never receive another message for this socket and it's not
@@ -3106,6 +3107,12 @@ VSockVmciDgramConnect(struct socket *sock,   // IN
       }
    }
 
+   if (!VSockAddr_SocketContextDgram(remoteAddr->svm_cid,
+                                     remoteAddr->svm_port)) {
+      err = -EINVAL;
+      goto out;
+   }
+
    memcpy(&vsk->remoteAddr, remoteAddr, sizeof vsk->remoteAddr);
    sock->state = SS_CONNECTED;
 
@@ -3178,7 +3185,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       }
 
       /* The hypervisor and well-known contexts do not have socket endpoints. */
-      if (!VSockAddr_SocketContext(remoteAddr->svm_cid)) {
+      if (!VSockAddr_SocketContextStream(remoteAddr->svm_cid)) {
          err = -ENETUNREACH;
          goto out;
       }
@@ -3325,7 +3332,7 @@ VSockVmciAccept(struct socket *sock,     // IN
          err = sock_intr_errno(timeout);
          goto outWait;
       } else if (timeout == 0) {
-         err = -ETIMEDOUT;
+         err = -EAGAIN;
          goto outWait;
       }
 
@@ -3528,7 +3535,8 @@ VSockVmciPoll(struct file *file,    // IN
        * Sockets whose connections have been close, reset, or terminated should also
        * be considered read, and we check the shutdown flag for that.
        */
-      if (sk->compat_sk_shutdown) {
+      if (sk->compat_sk_shutdown & RCV_SHUTDOWN ||
+          vsk->peerShutdown & SEND_SHUTDOWN) {
           mask |= POLLIN | POLLRDNORM;
       }
 
@@ -3775,6 +3783,16 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
          goto out;
       }
    } else {
+      err = -EINVAL;
+      goto out;
+   }
+
+   /*
+    * Make sure that we don't allow a userlevel app to send datagrams
+    * to the hypervisor that modify VMCI device state.
+    */
+   if (!VSockAddr_SocketContextDgram(remoteAddr->svm_cid,
+                                     remoteAddr->svm_port)) {
       err = -EINVAL;
       goto out;
    }

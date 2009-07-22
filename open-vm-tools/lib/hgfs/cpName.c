@@ -96,7 +96,7 @@ CPName_GetComponent(char const *begin,   // IN: Beginning of buffer
          /* Found a NUL */
 
          if (walk == begin) {
-            Log("CPName_GetComponent: error: first char can't be NUL\n");
+            Log("%s: error: first char can't be NUL\n", __FUNCTION__);
             return -1;
          }
 
@@ -156,7 +156,7 @@ CPNameEscapeAndConvertFrom(char const **bufIn, // IN/OUT: Input to convert
       char const *savedOutConst = savedBufOut;
       size_t savedOutSize = *outSize;
       if (inputSize > *outSize) {
-         Log("CPNameEscapeAndConvertFrom: error: not enough room for escaping\n");
+         Log("%s: error: not enough room for escaping\n", __FUNCTION__);
          return -1;
       }
 
@@ -228,14 +228,14 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
 
       len = CPName_GetComponent(in, inEnd, &next);
       if (len < 0) {
-         Log("CPNameConvertFrom: error: get next component failed\n");
+         Log("%s: error: get next component failed\n", __FUNCTION__);
          return len;
       }
 
       /* Bug 27926 - preventing escaping from shared folder. */
       if ((len == 1 && *in == '.') ||
           (len == 2 && in[0] == '.' && in[1] == '.')) {
-         Log("CPNameConvertFrom: error: found dot/dotdot\n");
+         Log("%s: error: found dot/dotdot\n", __FUNCTION__);
          return -1;
       }
 
@@ -246,7 +246,7 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
 
       newLen = ((int) myOutSize) - len - 1;
       if (newLen < 0) {
-         Log("CPNameConvertFrom: error: not enough room\n");
+         Log("%s: error: not enough room\n", __FUNCTION__);
          return -1;
       }
       myOutSize = (size_t) newLen;
@@ -262,7 +262,7 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
 
    /* NUL terminate */
    if (myOutSize < 1) {
-      Log("CPNameConvertFrom: error: not enough room\n");
+      Log("%s: error: not enough room\n", __FUNCTION__);
       return -1;
    }
    *out = '\0';

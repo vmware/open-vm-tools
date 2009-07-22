@@ -127,7 +127,7 @@ CPName_ConvertFromRoot(char const **bufIn, // IN/OUT: Input to convert
     */
    len = CPName_GetComponent(*bufIn, *bufIn + *inSize, &next);
    if (len < 0) {
-      Log("CPName_ConvertFromRoot: get first component failed\n");
+      Log("%s: get first component failed\n", __FUNCTION__);
       return HGFS_NAME_STATUS_FAILURE;
    }
 

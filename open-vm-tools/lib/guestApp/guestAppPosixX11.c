@@ -35,6 +35,7 @@ extern "C" {
 #include <stdlib.h>     // for free, system
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include <glib.h>
 
@@ -83,7 +84,8 @@ GuestAppX11OpenUrl(const char *url, // IN
    gboolean spawnSuccess;
    GError *gerror = NULL;
 
-   char **argv = NULL;
+   char *argv[4];
+   char **parsedArgv = NULL;
    char *newNetscapeBuf = NULL;
    Bool success = FALSE;
 
@@ -107,42 +109,35 @@ GuestAppX11OpenUrl(const char *url, // IN
       if (!newNetscapeBuf) {
          goto abort;
       }
-      argv = g_malloc(4 * sizeof *argv);
       argv[0] = (char *)gBrowser;
       argv[1] = "-remote";
       argv[2] = newNetscapeBuf;
       argv[3] = NULL;
    } else {
       gint argc;
+      gboolean parsed;
       /*
-       * See GuestAppDetectBrowser(): our browser command could come from gconf,
-       * in which case it's a command line that we have to parse, so that we
-       * can put the URL in the right place before executing the child process.
+       * See GuestAppDetectBrowser(): we already made sure we can parse the
+       * command and that it has a placeholder, so just assert that is still
+       * the case here.
        */
-      if (!g_shell_parse_argv(gBrowser, &argc, &argv, &gerror)) {
-         Debug("Error parsing browser command line: %s\n", gerror->message);
-         g_clear_error(&gerror);
-         goto abort;
-      }
+      parsed = g_shell_parse_argv(gBrowser, &argc, &parsedArgv, NULL);
+      ASSERT(parsed);
+
       if (argc > 1) {
-         /*
-          * If the browser is a command line, we expect "%s" to be the URL
-          * placeholder. If not found, bail out.
-          */
          gint i;
+
          for (i = 0; i < argc; i++) {
-            if (strcmp(argv[i], "%s") == 0) {
-               argv[i] = (char *) url;
+            if (strcmp(parsedArgv[i], "%s") == 0) {
+               g_free(parsedArgv[i]);
+               parsedArgv[i] = g_strdup(url);
                break;
             }
          }
-         if (i == argc) {
-            Debug("Browser command (%s) doesn't have an URL placeholder.\n", gBrowser);
-            goto abort;
-         }
+         ASSERT(i < argc);
       } else {
-         g_free(argv);
-         argv = g_malloc(3 * sizeof *argv);
+         g_strfreev(parsedArgv);
+         parsedArgv = NULL;
          argv[0] = (char *)gBrowser;
          argv[1] = (char *)url;
          argv[2] = NULL;
@@ -154,7 +149,7 @@ GuestAppX11OpenUrl(const char *url, // IN
     * help is showing.
     */
    spawnSuccess = g_spawn_async(NULL,     // inherit working directory
-                                argv,
+                                (parsedArgv != NULL) ? parsedArgv : argv,
                                 /*
                                 * XXX  Please don't hate me for casting off the
                                 * qualifier here.  Glib does -not- modify the
@@ -181,7 +176,7 @@ GuestAppX11OpenUrl(const char *url, // IN
    success = TRUE;
 
 abort:
-   g_free(argv);
+   g_strfreev(parsedArgv);
    free(newNetscapeBuf);
    return success;
 }
@@ -255,7 +250,8 @@ GuestAppDetectBrowser(void)
       char *argv[] = {
          "gconftool-2",
          "--get",
-         "/desktop/gnome/url-handlers/http/command"
+         "/desktop/gnome/url-handlers/http/command",
+         NULL
       };
       gboolean success;
       gchar *out = NULL;
@@ -264,34 +260,85 @@ GuestAppDetectBrowser(void)
 
       success =  g_spawn_sync(NULL,
                               argv,
-                               (char **)guestAppSpawnEnviron,
-                               G_SPAWN_SEARCH_PATH | G_SPAWN_STDERR_TO_DEV_NULL,
-                               NULL,
-                               NULL,
-                               &out,
-                               NULL,
-                               &status,
-                               &err);
+                              (char **)guestAppSpawnEnviron,
+                              G_SPAWN_SEARCH_PATH | G_SPAWN_STDERR_TO_DEV_NULL,
+                              NULL,
+                              NULL,
+                              &out,
+                              NULL,
+                              &status,
+                              &err);
+
+      /*
+       * gconftool-2 exits with a success status when the key we're querying is
+       * empty (or doesn't exist?), so make sure the output string is also empty
+       * (with no new lines or anything).
+       */
+      if (out != NULL) {
+         g_strchomp(out);
+      }
+
       if (!success || !WIFEXITED(status) || WEXITSTATUS(status) != 0 ||
           out == NULL || strlen(out) == 0) {
           Warning("Failed to invoke gconftool-2: exit code %d (%s)\n",
                   WEXITSTATUS(status),
                   (err != NULL) ? err->message : "");
           g_clear_error(&err);
+          g_free(out);
       } else {
-         buf = g_strchomp(out);
-         gBrowserIsMalloced = TRUE;
-         goto exit;
+         /*
+          * We got data from gconftool-2, but it may still be invalid (e.g., the
+          * user has configured a browser that doesn't exist). Try to detect
+          * that case and fallback to our regular "brute force" detection if
+          * we can't use the command.
+          */
+         int argc = 0;
+         char **command = NULL;
+         if (g_shell_parse_argv(out, &argc, &command, NULL) && argc > 0) {
+            if ((g_path_is_absolute(command[0]) && !access(command[0], X_OK)) ||
+                !GuestApp_FindProgram(command[0])) {
+               Debug("Cannot find or execute user-defined default browser '%s'.\n",
+                     command[0]);
+            } else {
+               /* We expect "%s" to be the URL placeholder. If not found, fall back. */
+               gint i;
+               for (i = 0; i < argc; i++) {
+                  if (strcmp(command[i], "%s") == 0) {
+                     break;
+                  }
+               }
+               if (i < argc) {
+                  buf = out;
+                  gBrowserIsMalloced = TRUE;
+                  g_strfreev(command);
+                  goto exit;
+               } else {
+                  Debug("Browser command (%s) doesn't have an URL placeholder.\n", out);
+               }
+            }
+         } else {
+            Debug("Failed to parse custom user-defined browser command (%s).\n", out);
+         }
+
+         g_free(out);
+         g_strfreev(command);
       }
    }
 
    if (((getenv("KDE_FULL_SESSION") != NULL &&
                 !strcmp(getenv("KDE_FULL_SESSION"), "true")) ||
                GuestAppFindX11Client("ksmserver") ||
-               GuestAppFindX11Client("startkde")) &&
-              GuestApp_FindProgram("konqueror")) {
-      buf = "konqueror";
-   } else if (GuestApp_FindProgram("mozilla-firefox")) {
+               GuestAppFindX11Client("startkde"))) {
+      if (GuestApp_FindProgram("kde-open")) {
+         buf = "kde-open";
+         goto exit;
+      } else if (GuestApp_FindProgram("konqueror")) {
+         buf = "konqueror";
+         goto exit;
+      }
+   }
+
+   if (GuestApp_FindProgram("mozilla-firefox")) {
       buf = "mozilla-firefox";
    } else if (GuestApp_FindProgram("firefox")) {
       buf = "firefox";

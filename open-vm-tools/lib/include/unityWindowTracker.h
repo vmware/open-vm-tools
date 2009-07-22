@@ -119,6 +119,8 @@ typedef struct UnityUpdate {
    union {
       struct {
          UnityWindowId     id;
+         DynBuf            windowPathUtf8;
+         DynBuf            execPathUtf8;
       } addWindow;
 
       struct {
@@ -199,6 +201,8 @@ typedef struct {
    uint32            state;
    UnityWindowType   type;
    UnityDesktopId    desktopId;
+   DynBuf            windowPathUtf8;
+   DynBuf            execPathUtf8;
 
    /* Each element is an OR of the UNITY_INFO_ATTR_* values */
    unsigned char     attributes[UNITY_MAX_ATTRIBUTES];
@@ -241,6 +245,13 @@ struct _UnityWindowTracker {
    UnityDesktopId activeDesktopId;
    Bool           activeDesktopChanged;
 
+   /*
+    * True if the guest should add hidden windows to the list of tracked windows.
+    * The windows will be added to the tracker with the hidden attribute.
+    * By default the guest will not add hidden windows to the tracker.
+    */
+   Bool           addHiddenWindows;
+
    void           *cbparam;
    UnityUpdateCallback cb;
    uint32         updateFlags;
@@ -258,9 +269,13 @@ void UnityWindowTracker_Cleanup(UnityWindowTracker *tracker);
 void UnityWindowTracker_SetDataFreeFunc(UnityWindowTracker *tracker,
                                         UnityDataFreeFunc freeFn);
 UnityWindowInfo *UnityWindowTracker_AddWindow(UnityWindowTracker *tracker,
-                                              UnityWindowId id);
+                                              UnityWindowId id,
+                                              DynBuf *windowPathUtf8,
+                                              DynBuf *execPathUtf8);
 UnityWindowInfo *UnityWindowTracker_AddWindowWithData(UnityWindowTracker *tracker,
                                                       UnityWindowId id,
+                                                      DynBuf *windowPathUtf8,
+                                                      DynBuf *execPathUtf8,
                                                       void *data);
 void UnityWindowTracker_MoveWindow(UnityWindowTracker *tracker,
                                    UnityWindowId id, int x1, int y1, int x2,

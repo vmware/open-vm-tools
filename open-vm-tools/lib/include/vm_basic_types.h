@@ -466,7 +466,14 @@ typedef uint32    PageNum;
 typedef unsigned  MemHandle;
 typedef int32     World_ID;
 
-#define INVALID_WORLD_ID ((World_ID)-1)
+/* !! do not alter the definition of INVALID_WORLD_ID without ensuring
+ * that the values defined in both bora/public/vm_basic_types.h and
+ * lib/vprobe/vm_basic_types.h are the same.  Additionally, the definition
+ * of VMK_INVALID_WORLD_ID in vmkapi_world.h also must be defined with
+ * the same value
+ */
+
+#define INVALID_WORLD_ID ((World_ID)0)
 
 typedef World_ID User_CartelID;
 #define INVALID_CARTEL_ID INVALID_WORLD_ID

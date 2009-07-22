@@ -58,7 +58,7 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
       gchar *msg;
 
       app = ToolsCore_GetTcloName(state);
-      g_assert(app != NULL);
+      ASSERT(app != NULL);
 
       msg = g_strdup_printf("vmx.capability.unified_loop %s", app);
       if (!RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL)) {
@@ -229,7 +229,7 @@ ToolsCore_InitRpc(ToolsServiceState *state)
    const gchar *app;
    GMainContext *mainCtx = g_main_loop_get_context(state->ctx.mainLoop);
 
-   g_assert(state->ctx.rpc == NULL);
+   ASSERT(state->ctx.rpc == NULL);
 
    if (state->debugPlugin != NULL) {
       app = "debug";
@@ -251,7 +251,7 @@ ToolsCore_InitRpc(ToolsServiceState *state)
 
       state->ctx.rpc = RpcChannel_NewBackdoorChannel(mainCtx);
       app = ToolsCore_GetTcloName(state);
-      g_assert(app != NULL);
+      ASSERT(app != NULL);
    }
 
    RpcChannel_Setup(state->ctx.rpc,

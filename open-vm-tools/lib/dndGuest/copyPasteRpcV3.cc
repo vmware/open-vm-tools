@@ -233,6 +233,33 @@ CopyPasteRpcV3::OnRecvMsg(const uint8 *data, // IN
    switch (DnDMsg_GetCmd(&msg)) {
    case CP_GH_GET_CLIPBOARD:
       ghGetClipboardChanged.emit();
+#if defined (DND_TRANSPORT_TEST)
+      /* Sending 60 packets to host side to test transport. */
+      for (uint32 i = 1; i < 60; i++) {
+         DnDMsg msg;
+         DynBuf buf;
+
+         DnDMsg_Init(&msg);
+         DynBuf_Init(&buf);
+
+         DnDMsg_SetCmd(&msg, CP_GH_TRANSPORT_TEST);
+         if (!DnDMsg_AppendArg(&msg, &i, sizeof i)) {
+            Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
+            goto error;
+         }
+
+         if (!DnDMsg_Serialize(&msg, &buf)) {
+            Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
+            goto error;
+         }
+
+         mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
+
+      error:
+         DynBuf_Destroy(&buf);
+         DnDMsg_Destroy(&msg);
+      }
+#endif
       break;
    case CP_HG_SET_CLIPBOARD:
    {

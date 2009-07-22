@@ -80,7 +80,8 @@ typedef struct VmBackupState {
    VmBackupOp    *currentOp;
    const char    *currentOpName;
    char          *volumes;
-   guint         pollPeriod;
+   char          *snapshots;
+   guint          pollPeriod;
    GSource       *timerEvent;
    GSource       *keepAlive;
    Bool (*callback)(struct VmBackupState *);

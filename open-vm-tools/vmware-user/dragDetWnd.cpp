@@ -42,8 +42,12 @@ extern "C" {
  * Constructor.
  */
 
-DragDetWnd::DragDetWnd()
+DragDetWnd::DragDetWnd() :
+   m_isVisible(false)
 {
+#if defined(DETWNDDEBUG)
+   DebugSetAttributes();
+#endif
 }
 
 

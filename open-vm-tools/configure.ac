@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2009.06.18"
+TOOLS_VERSION="2009.07.22"
 AC_INIT(
    [open-vm-tools],
-   [2009.06.18],
+   [2009.07.22],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -887,16 +887,15 @@ if test "$enable_docs" = "yes"; then
    if test "$have_doxygen" = "no"; then
       AC_MSG_WARN([doxygen not found; API documentation will not be generated.])
    else
-      AC_CHECK_PROG([HAVE_DOT],
-                    [dot],
-                    [yes],
-                    [no])
-      if test "$HAVE_DOT" = "yes"; then
-         DOT=dot
+      AC_PATH_PROG([DOT], [dot], [])
+      if test "$DOT" = ""; then
+         HAVE_DOT=NO
       else
-         DOT=
+         DOT=`dirname $DOT`
+         HAVE_DOT=YES
       fi
       AC_SUBST([DOT])
+      AC_SUBST([HAVE_DOT])
 
       AC_PATH_PROG([MSCGEN],
                    [mscgen],
@@ -1226,6 +1225,7 @@ AC_CONFIG_FILES([                      \
    checkvm/Makefile                    \
    rpctool/Makefile                    \
    libguestlib/Makefile                \
+   libguestlib/vmguestlib.pc           \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \
    modules/Makefile                    \

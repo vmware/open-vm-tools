@@ -117,7 +117,6 @@ typedef union {
 
 static INLINE Bool SyncWaitQWakeUpNamed(SyncWaitQ *that);
 static INLINE Bool SyncWaitQWakeUpAnon(SyncWaitQ *that);
-static INLINE char *SyncWaitQMakeName(const char *path, uint64 seq);
 
 
 #if __APPLE__
@@ -155,7 +154,7 @@ static Atomic_Int workaround = { WORKAROUND_UNKNOWN, };
  */
 
 static int
-SyncWaitQInit(SyncWaitQ *that) // IN
+SyncWaitQInit(SyncWaitQ *that)  // IN:
 {
    if (UNLIKELY(Atomic_ReadInt(&workaround) == WORKAROUND_UNKNOWN)) {
       struct utsname u;
@@ -165,6 +164,7 @@ SyncWaitQInit(SyncWaitQ *that) // IN
        * We purposedly do not use Hostinfo_OSVersion() to avoid introducing a
        * library dependency just for a workaround.
        */
+
       Atomic_ReadIfEqualWriteInt(&workaround, WORKAROUND_UNKNOWN,
          (   uname(&u) == -1
           || sscanf(u.release, "%u.", &major) != 1
@@ -172,8 +172,9 @@ SyncWaitQInit(SyncWaitQ *that) // IN
    }
 
    ASSERT(Atomic_ReadInt(&workaround) != WORKAROUND_UNKNOWN);
-   return Atomic_ReadInt(&workaround) == WORKAROUND_YES
-             ? pthread_mutex_init(&that->mutex, NULL) : 0;
+
+   return Atomic_ReadInt(&workaround) == WORKAROUND_YES ?
+                                  pthread_mutex_init(&that->mutex, NULL) : 0;
 }
 
 
@@ -223,9 +224,10 @@ SyncWaitQLock(SyncWaitQ *that) // IN
  */
 
 static void
-SyncWaitQUnlock(SyncWaitQ *that) // IN
+SyncWaitQUnlock(SyncWaitQ *that)  // IN:
 {
    ASSERT(Atomic_ReadInt(&workaround) != WORKAROUND_UNKNOWN);
+
    if (Atomic_ReadInt(&workaround) == WORKAROUND_YES) {
       int result;
 
@@ -256,17 +258,17 @@ SyncWaitQUnlock(SyncWaitQ *that) // IN
  */
 
 static void
-SyncWaitQPanicOnFdLimit(int error) // IN
+SyncWaitQPanicOnFdLimit(int error)  // IN:
 {
    switch (error) {
    case EMFILE:
-      Panic("SyncWaitQ: Too many file descriptors are in use by the "
-            "process.\n");
+      Panic("%s: Too many file descriptors are in use by the process.\n",
+            __FUNCTION__);
       break;
 
    case ENFILE:
-      Panic("SyncWaitQ: The system limit on the total number of open files "
-            "has been reached.\n");
+      Panic("%s: The system limit on the total number of open files has "
+            "been reached.\n", __FUNCTION__);
       break;
 
    default:
@@ -303,8 +305,8 @@ SyncWaitQPanicOnFdLimit(int error) // IN
  */
 
 Bool
-SyncWaitQ_Init(SyncWaitQ *that,   // OUT
-	       char const *path)  // IN/OPT
+SyncWaitQ_Init(SyncWaitQ *that,   // OUT:
+	       char const *path)  // IN/OPT:
 {
    ASSERT(that);
    ASSERT(!path || path[0]);
@@ -352,6 +354,25 @@ SyncWaitQ_Init(SyncWaitQ *that,   // OUT
 /*
  *----------------------------------------------------------------------
  *
+ * SyncWaitQMakeName --
+ *
+ *       Computes the name of the named system object based on the
+ *       path of the wait queue and a sequence number
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+SyncWaitQMakeName(const char *path,  // IN:
+                  uint64 seq)        // IN:
+{
+   return Str_SafeAsprintf(NULL, "%s.%"FMT64"x", path, seq);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * SyncWaitQ_Destroy --
  *
  *      Destroys the system resources associated with the specified
@@ -365,7 +386,7 @@ SyncWaitQ_Init(SyncWaitQ *that,   // OUT
  */
 
 void
-SyncWaitQ_Destroy(SyncWaitQ *that)
+SyncWaitQ_Destroy(SyncWaitQ *that)  // IN:
 {
    if (!that->initialized) {
       return;
@@ -394,6 +415,7 @@ SyncWaitQ_Destroy(SyncWaitQ *that)
       /*
        * Named
        */
+
       uint64 seq;
       char *name;
 
@@ -417,16 +439,15 @@ SyncWaitQ_Destroy(SyncWaitQ *that)
  *      Add a waiter to the waitqueue.
  *
  * Results:
- *      On success, a pollable handle (fd on Posix and a HANDLE on Win32) that
- *         can be used by the caller to determine when the queue has been woken
- *         up.
- *      On failure, -1.
+ *      On success, a pollable handle (fd on Posix and a HANDLE on Win32)
+ *      that can be used by the caller to determine when the queue has been
+ *      woken up. On failure, -1.
  *
  *-----------------------------------------------------------------------------
  */
 
 PollDevHandle
-SyncWaitQ_Add(SyncWaitQ *that) // IN
+SyncWaitQ_Add(SyncWaitQ *that)  // IN:
 {
    uint64 seq;
    int ret = -1;
@@ -435,17 +456,20 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
    ASSERT(that);
    ASSERT(that->initialized);
 
-   // Hint that we are about to wait
+   /* Hint that we are about to wait */
    Atomic_Write(&that->waiters, TRUE);
    
-   // The following statement is the demarcation line for Add.  Any
-   // wakeup that happens after this line should wake up this waiter
-   // -- Ticho
+   /*
+    * The following statement is the demarcation line for Add.  Any
+    * wakeup that happens after this line should wake up this waiter
+    * -- Ticho
+    */
+
    seq = Atomic_Read64(&that->seq);
 
    /*
-    * It is OK to fail in the following 2 paths, because if the sequence number
-    * has changed, we manufacture our own fd, so any error is harmless.
+    * It is OK to fail in the following 2 paths, because if the sequence
+    * number has changed, we manufacture our own fd, so any error is harmless.
     */
 
    if (that->pathName == NULL) {
@@ -520,12 +544,18 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
       }
    }
 
-   // Check to see whether someone didn't wake us up while we were
-   // adding ourselves to the queue
+   /*
+    * Check to see whether someone didn't wake us up while we were
+    * adding ourselves to the queue
+    */
+
    if (seq != Atomic_Read64(&that->seq)) {
-      // Someone woke up the queue while we were adding ourselves to it, so
-      // just pretend that we were woken up too by returning a conjured up,
-      // woken up handle
+      /*
+       * Someone woke up the queue while we were adding ourselves to it, so
+       * just pretend that we were woken up too by returning a conjured up,
+       * woken up handle
+       */
+
       int fd[2];
 
       if (ret >= 0) {
@@ -554,6 +584,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
           * fd[0] now should be in a perpetual woken up state. It will be
           * closed when the client code calls SyncWaitQ_Remove() on it.
           */
+
 	 ret = fd[0];
       } else {
          close(fd[0]);
@@ -621,7 +652,7 @@ SyncWaitQ_Add(SyncWaitQ *that) // IN
 
 Bool
 SyncWaitQ_Remove(SyncWaitQ *that,       // Unused
-		 PollDevHandle handle)  // IN
+		 PollDevHandle handle)  // IN:
 {
    ASSERT(that);
    if (!that->initialized) {
@@ -661,7 +692,7 @@ SyncWaitQ_Remove(SyncWaitQ *that,       // Unused
  */
 
 Bool
-SyncWaitQ_WakeUp(SyncWaitQ *that) // IN
+SyncWaitQ_WakeUp(SyncWaitQ *that)  // IN:
 {
    ASSERT(that);
    ASSERT(that->initialized);
@@ -700,7 +731,7 @@ SyncWaitQ_WakeUp(SyncWaitQ *that) // IN
  */
 
 static Bool
-SyncWaitQWakeUpAnon(SyncWaitQ *that)    // IN
+SyncWaitQWakeUpAnon(SyncWaitQ *that)  // IN:
 {
    HandlesAsI64 rwHandles, wakeupHandles;
    int ret;
@@ -720,12 +751,15 @@ SyncWaitQWakeUpAnon(SyncWaitQ *that)    // IN
       return FALSE;
    }
 
-   // The following statement is the demarcation line for wakeup
-   //
-   // There is a possibility for suprious wakeups if the WaitQ_Add
-   // began executing after this line but before the inc of the sequence.
-   //
-   // We assume that spurious wakups are OK.
+   /*
+    * The following statement is the demarcation line for wakeup
+    *
+    * There is a possibility for suprious wakeups if the WaitQ_Add
+    * began executing after this line but before the inc of the sequence.
+    * 
+    * We assume that spurious wakups are OK.
+    */
+
    wakeupHandles.i64 = Atomic_ReadWrite64(&that->rwHandles, rwHandles.i64);
    Atomic_FetchAndInc64(&that->seq);
 
@@ -767,7 +801,7 @@ SyncWaitQWakeUpAnon(SyncWaitQ *that)    // IN
  */
 
 static Bool
-SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
+SyncWaitQWakeUpNamed(SyncWaitQ *that)  // IN:
 {
    uint64 seq;
    char *name;
@@ -775,7 +809,7 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
    int ret;
    int error;
 
-   // The following statement is the demarcation line for wakeup
+   /* The following statement is the demarcation line for wakeup */
    seq = Atomic_FetchAndInc64(&that->seq);
    name = SyncWaitQMakeName(that->pathName, seq);
 
@@ -798,11 +832,12 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
        * If error == ENXIO or ENOENT, then there are no waiters, so
        * the wakeup is considered successful.
        */
+
       if (error == ENXIO || error == ENOENT) {
          return TRUE;
       }
 
-      Warning("SyncWaitQWakeUpNamed: open failed, errno = %d\n", error);
+      Warning("%s: open failed, errno = %d\n", __FUNCTION__, error);
       return FALSE;
    }
 
@@ -816,32 +851,15 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)   // IN
           * just closed the read end of the pipe, we may get an EPIPE
           * error. That's OK, because the waiter was already woken up.
           */
+
          return TRUE;
       }
 
-      Warning("SyncWaitQWakeUpNamed: write failed, ret = %d, errno = %d\n",
+      Warning("%s: write failed, ret = %d, errno = %d\n", __FUNCTION__,
               ret, error);
+
       return FALSE;
    }
 
    return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * SyncWaitQMakeName --
- *
- *       Computes the name of the named system object based on the
- *       path of the wait queue and a sequence number
- *
- *----------------------------------------------------------------------
- */
-
-static char *
-SyncWaitQMakeName(const char *path, // IN
-                  uint64 seq)       // IN
-{
-   return Str_SafeAsprintf(NULL, "%s.%"FMT64"x", path, seq);
 }

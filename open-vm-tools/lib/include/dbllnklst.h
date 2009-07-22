@@ -67,17 +67,17 @@
 #ifndef _DBLLNKLST_H_
 #define _DBLLNKLST_H_
 
-#include "vm_basic_types.h"
-
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
+
+#include "vm_basic_types.h"
 
 
 #define DblLnkLst_OffsetOf(type, field) ((intptr_t)&((type *)0)->field)
 
 #define DblLnkLst_Container(addr, type, field) \
-   ((type *)((char *)addr - DblLnkLst_OffsetOf(type, field)))
+   ((type *)((char *)(addr) - DblLnkLst_OffsetOf(type, field)))
 
 #define DblLnkLst_ForEach(curr, head)                   \
       for (curr = (head)->next; curr != (head); curr = (curr)->next)
@@ -94,18 +94,199 @@ typedef struct DblLnkLst_Links {
 } DblLnkLst_Links;
 
 
-/* Functions for both circular and anchored lists. --hpreg */
+/*
+ * Functions
+ *
+ * DblLnkLst_LinkFirst and DblLnkLst_LinkLast are specific
+ * to anchored lists.  The rest are for both circular and
+ * anchored lists.
+ */
 
-void DblLnkLst_Init(DblLnkLst_Links *l);
-void DblLnkLst_Link(DblLnkLst_Links *l1, DblLnkLst_Links *l2);
-void DblLnkLst_Unlink(DblLnkLst_Links *l1, DblLnkLst_Links *l2);
-void DblLnkLst_Unlink1(DblLnkLst_Links *l);
-Bool DblLnkLst_IsLinked(DblLnkLst_Links const *l);
 
-/* Functions specific to anchored lists. --hpreg */
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_Init --
+ *
+ *    Initialize a member of a doubly linked list
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
 
-void DblLnkLst_LinkFirst(DblLnkLst_Links *head, DblLnkLst_Links *l);
-void DblLnkLst_LinkLast(DblLnkLst_Links *head, DblLnkLst_Links *l);
+static INLINE void
+DblLnkLst_Init(DblLnkLst_Links *l) // IN
+{
+   l->prev = l->next = l;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_Link --
+ *
+ *    Merge two doubly linked lists into one
+ *
+ *    The operation is commutative
+ *    The operation is inversible (its inverse is DblLnkLst_Unlink)
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+DblLnkLst_Link(DblLnkLst_Links *l1, // IN
+               DblLnkLst_Links *l2) // IN
+{
+   DblLnkLst_Links *tmp;
+
+   (tmp      = l1->prev)->next = l2;
+   (l1->prev = l2->prev)->next = l1;
+    l2->prev = tmp                 ;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_Unlink --
+ *
+ *    Split one doubly linked list into two
+ *
+ *    No check is performed: the caller must ensure that both members
+ *    belong to the same doubly linked list
+ *
+ *    The operation is commutative
+ *    The operation is inversible (its inverse is DblLnkLst_Link)
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+DblLnkLst_Unlink(DblLnkLst_Links *l1, // IN
+                 DblLnkLst_Links *l2) // IN
+{
+   DblLnkLst_Links *tmp;
+
+   tmp       = l1->prev            ;
+   (l1->prev = l2->prev)->next = l1;
+   (l2->prev = tmp     )->next = l2;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_Unlink1 --
+ *
+ *    Unlink an element from its list.
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+DblLnkLst_Unlink1(DblLnkLst_Links *l) // IN
+{
+   DblLnkLst_Unlink(l, l->next);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DblLnkLst_IsLinked --
+ *
+ *    Determines whether an element is linked with any other elements.
+ *
+ * Results:
+ *    TRUE if link is linked, FALSE otherwise.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+DblLnkLst_IsLinked(DblLnkLst_Links const *l) // IN
+{
+   /*
+    * A DblLnkLst_Links is either linked to itself (not linked) or linked to
+    * other elements in a list (linked).
+    */
+   return l->prev != l;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_LinkFirst --
+ *
+ *    Insert 'l' at the beginning of the list anchored at 'head'
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+DblLnkLst_LinkFirst(DblLnkLst_Links *head, // IN
+                    DblLnkLst_Links *l)    // IN
+{
+   DblLnkLst_Link(head->next, l);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DblLnkLst_LinkLast --
+ *
+ *    Insert 'l' at the end of the list anchored at 'head'
+ *
+ * Result
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+DblLnkLst_LinkLast(DblLnkLst_Links *head, // IN
+                   DblLnkLst_Links *l)    // IN
+{
+   DblLnkLst_Link(head, l);
+}
 
 
 #endif /* _DBLLNKLST_H_ */

@@ -77,4 +77,31 @@ void NetUtil_MonitorIPStart(void);
 void NetUtil_MonitorIPStop(void);
 #endif
 
+#if defined(linux)
+#   ifdef DUMMY_NETUTIL
+/*
+ * Dummy interface table to enable other tools'/libraries' unit tests.
+ */
+typedef struct {
+   int           ifIndex;
+   const char   *ifName;
+} NetUtilIfTableEntry;
+
+
+/*
+ * {-1, NULL}-terminated array of NetUtilIfTableEntry pointers.
+ *
+ * (Test) applications wishing to use the dummy NetUtil_GetIf{Index,Name}
+ * functions must define this variable somewhere.  It allows said apps
+ * to work with a priori knowledge of interface name <=> index mappings
+ * returned by said APIs.
+ */
+EXTERN NetUtilIfTableEntry netUtilIfTable[];
+#   endif // ifdef DUMMY_NETUTIL
+
+int   NetUtil_GetIfIndex(const char *ifName);
+char *NetUtil_GetIfName(int ifIndex);
+
+#endif // if defined(linux)
+
 #endif

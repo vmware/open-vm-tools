@@ -61,6 +61,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+
+/*
+ * Warn builders up front that GTK 2 is mandatory.
+ */
+#ifndef GTK2
+#   error UnityX11 depends on GTK+ 2.
+#endif
+
+
 /*
  * These defines are listed in the EWMH spec, but not available in any header file that I
  * know of.
@@ -398,11 +407,7 @@ uint32 UnityX11GetCurrentDesktop(UnityPlatform *up);
 void UnityX11SetCurrentDesktop(UnityPlatform *up, uint32 currentDesktop);
 Time UnityPlatformGetServerTime(UnityPlatform *up);
 
-#if GTK_MAJOR_VERSION >= 2
-#   define UnityPlatformProcessMainLoop() g_main_context_iteration(NULL, TRUE)
-#else
-#   define UnityPlatformProcessMainLoop() gtk_main_iteration()
-#endif
+#define UnityPlatformProcessMainLoop() g_main_context_iteration(NULL, TRUE)
 
 int UnityPlatformGetErrorCount(UnityPlatform *up);
 void UnityPlatformResetErrorCount(UnityPlatform *up);

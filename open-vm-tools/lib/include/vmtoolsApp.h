@@ -46,7 +46,7 @@
  * @param[in]  err      Error code. Must not be 0.
  */
 #define VMTOOLSAPP_ERROR(ctx, err) do {   \
-   g_assert((err) != 0);                  \
+   ASSERT((err) != 0);                    \
    (ctx)->errorCode = (err);              \
    g_main_loop_quit((ctx)->mainLoop);     \
 } while (0)
@@ -139,10 +139,26 @@
 
 
 /**
+ * This enum lists all API versions that different versions of vmtoolsd support.
+ * The "ToolsAppCtx" instance provided to plugins contains a "version" field
+ * which is a bit-mask of these values, telling plugins what features the
+ * container supports.
+ *
+ * Refer to a specific feature's documentation for which version of the API
+ * is needed for it to be supported.
+ */
+typedef enum {
+   TOOLS_CORE_API_V1    = 0x1,
+} ToolsCoreAPI;
+
+
+/**
  * Defines the context of a tools application. This data is provided by the
  * core services to applications when they're loaded.
  */
 typedef struct ToolsAppCtx {
+   /** Supported API versions. This is a bit-mask. */
+   ToolsCoreAPI      version;
    /** Name of the application. */
    const gchar      *name;
    /** Whether we're running under a VMware hypervisor. */
@@ -243,8 +259,78 @@ typedef enum {
     * Denotes a list of signals the application is interested in (type
     * ToolsPluginSignalCb).
     */
-   TOOLS_APP_SIGNALS    = 2
+   TOOLS_APP_SIGNALS    = 2,
+   /**
+    * Denotes an application provider (type ToolsAppProvider). This allows
+    * plugins to extend the functionality of vmtoolsd by adding new application
+    * types (that other plugins can hook into).
+    */
+   TOOLS_APP_PROVIDER   = 3,
 } ToolsAppType;
+
+
+/**
+ * Defines the registration data for an "application provider". Application
+ * providers allow plugins to hook into new application frameworks that will
+ * be then managed by vmtoolsd - for example, an HTTP server or a dbus endpoint.
+ *
+ * Application providers will be loaded during startup but not activated until
+ * at least one plugin provides registration data for that provider.
+ */
+typedef struct ToolsAppProvider {
+   /** A name describing the provider. */
+   const gchar   *name;
+   /**
+    * Application type. Optimally, new providers would request a new type to be
+    * added to the "official" ToolsAppType enum declared above, although that
+    * is not strictly necessary. Providers should at least try to choose an
+    * unused value.
+    */
+   ToolsAppType   regType;
+   /** Size of the registration structure for this provider. */
+   size_t         regSize;
+   /**
+    * Activation callback (optional). This is called when vmtoolsd detects that
+    * there is at least one application that needs to be registered with this
+    * provider.
+    *
+    * @param[in]  ctx   The application context.
+    * @param[in]  prov  The provider instance.
+    * @param[out] err   Where to store any error information.
+    */
+   void (*activate)(ToolsAppCtx *ctx, struct ToolsAppProvider *prov, GError **err);
+   /**
+    * Registration callback. This is called after "activate", to register an
+    * application provided by a plugin.
+    *
+    * @param[in]  ctx   The application context.
+    * @param[in]  prov  The provider instance.
+    * @param[in]  reg   The application registration data.
+    */
+   void (*registerApp)(ToolsAppCtx *ctx, struct ToolsAppProvider *prov, gpointer reg);
+   /**
+    * Shutdown callback (optional). Called when the service is being shut down.
+    * The provider is responsible for keeping track of registrations and
+    * cleaning them up during shutdown.
+    *
+    * @param[in]  ctx   The application context.
+    * @param[in]  prov  The provider instance.
+    */
+   void (*shutdown)(ToolsAppCtx *ctx, struct ToolsAppProvider *prov);
+   /**
+    * Debugging callback (optional). This callback is called when dumping the
+    * service state to the logs for debugging purposes.
+    *
+    * This callback is called once with a "NULL" reg, so that the provider can
+    * log its internal state, and then once for each registration struct
+    * provided by loaded plugins.
+    *
+    * @param[in]  ctx   The application context.
+    * @param[in]  prov  The provider instance.
+    * @param[in]  reg   The application registration data.
+    */
+   void (*dumpState)(ToolsAppCtx *ctx, struct ToolsAppProvider *prov, gpointer reg);
+} ToolsAppProvider;
 
 
 /**
@@ -284,11 +370,11 @@ typedef struct ToolsPluginSignalCb {
  * about all functionality exported by the application, and any events that the
  * application may be interested in.
  *
- * All fields are optional. When the plugin is shut down, if the @a regs field
- * is not NULL, it (and its element array) are freed with g_array_free().
+ * When the plugin is shut down, if the @a regs field is not NULL, it (and its
+ * element array) are freed with g_array_free().
  */
 typedef struct ToolsPluginData {
-   /** Name of the application. */
+   /** Name of the application (required). */
    char                      *name;
    /** List of features provided by the app. */
    GArray                    *regs;

@@ -47,6 +47,7 @@
 #include "util.h"
 #include "str.h"
 #include "fileIO.h"
+#include "vmstdio.h"
 #include "mntinfo.h"
 #include "posix.h"
 
@@ -110,22 +111,113 @@ typedef struct WiperDiskString {
 } WiperDiskString;
 #endif
 
-#if defined(__linux__) && !defined(N_PLAT_NLM)
-static int dmNumEntries;
-static int dmNumbers[WIPER_MAX_DM_NUMBERS];
-#endif
-
 
 /* Variables */
 static Bool initDone = FALSE;
 
 
 /* Local functions */
-static INLINE Bool WiperIsDiskDevice(MNTINFO *mnt, struct stat *s);
+static Bool WiperIsDiskDevice(MNTINFO *mnt, struct stat *s);
 static void WiperPartitionFilter(WiperPartition *item, MNTINFO *mnt);
 static unsigned char *WiperGetSpace(WiperState *state, uint64 *free, uint64 *total);
 static void WiperClean(WiperState *state);
-static INLINE Bool WiperIsDeviceMapper(struct stat *s);
+
+
+#if defined(__linux__)
+
+#define MAX_DISK_MAJORS       256   /* should be enough for now */
+#define NUM_PRESEEDED_MAJORS  5     /* must match the below */
+
+static unsigned int knownDiskMajor[MAX_DISK_MAJORS] = {
+   /*
+    * Pre-seed some major numbers we were comparing against before
+    * we started scanning /proc/devices.
+    */
+   3,    /* First MFM, RLL and IDE hard disk/CD-ROM interface.
+            Inside a VM, this is simply the First IDE hard
+            disk/CD-ROM interface because we don't support
+            others */
+   8,    /* SCSI disk devices */
+   22,   /* Second IDE hard disk/CD-ROM interface */
+   43,   /* Network block device */
+   259,  /* Disks in 2.6.27 */
+};
+
+static int numDiskMajors;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * WiperCollectDiskMajors --
+ *
+ *      Collects major numbers of devices that we considering "disks" and
+ *      may try to shrink.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Populates knownDiskMajor array and numDiskMajors counter for
+ *      subsequent use by linux version of WiperIsDiskDevice().
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+WiperCollectDiskMajors(void)
+{
+   const char diskDevNames[] = "|ide0|ide1|sd|md|nbd|device-mapper|blkext|";
+   const char blockSeparator[] = "Block devices:";
+   Bool seenBlockSeparator = FALSE;
+   char *buf;
+   int major;
+   char device[64];
+   FILE *f;
+
+   numDiskMajors = NUM_PRESEEDED_MAJORS;
+
+   f = Posix_Fopen("/proc/devices", "r");
+   if (!f) {
+      return;
+   }
+
+   while (StdIO_ReadNextLine(f, &buf, 0, NULL) == StdIO_Success) {
+
+      if (!seenBlockSeparator) {
+         if (!memcmp(buf, blockSeparator, sizeof(blockSeparator) - 1)) {
+            seenBlockSeparator = TRUE;
+         }
+      } else if (sscanf(buf, "%d %61s\n", &major, device + 1) == 2) {
+
+         device[0] = '|';
+         device[sizeof(device) - 2] = '\0';
+         Str_Strcat(device, "|", sizeof(device));
+
+         if (strstr(diskDevNames, device)) {
+            knownDiskMajor[numDiskMajors++] = major;
+         }
+      }
+
+      free(buf);
+
+      if (numDiskMajors >= MAX_DISK_MAJORS) {
+         break;
+      }
+   }
+
+   fclose(f);
+}
+
+#else
+
+static void
+WiperCollectDiskMajors(void)
+{
+}
+
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -144,7 +236,7 @@ static INLINE Bool WiperIsDeviceMapper(struct stat *s);
  */
 
 #if defined(sun) /* SunOS { */
-static INLINE Bool
+static Bool
 WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
                   struct stat *s)       // IN: stat(2) info of fs source
 {
@@ -185,30 +277,25 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
 
 #elif defined(__linux__) /* } linux { */
 
-static INLINE Bool
+static Bool
 WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
                   struct stat *s)       // IN: stat(2) info of fs source
 {
-   int majorN;
+   int majorN = major(s->st_rdev);
+   int i;
 
-   majorN = major(s->st_rdev);
-   if (! (   (majorN == 3)  /* First MFM, RLL and IDE hard disk/CD-ROM
-                              interface. Inside a VM, this is simply the First
-                              IDE hard disk/CD-ROM interface because we don't
-                              support others */
-             || (majorN == 22) /* Second IDE hard disk/CD-ROM interface */
-             || (majorN == 8)  /* SCSI disk devices */
-             || (majorN == 43) /* Network block device */
-             || (majorN == 259) /* Disks in 2.6.27 */)) {
-      return FALSE;
+   for (i = 0; i < numDiskMajors; i++) {
+      if (majorN == knownDiskMajor[i]) {
+         return TRUE;
+      }
    }
 
-   return TRUE;
+   return FALSE;
 }
 
 #elif defined(__FreeBSD__) || defined(__APPLE__) /* } FreeBSD { */
 
-static INLINE Bool
+static Bool
 WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
                   struct stat *s)       // IN: stat(2) info of fs source
 {
@@ -338,11 +425,7 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
 #endif
 
    if (!WiperIsDiskDevice(mnt, &s)) {
-      if (WiperIsDeviceMapper(&s)) {
-         item->comment = WIPER_DEVICE_MAPPER_STRING;
-      } else {
-         item->comment = "Not a disk device";
-      }
+      item->comment = "Not a disk device";
       return;
    }
 
@@ -483,6 +566,7 @@ SingleWiperPartition_Open(const char *mountPoint)      // IN
             goto error;
          }
 
+         WiperCollectDiskMajors();
          WiperPartitionFilter(p, mnt);
          (void) CLOSE_MNTFILE(fp);
 
@@ -602,6 +686,8 @@ WiperPartition_Open(void)
       Log("Unable to open mount file.\n");
       goto error;
    }
+
+   WiperCollectDiskMajors();
 
    while (GETNEXT_MNTINFO(fp, mnt)) {
       WiperPartition item;
@@ -996,73 +1082,6 @@ Wiper_Cancel(Wiper_State **s)      // IN/OUT
 Bool
 Wiper_Init(WiperInitData *clientData)
 {
-#if defined(__linux__) && !defined(N_PLAT_NLM)
-   FILE *fp;
-   int deviceNum;
-   char deviceName[256];
-
-   dmNumEntries = 0;
-   fp = Posix_Fopen("/proc/devices", "r");
-   if (fp) {
-      while (!feof(fp)) {
-         if (fscanf(fp, "%d %255s\n", &deviceNum, deviceName) == 2) {
-            if (Str_Strncmp(deviceName, "device-mapper", sizeof deviceName) == 0) {
-               dmNumbers[dmNumEntries++] = deviceNum;
-               if (dmNumEntries >= WIPER_MAX_DM_NUMBERS) {
-                  break;
-               }
-            }
-         } else if (fgets(deviceName, sizeof deviceName, fp) != deviceName) {
-            Warning("%s: Error reading device name from /proc/devices.", __func__);
-            break;
-         }
-      }
-
-      fclose(fp);
-   }
-#endif
-
    return initDone = TRUE;
 }
 
-
-/*
- *----------------------------------------------------------------------------
- *
- * WiperIsDeviceMapper --
- *
- *      Determines whether a partition's device id corresponds to
- *      the device-mapper device.
- *
- * Results:
- *      TRUE if the device number matches a device-mapper device number
- *      FALSE otherwise
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static INLINE Bool
-WiperIsDeviceMapper(struct stat *s)    // IN
-{
-#if defined(__linux__) && !defined(N_PLAT_NLM)
-   int majorNumber;
-   int i;
-
-   ASSERT(s);
-
-   majorNumber = major(s->st_rdev);
-
-   for (i = 0; i < dmNumEntries; ++i) {
-      if (majorNumber == dmNumbers[i]) {
-         return TRUE;
-      }
-   }
-
-   return FALSE;
-#else
-   return FALSE;
-#endif
-}

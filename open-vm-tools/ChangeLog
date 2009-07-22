@@ -1,3 +1,127 @@
+2009-07-22	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.07.17)
+
+	* configure.ac: fix detection of "dot" and its usage in the doxygen config
+	  file.
+
+	* configure.ac, libguestlib/Makefile.am, libguestlib/vmguestlib.pc.in:
+	  install vmguestlib headers and add new pkgconfig script.
+
+	* lib/dndGuest/dnd.{cc,hh}, lib/include/dndBase.h, vmware-user/dndUI.{cpp,h}:
+	  fix an issue where the DnD code would prevent drops to other windows in
+	  Unity mode, instead of just intercepting drops to the desktop.
+
+	* lib/dndGuest/dnd.{cc,hh}, lib/dndGuest/dndRpc.hh, lib/dndGuest/dndRpcV3.cc,
+	  lib/include/dndBase.h, vmware-user/dndUI.{cpp,h}: fix an issue where the
+	  host Unity code would cause an undesired drop event.
+
+	* lib/dndGuest/dnd.{cc,hh}, lib/dndGuest/dndRpc.hh, lib/dndGuest/dndRpcV3.cc,
+	  lib/include/dndBase.h: cleanup mouse simulation code, and fix an issue
+	  where a drag would be canceled if the contents were dragged out of a guest
+	  and then back in.
+
+	* lib/dndGuest/dndRpcV3.cc, vmware-user/copyPasteDnDWrapper.cpp,
+	  vmware-user/dndUI.cpp, vmware-user/dndUI.h, vmware-user/dragDetWnd.cpp,
+	  vmware-user/dragDetWnd.h: several DnD fixes; make the DnD code behave
+	  more like other GTK applications (based on analysing the flow of signals
+	  on a test widget), and get rid of one of the detection windows, merging
+	  both the Unity and non-Unity windows. Also, some code refactoring.
+
+	* lib/ghIntegration/*, lib/guestRpc/*, lib/include/guestCaps.h,
+	  lib/include/unityCommon.h: add stubs for a few new GHI functions (setting
+	  window focus, tray icon updates and enhanced app info) - currently only
+	  implemented on Win32.
+
+	* lib/ghIntegration/ghIntegrationX11.c: examine WM_CLASS when determining
+	  which DE Tools are running in. The previous code was failing to show a
+	  few entries set as "OnlyShowIn=xxx" because checking WM_NAME wasn't enough
+	  to properly detect the desktop environment in certain cases.
+
+	* lib/guestApp/guestAppPosixX11.c: use gconftool-2 to detect the user's
+	  browser, since gnome-open fails to open "file://" URLs which contain query
+	  strings. Also, use "kde-open" when running under KDE.
+
+	* lib/guestInfo/guestInfo.c, lib/include/wiper.h, lib/wiper/wiperPosix.c:
+	  allow shrinking LVM partitions.
+
+	* lib/include/appUtil.h: partial refactoring of icon retrieval code.
+
+	* lib/include/dbllnklst.h, lib/misc/dbllnklst.c: inline linked list
+	  functions.
+
+	* lib/include/guest_os.h, lib/misc/hostinfoPosix.c: add a couple of
+	  distros to the known distro list.
+
+	* lib/include/netutil.h, lib/netUtil/netUtilLinux.c: add Linux interface
+	  name, index lookup routines.
+
+	* lib/include/system.h, lib/system/systemLinux.c,
+	  services/plugins/timeSync/timeSync.c: fixes a few bugs in the backwards
+	  time sync code, mostly due to unit mismatches.
+
+	* lib/include/unityWindowTracker.h, lib/unity/unity.c,
+	  lib/unity/unityPlatform.h, lib/unity/unityPlatformX11Window.c,
+	  lib/unityWindowTracker/unityWindowTracker.c: expose two new properties in
+	  the window tracker to save an RPC to retrieve those properties.
+
+	* lib/include/vmtoolsApp.h, services/vmtoolsd/mainLoop.c,
+	  services/vmtoolsd/pluginMgr.c, services/vmtoolsd/toolsCoreInt.h: add
+	  support for "application providers", which allow plugins to add support to
+	  new kinds of application frameworks through vmtoolsd.
+
+	* lib/unity/unityPlatformX11.c: only enable GIO channels when Unity is
+	  actually active.
+
+	* lib/unity/*: cleanup old GTK1 code.
+
+	* libvmtools/vmtoolsConfig.c: don't complain if config file is empty.
+
+	* modules/linux/dkms.conf, modules/linux/dkms.sh: fix dkms.conf, and provide
+	  a script to create a dkms tree from open-vm-tools.
+
+	* modules/linux/shared/vmci_queue_pair.h, modules/linux/vmci/vmciKernelIf.c:
+	  remove two (now) unneeded functions.
+
+	* modules/linux/vmhgfs/*: code cleanups, properly initialize the list head,
+	  and allow receives to timeout so that hibernation works.
+
+	* modules/linux/vmxnet/vmxnet.c, modules/linux/vmxnet3/vmxnet3_drv.c: fix
+	  drivers for kernels 2.6.29+.
+
+	* modules/linux/vmxnet3/*: add shared memory support for faster communication
+	  between user space and the device backend; this doesn't affect the regular
+	  driver functionality, but is used by some VMware code not part of Tools.
+
+	* modules/linux/vsock/*: fix an issue where it was possible for users to send
+	  VMCI datagrams directly to the hypervisor.
+
+	* scripts/common/vmware-user.desktop: work around a bug in KDE where desktop
+	  files with "NoDisplay" fail to autostart.
+
+	* scripts/freebsd/suspend-vm-default: use netif to bring down interfaces,
+	  since dhclient doesn't understand "-r" in the default install.
+
+	* services/plugins/vmbackup/*: add some new code used by enhancements being
+	  done in the Win32 version of the plugin.
+
+	* services/vmtoolsd/mainPosix.c: fix running in background when executing
+	  vmtoolsd while relying on PATH.
+
+	* services/vmtoolsd/Makefile.am: point to the correct plugin install
+	  directory.
+
+	* toolbox/*: better command line handling in the CLI utility, plus some code
+	  cleanup.
+
+	* vmware-user/copyPaste.c, vmware-user/copyPasteDnDWrapper.cpp,
+	  vmware-user/copyPasteDnDWrapper.h, vmware-user/dnd.c: properly unregister
+	  RPCs to avoid multiple registrations (and the ensuing ASSERT) in certain
+	  cases.
+
+	* vmware-user/copyPasteUI.{cpp,h}: change way data is retrieved from the
+	  clipboard, using the gtk+ clipboard wait APIs (which turn out to be more
+	  reliable than the previous approach).
+
 2009-06-18	Marcelo Vanzin	 <mvanzin@vmware.com>
 	* Resync with internal trunk (2009.06.15)
 

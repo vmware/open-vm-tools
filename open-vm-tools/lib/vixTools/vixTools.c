@@ -3248,9 +3248,26 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    char *destPtr;
-#ifdef linux
    char *endDestPtr;
+#if defined(_WIN32) || defined(linux)
    VixCommandListFileSystemsRequest *lfReq = (VixCommandListFileSystemsRequest *) requestMsg;
+   const char *listFileSystemsFormatString = "<filesystem>"
+                                             "<name>%s</name>"
+                                             "<size>%"FMT64"u</size>"
+                                             "<freeSpace>%"FMT64"u</freeSpace>"
+                                             "<type>%s</type>"
+                                             "</filesystem>";
+#endif
+#if defined(_WIN32)
+   Unicode *driveList = NULL;
+   int numDrives = -1;
+   uint64 freeBytesToUser = 0;
+   uint64 totalBytesToUser = 0;
+   uint64 freeBytes = 0;
+   Unicode fileSystemType;
+   int i;
+#endif
+#ifdef linux
    MNTHANDLE fp;
    DECLARE_MNTINFO(mnt);
    const char *mountfile = NULL;
@@ -3260,6 +3277,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
 
    destPtr = resultBuffer;
    *destPtr = 0;
+   endDestPtr = resultBuffer + sizeof(resultBuffer);
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -3268,11 +3286,57 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    impersonatingVMWareUser = TRUE;
 
 #if defined(_WIN32)
-   // XXX TBD
-   err = VIX_E_NOT_SUPPORTED;
-#elif defined(linux)
+   numDrives = Win32U_GetLogicalDriveStrings(&driveList);
+   if (-1 == numDrives) {
+      Warning("unable to get drive listing: windows error code %d\n",
+              GetLastError());
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
 
-   endDestPtr = resultBuffer + sizeof(resultBuffer);
+   for (i = 0; i < numDrives; i++) {
+      /*
+       * Only add to the list if it is a local drive or
+       * VIX_FILESYSTEMS_HIDE_NETWORK is not set
+       */
+      if ((DRIVE_REMOTE != Win32U_GetDriveType(driveList[i])) ||
+          !(lfReq->options & VIX_FILESYSTEMS_HIDE_NETWORK)) {
+
+         if (!Win32U_GetDiskFreeSpaceEx(driveList[i],
+                                        (PULARGE_INTEGER) &freeBytesToUser,
+                                        (PULARGE_INTEGER) &totalBytesToUser,
+                                        (PULARGE_INTEGER) &freeBytes)) {
+            /*
+             * If we encounter an error, just return 0 values for the space info
+             */
+            freeBytesToUser = 0;
+            totalBytesToUser = 0;
+            freeBytes = 0;
+
+            Warning("unable to get drive size info: windows error code %d\n",
+                    GetLastError());
+         }
+
+         // If it fails, fileSystemType will be NULL
+         Win32U_GetVolumeInformation(driveList[i],
+                                     NULL,
+                                     NULL,
+                                     NULL,
+                                     NULL,
+                                     &fileSystemType);
+
+         destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
+                                listFileSystemsFormatString,
+                                driveList[i],
+                                totalBytesToUser,
+                                freeBytesToUser,
+                                fileSystemType);
+
+         Unicode_Free(fileSystemType);
+      }
+   }
+
+#elif defined(linux)
 
    if (lfReq->options & VIX_FILESYSTEMS_HIDE_NETWORK) {
       mountfile = "/etc/fstab";
@@ -3299,12 +3363,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
       size = (uint64) statfsbuf.f_blocks * (uint64) statfsbuf.f_bsize;
       freeSpace = (uint64) statfsbuf.f_bfree * (uint64) statfsbuf.f_bsize;
       destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             "<filesystem>"
-                             "<name>%s</name>"
-                             "<size>%"FMT64"u</size>"
-                             "<freeSpace>%"FMT64"u</freeSpace>"
-                             "<type>%s</type>"
-                             "</filesystem>",
+                             listFileSystemsFormatString,
                              MNTINFO_NAME(mnt),
                              size,
                              freeSpace,
@@ -3317,6 +3376,14 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
 #endif
 
 abort:
+#if defined(_WIN32)
+   for (i = 0; i < numDrives; i++) {
+      Unicode_Free(driveList[i]);
+   }
+
+   free(driveList);
+#endif
+
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }

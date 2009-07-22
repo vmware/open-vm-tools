@@ -90,6 +90,7 @@
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(heci), \
+   LOGLEVEL_VAR(vmiopluginlib), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -214,6 +215,7 @@
    LOGLEVEL_VAR(pvfslib), \
    LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(button), \
+   LOGLEVEL_VAR(util), \
    LOGLEVEL_VAR(largepage),
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

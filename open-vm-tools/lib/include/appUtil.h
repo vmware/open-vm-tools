@@ -25,11 +25,28 @@
 #ifndef _APP_UTIL_H_
 #define _APP_UTIL_H_
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 #include "vmware.h"
 #include "guestCaps.h"
 
+#ifdef __cplusplus
+};
+#endif // __cplusplus
+
 
 #ifdef _WIN32
+
+/* The maximum number of icons that can be retrieved in a single query. */
+#define APPUTIL_MAX_NUM_ICONS 16
+
+/* Predefined (N x N pixels) icon sizes */
+#define APPUTIL_ICON_SMALL 16
+#define APPUTIL_ICON_BIG 32
+
 
 typedef struct _AppUtilIconEntry {
    uint32 width;
@@ -49,6 +66,10 @@ typedef enum {
    APPUTIL_LOWER_LEFT_DIB = 1,     // the origin is the lower-left corner of the bitmap
 } AppUtilBitmapOrigin;
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 Bool AppUtil_GetIconDataByHandle(HICON hIcon,
                                  AppUtilBitmapOrigin origin,
                                  AppUtilIconEntry *icon);
@@ -66,6 +87,23 @@ HICON AppUtil_GetWindowIcon(HWND hwnd,
 
 void AppUtil_BuildGlobalApplicationList(void);
 char *AppUtil_ActionURIForCommandLine(const WCHAR *commandLineUtf16);
+Bool AppUtil_GetLinkIconData(const TCHAR *path,
+                             AppUtilIconInfo *iconInfo,
+                             AppUtilBitmapOrigin dibOrientation);
+Bool AppUtil_GetAppIconData(HWND hwnd,
+                            const TCHAR *path,
+                            AppUtilIconInfo *iconInfo,
+                            AppUtilBitmapOrigin dibOrientation);
+
+Bool
+AppUtil_GetIconIndexAndLocationForShortcut(const TCHAR *shortcut,
+                                           int maxLen,
+                                           TCHAR *iconFile,
+                                           int *iconIndex);
+
+#ifdef __cplusplus
+};
+#endif // __cplusplus
 
 #endif //_WIN32
 

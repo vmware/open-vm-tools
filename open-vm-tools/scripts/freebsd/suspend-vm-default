@@ -33,17 +33,11 @@ if [ -d "$scriptsdir" ]; then
 fi
 
 # Release the IP if DHCP is used.
-case "`uname -r`" in
-6.*) # 'PID dhclient: em0' => 'em0'
-     for intf in `pgrep -fl dhclient | cut -d" " -f3 | sort | uniq`; do
-        ifconfig "$intf" down
-        ifconfig "$intf" delete
-     done
-     ;;
-*)   # Have dhclient running => release lease
-     ps auxw | grep -q dhclient
-     if [ "$?" -eq 0 ]; then
-        dhclient -r
-     fi
-     ;;
-esac
+for intf in `pgrep -fl dhclient | cut -d" " -f3 | sort | uniq`; do
+   if [ -x /etc/rc.d/netif ]; then
+      /etc/rc.d/netif stop "$intf"
+   else
+      ifconfig "$intf" down
+      ifconfig "$intf" delete
+   fi
+done

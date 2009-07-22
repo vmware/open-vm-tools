@@ -289,15 +289,25 @@ int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 struct PageStoreAttachInfo;
 struct VMCIQueue;
 
-int VMCIHost_GetUserMemory(struct PageStoreAttachInfo *attach);
-void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach);
-int VMCIHost_FinishAttach(struct PageStoreAttachInfo *attach,
-                          struct VMCIQueue *produceQ,
-			  struct VMCIQueue *detachQ);
-void VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach,
-                             struct VMCIQueue *produceQ,
-                             struct VMCIQueue *detachQ);
-#endif
+int VMCIHost_GetUserMemory(struct PageStoreAttachInfo *attach,
+                           struct VMCIQueue *produceQ,
+                           struct VMCIQueue *detachQ);
+void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach,
+                                struct VMCIQueue *produceQ,
+                                struct VMCIQueue *detachQ);
+
+#ifdef _WIN32
+/*
+ * Special routine used on the Windows platform to save a queue when
+ * its backing memory goes away.
+ */
+
+void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
+                           struct VMCIQueue *produceQ,
+                           struct VMCIQueue *detachQ,
+                           const uint64 produceQSize);
+#endif // _WIN32
+#endif // !VMX86_TOOLS && !VMKERNEL
 
 
 #endif // _VMCI_KERNEL_IF_H_

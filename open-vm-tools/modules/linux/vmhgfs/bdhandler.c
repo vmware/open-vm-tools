@@ -160,11 +160,10 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
    ret = HgfsBd_Dispatch(channel->priv, HGFS_REQ_PAYLOAD(req), &payloadSize,
                          &replyPacket);
    if (ret == 0) {
+      LOG(8, ("VMware hgfs: %s: Backdoor reply received.\n", __func__));
       /* Request sent successfully. Copy the reply and wake the client. */
       ASSERT(replyPacket);
       HgfsCompleteReq(req, replyPacket, payloadSize);
-      LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendUnsentReqs: Backdoor "
-              "reply received\n"));
    } else {
       channel->priv = NULL;
       channel->status = HGFS_CHANNEL_NOTCONNECTED;

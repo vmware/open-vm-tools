@@ -221,7 +221,7 @@ Unity_IsSupported(void)
  *
  * Unity_IsActive --
  *
- *      Determine whether we are in Unity mode at this moment. 
+ *      Determine whether we are in Unity mode at this moment.
  *
  * Results:
  *      TRUE if Unity is active.
@@ -484,13 +484,13 @@ Unity_Exit(void)
    if (unity.isEnabled) {
       /* Hide full-screen detection window for Unity DnD. */
       UnityPlatformUpdateDnDDetWnd(unity.up, FALSE);
-   
+
       /* Kill Unity helper threads. */
       UnityPlatformKillHelperThreads(unity.up);
-   
+
       /* Restore previously saved user settings. */
       UnityPlatformRestoreSystemSettings(unity.up);
-      
+
       unity.isEnabled = FALSE;
    }
 }
@@ -712,7 +712,9 @@ UnityTcloGetWindowPath(char const **result,     // OUT
 
 {
    UnityWindowId window;
-   DynBuf *buf = &gTcloUpdate;
+   DynBuf windowPathUtf8;
+   DynBuf execPathUtf8;
+
    unsigned int index = 0;
    Bool ret = TRUE;
 
@@ -734,20 +736,34 @@ UnityTcloGetWindowPath(char const **result,     // OUT
     * dynbuf passed in does not contain any existing data that needs to be appended to,
     * so this code should continue to accomodate that assumption.
     */
-   DynBuf_SetSize(buf, 0);
-   if (!UnityPlatformGetWindowPath(unity.up, window, buf)) {
+   DynBuf_Destroy(&gTcloUpdate);
+   DynBuf_Init(&gTcloUpdate);
+   DynBuf_Init(&windowPathUtf8);
+   DynBuf_Init(&execPathUtf8);
+   if (!UnityPlatformGetWindowPath(unity.up, window, &windowPathUtf8, &execPathUtf8)) {
       Debug("UnityTcloGetWindowInfo: Could not get window path.\n");
-      return RpcIn_SetRetVals(result, resultLen,
-                              "Could not get window path",
-                              FALSE);
+      ret = RpcIn_SetRetVals(result, resultLen,
+                             "Could not get window path",
+                             FALSE);
+      goto exit;
    }
+
+   /*
+    * Construct the buffer holding the result. Note that we need to use gTcloUpdate
+    * here to avoid leaking during the RPC handler.
+    */
+   DynBuf_Copy(&windowPathUtf8, &gTcloUpdate);
+   DynBuf_Append(&gTcloUpdate, DynBuf_Get(&execPathUtf8), DynBuf_GetSize(&execPathUtf8));
 
    /*
     * Write the final result into the result out parameters and return!
     */
-   *result = (char *)DynBuf_Get(buf);
-   *resultLen = DynBuf_GetSize(buf);
+   *result = (char *)DynBuf_Get(&gTcloUpdate);
+   *resultLen = DynBuf_GetSize(&gTcloUpdate);
 
+exit:
+   DynBuf_Destroy(&windowPathUtf8);
+   DynBuf_Destroy(&execPathUtf8);
    return ret;
 }
 
@@ -1117,11 +1133,23 @@ UnityUpdateCallbackFn(void *param,          // IN: dynbuf
    int i, n, count = 0;
    RegionPtr region;
    char *titleUtf8 = NULL;
+   char *windowPathUtf8 = "";
+   char *execPathUtf8 = "";
 
    switch (update->type) {
 
    case UNITY_UPDATE_ADD_WINDOW:
-      Str_Sprintf(data, sizeof data, "add %u", update->u.addWindow.id);
+      if (DynBuf_GetSize(&update->u.addWindow.windowPathUtf8) > 0) {
+         windowPathUtf8 = DynBuf_Get(&update->u.addWindow.windowPathUtf8);
+      }
+      if (DynBuf_GetSize(&update->u.addWindow.execPathUtf8) > 0) {
+         execPathUtf8 = DynBuf_Get(&update->u.addWindow.execPathUtf8);
+      }
+
+      Str_Sprintf(data, sizeof data, "add %u windowPath=%s execPath=%s",
+                  update->u.addWindow.id,
+                  windowPathUtf8,
+                  execPathUtf8);
       DynBuf_AppendString(buf, data);
       break;
 
@@ -1936,14 +1964,14 @@ error:
  *
  * UnityUpdateState --
  *
- *     Communicate unity state changes to vmx.  
+ *     Communicate unity state changes to vmx.
  *
  * Results:
  *     TRUE if everything is successful.
  *     FALSE otherwise.
  *
  * Side effects:
- *     None. 
+ *     None.
  *
  *----------------------------------------------------------------------------
  */

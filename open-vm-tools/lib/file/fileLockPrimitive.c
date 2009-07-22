@@ -95,8 +95,8 @@ typedef struct parse_table
  */
 
 static int
-Sleeper(LockValues *myValues, // IN/OUT:
-        uint32 *loopCount)    // IN/OUT:
+Sleeper(LockValues *myValues,  // IN/OUT:
+        uint32 *loopCount)     // IN/OUT:
 {
    uint32 msecSleepTime;
 
@@ -266,11 +266,11 @@ FileLockParseArgs(char *argv[],       // IN:
 #define FL_MAX_ARGS 16
 
 int
-FileLockMemberValues(ConstUnicode lockDir,     // IN:
-                     ConstUnicode fileName,    // IN:
-                     char *buffer,             // OUT:
-                     uint32 requiredSize,      // IN:
-                     LockValues *memberValues) // OUT:
+FileLockMemberValues(ConstUnicode lockDir,      // IN:
+                     ConstUnicode fileName,     // IN:
+                     char *buffer,              // OUT:
+                     uint32 requiredSize,       // IN:
+                     LockValues *memberValues)  // OUT:
 {
    uint32 argc = 0;
    FILELOCK_FILE_HANDLE handle;
@@ -465,7 +465,7 @@ bail:
  */
 
 Bool
-FileLockValidName(ConstUnicode fileName) // IN:
+FileLockValidName(ConstUnicode fileName)  // IN:
 {
    uint32 i;
 
@@ -886,7 +886,7 @@ Scanner(ConstUnicode lockDir,    // IN:
       FileSleeper(FILELOCK_PROGRESS_SAMPLE); // relax
    }
 
-   // Clean up anything still on the list; they are no longer important
+   /* Clean up anything still on the list; they are no longer important */
    while (myValues->lockList != NULL) {
       ptr = myValues->lockList;
       myValues->lockList = ptr->next;
@@ -990,10 +990,10 @@ FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
  */
 
 static int
-WaitForPossession(ConstUnicode lockDir,     // IN:
-                  ConstUnicode fileName,    // IN:
-                  LockValues *memberValues, // IN:
-                  LockValues *myValues)     // IN:
+WaitForPossession(ConstUnicode lockDir,      // IN:
+                  ConstUnicode fileName,     // IN:
+                  LockValues *memberValues,  // IN:
+                  LockValues *myValues)      // IN:
 {
    int err = 0;
 
@@ -1116,8 +1116,8 @@ NumberScan(ConstUnicode lockDir,      // IN:
  */
 
 static uint32
-SimpleRandomNumber(const char *machineID,   // IN:
-                   const char *executionID) // IN:
+SimpleRandomNumber(const char *machineID,    // IN:
+                   const char *executionID)  // IN:
 {
    static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
    char *context;
@@ -1675,10 +1675,10 @@ bail:
  */
 
 static int
-ScannerVMX(ConstUnicode lockDir,     // IN:
-           ConstUnicode fileName,    // IN:
-           LockValues *memberValues, // IN:
-           LockValues *myValues)     // IN/OUT:
+ScannerVMX(ConstUnicode lockDir,      // IN:
+           ConstUnicode fileName,     // IN:
+           LockValues *memberValues,  // IN:
+           LockValues *myValues)      // IN/OUT:
 {
    ASSERT(lockDir);
    ASSERT(fileName);

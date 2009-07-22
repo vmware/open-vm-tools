@@ -38,6 +38,7 @@
 #include "strutil.h"
 #include "unityCommon.h"
 #include "util.h"
+#include "xdrutil.h"
 
 
 /*
@@ -102,6 +103,31 @@ static Bool GHITcloTrashFolderAction(RpcInData *data);
 static Bool GHITcloTrashFolderGetIcon(RpcInData *data);
 
 static Bool GHIUpdateHost(GHIProtocolHandlerList *handlers);
+
+/*
+ * Wrapper function for the "ghi.guest.trayIcon.sendEvent" RPC.
+ */
+static Bool GHITcloTrayIconSendEvent(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.trayIcon.startUpdates" RPC.
+ */
+static Bool GHITcloTrayIconStartUpdates(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.trayIcon.stopUpdates" RPC.
+ */
+static Bool GHITcloTrayIconStopUpdates(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.setFocusedWindow" RPC.
+ */
+static Bool GHITcloSetFocusedWindow(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.getExecInfoHash" RPC.
+ */
+static Bool GHITcloGetExecInfoHash(RpcInData *data);
 
 DynBuf gTcloUpdate;
 static GHIPlatform *ghiPlatformData;
@@ -289,6 +315,16 @@ GHI_InitBackdoor(struct RpcIn *rpcIn)   // IN
                                GHITcloTrashFolderAction, NULL);
       RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRASH_FOLDER_GET_ICON,
                                GHITcloTrashFolderGetIcon, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRAY_ICON_SEND_EVENT,
+                               GHITcloTrayIconSendEvent, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRAY_ICON_START_UPDATES,
+                               GHITcloTrayIconStartUpdates, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRAY_ICON_STOP_UPDATES,
+                               GHITcloTrayIconStopUpdates, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_SET_FOCUSED_WINDOW,
+                               GHITcloSetFocusedWindow, NULL);
+      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_GET_EXEC_INFO_HASH,
+                               GHITcloGetExecInfoHash, NULL);
    }
 }
 
@@ -1352,5 +1388,360 @@ exit:
     * buffer will be freed by the RPC layer.
     */
    DynXdr_Destroy(&xdrs, !ret);
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+/**
+ * @brief Send a mouse or keyboard event to a tray icon.
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloTrayIconSendEvent(RpcInData *data)
+{
+   Bool ret = FALSE;
+   XDR xdrs;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+   ASSERT(data->argsSize > 0);
+
+   if (!(data && data->name && data->argsSize > 0)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /*
+    * Build an XDR stream from the argument data.
+    *
+    * Note that the argument data begins with args + 1 since there is a space
+    * between the RPC name and the XDR serialization.
+    */
+   xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
+
+   /* Call the platform implementation of our RPC. */
+   ret = GHIPlatformTrayIconSendEvent(ghiPlatformData, &xdrs);
+
+   /* Destroy the XDR stream. */
+   xdr_destroy(&xdrs);
+
+   if (ret == FALSE) {
+      Debug("%s: RPC failed.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "RPC failed", FALSE);
+      goto exit;
+   }
+
+   /*
+    * We don't have any out parameters, so we write empty values into the
+    * result fields of the RpcInData structure.
+    */
+   RPCIN_SETRETVALS(data, "", FALSE);
+
+   /* Set our return value and return to the caller. */
+   ret = TRUE;
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+/**
+ * @brief Start sending tray icon updates to the VMX.
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloTrayIconStartUpdates(RpcInData *data)
+{
+   Bool ret = FALSE;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+
+   if (!(data && data->name)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   if (!GHIPlatformTrayIconStartUpdates(ghiPlatformData)) {
+      Debug("%s: Failed to start tray icon updates.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Failed to start tray icon updates", FALSE);
+      goto exit;
+   }
+
+   /*
+    * Write the result into the RPC out parameters.
+    */
+   ret = RPCIN_SETRETVALS(data, "", TRUE);
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+/**
+ * @brief Stop sending tray icon updates to the VMX.
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloTrayIconStopUpdates(RpcInData *data)
+{
+   Bool ret = FALSE;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+
+   if (!(data && data->name)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   if (!GHIPlatformTrayIconStopUpdates(ghiPlatformData)) {
+      Debug("%s: Failed to start tray icon updates.\n", __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Failed to start tray icon updates", FALSE);
+      goto exit;
+   }
+
+   /*
+    * Write the result into the RPC out parameters.
+    */
+   ret = RPCIN_SETRETVALS(data, "", TRUE);
+
+exit:
+   return ret;
+}
+
+
+/**
+ * @brief Send the ghi.guest.trayIcon.update RPC to the host.
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHISendTrayIconUpdateRpc(XDR *xdrs)
+{
+   Bool ret = FALSE;
+   DynBuf outBuf;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(xdrs);
+   if (NULL == xdrs) {
+      Debug("%s: Invalid parameter.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   /* Append our RPC name and a space to the DynBuf. */
+   DynBuf_Init(&outBuf);
+   if (!DynBuf_Append(&outBuf,
+                      GHI_RPC_TRAY_ICON_UPDATE,
+                      strlen(GHI_RPC_TRAY_ICON_UPDATE))) {
+      Debug("%s: Failed to append RPC name to DynBuf.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   if (!DynBuf_Append(&outBuf, " ", 1)) {
+      Debug("%s: Failed to append space to DynBuf.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   /* Append the XDR serialized data to the DynBuf. */
+   if (!DynBuf_Append(&outBuf, DynXdr_Get(xdrs), xdr_getpos(xdrs)) )
+   {
+      Debug("%s: Failed to append XDR serialized data to DynBuf.\n",
+            __FUNCTION__);
+      goto exit;
+   }
+
+   if (!RpcOut_SendOneRaw(DynBuf_Get(&outBuf),
+                          DynBuf_GetSize(&outBuf),
+                          NULL,
+                          NULL)) {
+      Debug("%s: Failed to send RPC to host!\n", __FUNCTION__);
+      goto exit;
+   }
+
+   ret = TRUE;
+
+exit:
+   DynBuf_Destroy(&outBuf);
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+/**
+ * @brief Set the specified window to be focused (NULL or zero window ID indicates
+ * that no window should be focused).
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloSetFocusedWindow(RpcInData *data)
+{
+   Bool ret = FALSE;
+   XDR xdrs;
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+
+   if (!(data && data->name)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /*
+    * Build an XDR stream from the argument data.
+    *
+    * Note that the argument data begins with args + 1 since there is a space
+    * between the RPC name and the XDR serialization.
+    */
+   xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
+
+   /* Call the platform implementation of our RPC. */
+   ret = GHIPlatformSetFocusedWindow(ghiPlatformData, &xdrs);
+
+   /* Destroy the XDR stream. */
+   xdr_destroy(&xdrs);
+
+   /*
+    * Write the result into the RPC out parameters.
+    */
+   ret = RPCIN_SETRETVALS(data, "", TRUE);
+
+exit:
+   return ret;
+}
+
+
+/**
+ * @brief Get the hash (or timestamp) of information returned by
+ * GHITcloGetBinaryInfo.
+ *
+ * @param[in] data Pointer to the RpcInData structure for the RPC.
+ *
+ * @retval TRUE  The RPC succeeded.
+ * @retval FALSE The RPC failed.
+ */
+
+Bool
+GHITcloGetExecInfoHash(RpcInData *data)
+{
+   Bool ret = TRUE;
+   GHIGetExecInfoHashRequest requestMsg;
+   GHIGetExecInfoHashReply replyMsg;
+   XDR xdrs;
+
+   memset(&requestMsg, 0, sizeof requestMsg);
+   memset(&replyMsg, 0, sizeof replyMsg);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!(data && data->name && data->args)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /*
+    * Deserialize the XDR data. Note that the data begins with args + 1 since
+    * there is a space between the RPC name and the XDR serialization.
+    */
+   if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
+                            xdr_GHIGetExecInfoHashRequest, &requestMsg)) {
+      Debug("%s: Failed to deserialize data\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
+      goto exit;
+   }
+
+   /*
+    * Call the platform implementation of the RPC handler.
+    */
+   if (!GHIPlatformGetExecInfoHash(ghiPlatformData, &requestMsg, &replyMsg)) {
+      ret = RPCIN_SETRETVALS(data, "Could not get executable info hash.", FALSE);
+      goto exit;
+   }
+
+   /*
+    * Serialize the result data and return.
+    */
+   if (NULL == DynXdr_Create(&xdrs)) {
+      Debug("%s: Failed to create DynXdr structure.\n", __FUNCTION__);
+      ret =  RPCIN_SETRETVALS(data, "Failed to create XDR structure", FALSE);
+      goto exit;
+   }
+
+   if (!xdr_GHIGetExecInfoHashReply(&xdrs, &replyMsg)) {
+      ret = RPCIN_SETRETVALS(data, "Failed to serialize data", FALSE);
+      DynXdr_Destroy(&xdrs, TRUE);
+      goto exit;
+   }
+
+   data->result = DynXdr_Get(&xdrs);
+   data->resultLen = xdr_getpos(&xdrs);
+   data->freeResult = TRUE;
+
+   /*
+    * Destroy the serialized XDR structure but leave the data buffer alone
+    * since it will be freed by the RpcIn layer.
+    */
+   DynXdr_Destroy(&xdrs, FALSE);
+
+exit:
+   VMX_XDR_FREE(xdr_GHIGetExecInfoHashRequest, &requestMsg);
+   VMX_XDR_FREE(xdr_GHIGetExecInfoHashReply, &replyMsg);
+
    return ret;
 }

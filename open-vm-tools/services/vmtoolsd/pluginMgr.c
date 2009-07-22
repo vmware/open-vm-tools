@@ -31,8 +31,287 @@
 
 
 #ifdef USE_APPLOADER
-static Bool (*LoadDependencies)(char *libName);
+static Bool (*LoadDependencies)(char *libName, Bool useShipped);
 #endif
+
+typedef void (*PluginDataCallback)(ToolsServiceState *state,
+                                   ToolsPluginData *plugin);
+
+typedef void (*PluginAppRegCallback)(ToolsServiceState *state,
+                                     ToolsPluginData *plugin,
+                                     ToolsAppType type,
+                                     ToolsAppProviderReg *preg,
+                                     gpointer reg);
+
+
+/**
+ * State dump callback for application registration information.
+ *
+ * @param[in]  state The service state.
+ * @param[in]  plugin   The plugin information.
+ * @param[in]  type     Application type.
+ * @param[in]  preg     Provider information.
+ * @param[in]  reg      Application registration.
+ */
+
+static void
+ToolsCoreDumpAppInfo(ToolsServiceState *state,
+                     ToolsPluginData *plugin,
+                     ToolsAppType type,
+                     ToolsAppProviderReg *preg,
+                     gpointer reg)
+{
+   if (preg != NULL) {
+      if (preg->prov->dumpState != NULL) {
+         preg->prov->dumpState(&state->ctx, preg->prov, reg);
+      } else {
+         g_message("      App type %u (no provider info).\n", type);
+      }
+    } else {
+      g_message("      App type %u (no provider).\n", type);
+   }
+}
+
+
+/**
+ * State dump callback for generic plugin information.
+ *
+ * @param[in]  state    The service state.
+ * @param[in]  plugin   The plugin information.
+ */
+
+static void
+ToolsCoreDumpPluginInfo(ToolsServiceState *state,
+                        ToolsPluginData *plugin)
+{
+   g_message("   Plugin: %s\n", plugin->name);
+
+   if (plugin->regs == NULL) {
+      g_message("      No registrations.\n");
+   }
+}
+
+
+/**
+ * State dump callback for GuestRPC applications.
+ *
+ * @param[in]  ctx   The application context.
+ * @param[in]  prov  Unused.
+ * @param[in]  reg   The application registration data.
+ */
+
+static void
+ToolsCoreDumpRPC(ToolsAppCtx *ctx,
+                 ToolsAppProvider *prov,
+                 gpointer reg)
+{
+   if (reg != NULL) {
+      RpcChannelCallback *cb = reg;
+      g_message("      RPC callback: %s\n", cb->name);
+   }
+}
+
+
+/**
+ * State dump callback for signal connections.
+ *
+ * @param[in]  ctx   The application context.
+ * @param[in]  prov  Unused.
+ * @param[in]  reg   The application registration data.
+ */
+
+static void
+ToolsCoreDumpSignal(ToolsAppCtx *ctx,
+                    ToolsAppProvider *prov,
+                    gpointer reg)
+{
+   if (reg != NULL) {
+      ToolsPluginSignalCb *sig = reg;
+      g_message("      Signal callback: %s\n", sig->signame);
+   }
+}
+
+
+/**
+ * Callback to register applications with the given provider.
+ *
+ * @param[in]  state    The service state.
+ * @param[in]  plugin   The plugin information.
+ * @param[in]  type     Application type.
+ * @param[in]  preg     Provider information.
+ * @param[in]  reg      Application registration.
+ */
+
+static void
+ToolsCoreRegisterApp(ToolsServiceState *state,
+                     ToolsPluginData *plugin,
+                     ToolsAppType type,
+                     ToolsAppProviderReg *preg,
+                     gpointer reg)
+{
+   if (preg == NULL) {
+      g_warning("Plugin %s wants to register app of type %d but no "
+                "provider was found.\n", plugin->name, type);
+      return;
+   }
+
+   if (preg->state == TOOLS_PROVIDER_ERROR) {
+      g_warning("Plugin %s wants to register app of type %d but the "
+                "provider failed to activate.\n", plugin->name, type);
+      return;
+   }
+
+   /*
+    * Register the app with the provider, activating it if necessary. If
+    * it fails to activate, tag it so we don't try again.
+    */
+   if (preg->state == TOOLS_PROVIDER_IDLE) {
+      if (preg->prov->activate != NULL) {
+         GError *err = NULL;
+         preg->prov->activate(&state->ctx, preg->prov, &err);
+         if (err != NULL) {
+            g_warning("Error activating provider %s: %s.\n",
+                      preg->prov->name, err->message);
+            preg->state = TOOLS_PROVIDER_ERROR;
+            g_clear_error(&err);
+            return;
+         }
+      }
+      preg->state = TOOLS_PROVIDER_ACTIVE;
+   }
+
+   preg->prov->registerApp(&state->ctx, preg->prov, reg);
+}
+
+
+/**
+ * Callback to register application providers.
+ *
+ * @param[in]  state    The service state.
+ * @param[in]  plugin   The plugin information.
+ * @param[in]  type     Application type.
+ * @param[in]  preg     Provider information.
+ * @param[in]  reg      Application registration.
+ */
+
+static void
+ToolsCoreRegisterProvider(ToolsServiceState *state,
+                          ToolsPluginData *plugin,
+                          ToolsAppType type,
+                          ToolsAppProviderReg *preg,
+                          gpointer reg)
+{
+   if (type == TOOLS_APP_PROVIDER) {
+      ToolsAppProvider *prov = reg;
+      ToolsAppProviderReg newreg = { prov, TOOLS_PROVIDER_IDLE };
+
+      /* Assert that no two providers choose the same app type. */
+      ASSERT(preg == NULL);
+
+      ASSERT(prov->name != NULL);
+      ASSERT(prov->registerApp != NULL);
+      g_array_append_val(state->providers, newreg);
+   }
+}
+
+
+/**
+ * Iterates through the list of plugins, and through each plugin's app
+ * registration data, calling the appropriate callback for each piece
+ * of data.
+ *
+ * One of the two callback arguments must be provided.
+ *
+ * @param[in]  state       Service state.
+ * @param[in]  pluginCb    Callback called for each plugin data instance.
+ * @param[in]  appRegCb    Callback called for each application registration.
+ */
+
+static void
+ToolsCoreForEachPlugin(ToolsServiceState *state,
+                       PluginDataCallback pluginCb,
+                       PluginAppRegCallback appRegCb)
+{
+   guint i;
+
+   ASSERT(pluginCb != NULL || appRegCb != NULL);
+
+   for (i = 0; i < state->plugins->len; i++) {
+      ToolsPlugin *plugin = g_ptr_array_index(state->plugins, i);
+      GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
+      guint j;
+
+      if (pluginCb != NULL) {
+         pluginCb(state, plugin->data);
+      }
+
+      if (regs == NULL || appRegCb == NULL) {
+         continue;
+      }
+
+      for (j = 0; j < regs->len; j++) {
+         guint k;
+         guint provIdx = -1;
+         ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
+         ToolsAppProviderReg *preg = NULL;
+
+         /* Find the provider for the desired reg type. */
+         for (k = 0; k < state->providers->len; k++) {
+            ToolsAppProviderReg *tmp = &g_array_index(state->providers,
+                                                      ToolsAppProviderReg,
+                                                      k);
+            if (tmp->prov->regType == reg->type) {
+               preg = tmp;
+               provIdx = k;
+               break;
+            }
+         }
+
+         for (k = 0; k < reg->data->len; k++) {
+            gpointer appdata = &reg->data->data[preg->prov->regSize * k];
+            appRegCb(state, plugin->data, reg->type, preg, appdata);
+         }
+      }
+   }
+}
+
+
+/**
+ * Registration callback for GuestRPC applications.
+ *
+ * @param[in]  ctx   The application context.
+ * @param[in]  prov  Unused.
+ * @param[in]  reg   The application registration data.
+ */
+
+static void
+ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
+                     ToolsAppProvider *prov,
+                     gpointer reg)
+{
+   RpcChannel_RegisterCallback(ctx->rpc, reg);
+}
+
+
+/**
+ * Registration callback for signal connections.
+ *
+ * @param[in]  ctx   The application context.
+ * @param[in]  prov  Unused.
+ * @param[in]  reg   The application registration data.
+ */
+
+static void
+ToolsCoreRegisterSignal(ToolsAppCtx *ctx,
+                        ToolsAppProvider *prov,
+                        gpointer reg)
+{
+   ToolsPluginSignalCb *sig = reg;
+   g_signal_connect(ctx->serviceObj,
+                    sig->signame,
+                    sig->callback,
+                    sig->clientData);
+}
 
 
 /**
@@ -51,6 +330,23 @@ ToolsCoreStrPtrCompare(gconstpointer _str1,
    const gchar *str1 = *((const gchar **) _str1);
    const gchar *str2 = *((const gchar **) _str2);
    return strcmp(str1, str2);
+}
+
+
+/**
+ * State dump callback for logging information about loaded plugins.
+ *
+ * @param[in]  state    The service state.
+ */
+
+void
+ToolsCore_DumpPluginInfo(ToolsServiceState *state)
+{
+   if (state->plugins == NULL) {
+      g_message("   No plugins loaded.");
+   } else {
+      ToolsCoreForEachPlugin(state, ToolsCoreDumpPluginInfo, ToolsCoreDumpAppInfo);
+   }
 }
 
 
@@ -158,7 +454,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
       }
 
 #ifdef USE_APPLOADER
-      if (!LoadDependencies(path)) {
+      if (!LoadDependencies(path, FALSE)) {
          g_warning("Loading of library dependencies for %s failed.\n", entry);
          goto next;
       }
@@ -226,59 +522,54 @@ exit:
 void
 ToolsCore_RegisterPlugins(ToolsServiceState *state)
 {
-   guint i;
+   ToolsAppProvider *fakeProv;
+   ToolsAppProviderReg fakeReg;
 
    if (state->plugins == NULL) {
       return;
    }
 
-   for (i = 0; i < state->plugins->len; i++) {
-      ToolsPlugin *plugin = g_ptr_array_index(state->plugins, i);
-      GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
-      guint j;
+   /*
+    * Create two "fake" app providers for the functionality provided by
+    * vmtoolsd (GuestRPC channel, glib signals).
+    */
+   state->providers = g_array_new(FALSE, TRUE, sizeof (ToolsAppProviderReg));
 
-      if (regs == NULL) {
-         continue;
-      }
+   if (state->ctx.rpc != NULL) {
+      fakeProv = g_malloc0(sizeof *fakeProv);
+      fakeProv->regType = TOOLS_APP_GUESTRPC;
+      fakeProv->regSize = sizeof (RpcChannelCallback);
+      fakeProv->name = "GuestRPC";
+      fakeProv->registerApp = ToolsCoreRegisterRPC;
+      fakeProv->dumpState = ToolsCoreDumpRPC;
 
-      for (j = 0; j < regs->len; j++) {
-         guint k;
-         ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
-
-         switch (reg->type) {
-         case TOOLS_APP_GUESTRPC:
-            ASSERT(reg->data != NULL);
-            if (state->ctx.rpc == NULL) {
-               g_warning("Plugin '%s' asked to register a Guest RPC handler, "
-                         "but there's no RPC channel.\n", plugin->data->name);
-            } else {
-               for (k = 0; k < reg->data->len; k++) {
-                  RpcChannelCallback *cb = &g_array_index(reg->data,
-                                                          RpcChannelCallback,
-                                                          k);
-                  RpcChannel_RegisterCallback(state->ctx.rpc, cb);
-               }
-            }
-            break;
-
-         case TOOLS_APP_SIGNALS:
-            ASSERT(reg->data != NULL);
-            for (k = 0; k < reg->data->len; k++) {
-               ToolsPluginSignalCb *sig = &g_array_index(reg->data,
-                                                         ToolsPluginSignalCb,
-                                                         k);
-               g_signal_connect(state->ctx.serviceObj,
-                                sig->signame,
-                                sig->callback,
-                                sig->clientData);
-            }
-            break;
-
-         default:
-            NOT_IMPLEMENTED();
-         }
-      }
+      fakeReg.prov = fakeProv;
+      fakeReg.state = TOOLS_PROVIDER_ACTIVE;
+      g_array_append_val(state->providers, fakeReg);
    }
+
+   fakeProv = g_malloc0(sizeof *fakeProv);
+   fakeProv->regType = TOOLS_APP_SIGNALS;
+   fakeProv->regSize = sizeof (ToolsPluginSignalCb);
+   fakeProv->name = "Signals";
+   fakeProv->registerApp = ToolsCoreRegisterSignal;
+   fakeProv->dumpState = ToolsCoreDumpSignal;
+
+   fakeReg.prov = fakeProv;
+   fakeReg.state = TOOLS_PROVIDER_ACTIVE;
+   g_array_append_val(state->providers, fakeReg);
+
+   /*
+    * First app providers need to be identified, so that we know that they're
+    * available for use by plugins who need them.
+    */
+   ToolsCoreForEachPlugin(state, NULL, ToolsCoreRegisterProvider);
+
+   /*
+    * Now that we know all app providers, register all the apps, activating
+    * individual app providers as necessary.
+    */
+   ToolsCoreForEachPlugin(state, NULL, ToolsCoreRegisterApp);
 }
 
 
@@ -298,6 +589,7 @@ ToolsCore_RegisterPlugins(ToolsServiceState *state)
 void
 ToolsCore_UnloadPlugins(ToolsServiceState *state)
 {
+   guint i;
    GArray *pcaps = NULL;
 
    if (state->plugins == NULL) {
@@ -316,6 +608,25 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
    }
 
    g_signal_emit_by_name(state->ctx.serviceObj, TOOLS_CORE_SIG_SHUTDOWN, &state->ctx);
+
+   /*
+    * Stop all app providers, and free the memory we allocated for the two
+    * internal app providers.
+    */
+   for (i = 0; i < state->providers->len; i++) {
+       ToolsAppProviderReg *preg = &g_array_index(state->providers,
+                                                  ToolsAppProviderReg,
+                                                  i);
+
+       if (preg->prov->shutdown != NULL) {
+          preg->prov->shutdown(&state->ctx, preg->prov);
+       }
+
+      if (preg->prov->regType == TOOLS_APP_GUESTRPC ||
+          preg->prov->regType == TOOLS_APP_SIGNALS) {
+         g_free(preg->prov);
+      }
+   }
 
    while (state->plugins->len > 0) {
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
@@ -338,6 +649,9 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       g_module_close(plugin->module);
       g_free(plugin);
    }
+
+   g_array_free(state->providers, TRUE);
+   state->providers = NULL;
 
    g_ptr_array_free(state->plugins, TRUE);
    state->plugins = NULL;

@@ -60,35 +60,6 @@
 #endif
 
 
-
-
-/*
- * from linux: usr/include/asm/io.h
- */
-#ifdef __GNUC__
-#ifndef __SLOW_DOWN_IO
-#ifdef SLOW_IO_BY_JUMPING
-#define __SLOW_DOWN_IO __asm__ __volatile__("jmp 1f\n1:\tjmp 1f\n1:")
-#else
-#define __SLOW_DOWN_IO __asm__ __volatile__("outb %al,$0x80")
-#endif
-#endif
-#elif _MSC_VER
-#ifdef SLOW_IO_BY_JUMPING
-#define __SLOW_DOWN_IO __asm jmp SHORT $+2 __asm  jmp SHORT $+2
-#else
-#define __SLOW_DOWN_IO __asm out 80h,al
-#endif
-#else
-#error
-#endif
-
-#ifdef REALLY_SLOW_IO
-#define SLOW_DOWN_IO { __SLOW_DOWN_IO; __SLOW_DOWN_IO; __SLOW_DOWN_IO; __SLOW_DOWN_IO; }
-#else
-#define SLOW_DOWN_IO __SLOW_DOWN_IO
-#endif
-
 /*
  * FXSAVE/FXRSTOR
  *     save/restore SIMD/MMX fpu state

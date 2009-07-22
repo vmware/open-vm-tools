@@ -241,7 +241,7 @@ VMTools_LoadConfig(const gchar *path,
       goto exit;
    }
 
-   if (!File_IsFile(path)) {
+   if (!File_IsFile(path) || File_GetSizeByPath(path) == 0) {
       goto exit;
    }
 

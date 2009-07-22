@@ -333,8 +333,28 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
       /* If the filename was too long, we skip to the next entry ... */
       if (ret == EOVERFLOW) {
          continue;
-      /* ... but if another error occurred, we return that error code ... */
+      } else if (ret == EBADF) {
+         /*
+          * If we got invalid handle from the server, this was because user
+          * enabled/disabled the shared folders. We should get a new handle
+          * from the server, now.
+          */
+         ret = HgfsRefreshHandle(vp, sip, &handle);
+         if (ret == 0) {
+            /*
+             * Now we have valid handle, let's try again from the same
+             * offset.
+             */
+            offset--;
+            continue;
+         } else {
+            ret = EBADF;
+            goto out;
+         }
       } else if (ret) {
+         if (ret != EPROTO) {
+            ret = EINVAL;
+         }
          DEBUG(VM_DEBUG_FAIL, "failure occurred in HgfsGetNextDirEntry\n");
          goto out;
       /*
@@ -348,13 +368,13 @@ HgfsReaddirInt(struct vnode *vp, // IN    : Directory vnode to get entries from.
          }
          break;
       }
-      /* 
+      /*
        * Convert an input string to utf8 decomposed form and then escape its
        * buffer.
        */
       ret = HgfsNameFromWireEncoding(nameBuf, strlen(nameBuf), dirp->d_name,
                                      sizeof dirp->d_name);
-      /* 
+      /*
        * If the name didn't fit in the buffer or illegal utf8 characters
        * were encountered, skip to the next entry.
        */
@@ -536,7 +556,7 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
 
-   /* 
+   /*
     * Convert an input string to utf8 precomposed form, convert it to
     * the cross platform name format and finally unescape any illegal
     * filesystem characters.
@@ -1644,11 +1664,11 @@ HgfsFileOpen(HgfsSuperInfo *sip,        // IN: Superinfo pointer
     * mainly implemented to address the issue with Mac OS. When the user
     * attempts to create a file in the root folder, the server returns ENOENT
     * error code. However, Mac OS specifically checks for this case. If Mac OS asks for
-    * the creation of a new file and if it gets ENOENT as a return error code, 
+    * the creation of a new file and if it gets ENOENT as a return error code,
     * then it assumes that the error was because of some race condition and tries it
     * again. Thus, returning ENOENT to the Mac OS puts the guest kernel into infinite
     * loop. In order to resolve this issue, before passing on the request to the
-    * server, we validate if user is attempting to create a new share. If yes, 
+    * server, we validate if user is attempting to create a new share. If yes,
     * we return EPERM as the error code.
     */
    if (HgfsAttemptToCreateShare(HGFS_VP_TO_FILENAME(vp), flag)) {
@@ -1730,17 +1750,29 @@ HgfsRefreshHandle(struct vnode *vp,          // IN: Vnode of file to open
    fp = HGFS_VP_TO_FP(vp);
    ASSERT(fp);
 
+   DEBUG(VM_DEBUG_ENTRY, "Refresh handle\n");
    os_rw_lock_lock_exclusive(fp->handleLock);
    if (fp->handle != *handle) {
       /* Handle has been refreshed in another thread. */
       *handle = fp->handle;
    } else {
       /* Retrieve a new handle from the host. */
-      ret = HgfsRequestHostFileHandle(sip, vp, (int *)&fp->mode, HGFS_OPEN, 0, handle);
+      if (HGFS_VP_TO_VTYPE(vp) == VREG) {
+         ret = HgfsRequestHostFileHandle(sip, vp, (int *)&fp->mode,
+                                         HGFS_OPEN, 0, handle);
+      } else if (HGFS_VP_TO_VTYPE(vp) == VDIR) {
+         char *fullPath = HGFS_VP_TO_FILENAME(vp);
+         uint32 fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
+         ret = HgfsSendOpenDirRequest(sip, fullPath, fullPathLen, handle);
+      } else {
+         goto out;
+      }
       if (ret == 0) {
          fp->handle = *handle;
       }
    }
+
+out:
    os_rw_lock_unlock_exclusive(fp->handleLock);
 
    return ret;
@@ -2278,9 +2310,6 @@ HgfsGetNextDirEntry(HgfsSuperInfo *sip,         // IN: Superinfo pointer
    ret = HgfsGetStatus(req, sizeof *replyHeader);
    if (ret) {
       DEBUG(VM_DEBUG_FAIL, "Error encountered with ret = %d\n", ret);
-      if (ret != EPROTO) {
-         ret = EINVAL;
-      }
       goto destroyOut;
    }
 
@@ -2530,7 +2559,7 @@ HgfsSymlinkInt(struct vnode *dvp,         // IN : directory vnode
 	* In the long term we should fix the protocol and have only one name
 	* format which is suitable for all names.
 	* The following code compensates for this problem before there is such
-	* universal name representation.  
+	* universal name representation.
 	*/
    if (*targetName == '/') {
       fileNameP->length = 1;

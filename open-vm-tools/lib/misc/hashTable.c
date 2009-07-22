@@ -492,6 +492,36 @@ Bool
 HashTable_Delete(HashTable  *ht,        // IN/OUT: the hash table
                  const char *keyStr)    // IN: key for the element to remove
 {
+   return HashTable_LookupAndDelete(ht, keyStr, NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HashTable_LookupAndDelete --
+ *
+ *      Look up an element in the hash table, then delete it.
+ *
+ *	If clientData is specified, then the entry data is returned,
+ *	and the free function is not called.
+ *
+ * Results:
+ *      TRUE if the entry was found and subsequently removed
+ *      FALSE otherwise
+ *	Entry value is returned in *clientData.
+ *
+ * Side effects:
+ *	See above
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+HashTable_LookupAndDelete(HashTable *ht,      // IN/OUT: the hash table
+                          const char *keyStr, // IN: key for the element
+			  void **clientData)  // OUT: return data
+{
    uint32 hash = HashTableComputeHash(ht, keyStr);
    HashTableLink *linkp;
    HashTableEntry *entry;
@@ -507,7 +537,9 @@ HashTable_Delete(HashTable  *ht,        // IN/OUT: the hash table
 	 if (ht->copyKey) {
 	    free((char *) entry->keyStr);
 	 }
-         if (ht->freeEntryFn) {
+	 if (clientData != NULL) {
+            *clientData = Atomic_ReadPtr(&entry->clientData);
+	 } else if (ht->freeEntryFn) {
             ht->freeEntryFn(Atomic_ReadPtr(&entry->clientData));
          }
          free(entry);

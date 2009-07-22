@@ -65,12 +65,14 @@ class LIB_EXPORT DnDBase
       /* Local UI as DnD target. */
       sigc::signal<void, DND_DROPEFFECT> updateFeedbackChanged;
       sigc::signal<void, bool, int, int> updateDetWndChanged;
-      sigc::signal<void, bool, uint32> updateUnityDetWndChanged;
+      sigc::signal<void, bool, uint32, bool> updateUnityDetWndChanged;
+      sigc::signal<void, int32, int32> targetPrivateDropChanged;
 
       sigc::signal<void> reset;
       sigc::signal<void> disable;
       sigc::signal<void> enable;
       sigc::signal<void, int, int> updateMouseChanged;
+      sigc::signal<void> moveDetWndToMousePos;
 
       /* Guest cancel signals. */
       sigc::signal<void> ghCancel;

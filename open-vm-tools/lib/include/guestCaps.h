@@ -62,7 +62,10 @@ typedef enum {
    GHI_CAP_TRASH_FOLDER                 = 17, // supports ghi.guest.trashFolder.action,
                                               // ghi.guest.trashFolder.state, and
                                               // ghi.guest.trashFolder.getIcon commands
-   CAP_SET_TOPO_MODES                   = 18  // supports setting topology modes in video driver
+   CAP_SET_TOPO_MODES                   = 18, // supports setting topology modes in video driver
+   GHI_CAP_TRAY_ICONS                   = 19, // supports ghi.guest.trayIcon commands
+   GHI_CAP_SET_FOCUSED_WINDOW           = 20, // supports ghi.guest.setFocusedWindow
+   GHI_CAP_GET_EXEC_INFO_HASH           = 21, // supports ghi.guest.getExecInfoHash
 } GuestCapabilities;
 
 typedef struct {
@@ -122,7 +125,10 @@ static GuestCapElem guestCapTable[] = {
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
    { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" },
    { GHI_CAP_TRASH_FOLDER,                 GHI_CAP_VMDB_PATH,   "trashFolder" },
-   { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH, "displayTopologyModesSet" }
+   { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH, "displayTopologyModesSet" },
+   { GHI_CAP_TRAY_ICONS,                   GHI_CAP_VMDB_PATH,   "trayIcons" },
+   { GHI_CAP_SET_FOCUSED_WINDOW,           GHI_CAP_VMDB_PATH,   "setFocusedWindow"},
+   { GHI_CAP_GET_EXEC_INFO_HASH,           GHI_CAP_VMDB_PATH,   "getExecInfoHash"},
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

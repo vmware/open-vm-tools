@@ -277,17 +277,15 @@ HgfsTcpConnect(HgfsTransportChannel *channel)
    addr.sin_addr.s_addr = in_aton(HOST_IP);
    addr.sin_port = htons(HOST_PORT);
 
-   error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP,
-                                   &sock);
+   error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
    if (error >= 0) {
       error = sock->ops->connect(sock, (struct sockaddr *)&addr,
                                  sizeof addr, 0);
       if (error >= 0) {
          channel->priv = sock;
-
          /* Reset receive buffer when a new connection is connected. */
-         recvBuffer.state = HGFS_TCP_CONN_RECV_HEADER;
-
+         HgfsTcpResetRecvBuffer();
+         sock->sk->compat_sk_rcvtimeo = HGFS_SOCKET_RECV_TIMEOUT * HZ;
          channel->status = HGFS_CHANNEL_CONNECTED;
          LOG(8, ("%s: tcp channel connected.\n", __func__));
          ret = TRUE;
@@ -336,18 +334,15 @@ HgfsVSocketConnect(HgfsTransportChannel *channel)
    addr.svm_cid = VMCI_HOST_CONTEXT_ID;
    addr.svm_port = HOST_VSOCKET_PORT;
 
-   error = compat_sock_create_kern(family, SOCK_STREAM, 0,
-                                   &sock);
+   error = compat_sock_create_kern(family, SOCK_STREAM, 0, &sock);
    if (error >= 0) {
       error = sock->ops->connect(sock, (struct sockaddr *)&addr,
                                  sizeof addr, 0);
       if (error >= 0) {
          channel->priv = sock;
-
          /* Reset receive buffer when a new connection is connected. */
          HgfsTcpResetRecvBuffer();
          sock->sk->compat_sk_rcvtimeo = HGFS_SOCKET_RECV_TIMEOUT * HZ;
-
          channel->status = HGFS_CHANNEL_CONNECTED;
          LOG(8, ("%s: vsocket channel connected.\n", __func__));
          ret = TRUE;

@@ -238,7 +238,7 @@ System_GetCurrentTime(int64 *secs,  // OUT
 
 Bool
 System_EnableTimeSlew(int64 delta,            // IN: Time difference in us
-                      uint32 timeSyncPeriod)  // IN: Time interval in 100th of a second
+                      int64 timeSyncPeriod)   // IN: Time interval in us
 {
 #if defined(__FreeBSD__) || defined(sun)
 
@@ -261,10 +261,9 @@ System_EnableTimeSlew(int64 delta,            // IN: Time difference in us
 
    struct timex tx;
    int error;
-   uint64 tick;
-   uint64 timeSyncPeriodUS = timeSyncPeriod * 10000L;
+   int64 tick;
 
-   ASSERT(timeSyncPeriod);
+   ASSERT(timeSyncPeriod > 0);
 
    /*
     * Set the tick so that delta time is corrected in timeSyncPeriod period.
@@ -273,7 +272,8 @@ System_EnableTimeSlew(int64 delta,            // IN: Time difference in us
     * interval.
     */
    tx.modes = ADJ_TICK;
-   tick = (timeSyncPeriodUS + delta) / ((timeSyncPeriod / 100) * USER_HZ);
+   tick = (timeSyncPeriod + delta) /
+          ((timeSyncPeriod / 1000000) * USER_HZ);
    if (tick > TICK_INCR_MAX) {
       tick = TICK_INCR_MAX;
    } else if (tick < TICK_INCR_MIN) {

@@ -342,6 +342,7 @@ DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
     * assume that the components are delimited with single NUL characters; if
     * that is not true, CPName_GetComponent() will fail.
     */
+
    for (begin = *src; *begin == '\0'; begin++)
       ;
    end = CPNameUtil_Strrchr(*src, *srcSize, '\0');
@@ -352,10 +353,11 @@ DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
       int escapedLen;
 
       if (len < 0) {
-         Log("DnDPrependFileRoot: error getting next component\n");
+         Log("%s: error getting next component\n", __FUNCTION__);
          if (!firstPass) {
             free(newData);
          }
+
          return FALSE;
       }
 
@@ -363,6 +365,7 @@ DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
        * Append this component to our list: allocate one more for NUL on first
        * pass and delimiter on all other passes.
        */
+
       escapedLen = HgfsEscape_GetSize(begin, len);
       if (0 == escapedLen) {
          newDataLen += rootLen + len + 1;
@@ -474,13 +477,14 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
    memcpy(fullName + partialNameLen + partialNameSuffixLen, nameIn, nameSize);
    fullName[fullNameSize] = '\0';
 
-   LOG(4, ("DnD_LegacyConvertToCPName: generated name is \"%s\"\n", fullName));
+   LOG(4, ("%s: generated name is \"%s\"\n", __FUNCTION__, fullName));
 
    /*
     * CPName_ConvertTo implementation is performed here without calling any
     * CPName_ functions.  This is safer since those functions might change, but
     * the legacy behavior we are special casing here will not.
     */
+
    {
       char const *winNameIn = fullName;
       char const *origOut = bufOut;
@@ -497,6 +501,7 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
        * Copy the string to the output buf, converting all path separators into
        * '\0' and ignoring the specified characters.
        */
+
       for (; *winNameIn != '\0' && bufOut < endOut; winNameIn++) {
          if (ignores) {
             char *currIgnore = ignores;
@@ -526,6 +531,7 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
        * When we get rid of NUL termination here, this test should
        * also change to "if (*winNameIn != '\0')".
        */
+
       if (bufOut == endOut) {
          result = -1;
          goto out;
@@ -541,13 +547,18 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
          result--;
       }
 
-      /* Make exception and call CPName_Print() here, since it's only for logging */
-      LOG(4, ("DnD_LegacyConvertToCPName: CPName is \"%s\"\n",
+      /*
+       * Make exception and call CPName_Print() here, since it's only for
+       * logging
+       */
+
+      LOG(4, ("%s: CPName is \"%s\"\n", __FUNCTION__, 
               CPName_Print(origOut, result)));
    }
 
 out:
    free(fullName);
+
    return result;
 }
 

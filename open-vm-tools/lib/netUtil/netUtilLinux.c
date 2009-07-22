@@ -273,3 +273,161 @@ NetUtil_GetPrimaryNic(void)
 abort:
    return nicEntry;
 }
+
+
+#if defined(linux)
+#   ifdef DUMMY_NETUTIL
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * NetUtil_GetIfIndex (dummy version) --
+ *
+ *      Given an interface name, return its index.
+ *
+ * Results:
+ *      Returns a valid interface index on success or -1 on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+NetUtil_GetIfIndex(const char *ifName)  // IN: interface name
+{
+   NetUtilIfTableEntry *iterator;
+   int ifIndex = -1;
+
+   ASSERT(netUtilIfTable != NULL);
+
+   for (iterator = netUtilIfTable; iterator->ifName; iterator++) {
+      if (strcmp(iterator->ifName, ifName) == 0) {
+         ifIndex = iterator->ifIndex;
+         break;
+      }
+   }
+
+   return ifIndex;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * NetUtil_GetIfName (dummy version) --
+ *
+ *      Given an interface index, return its name.
+ *
+ * Results:
+ *      Returns a valid interface name on success, NULL on failure.
+ *
+ * Side effects:
+ *      Caller is responsible for freeing the returned string.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+NetUtil_GetIfName(int ifIndex)  // IN: interface index
+{
+   NetUtilIfTableEntry *iterator;
+   char *ifName = NULL;
+
+   ASSERT(netUtilIfTable != NULL);
+
+   for (iterator = netUtilIfTable; iterator->ifName; iterator++) {
+      if (iterator->ifIndex == ifIndex) {
+         ifName = Util_SafeStrdup(iterator->ifName);
+         break;
+      }
+   }
+
+   return ifName;
+}
+
+
+#   else // ifdef DUMMY_NETUTIL
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * NetUtil_GetIfIndex --
+ *
+ *      Given an interface name, return its index.
+ *
+ * Results:
+ *      Returns a valid interface index on success or -1 on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+NetUtil_GetIfIndex(const char *ifName)  // IN: interface name
+{
+   struct ifreq ifreq;
+   int fd = -1;
+   int ifIndex = -1;
+
+   memset(&ifreq, 0, sizeof ifreq);
+   if (Str_Snprintf(ifreq.ifr_name, sizeof ifreq.ifr_name, "%s", ifName) == -1) {
+      return -1;
+   }
+
+   if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+      return -1;
+   }
+
+   if (ioctl(fd, SIOCGIFINDEX, &ifreq) == 0) {
+      ifIndex = ifreq.ifr_ifindex;
+   }
+
+   close(fd);
+
+   return ifIndex;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * NetUtil_GetIfName --
+ *
+ *      Given an interface index, return its name.
+ *
+ * Results:
+ *      Returns a valid interface name on success, NULL on failure.
+ *
+ * Side effects:
+ *      Caller is responsible for freeing the returned string.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+NetUtil_GetIfName(int ifIndex)  // IN: interface index
+{
+   struct ifreq ifreq;
+   char *ifName = NULL;
+   int fd = -1;
+
+   memset(&ifreq, 0, sizeof ifreq);
+   ifreq.ifr_ifindex = ifIndex;
+
+   if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+      return NULL;
+   }
+
+   if (ioctl(fd, SIOCGIFNAME, &ifreq) == 0) {
+      ifName = Util_SafeStrdup(ifreq.ifr_name);
+   }
+
+   close(fd);
+
+   return ifName;
+}
+#   endif // ifdef DUMMY_NETUTIL
+
+#endif // if defined(linux)

@@ -157,7 +157,7 @@
 #define MAX_ETHERNET_CARDS      10
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 2
+#define MAX_PCI_PASSTHRU_DEVICES 6
 
 /************* USB implementation limits ********************************/
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127

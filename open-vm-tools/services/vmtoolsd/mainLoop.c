@@ -66,8 +66,8 @@ ToolsCoreInitializeDebug(ToolsServiceState *state)
    }
 
    libdata = initFn(&state->ctx, state->debugPlugin);
-   g_assert(libdata != NULL);
-   g_assert(libdata->debugPlugin != NULL);
+   ASSERT(libdata != NULL);
+   ASSERT(libdata->debugPlugin != NULL);
 
    state->debugData = libdata;
 }
@@ -178,51 +178,30 @@ void
 ToolsCore_DumpState(ToolsServiceState *state)
 {
    guint i;
+   const char *providerStates[] = {
+      "idle",
+      "active",
+      "error"
+   };
+
+   ASSERT_ON_COMPILE(ARRAYSIZE(providerStates) == TOOLS_PROVIDER_MAX);
 
    g_message("VM Tools Service '%s':\n", state->name);
    g_message("   Plugin path: %s\n", state->pluginPath);
 
-   if (state->plugins != NULL) {
-      for (i = 0; i < state->plugins->len; i++) {
-         ToolsPlugin *plugin = g_ptr_array_index(state->plugins, i);
-         GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
-         guint j;
-
-         g_message("   Plugin: %s\n", plugin->data->name);
-
-         if (regs == NULL) {
-            g_message("      No registrations.\n");
-            continue;
-         }
-
-         for (j = 0; j < regs->len; j++) {
-            guint k;
-            ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
-
-            switch (reg->type) {
-            case TOOLS_APP_GUESTRPC:
-               for (k = 0; k < reg->data->len; k++) {
-                  RpcChannelCallback *cb = &g_array_index(reg->data,
-                                                          RpcChannelCallback,
-                                                          k);
-                  g_message("      RPC callback: %s\n", cb->name);
-               }
-               break;
-
-            case TOOLS_APP_SIGNALS:
-               for (k = 0; k < reg->data->len; k++) {
-                  ToolsPluginSignalCb *sig = &g_array_index(reg->data,
-                                                            ToolsPluginSignalCb,
-                                                            k);
-                  g_message("      Signal callback: %s\n", sig->signame);
-               }
-               break;
-            }
-         }
+   for (i = 0; i < state->providers->len; i++) {
+      ToolsAppProviderReg *prov = &g_array_index(state->providers,
+                                                 ToolsAppProviderReg,
+                                                 i);
+      g_message("   App provider: %s (%s)\n",
+                prov->prov->name,
+                providerStates[prov->state]);
+      if (prov->prov->dumpState != NULL) {
+         prov->prov->dumpState(&state->ctx, prov->prov, NULL);
       }
-   } else {
-      g_message("   No plugins loaded.");
    }
+
+   ToolsCore_DumpPluginInfo(state);
 
    g_signal_emit_by_name(state->ctx.serviceObj,
                          TOOLS_CORE_SIG_DUMP_STATE,
@@ -274,6 +253,7 @@ ToolsCore_Setup(ToolsServiceState *state)
 
    /* Initializes the app context. */
    gctx = g_main_context_default();
+   state->ctx.version = TOOLS_CORE_API_V1;
    state->ctx.name = state->name;
    state->ctx.errorCode = EXIT_SUCCESS;
    state->ctx.mainLoop = g_main_loop_new(gctx, TRUE);

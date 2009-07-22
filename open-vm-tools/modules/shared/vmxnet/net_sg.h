@@ -69,7 +69,6 @@ typedef enum NetSG_AddrType {
    NET_SG_MACH_ADDR,
    NET_SG_PHYS_ADDR,
    NET_SG_VIRT_ADDR,
-   NET_SG_VMM_STACK_OFFSET,
 } NetSG_AddrType;
 
 typedef struct NetSG_Array {

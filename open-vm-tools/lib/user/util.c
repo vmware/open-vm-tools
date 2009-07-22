@@ -99,11 +99,14 @@ static int UtilTokenHasGroup(HANDLE token, SID *group);
 #ifdef UTIL_BACKTRACE_USE_UNWIND
 #include <unwind.h>
 
+#define MAX_SKIPPED_FRAMES 10
+
 struct UtilBacktraceFromPointerData {
    uintptr_t        basePtr;
    Util_OutputFunc  outFunc;
    void            *outFuncData;
    unsigned int     frameNr;
+   unsigned int     skippedFrames;
 };
 
 struct UtilBacktraceToBufferData {
@@ -373,6 +376,7 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
    /*
     * Stack grows down.  So if we are below basePtr, do nothing...
     */
+
    if (cfa >= data->basePtr && data->frameNr < 500) {
 #ifndef VM_X86_64
 #   error You should not build this on 32bit - there is no eh_frame there.
@@ -388,6 +392,14 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
                     _Unwind_GetGR(ctx, 12), _Unwind_GetGR(ctx, 13),
                     _Unwind_GetGR(ctx, 14), _Unwind_GetGR(ctx, 15));
       data->frameNr++;
+      return _URC_NO_REASON;
+   } else if (data->skippedFrames < MAX_SKIPPED_FRAMES && !data->frameNr) {
+      /*
+       * Skip over the frames before the specified starting point of the
+       * backtrace.
+       */
+
+      data->skippedFrames++;
       return _URC_NO_REASON;
    }
    return _URC_END_OF_STACK;
@@ -422,6 +434,7 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
    /*
     * Stack grows down.  So if we are below basePtr, do nothing...
     */
+
    if (cfa >= data->basePtr && data->frameNr < 500) {
 #ifndef VM_X86_64
 #   error You should not build this on 32bit - there is no eh_frame there.
@@ -449,6 +462,14 @@ UtilSymbolBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwin
                       data->frameNr, cfa, _Unwind_GetIP(ctx));
       }
       data->frameNr++;
+      return _URC_NO_REASON;
+   } else if (data->skippedFrames < MAX_SKIPPED_FRAMES && !data->frameNr) {
+      /*
+       * Skip over the frames before the specified starting point of the
+       * backtrace.
+       */
+
+      data->skippedFrames++;
       return _URC_NO_REASON;
    }
    return _URC_END_OF_STACK;
@@ -511,6 +532,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
    data.outFunc = outFunc;
    data.outFuncData = outFuncData;
    data.frameNr = 0;
+   data.skippedFrames = 0;
    _Unwind_Backtrace(UtilBacktraceFromPointerCallback, &data);
 
 #if !defined(_WIN32) && !defined(N_PLAT_NLM) && !defined(VMX86_TOOLS)
@@ -523,6 +545,7 @@ Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
    data.outFunc = outFunc;
    data.outFuncData = outFuncData;
    data.frameNr = 0;
+   data.skippedFrames = 0;
    _Unwind_Backtrace(UtilSymbolBacktraceFromPointerCallback, &data);
 #endif
 

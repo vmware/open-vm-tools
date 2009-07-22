@@ -117,18 +117,30 @@ typedef enum GuestOSFamilyType {
 #define ALLWINNET64	BS(WINNET_64)
 #define ALLWINNET	(ALLWINNET32 | ALLWINNET64)
 
-#define ALLWINVISTA32   (BS(LONGHORN) | BS(WINVISTA))
-#define ALLWINVISTA64   (BS(LONGHORN_64) | BS(WINVISTA_64))
+#define ALLWINLONGHORN32  BS(LONGHORN)
+#define ALLWINLONGHORN64  BS(LONGHORN_64)
+#define ALLWINLONGHORN  (ALLWINLONGHORN32 | ALLWINLONGHORN64)
+
+#define ALLWINVISTA32   BS(WINVISTA)
+#define ALLWINVISTA64   BS(WINVISTA_64)
 #define ALLWINVISTA     (ALLWINVISTA32 | ALLWINVISTA64)
+
+#define ALLWIN2008R2_32 BS(WIN2008R2)
+#define ALLWIN2008R2_64 BS(WIN2008R2_64)
+#define ALLWIN2008R2    (ALLWIN2008R2_32 | ALLWIN2008R2_64)
 
 #define ALLWINSEVEN32   BS(WINSEVEN)
 #define ALLWINSEVEN64   BS(WINSEVEN_64)
 #define ALLWINSEVEN     (ALLWINSEVEN32 | ALLWINSEVEN64)
 
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
-                         ALLWINVISTA32 | ALLWINSEVEN32)
-#define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | ALLWINVISTA64 | \
-                         ALLWINSEVEN64)
+                         ALLWINVISTA32 | ALLWINLONGHORN32 | \
+                         ALLWINSEVEN32 | ALLWIN2008R2_32)
+
+#define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | \
+                         ALLWINVISTA64 | ALLWINLONGHORN64 | \
+                         ALLWINSEVEN64 | ALLWIN2008R2_64)
+
 #define ALLWINNT	(ALLWINNT32 | ALLWINNT64)
 
 #define ALLWIN32	(ALLWIN9X | ALLWINNT32)
@@ -141,10 +153,12 @@ typedef enum GuestOSFamilyType {
 #define ALL26XLINUX64   (BS(OTHER26XLINUX_64) | BS(DEBIAN45_64))
 #define ALLLINUX32      (BS(OTHER24XLINUX) | BS(VMKERNEL) | \
                          BS(OTHERLINUX) | ALL26XLINUX32)
-#define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | ALL26XLINUX64)
+#define ALLLINUX64      (BS(OTHERLINUX_64) | BS(OTHER24XLINUX_64) | \
+                         ALL26XLINUX64)
 #define ALLLINUX        (ALLLINUX32 | ALLLINUX64)
 #define ALLDARWIN32     (BS(DARWIN9) | BS(DARWIN10))
 #define ALLDARWIN64     (BS(DARWIN9_64) | BS(DARWIN10_64))
+#define ALLDARWIN10     (BS(DARWIN10) | BS(DARWIN10_64))
 #define ALLDARWIN       (ALLDARWIN32 | ALLDARWIN64)
 #define ALL64           (ALLWIN64 | ALLLINUX64 | \
                          BS(SOLARIS10_64) | BS(FREEBSD_64) | \
@@ -160,12 +174,16 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_ANNVIX "Annvix" 
 #define STR_OS_ARCH "Arch" 
 #define STR_OS_ARKLINUX "Arklinux" 
+#define STR_OS_ASIANUX_3                "asianux3"
+#define STR_OS_ASIANUX_4                "asianux4"
 #define STR_OS_AUROX "Aurox" 
 #define STR_OS_ASIANUX "asianux" 
 #define STR_OS_BLACKCAT "BlackCat" 
 #define STR_OS_COBALT "Cobalt" 
 #define STR_OS_CONECTIVA "Conectiva" 
-#define STR_OS_DEBIAN "Debian" 
+#define STR_OS_DEBIAN                   "Debian"
+#define STR_OS_DEBIAN_4                 "debian4"
+#define STR_OS_DEBIAN_5                 "debian5"
 #define STR_OS_FEDORA "Fedora" 
 #define STR_OS_GENTOO "Gentoo" 
 #define STR_OS_IMMUNIX "Immunix" 
@@ -256,7 +274,6 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_NET_DC_FULL "Windows Server 2003 Datacenter Edition"
 #define STR_OS_WIN_NET_DC "winNetDatacenter"
 #define STR_OS_WIN_LONG "longhorn"
-#define STR_OS_WIN_LONG_FULL "Longhorn (experimental)"
 #define STR_OS_WIN_VISTA "winVista"
 #define STR_OS_WIN_VISTA_FULL "Windows Vista"
 #define STR_OS_WIN_VISTA_X64 "winVista-64"
@@ -349,13 +366,15 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_SEVEN_HOME_BASIC_FULL   "Windows 7 Home Basic"
 #define STR_OS_WIN_SEVEN_HOME_PREMIUM_FULL "Windows 7 Home Premium"
 #define STR_OS_WIN_SEVEN_ULTIMATE_FULL     "Windows 7 Ultimate"
-#define STR_OS_WIN_SEVEN_BUSINESS_FULL     "Windows 7 Business"
+#define STR_OS_WIN_SEVEN_PROFESSIONAL_FULL "Windows 7 Professional"
+#define STR_OS_WIN_SEVEN_ENTERPRISE_FULL   "Windows 7 Enterprise"
 
 /* Windows Server 2008 R2 (based on Windows 7) */
 
 #define STR_OS_WIN_2008R2     "windows7srv"
 #define STR_OS_WIN_2008R2_X64 "windows7srv-64"
 
+#define STR_OS_WIN_2008R2_FOUNDATION_FULL "Windows Server 2008 R2 Foundation Edition"
 #define STR_OS_WIN_2008R2_STANDARD_FULL   "Windows Server 2008 R2 Standard Edition"
 #define STR_OS_WIN_2008R2_ENTERPRISE_FULL "Windows Server 2008 R2 Enterprise Edition"
 #define STR_OS_WIN_2008R2_DATACENTER_FULL "Windows Server 2008 R2 Datacenter Edition"

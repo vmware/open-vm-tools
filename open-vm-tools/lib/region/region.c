@@ -110,6 +110,7 @@ Equipment Corporation.
 
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "region.h"
 
@@ -2569,6 +2570,16 @@ miTranslateRegion(
                   register int x,
                   register int y)
 {
+    /*
+     * This check is here to validate the fix for bug 357509. R_MINSHORT was
+     * defined incorrectly. I changed it to SHRT_MIN, but that introduced the
+     * possibility of a comparison in miTranslateRegionByBoundary underflowing.
+     * miTranslateRegionByBoundary currently uses ints, so it won't underflow
+     * as long as the range of int is larger than the range of short.
+     * This assert checks that that is indeed the case.
+     */
+    ASSERT_ON_COMPILE(INT_MIN < SHRT_MIN);
+
     miTranslateRegionByBoundary(pReg, x, y, R_MINSHORT, R_MAXSHORT);
 }
 

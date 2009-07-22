@@ -878,6 +878,21 @@ static int
 vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
                     const struct pci_device_id *id)   // IN: matching device ID
 {
+#ifdef HAVE_NET_DEVICE_OPS
+   static const struct net_device_ops vmxnet_netdev_ops = {
+      .ndo_open = &vmxnet_open,
+      .ndo_start_xmit = &vmxnet_start_tx,
+      .ndo_stop = &vmxnet_close,
+      .ndo_get_stats = &vmxnet_get_stats,
+      .ndo_set_multicast_list = &vmxnet_set_multicast_list,
+      .ndo_change_mtu = &vmxnet_change_mtu,
+#   ifdef VMW_HAVE_POLL_CONTROLLER
+      .ndo_poll_controller = vmxnet_netpoll,
+#   endif
+      .ndo_set_mac_address = &vmxnet_set_mac_address,
+      .ndo_tx_timeout = &vmxnet_tx_timeout,
+   };
+#endif /* HAVE_NET_DEVICE_OPS */
    struct Vmxnet_Private *lp;
    struct net_device *dev;
    unsigned int ioaddr, reqIOAddr, reqIOSize;
@@ -982,6 +997,9 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
    dev->irq = irq_line;
 
+#ifdef HAVE_NET_DEVICE_OPS
+   dev->netdev_ops = &vmxnet_netdev_ops;
+#else
    dev->open = &vmxnet_open;
    dev->hard_start_xmit = &vmxnet_start_tx;
    dev->stop = &vmxnet_close;
@@ -992,14 +1010,17 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,43)
    dev->tx_timeout = &vmxnet_tx_timeout;
-   dev->watchdog_timeo = VMXNET_WATCHDOG_TIMEOUT;
 #endif
 #ifdef VMW_HAVE_POLL_CONTROLLER
    dev->poll_controller = vmxnet_netpoll;
 #endif
-
    /* Do this after ether_setup(), which sets the default value. */
    dev->set_mac_address = &vmxnet_set_mac_address;
+#endif /* HAVE_NET_DEVICE_OPS */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,43)
+   dev->watchdog_timeo = VMXNET_WATCHDOG_TIMEOUT;
+#endif
 
 #ifdef SET_ETHTOOL_OPS
    SET_ETHTOOL_OPS(dev, &vmxnet_ethtool_ops);

@@ -43,9 +43,9 @@ typedef enum ScriptType {
    Current
 } ScriptType;
 
-static int ScriptToggle(char *apm, Bool enable, int quiet_flag);
-static char* GetConfName(char *apm);
-static int GetConfEntry(char *apm, ScriptType type);
+static int ScriptToggle(const char *apm, Bool enable, int quiet_flag);
+static const char* GetConfName(const char *apm);
+static int GetConfEntry(const char *apm, ScriptType type);
 
 
 /*
@@ -64,8 +64,8 @@ static int GetConfEntry(char *apm, ScriptType type);
  *-----------------------------------------------------------------------------
  */
 
-static char *
-GetConfName(char *apm) // IN: apm name.
+static const char *
+GetConfName(const char *apm) // IN: apm name.
 {
    if (toolbox_strcmp(apm, SCRIPT_SUSPEND) == 0) {
       return CONFNAME_SUSPENDSCRIPT;
@@ -135,12 +135,12 @@ LoadConfFile(void)
  */
 
 static int
-GetConfEntry(char *apm,        // IN: apm name
+GetConfEntry(const char *apm,  // IN: apm name
              ScriptType type)  // IN: Script type (default or current)
 {
    gchar *entry = NULL;
    GKeyFile *confDict = NULL;
-   char *confName;
+   const char *confName;
    int ret;
 
    confName = GetConfName(apm);
@@ -193,7 +193,7 @@ GetConfEntry(char *apm,        // IN: apm name
  */
 
 int
-Script_GetDefault(char *apm) // IN: APM name
+Script_GetDefault(const char *apm) // IN: APM name
 {
    return GetConfEntry(apm, Default);
 }
@@ -218,7 +218,7 @@ Script_GetDefault(char *apm) // IN: APM name
  */
 
 int
-Script_GetCurrent(char *apm) // IN: apm function name
+Script_GetCurrent(const char *apm) // IN: apm function name
 {
    return GetConfEntry(apm, Current);
 }
@@ -244,12 +244,12 @@ Script_GetCurrent(char *apm) // IN: apm function name
  */
 
 static int
-ScriptToggle(char *apm,       // IN: APM name
-              Bool enable,    // IN: status
-              int quiet_flag) // IN: Verbosity flag
+ScriptToggle(const char *apm, // IN: APM name
+             Bool enable,     // IN: status
+             int quiet_flag)  // IN: Verbosity flag
 {
    const char *path;
-   char *confName;
+   const char *confName;
    gchar *confPath;
    int ret = EXIT_SUCCESS;
    GKeyFile *confDict;
@@ -301,8 +301,8 @@ ScriptToggle(char *apm,       // IN: APM name
  */
 
 int
-Script_Enable(char *apm,      // IN: APM name
-              int quiet_flag) // IN: Verbosity flag
+Script_Enable(const char *apm,   // IN: APM name
+              int quiet_flag)    // IN: Verbosity flag
 {
    return ScriptToggle(apm, TRUE, quiet_flag);
 }
@@ -325,8 +325,8 @@ Script_Enable(char *apm,      // IN: APM name
  */
 
 int
-Script_Disable(char *apm,      // IN: APM name
-               int quiet_flag) // IN: Verbosity Flag
+Script_Disable(const char *apm,  // IN: APM name
+               int quiet_flag)   // IN: Verbosity Flag
 {
    return ScriptToggle(apm, FALSE, quiet_flag);
 }
@@ -352,11 +352,11 @@ Script_Disable(char *apm,      // IN: APM name
  */
 
 int
-Script_Set(char *apm,	   // IN: APM name
-           char *path,	   // IN: path to script
-           int quiet_flag) // IN: Verbosity flag
+Script_Set(const char *apm,   // IN: APM name
+           const char *path,  // IN: path to script
+           int quiet_flag)    // IN: Verbosity flag
 {
-   char *confName;
+   const char *confName;
    int ret = EXIT_SUCCESS;
    gchar *confPath = NULL;
    GKeyFile *confDict = NULL;
@@ -389,3 +389,25 @@ Script_Set(char *apm,	   // IN: APM name
    return ret;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Script_CheckName  --
+ *
+ *      Check if it is known script
+ *
+ * Results:
+ *      TRUE if name is known, FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Script_CheckName(const char *apm) // IN: script name
+{
+   return GetConfName(apm) != NULL;
+}

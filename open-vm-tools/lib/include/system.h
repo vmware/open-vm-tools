@@ -29,14 +29,16 @@
 #   define __SYSTEM_H__
 
 #include "vm_basic_types.h"
+#ifdef _WIN32
+#include "dbllnklst.h"
+#endif
 #include "unicode.h"
-
 
 uint64 System_Uptime(void);
 Bool System_GetCurrentTime(int64 *secs, int64 *usecs);
 Bool System_AddToCurrentTime(int64 deltaSecs, int64 deltaUsecs);
 Unicode System_GetTimeAsString(void);
-Bool System_EnableTimeSlew(int64 delta, uint32 timeSyncPeriod);
+Bool System_EnableTimeSlew(int64 delta, int64 timeSyncPeriod);
 Bool System_DisableTimeSlew(void);
 Bool System_IsTimeSlewEnabled(void);
 Bool System_IsACPI(void);
@@ -52,6 +54,18 @@ typedef struct {
    DesktopSwitchNotifyCB cb;   // callback to invoke.
    void *cbdata;               // data to pass to callback
 } DesktopSwitchThreadArgs;
+
+/*
+ * Representation of monitors gathered by System_GetMonitors.
+ */
+typedef struct MonListNode {
+   RECT rect;
+   RECT work;
+   BOOL isPrimary;
+   DWORD bpp;
+   BOOL isActive;
+   DblLnkLst_Links l;
+} MonListNode;
 
 /*
  * The value returned by System_GetServiceState if the current state of the
@@ -70,6 +84,7 @@ Bool System_StartDesktopSwitchThread(DesktopSwitchThreadArgs *args);
 Bool System_KillDesktopSwitchThread(void);
 Bool System_DisableAndKillScreenSaver(void);
 DWORD System_GetServiceState(LPCWSTR szServiceName);
+DblLnkLst_Links *System_GetMonitors();
 #endif
 
 

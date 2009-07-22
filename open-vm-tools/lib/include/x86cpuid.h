@@ -116,6 +116,7 @@ CPUIDQuery;
 #define CPUID_CACHED_LEVELS                     \
    CPUIDLEVEL(TRUE,  0,  0)                     \
    CPUIDLEVEL(TRUE,  1,  1)                     \
+   CPUIDLEVEL(FALSE, 5,  5)                     \
    CPUIDLEVEL(FALSE,400, 0x40000000)            \
    CPUIDLEVEL(FALSE,410, 0x40000010)            \
    CPUIDLEVEL(FALSE, 80, 0x80000000)            \
@@ -125,7 +126,6 @@ CPUIDQuery;
 
 #define CPUID_UNCACHED_LEVELS                   \
    CPUIDLEVEL(FALSE, 4, 4)                      \
-   CPUIDLEVEL(FALSE, 5, 5)                      \
    CPUIDLEVEL(FALSE, 6, 6)                      \
    CPUIDLEVEL(FALSE, A, 0xA)                    \
    CPUIDLEVEL(FALSE, 86, 0x80000006)            \
@@ -179,6 +179,7 @@ typedef enum {
 #define CPUID_CYRIX_VENDOR_STRING       "CyriteadxIns"
 #define CPUID_VIA_VENDOR_STRING         "CentaulsaurH"
 #define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
+#define CPUID_VMWARE_HYPERVISOR_VENDOR_STRING  "VMwareVMware"
 #define CPUID_INTEL_VENDOR_STRING_FIXED "GenuineIntel"
 #define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
 #define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
@@ -279,7 +280,7 @@ FIELDDEFA( 1, EBX, COMMON, 24,  8, APICID,              ANY, IGNORE, 0, FALSE, A
 FLAGDEFA(  1, ECX, COMMON, 0,   1, SSE3,                YES, HOST,   0, TRUE,  SSE3)      \
 FLAGDEFA(  1, ECX, INTEL,  1,   1, PCLMULQDQ,           YES, HOST,   0, TRUE, PCLMULQDQ)  \
 FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  MASK,   0, FALSE)            \
-FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               NO,  MASK,   0, FALSE, MWAIT)     \
+FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               ANY, MASK,   0, FALSE, MWAIT)     \
 FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  MASK,   0, FALSE, DSCPL)     \
 FLAGDEFA(  1, ECX, INTEL,  5,   1, VMX,                 NO,  MASK,   0, FALSE, VMX)       \
 FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  MASK,   0, FALSE) \
@@ -344,10 +345,10 @@ FIELDDEF(  4, EBX, INTEL,  22, 10, CACHE_WAYS,          NA,  IGNORE, 0, FALSE)
 
 /*     LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_5                                           \
-FIELDDEF(  5, EAX, COMMON,  0, 16, MWAIT_MIN_SIZE,      NA,  IGNORE, 0, FALSE) \
-FIELDDEF(  5, EBX, COMMON,  0, 16, MWAIT_MAX_SIZE,      NA,  IGNORE, 0, FALSE) \
+FIELDDEFA( 5, EAX, COMMON,  0, 16, MWAIT_MIN_SIZE,      NA,  IGNORE, 0, FALSE, MWAIT_MIN_SIZE) \
+FIELDDEFA( 5, EBX, COMMON,  0, 16, MWAIT_MAX_SIZE,      NA,  IGNORE, 0, FALSE, MWAIT_MAX_SIZE) \
 FLAGDEF(   5, ECX, COMMON,  0,  1, MWAIT_EXTENSIONS,    NA,  IGNORE, 0, FALSE) \
-FLAGDEF(   5, ECX, COMMON,  1,  1, MWAIT_INTR_BREAK,    NA,  IGNORE, 0, FALSE) \
+FLAGDEFA(  5, ECX, COMMON,  1,  1, MWAIT_INTR_BREAK,    NA,  IGNORE, 0, FALSE, MWAIT_INTR_BREAK) \
 FIELDDEF(  5, EDX, INTEL,   0,  4, MWAIT_C0_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
 FIELDDEF(  5, EDX, INTEL,   4,  4, MWAIT_C1_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
 FIELDDEF(  5, EDX, INTEL,   8,  4, MWAIT_C2_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
@@ -864,31 +865,6 @@ CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
 
 
 /*
- * On AMD chips before Opteron and Intel chips before P4 model 3,
- * WRMSR(TSC) clears the upper half of the TSC instead of using %edx.
- */
-static INLINE Bool
-CPUID_FullyWritableTSC(CpuidVendors vendor, // IN
-                       uint32 v)      // IN: %eax from CPUID with %eax=1.
-{
-   /*
-    * Returns FALSE if:
-    *   - Intel && P6 (pre-core) or
-    *   - Intel && P4 (model < 3) or
-    *   - AMD && pre-K8 Opteron
-    * Otherwise, returns TRUE (including for Via Nano).
-    */
-   return !((vendor == CPUID_VENDOR_INTEL &&
-             ((CPUID_FAMILY_IS_P6(v) &&
-               CPUID_EFFECTIVE_MODEL(v) < CPUID_MODEL_PM_0E) ||
-              (CPUID_FAMILY_IS_PENTIUM4(v) &&
-               CPUID_EFFECTIVE_MODEL(v) < 3))) ||
-            (vendor == CPUID_VENDOR_AMD &&
-             CPUID_FAMILY(v) < CPUID_FAMILY_K8));
-}
-
-
-/*
  * For certain AMD processors, an lfence instruction is necessary at various
  * places to ensure ordering.
  */
@@ -930,44 +906,6 @@ CPUID_RequiresFence(CpuidVendors vendor, // IN
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * CPUID_CountsCPUIDAsBranch --
- *
- *      Returns TRUE iff the cpuid given counts CPUID as a branch
- *      (i.e. is a pre-Merom E CPU).
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE Bool
-CPUID_CountsCPUIDAsBranch(uint32 v) /* %eax from CPUID with %eax=1 */
-{
-   /* 
-    * CPUID no longer a branch starting with Merom E. Bug 148411.
-    * Penryn (Extended Model: 1) also has this fixed.
-    *
-    * Merom E is: CPUID.1.eax & 0xfff = 0x6f9
-    */
-   return !(CPUID_FAMILY_IS_P6(v) &&
-            (CPUID_EFFECTIVE_MODEL(v) > CPUID_MODEL_CORE_0F ||
-             (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_CORE_0F &&
-              CPUID_STEPPING(v) >= 9)));
-}
-
-/*
- * On Merom and later Intel chips, not present PDPTEs with reserved bits
- * set do not fault with a #GP. See PR# 109120.
- */
-static INLINE Bool
-CPUID_FaultOnNPReservedPDPTE(uint32 v) // IN: %eax from CPUID with %eax=1.
-{
-   return !(CPUID_FAMILY_IS_P6(v) &&
-            (CPUID_EFFECTIVE_MODEL(v) >= CPUID_MODEL_CORE_0F));
-}
-
-
 /* 
  * The following low-level functions compute the number of
  * cores per cpu.  They should be used cautiously because
@@ -983,12 +921,14 @@ CPUID_IntelCoresPerPackage(uint32 v) /* %eax from CPUID with %eax=4 and %ecx=0. 
    return 1 + CPUID_INTEL_CORE_COUNT(v);
 }
 
+
 static INLINE uint32
 CPUID_AMDCoresPerPackage(uint32 v) /* %ecx from CPUID with %eax=0x80000008. */
 {
    // Note: This is not guaranteed to work on older AMD CPUs.
    return 1 + CPUID_AMD_CORE_COUNT(v);
 }
+
 
 /*
  * Hypervisor CPUID space is 0x400000XX.
@@ -1000,21 +940,5 @@ CPUID_IsHypervisorLevel(uint32 level, uint32 *offset)
    return (level & 0xffffff00) == 0x40000000;
 }
 
-
-/* Intel and VIA allow use of sysenter/sysexit in longmode. AMD does not. */
-#define CPUID_HAS_SYSENTER64()  (!CPUFEATURE_IS_AMD())
-
-/* Intel and VIA behave the same, AMD is different. */
-#define CPUID_LOADING_NULL_LEAVES_BASE()   CPUFEATURE_IS_AMD()
-
-/* Intel and VIA ignore <op> on 64 bit JMPs. */
-#define CPUID_JMP64_IGNORES_OPSZ()  (!CPUFEATURE_IS_AMD())
-
-/*
- * Hardware-assisted  virtualization supports one of two hypercalls:
- * VMCALL for VT-x implementations (Intel or VIA) and VMMCALL for AMD-V
- * implementations (AMD).
- */
-#define CPUID_HYPERCALL_IS_VMCALL() (!CPUFEATURE_IS_AMD())
 
 #endif

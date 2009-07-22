@@ -499,6 +499,98 @@ nem:
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * Escape_StrChr --
+ *
+ *      Find the first occurence of c in bufIn that is not preceded by
+ *      escByte.
+ *
+ *      XXX Doesn't handle recursive escaping, so <escByte><escByte><c>
+ *          will skip that occurence of <c>
+ *
+ * Results:
+ *      A pointer to the character, if found, NULL if not found.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+Escape_Strchr(char escByte,      // IN
+              const char *bufIn, // IN
+              char c)            // IN
+{
+   size_t i;
+   Bool escaped = FALSE;
+
+   ASSERT(escByte != c);
+   ASSERT(bufIn);
+
+   for (i = 0; bufIn[i] != '\0'; i++) {
+      if (escaped) {
+         escaped = FALSE;
+      } else {
+         if (bufIn[i] == c) {
+            return &bufIn[i];
+         }
+
+         if (bufIn[i] == escByte) {
+            escaped = TRUE;
+         }
+      }
+   }
+   return NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Escape_Unescape --
+ *
+ *      Removes all occurences of an escape character from a string, unless
+ *      the occurence is escaped.
+ *
+ * Results:
+ *      An allocated string.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Escape_Unescape(char escByte,       // IN
+                const char *bufIn)  // IN
+{
+   DynBuf result;
+   Bool escaped = FALSE;
+   char nullbyte = '\0';
+   int i;
+
+   ASSERT(bufIn);
+
+   DynBuf_Init(&result);
+
+   for (i = 0; bufIn[i]; i++) {
+      if (bufIn[i] != escByte || escaped) {
+         DynBuf_Append(&result, &(bufIn[i]), sizeof(char));
+         escaped = FALSE;
+      } else {
+         escaped = TRUE;
+      }
+   }
+
+   DynBuf_Append(&result, &nullbyte, sizeof('\0'));
+   return DynBuf_Get(&result);
+}
+
+
+/*
  *----------------------------------------------------------------------------
  *
  * Escape_UnescapeCString --

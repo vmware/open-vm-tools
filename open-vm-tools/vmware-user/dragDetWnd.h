@@ -50,11 +50,14 @@ public:
    void SetGeometry(const int x, const int y,
                     const int width, const int height);
    void GetGeometry(int &x, int &y, int &width, int &height);
+   void SetIsVisible(const bool isVisible) {m_isVisible = isVisible;};
+   bool GetIsVisible() {return m_isVisible;};
 #if defined(DETWNDEBUG)
-   void SetAttributes();
+   void DebugSetAttributes();
 #endif
 private:
    void Flush();
+   bool m_isVisible;
 };
 
 #if defined(DETWNDTEST)

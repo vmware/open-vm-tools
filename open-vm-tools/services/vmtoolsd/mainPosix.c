@@ -123,9 +123,12 @@ main(int argc,
        * was used, or things may not work as expected.
        */
       if (!g_path_is_absolute(argv[0])) {
-         char *cwd = File_Cwd(NULL);
-         char *abs = g_strdup_printf("%s%c%s", cwd, DIRSEPC, argv[0]);
-         vm_free(cwd);
+         gchar *abs = g_find_program_in_path(argv[0]);
+         if (abs == NULL) {
+            char *cwd = File_Cwd(NULL);
+            abs = g_strdup_printf("%s%c%s", cwd, DIRSEPC, argv[0]);
+            vm_free(cwd);
+         }
          argv[0] = abs;
       }
 

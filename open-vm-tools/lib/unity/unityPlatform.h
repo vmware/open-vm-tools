@@ -67,7 +67,8 @@ void UnityPlatformSaveSystemSettings(UnityPlatform *up);
 void UnityPlatformRestoreSystemSettings(UnityPlatform *up);
 Bool UnityPlatformGetWindowPath(UnityPlatform *up,
                                 UnityWindowId window,
-                                DynBuf *buf);
+                                DynBuf *windowPathUtf8,
+                                DynBuf *execPathUtf8);
 Bool UnityPlatformGetNativeWindowPath(UnityPlatform *up,
                                       UnityWindowId window,
                                       DynBuf *buf);

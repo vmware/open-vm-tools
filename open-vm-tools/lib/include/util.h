@@ -146,6 +146,12 @@ int Util_CompareDotted(const char *s1, const char *s2);
 void Util_PrintLoadedObjects(void *addr_inside_exec);
 #endif
 
+#if defined(VMX86_STATS)
+Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
+                            uint64 **transitns, uint64 **residency,
+                            uint64 **transTime, uint64 **residTime);
+#endif
+
 /*
  * In util_shared.h
  */
@@ -223,6 +229,7 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
 #else
 #   define DIRSEPS	      "/"
 #   define DIRSEPC	      '/'
+#   define VALID_DIRSEPS      DIRSEPS
 #endif
 
 

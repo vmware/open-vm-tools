@@ -41,6 +41,7 @@ class DnDRpc
       /* sigc signals for callback. */
       sigc::signal<void, bool, uint32> ghUpdateUnityDetWndChanged;
       sigc::signal<void, int, int> ghQueryPendingDragChanged;
+      sigc::signal<void, int32, int32>ghPrivateDropChanged;
       sigc::signal<void> ghCancelChanged;
       sigc::signal<void, const CPClipboard*> hgDragEnterChanged;
       sigc::signal<void> hgDragStartChanged;
@@ -48,6 +49,7 @@ class DnDRpc
       sigc::signal<void> hgDropChanged;
       sigc::signal<void, bool, const std::vector<uint8> > hgFileCopyDoneChanged;
       sigc::signal<void, int32, int32> updateMouseChanged;
+      sigc::signal<void> moveDetWndToMousePos;
 
       /* GH DnD. */
       virtual bool GHDragEnter(const CPClipboard *clip) = 0;
@@ -61,6 +63,7 @@ class DnDRpc
 
    protected:
       uint32 mHostMinorVersion;
+      uint32 mGuestMinorVersion;
 };
 
 #endif // DND_RPC_HH

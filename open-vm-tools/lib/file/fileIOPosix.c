@@ -96,6 +96,23 @@
 #define XATTR_BACKUP_REENABLED "com.vmware.backupReenabled"
 #endif
 
+/* 
+ * fallocate() is only supported since the glibc-2.8 and
+ * linux kernel-2.6.23.Presently the glibc in our toolchain is 2.3 
+ */
+#ifdef __linux__
+   #ifndef SYS_fallocate 
+      #ifdef __i386__
+         #define SYS_fallocate 324   
+      #elif __x86_64__ 
+         #define SYS_fallocate 285 
+      #endif
+   #endif
+   #ifndef FALLOC_FL_KEEP_SIZE	
+	#define FALLOC_FL_KEEP_SIZE 1
+   #endif	
+#endif
+
 static const unsigned int FileIO_SeekOrigins[] = {
    SEEK_SET,
    SEEK_CUR,
@@ -1296,6 +1313,7 @@ FileIOCoalesce(struct iovec *inVec,     // IN:  Vector to coalesce from
                size_t inTotalSize,      // IN:  totalSize (bytes) in inVec
                Bool isWrite,            // IN:  coalesce for writing (or reading)
                Bool forceCoalesce,      // IN:  if TRUE always coalesce
+               int flags,               // IN: fileIO open flags
                struct iovec *outVec)    // OUT: Coalesced (1-entry) iovec
 {
    uint8 *cBuf;
@@ -1324,7 +1342,7 @@ FileIOCoalesce(struct iovec *inVec,     // IN:  Vector to coalesce from
    // XXX: Wouldn't it be nice if we could log from here!
    //LOG(5, ("FILE: Coalescing %s of %d elements and %d size\n",
    //        isWrite ? "write" : "read", inCount, inTotalSize));
-   if (filePosixOptions.aligned) {
+   if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
       cBuf = Aligned_Malloc(sizeof(uint8) * inTotalSize);
    } else {
       cBuf = Util_SafeMalloc(sizeof(uint8) * inTotalSize);
@@ -1366,7 +1384,8 @@ FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
                  struct iovec *origVec, // IN: Original vector
                  int origVecCount,      // IN: count for origVec
                  size_t actualSize,     // IN: # bytes to transfer back to origVec
-                 Bool isWrite)          // IN: decoalesce for writing (or reading)
+                 Bool isWrite,          // IN: decoalesce for writing (or reading)
+                 int flags)             // IN: fileIO open flags
 {
    ASSERT(coVec);
    ASSERT(origVec);
@@ -1378,7 +1397,7 @@ FileIODecoalesce(struct iovec *coVec,   // IN: Coalesced (1-entry) vector
       IOV_WriteBufToIov(coVec->iov_base, actualSize, origVec, origVecCount);
    }
 
-   if (filePosixOptions.aligned) {
+   if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
       Aligned_Free(coVec->iov_base);
    } else {
       free(coVec->iov_base);
@@ -1426,7 +1445,8 @@ FileIO_Readv(FileIODescriptor *fd,      // IN
 
    ASSERT(fd);
 
-   didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE, FALSE, &coV);
+   didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE,
+                                FALSE, fd->flags, &coV);
 
    STAT_INST_INC(fd->stats, NumReadvs);
    STAT_INST_INC_BY(fd->stats, BytesReadv, totalSize);
@@ -1491,7 +1511,7 @@ FileIO_Readv(FileIODescriptor *fd,      // IN
    }
 
    if (didCoalesce) {
-      FileIODecoalesce(&coV, v, numEntries, bytesRead, FALSE);
+      FileIODecoalesce(&coV, v, numEntries, bytesRead, FALSE, fd->flags);
    }
 
    if (actual) {
@@ -1541,7 +1561,8 @@ FileIO_Writev(FileIODescriptor *fd,     // IN
 
    ASSERT(fd);
 
-   didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE, FALSE, &coV);
+   didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE,
+                                FALSE, fd->flags, &coV);
 
    STAT_INST_INC(fd->stats, NumWritevs);
    STAT_INST_INC_BY(fd->stats, BytesWritev, totalSize);
@@ -1589,7 +1610,7 @@ FileIO_Writev(FileIODescriptor *fd,     // IN
    }
 
    if (didCoalesce) {
-      FileIODecoalesce(&coV, v, numEntries, bytesWritten, TRUE);
+      FileIODecoalesce(&coV, v, numEntries, bytesWritten, TRUE, fd->flags);
    }
 
    if (actual) {
@@ -1641,8 +1662,7 @@ FileIO_Preadv(FileIODescriptor *fd,    // IN: File descriptor
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
    didCoalesce = FileIOCoalesce(entries, numEntries, totalSize, FALSE,
-                                TRUE /* force coalescing */,
-                                &coV);
+                                TRUE /* force coalescing */, fd->flags, &coV);
 
    count = didCoalesce ? 1 : numEntries;
    vPtr = didCoalesce ? &coV : entries;
@@ -1695,7 +1715,7 @@ FileIO_Preadv(FileIODescriptor *fd,    // IN: File descriptor
 
 exit:
    if (didCoalesce) {
-      FileIODecoalesce(&coV, entries, numEntries, sum, FALSE);
+      FileIODecoalesce(&coV, entries, numEntries, sum, FALSE, fd->flags);
    }
 
    return fret;
@@ -1742,8 +1762,7 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
    didCoalesce = FileIOCoalesce(entries, numEntries, totalSize, TRUE,
-                                TRUE /* force coalescing */,
-                                &coV);
+                                TRUE /* force coalescing */, fd->flags, &coV);
 
    count = didCoalesce ? 1 : numEntries;
    vPtr = didCoalesce ? &coV : entries;
@@ -1800,7 +1819,7 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    fret = FILEIO_SUCCESS;
 exit:
    if (didCoalesce) {
-      FileIODecoalesce(&coV, entries, numEntries, sum, TRUE);
+      FileIODecoalesce(&coV, entries, numEntries, sum, TRUE, fd->flags);
    }
 
    return fret;
@@ -1892,26 +1911,36 @@ Bool
 FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN
                     uint64 size)                 // IN
 {
+
+#if defined(__APPLE__) || defined(__linux__)
+   uint64 curSize;
+   uint64 preallocLen;
 #ifdef __APPLE__
    fstore_t prealloc;
-   uint64 curSize;
+#endif
 
    curSize = FileIO_GetAllocSize(fd);
-
    if (curSize > size) {
       errno = EINVAL;
       return FALSE;
-   }
+   }	
+   preallocLen = size - curSize;
 
+#ifdef __APPLE__
    prealloc.fst_flags = 0;
    prealloc.fst_posmode = F_PEOFPOSMODE;
    prealloc.fst_offset = 0;
-   prealloc.fst_length = size - curSize;
+   prealloc.fst_length = preallocLen;
    prealloc.fst_bytesalloc = 0;
 
    return fcntl(fd->posix, F_PREALLOCATE, &prealloc) != -1;
+#elif __linux__
+   return syscall(SYS_fallocate, fd->posix, FALLOC_FL_KEEP_SIZE, 
+		  curSize, preallocLen) == 0;
+#endif
+
 #else
-   errno = EINVAL;
+   errno = ENOSYS;
    return FALSE;
 #endif
 }

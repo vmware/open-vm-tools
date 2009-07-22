@@ -72,7 +72,7 @@ typedef struct {
 } ImageInfo;
 
 typedef struct {
-   int zlibCompressLevel;
+   int zlibCompressLevel; // Set to -1 for the default compression level.
    Bool stripAlphaChannel;
 } ImagePngWriteOptions;
 

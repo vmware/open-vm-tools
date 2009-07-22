@@ -257,9 +257,8 @@ static const VixCommandInfo vixCommandInfoTable[] = {
                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_OPEN_TEAM,
                            VIX_COMMAND_CATEGORY_PRIVILEGED),
-   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_FIND_HOST_DEVICES,
-                           VIX_COMMAND_CATEGORY_PRIVILEGED),
-   
+   VIX_DEFINE_UNUSED_COMMAND,
+
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ANSWER_MESSAGE,
                            VIX_COMMAND_CATEGORY_PRIVILEGED),
 
@@ -421,6 +420,15 @@ static const VixCommandInfo vixCommandInfoTable[] = {
 
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LIST_FILESYSTEMS,
                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CHANGE_DISPLAY_TOPOLOGY,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_SUSPEND_AND_RESUME,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_BULK_SNAPSHOT,
+                           VIX_COMMAND_CATEGORY_PRIVILEGED),
 
 };
 
@@ -1315,7 +1323,7 @@ abort:
  *
  * VixAsyncOp_ValidateCommandInfoTable --
  *
- *      Checkes that the command info table is generally well-formed.
+ *      Checks that the command info table is generally well-formed.
  *      Makes sure that the table is big enough to contain all the
  *      command op codes and that they are present in the right order.
  *
@@ -1461,3 +1469,165 @@ VixGetCommandInfoForOpCode(int opCode)  // IN
 
    return commandInfo;
 } // VixGetCommandInfoForOpCode
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_AllocGenericRequestMsg --
+ *
+ *      Allocate and initialize a generic request message.
+ *
+ *      Assumes the caller holds the lock to 'propertyList'.
+ *
+ * Results:
+ *      Returns VixError.
+ *      Upon retrun, *request will contain either the message with the
+ *      headers properly initialized or NULL.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixMsg_AllocGenericRequestMsg(int opCode,                         // IN
+                              uint64 cookie,                      // IN
+                              int credentialType,                 // IN
+                              const char *userNamePassword,       // IN
+                              int options,                        // IN
+                              VixPropertyListImpl *propertyList,  // IN
+                              VixCommandGenericRequest **request) // OUT
+{
+   VixError err;
+   VixCommandGenericRequest *requestLocal = NULL;
+   size_t msgHeaderAndBodyLength;
+   char *serializedBufferBody = NULL;
+   size_t serializedBufferLength = 0;
+
+   if (NULL == request) {
+      ASSERT(0);
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   *request = NULL;
+
+   if (NULL != propertyList) {
+      err = VixPropertyList_Serialize(propertyList,
+                                      FALSE,
+                                      &serializedBufferLength,
+                                      &serializedBufferBody);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+   }
+
+   msgHeaderAndBodyLength = sizeof(*requestLocal) + serializedBufferLength;
+   requestLocal = (VixCommandGenericRequest *)
+      VixMsg_AllocRequestMsg(msgHeaderAndBodyLength,
+                             opCode,
+                             cookie,
+                             credentialType,
+                             userNamePassword);
+   if (NULL == requestLocal) {
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   requestLocal->options = options;
+   requestLocal->propertyListSize = serializedBufferLength;
+
+   if (NULL != serializedBufferBody) {
+      char *dst = (char *)request + sizeof(*request);
+      memcpy(dst, serializedBufferBody, serializedBufferLength);
+   }
+
+   *request = requestLocal;
+   err = VIX_OK;
+
+ abort:
+   free(serializedBufferBody);
+
+   return err;
+}  // VixMsg_AllocGenericRequestMsg
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_ParseGenericRequestMsg --
+ *
+ *      Extract the options and property list from the request
+ *      message, while validating message.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,  // IN
+                              int *options,                             // OUT
+                              VixPropertyListImpl *propertyList)        // OUT
+{
+   VixError err;
+   uint64 headerAndBodyLength;
+
+   if ((NULL == request) || (NULL == options) || (NULL == propertyList)) {
+      ASSERT(0);
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   *options = 0;
+   VixPropertyList_Initialize(propertyList);
+
+   /*
+    * In most cases we will have already called VixMsg_ValidateResponseMsg()
+    * on this request before, but call it here so that this function will
+    * always be sufficient to validate the request.
+    */
+   err = VixMsg_ValidateRequestMsg(request,
+                                   request->header.commonHeader.totalMessageLength);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   if (request->header.commonHeader.totalMessageLength < sizeof *request) {
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   headerAndBodyLength = (uint64) request->header.commonHeader.headerLength
+      + request->header.commonHeader.bodyLength;
+
+   if (headerAndBodyLength < ((uint64) sizeof *request
+                              + request->propertyListSize)) {
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   if (request->propertyListSize > 0) {
+      const char *serializedBuffer = (const char *) request + sizeof(*request);
+
+      err = VixPropertyList_Deserialize(propertyList,
+                                        serializedBuffer,
+                                        request->propertyListSize);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+   }
+
+   *options = request->options;
+   err = VIX_OK;
+
+ abort:
+
+   return err;
+} // VixMsg_ParseGenericRequestMsg

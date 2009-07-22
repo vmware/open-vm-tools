@@ -75,7 +75,7 @@ typedef struct ListItem {
 /*
  * delete item from the list
  */
-#define   LIST_DEL            DelListItem   
+#define   LIST_DEL            DelListItem
 
 /*
  * link two lists together
@@ -100,7 +100,7 @@ typedef struct ListItem {
 /*
  * Get the list size.
  */
-#define   LIST_SIZE  	      GetListSize
+#define   LIST_SIZE           GetListSize
 
 /*
  * LIST_SCAN_FROM scans the list from "from" up until "until".
@@ -113,7 +113,7 @@ typedef struct ListItem {
    for (p = (from); (p) != NULL;   \
       (p) = (((p)->member == (until)) ? NULL : (p)->member))
 
-/* scan the entire list (non-destructively) */ 
+/* scan the entire list (non-destructively) */
 #define   LIST_SCAN(p, l)   \
    LIST_SCAN_FROM(p, LIST_FIRST(l), LIST_FIRST(l), next)
 
@@ -145,7 +145,7 @@ typedef struct ListItem {
  *      Returns the next member of a doubly linked list, or NULL if last.
  *      Assumes: p is member of the list headed by head.
  *
- * Result
+ * Result:
  *      If head or p is NULL, return NULL. Otherwise,
  *      next list member (or null if last).
  *
@@ -176,7 +176,7 @@ NextListItem(ListItem *p,        // IN
  *      Returns the prev member of a doubly linked list, or NULL if first.
  *      Assumes: p is member of the list headed by head.
  *
- * Result
+ * Result:
  *      If head or prev is NULL, return NULL. Otherwise,
  *      prev list member (or null if first).
  *
@@ -207,7 +207,7 @@ PrevListItem(ListItem *p,        // IN
  *      list header itself.
  *      Assumes neither p nor headp is null and p is a member of *headp.
  *
- * Result
+ * Result:
  *      None
  *
  * Side effects:
@@ -246,7 +246,7 @@ DelListItem(ListItem *p,         // IN
  *      Adds a new member to the back of a doubly linked list (queue)
  *      Assumes neither p nor headp is null and p is not a member of *headp.
  *
- * Result
+ * Result:
  *      None
  *
  * Side effects:
@@ -272,7 +272,7 @@ QueueListItem(ListItem *p,              // IN
       head->prev = p;
    }
 }
-                                                                                
+
 
 /*
  *----------------------------------------------------------------------
@@ -282,7 +282,7 @@ QueueListItem(ListItem *p,              // IN
  *      Adds a new member to the front of a doubly linked list (stack)
  *      Assumes neither p nor headp is null and p is not a member of *headp.
  *
- * Result
+ * Result:
  *      None
  *
  * Side effects:
@@ -298,7 +298,7 @@ PushListItem(ListItem *p,               // IN
    QueueListItem(p, headp);
    *headp = p;
 }
- 
+
 
 /*
  *----------------------------------------------------------------------
@@ -310,7 +310,7 @@ PushListItem(ListItem *p,               // IN
  *      No checking is done. It is assumed that l1 and l2 are two
  *      distinct lists.
  *
- * Result
+ * Result:
  *      A list { l1 l2 }.
  *
  * Side effects:
@@ -357,11 +357,11 @@ SpliceLists(ListItem *l1,      // IN
  *      Make a list l = {l1 l2} into two separate lists {l1} and {l2}, where:
  *      l = { ... x -> p -> ... } split into:
  *      l1 = { ... -> x }
- *      l2 = { p -> ... } 
+ *      l2 = { p -> ... }
  *      Assumes neither p nor l is null and p is a member of l.
  *      If p is the first element of l, then l1 will be NULL.
  *
- * Result
+ * Result:
  *      None.
  *
  * Side effects:
@@ -414,7 +414,7 @@ SplitLists(ListItem *p,         // IN
  */
 
 static INLINE int
-GetListSize(ListItem *head) 	// IN
+GetListSize(ListItem *head)     // IN
 {
    ListItem *li;
    int ret = 0;

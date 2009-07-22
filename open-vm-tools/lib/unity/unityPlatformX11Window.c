@@ -224,7 +224,7 @@ CompareStackingOrder(UnityPlatform *up,         // IN
    {
       size_t childrenSize = nWindows * sizeof *relevantUChildren;
 
-      if (memcmp(relevantXChildren, relevantUChildren, childrenSize) || 
+      if (memcmp(relevantXChildren, relevantUChildren, childrenSize) ||
           memcmp(relevantXChildren, trackerChildren, childrenSize)) {
          Debug("%s: mismatch!\n", callerName);
          Debug("%s: %8s %10s %10s %10s\n", callerName, "index", "X Server",
@@ -981,8 +981,31 @@ UPWindowSetRelevance(UnityPlatform *up,        // IN
 
    upw->isRelevant = isRelevant;
    if (isRelevant) {
+      DynBuf windowPath;
+      DynBuf execPath;
+      Bool retval;
+
+      DynBuf_Init(&windowPath);
+      DynBuf_Init(&execPath);
+
+      retval = UnityPlatformGetWindowPath(up,
+                                          upw->toplevelWindow,
+                                          &windowPath,
+                                          &execPath);
+
+      if (!retval) {
+         Debug("GetWindowPath didn't know how to identify the window...\n");
+      }
+
       Debug("Adding window %#lx to tracker\n", upw->toplevelWindow);
-      UnityWindowTracker_AddWindowWithData(up->tracker, upw->toplevelWindow, upw);
+      UnityWindowTracker_AddWindowWithData(up->tracker,
+                                           upw->toplevelWindow,
+                                           &windowPath,
+                                           &execPath,
+                                           upw);
+      DynBuf_Destroy(&windowPath);
+      DynBuf_Destroy(&execPath);
+
       UPWindowPushFullUpdate(up, upw);
    } else {
       Debug("Removing window %#lx from tracker\n", upw->toplevelWindow);
@@ -1570,7 +1593,8 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
    } else
 #endif
    {
-      if (up->desktopInfo.currentDesktop == upw->desktopNumber) {
+      if (upw->desktopNumber == up->desktopInfo.currentDesktop ||
+          upw->desktopNumber == -1) {
          UnityRect actualRect;
          Window actualWindow;
 
@@ -1749,7 +1773,6 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
 
    argv = inArgv;
 
-#ifdef GTK2
    while (argc && AppUtil_AppIsSkippable(argv[0])) {
       argv++;
       argc--;
@@ -1776,7 +1799,6 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
          return FALSE;
       }
    }
-#endif
 
    /*
     * If the program in question takes any arguments, they will be appended as URI
@@ -2052,8 +2074,8 @@ tryLeader:
  *      Get the information needed to re-launch a window and retrieve further
  *      information on it.
  *
- *      'buf' will hold two URI strings, one which uniquely identifies an X11
- *      window (windowUri) and one which uniquely identifies the window's owning
+ *      windowPathUtf8 uniquely identifies an X11 window (windowUri),
+ *      execPathUtf8 uniquely identifies the window's owning
  *      executable (execUri).
  *
  *      windowUri is handy for getting icons and other data associated with a
@@ -2064,17 +2086,11 @@ tryLeader:
  *      from the same application are really associated with separate
  *      applications.)
  *
- *      I.e., <windowUri><nul><execUri><nul>
- *
- *      This RPC is overloaded with two URIs in order to maintain backwards
- *      compatibility with older VMXs / host UIs expecting to pass the first
- *      (and, to them, only known) URI to GHIGetBinaryInfo.
- *
  * Results:
  *      TRUE if everything went ok, FALSE otherwise.
  *
  * Side effects:
- *      None
+ *      Original buffer contents are overwritten.
  *
  *----------------------------------------------------------------------------
  */
@@ -2082,7 +2098,8 @@ tryLeader:
 Bool
 UnityPlatformGetWindowPath(UnityPlatform *up,        // IN: Platform data
                            UnityWindowId window,     // IN: window handle
-                           DynBuf *buf)              // IN/OUT: full path to the binary
+                           DynBuf *windowPathUtf8,   // IN/OUT: full path to the window
+                           DynBuf *execPathUtf8)     // IN/OUT: full path to the binary
 {
    UnityPlatformWindow *upw;
    Bool retval = FALSE;
@@ -2108,8 +2125,10 @@ UnityPlatformGetWindowPath(UnityPlatform *up,        // IN: Platform data
             "   execUri = %s\n",
             window, windowUri, execUri);
 
-      DynBuf_AppendString(buf, windowUri);
-      DynBuf_AppendString(buf, execUri);
+      DynBuf_SetSize(windowPathUtf8, 0);
+      DynBuf_SetSize(execPathUtf8, 0);
+      DynBuf_AppendString(windowPathUtf8, windowUri);
+      DynBuf_AppendString(execPathUtf8, execUri);
 
       g_free(windowUri);
       g_free(execUri);

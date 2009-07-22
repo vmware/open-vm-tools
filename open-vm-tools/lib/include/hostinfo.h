@@ -167,7 +167,9 @@ typedef enum {
    OS_DETAIL_WIN2K3_EN       = 16,
    OS_DETAIL_WIN2K3_BUS      = 17,
    OS_DETAIL_VISTA           = 18,
-   OS_DETAIL_WINSEVEN        = 19,    // Windows 7
+   OS_DETAIL_WIN2K8          = 19,
+   OS_DETAIL_WINSEVEN        = 20,    // Windows 7
+   OS_DETAIL_WIN2K8R2        = 21,
    OS_DETAIL_UNKNOWN         = 99999  // last, highest value
 } OS_DETAIL_TYPE;
 

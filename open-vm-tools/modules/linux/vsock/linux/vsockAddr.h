@@ -45,8 +45,8 @@ Bool VSockAddr_EqualsHandlePort(struct sockaddr_vm *addr, VMCIHandle handle,
                                 uint32 port);
 int32 VSockAddr_Cast(const struct sockaddr *addr, int32 len,
                      struct sockaddr_vm **outAddr);
-Bool VSockAddr_SocketContext(VMCIId cid);
-
+Bool VSockAddr_SocketContextStream(uint32 cid);
+Bool VSockAddr_SocketContextDgram(uint32 cid, uint32 rid);
 
 #endif // _VSOCK_ADDR_H_
 

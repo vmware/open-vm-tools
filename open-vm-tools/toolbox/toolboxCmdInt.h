@@ -94,12 +94,12 @@ int TimeSync_Status(void);
  * Script Operations
  */
 
-int Script_GetDefault(char*);
-int Script_GetCurrent(char*);
-int Script_Enable(char*, int);
-int Script_Disable(char*, int);
-int Script_Set(char*, char*, int);
-
+int Script_GetDefault(const char *);
+int Script_GetCurrent(const char *);
+int Script_Enable(const char *, int);
+int Script_Disable(const char *, int);
+int Script_Set(const char *, const char *, int);
+Bool Script_CheckName(const char *);
 
 /*
  * Disk Shrink Operations

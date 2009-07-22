@@ -237,6 +237,7 @@
 #define SCSI_ASC_WRITE_ERROR                                    0x0c  // Write error
 #define SCSI_ASC_UNRECOVERED_READ_ERROR                         0x11  // Unrecovered read error
 #define SCSI_ASC_PARAM_LIST_LENGTH_ERROR                        0x1a  // parameter list length error
+#define SCSI_ASC_RECOVERED_DATA                                 0x17
 #define SCSI_ASC_INVALID_COMMAND_OPERATION      		0x20  // invalid command operation code
 #define SCSI_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE             0x21  // Invalid LBA
 #define SCSI_ASC_INVALID_FIELD_IN_CDB                           0x24
@@ -410,7 +411,9 @@ typedef struct {
          w32	     :1,   // device supports 32-bit wide SCSI data transfers
 	 rel	     :1;   // device supports relative addressing
    uint8 manufacturer[8];  // manufacturer's name in ascii
+#define SCSI_VENDOR_SZ sizeof(((SCSIInquiryResponse *) 0)->manufacturer)
    uint8 product[16];	   // product name in ascii
+#define SCSI_MODEL_SZ sizeof(((SCSIInquiryResponse *) 0)->product)
    uint8 revision[4];	   // product version number in ascii
    uint8 vendor1[20];	   // vendor unique data (opaque)
    uint8 reserved[40];

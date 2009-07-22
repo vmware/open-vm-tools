@@ -403,6 +403,7 @@ typedef uint64 HgfsAttrFlags;
 #define HGFS_ATTR_SYSTEM      (1 << 1)
 #define HGFS_ATTR_ARCHIVE     (1 << 2)
 #define HGFS_ATTR_HIDDEN_FORCED (1 << 3)
+#define HGFS_ATTR_REPARSE_POINT (1 << 4)
 
 
 /*

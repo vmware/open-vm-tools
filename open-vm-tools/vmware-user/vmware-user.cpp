@@ -543,7 +543,7 @@ VMwareUserRpcInSetOptionCB(char const **result,     // OUT
    char *value;
    unsigned int index = 0;
    Bool ret = FALSE;
-   char *retStr = NULL;
+   const char *retStr = NULL;
 
    /* parse the option & value string */
    option = StrUtil_GetNextToken(&index, args, " ");

@@ -74,13 +74,13 @@ Bool Raster_IsModeReasonable(uint32 depth, uint32 bpp, Bool pseudocolor);
 int Raster_GetBPPDepth(uint32 depth, uint32 bpp);
 
 void Raster_ConvertPixels(uint8 *tof, int32 line_increment, int bppdepth,
-			  uint8 *src, int32 src_increment, int src_bppdepth,
-			  Bool pseudoColor, uint32 *pixels,
+			  const uint8 *src, int32 src_increment, int src_bppdepth,
+			  Bool pseudoColor, const uint32 *pixels,
 			  uint32 src_x, uint32 src_y,
 			  uint32 x, uint32 y, uint32 w, uint32 h);
 
 uint32 Raster_ConvertOnePixel(uint32 pixel, int src_depth, int depth,
-			      Bool pseudoColor, uint32 *pixels);
+			      Bool pseudoColor, const uint32 *pixels);
 
 Bool Raster_ConversionParameters(int depth, uint32 *redMask,
 				 uint32 *greenMask, uint32 *blueMask);

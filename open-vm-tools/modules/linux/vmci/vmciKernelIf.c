@@ -1397,95 +1397,6 @@ VMCIWellKnownID_AllowMap(VMCIId wellKnownID,           // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIHost_FinishAttach --
- 
- *       Finish the "attach" operation by update the queues to be
- *       backed by the shared memory represented by the "attach"
- *       structure.
- *
- * Results:
- *       VMCI_SUCCESS on success or negative error on failure.
- *
- * Side Effects:
- *       None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-VMCIHost_FinishAttach(PageStoreAttachInfo *attach,      // IN
-                      VMCIQueue *produceQ,              // OUT
-                      VMCIQueue *consumeQ)              // OUT
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-   produceQ->queueHeaderPtr = kmap(attach->producePages[0]);
-   produceQ->page = &attach->producePages[1];
-   consumeQ->queueHeaderPtr = kmap(attach->consumePages[0]);
-   consumeQ->page = &attach->consumePages[1];
-#else
-   /*
-    * Host queue pair support for earlier kernels temporarily
-    * disabled. See bug 365496.
-    */
-
-   ASSERT_NOT_IMPLEMENTED(FALSE);
-#if 0 
-   produceQ->queueHeaderPtr = kmap(attach->produceIoBuf->maplist[0]);
-   produceQ->page = &attach->produceIoBuf->maplist[1];
-   consumeQ->queueHeaderPtr = kmap(attach->consumeIoBuf->maplist[0]);
-   consumeQ->page = &attach->consumeIoBuf->maplist[1];
-#endif
-#endif
-
-   return VMCI_SUCCESS;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIHost_DetachMappings --
- *       Remove any local mappings of memory referenced in 'attach' in
- *       preparation for releasing the shared memory region entirely.
- *
- * Results:
- *       None.
- *
- * Side Effects:
- *       None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach,
-                        struct VMCIQueue *produceQ,
-                        struct VMCIQueue *detachQ)
-{
-   /*
-    * Unmap the header pages
-    */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-   kunmap(attach->producePages[0]);
-   kunmap(attach->consumePages[0]);
-#else
-   /*
-    * Host queue pair support for earlier kernels temporarily
-    * disabled. See bug 365496.
-    */
-
-   ASSERT_NOT_IMPLEMENTED(FALSE);
-#if 0
-   kunmap(attach->produceIoBuf->maplist[0]);
-   kunmap(attach->consumeIoBuf->maplist[0]);
-#endif
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCIHost_GetUserMemory --
  *       Lock the user pages referenced by the {produce,consume}Buffer
  *       struct into memory and populate the {produce,consume}Pages
@@ -1501,7 +1412,9 @@ VMCIHost_DetachMappings(struct PageStoreAttachInfo *attach,
  */
 
 int
-VMCIHost_GetUserMemory(PageStoreAttachInfo *attach)         // IN/OUT
+VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
+                       VMCIQueue *produceQ,              // OUT
+                       VMCIQueue *consumeQ)              // OUT
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
    int retval;
@@ -1563,6 +1476,13 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach)         // IN/OUT
       err = VMCI_ERROR_NO_MEM;
    }
 
+   if (err == VMCI_SUCCESS) {
+      produceQ->queueHeaderPtr = kmap(attach->producePages[0]);
+      produceQ->page = &attach->producePages[1];
+      consumeQ->queueHeaderPtr = kmap(attach->consumePages[0]);
+      consumeQ->page = &attach->consumePages[1];
+   }
+
 out:
    up_write(&current->mm->mmap_sem);
 
@@ -1620,6 +1540,13 @@ errorDealloc:
       err = VMCI_ERROR_NO_ACCESS;
    }
 
+   if (err == VMCI_SUCCESS) {
+      produceQ->queueHeaderPtr = kmap(attach->produceIoBuf->maplist[0]);
+      produceQ->page = &attach->produceIoBuf->maplist[1];
+      consumeQ->queueHeaderPtr = kmap(attach->consumeIoBuf->maplist[0]);
+      consumeQ->page = &attach->consumeIoBuf->maplist[1];
+   }
+
 out:
 
    if (err < VMCI_SUCCESS) {
@@ -1632,11 +1559,12 @@ out:
                             sizeof *attach->consumeIoBuf);
       }
    }
+
    return err;
-#else
+#else // 0 -- Instead just return FALSE
    return FALSE;
-#endif
-#endif
+#endif // 0
+#endif // Linux version >= 2.6.0
 }
 
 
@@ -1658,7 +1586,9 @@ out:
  */
 
 void
-VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach)         // IN
+VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
+                           VMCIQueue *produceQ,              // OUT
+                           VMCIQueue *consumeQ)              // OUT
 {
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
@@ -1666,6 +1596,10 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach)         // IN
 
    ASSERT(attach->producePages);
    ASSERT(attach->consumePages);
+
+   kunmap(attach->producePages[0]);
+   kunmap(attach->consumePages[0]);
+
    for (i = 0; i < attach->numProducePages; i++) {
       ASSERT(attach->producePages[i]);
 
@@ -1694,6 +1628,9 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach)         // IN
 
    ASSERT_NOT_IMPLEMENTED(FALSE);
 #if 0
+   kunmap(attach->produceIoBuf->maplist[0]);
+   kunmap(attach->consumeIoBuf->maplist[0]);
+
    mark_dirty_kiobuf(attach->produceIoBuf,
                      attach->numProducePages * PAGE_SIZE);
    unmap_kiobuf(attach->produceIoBuf);

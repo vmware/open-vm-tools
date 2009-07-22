@@ -66,8 +66,6 @@ CopyPasteUI::CopyPasteUI()
  : mClipboardEmpty(true),
    mHGStagingDir(""),
    mIsClipboardOwner(false),
-   mClipTimePrev(0),
-   mPrimTimePrev(0),
    mHGGetFilesInitiated(false),
    mFileTransferDone(false),
    mBlockAdded(false),
@@ -94,14 +92,13 @@ CopyPasteUI::CopyPasteUI()
  *-----------------------------------------------------------------------------
  */
 
-void
+bool
 CopyPasteUI::Init()
 {
    if (mInited) {
-      return;
+      return true;
    }
 
-   mInited = true;
    CPClipboard_Init(&mClipboard);
 
    Gtk::TargetEntry gnome(FCP_TARGET_NAME_GNOME_COPIED_FILES);
@@ -116,7 +113,7 @@ CopyPasteUI::Init()
    if (!RpcOut_sendOne(NULL, NULL, "tools.capability.copypaste_version 3")) {
       Debug("%s: could not set guest copypaste version capability\n",
             __FUNCTION__);
-      return;
+      return false;
    }
    Debug("%s: set copypaste version 3\n", __FUNCTION__);
 
@@ -126,6 +123,8 @@ CopyPasteUI::Init()
       sigc::mem_fun(this, &CopyPasteUI::GetLocalClipboard));
    mCP.localGetFilesDoneChanged.connect(
       sigc::mem_fun(this, &CopyPasteUI::GetLocalFilesDone));
+   mInited = true;
+   return true;
 }
 
 
@@ -580,64 +579,31 @@ CopyPasteUI::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
    mGHSelection = GDK_SELECTION_PRIMARY;
    if (mClipTime > mPrimTime) {
       mGHSelection = GDK_SELECTION_CLIPBOARD;
-      Debug("%s: mClipTimePrev: %"FMT64"u.", __FUNCTION__, mClipTimePrev);
-   } else {
-      Debug("%s: mPrimTimePrev: %"FMT64"u.", __FUNCTION__, mPrimTimePrev);
    }
 
-   mPrimTimePrev = mPrimTime;
-   mClipTimePrev = mClipTime;
+   Glib::RefPtr<Gtk::Clipboard> refClipboard;
+again:
+   refClipboard = Gtk::Clipboard::get(mGHSelection);
 
-   /* Ask for available targets from active selection. */
-   Glib::RefPtr<Gtk::Clipboard> refClipboard =
-      Gtk::Clipboard::get(mGHSelection);
+   Debug("%s: trying %s selection, trying again\n",
+          __FUNCTION__,
+          mGHSelection == GDK_SELECTION_PRIMARY ? "Primary" : "Clip");
 
-   refClipboard->request_targets(
-      sigc::mem_fun(this, &CopyPasteUI::LocalReceivedTargetsCB));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CopyPasteUI::LocalReceivedTargetsCB --
- *
- *      Received targets. Check if any desired target available. If so,
- *      ask for all supported contents.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Clipboard owner may send us file list.
- *
- *----------------------------------------------------------------------
- */
-
-void
-CopyPasteUI::LocalReceivedTargetsCB(const Glib::StringArrayHandle& targetsArray)  // IN
-{
-   std::list<utf::string> targets = targetsArray;
-   Glib::RefPtr<Gtk::Clipboard> refClipboard = Gtk::Clipboard::get(mGHSelection);
-
-   Debug("%s: enter", __FUNCTION__);
    CPClipboard_Clear(&mClipboard);
 
-   if (std::find(targets.begin(),
-                 targets.end(),
-                 FCP_TARGET_NAME_GNOME_COPIED_FILES) != targets.end()) {
-      Debug("%s: gnome copy file list available\n", __FUNCTION__);
-      refClipboard->request_contents(FCP_TARGET_NAME_GNOME_COPIED_FILES,
-                                     sigc::mem_fun(this,
-                                                   &CopyPasteUI::LocalReceivedFileListCB));
-      return;
+   /* First check for URIs. This must always be done first */
+   bool haveURIs = false;
+   std::string format;
+   if (refClipboard->wait_is_target_available(FCP_TARGET_NAME_GNOME_COPIED_FILES)) {
+      format = FCP_TARGET_NAME_GNOME_COPIED_FILES;
+      haveURIs = true;
+   } else if (refClipboard->wait_is_target_available(FCP_TARGET_NAME_URI_LIST)) {
+      format = FCP_TARGET_NAME_URI_LIST;
+      haveURIs = true;
    }
 
-   if (std::find(targets.begin(),
-                 targets.end(),
-                 FCP_TARGET_NAME_URI_LIST) != targets.end()) {
-      Debug("%s: KDE copy file list available\n", __FUNCTION__);
-      refClipboard->request_contents(FCP_TARGET_NAME_URI_LIST,
+   if (haveURIs) {
+      refClipboard->request_contents(format,
                                      sigc::mem_fun(this,
                                                    &CopyPasteUI::LocalReceivedFileListCB));
       return;
@@ -645,13 +611,13 @@ CopyPasteUI::LocalReceivedTargetsCB(const Glib::StringArrayHandle& targetsArray)
 
    /* Try to get image data from clipboard. */
    Glib::RefPtr<Gdk::Pixbuf> img = refClipboard->wait_for_image();
+   gsize bufSize;
    if (img) {
       gchar *buf = NULL;
-      gsize bufSize;
 
       img->save_to_buffer(buf, bufSize, Glib::ustring("png"));
       if (bufSize > 0  &&
-          bufSize <= (int)DNDMSG_MAX_ARGSZ &&
+          bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
           CPClipboard_SetItem(&mClipboard, CPFORMAT_IMG_PNG,
                               buf, bufSize)) {
          mCP.SetRemoteClipboard(&mClipboard);
@@ -663,33 +629,71 @@ CopyPasteUI::LocalReceivedTargetsCB(const Glib::StringArrayHandle& targetsArray)
       return;
    }
 
-   /*
-    * Try to get RTF data from local clipboard. 2 targets are supported, and
-    * both share same callback because data is same.
-    */
-   if (std::find(targets.begin(),
-                 targets.end(),
-                 TARGET_NAME_APPLICATION_RTF) != targets.end()) {
-      Debug("%s: TARGET_NAME_APPLICATION_RTF available\n", __FUNCTION__);
-      refClipboard->request_contents(TARGET_NAME_APPLICATION_RTF,
-                                     sigc::mem_fun(this,
-                                                   &CopyPasteUI::LocalReceivedRTFCB));
-      return;
+   /* Try to get RTF data from clipboard. */
+   bool haveRTF = false;
+   if (refClipboard->wait_is_target_available(TARGET_NAME_APPLICATION_RTF)) {
+      Debug("%s: RTF is available\n", __FUNCTION__);
+      format = TARGET_NAME_APPLICATION_RTF;
+      haveRTF = true;
+   }
+   if (refClipboard->wait_is_target_available(TARGET_NAME_TEXT_RICHTEXT)) {
+      Debug("%s: RICHTEXT is available\n", __FUNCTION__);
+      format = TARGET_NAME_TEXT_RICHTEXT;
+      haveRTF = true;
    }
 
-   if (std::find(targets.begin(),
-                 targets.end(),
-                 TARGET_NAME_TEXT_RICHTEXT) != targets.end()) {
-      Debug("%s: TARGET_NAME_TEXT_RICHTEXT available\n", __FUNCTION__);
-      refClipboard->request_contents(TARGET_NAME_TEXT_RICHTEXT,
-                                     sigc::mem_fun(this,
-                                                   &CopyPasteUI::LocalReceivedRTFCB));
-      return;
+   if (haveRTF) {
+      /*
+       * There is a function for waiting for rtf data, but that was leading
+       * to crashes. It's use required we instantiate a class that implements
+       * Gtk::TextBuffer and then query that class for a reference to it's
+       * TextBuffer instance. This all compiled fine but crashed in testing
+       * so we opt to use the more generic API here which seemed more stable.
+       */
+      Gtk::SelectionData sdata = refClipboard->wait_for_contents(format);
+      bufSize = sdata.get_length();
+      if (bufSize > 0  &&
+          bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
+          CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF,
+                              (const void *)sdata.get_data(), bufSize + 1)) {
+         mCP.SetRemoteClipboard(&mClipboard);
+         Debug("%s: Got RTF\n", __FUNCTION__);
+         return;
+      } else {
+         Debug("%s: Failed to get RTF size %d max %d\n",
+               __FUNCTION__, (int) bufSize, (int)CPCLIPITEM_MAX_SIZE_V3);
+      }
    }
 
-   Debug("%s: ask for text\n", __FUNCTION__);
-   refClipboard->request_text(sigc::mem_fun(this,
-                                            &CopyPasteUI::LocalReceivedTextCB));
+   /* Try to get Text data from clipboard. */
+   if (refClipboard->wait_is_text_available()) {
+      Debug("%s: ask for text\n", __FUNCTION__);
+      Glib::ustring str = refClipboard->wait_for_text();
+      bufSize = str.size();
+      if (bufSize > 0  &&
+          bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
+          CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT,
+                              (const void *)str.data(), bufSize + 1)) {
+         mCP.SetRemoteClipboard(&mClipboard);
+         Debug("%s: Got TEXT: %"FMTSZ"u\n", __FUNCTION__, bufSize);
+         return;
+      } else if (mClipTime == mPrimTime && mClipTime) {
+         /*
+          * With 'cut' operation OpenOffice will put data into clipboard but
+          * set the same timestamp for both clipboard and primary selection.
+          * If primary timestamp is same as clipboard timestamp, we should try
+          * clipboard again if primary selection is empty. For details, please
+          * refer to bug 300780.
+          */
+         mClipTime = 0;
+         mPrimTime = 0;
+         mGHSelection = GDK_SELECTION_CLIPBOARD;
+         Debug("%s: trying again with clip\n", __FUNCTION__);
+         goto again;
+      } else {
+         Debug("%s: Failed to get TEXT\n", __FUNCTION__);
+      }
+   }
 }
 
 
@@ -719,113 +723,6 @@ CopyPasteUI::LocalReceivedFileListCB(const Gtk::SelectionData& sd)        // IN
    if (target == FCP_TARGET_NAME_GNOME_COPIED_FILES ||
        target == FCP_TARGET_NAME_URI_LIST) {
       LocalGetSelectionFileList(sd);
-      mCP.SetRemoteClipboard(&mClipboard);
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CopyPasteUI::LocalReceivedRTFCB --
- *
- *      Got clipboard (or primary selection) RTF text, add to local
- *      clipboard cache and send clipboard to host.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-CopyPasteUI::LocalReceivedRTFCB(const Gtk::SelectionData& sd) // IN
-{
-   utf::string source = sd.get_data_as_string().c_str();
-   Glib::RefPtr<Gtk::Clipboard> refClipboard = Gtk::Clipboard::get(mGHSelection);
-
-   /* Add NUL terminator. */
-   if (source.bytes() > 0 &&
-       source.bytes() < DNDMSG_MAX_ARGSZ &&
-       CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF, source.c_str(),
-                           source.bytes() + 1)) {
-      Debug("%s: Got RTF, size %"FMTSZ"u\n", __FUNCTION__, source.bytes());
-   } else {
-      Debug("%s: Failed to get RTF\n", __FUNCTION__);
-   }
-
-   /*
-    * Still should try to get plain text. LocalReceivedTextCB will send data
-    * to guest.
-    */
-   Debug("%s: ask for text\n", __FUNCTION__);
-   refClipboard->request_text(sigc::mem_fun(this,
-                                            &CopyPasteUI::LocalReceivedTextCB));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CopyPasteUI::LocalReceivedTextCB --
- *
- *      Got clipboard (or primary selection) text, add to local clipboard
- *      cache and send clipboard to host.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-CopyPasteUI::LocalReceivedTextCB(const Glib::ustring& text)        // IN
-{
-   Debug("%s: enter", __FUNCTION__);
-   utf::string source = text;
-
-   /*
-    * With 'cut' operation OpenOffice will put data into clipboard but
-    * set same timestamp for both clipboard and primary selection.
-    * If primary timestamp is same as clipboard timestamp, we should try
-    * clipboard again if primary selection is empty. For details please
-    * refer to bug 300780.
-    */
-   if (0 == source.bytes() &&
-       mClipTime == mPrimTime &&
-       mClipTime != 0) {
-      mClipTime = 0;
-      mPrimTime = 0;
-      mGHSelection = GDK_SELECTION_CLIPBOARD;
-
-      /* Ask for available targets from active selection. */
-      Glib::RefPtr<Gtk::Clipboard> refClipboard =
-         Gtk::Clipboard::get(mGHSelection);
-
-      refClipboard->request_targets(
-         sigc::mem_fun(this, &CopyPasteUI::LocalReceivedTargetsCB));
-      return;
-   }
-
-   Debug("%s: Got text: %s", __FUNCTION__, source.c_str());
-
-   /* Add NUL terminator. */
-   if (source.bytes() > 0 &&
-       source.bytes() < CPCLIPITEM_MAX_SIZE_V3 &&
-       CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT, source.c_str(),
-                           source.bytes() + 1)) {
-      Debug("%s: got text, size %"FMTSZ"u\n", __FUNCTION__,  source.bytes());
-   } else {
-      Debug("%s: failed to get text\n", __FUNCTION__);
-   }
-
-   if (!CPClipboard_IsEmpty(&mClipboard)) {
       mCP.SetRemoteClipboard(&mClipboard);
    }
 }

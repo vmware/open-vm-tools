@@ -47,6 +47,15 @@ Escape_Undo(char escByte,      // IN
             size_t sizeIn,     // IN
             size_t *sizeOut);  // OUT
 
+const char *
+Escape_Strchr(char escByte,      // IN
+              const char *bufIn, // IN
+              char c);           // IN
+
+char *
+Escape_Unescape(char escByte,       // IN
+                const char *bufIn); // IN
+
 void *
 Escape_AnsiToUnix(void const *bufIn, // IN
                   size_t sizeIn,     // IN

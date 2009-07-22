@@ -2591,6 +2591,17 @@ DnD_Unregister(GtkWidget *hgWnd,        // IN: The widget for hg dnd
    gtk_signal_disconnect_by_func(GTK_OBJECT(ghWnd),
                                  GTK_SIGNAL_FUNC(DnDGtkDragDropCB),
                                  ghWnd);
+
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.data.set");
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.enter");
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.move");
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.drop");
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.data.finish");
+
+   /* Guest->Host RPC callbacks */
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.ungrab");
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.data.get.file");
+   RpcIn_UnregisterCallback(gRpcIn, "dnd.finish");
 }
 
 

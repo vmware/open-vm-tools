@@ -58,123 +58,135 @@ class DnDUI
 public:
    DnDUI(DblLnkLst_Links *eventQueue);
    ~DnDUI();
-   void Init();
+   bool Init();
    void VmxDnDVersionChanged(struct RpcIn *rpcIn,
                              uint32 version)
-      { ASSERT(m_DnD); m_DnD->VmxDnDVersionChanged(rpcIn, version); }
+      {ASSERT(m_DnD); m_DnD->VmxDnDVersionChanged(rpcIn, version);}
    void SetDnDAllowed(bool isDnDAllowed)
-      { ASSERT(m_DnD); m_DnD->SetDnDAllowed(isDnDAllowed); }
-   void Reset(void);
-   void ResetUIStateCB();
+      {ASSERT(m_DnD); m_DnD->SetDnDAllowed(isDnDAllowed);}
    void SetBlockControl(DnDBlockControl *blockCtrl);
    void SetUnityMode(Bool mode)
       {m_unityMode = mode;};
-   DragDetWnd *GetFullDetWnd() {return m_detWndFull;}
-   GtkWidget *GetDetWndAsWidget(const bool full);
+
+   DragDetWnd *GetFullDetWnd() {return m_detWnd;}
+   GtkWidget *GetDetWndAsWidget();
+
+private:
 
    /**
-    * Source functions for HG DnD
+    * Blocking FS Helper Functions.
+    */
+   void AddBlock();
+   void RemoveBlock();
+
+   /**
+    * Callbacks from Common DnD layer.
+    */
+   void CommonResetCB();
+   void CommonUpdateMouseCB(int32 x, int32 y);
+
+   /**
+    * Source functions for HG DnD.
+    */
+   void CommonDragStartCB(const CPClipboard *clip, std::string stagingDir);
+   void CommonSourceDropCB(void);
+
+   /**
+    * Called when HG Dnd is completed.
+    */
+   void CommonSourceCancelCB(void);
+
+   /**
+    * Called when GH DnD is completed.
+    */
+   void CommonDestPrivateDropCB(int32 x, int32 y);
+   void CommonDestCancelCB(void);
+
+   /**
+    * Source functions for file transfer.
+    */
+   void CommonSourceFileCopyDoneCB(bool success, std::vector<uint8> stagingDir);
+
+   /**
+    * Callbacks for showing/hiding detection window.
+    */
+   void CommonUpdateDetWndCB(bool bShow, int32 x, int32 y);
+   void CommonUpdateUnityDetWndCB(bool bShow, uint32 unityWndId, bool bottom);
+   void CommonMoveDetWndToMousePos(void);
+
+   /**
+    * Gtk+ Callbacks: Drag Destination.
+    */
+   void GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
+                                  int x, int y, const Gtk::SelectionData &sd,
+                                  guint info, guint time);
+   bool GtkDestDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc,
+                          int x, int y, guint time);
+   void GtkDestDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc,
+                           guint time);
+   bool GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc, int x,
+                            int y, guint time);
+
+   /**
+    * Gtk+ Callbacks: Drag Source.
+    */
+   void GtkSourceDragBeginCB(const Glib::RefPtr<Gdk::DragContext>& context);
+   void GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext>& context,
+                               Gtk::SelectionData& selection_data, guint info,
+                               guint time);
+   void GtkSourceDragEndCB(const Glib::RefPtr<Gdk::DragContext>& context);
+   /**
+    * Source functions for HG DnD. Makes calls to common layer.
     */
    void SourceDragStartDone(void);
    void SourceUpdateFeedback(DND_DROPEFFECT effect);
 
    /**
-    * Target function for GH DnD.
+    * Target function for GH DnD. Makes call to common layer.
     */
    void TargetDragEnter(void);
 
    /**
-    * Callbacks. H->G
-    */
-
-   bool LocalDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc, int x,
-                          int y, guint time);
-   void LocalDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
-                                int x, int y, const Gtk::SelectionData &sd,
-                                guint info, guint time);
-   void LocalGetSelection(const Gtk::SelectionData& sd);
-   void LocalDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc, guint time);
-   bool LocalDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc, int x, int y,
-                        guint time);
-
-   void SourceFeedbackChangedCB(DND_DROPEFFECT effect, const Glib::RefPtr<Gdk::DragContext> dc);
-
-   void LocalDragDataGetCB(
-      const Glib::RefPtr<Gdk::DragContext>& context,
-      Gtk::SelectionData& selection_data, guint info, guint time);
-   void LocalDragEndCB(
-      const Glib::RefPtr<Gdk::DragContext>& context);
-   void LocalDragBeginCB(
-      const Glib::RefPtr<Gdk::DragContext>& context);
-
-#if defined(DETWNDTEST)
-   void CreateTestUI();
-#endif
-private:
-
-   void AddBlock();
-   void RemoveBlock();
-
-   /**
-    * Source functions for HG DnD.
-    */
-   void RemoteDragStartCB(const CPClipboard *clip,
-                          std::string stagingDir);
-   void SourceDropCB(void);
-   void SourceCancelCB(void);
-
-   /**
-    * Called when GH is completed.
-    */
-   void GHCancelCB(void);
-
-   /**
-    * Source functions for HG file transfer.
-    */
-   void GetLocalFilesDoneCB(bool success, std::vector<uint8> stagingDir);
-
-   /**
     * Misc methods.
     */
+   bool SetCPClipboardFromGtk(const Gtk::SelectionData& sd);
    std::string GetLastDirName(const std::string &str);
    utf::utf8string GetNextPath(utf::utf8string &str, size_t& index);
-   void UpdateDetWndCB(bool bShow, int32 x, int32 y);
-   void UpdateUnityDetWndCB(bool bShow, uint32 unityWndId);
    DND_DROPEFFECT ToDropEffect(Gdk::DragAction action);
    void SetTargetsAndCallbacks();
-   bool DnDFakeXEvents(const bool showWidget, const bool buttonEvent,
-      const bool buttonPress, const bool moveWindow,
-      const bool coordsProvided, const int xCoord, const int yCoord);
-   bool DnDHGFakeMove(const int x, const int y);
-   bool LocalPrepareFileContentsDrag();
+   bool SendFakeXEvents(const bool showWidget, const bool buttonEvent,
+                        const bool buttonPress, const bool moveWindow,
+                        const bool coordsProvided,
+                        const int xCoord, const int yCoord);
+   bool SendFakeMouseMove(const int x, const int y);
+   bool WriteFileContentsToStagingDir();
+   unsigned long GetTimeInMillis();
 
    DblLnkLst_Links *m_eventQueue;
    DnD *m_DnD;
    std::string m_HGStagingDir;
    utf::string m_HGFileContentsUriList;
    DragDetWnd *m_detWnd;
-   DragDetWnd *m_detWndFull;
    CPClipboard m_clipboard;
    DnDBlockControl *m_blockCtrl;
    bool m_HGGetDataInProgress;
    int m_HGEffect;
    bool m_blockAdded;
 
-   /* State to determine if drag motion is is a drag enter. */
+   /* State to determine if drag motion is a drag enter. */
    bool m_GHDnDInProgress;
    /* Icon updates from the guest. */
-   bool m_GHDnDHostStatus;
-   /* Drop actions for host and guest respectively. */
-   Gdk::DragAction m_GHDnDAction;
    /* Only update mouse when we have clipboard contents from the host. */
    bool m_GHDnDDataReceived;
    bool m_GHDnDDropOccurred;
-   bool m_VMIsSource;
-   sigc::connection m_feedbackChanged;
    bool m_unityMode;
    bool m_inHGDrag;
    DND_DROPEFFECT m_effect;
    bool m_isFileDnD;
+   int32 m_mousePosX;
+   int32 m_mousePosY;
+   GdkDragContext *m_dc;
+   unsigned long m_destDropTime;
 };
 
 #endif // DND_UI_H

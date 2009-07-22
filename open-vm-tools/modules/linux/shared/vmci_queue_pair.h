@@ -65,8 +65,42 @@ struct page;
 
 
 /*
+ * VMCIQueueHeader
+ *
+ * A Queue cannot stand by itself as designed.  Each Queue's header
+ * contains a pointer into itself (the producerTail) and into its peer
+ * (consumerHead).  The reason for the separation is one of
+ * accessibility: Each end-point can modify two things: where the next
+ * location to enqueue is within its produceQ (producerTail); and
+ * where the next location in its consumeQ (i.e., its peer's produceQ)
+ * it can dequeue (consumerHead).  The end-point cannot modify the
+ * pointers of its peer (guest to guest; NOTE that in the host both
+ * queue headers are mapped r/w).  But, each end-point needs access to
+ * both Queue header structures in order to determine how much space
+ * is used (or left) in the Queue.  This is because for an end-point
+ * to know how full its produceQ is, it needs to use the consumerHead
+ * that points into the produceQ but -that- consumerHead is in the
+ * Queue header for that end-points consumeQ.
+ *
+ * Thoroughly confused?  Sorry.
+ *
+ * producerTail: the point to enqueue new entrants.  When you approach
+ * a line in a store, for example, you walk up to the tail.
+ *
+ * consumerHead: the point in the queue from which the next element is
+ * dequeued.  In other words, who is next in line is he who is at the
+ * head of the line.
+ *
+ * Also, producerTail points to an empty byte in the Queue, whereas
+ * consumerHead points to a valid byte of data (unless producerTail ==
+ * consumerHead in which case consumerHead does not point to a valid
+ * byte of data).
+ *
  * For a queue of buffer 'size' bytes, the tail and head pointers will be in
  * the range [0, size-1].
+ *
+ * If produceQ->producerTail == consumeQ->consumerHead then the
+ * produceQ is empty.
  */
 
 typedef struct VMCIQueueHeader {
@@ -281,15 +315,78 @@ AddPointer(Atomic_uint64 *var, // IN:
        * Also, the queue contents are managed by an array of bytes
        * which are managed elsewhere.  So, this structure simply
        * contains the address of that array of bytes.
+       *
+       * We have a mutex to protect the queue from accesses within the
+       * kernel module.  NOTE: the guest may be enqueuing or dequeuing
+       * while the host has the mutex locked.  However, multiple
+       * kernel processes will not access the Queue simultaneously.
+       *
+       * What the mutex is trying to protect is the moment where the
+       * guest detaches from a queue.  In that moment, we will
+       * allocate memory to hold the guest's produceQ and we will
+       * change the queueHeaderPtr to point to a newly allocated (in
+       * kernel memory) structure.  And, the buffer pointer will be
+       * changed to point to an in-kernel queue content (even if there
+       * isn't any data in the queue for the host to consume).
+       *
+       * Note that a VMCIQueue allocated by the host passes through
+       * three states before it's torn down.  First, the queue is
+       * created by the host but doesn't point to any memory and
+       * therefore can't absorb any enqueue requests.  (NOTE: On
+       * Windows this could be solved because of the mutexes, as
+       * explained above [only in reverse, if you will].  But unless
+       * we added the same mutexes [or other rules about accessing the
+       * queues] we can't can't solve this generally on other
+       * operating systems.)
+       *
+       * When the guest calls SetPageStore(), then the queue is backed
+       * by valid memory and the host can enqueue.
+       *
+       * When the guest detaches, enqueues are absorbed by /dev/null,
+       * as it were.
        */
       typedef struct VMCIQueue {
 	 VMCIQueueHeader *queueHeaderPtr;
 	 uint8 *buffer;
+         Bool enqueueToDevNull;
+         FAST_MUTEX *mutex;    /* Access the mutex through this */
+         FAST_MUTEX __mutex;   /* Don't touch except to init */
       } VMCIQueue;
+#define VMCIQueuePair_EnqueueToDevNull(q)	((q)->enqueueToDevNull)
 #define VMCIQueuePair_QueueIsMapped(q)          ((q)->buffer != NULL)
 #  endif
 #endif
 
+#ifndef VMCIQueuePair_EnqueueToDevNull
+#define VMCIQueuePair_EnqueueToDevNull(q)       (FALSE)
+#endif /* default VMCIQueuePair_EnqueueToDevNull() definition */
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIMemcpy{To,From}QueueFunc() prototypes.  Functions of these
+ * types are passed around to enqueue and dequeue routines.  Note that
+ * often the functions passed are simply wrappers around memcpy
+ * itself.
+ *
+ *-----------------------------------------------------------------------------
+ */
+typedef int VMCIMemcpyToQueueFunc(VMCIQueue *queue, uint64 queueOffset,
+                                  const void *src, size_t srcOffset,
+                                  size_t size);
+typedef int VMCIMemcpyFromQueueFunc(void *dest, size_t destOffset,
+                                    const VMCIQueue *queue, uint64 queueOffset,
+                                    size_t size);
+
+/*
+ * NOTE: On Windows host we have special code to access the queue
+ * contents (and QueuePair header) so that we can protect accesses
+ * during tear down of the guest that owns the mappings of the
+ * QueuePair queue contents.  See
+ * bora/modules/vmcrosstalk/windows/vmciHostQueuePair.c
+ */
+
+#if !defined _WIN32 || defined VMX86_TOOLS || defined VMX86_VMX
 
 /*
  *-----------------------------------------------------------------------------
@@ -429,23 +526,6 @@ VMCIQueue_AddConsumerHead(VMCIQueue *queue,
    AddPointer(&VMCIQueue_GetHeader(queue)->consumerHead, add, queueSize);
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIMemcpy{To,From}QueueFunc() prototypes.  Functions of these
- * types are passed around to enqueue and dequeue routines.  Note that
- * often the functions passed are simply wrappers around memcpy
- * itself.
- *
- *-----------------------------------------------------------------------------
- */
-typedef int VMCIMemcpyToQueueFunc(VMCIQueue *queue, uint64 queueOffset,
-                                  const void *src, size_t srcOffset,
-                                  size_t size);
-typedef int VMCIMemcpyFromQueueFunc(void *dest, size_t destOffset,
-                                    const VMCIQueue *queue, uint64 queueOffset,
-                                    size_t size);
 
 /*
  *-----------------------------------------------------------------------------
@@ -825,6 +905,10 @@ __VMCIQueue_Enqueue(VMCIQueue *produceQueue,               // IN:
    uint64 tail;
    size_t written;
 
+   if (UNLIKELY(VMCIQueuePair_EnqueueToDevNull(produceQueue))) {
+      return bufSize;
+   }
+
    if (UNLIKELY(!VMCIQueuePair_QueueIsMapped(produceQueue) &&
 		!VMCIQueuePair_QueueIsMapped(consumeQueue))) {
       return VMCI_ERROR_QUEUEPAIR_NOTATTACHED;
@@ -920,7 +1004,7 @@ VMCIQueue_EnqueueV(VMCIQueue *produceQueue,       // IN:
    return __VMCIQueue_Enqueue(produceQueue, consumeQueue, produceQSize,
                               (void *)iov, iovSize, VMCIMemcpyToQueueV);
 }
-#endif
+#endif /* Systems that support struct iovec */
 
 
 /*
@@ -1055,7 +1139,7 @@ VMCIQueue_DequeueV(VMCIQueue *produceQueue,       // IN:
    return __VMCIQueue_Dequeue(produceQueue, consumeQueue, consumeQSize,
                               (void *)iov, iovSize, VMCIMemcpyFromQueueV, TRUE);
 }
-#endif
+#endif /* Systems that support struct iovec */
 
 
 /*
@@ -1124,6 +1208,42 @@ VMCIQueue_PeekV(VMCIQueue *produceQueue,       // IN:
    return __VMCIQueue_Dequeue(produceQueue, consumeQueue, consumeQSize,
                               (void *)iov, iovSize, VMCIMemcpyFromQueueV, FALSE);
 }
-#endif
+#endif /* Systems that support struct iovec */
+
+#else /* Windows 32 Host defined below */
+
+int VMCIMemcpyToQueue(VMCIQueue *queue, uint64 queueOffset, const void *src,
+                      size_t srcOffset, size_t size);
+int VMCIMemcpyFromQueue(void *dest, size_t destOffset, const VMCIQueue *queue,
+                        uint64 queueOffset, size_t size);
+
+void VMCIQueue_Init(const VMCIHandle handle, VMCIQueue *queue);
+void VMCIQueue_GetPointers(const VMCIQueue *produceQ,
+                           const VMCIQueue *consumeQ,
+                           uint64 *producerTail,
+                           uint64 *consumerHead);
+int64 VMCIQueue_FreeSpace(const VMCIQueue *produceQueue,
+                          const VMCIQueue *consumeQueue,
+                          const uint64 produceQSize);
+int64 VMCIQueue_BufReady(const VMCIQueue *consumeQueue,
+                         const VMCIQueue *produceQueue,
+                         const uint64 consumeQSize);
+ssize_t VMCIQueue_Enqueue(VMCIQueue *produceQueue,
+                          const VMCIQueue *consumeQueue,
+                          const uint64 produceQSize,
+                          const void *buf,
+                          size_t bufSize);
+ssize_t VMCIQueue_Dequeue(VMCIQueue *produceQueue,
+                          const VMCIQueue *consumeQueue,
+                          const uint64 consumeQSize,
+                          void *buf,
+                          size_t bufSize);
+ssize_t VMCIQueue_Peek(VMCIQueue *produceQueue,
+                       const VMCIQueue *consumeQueue,
+                       const uint64 consumeQSize,
+                       void *buf,
+                       size_t bufSize);
+
+#endif /* defined _WIN32 && !defined VMX86_TOOLS */
 
 #endif /* !_PUBLIC_VMCI_QUEUE_PAIR_H_ */

@@ -65,6 +65,7 @@ class DnD
       void SetDnDAllowed(bool isDnDAllowed)
          { mDnDAllowed = isDnDAllowed; }
       void UngrabTimeout(void);
+      void UnityDnDDetTimeout(void);
       void ResetDnD(void);
       void HGDragStartDone(void);
       void OnUpdateMouse(int32 x, int32 y);
@@ -75,6 +76,7 @@ class DnD
       /* Callbacks from rpc. */
       void OnGHUpdateUnityDetWnd(bool bShow, uint32 unityWndId);
       void OnGHQueryPendingDrag(int x, int y);
+      void OnGHPrivateDrop(int32 x, int32 y);
       void OnGHCancel(void);
       void OnHGDragEnter(const CPClipboard *clip);
       void OnHGDragStart(void);
@@ -82,6 +84,7 @@ class DnD
       void OnHGDrop(void);
       void OnHGFileCopyDone(bool cancel,
                             std::vector<uint8> stagingDir);
+      void OnMoveDetWndToMousePos(void);
 
       std::string SetupDestDir(const std::string &destDir);
 
@@ -90,6 +93,7 @@ class DnD
       bool mDnDAllowed;
       std::string mStagingDir;
       Event *mUngrabTimeout;
+      Event *mUnityDnDDetTimeout;
       Event *mHideDetWndTimer;
       DblLnkLst_Links *mEventQueue;
 };

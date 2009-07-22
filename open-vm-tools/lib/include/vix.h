@@ -164,6 +164,8 @@ enum {
    VIX_E_UNABLE_TO_REPLAY_VM                    = 3039,
    VIX_E_CANNOT_POWER_ON_VM                     = 3041,
    VIX_E_NO_DISPLAY_SERVER                      = 3043,
+   VIX_E_VM_NOT_RECORDING                       = 3044,
+   VIX_E_VM_NOT_REPLAYING                       = 3045,
 
    /* VM Errors */ 
    VIX_E_VM_NOT_FOUND                           = 4000,

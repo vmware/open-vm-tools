@@ -819,6 +819,37 @@ File_SetTimes(ConstUnicode pathName,      // IN:
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SetFilePermissions --
+ *
+ *      Set file permissions.
+ *
+ * Results:
+ *      TRUE if succeed or FALSE if error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_SetFilePermissions(ConstUnicode pathName,     // IN:
+                        int perms)                 // IN: permissions
+{
+   ASSERT(pathName);
+   if (Posix_Chmod(pathName, perms) == -1) {
+      /* The error is not critical, just log it. */
+      Log(LGPFX" %s: failed to change permissions on file \"%s\": %s\n", __FUNCTION__,
+          UTF8(pathName), strerror(errno));
+      return FALSE;
+   }
+   return TRUE;
+}
+
+
 #if !defined(__FreeBSD__) && !defined(sun)
 /*
  *-----------------------------------------------------------------------------
@@ -2786,4 +2817,37 @@ File_IsCharDevice(ConstUnicode pathName)  // IN:
 
    return (FileAttributes(pathName, &fileData) == 0) &&
            (fileData.fileType == FILE_TYPE_CHARDEVICE);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_SupportsPrealloc --
+ *  
+ *
+ * Results:
+ *      TRUE    if APPLE or file system type is ext2/ext3/ext4
+ *      FALSE   if not supported by default in auto mode
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+File_SupportsPrealloc(const char *file)
+{
+
+#if (defined( __linux__) && !defined(VMX86_SERVER)) 
+   struct statfs statBuf;   
+   if (FileGetStats(file, FALSE, &statBuf) && 
+       statBuf.f_type == EXT4_SUPER_MAGIC) {
+       return TRUE;	
+   }
+#elif APPLE
+   return TRUE
+#endif	
+   return FALSE;
 }

@@ -89,6 +89,9 @@ typedef enum {
    DND_UPDATE_HOST_VERSION,
    DND_UPDATE_GUEST_VERSION,
    DND_UPDATE_MOUSE,
+   DND_GH_PRIVATE_DROP,
+   DND_GH_TRANSPORT_TEST,
+   DND_MOVE_DET_WND_TO_MOUSE_POS,
    DND_MAX,
 } DnDCommand;
 
@@ -112,6 +115,7 @@ typedef enum {
    CP_HG_START_FILE_COPY,
 
    // Add future commands here.
+   CP_GH_TRANSPORT_TEST,
    CP_MAX,
 } CopyPasteCommand;
 

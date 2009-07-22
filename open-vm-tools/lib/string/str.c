@@ -20,6 +20,18 @@
  * str.c --
  *
  *    User level string wrappers
+ *
+ * WARNING:
+ *    Do not call any variadic functions - those that use "..." repeatedly
+ *    with the same va_list or memory corruption and/or crashes will occur.
+ *    The suggested way deal with repeated calls is to use a va_copy:
+ *
+ *    va_list tmpArgs;
+ *
+ *    va_copy(tmpArgs, ap);
+ *    // Call the variadic function
+ *    va_end(tmpArgs);
+ *
  */
 
 #ifdef _WIN32
@@ -119,15 +131,7 @@ Str_Sprintf(char *buf,       // OUT
  *	NB: on overflow the buffer WILL be null terminated at the last
  *	UTF-8 code point boundary within the buffer's bounds.
  *
- * WARNING:
- *      Do not call this function repeatedly with the same va_list
- *      or memory corruption and/or crashes will occur. The suggested
- *      way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *	None
@@ -516,15 +520,7 @@ Str_SafeAsprintf(size_t *length,       // OUT
  *    ASSERTs or returns NULL on failure, depending on the value of
  *    'assertOnFailure'.
  *
- * WARNING:
- *    Do not call this function repeatedly with the same va_list
- *    or memory corruption and/or crashes will occur. The suggested
- *    way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *    None
@@ -607,19 +603,10 @@ StrVasprintfInternal(size_t *length,       // OUT:
  * Results:
  *    Returns NULL on failure.
  *
- * WARNING:
- *    Do not call this function repeatedly with the same va_list
- *    or memory corruption and/or crashes will occur. The suggested
- *    way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *    None
- *
  *-----------------------------------------------------------------------------
  */
 
@@ -642,15 +629,7 @@ Str_Vasprintf(size_t *length,       // OUT
  * Results:
  *    Calls ASSERT_NOT_IMPLEMENTED on failure.
  *
- * WARNING:
- *    Do not call this function repeatedly with the same va_list
- *    or memory corruption and/or crashes will occur. The suggested
- *    way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *    None
@@ -719,15 +698,7 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *
  *	NB: on overflow the buffer WILL be null terminated
  *
- * WARNING:
- *      Do not call this function repeatedly with the same va_list
- *      or memory corruption and/or crashes will occur. The suggested
- *      way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *	None
@@ -1026,15 +997,7 @@ Str_Mbscat(char *buf,                // IN-OUT
  *    ASSERTs or returns NULL on failure, depending on the value of
  *    'assertOnFailure'.
  *
- * WARNING:
- *    Do not call this function repeatedly with the same va_list
- *    or memory corruption and/or crashes will occur. The suggested
- *    way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *    None
@@ -1137,15 +1100,7 @@ Str_Aswprintf(size_t *length,         // OUT
  * Results:
  *    Returns NULL on failure.
  *
- * WARNING:
- *    Do not call this function repeatedly with the same va_list
- *    or memory corruption and/or crashes will occur. The suggested
- *    way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *    None
@@ -1204,15 +1159,7 @@ Str_SafeAswprintf(size_t *length,         // OUT
  * Results:
  *    Calls ASSERT_NOT_IMPLEMENTED on failure.
  *
- * WARNING:
- *    Do not call this function repeatedly with the same va_list
- *    or memory corruption and/or crashes will occur. The suggested
- *    way to deal with this:
- *
- *         va_list tmpArgs;
- *         va_copy(tmpArgs, ap);
- *         // Call this function
- *         va_end(tmpArgs);
+ * WARNING: See warning at the top of this file.
  *
  * Side effects:
  *    None

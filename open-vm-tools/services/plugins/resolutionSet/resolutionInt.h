@@ -45,7 +45,6 @@ typedef struct {
    Bool initialized;                    // TRUE if successfully initialized.
    Bool canSetResolution;               // TRUE if back-end supports Resolution_Set.
    Bool canSetTopology;                 // TRUE if back-end supports DisplayTopology_Set.
-   Bool isWDDM;                         // TRUE if the driver does WDDM.
 } ResolutionInfoType;
 
 

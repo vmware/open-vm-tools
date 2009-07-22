@@ -80,11 +80,5 @@ typedef enum {
    VMBACKUP_UNEXPECTED_ERROR
 } VmBackupStatus;
 
-/* Event name used for communnication between the VSS components. */
-#ifdef _WIN32
-#define VMVSS_RESUME_MSG   TEXT("VmVss_ResumeSnapshotProvider")
-#define VMVSS_LOGGING_EVENT TEXT("VmVss_DebugLoggingEvent")
-#endif
-
 #endif
 

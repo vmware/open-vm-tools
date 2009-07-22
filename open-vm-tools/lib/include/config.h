@@ -81,6 +81,7 @@ EXTERN int32 Config_GetTriState(int32 defaultValue,
 EXTERN double Config_GetDouble(double defaultValue,
                                const char *fmt, ...) PRINTF_DECL(2, 3);
 EXTERN Bool Config_NotSet(const char *fmt, ...) PRINTF_DECL(1, 2);
+EXTERN void Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
 EXTERN void Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 EXTERN void Config_Set(void *value, int type,

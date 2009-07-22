@@ -54,11 +54,10 @@ DnDRpcV3::DnDRpcV3(struct RpcIn *rpcIn) // IN
    mTransport->recvMsgChanged.connect(sigc::mem_fun(this, &DnDRpcV3::OnRecvMsg));
 
    mHostMinorVersion = 0;
+   mGuestMinorVersion = 0;
    /* Tell host that current DnD version in guest side is 3.1. */
-   /* XXX Windows only for now. Linux implementation will be in shortly. */
-#if defined (_WIN32)
-   UpdateGuestVersion(3, 1);
-#endif // _WIN32
+   mGuestMinorVersion = 1;
+   UpdateGuestVersion(3, mGuestMinorVersion);
 }
 
 
@@ -557,6 +556,34 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
          break;
       }
       hgDragEnterChanged.emit(&clip);
+
+#if defined (DND_TRANSPORT_TEST)
+      /* Sending 60 packets to host side to test transport. */
+      for (uint32 i = 1; i < 60; i++) {
+         DnDMsg msg;
+         DynBuf buf;
+
+         DnDMsg_Init(&msg);
+         DynBuf_Init(&buf);
+
+         DnDMsg_SetCmd(&msg, DND_GH_TRANSPORT_TEST);
+         if (!DnDMsg_AppendArg(&msg, &i, sizeof i)) {
+            Debug("%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
+            goto error;
+         }
+
+         if (!DnDMsg_Serialize(&msg, &buf)) {
+            Debug("%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
+            goto error;
+         }
+
+         mTransport->SendMsg((uint8 *)DynBuf_Get(&buf), DynBuf_GetSize(&buf));
+
+      error:
+         DynBuf_Destroy(&buf);
+         DnDMsg_Destroy(&msg);
+      }
+#endif
       break;
    }
    case DND_HG_DRAG_START:
@@ -614,6 +641,33 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
       updateMouseChanged.emit(x, y);
       break;
    }
+   case  DND_GH_PRIVATE_DROP:
+   {
+      int32 x = 0;
+      int32 y = 0;
+
+      buf = DnDMsg_GetArg(&msg, 0);
+      if (DynBuf_GetSize(buf) == sizeof(int32)) {
+         memcpy(&x, (const char *)DynBuf_Get(buf), sizeof(int32));
+      } else {
+         break;
+      }
+
+      buf = DnDMsg_GetArg(&msg, 1);
+      if (DynBuf_GetSize(buf) == sizeof(int32)) {
+         memcpy(&y, (const char *)DynBuf_Get(buf), sizeof(int32));
+      } else {
+         break;
+      }
+
+      ghPrivateDropChanged.emit(x, y);
+      break;
+   }
+   case  DND_MOVE_DET_WND_TO_MOUSE_POS:
+   {
+      moveDetWndToMousePos.emit();
+      break;
+   }
    case DND_UPDATE_HOST_VERSION:
    {
       uint32 major = 0;
@@ -635,6 +689,7 @@ DnDRpcV3::OnRecvMsg(const uint8 *data, // IN
       }
       Debug("%s: got host DnD version %d.%d.\n",
             __FUNCTION__, major, mHostMinorVersion);
+      UpdateGuestVersion(3, mGuestMinorVersion);
       break;
    }
    default:

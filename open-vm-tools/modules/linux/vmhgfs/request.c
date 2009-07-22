@@ -73,6 +73,7 @@ HgfsGetNewRequest(void)
               "can't allocate memory\n"));
       return NULL;
    }
+   INIT_LIST_HEAD(&req->list);
    init_waitqueue_head(&req->queue);
    req->payloadSize = 0;
    req->state = HGFS_REQ_STATE_ALLOCATED;

@@ -63,15 +63,9 @@ static void USRootWindowsProcessEvent(UnityPlatform *up,
 static int UnityPlatformXErrorHandler(Display *dpy, XErrorEvent *xev);
 static UnitySpecialWindow *UnityPlatformMakeRootWindowsObject(UnityPlatform *up);
 
-#ifdef GTK2
 static gboolean UnityPlatformHandleEventsGlib(GIOChannel *source,
                                               GIOCondition condition,
                                               gpointer data);
-#else
-static void UnityPlatformHandleEventsGdk(gpointer data,
-                                         gint source,
-                                         GdkInputCondition condition);
-#endif
 
 static void UnityPlatformSendClientMessageFull(Display *d,
                                                Window destWindow,
@@ -198,27 +192,6 @@ UnityPlatformInit(UnityWindowTracker *tracker,          // IN
       }
    }
 
-   /*
-    * Set up a callback in the glib main loop to listen for incoming X events on the
-    * unity display connection.
-    */
-#ifdef GTK2
-   {
-      GIOChannel *unityDisplayChannel;
-      unityDisplayChannel = g_io_channel_unix_new(ConnectionNumber(up->display));
-      up->unityDisplayWatchID = g_io_add_watch(unityDisplayChannel,
-                                               G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
-                                               UnityPlatformHandleEventsGlib,
-                                               up);
-      g_io_channel_unref(unityDisplayChannel);
-   }
-#else
-   up->unityDisplayWatchID = gdk_input_add(ConnectionNumber(up->display),
-                                           GDK_INPUT_READ | GDK_INPUT_EXCEPTION,
-                                           UnityPlatformHandleEventsGdk,
-                                           up);
-#endif
-
    up->allWindows = HashTable_Alloc(128, HASH_INT_KEY, NULL);
    up->specialWindows = HashTable_Alloc(32, HASH_INT_KEY, NULL);
    up->desktopWindow = NULL;
@@ -327,6 +300,12 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
       return;
    }
 
+   /*
+    * Caller should've called Unity_Exit first.
+    */
+   ASSERT(!up->isRunning);
+   ASSERT(!up->unityDisplayWatchID);
+
    if (up->specialWindows) {
       HashTable_Free(up->specialWindows);
       up->specialWindows = NULL;
@@ -334,15 +313,6 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
    if (up->allWindows) {
       HashTable_Free(up->allWindows);
       up->allWindows = NULL;
-   }
-
-   if (up->unityDisplayWatchID) {
-#ifdef GTK2
-      g_source_remove(up->unityDisplayWatchID);
-#else
-      gdk_input_remove(up->unityDisplayWatchID);
-#endif
-      up->unityDisplayWatchID = 0;
    }
 
    if (up->display) {
@@ -795,8 +765,12 @@ UnityPlatformKillHelperThreads(UnityPlatform *up) // IN
    size_t numWindows;
 
    if (!up || !up->isRunning) {
+      ASSERT(!up->unityDisplayWatchID);
       return;
    }
+
+   g_source_remove(up->unityDisplayWatchID);
+   up->unityDisplayWatchID = 0;
 
    up->desktopInfo.numDesktops = 0; // Zero means host has not set virtual desktop config
    UnityX11RestoreSystemSettings(up);
@@ -939,6 +913,7 @@ Bool
 UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
 {
    ASSERT(up);
+   ASSERT(!up->unityDisplayWatchID);
 
    XSync(up->display, TRUE);
    up->rootWindows = UnityPlatformMakeRootWindowsObject(up);
@@ -981,6 +956,20 @@ UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
       UnityPlatformSetDesktopWorkAreas(up, up->needWorkAreas, up->needNumWorkAreas);
       free(up->needWorkAreas);
       up->needWorkAreas = NULL;
+   }
+
+   /*
+    * Set up a callback in the glib main loop to listen for incoming X events on the
+    * unity display connection.
+    */
+   {
+      GIOChannel *unityDisplayChannel;
+      unityDisplayChannel = g_io_channel_unix_new(ConnectionNumber(up->display));
+      up->unityDisplayWatchID = g_io_add_watch(unityDisplayChannel,
+                                               G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
+                                               UnityPlatformHandleEventsGlib,
+                                               up);
+      g_io_channel_unref(unityDisplayChannel);
    }
 
    return TRUE;
@@ -1182,9 +1171,6 @@ UnityPlatformUpdateWindowState(UnityPlatform *up,               // IN
 }
 
 
-#ifdef GTK2
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1218,49 +1204,6 @@ UnityPlatformHandleEventsGlib(GIOChannel *source,     // IN
 
    return UnityPlatformHandleEvents(errorOccurred, inputAvailable, data);
 }
-#else
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityX11SignalEventsGdk --
- *
- *      Lets the UnityX11 object know that new events are available to process.
- *      This skeleton is used with Gtk+ 1.x.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Signals the update thread.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-UnityPlatformHandleEventsGdk(gpointer data,               // IN
-                             gint source,                 // IN
-                             GdkInputCondition condition) // IN
-{
-   gboolean errorOccurred = FALSE;
-   gboolean inputAvailable = FALSE;
-
-   if (condition & GDK_INPUT_EXCEPTION) {
-      Debug("UnityPlatformHandleEventsGdk - errorOccurred\n");
-      errorOccurred = TRUE;
-   } else if (condition & GDK_INPUT_READ) {
-      inputAvailable = TRUE;
-   }
-
-   if (!UnityPlatformHandleEvents(errorOccurred, inputAvailable, data)) {
-      UnityPlatform *up = (UnityPlatform *) data;
-
-      gdk_input_remove(up->unityDisplayWatchID);
-      up->unityDisplayWatchID = -1;
-   }
-}
-#endif
 
 
 /*

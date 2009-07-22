@@ -26,7 +26,7 @@
 #define _VIX_COMMANDS_H_
 
 #include "vm_version.h"
-#include "vix.h"
+#include "vixOpenSource.h"
 
 /*
  * These describe the format of the message objects.
@@ -578,8 +578,6 @@ enum VixKeyStrokeModifiers {
    VIX_KEYSTROKE_MODIFIER_CONTROL           = 0x04,
    VIX_KEYSTROKE_MODIFIER_SHIFT             = 0x08,
    VIX_KEYSTROKE_MODIFIER_ALT               = 0x10,
-   VIX_KEYSTROKE_MODIFIER_CAPS_LOCK         = 0x20,
-   VIX_KEYSTROKE_MODIFIER_NUM_LOCK          = 0x40,
    VIX_KEYSTROKE_MODIFIER_KEY_DOWN_ONLY     = 0x80,
    VIX_KEYSTROKE_MODIFIER_KEY_UP_ONLY       = 0x100,
 };
@@ -1043,6 +1041,19 @@ struct VixMsgSetSnapshotInfoResponse {
 #include "vmware_pack_end.h"
 VixMsgSetSnapshotInfoResponse;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgRemoveBulkSnapshotRequest {
+   VixCommandRequestHeader    header;
+
+   int32                      options;
+   int32                      numSnapshots;
+   /*
+    * This is followed by numSnapshots snapshotIDs.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgRemoveBulkSnapshotRequest;
 
 /*
  * Rolling Tier operations.
@@ -2131,6 +2142,24 @@ struct VixCommandListFileSystemsRequest {
 VixCommandListFileSystemsRequest;
 
 
+/*
+ * **********************************************************
+ * A simple request packet that contains an options field and a
+ * property list.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandGenericRequest {
+   VixCommandRequestHeader    header;
+
+   uint32                     options;
+   uint32                     propertyListSize;
+   // This is followed by the buffer of serialized properties
+}
+#include "vmware_pack_end.h"
+VixCommandGenericRequest;
+
 
 /*
  * These are values we use to discover hosts and guests through SLPv2.
@@ -2261,7 +2290,7 @@ enum {
    VIX_COMMAND_SET_FILE_INFO                    = 95,
    VIX_COMMAND_MOUSE_EVENTS                     = 96,
    VIX_COMMAND_OPEN_TEAM                        = 97,
-   VIX_COMMAND_FIND_HOST_DEVICES                = 98,
+   /* DEPRECATED VIX_COMMAND_FIND_HOST_DEVICES                = 98, */
    VIX_COMMAND_ANSWER_MESSAGE                   = 99,
    VIX_COMMAND_ENABLE_SHARED_FOLDERS            = 100,
    VIX_COMMAND_MOUNT_HGFS_FOLDERS               = 101,
@@ -2280,16 +2309,8 @@ enum {
 
    VIX_COMMAND_STOP_SNAPSHOT_LOG_RECORDING      = 113,
    VIX_COMMAND_STOP_SNAPSHOT_LOG_PLAYBACK       = 114,
-   /*
-    * HOWTO: Adding a new Vix Command. Step 2a.
-    *
-    * Add a new ID for your new function prototype here. BE CAREFUL. The
-    * OFFICIAL list of id's is in the bfg-main tree, in bora/lib/public/vixCommands.h.
-    * When people add new command id's in different tree, they may collide and use
-    * the same ID values. This can merge without conflicts, and cause runtime bugs.
-    * Once a new command is added here, a command info field needs to be added
-    * in bora/lib/foundryMsg. as well.
-    */
+
+
    VIX_COMMAND_SAMPLE_COMMAND                   = 115,
 
    VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG      = 116,
@@ -2367,7 +2388,23 @@ enum {
 
    VIX_COMMAND_LIST_FILESYSTEMS                 = 169,
 
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 170,
+   VIX_COMMAND_CHANGE_DISPLAY_TOPOLOGY          = 170,
+
+   VIX_COMMAND_SUSPEND_AND_RESUME               = 171,
+
+   VIX_COMMAND_REMOVE_BULK_SNAPSHOT             = 172,
+
+   /*
+    * HOWTO: Adding a new Vix Command. Step 2a.
+    *
+    * Add a new ID for your new function prototype here. BE CAREFUL. The
+    * OFFICIAL list of id's is in the bfg-main tree, in bora/lib/public/vixCommands.h.
+    * When people add new command id's in different tree, they may collide and use
+    * the same ID values. This can merge without conflicts, and cause runtime bugs.
+    * Once a new command is added here, a command info field needs to be added
+    * in bora/lib/foundryMsg. as well.
+    */
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 173,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
@@ -2510,6 +2547,18 @@ Bool VixMsg_ValidateCommandInfoTable(void);
 const char *VixAsyncOp_GetDebugStrForOpCode(int opCode);
 
 VixCommandSecurityCategory VixMsg_GetCommandSecurityCategory(int opCode);
+
+VixError VixMsg_AllocGenericRequestMsg(int opCode,
+                                       uint64 cookie,
+                                       int credentialType,
+                                       const char *userNamePassword,
+                                       int options,
+                                       VixPropertyListImpl *propertyList,
+                                       VixCommandGenericRequest **request);
+
+VixError VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,
+                                       int *options,
+                                       VixPropertyListImpl *propertyList);
 
 #endif   // VIX_HIDE_FROM_JAVA
 

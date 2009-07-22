@@ -25,7 +25,7 @@ vmtoolsd_CPPFLAGS += @GMODULE_CPPFLAGS@
 vmtoolsd_CPPFLAGS += @GOBJECT_CPPFLAGS@
 vmtoolsd_CPPFLAGS += @GTHREAD_CPPFLAGS@
 vmtoolsd_CPPFLAGS += -I$(builddir)
-vmtoolsd_CPPFLAGS += -DVMTOOLSD_PLUGIN_ROOT=\"$(pkglibdir)\"
+vmtoolsd_CPPFLAGS += -DVMTOOLSD_PLUGIN_ROOT=\"$(pkglibdir)/plugins\"
 
 vmtoolsd_LDADD =
 vmtoolsd_LDADD += @VMTOOLS_LIBS@

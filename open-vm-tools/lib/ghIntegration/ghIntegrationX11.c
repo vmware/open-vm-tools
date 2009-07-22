@@ -907,7 +907,15 @@ GHIPlatformGetDesktopName(void)
    Window temp2;        // throwaway
    Window *children = NULL;
    unsigned int nchildren;
-   const char *retval = NULL;
+   static const char *desktopEnvironment = NULL;
+
+   /*
+    * NB: While window managers may change during vmware-user's execution, TTBOMK
+    * desktop environments cannot, so this is safe.
+    */
+   if (desktopEnvironment) {
+      return desktopEnvironment;
+   }
 
    display = gdk_x11_get_default_xdisplay();
    rootWindow = DefaultRootWindow(display);
@@ -916,26 +924,45 @@ GHIPlatformGetDesktopName(void)
       return NULL;
    }
 
-   for (i = 0; i < nchildren && !retval; i++) {
-      char *name = NULL;
+   for (i = 0; i < nchildren && !desktopEnvironment; i++) {
+      XClassHint wmClass = { 0, 0 };
       int j;
 
-      if ((XFetchName(display, children[i], &name) == 0) ||
-          name == NULL) {
-         continue;
-      }
+      /*
+       * Try WM_CLASS first, then try WM_NAME.
+       */
 
-      for (j = 0; j < ARRAYSIZE(clientMappings) && !retval; j++) {
-         if (!strcmp(clientMappings[j][0], name)) {
-            retval = clientMappings[j][1];
+      if (XGetClassHint(display, children[i], &wmClass) != 0) {
+         for (j = 0; j < ARRAYSIZE(clientMappings) && !desktopEnvironment; j++) {
+            if ((strcasecmp(clientMappings[j][0], wmClass.res_name) == 0) ||
+                (strcasecmp(clientMappings[j][0], wmClass.res_class) == 0)) {
+               desktopEnvironment = clientMappings[j][1];
+            }
          }
+         XFree(wmClass.res_name);
+         XFree(wmClass.res_class);
       }
 
-      XFree(name);
+      if (!desktopEnvironment) {
+         char *name = NULL;
+
+         if ((XFetchName(display, children[i], &name) == 0) ||
+             name == NULL) {
+            continue;
+         }
+
+         for (j = 0; j < ARRAYSIZE(clientMappings) && !desktopEnvironment; j++) {
+            if (!strcmp(clientMappings[j][0], name)) {
+               desktopEnvironment = clientMappings[j][1];
+            }
+         }
+
+         XFree(name);
+      }
    }
 
    XFree(children);
-   return retval;
+   return desktopEnvironment;
 }
 
 
@@ -969,9 +996,9 @@ GHIPlatformIsMenuItemAllowed(GHIPlatform *ghip, // IN:
     * Examine the "NoDisplay" and "Hidden" properties.
     */
    if (g_key_file_get_boolean(keyfile,
-			      G_KEY_FILE_DESKTOP_GROUP,
-			      G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY,
-			      NULL) ||
+                              G_KEY_FILE_DESKTOP_GROUP,
+                              G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY,
+                              NULL) ||
        g_key_file_get_boolean(keyfile,
                               G_KEY_FILE_DESKTOP_GROUP,
                               G_KEY_FILE_DESKTOP_KEY_HIDDEN,
@@ -1388,7 +1415,7 @@ GHIPlatformReadApplicationsDir(GHIPlatform *ghip, // IN
       if (!strcmp(dent->d_name, ".") ||
           !strcmp(dent->d_name, "..") ||
           !strcmp(dent->d_name, ".hidden")) {
-	continue;
+         continue;
       }
 
       subpathLen = Str_Sprintf(subpath, sizeof subpath, "%s/%s", dir, dent->d_name);
@@ -1409,8 +1436,8 @@ GHIPlatformReadApplicationsDir(GHIPlatform *ghip, // IN
       } else if ((dent->d_type == DT_REG ||
                   (dent->d_type == DT_UNKNOWN
                    && S_ISREG(sbuf.st_mode)))
-		 && StrUtil_EndsWith(dent->d_name, ".desktop")) {
-	 GHIPlatformReadDesktopFile(ghip, subpath);
+                 && StrUtil_EndsWith(dent->d_name, ".desktop")) {
+         GHIPlatformReadDesktopFile(ghip, subpath);
       }
    }
 
@@ -1450,7 +1477,7 @@ GHIPlatformReadAllApplications(GHIPlatform *ghip) // IN
 
       for (i = 0; i < ARRAYSIZE(desktopDirs); i++) {
          if (StrUtil_StartsWith(desktopDirs[i], "~/")) {
-	    char cbuf[PATH_MAX];
+            char cbuf[PATH_MAX];
 
             Str_Sprintf(cbuf, sizeof cbuf, "%s/%s",
                         g_get_home_dir(), desktopDirs[i] + 2);
@@ -2450,8 +2477,8 @@ GHIPlatformShellAction(GHIPlatform *ghip,       // IN: platform-specific state
 
 Bool
 GHIPlatformShellUrlOpen(GHIPlatform *ghip,      // IN: platform-specific state
-			const char *fileUtf8,   // IN: command/file
-			const char *actionUtf8) // IN: action
+                        const char *fileUtf8,   // IN: command/file
+                        const char *actionUtf8) // IN: action
 {
 #ifdef GTK2
    char **fileArgv = NULL;
@@ -2733,5 +2760,94 @@ GHIPlatformTrashFolderGetIcon(GHIPlatform *ghip,
 {
    ASSERT(ghip);
    ASSERT(xdrs);
+   return FALSE;
+}
+
+/* @brief Send a mouse or keyboard event to a tray icon.
+ *
+ * @param[in] ghip Pointer to platform-specific GHI data.
+ *
+ * @retval TRUE Operation Succeeded.
+ * @retval FALSE Operation Failed.
+ */
+
+Bool
+GHIPlatformTrayIconSendEvent(GHIPlatform *ghip,
+                             const XDR   *xdrs)
+{
+   ASSERT(ghip);
+   ASSERT(xdrs);
+   return FALSE;
+}
+
+/* @brief Start sending tray icon updates to the VMX.
+ *
+ * @param[in] ghip Pointer to platform-specific GHI data.
+ *
+ * @retval TRUE Operation Succeeded.
+ * @retval FALSE Operation Failed.
+ */
+
+Bool
+GHIPlatformTrayIconStartUpdates(GHIPlatform *ghip)
+{
+   ASSERT(ghip);
+   return FALSE;
+}
+
+/* @brief Stop sending tray icon updates to the VMX.
+ *
+ * @param[in] ghip Pointer to platform-specific GHI data.
+ *
+ * @retval TRUE Operation Succeeded.
+ * @retval FALSE Operation Failed.
+ */
+
+Bool
+GHIPlatformTrayIconStopUpdates(GHIPlatform *ghip)
+{
+   ASSERT(ghip);
+   return FALSE;
+}
+
+/* @brief Set a window to be focused.
+ *
+ * @param[in] ghip Pointer to platform-specific GHI data.
+ * @param[in] xdrs Pointer to serialized data from the host.
+ *
+ * @retval TRUE Operation Succeeded.
+ * @retval FALSE Operation Failed.
+ */
+
+Bool
+GHIPlatformSetFocusedWindow(GHIPlatform *ghip,
+                            const XDR   *xdrs)
+{
+   ASSERT(ghip);
+   ASSERT(xdrs);
+   return FALSE;
+}
+
+
+/**
+ * @brief Get the hash (or timestamp) of information returned by
+ * GHIPlatformGetBinaryInfo.
+ *
+ * @param[in]  ghip     Pointer to platform-specific GHI data.
+ * @param[in]  request  Request containing which executable to get the hash for.
+ * @param[out] reply    Reply to be filled with the hash.
+ *
+ * @retval TRUE Operation succeeded.
+ * @retval FALSE Operation failed.
+ */
+
+Bool GHIPlatformGetExecInfoHash(GHIPlatform *ghip,
+                                const GHIGetExecInfoHashRequest *request,
+                                GHIGetExecInfoHashReply *reply)
+{
+   ASSERT(ghip);
+   ASSERT(request);
+   ASSERT(reply);
+
    return FALSE;
 }

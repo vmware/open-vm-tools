@@ -231,7 +231,7 @@ PowerOpsScriptCallback(gpointer _state)
 {
    PowerOpState *state = _state;
 
-   g_assert(state->pid != INVALID_PID);
+   ASSERT(state->pid != INVALID_PID);
 
    if (!ProcMgr_IsAsyncProcRunning(state->pid)) {
       int exitcode;
@@ -320,7 +320,7 @@ PowerOpsScriptCallback(GPid pid,
 {
    PowerOpState *state = _state;
 
-   g_assert(state->pid != INVALID_PID);
+   ASSERT(state->pid != INVALID_PID);
 
    PowerOpsStateChangeDone(_state, status == 0);
    g_spawn_close_pid(state->pid);
@@ -450,7 +450,7 @@ PowerOpsStateChange(RpcInData *data)
             char *tmp;
 
             dfltPath = GuestApp_GetInstallPath();
-            g_assert(dfltPath != NULL);
+            ASSERT(dfltPath != NULL);
 
             /*
              * Before the switch to vmtoolsd, the config file was saved with

@@ -417,9 +417,9 @@ extern void VixDebugInit(int debugLevel, int apiTraceLevel,
 extern const char *VixDebug_GetFileBaseName(const char *path);
 extern void VixAssert(const char *cond, const char *file, int lineNum);
 
-extern void VixLogError(VixError err, const char *function, int line,
-            const char *fileName, unsigned long threadId, const char *fmt, ...)
-            PRINTF_DECL(6, 7);
+extern VixError VixLogError(VixError err, const char *function, int line,
+                const char *fileName, unsigned long threadId, const char *fmt, ...)
+                PRINTF_DECL(6, 7);
 
 
 /*

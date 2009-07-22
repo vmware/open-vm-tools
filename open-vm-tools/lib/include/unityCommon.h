@@ -24,8 +24,7 @@
  */
 
 /*
- * Breakdown of components involved in Unity (as of change 748058 on
- * 2008/10/23):
+ * Breakdown of components involved in Unity:
  *
  *   1) Unity desktop target
  *
@@ -52,8 +51,7 @@
  *   3) Unity client
  *
  *      This is a VNC-capable client that supports the extensions
- *      specified in VNCEncode_UnitySupported (currently,
- *      VNCUnityWindowRectCap and VNCUnityWindowRegionCap).
+ *      specified in VNCEncode_UnitySupported.
  *
  *      Source: bora/apps/lib/cui/unityMgr.cc
  *              bora/apps/lib/cui/unityMgrVNC.cc
@@ -138,8 +136,8 @@
  *
  * -----------------------------------------------------------------------
  *
- * [1] Hosted UI opens VNC connection to VMX (through authd) with
- *     VNCUnityWindowRectCap and VNCUnityWindowRegionCap encodings supported.
+ * [1] Hosted UI opens VNC connection to VMX (through authd) with supported
+ *     encodings of at least what VNCEncode_UnitySupported requires.
  *
  *     MKS remote manager receives VNC connection socket connection
  *     and spins up MKS hostops VNC backend.
@@ -240,6 +238,11 @@
 #define GHI_RPC_OUTLOOK_RESTORE_TEMP_FOLDER           "ghi.guest.outlook.restore.tempFolder"
 #define GHI_RPC_TRASH_FOLDER_ACTION                   "ghi.guest.trashFolder.action"
 #define GHI_RPC_TRASH_FOLDER_GET_ICON                 "ghi.guest.trashFolder.getIcon"
+#define GHI_RPC_TRAY_ICON_START_UPDATES               "ghi.guest.trayIcon.startUpdates"
+#define GHI_RPC_TRAY_ICON_STOP_UPDATES                "ghi.guest.trayIcon.stopUpates"
+#define GHI_RPC_TRAY_ICON_SEND_EVENT                  "ghi.guest.trayIcon.sendEvent"
+#define GHI_RPC_SET_FOCUSED_WINDOW                    "ghi.guest.setFocusedWindow"
+#define GHI_RPC_GET_EXEC_INFO_HASH                    "ghi.guest.getExecInfoHash"
 /* @} */
 
 
@@ -253,11 +256,11 @@
 #define UNITY_RPC_VMX_SHOW_TASKBAR        "vmx.unity.show.taskbar"
 #define UNITY_RPC_UNITY_CAP               "tools.capability.unity"
 #define UNITY_RPC_SHOW_TASKBAR_CAP        "tools.capability.unity.taskbar"
+#define UNITY_RPC_UNITY_ACTIVE            "unity.active"
 #define GHI_RPC_LAUNCHMENU_CHANGE         "tools.ghi.launchmenu.change"
 #define GHI_RPC_PROTOCOL_HANDLER_INFO     "tools.ghi.protocolhandler.info"
 #define GHI_RPC_TRASH_FOLDER_STATE        "ghi.guest.trashFolder.state"
-#define UNITY_RPC_UNITY_ACTIVE            "unity.active"
-
+#define GHI_RPC_TRAY_ICON_UPDATE          "ghi.guest.trayIcon.update"
 #define GHI_RPC_HOST_SHELL_ACTION         "ghi.host.shell.action"
 /* @} */
 
@@ -298,6 +301,19 @@
  * Type definitions
  */
 
+/**
+ * @brief Tray icon event identifiers. See ghiTrayIcon.x.
+ *
+ * @note These identifiers are shared between tools and the VMX. For
+ * compatibility reasons, new events must be added at the end of this
+ * list, and existing event numbers should not be reused if an event
+ * is removed.
+ */
+
+#define GHI_TRAY_ICON_EVENT_INVALID       0
+#define GHI_TRAY_ICON_EVENT_LBUTTONDBLCLK 1
+#define GHI_TRAY_ICON_EVENT_RIGHT_CLICK   2
+#define GHI_TRAY_ICON_EVENT_LEFT_CLICK    3
 
 /**
  * @brief Opaque Unity window identifier.
@@ -343,15 +359,15 @@ typedef enum {
    UNITY_WINDOW_ATTR_MAXIMIZED = 3,         /**< Is maximized.  @note Not mutually exclusive
                                                  with @ref UNITY_WINDOW_STATE_MINIMIZED. */
    UNITY_WINDOW_ATTR_CLOSABLE = 5,          ///< Supports closing.
-   UNITY_WINDOW_ATTR_HAS_TITLEBAR = 6,      ///< @deprecated 
-   UNITY_WINDOW_ATTR_VISIBLE = 7,           ///< @deprecated 
-   UNITY_WINDOW_ATTR_CHILD_WINDOW = 8,      ///< @deprecated 
+   UNITY_WINDOW_ATTR_HAS_TITLEBAR = 6,      ///< @deprecated
+   UNITY_WINDOW_ATTR_VISIBLE = 7,           ///< @deprecated
+   UNITY_WINDOW_ATTR_CHILD_WINDOW = 8,      ///< @deprecated
    UNITY_WINDOW_ATTR_HAS_TASKBAR_BTN = 9,   /**< Should appear in the taskbar.
                                                  @todo Consider deprecation? */
-   UNITY_WINDOW_ATTR_MOVABLE = 10,          ///< Can be moved around the desktop. 
-   UNITY_WINDOW_ATTR_RESIZABLE = 11,        ///< Can be resized. 
-   UNITY_WINDOW_ATTR_ALWAYS_ABOVE = 12,     ///< Should stay on top of stack. 
-   UNITY_WINDOW_ATTR_ALWAYS_BELOW = 13,     ///< Should stay at bottom of stack. 
+   UNITY_WINDOW_ATTR_MOVABLE = 10,          ///< Can be moved around the desktop.
+   UNITY_WINDOW_ATTR_RESIZABLE = 11,        ///< Can be resized.
+   UNITY_WINDOW_ATTR_ALWAYS_ABOVE = 12,     ///< Should stay on top of stack.
+   UNITY_WINDOW_ATTR_ALWAYS_BELOW = 13,     ///< Should stay at bottom of stack.
    UNITY_WINDOW_ATTR_DISABLED = 14,         ///< Keyboard, mouse input is disabled.
    UNITY_WINDOW_ATTR_NOACTIVATE = 15,       /**< Does not raise to foreground via mouse
                                                  click, alt-tab, etc. */
@@ -364,8 +380,8 @@ typedef enum {
    UNITY_WINDOW_ATTR_FULLSCREENABLE = 19,   ///< @deprecated
    UNITY_WINDOW_ATTR_FULLSCREENED = 20,     ///< @deprecated
    UNITY_WINDOW_ATTR_ATTN_WANTED = 21,      ///< Application wants user's attention.
-   UNITY_WINDOW_ATTR_SHADEABLE = 22,        ///< @deprecated 
-   UNITY_WINDOW_ATTR_SHADED = 23,           ///< @deprecated 
+   UNITY_WINDOW_ATTR_SHADEABLE = 22,        ///< @deprecated
+   UNITY_WINDOW_ATTR_SHADED = 23,           ///< @deprecated
    UNITY_WINDOW_ATTR_STICKABLE = 24,        ///< Can be made sticky.
    UNITY_WINDOW_ATTR_STICKY = 25,           ///< Window should appear on all desktops.
    UNITY_WINDOW_ATTR_MODAL = 26,            /**< Modal window.
@@ -413,7 +429,7 @@ typedef uint32 UnityIconSize; // Number of pixels on the larger side of the icon
    @{
 
    @def         UNITY_RPC_ENTER
-   @brief       Tell the guest to go into Unity mode. 
+   @brief       Tell the guest to go into Unity mode.
    @code
    UNITY_RPC_ENTER
    @endcode
@@ -423,11 +439,11 @@ typedef uint32 UnityIconSize; // Number of pixels on the larger side of the icon
 
    @def         UNITY_RPC_GET_UPDATE
    @brief       Get an incremental or full update of window changes detected by
-                the guest. 
+                the guest.
    @todo        Deprecate this RPC in favor of using UNITY_RPC_GET_UPDATE_FULL
                 and UNITY_RPC_GET_UPDATE_INCREMENTAL
    @code
-   UNITY_RPC_GET_UPDATE ["incremental"] 
+   UNITY_RPC_GET_UPDATE ["incremental"]
    @endcode
    @param incremental   If present, do an incremental update, otherwise full.
    @note                A full update reports all current state of all windows,
@@ -455,10 +471,10 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
 
 
    @def         UNITY_RPC_GET_BINARY_INFO
-   @brief       Return a list of icons for a window. 
+   @brief       Return a list of icons for a window.
    @todo        Move this into a GHI-specific header.
    @todo        Give this RPC command an intuitive name.
-   @code 
+   @code
    UNITY_RPC_GET_BINARY_INFO windowPath
    @endcode
    @param[in] windowPath UTF-8 encoded "window path" returned by
@@ -473,15 +489,15 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
 <nul> := '\0'
 @endverbatim
    @note        Icon data is in BGRA format. An alpha channel value of 255 means
-                "fully opaque", and a value of 0 means "fully transparent". 
+                "fully opaque", and a value of 0 means "fully transparent".
 
 
    @def         UNITY_RPC_GET_BINARY_HANDLERS
    @brief       Ask the guest to return filetypes (extensions) and URL protocols
-                supported by the guest. 
+                supported by the guest.
    @todo        Move this into a GHI-specific header.
-   @code 
-   UNITY_RPC_GET_BINARY_HANDLERS 
+   @code
+   UNITY_RPC_GET_BINARY_HANDLERS
    @endcode
    @sa ghiGetBinaryHandlers.x for format of data returned.
 
@@ -489,10 +505,10 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
    @def         UNITY_RPC_OPEN_LAUNCHMENU
    @brief       Get the start menu sub-tree for a given item
    @todo        Move this into a GHI-specific header.
-   @code 
+   @code
    UNITY_RPC_OPEN_LAUNCHMENU root
    @endcode
-   @param[in] root      Name of sub-tree, or "" for root of start menu. 
+   @param[in] root      Name of sub-tree, or "" for root of start menu.
    @return
    <tt>"count handle"</tt>
    \li @c count Number of items in the sub-tree.
@@ -502,7 +518,7 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
    @def         UNITY_RPC_GET_LAUNCHMENU_ITEM
    @brief       Get the nth item in the menu sub-tree.
    @todo        Move this into a GHI-specific header.
-   @code 
+   @code
    UNITY_RPC_GET_LAUNCHMENU_ITEM handle index
    @endcode
    @param[in] handle    Handle returned by @ref UNITY_RPC_OPEN_LAUNCHMENU.
@@ -512,44 +528,44 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
 
 
    @def         UNITY_RPC_CLOSE_LAUNCHMENU
-   @brief       Close the sub-menu, releasing all associated resources. 
+   @brief       Close the sub-menu, releasing all associated resources.
    @todo        Move this into a GHI-specific header.
-   @code 
+   @code
    UNITY_RPC_CLOSE_LAUNCHMENU handle
    @endcode
    @param[in] handle Handle returned by @ref UNITY_RPC_OPEN_LAUNCHMENU.
 
 
-   @def         UNITY_RPC_WINDOW_SETTOP 
-   @brief       Raise a group of windows to the top of the window stacking order. 
-   @code 
-   UNITY_RPC_WINDOW_SETTOP UnityWindowId{ UnityWindowId} 
+   @def         UNITY_RPC_WINDOW_SETTOP
+   @brief       Raise a group of windows to the top of the window stacking order.
+   @code
+   UNITY_RPC_WINDOW_SETTOP UnityWindowId{ UnityWindowId}
    @endcode
-   @param[in] UnityWindowId{ UnityWindowId} group of windows to raise 
+   @param[in] UnityWindowId{ UnityWindowId} group of windows to raise
    @note        Order of windows is bottom to top.
    @note        Only @ref UNITY_MAX_SETTOP_WINDOW_COUNT windows can be specified.
 
 
-   @def         UNITY_RPC_WINDOW_CLOSE 
-   @brief       Close the specified window. 
-   @code 
-   UNITY_RPC_WINDOW_CLOSE UnityWindowId 
+   @def         UNITY_RPC_WINDOW_CLOSE
+   @brief       Close the specified window.
+   @code
+   UNITY_RPC_WINDOW_CLOSE UnityWindowId
    @endcode
-   @param[in] UnityWindowId window to close 
+   @param[in] UnityWindowId window to close
 
 
    @def         UNITY_RPC_GET_WINDOW_CONTENTS
-   @brief       Retreive pixel contents of the Window. 
-   @code 
-   UNITY_RPC_GET_WINDOW_CONTENTS UnityWindowId 
+   @brief       Retreive pixel contents of the Window.
+   @code
+   UNITY_RPC_GET_WINDOW_CONTENTS UnityWindowId
    @endcode
-   @param[in] UnityWindowId UnityWindowId of window to get contents from 
-   @return      PNG image containing the window content. 
+   @param[in] UnityWindowId UnityWindowId of window to get contents from
+   @return      PNG image containing the window content.
 
 
-   @def         UNITY_RPC_GET_ICON_DATA     
-   @brief       Return icon data for a specific window. 
-   @code 
+   @def         UNITY_RPC_GET_ICON_DATA
+   @brief       Return icon data for a specific window.
+   @code
    UNITY_RPC_GET_ICON_DATA UnityWindowId type size dataOffset dataLength
    @endcode
    @param[in] UnityWindowId     window to get icon data for
@@ -560,55 +576,55 @@ execPath ::= ? UTF-8 string uniquely identifying JUST the executable ?
    @return                      PNG image containing the icon data.
 
 
-   @def         UNITY_RPC_EXIT             
-   @brief       Cease enumerating windows and leave Unity mode. 
-   @code 
-   UNITY_RPC_EXIT 
+   @def         UNITY_RPC_EXIT
+   @brief       Cease enumerating windows and leave Unity mode.
+   @code
+   UNITY_RPC_EXIT
    @endcode
    @note        On success, the guest will send a @ref UNITY_RPC_UNITY_ACTIVE
                 with an argument of 0 to indicate it has exited Unity mode.
 
 
-   @def         UNITY_RPC_GET_UPDATE_FULL  
-   @brief       Equivalent to @ref UNITY_RPC_GET_UPDATE with no argument. 
-   @code 
-   UNITY_RPC_GET_UPDATE_FULL 
+   @def         UNITY_RPC_GET_UPDATE_FULL
+   @brief       Equivalent to @ref UNITY_RPC_GET_UPDATE with no argument.
+   @code
+   UNITY_RPC_GET_UPDATE_FULL
    @endcode
    @return See @ref UnityGetUpdateReturn.
 
 
-   @def         UNITY_RPC_GET_UPDATE_INCREMENTAL 
-   @brief       Equivalent to @ref UNITY_RPC_GET_UPDATE with an "incremental" argument. 
-   @code 
-   UNITY_RPC_GET_UPDATE_INCREMENTAL 
+   @def         UNITY_RPC_GET_UPDATE_INCREMENTAL
+   @brief       Equivalent to @ref UNITY_RPC_GET_UPDATE with an "incremental" argument.
+   @code
+   UNITY_RPC_GET_UPDATE_INCREMENTAL
    @endcode
    @return See @ref UnityGetUpdateReturn.
 
 
-   @def         UNITY_RPC_SHELL_OPEN            
+   @def         UNITY_RPC_SHELL_OPEN
    @brief       Open the application corresponding to the passed in URI or
-                regular path. 
+                regular path.
    @todo        Move this into a GHI-specific header.
-   @code 
-   UNITY_RPC_SHELL_OPEN 
+   @code
+   UNITY_RPC_SHELL_OPEN
    @endcode
-   @param[in] path URI or path of executable to open 
+   @param[in] path URI or path of executable to open
    @note        The URI is opaque to the caller, the caller supplies this URI
                 to the host with the expecation that it will be able to
-                understand the format when this RPC is invoked. 
+                understand the format when this RPC is invoked.
 
 
-   @def         UNITY_RPC_SHOW_TASKBAR         
-   @brief       Show or hide the guest taskbar. 
-   @code 
+   @def         UNITY_RPC_SHOW_TASKBAR
+   @brief       Show or hide the guest taskbar.
+   @code
    UNITY_RPC_SHOW_TASKBAR flag
    @endcode
    @param[in] flag 0 to hide the taskbar, or 1 to show the taskbar.
 
 
-   @def         UNITY_RPC_WINDOW_MOVE_RESIZE  
-   @brief       Change the geometry of the specified window. 
-   @code 
+   @def         UNITY_RPC_WINDOW_MOVE_RESIZE
+   @brief       Change the geometry of the specified window.
+   @code
    UNITY_RPC_WINDOW_MOVE_RESIZE UnityWindowId x y width height
    @endcode
    @param[in] UnityWindowId     UnityWindowId of window to modify
@@ -629,16 +645,16 @@ newHeight ::= ? post-op window height ? ;
 @endverbatim
 
 
-   @def         UNITY_RPC_DESKTOP_WORK_AREA_SET 
-   @brief       Specify the desktop work areas. 
+   @def         UNITY_RPC_DESKTOP_WORK_AREA_SET
+   @brief       Specify the desktop work areas.
    @todo        Add more detail about this RPC and why it matters.
-   @code 
-   UNITY_RPC_DESKTOP_WORK_AREA_SET <work_areas> 
+   @code
+   UNITY_RPC_DESKTOP_WORK_AREA_SET <work_areas>
    @endcode
    @param[in] <work_areas> list of work areas
    @verbatim
-<work_areas> := <count>{ ',' x y width height } 
-<count> := number of work areas to follow, 0 or greater 
+<work_areas> := <count>{ ',' x y width height }
+<count> := number of work areas to follow, 0 or greater
 @endverbatim
 
 
@@ -658,18 +674,18 @@ newHeight ::= ? post-op window height ? ;
    @param[in] UnityWindowId UnityWindowId of window to hide
 
 
-   @def         UNITY_RPC_WINDOW_MINIMIZE    
+   @def         UNITY_RPC_WINDOW_MINIMIZE
    @brief       Minimize the specified window.
-   @code 
+   @code
    UNITY_RPC_WINDOW_MINIMIZE UnityWindowId
    @endcode
-   @param[in] UnityWindowId UnityWindowId of window to minimize 
+   @param[in] UnityWindowId UnityWindowId of window to minimize
 
 
    @def         UNITY_RPC_WINDOW_UNMINIMIZE
    @brief       Unminimizes a window to its pre-minimization state.
-   @code 
-   UNITY_RPC_WINDOW_UNMINIMIZE UnityWindowId 
+   @code
+   UNITY_RPC_WINDOW_UNMINIMIZE UnityWindowId
    @endcode
    @param[in] UnityWindowId window to unminimize
    @note        This RPC originated as UNITY_RPC_WINDOW_RESTORE.  The actual
@@ -677,57 +693,57 @@ newHeight ::= ? post-op window height ? ;
                 backwards compatibility.
 
 
-   @def         UNITY_RPC_WINDOW_MAXIMIZE   
+   @def         UNITY_RPC_WINDOW_MAXIMIZE
    @brief       Maximize the specified window.
-   @code 
+   @code
    UNITY_RPC_WINDOW_MAXIMIZE UnityWindowId
    @endcode
-   @param[in] UnityWindowId UnityWindowId of window to maximize 
+   @param[in] UnityWindowId UnityWindowId of window to maximize
 
 
-   @def         UNITY_RPC_WINDOW_UNMAXIMIZE    
-   @brief       Unmaximize the specified window. 
-   @code 
+   @def         UNITY_RPC_WINDOW_UNMAXIMIZE
+   @brief       Unmaximize the specified window.
+   @code
    UNITY_RPC_WINDOW_UNMAXIMIZE UnityWindowId
    @endcode
-   @param[in] UnityWindowId UnityWindowId of window to unmaximize 
+   @param[in] UnityWindowId UnityWindowId of window to unmaximize
 
 
-   @def         UNITY_RPC_DESKTOP_CONFIG_SET   
-   @brief       Send desktop (virtual workspaces) configuration. 
-   @code 
-   UNITY_RPC_DESKTOP_CONFIG_SET configuration 
+   @def         UNITY_RPC_DESKTOP_CONFIG_SET
+   @brief       Send desktop (virtual workspaces) configuration.
+   @code
+   UNITY_RPC_DESKTOP_CONFIG_SET configuration
    @endcode
-   @param[in] configuration <cell> {<cell>} <current> 
+   @param[in] configuration <cell> {<cell>} <current>
    @verbatim
-<cell> := '{'row,col'}' 
-<current> := currently active cell 
+<cell> := '{'row,col'}'
+<current> := currently active cell
 @endverbatim
-The RPC takes the form of a set of row, column pairs, each enclosed by 
-braces, and an integer. The number of rows and columns can be deduced 
-by looking for the max row and column value specified in these pairs. 
-The integer that follows the list of pairs defines the currently active 
+The RPC takes the form of a set of row, column pairs, each enclosed by
+braces, and an integer. The number of rows and columns can be deduced
+by looking for the max row and column value specified in these pairs.
+The integer that follows the list of pairs defines the currently active
 desktop, as an offset (starting at 0) of the pair list.\n\n
 For example: <tt>{1,1} {1,2} {2,1} {2,2} 1</tt> specifies a 2 x 2 virtual
 desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
 
 
-   @def         UNITY_RPC_DESKTOP_ACTIVE_SET   
+   @def         UNITY_RPC_DESKTOP_ACTIVE_SET
    @brief       Change the active desktop to the value specified.
-   @code 
+   @code
    UNITY_RPC_DESKTOP_ACTIVE_SET offset
    @endcode
-   @param[in] offset Offset into desktop configuration, as defined by @ref UNITY_RPC_DESKTOP_CONFIG_SET, 0 or greater 
+   @param[in] offset Offset into desktop configuration, as defined by @ref UNITY_RPC_DESKTOP_CONFIG_SET, 0 or greater
 
 
-   @def         UNITY_RPC_WINDOW_DESKTOP_SET   
-   @brief       Change the desktop of the specified window. 
-   @code 
+   @def         UNITY_RPC_WINDOW_DESKTOP_SET
+   @brief       Change the desktop of the specified window.
+   @code
    UNITY_RPC_WINDOW_DESKTOP_SET UnityWindowId offset
    @endcode
-   @param[in] UnityWindowId UnityWindowId of window to move 
+   @param[in] UnityWindowId UnityWindowId of window to move
    @param[in] offset Offset into desktop configuration, as defined by
-                     @ref UNITY_RPC_DESKTOP_CONFIG_SET, 0 or greater. 
+                     @ref UNITY_RPC_DESKTOP_CONFIG_SET, 0 or greater.
    @}
 */
 
@@ -737,64 +753,64 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    @{
 
    @def         UNITY_RPC_PUSH_UPDATE_CMD
-   @brief       Send a round of Unity Window Tracker updates to the host. 
+   @brief       Send a round of Unity Window Tracker updates to the host.
    @todo doucment update format in unityWindowTracker.c
-   @code 
+   @code
    UNITY_RPC_PUSH_UPDATE_CMD commands
    @endcode
    @param[in]   A double-NUL-terminated string containing NUL-delimited update commands.
    @note        Updates are followed in the command string by Z-order information,
-                and active desktop information. The update format is documented in 
-                @ref unityWindowTracker.c 
+                and active desktop information. The update format is documented in
+                @ref unityWindowTracker.c
 
 
-   @def         UNITY_RPC_VMX_SHOW_TASKBAR        
+   @def         UNITY_RPC_VMX_SHOW_TASKBAR
    @brief       Ask the host to send its "show taskbar" setting.
-   @code 
-   UNITY_RPC_VMX_SHOW_TASKBAR 
+   @code
+   UNITY_RPC_VMX_SHOW_TASKBAR
    @endcode
 
 
-   @def         UNITY_RPC_UNITY_CAP               
-   @brief       Tell the host if the guest is capable of supporting Unity or not. 
-   @code 
+   @def         UNITY_RPC_UNITY_CAP
+   @brief       Tell the host if the guest is capable of supporting Unity or not.
+   @code
    UNITY_RPC_UNITY_CAP flag
    @endcode
-   @param[in] flag If 1, guest supports Unity. If 0, it does not 
+   @param[in] flag If 1, guest supports Unity. If 0, it does not
 
-   @def         UNITY_RPC_SHOW_TASKBAR_CAP        
+   @def         UNITY_RPC_SHOW_TASKBAR_CAP
    @brief       Tells the host if the guest is capable of showing and hiding the
-                taskbar. 
-   @code 
+                taskbar.
+   @code
    UNITY_RPC_SHOW_TASKBAR_CAP flag
    @endcode
-   @param[in] flag If 1, taskbar visibility can be controlled. If 0, it cannot 
+   @param[in] flag If 1, taskbar visibility can be controlled. If 0, it cannot
 
-   @def         GHI_RPC_LAUNCHMENU_CHANGE         
+   @def         GHI_RPC_LAUNCHMENU_CHANGE
    @brief       Inform the host that one or more launch menu items have changed.
    @todo        Move this define to a GHI-specific header.
-   @code 
-   GHI_RPC_LAUNCHMENU_CHANGE 
+   @code
+   GHI_RPC_LAUNCHMENU_CHANGE
    @endcode
 
 
-   @def         GHI_RPC_PROTOCOL_HANDLER_INFO     
-   @brief       This command sends the list of protocol handlers to the host. 
+   @def         GHI_RPC_PROTOCOL_HANDLER_INFO
+   @brief       This command sends the list of protocol handlers to the host.
    @todo        Move this define to a GHI-specific header.
-   @code 
-   GHI_RPC_PROTOCOL_HANDLER_INFO 
+   @code
+   GHI_RPC_PROTOCOL_HANDLER_INFO
    @endcode
    @param data XDR data containing protocol handler info.
    @sa GHIPlatformGetProtocolHandlers for platform-specific list of handled protocols.
    @sa ghiProtocolHandler.x for XDR data format.
 
 
-   @def         UNITY_RPC_UNITY_ACTIVE            
-   @brief       Tell host we are entering or leaving Unity mode. 
-   @code 
+   @def         UNITY_RPC_UNITY_ACTIVE
+   @brief       Tell host we are entering or leaving Unity mode.
+   @code
    UNITY_RPC_UNITY_ACTIVE flag
    @endcode
-   @param[in] flag If 1, Unity is active. If 0, Unity is not active 
+   @param[in] flag If 1, Unity is active. If 0, Unity is not active
 
    @}
 */
@@ -820,8 +836,12 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
  *
  * Each string in the list has one of the following formats:
  *
- * @li <tt>"add" UnityWindowId</tt> @par
+ * @li <tt>"add" UnityWindowId arguments</tt> @par
  *    A window identified by @a UnityWindowId has just been created.
+ *    The @a arguments are optional, and are not provided by all Tools.
+ *    Arguments are space-separated key=value pairs, with the following
+ *    keys: windowPath, execPath. The values are the same as what is
+ *    returned by the @ref UNITY_RPC_GET_WINDOW_PATH RPC.
  *
  * @li <tt>"remove" UnityWindowId</tt> @par
  *    The window identified by @a UnityWindowId has been removed.  Get rid

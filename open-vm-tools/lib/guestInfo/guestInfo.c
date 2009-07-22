@@ -296,8 +296,7 @@ GuestInfoGetDiskInfo(PGuestDiskInfo di)
 
    for (i = 0; i < pl->size; i++) {
       nextPartition = pl->partitions[i];
-      if (!strlen(nextPartition.comment) ||
-          strcmp(nextPartition.comment, WIPER_DEVICE_MAPPER_STRING) == 0) {
+      if (!strlen(nextPartition.comment)) {
          PPartitionEntry newPartitionList;
          unsigned char *error;
          error = WiperSinglePartition_GetSpace(&nextPartition, &freeBytes, &totalBytes);

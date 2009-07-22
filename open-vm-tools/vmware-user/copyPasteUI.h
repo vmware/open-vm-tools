@@ -54,7 +54,7 @@ class CopyPasteUI : public sigc::trackable
 public:
    CopyPasteUI();
    virtual ~CopyPasteUI();
-   void Init();
+   bool Init();
    void VmxCopyPasteVersionChanged(struct RpcIn *rpcIn,
                                    uint32 version);
    void SetCopyPasteAllowed(bool isCopyPasteAllowed)
@@ -79,10 +79,7 @@ private:
    bool GetLocalClipboard(CPClipboard *clip);
    void LocalClipboardTimestampCB(const Gtk::SelectionData& sd);
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
-   void LocalReceivedTargetsCB(const Glib::StringArrayHandle& targets_array);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
-   void LocalReceivedRTFCB(const Gtk::SelectionData& selection_data);
-   void LocalReceivedTextCB(const Glib::ustring& text);
    void GetLocalFilesDone(bool success);
 
    /* Conversion methods. */
@@ -100,8 +97,6 @@ private:
    bool mIsClipboardOwner;
    uint64 mClipTime;
    uint64 mPrimTime;
-   uint64 mClipTimePrev;
-   uint64 mPrimTimePrev;
    GdkAtom mGHSelection;
    CPClipboard mClipboard;
 

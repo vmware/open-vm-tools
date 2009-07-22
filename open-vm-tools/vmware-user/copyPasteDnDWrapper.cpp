@@ -181,17 +181,21 @@ CopyPasteDnDWrapper::RegisterCP()
          Debug("%s: Setting block control to %p (fd %d)\n",
                __func__, m_blockCtrl, m_blockCtrl->fd);
          m_copyPasteUI->SetBlockControl(m_blockCtrl);
-         m_copyPasteUI->Init();
-         SetCPIsRegistered(TRUE);
-         int version = GetCPVersion();
-         Debug("%s: version is %d\n", __FUNCTION__, version);
-         if (version >= 3) {
-            m_copyPasteUI->VmxCopyPasteVersionChanged(gRpcIn, version);
-            m_copyPasteUI->SetCopyPasteAllowed(TRUE);
-            m_isLegacy = false;
+         if (m_copyPasteUI->Init()) {
+            SetCPIsRegistered(TRUE);
+            int version = GetCPVersion();
+            Debug("%s: version is %d\n", __FUNCTION__, version);
+            if (version >= 3) {
+               m_copyPasteUI->VmxCopyPasteVersionChanged(gRpcIn, version);
+               m_copyPasteUI->SetCopyPasteAllowed(TRUE);
+               m_isLegacy = false;
+            } else {
+               Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
+               UnregisterCP();
+            }
          } else {
-            Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
-            UnregisterCP();
+            delete m_copyPasteUI;
+            m_copyPasteUI = NULL;
          }
       }
    }
@@ -240,25 +244,28 @@ CopyPasteDnDWrapper::RegisterDnD()
                __func__, m_blockCtrl, m_blockCtrl->fd);
          m_dndUI->SetBlockControl(m_blockCtrl);
 
-         m_dndUI->Init();
+         if (m_dndUI->Init()) {
+            UnityDnD state;
+            state.detWnd = m_dndUI->GetDetWndAsWidget();
+            state.setMode = CopyPasteDnDWrapper_SetUnityMode;
+            Unity_SetActiveDnDDetWnd(&state);
 
-         UnityDnD state;
-         state.detWnd = m_dndUI->GetDetWndAsWidget(true);
-         state.setMode = CopyPasteDnDWrapper_SetUnityMode;
-         Unity_SetActiveDnDDetWnd(&state);
-
-         SetDnDIsRegistered(TRUE);
-         int version = GetDnDVersion();
-         Debug("%s: dnd version is %d\n", __FUNCTION__, version);
-         if (version >= 3) {
-            Debug("%s: calling VmxDnDVersionChanged (version %d) and SetDnDAllowed\n",
-               __FUNCTION__, version);
-            m_dndUI->VmxDnDVersionChanged(gRpcIn, version);
-            m_dndUI->SetDnDAllowed(TRUE);
-            m_isLegacy = false;
+            SetDnDIsRegistered(TRUE);
+            int version = GetDnDVersion();
+            Debug("%s: dnd version is %d\n", __FUNCTION__, version);
+            if (version >= 3) {
+               Debug("%s: calling VmxDnDVersionChanged (version %d) and SetDnDAllowed\n",
+                     __FUNCTION__, version);
+               m_dndUI->VmxDnDVersionChanged(gRpcIn, version);
+               m_dndUI->SetDnDAllowed(TRUE);
+               m_isLegacy = false;
+            } else {
+               Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
+               UnregisterDnD();
+            }
          } else {
-            Debug("%s: version < 3, unregistering.\n", __FUNCTION__);
-            UnregisterDnD();
+            delete m_dndUI;
+            m_dndUI = NULL;
          }
       }
    }
@@ -450,10 +457,22 @@ CopyPasteDnDWrapper::OnReset()
    if (IsCPRegistered()) {
       UnregisterCP();
    }
-   RegisterCP();
-   RegisterDnD();
+   if (!IsCPRegistered()) {
+      RegisterCP();
+   }
+   if (!IsDnDRegistered()) {
+      RegisterDnD();
+   }
    if (!IsDnDRegistered() || !IsCPRegistered()) {
       Debug("%s: unable to reset fully!\n", __FUNCTION__);
+   }
+   if (m_isLegacy) {
+      if (IsCPRegistered()) {
+         CopyPaste_OnReset();
+      }
+      if (IsDnDRegistered()) {
+         DnD_OnReset(m_hgWnd, m_ghWnd);
+      }
    }
 }
 

@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #if !__FreeBSD__ && !sun
 #   include <pwd.h>
@@ -57,6 +58,11 @@
 #include "unicodeOperations.h"
 #include "err.h"
 #include "posix.h"
+#include "vmstdio.h"
+
+#define LOGLEVEL_MODULE util
+#include "loglevel_user.h"
+#define LGPFX "UtilPosix:"
 
 
 /* For Util_GetProcessName() */
@@ -83,6 +89,12 @@
 #   endif
 #endif
 
+#if defined(VMX86_STATS) && defined(__linux__) && !defined(VMX86_SERVER)
+#define SYS_CSTATE_DIR  "/sys/devices/system/cpu"
+#define PROC_CSTATE_DIR "/proc/acpi/processor"
+#define MAX_C_STATES    8
+#define FREQ_ACPI       3.579545
+#endif
 
 
 #if !__FreeBSD__ && !sun
@@ -667,7 +679,8 @@ Util_GetProcessName(pid_t pid,         // IN : process id
 
    fd = Posix_Open(fileName, O_RDONLY);
    if (fd < 0) {
-      Log("Util_GetProcessName: Error: cannot open %s\n", fileName);
+      Log("%s: Error: cannot open %s\n", __FUNCTION__, fileName);
+
       return FALSE;
    }
 
@@ -677,8 +690,9 @@ Util_GetProcessName(pid_t pid,         // IN : process id
 #else
    if (nread < 0) {
 #endif
-      Log("Util_GetProcessName: Error: could not read %s\n", fileName);
+      Log("%s: Error: could not read %s\n", __FUNCTION__, fileName);
       close(fd);
+
       return FALSE;
    }
 
@@ -694,7 +708,8 @@ Util_GetProcessName(pid_t pid,         // IN : process id
     * contains a format modifier to ensure psinfo is not overrun.
     */
    if (sscanf(buf, PRE PSINFOFMT POST, psinfo) != 1) {
-      Log("Util_GetProcessName: Error, could not parse contents of %s\n", fileName);
+      Log("%s: Error, could not parse contents of %s\n", __FUNCTION__,
+          fileName);
       return FALSE;
    }
 
@@ -705,8 +720,9 @@ Util_GetProcessName(pid_t pid,         // IN : process id
 
    psnameLen = strlen(psname);
    if (psnameLen + 1 > bufOutSize) {
-      Log("Util_GetProcessName: Error, process name (%"FMTSZ"u bytes) is larger "
-          "than output buffer\n", psnameLen);
+      Log("%s: Error, process name (%"FMTSZ"u bytes) is larger "
+          "than output buffer\n", __FUNCTION__, psnameLen);
+
       return FALSE;
    }
 
@@ -714,3 +730,390 @@ Util_GetProcessName(pid_t pid,         // IN : process id
    return TRUE;
 }
 #endif
+
+#if defined(VMX86_STATS)
+#if defined(__linux__) && !defined(VMX86_SERVER)
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UtilAllocCStArrays --
+ *
+ *      (Re-)Allocate data arrays for UtilReadSysCStRes and UtilReadProcCStRes.
+ *
+ * Results:
+ *      TRUE if successful.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+UtilAllocCStArrays(uint32 ncpus,        // IN
+                   uint32 nstates,      // IN
+                   uint64 **transitns,  // OUT
+                   uint64 **residency,  // OUT
+                   uint64 **transTime,  // OUT
+                   uint64 **residTime)  // OUT
+{
+   free(*transitns);
+   free(*residency);
+   free(*transTime);
+   free(*residTime);
+
+   *transitns = calloc(nstates * ncpus, sizeof **transitns);
+   *residency = calloc(nstates * ncpus, sizeof **residency);
+   *transTime = calloc(ncpus, sizeof **transTime);
+   *residTime = calloc(ncpus, sizeof **residTime);
+
+   if (!*transitns || !*residency || !*transTime || !*residTime) {
+      free(*transitns);
+      free(*residency);
+      free(*transTime);
+      free(*residTime);
+      Warning("%s: Cannot allocate memory for C-state queries\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UtilReadSysCStRes --
+ * UtilReadProcCStRes --
+ *
+ *      Read the C-state residency statistics under /sys and /proc
+ *      respectively. UtilReadSysCStRes should take precedence over
+ *      UtilReadProcCStRes as /proc/acpi is getting replaced by sysfs
+ *      in newer kernels. See Util_QueryCStResidency for description of
+ *      parameters.
+ *
+ * Results:
+ *      TRUE if successful.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+UtilReadSysCStRes(DIR *dir,                     // IN
+                  uint32 *numCpus,              // IN/OUT
+                  uint32 *numCStates,           // IN/OUT
+                  uint64 **transitns,           // OUT
+                  uint64 **residency,           // OUT
+                  uint64 **transTime,           // OUT
+                  uint64 **residTime)           // OUT
+{
+   struct dirent *cpuEntry;
+   DIR *cpuDir;
+   struct dirent *cstateEntry;
+   char pathname[PATH_MAX + 1];
+   uint32 cpu = 0;
+   uint32 cl = 0;
+
+   /* Determine the number of cpus and c-states. */
+   while ((cpuEntry = readdir(dir))) {
+      if (Str_Strncasecmp(cpuEntry->d_name, "cpu", 3) == 0 &&
+          isdigit(cpuEntry->d_name[3])) {
+         cpu++;
+         if (cl != 0) {         /* already found the number of c states */
+            continue;
+         }
+         if (Str_Snprintf(pathname, sizeof pathname,
+                          SYS_CSTATE_DIR"/%s/cpuidle", cpuEntry->d_name) <= 0) {
+            LOG(0, ("%s: Str_Snprintf failed\n", __FUNCTION__));
+            return FALSE;
+         }
+         cpuDir = Posix_OpenDir(pathname);
+         if (cpuDir != NULL) {
+            uint32 cnum;
+
+            while ((cstateEntry = readdir(cpuDir))) {
+               if (Str_Strncasecmp(cstateEntry->d_name, "state", 5) == 0 &&
+                   sscanf(cstateEntry->d_name + 5, "%u", &cnum) == 1 &&
+                   cnum > cl) {
+                  cl = cnum;    /* state0 will be ignored */
+               }
+            }
+            closedir(cpuDir);
+         }
+      }
+   }
+   if (cpu == 0 || cl == 0) {
+      return FALSE;
+   }
+
+   if (*numCpus != cpu || *numCStates != cl) {
+      if (!UtilAllocCStArrays(cpu, cl, transitns, residency, transTime,
+                              residTime)) {
+         return FALSE;
+      }
+      *numCpus = cpu;
+      *numCStates = cl;
+   }
+
+   rewinddir(dir);
+   cpu = 0;
+   while ((cpuEntry = readdir(dir))) {
+      int pathlen;
+      VmTimeType timeUS;
+
+      if (Str_Strncasecmp(cpuEntry->d_name, "cpu", 3) != 0 ||
+          !isdigit(cpuEntry->d_name[3])) {
+         continue;
+      }
+      pathlen = Str_Snprintf(pathname, sizeof pathname,
+                             SYS_CSTATE_DIR"/%s/cpuidle", cpuEntry->d_name);
+      if (pathlen <= 0) {
+         LOG(0, ("%s: Str_Snprintf for '%s/cpuidle' failed\n", __FUNCTION__,
+                 cpuEntry->d_name));
+         return FALSE;
+      }
+      cpuDir = Posix_OpenDir(pathname);
+      if (cpuDir == NULL) {
+         LOG(0, ("%s: Failed to open directory %s\n", __FUNCTION__, pathname));
+         continue;
+      }
+
+      /*
+       * Under the "cpuidle" directory, there is one "stateX" directory for
+       * each C-state.  We ignore "state0", i.e. C0, which is the running state.
+       * Under each "stateX" directory, there is a "usage" file which contains
+       * the number of entries into that state, and a "time" file which
+       * contains the total residency in that state.
+       */
+
+      while ((cstateEntry = readdir(cpuDir))) {
+         FILE *statsFile;
+         int result;
+         uint32 index;
+
+         if (Str_Strncasecmp(cstateEntry->d_name, "state", 5) != 0) {
+            continue;
+         }
+         if (sscanf(cstateEntry->d_name + 5, "%u", &cl) != 1 || cl == 0) {
+            continue;
+         }
+         cl--;          /* ignoring state0 -- cl == 0 -> state1 */
+         index = *numCStates * cpu + cl;
+
+         if (Str_Snprintf(pathname + pathlen, sizeof pathname - pathlen,
+                          "/%s/usage", cstateEntry->d_name) <= 0) {
+            LOG(0, ("%s: Str_Snprintf for 'usage' failed\n", __FUNCTION__));
+            closedir(cpuDir);
+            return FALSE;
+         }
+         statsFile = Posix_Fopen(pathname, "r");
+         if (statsFile == NULL) {
+            continue;
+         }
+         result = fscanf(statsFile, "%"FMT64"u", &(*transitns)[index]);
+         fclose(statsFile);
+         if (result <= 0) {
+            continue;
+         }
+
+         if (Str_Snprintf(pathname + pathlen, sizeof pathname - pathlen,
+                          "/%s/time", cstateEntry->d_name) <= 0) {
+            LOG(0, ("%s: Str_Snprintf for 'time' failed\n", __FUNCTION__));
+            closedir(cpuDir);
+            return FALSE;
+         }
+         statsFile = Posix_Fopen(pathname, "r");
+         if (statsFile == NULL) {
+            continue;
+         }
+         result = fscanf(statsFile, "%"FMT64"u", &(*residency)[index]);
+         fclose(statsFile);
+         if (result <= 0) {
+            continue;
+         }
+      }
+      closedir(cpuDir);
+
+      timeUS = Hostinfo_SystemTimerUS();
+      if (timeUS <= 0) {
+         LOG(0, ("%s: Hostinfo_SystemTimerUS() failed\n", __FUNCTION__));
+         return FALSE;
+      }
+      (*transTime)[cpu] = timeUS;
+      (*residTime)[cpu] = timeUS;
+      cpu++;
+   }
+
+   return cpu > 0;
+}
+
+
+static Bool
+UtilReadProcCStRes(DIR *dir,                    // IN
+                   uint32 *numCpus,             // IN/OUT
+                   uint32 *numCStates,          // IN/OUT
+                   uint64 **transitns,          // OUT
+                   uint64 **residency,          // OUT
+                   uint64 **transTime,          // OUT
+                   uint64 **residTime)          // OUT
+{
+   struct dirent *cpuEntry;
+   uint32 cpu = 0;
+
+   /* Determine the number of cpus. */
+   while ((cpuEntry = readdir(dir))) {
+      if (cpuEntry->d_name[0] != '.') {
+         cpu++;
+      }
+   }
+   if (cpu == 0) {
+      return FALSE;
+   }
+
+   if (*numCpus != cpu) {
+      /*
+       * We do not know the number of C-states supported until we read the
+       * file, so we allocate for MAX_C_STATES and determine *numCStates later.
+       */
+
+      if (!UtilAllocCStArrays(cpu, MAX_C_STATES, transitns, residency,
+                              transTime, residTime)) {
+         return FALSE;
+      }
+      *numCpus = cpu;
+      *numCStates = 0;
+   }
+
+   rewinddir(dir);
+   cpu = 0;
+   while ((cpuEntry = readdir(dir))) {
+      char pathname[PATH_MAX + 1];
+      char *line;
+      size_t lineSize;
+      FILE *powerFile;
+      uint32 cl;
+      VmTimeType timeUS;
+
+      if (cpuEntry->d_name[0] == '.') {
+         continue;
+      }
+      if (Str_Snprintf(pathname, sizeof pathname, PROC_CSTATE_DIR"/%s/power",
+                       cpuEntry->d_name) <= 0) {
+         LOG(0, ("%s: Str_Snprintf for '%s/power' failed\n", __FUNCTION__,
+                 cpuEntry->d_name));
+         return FALSE;
+      }
+      powerFile = Posix_Fopen(pathname, "r");
+      if (powerFile == NULL) {
+         continue;
+      }
+
+      cl = 0;
+      while (StdIO_ReadNextLine(powerFile, &line, 0, &lineSize)
+             == StdIO_Success) {
+         char *ptr;
+         uint32 index = *numCStates * cpu + cl;
+
+         if ((ptr = Str_Strnstr(line, "usage[", lineSize))) {
+            sscanf(ptr + 6, "%"FMT64"u]", &(*transitns)[index]);
+            if ((ptr = Str_Strnstr(line, "duration[", lineSize))) {
+               sscanf(ptr + 9, "%"FMT64"u]", &(*residency)[index]);
+               cl++;
+            }
+         }
+         free(line);
+      }
+      fclose(powerFile);
+
+      timeUS = Hostinfo_SystemTimerUS();
+      if (timeUS <= 0) {
+         LOG(0, ("%s: Hostinfo_SystemTimerUS() failed\n", __FUNCTION__));
+         return FALSE;
+      }
+      (*transTime)[cpu] = timeUS;
+      (*residTime)[cpu] = (uint64)((double)timeUS * FREQ_ACPI);
+      if (*numCStates == 0) {
+         *numCStates = cl;
+      }
+      cpu++;
+   }
+   return cpu > 0 && *numCStates > 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Util_QueryCStResidency --
+ *
+ *      Query CPU's C-state residency statistics exposed by the host OS.
+ *      On Linux, this is done via either the sysfs or /proc/acpi interface.
+ *
+ *      The parameters transitns, residency, transTime and residTime are
+ *      pointers to uint64 arrays, whose dimensions are specified by
+ *      *numCpus and/or *numCStates:
+ *      transitns -- number of trasitions into each c-state for each CPU
+ *      residency -- time in each c-state for each CPU (in some opaque unit)
+ *      transTime -- timestamp (microseconds) for transitns data, per CPU
+ *      residTime -- timestamp for residency data, per CPU (in same unit as
+ *                   residency)
+ *
+ *      If the dimensions specified are too small, the arrays are freed
+ *      and new memory allocated.
+ *
+ * Results:
+ *      TRUE if successful.
+ *
+ * Side Effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+Util_QueryCStResidency(uint32 *numCpus,         // IN/OUT
+                       uint32 *numCStates,      // IN/OUT
+                       uint64 **transitns,      // OUT
+                       uint64 **residency,      // OUT
+                       uint64 **transTime,      // OUT
+                       uint64 **residTime)      // OUT
+{
+   DIR *dir;
+   Bool ret = FALSE;
+
+   dir = Posix_OpenDir(SYS_CSTATE_DIR);
+   if (dir) {
+      ret = UtilReadSysCStRes(dir, numCpus, numCStates, transitns, residency,
+                              transTime, residTime);
+      closedir(dir);
+   }
+
+   if (!ret) {
+      dir = Posix_OpenDir(PROC_CSTATE_DIR);
+      if (dir) {
+         ret = UtilReadProcCStRes(dir, numCpus, numCStates, transitns,
+                                  residency, transTime, residTime);
+         closedir(dir);
+      }
+   }
+
+   return ret;
+}
+
+#else   // #if defined(__linux__) && !defined(VMX86_SERVER)
+
+Bool
+Util_QueryCStResidency(uint32 *numCpus,         // IN/OUT
+                       uint32 *numCStates,      // IN/OUT
+                       uint64 **transitns,      // OUT
+                       uint64 **residency,      // OUT
+                       uint64 **transTime,      // OUT
+                       uint64 **residTime)      // OUT
+{
+   return FALSE;
+}
+#endif
+#endif  // #if defined(VMX86_STATS)

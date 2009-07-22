@@ -412,7 +412,7 @@ ResolutionSetCapabilities(gpointer src,
    ResolutionInfoType *resInfo = &resolutionInfo;
    int resServerCap = 0;
 
-   Debug("%s: enter\n", __FUNCTION__);
+Debug("%s: enter\n", __FUNCTION__);
    if (set) {
       if (!resInfo->initialized) {
          return FALSE;
@@ -427,11 +427,11 @@ ResolutionSetCapabilities(gpointer src,
 
          caps[DPY_TOPO_SET_IDX].value = 2;
          caps[DPY_GLOBAL_OFFSET_IDX].value = 1;
-      }
 #if defined(RESOLUTION_WIN32)
-      Debug("%s: setting DPY_TOPO_MODES_SET_IDX to 1\n", __FUNCTION__);
-      caps[DPY_TOPO_MODES_SET_IDX].value = 1;
+Debug("%s: setting DPY_TOPO_MODES_SET_IDX to 1\n", __FUNCTION__);
+         caps[DPY_TOPO_MODES_SET_IDX].value = 1;
 #endif
+      }
    }
 
    ResolutionServerCapReg(ctx, resServerCap);

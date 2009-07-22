@@ -379,7 +379,7 @@ GetLockFileValues(const char *lockFileName, // IN:
 /*
  *----------------------------------------------------------------------
  *
- * IsValidProcess --
+ * FileLockIsValidProcess --
  *
  *      Determine if the process, via its pid, is valid (alive).
  *
@@ -394,7 +394,7 @@ GetLockFileValues(const char *lockFileName, // IN:
  */
 
 static Bool
-IsValidProcess(int pid)       // IN:
+FileLockIsValidProcess(int pid)  // IN:
 {
    uid_t uid;
    int err;
@@ -432,7 +432,7 @@ IsValidProcess(int pid)       // IN:
 /*
  *----------------------------------------------------------------------
  *
- * CreateLockFile --
+ * FileLockCreateLockFile --
  *
  *      Create a new lock file, either via a O_EXCL creat() call or
  *      through the linking method.
@@ -449,9 +449,9 @@ IsValidProcess(int pid)       // IN:
  */
 
 static int
-CreateLockFile(const char *lockFileName, // IN:
-               const char *lockFileLink, // IN:
-               const char *uniqueID)     // IN:
+FileLockCreateLockFile(const char *lockFileName,  // IN:
+                       const char *lockFileLink,  // IN:
+                       const char *uniqueID)      // IN:
 {
    int  err;
    int  lockFD;
@@ -527,6 +527,7 @@ exit:
       }
 
    }
+
    return status;
 }
 
@@ -572,14 +573,14 @@ FileLock_LockDevice(const char *deviceName)   // IN:
                                    deviceName, FileLockGetPid());
 
    LOG(1, ("Requesting lock %s (temp = %s).\n", lockFileName,
-       lockFileLink));
+           lockFileLink));
 
    hostID = FileLockGetMachineID();
    Str_Sprintf(uniqueID, sizeof uniqueID, "%d %s\n",
                FileLockGetPid(), hostID);
 
-   while ((status = CreateLockFile(lockFileName, lockFileLink,
-                                   uniqueID)) == 0) {
+   while ((status = FileLockCreateLockFile(lockFileName, lockFileLink,
+                                           uniqueID)) == 0) {
       int  pid;
       char fileID[1000];
 
@@ -602,17 +603,17 @@ FileLock_LockDevice(const char *deviceName)   // IN:
       }
 
       if (strcmp(hostID, fileID) != 0) {
-         // Lock was acquired by a different host.
+         /* Lock was acquired by a different host. */
          status = 0;
          goto exit;
       }
 
-      if (IsValidProcess(pid)) {
+      if (FileLockIsValidProcess(pid)) {
          status = 0;
          goto exit;
       }
 
-      // stale lock
+      /* stale lock */
      if (!RemoveStaleLockFile(lockFileName)) {
          status = -1;
          goto exit;
@@ -872,7 +873,7 @@ FileLockValidOwner(const char *executionID, // IN:
       return TRUE;
    }
 
-   if (!IsValidProcess(pid)) {
+   if (!FileLockIsValidProcess(pid)) {
       return FALSE;
    }
 
@@ -933,7 +934,7 @@ FileLockOpenFile(ConstUnicode pathName,        // IN:
 
    *handle = PosixFileOpener(pathName, flags, 0644);
 
-   return *handle == -1 ? errno : 0;
+   return (*handle == -1) ? errno : 0;
 }
 
 
@@ -957,7 +958,7 @@ FileLockOpenFile(ConstUnicode pathName,        // IN:
 int
 FileLockCloseFile(FILELOCK_FILE_HANDLE handle) // IN:
 {
-   return close(handle) == -1 ? errno : 0;
+   return (close(handle) == -1) ? errno : 0;
 }
 
 

@@ -30,6 +30,7 @@
 #include "safetime.h"
 #if defined(_WIN32)
 #include <io.h>
+#define S_IXUSR    0100
 #else
 #include <unistd.h>
 #endif
@@ -145,6 +146,45 @@ File_IsDirectory(ConstUnicode pathName)  // IN:
 
    return (FileAttributes(pathName, &fileData) == 0) &&
            (fileData.fileType == FILE_TYPE_DIRECTORY);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_GetFilePermissions --
+ *
+ *	Return the read / write / execute permissions of a file.
+ *
+ * Results:
+ *	TRUE if success, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+File_GetFilePermissions(ConstUnicode pathName,  // IN:
+                        int *mode)              // OUT: file mode
+{
+   FileData fileData;
+
+   ASSERT(mode);
+   if (FileAttributes(pathName, &fileData) != 0) {
+      return FALSE;
+   }
+   *mode = fileData.fileMode;
+#ifdef _WIN32
+      /*
+       *  On Win32 implementation of FileAttributes does not return execution bit.
+       */
+      if (FileIO_Access(pathName, FILEIO_ACCESS_EXEC) == FILEIO_SUCCESS) {
+         *mode |= S_IXUSR;
+      }
+#endif
+   return TRUE;
 }
 
 
@@ -1671,6 +1711,79 @@ Bool
 File_SupportsLargeFiles(ConstUnicode pathName)  // IN:
 {
    return File_SupportsFileSize(pathName, CONST64U(0x100000000));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_MapPathPrefix --
+ *
+ *      Given a path and a newPrefix -> oldPrefix mapping, transform
+ *      oldPath according to the mapping.
+ *
+ * Results:
+ *      The new path, or NULL if there is no mapping.
+ *
+ * Side effects:
+ *      The returned string is allocated, free it.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+File_MapPathPrefix(const char *oldPath,               // IN
+                   const char **oldPrefixes,          // IN
+                   const char **newPrefixes,          // IN
+                   size_t numPrefixes)                // IN
+{
+   int i;
+   size_t oldPathLen = strlen(oldPath);
+
+   for (i = 0; i < numPrefixes; i++) {
+      char *newPath;
+      char *oldPrefix;
+      char *newPrefix;
+      size_t oldPrefixLen;
+
+      oldPrefix = File_StripSlashes(oldPrefixes[i]);
+      newPrefix = File_StripSlashes(newPrefixes[i]);
+      oldPrefixLen = strlen(oldPrefix);
+
+      /*
+       * If the prefix matches on a DIRSEPS boundary, or the prefix is the
+       * whole string, replace it.
+       * If we don't insist on matching a whole directory name, we could
+       * mess things of if one directory is a substring of another.
+       */
+
+      if (oldPathLen >= oldPrefixLen &&
+          memcmp(oldPath, oldPrefix, oldPrefixLen) == 0
+          && (strchr(VALID_DIRSEPS, oldPath[oldPrefixLen]) ||
+              oldPath[oldPrefixLen] == '\0')) {
+         size_t newPrefixLen = strlen(newPrefix);
+         size_t newPathLen = (oldPathLen - oldPrefixLen) + newPrefixLen;
+
+         ASSERT(newPathLen > 0);
+         ASSERT(oldPathLen >= oldPrefixLen);
+
+         newPath = Util_SafeMalloc((newPathLen + 1) * sizeof(char));
+         memcpy(newPath, newPrefix, newPrefixLen);
+         memcpy(newPath + newPrefixLen, oldPath + oldPrefixLen,
+                oldPathLen - oldPrefixLen + 1);
+         /*
+          * It should only match once.  Weird self-referencing mappings
+          * aren't allowed.
+          */
+         free(oldPrefix);
+         free(newPrefix);
+         return newPath;
+      }
+      free(oldPrefix);
+      free(newPrefix);
+   }
+
+   return NULL;
 }
 
 

@@ -34,8 +34,9 @@ extern "C" {
    #include "eventManager.h"
 }
 
-#define UNGRAB_TIMEOUT 50     // 0.5 s
-#define HIDE_DET_WND_TIMER 50 // 0.5s
+#define UNGRAB_TIMEOUT 50        // 0.5 s
+#define UNITY_DND_DET_TIMEOUT 50 // 0.5 s
+#define HIDE_DET_WND_TIMER 50    // 0.5s
 
 
 /*
@@ -55,11 +56,37 @@ extern "C" {
  */
 
 static Bool
-DnDUngrabTimeout(void *clientData)      // IN
+DnDUngrabTimeout(void *clientData) // IN
 {
    ASSERT(clientData);
    DnD *dnd = (DnD *)clientData;
    dnd->UngrabTimeout();
+   return TRUE;
+}
+
+
+/*
+ *---------------------------------------------------------------------
+ *
+ * DnDUnityDetTimeout --
+ *
+ *      UnityDnDDetTimeout callback for GH DnD.
+ *
+ * Results:
+ *      Always TRUE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------
+ */
+
+static Bool
+DnDUnityDetTimeout(void *clientData)      // IN
+{
+   ASSERT(clientData);
+   DnD *dnd = (DnD *)clientData;
+   dnd->UnityDnDDetTimeout();
    return TRUE;
 }
 
@@ -114,6 +141,7 @@ DnD::DnD(DblLnkLst_Links *eventQueue) // IN
      mDnDAllowed(false),
      mStagingDir(""),
      mUngrabTimeout(NULL),
+     mUnityDnDDetTimeout(NULL),
      mHideDetWndTimer(NULL),
      mEventQueue(eventQueue)
 {
@@ -152,6 +180,10 @@ DnD::~DnD(void)
    if (mUngrabTimeout) {
       EventManager_Remove(mUngrabTimeout);
       mUngrabTimeout = NULL;
+   }
+   if (mUnityDnDDetTimeout) {
+      EventManager_Remove(mUnityDnDDetTimeout);
+      mUnityDnDDetTimeout = NULL;
    }
 }
 
@@ -207,6 +239,10 @@ DnD::VmxDnDVersionChanged(struct RpcIn *rpcIn, // IN
          sigc::mem_fun(this, &DnD::OnGHUpdateUnityDetWnd));
       mRpc->ghQueryPendingDragChanged.connect(
          sigc::mem_fun(this, &DnD::OnGHQueryPendingDrag));
+      mRpc->moveDetWndToMousePos.connect(
+         sigc::mem_fun(this, &DnD::OnMoveDetWndToMousePos));
+      mRpc->ghPrivateDropChanged.connect(
+         sigc::mem_fun(this, &DnD::OnGHPrivateDrop));
       mRpc->ghCancelChanged.connect(
          sigc::mem_fun(this, &DnD::OnGHCancel));
       mRpc->hgDragEnterChanged.connect(
@@ -617,12 +653,43 @@ DnD::OnGHUpdateUnityDetWnd(bool bShow,        // IN
        * this window to accept drop in cancel case.
        */
       UpdateDetWnd(bShow, 1, 1);
+      if (mUnityDnDDetTimeout) {
+         EventManager_Remove(mUnityDnDDetTimeout);
+         mUnityDnDDetTimeout = NULL;
+      }
+      mUnityDnDDetTimeout = EventManager_Add(mEventQueue, UNITY_DND_DET_TIMEOUT,
+                                             DnDUnityDetTimeout, this);
    }
 
    /* Show/hide the full screent detection window. */
-   updateUnityDetWndChanged.emit(bShow, unityWndId);
+   updateUnityDetWndChanged.emit(bShow, unityWndId, false);
    Debug("%s: updating Unity detection window, bShow %d, id %u\n",
          __FUNCTION__, bShow, unityWndId);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DnD::UnityDnDDetTimeout --
+ *
+ *      Can not detect pending GH DnD within UNITY_DND_DET_TIMEOUT, put
+ *      the full screen detection window to bottom most.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+DnD::UnityDnDDetTimeout(void)
+{
+   mUnityDnDDetTimeout = NULL;
+   updateUnityDetWndChanged.emit(true, 0, true);
 }
 
 
@@ -765,6 +832,60 @@ DnD::DragEnter(const CPClipboard *clip)
    mRpc->GHDragEnter(clip);
    mState = DNDSTATE_DRAGGING_OUTSIDE;
    Debug("%s: state changed to DRAGGING_OUTSIDE\n", __FUNCTION__);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DnD::OnMoveDetWndToMousePos --
+ *
+ *      Move detection windows to current cursor position to prevent
+ *      unexpected drop.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+DnD::OnMoveDetWndToMousePos(void)
+{
+   Debug("%s: entering\n", __FUNCTION__);
+   moveDetWndToMousePos.emit();
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DnD::OnGHPrivateDrop --
+ *
+ *      User started a GH DnD, dragged back to VM and dropped. In guest
+ *      side we should simulate the drop, hide detection window and reset
+ *      the state machine.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+DnD::OnGHPrivateDrop(int32 x, // IN
+                     int32 y) // IN
+{
+   targetPrivateDropChanged.emit(x, y);
+   updateDetWndChanged.emit(false, 0, 0);
+   mState = DNDSTATE_READY;
+   Debug("%s: state changed to READY\n", __FUNCTION__);
 }
 
 

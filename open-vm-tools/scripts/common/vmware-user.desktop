@@ -5,5 +5,6 @@ Encoding=UTF-8
 # be sure to also fix up OVT staging targets.
 Exec=vmware-user-suid-wrapper
 Name=VMware User Agent
-NoDisplay=true
+# KDE bug 190522: KDE does not autostart items with NoDisplay=tru...
+# NoDisplay=true
 X-KDE-autostart-phase=1
