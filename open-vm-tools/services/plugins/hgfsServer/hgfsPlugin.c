@@ -150,7 +150,7 @@ HgfsServerCapReg(gpointer src,
     *
     * Long story short, we shouldn't care if this function fails.
     */
-   if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+   if (ctx->rpc && !RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
       g_warning("Setting HGFS server capability failed!\n");
    }
 

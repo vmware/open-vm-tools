@@ -238,34 +238,38 @@ ToolsCore_InitRpc(ToolsServiceState *state)
    } else {
       /*
        * Currently we try to bring up an RpcIn channel, which will only run
-       * inside a Virtual Machine. We want to exit with a "success" status
-       * if this check fails, though. (See bug 297528 for why.)
+       * inside a Virtual Machine. Some plugins may still want to launch and at
+       * least begin even in not in a VM (typically because the installation is dual
+       * purposed between a VM and Bootcamp) - plugins may wish to undo some state
+       * if not in a VM.
        *
        * XXX: this should be relaxed when we try to bring up a VMCI or TCP channel.
        */
       if (!state->ctx.isVMware) {
          g_warning("The %s service needs to run inside a virtual machine.\n",
                    state->name);
-         exit(0);
+         state->ctx.rpc = NULL;
+      } else {
+         state->ctx.rpc = RpcChannel_NewBackdoorChannel(mainCtx);
       }
-
-      state->ctx.rpc = RpcChannel_NewBackdoorChannel(mainCtx);
       app = ToolsCore_GetTcloName(state);
       ASSERT(app != NULL);
    }
 
-   RpcChannel_Setup(state->ctx.rpc,
-                    app,
-                    mainCtx,
-                    &state->ctx,
-                    ToolsCoreCheckReset,
-                    state);
+   if (state->ctx.rpc) {
+      RpcChannel_Setup(state->ctx.rpc,
+                       app,
+                       mainCtx,
+                       &state->ctx,
+                       ToolsCoreCheckReset,
+                       state);
 
-   /* Register the "built in" RPCs. */
-   for (i = 0; i < ARRAYSIZE(rpcs); i++) {
-      RpcChannelCallback *rpc = &rpcs[i];
-      rpc->clientData = state;
-      RpcChannel_RegisterCallback(state->ctx.rpc, rpc);
+      /* Register the "built in" RPCs. */
+      for (i = 0; i < ARRAYSIZE(rpcs); i++) {
+         RpcChannelCallback *rpc = &rpcs[i];
+         rpc->clientData = state;
+         RpcChannel_RegisterCallback(state->ctx.rpc, rpc);
+      }
    }
 
    return TRUE;

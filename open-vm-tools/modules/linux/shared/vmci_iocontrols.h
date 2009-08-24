@@ -255,6 +255,7 @@ enum IOCTLCmd_VMCI {
  * or opening the device in kernel-mode, and are always in UNICODE.
  */
 #define VMCI_DEVICE_NAME         TEXT("\\\\.\\VMCI")
+#define VMCI_DEVICE_NAME_NT      L"\\??\\VMCI"
 #define VMCI_DEVICE_NAME_PATH    L"\\Device\\vmci"
 #define VMCI_DEVICE_LINK_PATH    L"\\DosDevices\\vmci"
 
@@ -333,23 +334,25 @@ enum IOCTLCmd_VMCI {
                VMCIIOCTL_BUFFERED(SOCKETS_IOCTL)
 #define IOCTL_VMCI_SOCKETS_LISTEN \
                VMCIIOCTL_BUFFERED(SOCKETS_LISTEN)
-#define IOCTL_VMCI_SOCKETS_RECV \
-               VMCIIOCTL_BUFFERED(SOCKETS_RECV)
 #define IOCTL_VMCI_SOCKETS_RECV_FROM \
                VMCIIOCTL_BUFFERED(SOCKETS_RECV_FROM)
 #define IOCTL_VMCI_SOCKETS_SELECT \
                VMCIIOCTL_BUFFERED(SOCKETS_SELECT)
-#define IOCTL_VMCI_SOCKETS_SEND \
-               VMCIIOCTL_BUFFERED(SOCKETS_SEND)
 #define IOCTL_VMCI_SOCKETS_SEND_TO \
                VMCIIOCTL_BUFFERED(SOCKETS_SEND_TO)
 #define IOCTL_VMCI_SOCKETS_SET_SOCK_OPT \
                VMCIIOCTL_BUFFERED(SOCKETS_SET_SOCK_OPT)
 #define IOCTL_VMCI_SOCKETS_SHUTDOWN \
                VMCIIOCTL_BUFFERED(SOCKETS_SHUTDOWN)
-#define IOCTL_VMCI_SOCKETS_SOCKET \
-               VMCIIOCTL_BUFFERED(SOCKETS_SOCKET)
 /* END VMCI SOCKETS */
+
+
+/*
+ * For accessing VMCIOBJ_SOCKET in IOCTLs.  Both functions take a file object's
+ * fs context and get or set the socket.
+ */
+PVOID VMCIFsContext_GetSocket(PVOID fsContext);
+void VMCIFsContext_SetSocket(PVOID fsContext, PVOID socket);
 
 #endif // _WIN32
 

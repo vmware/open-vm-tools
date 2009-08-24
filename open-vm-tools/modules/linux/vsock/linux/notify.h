@@ -36,9 +36,12 @@
 #  define VSOCK_OPTIMIZATION_FLOW_CONTROL 1
 #endif
 
+#define VSOCK_MAX_DGRAM_RESENDS       10
+
 #define NOTIFYCALLRET(vsk, rv, mod_fn, args...)                     \
 do {                                                                \
-  if (vsk->notifyOps->mod_fn != NULL) {                             \
+  if (vsk->notifyOps &&                                             \
+      vsk->notifyOps->mod_fn != NULL) {                             \
         rv = (vsk->notifyOps->mod_fn)(args);                        \
   } else {                                                          \
         rv = 0;                                                     \
@@ -47,13 +50,13 @@ do {                                                                \
 
 #define NOTIFYCALL(vsk, mod_fn, args...)                            \
 do {                                                                \
-  if (vsk->notifyOps->mod_fn != NULL) {                             \
+  if (vsk->notifyOps &&                                             \
+      vsk->notifyOps->mod_fn != NULL) {                             \
         (vsk->notifyOps->mod_fn)(args);                             \
   }                                                                 \
 } while (0)
 
-
-typedef struct VSockVmciNotify {
+typedef struct VSockVmciNotifyPkt {
    uint64 writeNotifyWindow;
    uint64 writeNotifyMinWindow;
    Bool peerWaitingRead;
@@ -65,23 +68,29 @@ typedef struct VSockVmciNotify {
    VSockWaitingInfo peerWaitingWriteInfo;
    uint64 produceQGeneration;
    uint64 consumeQGeneration;
+} VSockVmciNotifyPkt;
+
+typedef struct VSockVmciNotifyPktQState {
+   uint64 writeNotifyWindow;
+   uint64 writeNotifyMinWindow;
+   Bool peerWaitingWrite;
+   Bool peerWaitingWriteDetected;
+} VSockVmciNotifyPktQState;
+
+typedef union VSockVmciNotify {
+   VSockVmciNotifyPkt pkt;
+   VSockVmciNotifyPktQState pktQState;
 } VSockVmciNotify;
 
 typedef struct VSockVmciRecvNotifyData {
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
    uint64 consumeHead;
    uint64 produceTail;
-#ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
    Bool notifyOnBlock;
-#endif
-#endif
 } VSockVmciRecvNotifyData;
 
 typedef struct VSockVmciSendNotifyData {
-#if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
    uint64 consumeHead;
    uint64 produceTail;
-#endif
 } VSockVmciSendNotifyData;
 
 /* Socket notification callbacks. */
@@ -110,8 +119,11 @@ typedef struct VSockVmciNotifyOps {
    int32 (*sendPostEnqueue)(struct sock *sk,
                             ssize_t written,
                             VSockVmciSendNotifyData *data);
+   void  (*processRequest)(struct sock *sk);
+   void  (*processNegotiate)(struct sock *sk);
 } VSockVmciNotifyOps;
 
 extern VSockVmciNotifyOps vSockVmciNotifyPktOps;
+extern VSockVmciNotifyOps vSockVmciNotifyPktQStateOps;
 
 #endif /* __NOTIFY_H__ */

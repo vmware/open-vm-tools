@@ -63,6 +63,7 @@ else
 endif
 vmware_user_LDADD += ../lib/user/libUser.la
 vmware_user_LDADD += ../lib/vixTools/libVixTools.la
+vmware_user_LDADD += ../lib/hgfsHelper/libHgfsHelper.la
 vmware_user_LDADD += ../lib/vmCheck/libVmCheck.la
 vmware_user_LDADD += ../lib/vmSignal/libVmSignal.la
 vmware_user_LDADD += ../lib/wiper/libWiper.la
@@ -98,7 +99,8 @@ endif
 vmware_user_LDADD += -lcrypt
 vmware_user_LDADD += -lstdc++
 if LINUX
-vmware_user_LDADD += -lgcc_s
+   vmware_user_LDADD += -lgcc_s
+   vmware_user_LDADD += ../lib/slashProc/libSlashProc.la
 endif
 vmware_user_LDADD += @GTK_LIBS@
 if HAVE_GTKMM

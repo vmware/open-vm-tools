@@ -105,9 +105,8 @@ AppUtil_GetIconIndexAndLocationForShortcut(const TCHAR *shortcut,
 };
 #endif // __cplusplus
 
-#endif //_WIN32
+#else // not _WIN32
 
-#if defined(linux)
 #include <glib.h>
 
 void AppUtil_Init(void);

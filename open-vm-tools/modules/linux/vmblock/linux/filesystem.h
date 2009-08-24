@@ -47,33 +47,11 @@
 #define __FILESYSTEM_H__
 
 #include "compat_slab.h"
-#include "compat_fs.h"
+#include <linux/fs.h>
 
 #include "vm_basic_types.h"
 
-#ifndef container_of
-#define container_of(ptr, type, memb)   ((type *)((char *)(ptr) - offsetof(type, memb)))
-#endif
-
-#ifdef VMW_EMBED_INODE
-# define INODE_SET_IINFO(inode, iinfo)
-# define INODE_TO_IINFO(_inode)         container_of(_inode, VMBlockInodeInfo, inode)
-#else
-# define INODE_SET_IINFO(inode, iinfo)  (inode)->u.generic_ip = iinfo
-# define INODE_TO_IINFO(_inode)                                              \
-         ({                                                                  \
-            /* Allocate an inode info for new inodes */                      \
-            if ((_inode)->u.generic_ip == NULL) {                            \
-               VMBlockInodeInfo *_iinfo;                                     \
-               ASSERT(VMBlockInodeCache);                                    \
-               _iinfo = kmem_cache_alloc(VMBlockInodeCache, SLAB_KERNEL);    \
-               /* We must set the inode info for new inodes */               \
-               INODE_SET_IINFO(_inode, _iinfo);                              \
-            }                                                                \
-            ((VMBlockInodeInfo *)((_inode)->u.generic_ip));                  \
-         })
-#endif
-
+#define INODE_TO_IINFO(_inode)          container_of(_inode, VMBlockInodeInfo, inode)
 #define INODE_TO_ACTUALDENTRY(inode)    INODE_TO_IINFO(inode)->actualDentry
 #define INODE_TO_ACTUALINODE(inode)     INODE_TO_IINFO(inode)->actualDentry->d_inode
 
@@ -83,10 +61,8 @@ typedef struct VMBlockInodeInfo {
    char name[PATH_MAX];
    size_t nameLen;
    struct dentry *actualDentry;
-#ifdef VMW_EMBED_INODE
    /* Embedded inode */
    struct inode inode;
-#endif
 } VMBlockInodeInfo;
 
 

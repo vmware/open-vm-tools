@@ -96,13 +96,12 @@ VMToolsLogOutputDebugString(const gchar *domain,
                             gpointer _data);
 #endif
 
-void VMTools_ResetLogging(gboolean cleanDefault);
-
 typedef struct LogHandlerData {
    gchar            *domain;
    GLogLevelFlags    mask;
    FILE             *file;
    gchar            *path;
+   gboolean          append;
    guint             handlerId;
    gboolean          inherited;
 } LogHandlerData;
@@ -122,12 +121,15 @@ static GPtrArray *gDomains = NULL;
  * present. Only one old log file is preserved.
  *
  * @param[in] path   Path to log file.
+ * @param[in] append Whether to open the log for appending (if TRUE, a backup
+ *                   file is not generated).
  *
  * @return File pointer for writing to the file (NULL on error).
  */
 
 static FILE *
-VMToolsLogOpenFile(const gchar *path)
+VMToolsLogOpenFile(const gchar *path,
+                   gboolean append)
 {
    FILE *logfile = NULL;
    gchar *pathLocal;
@@ -135,7 +137,7 @@ VMToolsLogOpenFile(const gchar *path)
    ASSERT(path != NULL);
    pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
 
-   if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+   if (!append && g_file_test(path, G_FILE_TEST_EXISTS)) {
       /* Back up existing log file. */
       gchar *bakFile = g_strdup_printf("%s.old", pathLocal);
       if (!g_file_test(bakFile, G_FILE_TEST_IS_DIR) &&
@@ -146,7 +148,7 @@ VMToolsLogOpenFile(const gchar *path)
       g_free(bakFile);
    }
 
-   logfile = g_fopen(pathLocal, "w");
+   logfile = g_fopen(pathLocal, append ? "a" : "w");
    VMTOOLS_RELEASE_FILENAME_LOCAL(pathLocal);
    return logfile;
 }
@@ -317,7 +319,7 @@ VMToolsLogFile(const gchar *domain,
          FILE *dest;
          data = data->inherited ? gDefaultData : data;
          if (data->file == NULL && data->path != NULL) {
-            data->file = VMToolsLogOpenFile(data->path);
+            data->file = VMToolsLogOpenFile(data->path, data->append);
             if (data->file == NULL) {
                g_warning("Unable to open log file %s for domain %s.\n",
                          data->domain, data->path);
@@ -396,7 +398,8 @@ VMToolsConfigLogDomain(const gchar *domain,
       }
    } else if (strcmp(handler, "std") == 0) {
       handlerFn = VMToolsLogFile;
-   } else if (strcmp(handler, "file") == 0) {
+   } else if (strcmp(handler, "file") == 0 ||
+              strcmp(handler, "file+") == 0) {
       /* Don't set up the file sink if logging is disabled. */
       if (strcmp(level, "none") != 0) {
          handlerFn = VMToolsLogFile;
@@ -482,17 +485,33 @@ VMToolsConfigLogDomain(const gchar *domain,
    data->domain = g_strdup(domain);
    data->mask = levelsMask;
    data->path = logpath;
+   data->append = (handler != NULL && strcmp(handler, "file+") == 0);
    logpath = NULL;
 
    if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
-      /* Replace the default log configuration before freeing the old data. */
+      /*
+       * Replace the global log configuration. If the default log domain was
+       * logging to a file and the file path hasn't changed, then keep the old
+       * file handle open, instead of rotating the log.
+       */
       LogHandlerData *old = gDefaultData;
-      LogHandlerData *gdata = g_malloc0(sizeof *gdata);
 
-      memcpy(gdata, data, sizeof *gdata);
-      g_log_set_default_handler(handlerFn, gdata);
+      if (old->file != NULL) {
+         ASSERT(old->path);
+         if (data->path != NULL && strcmp(data->path, old->path) == 0) {
+            g_free(data->path);
+            data->file = old->file;
+            data->path = old->path;
+            old->path = NULL;
+         } else {
+            fclose(old->file);
+            g_free(old->path);
+         }
+      }
 
-      gDefaultData = gdata;
+      g_log_set_default_handler(handlerFn, data);
+      gDefaultData = data;
+      data = NULL;
       gDefaultLogFunc = handlerFn;
       g_free(old);
    } else if (handler == NULL) {
@@ -500,12 +519,14 @@ VMToolsConfigLogDomain(const gchar *domain,
       data->inherited = TRUE;
    }
 
-   if (gDomains == NULL) {
-      gDomains = g_ptr_array_new();
+   if (data != NULL) {
+      if (gDomains == NULL) {
+         gDomains = g_ptr_array_new();
+      }
+      g_ptr_array_add(gDomains, data);
+      data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS | G_LOG_FATAL_MASK,
+                                          handlerFn, data);
    }
-   g_ptr_array_add(gDomains, data);
-   data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS | G_LOG_FATAL_MASK,
-                                       handlerFn, data);
 
 exit:
    g_free(handler);
@@ -539,7 +560,7 @@ VMTools_GetDefaultLogDomain(void)
 void
 VMTools_SetDefaultLogDomain(const gchar *domain)
 {
-   g_assert(domain != NULL);
+   ASSERT(domain != NULL);
    if (gLogDomain != NULL) {
       g_free(gLogDomain);
    }
@@ -630,6 +651,8 @@ void
 VMTools_ResetLogging(gboolean cleanDefault)
 {
    gboolean oldLogEnabled = gLogEnabled;
+   gchar *currentPath = NULL;
+   FILE *currentFile = NULL;
 
    /* Disable logging while we're playing with the configuration. */
    gLogEnabled = FALSE;
@@ -655,6 +678,8 @@ VMTools_ResetLogging(gboolean cleanDefault)
    }
 
    if (gDefaultData != NULL) {
+      currentFile = gDefaultData->file;
+      currentPath = gDefaultData->path;
       g_free(gDefaultData);
       gDefaultData = NULL;
    }
@@ -677,8 +702,15 @@ VMTools_ResetLogging(gboolean cleanDefault)
 #if defined(VMX86_DEBUG)
       gDefaultData->mask |= G_LOG_LEVEL_MESSAGE;
 #endif
+      gDefaultData->file = currentFile;
+      gDefaultData->path = currentPath;
       gLogEnabled = oldLogEnabled;
       g_log_set_default_handler(gDefaultLogFunc, gDefaultData);
+   } else {
+      if (currentFile != NULL) {
+         fclose(currentFile);
+      }
+      g_free(currentPath);
    }
 }
 

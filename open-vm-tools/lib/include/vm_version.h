@@ -90,7 +90,7 @@
 #elif defined(VMX86_VCB)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VLICENSE)
-   #define PRODUCT_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    1,1,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #endif
@@ -219,7 +219,7 @@
 #define FOUNDRY_VERSION "e.x.p"
 #define FOUNDRY_FILE_VERSION 1,7,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
-#define VLICENSE_VERSION "1.1.0"
+#define VLICENSE_VERSION "1.1.2"
 #define DDK_VERSION "e.x.p"
 #define VIM_API_VERSION "4.0"
 #define VIPERL_VERSION "1.1.0"
@@ -252,7 +252,7 @@
 /*
  * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
-#define TOOLS_VERSION "2009.07.22"
+#define TOOLS_VERSION "2009.08.24"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"

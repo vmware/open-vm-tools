@@ -417,4 +417,6 @@ EXTERN Bool FileIO_SetExcludedFromTimeMachine(char const *pathName,
                                               Bool isExcluded);
 #endif
 
+Bool FileIO_SupportsPrealloc(const char *pathName, Bool fsCheck);
+
 #endif // _FILEIO_H_

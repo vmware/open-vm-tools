@@ -42,6 +42,7 @@ SUBDIRS += guestApp
 SUBDIRS += guestInfo
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd
+SUBDIRS += hgfsHelper
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
@@ -67,6 +68,9 @@ SUBDIRS += rpcChannel
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut
 SUBDIRS += rpcVmx
+if LINUX
+   SUBDIRS += slashProc
+endif
 SUBDIRS += SLPv2Parser
 SUBDIRS += string
 SUBDIRS += stubs

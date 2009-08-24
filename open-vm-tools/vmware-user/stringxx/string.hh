@@ -129,6 +129,7 @@ public:
    void resize(size_type n, value_type c = '\0');
    bool empty() const;
    size_type size() const;
+   size_type w_size() const;
    size_type length() const;
    size_type bytes() const;
    string foldCase() const;
@@ -219,6 +220,12 @@ private:
 
    // Cached representations.
    mutable utf16_t *mUtf16Cache;
+   mutable size_type mUtf16Length;
+
+   /*
+    * All added members need to be initialized in all constructors and need
+    * to be handled in swap().
+    */
 };
 
 // Helper operators

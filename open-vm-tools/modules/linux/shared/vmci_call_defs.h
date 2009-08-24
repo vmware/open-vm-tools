@@ -85,7 +85,7 @@ typedef struct VMCIDatagramWellKnownMapMsg {
  * Struct size is 16 bytes. All fields in struct are aligned to their natural
  * alignment.
  */
-typedef struct VMCIResourcesQueuryHdr {
+typedef struct VMCIResourcesQueryHdr {
    VMCIDatagram hdr;
    uint32       numResources;
    uint32       _padding;

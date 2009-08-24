@@ -257,7 +257,8 @@ Raster_GetBPPDepth(uint32 depth, uint32 bpp)
  *	None
  *
  * Side effects:
- *	None
+ *      If converting from a lower true-color depth to 32-bpp, fills the
+ *      alpha values of the destination rectangle to 0xFF.
  *
  *----------------------------------------------------------------------
  */
@@ -812,7 +813,7 @@ RasterConvertShortTo24(uint8 *tof, uint32 line_increment,
  *	None
  *
  * Side effects:
- *	None
+ *      Fills the alpha values of the destination rectangle to 0xFF.
  *
  *----------------------------------------------------------------------
  */
@@ -842,7 +843,8 @@ RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
    for (i=0; i<h; i++) {
       for (j=0; j<w; j++) {
 	 uint32 pix = srcptr[j];
-	 dstptr[j] = (REDMASK_32 &
+	 dstptr[j] = (0xFF << 24) |
+                     (REDMASK_32 &
 		      ((((pix & redMask) >> redShift1) |
 			((pix & redMask) >> redShift2)) << 16)) |
 		     (GREENMASK_32 &
@@ -968,7 +970,7 @@ RasterConvert24toShort(uint8 *tof, uint32 line_increment,
  *	None
  *
  * Side effects:
- *	None
+ *      Fills the alpha values of the destination rectangle to 0xFF.
  *
  *----------------------------------------------------------------------
  */
@@ -995,7 +997,8 @@ RasterConvert24to32(uint8 *tof, uint32 line_increment,
 	 uint8 blue = srcptr[k++];
 	 uint8 green = srcptr[k++];
 	 uint8 red = srcptr[k++];
-	 dstptr[j] = ((red << 16) & REDMASK_32) |
+	 dstptr[j] = (0xFF << 24) |
+                     ((red << 16) & REDMASK_32) |
 		     ((green << 8) & GREENMASK_32) |
 		     (blue & BLUEMASK_32);
       }
@@ -1258,7 +1261,7 @@ RasterConvertIndexto24(uint8 *tof, uint32 line_increment,
  *	None
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */

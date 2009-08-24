@@ -47,10 +47,11 @@ for each domain are:
      - Valid values: error, critical, warning, message, info, debug, none
      - This value is required when configuring a domain.
    - handler: the handler to use when logging.
-     - Valid values: std, outputdebugstring (Win32-only), file
+     - Valid values: std, outputdebugstring (Win32-only), file, file+
+       (same as "file", but appends to existing log file).
      - Default: "std" on Unix, "outputdebugstring" on Windows.
    - data: optional configuration data for the handler.
-     - Required for the "file" handler (path to log file).
+     - Required for the "file" handlers (path to log file).
 
 Logging configuration should be under the "[logging]" group in the
 application's configuration file.

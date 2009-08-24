@@ -37,6 +37,9 @@ extern int64 Preference_GetInt64(int64 defaultvalue, const char *fmt);
 extern double Preference_GetDouble(double defaultValue, const char *fmt);
 extern char *Preference_GetString(const char *defaultValue, const char *fmt);
 extern char *Preference_GetStringPlain(const char *defaultValue, const char *fmt);
+extern char *Preference_GetStringEnum(const void *defaultValue,
+                                      const char **choices,
+                                      const char *name);
 extern int32 Preference_Generation(void);
 extern void Preference_Log(void);
 extern char *Preference_GetPathName(const char *defaultValue, const char *fmt);

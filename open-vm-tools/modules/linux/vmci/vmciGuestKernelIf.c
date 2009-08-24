@@ -17,11 +17,11 @@
  *********************************************************/
 
 /*
- * vmciGuestKernelIf.c -- 
- * 
+ * vmciGuestKernelIf.c --
+ *
  *      This file implements guest only OS helper functions for VMCI.
  *      This is the linux specific implementation.
- */ 
+ */
 
 /* Must come before any kernel header file */
 #include "driver-config.h"
@@ -30,9 +30,7 @@
 #error "Wrong platform."
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 #include <linux/moduleparam.h>
-#endif
 
 #include "compat_version.h"
 #include "compat_pci.h"

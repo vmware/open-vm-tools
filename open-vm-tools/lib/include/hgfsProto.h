@@ -117,6 +117,34 @@ typedef enum {
    HGFS_OP_QUERY_VOLUME_INFO_V3,  /* Query volume information */
    HGFS_OP_CREATE_SYMLINK_V3,     /* Create a symlink */
    HGFS_OP_SERVER_LOCK_CHANGE_V3, /* Change the oplock on a file */
+   HGFS_OP_WRITE_WIN32_STREAM_V3, /* Write WIN32_STREAM_ID format data to file */
+
+   /*
+    * Operations for version 4, deprecating version 3 operations.
+    */
+
+   HGFS_OP_CREATE_SESSION_V4,     /* Create a session and return host capabilities. */
+   HGFS_OP_DESTROY_SESSION_V4,    /* Destroy/close session. */
+   HGFS_OP_OPEN_V4,               /* Open file */
+   HGFS_OP_DIRECTORY_READ_V4,     /* Read directory entries. */
+   HGFS_OP_ENUMERATE_STREAMS_V4,  /* Enumerate alternative named streams for a file. */
+   HGFS_OP_GETATTR_V4,            /* Get file attributes */
+   HGFS_OP_SETATTR_V4,            /* Set file attributes */
+   HGFS_OP_DELETE_V4,             /* Delete a file or a directory */
+   HGFS_OP_LINKMOVE_V4,           /* Rename/move/create hard link. */
+   HGFS_OP_FSCTL_V4,              /* Sending FS control requests. */
+   HGFS_OP_ACCESS_CHECK_V4,       /* Flush all cached data to the disk. */
+   HGFS_OP_FSYNC_V4,              /* Access check. */
+   HGFS_OP_QUERY_VOLUME_INFO_V4,  /* Query volume information. */
+   HGFS_OP_OPLOCK_ACQUIRE_V4,     /* Acquire OPLOCK. */
+   HGFS_OP_OPLOCK_BREAK_V4,       /* Break or downgrade OPLOCK. */
+   HGFS_OP_LOCK_BYTE_RANGE_V4,    /* Acquire byte range lock. */
+   HGFS_OP_UNLOCK_BYTE_RANGE_V4,  /* Release byte range lock. */
+   HGFS_OP_QUERY_EAS_V4,          /* Query extended attributes. */
+   HGFS_OP_SET_EAS_V4,            /* Add or modify extended attributes. */
+   HGFS_OP_SET_WATCH_V4,          /* Start monitoring directory changes. */
+   HGFS_OP_REMOVE_WATCH_V4,       /* Stop monitoring directory changes. */
+   HGFS_OP_NOTIFY_V4,             /* Notification for a directory change event. */
 
    HGFS_OP_MAX,                   /* Dummy op, must be last in enum */
 } HgfsOp;
@@ -405,6 +433,13 @@ typedef uint64 HgfsAttrFlags;
 #define HGFS_ATTR_HIDDEN_FORCED (1 << 3)
 #define HGFS_ATTR_REPARSE_POINT (1 << 4)
 
+/* V4 additional definitions for hgfsAttrFlags. */
+#define HGFS_ATTR_COMPRESSED            (1 << 5)
+#define HGFS_ATTR_ENCRYPTED             (1 << 6)
+#define HGFS_ATTR_OFFLINE               (1 << 7)
+#define HGFS_ATTR_READONLY              (1 << 8)
+#define HGFS_ATTR_SPARSE                (1 << 9)
+#define HGFS_ATTR_TEMPORARY             (1 << 10)
 
 /*
  * Specifies which open request fields contain
@@ -427,6 +462,10 @@ typedef uint64 HgfsOpenValid;
 #define HGFS_OPEN_VALID_SERVER_LOCK       (1 << 10)
 #define HGFS_OPEN_VALID_FILE_NAME         (1 << 11)
 
+/* V4 additional open mask flags. */
+#define HGFS_OPEN_VALID_EA                      (1 << 12)
+#define HGFS_OPEN_VALID_ACL                     (1 << 13)
+#define HGFS_OPEN_VALID_STREAM_NAME             (1 << 14)
 
 /*
  * Specifies which attribute fields contain
@@ -882,6 +921,39 @@ struct HgfsReplyWriteV3 {
 }
 #include "vmware_pack_end.h"
 HgfsReplyWriteV3;
+
+/* Stream write flags */
+typedef enum {
+   HGFS_WIN32_STREAM_IGNORE_SECURITY = (1<<0),
+} HgfsWin32StreamFlags;
+
+/*
+ * HgfsRequestWriteWin32Stream.
+ * Server must support HGFS_LARGE_PACKET_MAX to implement this op.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestWriteWin32StreamV3 {
+   HgfsHandle file;      /* Opaque file ID used by the server */
+   HgfsWin32StreamFlags flags;
+   uint32 reserved1;
+   uint32 requiredSize;
+   uint64 reserved2;     /* Reserved for future use */
+   char payload[1];
+}
+#include "vmware_pack_end.h"
+HgfsRequestWriteWin32StreamV3;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyWriteWin32StreamV3 {
+   uint32 actualSize;
+   uint64 reserved;      /* Reserved for future use */
+}
+#include "vmware_pack_end.h"
+HgfsReplyWriteWin32StreamV3;
 
 
 /* Deprecated */
@@ -1606,5 +1678,960 @@ struct HgfsReplySymlinkCreateV3 {
 #include "vmware_pack_end.h"
 HgfsReplySymlinkCreateV3;
 
+/* HGFS protocol version 4 definitions. */
+
+/*
+ * HGFS_PACKET_FLAG_NOTIFICATION set in flags field means that
+ * this is a notification or a callback request (not a reply to client request).
+ */
+
+#define HGFS_PACKET_FLAG_NOTIFICATION         (1 << 0)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsHeader {
+   uint8 version;       /* Header version. */
+   uint8 reserved1[3];  /* Reserved for future use. */
+   uint8 dummy;         /* Needed to distinguish between older and newer header. */
+   uint8 reserved2[3];  /* Reserved for future use. */
+   uint32 packetSize;   /* Size of the packet, including the header size. */
+   uint32 headerSize;   /* Size of the Hgfs header. */
+   uint32 requestId;    /* Request ID. */
+   uint32 op;           /* Operation. */
+   uint32 status;       /* Return value. */
+   uint32 flags;        /* Flags. */
+   uint32 information;  /* Generic field, used e.g. for native error code. */
+   uint64 sessionId;    /* Session ID. */
+   uint64 reserved;     /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsHeader;
+
+/*
+ * Flag HGFS_REQUEST_SUPPORTED is set for every requests that are supported by the host.
+ */
+#define HGFS_REQUEST_SUPPORTED                  (1 << 0)
+
+/*
+ * Following flags define which optional parameters for file open
+ * requests are supported by the host.
+ * HGFS_OPENV4_SUPPORTS_EA - host is capable of setting EA when creating
+ *                           a new file.
+ * HGFS_OPENV4_SUPPORTS_ACL - host is capable of setting ACLs when creating
+ *                           a new file.
+ * HGFS_OPENV4_SUPPORTS_NAMED_STREAMS - opening/enumerating named streams
+ *                                      is supported.
+ * HGFS_OPENV4_SUPPORTS_SHARED_ACCESS - host supports file sharing restrictions.
+ * HGFS_OPENV4_SUPPORTS_UNIX_PERMISSIONS - host stores POSIX permissions with
+ *                                         file.
+ * HGFS_OPENV4_POSIX_FILE_DELETION - host supports POSIX file deletion semantics.
+ */
+typedef uint32 HgfsOpenV4Capabilities;
+#define HGFS_OPENV4_SUPPORTS_EA                 (1 << 1)
+#define HGFS_OPENV4_SUPPORTS_ACL                (1 << 2)
+#define HGFS_OPENV4_SUPPORTS_NAMED_STREAMS      (1 << 3)
+#define HGFS_OPENV4_SUPPORTS_SHARED_ACCESS      (1 << 4)
+#define HGFS_OPENV4_SUPPORTS_UNIX_PERMISSIONS   (1 << 5)
+#define HGFS_OPENV4_POSIX_FILE_DELETION         (1 << 6)
+
+/*
+ *  There is a significant difference in byte range locking semantics between Windows
+ *  and POSIX file systems. Windows implements mandatory locking which means that every
+ *  read or write request that conflicts with byte range locks is rejected. POSIX has
+ *  an advisory locking which means that locks are validated only when another lock is
+ *  requested and are not enforced for read/write operations.
+ *  Applications in guest OS may expect byte range locking semantics that matches guest
+ *  OS which may be different from semantics that is natively supported by host OS. In
+ *  this case either HGFS server or HGFS client should provide compensation for the host
+ *  OS semantics to maintain application compatibility.
+ *  Client must know if the server is capable to provide appropriate byte range locking
+ *  semantics to perform some compensation on behalf of server when necessary.
+ *
+ *  Following flags define various capabilities of byte range lock implementation on
+ *  the host.
+ *
+ *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_64 means that server is capable of locking 64 bit
+ *                                    length ranges.
+ *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_32 means that server is limited to 32-bit ranges.
+ *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_MANDATORY means that server is capable of enforcing
+ *                                           read/write restrictions for locked ranges.
+ *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_ADVISORY means that server supports advisory locking;
+ *                                          locks are validated only for other bytes
+ *                                          range locking and are not enforced
+ *                                          for read/write operations.
+ */
+typedef uint32 HgfsByteRangeLockingCapabilities;
+#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_64               (1 << 1)
+#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_32               (1 << 2)
+#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_MANDATORY        (1 << 3)
+#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_ADVISORY         (1 << 4)
+
+/* HGFS_SUPPORTS_HARD_LINKS is set when the host supports hard links. */
+typedef uint32 HgfsLinkMoveCapabilities;
+#define HGFS_SUPPORTS_HARD_LINKS                        (1 << 1)
+
+ /*
+  * HGFS_SET_WATCH_SUPPORTS_FINE_GRAIN_EVENTS is set when host supports
+  * fine grain event reporting for directory notification.
+  */
+typedef uint32 HgfsSetWatchCapabilities;
+#define HGFS_SET_WATCH_SUPPORTS_FINE_GRAIN_EVENTS       (1 << 1)
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsCapability {
+   HgfsOp op;            /* Op. */
+   uint32 flags;         /* Flags. */
+}
+#include "vmware_pack_end.h"
+HgfsCapability;
+
+typedef HgfsFileName HgfsUserName;
+typedef HgfsFileName HgfsGroupName;
+
+/* Following structures describe user identity on the host which runs HGFS service. */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsIdentity {
+   uint32 uid;                        /* user id. */
+   uint32 gid;                        /* Primary group id. */
+   HgfsUserName user;                 /* User name in form specified in RFC 3530. */
+   HgfsGroupName group;               /* Group name in form specified in RFC 3530. */
+}
+#include "vmware_pack_end.h"
+HgfsIdentity;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestCreateSession {
+   uint32 numCapabilities;            /* Number of capabilities to follow. */
+   uint32 maxPacketSize;              /* Maximum packet size supported. */
+   uint64 reserved;                   /* Reserved for future use. */
+   HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestCreateSession;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyCreateSession {
+   uint64 sessionId;                  /* Session ID. */
+   uint32 numCapabilities;            /* Number of capabilities to follow. */
+   uint32 maxPacketSize;              /* Maximum packet size supported. */
+   uint32 identityOffset;             /* Offset to HgfsIdentity or 0 if no identity. */
+   uint64 reserved;                   /* Reserved for future use. */
+   HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyCreateSession;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestDestroySession {
+   uint64 sessionId;   /* Session ID. */
+   uint64 reserved;    /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestDestroySession;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyDestroySession {
+   uint64 reserved;    /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyDestroySession;
+
+/* Adds new error status: HGFS_STATUS_INVALID_SESSION. */
+
+/*
+ * If file handle is used to set watch (HGFS_FILE_NAME_USE_FILE_DESC
+ * is set in the fileName), closing this handle implicitly removes the watch.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestSetWatch {
+    uint64 events;             /* What events to watch? */
+    uint32 flags;              /* Flags. */
+    uint64 reserved;           /* Reserved for future use. */
+    HgfsFileNameV3 fileName;   /* Filename to watch. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestSetWatch;
+
+/*
+ *  Coarse grain notification event types.
+ */
+#define HGFS_ACTION_ADDED        (1 << 0)   /* File was added. */
+#define HGFS_ACTION_REMOVED      (1 << 1)   /* File was removed. */
+#define HGFS_ACTION_MODIFIED     (1 << 2)   /* File attributes were changed. */
+#define HGFS_ACTION_RENAMED      (1 << 3)   /* File was renamed. */
+
+/*
+ * Fine grain notification event types.
+ * HgfsRequestSetWatch events.
+ * Events marked with (*) apply only to directories.
+ */
+#define HGFS_NOTIFY_ACCESS        (1 << 0)    /* File accessed (read) */
+#define HGFS_NOTIFY_ATTRIB        (1 << 1)    /* Windows file attributes changed. */
+#define HGFS_NOTIFY_SIZE          (1 << 2)    /* File size changed. */
+#define HGFS_NOTIFY_ATIME         (1 << 3)    /* Access time changed. */
+#define HGFS_NOTIFY_MTIME         (1 << 4)    /* Modification time changed. */
+#define HGFS_NOTIFY_CTIME         (1 << 5)    /* Attribute change time changed. */
+#define HGFS_NOTIFY_CRTIME        (1 << 6)    /* Creation time changed. */
+#define HGFS_NOTIFY_NAME          (1 << 7)    /* File / Directory name changed. */
+#define HGFS_NOTIFY_OPEN          (1 << 8)    /* File opened */
+#define HGFS_NOTIFY_CLOSE_WRITE   (1 << 9)    /* File opened for writing closed */
+#define HGFS_NOTIFY_CLOSE_NOWRITE (1 << 10)   /* File opened for reading closed */
+#define HGFS_NOTIFY_CREATE        (1 << 11)   /* File / directory created */
+#define HGFS_NOTIFY_DELETE        (1 << 12)   /* (*) File / directory deleted */
+#define HGFS_NOTIFY_DELETE_SELF   (1 << 13)   /* Watched file / directory deleted */
+#define HGFS_NOTIFY_MODIFY        (1 << 14)   /* File or directory modified. */
+#define HGFS_NOTIFY_MOVE_SELF     (1 << 15)   /* Watched file / directory moved. */
+#define HGFS_NOTIFY_MOVE_FROM     (1 << 16)   /* (*) Moved out of watched directory. */
+#define HGFS_NOTIFY_MOVE_TO       (1 << 17)   /* (*) Moved into watched directory. */
+#define HGFS_NOTIFY_RENAME        (1 << 18)   /* File / directory name changed. */
+
+/* HgfsRequestSetWatch flags. */
+#define HGFS_NOTIFY_FLAG_WATCH_TREE  (1 << 0)    /* Watch the entire directory tree. */
+#define HGFS_NOTIFY_FLAG_DONT_FOLLOW (1 << 1)    /* Don't follow symlinks. */
+#define HGFS_NOTIFY_FLAG_ONE_SHOT    (1 << 2)    /* Generate only one notification. */
+#define HGFS_NOTIFY_FLAG_POSIX_HINT  (1 << 3)    /* Client is POSIX and thus expects
+                                                  * fine grain notification. Server
+                                                  * may provide coarse grain
+                                                  * notification even if this flag is
+                                                  * set.
+                                                  */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySetWatch {
+    HgfsHandle watchId;    /* Watch identifier for subsequent references. */
+    uint64 reserved;       /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplySetWatch;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestRemoveWatch {
+    HgfsHandle watchId;    /* Watch identifier to remove. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestRemoveWatch;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyRemoveWatch {
+    uint64 reserved;       /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyRemoveWatch;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsNotifyEvent {
+   uint32 nextOffset;        /* Offset of next event; 0 if it i sthe last one. */
+   uint64 mask;              /* Event occurred. */
+   uint64 reserved;          /* Reserved for future use. */
+   HgfsFileName fileName;    /* Filename. */
+   HgfsFileName oldName;     /* New filename for rename operation. */
+}
+#include "vmware_pack_end.h"
+HgfsNotifyEvent;
+
+/* Too many events, some or all event were dropped by the server. */
+#define HGFS_NOTIFY_FLAG_OVERFLOW          (1 << 0)
+/* Watch had been removed either explicitly or implicitly. */
+#define HGFS_NOTIFY_FLAG_REMOVED           (1 << 1)
+/* Server generated coasrse grain events. */
+#define HGFS_NOTIFY_FLAG_COARSE_GRAIN      (1 << 2)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestNotify {
+   HgfsHandle watchId;         /* Watch identifier. */
+   uint32 flags;               /* Various flags. */
+   uint32 count;               /* Number of events occured. */
+   uint64 reserved;            /* Reserved for future use. */
+   HgfsNotifyEvent events[1];  /* Events. HgfsNotifyEvent(s). */
+}
+#include "vmware_pack_end.h"
+HgfsRequestNotify;
+
+// Query EA flags values.
+#define HGFS_QUERY_EA_INDEX_SPECIFIED (1 << 0)
+#define HGFS_QUERY_EA_SINGLE_ENTRY    (1 << 1)
+#define HGFS_QUERY_EA_RESTART_SCAN    (1 << 2)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestQueryEA {
+   uint32 flags;                 /* EA flags. */
+   uint32 index;
+   uint64 reserved;              /* Reserved for future use. */
+   uint32 eaNameLength;          /* EA name length. */
+   uint32 eaNameOffset;          /* Offset of the eaName field. */
+   HgfsFileNameV3 fileName;      /* File to watch. */
+   char eaNames[1];              /* List of NULL terminated EA names.
+                                  * Actual location of the data depends on
+                                  * fileName length and defined by eaNameOffset.
+                                  */
+}
+#include "vmware_pack_end.h"
+HgfsRequestQueryEA;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyQueryEA {
+   uint32 nextOffset;            /* Offset of the next structure when more then
+                                  * one record is returned.
+                                  */
+   uint32 flags;                 /* EA flags. */
+   uint32 index;                 /* Index needed to resume scan. */
+   uint64 reserved;              /* Reserved for future use. */
+   uint32 eaDataLength;          /* EA value length. */
+   char eaData[1];               /* NULL termianed EA name followed by EA value. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyQueryEA;
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsEA {
+   uint32 nextOffset;      /* Offset of the next structure in the chain. */
+   uint32 valueLength;     /* EA value length. */
+   char data[1];           /* NULL terminated EA name followed by EA value. */
+}
+#include "vmware_pack_end.h"
+HgfsEA;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestSetEA {
+   uint32 flags;           /* Flags, see below. */
+   uint64 reserved;        /* Reserved for future use. */
+   uint32 numEAs;          /* Number of EAs in this request. */
+   HgfsEA attributes[1];   /* Array of attributes. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestSetEA;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySetEA {
+   uint64 reserved;        /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplySetEA;
+
+/*
+ * EA Flags. When both flags are set EA is either created or replaced if it exists.
+ * HGFS_EA_FLAG_CREATE - create if EA is not present, error otherwise.
+ * HGFS_EA_FLAG_REPLACE - Replace exisitng EA. Error if EA not already present.
+ */
+#define HGFS_EA_FLAG_CREATE      (1 << 0)
+#define HGFS_EA_FLAG_REPLACE     (1 << 1)
+
+/*
+ * Byte range lock flag values:
+ * HGFS_RANGE_LOCK_EXCLUSIVE - Requested lock is exclusive when this flag is set,
+ *                             otherwise it is a shared lock.
+ * HGFS_RANGE_LOCK_FAIL_IMMEDIATLY - If the flag is not set server waits until the
+ *                                   lock becomes available.
+ */
+#define HGFS_RANGE_LOCK_EXCLUSIVE               (1 << 0)
+#define HGFS_RANGE_LOCK_FAIL_IMMEDIATLY         (1 << 1)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestLockRange {
+   HgfsHandle     fid;          /* File to take lock on. */
+   uint32 flags;                /* Various flags. */
+   uint64 start;                /* Starting offset in the file. */
+   uint64 length;               /* Number of bytes to lock. */
+   uint64 reserved;             /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestLockRange;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyLockRange {
+   uint64 reserved;             /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyLockRange;
+
+#define HGFS_RANGE_LOCK_UNLOCK_ALL               (1 << 0)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestUnlockRange {
+   HgfsHandle     fid;          /* File to take lock on. */
+   uint32 flags;                /* Various flags. */
+   uint64 start;                /* Starting offset in the file. */
+   uint64 length;               /* Number of bytes to lock. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestUnlockRange;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyUnlockRange {
+   uint64 reserved;             /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyUnlockRange;
+
+/*
+ * There are three types of oplocks: level 1, batch, and level 2. Both the level 1 and
+ * batch oplocks are "exclusive access" opens. They are used slightly differently,
+ * however, and hence have somewhat different semantics. A level 2 oplock is a "shared
+ * access" grant on the file.
+ * Level 1 is used by a remote client that wishes to modify the data. Once granted a
+ * Level 1 oplock, the remote client may cache the data, modify the data in its cache
+ * and need not write it back to the server immediately.
+ * Batch oplocks are used by remote clients for accessing script files where the file is
+ * opened, read or written, and then closed repeatedly. Thus, a batch oplock
+ * corresponds not to a particular application opening the file, but rather to a remote
+ * clients network file system caching the file because it knows something about the
+ * semantics of the given file access. The name "batch" comes from the fact that this
+ * behavior was observed by Microsoft with "batch files" being processed by command line
+ * utilities. Log files especially exhibit this behavior when a script it being
+ * processed each command is executed in turn. If the output of the script is redirected
+ * to a log file the file fits the pattern described earlier, namely open/write/close.
+ * With many lines in a file this pattern can be repeated hundreds of times.
+ * Level 2 is used by a remote client that merely wishes to read the data. Once granted
+ * a Level 2 oplock, the remote client may cache the data and need not worry that the
+ * data on the remote file server will change without it being advised of that change.
+ * An oplock must be broken whenever the cache consistency guarantee provided by the
+ * oplock can no longer be provided. Thus, whenever a second network client attempts to
+ * access data in the same file across the network, the file server is responsible for
+ * "breaking" the oplocks and only then allowing the remote client to access the file.
+ * This ensures that the data is guaranteed to be consistent and hence we have preserved
+ * the consistency guarantees essential to proper operation.
+ *
+ * HGFS_OPLOCK_NONE: no oplock. No caching on client side.
+ * HGFS_OPLOCK_SHARED: shared (or LEVEL II) oplock. Read caching is allowed.
+ * HGFS_OPLOCK_EXCLUSIVE: exclusive (or LEVEL I) oplock. Read/write caching is allowed.
+ * HGFS_OPLOCK_BATCH: batch oplock. Read/Write and Open caching is allowed.
+ */
+
+typedef enum {
+   HGFS_OPLOCK_NONE,
+   HGFS_OPLOCK_SHARED,
+   HGFS_OPLOCK_EXCLUSIVE,
+   HGFS_OPLOCK_BATCH,
+} HgfsOpportunisticLock;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestServerLockChangeV2 {
+   HgfsHandle fid;                    /* File to take lock on. */
+   HgfsOpportunisticLock serverLock;  /* Lock type. */
+   uint64 reserved;
+}
+#include "vmware_pack_end.h"
+HgfsRequestServerLockChangeV2;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyServerLockChangeV2 {
+   HgfsOpportunisticLock serverLock;  /* Lock granted. */
+   uint64 reserved;
+}
+#include "vmware_pack_end.h"
+HgfsReplyServerLockChangeV2;
+
+/*
+ * This request is sent from server to the client to notify that oplock
+ * is revoked or downgraded.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestOplockBreakV4 {
+   HgfsHandle fid;                    /* File handle. */
+   HgfsOpportunisticLock serverLock;  /* Lock downgraded to this type. */
+   uint64 reserved;                   /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestOplockBreakV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyOplockBreakV4 {
+   uint64 reserved;                 /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyOplockBreakV4;
+
+/*
+ *  Flusing of a whole volume is not supported.
+ *  Flusing of reqular files is supported on all hosts.
+ *  Flusing of directories is supproted on POSIX hosts and is
+ *  NOOP on Windows hosts. 
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestFsyncV4 {
+   HgfsHandle fid;      /* File to sync. */
+   uint64 reserved;
+}
+#include "vmware_pack_end.h"
+HgfsRequestFsyncV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyFsyncV4 {
+   uint64 reserved;
+}
+#include "vmware_pack_end.h"
+HgfsReplyFsyncV4;
+
+/*
+ * This request is name based only.
+ * Server fails this request if HGFS_FILE_E_USE_FILE_DESC is set in the fileName.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestAccessCheckV4 {
+   HgfsFileNameV3 fileName;     /* File concerned. */
+   HgfsPermissions perms;       /* Permissions to check for. */
+   uint64 reserved;             /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestAccessCheckV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyAccessCheckV4 {
+   uint64 reserved;             /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyAccessCheckV4;
+
+/*
+ * Additional HgfsPersmissions type: checks file existense without
+ * requesting any particular access.
+ * Matches F_OK mode parameter for POSIX access (2) API.
+ */
+#define HGFS_PERM_EXISTS  8
+
+/*
+ * HGFS_PLATFORM_ALL is a HGFS specific platform independent FSCTL
+ * that correspond to different OS specific codes.
+ * Other types of FSCTL are platform specific to allow better user
+ * experience when guest and host OS are the same. HGFS does not interpret
+ * platform specific FSCTL in any way, it just passes it through to the
+ * host. If the host run appropriate OS it executes FSCTL on user's behalf,
+ * otherwise it fails the request.
+ */
+typedef enum HgfsPlatformType {
+   HGFS_PLATFORM_ALL,
+   HGFS_PLATFORM_WINDOWS,
+   HGFS_PLATFORM_LINUX,
+   HGFS_PLATFORM_MAC
+}HgfsPlatformType;
+
+#define HGFS_FSCTL_SET_SPARSE 1 /* Platform independent FSCTL to make file sparse. */
+
+/* Platform together with the code define exact meaning of the operation. */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestFsctlV4 {
+   HgfsHandle fid;
+   uint32 code;
+   HgfsPlatformType platform;
+   uint32 dataLength;
+   char data[1];
+}
+#include "vmware_pack_end.h"
+HgfsRequestFsctlV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyFsctlV4 {
+   uint32 dataLength;
+   char data[1];
+}
+#include "vmware_pack_end.h"
+HgfsReplyFsctlV4;
+
+/*
+ * Creating a new file or reading file attributes involves ACL. There is a good
+ * definition of multi-platform ACLs in RFC 3530, section 5.11. HGFS should use
+ * ACLs defined in this document (http://tools.ietf.org/html/rfc3530#section-5.11).
+ * ACL support is not mandatory. If a request to create file with ACL comes to a host
+ * that does not support ACL, the request should succeed and setting ACL is ignored.
+ * Such behavior is consistent with other file systems.
+ */
+typedef uint64 HgfsOpenCreateOptions;
+
+/* O_SYMLINK in Mac OS or FILE_FLAG_OPEN_REPARSE_POINT in Windows. */
+#define HGFS_OPENCREATE_OPTION_SYMLINK            (1 << 0)
+/* O_SHLOCK in Mac OS or obtain shared range lock for the whole file. */
+#define HGFS_OPENCREATE_OPTION_SHLOCK             (1 << 1)
+/* O_EXLOCK in Mac OS or obtain exclusive range lock for the whole file. */
+#define HGFS_OPENCREATE_OPTION_EXLOCK             (1 << 2)
+/* O_SYNC in Linux, ignored in Mac, FILE_FLAG_WRITE_THROUGH in Windows. */
+#define HGFS_OPENCREATE_OPTION_WRITETHROUGH       (1 << 3)
+/* FILE_FLAG_NO_BUFFERING in Windows, O_SYNC in Linux, ignored on Mac OS. */
+#define HGFS_OPENCREATE_OPTION_NO_BUFERING        (1 << 4)
+/*
+ * O_NOFOLLOW in POSIX. Windows server checks for reparse point
+ * and fails the request if file has one.
+ */
+#define HGFS_OPENCREATE_OPTION_NO_FOLLOW          (1 << 5)
+/* FILE_FLAG_NO_RECALL in Windows. Ignored by POSIX host. */
+#define HGFS_OPENCREATE_OPTION_NO_RECALL          (1 << 6)
+/* FILE_FLAG_RANDOM_ACCESS in Windows. Ignored by POSIX host. */
+#define HGFS_OPENCREATE_OPTION_RANDOM             (1 << 7)
+/* FILE_FLAG_SEQUENTIAL_SCAN in Windows. Ignored by POSIX host. */
+#define HGFS_OPENCREATE_OPTION_SEQUENTIAL         (1 << 8)
+/* FILE_FLAG_BACKUP_SEMANTICS in Windows. Ignored by POSIX host. */
+#define HGFS_OPENCREATE_OPTION_BACKUP_SEMANTICS   (1 << 9)
+/* Fail opening if the file already exists and it is not a directory. */
+#define HGFS_OPENCREATE_OPTION_DIRECTORY          (1 << 10)
+/* Fail opening if the file already exists and it is a directory. */
+#define HGFS_OPENCREATE_OPTION_NON_DIRECTORY      (1 << 11)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestOpenV4 {
+   HgfsOpenValid mask;           /* Bitmask that specified which fields are valid. */
+   HgfsOpenMode mode;            /* Which type of access requested. See desiredAccess */
+   HgfsOpenFlags flags;          /* Which flags to open the file with */
+   HgfsPermissions specialPerms; /* Desired 'special' permissions for file creation */
+   HgfsPermissions ownerPerms;   /* Desired 'owner' permissions for file creation */
+   HgfsPermissions groupPerms;   /* Desired 'group' permissions for file creation */
+   HgfsPermissions otherPerms;   /* Desired 'other' permissions for file creation */
+   HgfsAttrFlags attr;           /* Attributes, if any, for file creation */
+   uint64 allocationSize;        /* How much space to pre-allocate during creation */
+   uint32 desiredAccess;         /* Extended support for windows access modes */
+   uint32 shareAccess;           /* Windows only, share access modes */
+   HgfsOpenCreateOptions createOptions; /* Various options. */
+   HgfsOpportunisticLock requestedLock;   /* The type of lock desired by the client */
+   HgfsFileNameV3 fileName;      /* fid can be used only for relative open,
+                                  * i.e. to open named stream.
+                                  */
+   HgfsFileName streamName;      /* Name of the alternative named stream.
+                                  * All flags are the same as defined in fileName.
+                                  * The name is used in conjuction with fileName
+                                  * field, for example if Windows opens file
+                                  * "abc.txt:stream" then fileName contains
+                                  * "abc.txt" and streamName contains "stream"
+                                  */
+   /*
+    * EA to set if the file is created or overwritten. The parameter should be ignored
+    * if the file already exists.
+    * It is needed to correctly implement Windows semantics for opening files.
+    * It should work atomically - failure to add EA should result in failure to create
+    * the new file.
+    * If the host file system does not support EA server should fail the request rather
+    * then succeeding and silently dropping EA.
+    */
+   HgfsRequestSetEA extendedAttributes;
+   uint32 aclLength;               /* Length of the acl field. */
+   char acl[1];                    /* Multi-platform ACL as defined in RFC 3530. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestOpenV4;
+
+typedef enum HgfsOpenResult {
+   HGFS_FILE_OPENED,
+   HGFS_FILE_CREATED,
+   HGFS_FILE_OVERWRITTEN,
+   HGFS_FILE_SUPERSIDED,
+ } HgfsOpenResult;
+
+/*
+ * Win32 API has a special value for the desired access - MAXIMUM_ALLOWED.
+ * Such desired access means that file system must grant as much rights for the file
+ * as it is allowed for the current user.
+ * HGFS client must know what access rights were granted to properly communicate this
+ * information to the IoManager; grantedAccess field is used for this purpose.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyOpenV4 {
+   HgfsHandle file;                   /* Opaque file ID used by the server */
+   HgfsOpportunisticLock grantedLock; /* The type of lock acquired by the server */
+   HgfsOpenResult openResult;         /* Opened/overwritten or a new file created? */
+   uint32 grantedAccess;              /* Granted access rights. */
+   uint64 fileId;                     /* Persistent volume-wide unique file id. */
+   uint64 volumeId;                   /* Persistent unique volume id. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyOpenV4;
+
+/*
+ *  Flags that define behaviour of the move/creating hard link operation.
+ */
+typedef uint64 HgfsMoveLinkFlags;
+
+#define HGFS_LINKMOVE_FLAG_REPLACE_EXISTING   (1 << 0)   /* Delete existing target. */
+#define HGFS_LINKMOVE_FLAG_HARD_LINK          (1 << 1)   /* Create hard link. */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestLinkMoveV4 {
+   HgfsFileNameV3 oldFileName;      /* Path to the exisitng source file.*/
+   HgfsFileNameV3 newFileName;      /* Path to the destinatio name.*/
+   HgfsMoveLinkFlags flags;         /* Flags that define behaviour of the operation.*/
+}
+#include "vmware_pack_end.h"
+HgfsRequestLinkMoveV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyLinkMove4 {
+   uint64 reserved;                 /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyLinkMove4;
+
+/*
+ * HgfsQueryVolumeMaskV4 mask in a request defines which volume properties client needs;
+ * mask in a reply defines which properties were actually returned by the host.
+ *
+ * HGFS_QUERY_VOLUME_MASK_SIZE controls totalBytes, freeBytes and availableBytes.
+ * HGFS_QUERY_VOLUME_MASK_FS_CAPABILITIES controls capabilities.
+ * HGFS_QUERY_VOLUME_MASK_ATTRIBUTES controls creationTime.
+ * HGFS_QUERY_VOLUME_MASK_VOLUME_GEOMETRY controls bytesPerSector and sectorPerCluster.
+ * HGFS_QUERY_VOLUME_MASK_VOLUME_LABEL controls volume label.
+ * HGFS_QUERY_VOLUME_MASK_FS_NAME controls fileSystemName.
+ */
+typedef uint64 HgfsQueryVolumeMaskV4;
+
+#define HGFS_QUERY_VOLUME_MASK_SIZE             (1 << 0)
+#define HGFS_QUERY_VOLUME_MASK_ATTRIBUTES       (1 << 1)
+#define HGFS_QUERY_VOLUME_MASK_FS_CAPABILITIES  (1 << 2)
+#define HGFS_QUERY_VOLUME_MASK_VOLUME_LABEL     (1 << 3)
+#define HGFS_QUERY_VOLUME_MASK_VOLUME_GEOMETRY  (1 << 4)
+#define HGFS_QUERY_VOLUME_MASK_FS_NAME          (1 << 5)
+
+typedef uint64 HgfsFileSystemCapabilities;
+#define HGFS_VOLUME_CASE_SENSITIVE           (1 << 0)
+#define HGFS_VOLUME_SUPPORTS_EA              (1 << 1)
+#define HGFS_VOLUME_SUPPORTS_COMPRESSION     (1 << 2)
+#define HGFS_VOLUME_SUPPORTS_SHORT_NAMES     (1 << 3)
+#define HGFS_VOLUME_SUPPORTS_ACL             (1 << 4)
+#define HGFS_VOLUME_READ_ONLY                (1 << 5)
+#define HGFS_VOLUME_SUPPORTS_ENCRYPTION      (1 << 6)
+#define HGFS_VOLUME_SUPPORTS_OBJECT_ID       (1 << 7)
+#define HGFS_VOLUME_SUPPORTS_REMOTE_STORAGE  (1 << 8)
+#define HGFS_VOLUME_SUPPORTS_SYMLINKS        (1 << 9)
+#define HGFS_VOLUME_SUPPORTS_SPARSE_FILES    (1 << 10)
+#define HGFS_VOLUME_SUPPORTS_UNICODE         (1 << 11)
+#define HGFS_VOLUME_SUPPORTS_QUOTA           (1 << 12)
+#define HGFS_VOLUME_SUPPORTS_NAMED_STREAMS   (1 << 13)
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestQueryVolumeV4 {
+   HgfsQueryVolumeMaskV4 mask;
+   HgfsFileNameV3 name;
+}
+#include "vmware_pack_end.h"
+HgfsRequestQueryVolumeV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyQueryVolumeV4 {
+   HgfsQueryVolumeMaskV4 mask; /* Identifies which values were set by the host. */
+   uint64 totalBytes;          /* Total volume capacity. */
+   uint64 freeBytes;           /* Free space on the volume. */
+   uint64 availableBytes;      /* Free space available for the user. */
+   HgfsFileSystemCapabilities capabilities; /* File system capabilities. */
+   uint64 creationTime;        /* Volume creation time. */
+   uint32 bytesPerSector;      /* Sector size for the volume. */
+   uint32 sectorsPerCluster;   /* Cluster size for the volume. */
+   HgfsFileName volumeLabel;   /* Volume name or label. */
+   HgfsFileName fileSystemName;/* File system name. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyQueryVolumeV4;
+
+typedef uint32 HgfsDirectoryReadMaskV4;
+#define HGFS_DIRECTORY_READ_NAME                (1 << 0)
+#define HGFS_DIRECTORY_READ_SHORT_NAME          (1 << 1)
+#define HGFS_DIRECTORY_READ_FILE_SIZE           (1 << 2)
+#define HGFS_DIRECTORY_READ_ALLOCATION_SIZE     (1 << 3)
+#define HGFS_DIRECTORY_READ_EA_SIZE             (1 << 4)
+#define HGFS_DIRECTORY_READ_TIME_STAMP          (1 << 5)
+#define HGFS_DIRECTORY_READ_FILE_ATTRIBUTES     (1 << 6)
+#define HGFS_DIRECTORY_READ_FILE_NODE_TYPE      (1 << 7)
+
+typedef uint32 HgfsDirectoryReadFlagsV4;
+#define HGFS_DIRECTORY_READ_INITIAL_QUERY       (1 << 1)
+#define HGFS_DIRECTORY_READ_SINGLE_ENTRY        (1 << 2)
+
+/*
+ * Read directory request can be used to enumerate files in a directory.
+ * File handle used in the request must be returned by HgfsRequestOpenV4 or later.
+ * searchPattern parameter allows filter out file names in the server for optimization.
+ * It is optional - host may ignore patterns and return entries that do not match
+ * the pattern. It is client responsibility to filter out names that do not match
+ * the pattern.
+ *
+ * The mask field in request allows client to specify which properties it is
+ * interested in. It allows to implement optimization in the server by skipping
+ * parameters which client does not need.
+ *
+ * Service fills mask field in the reply buffer to specify which of the requested
+ * properties it supports, which may be a subset of requested properties.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestReadDirectoryV4 {
+     HgfsDirectoryReadMaskV4 mask;
+     HgfsDirectoryReadFlagsV4 flags;
+     HgfsHandle fid;
+     uint32 restartIndex;
+     HgfsFileName searchPattern;
+}
+#include "vmware_pack_end.h"
+HgfsRequestReadDirectoryV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsDirectoryEntryV4 {
+   uint32 nextEntryOffset;
+   uint32 fileIndex;
+   HgfsAttrFlags attributes;
+   HgfsFileType fileType;
+   uint64 fileSize;
+   uint64 allocationSize;
+   uint64 creationTime;
+   uint64 accessTime;
+   uint64 modificationTime;
+   uint64 changeAttributesTime;
+   uint32 eaSize;
+   HgfsFileName shortName;
+   HgfsFileName fileName;
+}
+#include "vmware_pack_end.h"
+HgfsDirectoryEntryV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyReadDirectoryV4 {
+   uint32 numberEntriesReturned;
+   uint32 offsetToContinue;
+   HgfsDirectoryReadMaskV4 mask; /* Returned mask that may be a subset of requested mask. */
+   HgfsDirectoryEntryV4 entries[1];
+}
+#include "vmware_pack_end.h"
+HgfsReplyReadDirectoryV4;
+
+/*
+ * File handle returned by HgfsRequestOpenV4 or later. Descriptors returned by
+ * HgfsHandle fid; earlier versions of HgfsRequestOpen are not supported.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestEnumerateStreamsV4 {
+   uint32 restartIndex;
+}
+#include "vmware_pack_end.h"
+HgfsRequestEnumerateStreamsV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestStreamEntryV4 {
+   uint32 nextEntryOffset;
+   uint32 fileIndex;
+   HgfsFileName fileName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestStreamEntryV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestGetAttrV4 {
+   uint32 mask;
+   uint32 flags;
+   HgfsFileNameV3 name;
+}
+#include "vmware_pack_end.h"
+HgfsRequestGetAttrV4;
+
+/*
+ * V4 reports different file size for symlinks then V3 or V2.
+ * It does not return file name length as EOF - it reports actual EOF.
+ * On POSIX the value is always 0 and on Windows it is an actual EOF of
+ * a file with a reparse point.
+ * Each client must adjust the value for file size according to guest OS rules.
+ *
+ * Mask in HgfsAttr2V2 should be extended to include short name, symlink target and ACL.
+ * If the host does not support a requested feature it is free to clear the
+ * correspondent bit in the mask and ignore the feature.
+ *
+ * Multi-platform notice: symbolic link is represented by a file with REPARSE_POINT
+ * on Windows. Thus Windows supports swtiching a file type between
+ * regular or directory => symlink and back.
+ * Setting symlinkTarget attribute on Windows host results in assigning
+ * reparse point to the host file.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsAttrV4 {
+   HgfsAttrV2 attr;
+   uint32 numberOfLinks;
+   HgfsFileName shortName;
+   HgfsFileName symlinkTarget;
+   uint32 aclLength;
+   char acl[1];
+}
+#include "vmware_pack_end.h"
+HgfsAttrV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyGetAttrV4 {
+   HgfsAttrV4 attr;
+}
+#include "vmware_pack_end.h"
+HgfsReplyGetAttrV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySetAttrV4 {
+   uint32 mask;                      /* Defines which attributes were set. */
+}
+#include "vmware_pack_end.h"
+HgfsReplySetAttrV4;
+
+/*
+ * Unlike V3 deletion this command can be used to delete both files and directories.
+ * Its semantics depends on whether fid or file path is specified in the fileName.
+ * When path is used it implements/emulates POSIX semantics - name is deleted from
+ * the directory however if the file is opened it is still accessible. When fid is used
+ * the file name disappears from the folder only when the last handle for the file is
+ * closed - Windows style deletion.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestDeleteFileV4 {
+   HgfsFileNameV3 fileName;
+}
+#include "vmware_pack_end.h"
+HgfsRequestDeleteFileV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyDeleteFileV4 {
+   uint64 reserved;
+}
+#include "vmware_pack_end.h"
+HgfsReplyDeleteFileV4;
 
 #endif /* _HGFS_PROTO_H_ */

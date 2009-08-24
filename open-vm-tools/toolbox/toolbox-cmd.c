@@ -328,7 +328,6 @@ StatHelp(const char *progName) // IN: The name of the program obtained from argv
           "Usage: %s stat <subcommand>\n\n"
           "Subcommands\n"
           "   hosttime: print the host time\n"
-          "   memory: print the virtual machine memory in MBs\n"
           "   speed: print the CPU speed in MHz\n"
           "ESX guests only subcommands\n"
           "   sessionid: print the current session id\n"
@@ -487,9 +486,7 @@ static int
 StatCommand(char **argv, // IN: Command line arguments
             int argc)    // IN: Length of command line arguments
 {
-   if (toolbox_strcmp(argv[optind], "memory") == 0) {
-      return Stat_MemorySize();
-   } else if (toolbox_strcmp(argv[optind], "hosttime") == 0) {
+   if (toolbox_strcmp(argv[optind], "hosttime") == 0) {
       return Stat_HostTime();
    } else if (toolbox_strcmp(argv[optind], "sessionid") == 0) {
       return Stat_GetSessionID();
@@ -732,7 +729,14 @@ main(int argc,    // IN: length of command line arguments
          ToolboxUnknownEntityError(argv[0], "command", argv[optind]);
          retval = EX_USAGE;
       } else if (cmd->requireRoot && !System_IsUserAdmin()) {
-         fprintf(stderr, "%s: You must be root to perform %s operations",
+         fprintf(stderr,
+#ifdef _WIN32
+                 "%s: Administrator permissions are needed to perform %s "
+                 "operations. Use an administrator command prompt to "
+                 "complete these tasks.",
+#else
+                 "%s: You must be root to perform %s operations",
+#endif
                  argv[0], cmd->command);
          retval = EX_NOPERM;
       } else if (cmd->requireArguments && ++optind >= argc) {

@@ -1098,8 +1098,7 @@ HgfsLookup(struct inode *dir,      // IN: Inode of parent directory
 
    /* Do a getattr on the file to see if it exists on the server. */
    inode = NULL;
-   attr.fileName = NULL;
-   error = HgfsPrivateGetattr(dentry, &attr);
+   error = HgfsPrivateGetattr(dentry, &attr, NULL);
    if (!error) {
       /* File exists on the server. */
 
@@ -1108,7 +1107,6 @@ HgfsLookup(struct inode *dir,      // IN: Inode of parent directory
        * the server.
        */
       inode = HgfsIget(dir->i_sb, 0, &attr);
-      kfree(attr.fileName);
       if (!inode) {
          error = -ENOMEM;
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsLookup: out of memory getting "
@@ -1765,7 +1763,7 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
    if (!dentry) {
       return 0;
    }
-   ret = HgfsPrivateGetattr(dentry, &attr);
+   ret = HgfsPrivateGetattr(dentry, &attr, NULL);
    if (ret == 0) {
       uint32 effectivePermissions;
 
@@ -2094,8 +2092,7 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
        * be current with our view of the file.
        */
       compat_filemap_write_and_wait(dentry->d_inode->i_mapping);
-      attr.fileName = NULL;
-      error = HgfsPrivateGetattr(dentry, &attr);
+      error = HgfsPrivateGetattr(dentry, &attr, NULL);
       if (!error) {
          /*
           * If server provides file ID, we need to check whether it has changed
@@ -2117,7 +2114,6 @@ HgfsRevalidate(struct dentry *dentry)  // IN: Dentry to revalidate
          /* Update inode's attributes and reset the age. */
          HgfsChangeFileAttributes(dentry->d_inode, &attr);
          HgfsDentryAgeReset(dentry);
-         kfree(attr.fileName);
       }
    } else {
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRevalidate: using cached dentry "

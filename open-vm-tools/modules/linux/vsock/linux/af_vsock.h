@@ -93,6 +93,8 @@ typedef struct VSockVmciSock {
    Bool rejected;
    compat_delayed_work dwork;
    uint32 peerShutdown;
+   Bool sentRequest;
+   Bool ignoreConnectingRst;
 } VSockVmciSock;
 
 int VSockVmciSendControlPktBH(struct sockaddr_vm *src,
@@ -107,7 +109,9 @@ int VSockVmciReplyControlPktFast(VSockPacket *pkt, VSockPacketType type,
                                  VSockWaitingInfo *wait, VMCIHandle handle);
 int VSockVmciSendControlPkt(struct sock *sk, VSockPacketType type,
                             uint64 size, uint64 mode,
-                            VSockWaitingInfo *wait, VMCIHandle handle);
+                            VSockWaitingInfo *wait,
+                            VSockProtoVersion version,
+                            VMCIHandle handle);
 
 int64 VSockVmciStreamHasData(VSockVmciSock *vsk);
 int64 VSockVmciStreamHasSpace(VSockVmciSock *vsk);
@@ -130,34 +134,50 @@ int64 VSockVmciStreamHasSpace(VSockVmciSock *vsk);
    ((_pkt)->type == VSOCK_PACKET_TYPE_RST) ?                            \
       0 :                                                               \
       VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_RST,               \
-                              0, 0, NULL, VMCI_INVALID_HANDLE)
+                              0, 0, NULL, VSOCK_PROTO_INVALID,          \
+                              VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_NEGOTIATE(_sk, _size)                                \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_NEGOTIATE,            \
-                           _size, 0, NULL, VMCI_INVALID_HANDLE)
+                           _size, 0, NULL, VSOCK_PROTO_INVALID,         \
+                           VMCI_INVALID_HANDLE)
+#define VSOCK_SEND_NEGOTIATE2(_sk, _size, signalProto)                  \
+   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_NEGOTIATE2,           \
+                           _size, 0, NULL, signalProto,                 \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_QP_OFFER(_sk, _handle)                               \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_OFFER,                \
-                           0, 0, NULL, _handle)
+                           0, 0, NULL, VSOCK_PROTO_INVALID, _handle)
 #define VSOCK_SEND_CONN_REQUEST(_sk, _size)                             \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_REQUEST,              \
-                           _size, 0, NULL, VMCI_INVALID_HANDLE)
+                           _size, 0, NULL, VSOCK_PROTO_INVALID,         \
+                           VMCI_INVALID_HANDLE)
+#define VSOCK_SEND_CONN_REQUEST2(_sk, _size, signalProto)               \
+   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_REQUEST2,             \
+                           _size, 0, NULL, signalProto,                 \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_ATTACH(_sk, _handle)                                 \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_ATTACH,               \
-                           0, 0, NULL, _handle)
+                           0, 0, NULL, VSOCK_PROTO_INVALID, _handle)
 #define VSOCK_SEND_WROTE(_sk)                                           \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WROTE,                \
-                           0, 0, NULL, VMCI_INVALID_HANDLE)
+                           0, 0, NULL, VSOCK_PROTO_INVALID,             \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_READ(_sk)                                            \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_READ,                 \
-                           0, 0, NULL, VMCI_INVALID_HANDLE)
+                           0, 0, NULL, VSOCK_PROTO_INVALID,             \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_SHUTDOWN(_sk, _mode)                                 \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_SHUTDOWN,             \
-                           0, _mode, NULL, VMCI_INVALID_HANDLE)
+                           0, _mode, NULL, VSOCK_PROTO_INVALID,         \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_WAITING_WRITE(_sk, _waitInfo)                        \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_WRITE,        \
-                           0, 0, _waitInfo, VMCI_INVALID_HANDLE)
+                           0, 0, _waitInfo, VSOCK_PROTO_INVALID,        \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_WAITING_READ(_sk, _waitInfo)                         \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_READ,         \
-                           0, 0, _waitInfo, VMCI_INVALID_HANDLE)
+                           0, 0, _waitInfo, VSOCK_PROTO_INVALID,        \
+                           VMCI_INVALID_HANDLE)
 #define VSOCK_REPLY_RESET(_pkt)                                         \
    VSockVmciReplyControlPktFast(_pkt, VSOCK_PACKET_TYPE_RST,            \
                                 0, 0, NULL, VMCI_INVALID_HANDLE)

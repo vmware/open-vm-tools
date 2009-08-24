@@ -25,8 +25,9 @@
 
 #include "driver-config.h"
 #include <linux/module.h>
-#include "compat_fs.h"
-#include "compat_sched.h"
+#include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/pagemap.h>
 
 #include "vmblockInt.h"
 #include "filesystem.h"

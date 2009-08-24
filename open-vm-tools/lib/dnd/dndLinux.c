@@ -40,7 +40,7 @@
 #include "escape.h"
 #include "su.h"
 #if defined(linux) || defined(sun) || defined(__FreeBSD__)
-#include "vmblock.h"
+#include "vmblock_user.h"
 #include "mntinfo.h"
 #endif
 
@@ -261,43 +261,6 @@ DnD_UriListGetNextFile(char const *uriList,  // IN    : text/uri-list string
 /* We need to make this suck less. */
 #if defined(linux) || defined(sun) || defined(__FreeBSD__)
 
-#if defined(linux)
-
-static INLINE int
-VMBLOCK_CONTROL(int fd, int op, const char *path)
-{
-   return write(fd, path, op);
-}
-
-#elif defined(__FreeBSD__)
-
-static INLINE int
-VMBLOCK_CONTROL(int fd, int cmd, const char *path)
-{
-   char tpath[MAXPATHLEN];
-
-   if (path != NULL) {
-      /*
-       * FreeBSD's ioctl data parameters must be of fixed size.  Guarantee a safe
-       * buffer of size MAXPATHLEN by copying the user's string to one of our own.
-       */
-      strlcpy(tpath, path, MAXPATHLEN);
-   }
-
-   return ioctl(fd, cmd, tpath);
-}
-
-#elif defined(sun)
-
-static INLINE int
-VMBLOCK_CONTROL(int fd, int cmd, const char *path)
-{
-   return ioctl(fd, cmd, path);
-}
-
-#endif
-
-
 /*
  *----------------------------------------------------------------------------
  *
@@ -391,66 +354,6 @@ DnD_CheckBlockLegacy(int blockFd)                    // IN
 
 
 /*
- * DnD_VmblockFuseControl --
- *
- *    Controlling function for FUSE-based blocker implementation.
- *    Passes requests to block and unblock file access to fuse module.
- *
- * Results:
- *    0 on success, -1 on failure.
- *
- * Notes:
- *    None.
- *
- */
-
-static ssize_t
-DnD_VmblockFuseControl(int fd,            // IN
-                       char op,           // IN
-                       const char *path)  // IN
-{
-   /*
-    * buffer needs room for an operation character and a string with max length
-    * PATH_MAX - 1.
-    */
-
-   char buffer[PATH_MAX];
-   size_t pathLength;
-
-   pathLength = strlen(path);
-   if (pathLength >= PATH_MAX) {
-      errno = ENAMETOOLONG;
-      return -1;
-   }
-
-   buffer[0] = op;
-   memcpy(buffer + 1, path, pathLength);
-
-   /*
-    * The lseek is only to prevent the file pointer from overflowing;
-    * vmblock-fuse ignores the file pointer / offset. Overflowing the file
-    * pointer causes write to fail:
-    * http://article.gmane.org/gmane.comp.file-systems.fuse.devel/6648
-    * There's also a race condition here where many threads all calling
-    * VMBLOCK_CONTROL at the same time could have all their seeks executed one
-    * after the other, followed by all the writes. Again, it's not a problem
-    * unless the file pointer overflows which is very unlikely with 32 bit
-    * offsets and practically impossible with 64 bit offsets.
-    */
-
-   if (lseek(fd, 0, SEEK_SET) < 0) {
-      return -1;
-   }
-
-   if (write(fd, buffer, pathLength + 1) < 0) {
-      return -1;
-   }
-
-   return 0;
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * DnD_AddBlockFuse --
@@ -473,8 +376,8 @@ DnD_AddBlockFuse(int blockFd,                    // IN
 {
    ASSERT(blockFd >= 0);
 
-   if (DnD_VmblockFuseControl(blockFd, VMBLOCK_FUSE_ADD_FILEBLOCK,
-                              blockPath) != 0) {
+   if (VMBLOCK_CONTROL_FUSE(blockFd, VMBLOCK_FUSE_ADD_FILEBLOCK,
+                            blockPath) != 0) {
       LOG(1, ("%s: Cannot add block on %s (%s)\n",
               __func__, blockPath, strerror(errno)));
       return FALSE;
@@ -505,8 +408,8 @@ DnD_RemoveBlockFuse(int blockFd,                    // IN
                     const char *blockedPath)        // IN
 {
    if (blockFd >= 0) {
-      if (DnD_VmblockFuseControl(blockFd, VMBLOCK_FUSE_DEL_FILEBLOCK,
-                                 blockedPath) != 0) {
+      if (VMBLOCK_CONTROL_FUSE(blockFd, VMBLOCK_FUSE_DEL_FILEBLOCK,
+                               blockedPath) != 0) {
          Log("%s: Cannot delete block on %s (%s)\n",
              __func__, blockedPath, strerror(errno));
          return FALSE;

@@ -24,44 +24,29 @@
  */
 
 #include "driver-config.h"
-#include "compat_fs.h"
-#include "compat_statfs.h"
+#include <linux/fs.h>
+#include <linux/statfs.h>
 
 #include "vmblockInt.h"
 #include "filesystem.h"
 
 /* Super block operations */
-#ifdef VMW_EMBED_INODE
 static struct inode *SuperOpAllocInode(struct super_block *sb);
 static void SuperOpDestroyInode(struct inode *inode);
-#else
-static void SuperOpClearInode(struct inode *inode);
-#endif
-#ifndef VMW_USE_IGET_LOCKED
-static void SuperOpReadInode(struct inode *inode);
-#endif
 #ifdef VMW_STATFS_2618
-static int SuperOpStatfs(struct dentry *dentry, struct compat_kstatfs *stat);
+static int SuperOpStatfs(struct dentry *dentry, struct kstatfs *stat);
 #else
-static int SuperOpStatfs(struct super_block *sb, struct compat_kstatfs *stat);
+static int SuperOpStatfs(struct super_block *sb, struct kstatfs *stat);
 #endif
 
 
 struct super_operations VMBlockSuperOps = {
-#ifdef VMW_EMBED_INODE
    .alloc_inode   = SuperOpAllocInode,
    .destroy_inode = SuperOpDestroyInode,
-#else
-   .clear_inode   = SuperOpClearInode,
-#endif
-#ifndef VMW_USE_IGET_LOCKED
-   .read_inode    = SuperOpReadInode,
-#endif
    .statfs        = SuperOpStatfs,
 };
 
 
-#ifdef VMW_EMBED_INODE
 /*
  *----------------------------------------------------------------------------
  *
@@ -93,7 +78,6 @@ SuperOpAllocInode(struct super_block *sb) // IN: superblock of file system
    /* The inode we give back to VFS is embedded within our inode info struct. */
    return &iinfo->inode;
 }
-#endif
 
 
 /*
@@ -116,42 +100,11 @@ SuperOpAllocInode(struct super_block *sb) // IN: superblock of file system
  */
 
 static void
-#ifdef VMW_EMBED_INODE
 SuperOpDestroyInode(struct inode *inode)  // IN: Inode to free
-#else
-SuperOpClearInode(struct inode *inode)    // IN: Inode to free
-#endif
 {
    kmem_cache_free(VMBlockInodeCache, INODE_TO_IINFO(inode));
 }
 
-
-#ifndef VMW_USE_IGET_LOCKED
-/*
- *----------------------------------------------------------------------------
- *
- * SuperOpReadInode --
- *
- *    Performs any filesystem wide inode initialization. This is only called by
- *    iget() in older kernels that do not support iget_locked(). Newer kernels
- *    that use the iget_locked() interface are required to initialize the inode
- *    after it has been returned to the filesystem.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-SuperOpReadInode(struct inode *inode)  // IN: Inode to initialize
-{
-   VMBlockReadInode(inode);
-}
-#endif
 
 /*
  *----------------------------------------------------------------------------
@@ -172,11 +125,11 @@ SuperOpReadInode(struct inode *inode)  // IN: Inode to initialize
 #ifdef VMW_STATFS_2618
 static int
 SuperOpStatfs(struct dentry *dentry,
-              struct compat_kstatfs *stat)
+              struct kstatfs *stat)
 #else
 static int
 SuperOpStatfs(struct super_block *sb,
-              struct compat_kstatfs *stat)
+              struct kstatfs *stat)
 #endif
 {
    if (!stat) {

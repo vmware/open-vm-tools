@@ -112,7 +112,6 @@ int Shrink_DoShrink(char*, int);
  * Stat commands
  */
 
-int Stat_MemorySize(void);
 int Stat_HostTime(void);
 int Stat_ProcessorSpeed(void);
 int Stat_GetSessionID(void);

@@ -24,12 +24,10 @@
  */
 
 #include "driver-config.h"
-#include "compat_init.h"
-#include "compat_kernel.h"
-#include "compat_module.h"
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/limits.h>
 #include <linux/errno.h>
-#include "compat_string.h"
 
 #include "vmblockInt.h"
 #include "vmblock_version.h"
@@ -37,21 +35,13 @@
 /* Module parameters */
 #ifdef VMX86_DEVEL /* { */
 int LOGLEVEL_THRESHOLD = 4;
-#  if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
-   module_param(LOGLEVEL_THRESHOLD, int, 0600);
-#  else
-   MODULE_PARM(LOGLEVEL_THRESHOLD, "i");
-#  endif
+module_param(LOGLEVEL_THRESHOLD, int, 0600);
 MODULE_PARM_DESC(LOGLEVEL_THRESHOLD, "Logging level (0 means no log, "
                  "10 means very verbose, 4 is default)");
 #endif /* } */
 
 static char *root = "/tmp/VMwareDnD";
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 module_param(root, charp, 0600);
-#else
-MODULE_PARM(root, "s");
-#endif
 MODULE_PARM_DESC(root, "The directory the file system redirects to.");
 
 /* Module information */
@@ -66,15 +56,6 @@ MODULE_VERSION(VMBLOCK_DRIVER_VERSION_STRING);
  * by default (i.e., neither mkinitrd nor modprobe will accept it).
  */
 MODULE_INFO(supported, "external");
-
-/* Functions */
-static int VMBlockInit(void);
-static void VMBlockExit(void);
-
-/* Define init/exit routines */
-module_init(VMBlockInit);
-module_exit(VMBlockExit);
-
 
 /*
  *----------------------------------------------------------------------------
@@ -117,6 +98,8 @@ error:
    return ret;
 }
 
+module_init(VMBlockInit);
+
 
 /*
  *----------------------------------------------------------------------------
@@ -144,39 +127,4 @@ VMBlockExit(void)
    LOG(4, "module unloaded\n");
 }
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 70)
-/*
- *----------------------------------------------------------------------------
- *
- * strlcpy --
- *
- *    2.4 doesn't have strlcpy().
- *
- *    Copies at most count - 1 bytes from src to dest, and ensures dest is NUL
- *    terminated.
- *
- * Results:
- *    Length of src.  If src >= count, src was truncated in copy.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-size_t
-strlcpy(char *dest,         // OUT: destination to copy string to
-        const char *src,    // IN : source to copy string from
-        size_t count)       // IN : size of destination buffer
-{
-   size_t ret;
-   size_t len;
-
-   ret = strlen(src);
-   len = ret >= count ? count - 1 : ret;
-   memcpy(dest, src, len);
-   dest[len] = '\0';
-   return ret;
-}
-#endif
+module_exit(VMBlockExit);

@@ -38,7 +38,7 @@
  * AppUtil_SendGuestCaps --
  *
  *     Send a list of guest capabilities to the host.
- *
+ * 
  * Results:
  *     None.
  *

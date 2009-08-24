@@ -430,6 +430,11 @@ static const VixCommandInfo vixCommandInfoTable[] = {
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_REMOVE_BULK_SNAPSHOT,
                            VIX_COMMAND_CATEGORY_PRIVILEGED),
 
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_COPY_FILE_FROM_READER_TO_GUEST,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GENERATE_NONCE,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
 };
 
 
@@ -757,6 +762,15 @@ VixMsg_ValidateRequestMsg(const void *vMsg, // IN
    }
 
    if (!(VIX_COMMAND_REQUEST & message->commonHeader.commonFlags)) {
+      return VIX_E_INVALID_MESSAGE_HEADER;
+   }
+
+   if ((VIX_REQUESTMSG_INCLUDES_AUTH_DATA_V1 & message->requestFlags) &&
+       (message->commonHeader.totalMessageLength <
+          (uint64)message->commonHeader.headerLength +
+          message->commonHeader.bodyLength +
+          message->commonHeader.credentialLength +
+          sizeof (VixMsgAuthDataV1))) {
       return VIX_E_INVALID_MESSAGE_HEADER;
    }
 

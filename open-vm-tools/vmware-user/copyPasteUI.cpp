@@ -582,11 +582,12 @@ CopyPasteUI::LocalPrimTimestampCB(const Gtk::SelectionData& sd)  // IN
    }
 
    Glib::RefPtr<Gtk::Clipboard> refClipboard;
+   bool flipped = false;
 again:
+   bool validDataInClip = false;
    refClipboard = Gtk::Clipboard::get(mGHSelection);
 
-   Debug("%s: trying %s selection, trying again\n",
-          __FUNCTION__,
+   Debug("%s: trying %s selection.\n", __FUNCTION__,
           mGHSelection == GDK_SELECTION_PRIMARY ? "Primary" : "Clip");
 
    CPClipboard_Clear(&mClipboard);
@@ -656,9 +657,8 @@ again:
           bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
           CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF,
                               (const void *)sdata.get_data(), bufSize + 1)) {
-         mCP.SetRemoteClipboard(&mClipboard);
+         validDataInClip = true;
          Debug("%s: Got RTF\n", __FUNCTION__);
-         return;
       } else {
          Debug("%s: Failed to get RTF size %d max %d\n",
                __FUNCTION__, (int) bufSize, (int)CPCLIPITEM_MAX_SIZE_V3);
@@ -674,25 +674,29 @@ again:
           bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
           CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT,
                               (const void *)str.data(), bufSize + 1)) {
-         mCP.SetRemoteClipboard(&mClipboard);
+         validDataInClip = true;
          Debug("%s: Got TEXT: %"FMTSZ"u\n", __FUNCTION__, bufSize);
-         return;
-      } else if (mClipTime == mPrimTime && mClipTime) {
-         /*
-          * With 'cut' operation OpenOffice will put data into clipboard but
-          * set the same timestamp for both clipboard and primary selection.
-          * If primary timestamp is same as clipboard timestamp, we should try
-          * clipboard again if primary selection is empty. For details, please
-          * refer to bug 300780.
-          */
-         mClipTime = 0;
-         mPrimTime = 0;
-         mGHSelection = GDK_SELECTION_CLIPBOARD;
-         Debug("%s: trying again with clip\n", __FUNCTION__);
-         goto again;
       } else {
          Debug("%s: Failed to get TEXT\n", __FUNCTION__);
       }
+   }
+
+   if (validDataInClip) {
+      /*
+       * RTF or text data (or both) in the clipboard.
+       */
+      mCP.SetRemoteClipboard(&mClipboard);
+   } else if (!flipped) {
+      /*
+       * If we get here, we got nothing (no image, URI, text) so
+       * try the other selection.
+       */
+      Debug("%s: got nothing for this selection, try the other.\n",
+            __FUNCTION__);
+      mGHSelection = mGHSelection == GDK_SELECTION_PRIMARY ?
+                     GDK_SELECTION_CLIPBOARD : GDK_SELECTION_PRIMARY;
+      flipped = true;
+      goto again;
    }
 }
 

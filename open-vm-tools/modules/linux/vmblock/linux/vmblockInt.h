@@ -33,8 +33,8 @@
 #ifndef __VMBLOCKINT_H__
 #define __VMBLOCKINT_H__
 
-#include "compat_version.h"
-#include "compat_mm.h"
+#include <linux/version.h>
+#include <linux/mm.h>
 
 #include "vmblock.h"
 #include "vm_basic_types.h"
@@ -73,9 +73,7 @@ extern int LOGLEVEL_THRESHOLD;
  *
  * XXX This should go in driver-config.h, but vmmon's hostKernel.h is retarded.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 29)
 static const void *forceProcessorCheck __attribute__((unused)) = __alloc_pages;
-#endif
 
 
 /*
@@ -86,9 +84,5 @@ int VMBlockInitControlOps(void);
 int VMBlockCleanupControlOps(void);
 int VMBlockInitFileSystem(char const *root);
 int VMBlockCleanupFileSystem(void);
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 70)
-size_t strlcpy(char *dest, const char *src, size_t count);
-#endif
 
 #endif /* __VMBLOCK_H__ */

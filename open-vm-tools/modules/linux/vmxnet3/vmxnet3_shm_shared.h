@@ -52,8 +52,8 @@
 #define SHM_CTL_SIZE 1
 
 // ring size (in entries) is limited by the single control page - 4 bytes per re
-#define SHM_RX_RING_SIZE 507
-#define SHM_TX_RING_SIZE 507
+#define SHM_RX_RING_SIZE 500
+#define SHM_TX_RING_SIZE 500
 
 // maximum fragments per packet is 16 (64k) + 2 for metadata
 #define VMXNET3_SHM_MAX_FRAGS 18
@@ -86,6 +86,8 @@ struct vmxnet3_shm_ctl
       uint64_t user_rx, user_tx;
       uint64_t kernel_rx, kernel_tx;
    } stats;
+
+   uint64_t channelBad;
 };
 
 #endif

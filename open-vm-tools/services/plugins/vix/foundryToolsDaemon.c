@@ -88,10 +88,6 @@
 #include "hgfsDevLinux.h"
 #endif
 
-#ifndef __FreeBSD__
-#include "netutil.h"
-#endif
-
 /* Only Win32 and Linux use impersonation functions. */
 #if !defined(__FreeBSD__) && !defined(sun)
 #include "impersonate.h"

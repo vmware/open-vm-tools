@@ -56,6 +56,8 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 
+#include "compat_freebsd.h"
+
 #include "vmblock_k.h"
 #include "block.h"
 
@@ -181,11 +183,9 @@ static struct vnode *
 VMBlockHashGet(struct mount *mp,        // IN: vmblock file system information
                struct vnode *lowervp)   // IN: lower vnode to search for
 {
-   struct thread *td = curthread;   /* XXX */
    struct nodeHashHead *hd;
    struct VMBlockNode *a;
    struct vnode *vp;
-   int error;
 
    ASSERT_VOP_LOCKED(lowervp, "hashEntryget");
 
@@ -199,23 +199,14 @@ VMBlockHashGet(struct mount *mp,        // IN: vmblock file system information
    mtx_lock(&hashMutex);
    LIST_FOREACH(a, hd, hashEntry) {
       if (a->lowerVnode == lowervp && VMBTOVP(a)->v_mount == mp) {
-         vp = VMBTOVP(a);
-         VI_LOCK(vp);
-         mtx_unlock(&hashMutex);
-         /*
-          * We need to clear the OWEINACT flag here as this may lead vget()
-          * to try to lock our vnode which is already locked via lowervp.
-          */
-         vp->v_iflag &= ~VI_OWEINACT;
-         error = vget(vp, LK_INTERLOCK, td);
          /*
           * Since we have the lower node locked the nullfs node can not be
           * in the process of recycling.  If it had been recycled before we
           * grabed the lower lock it would not have been found on the hash.
           */
-         if (error) {
-            panic("hashEntryget: vget error %d", error);
-         }
+         vp = VMBTOVP(a);
+         vref(vp);
+         mtx_unlock(&hashMutex);
          return vp;
       }
    }
@@ -246,11 +237,9 @@ static struct vnode *
 VMBlockHashInsert(struct mount *mp,             // IN: VMBlock file system info
                   struct VMBlockNode *xp)       // IN: node to insert into hash
 {
-   struct thread *td = curthread;   /* XXX */
    struct nodeHashHead *hd;
    struct VMBlockNode *oxp;
    struct vnode *ovp;
-   int error;
 
    hd = VMBLOCK_NHASH(xp->lowerVnode);
    mtx_lock(&hashMutex);
@@ -261,13 +250,8 @@ VMBlockHashInsert(struct mount *mp,             // IN: VMBlock file system info
           * operation.
           */
          ovp = VMBTOVP(oxp);
-         VI_LOCK(ovp);
+         vref(ovp);
          mtx_unlock(&hashMutex);
-         ovp->v_iflag &= ~VI_OWEINACT;
-         error = vget(ovp, LK_INTERLOCK, td);
-         if (error) {
-            panic("hashEntryins: vget error %d", error);
-         }
          return ovp;
       }
    }
@@ -326,9 +310,9 @@ VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
 {
    vp->v_data = NULL;
    vp->v_vnlock = &vp->v_lock;
-   FREE(xp, M_VMBLOCKFSNODE);
+   free(xp, M_VMBLOCKFSNODE);
    vp->v_op = &dead_vnodeops;
-   (void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+   (void) compat_vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
    vgone(vp);
    vput(vp);
 }
@@ -617,13 +601,6 @@ VMBlockDestroyBlockName(char *blockName)        // IN: name to free
 
 #ifdef DIAGNOSTIC                               /* if (DIAGNOSTIC) { */
 
-#ifdef KDB                                      /* if (KDB) { */
-# define        VMBlockCheckVp_barrier	1
-#else
-# define        VMBlockCheckVp_barrier	0
-#endif                                          /* }    */
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -659,7 +636,6 @@ VMBlockCheckVp(vp, fil, lno)
     */
    if (vp->v_op != null_vnodeop_p) {
       printf ("VMBlockCheckVp: on non-null-node\n");
-      while (VMBlockCheckVp_barrier) /*WAIT*/ ;
       panic("VMBlockCheckVp");
    };
 #endif
@@ -671,8 +647,6 @@ VMBlockCheckVp(vp, fil, lno)
          printf(" %lx", p[i]);
       }
       printf("\n");
-      /* wait for debugger */
-      while (VMBlockCheckVp_barrier) /*WAIT*/ ;
       panic("VMBlockCheckVp");
    }
    if (vrefcnt(a->lowerVnode) < 1) {
@@ -682,8 +656,6 @@ VMBlockCheckVp(vp, fil, lno)
          printf(" %lx", p[i]);
       }
       printf("\n");
-      /* wait for debugger */
-      while (VMBlockCheckVp_barrier) /*WAIT*/ ;
       panic ("null with unref'ed lowervp");
    };
 #ifdef notyet

@@ -290,10 +290,16 @@ static int vmxnet3_shm_chardev_release(struct inode * inode,
 static unsigned int vmxnet3_shm_chardev_poll(struct file *filp,
                                              poll_table *wait);
 
-static int vmxnet3_shm_chardev_ioctl(struct inode *inode,
-                                     struct file *filp,
-                                     unsigned int cmd,
-                                     unsigned long arg);
+static long vmxnet3_shm_chardev_ioctl(struct file *filp,
+                                      unsigned int cmd,
+                                      unsigned long arg);
+
+#ifndef HAVE_UNLOCKED_IOCTL
+static int vmxnet3_shm_chardev_old_ioctl(struct inode *inode,
+                                         struct file *filp,
+                                         unsigned int cmd,
+                                         unsigned long arg);
+#endif
 
 static struct file_operations shm_fops = {
    .owner = THIS_MODULE,
@@ -301,7 +307,14 @@ static struct file_operations shm_fops = {
    .open = vmxnet3_shm_chardev_open,
    .release = vmxnet3_shm_chardev_release,
    .poll = vmxnet3_shm_chardev_poll,
-   .ioctl = vmxnet3_shm_chardev_ioctl,
+#ifdef HAVE_UNLOCKED_IOCTL
+   .unlocked_ioctl = vmxnet3_shm_chardev_ioctl,
+#ifdef CONFIG_COMPAT
+   .compat_ioctl = vmxnet3_shm_chardev_ioctl,
+#endif
+#else
+   .ioctl = vmxnet3_shm_chardev_old_ioctl,
+#endif
 };
 
 static LIST_HEAD(vmxnet3_shm_list);
@@ -321,6 +334,88 @@ static spinlock_t vmxnet3_shm_list_lock = SPIN_LOCK_UNLOCKED;
    }
 #endif
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet3_shm_init_allocator --
+ *
+ * Zero all shared memory data pages and fill the allocator with them.
+ *
+ * Result:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+vmxnet3_shm_init_allocator(struct vmxnet3_shm_pool *shm)
+{
+   int i;
+
+   shm->allocator.count = 0;
+   for (i = 1; i < shm->data.num_pages; i++) {
+      struct page *page = VMXNET3_SHM_IDX2PAGE(shm, i);
+      void *virt = kmap(page);
+      memset(virt, 0, PAGE_SIZE);
+      kunmap(page);
+
+      shm->allocator.stack[shm->allocator.count++] = i;
+
+      VMXNET3_ASSERT(i != SHM_INVALID_IDX);
+   }
+   VMXNET3_ASSERT(shm->allocator.count <= SHM_DATA_SIZE);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmxnet3_shm_pool_reset --
+ *
+ *    Clean up after userspace has closed the device
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+vmxnet3_shm_pool_reset(struct vmxnet3_shm_pool *shm)
+{
+   int err = 0;
+   printk(KERN_INFO "resetting shm pool\n");
+
+   /*
+    * Reset_work may be in the middle of resetting the device, wait for its
+    * completion.
+    */
+   while (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &shm->adapter->state)) {
+      compat_msleep(1);
+   }
+
+   if (compat_netif_running(shm->adapter->netdev)) {
+      vmxnet3_quiesce_dev(shm->adapter);
+   }
+
+   vmxnet3_shm_init_allocator(shm);
+
+   if (compat_netif_running(shm->adapter->netdev)) {
+      err = vmxnet3_activate_dev(shm->adapter);
+   }
+
+   memset(shm->ctl.ptr, 0, PAGE_SIZE);
+
+   clear_bit(VMXNET3_STATE_BIT_RESETTING, &shm->adapter->state);
+
+   if (err) {
+      vmxnet3_force_close(shm->adapter);
+   }
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -367,29 +462,15 @@ vmxnet3_shm_pool_create(struct vmxnet3_adapter *adapter,
    // Allocate data pages
    shm->data.num_pages = SHM_DATA_SIZE;
    for (i = 1; i < shm->data.num_pages; i++) {
-#ifdef __GFP_ZERO
-      struct page *page = alloc_page(GFP_KERNEL|__GFP_ZERO);
-#else
       struct page *page = alloc_page(GFP_KERNEL);
-#endif
       if (page == NULL) {
          goto fail_data;
       }
 
-#ifndef __GFP_ZERO
-      {
-         void *virt = kmap(page);
-         memset(virt, 0, PAGE_SIZE);
-         kunmap(virt);
-      }
-#endif
-
       VMXNET3_SHM_SET_IDX2PAGE(shm, i, page);
-      shm->allocator.stack[shm->allocator.count++] = i;
 
       VMXNET3_ASSERT(i != SHM_INVALID_IDX);
    }
-   VMXNET3_ASSERT(shm->allocator.count <= SHM_DATA_SIZE);
 
    // Allocate control page
    ctl_page = alloc_page(GFP_KERNEL);
@@ -397,9 +478,12 @@ vmxnet3_shm_pool_create(struct vmxnet3_adapter *adapter,
       goto fail_ctl;
    }
    ctl_ptr = (void*)kmap(ctl_page);
-   memset(ctl_ptr, 0, PAGE_SIZE);
    shm->ctl.pages[0] = ctl_page;
    shm->ctl.ptr = ctl_ptr;
+
+   // Reset data and control pages
+   vmxnet3_shm_init_allocator(shm);
+   memset(shm->ctl.ptr, 0, PAGE_SIZE);
 
    // Register char device
    shm->misc_dev.minor = MISC_DYNAMIC_MINOR;
@@ -480,7 +564,6 @@ vmxnet3_shm_pool_release(struct kobject *kobj)
 
    // Free data pages
    for (i = 1; i < SHM_DATA_SIZE; i++) {
-      kunmap(VMXNET3_SHM_IDX2PAGE(shm,i));
       __free_page(VMXNET3_SHM_IDX2PAGE(shm, i));
    }
 
@@ -774,7 +857,13 @@ vmxnet3_shm_chardev_poll(struct file *filp,
    struct vmxnet3_shm_ringentry *re;
 
    // consume TX queue
-   vmxnet3_shm_consume_user_tx_queue(shm);
+   if (vmxnet3_shm_consume_user_tx_queue(shm) == -1) {
+      // the device has been closed, let the user space
+      // know there is activity, so that it gets a chance
+      // to read the channelBad flag.
+      mask |= POLLIN;
+      return mask;
+   }
 
    // Wait on the rxq for an interrupt to wake us
    poll_wait(filp, &shm->rxq, wait);
@@ -808,9 +897,8 @@ vmxnet3_shm_chardev_poll(struct file *filp,
  *-----------------------------------------------------------------------------
  */
 
-static int
-vmxnet3_shm_chardev_ioctl(struct inode *inode,
-                          struct file *filp,
+static long
+vmxnet3_shm_chardev_ioctl(struct file *filp,
                           unsigned int cmd,
                           unsigned long arg)
 {
@@ -827,11 +915,7 @@ vmxnet3_shm_chardev_ioctl(struct inode *inode,
 
       case SHM_IOCTL_ALLOC_ONE:
          idx = vmxnet3_shm_alloc_page(shm);
-         if (idx != SHM_INVALID_IDX) {
-            return idx;
-         } else {
-            return -ENOMEM;
-         }
+         return idx;
 
       case SHM_IOCTL_ALLOC_MANY:
          for (i = 0; i < arg; i++) {
@@ -839,10 +923,10 @@ vmxnet3_shm_chardev_ioctl(struct inode *inode,
             if (idx != SHM_INVALID_IDX) {
                if (vmxnet3_shm_user_rx(shm, idx, 0, 1, 1)) {
                   vmxnet3_shm_free_page(shm, idx);
-                  return -ENOMEM;
+                  return SHM_INVALID_IDX;
                }
             } else {
-               return -ENOMEM;
+               return SHM_INVALID_IDX;
             }
          }
          return 0;
@@ -850,7 +934,7 @@ vmxnet3_shm_chardev_ioctl(struct inode *inode,
       case SHM_IOCTL_ALLOC_ONE_AND_MANY:
          idx1 = vmxnet3_shm_alloc_page(shm);
          if (idx1 == SHM_INVALID_IDX) {
-            return -ENOMEM;
+            return SHM_INVALID_IDX;
          }
          for (i = 0; i < arg - 1; i++) {
             idx = vmxnet3_shm_alloc_page(shm);
@@ -858,11 +942,11 @@ vmxnet3_shm_chardev_ioctl(struct inode *inode,
                if (vmxnet3_shm_user_rx(shm, idx, 0, 1, 1)) {
                   vmxnet3_shm_free_page(shm, idx);
                   vmxnet3_shm_free_page(shm, idx1);
-                  return -ENOMEM;
+                  return SHM_INVALID_IDX;
                }
             } else {
                vmxnet3_shm_free_page(shm, idx1);
-               return -ENOMEM;
+               return SHM_INVALID_IDX;
             }
          }
          return idx1;
@@ -877,6 +961,15 @@ vmxnet3_shm_chardev_ioctl(struct inode *inode,
    return -ENOTTY;
 }
 
+#ifndef HAVE_UNLOCKED_IOCTL
+static int vmxnet3_shm_chardev_old_ioctl(struct inode *inode,
+                                         struct file *filp,
+                                         unsigned int cmd,
+                                         unsigned long arg)
+{
+   return vmxnet3_shm_chardev_ioctl(filp, cmd, arg);
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -974,9 +1067,15 @@ vmxnet3_shm_chardev_release(struct inode * inode,
                             struct file * filp)
 {
    struct vmxnet3_shm_pool *shm = filp->private_data;
-   kobject_put(&shm->kobj);
 
-   // XXX: I guess we should reset the control pages here
+   if (shm->adapter) {
+      vmxnet3_shm_pool_reset(shm);
+   } else {
+      vmxnet3_shm_init_allocator(shm);
+      memset(shm->ctl.ptr, 0, PAGE_SIZE);
+   }
+   
+   kobject_put(&shm->kobj);
 
    return 0;
 }
@@ -1070,6 +1169,9 @@ vmxnet3_shm_tx_pkt(struct vmxnet3_adapter *adapter,
 
    skb = dev_alloc_skb(100);
    if (skb == NULL) {
+      for (i = 0; i < frags; i++) {
+         vmxnet3_shm_free_page(adapter->shm, res[i].idx);
+      }
       VMXNET3_ASSERT(FALSE);
       return -ENOMEM;
    }
@@ -1131,8 +1233,6 @@ static int
 vmxnet3_shm_tx_re(struct vmxnet3_shm_pool *shm,
                   struct vmxnet3_shm_ringentry re)
 {
-   int i;
-
    shm->partial_tx.res[shm->partial_tx.frags++] = re;
 
    if (re.eop) {
@@ -1140,9 +1240,7 @@ vmxnet3_shm_tx_re(struct vmxnet3_shm_pool *shm,
                                      shm->partial_tx.res,
                                      shm->partial_tx.frags);
       if (status < 0) {
-         for (i = 0; i < shm->partial_tx.frags; i++) {
-            vmxnet3_shm_free_page(shm, shm->partial_tx.res[i].idx);
-         }
+         VMXNET3_LOG("vmxnet3_shm_tx_pkt failed %d\n", status);
       }
       shm->partial_tx.frags = 0;
       return 1;
@@ -1414,6 +1512,12 @@ vmxnet3_shm_close(struct vmxnet3_adapter *adapter)
    adapter->shm->adapter = NULL;
    spin_unlock_irqrestore(&adapter->shm->tx_lock, flags);
 
+   // Mark the channel as 'in bad state' 
+   adapter->shm->ctl.ptr->channelBad = 1;
+   
    kobject_put(&adapter->shm->kobj);
+   
+   wake_up(&adapter->shm->rxq);
+
    return 0;
 }

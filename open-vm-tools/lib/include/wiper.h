@@ -26,16 +26,16 @@
 #ifndef _WIPER_H_
 # define _WIPER_H_
 
-
 #if defined(_WIN32) && defined(_MSC_VER)
 #include <windows.h>
 #endif
 
-
 #include "vm_basic_types.h"
+#include "dbllnklst.h"
 
 
 typedef enum {
+   PARTITION_UNSUPPORTED = 0,
    PARTITION_EXT2,
    PARTITION_EXT3,
    PARTITION_REISERFS,
@@ -52,28 +52,25 @@ typedef enum {
 typedef struct WiperPartition {
    unsigned char mountPoint[NATIVE_MAX_PATH];
 
-   /* 
-    * Empty if type is set, otherwise describes why the partition can not be
-    * wiped
-    */
-   char *comment;
-
-   /* Type of the partition we know how to wipe */
+   /* Type of the partition */
    WiperPartition_Type type;
+
+   /*
+    * NULL if type is not PARTITION_UNSUPPORTED, otherwise describes
+    * why the partition can not be wiped.
+    */
+   const char *comment;
 
 #if defined(_WIN32)
    /* Private flags used by the Win32 implementation */
    DWORD flags;
 #endif
 
-#if defined(N_PLAT_NLM)
-   unsigned long volumeNumber;
-#endif
+   DblLnkLst_Links link;
 } WiperPartition;
 
 typedef struct WiperPartition_List {
-   WiperPartition *partitions;
-   unsigned int size;
+   DblLnkLst_Links link;
 } WiperPartition_List;
 
 typedef struct WiperInitData {
@@ -83,15 +80,16 @@ typedef struct WiperInitData {
 } WiperInitData;
 
 Bool Wiper_Init(WiperInitData *clientData);
-WiperPartition_List *WiperPartition_Open(void);
+Bool WiperPartition_Open(WiperPartition_List *pl);
 void WiperPartition_Close(WiperPartition_List *pl);
 
-WiperPartition *SingleWiperPartition_Open(const char *mntpt);
-void SingleWiperPartition_Close(WiperPartition *pl);
+WiperPartition *WiperSinglePartition_Allocate(void);
+WiperPartition *WiperSinglePartition_Open(const char *mntpt);
+void WiperSinglePartition_Close(WiperPartition *);
 
-unsigned char *WiperSinglePartition_GetSpace(const WiperPartition *p,  
-                              uint64 *free,       
-                              uint64 *total);      
+unsigned char *WiperSinglePartition_GetSpace(const WiperPartition *p,
+                              uint64 *free,
+                              uint64 *total);
 
 /* External definition of the wiper state */
 struct Wiper_State;

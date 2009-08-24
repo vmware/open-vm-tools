@@ -62,8 +62,8 @@
 #include "imageUtil.h"
 #include "strutil.h"
 #include <paths.h>
-#include <mntent.h>
 #include "vm_atomic.h"
+#include "mntinfo.h"
 #include "ghIntegration.h"
 #include "ghIntegrationInt.h"
 #include "guest_msg_def.h"

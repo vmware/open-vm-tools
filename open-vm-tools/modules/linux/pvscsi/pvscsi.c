@@ -454,11 +454,11 @@ static int __devinit pvscsi_probe(struct pci_dev *pdev,
 	if (pdev->vendor != PCI_VENDOR_ID_VMWARE)
 		goto out_disable_device;
 
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0 &&
-	    pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0 &&
+	    pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
 		printk(KERN_INFO "pvscsi: using 64bit dma\n");
-	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) == 0 &&
-		   pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK) == 0) {
+	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) == 0 &&
+		   pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) == 0) {
 		printk(KERN_INFO "pvscsi: using 32bit dma\n");
         } else {
 		printk(KERN_ERR "pvscsi: failed to set DMA mask\n");

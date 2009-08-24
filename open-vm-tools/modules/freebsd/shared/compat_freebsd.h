@@ -49,6 +49,8 @@
 
 #include <sys/param.h>
 #include "compat_vop.h"
+#include "compat_mount.h"
+#include "compat_priv.h"
 
 /*
  * FreeBSD version 8 and above uses the kproc API instead of the kthread API in its

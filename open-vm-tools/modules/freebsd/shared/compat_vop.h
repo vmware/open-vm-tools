@@ -54,6 +54,8 @@
 #define compat_lockstatus(lock, threadvar) lockstatus((lock))
 #define compat_lockmgr(lock, flags, randompointerparam, threadval) lockmgr((lock), (flags), (randompointerparam))
 #define compat_vn_lock(vp, flags, threadval) vn_lock((vp), (flags))
+#define compat_accmode_t accmode_t
+#define compat_a_accmode a_accmode
 #else
 #define COMPAT_THREAD_VAR(varname, varval) struct thread *varname = varval
 #define COMPAT_VOP_LOCK(vop, flags, threadvar) VOP_LOCK((vop), (flags), (threadvar))
@@ -61,6 +63,8 @@
 #define compat_lockstatus(lock, threadvar) lockstatus((lock), (threadvar))
 #define compat_vn_lock(vp, flags, threadval) vn_lock((vp), (flags), (threadval))
 #define compat_lockmgr(lock, flags, randompointerparam, threadval) lockmgr((lock), (flags), (randompointerparam), (threadval))
+#define compat_accmode_t mode_t
+#define compat_a_accmode a_mode
 #endif
 
 /*

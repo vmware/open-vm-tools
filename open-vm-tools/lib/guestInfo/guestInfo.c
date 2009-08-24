@@ -16,46 +16,65 @@
  *
  *********************************************************/
 
-/*
- * guestInfo.c ---
+/**
+ * @file guestInfo.c
  *
- *	Provides interface to information about the guest, such as hostname,
- *	NIC/IP address information, etc.
+ *	Library backing parts of the vm.GuestInfo VIM APIs.
  */
 
 #include <stdlib.h>
 #include <string.h>
 
+#if defined _WIN32
+#   include <ws2tcpip.h>
+#endif
+
 #include "vm_assert.h"
 #include "debug.h"
 #include "guestInfoInt.h"
 #include "str.h"
+#include "util.h"
 #include "wiper.h"
 #include "xdrutil.h"
+#include "netutil.h"
+
+
+/**
+ * Helper to initialize an opaque struct member.
+ *
+ * @todo Move to xdrutil.h?  Sticking point is dependency on Util_SafeMalloc.
+ */
+#define XDRUTIL_SAFESETOPAQUE(ptr, type, src, size)                     \
+   do {                                                                 \
+      (ptr)->type##_len = (size);                                       \
+      (ptr)->type##_val = Util_SafeMalloc((size));                      \
+      memcpy((ptr)->type##_val, (src), (size));                         \
+   } while (0)
 
 
 /*
- * Global functions
+ * Global functions.
  */
 
- 
+
 /*
- *-----------------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfo_GetAvailableDiskSpace --                                    */ /**
  *
- * GuestInfo_GetAvailableDiskSpace --
+ * @brief Given a mount point, return the amount of free space on that volume.
  *
- *    Get the amount of disk space available on the volume the FCP (file copy/
- *    paste) staging area is in. DnD and FCP use same staging area in guest.
- *    But it is only called in host->guest FCP case. DnD checks guest available
- *    disk space in host side (UI).
+ * Get the amount of disk space available on the volume the FCP (file copy/
+ * paste) staging area is in. DnD and FCP use same staging area in guest.
+ * But it is only called in host->guest FCP case. DnD checks guest available
+ * disk space in host side (UI).
  *
- * Results:
- *    Available disk space size if succeed, otherwise 0.
+ * @param[in]  pathName Mount point to examine.
  *
- * Side effects:
- *    None.
+ * @todo This doesn't belong in lib/guestInfo.
  *
- *-----------------------------------------------------------------------------
+ * @return Bytes free on success, 0 on failure.
+ *
+ ******************************************************************************
  */
 
 uint64
@@ -81,204 +100,111 @@ GuestInfo_GetAvailableDiskSpace(char *pathName)
 }
 
 
-
 /*
- *-----------------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfo_GetFqdn --                                                  */ /**
  *
- * GuestInfo_GetFqdn --
+ * @brief Returns the guest's hostname (aka fully qualified domain name, FQDN).
  *
- *      Returns the guest's hostname.
+ * @param[in]  outBufLen Size of outBuf.
+ * @param[out] outBuf    Output buffer.
  *
- * Results:
- *      Returns TRUE on success, FALSE on failure.
- *      Returns the guest's fully qualified domain name in fqdn.
+ * @retval TRUE  Success.  Hostname written to @a outBuf.
+ * @retval FALSE Failure.
  *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
+ ******************************************************************************
  */
 
 Bool
-GuestInfo_GetFqdn(int outBufLen,        // IN: sizeof fqdn
-                  char fqdn[])          // OUT: buffer to store hostname
+GuestInfo_GetFqdn(int outBufLen,        // IN
+                  char fqdn[])          // OUT
 {
    return GuestInfoGetFqdn(outBufLen, fqdn);
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfo_GetNicInfo --                                               */ /**
  *
- * GuestInfo_GetNicInfo --
+ * @brief Returns guest networking configuration (and some runtime state).
  *
- *      Returns the guest's hostname.
+ * @param[out] nicInfo  Will point to a newly allocated NicInfo.
  *
- * Results:
- *      Return MAC addresses of all the NICs in the guest and their
- *      corresponding IP addresses.
+ * @note
+ * Caller is responsible for freeing @a nicInfo with GuestInfo_FreeNicInfo.
  *
- *      Returns TRUE on success and FALSE on failure.
- *      Return MAC addresses of all NICs and their corresponding IPs.
+ * @retval TRUE  Success.  @a nicInfo now points to a populated NicInfoV3.
+ * @retval FALSE Failure.
  *
- * Side effects:
- *      Memory is allocated for each NIC, as well as IP addresses of all NICs
- *      on successful return.
- *
- *-----------------------------------------------------------------------------
+ ******************************************************************************
  */
 
 Bool
-GuestInfo_GetNicInfo(GuestNicList *nicInfo)  // OUT: storage for NIC information
+GuestInfo_GetNicInfo(NicInfoV3 **nicInfo)  // OUT
 {
-   return GuestInfoGetNicInfo(nicInfo);
+   Bool retval = FALSE;
+
+   *nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
+
+   retval = GuestInfoGetNicInfo(*nicInfo);
+   if (!retval) {
+      free(*nicInfo);
+      *nicInfo = NULL;
+   }
+
+   return retval;
 }
 
 
 /*
- *----------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfo_FreeNicInfo --                                              */ /**
  *
- * GuestInfo_GetDiskInfo --
+ * @brief Frees a NicInfoV3 structure and all memory it points to.
  *
- *      Get disk information.
+ * @param[in] nicInfo   Pointer to NicInfoV3 container.
  *
- * Results:
- *      TRUE if successful, FALSE otherwise.
+ * @sa GuestInfo_GetNicInfo
  *
- * Side effects:
- *	Allocates memory for di->partitionList.
+ ******************************************************************************
+ */
+
+void
+GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo)       // IN
+{
+   if (nicInfo != NULL) {
+      VMX_XDR_FREE(xdr_NicInfoV3, nicInfo);
+      free(nicInfo);
+   }
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfo_GetDiskInfo --                                              */ /**
  *
- *----------------------------------------------------------------------
+ * @brief Get disk information.
+ *
+ * @param[in,out] di    DiskInfo container.
+ *
+ * @note 
+ * Allocates memory for di->partitionList.
+ *
+ * @retval TRUE  Success.
+ * @retval FALSE Failure.
+ *
+ ******************************************************************************
  */
 
 Bool
 GuestInfo_GetDiskInfo(PGuestDiskInfo di)     // IN/OUT
 {
-   return GuestInfoGetDiskInfo(di);
-}
-
-
-/**
- * Add a NIC into the given list. The macAddress of the new GuestNic is
- * initialized with the given address.
- *
- * @param[in,out] nicInfo     List of NICs.
- * @param[in]     macAddress  MAC address of new NIC.
- *
- * @return The new NIC, or NULL on failure.
- */
-
-GuestNic *
-GuestInfoAddNicEntry(GuestNicList *nicInfo,                    // IN/OUT
-                     const char macAddress[NICINFO_MAC_LEN])   // IN
-{
-   GuestNic *newNic;
-
-   newNic = XDRUTIL_ARRAYAPPEND(nicInfo, nics, 1);
-   if (newNic != NULL) {
-      Str_Strcpy(newNic->macAddress, macAddress, sizeof newNic->macAddress);
-   }
-
-   return newNic;
-}
-
-
-/**
- * Add an IP address entry into the GuestNic.
- *
- * @param[in,out] nic      The NIC information.
- * @param[in]     ipAddr   The new IP address to add.
- * @param[in]     af_type  Interface type.
- *
- * @return Newly allocated IP address struct, NULL on failure.
- */
-
-VmIpAddress *
-GuestInfoAddIpAddress(GuestNic *nic,                    // IN/OUT
-                      const char *ipAddr,               // IN
-                      const uint32 af_type)             // IN
-{
-   VmIpAddress *ip;
-
-   ip = XDRUTIL_ARRAYAPPEND(nic, ips, 1);
-   if (ip != NULL) {
-      Str_Strcpy(ip->ipAddress, ipAddr, sizeof ip->ipAddress);
-      ip->addressFamily = af_type;
-   }
-
-   return ip;
-}
-
-
-/**
- * Add an IPv4 netmask / IPv6 prefix length to the IpAddress in ASCII form.
- *
- * If convertToMask is true the 'n' bits subnet mask is converted
- * to an ASCII string as a hexadecimal number (0xffffff00) and
- * added to the IPAddressEntry.  (Applies to IPv4 only.)
- *
- * If convertToMask is false the value is added to the IPAddressEntry in
- * string form - ie '24'.
- *
- * @param[in,out] ipAddressEntry    The IP address info.
- * @param[in]     subnetMaskBits    The mask.
- * @param[in]     convertToMask     See above.
- */
-
-void
-GuestInfoAddSubnetMask(VmIpAddress *ipAddressEntry,            // IN/OUT
-                       const uint32 subnetMaskBits,            // IN
-                       Bool convertToMask)                     // IN
-{
-   int i;
-   uint32 subnetMask = 0;
-
-   ASSERT(ipAddressEntry);
-   /*
-    * It's an error to set convertToMask on an IPv6 address.
-    */
-   ASSERT(ipAddressEntry->addressFamily == INFO_IP_ADDRESS_FAMILY_IPV4 ||
-          !convertToMask);
-
-   if (convertToMask && (subnetMaskBits <= 32)) {
-      /*
-       * Convert the subnet mask from a number of bits (ie. '24') to
-       * hexadecimal notation such 0xffffff00
-       */
-      for (i = 0; i < subnetMaskBits; i++) {
-         subnetMask |= (0x80000000 >> i);
-      }
-
-      // Convert the hexadecimal value to a string and add to the IpAddress Entry
-      Str_Sprintf(ipAddressEntry->subnetMask,
-                  sizeof ipAddressEntry->subnetMask,
-                  "0x%x", subnetMask);
-   } else {
-      Str_Sprintf(ipAddressEntry->subnetMask,
-                  sizeof ipAddressEntry->subnetMask,
-                  "%d", subnetMaskBits);
-   }
-   return;
-}
-
-
-/**
- * Get disk information.
- *
- * @param[out]    di    Where to store the disk information.
- *
- * @return TRUE if successful, FALSE otherwise.
- */
-
-Bool
-GuestInfoGetDiskInfo(PGuestDiskInfo di)
-{
-   int i = 0;
-   WiperPartition_List *pl = NULL;
+   WiperPartition_List pl;
+   DblLnkLst_Links *curr;
    unsigned int partCount = 0;
    uint64 freeBytes = 0;
    uint64 totalBytes = 0;
-   WiperPartition nextPartition;
    unsigned int partNameSize = 0;
    Bool success = FALSE;
 
@@ -288,25 +214,27 @@ GuestInfoGetDiskInfo(PGuestDiskInfo di)
    di->partitionList = NULL;
 
    /* Get partition list. */
-   pl = WiperPartition_Open();
-   if (pl == NULL) {
+   if (!WiperPartition_Open(&pl)) {
       Debug("GetDiskInfo: ERROR: could not get partition list\n");
       return FALSE;
    }
 
-   for (i = 0; i < pl->size; i++) {
-      nextPartition = pl->partitions[i];
-      if (!strlen(nextPartition.comment)) {
+   DblLnkLst_ForEach(curr, &pl.link) {
+      WiperPartition *part = DblLnkLst_Container(curr, WiperPartition, link);
+
+      if (part->type != PARTITION_UNSUPPORTED) {
          PPartitionEntry newPartitionList;
+         PPartitionEntry partEntry;
          unsigned char *error;
-         error = WiperSinglePartition_GetSpace(&nextPartition, &freeBytes, &totalBytes);
+
+         error = WiperSinglePartition_GetSpace(part, &freeBytes, &totalBytes);
          if (strlen(error)) {
             Debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
-                  nextPartition.mountPoint, error);
+                  part->mountPoint, error);
             goto out;
          }
 
-         if (strlen(nextPartition.mountPoint) + 1 > partNameSize) {
+         if (strlen(part->mountPoint) + 1 > partNameSize) {
             Debug("GetDiskInfo: ERROR: Partition name buffer too small\n");
             goto out;
          }
@@ -317,20 +245,257 @@ GuestInfoGetDiskInfo(PGuestDiskInfo di)
             Debug("GetDiskInfo: ERROR: could not allocate partition list.\n");
             goto out;
          }
-         di->partitionList = newPartitionList;
 
-         Str_Strcpy((di->partitionList)[partCount].name, nextPartition.mountPoint,
-                        partNameSize);
-         (di->partitionList)[partCount].freeBytes = freeBytes;
-         (di->partitionList)[partCount].totalBytes = totalBytes;
-         partCount++;
+         partEntry = &newPartitionList[partCount++];
+         Str_Strcpy(partEntry->name, part->mountPoint, partNameSize);
+         partEntry->freeBytes = freeBytes;
+         partEntry->totalBytes = totalBytes;
+
+         di->partitionList = newPartitionList;
       }
    }
 
    di->numEntries = partCount;
    success = TRUE;
+
 out:
-   WiperPartition_Close(pl);
+   WiperPartition_Close(&pl);
    return success;
 }
 
+
+/*
+ * Private library functions.
+ */
+
+
+/*
+ ******************************************************************************
+ * GuestInfoAddNicEntry --                                               */ /**
+ *
+ * @brief GuestNicV3 constructor.
+ *
+ * @param[in,out] nicInfo     List of NICs.
+ * @param[in]     macAddress  MAC address of new NIC.
+ * @param[in]     dnsInfo     Per-NIC DNS config state.
+ *
+ * @note The returned GuestNic will take ownership of @a dnsInfo.  The caller
+ *       must not free it directly.
+ *
+ * @return Pointer to the new NIC.
+ *
+ ******************************************************************************
+ */
+
+GuestNicV3 *
+GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                       // IN/OUT
+                     const char macAddress[NICINFO_MAC_LEN],   // IN
+                     DnsConfigInfo *dnsInfo)                   // IN
+{
+   GuestNicV3 *newNic;
+
+   newNic = XDRUTIL_ARRAYAPPEND(nicInfo, nics, 1);
+   ASSERT_MEM_ALLOC(newNic);
+
+   newNic->macAddress = Util_SafeStrdup(macAddress);
+   newNic->dnsConfigInfo = dnsInfo;
+
+   return newNic;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoAddIpAddress --                                              */ /**
+ *
+ * @brief Add an IP address entry into the GuestNic.
+ *
+ * @param[in,out] nic      The NIC information.
+ * @param[in]     sockAddr The new IP address.
+ * @param[in]     pfxLen   Prefix length (use 0 if unknown).
+ * @param[in]     origin   Address's origin.  (Optional.)
+ * @param[in]     status   Address's status.  (Optional.)
+ *
+ * @return Newly allocated IP address struct, NULL on failure.
+ *
+ ******************************************************************************
+ */
+
+IpAddressEntry *
+GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OUT
+                      const struct sockaddr *sockAddr,  // IN
+                      InetAddressPrefixLength pfxLen,   // IN
+                      const IpAddressOrigin *origin,    // IN
+                      const IpAddressStatus *status)    // IN
+{
+   IpAddressEntry *ip;
+
+   ASSERT(sockAddr);
+
+   ip = XDRUTIL_ARRAYAPPEND(nic, ips, 1);
+   ASSERT_MEM_ALLOC(ip);
+
+   ASSERT_ON_COMPILE(sizeof *origin == sizeof *ip->ipAddressOrigin);
+   ASSERT_ON_COMPILE(sizeof *status == sizeof *ip->ipAddressStatus);
+
+   switch (sockAddr->sa_family) {
+   case AF_INET:
+      {
+         static const IpAddressStatus defaultStatus = IAS_PREFERRED;
+
+         GuestInfoSockaddrToTypedIpAddress(sockAddr, &ip->ipAddressAddr);
+
+         ip->ipAddressPrefixLength = pfxLen;
+         ip->ipAddressOrigin = origin ? Util_DupeThis(origin, sizeof *origin) : NULL;
+         ip->ipAddressStatus = status ? Util_DupeThis(status, sizeof *status) :
+            Util_DupeThis(&defaultStatus, sizeof defaultStatus);
+      }
+      break;
+   case AF_INET6:
+      {
+         static const IpAddressStatus defaultStatus = IAS_UNKNOWN;
+
+         GuestInfoSockaddrToTypedIpAddress(sockAddr, &ip->ipAddressAddr);
+
+         ip->ipAddressPrefixLength = pfxLen;
+         ip->ipAddressOrigin = origin ? Util_DupeThis(origin, sizeof *origin) : NULL;
+         ip->ipAddressStatus = status ? Util_DupeThis(status, sizeof *status) :
+            Util_DupeThis(&defaultStatus, sizeof defaultStatus);
+      }
+      break;
+   default:
+      NOT_REACHED();
+   }
+
+   return ip;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoSockaddrToTypedIpAddress --                                  */ /**
+ *
+ * @brief Converts a <tt>struct sockaddr</tt> to a @c TypedIpAddress.
+ *
+ * @param[in]  sa       Source @c sockaddr.
+ * @param[out] typedIp  Destination @c TypedIpAddress.
+ *
+ * @warning Caller is responsible for making sure source is AF_INET or
+ * AF_INET6.
+ *
+ ******************************************************************************
+ */
+
+void
+GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,    // IN
+                                  TypedIpAddress *typedIp)      // OUT
+{
+   struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+   struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+
+   switch (sa->sa_family) {
+   case AF_INET:
+      typedIp->ipAddressAddrType = IAT_IPV4;
+      XDRUTIL_SAFESETOPAQUE(&typedIp->ipAddressAddr, InetAddress,
+                            &sin->sin_addr.s_addr,
+                            sizeof sin->sin_addr.s_addr);
+      break;
+   case AF_INET6:
+      typedIp->ipAddressAddrType = IAT_IPV6;
+      XDRUTIL_SAFESETOPAQUE(&typedIp->ipAddressAddr, InetAddress,
+                            &sin6->sin6_addr.s6_addr,
+                            sizeof sin6->sin6_addr.s6_addr);
+      break;
+   default:
+      NOT_REACHED();
+   }
+}
+
+
+#if defined linux || defined _WIN32
+/*
+ ******************************************************************************
+ * GuestInfoGetNicInfoIfIndex --                                         */ /**
+ *
+ * @brief Given a local interface's index, find its corresponding location in the
+ * NicInfoV3 @c nics vector.
+ *
+ * @param[in]  nicInfo     NIC container.
+ * @param[in]  ifIndex     Device to search for.
+ * @param[out] nicifIndex  Array offset, if found.
+ *
+ * @retval TRUE  Device found.
+ * @retval FALSE Device not found.
+ *
+ ******************************************************************************
+ */
+
+Bool
+GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,  // IN
+                           int ifIndex,         // IN
+                           int *nicIfIndex)     // OUT
+{
+   char hwAddrString[NICINFO_MAC_LEN];
+   unsigned char hwAddr[16];
+   IanaIfType ifType;
+   Bool ret = FALSE;
+   u_int i;
+
+   ASSERT(nicInfo);
+   ASSERT(nicIfIndex);
+
+   if (NetUtil_GetHardwareAddress(ifIndex, hwAddr, sizeof hwAddr,
+                                  &ifType) != 6 ||
+       ifType != IANA_IFTYPE_ETHERNETCSMACD) {
+      return FALSE;
+   }
+
+   Str_Sprintf(hwAddrString, sizeof hwAddrString,
+               "%02x:%02x:%02x:%02x:%02x:%02x",
+               hwAddr[0], hwAddr[1], hwAddr[2],
+               hwAddr[3], hwAddr[4], hwAddr[5]);
+
+   XDRUTIL_FOREACH(i, nicInfo, nics) {
+      GuestNicV3 *nic = XDRUTIL_GETITEM(nicInfo, nics, i);
+      if (!strcasecmp(nic->macAddress, hwAddrString)) {
+         *nicIfIndex = i;
+         ret = TRUE;
+         break;
+      }
+   }
+
+   return ret;
+}
+#endif // if defined linux || defined _WIN32
+
+
+/*
+ * XXX
+ */
+
+
+/**
+ * Return a copy of arbitrary memory.
+ *
+ * @param[in] source     Source address.
+ * @param[in] sourceSize Number of bytes to allocate, copy.
+ *
+ * @return Pointer to newly allocated memory.
+ *
+ * @todo Determine if I'm duplicating functionality.
+ * @todo Move this to bora/lib/util or whatever.
+ */
+
+void *
+Util_DupeThis(const void *source,
+              size_t sourceSize)
+{
+   void *dest;
+
+   ASSERT(source);
+
+   dest = Util_SafeMalloc(sourceSize);
+   memcpy(dest, source, sourceSize);
+
+   return dest;
+}

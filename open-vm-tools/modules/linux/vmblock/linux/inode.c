@@ -25,11 +25,9 @@
 
 #include "driver-config.h"
 #include <linux/module.h>
-#include "compat_fs.h"
+#include <linux/fs.h>
 #include <linux/time.h>
-#include "compat_namei.h"
-#include "compat_uaccess.h"
-#include "compat_sched.h"
+#include <linux/namei.h>
 
 #include "vmblockInt.h"
 #include "filesystem.h"
@@ -37,12 +35,8 @@
 
 
 /* Inode operations */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static struct dentry *InodeOpLookup(struct inode *dir,
                                     struct dentry *dentry, struct nameidata *nd);
-#else
-static struct dentry *InodeOpLookup(struct inode *dir, struct dentry *dentry);
-#endif
 static int InodeOpReadlink(struct dentry *dentry, char __user *buffer, int buflen);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
 static void *InodeOpFollowlink(struct dentry *dentry, struct nameidata *nd);
@@ -78,16 +72,10 @@ static struct inode_operations LinkInodeOps = {
  *----------------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static struct dentry *
 InodeOpLookup(struct inode *dir,      // IN: parent directory's inode
               struct dentry *dentry,  // IN: dentry to lookup
               struct nameidata *nd)   // IN: lookup intent and information
-#else
-static struct dentry *
-InodeOpLookup(struct inode *dir,      // IN: parent directory's inode
-              struct dentry *dentry)  // IN: dentry to lookup
-#endif
 {
    char *filename;
    struct inode *inode;
@@ -105,7 +93,7 @@ InodeOpLookup(struct inode *dir,      // IN: parent directory's inode
    }
 
    /* Get a slab from the kernel's names_cache of PATH_MAX-sized buffers. */
-   filename = compat___getname();
+   filename = __getname();
    if (!filename) {
       Warning("InodeOpLookup: unable to obtain memory for filename.\n");
       return ERR_PTR(-ENOMEM);
@@ -114,13 +102,13 @@ InodeOpLookup(struct inode *dir,      // IN: parent directory's inode
    ret = MakeFullName(dir, dentry, filename, PATH_MAX);
    if (ret < 0) {
       Warning("InodeOpLookup: could not construct full name\n");
-      compat___putname(filename);
+      __putname(filename);
       return ERR_PTR(ret);
    }
 
    /* Block if there is a pending block on this file */
    BlockWaitOnFile(filename, NULL);
-   compat___putname(filename);
+   __putname(filename);
 
    inode = Iget(dir->i_sb, dir, dentry, GetNextIno());
    if (!inode) {

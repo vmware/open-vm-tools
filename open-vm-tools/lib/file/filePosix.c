@@ -1005,26 +1005,69 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
    if (statfsbuf.f_type == VMFS_MAGIC_NUMBER) {
       int fd;
       FS_FreeSpaceArgs args = { 0 };
-      Unicode directory = NULL;
+      Unicode specialPath = NULL;
 
-      File_SplitName(fullPath, NULL, &directory, NULL);
-      /* Must use an ioctl() to get free space for a VMFS file. */
+      /*
+       * If the file exists and can be opened we're all set. If the file
+       * doesn't exist we can use the parent directory for the ioctl.
+       * However, if the file exists and can't be opened (e.g. permissions
+       * issues) a correct answer can only be returned if the target isn't a
+       * directory. If the target is a directory its parent may be a mount
+       * point - leading across a mount point to a different file system.
+       * PR 412387
+       */
+
       ret = -1;
-      fd = Posix_Open(directory, O_RDONLY, 0);
+
+      fd = Posix_Open(fullPath, O_RDONLY, 0);
+
+      if (fd == -1) {
+         switch (errno) {
+         case EPERM:
+         case EACCES:
+            {
+               int err = errno;
+               struct stat statbuf;
+
+               if (Posix_Stat(fullPath, &statbuf) == -1) {
+                  errno = err;
+                  break;
+               }
+
+               if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
+                  Warning(LGPFX" %s: directory (%s) present but inaccessible\n",
+                          __func__, UTF8(fullPath));
+                  errno = err;
+                  break;
+               }
+            }
+            /* FALLTHROUGH */
+
+         case ENOENT:
+         default:
+            File_SplitName(fullPath, NULL, &specialPath, NULL);
+
+            fd = Posix_Open(specialPath, O_RDONLY, 0);
+         }
+      }
+
       if (fd == -1) {
          Warning(LGPFX" %s: open of %s failed with: %s\n", __func__,
-                 UTF8(directory), Msg_ErrString());
+                 (specialPath == NULL) ? UTF8(fullPath) : UTF8(specialPath),
+                 Msg_ErrString());
       } else {
          if (ioctl(fd, IOCTLCMD_VMFS_GET_FREE_SPACE, &args) == -1) {
             Warning(LGPFX" %s: ioctl on %s failed with: %s\n", __func__,
-                    UTF8(fullPath), Msg_ErrString());
+                    (specialPath == NULL) ? UTF8(fullPath) : UTF8(specialPath),
+                    Msg_ErrString());
          } else {
             ret = args.bytesFree;
          }
+
          close(fd);
       }
 
-      Unicode_Free(directory);
+      Unicode_Free(specialPath);
    }
 #endif
 
@@ -2817,37 +2860,4 @@ File_IsCharDevice(ConstUnicode pathName)  // IN:
 
    return (FileAttributes(pathName, &fileData) == 0) &&
            (fileData.fileType == FILE_TYPE_CHARDEVICE);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * File_SupportsPrealloc --
- *  
- *
- * Results:
- *      TRUE    if APPLE or file system type is ext2/ext3/ext4
- *      FALSE   if not supported by default in auto mode
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-File_SupportsPrealloc(const char *file)
-{
-
-#if (defined( __linux__) && !defined(VMX86_SERVER)) 
-   struct statfs statBuf;   
-   if (FileGetStats(file, FALSE, &statBuf) && 
-       statBuf.f_type == EXT4_SUPER_MAGIC) {
-       return TRUE;	
-   }
-#elif APPLE
-   return TRUE
-#endif	
-   return FALSE;
 }

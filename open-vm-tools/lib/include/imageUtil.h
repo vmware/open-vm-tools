@@ -49,13 +49,11 @@ EXTERN Bool ImageUtil_ReadPNGBuffer(ImageInfo *image,
                                     const unsigned char *imageData,
                                     size_t dataLen,
                                     int pngReadFlags);
-EXTERN Bool ImageUtil_ConstructPNGBuffer(const ImageInfo *image, DynBuf *imageData);
-EXTERN Bool ImageUtil_ConstructPNGBufferEx(const ImageInfo *image,
-                                           const ImagePngWriteOptions *options,
-                                           DynBuf *imageData);
+EXTERN Bool ImageUtil_ConstructPNGBuffer(const ImageInfo *image,
+                                         const ImagePngWriteOptions *options,
+                                         DynBuf *imageData);
 EXTERN Bool ImageUtil_ConstructBMPBuffer(const ImageInfo *image, DynBuf *imageData);
-EXTERN Bool ImageUtil_ConstructBuffer(const ImageInfo *image, ImageType imageType,
-                                      DynBuf *imageData);
+
 EXTERN void ImageUtil_FreeImageData(ImageInfo *image);
 
 EXTERN Bool ImageUtil_Combine(const ImageInfo *images, const VMPoint *origins,

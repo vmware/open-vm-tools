@@ -37,7 +37,9 @@
 #define compat_skb_end_pointer(skb)        skb_end_pointer(skb)
 #define compat_skb_ip_header(skb)          ((struct iphdr *)skb_network_header(skb))
 #define compat_skb_tcp_header(skb)         ((struct tcphdr *)skb_transport_header(skb))
-#define compat_skb_reset_mac_header(skb)   skb_reset_mac_header(skb)
+#define compat_skb_reset_mac_header(skb)          skb_reset_mac_header(skb)
+#define compat_skb_reset_network_header(skb)      skb_reset_network_header(skb)
+#define compat_skb_reset_transport_header(skb)    skb_reset_transport_header(skb)
 #define compat_skb_set_network_header(skb, off)   skb_set_network_header(skb, off)
 #define compat_skb_set_transport_header(skb, off) skb_set_transport_header(skb, off)
 #else
@@ -52,6 +54,8 @@
 #define compat_skb_ip_header(skb)          (skb)->nh.iph
 #define compat_skb_tcp_header(skb)         (skb)->h.th
 #define compat_skb_reset_mac_header(skb)   ((skb)->mac.raw = (skb)->data)
+#define compat_skb_reset_network_header(skb)      ((skb)->nh.raw = (skb)->data)
+#define compat_skb_reset_transport_header(skb)    ((skb)->h.raw = (skb)->data)
 #define compat_skb_set_network_header(skb, off)   ((skb)->nh.raw = (skb)->data + (off))
 #define compat_skb_set_transport_header(skb, off) ((skb)->h.raw = (skb)->data + (off))
 #endif

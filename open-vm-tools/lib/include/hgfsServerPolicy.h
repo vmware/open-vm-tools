@@ -92,11 +92,22 @@ HgfsServerPolicy_GetShareOptions(char const *nameIn,        // IN: Share name
 Bool
 HgfsServerPolicy_IsShareOptionSet(HgfsShareOptions shareOptions,  // IN: Config options
                                   uint32 option);                 // IN: Option to check
+HgfsNameStatus
+HgfsServerPolicy_ProcessCPName(char const *nameIn,         // IN: name in CPName form
+                               size_t nameInLen,           // IN: length of the name
+                               Bool *readAccess,           // OUT: Read permissions
+                               Bool *writeAccess,          // OUT: Write permissions
+                               char const **shareBaseDir); // OUT: Shared directory
 
 void
 HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: list to free
 
 HgfsServerPolicy_ShareList *
 HgfsServerPolicy_GetSharesWithTag(const char *tag); // IN: tag to search for
+
+Bool
+HgfsServerPolicy_CheckMode(HgfsOpenMode mode,          // IN: mode to check
+                           Bool writePermissions,      // IN: callers write permissions
+                           Bool readPermissions);      // IN: callers read permissions
 
 #endif // _HGFS_SERVER_POLICY_H_

@@ -296,3 +296,11 @@ vmxnet3_tq_xmit(struct sk_buff *skb,
                 struct vmxnet3_adapter *adapter,
                 struct net_device *netdev);
 
+int
+vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter);
+
+int
+vmxnet3_activate_dev(struct vmxnet3_adapter *adapter);
+
+void
+vmxnet3_force_close(struct vmxnet3_adapter *adapter);

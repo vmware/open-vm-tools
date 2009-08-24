@@ -75,6 +75,7 @@ extern Bool Hostinfo_OSIsWow64(void);
 #endif
 extern Bool Hostinfo_TouchBackDoor(void);
 extern Bool Hostinfo_TouchXen(void);
+extern char *Hostinfo_HypervisorCPUIDSig(void);
 
 #define HGMP_PRIVILEGE    0
 #define HGMP_NO_PRIVILEGE 1
@@ -186,5 +187,8 @@ Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
 void Hostinfo_LogLoadAverage(void);
 Bool Hostinfo_GetLoadAverage(uint32 *l);
 
+#ifdef __APPLE__
+size_t Hostinfo_GetKernelZoneElemSize(char const *name);
+#endif
 
 #endif /* ifndef _HOSTINFO_H_ */

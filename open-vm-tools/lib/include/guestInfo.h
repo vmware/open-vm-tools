@@ -110,11 +110,14 @@ typedef struct _DiskInfo {
 
 /*
  * Global functions
+ *
+ * XXX These belong in a bora-vmsoft header.
  */
 
 #ifndef N_PLAT_NLM
 extern Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
-extern Bool GuestInfo_GetNicInfo(GuestNicList *nicInfo);
+extern Bool GuestInfo_GetNicInfo(NicInfoV3 **nicInfo);
+extern void GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo);
 extern Bool GuestInfo_GetDiskInfo(PGuestDiskInfo di);
 extern Bool GuestInfo_GetOSName(unsigned int outBufFullLen,
                                 unsigned int outBufLen, char *osNameFull,

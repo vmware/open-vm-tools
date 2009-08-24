@@ -1,3 +1,115 @@
+2009-08-24	Marcelo Vanzin	 <mvanzin@vmware.com>
+	* Resync with internal trunk (2009.08.19)
+
+	* configure.ac: remove support for Linux kernels < 2.6.9.
+
+	* lib/include/vmtools.h, libvmtools/vmtoolsLog.c, doc/api/services/util.txt:
+	  add new log handled that allows appending to existing log files, and fix
+	  an issue where old log files would be "rotated" whenever the config file
+	  was reloaded.
+
+	* lib/appUtil/appUtilX11.c, lib/ghIntegration/ghIntegrationX11.c,
+	  lib/include/appUtil.h: fix compilation issues on FreeBSD when unity
+	  was enabled.
+
+	* lib/dnd/dndLinux.c, lib/include/vmblock_user.h, tests/testVmblock/*: add
+	  vmblock tests and, as part of the change, do some refactoring of vmblock
+	  related functions.
+
+	* lib/guestInfo/guestInfo.c, lib/include/wiper.h, lib/wiper/*,
+	  toolbox/toolboxcmd-shrink.c, toolbox/toolboxShrink.c: refactor the wiper
+	  structures so that they behave the same on Win32 and other platforms, and
+	  also reuse data structures already in use by other parts of the code. This
+	  fixes an "use after free" issue that toolbox-cmd had on Win32.
+
+	* lib/guestInfo/guestInfo.c, lib/guestInfo/guestInfoInt.h,
+	  lib/guestInfo/guestInfoPosix.c, lib/guestRpc/nicinfo.x,
+	  lib/include/guestInfo.h, lib/include/netutil.h, lib/include/slashProc.h,
+	  lib/netutil/netUtilLinux.c, lib/slashProc/*,
+	  services/plugins/guestInfo/guestInfoServer.c: add support for sending more
+	  network-related information to the host, such as routing tables and name
+	  servers.
+
+	* lib/hgfsBd/hgfsBd.c: don't log RPC errors when HGFS is disabled.
+
+	* lib/hgfsHelper/*, lib/include/hgfsHelper.h, lib/vixTools/vixTools.c: new
+	  library with functions to query information about HGFS; expose some HGFS
+	  properties through VIX.
+
+	* lib/hgfsServer/*, lib/hgfsServerPolicyGuest/hgfsServerPolicyGuest.c,
+	  lib/include/hgfsServerPolicy.h: fix checking of whether an object belongs
+	  to a particular share; this was causing issues with invalid information
+	  being returned in certain cases.
+
+	* lib/hgfsServer/*, lib/include/hgfsProto.h: changes to support new VIX API
+	  calls (mostly affecting Win32 only).
+
+	* lib/include/guestCaps.h, lib/include/unityCommon.h: add boilerplate for new
+	  RPCs for setting windows as sticky / non-sticky (not yet implemented).
+
+	* lib/include/hgfsProto.h: new definitions for the next version of the HGFS
+	  protocol.
+
+	* lib/include/xdrutil.h: make XDRUTIL_ARRAYAPPEND() more type-safe when using
+	  GCC.
+
+	* lib/misc/codesetOld.c: fix some issues with UTF16 -> UTF8 conversion.
+
+	* lib/rpcChannel/rpcChannel.c, libvmtools/signalSource.c,
+	  libvmtools/vmtools.c, libvmtools/vmtoolsConfig.c: g_assert -> ASSERT.
+
+	* lib/unityWindowTracker/unityWindowTracker.c: fix issue with z-ordering of
+	  modal dialogs.
+
+	* libvmtools/vmtoolsConfig.c: fix some old config translation issues.
+
+	* modules/freebsd/shared/*, modules/freebsd/vmblock/*: make vmblock work on
+	  FreeBSD 8.
+
+	* modules/freebsd/vmmemctl/*, modules/linux/vmmemctl/*,
+	  modules/solaris/vmmemctl/*, : refactoring and code changes to support the
+	  driver on Mac OS X.
+
+	* modules/linux/vmblock/*, modules/linux/vmci/*, modules/linux/vsock/linux/*:
+	  remove compatibility code for older kernels.
+
+	* modules/linux/vmhgfs/*: fix memory leak in HgfsAccessInt().
+
+	* modules/linux/vmxnet3/*: fix kunmap usage in vmxnet3_shm, and reset the
+	  shared pages when the char device is closed.
+
+	* modules/linux/vsock/linux/af_vsock.{c,h}, modules/linux/vsock/linux/util.c:
+	  add vsock protocol negotiation for notifyOn ops. This allows the driver to
+	  negotiate with the remove end which version of the notification protocol to
+	  use.
+
+	* modules/linux/vsock/linux/notify.c, modules/linux/vsock/linux/notify.h,
+	  modules/linux/vsock/linux/notifyQState.c,
+	  modules/linux/vsock/linux/vsockPacket.h: add pktOn protocol. This new
+	  protocol improves performance by detecting changes in the queue state
+	  instead of sending WAITING_READ and WAITING_WRITE packets.
+
+	* services/plugins/hgfsServer/hgfsPlugin.c,
+	  services/plugins/resolutionSet/resolutionSet.c,
+	  services/vmtoolsd/mainLoop.c, services/vmtoolsd/pluginMgr.c,
+	  services/vmtoolsd/toolsRpc.c: load plugins even when an RPC channel cannot
+	  be instantiated (i.e., when running outside of a virtual machine); this
+	  allows plugins to perform actions (at load time) also when running outside
+	  virtual machines (e.g., to undo some configuration done when the OS was run
+	  in a VM).
+
+	* services/vmtoolsd/mainLoop.c, services/vmtoolsd/mainPosix.c,
+	  services/vmtoolsd/toolsCoreInt.h: handle SIGHUP differently; instead of
+	  stopping the service, just re-load the config data. This should make it
+	  easier to integrate the tools service with other tools such as logrotate.
+
+	* toolbox/toolbox-cmd.c, toolbox/toolboxcmd-stat.c: remove memory info query,
+	  which didn't really return useful information.
+
+	* vmware-user/copyPasteUI.cpp: if the clipboard/primary with most recent
+	  timestamp has no data on it, try the other before giving up during
+	  copy/paste.
+
 2009-07-22	Marcelo Vanzin	 <mvanzin@vmware.com>
 	* Resync with internal trunk (2009.07.17)
 

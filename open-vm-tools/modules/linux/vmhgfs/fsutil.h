@@ -59,7 +59,6 @@ typedef struct HgfsAttrInfo {
    uint32 userId;                  /* UID */
    uint32 groupId;                 /* GID */
    uint64 hostFileId;              /* Inode number */
-   char *fileName;                 /* Either symlink target or filename */
 } HgfsAttrInfo;
 
 
@@ -69,7 +68,8 @@ int HgfsUnpackCommonAttr(HgfsReq *req,
 void HgfsChangeFileAttributes(struct inode *inode,
                               HgfsAttrInfo const *attr);
 int HgfsPrivateGetattr(struct dentry *dentry,
-                       HgfsAttrInfo *attr);
+                       HgfsAttrInfo *attr,
+                       char **fileName);
 struct inode *HgfsIget(struct super_block *sb,
                        ino_t ino,
                        HgfsAttrInfo const *attr);

@@ -113,8 +113,12 @@ VFS_SET(VMBlockVFSOps, vmblock, VFCF_LOOPBACK);
  */
 
 static int
-VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
-                struct thread *td)      // IN: caller's kernel thread context
+#if __FreeBSD_version >= 800011
+VMBlockVFSMount(struct mount *mp)        // IN: mount(2) parameters
+#else
+VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
+                struct thread *td)       // IN: caller's thread context
+#endif
 {
    struct VMBlockMount *xmp;
    struct nameidata nd, *ndp = &nd;
@@ -158,7 +162,8 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
    /*
     * Find lower node and lock if not already locked.
     */
-   NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, td);
+
+   NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, compat_td);
    error = namei(ndp);
    if (error) {
       NDFREE(ndp, 0);
@@ -189,7 +194,7 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
     * Make sure the node alias worked
     */
    if (error) {
-      COMPAT_VOP_UNLOCK(vp, 0, td);
+      COMPAT_VOP_UNLOCK(vp, 0, compat_td);
       vrele(lowerrootvp);
       free(xmp, M_VMBLOCKFSMNT);   /* XXX */
       return error;
@@ -211,7 +216,7 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
    /*
     * Unlock the node (either the lower or the alias)
     */
-   COMPAT_VOP_UNLOCK(vp, 0, td);
+   COMPAT_VOP_UNLOCK(vp, 0, compat_td);
 
    /*
     * If the staging area is a local filesystem, reflect that here, too.  (We
@@ -253,9 +258,14 @@ VMBlockVFSMount(struct mount *mp,       // IN: mount(2) parameters
  */
 
 static int
-VMBlockVFSUnmount(struct mount *mp,     // IN: filesystem to unmount
-                  int mntflags,         // IN: unmount(2) flags (ex: MNT_FORCE)
-                  struct thread *td)    // IN: caller's kernel thread context
+#if __FreeBSD_version >= 800011
+VMBlockVFSUnmount(struct mount *mp,    // IN: filesystem to unmount
+                  int mntflags)        // IN: unmount(2) flags (ex: MNT_FORCE)
+#else
+VMBlockVFSUnmount(struct mount *mp,    // IN: filesystem to unmount
+                  int mntflags,        // IN: unmount(2) flags (ex: MNT_FORCE)
+                  struct thread *td)   // IN: caller's kernel thread context
+#endif
 {
    struct VMBlockMount *xmp;
    struct vnode *vp;
@@ -290,21 +300,21 @@ VMBlockVFSUnmount(struct mount *mp,     // IN: filesystem to unmount
     * transfer will happen atomically.  (Er, at least within the scope of
     * the vnode subsystem.)
     */
-   COMPAT_VOP_LOCK(vp, LK_EXCLUSIVE|LK_RETRY|LK_INTERLOCK, td);
+   COMPAT_VOP_LOCK(vp, LK_EXCLUSIVE|LK_RETRY|LK_INTERLOCK, compat_td);
 
    removed = BlockRemoveAllBlocks(OS_UNKNOWN_BLOCKER);
 
    VI_LOCK(vp);
    vp->v_usecount -= removed;
    VI_UNLOCK(vp);
-   COMPAT_VOP_UNLOCK(vp, 0, td);
+   COMPAT_VOP_UNLOCK(vp, 0, compat_td);
 
    if (mntflags & MNT_FORCE) {
       flags |= FORCECLOSE;
    }
 
    /* There is 1 extra root vnode reference (xmp->rootVnode). */
-   error = vflush(mp, 1, flags, td);
+   error = vflush(mp, 1, flags, compat_td);
    if (error) {
       return error;
    }
@@ -336,10 +346,16 @@ VMBlockVFSUnmount(struct mount *mp,     // IN: filesystem to unmount
  */
 
 static int
+#if __FreeBSD_version >= 800011
+VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
+               int flags,               // IN: lockmgr(9) flags
+               struct vnode **vpp)      // OUT: root vnode
+#else
 VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
                int flags,               // IN: lockmgr(9) flags
                struct vnode **vpp,      // OUT: root vnode
                struct thread *td)       // IN: caller's thread context
+#endif
 {
    struct vnode *vp;
 
@@ -348,7 +364,7 @@ VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
     */
    vp = MNTTOVMBLOCKMNT(mp)->rootVnode;
    VREF(vp);
-   compat_vn_lock(vp, flags | LK_RETRY, td);
+   compat_vn_lock(vp, flags | LK_RETRY, compat_td);
    *vpp = vp;
    return 0;
 }
@@ -373,9 +389,14 @@ VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
  */
 
 static int
+#if __FreeBSD_version >= 800011
+VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
+                 struct statfs *sbp)    // OUT: statfs(2) arg container
+#else
 VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
                  struct statfs *sbp,    // OUT: statfs(2) arg container
                  struct thread *td)     // IN: caller's thread context
+#endif
 {
    int error;
    struct statfs mstat;
@@ -386,7 +407,7 @@ VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
 
    bzero(&mstat, sizeof mstat);
 
-   error = VFS_STATFS(MNTTOVMBLOCKMNT(mp)->mountVFS, &mstat, td);
+   error = COMPAT_VFS_STATFS(MNTTOVMBLOCKMNT(mp)->mountVFS, &mstat, compat_td);
    if (error) {
       return error;
    }
@@ -423,9 +444,14 @@ VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
  */
 
 static int
+#if __FreeBSD_version >= 800011
+VMBlockVFSSync(struct mount *mp,        // Ignored
+               int waitfor)             // Ignored
+#else
 VMBlockVFSSync(struct mount *mp,        // Ignored
                int waitfor,             // Ignored
                struct thread *td)       // Ignored
+#endif
 {
    return 0;
 }

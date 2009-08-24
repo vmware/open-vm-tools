@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-  
+
 #ifndef _LOGLEVEL_USER_H_
 #define _LOGLEVEL_USER_H_
 
@@ -70,6 +70,7 @@
    LOGLEVEL_VAR(usb), \
    LOGLEVEL_VAR(vusbmouse), \
    LOGLEVEL_VAR(vusbkeyboard), \
+   LOGLEVEL_VAR(vusbhid), \
    LOGLEVEL_VAR(hidQueue), \
    LOGLEVEL_VAR(pci_1394), \
    LOGLEVEL_VAR(1394), \
@@ -216,8 +217,9 @@
    LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(button), \
    LOGLEVEL_VAR(util), \
-   LOGLEVEL_VAR(largepage),
+   LOGLEVEL_VAR(largepage), \
+   LOGLEVEL_VAR(guestAppMonitor),
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 
-#endif /* _LOGLEVEL_USER_H_ */ 
+#endif /* _LOGLEVEL_USER_H_ */

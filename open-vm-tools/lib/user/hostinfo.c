@@ -28,6 +28,7 @@
 
 #include "cpuid_info.h"
 #include "hostinfo.h"
+#include "util.h"
 
 #define LOGLEVEL_MODULE hostinfo
 #include "loglevel_user.h"
@@ -256,12 +257,48 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_HypervisorCPUIDSig --
+ *
+ *      Get the hypervisor signature string from CPUID.
+ *
+ * Results:
+ *      Unqualified 16 byte nul-terminated hypervisor string
+ *	String may contain garbage and caller must free
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+char * 
+Hostinfo_HypervisorCPUIDSig(void)
+{
+   CPUIDRegs regs;
+   uint32 *name;
+
+   name = Util_SafeMalloc(4 * sizeof *name);
+
+   __GET_CPUID(0x40000000, &regs);
+   name[0] = regs.ebx;
+   name[1] = regs.ecx;
+   name[2] = regs.edx;
+   name[3] = 0;
+
+   return (char *)name;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  Hostinfo_TouchXen --
  *
  *      Check for Xen.
  *
- *      Official way is to check CPUID function 0x4000 0000, which
- *         returns a hypervisor string.  See PR156185,
+ *      Official way is to call Hostinfo_HypervisorCPUIDSig(), which
+ *         returns a hypervisor string.  This is a secondary check
+ *	   that guards against a backdoor failure.  See PR156185,
  *         http://xenbits.xensource.com/xen-unstable.hg?file/6a383beedf83/tools/misc/xen-detect.c
  *      (Canonical way is /proc/xen, but CPUID is better).
  *
@@ -283,26 +320,12 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 Bool
 Hostinfo_TouchXen(void)
 {
+#ifdef linux
 #define XEN_CPUID 0x40000000
 #define XEN_STRING "XenVMMXenVMM"
    CPUIDRegs regs;
    uint32 name[4];
 
-   /* 
-    * HVM mode: simple cpuid instr 
-    * Xen hypervisor traps CPUID and adds information leaf(s)
-    * at CPUID leaf XEN_CPUID and higher.
-    */
-   __GET_CPUID(XEN_CPUID, &regs);
-   name[0] = regs.ebx;
-   name[1] = regs.ecx;
-   name[2] = regs.edx;
-   name[3] = 0;
-   if (0 == strcmp(XEN_STRING, (const char*)name)) {
-      return TRUE;
-   }
-
-#ifdef linux
    /* 
     * PV mode: ud2a "xen" cpuid (faults on native hardware).
     * (Only Linux can run PV, so skip others here).

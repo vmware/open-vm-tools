@@ -64,6 +64,12 @@
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
 
+#ifdef CONFIG_COMPAT
+#ifndef HAVE_UNLOCKED_IOCTL
+#include <linux/ioctl32.h>
+#endif
+#endif
+
 #include "vm_basic_types.h"
 #include "vmnet_def.h"
 #include "vm_device_version.h"
@@ -149,6 +155,7 @@ static unsigned int num_enable_shm;
 static int enable_shm[VMXNET3_SHM_MAX_DEVICES + 1] =
    { [0 ... VMXNET3_SHM_MAX_DEVICES] = -1 };
 static char *shm_disclaimer = NULL;
+static int correct_shm_disclaimer;
 #define VMXNET3_SHM_DISCLAIMER "IReallyWantThisModeIAmAVMSafePartner"
 
 /*
@@ -909,7 +916,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb,
       memcpy(tdd->data,
              virt,
              ctx->copy_size);
-      kunmap(virt);
+      kunmap(VMXNET3_SHM_IDX2PAGE(adapter->shm, VMXNET3_SHM_SKB_GETIDX(skb)));
    }
    VMXNET3_LOG("copy %u bytes to dataRing[%u]\n",
                ctx->copy_size, tq->tx_ring.next2fill);
@@ -1670,14 +1677,15 @@ vmxnet3_rx_csum(struct vmxnet3_adapter *adapter,
  *
  * vmxnet3_rx_error --
  *
- *    called when ERR bit is set for a received pkt
+ *    called when ERR bit is set for a received pkt. The desc and the associated 
+ *    rx buffer have not been processed yet.
  *
  * Result:
  *    none
  *
  * Side-effects:
  *    1. up the stat counters
- *    2. free the pkt
+ *    2. free the skb if needed
  *    3. reset ctx->skb
  *
  *----------------------------------------------------------------------------
@@ -1695,7 +1703,19 @@ vmxnet3_rx_error(struct vmxnet3_rx_queue *rq,
    }
    rq->stats.drop_total++;
 
-   vmxnet3_dev_kfree_skb_irq(adapter, ctx->skb);
+   /* 
+    * We do not unmap and chain the rx buffer to the skb.
+    * We basically pretend this buffer is not used and will be recycled
+    * by vmxnet3_rq_alloc_rx_buf()
+    */
+
+   /* 
+    * ctx->skb may be NULL if this is the first and the only one
+    * desc for the pkt
+    */
+   if (ctx->skb) {
+      vmxnet3_dev_kfree_skb_irq(adapter, ctx->skb);
+   }
    ctx->skb = NULL;
 }
 
@@ -1754,6 +1774,11 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
       VMXNET3_ASSERT(rcd->len <= rxd->len);
       VMXNET3_ASSERT(rxd->addr == rbi->dma_addr && rxd->len == rbi->len);
 
+      if (UNLIKELY(rcd->eop && rcd->err)) {
+         vmxnet3_rx_error(rq, rcd, ctx, adapter);
+         goto rcd_done;
+      }
+
       if (rcd->sop) { /* first buf of the pkt */
          VMXNET3_ASSERT(rxd->btype == VMXNET3_RXD_BTYPE_HEAD &&
                         rcd->rqID == rq->qid);
@@ -1793,28 +1818,16 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
                rbi->page = NULL;
             }
          } else {
-            /* the only time a non-SOP buffer is type 0 is when it's EOP and
-             * error flag is raised
+            /* 
+             * The only time a non-SOP buffer is type 0 is when it's EOP and
+             * error flag is raised, which has already been handled.
              */
-            if (UNLIKELY(rcd->err && rcd->eop)) {
-               /* pretend this buffer is skipped by the device.
-                * dont chain it and don't reset rbi->skb to NULL
-                */
-               VMXNET3_LOG("Err EOP is type 0 from ring[%u].rxd[%u]\n", ring_idx, idx);
-            } else {
-               /* bug in the device */
-               VMXNET3_ASSERT(FALSE);
-            }
+            VMXNET3_ASSERT(FALSE);
          }
       }
 
       skb = ctx->skb;
       if (rcd->eop) {
-         if (UNLIKELY(rcd->err)) {
-            vmxnet3_rx_error(rq, rcd, ctx, adapter);
-            goto rcd_done;
-         }
-
          if (adapter->is_shm) {
             vmxnet3_shm_rx_skb(adapter, skb);
 
@@ -2461,7 +2474,7 @@ vmxnet3_set_mc(struct net_device *netdev)
  *----------------------------------------------------------------------------
  */
 
-static int
+int
 vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 {
    int err;
@@ -2566,7 +2579,7 @@ vmxnet3_reset_dev(struct vmxnet3_adapter *adapter)
  *----------------------------------------------------------------------------
  */
 
-static int
+int
 vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter)
 {
    if (test_and_set_bit(VMXNET3_STATE_BIT_QUIESCED, &adapter->state)) {
@@ -2683,8 +2696,8 @@ vmxnet3_alloc_pci_resources(struct vmxnet3_adapter *adapter, Bool *dma64)
    }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 6)
-   if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
-      if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
+   if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
+      if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
          printk(KERN_ERR "pci_set_consistent_dma_mask failed for adapter %s\n",
                 compat_pci_name(pdev));
          err = -EIO;
@@ -2692,7 +2705,7 @@ vmxnet3_alloc_pci_resources(struct vmxnet3_adapter *adapter, Bool *dma64)
       }
       *dma64 = TRUE;
    } else {
-      if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
+      if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
          printk(KERN_ERR "pci_set_dma_mask failed for adapter %s\n",
                 compat_pci_name(pdev));
          err = -EIO;
@@ -3060,7 +3073,7 @@ vmxnet3_close(struct net_device *netdev)
  *
  *----------------------------------------------------------------------------
  */
-static void
+void
 vmxnet3_force_close(struct vmxnet3_adapter *adapter)
 {
    /* 
@@ -4320,9 +4333,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
    adapter->is_shm = FALSE;
    if (adapter->dev_number < VMXNET3_SHM_MAX_DEVICES) {
       if (enable_shm[adapter->dev_number] == 1) {
-         if (shm_disclaimer == NULL ||
-             strncmp(shm_disclaimer, VMXNET3_SHM_DISCLAIMER,
-                     strlen(VMXNET3_SHM_DISCLAIMER)) != 0) {
+         if (!correct_shm_disclaimer) {
             printk(KERN_ERR "Did not activate shm, disclaimer missing\n");
          } else {
             adapter->is_shm = TRUE;
@@ -4629,6 +4640,21 @@ static int __init
 vmxnet3_init_module(void)
 {
    printk(KERN_INFO "%s - version %s\n", VMXNET3_DRIVER_DESC, VMXNET3_DRIVER_VERSION_REPORT);
+
+   correct_shm_disclaimer = shm_disclaimer &&
+      (strncmp(shm_disclaimer, VMXNET3_SHM_DISCLAIMER, strlen(VMXNET3_SHM_DISCLAIMER)) == 0);
+
+#ifdef CONFIG_COMPAT
+#ifndef HAVE_UNLOCKED_IOCTL
+   if (correct_shm_disclaimer) {
+      register_ioctl32_conversion(SHM_IOCTL_TX, NULL);
+      register_ioctl32_conversion(SHM_IOCTL_ALLOC_ONE, NULL);
+      register_ioctl32_conversion(SHM_IOCTL_ALLOC_MANY, NULL);
+      register_ioctl32_conversion(SHM_IOCTL_ALLOC_ONE_AND_MANY, NULL);
+      register_ioctl32_conversion(SHM_IOCTL_FREE_ONE, NULL);
+   }
+#endif
+#endif
    return pci_register_driver(&vmxnet3_driver);
 }
 
@@ -4652,6 +4678,17 @@ vmxnet3_init_module(void)
 static void
 vmxnet3_exit_module(void)
 {
+#ifdef CONFIG_COMPAT
+#ifndef HAVE_UNLOCKED_IOCTL
+   if (correct_shm_disclaimer) {
+      unregister_ioctl32_conversion(SHM_IOCTL_TX);
+      unregister_ioctl32_conversion(SHM_IOCTL_ALLOC_ONE);
+      unregister_ioctl32_conversion(SHM_IOCTL_ALLOC_MANY);
+      unregister_ioctl32_conversion(SHM_IOCTL_ALLOC_ONE_AND_MANY);
+      unregister_ioctl32_conversion(SHM_IOCTL_FREE_ONE);
+   }
+#endif
+#endif
    pci_unregister_driver(&vmxnet3_driver);
 }
 

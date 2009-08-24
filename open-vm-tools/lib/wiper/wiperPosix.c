@@ -50,6 +50,7 @@
 #include "vmstdio.h"
 #include "mntinfo.h"
 #include "posix.h"
+#include "util.h"
 
 
 /* Number of bytes per disk sector */
@@ -370,6 +371,9 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
                      MNTINFO *mnt)                 // IN
 {
    struct stat s;
+   const char *comment = NULL;
+
+   item->type = PARTITION_UNSUPPORTED;
 
    /*
     * Let's ignore remote filesystems before we do a stat(2) on the actual
@@ -378,137 +382,76 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
     */
    if (strcmp(MNTINFO_FSTYPE(mnt), "autofs") == 0) {
       /* XXX Should we look at autofs' config files? --hpreg */
-      item->comment = "Not implemented. Contact VMware";
-      return;
-   }
+      comment = "Not implemented. Contact VMware";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "vmhgfs") == 0) {
-      item->comment = "Remote partition";
-      return;
-   }
+   } else if (strcmp(MNTINFO_FSTYPE(mnt), "vmhgfs") == 0) {
+      comment = "Remote partition";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "nfs") == 0) {
-      item->comment = "Remote filesystem";
-      return;
-   }
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "nfs") == 0) {
+      comment = "Remote filesystem";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "smbfs") == 0) {
-      item->comment = "Remote filesystem";
-      return;
-   }
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "smbfs") == 0) {
+      comment = "Remote filesystem";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "swap") == 0) {
-      item->comment = "Swap partition";
-      return;
-   }
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "swap") == 0) {
+      comment = "Swap partition";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), PROCFS) == 0) {
-      item->comment = "Proc partition";
-      return;
-   }
+   } if (strcmp(MNTINFO_FSTYPE(mnt), PROCFS) == 0) {
+      comment = "Proc partition";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "devpts") == 0) {
-      item->comment = "Devpts partition";
-      return;
-   }
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "devpts") == 0) {
+      comment = "Devpts partition";
 
-   if (Posix_Stat(MNTINFO_NAME(mnt), &s) < 0) {
-      item->comment = "Unknown device";
-      return;
-   }
+   } if (Posix_Stat(MNTINFO_NAME(mnt), &s) < 0) {
+      comment = "Unknown device";
 
 #if defined(sun) || defined(__linux__)
-   if (! S_ISBLK(s.st_mode)) {
-      item->comment = "Not a block device";
-      return;
-   }
+   } else if (! S_ISBLK(s.st_mode)) {
+      comment = "Not a block device";
 #endif
 
-   if (!WiperIsDiskDevice(mnt, &s)) {
-      item->comment = "Not a disk device";
-      return;
-   }
+   } else if (!WiperIsDiskDevice(mnt, &s)) {
+      comment = "Not a disk device";
 
-   if (MNTINFO_MNT_IS_RO(mnt)) {
-      item->comment = "Not writable";
-      return;
-   }
+   } if (MNTINFO_MNT_IS_RO(mnt)) {
+      comment = "Not writable";
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "ext2") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "ext2") == 0) {
       item->type = PARTITION_EXT2;
-      return;
-   }
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "ext3") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "ext3") == 0) {
       item->type = PARTITION_EXT3;
-      return;
-   }
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "reiserfs") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "reiserfs") == 0) {
       item->type = PARTITION_REISERFS;
-      return;
-   }
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "ntfs") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "ntfs") == 0) {
       item->type = PARTITION_NTFS;
-      return;
-   }
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "vfat") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "vfat") == 0) {
       item->type = PARTITION_FAT;
-      return;
-   }
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "ufs") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "ufs") == 0) {
       item->type = PARTITION_UFS;
-      return;
-   }
 
-   if (strcmp(MNTINFO_FSTYPE(mnt), "pcfs") == 0) {
-      item->comment = "";
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "pcfs") == 0) {
       item->type = PARTITION_PCFS;
-      return;
+
+   } else {
+      comment = "Unknown filesystem. Contact VMware";
    }
 
-   item->comment = "Unknown filesystem. Contact VMware";
-   return;
+   if (item->type == PARTITION_UNSUPPORTED) {
+      ASSERT(comment);
+      item->comment = Util_SafeStrdup(comment);
+   }
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * SingleWiperPartition_Close --
- *
- *      Destroy the information returned by a previous call to
- *      SingleWiperPartition_Open().
- *
- * Results:
- *      None
- *
- * Side Effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-SingleWiperPartition_Close(WiperPartition *p)      // IN
-{
-   free(p);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * SingleWiperPartition_Open --
+ * WiperSinglePartition_Open --
  *
  *      Return information about the input 'mountPoint' partition.
  *
@@ -523,26 +466,20 @@ SingleWiperPartition_Close(WiperPartition *p)      // IN
  */
 
 WiperPartition *
-SingleWiperPartition_Open(const char *mountPoint)      // IN
+WiperSinglePartition_Open(const char *mountPoint)      // IN
 {
    char *mntpt = NULL;
    MNTHANDLE fp;
    int len = 0;
    DECLARE_MNTINFO(mnt);
-   WiperPartition *p;
+   WiperPartition *p = NULL;
 
    ASSERT(initDone);
-   fp = NULL;
-   p = (WiperPartition *) malloc(sizeof *p);
-   if (p == NULL) {
-      Log("Not enough memory while opening a partition.\n");
-      goto error;
-   }
 
    fp = OPEN_MNTFILE("r");
    if (fp == NULL) {
       Log("Could not open %s\n", MNTFILE);
-      goto error;
+      return NULL;
    }
 
    mntpt = Util_SafeStrdup(mountPoint);
@@ -560,33 +497,30 @@ SingleWiperPartition_Open(const char *mountPoint)      // IN
    len = strlen(mntpt);
    while (GETNEXT_MNTINFO(fp, mnt)) {
       if (strncmp(MNTINFO_MNTPT(mnt), mntpt, len) == 0) {
-         if (Str_Snprintf(p->mountPoint, NATIVE_MAX_PATH,
-                          "%s", MNTINFO_MNTPT(mnt)) == -1) {
+
+         p = WiperSinglePartition_Allocate();
+         if (p == NULL) {
+            Log("Not enough memory while opening a partition.\n");
+         } else if (Str_Snprintf(p->mountPoint, NATIVE_MAX_PATH,
+                                 "%s", MNTINFO_MNTPT(mnt)) == -1) {
             Log("NATIVE_MAX_PATH is too small.\n");
-            goto error;
+            WiperSinglePartition_Close(p);
+            p = NULL;
+         } else {
+            WiperCollectDiskMajors();
+            WiperPartitionFilter(p, mnt);
          }
 
-         WiperCollectDiskMajors();
-         WiperPartitionFilter(p, mnt);
-         (void) CLOSE_MNTFILE(fp);
-
-         fp = NULL;
-
-         free(mntpt);
-         return p;
+         goto out;
       }
    }
 
    Log("Could not find a mount point for %s in %s\n", mntpt, MNTFILE);
 
-  error:
-   SingleWiperPartition_Close(p);
-   if (fp != NULL) {
-      (void) CLOSE_MNTFILE(fp);
-      fp = NULL;
-   }
+ out:
    free(mntpt);
-   return NULL;
+   (void) CLOSE_MNTFILE(fp);
+   return p;
 }
 
 /*
@@ -661,102 +595,53 @@ WiperSinglePartition_GetSpace(const WiperPartition *p,  // IN
  *-----------------------------------------------------------------------------
  */
 
-WiperPartition_List *
-WiperPartition_Open(void)
+Bool
+WiperPartition_Open(WiperPartition_List *pl)
 {
-   WiperPartition_List *pl;
    MNTHANDLE fp;
    DECLARE_MNTINFO(mnt);
+   Bool rc = TRUE;
 
    ASSERT(initDone);
-   fp = NULL;
 
-   pl = (WiperPartition_List *)malloc(sizeof *pl);
-   if (pl == NULL) {
-      Log("Not enough memory while opening a partition.\n");
-      goto error;
-   }
-
-   pl->partitions = NULL;
-   pl->size = 0;
+   DblLnkLst_Init(&pl->link);
 
    /* Basically call functions to parse /etc/mtab ... */
    fp = OPEN_MNTFILE("r");
    if (fp == NULL) {
       Log("Unable to open mount file.\n");
-      goto error;
+      return FALSE;
    }
 
    WiperCollectDiskMajors();
 
    while (GETNEXT_MNTINFO(fp, mnt)) {
-      WiperPartition item;
+      WiperPartition *part = WiperSinglePartition_Allocate();
 
-      if (Str_Snprintf(item.mountPoint, NATIVE_MAX_PATH, "%s",
-                       MNTINFO_MNTPT(mnt)) == -1) {
-              Log("NATIVE_MAX_PATH is too small.\n");
-              goto error;
-      }
-
-      WiperPartitionFilter(&item, mnt);
-
-      /* Add the partition to the list */
-      pl->partitions = (WiperPartition *)realloc(pl->partitions,
-                                                 (pl->size + 1) *
-                                                 sizeof *pl->partitions);
-      if (pl->partitions == NULL) {
+      if (part == NULL) {
          Log("Not enough memory while opening a partition.\n");
-              goto error;
+         rc = FALSE;
+         break;
       }
 
-      pl->partitions[pl->size] = item;
-      pl->size++;
+      if (Str_Snprintf(part->mountPoint, NATIVE_MAX_PATH, "%s",
+                       MNTINFO_MNTPT(mnt)) == -1) {
+         Log("NATIVE_MAX_PATH is too small.\n");
+         WiperSinglePartition_Close(part);
+         rc = FALSE;
+         break;
+      }
+
+      WiperPartitionFilter(part, mnt);
+      DblLnkLst_LinkLast(&pl->link, &part->link);
    }
+
+   if (!rc)
+      WiperPartition_Close(pl);
 
    (void) CLOSE_MNTFILE(fp);
-   fp = NULL;
-
-   return pl;
-
-error:
-   WiperPartition_Close(pl);
-   pl = NULL;
-   if (fp != NULL) {
-      (void) CLOSE_MNTFILE(fp);
-      fp = NULL;
-   }
-   return NULL;
+   return rc;
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * WiperPartition_Close --
- *
- *      Destroy the information returned by a previous call to
- *      WiperPartition_Open()
- *
- * Results:
- *      None
- *
- * Side Effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-WiperPartition_Close(WiperPartition_List *pl)      // IN/OUT
-{
-   if (pl != NULL) {
-      free(pl->partitions);
-      pl->partitions = NULL;
-      free(pl);
-   }
-}
-
-
 
 
 /*

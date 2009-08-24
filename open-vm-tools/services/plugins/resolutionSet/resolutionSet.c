@@ -369,7 +369,7 @@ ResolutionServerCapReg(ToolsAppCtx *ctx,
                          appName,
                          set);
 
-   if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+   if (ctx->rpc && !RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
       g_warning("Setting resolution_server capability failed!\n");
    }
 

@@ -38,4 +38,9 @@
  */
 #define GHI_HANDLERS_ACTIONURI_MAX_PATH 1040
 
+/*
+ * Maximum length for a guest app hash value (usually much shorter).
+ */
+#define GHI_EXEC_INFO_HASH_MAX_LEN 1024
+
 #endif // ifndef _GHI_COMMON_DEFINES_H_

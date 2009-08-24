@@ -33,6 +33,10 @@
 #include <math.h>
 #include <limits.h>
 
+#ifndef WIN32
+#   include <arpa/inet.h>
+#endif
+
 #include "vmware.h"
 #include "buildNumber.h"
 #include "conf.h"
@@ -70,7 +74,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 typedef struct _GuestInfoCache{
    char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
-   GuestNicList  nicInfo;
+   NicInfoV3     *nicInfo;
    GuestDiskInfo diskInfo;
 } GuestInfoCache;
 
@@ -89,10 +93,10 @@ static Bool vmResumed;
 static Bool GuestInfoUpdateVmdb(ToolsAppCtx *ctx, GuestInfoType infoType, void *info);
 static Bool SetGuestInfo(ToolsAppCtx *ctx, GuestInfoType key,
                          const char *value, char delimiter);
-static Bool NicInfoChanged(GuestNicList *nicInfo);
+static Bool NicInfoChanged(NicInfoV3 *nicInfo);
 static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
-static int PrintNicInfo(GuestNicList *nicInfo, int (*PrintFunc)(const char *, ...));
+static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
 
 
 /**
@@ -302,7 +306,7 @@ GuestInfoGather(gpointer data)
    char osNameFull[MAX_VALUE_LEN];
    char osName[MAX_VALUE_LEN];
    gboolean disableQueryDiskInfo;
-   GuestNicList nicInfo;
+   NicInfoV3 *nicInfo = NULL;
    GuestDiskInfo diskInfo;
 #if defined(_WIN32) || defined(linux)
    GuestMemInfo vmStats = {0};
@@ -310,8 +314,6 @@ GuestInfoGather(gpointer data)
    ToolsAppCtx *ctx = data;
 
    g_debug("Entered guest info gather.\n");
-
-   memset(&nicInfo, 0, sizeof nicInfo);
 
    /* Send tools version. */
    if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER)) {
@@ -364,20 +366,20 @@ GuestInfoGather(gpointer data)
    /* Get NIC information. */
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
-   } else if (NicInfoChanged(&nicInfo)) {
-      if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, &nicInfo)) {
+   } else if (NicInfoChanged(nicInfo)) {
+      if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
          /*
           * Update the cache. Release the memory previously used by the cache,
           * and copy the new information into the cache.
           */
-         VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
+         GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
          gInfoCache.nicInfo = nicInfo;
       } else {
          g_warning("Failed to update VMDB.\n");
       }
    } else {
       g_debug("Nic info not changed.\n");
-      VMX_XDR_FREE(xdr_GuestNicList, &nicInfo);
+      GuestInfo_FreeNicInfo(nicInfo);
    }
 
    /* Send the uptime to VMX so that it can detect soft resets. */
@@ -419,17 +421,15 @@ GuestInfoGather(gpointer data)
  *----------------------------------------------------------------------
  */
 
-Bool
-GuestInfoConvertNicInfoToNicInfoV1(GuestNicList *info,        // IN
+void
+GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
                                    GuestNicInfoV1 *infoV1)    // OUT
 {
    uint32 maxNics;
    u_int i;
 
-   if ((NULL == info) ||
-       (NULL == infoV1)) {
-      return FALSE;
-   }
+   ASSERT(info);
+   ASSERT(infoV1);
 
    maxNics = MIN(info->nics.nics_len, MAX_NICS);
    infoV1->numNicEntries = maxNics;
@@ -440,7 +440,7 @@ GuestInfoConvertNicInfoToNicInfoV1(GuestNicList *info,        // IN
    XDRUTIL_FOREACH(i, info, nics) {
       u_int j;
       uint32 maxIPs;
-      GuestNic *nic = XDRUTIL_GETITEM(info, nics, i);
+      GuestNicV3 *nic = XDRUTIL_GETITEM(info, nics, i);
 
       Str_Strcpy(infoV1->nicList[i].macAddress,
                  nic->macAddress,
@@ -450,18 +450,20 @@ GuestInfoConvertNicInfoToNicInfoV1(GuestNicList *info,        // IN
       infoV1->nicList[i].numIPs = 0;
 
       XDRUTIL_FOREACH(j, nic, ips) {
-         VmIpAddress *ip = XDRUTIL_GETITEM(nic, ips, j);
+         IpAddressEntry *ip = XDRUTIL_GETITEM(nic, ips, j);
+         TypedIpAddress *typedIp = &ip->ipAddressAddr;
 
-         if (strlen(ip->ipAddress) < sizeof infoV1->nicList[i].ipAddress[j]) {
-            Str_Strcpy(infoV1->nicList[i].ipAddress[j],
-                       ip->ipAddress,
-                       sizeof infoV1->nicList[i].ipAddress[j]);
+         if (typedIp->ipAddressAddrType != IAT_IPV4) {
+            continue;
+         }
+
+         if (NetUtil_InetNToP(AF_INET, typedIp->ipAddressAddr.InetAddress_val,
+                              infoV1->nicList[i].ipAddress[j],
+                              sizeof infoV1->nicList[i].ipAddress[j])) {
             infoV1->nicList[i].numIPs++;
             if (infoV1->nicList[i].numIPs == maxIPs) {
                break;
             }
-         } else {
-            g_debug("Ignoring IPV6 address for compatibility.\n");
          }
       }
 
@@ -472,8 +474,6 @@ GuestInfoConvertNicInfoToNicInfoV1(GuestNicList *info,        // IN
          break;
       }
    }
-
-   return TRUE;
 }
 
 
@@ -538,72 +538,104 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
 
    case INFO_IPADDRESS:
       {
-         static Bool isCmdV1 = FALSE;
+         static NicInfoVersion supportedVersion = NIC_INFO_V3;
+         NicInfoV3 *nicInfoV3 = (NicInfoV3 *)info;
          char *reply = NULL;
          size_t replyLen;
          Bool status;
 
-         if (FALSE == isCmdV1) {
-            /* 13 = max size of string representation of an int + 3 spaces. */
-            char request[sizeof GUEST_INFO_COMMAND + 13];
-            GuestNicProto message;
-            XDR xdrs;
+nicinfo_fsm:
+         switch (supportedVersion) {
+         case NIC_INFO_V3:
+         case NIC_INFO_V2:
+            {
+               /*
+                * 13 = max size of string representation of an int + 3 spaces.
+                * XXX Ditch the magic numbers.
+                */
+               char request[sizeof GUEST_INFO_COMMAND + 13];
+               GuestNicProto message = {0};
+               GuestNicList *nicList = NULL;
+               NicInfoVersion fallbackVersion;
+               XDR xdrs;
 
-            if (DynXdr_Create(&xdrs) == NULL) {
-               return FALSE;
-            }
+               if (DynXdr_Create(&xdrs) == NULL) {
+                  return FALSE;
+               }
 
-            /* Add the RPC preamble: message name, and type. */
-            Str_Sprintf(request, sizeof request, "%s  %d ",
-                        GUEST_INFO_COMMAND, INFO_IPADDRESS_V2);
+               /* Add the RPC preamble: message name, and type. */
+               Str_Sprintf(request, sizeof request, "%s  %d ",
+                           GUEST_INFO_COMMAND, INFO_IPADDRESS_V2);
 
-            message.ver = NIC_INFO_V2;
-            message.GuestNicProto_u.nicsV2 = info;
+               /*
+                * Fill in message according to the version we'll attempt.  Also
+                * note which version we'll fall back to should the VMX reject
+                * our update.
+                */
+               if (supportedVersion == NIC_INFO_V3) {
+                  message.ver = NIC_INFO_V3;
+                  message.GuestNicProto_u.nicInfoV3 = nicInfoV3;
 
-            /* Write preamble and serialized nic info to XDR stream. */
-            if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
-                !xdr_GuestNicProto(&xdrs, &message)) {
-               g_warning("Error serializing nic info v2 data.");
+                  fallbackVersion = NIC_INFO_V2;
+               } else {
+                  nicList = NicInfoV3ToV2(nicInfoV3);
+                  message.ver = NIC_INFO_V2;
+                  message.GuestNicProto_u.nicsV2 = nicList;
+
+                  fallbackVersion = NIC_INFO_V1;
+               }
+
+               /* Write preamble and serialized nic info to XDR stream. */
+               if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
+                   !xdr_GuestNicProto(&xdrs, &message)) {
+                  g_warning("Error serializing nic info v2 data.");
+                  DynXdr_Destroy(&xdrs, TRUE);
+                  return FALSE;
+               }
+
+               status = RpcChannel_Send(ctx->rpc,
+                                        DynXdr_Get(&xdrs),
+                                        xdr_getpos(&xdrs),
+                                        &reply,
+                                        &replyLen);
                DynXdr_Destroy(&xdrs, TRUE);
-               return FALSE;
-            }
 
-            status = RpcChannel_Send(ctx->rpc,
-                                     DynXdr_Get(&xdrs),
-                                     xdr_getpos(&xdrs),
-                                     &reply,
-                                     &replyLen);
-            DynXdr_Destroy(&xdrs, TRUE);
-            if (!status) {
-               g_warning("Failed to send V2 nic info message.\n");
-            }
+               if (nicList) {
+                  free(nicList);
+                  nicList = NULL;
+               }
 
-            if (g_key_file_get_boolean(ctx->config, "guestinfo", "printNicInfo", NULL)) {
-               PrintNicInfo((GuestNicList *) info,
-                            (int (*)(const char *fmt, ...)) RpcVMX_Log);
+               if (!status) {
+                  g_warning("NicInfo update failed: version %u, reply \"%s\".\n",
+                            supportedVersion, reply);
+                  supportedVersion = fallbackVersion;
+                  vm_free(reply);
+                  reply = NULL;
+                  goto nicinfo_fsm;
+               }
             }
-         } else {
-            status = FALSE;
-         }
-         if (!status) {
-            /*
-             * Could be that we are talking to the old protocol that GuestNicInfo is
-             * still fixed size.  Another try to send the fixed sized Nic info.
-             */
-            char request[sizeof (GuestNicInfoV1) + sizeof GUEST_INFO_COMMAND +
+            break;
+
+         case NIC_INFO_V1:
+            {
+               /*
+                * Could be that we are talking to the old protocol that
+                * GuestNicInfo is still fixed size.  Another try to send the
+                * fixed sized Nic info.
+                */
+               char request[sizeof (GuestNicInfoV1) + sizeof GUEST_INFO_COMMAND +
                          2 +                 /* 2 bytes are for digits of infotype. */
                          3 * sizeof (char)]; /* 3 spaces */
-            GuestNicInfoV1 nicInfo;
+               GuestNicInfoV1 nicInfo;
 
-            vm_free(reply);
-            reply = NULL;
+               Str_Sprintf(request,
+                           sizeof request,
+                           "%s  %d ",
+                           GUEST_INFO_COMMAND,
+                           INFO_IPADDRESS);
 
-            Str_Sprintf(request,
-                        sizeof request,
-                        "%s  %d ",
-                        GUEST_INFO_COMMAND,
-                        INFO_IPADDRESS);
-            if (GuestInfoConvertNicInfoToNicInfoV1(info, &nicInfo)) {
+               GuestInfoConvertNicInfoToNicInfoV1(nicInfoV3, &nicInfo);
+
                memcpy(request + strlen(request),
                       &nicInfo,
                       sizeof(GuestNicInfoV1));
@@ -617,15 +649,16 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
                                         &replyLen);
 
                g_debug("Just sent fixed sized nic info message.\n");
+
                if (!status) {
                   g_debug("Failed to update fixed sized nic information\n");
                   vm_free(reply);
                   return FALSE;
                }
-               isCmdV1 = TRUE;
-            } else {
-               return FALSE;
             }
+            break;
+         default:
+            NOT_REACHED();
          }
 
          g_debug("Updated new NIC information\n");
@@ -831,14 +864,14 @@ SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
  *-----------------------------------------------------------------------------
  */
 
-GuestNic *
-GuestInfoFindMacAddress(GuestNicList *nicInfo,  // IN/OUT
+GuestNicV3 *
+GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
                         const char *macAddress) // IN
 {
    u_int i;
 
    for (i = 0; i < nicInfo->nics.nics_len; i++) {
-      GuestNic *nic = &nicInfo->nics.nics_val[i];
+      GuestNicV3 *nic = &nicInfo->nics.nics_val[i];
       if (strncmp(nic->macAddress, macAddress, NICINFO_MAC_LEN) == 0) {
          return nic;
       }
@@ -868,10 +901,18 @@ GuestInfoFindMacAddress(GuestNicList *nicInfo,  // IN/OUT
  */
 
 Bool
-NicInfoChanged(GuestNicList *nicInfo)  // IN
+NicInfoChanged(NicInfoV3 *nicInfo)  // IN
 {
    u_int i;
-   GuestNicList *cachedNicInfo = &gInfoCache.nicInfo;
+   NicInfoV3 *cachedNicInfo = gInfoCache.nicInfo;
+
+   if (!cachedNicInfo) {
+      return TRUE;
+   }
+
+   /*
+    * XXX Add routing, DNS, WINS comparisons.
+    */
 
    if (cachedNicInfo->nics.nics_len != nicInfo->nics.nics_len) {
       g_debug("Number of nics has changed\n");
@@ -880,8 +921,8 @@ NicInfoChanged(GuestNicList *nicInfo)  // IN
 
    for (i = 0; i < cachedNicInfo->nics.nics_len; i++) {
       u_int j;
-      GuestNic *cachedNic = &cachedNicInfo->nics.nics_val[i];
-      GuestNic *matchedNic;
+      GuestNicV3 *cachedNic = &cachedNicInfo->nics.nics_val[i];
+      GuestNicV3 *matchedNic;
 
       /* Find the corresponding nic in the new nic info. */
       matchedNic = GuestInfoFindMacAddress(nicInfo, cachedNic->macAddress);
@@ -899,15 +940,24 @@ NicInfoChanged(GuestNicList *nicInfo)  // IN
 
       /* Which IP addresses have been modified for this NIC? */
       for (j = 0; j < cachedNic->ips.ips_len; j++) {
-         VmIpAddress *cachedIp = &cachedNic->ips.ips_val[j];
+         TypedIpAddress *cachedIp = &cachedNic->ips.ips_val[j].ipAddressAddr;
          Bool foundIP = FALSE;
+         ssize_t cmpsz =
+            cachedIp->ipAddressAddrType == IAT_IPV4 ? 4 :
+            cachedIp->ipAddressAddrType == IAT_IPV6 ? 16 :
+            -1;
          u_int k;
 
+         /* XXX */
+         ASSERT(cmpsz != -1);
+
          for (k = 0; k < matchedNic->ips.ips_len; k++) {
-            VmIpAddress *matchedIp = &matchedNic->ips.ips_val[k];
-            if (0 == strncmp(cachedIp->ipAddress,
-                             matchedIp->ipAddress,
-                             NICINFO_MAX_IP_LEN)) {
+            TypedIpAddress *matchedIp =
+               &matchedNic->ips.ips_val[k].ipAddressAddr;
+            if (cachedIp->ipAddressAddrType == matchedIp->ipAddressAddrType &&
+                memcmp(cachedIp->ipAddressAddr.InetAddress_val,
+                       matchedIp->ipAddressAddr.InetAddress_val,
+                       cmpsz) == 0) {
                foundIP = TRUE;
                break;
             }
@@ -915,9 +965,11 @@ NicInfoChanged(GuestNicList *nicInfo)  // IN
 
          if (FALSE == foundIP) {
             /* This ip address couldn't be found and has been modified. */
+#if 0
             g_debug("MAC address %s, ipaddress %s deleted\n",
                     cachedNic->macAddress,
                     cachedIp->ipAddress);
+#endif
             return TRUE;
          }
 
@@ -926,56 +978,6 @@ NicInfoChanged(GuestNicList *nicInfo)  // IN
    }
 
    return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * PrintNicInfo --
- *
- *      Print NIC info struct using the specified print function.
- *
- * Results:
- *      Sum of return values of print function (for printf, this will be the
- *      number of characters printed).
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-int
-PrintNicInfo(GuestNicList *nicInfo,               // IN
-             int (*PrintFunc)(const char *, ...)) // IN
-{
-   int ret = 0;
-   u_int i = 0;
-
-   ret += PrintFunc("NicInfo: count: %ud\n", nicInfo->nics.nics_len);
-   for (i = 0; i < nicInfo->nics.nics_len; i++) {
-      u_int j;
-      GuestNic *nic = &nicInfo->nics.nics_val[i];
-
-      ret += PrintFunc("NicInfo: nic [%d/%d] mac:      %s",
-                       i+1,
-                       nicInfo->nics.nics_len,
-                       nic->macAddress);
-
-      for (j = 0; j < nic->ips.ips_len; j++) {
-         VmIpAddress *ipAddress = &nic->ips.ips_val[j];
-
-         ret += PrintFunc("NicInfo: nic [%d/%d] IP [%d/%d]: %s",
-                          i+1,
-                          nicInfo->nics.nics_len,
-                          j+1,
-                          nic->ips.ips_len,
-                          ipAddress->ipAddress);
-      }
-   }
-
-   return ret;
 }
 
 
@@ -1074,8 +1076,67 @@ GuestInfoClearCache(void)
       gInfoCache.value[i][0] = 0;
    }
 
-   VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
-   memset(&gInfoCache.nicInfo, 0, sizeof gInfoCache.nicInfo);
+   GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
+   gInfoCache.nicInfo = NULL;
+}
+
+
+/*
+ ***********************************************************************
+ * NicInfoV3ToV2 --                                             */ /**
+ *
+ * @brief Converts the NicInfoV3 NIC list to a GuestNicList.
+ *
+ * @note  This function performs @e shallow copies of things such as
+ *        IP address array, making it depend on the source NicInfoV3.
+ *        In other words, do @e not free NicInfoV3 before freeing the
+ *        returned pointer.
+ *
+ * @param[in]  infoV3   Source NicInfoV3 container.
+ *
+ * @return Pointer to a GuestNicList.  Caller should free it using
+ *         plain ol' @c free.
+ *
+ ***********************************************************************
+ */
+
+static GuestNicList *
+NicInfoV3ToV2(const NicInfoV3 *infoV3)
+{
+   GuestNicList *nicList;
+   unsigned int i, j;
+
+   nicList = Util_SafeCalloc(sizeof *nicList, 1);
+
+   XDRUTIL_ARRAYAPPEND(nicList, nics, infoV3->nics.nics_len);
+   XDRUTIL_FOREACH(i, infoV3, nics) {
+      GuestNicV3 *nic = XDRUTIL_GETITEM(infoV3, nics, i);
+      GuestNic *oldNic = XDRUTIL_GETITEM(nicList, nics, i);
+
+      Str_Strcpy(oldNic->macAddress, nic->macAddress, sizeof oldNic->macAddress);
+
+      XDRUTIL_ARRAYAPPEND(oldNic, ips, nic->ips.ips_len);
+
+      XDRUTIL_FOREACH(j, nic, ips) {
+         IpAddressEntry *ipEntry = XDRUTIL_GETITEM(nic, ips, j);
+         TypedIpAddress *ip = &ipEntry->ipAddressAddr;
+         VmIpAddress *oldIp = XDRUTIL_GETITEM(oldNic, ips, j);
+
+         /* XXX */
+         oldIp->addressFamily = (ip->ipAddressAddrType == IAT_IPV4) ?
+            NICINFO_ADDR_IPV4 : NICINFO_ADDR_IPV6;
+
+         NetUtil_InetNToP(ip->ipAddressAddrType == IAT_IPV4 ?
+                          AF_INET : AF_INET6,
+                          ip->ipAddressAddr.InetAddress_val, oldIp->ipAddress,
+                          sizeof oldIp->ipAddress);
+
+         Str_Sprintf(oldIp->subnetMask, sizeof oldIp->subnetMask, "%u",
+                     ipEntry->ipAddressPrefixLength);
+      }
+   }
+
+   return nicList;
 }
 
 
@@ -1118,9 +1179,11 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    vmResumed = FALSE;
 
    /* Add the first timer event. */
-   src = g_timeout_source_new(GUESTINFO_TIME_INTERVAL_MSEC * 10);
-   VMTOOLSAPP_ATTACH_SOURCE(ctx, src, GuestInfoGather, ctx, NULL);
-   g_source_unref(src);
+   if (ctx->rpc) {
+      src = g_timeout_source_new(GUESTINFO_TIME_INTERVAL_MSEC * 10);
+      VMTOOLSAPP_ATTACH_SOURCE(ctx, src, GuestInfoGather, ctx, NULL);
+      g_source_unref(src);
+   }
 
    return &regData;
 }

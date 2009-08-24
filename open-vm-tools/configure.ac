@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2009.07.22"
+TOOLS_VERSION="2009.08.24"
 AC_INIT(
    [open-vm-tools],
-   [2009.07.22],
+   [2009.08.24],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -138,6 +138,9 @@ osVersion="`getOsVersion`"
 if test "$with_kernel_modules" = "yes"; then
    case "$os" in
       linux)
+         if test "$osVersion" -lt 206009; then
+            AC_MSG_ERROR([Kernels prior to 2.6.9 are not supported in this release of open-vm-tools. Configure using --without-kernel-modules to suppress building kernel drivers.])
+         fi
          if test ! -d "$LINUXDIR/kernel/"; then
              AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
          fi
@@ -928,22 +931,10 @@ if test "$os" = "linux"; then
    CPPFLAGS="$CPPFLAGS -D_BSD_SOURCE"
    CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE"
 
-   if test "$osVersion" -ge 202000; then
-      MODULES="$MODULES vmmemctl vmxnet"
-   fi
-   if test "$osVersion" -ge 204000; then
-      MODULES="$MODULES vmblock vmci vmhgfs vsock"
-      buildHgfsmounter=yes
-   fi
-   if test "$osVersion" -ge 206000; then
-      MODULES="$MODULES vmxnet3"
-   fi
-   if test "$osVersion" -ge 206006; then
-      MODULES="$MODULES vmsync"
-   fi
-   if test "$osVersion" -ge 206008; then
-      MODULES="$MODULES pvscsi"
-   fi
+   MODULES="$MODULES vmmemctl vmsync vmci vsock"
+   MODULES="$MODULES vmxnet vmxnet3 pvscsi"
+   MODULES="$MODULES vmblock vmhgfs"
+   buildHgfsmounter=yes
 fi
 
 if test "$os" = "freebsd"; then
@@ -1172,6 +1163,7 @@ AC_CONFIG_FILES([                      \
    lib/guestRpc/Makefile               \
    lib/hgfs/Makefile                   \
    lib/hgfsBd/Makefile                 \
+   lib/hgfsHelper/Makefile             \
    lib/hgfsServer/Makefile             \
    lib/hgfsServerManagerGuest/Makefile \
    lib/hgfsServerPolicyGuest/Makefile  \
@@ -1192,6 +1184,7 @@ AC_CONFIG_FILES([                      \
    lib/rpcOut/Makefile                 \
    lib/rpcVmx/Makefile                 \
    lib/SLPv2Parser/Makefile            \
+   lib/slashProc/Makefile              \
    lib/string/Makefile                 \
    lib/stubs/Makefile                  \
    lib/sync/Makefile                   \
@@ -1234,6 +1227,7 @@ AC_CONFIG_FILES([                      \
    tests/vmrpcdbg/Makefile             \
    tests/testDebug/Makefile            \
    tests/testPlugin/Makefile           \
+   tests/testVmblock/Makefile          \
    docs/Makefile                       \
    docs/api/Makefile                   \
    scripts/Makefile		       \

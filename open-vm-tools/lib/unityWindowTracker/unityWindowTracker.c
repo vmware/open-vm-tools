@@ -887,6 +887,12 @@ UnityWindowTracker_SendUpdate(UnityWindowTracker *tracker,        // IN
    case UNITY_UPDATE_CHANGE_ZORDER:
       UnityWindowTracker_SetZOrder(tracker, update->u.zorder.ids,
                                    update->u.zorder.count);
+      /*
+       * This function is only every called from the host. Thus, if we get
+       * a zorder changed event from the guest it's safe to blindly trust it
+       * mark the zorder as changed. See bug 409742 for more info.
+       */
+      tracker->zorderChanged = TRUE;
       break;
 
    case UNITY_UPDATE_CHANGE_WINDOW_STATE:

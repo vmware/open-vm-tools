@@ -62,7 +62,8 @@ const string::size_type string::npos = Glib::ustring::npos;
 
 string::string()
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
 }
 
@@ -85,7 +86,8 @@ string::string()
 
 string::string(ConstUnicode s) // IN
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    ASSERT(s);
    mUstr = Unicode_GetUTF8(s);
@@ -118,7 +120,8 @@ string::string(ConstUnicode s) // IN
 
 string::string(const ubstr_t &s) // IN
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    // If the input is empty, then there's nothing to do.
    if (s.length() == 0) {
@@ -153,7 +156,8 @@ string::string(const ubstr_t &s) // IN
 
 string::string(const _bstr_t &s) // IN
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    // If the input is empty, then there's nothing to do.
    if (s.length() == 0) {
@@ -194,7 +198,8 @@ string::string(const _bstr_t &s) // IN
 
 string::string(const utf16string &s) // IN
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    // If the input is empty, then there's nothing to do.
    if (s.empty()) {
@@ -224,7 +229,8 @@ string::string(const utf16string &s) // IN
 
 string::string(const utf16_t *s) // IN
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    ASSERT(s != NULL);
 
@@ -267,7 +273,8 @@ string::string(const utf16_t *s) // IN
 string::string(const char *s,           // IN
                StringEncoding encoding) // IN
    : mUstr(),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    ASSERT(s != NULL);
 
@@ -309,7 +316,8 @@ string::string(const char *s,           // IN
 
 string::string(const Glib::ustring &s)    // IN
    : mUstr(s.c_str()),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
    ASSERT(Validate(s));
 }
@@ -339,7 +347,8 @@ string::string(const Glib::ustring &s)    // IN
 
 string::string(const string &s) // IN
    : mUstr(s.mUstr.c_str()),
-     mUtf16Cache(NULL)
+     mUtf16Cache(NULL),
+     mUtf16Length(npos)
 {
 }
 
@@ -494,6 +503,7 @@ string::swap(string &s) // IN/OUT
 {
    mUstr.swap(s.mUstr);
    std::swap(mUtf16Cache, s.mUtf16Cache);
+   std::swap(mUtf16Length, s.mUtf16Length);
 }
 
 
@@ -638,6 +648,33 @@ string::size()
    const
 {
    return mUstr.size();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * utf::string::w_size --
+ *
+ * Results:
+ *      Returns the length of this string, in UTF-16 code units,
+ *      excluding NUL.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+string::size_type
+string::w_size()
+   const
+{
+   if (mUtf16Length == npos) {
+      mUtf16Length = Unicode_UTF16Strlen(GetUtf16Cache());
+   }
+
+   return mUtf16Length;
 }
 
 
@@ -1739,6 +1776,7 @@ string::InvalidateCache()
 {
    free(mUtf16Cache);
    mUtf16Cache = NULL;
+   mUtf16Length = npos;
 }
 
 
@@ -2185,7 +2223,7 @@ void
 CreateWritableBuffer(const string& s,           // IN:
                      std::vector<utf16_t>& buf) // OUT: A copy of the string, as UTF-16.
 {
-   CopyArray(s.w_str(), Unicode_UTF16Strlen(s.w_str()) + 1, buf);
+   CopyArray(s.w_str(), s.w_size() + 1, buf);
 }
 
 

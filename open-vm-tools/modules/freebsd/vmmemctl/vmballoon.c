@@ -16,18 +16,18 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmballoon.c --
  *
- * 	VMware server physical memory management driver for Unix-ish
- * 	(Linux, FreeBSD, Solaris) guests.  The driver acts like a
- * 	"balloon" that can be inflated to reclaim physical pages by
- * 	reserving them in the guest and invalidating them in the
- * 	monitor, freeing up the underlying machine pages so they can
- * 	be allocated to other guests.  The balloon can also be
- * 	deflated to allow the guest to use more physical memory.
- * 	Higher level policies can control the sizes of balloons in VMs
- * 	in order to manage physical memory resources.
+ *      VMware physical memory management driver for Unix-ish
+ *      (Linux, FreeBSD, Solaris, Mac OS) guests. The driver acts like
+ *      a "balloon" that can be inflated to reclaim physical pages by
+ *      reserving them in the guest and invalidating them in the
+ *      monitor, freeing up the underlying machine pages so they can
+ *      be allocated to other guests.  The balloon can also be
+ *      deflated to allow the guest to use more physical memory.
+ *      Higher level policies can control the sizes of balloons in VMs
+ *      in order to manage physical memory resources.
  */
 
 #ifdef __cplusplus
@@ -38,12 +38,12 @@ extern "C" {
  * Compile-Time Options
  */
 
-#define	BALLOON_RATE_ADAPT	(1)
+#define BALLOON_RATE_ADAPT      (1)
 
-#define	BALLOON_DEBUG		(1)
-#define	BALLOON_DEBUG_VERBOSE	(0)
+#define BALLOON_DEBUG           (1)
+#define BALLOON_DEBUG_VERBOSE   (0)
 
-#define	BALLOON_STATS
+#define BALLOON_STATS
 #define BALLOON_STATS_PROCFS
 
 /*
@@ -65,38 +65,38 @@ extern "C" {
 #define NULL 0
 #endif
 
-#define	BALLOON_NAME			"vmmemctl"
-#define	BALLOON_NAME_VERBOSE		"VMware memory control driver"
+#define BALLOON_NAME                    "vmmemctl"
+#define BALLOON_NAME_VERBOSE            "VMware memory control driver"
 
-#define	BALLOON_PROTOCOL_VERSION	(2)
+#define BALLOON_PROTOCOL_VERSION        (2)
 
-#define	BALLOON_CHUNK_PAGES		(1000)
+#define BALLOON_CHUNK_PAGES             (1000)
 
-#define BALLOON_NOSLEEP_ALLOC_MAX	(16384)
+#define BALLOON_NOSLEEP_ALLOC_MAX       (16384)
 
-#define	BALLOON_RATE_ALLOC_MIN		(512)
-#define	BALLOON_RATE_ALLOC_MAX		(2048)
-#define	BALLOON_RATE_ALLOC_INC		(16)
+#define BALLOON_RATE_ALLOC_MIN          (512)
+#define BALLOON_RATE_ALLOC_MAX          (2048)
+#define BALLOON_RATE_ALLOC_INC          (16)
 
-#define	BALLOON_RATE_FREE_MIN		(512)
-#define	BALLOON_RATE_FREE_MAX		(16384)
-#define	BALLOON_RATE_FREE_INC		(16)
+#define BALLOON_RATE_FREE_MIN           (512)
+#define BALLOON_RATE_FREE_MAX           (16384)
+#define BALLOON_RATE_FREE_INC           (16)
 
-#define	BALLOON_ERROR_PAGES		(16)
+#define BALLOON_ERROR_PAGES             (16)
 
-/* 
+/*
  * When guest is under memory pressure, use a reduced page allocation
  * rate for next several cycles.
  */
-#define SLOW_PAGE_ALLOCATION_CYCLES	(4)
+#define SLOW_PAGE_ALLOCATION_CYCLES     (4)
 
-/* 
+/*
  * Move it to bora/public/balloon_def.h later, if needed. Note that
  * BALLOON_PAGE_ALLOC_FAILURE is an internal error code used for
  * distinguishing page allocation failures from monitor-backdoor errors.
  * We use value 1000 because all monitor-backdoor error codes are < 1000.
  */
-#define BALLOON_PAGE_ALLOC_FAILURE	(1000)
+#define BALLOON_PAGE_ALLOC_FAILURE      (1000)
 
 // Maximum number of page allocations without yielding processor
 #define BALLOON_ALLOC_YIELD_THRESHOLD   (1024)
@@ -156,7 +156,7 @@ static Balloon globalBalloon;
 static int BalloonGuestType(void);
 
 static unsigned long BalloonPrimAllocPage(BalloonPageAllocType canSleep);
-static void   BalloonPrimFreePage(unsigned long page);
+static void BalloonPrimFreePage(unsigned long page);
 
 static int  Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType);
 static int  Balloon_FreePage(Balloon *b, int monitorUnlock);
@@ -165,7 +165,7 @@ static void Balloon_Reset(Balloon *b);
 
 static void Balloon_StartTimer(Balloon *b);
 static void Balloon_StopTimer(Balloon *b);
-static void CDECL Balloon_BH(void *data);
+static void BalloonTimerHandler(void *clientData);
 
 static int Balloon_MonitorStart(Balloon *b);
 static int Balloon_MonitorGuestType(Balloon *b);
@@ -177,51 +177,43 @@ static int Balloon_MonitorUnlockPage(Balloon *b, unsigned long addr);
  * Macros
  */
 
-#ifndef	MIN
-#define	MIN(a, b)	(((a) < (b)) ? (a) : (b))
-#endif
-#ifndef	MAX
-#define	MAX(a, b)	(((a) > (b)) ? (a) : (b))
-#endif
-
-#ifdef	BALLOON_STATS
-#define	STATS_INC(stat)	(stat)++
+#ifdef  BALLOON_STATS
+#define STATS_INC(stat) (stat)++
 #else
-#define	STATS_INC(stat)
+#define STATS_INC(stat)
 #endif
 
 /*
  * Macros to generate operations for simple lists of OBJ.
  * OBJ must contain next and prev fields.
- * 
  */
 
-#define	GENERATE_LIST_INSERT(OBJ)			\
-static void OBJ ## _Insert(OBJ **head, OBJ *obj)	\
-{							\
-   OBJ *h = *head;					\
-							\
-   /* add element to head of list */			\
-   obj->next = h;					\
-   if (h != NULL) {					\
-      h->prev = obj;					\
-   } 							\
-   *head = obj;						\
-   obj->prev = NULL;					\
+#define GENERATE_LIST_INSERT(OBJ)                       \
+static void OBJ ## _Insert(OBJ **head, OBJ *obj)        \
+{                                                       \
+   OBJ *h = *head;                                      \
+                                                        \
+   /* add element to head of list */                    \
+   obj->next = h;                                       \
+   if (h != NULL) {                                     \
+      h->prev = obj;                                    \
+   }                                                    \
+   *head = obj;                                         \
+   obj->prev = NULL;                                    \
 }
 
-#define	GENERATE_LIST_REMOVE(OBJ)			\
-static void OBJ ## _Remove(OBJ **head, OBJ *obj)	\
-{							\
-    /* splice element out of list */		  	\
-    if (obj->prev != NULL) {				\
-      obj->prev->next = obj->next;			\
-    } else {						\
-      *head = obj->next;				\
-    }							\
-    if (obj->next != NULL) {				\
-      obj->next->prev = obj->prev;			\
-    }							\
+#define GENERATE_LIST_REMOVE(OBJ)                       \
+static void OBJ ## _Remove(OBJ **head, OBJ *obj)        \
+{                                                       \
+    /* splice element out of list */                    \
+    if (obj->prev != NULL) {                            \
+      obj->prev->next = obj->next;                      \
+    } else {                                            \
+      *head = obj->next;                                \
+    }                                                   \
+    if (obj->next != NULL) {                            \
+      obj->next->prev = obj->prev;                      \
+    }                                                   \
 }
 
 /*
@@ -235,25 +227,28 @@ GENERATE_LIST_REMOVE(BalloonChunk);
  * Procfs Operations
  */
 
+
 /*
  *----------------------------------------------------------------------
  *
  * BalloonProcRead --
  *
  *      Ballon driver status reporting routine.  Note that this is only
- *	used for Linux.
+ *      used for Linux.
  *
  * Results:
  *      Writes ASCII status information into "buf".
- *	Returns number of bytes written.
+ *      Returns number of bytes written.
  *
  * Side effects:
  *      None.
  *
  *----------------------------------------------------------------------
  */
-static int CDECL
-BalloonProcRead(char *buf)
+
+static int
+BalloonProcRead(char *buf,      // OUT
+                size_t size) // IN
 {
    int len = 0;
    BalloonStats stats;
@@ -261,14 +256,14 @@ BalloonProcRead(char *buf)
    BalloonGetStats(&stats);
 
    /* format size info */
-   len += os_sprintf(buf + len,
+   len += OS_Snprintf(buf + len, size - len,
                      "target:             %8d pages\n"
                      "current:            %8d pages\n",
                      stats.nPagesTarget,
                      stats.nPages);
 
    /* format rate info */
-   len += os_sprintf(buf + len,
+   len += OS_Snprintf(buf + len, size - len,
                      "rateNoSleepAlloc:   %8d pages/sec\n"
                      "rateSleepAlloc:     %8d pages/sec\n"
                      "rateFree:           %8d pages/sec\n",
@@ -276,8 +271,8 @@ BalloonProcRead(char *buf)
                      stats.rateAlloc,
                      stats.rateFree);
 
-#ifdef	BALLOON_STATS_PROCFS
-   len += os_sprintf(buf + len,
+#ifdef BALLOON_STATS_PROCFS
+   len += OS_Snprintf(buf + len, size - len,
                      "\n"
                      "timer:              %8u\n"
                      "start:              %8u (%4u failed)\n"
@@ -305,7 +300,7 @@ BalloonProcRead(char *buf)
                      stats.primErrorPageFree);
 #endif
 
-   return(len);
+   return len;
 }
 
 /*
@@ -318,7 +313,7 @@ BalloonProcRead(char *buf)
  * AddrToPPN --
  *
  *      Return the physical page number corresponding to the specified
- *	Linux kernel-mapped address.
+ *      kernel-mapped address.
  *
  * Results:
  *      Returns PPN for "addr".
@@ -331,7 +326,7 @@ BalloonProcRead(char *buf)
 static inline unsigned long
 AddrToPPN(unsigned long addr)
 {
-   return(os_addr_to_ppn(addr));
+   return OS_AddrToPPN(addr);
 }
 
 /*
@@ -341,12 +336,12 @@ AddrToPPN(unsigned long addr)
  *
  *      Attempts to allocate and reserve a physical page.
  *
- *	If canSleep == 1, i.e., BALLOON_PAGE_ALLOC_CANSLEEP:
- *	   The allocation can wait (sleep) for page writeout (swap)
- *	   by the guest.
- *	otherwise canSleep == 0, i.e., BALLOON_PAGE_ALLOC_NOSLEEP:
- *	   If allocation of a page requires disk writeout, then
- *	   just fail. DON'T sleep.
+ *      If canSleep == 1, i.e., BALLOON_PAGE_ALLOC_CANSLEEP:
+ *         The allocation can wait (sleep) for page writeout (swap)
+ *         by the guest.
+ *      otherwise canSleep == 0, i.e., BALLOON_PAGE_ALLOC_NOSLEEP:
+ *         If allocation of a page requires disk writeout, then
+ *         just fail. DON'T sleep.
  *
  * Results:
  *      Returns the physical address of the allocated page, or 0 if error.
@@ -359,7 +354,7 @@ AddrToPPN(unsigned long addr)
 static unsigned long
 BalloonPrimAllocPage(BalloonPageAllocType canSleep)
 {
-   return(os_alloc_reserved_page(canSleep));
+   return OS_AllocReservedPage(canSleep);
 }
 
 /*
@@ -380,7 +375,7 @@ BalloonPrimAllocPage(BalloonPageAllocType canSleep)
 static void
 BalloonPrimFreePage(unsigned long page)
 {
-   return(os_free_reserved_page(page));
+   return OS_FreeReservedPage(page);
 }
 
 /*
@@ -389,7 +384,7 @@ BalloonPrimFreePage(unsigned long page)
  * BalloonGuestType --
  *
  *      Return balloon guest OS identifier obtained by parsing
- *	system-dependent identity string.
+ *      system-dependent identity string.
  *
  * Results:
  *      Returns one of BALLOON_GUEST_{LINUX,BSD,SOLARIS,UNKNOWN}.
@@ -402,11 +397,11 @@ BalloonPrimFreePage(unsigned long page)
 static int
 BalloonGuestType(void)
 {
-   char *identity;
+   const char *identity;
 
    /* obtain OS identify string */
-   identity = os_identity();
-   
+   identity = OS_Identity();
+
    /* unknown if not specified */
    if (identity == NULL) {
       return(BALLOON_GUEST_UNKNOWN);
@@ -416,19 +411,19 @@ BalloonGuestType(void)
    switch (identity[0]) {
    case 'l':
    case 'L':
-      return(BALLOON_GUEST_LINUX);
+      return BALLOON_GUEST_LINUX;
    case 'b':
    case 'B':
-      return(BALLOON_GUEST_BSD);
+      return BALLOON_GUEST_BSD;
    case 's':
    case 'S':
-      return(BALLOON_GUEST_SOLARIS);
+      return BALLOON_GUEST_SOLARIS;
    default:
       break;
    }
 
    /* unknown */
-   return(BALLOON_GUEST_UNKNOWN);
+   return BALLOON_GUEST_UNKNOWN;
 }
 
 /*
@@ -443,7 +438,7 @@ void BalloonGetStats(BalloonStats *stats)
    /*
     * Copy statistics out of global structure.
     */
-   os_memcpy(stats, &b->stats, sizeof (BalloonStats));
+   OS_MemCopy(stats, &b->stats, sizeof (BalloonStats));
 
    /*
     * Fill in additional information about size and rates, which is
@@ -465,36 +460,40 @@ void BalloonGetStats(BalloonStats *stats)
  * BalloonChunk_Create --
  *
  *      Creates a new BalloonChunk object capable of tracking
- *	BALLOON_CHUNK_PAGES PPNs.
+ *      BALLOON_CHUNK_PAGES PPNs.
  *
- *	We do not bother to define two versions (NOSLEEP and CANSLEEP)
- *	of os_kmalloc because Chunk_Create does not require a new page
- *	often.
+ *      We do not bother to define two versions (NOSLEEP and CANSLEEP)
+ *      of OS_Malloc because Chunk_Create does not require a new page
+ *      often.
  *
  * Results:
- *      Returns initialized BalloonChunk, or NULL if error.
+ *      On success: initialized BalloonChunk
+ *      On failure: NULL
  *
  * Side effects:
- *      None.
+ *      None
  *
  *----------------------------------------------------------------------
  */
+
 static BalloonChunk *
 BalloonChunk_Create(void)
 {
    BalloonChunk *chunk;
 
    /* allocate memory, fail if unable */
-   if ((chunk = (BalloonChunk *) os_kmalloc_nosleep(sizeof(BalloonChunk))) == NULL) {
-      return(NULL);
+   chunk = OS_Malloc(sizeof *chunk);
+   if (chunk == NULL) {
+      return NULL;
    }
 
    /* initialize */
-   os_bzero(chunk, sizeof(BalloonChunk));
+   OS_MemZero(chunk, sizeof *chunk);
 
    /* everything OK */
-   return(chunk);
+   return chunk;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -515,7 +514,7 @@ static void
 BalloonChunk_Destroy(BalloonChunk *chunk)
 {
    /* reclaim storage */
-   os_kfree(chunk, sizeof (BalloonChunk));
+   OS_Free(chunk, sizeof *chunk);
 }
 
 /*
@@ -542,7 +541,7 @@ static int
 Balloon_Init(Balloon *b)
 {
    /* clear state */
-   os_bzero(b, sizeof(Balloon));
+   OS_MemZero(b, sizeof *b);
 
    /* initialize rates */
    b->rateAlloc = BALLOON_RATE_ALLOC_MAX;
@@ -580,7 +579,7 @@ Balloon_Deallocate(Balloon *b)
       (void) Balloon_FreePage(b, FALSE);
       if (++cnt >= b->rateFree) {
          cnt = 0;
-         os_yield();
+         OS_Yield();
       }
    }
 }
@@ -591,7 +590,7 @@ Balloon_Deallocate(Balloon *b)
  * Balloon_Reset --
  *
  *      Resets balloon "b" to empty state.  Frees all allocated pages
- *	and attempts to reset contact with the monitor. 
+ *      and attempts to reset contact with the monitor.
  *
  * Results:
  *      None.
@@ -623,12 +622,12 @@ Balloon_Reset(Balloon *b)
 /*
  *----------------------------------------------------------------------
  *
- * Balloon_BH --
+ * BalloonTimerHandler --
  *
  *      Balloon bottom half handler.  Contacts monitor via backdoor
- *	to obtain balloon size target, and starts adjusting balloon
- *	size to achieve target by allocating or deallocating pages.
- *	Resets balloon if requested by the monitor.
+ *      to obtain balloon size target, and starts adjusting balloon
+ *      size to achieve target by allocating or deallocating pages.
+ *      Resets balloon if requested by the monitor.
  *
  * Results:
  *      None.
@@ -638,10 +637,10 @@ Balloon_Reset(Balloon *b)
  *
  *----------------------------------------------------------------------
  */
-static void CDECL
-Balloon_BH(void *data)
+static void
+BalloonTimerHandler(void *clientData)
 {
-   Balloon *b = (Balloon *) data;
+   Balloon *b = (Balloon *) clientData;
    uint32 target;
    int status;
 
@@ -679,14 +678,14 @@ Balloon_BH(void *data)
  *      None.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
 static void
 Balloon_StartTimer(Balloon *b)
 {
-   os_timer_start();
+   OS_TimerStart();
 }
 
 /*
@@ -700,14 +699,14 @@ Balloon_StartTimer(Balloon *b)
  *      None.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
 static void
 Balloon_StopTimer(Balloon *b)
 {
-   os_timer_stop();
+   OS_TimerStop();
 }
 
 
@@ -717,14 +716,14 @@ Balloon_StopTimer(Balloon *b)
  * Balloon_ErrorPagesAlloc --
  *
  *      Attempt to add "page" to list of non-balloonable pages
- *	associated with "b".
+ *      associated with "b".
  *
  * Results:
- *      Returns BALLOON_SUCCESS iff successful, or BALLOON_FAILURE
- *	if non-balloonable page list is already full.
+ *      On success: BALLOON_SUCCESS
+ *      On failure: BALLOON_FAILURE (non-balloonable page list is already full)
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -749,13 +748,13 @@ Balloon_ErrorPagesAlloc(Balloon *b, unsigned long page)
  * Balloon_ErrorPagesFree --
  *
  *      Deallocates all pages on the list of non-balloonable pages
- *	associated with "b".
+ *      associated with "b".
  *
  * Results:
- *	None.
+ *      None.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -766,7 +765,7 @@ Balloon_ErrorPagesFree(Balloon *b)
 
    /* free all non-balloonable "error" pages */
    for (i = 0; i < b->errors.nextPage; i++) {
-      BalloonPrimFreePage(b->errors.page[i]);      
+      BalloonPrimFreePage(b->errors.page[i]);
       b->errors.page[i] = 0;
       STATS_INC(b->stats.primErrorPageFree);
    }
@@ -779,13 +778,13 @@ Balloon_ErrorPagesFree(Balloon *b)
  * Balloon_AllocPage --
  *
  *      Attempts to allocate a physical page, inflating balloon "b".
- *	Informs monitor of PPN for allocated page via backdoor.
+ *      Informs monitor of PPN for allocated page via backdoor.
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -854,14 +853,14 @@ Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType)
  * Balloon_FreePage --
  *
  *      Attempts to deallocate a physical page, deflating balloon "b".
- *	Informs monitor of PPN for deallocated page via backdoor if
- *	"monitorUnlock" is specified.
+ *      Informs monitor of PPN for deallocated page via backdoor if
+ *      "monitorUnlock" is specified.
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -929,15 +928,15 @@ Balloon_FreePage(Balloon *b, int monitorUnlock)
  *
  * BalloonDecreaseRateAlloc --
  *
- *	Wrapper to quickly reduce the page allocation rate. This function
- *	is called only when a CANSLEEP allocation fails. This implies severe 
- *	memory pressure inside the guest, so quickly decrease the rateAlloc.
+ *      Wrapper to quickly reduce the page allocation rate. This function
+ *      is called only when a CANSLEEP allocation fails. This implies severe
+ *      memory pressure inside the guest, so quickly decrease the rateAlloc.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -954,27 +953,27 @@ BalloonDecreaseRateAlloc(Balloon *b)
  *
  * BalloonIncreaseRateAlloc --
  *
- *	Wrapper to increase the page allocation rate. 
+ *      Wrapper to increase the page allocation rate.
  *
- *	This function is called when the balloon target is met or
- *	b->rateAlloc (or more) pages have been successfully allocated.
- *	This implies that the guest may not be under high memory 
- *	pressure. So let us increase the rateAlloc.
+ *      This function is called when the balloon target is met or
+ *      b->rateAlloc (or more) pages have been successfully allocated.
+ *      This implies that the guest may not be under high memory
+ *      pressure. So let us increase the rateAlloc.
  *
- *	If meeting balloon target requires less than b->rateAlloc
- *	pages, then we do not change the page allocation rate.
+ *      If meeting balloon target requires less than b->rateAlloc
+ *      pages, then we do not change the page allocation rate.
  *
- *	If the number of pages successfully allocated (nAlloc) is far
- *	higher than b->rateAlloc, then it implies that NOSLEEP 
- *	allocations are highly successful. Therefore, we predict that
- *	the guest is under no memory pressure, and so increase
- *	b->rateAlloc quickly.
+ *      If the number of pages successfully allocated (nAlloc) is far
+ *      higher than b->rateAlloc, then it implies that NOSLEEP
+ *      allocations are highly successful. Therefore, we predict that
+ *      the guest is under no memory pressure, and so increase
+ *      b->rateAlloc quickly.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -983,7 +982,7 @@ BalloonIncreaseRateAlloc(Balloon *b, uint32 nAlloc)
 {
    if (BALLOON_RATE_ADAPT) {
       if (nAlloc >= b->rateAlloc) {
-         uint32 mult = nAlloc / b->rateAlloc; 
+         uint32 mult = nAlloc / b->rateAlloc;
          b->rateAlloc = MIN(b->rateAlloc + mult * BALLOON_RATE_ALLOC_INC,
                             BALLOON_RATE_ALLOC_MAX);
       }
@@ -1001,7 +1000,7 @@ BalloonIncreaseRateAlloc(Balloon *b, uint32 nAlloc)
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1011,7 +1010,7 @@ BalloonInflate(Balloon *b, uint32 target)
    int status, allocations = 0;
    uint32 i, nAllocNoSleep, nAllocCanSleep;
 
-   /* 
+   /*
     * First try NOSLEEP page allocations to inflate balloon.
     *
     * If we do not throttle nosleep allocations, we can drain all
@@ -1019,10 +1018,10 @@ BalloonInflate(Balloon *b, uint32 target)
     * As a side-effect, draining free pages helps to inform (force)
     * the guest to start swapping if balloon target is not met yet,
     * which is a desired behavior. However, balloon driver can consume
-    * all available CPU cycles if too many pages are allocated in a 
-    * second. Therefore, we throttle nosleep allocations even when 
-    * the guest is not under memory pressure. OTOH, if we have already 
-    * predicted that the guest is under memory pressure, then we 
+    * all available CPU cycles if too many pages are allocated in a
+    * second. Therefore, we throttle nosleep allocations even when
+    * the guest is not under memory pressure. OTOH, if we have already
+    * predicted that the guest is under memory pressure, then we
     * slowdown page allocations considerably.
     */
    if (b->slowPageAllocationCycles > 0) {
@@ -1036,16 +1035,16 @@ BalloonInflate(Balloon *b, uint32 target)
       status = Balloon_AllocPage(b, BALLOON_PAGE_ALLOC_NOSLEEP);
       if (status != BALLOON_SUCCESS) {
          if (status != BALLOON_PAGE_ALLOC_FAILURE) {
-            /* 
+            /*
              * Not a page allocation failure, so release non-balloonable
              * pages, and fail.
              */
             Balloon_ErrorPagesFree(b);
             return(status);
          }
-         /* 
-          * NOSLEEP page allocation failed, so the guest is under memory 
-          * pressure. Let us slowdown page allocations for next few 
+         /*
+          * NOSLEEP page allocation failed, so the guest is under memory
+          * pressure. Let us slowdown page allocations for next few
           * cycles so that the guest gets out of memory pressure.
           */
          b->slowPageAllocationCycles = SLOW_PAGE_ALLOCATION_CYCLES;
@@ -1053,12 +1052,12 @@ BalloonInflate(Balloon *b, uint32 target)
       }
 
       if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
-         os_yield();
+         OS_Yield();
          allocations = 0;
       }
    }
 
-   /* 
+   /*
     * Check whether nosleep allocation successfully zapped nAllocNoSleep
     * pages.
     */
@@ -1068,7 +1067,7 @@ BalloonInflate(Balloon *b, uint32 target)
       Balloon_ErrorPagesFree(b);
       return(BALLOON_SUCCESS);
    } else {
-      /* 
+      /*
        * NOSLEEP allocation failed, so the guest is under memory pressure.
        * If already b->rateAlloc pages were zapped, then succeed. Otherwise,
        * try CANSLEEP allocation.
@@ -1084,14 +1083,14 @@ BalloonInflate(Balloon *b, uint32 target)
       }
    }
 
-   /* 
+   /*
     * Use CANSLEEP page allocation to inflate balloon if below target.
     *
     * Sleep allocations are required only when nosleep allocation fails.
     * This implies that the guest is already under memory pressure, so
     * let us always throttle canSleep allocations. The total number pages
-    * allocated using noSleep and canSleep methods is throttled at 
-    * b->rateAlloc per second when the guest is under memory pressure. 
+    * allocated using noSleep and canSleep methods is throttled at
+    * b->rateAlloc per second when the guest is under memory pressure.
     */
    nAllocCanSleep = target - b->nPages;
    nAllocCanSleep = MIN(nAllocCanSleep, b->rateAlloc - nAllocNoSleep);
@@ -1101,7 +1100,7 @@ BalloonInflate(Balloon *b, uint32 target)
       status = Balloon_AllocPage(b, BALLOON_PAGE_ALLOC_CANSLEEP);
       if(status != BALLOON_SUCCESS) {
          if (status == BALLOON_PAGE_ALLOC_FAILURE) {
-            /* 
+            /*
              * CANSLEEP page allocation failed, so guest is under severe
              * memory pressure. Quickly decrease rateAlloc.
              */
@@ -1113,17 +1112,17 @@ BalloonInflate(Balloon *b, uint32 target)
       }
 
       if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
-         os_yield();
+         OS_Yield();
          allocations = 0;
       }
    }
 
-   /* 
+   /*
     * Either met the balloon target or b->rateAlloc pages have been
     * successfully zapped.
     */
    BalloonIncreaseRateAlloc(b, nAllocNoSleep + nAllocCanSleep);
-                            
+
    /* release non-balloonable pages, succeed */
    Balloon_ErrorPagesFree(b);
    return(BALLOON_SUCCESS);
@@ -1140,7 +1139,7 @@ BalloonInflate(Balloon *b, uint32 target)
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1149,7 +1148,7 @@ BalloonDeflate(Balloon *b, uint32 target)
 {
    int status, i;
    uint32 nFree = b->nPages - target;
-      
+
    /* limit deallocation rate */
    nFree = MIN(nFree, b->rateFree);
 
@@ -1173,20 +1172,20 @@ BalloonDeflate(Balloon *b, uint32 target)
    /* everything OK */
    return(BALLOON_SUCCESS);
 }
- 
+
 /*
  *----------------------------------------------------------------------
  *
  * Balloon_AdjustSize --
  *
  *      Attempts to allocate or deallocate physical pages in order
- *	to reach desired "target" size for balloon "b".
+ *      to reach desired "target" size for balloon "b".
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1224,10 +1223,10 @@ Balloon_AdjustSize(Balloon *b, uint32 target)
  *      Attempts to contact monitor via backdoor to begin operation.
  *
  * Results:
- *	Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1266,10 +1265,10 @@ Balloon_MonitorStart(Balloon *b)
  *      Attempts to contact monitor and report guest OS identity.
  *
  * Results:
- *	Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1311,24 +1310,24 @@ Balloon_MonitorGuestType(Balloon *b)
  * Balloon_MonitorGetTarget --
  *
  *      Attempts to contact monitor via backdoor to obtain desired
- *	balloon size.
+ *      balloon size.
  *
- *	Predicts the maximum achievable balloon size and sends it 
- *	to vmm => vmkernel via vEbx register.
+ *      Predicts the maximum achievable balloon size and sends it
+ *      to vmm => vmkernel via vEbx register.
  *
- *	os_predict_max_balloon_pages() returns either predicted max balloon
- *	pages or BALLOON_MAX_SIZE_USE_CONFIG. In the later scenario,
- *	vmkernel uses global config options for determining a guest's max
- *	balloon size. Note that older vmballoon drivers set vEbx to 
- *	BALLOON_MAX_SIZE_USE_CONFIG, i.e., value 0 (zero). So vmkernel
- *	will fallback to config-based max balloon size estimation.
+ *      OS_PredictMaxReservedPages() returns either predicted max balloon
+ *      pages or BALLOON_MAX_SIZE_USE_CONFIG. In the later scenario,
+ *      vmkernel uses global config options for determining a guest's max
+ *      balloon size. Note that older vmballoon drivers set vEbx to
+ *      BALLOON_MAX_SIZE_USE_CONFIG, i.e., value 0 (zero). So vmkernel
+ *      will fallback to config-based max balloon size estimation.
  *
  * Results:
- *	If successful, sets "target" to value obtained from monitor,
+ *      If successful, sets "target" to value obtained from monitor,
  *      and returns BALLOON_SUCCESS. Otherwise returns error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1340,7 +1339,7 @@ Balloon_MonitorGetTarget(Balloon *b, uint32 *target)
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_TARGET;
-   bp.in.size = os_predict_max_balloon_pages();
+   bp.in.size = OS_PredictMaxReservedPages();
 
    /* invoke backdoor */
    Backdoor_Balloon(&bp);
@@ -1369,14 +1368,14 @@ Balloon_MonitorGetTarget(Balloon *b, uint32 *target)
  *
  * Balloon_MonitorLockPage --
  *
- *      Attempts to contact monitor and add PPN containing "addr" 
- *	to set of "balloon locked" pages.
+ *      Attempts to contact monitor and add PPN containing "addr"
+ *      to set of "balloon locked" pages.
  *
  * Results:
- *	Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1428,14 +1427,14 @@ Balloon_MonitorLockPage(Balloon *b, unsigned long addr)
  *
  * Balloon_MonitorUnlockPage --
  *
- *      Attempts to contact monitor and remove PPN containing "addr" 
- *	from set of "balloon locked" pages.
+ *      Attempts to contact monitor and remove PPN containing "addr"
+ *      from set of "balloon locked" pages.
  *
  * Results:
- *	Returns BALLOON_SUCCESS if successful, otherwise error code.
+ *      Returns BALLOON_SUCCESS if successful, otherwise error code.
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1497,18 +1496,18 @@ BalloonModuleInit(void)
       return(BALLOON_FAILURE);
    }
 
+   /* os-specific initialization */
+   OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE, BalloonProcRead);
+
    /* initialize global state */
    Balloon_Init(b);
 
-   /* os-specific initialization */
-   os_init(BALLOON_NAME, BALLOON_NAME_VERBOSE, BalloonProcRead);
-   os_timer_init(Balloon_BH, (void *) b, os_timer_hz());
-
    /* start timer */
+   OS_TimerInit(BalloonTimerHandler, b, OS_TimerHz());
    Balloon_StartTimer(b);
 
    /* everything OK */
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
 
 static void
@@ -1528,8 +1527,8 @@ BalloonModuleCleanup(void)
    Balloon_Deallocate(b);
 
    /* os-specific cleanup */
-   os_cleanup();
-}   
+   OS_Cleanup();
+}
 
 int init_module(void)
 {

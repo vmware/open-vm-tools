@@ -109,6 +109,9 @@ VMTools_ReloadConfig(const gchar *path,
                      GKeyFile **config,
                      time_t *mtime);
 
+void
+VMTools_ResetLogging(gboolean cleanDefault);
+
 gboolean
 VMTools_WriteConfig(const gchar *path,
                     GKeyFile *config,

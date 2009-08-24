@@ -31,6 +31,10 @@
 #error "Wrong platform."
 #endif
 
+#if !defined(VMX86_TOOLS) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
+#  error "Host Linux kernels before 2.6.9 are not supported."
+#endif
+
 #define EXPORT_SYMTAB
 #define __NO_VERSION__
 #include "compat_module.h"
@@ -1416,7 +1420,6 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                        VMCIQueue *produceQ,              // OUT
                        VMCIQueue *consumeQ)              // OUT
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
    int retval;
    int err = VMCI_SUCCESS;
 
@@ -1501,70 +1504,6 @@ errorDealloc:
    }
 
    return err;
-
-#else
-   /*
-    * Host queue pair support for earlier kernels temporarily
-    * disabled. See bug 365496.
-    */
-
-   ASSERT_NOT_IMPLEMENTED(FALSE);
-#if 0
-   attach->produceIoBuf = VMCI_AllocKernelMem(sizeof *attach->produceIoBuf,
-                                              VMCI_MEMORY_NORMAL);
-   if (attach->produceIoBuf == NULL) {
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   attach->consumeIoBuf = VMCI_AllocKernelMem(sizeof *attach->consumeIoBuf,
-                                              VMCI_MEMORY_NORMAL);
-   if (attach->consumeIoBuf == NULL) {
-      VMCI_FreeKernelMem(attach->produceIoBuf,
-                         sizeof *attach->produceIoBuf);
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   retval = map_user_kiobuf(WRITE, attach->produceIoBuf,
-                            (VA)attach->produceBuffer,
-                            attach->numProducePages * PAGE_SIZE);
-   if (retval < 0) {
-      err = VMCI_ERROR_NO_ACCESS;
-      goto out;
-   }
-
-   retval = map_user_kiobuf(WRITE, attach->consumeIoBuf,
-                            (VA)attach->consumeBuffer,
-                            attach->numConsumePages * PAGE_SIZE);
-   if (retval < 0) {
-      unmap_kiobuf(attach->produceIoBuf);
-      err = VMCI_ERROR_NO_ACCESS;
-   }
-
-   if (err == VMCI_SUCCESS) {
-      produceQ->queueHeaderPtr = kmap(attach->produceIoBuf->maplist[0]);
-      produceQ->page = &attach->produceIoBuf->maplist[1];
-      consumeQ->queueHeaderPtr = kmap(attach->consumeIoBuf->maplist[0]);
-      consumeQ->page = &attach->consumeIoBuf->maplist[1];
-   }
-
-out:
-
-   if (err < VMCI_SUCCESS) {
-      if (attach->produceIoBuf != NULL) {
-         VMCI_FreeKernelMem(attach->produceIoBuf,
-                            sizeof *attach->produceIoBuf);
-      }
-      if (attach->consumeIoBuf != NULL) {
-         VMCI_FreeKernelMem(attach->consumeIoBuf,
-                            sizeof *attach->consumeIoBuf);
-      }
-   }
-
-   return err;
-#else // 0 -- Instead just return FALSE
-   return FALSE;
-#endif // 0
-#endif // Linux version >= 2.6.0
 }
 
 
@@ -1590,8 +1529,6 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                            VMCIQueue *produceQ,              // OUT
                            VMCIQueue *consumeQ)              // OUT
 {
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
    int i;
 
    ASSERT(attach->producePages);
@@ -1620,31 +1557,6 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
    VMCI_FreeKernelMem(attach->consumePages,
                       attach->numConsumePages *
                       sizeof attach->consumePages[0]);
-#else
-   /*
-    * Host queue pair support for earlier kernels temporarily
-    * disabled. See bug 365496.
-    */
-
-   ASSERT_NOT_IMPLEMENTED(FALSE);
-#if 0
-   kunmap(attach->produceIoBuf->maplist[0]);
-   kunmap(attach->consumeIoBuf->maplist[0]);
-
-   mark_dirty_kiobuf(attach->produceIoBuf,
-                     attach->numProducePages * PAGE_SIZE);
-   unmap_kiobuf(attach->produceIoBuf);
-
-   mark_dirty_kiobuf(attach->consumeIoBuf,
-                     attach->numConsumePages * PAGE_SIZE);
-   unmap_kiobuf(attach->consumeIoBuf);
-
-   VMCI_FreeKernelMem(attach->produceIoBuf,
-                      sizeof *attach->produceIoBuf);
-   VMCI_FreeKernelMem(attach->consumeIoBuf,
-                      sizeof *attach->consumeIoBuf);
-#endif
-#endif
 }
 
-#endif
+#endif  /* Host only code */

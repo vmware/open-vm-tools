@@ -2227,7 +2227,7 @@ UnityPlatformGetWindowContents(UnityPlatform *up,     // IN
    vmimage.bytesPerLine = ximage->bytes_per_line;
    vmimage.data = ximage->data;
 
-   if (ImageUtil_ConstructPNGBuffer(&vmimage, imageData)) {
+   if (ImageUtil_ConstructPNGBuffer(&vmimage, NULL, imageData)) {
       result = TRUE;
    }
 

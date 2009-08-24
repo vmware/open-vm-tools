@@ -43,8 +43,6 @@
 VM_EMBED_VERSION(VMTOOLSLIB_VERSION_STRING);
 #endif
 
-extern void VMTools_ResetLogging(gboolean cleanDefault);
-
 
 /**
  * A convenience function for wrapping an array with a GArray instance.
@@ -91,9 +89,9 @@ VMToolsDllInit(void *lib)
    VMTools_ResetLogging(FALSE);
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);
-   g_assert(success);
+   ASSERT(success);
    success = Wiper_Init(&wiperData);
-   g_assert(success);
+   ASSERT(success);
 #else
    VMTools_ResetLogging(FALSE);
    success = Wiper_Init(NULL);

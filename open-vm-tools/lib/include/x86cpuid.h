@@ -48,6 +48,7 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+#include "community_source.h"
 
 /*
  * The linux kernel's ptrace.h stupidly defines the bare
@@ -107,10 +108,6 @@ CPUIDQuery;
  * during power-on/migration.  Any level which is marked as FALSE here
  * *must* have all field masks defined as IGNORE in CPUID_FIELD_DATA.
  * A static assert in lib/cpuidcompat/cpuidcompat.c will check this.
- *
- * IMPORTANT: WHEN ADDING A NEW FIELD TO THE CACHED LEVELS, make sure
- * you update vmcore/vmm/cpu/priv.c:Priv_CPUID() and vmcore/vmm64/bt/
- * cpuid_shared.S (and geninfo) to include the new level.
  */
 
 #define CPUID_CACHED_LEVELS                     \
@@ -121,6 +118,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE,410, 0x40000010)            \
    CPUIDLEVEL(FALSE, 80, 0x80000000)            \
    CPUIDLEVEL(TRUE,  81, 0x80000001)            \
+   CPUIDLEVEL(FALSE, 87, 0x80000007)            \
    CPUIDLEVEL(FALSE, 88, 0x80000008)            \
    CPUIDLEVEL(TRUE,  8A, 0x8000000A)
 
@@ -128,8 +126,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 4, 4)                      \
    CPUIDLEVEL(FALSE, 6, 6)                      \
    CPUIDLEVEL(FALSE, A, 0xA)                    \
-   CPUIDLEVEL(FALSE, 86, 0x80000006)            \
-   CPUIDLEVEL(FALSE, 87, 0x80000007)            \
+   CPUIDLEVEL(FALSE, 86, 0x80000006)
 
 #define CPUID_ALL_LEVELS                        \
    CPUID_CACHED_LEVELS                          \
@@ -142,6 +139,11 @@ typedef enum {
 #undef CPUIDLEVEL
    CPUID_NUM_LEVELS
 } CpuidLevels;
+
+
+/* SVM CPUID feature leaf */
+#define CPUID_SVM_FEATURES         0x8000000a
+
 
 /*
  * CPUID result registers
@@ -659,6 +661,7 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_MODEL_NEHALEM_1A 0x1a  // Nehalem / Gainestown
 #define CPUID_MODEL_ATOM_1C    0x1c  // Silverthorne / Diamondville
 #define CPUID_MODEL_CORE_1D    0x1d  // Dunnington
+#define CPUID_MODEL_NEHALEM_1E 0x1e  // Lynnfield
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -789,8 +792,12 @@ CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
 
    return CPUID_FAMILY_IS_P6(v) &&
           (
+           effectiveModel == CPUID_MODEL_NEHALEM_1E ||
            effectiveModel == CPUID_MODEL_NEHALEM_1A);
 }
+
+
+
 
 static INLINE Bool
 CPUID_FAMILY_IS_K7(uint32 _eax)

@@ -177,7 +177,7 @@ Util_Init(void)
  */
 
 uint32
-Util_Checksum32(uint32 *buf, int len)
+Util_Checksum32(const uint32 *buf, int len)
 {
    uint32 checksum = 0;
    int i;
@@ -200,7 +200,7 @@ Util_Checksum32(uint32 *buf, int len)
  */
 
 uint32
-Util_Checksum(uint8 *buf, int len)
+Util_Checksum(const uint8 *buf, int len)
 {
    uint32 checksum;
    int remainder, shift;
@@ -655,20 +655,34 @@ Util_BacktraceToBuffer(uintptr_t *basePtr,
 Bool
 Util_Data2Buffer(char *buf,         // OUT
                  size_t bufSize,    // IN
-                 const void* data0, // IN
+                 const void *data0, // IN
                  size_t dataSize)   // IN
 {
-   char* cp = buf;
-   const uint8* data = (const uint8*) data0;
-   size_t n = MIN(dataSize, ((bufSize-1) / 3));
+   size_t n;
 
-   while (n > 0) {
-      Str_Sprintf(cp, 4, " %02X", *data);
-      cp += 3;
-      data++, n--;
+   /* At least 1 byte (for NUL) must be available. */
+   if (!bufSize) {
+      return FALSE;
    }
-   *cp = '\0';
-   return (dataSize <= bufSize);
+
+   bufSize = bufSize / 3;
+   n = MIN(dataSize, bufSize);
+   if (n != 0) {
+      const uint8 *data = data0;
+
+      while (n > 0) {
+         static const char digits[] = "0123456789ABCDEF";
+
+         *buf++ = digits[*data >> 4];
+         *buf++ = digits[*data & 0xF];
+         *buf++ = ' ';
+         data++;
+         n--;
+      }
+      buf--;
+   }
+   *buf = 0;
+   return dataSize <= bufSize;
 }
 
 

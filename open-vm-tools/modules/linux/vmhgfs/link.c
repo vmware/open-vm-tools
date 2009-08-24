@@ -87,6 +87,7 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
 #endif
 {
    HgfsAttrInfo attr;
+   char *fileName = NULL;
    int error;
 
    ASSERT(dentry);
@@ -100,22 +101,20 @@ HgfsFollowlink(struct dentry *dentry, // IN: Dentry containing link
 
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: calling "
            "HgfsPrivateGetattr\n"));
-   attr.fileName = NULL;
-   error = HgfsPrivateGetattr(dentry, &attr);
+   error = HgfsPrivateGetattr(dentry, &attr, &fileName);
    if (!error) {
 
       /* Let's make sure we got called on a symlink. */
-      if (attr.type != HGFS_FILE_TYPE_SYMLINK ||
-          attr.fileName == NULL) {
+      if (attr.type != HGFS_FILE_TYPE_SYMLINK || fileName == NULL) {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: got called "
                  "on something that wasn't a symlink\n"));
          error = -EINVAL;
       } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFollowlink: calling "
                  "vfs_follow_link\n"));
-         error = vfs_follow_link(nd, attr.fileName);
+         error = vfs_follow_link(nd, fileName);
       }
-      kfree(attr.fileName);
+      kfree(fileName);
    }
   out:
 
@@ -151,6 +150,7 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
 
 {
    HgfsAttrInfo attr;
+   char *fileName = NULL;
    int error;
 
    ASSERT(dentry);
@@ -163,22 +163,20 @@ HgfsReadlink(struct dentry *dentry,  // IN:  Dentry containing link
 
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadlink: calling "
            "HgfsPrivateGetattr\n"));
-   attr.fileName = NULL;
-   error = HgfsPrivateGetattr(dentry, &attr);
+   error = HgfsPrivateGetattr(dentry, &attr, &fileName);
    if (!error) {
 
       /* Let's make sure we got called on a symlink. */
-      if (attr.type != HGFS_FILE_TYPE_SYMLINK ||
-          attr.fileName == NULL) {
+      if (attr.type != HGFS_FILE_TYPE_SYMLINK || fileName == NULL) {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadlink: got called "
                  "on something that wasn't a symlink\n"));
          error = -EINVAL;
       } else {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadlink: calling "
                  "vfs_readlink\n"));
-         error = vfs_readlink(dentry, buffer, buflen, attr.fileName);
+         error = vfs_readlink(dentry, buffer, buflen, fileName);
       }
-      kfree(attr.fileName);
+      kfree(fileName);
    }
    return error;
 }

@@ -151,7 +151,7 @@ Vmxnet3_TxDesc;
 
 typedef
 #include "vmware_pack_begin.h"
-struct vmxnet3_TxDataDesc {
+struct Vmxnet3_TxDataDesc {
    uint8 data[VMXNET3_HDR_COPY_SIZE];
 }
 #include "vmware_pack_end.h"
@@ -371,7 +371,7 @@ Vmxnet3_MiscConf;
 
 typedef
 #include "vmware_pack_begin.h"
-struct vmxnet3_TxQueueConf {
+struct Vmxnet3_TxQueueConf {
    uint64    txRingBasePA;
    uint64    dataRingBasePA;
    uint64    compRingBasePA;

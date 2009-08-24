@@ -25,8 +25,6 @@
 
 #include "ghiCommonDefines.h"
 
-#define GHI_EXEC_INFO_HASH_MAX_LEN 1024
-
 /*
 * Enumerates the different versions of the messages.
 */

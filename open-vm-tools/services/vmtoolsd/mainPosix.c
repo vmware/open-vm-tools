@@ -42,6 +42,27 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 static ToolsServiceState gState = { NULL, };
 
+
+/**
+ * Reloads the service configuration - including forcing rotation of log
+ * files by reinitializing the logging subsystem.
+ *
+ * @param[in]  info     Unused.
+ * @param[in]  data     Service state.
+ *
+ * @return TRUE
+ */
+
+static gboolean
+ToolsCoreSigHUPCb(const siginfo_t *info,
+                  gpointer data)
+{
+   VMTools_ResetLogging(TRUE);
+   ToolsCore_ReloadConfig(data, TRUE);
+   return TRUE;
+}
+
+
 /**
  * Handles a signal that would terminate the process. Asks the main loop
  * to exit nicely.
@@ -162,7 +183,7 @@ main(int argc,
 
    src = VMTools_NewSignalSource(SIGHUP);
    VMTOOLSAPP_ATTACH_SOURCE(&gState.ctx, src,
-                            ToolsCoreSigHandler, gState.ctx.mainLoop, NULL);
+                            ToolsCoreSigHUPCb, &gState, NULL);
    g_source_unref(src);
 
    src = VMTools_NewSignalSource(SIGINT);

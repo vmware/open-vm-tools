@@ -363,7 +363,7 @@ Script_Set(const char *apm,   // IN: APM name
    GError *err = NULL;
 
    if (!File_Exists(path)) {
-      fprintf(stderr, "%s doesn't exists\n", path);
+      fprintf(stderr, "%s doesn't exist\n", path);
       return EX_OSFILE;
    }
 

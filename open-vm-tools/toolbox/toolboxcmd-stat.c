@@ -108,40 +108,6 @@ Stat_ProcessorSpeed(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Stat_MemorySize  --
- *
- *      Gets the virtual machine's memory in MBs.
- *
- * Results:
- *      EXIT_SUCCESS on success.
- *      EX_TEMPFAIL on failure.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-Stat_MemorySize(void)
-{
-   uint32 memsize;
-   Backdoor_proto bp;
-   bp.in.cx.halfs.low = BDOOR_CMD_GETMEMSIZE;
-   Backdoor(&bp);
-   memsize = bp.out.ax.word;
-   if (memsize < 0) {
-      fprintf(stderr, "Unable to get memory size\n");
-      return EX_TEMPFAIL;
-   }
-   printf("%u MB\n", memsize);
-   return EXIT_SUCCESS;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * Stat_HostTime  --
  *
  *      Gets the host machine's time.

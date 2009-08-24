@@ -261,6 +261,33 @@ AddPointer(Atomic_uint64 *var, // IN:
       } VMCIQueue;
 #  endif
 #else
+  /*
+   * VMCIQueuePair_QueueIsMapped()
+   *
+   * This macro will return TRUE if a queue created by either the
+   * guest or host has had the memory for the queue pair mapped by the
+   * VMX and made avaiable to the host by way of the SetPageFile
+   * ioctls.
+   *
+   * After SetPageFile, the queue memory will remain available to the
+   * host until the host detaches.  On Linux and Mac OS platforms the
+   * memory for the queue pair remains available to the host driver
+   * after the VMX process for the guest goes away.  On Windows, the
+   * memory is copied (under the protection of a mutex) so that the
+   * host can continue to operate on the queues after the VMX is gone.
+   *
+   * The version of the VMCIQueue data structure which is provided by
+   * the VMCI kernel module is protected by the VMCI
+   * QueuePairList_Lock and the VMCI QueuePairList_FindEntry()
+   * function.  Therefore, host-side clients shouldn't be able to
+   * access the structure after it's gone.  And, the memory the
+   * queueHeaderPtr points to is torn down (and freed) after the entry
+   * has been removed from the QueuePairList and just before the entry
+   * itself is deallocated.
+   */
+
+#  define VMCIQueuePair_QueueIsMapped(q)	((q)->queueHeaderPtr != NULL)
+
 #  if defined(__linux__) && defined(__KERNEL__)
       /*
        * Linux Kernel Host
@@ -277,7 +304,6 @@ AddPointer(Atomic_uint64 *var, // IN:
 	 VMCIQueueHeader *queueHeaderPtr;
 	 struct page **page;
       } VMCIQueue;
-#     define VMCIQueuePair_QueueIsMapped(q)	((q)->page != NULL)
 #  elif defined __APPLE__
       /*
        * Mac OS Host
@@ -303,7 +329,6 @@ AddPointer(Atomic_uint64 *var, // IN:
          IOMemoryDescriptor *pages;
          IOMemoryMap *header;
       } VMCIQueue;
-#    define VMCIQueuePair_QueueIsMapped(q) ((q)->pages)
 #  else
       /*
        * Windows Host
@@ -353,7 +378,6 @@ AddPointer(Atomic_uint64 *var, // IN:
          FAST_MUTEX __mutex;   /* Don't touch except to init */
       } VMCIQueue;
 #define VMCIQueuePair_EnqueueToDevNull(q)	((q)->enqueueToDevNull)
-#define VMCIQueuePair_QueueIsMapped(q)          ((q)->buffer != NULL)
 #  endif
 #endif
 

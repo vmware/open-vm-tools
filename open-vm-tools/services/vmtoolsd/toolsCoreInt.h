@@ -113,6 +113,10 @@ gboolean
 ToolsCore_LoadPlugins(ToolsServiceState *state);
 
 void
+ToolsCore_ReloadConfig(ToolsServiceState *state,
+                       gboolean force);
+
+void
 ToolsCore_RegisterPlugins(ToolsServiceState *state);
 
 void

@@ -81,9 +81,9 @@ EXTERN char *Util_GetMacOSDefaultVMPath();
 #endif // __APPLE__
 
 
-EXTERN uint32 CRC_Compute(uint8 *buf, int len);
-EXTERN uint32 Util_Checksum32(uint32 *buf, int len);
-EXTERN uint32 Util_Checksum(uint8 *buf, int len);
+EXTERN uint32 CRC_Compute(const uint8 *buf, int len);
+EXTERN uint32 Util_Checksum32(const uint32 *buf, int len);
+EXTERN uint32 Util_Checksum(const uint8 *buf, int len);
 EXTERN uint32 Util_Checksumv(void *iov, int numEntries);
 EXTERN Unicode Util_ExpandString(ConstUnicode fileName);
 EXTERN void Util_ExitThread(int);

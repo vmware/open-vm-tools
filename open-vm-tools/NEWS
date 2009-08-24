@@ -1,3 +1,14 @@
+open-vm-tools 2009.08.24 changes:
+	* Remove support for Linux kernels < 2.6.9.
+
+	* The vsock now implements a new notification protocol that has better
+	performance than the previous.
+
+	* New infrastructure for sending more network config-related information
+	about the virtual machine to the host.
+
+	* Other bug fixes and minor improvements to the code.
+
 open-vm-tools 2009.07.22 changes:
 	* Better support for dkms by means of a script to help create a dkms tree.
 

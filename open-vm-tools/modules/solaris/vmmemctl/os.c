@@ -14,10 +14,10 @@
  *
  *********************************************************/
 
-/* 
+/*
  * os.c --
  *
- * 	Wrappers for Solaris system functions required by "vmmemctl".
+ *      Wrappers for Solaris system functions required by "vmmemctl".
  */
 
 /*
@@ -41,6 +41,7 @@
 #include <sys/ksynch.h>
 
 #include "os.h"
+#include "vm_assert.h"
 #include "balloon_def.h"
 #include "vmballoon_kstats.h"
 #include "vmmemctl.h"
@@ -73,7 +74,7 @@ typedef struct {
    kcondvar_t cv;
 
    /* registered state */
-   os_timer_handler handler;
+   OSTimerHandler *handler;
    void *data;
    int period;
 } os_timer;
@@ -104,33 +105,127 @@ typedef struct {
 static os_state global_state;
 static dev_info_t *vmmemctl_dip;	/* only one instance */
 
+
 /*
- * Simple Wrappers
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Malloc --
+ *
+ *      Allocates kernel memory.
+ *
+ * Results:
+ *      On success: Pointer to allocated memory
+ *      On failure: NULL
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
 
-void *os_kmalloc_nosleep(unsigned int size)
+void *
+OS_Malloc(size_t size) // IN
 {
    return (kmem_alloc(size, KM_NOSLEEP));
 }
 
-void os_kfree(void *obj, unsigned int size)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Free --
+ *
+ *      Free allocated kernel memory.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+OS_Free(void *ptr,   // IN
+        size_t size) // IN
 {
-   kmem_free(obj, size);
+   kmem_free(ptr, size);
 }
 
-void os_bzero(void *b, unsigned int len)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_MemZero --
+ *
+ *      Fill a memory location with 0s.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+OS_MemZero(void *ptr,   // OUT
+           size_t size) // IN
 {
-   bzero(b, len);
+   bzero(ptr, size);
 }
 
-void os_memcpy(void *dest, const void *src, unsigned int size)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_MemCopy --
+ *
+ *      Copy a memory portion into another location.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+OS_MemCopy(void *dest,      // OUT
+           const void *src, // IN
+           size_t size)     // IN
 {
    bcopy(src, dest, size);
 }
 
-int os_sprintf(char *str, const char *format, ...)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Snprintf --
+ *
+ *      Print a string into a bounded memory location.
+ *
+ * Results:
+ *      Number of character printed including trailing \0.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+OS_Snprintf(char *buf,          // OUT
+            size_t size,        // IN
+            const char *format, // IN
+            ...)                // IN
 {
-   ASSERT(0);
+   NOT_REACHED();
    /*
     * XXX disabled because the varargs header file doesn't seem to
     * work in the current (gcc 2.95.3) cross-compiler environment.
@@ -143,7 +238,8 @@ int os_sprintf(char *str, const char *format, ...)
  * System-Dependent Operations
  */
 
-char *os_identity(void)
+const char *
+OS_Identity(void)
 {
    return "solaris";
 }
@@ -153,12 +249,14 @@ char *os_identity(void)
  *
  * Currently we just return the total memory pages.
  */
-unsigned int os_predict_max_balloon_pages(void)
+unsigned int
+OS_PredictMaxReservedPages(void)
 {
    return(maxmem);
 }
 
-unsigned long os_addr_to_ppn(unsigned long addr)
+unsigned long
+OS_AddrToPPN(unsigned long addr)
 {
    return (ulong_t)page_pptonum(((os_page *)addr)->pp);
 }
@@ -184,7 +282,8 @@ unsigned long os_addr_to_ppn(unsigned long addr)
  * interface for allocating physical pages that may allow us to
  * eliminate some of this.
  */
-unsigned long os_alloc_reserved_page(int can_sleep)
+unsigned long
+OS_AllocReservedPage(int canSleep)
 {
    os_state *state = &global_state;
    page_t *pp;
@@ -198,12 +297,12 @@ unsigned long os_alloc_reserved_page(int can_sleep)
    /*
     * Reserve space for the page.
     */
-   flags = can_sleep ? KM_SLEEP : KM_NOSLEEP;
+   flags = canSleep ? KM_SLEEP : KM_NOSLEEP;
    if (!page_resv(1, flags))
       return 0;		/* no space! */
 
    /*
-    * Allocating space for os_page early simplifies error handling. 
+    * Allocating space for os_page early simplifies error handling.
     */
    if ((page = kmem_alloc(sizeof (os_page), flags)) == NULL) {
       page_unresv(1);
@@ -219,7 +318,7 @@ unsigned long os_alloc_reserved_page(int can_sleep)
     * Allocate the page itself.  Note that this can fail.
     */
    kseg.s_as = &kas;
-   flags = can_sleep ? PG_EXCL | PG_WAIT : PG_EXCL;
+   flags = canSleep ? PG_EXCL | PG_WAIT : PG_EXCL;
    pp = page_create_va(vp, off, PAGESIZE, flags, &kseg,
 		       (caddr_t)(ulong_t)off);
    if (pp != NULL) {
@@ -245,7 +344,8 @@ unsigned long os_alloc_reserved_page(int can_sleep)
    return (unsigned long)page;
 }
 
-void os_free_reserved_page(unsigned long addr)
+void
+OS_FreeReservedPage(unsigned long addr)
 {
    os_state *state = &global_state;
    os_page *page = (os_page *)addr;
@@ -296,13 +396,16 @@ static int os_worker(void)
 /*
  * Initialize timer data.
  */
-void os_timer_init(os_timer_handler handler, void *data, int period)
+void
+OS_TimerInit(OSTimerHandler *handler, // IN
+             void *clientData,        // IN
+             int period)              // IN
 {
    os_timer *t = &global_state.timer;
 
    t->id = 0;
    t->handler = handler;
-   t->data = data;
+   t->data = clientData;
    t->period = period;
    t->stop = 0;
 
@@ -310,14 +413,16 @@ void os_timer_init(os_timer_handler handler, void *data, int period)
    cv_init(&t->cv, NULL, CV_DRIVER, NULL);
 }
 
-void os_timer_start(void)
+void
+OS_TimerStart(void)
 {
    os_timer *t = &global_state.timer;
 
    t->stop = 0;
 }
 
-void os_timer_stop(void)
+void
+OS_TimerStop(void)
 {
    os_timer *t = &global_state.timer;
 
@@ -340,19 +445,38 @@ static void os_timer_cleanup(void)
    cv_destroy(&timer->cv);
 }
 
-unsigned int os_timer_hz(void)
+unsigned int
+OS_TimerHz(void)
 {
    return drv_usectohz(ONE_SECOND_IN_MICROSECONDS);
 }
 
-void os_yield(void)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Yield --
+ *
+ *      Yield the CPU, if needed.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+OS_Yield(void)
 {
    /* Do nothing. */
 }
 
-void os_init(const char *name,
+void OS_Init(const char *name,
              const char *name_verbose,
-             os_status_handler handler)
+             OSStatusHandler *handler)
 {
    os_state *state = &global_state;
    static int initialized = 0;
@@ -381,7 +505,7 @@ void os_init(const char *name,
    cmn_err(CE_CONT, "!%s initialized\n", name_verbose);
 }
 
-void os_cleanup(void)
+void OS_Cleanup(void)
 {
    os_state *state = &global_state;
 

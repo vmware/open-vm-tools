@@ -24,19 +24,15 @@
  */
 
 #include "driver-config.h"
-#include "compat_fs.h"
-#include "compat_namei.h"
 
+#include <linux/fs.h>
+#include "compat_namei.h"
 #include "vmblockInt.h"
 #include "filesystem.h"
 #include "block.h"
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static int DentryOpRevalidate(struct dentry *dentry, struct nameidata *nd);
-#else
-static int DentryOpRevalidate(struct dentry *dentry, int flags);
-#endif
 
 struct dentry_operations LinkDentryOps = {
    .d_revalidate = DentryOpRevalidate,
@@ -62,15 +58,9 @@ struct dentry_operations LinkDentryOps = {
  *----------------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static int
 DentryOpRevalidate(struct dentry *dentry,  // IN: dentry revalidating
                    struct nameidata *nd)   // IN: lookup flags & intent
-#else
-static int
-DentryOpRevalidate(struct dentry *dentry,  // IN: dentry revalidating
-                   int flags)              // IN: lookup flags (e.g., LOOKUP_CONTINUE)
-#endif
 {
    VMBlockInodeInfo *iinfo;
    struct nameidata actualNd;
@@ -111,14 +101,10 @@ DentryOpRevalidate(struct dentry *dentry,  // IN: dentry revalidating
    if (actualDentry &&
        actualDentry->d_op &&
        actualDentry->d_op->d_revalidate) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
       return actualDentry->d_op->d_revalidate(actualDentry, nd);
-#else
-      return actualDentry->d_op->d_revalidate(actualDentry, flags);
-#endif
    }
 
-   if (compat_path_lookup(iinfo->name, 0, &actualNd)) {
+   if (path_lookup(iinfo->name, 0, &actualNd)) {
       LOG(4, "DentryOpRevalidate: [%s] no longer exists\n", iinfo->name);
       return 0;
    }

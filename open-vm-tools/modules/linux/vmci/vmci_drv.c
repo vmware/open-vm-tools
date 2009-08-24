@@ -16,21 +16,16 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmci.c --
  *
  *      Linux guest driver for the VMCI device.
  */
-   
+
 #include "driver-config.h"
 
-#define EXPORT_SYMTAB
-   
-   
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 #include <linux/moduleparam.h>
-#endif
-   
+
 #include "compat_kernel.h"
 #include "compat_module.h"
 #include "compat_pci.h"
@@ -73,11 +68,11 @@ static int vmci_probe_device(struct pci_dev *pdev,
 static void vmci_remove_device(struct pci_dev* pdev);
 static int vmci_open(struct inode *inode, struct file *file);
 static int vmci_close(struct inode *inode, struct file *file);
-static int vmci_ioctl(struct inode *inode, struct file *file, 
+static int vmci_ioctl(struct inode *inode, struct file *file,
                       unsigned int cmd, unsigned long arg);
 static unsigned int vmci_poll(struct file *file, poll_table *wait);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id, 
+static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id,
                                          struct pt_regs * regs);
 #else
 static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id);
@@ -109,15 +104,15 @@ static vmci_device vmci_dev;
 /* We dynamically request the device major number at init time. */
 static int device_major_nr = 0;
 
-DECLARE_TASKLET(vmci_tasklet, dispatch_datagrams, 
+DECLARE_TASKLET(vmci_tasklet, dispatch_datagrams,
                 (unsigned long)&vmci_dev);
 
-/* 
- * Allocate a buffer for incoming datagrams globally to avoid repeated 
- * allocation in the interrupt handler's atomic context. 
- */ 
+/*
+ * Allocate a buffer for incoming datagrams globally to avoid repeated
+ * allocation in the interrupt handler's atomic context.
+ */
 
-static uint8 *data_buffer = NULL;  
+static uint8 *data_buffer = NULL;
 static uint32 data_buffer_size = VMCI_MAX_DG_SIZE;
 
 
@@ -145,7 +140,7 @@ vmci_init(void)
    /* Register device node ops. */
    err = register_chrdev(0, "vmci", &vmci_ops);
    if (err < 0) {
-      printk(KERN_ERR "Unable to register vmci device\n"); 
+      printk(KERN_ERR "Unable to register vmci device\n");
       return err;
    }
    device_major_nr = err;
@@ -161,7 +156,7 @@ vmci_init(void)
    if (data_buffer == NULL) {
       goto error;
    }
-  
+
    /* This should be last to make sure we are done initializing. */
    err = pci_register_driver(&vmci_driver);
    if (err < 0) {
@@ -197,7 +192,7 @@ static void
 vmci_exit(void)
 {
    pci_unregister_driver(&vmci_driver);
-   
+
    unregister_chrdev(device_major_nr, "vmci");
 
    vfree(data_buffer);
@@ -293,7 +288,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    vmci_dev.enabled = TRUE;
    pci_set_drvdata(pdev, &vmci_dev);
 
-   /* 
+   /*
     * We do global initialization here because we need datagrams for
     * event init. If we ever support more than one VMCI device we will
     * have to create seperate LateInit/EarlyExit functions that can be
@@ -309,7 +304,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCIUtil_Init();
    VMCIQueuePair_Init();
 
-   if (request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED, 
+   if (request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED,
                    "vmci", &vmci_dev)) {
       printk(KERN_ERR "vmci: irq %u in use\n", vmci_dev.irq);
       goto components_exit;
@@ -372,7 +367,7 @@ vmci_remove_device(struct pci_dev* pdev)
    VMCIEvent_Exit();
    //VMCIDatagram_Exit();
    VMCIProcess_Exit();
-   
+
    down(&dev->lock);
    printk(KERN_INFO "Resetting vmci device\n");
    outl(VMCI_CONTROL_RESET, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
@@ -382,7 +377,7 @@ vmci_remove_device(struct pci_dev* pdev)
 
    printk(KERN_INFO "Unregistered vmci device.\n");
    up(&dev->lock);
-   
+
    compat_pci_disable_device(pdev);
 }
 
@@ -549,7 +544,7 @@ vmci_ioctl(struct inode *inode,  // IN
 	 retval = -EFAULT;
 	 break;
       }
-      
+
       if (VMCIDatagramProcess_Create(&dgmProc, &createInfo,
                                      0 /* Unused */) < VMCI_SUCCESS) {
 	 retval = -EINVAL;
@@ -608,8 +603,8 @@ vmci_ioctl(struct inode *inode,  // IN
       }
 
       DEBUG_ONLY(printk("VMCI: Datagram dst handle 0x%x:0x%x, src handle "
-			"0x%x:0x%x, payload size %"FMT64"u.\n", 
-			dg->dst.context, dg->dst.resource, 
+			"0x%x:0x%x, payload size %"FMT64"u.\n",
+			dg->dst.context, dg->dst.resource,
 			dg->src.context, dg->src.resource, dg->payloadSize));
 
       sendInfo.result = VMCIDatagram_Send(dg);
@@ -638,8 +633,8 @@ vmci_ioctl(struct inode *inode,  // IN
       }
 
       ASSERT(devHndl->obj);
-      recvInfo.result = 
-	 VMCIDatagramProcess_ReadCall((VMCIDatagramProcess *)devHndl->obj, 
+      recvInfo.result =
+	 VMCIDatagramProcess_ReadCall((VMCIDatagramProcess *)devHndl->obj,
 				      recvInfo.len, &dg);
       if (recvInfo.result < VMCI_SUCCESS) {
 	 retval = -EINVAL;
@@ -699,17 +694,17 @@ vmci_poll(struct file *file, // IN
    VMCIGuestDeviceHandle *devHndl =
       (VMCIGuestDeviceHandle *) file->private_data;
 
-   /* 
-    * Check for call to this VMCI process. 
+   /*
+    * Check for call to this VMCI process.
     */
-   
+
    if (!devHndl) {
       return mask;
    }
    if (devHndl->objType == VMCIOBJ_DATAGRAM_PROCESS) {
       VMCIDatagramProcess *dgmProc = (VMCIDatagramProcess *) devHndl->obj;
       ASSERT(dgmProc);
-      
+
       if (wait != NULL) {
          poll_wait(file, &dgmProc->host.waitQueue, wait);
       }
@@ -803,7 +798,7 @@ VMCI_DeviceEnabled(void)
    down(&vmci_dev.lock);
    retval = vmci_dev.enabled;
    up(&vmci_dev.lock);
-   
+
    return retval;
 }
 
@@ -846,7 +841,7 @@ VMCI_SendDatagram(VMCIDatagram *dg)
     */
    spin_lock_irqsave(&vmci_dev.dev_spinlock, flags);
 
-   /* 
+   /*
     * Send the datagram and retrieve the return value from the result register.
     */
    __asm__ __volatile__(
@@ -894,7 +889,7 @@ dispatch_datagrams(unsigned long data)
 	     "present.\n");
       return;
    }
-      
+
    if (data_buffer == NULL) {
       printk(KERN_DEBUG "vmci: dispatch_datagrams(): no buffer present.\n");
       return;

@@ -57,6 +57,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <net/if_arp.h>         // for ARPHRD_ETHER
 
 #if defined(__FreeBSD__) || defined(__APPLE__)
 #include "ifaddrs.h"
@@ -429,5 +430,61 @@ NetUtil_GetIfName(int ifIndex)  // IN: interface index
    return ifName;
 }
 #   endif // ifdef DUMMY_NETUTIL
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * NetUtil_GetHardwareAddress --
+ *
+ *      Given an interface name, return its hardware/link layer address.
+ *
+ * Results:
+ *      Returns TRUE and populates hwAddr on success.
+ *      Returns FALSE on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+NetUtil_GetHardwareAddress(int ifIndex,         // IN
+                           char *hwAddr,        // OUT
+                           size_t hwAddrSize,   // IN
+                           IanaIfType *ifType)  // OUT
+{
+   struct ifreq ifreq;
+   int fd = -1;
+   size_t ret = 0;
+
+   if (hwAddrSize < IFHWADDRLEN) {
+      return FALSE;
+   }
+
+   ASSERT(sizeof ifreq.ifr_name >= IF_NAMESIZE);
+
+   memset(&ifreq, 0, sizeof ifreq);
+   if (if_indextoname(ifIndex, ifreq.ifr_name) == NULL) {
+      return FALSE;
+   }
+
+   if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+      return FALSE;
+   }
+
+   if (ioctl(fd, SIOCGIFHWADDR, &ifreq) == 0 &&
+       ifreq.ifr_hwaddr.sa_family == ARPHRD_ETHER) {
+      memcpy(hwAddr, ifreq.ifr_hwaddr.sa_data, IFHWADDRLEN);
+      *ifType = IANA_IFTYPE_ETHERNETCSMACD;
+      ret = IFHWADDRLEN;
+   }
+
+   close(fd);
+
+   return ret;
+}
+
 
 #endif // if defined(linux)

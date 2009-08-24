@@ -75,4 +75,5 @@
 #define VMNET_CAP_IP6_CSUM      0x80000	/* Can do IPv6 csum offload. */
 #define VMNET_CAP_TSO6         0x100000	/* Can do TSO segmentation offload for IPv6 pkts. */
 #define VMNET_CAP_TSO256k      0x200000	/* Can do TSO segmentation offload for pkts up to 256kB. */
+#define VMNET_CAP_UPT          0x400000	/* Support UPT */
 #endif // _VMNET_DEF_H_

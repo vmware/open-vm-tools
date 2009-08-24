@@ -52,7 +52,8 @@ static struct inode *HgfsInodeLookup(struct super_block *sb,
 static void HgfsSetFileType(struct inode *inode,
                             HgfsAttrInfo const *attr);
 static int HgfsUnpackGetattrReply(HgfsReq *req,
-                                  HgfsAttrInfo *attr);
+                                  HgfsAttrInfo *attr,
+                                  char **fileName);
 static int HgfsPackGetattrRequest(HgfsReq *req,
                                   struct dentry *dentry,
                                   Bool allowHandleReuse,
@@ -227,7 +228,8 @@ HgfsSetFileType(struct inode *inode,          // IN/OUT: Inode to update
  */
 static int
 HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
-                       HgfsAttrInfo *attr)  // IN/OUT: Attributes
+                       HgfsAttrInfo *attr,  // IN/OUT: Attributes
+                       char **fileName)     // OUT: file name
 {
    int result;
    char *name = NULL;
@@ -267,19 +269,23 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
       }
    }
 
-   if (length != 0) {
+   if (fileName) {
+      if (length != 0) {
 
-      attr->fileName = kmalloc(length + 1, GFP_KERNEL);
-      if (attr->fileName == NULL) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackGetattrReply: out of "
-                 "memory allocating symlink target name, ignoring\n"));
-         return -ENOMEM;
+         *fileName = kmalloc(length + 1, GFP_KERNEL);
+         if (*fileName == NULL) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackGetattrReply: out of "
+                    "memory allocating symlink target name, ignoring\n"));
+            return -ENOMEM;
+         }
+
+         /* Copy and convert. From now on, the symlink target is in UTF8. */
+         memcpy(*fileName, name, length);
+         CPNameLite_ConvertFrom(*fileName, length, '/');
+         (*fileName)[length] = '\0';
+      } else {
+         *fileName = NULL;
       }
-
-      /* Copy and convert. From now on, the symlink target is in UTF8. */
-      memcpy(attr->fileName, name, length);
-      CPNameLite_ConvertFrom(attr->fileName, length, '/');
-      attr->fileName[length] = '\0';
    }
 
    return 0;
@@ -790,8 +796,8 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
  *    for the indicated remote name, and if it succeeds copy the
  *    results of the getattr into the provided HgfsAttrInfo.
  *
- *    attr->fileName will be allocated on success if the file is a
- *    symlink; it's the caller's duty to free it.
+ *    fileName (if supplied) will be set to a newly allocated string
+ *    if the file is a symlink; it's the caller's duty to free it.
  *
  * Results:
  *    Returns zero on success, or a negative error on failure.
@@ -804,7 +810,8 @@ HgfsChangeFileAttributes(struct inode *inode,          // IN/OUT: Inode
 
 int
 HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
-                   HgfsAttrInfo *attr)     // OUT: Attr to copy into
+                   HgfsAttrInfo *attr,     // OUT: Attr to copy into
+                   char **fileName)        // OUT: pointer to allocated file name
 {
    struct HgfsSuperInfo *si;
    HgfsReq *req;
@@ -850,7 +857,7 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
        */
       switch (result) {
       case 0:
-         result = HgfsUnpackGetattrReply(req, attr);
+         result = HgfsUnpackGetattrReply(req, attr, fileName);
          break;
       case -EBADF:
          /*
@@ -1076,12 +1083,10 @@ HgfsInstantiate(struct dentry *dentry,    // IN: Dentry to use
       int error;
 
       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsInstantiate: issuing getattr\n"));
-      newAttr.fileName = NULL;
-      error = HgfsPrivateGetattr(dentry, &newAttr);
+      error = HgfsPrivateGetattr(dentry, &newAttr, NULL);
       if (error) {
          return error;
       }
-      kfree(newAttr.fileName);
       attr = &newAttr;
    }
 

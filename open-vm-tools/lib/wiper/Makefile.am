@@ -18,4 +18,5 @@
 noinst_LTLIBRARIES = libWiper.la
 
 libWiper_la_SOURCES =
+libWiper_la_SOURCES += wiperCommon.c
 libWiper_la_SOURCES += wiperPosix.c

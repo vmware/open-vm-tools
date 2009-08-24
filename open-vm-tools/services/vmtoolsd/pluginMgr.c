@@ -603,7 +603,9 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
                          &pcaps);
 
    if (pcaps != NULL) {
-      ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
+      if (state->ctx.rpc) {
+         ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
+      }
       g_array_free(pcaps, TRUE);
    }
 

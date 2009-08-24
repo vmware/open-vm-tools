@@ -125,14 +125,18 @@ Util_BumpNoFds(uint32 *cur,     // OUT
    int err;
 
    /*
-    * Check for minimum file descriptor limit. The number 2048 is
+    * Check for minimum file descriptor limit. The number is
     * somewhat arbitrary. Trying to do multiple snapshots of a split
     * disk can rapidly consume descriptors however, so we ought to
     * have a large number. This is only pushing back the problem of
     * course. Ideally we'd have a fully scalable solution.
     */
 
+#if __APPLE__
+   static const rlim_t fdsDesired = 8192;
+#else
    static const rlim_t fdsDesired = 2048;
+#endif
 
    err = getrlimit(RLIMIT_NOFILE, &lim);
    ASSERT_NOT_IMPLEMENTED(err >= 0);

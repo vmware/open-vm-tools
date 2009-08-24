@@ -29,6 +29,12 @@
 #   include <linux/bios32.h>
 #endif
 
+#if KERNEL_VERSION(2, 6, 6) <= LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
+#   ifndef DMA_BIT_MASK
+#      define DMA_BIT_MASK(n) DMA_##n##BIT_MASK
+#   endif
+#endif
+
 
 /* 2.0.x has useless struct pci_dev; remap it to our own */
 #ifndef KERNEL_2_1

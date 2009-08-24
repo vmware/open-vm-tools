@@ -94,6 +94,7 @@ enum {
    VIX_REQUESTMSG_RETURN_ON_INITIATING_TOOLS_UPGRADE  = 0x02,
    VIX_REQUESTMSG_RUN_IN_ANY_VMX_STATE                = 0x04,
    VIX_REQUESTMSG_REQUIRES_INTERACTIVE_ENVIRONMENT    = 0x08,
+   VIX_REQUESTMSG_INCLUDES_AUTH_DATA_V1               = 0x10,
 };
 
 
@@ -398,6 +399,15 @@ struct VixMsgSetVMStateRequest {
 VixMsgSetVMStateRequest;
 
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgAuthDataV1 {
+   int64  nonce;
+   uint32 sequenceNumber;
+   uint8  hashValue[32];
+}
+#include "vmware_pack_end.h"
+VixMsgAuthDataV1;
 
 
 
@@ -1482,6 +1492,17 @@ struct VixCommandMakeSessionKeyResponse {
 VixCommandMakeSessionKeyResponse;
 
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandGenerateNonceResponse {
+   VixCommandResponseHeader     header;
+
+   int64                        nonce;
+}
+#include "vmware_pack_end.h"
+VixCommandGenerateNonceResponse;
+
+
 enum {
    VIX_CYPHERTYPE_NONE        = 0,
    VIX_CYPHERTYPE_DEFAULT     = 1,
@@ -2394,6 +2415,10 @@ enum {
 
    VIX_COMMAND_REMOVE_BULK_SNAPSHOT             = 172,
 
+   VIX_COMMAND_COPY_FILE_FROM_READER_TO_GUEST   = 173,
+
+   VIX_COMMAND_GENERATE_NONCE                   = 174,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2404,7 +2429,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg. as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 173,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 175,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

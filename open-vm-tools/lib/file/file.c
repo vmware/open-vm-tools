@@ -31,6 +31,7 @@
 #if defined(_WIN32)
 #include <io.h>
 #define S_IXUSR    0100
+#define S_IWUSR    0200
 #else
 #include <unistd.h>
 #endif
@@ -1942,7 +1943,17 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
       } else {
          /* is file, delete */
          if (File_Unlink(curPath) == -1) {
+#if defined(_WIN32)
+            if (File_SetFilePermissions(curPath, S_IWUSR)) {
+               if (File_Unlink(curPath) == -1) {
+                  sawFileError = TRUE;
+               }
+            } else {
+               sawFileError = TRUE;
+            }
+#else
             sawFileError = TRUE;
+#endif
          }
       }
 

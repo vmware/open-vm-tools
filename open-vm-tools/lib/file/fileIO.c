@@ -273,13 +273,20 @@ FileIO_Lock(FileIODescriptor *file, // IN/OUT:
 
          /* Return a serious failure status if the locking code did */
          switch (err) {
-         case 0:             // file is currently locked
+         case 0:             // File is currently locked
+         case EROFS:         // Attempt to lock for write on RO FS
             ret = FILEIO_LOCK_FAILED;
             break;
-         case ENAMETOOLONG:  // path is too long
+         case ENAMETOOLONG:  // Path is too long
             ret = FILEIO_FILE_NAME_TOO_LONG;
             break;
-         default:            // some sort of locking error
+         case ENOENT:        // No such file or directory
+            ret = FILEIO_FILE_NOT_FOUND;
+            break;
+         case EACCES:       // Permissions issues
+            ret = FILEIO_NO_PERMISSION;
+            break;
+         default:            // Some sort of locking error
             ret = FILEIO_ERROR;
          }
       }

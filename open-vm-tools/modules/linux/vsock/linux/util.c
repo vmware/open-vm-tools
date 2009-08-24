@@ -83,6 +83,8 @@ VSockVmciLogPkt(char const *function,   // IN
       [VSOCK_PACKET_TYPE_SHUTDOWN]       = "SHUTDOWN",
       [VSOCK_PACKET_TYPE_WAITING_WRITE]  = "WAITING_WRITE",
       [VSOCK_PACKET_TYPE_WAITING_READ]   = "WAITING_READ",
+      [VSOCK_PACKET_TYPE_REQUEST2]       = "REQUEST2",
+      [VSOCK_PACKET_TYPE_NEGOTIATE2]     = "NEGOTIATE2",
    };
 
    written = snprintf(cur, left, "PKT: %u:%u -> %u:%u",
@@ -136,6 +138,14 @@ VSockVmciLogPkt(char const *function,   // IN
                          "offset = %"FMT64"u", typeStrings[pkt->type],
                          pkt->u.wait.generation, pkt->u.wait.offset);
 
+      break;
+
+   case VSOCK_PACKET_TYPE_REQUEST2:
+   case VSOCK_PACKET_TYPE_NEGOTIATE2:
+      written = snprintf(cur, left, ", %s, size = %"FMT64"u, "
+                         "proto = %u",
+                         typeStrings[pkt->type], pkt->u.size,
+                         pkt->proto);
       break;
 
    default:

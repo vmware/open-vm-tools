@@ -71,9 +71,7 @@ Shrink_Create(GtkWidget *mainWnd)
    GtkWidget *viewport;
    GtkWidget *ebox;
 
-   int i;
-   WiperPartition_List *plist;
-   WiperPartition *partkb;
+   WiperPartition_List plist;
    gchar *items;
    int newrow;
 
@@ -155,19 +153,25 @@ Shrink_Create(GtkWidget *mainWnd)
             gtk_clist_set_selection_mode(GTK_CLIST(shrinkList), GTK_SELECTION_MULTIPLE);
 
             Wiper_Init(NULL);
-            plist = WiperPartition_Open();
-            if (plist != NULL) {
-               for (i=0; i < plist->size; i++) {
-                  if (strlen(plist->partitions[i].comment) == 0) {
-                     partkb = (WiperPartition *)malloc(sizeof (WiperPartition));
-                     memcpy(partkb, &(plist->partitions[i]), sizeof (WiperPartition));
-                     items  = partkb->mountPoint;
+            if (WiperPartition_Open(&plist)) {
+               DblLnkLst_Links *curr, *next;
+
+               DblLnkLst_ForEachSafe(curr, next, &plist.link) {
+                  WiperPartition *part = DblLnkLst_Container(curr, WiperPartition, link);
+
+                  if (part->type != PARTITION_UNSUPPORTED) {
+                     /*
+                      * Detach the element we are interested in so it is not
+                      * destroyed when we call WiperPartition_Close.
+                      */
+                     DblLnkLst_Unlink1(&part->link);
+                     items  = part->mountPoint;
                      newrow = gtk_clist_append(GTK_CLIST(shrinkList), &items);
-                     gtk_clist_set_row_data(GTK_CLIST(shrinkList), newrow,
-                                            partkb);
+                     gtk_clist_set_row_data_full(GTK_CLIST(shrinkList), newrow,
+                                 part, (GDestroyNotify)WiperSinglePartition_Close);
                   }
                }
-               WiperPartition_Close(plist);
+               WiperPartition_Close(&plist);
             }
          } else {
             label = gtk_label_new(SHRINK_DISABLED_ERR);
@@ -184,7 +188,6 @@ Shrink_Create(GtkWidget *mainWnd)
          gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
          gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
          gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-
       }
    }
 
@@ -229,8 +232,7 @@ Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
       }
       do {
          rnum =  GPOINTER_TO_UINT(slist->data);
-         part = (WiperPartition *)(gtk_clist_get_row_data(GTK_CLIST(shrinkList),
-                                                          rnum));
+         part = gtk_clist_get_row_data(GTK_CLIST(shrinkList), rnum);
          if (Shrink_DoWipe(part, mainWnd)) {
             disks_to_shrink++;
             slist = slist->next;
@@ -244,7 +246,7 @@ Shrink_OnShrinkClicked(GtkButton *btn,     // IN: unused
          if (ToolsMain_YesNoBox("Shrink Disk",
                                 "Do you want to shrink the disk(s)?\n")) {
             if (GuestApp_DiskShrink()) {
-               ToolsMain_MsgBox("Information", "The shrink process is complete.");
+               ToolsMain_MsgBox("Information", "The shrink process has finished.");
             }
             gtk_clist_unselect_all(GTK_CLIST(shrinkList));
          }

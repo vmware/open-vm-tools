@@ -282,31 +282,6 @@ ImageUtilDataWriteCallback(png_structp png_ptr,         // IN
  *
  * ImageUtil_ConstructPNGBuffer --
  *
- *      Writes a PNG of the image to the DynBuf passed in.
- *
- * Results:
- *      TRUE if successful, FALSE otherwise.
- *
- * Side effects:
- *      If successful, imageData should be destroyed.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-ImageUtil_ConstructPNGBuffer(const ImageInfo *image, // IN
-                             DynBuf *imageData)      // OUT
-
-{
-   return ImageUtil_ConstructPNGBufferEx(image, NULL, imageData);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * ImageUtil_ConstructPNGBufferEx --
- *
  *      Writes a PNG of the image to the DynBuf passed in. Accepts a zlib
  *      compression level (0-9, 0 means no compression, -1 means "use the
  *      default").
@@ -321,9 +296,9 @@ ImageUtil_ConstructPNGBuffer(const ImageInfo *image, // IN
  */
 
 Bool
-ImageUtil_ConstructPNGBufferEx(const ImageInfo *image,               // IN
-                               const ImagePngWriteOptions *pOptions, // IN/OPT
-                               DynBuf *imageData)                    // OUT
+ImageUtil_ConstructPNGBuffer(const ImageInfo *image,               // IN
+                             const ImagePngWriteOptions *pOptions, // IN/OPT
+                             DynBuf *imageData)                    // OUT
 {
    png_structp png_ptr;
    png_infop info_ptr;

@@ -751,8 +751,11 @@ struct vop_open_args {
        *
        * NB:  Allowing only the superuser to open this directory breaks
        *      readdir() of the filesystem root for non-privileged users.
+       *
+       * Also, on FreeBSD 8.0 and newer we check for a specific module priv
+       * because none of the existing privs seemed to match very well.
        */
-      if ((retval = suser(ap->a_td)) == 0) {
+      if ((retval = compat_priv_check(ap->a_td, PRIV_DRIVER)) == 0) {
 #if __FreeBSD_version >= 700055
          fp = ap->a_fp;
 #else
@@ -1036,7 +1039,7 @@ struct vop_access_args {
 */
 {
    struct vnode *vp = ap->a_vp;
-   mode_t mode = ap->a_mode;
+   compat_accmode_t mode = ap->compat_a_accmode;
 
    /*
     * Disallow write attempts on read-only layers; unless the file is a

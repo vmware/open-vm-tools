@@ -514,25 +514,6 @@ typedef int pid_t;
 #endif
 #endif
 
-/* 
- * Convenience macro for COMMUNITY_SOURCE
- */
-#undef EXCLUDE_COMMUNITY_SOURCE
-#ifdef COMMUNITY_SOURCE
-   #define EXCLUDE_COMMUNITY_SOURCE(x) 
-#else
-   #define EXCLUDE_COMMUNITY_SOURCE(x) x
-#endif
-
-#undef COMMUNITY_SOURCE_INTEL_SECRET
-#if !defined(COMMUNITY_SOURCE) || defined(INTEL_SOURCE)
-/*
- * It's ok to include INTEL_SECRET source code for non-commsrc,
- * or for drops directed at Intel.
- */
-   #define COMMUNITY_SOURCE_INTEL_SECRET
-#endif
-
 /*
  * Convenience macros and definitions. Can often be used instead of #ifdef.
  */

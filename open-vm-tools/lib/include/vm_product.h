@@ -134,7 +134,7 @@
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
 #define PRODUCT_VDDK_NAME MAKE_NAME("VMware Virtual Disk Development Kit")
 
-#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("VDM Client")
+#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("View Client")
 #define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
 
 // XXX VMvisor is the underlying technology for possibly several products,
@@ -233,7 +233,7 @@
       || defined(VMX86_WGS)      \
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_ENTERPRISE_DESKTOP) \
-      || defined(VMX86_MUI)  	   \
+      || defined(VMX86_MUI)      \
       || defined(VMX86_API)      \
       || defined(VMX86_VPX)      \
       || defined(VMX86_WBC)      \
@@ -549,12 +549,12 @@
  * For Host Agent (hostd)
  */
 
-#define HOST_AGENT_PRODUCT_NAME		PRODUCT_NAME " Host Agent"
+#define HOST_AGENT_PRODUCT_NAME     PRODUCT_NAME " Host Agent"
 
 /* Used by bora/vim/lib/vmgina module.
  * @todo Use this also in /bora/install/msi/InstUtil/desktop/vmInstUtil.cpp
  *       to guarantee that the service is installed with exactly this name.
  */
-#define HOST_AGENT_SERVICE_NAME		"VMwareHostd"
+#define HOST_AGENT_SERVICE_NAME     "VMwareHostd"
 
 #endif /* VM_PRODUCT_H */

@@ -39,17 +39,26 @@
 /* The resource ID on which control packets are sent. */
 #define VSOCK_PACKET_RID 1
 
-/* Assert that the given packet is valid. */
-#define VSOCK_PACKET_ASSERT(_p)                 \
-   ASSERT((_p));                                \
-   ASSERT((_p)->type < VSOCK_PACKET_TYPE_MAX);  \
-   ASSERT(0 == (_p)->_reserved1);               \
-   ASSERT(0 == (_p)->_reserved2)
-
+/*
+ * Assert that the given packet is valid.
+ * We check that the two original reserved fields equal zero because the
+ * version of the common code that shipped with ESX 4.0 and WS 6.5 did so and
+ * will return a RST packet if they aren't set that way. For newer packet
+ * types added after that release we don't do this.
+ */
+#define VSOCK_PACKET_ASSERT(_p)                      \
+   do {                                              \
+      ASSERT((_p));                                  \
+      ASSERT((_p)->type < VSOCK_PACKET_TYPE_MAX);    \
+      if ((_p)->type < VSOCK_PACKET_TYPE_REQUEST2) { \
+         ASSERT(0 == (_p)->proto);                   \
+         ASSERT(0 == (_p)->_reserved2);              \
+      }                                              \
+   } while(0)
 
 typedef enum VSockPacketType {
    VSOCK_PACKET_TYPE_INVALID = 0,   // Invalid type.
-   VSOCK_PACKET_TYPE_REQUEST,       // Connection request.
+   VSOCK_PACKET_TYPE_REQUEST,       // Connection request (WR/WW/READ/WRITE)
    VSOCK_PACKET_TYPE_NEGOTIATE,     // Connection negotiate.
    VSOCK_PACKET_TYPE_OFFER,         // Connection offer queue pair.
    VSOCK_PACKET_TYPE_ATTACH,        // Connection attach.
@@ -59,8 +68,16 @@ typedef enum VSockPacketType {
    VSOCK_PACKET_TYPE_SHUTDOWN,      // Shutdown the connection.
    VSOCK_PACKET_TYPE_WAITING_WRITE, // Notify peer we are waiting to write.
    VSOCK_PACKET_TYPE_WAITING_READ,  // Notify peer we are waiting to read.
+   VSOCK_PACKET_TYPE_REQUEST2,      // Connection request (new proto flags)
+   VSOCK_PACKET_TYPE_NEGOTIATE2,    // Connection request (new proto flags)
    VSOCK_PACKET_TYPE_MAX            // Last message.
 } VSockPacketType;
+
+typedef uint16 VSockProtoVersion;
+#define VSOCK_PROTO_INVALID        0        // Invalid protocol version.
+#define VSOCK_PROTO_PKT_ON_NOTIFY (1 << 0)  // Queuepair inspection proto.
+
+#define VSOCK_PROTO_ALL_SUPPORTED (VSOCK_PROTO_PKT_ON_NOTIFY)
 
 typedef struct VSockWaitingInfo {
    uint64 generation; // Generation of the queue.
@@ -78,7 +95,8 @@ typedef struct VSockPacket {
    VMCIDatagram dg;          // Datagram header.
    uint8 version;            // Version.
    uint8 type;               // Type of message.
-   uint16 _reserved1;        // Reserved.
+   VSockProtoVersion proto;  // Supported proto versions in CONNECT2 and
+                             // NEGOTIATE2. 0 otherwise.
    uint32 srcPort;           // Source port.
    uint32 dstPort;           // Destination port.
    uint32 _reserved2;        // Reserved.
@@ -121,6 +139,7 @@ VSockPacket_Init(VSockPacket *pkt,        // OUT
                  uint64 size,             // IN
                  uint64 mode,             // IN
                  VSockWaitingInfo *wait,  // IN
+                 VSockProtoVersion proto, // IN
                  VMCIHandle handle)       // IN
 {
    ASSERT(pkt);
@@ -134,7 +153,7 @@ VSockPacket_Init(VSockPacket *pkt,        // OUT
    pkt->type = type;
    pkt->srcPort = src->svm_port;
    pkt->dstPort = dst->svm_port;
-   VSockOS_ClearMemory(&pkt->_reserved1, sizeof pkt->_reserved1);
+   VSockOS_ClearMemory(&pkt->proto, sizeof pkt->proto);
    VSockOS_ClearMemory(&pkt->_reserved2, sizeof pkt->_reserved2);
 
    switch (pkt->type) {
@@ -166,6 +185,12 @@ VSockPacket_Init(VSockPacket *pkt,        // OUT
    case VSOCK_PACKET_TYPE_WAITING_WRITE:
       ASSERT(wait);
       VSockOS_Memcpy(&pkt->u.wait, wait, sizeof pkt->u.wait);
+      break;
+
+   case VSOCK_PACKET_TYPE_REQUEST2:
+   case VSOCK_PACKET_TYPE_NEGOTIATE2:
+      pkt->u.size = size;
+      pkt->proto = proto;
       break;
    }
 
@@ -216,8 +241,11 @@ VSockPacket_Validate(VSockPacket *pkt)
       goto exit;
    }
 
-   if (0 != pkt->_reserved1 || 0 != pkt->_reserved2) {
-      goto exit;
+   /* See the comment above VSOCK_PACKET_ASSERT. */
+   if (pkt->type < VSOCK_PACKET_TYPE_REQUEST2) {
+      if (0 != pkt->proto || 0 != pkt->_reserved2) {
+         goto exit;
+      }
    }
 
    switch (pkt->type) {
@@ -251,7 +279,7 @@ VSockPacket_Validate(VSockPacket *pkt)
    }
 
    err = 0;
-   
+
 exit:
    return sockerr2err(err);
 }

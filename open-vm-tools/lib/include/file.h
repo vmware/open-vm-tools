@@ -297,8 +297,6 @@ EXTERN Bool File_MakeCfgFileExecutable(ConstUnicode pathName);
 
 EXTERN char *File_ExpandAndCheckDir(const char *dirName);
 
-EXTERN Bool File_SupportsPrealloc(const char *file);
-
 #ifdef __cplusplus
 } // extern "C" {
 #endif

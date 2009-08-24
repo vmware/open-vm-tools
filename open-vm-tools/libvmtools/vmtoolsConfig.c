@@ -72,6 +72,9 @@ VMToolsConfigUpgradeLog(GKeyFile *cfg,
     * and vmware-user. Instead of baking in the library whether we're
     * running one or the other, separate the two configurations, so that
     * the user can choose a different location for one or another.
+    *
+    * Also append the PID to the vmusr log path, since the old code did
+    * that automatically.
     */
    gchar *userlog;
 
@@ -82,13 +85,19 @@ VMToolsConfigUpgradeLog(GKeyFile *cfg,
    g_key_file_set_string(cfg, entry->destGroup,
                          VMTOOLS_GUEST_SERVICE ".data", value);
 
-   userlog = g_strdup_printf("%s.user", value);
+   userlog = g_strdup_printf("%s.user.${PID}", value);
    g_key_file_set_string(cfg, entry->destGroup,
                          VMTOOLS_USER_SERVICE ".handler", "file");
    g_key_file_set_string(cfg, entry->destGroup,
                          VMTOOLS_USER_SERVICE ".level", "debug");
    g_key_file_set_string(cfg, entry->destGroup,
                          VMTOOLS_USER_SERVICE ".data", userlog);
+
+   /*
+    * Keep the log.file entry since vmware-user is still using the old-style
+    * config. This can go away once it's ported over.
+    */
+   g_key_file_set_string(cfg, entry->destGroup, CONFNAME_LOGFILE, value);
 
    g_free(userlog);
 }
@@ -131,10 +140,11 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
    for (entry = entries; entry->key != NULL; entry++) {
       const char *value = GuestApp_GetDictEntry(old, entry->key);
       const char *dfltValue = GuestApp_GetDictEntryDefault(old, entry->key);
-      
+
       if (value == NULL || (dfltValue != NULL && strcmp(value, dfltValue) == 0)) {
          continue;
       }
+
       switch (entry->type) {
       case CFG_BOOLEAN:
          {
@@ -153,26 +163,16 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
          }
 
       case CFG_STRING:
-         {
-            const char *val = GuestApp_GetDictEntry(old, entry->key);
-            if (val != NULL) {
-               g_key_file_set_string(dst, entry->destGroup, entry->destKey, val);
-            }
-            break;
-         }
+         g_key_file_set_string(dst, entry->destGroup, entry->destKey, value);
+         break;
 
       case CFG_CALLBACK:
-         {
-            const char *val = GuestApp_GetDictEntry(old, entry->key);
-            if (val != NULL) {
-               g_assert(entry->data);
-               ((CfgCallback)entry->data)(dst, entry, val);
-            }
-            break;
-         }
+         ASSERT(entry->data);
+         ((CfgCallback)entry->data)(dst, entry, value);
+         break;
 
       default:
-         g_assert_not_reached();
+         NOT_REACHED();
       }
    }
 }
@@ -200,7 +200,7 @@ VMTools_GetToolsConfFile(void)
     */
    if (confPath == NULL) {
       confPath = GuestApp_GetConfPath();
-      g_assert(confPath != NULL);
+      ASSERT(confPath != NULL);
    }
    confFilePath = g_strdup_printf("%s%c%s", confPath, DIRSEPC, CONF_FILE);
    free(confPath);
@@ -327,11 +327,11 @@ VMTools_ReloadConfig(const gchar *path,
    gboolean ret = FALSE;
    GKeyFile *newConfig = NULL;
 
-   g_assert(config != NULL);
-   g_assert(mtime != NULL);
+   ASSERT(config != NULL);
+   ASSERT(mtime != NULL);
 
    if (g_stat(path, &confStat) == -1) {
-      g_warning("Failed to stat conf file: %s\n", strerror(errno));
+      g_debug("Failed to stat conf file: %s\n", strerror(errno));
       goto exit;
    }
 
@@ -394,8 +394,8 @@ VMTools_WriteConfig(const gchar *path,
    FILE *out = NULL;
    GError *lerr = NULL;
 
-   g_assert(path != NULL);
-   g_assert(config != NULL);
+   ASSERT(path != NULL);
+   ASSERT(config != NULL);
 
    localPath = VMTOOLS_GET_FILENAME_LOCAL(path, &lerr);
    if (lerr != NULL) {

@@ -43,15 +43,17 @@
 
 /* Private functions. */
 static int HgfsUnpackSearchReadReply(HgfsReq *req,
-                                     HgfsAttrInfo *attr);
+                                     HgfsAttrInfo *attr,
+                                     char **entryName);
 static int HgfsGetNextDirEntry(HgfsSuperInfo *si,
                                HgfsHandle searchHandle,
                                uint32 offset,
                                HgfsAttrInfo *attr,
+                               char **entryName,
                                Bool *done);
 static int HgfsPackDirOpenRequest(struct inode *inode,
                                   struct file *file,
-				  HgfsOp opUsed,
+                                  HgfsOp opUsed,
                                   HgfsReq *req);
 
 /* HGFS file operations for directories. */
@@ -98,7 +100,8 @@ struct file_operations HgfsDirFileOperations = {
  */
 static int
 HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
-                          HgfsAttrInfo *attr)  // IN/OUT: Attributes
+                          HgfsAttrInfo *attr,  // IN/OUT: Attributes
+                          char **entryName)    // OUT: file name
 {
    char *fileName;
    uint32 fileNameLength;
@@ -175,15 +178,15 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
                  fileNameLength, strlen(fileName), fileName));
          return -EPROTO;
       }
-      attr->fileName = kmalloc(fileNameLength + 1, GFP_KERNEL);
-      if (attr->fileName == NULL) {
+      *entryName = kmalloc(fileNameLength + 1, GFP_KERNEL);
+      if (*entryName == NULL) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackSearchReadReply: out of "
                  "memory allocating filename, ignoring\n"));
          return -ENOMEM;
       }
-      memcpy(attr->fileName, fileName, fileNameLength + 1);
+      memcpy(*entryName, fileName, fileNameLength + 1);
    } else {
-      attr->fileName = NULL;
+      *entryName = NULL;
    }
    return 0;
 }
@@ -196,7 +199,7 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
  *
  *    Get the directory entry with the given offset from the server.
  *
- *    attr->fileName gets allocated and must be freed by the caller.
+ *    fileName gets allocated and must be freed by the caller.
  *
  * Results:
  *    Returns zero on success, negative error on failure. If the
@@ -213,6 +216,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
                     HgfsHandle searchHandle, // IN: Handle of dir
                     uint32 offset,           // IN: Offset of next dentry to get
                     HgfsAttrInfo *attr,      // OUT: File attributes of dentry
+                    char **entryName,        // OUT: File name
                     Bool *done)              // OUT: Set true when there are
                                              // no more dentries
 {
@@ -268,8 +272,8 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
 
       switch(result) {
       case 0:
-         result = HgfsUnpackSearchReadReply(req, attr);
-         if (result == 0 && attr->fileName == NULL) {
+         result = HgfsUnpackSearchReadReply(req, attr, entryName);
+         if (result == 0 && *entryName == NULL) {
             /* We're at the end of the directory. */
             LOG(6, (KERN_DEBUG "VMware hgfs: HgfsGetNextDirEntry: end of "
                     "dir\n"));
@@ -573,6 +577,7 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
    HgfsSuperInfo *si;
    HgfsAttrInfo attr;
    uint32 d_type;    // type of dirent
+   char *fileName = NULL;
    char *escName = NULL; // buf for escaped version of name
    size_t escNameLength = NAME_MAX + 1;
    int nameLength = 0;
@@ -616,13 +621,14 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
        * Nonzero result = we failed to get valid reply from server.
        * Zero result:
        *     - done == TRUE means we hit the end of the directory
-       *     - Otherwise, attr.fileName has the name of the next dirent
+       *     - Otherwise, fileName has the name of the next dirent
        *
        */
       result = HgfsGetNextDirEntry(si,
                                    FILE_GET_FI_P(file)->handle,
                                    (uint32)file->f_pos,
                                    &attr,
+                                   &fileName,
                                    &done);
       if (result == -ENAMETOOLONG) {
          /*
@@ -654,11 +660,10 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
        * CP name format, but that is done implicitely here since we
        * are guaranteed to have just one path component per dentry.
        */
-      result = HgfsEscape_Do(attr.fileName,
-			     strlen(attr.fileName),
-			     escNameLength,
-			     escName);
-      kfree(attr.fileName);
+      result = HgfsEscape_Do(fileName, strlen(fileName),
+                             escNameLength, escName);
+      kfree(fileName);
+      fileName = NULL;
 
       /*
        * Check the filename length.

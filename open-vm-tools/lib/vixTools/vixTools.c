@@ -95,6 +95,7 @@
 #include "registryWin32.h"
 #include "win32u.h"
 #endif /* _WIN32 */
+#include "hgfsHelper.h"
 
 #ifdef linux
 #include "mntinfo.h"
@@ -226,6 +227,8 @@ static VixError VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *reques
 #endif
 
 static VixError VixTools_Base64EncodeBuffer(char **resultValuePtr, size_t *resultValLengthPtr);
+
+static VixError VixToolsSetSharedFoldersProperties(VixPropertyListImpl *propList);
 
 #if defined(_WIN32)
 static HRESULT VixToolsEnableDHCPOnPrimary(void);
@@ -953,6 +956,9 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
       goto abort;
    }
 
+   /* Retrieve the share folders UNC root path. */
+   err = VixToolsSetSharedFoldersProperties(&propList);
+
    /*
     * Serialize the property list to buffer then encode it.
     * This is the string we return to the VMX process.
@@ -981,6 +987,9 @@ abort:
 
    VixPropertyList_Initialize(&propList);
 
+   /* Retrieve the share folders UNC root path. */
+   err = VixToolsSetSharedFoldersProperties(&propList);
+
    /*
     * Serialize the property list to buffer then encode it.
     * This is the string we return to the VMX process.
@@ -1003,6 +1012,52 @@ abort:
    
    return err;
 } // VixTools_GetToolsPropertiesImpl
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsSetSharedFoldersProperties --
+ *
+ *    Set information about the shared folders feature.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsSetSharedFoldersProperties(VixPropertyListImpl *propList)    // IN
+{
+   VixError err = VIX_OK;
+
+   /* Retrieve the share folders UNC root path. */
+   Unicode hgfsRootPath = NULL;
+
+   if (!HgfsHlpr_QuerySharesDefaultRootPath(&hgfsRootPath)) {
+      /* Exit ok as we have nothing to set from shared folders. */
+      goto exit;
+   }
+
+   ASSERT(hgfsRootPath != NULL);
+
+   err = VixPropertyList_SetString(propList,
+                                   VIX_PROPERTY_GUEST_SHAREDFOLDERS_SHARES_PATH,
+                                   UTF8(hgfsRootPath));
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+exit:
+   if (hgfsRootPath != NULL) {
+      HgfsHlpr_FreeSharesRootPath(hgfsRootPath);
+   }
+   return err;
+}
 
 
 #if 0
@@ -3653,22 +3708,115 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
 #ifdef _WIN32
    char *currentUser = NULL;
    DWORD currentUserSize = 0;
-   
+   DWORD retVal = 0;
+   HANDLE processToken = INVALID_HANDLE_VALUE;
+   PTOKEN_USER processTokenInfo = NULL;
+   DWORD processTokenInfoSize = 0;
+   Unicode sidUserName = NULL;
+   DWORD sidUserNameSize = 0;
+   Unicode sidDomainName = NULL;
+   DWORD sidDomainNameSize = 0;
+   SID_NAME_USE sidNameUse;
+
    /*
-    * For Windows, get the name of the owner of this process, then
-    * compare it to the provided username.
+    * Check to see if the user provided a '<Domain>\<User>' formatted username
     */
-   if (!Win32U_GetUserName(currentUser, &currentUserSize)) {
+   if (NULL != Str_Strchr(username, '\\')) {
+      /*
+       * A '<Domain>\<User>' formatted username was provided.
+       * We must retrieve the domain as well as the username to verify
+       * the current vixtools user matches the username provided
+       */
+      retVal = OpenProcessToken(GetCurrentProcess(),
+                                TOKEN_READ,
+                                &processToken);
+
+      if (!retVal || !processToken) {
+         Warning("unable to open process token: windows error code %d\n",
+                 GetLastError());
+         err = FoundryToolsDaemon_TranslateSystemErr();
+
+         goto abort;
+      }
+
+      // Determine necessary buffer size
+      GetTokenInformation(processToken,
+                          TokenUser,
+                          NULL,
+                          0,
+                          &processTokenInfoSize);
+
       if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         Warning("unable to get token info: windows error code %d\n",
+                 GetLastError());
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
       }
 
-      currentUser = Util_SafeMalloc(currentUserSize);
+      processTokenInfo = Util_SafeMalloc(processTokenInfoSize);
 
-      if (!Win32U_GetUserName(currentUser, &currentUserSize)) {
+      if (!GetTokenInformation(processToken,
+                               TokenUser,
+                               processTokenInfo,
+                               processTokenInfoSize,
+                               &processTokenInfoSize)) {
+         Warning("unable to get token info: windows error code %d\n",
+                 GetLastError());
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
+      }
+
+      // Retrieve user name and domain name based on user's SID.
+      Win32U_LookupAccountSid(NULL,
+                              processTokenInfo->User.Sid,
+                              NULL,
+                              &sidUserNameSize,
+                              NULL,
+                              &sidDomainNameSize,
+                              &sidNameUse);
+
+      if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+         Warning("unable to lookup account sid: windows error code %d\n",
+                 GetLastError());
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
+      }
+
+      sidUserName = Util_SafeMalloc(sidUserNameSize);
+      sidDomainName = Util_SafeMalloc(sidDomainNameSize);
+
+      if (!Win32U_LookupAccountSid(NULL,
+                                   processTokenInfo->User.Sid,
+                                   sidUserName,
+                                   &sidUserNameSize,
+                                   sidDomainName,
+                                   &sidDomainNameSize,
+                                   &sidNameUse)) {
+         Warning("unable to lookup account sid: windows error code %d\n",
+                 GetLastError());
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
+     }
+
+      // Populate currentUser with Domain + '\' + Username
+      currentUser = Str_SafeAsprintf(NULL, "%s\\%s", sidDomainName, sidUserName);
+   } else {
+      /*
+       * For Windows, get the name of the owner of this process, then
+       * compare it to the provided username.
+       */
+      if (!Win32U_GetUserName(currentUser, &currentUserSize)) {
+         if (ERROR_INSUFFICIENT_BUFFER != GetLastError()) {
+            err = FoundryToolsDaemon_TranslateSystemErr();
+            goto abort;
+         }
+
+         currentUser = Util_SafeMalloc(currentUserSize);
+
+         if (!Win32U_GetUserName(currentUser, &currentUserSize)) {
+            err = FoundryToolsDaemon_TranslateSystemErr();
+            goto abort;
+         }
       }
    }
 
@@ -3680,6 +3828,10 @@ VixToolsDoesUsernameMatchCurrentUser(const char *username)  // IN
    err = VIX_OK;
 
 abort:
+   free(sidDomainName);
+   free(sidUserName);
+   free(processTokenInfo);
+   CloseHandle(processToken);
    free(currentUser);
 
 #else /* Below is the POSIX case. */

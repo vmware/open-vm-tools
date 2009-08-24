@@ -76,6 +76,10 @@ static const char nul[] = {'\0', '\0'};
 static const wchar_t nul = L'\0';
 #endif
 
+#ifndef USE_ICONV
+static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
+                                       unsigned int flags, DynBuf *db);
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -103,35 +107,35 @@ CodeSetOldGetUtf8(const char *string,	// IN: string
    uint8 *e;
    uint32 c;
    int len;
-
    ASSERT(string < end);
 
    c = *p;
 
    if (c < 0x80) {
-      // ASCII
+      // ASCII: U+0000 - U+007F: 1 byte of UTF-8.
       len = 1;
       goto out;
    }
 
-   if (c < 0xc2) {
+   if ((c < 0xc2) || (c > 0xf4)) {
       // 0x81 to 0xbf are not valid first bytes
       // 0xc0 and 0xc1 cannot appear in UTF-8, see below
+      // leading char can not be > 0xf4, illegal as well
       return 0;
    }
 
    if (c < 0xe0) {
+      // U+0080 - U+07FF: 2 bytes of UTF-8.
       c -= 0xc0;
       len = 2;
-   } else if (c <= 0xf0) {
+   } else if (c < 0xf0) {
+      // U+0800 - U+FFFF: 3 bytes of UTF-8.
       c -= 0xe0;
       len = 3;
-   } else if (c <= 0xf8) {
+   } else {
+      // U+10000 - U+10FFFF: 4 bytes of UTF-8.
       c -= 0xf0;
       len = 4;
-   } else {
-      // bad first byte
-      return 0;
    }
 
    if ((e = p + len) > (uint8 *) end) {
@@ -1171,6 +1175,14 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
       } else {
          goto exit;
       }
+   } else if (STRING_ENCODING_ISO_8859_1 == encIn) {
+      if (STRING_ENCODING_UTF8 == encOut) {
+         if (!CodeSetOldIso88591ToUtf8Db(bufIn, sizeIn, flags, db)) {
+            goto exit;
+         }
+      } else {
+         goto exit;
+      }
    } else {
       goto exit;
    }
@@ -2083,6 +2095,50 @@ CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
 
    return TRUE;
 }
+
+
+#ifndef USE_ICONV
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSetOldIso88591ToUtf8Db --
+ *
+ *      Convert ISO-8859-1 to UTF-8
+ *
+ * Results:
+ *      On success, TRUE and conversion result appended to db.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+CodeSetOldIso88591ToUtf8Db(char const *bufIn,   // IN
+                           size_t sizeIn,       // IN
+                           unsigned int flags,  // IN
+                           DynBuf *db)          // OUT
+{
+   size_t i;
+   size_t last = 0;
+
+   for (i = 0; i < sizeIn; i++) {
+      unsigned int c = (unsigned char)bufIn[i];
+      if (UNLIKELY(c >= 0x80)) {
+         unsigned char buf[2];
+
+         buf[0] = 0xC0 | (c >> 6);
+         buf[1] = 0x80 | (c & 0x3F);
+	 DynBuf_Append(db, bufIn + last, i - last);
+         DynBuf_Append(db, buf, sizeof buf);
+	 last = i + 1;
+      }
+   }
+   DynBuf_Append(db, bufIn + last, i - last);
+   return TRUE;
+}
+#endif
 
 
 #if defined(_WIN32)

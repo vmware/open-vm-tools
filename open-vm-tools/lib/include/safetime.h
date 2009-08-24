@@ -50,6 +50,9 @@
 #error Use safetime.h instead of time.h, stat.h, and types.h
 #endif
 
+#undef  FMTTIME
+#define FMTTIME FMT64"d"
+
 #if (_MSC_VER < 1400)
 
 #define _STAT_DEFINED

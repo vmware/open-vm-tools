@@ -29,9 +29,20 @@
 #define __NETUTIL_H__
 
 #ifdef _WIN32
-#include <winsock2.h>
-#include <iphlpapi.h>
-#include <windows.h>
+/*
+ * Redefine the WINNT version for this file to be 'LONGHORN' so that we'll get
+ * the definitions for MIB_IPFORWARDTABLE2 et. al.
+ */
+#   if (_WIN32_WINNT < 0x0600)
+#      undef _WIN32_WINNT
+#      define _WIN32_WINNT 0x0600
+#   endif
+
+#   include <windows.h>
+#   include <ws2tcpip.h>
+#   include "vmware/iphlpapi_packed.h"
+#else
+#   include <arpa/inet.h>
 #endif
 
 #include "vm_basic_types.h"
@@ -39,6 +50,16 @@
 #if !defined(N_PLAT_NLM)
 #  include "guestInfo.h"
 #endif
+
+/*
+ * Interface types as assigned by IANA.
+ * See http://www.iana.org/assignments/ianaiftype-mib for more details.
+ */
+
+typedef enum {
+   IANA_IFTYPE_OTHER            = 1,
+   IANA_IFTYPE_ETHERNETCSMACD   = 6,
+} IanaIfType;
 
 
 /*
@@ -69,12 +90,24 @@ ULONG NetUtil_GetAdaptersAddresses(ULONG Family,
                                    PIP_ADAPTER_ADDRESSES adap_addresses,
                                    PULONG SizePointer);
 
+PMIB_IPFORWARDTABLE NetUtilWin32_GetIpForwardTable(void);
+PMIB_IPFORWARD_TABLE2 NetUtilWin32_GetIpForwardTable2(void);
+void NetUtilWin32_FreeMibTable(PMIB_IPFORWARD_TABLE2);
 #endif
 
 #ifdef N_PLAT_NLM
 /* Monitoring IP changes */
 void NetUtil_MonitorIPStart(void);
 void NetUtil_MonitorIPStop(void);
+#endif
+
+#ifdef WIN32
+int NetUtil_InetPToN(int af, const char *src, void *dst);
+const char *NetUtil_InetNToP(int af, const void *src, char *dst,
+                             socklen_t size);
+#else // ifdef WIN32
+#   define NetUtil_InetPToN     inet_pton
+#   define NetUtil_InetNToP     inet_ntop
 #endif
 
 #if defined(linux)
@@ -101,7 +134,11 @@ EXTERN NetUtilIfTableEntry netUtilIfTable[];
 
 int   NetUtil_GetIfIndex(const char *ifName);
 char *NetUtil_GetIfName(int ifIndex);
-
 #endif // if defined(linux)
 
-#endif
+size_t NetUtil_GetHardwareAddress(int ifIndex,         // IN
+                                  char *hwAddr,        // OUT
+                                  size_t hwAddrSize,   // IN
+                                  IanaIfType *ifType); // OUT
+
+#endif // ifndef _NETUTIL_H_

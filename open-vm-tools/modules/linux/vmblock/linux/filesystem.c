@@ -24,14 +24,13 @@
  */
 
 #include "driver-config.h"
-#include "compat_kernel.h"
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/mount.h>
-#include "compat_fs.h"
-#include "compat_spinlock.h"
+#include <linux/fs.h>
+
 #include "compat_namei.h"
-#include "compat_slab.h"
 
 #include "os.h"
 #include "vmblockInt.h"
@@ -40,30 +39,17 @@
 #define VMBLOCK_ROOT_INO  1
 #define GetRootInode(sb)  Iget(sb, NULL, NULL, VMBLOCK_ROOT_INO)
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 25)
-#   define KERNEL_25_FS 0
-#else
-#   define KERNEL_25_FS 1
-#endif
-
 static struct inode *GetInode(struct super_block *sb, ino_t ino);
 
 /* File system operations */
-#if KERNEL_25_FS /* { */
-#   if defined(VMW_GETSB_2618)
+
+#if defined(VMW_GETSB_2618)
 static int FsOpGetSb(struct file_system_type *fsType, int flags,
                      const char *devName, void *rawData, struct vfsmount *mnt);
-#   elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 70)
+#else
 static struct super_block *FsOpGetSb(struct file_system_type *fsType, int flags,
                                      const char *devName, void *rawData);
-#   else
-static struct super_block *FsOpGetSb(struct file_system_type *fsType, int flags,
-                                     char *devName, void *rawData);
-#   endif
-#else /* } { */
-static struct super_block *FsOpReadSuper24(struct super_block *sb, void *rawData,
-                                           int flags);
-#endif /* } */
+#endif
 static int FsOpReadSuper(struct super_block *sb, void *rawData, int flags);
 
 
@@ -80,12 +66,8 @@ static size_t fsRootLen;
 static struct file_system_type fsType = {
    .owner = THIS_MODULE,
    .name = VMBLOCK_FS_NAME,
-#if KERNEL_25_FS
    .get_sb = FsOpGetSb,
    .kill_sb = kill_anon_super,
-#else
-   .read_super = FsOpReadSuper24,
-#endif
 };
 
 
@@ -239,16 +221,9 @@ VMBlockReadInode(struct inode *inode)  // IN: Inode to initialize
 ino_t
 GetNextIno(void)
 {
-   static spinlock_t inoLock = SPIN_LOCK_UNLOCKED;
-   static ino_t nextIno = VMBLOCK_ROOT_INO + 1;
-   ino_t ret;
+   static atomic_t nextIno = ATOMIC_INIT(VMBLOCK_ROOT_INO + 1);
 
-   /* Too bad atomic_t's don't provide an atomic increment and read ... */
-   spin_lock(&inoLock);
-   ret = nextIno++;
-   spin_unlock(&inoLock);
-
-   return ret;
+   return (ino_t) atomic_inc_return(&nextIno);
 }
 
 
@@ -277,7 +252,6 @@ static struct inode *
 GetInode(struct super_block *sb, // IN: file system superblock object
 	 ino_t ino)              // IN: inode number to assign to new inode
 {
-#ifdef VMW_USE_IGET_LOCKED
    struct inode *inode;
 
    inode = iget_locked(sb, ino);
@@ -288,9 +262,6 @@ GetInode(struct super_block *sb, // IN: file system superblock object
       unlock_new_inode(inode);
    }
    return inode;
-#else
-   return iget(sb, ino);
-#endif
 }
 
 
@@ -414,11 +385,9 @@ error_inode:
 static void
 InodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem))  // IN: allocated slab item to initialize
 {
-#ifdef VMW_EMBED_INODE
    VMBlockInodeInfo *iinfo = slabElem;
 
    inode_init_once(&iinfo->inode);
-#endif
 }
 
 
@@ -460,6 +429,7 @@ MakeFullName(struct inode *dir,       // IN : directory
       bufOut[fsRootLen] = '\0';
    } else {
       VMBlockInodeInfo *dirIinfo;
+      int ret;
 
       ASSERT(dir);
       ASSERT(dentry);
@@ -470,47 +440,18 @@ MakeFullName(struct inode *dir,       // IN : directory
       }
 
       dirIinfo = INODE_TO_IINFO(dir);
+
       /*
        * If dirIinfo->name[1] is '\0', then it is "/" and we don't need
        * another '/' between it and the additional name.
        */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 10)
-      {
-         int ret;
-
-         ret = snprintf(bufOut, bufOutSize,
-                        dirIinfo->name[1] == '\0' ? "%s%s" : "%s/%s",
-                        dirIinfo->name, dentry->d_name.name);
-         if (ret >= bufOutSize) {
-            Warning("MakeFullName: path was too long.\n");
-            return -ENAMETOOLONG;
-         }
+      ret = snprintf(bufOut, bufOutSize,
+                     dirIinfo->name[1] == '\0' ? "%s%s" : "%s/%s",
+                     dirIinfo->name, dentry->d_name.name);
+      if (ret >= bufOutSize) {
+         Warning("MakeFullName: path was too long.\n");
+         return -ENAMETOOLONG;
       }
-#else
-      {
-         /* snprintf was not exported prior to 2.4.10 */
-         size_t dirLen;
-         size_t pathSepLen;
-         size_t dentryLen;
-         size_t pathLen;
-
-         dirLen = strlen(dirIinfo->name);
-         pathSepLen = dirLen == 1 ? 0 : 1;
-         dentryLen = strlen(dentry->d_name.name);
-         pathLen = dirLen + dentryLen + pathSepLen;
-         if (pathLen >= bufOutSize) {
-            Warning("MakeFullName: path was too long.\n");
-            return -ENAMETOOLONG;
-         }
-         memcpy(bufOut, dirIinfo->name, dirLen);
-         if (pathSepLen == 1) {
-            ASSERT(dirLen == 1);
-            bufOut[dirLen] = '/';
-         }
-         memcpy(bufOut + dirLen + pathSepLen, dentry->d_name.name, dentryLen);
-         bufOut[pathLen] = '\0';
-      }
-#endif
    }
 
    return 0;
@@ -593,7 +534,6 @@ FsOpReadSuper(struct super_block *sb, // OUT: Superblock object
 }
 
 
-#if KERNEL_25_FS /* { */
 #if defined(VMW_GETSB_2618)
 /*
  *-----------------------------------------------------------------------------
@@ -641,48 +581,13 @@ FsOpGetSb(struct file_system_type *fs_type, // IN: file system type of mount
  *-----------------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 70)
 static struct super_block *
 FsOpGetSb(struct file_system_type *fs_type, // IN: file system type of mount
           int flags,                        // IN: mount flags
           const char *dev_name,             // IN: device mounting on
           void *rawData)                    // IN: mount arguments
-#else
-static struct super_block *
-FsOpGetSb(struct file_system_type *fs_type, // IN: file system type of mount
-          int flags,                        // IN: mount flags
-          char *dev_name,                   // IN: device mounting on
-          void *rawData)                    // IN: mount arguments
-#endif
 {
    return get_sb_nodev(fs_type, flags, rawData, FsOpReadSuper);
 }
 #endif
-#else /* } { */
 
-/*
- *-----------------------------------------------------------------------------
- *
- * FsOpReadSuper24 --
- *
- *    Compatibility wrapper for 2.4.x kernels read_super.
- *    Converts success to sb, and failure to NULL.
- *
- * Results:
- *    The initialized superblock on success
- *    NULL on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static struct super_block *
-FsOpReadSuper24(struct super_block *sb,  // OUT: Superblock object
-                void *rawData,           // IN : mount arguments
-                int flags)               // IN : mount flags
-{
-   return FsOpReadSuper(sb, rawData, flags) ? NULL : sb;
-}
-#endif /* } */

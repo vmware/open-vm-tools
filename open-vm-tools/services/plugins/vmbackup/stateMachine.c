@@ -179,7 +179,6 @@ VmBackupFinalize(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
-   ASSERT(gBackupState->machineState == VMBACKUP_MSTATE_IDLE);
 
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);

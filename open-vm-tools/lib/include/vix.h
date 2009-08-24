@@ -117,6 +117,7 @@ enum {
    VIX_E_NEED_KEY                               = 30,
    VIX_E_LICENSE                                = 32,
    VIX_E_VM_HOST_DISCONNECTED                   = 34,
+   VIX_E_AUTHENTICATION_FAIL                    = 35,
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,
@@ -460,6 +461,10 @@ enum {
    VIX_PROPERTY_SNAPSHOT_POWERSTATE                   = 4205,
    VIX_PROPERTY_SNAPSHOT_IS_REPLAYABLE                = 4207,
 
+   VIX_PROPERTY_GUEST_SHAREDFOLDERS_SHARES_PATH       = 4525,
+
+   /* Virtual machine encryption properties */
+   VIX_PROPERTY_VM_ENCRYPTION_PASSWORD                = 7001,
 };
 
 /*
@@ -1119,7 +1124,8 @@ VixHandle VixVM_UpgradeVirtualHardware(VixHandle vmHandle,
 
 enum {
    VIX_INSTALLTOOLS_MOUNT_TOOLS_INSTALLER = 0x00,
-   VIX_INSTALLTOOLS_AUTO_UPGRADE   = 0x01
+   VIX_INSTALLTOOLS_AUTO_UPGRADE          = 0x01,
+   VIX_INSTALLTOOLS_RETURN_IMMEDIATELY    = 0x02
 };
 
 VixHandle VixVM_InstallTools(VixHandle vmHandle,

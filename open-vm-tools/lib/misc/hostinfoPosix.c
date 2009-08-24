@@ -51,6 +51,7 @@
 #include <mach/mach_init.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <sys/mman.h>
 #elif defined(__FreeBSD__)
 #if !defined(RLIMIT_AS)
 #  if defined(RLIMIT_VMEM)
@@ -123,7 +124,7 @@ static Bool hostinfoOSVersionInitialized;
 #if defined(__APPLE__)
 #define SYS_NMLN _SYS_NAMELEN
 #endif
-static int hostinfoOSVersion[3];
+static int hostinfoOSVersion[4];
 static char hostinfoOSVersionString[SYS_NMLN];
 
 #define DISTRO_BUF_SIZE 255
@@ -226,13 +227,18 @@ HostinfoOSVersionInit(void)
 
    Str_Strcpy(hostinfoOSVersionString, u.release, SYS_NMLN);
 
-   ASSERT(ARRAYSIZE(hostinfoOSVersion) >= 3);
+   ASSERT(ARRAYSIZE(hostinfoOSVersion) >= 4);
    if (sscanf(u.release, "%d.%d.%d%s",
 	      &hostinfoOSVersion[0], &hostinfoOSVersion[1],
 	      &hostinfoOSVersion[2], extra) < 1) {
       Warning("%s unable to parse host OS version string: %s\n",
               __FUNCTION__, u.release);
       NOT_IMPLEMENTED();
+   }
+
+   /* If there is a 4th number, use it, otherwise use 0. */
+   if (sscanf(extra, ".%d%*s", &hostinfoOSVersion[3]) < 1) {
+      hostinfoOSVersion[3] = 0;
    }
 
    hostinfoOSVersionInitialized = TRUE;
@@ -1654,10 +1660,6 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
    int s, fd;
    struct sigaction sa;
    struct rlimit rlim;
-#ifdef __linux__
-   int err;
-   uid_t euid;
-#endif
 
    /*
     * Disable itimers before resetting the signal handlers.
@@ -1700,15 +1702,21 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
 #ifdef __linux__
    /*
     * Drop iopl to its default value.
+    * iopl() is not implemented in userworlds
     */
-   euid = Id_GetEUid();
-   /* At this point, _unless we are running as root_, we shouldn't have root
-      privileges --hpreg */
-   ASSERT(euid != 0 || getuid() == 0);
-   Id_SetEUid(0);
-   err = iopl(0);
-   Id_SetEUid(euid);
-   ASSERT_NOT_IMPLEMENTED(err == 0);
+   if (!vmx86_server) {
+      int err;
+      uid_t euid;
+
+      euid = Id_GetEUid();
+      /* At this point, _unless we are running as root_, we shouldn't have root
+         privileges --hpreg */
+      ASSERT(euid != 0 || getuid() == 0);
+      Id_SetEUid(0);
+      err = iopl(0);
+      Id_SetEUid(euid);
+      ASSERT_NOT_IMPLEMENTED(err == 0);
+   }
 #endif
 }
 
@@ -2349,3 +2357,155 @@ Hostinfo_Execute(const char *command,  // IN:
       return 0;
    }
 }
+
+
+#ifdef __APPLE__
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetKernelZoneElemSize --
+ *
+ *      Retrieve the size of the elements in a named kernel zone.
+ *
+ *      We used to do it like zprint (see
+ *      darwinsource-10.4.5/system_cmds-336.10/zprint.tproj/zprint.c::main()),
+ *      i.e. by calling host_zone_info(), but there are 3 problems with that:
+ *
+ *      1) mach/mach_host.defs defines both arrays passed to host_zone_info()
+ *         as 'out' parameters, but the implementation of the function in
+ *         xnu-792.13.8/osfmk/kern/zalloc.c clearly expects them as 'inout'
+ *         parameters. This issue is confirmed in practice: the input values
+ *         passed by the user process are ignored. Now comes the scary part: is
+ *         the input of the kernel function deterministically invalid, or is it
+ *         some non-deterministic garbage (in which case the user process can
+ *         corrupt its address space)? The answer is in the Mach IPC code. A
+ *         cursory kernel debugging session seems to imply that the input
+ *         pointer values are garbage, but the input size values are always 0.
+ *         So the function seems safe to use in practice.
+ *
+ *      2) Starting with Mac OS 10.6, host_zone_info() always returns
+ *         KERN_NOT_SUPPORTED when the sizes of the user and kernel virtual
+ *         address spaces (32-bit or 64-bit) do not match. Was bug 377049.
+ *
+ *      3) Apple broke the ABI: For 64-bit code, the 'zone_info.zi_*_size'
+ *         fields are 32-bit in the Mac OS 10.5 SDK, but 64-bit in the Mac OS
+ *         10.6 SDK. So a 64-bit VMX compiled against the Mac OS 10.5 SDK works
+ *         with the Mac OS 10.5 (32-bit) kernel but fails with the Mac OS 10.6
+ *         64-bit kernel.
+ *
+ *      So now we just let Apple deal with their own mess: we invoke zprint,
+ *      and we parse its non-localized output. Should Apple stop shipping
+ *      zprint, we can always ship our own replacement for it.
+ *
+ * Results:
+ *      On success: the size (in bytes) > 0.
+ *      On failure: 0.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
+{
+   size_t retval = 0;
+   struct {
+      size_t retval;
+   } volatile *shared;
+   pid_t child;
+   pid_t pid;
+
+   /*
+    * popen(3) incorrectly executes the shell with the identity of the calling
+    * process, ignoring a potential per-thread identity. And starting with
+    * Mac OS 10.6 it is even worse: if there is a per-thread identity, popen(3)
+    * removes it!
+    *
+    * So we run this code in a separate process which runs with the same
+    * identity as the current thread.
+    */
+
+   shared = mmap(NULL, sizeof *shared, PROT_READ | PROT_WRITE,
+                 MAP_ANON | MAP_SHARED, -1, 0);
+   if (shared == (void *)-1) {
+      Warning("%s: mmap error %d.\n", __FUNCTION__, errno);
+      return retval;
+   }
+
+   // In case the child is terminated before it can set it.
+   shared->retval = retval;
+
+   child = fork();
+   if (child == (pid_t)-1) {
+      Warning("%s: fork error %d.\n", __FUNCTION__, errno);
+      munmap((void *)shared, sizeof *shared);
+      return retval;
+   }
+
+   // This executes only in the child process.
+   if (!child) {
+      size_t nameLen;
+      FILE *stream;
+      Bool parsingProperties = FALSE;
+
+      ASSERT(name);
+
+      nameLen = strlen(name);
+      ASSERT(nameLen && *name != '\t');
+
+      stream = popen("/usr/bin/zprint -C", "r");
+      if (!stream) {
+         Warning("%s: popen error %d.\n", __FUNCTION__, errno);
+         exit(EXIT_SUCCESS);
+      }
+
+      for (;;) {
+         char *line;
+         size_t lineLen;
+
+         if (StdIO_ReadNextLine(stream, &line, 0, &lineLen) != StdIO_Success) {
+            break;
+         }
+
+         if (parsingProperties) {
+            if (   // Not a property line anymore. Property not found.
+                   lineLen < 1 || memcmp(line, "\t", 1)
+                   // Property found.
+                || sscanf(line, " elem_size: %"FMTSZ"u bytes",
+                          &shared->retval) == 1) {
+               free(line);
+               break;
+            }
+         } else if (!(   lineLen < nameLen + 6
+                      || memcmp(line, name, nameLen)
+                      || memcmp(line + nameLen, " zone:", 6))) {
+            // Zone found.
+            parsingProperties = TRUE;
+         }
+
+         free(line);
+      }
+
+      pclose(stream);
+      exit(EXIT_SUCCESS);
+   }
+
+   /*
+    * This executes only in the parent process.
+    * Wait for the child to terminate, and return its retval.
+    */
+
+   do {
+      int status;
+
+      pid = waitpid(child, &status, 0);
+   } while (pid == -1 && errno == EINTR);
+   ASSERT_NOT_IMPLEMENTED(pid == child);
+
+   retval = shared->retval;
+   munmap((void *)shared, sizeof *shared);
+   return retval;
+}
+#endif /* __APPLE__ */

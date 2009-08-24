@@ -78,6 +78,7 @@ typedef struct MonListNode {
 BOOL System_SetProcessPrivilege(LPCTSTR lpszPrivilege, Bool bEnablePrivilege);
 int32 System_GetSPVersion(void);
 Bool System_IsLoginScreenActive(void);
+Bool System_IsProcessElevated(void);
 Bool System_IsScreenSaverActive(void);
 Bool System_IsScreenSaverRunning(void);
 Bool System_StartDesktopSwitchThread(DesktopSwitchThreadArgs *args);

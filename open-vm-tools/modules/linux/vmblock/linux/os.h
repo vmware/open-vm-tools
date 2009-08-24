@@ -28,21 +28,17 @@
 #define __OS_H__
 
 #include "driver-config.h"
-#include "compat_list.h"
-#include "compat_completion.h"
+#include <linux/completion.h>
 #include <linux/limits.h>
 #include "compat_slab.h"
-#include "compat_wait.h"
+#include <linux/sched.h>
 #include <asm/atomic.h>
 #include <asm/errno.h>
-#include "compat_sched.h"
 #include <asm/current.h>
-#include "compat_kernel.h"
-#include "compat_spinlock.h"
 
 typedef rwlock_t os_rwlock_t;
 typedef compat_kmem_cache os_kmem_cache_t;
-typedef compat_completion os_completion_t;
+typedef struct completion os_completion_t;
 typedef atomic_t os_atomic_t;
 typedef struct file * os_blocker_id_t;
 
@@ -54,22 +50,12 @@ typedef struct file * os_blocker_id_t;
 
 #define OS_FMTTID                       "d"
 #define os_threadid                     (current->pid)
-/*
- * XXX vprintk() wasn't exported until 2.6.9; we should do something more
- * intelligent here eventually.
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
-# define os_panic(fmt, args)             \
+
+#define os_panic(fmt, args)              \
       ({                                 \
           vprintk(fmt, args);            \
           BUG();                         \
       })
-#else
-# define os_panic(fmt, args)             \
-      ({                                 \
-          BUG();                         \
-      })
-#endif
 
 #define os_rwlock_init(lock)            rwlock_init(lock)
 #define os_rwlock_destroy(lock)
@@ -94,7 +80,7 @@ typedef struct file * os_blocker_id_t;
 #define os_kmem_cache_alloc(cache)      kmem_cache_alloc(cache, GFP_KERNEL)
 #define os_kmem_cache_free(cache, elem) kmem_cache_free(cache, elem)
 
-#define os_completion_init(comp)        compat_init_completion(comp)
+#define os_completion_init(comp)        init_completion(comp)
 #define os_completion_destroy(comp)
 /*
  * XXX This should be made interruptible using
@@ -103,10 +89,10 @@ typedef struct file * os_blocker_id_t;
  */
 #define os_wait_for_completion(comp)                                    \
 ({                                                                      \
-    compat_wait_for_completion(comp);                                   \
+    wait_for_completion(comp);                                          \
     0;                                                                  \
  })
-#define os_complete_all(comp)           compat_complete_all(comp)
+#define os_complete_all(comp)           complete_all(comp)
 
 #define os_atomic_dec_and_test(atomic)  atomic_dec_and_test(atomic)
 #define os_atomic_dec(atomic)           atomic_dec(atomic)

@@ -940,7 +940,21 @@ typedef void * UserVA;
 #if defined(__FreeBSD__) && (__FreeBSD__ + 0) && ((__FreeBSD__ + 0) >= 5)
 #   define FMTTIME FMTSZ"d"
 #else
-#   define FMTTIME "ld"
+#   if defined(_MSC_VER)
+#      ifndef _SAFETIME_H_
+#         if (_MSC_VER < 1400) || defined(_USE_32BIT_TIME_T)
+#             define FMTTIME "ld"
+#         else
+#             define FMTTIME FMT64"d"
+#         endif
+#      else
+#         ifndef FMTTIME
+#            error "safetime.h did not define FMTTIME"
+#         endif
+#      endif
+#   else
+#      define FMTTIME "ld"
+#   endif
 #endif
 
 /*

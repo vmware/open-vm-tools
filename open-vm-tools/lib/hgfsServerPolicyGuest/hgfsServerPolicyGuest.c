@@ -484,6 +484,51 @@ HgfsServerPolicy_GetSharePath(char const *nameIn,        // IN: Name to check
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerPolicy_ProcessCPName --
+ *
+ *    Get the local path for a share name by looking at the requested
+ *    name, finding the matching share (if any) and returning the share's
+ *    local path local path and permissions.
+ *
+ * Results:
+ *    An HgfsNameStatus value indicating the result is returned.
+ *
+ *    The local path for the shareName is also returned if a match is found.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+HgfsNameStatus
+HgfsServerPolicy_ProcessCPName(char const *nameIn,         // IN: name in CPName form
+                               size_t nameInLen,           // IN: length of the name
+                               Bool *readAccess,           // OUT: Read permissions
+                               Bool *writeAccess,          // OUT: Write permissions
+                               char const **shareBaseDir)  // OUT: Shared directory
+{
+   HgfsSharedFolder *myShare;
+
+   ASSERT(nameIn);
+   ASSERT(shareBaseDir);
+
+   myShare = HgfsServerPolicyGetShare(&myState, nameIn, nameInLen);
+   if (!myShare) {
+      LOG(4, ("%s: No matching share name\n", __FUNCTION__));
+      return HGFS_NAME_STATUS_DOES_NOT_EXIST;
+   }
+
+   *readAccess = myShare->readAccess;
+   *writeAccess = myShare->writeAccess;
+   *shareBaseDir = myShare->path;
+   return HGFS_NAME_STATUS_COMPLETE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerPolicy_GetShareOptions --
  *
  *    Get the HGFS share config options by looking at the requested name,
@@ -607,4 +652,63 @@ HgfsServerPolicy_GetShareMode(char const *nameIn,        // IN: Share name to re
    }
 
    return HGFS_NAME_STATUS_COMPLETE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerPolicy_CheckMode --
+ *
+ *    Checks if the requested mode may be granted depending on read/write permissions.
+ *
+ * Results:
+ *    TRUE if the requested mode can be granted, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerPolicy_CheckMode(HgfsOpenMode mode,          // IN: mode to check
+                           Bool writePermissions,      // IN: callers write permissions
+                           Bool readPermissions)       // IN: callers read permissions
+{
+   /*
+    * See if access is allowed in the requested mode.
+    *
+    * XXX Yeah, this is retarded. We should be using bits instead of
+    * an enum for HgfsOpenMode. Add it to the todo list. [bac]
+    */
+   switch (HGFS_OPEN_MODE_ACCMODE(mode)) {
+   case HGFS_OPEN_MODE_READ_ONLY:
+      if (!readPermissions) {
+         LOG(4, ("HgfsServerPolicyCheckMode: Read access denied\n"));
+         return FALSE;
+      }
+      break;
+
+   case HGFS_OPEN_MODE_WRITE_ONLY:
+      if (!writePermissions) {
+         LOG(4, ("HgfsServerPolicyCheckMode: Write access denied\n"));
+         return FALSE;
+      }
+      break;
+
+   case HGFS_OPEN_MODE_READ_WRITE:
+      if (!readPermissions || !writePermissions) {
+         LOG(4, ("HgfsServerPolicyCheckMode: Read/write access denied\n"));
+         return FALSE;
+      }
+      break;
+
+   default:
+      LOG(0, ("HgfsServerPolicyCheckMode: Invalid mode\n"));
+      ASSERT(FALSE);
+      return FALSE;
+   }
+
+   return TRUE;
 }

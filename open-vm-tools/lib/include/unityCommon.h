@@ -230,6 +230,8 @@
 #define UNITY_RPC_DESKTOP_CONFIG_SET      "unity.desktop.config.set"
 #define UNITY_RPC_DESKTOP_ACTIVE_SET      "unity.desktop.active.set"
 #define UNITY_RPC_WINDOW_DESKTOP_SET      "unity.window.desktop.set"
+#define UNITY_RPC_WINDOW_STICK            "unity.window.stick"
+#define UNITY_RPC_WINDOW_UNSTICK          "unity.window.unstick"
 
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
 #define GHI_RPC_SET_GUEST_HANDLER                     "ghi.guest.handler.set"
@@ -744,6 +746,22 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    @param[in] UnityWindowId UnityWindowId of window to move
    @param[in] offset Offset into desktop configuration, as defined by
                      @ref UNITY_RPC_DESKTOP_CONFIG_SET, 0 or greater.
+
+
+   @def         UNITY_RPC_WINDOW_STICK
+   @brief       "Stick" a window to the screen.
+   @code
+   UNITY_RPC_WINDOW_STICK UnityWindowId
+   @endcode
+   @param[in] UnityWindowId UnityWindowId of window to stick.
+
+   @def         UNITY_RPC_WINDOW_UNSTICK
+   @brief       "Unstick" a window from the screen.
+   @code
+   UNITY_RPC_WINDOW_UNSTICK UnityWindowId
+   @endcode
+   @param[in] UnityWindowId UnityWindowId of window to unstick.
+
    @}
 */
 

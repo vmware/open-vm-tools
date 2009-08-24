@@ -91,26 +91,30 @@
 #include "unicodeOperations.h"
 #include "memaligned.h"
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
 #include "hostinfo.h"
+#endif
+
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
 #define XATTR_BACKUP_REENABLED "com.vmware.backupReenabled"
 #endif
 
-/* 
+/*
  * fallocate() is only supported since the glibc-2.8 and
- * linux kernel-2.6.23.Presently the glibc in our toolchain is 2.3 
+ * linux kernel-2.6.23. Presently the glibc in our toolchain is 2.3.
  */
 #ifdef __linux__
-   #ifndef SYS_fallocate 
+   #ifndef SYS_fallocate
       #ifdef __i386__
-         #define SYS_fallocate 324   
-      #elif __x86_64__ 
-         #define SYS_fallocate 285 
+         #define SYS_fallocate 324
+      #elif __x86_64__
+         #define SYS_fallocate 285
       #endif
    #endif
-   #ifndef FALLOC_FL_KEEP_SIZE	
-	#define FALLOC_FL_KEEP_SIZE 1
-   #endif	
+   #ifndef FALLOC_FL_KEEP_SIZE
+      #define FALLOC_FL_KEEP_SIZE 1
+   #endif
 #endif
 
 static const unsigned int FileIO_SeekOrigins[] = {
@@ -136,6 +140,7 @@ typedef struct FilePosixOptions {
    Bool enabled;
    int countThreshold;
    int sizeThreshold;
+   int aioNumThreads;
 } FilePosixOptions;
 
 #if defined(__APPLE__)
@@ -235,6 +240,8 @@ FileIO_OptionalSafeInitialize(void)
          Config_GetLong(5, "filePosix.coalesce.count");
       filePosixOptions.sizeThreshold =
          Config_GetLong(16*1024, "filePosix.coalesce.size");
+      filePosixOptions.aioNumThreads =
+         Config_GetLong(0, "aiomgr.numThreads");
       filePosixOptions.initialized = TRUE;
    }
 }
@@ -1687,9 +1694,8 @@ FileIO_Preadv(FileIODescriptor *fd,    // IN: File descriptor
          ssize_t retval = pread(fd->posix, buf, leftToRead, fileOffset);
 
          if (retval == -1) {
-            if (errno == EINTR || errno == EAGAIN) {
-               LOG_ONCE((LGPFX" %s got %s.  Retrying\n",
-                         __FUNCTION__, errno == EINTR ? "EINTR" : "EAGAIN"));
+            if (errno == EINTR) {
+               LOG_ONCE((LGPFX" %s got EINTR.  Retrying\n", __FUNCTION__));
                NOT_TESTED_ONCE();
                continue;
             }
@@ -1787,9 +1793,8 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
          ssize_t retval = pwrite(fd->posix, buf, leftToWrite, fileOffset);
 
          if (retval == -1) {
-            if (errno == EINTR || errno == EAGAIN) {
-               LOG_ONCE((LGPFX" %s got %s.  Retrying\n",
-                         __FUNCTION__, errno == EINTR ? "EINTR" : "EAGAIN"));
+            if (errno == EINTR) {
+               LOG_ONCE((LGPFX" %s got EINTR.  Retrying\n", __FUNCTION__));
                NOT_TESTED_ONCE();
                continue;
             }
@@ -1878,7 +1883,7 @@ FileIO_GetAllocSize(const FileIODescriptor *fd)  // IN
    ASSERT(fd);
 
 #if __linux__ && defined(N_PLAT_NLM)
-   /* Netware doesn't have st_blocks.  Just fall back to GetSize. */ 
+   /* Netware doesn't have st_blocks.  Just fall back to GetSize. */
    return FileIO_GetSize(fd);
 #else
    /*
@@ -1902,7 +1907,7 @@ FileIO_GetAllocSize(const FileIODescriptor *fd)  // IN
  *      TRUE on success.  Sets errno on failure.
  *
  * Side effects:
- *      None
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -1923,7 +1928,7 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN
    if (curSize > size) {
       errno = EINVAL;
       return FALSE;
-   }	
+   }
    preallocLen = size - curSize;
 
 #ifdef __APPLE__
@@ -1935,8 +1940,17 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN
 
    return fcntl(fd->posix, F_PREALLOCATE, &prealloc) != -1;
 #elif __linux__
-   return syscall(SYS_fallocate, fd->posix, FALLOC_FL_KEEP_SIZE, 
-		  curSize, preallocLen) == 0;
+   {
+      int ret;
+
+      ret = syscall(SYS_fallocate, fd->posix, FALLOC_FL_KEEP_SIZE,
+                    curSize, preallocLen);
+      if (ret == 0) {
+         return TRUE;
+      }
+      errno = ret;
+      return FALSE;
+   }
 #endif
 
 #else
@@ -2416,6 +2430,174 @@ exit:
    return result;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HostSupportsPrealloc --
+ *
+ *      Returns TRUE if the host OS is new enough to support F_PREALLOCATE
+ *      without data loss bugs.  On OSX, this has been verified fixed
+ *      on 10.6 build with kern.osreleasae 10.0.0d6.
+ *
+ * Results:
+ *      TRUE if the current host OS is new enough.
+ *      FALSE if it is not or we can't tell because of an error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HostSupportsPrealloc(void)
+{
+   char curRel[32];
+   char type;
+   unsigned static const int req[] = { 10, 0, 0, 6 };
+   unsigned int cur[4], i;
+   int num;
+   size_t len = sizeof(curRel);
+   Bool ret = FALSE;
+
+   if (sysctlbyname("kern.osrelease", (void *) &curRel, &len, NULL, 0) == -1) {
+      goto exit;
+   }
+
+   curRel[31] = '\0';
+   Log("Current OS Release is %s\n", curRel);
+
+   /*
+    * Apple's osversion is in the format X.Y.Z which maps to the public
+    * OSX version 10.X-4.Y, and Z is incremented for each publicly
+    * released build.  The Z part is of the form A<type>B, where a and
+    * B are version numbers and <type> is either d (devel), a (alpha),
+    * b (beta), rc, or fc.  If the <type>B is missing, then its a GA build.
+    *
+    * Since we're checking for 10.0.0d6, we can just say anything without
+    * a type or with a type other than d is higher.  For d, we compare
+    * the last number.
+    */
+
+   num = sscanf(curRel, "%u.%u.%u%c%u", &cur[0], &cur[1], &cur[2], &type,
+                &cur[3]);
+   if (num < 3) {
+      goto exit;
+   }
+
+   for (i = 0; i < 3; i++) {
+      if (req[i] > cur[i]) {
+         goto exit;
+      } else if (req[i] < cur[i]) {
+         ret = TRUE;
+         goto exit; 
+      }
+   }
+   if (num == 5 && type == 'd') {
+      ret = req[3] <= cur[3];
+      goto exit;
+   }
+   /*
+    * If we get a type with no letter (num == 4), thats odd.
+    * Consider it mal-formatted and fail.
+    */
+   ret = num != 4;
+
+exit:
+   if (!ret && filePosixOptions.initialized && 
+       filePosixOptions.aioNumThreads == 1) {
+      ret =TRUE;
+   } 
+   return  ret;
+}
+
+#else
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HostSupportsPrealloc --
+ *
+ *      fallocate() is supported for ext4 and xfs since 2.6.23 kernels
+ *
+ * Results:
+ *      TRUE if the current host is linux and kernel is >= 2.6.23.
+ *      FALSE if it is not .
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HostSupportsPrealloc(void)
+{
+#if  (defined(__linux__ ) && !defined(VMX86_SERVER))
+    if (Hostinfo_OSVersion(0) >=2 && Hostinfo_OSVersion(1) >=6 &&
+        Hostinfo_OSVersion(2) >=23) {
+       return TRUE;
+    }
+#endif
+    return FALSE;
+}
+
 #endif
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * FileIO_SupportsPrealloc --
+ *
+ *      Checks if the HostOS/filesystem supports preallocation.
+ *
+ * Results:
+ *      TRUE if supported by the Host OS/filesystem.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+FileIO_SupportsPrealloc(const char *pathName,   // IN
+                        Bool fsCheck)           // IN
+{
+   Bool ret = TRUE;
+
+   if (!HostSupportsPrealloc()) {
+      return FALSE;
+   }
+
+   if (!fsCheck) {
+         return ret;
+   }
+
+#if (defined( __linux__) && !defined(VMX86_SERVER))
+   {
+      struct statfs statBuf;
+      Unicode fullPath;
+
+      ret = FALSE;
+      if (!pathName) {
+         return ret;
+      }
+
+      fullPath = File_FullPath(pathName);
+      if (!fullPath) {
+         return ret;
+      }
+
+      if (Posix_Statfs(fullPath, &statBuf) == 0 &&
+         statBuf.f_type == EXT4_SUPER_MAGIC) {
+         ret = TRUE;
+      }
+      Unicode_Free(fullPath);
+   }
+#endif
+   return ret;
+}
 

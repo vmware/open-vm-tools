@@ -36,6 +36,7 @@
 #error "Gtk 2.0 is required"
 #endif
 
+#include <libgen.h>
 #include <glib.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>

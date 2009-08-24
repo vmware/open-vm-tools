@@ -127,6 +127,20 @@ typedef enum {
 #  define HGFS_DEFAULT_SHARE_ACCESS 0
 #endif // _WIN32
 
+typedef struct HgfsShareInfo {
+   /* Filename of the root directory for the shared folder */
+   const char *rootDir;
+
+   /* Length of the root directory filename (does not include nul terminator) */
+   size_t rootDirLen;
+
+   /* Read permissions for the shared folder, needed for handle => name conversions. */
+   Bool readPermissions;
+
+   /* Write permissions for the shared folder, needed for handle => name conversions. */
+   Bool writePermissions;
+} HgfsShareInfo;
+
 /*
  * This struct represents a file on the local filesystem that has been
  * opened by a remote client. We store the name of the local file and
@@ -178,6 +192,17 @@ typedef struct HgfsFileNode {
 
    /* File flags - see below. */
    uint32 flags;
+
+   /*
+    * Context as required by some file operations. Eg: BackupWrite on
+    * Windows: BackupWrite requires the caller to hold on to a pointer
+    * to a Windows internal data structure between subsequent calls to
+    * BackupWrite while restoring a file.
+    */
+   void *fileCtx;
+
+   /* Parameters associated with the share. */
+   HgfsShareInfo shareInfo;
 } HgfsFileNode;
 
 
@@ -228,6 +253,9 @@ typedef struct HgfsSearch {
     * when we want to retrieve the attributes for each dent.
     */
    DirectorySearchType type;
+
+   /* Parameters associated with the share. */
+   HgfsShareInfo shareInfo;
 } HgfsSearch;
 
 /* HgfsSessionInfo flags. */
@@ -339,6 +367,7 @@ typedef struct HgfsFileOpenInfo {
    char *cpName;
    char *utf8Name;
    uint32 caseFlags;                 /* Case-sensitivity flags. */
+   HgfsShareInfo shareInfo;          /* Parameters associated with the share. */
 } HgfsFileOpenInfo;
 
 typedef struct HgfsFileAttrInfo {
@@ -431,6 +460,14 @@ HgfsServerGetAccess(char *in,                    // IN:  CP filename to check
                     char **bufOut,               // OUT: File name in local fs
                     size_t *outLen);             // OUT: Length of name out
 
+HgfsNameStatus
+HgfsServerGetShareInfo(char *cpName,            // IN:  Cross-platform filename to check
+                       size_t cpNameSize,       // IN:  Size of name cpName
+                       uint32 caseFlags,        // IN:  Case-sensitivity flags
+                       HgfsShareInfo* shareInfo,// OUT: Shared folder properties
+                       char **bufOut,           // OUT: File name in local fs
+                       size_t *outLen);         // OUT: Length of name out
+
 Bool
 HgfsServerIsSharedFolderOnly(char const *in,  // IN:  CP filename to check
                              size_t inSize);  // IN:  Size of name in
@@ -445,8 +482,8 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
 HgfsInternalStatus
 HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
                         size_t baseDirLen,        // IN: Length of directory
-                        DirectorySearchType type, // IN: Kind of search
                         char const *shareName,    // IN: Share name
+                        char const *rootDir,      // IN: Root directory for the share
                         HgfsSessionInfo *session, // IN: Session info
                         HgfsHandle *handle);      // OUT: Search handle
 
@@ -529,6 +566,11 @@ HgfsServerSymlinkCreate(char const *packetIn,       // IN: incoming packet
 
 HgfsInternalStatus
 HgfsServerServerLockChange(char const *packetIn,       // IN: incoming packet
+                           size_t packetSize,          // IN: size of packet
+                           HgfsSessionInfo *session);  // IN: opaque transport data
+
+HgfsInternalStatus
+HgfsServerWriteWin32Stream(char const *packetIn,       // IN: incoming packet
                            size_t packetSize,          // IN: size of packet
                            HgfsSessionInfo *session);  // IN: opaque transport data
 
@@ -643,6 +685,21 @@ HgfsPackCreateDirReply(char const *packetIn,      // IN: incoming packet
                        char **packetOut,          // OUT: outgoing packet
                        size_t *packetSize);       // OUT: size of packet
 
+Bool
+HgfsUnpackWriteWin32StreamRequest(char const *packetIn, // IN: incoming packet
+				  size_t packetSize,    // IN: size of packet
+				  HgfsHandle *file,     // OUT: file to write to
+				  char **payload,       // OUT: data to write
+				  size_t *requiredSize, // OUT: size of data
+				  Bool *doSecurity);    // OUT: restore sec.str.
+
+Bool
+HgfsPackWriteWin32StreamReply(char const *packetIn,      // IN: incoming packet
+			      HgfsInternalStatus status, // IN: reply status
+			      uint32 actualSize,         // IN: amount written
+			      char **packetOut,          // OUT: outgoing packet
+			      size_t *packetSize);       // OUT: size of packet
+
 /* Node cache functions. */
 
 Bool
@@ -663,7 +720,8 @@ HgfsIsServerLockAllowed(HgfsSessionInfo *session);  // IN: session info
 Bool
 HgfsHandle2FileDesc(HgfsHandle handle,        // IN: Hgfs file handle
                     HgfsSessionInfo *session, // IN: session info
-                    fileDesc *fd);            // OUT: OS handle (file descriptor)
+                    fileDesc *fd,             // OUT: OS handle (file descriptor)
+                    void **fileCtx);          // OUT: OS file context
 
 Bool
 HgfsFileDesc2Handle(fileDesc fd,              // IN: OS handle (file descriptor)
@@ -680,7 +738,13 @@ HgfsHandle2FileName(HgfsHandle handle,        // IN: Hgfs file handle
                     HgfsSessionInfo *session, // IN: session info
                     char **fileName,          // OUT: CP file name
                     size_t *fileNameSize);    // OUT: CP file name size
-
+Bool
+HgfsHandle2FileNameMode(HgfsHandle handle,       // IN: Hgfs file handle
+                        HgfsSessionInfo *session,// IN: Session info
+                        Bool *readPermissions,   // OUT: shared folder permissions
+                        Bool *writePermissions,  // OUT: shared folder permissions
+                        char **fileName,         // OUT: UTF8 file name
+                        size_t *fileNameSize);   // OUT: UTF8 file name size
 Bool
 HgfsHandle2AppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
                       HgfsSessionInfo *session, // IN: session info
@@ -699,7 +763,8 @@ HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
                        HgfsSessionInfo *session, // IN: session info
-                       fileDesc fd);             // OUT: OS handle (file desc
+                       fileDesc fd,              // IN: OS handle (file desc
+                       void *fileCtx);           // IN: OS file context
 
 Bool
 HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
@@ -738,7 +803,8 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
                   HgfsSearch *copy);        // IN/OUT: Copy of the search
 
 HgfsInternalStatus
-HgfsCloseFile(fileDesc fileDesc);           // IN: OS handle of the file
+HgfsCloseFile(fileDesc fileDesc,            // IN: OS handle of the file
+              void *fileCtx);               // IN: file context
 
 Bool
 HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
