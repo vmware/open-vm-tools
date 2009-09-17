@@ -19,6 +19,4 @@ noinst_LTLIBRARIES = libMessage.la
 
 libMessage_la_SOURCES =
 libMessage_la_SOURCES += message.c
-libMessage_la_SOURCES += messageBackdoor.c
-libMessage_la_SOURCES += messageStub.c
 

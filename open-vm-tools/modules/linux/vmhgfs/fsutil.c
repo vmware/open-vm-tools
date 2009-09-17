@@ -968,17 +968,29 @@ HgfsIget(struct super_block *sb,         // IN: Superblock of this fs
 
          oldInode = HgfsInodeLookup(sb, attr->hostFileId);
          if (oldInode) {
-
             /*
              * If this inode's inode number was generated via iunique(), we
              * have a collision and cannot use the server's inode number.
-             * Otherwise, we should reuse this inode.
+             * Or, if the dentry is for a directory, we should not reuse the
+             * inode in case there are two directory dentries referring to the
+             * same inode. Otherwise, we should reuse this inode.
+             *
+             * Be careful of the following setting when resuing inodes:
+             *     host dir -> share name
+             *     C:/parent/         -> host1
+             *     C:/parent/child/   -> host2
+             * /mnt/hgfs/host1/child and /mnt/hgfs/host2 are actually the
+             * same directory in host. It also happens to the files in child.
+             * Here, we should prevent the inode reusing because in Linux kernel
+             * no inode can be pointed to by multiple directory entries; whereas
+             * it is OK to do that for the files in /mnt/hgfs/child/.
              */
             iinfo = INODE_GET_II_P(oldInode);
-            if (iinfo->isFakeInodeNumber) {
-               LOG(6, (KERN_DEBUG "VMware hgfs: HgfsIget: found existing "
-                       "iuniqued inode %"FMT64"d, generating new one\n",
-                       attr->hostFileId));
+            if (iinfo->isFakeInodeNumber ||
+                attr->type == HGFS_FILE_TYPE_DIRECTORY) {
+               LOG(6, ("VMware hgfs: %s: found existing iuniqued inode or "
+                       "directory inode %"FMT64"d, generating new one\n",
+                       __func__, attr->hostFileId));
                ino = iunique(sb, HGFS_RESERVED_INO);
                isFakeInodeNumber = TRUE;
             } else {

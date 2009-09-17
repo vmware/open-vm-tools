@@ -80,7 +80,6 @@ SOLHGFS_LIB_OBJS += hgfsBd.o
 SOLHGFS_LIB_OBJS += hgfsEscape.o
 SOLHGFS_LIB_OBJS += hgfsUtil.o
 SOLHGFS_LIB_OBJS += message.o
-SOLHGFS_LIB_OBJS += messageBackdoor.o
 SOLHGFS_LIB_OBJS += rpcout.o
 SOLHGFS_LIB_OBJS += sha1.o
 

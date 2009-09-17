@@ -23,12 +23,18 @@
 #ifndef	OS_H
 #define	OS_H
 
+#include "vm_basic_types.h"
+#include "balloon_def.h"
+
 /*
  * Types
  */
 
 typedef void OSTimerHandler(void *clientData);
 typedef int  OSStatusHandler(char *buf, size_t size);
+typedef uintptr_t PageHandle;
+
+#define PAGE_HANDLE_INVALID 0
 
 /*
  * Operations
@@ -38,7 +44,7 @@ extern void OS_Init(const char *name,
                     const char *nameVerbose,
                     OSStatusHandler *handler);
 extern void OS_Cleanup(void);
-extern const char *OS_Identity(void);
+extern BalloonGuest OS_Identity(void);
 
 extern void OS_MemZero(void *ptr, size_t size);
 extern void OS_MemCopy(void *dest, const void *src, size_t size);
@@ -49,14 +55,12 @@ extern void OS_Free(void *ptr, size_t size);
 
 extern void OS_Yield(void);
 
-extern unsigned int OS_TimerHz(void);
-extern void OS_TimerInit(OSTimerHandler *handler, void *clientData, int period);
-extern void OS_TimerStart(void);
+extern Bool OS_TimerStart(OSTimerHandler *handler, void *clientData);
 extern void OS_TimerStop(void);
 
-extern unsigned int  OS_PredictMaxReservedPages(void);
-extern unsigned long OS_AddrToPPN(unsigned long addr);
-extern unsigned long OS_AllocReservedPage(int canSleep);
-extern void          OS_FreeReservedPage(unsigned long page);
+extern unsigned long OS_ReservedPageGetLimit(void);
+extern unsigned long OS_ReservedPageGetPPN(PageHandle handle);
+extern PageHandle    OS_ReservedPageAlloc(int canSleep);
+extern void          OS_ReservedPageFree(PageHandle handle);
 
 #endif  /* OS_H */

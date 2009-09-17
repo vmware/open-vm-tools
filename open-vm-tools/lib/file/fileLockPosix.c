@@ -1172,6 +1172,7 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    normalizedPath = FileLockNormalizePath(filePath);
    if (normalizedPath == NULL) {
       *err = EINVAL;
+
       return NULL;
    }
 
@@ -1184,6 +1185,49 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    Unicode_Free(normalizedPath);
 
    return lockToken;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileLock_IsLocked --
+ *
+ *      Is a file currently locked (at the time of the call)?
+ *
+ * Results:
+ *      TRUE    YES
+ *      FALSE   NO; if err is not NULL may check *err for an error
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+FileLock_IsLocked(ConstUnicode filePath,  // IN:
+                  int *err)               // OUT:
+{
+   Bool isLocked;
+   Unicode normalizedPath;
+
+   ASSERT(filePath);
+
+   normalizedPath = FileLockNormalizePath(filePath);
+   if (normalizedPath == NULL) {
+      if (err != NULL) {
+         *err = EINVAL;
+      }
+
+      return FALSE;
+   }
+
+   isLocked = FileLockIsLocked(normalizedPath, err);
+
+   Unicode_Free(normalizedPath);
+
+   return isLocked;
 }
 
 

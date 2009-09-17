@@ -106,6 +106,59 @@ VMCIHandle VMCI_MAKE_HANDLE(VMCIId cid,
    return h;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_HANDLE_TO_UINT64 --
+ *
+ *     Helper for VMCI handle to uint64 conversion.
+ *
+ * Results:
+ *     The uint64 value.
+ * 
+ * Side effects:     
+ *     None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE uint64
+VMCI_HANDLE_TO_UINT64(VMCIHandle handle) // IN:
+{
+   uint64 handle64;
+
+   handle64 = handle.context;
+   handle64 <<= 32;
+   handle64 |= handle.resource;
+   return handle64;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_UINT64_TO_HANDLE --
+ *
+ *     Helper for uint64 to VMCI handle conversion.
+ *
+ * Results:
+ *     The VMCI handle value.
+ * 
+ * Side effects:     
+ *     None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE VMCIHandle
+VMCI_UINT64_TO_HANDLE(uint64 handle64) // IN:
+{
+   VMCIId context = (VMCIId)(handle64 >> 32);
+   VMCIId resource = (VMCIId)handle64;
+
+   return VMCI_MAKE_HANDLE(context, resource);
+}
+
 #define VMCI_HANDLE_TO_CONTEXT_ID(_handle) ((_handle).context)
 #define VMCI_HANDLE_TO_RESOURCE_ID(_handle) ((_handle).resource)
 #define VMCI_HANDLE_EQUAL(_h1, _h2) ((_h1).context == (_h2).context && \

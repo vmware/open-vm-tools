@@ -51,13 +51,20 @@
 /* use config value for max balloon size */
 #define BALLOON_MAX_SIZE_USE_CONFIG     (0)
 
-/* guest identities */
-#define BALLOON_GUEST_UNKNOWN           (0)
-#define BALLOON_GUEST_LINUX             (1)
-#define BALLOON_GUEST_BSD               (2)
-#define BALLOON_GUEST_WINDOWS_NT4       (3)
-#define BALLOON_GUEST_WINDOWS_NT5       (4)
-#define BALLOON_GUEST_SOLARIS           (5)
+/*
+ * Guest identities
+ *
+ *      Note : all values should fit in 32 bits
+ */
+typedef enum {
+   BALLOON_GUEST_UNKNOWN     = 0,
+   BALLOON_GUEST_LINUX       = 1,
+   BALLOON_GUEST_BSD         = 2,
+   BALLOON_GUEST_WINDOWS_NT4 = 3,
+   BALLOON_GUEST_WINDOWS_NT5 = 4,
+   BALLOON_GUEST_SOLARIS     = 5,
+   BALLOON_GUEST_MACOS       = 6,
+} BalloonGuest;
 
 /* error codes */
 #define BALLOON_SUCCESS                 (0)

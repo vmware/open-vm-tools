@@ -50,7 +50,6 @@ extern "C" {
  * Includes
  */
 
-#include "balloon_def.h"
 #include "os.h"
 #include "backdoor.h"
 #include "backdoor_balloon.h"
@@ -107,13 +106,14 @@ extern "C" {
  */
 
 typedef struct BalloonChunk {
-   unsigned long page[BALLOON_CHUNK_PAGES];
+   PageHandle page[BALLOON_CHUNK_PAGES];
    uint32 nextPage;
-   struct BalloonChunk *prev, *next;
+   struct BalloonChunk *prev;
+   struct BalloonChunk *next;
 } BalloonChunk;
 
 typedef struct {
-   unsigned long page[BALLOON_ERROR_PAGES];
+   PageHandle page[BALLOON_ERROR_PAGES];
    uint32 nextPage;
 } BalloonErrorPages;
 
@@ -148,30 +148,24 @@ typedef struct {
  */
 
 static Balloon globalBalloon;
+static Bool timerStarted;
 
 /*
  * Forward Declarations
  */
-
-static int BalloonGuestType(void);
-
-static unsigned long BalloonPrimAllocPage(BalloonPageAllocType canSleep);
-static void BalloonPrimFreePage(unsigned long page);
 
 static int  Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType);
 static int  Balloon_FreePage(Balloon *b, int monitorUnlock);
 static int  Balloon_AdjustSize(Balloon *b, uint32 target);
 static void Balloon_Reset(Balloon *b);
 
-static void Balloon_StartTimer(Balloon *b);
-static void Balloon_StopTimer(Balloon *b);
 static void BalloonTimerHandler(void *clientData);
 
 static int Balloon_MonitorStart(Balloon *b);
 static int Balloon_MonitorGuestType(Balloon *b);
 static int Balloon_MonitorGetTarget(Balloon *b, uint32 *nPages);
-static int Balloon_MonitorLockPage(Balloon *b, unsigned long addr);
-static int Balloon_MonitorUnlockPage(Balloon *b, unsigned long addr);
+static int Balloon_MonitorLockPage(Balloon *b, PageHandle handle);
+static int Balloon_MonitorUnlockPage(Balloon *b, PageHandle handle);
 
 /*
  * Macros
@@ -253,7 +247,7 @@ BalloonProcRead(char *buf,      // OUT
    int len = 0;
    BalloonStats stats;
 
-   BalloonGetStats(&stats);
+   Balloon_GetStats(&stats);
 
    /* format size info */
    len += OS_Snprintf(buf + len, size - len,
@@ -307,138 +301,34 @@ BalloonProcRead(char *buf,      // OUT
  * Utility Operations
  */
 
+
 /*
  *----------------------------------------------------------------------
  *
- * AddrToPPN --
+ * Balloon_GetStats --
  *
- *      Return the physical page number corresponding to the specified
- *      kernel-mapped address.
+ *      Returns information about balloon state, including the current and
+ *      target size, rates for allocating and freeing pages, and statistics
+ *      about past activity.
  *
  * Results:
- *      Returns PPN for "addr".
+ *      None
  *
  * Side effects:
- *      None.
+ *      None
  *
  *----------------------------------------------------------------------
  */
-static inline unsigned long
-AddrToPPN(unsigned long addr)
-{
-   return OS_AddrToPPN(addr);
-}
 
-/*
- *----------------------------------------------------------------------
- *
- * BalloonPrimAllocPage --
- *
- *      Attempts to allocate and reserve a physical page.
- *
- *      If canSleep == 1, i.e., BALLOON_PAGE_ALLOC_CANSLEEP:
- *         The allocation can wait (sleep) for page writeout (swap)
- *         by the guest.
- *      otherwise canSleep == 0, i.e., BALLOON_PAGE_ALLOC_NOSLEEP:
- *         If allocation of a page requires disk writeout, then
- *         just fail. DON'T sleep.
- *
- * Results:
- *      Returns the physical address of the allocated page, or 0 if error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-static unsigned long
-BalloonPrimAllocPage(BalloonPageAllocType canSleep)
-{
-   return OS_AllocReservedPage(canSleep);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonPrimFreePage --
- *
- *      Unreserves and deallocates specified physical page.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-static void
-BalloonPrimFreePage(unsigned long page)
-{
-   return OS_FreeReservedPage(page);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonGuestType --
- *
- *      Return balloon guest OS identifier obtained by parsing
- *      system-dependent identity string.
- *
- * Results:
- *      Returns one of BALLOON_GUEST_{LINUX,BSD,SOLARIS,UNKNOWN}.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-static int
-BalloonGuestType(void)
-{
-   const char *identity;
-
-   /* obtain OS identify string */
-   identity = OS_Identity();
-
-   /* unknown if not specified */
-   if (identity == NULL) {
-      return(BALLOON_GUEST_UNKNOWN);
-   }
-
-   /* classify based on first letter (avoid defining strcmp) */
-   switch (identity[0]) {
-   case 'l':
-   case 'L':
-      return BALLOON_GUEST_LINUX;
-   case 'b':
-   case 'B':
-      return BALLOON_GUEST_BSD;
-   case 's':
-   case 'S':
-      return BALLOON_GUEST_SOLARIS;
-   default:
-      break;
-   }
-
-   /* unknown */
-   return BALLOON_GUEST_UNKNOWN;
-}
-
-/*
- * Returns information about balloon state, including the current and
- * target size, rates for allocating and freeing pages, and statistics
- * about past activity.
- */
-void BalloonGetStats(BalloonStats *stats)
+void
+Balloon_GetStats(BalloonStats *stats) // OUT
 {
    Balloon *b = &globalBalloon;
 
    /*
     * Copy statistics out of global structure.
     */
-   OS_MemCopy(stats, &b->stats, sizeof (BalloonStats));
+   OS_MemCopy(stats, &b->stats, sizeof *stats);
 
    /*
     * Fill in additional information about size and rates, which is
@@ -450,9 +340,6 @@ void BalloonGetStats(BalloonStats *stats)
    stats->rateFree = b->rateFree;
 }
 
-/*
- * BalloonChunk Operations
- */
 
 /*
  *----------------------------------------------------------------------
@@ -490,7 +377,6 @@ BalloonChunk_Create(void)
    /* initialize */
    OS_MemZero(chunk, sizeof *chunk);
 
-   /* everything OK */
    return chunk;
 }
 
@@ -550,8 +436,7 @@ Balloon_Init(Balloon *b)
    /* initialize reset flag */
    b->resetFlag = 1;
 
-   /* everything OK */
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
 
 /*
@@ -641,7 +526,7 @@ static void
 BalloonTimerHandler(void *clientData)
 {
    Balloon *b = (Balloon *) clientData;
-   uint32 target;
+   uint32 target = 0; // Silence compiler warning.
    int status;
 
    /* update stats */
@@ -665,48 +550,6 @@ BalloonTimerHandler(void *clientData)
       b->nPagesTarget = target;
       (void) Balloon_AdjustSize(b, target);
    }
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * Balloon_StartTimer --
- *
- *      Schedules next execution of balloon timer handler.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-static void
-Balloon_StartTimer(Balloon *b)
-{
-   OS_TimerStart();
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * Balloon_StopTimer --
- *
- *      Deschedules balloon timer handler.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-static void
-Balloon_StopTimer(Balloon *b)
-{
-   OS_TimerStop();
 }
 
 
@@ -765,8 +608,8 @@ Balloon_ErrorPagesFree(Balloon *b)
 
    /* free all non-balloonable "error" pages */
    for (i = 0; i < b->errors.nextPage; i++) {
-      BalloonPrimFreePage(b->errors.page[i]);
-      b->errors.page[i] = 0;
+      OS_ReservedPageFree(b->errors.page[i]);
+      b->errors.page[i] = PAGE_HANDLE_INVALID;
       STATS_INC(b->stats.primErrorPageFree);
    }
    b->errors.nextPage = 0;
@@ -792,7 +635,7 @@ static int
 Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType)
 {
    BalloonChunk *chunk;
-   unsigned long page;
+   PageHandle page;
    int status;
 
  retry:
@@ -800,21 +643,32 @@ Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType)
    /* allocate page, fail if unable */
    STATS_INC(b->stats.primAlloc[allocType]);
 
-   page = BalloonPrimAllocPage(allocType);
+   /*
+    * Attempts to allocate and reserve a physical page.
+    *
+    * If canSleep == 1, i.e., BALLOON_PAGE_ALLOC_CANSLEEP:
+    *      The allocation can wait (sleep) for page writeout (swap) by the guest.
+    * otherwise canSleep == 0, i.e., BALLOON_PAGE_ALLOC_NOSLEEP:
+    *      If allocation of a page requires disk writeout, then just fail. DON'T sleep.
+    *
+    * Returns the physical address of the allocated page, or 0 if error.
+    */
+   page = OS_ReservedPageAlloc(allocType);
 
-   if (page == 0) {
+   if (page == PAGE_HANDLE_INVALID) {
       STATS_INC(b->stats.primAllocFail[allocType]);
-      return(BALLOON_PAGE_ALLOC_FAILURE);
+      return BALLOON_PAGE_ALLOC_FAILURE;
    }
 
    /* find chunk with space, create if necessary */
    chunk = b->chunks;
    if ((chunk == NULL) || (chunk->nextPage >= BALLOON_CHUNK_PAGES)) {
       /* create new chunk */
-      if ((chunk = BalloonChunk_Create()) == NULL) {
+      chunk = BalloonChunk_Create();
+      if (chunk == NULL) {
          /* reclaim storage, fail */
-         BalloonPrimFreePage(page);
-         return(BALLOON_PAGE_ALLOC_FAILURE);
+         OS_ReservedPageFree(page);
+         return BALLOON_PAGE_ALLOC_FAILURE;
       }
       BalloonChunk_Insert(&b->chunks, chunk);
 
@@ -832,8 +686,8 @@ Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType)
       }
 
       /* reclaim storage, fail */
-      BalloonPrimFreePage(page);
-      return(status);
+      OS_ReservedPageFree(page);
+      return status;
    }
 
    /* track allocated page */
@@ -843,8 +697,7 @@ Balloon_AllocPage(Balloon *b, BalloonPageAllocType allocType)
    /* update balloon size */
    b->nPages++;
 
-   /* everything OK */
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
 
 /*
@@ -868,7 +721,7 @@ static int
 Balloon_FreePage(Balloon *b, int monitorUnlock)
 {
    BalloonChunk *chunk;
-   unsigned long page;
+   PageHandle page;
    int status;
 
    chunk = b->chunks;
@@ -903,7 +756,7 @@ Balloon_FreePage(Balloon *b, int monitorUnlock)
    }
 
    /* deallocate page */
-   BalloonPrimFreePage(page);
+   OS_ReservedPageFree(page);
    STATS_INC(b->stats.primFree);
 
    /* update balloon size */
@@ -919,8 +772,7 @@ Balloon_FreePage(Balloon *b, int monitorUnlock)
       b->nChunks--;
    }
 
-   /* everything OK */
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
 
 /*
@@ -989,6 +841,7 @@ BalloonIncreaseRateAlloc(Balloon *b, uint32 nAlloc)
    }
 }
 
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1004,6 +857,7 @@ BalloonIncreaseRateAlloc(Balloon *b, uint32 nAlloc)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 BalloonInflate(Balloon *b, uint32 target)
 {
@@ -1128,6 +982,7 @@ BalloonInflate(Balloon *b, uint32 target)
    return(BALLOON_SUCCESS);
 }
 
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1143,6 +998,7 @@ BalloonInflate(Balloon *b, uint32 target)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 BalloonDeflate(Balloon *b, uint32 target)
 {
@@ -1169,9 +1025,9 @@ BalloonDeflate(Balloon *b, uint32 target)
                         BALLOON_RATE_FREE_MAX);
    }
 
-   /* everything OK */
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -1189,6 +1045,7 @@ BalloonDeflate(Balloon *b, uint32 target)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 Balloon_AdjustSize(Balloon *b, uint32 target)
 {
@@ -1230,6 +1087,7 @@ Balloon_AdjustSize(Balloon *b, uint32 target)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 Balloon_MonitorStart(Balloon *b)
 {
@@ -1253,9 +1111,9 @@ Balloon_MonitorStart(Balloon *b)
       STATS_INC(b->stats.startFail);
    }
 
-   /* everything OK */
-   return(status);
+   return status;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -1272,15 +1130,20 @@ Balloon_MonitorStart(Balloon *b)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 Balloon_MonitorGuestType(Balloon *b)
 {
    uint32 status, target;
+   BalloonGuest identity;
    Backdoor_proto bp;
+
+   identity = OS_Identity();
+   ASSERT(identity == (uint32) identity);
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GUEST_ID;
-   bp.in.size = BalloonGuestType();
+   bp.in.size = identity;
 
    /* invoke backdoor */
    Backdoor_Balloon(&bp);
@@ -1300,9 +1163,9 @@ Balloon_MonitorGuestType(Balloon *b)
       STATS_INC(b->stats.guestTypeFail);
    }
 
-   /* everything OK */
-   return(status);
+   return status;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -1315,7 +1178,7 @@ Balloon_MonitorGuestType(Balloon *b)
  *      Predicts the maximum achievable balloon size and sends it
  *      to vmm => vmkernel via vEbx register.
  *
- *      OS_PredictMaxReservedPages() returns either predicted max balloon
+ *      OS_ReservedPageGetLimit() returns either predicted max balloon
  *      pages or BALLOON_MAX_SIZE_USE_CONFIG. In the later scenario,
  *      vmkernel uses global config options for determining a guest's max
  *      balloon size. Note that older vmballoon drivers set vEbx to
@@ -1331,15 +1194,27 @@ Balloon_MonitorGuestType(Balloon *b)
  *
  *----------------------------------------------------------------------
  */
+
 static int
-Balloon_MonitorGetTarget(Balloon *b, uint32 *target)
+Balloon_MonitorGetTarget(Balloon *b,     // IN
+                         uint32 *target) // OUT
 {
    Backdoor_proto bp;
+   unsigned long limit;
+   uint32 limit32;
    uint32 status;
+
+   limit = OS_ReservedPageGetLimit();
+
+   /* Ensure limit fits in 32-bits */
+   limit32 = (uint32)limit;
+   if (limit32 != limit) {
+      return BALLOON_FAILURE;
+   }
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_TARGET;
-   bp.in.size = OS_PredictMaxReservedPages();
+   bp.in.size = limit;
 
    /* invoke backdoor */
    Backdoor_Balloon(&bp);
@@ -1359,17 +1234,17 @@ Balloon_MonitorGetTarget(Balloon *b, uint32 *target)
       STATS_INC(b->stats.targetFail);
    }
 
-   /* everything OK */
-   return(status);
+   return status;
 }
+
 
 /*
  *----------------------------------------------------------------------
  *
  * Balloon_MonitorLockPage --
  *
- *      Attempts to contact monitor and add PPN containing "addr"
- *      to set of "balloon locked" pages.
+ *      Attempts to contact monitor and add PPN corresponding to
+ *      the page handle to set of "balloon locked" pages.
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
@@ -1379,16 +1254,17 @@ Balloon_MonitorGetTarget(Balloon *b, uint32 *target)
  *
  *----------------------------------------------------------------------
  */
+
 static int
-Balloon_MonitorLockPage(Balloon *b, unsigned long addr)
+Balloon_MonitorLockPage(Balloon *b,        // IN
+                        PageHandle handle) // IN
 {
    unsigned long ppn;
    uint32 ppn32;
    uint32 status, target;
    Backdoor_proto bp;
 
-   /* convert kernel-mapped "physical addr" to ppn */
-   ppn = AddrToPPN(addr);
+   ppn = OS_ReservedPageGetPPN(handle);
 
    /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
    ppn32 = (uint32)ppn;
@@ -1418,8 +1294,7 @@ Balloon_MonitorLockPage(Balloon *b, unsigned long addr)
       STATS_INC(b->stats.lockFail);
    }
 
-   /* everything OK */
-   return(status);
+   return status;
 }
 
 /*
@@ -1427,8 +1302,8 @@ Balloon_MonitorLockPage(Balloon *b, unsigned long addr)
  *
  * Balloon_MonitorUnlockPage --
  *
- *      Attempts to contact monitor and remove PPN containing "addr"
- *      from set of "balloon locked" pages.
+ *      Attempts to contact monitor and remove PPN corresponding to
+ *      the page handle from set of "balloon locked" pages.
  *
  * Results:
  *      Returns BALLOON_SUCCESS if successful, otherwise error code.
@@ -1439,15 +1314,15 @@ Balloon_MonitorLockPage(Balloon *b, unsigned long addr)
  *----------------------------------------------------------------------
  */
 static int
-Balloon_MonitorUnlockPage(Balloon *b, unsigned long addr)
+Balloon_MonitorUnlockPage(Balloon *b,        // IN
+                          PageHandle handle) // IN
 {
    unsigned long ppn;
    uint32 ppn32;
    uint32 status, target;
    Backdoor_proto bp;
 
-   /* convert kernel-mapped "physical addr" to ppn */
-   ppn = AddrToPPN(addr);
+   ppn = OS_ReservedPageGetPPN(handle);
 
    /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
    ppn32 = (uint32)ppn;
@@ -1477,23 +1352,36 @@ Balloon_MonitorUnlockPage(Balloon *b, unsigned long addr)
       STATS_INC(b->stats.unlockFail);
    }
 
-   /* everything OK */
-   return(status);
+   return status;
 }
 
+
 /*
- * Module Operations
+ *----------------------------------------------------------------------
+ *
+ * Balloon_ModuleInit --
+ *
+ *      Startup the balloon module.
+ *
+ * Results:
+ *      On success: BALLOON_SUCCESS
+ *      On failure: BALLOON_FAILURE
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
  */
 
-static int
-BalloonModuleInit(void)
+int
+Balloon_ModuleInit(void)
 {
    static int initialized = 0;
    Balloon *b = &globalBalloon;
 
    /* initialize only once */
    if (initialized++) {
-      return(BALLOON_FAILURE);
+      return BALLOON_FAILURE;
    }
 
    /* os-specific initialization */
@@ -1503,41 +1391,52 @@ BalloonModuleInit(void)
    Balloon_Init(b);
 
    /* start timer */
-   OS_TimerInit(BalloonTimerHandler, b, OS_TimerHz());
-   Balloon_StartTimer(b);
+   timerStarted = FALSE;
+   if (!OS_TimerStart(BalloonTimerHandler, b)) {
+      Balloon_ModuleCleanup();
+      return BALLOON_FAILURE;
+   }
 
-   /* everything OK */
+   timerStarted = TRUE;
    return BALLOON_SUCCESS;
 }
 
-static void
-BalloonModuleCleanup(void)
+/*
+ *----------------------------------------------------------------------
+ *
+ * Balloon_ModuleCleanup --
+ *
+ *      Terminate and cleanup the balloon module.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Balloon_ModuleCleanup(void)
 {
    Balloon *b = &globalBalloon;
 
    /* stop timer */
-   Balloon_StopTimer(b);
+   if (timerStarted) {
+      OS_TimerStop();
+   }
 
    /*
     * Deallocate all reserved memory, and reset connection with monitor.
     * Reset connection before deallocating memory to avoid potential for
     * additional spurious resets from guest touching deallocated pages.
     */
-   (void) Balloon_MonitorStart(b);
+   Balloon_MonitorStart(b);
    Balloon_Deallocate(b);
 
    /* os-specific cleanup */
    OS_Cleanup();
-}
-
-int init_module(void)
-{
-   return(BalloonModuleInit());
-}
-
-void cleanup_module(void)
-{
-   BalloonModuleCleanup();
 }
 
 #ifdef __cplusplus

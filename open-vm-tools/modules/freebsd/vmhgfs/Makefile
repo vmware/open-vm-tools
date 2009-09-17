@@ -39,7 +39,6 @@ COMMON_SRCS += hgfsEscape.c
 COMMON_SRCS += hgfsBd.c
 COMMON_SRCS += rpcout.c
 COMMON_SRCS += message.c
-COMMON_SRCS += messageBackdoor.c
 COMMON_SRCS += backdoor.c
 .if $(MACHINE_ARCH) == "amd64"
 COMMON_SRCS += backdoorGcc64.c

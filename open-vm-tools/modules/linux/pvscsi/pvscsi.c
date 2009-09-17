@@ -1169,27 +1169,11 @@ pvscsi_complete_request(struct pvscsi_adapter *adapter, const PVSCSIRingCmpDesc 
 	if (sdstat != SAM_STAT_GOOD &&
 	    (btstat == BTSTAT_SUCCESS ||
 	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED ||
-	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG))
-		switch (sdstat) {
-		case SAM_STAT_CHECK_CONDITION:
-			/*
-			 * Sense data is set by the emulation.
-			 * Linux seems to want DID_OK despite the error.
-			 */
-			cmd->result = (DID_OK << 16) | (SAM_STAT_CHECK_CONDITION);
-			if (cmd->sense_buffer)
-				cmd->result |= (DRIVER_SENSE << 24);
-			break;
-		case SAM_STAT_BUSY:
-			/* Back off. */
-			cmd->result = (DID_OK << 16) | sdstat;
-			break;
-		default:
-			cmd->result = (DID_ERROR << 16);
-			LOG(0, "Unhandled SCSI status: 0x%x\n", sdstat);
-		}
-
-	else
+	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG)) {
+		cmd->result = (DID_OK << 16) | sdstat;
+		if (sdstat == SAM_STAT_CHECK_CONDITION && cmd->sense_buffer)
+			cmd->result |= (DRIVER_SENSE << 24);
+	} else
 		switch (btstat) {
 		case BTSTAT_SUCCESS:
 		case BTSTAT_LINKED_COMMAND_COMPLETED:

@@ -1145,6 +1145,8 @@ struct {
 #include "vmware_pack_end.h"
 SCSIMediumRemovalCmd;
 
+#define SCSI_RW10_MAX_LBN	0xffffffffu
+#define SCSI_RW10_MAX_LENGTH	    0xffffu
 
 /*
  * Format of READ CAPACITY (10) and (16) request and response blocks.
@@ -1158,7 +1160,6 @@ struct {
    uint8 rel   :1,
                :4,
          lun   :3;
-#define SCSI_RW10_MAX_LBN 0xffffffffu
    uint32 lbn;
    uint8 reserved[2];
    uint8 pmi   :1,

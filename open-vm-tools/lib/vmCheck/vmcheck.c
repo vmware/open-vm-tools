@@ -36,13 +36,13 @@ extern "C" {
 #include "backdoor_def.h"
 #include "debug.h"
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 #   include "vmsignal.h"
 #   include "setjmp.h"
 #endif
 
 
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 static sigjmp_buf jmpBuf;
 static Bool       jmpIsSet;
 
@@ -167,15 +167,7 @@ VmCheck_IsVirtualWorld(void)
 {
    uint32 version;
    uint32 dummy;
-#ifdef N_PLAT_NLM
-   /*
-    * We are running at CPL0. So we'll not receive SIGSEGV on access
-    * and we must do it other way... --petr
-    */
-   if (!VmCheck_GetVersion(&version, &dummy)) {
-      return FALSE;
-   }
-#elif defined _WIN32
+#if defined _WIN32
    __try {
       VmCheck_GetVersion(&version, &dummy);
    } __except (GetExceptionCode() == STATUS_PRIVILEGED_INSTRUCTION) {

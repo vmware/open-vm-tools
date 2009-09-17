@@ -95,7 +95,7 @@ DblLnkLst_Links *System_GetMonitors();
  *        then acted upon and translates to a -DPOSIX_LIKE_ENVIRONMENT
  *        preprocessor option.
  */
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 Bool System_WritePidFile(const char *fileName, pid_t pid);
 const char **System_GetNativeEnviron(const char **compatEnviron);
 void System_FreeNativeEnviron(const char **nativeEnviron);

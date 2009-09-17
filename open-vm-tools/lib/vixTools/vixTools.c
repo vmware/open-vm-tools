@@ -818,8 +818,6 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
 
 #ifdef _WIN32
    osFamily = GUEST_OS_FAMILY_WINDOWS;
-#elif defined(N_PLAT_NLM)
-   osFamily = GUEST_OS_FAMILY_NETWARE;
 #else
    osFamily = GUEST_OS_FAMILY_LINUX;
 #endif
@@ -3251,7 +3249,7 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    hgfsPacket = ((char *) requestMsg) + sizeof(*requestMsg);
    hgfsPacketSize = requestMsg->hgfsPacketSize;
 
-#if !defined(N_PLAT_NLM) && !defined(__FreeBSD__)
+#if !defined(__FreeBSD__)
    /*
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.

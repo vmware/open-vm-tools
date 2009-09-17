@@ -51,11 +51,9 @@ extern "C" {
 #include "productState.h"
 #include "posix.h"
 
-#if !defined(N_PLAT_NLM)
-# include "hgfs.h"
-# include "cpName.h"
-# include "cpNameUtil.h"
-#endif
+#include "hgfs.h"
+#include "cpName.h"
+#include "cpNameUtil.h"
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -71,9 +69,7 @@ extern "C" {
  * intelligent for that platform as well.
  */
 
-#if defined(N_PLAT_NLM)
-#define GUESTAPP_TOOLS_INSTALL_PATH "SYS:\\ETC\\VMWTOOL"
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #define GUESTAPP_TOOLS_INSTALL_PATH ""
 #else
 #define GUESTAPP_TOOLS_INSTALL_PATH "/etc/vmware-tools"
@@ -442,7 +438,7 @@ GuestApp_GetDictEntryBool(GuestApp_Dict *dict, // IN
       return FALSE;
    }
 
-#if  (defined N_PLAT_NLM || defined _WIN32)
+#if defined (_WIN32)
    return (stricmp(value, "TRUE") == 0);
 #else
    return (strcasecmp(value, "TRUE") == 0);
@@ -1644,7 +1640,6 @@ GuestApp_HostCopyStep(uint8 c) // IN
 }
 
 
-#if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------------
  *
@@ -1792,7 +1787,6 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
    free(rpcMessage);
    return TRUE;
 }
-#endif
 
 
 /*

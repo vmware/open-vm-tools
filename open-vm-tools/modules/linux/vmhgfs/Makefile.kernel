@@ -70,7 +70,6 @@ LIBHGFS          += hgfsUtil.o
 LIBHGFSBD        := hgfsBd.o
 
 LIBMESSAGE       := message.o
-LIBMESSAGE       += messageBackdoor.o
 
 LIBRPCOUT        := rpcout.o
 

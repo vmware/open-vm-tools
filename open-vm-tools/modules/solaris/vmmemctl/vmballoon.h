@@ -72,8 +72,9 @@ typedef struct {
  * Operations
  */
 
-extern void BalloonGetStats(BalloonStats *stats);
-extern int  init_module(void);
-extern void cleanup_module(void);
+extern int  Balloon_ModuleInit(void);
+extern void Balloon_ModuleCleanup(void);
+
+extern void Balloon_GetStats(BalloonStats *stats);
 
 #endif	/* VMBALLOON_H */

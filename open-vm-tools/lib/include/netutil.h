@@ -46,10 +46,7 @@
 #endif
 
 #include "vm_basic_types.h"
-
-#if !defined(N_PLAT_NLM)
-#  include "guestInfo.h"
-#endif
+#include "guestInfo.h"
 
 /*
  * Interface types as assigned by IANA.
@@ -72,9 +69,7 @@ typedef FIXED_INFO_W2KSP1 *PFIXED_INFO;
 
 char *NetUtil_GetPrimaryIP(void);
 
-#if !defined(N_PLAT_NLM)
 GuestNic *NetUtil_GetPrimaryNic(void);
-#endif
 
 #ifdef _WIN32
 DWORD NetUtil_LoadIpHlpApiDll(void);
@@ -93,12 +88,6 @@ ULONG NetUtil_GetAdaptersAddresses(ULONG Family,
 PMIB_IPFORWARDTABLE NetUtilWin32_GetIpForwardTable(void);
 PMIB_IPFORWARD_TABLE2 NetUtilWin32_GetIpForwardTable2(void);
 void NetUtilWin32_FreeMibTable(PMIB_IPFORWARD_TABLE2);
-#endif
-
-#ifdef N_PLAT_NLM
-/* Monitoring IP changes */
-void NetUtil_MonitorIPStart(void);
-void NetUtil_MonitorIPStop(void);
 #endif
 
 #ifdef WIN32

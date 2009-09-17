@@ -41,6 +41,7 @@
 #include <sys/ksynch.h>
 
 #include "os.h"
+#include "vmballoon.h"
 #include "vm_assert.h"
 #include "balloon_def.h"
 #include "vmballoon_kstats.h"
@@ -234,32 +235,76 @@ OS_Snprintf(char *buf,          // OUT
    return 0;
 }
 
+
 /*
- * System-Dependent Operations
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Identity --
+ *
+ *      Returns an identifier for the guest OS family.
+ *
+ * Results:
+ *      The identifier
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
 
-const char *
+BalloonGuest
 OS_Identity(void)
 {
-   return "solaris";
+   return BALLOON_GUEST_SOLARIS;
 }
+
 
 /*
- * Predict the maximum achievable balloon size.
+ *-----------------------------------------------------------------------------
  *
- * Currently we just return the total memory pages.
+ * OS_ReservedPageGetLimit --
+ *
+ *      Predict the maximum achievable balloon size.
+ *
+ * Results:
+ *      Currently we just return the total memory pages.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
-unsigned int
-OS_PredictMaxReservedPages(void)
-{
-   return(maxmem);
-}
 
 unsigned long
-OS_AddrToPPN(unsigned long addr)
+OS_ReservedPageGetLimit(void)
 {
-   return (ulong_t)page_pptonum(((os_page *)addr)->pp);
+   return maxmem;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageGetPPN --
+ *
+ *      Convert a page handle (of a physical page previously reserved with
+ *      OS_ReservedPageAlloc()) to a ppn.
+ *
+ * Results:
+ *      The ppn.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+unsigned long
+OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
+{
+   return page_pptonum(((os_page *)handle)->pp);
+}
+
 
 /*
  * NOTE: cast id before shifting to avoid overflow (id_t is 32 bits,
@@ -270,20 +315,38 @@ OS_AddrToPPN(unsigned long addr)
 #define idtooff(id)	((u_offset_t)(id) << PAGESHIFT)
 #define offtoid(off)	((id_t)((off) >> PAGESHIFT))
 
+
 /*
- * This is a bit ugly.  In order to allocate a page, we need a vnode to
- * hang it from and a unique offset within that vnode.  We do this by
- * using our own vnode (used only to hang pages from) and allocating
- * offsets by use of the id space allocator.  The id allocator hands
- * us back unique integers between 0 and INT_MAX; we can then use those
- * as page indices into our fake vnode space.
+ *-----------------------------------------------------------------------------
  *
- * Future versions of Solaris will have a devmap_pmem_alloc/free
- * interface for allocating physical pages that may allow us to
- * eliminate some of this.
+ * OS_ReservedPageAlloc --
+ *
+ *      Reserve a physical page for the exclusive use of this driver.
+ *
+ *      This is a bit ugly.  In order to allocate a page, we need a vnode to
+ *      hang it from and a unique offset within that vnode.  We do this by
+ *      using our own vnode (used only to hang pages from) and allocating
+ *      offsets by use of the id space allocator.  The id allocator hands
+ *      us back unique integers between 0 and INT_MAX; we can then use those
+ *      as page indices into our fake vnode space.
+ *
+ *      Future versions of Solaris will have a devmap_pmem_alloc/free
+ *      interface for allocating physical pages that may allow us to
+ *      eliminate some of this.
+ *
+ * Results:
+ *      On success: A valid page handle that can be passed to OS_ReservedPageGetPPN()
+ *                  or OS_ReservedPageFree().
+ *      On failure: PAGE_HANDLE_INVALID
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
-unsigned long
-OS_AllocReservedPage(int canSleep)
+
+PageHandle
+OS_ReservedPageAlloc(int canSleep) // IN
 {
    os_state *state = &global_state;
    page_t *pp;
@@ -299,17 +362,17 @@ OS_AllocReservedPage(int canSleep)
     */
    flags = canSleep ? KM_SLEEP : KM_NOSLEEP;
    if (!page_resv(1, flags))
-      return 0;		/* no space! */
+      return PAGE_HANDLE_INVALID; /* no space! */
 
    /*
     * Allocating space for os_page early simplifies error handling.
     */
    if ((page = kmem_alloc(sizeof (os_page), flags)) == NULL) {
       page_unresv(1);
-      return 0;
+      return PAGE_HANDLE_INVALID;
    }
 
-   /* 
+   /*
     * Construct an offset for page_create.
     */
    off = idtooff(id_alloc(idp));
@@ -341,14 +404,31 @@ OS_AllocReservedPage(int canSleep)
       page = NULL;
    }
 
-   return (unsigned long)page;
+   return (PageHandle)page;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageFree --
+ *
+ *      Unreserve a physical page previously reserved with OS_ReservedPageAlloc().
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 void
-OS_FreeReservedPage(unsigned long addr)
+OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 {
    os_state *state = &global_state;
-   os_page *page = (os_page *)addr;
+   os_page *page = (os_page *)handle;
    page_t *pp = page->pp;
    u_offset_t off = page->offset;
    id_space_t *idp = state->id_space;
@@ -358,6 +438,7 @@ OS_FreeReservedPage(unsigned long addr)
    id_free(idp, offtoid(off));
    kmem_free(page, sizeof (os_page));
 }
+
 
 /*
  * Worker thread that periodically calls the timer handler.  This is
@@ -393,33 +474,60 @@ static int os_worker(void)
    return 0;			/* normal termination */
 }
 
+
 /*
- * Initialize timer data.
+ *-----------------------------------------------------------------------------
+ *
+ * OS_TimerStart --
+ *
+ *      Setup the timer callback function, then start it.
+ *
+ * Results:
+ *      Always TRUE, cannot fail.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
-void
-OS_TimerInit(OSTimerHandler *handler, // IN
-             void *clientData,        // IN
-             int period)              // IN
+
+Bool
+OS_TimerStart(OSTimerHandler *handler, // IN
+              void *clientData)        // IN
 {
    os_timer *t = &global_state.timer;
 
+   /* setup the timer structure */
    t->id = 0;
    t->handler = handler;
    t->data = clientData;
-   t->period = period;
-   t->stop = 0;
+   t->period = drv_usectohz(ONE_SECOND_IN_MICROSECONDS);
 
    mutex_init(&t->lock, NULL, MUTEX_DRIVER, NULL);
    cv_init(&t->cv, NULL, CV_DRIVER, NULL);
-}
 
-void
-OS_TimerStart(void)
-{
-   os_timer *t = &global_state.timer;
-
+   /* start the timer */
    t->stop = 0;
+
+   return TRUE;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_TimerStop --
+ *
+ *      Stop the timer.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 void
 OS_TimerStop(void)
@@ -443,12 +551,6 @@ static void os_timer_cleanup(void)
 
    mutex_destroy(&timer->lock);
    cv_destroy(&timer->cv);
-}
-
-unsigned int
-OS_TimerHz(void)
-{
-   return drv_usectohz(ONE_SECOND_IN_MICROSECONDS);
 }
 
 
@@ -517,12 +619,6 @@ void OS_Cleanup(void)
    cmn_err(CE_CONT, "!%s unloaded\n", state->name_verbose);
 }
 
-/*
- * Module Load/Unload Operations
- */
-
-extern int  init_module(void);
-extern void cleanup_module(void);
 
 /*
  * Device configuration entry points
@@ -650,10 +746,13 @@ int _init(void)
 {
    int error;
 
-   if (init_module() != BALLOON_SUCCESS)
-      return EINVAL;
-   if ((error = mod_install(&vmmodlinkage)) != 0)
-      cleanup_module();
+   if (Balloon_ModuleInit() != BALLOON_SUCCESS) {
+      return EAGAIN;
+   }
+   error = mod_install(&vmmodlinkage);
+   if (error != 0) {
+      Balloon_ModuleCleanup();
+   }
    return error;
 }
 
@@ -670,8 +769,10 @@ int _fini(void)
     * Check if the module is busy (i.e., there's a worker thread active)
     * before cleaning up.
     */
-   if ((error = mod_remove(&vmmodlinkage)) == 0)
-      cleanup_module();
+   error = mod_remove(&vmmodlinkage);
+   if (error == 0) {
+      Balloon_ModuleCleanup();
+   }
    return error;
 }
 

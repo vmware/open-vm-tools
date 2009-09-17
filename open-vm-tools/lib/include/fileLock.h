@@ -65,6 +65,9 @@ EXTERN void *FileLock_Lock(ConstUnicode filePath,
 EXTERN int FileLock_Unlock(ConstUnicode filePath,
                            const void *fileLockToken);
 
+EXTERN Bool FileLock_IsLocked(ConstUnicode filePath,
+                              int *err);
+
 EXTERN int FileLock_Remove(ConstUnicode filePath);
 EXTERN int FileLock_CleanupVM(ConstUnicode cfgfilePath);
 

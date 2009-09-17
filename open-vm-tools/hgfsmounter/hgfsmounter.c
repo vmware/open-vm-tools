@@ -592,7 +592,7 @@ ParseTtl(const char *option,        // IN:  option string along with value
    optString = StrUtil_GetNextToken(&idx, option, "=");
    ASSERT(optString);
 
-   if (StrUtil_GetNextIntToken(&ttl, &idx, option, "=") && ttl > 0) {
+   if (StrUtil_GetNextIntToken(&ttl, &idx, option, "=") && ttl >= 0) {
       LOG("Setting maximum attribute TTL to %u\n", ttl);
       mountInfo->ttl = ttl;
       success = TRUE;

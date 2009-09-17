@@ -37,6 +37,9 @@
 
 #include "vix.h"
 #include "foundryThreads.h"
+#include "vixOpenSource.h"
+#include "str.h"
+#include "msg.h"
 
 #if _WIN32
 #include <objbase.h.> // For CoInitializeEx
@@ -44,6 +47,9 @@ static DWORD WINAPI FoundryThreadWrapperProc(LPVOID lpParameter);
 #else // Linux
 #include <pthread.h>
 static void *FoundryThreadWrapperProc(void *lpParameter);
+#if defined(linux)
+#include <sys/prctl.h>
+#endif
 #endif
 
 
@@ -64,7 +70,8 @@ static void *FoundryThreadWrapperProc(void *lpParameter);
 
 FoundryWorkerThread *
 FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
-                           void *threadParam)         // IN
+                           void *threadParam,         // IN
+                           const char *threadName)    // IN
 {
    VixError err = VIX_OK;
    FoundryWorkerThread *threadState = NULL;
@@ -79,6 +86,7 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
    threadState = (FoundryWorkerThread *) Util_SafeCalloc(1, sizeof(*threadState));
    threadState->threadProc = proc;
    threadState->threadParam = threadParam;
+   threadState->threadName = threadName;
 
 #ifdef _WIN32
    threadState->threadHandle = CreateThread(NULL,
@@ -264,6 +272,17 @@ FoundryThreadWrapperProc(void *threadParameter)      // IN
       ASSERT(0);
       goto abort;
    }
+#if defined(linux) && defined(PR_SET_NAME)
+   {
+      char threadName[64];
+      int retval;
+      Str_Sprintf(threadName, sizeof threadName, "vix-%s", threadState->threadName);
+      retval = prctl(PR_SET_NAME, (unsigned long)threadName, 0,0, 0);
+      if (retval != 0) {
+         VIX_DEBUG(("%s prctl PR_SET_NAME failed = %s\n", __FUNCTION__, Msg_ErrString()));
+      }
+   }
+#endif
 
    if (NULL != threadState->threadProc) {
       (*(threadState->threadProc))(threadState);

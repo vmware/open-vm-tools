@@ -383,10 +383,15 @@ typedef struct VMCIQueuePairAllocInfo {
    uint32     flags;
    uint64     produceSize;
    uint64     consumeSize;
+#if !defined(VMX86_SERVER) && !defined(VMKERNEL)
    VA64       producePageFile; /* User VA. */
    VA64       consumePageFile; /* User VA. */
    uint64     producePageFileSize; /* Size of the file name array. */
    uint64     consumePageFileSize; /* Size of the file name array. */ 
+#else
+   PPN *      PPNs;
+   uint64     numPPNs;
+#endif
    int32      result;
    uint32     _pad;
 } VMCIQueuePairAllocInfo;
@@ -429,10 +434,12 @@ typedef struct VMCIQueuePairPageFileInfo_NoHostQP {
 
 typedef struct VMCIQueuePairPageFileInfo {
    VMCIHandle handle;
+#if !defined(VMX86_SERVER) && !defined(VMKERNEL)
    VA64       producePageFile; /* User VA. */
    VA64       consumePageFile; /* User VA. */
    uint64     producePageFileSize; /* Size of the file name array. */
    uint64     consumePageFileSize; /* Size of the file name array. */
+#endif
    int32      result;
    uint32     version;   /* Was _pad. */
    VA64       produceVA; /* User VA of the mapped file. */

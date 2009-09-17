@@ -91,7 +91,6 @@ OBJS +=	hgfsEscape.o
 OBJS +=	hgfsUtil.o
 OBJS +=	kernelStubsLinux.o
 OBJS +=	message.o
-OBJS +=	messageBackdoor.o
 OBJS +=	rpcout.o
 
 ifeq ($(MACHINE),x86_64)
@@ -134,7 +133,6 @@ LIBHGFS          += hgfsUtil.o
 LIBHGFSBD        := hgfsBd.o
 
 LIBMESSAGE       := message.o
-LIBMESSAGE       += messageBackdoor.o
 
 LIBRPCOUT        := rpcout.o
 

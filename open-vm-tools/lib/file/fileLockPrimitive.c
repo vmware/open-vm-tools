@@ -1373,6 +1373,7 @@ CreateEntryDirectory(const char *machineID,    // IN:
    return err;
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1473,6 +1474,7 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
 
    return 0;
 }
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1654,6 +1656,71 @@ bail:
    }
 
    return (void *) memberFilePath;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileLockIsLocked --
+ *
+ *      Is a file currently locked (at the time of the call)?
+ *
+ * Results:
+ *      TRUE    YES
+ *      FALSE   NO; if err is not NULL may check *err for an error
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+FileLockIsLocked(ConstUnicode pathName,  // IN:
+                 int *err)               // OUT:
+{
+   uint32 i;
+   int errValue;
+   int numEntries;
+   Unicode lockDir;
+
+   Bool isLocked = FALSE;
+   Unicode *fileList = NULL;
+
+   lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
+
+   numEntries = FileListDirectoryRobust(lockDir, &fileList);
+
+   if (numEntries == -1) {
+      errValue = errno;
+
+      goto bail;
+   }
+
+   for (i = 0; i < numEntries; i++) {
+      if (Unicode_StartsWith(fileList[i], "M")) {
+         isLocked = TRUE;
+         break;
+      }
+   }
+
+   for (i = 0; i < numEntries; i++) {
+      Unicode_Free(fileList[i]);
+   }
+
+   free(fileList);
+
+   errValue = 0;
+
+bail:
+   Unicode_Free(lockDir);
+
+   if (err != NULL) {
+      *err = errValue;
+   }
+
+   return isLocked;
 }
 
 

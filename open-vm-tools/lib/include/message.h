@@ -72,33 +72,8 @@ typedef Bool (*MessageReceiveProcType)(Message_Channel *chan,
 typedef Bool (*MessageCloseProcType)(Message_Channel *chan);
 
 
-/*
- * This tells the message layer to use an alternate transport
- * for messages. By default, we use the backdoor, so this function
- * overrides that default at runtime and switches everything over to
- * an alternate transport.
- */
-void Message_SetTransport(MessageOpenProcType openProc,
-                          MessageGetReadEventProcType getReadEeventProc,
-                          MessageSendProcType sendProc,
-                          MessageReceiveProcType receiveProc,
-                          MessageCloseProcType closeProc);
-
-void MessageStub_RegisterTransport(void);
-
 Message_Channel *
 Message_Open(uint32 proto); // IN
-
-/*
- * This allows higher levels of the IPC stack to use an event to detect
- * when a message has arrived. This allows an interrupt-model rather than
- * continually calling Message_Receive in a busy loop. This may only be supported
- * by some transports. The backdoor does not, so the IPC code will still
- * have to poll in those cases.
- */
-Bool
-Message_GetReadEvent(Message_Channel *chan,    // IN
-                     int64 *event);            // OUT
 
 Bool
 Message_Send(Message_Channel *chan,    // IN/OUT

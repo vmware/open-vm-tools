@@ -342,6 +342,38 @@ DynBuf_Append(DynBuf *b,        // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * DynBuf_SafeInternalAppend --
+ *
+ *      Append data at the end of a dynamic buffer. Memory allocation failure
+ *      are handled the same way as Util_SafeMalloc, that is to say, with a
+ *      Panic.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DynBuf_SafeInternalAppend(DynBuf *b,            // IN
+                          void const *data,     // IN
+                          size_t size,          // IN
+                          char const *file,     // IN
+                          unsigned int lineno)  // IN
+{
+   if (!DynBuf_Append(b, data, size)) {
+      Panic("Unrecoverable memory allocation failure at %s:%u\n",
+            file, lineno);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DynBuf_Trim --
  *
  *      Reallocate a dynamic buffer to the exact size it occupies --hpreg

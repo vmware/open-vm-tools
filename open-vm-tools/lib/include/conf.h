@@ -30,18 +30,9 @@
 
 #include "guestApp.h"
 
-#ifdef N_PLAT_NLM
-#define CONF_FILE         "tools.cfg"
-#else
 #define CONF_FILE         "tools.conf"
-#endif
 
-#ifdef N_PLAT_NLM
-#   define CONFVAL_POWERONSCRIPT_DEFAULT  "POWERON.NCF"
-#   define CONFVAL_POWEROFFSCRIPT_DEFAULT "POWEROFF.NCF"
-#   define CONFVAL_RESUMESCRIPT_DEFAULT   "RESUME.NCF"
-#   define CONFVAL_SUSPENDSCRIPT_DEFAULT  "SUSPEND.NCF"
-#elif ! defined(_WIN32)
+#if ! defined(_WIN32)
 #   define CONFVAL_POWERONSCRIPT_DEFAULT  "poweron-vm-default"
 #   define CONFVAL_POWEROFFSCRIPT_DEFAULT "poweroff-vm-default"
 #   define CONFVAL_RESUMESCRIPT_DEFAULT   "resume-vm-default"
@@ -74,7 +65,7 @@
  * Directory containing the tools library files.  Currently only intended
  * for vmware-user.
  */
-#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+#if !defined(_WIN32)
 #   define CONFNAME_LIBDIR                        "libdir"
 #endif
 

@@ -54,6 +54,7 @@
 #include <machine/stdarg.h>
 
 #include "os.h"
+#include "vmballoon.h"
 
 /*
  * Constants
@@ -128,7 +129,7 @@ static void vmmemctl_deinit_sysctl(void);
 void *
 OS_Malloc(size_t size) // IN
 {
-   return(malloc(size, M_VMMEMCTL, M_NOWAIT));
+   return malloc(size, M_VMMEMCTL, M_NOWAIT);
 }
 
 
@@ -252,32 +253,76 @@ OS_Snprintf(char *buf,          // OUT
    return result;
 }
 
+
 /*
- * System-Dependent Operations
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Identity --
+ *
+ *      Returns an identifier for the guest OS family.
+ *
+ * Results:
+ *      The identifier
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
 
-const char *
+BalloonGuest
 OS_Identity(void)
 {
-   return("bsd");
+   return BALLOON_GUEST_BSD;
 }
+
 
 /*
- * Predict the maximum achievable balloon size.
+ *-----------------------------------------------------------------------------
  *
- * Currently we just return the total memory pages.
+ * OS_ReservedPageGetLimit --
+ *
+ *      Predict the maximum achievable balloon size.
+ *
+ * Results:
+ *      Total memory pages.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
-unsigned int
-OS_PredictMaxReservedPages(void)
-{
-   return(cnt.v_page_count);
-}
 
 unsigned long
-OS_AddrToPPN(unsigned long addr)
+OS_ReservedPageGetLimit(void)
 {
-   return (((vm_page_t)addr)->phys_addr) >> PAGE_SHIFT;
+   return cnt.v_page_count;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageGetPPN --
+ *
+ *      Convert a page handle (of a physical page previously reserved with
+ *      OS_ReservedPageAlloc()) to a ppn.
+ *
+ * Results:
+ *      The ppn.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+unsigned long
+OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
+{
+   return (((vm_page_t)handle)->phys_addr) >> PAGE_SHIFT;
+}
+
 
 static void os_pmap_alloc(os_pmap *p)
 {
@@ -412,17 +457,61 @@ static void os_balloonobject_create(void)
                   OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS));
 }
 
-unsigned long
-OS_AllocReservedPage(int canSleep)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageAlloc --
+ *
+ *      Reserve a physical page for the exclusive use of this driver.
+ *
+ * Results:
+ *      On success: A valid page handle that can be passed to OS_ReservedPageGetPPN()
+ *                  or OS_ReservedPageFree().
+ *      On failure: PAGE_HANDLE_INVALID
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+PageHandle
+OS_ReservedPageAlloc(int canSleep) // IN
 {
-   return (unsigned long)os_kmem_alloc(canSleep);
+   vm_page_t page;
+
+   page = os_kmem_alloc(canSleep);
+   if (page == NULL) {
+      return PAGE_HANDLE_INVALID;
+   }
+
+   return (PageHandle)page;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageFree --
+ *
+ *      Unreserve a physical page previously reserved with OS_ReservedPageAlloc().
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 void
-OS_FreeReservedPage(unsigned long page)
+OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 {
-   os_kmem_free((vm_page_t)page);
+   os_kmem_free((vm_page_t)handle);
 }
+
 
 static void os_timer_internal(void *data)
 {
@@ -435,31 +524,60 @@ static void os_timer_internal(void *data)
    }
 }
 
-void
-OS_TimerInit(OSTimerHandler *handler, // IN
-             void *clientData,        // IN
-             int period)              // IN
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_TimerStart --
+ *
+ *      Setup the timer callback function, then start it.
+ *
+ * Results:
+ *      Always TRUE, cannot fail.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+OS_TimerStart(OSTimerHandler *handler, // IN
+              void *clientData)        // IN
 {
    os_timer *t = &global_state.timer;
 
+   /* setup the timer structure */
    callout_handle_init(&t->callout_handle);
    t->handler = handler;
    t->data = clientData;
-   t->period = period;
-   t->stop = 0;
-}
-
-void
-OS_TimerStart(void)
-{
-   os_timer *t = &global_state.timer;
+   t->period = hz;
 
    /* clear termination flag */
    t->stop = 0;
 
    /* scheduler timer handler */
    t->callout_handle = timeout(os_timer_internal, t, t->period);
+
+   return TRUE;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_TimerStop --
+ *
+ *      Stop the timer.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 void
 OS_TimerStop(void)
@@ -471,12 +589,6 @@ OS_TimerStop(void)
 
    /* deschedule timer handler */
    untimeout(os_timer_internal, t, t->callout_handle);
-}
-
-unsigned int
-OS_TimerHz(void)
-{
-   return hz;
 }
 
 
@@ -556,16 +668,15 @@ OS_Cleanup(void)
  * Module Load/Unload Operations
  */
 
-extern int  init_module(void);
-extern void cleanup_module(void);
-
 static int vmmemctl_load(module_t mod, int cmd, void *arg)
 {
    int err = 0;
 
    switch (cmd) {
    case MOD_LOAD:
-      (void) init_module();
+      if (Balloon_ModuleInit() != BALLOON_SUCCESS) {
+         err = EAGAIN;
+      }
       break;
 
     case MOD_UNLOAD:
@@ -573,7 +684,7 @@ static int vmmemctl_load(module_t mod, int cmd, void *arg)
           /* prevent moudle unload */
           err = EBUSY;
        } else {
-          cleanup_module();
+          Balloon_ModuleCleanup();
        }
        break;
 
@@ -582,7 +693,7 @@ static int vmmemctl_load(module_t mod, int cmd, void *arg)
       break;
    }
 
-   return(err);
+   return err;
 }
 
 /* All these interfaces got added in 4.x, so we support 5.0 and above with them */

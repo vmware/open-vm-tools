@@ -56,6 +56,7 @@
 
 #include "vmmemctl_version.h"
 #include "os.h"
+#include "vmballoon.h"
 
 
 /*
@@ -136,6 +137,8 @@ static struct file_operations global_proc_fops = {
 
 static os_state global_state;
 
+static int os_timer_thread_loop(void *clientData);
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -157,7 +160,7 @@ static os_state global_state;
 void *
 OS_Malloc(size_t size) // IN
 {
-   return(kmalloc(size, OS_KMALLOC_NOSLEEP));
+   return kmalloc(size, OS_KMALLOC_NOSLEEP);
 }
 
 
@@ -266,28 +269,53 @@ OS_Snprintf(char *buf,          // OUT
    return result;
 }
 
+
 /*
- * System-Dependent Operations
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Identity --
+ *
+ *      Returns an identifier for the guest OS family.
+ *
+ * Results:
+ *      The identifier
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
 
-const char *
+BalloonGuest
 OS_Identity(void)
 {
-   return("linux");
+   return BALLOON_GUEST_LINUX;
 }
 
+
 /*
- * Predict the maximum achievable balloon size.
+ *-----------------------------------------------------------------------------
  *
- * In 2.4.x and 2.6.x kernels, the balloon driver can guess the number of pages
- * that can be ballooned. But, for now let us just pass the totalram-size as the 
- * maximum achievable balloon size. Note that normally (unless guest kernel is
- * booted with a mem=XX parameter) the totalram-size is equal to alloc.max.
+ * OS_ReservedPageGetLimit --
  *
- * Returns the maximum achievable balloon size in pages
+ *      Predict the maximum achievable balloon size.
+ *
+ *      In 2.4.x and 2.6.x kernels, the balloon driver can guess the number of pages
+ *      that can be ballooned. But, for now let us just pass the totalram-size as the
+ *      maximum achievable balloon size. Note that normally (unless guest kernel is
+ *      booted with a mem=XX parameter) the totalram-size is equal to alloc.max.
+ *
+ * Results:
+ *      The maximum achievable balloon size in pages.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
-unsigned int
-OS_PredictMaxReservedPages(void)
+
+unsigned long
+OS_ReservedPageGetLimit(void)
 {
    struct sysinfo info;
    os_state *state = &global_state;
@@ -304,49 +332,142 @@ OS_PredictMaxReservedPages(void)
    return state->totalMemoryPages;
 }
 
+
 /*
- * Use newer alloc_page() interface on 2.4.x kernels.
- * Use "struct page *" value as page handle for clients.
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageGetPPN --
+ *
+ *      Convert a page handle (of a physical page previously reserved with
+ *      OS_ReservedPageAlloc()) to a ppn.
+ *
+ *      Use newer alloc_page() interface on 2.4.x kernels.
+ *
+ * Results:
+ *      The ppn.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
  */
+
 unsigned long
-OS_AddrToPPN(unsigned long addr)
+OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
 {
-   struct page *page = (struct page *) addr;
+   struct page *page = (struct page *)handle;
 
    return page_to_pfn(page);
 }
 
-unsigned long
-OS_AllocReservedPage(int canSleep)
-{
-   struct page *page = alloc_page(canSleep ?
-                           OS_PAGE_ALLOC_CANSLEEP : OS_PAGE_ALLOC_NOSLEEP);
 
-   return (unsigned long)page;
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageAlloc --
+ *
+ *      Reserve a physical page for the exclusive use of this driver.
+ *
+ * Results:
+ *      On success: A valid page handle that can be passed to OS_ReservedPageGetPPN()
+ *                  or OS_ReservedPageFree().
+ *      On failure: PAGE_HANDLE_INVALID
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+PageHandle
+OS_ReservedPageAlloc(int canSleep) // IN
+{
+   struct page *page;
+
+   page = alloc_page(canSleep ? OS_PAGE_ALLOC_CANSLEEP : OS_PAGE_ALLOC_NOSLEEP);
+   if (page == NULL) {
+      return PAGE_HANDLE_INVALID;
+   }
+
+   return (PageHandle)page;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_ReservedPageFree --
+ *
+ *      Unreserve a physical page previously reserved with OS_ReservedPageAlloc().
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 void
-OS_FreeReservedPage(unsigned long addr)
+OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 {
-   /* deallocate page */
-   struct page *page = (struct page *) addr;
+   struct page *page = (struct page *)handle;
+
    __free_page(page);
 }
 
-void
-OS_TimerInit(OSTimerHandler *handler, // IN
-             void *clientData,        // IN
-             int period)              // IN
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_TimerStart --
+ *
+ *      Setup the timer callback function, then start it.
+ *
+ * Results:
+ *      On success: TRUE
+ *      On failure: FALSE
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+OS_TimerStart(OSTimerHandler *handler, // IN
+              void *clientData)        // IN
 {
    os_timer *t = &global_state.timer;
+   os_status *s = &global_state.status;
+
+   /* initialize the timer structure */
    t->handler = handler;
    t->data = clientData;
-   t->period = period;
+   t->period = HZ;
+
+   /* initialize sync objects */
+   init_waitqueue_head(&t->delay);
+
+   /* create kernel thread */
+   t->task = kthread_run(os_timer_thread_loop, t, "vmmemctl");
+   if (IS_ERR(t->task)) {
+      printk(KERN_WARNING "%s: unable to create kernel thread\n", s->name);
+      return FALSE;
+   }
+   if (OS_DEBUG) {
+      printk(KERN_DEBUG "%s: started kernel thread pid=%d\n", s->name, t->task->pid);
+   }
+
+   return TRUE;
 }
 
-static int os_timer_thread_loop(void *data)
+
+static int
+os_timer_thread_loop(void *clientData) // IN
 {
-   os_timer *t = (os_timer *) data;
+   os_timer *t = clientData;
 
    /* we are running */
    compat_set_freezable();
@@ -367,40 +488,30 @@ static int os_timer_thread_loop(void *data)
       t->handler(t->data);
    }
 
-   /* terminate */
-   return(0);
+   return 0;
 }
 
-void
-OS_TimerStart(void)
-{
-   os_timer *t = &global_state.timer;
-   os_status *s = &global_state.status;
 
-   /* initialize sync objects */
-   init_waitqueue_head(&t->delay);
-
-   /* create kernel thread */
-   t->task = kthread_run(os_timer_thread_loop, t, "vmmemctl");
-   if (IS_ERR(t->task)) {
-      /* fail */
-      printk(KERN_WARNING "%s: unable to create kernel thread\n", s->name);
-   } else if (OS_DEBUG) {
-      printk(KERN_DEBUG "%s: started kernel thread pid=%d\n", s->name,
-             t->task->pid);
-   }
-}
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_TimerStop --
+ *
+ *      Stop the timer.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 void
 OS_TimerStop(void)
 {
    kthread_stop(global_state.timer.task);
-}
-
-unsigned int
-OS_TimerHz(void)
-{
-   return HZ;
 }
 
 
@@ -425,6 +536,7 @@ OS_Yield(void)
 {
    cond_resched();
 }
+
 
 #ifdef	CONFIG_PROC_FS
 static int os_proc_show(struct seq_file *f,
@@ -460,6 +572,7 @@ static int os_proc_show(struct seq_file *f,
    return err;
 }
 
+
 static int os_proc_open(struct inode *inode,
 			struct file *file)
 {
@@ -467,6 +580,7 @@ static int os_proc_open(struct inode *inode,
 }
 
 #endif
+
 
 void
 OS_Init(const char *name,
@@ -506,6 +620,7 @@ OS_Init(const char *name,
    printk(KERN_INFO "%s initialized\n", state->status.name_verbose);
 }
 
+
 void
 OS_Cleanup(void)
 {
@@ -519,6 +634,29 @@ OS_Cleanup(void)
    /* log device unload */
    printk(KERN_INFO "%s unloaded\n", s->name_verbose);
 }
+
+
+int
+init_module(void)
+{
+   if (Balloon_ModuleInit() == BALLOON_SUCCESS) {
+      return 0;
+   } else {
+      return -EAGAIN;
+   }
+}
+
+
+void
+cleanup_module(void)
+{
+   /*
+    * We cannot use module_exit(Balloon_ModuleCleanup) because compilation
+    * would fail for 'Kernel Verify Build Status', see bug #459403.
+    */
+   Balloon_ModuleCleanup();
+}
+
 
 /* Module information. */
 MODULE_AUTHOR("VMware, Inc.");

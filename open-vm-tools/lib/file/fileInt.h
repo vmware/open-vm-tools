@@ -249,6 +249,9 @@ EXTERN void *FileLockIntrinsic(ConstUnicode filePathName,
 EXTERN int FileUnlockIntrinsic(ConstUnicode filePathName,
                                const void *lockToken);
 
+EXTERN Bool FileLockIsLocked(ConstUnicode filePath,
+                             int *err);
+
 EXTERN Bool FileLockValidOwner(const char *executionID,
                                const char *payload);
 

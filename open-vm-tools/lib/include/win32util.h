@@ -212,5 +212,7 @@ Bool W32Util_ReplaceObjectSD(HANDLE hObject,
 
 HMODULE W32Util_GetModuleByAddress(const void *addr);
 
+Bool Win32Util_VerifyXPModeHostLicense(void);
+
 #endif // _WIN32
 #endif // WIN32UTIL_H_

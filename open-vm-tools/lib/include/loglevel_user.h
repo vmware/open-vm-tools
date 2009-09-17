@@ -168,6 +168,7 @@
    LOGLEVEL_VAR(ipc), \
    LOGLEVEL_VAR(smbios), \
    LOGLEVEL_VAR(acpi), \
+   LOGLEVEL_VAR(xpmode), \
    LOGLEVEL_VAR(snapshot), \
    LOGLEVEL_VAR(asyncsocket), \
    LOGLEVEL_VAR(mainMem), \
@@ -217,8 +218,10 @@
    LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(button), \
    LOGLEVEL_VAR(util), \
+   LOGLEVEL_VAR(win32util), \
    LOGLEVEL_VAR(largepage), \
-   LOGLEVEL_VAR(guestAppMonitor),
+   LOGLEVEL_VAR(guestAppMonitor), \
+
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 
