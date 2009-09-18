@@ -20,9 +20,6 @@
  *      Wrappers for Solaris system functions required by "vmmemctl".
  */
 
-/*
- * Includes
- */
 #include <sys/types.h>
 #include <sys/cred.h>
 #include <sys/file.h>
@@ -58,7 +55,7 @@ extern void memscrub_disable(void);
  * Constants
  */
 
-#define ONE_SECOND_IN_MICROSECONDS	1000000
+#define ONE_SECOND_IN_MICROSECONDS 1000000
 
 /*
  * Types
@@ -440,11 +437,26 @@ OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 
 
 /*
- * Worker thread that periodically calls the timer handler.  This is
- * executed by a user context thread so that it can block waiting for
- * memory without fear of deadlock.
+ *-----------------------------------------------------------------------------
+ *
+ * os_worker --
+ *
+ *      Worker thread that periodically calls the timer handler.  This is
+ *      executed by a user context thread so that it can block waiting for
+ *      memory without fear of deadlock.
+ *
+ * Results:
+ *      On success: 0
+ *      On failure: error code
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
-static int os_worker(void)
+
+static int
+os_worker(void)
 {
    os_timer *t = &global_state.timer;
    clock_t timeout;
@@ -544,7 +556,9 @@ OS_TimerStop(void)
    mutex_exit(&t->lock);
 }
 
-static void os_timer_cleanup(void)
+
+static void
+os_timer_cleanup(void)
 {
    os_timer *timer = &global_state.timer;
 
@@ -575,9 +589,29 @@ OS_Yield(void)
    /* Do nothing. */
 }
 
-void OS_Init(const char *name,
-             const char *name_verbose,
-             OSStatusHandler *handler)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Init --
+ *
+ *      Called at driver startup, initializes the balloon state and structures.
+ *
+ *      XXX : this function should return a value to indicate success or failure
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+OS_Init(const char *name,         // IN
+        const char *nameVerbose,  // IN
+        OSStatusHandler *handler) // IN
 {
    os_state *state = &global_state;
    static int initialized = 0;
@@ -593,7 +627,7 @@ void OS_Init(const char *name,
    state->kstats = BalloonKstatCreate();
    state->id_space = id_space_create("vmmemctl", 0, INT_MAX);
    state->name = name;
-   state->name_verbose = name_verbose;
+   state->name_verbose = nameVerbose;
 
    /* disable memscrubber */
 #if defined(SOL9)
@@ -603,10 +637,28 @@ void OS_Init(const char *name,
 #endif
 
    /* log device load */
-   cmn_err(CE_CONT, "!%s initialized\n", name_verbose);
+   cmn_err(CE_CONT, "!%s initialized\n", nameVerbose);
 }
 
-void OS_Cleanup(void)
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Cleanup --
+ *
+ *      Called when the driver is terminating, cleanup initialized structures.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+OS_Cleanup(void)
 {
    os_state *state = &global_state;
 
@@ -622,7 +674,11 @@ void OS_Cleanup(void)
 /*
  * Device configuration entry points
  */
-static int vmmemctl_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
+
+
+static int
+vmmemctl_attach(dev_info_t *dip,      // IN
+                ddi_attach_cmd_t cmd) // IN
 {
    switch (cmd) {
    case DDI_ATTACH:
@@ -638,7 +694,10 @@ static int vmmemctl_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    }
 }
 
-static int vmmemctl_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
+
+static int
+vmmemctl_detach(dev_info_t *dip,      // IN
+                ddi_detach_cmd_t cmd) // IN
 {
    switch (cmd) {
    case DDI_DETACH:
@@ -650,13 +709,33 @@ static int vmmemctl_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
    }
 }
 
+
 /*
- * Commands used by the user level daemon to control the driver.
- * Since the daemon is single threaded, we use a simple monitor to
- * make sure that only one thread is executing here at a time.
+ *-----------------------------------------------------------------------------
+ *
+ * vmmemctl_ioctl --
+ *
+ *      Commands used by the user level daemon to control the driver.
+ *      Since the daemon is single threaded, we use a simple monitor to
+ *      make sure that only one thread is executing here at a time.
+ *
+ * Results:
+ *      On success: 0
+ *      On failure: error code
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
  */
-static int vmmemctl_ioctl(dev_t dev, int cmd, intptr_t arg, int mode,
-			  cred_t *cred, int *rvalp)
+
+static int
+vmmemctl_ioctl(dev_t dev,    // IN: Unused
+               int cmd,      // IN
+               intptr_t arg, // IN: Unused
+               int mode,     // IN: Unused
+               cred_t *cred, // IN
+               int *rvalp)   // IN: Unused
 {
    int error = 0;
    static int busy = 0;		/* set when a thread is in this function */
@@ -741,7 +820,9 @@ static struct modlinkage vmmodlinkage = {
    {&vmmodldrv, NULL}
 };
 
-int _init(void)
+
+int
+_init(void)
 {
    int error;
 
@@ -755,12 +836,16 @@ int _init(void)
    return error;
 }
 
-int _info(struct modinfo *modinfop)
+
+int
+_info(struct modinfo *modinfop) // IN
 {
    return mod_info(&vmmodlinkage, modinfop);
 }
 
-int _fini(void)
+
+int
+_fini(void)
 {
    int error;
 

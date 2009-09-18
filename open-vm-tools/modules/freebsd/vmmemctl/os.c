@@ -26,8 +26,8 @@
  * Compile-Time Options
  */
 
-#define	OS_DISABLE_UNLOAD	(0)
-#define	OS_DEBUG		(1)
+#define	OS_DISABLE_UNLOAD   0
+#define	OS_DEBUG            1
 
 /*
  * Includes
@@ -55,10 +55,6 @@
 
 #include "os.h"
 #include "vmballoon.h"
-
-/*
- * Constants
- */
 
 /*
  * Types
@@ -324,12 +320,13 @@ OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
 }
 
 
-static void os_pmap_alloc(os_pmap *p)
+static void
+os_pmap_alloc(os_pmap *p) // IN
 {
    /* number of pages (div. 8) */
    p->size = (cnt.v_page_count + 7) / 8;
 
-   /* 
+   /*
     * expand to nearest word boundary 
     * XXX: bitmap can be greater than total number of pages in system 
     */
@@ -339,17 +336,21 @@ static void os_pmap_alloc(os_pmap *p)
    p->bitmap = (unsigned long *)kmem_alloc(kernel_map, p->size);
 }
 
-static void os_pmap_free(os_pmap *p)
+
+static void
+os_pmap_free(os_pmap *p) // IN
 {
    kmem_free(kernel_map, (vm_offset_t)p->bitmap, p->size);
    p->size = 0;
    p->bitmap = NULL;
 }
 
-static void os_pmap_init(os_pmap *p)
+
+static void
+os_pmap_init(os_pmap *p) // IN
 {
    /* alloc bitmap for pages in system */
-   os_pmap_alloc(p); 
+   os_pmap_alloc(p);
    if (!p->bitmap) {
       p->size = 0;
       p->bitmap = NULL;
@@ -361,7 +362,9 @@ static void os_pmap_init(os_pmap *p)
    p->hint = 0;
 }
 
-static vm_pindex_t os_pmap_getindex(os_pmap *p)
+
+static vm_pindex_t
+os_pmap_getindex(os_pmap *p) // IN
 {
    int i;
    unsigned long bitidx, wordidx;
@@ -393,14 +396,19 @@ static vm_pindex_t os_pmap_getindex(os_pmap *p)
    return (vm_pindex_t)-1;
 }
 
-static void os_pmap_putindex(os_pmap *p, vm_pindex_t pindex)
+
+static void
+os_pmap_putindex(os_pmap *p,         // IN
+                 vm_pindex_t pindex) // IN
 {
    /* unset bit */
-   p->bitmap[pindex / (8*sizeof(unsigned long))] &= 
+   p->bitmap[pindex / (8*sizeof(unsigned long))] &=
                              ~(1<<(pindex % (8*sizeof(unsigned long))));
 }
 
-static void os_kmem_free(vm_page_t page)
+
+static void
+os_kmem_free(vm_page_t page) // IN
 {
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
@@ -413,7 +421,9 @@ static void os_kmem_free(vm_page_t page)
    vm_page_free(page);
 }
 
-static vm_page_t os_kmem_alloc(int alloc_normal_failed)
+
+static vm_page_t
+os_kmem_alloc(int alloc_normal_failed) // IN
 {
    vm_page_t page;
    vm_pindex_t pindex;
@@ -446,12 +456,16 @@ static vm_page_t os_kmem_alloc(int alloc_normal_failed)
    return page;
 }
 
-static void os_balloonobject_delete(void)
+
+static void
+os_balloonobject_delete(void)
 {
    vm_object_deallocate(global_state.vmobject);
 }
 
-static void os_balloonobject_create(void)
+
+static void
+os_balloonobject_create(void)
 {
    global_state.vmobject = vm_object_allocate(OBJT_DEFAULT,
                   OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS));
@@ -513,7 +527,8 @@ OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 }
 
 
-static void os_timer_internal(void *data)
+static void
+os_timer_internal(void *data) // IN
 {
    os_timer *t = (os_timer *) data;
 
@@ -614,10 +629,29 @@ OS_Yield(void)
    /* Do nothing. */
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Init --
+ *
+ *      Called at driver startup, initializes the balloon state and structures.
+ *
+ *      XXX : this function should return a value to indicate success or failure
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 void
-OS_Init(const char *name,
-        const char *name_verbose,
-        OSStatusHandler *handler)
+OS_Init(const char *name,         // IN
+        const char *nameVerbose,  // IN
+        OSStatusHandler *handler) // IN
 {
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
@@ -637,7 +671,7 @@ OS_Init(const char *name,
    /* initialize status state */
    state->status.handler = handler;
    state->status.name = name;
-   state->status.name_verbose = name_verbose;
+   state->status.name_verbose = nameVerbose;
 
    os_pmap_init(pmap);
    os_balloonobject_create();
@@ -647,6 +681,23 @@ OS_Init(const char *name,
    /* log device load */
    printf("%s initialized\n", state->status.name_verbose);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Cleanup --
+ *
+ *      Called when the driver is terminating, cleanup initialized structures.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 void
 OS_Cleanup(void)
@@ -664,11 +715,16 @@ OS_Cleanup(void)
    printf("%s unloaded\n", status->name_verbose);
 }
 
+
 /*
  * Module Load/Unload Operations
  */
 
-static int vmmemctl_load(module_t mod, int cmd, void *arg)
+
+static int
+vmmemctl_load(module_t mod, // IN: Unused
+              int cmd,      // IN
+              void *arg)    // IN: Unused
 {
    int err = 0;
 
@@ -681,7 +737,7 @@ static int vmmemctl_load(module_t mod, int cmd, void *arg)
 
     case MOD_UNLOAD:
        if (OS_DISABLE_UNLOAD) {
-          /* prevent moudle unload */
+          /* prevent module unload */
           err = EBUSY;
        } else {
           Balloon_ModuleCleanup();

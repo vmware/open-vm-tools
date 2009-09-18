@@ -26,8 +26,8 @@
  * Compile-Time Options
  */
 
-#define	OS_DISABLE_UNLOAD	(0)
-#define	OS_DEBUG		(1)
+#define	OS_DISABLE_UNLOAD 0
+#define	OS_DEBUG          1
 
 /*
  * Includes
@@ -43,11 +43,11 @@
 #include <linux/timer.h>
 #include <linux/kthread.h>
 
-#ifdef	CONFIG_PROC_FS
+#ifdef CONFIG_PROC_FS
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#endif	/* CONFIG_PROC_FS */
+#endif /* CONFIG_PROC_FS */
 
 #include "compat_sched.h"
 
@@ -538,9 +538,10 @@ OS_Yield(void)
 }
 
 
-#ifdef	CONFIG_PROC_FS
-static int os_proc_show(struct seq_file *f,
-			void *data)
+#ifdef CONFIG_PROC_FS
+static int
+os_proc_show(struct seq_file *f, // IN
+             void *data)         // IN: Unused
 {
    os_status *s = &global_state.status;
    char *buf = NULL;
@@ -573,19 +574,37 @@ static int os_proc_show(struct seq_file *f,
 }
 
 
-static int os_proc_open(struct inode *inode,
-			struct file *file)
+static int
+os_proc_open(struct inode *inode, // IN: Unused
+             struct file *file)   // IN
 {
    return single_open(file, os_proc_show, NULL);
 }
+#endif /* CONFIG_PROC_FS */
 
-#endif
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Init --
+ *
+ *      Called at driver startup, initializes the balloon state and structures.
+ *
+ *      XXX : this function should return a value to indicate success or failure
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 void
-OS_Init(const char *name,
-        const char *name_verbose,
-        OSStatusHandler *handler)
+OS_Init(const char *name,         // IN
+        const char *nameVerbose,  // IN
+        OSStatusHandler *handler) // IN
 {
    os_state *state = &global_state;
    static int initialized = 0;
@@ -606,20 +625,36 @@ OS_Init(const char *name,
    /* initialize status state */
    state->status.handler = handler;
    state->status.name = name;
-   state->status.name_verbose = name_verbose;
+   state->status.name_verbose = nameVerbose;
 
-#ifdef	CONFIG_PROC_FS
+#ifdef CONFIG_PROC_FS
    /* register procfs device */
    global_proc_entry = create_proc_entry("vmmemctl", S_IFREG | S_IRUGO, NULL);
    if (global_proc_entry != NULL) {
       global_proc_entry->proc_fops = &global_proc_fops;
    }
-#endif	/* CONFIG_PROC_FS */
+#endif /* CONFIG_PROC_FS */
 
    /* log device load */
    printk(KERN_INFO "%s initialized\n", state->status.name_verbose);
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * OS_Cleanup --
+ *
+ *      Called when the driver is terminating, cleanup initialized structures.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 void
 OS_Cleanup(void)
