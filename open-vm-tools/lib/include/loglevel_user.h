@@ -72,6 +72,7 @@
    LOGLEVEL_VAR(vusbmouse), \
    LOGLEVEL_VAR(vusbkeyboard), \
    LOGLEVEL_VAR(vusbhid), \
+   LOGLEVEL_VAR(vusbtablet), \
    LOGLEVEL_VAR(hidQueue), \
    LOGLEVEL_VAR(pci_1394), \
    LOGLEVEL_VAR(1394), \
