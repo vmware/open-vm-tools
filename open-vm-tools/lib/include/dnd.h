@@ -75,6 +75,8 @@
 /* Number of FCP targets. */
 #define NR_FCP_TARGETS                       2
 
+#define VMWARE_TARGET                        "vmware-target"
+
 #define FCP_COPY_DELAY                       1000000  // 1 second
 #define TARGET_NAME_TIMESTAMP                "TIMESTAMP"
 #define TARGET_NAME_STRING                   "STRING"

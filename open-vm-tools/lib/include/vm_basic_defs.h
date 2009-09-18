@@ -160,8 +160,8 @@ Max(int a, int b)
 
 #define MASK(n)			((1 << (n)) - 1)	/* make an n-bit mask */
 
-#define DWORD_ALIGN(x)          ((((x)+3) >> 2) << 2)
-#define QWORD_ALIGN(x)          ((((x)+4) >> 3) << 3)
+#define DWORD_ALIGN(x)          ((((x) + 3) >> 2) << 2)
+#define QWORD_ALIGN(x)          ((((x) + 7) >> 3) << 3)
 
 #define IMPLIES(a,b) (!(a) || (b))
 
