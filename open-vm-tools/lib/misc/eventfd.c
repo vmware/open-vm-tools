@@ -34,11 +34,12 @@
 
 #ifdef SYS_eventfd2
 /*
- * If this error fires, either start using <sys/eventfd.h> instead of "eventfd.h",
- * or rename our eventfd/eventfd_read/eventfd_write to some private names and modify
- * all users to use them.  As you can guess, switching to glibc's eventfd.h is
- * preferred choice.
+ * If this error fires, either start using <sys/eventfd.h> instead of
+ * "eventfd.h", or rename our eventfd/eventfd_read/eventfd_write to some
+ * private names and modify all users to use them. As you can guess,
+ * switching to glibc's eventfd.h is preferred choice.
  */
+
 #   error "You have real SYS_eventfd2.  You should stop using this one."
 #endif
 #ifdef VM_X86_64
