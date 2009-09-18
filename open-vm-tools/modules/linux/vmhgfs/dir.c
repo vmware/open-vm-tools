@@ -1,3 +1,4 @@
+
 /*********************************************************
  * Copyright (C) 2006 VMware, Inc. All rights reserved.
  *
@@ -30,6 +31,7 @@
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_slab.h"
+#include "compat_mutex.h"
 
 #include "cpName.h"
 #include "hgfsEscape.h"
@@ -42,6 +44,11 @@
 #include "vm_basic_types.h"
 
 /* Private functions. */
+static int HgfsPrivateDirReOpen(struct file *file);
+static int HgfsPrivateDirOpen(struct file *file,
+                              HgfsHandle *handle);
+static int HgfsPrivateDirRelease(struct file *file,
+                                 HgfsHandle handle);
 static int HgfsUnpackSearchReadReply(HgfsReq *req,
                                      HgfsAttrInfo *attr,
                                      char **entryName);
@@ -51,8 +58,7 @@ static int HgfsGetNextDirEntry(HgfsSuperInfo *si,
                                HgfsAttrInfo *attr,
                                char **entryName,
                                Bool *done);
-static int HgfsPackDirOpenRequest(struct inode *inode,
-                                  struct file *file,
+static int HgfsPackDirOpenRequest(struct file *file,
                                   HgfsOp opUsed,
                                   HgfsReq *req);
 
@@ -64,9 +70,13 @@ static int HgfsReaddir(struct file *file,
                        filldir_t filldir);
 static int HgfsDirRelease(struct inode *inode,
                           struct file *file);
+static loff_t HgfsDirLlseek(struct file *file,
+                            loff_t offset,
+                            int origin);
 
 /* HGFS file operations structure for directories. */
 struct file_operations HgfsDirFileOperations = {
+   .llseek      = HgfsDirLlseek,
    .owner       = THIS_MODULE,
    .open        = HgfsDirOpen,
    .read        = generic_read_dir,
@@ -331,8 +341,7 @@ HgfsGetNextDirEntry(HgfsSuperInfo *si,       // IN: Superinfo for this SB
  */
 
 static int
-HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
-                       struct file *file,   // IN: File pointer for this open
+HgfsPackDirOpenRequest(struct file *file,   // IN: File pointer for this open
                        HgfsOp opUsed,       // IN: Op to be used
                        HgfsReq *req)        // IN/OUT: Packet to write into
 {
@@ -341,7 +350,6 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
    size_t requestSize;
    int result;
 
-   ASSERT(inode);
    ASSERT(file);
    ASSERT(req);
 
@@ -393,7 +401,7 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: build path failed\n"));
       return -EINVAL;
    }
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: opening \"%s\"\n",
+   LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: opening \"%s\"\n",
            name));
 
    /* Convert to CP name. */
@@ -413,8 +421,334 @@ HgfsPackDirOpenRequest(struct inode *inode, // IN: Inode of the file to open
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPrivateDirOpen --
+ *
+ *    Called by HgfsDirOpen() and HgfsReaddir() routines.
+ *
+ * Results:
+ *    Returns zero if on success, error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsPrivateDirOpen(struct file *file,    // IN: File pointer for this open
+                   HgfsHandle *handle)   // IN: Hgfs handle
+{
+   HgfsReq *req;
+   int result;
+   HgfsOp opUsed;
+   HgfsStatus replyStatus;
+   HgfsHandle *replySearch;
+
+   ASSERT(file);
+
+   req = HgfsGetNewRequest();
+   if (!req) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: out of memory while "
+              "getting new request\n"));
+      result = -ENOMEM;
+      goto out;
+   }
+
+  retry:
+   opUsed = hgfsVersionSearchOpen;
+   if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
+      replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REP_PAYLOAD_V3(req))->search;
+   } else {
+      replySearch = &((HgfsReplySearchOpen *)HGFS_REQ_PAYLOAD(req))->search;
+   }
+
+   result = HgfsPackDirOpenRequest(file, opUsed, req);
+   if (result != 0) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen error packing request\n"));
+      goto out;
+   }
+
+   /* Send the request and process the reply. */
+   result = HgfsSendRequest(req);
+   if (result == 0) {
+      /* Get the reply and check return status. */
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
+
+      switch (result) {
+      case 0:
+         /* Save the handle value */
+         *handle = *replySearch;
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: Handle returned = %u\n",
+                    *replySearch));
+         break;
+      case -EPROTO:
+         /* Retry with older version(s). Set globally. */
+         if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            hgfsVersionSearchOpen = HGFS_OP_SEARCH_OPEN;
+            goto retry;
+         }
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: server "
+                 "returned error: %d\n", result));
+         break;
+
+      default:
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: server "
+                  "returned error: %d\n", result));
+         break;
+      }
+   } else if (result == -EIO) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: timed out\n"));
+   } else if (result == -EPROTO) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: server "
+              "returned error: %d\n", result));
+   } else {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirOpen: unknown error: "
+              "%d\n", result));
+   }
+
+out:
+   HgfsFreeRequest(req);
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPrivateDirRelease --
+ *
+ *    Called by HgfsDirRelease() and HgfsReaddir() routines.
+ *
+ * Results:
+ *    Returns zero on success, or an error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsPrivateDirRelease(struct file *file,   // IN: File for the dir getting released
+                      HgfsHandle handle)   // IN: Hgfs handle
+{
+   HgfsReq *req;
+   HgfsStatus replyStatus;
+   HgfsOp opUsed;
+   int result = 0;
+
+   ASSERT(file);
+   ASSERT(file->f_dentry);
+   ASSERT(file->f_dentry->d_sb);
+
+   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: close fh %u\n", handle));
+
+   req = HgfsGetNewRequest();
+   if (!req) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: out of memory while "
+              "getting new request\n"));
+      result = -ENOMEM;
+      goto out;
+   }
+
+ retry:
+   opUsed = hgfsVersionSearchClose;
+   if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
+      HgfsRequestSearchCloseV3 *request;
+      HgfsRequest *header;
+
+      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
+      header->id = req->id;
+      header->op = opUsed;
+
+      request = (HgfsRequestSearchCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
+      request->search = handle;
+      request->reserved = 0;
+      req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
+   } else {
+      HgfsRequestSearchClose *request;
+
+      request = (HgfsRequestSearchClose *)(HGFS_REQ_PAYLOAD(req));
+      request->header.id = req->id;
+      request->header.op = opUsed;
+      request->search = handle;
+      req->payloadSize = sizeof *request;
+   }
+
+   /* Send the request and process the reply. */
+   result = HgfsSendRequest(req);
+   if (result == 0) {
+      /* Get the reply. */
+      replyStatus = HgfsReplyStatus(req);
+      result = HgfsStatusConvertToLinux(replyStatus);
+
+      switch (result) {
+      case 0:
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: release handle %u\n",
+                 handle));
+         break;
+      case -EPROTO:
+         /* Retry with older version(s). Set globally. */
+         if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: Version 3 not "
+                    "supported. Falling back to version 1.\n"));
+            hgfsVersionSearchClose = HGFS_OP_SEARCH_CLOSE;
+            goto retry;
+         }
+         break;
+      default:
+         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: failed handle %u\n",
+                 handle));
+         break;
+      }
+   } else if (result == -EIO) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: timed out\n"));
+   } else if (result == -EPROTO) {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: server "
+              "returned error: %d\n", result));
+   } else {
+      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: unknown error: "
+              "%d\n", result));
+   }
+
+out:
+   HgfsFreeRequest(req);
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsPrivateDirReOpen --
+ *
+ *    Reopens the file. Called by HgfsReaddir() routine.
+ *
+ * Results:
+ *    Returns zero if on success, error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HgfsPrivateDirReOpen(struct file *file)   // IN: File pointer for this open
+{
+   int result = 0;
+   HgfsHandle *handle = &FILE_GET_FI_P(file)->handle;
+   LOG(4, (KERN_DEBUG "HgfsPrivateDirReOpen: Directory handle in invalid;"
+           "Reopening ...\n"));
+
+   result = HgfsPrivateDirRelease(file, *handle);
+   if (result) {
+      return result;
+   }
+
+   result = HgfsPrivateDirOpen(file, handle);
+   if (result) {
+      return result;
+   }
+
+   FILE_GET_FI_P(file)->isStale = FALSE;
+
+   return result;
+}
+
+
+/*
  * HGFS file operations for directories.
  */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsDirLlseek --
+ *
+ *    Called whenever a process does rewinddir() or telldir()/seekdir().
+ *
+ * Results:
+ *    Returns zero if on success, error on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static loff_t
+HgfsDirLlseek(struct file *file,
+              loff_t offset,
+              int origin)
+{
+   struct dentry *dentry = file->f_dentry;
+   struct inode *inode = dentry->d_inode;
+   compat_mutex_t mtx;
+
+   LOG(4, (KERN_DEBUG "Got llseek call with origin = %d, offset = %u,"
+           "pos = %u\n", origin, (uint32)offset, (uint32)file->f_pos));
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
+   mtx = inode->i_sem;
+#else
+   mtx = inode->i_mutex;
+#endif
+
+   compat_mutex_lock(&mtx);
+
+   switch(origin) {
+
+   /* SEEK_CUR */
+   case 1: offset += file->f_pos;
+           break;
+   /* SEEK_SET */
+   case 0: break;
+
+   /* SEEK_END */
+   case 2:
+   default: offset = -EINVAL;
+            break;
+   }
+
+   if (offset < 0) {
+      offset = -EINVAL;
+      goto out;
+   }
+
+   if (offset != file->f_pos) {
+      file->f_pos = offset;
+   }
+
+   /*
+    * rewinddir() semantics says that It causes the directory stream
+    * to refer to the current state of the corresponding directory,
+    * as a call to opendir would have done. So when rewinddir() happens,
+    * we mark current directory as stale, so that subsequent readdir()
+    * call will reopen() the directory.
+    *
+    * XXX telldir()/seekdir() semantics does not say that we need to refer
+    * to the current state of a directory. However, an application that does
+    * following: telldir() -> rmdir(current_entry) -> seekdir() and checking
+    * whether entry was deleted or not, will break. I have no evidence of an
+    * application relying on above behavior, so let's not incur extra cost
+    * by reopening directory on telldir()/seekdir() combination. Note: A special
+    * case of telldir()/seekdir() to offset 0 will behave same as rewinddir().
+    */
+   if (!file->f_pos) {
+      FILE_GET_FI_P(file)->isStale = TRUE;
+   }
+
+out:
+   compat_mutex_unlock(&mtx);
+   return offset;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -441,83 +775,19 @@ static int
 HgfsDirOpen(struct inode *inode,  // IN: Inode of the dir to open
             struct file *file)    // IN: File pointer for this open
 {
-   HgfsReq *req;
    int result;
-   HgfsOp opUsed;
-   HgfsStatus replyStatus;
-   HgfsHandle *replySearch;
+
+   HgfsHandle handle;
 
    ASSERT(inode);
    ASSERT(inode->i_sb);
    ASSERT(file);
 
-   req = HgfsGetNewRequest();
-   if (!req) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: out of memory while "
-              "getting new request\n"));
-      result = -ENOMEM;
-      goto out;
+   result = HgfsPrivateDirOpen(file, &handle);
+   if (!result) {
+      result = HgfsCreateFileInfo(file, handle);
    }
 
-  retry:
-   opUsed = hgfsVersionSearchOpen;
-   if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
-      replySearch = &((HgfsReplySearchOpenV3 *)HGFS_REP_PAYLOAD_V3(req))->search;
-   } else {
-      replySearch = &((HgfsReplySearchOpen *)HGFS_REQ_PAYLOAD(req))->search;
-   }
-
-   result = HgfsPackDirOpenRequest(inode, file, opUsed, req);
-   if (result != 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: error packing request\n"));
-      goto out;
-   }
-
-   /* Send the request and process the reply. */
-   result = HgfsSendRequest(req);
-   if (result == 0) {
-      /* Get the reply and check return status. */
-      replyStatus = HgfsReplyStatus(req);
-      result = HgfsStatusConvertToLinux(replyStatus);
-
-      switch (result) {
-      case 0:
-         result = HgfsCreateFileInfo(file, *replySearch);
-         if (result) {
-           goto out;
-         }
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: set handle to %u\n",
-                    *replySearch));
-         break;
-      case -EPROTO:
-         /* Retry with older version(s). Set globally. */
-         if (opUsed == HGFS_OP_SEARCH_OPEN_V3) {
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: Version 3 not "
-                    "supported. Falling back to version 1.\n"));
-            hgfsVersionSearchOpen = HGFS_OP_SEARCH_OPEN;
-            goto retry;
-         }
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
-                 "returned error: %d\n", result));
-         break;
-
-      default:
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
-                  "returned error: %d\n", result));
-         break;
-      }
-   } else if (result == -EIO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: timed out\n"));
-   } else if (result == -EPROTO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: server "
-              "returned error: %d\n", result));
-   } else {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirOpen: unknown error: "
-              "%d\n", result));
-   }
-
-out:
-   HgfsFreeRequest(req);
    return result;
 }
 
@@ -583,6 +853,7 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
    int nameLength = 0;
    int result = 0;
    Bool done = FALSE;
+   Bool isStale = FALSE;
    ino_t ino;
 
    ASSERT(file);
@@ -606,6 +877,32 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
           file->f_pos));
 
    /*
+    * rm -rf 6.10+ breaks because it does following:
+    * an 'fd = open()' on a directory, followed by unlinkat()
+    * which removes an entry from the directory it and then
+    * fdopendir(fd). We get a call on open() but not on fdopendir(),
+    * which means that we do not reflect the action of unlinkat(),
+    * and thus rm -rf gets confused and marking entry as unremovable.
+    * Note that this problem exists because hgfsServer reads all
+    * the directory entries at open(). Interested reader may look at
+    * coreutils/src/remove.c file.
+    *
+    * So as a workaround, we ask the server to populate entries on
+    * first readdir() call rather than opendir(). This effect is
+    * achieved by closing and reopening the directory. Grrr!
+    *
+    * XXX We should get rid of this code when/if we remove the above
+    * behavior from hgfsServer.
+    */
+   isStale = FILE_GET_FI_P(file)->isStale;
+   if (isStale) {
+      result = HgfsPrivateDirReOpen(file);
+      if (result) {
+         return result;
+      }
+   }
+
+   /*
     * Some day when we're out of things to do we can move this to a slab
     * allocator.
     */
@@ -624,6 +921,7 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
        *     - Otherwise, fileName has the name of the next dirent
        *
        */
+
       result = HgfsGetNextDirEntry(si,
                                    FILE_GET_FI_P(file)->handle,
                                    (uint32)file->f_pos,
@@ -647,6 +945,7 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
          kfree(escName);
          return result;
       }
+
       if (done == TRUE) {
          LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReaddir: end of dir reached\n"));
          break;
@@ -787,11 +1086,7 @@ static int
 HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
                struct file *file)    // IN: File for the dir getting released
 {
-   HgfsReq *req;
-   HgfsStatus replyStatus;
    HgfsHandle handle;
-   HgfsOp opUsed;
-   int result = 0;
 
    ASSERT(inode);
    ASSERT(file);
@@ -799,79 +1094,8 @@ HgfsDirRelease(struct inode *inode,  // IN: Inode that the file* points to
    ASSERT(file->f_dentry->d_sb);
 
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: close fh %u\n", handle));
 
    HgfsReleaseFileInfo(file);
 
-   req = HgfsGetNewRequest();
-   if (!req) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: out of memory while "
-              "getting new request\n"));
-      result = -ENOMEM;
-      goto out;
-   }
-
- retry:
-   opUsed = hgfsVersionSearchClose;
-   if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
-      HgfsRequestSearchCloseV3 *request;
-      HgfsRequest *header;
-
-      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-      header->id = req->id;
-      header->op = opUsed;
-
-      request = (HgfsRequestSearchCloseV3 *)(HGFS_REQ_PAYLOAD_V3(req));
-      request->search = handle;
-      request->reserved = 0;
-      req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   } else {
-      HgfsRequestSearchClose *request;
-
-      request = (HgfsRequestSearchClose *)(HGFS_REQ_PAYLOAD(req));
-      request->header.id = req->id;
-      request->header.op = opUsed;
-      request->search = handle;
-      req->payloadSize = sizeof *request;
-   }
-
-   /* Send the request and process the reply. */
-   result = HgfsSendRequest(req);
-   if (result == 0) {
-      /* Get the reply. */
-      replyStatus = HgfsReplyStatus(req);
-      result = HgfsStatusConvertToLinux(replyStatus);
-
-      switch (result) {
-      case 0:
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: release handle %u\n",
-                 handle));
-         break;
-      case -EPROTO:
-         /* Retry with older version(s). Set globally. */
-         if (opUsed == HGFS_OP_SEARCH_CLOSE_V3) {
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: Version 3 not "
-                    "supported. Falling back to version 1.\n"));
-            hgfsVersionSearchClose = HGFS_OP_SEARCH_CLOSE;
-            goto retry;
-         }
-         break;
-      default:
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: failed handle %u\n",
-                 handle));
-         break;
-      }
-   } else if (result == -EIO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: timed out\n"));
-   } else if (result == -EPROTO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDirRelease: server "
-              "returned error: %d\n", result));
-   } else {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsOpen: unknown error: "
-              "%d\n", result));
-   }
-
-out:
-   HgfsFreeRequest(req);
-   return result;
+   return HgfsPrivateDirRelease(file, handle);
 }

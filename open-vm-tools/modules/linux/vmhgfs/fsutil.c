@@ -1418,6 +1418,9 @@ HgfsCreateFileInfo(struct file *file,  // IN: File pointer to attach to
    fileInfo->mode = HGFS_OPEN_MODE_ACCMODE(mode) + 1;
    FILE_SET_FI_P(file, fileInfo);
 
+   /* So that readdir() reissues open request */
+   fileInfo->isStale = TRUE;
+
    /*
     * I don't think we need any VFS locks since we're only touching the HGFS
     * specific state. But we should still acquire our own lock.

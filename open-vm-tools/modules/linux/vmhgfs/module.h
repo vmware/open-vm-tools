@@ -200,6 +200,13 @@ typedef struct HgfsFileInfo {
     * choose one with appropriate permissions.
     */
    HgfsOpenMode mode;
+
+   /*
+    * Do we need to reopen a directory ? Note that this is only used
+    * for directories.
+    */
+   Bool isStale;
+
 } HgfsFileInfo;
 
 
