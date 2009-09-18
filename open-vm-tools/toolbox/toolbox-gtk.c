@@ -118,6 +118,7 @@ static void ToolsMainCleanupRpc(void);
 static void ToolsMainSignalHandler(int sig);
 static void ToolsMain_OnDestroy(GtkWidget *widget, gpointer data);
 static void ToolsMain_YesNoBoxOnClicked(GtkButton *btn, gpointer user_data);
+static void ToolsMain_YesNoBoxOnDestroy(GtkWidget *widget, gpointer data);
 static void ToolsMain_OnHelp(gpointer btn, gpointer data);
 static void ToolsMain_OpenHelp(const char *help);
 static gint ToolsMain_CheckF1Help(GtkWidget *widget, GdkEventKey *event,
@@ -412,6 +413,8 @@ ToolsMain_YesNoBox(gchar *title, gchar *msg)
    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
    gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), 10);
    gdk_window_set_icon(dialog->window, NULL, pixmap, bitmask);
+   gtk_signal_connect(GTK_OBJECT(dialog), "destroy",
+                      GTK_SIGNAL_FUNC(ToolsMain_YesNoBoxOnDestroy), &ret);
 
    label = gtk_label_new (msg);
    gtk_widget_show(label);
@@ -472,14 +475,46 @@ ToolsMain_YesNoBoxOnClicked(GtkButton *btn,     // IN: clicked button
                            gpointer user_data) // OUT: pointer to result value
 {
    char *text;
-   Bool *ret = (Bool*)user_data;
+   int *ret = (int *)user_data;
+
    gtk_label_get(GTK_LABEL(GTK_BIN(btn)->child), &text);
+
    if (strcmp(text, "Yes") == 0) {
       *ret = 1;
    } else if (strcmp(text, "No") == 0) {
       *ret = 2;
    }
+
    gtk_widget_destroy(GTK_WIDGET(gtk_widget_get_toplevel(GTK_WIDGET(btn))));
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsMain_YesNoBoxOnDestroy  --
+ *
+ *      Callback for the gtk signal "destroy" on the Yes/No dialog.
+ *      If user did not press any buttons but attempted to close
+ *      the window assume that changes should not be saved.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      May cause changes to scripts and other settings to be abandoned.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+ToolsMain_YesNoBoxOnDestroy(GtkWidget *widget, // IN: Unused
+                            gpointer data)     // OUT: result value
+{
+   int *ret = (int *) data;
+
+   if (*ret == 0) {
+      *ret = 2;
+   }
 }
 
 
