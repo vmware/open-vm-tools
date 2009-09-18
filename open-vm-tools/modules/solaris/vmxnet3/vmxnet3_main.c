@@ -90,7 +90,7 @@ vmxnet3_getstat(void *data, uint_t stat, uint64_t *val)
    UPT1_TxStats *txStats;
    UPT1_RxStats *rxStats;
 
-   VMXNET3_DEBUG(dp, 2, "getstat(%u)\n", stat);
+   VMXNET3_DEBUG(dp, 3, "getstat(%u)\n", stat);
 
    if (!dp->devEnabled) {
       return DDI_FAILURE;

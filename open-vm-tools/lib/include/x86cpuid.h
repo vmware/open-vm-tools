@@ -671,6 +671,9 @@ FIELD_FUNC(TOPOLOGY_X2APIC_ID,          CPUID_INTEL_IDBEDX_X2APIC_ID)
 #define CPUID_FAMILY_K8MOBILE 17
 #define CPUID_FAMILY_BULLDOZER 21
 
+/* Effective VIA CPU Families */
+#define CPUID_FAMILY_C7       6
+
 /* Intel model information */
 #define CPUID_MODEL_PPRO       1
 #define CPUID_MODEL_PII_03     3
@@ -693,15 +696,18 @@ FIELD_FUNC(TOPOLOGY_X2APIC_ID,          CPUID_INTEL_IDBEDX_X2APIC_ID)
 /* AMD model information */
 #define CPUID_MODEL_BARCELONA_02 0x02 // Barcelona (both Opteron & Phenom kind)
 
+/* VIA model information */
+#define CPUID_MODEL_NANO       15     // Isaiah
+
 /*
  *----------------------------------------------------------------------
  *
- * CPUID_IsVendor{AMD,Intel} --
+ * CPUID_IsVendor{AMD,Intel,VIA} --
  *
- *      Determines if the vendor string in cpuid id0 is from {AMD,Intel}.
+ *      Determines if the vendor string in cpuid id0 is from {AMD,Intel,VIA}.
  *
  * Results:
- *      True iff vendor string is CPUID_{AMD,INTEL}_VENDOR_STRING
+ *      True iff vendor string is CPUID_{AMD,INTEL,VIA}_VENDOR_STRING
  *
  * Side effects:
  *      None.
@@ -729,6 +735,11 @@ CPUID_IsVendorIntel(CPUIDRegs *id0)
    return CPUID_IsRawVendor(id0, CPUID_INTEL_VENDOR_STRING);
 }
 
+static INLINE Bool
+CPUID_IsVendorVIA(CPUIDRegs *id0)
+{
+   return CPUID_IsRawVendor(id0, CPUID_VIA_VENDOR_STRING);
+}
 
 static INLINE uint32
 CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */

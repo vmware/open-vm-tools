@@ -126,8 +126,16 @@ CPUIDSummary_SafeToUseMC0_CTL(CPUIDSummary* cpuidSummary)
 }
 
 
-/* The following two functions return the number of cores per package
+/* The following functions return the number of cores per package
    and set *numThreadsPerCore to the number of hardware threads per core. */ 
+static INLINE uint32
+CPUIDSummary_VIACoresPerPackage(CPUIDSummary *cpuid,
+                                uint32 *numThreadsPerCore)
+{
+   *numThreadsPerCore = 1;
+   return 1;
+}
+
 static INLINE uint32 
 CPUIDSummary_AMDCoresPerPackage(CPUIDSummary *cpuid,
                                 uint32 *numThreadsPerCore)

@@ -183,8 +183,8 @@
  * 4.0.0-1.7: update 1
  * 4.0.0-1.8: patch 3
  */
-#define ESX_VERSION_MAJOR "4"
-#define ESX_VERSION_MINOR "1"
+#define ESX_VERSION_MAJOR "5"
+#define ESX_VERSION_MINOR "0"
 #define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
@@ -223,7 +223,7 @@
 #define DDK_VERSION "e.x.p"
 #define VIM_API_VERSION "4.0"
 #define VIPERL_VERSION "1.1.0"
-#define RCLI_VERSION "4.0.0"
+#define RCLI_VERSION "4.5.0"
 #define VDM_VERSION "e.x.p"
 #define VMSAFE_VERSION        "1.1.0"
 #define VMSAFE_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -414,9 +414,6 @@
 #define CONFIG_VERSION_WS4              "7"     /* config version of WS4.0.x */
 #define CONFIG_VERSION_MSNAP            "8"     /* Multiple Snapshots */
 #define CONFIG_VERSION_WS5              "8"     /* WS5.0 */
-
-#define VMVISOR_VERSION "4.1.0"
-
 
 /*
  * Product version strings allows UIs to refer to a single place for specific
