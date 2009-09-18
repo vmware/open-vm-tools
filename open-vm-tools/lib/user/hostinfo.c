@@ -322,7 +322,6 @@ Hostinfo_TouchXen(void)
 {
 #ifdef linux
 #define XEN_CPUID 0x40000000
-#define XEN_STRING "XenVMMXenVMM"
    CPUIDRegs regs;
    uint32 name[4];
 
@@ -343,7 +342,7 @@ Hostinfo_TouchXen(void)
    name[1] = regs.ecx;
    name[2] = regs.edx;
    name[3] = 0;
-   if (0 == strcmp(XEN_STRING, (const char*)name)) {
+   if (0 == strcmp(CPUID_XEN_HYPERVISOR_VENDOR_STRING, (const char*)name)) {
       return TRUE;
    }
 
