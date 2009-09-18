@@ -623,6 +623,13 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 	cmd->scsi_done(cmd);
 }
 
+/*
+ * barrier usage : Since the PVSCSI device is emulated, there could be cases
+ * where we may want to serialize some accesses between the driver and the
+ * emulation layer. We use compiler barriers instead of the more expensive
+ * memory barriers because PVSCSI is only supported on X86 which has strong
+ * memory access ordering.
+ */
 static void pvscsi_process_completion_ring(struct pvscsi_adapter *adapter)
 {
 	PVSCSIRingsState *s = adapter->rings_state;
@@ -632,9 +639,20 @@ static void pvscsi_process_completion_ring(struct pvscsi_adapter *adapter)
 	while (s->cmpConsIdx != s->cmpProdIdx) {
 		PVSCSIRingCmpDesc *e = ring + (s->cmpConsIdx &
 					       MASK(cmp_entries));
-
+		/*
+		 * This barrier() ensures that *e is not dereferenced while
+		 * the device emulation still writes data into the slot.
+		 * Since the device emulation advances s->cmpProdIdx only after
+		 * updating the slot we want to check it first.
+		 */
 		barrier();
 		pvscsi_complete_request(adapter, e);
+		/*
+		 * This barrier() ensures that compiler doesn't reorder write
+		 * to s->cmpConsIdx before the read of (*e) inside
+		 * pvscsi_complete_request. Otherwise, device emulation may
+		 * overwrite *e before we had a chance to read it.
+		 */
 		barrier();
 		s->cmpConsIdx++;
 	}
