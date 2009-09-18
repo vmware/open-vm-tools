@@ -150,7 +150,8 @@
 
 #define NESTING_CONTROL_ENTER_VMM        0
 #define NESTING_CONTROL_EXIT_VMM         1
-#define NESTING_CONTROL_MAX              1
+#define NESTING_CONTROL_QUERY            2
+#define NESTING_CONTROL_MAX              2
 
 /* High-bandwidth backdoor port. --hpreg */
 
