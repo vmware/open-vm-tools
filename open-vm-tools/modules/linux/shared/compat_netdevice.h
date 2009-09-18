@@ -281,6 +281,7 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+
 #   define compat_netif_napi_add(dev, napi, poll, quota) \
       netif_napi_add(dev, napi, poll, quota)
 
@@ -295,20 +296,28 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #   define compat_napi_enable(dev, napi)  napi_enable(napi)
 #   define compat_napi_disable(dev, napi) napi_disable(napi)
+
 #else
-struct napi_struct {
-   int dummy;
-};
 
 #   define compat_netif_napi_add(dev, napi, pollcb, quota) \
    do {                        \
       (dev)->poll = (pollcb);    \
       (dev)->weight = (quota);\
    } while (0)
-#   define compat_napi_complete(dev, napi) netif_rx_complete(dev)
 #   define compat_napi_schedule(dev, napi) netif_rx_schedule(dev)
 #   define compat_napi_enable(dev, napi)   netif_poll_enable(dev)
 #   define compat_napi_disable(dev, napi)  netif_poll_disable(dev)
+
+/* RedHat ported GRO to 2.6.18 bringing new napi_struct with it */
+#   if defined NETIF_F_GRO
+#      define compat_napi_complete(dev, napi) napi_complete(napi)
+#   else
+#      define compat_napi_complete(dev, napi) netif_rx_complete(dev)
+       struct napi_struct {
+          int dummy;
+       };
+#   endif
+
 #endif
 
 #endif /* __COMPAT_NETDEVICE_H__ */

@@ -26,7 +26,12 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && !defined(VMXNET3_NO_NAPI)
 #   define VMXNET3_NAPI
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24) || defined NETIF_F_GRO
+/*
+ * The new NAPI initially appeared only in 2.6.24 but Redhat backported it
+ * to 2.6.18 in RHEL5.4. We assume that iwe need to use the new style
+ * whenever NETIF_F_GRO is present.
+ */
 #   define VMXNET3_NEW_NAPI
 #endif
 #endif
