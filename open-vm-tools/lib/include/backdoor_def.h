@@ -136,7 +136,8 @@
 #define BDOOR_CMD_USB_HOTPLUG_MOUSE     61 /* Not in use */
 #define BDOOR_CMD_XPMODE                62
 #define BDOOR_CMD_NESTING_CONTROL       63
-#define BDOOR_CMD_MAX                   64
+#define BDOOR_CMD_FIRMWARE_INIT         64
+#define BDOOR_CMD_MAX                   65
 
 
 /* 
