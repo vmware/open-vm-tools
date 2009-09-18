@@ -111,7 +111,7 @@ extern void Hostinfo_LogMemUsage(void);
  */
 
 typedef struct {
-   CpuidVendors vendor;
+   CpuidVendor vendor;
 
    uint32 version;
    uint8 family;

@@ -138,8 +138,8 @@ typedef enum {
 #define CPUIDLEVEL(t, s, v) CPUID_LEVEL_##s,
    CPUID_CACHED_LEVELS
 #undef CPUIDLEVEL
-   CPUID_NUM_LEVELS
-} CpuidLevels;
+   CPUID_NUM_CACHED_LEVELS
+} CpuidCachedLevel;
 
 
 /* SVM CPUID feature leaf */
@@ -161,7 +161,7 @@ typedef enum {
    CPUID_REGS
 #undef CPUIDREG
    CPUID_NUM_REGS
-} CpuidRegs;
+} CpuidReg;
 
 /*
  * CPU vendors
@@ -175,7 +175,7 @@ typedef enum {
    CPUID_VENDOR_CYRIX,
    CPUID_VENDOR_VIA,
    CPUID_NUM_VENDORS
-} CpuidVendors;
+} CpuidVendor;
 
 #define CPUID_INTEL_VENDOR_STRING       "GenuntelineI"
 #define CPUID_AMD_VENDOR_STRING         "AuthcAMDenti"
@@ -921,7 +921,7 @@ CPUID_MODEL_IS_BARCELONA(uint32 v) // IN: %eax from CPUID with %eax=1.
  */
 
 static INLINE Bool
-CPUID_VendorRequiresFence(CpuidVendors vendor)
+CPUID_VendorRequiresFence(CpuidVendor vendor)
 {
    return vendor == CPUID_VENDOR_AMD;
 }
@@ -949,7 +949,7 @@ CPUID_ID1RequiresFence(CPUIDRegs *id1)
 }
 
 static INLINE Bool
-CPUID_RequiresFence(CpuidVendors vendor, // IN
+CPUID_RequiresFence(CpuidVendor vendor, // IN
                     uint32 version)      // IN: %eax from CPUID with %eax=1.
 {
    return CPUID_VendorRequiresFence(vendor) &&
