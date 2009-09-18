@@ -76,7 +76,6 @@ static char *FilePosixLookupMountPoint(char const *canPath, Bool *bind);
 static char *FilePosixNearestExistingAncestor(char const *path);
 
 # ifdef VMX86_SERVER
-#define VMFS2CONST 456
 #define VMFS3CONST 256
 #include "hostType.h"
 /* Needed for VMFS implementation of File_GetFreeSpace() */
@@ -2068,9 +2067,6 @@ FilePosixCreateTestFileSize(ConstUnicode dirName, // IN: directory to create lar
  *
  *      Check if the given file is on a VMFS supports such a file size
  *
- *      In the case of VMFS2, the largest supported file size is
- *         456 * 1024 * B bytes
- *
  *      In the case of VMFS3/4, the largest supported file size is
  *         256 * 1024 * B bytes
  *
@@ -2112,14 +2108,12 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
    }
 
    if (strcmp(fsType, "VMFS") == 0) {
-      if (version == 2) {
-         maxFileSize = (VMFS2CONST * (uint64) blockSize * 1024);
-      } else if (version >= 3) {
+      if (version >= 3) {
          /* Get ready for VMFS4 and perform sanity check on version */
          ASSERT(version == 3 || version == 4);
 
          maxFileSize = (VMFS3CONST * (uint64) blockSize * 1024);
-      } 
+      }
 
       if (fileSize <= maxFileSize && maxFileSize != -1) {
          free(fsType);

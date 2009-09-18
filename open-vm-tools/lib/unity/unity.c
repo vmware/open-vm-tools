@@ -170,6 +170,8 @@ static UnityCommandElem unityCommandTable[] = {
    { UNITY_RPC_WINDOW_UNMINIMIZE, UnityPlatformUnminimizeWindow },
    { UNITY_RPC_WINDOW_MAXIMIZE, UnityPlatformMaximizeWindow },
    { UNITY_RPC_WINDOW_UNMAXIMIZE, UnityPlatformUnmaximizeWindow },
+   { UNITY_RPC_WINDOW_STICK, UnityPlatformStickWindow },
+   { UNITY_RPC_WINDOW_UNSTICK, UnityPlatformUnstickWindow },
    /* Add more commands and handlers above this. */
    { NULL, NULL }
 };
@@ -380,6 +382,8 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
     */
 
    if (Unity_IsSupported()) {
+      UnityCommandElem *elem;
+
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_ENTER, UnityTcloEnter, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_UPDATE_FULL, UnityTcloGetUpdate, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_UPDATE_INCREMENTAL,
@@ -388,8 +392,6 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
                              UnityTcloGetWindowPath, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_SETTOP,
                              UnityTcloSetTopWindowGroup, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_CLOSE,
-                             UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_WINDOW_CONTENTS,
                              UnityTcloGetWindowContents, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_ICON_DATA,
@@ -400,24 +402,20 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_EXIT, UnityTcloExit, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MOVE_RESIZE,
                              UnityTcloMoveResizeWindow, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_SHOW,
-                             UnityTcloWindowCommand, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_HIDE,
-                             UnityTcloWindowCommand, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MINIMIZE,
-                             UnityTcloWindowCommand, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_UNMINIMIZE,
-                             UnityTcloWindowCommand, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MAXIMIZE,
-                             UnityTcloWindowCommand, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_UNMAXIMIZE,
-                             UnityTcloWindowCommand, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_DESKTOP_CONFIG_SET,
                              UnityTcloSetDesktopConfig, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_DESKTOP_ACTIVE_SET,
                              UnityTcloSetDesktopActive, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_DESKTOP_SET,
                              UnityTcloSetWindowDesktop, NULL);
+
+      /*
+       * Handle all of the UnityTcloWindowCommand RPCs at once.
+       */
+      for (elem = unityCommandTable; elem->name != NULL; elem++) {
+         RpcIn_RegisterCallback(rpcIn, elem->name, UnityTcloWindowCommand,
+                                NULL);
+      }
    }
 }
 

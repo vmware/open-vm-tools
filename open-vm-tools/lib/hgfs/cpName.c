@@ -113,7 +113,7 @@ CPName_GetComponent(char const *begin,   // IN: Beginning of buffer
    len = walk - begin;
 
    *next = myNext;
-   return ((int) len);
+   return (int) len;
 }
 
 

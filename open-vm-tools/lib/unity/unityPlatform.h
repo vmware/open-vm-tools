@@ -112,6 +112,10 @@ Bool UnityPlatformSetDesktopActive(UnityPlatform *up,
 Bool UnityPlatformSetWindowDesktop(UnityPlatform *up,
                                    UnityWindowId windowId,
                                    UnityDesktopId desktopId);
+Bool UnityPlatformStickWindow(UnityPlatform *up,
+                              UnityWindowId windowId);
+Bool UnityPlatformUnstickWindow(UnityPlatform *up,
+                                UnityWindowId windowId);
 Bool UnityPlatformIsUnityRunning(UnityPlatform *up);
 Bool UnityPlatformStartHelperThreads(UnityPlatform *up);
 void UnityPlatformKillHelperThreads(UnityPlatform *up);

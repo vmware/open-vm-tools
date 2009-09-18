@@ -151,6 +151,20 @@ ResolutionResolutionSetCB(RpcInData *data)
    unsigned int index = 0;
    Bool retval = FALSE;
 
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
+   if (!resInfo->initialized) {
+      Debug("%s: FAIL! Request for resolution set but plugin is not initialized\n",
+            __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid guest state: resolution set not initialized", FALSE);
+   }
+
+   if (!resInfo->canSetResolution) {
+      Debug("%s: FAIL! Request for resolution set but res set is not enabled\n",
+            __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid guest state: resolution set not enabled", FALSE);
+   }
+
    /* parse the width and height */
    if (!StrUtil_GetNextUintToken(&width, &index, data->args, " ")) {
       goto invalid_arguments;
@@ -270,6 +284,22 @@ ResolutionDisplayTopologySetCB(RpcInData *data)
    unsigned int count, i;
    Bool success = FALSE;
    const char *p;
+
+   ResolutionInfoType *resInfo = &resolutionInfo;
+
+   if (!resInfo->initialized) {
+      Debug("%s: FAIL! Request for topology set but plugin is not initialized\n",
+            __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Invalid guest state: topology set not initialized", FALSE);
+      goto out;
+   }
+
+   if (!resInfo->canSetTopology) {
+      Debug("%s: FAIL! Request for topology set but topology set not enabled\n",
+            __FUNCTION__);
+      RPCIN_SETRETVALS(data, "Invalid guest state: topology set not enabled", FALSE);
+      goto out;
+   }
 
    /*
     * The argument string will look something like:

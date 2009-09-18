@@ -118,6 +118,7 @@ enum {
    VIX_E_LICENSE                                = 32,
    VIX_E_VM_HOST_DISCONNECTED                   = 34,
    VIX_E_AUTHENTICATION_FAIL                    = 35,
+   VIX_E_HOST_CONNECTION_LOST                   = 36,
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,

@@ -2388,12 +2388,23 @@ UnityPlatformUnminimizeWindow(UnityPlatform *up,    // IN
       upw->wantInputFocus = TRUE;
 
       /*
-       * Unfortunately the _NET_WM_STATE messages only work for windows that are already
-       * mapped, i.e. not iconified or withdrawn.
+       * Okay, client messages to update _NET_WM_STATE are intended only for
+       * /mapped/ windows.  (That's my interpretation considering that wm-spec
+       * only mentions mapped windows, and window managers seem to ignore the
+       * request for minimized windows.)
+       *
+       * Rather than directly mapping the window, we'll instead request that
+       * the window manager activate it.  Mapping the window has a negative
+       * consequence of stripping the window of its _NET_WM_STATE and
+       * _NET_WM_DESKTOP properties.  This is most visible when unminimizing
+       * a sticky window -- the result is that it would lose its stickiness.
        */
-      if (!upw->isHidden) {
-         XMapRaised(up->display, upw->clientWindow);
-      }
+
+      data[0] = 2;
+      data[1] = UnityPlatformGetServerTime(up);
+      data[2] = 0;
+      UnityPlatformSendClientMessage(up, upw->rootWindow, upw->clientWindow,
+                                     up->atoms._NET_ACTIVE_WINDOW, 32, 4, data);
 
       data[0] = _NET_WM_STATE_REMOVE;
       data[1] = up->atoms._NET_WM_STATE_HIDDEN;

@@ -83,11 +83,19 @@ static void UnityPlatformDnDSendClientMessage(UnityPlatform *up,
                                               int numItems,
                                               const void *data);
 
+static Bool GetRelevantWMWindow(UnityPlatform *up,
+                                UnityWindowId windowId,
+                                Window *wmWindow);
+static Bool SetWindowStickiness(UnityPlatform *up,
+                                UnityWindowId windowId,
+                                Bool wantSticky);
+
 static const GuestCapabilities platformUnityCaps[] = {
    UNITY_CAP_WORK_AREA,
    UNITY_CAP_START_MENU,
    UNITY_CAP_MULTI_MON,
-   UNITY_CAP_VIRTUAL_DESK
+   UNITY_CAP_VIRTUAL_DESK,
+   UNITY_CAP_STICKY_WINDOWS,
 };
 
 /*
@@ -964,7 +972,14 @@ UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
     */
    {
       GIOChannel *unityDisplayChannel;
+
       unityDisplayChannel = g_io_channel_unix_new(ConnectionNumber(up->display));
+      if (g_io_channel_set_encoding(unityDisplayChannel, NULL, NULL) !=
+          G_IO_STATUS_NORMAL) {
+         Warning("%s: Unable to switch Unity I/O channel from UTF-8 to raw data.\n",
+                 __func__);
+      }
+
       up->unityDisplayWatchID = g_io_add_watch(unityDisplayChannel,
                                                G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
                                                UnityPlatformHandleEventsGlib,
@@ -2991,3 +3006,152 @@ Unity_LocalToUnityPoint(UnityPoint *unityPt, // IN/OUT
    unityPt->y = localPt->y;
 }
 
+
+/*
+ ******************************************************************************
+ * UnityPlatformStickWindow --                                           */ /**
+ *
+ * @brief "Stick" a window to the desktop.
+ *
+ * @param[in] up       Platform context.
+ * @param[in] windowId Operand window.
+ *
+ * @retval TRUE  Success.
+ * @retval FALSE Failure.
+ *
+ ******************************************************************************
+ */
+
+Bool
+UnityPlatformStickWindow(UnityPlatform *up,      // IN
+                         UnityWindowId windowId) // IN
+{
+   return SetWindowStickiness(up, windowId, TRUE);
+}
+
+
+/*
+ ******************************************************************************
+ * UnityPlatformUnstickWindow --                                         */ /**
+ *
+ * @brief "Unstick" a window from the desktop.
+ *
+ * @param[in] up       Platform context.
+ * @param[in] windowId Operand window.
+ *
+ * @retval TRUE  Success.
+ * @retval FALSE Failure.
+ *
+ ******************************************************************************
+ */
+
+Bool
+UnityPlatformUnstickWindow(UnityPlatform *up,      // IN
+                           UnityWindowId windowId) // IN
+{
+   return SetWindowStickiness(up, windowId, FALSE);
+}
+
+
+/*
+ ******************************************************************************
+ * Begin file-scope functions.
+ *
+ */
+
+
+/*
+ ******************************************************************************
+ * GetRelevantWMWindow --                                                */ /**
+ *
+ * @brief Given a UnityWindowId, return the X11 window relevant to WM operations.
+ *
+ * Starting with a Unity window, look for and return its associated
+ * clientWindow.  If there is no clientWindow, then return the top-level window.
+ *
+ * @param[in]  up        Unity/X11 context.
+ * @param[in]  windowId  Window search for.
+ * @param[out] wmWindow  Set to the relevant X11 window.
+ *
+ * @todo Consider exporting this for use in unityPlatformX11Window.c.
+ *
+ * @retval TRUE  Relevant window found and recorded in @a wmWindow.
+ * @retval FALSE Unable to find @a windowId.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GetRelevantWMWindow(UnityPlatform *up,          // IN
+                    UnityWindowId windowId,     // IN
+                    Window *wmWindow)           // OUT
+{
+   UnityPlatformWindow *upw;
+
+   ASSERT(up);
+
+   upw = UPWindow_Lookup(up, windowId);
+   if (!upw) {
+      return FALSE;
+   }
+
+   *wmWindow = upw->clientWindow ? upw->clientWindow : upw->toplevelWindow;
+   return TRUE;
+}
+
+
+/*
+ ******************************************************************************
+ * SetWindowStickiness --                                                */ /**
+ *
+ * @brief Sets or clears a window's sticky state.
+ *
+ * @param[in] up         Unity/X11 context.
+ * @param[in] windowId   Operand window.
+ * @param[in] wantSticky Set to TRUE to stick a window, FALSE to unstick it.
+ *
+ * @retval TRUE  Request successfully sent to X server.
+ * @retval FALSE Request failed.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+SetWindowStickiness(UnityPlatform *up,          // IN
+                    UnityWindowId windowId,     // IN
+                    Bool wantSticky)            // IN
+{
+   GdkWindow *gdkWindow;
+   Window curWindow;
+
+   ASSERT(up);
+
+   if (!GetRelevantWMWindow(up, windowId, &curWindow)) {
+      Debug("%s: Lookup against window %#x failed.\n", __func__, windowId);
+      return FALSE;
+   }
+
+   gdkWindow = gdk_window_foreign_new(curWindow);
+   if (gdkWindow == NULL) {
+      Debug("%s: Unable to create Gdk window?! (%#x)\n", __func__, windowId);
+      return FALSE;
+   }
+
+   if (wantSticky) {
+      gdk_window_stick(gdkWindow);
+   } else {
+      gdk_window_unstick(gdkWindow);
+   }
+
+   gdk_flush();
+   g_object_unref(G_OBJECT(gdkWindow));
+
+   return TRUE;
+}
+
+
+/*
+ *
+ * End file-scope functions.
+ ******************************************************************************
+ */
