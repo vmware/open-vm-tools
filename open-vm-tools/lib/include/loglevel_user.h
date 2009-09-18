@@ -61,6 +61,7 @@
    LOGLEVEL_VAR(hpet), \
    LOGLEVEL_VAR(extcfgdevice), \
    LOGLEVEL_VAR(flashram), \
+   LOGLEVEL_VAR(efinv), \
    LOGLEVEL_VAR(pci), \
    LOGLEVEL_VAR(pci_vide), \
    LOGLEVEL_VAR(pci_uhci), \
