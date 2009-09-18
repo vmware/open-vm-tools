@@ -1216,7 +1216,14 @@ VixToolsReadRegistry(VixCommandRequestHeader *requestMsg,  // IN
    if (VIX_PROPERTYTYPE_INTEGER == registryRequest->expectedRegistryKeyType) {
       errResult = Registry_ReadInteger(registryPathName, &valueInt);
       if (ERROR_SUCCESS != errResult) {
-         err = Vix_TranslateSystemError(errResult);
+         /*
+          * E_UNEXPECTED isn't a system err. Don't use Vix_TranslateSystemError
+          */
+         if (E_UNEXPECTED == errResult) {
+            err = VIX_E_REG_INCORRECT_VALUE_TYPE;
+         } else {
+            err = Vix_TranslateSystemError(errResult);
+         }
          goto abort;
       }
 
@@ -1228,7 +1235,14 @@ VixToolsReadRegistry(VixCommandRequestHeader *requestMsg,  // IN
    } else if (VIX_PROPERTYTYPE_STRING == registryRequest->expectedRegistryKeyType) {
       errResult = Registry_ReadString(registryPathName, &valueStr);
       if (ERROR_SUCCESS != errResult) {
-         err = Vix_TranslateSystemError(errResult);
+         /*
+          * E_UNEXPECTED isn't a system err. Don't use Vix_TranslateSystemError
+          */
+         if (E_UNEXPECTED == errResult) {
+            err = VIX_E_REG_INCORRECT_VALUE_TYPE;
+         } else {
+            err = Vix_TranslateSystemError(errResult);
+         }
          goto abort;
       }
    } else {

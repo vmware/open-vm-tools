@@ -64,6 +64,7 @@ typedef struct MonListNode {
    BOOL isPrimary;
    DWORD bpp;
    BOOL isActive;
+   uint32 srcId;
    DblLnkLst_Links l;
 } MonListNode;
 
