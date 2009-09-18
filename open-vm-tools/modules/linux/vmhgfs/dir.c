@@ -1,4 +1,3 @@
-
 /*********************************************************
  * Copyright (C) 2006 VMware, Inc. All rights reserved.
  *
