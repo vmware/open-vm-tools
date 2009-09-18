@@ -770,6 +770,17 @@ main(int argc, char *argv[])
 
    confDict = Conf_Load();
 
+   /*
+    * We depend on the window title when performing (primitive) vmware-user
+    * session detection, and unfortunately for us, GTK has a nasty habit of
+    * retitling toplevel windows.  That said, we can control GTK's default
+    * title by setting Glib's application or program name.
+    *
+    * XXX Consider using g_set_application_name("VMware User Agent") or
+    * similar.
+    */
+   g_set_prgname(VMUSER_TITLE);
+
    /* Set to system locale. */
    setlocale(LC_CTYPE, "");
    gtk_set_locale();
@@ -1084,6 +1095,10 @@ InitGroupLeader(Window *groupLeader,    // OUT: group leader window
    ASSERT(myGroupLeader);
    ASSERT(myRootWindow);
 
+   /*
+    * XXX With g_set_prgname() called from main(), this can probably go
+    * away.
+    */
    XStoreName(GDK_DISPLAY(), myGroupLeader, VMUSER_TITLE);
 
    /*
