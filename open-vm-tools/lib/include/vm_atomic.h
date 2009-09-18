@@ -973,44 +973,6 @@ Atomic_Inc(Atomic_uint32 *var) // IN
 #define Atomic_Inc32 Atomic_Inc
 
 
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Inc64 --
- *
- *      Atomic read, increment, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Inc64(Atomic_uint64 *var) // IN
-{
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; incq %0"
-      : "+m" (var->value)
-      :
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif _MSC_VER
-   _InterlockedIncrement64((__int64 *)&var->value);
-#else
-#error No compiler defined for Atomic_Inc64
-#endif
-}
-#endif
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1054,44 +1016,6 @@ Atomic_Dec(Atomic_uint32 *var) // IN
 #endif
 }
 #define Atomic_Dec32 Atomic_Dec
-
-
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Dec64 --
- *
- *      Atomic read, decrement, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Dec64(Atomic_uint64 *var) // IN
-{
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; decq %0"
-      : "+m" (var->value)
-      :
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif _MSC_VER
-   _InterlockedDecrement64((__int64 *)&var->value);
-#else
-#error No compiler defined for Atomic_Dec64
-#endif
-}
-#endif
 
 
 /*
@@ -1811,6 +1735,82 @@ Atomic_FetchAndDec64(Atomic_uint64 *var) // IN/OUT
    } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
 
    return oldVal;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Inc64 --
+ *
+ *      Atomic read, increment, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Inc64(Atomic_uint64 *var) // IN
+{
+#if !defined(__x86_64__)
+   Atomic_FetchAndInc64(var);
+#elif defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; incq %0"
+      : "+m" (var->value)
+      :
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif _MSC_VER
+   _InterlockedIncrement64((__int64 *)&var->value);
+#else
+#error No compiler defined for Atomic_Inc64
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Dec64 --
+ *
+ *      Atomic read, decrement, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Dec64(Atomic_uint64 *var) // IN
+{
+#if !defined(__x86_64__)
+   Atomic_FetchAndDec64(var);
+#elif defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; decq %0"
+      : "+m" (var->value)
+      :
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif _MSC_VER
+   _InterlockedDecrement64((__int64 *)&var->value);
+#else
+#error No compiler defined for Atomic_Dec64
+#endif
 }
 
 

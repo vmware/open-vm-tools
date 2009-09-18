@@ -37,6 +37,12 @@
 #include "util.h"
 #include "syncWaitQ.h"
 #include "posix.h"
+#include "eventfd.h"
+
+#define LOGLEVEL_MODULE syncWaitQ
+#include "loglevel_user.h"
+
+#define LGPFX "SyncWaitQ: "
 
 
 /*
@@ -169,12 +175,44 @@ SyncWaitQInit(SyncWaitQ *that)  // IN:
          (   uname(&u) == -1
           || sscanf(u.release, "%u.", &major) != 1
           || major < 9) ? WORKAROUND_YES : WORKAROUND_NO);
+      LOG(1, (LGPFX "dup() crash workaround %s\n",
+              Atomic_ReadInt(&workaround) == WORKAROUND_YES ? "activated"
+                                                            : "not necessary"));
    }
 
    ASSERT(Atomic_ReadInt(&workaround) != WORKAROUND_UNKNOWN);
 
    return Atomic_ReadInt(&workaround) == WORKAROUND_YES ?
                                   pthread_mutex_init(&that->mutex, NULL) : 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncWaitQDestroy --
+ *
+ *      If the workaround is needed, destroy the wait queue's mutex.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+SyncWaitQDestroy(SyncWaitQ *that) // IN
+{
+   ASSERT(Atomic_ReadInt(&workaround) != WORKAROUND_UNKNOWN);
+   if (Atomic_ReadInt(&workaround) == WORKAROUND_YES) {
+      int result;
+
+      result = pthread_mutex_destroy(&that->mutex);
+      ASSERT(!result);
+   }
 }
 
 
@@ -235,6 +273,32 @@ SyncWaitQUnlock(SyncWaitQ *that)  // IN:
       ASSERT(!result);
    }
 }
+
+#else
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncWaitQ{Init,Destroy,Lock,Unlock} --
+ *
+ *      Non-OS X version of dup() crash workaround.
+ *
+ * Results:
+ *      Init:         0, success
+ *      Lock,Unlock:  None.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE int SyncWaitQInit(SyncWaitQ *dummy) { return 0; }
+static INLINE void SyncWaitQDestroy(SyncWaitQ *dummy) { }
+static INLINE void SyncWaitQLock(SyncWaitQ *dummy) { }
+static INLINE void SyncWaitQUnlock(SyncWaitQ *dummy) { }
+
 #endif
 
 
@@ -274,6 +338,48 @@ SyncWaitQPanicOnFdLimit(int error)  // IN:
    default:
       break;
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncWaitQCreateNonBlockingPipe --
+ *
+ *      Creates non-blocking pipe.
+ *
+ * Results:
+ *      FALSE on sucess.
+ *      TRUE on failure.
+ *
+ * Side effects:
+ *      Panics if EMFILE or ENFILE are hit.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+SyncWaitQCreateNonBlockingPipe(int fd[2])  // OUT
+{
+   if (pipe(fd) < 0) {
+      int error = errno;
+
+      LOG(0, (LGPFX "Could not create pipe pair: %s (%d)\n",
+              strerror(error), error));
+      SyncWaitQPanicOnFdLimit(error);
+      return TRUE;
+   }
+
+   if (fcntl(fd[0], F_SETFL, O_RDONLY | O_NONBLOCK) < 0 ||
+       fcntl(fd[1], F_SETFL, O_WRONLY | O_NONBLOCK) < 0) {
+      int error = errno;
+
+      Warning("%s: fcntl failed, %s (%d)\n", __FUNCTION__, strerror(error), error);
+      close(fd[1]);
+      close(fd[0]);
+      return TRUE;
+   }
+   return FALSE;
 }
 
 
@@ -318,31 +424,47 @@ SyncWaitQ_Init(SyncWaitQ *that,   // OUT:
        * Anonymous
        */
 
-      HandlesAsI64 rwHandles;
+      int fd = eventfd(0, EFD_NONBLOCK);
 
-      if (pipe(rwHandles.fd) < 0) {
-         SyncWaitQPanicOnFdLimit(errno);
-	 return FALSE;
-      }
+      if (fd >= 0) {
+         LOG(3, (LGPFX "Queue %p uses event fd %d\n", that, fd));
+         that->usesEventFd = TRUE;
+         if (SyncWaitQInit(that)) {
+            close(fd);
+            return FALSE;
+         }
+         Atomic_Write32(&that->u.eventHandle, fd);
+      } else if (errno != ENOSYS && errno != EINVAL) {
+         int error = errno;
 
-      if (   fcntl(rwHandles.fd[0], F_SETFL, O_RDONLY | O_NONBLOCK) < 0
-          || fcntl(rwHandles.fd[1], F_SETFL, O_WRONLY | O_NONBLOCK) < 0
-#if __APPLE__
-          || SyncWaitQInit(that)
-#endif
-                                                                       ) {
-	 close(rwHandles.fd[0]);
-	 close(rwHandles.fd[1]);
-	 return FALSE;
+         LOG(2, (LGPFX "Could not allocate event fd for %p: %s (%d)\n",
+                 that, strerror(error), error));
+         SyncWaitQPanicOnFdLimit(error);
+         return FALSE;
+      } else {
+         HandlesAsI64 rwHandles;
+
+         if (SyncWaitQCreateNonBlockingPipe(rwHandles.fd)) {
+            return FALSE;
+         }
+
+         LOG(3, (LGPFX "Queue %p uses pair of pipes, %d & %d\n", that,
+                 rwHandles.fd[0], rwHandles.fd[1]));
+
+         if (SyncWaitQInit(that)) {
+            close(rwHandles.fd[0]);
+            close(rwHandles.fd[1]);
+            return FALSE;
+         }
+
+         Atomic_Write64(&that->u.pipeHandles64, rwHandles.i64);
       }
-      
-      Atomic_Write64(&that->rwHandles, rwHandles.i64);
-      that->pathName = NULL;
    } else {
       /*
        * Named
        */
 
+      LOG(3, (LGPFX "Queue %p uses base name %s\n", that, path));
       that->pathName = Util_SafeStrdup(path);
    }
 
@@ -389,6 +511,7 @@ void
 SyncWaitQ_Destroy(SyncWaitQ *that)  // IN:
 {
    if (!that->initialized) {
+      LOG(0, (LGPFX "Uninitialized queue %p is being destroyed!\n", that));
       return;
    }
 
@@ -396,21 +519,25 @@ SyncWaitQ_Destroy(SyncWaitQ *that)  // IN:
       /*
        * Anonymous
        */
-      
-      HandlesAsI64 rwHandles;
 
-      rwHandles.i64 = Atomic_Read64(&that->rwHandles);
-      close(rwHandles.fd[0]);
-      close(rwHandles.fd[1]);
-#if __APPLE__
-      ASSERT(Atomic_ReadInt(&workaround) != WORKAROUND_UNKNOWN);
-      if (Atomic_ReadInt(&workaround) == WORKAROUND_YES) {
-         int result;
+      if (that->usesEventFd) {
+         int fd;
+         int err;
 
-         result = pthread_mutex_destroy(&that->mutex);
-         ASSERT(!result);
+         fd = Atomic_Read32(&that->u.eventHandle);
+         LOG(3, (LGPFX "Destroying queue %p with event fd %d\n", that, fd));
+         err = close(fd);
+         ASSERT(err == 0);
+      } else {
+         HandlesAsI64 rwHandles;
+
+         rwHandles.i64 = Atomic_Read64(&that->u.pipeHandles64);
+         LOG(3, (LGPFX "Destroying queue %p with pipe pair %d, %d\n",
+                 that, rwHandles.fd[0], rwHandles.fd[1]));
+         close(rwHandles.fd[0]);
+         close(rwHandles.fd[1]);
       }
-#endif
+      SyncWaitQDestroy(that);
    } else {
       /*
        * Named
@@ -421,12 +548,13 @@ SyncWaitQ_Destroy(SyncWaitQ *that)  // IN:
 
       seq = Atomic_Read64(&that->seq);
       name = SyncWaitQMakeName(that->pathName, seq);
+      LOG(3, (LGPFX "Destroying queue %p with name %s\n", that, name));
       Posix_Unlink(name);
       free(name);
       free(that->pathName);
       that->pathName = NULL;
    }
-   
+
    that->initialized = FALSE;
 }
 
@@ -477,7 +605,7 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
        * Anonymous
        */
 
-      HandlesAsI64 rwHandles;
+      int fd;
 
       /*
        * XXX?
@@ -490,16 +618,28 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
        * -- Ticho 
        */
 
-      rwHandles.i64 = Atomic_Read64(&that->rwHandles);
-#if __APPLE__
+      if (that->usesEventFd) {
+         fd = Atomic_Read32(&that->u.eventHandle);
+         LOG(5, (LGPFX "Adding waiter for queue %p.  "
+                 "Current event fd is %d, sequence %"FMT64"u\n",
+                 that, fd, seq));
+      } else {
+         fd = Atomic_Read32(&that->u.pipeHandles[0]);
+         LOG(5, (LGPFX "Adding waiter for queue %p.  "
+                 "Current read pipe fd is %d, sequence %"FMT64"u\n",
+                 that, fd, seq));
+      }
       SyncWaitQLock(that);
-#endif
-      ret = dup(rwHandles.fd[0]);
-#if __APPLE__
+      ret = dup(fd);
       SyncWaitQUnlock(that);
-#endif
       if (ret < 0) {
-         SyncWaitQPanicOnFdLimit(errno);
+         int error = errno;
+
+         LOG(5, (LGPFX "Could not duplicate file descriptor %d: %s (%d)\n",
+                 fd, strerror(error), error));
+         SyncWaitQPanicOnFdLimit(error);
+      } else {
+         LOG(5, (LGPFX "Created private read descriptor %d\n", ret));
       }
    } else {
       /*
@@ -520,6 +660,10 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
        * directory. -- Ticho.
        */
 
+      LOG(5, (LGPFX "Adding waiter for queue %p.  "
+              "Current event name is %s, sequence %"FMT64"u\n",
+              that, name, seq));
+
       ret = Posix_Mkfifo(name, S_IRUSR | S_IWUSR);
       if (ret >= 0 || errno == EEXIST) {
          /*
@@ -539,8 +683,20 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
 
          ret = Posix_Open(name, O_RDONLY | O_NONBLOCK);
          if (ret < 0) {
-            SyncWaitQPanicOnFdLimit(errno);
+            int error = errno;
+
+            LOG(5, (LGPFX "Could not open named pipe: %s (%d)\n",
+                    strerror(error), error));
+            SyncWaitQPanicOnFdLimit(error);
+         } else {
+            LOG(5, (LGPFX "Created private fd %d for named pipe\n",
+                    ret));
          }
+      } else {
+         LOG_ONLY(int error = errno;)
+
+         LOG(5, (LGPFX "Problem when creating named pipe: %s (%d)\n",
+                 strerror(error), error));
       }
    }
 
@@ -556,7 +712,7 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
        * woken up handle
        */
 
-      int fd[2];
+      LOG(5, (LGPFX "Sequence number changed on queue %p\n", that));
 
       if (ret >= 0) {
 	 close(ret);
@@ -565,33 +721,42 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
          }
       }
 
-      if (pipe(fd) < 0) {
-         SyncWaitQPanicOnFdLimit(errno);
-         free(name);
-	 return -1;
-      }
+      /* Create event with initial value of 1.  Any non-zero value is good. */
+      ret = eventfd(1, EFD_NONBLOCK);
+      if (ret >= 0) {
+         /* We are done... */
+         LOG(5, (LGPFX "Created dummy event fd %d\n", ret));
+      } else if (errno != ENOSYS && errno != EINVAL) {
+         int error = errno;
 
-      if (fcntl(fd[0], F_SETFL, O_RDONLY | O_NONBLOCK) < 0 ||
-	  fcntl(fd[1], F_SETFL, O_WRONLY | O_NONBLOCK) < 0 ) {
-	 close(fd[0]);
-	 close(fd[1]);
-         free(name);
-	 return -1;
-      }
-      
-      if (write(fd[1], "X", 1) == 1) {
-         /*
-          * fd[0] now should be in a perpetual woken up state. It will be
-          * closed when the client code calls SyncWaitQ_Remove() on it.
-          */
-
-	 ret = fd[0];
+         LOG(0, (LGPFX "Could not create dummy event fd: %s (%d)\n",
+                 strerror(error), error));
+         SyncWaitQPanicOnFdLimit(error);
+         ASSERT(ret == -1);
       } else {
-         close(fd[0]);
-         ret = -1;
-      }
+         int fd[2];
 
-      close(fd[1]);
+         if (SyncWaitQCreateNonBlockingPipe(fd)) {
+            free(name);
+            return -1;
+         }
+
+         LOG(5, (LGPFX "Created dummy pipe pair %d, %d\n", fd[0], fd[1]));
+
+         if (write(fd[1], "X", 1) == 1) {
+            /*
+             * fd[0] now should be in a perpetual woken up state. It will be
+             * closed when the client code calls SyncWaitQ_Remove() on it.
+             */
+
+            ret = fd[0];
+         } else {
+            close(fd[0]);
+            ret = -1;
+         }
+
+         close(fd[1]);
+      }
    } else {
       if (ret < 0) {
          free(name);
@@ -603,7 +768,7 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
        * waiters=FALSE, even if we didn't detect that the sequence
        * number has changed. This can happen like so 
        *
-       *(T1=this thread, T2=wakeup thread):
+       * (T1=this thread, T2=wakeup thread):
        * 
        * T1: Set waiters=TRUE
        * T2: Set waiters=FALSE
@@ -627,6 +792,8 @@ SyncWaitQ_Add(SyncWaitQ *that)  // IN:
    }
 
    free(name);
+
+   LOG(4, (LGPFX "New waiter on queue %p: %d\n", that, ret));
 
    return ret;
 }
@@ -656,12 +823,16 @@ SyncWaitQ_Remove(SyncWaitQ *that,       // Unused
 {
    ASSERT(that);
    if (!that->initialized) {
+      LOG(0, (LGPFX "Poll handle %d on queue %p is released after queue is destroyed\n",
+              handle, that));
       return FALSE;
    }
 
    /*
     * The anonymous and named case are the same. -- Ticho
     */
+
+   LOG(4, (LGPFX "Destroying waiter %d on queue %p\n", handle, that));
 
    return close(handle) >= 0;
 }
@@ -699,6 +870,7 @@ SyncWaitQ_WakeUp(SyncWaitQ *that)  // IN:
 
    if (!Atomic_Read(&that->waiters)) {
       /* Fast path --hpreg */
+      LOG(4, (LGPFX "Waking up queue %p: no waiters\n", that));
       return TRUE;
    }
 
@@ -733,52 +905,75 @@ SyncWaitQ_WakeUp(SyncWaitQ *that)  // IN:
 static Bool
 SyncWaitQWakeUpAnon(SyncWaitQ *that)  // IN:
 {
-   HandlesAsI64 rwHandles, wakeupHandles;
-   int ret;
-   int error;
+   if (that->usesEventFd) {
+      int fd;
+      int ret;
+      int error;
 
-   // Create the new anonymous handle
-   if (pipe(rwHandles.fd) < 0) {
-      SyncWaitQPanicOnFdLimit(errno);
-      return FALSE;
+      fd = eventfd(0, EFD_NONBLOCK);
+      if (fd < 0) {
+         int error = errno;
+
+         LOG(1, (LGPFX "Could not create event fd while waking up queue %p: %s (%d)\n",
+                 that, strerror(error), error));
+         ASSERT(error != ENOSYS && errno != EINVAL);
+         SyncWaitQPanicOnFdLimit(error);
+         return FALSE;
+      }
+      LOG(4, (LGPFX "Queue %p woken up.  New event fd is %d\n", that, fd));
+      fd = Atomic_ReadWrite32(&that->u.eventHandle, fd);
+      Atomic_Inc64(&that->seq);
+      ret = eventfd_write(fd, 1);
+      error = errno;
+      SyncWaitQLock(that);
+      close(fd);
+      SyncWaitQUnlock(that);
+      if (ret != 0) {
+         Warning("%s: eventfd_write failed, %s (%d)\n",
+                 __FUNCTION__, strerror(ret), error);
+         return FALSE;
+      }
+   } else {
+      HandlesAsI64 rwHandles, wakeupHandles;
+      ssize_t ret;
+      int error;
+
+      /* Create the new anonymous handle. */
+      if (SyncWaitQCreateNonBlockingPipe(rwHandles.fd)) {
+         return FALSE;
+      }
+
+      /*
+       * The following statement is the demarcation line for wakeup
+       *
+       * There is a possibility for suprious wakeups if the WaitQ_Add
+       * began executing after this line but before the inc of the sequence.
+       *
+       * We assume that spurious wakups are OK.
+       */
+
+      LOG(4, (LGPFX "Queue %p woken up.  New pipe pair is %d, %d\n",
+              that, rwHandles.fd[0], rwHandles.fd[1]));
+      wakeupHandles.i64 = Atomic_ReadWrite64(&that->u.pipeHandles64, rwHandles.i64);
+      Atomic_Inc64(&that->seq);
+
+      ret = write(wakeupHandles.fd[1], "X", 1);
+      error = errno;
+      close(wakeupHandles.fd[1]);
+      SyncWaitQLock(that);
+      close(wakeupHandles.fd[0]);
+      SyncWaitQUnlock(that);
+      if (ret != 1) {
+         if (ret < 0) {
+            Warning("%s: write to pipe failed, %s (%d)\n",
+                    __FUNCTION__, strerror(error), error);
+         } else {
+            Warning("%s: write to pipe failed, %"FMTSZ"d bytes written\n",
+                    __FUNCTION__, ret);
+         }
+         return FALSE;
+      }
    }
-
-   if (fcntl(rwHandles.fd[0], F_SETFL, O_RDONLY | O_NONBLOCK) < 0 ||
-       fcntl(rwHandles.fd[1], F_SETFL, O_WRONLY | O_NONBLOCK) < 0 ) {
-      Warning("SyncWaitQWakeupAnon: fcntl failed, errno = %d\n", errno);
-      close(rwHandles.fd[0]);
-      close(rwHandles.fd[1]);
-      return FALSE;
-   }
-
-   /*
-    * The following statement is the demarcation line for wakeup
-    *
-    * There is a possibility for suprious wakeups if the WaitQ_Add
-    * began executing after this line but before the inc of the sequence.
-    * 
-    * We assume that spurious wakups are OK.
-    */
-
-   wakeupHandles.i64 = Atomic_ReadWrite64(&that->rwHandles, rwHandles.i64);
-   Atomic_FetchAndInc64(&that->seq);
-
-   ret = write(wakeupHandles.fd[1], "X", 1);
-   error = errno;
-   close(wakeupHandles.fd[1]);
-#if __APPLE__
-   SyncWaitQLock(that);
-#endif
-   close(wakeupHandles.fd[0]);
-#if __APPLE__
-   SyncWaitQUnlock(that);
-#endif
-   if (ret != 1) {
-      Warning("SyncWaitQWakeupAnon: write failed, ret = %d, errno = %d\n",
-              ret, error);
-      return FALSE;
-   }
-
    return TRUE;
 }
 
@@ -806,7 +1001,7 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)  // IN:
    uint64 seq;
    char *name;
    int wakeupHandle = -1;
-   int ret;
+   ssize_t ret;
    int error;
 
    /* The following statement is the demarcation line for wakeup */
@@ -834,10 +1029,13 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)  // IN:
        */
 
       if (error == ENXIO || error == ENOENT) {
+         LOG(4, (LGPFX "No waiters while waking up queue %p "
+                 "using name %s and sequence %"FMT64"u\n",
+                 that, that->pathName, seq));
          return TRUE;
       }
 
-      Warning("%s: open failed, errno = %d\n", __FUNCTION__, error);
+      Warning("%s: open failed, %s (%d)\n", __FUNCTION__, strerror(error), error);
       return FALSE;
    }
 
@@ -845,21 +1043,27 @@ SyncWaitQWakeUpNamed(SyncWaitQ *that)  // IN:
    error = errno;
    close(wakeupHandle);
    if (ret != 1) {
-      if (ret < 0 && error == EPIPE) {
-         /*
-          * If a waiter was signalled by another thread and the waiter
-          * just closed the read end of the pipe, we may get an EPIPE
-          * error. That's OK, because the waiter was already woken up.
-          */
+      if (ret < 0) {
+         if (error == EPIPE) {
+            /*
+             * If a waiter was signalled by another thread and the waiter
+             * just closed the read end of the pipe, we may get an EPIPE
+             * error. That's OK, because the waiter was already woken up.
+             */
 
-         return TRUE;
+            LOG(4, (LGPFX "Waiter disappeared while waking up queue %p "
+                    "using name %s and sequence %"FMT64"u\n",
+                    that, that->pathName, seq));
+            return TRUE;
+         }
+         Warning("%s: write failed, %s (%d)\n", __FUNCTION__,
+                 strerror(error), error);
+      } else {
+         Warning("%s: write failed, %"FMTSZ"d bytes written\n", __FUNCTION__, ret);
       }
-
-      Warning("%s: write failed, ret = %d, errno = %d\n", __FUNCTION__,
-              ret, error);
-
       return FALSE;
    }
-
+   LOG(4, (LGPFX "Waiters woken up on queue %p for name %s and sequence %"FMT64"u\n",
+           that, that->pathName, seq));
    return TRUE;
 }

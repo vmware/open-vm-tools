@@ -222,7 +222,7 @@
    LOGLEVEL_VAR(win32util), \
    LOGLEVEL_VAR(largepage), \
    LOGLEVEL_VAR(guestAppMonitor), \
-
+   LOGLEVEL_VAR(syncWaitQ), \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 

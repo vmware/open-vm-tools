@@ -76,10 +76,14 @@ typedef struct SyncWaitQ {
 
    // Whether the waitqueue has been initialized;
    Bool            initialized;
-   // A unique sequence number of the queue
-   Atomic_uint64   seq;
+#ifndef _WIN32
+   // Whether queue uses eventfd or pipe
+   Bool            usesEventFd;
+#endif
    // Whether there are any waiters on this queue
    Atomic_uint32   waiters;
+   // A unique sequence number of the queue
+   Atomic_uint64   seq;
 
    /*
     * Members used in case of named objects
@@ -94,15 +98,20 @@ typedef struct SyncWaitQ {
     *
     * On Win32 the readHandle is a handle to an event object
     *
-    * On Posix the rwHandles are the read and write ends of an anonymous pipe
+    * On Posix the rwHandles are the read and write ends of an anonymous pipe,
+    *          or eventfd handle.
     *
     *    -- Ticho 
     */
    
 #ifdef _WIN32
    Atomic_uint64 readHandle;
-#else 
-   Atomic_uint64 rwHandles;
+#else
+   union {
+      Atomic_uint64 pipeHandles64;
+      Atomic_uint32 pipeHandles[2];
+      Atomic_uint32 eventHandle;
+                  } u;
 #   if __APPLE__
    pthread_mutex_t mutex;
 #   endif

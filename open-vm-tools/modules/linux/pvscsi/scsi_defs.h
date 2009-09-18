@@ -245,6 +245,8 @@
 #define SCSI_ASC_LU_NOT_SUPPORTED                              0x25  // LU has been removed
 #define SCSI_ASC_INVALID_FIELD_IN_PARAMETER_LIST               0x26
 #define SCSI_ASC_WRITE_PROTECTED                               0x27  // device is write protected
+// Thin provisioning extention 07/27/07 approved in spc4r20a
+#define SCSI_ASC_WRITE_PROTECTED_ASCQ_SPACE_ALLOCATION_FAILED  0x07
 #define SCSI_ASC_MEDIUM_MAY_HAVE_CHANGED                       0x28  // after changing medium
 #define SCSI_ASC_POWER_ON_OR_RESET                             0x29  // device power-on or SCSI reset
 #define SCSI_ASC_ASYMMETRIC_ACCESS_STATE_CHANGED               0x2a

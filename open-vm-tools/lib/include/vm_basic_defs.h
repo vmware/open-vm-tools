@@ -657,40 +657,4 @@ typedef int pid_t;
 #define hosted_lg_pg 0
 #endif
 
-/*
- ***********************************************************************
- * STRUCT_OFFSET_CHECK --                                    */ /**
- *
- * \brief Check if the actual offsef of a member in a structure
- *        is what is expected
- *
- *
- * \param[in]  STRUCT       Structure the member is a part of.
- * \param[in]  MEMBER       Member to check the offset of.
- * \param[in]  OFFSET       Expected offset of MEMBER in STRUCTURE.
- * \param[in]  EXTRA        Additional bytes to be added to OFFSET to
- *                          compensate for extra info (eg. debug info)
- *
- ***********************************************************************
- */
-#define STRUCT_OFFSET_CHECK(STRUCT, MEMBER, OFFSET, EXTRA) \
-  ASSERT_ON_COMPILE(vmk_offsetof(STRUCT, MEMBER) == (OFFSET + EXTRA))
-
-/*
- ***********************************************************************
- * STRUCT_SIZE_CHECK --                                      */ /**
- *
- * \brief Check if the actual size of a structure is what is expected
- *
- *
- * \param[in]  STRUCT       Structure whose size is to be checked.
- * \param[in]  SIZE         Expected size of STRUCT.
- * \param[in]  EXTRA        Additional bytes to be added to SIZE to
- *                          compensate for extra info (eg. debug info)
- *
- ***********************************************************************
- */
-#define STRUCT_SIZE_CHECK(STRUCT, SIZE, EXTRA) \
-  ASSERT_ON_COMPILE(sizeof(STRUCT) == (SIZE + EXTRA))
-
 #endif // ifndef _VM_BASIC_DEFS_H_
