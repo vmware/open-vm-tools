@@ -292,8 +292,9 @@ FLAGDEFA(  1, ECX, INTEL,  1,   1, PCLMULQDQ,           YES, TRUE, PCLMULQDQ)  \
 FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               ANY, FALSE, MWAIT)     \
 FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  FALSE, DSCPL)     \
-FLAGDEFA(  1, ECX, INTEL,  5,   1, VMX,                 NO,  FALSE, VMX)       \
-FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  FALSE) \
+FLAGDEFA(  1, ECX, INTEL,  5,   1, VMX,                 YES, FALSE, VMX)       \
+FLAGDEF(   1, ECX, VIA,    5,   1, VMX,                 YES, FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  7,   1, EST,                 NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  8,   1, TM2,                 NO,  FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 9,   1, SSSE3,               YES, TRUE,  SSSE3)     \
@@ -422,7 +423,7 @@ FIELDDEF( 81, EBX, AMD,     0, 16, BRAND_ID,            ANY, FALSE)            \
 FIELDDEF( 81, EBX, AMD,    16, 16, UNDEF,               ANY, FALSE)            \
 FLAGDEFA( 81, ECX, COMMON,  0,  1, LAHF,                YES, TRUE,  LAHF64)    \
 FLAGDEFA( 81, ECX, AMD,     1,  1, CMPLEGACY,           NO,  FALSE, CMPLEGACY) \
-FLAGDEFA( 81, ECX, AMD,     2,  1, SVM,                 NO,  FALSE, SVM)       \
+FLAGDEFA( 81, ECX, AMD,     2,  1, SVM,                 YES, FALSE, SVM)       \
 FLAGDEFA( 81, ECX, AMD,     3,  1, EXTAPICSPC,          YES, FALSE, EXTAPICSPC) \
 FLAGDEFA( 81, ECX, AMD,     4,  1, CR8AVAIL,            NO,  FALSE, CR8AVAIL)  \
 FLAGDEFA( 81, ECX, AMD,     5,  1, ABM,                 YES, TRUE,  ABM)       \
