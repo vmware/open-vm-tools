@@ -1040,7 +1040,7 @@ static void pvscsi_msg_workqueue_handler(compat_work_arg data)
 {
 	struct pvscsi_adapter *adapter;
 
-	adapter = COMPAT_WORK_GET_DATA(data, struct pvscsi_adapter);
+	adapter = COMPAT_WORK_GET_DATA(data, struct pvscsi_adapter, work);
 
 	pvscsi_process_msg_ring(adapter);
 }

@@ -43,7 +43,8 @@ Bool GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
 
 GuestNicV3 *GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                    // IN/OUT
                                  const char macAddress[NICINFO_MAC_LEN], // IN
-                                 DnsConfigInfo *dnsInfo);               // IN
+                                 DnsConfigInfo *dnsInfo,                // IN
+                                 WinsConfigInfo *winsInfo);             // IN
 
 IpAddressEntry *GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OUT
                                       const struct sockaddr *sockAddr,  // IN

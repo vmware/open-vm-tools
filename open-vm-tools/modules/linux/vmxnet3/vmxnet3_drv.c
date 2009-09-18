@@ -4198,7 +4198,7 @@ vmxnet3_reset_work(compat_work_arg data)
 {
    struct vmxnet3_adapter *adapter;
    
-   adapter = COMPAT_WORK_GET_DATA(data, struct vmxnet3_adapter);
+   adapter = COMPAT_WORK_GET_DATA(data, struct vmxnet3_adapter, work);
    
    /* if another thread is resetting the device, no need to proceed */
    if (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state)) {

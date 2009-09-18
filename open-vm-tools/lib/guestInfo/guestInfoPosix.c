@@ -259,7 +259,7 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
 
       Str_Sprintf(macAddress, sizeof macAddress, "%s",
                   addr_ntoa(&entry->intf_link_addr));
-      nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL);
+      nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
       ASSERT_MEM_ALLOC(nic);
 
       /* Record the "primary" address. */

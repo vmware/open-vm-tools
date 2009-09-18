@@ -64,10 +64,11 @@ typedef struct FoundryWorkerThread {
    void                    *threadParam;
    const char              *threadName;
 } FoundryWorkerThread;
+   
+#define VIX_ENABLE_EXTERNAL_THREAD_INTERFACE \
+  "vix.enableExternalThreadInterface"
 
-
-
-
+void VixThreadConfig(Bool enableExternalThreadInterface);
 
 #ifdef __cplusplus
 } // extern "C" {

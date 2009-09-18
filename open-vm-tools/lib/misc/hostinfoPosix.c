@@ -1601,11 +1601,9 @@ Hostinfo_TouchBackDoor(void)
     * XXX: This can cause Apple's Crash Reporter to erroneously display
     * a crash, even though the process has caught the SIGILL and handled
     * it.
-    *
-    * It's also annoying in gdb, so we'll turn it off in devel builds.
     */
 
-#if !defined(__APPLE__) && !defined(VMX86_DEVEL)
+#if !defined(__APPLE__)
    uint32 eax;
    uint32 ebx;
    uint32 ecx;

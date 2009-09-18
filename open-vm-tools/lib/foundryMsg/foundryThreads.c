@@ -41,6 +41,7 @@
 #include "str.h"
 #include "msg.h"
 
+
 #if _WIN32
 #include <objbase.h.> // For CoInitializeEx
 static DWORD WINAPI FoundryThreadWrapperProc(LPVOID lpParameter);
@@ -52,6 +53,92 @@ static void *FoundryThreadWrapperProc(void *lpParameter);
 #endif
 #endif
 
+typedef void (*VixThreadFuncType)(void *);
+typedef void (*VixScheduleWorkFuncType)(VixThreadFuncType, void *);
+
+typedef struct IVixThread {
+   VixScheduleWorkFuncType ScheduleWorkFunc;
+} IVixThread;
+
+void Vix_SetExternalThreadInterface(IVixThread *threadInt);
+
+static void FoundryThreadWrapperWrapper(void *);
+
+static IVixThread *GlobalVixThreadInterface = NULL;
+
+static Bool GlobalEnableExternalThreadInterface = TRUE;
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UseExternalThreadInterface --
+ *
+ *      Check if we should use the external thread interface
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool UseExternalThreadInterface(void)
+{
+   return GlobalEnableExternalThreadInterface &&
+      (GlobalVixThreadInterface != NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixThreadConfig --
+ *
+ *      Set whether to enable the use of external thread interface
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void 
+VixThreadConfig(Bool enableExternalThreadInterface)
+{
+   GlobalEnableExternalThreadInterface = enableExternalThreadInterface;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Vix_SetExternalThreadInterface --
+ *
+ *      Set the thread interface that foundry uses to schedule work item.
+ *      If the exnternal thread interface, foundry creates native thread
+ *      to run work item that may block.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Vix_SetExternalThreadInterface(IVixThread *threadInt) // IN
+{
+   ASSERT(threadInt->ScheduleWorkFunc);
+   GlobalVixThreadInterface = threadInt;
+} 
 
 /*
  *-----------------------------------------------------------------------------
@@ -87,6 +174,12 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
    threadState->threadProc = proc;
    threadState->threadParam = threadParam;
    threadState->threadName = threadName;
+
+   if (UseExternalThreadInterface()) {
+      (*GlobalVixThreadInterface->ScheduleWorkFunc)(
+         FoundryThreadWrapperWrapper, threadState);
+      goto abort;
+   }
 
 #ifdef _WIN32
    threadState->threadHandle = CreateThread(NULL,
@@ -159,6 +252,19 @@ FoundryThreads_StopThread(FoundryWorkerThread *threadState)    // IN
       return;
    }
 
+   if (UseExternalThreadInterface()) {
+      /*
+       * It seems that if we got here the thread must have finished.
+       * Kill a thread in the middle of its running is a bad design
+       * by itself.
+       * Join a thread could block the poll thread, which is also bad.
+       * perhaps add a member in threadState to say "done", and
+       * assert on that.
+       */
+      FoundryThreads_Free(threadState);
+      return;
+   }
+
    /*
     * Stop the thread.
     */
@@ -199,13 +305,16 @@ void
 FoundryThreads_Free(FoundryWorkerThread *threadState)    // IN
 {
    if (NULL != threadState) {
+      if (! UseExternalThreadInterface()) {
+
 #ifdef _WIN32
       CloseHandle(threadState->threadHandle);
       threadState->threadHandle = NULL;
 #else
       threadState->threadInfo = 0;
 #endif
-
+      }
+      
       free(threadState);
    }
 }
@@ -240,6 +349,31 @@ FoundryThreads_IsCurrentThread(struct FoundryWorkerThread *threadState)     // I
 #endif
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FoundryThreadWrapperWrapper --
+ *
+ *      Adaptor function to help schedule work item.
+ *      Since we are not using the return result in FoundryThreadWrapperProc.
+ *      and hostd thread interface cannot provide a return result.
+ *      so we just discard the return result.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+FoundryThreadWrapperWrapper(void *data)
+{
+   FoundryThreadWrapperProc(data);
+}
 
 /*
  *-----------------------------------------------------------------------------

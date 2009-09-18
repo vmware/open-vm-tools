@@ -1376,7 +1376,7 @@ VSockVmciRecvPktWork(compat_work_arg work)  // IN
    VSockVmciSock *vsk;
    struct sock *sk;
 
-   recvPktInfo = COMPAT_WORK_GET_DATA(work, VSockRecvPktInfo);
+   recvPktInfo = COMPAT_WORK_GET_DATA(work, VSockRecvPktInfo, work);
    ASSERT(recvPktInfo);
 
    err = 0;

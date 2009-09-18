@@ -278,9 +278,10 @@ out:
  * @param[in,out] nicInfo     List of NICs.
  * @param[in]     macAddress  MAC address of new NIC.
  * @param[in]     dnsInfo     Per-NIC DNS config state.
+ * @param[in]     winsInfo    Per-NIC WINS config state.
  *
- * @note The returned GuestNic will take ownership of @a dnsInfo.  The caller
- *       must not free it directly.
+ * @note The returned GuestNic will take ownership of @a dnsInfo and
+ *       @a winsInfo  The caller must not free it directly.
  *
  * @return Pointer to the new NIC.
  *
@@ -290,7 +291,8 @@ out:
 GuestNicV3 *
 GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                       // IN/OUT
                      const char macAddress[NICINFO_MAC_LEN],   // IN
-                     DnsConfigInfo *dnsInfo)                   // IN
+                     DnsConfigInfo *dnsInfo,                   // IN
+                     WinsConfigInfo *winsInfo)                 // IN
 {
    GuestNicV3 *newNic;
 
@@ -299,6 +301,7 @@ GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                       // IN/OUT
 
    newNic->macAddress = Util_SafeStrdup(macAddress);
    newNic->dnsConfigInfo = dnsInfo;
+   newNic->winsConfigInfo = winsInfo;
 
    return newNic;
 }
