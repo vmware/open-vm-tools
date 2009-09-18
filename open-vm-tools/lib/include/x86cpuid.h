@@ -106,8 +106,8 @@ CPUIDQuery;
  * 
  * The first parameter defines whether the level is masked/tested
  * during power-on/migration.  Any level which is marked as FALSE here
- * *must* have all field masks defined as IGNORE in CPUID_FIELD_DATA.
- * A static assert in lib/cpuidcompat/cpuidcompat.c will check this.
+ * *must* have all monitor support types set to NA.  A static assert
+ * in lib/cpuidcompat/cpuidcompat.c will check this.
  */
 
 #define CPUID_CACHED_LEVELS                     \
@@ -190,67 +190,72 @@ typedef enum {
 /*
  * FIELDDEF can be defined to process the CPUID information provided
  * in the following CPUID_FIELD_DATA macro.  The first parameter is
- * the CPUID level of the feature (must be defined in CPUID_*_LEVELS.
- * The second parameter is the register the field is contained in
- * (defined in CPUID_REGS).  The third field is the vendor this
- * feature applies to.  "COMMON" means all vendors apply.  UNKNOWN may
- * not be used here.  The fourth and fifth parameters are the bit
- * position of the field and the width, respectively.  The sixth is
- * the text name of the field.
+ * the CPUID level of the feature (must be defined in
+ * CPUID_ALL_LEVELS, above.  The second parameter is the CPUID result
+ * register in which the field is returned (defined in CPUID_REGS).
+ * The third field is the vendor(s) this feature applies to.  "COMMON"
+ * means all vendors apply.  UNKNOWN may not be used here.  The fourth
+ * and fifth parameters are the bit position of the field and the
+ * width, respectively.  The sixth is the text name of the field.
  *
- * The seventh and eighth parameters specify the default CPUID
- * behavior for power-on, guest view, and migration tests (cpt/rsm &
- * vmotion).  The eighth parameter is ignored for types other than
- * MASK & TEST, and must be zero in this case.
+ * The seventh parameters specifies the monitor support
+ * characteristics for this field.  The value must be a valid
+ * CpuidFieldSupported value (omitting CPUID_FIELD_SUPPORT_ for
+ * convenience).  The meaning of those values are described below.
  *
- * When adding a new field, be sure to consider its purpose.  The
- * following list of types is provided in order of likely use.
+ * The eighth parameter describes whether the feature is capable of
+ * being used by usermode code (TRUE), or just CPL0 kernel code
+ * (FALSE).
  *
- * NOTE: this form of representation is separate from the masking
- * system specified via the config file.  That is because this
- * representation must take into account multi-bit fields.
- *
- * HOST    - Passthrough host value and cannot change during migration.
- * MASK, 0 - Hide from the guest, because we don't support it or we
- *           don't want the guest to know that it exists.
- * IGNORE  - Ignore this field for all tests
- *
- *    (Think twice before using the below mask types/combinations)
- *
- * MASK, x - Force the guest to always see x, and don't compare for
- *           migration -- only APIC as of today; it is controlled by
- *           software and we know how to toggle it
- * TEST, x - Require host CPUID field to be x for power-on
- * RSVD    - Hidden from the guest, but compared during migration
- *
- *
- * Table to explain mask type meanings:
- *
- *                         IGNR   MASK   TEST   HOST   RSVD
- * --------------------------------------------------------
- * Req'd val for power-on   -      -      x      -      -
- * Value guest sees         *      x      *      *      0
- * Checked on migration?    N      N      Y      Y      Y
- *
- * * - initial host's power-on CPUID value
- *
- * FIELDDEFA takes a ninth parameter, the name used when creating
+ * FIELDDEFA takes a ninth parameter: the name used when generating
  * accessor functions in lib/public/cpuidInfoFuncs.h.
  *
  * FLAGDEF/FLAGDEFA is defined identically to fields, but their
- * accessors are more appropriate for 1-bit flags.
+ * accessors are more appropriate for 1-bit flags, and compile-time
+ * asserts enforce that the size is 1 bit wide.
  */
 
-typedef enum {
-   CPUID_FIELD_MASK_IGNORE,
-   CPUID_FIELD_MASK_MASK,
-   CPUID_FIELD_MASK_TEST,
-   CPUID_FIELD_MASK_HOST,
-   CPUID_FIELD_MASK_RSVD,
-   CPUID_NUM_FIELD_MASKS
-} CpuidFieldMasks;
 
-
+/*
+ * CpuidFieldSupported is made up of the following values:
+ *
+ *     NO: A feature/field that IS NOT SUPPORTED by the monitor.  Even
+ *     if the host supports this feature, we will never expose it to
+ *     the guest.
+ *
+ *     YES: A feature/field that IS SUPPORTED by the monitor.  If the
+ *     host supports this feature, we will expose it to the guest.  If
+ *     not, then we will not set the feature.
+ *
+ *     ANY: A feature/field that IS ALWAYS SUPPORTED by the monitor.
+ *     Even if the host does not support the feature, the monitor can
+ *     expose the feature to the guest.
+ *
+ *     NA: Only legal for levels not masked/tested by default (see
+ *     above for this definition).  Such fields must always be marked
+ *     as NA.
+ *
+ * These distinctions, when combined with the feature's CPL3
+ * properties can be translated into a common CPUID mask string as
+ * follows:
+ *
+ *     NO + CPL3 --> "R" (Reserved).  We don't support the feature,
+ *     but we can't properly hide this from applications when using
+ *     direct execution or HV with apps that do try/catch/fail, so we
+ *     must still perform compatibility checks.
+ *
+ *     NO + !CPL3 --> "0" (Masked).  We can hide this from the guest.
+ *
+ *     YES --> "H" (Host).  We support the feature, so show it to the
+ *     guest if the host has the feature.
+ *
+ *     ANY/NA --> "X" (Ignore).  By default, don't perform checks for
+ *     this feature bit.  Per-GOS masks may choose to set this bit in
+ *     the guest.  (e.g. the APIC feature bit is always set to 1.)
+ *
+ *     See lib/cpuidcompat/cpuidcompat.c for any possible overrides to
+ *     these defaults.
+ */
 typedef enum {
    CPUID_FIELD_SUPPORTED_NO,
    CPUID_FIELD_SUPPORTED_YES,
@@ -260,220 +265,220 @@ typedef enum {
 } CpuidFieldSupported;
 
 
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_0                                               \
-FIELDDEF(  0, EAX, COMMON,  0, 32, NUMLEVELS,           ANY, IGNORE, 0, FALSE)     \
-FIELDDEF(  0, EBX, COMMON,  0, 32, VENDOR1,             YES, HOST,   0, TRUE)      \
-FIELDDEF(  0, ECX, COMMON,  0, 32, VENDOR3,             YES, HOST,   0, TRUE)      \
-FIELDDEF(  0, EDX, COMMON,  0, 32, VENDOR2,             YES, HOST,   0, TRUE)
+FIELDDEF(  0, EAX, COMMON,  0, 32, NUMLEVELS,           ANY, FALSE)     \
+FIELDDEF(  0, EBX, COMMON,  0, 32, VENDOR1,             YES, TRUE)      \
+FIELDDEF(  0, ECX, COMMON,  0, 32, VENDOR3,             YES, TRUE)      \
+FIELDDEF(  0, EDX, COMMON,  0, 32, VENDOR2,             YES, TRUE)
                                                         
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_1                                               \
-FIELDDEFA( 1, EAX, COMMON,  0,  4, STEPPING,            ANY, IGNORE, 0, FALSE, STEPPING)  \
-FIELDDEFA( 1, EAX, COMMON,  4,  4, MODEL,               ANY, IGNORE, 0, FALSE, MODEL)     \
-FIELDDEFA( 1, EAX, COMMON,  8,  4, FAMILY,              YES, HOST,   0, FALSE, FAMILY)    \
-FIELDDEF(  1, EAX, COMMON, 12,  2, TYPE,                ANY, IGNORE, 0, FALSE)            \
-FIELDDEFA( 1, EAX, COMMON, 16,  4, EXTMODEL,            ANY, IGNORE, 0, FALSE, EXT_MODEL) \
-FIELDDEFA( 1, EAX, COMMON, 20,  8, EXTFAMILY,           YES, HOST,   0, FALSE, EXT_FAMILY) \
-FIELDDEF(  1, EBX, COMMON,  0,  8, BRAND_ID,            ANY, IGNORE, 0, FALSE)            \
-FIELDDEF(  1, EBX, COMMON,  8,  8, CLFL_SIZE,           ANY, IGNORE, 0, FALSE)            \
-FIELDDEFA( 1, EBX, COMMON, 16,  8, LCPU_COUNT,          ANY, IGNORE, 0, FALSE, LCPU_COUNT) \
-FIELDDEFA( 1, EBX, COMMON, 24,  8, APICID,              ANY, IGNORE, 0, FALSE, APICID)    \
-FLAGDEFA(  1, ECX, COMMON, 0,   1, SSE3,                YES, HOST,   0, TRUE,  SSE3)      \
-FLAGDEFA(  1, ECX, INTEL,  1,   1, PCLMULQDQ,           YES, HOST,   0, TRUE, PCLMULQDQ)  \
-FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  MASK,   0, FALSE)            \
-FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               ANY, MASK,   0, FALSE, MWAIT)     \
-FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  MASK,   0, FALSE, DSCPL)     \
-FLAGDEFA(  1, ECX, INTEL,  5,   1, VMX,                 NO,  MASK,   0, FALSE, VMX)       \
-FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  MASK,   0, FALSE) \
-FLAGDEF(   1, ECX, INTEL,  7,   1, EST,                 NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  8,   1, TM2,                 NO,  MASK,   0, FALSE)            \
-FLAGDEFA(  1, ECX, COMMON, 9,   1, SSSE3,               YES, HOST,   0, TRUE,  SSSE3)     \
-FLAGDEF(   1, ECX, INTEL,  10,  1, HTCACHE,             NO,  MASK,   0, FALSE)            \
-FLAGDEFA(  1, ECX, COMMON, 13,  1, CMPX16,              YES, HOST,   0, TRUE,  CMPX16)    \
-FLAGDEF(   1, ECX, INTEL,  14,  1, xPPR,                NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  15,  1, PERF_MSR,            NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  18,  1, DCA,                 NO,  MASK,   0, FALSE)            \
-FLAGDEFA(  1, ECX, INTEL,  19,  1, SSE41,               YES, HOST,   0, TRUE,  SSE41)     \
-FLAGDEFA(  1, ECX, INTEL,  20,  1, SSE42,               YES, HOST,   0, TRUE,  SSE42)     \
-FLAGDEF(   1, ECX, INTEL,  21,  1, X2APIC,              NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  22,  1, MOVBE,               NO,  RSVD,   0, TRUE)             \
-FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, HOST,   0, TRUE,  POPCNT)    \
-FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  RSVD,   0, TRUE)             \
-FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, HOST,   0, TRUE, AES)        \
-FLAGDEF(   1, ECX, INTEL,  26,  1, XSAVE,               NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  27,  1, OSXSAVE,             NO,  RSVD,   0, TRUE)             \
-FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, IGNORE, 0, FALSE, HYPERVISOR)\
-FLAGDEFA(  1, EDX, COMMON, 0,   1, FPU,                 YES, HOST,   0, TRUE, FPU)        \
-FLAGDEFA(  1, EDX, COMMON, 1,   1, VME,                 YES, HOST,   0, FALSE, VME)       \
-FLAGDEF(   1, EDX, COMMON, 2,   1, DBGE,                YES, HOST,   0, FALSE)            \
-FLAGDEF(   1, EDX, COMMON, 3,   1, PGSZE,               YES, HOST,   0, FALSE)            \
-FLAGDEFA(  1, EDX, COMMON, 4,   1, TSC,                 YES, HOST,   0, TRUE, TSC)        \
-FLAGDEF(   1, EDX, COMMON, 5,   1, MSR,                 YES, HOST,   0, FALSE)            \
-FLAGDEFA(  1, EDX, COMMON, 6,   1, PAE,                 YES, HOST,   0, FALSE, PAE)       \
-FLAGDEF(   1, EDX, COMMON, 7,   1, MCK,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(   1, EDX, COMMON, 8,   1, CPMX,                YES, HOST,   0, TRUE)             \
-FLAGDEFA(  1, EDX, COMMON, 9,   1, APIC,                ANY, MASK,   1, FALSE, APIC)      \
-FLAGDEFA(  1, EDX, COMMON, 11,  1, SEP,                 YES, HOST,   0, TRUE,  SEP)       \
-FLAGDEFA(  1, EDX, COMMON, 12,  1, MTRR,                YES, HOST,   0, FALSE, MTRR)      \
-FLAGDEFA(  1, EDX, COMMON, 13,  1, PGE,                 YES, HOST,   0, FALSE, PGE)       \
-FLAGDEFA(  1, EDX, COMMON, 14,  1, MCA,                 YES, HOST,   0, FALSE, MCA)       \
-FLAGDEFA(  1, EDX, COMMON, 15,  1, CMOV,                YES, HOST,   0, TRUE,  CMOV)      \
-FLAGDEFA(  1, EDX, COMMON, 16,  1, PAT,                 YES, HOST,   0, FALSE, PAT)       \
-FLAGDEF(   1, EDX, COMMON, 17,  1, 36PG,                YES, HOST,   0, FALSE)            \
-FLAGDEF(   1, EDX, INTEL,  18,  1, PSN,                 YES, HOST,   0, FALSE)            \
-FLAGDEFA(  1, EDX, COMMON, 19,  1, CLFL,                YES, HOST,   0, TRUE,  CLFL)      \
-FLAGDEF(   1, EDX, INTEL,  21,  1, DTES,                YES, HOST,   0, FALSE)            \
-FLAGDEF(   1, EDX, INTEL,  22,  1, ACPI,                YES, HOST,   0, FALSE)            \
-FLAGDEFA(  1, EDX, COMMON, 23,  1, MMX,                 YES, HOST,   0, TRUE,  MMX)       \
-FLAGDEFA(  1, EDX, COMMON, 24,  1, FXSAVE,              YES, HOST,   0, TRUE,  FXSAVE)    \
-FLAGDEFA(  1, EDX, COMMON, 25,  1, SSE,                 YES, HOST,   0, TRUE,  SSE)       \
-FLAGDEFA(  1, EDX, COMMON, 26,  1, SSE2,                YES, HOST,   0, TRUE,  SSE2)      \
-FLAGDEF(   1, EDX, INTEL,  27,  1, SS,                  YES, HOST,   0, FALSE)            \
-FLAGDEFA(  1, EDX, COMMON, 28,  1, HT,                  NO,  MASK,   0, FALSE, HT)        \
-FLAGDEF(   1, EDX, INTEL,  29,  1, TM,                  NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, EDX, INTEL,  30,  1, IA64,                NO,  MASK,   0, FALSE)            \
-FLAGDEF(   1, EDX, INTEL,  31,  1, PBE,                 NO,  MASK,   0, FALSE)
+FIELDDEFA( 1, EAX, COMMON,  0,  4, STEPPING,            ANY, FALSE, STEPPING)  \
+FIELDDEFA( 1, EAX, COMMON,  4,  4, MODEL,               ANY, FALSE, MODEL)     \
+FIELDDEFA( 1, EAX, COMMON,  8,  4, FAMILY,              YES, FALSE, FAMILY)    \
+FIELDDEF(  1, EAX, COMMON, 12,  2, TYPE,                ANY, FALSE)            \
+FIELDDEFA( 1, EAX, COMMON, 16,  4, EXTMODEL,            ANY, FALSE, EXT_MODEL) \
+FIELDDEFA( 1, EAX, COMMON, 20,  8, EXTFAMILY,           YES, FALSE, EXT_FAMILY) \
+FIELDDEF(  1, EBX, COMMON,  0,  8, BRAND_ID,            ANY, FALSE)            \
+FIELDDEF(  1, EBX, COMMON,  8,  8, CLFL_SIZE,           ANY, FALSE)            \
+FIELDDEFA( 1, EBX, COMMON, 16,  8, LCPU_COUNT,          ANY, FALSE, LCPU_COUNT) \
+FIELDDEFA( 1, EBX, COMMON, 24,  8, APICID,              ANY, FALSE, APICID)    \
+FLAGDEFA(  1, ECX, COMMON, 0,   1, SSE3,                YES, TRUE,  SSE3)      \
+FLAGDEFA(  1, ECX, INTEL,  1,   1, PCLMULQDQ,           YES, TRUE, PCLMULQDQ)  \
+FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  FALSE)            \
+FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               ANY, FALSE, MWAIT)     \
+FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  FALSE, DSCPL)     \
+FLAGDEFA(  1, ECX, INTEL,  5,   1, VMX,                 NO,  FALSE, VMX)       \
+FLAGDEF(   1, ECX, INTEL,  6,   1, SMX,                 NO,  FALSE) \
+FLAGDEF(   1, ECX, INTEL,  7,   1, EST,                 NO,  FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  8,   1, TM2,                 NO,  FALSE)            \
+FLAGDEFA(  1, ECX, COMMON, 9,   1, SSSE3,               YES, TRUE,  SSSE3)     \
+FLAGDEF(   1, ECX, INTEL,  10,  1, HTCACHE,             NO,  FALSE)            \
+FLAGDEFA(  1, ECX, COMMON, 13,  1, CMPX16,              YES, TRUE,  CMPX16)    \
+FLAGDEF(   1, ECX, INTEL,  14,  1, xPPR,                NO,  FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  15,  1, PERF_MSR,            NO,  FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  18,  1, DCA,                 NO,  FALSE)            \
+FLAGDEFA(  1, ECX, INTEL,  19,  1, SSE41,               YES, TRUE,  SSE41)     \
+FLAGDEFA(  1, ECX, INTEL,  20,  1, SSE42,               YES, TRUE,  SSE42)     \
+FLAGDEF(   1, ECX, INTEL,  21,  1, X2APIC,              NO,  FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  22,  1, MOVBE,               NO,  TRUE)             \
+FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, TRUE,  POPCNT)    \
+FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  TRUE)             \
+FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, TRUE, AES)        \
+FLAGDEF(   1, ECX, INTEL,  26,  1, XSAVE,               NO,  FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  27,  1, OSXSAVE,             NO,  TRUE)             \
+FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, FALSE, HYPERVISOR)\
+FLAGDEFA(  1, EDX, COMMON, 0,   1, FPU,                 YES, TRUE, FPU)        \
+FLAGDEFA(  1, EDX, COMMON, 1,   1, VME,                 YES, FALSE, VME)       \
+FLAGDEF(   1, EDX, COMMON, 2,   1, DBGE,                YES, FALSE)            \
+FLAGDEF(   1, EDX, COMMON, 3,   1, PGSZE,               YES, FALSE)            \
+FLAGDEFA(  1, EDX, COMMON, 4,   1, TSC,                 YES, TRUE, TSC)        \
+FLAGDEF(   1, EDX, COMMON, 5,   1, MSR,                 YES, FALSE)            \
+FLAGDEFA(  1, EDX, COMMON, 6,   1, PAE,                 YES, FALSE, PAE)       \
+FLAGDEF(   1, EDX, COMMON, 7,   1, MCK,                 YES, FALSE)            \
+FLAGDEF(   1, EDX, COMMON, 8,   1, CPMX,                YES, TRUE)             \
+FLAGDEFA(  1, EDX, COMMON, 9,   1, APIC,                ANY, FALSE, APIC)      \
+FLAGDEFA(  1, EDX, COMMON, 11,  1, SEP,                 YES, TRUE,  SEP)       \
+FLAGDEFA(  1, EDX, COMMON, 12,  1, MTRR,                YES, FALSE, MTRR)      \
+FLAGDEFA(  1, EDX, COMMON, 13,  1, PGE,                 YES, FALSE, PGE)       \
+FLAGDEFA(  1, EDX, COMMON, 14,  1, MCA,                 YES, FALSE, MCA)       \
+FLAGDEFA(  1, EDX, COMMON, 15,  1, CMOV,                YES, TRUE,  CMOV)      \
+FLAGDEFA(  1, EDX, COMMON, 16,  1, PAT,                 YES, FALSE, PAT)       \
+FLAGDEF(   1, EDX, COMMON, 17,  1, 36PG,                YES, FALSE)            \
+FLAGDEF(   1, EDX, INTEL,  18,  1, PSN,                 YES, FALSE)            \
+FLAGDEFA(  1, EDX, COMMON, 19,  1, CLFL,                YES, TRUE,  CLFL)      \
+FLAGDEF(   1, EDX, INTEL,  21,  1, DTES,                YES, FALSE)            \
+FLAGDEF(   1, EDX, INTEL,  22,  1, ACPI,                YES, FALSE)            \
+FLAGDEFA(  1, EDX, COMMON, 23,  1, MMX,                 YES, TRUE,  MMX)       \
+FLAGDEFA(  1, EDX, COMMON, 24,  1, FXSAVE,              YES, TRUE,  FXSAVE)    \
+FLAGDEFA(  1, EDX, COMMON, 25,  1, SSE,                 YES, TRUE,  SSE)       \
+FLAGDEFA(  1, EDX, COMMON, 26,  1, SSE2,                YES, TRUE,  SSE2)      \
+FLAGDEF(   1, EDX, INTEL,  27,  1, SS,                  YES, FALSE)            \
+FLAGDEFA(  1, EDX, COMMON, 28,  1, HT,                  ANY, FALSE, HT)        \
+FLAGDEF(   1, EDX, INTEL,  29,  1, TM,                  NO,  FALSE)            \
+FLAGDEF(   1, EDX, INTEL,  30,  1, IA64,                NO,  FALSE)            \
+FLAGDEF(   1, EDX, INTEL,  31,  1, PBE,                 NO,  FALSE)
 
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_4                                               \
-FIELDDEF(  4, EAX, INTEL,   0,  5, CACHE_TYPE,          NA,  IGNORE, 0, FALSE)            \
-FIELDDEF(  4, EAX, INTEL,   5,  3, CACHE_LEVEL,         NA,  IGNORE, 0, FALSE)            \
-FIELDDEF(  4, EAX, INTEL,  14, 12, CACHE_NUMHT_SHARING, NA,  IGNORE, 0, FALSE)            \
-FIELDDEFA( 4, EAX, INTEL,  26,  6, CORE_COUNT,          NA,  IGNORE, 0, FALSE, INTEL_CORE_COUNT)  \
-FIELDDEF(  4, EBX, INTEL,   0, 12, CACHE_LINE,          NA,  IGNORE, 0, FALSE)            \
-FIELDDEF(  4, EBX, INTEL,  12, 10, CACHE_PART,          NA,  IGNORE, 0, FALSE)            \
-FIELDDEF(  4, EBX, INTEL,  22, 10, CACHE_WAYS,          NA,  IGNORE, 0, FALSE)
+FIELDDEF(  4, EAX, INTEL,   0,  5, CACHE_TYPE,          NA,  FALSE)            \
+FIELDDEF(  4, EAX, INTEL,   5,  3, CACHE_LEVEL,         NA,  FALSE)            \
+FIELDDEF(  4, EAX, INTEL,  14, 12, CACHE_NUMHT_SHARING, NA,  FALSE)            \
+FIELDDEFA( 4, EAX, INTEL,  26,  6, CORE_COUNT,          NA,  FALSE, INTEL_CORE_COUNT)  \
+FIELDDEF(  4, EBX, INTEL,   0, 12, CACHE_LINE,          NA,  FALSE)            \
+FIELDDEF(  4, EBX, INTEL,  12, 10, CACHE_PART,          NA,  FALSE)            \
+FIELDDEF(  4, EBX, INTEL,  22, 10, CACHE_WAYS,          NA,  FALSE)
 
-/*     LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*     LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_5                                           \
-FIELDDEFA( 5, EAX, COMMON,  0, 16, MWAIT_MIN_SIZE,      NA,  IGNORE, 0, FALSE, MWAIT_MIN_SIZE) \
-FIELDDEFA( 5, EBX, COMMON,  0, 16, MWAIT_MAX_SIZE,      NA,  IGNORE, 0, FALSE, MWAIT_MAX_SIZE) \
-FLAGDEF(   5, ECX, COMMON,  0,  1, MWAIT_EXTENSIONS,    NA,  IGNORE, 0, FALSE) \
-FLAGDEFA(  5, ECX, COMMON,  1,  1, MWAIT_INTR_BREAK,    NA,  IGNORE, 0, FALSE, MWAIT_INTR_BREAK) \
-FIELDDEF(  5, EDX, INTEL,   0,  4, MWAIT_C0_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
-FIELDDEF(  5, EDX, INTEL,   4,  4, MWAIT_C1_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
-FIELDDEF(  5, EDX, INTEL,   8,  4, MWAIT_C2_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
-FIELDDEF(  5, EDX, INTEL,  12,  4, MWAIT_C3_SUBSTATE,   NA,  IGNORE, 0, FALSE) \
-FIELDDEF(  5, EDX, INTEL,  16,  4, MWAIT_C4_SUBSTATE,   NA,  IGNORE, 0, FALSE)
+FIELDDEFA( 5, EAX, COMMON,  0, 16, MWAIT_MIN_SIZE,      NA,  FALSE, MWAIT_MIN_SIZE) \
+FIELDDEFA( 5, EBX, COMMON,  0, 16, MWAIT_MAX_SIZE,      NA,  FALSE, MWAIT_MAX_SIZE) \
+FLAGDEF(   5, ECX, COMMON,  0,  1, MWAIT_EXTENSIONS,    NA,  FALSE) \
+FLAGDEFA(  5, ECX, COMMON,  1,  1, MWAIT_INTR_BREAK,    NA,  FALSE, MWAIT_INTR_BREAK) \
+FIELDDEF(  5, EDX, INTEL,   0,  4, MWAIT_C0_SUBSTATE,   NA,  FALSE) \
+FIELDDEF(  5, EDX, INTEL,   4,  4, MWAIT_C1_SUBSTATE,   NA,  FALSE) \
+FIELDDEF(  5, EDX, INTEL,   8,  4, MWAIT_C2_SUBSTATE,   NA,  FALSE) \
+FIELDDEF(  5, EDX, INTEL,  12,  4, MWAIT_C3_SUBSTATE,   NA,  FALSE) \
+FIELDDEF(  5, EDX, INTEL,  16,  4, MWAIT_C4_SUBSTATE,   NA,  FALSE)
 
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_6                                               \
-FLAGDEF(   6, EAX, INTEL,   0,  1, THERMAL_SENSOR,      NA,  IGNORE, 0, FALSE)     \
-FLAGDEF(   6, EAX, INTEL,   1,  1, TURBO_MODE,          NA,  IGNORE, 0, FALSE)     \
-FIELDDEF(  6, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS, NA,  IGNORE, 0, FALSE)     \
-FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   NA,  IGNORE, 0, FALSE)
+FLAGDEF(   6, EAX, INTEL,   0,  1, THERMAL_SENSOR,      NA,  FALSE)     \
+FLAGDEF(   6, EAX, INTEL,   1,  1, TURBO_MODE,          NA,  FALSE)     \
+FIELDDEF(  6, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS, NA,  FALSE)     \
+FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   NA,  FALSE)
 
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
-FIELDDEFA( A, EAX, INTEL,   0,  8, PMC_VERSION,         NA,  IGNORE, 0, FALSE, PMC_VERSION) \
-FIELDDEFA( A, EAX, INTEL,   8,  8, NUM_PMCS,            NA,  IGNORE, 0, FALSE, NUM_PMCS)  \
-FIELDDEF(  A, EAX, INTEL,  16,  8, PMC_BIT_WIDTH,       NA,  IGNORE, 0, FALSE)            \
-FIELDDEFA( A, EAX, INTEL,  24,  8, PMC_EBX_LENGTH,      NA,  IGNORE, 0, FALSE, PMC_EBX_LENGTH) \
-FLAGDEF(   A, EBX, INTEL,   0,  1, PMC_CORE_CYCLE,      NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   1,  1, PMC_INSTR_RETIRED,   NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   2,  1, PMC_REF_CYCLES,      NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   3,  1, PMC_LAST_LVL_CREF,   NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   4,  1, PMC_LAST_LVL_CMISS,  NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   5,  1, PMC_BR_INST_RETIRED, NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(   A, EBX, INTEL,   6,  1, PMC_BR_MISS_RETIRED, NA,  IGNORE, 0, FALSE)            \
-FIELDDEF(  A, EDX, INTEL,   0,  5, PMC_FIXED_NUM,       NA,  IGNORE, 0, FALSE)            \
-FIELDDEF(  A, EDX, INTEL,   5,  8, PMC_FIXED_SIZE,      NA,  IGNORE, 0, FALSE)
+FIELDDEFA( A, EAX, INTEL,   0,  8, PMC_VERSION,         NA,  FALSE, PMC_VERSION) \
+FIELDDEFA( A, EAX, INTEL,   8,  8, NUM_PMCS,            NA,  FALSE, NUM_PMCS)  \
+FIELDDEF(  A, EAX, INTEL,  16,  8, PMC_BIT_WIDTH,       NA,  FALSE)            \
+FIELDDEFA( A, EAX, INTEL,  24,  8, PMC_EBX_LENGTH,      NA,  FALSE, PMC_EBX_LENGTH) \
+FLAGDEF(   A, EBX, INTEL,   0,  1, PMC_CORE_CYCLE,      NA,  FALSE)            \
+FLAGDEF(   A, EBX, INTEL,   1,  1, PMC_INSTR_RETIRED,   NA,  FALSE)            \
+FLAGDEF(   A, EBX, INTEL,   2,  1, PMC_REF_CYCLES,      NA,  FALSE)            \
+FLAGDEF(   A, EBX, INTEL,   3,  1, PMC_LAST_LVL_CREF,   NA,  FALSE)            \
+FLAGDEF(   A, EBX, INTEL,   4,  1, PMC_LAST_LVL_CMISS,  NA,  FALSE)            \
+FLAGDEF(   A, EBX, INTEL,   5,  1, PMC_BR_INST_RETIRED, NA,  FALSE)            \
+FLAGDEF(   A, EBX, INTEL,   6,  1, PMC_BR_MISS_RETIRED, NA,  FALSE)            \
+FIELDDEF(  A, EDX, INTEL,   0,  5, PMC_FIXED_NUM,       NA,  FALSE)            \
+FIELDDEF(  A, EDX, INTEL,   5,  8, PMC_FIXED_SIZE,      NA,  FALSE)
 
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_80                                              \
-FIELDDEF( 80, EAX, COMMON,  0, 32, NUM_EXT_LEVELS,      NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 80, EBX, AMD,     0, 32, AMD_VENDOR1,         NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 80, ECX, AMD,     0, 32, AMD_VENDOR3,         NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 80, EDX, AMD,     0, 32, AMD_VENDOR2,         NA,  IGNORE, 0, FALSE)
+FIELDDEF( 80, EAX, COMMON,  0, 32, NUM_EXT_LEVELS,      NA,  FALSE)            \
+FIELDDEF( 80, EBX, AMD,     0, 32, AMD_VENDOR1,         NA,  FALSE)            \
+FIELDDEF( 80, ECX, AMD,     0, 32, AMD_VENDOR3,         NA,  FALSE)            \
+FIELDDEF( 80, EDX, AMD,     0, 32, AMD_VENDOR2,         NA,  FALSE)
                                                         
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_81                                              \
-FIELDDEF( 81, EAX, INTEL,   0, 32, UNKNOWN81EAX,        ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EAX, AMD,     0,  4, STEPPING,            ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EAX, AMD,     4,  4, MODEL,               ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EAX, AMD,     8,  4, FAMILY,              ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EAX, AMD,    12,  2, TYPE,                ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EAX, AMD,    16,  4, EXTMODEL,            ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EAX, AMD,    20,  8, EXTFAMILY,           ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EBX, INTEL,   0, 32, UNKNOWN81EBX,        ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EBX, AMD,     0, 16, BRAND_ID,            ANY, IGNORE, 0, FALSE)            \
-FIELDDEF( 81, EBX, AMD,    16, 16, UNDEF,               ANY, IGNORE, 0, FALSE)            \
-FLAGDEFA( 81, ECX, COMMON,  0,  1, LAHF,                YES, HOST,   0, TRUE,  LAHF64)    \
-FLAGDEFA( 81, ECX, AMD,     1,  1, CMPLEGACY,           NO,  MASK,   0, FALSE, CMPLEGACY) \
-FLAGDEFA( 81, ECX, AMD,     2,  1, SVM,                 NO,  MASK,   0, FALSE, SVM)       \
-FLAGDEFA( 81, ECX, AMD,     3,  1, EXTAPICSPC,          YES, HOST,   0, FALSE, EXTAPICSPC) \
-FLAGDEFA( 81, ECX, AMD,     4,  1, CR8AVAIL,            NO,  MASK,   0, FALSE, CR8AVAIL)  \
-FLAGDEFA( 81, ECX, AMD,     5,  1, ABM,                 YES, HOST,   0, TRUE,  ABM)       \
-FLAGDEFA( 81, ECX, AMD,     6,  1, SSE4A,               YES, HOST,   0, TRUE,  SSE4A)     \
-FLAGDEF(  81, ECX, AMD,     7,  1, MISALIGNED_SSE,      YES, HOST,   0, TRUE)             \
-FLAGDEFA( 81, ECX, AMD,     8,  1, 3DNPREFETCH,         YES, HOST,   0, TRUE, 3DNPREFETCH) \
-FLAGDEF(  81, ECX, AMD,     9,  1, OSVW,                NO,  MASK,   0, FALSE)            \
-FLAGDEF(  81, ECX, AMD,    10,  1, IBS,                 NO,  MASK,   0, FALSE)            \
-FLAGDEF(  81, ECX, AMD,    11,  1, SSE5,                NO,  RSVD,   0, TRUE)             \
-FLAGDEF(  81, ECX, AMD,    12,  1, SKINIT,              NO,  MASK,   0, FALSE)            \
-FLAGDEF(  81, ECX, AMD,    13,  1, WATCHDOG,            NO,  MASK,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     0,  1, FPU,                 YES, HOST,   0, TRUE)             \
-FLAGDEF(  81, EDX, AMD,     1,  1, VME,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     2,  1, DBGE,                YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     3,  1, PGSZE,               YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     4,  1, TSC,                 YES, HOST,   0, TRUE)             \
-FLAGDEF(  81, EDX, AMD,     5,  1, MSR,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     6,  1, PAE,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     7,  1, MCK,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,     8,  1, CPMX,                YES, HOST,   0, TRUE)             \
-FLAGDEF(  81, EDX, AMD,     9,  1, APIC,                ANY, MASK,   1, FALSE)            \
-FLAGDEFA( 81, EDX, COMMON, 11,  1, SYSC,                ANY, IGNORE, 0, TRUE, SYSC)       \
-FLAGDEF(  81, EDX, AMD,    12,  1, MTRR,                YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,    13,  1, PGE,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,    14,  1, MCA,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,    15,  1, CMOV,                YES, HOST,   0, TRUE)             \
-FLAGDEF(  81, EDX, AMD,    16,  1, PAT,                 YES, HOST,   0, FALSE)            \
-FLAGDEF(  81, EDX, AMD,    17,  1, 36PG,                YES, HOST,   0, FALSE)            \
-FLAGDEFA( 81, EDX, COMMON, 20,  1, NX,                  YES, HOST,   0, FALSE, NX)        \
-FLAGDEFA( 81, EDX, AMD,    22,  1, MMXEXT,              YES, HOST,   0, TRUE,  MMXEXT)    \
-FLAGDEF(  81, EDX, AMD,    23,  1, MMX,                 YES, HOST,   0, TRUE)             \
-FLAGDEF(  81, EDX, AMD,    24,  1, FXSAVE,              YES, HOST,   0, TRUE)             \
-FLAGDEFA( 81, EDX, AMD,    25,  1, FFXSR,               YES, HOST,   0, FALSE, FFXSR)     \
-FLAGDEF(  81, EDX, COMMON, 26,  1, PDPE1GB,             NO,  MASK,   0, FALSE)            \
-FLAGDEFA( 81, EDX, COMMON, 27,  1, RDTSCP,              YES, HOST,   0, TRUE,  RDTSCP)    \
-FLAGDEFA( 81, EDX, COMMON, 29,  1, LM,                  YES, TEST,   1, FALSE, LM) \
-FLAGDEFA( 81, EDX, AMD,    30,  1, 3DNOWPLUS,           YES, HOST,   0, TRUE,  3DNOWPLUS) \
-FLAGDEFA( 81, EDX, AMD,    31,  1, 3DNOW,               YES, HOST,   0, TRUE,  3DNOW)
+FIELDDEF( 81, EAX, INTEL,   0, 32, UNKNOWN81EAX,        ANY, FALSE)            \
+FIELDDEF( 81, EAX, AMD,     0,  4, STEPPING,            ANY, FALSE)            \
+FIELDDEF( 81, EAX, AMD,     4,  4, MODEL,               ANY, FALSE)            \
+FIELDDEF( 81, EAX, AMD,     8,  4, FAMILY,              ANY, FALSE)            \
+FIELDDEF( 81, EAX, AMD,    12,  2, TYPE,                ANY, FALSE)            \
+FIELDDEF( 81, EAX, AMD,    16,  4, EXTMODEL,            ANY, FALSE)            \
+FIELDDEF( 81, EAX, AMD,    20,  8, EXTFAMILY,           ANY, FALSE)            \
+FIELDDEF( 81, EBX, INTEL,   0, 32, UNKNOWN81EBX,        ANY, FALSE)            \
+FIELDDEF( 81, EBX, AMD,     0, 16, BRAND_ID,            ANY, FALSE)            \
+FIELDDEF( 81, EBX, AMD,    16, 16, UNDEF,               ANY, FALSE)            \
+FLAGDEFA( 81, ECX, COMMON,  0,  1, LAHF,                YES, TRUE,  LAHF64)    \
+FLAGDEFA( 81, ECX, AMD,     1,  1, CMPLEGACY,           NO,  FALSE, CMPLEGACY) \
+FLAGDEFA( 81, ECX, AMD,     2,  1, SVM,                 NO,  FALSE, SVM)       \
+FLAGDEFA( 81, ECX, AMD,     3,  1, EXTAPICSPC,          YES, FALSE, EXTAPICSPC) \
+FLAGDEFA( 81, ECX, AMD,     4,  1, CR8AVAIL,            NO,  FALSE, CR8AVAIL)  \
+FLAGDEFA( 81, ECX, AMD,     5,  1, ABM,                 YES, TRUE,  ABM)       \
+FLAGDEFA( 81, ECX, AMD,     6,  1, SSE4A,               YES, TRUE,  SSE4A)     \
+FLAGDEF(  81, ECX, AMD,     7,  1, MISALIGNED_SSE,      YES, TRUE)             \
+FLAGDEFA( 81, ECX, AMD,     8,  1, 3DNPREFETCH,         YES, TRUE, 3DNPREFETCH) \
+FLAGDEF(  81, ECX, AMD,     9,  1, OSVW,                NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    10,  1, IBS,                 NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    11,  1, SSE5,                NO,  TRUE)             \
+FLAGDEF(  81, ECX, AMD,    12,  1, SKINIT,              NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    13,  1, WATCHDOG,            NO,  FALSE)            \
+FLAGDEF(  81, EDX, AMD,     0,  1, FPU,                 YES, TRUE)             \
+FLAGDEF(  81, EDX, AMD,     1,  1, VME,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,     2,  1, DBGE,                YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,     3,  1, PGSZE,               YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,     4,  1, TSC,                 YES, TRUE)             \
+FLAGDEF(  81, EDX, AMD,     5,  1, MSR,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,     6,  1, PAE,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,     7,  1, MCK,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,     8,  1, CPMX,                YES, TRUE)             \
+FLAGDEF(  81, EDX, AMD,     9,  1, APIC,                ANY, FALSE)            \
+FLAGDEFA( 81, EDX, COMMON, 11,  1, SYSC,                ANY, TRUE, SYSC)       \
+FLAGDEF(  81, EDX, AMD,    12,  1, MTRR,                YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,    13,  1, PGE,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,    14,  1, MCA,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,    15,  1, CMOV,                YES, TRUE)             \
+FLAGDEF(  81, EDX, AMD,    16,  1, PAT,                 YES, FALSE)            \
+FLAGDEF(  81, EDX, AMD,    17,  1, 36PG,                YES, FALSE)            \
+FLAGDEFA( 81, EDX, COMMON, 20,  1, NX,                  YES, FALSE, NX)        \
+FLAGDEFA( 81, EDX, AMD,    22,  1, MMXEXT,              YES, TRUE,  MMXEXT)    \
+FLAGDEF(  81, EDX, AMD,    23,  1, MMX,                 YES, TRUE)             \
+FLAGDEF(  81, EDX, AMD,    24,  1, FXSAVE,              YES, TRUE)             \
+FLAGDEFA( 81, EDX, AMD,    25,  1, FFXSR,               YES, FALSE, FFXSR)     \
+FLAGDEF(  81, EDX, COMMON, 26,  1, PDPE1GB,             NO,  FALSE)            \
+FLAGDEFA( 81, EDX, COMMON, 27,  1, RDTSCP,              YES, TRUE,  RDTSCP)    \
+FLAGDEFA( 81, EDX, COMMON, 29,  1, LM,                  YES, FALSE, LM) \
+FLAGDEFA( 81, EDX, AMD,    30,  1, 3DNOWPLUS,           YES, TRUE,  3DNOWPLUS) \
+FLAGDEFA( 81, EDX, AMD,    31,  1, 3DNOW,               YES, TRUE,  3DNOW)
 
-/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, MASK TYPE, SET TO, CPL3, [FUNC] */
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_8x                                              \
-FIELDDEF( 86, ECX, AMD,     0,  8, L2CACHE_LINE,        NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 86, ECX, AMD,     8,  4, L2CACHE_LINE_PER_TAG, NA, IGNORE, 0, FALSE)            \
-FIELDDEF( 86, ECX, AMD,    12,  4, L2CACHE_WAYS,        NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 86, ECX, AMD,    16, 16, L2CACHE_SIZE,        NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 86, EDX, AMD,     0,  8, L3CACHE_LINE,        NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 86, EDX, AMD,     8,  4, L3CACHE_LINE_PER_TAG,NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 86, EDX, AMD,    12,  4, L3CACHE_WAYS,        NA,  IGNORE, 0, FALSE)            \
-FIELDDEF( 86, EDX, AMD,    18, 14, L3CACHE_SIZE,        NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     0,  1, TS,                  NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     1,  1, FID,                 NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     2,  1, VID,                 NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     3,  1, TTP,                 NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     4,  1, TM,                  NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     5,  1, STC,                 NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     6,  1, 100MHZSTEPS,         NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, AMD,     7,  1, HWPSTATE,            NA,  IGNORE, 0, FALSE)            \
-FLAGDEF(  87, EDX, COMMON,  8,  1, TSC_INVARIANT,       NA,  IGNORE, 0, FALSE)            \
-FIELDDEFA(88, EAX, COMMON,  0,  8, PHYSBITS,            NA,  IGNORE, 0, FALSE, PHYS_BITS) \
-FIELDDEFA(88, EAX, COMMON,  8,  8, VIRTBITS,            NA,  IGNORE, 0, FALSE, VIRT_BITS) \
-FIELDDEFA(88, ECX, AMD,     0,  8, CORE_COUNT,          NA,  IGNORE, 0, FALSE, AMD_CORE_COUNT) \
-FIELDDEFA(88, ECX, AMD,    12,  4, APICID_COREID_SIZE,  NA,  IGNORE, 0, FALSE, AMD_APICID_COREID_SIZE) \
-FIELDDEFA(8A, EAX, AMD,     0,  8, SVM_REVISION,        NO,  MASK,   0, FALSE, SVM_REVISION) \
-FLAGDEF(  8A, EAX, AMD,     8,  1, SVM_HYPERVISOR,      NO,  MASK,   0, FALSE)            \
-FIELDDEF( 8A, EAX, AMD,     9, 23, SVMEAX_RSVD,         NO,  MASK,   0, FALSE)            \
-FIELDDEF( 8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         NO,  MASK,   0, FALSE)            \
-FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         NO,  MASK,   0, FALSE)            \
-FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              NO,  MASK,   0, FALSE, NPT)       \
-FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  MASK,   0, FALSE)            \
-FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  MASK,   0, FALSE)            \
-FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            NO,  MASK,   0, FALSE)            \
-FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  MASK,   0, FALSE)
+FIELDDEF( 86, ECX, AMD,     0,  8, L2CACHE_LINE,        NA,  FALSE)            \
+FIELDDEF( 86, ECX, AMD,     8,  4, L2CACHE_LINE_PER_TAG, NA, FALSE)            \
+FIELDDEF( 86, ECX, AMD,    12,  4, L2CACHE_WAYS,        NA,  FALSE)            \
+FIELDDEF( 86, ECX, AMD,    16, 16, L2CACHE_SIZE,        NA,  FALSE)            \
+FIELDDEF( 86, EDX, AMD,     0,  8, L3CACHE_LINE,        NA,  FALSE)            \
+FIELDDEF( 86, EDX, AMD,     8,  4, L3CACHE_LINE_PER_TAG,NA,  FALSE)            \
+FIELDDEF( 86, EDX, AMD,    12,  4, L3CACHE_WAYS,        NA,  FALSE)            \
+FIELDDEF( 86, EDX, AMD,    18, 14, L3CACHE_SIZE,        NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     0,  1, TS,                  NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     1,  1, FID,                 NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     2,  1, VID,                 NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     3,  1, TTP,                 NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     4,  1, TM,                  NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     5,  1, STC,                 NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     6,  1, 100MHZSTEPS,         NA,  FALSE)            \
+FLAGDEF(  87, EDX, AMD,     7,  1, HWPSTATE,            NA,  FALSE)            \
+FLAGDEF(  87, EDX, COMMON,  8,  1, TSC_INVARIANT,       NA,  FALSE)            \
+FIELDDEFA(88, EAX, COMMON,  0,  8, PHYSBITS,            NA,  FALSE, PHYS_BITS) \
+FIELDDEFA(88, EAX, COMMON,  8,  8, VIRTBITS,            NA,  FALSE, VIRT_BITS) \
+FIELDDEFA(88, ECX, AMD,     0,  8, CORE_COUNT,          NA,  FALSE, AMD_CORE_COUNT) \
+FIELDDEFA(88, ECX, AMD,    12,  4, APICID_COREID_SIZE,  NA,  FALSE, AMD_APICID_COREID_SIZE) \
+FIELDDEFA(8A, EAX, AMD,     0,  8, SVM_REVISION,        NO,  FALSE, SVM_REVISION) \
+FLAGDEF(  8A, EAX, AMD,     8,  1, SVM_HYPERVISOR,      NO,  FALSE)            \
+FIELDDEF( 8A, EAX, AMD,     9, 23, SVMEAX_RSVD,         NO,  FALSE)            \
+FIELDDEF( 8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         NO,  FALSE)            \
+FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         NO,  FALSE)            \
+FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              NO,  FALSE, NPT)       \
+FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
+FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  FALSE)            \
+FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            NO,  FALSE)            \
+FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  FALSE)
 
 
 #define CPUID_FIELD_DATA                                              \
@@ -505,7 +510,7 @@ FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  MASK,   0, FALSE)
  */
 #define VMW_BIT_MASK(shift)  (((1 << (shift - 1)) << 1) - 1)
 
-#define FIELDDEF(lvl, reg, vend, bitpos, size, name, s, m, v, c3)       \
+#define FIELDDEF(lvl, reg, vend, bitpos, size, name, s, c3)             \
    CPUID_##vend##_ID##lvl##reg##_##name##_SHIFT = bitpos,               \
    CPUID_##vend##_ID##lvl##reg##_##name##_MASK  =                       \
                       VMW_BIT_MASK(size) << bitpos,                     \
@@ -513,7 +518,7 @@ FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  MASK,   0, FALSE)
                       CPUID_##vend##_ID##lvl##reg##_##name##_MASK,
 
 /* Before simplifying this take a look at bug 293638... */
-#define FIELDDEFA(lvl, reg, vend, bitpos, size, name, s, m, v, c3, f)   \
+#define FIELDDEFA(lvl, reg, vend, bitpos, size, name, s, c3, f)         \
    CPUID_##vend##_ID##lvl##reg##_##name##_SHIFT = bitpos,               \
    CPUID_##vend##_ID##lvl##reg##_##name##_MASK  =                       \
                       VMW_BIT_MASK(size) << bitpos,                     \
@@ -558,13 +563,6 @@ enum {
 #define CPUID_MASK_RSVD_STR    "R"
 #define CPUID_MASK_INSTALL_CHR 'I'
 #define CPUID_MASK_INSTALL_STR "I"
-
-/*
- * If a level is listed as not masked/tested in CPUID_LEVELS above,
- * use all "don't care" values for its mask.
- */
-
-#define CPT_DFLT_UNDEFINED_MASK "XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:XXXX"
 
 /*
  * When LM is disabled, we overlay the following masks onto the
