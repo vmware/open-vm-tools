@@ -1967,9 +1967,9 @@ HgfsSetattr(struct dentry *dentry,  // IN: File to set attributes of
 
    /*
     * Flush all dirty pages prior to sending the request if we're going to
-    * modify the file size.
+    * modify the file size or change the last write time.
     */
-   if (iattr->ia_valid & ATTR_SIZE) {
+   if (iattr->ia_valid & ATTR_SIZE || iattr->ia_valid & ATTR_MTIME) {
       compat_filemap_write_and_wait(dentry->d_inode->i_mapping);
    }
 
