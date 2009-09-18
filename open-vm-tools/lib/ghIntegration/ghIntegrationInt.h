@@ -101,7 +101,7 @@ Bool GHIPlatformTrayIconStartUpdates(GHIPlatform *ghip);
 Bool GHIPlatformTrayIconStopUpdates(GHIPlatform *ghip);
 
 /* Implemented by ghIntegration.c for use by the platform-specific code */
-Bool GHILaunchMenuChangeRPC(void);
+Bool GHILaunchMenuChangeRPC(int numFolderKeys, const char **folderKeysChanged);
 
 /*
  * Used by the platform-specific code to send the "ghi.guest.trashFolder.state"

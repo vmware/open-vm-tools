@@ -31,6 +31,7 @@
 #include "guestCaps.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
 #include "guestrpc/ghiProtocolHandler.h"
+#include "guestrpc/ghiStartMenu.h"
 #include "guest_msg_def.h"
 #include "rpcin.h"
 #include "rpcout.h"
@@ -980,14 +981,59 @@ exit:
  */
 
 Bool
-GHILaunchMenuChangeRPC(void)
+GHILaunchMenuChangeRPC(int numFolderKeys,                // IN
+                       const char **folderKeysChanged)   // IN
 {
-   if (!RpcOut_sendOne(NULL, NULL, GHI_RPC_LAUNCHMENU_CHANGE)) {
-      Debug("%s: could not send unity launchmenu change\n", __FUNCTION__);
+   /* +1 for the space separator */
+   char request[sizeof GHI_RPC_LAUNCHMENU_CHANGE + 1];
+   XDR xdrs;
+   GHIStartMenuChanged startMenuChanged;
+   GHIStartMenuChangedV1 smcv1;
+   Bool status;
+
+   /*
+    * Note: The primary contents of the startMenuChanged - the folder keys,
+    * are allocated and tracked outside of this function, there's no need to call
+    * VMX_XDR_FREE here for the XDR contents, in fact if called it will delete memory
+    * from other parts of the system.
+    */
+
+   memset(&startMenuChanged, 0, sizeof startMenuChanged);
+   memset(&smcv1, 0, sizeof smcv1);
+
+   if (DynXdr_Create(&xdrs) == NULL) {
       return FALSE;
    }
 
-   return TRUE;
+   smcv1.keys.keys_len = numFolderKeys;
+   smcv1.keys.keys_val = (char **) folderKeysChanged;
+
+   startMenuChanged.ver = GHI_STARTMENU_CHANGED_V1;
+   startMenuChanged.GHIStartMenuChanged_u.ghiStartMenuChangedV1 = &smcv1;
+
+   Str_Sprintf(request,
+               sizeof request,
+               "%s ",
+               GHI_RPC_LAUNCHMENU_CHANGE);
+
+   /* Write preamble and serialized changed folder keys to XDR stream. */
+   if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
+       !xdr_GHIStartMenuChanged(&xdrs, &startMenuChanged)) {
+      Debug("%s: could not serialize protocol handler info\n", __FUNCTION__);
+      DynXdr_Destroy(&xdrs, TRUE);
+      return FALSE;
+   }
+
+   status = RpcOut_SendOneRaw(DynXdr_Get(&xdrs),
+                              xdr_getpos(&xdrs),
+                              NULL,
+                              NULL);
+   DynXdr_Destroy(&xdrs, TRUE);
+
+   if (!status) {
+      Debug("%s: could not send unity launchmenu change\n", __FUNCTION__);
+   }
+   return status;
 }
 
 

@@ -1244,6 +1244,16 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
       { "Other",                0 }
    };
 
+   /*
+    * Applications belonging to certain categories should never show up
+    * in our launch menus.  List taken from
+    * http://standards.freedesktop.org/menu-spec/latest/apa.html table 2.
+    */
+   static const char *invalidCategories[] = {
+      "Screensaver",
+      "Shell",
+   };
+
    GHIMenuDirectory *gmd;
    GHIMenuItem *gmi;
    Bool foundIt = FALSE;
@@ -1251,6 +1261,7 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
    gsize numcats;
    int kfIndex;                 // keyfile categories index/iterator
    int vIndex;                  // validCategories index/iterator
+   int iIndex;                  // invalidCategories index/iterator
 
    /*
     * Figure out if this .desktop file is in a category we want to put on our menus,
@@ -1261,6 +1272,18 @@ GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
                                            &numcats, NULL);
    if (categories) {
       for (kfIndex = 0; kfIndex < numcats && !foundIt; kfIndex++) {
+         /*
+          * If any of this app's categories are in our blacklist, we'll just
+          * return prematurely.
+          */
+         for (iIndex = 0; iIndex < ARRAYSIZE(invalidCategories); iIndex++) {
+            if (!strcasecmp(categories[kfIndex], invalidCategories[iIndex])) {
+               g_debug("Ignoring app %s because it's a member of category %s.\n",
+                       keyfilePath, categories[kfIndex]);
+               return;
+            }
+         }
+
          /*
           * NB:  See validCategories' comment re: "Other" being the final, default
           * category.  It explains why we condition on ARRAYSIZE() - 1.

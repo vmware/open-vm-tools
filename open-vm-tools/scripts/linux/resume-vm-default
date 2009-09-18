@@ -56,6 +56,20 @@ find_networking_script() {
     echo "$script"
 }
 
+save_active_NIC_list() {
+    ifconfig_path=`which ifconfig 2>/dev/null`
+    if [ $? ]; then
+       # Add nic to the list only if it is not already there,
+       # since suspend-vm-default might already create the list.
+       "$ifconfig_path" | grep '^[^[:space:]]' | awk '{ print $1 }' | \
+	  while read nic; do
+	     if ! grep -q "$nic" /var/run/vmware-active-nics 2>/dev/null; then
+	        echo "$nic" >> /var/run/vmware-active-nics
+	     fi
+          done
+    fi
+}
+
 rescue_NIC() {
    niclist="/var/run/vmware-active-nics"
 
@@ -118,6 +132,10 @@ wakeNetworkManager() {
 #
 # main
 #
+
+# Save nic list for later rescue, or we might lose the active nic after
+# calling '/etc/init.d/networking restart'.
+save_active_NIC_list
 
 wakeNetworkManager
 

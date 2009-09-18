@@ -41,6 +41,9 @@
 # endif
 #include <signal.h>
 #endif
+#ifdef GLIBC_VERSION_24
+#define _GNU_SOURCE
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -279,6 +282,19 @@ FileAttributes(ConstUnicode pathName,  // IN:
 {
    int err;
    struct stat statbuf;
+
+#ifdef GLIBC_VERSION_24
+   char *path;
+
+   if (fileData == NULL) {
+      if (!PosixConvertToCurrent(pathName, &path)) {
+         return -1;
+      }
+      ret = euidaccess(path, F_OK);
+      free(path);
+      return ret;
+   }
+#endif
 
    if (Posix_Stat(pathName, &statbuf) == -1) {
       err = errno;
@@ -1706,6 +1722,7 @@ FilePosixNearestExistingAncestor(char const *path) // IN: File path
 {
    size_t resultSize;
    char *result;
+   struct stat statbuf;
 
    resultSize = MAX(strlen(path), 1) + 1;
    result = Util_SafeMalloc(resultSize);
@@ -1719,7 +1736,7 @@ FilePosixNearestExistingAncestor(char const *path) // IN: File path
          break;
       }
 
-      if (File_Exists(result)) {
+      if (Posix_Stat(result, &statbuf) == 0) {
          break;
       }
 

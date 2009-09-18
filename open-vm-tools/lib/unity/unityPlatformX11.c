@@ -1938,9 +1938,9 @@ UnityPlatformSetTopWindowGroup(UnityPlatform *up,        // IN: Platform data
                                unsigned int windowCount) // IN: # of windows in the array
 {
    UnityPlatformWindow *upw;
-   UnityPlatformWindow *prevupw = NULL;
    Atom data[5] = {0,0,0,0,0};
    XWindowChanges winch;
+   Window sibling = None;
    int i;
 
    ASSERT(up);
@@ -1948,7 +1948,7 @@ UnityPlatformSetTopWindowGroup(UnityPlatform *up,        // IN: Platform data
    ASSERT(windowCount);
 
    /*
-    * Restack everything top to bottom.
+    * Restack everything bottom to top.
     */
    data[0] = 2; // Magic source indicator to give full control
    winch.stack_mode = data[2] = Above; // First window will go at the top of everything
@@ -1964,34 +1964,10 @@ UnityPlatformSetTopWindowGroup(UnityPlatform *up,        // IN: Platform data
       curWindow = upw->clientWindow ? upw->clientWindow : upw->toplevelWindow;
       UPWindow_SetUserTime(up, upw);
 
-      if (i == 0) {
-         if (UnityPlatformWMProtocolSupported(up, UNITY_X11_WM__NET_ACTIVE_WINDOW)) {
-            uint32 activeData[5] = {0,0,0,0,0};
-            Window focusWindow;
-            int revertState;
+      winch.sibling = data[1] = sibling;
 
-            XGetInputFocus(up->display, &focusWindow, &revertState);
-            activeData[0] = 2; // Source indicator
-            activeData[1] = UnityPlatformGetServerTime(up);
-            activeData[2] = focusWindow;
-            UnityPlatformSendClientMessage(up, up->rootWindows->windows[0],
-                                           curWindow, up->atoms._NET_ACTIVE_WINDOW,
-                                           32, 5, data);
-         } else {
-            XSetInputFocus(up->display, curWindow, RevertToParent,
-                           UnityPlatformGetServerTime(up));
-         }
-      }
-
-      if (prevupw) {
+      if (sibling != None) {
          valueMask |= CWSibling;
-         if (prevupw->clientWindow) {
-            winch.sibling = data[1] = prevupw->clientWindow;
-         } else {
-            winch.sibling = data[1] = prevupw->toplevelWindow;
-         }
-      } else {
-         winch.sibling = data[1] = None;
       }
 
       if (UnityPlatformWMProtocolSupported(up, UNITY_X11_WM__NET_RESTACK_WINDOW)) {
@@ -2005,9 +1981,7 @@ UnityPlatformSetTopWindowGroup(UnityPlatform *up,        // IN: Platform data
                               0, valueMask, &winch);
       }
 
-      prevupw = upw;
-      data[2] = Below; // We want all other windows stacked below the new top window
-      winch.stack_mode = Below;
+      sibling = curWindow;
    }
 
    return TRUE;

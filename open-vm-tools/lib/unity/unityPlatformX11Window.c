@@ -3446,11 +3446,12 @@ UPWindowUpdateState(UnityPlatform *up,            // IN
          uint32 gDesk;
 
          /*
-          * Only push minimize state for windows on the same desktop.
+          * Only push minimize state for windows on the same desktop (inc. sticky
+          * windows).
           */
          if (UPWindowGetDesktop(up, upw, &gDesk)) {
             cDesk = UnityX11GetCurrentDesktop(up);
-            if (cDesk == gDesk) {
+            if (cDesk == gDesk || gDesk == -1) {
                isMinimized = TRUE;
             }
          } else {

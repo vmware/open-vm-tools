@@ -72,10 +72,16 @@
  *
  * File_Exists --
  *
- *      Check if a file exists.
+ *      Check if a file is accessible with the process' real user ID
+ *
+ *      XXX - This function invokes access(), which uses the real uid,
+ *      not the effective uid, so it probably does not do what you 
+ *      expect.  Instead it should use FileAttributes(), which calls
+ *      Posix_Stat() and uses the effective uid, but it's too risky 
+ *      to fix right now.  See PR 459242.
  *
  * Results:
- *      TRUE    file exists
+ *      TRUE    file is accessible with the process' real uid
  *      FALSE   file doesn't exist or an error occured
  *      
  * Side effects:
@@ -1916,8 +1922,15 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
    Unicode *fileList = NULL;
    Bool sawFileError = FALSE;
 
-   if (!File_Exists(pathName)) {
+   switch (FileAttributes(pathName, NULL)) {
+   case 0:
+      break;
+   case ENOENT:
+   case ENOTDIR:
+      /* path does not exist or is inaccessible */
       return TRUE;
+   default:
+      return FALSE;
    }
 
    /* get list of files in current directory */
@@ -2079,7 +2092,7 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
       cur = Str_SafeAsprintf(NULL, "%s%s%s", cwd, DIRSEPS, fileIn);
    }
 
-   if (File_Exists(cur)) {
+   if (FileAttributes(cur, NULL) == 0) {
       goto done;
    }
 
@@ -2111,7 +2124,7 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
          }
       }
 
-      if (File_Exists(cur)) {
+      if (FileAttributes(cur, NULL) == 0) {
          break;
       }
 

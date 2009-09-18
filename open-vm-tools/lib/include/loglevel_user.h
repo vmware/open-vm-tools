@@ -197,6 +197,7 @@
    LOGLEVEL_VAR(duiDevices), \
    LOGLEVEL_VAR(duiProxyApps), \
    LOGLEVEL_VAR(docker), \
+   LOGLEVEL_VAR(vmIPC), \
    LOGLEVEL_VAR(uwt), /* lib/unityWindowTracker */ \
    LOGLEVEL_VAR(cui), \
    LOGLEVEL_VAR(automation), \
