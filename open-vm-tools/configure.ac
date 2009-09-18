@@ -719,6 +719,11 @@ AC_PATH_PROG(
 ### Headers
 ###
 
+AC_CHECK_DECL([SYS_eventfd2],
+              [has_sys_eventfd2="yes"],
+              [has_sys_eventfd2="no"],
+              [ [#include <syscall.h>] ])
+
 AC_CHECK_HEADERS([crypt.h])
 AC_CHECK_HEADERS([inttypes.h])
 AC_CHECK_HEADERS([stdint.h])
@@ -1027,6 +1032,7 @@ AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
+AM_CONDITIONAL(NEED_EVENTFD, test "$has_sys_eventfd2" = "no")
 
 ### Feature-specific flags / actions
 # Combine where possible

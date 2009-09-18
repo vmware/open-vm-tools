@@ -278,9 +278,18 @@ FoundryThreadWrapperProc(void *threadParameter)      // IN
       int retval;
       Str_Sprintf(threadName, sizeof threadName, "vix-%s", threadState->threadName);
       retval = prctl(PR_SET_NAME, (unsigned long)threadName, 0,0, 0);
+
+      /*
+       * XXX: VIX_DEBUG() uses symbols which aren't part of the open-sourced
+       * VIX code. The symbols reside in vixDebug.c, which uses our internal
+       * vixSemiPublic.h. This code is never really used in the guest, so,
+       * other than being ugly, it's OK to do this.
+       */
+#if !defined(OPEN_VM_TOOLS)
       if (retval != 0) {
          VIX_DEBUG(("%s prctl PR_SET_NAME failed = %s\n", __FUNCTION__, Msg_ErrString()));
       }
+#endif
    }
 #endif
 

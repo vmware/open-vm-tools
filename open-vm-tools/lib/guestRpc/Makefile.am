@@ -64,7 +64,8 @@ EXTRA_DIST += unityActive.x
 clean-local:
 	rm -rf $(top_builddir)/lib/include/guestrpc
 	if [ $(top_builddir) != $(top_srcdir) ]; then	\
-	   rm -f *.x;												\
+	   rm -f *.x;                                   \
+	   rm -f ghiCommonDefines.h;                    \
 	fi
 
 # Rules to invoke rpcgen. rpcgen will generate funny paths in the generated
@@ -86,6 +87,7 @@ cpFileContents_xdr.c: cpFileContents.x cpFileContents.h
 
 ghiGetBinaryHandlers.h: ghiGetBinaryHandlers.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiCommonDefines.h $(builddir);     \
 	   cp -f $(top_srcdir)/lib/guestRpc/ghiGetBinaryHandlers.x $(builddir); \
 	fi
 	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiGetBinaryHandlers.x
@@ -99,7 +101,8 @@ ghiGetBinaryHandlers_xdr.c: ghiGetBinaryHandlers.x ghiGetBinaryHandlers.h
 
 ghiGetExecInfoHash.h: ghiGetExecInfoHash.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
-	   cp -f $(top_srcdir)/lib/guestRpc/ghiGetExecInfoHash.x $(builddir); \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiCommonDefines.h $(builddir);     \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiGetExecInfoHash.x $(builddir);   \
 	fi
 	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiGetExecInfoHash.x
 	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
@@ -112,6 +115,7 @@ ghiGetExecInfoHash_xdr.c: ghiGetExecInfoHash.x ghiGetExecInfoHash.h
 
 ghiProtocolHandler.h: ghiProtocolHandler.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiCommonDefines.h $(builddir);     \
 	   cp -f $(top_srcdir)/lib/guestRpc/ghiProtocolHandler.x $(builddir);   \
 	fi
 	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiProtocolHandler.x
@@ -125,7 +129,8 @@ ghiProtocolHandler_xdr.c: ghiProtocolHandler.x ghiProtocolHandler.h
 
 ghiStartMenu.h: ghiStartMenu.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
-	   cp -f $(top_srcdir)/lib/guestRpc/ghiStartMenu.x $(builddir); \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiCommonDefines.h $(builddir);     \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiStartMenu.x $(builddir);         \
 	fi
 	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiStartMenu.x
 	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
