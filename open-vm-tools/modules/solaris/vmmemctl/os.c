@@ -223,6 +223,7 @@ OS_Snprintf(char *buf,          // OUT
             const char *format, // IN
             ...)                // IN
 {
+   ASSERT(0);
    /*
     * XXX disabled because the varargs header file doesn't seem to
     * work in the current (gcc 2.95.3) cross-compiler environment.
