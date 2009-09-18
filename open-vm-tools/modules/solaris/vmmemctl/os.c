@@ -597,10 +597,9 @@ OS_Yield(void)
  *
  *      Called at driver startup, initializes the balloon state and structures.
  *
- *      XXX : this function should return a value to indicate success or failure
- *
  * Results:
- *      None
+ *      On success: TRUE
+ *      On failure: FALSE
  *
  * Side effects:
  *      None
@@ -608,7 +607,7 @@ OS_Yield(void)
  *-----------------------------------------------------------------------------
  */
 
-void
+Bool
 OS_Init(const char *name,         // IN
         const char *nameVerbose,  // IN
         OSStatusHandler *handler) // IN
@@ -618,7 +617,7 @@ OS_Init(const char *name,         // IN
 
    /* initialize only once */
    if (initialized++) {
-      return;
+      return FALSE;
    }
 
    /* zero global state */
@@ -638,6 +637,7 @@ OS_Init(const char *name,         // IN
 
    /* log device load */
    cmn_err(CE_CONT, "!%s initialized\n", nameVerbose);
+   return TRUE;
 }
 
 

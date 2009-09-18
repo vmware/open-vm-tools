@@ -40,7 +40,7 @@ typedef uintptr_t PageHandle;
  * Operations
  */
 
-extern void OS_Init(const char *name,
+extern Bool OS_Init(const char *name,
                     const char *nameVerbose,
                     OSStatusHandler *handler);
 extern void OS_Cleanup(void);

@@ -1398,7 +1398,9 @@ Balloon_ModuleInit(void)
    }
 
    /* os-specific initialization */
-   OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE, BalloonProcRead);
+   if (!OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE, BalloonProcRead)) {
+      return BALLOON_FAILURE;
+   }
 
    /* initialize global state */
    Balloon_Init(b);

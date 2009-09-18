@@ -590,10 +590,9 @@ os_proc_open(struct inode *inode, // IN: Unused
  *
  *      Called at driver startup, initializes the balloon state and structures.
  *
- *      XXX : this function should return a value to indicate success or failure
- *
  * Results:
- *      None
+ *      On success: TRUE
+ *      On failure: FALSE
  *
  * Side effects:
  *      None
@@ -601,7 +600,7 @@ os_proc_open(struct inode *inode, // IN: Unused
  *-----------------------------------------------------------------------------
  */
 
-void
+Bool
 OS_Init(const char *name,         // IN
         const char *nameVerbose,  // IN
         OSStatusHandler *handler) // IN
@@ -611,7 +610,7 @@ OS_Init(const char *name,         // IN
 
    /* initialize only once */
    if (initialized++) {
-      return;
+      return FALSE;
    }
 
    /* prevent module unload with extra reference */
@@ -637,6 +636,7 @@ OS_Init(const char *name,         // IN
 
    /* log device load */
    printk(KERN_INFO "%s initialized\n", state->status.name_verbose);
+   return TRUE;
 }
 
 
