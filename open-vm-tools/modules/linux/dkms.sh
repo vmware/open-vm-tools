@@ -102,6 +102,12 @@ do
       cp -f $src/lib/rpcOut/*.c $mdst
    fi
 
+   # Shared vmmemctl code.
+   if test $m = vmmemctl
+   then
+      cp -f $src/modules/shared/vmmemctl/* $mdst
+   fi
+
    # Extra header file for vmsync.
    if test $m = vmsync
    then

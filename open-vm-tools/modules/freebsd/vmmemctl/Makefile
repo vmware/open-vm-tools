@@ -43,7 +43,9 @@ NO_OBJ  = 1
    CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
    CFLAGS += -I$(OVT_SOURCE_DIR)/lib/backdoor
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/freebsd/shared
+   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmmemctl
    VPATH  := $(OVT_SOURCE_DIR)/lib/backdoor
+   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/modules/shared/vmmemctl
 .else
    CFLAGS += -Ishared
 .endif
