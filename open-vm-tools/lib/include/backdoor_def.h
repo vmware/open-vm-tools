@@ -135,7 +135,8 @@
 #define BDOOR_CMD_ACPI_HOTPLUG_CPU      60
 #define BDOOR_CMD_USB_HOTPLUG_MOUSE     61 /* Not in use */
 #define BDOOR_CMD_XPMODE                62
-#define BDOOR_CMD_MAX                   63
+#define BDOOR_CMD_NESTING_CONTROL       63
+#define BDOOR_CMD_MAX                   64
 
 
 /* 
@@ -144,6 +145,12 @@
  * command. Specifically, do not alter the way in which the command modifies 
  * the registers. Otherwise backwards compatibility will suffer.
  */
+
+/* Nesting control operations */
+
+#define NESTING_CONTROL_ENTER_VMM        0
+#define NESTING_CONTROL_EXIT_VMM         1
+#define NESTING_CONTROL_MAX              1
 
 /* High-bandwidth backdoor port. --hpreg */
 
