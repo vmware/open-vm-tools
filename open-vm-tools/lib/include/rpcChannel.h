@@ -42,6 +42,7 @@
 
 #include <rpc/rpc.h>
 #include "vm_basic_types.h"
+#include "vm_assert.h"
 #include "rpcin.h"
 
 struct RpcChannel;
@@ -115,6 +116,38 @@ typedef struct RpcChannel {
 
 
 /**
+ * Wrapper for the start function of an RPC channel struct.
+ *
+ * @param[in]  chan        The RPC channel instance.
+ *
+ * @return TRUE on success.
+ */
+static INLINE Bool
+RpcChannel_Start(RpcChannel *chan)
+{
+   ASSERT(chan != NULL);
+   ASSERT(chan->start != NULL);
+
+   return chan->start(chan);
+}
+
+
+/**
+ * Wrapper for the stop function of an RPC channel struct.
+ *
+ * @param[in]  chan        The RPC channel instance.
+ */
+
+static INLINE void
+RpcChannel_Stop(RpcChannel *chan)
+{
+   ASSERT(chan != NULL);
+   ASSERT(chan->stop != NULL);
+
+   chan->stop(chan);
+}
+
+/**
  * Wrapper for the send function of an RPC channel struct.
  *
  * @param[in]  chan        The RPC channel instance.
@@ -133,6 +166,9 @@ RpcChannel_Send(RpcChannel *chan,
                 char **result,
                 size_t *resultLen)
 {
+   ASSERT(chan != NULL);
+   ASSERT(chan->send != NULL);
+
    return chan->send(chan, data, dataLen, result, resultLen);
 }
 

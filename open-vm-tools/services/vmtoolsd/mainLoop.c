@@ -292,7 +292,7 @@ ToolsCore_Setup(ToolsServiceState *state)
     * Start the RPC channel if it's been created. The channel may be NULL if this is
     * not running in the context of a VM.
     */
-   if (state->ctx.rpc && !state->ctx.rpc->start(state->ctx.rpc)) {
+   if (state->ctx.rpc && !RpcChannel_Start(state->ctx.rpc)) {
       goto error;
    }
 
@@ -305,7 +305,7 @@ ToolsCore_Setup(ToolsServiceState *state)
 
 error:
    if (state->ctx.rpc != NULL) {
-      state->ctx.rpc->shutdown(state->ctx.rpc);
+      RpcChannel_Destroy(state->ctx.rpc);
       state->ctx.rpc = NULL;
    }
    if (state->ctx.mainLoop != NULL) {
