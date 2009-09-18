@@ -98,7 +98,7 @@ if ENABLE_UNITY
 endif
 vmware_user_LDADD += -lcrypt
 vmware_user_LDADD += -lstdc++
-if LINUX
+if USE_SLASH_PROC
    vmware_user_LDADD += -lgcc_s
    vmware_user_LDADD += ../lib/slashProc/libSlashProc.la
 endif

@@ -68,7 +68,7 @@ SUBDIRS += rpcChannel
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut
 SUBDIRS += rpcVmx
-if LINUX
+if USE_SLASH_PROC
    SUBDIRS += slashProc
 endif
 SUBDIRS += SLPv2Parser

@@ -335,6 +335,21 @@ if test "$have_genmarshal" != "yes"; then
 fi
 
 #
+# Parts of our Linux code require more recent version of glib
+#
+if test "$os" = "linux"; then
+   AC_VMW_CHECK_LIB([glib-2.0],
+                    [GLIB2],
+                    [glib-2.0],
+                    [],
+                    [2.14.0],
+                    [glib.h],
+                    [g_regex_new],
+                    [have_glib_2_14=yes],
+                    [AC_MSG_WARN([glib is not recent enough, some features will be disabled.])])
+fi
+
+#
 # Check for fuse.
 #
 AC_VMW_CHECK_LIB([fuse],
@@ -1033,6 +1048,7 @@ AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a "$with_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(NEED_EVENTFD, test "$has_sys_eventfd" = "no")
+AM_CONDITIONAL(USE_SLASH_PROC, test "os" = "linux" -a "$have_glib_2_14" = "yes")
 
 ### Feature-specific flags / actions
 # Combine where possible

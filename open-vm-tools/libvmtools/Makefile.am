@@ -50,7 +50,7 @@ libvmtools_la_LIBADD += @LIBVMTOOLS_LIBADD@
 libvmtools_la_LIBADD += @GLIB2_LIBS@
 libvmtools_la_LIBADD += @ICU_LIBS@
 
-if LINUX
+if USE_SLASH_PROC
 libvmtools_la_LIBADD += ../lib/slashProc/libSlashProc.la
 endif
 
