@@ -647,6 +647,7 @@ FIELD_FUNC(MWAIT_C4_SUBSTATE, CPUID_INTEL_ID5EDX_MWAIT_C4_SUBSTATE)
 #define CPUID_FAMILY_K8       15
 #define CPUID_FAMILY_K8L      16
 #define CPUID_FAMILY_K8MOBILE 17
+#define CPUID_FAMILY_BULLDOZER 21
 
 /* Intel model information */
 #define CPUID_MODEL_PPRO       1
@@ -730,27 +731,27 @@ CPUID_EFFECTIVE_MODEL(uint32 v) /* %eax from CPUID with %eax=1. */
  * the use of CPUID standard function 0).
  */
 static INLINE Bool
-CPUID_FAMILY_IS_486(uint32 _eax)
+CPUID_FAMILY_IS_486(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_486;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_486;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_P5(uint32 _eax)
+CPUID_FAMILY_IS_P5(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_P5;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_P5;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_P6(uint32 _eax)
+CPUID_FAMILY_IS_P6(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_P6;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_P6;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_PENTIUM4(uint32 _eax)
+CPUID_FAMILY_IS_PENTIUM4(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_P4;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_P4;
 }
 
 /*
@@ -800,50 +801,56 @@ CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
 
 
 static INLINE Bool
-CPUID_FAMILY_IS_K7(uint32 _eax)
+CPUID_FAMILY_IS_K7(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_K7;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K7;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_K8(uint32 _eax)
+CPUID_FAMILY_IS_K8(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_K8;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K8;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_K8EXT(uint32 _eax)
+CPUID_FAMILY_IS_K8EXT(uint32 eax)
 {
    /*
     * We check for this pattern often enough that it's
     * worth a separate function, for syntactic sugar.
     */
-   return CPUID_FAMILY_IS_K8(_eax) &&
-          CPUID_EXTENDED_MODEL(_eax) != 0;
+   return CPUID_FAMILY_IS_K8(eax) &&
+          CPUID_EXTENDED_MODEL(eax) != 0;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_K8L(uint32 _eax)
+CPUID_FAMILY_IS_K8L(uint32 eax)
 {
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_K8L;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K8L;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_K8MOBILE(uint32 _eax)
+CPUID_FAMILY_IS_K8MOBILE(uint32 eax)
 {
    /* Essentially a K8 (not K8L) part, but with mobile features. */
-   return CPUID_EFFECTIVE_FAMILY(_eax) == CPUID_FAMILY_K8MOBILE;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K8MOBILE;
 }
 
 static INLINE Bool
-CPUID_FAMILY_IS_K8STAR(uint32 _eax)
+CPUID_FAMILY_IS_K8STAR(uint32 eax)
 {
    /*
     * Read function name as "K8*", as in wildcard.
     * Matches K8 or K8L or K8MOBILE
     */
-   return CPUID_FAMILY_IS_K8(_eax) || CPUID_FAMILY_IS_K8L(_eax) ||
-          CPUID_FAMILY_IS_K8MOBILE(_eax);
+   return CPUID_FAMILY_IS_K8(eax) || CPUID_FAMILY_IS_K8L(eax) ||
+          CPUID_FAMILY_IS_K8MOBILE(eax);
+}
+
+static INLINE Bool
+CPUID_FAMILY_IS_BULLDOZER(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_BULLDOZER;
 }
 
 /*
