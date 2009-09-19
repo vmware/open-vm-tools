@@ -1,3 +1,10 @@
+open-vm-tools 2009.09.18 changes:
+	* Mostly bug fixes and minor enhancements.
+
+	* The pvscsi code was re-factored in preparation for upstreaming. The
+	driver has been sent to the LKML for inclusing in the main Linux tree,
+	and might be removed from open-vm-tools once it's accepted.
+
 open-vm-tools 2009.08.24 changes:
 	* Remove support for Linux kernels < 2.6.9.
 
