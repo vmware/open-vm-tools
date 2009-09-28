@@ -82,6 +82,15 @@
 #define TOOLS_CORE_SIG_CAPABILITIES "tcs_capabilities"
 
 /**
+ * Signal sent when the config file is reloaded.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  data     Client data.
+ */
+#define TOOLS_CORE_SIG_CONF_RELOAD "tcs_conf_reload"
+
+/**
  * Signal sent when the service receives a request to dump its internal
  * state to the log. This is for debugging purposes, and plugins can
  * respond to the signal by dumping their own state also.

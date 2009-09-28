@@ -232,6 +232,11 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
                                    &state->ctx.config,
                                    &state->configMtime)) {
       g_debug("Config file reloaded.\n");
+
+      /* Inform plugins of config file update. */
+      g_signal_emit_by_name(state->ctx.serviceObj,
+                            TOOLS_CORE_SIG_CONF_RELOAD,
+                            &state->ctx);
    } else {
       loaded = FALSE;
    }
