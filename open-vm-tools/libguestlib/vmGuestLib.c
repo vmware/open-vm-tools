@@ -405,7 +405,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
           * XXX: Maybe use another error code for this case where the host
           * product doesn't support this feature?
           */
-         ret = VMGUESTLIB_ERROR_UNSUPPORTED_VERSION;
+         ret = VMGUESTLIB_ERROR_NOT_ENABLED;
          break;
       } else if (hostVersion == 3) {
          /*
