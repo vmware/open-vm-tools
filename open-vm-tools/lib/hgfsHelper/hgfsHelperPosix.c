@@ -38,7 +38,7 @@
 #elif defined sun
 #define HGFSHLPR_DEFAULT_MOUNT_PATH      "/hgfs"
 #elif defined __APPLE__
-#define HGFSHLPR_DEFAULT_MOUNT_PATH      "/Volumes/Shared Folders"
+#define HGFSHLPR_DEFAULT_MOUNT_PATH      "/Volumes/VMware Shared Folders"
 #endif
 
 
