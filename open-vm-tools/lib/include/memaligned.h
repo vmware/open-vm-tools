@@ -35,6 +35,112 @@
 #endif
 #include "vmware.h"
 
+#if defined(__APPLE__) && !defined(VM_X86_64)
+/*
+ * Bug 471584: Mac OS X 10.6's valloc() implementation for 32-bit
+ * processes can exhaust our process's memory space.
+ *
+ * Work around this by using our own simple page-aligned memory
+ * allocation implementation based on malloc() for 32-bit processes.
+ */
+#define MEMALIGNED_USE_INTERNAL_IMPL 1
+#endif
+
+
+#ifdef MEMALIGNED_USE_INTERNAL_IMPL
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AlignedMallocImpl --
+ *
+ *      Internal implementation of page-aligned memory for operating systems
+ *      that lack a working page-aligned allocation function.
+ *
+ *      Resulting pointer needs to be freed with AlignedFreeImpl.
+ *
+ * Result:
+ *      A pointer.  NULL on out of memory condition.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+AlignedMallocImpl(size_t size) // IN
+{
+   size_t paddedSize;
+   uintptr_t *buf;
+   uintptr_t *alignedResult;
+
+#define PAGE_MASK (PAGE_SIZE - 1)
+#define PAGE_ROUND_DOWN(_value) ((uintptr_t)(_value) & ~PAGE_MASK)
+#define PAGE_ROUND_UP(_value) PAGE_ROUND_DOWN((uintptr_t)(_value) + PAGE_MASK)
+
+   /*
+    * This implementation allocates PAGE_SIZE extra bytes with
+    * malloc() to ensure the buffer spans a page-aligned memory
+    * address, which we return.  (We could use PAGE_SIZE - 1 to save a
+    * byte if we ensured 'size' was non-zero.)
+    *
+    * After padding, we allocate an extra pointer to hold the original
+    * pointer returned by malloc() (stored immediately preceding the
+    * page-aligned address).  We free this in AlignedFreeImpl().
+    *
+    * Finally, we allocate enough space to hold 'size' bytes.
+    */
+   paddedSize = PAGE_SIZE + sizeof *buf + size;
+   buf = (uintptr_t *)malloc(paddedSize);
+   if (!buf) {
+      return NULL;
+   }
+
+   alignedResult = (uintptr_t *)PAGE_ROUND_UP(buf + 1);
+   *(alignedResult - 1) = (uintptr_t)buf;
+
+#undef PAGE_MASK
+#undef PAGE_ROUND_DOWN
+#undef PAGE_ROUND_UP
+
+   return alignedResult;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AlignedFreeImpl --
+ *
+ *      Internal implementation to free a page-aligned buffer allocated
+ *      with AlignedMallocImpl.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+AlignedFreeImpl(void *buf) // IN
+{
+   uintptr_t origBuf;
+
+   if (!buf) {
+      return;
+   }
+
+   origBuf = *((uintptr_t *)buf - 1);
+   free((void *)origBuf);
+}
+
+#endif // MEMALIGNED_USE_INTERNAL_IMPL
+
+
 /*
  *---------------------------------------------------------------------------
  *
@@ -60,11 +166,18 @@ Aligned_UnsafeMalloc(size_t size) // IN
    buf = _aligned_malloc(size, PAGE_SIZE);
 #elif __linux__
 #  if defined(N_PLAT_NLM)
-   // Netware does not support valloc or memalign.  Fall back to malloc.
+   /*
+    * Netware does not support valloc or memalign.  Fall back to malloc.
+    *
+    * TODO: Should we #define MEMALIGNED_USE_INTERNAL_IMPL for Netware
+    * as well?
+    */
    buf = malloc(size);
 #  else
    buf = memalign(PAGE_SIZE, size);
 #  endif
+#elif defined(MEMALIGNED_USE_INTERNAL_IMPL)
+   buf = AlignedMallocImpl(size);
 #else // Apple, BSD, Solaris (tools)
    buf = valloc(size); 
 #endif
@@ -153,6 +266,8 @@ Aligned_Free(void *buf)  // IN
 {
 #ifdef _WIN32
    _aligned_free(buf);
+#elif defined(MEMALIGNED_USE_INTERNAL_IMPL)
+   AlignedFreeImpl(buf);
 #else
    free(buf);
 #endif
