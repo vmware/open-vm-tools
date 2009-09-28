@@ -596,12 +596,21 @@ AC_CHECK_FUNCS(
 AC_CHECK_FUNCS([ecvt])
 AC_CHECK_FUNCS([fcvt])
 
-AC_CHECK_LIB(
-   [pthread],
-   [pthread_mutex_init],
-   [HAVE_PTHREAD=yes],
-   [AC_MSG_ERROR(
-      [libpthread not found. Please install the libc/libpthread devel package(s).])])
+if test "$os" = "freebsd" -a "$osVersion" -ge 600000; then
+   AC_CHECK_LIB(
+      [thr],
+      [pthread_mutex_init],
+      [THREAD_LIB=-lthr])
+      [AC_MSG_ERROR(
+         [Unable to locate required threading library libthr.])])
+else
+   AC_CHECK_LIB(
+      [pthread],
+      [pthread_mutex_init],
+      [THREAD_LIB=-lpthread],
+      [AC_MSG_ERROR(
+         [libpthread not found. Please install the libc/libpthread devel package(s).])])
+fi
 
 # PAM prefix
 AC_ARG_WITH([pam-prefix],
@@ -1090,11 +1099,9 @@ if test "$HAVE_WCHAR_H" = "yes"; then
    LIB_STRING_CPPFLAGS="$LIB_STRING_CPPFLAGS -DGLIBC_VERSION_22"
 fi
 
-if test "$HAVE_PTHREAD" = "yes"; then
-   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lpthread"
-   VIX_LIBADD="$VIX_LIBADD -lpthread"
-   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lpthread"
-fi
+LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIB"
+VIX_LIBADD="$VIX_LIBADD $THREAD_LIB"
+VMWARE_USER_LDADD="$VMWARE_USER_LDADD $THREAD_LIB"
 
 ### Core Services definitions.
 
