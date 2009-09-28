@@ -4809,7 +4809,7 @@ HgfsServerDeleteDir(char const *packetIn,     // IN: incoming packet
                     HgfsSessionInfo *session) // IN: session info
 {
    HgfsNameStatus nameStatus;
-   char *localName;
+   char *localName = NULL;
    int error;
    HgfsHandle file = HGFS_INVALID_HANDLE;
    HgfsDeleteHint hints = 0;
@@ -4855,7 +4855,7 @@ HgfsServerDeleteDir(char const *packetIn,     // IN: incoming packet
    /* Guest OS is not allowed to delete shared folder. */
    if (HgfsServerIsSharedFolderOnly(cpName, cpNameSize)){
       LOG(4, ("%s: Cannot delete shared folder\n", __FUNCTION__));
-
+      free(localName);
       return EPERM;
    }
 
@@ -4869,7 +4869,7 @@ HgfsServerDeleteDir(char const *packetIn,     // IN: incoming packet
       if (error == 0) {
          error = EACCES;
       }
-      LOG(4, ("HgfsServerDeleteDir: failed access check, error %d\n", error));
+      LOG(4, ("%s: : failed access check, error %d\n", __FUNCTION__, error));
       free(localName);
       return error;
    }
@@ -5014,7 +5014,8 @@ HgfsServerRename(char const *packetIn,     // IN: incoming packet
                                    &localNewNameLen)) {
          LOG(4, ("%s: could not map cached target file handle %u\n",
                  __FUNCTION__, targetFile));
-         return EBADF;
+         status = EBADF;
+         goto exit;
       }
 
       /* Guest OS is not allowed to rename shared folder. */
@@ -5430,7 +5431,7 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
 {
    HgfsRequest *header;
    uint32 extra;
-   char *localSymlinkName;
+   char *localSymlinkName = NULL;
    char localTargetName[HGFS_PACKET_MAX];
    int error;
    HgfsNameStatus nameStatus;
@@ -5440,7 +5441,7 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
    char *targetName;
    uint32 targetNameLength;
    HgfsShareOptions configOptions;
-   char *packetOut;
+   char *packetOut = NULL;
    size_t packetOutSize;
    HgfsInternalStatus status = 0;
    size_t localSymlinkNameLen;
@@ -5542,17 +5543,16 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
    }
 
    if (!shareInfo.writePermissions ) {
-      int error = HgfsAccess(localSymlinkName, symlinkName, symlinkNameLength);
-      if (error != 0) {
-         if (error == ENOENT) {
-            error = EACCES;
+      status = HgfsAccess(localSymlinkName, symlinkName, symlinkNameLength);
+      if (status != 0) {
+         if (status == ENOENT) {
+            status = EACCES;
          }
       } else {
-         error = EEXIST;
+         status = EEXIST;
       }
-      LOG(4, ("HgfsServerCreateDir: failed access check, error %d\n", error));
-      free(localSymlinkName);
-      return error;
+      LOG(4, ("HgfsServerCreateDir: failed access check, error %d\n", status));
+      goto exit;
    }
 
    ASSERT(localSymlinkName);
@@ -5564,7 +5564,6 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
     */
    if (targetNameLength > extra) {
       /* The input packet is smaller than the request */
-      free(localSymlinkName);
       status = EPROTO;
       goto exit;
    }
@@ -5597,7 +5596,6 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
 
    /* XXX: Should make use of targetNameP->flags? */
    error = Posix_Symlink(localTargetName, localSymlinkName);
-   free(localSymlinkName);
    if (error) {
       status = errno;
       LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(errno)));
@@ -5609,9 +5607,11 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
                               session, 0)) {
       goto exit;
    }
+   free(localSymlinkName);
    return status;
 
 exit:
+   free(localSymlinkName);
    free(packetOut);
    return status;
 }
