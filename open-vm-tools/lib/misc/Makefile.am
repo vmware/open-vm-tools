@@ -25,9 +25,6 @@ libMisc_la_SOURCES += dbllnklst.c
 libMisc_la_SOURCES += dynarray.c
 libMisc_la_SOURCES += dynbuf.c
 libMisc_la_SOURCES += escape.c
-if NEED_EVENTFD
-libMisc_la_SOURCES += eventfd.c
-endif
 libMisc_la_SOURCES += hashTable.c
 libMisc_la_SOURCES += hostinfoPosix.c
 libMisc_la_SOURCES += hostname.c

@@ -18,6 +18,5 @@
 noinst_LTLIBRARIES = libSync.la
 
 libSync_la_SOURCES =
-libSync_la_SOURCES += syncMutex.c
-libSync_la_SOURCES += syncWaitQPosix.c
+libSync_la_SOURCES += syncMutexPthread.c
 
