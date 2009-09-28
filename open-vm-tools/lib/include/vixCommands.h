@@ -325,6 +325,11 @@ typedef
 struct VixMsgPowerOpRequest {
    VixCommandRequestHeader   header;
    VixVMPowerOpOptions       powerOpOptions;
+   /*
+    * Starting in Workstation 7.0, a serialized property list buffer
+    * can be appended here. This was originally used for augmenting
+    * poweroff to support revert to snapshot upon poweroff functionality.
+    */
 }
 #include "vmware_pack_end.h"
 VixMsgPowerOpRequest;
@@ -2572,6 +2577,15 @@ Bool VixMsg_ValidateCommandInfoTable(void);
 const char *VixAsyncOp_GetDebugStrForOpCode(int opCode);
 
 VixCommandSecurityCategory VixMsg_GetCommandSecurityCategory(int opCode);
+
+/*
+ * Vix private internal properties shared between the Vix client
+ * and the VMX.
+ */
+
+enum {
+   VIX_PROPERTY_VM_POWER_OFF_TO_SNAPSHOT_UID       = 5102,
+};
 
 VixError VixMsg_AllocGenericRequestMsg(int opCode,
                                        uint64 cookie,

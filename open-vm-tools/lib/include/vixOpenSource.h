@@ -383,7 +383,6 @@ enum {
  */
 enum {
    VIX_FILESYSTEMS_SHOW_ALL     = 0x000,
-   VIX_FILESYSTEMS_HIDE_NETWORK = 0x001,
 };
 
 

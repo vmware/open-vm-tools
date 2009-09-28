@@ -49,9 +49,6 @@ static void USWindowUpdate(UnityPlatform *up,
 static UnitySpecialWindow *USWindowLookup(UnityPlatform *up, Window window);
 static void USWindowDestroy(UnityPlatform *up, UnitySpecialWindow *usw);
 
-static gboolean UnityPlatformHandleEvents(gboolean errorOccurred,
-                                          gboolean inputAvailable,
-                                          gpointer data);
 static void UnityPlatformProcessXEvent(UnityPlatform *up,
                                        const XEvent *xevent,
                                        Window realEventWindow);
@@ -62,10 +59,6 @@ static void USRootWindowsProcessEvent(UnityPlatform *up,
                                        Window window);
 static int UnityPlatformXErrorHandler(Display *dpy, XErrorEvent *xev);
 static UnitySpecialWindow *UnityPlatformMakeRootWindowsObject(UnityPlatform *up);
-
-static gboolean UnityPlatformHandleEventsGlib(GIOChannel *source,
-                                              GIOCondition condition,
-                                              gpointer data);
 
 static void UnityPlatformSendClientMessageFull(Display *d,
                                                Window destWindow,
@@ -312,7 +305,7 @@ UnityPlatformCleanup(UnityPlatform *up) // IN
     * Caller should've called Unity_Exit first.
     */
    ASSERT(!up->isRunning);
-   ASSERT(!up->unityDisplayWatchID);
+   ASSERT(up->glibSource == NULL);
 
    if (up->specialWindows) {
       HashTable_Free(up->specialWindows);
@@ -773,12 +766,11 @@ UnityPlatformKillHelperThreads(UnityPlatform *up) // IN
    size_t numWindows;
 
    if (!up || !up->isRunning) {
-      ASSERT(!up->unityDisplayWatchID);
+      ASSERT(up->glibSource == NULL);
       return;
    }
 
-   g_source_remove(up->unityDisplayWatchID);
-   up->unityDisplayWatchID = 0;
+   UnityX11EventTeardownSource(up);
 
    up->desktopInfo.numDesktops = 0; // Zero means host has not set virtual desktop config
    UnityX11RestoreSystemSettings(up);
@@ -921,7 +913,7 @@ Bool
 UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
 {
    ASSERT(up);
-   ASSERT(!up->unityDisplayWatchID);
+   ASSERT(up->glibSource == NULL);
 
    XSync(up->display, TRUE);
    up->rootWindows = UnityPlatformMakeRootWindowsObject(up);
@@ -970,22 +962,7 @@ UnityPlatformStartHelperThreads(UnityPlatform *up) // IN
     * Set up a callback in the glib main loop to listen for incoming X events on the
     * unity display connection.
     */
-   {
-      GIOChannel *unityDisplayChannel;
-
-      unityDisplayChannel = g_io_channel_unix_new(ConnectionNumber(up->display));
-      if (g_io_channel_set_encoding(unityDisplayChannel, NULL, NULL) !=
-          G_IO_STATUS_NORMAL) {
-         Warning("%s: Unable to switch Unity I/O channel from UTF-8 to raw data.\n",
-                 __func__);
-      }
-
-      up->unityDisplayWatchID = g_io_add_watch(unityDisplayChannel,
-                                               G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
-                                               UnityPlatformHandleEventsGlib,
-                                               up);
-      g_io_channel_unref(unityDisplayChannel);
-   }
+   UnityX11EventEstablishSource(up);
 
    return TRUE;
 }
@@ -1189,42 +1166,7 @@ UnityPlatformUpdateWindowState(UnityPlatform *up,               // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * UnityPlatformHandleEventsGlib --
- *
- *      Lets the UnityPlatform object know that new events are available to process.
- *      This implementation is used in Gtk+ 2.0 and greater.
- *
- * Results:
- *      TRUE if we should continue to process events from the display, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-UnityPlatformHandleEventsGlib(GIOChannel *source,     // IN
-                              GIOCondition condition, // IN
-                              gpointer data)          // IN
-{
-   gboolean errorOccurred = FALSE;
-   gboolean inputAvailable = FALSE;
-
-   if (condition & (G_IO_ERR | G_IO_HUP | G_IO_NVAL)) {
-      errorOccurred = TRUE;
-   } else if (condition & G_IO_IN) {
-      inputAvailable = TRUE;
-   }
-
-   return UnityPlatformHandleEvents(errorOccurred, inputAvailable, data);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * UnityPlatformHandleEvents --
+ * UnityX11HandleEvents --
  *
  *      Handle incoming events
  *
@@ -1237,10 +1179,8 @@ UnityPlatformHandleEventsGlib(GIOChannel *source,     // IN
  *-----------------------------------------------------------------------------
  */
 
-static gboolean
-UnityPlatformHandleEvents(gboolean errorOccurred,  // IN
-                          gboolean inputAvailable, // IN
-                          gpointer data)           // IN
+gboolean
+UnityX11HandleEvents(gpointer data) // IN
 {
    UnityPlatform *up = (UnityPlatform *) data;
    GList *incomingEvents = NULL;
@@ -1248,15 +1188,6 @@ UnityPlatformHandleEvents(gboolean errorOccurred,  // IN
 
    ASSERT(up);
    ASSERT(up->isRunning);
-
-   if (errorOccurred) {
-      /*
-       * XXX We should force an exit from unity mode here - our X connection just died.
-       */
-      return FALSE;
-   } else if (!inputAvailable) {
-      Panic("Unity event handler was invoked with no input and no error\n");
-   }
 
    Debug("Starting unity event handling\n");
    while (XEventsQueued(up->display, QueuedAfterFlush)) {

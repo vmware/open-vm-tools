@@ -331,6 +331,12 @@ CopyPasteDnDWrapper::UnregisterDnD()
 {
    Debug("%s: enter\n", __FUNCTION__);
    if (IsDnDRegistered()) {
+      /*
+       * Detach the DnD detection window from Unity.
+       */
+      UnityDnD state = { NULL, NULL };
+      Unity_SetActiveDnDDetWnd(&state);
+
       if (m_isLegacy) {
          DnD_Unregister(m_hgWnd, m_ghWnd);
 #if defined(HAVE_GTKMM)

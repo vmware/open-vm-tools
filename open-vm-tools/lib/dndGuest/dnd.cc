@@ -659,6 +659,14 @@ DnD::OnGHUpdateUnityDetWnd(bool bShow,        // IN
       }
       mUnityDnDDetTimeout = EventManager_Add(mEventQueue, UNITY_DND_DET_TIMEOUT,
                                              DnDUnityDetTimeout, this);
+   } else {
+      /*
+       * If there is active DnD, the regular detection window will be hidden
+       * after DnD is done.
+       */
+      if (mState == DNDSTATE_READY) {
+         UpdateDetWnd(false, 0, 0);
+      }
    }
 
    /* Show/hide the full screent detection window. */

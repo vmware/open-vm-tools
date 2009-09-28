@@ -3317,7 +3317,6 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
 #if defined(_WIN32) || defined(linux)
-   VixCommandListFileSystemsRequest *lfReq = (VixCommandListFileSystemsRequest *) requestMsg;
    const char *listFileSystemsFormatString = "<filesystem>"
                                              "<name>%s</name>"
                                              "<size>%"FMT64"u</size>"
@@ -3362,54 +3361,42 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    }
 
    for (i = 0; i < numDrives; i++) {
-      /*
-       * Only add to the list if it is a local drive or
-       * VIX_FILESYSTEMS_HIDE_NETWORK is not set
-       */
-      if ((DRIVE_REMOTE != Win32U_GetDriveType(driveList[i])) ||
-          !(lfReq->options & VIX_FILESYSTEMS_HIDE_NETWORK)) {
+      if (!Win32U_GetDiskFreeSpaceEx(driveList[i],
+                                     (PULARGE_INTEGER) &freeBytesToUser,
+                                     (PULARGE_INTEGER) &totalBytesToUser,
+                                     (PULARGE_INTEGER) &freeBytes)) {
+         /*
+          * If we encounter an error, just return 0 values for the space info
+          */
+         freeBytesToUser = 0;
+         totalBytesToUser = 0;
+         freeBytes = 0;
 
-         if (!Win32U_GetDiskFreeSpaceEx(driveList[i],
-                                        (PULARGE_INTEGER) &freeBytesToUser,
-                                        (PULARGE_INTEGER) &totalBytesToUser,
-                                        (PULARGE_INTEGER) &freeBytes)) {
-            /*
-             * If we encounter an error, just return 0 values for the space info
-             */
-            freeBytesToUser = 0;
-            totalBytesToUser = 0;
-            freeBytes = 0;
-
-            Warning("unable to get drive size info: windows error code %d\n",
-                    GetLastError());
-         }
-
-         // If it fails, fileSystemType will be NULL
-         Win32U_GetVolumeInformation(driveList[i],
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     &fileSystemType);
-
-         destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                                listFileSystemsFormatString,
-                                driveList[i],
-                                totalBytesToUser,
-                                freeBytesToUser,
-                                fileSystemType);
-
-         Unicode_Free(fileSystemType);
+         Warning("unable to get drive size info: windows error code %d\n",
+                 GetLastError());
       }
+
+      // If it fails, fileSystemType will be NULL
+      Win32U_GetVolumeInformation(driveList[i],
+                                  NULL,
+                                  NULL,
+                                  NULL,
+                                  NULL,
+                                  &fileSystemType);
+
+      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
+                             listFileSystemsFormatString,
+                             driveList[i],
+                             totalBytesToUser,
+                             freeBytesToUser,
+                             fileSystemType);
+
+      Unicode_Free(fileSystemType);
    }
 
 #elif defined(linux)
 
-   if (lfReq->options & VIX_FILESYSTEMS_HIDE_NETWORK) {
-      mountfile = "/etc/fstab";
-   } else {
-      mountfile = "/etc/mtab";
-   }
+   mountfile = "/etc/mtab";
 
    fp = Posix_Setmntent(mountfile, "r");
    if (fp == NULL) {

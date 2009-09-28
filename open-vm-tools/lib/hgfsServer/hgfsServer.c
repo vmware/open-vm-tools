@@ -4430,7 +4430,7 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    HgfsFileNode *node = NULL;
    char const *inEnd;
    char const *next;
-   uint32 len;
+   int len;
    Bool sharedFolderOpen = FALSE;
 
    ASSERT(openInfo);

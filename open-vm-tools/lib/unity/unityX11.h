@@ -150,13 +150,38 @@ struct UnitySpecialWindow {
 
 typedef struct UnityPlatformWindow UnityPlatformWindow;
 
-/*
+
+/**
+ * Custom Glib source to monitor the Xlib queue and X11 socket(s).
+ *
+ * This structure is "derived from" GSource.  It will be recast and used as
+ * a GSource with Glib functions.
+ */
+
+typedef struct {
+   GSource base;        ///< Owned by Glib.  Hands off!
+   UnityPlatform *up;   ///< Our running UnityPlatform context.
+   GHashTable *fdTable; ///< file descriptor => GPollFD *.
+} UnityGSource;
+
+
+/**
  * Holds platform-specific data.
  */
 struct _UnityPlatform {
    Display *display; // X11 display object
    long eventTimeDiff; // Diff between X server time and our local time
-   guint unityDisplayWatchID; // Manages listening to the display from the glib main loop
+   /**
+    * Integrates Unity event sources with the Glib main loop.
+    *
+    * Monitors dedicated Unity X11 socket(s) and the associated Xlib event
+    * queue.  Its lifetime is for the duration that the user is in Unity mode.
+    *
+    * @note
+    * The event source is created in UnityPlatformStartHelperThreads and torn
+    * down in UnityPlatformKillHelperThreads.
+    */
+   UnityGSource *glibSource;
 
    struct { // Atoms that we'll find useful
       Atom _NET_WM_WINDOW_TYPE,
@@ -421,5 +446,15 @@ void UnityX11RestoreSystemSettings(UnityPlatform *up);
 size_t UnityPlatformGetNumVirtualDesktops(UnityPlatform *up);
 void UnityPlatformGetVirtualDesktopLayout(UnityPlatform *up, Atom *layoutData);
 const char *UnityPlatformGetEventString(UnityPlatform *up, int type);
+
+gboolean UnityX11HandleEvents(gpointer data);
+
+
+/*
+ * Implemented in x11Event.c.
+ */
+
+void UnityX11EventEstablishSource(UnityPlatform *up);
+void UnityX11EventTeardownSource(UnityPlatform *up);
 
 #endif

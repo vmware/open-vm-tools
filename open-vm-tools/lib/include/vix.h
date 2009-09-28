@@ -176,6 +176,7 @@ enum {
    VIX_E_TEMPLATE_VM                            = 4003,
    VIX_E_VM_ALREADY_LOADED                      = 4004,
    VIX_E_VM_ALREADY_UP_TO_DATE                  = 4006,
+   VIX_E_VM_UNSUPPORTED_GUEST                   = 4011,
 
    /* Property Errors */
    VIX_E_UNRECOGNIZED_PROPERTY                  = 6000,
@@ -507,9 +508,7 @@ typedef void VixEventProc(VixHandle handle,
 
 void Vix_ReleaseHandle(VixHandle handle);
 
-#ifndef VIX_HIDE_FROM_JAVA
 void Vix_AddRefHandle(VixHandle handle);
-#endif
 
 VixHandleType Vix_GetHandleType(VixHandle handle);
 
