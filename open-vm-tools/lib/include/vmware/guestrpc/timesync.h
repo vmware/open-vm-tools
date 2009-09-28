@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,23 +16,23 @@
  *
  *********************************************************/
 
-/*
- * Common data structures used by the helper app that runs on the VM
- * and the user process.
+#ifndef _TIMESYNC_H_
+#define _TIMESYNC_H_
+
+/**
+ * @file timesync.h
  *
- * XXX: avoid including this file. Try to include the vmware/guestrpc
- * equivalent for your feature directly.
+ * Definitions related to the time sync functionality.
  */
 
-#ifndef _VM_APP_H_
-#define _VM_APP_H_
+#define TOOLSOPTION_SYNCTIME                    "synctime"
+#define TOOLSOPTION_SYNCTIME_PERIOD             "synctime.period"
+#define TOOLSOPTION_SYNCTIME_ENABLE             "time.synchronize.tools.enable"
+#define TOOLSOPTION_SYNCTIME_STARTUP            "time.synchronize.tools.startup"
+#define TOOLSOPTION_SYNCTIME_SLEWCORRECTION     "time.synchronize.tools.slewCorrection"
+#define TOOLSOPTION_SYNCTIME_PERCENTCORRECTION  "time.synchronize.tools.percentCorrection"
 
-#define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_MODULE
-#include "includeCheck.h"
+#define TIMESYNC_SYNCHRONIZE                    "Time_Synchronize"
 
-#include "vmware/guestrpc/powerops.h"
-#include "vmware/guestrpc/tclodefs.h"
-#include "vmware/guestrpc/timesync.h"
+#endif /* _TIMESYNC_H_ */
 
-#endif
