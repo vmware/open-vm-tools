@@ -57,6 +57,7 @@ static Bool ResolutionDisplayTopologySetCB(RpcInData *data);
 
 #if defined(RESOLUTION_WIN32)
 static Bool ResolutionDisplayTopologyModesSetCB(RpcInData *data);
+static Bool ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data);
 void ResolutionSetSessionChangeCB(gpointer src, ToolsAppCtx *ctx, DWORD code, DWORD sessionID);
 #endif
 
@@ -181,6 +182,41 @@ invalid_arguments:
 
 
 #if defined(RESOLUTION_WIN32)
+/**
+ *
+ * Handler for TCLO 'ChangeHost3DAvailabilityHint'.
+ *
+ * Routine unmarshals RPC arguments and passes over to back-end for handling.
+ *
+ * @param[in] data RPC data
+ * @return TRUE if we can reply, FALSE otherwise.
+ */
+
+static Bool
+ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data)
+{
+   unsigned int set;
+   Bool success = FALSE;
+   unsigned int index = 0;
+
+   Debug("%s: enter\n", __FUNCTION__);
+
+   if (!StrUtil_GetNextUintToken(&set, &index, data->args, " ")) {
+      Debug("%s: invalid arguments\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data,
+                              "Invalid arguments. Expected \"set\"",
+                              FALSE);
+   }
+
+   success = ResolutionChangeHost3DAvailabilityHint(set?TRUE:FALSE);
+
+   RPCIN_SETRETVALS(data, success ? "" : "ResolutionChangeHost3DAvailabilityHint failed", success);
+
+   Debug("%s: leave\n", __FUNCTION__);
+   return success;
+}
+
+
 /**
  *
  * Handler for TCLO 'DisplayTopologyModes_Set'.
@@ -429,14 +465,16 @@ ResolutionSetCapabilities(gpointer src,
       RES_SET_IDX              = 0,
       DPY_TOPO_SET_IDX         = 1,
       DPY_GLOBAL_OFFSET_IDX    = 2,
-      DPY_TOPO_MODES_SET_IDX   = 3
+      DPY_TOPO_MODES_SET_IDX   = 3,
+      CHANGE_3D_HINT_IDX       = 4
    };
 
    ToolsAppCapability caps[] = {
       { TOOLS_CAP_OLD, "resolution_set", 0, 0 },
       { TOOLS_CAP_OLD, "display_topology_set", 0, 0 },
       { TOOLS_CAP_OLD, "display_global_offset", 0, 0 },
-      { TOOLS_CAP_NEW, NULL, CAP_SET_TOPO_MODES, 0 }
+      { TOOLS_CAP_NEW, NULL, CAP_SET_TOPO_MODES, 0 },
+      { TOOLS_CAP_NEW, NULL, CAP_CHANGE_HOST_3D_AVAILABILITY_HINT, 0},
    };
 
    ResolutionInfoType *resInfo = &resolutionInfo;
@@ -464,6 +502,9 @@ Debug("%s: setting DPY_TOPO_MODES_SET_IDX to 1\n", __FUNCTION__);
       }
    }
 
+#if defined(RESOLUTION_WIN32)
+   caps[CHANGE_3D_HINT_IDX].value = 1;
+#endif
    ResolutionServerCapReg(ctx, resServerCap);
 
    return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
@@ -517,7 +558,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
     */
    if (resInfo->canSetResolution || resInfo->canSetTopology) {
       int index = 0;
-      RpcChannelCallback rpcs[3];
+      RpcChannelCallback rpcs[4];
 
       memset(rpcs, '\0', sizeof rpcs);
 
@@ -534,6 +575,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 #if defined(RESOLUTION_WIN32)
          rpcs[index].name = "DisplayTopologyModes_Set";
          rpcs[index].callback = ResolutionDisplayTopologyModesSetCB;
+         index++;
+         rpcs[index].name = "ChangeHost3DAvailabilityHint";
+         rpcs[index].callback = ResolutionChangeHost3DAvailabilityHintCB;
          index++;
 #endif
       }

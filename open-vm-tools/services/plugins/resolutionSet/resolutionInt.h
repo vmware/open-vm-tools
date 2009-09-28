@@ -76,6 +76,7 @@ InitHandle ResolutionToolkitInit(void);
 void ResolutionBackendCleanup(void);
 Bool ResolutionSetResolution(uint32 width, uint32 height);
 #if defined(RESOLUTION_WIN32)
+Bool ResolutionChangeHost3DAvailabilityHint(Bool enable);
 void ResolutionSetSessionChange(DWORD code, DWORD sessionID);
 #endif
 Bool ResolutionSetTopology(unsigned int ndisplays, DisplayTopologyInfo displays[]);
