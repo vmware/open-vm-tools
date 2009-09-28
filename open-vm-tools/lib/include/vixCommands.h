@@ -105,6 +105,7 @@ enum VixResponseFlagsValues {
    VIX_RESPONSE_SOFT_POWER_OP       = 0x0001,
    VIX_RESPONSE_EXTENDED_RESULT_V1  = 0x0002,
    VIX_RESPONSE_TRUNCATED           = 0x0004,
+   VIX_RESPONSE_FSR                 = 0x0008
 };
 
 

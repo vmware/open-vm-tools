@@ -227,7 +227,7 @@ Hostinfo_SystemUpTime(void)
    VMK_ReturnStatus status;
 
    if (VmkSyscall_Init(FALSE, NULL, 0)) {
-      status = CosVmnix_GetUptimeUS(&uptime);
+      status = VMKernel_GetUptimeUS(&uptime);
       if (status == VMK_OK) {
          return uptime;
       }
@@ -667,7 +667,7 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
    VMK_ReturnStatus status;
 
    if (VmkSyscall_Init(FALSE, NULL, 0)) {
-      status = CosVmnix_GetMemSize(&total, &free);
+      status = VMKernel_GetMemSize(&total, &free);
       if (status == VMK_OK) {
          *minSize = 128;
          *maxSize = total / PAGE_SIZE;
