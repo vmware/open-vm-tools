@@ -265,6 +265,8 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
  *      Unqualified 16 byte nul-terminated hypervisor string
  *	String may contain garbage and caller must free
  *
+ *      NULL: Hypervisor vendor signature string was not found
+ *
  * Side effects:
  *	None
  *
@@ -277,9 +279,24 @@ Hostinfo_HypervisorCPUIDSig(void)
    CPUIDRegs regs;
    uint32 *name;
 
-   name = Util_SafeMalloc(4 * sizeof *name);
+   __GET_CPUID(1, &regs);
+   if (!(regs.ecx & CPUID_FEATURE_COMMON_ID1ECX_HYPERVISOR)) {
+      return NULL;
+   }
+
+   regs.ebx = 0;
+   regs.ecx = 0;
+   regs.edx = 0;
 
    __GET_CPUID(0x40000000, &regs);
+
+   if (regs.eax < 0x40000000) {
+      Log(LGPFX" CPUID hypervisor bit is set, but no "
+          "hypervisor vendor signature is present\n");
+   }
+
+   name = Util_SafeMalloc(4 * sizeof *name);
+
    name[0] = regs.ebx;
    name[1] = regs.ecx;
    name[2] = regs.edx;
