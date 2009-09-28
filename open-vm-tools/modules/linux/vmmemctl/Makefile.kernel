@@ -50,6 +50,7 @@ $(addprefix $(VMMEMCTL_PATH)/,$(VMMEMCTL_SHARED)): $(VMMEMCTL_PATH)/%.o: $(VMMEM
 	$(Q)$(rule_cc_o_c)
 
 $(DRIVER)-y += $(LIBBACKDOOR)
+$(DRIVER)-y += $(VMMEMCTL_SHARED)
 endif
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
