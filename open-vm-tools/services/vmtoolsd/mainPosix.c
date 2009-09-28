@@ -145,8 +145,9 @@ main(int argc,
        */
       if (!g_path_is_absolute(argv[0])) {
          gchar *abs = g_find_program_in_path(argv[0]);
-         if (abs == NULL) {
+         if (abs == NULL || strcmp(abs, argv[0]) == 0) {
             char *cwd = File_Cwd(NULL);
+            g_free(abs);
             abs = g_strdup_printf("%s%c%s", cwd, DIRSEPC, argv[0]);
             vm_free(cwd);
          }
@@ -160,10 +161,16 @@ main(int argc,
        * data is there.
        */
       for (i = 1; i < argc; i++) {
+         size_t count = 0;
          if (strcmp(argv[i], "--background") == 0 ||
              strcmp(argv[i], "-b") == 0) {
-            memmove(argv + i, argv + i + 2, (argc - i - 2) * sizeof *argv);
-            argv[argc - 2] = NULL;
+            count = 2;
+         } else if (g_str_has_prefix(argv[i], "--background=")) {
+            count = 1;
+         }
+         if (count) {
+            memmove(argv + i, argv + i + count, (argc - i - count) * sizeof *argv);
+            argv[argc - count] = NULL;
             break;
          }
       }
