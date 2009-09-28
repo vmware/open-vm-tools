@@ -66,6 +66,11 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
 
+/**
+ * Default poll interval is 30s (in milliseconds).
+ */
+#define GUESTINFO_TIME_INTERVAL_MSEC 30000
+
 #define GUESTINFO_DEFAULT_DELIMITER ' '
 
 /*
@@ -77,6 +82,20 @@ typedef struct _GuestInfoCache{
    NicInfoV3     *nicInfo;
    GuestDiskInfo diskInfo;
 } GuestInfoCache;
+
+
+/**
+ * Defines the current poll interval (in milliseconds).
+ *
+ * This value is controlled by the guestinfo.poll-interval config file option.
+ */
+int guestInfoPollInterval = 0;
+
+
+/**
+ * Gather loop timeout source.
+ */
+static GSource *gatherTimeoutSource = NULL;
 
 
 /* Local cache of the guest information that was last sent to vmx. */
@@ -97,6 +116,7 @@ static Bool NicInfoChanged(NicInfoV3 *nicInfo);
 static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
 static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
+static void TweakGatherLoop(ToolsAppCtx *ctx);
 
 
 /**
@@ -180,6 +200,28 @@ GuestInfoVMSupport(RpcInData *data)
 }
 
 
+/*
+ ******************************************************************************
+ * GuestInfoServerConfReload --                                          */ /**
+ *
+ * @brief Reconfigures the poll loop interval upon config file reload.
+ *
+ * @param[in]  src     The source object.
+ * @param[in]  ctx     The application context.
+ * @param[in]  data    Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoServerConfReload(gpointer src,
+                          ToolsAppCtx *ctx,
+                          gpointer data)
+{
+   TweakGatherLoop(ctx);
+}
+
+
 /**
  * Cleanup internal data on shutdown.
  *
@@ -194,6 +236,11 @@ GuestInfoServerShutdown(gpointer src,
                         gpointer data)
 {
    GuestInfoClearCache();
+
+   if (gatherTimeoutSource != NULL) {
+      g_source_destroy(gatherTimeoutSource);
+      gatherTimeoutSource = NULL;
+   }
 }
 
 
@@ -338,10 +385,9 @@ GuestInfoGather(gpointer data)
       }
    }
 
-   disableQueryDiskInfo = g_key_file_get_boolean(ctx->config,
-                                                 "guestinfo",
-                                                 CONFNAME_DISABLEQUERYDISKINFO,
-                                                 NULL);
+   disableQueryDiskInfo =
+      g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
+                             CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, NULL);
    if (!disableQueryDiskInfo) {
       if (!GuestInfo_GetDiskInfo(&diskInfo)) {
          g_warning("Failed to get disk info.\n");
@@ -1140,6 +1186,88 @@ NicInfoV3ToV2(const NicInfoV3 *infoV3)
 }
 
 
+/*
+ ******************************************************************************
+ * TweakGatherLoop --                                                    */ /**
+ *
+ * @brief Start, stop, reconfigure the GuestInfoGather poll loop.
+ *
+ * This function is responsible for creating, manipulating, and resetting the
+ * GuestInfoGather loop timeout source.
+ *
+ * @param[in]  ctx   The app context.
+ *
+ * @sa CONFNAME_GUESTINFO_POLLINTERVAL
+ *
+ ******************************************************************************
+ */
+
+static void
+TweakGatherLoop(ToolsAppCtx *ctx)
+{
+   GError *gError = NULL;
+   gint pollInterval = GUESTINFO_TIME_INTERVAL_MSEC;
+
+   /*
+    * Check the config registry for a custom poll interval, converting from
+    * seconds to milliseconds.
+    */
+   if (g_key_file_has_key(ctx->config, CONFGROUPNAME_GUESTINFO,
+                          CONFNAME_GUESTINFO_POLLINTERVAL, NULL)) {
+      pollInterval = g_key_file_get_integer(ctx->config, CONFGROUPNAME_GUESTINFO,
+                                            CONFNAME_GUESTINFO_POLLINTERVAL, &gError);
+      pollInterval *= 1000;
+
+      if (pollInterval < 0 || gError) {
+         g_warning("Invalid %s.%s value.  Using default.\n",
+                   CONFGROUPNAME_GUESTINFO, CONFNAME_GUESTINFO_POLLINTERVAL);
+         pollInterval = GUESTINFO_TIME_INTERVAL_MSEC;
+      }
+   }
+
+   /*
+    * If the interval hasn't changed, let's not interfere with the existing
+    * timeout source.
+    */
+   if (guestInfoPollInterval == pollInterval) {
+      return;
+   }
+
+   /*
+    * All checks have passed.  Destroy the existing timeout source, if it
+    * exists, then create and attach a new one.
+    */
+
+   if (gatherTimeoutSource != NULL) {
+      g_source_destroy(gatherTimeoutSource);
+      gatherTimeoutSource = NULL;
+   }
+
+   guestInfoPollInterval = pollInterval;
+
+   if (guestInfoPollInterval) {
+      g_message("New poll interval is %us.\n", guestInfoPollInterval / 1000);
+
+      gatherTimeoutSource = g_timeout_source_new(guestInfoPollInterval);
+      VMTOOLSAPP_ATTACH_SOURCE(ctx, gatherTimeoutSource, GuestInfoGather, ctx, NULL);
+      g_source_unref(gatherTimeoutSource);
+   } else {
+      g_message("Poll loop disabled.\n");
+   }
+
+   g_error_free(gError);
+}
+
+
+/*
+ ******************************************************************************
+ * BEGIN Tools Core Services goodies.
+ *
+ * TODO Move GuestInfoServerShutdown and friends within this block.  Saving
+ * that for a later changeset.
+ */
+
+
 /**
  * Plugin entry point. Initializes internal plugin state.
  *
@@ -1157,13 +1285,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   GSource *src;
-
    RpcChannelCallback rpcs[] = {
       { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
    };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
+      { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
       { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
       { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
       { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }
@@ -1173,18 +1300,29 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
    };
 
+   /*
+    * This plugin is useless without an RpcChannel.  If we don't have one,
+    * just bail.
+    */
+   if (ctx->rpc == NULL) {
+      return NULL;
+   }
+
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
    memset(&gInfoCache, 0, sizeof gInfoCache);
    vmResumed = FALSE;
 
-   /* Add the first timer event. */
-   if (ctx->rpc) {
-      src = g_timeout_source_new(GUESTINFO_TIME_INTERVAL_MSEC * 10);
-      VMTOOLSAPP_ATTACH_SOURCE(ctx, src, GuestInfoGather, ctx, NULL);
-      g_source_unref(src);
-   }
+   /*
+    * Set up the GuestInfoGather loop.
+    */
+   TweakGatherLoop(ctx);
 
    return &regData;
 }
 
+
+/*
+ * END Tools Core Services goodies.
+ ******************************************************************************
+ */

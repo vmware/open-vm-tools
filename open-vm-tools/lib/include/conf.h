@@ -52,8 +52,39 @@
 #define CONFNAME_LOG                      "log"
 #define CONFNAME_LOGFILE                  "log.file"
 #define CONFNAME_LOGLEVEL                 "log.level" 
-#define CONFNAME_DISABLEQUERYDISKINFO     "disable-query-diskinfo"
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
+
+
+/*
+ ******************************************************************************
+ * BEGIN GuestInfo goodies.
+ */
+
+/**
+ * Defines the string used for the GuestInfo config file group.
+ */
+#define CONFGROUPNAME_GUESTINFO "guestinfo"
+
+/**
+ * Lets users disable just DiskInfo.
+ */
+#define CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO "disable-query-diskinfo"
+
+/**
+ * Define a custom GuestInfo poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_GUESTINFO_POLLINTERVAL "poll-interval"
+
+/*
+ * END GuestInfo goodies.
+ ******************************************************************************
+ */
+
 
 /*
  * Tell the tools to show the wireless icon in the guest.

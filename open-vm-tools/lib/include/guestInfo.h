@@ -56,7 +56,6 @@
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
-#define GUESTINFO_TIME_INTERVAL_MSEC 3000  /* time interval in msec */
 
 /* Value to be used when "primary" IP address is indeterminable. */
 #define GUESTINFO_IP_UNKNOWN "unknown"

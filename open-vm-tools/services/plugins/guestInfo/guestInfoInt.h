@@ -25,6 +25,8 @@
 #include "guestInfo.h"
 #define G_LOG_DOMAIN "guestinfo"
 
+extern int guestInfoPollInterval;
+
 Bool
 GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
 
