@@ -600,7 +600,7 @@ if test "$os" = "freebsd" -a "$osVersion" -ge 600000; then
    AC_CHECK_LIB(
       [thr],
       [pthread_mutex_init],
-      [THREAD_LIB=-lthr])
+      [THREAD_LIB=-lthr],
       [AC_MSG_ERROR(
          [Unable to locate required threading library libthr.])])
 else
