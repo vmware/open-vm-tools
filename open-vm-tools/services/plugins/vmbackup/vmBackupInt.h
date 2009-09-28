@@ -29,8 +29,8 @@
 
 #include <glib.h>
 #include "vmware.h"
-#include "vmbackup_def.h"
 #include "vmtoolsApp.h"
+#include "vmware/guestrpc/vmbackup.h"
 
 typedef enum {
    VMBACKUP_STATUS_PENDING,
