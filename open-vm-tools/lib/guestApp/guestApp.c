@@ -1788,34 +1788,6 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
    return TRUE;
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestApp_ControlRecord --
- *
- *    Start or stop recording process, flagged by command. 
- *    Command definition is in statelogger_backdoor_def.h.
- *
- * Results:
- *    TRUE on success and FALSE on failure.
- *
- * Side effects:
- *    Host VMware product starts or stops recording this vm.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-GuestApp_ControlRecord(int32 command) // IN: flag of starting or stopping recording
-{
-   Backdoor_proto bp;
-   bp.in.size = command;
-   bp.in.cx.halfs.low = BDOOR_CMD_STATELOGGER;
-   Backdoor(&bp);
-   return (bp.out.ax.halfs.low == 1);
-}
-
 #ifdef __cplusplus
 }
 #endif
