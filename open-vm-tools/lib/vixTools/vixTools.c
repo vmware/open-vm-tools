@@ -77,6 +77,7 @@
 #include "codeset.h"
 #include "posix.h"
 #include "unicode.h"
+#include "hashTable.h"
 
 #if defined(linux) || defined(_WIN32)
 #include "netutil.h"
@@ -143,6 +144,18 @@ static Bool thisProcessRunsAsRoot = FALSE;
 static Bool allowConsoleUserOps = FALSE;
 static VixToolsReportProgramDoneProcType reportProgramDoneProc = NULL;
 static void *reportProgramDoneData = NULL;
+
+#ifndef _WIN32
+typedef struct VixToolsEnvironmentTableIterator {
+   char **envp;
+   size_t pos;
+} VixToolsEnvironmentTableIterator;
+
+/*
+ * Stores the environment variables to use when executing guest applications.
+ */
+static HashTable *userEnvironmentTable = NULL;
+#endif
 
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
                                     char **result);
@@ -247,6 +260,17 @@ static VixError VixToolsDoesUsernameMatchCurrentUser(const char *username);
 
 static Bool VixToolsPidRefersToThisProcess(ProcMgr_Pid pid);
 
+#ifndef _WIN32
+static void VixToolsBuildUserEnvironmentTable(const char * const *envp);
+
+static char **VixToolsEnvironmentTableToEnvp(const HashTable *envTable);
+
+static int VixToolsEnvironmentTableEntryToEnvpEntry(const char *key, void *value,
+                                                    void *clientData);
+
+static void VixToolsFreeEnvp(char **envp);
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -265,6 +289,7 @@ static Bool VixToolsPidRefersToThisProcess(ProcMgr_Pid pid);
 
 VixError
 VixTools_Initialize(Bool thisProcessRunsAsRootParam,                                // IN
+                    const char * const *originalEnvp,                               // IN
                     VixToolsReportProgramDoneProcType reportProgramDoneProcParam,   // IN
                     void *clientData)                                               // IN
 {
@@ -274,8 +299,195 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
    reportProgramDoneProc = reportProgramDoneProcParam;
    reportProgramDoneData = clientData;
 
+#ifndef _WIN32
+   VixToolsBuildUserEnvironmentTable(originalEnvp);
+#endif
+
    return(err);
 } // VixTools_Initialize
+
+
+#ifndef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsBuildUserEnvironmentTable --
+ *
+ *      Takes an array of strings of the form "<key>=<value>" storing the
+ *      environment variables (as per environ(7)) that should be used when
+ *      running programs, and populates the hash table with them.
+ *
+ *      If 'envp' is NULL, skip creating the user environment table, so that
+ *      we just use the current environment.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      May initialize the global userEnvironmentTable.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VixToolsBuildUserEnvironmentTable(const char * const *envp)   // IN: optional
+{
+   if (NULL == envp) {
+      ASSERT(NULL == userEnvironmentTable);
+      return;
+   }
+
+   if (NULL == userEnvironmentTable) {
+      userEnvironmentTable = HashTable_Alloc(64,  // buckets (power of 2)
+                                             HASH_STRING_KEY | HASH_FLAG_COPYKEY,
+                                             free); // freeFn for the values
+   } else {
+      /*
+       * If we're being reinitialized, we can just clear the table and
+       * load the new values into it. They shouldn't have changed, but
+       * in case they ever do this will cover it.
+       */
+      HashTable_Clear(userEnvironmentTable);
+   }
+
+   for (; NULL != *envp; envp++) {
+      char *name;
+      char *value;
+      char *whereToSplit;
+      size_t nameLen;
+
+      whereToSplit = strchr(*envp, '=');
+      if (NULL == whereToSplit) {
+         /* Our code generated this list, so this shouldn't happen. */
+         ASSERT(0);
+         continue;
+      }
+
+      nameLen = whereToSplit - *envp;
+      name = Util_SafeMalloc(nameLen + 1);
+      memcpy(name, *envp, nameLen);
+      name[nameLen] = '\0';
+
+      whereToSplit++;   // skip over '='
+
+      value = Util_SafeStrdup(whereToSplit);
+
+      HashTable_Insert(userEnvironmentTable, name, value);
+      DEBUG_ONLY(value = NULL;)  // the hash table now owns 'value'
+
+      free(name);
+      DEBUG_ONLY(name = NULL;)
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsEnvironmentTableToEnvp --
+ *
+ *      Take a hash table storing environment variables names and values and
+ *      build an array out of them.
+ *
+ * Results:
+ *      char ** - envp array as per environ(7). Must be freed using
+ *      VixToolsFreeEnvp
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char **
+VixToolsEnvironmentTableToEnvp(const HashTable *envTable)   // IN
+{
+   char **envp;
+
+   if (NULL != envTable) {
+      VixToolsEnvironmentTableIterator itr;
+      size_t numEntries = HashTable_GetNumElements(envTable);
+
+      itr.envp = envp = Util_SafeMalloc((numEntries + 1) * sizeof *envp);
+      itr.pos = 0;
+
+      HashTable_ForEach(envTable, VixToolsEnvironmentTableEntryToEnvpEntry, &itr);
+
+      ASSERT(numEntries == itr.pos);
+
+      envp[numEntries] = NULL;
+   } else {
+      envp = NULL;
+   }
+
+   return envp;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsEnvironmentTableEntryToEnvpEntry --
+ *
+ *      Callback for HashTable_ForEach(). Gets called for each entry in an
+ *      environment table, converting the key (environment variable name) and
+ *      value (environment variable value) into a string of the form
+ *      "<key>=<value>" and adding that to the envp array passed in with the
+ *      VixToolsEnvironmentTableIterator client data.
+ *
+ * Results:
+ *      int - always 0
+ *
+ * Side effects:
+ *      Sets one entry in the envp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+VixToolsEnvironmentTableEntryToEnvpEntry(const char *key,     // IN
+                                         void *value,         // IN
+                                         void *clientData)    // IN/OUT
+{
+   VixToolsEnvironmentTableIterator *itr = clientData;
+
+   itr->envp[itr->pos++] = Str_SafeAsprintf(NULL, "%s=%s", key, (char *)value);
+
+   return 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsFreeEnvp --
+ *
+ *      Free's an array of strings where both the strings and the array
+ *      were heap allocated.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VixToolsFreeEnvp(char **envp)   // IN
+{
+   if (NULL != envp) {
+      char **itr;
+
+      for (itr = envp; NULL != *itr; itr++) {
+         free(*itr);
+      }
+
+      free(envp);
+   }
+}
+#endif  // #ifndef _WIN32
 
 
 /*
@@ -449,9 +661,9 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    char *stopProgramFileName;
    Bool programExists;
    Bool programIsExecutable;
+   ProcMgr_ProcArgs procArgs;
 #if defined(_WIN32)
    Bool forcedRoot = FALSE;
-   ProcMgr_ProcArgs procArgs;
    STARTUPINFO si;
 #endif
 #if defined(VMTOOLS_USE_GLIB)
@@ -551,15 +763,19 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    si.dwFlags = STARTF_USESHOWWINDOW;
    si.wShowWindow = (VIX_RUNPROGRAM_ACTIVATE_WINDOW & runProgramOptions)
                      ? SW_SHOWNORMAL : SW_MINIMIZE;
-   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
 #else
-   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, NULL);
+   procArgs.envp = VixToolsEnvironmentTableToEnvp(userEnvironmentTable);
 #endif
+
+   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
 
 #if defined(_WIN32)
    if (forcedRoot) {
       Impersonate_UnforceRoot();
    }
+#else
+   VixToolsFreeEnvp(procArgs.envp);
+   DEBUG_ONLY(procArgs.envp = NULL;)
 #endif
 
    if (NULL == asyncState->procState) {
@@ -1718,6 +1934,23 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
        * Alwasy get environment variable for the current user, even if the
        * current user is root/administrator
        */
+#ifndef _WIN32
+      /*
+       * If we are maintaining our own set of environment variables
+       * because the application we're running from changed the user's
+       * environment, then we should be reading from that.
+       */
+      if (NULL != userEnvironmentTable) {
+         if (HashTable_Lookup(userEnvironmentTable, valueName,
+                              (void **) &value)) {
+            value = Util_SafeStrdup(value);
+         } else {
+            value = Util_SafeStrdup("");
+         }
+         break;
+      }
+#endif
+
       value = System_GetEnv(FALSE, valueName);
       if (NULL == value) {
          value = Util_SafeStrdup("");
@@ -1806,7 +2039,25 @@ VixToolsWriteVariable(VixCommandRequestHeader *requestMsg)   // IN
       result = System_SetEnv(FALSE, valueName, value);
       if (0 != result) {
          err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
       }
+
+#ifndef _WIN32
+      /*
+       * We need to make sure that this change is reflected in the table of
+       * environment variables we use when launching programs. This is so if a
+       * a user sets LD_LIBRARY_PATH with WriteVariable, and then calls
+       * RunProgramInGuest, that program will see the new value.
+       */
+      if (NULL != userEnvironmentTable) {
+         /*
+          * The hash table will make a copy of valueName, but we have to supply
+          * a deep copy of the value.
+          */
+         HashTable_ReplaceOrInsert(userEnvironmentTable, valueName,
+                                   Util_SafeStrdup(value));
+      }
+#endif
       break;
 
    case VIX_GUEST_CONFIG:
@@ -2486,9 +2737,9 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
    static char resultBuffer[32];
    VixMsgRunScriptRequest *scriptRequest;
    const char *interpreterFlags = "";
+   ProcMgr_ProcArgs procArgs;
 #if defined(_WIN32)
    Bool forcedRoot = FALSE;
-   ProcMgr_ProcArgs procArgs;
 #endif
 #if defined(VMTOOLS_USE_GLIB)
    GSource *timer;
@@ -2673,15 +2924,19 @@ if (0 == *interpreterName) {
    memset(&procArgs, 0, sizeof procArgs);
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
    procArgs.bInheritHandles = TRUE;
-   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
 #else
-   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, NULL);
+   procArgs.envp = VixToolsEnvironmentTableToEnvp(userEnvironmentTable);
 #endif
+
+   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
 
 #if defined(_WIN32)
    if (forcedRoot) {
       Impersonate_UnforceRoot();
    }
+#else
+   VixToolsFreeEnvp(procArgs.envp);
+   DEBUG_ONLY(procArgs.envp = NULL;)
 #endif
 
    if (NULL == asyncState->procState) {
@@ -4376,5 +4631,3 @@ VixToolsEnableStaticOnPrimary(const char *ipAddr,       // IN
    return ret;
 }
 #endif
-
-

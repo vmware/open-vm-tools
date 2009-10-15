@@ -58,6 +58,7 @@ extern "C" {
 #include "unity.h"
 #include "ghIntegration.h"
 #include "resolution.h"
+#include "system.h"
 
 #include "vm_atomic.h"
 #include "hostinfo.h"
@@ -740,8 +741,11 @@ VMwareUserConfFileLoop(void *clientData) // IN
  *
  *-----------------------------------------------------------------------------
  */
+
 int
-main(int argc, char *argv[])
+main(int argc,         // IN
+     char *argv[],     // IN
+     char *envp[])     // IN
 {
    struct sigaction olds[ARRAYSIZE(gSignals)];
    int index;
@@ -953,10 +957,29 @@ main(int argc, char *argv[])
 
 #if !defined(N_PLAT_NLM) && !defined(sun)
    {
+      const char **nativeEnvp;
+      char **utf8NativeEnvp;
+
+      /*
+       * Determine our pre-VMware wrapper native environment and pass that to
+       * Foundry so it can spawn applications.
+       */
+
+      nativeEnvp = System_GetNativeEnviron(const_cast<const char **>(envp));
+
+      /* Foundry takes its strings UTF-8. */
+      utf8NativeEnvp = Unicode_AllocList(const_cast<char **>(nativeEnvp),
+                                         -1,  // nativeEnvp is NULL terminated
+                                         STRING_ENCODING_DEFAULT);
+
       FoundryToolsDaemon_RegisterRoutines(gRpcIn,
                                           &confDict,
                                           gEventQueue,
+                                          utf8NativeEnvp,
                                           FALSE);
+
+      Unicode_FreeList(utf8NativeEnvp, -1);
+      System_FreeNativeEnviron(nativeEnvp);
    }
 #endif
 

@@ -69,6 +69,7 @@
 #include "str.h"
 #include "fileIO.h"
 #include "codeset.h"
+#include "unicode.h"
 
 
 /*
@@ -97,7 +98,8 @@ struct ProcMgr_AsyncProc {
    int exitCode;
 };
 
-static pid_t ProcMgrStartProcess(char const *cmd);
+static pid_t ProcMgrStartProcess(char const *cmd,
+                                 char * const  *envp);
 
 static Bool ProcMgrWaitForProcCompletion(pid_t pid,
                                          Bool *validExitCode,
@@ -573,13 +575,13 @@ ProcMgr_FreeProcList(ProcMgr_ProcList *procList)
 
 Bool
 ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
-                 ProcMgr_ProcArgs *userArgs)       // IN: Unused
+                 ProcMgr_ProcArgs *userArgs)       // IN: optional
 {
    pid_t pid;
 
    Debug("Executing sync command: %s\n", cmd);
 
-   pid = ProcMgrStartProcess(cmd);
+   pid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL);
 
    if (pid == -1) {
       return FALSE;
@@ -606,20 +608,31 @@ ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
  *----------------------------------------------------------------------
  */
 
-static pid_t 
-ProcMgrStartProcess(char const *cmd)            // IN: UTF-8 encoded cmd
+static pid_t
+ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
+                    char * const *envp)         // IN: UTF-8 encoded env vars
 {
    pid_t pid;
    char *cmdCurrent = NULL;
+   char **envpCurrent = NULL;
 
    if (cmd == NULL) {
       ASSERT(FALSE);
       return -1;
    }
 
+   /*
+    * Convert the strings before the call to fork(), since the conversion
+    * routines may rely on locks that do not survive fork().
+    */
+
    if (!CodeSet_Utf8ToCurrent(cmd, strlen(cmd), &cmdCurrent, NULL)) {
       Warning("Could not convert from UTF-8 to current\n");
       return -1;
+   }
+
+   if (NULL != envp) {
+      envpCurrent = Unicode_GetAllocList(envp, -1, STRING_ENCODING_DEFAULT);
    }
 
    pid = fork();
@@ -627,16 +640,22 @@ ProcMgrStartProcess(char const *cmd)            // IN: UTF-8 encoded cmd
    if (pid == -1) {
       Warning("Unable to fork: %s.\n\n", strerror(errno));
    } else if (pid == 0) {
+      static const char shellPath[] = "/bin/sh";
+      char *args[] = { "sh", "-c", cmdCurrent, NULL };
 
       /*
        * Child
        */
 
-      execl("/bin/sh", "sh", "-c", cmdCurrent, (char *)NULL);
+      if (NULL != envpCurrent) {
+         execve(shellPath, args, envpCurrent);
+      } else  {
+         execv(shellPath, args);
+      }
 
       /* Failure */
       Panic("Unable to execute the \"%s\" shell command: %s.\n\n",
-            cmdCurrent, strerror(errno));
+            cmd, strerror(errno));
    }
 
    /*
@@ -644,6 +663,7 @@ ProcMgrStartProcess(char const *cmd)            // IN: UTF-8 encoded cmd
     */
 
    free(cmdCurrent);
+   Unicode_FreeList(envpCurrent, -1);
    return pid;
 }
 
@@ -732,7 +752,7 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
 
 ProcMgr_AsyncProc *
 ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
-                  ProcMgr_ProcArgs *userArgs)      // IN: Unused
+                  ProcMgr_ProcArgs *userArgs)      // IN: optional
 {
    ProcMgr_AsyncProc *asyncProc = NULL;
    pid_t pid;
@@ -799,7 +819,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * Only run the program if we have not already experienced a failure.
        */
       if (status) {
-         childPid = ProcMgrStartProcess(cmd);
+         childPid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL);
          status = childPid != -1;
       }
 

@@ -59,36 +59,36 @@ typedef struct ProcMgr_ProcList {
 } ProcMgr_ProcList;
 
 
-#if defined(_WIN32)
-/*
- * If a caller needs to use a non-default set of arguments for
- * CreateProcess[AsUser] in ProcMgr_Exec[A]sync, this structure should be used. 
- *
- * - If 'userArgs' is NULL, defaults are used:
- *   - bInheritHandles defaults to TRUE
- *   - lpStartupInfo is instantiated and initialized with:
- *     - cb initialized to size of the object
- *     - dwFlags initialized to STARTF_USESHOWWINDOW
- *     - wShowWindow initialized to SW_MINIMIZE.
- *   - defaults for all other parameters are NULL/FALSE
- *
- * - If 'userArgs' is not NULL, the values in the 'userArgs' object are used
- *   according to the following rules:
- *   - If lpStartupInfo is NULL, it is instantiated and initialized with:
- *     - cb initialized to size of the object
- *     - dwFlags initialized to STARTF_USESHOWWINDOW
- *     - wShowWindow initialized to SW_MINIMIZE.
- *     - The caller would need to do some of this initialization if they set
- *       lpStartupInfo.
- *   - If hToken is set:
- *     - if lpStartupInfo->lpDesktop is not NULL, then it is used directly. Otherwise,
- *       lpStartupInfo->lpDesktop is initialized appropriately.
- *
- *     XXX: Make it more convenient for callers(like ToolsDaemonTcloRunProgramImpl) 
- *     to set just wShowWindow without needing to instantiate and initialize a 
- *     STARTUPINFO object. 
- */
 typedef struct ProcMgr_ProcArgs {
+#if defined(_WIN32)
+   /*
+    * If a caller needs to use a non-default set of arguments for
+    * CreateProcess[AsUser] in ProcMgr_Exec[A]sync, this structure should be used. 
+    *
+    * - If 'userArgs' is NULL, defaults are used:
+    *   - bInheritHandles defaults to TRUE
+    *   - lpStartupInfo is instantiated and initialized with:
+    *     - cb initialized to size of the object
+    *     - dwFlags initialized to STARTF_USESHOWWINDOW
+    *     - wShowWindow initialized to SW_MINIMIZE.
+    *   - defaults for all other parameters are NULL/FALSE
+    *
+    * - If 'userArgs' is not NULL, the values in the 'userArgs' object are used
+    *   according to the following rules:
+    *   - If lpStartupInfo is NULL, it is instantiated and initialized with:
+    *     - cb initialized to size of the object
+    *     - dwFlags initialized to STARTF_USESHOWWINDOW
+    *     - wShowWindow initialized to SW_MINIMIZE.
+    *     - The caller would need to do some of this initialization if they set
+    *       lpStartupInfo.
+    *   - If hToken is set:
+    *     - if lpStartupInfo->lpDesktop is not NULL, then it is used directly. Otherwise,
+    *       lpStartupInfo->lpDesktop is initialized appropriately.
+    *
+    *     XXX: Make it more convenient for callers(like ToolsDaemonTcloRunProgramImpl) 
+    *     to set just wShowWindow without needing to instantiate and initialize a 
+    *     STARTUPINFO object. 
+    */
    HANDLE hToken;
 
    LPCWSTR lpApplicationName;
@@ -99,11 +99,16 @@ typedef struct ProcMgr_ProcArgs {
    LPVOID lpEnvironment;
    LPCWSTR lpCurrentDirectory;
    LPSTARTUPINFO lpStartupInfo;
-} ProcMgr_ProcArgs;
 #else
-/* Placeholder type for non win32 platforms. Not used. */
-typedef void * ProcMgr_ProcArgs;
+   /*
+    * The environment variables to run the program with. If NULL, use the current
+    * environment.
+    */
+   char **envp;
 #endif
+} ProcMgr_ProcArgs;
+
+
 
 
 typedef void ProcMgr_Callback(Bool status, void *clientData);

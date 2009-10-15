@@ -45,6 +45,7 @@ FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
 void FoundryToolsDaemon_RegisterRoutines(RpcIn *in, 
                                          GuestApp_Dict **confDictRef, 
                                          DblLnkLst_Links *eventQueue,
+                                         const char * const *originalEnvp,
                                          Bool runAsRoot);
 /* There isn't an _UnregisterRoutines yet. */
 
