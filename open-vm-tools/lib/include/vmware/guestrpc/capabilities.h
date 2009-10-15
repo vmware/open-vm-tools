@@ -68,6 +68,7 @@ typedef enum {
    GHI_CAP_GET_EXEC_INFO_HASH           = 21, // supports ghi.guest.getExecInfoHash
    UNITY_CAP_STICKY_WINDOWS             = 22, // supports unity.window.{un,}stick
    CAP_CHANGE_HOST_3D_AVAILABILITY_HINT = 23, // supports sending 3D support hint to guest
+   CAP_AUTOUPGRADE_AT_SHUTDOWN          = 24, // supports auto-upgrading tools at OS shutdown
 } GuestCapabilities;
 
 typedef struct {
@@ -133,6 +134,7 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_GET_EXEC_INFO_HASH,           GHI_CAP_VMDB_PATH,   "getExecInfoHash"},
    { UNITY_CAP_STICKY_WINDOWS,             UNITY_CAP_VMDB_PATH, "sticky"},
    { CAP_CHANGE_HOST_3D_AVAILABILITY_HINT, CAP_VMDB_PATH, "changeHost3DAvailabilityHint" },
+   { CAP_AUTOUPGRADE_AT_SHUTDOWN,          CAP_VMDB_PATH,       "autoUpgradeAtShutdown"},
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING
