@@ -69,8 +69,8 @@ typedef struct UnityPoint {
    int32 y;
 } UnityPoint;
 
-/* 
- * Represents a virtual desktop configuration. 
+/*
+ * Represents a virtual desktop configuration.
  */
 
 typedef struct UnityVirtualDesktopArray {
@@ -78,8 +78,12 @@ typedef struct UnityVirtualDesktopArray {
    UnityVirtualDesktop desktops[MAX_VIRT_DESK];      // array of desktops
 } UnityVirtualDesktopArray;
 
+/* Forward reference. */
+typedef struct DesktopSwitchCallbackManager DesktopSwitchCallbackManager;
 
-void Unity_Init(GuestApp_Dict *conf, int* blockedWnd);
+void Unity_Init(GuestApp_Dict *conf,
+                int *blockedWnd,
+                DesktopSwitchCallbackManager *desktopSwitchCallbackMgr);
 void Unity_InitBackdoor(struct RpcIn *rpcIn);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);
@@ -95,4 +99,3 @@ HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif
 
 #endif
-

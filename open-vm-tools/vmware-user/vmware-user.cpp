@@ -921,7 +921,7 @@ main(int argc,         // IN
    EventManager_Add(gEventQueue, CONF_POLL_TIME, VMwareUserConfFileLoop,
                     &confDict);
 
-   Unity_Init(confDict, NULL);
+   Unity_Init(confDict, NULL, NULL);
    GHI_Init(NULL, NULL);
    Resolution_Init(TOOLS_DND_NAME, gXDisplay);
 

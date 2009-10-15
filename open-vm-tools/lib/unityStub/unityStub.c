@@ -44,7 +44,8 @@
 
 void
 Unity_Init(GuestApp_Dict *conf,
-           int* blockingWndList)
+           int *blockingWndList,
+           DesktopSwitchCallbackManager *desktopSwitchCallbackMgr)
 {
 }
 
@@ -83,5 +84,3 @@ void
 Unity_UnregisterCaps(void)
 {
 }
-
-

@@ -259,8 +259,9 @@ Unity_IsActive(void)
  */
 
 void
-Unity_Init(GuestApp_Dict *conf, // IN
-           int* blockedWnd)     // IN
+Unity_Init(GuestApp_Dict *conf,                                    // IN
+           int *blockedWnd,                                        // IN
+           DesktopSwitchCallbackManager *desktopSwitchCallbackMgr) // IN
 {
    Debug("Unity_Init\n");
 
@@ -284,7 +285,10 @@ Unity_Init(GuestApp_Dict *conf, // IN
    /*
     * Initialize the host-specific portion of the unity service.
     */
-   unity.up = UnityPlatformInit(&unity.tracker, &unity.updateChannel, blockedWnd);
+   unity.up = UnityPlatformInit(&unity.tracker,
+                                &unity.updateChannel,
+                                blockedWnd,
+                                desktopSwitchCallbackMgr);
 
    /*
     * Init our global dynbuf used to send results back.

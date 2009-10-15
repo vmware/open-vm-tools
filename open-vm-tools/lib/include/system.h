@@ -49,12 +49,6 @@ char *System_GetEnv(Bool global, const char *valueName);
 int System_SetEnv(Bool global, const char *valueName, const char *value);
 
 #ifdef _WIN32
-typedef void (*DesktopSwitchNotifyCB)(void *);
-typedef struct {
-   DesktopSwitchNotifyCB cb;   // callback to invoke.
-   void *cbdata;               // data to pass to callback
-} DesktopSwitchThreadArgs;
-
 /*
  * Representation of monitors gathered by System_GetMonitors.
  */
@@ -82,11 +76,11 @@ Bool System_IsLoginScreenActive(void);
 Bool System_IsProcessElevated(void);
 Bool System_IsScreenSaverActive(void);
 Bool System_IsScreenSaverRunning(void);
-Bool System_StartDesktopSwitchThread(DesktopSwitchThreadArgs *args);
-Bool System_KillDesktopSwitchThread(void);
+Bool System_IsSecureDesktopActive(void);
 Bool System_DisableAndKillScreenSaver(void);
 DWORD System_GetServiceState(LPCWSTR szServiceName);
 DblLnkLst_Links *System_GetMonitors();
+void System_SetFocusedWindow(HWND windowToFocus, Bool force);
 #endif
 
 

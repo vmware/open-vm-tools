@@ -57,7 +57,8 @@ typedef struct _UnityPlatform UnityPlatform;
 Bool UnityPlatformIsSupported(void);
 UnityPlatform *UnityPlatformInit(UnityWindowTracker *tracker,
                                  UnityUpdateChannel *updateChannel,
-                                 int* blockedWnd);
+                                 int *blockedWnd,
+                                 DesktopSwitchCallbackManager *desktopSwitchCallbackMgr);
 void UnityPlatformCleanup(UnityPlatform *up);
 void UnityPlatformRegisterCaps(UnityPlatform *up);
 void UnityPlatformUnregisterCaps(UnityPlatform *up);
