@@ -604,6 +604,12 @@ typedef int pid_t;
 #define POSIX_ONLY(x) x
 #endif
 
+#ifdef __linux__
+#define LINUX_ONLY(x) x
+#else
+#define LINUX_ONLY(x)
+#endif
+
 #ifdef VMM
 #define VMM_ONLY(x) x
 #define USER_ONLY(x)
