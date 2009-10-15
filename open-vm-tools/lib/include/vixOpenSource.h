@@ -88,6 +88,8 @@ VixError Vix_TranslateCryptoError(CryptoError cryptoError);
 VixError Vix_TranslateCOMError(HRESULT comError);
 #endif
 
+#endif // VIX_HIDE_BORA_DEPENDENCIES
+
 /*
  * This defines additional error codes.
  * The public error codes are defined in vix.h
@@ -100,10 +102,6 @@ enum {
    VIX_E_REG_INCORRECT_VALUE_TYPE                  = 25000
    /* WARNING. Do not exceed 2**16 */
 };
-
-#endif // VIX_HIDE_BORA_DEPENDENCIES
-
-
 
 /*
  *-----------------------------------------------------------------------------

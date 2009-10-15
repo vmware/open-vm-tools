@@ -35,6 +35,7 @@
  * decimal number. If the input is not an hexadecimal digit character, the
  * output is -1 --hpreg
  */
+
 static int const Hex2Dec[] = {
    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -59,6 +60,7 @@ static int const Hex2Dec[] = {
  * Table to use to quickly convert a decimal number into an ASCII hexadecimal
  * digit character --hpreg
  */
+
 static char const Dec2Hex[] = {
    '0', '1', '2', '3', '4', '5', '6', '7',
    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
@@ -121,23 +123,23 @@ Escape_DoString(const char *escStr,    // IN
          /* We must escape that byte --hpreg */
 
          escSeq[0] = Dec2Hex[ubyte >> 4];
-    escSeq[1] = Dec2Hex[ubyte & 0xF];
-         if (   DynBuf_Append(&b, &buf[startUnescaped],
-                   index - startUnescaped) == FALSE
-             || DynBuf_Append(&b, escStr, escStrLen) == FALSE
-             || DynBuf_Append(&b, escSeq, sizeof escSeq) == FALSE) {
+         escSeq[1] = Dec2Hex[ubyte & 0xF];
+         if (DynBuf_Append(&b, &buf[startUnescaped],
+                           index - startUnescaped) == FALSE ||
+             DynBuf_Append(&b, escStr, escStrLen) == FALSE ||
+             DynBuf_Append(&b, escSeq, sizeof escSeq) == FALSE) {
             goto nem;
          }
          startUnescaped = index + 1;
       }
    }
 
-   if (   /* Last unescaped chunk (if any) --hpreg */
-          DynBuf_Append(&b, &buf[startUnescaped],
-             index - startUnescaped) == FALSE
-          /* NUL terminator --hpreg */
-       || DynBuf_Append(&b, "", 1) == FALSE
-       || DynBuf_Trim(&b) == FALSE) {
+   if (/* Last unescaped chunk (if any) --hpreg */
+       DynBuf_Append(&b, &buf[startUnescaped],
+                     index - startUnescaped) == FALSE ||
+       /* NUL terminator --hpreg */
+       DynBuf_Append(&b, "", 1) == FALSE ||
+       DynBuf_Trim(&b) == FALSE) {
       goto nem;
    }
 
@@ -249,9 +251,9 @@ Escape_Undo(char escByte,      // IN
             char escaped;
 
             escaped = h << 4 | l;
-            if (   DynBuf_Append(&b, &buf[startUnescaped],
-                                        index - 2 - startUnescaped) == FALSE
-                || DynBuf_Append(&b, &escaped, 1) == FALSE) {
+            if (DynBuf_Append(&b, &buf[startUnescaped],
+                              index - 2 - startUnescaped) == FALSE ||
+                DynBuf_Append(&b, &escaped, 1) == FALSE) {
                goto nem;
             }
             startUnescaped = index + 1;
@@ -265,12 +267,12 @@ Escape_Undo(char escByte,      // IN
       }
    }
 
-   if (   /* Last unescaped chunk (if any) --hpreg */
-          DynBuf_Append(&b, &buf[startUnescaped],
-                               index - startUnescaped) == FALSE
-          /* NUL terminator --hpreg */
-       || DynBuf_Append(&b, "", 1) == FALSE
-       || DynBuf_Trim(&b) == FALSE) {
+   if (/* Last unescaped chunk (if any) --hpreg */
+       DynBuf_Append(&b, &buf[startUnescaped],
+                     index - startUnescaped) == FALSE ||
+       /* NUL terminator --hpreg */
+       DynBuf_Append(&b, "", 1) == FALSE ||
+       DynBuf_Trim(&b) == FALSE) {
       goto nem;
    }
 
@@ -328,6 +330,7 @@ Escape_AnsiToUnix(void const *bufIn, // IN
     * Identify all chunks in buf (\r\n being the chunk separator), and copy
     * them into b --hpreg
     */
+
    for (index = 0; index < sizeIn; index++) {
       char byte;
 
@@ -337,7 +340,7 @@ Escape_AnsiToUnix(void const *bufIn, // IN
          state = 0;
          if (byte == '\n') {
             if (DynBuf_Append(&b, &buf[startUnescaped],
-                                        index - 1 - startUnescaped) == FALSE) {
+                              index - 1 - startUnescaped) == FALSE) {
                goto nem;
             }
             startUnescaped = index;
@@ -357,12 +360,12 @@ Escape_AnsiToUnix(void const *bufIn, // IN
       }
    }
 
-   if (   /* Last unescaped chunk (if any) --hpreg */
-          DynBuf_Append(&b, &buf[startUnescaped], index - startUnescaped)
-             == FALSE
-          /* NUL terminator --hpreg */
-       || DynBuf_Append(&b, "", 1) == FALSE
-       || DynBuf_Trim(&b) == FALSE) {
+   if (/* Last unescaped chunk (if any) --hpreg */
+       DynBuf_Append(&b, &buf[startUnescaped],
+                     index - startUnescaped) == FALSE ||
+       /* NUL terminator --hpreg */
+       DynBuf_Append(&b, "", 1) == FALSE ||
+       DynBuf_Trim(&b) == FALSE) {
       goto nem;
    }
 
@@ -465,23 +468,22 @@ Escape_Sh(void const *bufIn, // IN
       if (buf[index] == '\'') {
          /* We must escape that byte --hpreg */
 
-         if (   DynBuf_Append(&b, &buf[startUnescaped],
-                   index - startUnescaped) == FALSE
-             || DynBuf_Append(&b, escSeq,
-                   sizeof(escSeq)) == FALSE) {
+         if (DynBuf_Append(&b, &buf[startUnescaped],
+                           index - startUnescaped) == FALSE ||
+             DynBuf_Append(&b, escSeq, sizeof(escSeq)) == FALSE) {
             goto nem;
          }
          startUnescaped = index;
       }
    }
 
-   if (   /* Last unescaped chunk (if any) --hpreg */
-          DynBuf_Append(&b, &buf[startUnescaped],
-             index - startUnescaped) == FALSE
-       || DynBuf_Append(&b, be, sizeof(be)) == FALSE
-          /* NUL terminator --hpreg */
-       || DynBuf_Append(&b, "", 1) == FALSE
-       || DynBuf_Trim(&b) == FALSE) {
+   if (/* Last unescaped chunk (if any) --hpreg */
+       DynBuf_Append(&b, &buf[startUnescaped],
+                     index - startUnescaped) == FALSE ||
+       DynBuf_Append(&b, be, sizeof(be)) == FALSE ||
+       /* NUL terminator --hpreg */
+       DynBuf_Append(&b, "", 1) == FALSE ||
+       DynBuf_Trim(&b) == FALSE) {
       goto nem;
    }
 
@@ -542,6 +544,7 @@ Escape_Strchr(char escByte,      // IN
          }
       }
    }
+
    return NULL;
 }
 
@@ -586,6 +589,7 @@ Escape_Unescape(char escByte,       // IN
    }
 
    DynBuf_Append(&result, &nullbyte, sizeof('\0'));
+
    return DynBuf_Get(&result);
 }
 

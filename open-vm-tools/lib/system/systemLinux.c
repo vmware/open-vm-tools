@@ -136,7 +136,7 @@ static int SNEForEachCallback(const char *key, void *value, void *clientData);
  *          497 days. This function can detect the wrapping and still return
  *          a correct, monotonic, 64 bit wide value if it is called at least
  *          once every 497 days.
- *      
+ *
  * Result:
  *    The value on success
  *    -1 on failure (never happens in this implementation)
@@ -153,7 +153,7 @@ System_Uptime(void)
    /*
     * Dummy variable b/c times(NULL) segfaults on FreeBSD 3.2 --greg
     */
-   struct tms tp; 
+   struct tms tp;
 
 #if !defined (VM_X86_64)
    static uint64 base = 0;
@@ -203,7 +203,7 @@ System_GetCurrentTime(int64 *secs,  // OUT
 
    ASSERT(secs);
    ASSERT(usecs);
-   
+
    if (gettimeofday(&tv, NULL) < 0) {
       return FALSE;
    }
@@ -377,7 +377,7 @@ System_IsTimeSlewEnabled(void)
    struct timeval oldTx;
    int error;
 
-   /* 
+   /*
     * Solaris needs first argument non-NULL and zero
     * to get the old timeval value.
     */
@@ -440,24 +440,24 @@ System_AddToCurrentTime(int64 deltaSecs,  // IN
    int64 newTime;
    int64 secs;
    int64 usecs;
-   
+
    if (!System_GetCurrentTime(&secs, &usecs)) {
       return FALSE;
    }
-   
+
    if (System_IsTimeSlewEnabled()) {
       System_DisableTimeSlew();
    }
 
    newTime = (secs + deltaSecs) * 1000000L + (usecs + deltaUsecs);
    ASSERT(newTime > 0);
-   
+
    /*
     * timeval.tv_sec is a 32-bit signed integer. So, Linux will treat
-    * newTime as a time before the epoch if newTime is a time 68 years 
-    * after the epoch (beacuse of overflow). 
+    * newTime as a time before the epoch if newTime is a time 68 years
+    * after the epoch (beacuse of overflow).
     *
-    * If it is a 64-bit linux, everything should be fine. 
+    * If it is a 64-bit linux, everything should be fine.
     */
    if (sizeof tv.tv_sec < 8 && newTime / 1000000L > MAX_INT32) {
       Log("System_AddToCurrentTime() overflow: deltaSecs=%"FMT64"d, secs=%"FMT64"d\n",
@@ -465,14 +465,14 @@ System_AddToCurrentTime(int64 deltaSecs,  // IN
 
       return FALSE;
    }
- 
+
    tv.tv_sec = newTime / 1000000L;
    tv.tv_usec = newTime % 1000000L;
 
    if (settimeofday(&tv, NULL) < 0) {
       return FALSE;
    }
-   
+
    return TRUE;
 }
 
@@ -527,7 +527,7 @@ System_GetTimeAsString(void)
    do {
       char *newBuf;
       bufSize *= 2;
-      
+
       newBuf = realloc(buf, bufSize);
       if (newBuf == NULL) {
          goto out;
@@ -562,7 +562,7 @@ System_GetTimeAsString(void)
  *
  * Results:
  *    TRUE if this is an ACPI system.
- *    FALSE if this is not an ACPI system.   
+ *    FALSE if this is not an ACPI system.
  *
  * Side effects:
  *	None.
@@ -581,14 +581,14 @@ System_IsACPI(void)
 
 /*
  *-----------------------------------------------------------------------------
- *  
- * System_Shutdown -- 
+ *
+ * System_Shutdown --
  *
  *   Initiate system shutdown.
- * 
- * Return value: 
+ *
+ * Return value:
  *    None.
- * 
+ *
  * Side effects:
  *    None.
  *
@@ -624,17 +624,17 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
 
 /*
  *-----------------------------------------------------------------------------
- *  
- * System_IsUserAdmin -- 
+ *
+ * System_IsUserAdmin --
  *
  *    On Windows this functions checks if the calling user has membership in
  *    the Administrators group (for NT platforms). On POSIX machines, we simply
  *    check if the user's effective UID is root.
- * 
- * Return value: 
+ *
+ * Return value:
  *    TRUE if the user has an effective UID of root.
  *    FALSE if not.
- * 
+ *
  * Side effects:
  *    None.
  *
@@ -668,7 +668,7 @@ System_GetEnv(Bool global,           // IN
               const char *valueName) // IN: UTF-8
 {
    char *result;
-   
+
 #if defined(sun)
    result = NULL;
 #else
@@ -720,7 +720,7 @@ System_SetEnv(Bool global,      // IN
  *
  * System_UnsetEnv --
  *
- *    Unset environment variable. 
+ *    Unset environment variable.
  *
  * Results:
  *    0 if success, -1 otherwise.
@@ -748,7 +748,7 @@ System_UnsetEnv(const char *valueName) // IN: UTF-8
  *
  * System_SetLDPath --
  *
- *    Set LD_LIBRARY_PATH. If native is TRUE, use VMWARE_LD_LIBRARY_PATH 
+ *    Set LD_LIBRARY_PATH. If native is TRUE, use VMWARE_LD_LIBRARY_PATH
  *    as the value (and ignore the path argument, which should be set to
  *    NULL in this case). If native is FALSE, use the passed in path (and
  *    if that path is NULL, unsetenv the value).
@@ -758,7 +758,7 @@ System_UnsetEnv(const char *valueName) // IN: UTF-8
  *    responsible for calling free() on this pointer.
  *
  * Side effects:
- *    Manipulates the value of LD_LIBRARY_PATH variable. 
+ *    Manipulates the value of LD_LIBRARY_PATH variable.
  *
  *----------------------------------------------------------------------
  */
@@ -812,7 +812,7 @@ System_SetLDPath(const char *path,      // IN: UTF-8
       free(p);
    } else if (path) {
       /*
-       * Set LD_LIBRARY_PATH to the specified value. 
+       * Set LD_LIBRARY_PATH to the specified value.
        */
       System_SetEnv(TRUE, "LD_LIBRARY_PATH", (char *) path);
    } else {
@@ -840,7 +840,7 @@ System_SetLDPath(const char *path,      // IN: UTF-8
  *      whether the value was set in the native environment.  Based on this:
  *        VMWARE_FOO="1foo"               -> FOO="foo"
  *        VMWARE_FOO="1"                  -> FOO=""
- *        VMWARE_FOO="0 VMWARE_UNDEFINED" -> FOO is unset in the native environment
+ *        VMWARE_FOO="0"                  -> FOO is unset in the native environment
  *
  *      Variables without the VMWARE_ prefix are just copied over to the new
  *      environment.  Note, of course, that VMWARE_-prefixed variables take
@@ -977,7 +977,7 @@ SNEBuildHash(const char **compatEnviron)
           * XXX Should we move this marker to a separate header?
           */
          char *realKey = &key[prefixLength];
-         char *realValue = (strcmp(value, "0 VMWARE_UNDEFINED") == 0)
+         char *realValue = (value[0] == '0')
                            ? NULL
                            : Util_SafeStrdup(&value[1]);
          HashTable_ReplaceOrInsert(environTable, realKey, realValue);

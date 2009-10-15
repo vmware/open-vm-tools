@@ -91,7 +91,7 @@
  */
 
 char *
-Util_GetCanonicalPath(const char *path) // IN
+Util_GetCanonicalPath(const char *path)  // IN:
 {
    char *canonicalPath = NULL;
 
@@ -158,7 +158,7 @@ Util_GetCanonicalPath(const char *path) // IN
  */
 
 char *
-Util_GetCanonicalPathForHash(const char *path) // IN: UTF-8
+Util_GetCanonicalPathForHash(const char *path)  // IN: UTF-8
 {
    char *ret = NULL;
    char *cpath = Util_GetCanonicalPath(path);
@@ -193,7 +193,7 @@ Util_GetCanonicalPathForHash(const char *path) // IN: UTF-8
  */
 
 static char*
-UtilGetLegacyEncodedString(const char *path) // IN: UTF-8
+UtilGetLegacyEncodedString(const char *path)  // IN: UTF-8
 {
    char *ret = NULL;
    char *cpath = Util_GetCanonicalPath(path);
@@ -242,7 +242,7 @@ UtilGetLegacyEncodedString(const char *path) // IN: UTF-8
  */
 
 char *
-Util_CompatGetCanonicalPath(const char *path) // IN: UTF-8
+Util_CompatGetCanonicalPath(const char *path)  // IN: UTF-8
 {
    char *cpath = Util_GetCanonicalPath(path);
    char *ret = NULL;
@@ -267,10 +267,10 @@ Util_CompatGetCanonicalPath(const char *path) // IN: UTF-8
  *      path case-sensitivity.
  *
  *      XXX: This implementation makes assumptions about the host filesystem's
- *           case sensitivity without any regard to what filesystem the provided
- *           paths actually use. There are many ways to break this assumption,
- *           on any of our supported host OSes! The return value of this function
- *           cannot be trusted.
+ *           case sensitivity without any regard to what filesystem the
+ *           provided paths actually use. There are many ways to break this
+ *           assumption, on any of our supported host OSes! The return value
+ *           of this function cannot be trusted.
  *
  * Results:
  *      TRUE if the paths are equivalenr, FALSE if they are not.
@@ -282,11 +282,12 @@ Util_CompatGetCanonicalPath(const char *path) // IN: UTF-8
  */
 
 Bool
-Util_CanonicalPathsIdentical(const char *path1, // IN
-                             const char *path2) // IN
+Util_CanonicalPathsIdentical(const char *path1,  // IN:
+                             const char *path2)  // IN:
 {
    ASSERT(path1);
    ASSERT(path2);
+
 #if defined(linux)
    return (strcmp(path1, path2) == 0);
 #elif defined(_WIN32)
@@ -362,7 +363,7 @@ Util_IsAbsolutePath(const char *path)  // IN: path to check
  */
 
 unsigned
-Util_GetPrime(unsigned n0)
+Util_GetPrime(unsigned n0)  // IN:
 {
    unsigned i, ii, n, nn;
 

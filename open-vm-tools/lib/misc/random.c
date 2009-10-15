@@ -78,12 +78,14 @@ Random_Crypto(unsigned int size,  // IN:
    if (CryptGenRandom(csp, size, buffer) == FALSE) {
       CryptReleaseContext(csp, 0);
       Log("%s: CryptGenRandom failed %d\n", __FUNCTION__, GetLastError());
+
       return FALSE;
    }
 
    if (CryptReleaseContext(csp, 0) == FALSE) {
       Log("%s: CryptReleaseContext failed %d\n", __FUNCTION__,
           GetLastError());
+
       return FALSE;
    }
 #else
@@ -126,6 +128,7 @@ Random_Crypto(unsigned int size,  // IN:
 
    if (fd == -1) {
       Log("%s: Failed to open random device: %d\n", __FUNCTION__, errno);
+
       return FALSE;
    }
 
@@ -138,6 +141,7 @@ Random_Crypto(unsigned int size,  // IN:
 
          close(fd);
          Log("%s: Short read: %d\n", __FUNCTION__, error);
+
          return FALSE;
       }
       if (bytesRead > 0) {
@@ -148,6 +152,7 @@ Random_Crypto(unsigned int size,  // IN:
 
    if (close(fd) == -1) {
       Log("%s: Failed to close: %d\n", __FUNCTION__, errno);
+
       return FALSE;
    }
 #endif

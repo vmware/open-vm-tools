@@ -98,7 +98,7 @@ FileIO_MsgError(FileIOResult status) // IN
        * because you don't want to display error messages after a user has
        * cancelled an operation.
        */
-      result = MSGID(fileio.cancel) "The operation was cancelled by the user";
+      result = MSGID(fileio.cancel) "The operation was canceled by the user";
       break;
 
    case FILEIO_ERROR:

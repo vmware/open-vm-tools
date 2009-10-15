@@ -30,7 +30,7 @@
 #   include <str.h>
 #else
 #   if defined(__linux__)
-#      define _GNU_SOURCE	// see nl_langinfo_l explanation below
+#      define _GNU_SOURCE   // see nl_langinfo_l explanation below
 #   endif
 #   include <string.h>
 #   include <stdlib.h>
@@ -90,7 +90,7 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
  *
  * Results:
  *      0 on failure.
- *	Length of sequence and Unicode character in *uchar on success.
+ *      Length of sequence and Unicode character in *uchar on success.
  *
  * Side effects:
  *      None.
@@ -99,9 +99,9 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
  */
 
 static INLINE int
-CodeSetOldGetUtf8(const char *string,	// IN: string
-                  const char *end,	// IN: end of string
-                  uint32 *uchar)	// OUT: the Unicode character
+CodeSetOldGetUtf8(const char *string,  // IN: string
+                  const char *end,     // IN: end of string
+                  uint32 *uchar)       // OUT: the Unicode character
 {
    uint8 *p = (uint8 *) string;
    uint8 *e;
@@ -145,8 +145,8 @@ CodeSetOldGetUtf8(const char *string,	// IN: string
 
    while (++p < e) {
       if ((*p & 0xc0) != 0x80) {
-	 // bad trailing byte
-	 return 0;
+         // bad trailing byte
+         return 0;
       }
       c <<= 6;
       c += *p - 0x80;
@@ -171,6 +171,7 @@ out:
    if (uchar != NULL) {
       *uchar = c;
    }
+
    return len;
 }
 
@@ -201,10 +202,10 @@ out:
  */
 
 static Bool
-CodeSetOldDuplicateStr(const char   *bufIn,    // IN: Input string
-                       size_t  sizeIn,   // IN: Input string length
-                       char        **bufOut,   // OUT: "Converted" string
-                       size_t *sizeOut)  // OUT: Length of string
+CodeSetOldDuplicateStr(const char   *bufIn,  // IN: Input string
+                       size_t  sizeIn,       // IN: Input string length
+                       char **bufOut,        // OUT: "Converted" string
+                       size_t *sizeOut)      // OUT: Length of string
 {
    char *myBufOut;
 
@@ -220,6 +221,7 @@ CodeSetOldDuplicateStr(const char   *bufIn,    // IN: Input string
    if (sizeOut) {
       *sizeOut = sizeIn;
    }
+
    return TRUE;
 }
 #endif
@@ -245,13 +247,14 @@ CodeSetOldDuplicateStr(const char   *bufIn,    // IN: Input string
  */
 
 static Bool
-CodeSetOldDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
-                         DynBuf       *db,       // IN: Buffer with converted string
-                         char        **bufOut,   // OUT: Converted string
+CodeSetOldDynBufFinalize(Bool ok,          // IN: Earlier steps succeeded
+                         DynBuf *db,       // IN: Buffer with converted string
+                         char **bufOut,    // OUT: Converted string
                          size_t *sizeOut)  // OUT: Length of string in bytes
 {
    if (!ok || !DynBuf_Append(db, &nul, sizeof nul) || !DynBuf_Trim(db)) {
       DynBuf_Destroy(db);
+
       return FALSE;
    }
 
@@ -259,6 +262,7 @@ CodeSetOldDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
    if (sizeOut) {
       *sizeOut = DynBuf_GetSize(db) - sizeof nul;
    }
+
    return TRUE;
 }
 
@@ -282,9 +286,9 @@ CodeSetOldDynBufFinalize(Bool          ok,       // IN: Earlier steps succeeded
  */
 
 static Bool
-CodeSetOldUtf8ToUtf16leDb(const char *bufIn,  // IN
-                          size_t      sizeIn, // IN
-                          DynBuf     *db)     // IN
+CodeSetOldUtf8ToUtf16leDb(const char *bufIn,   // IN:
+                          size_t      sizeIn,  // IN:
+                          DynBuf     *db)      // IN:
 {
    const char *bufEnd = bufIn + sizeIn;
    size_t currentSize;
@@ -300,7 +304,7 @@ CodeSetOldUtf8ToUtf16leDb(const char *bufIn,  // IN
       int n = CodeSetOldGetUtf8(bufIn, bufEnd, &uniChar);
 
       if (n <= 0) {
-	 return FALSE;
+         return FALSE;
       }
       bufIn += n;
 
@@ -339,6 +343,7 @@ CodeSetOldUtf8ToUtf16leDb(const char *bufIn,  // IN
    }
    /* All went fine, update buffer size. */
    DynBuf_SetSize(db, currentSize);
+
    return TRUE;
 }
 
@@ -381,16 +386,17 @@ static DWORD GetInvalidCharsFlag(void);
  */
 
 static Bool
-CodeSetOldGenericToUtf16leDb(UINT codeIn,         // IN
-                             char const *bufIn,   // IN
-                             size_t sizeIn,       // IN
-                             DynBuf *db)          // IN
+CodeSetOldGenericToUtf16leDb(UINT codeIn,        // IN:
+                             char const *bufIn,  // IN:
+                             size_t sizeIn,      // IN:
+                             DynBuf *db)         // IN:
 {
    /*
     * Undocumented: calling MultiByteToWideChar() with sizeIn == 0 returns 0
     * with GetLastError() set to ERROR_INVALID_PARAMETER. Isn't this API
     * robust? --hpreg
     */
+
    if (sizeIn) {
       size_t initialSize;
       DWORD flags = GetInvalidCharsFlag();
@@ -411,10 +417,7 @@ CodeSetOldGenericToUtf16leDb(UINT codeIn,         // IN
           * So MB_ERR_INVALID_CHARS added, otherwise can
           * lead to security issues see bug 154114.
           */
-         result = MultiByteToWideChar(codeIn,
-                     flags,
-                     bufIn,
-                     sizeIn,
+         result = MultiByteToWideChar(codeIn, flags, bufIn, sizeIn,
                      (wchar_t *)((char *)DynBuf_Get(db) + initialSize),
                      (DynBuf_GetAllocatedSize(db) - initialSize) /
                                       sizeof(wchar_t));
@@ -435,6 +438,7 @@ CodeSetOldGenericToUtf16leDb(UINT codeIn,         // IN
           * yields the same string size that was passed in.
           * If not, then dropped characters so fail.
           */
+
          if (!invalidCharsCheck) {
             resultReverse = WideCharToMultiByte(codeIn, 0,
                             (wchar_t *)((char *)DynBuf_Get(db) + initialSize),
@@ -484,16 +488,17 @@ CodeSetOldGenericToUtf16leDb(UINT codeIn,         // IN
  */
 
 static Bool
-CodeSetOldUtf16leToGeneric(char const *bufIn,   // IN
-                           size_t sizeIn,       // IN
-                           UINT codeOut,        // IN
-                           DynBuf *db)          // IN
+CodeSetOldUtf16leToGeneric(char const *bufIn,  // IN:
+                           size_t sizeIn,      // IN:
+                           UINT codeOut,       // IN:
+                           DynBuf *db)         // IN:
 {
    /*
     * Undocumented: calling WideCharToMultiByte() with sizeIn == 0 returns 0
     * with GetLastError() set to ERROR_INVALID_PARAMETER. Isn't this API
     * robust? --hpreg
     */
+
    if (sizeIn) {
       size_t initialSize;
       Bool canHaveSubstitution = codeOut != CP_UTF8 && codeOut != CP_UTF7;
@@ -543,6 +548,7 @@ CodeSetOldUtf16leToGeneric(char const *bufIn,   // IN
     * Undocumented: if the input buffer is not NUL-terminated, the output
     * buffer will not be NUL-terminated either --hpreg
     */
+
    return TRUE;
 }
 
@@ -568,10 +574,10 @@ CodeSetOldUtf16leToGeneric(char const *bufIn,   // IN
  */
 
 static Bool
-CodeSetOldUtf16leToCurrent(char const *bufIn,     // IN
-                           size_t sizeIn,   // IN
-                           char **bufOut,         // OUT
-                           size_t *sizeOut) // OUT
+CodeSetOldUtf16leToCurrent(char const *bufIn,  // IN:
+                           size_t sizeIn,      // IN:
+                           char **bufOut,      // OUT:
+                           size_t *sizeOut)    // OUT:
 {
    DynBuf db;
    Bool ok;
@@ -579,6 +585,7 @@ CodeSetOldUtf16leToCurrent(char const *bufIn,     // IN
    DynBuf_Init(&db);
    /* XXX We should probably use CP_THREAD_ACP on Windows 2000/XP --hpreg */
    ok = CodeSetOldUtf16leToGeneric(bufIn, sizeIn, CP_ACP, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -608,10 +615,10 @@ CodeSetOldUtf16leToCurrent(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf8Normalize(char const *bufIn,     // IN
-                         size_t sizeIn,         // IN
-                         Bool precomposed,      // IN
-                         DynBuf *db)            // OUT
+CodeSetOld_Utf8Normalize(char const *bufIn,  // IN:
+                         size_t sizeIn,      // IN:
+                         Bool precomposed,   // IN:
+                         DynBuf *db)         // OUT:
 {
    Bool ok = FALSE;
    CFStringRef str = NULL;
@@ -619,9 +626,7 @@ CodeSetOld_Utf8Normalize(char const *bufIn,     // IN
    CFIndex len, lenMut;
    size_t initialSize = DynBuf_GetSize(db);
 
-   str = CFStringCreateWithCString(NULL,
-                                   bufIn,
-                                   kCFStringEncodingUTF8);
+   str = CFStringCreateWithCString(NULL, bufIn, kCFStringEncodingUTF8);
    if (str == NULL) {
       goto exit;
    }
@@ -634,14 +639,15 @@ CodeSetOld_Utf8Normalize(char const *bufIn,     // IN
    /*
     * Normalize the string, Form C - precomposed or D, not.
     */
-   CFStringNormalize(mutStr, 
-                     (precomposed ? kCFStringNormalizationFormC :
-                     kCFStringNormalizationFormD));
+
+   CFStringNormalize(mutStr, (precomposed ? kCFStringNormalizationFormC :
+                                            kCFStringNormalizationFormD));
 
    /* 
     * Get the number (in terms of UTF-16 code units) 
     * of characters in a string.
     */
+
    lenMut = CFStringGetLength(mutStr);
 
    /*
@@ -649,8 +655,8 @@ CodeSetOld_Utf8Normalize(char const *bufIn,     // IN
     * specified length (in UTF-16 code units) will take up 
     * if encoded in a specified encoding.
     */
-   len = CFStringGetMaximumSizeForEncoding(lenMut,
-                                           kCFStringEncodingUTF8);
+
+   len = CFStringGetMaximumSizeForEncoding(lenMut, kCFStringEncodingUTF8);
    if (len + 1 > initialSize) {
       if (DynBuf_Enlarge(db, len + 1 - initialSize) == FALSE) {
          ok = FALSE;
@@ -662,10 +668,9 @@ CodeSetOld_Utf8Normalize(char const *bufIn,     // IN
     * Copies the character contents of a string to a local C 
     * string buffer after converting the characters to UTF-8.
     */
-   ok = CFStringGetCString(mutStr, 
-                           (char *)DynBuf_Get(db),
-                           len + 1, 
-                           kCFStringEncodingUTF8);
+
+   ok = CFStringGetCString(mutStr, (char *)DynBuf_Get(db),
+                           len + 1, kCFStringEncodingUTF8);
    if (ok) {
       /* Remove the NUL terminator that the above includes. */
       DynBuf_SetSize(db, strlen((char *)DynBuf_Get(db)));
@@ -742,6 +747,7 @@ CodeSetOldGetCodeSetFromLocale(void)
 #elif defined(sun)
 
    char *locale = setlocale(LC_CTYPE, NULL);
+
    if (!setlocale(LC_CTYPE, "")) {
       /*
        * If the machine is configured incorrectly (no current locale),
@@ -837,14 +843,17 @@ CodeSetOld_GetCurrentCodeSet(void)
          if (!strcmp(gFilenameEncoding, "@locale")) {
             free(gFilenameEncoding);
             cachedCodeset = CodeSetOldGetCodeSetFromLocale();
+
             return cachedCodeset;
          }
          cachedCodeset = gFilenameEncoding;
+
          return cachedCodeset;
       }
 
       if (getenv("G_BROKEN_FILENAMES")) {
          cachedCodeset = CodeSetOldGetCodeSetFromLocale();
+
          return cachedCodeset;
       }
 
@@ -880,9 +889,9 @@ CodeSetOld_GetCurrentCodeSet(void)
  */
 
 static INLINE_SINGLE_CALLER iconv_t
-CodeSetOldIconvOpen(const char  *codeIn,  // IN
-                    const char  *codeOut, // IN
-                    unsigned int flags)   // IN
+CodeSetOldIconvOpen(const char  *codeIn,   // IN:
+                    const char  *codeOut,  // IN:
+                    unsigned int flags)    // IN:
 {
 #ifdef __linux__
    if (flags) {
@@ -897,6 +906,7 @@ CodeSetOldIconvOpen(const char  *codeIn,  // IN
        * only use TRANSLIT and bail out after the first non-translitible
        * character.
        */
+
       codeOutExt = Str_Asprintf(NULL, "%s//TRANSLIT", codeOut);
       if (codeOutExt) {
          iconv_t cd = iconv_open(codeOutExt, codeIn);
@@ -907,6 +917,7 @@ CodeSetOldIconvOpen(const char  *codeIn,  // IN
       }
    }
 #endif
+
    return iconv_open(codeOut, codeIn);
 }
 
@@ -930,12 +941,12 @@ CodeSetOldIconvOpen(const char  *codeIn,  // IN
  */
 
 Bool
-CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
-                              char const *bufIn,   // IN
-                              size_t sizeIn,       // IN
-                              char const *codeOut, // IN
-                              unsigned int flags,  // IN
-                              DynBuf *db)          // IN/OUT
+CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
+                              char const *bufIn,    // IN:
+                              size_t sizeIn,        // IN:
+                              char const *codeOut,  // IN:
+                              unsigned int flags,   // IN:
+                              DynBuf *db)           // IN/OUT:
 {
    iconv_t cd;
 
@@ -974,6 +985,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
        * can be sure that at least one character is
        * converted each call to iconv().
        */
+
       size = DynBuf_GetSize(db);
       if (DynBuf_Enlarge(db, size + 4) == FALSE) {
          goto error;
@@ -988,6 +1000,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
        * in the standard. However, the implementation of iconv doesn't
        * change bufIn so a simple cast is safe. --plangdale
        */
+
 #if defined(GLIBC_VERSION_22)
       status = iconv(cd, (char **)&bufIn, &sizeIn, &out, &outLeft);
 #else
@@ -1007,6 +1020,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
        * characters were transliterated) or even -1 with errno set to
        * EILSEQ (if some characters were ignored).
        */
+
       if (sizeIn == 0) {
          break;
       }
@@ -1014,18 +1028,20 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
          if (status != -1) {
             goto error;
          }
-	 /*
-	  * Some libc implementations (one on ESX3, and one on Ganesh's
-	  * box) silently ignore //IGNORE.  So if caller asked for
-	  * getting conversion done at any cost, just return success
-	  * even if failure occured.  User will get truncated
-	  * message, but that's our best.  We have no idea whether
-	  * incoming encoding is 8bit, 16bit, or what, so we cannot
-	  * skip over characters in input stream and recover :-(
-	  */
-	 if ((flags & CSGTG_IGNORE) && errno == EILSEQ) {
-	    break;
-	 }
+
+         /*
+          * Some libc implementations (one on ESX3, and one on Ganesh's
+          * box) silently ignore //IGNORE.  So if caller asked for
+          * getting conversion done at any cost, just return success
+          * even if failure occured.  User will get truncated
+          * message, but that's our best.  We have no idea whether
+          * incoming encoding is 8bit, 16bit, or what, so we cannot
+          * skip over characters in input stream and recover :-(
+          */
+
+         if ((flags & CSGTG_IGNORE) && errno == EILSEQ) {
+            break;
+         }
          if (errno != E2BIG) {
             goto error;
          }
@@ -1065,12 +1081,12 @@ error:
  */
 
 Bool
-CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
-                              char const *bufIn,   // IN
-                              size_t sizeIn,       // IN
-                              char const *codeOut, // IN
-                              unsigned int flags,  // IN
-                              DynBuf *db)          // IN/OUT
+CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
+                              char const *bufIn,    // IN:
+                              size_t sizeIn,        // IN:
+                              char const *codeOut,  // IN:
+                              unsigned int flags,   // IN:
+                              DynBuf *db)           // IN/OUT:
 {
    Bool ret = FALSE;
    StringEncoding encIn = Unicode_EncodingNameToEnum(codeIn);
@@ -1137,9 +1153,9 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
             goto exit;
          }
       } else if (STRING_ENCODING_US_ASCII == encOut) {
-	 if (!CodeSetOld_Utf8ToAsciiDb(bufIn, sizeIn, flags, db)) {
-	    goto exit;
-	 }
+         if (!CodeSetOld_Utf8ToAsciiDb(bufIn, sizeIn, flags, db)) {
+            goto exit;
+         }
       } else {
          goto exit;
       }
@@ -1169,9 +1185,9 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
       }
    } else if (STRING_ENCODING_US_ASCII == encIn) {
       if (STRING_ENCODING_UTF8 == encOut) {
-	 if (!CodeSetOld_AsciiToUtf8Db(bufIn, sizeIn, flags, db)) {
-	    goto exit;
-	 }
+         if (!CodeSetOld_AsciiToUtf8Db(bufIn, sizeIn, flags, db)) {
+            goto exit;
+         }
       } else {
          goto exit;
       }
@@ -1189,12 +1205,12 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
 
    if (bufOut != NULL) {
       if (DynBuf_GetSize(db) == 0) {
-	 DynBuf_Attach(db, sizeOut, bufOut);
-	 bufOut = NULL;
+         DynBuf_Attach(db, sizeOut, bufOut);
+         bufOut = NULL;
       } else {
-	 if (!DynBuf_Append(db, bufOut, sizeOut)) {
-	    goto exit;
-	 }
+         if (!DynBuf_Append(db, bufOut, sizeOut)) {
+            goto exit;
+         }
       }
    }
 
@@ -1202,6 +1218,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
 
   exit:
    free(bufOut);
+
    return ret;
 }
 
@@ -1225,20 +1242,21 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,  // IN
  */
 
 Bool
-CodeSetOld_GenericToGeneric(const char *codeIn,  // IN
-                            const char *bufIn,   // IN
-                            size_t sizeIn,       // IN
-                            const char *codeOut, // IN
-                            unsigned int flags,  // IN
-                            char **bufOut,       // OUT
-                            size_t *sizeOut)     // OUT
+CodeSetOld_GenericToGeneric(const char *codeIn,   // IN:
+                            const char *bufIn,    // IN:
+                            size_t sizeIn,        // IN:
+                            const char *codeOut,  // IN:
+                            unsigned int flags,   // IN:
+                            char **bufOut,        // OUT:
+                            size_t *sizeOut)      // OUT:
 {
    DynBuf db;
    Bool ok;
 
    DynBuf_Init(&db);
    ok = CodeSetOld_GenericToGenericDb(codeIn, bufIn, sizeIn,
-				      codeOut, flags, &db);
+                                      codeOut, flags, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1307,10 +1325,10 @@ CodeSetOld_GenericToGeneric(const char *codeIn,  // IN
  */
 
 Bool
-CodeSetOld_Utf8ToCurrent(char const *bufIn,     // IN
-                         size_t sizeIn,   // IN
-                         char **bufOut,         // OUT
-                         size_t *sizeOut) // OUT
+CodeSetOld_Utf8ToCurrent(char const *bufIn,  // IN:
+                         size_t sizeIn,      // IN:
+                         char **bufOut,      // OUT:
+                         size_t *sizeOut)    // OUT:
 {
 #if defined(CURRENT_IS_UTF8)
    return CodeSetOldDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
@@ -1322,6 +1340,7 @@ CodeSetOld_Utf8ToCurrent(char const *bufIn,     // IN
    ok = CodeSetOld_GenericToGenericDb("UTF-8", bufIn, sizeIn,
                                       CodeSetOld_GetCurrentCodeSet(),
                                       0, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    char *buf;
@@ -1363,10 +1382,10 @@ CodeSetOld_Utf8ToCurrent(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
-                      size_t sizeIn,   // IN
-                      char **bufOut,         // OUT
-                      size_t *sizeOut) // OUT
+CodeSetOld_CurrentToUtf8(char const *bufIn,  // IN:
+                      size_t sizeIn,         // IN:
+                      char **bufOut,         // OUT:
+                      size_t *sizeOut)       // OUT:
 {
 #if defined(CURRENT_IS_UTF8)
    return CodeSetOldDuplicateStr(bufIn, sizeIn, bufOut, sizeOut);
@@ -1377,6 +1396,7 @@ CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
    DynBuf_Init(&db);
    ok = CodeSetOld_GenericToGenericDb(CodeSetOld_GetCurrentCodeSet(), bufIn,
                                       sizeIn, "UTF-8", 0, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    char *buf;
@@ -1389,6 +1409,7 @@ CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
 
    status = CodeSetOld_Utf16leToUtf8(buf, size, bufOut, sizeOut);
    free(buf);
+
    return status;
 #else
 #error
@@ -1415,9 +1436,9 @@ CodeSetOld_CurrentToUtf8(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
-                           size_t sizeIn, // IN
-                           DynBuf *db)          // IN
+CodeSetOld_Utf16leToUtf8Db(char const *bufIn,  // IN
+                           size_t sizeIn,      // IN
+                           DynBuf *db)         // IN
 {
    const uint16 *utf16In;
    size_t numCodeUnits;
@@ -1435,13 +1456,13 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
       uint8 *dbBytes;
       size_t size;
 
-      if (   utf16In[codeUnitIndex] < 0xD800
-          || utf16In[codeUnitIndex] > 0xDFFF) {
+      if (utf16In[codeUnitIndex] < 0xD800 ||
+          utf16In[codeUnitIndex] > 0xDFFF) {
          // Non-surrogate UTF-16 code units directly represent a code point.
          codePoint = utf16In[codeUnitIndex];
       } else {
          static const uint32 SURROGATE_OFFSET =
-            (0xD800 << 10UL) + 0xDC00 - 0x10000;
+                                        (0xD800 << 10UL) + 0xDC00 - 0x10000;
 
          uint16 surrogateLead = utf16In[codeUnitIndex];
          uint16 surrogateTrail;
@@ -1455,9 +1476,9 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
          surrogateTrail = utf16In[codeUnitIndex];
 
          // Ensure we have a lead surrogate followed by a trail surrogate.
-         if (   surrogateLead > 0xDBFF
-             || surrogateTrail < 0xDC00
-             || surrogateTrail > 0xDFFF) {
+         if (surrogateLead > 0xDBFF ||
+             surrogateTrail < 0xDC00 ||
+             surrogateTrail > 0xDFFF) {
             return FALSE;
          }
 
@@ -1480,7 +1501,7 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
           *    -> result [0x10000, 0x10FFFF]
           */
          codePoint = ((uint32)surrogateLead << 10UL) +
-            (uint32)surrogateTrail - SURROGATE_OFFSET;
+                                    (uint32)surrogateTrail - SURROGATE_OFFSET;
 
          ASSERT(codePoint >= 0x10000 && codePoint <= 0x10FFFF);
       }
@@ -1488,8 +1509,8 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
       size = DynBuf_GetSize(db);
 
       // We'll need at most 4 more bytes for this code point.
-      if (   DynBuf_GetAllocatedSize(db) < size + 4
-          && DynBuf_Enlarge(db, size + 4) == FALSE) {
+      if (DynBuf_GetAllocatedSize(db) < size + 4 &&
+          DynBuf_Enlarge(db, size + 4) == FALSE) {
          return FALSE;
       }
 
@@ -1518,6 +1539,7 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
           * See the surrogate pair handling block above for the math
           * that ensures we're in the range [0x10000, 0x10FFFF] here.
           */
+
          ASSERT(codePoint <= 0x10FFFF);
          dbBytes[0] = 0xF0 | (codePoint >> 18);
          dbBytes[1] = 0x80 | ((codePoint >> 12) & 0x3F);
@@ -1556,16 +1578,17 @@ CodeSetOld_Utf16leToUtf8Db(char const *bufIn,   // IN
  */
 
 Bool
-CodeSetOld_Utf16leToUtf8(char const *bufIn,     // IN
-                         size_t sizeIn,   // IN
-                         char **bufOut,         // OUT
-                         size_t *sizeOut) // OUT
+CodeSetOld_Utf16leToUtf8(char const *bufIn,  // IN:
+                         size_t sizeIn,      // IN:
+                         char **bufOut,      // OUT:
+                         size_t *sizeOut)    // OUT:
 {
    DynBuf db;
    Bool ok;
 
    DynBuf_Init(&db);
    ok = CodeSetOld_Utf16leToUtf8Db(bufIn, sizeIn, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1593,16 +1616,17 @@ CodeSetOld_Utf16leToUtf8(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf8ToUtf16le(char const *bufIn,     // IN
-                         size_t sizeIn,   // IN
-                         char **bufOut,         // OUT
-                         size_t *sizeOut) // OUT
+CodeSetOld_Utf8ToUtf16le(char const *bufIn,  // IN:
+                         size_t sizeIn,      // IN:
+                         char **bufOut,      // OUT:
+                         size_t *sizeOut)    // OUT:
 {
    DynBuf db;
    Bool ok;
 
    DynBuf_Init(&db);
    ok = CodeSetOldUtf8ToUtf16leDb(bufIn, sizeIn, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1630,16 +1654,17 @@ CodeSetOld_Utf8ToUtf16le(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf8FormDToUtf8FormC(char const *bufIn,     // IN
-                                size_t sizeIn,         // IN
-                                char **bufOut,         // OUT
-                                size_t *sizeOut)       // OUT
+CodeSetOld_Utf8FormDToUtf8FormC(char const *bufIn,  // IN:
+                                size_t sizeIn,      // IN:
+                                char **bufOut,      // OUT:
+                                size_t *sizeOut)    // OUT:
 {
 #if defined(__APPLE__)
    DynBuf db;
    Bool ok;
    DynBuf_Init(&db);
    ok = CodeSetOld_Utf8Normalize(bufIn, sizeIn, TRUE, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #else
    NOT_IMPLEMENTED();
@@ -1670,16 +1695,17 @@ CodeSetOld_Utf8FormDToUtf8FormC(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf8FormCToUtf8FormD(char const *bufIn,     // IN
-                                size_t sizeIn,         // IN
-                                char **bufOut,         // OUT
-                                size_t *sizeOut)       // OUT
+CodeSetOld_Utf8FormCToUtf8FormD(char const *bufIn,  // IN:
+                                size_t sizeIn,      // IN:
+                                char **bufOut,      // OUT:
+                                size_t *sizeOut)    // OUT:
 {
 #if defined(__APPLE__)
    DynBuf db;
    Bool ok;
    DynBuf_Init(&db);
    ok = CodeSetOld_Utf8Normalize(bufIn, sizeIn, FALSE, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #else
    NOT_IMPLEMENTED();
@@ -1708,10 +1734,10 @@ CodeSetOld_Utf8FormCToUtf8FormD(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_CurrentToUtf16le(char const *bufIn,     // IN
-                            size_t sizeIn,    // IN
-                            char **bufOut,          // OUT
-                            size_t *sizeOut)  // OUT
+CodeSetOld_CurrentToUtf16le(char const *bufIn,  // IN:
+                            size_t sizeIn,      // IN:
+                            char **bufOut,      // OUT:
+                            size_t *sizeOut)    // OUT:
 {
    DynBuf db;
    Bool ok;
@@ -1728,6 +1754,7 @@ CodeSetOld_CurrentToUtf16le(char const *bufIn,     // IN
 #else
 #error
 #endif
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1753,10 +1780,10 @@ CodeSetOld_CurrentToUtf16le(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf16leToCurrent(char const *bufIn,     // IN
-                            size_t sizeIn,   // IN
-                            char **bufOut,         // OUT
-                            size_t *sizeOut) // OUT
+CodeSetOld_Utf16leToCurrent(char const *bufIn,  // IN:
+                            size_t sizeIn,      // IN:
+                            char **bufOut,      // OUT:
+                            size_t *sizeOut)    // OUT:
 {
 #if defined(CURRENT_IS_UTF8)
    return CodeSetOld_Utf16leToUtf8(bufIn, sizeIn, bufOut, sizeOut);
@@ -1767,6 +1794,7 @@ CodeSetOld_Utf16leToCurrent(char const *bufIn,     // IN
    DynBuf_Init(&db);
    ok = CodeSetOld_GenericToGenericDb("UTF-16LE", bufIn, sizeIn,
                                       CodeSetOld_GetCurrentCodeSet(), 0, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    return CodeSetOldUtf16leToCurrent(bufIn, sizeIn, bufOut, sizeOut);
@@ -1797,10 +1825,10 @@ CodeSetOld_Utf16leToCurrent(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
-                            size_t sizeIn,   // IN
-                            char **bufOut,         // OUT
-                            size_t *sizeOut) // OUT
+CodeSetOld_Utf16beToCurrent(char const *bufIn,  // IN:
+                            size_t sizeIn,      // IN:
+                            char **bufOut,      // OUT:
+                            size_t *sizeOut)    // OUT:
 {
 #if defined(CURRENT_IS_UTF8)
    Bool status;
@@ -1814,6 +1842,7 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
    swab(bufIn, temp, sizeIn);
    status = CodeSetOld_Utf16leToUtf8(temp, sizeIn, bufOut, sizeOut);
    free(temp);
+
    return status;
 #elif defined(USE_ICONV)
    DynBuf db;
@@ -1822,6 +1851,7 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
    DynBuf_Init(&db);
    ok = CodeSetOld_GenericToGenericDb("UTF-16BE", bufIn, sizeIn,
                                       CodeSetOld_GetCurrentCodeSet(), 0, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 #elif defined(_WIN32)
    char c;
@@ -1852,6 +1882,7 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
 
   error:
    free(bufIn_dup);
+
    return status;
 #else
 #error
@@ -1880,16 +1911,17 @@ CodeSetOld_Utf16beToCurrent(char const *bufIn,     // IN
  */
 
 Bool
-CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
-                         size_t sizeIn,     // IN
-                         char **bufOut,     // OUT
-                         size_t *sizeOut)   // OUT
+CodeSetOld_Utf16beToUtf8(char const *bufIn,  // IN:
+                         size_t sizeIn,      // IN:
+                         char **bufOut,      // OUT:
+                         size_t *sizeOut)    // OUT:
 {
    DynBuf db;
    Bool ok;
 
    DynBuf_Init(&db);
    ok = CodeSetOld_Utf16beToUtf8Db(bufIn, sizeIn, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1913,13 +1945,14 @@ CodeSetOld_Utf16beToUtf8(char const *bufIn, // IN
  */
 
 Bool
-CodeSetOld_Utf16beToUtf8Db(char const *bufIn, // IN
-                           size_t sizeIn,     // IN
-                           DynBuf *db)        // IN
+CodeSetOld_Utf16beToUtf8Db(char const *bufIn,  // IN:
+                           size_t sizeIn,      // IN:
+                           DynBuf *db)         // IN:
 {
    int i;
    char *temp;
    Bool ret = FALSE;
+
    if ((temp = malloc(sizeIn)) == NULL) {
       return ret;
    }
@@ -1933,6 +1966,7 @@ CodeSetOld_Utf16beToUtf8Db(char const *bufIn, // IN
 
    ret = CodeSetOld_Utf16leToUtf8Db(temp, sizeIn, db);
    free(temp);
+
    return ret;
 }
 
@@ -1954,17 +1988,18 @@ CodeSetOld_Utf16beToUtf8Db(char const *bufIn, // IN
  */
 
 Bool
-CodeSetOld_AsciiToUtf8(const char *bufIn,   // IN
-                       size_t sizeIn,       // IN
-                       unsigned int flags,  // IN
-                       char **bufOut,       // OUT
-                       size_t *sizeOut)     // OUT
+CodeSetOld_AsciiToUtf8(const char *bufIn,   // IN:
+                       size_t sizeIn,       // IN:
+                       unsigned int flags,  // IN:
+                       char **bufOut,       // OUT:
+                       size_t *sizeOut)     // OUT:
 {
    DynBuf db;
    Bool ok;
 
    DynBuf_Init(&db);
    ok = CodeSetOld_AsciiToUtf8Db(bufIn, sizeIn, flags, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -1986,10 +2021,10 @@ CodeSetOld_AsciiToUtf8(const char *bufIn,   // IN
  */
 
 Bool
-CodeSetOld_AsciiToUtf8Db(char const *bufIn,   // IN
-                         size_t sizeIn,       // IN
-                         unsigned int flags,  // IN
-                         DynBuf *db)          // OUT
+CodeSetOld_AsciiToUtf8Db(char const *bufIn,   // IN:
+                         size_t sizeIn,       // IN:
+                         unsigned int flags,  // IN:
+                         DynBuf *db)          // OUT:
 {
    size_t oldSize = DynBuf_GetSize(db);
    size_t i;
@@ -1997,15 +2032,16 @@ CodeSetOld_AsciiToUtf8Db(char const *bufIn,   // IN
 
    for (i = 0; i < sizeIn; i++) {
       if (UNLIKELY((unsigned char) bufIn[i] >= 0x80)) {
-	 if (flags == 0) {
-	    DynBuf_SetSize(db, oldSize);
-	    return FALSE;
-	 }
-	 DynBuf_Append(db, bufIn + last, i - last);
-	 if ((flags & CSGTG_TRANSLIT) != 0) {
-	    DynBuf_Append(db, "\xef\xbf\xbd", 3);
-	 }
-	 last = i + 1;
+         if (flags == 0) {
+            DynBuf_SetSize(db, oldSize);
+
+            return FALSE;
+         }
+         DynBuf_Append(db, bufIn + last, i - last);
+         if ((flags & CSGTG_TRANSLIT) != 0) {
+            DynBuf_Append(db, "\xef\xbf\xbd", 3);
+         }
+         last = i + 1;
       }
    }
    DynBuf_Append(db, bufIn + last, i - last);
@@ -2031,17 +2067,18 @@ CodeSetOld_AsciiToUtf8Db(char const *bufIn,   // IN
  */
 
 Bool
-CodeSetOld_Utf8ToAscii(const char *bufIn,   // IN
-                       size_t sizeIn,       // IN
-                       unsigned int flags,  // IN
-                       char **bufOut,       // OUT
-                       size_t *sizeOut)     // OUT
+CodeSetOld_Utf8ToAscii(const char *bufIn,   // IN:
+                       size_t sizeIn,       // IN:
+                       unsigned int flags,  // IN:
+                       char **bufOut,       // OUT:
+                       size_t *sizeOut)     // OUT:
 {
    DynBuf db;
    Bool ok;
 
    DynBuf_Init(&db);
    ok = CodeSetOld_Utf8ToAsciiDb(bufIn, sizeIn, flags, &db);
+
    return CodeSetOldDynBufFinalize(ok, &db, bufOut, sizeOut);
 }
 
@@ -2063,10 +2100,10 @@ CodeSetOld_Utf8ToAscii(const char *bufIn,   // IN
  */
 
 Bool
-CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
-                         size_t sizeIn,       // IN
-                         unsigned int flags,  // IN
-                         DynBuf *db)          // OUT
+CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN:
+                         size_t sizeIn,       // IN:
+                         unsigned int flags,  // IN:
+                         DynBuf *db)          // OUT:
 {
    size_t oldSize = DynBuf_GetSize(db);
    uint8 *p = (uint8 *) bufIn;
@@ -2075,20 +2112,21 @@ CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
 
    for (; p < end; p++) {
       if (UNLIKELY(*p >= 0x80)) {
-	 int n;
+         int n;
 
-	 if (flags == 0) {
-	    DynBuf_SetSize(db, oldSize);
-	    return FALSE;
-	 }
-	 DynBuf_Append(db, last, p - last);
-	 if ((flags & CSGTG_TRANSLIT) != 0) {
-	    DynBuf_Append(db, "\x1a", 1);
-	 }
-	 if ((n = CodeSetOldGetUtf8((char *)p, (char *)end, NULL)) > 0) {
-	    p += n - 1;
-	 }
-	 last = p + 1;
+         if (flags == 0) {
+            DynBuf_SetSize(db, oldSize);
+
+            return FALSE;
+         }
+         DynBuf_Append(db, last, p - last);
+         if ((flags & CSGTG_TRANSLIT) != 0) {
+            DynBuf_Append(db, "\x1a", 1);
+         }
+         if ((n = CodeSetOldGetUtf8((char *)p, (char *)end, NULL)) > 0) {
+            p += n - 1;
+         }
+         last = p + 1;
       }
    }
    DynBuf_Append(db, last, p - last);
@@ -2115,27 +2153,29 @@ CodeSetOld_Utf8ToAsciiDb(char const *bufIn,   // IN
  */
 
 static Bool
-CodeSetOldIso88591ToUtf8Db(char const *bufIn,   // IN
-                           size_t sizeIn,       // IN
-                           unsigned int flags,  // IN
-                           DynBuf *db)          // OUT
+CodeSetOldIso88591ToUtf8Db(char const *bufIn,   // IN:
+                           size_t sizeIn,       // IN:
+                           unsigned int flags,  // IN:
+                           DynBuf *db)          // OUT:
 {
    size_t i;
    size_t last = 0;
 
    for (i = 0; i < sizeIn; i++) {
       unsigned int c = (unsigned char)bufIn[i];
+
       if (UNLIKELY(c >= 0x80)) {
          unsigned char buf[2];
 
          buf[0] = 0xC0 | (c >> 6);
          buf[1] = 0x80 | (c & 0x3F);
-	 DynBuf_Append(db, bufIn + last, i - last);
+         DynBuf_Append(db, bufIn + last, i - last);
          DynBuf_Append(db, buf, sizeof buf);
-	 last = i + 1;
+         last = i + 1;
       }
    }
    DynBuf_Append(db, bufIn + last, i - last);
+
    return TRUE;
 }
 #endif
@@ -2186,8 +2226,10 @@ GetInvalidCharsFlag(void)
        * If GetVersionEx failed, we are running something earlier than NT4+SP6,
        * thus we cannot use MB_ERR_INVALID_CHARS
        */
+
        retval = 0;
        bFirstCall = FALSE;
+
        return retval;
    }
 
@@ -2204,6 +2246,7 @@ GetInvalidCharsFlag(void)
    }
 
    bFirstCall = FALSE;
+
    return retval;
 }
 #endif
@@ -2231,9 +2274,10 @@ GetInvalidCharsFlag(void)
  */
 
 Bool
-CodeSetOld_IsEncodingSupported(const char *name) // IN
+CodeSetOld_IsEncodingSupported(const char *name)  // IN:
 {
    ASSERT(name);
+
    return (STRING_ENCODING_UNKNOWN != Unicode_EncodingNameToEnum(name));
 }
 
@@ -2269,8 +2313,9 @@ CodeSetOld_Validate(const char *buf,   // IN: the string
 
    DynBuf_Init(&db);
    ok = CodeSetOld_GenericToGenericDb(code, buf, size, "UTF-8",
-				      CSGTG_NORMAL, &db);
+                                      CSGTG_NORMAL, &db);
    DynBuf_Destroy(&db);
+
    return ok;
 }
 
@@ -2292,7 +2337,7 @@ CodeSetOld_Validate(const char *buf,   // IN: the string
  */
 
 Bool
-CodeSetOld_Init(UNUSED_PARAM(const char *dataDir))
+CodeSetOld_Init(UNUSED_PARAM(const char *dataDir))  // IN:
 {
    return TRUE;
 }

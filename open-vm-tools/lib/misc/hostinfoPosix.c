@@ -33,6 +33,7 @@
 #include <sys/time.h>
 #include <sys/timeb.h>
 #include <pwd.h>
+#include <pthread.h>
 #include <sys/resource.h>
 #if defined(sun)
 #include <sys/systeminfo.h>
@@ -136,9 +137,9 @@ typedef struct lsb_distro_info {
 
 
 static LSBDistroInfo lsbFields[] = {
-   {"DISTRIB_ID=", "DISTRIB_ID=%s"},
-   {"DISTRIB_RELEASE=", "DISTRIB_RELEASE=%s"},
-   {"DISTRIB_CODENAME=", "DISTRIB_CODENAME=%s"},
+   {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
+   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"},
+   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"},
    {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s"},
    {NULL, NULL},
 };
@@ -151,44 +152,44 @@ typedef struct distro_info {
 
 
 static DistroInfo distroArray[] = {
-   {"RedHat", "/etc/redhat-release"},
-   {"RedHat", "/etc/redhat_version"},
-   {"Sun", "/etc/sun-release"},
-   {"SuSE", "/etc/SuSE-release"},
-   {"SuSE", "/etc/novell-release"},
-   {"SuSE", "/etc/sles-release"},
-   {"Debian", "/etc/debian_version"},
-   {"Debian", "/etc/debian_release"},
-   {"Mandrake", "/etc/mandrake-release"},
-   {"Mandriva", "/etc/mandriva-release"},
-   {"Mandrake", "/etc/mandrakelinux-release"},
-   {"TurboLinux", "/etc/turbolinux-release"},
-   {"Fedora Core", "/etc/fedora-release"},
-   {"Gentoo", "/etc/gentoo-release"},
-   {"Novell", "/etc/nld-release"},
-   {"Ubuntu", "/etc/lsb-release"},
-   {"Annvix", "/etc/annvix-release"},
-   {"Arch", "/etc/arch-release"},
-   {"Arklinux", "/etc/arklinux-release"},
-   {"Aurox", "/etc/aurox-release"},
-   {"BlackCat", "/etc/blackcat-release"},
-   {"Cobalt", "/etc/cobalt-release"},
-   {"Conectiva", "/etc/conectiva-release"},
-   {"Immunix", "/etc/immunix-release"},
-   {"Knoppix", "/etc/knoppix_version"},
+   {"RedHat",             "/etc/redhat-release"},
+   {"RedHat",             "/etc/redhat_version"},
+   {"Sun",                "/etc/sun-release"},
+   {"SuSE",               "/etc/SuSE-release"},
+   {"SuSE",               "/etc/novell-release"},
+   {"SuSE",               "/etc/sles-release"},
+   {"Debian",             "/etc/debian_version"},
+   {"Debian",             "/etc/debian_release"},
+   {"Mandrake",           "/etc/mandrake-release"},
+   {"Mandriva",           "/etc/mandriva-release"},
+   {"Mandrake",           "/etc/mandrakelinux-release"},
+   {"TurboLinux",         "/etc/turbolinux-release"},
+   {"Fedora Core",        "/etc/fedora-release"},
+   {"Gentoo",             "/etc/gentoo-release"},
+   {"Novell",             "/etc/nld-release"},
+   {"Ubuntu",             "/etc/lsb-release"},
+   {"Annvix",             "/etc/annvix-release"},
+   {"Arch",               "/etc/arch-release"},
+   {"Arklinux",           "/etc/arklinux-release"},
+   {"Aurox",              "/etc/aurox-release"},
+   {"BlackCat",           "/etc/blackcat-release"},
+   {"Cobalt",             "/etc/cobalt-release"},
+   {"Conectiva",          "/etc/conectiva-release"},
+   {"Immunix",            "/etc/immunix-release"},
+   {"Knoppix",            "/etc/knoppix_version"},
    {"Linux-From-Scratch", "/etc/lfs-release"},
-   {"Linux-PPC", "/etc/linuxppc-release"},
-   {"MkLinux", "/etc/mklinux-release"},
-   {"PLD", "/etc/pld-release"},
-   {"Slackware", "/etc/slackware-version"},
-   {"Slackware", "/etc/slackware-release"},
-   {"SMEServer", "/etc/e-smith-release"},
-   {"Solaris", "/etc/release"},
-   {"Tiny Sofa", "/etc/tinysofa-release"},
-   {"UltraPenguin", "/etc/ultrapenguin-release"},
-   {"UnitedLinux", "/etc/UnitedLinux-release"},
-   {"VALinux", "/etc/va-release"},
-   {"Yellow Dog", "/etc/yellowdog-release"},
+   {"Linux-PPC",          "/etc/linuxppc-release"},
+   {"MkLinux",            "/etc/mklinux-release"},
+   {"PLD",                "/etc/pld-release"},
+   {"Slackware",          "/etc/slackware-version"},
+   {"Slackware",          "/etc/slackware-release"},
+   {"SMEServer",          "/etc/e-smith-release"},
+   {"Solaris",            "/etc/release"},
+   {"Tiny Sofa",          "/etc/tinysofa-release"},
+   {"UltraPenguin",       "/etc/ultrapenguin-release"},
+   {"UnitedLinux",        "/etc/UnitedLinux-release"},
+   {"VALinux",            "/etc/va-release"},
+   {"Yellow Dog",         "/etc/yellowdog-release"},
    {NULL, NULL},
 };
 
@@ -372,7 +373,7 @@ Hostinfo_GetSystemBitness(void)
 #      if !defined SOL10
    /*
     * XXX: This is bad.  We define SI_ARCHITECTURE_K to what it is on Solaris
-    * 10 so that we can use a single guestd build for Solaris 9 and 10.  In the
+    * 10 so that we can use a single guestd build for Solaris 9 and 10. In the
     * future we should have the Solaris 9 build just return 32 -- since it did
     * not support 64-bit x86 -- and let the Solaris 10 headers define
     * SI_ARCHITECTURE_K, then have the installer symlink to the correct binary.
@@ -888,9 +889,9 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
       char *dashPtr;
 
       /*
-       * FreeBSD releases report their version as "x.y-RELEASE". We'll be naive
-       * look for the first dash, and use everything before it as the version
-       * number.
+       * FreeBSD releases report their version as "x.y-RELEASE". We'll be
+       * naive look for the first dash, and use everything before it as the
+       * version number.
        */
 
       dashPtr = Str_Strchr(buf.release, '-');
@@ -913,7 +914,7 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
       /*
        * Solaris releases report their version as "x.y". For our supported
        * releases it seems that x is always "5", and is ignored in favor of
-       * y for the version number.
+       * "y" for the version number.
        */
 
       if (sscanf(buf.release, "5.%2[0-9]", solarisRelease) == 1) {
@@ -1029,6 +1030,7 @@ Hostinfo_HTDisabled(void)
 
    if (HostType_OSIsVMK()) {
       VMK_ReturnStatus status = VMKernel_HTEnabledCPU();
+
       if (status != VMK_OK) {
          return TRUE;
       } else {
@@ -1039,6 +1041,7 @@ Hostinfo_HTDisabled(void)
    if (logical == 0 && cores == 0) {
       logical = HostinfoReadProc("logical");
       cores = HostinfoReadProc("cores");
+
       if (logical <= 0 || cores <= 0) {
          logical = cores = 0;
       }
@@ -1077,7 +1080,15 @@ Hostinfo_HTDisabled(void)
 uint32
 Hostinfo_NumCPUs(void)
 {
-#if defined(__APPLE__)
+#if defined(sun)
+   static int count = 0;
+
+   if (count <= 0) {
+      count = sysconf(_SC_NPROCESSORS_CONF);
+   }
+
+   return count;
+#elif defined(__APPLE__)
    uint32 out;
    size_t outSize = sizeof out;
 
@@ -1333,6 +1344,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
    res = getloadavg(avg, 3);
    if (res < 3) {
       NOT_TESTED_ONCE();
+
       return FALSE;
    }
 
@@ -2089,7 +2101,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
          _exit(EXIT_SUCCESS);
       }
    } else {
-      Err_SetErrno(err);
+      errno = err;
 
       if (pidPath) {
          Posix_Unlink(pidPath);
@@ -2422,8 +2434,8 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
    /*
     * popen(3) incorrectly executes the shell with the identity of the calling
     * process, ignoring a potential per-thread identity. And starting with
-    * Mac OS 10.6 it is even worse: if there is a per-thread identity, popen(3)
-    * removes it!
+    * Mac OS 10.6 it is even worse: if there is a per-thread identity,
+    * popen(3) removes it!
     *
     * So we run this code in a separate process which runs with the same
     * identity as the current thread.
@@ -2550,6 +2562,7 @@ Hostinfo_SystemUpTime(void)
 
    if (VmkSyscall_Init(FALSE, NULL, 0)) {
       status = VMKernel_GetUptimeUS(&uptime);
+
       if (status == VMK_OK) {
          return uptime;
       }
@@ -3083,7 +3096,7 @@ Hostinfo_SystemTimerUS(void)
 
    return Hostinfo_RawSystemTimerUS();
 #else
-   static Atomic_uint32 mutex = {0};
+   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
    VmTimeType curTime;
    VmTimeType newTime;
 
@@ -3091,8 +3104,7 @@ Hostinfo_SystemTimerUS(void)
    static VmTimeType lastTimeRead;
    static VmTimeType lastTimeReset;
 
-   /* Get and take lock. */
-   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
+   pthread_mutex_lock(&mutex);  // use native mechanism, just like Windows
 
    curTime = Hostinfo_RawSystemTimerUS();
 
@@ -3117,9 +3129,92 @@ Hostinfo_SystemTimerUS(void)
    lastTimeRead = newTime;
 
 exit:
-   /* Release lock. */
-   Atomic_Write(&mutex, 0);
+   pthread_mutex_unlock(&mutex);
 
    return newTime;
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetModulePath --
+ *
+ *	Retrieve the full path to the executable. Not supported under VMvisor.
+ *
+ *      Note: If your process is running with elevated privileges
+ *      (setuid/setgid), treat the path returned by this function as
+ *      untrusted (for example, do not pass it to exec or open).
+ *
+ *      This function returns a path that is under the control of the
+ *      user.  An attacker could manipulate the path returned by this
+ *      function to elevate privileges.
+ *
+ * Results:
+ *      On success: The allocated, NUL-terminated file path.
+ *         Note: This path can be a symbolic or hard link; it's just one
+ *         possible path to access the executable.
+ *
+ *      On failure: NULL.
+ *
+ * Side effects:
+ *	None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Unicode
+Hostinfo_GetModulePath(uint32 priv)  // IN:
+{
+   Unicode path;
+
+#if defined(__APPLE__)
+   uint32_t pathSize = FILE_MAXPATH;
+#else
+   uid_t uid = -1;
+#endif
+
+   if ((priv != HGMP_PRIVILEGE) && (priv != HGMP_NO_PRIVILEGE)) {
+      Warning("%s: invalid privilege parameter\n", __FUNCTION__);
+
+      return NULL;
+   }
+
+#if defined(__APPLE__)
+   path = Util_SafeMalloc(pathSize);
+   if (_NSGetExecutablePath(path, &pathSize)) {
+      Warning(LGPFX" %s: _NSGetExecutablePath failed.\n", __FUNCTION__);
+      free(path);
+
+      return NULL;
+   }
+
+#else
+#if defined(VMX86_SERVER)
+   if (HostType_OSIsVMK()) {
+      return NULL;
+   }
+#endif
+
+   // "/proc/self/exe" only exists on Linux 2.2+.
+   ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
+
+   if (priv == HGMP_PRIVILEGE) {
+      uid = Id_BeginSuperUser();
+   }
+
+   path = Posix_ReadLink("/proc/self/exe");
+
+   if (priv == HGMP_PRIVILEGE) {
+      Id_EndSuperUser(uid);
+   }
+
+   if (path == NULL) {
+      Warning(LGPFX" %s: readlink failed: %s\n", __FUNCTION__,
+              strerror(errno));
+   }
+#endif
+
+   return path;
 }

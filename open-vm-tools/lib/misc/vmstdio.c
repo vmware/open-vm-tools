@@ -64,9 +64,9 @@
  */
 
 static void *
-SuperFgets(FILE *stream,        // IN
-           size_t *count,       // IN/OUT
-           void *bufIn)         // OUT
+SuperFgets(FILE *stream,   // IN:
+           size_t *count,  // IN/OUT:
+           void *bufIn)    // OUT:
 {
    char *buf = (char *)bufIn;
    size_t size = 0;
@@ -146,8 +146,8 @@ SuperFgets(FILE *stream,        // IN
  *
  *      Read the next line from a stream.
  *
- *      A line is defined as an arbitrary long sequence of arbitrary bytes, that
- *      ends with the first occurrence of one of these line terminators:
+ *      A line is defined as an arbitrary long sequence of arbitrary bytes,
+ *      that ends with the first occurrence of one of these line terminators:
  *      . \r\n          (the ANSI way, in text mode)
  *      . \n            (the UNIX way)
  *      . \r            (the Legacy Mac (pre-OS X) way)
@@ -158,13 +158,14 @@ SuperFgets(FILE *stream,        // IN
  *      will be interpreted as two newlines in text mode ('\r' followed by
  *      '\r\n'), but three newlines in binary mode ('\r', '\r', '\n').
  *
- *      If maxBufLength is non-zero at most maxBufLength bytes will be allocated.
+ *      If maxBufLength is non-zero at most maxBufLength bytes will be
+ *      allocated.
  *
  * Results:
  *      StdIO_Success on success: '*buf' is an allocated, NUL terminated buffer
  *                                that contains the line (excluding the line
- *                                terminator). If not NULL, '*count' contains the
- *                                size of the buffer (excluding the NUL
+ *                                terminator). If not NULL, '*count' contains
+ *                                the size of the buffer (excluding the NUL
  *                                terminator)
  *      StdIO_EOF if there is no next line (end of stream)
  *      StdIO_Error on failure: errno is set accordingly
@@ -180,10 +181,10 @@ SuperFgets(FILE *stream,        // IN
  */
 
 StdIO_Status
-StdIO_ReadNextLine(FILE *stream,         // IN
-                   char **buf,           // OUT
-                   size_t maxBufLength,  // IN
-                   size_t *count)        // OUT
+StdIO_ReadNextLine(FILE *stream,         // IN:
+                   char **buf,           // OUT:
+                   size_t maxBufLength,  // IN:
+                   size_t *count)        // OUT:
 {
    DynBuf b;
 
@@ -202,6 +203,7 @@ StdIO_ReadNextLine(FILE *stream,         // IN
        * The dynamic buffer must be at least 2 bytes large, so that at least
        * 1 stream byte and fgets()'s NUL byte can fit --hpreg
        */
+
       if (DynBuf_Enlarge(&b, 2) == FALSE) {
          errno = ENOMEM;
          goto error;
@@ -233,6 +235,7 @@ StdIO_ReadNextLine(FILE *stream,         // IN
          if (size == 0 && feof(stream)) {
             /* Reached end-of-file before reading anything */
             DynBuf_Destroy(&b);
+
             return StdIO_EOF;
          }
 
