@@ -155,6 +155,7 @@ Util_BumpNoFds(uint32 *cur,     // OUT
        * First attempt to raise limit ourselves.
        * If that fails, complain and make user do it.
        */
+
       rlim_t curFdLimit = lim.rlim_cur;
       rlim_t maxFdLimit = lim.rlim_max;
 
@@ -180,6 +181,7 @@ Util_BumpNoFds(uint32 *cur,     // OUT
 
       if (err == EPERM || needSu) {
          uid_t uid = Id_BeginSuperUser();
+
          err = setrlimit(RLIMIT_NOFILE, &lim) < 0 ? errno : 0;
          Id_EndSuperUser(uid);
       }
@@ -198,9 +200,11 @@ Util_BumpNoFds(uint32 *cur,     // OUT
 
       if (err != 0) {
          Log("UTIL: Failed to set number of fds at %u, was %u: %s (%d)\n",
-             (uint32)fdsDesired, (uint32)curFdLimit, Err_Errno2String(err), err); 
+             (uint32)fdsDesired, (uint32)curFdLimit, Err_Errno2String(err),
+             err); 
       }
    }
+
    return err;
 }
 
@@ -237,29 +241,32 @@ UtilGetUserName(uid_t uid) // IN
 #else
    memPoolSize = sysconf(_SC_GETPW_R_SIZE_MAX);
    if (memPoolSize <= 0) {
-      Warning("UtilGetUserName: sysconf(_SC_GETPW_R_SIZE_MAX) failed.\n");
+      Warning("%s: sysconf(_SC_GETPW_R_SIZE_MAX) failed.\n", __FUNCTION__);
+
       return NULL;
    }
 #endif
 
    memPool = malloc(memPoolSize);
    if (memPool == NULL) {
-      Warning("UtilGetUserName: Not enough memory.\n");
+      Warning("%s: Not enough memory.\n", __FUNCTION__);
+
       return NULL;
    }
 
    if (Posix_Getpwuid_r(uid, &pw, memPool, memPoolSize, &pw_p) != 0) {
       free(memPool);
-      Warning("UtilGetUserName: Unable to retrieve the username associated "
-              "with user ID %u.\n",
-          uid);
+      Warning("%s: Unable to retrieve the username associated with "
+              "user ID %u.\n", __FUNCTION__, uid);
+
       return NULL;
    }
 
    userName = strdup(pw_p->pw_name);
    free(memPool);
    if (userName == NULL) {
-      Warning("UtilGetUserName: Not enough memory.\n");
+      Warning("%s: Not enough memory.\n", __FUNCTION__);
+
       return NULL;
    }
 
@@ -613,6 +620,7 @@ Util_GetSafeTmpDir(Bool useConf) // IN
           * We didn't find any usable directories, so try to create one
           * now.
           */
+
          tmpDir = UtilCreateSafeTmpDir(userId, userName, baseTmpDir);
       }
    }
@@ -679,6 +687,7 @@ Util_GetProcessName(pid_t pid,         // IN : process id
     * Open up /proc/<pid>/status on Linux/FreeBSD, and /proc/<pid>/psinfo on
     * Solaris.
     */
+
    Str_Sprintf(fileName, sizeof fileName, "/proc/%"FMTPID"/" PROCFILE, pid);
 
    fd = Posix_Open(fileName, O_RDONLY);
@@ -707,13 +716,16 @@ Util_GetProcessName(pid_t pid,         // IN : process id
 #else /* Linux & FreeBSD */
    ASSERT(nread <= sizeof buf);
    buf[nread == sizeof buf ? nread - 1 : nread] = '\0';
+
    /*
     * Parse the plain text formatting of the status file.  Note that PSINFOFMT
     * contains a format modifier to ensure psinfo is not overrun.
     */
+
    if (sscanf(buf, PRE PSINFOFMT POST, psinfo) != 1) {
       Log("%s: Error, could not parse contents of %s\n", __FUNCTION__,
           fileName);
+
       return FALSE;
    }
 
@@ -731,6 +743,7 @@ Util_GetProcessName(pid_t pid,         // IN : process id
    }
 
    memcpy(bufOut, psname, psnameLen + 1);
+
    return TRUE;
 }
 #endif
@@ -776,7 +789,9 @@ UtilAllocCStArrays(uint32 ncpus,        // IN
       free(*residency);
       free(*transTime);
       free(*residTime);
-      Warning("%s: Cannot allocate memory for C-state queries\n", __FUNCTION__);
+      Warning("%s: Cannot allocate memory for C-state queries\n",
+              __FUNCTION__);
+
       return FALSE;
    }
 
@@ -830,8 +845,10 @@ UtilReadSysCStRes(DIR *dir,                     // IN
             continue;
          }
          if (Str_Snprintf(pathname, sizeof pathname,
-                          SYS_CSTATE_DIR"/%s/cpuidle", cpuEntry->d_name) <= 0) {
+                          SYS_CSTATE_DIR"/%s/cpuidle",
+                          cpuEntry->d_name) <= 0) {
             LOG(0, ("%s: Str_Snprintf failed\n", __FUNCTION__));
+
             return FALSE;
          }
          cpuDir = Posix_OpenDir(pathname);
@@ -877,6 +894,7 @@ UtilReadSysCStRes(DIR *dir,                     // IN
       if (pathlen <= 0) {
          LOG(0, ("%s: Str_Snprintf for '%s/cpuidle' failed\n", __FUNCTION__,
                  cpuEntry->d_name));
+
          return FALSE;
       }
       cpuDir = Posix_OpenDir(pathname);
@@ -911,6 +929,7 @@ UtilReadSysCStRes(DIR *dir,                     // IN
                           "/%s/usage", cstateEntry->d_name) <= 0) {
             LOG(0, ("%s: Str_Snprintf for 'usage' failed\n", __FUNCTION__));
             closedir(cpuDir);
+
             return FALSE;
          }
          statsFile = Posix_Fopen(pathname, "r");
@@ -927,6 +946,7 @@ UtilReadSysCStRes(DIR *dir,                     // IN
                           "/%s/time", cstateEntry->d_name) <= 0) {
             LOG(0, ("%s: Str_Snprintf for 'time' failed\n", __FUNCTION__));
             closedir(cpuDir);
+
             return FALSE;
          }
          statsFile = Posix_Fopen(pathname, "r");
@@ -944,6 +964,7 @@ UtilReadSysCStRes(DIR *dir,                     // IN
       timeUS = Hostinfo_SystemTimerUS();
       if (timeUS <= 0) {
          LOG(0, ("%s: Hostinfo_SystemTimerUS() failed\n", __FUNCTION__));
+
          return FALSE;
       }
       (*transTime)[cpu] = timeUS;
@@ -1008,6 +1029,7 @@ UtilReadProcCStRes(DIR *dir,                    // IN
                        cpuEntry->d_name) <= 0) {
          LOG(0, ("%s: Str_Snprintf for '%s/power' failed\n", __FUNCTION__,
                  cpuEntry->d_name));
+
          return FALSE;
       }
       powerFile = Posix_Fopen(pathname, "r");
@@ -1016,8 +1038,8 @@ UtilReadProcCStRes(DIR *dir,                    // IN
       }
 
       cl = 0;
-      while (StdIO_ReadNextLine(powerFile, &line, 0, &lineSize)
-             == StdIO_Success) {
+      while (StdIO_ReadNextLine(powerFile, &line, 0,
+                                &lineSize) == StdIO_Success) {
          char *ptr;
          uint32 index = *numCStates * cpu + cl;
 
@@ -1035,6 +1057,7 @@ UtilReadProcCStRes(DIR *dir,                    // IN
       timeUS = Hostinfo_SystemTimerUS();
       if (timeUS <= 0) {
          LOG(0, ("%s: Hostinfo_SystemTimerUS() failed\n", __FUNCTION__));
+
          return FALSE;
       }
       (*transTime)[cpu] = timeUS;
@@ -1044,6 +1067,7 @@ UtilReadProcCStRes(DIR *dir,                    // IN
       }
       cpu++;
    }
+
    return cpu > 0 && *numCStates > 0;
 }
 

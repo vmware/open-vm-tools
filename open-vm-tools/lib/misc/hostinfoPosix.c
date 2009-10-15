@@ -220,7 +220,7 @@ HostinfoOSVersionInit(void)
    }
 
    if (uname(&u) < 0) {
-      Warning("%s unable to get host OS version (uname): %s\n",
+      Warning("%s: unable to get host OS version (uname): %s\n",
 	      __FUNCTION__, strerror(errno));
       NOT_IMPLEMENTED();
    }
@@ -231,7 +231,7 @@ HostinfoOSVersionInit(void)
    if (sscanf(u.release, "%d.%d.%d%s",
 	      &hostinfoOSVersion[0], &hostinfoOSVersion[1],
 	      &hostinfoOSVersion[2], extra) < 1) {
-      Warning("%s unable to parse host OS version string: %s\n",
+      Warning("%s: unable to parse host OS version string: %s\n",
               __FUNCTION__, u.release);
       NOT_IMPLEMENTED();
    }
@@ -582,7 +582,8 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    int i = 0;
 
    if ((fd = open(filename, O_RDONLY)) < 0) {
-      Warning("%s: could not open file%s: %d\n", __FUNCTION__, filename, errno);
+      Warning("%s: could not open file%s: %d\n", __FUNCTION__, filename,
+              errno);
 
       return FALSE;
    }
@@ -1504,6 +1505,7 @@ Hostinfo_RawSystemTimerUS(void)
       status = VMKernel_GetUptimeUS(&uptime);
       if (status != VMK_OK) {
          Log("%s: failure!\n", __FUNCTION__);
+
          return 0;  // A timer read failure - this is really bad!
       }
 
@@ -1630,6 +1632,7 @@ Hostinfo_TouchBackDoor(void)
       return TRUE;
    }
 #endif
+
    return FALSE;
 }
 
@@ -1760,7 +1763,7 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
  *      process to that path.
  *
  * Results:
- *      FALSE if the process could not be daemonized.  Err_Errno() contains
+ *      FALSE if the process could not be daemonized.  errno contains
  *      the error on failure.
  *      TRUE if 'flags' does not contain HOSTINFO_DAEMONIZE_EXIT and
  *      the process was daemonized.
@@ -1817,7 +1820,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    ASSERT(numKeepFds == 0 || keepFds);
 
    if (pipe(pipeFds) == -1) {
-      err = Err_Errno();
+      err = errno;
       Warning("%s: Couldn't create pipe, error %u.\n", __FUNCTION__, err);
       pipeFds[0] = pipeFds[1] = -1;
       goto cleanup;
@@ -1826,7 +1829,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    numKeepFds++;
    tempFds = malloc(sizeof tempFds[0] * numKeepFds);
    if (!tempFds) {
-      err = Err_Errno();
+      err = errno;
       Warning("%s: Couldn't allocate memory, error %u.\n", __FUNCTION__, err);
       goto cleanup;
    }
@@ -1836,7 +1839,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    if (fcntl(pipeFds[1], F_SETFD, 1) == -1) {
-      err = Err_Errno();
+      err = errno;
       Warning("%s: Couldn't set close-on-exec for fd %d, error %u.\n",
               __FUNCTION__, pipeFds[1], err);
       goto cleanup;
@@ -1872,8 +1875,9 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
    switch (childPid) {
    case -1:
-      err = Err_Errno();
-      Warning("%s: Couldn't fork first child, error %u.\n", __FUNCTION__, err);
+      err = errno;
+      Warning("%s: Couldn't fork first child, error %u.\n", __FUNCTION__,
+              err);
       goto cleanup;
    case 0:
       /* We're the first child.  Continue on. */
@@ -1911,7 +1915,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
                Warning("%s: Child could not exec %s, read %d, error %u.\n",
                        __FUNCTION__, path, res, err);
                goto cleanup;
-            } else if (res == -1 && errno == EINTR) {
+            } else if ((res == -1) && (errno == EINTR)) {
                continue;
             }
             break;
@@ -1923,8 +1927,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    /*
-    * Close all fds except for the write end of the error pipe (which
-    * we've already set to close on successful exec), and the ones requested by
+    * Close all fds except for the write end of the error pipe (which we've
+    * already set to close on successful exec), and the ones requested by
     * the caller. Also reset the signal mask to unblock all signals. fork()
     * clears pending signals.
     */
@@ -1937,7 +1941,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
    if (!(flags & HOSTINFO_DAEMONIZE_NOCLOSE) && setsid() == -1) {
       Warning("%s: Couldn't create new session, error %d.\n",
-              __FUNCTION__, Err_Errno());
+              __FUNCTION__, errno);
 
       _exit(EXIT_FAILURE);
    }
@@ -1946,7 +1950,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    case -1:
       {
          Warning("%s: Couldn't fork second child, error %d.\n",
-                 __FUNCTION__, Err_Errno());
+                 __FUNCTION__, errno);
 
          _exit(EXIT_FAILURE);
       }
@@ -1972,14 +1976,14 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
     */
 
    if (!(flags & HOSTINFO_DAEMONIZE_NOCHDIR) && chdir("/") == -1) {
-      uint32 err = Err_Errno();
+      uint32 err = errno;
 
       Warning("%s: Couldn't chdir to /, error %u.\n", __FUNCTION__, err);
 
       /* Let the original process know we failed to chdir. */
       if (write(pipeFds[1], &err, sizeof err) == -1) {
-         Warning("%s: Couldn't write to parent pipe: %u, original error: %u.\n",
-                 __FUNCTION__, Err_Errno(), err);
+         Warning("%s: Couldn't write to parent pipe: %u, "
+                 "original error: %u.\n", __FUNCTION__, errno, err);
       }
       _exit(EXIT_FAILURE);
    }
@@ -2014,13 +2018,13 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       pidPathFd = open(pidPathLocalEncoding, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 
       if (pidPathFd == -1) {
-         err = Err_Errno();
+         err = errno;
          Warning("%s: Couldn't open PID path [%s], error %d.\n",
                  __FUNCTION__, pidPath, err);
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
-                    "error: %u.\n", __FUNCTION__, Err_Errno(), err);
+                    "error: %u.\n", __FUNCTION__, errno, err);
          }
          _exit(EXIT_FAILURE);
       }
@@ -2033,19 +2037,19 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
-                    "error: %u.\n", __FUNCTION__, Err_Errno(), err);
+                    "error: %u.\n", __FUNCTION__, errno, err);
          }
          _exit(EXIT_FAILURE);
       }
 
       if (write(pidPathFd, pidString, pidStringLen) != pidStringLen) {
-         err = Err_Errno();
+         err = errno;
          Warning("%s: Couldn't write PID to path [%s], error %d.\n",
                  __FUNCTION__, pidPath, err);
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
-                    "error: %u.\n", __FUNCTION__, Err_Errno(), err);
+                    "error: %u.\n", __FUNCTION__, errno, err);
          }
          _exit(EXIT_FAILURE);
       }
@@ -2054,13 +2058,13 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    if (execv(pathLocalEncoding, argsLocalEncoding) == -1) {
-      err = Err_Errno();
+      err = errno;
       Warning("%s: Couldn't exec %s, error %d.\n", __FUNCTION__, path, err);
 
       /* Let the original process know we failed to exec. */
       if (write(pipeFds[1], &err, sizeof err) == -1) {
-         Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
-                 Err_Errno(), err);
+         Warning("%s: Couldn't write to parent pipe: %u, "
+                 "original error: %u.\n", __FUNCTION__, errno, err);
       }
       _exit(EXIT_FAILURE);
    }
@@ -2427,8 +2431,10 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
 
    shared = mmap(NULL, sizeof *shared, PROT_READ | PROT_WRITE,
                  MAP_ANON | MAP_SHARED, -1, 0);
+
    if (shared == (void *)-1) {
       Warning("%s: mmap error %d.\n", __FUNCTION__, errno);
+
       return retval;
    }
 
@@ -2439,6 +2445,7 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
    if (child == (pid_t)-1) {
       Warning("%s: fork error %d.\n", __FUNCTION__, errno);
       munmap((void *)shared, sizeof *shared);
+
       return retval;
    }
 
@@ -2463,7 +2470,8 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
          char *line;
          size_t lineLen;
 
-         if (StdIO_ReadNextLine(stream, &line, 0, &lineLen) != StdIO_Success) {
+         if (StdIO_ReadNextLine(stream, &line, 0,
+                                &lineLen) != StdIO_Success) {
             break;
          }
 
@@ -2476,9 +2484,9 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
                free(line);
                break;
             }
-         } else if (!(   lineLen < nameLen + 6
-                      || memcmp(line, name, nameLen)
-                      || memcmp(line + nameLen, " zone:", 6))) {
+         } else if (!(lineLen < nameLen + 6 ||
+                    memcmp(line, name, nameLen) ||
+                    memcmp(line + nameLen, " zone:", 6))) {
             // Zone found.
             parsingProperties = TRUE;
          }
@@ -2499,11 +2507,619 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
       int status;
 
       pid = waitpid(child, &status, 0);
-   } while (pid == -1 && errno == EINTR);
+   } while ((pid == -1) && (errno == EINTR));
+
    ASSERT_NOT_IMPLEMENTED(pid == child);
 
    retval = shared->retval;
    munmap((void *)shared, sizeof *shared);
+
    return retval;
 }
 #endif /* __APPLE__ */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_SystemUpTime --
+ *
+ *      Return system uptime in microseconds.
+ *
+ *      Please note that the actual resolution of this "clock" is undefined -
+ *      it varies between OSen and OS versions. Use Hostinfo_SystemTimerUS
+ *      whenever possible.
+ *
+ * Results:
+ *      System uptime in microseconds or zero in case of a failure.
+ *
+ * Side effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VmTimeType
+Hostinfo_SystemUpTime(void)
+{
+#if defined(__APPLE__)
+   return Hostinfo_RawSystemTimerUS();
+#elif defined(VMX86_SERVER)
+   uint64 uptime;
+   VMK_ReturnStatus status;
+
+   if (VmkSyscall_Init(FALSE, NULL, 0)) {
+      status = VMKernel_GetUptimeUS(&uptime);
+      if (status == VMK_OK) {
+         return uptime;
+      }
+   }
+
+   return 0;
+#elif defined(__linux__)
+   int res;
+   double uptime;
+   int fd;
+   char buf[256];
+
+   static Atomic_Int fdStorage = { -1 };
+   static Atomic_uint32 logFailedPread = { 1 };
+
+   fd = Atomic_ReadInt(&fdStorage);
+
+   /* Do we need to open the file the first time through? */
+   if (UNLIKELY(fd == -1)) {
+      fd = open("/proc/uptime", O_RDONLY);
+
+      if (fd == -1) {
+         Warning(LGPFX" Failed to open /proc/uptime: %s\n", strerror(errno));
+
+         return 0;
+      }
+
+      /* Try to swap ours in. If we lose the race, close our fd */
+      if (Atomic_ReadIfEqualWriteInt(&fdStorage, -1, fd) != -1) {
+         close(fd);
+      }
+
+      /* Get the winning fd - either ours or theirs, doesn't matter anymore */
+      fd = Atomic_ReadInt(&fdStorage);
+   }
+
+   ASSERT(fd != -1);
+
+   res = pread(fd, buf, sizeof buf - 1, 0);
+   if (res == -1) {
+      /*
+       * In case some kernel broke pread (like 2.6.28-rc1), have a fall-back
+       * instead of spewing the log.  This should be rare.  Using a lock
+       * around lseek and read does not work here as it will deadlock with
+       * allocTrack/fileTrack enabled.
+       */
+
+      if (Atomic_ReadIfEqualWrite(&logFailedPread, 1, 0) == 1) {
+         Warning(LGPFX" Failed to pread /proc/uptime: %s\n", strerror(errno));
+      }
+      fd = open("/proc/uptime", O_RDONLY);
+      if (fd == -1) {
+         Warning(LGPFX" Failed to retry open /proc/uptime: %s\n",
+                 strerror(errno));
+
+         return 0;
+      }
+      res = read(fd, buf, sizeof buf - 1);
+      close(fd);
+      if (res == -1) {
+         Warning(LGPFX" Failed to read /proc/uptime: %s\n", strerror(errno));
+
+         return 0;
+      }
+   }
+   ASSERT(res < sizeof buf);
+   buf[res] = '\0';
+
+   if (sscanf(buf, "%lf", &uptime) != 1) {
+      Warning(LGPFX" Failed to parse /proc/uptime\n");
+
+      return 0;
+   }
+
+   return uptime * 1000 * 1000;
+#else
+NOT_IMPLEMENTED();
+#endif
+}
+
+
+#if !defined(__APPLE__)
+/*
+ *----------------------------------------------------------------------
+ *
+ * HostinfoFindEntry --
+ *
+ *      Search a buffer for a pair `STRING <blanks> DIGITS'
+ *	and return the number DIGITS, or 0 when fail.
+ *
+ * Results:
+ *      TRUE on  success, FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool 
+HostinfoFindEntry(char *buffer,         // IN: Buffer
+                  char *string,         // IN: String sought
+                  unsigned int *value)  // OUT: Value
+{
+   char *p = strstr(buffer, string);
+   unsigned int val;
+
+   if (p == NULL) {
+      return FALSE;
+   }
+
+   p += strlen(string);
+
+   while (*p == ' ' || *p == '\t') {
+      p++;
+   }
+   if (*p < '0' || *p > '9') {
+      return FALSE;
+   }
+
+   val = strtoul(p, NULL, 10);
+   if ((errno == ERANGE) || (errno == EINVAL)) {
+      return FALSE;
+   }
+
+   *value = val;
+
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HostinfoGetMemInfo --
+ *
+ *      Get some attribute from /proc/meminfo
+ *      Return value is in KB.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoGetMemInfo(char *name,           // IN:
+                   unsigned int *value)  // OUT:
+{
+   size_t len;
+   char   buffer[4096];
+
+   int fd = Posix_Open("/proc/meminfo", O_RDONLY);
+
+   if (fd == -1) {
+      Warning(LGPFX" %s: Unable to open /proc/meminfo\n", __FUNCTION__);
+
+      return FALSE;
+   }
+
+   len = read(fd, buffer, sizeof buffer - 1);
+   close(fd);
+
+   if (len == -1) {
+      return FALSE;
+   }
+
+   buffer[len] = '\0';
+
+   return HostinfoFindEntry(buffer, name, value);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSysinfo --
+ *
+ *      Retrieve system information on a Linux system.
+ *    
+ * Results:
+ *      TRUE on success: '*totalRam', '*freeRam', '*totalSwap' and '*freeSwap'
+ *                       are set if not NULL
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None.
+ *
+ *      This seems to be a very expensive call: like 5ms on 1GHz P3 running
+ *      RH6.1 Linux 2.2.12-20.  Yes, that's 5 milliseconds.  So caller should
+ *      take care.  -- edward
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSysinfo(uint64 *totalRam,  // OUT: Total RAM in bytes
+                uint64 *freeRam,   // OUT: Free RAM in bytes
+                uint64 *totalSwap, // OUT: Total swap in bytes
+                uint64 *freeSwap)  // OUT: Free swap in bytes
+{
+#ifdef HAVE_SYSINFO
+   // Found in linux/include/kernel.h for a 2.5.6 kernel --hpreg
+   struct vmware_sysinfo {
+	   long uptime;			/* Seconds since boot */
+	   unsigned long loads[3];	/* 1, 5, and 15 minute load averages */
+	   unsigned long totalram;	/* Total usable main memory size */
+	   unsigned long freeram;	/* Available memory size */
+	   unsigned long sharedram;	/* Amount of shared memory */
+	   unsigned long bufferram;	/* Memory used by buffers */
+	   unsigned long totalswap;	/* Total swap space size */
+	   unsigned long freeswap;	/* swap space still available */
+	   unsigned short procs;	/* Number of current processes */
+	   unsigned short pad;		/* explicit padding for m68k */
+	   unsigned long totalhigh;	/* Total high memory size */
+	   unsigned long freehigh;	/* Available high memory size */
+	   unsigned int mem_unit;	/* Memory unit size in bytes */
+	   // Padding: libc5 uses this..
+	   char _f[20 - 2 * sizeof(long) - sizeof(int)];
+   };
+   struct vmware_sysinfo si;
+
+   if (sysinfo((struct sysinfo *)&si) < 0) {
+      return FALSE;
+   }
+   
+   if (si.mem_unit == 0) {
+      /*
+       * Kernel versions < 2.3.23. Those kernels used a smaller sysinfo
+       * structure, whose last meaningful field is 'procs' --hpreg
+       */
+
+      si.mem_unit = 1;
+   }
+
+   if (totalRam) {
+      *totalRam = (uint64)si.totalram * si.mem_unit;
+   }
+   if (freeRam) {
+      *freeRam = (uint64)si.freeram * si.mem_unit;
+   }
+   if (totalSwap) {
+      *totalSwap = (uint64)si.totalswap * si.mem_unit;
+   }
+   if (freeSwap) {
+      *freeSwap = (uint64)si.freeswap * si.mem_unit;
+   }
+
+   return TRUE;
+#else // ifdef HAVE_SYSINFO
+   NOT_IMPLEMENTED();
+#endif // ifdef HAVE_SYSINFO
+}
+#endif // ifndef __APPLE__
+
+
+#if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoGetLinuxMemoryInfoInPages --
+ *
+ *      Obtain the minimum memory to be maintained, total memory available,
+ *      and free memory available on the host (Linux or COS) in pages.
+ *
+ * Results:
+ *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,      // OUT:
+                                  unsigned int *maxSize,      // OUT:
+                                  unsigned int *currentSize)  // OUT:
+{
+   uint64 total; 
+   uint64 free;
+   unsigned int cached = 0;
+   
+   /*
+    * Note that the free memory provided by linux does not include buffer and
+    * cache memory. Linux tries to use the free memory to cache file. Most of
+    * those memory can be freed immediately when free memory is low,
+    * so for our purposes it should be counted as part of the free memory .
+    * There is no good way to collect the useable free memory in 2.2 and 2.4
+    * kernel.
+    *
+    * Here is our solution: The free memory we report includes cached memory.
+    * Mmapped memory is reported as cached. The guest RAM memory, which is
+    * mmaped to a ram file, therefore make up part of the cached memory. We
+    * exclude the size of the guest RAM from the amount of free memory that we
+    * report here. Since we don't know about the RAM size of other VMs, we
+    * leave that to be done in serverd/MUI.
+    */
+
+   if (HostinfoSysinfo(&total, &free, NULL, NULL) == FALSE) {
+      return FALSE;
+   }
+
+   /*
+    * Convert to pages and round up total memory to the nearest multiple of 8
+    * or 32 MB, since the "total" amount of memory reported by Linux is the
+    * total physical memory - amount used by the kernel.
+    */
+
+   if (total < (uint64)128 * 1024 * 1024) {
+      total = ROUNDUP(total, (uint64)8 * 1024 * 1024);
+   } else {
+      total = ROUNDUP(total, (uint64)32 * 1024 * 1024);
+   }
+
+   *minSize = 128; // XXX - Figure out this value
+   *maxSize = total / PAGE_SIZE;
+
+   HostinfoGetMemInfo("Cached:", &cached);
+   if (currentSize) {
+      *currentSize = free / PAGE_SIZE + cached / (PAGE_SIZE / 1024);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoGetSwapInfoInPages --
+ *
+ *      Obtain the total swap and free swap on the host (Linux or COS) in
+ *      pages.
+ *
+ * Results:
+ *      TRUE on success: '*totalSwap' and '*freeSwap' are set if not NULL
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,  // OUT:
+                            unsigned int *freeSwap)   // OUT:
+{
+   uint64 total; 
+   uint64 free;
+
+   if (HostinfoSysinfo(NULL, NULL, &total, &free) == FALSE) {
+      return FALSE;
+   }
+
+   if (totalSwap != NULL) {
+      *totalSwap = total / PAGE_SIZE;
+   }
+
+   if (freeSwap != NULL) {
+      *freeSwap = free / PAGE_SIZE;
+   }
+
+   return TRUE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetMemoryInfoInPages --
+ *
+ *      Obtain the minimum memory to be maintained, total memory available,
+ *      and free memory available on the host in pages.
+ *
+ * Results:
+ *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
+                              unsigned int *maxSize,      // OUT:
+                              unsigned int *currentSize)  // OUT:
+{
+#if defined(__APPLE__)
+   mach_msg_type_number_t count;
+   vm_statistics_data_t stat;
+   kern_return_t error;
+   uint64_t memsize;
+   size_t memsizeSize = sizeof memsize;
+
+   /*
+    * Largely inspired by
+    * darwinsource-10.4.5/top-15/libtop.c::libtop_p_vm_sample().
+    */
+
+   count = HOST_VM_INFO_COUNT;
+   error = host_statistics(mach_host_self(), HOST_VM_INFO,
+                           (host_info_t) &stat, &count);
+
+   if (error != KERN_SUCCESS || count != HOST_VM_INFO_COUNT) {
+      Warning("%s: Unable to retrieve host vm stats.\n", __FUNCTION__);
+
+      return FALSE;
+   }
+
+   // XXX Figure out this value.
+   *minSize = 128;
+
+   /*
+    * XXX Hopefully this includes cached memory as well. We should check.
+    * No. It returns only completely used pages.
+    */
+
+   *currentSize = stat.free_count;
+
+   /*
+    * Adding up the stat values does not sum to 100% of physical memory.
+    * The correct value is available from sysctl so we do that instead.
+    */
+
+   if (sysctlbyname("hw.memsize", &memsize, &memsizeSize, NULL, 0) == -1) {
+      Warning("%s: Unable to retrieve host vm hw.memsize.\n", __FUNCTION__);
+
+      return FALSE;
+   }
+
+   *maxSize = memsize / PAGE_SIZE;
+   return TRUE;
+#elif defined(VMX86_SERVER)
+   uint64 total; 
+   uint64 free;
+   VMK_ReturnStatus status;
+
+   if (VmkSyscall_Init(FALSE, NULL, 0)) {
+      status = VMKernel_GetMemSize(&total, &free);
+      if (status == VMK_OK) {
+         *minSize = 128;
+         *maxSize = total / PAGE_SIZE;
+         *currentSize = free / PAGE_SIZE;
+
+         return TRUE;
+      }
+   }
+
+   return FALSE;
+#else
+   return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
+#endif
+}
+
+
+#ifdef VMX86_SERVER
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetCOSMemoryInfoInPages --
+ *
+ *      Obtain the minimum memory to be maintained, total memory available, and
+ *      free memory available on the COS in pages.
+ *
+ * Results:
+ *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
+ *      FALSE on failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,      // OUT:
+                                 unsigned int *maxSize,      // OUT:
+                                 unsigned int *currentSize)  // OUT:
+{
+   if (HostType_OSIsPureVMK()) {
+      return FALSE;
+   } else {
+      return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
+   }
+}
+#endif
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_SystemTimerUS --
+ *
+ *      This is the routine to use when performing timing measurements. It
+ *      is valid (finish-time - start-time) only within a single process.
+ *      Don't send a time obtained this way to another process and expect
+ *      a relative time measurement to be correct.
+ *
+ *      This timer is documented to never go backwards.
+ *
+ * Results:
+ *      Relative time in microseconds or zero if a failure.
+ *
+ *      Please note that the actual resolution of this "clock" is undefined -
+ *      it varies between OSen and OS versions.
+ *
+ * Side effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VmTimeType
+Hostinfo_SystemTimerUS(void)
+{
+#if defined(__APPLE__)
+   /*
+    * On Mac OS a commpage timer is used. Such timers are ensured to never
+    * go backwards so don't use the mutex technique - it's inefficient.
+    */
+
+   return Hostinfo_RawSystemTimerUS();
+#else
+   static Atomic_uint32 mutex = {0};
+   VmTimeType curTime;
+   VmTimeType newTime;
+
+   static VmTimeType lastTimeBase;
+   static VmTimeType lastTimeRead;
+   static VmTimeType lastTimeReset;
+
+   /* Get and take lock. */
+   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
+
+   curTime = Hostinfo_RawSystemTimerUS();
+
+   if (curTime == 0) {
+      newTime = 0;
+      goto exit;
+   }
+
+   /*
+    * Don't let time be negative or go backward.  We do this by
+    * tracking a base and moving foward from there.
+    */
+
+   newTime = lastTimeBase + (curTime - lastTimeReset);
+
+   if (newTime < lastTimeRead) {
+      lastTimeReset = curTime;
+      lastTimeBase = lastTimeRead + 1;
+      newTime = lastTimeBase + (curTime - lastTimeReset);
+   }
+
+   lastTimeRead = newTime;
+
+exit:
+   /* Release lock. */
+   Atomic_Write(&mutex, 0);
+
+   return newTime;
+#endif
+}

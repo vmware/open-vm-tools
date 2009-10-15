@@ -90,10 +90,11 @@
  *-----------------------------------------------------------------------------
  */
 
-char*
+char *
 Util_GetCanonicalPath(const char *path) // IN
 {
    char *canonicalPath = NULL;
+
 #if defined(__linux__) || defined(__APPLE__)
    canonicalPath = Posix_RealPath(path);
 #elif defined(_WIN32)
@@ -122,6 +123,7 @@ Util_GetCanonicalPath(const char *path) // IN
     *    assume remote.
     * 2. We do not resolve 8.3 names for remote paths.
     */
+
    if (remoteDrive) {
       canonicalPath = strdup(path);
    } else {
@@ -239,7 +241,7 @@ UtilGetLegacyEncodedString(const char *path) // IN: UTF-8
  *-----------------------------------------------------------------------------
  */
 
-char*
+char *
 Util_CompatGetCanonicalPath(const char *path) // IN: UTF-8
 {
    char *cpath = Util_GetCanonicalPath(path);
@@ -384,6 +386,7 @@ Util_GetPrime(unsigned n0)
        * 65521 is the largest prime below 0xffff, which is where
        * we can stop.  Using it instead of 0xffff avoids overflowing ii.
        */
+
       nn = MIN(n, 65521U * 65521U);
       for (i = 3, ii = 9;; ii += 4*i+4, i += 2) {
          if (ii > nn) {
@@ -405,7 +408,8 @@ Util_GetPrime(unsigned n0)
  * gettid --
  *
  *      Retrieve unique thread identification suitable for kill or setpriority.
- *	Do not call this function directly, use Util_GetCurrentThreadId() instead.
+ *	Do not call this function directly, use Util_GetCurrentThreadId()
+ *      instead.
  *
  * Results:
  *      Unique thread identification on success.
@@ -481,15 +485,18 @@ Util_GetCurrentThreadId(void)
    }
    tid = getpid();
    ASSERT(tid != (pid_t)-1);
+
    return tid;
 #elif defined(sun)
    pid_t tid;
 
    tid = getpid();
    ASSERT(tid != (pid_t)-1);
+
    return tid;
 #elif defined(__APPLE__) || defined(__FreeBSD__)
    ASSERT_ON_COMPILE(sizeof(Util_ThreadID) == sizeof(pthread_t));
+
    return pthread_self();
 #elif defined(_WIN32)
    return GetCurrentThreadId();

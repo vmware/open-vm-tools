@@ -84,6 +84,7 @@ int Posix_Mkdir(ConstUnicode pathName, mode_t mode);
 int Posix_Chdir(ConstUnicode pathName);
 Unicode Posix_Getenv(ConstUnicode name);
 long Posix_Pathconf(ConstUnicode pathName, int name);
+int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 #endif
 
 #if !defined(_WIN32)
@@ -115,7 +116,6 @@ int Posix_Execv(ConstUnicode pathName, Unicode const argVal[]);
 int Posix_Execve(ConstUnicode pathName, Unicode const argVal[], 
                  Unicode const envPtr[]);
 int Posix_Execvp(ConstUnicode fileName, Unicode const argVal[]);
-int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 DIR *Posix_OpenDir(ConstUnicode pathName);
 int Posix_System(ConstUnicode command);
 int Posix_Putenv(Unicode name);
@@ -126,15 +126,12 @@ void Posix_Unsetenv(ConstUnicode name);
  * freed by the caller so they must be used in the ESX environment. They
  * are different than their POSIX "base" functions.
  */
+
 Unicode Posix_RealPath(ConstUnicode pathName);
 Unicode Posix_ReadLink(ConstUnicode pathName);
 
 struct passwd *Posix_Getpwnam(ConstUnicode name);
 struct passwd *Posix_Getpwuid(uid_t uid);
-
-#if !defined(sun)
-int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
-#endif
 
 int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
 
@@ -143,15 +140,16 @@ int Posix_Getpwnam_r(ConstUnicode name, struct passwd *pw,
 int Posix_Getpwuid_r(uid_t uid, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
 struct passwd *Posix_Getpwent(void);
-#if !defined(sun)
-int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
-                       int *ngroups);
-#endif
 struct group *Posix_Getgrnam(ConstUnicode name);
 int Posix_Getgrnam_r(ConstUnicode name, struct group *gr,
                  char *buf, size_t size, struct group **pgr);
 
 #if !defined(sun)
+int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
+
+int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
+                       int *ngroups);
+
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
 int Posix_Mount(ConstUnicode source, ConstUnicode target,
                 const char *filesystemtype, unsigned long mountflags,
@@ -207,7 +205,8 @@ Posix_GetHostName(Unicode name, // OUT
 
    if (retval == 0) {
       nameUTF8 = Unicode_Alloc(nameMBCS, STRING_ENCODING_DEFAULT);
-      if (!Unicode_CopyBytes(name, nameUTF8, namelen, NULL, STRING_ENCODING_UTF8)) {
+      if (!Unicode_CopyBytes(name, nameUTF8, namelen, NULL,
+                             STRING_ENCODING_UTF8)) {
          retval = -1;
          WSASetLastError(WSAEFAULT);
       }
@@ -264,7 +263,8 @@ Posix_GetHostByName(ConstUnicode name)  // IN
          newhostent->h_name = Unicode_Alloc(hostentMBCS->h_name,
                                             STRING_ENCODING_DEFAULT);
          if (hostentMBCS->h_aliases) {
-            newhostent->h_aliases = Unicode_AllocList(hostentMBCS->h_aliases, -1,
+            newhostent->h_aliases = Unicode_AllocList(hostentMBCS->h_aliases,
+                                                      -1,
                                                       STRING_ENCODING_DEFAULT);
          } else {
             newhostent->h_aliases = NULL;
@@ -368,7 +368,8 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
        * fields ai_canonname (char * vs. PWSTR) and ai_next (obviously).
        */
 
-      GetAddrInfoWFn = (GetAddrInfoWFnType)GetProcAddress(hWs2_32, "GetAddrInfoW");
+      GetAddrInfoWFn = (GetAddrInfoWFnType)GetProcAddress(hWs2_32,
+                                                          "GetAddrInfoW");
 
       if (GetAddrInfoWFn) {
          utf16_t *nodenameW = Unicode_GetAllocUTF16(nodename);
@@ -401,8 +402,10 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
     * convert strings to and from the local encoding.
     */
 
-   nodenameMBCS = (char *)Unicode_GetAllocBytes(nodename, STRING_ENCODING_DEFAULT);
-   servnameMBCS = (char *)Unicode_GetAllocBytes(servname, STRING_ENCODING_DEFAULT);
+   nodenameMBCS = (char *)Unicode_GetAllocBytes(nodename,
+                                                STRING_ENCODING_DEFAULT);
+   servnameMBCS = (char *)Unicode_GetAllocBytes(servname,
+                                                STRING_ENCODING_DEFAULT);
 
    retval = getaddrinfo(nodenameMBCS, servnameMBCS, hints, res);
 
@@ -475,7 +478,8 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
        * conversion required is between UTF-8 and UTF-16 encodings.
        */
 
-      GetNameInfoWFn = (GetNameInfoWFnType)GetProcAddress(hWs2_32, "GetNameInfoW");
+      GetNameInfoWFn = (GetNameInfoWFnType)GetProcAddress(hWs2_32,
+                                                          "GetNameInfoW");
 
       if (GetNameInfoWFn) {
          if (host) {
@@ -485,7 +489,8 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
             servW = (utf16_t *)Util_SafeMalloc(servlen * sizeof *servW);
          }
 
-         retval = (*GetNameInfoWFn)(sa, salen, hostW, hostlen, servW, servlen, flags);
+         retval = (*GetNameInfoWFn)(sa, salen, hostW, hostlen, servW,
+                                    servlen, flags);
 
          if (retval == 0) {
             if (host) {
@@ -526,7 +531,8 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
       servMBCS = (char *)Util_SafeMalloc(servlen * sizeof *servMBCS);
    }
 
-   retval = getnameinfo(sa, salen, hostMBCS, hostlen, servMBCS, servlen, flags);
+   retval = getnameinfo(sa, salen, hostMBCS, hostlen, servMBCS, servlen,
+                        flags);
 
    if (retval == 0) {
       if (host) {

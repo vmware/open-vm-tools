@@ -183,10 +183,12 @@ File_GetFilePermissions(ConstUnicode pathName,  // IN:
       return FALSE;
    }
    *mode = fileData.fileMode;
-#ifdef _WIN32
+#if defined(_WIN32)
       /*
-       *  On Win32 implementation of FileAttributes does not return execution bit.
+       *  On Win32 implementation of FileAttributes does not return execution
+       * bit.
        */
+
       if (FileIO_Access(pathName, FILEIO_ACCESS_EXEC) == FILEIO_SUCCESS) {
          *mode |= S_IXUSR;
       }
@@ -1051,7 +1053,8 @@ File_StripSlashes(ConstUnicode path) // IN
        * Don't strip first slash on Windows, since we want at least
        * one slash to trail a drive letter/colon or UNC specifier.
        */
-#ifdef _WIN32
+
+#if defined(_WIN32)
       while ((i > 1) && (('/' == dir2[i - 1]) ||
                          ('\\' == dir2[i - 1]))) {
 #else
@@ -1269,6 +1272,7 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
       if (!FileIO_IsSuccess(fretR) && (fretR != FILEIO_READ_ERROR_EOF)) {
          Msg_Append(MSGID(File.CopyFromFdToFd.read.failure)
                                "Read error: %s.\n\n", FileIO_MsgError(fretR));
+
          return FALSE;
       }
 
@@ -1276,6 +1280,7 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
       if (!FileIO_IsSuccess(fretW)) {
          Msg_Append(MSGID(File.CopyFromFdToFd.write.failure)
                               "Write error: %s.\n\n", FileIO_MsgError(fretW));
+
          return FALSE;
       }
    } while (fretR != FILEIO_READ_ERROR_EOF);
@@ -1457,6 +1462,7 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
       Msg_Append(MSGID(File.CopyFromNameToName.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
+
       return FALSE;
    }
 
@@ -1513,6 +1519,7 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
       Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
                  "Unable to create a new '%s' file: %s.\n\n", UTF8(dstName),
                  FileIO_MsgError(fret));
+
       return FALSE;
    }
 
@@ -1573,6 +1580,7 @@ File_Copy(ConstUnicode srcName,    // IN:
       Msg_Append(MSGID(File.Copy.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
+
       return FALSE;
    }
 
@@ -1764,10 +1772,10 @@ File_MapPathPrefix(const char *oldPath,               // IN
        * mess things of if one directory is a substring of another.
        */
 
-      if (oldPathLen >= oldPrefixLen &&
-          memcmp(oldPath, oldPrefix, oldPrefixLen) == 0
-          && (strchr(VALID_DIRSEPS, oldPath[oldPrefixLen]) ||
-              oldPath[oldPrefixLen] == '\0')) {
+      if ((oldPathLen >= oldPrefixLen) &&
+          (memcmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
+          (strchr(VALID_DIRSEPS, oldPath[oldPrefixLen]) ||
+              (oldPath[oldPrefixLen] == '\0'))) {
          size_t newPrefixLen = strlen(newPrefix);
          size_t newPathLen = (oldPathLen - oldPrefixLen) + newPrefixLen;
 
@@ -1782,8 +1790,10 @@ File_MapPathPrefix(const char *oldPath,               // IN
           * It should only match once.  Weird self-referencing mappings
           * aren't allowed.
           */
+
          free(oldPrefix);
          free(newPrefix);
+
          return newPath;
       }
       free(oldPrefix);
@@ -1900,11 +1910,12 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)
  * File_DeleteDirectoryTree --
  *
  *      Deletes the specified directory tree. If filesystem errors are
- *      encountered along the way, the function will continue to delete what it
- *      can but will return FALSE.
+ *      encountered along the way, the function will continue to delete what
+ *      it can but will return FALSE.
  *
  * Results:
- *      TRUE if the entire tree was deleted or didn't exist, FALSE otherwise.
+ *      TRUE   the entire tree was deleted or didn't exist
+ *      FALSE  otherwise.
  *      
  * Side effects:
  *      Deletes the directory tree from disk.
@@ -1945,29 +1956,46 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
 
    for (i = 0; i < numFiles; i++) {
       Unicode curPath;
+      struct stat statbuf;
 
       curPath = Unicode_Append(base, fileList[i]);
 
-      if (File_IsDirectory(curPath)) {
-         /* is dir, recurse */
-         if (!File_DeleteDirectoryTree(curPath)) {
-            sawFileError = TRUE;
-         }
-      } else {
-         /* is file, delete */
-         if (File_Unlink(curPath) == -1) {
-#if defined(_WIN32)
-            if (File_SetFilePermissions(curPath, S_IWUSR)) {
-               if (File_Unlink(curPath) == -1) {
-                  sawFileError = TRUE;
-               }
-            } else {
+      if (Posix_Lstat(curPath, &statbuf) == 0) {
+         switch (statbuf.st_mode & S_IFMT) {
+         case S_IFDIR:
+            /* Directory, recurse */
+            if (!File_DeleteDirectoryTree(curPath)) {
                sawFileError = TRUE;
             }
-#else
-            sawFileError = TRUE;
+            break;
+
+#if !defined(_WIN32)
+         case S_IFLNK:
+            /* Delete symlink, not what it points to */
+            if (FileDeletion(curPath, FALSE) != 0) {
+               sawFileError = TRUE;
+            }
+            break;
 #endif
+
+         default:
+            if (FileDeletion(curPath, FALSE) != 0) {
+#if defined(_WIN32)
+               if (File_SetFilePermissions(curPath, S_IWUSR)) {
+                  if (FileDeletion(curPath, FALSE) != 0) {
+                     sawFileError = TRUE;
+                  }
+               } else {
+                  sawFileError = TRUE;
+               }
+#else
+               sawFileError = TRUE;
+#endif
+            }
+            break;
          }
+      } else {
+         sawFileError = TRUE;
       }
 
       Unicode_Free(curPath);

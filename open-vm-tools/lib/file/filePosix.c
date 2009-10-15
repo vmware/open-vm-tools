@@ -32,7 +32,7 @@
 # endif
 # include <limits.h>
 # include <stdio.h>      /* Needed before sys/mnttab.h in Solaris */
-# ifdef sun
+# if defined(sun)
 #  include <sys/mnttab.h>
 # elif __APPLE__
 #  include <sys/mount.h>
@@ -41,7 +41,7 @@
 # endif
 #include <signal.h>
 #endif
-#ifdef GLIBC_VERSION_24
+#if defined(GLIBC_VERSION_24)
 #define _GNU_SOURCE
 #endif
 #include <unistd.h>
@@ -51,7 +51,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <dirent.h>
-#ifdef __linux__
+#if defined(__linux__)
 #   include <pwd.h>
 #endif
 
@@ -75,7 +75,7 @@ static char *FilePosixLookupMountPoint(char const *canPath, Bool *bind);
 #endif
 static char *FilePosixNearestExistingAncestor(char const *path);
 
-# ifdef VMX86_SERVER
+#if defined(VMX86_SERVER)
 #define VMFS3CONST 256
 #include "hostType.h"
 /* Needed for VMFS implementation of File_GetFreeSpace() */
@@ -83,7 +83,7 @@ static char *FilePosixNearestExistingAncestor(char const *path);
 # endif
 #endif
 
-#ifdef VMX86_SERVER
+#if defined(VMX86_SERVER)
 #include "fs_user.h"
 #endif
 
@@ -282,7 +282,7 @@ FileAttributes(ConstUnicode pathName,  // IN:
    int err;
    struct stat statbuf;
 
-#ifdef GLIBC_VERSION_24
+#if defined(GLIBC_VERSION_24)
    char *path;
 
    if (fileData == NULL) {
@@ -291,6 +291,7 @@ FileAttributes(ConstUnicode pathName,  // IN:
       }
       ret = euidaccess(path, F_OK);
       free(path);
+
       return ret;
    }
 #endif
@@ -1049,7 +1050,7 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
                   break;
                }
 
-               if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
+               if (S_ISDIR(statbuf.st_mode)) {
                   Warning(LGPFX" %s: directory (%s) present but inaccessible\n",
                           __func__, UTF8(fullPath));
                   errno = err;
