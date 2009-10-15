@@ -171,6 +171,7 @@
 #define BDOOR_PMC_HW_TSC      0x10000
 #define BDOOR_PMC_REAL_NS     0x10001
 #define BDOOR_PMC_APPARENT_NS 0x10002
+#define BDOOR_PMC_PSEUDO_TSC  0x10003
 
 #define IS_BDOOR_PMC(index)  (((index) | 3) == 0x10003)
 #define BDOOR_CMD(ecx)       ((ecx) & 0xffff)
