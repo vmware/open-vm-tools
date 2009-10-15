@@ -619,8 +619,6 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 
 	LOG(3, "cmd=%p %x ctx=%p result=0x%x status=0x%x,%x\n",
 		cmd, cmd->cmnd[0], ctx, cmd->result, btstat, sdstat);
-	printk(KERN_ERR "pvscsi: cmd=%p %x ctx=%p result=0x%x status=0x%x,%x\n",
-		cmd, cmd->cmnd[0], ctx, cmd->result, btstat, sdstat);
 
 	cmd->scsi_done(cmd);
 }
@@ -724,11 +722,6 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 		e->flags = PVSCSI_FLAG_CMD_DIR_NONE;
 	else
 		e->flags = 0;
-        { static int i = 0;
-           if (++i%2)
-              //e->flags |= PVSCSI_FLAG_CMD_OUT_OF_BAND_CDB;
-              e->flags |= (1 << 5);
-        }
 
 	pvscsi_map_buffers(adapter, ctx, cmd, e);
 
