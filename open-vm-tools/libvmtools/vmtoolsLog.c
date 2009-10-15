@@ -104,6 +104,7 @@ typedef struct LogHandlerData {
    gboolean          append;
    guint             handlerId;
    gboolean          inherited;
+   gboolean          error;
 } LogHandlerData;
 
 static gchar *gLogDomain = NULL;
@@ -314,22 +315,39 @@ VMToolsLogFile(const gchar *domain,
 {
    LogHandlerData *data = _data;
    if (SHOULD_LOG(level, data)) {
-      char *msg = VMToolsLogFormat(message, domain, level, TRUE);
-      if (msg != NULL) {
-         FILE *dest;
-         data = data->inherited ? gDefaultData : data;
-         if (data->file == NULL && data->path != NULL) {
-            data->file = VMToolsLogOpenFile(data->path, data->append);
-            if (data->file == NULL) {
-               g_warning("Unable to open log file %s for domain %s.\n",
-                         data->domain, data->path);
-            }
+      FILE *dest;
+      data = data->inherited ? gDefaultData : data;
+      if (!data->error && data->file == NULL && data->path != NULL) {
+         data->file = VMToolsLogOpenFile(data->path, data->append);
+         if (data->file == NULL) {
+            /*
+             * glib's documentation says that we can set up log handlers that
+             * handle G_LOG_FLAG_RECURSION, but looking at the source code of
+             * the g_logv() function that's not really true (at least up to
+             * current top of tree - glib 2.20?). So we have to avoid recursion
+             * here and bypass the log system.
+             */
+            gchar warn[1024];
+            g_snprintf(warn, sizeof warn,
+                       "Unable to open log file %s for domain %s.\n",
+                       data->path, data->domain);
+
+            data->error = TRUE;
+            DEFAULT_HANDLER(domain, G_LOG_LEVEL_WARNING | G_LOG_FLAG_RECURSION,
+                            warn, gDefaultData);
          }
-         dest = (data->file != NULL) ? data->file
-                  : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
-         fputs(msg, dest);
-         fflush(dest);
-         free(msg);
+      }
+      if (!(level & G_LOG_FLAG_RECURSION) && data->error) {
+         DEFAULT_HANDLER(domain, level | G_LOG_FLAG_RECURSION, message, gDefaultData);
+      } else {
+         char *msg = VMToolsLogFormat(message, domain, level, TRUE);
+         if (msg != NULL) {
+            dest = (data->file != NULL) ? data->file
+                     : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
+            fputs(msg, dest);
+            fflush(dest);
+            vm_free(msg);
+         }
       }
    }
    if (IS_FATAL(level)) {
