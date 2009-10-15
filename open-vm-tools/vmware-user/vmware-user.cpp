@@ -42,7 +42,6 @@ extern "C" {
 
 #include "vmwareuserInt.h"
 #include "vm_assert.h"
-#include "vm_app.h"
 #include "eventManager.h"
 #include "hgfsServerManager.h"
 #include "vmcheck.h"
@@ -63,8 +62,8 @@ extern "C" {
 #include "vm_atomic.h"
 #include "hostinfo.h"
 #include "vmwareuser_version.h"
-
 #include "embed_version.h"
+#include "vmware/guestrpc/tclodefs.h"
 } // extern "C"
 VM_EMBED_VERSION(VMWAREUSER_VERSION_STRING);
 

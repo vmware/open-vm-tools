@@ -31,9 +31,9 @@
 #include "hgfsServerPolicy.h"
 #include "hgfsServer.h"
 #include "hgfsChannel.h"
-#include "vm_app.h"
 #include "vm_assert.h"
 #include "vmtools.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

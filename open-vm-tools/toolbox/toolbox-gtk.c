@@ -29,7 +29,6 @@
 
 #include "toolboxGtkInt.h"
 #include "vm_assert.h"
-#include "vm_app.h"
 #include "eventManager.h"
 #include "guestApp.h"
 #if !defined(OPEN_VM_TOOLS)
@@ -48,6 +47,8 @@
 #include "toolboxgtk_version.h"
 #include "util.h"
 #include "system.h"
+#include "vmware/guestrpc/tclodefs.h"
+#include "vmware/guestrpc/timesync.h"
 
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXGTK_VERSION_STRING);

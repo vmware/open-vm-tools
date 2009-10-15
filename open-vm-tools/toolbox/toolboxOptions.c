@@ -24,10 +24,11 @@
 
 #include "toolboxGtkInt.h"
 #include "vm_version.h"
-#include "vm_app.h"
 #include "guestApp.h"
 #include "vmcheck.h"
 #include "wiper.h"
+#include "vmware/guestrpc/tclodefs.h"
+#include "vmware/guestrpc/timesync.h"
 
 /*
  *-----------------------------------------------------------------------------

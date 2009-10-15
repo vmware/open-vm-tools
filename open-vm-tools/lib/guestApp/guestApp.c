@@ -32,7 +32,6 @@ extern "C" {
 #include <string.h>
 
 #include "vmware.h"
-#include "vm_app.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
 #include "guestApp.h"
@@ -50,6 +49,7 @@ extern "C" {
 #include "codeset.h"
 #include "productState.h"
 #include "posix.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 #include "hgfs.h"
 #include "cpName.h"

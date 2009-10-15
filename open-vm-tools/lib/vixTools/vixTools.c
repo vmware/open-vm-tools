@@ -47,7 +47,6 @@
 #include "vmware.h"
 #include "procMgr.h"
 #include "vm_version.h"
-#include "vm_app.h"
 #include "message.h"
 
 #if defined(VMTOOLS_USE_GLIB)

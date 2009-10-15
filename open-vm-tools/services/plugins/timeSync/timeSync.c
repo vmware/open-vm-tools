@@ -36,9 +36,9 @@
 #include "msg.h"
 #include "strutil.h"
 #include "system.h"
-#include "vm_app.h"
 #include "vmtools.h"
 #include "vmtoolsApp.h"
+#include "vmware/guestrpc/timesync.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -603,7 +603,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    TimeSyncData *data = g_malloc(sizeof (TimeSyncData));
    RpcChannelCallback rpcs[] = {
-      { "Time_Synchronize", TimeSyncTcloHandler, data, NULL, NULL, 0 }
+      { TIMESYNC_SYNCHRONIZE, TimeSyncTcloHandler, data, NULL, NULL, 0 }
    };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_SET_OPTION, TimeSyncSetOption, &regData },

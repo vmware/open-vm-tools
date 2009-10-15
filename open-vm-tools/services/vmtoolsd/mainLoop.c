@@ -37,9 +37,9 @@
 #include "serviceObj.h"
 #include "system.h"
 #include "util.h"
-#include "vm_app.h"
 #include "vmcheck.h"
 #include "vmtools.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 
 /**

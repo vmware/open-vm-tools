@@ -30,7 +30,6 @@
 #include "includeCheck.h"
 
 #include "resolution.h"
-#include "vm_app.h"
 
 /*
  * Data types

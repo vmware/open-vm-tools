@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "vmware.h"
-#include "vm_app.h"
 #include "debug.h"
 #include "rpcout.h"
 #include "str.h"
@@ -38,6 +37,7 @@
 #include "vmtools.h"
 #include "vmtoolsApp.h"
 #include "xdrutil.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 /*
  * Internal global variables

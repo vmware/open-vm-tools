@@ -30,7 +30,7 @@
 #include "includeCheck.h"
 
 #include "resolution.h"
-#include "vm_app.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 
 /*

@@ -53,11 +53,11 @@
 #include "strutil.h"
 #include "system.h"
 #include "util.h"
-#include "vm_app.h"
 #include "vmtools.h"
 #include "vmtoolsApp.h"
 #include "xdrutil.h"
 #include "vmsupport.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

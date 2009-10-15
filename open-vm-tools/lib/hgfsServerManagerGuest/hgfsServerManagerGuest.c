@@ -31,9 +31,9 @@
 #include "hgfsServer.h"
 #include "hgfsChannel.h"
 #include "hgfsServerManager.h"
-#include "vm_app.h"
 #include "vm_assert.h"
 #include "hgfs.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 
 static Bool HgfsServerManagerRpcInDispatch(char const **result,

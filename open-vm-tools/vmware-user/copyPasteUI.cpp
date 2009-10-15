@@ -34,7 +34,6 @@
 extern "C" {
    #include "vmwareuserInt.h"
    #include "vmblock.h"
-   #include "vm_app.h"
    #include "file.h"
    #include "dnd.h"
    #include "dndMsg.h"
@@ -44,6 +43,7 @@ extern "C" {
    #include "cpNameUtil.h"
    #include "rpcout.h"
    #include "eventManager.h"
+   #include "vmware/guestrpc/tclodefs.h"
 }
 
 /*

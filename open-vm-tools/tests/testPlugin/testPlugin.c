@@ -31,7 +31,6 @@
 #include "testData.h"
 #include "util.h"
 #include "vmtoolsApp.h"
-#include "vm_app.h"
 #include "vmtools.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
 

@@ -31,8 +31,8 @@
 #include "conf.h"
 #include "procMgr.h"
 #include "system.h"
-#include "vm_app.h"
 #include "vmtools.h"
+#include "vmware/guestrpc/powerops.h"
 
 #if defined(G_PLATFORM_WIN32)
 #  define INVALID_PID NULL
