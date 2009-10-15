@@ -1297,6 +1297,15 @@ struct VixMsgFaultToleranceControlRequest {
 #include "vmware_pack_end.h"
 VixMsgFaultToleranceControlRequest;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixFaultToleranceControlResponse {
+   VixCommandResponseHeader header;
+   uint32 propertyListBufferSize;
+   // Followed by a serialized property list containing error context.
+}
+#include "vmware_pack_end.h"
+VixFaultToleranceControlResponse;
 
 
 /*
@@ -2425,6 +2434,8 @@ enum {
 
    VIX_COMMAND_GENERATE_NONCE                   = 174,
 
+   VIX_COMMAND_CHANGE_DISPLAY_TOPOLOGY_MODES    = 175,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2435,7 +2446,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg. as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 175,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 176,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

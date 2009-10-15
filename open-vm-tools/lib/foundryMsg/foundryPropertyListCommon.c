@@ -1505,3 +1505,60 @@ VixPropertyList_PropertyExists(VixPropertyListImpl *propList,     // IN
 } // VixPropertyList_PropertyExists
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixPropertyList_NumItems --
+ *
+ *       Returns a count of the properties in the list.
+ *
+ * Results:
+ *       int - Number of properties in property list.
+ *
+ * Side effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VixPropertyList_NumItems(VixPropertyListImpl *propList)     // IN
+{
+   VixPropertyValue *prop;
+   int count = 0;
+
+   if (propList == NULL) {
+      return 0;
+   }
+
+   for (prop = propList->properties; prop != NULL; prop = prop->next) {
+      ++count;
+   }
+
+   return count;
+} // VixPropertyList_NumItems
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixPropertyList_Empty --
+ *
+ *       Returns whether the property list has no properties.
+ *
+ * Results:
+ *       Bool - True iff property list has no properties.
+ *
+ * Side effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+VixPropertyList_Empty(VixPropertyListImpl *propList)     // IN
+{
+   return (propList == NULL || propList->properties == NULL);
+} // VixPropertyList_Empty
+
+

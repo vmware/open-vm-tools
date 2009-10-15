@@ -338,6 +338,9 @@ VixError VixPropertyList_SetPtr(VixPropertyListImpl *propList,
                                 int propertyID,
                                 void *value);
 
+int VixPropertyList_NumItems(VixPropertyListImpl *propList);
+
+Bool VixPropertyList_Empty(VixPropertyListImpl *propList);
 
 
 #endif   // VIX_HIDE_FROM_JAVA

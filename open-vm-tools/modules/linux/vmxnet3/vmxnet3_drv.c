@@ -1023,17 +1023,17 @@ vmxnet3_tq_xmit(struct sk_buff *skb,
                tq->stats.drop_too_many_frags++;
                goto drop_pkt;
             }
-         }
+         } else {
+            /* non-tso pkts must not use more than VMXNET3_MAX_TXD_PER_PKT entries */
+            if (compat_skb_linearize(skb) != 0) {
+               tq->stats.drop_too_many_frags++;
+               goto drop_pkt;
+            }
+            tq->stats.linearized++;
 
-         /* non-tso pkts must not use more than VMXNET3_MAX_TXD_PER_PKT entries */
-         if (compat_skb_linearize(skb) != 0) {
-            tq->stats.drop_too_many_frags++;
-            goto drop_pkt;
+            /* recalculate the # of descriptors to use */
+            count = VMXNET3_TXD_NEEDED(vmxnet3_skb_headlen(adapter, skb)) + 1;
          }
-         tq->stats.linearized++;
-
-         /* recalculate the # of descriptors to use */
-         count = VMXNET3_TXD_NEEDED(vmxnet3_skb_headlen(adapter, skb)) + 1;
       }
    }
 

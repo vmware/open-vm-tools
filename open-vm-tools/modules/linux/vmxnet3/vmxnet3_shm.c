@@ -71,6 +71,11 @@
 static int
 vmxnet3_shm_consume_user_tx_queue(struct vmxnet3_shm_pool *shm);
 
+int
+vmxnet3_shm_tq_xmit(struct sk_buff *skb,
+                    struct vmxnet3_tx_queue *tq,
+                    struct vmxnet3_adapter *adapter,
+                    struct net_device *netdev);
 
 /*
  *----------------------------------------------------------------------------
@@ -1150,6 +1155,8 @@ vmxnet3_shm_start_tx(struct sk_buff *skb,
  *
  *    Send a packet (collection of ring entries) using h/w tx routine.
  *
+ *    Protected by shm.tx_lock
+ *
  * Results:
  *    0 on success. Negative value to indicate error
  *
@@ -1194,21 +1201,49 @@ vmxnet3_shm_tx_pkt(struct vmxnet3_adapter *adapter,
    {
       struct vmxnet3_tx_queue *tq = &adapter->tx_queue;
       int ret;
-      skb->protocol = cpu_to_be16(0x86dd);
+      skb->protocol = htons(ETH_P_IPV6);
       adapter->shm->ctl.ptr->stats.kernel_tx += frags; // XXX: move to better place
-      ret = vmxnet3_tq_xmit(skb, tq, adapter, adapter->netdev);
+      ret = vmxnet3_shm_tq_xmit(skb, tq, adapter, adapter->netdev);
       if (ret == COMPAT_NETDEV_TX_BUSY) {
-         for (i = 0; i < frags; i++) {
-            vmxnet3_shm_free_page(adapter->shm, res[i].idx);
-         }
-         skb_shinfo(skb)->nr_frags = 0;
-         kfree_skb(skb);
+         vmxnet3_dev_kfree_skb(adapter, skb);
       }
 
       return ret;
    }
 
    return 0;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmxnet3_shm_tq_xmit --
+ *
+ *    Wrap vmxnet3_tq_xmit holding the netdev tx lock to better emulate the
+ *    Linux stack. Also check for a stopped tx queue to avoid racing with
+ *    vmxnet3_close.
+ *
+ * Results:
+ *    Same as vmxnet3_tq_xmit.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+int
+vmxnet3_shm_tq_xmit(struct sk_buff *skb,
+                    struct vmxnet3_tx_queue *tq,
+                    struct vmxnet3_adapter *adapter,
+                    struct net_device *netdev)
+{
+   int ret = COMPAT_NETDEV_TX_BUSY;
+   compat_netif_tx_lock(netdev);
+   if (!netif_queue_stopped(netdev)) {
+      ret = vmxnet3_tq_xmit(skb, tq, adapter, netdev);
+   }
+   compat_netif_tx_unlock(netdev);
+   return ret;
 }
 
 

@@ -320,4 +320,17 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
+#   define compat_netif_tx_lock(dev) netif_tx_lock(dev)
+#   define compat_netif_tx_unlock(dev) netif_tx_unlock(dev)
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
+#   define compat_netif_tx_lock(dev) spin_lock(&dev->xmit_lock)
+#   define compat_netif_tx_unlock(dev) spin_unlock(&dev->xmit_lock)
+#else
+/* Vendor backporting (SLES 10) has muddled the tx_lock situation. Pick whichever
+ * of the above works for you. */
+#   define compat_netif_tx_lock(dev) do {} while (0)
+#   define compat_netif_tx_unlock(dev) do {} while (0)
+#endif
+
 #endif /* __COMPAT_NETDEVICE_H__ */
