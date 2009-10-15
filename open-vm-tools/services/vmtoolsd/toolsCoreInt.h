@@ -25,7 +25,8 @@
  *    Internal functions for the tools daemon.
  */
 
-#define G_LOG_DOMAIN    "vmtoolsd"
+#define G_LOG_DOMAIN       "vmtoolsd"
+#define TOOLSCORE_COMMON   "common"
 
 #include <glib-object.h>
 #include <gmodule.h>
@@ -68,6 +69,7 @@ typedef struct ToolsServiceState {
    time_t         configMtime;
    gboolean       log;
    gboolean       mainService;
+   gchar         *commonPath;
    gchar         *pluginPath;
    GPtrArray     *plugins;
 #if defined(_WIN32)

@@ -15,7 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-plugindir = @VMSVC_PLUGIN_INSTALLDIR@
+plugindir = @COMMON_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libhgfsServer.la
 
 libhgfsServer_la_CPPFLAGS =
@@ -31,11 +31,4 @@ libhgfsServer_la_LIBADD += $(top_builddir)/lib/hgfsServerPolicyGuest/libHgfsServ
 
 libhgfsServer_la_SOURCES =
 libhgfsServer_la_SOURCES += hgfsPlugin.c
-
-if HAVE_X11
-install-data-hook:
-	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
-	cp $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/libhgfsServer.so \
-	   $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
-endif
 

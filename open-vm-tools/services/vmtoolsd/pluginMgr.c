@@ -334,6 +334,117 @@ ToolsCoreStrPtrCompare(gconstpointer _str1,
 
 
 /**
+ * Loads all the plugins found in the given directory, adding the registration
+ * data to the given array.
+ *
+ * @param[in]  ctx         Application context.
+ * @param[in]  pluginPath  Path where to look for plugins.
+ * @param[out] regs        Array where to store plugin registration info.
+ */
+
+static gboolean
+ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
+                       const gchar *pluginPath,
+                       GPtrArray *regs)
+{
+   gboolean ret = FALSE;
+   const gchar *staticEntry;
+   guint i;
+   GDir *dir = NULL;
+   GError *err = NULL;
+   GPtrArray *plugins;
+
+   dir = g_dir_open(pluginPath, 0, &err);
+   if (dir == NULL) {
+      g_warning("Error opening dir: %s\n", err->message);
+      goto exit;
+   }
+
+   plugins = g_ptr_array_new();
+
+   /*
+    * Load plugins in alphabetical order, so the load order is the same
+    * regardless of how the filesystem returns entries.
+    */
+   while ((staticEntry = g_dir_read_name(dir)) != NULL) {
+      g_ptr_array_add(plugins, g_strdup(staticEntry));
+   }
+
+   g_ptr_array_sort(plugins, ToolsCoreStrPtrCompare);
+
+   for (i = 0; i < plugins->len; i++) {
+      gchar *entry;
+      gchar *path;
+      GModule *module = NULL;
+      ToolsPlugin *plugin = NULL;
+      ToolsPluginData *data = NULL;
+      ToolsPluginOnLoad onload;
+
+      entry = g_ptr_array_index(plugins, i);
+      path = g_strdup_printf("%s%c%s", pluginPath, DIRSEPC, entry);
+
+      if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
+         g_warning("File '%s' is not a regular file, skipping.\n", entry);
+         goto next;
+      }
+
+#ifdef USE_APPLOADER
+      if (!LoadDependencies(path, FALSE)) {
+         g_warning("Loading of library dependencies for %s failed.\n", entry);
+         goto next;
+      }
+#endif
+
+      module = g_module_open(path, G_MODULE_BIND_LOCAL);
+      if (module == NULL) {
+         g_warning("Opening plugin '%s' failed: %s.\n", entry, g_module_error());
+         goto next;
+      }
+
+      if (!g_module_symbol(module, "ToolsOnLoad", (gpointer *) &onload)) {
+         g_warning("Lookup of plugin entry point for '%s' failed.\n", entry);
+         goto next;
+      }
+
+      if (onload != NULL) {
+         data = onload(ctx);
+      }
+
+      if (data == NULL) {
+         g_message("Plugin '%s' didn't provide deployment data, unloading.\n", entry);
+         goto next;
+      }
+
+      ASSERT(data->name != NULL);
+      g_module_make_resident(module);
+      plugin = g_malloc(sizeof *plugin);
+      plugin->module = module;
+      plugin->data = data;
+
+      g_ptr_array_add(regs, plugin);
+      g_debug("Plugin '%s' initialized.\n", plugin->data->name);
+
+   next:
+      g_free(path);
+      if (plugin == NULL && module != NULL) {
+         if (!g_module_close(module)) {
+            g_warning("Error unloading plugin '%s': %s\n", entry, g_module_error());
+         }
+      }
+   }
+
+   for (i = 0; i < plugins->len; i++) {
+      g_free(g_ptr_array_index(plugins, i));
+   }
+   g_ptr_array_free(plugins, TRUE);
+   ret = TRUE;
+
+exit:
+   return ret;
+}
+
+
+/**
  * State dump callback for logging information about loaded plugins.
  *
  * @param[in]  state    The service state.
@@ -364,61 +475,23 @@ gboolean
 ToolsCore_LoadPlugins(ToolsServiceState *state)
 {
    gboolean ret = FALSE;
-   const gchar *staticEntry;
-   guint i;
-   GDir *dir = NULL;
-   GError *err = NULL;
-   GPtrArray *plugins;
+   gchar *pluginRoot;
 
-   ASSERT(g_module_supported());
-
-   if (state->pluginPath == NULL) {
 #if defined(sun) && defined(__x86_64__)
-      const char *subdir = "/amd64";
+   const char *subdir = "/amd64";
 #else
-      const char *subdir = "";
+   const char *subdir = "";
 #endif
-      gchar *pluginRoot;
 
 #if defined(OPEN_VM_TOOLS)
-      pluginRoot = g_strdup(VMTOOLSD_PLUGIN_ROOT);
+   pluginRoot = g_strdup(VMTOOLSD_PLUGIN_ROOT);
 #else
-      char *instPath = GuestApp_GetInstallPath();
-      pluginRoot = g_strdup_printf("%s%cplugins", instPath, DIRSEPC);
-      vm_free(instPath);
+   char *instPath = GuestApp_GetInstallPath();
+   pluginRoot = g_strdup_printf("%s%cplugins", instPath, DIRSEPC);
+   vm_free(instPath);
 #endif
-      state->pluginPath = g_strdup_printf("%s%s%c%s",
-                                          pluginRoot,
-                                          subdir,
-                                          DIRSEPC,
-                                          state->name);
-      g_free(pluginRoot);
-   }
 
-   if (!g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR)) {
-      g_warning("Plugin path is not a directory: %s\n", state->pluginPath);
-      goto exit;
-   }
-
-   dir = g_dir_open(state->pluginPath, 0, &err);
-   if (dir == NULL) {
-      g_warning("Error opening dir: %s\n", err->message);
-      goto exit;
-   }
-
-   plugins = g_ptr_array_new();
-
-   /*
-    * Load plugins in alphabetical order, so the load order is the same
-    * regardless of how the filesystem returns entries.
-    */
-   while ((staticEntry = g_dir_read_name(dir)) != NULL) {
-      g_ptr_array_add(plugins, g_strdup(staticEntry));
-   }
-
-   g_ptr_array_sort(plugins, ToolsCoreStrPtrCompare);
-
-   state->plugins = g_ptr_array_new();
+   ASSERT(g_module_supported());
 
 #ifdef USE_APPLOADER
    {
@@ -437,78 +510,51 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
    }
 #endif
 
-   for (i = 0; i < plugins->len; i++) {
-      gchar *entry;
-      gchar *path;
-      GModule *module = NULL;
-      ToolsPlugin *plugin = NULL;
-      ToolsPluginData *data = NULL;
-      ToolsPluginOnLoad onload;
+   state->plugins = g_ptr_array_new();
 
-      entry = g_ptr_array_index(plugins, i);
-      path = g_strdup_printf("%s%c%s", state->pluginPath, DIRSEPC, entry);
-
-      if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
-         g_warning("File '%s' is not a regular file, skipping.\n", entry);
-         goto next;
-      }
-
-#ifdef USE_APPLOADER
-      if (!LoadDependencies(path, FALSE)) {
-         g_warning("Loading of library dependencies for %s failed.\n", entry);
-         goto next;
-      }
-#endif
-
-      module = g_module_open(path, G_MODULE_BIND_LOCAL);
-      if (module == NULL) {
-         g_warning("Opening plugin '%s' failed: %s.\n", entry, g_module_error());
-         goto next;
-      }
-
-      if (!g_module_symbol(module, "ToolsOnLoad", (gpointer *) &onload)) {
-         g_warning("Lookup of plugin entry point for '%s' failed.\n", entry);
-         goto next;
-      }
-
-      if (onload != NULL) {
-         data = onload(&state->ctx);
-      }
-
-      if (data == NULL) {
-         g_message("Plugin '%s' didn't provide deployment data, unloading.\n", entry);
-         goto next;
-      }
-
-      ASSERT(data->name != NULL);
-      g_module_make_resident(module);
-      plugin = g_malloc(sizeof *plugin);
-      plugin->module = module;
-      plugin->data = data;
-
-      g_ptr_array_add(state->plugins, plugin);
-      g_debug("Plugin '%s' initialized.\n", plugin->data->name);
-
-   next:
-      g_free(path);
-      if (plugin == NULL && module != NULL) {
-         if (!g_module_close(module)) {
-            g_warning("Error unloading plugin '%s': %s\n", entry, g_module_error());
-         }
-      }
+   /*
+    * First, load plugins from the common directory. The common directory
+    * is not required to exist unless provided on the command line.
+    */
+   if (state->commonPath == NULL) {
+      state->commonPath = g_strdup_printf("%s%s%c%s",
+                                          pluginRoot,
+                                          subdir,
+                                          DIRSEPC,
+                                          TOOLSCORE_COMMON);
+   } else if (!g_file_test(state->commonPath, G_FILE_TEST_IS_DIR)) {
+      g_warning("Common plugin path is not a directory: %s\n", state->commonPath);
+      goto exit;
    }
 
-   for (i = 0; i < plugins->len; i++) {
-      g_free(g_ptr_array_index(plugins, i));
+   if (g_file_test(state->commonPath, G_FILE_TEST_IS_DIR) &&
+       !ToolsCoreLoadDirectory(&state->ctx, state->commonPath, state->plugins)) {
+      goto exit;
    }
-   g_ptr_array_free(plugins, TRUE);
+
+   /* Load the container-specific plugins. */
+
+   if (state->pluginPath == NULL) {
+      state->pluginPath = g_strdup_printf("%s%s%c%s",
+                                          pluginRoot,
+                                          subdir,
+                                          DIRSEPC,
+                                          state->name);
+   }
+
+   if (!g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR)) {
+      g_warning("Plugin path is not a directory: %s\n", state->pluginPath);
+      goto exit;
+   }
+
+   if (!ToolsCoreLoadDirectory(&state->ctx, state->pluginPath, state->plugins)) {
+      goto exit;
+   }
+
    ret = TRUE;
 
 exit:
-   if (dir != NULL) {
-      g_dir_close(dir);
-   }
-   g_clear_error(&err);
+   g_free(pluginRoot);
    return ret;
 }
 

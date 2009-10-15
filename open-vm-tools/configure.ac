@@ -1114,6 +1114,7 @@ fi
 
 # Installation directories for core services plugins.
 TEST_PLUGIN_INSTALLDIR=$datadir/open-vm-tools/tests
+COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
@@ -1134,6 +1135,7 @@ AC_SUBST([VMTOOLS_LIBS])
 AC_SUBST([RPCGENFLAGS])
 AC_SUBST([XDR_LIBS])
 AC_SUBST([TEST_PLUGIN_INSTALLDIR])
+AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
 AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
 if test "$os" = "freebsd" -a -n "$SYSDIR"; then

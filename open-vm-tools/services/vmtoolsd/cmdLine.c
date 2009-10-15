@@ -175,6 +175,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    GOptionEntry clOptions[] = {
       { "name", 'n', 0, G_OPTION_ARG_STRING, &state->name,
          N_("Name of the service being started."), N_("svcname") },
+      { "common-path", '\0', 0, G_OPTION_ARG_FILENAME, &state->commonPath,
+         N_("Path to the common plugin directory."), N_("path") },
       { "plugin-path", 'p', 0, G_OPTION_ARG_FILENAME, &state->pluginPath,
          N_("Path to the plugin directory."), N_("path") },
       { "cmd", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommand,
@@ -220,7 +222,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    g_option_context_add_main_entries(context, clOptions, NULL);
 
    if (!g_option_context_parse(context, &argc, &argv, &error)) {
-      g_print("%s: %s\n", N_("Command line parsing failed"), error->message);
+      g_printerr("%s: %s\n", N_("Command line parsing failed"), error->message);
       goto exit;
    }
 
@@ -235,6 +237,10 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       state->name = VMTOOLS_GUEST_SERVICE;
       state->mainService = TRUE;
    } else {
+      if (strcmp(state->name, TOOLSCORE_COMMON) == 0) {
+         g_printerr("%s is an invalid container name.\n", state->name);
+         goto exit;
+      }
       state->mainService = (strcmp(state->name, VMTOOLS_GUEST_SERVICE) == 0);
    }
 
