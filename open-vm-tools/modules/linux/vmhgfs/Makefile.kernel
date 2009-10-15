@@ -25,10 +25,6 @@ INCLUDE += -I.
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c, -DVMW_HAVE_EPOLL, )
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/maxbytes.c, -DVMW_SB_HAS_MAXBYTES, )
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachecreate.c, -DVMW_KMEMCR_HAS_DTOR, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector.c, -DVMW_KMEMCR_CTOR_HAS_3_ARGS, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/cachector1.c, -DVMW_KMEMCR_CTOR_HAS_2_ARGS, )
 

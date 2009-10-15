@@ -76,21 +76,10 @@ extern int LOGLEVEL_THRESHOLD;
  * Macros for accessing members that are private to this code in
  * sb/inode/file structs.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 42)
-#define HGFS_SET_SB_TO_COMMON(sb, common) do { (sb)->u.generic_sbp = (common); } while (0)
-#define HGFS_SB_TO_COMMON(sb)             ((HgfsSuperInfo *)(sb)->u.generic_sbp)
-#else
 #define HGFS_SET_SB_TO_COMMON(sb, common) do { (sb)->s_fs_info = (common); } while (0)
 #define HGFS_SB_TO_COMMON(sb)             ((HgfsSuperInfo *)(sb)->s_fs_info)
-#endif
 
-#ifdef VMW_EMBED_INODE
 #define INODE_GET_II_P(_inode) container_of(_inode, HgfsInodeInfo, inode)
-#elif defined VMW_INODE_2618
-#define INODE_GET_II_P(inode) ((HgfsInodeInfo *)(inode)->i_private)
-#else
-#define INODE_GET_II_P(inode) ((HgfsInodeInfo *)(inode)->u.generic_ip)
-#endif
 
 #if defined VMW_INODE_2618
 #define INODE_SET_II_P(inode, info) do { (inode)->i_private = (info); } while (0)
@@ -98,18 +87,6 @@ extern int LOGLEVEL_THRESHOLD;
 #define INODE_SET_II_P(inode, info) do { (inode)->u.generic_ip = (info); } while (0)
 #endif
 
-/* 2.5.x kernels support nanoseconds timestamps. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 48)
-#define HGFS_DECLARE_TIME(unixtm) time_t unixtm
-#define HGFS_EQUAL_TIME(unixtm1, unixtm2) (unixtm1 == unixtm2)
-#define HGFS_SET_TIME(unixtm,nttime) HgfsConvertFromNtTime(&unixtm, nttime)
-#define HGFS_GET_TIME(unixtm) HgfsConvertToNtTime(unixtm, 0L)
-#define HGFS_GET_CURRENT_TIME() HgfsConvertToNtTime(CURRENT_TIME, 0L)
-/*
- * Beware! This macro returns list of two elements. Do not add braces around.
- */
-#define HGFS_PRINT_TIME(unixtm) unixtm, 0L
-#else
 #define HGFS_DECLARE_TIME(unixtm) struct timespec unixtm
 #define HGFS_EQUAL_TIME(unixtm1, unixtm2) timespec_equal(&unixtm1, &unixtm2)
 #define HGFS_SET_TIME(unixtm,nttime) HgfsConvertFromNtTimeNsec(&unixtm, nttime)
@@ -123,15 +100,6 @@ extern int LOGLEVEL_THRESHOLD;
  * Beware! This macro returns list of two elements. Do not add braces around.
  */
 #define HGFS_PRINT_TIME(unixtm) unixtm.tv_sec, unixtm.tv_nsec
-#endif
-
-/*
- * The writeback support we're using (set_page_dirty()) was added in
- * 2.5.12, so we only support writeback from then on.
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 12)
-#define HGFS_ENABLE_WRITEBACK
-#endif
 
 /*
  * For files opened in our actual Host/Guest filesystem, the
@@ -159,10 +127,8 @@ typedef struct HgfsSuperInfo {
  * HGFS specific per-inode data.
  */
 typedef struct HgfsInodeInfo {
-#ifdef VMW_EMBED_INODE
    /* Embedded inode. */
    struct inode inode;
-#endif
 
    /* Inode number given by the host. */
    uint64 hostFileId;

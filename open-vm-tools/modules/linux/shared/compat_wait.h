@@ -52,7 +52,8 @@ typedef struct wait_queue wait_queue_t;
  * 2.4.20-wolk4.0s.
  */
 
-#ifdef VMW_HAVE_EPOLL // {
+#if defined(VMW_HAVE_EPOLL) || \
+    LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9) // {
 #define compat_poll_wqueues struct poll_wqueues
 #else // } {
 #define compat_poll_wqueues poll_table

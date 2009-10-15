@@ -45,14 +45,8 @@
 
 
 /* Hgfs filesystem superblock operations */
-#ifdef VMW_EMBED_INODE
 static struct inode *HgfsAllocInode(struct super_block *sb);
 static void HgfsDestroyInode(struct inode *inode);
-#endif
-#ifndef VMW_USE_IGET_LOCKED
-static void HgfsReadInode(struct inode *inode);
-#endif
-static void HgfsClearInode(struct inode *inode);
 static void HgfsPutSuper(struct super_block *sb);
 #if defined VMW_STATFS_2618
 static int HgfsStatfs(struct dentry *dentry,
@@ -63,20 +57,13 @@ static int HgfsStatfs(struct super_block *sb,
 #endif
 
 struct super_operations HgfsSuperOperations = {
-#ifdef VMW_EMBED_INODE
    .alloc_inode   = HgfsAllocInode,
    .destroy_inode = HgfsDestroyInode,
-#endif
-#ifndef VMW_USE_IGET_LOCKED
-   .read_inode    = HgfsReadInode,
-#endif
-   .clear_inode   = HgfsClearInode,
    .put_super     = HgfsPutSuper,
    .statfs        = HgfsStatfs,
 };
 
 
-#ifdef VMW_EMBED_INODE
 /*
  *-----------------------------------------------------------------------------
  *
@@ -136,69 +123,6 @@ HgfsDestroyInode(struct inode *inode) // IN: The VFS inode
    kmem_cache_free(hgfsInodeCache, INODE_GET_II_P(inode));
 }
 
-#endif
-
-
-#ifndef VMW_USE_IGET_LOCKED
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsReadInode --
- *
- *    Hgfs superblock 'read_inode' method. Called by the kernel to fill in a
- *    VFS inode, given its hgfs inode number. Needed by iget().
- *
- * Results:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HgfsReadInode(struct inode *inode) // IN/OUT: VFS inode to fill in
-{
-   HgfsDoReadInode(inode);
-}
-#endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsClearInode --
- *
- *    Hgfs superblock 'clear_inode' method. Called by the kernel when it is
- *    about to destroy a VFS inode.
- *
- * Results:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HgfsClearInode(struct inode *inode) // IN: The VFS inode
-{
-#ifdef VMW_EMBED_INODE
-   /* Do nothing. HgfsDestroyInode will do the dirty work. */
-#else
-   HgfsInodeInfo *iinfo;
-
-   ASSERT(inode);
-
-   /* The HGFS inode information may be partially constructed --hpreg */
-   iinfo = INODE_GET_II_P(inode);
-   if (iinfo) {
-      kmem_cache_free(hgfsInodeCache, iinfo);
-   }
-#endif
-}
 
 /*
  *-----------------------------------------------------------------------------

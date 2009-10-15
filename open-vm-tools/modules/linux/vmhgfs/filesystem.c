@@ -60,14 +60,6 @@
 #include "rpcout.h"
 #include "hgfs.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 25)
-#define KERNEL_25_FS 0
-#else
-#define KERNEL_25_FS 1
-#endif
-
-#define HGFS_BD_THREAD_NAME "VMware hgfs backdoor handler"
-
 /* Synchronization primitives. */
 spinlock_t hgfsBigLock = SPIN_LOCK_UNLOCKED;
 
@@ -102,29 +94,18 @@ static void HgfsResetOps(void);
 
 
 /* HGFS filesystem high-level operations. */
-#if KERNEL_25_FS /* { */
-#   if defined VMW_GETSB_2618
+#if defined VMW_GETSB_2618
 static int HgfsGetSb(struct file_system_type *fs_type,
                      int flags,
                      const char *dev_name,
                      void *rawData,
                      struct vfsmount *mnt);
-#   elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 70)
+#else
 static struct super_block *HgfsGetSb(struct file_system_type *fs_type,
                                      int flags,
                                      const char *dev_name,
                                      void *rawData);
-#   else
-static struct super_block *HgfsGetSb(struct file_system_type *fs_type,
-                                     int flags,
-                                     char *dev_name,
-                                     void *rawData);
-#   endif
-#else /* } { */
-static struct super_block *HgfsReadSuper24(struct super_block *sb,
-                                           void *rawData,
-                                           int flags);
-#endif /* } */
+#endif
 
 /* HGFS filesystem type structure. */
 static struct file_system_type hgfsType = {
@@ -132,12 +113,8 @@ static struct file_system_type hgfsType = {
    .name         = HGFS_NAME,
 
    .fs_flags     = FS_BINARY_MOUNTDATA,
-#if KERNEL_25_FS
    .get_sb       = HgfsGetSb,
    .kill_sb      = kill_anon_super,
-#else
-   .read_super   = HgfsReadSuper24,
-#endif
 };
 
 
@@ -196,7 +173,6 @@ HgfsComputeBlockBits(unsigned long blockSize)
 static void
 HgfsInodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem)) // IN: slab item to initialize
 {
-#ifdef VMW_EMBED_INODE
    HgfsInodeInfo *iinfo = (HgfsInodeInfo *)slabElem;
 
    /*
@@ -205,7 +181,6 @@ HgfsInodeCacheCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabElem)) // IN: slab item to in
     * much of the VFS inode members.
     */
    inode_init_once(&iinfo->inode);
-#endif
 }
 
 
@@ -410,9 +385,7 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
     * it. Note that we'll initialize it anyway, because the default value is
     * MAX_NON_LFS, which caps our filesize at 2^32 bytes.
     */
-#ifdef VMW_SB_HAS_MAXBYTES
    sb->s_maxbytes = MAX_LFS_FILESIZE;
-#endif
 
    /*
     * These two operations will make sure that our block size and the bits
@@ -462,7 +435,6 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
  * HGFS filesystem high-level operations.
  */
 
-#if KERNEL_25_FS
 #if defined VMW_GETSB_2618
 /*
  *-----------------------------------------------------------------------------
@@ -510,49 +482,13 @@ HgfsGetSb(struct file_system_type *fs_type,
  *-----------------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 70)
 static struct super_block *
 HgfsGetSb(struct file_system_type *fs_type,
 	  int flags,
 	  const char *dev_name,
 	  void *rawData)
-#else
-static struct super_block *
-HgfsGetSb(struct file_system_type *fs_type,
-	  int flags,
-	  char *dev_name,
-	  void *rawData)
-#endif
 {
    return get_sb_nodev(fs_type, flags, rawData, HgfsReadSuper);
-}
-#endif
-#else
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsReadSuper24 --
- *
- *    Compatibility wrapper for 2.4.x kernels read_super.
- *    Converts success to sb, and failure to NULL.
- *
- * Results:
- *    The initialized superblock on success
- *    NULL on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static struct super_block *
-HgfsReadSuper24(struct super_block *sb,
-		void *rawData,
-		int flags) {
-   return HgfsReadSuper(sb, rawData, flags) ? NULL : sb;
 }
 #endif
 
@@ -644,10 +580,6 @@ HgfsInitFileSystem(void)
       return FALSE;
    }
    LOG(4, (KERN_DEBUG "VMware hgfs: Module Loaded\n"));
-
-#ifdef HGFS_ENABLE_WRITEBACK
-   LOG(4, (KERN_DEBUG "VMware hgfs: writeback cache enabled\n"));
-#endif
 
    return TRUE;
 }

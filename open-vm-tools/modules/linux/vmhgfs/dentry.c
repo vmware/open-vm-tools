@@ -34,13 +34,8 @@
 #include "vm_assert.h"
 
 /* HGFS dentry operations. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static int HgfsDentryRevalidate(struct dentry *dentry,
                                 struct nameidata *nd);
-#else
-static int HgfsDentryRevalidate(struct dentry *dentry,
-                                int flags);
-#endif
 
 /* HGFS dentry operations structure. */
 struct dentry_operations HgfsDentryOperations = {
@@ -73,15 +68,9 @@ struct dentry_operations HgfsDentryOperations = {
  *----------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static int
 HgfsDentryRevalidate(struct dentry *dentry,  // IN: Dentry to revalidate
                      struct nameidata *nd)   // IN: Lookup flags & intent
-#else
-static int
-HgfsDentryRevalidate(struct dentry *dentry,  // IN: Dentry to revalidate
-                     int flags)              // IN: Lookup flags (e.g. LOOKUP_CONTINUE)
-#endif
 {
    int error;
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDentryRevalidate: calling "
