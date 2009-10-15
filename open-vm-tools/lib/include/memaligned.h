@@ -35,7 +35,7 @@
 #endif
 #include "vmware.h"
 
-#if defined(__APPLE__) && !defined(VM_X86_64)
+#if defined __APPLE__ && !vm_x86_64
 /*
  * Bug 471584: Mac OS X 10.6's valloc() implementation for 32-bit
  * processes can exhaust our process's memory space.
@@ -72,8 +72,8 @@ static INLINE void *
 AlignedMallocImpl(size_t size) // IN
 {
    size_t paddedSize;
-   uintptr_t *buf;
-   uintptr_t *alignedResult;
+   void **buf;
+   void **alignedResult;
 
 #define PAGE_MASK (PAGE_SIZE - 1)
 #define PAGE_ROUND_DOWN(_value) ((uintptr_t)(_value) & ~PAGE_MASK)
@@ -92,13 +92,19 @@ AlignedMallocImpl(size_t size) // IN
     * Finally, we allocate enough space to hold 'size' bytes.
     */
    paddedSize = PAGE_SIZE + sizeof *buf + size;
-   buf = (uintptr_t *)malloc(paddedSize);
+
+   // Check for overflow.
+   if (paddedSize < size) {
+      return NULL;
+   }
+
+   buf = malloc(paddedSize);
    if (!buf) {
       return NULL;
    }
 
-   alignedResult = (uintptr_t *)PAGE_ROUND_UP(buf + 1);
-   *(alignedResult - 1) = (uintptr_t)buf;
+   alignedResult = (void **)PAGE_ROUND_UP(buf + 1);
+   *(alignedResult - 1) = buf;
 
 #undef PAGE_MASK
 #undef PAGE_ROUND_DOWN
@@ -128,14 +134,11 @@ AlignedMallocImpl(size_t size) // IN
 static INLINE void
 AlignedFreeImpl(void *buf) // IN
 {
-   uintptr_t origBuf;
-
    if (!buf) {
       return;
    }
 
-   origBuf = *((uintptr_t *)buf - 1);
-   free((void *)origBuf);
+   free(*((void **)buf - 1));
 }
 
 #endif // MEMALIGNED_USE_INTERNAL_IMPL
@@ -162,10 +165,12 @@ static INLINE void*
 Aligned_UnsafeMalloc(size_t size) // IN
 {
    void *buf;
-#ifdef _WIN32
+#if defined MEMALIGNED_USE_INTERNAL_IMPL
+   buf = AlignedMallocImpl(size);
+#elif defined _WIN32
    buf = _aligned_malloc(size, PAGE_SIZE);
 #elif __linux__
-#  if defined(N_PLAT_NLM)
+#  if defined N_PLAT_NLM
    /*
     * Netware does not support valloc or memalign.  Fall back to malloc.
     *
@@ -176,12 +181,10 @@ Aligned_UnsafeMalloc(size_t size) // IN
 #  else
    buf = memalign(PAGE_SIZE, size);
 #  endif
-#elif defined(MEMALIGNED_USE_INTERNAL_IMPL)
-   buf = AlignedMallocImpl(size);
 #else // Apple, BSD, Solaris (tools)
    buf = valloc(size); 
 #endif
-#if !defined(N_PLAT_NLM)  // Netware won't be aligned necessarily.
+#if !defined N_PLAT_NLM  // Netware won't be aligned necessarily.
    ASSERT(((uintptr_t)buf % PAGE_SIZE) == 0);
 #endif
    return buf;
@@ -264,10 +267,10 @@ Aligned_Calloc(size_t nmemb, // IN
 static INLINE void
 Aligned_Free(void *buf)  // IN
 {
-#ifdef _WIN32
-   _aligned_free(buf);
-#elif defined(MEMALIGNED_USE_INTERNAL_IMPL)
+#if defined MEMALIGNED_USE_INTERNAL_IMPL
    AlignedFreeImpl(buf);
+#elif defined _WIN32
+   _aligned_free(buf);
 #else
    free(buf);
 #endif
