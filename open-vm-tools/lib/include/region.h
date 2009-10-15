@@ -166,9 +166,6 @@ typedef struct _RegData {
 
 typedef struct _Region {
     BoxRec	extents;
-#ifdef VMX86_LOG
-    char       *regionStr;
-#endif
     RegDataPtr	data;
 } RegionRec, *RegionPtr;
 
@@ -267,10 +264,6 @@ extern void miRegionPack(RegionPtr pReg, int threshold);
 extern Bool miApplyRect(RegionPtr newReg, RegionPtr reg, BoxPtr rect,
                         Bool (*op) (RegionPtr, RegionPtr, RegionPtr));
 extern int miPrintRegion(RegionPtr rgn);
-
-#ifdef VMX86_LOG
-extern const char *miRegionStr(RegionPtr rgn);
-#endif
 
 typedef Bool (*miRegionMatchFunc)(BoxPtr box, uintptr_t userData);
 extern Bool miRegionMatch(RegionPtr newReg, RegionPtr reg,
