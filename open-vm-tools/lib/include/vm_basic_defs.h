@@ -210,6 +210,8 @@ Max(int a, int b)
    #define PAGE_SHIFT    12
 #elif defined __APPLE__
    #define PAGE_SHIFT    12
+#elif defined __arm__
+   #define PAGE_SHIFT    12
 #else
    #error
 #endif

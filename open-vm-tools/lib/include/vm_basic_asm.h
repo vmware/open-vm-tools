@@ -34,6 +34,8 @@
  * vm_basic_asm.h
  *
  *	Basic asm macros
+ *
+ *        ARM not implemented.
  */
 
 #ifndef _VM_BASIC_ASM_H_
@@ -53,9 +55,9 @@
 
 #include "vm_basic_types.h"
 
-#ifdef VM_X86_64
+#if defined VM_X86_64
 #include "vm_basic_asm_x86_64.h"
-#else
+#elif defined __i386__
 #include "vm_basic_asm_x86.h"
 #endif
 
@@ -120,6 +122,7 @@ void           _mm_pause(void);
 
 
 #ifdef __GNUC__ // {
+#if defined(__i386__) || defined(__x86_64__) // Only on x86*
 
 /*
  * Checked against the Intel manual and GCC --hpreg
@@ -173,9 +176,11 @@ __GCC_IN(l, uint32, IN32)
 #define GET_CURRENT_EIP(_eip) \
       __asm__ __volatile("call 0\n\tpopl %0" : "=r" (_eip): );
 
+#endif // x86*
+
 #elif defined(_MSC_VER) // } {
 static INLINE  uint8
-INB(uint16 port) 
+INB(uint16 port)
 {
    return (uint8)_inp(port);
 }
@@ -195,11 +200,11 @@ OUTW(uint16 port, uint16 value)
    _outpw(port, value);
 }
 static INLINE  uint32
-IN32(uint16 port) 
+IN32(uint16 port)
 {
    return _inpd(port);
 }
-static INLINE void 
+static INLINE void
 OUT32(uint16 port, uint32 value)
 {
    _outpd(port, value);

@@ -842,14 +842,14 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,   // OUT: Time in Unix form
       return -1;
    }
 
-#ifndef VM_X86_64
+#ifdef __i386__ // only for 32-bit x86
    Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
    unixTime->tv_sec = sec;
    unixTime->tv_nsec = nsec * 100;
 #else
    unixTime->tv_sec = (ntTime - UNIX_EPOCH) / 10000000;
    unixTime->tv_nsec = ((ntTime - UNIX_EPOCH) % 10000000) * 100;
-#endif // VM_X86_64
+#endif // __i386__
 
    return 0;
 }

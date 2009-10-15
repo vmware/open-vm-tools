@@ -101,12 +101,14 @@ typedef char           Bool;
 /*
  * Macros __i386__ and __ia64 are intrinsically defined by GCC
  */
-#ifdef __i386__
-#define VM_I386
+#if defined _MSC_VER && defined _M_X64
+#  define __x86_64__
+#elif defined _MSC_VER && defined _M_IX86
+#  define __i386__
 #endif
 
-#ifdef _WIN64
-#define __x86_64__
+#ifdef __i386__
+#define VM_I386
 #endif
 
 #ifdef __x86_64__
@@ -117,12 +119,6 @@ typedef char           Bool;
 #define vm_x86_64 (0)
 #endif
 
-
-
-#ifdef _WIN32
-/* safe assumption for a while */
-#define VM_I386
-#endif
 
 #ifdef _MSC_VER
 
