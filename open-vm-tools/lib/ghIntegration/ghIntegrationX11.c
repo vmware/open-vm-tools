@@ -67,7 +67,6 @@
 #include "ghIntegration.h"
 #include "ghIntegrationInt.h"
 #include "guest_msg_def.h"
-#include "guestCaps.h"
 #include "Uri.h"
 #define URI_TEXTRANGE_EQUAL(textrange, str) \
    (((textrange).afterLast - (textrange).first) == strlen((str))        \

@@ -34,8 +34,8 @@
 #  include <windows.h>
 #  include <objbase.h>
 #endif
-#include "guestCaps.h"
 #include "rpcChannel.h"
+#include "vmware/guestrpc/capabilities.h"
 
 /**
  * Error reporting macro. Call this if the app encounters an error

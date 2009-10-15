@@ -31,7 +31,7 @@ extern "C" {
 #endif // __cplusplus
 
 #include "vmware.h"
-#include "guestCaps.h"
+#include "vmware/guestrpc/capabilities.h"
 
 #ifdef __cplusplus
 };
