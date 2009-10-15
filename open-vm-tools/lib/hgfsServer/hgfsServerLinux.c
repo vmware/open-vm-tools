@@ -1028,7 +1028,7 @@ HgfsValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    if (!openInfo->shareInfo.writePermissions) {
       if ((openFlags & (O_APPEND | O_CREAT | O_TRUNC)) ||
           (openMode & (O_WRONLY | O_RDWR))) {
-         status = access(openInfo->utf8Name, F_OK);
+         status = Posix_Access(openInfo->utf8Name, F_OK);
          if (status < 0) {
             status = errno;
             if (status == ENOENT && (openFlags & O_CREAT) != 0) {
@@ -1057,7 +1057,7 @@ HgfsValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
        * "Drop Box" / "FTP incoming" type of shared folders.
        * Allow creating a new file. Deny opening exisitng file.
        */
-      status = access(openInfo->utf8Name, F_OK);
+      status = Posix_Access(openInfo->utf8Name, F_OK);
       if (status < 0) {
          status = errno;
          if (status != ENOENT || (openFlags & O_CREAT) == 0) {
