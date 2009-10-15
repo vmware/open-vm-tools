@@ -28,6 +28,7 @@
 #include "vmware.h"
 #include "vm_atomic.h"
 #include "x86cpuid.h"
+#include "x86cpuid_asm.h"
 #include "vm_basic_asm.h"
 
 

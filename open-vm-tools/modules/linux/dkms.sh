@@ -57,6 +57,7 @@ SHARED_HEADERS="$SHARED_HEADERS vmware_pack_begin.h"
 SHARED_HEADERS="$SHARED_HEADERS vmware_pack_end.h"
 SHARED_HEADERS="$SHARED_HEADERS vmware_pack_init.h"
 SHARED_HEADERS="$SHARED_HEADERS x86cpuid.h"
+SHARED_HEADERS="$SHARED_HEADERS x86cpuid_asm.h"
 
 rm -rf $dst
 mkdir -p $dst
