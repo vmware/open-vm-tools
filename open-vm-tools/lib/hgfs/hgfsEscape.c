@@ -718,7 +718,10 @@ HgfsEscape_Do(char const *bufIn, // IN:  Buffer with unescaped input
    }
    while (currentComponent - bufIn < sizeIn) {
       int escapedLength;
-      uint32 componentSize = CPName_GetComponent(currentComponent, end, &next);
+      int componentSize = CPName_GetComponent(currentComponent, end, &next);
+      if (componentSize < 0) {
+         return componentSize;
+      }
 
       escapedLength = HgfsEscapeDoComponent(currentComponent, componentSize,
                                             sizeLeft, outPointer);
@@ -778,7 +781,11 @@ HgfsEscape_GetSize(char const *bufIn,    // IN:  Buffer with unescaped input
       currentComponent++;
    }
    while (currentComponent - bufIn < sizeIn) {
-      uint32 componentSize = CPName_GetComponent(currentComponent, end, &next);
+      int componentSize = CPName_GetComponent(currentComponent, end, &next);
+      if (componentSize < 0) {
+         Log("%s: failed to calculate escapde name size - name is invalid\n", __FUNCTION__);
+         return -1;
+      }
       result += HgfsEscapeGetComponentSize(currentComponent, componentSize);
       currentComponent = next;
    }

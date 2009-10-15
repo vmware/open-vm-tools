@@ -1199,7 +1199,7 @@ HgfsServerCheckOpenFlagsForShare(HgfsFileOpenInfo *openInfo,// IN: Hgfs file han
    HgfsOpenMode shareMode;
    char const *inEnd;
    char const *next;
-   uint32 len;
+   int len;
 
    ASSERT(openInfo);
    ASSERT(flags);

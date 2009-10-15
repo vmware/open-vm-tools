@@ -101,8 +101,13 @@ CPName_GetComponent(char const *begin,   // IN: Beginning of buffer
          }
 
          myNext = walk + 1;
+         /* Skip consecutive path delimiters. */
+         while ((*myNext == '\0') && (myNext != end)) {
+            myNext++;
+         }
          if (myNext == end) {
             /* Last character in the buffer is not allowed to be NUL */
+            Log("%s: error: last char can't be NUL\n", __FUNCTION__);
             return -1;
          }
 
@@ -149,9 +154,11 @@ CPNameEscapeAndConvertFrom(char const **bufIn, // IN/OUT: Input to convert
                            char pathSep)       // IN: Path separator character
 {
    int result;
-   size_t inputSize;
+   int inputSize;
    inputSize = HgfsEscape_GetSize(*bufIn, *inSize);
-   if (inputSize != 0) {
+   if (inputSize < 0) {
+      result = -1;
+   } else if (inputSize != 0) {
       char *savedBufOut = *bufOut;
       char const *savedOutConst = savedBufOut;
       size_t savedOutSize = *outSize;
@@ -429,9 +436,21 @@ CPNameConvertTo(char const *nameIn, // IN:  Buf to convert
       nameIn++;
    }
 
-    /* Copy the string to the output buf, converting all path separators into '\0'. */
-   for (; *nameIn != '\0' && bufOut < endOut; nameIn++) {
-      *bufOut = (*nameIn == pathSep) ? '\0' : *nameIn;
+    /*
+     * Copy the string to the output buf, converting all path separators into '\0'.
+     * Collapse multiple consecutive path separators into a single one since
+     * CPName_GetComponent can't handle consecutive path separators.
+     */
+   while (*nameIn != '\0' && bufOut < endOut) {
+      if (*nameIn == pathSep) {
+         *bufOut = '\0';
+         do {
+            nameIn++;
+         } while (*nameIn == pathSep);
+      } else {
+         *bufOut = *nameIn;
+         nameIn++;
+      }
       bufOut++;
    }
 

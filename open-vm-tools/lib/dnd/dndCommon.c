@@ -367,7 +367,10 @@ DnDPrependFileRoot(ConstUnicode fileRoot,  // IN    : file root to append
        */
 
       escapedLen = HgfsEscape_GetSize(begin, len);
-      if (0 == escapedLen) {
+      if (escapedLen < 0) {
+         Log("%s: error calculating buffer size\n", __FUNCTION__);
+         return FALSE;
+      } else if (0 == escapedLen) {
          newDataLen += rootLen + len + 1;
          newData = (char *)Util_SafeRealloc(newData, newDataLen);
 
