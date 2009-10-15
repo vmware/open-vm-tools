@@ -113,6 +113,7 @@ Equipment Corporation.
 #include <limits.h>
 
 #include "region.h"
+#include "strutil.h"
 
 void miSetExtents(RegionPtr pReg);
 int miFindMaxBand(RegionPtr prgn);
@@ -255,8 +256,16 @@ int miFindMaxBand(RegionPtr prgn);
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 
 #define xallocData(n)    (RegDataPtr)malloc(REGION_SZOF(n))
+
+#ifdef VMX86_LOG
+#define xfreeData(reg)   if ((reg)->data && (reg)->data->size) \
+                           free((reg)->data);                  \
+                         free((reg)->regionStr);               \
+                         (reg)->regionStr = NULL
+#else
 #define xfreeData(reg)   if ((reg)->data && (reg)->data->size) \
                            free((reg)->data)
+#endif
 
 #define RECTALLOC_BAIL(pReg,n,bail) \
 if (!(pReg)->data || (((pReg)->data->numRects + (n)) > (pReg)->data->size)) \
@@ -306,51 +315,132 @@ BoxRec miEmptyBox = {0, 0, 0, 0};
 RegDataRec miEmptyData = {0, 0};
 
 RegDataRec  miBrokenData = {0, 0};
-RegionRec   miBrokenRegion = { { 0, 0, 0, 0 }, &miBrokenData };
 
+#ifdef VMX86_LOG
+RegionRec   miBrokenRegion = { { 0, 0, 0, 0 }, NULL, &miBrokenData };
+#else
+RegionRec   miBrokenRegion = { { 0, 0, 0, 0 }, &miBrokenData };
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * miAllocRegionStr --
+ *
+ *      Allocate and return a string describing the region.
+ *
+ * Results:
+ *      An allocated string, or NULL on failure.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE
+char *
+miAllocRegionStr(RegionPtr rgn) // IN
+{
+   int num;
+   int i;
+   BoxPtr rects;
+   DynBuf regionBuffer;
+   char *result;
+
+   DynBuf_Init(&regionBuffer);
+
+   num = REGION_NUM_RECTS(rgn);
+   rects = REGION_RECTS(rgn);
+
+   StrUtil_SafeDynBufPrintf(&regionBuffer,
+                            "[Region %p] extents: (%d, %d) -> (%d, %d) %d rects: ",
+                            rgn,
+                            rgn->extents.x1, rgn->extents.y1,
+                            rgn->extents.x2, rgn->extents.y2,
+                            num);
+
+   for (i = 0; i < num; i++) {
+      StrUtil_SafeDynBufPrintf(&regionBuffer,
+                               "#%d (%d, %d) -> (%d, %d) ",
+                               i,
+                               rects[i].x1, rects[i].y1,
+                               rects[i].x2, rects[i].y2);
+   }
+
+   DynBuf_Append(&regionBuffer, "", 1);
+   result = (char *)DynBuf_Detach(&regionBuffer);
+   DynBuf_Destroy(&regionBuffer);
+
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * miPrintRegion --
+ *
+ *      Print the specified region via Warning().
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Your console is spammed.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
 int
 miPrintRegion(RegionPtr rgn)
 {
-    int num, size;
-    register int i;
-    BoxPtr rects;
+   char *regionStr;
 
-    num = REGION_NUM_RECTS(rgn);
-    size = REGION_SIZE(rgn);
-    rects = REGION_RECTS(rgn);
-    Warning("num: %d size: %d\n", num, size);
-    Warning("extents: %d %d %d %d\n",
-	   rgn->extents.x1, rgn->extents.y1, rgn->extents.x2, rgn->extents.y2);
-    for (i = 0; i < num; i++) {
-      Warning("%4d %4d %4d %4d",
-	     rects[i].x1, rects[i].y1, rects[i].x2, rects[i].y2);
-      switch(rects[i].info.type) {
-      case UpdateRect:
-         Warning(" UpdateRect ");
-         break;
-      case ROPFillRect:
-         Warning(" ROPFillRect   0x%08x", rects[i].info.ROPFill.color);
-         break;
-      case Present3dRect:
-         Warning(" Present3DRect   0x%x   src(%d, %d)",
-                 rects[i].info.Present3d.sid,
-                 rects[i].info.Present3d.srcx, rects[i].info.Present3d.srcy);
-         break;
-      case LockRect:
-         Warning(" LockRect ");
-      case FenceRect:
-         Warning(" FenceRect fence: 0x%x", rects[i].info.Fence.fenceId);
-      default:
-         Warning(" UNKNOWN!");
-         break;
-      }
-      Warning("\n");
-    }
-    Warning("\n");
-    return(num);
+   regionStr = miAllocRegionStr(rgn);
+
+   if (regionStr) {
+      Warning("%s\n", regionStr);
+      free(regionStr);
+   } else {
+      Warning("Couldn't print region %p!\n", rgn);
+   }
+
+   return REGION_NUM_RECTS(rgn);
 }
 
+#ifdef VMX86_LOG
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * miRegionStr --
+ *
+ *      Return a string describing the region.
+ *
+ * Results:
+ *      A NUL-terminated string describing the region. This string is
+ *      only valid until the region is changed or destroyed, or until
+ *      this function is called again.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+miRegionStr(RegionPtr rgn)
+{
+   free(rgn->regionStr);
+
+   // The region string will be freed in xfreeData().
+   rgn->regionStr = miAllocRegionStr(rgn);
+   return rgn->regionStr;
+}
+
+#endif
 
 /*
  *----------------------------------------------------------------------------
@@ -587,27 +677,13 @@ miRegionCreate(rect, size)
     int size;
 {
     register RegionPtr pReg;
-   
+
     pReg = (RegionPtr)xalloc(sizeof(RegionRec));
     if (!pReg)
 	return &miBrokenRegion;
-    if (rect)
-    {
-	pReg->extents = *rect;
-	pReg->data = (RegDataPtr)NULL;
-    }
-    else
-    {
-	pReg->extents = miEmptyBox;
-	if ((size > 1) && (pReg->data = xallocData(size)))
-	{
-	    pReg->data->size = size;
-	    pReg->data->numRects = 0;
-	}
-	else
-	    pReg->data = &miEmptyData;
-    }
-    return(pReg);
+
+    miRegionInit(pReg, rect, size);
+    return pReg;
 }
 
 /*****************************************************************
@@ -637,6 +713,10 @@ miRegionInit(pReg, rect, size)
 	else
 	    pReg->data = &miEmptyData;
     }
+
+#ifdef VMX86_LOG
+    pReg->regionStr = NULL;
+#endif
 }
 
 void
