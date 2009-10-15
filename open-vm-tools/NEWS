@@ -1,3 +1,12 @@
+open-vm-tools 2009.10.15 changes:
+	* The HGFS module got some performance enhancements.
+
+	* Minor enhancements to vmtoolsd and the logging system.
+
+	* Fix for a few issues reported on the sourceforge bug tracker.
+
+	* Lots of code refactoring, and a few bug fixes.
+
 open-vm-tools 2009.09.18 changes:
 	* Mostly bug fixes and minor enhancements.
 
