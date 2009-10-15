@@ -58,8 +58,6 @@ module_param(HOST_PORT, int, 0444);
 static int HOST_VSOCKET_PORT = 0; /* Disabled by default. */
 module_param(HOST_VSOCKET_PORT, int, 0444);
 
-#define INCLUDE_VSOCKETS
-
 #ifdef INCLUDE_VSOCKETS
 
 #include "vmci_defs.h"
