@@ -1255,7 +1255,7 @@ TweakGatherLoop(ToolsAppCtx *ctx)
       g_message("Poll loop disabled.\n");
    }
 
-   g_error_free(gError);
+   g_clear_error(&gError);
 }
 
 
