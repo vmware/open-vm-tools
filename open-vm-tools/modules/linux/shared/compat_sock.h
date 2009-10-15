@@ -79,7 +79,7 @@
 # define compat_sock_test_done(sk)      sock_flag(sk, SOCK_DONE)
 # define compat_sock_set_done(sk)       sock_set_flag(sk, SOCK_DONE)
 # define compat_sock_reset_done(sk)     sock_reset_flag(sk, SOCK_DONE)
-#elif LINUX_VERISON_CODE >= KERNEL_VERSION(2, 5, 65)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 65)
 # define compat_sock_test_done(sk)      test_bit(SOCK_DONE, &(sk)->flags)
 # define compat_sock_set_done(sk)       __set_bit(SOCK_DONE, &(sk)->flags)
 # define compat_sock_reset_done(sk)     __clear_bit(SOCK_DONE, &(sk)->flags)

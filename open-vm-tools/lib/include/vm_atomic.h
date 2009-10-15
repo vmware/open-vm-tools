@@ -338,11 +338,12 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN
    AtomicEpilogue();
    return val;
 }
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
 {
    return _InterlockedExchange((long *)&var->value, (long)val);
 }
-#elif _MSC_VER
+#else
 #pragma warning(push)
 #pragma warning(disable : 4035)         // disable no-return warning
 {
@@ -352,6 +353,7 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN
    // eax is the return value, this is documented to work - edward
 }
 #pragma warning(pop)
+#endif
 #else
 #error No compiler defined for Atomic_ReadWrite
 #endif
@@ -410,13 +412,14 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
    AtomicEpilogue();
    return val;
 }
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
 {
    return _InterlockedCompareExchange((long *)&var->value,
 				      (long)newVal,
 				      (long)oldVal);
 }
-#elif _MSC_VER
+#else
 #pragma warning(push)
 #pragma warning(disable : 4035)         // disable no-return warning
 {
@@ -427,6 +430,7 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN
    // eax is the return value, this is documented to work - edward
 }
 #pragma warning(pop)
+#endif
 #else
 #error No compiler defined for Atomic_ReadIfEqualWrite
 #endif
@@ -469,7 +473,7 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN
    );
    AtomicEpilogue();
    return val;
-#elif _MSC_VER
+#elif defined _MSC_VER
    return _InterlockedCompareExchange64((__int64 *)&var->value,
 					(__int64)newVal,
 					(__int64)oldVal);
@@ -515,7 +519,7 @@ Atomic_And(Atomic_uint32 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
 #if defined(__x86_64__)
    _InterlockedAnd((long *)&var->value, (long)val);
 #else
@@ -560,7 +564,7 @@ Atomic_And64(Atomic_uint64 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
 #else
 #error No compiler defined for Atomic_And64
@@ -604,7 +608,7 @@ Atomic_Or(Atomic_uint32 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
 #if defined(__x86_64__)
    _InterlockedOr((long *)&var->value, (long)val);
 #else
@@ -649,7 +653,7 @@ Atomic_Or64(Atomic_uint64 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedOr64((__int64 *)&var->value, (__int64)val);
 #else
 #error No compiler defined for Atomic_Or64
@@ -693,7 +697,7 @@ Atomic_Xor(Atomic_uint32 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
 #if defined(__x86_64__)
    _InterlockedXor((long *)&var->value, (long)val);
 #else
@@ -738,7 +742,7 @@ Atomic_Xor64(Atomic_uint64 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedXor64((__int64 *)&var->value, (__int64)val);
 #else
 #error No compiler defined for Atomic_Xor64
@@ -782,12 +786,14 @@ Atomic_Add(Atomic_uint32 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
    _InterlockedExchangeAdd((long *)&var->value, (long)val);
-#elif _MSC_VER
+#else
    __asm mov eax, val
    __asm mov ebx, var
    __asm lock add [ebx]Atomic_uint32.value, eax
+#endif
 #else
 #error No compiler defined for Atomic_Add
 #endif
@@ -825,7 +831,7 @@ Atomic_Add64(Atomic_uint64 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
 #else
 #error No compiler defined for Atomic_Add64
@@ -869,12 +875,14 @@ Atomic_Sub(Atomic_uint32 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
    _InterlockedExchangeAdd((long *)&var->value, (long)-val);
-#elif _MSC_VER
+#else
    __asm mov eax, val
    __asm mov ebx, var
    __asm lock sub [ebx]Atomic_uint32.value, eax
+#endif
 #else
 #error No compiler defined for Atomic_Sub
 #endif
@@ -912,7 +920,7 @@ Atomic_Sub64(Atomic_uint64 *var, // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
 #else
 #error No compiler defined for Atomic_Sub64
@@ -954,11 +962,13 @@ Atomic_Inc(Atomic_uint32 *var) // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
    _InterlockedIncrement((long *)&var->value);
-#elif _MSC_VER
+#else
    __asm mov ebx, var
    __asm lock inc [ebx]Atomic_uint32.value
+#endif
 #else
 #error No compiler defined for Atomic_Inc
 #endif
@@ -999,11 +1009,13 @@ Atomic_Dec(Atomic_uint32 *var) // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
    _InterlockedDecrement((long *)&var->value);
-#elif _MSC_VER
+#else
    __asm mov ebx, var
    __asm lock dec [ebx]Atomic_uint32.value
+#endif
 #else
 #error No compiler defined for Atomic_Dec
 #endif
@@ -1156,11 +1168,12 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
    );
    return val;
 }
-#elif _MSC_VER >= 1310
+#elif defined _MSC_VER
+#if _MSC_VER >= 1310
 {
    return _InterlockedExchangeAdd((long *)&var->value, (long)val);
 }
-#elif _MSC_VER
+#else
 #pragma warning(push)
 #pragma warning(disable : 4035)         // disable no-return warning
 {
@@ -1169,6 +1182,7 @@ Atomic_FetchAndAddUnfenced(Atomic_uint32 *var, // IN
    __asm lock xadd [ebx]Atomic_uint32.value, eax
 }
 #pragma warning(pop)
+#endif
 #else
 #error No compiler defined for Atomic_FetchAndAdd
 #endif
@@ -1246,7 +1260,7 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN
    );
    AtomicEpilogue();
    return val;
-#elif _MSC_VER
+#elif defined _MSC_VER
    return _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
 #else
 #error No compiler defined for Atomic_ReadAdd64
@@ -1502,7 +1516,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    AtomicEpilogue();
    return equal;
 } 
-#elif _MSC_VER
+#elif defined _MSC_VER
 #if defined(__x86_64__)
 {
    return *oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
@@ -1629,7 +1643,7 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
    AtomicEpilogue();
    return value;
 }
-#elif _MSC_VER /* MSC (assume on x86 for now) */
+#elif defined _MSC_VER /* MSC (assume on x86 for now) */
 #   pragma warning(push)
 #   pragma warning(disable : 4035)		// disable no-return warning
 {
@@ -1761,7 +1775,7 @@ Atomic_Inc64(Atomic_uint64 *var) // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedIncrement64((__int64 *)&var->value);
 #else
 #error No compiler defined for Atomic_Inc64
@@ -1799,7 +1813,7 @@ Atomic_Dec64(Atomic_uint64 *var) // IN
       : "cc"
    );
    AtomicEpilogue();
-#elif _MSC_VER
+#elif defined _MSC_VER
    _InterlockedDecrement64((__int64 *)&var->value);
 #else
 #error No compiler defined for Atomic_Dec64
@@ -1838,7 +1852,7 @@ Atomic_ReadWrite64(Atomic_uint64 *var, // IN
    );
    AtomicEpilogue();
    return val;
-#elif _MSC_VER
+#elif defined _MSC_VER
    return _InterlockedExchange64((__int64 *)&var->value, (__int64)val);
 #else
 #error No compiler defined for Atomic_ReadWrite64

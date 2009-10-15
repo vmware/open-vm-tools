@@ -184,7 +184,7 @@ typedef long int64;
 typedef unsigned long long uint64;
 typedef long long int64;
 #endif
-#elif __FreeBSD__
+#elif defined __FreeBSD__
 typedef unsigned long long uint64;
 typedef long long int64;
 #endif

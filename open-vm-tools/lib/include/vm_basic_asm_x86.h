@@ -159,7 +159,7 @@ Div643232(uint64 dividend,   // IN
    );
 }
 
-#elif _MSC_VER
+#elif defined _MSC_VER
 
 static INLINE void
 Div643232(uint64 dividend,   // IN
@@ -328,7 +328,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
    return result;
 }
 
-#elif _MSC_VER
+#elif defined _MSC_VER
 #pragma warning(disable: 4035)
 
 static INLINE uint64
@@ -435,7 +435,7 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
    return result;
 }
 
-#elif _MSC_VER
+#elif defined _MSC_VER
 #pragma warning(disable: 4035)
 
 static INLINE int64
