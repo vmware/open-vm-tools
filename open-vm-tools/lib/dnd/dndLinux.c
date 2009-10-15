@@ -159,6 +159,7 @@ DnDUriListGetFile(char const *uriList,  // IN    : text/uri-list string
     * XXX Note that this assumes we only support dropping files, based on the
     * definition of the macro that is used.
     */
+
    nameStart = &uriList[*index];
 
    if (strncmp(nameStart,
@@ -170,8 +171,9 @@ DnDUriListGetFile(char const *uriList,  // IN    : text/uri-list string
                       sizeof DND_URI_LIST_PRE_KDE - 1) == 0) {
       nameStart += sizeof DND_URI_LIST_PRE_KDE - 1;
    } else {
-      Warning("DnDUriListGetFile: the URI list did not begin with %s or %s\n",
+      Warning("%s: the URI list did not begin with %s or %s\n", __func__,
               DND_URI_LIST_PRE, DND_URI_LIST_PRE_KDE);
+
       return NULL;
     }
 
@@ -192,6 +194,7 @@ DnDUriListGetFile(char const *uriList,  // IN    : text/uri-list string
 
    *index = curr - uriList;
    *length = nameEnd - nameStart + 1;
+
    return (char *)nameStart;
 }
 
@@ -244,9 +247,11 @@ DnD_UriListGetNextFile(char const *uriList,  // IN    : text/uri-list string
     * Retrieve an allocated, unescaped name.  This undoes the ' ' -> "%20"
     * escaping as required by RFC 1630 for entries in a uri-list.
     */
+
    unescapedName = Escape_Undo('%', file, fileLength, &unescapedLength);
    if (!unescapedName) {
       Warning("%s: error unescaping filename\n", __func__);
+
       return NULL;
    }
 
@@ -254,6 +259,7 @@ DnD_UriListGetNextFile(char const *uriList,  // IN    : text/uri-list string
    if (length) {
       *length = unescapedLength;
    }
+
    return unescapedName;
 }
 
@@ -287,6 +293,7 @@ DnD_AddBlockLegacy(int blockFd,                    // IN
    if (VMBLOCK_CONTROL(blockFd, VMBLOCK_ADD_FILEBLOCK, blockPath) != 0) {
       LOG(1, ("%s: Cannot add block on %s (%s)\n",
               __func__, blockPath, strerror(errno)));
+
       return FALSE;
    }
 
@@ -318,12 +325,14 @@ DnD_RemoveBlockLegacy(int blockFd,                    // IN
       if (VMBLOCK_CONTROL(blockFd, VMBLOCK_DEL_FILEBLOCK, blockedPath) != 0) {
          Log("%s: Cannot delete block on %s (%s)\n",
              __func__, blockedPath, strerror(errno));
+
          return FALSE;
       }
    } else {
       LOG(4, ("%s: Could not remove block on %s: "
               "fd to vmblock no longer exists.\n", __func__, blockedPath));
    }
+
    return TRUE;
 }
 
@@ -380,6 +389,7 @@ DnD_AddBlockFuse(int blockFd,                    // IN
                             blockPath) != 0) {
       LOG(1, ("%s: Cannot add block on %s (%s)\n",
               __func__, blockPath, strerror(errno)));
+
       return FALSE;
    }
 
@@ -412,6 +422,7 @@ DnD_RemoveBlockFuse(int blockFd,                    // IN
                                blockedPath) != 0) {
          Log("%s: Cannot delete block on %s (%s)\n",
              __func__, blockedPath, strerror(errno));
+
          return FALSE;
       }
    } else {
@@ -450,12 +461,14 @@ DnD_CheckBlockFuse(int blockFd)                    // IN
    if (size < 0) {
       LOG(4, ("%s: read failed, error %s.\n",
               __func__, strerror(errno)));
+
       return FALSE;
    }
 
    if (size != sizeof(VMBLOCK_FUSE_READ_RESPONSE)) {
       LOG(4, ("%s: Response too short (%"FMTSZ"d vs. %"FMTSZ"u).\n",
               __func__, size, sizeof(VMBLOCK_FUSE_READ_RESPONSE)));
+
       return FALSE;
    }
 
@@ -463,6 +476,7 @@ DnD_CheckBlockFuse(int blockFd)                    // IN
               sizeof(VMBLOCK_FUSE_READ_RESPONSE))) {
       LOG(4, ("%s: Invalid response %.*s",
               __func__, (int)sizeof(VMBLOCK_FUSE_READ_RESPONSE) - 1, buf));
+
       return FALSE;
    }
 
@@ -503,6 +517,7 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
    fp = OPEN_MNTFILE("r");
    if (fp == NULL) {
       LOG(1, ("%s: could not open mount file\n", __func__));
+
       return -1;
    }
 
@@ -511,6 +526,7 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
        * In the future we can publish the mount point in VMDB so that the UI
        * can use it rather than enforcing the VMBLOCK_MOUNT_POINT check here.
        */
+
       if (strcmp(MNTINFO_FSTYPE(mnt), vmbFsName) == 0 &&
           strcmp(MNTINFO_MNTPT(mnt), vmbMntPoint) == 0) {
          found = TRUE;
@@ -669,6 +685,7 @@ DnD_CompleteBlockInitialization(int fd,                     // IN
       blkCtrl->RemoveBlock = DnD_RemoveBlockLegacy;
    } else {
       Log("%s: Can't determine block type.\n", __func__);
+
       return FALSE;
    }
 
