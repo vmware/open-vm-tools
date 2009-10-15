@@ -44,7 +44,6 @@
 #endif
 #include "file.h"
 #include "hostinfo.h"
-#include "str.h"
 #include "system.h"
 
 #if defined(G_PLATFORM_WIN32)
@@ -55,20 +54,6 @@
 
 #define LOGGING_GROUP         "logging"
 #define MAX_DOMAIN_LEN        64
-
-/*
- * glib will send log messages to the default handler if there's no
- * handler specified for a given log level. We want to avoid that,
- * and force configuration at each different log domain, so we always
- * register the handlers for all log levels, and filter at the handler
- * function.
- */
-#define ALL_LOG_LEVELS        G_LOG_LEVEL_ERROR    |  \
-                              G_LOG_LEVEL_CRITICAL |  \
-                              G_LOG_LEVEL_WARNING  |  \
-                              G_LOG_LEVEL_MESSAGE  |  \
-                              G_LOG_LEVEL_INFO     |  \
-                              G_LOG_LEVEL_DEBUG
 
 /** Tells whether the given log level is a fatal error. */
 #define IS_FATAL(level) ((level) & G_LOG_FLAG_FATAL)
@@ -117,6 +102,31 @@ static GPtrArray *gDomains = NULL;
 
 /* Internal functions. */
 
+
+/**
+ * glib-based version of Str_Asprintf().
+ *
+ * @param[out] string   Where to store the result.
+ * @param[in]  format   String format.
+ * @param[in]  ...      String arguments.
+ *
+ * @return Number of bytes printed.
+ */
+
+static INLINE gint
+VMToolsAsprintf(gchar **string,
+                gchar const *format,
+                ...)
+{
+   gint cnt;
+   va_list args;
+   va_start(args, format);
+   cnt = g_vasprintf(string, format, args);
+   va_end(args);
+   return cnt;
+}
+
+
 /**
  * Opens a log file for writing, backing up the existing log file if one is
  * present. Only one old log file is preserved.
@@ -164,6 +174,8 @@ VMToolsLogOpenFile(const gchar *path,
  * @param[in] domain       Log domain.
  * @param[in] level        Log level.
  * @param[in] timestamp    Whether to print the timestamp.
+ * @param[in] printAppName Whether to include the app name (a.k.a. the default
+ *                         domain) in the message.
  *
  * @return Formatted log message in the current encoding. Should be free()'d.
  */
@@ -172,14 +184,24 @@ static char *
 VMToolsLogFormat(const gchar *message,
                  const gchar *domain,
                  GLogLevelFlags level,
-                 gboolean timestamp)
+                 gboolean timestamp,
+                 gboolean printAppName)
 {
    char *msg = NULL;
    char *msgCurr = NULL;
-   char *slevel;
+   const char *slevel;
+   size_t len = 0;
 
    if (domain == NULL) {
       domain = gLogDomain;
+   }
+
+   /*
+    * glib 2.16 on Windows has a bug where its printf implementations don't
+    * like NULL.
+    */
+   if (message == NULL) {
+      message = "<null>";
    }
 
    switch (level & G_LOG_LEVEL_MASK) {
@@ -215,17 +237,28 @@ VMToolsLogFormat(const gchar *message,
       char *tstamp;
 
       tstamp = System_GetTimeAsString();
-      msg = Str_Asprintf(NULL, "[%s] [%8s] [%s] %s\n",
-                         (tstamp != NULL) ? tstamp : "no time",
-                         slevel, domain, message);
+      if (printAppName) {
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
+                               (tstamp != NULL) ? tstamp : "no time",
+                               slevel, gLogDomain, domain, message);
+      } else {
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] %s\n",
+                               (tstamp != NULL) ? tstamp : "no time",
+                               slevel, domain, message);
+      }
       free(tstamp);
    } else {
-      msg = Str_Asprintf(NULL, "[%8s] [%s] %s", slevel, domain, message);
+      if (printAppName) {
+         len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
+                               slevel, gLogDomain, domain, message);
+      } else {
+         len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+      }
    }
 
    if (msg != NULL) {
-      size_t len;
-      CodeSet_Utf8ToCurrent(msg, strlen(msg), &msgCurr, &len);
+      size_t msgCurrLen;
+      msgCurr = g_locale_from_utf8(msg, strlen(msg), NULL, &msgCurrLen, NULL);
 
       /*
        * The log messages from glib itself (and probably other libraries based
@@ -233,13 +266,13 @@ VMToolsLogFormat(const gchar *message,
        * we detect whether the original message already had a new line, and
        * remove it, to avoid having two newlines when printing our log messages.
        */
-      if (msgCurr != NULL && msgCurr[len - 2] == '\n') {
-         msgCurr[len - 1] = '\0';
+      if (msgCurr != NULL && msgCurr[msgCurrLen - 2] == '\n') {
+         msgCurr[msgCurrLen - 1] = '\0';
       }
    }
 
    if (msgCurr != NULL) {
-      free(msg);
+      g_free(msg);
       return msgCurr;
    }
    return msg;
@@ -283,10 +316,10 @@ VMToolsLogOutputDebugString(const gchar *domain,
 {
    LogHandlerData *data = _data;
    if (SHOULD_LOG(level, data)) {
-      char *msg = VMToolsLogFormat(message, domain, level, FALSE);
+      char *msg = VMToolsLogFormat(message, domain, level, FALSE, TRUE);
       if (msg != NULL) {
          OutputDebugStringA(msg);
-         free(msg);
+         g_free(msg);
       }
    }
    if (IS_FATAL(level)) {
@@ -315,7 +348,6 @@ VMToolsLogFile(const gchar *domain,
 {
    LogHandlerData *data = _data;
    if (SHOULD_LOG(level, data)) {
-      FILE *dest;
       data = data->inherited ? gDefaultData : data;
       if (!data->error && data->file == NULL && data->path != NULL) {
          data->file = VMToolsLogOpenFile(data->path, data->append);
@@ -340,13 +372,13 @@ VMToolsLogFile(const gchar *domain,
       if (!(level & G_LOG_FLAG_RECURSION) && data->error) {
          DEFAULT_HANDLER(domain, level | G_LOG_FLAG_RECURSION, message, gDefaultData);
       } else {
-         char *msg = VMToolsLogFormat(message, domain, level, TRUE);
+         gchar *msg = VMToolsLogFormat(message, domain, level, TRUE, FALSE);
          if (msg != NULL) {
-            dest = (data->file != NULL) ? data->file
-                     : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
+            FILE *dest = (data->file != NULL) ? data->file
+                           : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
             fputs(msg, dest);
             fflush(dest);
-            vm_free(msg);
+            g_free(msg);
          }
       }
    }
@@ -394,7 +426,7 @@ VMToolsConfigLogDomain(const gchar *domain,
       goto exit;
    }
 
-   Str_Sprintf(key, sizeof key, "%s.level", domain);
+   g_snprintf(key, sizeof key, "%s.level", domain);
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (level == NULL) {
 #ifdef VMX86_DEBUG
@@ -405,7 +437,7 @@ VMToolsConfigLogDomain(const gchar *domain,
    }
 
    /* Parse the handler information. */
-   Str_Sprintf(key, sizeof key, "%s.handler", domain);
+   g_snprintf(key, sizeof key, "%s.handler", domain);
    handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
 
    if (handler == NULL) {
@@ -421,7 +453,7 @@ VMToolsConfigLogDomain(const gchar *domain,
       /* Don't set up the file sink if logging is disabled. */
       if (strcmp(level, "none") != 0) {
          handlerFn = VMToolsLogFile;
-         Str_Sprintf(key, sizeof key, "%s.data", domain);
+         g_snprintf(key, sizeof key, "%s.data", domain);
          logpath = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
          if (logpath == NULL) {
             g_warning("Missing log path for file handler (%s).\n", domain);
@@ -491,7 +523,7 @@ VMToolsConfigLogDomain(const gchar *domain,
                    G_LOG_LEVEL_MESSAGE |
                    G_LOG_LEVEL_INFO;
    } else if (strcmp(level, "debug") == 0) {
-      levelsMask = ALL_LOG_LEVELS;
+      levelsMask = G_LOG_LEVEL_MASK;
    } else if (strcmp(level, "none") == 0) {
       levelsMask = 0;
    } else {
@@ -542,7 +574,10 @@ VMToolsConfigLogDomain(const gchar *domain,
          gDomains = g_ptr_array_new();
       }
       g_ptr_array_add(gDomains, data);
-      data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS | G_LOG_FATAL_MASK,
+      data->handlerId = g_log_set_handler(domain, 
+                                          G_LOG_LEVEL_MASK |
+                                          G_LOG_FLAG_FATAL |
+                                          G_LOG_FLAG_RECURSION,
                                           handlerFn, data);
    }
 
