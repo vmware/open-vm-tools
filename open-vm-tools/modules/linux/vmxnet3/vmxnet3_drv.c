@@ -156,7 +156,7 @@ static int enable_shm[VMXNET3_SHM_MAX_DEVICES + 1] =
    { [0 ... VMXNET3_SHM_MAX_DEVICES] = -1 };
 static char *shm_disclaimer = NULL;
 static int correct_shm_disclaimer;
-#define VMXNET3_SHM_DISCLAIMER "IReallyWantThisModeIAmAVMSafePartner"
+#define VMXNET3_SHM_DISCLAIMER "IReallyWantThisModeIAmAVMwarePartner"
 
 /*
  *----------------------------------------------------------------------------

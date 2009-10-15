@@ -787,6 +787,43 @@ typedef struct {
 } SCSIBlockModeSenseDeviceParameter;
 
 /*
+ * Structure for Mode Caching Page.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8   pageCode:6,
+           reserved1:1,
+           ps:1;
+   uint8   pageLength;
+   uint8   rcd:1,
+           mf:1,
+           wce:1,   // set if device has a write cache and it is enabled
+           size:1,
+           disc:1,
+           cap:1,
+           abpf:1,
+           ic:1;
+   uint8   writePriority:4,
+           readPriority:4;
+   uint16  disablePrefetchTransferLength;
+   uint16  minPrefetch;
+   uint16  maxPrefetch;
+   uint16  maxPrefetchCeiling;
+   uint8   reserved2:3,
+           vs:2,
+           dra:1,
+           lbcss:1,
+           fsw:1;
+   uint8 numCacheSegments;
+   uint16 cacheSegmentSize;
+   uint8 reserved3;
+   uint8 nonCacheSegmentSize[3];
+} 
+#include "vmware_pack_end.h"
+SCSIModeSenseCachePage;
+
+/*
  * Command structure for a SCSI Reserve command.
  */
 typedef
@@ -1201,6 +1238,43 @@ struct {
 }
 #include "vmware_pack_end.h"
 SCSIReadCapacity16Response;
+
+/*
+ * Format of SYNCHRONIZE CACHE (10) and (16) request and response blocks.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8 opcode;  // 0x35
+   uint8       :5,
+       sync_nv :1,
+       immed   :1, // if set return without waiting for sync to complete
+               :1;
+   uint32     lbn; // number of blocks to sync, 0 for full disk
+   uint8       :4,
+      grp_num  :4;
+   uint8      lbc; // blk to begin sync, 0 for full disk
+   uint8  control; // control byte
+}
+#include "vmware_pack_end.h"
+SCSISyncCache10Cmd;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8 opcode;  // 0x91
+   uint8       :5,
+       sync_nv :1,
+       immed   :1, // if set return, wihout waiting for sync to complete
+               :1;
+   uint64     lbn; // number of blocks to sync, 0 for full disk
+   uint8       :4,
+      grp_num  :4;
+   uint32     lbc; // block number to begin sync, 0 for full disk
+   uint8  control; // control byte
+}
+#include "vmware_pack_end.h"
+SCSISyncCache16Cmd;
 
 /*
  * Format of READ/WRITE (6), (10), (12) and (16)
