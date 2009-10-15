@@ -60,12 +60,81 @@ static compat_mutex_t hgfsChannelLock;        /* Lock to protect hgfsChannel. */
 static struct list_head hgfsRepPending;       /* Reply pending queue. */
 static spinlock_t hgfsRepQueueLock;           /* Reply pending queue lock. */
 
-#define HgfsRequestId(req) ((HgfsRequest *)req)->id
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTransportOpenChannel --
+ *
+ *     Opens given communication channel with HGFS server.
+ *
+ * Results:
+ *     TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+HgfsTransportOpenChannel(HgfsTransportChannel *channel)
+{
+   Bool ret;
+
+   switch (channel->status) {
+   case HGFS_CHANNEL_UNINITIALIZED:
+   case HGFS_CHANNEL_DEAD:
+      ret = FALSE;
+      break;
+
+   case HGFS_CHANNEL_CONNECTED:
+      ret = TRUE;
+      break;
+
+   case HGFS_CHANNEL_NOTCONNECTED:
+      ret = channel->ops.open(channel);
+      if (ret) {
+         channel->status = HGFS_CHANNEL_CONNECTED;
+      }
+      break;
+
+   default:
+      ret = FALSE;
+      ASSERT(0); /* Not reached. */
+   }
+
+   return ret;
+}
 
 
 /*
- * Private function implementations.
+ *----------------------------------------------------------------------
+ *
+ * HgfsTransportCloseChannel --
+ *
+ *     Closes currently open communication channel. Has to be called
+ *     while holdingChannelLock.
+ *
+ * Results:
+ *     None
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
  */
+
+static void
+HgfsTransportCloseChannel(HgfsTransportChannel *channel)
+{
+   if (channel->status == HGFS_CHANNEL_CONNECTED ||
+       channel->status == HGFS_CHANNEL_DEAD) {
+
+      channel->ops.close(channel);
+      channel->status = HGFS_CHANNEL_NOTCONNECTED;
+   }
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -86,83 +155,28 @@ static spinlock_t hgfsRepQueueLock;           /* Reply pending queue lock. */
 static Bool
 HgfsTransportSetupNewChannel(void)
 {
-   hgfsChannel = HgfsGetVSocketChannel();
-   if (hgfsChannel != NULL) {
-      if (hgfsChannel->ops.open(hgfsChannel)) {
+   HgfsTransportChannel *newChannel;
+
+   newChannel = HgfsGetVSocketChannel();
+   if (newChannel != NULL) {
+      if (HgfsTransportOpenChannel(newChannel)) {
+         hgfsChannel = newChannel;
          return TRUE;
       }
    }
 
-   hgfsChannel = HgfsGetTcpChannel();
-   if (hgfsChannel != NULL) {
-      if (hgfsChannel->ops.open(hgfsChannel)) {
+   newChannel = HgfsGetTcpChannel();
+   if (newChannel != NULL) {
+      if (HgfsTransportOpenChannel(newChannel)) {
+         hgfsChannel = newChannel;
          return TRUE;
       }
    }
 
-   hgfsChannel = HgfsGetBdChannel();
-   if (hgfsChannel != NULL) {
-      if (hgfsChannel->ops.open(hgfsChannel)) {
-         return TRUE;
-      }
-   }
-
-   hgfsChannel = NULL;
-   return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HgfsTransportStopCurrentChannel --
- *
- *     Teardown current channel and stop current receive thread.
- *
- * Results:
- *     None
- *
- * Side effects:
- *     None
- *
- *----------------------------------------------------------------------
- */
-
-static void
-HgfsTransportStopCurrentChannel(void)
-{
-   if (hgfsChannel) {
-      hgfsChannel->ops.exit(hgfsChannel);
-      hgfsChannel = NULL;
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HgfsTransportChannelFailover --
- *
- *     Called when current channel doesn't work. Find a new channel
- *     for transport.
- *
- * Results:
- *     TRUE on success, otherwise FALSE;
- *
- * Side effects:
- *     Teardown current opened channel and the receive thread, set up
- *     new channel and new receive thread.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-HgfsTransportChannelFailover(void) {
-   Bool ret = FALSE;
-   HgfsTransportStopCurrentChannel();
-   ret = HgfsTransportSetupNewChannel();
-   LOG(8, ("VMware hgfs: %s result: %s.\n", __func__, ret ? "TRUE" : "FALSE"));
-   return ret;
+   newChannel = HgfsGetBdChannel();
+   ASSERT(newChannel);
+   hgfsChannel = newChannel;
+   return HgfsTransportOpenChannel(newChannel);
 }
 
 
@@ -215,24 +229,18 @@ HgfsTransportRemovePendingRequest(HgfsReq *req)   // IN: Request to dequeue
    ASSERT(req);
 
    spin_lock(&hgfsRepQueueLock);
-   if (!list_empty(&req->list)) {
-      list_del_init(&req->list);
-   }
+   list_del_init(&req->list);
    spin_unlock(&hgfsRepQueueLock);
 }
 
 
 /*
- * Public function implementations.
- */
-
-/*
  *----------------------------------------------------------------------
  *
- * HgfsTransportProcessPacket --
+ * HgfsTransportFlushPendingRequests --
  *
- *     Helper function to process received packets, called by the channel
- *     handler thread.
+ *     Complete all submitted requests with an error, called when
+ *     we are about to tear down communication channel.
  *
  * Results:
  *     None
@@ -243,55 +251,72 @@ HgfsTransportRemovePendingRequest(HgfsReq *req)   // IN: Request to dequeue
  *----------------------------------------------------------------------
  */
 
-void
-HgfsTransportProcessPacket(char *receivedPacket,    //IN: received packet
-                           size_t receivedSize)     //IN: packet size
+static void
+HgfsTransportFlushPendingRequests(void)
 {
-   struct list_head *cur, *next;
-   HgfsHandle id;
-   Bool found = FALSE;
+   struct HgfsReq *req;
 
-   /* Got the reply. */
-
-   ASSERT(receivedPacket != NULL && receivedSize > 0);
-   id = HgfsRequestId(receivedPacket);
-   LOG(8, ("VMware hgfs: %s entered.\n", __func__));
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: req id: %d\n", __func__, id));
-   /*
-    * Search through hgfsRepPending queue for the matching id and wake up
-    * the associated waiting process. Delete the req from the queue.
-    */
    spin_lock(&hgfsRepQueueLock);
-   list_for_each_safe(cur, next, &hgfsRepPending) {
-      HgfsReq *req;
-      req = list_entry(cur, HgfsReq, list);
-      if (req->id == id) {
-         ASSERT(req->state == HGFS_REQ_STATE_SUBMITTED);
-         HgfsCompleteReq(req, receivedPacket, receivedSize);
-         found = TRUE;
+
+   list_for_each_entry(req, &hgfsRepPending, list) {
+      if (req->state == HGFS_REQ_STATE_SUBMITTED) {
+         LOG(6, ("VMware hgfs: %s: injecting error reply to req id: %d\n",
+                 __func__, req->id));
+         HgfsFailReq(req, -EIO);
+      }
+   }
+
+   spin_unlock(&hgfsRepQueueLock);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTransportGetPendingRequest --
+ *
+ *     Attempts to locate request with specified ID in the queue of
+ *     pending (waiting for server's reply) requests.
+ *
+ * Results:
+ *     NULL if request not found; otherwise address of the request
+ *     structure.
+ *
+ * Side effects:
+ *     Increments reference count of the request.
+ *
+ *----------------------------------------------------------------------
+ */
+
+HgfsReq *
+HgfsTransportGetPendingRequest(HgfsHandle id)   // IN: id of the request
+{
+   HgfsReq *cur, *req = NULL;
+
+   spin_lock(&hgfsRepQueueLock);
+
+   list_for_each_entry(cur, &hgfsRepPending, list) {
+      if (cur->id == id) {
+         ASSERT(cur->state == HGFS_REQ_STATE_SUBMITTED);
+         req = HgfsRequestGetRef(cur);
          break;
       }
    }
+
    spin_unlock(&hgfsRepQueueLock);
 
-   if (!found) {
-      LOG(4, ("VMware hgfs: %s: No matching id, dropping reply\n",
-              __func__));
-   }
-   LOG(8, ("VMware hgfs: %s exited.\n", __func__));
+   return req;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * HgfsTransportBeforeExitingRecvThread --
+ * HgfsTransportAllocateRequest --
  *
- *     The cleanup work to do before the recv thread exits, including
- *     completing pending requests with error.
+ *     Allocates HGFS request structre using channel-specific allocator.
  *
  * Results:
- *     None
+ *     NULL on failure; otherwisepointer to newly allocated request.
  *
  * Side effects:
  *     None
@@ -299,25 +324,25 @@ HgfsTransportProcessPacket(char *receivedPacket,    //IN: received packet
  *----------------------------------------------------------------------
  */
 
-void
-HgfsTransportBeforeExitingRecvThread(void)
+HgfsReq *
+HgfsTransportAllocateRequest(size_t bufferSize)   // IN: size of the buffer
 {
-   struct list_head *cur, *next;
+   HgfsReq *req = NULL;
+   /*
+    * We use a temporary variable to make sure we stamp the request with
+    * same channel as we used to make allocation since hgfsChannel can
+    * be changed while we do allocation.
+    */
+   HgfsTransportChannel *currentChannel = hgfsChannel;
 
-   /* Walk through hgfsRepPending queue and reply them with error. */
-   spin_lock(&hgfsRepQueueLock);
-   list_for_each_safe(cur, next, &hgfsRepPending) {
-      HgfsReq *req;
-      HgfsReply reply;
+   ASSERT(currentChannel);
 
-      /* XXX: Make the request senders be aware of this error. */
-      reply.status = -EIO;
-      req = list_entry(cur, HgfsReq, list);
-      LOG(6, ("VMware hgfs: %s: injecting error reply to req id: %d\n",
-              __func__, req->id));
-      HgfsCompleteReq(req, (char *)&reply, sizeof reply);
+   req = currentChannel->ops.allocate(bufferSize);
+   if (req) {
+         req->transportId = currentChannel;
    }
-   spin_unlock(&hgfsRepQueueLock);
+
+   return req;
 }
 
 
@@ -340,36 +365,67 @@ HgfsTransportBeforeExitingRecvThread(void)
 int
 HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
 {
-   int ret;
+   HgfsReq *origReq = req;
+   int ret = -EIO;
+
    ASSERT(req);
    ASSERT(req->state == HGFS_REQ_STATE_UNSENT);
    ASSERT(req->payloadSize <= HGFS_PACKET_MAX);
 
    compat_mutex_lock(&hgfsChannelLock);
 
-   /* Try opening the channel. */
-   if (!hgfsChannel && !HgfsTransportSetupNewChannel()) {
-      compat_mutex_unlock(&hgfsChannelLock);
-      return -EPROTO;
-   }
-
-   ASSERT(hgfsChannel->ops.send);
-
    HgfsTransportAddPendingRequest(req);
 
-   while ((ret = hgfsChannel->ops.send(hgfsChannel, req)) != 0) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: %s: send failed. Return %d\n",
+   do {
+
+      if (unlikely(hgfsChannel->status != HGFS_CHANNEL_CONNECTED)) {
+         if (hgfsChannel->status == HGFS_CHANNEL_DEAD) {
+            HgfsTransportCloseChannel(hgfsChannel);
+            HgfsTransportFlushPendingRequests();
+         }
+
+         if (!HgfsTransportSetupNewChannel()) {
+            ret = -EIO;
+            goto out;
+         }
+      }
+
+      ASSERT(hgfsChannel->ops.send);
+
+      /* If channel changed since we created request we need to adjust */
+      if (req->transportId != hgfsChannel) {
+
+         HgfsTransportRemovePendingRequest(req);
+
+         if (req != origReq) {
+            HgfsRequestPutRef(req);
+         }
+
+         req = HgfsCopyRequest(origReq);
+         if (req == NULL) {
+            req = origReq;
+            ret = -ENOMEM;
+            goto out;
+         }
+
+         HgfsTransportAddPendingRequest(req);
+      }
+
+      ret = hgfsChannel->ops.send(hgfsChannel, req);
+      if (likely(ret == 0))
+         break;
+
+      LOG(4, (KERN_DEBUG "VMware hgfs: %s: send failed with error %d\n",
               __func__, ret));
+
       if (ret == -EINTR) {
          /* Don't retry when we are interrupted by some signal. */
          goto out;
       }
-      if (!hgfsChannel->ops.open(hgfsChannel) && !HgfsTransportChannelFailover()) {
-         /* Can't establish a working channel, just report error. */
-         ret = -EIO;
-         goto out;
-      }
-   }
+
+      hgfsChannel->status = HGFS_CHANNEL_DEAD;
+
+   } while (1);
 
    ASSERT(req->state == HGFS_REQ_STATE_COMPLETED ||
           req->state == HGFS_REQ_STATE_SUBMITTED);
@@ -377,15 +433,25 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
 out:
    compat_mutex_unlock(&hgfsChannelLock);
 
-   if (ret == 0) { /* Send succeeded. */
+   if (likely(ret == 0)) {
+      /* Send succeeded, wait for the reply */
       if (wait_event_interruptible(req->queue,
                                    req->state == HGFS_REQ_STATE_COMPLETED)) {
          ret = -EINTR; /* Interrupted by some signal. */
       }
-   } /* else send failed. */
+   }
 
-   if (ret < 0) {
-      HgfsTransportRemovePendingRequest(req);
+   HgfsTransportRemovePendingRequest(req);
+
+   /*
+    * If we used a copy of request because we changed transport we
+    * need to copy payload back into original request.
+    */
+   if (req != origReq) {
+      ASSERT(req->payloadSize <= origReq->bufferSize);
+      origReq->payloadSize = req->payloadSize;
+      memcpy(origReq->payload, req->payload, req->payloadSize);
+      HgfsRequestPutRef(req);
    }
 
    return ret;
@@ -418,7 +484,45 @@ HgfsTransportInit(void)
    spin_lock_init(&hgfsRepQueueLock);
    compat_mutex_init(&hgfsChannelLock);
 
-   hgfsChannel = NULL;
+   compat_mutex_lock(&hgfsChannelLock);
+
+   hgfsChannel = HgfsGetBdChannel();
+   ASSERT(hgfsChannel);
+
+   compat_mutex_unlock(&hgfsChannelLock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTransportMarkDead --
+ *
+ *     Marks current channel as dead so it can be cleaned up and
+ *     fails all submitted requests.
+ *
+ * Results:
+ *     None
+ *
+ * Side effects:
+ *     None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+HgfsTransportMarkDead(void)
+{
+   LOG(8, ("VMware hgfs: %s entered.\n", __func__));
+
+   compat_mutex_lock(&hgfsChannelLock);
+
+   if (hgfsChannel) {
+      hgfsChannel->status = HGFS_CHANNEL_DEAD;
+   }
+   HgfsTransportFlushPendingRequests();
+
+   compat_mutex_unlock(&hgfsChannelLock);
 }
 
 
@@ -442,10 +546,15 @@ void
 HgfsTransportExit(void)
 {
    LOG(8, ("VMware hgfs: %s entered.\n", __func__));
+
    compat_mutex_lock(&hgfsChannelLock);
-   HgfsTransportStopCurrentChannel();
+   ASSERT(hgfsChannel);
+   HgfsTransportCloseChannel(hgfsChannel);
+   hgfsChannel = NULL;
    compat_mutex_unlock(&hgfsChannelLock);
 
    ASSERT(list_empty(&hgfsRepPending));
    LOG(8, ("VMware hgfs: %s exited.\n", __func__));
 }
+
+

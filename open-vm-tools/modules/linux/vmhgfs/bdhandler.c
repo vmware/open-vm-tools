@@ -37,8 +37,6 @@
 #include "transport.h"
 #include "vm_assert.h"
 
-HgfsTransportChannel bdChannel;
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -61,29 +59,14 @@ HgfsBdChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 {
    Bool ret = FALSE;
 
-   compat_mutex_lock(&channel->connLock);
-   switch (channel->status) {
-   case HGFS_CHANNEL_UNINITIALIZED:
-      ret = FALSE;
-      break;
-   case HGFS_CHANNEL_CONNECTED:
+   ASSERT(channel->status == HGFS_CHANNEL_NOTCONNECTED);
+
+   if (HgfsBd_OpenBackdoor((RpcOut **)&channel->priv)) {
+      LOG(8, ("VMware hgfs: %s: backdoor opened.\n", __func__));
       ret = TRUE;
-      break;
-   case HGFS_CHANNEL_NOTCONNECTED:
-      if (HgfsBd_OpenBackdoor((RpcOut **)&channel->priv)) {
-         LOG(8, ("VMware hgfs: %s: backdoor opened.\n", __func__));
-         bdChannel.status = HGFS_CHANNEL_CONNECTED;
-         ret = TRUE;
-         ASSERT(channel->priv != NULL);
-      } else {
-         ret = FALSE;
-      }
-      break;
-   default:
-      ASSERT(0); /* Not reached. */
+      ASSERT(channel->priv != NULL);
    }
 
-   compat_mutex_unlock(&channel->connLock);
    return ret;
 }
 
@@ -107,15 +90,48 @@ HgfsBdChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 static void
 HgfsBdChannelClose(HgfsTransportChannel *channel) // IN: Channel
 {
-   compat_mutex_lock(&channel->connLock);
-   if (channel->status == HGFS_CHANNEL_CONNECTED) {
-      ASSERT(channel->priv != NULL);
-      HgfsBd_CloseBackdoor((RpcOut **)&channel->priv);
-      ASSERT(channel->priv == NULL);
-      channel->status = HGFS_CHANNEL_NOTCONNECTED;
-   }
-   compat_mutex_unlock(&channel->connLock);
+   ASSERT(channel->priv != NULL);
+
+   HgfsBd_CloseBackdoor((RpcOut **)&channel->priv);
+   ASSERT(channel->priv == NULL);
+
    LOG(8, ("VMware hgfs: %s: backdoor closed.\n", __func__));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsBdChannelAllocate --
+ *
+ *      Allocate request uin the way that is suitable for sending through
+ *      backdoor.
+ *
+ * Results:
+ *      NULL on failure; otherwise address of the new request.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsReq *
+HgfsBdChannelAllocate(size_t payloadSize) // IN: size of requests payload
+{
+   HgfsReq *req;
+
+   req = kmalloc(sizeof(*req) + HGFS_SYNC_REQREP_CLIENT_CMD_LEN + payloadSize,
+                 GFP_KERNEL);
+   if (likely(req)) {
+      /* Setup the packet prefix. */
+      memcpy(req->buffer, HGFS_SYNC_REQREP_CLIENT_CMD,
+             HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
+
+      req->payload = req->buffer + HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
+   }
+
+   return req;
 }
 
 
@@ -147,59 +163,21 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
    ASSERT(req->state == HGFS_REQ_STATE_UNSENT);
    ASSERT(req->payloadSize <= HGFS_PACKET_MAX);
 
-   compat_mutex_lock(&channel->connLock);
-
-   if (channel->status != HGFS_CHANNEL_CONNECTED) {
-      LOG(6, (KERN_DEBUG "VMware hgfs: %s: Backdoor not opened\n", __func__));
-      compat_mutex_unlock(&channel->connLock);
-      return -ENOTCONN;
-   }
-
-   payloadSize = req->payloadSize;
    LOG(8, ("VMware hgfs: %s: backdoor sending.\n", __func__));
+   payloadSize = req->payloadSize;
    ret = HgfsBd_Dispatch(channel->priv, HGFS_REQ_PAYLOAD(req), &payloadSize,
                          &replyPacket);
    if (ret == 0) {
       LOG(8, ("VMware hgfs: %s: Backdoor reply received.\n", __func__));
       /* Request sent successfully. Copy the reply and wake the client. */
       ASSERT(replyPacket);
-      HgfsCompleteReq(req, replyPacket, payloadSize);
-   } else {
-      channel->priv = NULL;
-      channel->status = HGFS_CHANNEL_NOTCONNECTED;
+      ASSERT(payloadSize <= req->bufferSize);
+      memcpy(HGFS_REQ_PAYLOAD(req), replyPacket, payloadSize);
+      req->payloadSize = payloadSize;
+      HgfsCompleteReq(req);
    }
-   compat_mutex_unlock(&channel->connLock);
 
    return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HgfsBdChannelExit --
- *
- *     Tear down the channel.
- *
- * Results:
- *     None
- *
- * Side effects:
- *     None
- *
- *----------------------------------------------------------------------
- */
-
-static void
-HgfsBdChannelExit(HgfsTransportChannel *channel)  // IN
-{
-   compat_mutex_lock(&channel->connLock);
-   if (channel->priv != NULL) {
-      HgfsBd_CloseBackdoor((RpcOut **)&channel->priv);
-      ASSERT(channel->priv == NULL);
-   }
-   channel->status = HGFS_CHANNEL_UNINITIALIZED;
-   compat_mutex_unlock(&channel->connLock);
 }
 
 
@@ -222,14 +200,15 @@ HgfsBdChannelExit(HgfsTransportChannel *channel)  // IN
 HgfsTransportChannel*
 HgfsGetBdChannel(void)
 {
-   bdChannel.name = "backdoor";
-   bdChannel.ops.open = HgfsBdChannelOpen;
-   bdChannel.ops.close = HgfsBdChannelClose;
-   bdChannel.ops.send = HgfsBdChannelSend;
-   bdChannel.ops.recv = NULL;
-   bdChannel.ops.exit = HgfsBdChannelExit;
-   bdChannel.priv = NULL;
-   compat_mutex_init(&bdChannel.connLock);
-   bdChannel.status = HGFS_CHANNEL_NOTCONNECTED;
-   return &bdChannel;
+   static HgfsTransportChannel channel;
+
+   channel.name = "backdoor";
+   channel.ops.open = HgfsBdChannelOpen;
+   channel.ops.close = HgfsBdChannelClose;
+   channel.ops.allocate = HgfsBdChannelAllocate;
+   channel.ops.send = HgfsBdChannelSend;
+   channel.priv = NULL;
+   channel.status = HGFS_CHANNEL_NOTCONNECTED;
+
+   return &channel;
 }

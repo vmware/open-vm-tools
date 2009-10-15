@@ -53,10 +53,6 @@ extern int LOGLEVEL_THRESHOLD;
 #define LOG(level, args)
 #endif
 
-extern char *HOST_IP;
-extern int HOST_PORT;
-extern int HOST_VSOCKET_PORT;
-
 /* Blocksize to be set in superblock. (XXX how is this used?) */
 #define HGFS_BLOCKSIZE 1024
 
@@ -231,7 +227,6 @@ extern struct file_operations HgfsDirFileOperations;
 extern struct address_space_operations HgfsAddressSpaceOperations;
 
 /* Other global state. */
-extern compat_kmem_cache *hgfsReqCache;
 extern compat_kmem_cache *hgfsInodeCache;
 
 extern HgfsOp hgfsVersionOpen;

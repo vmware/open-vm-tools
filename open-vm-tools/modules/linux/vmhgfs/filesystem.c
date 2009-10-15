@@ -72,7 +72,6 @@
 spinlock_t hgfsBigLock = SPIN_LOCK_UNLOCKED;
 
 /* Other variables. */
-compat_kmem_cache *hgfsReqCache = NULL;
 compat_kmem_cache *hgfsInodeCache = NULL;
 
 /* Global protocol version switch. */
@@ -621,17 +620,6 @@ HgfsInitFileSystem(void)
    /* Initialize primitives. */
    HgfsResetOps();
 
-   /* Setup the request slab allocator. */
-   hgfsReqCache = compat_kmem_cache_create("hgfsReqCache",
-                                           sizeof (HgfsReq),
-                                           0,
-                                           SLAB_HWCACHE_ALIGN,
-                                           NULL);
-   if (hgfsReqCache == NULL) {
-      printk(KERN_WARNING "VMware hgfs: failed to create request allocator\n");
-      goto error_caches;
-   }
-
    /* Setup the inode slab allocator. */
    hgfsInodeCache = compat_kmem_cache_create("hgfsInodeCache",
                                              sizeof (HgfsInodeInfo),
@@ -640,7 +628,7 @@ HgfsInitFileSystem(void)
                                              HgfsInodeCacheCtor);
    if (hgfsInodeCache == NULL) {
       printk(KERN_WARNING "VMware hgfs: failed to create inode allocator\n");
-      goto error_caches;
+      return FALSE;
    }
 
    /* Initialize the transport. */
@@ -652,22 +640,16 @@ HgfsInitFileSystem(void)
     */
    if (register_filesystem(&hgfsType)) {
       printk(KERN_WARNING "VMware hgfs: failed to register filesystem\n");
-      goto error_caches;
+      kmem_cache_destroy(hgfsInodeCache);
+      return FALSE;
    }
    LOG(4, (KERN_DEBUG "VMware hgfs: Module Loaded\n"));
+
 #ifdef HGFS_ENABLE_WRITEBACK
    LOG(4, (KERN_DEBUG "VMware hgfs: writeback cache enabled\n"));
 #endif
-   return TRUE;
 
-error_caches:
-   if (hgfsInodeCache != NULL) {
-      kmem_cache_destroy(hgfsInodeCache);
-   }
-   if (hgfsReqCache != NULL) {
-      kmem_cache_destroy(hgfsReqCache);
-   }
-   return FALSE;
+   return TRUE;
 }
 
 
@@ -692,14 +674,6 @@ HgfsCleanupFileSystem(void)
 {
    Bool success = TRUE;
 
-/* FIXME: Check actual kernel version when RR's modules went in */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 45)
-   if (MOD_IN_USE) {
-      printk(KERN_WARNING "VMware hgfs: filesystem in use, removal failed\n");
-      success = FALSE;
-   }
-#endif
-
   /*
    * Unregister the filesystem. This should be the first thing we do in
    * the module cleanup code.
@@ -714,7 +688,6 @@ HgfsCleanupFileSystem(void)
 
    /* Destroy the inode and request slabs. */
    kmem_cache_destroy(hgfsInodeCache);
-   kmem_cache_destroy(hgfsReqCache);
 
    LOG(4, (KERN_DEBUG "VMware hgfs: Module Unloaded\n"));
    return success;
