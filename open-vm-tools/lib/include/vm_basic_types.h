@@ -574,19 +574,18 @@ typedef void * UserVA;
 #define MAX_PPN         ((PPN)0x1fffffff)   /* Maximal observable PPN value. */
 #define INVALID_PPN     ((PPN)0xffffffff)
 
-#define INVALID_BPN  ((BPN) 0x1fffffff)
+#define INVALID_BPN     ((BPN)0x1fffffff)
 
-#define INVALID_MPN  ((MPN)-1)
-#define MEMREF_MPN   ((MPN)-2)
-#define RESERVED_MPN ((MPN) 0)
-/* Support 43 bits of address space. */
-#define MAX_MPN      ((MPN)0x7fffffff)
+#define INVALID_MPN     ((MPN)-1)
+#define MEMREF_MPN      ((MPN)-2)
+#define RESERVED_MPN    ((MPN) 0)
+#define MAX_MPN         ((MPN)0x7fffffff)  /* 43 bits of address space. */
 
-#define INVALID_LPN ((LPN)-1)
-#define INVALID_VPN ((VPN)-1)
-#define INVALID_LPN64 ((LPN64)-1)
+#define INVALID_LPN     ((LPN)-1)
+#define INVALID_VPN     ((VPN)-1)
+#define INVALID_LPN64   ((LPN64)-1)
 #define INVALID_PAGENUM ((PageNum)-1)
-#define INVALID_WPN ((WPN) -1)
+#define INVALID_WPN     ((WPN) -1)
 
 
 /*
@@ -594,7 +593,7 @@ typedef void * UserVA;
  * Use them like this: Log("%#"FMTLA"x\n", laddr)
  */
 
-#if defined(VMM64) || defined(FROBOS64) || vm_x86_64 || defined __APPLE__
+#if defined(VMM) || defined(FROBOS64) || vm_x86_64 || defined __APPLE__
 #   define FMTLA "l"
 #   define FMTVA "l"
 #   define FMTVPN "l"
