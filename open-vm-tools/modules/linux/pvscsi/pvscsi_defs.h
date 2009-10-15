@@ -449,6 +449,8 @@ PVSCSIRingsState;
 #define PVSCSI_FLAG_CMD_DIR_TOHOST          (1 << 3)
 #define PVSCSI_FLAG_CMD_DIR_TODEVICE        (1 << 4)
 
+#define PVSCSI_FLAG_RESERVED_MASK           (~MASK(5))
+
 typedef
 #include "vmware_pack_begin.h"
 struct PVSCSIRingReqDesc {
