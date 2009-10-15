@@ -53,6 +53,7 @@
 #define CONFNAME_LOGFILE                  "log.file"
 #define CONFNAME_LOGLEVEL                 "log.level" 
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
+#define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
 
 
 /*
