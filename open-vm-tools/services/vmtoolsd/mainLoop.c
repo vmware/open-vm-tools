@@ -35,6 +35,7 @@
 #include "conf.h"
 #include "guestApp.h"
 #include "serviceObj.h"
+#include "system.h"
 #include "util.h"
 #include "vm_app.h"
 #include "vmcheck.h"
@@ -120,6 +121,13 @@ ToolsCore_Cleanup(ToolsServiceState *state)
       state->debugData = NULL;
       state->debugLib = NULL;
    }
+
+#if !defined(_WIN32)
+   if (state->ctx.envp) {
+      System_FreeNativeEnviron(state->ctx.envp);
+      state->ctx.envp = NULL;
+   }
+#endif
 
    g_object_unref(state->ctx.serviceObj);
    state->ctx.serviceObj = NULL;

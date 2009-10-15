@@ -29,7 +29,9 @@
 #include <unistd.h>
 #include <glib/gstdio.h>
 #include "file.h"
+#include "guestApp.h"
 #include "hostinfo.h"
+#include "system.h"
 #include "unicode.h"
 #include "util.h"
 #include "vmtools.h"
@@ -105,13 +107,15 @@ ToolsCoreSigUsrHandler(const siginfo_t *info,
  *
  * @param[in] argc   Argument count.
  * @param[in] argv   Argument array.
+ * @param[in] envp   User environment.
  *
  * @return 0 on successful execution, error code otherwise.
  */
 
 int
 main(int argc,
-     char *argv[])
+     char *argv[],
+     const char *envp[])
 {
    int i;
    int ret = EXIT_FAILURE;
@@ -211,6 +215,13 @@ main(int argc,
    src = VMTools_NewSignalSource(SIGUSR1);
    VMTOOLSAPP_ATTACH_SOURCE(&gState.ctx, src, ToolsCoreSigUsrHandler, NULL, NULL);
    g_source_unref(src);
+
+   /*
+    * Save the original environment so that we can safely spawn other
+    * applications (since we may have to modify the original environment
+    * to launch vmtoolsd successfully).
+    */
+   gState.ctx.envp = System_GetNativeEnviron(envp);
 
    ret = ToolsCore_Run(&gState);
 

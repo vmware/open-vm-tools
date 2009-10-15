@@ -186,6 +186,8 @@ typedef struct ToolsAppCtx {
 #else
    /** The FD to access the VMware blocking fs. -1 if no FD available. */
    int               blockFD;
+   /** The native environment (without any VMware modifications). */
+   const char      **envp;
 #endif
    /**
     * A GObject instance shared among all plugins. The object itself doesn't
