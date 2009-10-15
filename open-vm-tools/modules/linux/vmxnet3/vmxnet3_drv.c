@@ -4484,6 +4484,8 @@ vmxnet3_suspend(struct pci_dev *pdev, pm_message_t state)
    }
 
    vmxnet3_disable_all_intrs(adapter);
+   vmxnet3_free_irqs(adapter);
+   vmxnet3_free_intr_resources(adapter);
    netif_device_detach(netdev);
    netif_stop_queue(netdev);
 
@@ -4614,6 +4616,8 @@ vmxnet3_resume(struct pci_dev *pdev)
    pci_enable_wake(pdev, PCI_D0, 0);
 
    VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_UPDATE_PMCFG);
+   vmxnet3_alloc_intr_resources(adapter);
+   vmxnet3_request_irqs(adapter);
    vmxnet3_enable_all_intrs(adapter);
 
    return 0;

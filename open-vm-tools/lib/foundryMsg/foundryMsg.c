@@ -437,7 +437,7 @@ static const VixCommandInfo vixCommandInfoTable[] = {
                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
 
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_CHANGE_DISPLAY_TOPOLOGY_MODES,
-                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
 };
 
 
