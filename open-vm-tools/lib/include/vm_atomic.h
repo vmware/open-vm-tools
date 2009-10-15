@@ -203,15 +203,8 @@ AtomicEpilogue(void)
                  "lfence\n\t"
                  "2:\n\t"
                  ".pushsection .patchtext\n\t"
-#ifdef VMM32
-                 ".long 1b\n\t"
-                 ".long 0\n\t"
-                 ".long 2b\n\t"
-                 ".long 0\n\t"
-#else 
                  ".quad 1b\n\t"
                  ".quad 2b\n\t"
-#endif
                  ".popsection\n\t" ::: "memory");
 #else
    if (UNLIKELY(AtomicUseFence)) {
@@ -1438,7 +1431,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    Bool equal;
 
    /* Checked against the Intel manual and GCC --walken */
-#ifdef VMM64
+#if defined(__x86_64__)
    uint64 dummy;
    __asm__ __volatile__(
       "lock; cmpxchgq %3, %0" "\n\t"
@@ -1452,7 +1445,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    );
 #else /* 32-bit version */
    int dummy1, dummy2;
-#   if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#   if defined __PIC__ // %ebx is reserved by the compiler.
 #      if defined __GNUC__ && __GNUC__ < 3 // Part of #188541 - for RHL 6.2 etc.
    __asm__ __volatile__(
       "xchg %%ebx, %6\n\t"
