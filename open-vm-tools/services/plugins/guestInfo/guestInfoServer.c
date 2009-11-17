@@ -394,11 +394,7 @@ GuestInfoGather(gpointer data)
          if (!GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, &diskInfo)) {
             g_warning("Failed to update VMDB\n.");
          }
-      }
-      /* Free memory allocated in GuestInfoGetDiskInfo. */
-      if (diskInfo.partitionList != NULL) {
-         vm_free(diskInfo.partitionList);
-         diskInfo.partitionList = NULL;
+         GuestInfo_FreeDiskInfo(&diskInfo);
       }
    }
 
@@ -411,20 +407,20 @@ GuestInfoGather(gpointer data)
    /* Get NIC information. */
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
-   } else if (NicInfoChanged(nicInfo)) {
-      if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
+   } else {
+      if (!NicInfoChanged(nicInfo)) {
+         g_debug("Nic info not changed.\n");
+      } else if (!GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
+         g_warning("Failed to update VMDB.\n");
+      } else {
          /*
           * Update the cache. Release the memory previously used by the cache,
           * and copy the new information into the cache.
           */
          GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
          gInfoCache.nicInfo = nicInfo;
-      } else {
-         g_warning("Failed to update VMDB.\n");
-         GuestInfo_FreeNicInfo(nicInfo);
+         nicInfo = NULL; /* So we don't try to free it below */
       }
-   } else {
-      g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
    }
 
@@ -758,8 +754,7 @@ nicinfo_fsm:
          char *reply;
          size_t replyLen;
          Bool status;
-         PGuestDiskInfo pdi = (PGuestDiskInfo)info;
-         int j = 0;
+         GuestDiskInfo *pdi = info;
 
          if (!DiskInfoChanged(pdi)) {
             g_debug("Disk info not changed.\n");
@@ -803,34 +798,25 @@ nicinfo_fsm:
 
          g_debug("sizeof request is %d\n", requestSize);
          status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply, &replyLen);
+         if (status) {
+            status = (*reply == '\0');
+         }
 
-         if (!status || (strncmp(reply, "", 1) != 0)) {
+         vm_free(request);
+         vm_free(reply);
+
+         if (!status) {
             g_warning("Failed to update disk information.\n");
-            vm_free(request);
-            vm_free(reply);
             return FALSE;
          }
 
          g_debug("Updated disk info information\n");
-         vm_free(reply);
-         vm_free(request);
 
-         /* Free any memory previously allocated in the cache. */
-         if (gInfoCache.diskInfo.partitionList != NULL) {
-            vm_free(gInfoCache.diskInfo.partitionList);
-            gInfoCache.diskInfo.partitionList = NULL;
-         }
-         gInfoCache.diskInfo.numEntries = pdi->numEntries;
-         gInfoCache.diskInfo.partitionList = calloc(pdi->numEntries,
-                                                         sizeof(PartitionEntry));
-         if (gInfoCache.diskInfo.partitionList == NULL) {
-            g_warning("Could not allocate memory for the disk info cache.\n");
+         if (!GuestInfo_CopyDiskInfo(&gInfoCache.diskInfo, pdi)) {
+            g_warning("Could not cache the disk info data.\n");
             return FALSE;
          }
 
-         for (j = 0; j < pdi->numEntries; j++) {
-            gInfoCache.diskInfo.partitionList[j] = pdi->partitionList[j];
-         }
          break;
       }
    default:
@@ -893,7 +879,7 @@ SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
    }
 
    /* The reply indicates whether the key,value pair was updated in VMDB. */
-   status = (strncmp(reply, "", 1) == 0);
+   status = (*reply == '\0');
    vm_free(reply);
    return status;
 }
@@ -1128,6 +1114,8 @@ GuestInfoClearCache(void)
       gInfoCache.value[i][0] = 0;
    }
 
+   GuestInfo_FreeDiskInfo(&gInfoCache.diskInfo);
+
    GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
    gInfoCache.nicInfo = NULL;
 }
@@ -1317,6 +1305,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
    memset(&gInfoCache, 0, sizeof gInfoCache);
+   GuestInfo_InitDiskInfo(&gInfoCache.diskInfo);
    vmResumed = FALSE;
 
    /*

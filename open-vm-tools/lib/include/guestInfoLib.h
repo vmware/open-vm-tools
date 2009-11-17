@@ -41,8 +41,18 @@ GuestInfo_GetNicInfo(NicInfoV3 **nicInfo);
 void
 GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo);
 
+void
+GuestInfo_InitDiskInfo(GuestDiskInfo *di);
+
 Bool
-GuestInfo_GetDiskInfo(PGuestDiskInfo di);
+GuestInfo_GetDiskInfo(GuestDiskInfo *di);
+
+Bool
+GuestInfo_CopyDiskInfo(GuestDiskInfo *dest,
+                       GuestDiskInfo *src);
+
+void
+GuestInfo_FreeDiskInfo(GuestDiskInfo *di);
 
 Bool
 GuestInfo_GetOSName(unsigned int outBufFullLen,

@@ -116,8 +116,8 @@ GuestInfo_GetAvailableDiskSpace(char *pathName)
  */
 
 Bool
-GuestInfo_GetFqdn(int outBufLen,        // IN
-                  char fqdn[])          // OUT
+GuestInfo_GetFqdn(int outBufLen,
+                  char fqdn[])
 {
    return GuestInfoGetFqdn(outBufLen, fqdn);
 }
@@ -141,7 +141,7 @@ GuestInfo_GetFqdn(int outBufLen,        // IN
  */
 
 Bool
-GuestInfo_GetNicInfo(NicInfoV3 **nicInfo)  // OUT
+GuestInfo_GetNicInfo(NicInfoV3 **nicInfo)
 {
    Bool retval = FALSE;
 
@@ -171,7 +171,7 @@ GuestInfo_GetNicInfo(NicInfoV3 **nicInfo)  // OUT
  */
 
 void
-GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo)       // IN
+GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo)
 {
    if (nicInfo != NULL) {
       VMX_XDR_FREE(xdr_NicInfoV3, nicInfo);
@@ -179,6 +179,24 @@ GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo)       // IN
    }
 }
 
+/*
+ ******************************************************************************
+ * GuestInfo_InitDiskInfo --                                             */ /**
+ *
+ * @brief Initializes disk info container for future use.
+ *
+ * @param[in,out] di    DiskInfo container.
+ *
+ ******************************************************************************
+ */
+
+void
+GuestInfo_InitDiskInfo(GuestDiskInfo *di)
+{
+   ASSERT(di);
+   di->numEntries = 0;
+   di->partitionList = NULL;
+}
 
 /*
  ******************************************************************************
@@ -198,7 +216,7 @@ GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo)       // IN
  */
 
 Bool
-GuestInfo_GetDiskInfo(PGuestDiskInfo di)     // IN/OUT
+GuestInfo_GetDiskInfo(GuestDiskInfo *di)
 {
    WiperPartition_List pl;
    DblLnkLst_Links *curr;
@@ -209,9 +227,9 @@ GuestInfo_GetDiskInfo(PGuestDiskInfo di)     // IN/OUT
    Bool success = FALSE;
 
    ASSERT(di);
+   GuestInfo_InitDiskInfo(di);
+
    partNameSize = sizeof (di->partitionList)[0].name;
-   di->numEntries = 0;
-   di->partitionList = NULL;
 
    /* Get partition list. */
    if (!WiperPartition_Open(&pl)) {
@@ -259,8 +277,82 @@ GuestInfo_GetDiskInfo(PGuestDiskInfo di)     // IN/OUT
    success = TRUE;
 
 out:
+   if (!success) {
+      GuestInfo_FreeDiskInfo(di);
+   }
    WiperPartition_Close(&pl);
    return success;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfo_CopyDiskInfo --                                             */ /**
+ *
+ * @brief Perform deep copy of GuestDiskInfo structire
+ *
+ * @param[in,out] dest     DiskInfo destination container.
+ * @param[in]     src      DiskInfo source container.
+ *
+ * @note
+ * If number of entries in dest and src differ the function will free memory
+ * previously allocated for the dest->partitionList (if any) and allocate a
+ * new chunk.
+ *
+ * @retval TRUE  Success.
+ * @retval FALSE Failure.
+ *
+ ******************************************************************************
+ */
+
+Bool
+GuestInfo_CopyDiskInfo(GuestDiskInfo *dest,
+                       GuestDiskInfo *src)
+{
+   size_t memSize;
+
+   ASSERT(src);
+   ASSERT(dest);
+
+   memSize = src->numEntries * sizeof(src->partitionList[0]);
+
+   if (dest->numEntries != src->numEntries) {
+      GuestInfo_FreeDiskInfo(dest);
+
+      dest->partitionList = malloc(memSize);
+      if (dest->partitionList == NULL) {
+         Debug("CopyDiskInfo: ERROR: could not allocate partition list.\n");
+         return FALSE;
+      }
+
+      dest->numEntries = src->numEntries;
+   }
+
+   memcpy(dest->partitionList, src->partitionList, memSize);
+
+   return TRUE;
+}
+
+/*
+ ******************************************************************************
+ * GuestInfo_FreeDiskInfo --                                             */ /**
+ *
+ * @brief Frees memory allocated by GuestInfo_GetDiskInfo.
+ *
+ * @param[in] di    DiskInfo container.
+ *
+ * @sa GuestInfo_GetDiskInfo
+ *
+ ******************************************************************************
+ */
+
+void
+GuestInfo_FreeDiskInfo(GuestDiskInfo *di)
+{
+   ASSERT(di);
+   free(di->partitionList);
+   di->partitionList = NULL;
+   di->numEntries = 0;
 }
 
 
@@ -289,10 +381,10 @@ out:
  */
 
 GuestNicV3 *
-GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                       // IN/OUT
-                     const char macAddress[NICINFO_MAC_LEN],   // IN
-                     DnsConfigInfo *dnsInfo,                   // IN
-                     WinsConfigInfo *winsInfo)                 // IN
+GuestInfoAddNicEntry(NicInfoV3 *nicInfo,
+                     const char macAddress[NICINFO_MAC_LEN],
+                     DnsConfigInfo *dnsInfo,
+                     WinsConfigInfo *winsInfo)
 {
    GuestNicV3 *newNic;
 
@@ -325,11 +417,11 @@ GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                       // IN/OUT
  */
 
 IpAddressEntry *
-GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OUT
-                      const struct sockaddr *sockAddr,  // IN
-                      InetAddressPrefixLength pfxLen,   // IN
-                      const IpAddressOrigin *origin,    // IN
-                      const IpAddressStatus *status)    // IN
+GuestInfoAddIpAddress(GuestNicV3 *nic,
+                      const struct sockaddr *sockAddr,
+                      InetAddressPrefixLength pfxLen,
+                      const IpAddressOrigin *origin,
+                      const IpAddressStatus *status)
 {
    IpAddressEntry *ip;
 
@@ -390,8 +482,8 @@ GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OUT
  */
 
 void
-GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,    // IN
-                                  TypedIpAddress *typedIp)      // OUT
+GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,
+                                  TypedIpAddress *typedIp)
 {
    struct sockaddr_in *sin = (struct sockaddr_in *)sa;
    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
@@ -434,9 +526,9 @@ GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,    // IN
  */
 
 Bool
-GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,  // IN
-                           int ifIndex,         // IN
-                           int *nicIfIndex)     // OUT
+GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,
+                           int ifIndex,
+                           int *nicIfIndex)
 {
    char hwAddrString[NICINFO_MAC_LEN];
    unsigned char hwAddr[16];
