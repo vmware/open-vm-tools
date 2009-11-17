@@ -58,6 +58,7 @@ extern "C" {
 #ifdef _MSC_VER
 #include <windows.h>
 #include <shlobj.h>
+#include "winregistry.h"
 #endif
 
 /*
@@ -893,50 +894,24 @@ GuestApp_GetInstallPath(void)
    char *pathUtf8 = NULL;
 
 #if defined(_WIN32)
-   LONG rv;
-   HKEY key;
-   DWORD type;
-   DWORD len = MAX_PATH;
-   size_t posLastChar;
-   WCHAR path[MAX_PATH] = L"";
    size_t pathLen = 0;
-   const WCHAR *keyName = L"Software\\VMware, Inc.\\VMware Tools";
 
-   rv = RegOpenKeyW(HKEY_LOCAL_MACHINE, keyName, &key);
-   if (rv != ERROR_SUCCESS) {
-      Warning("%s: Unable to open product key: error: %s\n",
+   if (WinReg_GetSZ(HKEY_LOCAL_MACHINE,
+                    "Software\\VMware, Inc.\\VMware Tools",
+                    "InstallPath",
+                    &pathUtf8) != ERROR_SUCCESS) {
+      Warning("%s: Unable to retrieve install path: %s\n",
                __FUNCTION__, Msg_ErrString());
       return NULL;
    }
 
-   rv = RegQueryValueExW(key, L"InstallPath", 0, &type, (LPBYTE)path, &len);
-   RegCloseKey(key);
-   if (rv != ERROR_SUCCESS) {
-      Warning("%s: Unable to retrieve key: error: %s\n",
-               __FUNCTION__, Msg_ErrString());
-      return NULL;
-   }
+   /* Strip off the trailing backslash, if present */
 
-   /*
-    * Strip off the trailing backslash.  This needs to be done with wchars to
-    * ensure that we don't mess up a path that ends with the 5C character.
-    */
-
-   pathLen = wcslen(path);
+   pathLen = strlen(pathUtf8);
    if (pathLen > 0) {
-      posLastChar = pathLen - 1;
-      if (path[posLastChar] == L'\\') {
-         path[posLastChar] = L'\0';
+      if (pathUtf8[pathLen - 1] == '\\') {
+         pathUtf8[pathLen - 1] = '\0';
       }
-   }
-
-   /* Convert to UTF-8 before returning to the outside world. */
-   if (!CodeSet_Utf16leToUtf8((const char *)path,
-                              wcslen(path) * sizeof(WCHAR),
-                              &pathUtf8,
-                              NULL)) {
-      Warning("%s: Unable to convert to UTF-8\n", __FUNCTION__);
-      return NULL;
    }
 
 #else
