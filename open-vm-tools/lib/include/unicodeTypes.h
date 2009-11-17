@@ -29,7 +29,6 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL
-#define INCLUDE_ALLOW_VMNIXMOD
 #include "includeCheck.h"
 
 

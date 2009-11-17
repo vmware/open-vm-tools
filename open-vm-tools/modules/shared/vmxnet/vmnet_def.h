@@ -45,7 +45,6 @@
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
-#define INCLUDE_ALLOW_VMNIXMOD
 #include "includeCheck.h"
 
 /*

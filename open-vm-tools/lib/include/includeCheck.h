@@ -70,7 +70,6 @@
  *	INCLUDE_ALLOW_VMMEXT
  *	INCLUDE_ALLOW_VMCORE
  *	INCLUDE_ALLOW_MODULE
- *      INCLUDE_ALLOW_VMNIXMOD 
  *	INCLUDE_ALLOW_VMKERNEL 
  *	INCLUDE_ALLOW_DISTRIBUTE
  *	INCLUDE_ALLOW_VMK_MODULE
@@ -133,7 +132,7 @@
 #endif
 #undef INCLUDE_ALLOW_VMMEXT
 
-#if defined MODULE && !defined VMKERNEL_MODULE && !defined VMNIXMOD && \
+#if defined MODULE && !defined VMKERNEL_MODULE && \
     !defined VMMON && !defined INCLUDE_ALLOW_MODULE
 #error "The surrounding include file is not allowed in driver modules."
 #endif
@@ -160,13 +159,6 @@
 #endif
 #undef INCLUDE_ALLOW_VMK_MODULE
 #undef INCLUDE_ALLOW_VMKDRIVERS
-
-#if defined VMNIXMOD && !defined INCLUDE_ALLOW_VMNIXMOD
-#ifndef VMNIXMOD_VM
-#error "The surrounding include file is not allowed in vmnixmod."
-#endif
-#endif
-#undef INCLUDE_ALLOW_VMNIXMOD
 
 #if defined VMIROM && ! defined INCLUDE_ALLOW_VMIROM
 #error "The surrounding include file is not allowed in vmirom."

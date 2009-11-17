@@ -28,7 +28,6 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMNIXMOD
 #include "includeCheck.h"
 
 /* for uint32 */

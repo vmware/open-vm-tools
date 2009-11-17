@@ -522,6 +522,73 @@ TimeUtil_PopulateWithCurrent(Bool local,       // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * TimeUtil_GetTimeOfDay --
+ *
+ *      Get the current time for local timezone in seconds and micro-seconds.
+ *      same as gettimeofday on posix systems. Time is returned in the 'time'
+ *      variable.
+ *
+ * Results:
+ *      void
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)
+{
+
+#ifdef _WIN32
+   FILETIME ft;
+   uint64 tmptime = 0;
+
+   ASSERT(timeofday != NULL);
+
+   /*
+    * May need to use QueryPerformanceCounter API if we need more 
+    * refinement/accuracy than what we are doing below.
+    */
+
+   NOT_TESTED();
+
+   // Get the system time in UTC format.
+   GetSystemTimeAsFileTime(&ft);
+   
+   // Convert ft structure to a uint64 containing the # of 100 ns from UTC.
+   tmptime |= ft.dwHighDateTime;
+   tmptime <<= 32;
+   tmptime |= ft.dwLowDateTime;
+   
+#define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
+   // Convert file time to unix epoch.
+   tmptime -= DELTA_EPOCH_IN_MICROSECS; 
+   // convert into microseconds (since the return is in 100 nseconds).
+   tmptime /= 10;  
+   // Get the seconds and microseconds in the timeofday
+   timeofday->seconds = (unsigned long)(tmptime / 1000000UL);
+   timeofday->useconds = (unsigned long)(tmptime % 1000000UL);
+   
+
+#undef DELTA_EPOCH_IN_MICROSECS   
+#else
+   struct timeval curTime;
+   
+   ASSERT(timeofday != NULL);
+
+   gettimeofday(&curTime, NULL);
+   timeofday->seconds = (unsigned long) curTime.tv_sec;
+   timeofday->useconds = (unsigned long) curTime.tv_usec;
+#endif // _WIN32
+
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * TimeUtil_DaysLeft --
