@@ -106,6 +106,7 @@ typedef enum {
    BALLOON_GUEST_WINDOWS_NT5 = 4,
    BALLOON_GUEST_SOLARIS     = 5,
    BALLOON_GUEST_MACOS       = 6,
+   BALLOON_GUEST_FROBOS      = 7,
 } BalloonGuest;
 
 /* error codes */
