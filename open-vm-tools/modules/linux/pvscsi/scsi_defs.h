@@ -1864,6 +1864,124 @@ SCSIPlayMSFCmd;
 
 
 /*
+ * Definitions for MMC Features and Profiles. See MMC-2, Section 5 for details.
+ * The response to a GET CONFIGURATION (0x46) command consists of a Feature
+ * Header with zero or more Feature Descriptors.
+ */
+
+/*
+ * Feature Header.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 length;
+   uint8  reserved[2];
+   uint16 currentProfile;
+}
+#include "vmware_pack_end.h"
+SCSIFeatureHeader;
+
+
+/*
+ * Feature Descriptor generic format.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+#define SCSI_FEAT_CODE_PROFILELIST     0x0
+#define SCSI_FEAT_CODE_CORE            0x1
+#define SCSI_FEAT_CODE_MORPHING        0x2
+#define SCSI_FEAT_CODE_REMOVABLEMEDIUM 0x3
+   uint16 code;
+   uint8  featureCurrent:1,
+          persistent:1,
+          version:4,
+          reserved:2;
+   uint8  additionalLength;
+   /* Feature Dependent Data to follow. */
+}
+#include "vmware_pack_end.h"
+SCSIFeatureDescriptor;
+
+/*
+ * Profile Descriptor format.
+ *
+ * Zero or more of these follow the Profile List Feature Descriptor, which
+ * matches the generic Feature Descriptor format described above.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+#define SCSI_PROFILE_NUMBER_DVDROM 0x10
+   uint16 number;
+   uint8  profileCurrent:1,
+          reserved0:7;
+   uint8  reserved1;
+}
+#include "vmware_pack_end.h"
+SCSIProfileDescriptor;
+
+
+/*
+ * Many Feature Descriptors consist of nothing more than the generic Feature
+ * Descriptor format defined earlier; those that are larger are defined below.
+ */
+
+/*
+ * Core Feature Descriptor format.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SCSIFeatureDescriptor feature;
+#define SCSI_CORE_PHY_ATAPI 0x2
+   uint32                phy;
+}
+#include "vmware_pack_end.h"
+SCSICoreFeatureDescriptor;
+
+
+/*
+ * Morphing Descriptor format.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SCSIFeatureDescriptor feature;
+   uint8 async:1,
+         reserved0:7;
+   uint8 reserved1;
+   uint8 reserved2;
+   uint8 reserved3;
+}
+#include "vmware_pack_end.h"
+SCSIMorphingFeatureDescriptor;
+
+
+/*
+ * Removable Medium Descriptor format.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SCSIFeatureDescriptor feature;
+   uint8                 lock:1,
+                         reserved0:1,
+                         preventJumper:1,
+                         eject:1,
+                         reserved1:1,
+#define SCSI_REMOVABLE_MEDIUM_TYPE_TRAY 0x1
+                         loadingMechanismType:3;
+   uint8                 reserved2;
+   uint8                 reserved3;
+   uint8                 reserved4;
+}
+#include "vmware_pack_end.h"
+SCSIRemovableMediumFeatureDescriptor;
+
+
+/*
  * Host and device status definitions.
  *
  * These mimic the BusLogic adapter-specific definitions but are
