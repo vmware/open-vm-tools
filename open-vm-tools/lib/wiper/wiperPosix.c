@@ -422,6 +422,9 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
    } if (strcmp(MNTINFO_FSTYPE(mnt), "ext3") == 0) {
       item->type = PARTITION_EXT3;
 
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "ext4") == 0) {
+      item->type = PARTITION_EXT4;
+
    } if (strcmp(MNTINFO_FSTYPE(mnt), "reiserfs") == 0) {
       item->type = PARTITION_REISERFS;
 
