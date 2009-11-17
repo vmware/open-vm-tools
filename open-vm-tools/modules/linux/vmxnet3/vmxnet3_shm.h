@@ -36,54 +36,54 @@
 
 struct vmxnet3_shm_mapped_page
 {
-   struct page *page;
-   void *virt;
+	struct page *page;
+	void *virt;
 };
 
 struct vmxnet3_shm_pool
 {
-   struct list_head list;
-   char name[IFNAMSIZ + 16];
-   struct kobject kobj;
+	struct list_head list;
+	char name[IFNAMSIZ + 16];
+	struct kobject kobj;
 
-   struct
-   {
-      // pages backing the map in virtual address order
-      struct vmxnet3_shm_mapped_page pages[SHM_DATA_SIZE];
-      unsigned int num_pages;
-   } data;
+	struct
+	{
+		/* pages backing the map in virtual address order */
+		struct vmxnet3_shm_mapped_page pages[SHM_DATA_SIZE];
+		unsigned int num_pages;
+	} data;
 
-   struct
-   {
-      // pages backing the map in virtual address order
-      struct page *pages[SHM_CTL_SIZE];
-      struct vmxnet3_shm_ctl *ptr;
-   } ctl;
+	struct
+	{
+		/* pages backing the map in virtual address order */
+		struct page *pages[SHM_CTL_SIZE];
+		struct vmxnet3_shm_ctl *ptr;
+	} ctl;
 
-   struct
-   {
-      /*
-       * This is a stack of free pages. count is the number of free pages, so
-       * count - 1 is the topmost free page.
-       */
-      uint16 count;
-      uint16 stack[SHM_DATA_SIZE];
-   } allocator;
+	struct
+	{
+		/*
+		 * This is a stack of free pages. count is the number of free pages, so
+		 * count - 1 is the topmost free page.
+		 */
+		u16 count;
+		u16 stack[SHM_DATA_SIZE];
+	} allocator;
 
-   struct
-   {
-      struct vmxnet3_shm_ringentry res[VMXNET3_SHM_MAX_FRAGS];
-      int frags;
-   } partial_tx;
+	struct
+	{
+		struct vmxnet3_shm_ringentry res[VMXNET3_SHM_MAX_FRAGS];
+		int frags;
+	} partial_tx;
 
-   struct miscdevice misc_dev;
+	struct miscdevice misc_dev;
 
-   wait_queue_head_t rxq;
-   spinlock_t alloc_lock, tx_lock, rx_lock;
-   struct vmxnet3_adapter *adapter;
+	wait_queue_head_t rxq;
+	spinlock_t alloc_lock, tx_lock, rx_lock;
+	struct vmxnet3_adapter *adapter;
 };
 
-// Convert ring index to the struct page* or virt address.
+/* Convert ring index to the struct page* or virt address. */
 #define VMXNET3_SHM_IDX2PAGE(shm, idx) (shm->data.pages[(idx)].page)
 #define VMXNET3_SHM_SET_IDX2PAGE(shm, idx, x) (shm->data.pages[(idx)].page = (x))
 
@@ -98,15 +98,15 @@ int
 vmxnet3_shm_open(struct vmxnet3_adapter *adapter, char *name);
 int
 vmxnet3_shm_user_rx(struct vmxnet3_shm_pool *shm,
-                   uint16 idx, uint16 len,
-                   int trash, int eop);
+		u16 idx, u16 len,
+		int trash, int eop);
 void
 vmxnet3_free_skbpages(struct vmxnet3_adapter *adapter, struct sk_buff *skb);
 
-uint16
+u16
 vmxnet3_shm_alloc_page(struct vmxnet3_shm_pool *shm);
 void
-vmxnet3_shm_free_page(struct vmxnet3_shm_pool *shm, uint16 idx);
+vmxnet3_shm_free_page(struct vmxnet3_shm_pool *shm, u16 idx);
 
 int
 vmxnet3_shm_start_tx(struct sk_buff *skb, struct net_device *dev);
@@ -131,28 +131,28 @@ vmxnet3_shm_rx_skb(struct vmxnet3_adapter *adapter, struct sk_buff *skb);
 static inline void
 vmxnet3_dev_kfree_skb(struct vmxnet3_adapter *adapter, struct sk_buff *skb)
 {
-   if (adapter->is_shm) {
-      vmxnet3_free_skbpages(adapter, skb);
-   }
-   compat_dev_kfree_skb(skb, FREE_WRITE);
+	if (adapter->is_shm)
+		vmxnet3_free_skbpages(adapter, skb);
+
+	compat_dev_kfree_skb(skb, FREE_WRITE);
 }
 
 static inline void
 vmxnet3_dev_kfree_skb_any(struct vmxnet3_adapter *adapter, struct sk_buff *skb)
 {
-   if (adapter->is_shm) {
-      vmxnet3_free_skbpages(adapter, skb);
-   }
-   compat_dev_kfree_skb_any(skb, FREE_WRITE);
+	if (adapter->is_shm)
+		vmxnet3_free_skbpages(adapter, skb);
+
+	compat_dev_kfree_skb_any(skb, FREE_WRITE);
 }
 
 static inline void
 vmxnet3_dev_kfree_skb_irq(struct vmxnet3_adapter *adapter, struct sk_buff *skb)
 {
-   if (adapter->is_shm) {
-      vmxnet3_free_skbpages(adapter, skb);
-   }
-   compat_dev_kfree_skb_irq(skb, FREE_WRITE);
+	if (adapter->is_shm)
+		vmxnet3_free_skbpages(adapter, skb);
+
+	compat_dev_kfree_skb_irq(skb, FREE_WRITE);
 }
 
 /*
@@ -173,49 +173,49 @@ vmxnet3_dev_kfree_skb_irq(struct vmxnet3_adapter *adapter, struct sk_buff *skb)
 static inline unsigned int
 vmxnet3_skb_headlen(struct vmxnet3_adapter *adapter, struct sk_buff *skb)
 {
-   if (adapter->is_shm) {
-      return VMXNET3_SHM_SKB_GETLEN(skb);
-   } else {
-      return compat_skb_headlen(skb);
-   }
+	if (adapter->is_shm)
+		return VMXNET3_SHM_SKB_GETLEN(skb);
+	else
+		return compat_skb_headlen(skb);
+
 }
 
 static inline void
 vmxnet3_skb_put(struct vmxnet3_adapter *adapter, struct sk_buff *skb, unsigned int len)
 {
-   if (!adapter->is_shm) {
-      skb_put(skb, len);
-   } else {
-      unsigned int oldlen = VMXNET3_SHM_SKB_GETLEN(skb);
-      VMXNET3_SHM_SKB_SETLEN(skb, len + oldlen);
-   }
+	if (!adapter->is_shm) {
+		skb_put(skb, len);
+	} else {
+		unsigned int oldlen = VMXNET3_SHM_SKB_GETLEN(skb);
+		VMXNET3_SHM_SKB_SETLEN(skb, len + oldlen);
+	}
 }
 
 static inline struct sk_buff*
 vmxnet3_dev_alloc_skb(struct vmxnet3_adapter *adapter, unsigned long length)
 {
-   if (adapter->is_shm) {
-      int idx;
-      struct sk_buff* skb;
-      idx = vmxnet3_shm_alloc_page(adapter->shm);
-      if (idx == SHM_INVALID_IDX) {
-         return NULL;
-      }
+	if (adapter->is_shm) {
+		int idx;
+		struct sk_buff* skb;
+		idx = vmxnet3_shm_alloc_page(adapter->shm);
+		if (idx == SHM_INVALID_IDX)
+			return NULL;
 
-      // The length is arbitrary because that memory shouldn't be used
-      skb = dev_alloc_skb(100);
-      if (skb == NULL) {
-         vmxnet3_shm_free_page(adapter->shm, idx);
-         return NULL;
-      }
 
-      VMXNET3_SHM_SKB_SETIDX(skb, idx);
-      VMXNET3_SHM_SKB_SETLEN(skb, 0);
+		/* The length is arbitrary because that memory shouldn't be used */
+		skb = dev_alloc_skb(100);
+		if (skb == NULL) {
+			vmxnet3_shm_free_page(adapter->shm, idx);
+			return NULL;
+		}
 
-      return skb;
-   } else {
-      return dev_alloc_skb(length);
-   }
+		VMXNET3_SHM_SKB_SETIDX(skb, idx);
+		VMXNET3_SHM_SKB_SETLEN(skb, 0);
+
+		return skb;
+	} else {
+		return dev_alloc_skb(length);
+	}
 }
 
 /*
@@ -235,45 +235,45 @@ vmxnet3_dev_alloc_skb(struct vmxnet3_adapter *adapter, unsigned long length)
  */
 static inline dma_addr_t
 vmxnet3_map_single(struct vmxnet3_adapter *adapter,
-                   struct sk_buff * skb,
-                   size_t offset,
-                   size_t len,
-                   int direction)
+		struct sk_buff * skb,
+		size_t offset,
+		size_t len,
+		int direction)
 {
-   if (adapter->is_shm) {
-      unsigned long shm_idx = VMXNET3_SHM_SKB_GETIDX(skb);
-      struct page *real_page = VMXNET3_SHM_IDX2PAGE(adapter->shm, shm_idx);
-      return pci_map_page(adapter->pdev,
-                          real_page,
-                          offset,
-                          len,
-                          direction);
-   } else {
-      return pci_map_single(adapter->pdev,
-                            skb->data + offset,
-                            len,
-                            direction);
-   }
+	if (adapter->is_shm) {
+		unsigned long shm_idx = VMXNET3_SHM_SKB_GETIDX(skb);
+		struct page *real_page = VMXNET3_SHM_IDX2PAGE(adapter->shm, shm_idx);
+		return pci_map_page(adapter->pdev,
+				real_page,
+				offset,
+				len,
+				direction);
+	} else {
+		return pci_map_single(adapter->pdev,
+				skb->data + offset,
+				len,
+				direction);
+	}
 
 }
 
 static inline dma_addr_t
 vmxnet3_map_page(struct vmxnet3_adapter *adapter,
-                 struct page *page,
-                 size_t offset,
-                 size_t len,
-                 int direction)
+		struct page *page,
+		size_t offset,
+		size_t len,
+		int direction)
 {
-   if (adapter->is_shm) {
-      unsigned long shm_idx = (unsigned long)page;
-      page = VMXNET3_SHM_IDX2PAGE(adapter->shm, shm_idx);
-   }
+	if (adapter->is_shm) {
+		unsigned long shm_idx = (unsigned long)page;
+		page = VMXNET3_SHM_IDX2PAGE(adapter->shm, shm_idx);
+	}
 
-   return pci_map_page(adapter->pdev,
-                       page,
-                       offset,
-                       len,
-                       direction);
+	return pci_map_page(adapter->pdev,
+			page,
+			offset,
+			len,
+			direction);
 }
 
 /*
@@ -294,23 +294,22 @@ vmxnet3_map_page(struct vmxnet3_adapter *adapter,
  */
 static inline void
 vmxnet3_put_page(struct vmxnet3_adapter *adapter,
-                 struct page *page)
+		struct page *page)
 {
-   if (!adapter->is_shm) {
-      put_page(page);
-   } else {
-      vmxnet3_shm_free_page(adapter->shm, (unsigned long)page);
-   }
+	if (!adapter->is_shm)
+		put_page(page);
+	else
+		vmxnet3_shm_free_page(adapter->shm, (unsigned long)page);
 }
 
 static inline void *
 vmxnet3_alloc_page(struct vmxnet3_adapter *adapter)
 {
-   if (adapter->is_shm) {
-      return (void*) (unsigned long) vmxnet3_shm_alloc_page(adapter->shm);
-   } else {
-      return alloc_page(GFP_ATOMIC);
-   }
+	if (adapter->is_shm)
+		return (void*) (unsigned long) vmxnet3_shm_alloc_page(adapter->shm);
+	else
+		return alloc_page(GFP_ATOMIC);
+
 }
 
 

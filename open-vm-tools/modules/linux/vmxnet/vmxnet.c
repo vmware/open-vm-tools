@@ -368,6 +368,118 @@ vmxnet_get_drvinfo(struct net_device *dev,
 /*
  *----------------------------------------------------------------------------
  *
+ * vmxnet_get_tx_csum --
+ *
+ *    Ethtool op to check whether or not hw csum offload is enabled.
+ *
+ * Result:
+ *    1 if csum offload is currently used and 0 otherwise.
+ *
+ * Side-effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static uint32
+vmxnet_get_tx_csum(struct net_device *netdev)
+{
+   return (netdev->features & NETIF_F_HW_CSUM) != 0;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet_get_rx_csum --
+ *
+ *    Ethtool op to check whether or not rx csum offload is enabled.
+ *
+ * Result:
+ *    Always return 1 to indicate that rx csum is enabled.
+ *
+ * Side-effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static uint32
+vmxnet_get_rx_csum(struct net_device *netdev)
+{
+   return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet_set_tx_csum --
+ *
+ *    Ethtool op to change if hw csum offloading should be used or not.
+ *    If the device supports hardware checksum capability netdev features bit
+ *    is set/reset. This bit is referred to while setting hw checksum required
+ *    flag (VMXNET2_TX_HW_XSUM) in xmit ring entry.
+ *
+ * Result:
+ *    0 on success. -EOPNOTSUPP if ethtool asks to set hw checksum and device
+ *    does not support it.
+ *
+ * Side-effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+vmxnet_set_tx_csum(struct net_device *netdev, uint32 val)
+{
+   if (val) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
+      struct Vmxnet_Private *lp = netdev_priv(netdev);
+      if (lp->capabilities & VMNET_CAP_HW_CSUM) {
+         netdev->features |= NETIF_F_HW_CSUM;
+         return 0;
+      }
+#endif
+      return -EOPNOTSUPP;
+   } else {
+      netdev->features &= ~NETIF_F_HW_CSUM;
+   }
+   return 0;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * vmxnet_set_rx_csum --
+ *
+ *    Ethtool op to change if hw csum offloading should be used or not for
+ *    received packets. Hardware checksum on received packets cannot be turned
+ *    off. Hence we fail the ethtool op which turns h/w csum off.
+ *
+ * Result:
+ *    0 when rx csum is set. -EOPNOTSUPP when ethtool tries to reset rx csum.
+ *
+ * Side-effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+vmxnet_set_rx_csum(struct net_device *netdev, uint32 val)
+{
+   if (val) {
+      return 0;
+   } else {
+      return -EOPNOTSUPP;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  *  vmxnet_set_tso --
  *
  *    Ethtool handler to set TSO. If the data is non-zero, TSO is
@@ -406,11 +518,18 @@ vmxnet_ethtool_ops = {
    .get_settings        = vmxnet_get_settings,
    .get_drvinfo         = vmxnet_get_drvinfo,
    .get_link            = ethtool_op_get_link,
+   .get_rx_csum         = vmxnet_get_rx_csum,
+   .set_rx_csum         = vmxnet_set_rx_csum,
+   .get_tx_csum         = vmxnet_get_tx_csum,
+   .set_tx_csum         = vmxnet_set_tx_csum,
    .get_sg              = ethtool_op_get_sg,
    .set_sg              = ethtool_op_set_sg,
 #ifdef VMXNET_DO_TSO
    .get_tso             = ethtool_op_get_tso,
    .set_tso             = vmxnet_set_tso,
+#   if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+   .get_ufo             = ethtool_op_get_ufo,
+#   endif
 #endif
 };
 
@@ -2280,7 +2399,8 @@ vmxnet_tx(struct sk_buff *skb, struct net_device *dev)
    }
 
    /* at this point, xre must point to the 1st tx entry for the pkt */
-   if (skb->ip_summed == VM_TX_CHECKSUM_PARTIAL) {
+   if (skb->ip_summed == VM_TX_CHECKSUM_PARTIAL &&
+       ((dev->features & NETIF_F_HW_CSUM) != 0)) {
       xre->flags |= VMXNET2_TX_HW_XSUM | VMXNET2_TX_CAN_KEEP;
    } else {
       xre->flags |= VMXNET2_TX_CAN_KEEP;
