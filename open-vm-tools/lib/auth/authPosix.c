@@ -31,6 +31,7 @@
 
 #include "vmware.h"
 #include "vm_version.h"
+#include "codeset.h"
 #include "posix.h"
 #include "auth.h"
 #include "str.h"
@@ -245,6 +246,15 @@ Auth_AuthenticateUser(const char *user,  // IN:
    pam_handle_t *pamh;
    int pam_error;
 #endif
+
+   if (!CodeSet_Validate(user, strlen(user), "UTF-8")) {
+      Log("User not in UTF-8\n");
+      return NULL;
+   }
+   if (!CodeSet_Validate(pass, strlen(pass), "UTF-8")) {
+      Log("Password not in UTF-8\n");                                                     
+      return NULL;
+   }
 
 #ifdef USE_PAM
 #ifdef ACCEPT_XXX_PASS
