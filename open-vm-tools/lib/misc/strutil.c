@@ -490,31 +490,43 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
    }
    if (*rest != '\0') {
       uint64 shift;
+      Bool suffixOK = TRUE;
 
       /*
        * [kK], [mM], [gG], and [tT] represent kilo, mega, giga, and tera
        * byte quantities respectively. [bB] represents a singular byte
        * quantity. [sS] represents a sector quantity. 
        *
-       * All other suffixes are ignored, which also means a suffix like
-       * "MB" will be treated as 'M'.
+       * For kilo, mega, giga, and tera we're OK with an additional byte
+       * suffix. Otherwise, the presence of an additional suffix is an error.
        */
       switch (*rest) {
-      case 's': case 'S':          shift = 9;  break;
-      case 'k': case 'K':          shift = 10; break;
-      case 'm': case 'M':          shift = 20; break;
-      case 'g': case 'G':          shift = 30; break;
-      case 't': case 'T':          shift = 40; break;
-      case 'b': case 'B': default: shift = 0;  break;
+      case 'b': case 'B': shift = 0;  suffixOK = FALSE; break;
+      case 's': case 'S': shift = 9;  suffixOK = FALSE; break;
+      case 'k': case 'K': shift = 10;                   break;
+      case 'm': case 'M': shift = 20;                   break;
+      case 'g': case 'G': shift = 30;                   break;
+      case 't': case 'T': shift = 40;                   break;
+      default :                                         return FALSE;
       }
-      quantity *= (double)(1 << shift);
+      switch(*++rest) {
+      case '\0':
+         break;
+      case 'b': case 'B':
+         if (suffixOK && !*++rest) {
+            break;
+         }
+         /* FALLTHRU */
+      default:
+         return FALSE;
+      }
+      quantity *= CONST64U(1) << shift;
    } else {
       /*
        * No suffix, so multiply by the number of bytes per unit as specified
        * by the caller.
        */
-
-      quantity *= (double)bytes;
+      quantity *= bytes;
    }
 
    /*
