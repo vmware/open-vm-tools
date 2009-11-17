@@ -64,7 +64,7 @@
 #undef COMMUNITY_SOURCE_AMD_SECRET
 #if !defined(COMMUNITY_SOURCE) || defined(AMD_SOURCE)
 /*
- * It's ok to include AMD_SECRET source code for non-commsrc,
+ * It's ok to include AMD_SECRET source code for non-Community Source,
  * or for drops directed at AMD.
  */
    #define COMMUNITY_SOURCE_AMD_SECRET
@@ -73,7 +73,7 @@
 #undef COMMUNITY_SOURCE_INTEL_SECRET
 #if !defined(COMMUNITY_SOURCE) || defined(INTEL_SOURCE)
 /*
- * It's ok to include INTEL_SECRET source code for non-commsrc,
+ * It's ok to include INTEL_SECRET source code for non-Community Source,
  * or for drops directed at Intel.
  */
    #define COMMUNITY_SOURCE_INTEL_SECRET
