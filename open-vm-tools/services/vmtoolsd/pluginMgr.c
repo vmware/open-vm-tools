@@ -384,7 +384,9 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
     * regardless of how the filesystem returns entries.
     */
    while ((staticEntry = g_dir_read_name(dir)) != NULL) {
-      g_ptr_array_add(plugins, g_strdup(staticEntry));
+      if (g_str_has_suffix(staticEntry, "." G_MODULE_SUFFIX)) {
+         g_ptr_array_add(plugins, g_strdup(staticEntry));
+      }
    }
 
    g_dir_close(dir);

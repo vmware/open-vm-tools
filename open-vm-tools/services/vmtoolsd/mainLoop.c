@@ -23,11 +23,9 @@
  */
 
 #if defined(_WIN32)
-#  define MODULE_NAME(x)   #x ".dll"
-#elif defined(__APPLE__)
-#  define MODULE_NAME(x)   "lib" #x ".dylib"
+#  define MODULE_NAME(x)   #x G_MODULE_SUFFIX
 #else
-#  define MODULE_NAME(x)   "lib" #x ".so"
+#  define MODULE_NAME(x)   "lib" #x G_MODULE_SUFFIX
 #endif
 
 #include <stdlib.h>

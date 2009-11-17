@@ -193,6 +193,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
          N_("Uninstalls the service from the Service Control Manager."), NULL },
       { "displayname", 'd', 0, G_OPTION_ARG_STRING, &state->displayName,
          N_("Service display name (only used with -i)."), N_("name") },
+      { "console", '\0', 0, G_OPTION_ARG_NONE, &state->useConsole,
+         N_("Use the parent process's console window."), NULL },
 #else
       { "background", 'b', 0, G_OPTION_ARG_FILENAME, &state->pidFile,
          N_("Runs in the background and creates a pid file."), N_("pidfile") },

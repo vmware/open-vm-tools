@@ -259,7 +259,7 @@ typedef struct ToolsAppCapability {
     * For old-style, the capability name. The RPC message for setting the
     * capability will be "tools.capability.[name]". Ignored for TOOLS_CAP_NEW.
     */
-   gchar               *name;
+   const gchar         *name;
    /**
     * The capability entry in the enum defined in guestCaps.h.
     * Used only for TOOLS_CAP_NEW.

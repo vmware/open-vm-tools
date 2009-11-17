@@ -40,6 +40,14 @@
 #  define DUMP_STATE_EVENT_NAME_FMT   L"Global\\VMwareToolsDumpStateEvent_%s"
 #endif
 
+/* On Mac OS, G_MODULE_SUFFIX seems to be defined to "so"... */
+#if defined(__APPLE__)
+#  if defined(G_MODULE_SUFFIX)
+#     undef G_MODULE_SUFFIX
+#  endif
+#  define G_MODULE_SUFFIX "dylib"
+#endif
+
 /** Defines the internal data about a plugin. */
 typedef struct ToolsPlugin {
    GModule          *module;
@@ -73,6 +81,7 @@ typedef struct ToolsServiceState {
    gchar         *pluginPath;
    GPtrArray     *plugins;
 #if defined(_WIN32)
+   gboolean       useConsole;
    gchar         *displayName;
 #else
    gchar         *pidFile;
