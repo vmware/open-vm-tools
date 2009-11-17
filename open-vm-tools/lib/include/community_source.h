@@ -61,6 +61,15 @@
    #define EXCLUDE_COMMUNITY_SOURCE(x) x
 #endif
 
+#undef COMMUNITY_SOURCE_AMD_SECRET
+#if !defined(COMMUNITY_SOURCE) || defined(AMD_SOURCE)
+/*
+ * It's ok to include AMD_SECRET source code for non-commsrc,
+ * or for drops directed at AMD.
+ */
+   #define COMMUNITY_SOURCE_AMD_SECRET
+#endif
+
 #undef COMMUNITY_SOURCE_INTEL_SECRET
 #if !defined(COMMUNITY_SOURCE) || defined(INTEL_SOURCE)
 /*
