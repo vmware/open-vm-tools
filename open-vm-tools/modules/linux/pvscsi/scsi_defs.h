@@ -738,7 +738,9 @@ struct {
 #include "vmware_pack_end.h"
 SCSIModeSense10Cmd;
 
-typedef struct {
+typedef 
+#include "vmware_pack_begin.h"
+struct {
    uint8    opcode;     // operation code
    uint8    sp    :1,   // save pages
                   :3,
@@ -747,7 +749,9 @@ typedef struct {
    uint8    reserved[2];
    uint8    length;     // data length
    uint8    control;    // control byte
-} SCSIModeSelectCmd;
+} 
+#include "vmware_pack_end.h"
+SCSIModeSelectCmd;
 
 typedef
 #include "vmware_pack_begin.h"
@@ -873,28 +877,43 @@ typedef struct {     // peripheral device page
    uint8    undefined[1];  // variable-length vendor-specific data
 } SCSIPeriphPage;
 
-typedef struct {
+typedef
+#include "vmware_pack_begin.h"
+// SPC-3, Section 7.4.6 Table 245
+struct {
    uint8    page  :6,      // page code: 0x0a
-                  :1,
+            spf   :1,
             ps    :1;
-   uint8    len;           // page length (0x06)
-   uint8    rlec  :1,
-            gltsd :1,
-                  :2,
-                  :4;
-   uint8    dque  :1,      // disable tagged queuing
-            qerr  :1,      //
-                  :2,
-            qalg  :4;      // queue algorithm
-   uint8    eaenp :1,      // error AEN permission
-            uaaenp:1,      // unit attention AEN permission
-            raenp :1,      // ready AEN permission
-                  :4,
-            eeca  :1;      //
-   uint8    reserved;
-   uint16   aenWaitTime;   // AEN waiting time after initialization
-   uint16   busyTimeout;   // busy timeout in 100ms (SCSI-3)
-} SCSIControlPage;
+   uint8    pageLength;  // page length (0x0a)
+   uint8    rlec     :1,
+            gltsd    :1,
+            d_sense  :1,
+                     :1,
+            tmf_only :1,
+            tst      :3;
+   uint8          :1,
+            qerr  :2,
+#define SCSI_QERR_TASKS_PROCESSED    0x0
+#define SCSI_QERR_TASKS_ABORTED      0x1
+#define SCSI_QERR_RESERVED           0x2
+#define SCSI_QERR_I_T_TASKS_ABORTED  0x3
+                  :1,
+            queueAlgorithmModifier :4;      // queue algorithm
+   uint8          :3,     
+            swp   :1,     
+            uaIntlckCtrl :2, 
+            rac   :1,
+            vs   :1;
+   uint8    autoloadMode:3,
+                        :3,
+            tas         :1,
+            ato         :1;
+   uint8    obsolete[2];
+   uint16   busyTimeoutPeriod;         // busy timeout in 100ms (SCSI-3)
+   uint16   extendedSelftestCompletionTime;
+} 
+#include "vmware_pack_end.h"
+SCSIControlPage;
 
 typedef struct {
    uint8    page  :6,      // page code: 0x09
