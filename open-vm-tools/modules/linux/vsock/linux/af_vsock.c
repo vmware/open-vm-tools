@@ -357,11 +357,12 @@ static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 static int PROTOCOL_OVERRIDE = -1;
 
 /*
- * 64k is hopefully a reasonable default, but we should do some real
- * benchmarks. There are also some issues with resource limits on ESX.
+ * Netperf benchmarks have shown significant throughput improvements when the QP
+ * size is bumped from 64k to 256k. These measurements were taken during the K/L.next
+ * timeframe. Give users better performance by default.
  */
 #define VSOCK_DEFAULT_QP_SIZE_MIN   128
-#define VSOCK_DEFAULT_QP_SIZE       65536
+#define VSOCK_DEFAULT_QP_SIZE       262144
 #define VSOCK_DEFAULT_QP_SIZE_MAX   262144
 
 #ifdef VMX86_DEVEL
