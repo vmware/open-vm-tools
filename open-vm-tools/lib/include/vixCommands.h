@@ -95,6 +95,7 @@ enum {
    VIX_REQUESTMSG_RUN_IN_ANY_VMX_STATE                = 0x04,
    VIX_REQUESTMSG_REQUIRES_INTERACTIVE_ENVIRONMENT    = 0x08,
    VIX_REQUESTMSG_INCLUDES_AUTH_DATA_V1               = 0x10,
+   VIX_REQUESTMSG_REQUIRES_VMDB_NOTIFICATION          = 0x20,
 };
 
 
@@ -102,10 +103,11 @@ enum {
  * These are the flags set in responseFlags.
  */
 enum VixResponseFlagsValues {
-   VIX_RESPONSE_SOFT_POWER_OP       = 0x0001,
-   VIX_RESPONSE_EXTENDED_RESULT_V1  = 0x0002,
-   VIX_RESPONSE_TRUNCATED           = 0x0004,
-   VIX_RESPONSE_FSR                 = 0x0008
+   VIX_RESPONSE_SOFT_POWER_OP             = 0x0001,
+   VIX_RESPONSE_EXTENDED_RESULT_V1        = 0x0002,
+   VIX_RESPONSE_TRUNCATED                 = 0x0004,
+   VIX_RESPONSE_FSR                       = 0x0008,
+   VIX_RESPONSE_VMDB_NOTIFICATION_POSTED  = 0x0010,
 };
 
 

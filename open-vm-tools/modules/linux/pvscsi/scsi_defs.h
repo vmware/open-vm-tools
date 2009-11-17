@@ -1269,10 +1269,11 @@ struct {
        sync_nv :1,
        immed   :1, // if set return without waiting for sync to complete
                :1;
-   uint32     lbn; // number of blocks to sync, 0 for full disk
+   uint32     lbn; // block number to begin sync
    uint8       :4,
       grp_num  :4;
-   uint8      lbc; // blk to begin sync, 0 for full disk
+   uint16     lbc; // number of blocks to sync, 0 for all blocks starting
+                   // from lbn to the last block on the medium
    uint8  control; // control byte
 }
 #include "vmware_pack_end.h"
@@ -1286,10 +1287,11 @@ struct {
        sync_nv :1,
        immed   :1, // if set return, wihout waiting for sync to complete
                :1;
-   uint64     lbn; // number of blocks to sync, 0 for full disk
+   uint64     lbn; // block number to begin sync
+   uint32     lbc; // number of blocks to sync, 0 for all blocks starting
+                   // from lbn to the last block on the medium
    uint8       :4,
       grp_num  :4;
-   uint32     lbc; // block number to begin sync, 0 for full disk
    uint8  control; // control byte
 }
 #include "vmware_pack_end.h"
