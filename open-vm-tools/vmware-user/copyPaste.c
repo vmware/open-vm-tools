@@ -73,7 +73,7 @@
 #include "util.h"
 #include "cpName.h"
 #include "cpNameUtil.h"
-#include "guestInfoServer.h"
+#include "guestInfoLib.h"
 #include "vmblock.h"
 #include "file.h"
 #include "codeset.h"

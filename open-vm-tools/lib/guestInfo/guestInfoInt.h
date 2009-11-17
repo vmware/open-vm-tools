@@ -29,6 +29,7 @@
 
 
 #include "guestInfo.h"
+#include "guestInfoLib.h"
 #include "guestrpc/nicinfo.h"
 
 #if defined __FreeBSD__ || defined __sun__ || defined __APPLE__

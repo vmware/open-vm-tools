@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,26 +16,19 @@
  *
  *********************************************************/
 
-/*
- * guestInfoServer.h --
+#ifndef _GUESTINFOLIB_H_
+#define _GUESTINFOLIB_H_
+
+/**
+ * @file guestInfoLib.h
  *
- *	GuestInfo server
+ * Declarations of functions implemented in the guestInfo library.
  */
 
-#ifndef _GUEST_INFO_SERVER_H_
-#define _GUEST_INFO_SERVER_H_
-
 #include "vm_basic_types.h"
-#include "dbllnklst.h"
 
-#ifdef _WIN32
-void GuestInfoServer_Main(void *data);
-#endif
-Bool GuestInfoServer_Init(DblLnkLst_Links * eventQueue);
-void GuestInfoServer_Cleanup(void);
-void GuestInfoServer_VMResumedNotify(void);
-uint64 GuestInfo_GetAvailableDiskSpace(char *pathName);
-void GuestInfoServer_DisableDiskInfoQuery(Bool disable);
-Bool GuestInfoServer_SendUptime(void);
+uint64
+GuestInfo_GetAvailableDiskSpace(char *pathName);
 
-#endif // _GUEST_INFO_SERVER_H_
+#endif /* _GUESTINFOLIB_H_ */
+
