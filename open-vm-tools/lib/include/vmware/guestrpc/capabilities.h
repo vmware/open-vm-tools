@@ -17,7 +17,7 @@
  *********************************************************/
 
 /*
- * guestCaps.h --
+ * capabilities.h --
  *
  *  Common definitions for the guestCaps system that allows a guest to
  *  register an arbitrary number of boolean capabilites with the vmx.
