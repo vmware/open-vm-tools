@@ -26,9 +26,32 @@
  */
 
 #include "vm_basic_types.h"
+#include "guestInfo.h"
 
 uint64
 GuestInfo_GetAvailableDiskSpace(char *pathName);
+
+Bool
+GuestInfo_GetFqdn(int outBufLen,
+                  char fqdn[]);
+
+Bool
+GuestInfo_GetNicInfo(NicInfoV3 **nicInfo);
+
+void
+GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo);
+
+Bool
+GuestInfo_GetDiskInfo(PGuestDiskInfo di);
+
+Bool
+GuestInfo_GetOSName(unsigned int outBufFullLen,
+                    unsigned int outBufLen,
+                    char *osNameFull,
+                    char *osName);
+
+int
+GuestInfo_GetSystemBitness(void);
 
 #endif /* _GUESTINFOLIB_H_ */
 

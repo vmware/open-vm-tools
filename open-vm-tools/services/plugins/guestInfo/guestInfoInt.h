@@ -22,7 +22,7 @@
  * Declares internal functions of the guestInfo plugin.
  */
 
-#include "guestInfo.h"
+#include "guestInfoLib.h"
 #define G_LOG_DOMAIN "guestinfo"
 
 extern int guestInfoPollInterval;

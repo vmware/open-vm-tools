@@ -69,7 +69,7 @@
 #include "conf.h"
 #include "vixCommands.h"
 #include "base64.h"
-#include "guestInfo.h"
+#include "guestInfoLib.h"
 #include "hostinfo.h"
 #include "hgfsServer.h"
 #include "hgfs.h"
