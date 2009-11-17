@@ -422,6 +422,7 @@ GuestInfoGather(gpointer data)
          gInfoCache.nicInfo = nicInfo;
       } else {
          g_warning("Failed to update VMDB.\n");
+         GuestInfo_FreeNicInfo(nicInfo);
       }
    } else {
       g_debug("Nic info not changed.\n");
@@ -646,7 +647,13 @@ nicinfo_fsm:
                                         &replyLen);
                DynXdr_Destroy(&xdrs, TRUE);
 
+               /*
+                * Do not free/destroy contents of `message`.  The v3 nicInfo
+                * passed to us belongs to our caller.  Instead, we'll only
+                * destroy our local V2 converted data.
+                */
                if (nicList) {
+                  VMX_XDR_FREE(xdr_GuestNicList, nicList);
                   free(nicList);
                   nicList = NULL;
                }

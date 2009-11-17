@@ -373,8 +373,7 @@ badIteration:
    myValLine = NULL;
 
    close(fd);
-
-   g_free(myChannel);
+   g_io_channel_unref(myChannel);
 
    return myHashTable;
 }
@@ -485,8 +484,7 @@ SlashProcNet_GetSnmp6(void)
    }
 
    close(fd);
-
-   g_free(myChannel);
+   g_io_channel_unref(myChannel);
 
    return myHashTable;
 }
@@ -643,9 +641,8 @@ badIteration:
 
 out:
    g_free(myLine);
-   g_free(myChannel);
-
    close(fd);
+   g_io_channel_unref(myChannel);
 
    return myArray;
 }
@@ -792,8 +789,9 @@ badIteration:
 
    g_free(myLine);
    myLine = NULL;
-   g_free(myChannel);
-   myChannel = NULL;
+
+   close(fd);
+   g_io_channel_unref(myChannel);
 
    return myArray;
 }
