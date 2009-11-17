@@ -1268,6 +1268,21 @@ static int
 vmxnet3_shm_tx_re(struct vmxnet3_shm_pool *shm,
                   struct vmxnet3_shm_ringentry re)
 {
+   int i;
+
+   VMXNET3_ASSERT(shm->partial_tx.frags <= VMXNET3_SHM_MAX_FRAGS);
+   if (shm->partial_tx.frags == VMXNET3_SHM_MAX_FRAGS) {
+      if (re.eop) {
+         printk("dropped oversize shm packet\n");
+         for (i = 0; i < shm->partial_tx.frags; i++) {
+            vmxnet3_shm_free_page(shm, shm->partial_tx.res[i].idx);
+         }
+         shm->partial_tx.frags = 0;
+      }
+      vmxnet3_shm_free_page(shm, re.idx);
+      return re.eop;
+   }
+
    shm->partial_tx.res[shm->partial_tx.frags++] = re;
 
    if (re.eop) {

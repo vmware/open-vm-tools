@@ -677,10 +677,10 @@ typedef struct {
 // more defined...
 #define SCSI_MS_PAGE_ALL      0x3f     // all available pages (ALL)
          pcf      :2;   // page control field
-#define SCSI_MS_PCF_CURRENT   0x00     // current values
-#define SCSI_MS_PCF_VOLATILE  0x01     // changeable values
-#define SCSI_MS_PCF_DEFAULT   0x02     // default values
-#define SCSI_MS_PCF_SAVED     0x03     // saved values
+#define SCSI_MS_PCF_CURRENT    0x00    // current values
+#define SCSI_MS_PCF_VOLATILE   0x01    // changeable values
+#define SCSI_MS_PCF_DEFAULT    0x02    // default values
+#define SCSI_MS_PCF_SAVED      0x03    // saved values
    uint8    subpage;
    uint8    length;        // data length
    uint8    control;       // control byte
@@ -888,24 +888,24 @@ struct {
    uint8    rlec     :1,
             gltsd    :1,
             d_sense  :1,
-                     :1,
+            reserved1:1,
             tmf_only :1,
             tst      :3;
-   uint8          :1,
+   uint8    obsolete1:1,
             qerr  :2,
 #define SCSI_QERR_TASKS_PROCESSED    0x0
 #define SCSI_QERR_TASKS_ABORTED      0x1
 #define SCSI_QERR_RESERVED           0x2
 #define SCSI_QERR_I_T_TASKS_ABORTED  0x3
-                  :1,
+            reserved2:1,
             queueAlgorithmModifier :4;      // queue algorithm
-   uint8          :3,     
+   uint8    obsolete2:3,     
             swp   :1,     
             uaIntlckCtrl :2, 
             rac   :1,
             vs   :1;
    uint8    autoloadMode:3,
-                        :3,
+            reserved3   :3,
             tas         :1,
             ato         :1;
    uint8    obsolete[2];
@@ -914,6 +914,8 @@ struct {
 } 
 #include "vmware_pack_end.h"
 SCSIControlPage;
+
+#define SCSI_CONTROL_PAGE_LENGTH 0xA
 
 typedef struct {
    uint8    page  :6,      // page code: 0x09

@@ -2644,7 +2644,9 @@ VixToolsPrintFileInfo(char *filePathName,     // IN
       if (File_IsSymLink(filePathName)) {
          fileProperties |= VIX_FILE_ATTRIBUTES_SYMLINK;
       }
-      fileSize = File_GetSize(filePathName);
+      if (File_IsFile(filePathName)) {
+         fileSize = File_GetSize(filePathName);
+      }
    }
 
    *destPtr += Str_Sprintf(*destPtr, 
