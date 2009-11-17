@@ -102,6 +102,7 @@
 #include "unicode.h"
 #include "guest_os.h"
 #include "dynbuf.h"
+#include "strutil.h"
 
 #if defined(VMX86_SERVER)
 #include "uwvmkAPI.h"
@@ -595,6 +596,11 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
       goto out;
    }
 
+   if (st.st_size == 0) {
+      Warning("%s: Cannot work with empty file.\n", __FUNCTION__);
+      goto out;
+   }
+
    buf_sz = st.st_size;
    if (buf_sz >= distroSize) {
       Warning("%s: input buffer too small\n", __FUNCTION__);
@@ -615,7 +621,7 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
       goto out;
    }
 
-   distroOrig[buf_sz] = '\0';
+   distroOrig[buf_sz - 1] = '\0';
 
    /*
     * For the case where we do have a release file in the LSB format,
@@ -719,7 +725,8 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
          break;
       }
 
-      DynBuf_Append(&db, line, size);
+      /* size does -not- include the NUL terminator. */
+      DynBuf_Append(&db, line, size + 1);
       free(line);
    }
 
@@ -791,9 +798,7 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
    }
 
    Str_Strcpy(osName, STR_OS_EMPTY, outBufLen);
-   Str_Strcpy(osNameFull, buf.sysname, outBufFullLen);
-   Str_Strcat(osNameFull, STR_OS_EMPTY, outBufFullLen);
-   Str_Strcat(osNameFull, buf.release, outBufFullLen);
+   Str_Sprintf(osNameFull, outBufFullLen, "%s %s", buf.sysname, buf.release);
 
    /*
     * Check to see if this is Linux
@@ -811,10 +816,10 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
        * later we find more detailed information this will get overwritten.
        */
 
-      if (strstr(buf.release, "2.4")) {
+      if (StrUtil_StartsWith(buf.release, "2.4.")) {
          Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-      } else if (strstr(buf.release, "2.6")) {
+      } else if (StrUtil_StartsWith(buf.release, "2.6.")) {
          Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
       } else {
@@ -854,7 +859,7 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
          char *lsbStart = lsbOutput;
          char *quoteEnd = NULL;
 
-         if (lsbStart[1] == '"') {
+         if (lsbStart[0] == '"') {
             lsbStart++;
             quoteEnd = strchr(lsbStart, '"');
             if (quoteEnd) {
