@@ -30,7 +30,6 @@
  */
 
 #include "vmtoolsApp.h"
-#include "util.h"
 
 struct RpcDebugPlugin;
 
@@ -63,7 +62,7 @@ typedef struct RpcDebugRecvMapping {
  * validate the response.
  */
 typedef gboolean (*RpcDebugValidateFn)(RpcInData *data,
-                                       Bool ret);
+                                       gboolean ret);
 
 /** Defines a mapping between a message and a "validate" function. */
 typedef struct RpcDebugMsgMapping {
@@ -135,26 +134,6 @@ typedef struct RpcDebugLibData {
 typedef RpcDebugLibData *(* RpcDebugInitializeFn)(ToolsAppCtx *, gchar *);
 
 
-/**
- * Helper macro to set @a result / @a resultLen when responding to an RPC.
- *
- * @param[in]  resultStr   The string to set.
- * @param[out] result      Where to store the result.
- * @param[out] resultLen   Where to store the length.
- */
-
-#define RPCDEBUG_SET_RESULT(resultStr, result, resultLen) do { \
-   char *__resultStr = (resultStr);                            \
-   char **__result = (result);                                 \
-   size_t *__resultLen = (resultLen);                          \
-   if (__result != NULL) {                                     \
-      *__result = Util_SafeStrdup(__resultStr);                \
-   }                                                           \
-   if (__resultLen != NULL) {                                  \
-      *__resultLen = strlen(__resultStr);                      \
-   }                                                           \
-} while (0)
-
 void
 RpcDebug_DecRef(ToolsAppCtx *ctx);
 
@@ -172,6 +151,11 @@ RpcDebug_NewDebugChannel(ToolsAppCtx *ctx,
 gboolean
 RpcDebug_SendNext(RpcDebugMsgMapping *rpcdata,
                   RpcDebugMsgList *list);
+
+void
+RpcDebug_SetResult(const char *str,
+                   char **res,
+                   size_t *len);
 
 void
 RpcDebug_Shutdown(ToolsAppCtx *ctx,

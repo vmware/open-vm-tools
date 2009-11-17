@@ -26,6 +26,7 @@
 
 #include <gmodule.h>
 #include <rpc/rpc.h>
+#include "util.h"
 #include "vmrpcdbg.h"
 
 #if !defined(__APPLE__)
@@ -136,6 +137,28 @@ RpcDebug_SendNext(RpcDebugMsgMapping *rpcdata,
       return TRUE;
    }
    return FALSE;
+}
+
+
+/**
+ * Sets @a res / @a len when responding to an RPC.
+ *
+ * @param[in]  str   The string to set.
+ * @param[out] res   Where to store the result.
+ * @param[out] len   Where to store the length.
+ */
+
+void
+RpcDebug_SetResult(const char *str,
+                   char **res,
+                   size_t *len)
+{
+   if (res != NULL) {
+      *res = Util_SafeStrdup(str);
+   }
+   if (len != NULL) {
+      *len = strlen(str);
+   }
 }
 
 

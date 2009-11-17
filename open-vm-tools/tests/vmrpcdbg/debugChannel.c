@@ -219,7 +219,7 @@ RpcDebugSend(RpcChannel *chan,
          /* Find out where the XDR data starts. */
          start = strchr(copy, ' ');
          if (start == NULL) {
-            RPCDEBUG_SET_RESULT("Can't find command delimiter.", result, resultLen);
+            RpcDebug_SetResult("Can't find command delimiter.", result, resultLen);
             ret = FALSE;
             goto exit;
          }
@@ -230,7 +230,7 @@ RpcDebugSend(RpcChannel *chan,
                                   dataLen - (start - copy),
                                   mapping->xdrProc,
                                   xdrdata)) {
-            RPCDEBUG_SET_RESULT("XDR deserialization failed.", result, resultLen);
+            RpcDebug_SetResult("XDR deserialization failed.", result, resultLen);
             ret = FALSE;
             goto exit;
          }
@@ -242,7 +242,7 @@ RpcDebugSend(RpcChannel *chan,
    if (recvFn != NULL) {
       ret = recvFn((xdrdata != NULL) ? xdrdata : copy, dataLen, result, resultLen);
    } else {
-      RPCDEBUG_SET_RESULT("", result, resultLen);
+      RpcDebug_SetResult("", result, resultLen);
    }
 
 exit:
