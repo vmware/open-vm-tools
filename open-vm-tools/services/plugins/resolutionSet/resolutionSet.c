@@ -456,7 +456,9 @@ ResolutionSetCapabilities(gpointer src,
        *      name of the RPC channel that the VMX should use when sending
        *      resolution set RPCs as an argument.
        */
-      ResolutionSetServerCapability(set ? 1 : 0);
+      if (ctx && ctx->rpc && ctx->isVMware) {
+         ResolutionSetServerCapability(set ? 1 : 0);
+      }
    }
 
    /*
@@ -552,9 +554,18 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    ResolutionInfoType *resInfo = &resolutionInfo;
 
    /*
+    * If we aren't running in a VM (e.g., running in bootcamp natively on
+    * a Mac), then just return NULL.
+    */
+   if (!ctx->isVMware) {
+      return NULL;
+   }
+
+   /*
     * Save the RPC channel name from the ToolsAppCtx so that we can use it later
     * in calls to ResolutionSetServerCapability().
     */
+
    if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0) {
       rpcChannelName = TOOLS_DAEMON_NAME;
    } else if (strcmp(ctx->name, VMTOOLS_USER_SERVICE) == 0) {

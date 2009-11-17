@@ -445,9 +445,10 @@ string::operator const ubstr_t()
  */
 
 string&
-string::operator=(const string &s) // IN
+string::operator=(string copy) // IN
 {
-   return assign(s);
+   swap(copy);
+   return *this;
 }
 
 
@@ -1013,6 +1014,8 @@ string::push_back(value_type uc) // IN
  *
  *      Assigns the passed in string to this string.
  *
+ *      Callers should prefer using operator= instead of assign().
+ *
  * Results:
  *      A reference to this object
  *
@@ -1025,9 +1028,7 @@ string::push_back(value_type uc) // IN
 string&
 string::assign(const string &s) // IN
 {
-   string copy(s);
-   swap(copy);
-   return *this;
+   return operator=(s);
 }
 
 

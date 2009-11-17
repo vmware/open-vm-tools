@@ -189,7 +189,7 @@ public:
    const_iterator end() const;
 
    // Operator overloads
-   string& operator=(const string &s);
+   string& operator=(string copy);
    string& operator+=(const string &s);
    string& operator+=(value_type uc);
 

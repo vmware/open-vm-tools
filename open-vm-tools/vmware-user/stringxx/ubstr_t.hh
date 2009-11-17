@@ -57,7 +57,7 @@ public:
    ubstr_t(BSTR bstr, bool copy);
    ubstr_t(const ubstr_t& s);
 
-   ubstr_t& operator=(const ubstr_t& s);
+   ubstr_t& operator=(ubstr_t copy);
    ubstr_t& operator=(const char *s);
    ubstr_t& operator=(const wchar_t *s);
    ubstr_t& operator=(const _variant_t& var);
@@ -317,9 +317,8 @@ ubstr_t::ubstr_t(const ubstr_t& s) // IN
  */
 
 inline ubstr_t&
-ubstr_t::operator=(const ubstr_t& s) // IN
+ubstr_t::operator=(ubstr_t copy) // IN
 {
-   ubstr_t copy(s);
    swap(copy);
    return *this;
 }

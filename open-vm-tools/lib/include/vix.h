@@ -454,6 +454,7 @@ enum {
    VIX_PROPERTY_JOB_RESULT_SCREEN_IMAGE_DATA          = 3059,
    VIX_PROPERTY_JOB_RESULT_FILE_SIZE                  = 3061,
    VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME              = 3062,
+   VIX_PROPERTY_JOB_RESULT_EXTRA_ERROR_INFO           = 3084,
 
    /* Event properties; these are sent in the moreEventInfo for some events. */
    VIX_PROPERTY_FOUND_ITEM_LOCATION                   = 4010,

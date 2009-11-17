@@ -3148,13 +3148,9 @@ exit:
  *
  *	Retrieve the full path to the executable. Not supported under VMvisor.
  *
- *      Note: If your process is running with elevated privileges
- *      (setuid/setgid), treat the path returned by this function as
- *      untrusted (for example, do not pass it to exec or open).
- *
- *      This function returns a path that is under the control of the
- *      user.  An attacker could manipulate the path returned by this
- *      function to elevate privileges.
+ *      The value can be controlled by the invoking user, so the calling code
+ *      should perform extra checks if it is going to use the value to
+ *      open/exec content in a security-sensitive context.
  *
  * Results:
  *      On success: The allocated, NUL-terminated file path.

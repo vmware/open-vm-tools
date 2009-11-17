@@ -444,6 +444,8 @@ UPWindowSetWindows(UnityPlatform *up,        // IN
 
    wasRelevant = upw->isRelevant;
 
+   Debug("%s: %#lx::%#lx -> %#lx::%#lx\n", __func__, upw->toplevelWindow,
+         upw->clientWindow, toplevelWindow, clientWindow);
    UPWindowSetRelevance(up, upw, FALSE);
    if (upw->toplevelWindow) {
       XSelectInput(up->display, upw->toplevelWindow, 0);
@@ -1010,6 +1012,7 @@ UPWindowSetRelevance(UnityPlatform *up,        // IN
    } else {
       Debug("Removing window %#lx from tracker\n", upw->toplevelWindow);
       UnityWindowTracker_RemoveWindow(up->tracker, upw->toplevelWindow);
+      UnityPlatformDoUpdate(up, TRUE);
    }
 
    up->stackingChanged = TRUE;
@@ -1234,10 +1237,7 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
 
       if (winAttr.class == InputOnly) {
          isInvisible = TRUE;
-      } else if (!upw->isViewable
-                 && (!upw->wasViewable
-                     || upw->isOverrideRedirect)
-                 && onCurrentDesktop) {
+      } else if (!upw->isViewable && onCurrentDesktop) {
          isInvisible = TRUE;
       } else if (winAttr.width <= 1 && winAttr.height <= 1) {
          isInvisible = TRUE;
@@ -1333,14 +1333,12 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
       }
    }
 
-  out:
+out:
    ASSERT(shouldBeRelevant >= 0);
 
-   if (shouldBeRelevant) {
-      Debug("Relevance for (%p) %#lx/%#lx/%#lx is %d (window type %d)\n",
-            upw, upw->toplevelWindow, upw->clientWindow, upw->rootWindow,
-            shouldBeRelevant, upw->windowType);
-   }
+   Debug("Relevance for (%p) %#lx/%#lx/%#lx is %d (window type %d)\n",
+         upw, upw->toplevelWindow, upw->clientWindow, upw->rootWindow,
+         shouldBeRelevant, upw->windowType);
 
    UPWindowSetRelevance(up, upw, shouldBeRelevant ? TRUE : FALSE);
 }
