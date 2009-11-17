@@ -96,12 +96,21 @@ void             __cpuid(unsigned int*, unsigned int);
  *
  */
 
+/*
+ * %ebx is reserved on i386 PIC.  Apple's gcc-5493 (gcc 4.0) compiling
+ * for x86_64 incorrectly errors out saying %ebx is reserved.  This is
+ * Apple bug 7304232.
+ */
+#if (defined __PIC__ && !vm_x86_64) || (defined __APPLE__ && vm_x86_64)
+#define VM_EBX_RESERVED
+#endif
+
 static INLINE void
 __GET_CPUID(int eax,         // IN
             CPUIDRegs *regs) // OUT
 {
    __asm__ __volatile__(
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
       "movl %%ebx, %1"  "\n\t"
       "cpuid"           "\n\t"
       "xchgl %%ebx, %1"
@@ -121,7 +130,7 @@ __GET_CPUID2(int eax,         // IN
              CPUIDRegs *regs) // OUT
 {
    __asm__ __volatile__(
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
       "movl %%ebx, %1"  "\n\t"
       "cpuid"           "\n\t"
       "xchgl %%ebx, %1"
@@ -138,7 +147,7 @@ __GET_CPUID2(int eax,         // IN
 static INLINE uint32
 __GET_EAX_FROM_CPUID(int eax) // IN
 {
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
@@ -167,7 +176,7 @@ __GET_EBX_FROM_CPUID(int eax) // IN
    uint32 ebx;
 
    __asm__ __volatile__(
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
       "movl %%ebx, %1"  "\n\t"
       "cpuid"           "\n\t"
       "xchgl %%ebx, %1"
@@ -187,7 +196,7 @@ static INLINE uint32
 __GET_ECX_FROM_CPUID(int eax) // IN
 {
    uint32 ecx;
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
@@ -215,7 +224,7 @@ static INLINE uint32
 __GET_EDX_FROM_CPUID(int eax) // IN
 {
    uint32 edx;
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
@@ -244,7 +253,7 @@ static INLINE uint32
 __GET_EAX_FROM_CPUID4(int ecx) // IN
 {
    uint32 eax;
-#if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
@@ -267,6 +276,8 @@ __GET_EAX_FROM_CPUID4(int ecx) // IN
 
    return eax;
 }
+
+#undef VM_EBX_RESERVED
 
 #elif defined(_MSC_VER) // } {
 
