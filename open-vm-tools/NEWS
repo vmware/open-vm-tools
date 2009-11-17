@@ -1,3 +1,13 @@
+open-vm-tools 2009.11.16 changes:
+	* Lots of refactoring and cleanup in the code, mainly targeting the
+	definition of a set of public APIs.
+
+	* vmblock-fuse can now replace the vmblock kernel module for DnD
+	operations.
+
+	* Fix some memory leaks in the guestInfo module. Users of the 2009.10.15
+	release are recommended to upgrade, or at least crossport cid 6a8d4279.
+
 open-vm-tools 2009.10.15 changes:
 	* The HGFS module got some performance enhancements.
 
