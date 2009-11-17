@@ -16,11 +16,11 @@
  *
  *********************************************************/
 
-#ifndef _VMRPCDBG_H_
-#define _VMRPCDBG_H_
+#ifndef _VMWARE_TOOLS_RPCDEBUG_H_
+#define _VMWARE_TOOLS_RPCDEBUG_H_
 
 /**
- * @file vmrpcdbg.h
+ * @file rpcdebug.h
  *
  * Defines the public API for the "GuestRPC Debug Channel" implementation, and
  * the interface between the debug library and debug plugins.
@@ -29,7 +29,7 @@
  * @{
  */
 
-#include "vmtoolsApp.h"
+#include "vmware/tools/plugin.h"
 
 struct RpcDebugPlugin;
 
@@ -163,5 +163,5 @@ RpcDebug_Shutdown(ToolsAppCtx *ctx,
 
 /** @} */
 
-#endif /* _VMRPCDBG_H_ */
+#endif /* _VMWARE_TOOLS_RPCDEBUG_H_ */
 

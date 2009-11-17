@@ -16,11 +16,11 @@
  *
  *********************************************************/
 
-#ifndef _RPCCHANNEL_H_
-#define _RPCCHANNEL_H_
+#ifndef _VMWARE_TOOLS_GUESTRPC_H_
+#define _VMWARE_TOOLS_GUESTRPC_H_
 
 /**
- * @file rpcChannel.h
+ * @file guestrpc.h
  *
  *    Defines the interface between applications and the underlying GuestRPC
  *    channel. The goal is to have an abstraction so applications can run over
@@ -41,7 +41,7 @@
 #endif
 
 #include <glib.h>
-#include "vmtools.h"
+#include "vmware/tools/utils.h"
 
 /** Alias for RpcChannel_SetRetVals. */
 #define RPCIN_SETRETVALS RpcChannel_SetRetVals

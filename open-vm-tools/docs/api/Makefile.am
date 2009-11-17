@@ -18,10 +18,7 @@
 DOXYGEN_INPUT =
 DOXYGEN_INPUT += $(top_srcdir)/docs/api
 DOXYGEN_INPUT += $(top_srcdir)/docs/api/services
-DOXYGEN_INPUT += $(top_srcdir)/lib/include/rpcChannel.h
-DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmtoolsApp.h
-DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmtools.h
-DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmrpcdbg.h
+DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmware/tools
 DOXYGEN_INPUT += $(top_srcdir)/libvmtools
 DOXYGEN_INPUT += $(top_srcdir)/tests/vmrpcdbg
 
@@ -32,6 +29,8 @@ DOXYGEN_CPP_PREDEFINED += G_LOG_DOMAIN=
 DOXYGEN_CPP_EXPAND =
 
 DOXYGEN_EXTRA_PATTERNS =
+DOXYGEN_EXTRA_PATTERNS += *.c
+DOXYGEN_EXTRA_PATTERNS += *.h
 DOXYGEN_EXTRA_PATTERNS += *.txt
 
 # This rule has no dependencies, so it's executed every time. Not optimal,

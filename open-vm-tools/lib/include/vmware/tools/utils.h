@@ -16,11 +16,11 @@
  *
  *********************************************************/
 
-#ifndef _VMTOOLS_H_
-#define _VMTOOLS_H_
+#ifndef _VMWARE_TOOLS_UTILS_H_
+#define _VMWARE_TOOLS_UTILS_H_
 
 /**
- * @file vmtools.h
+ * @file utils.h
  *
  *    Public functions from the VMTools shared library.
  *
@@ -149,5 +149,5 @@ VMTools_WrapArray(gconstpointer data,
 
 /** @} */
 
-#endif /* _VMTOOLS_H_ */
+#endif /* _VMWARE_TOOLS_UTILS_H_ */
 

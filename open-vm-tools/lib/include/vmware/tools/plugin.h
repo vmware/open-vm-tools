@@ -16,11 +16,11 @@
  *
  *********************************************************/
 
-#ifndef _VMTOOLSAPP_H_
-#define _VMTOOLSAPP_H_
+#ifndef _VMWARE_TOOLS_PLUGIN_H_
+#define _VMWARE_TOOLS_PLUGIN_H_
 
 /**
- * @file vmtoolsApp.h
+ * @file plugin.h
  *
  *    Defines the interface between the core tools services and the plugins
  *    that are dynamically loaded into the service.
@@ -34,8 +34,8 @@
 #  include <windows.h>
 #  include <objbase.h>
 #endif
-#include "rpcChannel.h"
 #include "vmware/guestrpc/capabilities.h"
+#include "vmware/tools/guestrpc.h"
 
 /**
  * Error reporting macro. Call this if the app encounters an error
@@ -432,5 +432,5 @@ typedef ToolsPluginData *(*ToolsPluginOnLoad)(ToolsAppCtx *ctx);
 
 /** @} */
 
-#endif /* _VMTOOLSAPP_H_ */
+#endif /* _VMWARE_TOOLS_PLUGIN_H_ */
 
