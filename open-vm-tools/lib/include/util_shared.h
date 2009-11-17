@@ -51,6 +51,43 @@ Util_Throttle(uint32 count)
                              count % 1000000 == 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_FastRand --
+ *
+ *	Generates the next random number in the pseudo-random sequence 
+ *	defined by the multiplicative linear congruential generator 
+ *	S' = 16807 * S mod (2^31 - 1).
+ *	This is the ACM "minimal standard random number generator".  
+ *	Based on method described by D.G. Carta in CACM, January 1990. 
+ *	Usage: provide previous random number as the seed for next one.
+ *
+ * Precondition:
+ *      0 < seed && seed < UTIL_FASTRAND_SEED_MAX
+ *
+ * Results:
+ *	A random number.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#define UTIL_FASTRAND_SEED_MAX (0x7fffffff)
+
+uint32
+Util_FastRand(uint32 seed)
+{
+   uint64 product    = 33614 * (uint64)seed;
+   uint32 product_lo = (uint32)(product & 0xffffffff) >> 1;
+   uint32 product_hi = product >> 32;
+   int32  test       = product_lo + product_hi;
+   ASSERT(0 < seed && seed < UTIL_FASTRAND_SEED_MAX);
+   return (test > 0) ? test : (test & UTIL_FASTRAND_SEED_MAX) + 1;
+}
+
 #if defined(USERLEVEL) || defined(VMX86_DEBUG)
 static uint32 crcTable[256];
 
