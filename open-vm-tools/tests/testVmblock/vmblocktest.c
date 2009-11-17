@@ -48,12 +48,11 @@
 #include "vmblock_user.h"
 #include "vm_basic_types.h"
 
-#define BLOCKROOT                 VMBLOCK_MOUNT_POINT "/"
 #define CONTROLFILE               VMBLOCK_DEVICE
 #define CONTROLFILE_MODE          VMBLOCK_DEVICE_MODE
 #define REALROOT                   "/tmp/VMwareDnD/"
 #define FILENAME                   "/foo"
-#define ACCESSORFULLNAME(dir)      BLOCKROOT dir FILENAME
+#define ACCESSORFULLNAME(dir)      VMBLOCK_FS_ROOT "/" dir FILENAME
 #define BLOCKERFULLNAME(dir)       REALROOT dir
 
 #define lprintf(...)                                                    \
