@@ -220,6 +220,7 @@ ToolsCoreRegisterProvider(ToolsServiceState *state,
                                                         ToolsAppProviderReg,
                                                         k);
          ASSERT(prov->regType != existing->prov->regType);
+         g_return_if_fail(prov->regType != existing->prov->regType);
       }
 
       g_array_append_val(state->providers, newreg);
