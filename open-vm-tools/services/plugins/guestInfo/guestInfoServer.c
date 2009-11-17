@@ -409,13 +409,16 @@ GuestInfoGather(gpointer data)
    } else if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
       g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
-   } else {
+   } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
       /*
        * Since the update succeeded, free the old cached object, and assign
        * ours to the cache.
        */
       GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
       gInfoCache.nicInfo = nicInfo;
+   } else {
+      g_warning("Failed to update VMDB.\n");
+      GuestInfo_FreeNicInfo(nicInfo);
    }
 
    /* Send the uptime to VMX so that it can detect soft resets. */
