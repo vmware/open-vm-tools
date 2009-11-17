@@ -370,6 +370,8 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       g_ptr_array_add(plugins, g_strdup(staticEntry));
    }
 
+   g_dir_close(dir);
+
    g_ptr_array_sort(plugins, ToolsCoreStrPtrCompare);
 
    for (i = 0; i < plugins->len; i++) {
