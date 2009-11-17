@@ -86,14 +86,12 @@ VMToolsDllInit(void *lib)
 #if defined(_WIN32)
    WiperInitData wiperData;
    CoreDump_SetUnhandledExceptionFilter();
-   VMTools_ResetLogging(FALSE);
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);
    ASSERT(success);
    success = Wiper_Init(&wiperData);
    ASSERT(success);
 #else
-   VMTools_ResetLogging(FALSE);
    success = Wiper_Init(NULL);
    ASSERT(success);
 #endif
@@ -113,7 +111,6 @@ VMToolsDllFini(void)
 #if defined(_WIN32)
    NetUtil_FreeIpHlpApiDll();
 #endif
-   VMTools_ResetLogging(TRUE);
 }
 
 

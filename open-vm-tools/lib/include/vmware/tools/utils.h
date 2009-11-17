@@ -22,15 +22,11 @@
 /**
  * @file utils.h
  *
- *    Public functions from the VMTools shared library.
+ *    Public functions from the VMTools shared library, and other definitions.
  *
  * @addtogroup vmtools_utils
  * @{
  */
-
-#if !defined(G_LOG_DOMAIN)
-#  define G_LOG_DOMAIN VMTools_GetDefaultLogDomain()
-#endif
 
 #define  VMTOOLS_GUEST_SERVICE   "vmsvc"
 #define  VMTOOLS_USER_SERVICE    "vmusr"
@@ -40,10 +36,6 @@
 #else
 #  define VMTOOLS_EXTERN_C
 #endif
-
-/* Needs to come before glib.h. */
-VMTOOLS_EXTERN_C const char *
-VMTools_GetDefaultLogDomain(void);
 
 #include <glib.h>
 #if defined(G_PLATFORM_WIN32)
@@ -67,7 +59,7 @@ VMTools_GetDefaultLogDomain(void);
  * Converts an UTF-8 path to the local (i.e., glib) file name encoding.
  * This is a no-op on Windows, since the local encoding is always UTF-8
  * in glib. The returned value should not be freed directly; instead,
- * use VMTOOLS_FREE_FILENAME.
+ * use VMTOOLS_RELEASE_FILENAME_LOCAL.
  *
  * @param[in]  path  Path in UTF-8 (should not be NULL).
  * @param[out] err   Where to store errors (type: GError **; may be NULL).
@@ -103,31 +95,16 @@ void
 vm_free(void *ptr);
 
 void
-VMTools_SetDefaultLogDomain(const gchar *domain);
-
-void
-VMTools_ConfigLogging(GKeyFile *cfg);
-
-void
-VMTools_EnableLogging(gboolean enable);
-
-gchar *
-VMTools_GetToolsConfFile(void);
-
-GKeyFile *
-VMTools_LoadConfig(const gchar *path,
-                   GKeyFileFlags flags,
-                   gboolean autoUpgrade);
-
+VMTools_ConfigLogging(const gchar *defaultDomain,
+                      GKeyFile *cfg,
+                      gboolean force,
+                      gboolean reset);
 
 gboolean
-VMTools_ReloadConfig(const gchar *path,
-                     GKeyFileFlags flags,
-                     GKeyFile **config,
-                     time_t *mtime);
-
-void
-VMTools_ResetLogging(gboolean cleanDefault);
+VMTools_LoadConfig(const gchar *path,
+                   GKeyFileFlags flags,
+                   GKeyFile **config,
+                   time_t *mtime);
 
 gboolean
 VMTools_WriteConfig(const gchar *path,

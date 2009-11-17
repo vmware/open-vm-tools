@@ -125,7 +125,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state);
 
 void
 ToolsCore_ReloadConfig(ToolsServiceState *state,
-                       gboolean force);
+                       gboolean reset);
 
 void
 ToolsCore_RegisterPlugins(ToolsServiceState *state);

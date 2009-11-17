@@ -101,19 +101,17 @@ GetConfName(const char *apm) // IN: apm name.
 static GKeyFile *
 LoadConfFile(void)
 {
-   gchar *confPath;
-   GKeyFile *confDict;
+   GKeyFile *confDict = NULL;
 
-   confPath = VMTools_GetToolsConfFile();
-   confDict = VMTools_LoadConfig(confPath,
-                                 G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS,
-                                 System_IsUserAdmin());
+   VMTools_LoadConfig(NULL,
+                      G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS,
+                      &confDict,
+                      NULL);
 
    if (confDict == NULL) {
       confDict = g_key_file_new();
    }
 
-   g_free(confPath);
    return confDict;
 }
 
@@ -250,7 +248,6 @@ ScriptToggle(const char *apm, // IN: APM name
 {
    const char *path;
    const char *confName;
-   gchar *confPath;
    int ret = EXIT_SUCCESS;
    GKeyFile *confDict;
    GError *err = NULL;
@@ -271,15 +268,13 @@ ScriptToggle(const char *apm, // IN: APM name
    }
 
    g_key_file_set_string(confDict, "powerops", confName, path);
-   confPath = VMTools_GetToolsConfFile();
-   if (!VMTools_WriteConfig(confPath, confDict, &err)) {
+   if (!VMTools_WriteConfig(NULL, confDict, &err)) {
       fprintf(stderr, "Error writing config: %s\n", err->message);
       g_clear_error(&err);
       ret = EX_TEMPFAIL;
    }
 
    g_key_file_free(confDict);
-   g_free(confPath);
    return ret;
 }
 
@@ -358,7 +353,6 @@ Script_Set(const char *apm,   // IN: APM name
 {
    const char *confName;
    int ret = EXIT_SUCCESS;
-   gchar *confPath = NULL;
    GKeyFile *confDict = NULL;
    GError *err = NULL;
 
@@ -373,19 +367,16 @@ Script_Set(const char *apm,   // IN: APM name
       return EX_USAGE;
    }
 
-   confPath = VMTools_GetToolsConfFile();
    confDict = LoadConfFile();
-
    g_key_file_set_string(confDict, "powerops", confName, path);
 
-   if (!VMTools_WriteConfig(confPath, confDict, &err)) {
+   if (!VMTools_WriteConfig(NULL, confDict, &err)) {
       fprintf(stderr, "Error writing config: %s\n", err->message);
       g_clear_error(&err);
       ret = EX_TEMPFAIL;
    }
 
    g_key_file_free(confDict);
-   g_free(confPath);
    return ret;
 }
 

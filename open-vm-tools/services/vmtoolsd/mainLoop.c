@@ -206,55 +206,41 @@ ToolsCore_GetTcloName(ToolsServiceState *state)
  * detected.
  *
  * @param[in]  state       Service state.
- * @param[in]  force       Whether to force reconfiguration of the logging
- *                         subsystem.
+ * @param[in]  reset       Whether to reset the logging subsystem.
  */
 
 void
 ToolsCore_ReloadConfig(ToolsServiceState *state,
-                       gboolean force)
+                       gboolean reset)
 {
-   char *confFile;
-   gboolean loaded = TRUE;
+   gboolean first = state->ctx.config == NULL;
+   gboolean loaded;
 
-   VMTools_SetDefaultLogDomain(state->name);
+   loaded = VMTools_LoadConfig(state->configFile,
+                               G_KEY_FILE_NONE,
+                               &state->ctx.config,
+                               &state->configMtime);
 
-   confFile = g_strdup(state->configFile);
-   if (confFile == NULL) {
-      confFile = VMTools_GetToolsConfFile();
-   }
-
-   if (state->ctx.config == NULL) {
-      state->ctx.config = VMTools_LoadConfig(confFile,
-                                             G_KEY_FILE_NONE,
-                                             state->mainService);
-      state->configMtime = time(NULL);
-      if (state->ctx.config == NULL) {
-         /* Couldn't load the config file. Just create an empty dictionary. */
-         state->ctx.config = g_key_file_new();
-      }
-   } else if (VMTools_ReloadConfig(confFile,
-                                   G_KEY_FILE_NONE,
-                                   &state->ctx.config,
-                                   &state->configMtime)) {
+   if (!first && loaded) {
       g_debug("Config file reloaded.\n");
 
       /* Inform plugins of config file update. */
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_CONF_RELOAD,
                             &state->ctx);
-   } else {
-      loaded = FALSE;
    }
 
-   if (force || loaded) {
-      VMTools_ConfigLogging(state->ctx.config);
-      if (state->log) {
-         VMTools_EnableLogging(state->log);
-      }
+   if (state->ctx.config == NULL) {
+      /* Couldn't load the config file. Just create an empty dictionary. */
+      state->ctx.config = g_key_file_new();
    }
 
-   g_free(confFile);
+   if (reset || loaded) {
+      VMTools_ConfigLogging(state->name,
+                            state->ctx.config,
+                            state->log,
+                            reset);
+   }
 }
 
 

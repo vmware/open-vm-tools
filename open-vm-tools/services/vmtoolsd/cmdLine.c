@@ -235,7 +235,6 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       exit(0);
    }
 
-   VMTools_EnableLogging(state->log);
    if (state->name == NULL) {
       state->name = VMTOOLS_GUEST_SERVICE;
       state->mainService = TRUE;
@@ -246,6 +245,11 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       }
       state->mainService = (strcmp(state->name, VMTOOLS_GUEST_SERVICE) == 0);
    }
+
+   VMTools_ConfigLogging(state->name,
+                         NULL,
+                         state->log,
+                         FALSE);
 
 #if defined(G_PLATFORM_WIN32)
    if (kill) {

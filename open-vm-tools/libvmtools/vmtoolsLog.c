@@ -66,6 +66,15 @@
 #define SHOULD_LOG(level, data) (IS_FATAL(level) || \
                                  (gLogEnabled && ((data)->mask & (level))))
 
+/** Clean up the contents of a log handler. */
+#define CLEAR_LOG_HANDLER(handler) do { \
+   if ((handler)->file != NULL) {       \
+      fclose((handler)->file);          \
+   }                                    \
+   g_free((handler)->path);             \
+   g_free((handler)->domain);           \
+} while (0)
+
 
 static void
 VMToolsLogFile(const gchar *domain,
@@ -148,13 +157,15 @@ VMToolsLogOpenFile(const gchar *path,
    ASSERT(path != NULL);
    pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
 
-   if (!append && g_file_test(path, G_FILE_TEST_EXISTS)) {
+   if (!append && g_file_test(pathLocal, G_FILE_TEST_EXISTS)) {
       /* Back up existing log file. */
       gchar *bakFile = g_strdup_printf("%s.old", pathLocal);
       if (!g_file_test(bakFile, G_FILE_TEST_IS_DIR) &&
           (!g_file_test(bakFile, G_FILE_TEST_EXISTS) ||
            g_unlink(bakFile) == 0)) {
          g_rename(pathLocal, bakFile);
+      } else {
+         g_unlink(pathLocal);
       }
       g_free(bakFile);
    }
@@ -390,12 +401,11 @@ VMToolsLogFile(const gchar *domain,
 
 /**
  * Configures the given log domain based on the data provided in the given
- * dictionary. If the log domain being configured doesn't match the default
- * (@see VMTools_GetDefaultLogDomain()), and no specific handler is defined
- * for the domain, the handler is inherited from the default domain, instead
- * of using the default handler. This allows reusing the same log file, for
- * example, while maintaining the ability to enable different log levels
- * for different domains.
+ * dictionary. If the log domain being configured doesn't match the default, and
+ * no specific handler is defined for the domain, the handler is inherited from
+ * the default domain, instead of using the default handler. This allows reusing
+ * the same log file, for example, while maintaining the ability to enable
+ * different log levels for different domains.
  *
  * For the above to properly work, the default log domain has to be configured
  * before any other domains.
@@ -441,7 +451,7 @@ VMToolsConfigLogDomain(const gchar *domain,
    handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
 
    if (handler == NULL) {
-      if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
+      if (strcmp(domain, gLogDomain) == 0) {
          handlerFn = DEFAULT_HANDLER;
       } else {
          handlerFn = gDefaultLogFunc;
@@ -538,7 +548,7 @@ VMToolsConfigLogDomain(const gchar *domain,
    data->append = (handler != NULL && strcmp(handler, "file+") == 0);
    logpath = NULL;
 
-   if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
+   if (strcmp(domain, gLogDomain) == 0) {
       /*
        * Replace the global log configuration. If the default log domain was
        * logging to a file and the file path hasn't changed, then keep the old
@@ -546,7 +556,7 @@ VMToolsConfigLogDomain(const gchar *domain,
        */
       LogHandlerData *old = gDefaultData;
 
-      if (old->file != NULL) {
+      if (old != NULL && old->file != NULL) {
          ASSERT(old->path);
          if (data->path != NULL && strcmp(data->path, old->path) == 0) {
             g_free(data->path);
@@ -574,7 +584,7 @@ VMToolsConfigLogDomain(const gchar *domain,
          gDomains = g_ptr_array_new();
       }
       g_ptr_array_add(gDomains, data);
-      data->handlerId = g_log_set_handler(domain, 
+      data->handlerId = g_log_set_handler(domain,
                                           G_LOG_LEVEL_MASK |
                                           G_LOG_FLAG_FATAL |
                                           G_LOG_FLAG_RECURSION,
@@ -588,63 +598,187 @@ exit:
 }
 
 
+/**
+ * Resets the vmtools logging subsystem, freeing up data and restoring the
+ * original glib configuration.
+ *
+ * @param[in]  hard     Whether to do a "hard" reset of the logging system
+ *                      (cleaning up any log domain existing state and freeing
+ *                      associated memory).
+ */
+
+static void
+VMToolsResetLogging(gboolean hard)
+{
+   gLogEnabled = FALSE;
+   g_log_set_default_handler(g_log_default_handler, NULL);
+
+   if (gDomains != NULL) {
+      guint i;
+      for (i = 0; i < gDomains->len; i++) {
+         LogHandlerData *data = g_ptr_array_index(gDomains, i);
+         g_log_remove_handler(data->domain, data->handlerId);
+         if (hard) {
+            CLEAR_LOG_HANDLER(data);
+            g_free(data);
+         }
+      }
+      if (hard) {
+         g_ptr_array_free(gDomains, TRUE);
+         gDomains = NULL;
+      }
+   }
+
+   if (hard && gDefaultData != NULL) {
+      CLEAR_LOG_HANDLER(gDefaultData);
+      g_free(gDefaultData);
+      gDefaultData = NULL;
+   }
+
+   if (gLogDomain != NULL) {
+      g_free(gLogDomain);
+      gLogDomain = NULL;
+   }
+
+   gDefaultLogFunc = DEFAULT_HANDLER;
+}
+
+
+/**
+ * Restores the logging configuration in the given config data. This means doing
+ * the following:
+ *
+ * . if the old log domain exists in the current configuration, and in case both
+ *   the old and new configuration used log files, then re-use the file that was
+ *   already opened.
+ * . if they don't use the same configuration, close the log file for the old
+ *   configuration.
+ * . if an old log domain doesn't exist in the new configuration, then
+ *   release any resources the old configuration was using for that domain.
+ *
+ * @param[in] oldDefault    Data for the old default domain.
+ * @param[in] oldDomains    List of old log domains.
+ */
+
+static void
+VMToolsRestoreLogging(LogHandlerData *oldDefault,
+                      GPtrArray *oldDomains)
+{
+   /* First, restore what needs to be restored. */
+   if (gDomains != NULL && oldDomains != NULL) {
+      guint i;
+      for (i = 0; i < gDomains->len; i++) {
+         guint j;
+         LogHandlerData *data = g_ptr_array_index(gDomains, i);
+
+         /* Try to find the matching old config. */
+         for (j = 0; j < oldDomains->len; j++) {
+            LogHandlerData *olddata = g_ptr_array_index(oldDomains, j);
+            if (strcmp(data->domain, olddata->domain) == 0) {
+               if (data->path != NULL && olddata->file != NULL) {
+                  ASSERT(data->file == NULL);
+                  data->file = olddata->file;
+                  olddata->file = NULL;
+               }
+               break;
+            }
+         }
+      }
+   }
+
+   if (gDefaultData != NULL && oldDefault != NULL) {
+      if (gDefaultData->path != NULL && oldDefault->file != NULL) {
+         ASSERT(gDefaultData->file == NULL);
+         gDefaultData->file = oldDefault->file;
+         oldDefault->file = NULL;
+      }
+   }
+
+   /* Second, clean up the old configuration data. */
+   if (oldDomains != NULL) {
+      while (oldDomains->len > 0) {
+         LogHandlerData *data = g_ptr_array_remove_index_fast(oldDomains,
+                                                              oldDomains->len - 1);
+         CLEAR_LOG_HANDLER(data);
+         g_free(data);
+      }
+   }
+
+   if (oldDefault != NULL) {
+      CLEAR_LOG_HANDLER(oldDefault);
+   }
+}
+
+
 /* Public API. */
 
 /**
- * Returns the default log domain for the application.
+ * Configures the logging system according to the configuration in the given
+ * dictionary.
  *
- * @return  A string with the name of the log domain.
- */
-
-const char *
-VMTools_GetDefaultLogDomain(void)
-{
-   return gLogDomain;
-}
-
-
-/**
- * Sets the default log domain. This only changes the output of the default
- * log handler.
+ * Optionally, it's possible to reset the logging subsystem; this will shut
+ * down all log handlers managed by the vmtools library before configuring
+ * the log system, which means that logging will behave as if the application
+ * was just started. A visible side-effect of this is that log files may be
+ * rotated (if they're not configure for appending).
  *
- * @param[in]  domain   The log domain.
+ * @param[in] defaultDomain   Name of the default log domain.
+ * @param[in] cfg             The configuration data. May be NULL.
+ * @param[in] force           Whether to force logging to be enabled.
+ * @param[in] reset           Whether to reset the logging subsystem first.
  */
 
 void
-VMTools_SetDefaultLogDomain(const gchar *domain)
-{
-   ASSERT(domain != NULL);
-   if (gLogDomain != NULL) {
-      g_free(gLogDomain);
-   }
-   gLogDomain = g_strdup(domain);
-}
-
-
-/**
- * Configures the logging system according to the configuration provided from
- * the given dictionary.
- *
- * @param[in] cfg    The configuration data.
- */
-
-void
-VMTools_ConfigLogging(GKeyFile *cfg)
+VMTools_ConfigLogging(const gchar *defaultDomain,
+                      GKeyFile *cfg,
+                      gboolean force,
+                      gboolean reset)
 {
    gchar **list;
    gchar **curr;
+   GPtrArray *oldDomains = NULL;
+   LogHandlerData *oldDefault = NULL;
 
-   VMTools_ResetLogging(FALSE);
+   g_return_if_fail(defaultDomain != NULL);
 
-   if (!g_key_file_has_group(cfg, LOGGING_GROUP)) {
-      return;
+   /*
+    * If not resetting the logging system, keep the old domains around. After
+    * we're done loading the new configuration, we'll go through the old domains
+    * and restore any data that needs restoring, and clean up anything else.
+    */
+   VMToolsResetLogging(reset);
+   if (!reset) {
+      oldDefault = gDefaultData;
+      oldDomains = gDomains;
+      gDomains = NULL;
+      gDefaultData = NULL;
+   }
+
+   gLogDomain = g_strdup(defaultDomain);
+
+   /*
+    * If no logging config data exists, then we install a default log handler,
+    * just so we override the default glib one, since the caller has asked us to
+    * enable our logging system.
+    */
+   if (cfg == NULL || !g_key_file_has_group(cfg, LOGGING_GROUP)) {
+      gDefaultData = g_malloc0(sizeof *gDefaultData);
+      gDefaultData->domain = g_strdup(defaultDomain);
+      gDefaultData->mask = G_LOG_LEVEL_ERROR |
+                           G_LOG_LEVEL_CRITICAL |
+                           G_LOG_LEVEL_WARNING;
+#if defined(VMX86_DEBUG)
+      gDefaultData->mask |= G_LOG_LEVEL_MESSAGE;
+#endif
+      g_log_set_default_handler(gDefaultLogFunc, gDefaultData);
+      goto exit;
    }
 
    /*
     * Configure the default domain first. See function documentation for
     * VMToolsConfigLogDomain() for the reason.
     */
-   VMToolsConfigLogDomain(VMTools_GetDefaultLogDomain(), cfg);
+   VMToolsConfigLogDomain(gLogDomain, cfg);
 
    list = g_key_file_get_keys(cfg, LOGGING_GROUP, NULL, NULL);
 
@@ -660,7 +794,7 @@ VMTools_ConfigLogging(GKeyFile *cfg)
       domain[strlen(domain) - 6] = '\0';
 
       /* Skip the default domain. */
-      if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
+      if (strcmp(domain, gLogDomain) == 0) {
          continue;
       }
 
@@ -674,97 +808,18 @@ VMTools_ConfigLogging(GKeyFile *cfg)
       gEnableCoreDump = g_key_file_get_boolean(cfg, LOGGING_GROUP,
                                                "enableCoreDump", NULL);
    }
-}
 
-
-/**
- * Enables of disables all the log domains configured by the vmtools library.
- * This doesn't affect other log domains that may have configured by other
- * code.
- *
- * @param[in] enable    Whether logging should be enabled.
- */
-
-void
-VMTools_EnableLogging(gboolean enable)
-{
-   gLogEnabled = enable;
-}
-
-
-/**
- * Resets the vmtools logging subsystem, freeing up data and optionally
- * restoring the original glib configuration.
- *
- * @param[in]  cleanDefault   Whether to clean up the default handler and
- *                            restore the original glib handler.
- */
-
-void
-VMTools_ResetLogging(gboolean cleanDefault)
-{
-   gboolean oldLogEnabled = gLogEnabled;
-   gchar *currentPath = NULL;
-   FILE *currentFile = NULL;
-
-   /* Disable logging while we're playing with the configuration. */
-   gLogEnabled = FALSE;
-
-   if (cleanDefault) {
-      g_log_set_default_handler(g_log_default_handler, NULL);
-   }
-
-   if (gDomains != NULL) {
-      guint i;
-      for (i = 0; i < gDomains->len; i++) {
-         LogHandlerData *data = g_ptr_array_index(gDomains, i);
-         g_log_remove_handler(data->domain, data->handlerId);
-         if (data->file != NULL) {
-            fclose(data->file);
-         }
-         g_free(data->path);
-         g_free(data->domain);
-         g_free(data);
+exit:
+   /* If needed, restore the old configuration. */
+   if (!reset) {
+      VMToolsRestoreLogging(oldDefault, oldDomains);
+      g_free(oldDefault);
+      if (oldDomains != NULL) {
+         g_ptr_array_free(oldDomains, TRUE);
       }
-      g_ptr_array_free(gDomains, TRUE);
-      gDomains = NULL;
    }
 
-   if (gDefaultData != NULL) {
-      currentFile = gDefaultData->file;
-      currentPath = gDefaultData->path;
-      g_free(gDefaultData);
-      gDefaultData = NULL;
-   }
-
-   if (cleanDefault && gLogDomain != NULL) {
-      g_free(gLogDomain);
-      gLogDomain = NULL;
-   }
-
-   gDefaultLogFunc = DEFAULT_HANDLER;
-
-   if (!cleanDefault) {
-      if (gLogDomain == NULL) {
-         gLogDomain = g_strdup("vmtools");
-      }
-      gDefaultData = g_malloc0(sizeof *gDefaultData);
-      gDefaultData->mask = G_LOG_LEVEL_ERROR |
-                           G_LOG_LEVEL_CRITICAL |
-                           G_LOG_LEVEL_WARNING;
-#if defined(VMX86_DEBUG)
-      gDefaultData->mask |= G_LOG_LEVEL_MESSAGE;
-#endif
-      gDefaultData->file = currentFile;
-      gDefaultData->path = currentPath;
-      gLogEnabled = oldLogEnabled;
-      g_log_set_default_handler(gDefaultLogFunc, gDefaultData);
-   } else {
-      if (currentFile != NULL) {
-         fclose(currentFile);
-      }
-      g_free(currentPath);
-   }
+   gLogEnabled |= force;
 }
 
 

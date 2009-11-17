@@ -59,7 +59,6 @@ static gboolean
 ToolsCoreSigHUPCb(const siginfo_t *info,
                   gpointer data)
 {
-   VMTools_ResetLogging(TRUE);
    ToolsCore_ReloadConfig(data, TRUE);
    return TRUE;
 }
