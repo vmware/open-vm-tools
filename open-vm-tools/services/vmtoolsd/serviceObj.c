@@ -181,6 +181,18 @@ ToolsCore_Service_class_init(gpointer _klass,
                 G_TYPE_POINTER,
                 G_TYPE_UINT,
                 G_TYPE_UINT);
+
+   g_signal_new(TOOLS_CORE_SIG_PRESHUTDOWN,
+                G_OBJECT_CLASS_TYPE(klass),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_user_marshal_VOID__POINTER_POINTER,
+                G_TYPE_NONE,
+                2,
+                G_TYPE_POINTER,
+                G_TYPE_POINTER);
 #endif
 }
 

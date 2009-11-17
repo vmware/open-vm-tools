@@ -34,3 +34,7 @@ BOOLEAN:POINTER,STRING,STRING
 # Used on Win32 only.
 VOID:POINTER,UINT,UINT
 
+# The "pre shutdown" signal.
+# Used on Win32 only.
+VOID:POINTER,POINTER
+

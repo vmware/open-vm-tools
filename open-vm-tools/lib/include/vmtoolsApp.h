@@ -144,6 +144,17 @@
  * @param[in]  data     Client data.
  */
 #define TOOLS_CORE_SIG_SESSION_CHANGE  "tcs_session_change"
+
+/**
+ * Signal sent when the pre shutdown event is received in the service.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  handle   SERVICE_STATUS_HANDLE: Service status handle.
+ * @param[in]  data     Client data.
+ */
+#define TOOLS_CORE_SIG_PRESHUTDOWN "tcs_preshutdown"
+
 #endif
 
 

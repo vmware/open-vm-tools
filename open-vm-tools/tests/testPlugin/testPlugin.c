@@ -196,6 +196,28 @@ TestPluginSessionChange(gpointer src,
 {
    g_debug("Got session state change signal, code = %u, id = %u\n", code, sessionId);
 }
+
+
+/**
+ * Handles the preshutdown callback; this is only called on Windows Vista & up,
+ * from the "vmsvc" instance. This is called only "upgrade at powercycle" flag is
+ * set in the UI. If the upgrader is launched, the service waits for upgrader
+ * to terminate before shutting down.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  serviceStatusHandle     A handle of type SERVICE_STATUS_HANDLE
+ * @param[in]  data     Client data.
+ */
+
+static void
+TestPluginPreShutdownChange(gpointer src,
+                            ToolsAppCtx *ctx,
+                            gpointer serviceStatusHandle,
+                            gpointer data)
+{
+   g_debug("%s: Got preshutdown signal for app %s\n", __FUNCTION__, ctx->name);
+}
 #endif
 
 
@@ -278,6 +300,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_CORE_SIG_SET_OPTION, TestPluginSetOption, &regData },
 #if defined(G_PLATFORM_WIN32)
       { TOOLS_CORE_SIG_SESSION_CHANGE, TestPluginSessionChange, &regData },
+      { TOOLS_CORE_SIG_PRESHUTDOWN, TestPluginPreShutdownChange, &regData },
 #endif
    };
    ToolsAppReg regs[] = {
