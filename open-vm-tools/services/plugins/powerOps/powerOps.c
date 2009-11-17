@@ -390,7 +390,7 @@ PowerOpsRunScript(PowerOpState *state,
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 PowerOpsStateChange(RpcInData *data)
 {
    size_t i;
@@ -481,7 +481,7 @@ PowerOpsStateChange(RpcInData *data)
          }
 
          g_free(script);
-         return RPCIN_SETRETVALS(data, result, ret);
+         return RPCIN_SETRETVALS(data, (char *) result, ret);
       }
    }
 

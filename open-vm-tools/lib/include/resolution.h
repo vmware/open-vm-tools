@@ -50,7 +50,6 @@
 #include "includeCheck.h"
 
 #include "vmware.h"
-#include "rpcin.h"
 
 
 /*
@@ -88,6 +87,10 @@ typedef enum {
  * Global functions
  */
 
+#if !defined(VMTOOLS_USE_GLIB)
+
+#include "rpcin.h"
+
 Bool Resolution_Init(const char *tcloChannel, InitHandle handle);
 void Resolution_Cleanup(void);
 
@@ -96,5 +99,7 @@ void Resolution_CleanupBackdoor(void);
 
 Bool Resolution_RegisterCaps(void);
 Bool Resolution_UnregisterCaps(void);
+
+#endif
 
 #endif // ifndef _LIB_RESOLUTION_H_

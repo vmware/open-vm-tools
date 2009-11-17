@@ -463,7 +463,7 @@ VmBackupEnableSync(void)
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 VmBackupStart(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
@@ -521,7 +521,7 @@ VmBackupStart(RpcInData *data)
  * @return TRUE
  */
 
-static Bool
+static gboolean
 VmBackupAbort(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
@@ -564,7 +564,7 @@ VmBackupAbort(RpcInData *data)
  * @return TRUE
  */
 
-static Bool
+static gboolean
 VmBackupSnapshotDone(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);

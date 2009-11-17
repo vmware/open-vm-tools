@@ -25,6 +25,7 @@
 
 #include "vm_assert.h"
 #include "rpcChannelInt.h"
+#include "rpcin.h"
 #include "rpcout.h"
 #include "util.h"
 
@@ -94,7 +95,7 @@ RpcInStopChannel(RpcChannel *chan,
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 RpcInStart(RpcChannel *chan)
 {
    gboolean ret;
@@ -162,7 +163,7 @@ RpcInStop(RpcChannel *chan)
  * @return The status from the remote end (TRUE if call was successful).
  */
 
-static Bool
+static gboolean
 RpcInSend(RpcChannel *chan,
           char *data,
           size_t dataLen,

@@ -88,7 +88,7 @@ HgfsChannel_Exit(void *data)
  * @return TRUE on success, FALSE on error.
  */
 
-static Bool
+static gboolean
 HgfsServerRpcInDispatch(RpcInData *data)
 {
    size_t packetSize;

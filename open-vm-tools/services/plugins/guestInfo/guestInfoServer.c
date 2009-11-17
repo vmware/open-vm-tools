@@ -127,7 +127,7 @@ static void TweakGatherLoop(ToolsAppCtx *ctx);
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 GuestInfoVMSupport(RpcInData *data)
 {
 #if defined(_WIN32)

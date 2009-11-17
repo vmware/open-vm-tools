@@ -65,14 +65,8 @@ ResolutionInfoType resolutionInfo;
  * Local function prototypes
  */
 
-static Bool ResolutionResolutionSetCB(RpcInData *data);
-static Bool ResolutionDisplayTopologySetCB(RpcInData *data);
 static void ResolutionSetServerCapability(unsigned int value);
 
-#if defined(RESOLUTION_WIN32)
-static Bool ResolutionDisplayTopologyModesSetCB(RpcInData *data);
-static Bool ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data);
-#endif
 
 /*
  * Global function definitions
@@ -134,13 +128,13 @@ ResolutionCleanup(void)
  * @return TRUE if we can reply, FALSE otherwise.
  */
 
-static Bool
+static gboolean
 ResolutionResolutionSetCB(RpcInData *data)
 {
    uint32 width = 0 ;
    uint32 height = 0;
    unsigned int index = 0;
-   Bool retval = FALSE;
+   gboolean retval = FALSE;
 
    ResolutionInfoType *resInfo = &resolutionInfo;
 
@@ -176,11 +170,11 @@ invalid_arguments:
  * @return TRUE if we can reply, FALSE otherwise.
  */
 
-static Bool
+static gboolean
 ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data)
 {
    unsigned int set;
-   Bool success = FALSE;
+   gboolean success = FALSE;
    unsigned int index = 0;
 
    Debug("%s: enter\n", __FUNCTION__);
@@ -218,7 +212,7 @@ ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data)
  * @return TRUE if we can reply, FALSE otherwise.
  */
 
-static Bool
+static gboolean
 ResolutionDisplayTopologyModesSetCB(RpcInData *data)
 {
    DisplayTopologyInfo *displays = NULL;
@@ -226,7 +220,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
    unsigned int i;
    unsigned int cmd;
    unsigned int screen;
-   Bool success = FALSE;
+   gboolean success = FALSE;
    const char *p;
 
    Debug("%s: enter\n", __FUNCTION__);
@@ -297,12 +291,12 @@ out:
  * @return TRUE if we can reply, FALSE otherwise.
  */
 
-static Bool
+static gboolean
 ResolutionDisplayTopologySetCB(RpcInData *data)
 {
    DisplayTopologyInfo *displays = NULL;
    unsigned int count, i;
-   Bool success = FALSE;
+   gboolean success = FALSE;
    const char *p;
 
    ResolutionInfoType *resInfo = &resolutionInfo;

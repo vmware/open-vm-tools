@@ -96,7 +96,7 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
  * @return TRUE.
  */
 
-static Bool
+static gboolean
 ToolsCoreRpcCapReg(RpcInData *data)
 {
    char *confPath = GuestApp_GetConfPath();
@@ -163,10 +163,10 @@ ToolsCoreRpcCapReg(RpcInData *data)
  *
  * @param[in]  data     The RPC data.
  *
- * @return TRUE.
+ * @return Whether the option was successfully processed.
  */
 
-static Bool
+static gboolean
 ToolsCoreRpcSetOption(RpcInData *data)
 {
 
@@ -204,7 +204,7 @@ exit:
    } else {
       RPCIN_SETRETVALS(data, "Unknown or invalid option", retVal);
    }
-   return (Bool) retVal;
+   return retVal;
 }
 
 

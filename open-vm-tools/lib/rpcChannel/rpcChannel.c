@@ -34,7 +34,7 @@
 /** Max number of times to attempt a channel restart. */
 #define RPCIN_MAX_RESTARTS 60
 
-static Bool
+static gboolean
 RpcChannelPing(RpcInData *data);
 
 static RpcChannelCallback gRpcHandlers[] =  {
@@ -50,7 +50,7 @@ static RpcChannelCallback gRpcHandlers[] =  {
  * @return TRUE.
  */
 
-static Bool
+static gboolean
 RpcChannelPing(RpcInData *data)
 {
    return RPCIN_SETRETVALS(data, "", TRUE);
@@ -144,7 +144,7 @@ exit:
  * @return TRUE.
  */
 
-static Bool
+static gboolean
 RpcChannelReset(RpcInData *data)
 {
    gchar *msg;
@@ -262,7 +262,7 @@ exit:
  * @return Whether successfully built the command.
  */
 
-Bool
+gboolean
 RpcChannel_BuildXdrCommand(const char *cmd,
                            void *xdrProc,
                            void *xdrData,
@@ -310,7 +310,7 @@ exit:
  * @return Whether the RPC was handled successfully.
  */
 
-Bool
+gboolean
 RpcChannel_Dispatch(RpcInData *data)
 {
    char *name = NULL;
@@ -467,6 +467,32 @@ RpcChannel_Setup(RpcChannel *chan,
    for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
       RpcChannel_RegisterCallback(chan, &gRpcHandlers[i]);
    }
+}
+
+
+
+/**
+ * Sets the result of the given RPC context to the given value. The result
+ * should be a NULL-terminated string.
+ *
+ * @param[in] data     RPC context.
+ * @param[in] result   Result string.
+ * @param[in] retVal   Return value of this function.
+ *
+ * @return @a retVal
+ */
+
+gboolean
+RpcChannel_SetRetVals(RpcInData *data,
+                      char *result,
+                      gboolean retVal)
+{
+   ASSERT(data);
+
+   data->result = result;
+   data->resultLen = strlen(data->result);
+
+   return retVal;
 }
 
 

@@ -47,7 +47,7 @@
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 TestPluginRpc1(RpcInData *data)
 {
    ToolsAppCtx *ctx = data->appCtx;
@@ -88,7 +88,7 @@ TestPluginRpc1(RpcInData *data)
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 TestPluginRpc2(RpcInData *data)
 {
    g_debug("%s: %s\n", __FUNCTION__, data->name);
@@ -105,7 +105,7 @@ TestPluginRpc2(RpcInData *data)
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 TestPluginRpc3(RpcInData *data)
 {
    TestPluginData *ret;

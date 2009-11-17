@@ -161,7 +161,7 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,
  * @return TRUE on success, FALSE on failure.
  */
 
-static Bool
+static gboolean
 VixUserOpenUrl(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -232,7 +232,7 @@ abort:
  * @return TRUE on success, FALSE on failure.
  */
 
-static Bool
+static gboolean
 VixUserSetPrinter(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];

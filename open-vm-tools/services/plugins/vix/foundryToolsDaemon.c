@@ -123,19 +123,17 @@ static char *ToolsDaemonTcloGetQuotedString(const char *args,
 static char * ToolsDaemonTcloGetEncodedQuotedString(const char *args,
                                                     const char **endOfArg);
 
-Bool ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
+RpcInRet ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
-#if !defined(N_PLAT_NLM)
-Bool ToolsDaemonHgfsImpersonated(RpcInData *data);
-#endif
+RpcInRet ToolsDaemonHgfsImpersonated(RpcInData *data);
 
 #if defined(linux) || defined(_WIN32)
-Bool ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
+RpcInRet ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 
-Bool ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
+RpcInRet ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
 #endif
 
-Bool ToolsDaemonTcloMountHGFS(RpcInData *data);
+RpcInRet ToolsDaemonTcloMountHGFS(RpcInData *data);
 
 void ToolsDaemonTcloReportProgramCompleted(const char *requestName,
                                            VixError err,
@@ -171,7 +169,7 @@ static Bool thisProcessRunsAsRoot = FALSE;
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 FoundryToolsDaemonRunProgram(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -285,7 +283,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -372,7 +370,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 ToolsDaemonTcloCheckUserAccount(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -699,7 +697,7 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 ToolsDaemonTcloOpenUrl(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -796,7 +794,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 ToolsDaemonTcloSetPrinter(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -901,7 +899,7 @@ abort:
  */
 
 #if defined(linux) || defined(_WIN32)
-Bool
+RpcInRet
 ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -1068,7 +1066,7 @@ exit:
  */
 
 #if defined(linux) || defined(_WIN32)
-Bool
+RpcInRet
 ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -1371,7 +1369,7 @@ FoundryToolsDaemon_UnregisterSetPrinter(RpcIn *in) // IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -1470,7 +1468,7 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
 {
    VixError err;
@@ -1707,7 +1705,7 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
 {
    VixError err = VIX_OK;

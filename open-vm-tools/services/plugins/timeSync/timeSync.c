@@ -418,7 +418,7 @@ TimeSyncStartStopLoop(ToolsAppCtx *ctx,
  * @return TRUE on success.
  */
 
-static Bool
+static gboolean
 TimeSyncTcloHandler(RpcInData *data)
 {
    Bool backwardSync = !strcmp(data->args, "1");
