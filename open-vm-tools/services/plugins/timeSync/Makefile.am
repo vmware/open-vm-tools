@@ -29,4 +29,5 @@ libtimeSync_la_LIBADD += @VMTOOLS_LIBS@
 
 libtimeSync_la_SOURCES =
 libtimeSync_la_SOURCES += timeSync.c
+libtimeSync_la_SOURCES += timeSyncPosix.c
 

@@ -22,14 +22,12 @@
  * Plugin to handle time synchronization between the guest and host.
  */
 
-#define G_LOG_DOMAIN "timeSync"
-
 /* sync the time once a minute */
 #define TIME_SYNC_TIME     60
 /* only PERCENT_CORRECTION percent is corrected everytime */
 #define PERCENT_CORRECTION   50
 
-
+#include "timeSync.h"
 #include "backdoor.h"
 #include "backdoor_def.h"
 #include "conf.h"
@@ -90,7 +88,7 @@ TimeSyncDoSync(Bool slewCorrection,
    int64 secs1, usecs1;
    int64 secs2, usecs2;
 
-   System_GetCurrentTime(&secs1, &usecs1);
+   TimeSync_GetCurrentTime(&secs1, &usecs1);
 #endif
 
    g_debug("Synchronizing time.\n");
@@ -163,7 +161,7 @@ TimeSyncDoSync(Bool slewCorrection,
    }
 
    /* Get the guest OS time */
-   if (!System_GetCurrentTime(&guestSecs, &guestUsecs)) {
+   if (!TimeSync_GetCurrentTime(&guestSecs, &guestUsecs)) {
       g_warning("Unable to retrieve the guest OS time: %s.\n\n", Msg_ErrString());
       return FALSE;
    }
@@ -194,8 +192,8 @@ TimeSyncDoSync(Bool slewCorrection,
        * 2) The guest OS is ahead of the host OS.
        */
       if (diff > maxTimeLag + interruptLag || (diff < 0 && allowBackwardSync)) {
-         System_DisableTimeSlew();
-         if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
+         TimeSync_DisableTimeSlew();
+         if (!TimeSync_AddToCurrentTime(diffSecs, diffUsecs)) {
             g_warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
             return FALSE;
          }
@@ -216,8 +214,8 @@ TimeSyncDoSync(Bool slewCorrection,
        */
 
       if (diff > maxTimeLag + interruptLag) {
-         System_DisableTimeSlew();
-         if (!System_AddToCurrentTime(diffSecs, diffUsecs)) {
+         TimeSync_DisableTimeSlew();
+         if (!TimeSync_AddToCurrentTime(diffSecs, diffUsecs)) {
             g_warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
             return FALSE;
          }
@@ -231,17 +229,17 @@ TimeSyncDoSync(Bool slewCorrection,
          /* Correct only data->slewPercentCorrection percent error. */
          slewDiff = (data->slewPercentCorrection * slewDiff) / 100;
 
-         if (!System_EnableTimeSlew(slewDiff, timeSyncPeriodUS)) {
+         if (!TimeSync_EnableTimeSlew(slewDiff, timeSyncPeriodUS)) {
             g_warning("Unable to slew the guest OS time: %s.\n\n", Msg_ErrString());
             return FALSE;
          }
       } else {
-         System_DisableTimeSlew();
+         TimeSync_DisableTimeSlew();
       }
    }
 
 #ifdef VMX86_DEBUG
-      System_GetCurrentTime(&secs2, &usecs2);
+      TimeSync_GetCurrentTime(&secs2, &usecs2);
 
       g_debug("Time changed from %"FMT64"d.%"FMT64"d -> %"FMT64"d.%"FMT64"d\n",
               secs1, usecs1, secs2, usecs2);
@@ -251,7 +249,7 @@ TimeSyncDoSync(Bool slewCorrection,
     * If we have stepped the time, ask TimeTracker to reset to normal the rate
     * of timer interrupts it forwards from the host to the guest.
     */
-   if (!System_IsTimeSlewEnabled()) {
+   if (!TimeSync_IsTimeSlewEnabled()) {
       bp.in.cx.halfs.low = BDOOR_CMD_STOPCATCHUP;
       Backdoor(&bp);
    }
@@ -397,7 +395,7 @@ TimeSyncStartStopLoop(ToolsAppCtx *ctx,
       return TRUE;
    } else if (!start && data->timer != NULL) {
       g_debug("Stopping time sync loop.\n");
-      System_DisableTimeSlew();
+      TimeSync_DisableTimeSlew();
       g_source_destroy(data->timer);
       data->timer = NULL;
 

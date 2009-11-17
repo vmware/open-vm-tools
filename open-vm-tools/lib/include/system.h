@@ -35,12 +35,7 @@
 #include "unicode.h"
 
 uint64 System_Uptime(void);
-Bool System_GetCurrentTime(int64 *secs, int64 *usecs);
-Bool System_AddToCurrentTime(int64 deltaSecs, int64 deltaUsecs);
 Unicode System_GetTimeAsString(void);
-Bool System_EnableTimeSlew(int64 delta, int64 timeSyncPeriod);
-Bool System_DisableTimeSlew(void);
-Bool System_IsTimeSlewEnabled(void);
 Bool System_IsACPI(void);
 void System_Shutdown(Bool reboot);
 Bool System_IsUserAdmin(void);
