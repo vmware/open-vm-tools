@@ -47,6 +47,16 @@ VMTools_GetDefaultLogDomain(void);
 #  include <sys/time.h>
 #endif
 
+
+/* Work around a glib limitation: it doesn't set G_INLINE_FUNC on Win32. */
+#if defined(G_PLATFORM_WIN32)
+#  if defined(G_INLINE_FUNC)
+#     undef G_INLINE_FUNC
+#  endif
+#  define G_INLINE_FUNC static __inline
+#endif
+
+
 /**
  * Converts an UTF-8 path to the local (i.e., glib) file name encoding.
  * This is a no-op on Windows, since the local encoding is always UTF-8

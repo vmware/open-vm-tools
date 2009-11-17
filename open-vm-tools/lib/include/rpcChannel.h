@@ -41,7 +41,7 @@
 #endif
 
 #include <glib.h>
-#include "vmware.h"
+#include "vmtools.h"
 
 /** Alias for RpcChannel_SetRetVals. */
 #define RPCIN_SETRETVALS RpcChannel_SetRetVals
@@ -161,11 +161,11 @@ typedef struct RpcChannel {
  * @return TRUE on success.
  */
 
-static INLINE gboolean
+G_INLINE_FUNC gboolean
 RpcChannel_Start(RpcChannel *chan)
 {
-   ASSERT(chan != NULL);
-   ASSERT(chan->start != NULL);
+   g_return_val_if_fail(chan != NULL, FALSE);
+   g_return_val_if_fail(chan->start != NULL, FALSE);
 
    return chan->start(chan);
 }
@@ -177,11 +177,11 @@ RpcChannel_Start(RpcChannel *chan)
  * @param[in]  chan        The RPC channel instance.
  */
 
-static INLINE void
+G_INLINE_FUNC void
 RpcChannel_Stop(RpcChannel *chan)
 {
-   ASSERT(chan != NULL);
-   ASSERT(chan->stop != NULL);
+   g_return_if_fail(chan != NULL);
+   g_return_if_fail(chan->stop != NULL);
 
    chan->stop(chan);
 }
@@ -199,15 +199,15 @@ RpcChannel_Stop(RpcChannel *chan)
  * @return The status from the remote end (TRUE if call was successful).
  */
 
-static INLINE gboolean
+G_INLINE_FUNC gboolean
 RpcChannel_Send(RpcChannel *chan,
                 char *data,
                 size_t dataLen,
                 char **result,
                 size_t *resultLen)
 {
-   ASSERT(chan != NULL);
-   ASSERT(chan->send != NULL);
+   g_return_val_if_fail(chan != NULL, FALSE);
+   g_return_val_if_fail(chan->send != NULL, FALSE);
 
    return chan->send(chan, data, dataLen, result, resultLen);
 }

@@ -33,6 +33,7 @@
 #endif
 #include <glib/gi18n.h>
 
+#include "vm_assert.h"
 #include "conf.h"
 #include "rpcout.h"
 #include "str.h"
