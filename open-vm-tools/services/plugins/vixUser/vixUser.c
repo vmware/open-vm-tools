@@ -34,9 +34,9 @@
 #include "strutil.h"
 #include "vixCommands.h"
 #include "vixTools.h"
-#include "vmtools.h"
-#include "vmtoolsApp.h"
 #include "util.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 #if defined(_WIN32)
 #  include "win32u.h"

@@ -25,7 +25,6 @@
 #include "toolsCoreInt.h"
 #include "serviceObj.h"
 #include "svcSignals.h"
-#include "vmtoolsApp.h"
 
 
 /**

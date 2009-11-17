@@ -34,8 +34,8 @@
 #endif
 
 #include "vm_assert.h"
-#include "vmtools.h"
 #include "wiper.h"
+#include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

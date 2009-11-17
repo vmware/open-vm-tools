@@ -23,12 +23,12 @@
  *    automatically migrating from old-style tools configuration files.
  */
 
+#include "vmware/tools/utils.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <glib/gstdio.h>
-#include "vmtools.h"
 #include "conf.h"
 #include "file.h"
 #include "guestApp.h"

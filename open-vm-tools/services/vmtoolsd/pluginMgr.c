@@ -27,7 +27,7 @@
 #include "guestApp.h"
 #include "toolsCoreInt.h"
 #include "util.h"
-#include "vmtools.h"
+#include "vmware/tools/utils.h"
 
 
 #ifdef USE_APPLOADER

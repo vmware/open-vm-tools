@@ -32,8 +32,8 @@
 #include "str.h"
 #include "strutil.h"
 #include "toolsCoreInt.h"
-#include "vmtools.h"
 #include "vm_tools_version.h"
+#include "vmware/tools/utils.h"
 
 
 /**

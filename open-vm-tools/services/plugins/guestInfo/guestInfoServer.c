@@ -46,18 +46,17 @@
 #include "guestInfoInt.h"
 #include "guest_msg_def.h" // For GUESTMSG_MAX_IN_SIZE
 #include "netutil.h"
-#include "rpcChannel.h"
 #include "rpcvmx.h"
 #include "procMgr.h"
 #include "str.h"
 #include "strutil.h"
 #include "system.h"
 #include "util.h"
-#include "vmtools.h"
-#include "vmtoolsApp.h"
 #include "xdrutil.h"
 #include "vmsupport.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

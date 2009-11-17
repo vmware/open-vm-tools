@@ -30,7 +30,7 @@
 
 #include "system.h"
 #include "toolboxCmdInt.h"
-#include "vmtools.h"
+#include "vmware/tools/utils.h"
 
 
 #define SCRIPT_SUSPEND "suspend"

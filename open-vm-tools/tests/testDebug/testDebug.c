@@ -27,10 +27,9 @@
 #define G_LOG_DOMAIN "testDebug"
 #include <glib-object.h>
 #include "util.h"
-#include "vmrpcdbg.h"
-#include "vmtools.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/rpcdebug.h"
 
 static gboolean
 TestDebugValidateReset(RpcInData *data, gboolean ret);

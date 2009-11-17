@@ -31,8 +31,8 @@
 #include <glib-object.h>
 #include <gmodule.h>
 #include <time.h>
-#include "vmrpcdbg.h"
-#include "vmtoolsApp.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/rpcdebug.h"
 
 /* Used by the Windows implementation to communicate with other processes. */
 #if defined(G_PLATFORM_WIN32)

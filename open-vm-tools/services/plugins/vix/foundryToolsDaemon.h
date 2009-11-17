@@ -31,7 +31,7 @@
 
 #if defined(VMTOOLS_USE_GLIB)
 
-#include "vmtoolsApp.h"
+#include "vmware/tools/plugin.h"
 
 void
 FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);

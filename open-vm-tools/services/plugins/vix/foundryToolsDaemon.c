@@ -57,7 +57,7 @@
 
 #if defined(VMTOOLS_USE_GLIB)
 #  include "vixPluginInt.h"
-#  include "vmtools.h"
+#  include "vmware/tools/utils.h"
 #else
 #  include "debug.h"
 #  include "eventManager.h"

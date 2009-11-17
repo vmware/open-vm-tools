@@ -28,7 +28,7 @@
 #define Debug        g_debug
 #define Warning      g_warning
 
-#include "vmtoolsApp.h"
+#include "vmware/tools/plugin.h"
 #include "rpcin.h"
 
 RpcInRet

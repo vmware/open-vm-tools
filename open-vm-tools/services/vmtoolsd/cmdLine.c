@@ -37,8 +37,8 @@
 #include "conf.h"
 #include "rpcout.h"
 #include "str.h"
-#include "vmtools.h"
 #include "vmtoolsd_version.h"
+#include "vmware/tools/utils.h"
 
 
 /**

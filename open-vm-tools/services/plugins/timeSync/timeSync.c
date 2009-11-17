@@ -34,9 +34,9 @@
 #include "msg.h"
 #include "strutil.h"
 #include "system.h"
-#include "vmtools.h"
-#include "vmtoolsApp.h"
 #include "vmware/guestrpc/timesync.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

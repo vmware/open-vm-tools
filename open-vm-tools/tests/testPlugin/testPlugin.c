@@ -30,9 +30,9 @@
 #include <gmodule.h>
 #include "testData.h"
 #include "util.h"
-#include "vmtoolsApp.h"
-#include "vmtools.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 #define TEST_APP_PROVIDER  "TestProvider"
 #define TEST_APP_NAME      "TestProviderApp1"

@@ -30,7 +30,7 @@
 #include "debug.h"
 #include "guestApp.h"
 #include "util.h"
-#include "vmtools.h"
+#include "vmware/tools/utils.h"
 
 
 /*

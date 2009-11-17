@@ -25,15 +25,15 @@
 #include <string.h>
 
 #define G_LOG_DOMAIN "hgfsd"
-#include "vmtoolsApp.h"
 
 #include "hgfs.h"
 #include "hgfsServerPolicy.h"
 #include "hgfsServer.h"
 #include "hgfsChannel.h"
 #include "vm_assert.h"
-#include "vmtools.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

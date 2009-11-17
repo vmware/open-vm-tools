@@ -26,13 +26,13 @@
 
 #include "vm_assert.h"
 #include "vm_basic_defs.h"
-#include "vmtoolsApp.h"
 
 #include "conf.h"
 #include "procMgr.h"
 #include "system.h"
-#include "vmtools.h"
 #include "vmware/guestrpc/powerops.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 #if defined(G_PLATFORM_WIN32)
 #  define INVALID_PID NULL

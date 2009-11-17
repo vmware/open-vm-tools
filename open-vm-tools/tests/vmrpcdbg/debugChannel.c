@@ -30,11 +30,11 @@
 #include <gmodule.h>
 
 #include "strutil.h"
-#include "vmrpcdbg.h"
-#include "vmtools.h"
 #include "util.h"
 #include "vmxrpc.h"
 #include "xdrutil.h"
+#include "vmware/tools/rpcdebug.h"
+#include "vmware/tools/utils.h"
 
 typedef struct DbgChannelData {
    gboolean          hasLibRef;

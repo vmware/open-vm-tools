@@ -38,8 +38,8 @@
 #include "system.h"
 #include "util.h"
 #include "vmcheck.h"
-#include "vmtools.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/utils.h"
 
 
 /**

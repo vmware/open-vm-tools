@@ -28,6 +28,7 @@
  *    before including glib.h.
  */
 
+#include "vmware/tools/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <glib/gstdio.h>
@@ -37,7 +38,6 @@
 #  include <unistd.h>
 #endif
 
-#include "vmtools.h"
 #include "codeset.h"
 #if defined(G_PLATFORM_WIN32)
 #  include "coreDump.h"

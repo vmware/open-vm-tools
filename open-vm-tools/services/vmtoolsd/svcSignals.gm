@@ -21,7 +21,7 @@
 #
 # Defines the custom GClosure marshal functions for the core services signals.
 #
-# @see vmtoolsApp.h
+# @see plugin.h
 #
 
 # The "capabilities" signal.

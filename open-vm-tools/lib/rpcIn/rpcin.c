@@ -45,7 +45,7 @@
 #endif
 
 #if defined(VMTOOLS_USE_GLIB)
-#  include "rpcChannel.h"
+#  include "vmware/tools/guestrpc.h"
 #endif
 
 #include "vmware.h"

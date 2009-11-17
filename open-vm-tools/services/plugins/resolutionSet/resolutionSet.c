@@ -34,10 +34,10 @@
 
 #include "resolutionInt.h"
 
-#include "vmtools.h"
-#include "vmtoolsApp.h"
 #include "xdrutil.h"
 #include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/plugin.h"
+#include "vmware/tools/utils.h"
 
 /*
  * The maximum number of capabilities we can set.

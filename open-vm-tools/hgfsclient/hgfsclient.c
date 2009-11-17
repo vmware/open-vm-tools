@@ -34,7 +34,7 @@
 #include "hgfsProto.h"
 #include "conf.h"
 #include "str.h"
-#include "vmtools.h"
+#include "vmware/tools/utils.h"
 
 #include "hgfsclient_version.h"
 #include "embed_version.h"

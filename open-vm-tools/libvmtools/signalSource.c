@@ -28,7 +28,7 @@
  */
 
 #include "vm_assert.h"
-#include "vmtools.h"
+#include "vmware/tools/utils.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>

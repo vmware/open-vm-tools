@@ -27,7 +27,7 @@
 #include <gmodule.h>
 #include <rpc/rpc.h>
 #include "util.h"
-#include "vmrpcdbg.h"
+#include "vmware/tools/rpcdebug.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
