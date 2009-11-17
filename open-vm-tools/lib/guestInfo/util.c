@@ -22,6 +22,7 @@
  * Random GuestInfo type utilities.
  */
 
+#include <string.h>
 
 #include "vmware.h"
 #include "guestInfoLib.h"
