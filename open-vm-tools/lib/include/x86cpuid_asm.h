@@ -101,8 +101,28 @@ void             __cpuid(unsigned int*, unsigned int);
  * for x86_64 incorrectly errors out saying %ebx is reserved.  This is
  * Apple bug 7304232.
  */
-#if (defined __PIC__ && !vm_x86_64) || (defined __APPLE__ && vm_x86_64)
-#define VM_EBX_RESERVED
+#if vm_x86_64 ? (defined __APPLE_CC__ && __APPLE_CC__ == 5493) : defined __PIC__
+#if vm_x86_64
+/*
+ * Note that this generates movq %rbx,%rbx; cpuid; xchgq %rbx,%rbx ...
+ * Unfortunately Apple's assembler does not have .ifnes, and I cannot
+ * figure out how to do that with .if.   If we ever enable this code
+ * on other 64bit systems, both movq & xchgq should be surrounded by
+ * .ifnes \"%%rbx\", \"%q1\" & .endif
+ */
+#define VM_CPUID_BLOCK  "movq %%rbx, %q1\n\t" \
+                        "cpuid\n\t"           \
+                        "xchgq %%rbx, %q1\n\t"
+#define VM_EBX_OUT(reg) "=&r"(reg)
+#else
+#define VM_CPUID_BLOCK  "movl %%ebx, %1\n\t" \
+                        "cpuid\n\t"          \
+                        "xchgl %%ebx, %1\n\t"
+#define VM_EBX_OUT(reg) "=&rm"(reg)
+#endif
+#else
+#define VM_CPUID_BLOCK  "cpuid"
+#define VM_EBX_OUT(reg) "=b"(reg)
 #endif
 
 static INLINE void
@@ -110,15 +130,8 @@ __GET_CPUID(int eax,         // IN
             CPUIDRegs *regs) // OUT
 {
    __asm__ __volatile__(
-#ifdef VM_EBX_RESERVED
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (regs->eax), "=&rm" (regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
-#else
-      "cpuid"
-      : "=a" (regs->eax), "=b" (regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
-#endif
+      VM_CPUID_BLOCK
+      : "=a" (regs->eax), VM_EBX_OUT(regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
       : "a" (eax)
       : "memory"
    );
@@ -130,15 +143,8 @@ __GET_CPUID2(int eax,         // IN
              CPUIDRegs *regs) // OUT
 {
    __asm__ __volatile__(
-#ifdef VM_EBX_RESERVED
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (regs->eax), "=&rm" (regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
-#else
-      "cpuid"
-      : "=a" (regs->eax), "=b" (regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
-#endif
+      VM_CPUID_BLOCK
+      : "=a" (regs->eax), VM_EBX_OUT(regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
       : "a" (eax), "c" (ecx)
       : "memory"
    );
@@ -147,25 +153,14 @@ __GET_CPUID2(int eax,         // IN
 static INLINE uint32
 __GET_EAX_FROM_CPUID(int eax) // IN
 {
-#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (eax), "=&rm" (ebx)
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx)
       : "a" (eax)
       : "memory", "%ecx", "%edx"
    );
-#else
-   __asm__ __volatile__(
-      "cpuid"
-      : "=a" (eax)
-      : "a" (eax)
-      : "memory", "%ebx", "%ecx", "%edx"
-   );
-#endif
 
    return eax;
 }
@@ -176,15 +171,8 @@ __GET_EBX_FROM_CPUID(int eax) // IN
    uint32 ebx;
 
    __asm__ __volatile__(
-#ifdef VM_EBX_RESERVED
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (eax), "=&rm" (ebx)
-#else
-      "cpuid"
-      : "=a" (eax), "=b" (ebx)
-#endif
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx)
       : "a" (eax)
       : "memory", "%ecx", "%edx"
    );
@@ -196,26 +184,14 @@ static INLINE uint32
 __GET_ECX_FROM_CPUID(int eax) // IN
 {
    uint32 ecx;
-#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (eax), "=&rm" (ebx), "=c" (ecx)
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx), "=c" (ecx)
       : "a" (eax)
       : "memory", "%edx"
    );
-#else
-
-   __asm__ __volatile__(
-      "cpuid"
-      : "=a" (eax), "=c" (ecx)
-      : "a" (eax)
-      : "memory", "%ebx", "%edx"
-   );
-#endif
 
    return ecx;
 }
@@ -224,26 +200,14 @@ static INLINE uint32
 __GET_EDX_FROM_CPUID(int eax) // IN
 {
    uint32 edx;
-#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (eax), "=&rm" (ebx), "=d" (edx)
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx), "=d" (edx)
       : "a" (eax)
       : "memory", "%ecx"
    );
-#else
-
-   __asm__ __volatile__(
-      "cpuid"
-      : "=a" (eax), "=d" (edx)
-      : "a" (eax)
-      : "memory", "%ebx", "%ecx"
-   );
-#endif
 
    return edx;
 }
@@ -253,31 +217,20 @@ static INLINE uint32
 __GET_EAX_FROM_CPUID4(int ecx) // IN
 {
    uint32 eax;
-#ifdef VM_EBX_RESERVED
    uint32 ebx;
 
    __asm__ __volatile__(
-      "movl %%ebx, %1"  "\n\t"
-      "cpuid"           "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (eax), "=&rm" (ebx), "=c" (ecx)
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx), "=c" (ecx)
       : "a" (4), "c" (ecx)
       : "memory", "%edx"
    );
-#else
-
-   __asm__ __volatile__(
-      "cpuid"
-      : "=a" (eax), "=c" (ecx)
-      : "a" (4), "c" (ecx)
-      : "memory", "%ebx", "%edx"
-   );
-#endif
 
    return eax;
 }
 
-#undef VM_EBX_RESERVED
+#undef VM_CPUID_BLOCK
+#undef VM_EBX_OUT
 
 #elif defined(_MSC_VER) // } {
 
