@@ -54,6 +54,9 @@ typedef struct _UnityPlatform UnityPlatform;
  * Implemented by unityPlatform[Win32|X11|Cocoa (ha!)].c
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 Bool UnityPlatformIsSupported(void);
 UnityPlatform *UnityPlatformInit(UnityWindowTracker *tracker,
                                  UnityUpdateChannel *updateChannel,
@@ -133,5 +136,9 @@ void UnityGetUpdateCommon(int flags, DynBuf *buf);
 Bool UnityUpdateChannelInit(UnityUpdateChannel *updateChannel);
 void UnityUpdateChannelCleanup(UnityUpdateChannel *updateChannel);
 Bool UnitySendUpdates(UnityUpdateChannel *updateChannel);
+
+#ifdef __cplusplus
+};
+#endif // __cplusplus
 
 #endif

@@ -81,6 +81,10 @@ typedef struct UnityVirtualDesktopArray {
 /* Forward reference. */
 typedef struct DesktopSwitchCallbackManager DesktopSwitchCallbackManager;
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 void Unity_Init(GuestApp_Dict *conf,
                 int *blockedWnd,
                 DesktopSwitchCallbackManager *desktopSwitchCallbackMgr);
@@ -97,5 +101,9 @@ void Unity_LocalToUnityPoint(UnityPoint *unityPt, UnityPoint *localPt);
 #ifdef _WIN32
 HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif
+
+#ifdef __cplusplus
+};
+#endif // __cplusplus
 
 #endif
