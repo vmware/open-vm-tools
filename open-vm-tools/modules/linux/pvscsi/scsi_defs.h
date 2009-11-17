@@ -1893,6 +1893,8 @@ struct {
 #define SCSI_FEAT_CODE_CORE            0x1
 #define SCSI_FEAT_CODE_MORPHING        0x2
 #define SCSI_FEAT_CODE_REMOVABLEMEDIUM 0x3
+#define SCSI_FEAT_CODE_RANDOMREADABLE  0x10
+#define SCSI_FEAT_CODE_DVDREAD         0x1F
    uint16 code;
    uint8  featureCurrent:1,
           persistent:1,
@@ -1979,6 +1981,24 @@ struct {
 }
 #include "vmware_pack_end.h"
 SCSIRemovableMediumFeatureDescriptor;
+
+
+/*
+ * Random Readable Descriptor format.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SCSIFeatureDescriptor feature;
+   uint32                logicalBlockSize;
+#define SCSI_RANDOM_READABLE_BLOCKING_DVD 0x10
+   uint16                blocking;
+   uint8                 pagePresent:1,
+                         reserved0:7;
+   uint8                 reserved1;
+}
+#include "vmware_pack_end.h"
+SCSIRandomReadableFeatureDescriptor;
 
 
 /*
