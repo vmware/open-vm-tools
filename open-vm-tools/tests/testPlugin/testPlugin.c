@@ -34,6 +34,12 @@
 #include "vmtools.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
 
+#define TEST_APP_PROVIDER  "TestProvider"
+#define TEST_APP_NAME      "TestProviderApp1"
+
+typedef struct TestApp {
+   const char *name;
+} TestApp;
 
 /**
  * Handles a "test.rpcin.msg1" RPC message. The incoming data should be an
@@ -267,6 +273,25 @@ TestPluginSetOption(gpointer src,
 
 
 /**
+ * Prints out the registration data for the test provider.
+ *
+ * @param[in] ctx     Unused.
+ * @param[in] prov    Unused.
+ * @param[in] reg     Registration data (should be a string).
+ */
+
+static void
+TestProviderRegisterApp(ToolsAppCtx *ctx,
+                        ToolsAppProvider *prov,
+                        gpointer reg)
+{
+   TestApp *app = reg;
+   g_debug("%s: registration data is '%s'\n", __FUNCTION__, app->name);
+   ASSERT(strcmp(TEST_APP_NAME, app->name) == 0);
+}
+
+
+/**
  * Plugin entry point. Returns the registration data. This is called once when
  * the plugin is loaded into the service process.
  *
@@ -293,6 +318,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { "test.rpcin.msg3",
             TestPluginRpc3, NULL, NULL, xdr_TestPluginData, 0 }
    };
+   ToolsAppProvider provs[] = {
+      { TEST_APP_PROVIDER, 42, sizeof (char *), NULL, TestProviderRegisterApp, NULL, NULL }
+   };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_RESET, TestPluginReset, &regData },
       { TOOLS_CORE_SIG_SHUTDOWN, TestPluginShutdown, &regData },
@@ -303,9 +331,14 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_CORE_SIG_PRESHUTDOWN, TestPluginPreShutdownChange, &regData },
 #endif
    };
+   TestApp tapp[] = {
+      { TEST_APP_NAME }
+   };
    ToolsAppReg regs[] = {
       { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
-      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
+      { TOOLS_APP_PROVIDER, VMTools_WrapArray(provs, sizeof *provs, ARRAYSIZE(provs)) },
+      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
+      { 42, VMTools_WrapArray(tapp, sizeof *tapp, ARRAYSIZE(tapp)) },
    };
 
    g_signal_new("test-signal",

@@ -149,6 +149,11 @@ ToolsCoreRegisterApp(ToolsServiceState *state,
                      ToolsAppProviderReg *preg,
                      gpointer reg)
 {
+   if (type == TOOLS_APP_PROVIDER) {
+      /* We should already have registered all providers. */
+      return;
+   }
+
    if (preg == NULL) {
       g_warning("Plugin %s wants to register app of type %d but no "
                 "provider was found.\n", plugin->name, type);
@@ -202,14 +207,21 @@ ToolsCoreRegisterProvider(ToolsServiceState *state,
                           gpointer reg)
 {
    if (type == TOOLS_APP_PROVIDER) {
+      guint k;
       ToolsAppProvider *prov = reg;
       ToolsAppProviderReg newreg = { prov, TOOLS_PROVIDER_IDLE };
 
-      /* Assert that no two providers choose the same app type. */
-      ASSERT(preg == NULL);
-
       ASSERT(prov->name != NULL);
       ASSERT(prov->registerApp != NULL);
+
+      /* Assert that no two providers choose the same app type. */
+      for (k = 0; k < state->providers->len; k++) {
+         ToolsAppProviderReg *existing = &g_array_index(state->providers,
+                                                        ToolsAppProviderReg,
+                                                        k);
+         ASSERT(prov->regType != existing->prov->regType);
+      }
+
       g_array_append_val(state->providers, newreg);
    }
 }
@@ -251,7 +263,6 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
 
       for (j = 0; j < regs->len; j++) {
          guint k;
-         guint provIdx = -1;
          ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
          ToolsAppProviderReg *preg = NULL;
 
@@ -262,9 +273,14 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
                                                       k);
             if (tmp->prov->regType == reg->type) {
                preg = tmp;
-               provIdx = k;
                break;
             }
+         }
+
+         if (preg == NULL) {
+            g_message("Cannot find provider for app type %d, plugin %s may not work.\n",
+                      reg->type, plugin->data->name);
+            continue;
          }
 
          for (k = 0; k < reg->data->len; k++) {
@@ -578,8 +594,8 @@ ToolsCore_RegisterPlugins(ToolsServiceState *state)
    }
 
    /*
-    * Create two "fake" app providers for the functionality provided by
-    * vmtoolsd (GuestRPC channel, glib signals).
+    * Create "fake" app providers for the functionality provided by
+    * vmtoolsd (GuestRPC channel, glib signals, custom app providers).
     */
    state->providers = g_array_new(FALSE, TRUE, sizeof (ToolsAppProviderReg));
 
@@ -606,6 +622,18 @@ ToolsCore_RegisterPlugins(ToolsServiceState *state)
    fakeReg.prov = fakeProv;
    fakeReg.state = TOOLS_PROVIDER_ACTIVE;
    g_array_append_val(state->providers, fakeReg);
+
+   fakeProv = g_malloc0(sizeof *fakeProv);
+   fakeProv->regType = TOOLS_APP_PROVIDER;
+   fakeProv->regSize = sizeof (ToolsAppProvider);
+   fakeProv->name = "App Provider";
+   fakeProv->registerApp = NULL;
+   fakeProv->dumpState = NULL;
+
+   fakeReg.prov = fakeProv;
+   fakeReg.state = TOOLS_PROVIDER_ACTIVE;
+   g_array_append_val(state->providers, fakeReg);
+
 
    /*
     * First app providers need to be identified, so that we know that they're
@@ -673,7 +701,8 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
        }
 
       if (preg->prov->regType == TOOLS_APP_GUESTRPC ||
-          preg->prov->regType == TOOLS_APP_SIGNALS) {
+          preg->prov->regType == TOOLS_APP_SIGNALS ||
+          preg->prov->regType == TOOLS_APP_PROVIDER) {
          g_free(preg->prov);
       }
    }
