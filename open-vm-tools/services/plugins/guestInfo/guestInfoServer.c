@@ -111,7 +111,6 @@ static Bool vmResumed;
 static Bool GuestInfoUpdateVmdb(ToolsAppCtx *ctx, GuestInfoType infoType, void *info);
 static Bool SetGuestInfo(ToolsAppCtx *ctx, GuestInfoType key,
                          const char *value, char delimiter);
-static Bool NicInfoChanged(NicInfoV3 *nicInfo);
 static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
 static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
@@ -407,21 +406,16 @@ GuestInfoGather(gpointer data)
    /* Get NIC information. */
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
-   } else {
-      if (!NicInfoChanged(nicInfo)) {
-         g_debug("Nic info not changed.\n");
-      } else if (!GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
-         g_warning("Failed to update VMDB.\n");
-      } else {
-         /*
-          * Update the cache. Release the memory previously used by the cache,
-          * and copy the new information into the cache.
-          */
-         GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
-         gInfoCache.nicInfo = nicInfo;
-         nicInfo = NULL; /* So we don't try to free it below */
-      }
+   } else if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
+      g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
+   } else {
+      /*
+       * Since the update succeeded, free the old cached object, and assign
+       * ours to the cache.
+       */
+      GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
+      gInfoCache.nicInfo = nicInfo;
    }
 
    /* Send the uptime to VMX so that it can detect soft resets. */
@@ -916,106 +910,6 @@ GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
    }
 
    return NULL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NicInfoChanged --
- *
- *      Checks whether Nic information just obtained is different from
- *      the information last sent to VMDB.
- *
- * Results:
- *
- *      TRUE if the NIC info has changed, FALSE otherwise
- *
- * Side effects:
- *
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-NicInfoChanged(NicInfoV3 *nicInfo)  // IN
-{
-   u_int i;
-   NicInfoV3 *cachedNicInfo = gInfoCache.nicInfo;
-
-   if (!cachedNicInfo) {
-      return TRUE;
-   }
-
-   /*
-    * XXX Add routing, DNS, WINS comparisons.
-    */
-
-   if (cachedNicInfo->nics.nics_len != nicInfo->nics.nics_len) {
-      g_debug("Number of nics has changed\n");
-      return TRUE;
-   }
-
-   for (i = 0; i < cachedNicInfo->nics.nics_len; i++) {
-      u_int j;
-      GuestNicV3 *cachedNic = &cachedNicInfo->nics.nics_val[i];
-      GuestNicV3 *matchedNic;
-
-      /* Find the corresponding nic in the new nic info. */
-      matchedNic = GuestInfoFindMacAddress(nicInfo, cachedNic->macAddress);
-
-      if (NULL == matchedNic) {
-         /* This mac address has been deleted. */
-         return TRUE;
-      }
-
-      if (matchedNic->ips.ips_len != cachedNic->ips.ips_len) {
-         g_debug("Count of ip addresses for mac %d\n",
-                 matchedNic->ips.ips_len);
-         return TRUE;
-      }
-
-      /* Which IP addresses have been modified for this NIC? */
-      for (j = 0; j < cachedNic->ips.ips_len; j++) {
-         TypedIpAddress *cachedIp = &cachedNic->ips.ips_val[j].ipAddressAddr;
-         Bool foundIP = FALSE;
-         ssize_t cmpsz =
-            cachedIp->ipAddressAddrType == IAT_IPV4 ? 4 :
-            cachedIp->ipAddressAddrType == IAT_IPV6 ? 16 :
-            -1;
-         u_int k;
-
-         /* XXX */
-         ASSERT(cmpsz != -1);
-
-         for (k = 0; k < matchedNic->ips.ips_len; k++) {
-            TypedIpAddress *matchedIp =
-               &matchedNic->ips.ips_val[k].ipAddressAddr;
-            if (cachedIp->ipAddressAddrType == matchedIp->ipAddressAddrType &&
-                memcmp(cachedIp->ipAddressAddr.InetAddress_val,
-                       matchedIp->ipAddressAddr.InetAddress_val,
-                       cmpsz) == 0) {
-               foundIP = TRUE;
-               break;
-            }
-         }
-
-         if (FALSE == foundIP) {
-            /* This ip address couldn't be found and has been modified. */
-#if 0
-            g_debug("MAC address %s, ipaddress %s deleted\n",
-                    cachedNic->macAddress,
-                    cachedIp->ipAddress);
-#endif
-            return TRUE;
-         }
-
-      }
-
-   }
-
-   return FALSE;
 }
 
 

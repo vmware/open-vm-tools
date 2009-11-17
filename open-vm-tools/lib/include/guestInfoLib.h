@@ -63,5 +63,52 @@ GuestInfo_GetOSName(unsigned int outBufFullLen,
 int
 GuestInfo_GetSystemBitness(void);
 
+
+/*
+ * Comparison routines -- handy for caching, unit testing.
+ */
+
+Bool
+GuestInfo_IsEqual_DhcpConfigInfo(const DhcpConfigInfo *a,
+                                 const DhcpConfigInfo *b);
+
+Bool
+GuestInfo_IsEqual_DnsConfigInfo(const DnsConfigInfo *a,
+                                const DnsConfigInfo *b);
+
+Bool
+GuestInfo_IsEqual_DnsHostname(const DnsHostname *a,
+                              const DnsHostname *b);
+
+Bool
+GuestInfo_IsEqual_InetCidrRouteEntry(const InetCidrRouteEntry *a,
+                                     const InetCidrRouteEntry *b,
+                                     const NicInfoV3 *aInfo,
+                                     const NicInfoV3 *bInfo);
+
+Bool
+GuestInfo_IsEqual_IpAddressEntry(const IpAddressEntry *a,
+                                 const IpAddressEntry *b);
+
+Bool
+GuestInfo_IsEqual_NicInfoV3(const NicInfoV3 *a,
+                            const NicInfoV3 *b);
+
+Bool
+GuestInfo_IsEqual_TypedIpAddress(const TypedIpAddress *a,
+                                 const TypedIpAddress *b);
+
+Bool
+GuestInfo_IsEqual_WinsConfigInfo(const WinsConfigInfo *a,
+                                 const WinsConfigInfo *b);
+
+/*
+ * Misc utilities.
+ */
+
+GuestNicV3 *
+GuestInfo_Util_FindNicByMac(const NicInfoV3 *nicInfo,
+                            const char *macAddress);
+
 #endif /* _GUESTINFOLIB_H_ */
 

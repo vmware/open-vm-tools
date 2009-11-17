@@ -18,8 +18,10 @@
 noinst_LTLIBRARIES = libGuestInfo.la
 
 libGuestInfo_la_SOURCES =
+libGuestInfo_la_SOURCES += compareNicInfo.c
 libGuestInfo_la_SOURCES += guestInfo.c
 libGuestInfo_la_SOURCES += guestInfoPosix.c
+libGuestInfo_la_SOURCES += util.c
 
 libGuestInfo_la_CPPFLAGS =
 libGuestInfo_la_CPPFLAGS += @GLIB2_CPPFLAGS@
