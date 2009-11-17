@@ -35,8 +35,14 @@
 #define  VMTOOLS_GUEST_SERVICE   "vmsvc"
 #define  VMTOOLS_USER_SERVICE    "vmusr"
 
+#if defined(__cplusplus)
+#  define VMTOOLS_EXTERN_C extern "C"
+#else
+#  define VMTOOLS_EXTERN_C
+#endif
+
 /* Needs to come before glib.h. */
-const char *
+VMTOOLS_EXTERN_C const char *
 VMTools_GetDefaultLogDomain(void);
 
 #include <glib.h>
@@ -91,6 +97,7 @@ VMTools_GetDefaultLogDomain(void);
 #  define VMTOOLS_RELEASE_FILENAME_LOCAL(path)   g_free(path)
 #endif
 
+G_BEGIN_DECLS
 
 void
 vm_free(void *ptr);
@@ -146,6 +153,8 @@ GArray *
 VMTools_WrapArray(gconstpointer data,
                   guint elemSize,
                   guint count);
+
+G_END_DECLS
 
 /** @} */
 

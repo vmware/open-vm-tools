@@ -36,6 +36,7 @@
 #endif
 #include "vmware/guestrpc/capabilities.h"
 #include "vmware/tools/guestrpc.h"
+#include "vmware/tools/utils.h"
 
 /**
  * Error reporting macro. Call this if the app encounters an error
@@ -410,11 +411,11 @@ typedef struct ToolsPluginData {
  * needs to export.
  */
 #if defined(G_PLATFORM_WIN32)
-#  define TOOLS_MODULE_EXPORT    __declspec(dllexport)
+#  define TOOLS_MODULE_EXPORT    VMTOOLS_EXTERN_C __declspec(dllexport)
 #elif defined(GCC_EXPLICIT_EXPORT)
-#  define TOOLS_MODULE_EXPORT    __attribute__((visibility("default")))
+#  define TOOLS_MODULE_EXPORT    VMTOOLS_EXTERN_C __attribute__((visibility("default")))
 #else
-#  define TOOLS_MODULE_EXPORT
+#  define TOOLS_MODULE_EXPORT    VMTOOLS_EXTERN_C
 #endif
 
 /**

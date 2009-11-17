@@ -36,12 +36,10 @@
  * @{
  */
 
-#if !defined(VMTOOLS_USE_GLIB)
-#  error "This library needs to be compiled with VMTOOLS_USE_GLIB."
-#endif
-
 #include <glib.h>
 #include "vmware/tools/utils.h"
+
+G_BEGIN_DECLS
 
 /** Alias for RpcChannel_SetRetVals. */
 #define RPCIN_SETRETVALS RpcChannel_SetRetVals
@@ -249,6 +247,8 @@ RpcChannel_UnregisterCallback(RpcChannel *chan,
 
 RpcChannel *
 RpcChannel_NewBackdoorChannel(GMainContext *mainCtx);
+
+G_END_DECLS
 
 /** @} */
 

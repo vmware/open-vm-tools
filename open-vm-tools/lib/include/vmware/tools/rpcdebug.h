@@ -134,6 +134,8 @@ typedef struct RpcDebugLibData {
 typedef RpcDebugLibData *(* RpcDebugInitializeFn)(ToolsAppCtx *, gchar *);
 
 
+G_BEGIN_DECLS
+
 void
 RpcDebug_DecRef(ToolsAppCtx *ctx);
 
@@ -160,6 +162,8 @@ RpcDebug_SetResult(const char *str,
 void
 RpcDebug_Shutdown(ToolsAppCtx *ctx,
                   RpcDebugLibData *data);
+
+G_END_DECLS
 
 /** @} */
 
