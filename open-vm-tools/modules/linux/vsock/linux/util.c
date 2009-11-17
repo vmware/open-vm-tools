@@ -164,12 +164,12 @@ VSockVmciLogPkt(char const *function,   // IN
       goto error;
    }
 
-   Log("%s", buf);
+   LOG(8, ("%s", buf));
 
    return;
 
 error:
-   Log("could not log packet\n");
+   LOG(8, ("could not log packet\n"));
 }
 
 

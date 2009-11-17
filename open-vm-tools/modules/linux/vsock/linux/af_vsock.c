@@ -354,7 +354,7 @@ static Bool vmciDevicePresent = FALSE;
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 
-static int protocolOverride = -1;
+static int PROTOCOL_OVERRIDE = -1;
 
 /*
  * 64k is hopefully a reasonable default, but we should do some real
@@ -364,7 +364,7 @@ static int protocolOverride = -1;
 #define VSOCK_DEFAULT_QP_SIZE       65536
 #define VSOCK_DEFAULT_QP_SIZE_MAX   262144
 
-#ifdef VMX86_LOG
+#ifdef VMX86_DEVEL
 # define LOG_PACKET(_pkt)  VSockVmciLogPkt(__FUNCTION__, __LINE__, _pkt)
 #else
 # define LOG_PACKET(_pkt)
@@ -395,8 +395,8 @@ VSockVmciOldProtoOverride(Bool *oldPktProto)        // IN
 {
    ASSERT(oldPktProto);
 
-   if (protocolOverride != -1) {
-      if (protocolOverride == 0) {
+   if (PROTOCOL_OVERRIDE != -1) {
+      if (PROTOCOL_OVERRIDE == 0) {
          *oldPktProto = TRUE;
       } else {
          *oldPktProto = FALSE;
@@ -482,8 +482,8 @@ exit:
 static VSockProtoVersion
 VSockVmciNewProtoSupportedVersions(void) // IN
 {
-   if (protocolOverride != -1) {
-      return protocolOverride;
+   if (PROTOCOL_OVERRIDE != -1) {
+      return PROTOCOL_OVERRIDE;
    }
 
    return VSOCK_PROTO_ALL_SUPPORTED;
@@ -5087,6 +5087,10 @@ MODULE_INFO(supported, "external");
 
 #ifdef VMX86_DEVEL
 /* We only support protocol negotiation overrides on devel builds. */
-module_param(protocolOverride, int, 0);
-MODULE_PARM_DESC(protocolOverride, "Specify a vsock protocol (auto negotiated by default");
+module_param(PROTOCOL_OVERRIDE, int, 0444);
+MODULE_PARM_DESC(PROTOCOL_OVERRIDE, "Specify a vsock protocol (auto negotiated by default");
+
+int LOGLEVEL_THRESHOLD = 4;
+module_param(LOGLEVEL_THRESHOLD, int, 0444);
+MODULE_PARM_DESC(LOGLEVEL_THRESHOLD, "Set verbosity (0 means no log, 10 means very verbose, 4 is default)");
 #endif

@@ -38,21 +38,20 @@
 
 #include "notify.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 5)
-# define vsock_sk(__sk)    ((VSockVmciSock *)(__sk)->user_data)
-# define sk_vsock(__vsk)   ((__vsk)->sk)
+#ifdef VMX86_DEVEL
+extern int LOGLEVEL_THRESHOLD;
+
+#define LOG(level, args) ((void) (LOGLEVEL_THRESHOLD >= (level) ? (Log args) : 0))
 #else
-# define vsock_sk(__sk)    ((VSockVmciSock *)__sk)
-# define sk_vsock(__vsk)   (&(__vsk)->sk)
+#define LOG(level, args)
 #endif
 
+# define vsock_sk(__sk)    ((VSockVmciSock *)__sk)
+# define sk_vsock(__vsk)   (&(__vsk)->sk)
+
 typedef struct VSockVmciSock {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 5)
-   struct sock *sk;
-#else
    /* sk must be the first member. */
    struct sock  sk;
-#endif
    struct sockaddr_vm localAddr;
    struct sockaddr_vm remoteAddr;
    /* Links for the global tables of bound and connected sockets. */
