@@ -498,7 +498,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    const char *post = NULL;
    size_t preLen = 0;
    size_t postLen = 0;
-   size_t len = 0;
+   int len = 0;
    char *text = NULL;
    size_t textLen = 1;
    Bool blockAdded = FALSE;

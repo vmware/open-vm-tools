@@ -1156,7 +1156,7 @@ DnDGtkDataRequestCB(GtkWidget *widget,                // IN
    const char *post;
    size_t preLen;
    size_t postLen;
-   size_t len;
+   int len;
    Bool insertSpace;
    char *text = NULL;
    size_t textLen = 1;
