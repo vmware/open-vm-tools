@@ -565,14 +565,6 @@ typedef int pid_t;
 #define LOG_ONLY(x)
 #endif
 
-#ifdef VMX86_VMM_SERIAL_LOGGING
-#define vmx86_vmm_serial_log     1
-#define VMM_SERIAL_LOG_ONLY(x)   x
-#else
-#define vmx86_vmm_serial_log     0
-#define VMM_SERIAL_LOG_ONLY(x)
-#endif
-
 #ifdef VMX86_SERVER
 #define vmx86_server 1
 #define SERVER_ONLY(x) x
