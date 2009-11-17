@@ -54,7 +54,7 @@ typedef struct vmblockSpecialDirEntry {
 
 static vmblockSpecialDirEntry specialDirEntries[] = {
    { "/",               S_IFDIR | 0555, 3, DIR_SIZE },
-   { CONTROL_FILE,      S_IFREG | 0200, 1, 0 },
+   { CONTROL_FILE,      S_IFREG | 0600, 1, 0 },
    { REDIRECT_DIR,      S_IFDIR | 0555, 3, DIR_SIZE },
    { NULL,              0,              0, 0 }
 };
@@ -271,7 +271,7 @@ VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
    }
    if (strncmp(path, REDIRECT_DIR, strlen(REDIRECT_DIR)) == 0) {
       status = RealReadLink(path, target, sizeof target);
-      LOG(4, "Called RealReadLink which returned: %d\n", status);
+      LOG(4, "%s: Called RealReadLink which returned: %d\n", __func__, status);
       if (status != 0) {
          return status;
       }
@@ -327,7 +327,7 @@ ExternalReadDir(const char *path,                // IN: Full (real) path to
    struct stat statBuf;
    DIR *dir = NULL;
 
-   LOG(4, "ExternalReadDir: path: %s\n", path);
+   LOG(4, "%s: path: %s\n", __func__, path);
    dir = opendir(path);
    if (dir == NULL) {
       return -errno;
@@ -402,7 +402,7 @@ VMBlockReadDir(const char *path,                // IN: Directory to read.
 {
    struct stat fileStat;
    struct stat dirStat;
-   LOG(4, "VMBlockReadDir: path: %s\n", path);
+   LOG(4, "%s: path: %s\n", __func__, path);
 
    /*
     * readdir() only needs to fill in the type bits of the mode in the stat
@@ -446,9 +446,6 @@ VMBlockReadDir(const char *path,                // IN: Directory to read.
  *
  * Results:
  *      0 on success. Possible errors (as negative values):
- *      -EACCES  Tried to open the control file in anything other than write-
- *               only mode. We don't need to check user/group permissions
- *               because fuse will do that if we want them enforced.
  *      -ENOENT  path is anything other than the control file.
  *      -ENOMEM  Not enough memory available.
  *      If this was a proper file system, it would probably do additional
@@ -478,13 +475,12 @@ VMBlockOpen(const char *path,                   // IN
    if (strcmp(path, CONTROL_FILE) != 0) {
       return -ENOENT;
    }
-   if ((fileInfo->flags & O_WRONLY) == 0) {
-      return -EACCES;
-   }
+
    uniqueValue = malloc(sizeof *uniqueValue);
    if (uniqueValue == NULL) {
       return -ENOMEM;
    }
+
    fileInfo->fh = CharPointerToFuseFileHandle(uniqueValue);
    fileInfo->direct_io = 1;
    return 0;
@@ -596,8 +592,9 @@ VMBlockWrite(const char *path,                 // IN: Must be control file.
    char trimmedBuf[PATH_MAX + 1];
    os_blocker_id_t blockerId;
 
-   LOG(4, "VMBlockWrite: path: %s, size: %"FMTSZ"u\n", path, size);
-   LOG(4, "fileInfo->fh: %p\n", FuseFileHandleToCharPointer(fileInfo->fh));
+   LOG(4, "%s: path: %s, size: %"FMTSZ"u\n", __func__, path, size);
+   LOG(4, "%s: fileInfo->fh: %p\n", __func__,
+      FuseFileHandleToCharPointer(fileInfo->fh));
    ASSERT(strcmp(path, CONTROL_FILE) == 0);
    if (size > PATH_MAX) {
       return -ENAMETOOLONG;
@@ -605,7 +602,7 @@ VMBlockWrite(const char *path,                 // IN: Must be control file.
 
    memcpy(trimmedBuf, buf, size);
    trimmedBuf[size] = '\0';
-   LOG(4, "buf: %s\n", trimmedBuf);
+   LOG(4, "%s: buf: %s\n", __func__, trimmedBuf);
    StripExtraPathSeparators(trimmedBuf);
 
    blockerId = FuseFileHandleToCharPointer(fileInfo->fh);
@@ -628,6 +625,49 @@ VMBlockWrite(const char *path,                 // IN: Must be control file.
    return status == 0 ? size : status;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMBlockRead --
+ *
+ *      Reads from the control file yield the FUSE greeting string that is
+ *      used by the vmware user process to detect whether it is dealing with
+ *      FUSE-based or in-kernel block driver.
+ *
+ *      The control file must already be open.
+ *
+ * Results:
+ *      Returns sizeof(VMBLOCK_FUSE_READ_RESPONSE) on success.
+ *      Possible error (as negative value):
+ *      -EINVAL if size of supplied buffer is too small.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMBlockRead(const char *path,                 // IN: Must be control file.
+            char *buf,                        // IN/OUT: oputput buffer
+            size_t size,                      // IN: Size of buf.
+            off_t offset,                     // IN: Ignored.
+            struct fuse_file_info *fileInfo)  // IN: Ignored.
+{
+   LOG(4, "%s: path: %s, size: %"FMTSZ"u\n", __func__, path, size);
+   LOG(4, "%s: fileInfo->fh: %p\n", __func__,
+       FuseFileHandleToCharPointer(fileInfo->fh));
+   ASSERT(strcmp(path, CONTROL_FILE) == 0);
+
+   if (size < sizeof VMBLOCK_FUSE_READ_RESPONSE) {
+      return -EINVAL;
+   }
+
+   memcpy(buf, VMBLOCK_FUSE_READ_RESPONSE, sizeof VMBLOCK_FUSE_READ_RESPONSE);
+
+   return sizeof VMBLOCK_FUSE_READ_RESPONSE;
+}
 
 /*
  *-----------------------------------------------------------------------------
@@ -719,6 +759,7 @@ struct fuse_operations vmblockOperations = {
    .readdir  = VMBlockReadDir,
    .open     = VMBlockOpen,
    .write    = VMBlockWrite,
+   .read     = VMBlockRead,
    .release  = VMBlockRelease,
    .init     = VMBlockInit,
    .destroy  = VMBlockDestroy
