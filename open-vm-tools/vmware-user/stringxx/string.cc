@@ -1227,10 +1227,11 @@ string::replace(size_type i,     // IN
  *
  * utf::string::replace --
  *
- *      Replace all occurences of the given string with another string.
+ *      Mutates this string by replacing all occurrences of one string with
+ *      another.
  *
  * Results:
- *      A utf::string created with the substring replaced.
+ *      A reference to this object.
  *
  * Side effects:
  *      None
@@ -1260,6 +1261,30 @@ string::replace(const string &from, // IN
 
    swap(result);
    return *this;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * utf::string::replace_copy --
+ *
+ * Results:
+ *      Returns a new string with all occurrences of one string replaced by
+ *      another.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+string
+string::replace_copy(const string& from, // IN
+                     const string& to)   // IN
+   const
+{
+   return string(*this).replace(from, to);
 }
 
 
@@ -1434,7 +1459,7 @@ string::rfind(value_type uc,     // IN
  *
  * utf::string::find_first_of --
  *
- *      Find the first occurence of 's' in this string.  'i' determines where in
+ *      Find the first occurrence of 's' in this string.  'i' determines where in
  *      the current string we start searching for 's'
  *
  * Results:
@@ -1471,7 +1496,7 @@ string::find_first_of(value_type uc,   // IN
  *
  * utf::string::find_first_not_of --
  *
- *      Find the first occurence of a string NOT in 's' in this string.  'i'
+ *      Find the first occurrence of a string NOT in 's' in this string.  'i'
  *      determines where in this string we start searching to NOT 's'.
  *
  * Results:

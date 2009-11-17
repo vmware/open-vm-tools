@@ -49,7 +49,7 @@ struct vmxnet3_shm_pool
 	struct
 	{
 		/* pages backing the map in virtual address order */
-		struct vmxnet3_shm_mapped_page pages[SHM_DATA_SIZE];
+		struct vmxnet3_shm_mapped_page *pages;
 		unsigned int num_pages;
 	} data;
 
@@ -67,7 +67,7 @@ struct vmxnet3_shm_pool
 		 * count - 1 is the topmost free page.
 		 */
 		u16 count;
-		u16 stack[SHM_DATA_SIZE];
+		u16 *stack;
 	} allocator;
 
 	struct
@@ -95,7 +95,7 @@ struct vmxnet3_shm_pool
 int
 vmxnet3_shm_close(struct vmxnet3_adapter *adapter);
 int
-vmxnet3_shm_open(struct vmxnet3_adapter *adapter, char *name);
+vmxnet3_shm_open(struct vmxnet3_adapter *adapter, char *name, int pool_size);
 int
 vmxnet3_shm_user_rx(struct vmxnet3_shm_pool *shm,
 		u16 idx, u16 len,

@@ -51,6 +51,7 @@ static int enable_shm[VMXNET3_SHM_MAX_DEVICES + 1] =
 { [0 ... VMXNET3_SHM_MAX_DEVICES] = -1 };
 static char *shm_disclaimer = NULL;
 static int correct_shm_disclaimer;
+static int shm_pool_size = SHM_DEFAULT_DATA_SIZE;
 #define VMXNET3_SHM_DISCLAIMER "IReallyWantThisModeIAmAVMwarePartner"
 
 /*
@@ -2317,7 +2318,7 @@ vmxnet3_open(struct net_device *netdev)
 	if (adapter->is_shm) {
 		printk(KERN_INFO "bringing up shared memory vmxnet3 %s\n",
 		       netdev->name);
-		err = vmxnet3_shm_open(adapter, netdev->name);
+		err = vmxnet3_shm_open(adapter, netdev->name, shm_pool_size);
 		if (err) {
 			goto shm_err;
 		}
@@ -3055,3 +3056,5 @@ module_param_array(enable_shm, int, &num_enable_shm, 0);
 MODULE_PARM_DESC(enable_shm, "Shared memory enable");
 module_param(shm_disclaimer, charp, 0);
 MODULE_PARM_DESC(shm_disclaimer, "Shared memory disclaimer");
+module_param(shm_pool_size, int, 0);
+MODULE_PARM_DESC(shm_pool_size, "Shared memory pool size");

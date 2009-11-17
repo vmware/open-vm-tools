@@ -158,6 +158,7 @@ public:
    iterator erase(iterator pbegin, iterator pend);
    string& replace(size_type i, size_type n, const string& s);
    string& replace(const string &from, const string &to);
+   string replace_copy(const string& from, const string& to) const;
 
    int compare(const string &s, bool ignoreCase = false) const;
    int compare(size_type i, size_type n, const string &s) const;

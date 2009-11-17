@@ -420,6 +420,8 @@ enum {
    VIX_PROPERTY_VM_VMTEAM_PATHNAME                    = 105, 
    VIX_PROPERTY_VM_MEMORY_SIZE                        = 106,
    VIX_PROPERTY_VM_READ_ONLY                          = 107,
+   VIX_PROPERTY_VM_NAME                               = 108,
+   VIX_PROPERTY_VM_GUESTOS                            = 109,
    VIX_PROPERTY_VM_IN_VMTEAM                          = 128,
    VIX_PROPERTY_VM_POWER_STATE                        = 129,
    VIX_PROPERTY_VM_TOOLS_STATE                        = 152,

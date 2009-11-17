@@ -332,7 +332,7 @@ vmxnet3_shm_init_allocator(struct vmxnet3_shm_pool *shm)
 
 		BUG_ON(i == SHM_INVALID_IDX);
 	}
-	BUG_ON(shm->allocator.count > SHM_DATA_SIZE);
+	BUG_ON(shm->allocator.count > shm->data.num_pages);
 }
 
 
@@ -402,16 +402,19 @@ vmxnet3_shm_pool_reset(struct vmxnet3_shm_pool *shm)
 
 struct vmxnet3_shm_pool *
 vmxnet3_shm_pool_create(struct vmxnet3_adapter *adapter,
-		char *name)
+		char *name, int pool_size)
 {
 	int i;
 	unsigned long flags;
 	struct vmxnet3_shm_pool *shm;
 	struct vmxnet3_shm_ctl *ctl_ptr;
 	struct page *ctl_page;
+	int shm_size = sizeof(*shm) +
+		pool_size * sizeof(uint16) +
+		pool_size * sizeof(struct vmxnet3_shm_mapped_page);
 
 	/* Allocate shm_pool kobject */
-	shm = kmalloc(sizeof(*shm), GFP_KERNEL);
+	shm = vmalloc(shm_size);
 	if (shm == NULL)
 		goto fail_shm;
 
@@ -424,7 +427,7 @@ vmxnet3_shm_pool_create(struct vmxnet3_adapter *adapter,
 	shm->adapter = adapter;
 
 	/* Allocate data pages */
-	shm->data.num_pages = SHM_DATA_SIZE;
+	shm->data.num_pages = pool_size;
 	for (i = 1; i < shm->data.num_pages; i++) {
 		struct page *page = alloc_page(GFP_KERNEL);
 		if (page == NULL)
@@ -525,12 +528,12 @@ vmxnet3_shm_pool_release(struct kobject *kobj)
 	}
 
 	/* Free data pages */
-	for (i = 1; i < SHM_DATA_SIZE; i++)
+	for (i = 1; i < shm->data.num_pages; i++)
 		__free_page(VMXNET3_SHM_IDX2PAGE(shm, i));
 
-	kfree(shm);
-
 	printk(KERN_INFO "destroyed vmxnet shared memory pool %s\n", shm->name);
+
+	vfree(shm);
 }
 
 
@@ -594,7 +597,7 @@ vmxnet3_shm_free_page(struct vmxnet3_shm_pool *shm,
 	unsigned long flags;
 
 	spin_lock_irqsave(&shm->alloc_lock, flags);
-	BUG_ON(shm->allocator.count >= SHM_DATA_SIZE);
+	BUG_ON(shm->allocator.count >= shm->data.num_pages);
 	shm->allocator.stack[shm->allocator.count++] = idx;
 	spin_unlock_irqrestore(&shm->alloc_lock, flags);
 }
@@ -654,7 +657,7 @@ vmxnet3_shm_chardev_fault(struct vm_area_struct *vma,
 	unsigned long idx = vmxnet3_shm_addr2idx(vma, address);
 	struct page *pageptr;
 
-	if (idx >= SHM_DATA_START && idx < SHM_DATA_START + SHM_DATA_SIZE)
+	if (idx >= SHM_DATA_START && idx < SHM_DATA_START + shm->data.num_pages)
 		pageptr = VMXNET3_SHM_IDX2PAGE(shm, idx - SHM_DATA_START);
 	else if (idx >= SHM_CTL_START && idx < SHM_CTL_START + SHM_CTL_SIZE)
 		pageptr = shm->ctl.pages[idx - SHM_CTL_START];
@@ -697,7 +700,7 @@ vmxnet3_shm_chardev_nopage(struct vm_area_struct *vma,
 	unsigned long idx = vmxnet3_shm_addr2idx(vma, address);
 	struct page *pageptr;
 
-	if (idx >= SHM_DATA_START && idx < SHM_DATA_START + SHM_DATA_SIZE)
+	if (idx >= SHM_DATA_START && idx < SHM_DATA_START + shm->data.num_pages)
 		pageptr = VMXNET3_SHM_IDX2PAGE(shm, idx - SHM_DATA_START);
 	else if (idx >= SHM_CTL_START && idx < SHM_CTL_START + SHM_CTL_SIZE)
 		pageptr = shm->ctl.pages[idx - SHM_CTL_START];
@@ -741,7 +744,7 @@ vmxnet3_shm_chardev_nopage(struct vm_area_struct *vma,
 	unsigned long idx = vmxnet3_shm_addr2idx(vma, address);
 	struct page *pageptr;
 
-	if (idx >= SHM_DATA_START && idx < SHM_DATA_START + SHM_DATA_SIZE)
+	if (idx >= SHM_DATA_START && idx < SHM_DATA_START + shm->data.num_pages)
 		pageptr = VMXNET3_SHM_IDX2PAGE(shm, idx - SHM_DATA_START);
 	else if (idx >= SHM_CTL_START && idx < SHM_CTL_START + SHM_CTL_SIZE)
 		pageptr = shm->ctl.pages[idx - SHM_CTL_START];
@@ -906,7 +909,7 @@ vmxnet3_shm_chardev_ioctl(struct file *filp,
 			return idx1;
 
 		case SHM_IOCTL_FREE_ONE:
-			if (arg != SHM_INVALID_IDX && arg < SHM_DATA_SIZE)
+			if (arg != SHM_INVALID_IDX && arg < shm->data.num_pages)
 				vmxnet3_shm_free_page(shm, arg);
 
 			return 0;
@@ -1470,9 +1473,15 @@ vmxnet3_shm_user_rx(struct vmxnet3_shm_pool *shm,
 
 int
 vmxnet3_shm_open(struct vmxnet3_adapter *adapter,
-		char *name)
+		char *name, int pool_size)
 {
-	adapter->shm = vmxnet3_shm_pool_create(adapter, name);
+	if (pool_size > SHM_MAX_DATA_SIZE) {
+		printk(KERN_ERR "vmxnet3_shm: requested pool size %d is larger than the maximum %d\n",
+		       pool_size, SHM_MAX_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	adapter->shm = vmxnet3_shm_pool_create(adapter, name, pool_size);
 	if (adapter->shm == NULL) {
 		printk(KERN_ERR "failed to create shared memory pool\n");
 		return -ENOMEM;

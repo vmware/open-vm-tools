@@ -47,7 +47,8 @@
 
 // sizes of shared memory regions in pages
 #define SHM_DATA_START 0
-#define SHM_DATA_SIZE 4096
+#define SHM_DEFAULT_DATA_SIZE 4096
+#define SHM_MAX_DATA_SIZE 16384
 #define SHM_CTL_START 16384
 #define SHM_CTL_SIZE 1
 

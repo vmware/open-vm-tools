@@ -375,7 +375,8 @@ FIELDDEF(  5, EDX, INTEL,  16,  4, MWAIT_C4_SUBSTATE,   NA,  FALSE)
 FLAGDEF(   6, EAX, INTEL,   0,  1, THERMAL_SENSOR,      NA,  FALSE)     \
 FLAGDEF(   6, EAX, INTEL,   1,  1, TURBO_MODE,          NA,  FALSE)     \
 FIELDDEF(  6, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS, NA,  FALSE)     \
-FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   NA,  FALSE)
+FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   NA,  FALSE)	\
+FLAGDEF(   6, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,    NA,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
@@ -494,7 +495,15 @@ FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              NO,  FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            NO,  FALSE)            \
-FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  FALSE)
+FLAGDEF(  8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,    NO,  FALSE)
+
+
+
+#define CPUID_FIELD_DATA_LEVEL_8A_BD                                           \
+FIELDDEF( 8A, EDX, AMD,     4,  6, SVMEDX_RSVD0,        NO,  FALSE)            \
+FIELDDEF( 8A, EDX, AMD,    11, 21, SVMEDX_RSVD1,        NO,  FALSE)
+
+
 
 
 #define CPUID_FIELD_DATA                                              \
@@ -507,7 +516,8 @@ FIELDDEF( 8A, EDX, AMD,     4, 28, SVMEDX_RSVD,         NO,  FALSE)
    CPUID_FIELD_DATA_LEVEL_B                                           \
    CPUID_FIELD_DATA_LEVEL_80                                          \
    CPUID_FIELD_DATA_LEVEL_81                                          \
-   CPUID_FIELD_DATA_LEVEL_8x
+   CPUID_FIELD_DATA_LEVEL_8x                                          \
+   CPUID_FIELD_DATA_LEVEL_8A_BD
 
 
 /*
