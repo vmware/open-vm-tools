@@ -523,7 +523,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { "DisplayTopology_Set",          &ResolutionDisplayTopologySetCB },
 #if defined(RESOLUTION_WIN32)
       { "DisplayTopologyModes_Set",     &ResolutionDisplayTopologyModesSetCB },
-      { "ChangeHost3DAvailabilityHint", &ResolutionChangeHost3DAvailabilityHintCB }
 #endif
    };
 

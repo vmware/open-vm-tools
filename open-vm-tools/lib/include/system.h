@@ -44,6 +44,11 @@ char *System_GetEnv(Bool global, const char *valueName);
 int System_SetEnv(Bool global, const char *valueName, const char *value);
 
 #ifdef _WIN32
+typedef enum AeroStateCommand {
+   AeroCommand_Enable,
+   AeroCommand_Disable,
+} AeroStateCommand;
+
 /*
  * Representation of monitors gathered by System_GetMonitors.
  */
@@ -76,6 +81,7 @@ Bool System_DisableAndKillScreenSaver(void);
 DWORD System_GetServiceState(LPCWSTR szServiceName);
 DblLnkLst_Links *System_GetMonitors();
 void System_SetFocusedWindow(HWND windowToFocus, Bool force);
+Bool System_SetAeroState(AeroStateCommand command, AeroStateCommand *oldState);
 #endif
 
 
