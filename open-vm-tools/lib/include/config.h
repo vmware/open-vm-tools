@@ -57,7 +57,7 @@ EXTERN char *Config_GetString(const char *defaultValue,
                               const char *fmt, ...) PRINTF_DECL(2, 3);
 EXTERN char *Config_GetStringPlain(const char *defaultValue,
                                    const char *fmt, ...) PRINTF_DECL(2, 3);
-EXTERN char *Config_GetAsString(const char *fmt, ...) PRINTF_DECL(1, 2);
+EXTERN const char *Config_GetAsString(const char *fmt, ...) PRINTF_DECL(1, 2);
 EXTERN char *Config_GetStringEnum(const char *defaultValue,
                                   const char **choices,
                                   const char *fmt, ...) PRINTF_DECL(3, 4);
