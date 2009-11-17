@@ -339,7 +339,7 @@ GetFrameAddr(void)
 #if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ == 0))
    bp = (uintptr_t)__builtin_frame_address(0);
 #elif (__GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ <= 3)
-#  if defined(VMM64) || defined(VM_X86_64)
+#  if defined(VMM) || defined(VM_X86_64)
      __asm__ __volatile__("movq %%rbp, %0\n" : "=g" (bp));
 #  else
      __asm__ __volatile__("movl %%ebp, %0\n" : "=g" (bp));
