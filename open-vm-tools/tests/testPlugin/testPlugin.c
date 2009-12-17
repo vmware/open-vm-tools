@@ -34,12 +34,23 @@
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
 
-#define TEST_APP_PROVIDER  "TestProvider"
-#define TEST_APP_NAME      "TestProviderApp1"
+#define TEST_APP_PROVIDER        "TestProvider"
+#define TEST_APP_NAME            "TestProviderApp1"
+#define TEST_APP_ERROR           "TestProviderError"
+#define TEST_APP_DONT_REGISTER   "TestProviderDontRegister"
+
+#define TEST_SIG_INVALID   "TestInvalidSignal"
 
 typedef struct TestApp {
    const char *name;
 } TestApp;
+
+
+static gboolean gInvalidAppError = FALSE;
+static gboolean gInvalidAppProvider = FALSE;
+static gboolean gInvalidSigError = FALSE;
+static gboolean gValidAppRegistration = FALSE;
+
 
 /**
  * Handles a "test.rpcin.msg1" RPC message. The incoming data should be an
@@ -227,6 +238,10 @@ TestPluginShutdown(gpointer src,
                    ToolsPluginData *plugin)
 {
    g_debug("%s: shutdown signal.\n", __FUNCTION__);
+   ASSERT(gInvalidSigError);
+   ASSERT(gInvalidAppError);
+   ASSERT(gInvalidAppProvider);
+   ASSERT(gValidAppRegistration);
 }
 
 
@@ -262,16 +277,61 @@ TestPluginSetOption(gpointer src,
  * @param[in] ctx     Unused.
  * @param[in] prov    Unused.
  * @param[in] reg     Registration data (should be a string).
+ *
+ * @retval FALSE if registration value is TEST_APP_ERROR.
+ * @retval TRUE otherwise.
  */
 
-static void
+static gboolean
 TestProviderRegisterApp(ToolsAppCtx *ctx,
                         ToolsAppProvider *prov,
                         gpointer reg)
 {
    TestApp *app = reg;
    g_debug("%s: registration data is '%s'\n", __FUNCTION__, app->name);
-   ASSERT(strcmp(TEST_APP_NAME, app->name) == 0);
+   gValidAppRegistration |= strcmp(app->name, TEST_APP_NAME) == 0;
+   ASSERT(strcmp(app->name, TEST_APP_DONT_REGISTER) != 0);
+   return (strcmp(app->name, TEST_APP_ERROR) != 0);
+}
+
+
+/**
+ * Registration error callback; make sure it's called for the errors we expect.
+ *
+ * @see plugin.h (for parameter descriptions)
+ *
+ * @retval FALSE for TEST_APP_ERROR.
+ * @retval TRUE otherwise.
+ */
+
+static gboolean
+TestPluginErrorCb(ToolsAppCtx *ctx,
+                  ToolsAppType type,
+                  gpointer data,
+                  ToolsPluginData *plugin)
+{
+   /* Make sure the non-existant signal we tried to register fires an error. */
+   if (type == TOOLS_APP_SIGNALS) {
+      ToolsPluginSignalCb *sig = data;
+      ASSERT(strcmp(sig->signame, TEST_SIG_INVALID) == 0);
+      gInvalidSigError = TRUE;
+   }
+
+   /* Make sure we're notified about the "error" app we tried to register. */
+   if (type == 42) {
+      TestApp *app = data;
+      ASSERT(strcmp(app->name, TEST_APP_ERROR) == 0);
+      gInvalidAppError = TRUE;
+      return FALSE;
+   }
+
+   /* Make sure we're notified about a non-existant app provider. */
+   if (type == 43) {
+      ASSERT(data == NULL);
+      gInvalidAppProvider = TRUE;
+   }
+
+   return TRUE;
 }
 
 
@@ -290,6 +350,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    static ToolsPluginData regData = {
       "testPlugin",
       NULL,
+      TestPluginErrorCb,
       NULL
    };
 
@@ -313,15 +374,22 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 #if defined(G_PLATFORM_WIN32)
       { TOOLS_CORE_SIG_SERVICE_CONTROL, TestPluginServiceControl, &regData },
 #endif
+      { TEST_SIG_INVALID, TestPluginReset, &regData },
    };
    TestApp tapp[] = {
-      { TEST_APP_NAME }
+      { TEST_APP_NAME },
+      { TEST_APP_ERROR },
+      { TEST_APP_DONT_REGISTER }
+   };
+   TestApp tnoprov[] = {
+      { "TestAppNoProvider" }
    };
    ToolsAppReg regs[] = {
       { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
       { TOOLS_APP_PROVIDER, VMTools_WrapArray(provs, sizeof *provs, ARRAYSIZE(provs)) },
       { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
       { 42, VMTools_WrapArray(tapp, sizeof *tapp, ARRAYSIZE(tapp)) },
+      { 43, VMTools_WrapArray(tnoprov, sizeof *tnoprov, ARRAYSIZE(tnoprov)) },
    };
 
    g_signal_new("test-signal",

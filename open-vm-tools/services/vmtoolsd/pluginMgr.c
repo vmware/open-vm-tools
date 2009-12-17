@@ -37,11 +37,11 @@ static Bool (*LoadDependencies)(char *libName, Bool useShipped);
 typedef void (*PluginDataCallback)(ToolsServiceState *state,
                                    ToolsPluginData *plugin);
 
-typedef void (*PluginAppRegCallback)(ToolsServiceState *state,
-                                     ToolsPluginData *plugin,
-                                     ToolsAppType type,
-                                     ToolsAppProviderReg *preg,
-                                     gpointer reg);
+typedef gboolean (*PluginAppRegCallback)(ToolsServiceState *state,
+                                         ToolsPluginData *plugin,
+                                         ToolsAppType type,
+                                         ToolsAppProviderReg *preg,
+                                         gpointer reg);
 
 
 /**
@@ -52,9 +52,11 @@ typedef void (*PluginAppRegCallback)(ToolsServiceState *state,
  * @param[in]  type     Application type.
  * @param[in]  preg     Provider information.
  * @param[in]  reg      Application registration.
+ *
+ * @return TRUE
  */
 
-static void
+static gboolean
 ToolsCoreDumpAppInfo(ToolsServiceState *state,
                      ToolsPluginData *plugin,
                      ToolsAppType type,
@@ -70,6 +72,7 @@ ToolsCoreDumpAppInfo(ToolsServiceState *state,
     } else {
       g_message("      App type %u (no provider).\n", type);
    }
+   return TRUE;
 }
 
 
@@ -140,30 +143,30 @@ ToolsCoreDumpSignal(ToolsAppCtx *ctx,
  * @param[in]  type     Application type.
  * @param[in]  preg     Provider information.
  * @param[in]  reg      Application registration.
+ *
+ * @return Whether to continue registering other apps.
  */
 
-static void
+static gboolean
 ToolsCoreRegisterApp(ToolsServiceState *state,
                      ToolsPluginData *plugin,
                      ToolsAppType type,
                      ToolsAppProviderReg *preg,
                      gpointer reg)
 {
+   gboolean error = TRUE;
+
    if (type == TOOLS_APP_PROVIDER) {
       /* We should already have registered all providers. */
-      return;
+      return TRUE;
    }
 
-   if (preg == NULL) {
-      g_warning("Plugin %s wants to register app of type %d but no "
-                "provider was found.\n", plugin->name, type);
-      return;
-   }
+   ASSERT(preg != NULL);
 
    if (preg->state == TOOLS_PROVIDER_ERROR) {
       g_warning("Plugin %s wants to register app of type %d but the "
                 "provider failed to activate.\n", plugin->name, type);
-      return;
+      goto exit;
    }
 
    /*
@@ -179,13 +182,24 @@ ToolsCoreRegisterApp(ToolsServiceState *state,
                       preg->prov->name, err->message);
             preg->state = TOOLS_PROVIDER_ERROR;
             g_clear_error(&err);
-            return;
+            goto exit;
          }
       }
       preg->state = TOOLS_PROVIDER_ACTIVE;
    }
 
-   preg->prov->registerApp(&state->ctx, preg->prov, reg);
+   if (!preg->prov->registerApp(&state->ctx, preg->prov, reg)) {
+      g_warning("Failed registration of app type %d (%s) from plugin %s.",
+                type, preg->prov->name, plugin->name);
+      goto exit;
+   }
+   error = FALSE;
+
+exit:
+   if (error && plugin->errorCb != NULL) {
+      return plugin->errorCb(&state->ctx, type, reg, plugin);
+   }
+   return TRUE;
 }
 
 
@@ -197,9 +211,11 @@ ToolsCoreRegisterApp(ToolsServiceState *state,
  * @param[in]  type     Application type.
  * @param[in]  preg     Provider information.
  * @param[in]  reg      Application registration.
+ *
+ * @return TRUE
  */
 
-static void
+static gboolean
 ToolsCoreRegisterProvider(ToolsServiceState *state,
                           ToolsPluginData *plugin,
                           ToolsAppType type,
@@ -220,11 +236,13 @@ ToolsCoreRegisterProvider(ToolsServiceState *state,
                                                         ToolsAppProviderReg,
                                                         k);
          ASSERT(prov->regType != existing->prov->regType);
-         g_return_if_fail(prov->regType != existing->prov->regType);
+         g_return_val_if_fail(prov->regType != existing->prov->regType, TRUE);
       }
 
       g_array_append_val(state->providers, newreg);
    }
+
+   return TRUE;
 }
 
 
@@ -281,12 +299,20 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
          if (preg == NULL) {
             g_message("Cannot find provider for app type %d, plugin %s may not work.\n",
                       reg->type, plugin->data->name);
+            if (plugin->data->errorCb != NULL &&
+                !plugin->data->errorCb(&state->ctx, reg->type, NULL, plugin->data)) {
+               break;
+            }
             continue;
          }
 
          for (k = 0; k < reg->data->len; k++) {
             gpointer appdata = &reg->data->data[preg->prov->regSize * k];
-            appRegCb(state, plugin->data, reg->type, preg, appdata);
+            if (!appRegCb(state, plugin->data, reg->type, preg, appdata)) {
+               /* Break out of the outer loop. */
+               j = regs->len;
+               break;
+            }
          }
       }
    }
@@ -299,14 +325,17 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
  * @param[in]  ctx   The application context.
  * @param[in]  prov  Unused.
  * @param[in]  reg   The application registration data.
+ *
+ * @return TRUE.
  */
 
-static void
+static gboolean
 ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
                      ToolsAppProvider *prov,
                      gpointer reg)
 {
    RpcChannel_RegisterCallback(ctx->rpc, reg);
+   return TRUE;
 }
 
 
@@ -316,18 +345,24 @@ ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
  * @param[in]  ctx   The application context.
  * @param[in]  prov  Unused.
  * @param[in]  reg   The application registration data.
+ *
+ * @return TRUE if the signal exists.
  */
 
-static void
+static gboolean
 ToolsCoreRegisterSignal(ToolsAppCtx *ctx,
                         ToolsAppProvider *prov,
                         gpointer reg)
 {
    ToolsPluginSignalCb *sig = reg;
-   g_signal_connect(ctx->serviceObj,
-                    sig->signame,
-                    sig->callback,
-                    sig->clientData);
+   if (g_signal_lookup(sig->signame, G_OBJECT_TYPE(ctx->serviceObj)) != 0) {
+      g_signal_connect(ctx->serviceObj,
+                       sig->signame,
+                       sig->callback,
+                       sig->clientData);
+      return TRUE;
+   }
+   return FALSE;
 }
 
 
@@ -699,9 +734,9 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
                                                   ToolsAppProviderReg,
                                                   i);
 
-       if (preg->prov->shutdown != NULL) {
-          preg->prov->shutdown(&state->ctx, preg->prov);
-       }
+      if (preg->prov->shutdown != NULL) {
+         preg->prov->shutdown(&state->ctx, preg->prov);
+      }
 
       if (preg->prov->regType == TOOLS_APP_GUESTRPC ||
           preg->prov->regType == TOOLS_APP_SIGNALS ||

@@ -23,9 +23,9 @@
  */
 
 #if defined(_WIN32)
-#  define MODULE_NAME(x)   #x G_MODULE_SUFFIX
+#  define MODULE_NAME(x)   #x "." G_MODULE_SUFFIX
 #else
-#  define MODULE_NAME(x)   "lib" #x G_MODULE_SUFFIX
+#  define MODULE_NAME(x)   "lib" #x "." G_MODULE_SUFFIX
 #endif
 
 #include <stdlib.h>
