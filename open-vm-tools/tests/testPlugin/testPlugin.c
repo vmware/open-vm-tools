@@ -314,6 +314,7 @@ TestPluginErrorCb(ToolsAppCtx *ctx,
    if (type == TOOLS_APP_SIGNALS) {
       ToolsPluginSignalCb *sig = data;
       ASSERT(strcmp(sig->signame, TEST_SIG_INVALID) == 0);
+      (void) sig;
       gInvalidSigError = TRUE;
    }
 
@@ -321,6 +322,7 @@ TestPluginErrorCb(ToolsAppCtx *ctx,
    if (type == 42) {
       TestApp *app = data;
       ASSERT(strcmp(app->name, TEST_APP_ERROR) == 0);
+      (void) app;
       gInvalidAppError = TRUE;
       return FALSE;
    }
