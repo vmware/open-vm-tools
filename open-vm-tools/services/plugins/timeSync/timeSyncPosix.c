@@ -52,8 +52,9 @@
  ******************************************************************************
  * TimeSyncWriteTimeVal --                                              */ /**
  *
- * Convert time represented as microseconds, to a timeval.  For a timeval
- * to be valid tv_usec must be between 0 and 999999.  See
+ * Convert time represented as microseconds, to a timeval.  This function
+ * handles positive and negative values for "time."  For a timeval to be
+ * valid tv_usec must be between 0 and 999999.  See
  * http://www.gnu.org/s/libc/manual/html_node/Elapsed-Time.html for more
  * details.
  *
