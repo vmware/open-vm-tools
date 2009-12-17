@@ -78,6 +78,14 @@ typedef struct DynXdrData {
 #  define DYNXDR_LONG long
 #endif
 
+#if defined(sun)
+#   define DYNXDR_INLINE_T rpc_inline_t
+#   define DYNXDR_INLINE_LEN_T int
+#else
+#   define DYNXDR_INLINE_T int32_t
+#   define DYNXDR_INLINE_LEN_T u_int
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -203,6 +211,53 @@ DynXdrPutLong(XDR *xdrs,                    // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
+ * DynXdrInline --
+ *
+ *    Return a pointer to a contiguous buffer of len bytes.  On XDR_ENCODE,
+ *    is used to preallocate chunks of the backing buffer such that the caller
+ *    may set bulk 4-byte members w/o reallocating each time.
+ *
+ * Results:
+ *    Valid pointer on success, NULL on failure.
+ *
+ * Side effects:
+ *    Backing DynBuf may be enlarged.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static DYNXDR_INLINE_T *
+DynXdrInline(XDR *xdrs,                 // IN/OUT
+             DYNXDR_INLINE_LEN_T len)   // IN
+{
+   DynXdrData *priv = (DynXdrData *)xdrs->x_private;
+   DynBuf *buf = &priv->data;
+   DYNXDR_INLINE_T *retAddr;
+
+   ASSERT(len >= 0);
+   ASSERT(xdrs->x_op == XDR_ENCODE);
+
+   if (len == 0) {
+      return (DYNXDR_INLINE_T *)&buf->data[buf->size];
+   }
+
+   if (buf->allocated - buf->size < len) {
+      /* DynBuf too small.  Grow it. */
+      if (!DynBuf_Enlarge(buf, buf->size + len)) {
+         return NULL;
+      }
+   }
+
+   retAddr = (DYNXDR_INLINE_T *)&buf->data[buf->size];
+   buf->size += len;
+
+   return retAddr;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DynXdr_Create --
  *
  *    Creates a new XDR struct backed by a DynBuf. The XDR stream is created
@@ -234,7 +289,7 @@ DynXdr_Create(XDR *in)  // IN
       DynXdrPutBytes,   /* x_putbytes */
       DynXdrGetPos,     /* x_getpostn */
       NULL,             /* x_setpostn */
-      NULL,             /* x_inline */
+      DynXdrInline,     /* x_inline */
       NULL,             /* x_destroy */
 #if defined(__GLIBC__)
       NULL,             /* x_getint32 */
