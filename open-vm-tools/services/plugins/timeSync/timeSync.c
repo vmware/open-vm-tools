@@ -582,37 +582,42 @@ TimeSyncSetOption(gpointer src,
                   const gchar *value,
                   ToolsPluginData *plugin)
 {
+   static gboolean syncBeforeLoop;
    TimeSyncData *data = plugin->_private;
 
    if (strcmp(option, TOOLSOPTION_SYNCTIME) == 0) {
       gboolean start;
-
       if (!ParseBoolOption(value, &start)) {
          return FALSE;
       }
 
       /*
        * Try the one-shot time sync if time sync transitions from
-       * 'off' to 'on'.
-       * Note that if TOOLSOPTION_SYNCTIME_ENABLE is absent from
-       * vmx config file it is considered to be TRUE.
+       * 'off' to 'on' and TOOLSOPTION_SYNCTIME_ENABLE is turned on.
+       * Note that during startup we receive TOOLSOPTION_SYNCTIME
+       * before receiving TOOLSOPTION_SYNCTIME_ENABLE and so the
+       * one-shot sync will not be done here. Nor should it because
+       * the startup synchronization behavior is controlled by
+       * TOOLSOPTION_SYNCTIME_STARTUP which is handled separately.
        */
-      if (data->timeSyncState == 0 && start &&
-          g_key_file_get_boolean(ctx->config, "vmsvc",
-                                 TOOLSOPTION_SYNCTIME_ENABLE, NULL)) {
-         TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data);
+      if (data->timeSyncState == 0 && start && syncBeforeLoop) {
+            TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data);
       }
-      data->timeSyncState = start;
 
       /* Now start/stop the loop. */
       if (!TimeSyncStartStopLoop(ctx, data, start)) {
          return FALSE;
       }
+
+      data->timeSyncState = start;
+
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_SLEWCORRECTION) == 0) {
       data->slewCorrection = strcmp(value, "0");
       g_debug("Daemon: Setting slewCorrection, %d.\n", data->slewCorrection);
+
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERCENTCORRECTION) == 0) {
       int32 percent;
+
       g_debug("Daemon: Setting slewPercentCorrection to %s.\n", value);
       if (!StrUtil_StrToInt(&percent, value)) {
          return FALSE;
@@ -622,6 +627,7 @@ TimeSyncSetOption(gpointer src,
       } else {
          data->slewPercentCorrection = percent;
       }
+
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_PERIOD) == 0) {
       uint32 period;
 
@@ -645,6 +651,7 @@ TimeSyncSetOption(gpointer src,
             }
          }
       }
+
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_STARTUP) == 0) {
       static gboolean doneAlready = FALSE;
       gboolean doSync;
@@ -661,9 +668,15 @@ TimeSyncSetOption(gpointer src,
 
       doneAlready = TRUE;
 
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_ENABLE) == 0) {
+      if (!ParseBoolOption(value, &syncBeforeLoop)) {
+         return FALSE;
+      }
+
    } else {
       return FALSE;
    }
+
    return TRUE;
 }
 
