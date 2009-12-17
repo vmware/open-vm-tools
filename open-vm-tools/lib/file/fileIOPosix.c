@@ -1944,17 +1944,8 @@ FileIO_SetAllocSize(const FileIODescriptor *fd,  // IN
 
    return fcntl(fd->posix, F_PREALLOCATE, &prealloc) != -1;
 #elif __linux__
-   {
-      int ret;
-
-      ret = syscall(SYS_fallocate, fd->posix, FALLOC_FL_KEEP_SIZE,
-                    curSize, preallocLen);
-      if (ret == 0) {
-         return TRUE;
-      }
-      errno = ret;
-      return FALSE;
-   }
+   return syscall(SYS_fallocate, fd->posix, FALLOC_FL_KEEP_SIZE,
+                  curSize, preallocLen) == 0;
 #endif
 
 #else
