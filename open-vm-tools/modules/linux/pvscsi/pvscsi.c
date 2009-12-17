@@ -410,6 +410,8 @@ static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 			pvscsi_create_sg(ctx, sg, segs);
 
 			e->flags |= PVSCSI_FLAG_CMD_WITH_SG_LIST;
+			ctx->sglPA = pci_map_single(adapter->dev, ctx->sgl,
+						    PAGE_SIZE, PCI_DMA_TODEVICE);
 			e->dataAddr = ctx->sglPA;
 		} else
 			e->dataAddr = sg_dma_address(sg);
@@ -422,7 +424,7 @@ static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 }
 
 static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
-				 const struct pvscsi_ctx *ctx)
+				 struct pvscsi_ctx *ctx)
 {
 	struct scsi_cmnd *cmd;
 	unsigned bufflen;
@@ -433,10 +435,15 @@ static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
 	if (bufflen != 0) {
 		unsigned count = scsi_sg_count(cmd);
 
-		if (count != 0)
+		if (count != 0) {
 			pci_unmap_sg(adapter->dev, scsi_sglist(cmd), count,
 				     cmd->sc_data_direction);
-		else
+			if (ctx->sglPA) {
+				pci_unmap_single(adapter->dev, ctx->sglPA,
+						 PAGE_SIZE, PCI_DMA_TODEVICE);
+				ctx->sglPA = 0;
+			}
+		} else
 			pci_unmap_single(adapter->dev, ctx->dataPA, bufflen,
 					 cmd->sc_data_direction);
 	}
@@ -1104,8 +1111,7 @@ static void pvscsi_free_sgls(const struct pvscsi_adapter *adapter)
 	unsigned i;
 
 	for (i = 0; i < adapter->req_depth; ++i, ++ctx)
-		pci_free_consistent(adapter->dev, PAGE_SIZE, ctx->sgl,
-				    ctx->sglPA);
+		free_page((unsigned long)ctx->sgl);
 }
 
 static int pvscsi_setup_msix(const struct pvscsi_adapter *adapter, int *irq)
@@ -1204,15 +1210,13 @@ static int __devinit pvscsi_allocate_sg(struct pvscsi_adapter *adapter)
 	ASSERT_ON_COMPILE(sizeof(struct pvscsi_sg_list) <= PAGE_SIZE);
 
 	for (i = 0; i < adapter->req_depth; ++i, ++ctx) {
-		ctx->sgl = pci_alloc_consistent(adapter->dev, PAGE_SIZE,
-						&ctx->sglPA);
+		ctx->sgl = (void *)__get_free_page(GFP_KERNEL);
+		ctx->sglPA = 0;
 		BUG_ON(ctx->sglPA & ~PAGE_MASK);
 		if (!ctx->sgl) {
 			for (; i >= 0; --i, --ctx) {
-				pci_free_consistent(adapter->dev, PAGE_SIZE,
-						    ctx->sgl, ctx->sglPA);
+				free_page((unsigned long)ctx->sgl);
 				ctx->sgl = NULL;
-				ctx->sglPA = 0;
 			}
 			return -ENOMEM;
 		}
