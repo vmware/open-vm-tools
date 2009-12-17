@@ -38,6 +38,7 @@
    LOGLEVEL_VAR(vui), \
    LOGLEVEL_VAR(stats), \
    LOGLEVEL_VAR(cpucount), \
+   LOGLEVEL_VAR(ovhdmem), \
    \
    /* user/io */ \
    LOGLEVEL_VAR(disk), \
