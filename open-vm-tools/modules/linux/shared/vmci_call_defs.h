@@ -55,6 +55,10 @@ typedef struct VMCIDatagram {
 /* Flag for creating a wellknown handle instead of a per context handle. */
 #define VMCI_FLAG_WELLKNOWN_DG_HND 0x1
 
+/* Event callback should fire in a delayed context (not interrupt context.) */
+#define VMCI_FLAG_EVENT_NONE       0
+#define VMCI_FLAG_EVENT_DELAYED_CB 0x1
+
 /* 
  * Maximum supported size of a VMCI datagram for routable datagrams.
  * Datagrams going to the hypervisor are allowed to be larger.

@@ -151,6 +151,7 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 #else
   typedef unsigned long VMCILockRank;
 
+  #define VMCI_LOCK_RANK_HIGHER_BH      0x8000
   #define VMCI_LOCK_RANK_HIGH_BH        0x4000
   #define VMCI_LOCK_RANK_MIDDLE_BH      0x2000
   #define VMCI_LOCK_RANK_LOW_BH         0x1000
@@ -257,6 +258,11 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
                            defined(__APPLE__) || defined(SOLARIS))
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
+
+typedef void (VMCIWorkFn)(void *data);
+Bool VMCI_CanScheduleDelayedWork(void);
+int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
+                             void *data);
 
 int VMCIMutex_Init(VMCIMutex *mutex);
 void VMCIMutex_Destroy(VMCIMutex *mutex);

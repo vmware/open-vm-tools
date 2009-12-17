@@ -70,7 +70,7 @@ uint32 VMCI_Version(void);
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
 			     void *clientData);
 
-int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback,
+int VMCIEvent_Subscribe(VMCI_Event event, uint32 flags, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEvent_Unsubscribe(VMCIId subID);
 

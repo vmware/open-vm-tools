@@ -353,6 +353,7 @@ static Bool vmciDevicePresent = FALSE;
 #endif
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
+static VMCIId ctxChangedSubId = VMCI_INVALID_ID;
 
 static int PROTOCOL_OVERRIDE = -1;
 
@@ -1272,6 +1273,52 @@ VSockVmciQPResumedCB(VMCIId subId,             // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * VSockVmciCidChangedCB --
+ *
+ *    Invoked when the context id of the VM may have changed. In this case
+ *    we need to reregister the stream control channel handler.
+ *
+ *    XXX: Open stream sockets will be closed by the detached callback for the
+ *    QP. However, this doesn't fix up bound stream sockets. We should figure
+ *    out what the right thing to do is in that case.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VSockVmciCidChangedCB(VMCIId subId,             // IN
+                      VMCI_EventData *eData,    // IN
+                      void *clientData)         // IN
+{
+   int err;
+   down(&registrationMutex);
+
+   if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
+      VMCIDatagram_DestroyHnd(vmciStreamHandle);
+      vmciStreamHandle = VMCI_INVALID_HANDLE;
+   }
+
+   err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID, 0,
+                                    VSockVmciRecvStreamCB, NULL,
+                                    &vmciStreamHandle,
+                                    TRUE);
+   if (err < 0) {
+      Warning("Unable to create datagram handle. (%d)\n", err);
+   }
+
+  up(&registrationMutex);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VSockVmciPendingWork --
  *
  *    Releases the resources for a pending socket if it has not reached the
@@ -1718,6 +1765,7 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
     * specifying the ATTACH_ONLY flag below.
     */
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_DETACH,
+                             VMCI_FLAG_EVENT_NONE,
                              VSockVmciPeerDetachCB,
                              pending,
                              &detachSubId);
@@ -2038,6 +2086,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
     * once and add a way to lookup sockets by queue pair handle.
     */
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_ATTACH,
+                             VMCI_FLAG_EVENT_NONE,
                              VSockVmciPeerAttachCB,
                              sk,
                              &attachSubId);
@@ -2047,6 +2096,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    }
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_PEER_DETACH,
+                             VMCI_FLAG_EVENT_NONE,
                              VSockVmciPeerDetachCB,
                              sk,
                              &detachSubId);
@@ -3012,6 +3062,22 @@ VSockVmciRegisterAddressFamily(void)
 #endif
 
    /*
+    * Register the context id changed callback before creating our datagram
+    * handler to make sure we don't miss a context id change.
+    */
+   err = VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE,
+                             VMCI_FLAG_EVENT_DELAYED_CB,
+                             VSockVmciCidChangedCB,
+                             NULL,
+                             &ctxChangedSubId);
+   if (err < VMCI_SUCCESS) {
+      Warning("Unable to subscribe to Ctx Id update event. (%d)\n", err);
+      err = VSockVmci_ErrorToVSockError(err);
+      ctxChangedSubId = VMCI_INVALID_ID;
+      return VSockVmci_ErrorToVSockError(err);
+   }
+
+   /*
     * Create the datagram handle that we will use to send and receive all
     * VSocket control messages for this context.
     */
@@ -3023,10 +3089,11 @@ VSockVmciRegisterAddressFamily(void)
        vmciStreamHandle.context == VMCI_INVALID_ID ||
        vmciStreamHandle.resource == VMCI_INVALID_ID) {
       Warning("Unable to create datagram handle. (%d)\n", err);
-      return VSockVmci_ErrorToVSockError(err);
+      goto error;
    }
 
    err = VMCIEvent_Subscribe(VMCI_EVENT_QP_RESUMED,
+                             VMCI_FLAG_EVENT_NONE,
                              VSockVmciQPResumedCB,
                              NULL,
                              &qpResumedSubId);
@@ -3068,11 +3135,18 @@ VSockVmciRegisterAddressFamily(void)
    return vsockVmciFamilyOps.family;
 
 error:
+   if (ctxChangedSubId != VMCI_INVALID_ID) {
+      VMCIEvent_Unsubscribe(ctxChangedSubId);
+      ctxChangedSubId = VMCI_INVALID_ID;
+   }
    if (qpResumedSubId != VMCI_INVALID_ID) {
       VMCIEvent_Unsubscribe(qpResumedSubId);
       qpResumedSubId = VMCI_INVALID_ID;
    }
-   VMCIDatagram_DestroyHnd(vmciStreamHandle);
+
+   if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
+      VMCIDatagram_DestroyHnd(vmciStreamHandle);
+   }
    return err;
 }
 
@@ -3104,6 +3178,11 @@ VSockVmciUnregisterAddressFamily(void)
       return;
    }
 #endif
+
+   if (ctxChangedSubId != VMCI_INVALID_ID) {
+      VMCIEvent_Unsubscribe(ctxChangedSubId);
+      ctxChangedSubId = VMCI_INVALID_ID;
+   }
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       if (VMCIDatagram_DestroyHnd(vmciStreamHandle) != VMCI_SUCCESS) {

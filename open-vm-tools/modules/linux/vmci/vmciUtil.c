@@ -92,7 +92,8 @@ VMCIUtil_Init(void)
     * We subscribe to the VMCI_EVENT_CTX_ID_UPDATE here so we can update the
     * internal context id when needed.
     */
-   if (VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCIUtilCidUpdate, NULL,
+   if (VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCI_FLAG_EVENT_NONE,
+                           VMCIUtilCidUpdate, NULL,
                            &ctxUpdateSubID) < VMCI_SUCCESS) {
       VMCI_LOG(("VMCIUtil: Failed to subscribe to event %d.\n", 
                 VMCI_EVENT_CTX_ID_UPDATE));

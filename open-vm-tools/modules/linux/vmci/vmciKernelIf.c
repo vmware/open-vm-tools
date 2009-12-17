@@ -41,6 +41,7 @@
 
 #include "compat_version.h"
 #include "compat_wait.h"
+#include "compat_workqueue.h"
 #include "compat_interrupt.h"
 #include "compat_spinlock.h"
 #include "compat_slab.h"
@@ -85,6 +86,13 @@
 #else
 #  define VMCIKVaToMPN(_ptr) PgtblKVa2MPN((VA)_ptr)
 #endif
+
+typedef struct VMCIDelayedWorkInfo {
+   compat_work work;
+   VMCIWorkFn *workFn;
+   void *data;
+} VMCIDelayedWorkInfo;
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -621,6 +629,102 @@ VMCI_CopyFromUser(void *dst,  // OUT: Kernel VA
                   size_t len) // IN
 {
    return copy_from_user(dst, VMCIVA64ToPtr(src), len);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCIDelayedWorkCB
+ *
+ *      Called in a worker thread context.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VMCIDelayedWorkCB(compat_work_arg work) // IN
+{
+   VMCIDelayedWorkInfo *delayedWorkInfo;
+
+   delayedWorkInfo = COMPAT_WORK_GET_DATA(work, VMCIDelayedWorkInfo, work);
+   ASSERT(delayedWorkInfo);
+   ASSERT(delayedWorkInfo->workFn);
+
+   delayedWorkInfo->workFn(delayedWorkInfo->data);
+
+   VMCI_FreeKernelMem(delayedWorkInfo, sizeof *delayedWorkInfo);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCI_CanScheduleDelayedWork --
+ *
+ *      Checks to see if the given platform supports delayed work callbacks.
+ *
+ * Results:
+ *      TRUE if it does. FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+VMCI_CanScheduleDelayedWork(void)
+{
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCI_ScheduleDelayedWork --
+ *
+ *      Schedule the specified callback.
+ *
+ * Results:
+ *      Zero on success, error code otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,   // IN
+                         void *data)            // IN
+{
+   VMCIDelayedWorkInfo *delayedWorkInfo;
+
+   ASSERT(workFn);
+
+   delayedWorkInfo = VMCI_AllocKernelMem(sizeof *delayedWorkInfo,
+                                         VMCI_MEMORY_ATOMIC);
+   if (!delayedWorkInfo) {
+      return VMCI_ERROR_NO_MEM;
+   }
+
+   delayedWorkInfo->workFn = workFn;
+   delayedWorkInfo->data = data;
+
+   COMPAT_INIT_WORK(&delayedWorkInfo->work, VMCIDelayedWorkCB,
+                    delayedWorkInfo);
+
+   compat_schedule_work(&delayedWorkInfo->work);
+
+   return VMCI_SUCCESS;
 }
 
 
