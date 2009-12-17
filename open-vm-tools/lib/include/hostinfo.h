@@ -73,6 +73,7 @@ extern Bool Hostinfo_OSIsSMP(void);
 extern Bool Hostinfo_OSIsWinNT(void);
 extern Bool Hostinfo_OSIsWow64(void);
 #endif
+extern Bool Hostinfo_NestingSupported(void);
 extern Bool Hostinfo_TouchBackDoor(void);
 extern Bool Hostinfo_TouchXen(void);
 extern char *Hostinfo_HypervisorCPUIDSig(void);

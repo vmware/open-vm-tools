@@ -1668,6 +1668,48 @@ Hostinfo_TouchBackDoor(void)
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_NestingSupported --
+ *
+ *      Access the backdoor with a nesting control query. This is used
+ *      to determine if we are running inside a VM that supports nesting.
+ *      This function should only be called after determining that the
+ *	backdoor is present with Hostinfo_TouchBackdoor().
+ *
+ * Results:
+ *      TRUE if the outer VM supports nesting.
+ *	FALSE otherwise.
+ *
+ * Side effects:
+ *	Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_NestingSupported(void)
+{
+   uint32 cmd = NESTING_CONTROL_QUERY << 16 | BDOOR_CMD_NESTING_CONTROL;
+   uint32 result;
+
+   __asm__ __volatile__(
+      "inl %%dx, %%eax"
+      : "=a" (result)
+      :	"0"  (BDOOR_MAGIC),
+        "c"  (cmd),
+        "d"  (BDOOR_PORT)
+   );
+
+   if (result >= NESTING_CONTROL_QUERY && result != ~0U) {
+      return TRUE;
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Hostinfo_ResetProcessState --
  *
  *      Clean up signal handlers and file descriptors before an exec().
