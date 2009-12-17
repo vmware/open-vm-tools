@@ -22,11 +22,6 @@
  * Plugin to handle time synchronization between the guest and host.
  */
 
-/* sync the time once a minute */
-#define TIME_SYNC_TIME     60
-/* only PERCENT_CORRECTION percent is corrected everytime */
-#define PERCENT_CORRECTION   50
-
 #include "timeSync.h"
 #include "backdoor.h"
 #include "backdoor_def.h"
@@ -45,6 +40,18 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
 
+/* Sync the time once a minute. */
+#define TIMESYNC_TIME 60
+/* Correct PERCENT_CORRECTION percent of the error each period. */
+#define TIMESYNC_PERCENT_CORRECTION 50
+
+/* When measuring the difference between time on the host and time in the
+ * guest we try up to TIMESYNC_MAX_SAMPLES times to read a sample
+ * where the two host reads are within TIMESYNC_GOOD_SAMPLE_THRESHOLD
+ * microseconds. */
+#define TIMESYNC_MAX_SAMPLES 4
+#define TIMESYNC_GOOD_SAMPLE_THRESHOLD 2000
+
 typedef struct TimeSyncData {
    gboolean    slewCorrection;
    uint32      slewPercentCorrection;
@@ -55,18 +62,9 @@ typedef struct TimeSyncData {
 
 
 /**
- * Read the Guest OS time and the Host OS time.
- *
- * There are three time domains that are revelant here:
- * 1. Guest time     - the time reported by the guest
- * 2. Apparent time  - the time reported by the virtualization layer
- * 3. Host time      - the time reported by the host operating system.
- *
- * This function reports the host time, the guest time and the difference
- * between apparent time and host time (apparentError).
+ * Read the time reported by the Host OS.
  *
  * @param[out]  host                Time on the Host.
- * @param[out]  guest               Time in the Guest.
  * @param[out]  apparentError       Apparent time error = apparent - real.
  * @param[out]  apparentErrorValid  Did the platform inform us of apparentError.
  * @param[out]  maxTimeError        Maximum amount of error than can go.
@@ -76,9 +74,8 @@ typedef struct TimeSyncData {
  */
 
 static gboolean
-TimeSyncReadHostAndGuest(int64 *host, int64 *guest, 
-                         int64 *apparentError, Bool *apparentErrorValid,
-                         int64 *maxTimeError)
+TimeSyncReadHost(int64 *host, int64 *apparentError, Bool *apparentErrorValid,
+                 int64 *maxTimeError)
 {
    Backdoor_proto bp;
    int64 maxTimeLag;
@@ -86,8 +83,6 @@ TimeSyncReadHostAndGuest(int64 *host, int64 *guest,
    int64 hostSecs;
    int64 hostUsecs;
    Bool timeLagCall;
-
-   DEBUG_ONLY(static int64 lastHostSecs = 0);
 
    /*
     * We need 3 things from the host, and there exist 3 different versions of
@@ -162,26 +157,101 @@ TimeSyncReadHostAndGuest(int64 *host, int64 *guest,
       return FALSE;
    }
 
-   /* Get the guest OS time */
-   if (!TimeSync_GetCurrentTime(guest)) {
-      g_warning("Unable to retrieve the guest OS time: %s.\n\n", 
-                Msg_ErrString());
+   return TRUE;
+}
+
+
+/**
+ * Read the Guest OS time and the Host OS time.
+ *
+ * There are three time domains that are revelant here:
+ * 1. Guest time     - the time reported by the guest
+ * 2. Apparent time  - the time reported by the virtualization layer
+ * 3. Host time      - the time reported by the host operating system.
+ *
+ * This function reports the host time, the guest time and the difference
+ * between apparent time and host time (apparentError).  The host and
+ * guest time may be sampled multiple times to ensure an accurate reading.
+ *
+ * @param[out]  host                Time on the Host.
+ * @param[out]  guest               Time in the Guest.
+ * @param[out]  apparentError       Apparent time error = apparent - real.
+ * @param[out]  apparentErrorValid  Did the platform inform us of apparentError.
+ * @param[out]  maxTimeError        Maximum amount of error than can go.
+ *                                  uncorrected.
+ *
+ * @return TRUE on success.
+ */
+
+static gboolean
+TimeSyncReadHostAndGuest(int64 *host, int64 *guest, 
+                         int64 *apparentError, Bool *apparentErrorValid,
+                         int64 *maxTimeError)
+{
+   int64 host1, host2, hostDiff;
+   int64 tmpGuest, tmpApparentError, tmpMaxTimeError;
+   Bool tmpApparentErrorValid;
+   int64 bestHostDiff = MAX_INT64;
+   int iter = 0;
+   DEBUG_ONLY(static int64 lastHost = 0);
+
+   *apparentErrorValid = FALSE;
+   *host = *guest = *apparentError = *maxTimeError = 0;
+
+   if (!TimeSyncReadHost(&host2, &tmpApparentError, 
+                         &tmpApparentErrorValid, &tmpMaxTimeError)) {
       return FALSE;
    }
 
+   do {
+      iter++;
+      host1 = host2;
+
+      if (!TimeSync_GetCurrentTime(&tmpGuest)) {
+         g_warning("Unable to retrieve the guest OS time: %s.\n\n", 
+                   Msg_ErrString());
+         return FALSE;
+      }
+      
+      if (!TimeSyncReadHost(&host2, &tmpApparentError, 
+                            &tmpApparentErrorValid, &tmpMaxTimeError)) {
+         return FALSE;
+      }
+      
+      if (host1 < host2) {
+         hostDiff = host2 - host1;
+      } else {
+         hostDiff = 0;
+      }
+
+      if (hostDiff <= bestHostDiff) {
+         bestHostDiff = hostDiff;
+         *host = host1 + hostDiff / 2;
+         *guest = tmpGuest;
+         *apparentError = tmpApparentError;
+         *apparentErrorValid = tmpApparentErrorValid;
+         *maxTimeError = tmpMaxTimeError;
+      }
+   } while (iter < TIMESYNC_MAX_SAMPLES && 
+            bestHostDiff > TIMESYNC_GOOD_SAMPLE_THRESHOLD);
+
+   ASSERT(*host != 0 && *guest != 0);
+
 #ifdef VMX86_DEBUG
    g_debug("Daemon: Guest vs host error %.6fs; guest vs apparent error %.6fs; "
-           "limit=%.2f; apparentError %.6fs; "
-           "%"FMT64"d secs since last update\n",
+           "limit=%.2fs; apparentError %.6fs; iter=%d error=%.6fs; "
+           "%.6f secs since last update\n",
            (*guest - *host) / 1000000.0, 
            (*guest - *host - *apparentError) / 1000000.0, 
            *maxTimeError / 1000000.0, *apparentError / 1000000.0,
-           hostSecs - lastHostSecs);
-   lastHostSecs = hostSecs;
+           iter, bestHostDiff / 1000000.0,
+           (*host - lastHost) / 1000000.0);
+   lastHost = *host;
 #endif
 
    return TRUE;
 }
+
 
 /**
  * Set the guest OS time to the host OS time.
@@ -548,7 +618,7 @@ TimeSyncSetOption(gpointer src,
          return FALSE;
       }
       if (percent <= 0 || percent > 100) {
-         data->slewPercentCorrection = PERCENT_CORRECTION;
+         data->slewPercentCorrection = TIMESYNC_PERCENT_CORRECTION;
       } else {
          data->slewPercentCorrection = percent;
       }
@@ -565,7 +635,7 @@ TimeSyncSetOption(gpointer src,
        * not running, just remember the new sync period value.
        */
       if (period != data->timeSyncPeriod) {
-         data->timeSyncPeriod = (period > 0) ? period : TIME_SYNC_TIME;
+         data->timeSyncPeriod = (period > 0) ? period : TIMESYNC_TIME;
 
          if (data->timer != NULL) {
             TimeSyncStartStopLoop(ctx, data, FALSE);
@@ -651,9 +721,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    };
 
    data->slewCorrection = FALSE;
-   data->slewPercentCorrection = PERCENT_CORRECTION;
+   data->slewPercentCorrection = TIMESYNC_PERCENT_CORRECTION;
    data->timeSyncState = -1;
-   data->timeSyncPeriod = TIME_SYNC_TIME;
+   data->timeSyncPeriod = TIMESYNC_TIME;
    data->timer = NULL;
 
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
