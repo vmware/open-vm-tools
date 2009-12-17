@@ -169,6 +169,20 @@ typedef enum {
  * Flag the file as not to be backed up by Time Machine on Mac OS X.
  */
 #define FILEIO_OPEN_NO_TIME_MACHINE      (1 << 15)
+/*
+ * Valid only for MacOS. It eventually results into O_EXLOCK flag passed to open
+ * system call.
+ *
+ * O_EXLOCK, O_SHLOCK behavior is tested on Mac OS X Server 10.6, kernel 10.0.0.
+ *
+ * |                      | Block devices      | Regular files
+ * |----------------------|--------------------|----------------
+ * | Locking behavior     | mandatory          | advisory
+ * |                      |                    |
+ * | If O_NONBLOCK absent | open doesn't block | open blocks
+ * |                      | on conflicts       | on conflicts
+ */
+#define FILEIO_OPEN_EXCLUSIVE_LOCK_MACOS (1 << 16)
 
 /*
  * Flag passed to open() to not attempt to get the lun attributes as part of
