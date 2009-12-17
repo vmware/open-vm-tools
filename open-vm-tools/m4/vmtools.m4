@@ -64,12 +64,13 @@ AC_DEFUN([AC_VMW_CHECK_LIB],[
    ac_vmw_have_lib=0
    ac_vmw_have_lib_func=0
    ac_vmw_have_lib_header=0
+   ac_vmw_custom_libs=
 
    #
    # First, try any user-defined CUSTOM_* flags.
    #
    if test -n "${CUSTOM_$2_CPPFLAGS}" || test -n "${CUSTOM_$2_LIBS}"; then
-      CUSTOM_$2_LIBS="${CUSTOM_$2_LIBS} -l$1"
+      ac_vmw_custom_libs="${CUSTOM_$2_LIBS} -l$1"
       if test -n "$6"; then
          ORIGINAL_CPPFLAGS="$CPPFLAGS"
          CPPFLAGS="${CUSTOM_$2_CPPFLAGS} $CPPFLAGS"
@@ -96,12 +97,12 @@ AC_DEFUN([AC_VMW_CHECK_LIB],[
             [$ac_vmw_function],
             [ac_vmw_have_lib_func=1],
             [],
-            [${CUSTOM_$2_LIBS}])
+            [$ac_vmw_custom_libs])
       fi
 
       if test $ac_vmw_have_lib_func -eq 1 && test $ac_vmw_have_lib_header -eq 1; then
          $2_CPPFLAGS="${CUSTOM_$2_CPPFLAGS}"
-         $2_LIBS="${CUSTOM_$2_LIBS}"
+         $2_LIBS="$ac_vmw_custom_libs"
          ac_vmw_have_lib=1
       fi
    fi
@@ -206,6 +207,44 @@ AC_DEFUN([AC_VMW_CHECK_LIBXX],[
    AC_LANG_PUSH([C++])
    AC_VMW_CHECK_LIB([$1], [$2], [$3], [$4], [$5], [$6], [$7], [$8], [$9])
    AC_LANG_POP([C++])
+])
+
+
+#
+# AC_VMW_CHECK_X11_LIB(library, header, function, action-if-not-found)
+#
+# Special handling for X11 library checking. This macro checks that both the
+# library provides the given function, and that the header exists, making use
+# of COMMON_XLIBS when linking. On success, it modifies COMMON_XLIBS to include
+# the library.
+#
+# library  ($1):   library name (value passed to ld with -l)
+# header   ($2):   header file to look for, may be empty.
+# function ($3):   function to look for in the library.
+# action-if-not-found ($4): code to execute if failed to find the library.
+#
+#
+AC_DEFUN([AC_VMW_CHECK_X11_LIB],[
+   have_header=1
+   if test -n "$2"; then
+      AC_CHECK_HEADER(
+         [X11/extensions/scrnsaver.h],
+         [],
+         [
+          $have_header=0;
+          ${action-if-not-found}
+         ],
+         [])
+   fi
+
+   if test $have_header = 1; then
+      AC_CHECK_LIB(
+         [$1],
+         [$3],
+         [COMMON_XLIBS="-l$1 $COMMON_XLIBS"],
+         [${action-if-not-found}],
+         [$COMMON_XLIBS])
+   fi
 ])
 
 
