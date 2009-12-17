@@ -29,18 +29,11 @@
 #define __NETUTIL_H__
 
 #ifdef _WIN32
-/*
- * Redefine the WINNT version for this file to be 'LONGHORN' so that we'll get
- * the definitions for MIB_IPFORWARDTABLE2 et. al.
- */
-#   if (_WIN32_WINNT < 0x0600)
-#      undef _WIN32_WINNT
-#      define _WIN32_WINNT 0x0600
-#   endif
-
 #   include <windows.h>
 #   include <ws2tcpip.h>
 #   include "vmware/iphlpapi_packed.h"
+#   include <ipmib.h>
+#   include <netioapi.h>
 #else
 #   include <arpa/inet.h>
 #endif
@@ -67,6 +60,17 @@ char *NetUtil_GetPrimaryIP(void);
 GuestNic *NetUtil_GetPrimaryNic(void);
 
 #ifdef _WIN32
+
+/*
+ * Brute-force this. Trying to do it "properly" with
+ * WINVER/NTDDI_VERSION checks/manips in a way that compiles for both
+ * VC8 and VC9 didn't work.
+ */
+#ifndef FIXED_INFO
+typedef  FIXED_INFO_W2KSP1 FIXED_INFO;
+typedef  FIXED_INFO_W2KSP1 *PFIXED_INFO;
+#endif
+
 DWORD NetUtil_LoadIpHlpApiDll(void);
 DWORD NetUtil_FreeIpHlpApiDll(void);
 Bool NetUtil_ReleaseRenewIP(Bool release);
