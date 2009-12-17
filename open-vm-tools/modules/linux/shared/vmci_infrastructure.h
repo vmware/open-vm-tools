@@ -92,4 +92,36 @@ VMCI_Hash(VMCIHandle handle, // IN
    return hash & (size - 1);
 }
 
+
+/*
+ *-------------------------------------------------------------------------
+ *
+ *  VMCI_HashId --
+ *
+ *     Hash function used by the Simple Datagram API. Hashes only a VMCI id
+ *     (not the full VMCI handle) Based on the djb2
+ *     hash function by Dan Bernstein.
+ *
+ *  Result:
+ *     Returns guest call size.
+ *
+ *  Side effects:
+ *     None.
+ *
+ *-------------------------------------------------------------------------
+ */
+
+static INLINE int
+VMCI_HashId(VMCIId id,      // IN
+            unsigned size)  // IN
+{
+   unsigned     i;
+   int          hash        = 5381;
+
+   for (i = 0; i < sizeof id; i++) {
+      hash = ((hash << 5) + hash) + (uint8)(id >> (i * 8));
+   }
+   return hash & (size - 1);
+}
+
 #endif // _VMCI_INFRASTRUCTURE_H_

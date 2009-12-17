@@ -59,6 +59,7 @@ typedef struct VMCIDatagram {
  */
 #define VMCI_FLAG_DG_NONE          0
 #define VMCI_FLAG_WELLKNOWN_DG_HND 0x1
+#define VMCI_FLAG_ANYCID_DG_HND    0x2
 #define VMCI_FLAG_DG_DELAYED_CB    0x4
 
 /* Event callback should fire in a delayed context (not interrupt context.) */
