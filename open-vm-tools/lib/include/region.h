@@ -188,6 +188,14 @@ extern RegDataRec miBrokenData;
 
 #define REGION_VALIDINDEX(reg, i) (i >= 0 && i < REGION_NUM_RECTS((reg)))
 
+#define BOX_X(ptr) (ptr->x1)
+#define BOX_Y(ptr) (ptr->y1)
+#define BOX_WIDTH(ptr) (ptr->x2 - ptr->x1)
+#define BOX_HEIGHT(ptr) (ptr->y2 - ptr->y1)
+#define BOX_XY(ptr) BOX_X(ptr), BOX_Y(ptr)
+#define BOX_WH(ptr) BOX_WIDTH(ptr), BOX_HEIGHT(ptr)
+#define BOX_XYWH(ptr) BOX_XY(ptr), BOX_WH(ptr)
+
 #define RECT_SETBOX(r, rx, ry, rw, rh) do { \
   (r)->x1 = (rx); \
   (r)->x2 = (rx) + (rw); \
