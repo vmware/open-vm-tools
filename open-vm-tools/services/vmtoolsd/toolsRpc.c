@@ -182,28 +182,22 @@ ToolsCoreRpcSetOption(RpcInData *data)
    index++;
    value = StrUtil_GetNextToken(&index, data->args, "");
 
-   if (option == NULL || value == NULL || strlen(value) == 0) {
-      goto exit;
+   if (option != NULL && value != NULL && strlen(value) != 0) {
+
+      g_debug("Setting option '%s' to '%s'.\n", option, value);
+      g_signal_emit_by_name(state->ctx.serviceObj,
+                            TOOLS_CORE_SIG_SET_OPTION,
+                            &state->ctx,
+                            option,
+                            value,
+                            &retVal);
    }
 
-   g_debug("Setting option '%s' to '%s'.\n", option, value);
-   g_key_file_set_string(state->ctx.config, state->ctx.name, option, value);
-
-   g_signal_emit_by_name(state->ctx.serviceObj,
-                         TOOLS_CORE_SIG_SET_OPTION,
-                         &state->ctx,
-                         option,
-                         value,
-                         &retVal);
-
-exit:
    vm_free(option);
    vm_free(value);
-   if (retVal) {
-      RPCIN_SETRETVALS(data, "", retVal);
-   } else {
-      RPCIN_SETRETVALS(data, "Unknown or invalid option", retVal);
-   }
+
+   RPCIN_SETRETVALS(data, retVal ? "" : "Unknown or invalid option", retVal);
+
    return retVal;
 }
 
