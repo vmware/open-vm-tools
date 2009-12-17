@@ -52,6 +52,7 @@
 #define SO_VMCI_BUFFER_MIN_SIZE             1
 #define SO_VMCI_BUFFER_MAX_SIZE             2
 #define SO_VMCI_PEER_HOST_VM_ID             3
+#define SO_VMCI_SERVICE_LABEL               4
 
 /*
  * The VMCI sockets address equivalents of INADDR_ANY.  The first works for

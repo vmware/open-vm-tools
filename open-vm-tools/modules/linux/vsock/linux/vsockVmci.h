@@ -84,6 +84,9 @@ VSockVmci_ErrorToVSockError(int32 vmciError) // IN
    case VMCI_ERROR_DUPLICATE_ENTRY:
       err = EADDRINUSE;
       break;
+   case VMCI_ERROR_NO_ACCESS:
+      err = EPERM;
+      break;
    case VMCI_ERROR_NO_RESOURCES:
       err = ENOBUFS;
       break;

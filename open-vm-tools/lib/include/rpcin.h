@@ -27,6 +27,10 @@
 #ifndef __RPCIN_H__
 #   define __RPCIN_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(VMTOOLS_USE_GLIB)
 #  include <glib.h>
    typedef gboolean RpcInRet;
@@ -116,5 +120,9 @@ void RpcIn_Destruct(RpcIn *in);
 Bool RpcIn_restart(RpcIn *in);
 Bool RpcIn_stop(RpcIn *in);
 
-#endif /* __RPCIN_H__ */
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif /* __RPCIN_H__ */

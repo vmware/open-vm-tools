@@ -49,10 +49,6 @@ void FoundryToolsDaemon_RegisterRoutines(RpcIn *in,
                                          Bool runAsRoot);
 /* There isn't an _UnregisterRoutines yet. */
 
-Bool FoundryToolsDaemon_RegisterSetPrinter(RpcIn *in);
-Bool FoundryToolsDaemon_RegisterSetPrinterCapability(void);
-Bool FoundryToolsDaemon_UnregisterSetPrinter(RpcIn *in);
-
 Bool FoundryToolsDaemon_RegisterOpenUrl(RpcIn *in);
 Bool FoundryToolsDaemon_RegisterOpenUrlCapability(void);
 Bool FoundryToolsDaemon_UnregisterOpenUrl(void);

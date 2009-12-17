@@ -316,7 +316,7 @@ Hostinfo_OSVersion(int i)
  *----------------------------------------------------------------------
  */
 
-void 
+void
 Hostinfo_GetTimeOfDay(VmTimeType *time)
 {
    struct timeval tv;
@@ -505,6 +505,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_BLACKCAT, distroShortSize);
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
+   } else if (StrUtil_StartsWith(distroLower, "centos")) {
+      Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
@@ -513,6 +515,15 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       } else if (strstr(distroLower, "5.0")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
       }
+   } else if (StrUtil_StartsWith(distroLower, "enterprise linux")) {
+      /*
+       * [root@localhost ~]# lsb_release -sd
+       * "Enterprise Linux Enterprise Linux Server release 5.4 (Carthage)"
+       *
+       * Not sure why they didn't brand their releases as "Oracle Enterprise
+       * Linux".  Oh well.
+       */
+      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
    } else if (strstr(distroLower, "gentoo")) {
@@ -985,7 +996,7 @@ HostinfoReadProc(const char *str)  // IN:
    uint32 count;
 
    ASSERT(!strcmp("logical", str) || !strcmp("cores", str) ||
-          !strcmp("packages", str)); 
+          !strcmp("packages", str));
 
    ASSERT(!HostType_OSIsVMK()); // Don't use /proc/vmware
 
@@ -1011,7 +1022,7 @@ HostinfoReadProc(const char *str)  // IN:
    return -1;
 }
 
- 
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1166,7 +1177,7 @@ Hostinfo_NumCPUs(void)
       char *line;
 
       f = Posix_Fopen("/proc/cpuinfo", "r");
-      if (f == NULL) { 
+      if (f == NULL) {
 	 return -1;
       }
 
@@ -1365,7 +1376,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
 
    return TRUE;
 #else
-   /* 
+   /*
     * Not implemented. This function is currently only used in the vmx, so
     * getloadavg is always available to us. If the linux tools ever need this,
     * we can go back to having a look at the output of /proc/loadavg, but
@@ -1594,12 +1605,12 @@ Hostinfo_LogMemUsage(void)
  *
  *  Hostinfo_TouchBackDoor --
  *
- *      Access the backdoor. This is used to determine if we are 
+ *      Access the backdoor. This is used to determine if we are
  *      running in a VM or on a physical host. On a physical host
  *      this should generate a GP which we catch and thereby determine
  *      that we are not in a VM. However some OSes do not handle the
  *      GP correctly and the process continues running returning garbage.
- *      In this case we check the EBX register which should be 
+ *      In this case we check the EBX register which should be
  *      BDOOR_MAGIC if the IN was handled in a VM. Based on this we
  *      return either TRUE or FALSE.
  *
@@ -1608,7 +1619,7 @@ Hostinfo_LogMemUsage(void)
  *      if not.
  *
  * Side effects:
- *	Exception if not in a VM. 
+ *	Exception if not in a VM.
  *
  *----------------------------------------------------------------------
  */
@@ -2146,13 +2157,13 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
 
    f = Posix_Fopen("/proc/cpuinfo", "r");
 
-   if (f == NULL) { 
+   if (f == NULL) {
       Warning(LGPFX" %s: Unable to open /proc/cpuinfo\n", __FUNCTION__);
 
       return NULL;
    }
-      
-   while (cpu <= nCpu && 
+
+   while (cpu <= nCpu &&
           StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
       char *s;
       char *e;
@@ -2166,20 +2177,20 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
          for (; s < e && isspace(*s); s++);
          for (; s < e && isspace(e[-1]); e--);
          *e = 0;
-         
+
          /* Free previous value */
          free(value);
          value = strdup(s);
          ASSERT_MEM_ALLOC(value);
-         
+
          cpu++;
       }
       free(line);
-   }     
+   }
 
    fclose(f);
 
-   return value; 
+   return value;
 }
 #endif
 
@@ -2189,7 +2200,7 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
  *
  * Hostinfo_GetRatedCpuMhz --
  *
- *      Get the rated CPU speed of a given processor. 
+ *      Get the rated CPU speed of a given processor.
  *      Return value is in MHz.
  *
  * Results:
@@ -2232,11 +2243,11 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
 #else
    float fMhz = 0;
    char *readVal = HostinfoGetCpuInfo(cpuNumber, "cpu MHz");
-   
+
    if (readVal == NULL) {
       return FALSE;
    }
-   
+
    if (sscanf(readVal, "%f", &fMhz) == 1) {
       *mHz = (unsigned int)(fMhz + 0.5);
    }
@@ -2302,7 +2313,7 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
 
       /* VMKernel treats mName as an in/out parameter so terminate it. */
       mName[0] = '\0';
-      if (VMKernel_GetCPUModelName(mName, cpuNumber,
+      if (VMKernel_GetCPUModelName(cpuNumber, mName,
                                    sizeof(mName)) == VMK_OK) {
 	 mName[sizeof(mName) - 1] = '\0';
 

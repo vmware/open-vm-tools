@@ -330,14 +330,14 @@ struct vmxnet3_stat_desc {
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
-	writel((val), (adapter)->hw_addr0 + (reg))
+	writel(cpu_to_le32(val), (adapter)->hw_addr0 + (reg))
 #define VMXNET3_READ_BAR0_REG(adapter, reg)        \
-	readl((adapter)->hw_addr0 + (reg))
+	le32_to_cpu(readl((adapter)->hw_addr0 + (reg)))
 
 #define VMXNET3_WRITE_BAR1_REG(adapter, reg, val)  \
-	writel((val), (adapter)->hw_addr1 + (reg))
+	writel(cpu_to_le32(val), (adapter)->hw_addr1 + (reg))
 #define VMXNET3_READ_BAR1_REG(adapter, reg)        \
-	readl((adapter)->hw_addr1 + (reg))
+	le32_to_cpu(readl((adapter)->hw_addr1 + (reg)))
 
 #define VMXNET3_WAKE_QUEUE_THRESHOLD(tq)  (5)
 #define VMXNET3_RX_ALLOC_THRESHOLD(rq, ring_idx, adapter) \
@@ -354,6 +354,10 @@ struct vmxnet3_stat_desc {
 #define VMXNET3_MAX_ETH_HDR_SIZE    22
 
 #define VMXNET3_MAX_SKB_BUF_SIZE    (3*1024)
+
+inline void set_flag_le16(__le16 *data, u16 flag);
+inline void set_flag_le64(__le64 *data, u64 flag);
+inline void reset_flag_le64(__le64 *data, u64 flag);
 
 int
 vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq, struct

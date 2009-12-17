@@ -1661,6 +1661,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
 
    pending->compat_sk_state = SS_CONNECTING;
    vpending->produceSize = vpending->consumeSize = qpSize;
+   vpending->queuePairSize = qpSize;
 
    NOTIFYCALL(vpending, processRequest, pending);
 
@@ -4174,25 +4175,27 @@ VSockVmciStreamSetsockopt(struct socket *sock,       // IN/OUT
 
    switch (optname) {
    case SO_VMCI_BUFFER_SIZE:
-      if (val < vsk->queuePairMinSize || val > vsk->queuePairMaxSize) {
-         err = -EINVAL;
-         goto out;
+      if (val < vsk->queuePairMinSize) {
+         vsk->queuePairMinSize = val;
       }
+
+      if (val > vsk->queuePairMaxSize) {
+         vsk->queuePairMaxSize = val;
+      }
+
       vsk->queuePairSize = val;
       break;
 
    case SO_VMCI_BUFFER_MAX_SIZE:
       if (val < vsk->queuePairSize) {
-         err = -EINVAL;
-         goto out;
+         vsk->queuePairSize = val;
       }
       vsk->queuePairMaxSize = val;
       break;
 
    case SO_VMCI_BUFFER_MIN_SIZE:
       if (val > vsk->queuePairSize) {
-         err = -EINVAL;
-         goto out;
+         vsk->queuePairSize = val;
       }
       vsk->queuePairMinSize = val;
       break;
@@ -4201,8 +4204,6 @@ VSockVmciStreamSetsockopt(struct socket *sock,       // IN/OUT
       err = -ENOPROTOOPT;
       break;
    }
-
-out:
 
    ASSERT(vsk->queuePairMinSize <= vsk->queuePairSize &&
           vsk->queuePairSize <= vsk->queuePairMaxSize);

@@ -105,6 +105,9 @@
 # if !defined(EINVAL)
 #  define EINVAL              WSAEINVAL
 # endif
+# if !defined(EPERM)
+#  define EPERM               WSAEACCES /* WSA doesn't have EPERM */
+# endif
 #  define EWOULDBLOCK         WSAEWOULDBLOCK
 #  define EINPROGRESS         WSAEINPROGRESS
 #  define EALREADY            WSAEALREADY
@@ -139,7 +142,8 @@
 #else
 #if defined(VMKERNEL)
 #  define EINTR               VMK_WAIT_INTERRUPTED
-#  define EACCES              VMK_NOACCESS
+#  define EPERM               VMK_ACCESS_DENIED
+#  define EACCES              VMK_NO_ACCESS
 #  define EFAULT              VMK_INVALID_ADDRESS
 #  define EINVAL              VMK_FAILURE
 #  define EWOULDBLOCK         VMK_WOULD_BLOCK

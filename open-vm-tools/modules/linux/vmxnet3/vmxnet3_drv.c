@@ -27,7 +27,6 @@
 #include "vmxnet3_int.h"
 #include "vmxnet3_shm.h"
 
-
 char vmxnet3_driver_name[] = "vmxnet3";
 #define VMXNET3_DRIVER_DESC "VMware vmxnet3 virtual NIC driver"
 
@@ -177,7 +176,7 @@ vmxnet3_check_link(struct vmxnet3_adapter *adapter)
 static void
 vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 {
-	u32 events = adapter->shared->ecr;
+	u32 events = le32_to_cpu(adapter->shared->ecr);
 	if (!events)
 		return;
 
@@ -195,7 +194,7 @@ vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 		if (adapter->tqd_start->status.stopped) {
 			printk(KERN_ERR "%s: tq error 0x%x\n",
 			       adapter->netdev->name,
-			       adapter->tqd_start->status.error);
+			       le32_to_cpu(adapter->tqd_start->status.error));
 		}
 		if (adapter->rqd_start->status.stopped) {
 			printk(KERN_ERR "%s: rq error 0x%x\n",
@@ -206,6 +205,106 @@ vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 		compat_schedule_work(&adapter->work);
 	}
 }
+
+#ifdef __BIG_ENDIAN_BITFIELD
+/*
+ * The device expects the bitfields in shared structures to be written in
+ * little endian. When CPU is big endian, the following routines are used to
+ * correctly read and write into ABI.
+ * The general technique used here is : double word bitfields are defined in
+ * opposite order for big endian architecture. Then before reading them in
+ * driver the complete double word is translated using le32_to_cpu. Similarly
+ * After the driver writes into bitfields, cpu_to_le32 is used to translate the
+ * double words into required format.
+ * In order to avoid touching bits in shared structure more than once, temporary
+ * descriptors are used. These are passed as srcDesc to following functions.
+ */
+static void vmxnet3_RxDescToCPU(const struct Vmxnet3_RxDesc *srcDesc,
+				struct Vmxnet3_RxDesc *dstDesc)
+{
+	u32 *src = (u32 *)srcDesc + 2;
+	u32 *dst = (u32 *)dstDesc + 2;
+	dstDesc->addr = le64_to_cpu(srcDesc->addr);
+	*dst = le32_to_cpu(*src);
+	dstDesc->ext1 = le32_to_cpu(srcDesc->ext1);
+}
+
+static void vmxnet3_TxDescToLe(const struct Vmxnet3_TxDesc *srcDesc,
+			       struct Vmxnet3_TxDesc *dstDesc)
+{
+	int i;
+	u32 *src = (u32 *)(srcDesc + 1);
+	u32 *dst = (u32 *)(dstDesc + 1);
+
+	/* Working backwards so that the gen bit is set at the end. */
+	for (i = 2; i > 0; i--) {
+		src--;
+		dst--;
+		*dst = cpu_to_le32(*src);
+	}
+}
+
+
+static void vmxnet3_RxCompToCPU(const struct Vmxnet3_RxCompDesc *srcDesc,
+				struct Vmxnet3_RxCompDesc *dstDesc)
+{
+	int i = 0;
+	u32 *src = (u32 *)srcDesc;
+	u32 *dst = (u32 *)dstDesc;
+	for (i = 0; i < sizeof(struct Vmxnet3_RxCompDesc) / sizeof(u32); i++) {
+		*dst = le32_to_cpu(*src);
+		src++;
+		dst++;
+	}
+}
+
+
+/* Used to read bitfield values from double words. */
+static u32 get_bitfield32(const __le32 *bitfield, u32 pos, u32 size)
+{
+	u32 temp = le32_to_cpu(*bitfield);
+	u32 mask = ((1 << size) - 1) << pos;
+	temp &= mask;
+	temp >>= pos;
+	return temp;
+}
+
+
+
+#endif  /* __BIG_ENDIAN_BITFIELD */
+
+#ifdef __BIG_ENDIAN_BITFIELD
+
+#   define VMXNET3_TXDESC_GET_GEN(txdesc) get_bitfield32(((const __le32 *) \
+			txdesc) + VMXNET3_TXD_GEN_DWORD_SHIFT, \
+			VMXNET3_TXD_GEN_SHIFT, VMXNET3_TXD_GEN_SIZE)
+#   define VMXNET3_TXDESC_GET_EOP(txdesc) get_bitfield32(((const __le32 *) \
+			txdesc) + VMXNET3_TXD_EOP_DWORD_SHIFT, \
+			VMXNET3_TXD_EOP_SHIFT, VMXNET3_TXD_EOP_SIZE)
+#   define VMXNET3_TCD_GET_GEN(tcd) get_bitfield32(((const __le32 *)tcd) + \
+			VMXNET3_TCD_GEN_DWORD_SHIFT, VMXNET3_TCD_GEN_SHIFT, \
+			VMXNET3_TCD_GEN_SIZE)
+#   define VMXNET3_TCD_GET_TXIDX(tcd) get_bitfield32((const __le32 *)tcd, \
+			VMXNET3_TCD_TXIDX_SHIFT, VMXNET3_TCD_TXIDX_SIZE)
+#   define vmxnet3_getRxComp(dstrcd, rcd, tmp) do { \
+			(dstrcd) = (tmp); \
+			vmxnet3_RxCompToCPU((rcd), (tmp)); \
+		} while (0)
+#   define vmxnet3_getRxDesc(dstrxd, rxd, tmp) do { \
+			(dstrxd) = (tmp); \
+			vmxnet3_RxDescToCPU((rxd), (tmp)); \
+		} while (0)
+
+#else
+
+#   define VMXNET3_TXDESC_GET_GEN(txdesc) ((txdesc)->gen)
+#   define VMXNET3_TXDESC_GET_EOP(txdesc) ((txdesc)->eop)
+#   define VMXNET3_TCD_GET_GEN(tcd) ((tcd)->gen)
+#   define VMXNET3_TCD_GET_TXIDX(tcd) ((tcd)->txdIdx)
+#   define vmxnet3_getRxComp(dstrcd, rcd, tmp) (dstrcd) = (rcd)
+#   define vmxnet3_getRxDesc(dstrxd, rxd, tmp) (dstrxd) = (rxd)
+
+#endif /* __BIG_ENDIAN_BITFIELD  */
 
 
 static void
@@ -243,7 +342,7 @@ vmxnet3_unmap_pkt(u32 eop_idx, struct vmxnet3_tx_queue *tq,
 
 	/* no out of order completion */
 	BUG_ON(tq->buf_info[eop_idx].sop_idx != tq->tx_ring.next2comp);
-	BUG_ON(tq->tx_ring.base[eop_idx].txd.eop != 1);
+	BUG_ON(VMXNET3_TXDESC_GET_EOP(&(tq->tx_ring.base[eop_idx].txd)) != 1);
 
 	dev_dbg(&adapter->pdev->dev, "tx complete [%u %u]\n",
 		tq->tx_ring.next2comp, eop_idx);
@@ -279,9 +378,10 @@ vmxnet3_tq_tx_complete(struct vmxnet3_tx_queue *tq,
 	union Vmxnet3_GenericDesc *gdesc;
 
 	gdesc = tq->comp_ring.base + tq->comp_ring.next2proc;
-	while (gdesc->tcd.gen == tq->comp_ring.gen) {
-		completed += vmxnet3_unmap_pkt(gdesc->tcd.txdIdx, tq,
-					       adapter->pdev, adapter);
+	while (VMXNET3_TCD_GET_GEN(&gdesc->tcd) == tq->comp_ring.gen) {
+		completed += vmxnet3_unmap_pkt(VMXNET3_TCD_GET_TXIDX(
+					       &gdesc->tcd), tq, adapter->pdev,
+					       adapter);
 
 		vmxnet3_comp_ring_adv_next2proc(&tq->comp_ring);
 		gdesc = tq->comp_ring.base + tq->comp_ring.next2proc;
@@ -368,11 +468,8 @@ vmxnet3_tq_destroy(struct vmxnet3_tx_queue *tq,
 				    tq->comp_ring.base, tq->comp_ring.basePA);
 		tq->comp_ring.base = NULL;
 	}
-
-	if (tq->buf_info) {
-		kfree(tq->buf_info);
-		tq->buf_info = NULL;
-	}
+	kfree(tq->buf_info);
+	tq->buf_info = NULL;
 }
 
 
@@ -538,10 +635,9 @@ vmxnet3_rq_alloc_rx_buf(struct vmxnet3_rx_queue *rq, u32 ring_idx,
 		}
 
 		BUG_ON(rbi->dma_addr == 0);
-		gd->rxd.addr = rbi->dma_addr;
-		wmb();
-		gd->dword[2] = (ring->gen << VMXNET3_RXD_GEN_SHIFT) | val |
-				rbi->len;
+		gd->rxd.addr = cpu_to_le64(rbi->dma_addr);
+		gd->dword[2] = cpu_to_le32((ring->gen << VMXNET3_RXD_GEN_SHIFT)
+					   | val | rbi->len);
 
 		num_allocated++;
 		vmxnet3_cmd_ring_adv_next2fill(ring);
@@ -610,19 +706,21 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 
 	/* no need to map the buffer if headers are copied */
 	if (ctx->copy_size) {
-		BUG_ON(ctx->sop_txd->txd.gen == tq->tx_ring.gen);
+		BUG_ON(VMXNET3_TXDESC_GET_GEN(&(ctx->sop_txd->txd)) ==
+		       tq->tx_ring.gen);
 
-		ctx->sop_txd->txd.addr = tq->data_ring.basePA +
-					 tq->tx_ring.next2fill *
-					 sizeof(Vmxnet3_TxDataDesc);
-		ctx->sop_txd->dword[2] = dw2 | ctx->copy_size;
+		ctx->sop_txd->txd.addr = cpu_to_le64(tq->data_ring.basePA +
+					tq->tx_ring.next2fill *
+					sizeof(struct Vmxnet3_TxDataDesc));
+		ctx->sop_txd->dword[2] = cpu_to_le32(dw2 | ctx->copy_size);
 		ctx->sop_txd->dword[3] = 0;
 
 		tbi = tq->buf_info + tq->tx_ring.next2fill;
 		tbi->map_type = VMXNET3_MAP_NONE;
 
-		dev_dbg(&adapter->pdev->dev, "txd[%u]: 0x%"FMT64"x 0x%x 0x%x\n",
-			tq->tx_ring.next2fill, ctx->sop_txd->txd.addr,
+		dev_dbg(&adapter->pdev->dev, "txd[%u]: 0x%llu 0x%x 0x%x\n",
+			tq->tx_ring.next2fill,
+			le64_to_cpu(ctx->sop_txd->txd.addr),
 			ctx->sop_txd->dword[2], ctx->sop_txd->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
 
@@ -649,13 +747,14 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 		gdesc = tq->tx_ring.base + tq->tx_ring.next2fill;
 		BUG_ON(gdesc->txd.gen == tq->tx_ring.gen);
 
-		gdesc->txd.addr = tbi->dma_addr;
-		gdesc->dword[2] = dw2 | buf_size;
+		gdesc->txd.addr = cpu_to_le64(tbi->dma_addr);
+		gdesc->dword[2] = cpu_to_le32(dw2 | buf_size);
 		gdesc->dword[3] = 0;
 
-		dev_dbg(&adapter->pdev->dev, "txd[%u]: 0x%"FMT64"x 0x%x 0x%x\n",
-			tq->tx_ring.next2fill, gdesc->txd.addr,
-			gdesc->dword[2], gdesc->dword[3]);
+		dev_dbg(&adapter->pdev->dev,
+			"txd[%u]: 0x%llu 0x%x 0x%x\n",
+			tq->tx_ring.next2fill, le64_to_cpu(gdesc->txd.addr),
+			le32_to_cpu(gdesc->dword[2]), gdesc->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
 		dw2 = tq->tx_ring.gen << VMXNET3_TXD_GEN_SHIFT;
 
@@ -685,13 +784,14 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 		gdesc = tq->tx_ring.base + tq->tx_ring.next2fill;
 		BUG_ON(gdesc->txd.gen == tq->tx_ring.gen);
 
-		gdesc->txd.addr = tbi->dma_addr;
-		gdesc->dword[2] = dw2 | frag->size;
+		gdesc->txd.addr = cpu_to_le64(tbi->dma_addr);
+		gdesc->dword[2] = cpu_to_le32(dw2 | frag->size);
 		gdesc->dword[3] = 0;
 
-		dev_dbg(&adapter->pdev->dev, "txd[%u]: 0x%"FMT64"x %u %u\n",
-			tq->tx_ring.next2fill, gdesc->txd.addr,
-			gdesc->dword[2], gdesc->dword[3]);
+		dev_dbg(&adapter->pdev->dev,
+			"txd[%u]: 0x%llu %u %u\n",
+			tq->tx_ring.next2fill, le64_to_cpu(gdesc->txd.addr),
+			le32_to_cpu(gdesc->dword[2]), gdesc->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
 		dw2 = tq->tx_ring.gen << VMXNET3_TXD_GEN_SHIFT;
 	}
@@ -722,6 +822,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
  *    1. related *ctx fields are updated.
  *    2. ctx->copy_size is # of bytes copied
  *    3. the portion copied is guaranteed to be in the linear part
+ *
  */
 static int
 vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
@@ -833,6 +934,11 @@ vmxnet3_prepare_tso(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx)
 	}
 }
 
+inline void vmxnet3_le32_add_cpu(uint32 *addTo, uint32 addThis)
+{
+	*addTo = cpu_to_le32(le32_to_cpu(*addTo) + addThis);
+}
+
 
 /*
  *    transmit a pkt thru a given tq
@@ -859,6 +965,10 @@ vmxnet3_tq_xmit(struct sk_buff *skb,
 	unsigned long flags;
 	struct vmxnet3_tx_ctx ctx;
 	union Vmxnet3_GenericDesc *gdesc;
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* Use temporary descriptor to avoid touching bits multiple times */
+	union Vmxnet3_GenericDesc tempTxDesc;
+#endif
 
 	/* conservatively estimate # of descriptors to use */
 	count = VMXNET3_TXD_NEEDED(vmxnet3_skb_headlen(adapter, skb)) +
@@ -942,16 +1052,22 @@ vmxnet3_tq_xmit(struct sk_buff *skb,
 	vmxnet3_map_pkt(skb, &ctx, tq, adapter->pdev, adapter);
 
 	/* setup the EOP desc */
-	ctx.eop_txd->dword[3] = VMXNET3_TXD_CQ | VMXNET3_TXD_EOP;
+	ctx.eop_txd->dword[3] = cpu_to_le32(VMXNET3_TXD_CQ | VMXNET3_TXD_EOP);
 
 	/* setup the SOP desc */
+#ifdef __BIG_ENDIAN_BITFIELD
+	gdesc = &tempTxDesc;
+	gdesc->dword[2] = ctx.sop_txd->dword[2];
+	gdesc->dword[3] = ctx.sop_txd->dword[3];
+#else
 	gdesc = ctx.sop_txd;
+#endif
 	if (ctx.mss) {
 		gdesc->txd.hlen = ctx.eth_ip_hdr_size + ctx.l4_hdr_size;
 		gdesc->txd.om = VMXNET3_OM_TSO;
 		gdesc->txd.msscof = ctx.mss;
-		tq->shared->txNumDeferred += (skb->len - gdesc->txd.hlen +
-					     ctx.mss - 1) / ctx.mss;
+		vmxnet3_le32_add_cpu(&tq->shared->txNumDeferred, (skb->len -
+			     gdesc->txd.hlen + ctx.mss - 1) / ctx.mss);
 	} else {
 		if (skb->ip_summed == VM_TX_CHECKSUM_PARTIAL) {
 			gdesc->txd.hlen = ctx.eth_ip_hdr_size;
@@ -962,7 +1078,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb,
 			gdesc->txd.om = 0;
 			gdesc->txd.msscof = 0;
 		}
-		tq->shared->txNumDeferred++;
+		vmxnet3_le32_add_cpu(&tq->shared->txNumDeferred, 1);
 	}
 
 	if (vlan_tx_tag_present(skb)) {
@@ -970,18 +1086,27 @@ vmxnet3_tq_xmit(struct sk_buff *skb,
 		gdesc->txd.tci = vlan_tx_tag_get(skb);
 	}
 
-	wmb();
-
-	/* finally flips the GEN bit of the SOP desc */
-	gdesc->dword[2] ^= VMXNET3_TXD_GEN;
-	dev_dbg(&adapter->pdev->dev, "txd[%u]: SOP 0x%"FMT64"x 0x%x 0x%x\n",
+	/* finally flips the GEN bit of the SOP desc. */
+	gdesc->dword[2] = cpu_to_le32(le32_to_cpu(gdesc->dword[2]) ^
+						  VMXNET3_TXD_GEN);
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* Finished updating in bitfields of Tx Desc, so write them in original
+	 * place.
+	 */
+	vmxnet3_TxDescToLe((struct Vmxnet3_TxDesc *)gdesc,
+			   (struct Vmxnet3_TxDesc *)ctx.sop_txd);
+	gdesc = ctx.sop_txd;
+#endif
+	dev_dbg(&adapter->pdev->dev,
+		"txd[%u]: SOP 0x%llu 0x%x 0x%x\n",
 		(u32)((union Vmxnet3_GenericDesc *)ctx.sop_txd -
-		tq->tx_ring.base), gdesc->txd.addr, gdesc->dword[2],
-		gdesc->dword[3]);
+		tq->tx_ring.base), le64_to_cpu(gdesc->txd.addr),
+		le32_to_cpu(gdesc->dword[2]), le32_to_cpu(gdesc->dword[3]));
 
 	spin_unlock_irqrestore(&tq->tx_lock, flags);
 
-	if (tq->shared->txNumDeferred >= tq->shared->txThreshold) {
+	if (le32_to_cpu(tq->shared->txNumDeferred) >=
+					le32_to_cpu(tq->shared->txThreshold)) {
 		tq->shared->txNumDeferred = 0;
 		VMXNET3_WRITE_BAR0_REG(adapter, VMXNET3_REG_TXPROD,
 				       tq->tx_ring.next2fill);
@@ -1007,11 +1132,11 @@ static netdev_tx_t
 vmxnet3_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
+
 	if (adapter->is_shm)
 		return vmxnet3_shm_start_tx(skb, netdev);
-	struct vmxnet3_tx_queue *tq = &adapter->tx_queue;
-
-	return vmxnet3_tq_xmit(skb, tq, adapter, netdev);
+	else
+		return vmxnet3_tq_xmit(skb, &adapter->tx_queue, adapter, netdev);
 }
 
 
@@ -1023,7 +1148,7 @@ vmxnet3_rx_csum(struct vmxnet3_adapter *adapter,
 {
 	if (!gdesc->rcd.cnc && adapter->rxcsum) {
 		/* typical case: TCP/UDP over IP and both csums are correct */
-		if ((gdesc->dword[3] & VMXNET3_RCD_CSUM_OK) ==
+		if ((le32_to_cpu(gdesc->dword[3]) & VMXNET3_RCD_CSUM_OK) ==
 							VMXNET3_RCD_CSUM_OK) {
 			skb->ip_summed = VM_CHECKSUM_UNNECESSARY;
 			BUG_ON(!(gdesc->rcd.tcp || gdesc->rcd.udp));
@@ -1095,8 +1220,12 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 	u32 num_rxd = 0;
 	struct Vmxnet3_RxCompDesc *rcd;
 	struct vmxnet3_rx_ctx *ctx = &rq->rx_ctx;
-
-	rcd = &rq->comp_ring.base[rq->comp_ring.next2proc].rcd;
+#ifdef __BIG_ENDIAN_BITFIELD
+	struct Vmxnet3_RxDesc rxCmdDesc;
+	struct Vmxnet3_RxCompDesc rxComp;
+#endif
+	vmxnet3_getRxComp(rcd, &rq->comp_ring.base[rq->comp_ring.next2proc].rcd,
+			  &rxComp);
 	while (rcd->gen == rq->comp_ring.gen) {
 		struct vmxnet3_rx_buf_info *rbi;
 		struct sk_buff *skb;
@@ -1115,12 +1244,13 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 
 		idx = rcd->rxdIdx;
 		ring_idx = rcd->rqID == rq->qid ? 0 : 1;
-
-		rxd = &rq->rx_ring[ring_idx].base[idx].rxd;
+		vmxnet3_getRxDesc(rxd, &rq->rx_ring[ring_idx].base[idx].rxd,
+				  &rxCmdDesc);
 		rbi = rq->buf_info[ring_idx] + idx;
 
 		BUG_ON(rcd->len > rxd->len);
-		BUG_ON(rxd->addr != rbi->dma_addr || rxd->len != rbi->len);
+		BUG_ON(rxd->addr != rbi->dma_addr ||
+		       rxd->len != rbi->len);
 
 		if (unlikely(rcd->eop && rcd->err)) {
 			vmxnet3_rx_error(rq, rcd, ctx, adapter);
@@ -1233,7 +1363,8 @@ rcd_done:
 		}
 
 		vmxnet3_comp_ring_adv_next2proc(&rq->comp_ring);
-		rcd = &rq->comp_ring.base[rq->comp_ring.next2proc].rcd;
+		vmxnet3_getRxComp(rcd,
+		     &rq->comp_ring.base[rq->comp_ring.next2proc].rcd, &rxComp);
 	}
 
 	return num_rxd;
@@ -1257,7 +1388,11 @@ vmxnet3_rq_cleanup(struct vmxnet3_rx_queue *rq,
 
 	for (ring_idx = 0; ring_idx < 2; ring_idx++) {
 		for (i = 0; i < rq->rx_ring[ring_idx].size; i++) {
-			rxd = &rq->rx_ring[ring_idx].base[i].rxd;
+#ifdef __BIG_ENDIAN_BITFIELD
+			struct Vmxnet3_RxDesc rxDesc;
+#endif
+			vmxnet3_getRxDesc(rxd,
+				&rq->rx_ring[ring_idx].base[i].rxd, &rxDesc);
 
 			if (rxd->btype == VMXNET3_RXD_BTYPE_HEAD &&
 					rq->buf_info[ring_idx][i].skb) {
@@ -1456,15 +1591,14 @@ err:
 
 #ifdef VMXNET3_NAPI
 
-static void
-vmxnet3_do_poll(struct vmxnet3_adapter *adapter, int budget, int *txd_done,
-		int *rxd_done)
+static int
+vmxnet3_do_poll(struct vmxnet3_adapter *adapter, int budget)
 {
 	if (unlikely(adapter->shared->ecr))
 		vmxnet3_process_events(adapter);
 
-	*txd_done = vmxnet3_tq_tx_complete(&adapter->tx_queue, adapter);
-	*rxd_done = vmxnet3_rq_rx_complete(&adapter->rx_queue, adapter, budget);
+	vmxnet3_tq_tx_complete(&adapter->tx_queue, adapter);
+	return vmxnet3_rq_rx_complete(&adapter->rx_queue, adapter, budget);
 }
 
 
@@ -1479,9 +1613,9 @@ vmxnet3_poll(struct napi_struct *napi, int budget)
 {
 	struct vmxnet3_adapter *adapter = container_of(napi,
 					  struct vmxnet3_adapter, napi);
-	int rxd_done, txd_done;
+	int rxd_done;
 
-	vmxnet3_do_poll(adapter, budget, &txd_done, &rxd_done);
+	rxd_done = vmxnet3_do_poll(adapter, budget);
 
 	if (rxd_done < budget) {
 		compat_napi_complete(adapter->netdev, napi);
@@ -1499,18 +1633,18 @@ vmxnet3_poll(struct napi_struct *napi, int budget)
 static int
 vmxnet3_poll(struct net_device *poll_dev, int *budget)
 {
-	int rxd_done, txd_done, quota;
+	int rxd_done, quota;
 	struct vmxnet3_adapter *adapter = netdev_priv(poll_dev);
 
 	quota = min(*budget, poll_dev->quota);
 
-	vmxnet3_do_poll(adapter, quota, &txd_done, &rxd_done);
+	rxd_done = vmxnet3_do_poll(adapter, quota);
 
 	*budget -= rxd_done;
 	poll_dev->quota -= rxd_done;
 
 	if (rxd_done < quota) {
-		compat_napi_complete(poll_dev, unused);
+                compat_napi_complete(poll_dev, NULL);
 		vmxnet3_enable_intr(adapter, 0);
 		return 0;
 	}
@@ -1560,6 +1694,7 @@ vmxnet3_intr(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
+
 
 static void
 vmxnet3_netpoll(struct net_device *netdev)
@@ -1663,6 +1798,23 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 	}
 }
 
+
+inline void set_flag_le16(__le16 *data, u16 flag)
+{
+	*data = cpu_to_le16(le16_to_cpu(*data) | flag);
+}
+
+inline void set_flag_le64(__le64 *data, u64 flag)
+{
+	*data = cpu_to_le64(le64_to_cpu(*data) | flag);
+}
+
+inline void reset_flag_le64(__le64 *data, u64 flag)
+{
+	*data = cpu_to_le64(le64_to_cpu(*data) & ~flag);
+}
+
+
 static void
 vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
@@ -1678,7 +1830,8 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 			adapter->vlan_grp = grp;
 
 			/* update FEATURES to device */
-			devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
+			set_flag_le64(&devRead->misc.uptFeatures,
+				      UPT1_F_RXVLAN);
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
 			/*
@@ -1701,7 +1854,7 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		struct Vmxnet3_DSDevRead *devRead = &shared->devRead;
 		adapter->vlan_grp = NULL;
 
-		if (devRead->misc.uptFeatures & UPT1_F_RXVLAN) {
+		if (le64_to_cpu(devRead->misc.uptFeatures) & UPT1_F_RXVLAN) {
 			int i;
 
 			for (i = 0; i < VMXNET3_VFT_SIZE; i++) {
@@ -1714,7 +1867,8 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
 
 			/* update FEATURES to device */
-			devRead->misc.uptFeatures &= ~UPT1_F_RXVLAN;
+			reset_flag_le64(&devRead->misc.uptFeatures,
+					UPT1_F_RXVLAN);
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
 		}
@@ -1854,8 +2008,10 @@ vmxnet3_set_mc(struct net_device *netdev)
 		new_table = vmxnet3_copy_mc(netdev);
 		if (new_table) {
 			new_mode |= VMXNET3_RXM_MCAST;
-			rxConf->mfTableLen = netdev->mc_count * ETH_ALEN;
-			rxConf->mfTablePA = virt_to_phys(new_table);
+			rxConf->mfTableLen = cpu_to_le16(
+					netdev->mc_count * ETH_ALEN);
+			rxConf->mfTablePA = cpu_to_le64(virt_to_phys(
+					    new_table));
 		} else {
 			printk(KERN_INFO "%s: failed to copy mcast list, "
 			       "setting ALL_MULTI\n", netdev->name);
@@ -1870,7 +2026,7 @@ vmxnet3_set_mc(struct net_device *netdev)
 	}
 
 	if (new_mode != rxConf->rxMode) {
-		rxConf->rxMode = new_mode;
+		rxConf->rxMode = cpu_to_le32(new_mode);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_RX_MODE);
 	}
@@ -1898,63 +2054,69 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 	memset(shared, 0, sizeof(*shared));
 
 	/* driver settings */
-	shared->magic = VMXNET3_REV1_MAGIC;
-	devRead->misc.driverInfo.version = VMXNET3_DRIVER_VERSION_NUM;
+	shared->magic = cpu_to_le32(VMXNET3_REV1_MAGIC);
+	devRead->misc.driverInfo.version = cpu_to_le32(
+						VMXNET3_DRIVER_VERSION_NUM);
 	devRead->misc.driverInfo.gos.gosBits = (sizeof(void *) == 4 ?
 				VMXNET3_GOS_BITS_32 : VMXNET3_GOS_BITS_64);
 	devRead->misc.driverInfo.gos.gosType = VMXNET3_GOS_TYPE_LINUX;
-	devRead->misc.driverInfo.vmxnet3RevSpt = 1;
-	devRead->misc.driverInfo.uptVerSpt = 1;
+	*((u32 *)&devRead->misc.driverInfo.gos) = cpu_to_le32(
+				*((u32 *)&devRead->misc.driverInfo.gos));
+	devRead->misc.driverInfo.vmxnet3RevSpt = cpu_to_le32(1);
+	devRead->misc.driverInfo.uptVerSpt = cpu_to_le32(1);
 
-	devRead->misc.ddPA = virt_to_phys(adapter);
-	devRead->misc.ddLen = sizeof(struct vmxnet3_adapter);
+	devRead->misc.ddPA = cpu_to_le64(virt_to_phys(adapter));
+	devRead->misc.ddLen = cpu_to_le32(sizeof(struct vmxnet3_adapter));
 
 	/* set up feature flags */
 	if (adapter->rxcsum)
-		devRead->misc.uptFeatures |= UPT1_F_RXCSUM;
+		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_RXCSUM);
 
 	if (adapter->lro) {
-		devRead->misc.uptFeatures |= UPT1_F_LRO;
-		devRead->misc.maxNumRxSG = 1 + MAX_SKB_FRAGS;
+		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_LRO);
+		devRead->misc.maxNumRxSG = cpu_to_le16(1 + MAX_SKB_FRAGS);
 	}
 	if ((adapter->netdev->features & NETIF_F_HW_VLAN_RX)
 			&& adapter->vlan_grp) {
-		devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
+		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_RXVLAN);
 	}
 
-	devRead->misc.mtu = adapter->netdev->mtu;
-	devRead->misc.queueDescPA = adapter->queue_desc_pa;
-	devRead->misc.queueDescLen = sizeof(struct Vmxnet3_TxQueueDesc) +
-				     sizeof(struct Vmxnet3_RxQueueDesc);
+	devRead->misc.mtu = cpu_to_le32(adapter->netdev->mtu);
+	devRead->misc.queueDescPA = cpu_to_le64(adapter->queue_desc_pa);
+	devRead->misc.queueDescLen = cpu_to_le32(
+				     sizeof(struct Vmxnet3_TxQueueDesc) +
+				     sizeof(struct Vmxnet3_RxQueueDesc));
 
 	/* tx queue settings */
 	BUG_ON(adapter->tx_queue.tx_ring.base == NULL);
 
 	devRead->misc.numTxQueues = 1;
 	tqc = &adapter->tqd_start->conf;
-	tqc->txRingBasePA   = adapter->tx_queue.tx_ring.basePA;
-	tqc->dataRingBasePA = adapter->tx_queue.data_ring.basePA;
-	tqc->compRingBasePA = adapter->tx_queue.comp_ring.basePA;
-	tqc->ddPA           = virt_to_phys(adapter->tx_queue.buf_info);
-	tqc->txRingSize     = adapter->tx_queue.tx_ring.size;
-	tqc->dataRingSize   = adapter->tx_queue.data_ring.size;
-	tqc->compRingSize   = adapter->tx_queue.comp_ring.size;
-	tqc->ddLen          = sizeof(struct vmxnet3_tx_buf_info) *
-			      tqc->txRingSize;
+	tqc->txRingBasePA   = cpu_to_le64(adapter->tx_queue.tx_ring.basePA);
+	tqc->dataRingBasePA = cpu_to_le64(adapter->tx_queue.data_ring.basePA);
+	tqc->compRingBasePA = cpu_to_le64(adapter->tx_queue.comp_ring.basePA);
+	tqc->ddPA           = cpu_to_le64(virt_to_phys(
+						adapter->tx_queue.buf_info));
+	tqc->txRingSize     = cpu_to_le32(adapter->tx_queue.tx_ring.size);
+	tqc->dataRingSize   = cpu_to_le32(adapter->tx_queue.data_ring.size);
+	tqc->compRingSize   = cpu_to_le32(adapter->tx_queue.comp_ring.size);
+	tqc->ddLen          = cpu_to_le32(sizeof(struct vmxnet3_tx_buf_info) *
+			      tqc->txRingSize);
 	tqc->intrIdx        = adapter->tx_queue.comp_ring.intr_idx;
 
 	/* rx queue settings */
 	devRead->misc.numRxQueues = 1;
 	rqc = &adapter->rqd_start->conf;
-	rqc->rxRingBasePA[0] = adapter->rx_queue.rx_ring[0].basePA;
-	rqc->rxRingBasePA[1] = adapter->rx_queue.rx_ring[1].basePA;
-	rqc->compRingBasePA  = adapter->rx_queue.comp_ring.basePA;
-	rqc->ddPA            = virt_to_phys(adapter->rx_queue.buf_info);
-	rqc->rxRingSize[0]   = adapter->rx_queue.rx_ring[0].size;
-	rqc->rxRingSize[1]   = adapter->rx_queue.rx_ring[1].size;
-	rqc->compRingSize    = adapter->rx_queue.comp_ring.size;
-	rqc->ddLen           = sizeof(struct vmxnet3_rx_buf_info) *
-			       (rqc->rxRingSize[0] + rqc->rxRingSize[1]);
+	rqc->rxRingBasePA[0] = cpu_to_le64(adapter->rx_queue.rx_ring[0].basePA);
+	rqc->rxRingBasePA[1] = cpu_to_le64(adapter->rx_queue.rx_ring[1].basePA);
+	rqc->compRingBasePA  = cpu_to_le64(adapter->rx_queue.comp_ring.basePA);
+	rqc->ddPA            = cpu_to_le64(virt_to_phys(
+						adapter->rx_queue.buf_info));
+	rqc->rxRingSize[0]   = cpu_to_le32(adapter->rx_queue.rx_ring[0].size);
+	rqc->rxRingSize[1]   = cpu_to_le32(adapter->rx_queue.rx_ring[1].size);
+	rqc->compRingSize    = cpu_to_le32(adapter->rx_queue.comp_ring.size);
+	rqc->ddLen           = cpu_to_le32(sizeof(struct vmxnet3_rx_buf_info) *
+			       (rqc->rxRingSize[0] + rqc->rxRingSize[1]));
 	rqc->intrIdx         = adapter->rx_queue.comp_ring.intr_idx;
 
 	/* intr settings */
@@ -2018,10 +2180,10 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 
 	vmxnet3_setup_driver_shared(adapter);
 
-	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DSAL,
-			       VMXNET3_GET_ADDR_LO(adapter->shared_pa));
-	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DSAH,
-			       VMXNET3_GET_ADDR_HI(adapter->shared_pa));
+	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DSAL,VMXNET3_GET_ADDR_LO(
+			       adapter->shared_pa));
+	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DSAH, VMXNET3_GET_ADDR_HI(
+			       adapter->shared_pa));
 
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_ACTIVATE_DEV);
@@ -2863,7 +3025,7 @@ vmxnet3_suspend(struct pci_dev *pdev, pm_message_t state)
 		memcpy(pmConf->filters[i].pattern, netdev->dev_addr, ETH_ALEN);
 		pmConf->filters[i].mask[0] = 0x3F; /* LSB ETH_ALEN bits */
 
-		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_FILTER;
+		set_flag_le16(&pmConf->wakeUpEvents, VMXNET3_PM_WAKEUP_FILTER);
 		i++;
 	}
 
@@ -2907,19 +3069,21 @@ vmxnet3_suspend(struct pci_dev *pdev, pm_message_t state)
 		pmConf->filters[i].mask[5] = 0x03; /* IPv4 TIP */
 		in_dev_put(in_dev);
 
-		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_FILTER;
+		set_flag_le16(&pmConf->wakeUpEvents, VMXNET3_PM_WAKEUP_FILTER);
 		i++;
 	}
 
 skip_arp:
 	if (adapter->wol & WAKE_MAGIC)
-		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_MAGIC;
+		set_flag_le16(&pmConf->wakeUpEvents, VMXNET3_PM_WAKEUP_MAGIC);
 
 	pmConf->numFilters = i;
 
-	adapter->shared->devRead.pmConfDesc.confVer = 1;
-	adapter->shared->devRead.pmConfDesc.confLen = sizeof(*pmConf);
-	adapter->shared->devRead.pmConfDesc.confPA = virt_to_phys(pmConf);
+	adapter->shared->devRead.pmConfDesc.confVer = cpu_to_le32(1);
+	adapter->shared->devRead.pmConfDesc.confLen = cpu_to_le32(sizeof(
+								  *pmConf));
+	adapter->shared->devRead.pmConfDesc.confPA = cpu_to_le64(virt_to_phys(
+								 pmConf));
 
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_PMCFG);
@@ -2949,9 +3113,11 @@ vmxnet3_resume(struct pci_dev *pdev)
 	pmConf = adapter->pm_conf;
 	memset(pmConf, 0, sizeof(*pmConf));
 
-	adapter->shared->devRead.pmConfDesc.confVer = 1;
-	adapter->shared->devRead.pmConfDesc.confLen = sizeof(*pmConf);
-	adapter->shared->devRead.pmConfDesc.confPA = virt_to_phys(pmConf);
+	adapter->shared->devRead.pmConfDesc.confVer = cpu_to_le32(1);
+	adapter->shared->devRead.pmConfDesc.confLen = cpu_to_le32(sizeof(
+								  *pmConf));
+	adapter->shared->devRead.pmConfDesc.confPA = cpu_to_le32(virt_to_phys(
+								 pmConf));
 
 	netif_device_attach(netdev);
 	pci_set_power_state(pdev, PCI_D0);
