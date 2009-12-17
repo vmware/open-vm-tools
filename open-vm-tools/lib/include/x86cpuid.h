@@ -495,7 +495,7 @@ FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              NO,  FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            NO,  FALSE)            \
-FLAGDEF(  8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,    NO,  FALSE)
+FLAGDEFA( 8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,    NO,  FALSE, PAUSE_FILTER)
 
 
 
