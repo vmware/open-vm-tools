@@ -66,7 +66,8 @@ static INLINE bool_t
 xdr_int8(XDR *xdrs,  // IN
          int8 *ip)   // IN/OUT
 {
-   return xdr_char(xdrs, ip);
+   /* XDR doesn't seem to have a "signed char" representation. */
+   return xdr_char(xdrs, (char*)ip);
 }
 
 

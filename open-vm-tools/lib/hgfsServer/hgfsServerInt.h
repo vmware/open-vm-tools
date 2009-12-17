@@ -50,7 +50,7 @@
       uint64 d_off;
       uint16 d_reclen;
       uint8  d_type;
-      int8   d_name[256];
+      char   d_name[256];
    } DirectoryEntry;
 #  else
 #    include <dirent.h>
