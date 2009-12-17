@@ -76,7 +76,7 @@ struct inode *HgfsIget(struct super_block *sb,
 int HgfsInstantiate(struct dentry *dentry,
                     ino_t ino,
                     HgfsAttrInfo const *attr);
-int HgfsBuildPath(unsigned char *buffer,
+int HgfsBuildPath(char *buffer,
                   size_t bufferLen,
                   struct dentry *dentry);
 void HgfsDentryAgeReset(struct dentry *dentry);

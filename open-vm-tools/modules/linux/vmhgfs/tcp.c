@@ -109,7 +109,7 @@ static HgfsSocketRecvBuffer recvBuffer;   /* Accessed only by the recv thread. *
 
 static struct task_struct *recvThread; /* The recv thread. */
 static DECLARE_WAIT_QUEUE_HEAD(hgfsRecvThreadWait); /* Wait queue for recv thread. */
-static long hgfsRecvThreadFlags;       /* Used to signal recv data availability. */
+static unsigned long hgfsRecvThreadFlags; /* Used to signal recv data availability. */
 
 static void (*oldSocketDataReady)(struct sock *, int);
 
@@ -730,7 +730,7 @@ HgfsVSocketChannelClose(HgfsTransportChannel *channel)
 
 static int
 HgfsSocketSendMsg(struct socket *socket,   // IN: socket
-                  char *buffer,            // IN: Buffer to send
+                  void *buffer,            // IN: Buffer to send
                   size_t bufferLen)        // IN: Buffer length
 {
    struct iovec iov;

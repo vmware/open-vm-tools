@@ -1056,7 +1056,7 @@ HgfsInstantiate(struct dentry *dentry,    // IN: Dentry to use
  */
 
 int
-HgfsBuildPath(unsigned char *buffer,  // IN/OUT: Buffer to write into
+HgfsBuildPath(char *buffer,           // IN/OUT: Buffer to write into
               size_t bufferLen,       // IN: Size of buffer
               struct dentry *dentry)  // IN: First dentry to walk
 {
