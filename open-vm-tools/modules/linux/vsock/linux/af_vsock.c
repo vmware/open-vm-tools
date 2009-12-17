@@ -351,7 +351,6 @@ static Bool vmciDevicePresent = FALSE;
 #endif
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
-static VMCIId ctxChangedSubId = VMCI_INVALID_ID;
 
 static int PROTOCOL_OVERRIDE = -1;
 
@@ -1271,52 +1270,6 @@ VSockVmciQPResumedCB(VMCIId subId,             // IN
 /*
  *----------------------------------------------------------------------------
  *
- * VSockVmciCidChangedCB --
- *
- *    Invoked when the context id of the VM may have changed. In this case
- *    we need to reregister the stream control channel handler.
- *
- *    XXX: Open stream sockets will be closed by the detached callback for the
- *    QP. However, this doesn't fix up bound stream sockets. We should figure
- *    out what the right thing to do is in that case.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciCidChangedCB(VMCIId subId,             // IN
-                      VMCI_EventData *eData,    // IN
-                      void *clientData)         // IN
-{
-   int err;
-   compat_mutex_lock(&registrationMutex);
-
-   if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
-      VMCIDatagram_DestroyHnd(vmciStreamHandle);
-      vmciStreamHandle = VMCI_INVALID_HANDLE;
-   }
-
-   err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID, 0,
-                                    VSockVmciRecvStreamCB, NULL,
-                                    &vmciStreamHandle,
-                                    TRUE);
-   if (err < 0) {
-      Warning("Unable to create datagram handle. (%d)\n", err);
-   }
-
-   compat_mutex_unlock(&registrationMutex);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * VSockVmciPendingWork --
  *
  *    Releases the resources for a pending socket if it has not reached the
@@ -1779,6 +1732,11 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
 
    /* Now attach to the queue pair the client created. */
    handle = pkt->u.handle;
+
+   /*
+    * vpending->localAddr always has a context id so we do not
+    * need to worry about VMADDR_CID_ANY in this case.
+    */
    isLocal = vpending->remoteAddr.svm_cid == vpending->localAddr.svm_cid;
    flags = VMCI_QPFLAG_ATTACH_ONLY;
    flags |= isLocal ? VMCI_QPFLAG_LOCAL : 0;
@@ -1921,6 +1879,7 @@ VSockVmciRecvConnectingClient(struct sock *sk,       // IN: socket
           vsk->detachSubId != VMCI_INVALID_ID) {
          skerr = EPROTO;
          err = -EINVAL;
+
          goto destroy;
       }
 
@@ -2549,10 +2508,10 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
       return -EADDRNOTAVAIL;
    }
 
-   newAddr.svm_cid = cid;
+   newAddr.svm_cid = addr->svm_cid;
 
    switch (sk->compat_sk_socket->type) {
-   case SOCK_STREAM:
+   case SOCK_STREAM: {
       spin_lock_bh(&vsockTableLock);
 
       if (addr->svm_port == VMADDR_PORT_ANY) {
@@ -2592,7 +2551,10 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
 
       }
       break;
-   case SOCK_DGRAM:
+   }
+   case SOCK_DGRAM: {
+      uint32 flags = 0;
+
       /* VMCI will select a resource ID for us if we provide VMCI_INVALID_ID. */
       newAddr.svm_port = addr->svm_port == VMADDR_PORT_ANY ?
                             VMCI_INVALID_ID :
@@ -2604,12 +2566,15 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
          goto out;
       }
 
-      err = VSockVmciDatagramCreateHnd(newAddr.svm_port, 0,
+      if (newAddr.svm_cid == VMADDR_CID_ANY) {
+         flags = VMCI_FLAG_ANYCID_DG_HND;
+      }
+
+      err = VSockVmciDatagramCreateHnd(newAddr.svm_port, flags,
                                        VSockVmciRecvDgramCB, sk,
                                        &vsk->dgHandle,
                                        vsk->trusted);
       if (err != VMCI_SUCCESS ||
-          vsk->dgHandle.context == VMCI_INVALID_ID ||
           vsk->dgHandle.resource == VMCI_INVALID_ID) {
          err = VSockVmci_ErrorToVSockError(err);
          goto out;
@@ -2617,11 +2582,12 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
 
       newAddr.svm_port = VMCI_HANDLE_TO_RESOURCE_ID(vsk->dgHandle);
       break;
-   default:
+   }
+   default: {
       err = -EINVAL;
       goto out;
    }
-
+   }
    /*
     * VSockVmci_GetAFValue() acquires a mutex and may sleep, so fill the
     * field after unlocking socket tables.
@@ -3061,31 +3027,16 @@ VSockVmciRegisterAddressFamily(void)
 #endif
 
    /*
-    * Register the context id changed callback before creating our datagram
-    * handler to make sure we don't miss a context id change.
-    */
-   err = VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE,
-                             VMCI_FLAG_EVENT_DELAYED_CB,
-                             VSockVmciCidChangedCB,
-                             NULL,
-                             &ctxChangedSubId);
-   if (err < VMCI_SUCCESS) {
-      Warning("Unable to subscribe to Ctx Id update event. (%d)\n", err);
-      err = VSockVmci_ErrorToVSockError(err);
-      ctxChangedSubId = VMCI_INVALID_ID;
-      return VSockVmci_ErrorToVSockError(err);
-   }
-
-   /*
     * Create the datagram handle that we will use to send and receive all
     * VSocket control messages for this context.
     */
-    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID, 0,
+    err = VSockVmciDatagramCreateHnd(VSOCK_PACKET_RID,
+                                     VMCI_FLAG_ANYCID_DG_HND,
                                      VSockVmciRecvStreamCB, NULL,
                                      &vmciStreamHandle,
                                      TRUE);
    if (err < 0 ||
-       vmciStreamHandle.context == VMCI_INVALID_ID ||
+       vmciStreamHandle.context != VMCI_INVALID_ID ||
        vmciStreamHandle.resource == VMCI_INVALID_ID) {
       Warning("Unable to create datagram handle. (%d)\n", err);
       goto error;
@@ -3134,10 +3085,6 @@ VSockVmciRegisterAddressFamily(void)
    return vsockVmciFamilyOps.family;
 
 error:
-   if (ctxChangedSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(ctxChangedSubId);
-      ctxChangedSubId = VMCI_INVALID_ID;
-   }
    if (qpResumedSubId != VMCI_INVALID_ID) {
       VMCIEvent_Unsubscribe(qpResumedSubId);
       qpResumedSubId = VMCI_INVALID_ID;
@@ -3177,11 +3124,6 @@ VSockVmciUnregisterAddressFamily(void)
       return;
    }
 #endif
-
-   if (ctxChangedSubId != VMCI_INVALID_ID) {
-      VMCIEvent_Unsubscribe(ctxChangedSubId);
-      ctxChangedSubId = VMCI_INVALID_ID;
-   }
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       if (VMCIDatagram_DestroyHnd(vmciStreamHandle) != VMCI_SUCCESS) {
@@ -3440,7 +3382,6 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
    lock_sock(sk);
 
    /* XXX AF_UNSPEC should make us disconnect like AF_INET. */
-
    switch (sock->state) {
    case SS_CONNECTED:
       err = -EISCONN;
@@ -3483,6 +3424,14 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
          if ((err = __VSockVmciBind(sk, &localAddr))) {
             goto out;
          }
+      }
+
+      /*
+       * For the client stream sockets, we always want to make sure that
+       * we have a specific context id.
+       */
+      if (vsk->localAddr.svm_cid == VMADDR_CID_ANY) {
+         vsk->localAddr.svm_cid = VMCI_GetContextID();
       }
 
       sk->compat_sk_state = SS_CONNECTING;
@@ -4102,6 +4051,7 @@ VSockVmciDgramSendmsg(struct kiocb *kiocb,          // UNUSED
 
    dg->dst = VMCI_MAKE_HANDLE(remoteAddr->svm_cid, remoteAddr->svm_port);
    dg->src = VMCI_MAKE_HANDLE(vsk->localAddr.svm_cid, vsk->localAddr.svm_port);
+
    dg->payloadSize = len;
 
    err = VMCIDatagram_Send(dg);

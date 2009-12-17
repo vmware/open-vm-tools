@@ -367,7 +367,7 @@ __VSockVmciFindBoundSocket(struct sockaddr_vm *addr)  // IN
 
 
    list_for_each_entry(vsk, vsockBoundSockets(addr), boundTable) {
-      if (VSockAddr_EqualsAddr(addr, &vsk->localAddr)) {
+      if (VSockAddr_EqualsAddrAny(addr, &vsk->localAddr)) {
          sk = sk_vsock(vsk);
 
          /* We only store stream sockets in the bound table. */

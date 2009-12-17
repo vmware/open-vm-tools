@@ -146,7 +146,11 @@ VSockPacket_Init(VSockPacket *pkt,        // OUT
    VSOCK_ADDR_NOFAMILY_ASSERT(src);
    VSOCK_ADDR_NOFAMILY_ASSERT(dst);
 
-   pkt->dg.src = VMCI_MAKE_HANDLE(src->svm_cid, VSOCK_PACKET_RID);
+   /*
+    * We register the stream control handler as an any cid handle so we
+    * must always send from a source address of VMADDR_CID_ANY
+    */
+   pkt->dg.src = VMCI_MAKE_HANDLE(VMADDR_CID_ANY, VSOCK_PACKET_RID);
    pkt->dg.dst = VMCI_MAKE_HANDLE(dst->svm_cid, VSOCK_PACKET_RID);
    pkt->dg.payloadSize = sizeof *pkt - sizeof pkt->dg;
    pkt->version = VSOCK_PACKET_VERSION;
