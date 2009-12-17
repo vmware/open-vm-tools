@@ -289,8 +289,7 @@ TimeSync_GetCurrentTime(int64 *now)
       return FALSE;
    }
 
-   *now = tv.tv_sec * US_PER_SEC + tv.tv_usec;
-   ASSERT(*now == (int64)tv.tv_sec * US_PER_SEC + (int64)tv.tv_usec);
+   *now = (int64)tv.tv_sec * US_PER_SEC + (int64)tv.tv_usec;
 
    return TRUE;
 }
