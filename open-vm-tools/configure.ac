@@ -29,6 +29,10 @@
 #
 # The following libraries are currently tested: DNET, FUSE, GLIB2, GMODULE,
 # GOBJECT, GTHREAD, GTK, GTKMM, ICU, LIBPNG, PROCPS, URIPARSER, ZLIB
+#
+# For the procps library: you can provide the name of the procps library on
+# your system by defining CUSTOM_PROCPS_NAME. By default the configure script
+# will try both "-lproc" and "-lproc-3.2.7".
 ################################################################################
 
 ###
@@ -423,16 +427,14 @@ else
    # libraries.
    if test "$enable_unity" != "no"; then
 
-           # Unity needs the X11 Screen Saver extension library. It should be
+      # Unity needs the X11 Screen Saver extension library. It should be
 	   # in the same place as the X11 libraries, so no need for any fancy
 	   # path checking.
-           AC_CHECK_LIB(
-              [Xss],
-              [XScreenSaverQueryExtension],
-              [COMMON_XLIBS="-lXss $COMMON_XLIBS"],
-              [AC_MSG_ERROR(
-	         [libXss not found. Please configure without Unity (using --disable-unity) or install the libXss devel package.])],
-              [$COMMON_XLIBS])
+	   AC_VMW_CHECK_X11_LIB(
+	      [Xss],
+	      [X11/extensions/scrnsaver.h],
+	      [XScreenSaverQueryExtension],
+	      [AC_MSG_ERROR([libXss or headers not found. Please configure without Unity (using --disable-unity) or install the libXss devel package.])])
 
            # Check for the uriparser library and headers. The upstream uriparser
            # doesn't appear to ship with either a pkg-config file or a
@@ -582,20 +584,48 @@ else
 fi
 
 if test "$with_procps" = "yes"; then
-   # XXX: Force CUSTOM_PROCPS_LIBS to have something so that AC_VMW_CHECK_LIB
-   # properly performs the library check.
+   if test -z "$CUSTOM_PROCPS_NAME"; then
+      CUSTOM_PROCPS_NAME=proc
+   fi
+
+   # XXX: no pkg-config and no procps-config means we need to
+   # hard-code a sensible default.
    if test -z "$CUSTOM_PROCPS_LIBS"; then
       CUSTOM_PROCPS_LIBS="-L/lib"
    fi
-   AC_VMW_CHECK_LIB([proc-3.2.7],
+
+   # Some distros provide libproc-${version}.so only, others provide the
+   # libproc.so symlink. Try both to see what sticks (but only try the 3.2.7
+   # version - adding every possible version here would be a mess).
+   #
+   # Users can help by providing CUSTOM_PROCPS_NAME / CUSTOM_PROCPS_LIBS if
+   # necessary.
+   have_procps=no
+
+   AC_VMW_CHECK_LIB([$CUSTOM_PROCPS_NAME],
                     [PROCPS],
                     [],
                     [],
                     [],
                     [],
                     [getstat],
-                    [VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"],
-                    [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
+                    [
+                     have_procps=yes;
+                     VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
+                    ],
+                    [])
+
+   if test "$have_procps" = "no"; then
+      AC_VMW_CHECK_LIB([proc-3.2.7],
+                       [PROCPS],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [getstat],
+                       [VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"],
+                       [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
+   fi
 fi
 
 if test "$with_procps" != "yes"; then
