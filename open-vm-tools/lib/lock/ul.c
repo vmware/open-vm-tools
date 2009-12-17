@@ -87,7 +87,7 @@ MXUserDumpAndPanic(MXRecLock *lock,   // IN:
    msg = Str_SafeVasprintf(NULL, fmt, ap);
    va_end(ap);
 
-   Panic(msg);
+   Panic("%s", msg);
 }
 
 

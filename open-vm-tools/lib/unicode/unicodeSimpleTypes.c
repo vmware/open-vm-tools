@@ -2403,7 +2403,7 @@ Unicode_EncodingNameToEnum(const char *encodingName) // IN
    if (xRef[idx].isSupported) {
       return xRef[idx].encoding;
    }
-#if defined(VMX86_TOOLS)
+#if defined(VMX86_TOOLS) && (!defined(OPEN_VM_TOOLS) || defined(USE_ICU))
    if (idx == UnicodeIANALookup(CodeSet_GetCurrentCodeSet())) {
       CodeSet_DontUseIcu();
       return xRef[idx].encoding;

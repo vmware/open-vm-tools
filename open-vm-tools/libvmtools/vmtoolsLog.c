@@ -311,7 +311,9 @@ VMToolsLogPanic(void)
              */
             const char *home = getenv("HOME");
             if (home != NULL) {
-               chdir(home);
+               if (chdir(home)) {
+                  /* Just to make glibc headers happy. */
+               }
             }
          }
       }
