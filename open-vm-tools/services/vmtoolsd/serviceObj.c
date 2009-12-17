@@ -92,6 +92,46 @@ ToolsCoreCapabilitiesAccumulator(GSignalInvocationHint *ihint,
 }
 
 
+#if defined(_WIN32)
+/**
+ * Accumulator function for the "service control" signal. Updates the return
+ * value according to the signal's documentation.
+ *
+ * @param[in]  ihint       Unused.
+ * @param[out] retval      Return value of the signal.
+ * @param[in]  handlerRet  Return value from the current handler.
+ * @param[in]  data        Unused.
+ *
+ * @return TRUE.
+ */
+
+static gboolean
+ToolsCoreServiceControlAccumulator(GSignalInvocationHint *ihint,
+                                   GValue *retval,
+                                   const GValue *handlerRet,
+                                   gpointer data)
+{
+   guint ret = g_value_get_uint(retval);
+   guint handlerVal = g_value_get_uint(handlerRet);
+   switch (ret) {
+   case ERROR_CALL_NOT_IMPLEMENTED:
+      ret = handlerVal;
+      break;
+
+   case NO_ERROR:
+      if (handlerVal != ERROR_CALL_NOT_IMPLEMENTED) {
+         ret = handlerVal;
+      }
+      break;
+
+   default:
+      break;
+   }
+   g_value_set_uint(retval, ret);
+   return TRUE;
+}
+#endif
+
 /**
  * Initializes the ToolsCoreService class. Sets up the signals that are sent
  * by the vmtoolsd service.
@@ -168,29 +208,19 @@ ToolsCore_Service_class_init(gpointer _klass,
                 1,
                 G_TYPE_POINTER);
 #if defined(G_PLATFORM_WIN32)
-   g_signal_new(TOOLS_CORE_SIG_SESSION_CHANGE,
+   g_signal_new(TOOLS_CORE_SIG_SERVICE_CONTROL,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,
                 0,
                 NULL,
                 NULL,
-                g_cclosure_user_marshal_VOID__POINTER_UINT_UINT,
-                G_TYPE_NONE,
-                3,
+                g_cclosure_user_marshal_UINT__POINTER_POINTER_UINT_UINT_POINTER,
+                G_TYPE_UINT,
+                5,
+                G_TYPE_POINTER,
                 G_TYPE_POINTER,
                 G_TYPE_UINT,
-                G_TYPE_UINT);
-
-   g_signal_new(TOOLS_CORE_SIG_PRESHUTDOWN,
-                G_OBJECT_CLASS_TYPE(klass),
-                G_SIGNAL_RUN_LAST,
-                0,
-                NULL,
-                NULL,
-                g_cclosure_user_marshal_VOID__POINTER_POINTER,
-                G_TYPE_NONE,
-                2,
-                G_TYPE_POINTER,
+                G_TYPE_UINT,
                 G_TYPE_POINTER);
 #endif
 }

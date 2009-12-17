@@ -30,11 +30,7 @@ POINTER:POINTER,BOOLEAN
 # The "set option" signal.
 BOOLEAN:POINTER,STRING,STRING
 
-# The "session change" signal.
+# The "service control" signal.
 # Used on Win32 only.
-VOID:POINTER,UINT,UINT
-
-# The "pre shutdown" signal.
-# Used on Win32 only.
-VOID:POINTER,POINTER
+UINT:POINTER,POINTER,UINT,UINT,POINTER
 

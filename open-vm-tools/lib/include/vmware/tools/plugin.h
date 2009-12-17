@@ -135,26 +135,34 @@
 #define TOOLS_CORE_SIG_SHUTDOWN "tcs_shutdown"
 
 #if defined(G_PLATFORM_WIN32)
-/**
- * Signal sent when there's a change in the state of a user's session.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      ToolsAppCtx *: The application context.
- * @param[in]  code     DWORD: Session state change code.
- * @param[in]  id       DWORD: Session ID.
- * @param[in]  data     Client data.
- */
-#define TOOLS_CORE_SIG_SESSION_CHANGE  "tcs_session_change"
 
 /**
- * Signal sent when the pre shutdown event is received in the service.
+ * Signal sent when the service receives a control message. For a list
+ * of control messages, see the documentation on MSDN:
+ *
+ *    http://msdn.microsoft.com/en-us/library/ms683241%28VS.85%29.aspx
+ *
+ * The signal is only available on Win32. Receiving this signal doesn't
+ * mean the service is running through the Windows SCM: plugins may detect
+ * equivalent notifications through other means and send this signal with
+ * the appropriate parameters so others can react to them.
  *
  * @param[in]  src      The source object.
  * @param[in]  ctx      ToolsAppCtx *: The application context.
- * @param[in]  handle   SERVICE_STATUS_HANDLE: Service status handle.
+ * @param[in]  handle   SERVICE_STATUS_HANDLE: Service status handle. May be
+ *                      NULL if process is not under SCM control.
+ * @param[in]  control  guint: The control code.
+ * @param[in]  evtType  guint: The event type.
+ * @param[in]  evtData  gpointer: Event data.
  * @param[in]  data     Client data.
+ *
+ * @return See MSDN documentation. NO_ERROR has precedence over
+ * ERROR_CALL_NOT_IMPLEMENTED; if any handler returns any value other than
+ * those two, then that value will be used as the return value, unless the
+ * Tools service itself also handles the control message, or the MSDN
+ * documentation specifies a return value.
  */
-#define TOOLS_CORE_SIG_PRESHUTDOWN "tcs_preshutdown"
+#define TOOLS_CORE_SIG_SERVICE_CONTROL  "tcs_service_control"
 
 #endif
 

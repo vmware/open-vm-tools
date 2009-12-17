@@ -182,47 +182,31 @@ TestPluginReset(gpointer src,
 
 #if defined(G_PLATFORM_WIN32)
 /**
- * Handles a session state change callback; this is only called on Windows,
- * from both the "vmsvc" instance (handled by SCM notifications) and from
- * "vmusr" with the "fast user switch" plugin.
+ * Handles a service control signal; this is only called on Windows.
  *
- * @param[in]  src      The source object.
- * @param[in]  ctx      The application context.
- * @param[in]  code     Session state change code.
- * @param[in]  id       Session ID.
- * @param[in]  data     Client data.
+ * @param[in] src                    The source object.
+ * @param[in] ctx                    The application context.
+ * @param[in] serviceStatusHandle    Handle of type SERVICE_STATUS_HANDLE.
+ * @param[in] controlCode            Control code.
+ * @param[in] eventType              Unused.
+ * @param[in] eventData              Unused.
+ * @param[in] data                   Unused.
+ *
+ * @retval ERROR_CALL_NOT_IMPLEMENTED
  */
 
-static void
-TestPluginSessionChange(gpointer src,
-                        ToolsAppCtx *ctx,
-                        DWORD code,
-                        DWORD sessionId,
-                        ToolsPluginData *plugin)
+static DWORD
+TestPluginServiceControl(gpointer src,
+                         ToolsAppCtx *ctx,
+                         gpointer serviceStatusHandle,
+                         guint controlCode,
+                         guint eventType,
+                         gpointer eventData,
+                         gpointer data)
 {
-   g_debug("Got session state change signal, code = %u, id = %u\n", code, sessionId);
-}
-
-
-/**
- * Handles the preshutdown callback; this is only called on Windows Vista & up,
- * from the "vmsvc" instance. This is called only "upgrade at powercycle" flag is
- * set in the UI. If the upgrader is launched, the service waits for upgrader
- * to terminate before shutting down.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      ToolsAppCtx *: The application context.
- * @param[in]  serviceStatusHandle     A handle of type SERVICE_STATUS_HANDLE
- * @param[in]  data     Client data.
- */
-
-static void
-TestPluginPreShutdownChange(gpointer src,
-                            ToolsAppCtx *ctx,
-                            gpointer serviceStatusHandle,
-                            gpointer data)
-{
-   g_debug("%s: Got preshutdown signal for app %s\n", __FUNCTION__, ctx->name);
+   g_debug("Got service control signal, code = %u, event = %u\n",
+           controlCode, eventType);
+   return ERROR_CALL_NOT_IMPLEMENTED;
 }
 #endif
 
@@ -327,8 +311,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_CORE_SIG_CAPABILITIES, TestPluginCapabilities, &regData },
       { TOOLS_CORE_SIG_SET_OPTION, TestPluginSetOption, &regData },
 #if defined(G_PLATFORM_WIN32)
-      { TOOLS_CORE_SIG_SESSION_CHANGE, TestPluginSessionChange, &regData },
-      { TOOLS_CORE_SIG_PRESHUTDOWN, TestPluginPreShutdownChange, &regData },
+      { TOOLS_CORE_SIG_SERVICE_CONTROL, TestPluginServiceControl, &regData },
 #endif
    };
    TestApp tapp[] = {
