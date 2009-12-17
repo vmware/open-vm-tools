@@ -298,6 +298,7 @@ FLAGDEF(   1, ECX, INTEL,  7,   1, EST,                 NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  8,   1, TM2,                 NO,  FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 9,   1, SSSE3,               YES, TRUE,  SSSE3)     \
 FLAGDEF(   1, ECX, INTEL,  10,  1, HTCACHE,             NO,  FALSE)            \
+FLAGDEFA(  1, ECX, INTEL,  12,  1, FMA,                 NO,  TRUE,  FMA)       \
 FLAGDEFA(  1, ECX, COMMON, 13,  1, CMPX16,              YES, TRUE,  CMPX16)    \
 FLAGDEF(   1, ECX, INTEL,  14,  1, xPPR,                NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  15,  1, PERF_MSR,            NO,  FALSE)            \
@@ -311,6 +312,7 @@ FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  TRUE)             \
 FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, TRUE, AES)        \
 FLAGDEF(   1, ECX, INTEL,  26,  1, XSAVE,               NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  27,  1, OSXSAVE,             NO,  TRUE)             \
+FLAGDEFA(  1, ECX, INTEL,  28,  1, AVX,                 NO,  TRUE,  AVX)       \
 FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, FALSE, HYPERVISOR)\
 FLAGDEFA(  1, EDX, COMMON, 0,   1, FPU,                 YES, TRUE, FPU)        \
 FLAGDEFA(  1, EDX, COMMON, 1,   1, VME,                 YES, FALSE, VME)       \
