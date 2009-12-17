@@ -397,7 +397,8 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
       if (cur->runDelayed) {
          VMCIDelayedEventInfo *eventInfo;
          if ((eventInfo = VMCI_AllocKernelMem(sizeof *eventInfo,
-                                 VMCI_MEMORY_ATOMIC)) == NULL) {
+                                              (VMCI_MEMORY_ATOMIC |
+                                               VMCI_MEMORY_NONPAGED))) == NULL) {
             err = VMCI_ERROR_NO_MEM;
             goto out;
          }

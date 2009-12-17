@@ -259,6 +259,11 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
 
+#if defined(_WIN32)
+void VMCI_InitHelperQueue(void);
+void VMCI_ExitHelperQueue(void);
+#endif // _WIN32
+
 typedef void (VMCIWorkFn)(void *data);
 Bool VMCI_CanScheduleDelayedWork(void);
 int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
