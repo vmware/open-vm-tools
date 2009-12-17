@@ -51,7 +51,10 @@ typedef enum {
 
 /* Used to determine what checkpoint state to get and set. */
 #define VMCI_NOTIFICATION_CPT_STATE 0x1
-#define VMCI_WELLKNOWN_CPT_STATE 0x2
+#define VMCI_WELLKNOWN_CPT_STATE    0x2
+#define VMCI_DG_OUT_STATE           0x3
+#define VMCI_DG_IN_STATE            0x4
+#define VMCI_DG_IN_SIZE_STATE       0x5
 
 /* Used to control the VMCI device in the vmkernel */
 #define VMCI_DEV_RESET            0x01
