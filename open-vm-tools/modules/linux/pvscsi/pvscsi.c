@@ -26,10 +26,10 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
+#include <linux/pci.h>
+
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -64,13 +64,6 @@ MODULE_INFO(supported, "external");
 #define PVSCSI_DEFAULT_NUM_PAGES_PER_RING	8
 #define PVSCSI_DEFAULT_NUM_PAGES_MSG_RING	1
 #define PVSCSI_DEFAULT_QUEUE_DEPTH		64
-
-/* MSI has horrible performance in < 2.6.13 due to needless mask frotzing */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 13)
-#define PVSCSI_DISABLE_MSI	0
-#else
-#define PVSCSI_DISABLE_MSI	1
-#endif
 
 /* MSI-X has horrible performance in < 2.6.19 due to needless mask frobbing */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
@@ -146,7 +139,7 @@ static int pvscsi_debug_level;
 static int pvscsi_ring_pages     = PVSCSI_DEFAULT_NUM_PAGES_PER_RING;
 static int pvscsi_msg_ring_pages = PVSCSI_DEFAULT_NUM_PAGES_MSG_RING;
 static int pvscsi_cmd_per_lun    = PVSCSI_DEFAULT_QUEUE_DEPTH;
-static int pvscsi_disable_msi    = PVSCSI_DISABLE_MSI;
+static int pvscsi_disable_msi;
 static int pvscsi_disable_msix   = PVSCSI_DISABLE_MSIX;
 static int pvscsi_use_msg        = TRUE;
 
@@ -168,8 +161,7 @@ MODULE_PARM_DESC(cmd_per_lun, "Maximum commands per lun - (default="
 		 __stringify(PVSCSI_MAX_REQ_QUEUE_DEPTH) ")");
 
 module_param_named(disable_msi, pvscsi_disable_msi, bool, PVSCSI_RW);
-MODULE_PARM_DESC(disable_msi, "Disable MSI use in driver - (default="
-		 __stringify(PVSCSI_DISABLE_MSI) ")");
+MODULE_PARM_DESC(disable_msi, "Disable MSI use in driver - (default=0)");
 
 module_param_named(disable_msix, pvscsi_disable_msix, bool, PVSCSI_RW);
 MODULE_PARM_DESC(disable_msix, "Disable MSI-X use in driver - (default="
