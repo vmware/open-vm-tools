@@ -760,16 +760,6 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
    ASSERT_ON_COMPILE(FILEIO_ERROR_LAST < 16); /* See comment in fileIO.h */
 
 #if defined(__APPLE__)
-   /*
-    * O_EXLOCK, O_SHLOCK behavior tested on Mac OS X Server 10.6, kernel 10.0.0.
-    *
-    * |                      | Block devices      | Regular files
-    * |----------------------|--------------------|----------------
-    * | Locking behavior     | mandatory          | advisory
-    * |                      |                    |
-    * | If O_NONBLOCK absent | open doesn't block | open blocks
-    * |                      | on conflicts       | on conflicts
-    */
    if (access & FILEIO_OPEN_EXCLUSIVE_LOCK_MACOS) {
       flags |= O_EXLOCK;
    }
