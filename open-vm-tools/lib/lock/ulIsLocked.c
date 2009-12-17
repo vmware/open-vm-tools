@@ -41,7 +41,7 @@
 Bool
 MXUser_IsLockedByCurThreadExclLock(const MXUserExclLock *lock)  // IN:
 {
-   return MXRecLockIsOwner(&lock->basic);
+   return MXRecLockIsOwner(&lock->lockRecursive);
 }
 
 
@@ -65,6 +65,6 @@ MXUser_IsLockedByCurThreadExclLock(const MXUserExclLock *lock)  // IN:
 Bool
 MXUser_IsLockedByCurThreadRecLock(const MXUserRecLock *lock)  // IN:
 {
-   return MXRecLockIsOwner(&lock->basic);
+   return MXRecLockIsOwner(&lock->lockRecursive);
 }
 

@@ -237,9 +237,10 @@ FileLockGetPid(void)
     * For a UserWorld, we want to get this cartel's proxy's cos pid.
     */
    if (fileLockOptions.userWorld) {
-      int pid = 0;
+      int pid, err;
 
-      VMKernel_GetLockPid(&pid);
+      err = VMKernel_GetLockPid(&pid);
+      ASSERT_NOT_IMPLEMENTED(err == 0);
 
       return pid;
    }

@@ -40,13 +40,16 @@ void
 MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
 {
    if (lock != NULL) {
-      if (MXRecLockCount(&lock->basic) > 0) {
-         MXUserDumpAndPanic(&lock->basic,
+      ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+      if (MXRecLockCount(&lock->lockRecursive) > 0) {
+         MXUserDumpAndPanic(&lock->lockHeader,
                             "%s: Destroy of an acquired exclusive lock",
                             __FUNCTION__);
       }
 
-      MXRecLockDestroy(&lock->basic);
+      MXRecLockDestroy(&lock->lockRecursive);
+      free((void *) lock->lockHeader.lockName);
       free(lock);
    }
 }
@@ -72,13 +75,16 @@ void
 MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 {
    if (lock != NULL) {
-      if (MXRecLockCount(&lock->basic) > 0) {
-         MXUserDumpAndPanic(&lock->basic,
+      ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+      if (MXRecLockCount(&lock->lockRecursive) > 0) {
+         MXUserDumpAndPanic(&lock->lockHeader,
                             "%s: Destroy of an acquired recursive lock",
                             __FUNCTION__);
       }
 
-      MXRecLockDestroy(&lock->basic);
+      MXRecLockDestroy(&lock->lockRecursive);
+      free((void *) lock->lockHeader.lockName);
       free(lock);
    }
 }

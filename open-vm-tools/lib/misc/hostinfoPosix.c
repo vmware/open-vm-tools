@@ -102,7 +102,6 @@
 #include "x86cpuid.h"
 #endif
 
-#include "syncMutex.h"
 #include "unicode.h"
 #include "guest_os.h"
 #include "dynbuf.h"

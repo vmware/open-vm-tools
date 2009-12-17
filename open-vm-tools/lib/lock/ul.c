@@ -49,6 +49,7 @@ MXUserIDHack(void)
    MXUserThreadCurID = VThread_CurID;
 }
 
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -66,22 +67,14 @@ MXUserIDHack(void)
  */
 
 void
-MXUserDumpAndPanic(MXRecLock *lock,   // IN:
-                   const char *fmt,   // IN:
-                   ...)               // IN:
+MXUserDumpAndPanic(MXUserHeader *header,  // IN:
+                   const char *fmt,       // IN:
+                   ...)                   // IN:
 {
    char *msg;
    va_list ap;
 
-   Warning("%s: Lock @ %p\n",    __FUNCTION__, lock);
-   Warning("%s: signature %X\n", __FUNCTION__, lock->lockHeader.lockSignature);
-   Warning("%s: count %u\n",     __FUNCTION__, lock->lockHeader.lockCount);
-   Warning("%s: name %s\n",      __FUNCTION__, lock->lockHeader.lockName);
-   Warning("%s: caller %p\n",    __FUNCTION__, lock->lockHeader.lockCaller);
-   Warning("%s: rank %d\n",      __FUNCTION__, lock->lockHeader.lockRank);
-
-   Warning("%s: VThreadID %d\n", __FUNCTION__,
-           (int) lock->lockHeader.lockVThreadID);
+   (*header->lockDumper)(header);
 
    va_start(ap, fmt);
    msg = Str_SafeVasprintf(NULL, fmt, ap);

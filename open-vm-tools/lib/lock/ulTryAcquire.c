@@ -44,11 +44,12 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 {
    Bool success;
 
-   success = MXRecLockTryAcquire(&lock->basic, MXGetThreadID(),
-                                 GetReturnAddress());
+   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
 
-   if (success && (MXRecLockCount(&lock->basic) > 1)) {
-      MXUserDumpAndPanic(&lock->basic,
+   success = MXRecLockTryAcquire(&lock->lockRecursive, GetReturnAddress());
+
+   if (success && (MXRecLockCount(&lock->lockRecursive) > 1)) {
+      MXUserDumpAndPanic(&lock->lockHeader,
                          "%s: Acquire on an acquired exclusive lock",
                          __FUNCTION__);
    }
@@ -79,6 +80,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 Bool
 MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   return MXRecLockTryAcquire(&lock->basic, MXGetThreadID(),
-                              GetReturnAddress());
+   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+   return MXRecLockTryAcquire(&lock->lockRecursive, GetReturnAddress());
 }

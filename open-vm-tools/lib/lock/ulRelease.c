@@ -24,40 +24,6 @@
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserReleaseExclLock --
- *
- *      Release (unlock) a lock.
- *
- * Results:
- *      The lock is released.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-MXUserReleaseExclLock(MXRecLock *lock,  // IN/OUT:
-                      char *type)       // IN:
-{
-   if (!MXRecLockIsOwner(lock)) {
-      if (MXRecLockCount(lock) == 0) {
-         MXUserDumpAndPanic(lock, "%s: Release of an unacquired %s lock",
-                            __FUNCTION__, type);
-      } else {
-         MXUserDumpAndPanic(lock, "%s: Release of owned %s lock",
-                            __FUNCTION__, type);
-      }
-   }
-
-   MXRecLockRelease(lock);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * MXUser_ReleaseExclLock --
  *
  *      Release (unlock) an exclusive lock.
@@ -74,7 +40,21 @@ MXUserReleaseExclLock(MXRecLock *lock,  // IN/OUT:
 void
 MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
 {
-   MXUserReleaseExclLock(&lock->basic, "exclusive");
+   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+   if (!MXRecLockIsOwner(&lock->lockRecursive)) {
+      if (MXRecLockCount(&lock->lockRecursive) == 0) {
+         MXUserDumpAndPanic(&lock->lockHeader,
+                            "%s: Release of an unacquired exclusive lock",
+                            __FUNCTION__);
+      } else {
+         MXUserDumpAndPanic(&lock->lockHeader,
+                            "%s: Release of owned exclusive lock",
+                            __FUNCTION__);
+      }
+   }
+
+   MXRecLockRelease(&lock->lockRecursive);
 }
 
 
@@ -97,5 +77,19 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
 void
 MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   MXUserReleaseExclLock(&lock->basic, "recursive");
+   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+   if (!MXRecLockIsOwner(&lock->lockRecursive)) {
+      if (MXRecLockCount(&lock->lockRecursive) == 0) {
+         MXUserDumpAndPanic(&lock->lockHeader,
+                            "%s: Release of an unacquired recursive lock",
+                            __FUNCTION__);
+      } else {
+         MXUserDumpAndPanic(&lock->lockHeader,
+                            "%s: Release of owned recursive lock",
+                            __FUNCTION__);
+      }
+   }
+
+   MXRecLockRelease(&lock->lockRecursive);
 }

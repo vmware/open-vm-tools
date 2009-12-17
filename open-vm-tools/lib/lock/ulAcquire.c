@@ -41,10 +41,12 @@
 void
 MXUser_AcquireExclLock(MXUserExclLock *lock) // IN/OUT:
 {
-   MXRecLockAcquire(&lock->basic, MXGetThreadID(), GetReturnAddress());
+   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
 
-   if (MXRecLockCount(&lock->basic) > 1) {
-      MXUserDumpAndPanic(&lock->basic,
+   MXRecLockAcquire(&lock->lockRecursive, GetReturnAddress());
+
+   if (MXRecLockCount(&lock->lockRecursive) > 1) {
+      MXUserDumpAndPanic(&lock->lockHeader,
                          "%s: Acquire on an acquired exclusive lock",
                          __FUNCTION__);
    }
@@ -56,8 +58,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock) // IN/OUT:
  *
  * MXUser_AcquireRecLock --
  *
- *      An acquisition is made (lock is taken) on the specified recursive
- *      lock.
+ *      An acquisition is made (lock is taken) on the specified recursive lock.
  *
  *      Only the owner (thread) of a recursive lock may recurse on it.
  *
@@ -73,5 +74,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock) // IN/OUT:
 void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   MXRecLockAcquire(&lock->basic, MXGetThreadID(), GetReturnAddress());
+   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+   MXRecLockAcquire(&lock->lockRecursive, GetReturnAddress());
 }

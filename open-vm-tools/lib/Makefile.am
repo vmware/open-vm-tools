@@ -76,7 +76,6 @@ endif
 SUBDIRS += SLPv2Parser
 SUBDIRS += string
 SUBDIRS += stubs
-SUBDIRS += sync
 SUBDIRS += syncDriver
 SUBDIRS += system
 SUBDIRS += unicode

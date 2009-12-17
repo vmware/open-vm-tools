@@ -27,6 +27,42 @@
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUserDumpExclLock
+ *
+ *      Dump an exclusive lock.
+ *
+ * Results:
+ *      A dump.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MXUserDumpExclLock(MXUserHeader *header)  // IN:
+{
+   MXUserExclLock *lock = (MXUserExclLock *) header;
+
+   Warning("%s: Exclusive lock @ %p\n", __FUNCTION__, lock);
+
+   Warning("\tsignature %X\n", lock->lockHeader.lockSignature);
+   Warning("\tname %s\n", lock->lockHeader.lockName);
+   Warning("\trank %d\n", lock->lockHeader.lockRank);
+
+   Warning("\tcount %u\n", lock->lockRecursive.lockCount);
+
+#if defined(VMX86_DEBUG)
+   Warning("\tcaller %p\n", lock->lockRecursive.lockCaller);
+   Warning("\tVThreadID %d\n", (int) lock->lockRecursive.lockVThreadID);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUser_CreateExclLock --
  *
  *      Create an exclusive lock.
@@ -56,13 +92,56 @@ MXUser_CreateExclLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
-   if (!MXRecLockInit(&lock->basic, properName, rank)) {
+   lock->lockHeader.lockName = properName;
+   lock->lockHeader.lockSignature = USERLOCK_SIGNATURE;
+   lock->lockHeader.lockRank = rank;
+   lock->lockHeader.lockDumper = MXUserDumpExclLock;
+
+   if (!MXRecLockInit(&lock->lockRecursive)) {
       free(lock);
       free(properName);
       lock = NULL;
    }
 
    return lock;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserDumpRecLock
+ *
+ *      Dump an recursive lock.
+ *
+ * Results:
+ *      A dump.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MXUserDumpRecLock(MXUserHeader *header)  // IN:
+{
+   MXUserRecLock *lock = (MXUserRecLock *) header;
+
+   Warning("%s: Recursive lock @ %p\n", __FUNCTION__, lock);
+
+   Warning("\tsignature %X\n", lock->lockHeader.lockSignature);
+   Warning("\tname %s\n", lock->lockHeader.lockName);
+   Warning("\trank %d\n", lock->lockHeader.lockRank);
+
+   Warning("\tcount %u\n", lock->lockRecursive.lockCount);
+
+#if defined(VMX86_DEBUG)
+   Warning("\tcaller %p\n", lock->lockRecursive.lockCaller);
+   Warning("\tVThreadID %d\n", (int) lock->lockRecursive.lockVThreadID);
+#endif
+
+   Warning("\tlockVmm %p\n", lock->lockVmm);
 }
 
 
@@ -100,8 +179,13 @@ MXUser_CreateRecLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
-   if (MXRecLockInit(&lock->basic, properName, rank)) {
-      lock->vmmLock = NULL;
+   lock->lockHeader.lockName = properName;
+   lock->lockHeader.lockSignature = USERLOCK_SIGNATURE;
+   lock->lockHeader.lockRank = rank;
+   lock->lockHeader.lockDumper = MXUserDumpRecLock;
+
+   if (MXRecLockInit(&lock->lockRecursive)) {
+      lock->lockVmm = NULL;
    } else {
       free(lock);
       free(properName);

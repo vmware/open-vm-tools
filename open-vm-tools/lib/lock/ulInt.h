@@ -25,9 +25,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(_WIN32)
 typedef DWORD MXThreadID;
+#define MXUSER_INVALID_OWNER 0xFFFFFFFF
 #else
 #include <pthread.h>
 #include <errno.h>
@@ -42,44 +44,24 @@ void MXUserIDHack(void);
 EXTERN VThreadID (*MXUserThreadCurID)(void);
 
 /*
- * MXUser lock header - all MXUser locks start with this
- */
-
-#define USERLOCK_SIGNATURE 0x75677976 // 'LOCK' in memory
-
-typedef struct {
-   const char    *lockName;
-   uint32         lockSignature;
-   int            lockCount;   // May be Atomic someday (read-write locks?)
-   MXThreadID     lockOwner;   // Native thread ID
-   MX_Rank        lockRank;
-   VThreadID      lockVThreadID;
-
-   /*
-    * Statistics data
-    *
-    * The fancy statistics that we will keep on each lock will live here too,
-    * attached via a pointer.
-    */
-
-   const void    *lockCaller;  // return address of lock acquisition routine
-} MXUserHeader;
-
-/*
  * A portable recursive lock.
- *
- * The MXUser simple and recursive locks are built on top of this.
  */
 
 #define MXUSER_MAX_REC_DEPTH 16
 
 typedef struct {
-   MXUserHeader     lockHeader;
-
 #if defined(_WIN32)
-   CRITICAL_SECTION lockObject;
+   CRITICAL_SECTION lockObject;    // Native lock object
 #else
-   pthread_mutex_t  lockObject;
+   pthread_mutex_t  lockObject;    // Native lock object
+#endif
+
+   int              lockCount;     // Acquisition count
+   MXThreadID       lockOwner;     // Native thread ID
+
+#if defined(VMX86_DEBUG)
+   VThreadID        lockVThreadID; // VThreadID, when available
+   const void      *lockCaller;    // return address of acquisition routine
 #endif
 } MXRecLock;
 
@@ -92,15 +74,14 @@ typedef struct {
  *     - exclusive (non-recursive) locks catch the recursion and panic
  *       rather than deadlock.
  *
- * There are 7 environment specific primitives:
+ * There are 6 environment specific primitives:
  *
- * MXGetThreadID       (thread identification)
- * MXRecLockIsOwner    (is lock owned by caller?)
- * MXRecLockObjectInit (initialize)
- * MXRecLockDestroy    (dispose after use)
- * MXRecLockAcquire    (lock)
- * MXRecLockTryAcquire (conditional lock)
- * MXRecLockRelease    (unlock)
+ * MXRecLockObjectInit   initialize native lock before use
+ * MXRecLockDestroy      destroy lock after use
+ * MXRecLockIsOwner      is lock owned by caller?
+ * MXRecLockAcquire      lock
+ * MXRecLockTryAcquire   conditional lock
+ * MXRecLockRelease      unlock
  *
  * Windows has a native recursive lock, the CRITICAL_SECTION. POSIXen,
  * unfortunately, do not ensure access to such a facility. The recursive
@@ -110,22 +91,6 @@ typedef struct {
  */
 
 #if defined(_WIN32)
-static INLINE MXThreadID
-MXGetThreadID(void)
-{
-   return GetCurrentThreadId();
-}
-
-
-static INLINE Bool
-MXRecLockIsOwner(const MXRecLock *lock)  // IN:
-{
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
-   return lock->lockHeader.lockOwner == MXGetThreadID();
-}
-
-
 static INLINE Bool
 MXRecLockObjectInit(CRITICAL_SECTION *lockObject)  // IN/OUT:
 {
@@ -138,60 +103,62 @@ MXRecLockObjectInit(CRITICAL_SECTION *lockObject)  // IN/OUT:
 static INLINE void
 MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
    DeleteCriticalSection(&lock->lockObject);
-   free((void *) lock->lockHeader.lockName);
+}
+
+
+static INLINE Bool
+MXRecLockIsOwner(const MXRecLock *lock)  // IN:
+{
+   return lock->lockOwner == GetCurrentThreadId();
 }
 
 
 static INLINE void
 MXRecLockAcquire(MXRecLock *lock,        // IN/OUT:
-                 MXThreadID self,        // IN:
                  const void *location)   // IN:
 {
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
    EnterCriticalSection(&lock->lockObject);
 
-   ASSERT((lock->lockHeader.lockCount >= 0) &&
-          (lock->lockHeader.lockCount < MXUSER_MAX_REC_DEPTH));
+   ASSERT((lock->lockCount >= 0) && (lock->lockCount < MXUSER_MAX_REC_DEPTH));
 
-   if (lock->lockHeader.lockCount == 0) {
-      ASSERT(lock->lockHeader.lockVThreadID == VTHREAD_INVALID_ID);
-      lock->lockHeader.lockOwner = self;
-      lock->lockHeader.lockCaller = location;
-      lock->lockHeader.lockVThreadID = (*MXUserThreadCurID)();
+   if (lock->lockCount == 0) {
+      ASSERT(lock->lockOwner == MXUSER_INVALID_OWNER);
+      lock->lockOwner = GetCurrentThreadId();
 
+#if defined(VMX86_DEBUG)
+      lock->lockCaller = location;
+      lock->lockVThreadID = (*MXUserThreadCurID)();
+#endif
    }
 
-   lock->lockHeader.lockCount++;
+   lock->lockCount++;
 }
 
 
 static INLINE Bool
 MXRecLockTryAcquire(MXRecLock *lock,        // IN/OUT:
-                    MXThreadID self,        // IN:
                     const void *location)   // IN:
 {
    Bool success;
 
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
    success = TryEnterCriticalSection(&lock->lockObject);
 
    if (success) {
-      ASSERT((lock->lockHeader.lockCount >= 0) &&
-             (lock->lockHeader.lockCount < MXUSER_MAX_REC_DEPTH));
+      ASSERT((lock->lockCount >= 0) &&
+             (lock->lockCount < MXUSER_MAX_REC_DEPTH));
 
-      if (lock->lockHeader.lockCount == 0) {
-         ASSERT(lock->lockHeader.lockVThreadID == VTHREAD_INVALID_ID);
-         lock->lockHeader.lockOwner = self;
-         lock->lockHeader.lockCaller = location;
-         lock->lockHeader.lockVThreadID = (*MXUserThreadCurID)();
+      if (lock->lockCount == 0) {
+         ASSERT(lock->lockOwner == MXUSER_INVALID_OWNER);
+         lock->lockOwner = GetCurrentThreadId();
+
+#if defined(VMX86_DEBUG)
+         lock->lockCaller = location;
+         lock->lockVThreadID = (*MXUserThreadCurID)();
+#endif
       }
 
-      lock->lockHeader.lockCount++;
+      lock->lockCount++;
    }
 
    return success;
@@ -201,37 +168,22 @@ MXRecLockTryAcquire(MXRecLock *lock,        // IN/OUT:
 static INLINE void
 MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+   ASSERT((lock->lockCount > 0) && (lock->lockCount < MXUSER_MAX_REC_DEPTH));
 
-   ASSERT((lock->lockHeader.lockCount > 0) &&
-          (lock->lockHeader.lockCount < MXUSER_MAX_REC_DEPTH));
+   lock->lockCount--;
 
-   lock->lockHeader.lockCount--;
+   if (lock->lockCount == 0) {
+      lock->lockOwner = MXUSER_INVALID_OWNER;
 
-   if (lock->lockHeader.lockCount == 0) {
-      lock->lockHeader.lockCaller = NULL;
-      lock->lockHeader.lockVThreadID = VTHREAD_INVALID_ID;
+#if defined(VMX86_DEBUG)
+      lock->lockCaller = NULL;
+      lock->lockVThreadID = VTHREAD_INVALID_ID;
+#endif
    }
 
    LeaveCriticalSection(&lock->lockObject);
 }
 #else
-static INLINE MXThreadID
-MXGetThreadID(void)
-{
-   return pthread_self();
-}
-
-
-static INLINE Bool
-MXRecLockIsOwner(const MXRecLock *lock)  // IN:
-{
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
-   return pthread_equal(lock->lockHeader.lockOwner, pthread_self());
-}
-
-
 static INLINE Bool
 MXRecLockObjectInit(pthread_mutex_t *lockObject)  // IN/OUT:
 {
@@ -244,31 +196,31 @@ MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
 {
    int err;
 
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
    err = pthread_mutex_destroy(&lock->lockObject);
 
    if (vmx86_debug && (err != 0)) {
       Panic("%s: pthread_mutex_destroy returned %d\n", __FUNCTION__, err);
    }
+}
 
-   free((void *) lock->lockHeader.lockName);
+
+static INLINE Bool
+MXRecLockIsOwner(const MXRecLock *lock)  // IN:
+{
+   return pthread_equal(lock->lockOwner, pthread_self());
 }
 
 
 static INLINE void
 MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
-                 MXThreadID self,  // IN:
                  void *location)   // IN:
 {
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+   if ((lock->lockCount != 0) &&
+        pthread_equal(lock->lockOwner, pthread_self())) {
+      ASSERT((lock->lockCount > 0) &&
+             (lock->lockCount < MXUSER_MAX_REC_DEPTH));
 
-   if ((lock->lockHeader.lockCount != 0) &&
-        pthread_equal(lock->lockHeader.lockOwner, pthread_self())) {
-      ASSERT((lock->lockHeader.lockCount > 0) &&
-             (lock->lockHeader.lockCount < MXUSER_MAX_REC_DEPTH));
-
-      lock->lockHeader.lockCount++;
+      lock->lockCount++;
    } else {
       int err;
 
@@ -278,41 +230,44 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
          Panic("%s: pthread_mutex_lock returned %d\n", __FUNCTION__, err);
       }
 
-      ASSERT(lock->lockHeader.lockCount == 0);
-      ASSERT(lock->lockHeader.lockVThreadID == VTHREAD_INVALID_ID);
+      ASSERT(lock->lockCount == 0);
+      ASSERT(lock->lockVThreadID == VTHREAD_INVALID_ID);
 
-      lock->lockHeader.lockOwner = self;
-      lock->lockHeader.lockCaller = location;
-      lock->lockHeader.lockCount = 1;
-      lock->lockHeader.lockVThreadID = (*MXUserThreadCurID)();
+      lock->lockOwner = pthread_self();
+      lock->lockCount = 1;
+
+#if defined(VMX86_DEBUG)
+      lock->lockCaller = location;
+      lock->lockVThreadID = (*MXUserThreadCurID)();
+#endif
    }
 }
 
 
 static INLINE Bool
 MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
-                    MXThreadID self,  // IN:
                     void *location)   // IN:
 {
    int err;
    Bool acquired;
 
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
    err = pthread_mutex_trylock(&lock->lockObject);
 
    if (err == 0) {
-      ASSERT((lock->lockHeader.lockCount >= 0) &&
-             (lock->lockHeader.lockCount < MXUSER_MAX_REC_DEPTH));
+      ASSERT((lock->lockCount >= 0) &&
+             (lock->lockCount < MXUSER_MAX_REC_DEPTH));
 
-      if (lock->lockHeader.lockCount == 0) {
-         ASSERT(lock->lockHeader.lockVThreadID == VTHREAD_INVALID_ID);
-         lock->lockHeader.lockOwner = self;
-         lock->lockHeader.lockCaller = location;
-         lock->lockHeader.lockVThreadID = (*MXUserThreadCurID)();
+      if (lock->lockCount == 0) {
+         ASSERT(lock->lockVThreadID == VTHREAD_INVALID_ID);
+         lock->lockOwner = pthread_self();
+
+#if defined(VMX86_DEBUG)
+         lock->lockCaller = location;
+         lock->lockVThreadID = (*MXUserThreadCurID)();
+#endif
       }
 
-      lock->lockHeader.lockCount++;
+      lock->lockCount++;
 
       acquired = TRUE;
    } else {
@@ -330,18 +285,20 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
 static INLINE void
 MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+   ASSERT((lock->lockCount > 0) && (lock->lockCount < MXUSER_MAX_REC_DEPTH));
 
-   ASSERT((lock->lockHeader.lockCount > 0) &&
-          (lock->lockHeader.lockCount < MXUSER_MAX_REC_DEPTH));
+   lock->lockCount--;
 
-   lock->lockHeader.lockCount--;
-
-   if (lock->lockHeader.lockCount == 0) {
+   if (lock->lockCount == 0) {
       int err;
 
-      lock->lockHeader.lockCaller = NULL;
-      lock->lockHeader.lockVThreadID = VTHREAD_INVALID_ID;
+      /* a hack but it works portably */
+      memset((void *) &lock->lockOwner, 0xFF, sizeof(lock->lockOwner));
+
+#if defined(VMX86_DEBUG)
+      lock->lockCaller = NULL;
+      lock->lockVThreadID = VTHREAD_INVALID_ID;
+#endif
 
       err = pthread_mutex_unlock(&lock->lockObject);
 
@@ -353,37 +310,30 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 #endif
 
 
-static INLINE void
-MXRecLockInitHeader(MXRecLock *lock,       // IN/OUT:
-                    const char *userName,  // IN:
-                    MX_Rank rank)          // IN:
-{
-   lock->lockHeader.lockName = userName;
-   lock->lockHeader.lockSignature = USERLOCK_SIGNATURE;
-   lock->lockHeader.lockCount = 0;
-   lock->lockHeader.lockRank = rank;
-   lock->lockHeader.lockVThreadID = VTHREAD_INVALID_ID;
-   lock->lockHeader.lockCaller = NULL;
-}
-
-
 /*
  * Initialization of portable recursive lock.
  */
 
 static INLINE Bool
-MXRecLockInit(MXRecLock *lock,       // IN/OUT:
-              const char *userName,  // IN:
-              MX_Rank rank)          // IN:
+MXRecLockInit(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT(rank == RANK_UNRANKED);  // NOT FOR LONG
-   ASSERT(userName != NULL);
-
    if (!MXRecLockObjectInit(&lock->lockObject)) {
       return FALSE;
    }
 
-   MXRecLockInitHeader(lock, userName, rank);
+#if defined(_WIN32)
+   lock->lockOwner = MXUSER_INVALID_OWNER;
+#else
+   /* a hack but it works portably */
+   memset((void *) &lock->lockOwner, 0xFF, sizeof(lock->lockOwner));
+#endif
+
+   lock->lockCount = 0;
+
+#if defined(VMX86_DEBUG)
+   lock->lockVThreadID = VTHREAD_INVALID_ID;
+   lock->lockCaller = NULL;
+#endif
 
    return TRUE;
 }
@@ -392,26 +342,23 @@ MXRecLockInit(MXRecLock *lock,       // IN/OUT:
 static INLINE uint32
 MXRecLockCount(const MXRecLock *lock)  // IN:
 {
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
-
-   return lock->lockHeader.lockCount;
+   return lock->lockCount;
 }
 
 
-static INLINE const char *
-MXRecLockName(const MXRecLock *lock)  // IN:
-{
-   ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+/*
+ * MXUser lock header - all MXUser locks start with this
+ */
 
-   return lock->lockHeader.lockName;
-}
+#define USERLOCK_SIGNATURE 0x75677976 // 'LOCK' in memory
 
-
-static INLINE uint32
-MXRecLockSignature(const MXRecLock *lock)  // IN:
-{
-   return lock->lockHeader.lockSignature;
-}
+typedef struct MXUserHeader {
+   uint32         lockSignature;
+   MX_Rank        lockRank;
+   const char    *lockName;
+   void         (*lockDumper)(struct MXUserHeader *);
+   /* THIS SPACE FOR RENT (STATISTICS POINTER) */
+} MXUserHeader;
 
 /*
  * The internal lock types
@@ -419,12 +366,16 @@ MXRecLockSignature(const MXRecLock *lock)  // IN:
 
 struct MXUserExclLock
 {
-   MXRecLock basic;
+   MXUserHeader  lockHeader;
+
+   MXRecLock     lockRecursive;
 };
 
 struct MXUserRecLock
 {
-   MXRecLock  basic;
+   MXUserHeader  lockHeader;
+
+   MXRecLock     lockRecursive;
 
    /*
     * This is the MX recursive lock override pointer. This pointer is NULL
@@ -437,22 +388,25 @@ struct MXUserRecLock
     * !NULL   use pointed to MX recursive lock
     */
 
-   void      *vmmLock;
+   void        *lockVmm;
 };
 
 struct MXUserRWLock
 {
-   MXRecLock         lockRecursive;  // Used as a header or maybe for real
-
-   uint8             lockTaken[VTHREAD_MAX_THREADS];
+   MXUserHeader      lockHeader;
 
 #if defined(_WIN32)
+   MXRecLock         lockRecursive;
    SRWLOCK           lockReadWrite;
 #else
 #if defined(PTHREAD_RWLOCK_INITIALIZER)
-   pthread_rwlock_t  lockObject;
+   pthread_rwlock_t  lockReadWrite;
+#else
+   MXRecLock         lockRecursive;
 #endif
 #endif
+
+   uint8             lockTaken[VTHREAD_MAX_THREADS];
 };
 
 /*
@@ -465,7 +419,7 @@ struct MXUserRWLock
 
 Bool MXUserIsAllUnlocked(const MXUserRWLock *lock);
 
-void MXUserDumpAndPanic(MXRecLock *lock,
+void MXUserDumpAndPanic(MXUserHeader *header,
                         const char *fmt,
                         ...);
 #endif

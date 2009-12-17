@@ -36,7 +36,6 @@ libvmtools_la_LIBADD += ../lib/rpcChannel/libRpcChannel.la
 libvmtools_la_LIBADD += ../lib/rpcOut/libRpcOut.la
 libvmtools_la_LIBADD += ../lib/rpcVmx/libRpcVmx.la
 libvmtools_la_LIBADD += ../lib/string/libString.la
-libvmtools_la_LIBADD += ../lib/sync/libSync.la
 libvmtools_la_LIBADD += ../lib/syncDriver/libSyncDriver.la
 libvmtools_la_LIBADD += ../lib/system/libSystem.la
 libvmtools_la_LIBADD += ../lib/stubs/libStubsCS.la

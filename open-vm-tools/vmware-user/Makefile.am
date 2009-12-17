@@ -52,7 +52,6 @@ vmware_user_LDADD += ../lib/rpcOut/libRpcOut.la
 vmware_user_LDADD += ../lib/rpcVmx/libRpcVmx.la
 vmware_user_LDADD += ../lib/SLPv2Parser/libSLPv2Parser.la
 vmware_user_LDADD += ../lib/string/libString.la
-vmware_user_LDADD += ../lib/sync/libSync.la
 vmware_user_LDADD += ../lib/syncDriver/libSyncDriver.la
 vmware_user_LDADD += ../lib/system/libSystem.la
 if ENABLE_UNITY

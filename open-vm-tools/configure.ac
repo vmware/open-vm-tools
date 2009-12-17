@@ -1247,7 +1247,6 @@ AC_CONFIG_FILES([                      \
    lib/slashProc/Makefile              \
    lib/string/Makefile                 \
    lib/stubs/Makefile                  \
-   lib/sync/Makefile                   \
    lib/syncDriver/Makefile             \
    lib/system/Makefile                 \
    lib/unicode/Makefile                \
