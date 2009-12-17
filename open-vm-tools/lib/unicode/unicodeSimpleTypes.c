@@ -2379,8 +2379,14 @@ Unicode_EncodingEnumToName(StringEncoding encoding) // IN
  *      The StringEncoding enum value corresponding to the name, or
  *      STRING_ENCODING_UNKNOWN if the encoding name is not supported.
  *
+ *      Inside tools all recognized local encodings are supported.
+ *      If the local encoding is not available in our copy of ICU,
+ *      fall back to the guest's facilities for converting between 
+ *      the local encoding and UTF-8.
+ *
  * Side effects:
- *      None
+ *      In tools, finding an unsupported encoding disables ICU and
+ *      switches to codesetOld support.
  *
  *-----------------------------------------------------------------------------
  */
@@ -2394,7 +2400,16 @@ Unicode_EncodingNameToEnum(const char *encodingName) // IN
    if (idx < 0) {
       return STRING_ENCODING_UNKNOWN;
    }
-   return xRef[idx].isSupported ? xRef[idx].encoding : STRING_ENCODING_UNKNOWN;
+   if (xRef[idx].isSupported) {
+      return xRef[idx].encoding;
+   }
+#if defined(VMX86_TOOLS)
+   if (idx == UnicodeIANALookup(CodeSet_GetCurrentCodeSet())) {
+      CodeSet_DontUseIcu();
+      return xRef[idx].encoding;
+   }
+#endif
+   return STRING_ENCODING_UNKNOWN;
 }
 
 
