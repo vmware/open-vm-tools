@@ -126,13 +126,8 @@ typedef struct VMBlockNode {
    LIST_ENTRY(VMBlockNode) hashEntry;   /* Hash chain element (contains ptr to
                                            next node, etc.) */
    struct vnode *lowerVnode;            /* VREFed once */
-   struct vnode	*backVnode;             /* Back pointer */
-   struct vnode *parentVnode;           /* Parent directory -- intended only to
-                                           rebuild pathnames in VopLookup.
-                                           Assumptions documented in
-                                           BuildBlockName. */
-   char         *componentName;         /* Component name from lookup */
-   size_t        componentSize;         /* Size of componentName (len + 1) */
+   struct vnode *backVnode;             /* Back pointer */
+   char          *name;                 /* Looked up path to vnode */
 } VMBlockNode;
 
 
@@ -151,13 +146,10 @@ extern uma_zone_t VMBlockPathnameZone;
 int VMBlockInit(struct vfsconf *vfsp);
 int VMBlockUninit(struct vfsconf *vfsp);
 int VMBlockNodeGet(struct mount *mp, struct vnode *target, struct vnode **vpp,
-                   struct vnode *dvp);
-void VMBlockSetNodeName(struct vnode *vp, const char *name);
+                   char *pathname);
 void VMBlockHashRem(struct VMBlockNode *xp);
 void VMBlockSetupFileOps(void);
 int VMBlockVopBypass(struct vop_generic_args *ap);
-char *VMBlockBuildBlockName(struct vnode *vp);
-void VMBlockDestroyBlockName(char *name);
 
 #ifdef DIAGNOSTIC
 struct vnode *VMBlockCheckVp(struct vnode *vp, char *fil, int lno);

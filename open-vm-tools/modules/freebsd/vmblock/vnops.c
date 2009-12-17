@@ -545,6 +545,7 @@ struct vop_generic_args {
       }
       vppp = VOPARG_OFFSETTO(struct vnode***, descp->vdesc_vpp_offset,ap);
       if (*vppp) {
+         /* FIXME: set proper name for the vnode */
          error = VMBlockNodeGet(old_vps[0]->v_mount, **vppp, *vppp, NULL);
       }
    }
@@ -596,7 +597,8 @@ struct vop_lookup_args {
    BlockHandle blockCookie;
    int flags = cnp->cn_flags;
    int error = 0;
-   char *savename = NULL, *pathname = NULL;
+   char *pathname;
+   size_t pathname_len;
 
    /*
     * Fail attempts to modify a read-only filesystem w/o bothering with a
@@ -624,8 +626,26 @@ struct vop_lookup_args {
     *
     * If we find we were forcibly unmounted, fail with EIO.
     */
-   if ((pathname = VMBlockBuildBlockName(dvp)) == NULL) {
-      return ENAMETOOLONG;
+
+   pathname = uma_zalloc(VMBlockPathnameZone, M_WAITOK);
+   if (pathname == NULL) {
+      return ENOMEM;
+   }
+
+   /*
+    * FIXME: we need to ensure that vnode always has name set up.
+    * Currently VMBlockVopBypass() may produce vnodes without a name.
+    */
+   pathname_len = strlcpy(pathname,
+                          VPTOVMB(dvp)->name ? VPTOVMB(dvp)->name : ".",
+                          MAXPATHLEN);
+   /*
+    * Make sure we have room in the buffer to add our component.
+    * + 1 is for separator (slash).
+    */
+   if (pathname_len + 1 + cnp->cn_namelen >= MAXPATHLEN) {
+      error = ENAMETOOLONG;
+      goto out;
    }
 
    if ((blockCookie = BlockLookup(pathname, OS_UNKNOWN_BLOCKER)) != NULL) {
@@ -650,18 +670,17 @@ struct vop_lookup_args {
       }
    }
 
+   /* We already verified that buffer is big enough. */
+   pathname[pathname_len] = '/';
+   bcopy(cnp->cn_nameptr, &pathname[pathname_len + 1], cnp->cn_namelen);
+   pathname[pathname_len + 1 + cnp->cn_namelen] = 0;
+
    /*
     * Although it is possible to call VMBlockVopBypass(), we'll do a direct
     * call to reduce overhead
     */
    ldvp = VMBVPTOLOWERVP(dvp);
    vp = lvp = NULL;
-
-   /*
-    * The subsequent VOP_LOOKUP() may advance cnp->cn_nameptr, so save a copy
-    * in order to refer to the current component later.
-    */
-   savename = cnp->cn_nameptr;
 
    error = VOP_LOOKUP(ldvp, &lvp, cnp);
    if (error == EJUSTRETURN && (flags & ISLASTCN) &&
@@ -680,19 +699,20 @@ struct vop_lookup_args {
          VREF(dvp);
          vrele(lvp);
       } else {
-         error = VMBlockNodeGet(dvp->v_mount, lvp, &vp, dvp);
+         error = VMBlockNodeGet(dvp->v_mount, lvp, &vp, pathname);
          if (error) {
             /* XXX Cleanup needed... */
             panic("VMBlockNodeGet failed");
          }
          *ap->a_vpp = vp;
-         VMBlockSetNodeName(vp, savename);
+         /* The vnode now owns pathname so don't try to free it below. */
+         pathname = NULL;
       }
    }
 
 out:
    if (pathname) {
-      VMBlockDestroyBlockName(pathname);
+      uma_zfree(VMBlockPathnameZone, pathname);
    }
    return error;
 }
@@ -920,7 +940,7 @@ struct vop_ioctl_args {
       /*
        * Don't block the mount point!
        */
-      if (!strcmp(VPTOVMB(vp)->componentName, pathbuf)) {
+      if (!strcmp(VPTOVMB(vp)->name, pathbuf)) {
          ret = EINVAL;
       } else {
          ret = (ap->a_command == VMBLOCK_ADD_FILEBLOCK) ?
@@ -1417,8 +1437,8 @@ struct vop_reclaim_args {
    /*
     * Clean up VMBlockNode attachment.
     */
-   if (xp->componentName) {
-      free(xp->componentName, M_VMBLOCKFSNODE);
+   if (xp->name) {
+      uma_zfree(VMBlockPathnameZone, xp->name);
    }
    free(xp, M_VMBLOCKFSNODE);
 

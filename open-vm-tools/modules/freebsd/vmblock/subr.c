@@ -330,7 +330,8 @@ VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
  *      Zero on success, an appropriate system error otherwise.
  *
  * Side effects:
- *      None.
+ *      In case of success takes over ownership of pathname thus caller
+ *      has to dispose of it only if error was signalled.
  *
  * Original function comment:
  *
@@ -348,8 +349,8 @@ int
 VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
                struct vnode *lowervp,   // IN: lower layer vnode
                struct vnode **vpp,      // OUT: upper layer/alias vnode
-               struct vnode *dvp)       // IN: Pointer to vmblock layer parent,
-                                        //     if any
+               char         *pathname)  // IN: Pointer to the path we took to
+                                        //     reach this vnode
 {
    struct VMBlockNode *xp;
    struct vnode *vp;
@@ -383,6 +384,7 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
       return error;
    }
 
+   xp->name = pathname;
    xp->backVnode = vp;
    xp->lowerVnode = lowervp;
    vp->v_type = lowervp->v_type;
@@ -415,187 +417,11 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
       vp->v_vnlock = &vp->v_lock;
       xp->lowerVnode = NULL;
       vrele(vp);
-      return 0;
    } else {
-      xp->parentVnode = dvp;
+      *vpp = vp;
    }
-   *vpp = vp;
 
    return 0;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMBlockSetNodeName --
- *
- *      If not already set, assign a VMBlockNode its lower layer vnode's
- *      path name.  (E.g., if /tmp/VMwareDND is remounted to /var/run/vmblock,
- *      the root VMBlockNode will have a path name of "/tmp/VMwareDND".)
- *
- *      In the interest of saving a little memory, for all vnodes except the
- *      mountpoint, we only copy the first pathname component (i.e., up to the
- *      first slash).
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      This function may not be called with mutexes held.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VMBlockSetNodeName(struct vnode *vp,    // IN: assignee vnode
-                   const char *name)    // IN: name assigned
-{
-   VMBlockNode *blockNode;
-   char *slash;
-
-   KASSERT(vp != NULL, ("vp is NULL"));
-   KASSERT(name != NULL, ("name is NULL"));
-
-   blockNode = VPTOVMB(vp);
-   
-   /*
-    * We assume that blocks are only placed on directories, not files,
-    * and by doing so define the relationship between VMBlockNodes and pathnames
-    * is 1:1.  (One cannot hardlink directories.)  As such, renaming a node is
-    * pointless, so we just return if this node is already named.
-    */
-   if (blockNode->componentName != NULL) {
-      return;
-   }
-
-   /*
-    * If given an absolute path or a lookup's final pathname component,
-    * copy until the end of the string.  Otherwise, copy only until
-    * the first slash is found. 
-    */
-   slash = index(name, '/');
-
-   if ((name[0] == '/') || (slash == NULL)) {
-      blockNode->componentSize = strlen(name) + 1;
-   } else { 
-      blockNode->componentSize = (slash - name) + 1;
-   }
-
-   /*
-    * Finally allocate & copy buffer.
-    */
-   blockNode->componentName = malloc(blockNode->componentSize,
-                                     M_VMBLOCKFSNODE, M_WAITOK);
-   strlcpy(blockNode->componentName, name, blockNode->componentSize);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMBlockBuildBlockName --
- *
- *      Given a leaf vnode, compile and return a string representing its
- *      entire pathname.
- *
- *      After grabbing a buffer from a pathname zone/slab, we copy the
- *      leaf's component name to the end of the buffer.  Then we look up
- *      its parent and prepend the parent's name in the buffer, and so on
- *      until we reach the filesystem mountpoint.
- *
- * Results:
- *      Pointer to C-string pathname on success, NULL otherwise.
- *
- * Side effects:
- *      The returned string must be destroyed with VMBlockDestroyBlockName.
- *      Also, the caller must not be holding any mutexes.  (uma_zalloc is
- *      allowed to sleep.)
- *
- *-----------------------------------------------------------------------------
- */
-
-char *
-VMBlockBuildBlockName(struct vnode *vp) // IN: leaf vnode
-{
-   VMBlockNode *xp;
-   unsigned int written = 0;
-   char *buf, *tstart;
-
-   buf = uma_zalloc(VMBlockPathnameZone, M_WAITOK);
-   tstart = &buf[MAXPATHLEN];
-
-   /*
-    * Stopping after processing the root vnode (no parent):
-    *   - Decrement copy destination pointer by the size of the current
-    *     componentName's buffer.
-    *   - Memcpy componentName to destination pointer.  (Memcpy will include
-    *     terminating NUL.)
-    *   - Replace each component's terminator with a pathname delimiter ('/').
-    *     (For simplicity, even the leaf component is terminated with a '/', 
-    *     but the final built string is manually terminated after this loop.)
-    *
-    * This function and its dependent VMBlockVnode::parentVnode member assume
-    * the following:
-    *   - We expect only to be called in VMBlockVopLookup with vp locked.
-    *     As such, vp is locked, and all its parent directories up to the
-    *     VMBlock filesystem root are also locked.  This means we don't have to
-    *     worry about VMBlock vnodes disappearing out from under us.
-    */
-   do {
-      xp = VPTOVMB(vp);
-      vp = xp->parentVnode;
-
-      /* Note: componentSize includes terminator. */
-      tstart -= xp->componentSize;
-      written += xp->componentSize;
-      if (written > MAXPATHLEN) {
-         Warning("%s: name too long (%u bytes)\n", __func__, written);
-         uma_zfree(VMBlockPathnameZone, buf);
-         return NULL;
-      }
-
-      /* Copy & reterminate. */
-      memcpy(tstart, xp->componentName, xp->componentSize);
-      tstart[xp->componentSize - 1] = '/';
-   } while (vp != NULL);
-
-   /* Reterminate string. */
-   buf[MAXPATHLEN - 1] = '\0';
-
-   /*
-    * Since we copied components from leaf to root, the start of the pathname
-    * string could be anywhere in the buffer.  To keep things simple for
-    * callers, just move it to the beginning of the buffer.
-    *
-    * Don't worry!  Bcopy() works with overlapping buffers, and "written"
-    * includes the NUL terminator.
-    */
-   bcopy(tstart, buf, written);
-   return buf;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMBlockDestroyBlockName --
- *
- *      Free a name compiled by VMBlockBuildBlockName.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VMBlockDestroyBlockName(char *blockName)        // IN: name to free
-{
-   uma_zfree(VMBlockPathnameZone, blockName);
 }
 
 

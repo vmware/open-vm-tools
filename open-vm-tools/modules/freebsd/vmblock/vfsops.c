@@ -124,6 +124,7 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
    struct nameidata nd, *ndp = &nd;
    struct vnode *lowerrootvp, *vp;
    char *target;
+   char *pathname;
    int len, error = 0;
 
    VMBLOCKDEBUG("VMBlockVFSMount(mp = %p)\n", (void *)mp);
@@ -143,7 +144,7 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
        (mp->mnt_vnodecovered->v_op == &VMBlockVnodeOps)) {
       return EOPNOTSUPP;
    }
-   
+
    /*
     * XXX Should only be unlocked if mnt_flag & MNT_UPDATE.
     */
@@ -159,6 +160,16 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
       return EINVAL;
    }
 
+   pathname = uma_zalloc(VMBlockPathnameZone, M_WAITOK);
+   if (pathname == NULL) {
+      return ENOMEM;
+   }
+
+   if (strlcpy(pathname, target, MAXPATHLEN) >= MAXPATHLEN) {
+      uma_zfree(VMBlockPathnameZone, pathname);
+      return ENAMETOOLONG;
+   }
+
    /*
     * Find lower node and lock if not already locked.
     */
@@ -167,6 +178,7 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
    error = namei(ndp);
    if (error) {
       NDFREE(ndp, 0);
+      uma_zfree(VMBlockPathnameZone, pathname);
       return error;
    }
    NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -178,6 +190,7 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
    if (lowerrootvp == VPTOVMB(mp->mnt_vnodecovered)->lowerVnode) {
       VMBLOCKDEBUG("VMBlockVFSMount: multi vmblock mount?\n");
       vput(lowerrootvp);
+      uma_zfree(VMBlockPathnameZone, pathname);
       return EDEADLK;
    }
 
@@ -188,7 +201,7 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
     * by grabbing a VMBlockNode for our layer's root.
     */
    xmp->mountVFS = lowerrootvp->v_mount;
-   error = VMBlockNodeGet(mp, lowerrootvp, &vp, NULL);
+   error = VMBlockNodeGet(mp, lowerrootvp, &vp, pathname);
 
    /*
     * Make sure the node alias worked
@@ -197,15 +210,9 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
       COMPAT_VOP_UNLOCK(vp, 0, compat_td);
       vrele(lowerrootvp);
       free(xmp, M_VMBLOCKFSMNT);   /* XXX */
+      uma_zfree(VMBlockPathnameZone, pathname);
       return error;
    }
-
-   /*
-    * Assign the staging area's mount path to its corresponding VMBlockNode.
-    * (This is to allow blocking a directory and everything under that
-    * directory.)
-    */
-   VMBlockSetNodeName(vp, target);
 
    /*
     * Record a reference to the new filesystem's root vnode & mark it as such.
