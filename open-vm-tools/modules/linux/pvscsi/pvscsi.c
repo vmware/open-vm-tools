@@ -1153,7 +1153,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 		destroy_workqueue(adapter->workqueue);
 
 	if (adapter->mmioBase)
-		iounmap(adapter->mmioBase);
+		pci_iounmap(adapter->dev, adapter->mmioBase);
 
 	pci_release_regions(adapter->dev);
 
@@ -1226,7 +1226,7 @@ static int __devinit pvscsi_probe(struct pci_dev *pdev,
 {
 	struct pvscsi_adapter *adapter;
 	struct Scsi_Host *host;
-	unsigned long base, i;
+	unsigned int i;
 	int error;
 
 	error = -ENODEV;
@@ -1278,27 +1278,25 @@ static int __devinit pvscsi_probe(struct pci_dev *pdev,
 		goto out_free_host;
 	}
 
-	base = 0;
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		if ((pci_resource_flags(pdev, i) & PCI_BASE_ADDRESS_SPACE_IO))
 			continue;
 
-		if (pci_resource_len(pdev, i) <
-					PVSCSI_MEM_SPACE_NUM_PAGES * PAGE_SIZE)
+		if (pci_resource_len(pdev, i) <	PVSCSI_MEM_SPACE_SIZE)
 			continue;
 
-		base = pci_resource_start(pdev, i);
 		break;
 	}
 
-	if (base == 0) {
+	if (i == DEVICE_COUNT_RESOURCE) {
 		printk(KERN_ERR "pvscsi: adapter has no suitable MMIO region\n");
 		goto out_release_resources;
 	}
 
-	adapter->mmioBase = ioremap(base, PVSCSI_MEM_SPACE_SIZE);
+	adapter->mmioBase = pci_iomap(pdev, i, PVSCSI_MEM_SPACE_SIZE);
 	if (!adapter->mmioBase) {
-		printk(KERN_ERR "pvscsi: can't ioremap 0x%lx\n", base);
+		printk(KERN_ERR "pvscsi: can't iomap for BAR %d memsize %lu\n",
+		       i, PVSCSI_MEM_SPACE_SIZE);
 		goto out_release_resources;
 	}
 
