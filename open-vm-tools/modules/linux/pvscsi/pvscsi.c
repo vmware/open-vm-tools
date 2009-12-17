@@ -80,7 +80,7 @@ MODULE_INFO(supported, "external");
 #endif
 
 struct pvscsi_sg_list {
-	PVSCSISGElement sge[PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT];
+	struct PVSCSISGElement sge[PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT];
 };
 
 struct pvscsi_ctx {
@@ -97,39 +97,39 @@ struct pvscsi_ctx {
 };
 
 struct pvscsi_adapter {
-	char			*mmioBase;
-	unsigned int		irq;
-	u8			rev;
-	char			use_msi;
-	char			use_msix;
-	char			use_msg;
+	char				*mmioBase;
+	unsigned int			irq;
+	u8				rev;
+	char				use_msi;
+	char				use_msix;
+	char				use_msg;
 
-	spinlock_t		hw_lock;
+	spinlock_t			hw_lock;
 
-	struct workqueue_struct	*workqueue;
-	struct work_struct	work;
+	struct workqueue_struct		*workqueue;
+	struct work_struct		work;
 
-	PVSCSIRingReqDesc	*req_ring;
-	unsigned		req_pages;
-	unsigned		req_depth;
-	dma_addr_t		reqRingPA;
+	struct PVSCSIRingReqDesc	*req_ring;
+	unsigned			req_pages;
+	unsigned			req_depth;
+	dma_addr_t			reqRingPA;
 
-	PVSCSIRingCmpDesc	*cmp_ring;
-	unsigned		cmp_pages;
-	dma_addr_t		cmpRingPA;
+	struct PVSCSIRingCmpDesc	*cmp_ring;
+	unsigned			cmp_pages;
+	dma_addr_t			cmpRingPA;
 
-	PVSCSIRingMsgDesc	*msg_ring;
-	unsigned		msg_pages;
-	dma_addr_t		msgRingPA;
+	struct PVSCSIRingMsgDesc	*msg_ring;
+	unsigned			msg_pages;
+	dma_addr_t			msgRingPA;
 
-	PVSCSIRingsState	*rings_state;
-	dma_addr_t		ringStatePA;
+	struct PVSCSIRingsState		*rings_state;
+	dma_addr_t			ringStatePA;
 
-	struct pci_dev		*dev;
-	struct Scsi_Host	*host;
+	struct pci_dev			*dev;
+	struct Scsi_Host		*host;
 
-	struct list_head	cmd_pool;
-	struct pvscsi_ctx	*cmd_map;
+	struct list_head		cmd_pool;
+	struct pvscsi_ctx		*cmd_map;
 };
 
 #define HOST_ADAPTER(host) ((struct pvscsi_adapter *)(host)->hostdata)
@@ -298,7 +298,7 @@ static void pvscsi_write_cmd_desc(const struct pvscsi_adapter *adapter,
 static void pvscsi_abort_cmd(const struct pvscsi_adapter *adapter,
 			     const struct pvscsi_ctx *ctx)
 {
-	PVSCSICmdDescAbortCmd cmd = { 0 };
+	struct PVSCSICmdDescAbortCmd cmd = { 0 };
 
 	cmd.target = ctx->cmd->device->id;
 	cmd.context = pvscsi_map_context(adapter, ctx);
@@ -349,7 +349,7 @@ static void ll_bus_reset(const struct pvscsi_adapter *adapter)
 
 static void ll_device_reset(const struct pvscsi_adapter *adapter, u32 target)
 {
-	PVSCSICmdDescResetDevice cmd = { 0 };
+	struct PVSCSICmdDescResetDevice cmd = { 0 };
 
 	LOG(0, "Reseting device: target=%u\n", target);
 
@@ -390,8 +390,8 @@ static void pvscsi_create_sg(struct pvscsi_ctx *ctx,
  * setup the scatter/gather list if needed.
  */
 static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
-			       struct pvscsi_ctx *ctx,
-			       struct scsi_cmnd *cmd, PVSCSIRingReqDesc *e)
+			       struct pvscsi_ctx *ctx, struct scsi_cmnd *cmd,
+			       struct PVSCSIRingReqDesc *e)
 {
 	unsigned count;
 	unsigned bufflen = scsi_bufflen(cmd);
@@ -491,7 +491,7 @@ static int __devinit pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 
 static void pvscsi_setup_all_rings(const struct pvscsi_adapter *adapter)
 {
-	PVSCSICmdDescSetupRings cmd = { 0 };
+	struct PVSCSICmdDescSetupRings cmd = { 0 };
 	dma_addr_t base;
 	unsigned i;
 
@@ -519,7 +519,7 @@ static void pvscsi_setup_all_rings(const struct pvscsi_adapter *adapter)
 			      &cmd, sizeof cmd);
 
 	if (adapter->use_msg) {
-		PVSCSICmdDescSetupMsgRing cmd_msg = { 0 };
+		struct PVSCSICmdDescSetupMsgRing cmd_msg = { 0 };
 
 		cmd_msg.numPages = adapter->msg_pages;
 
@@ -540,7 +540,7 @@ static void pvscsi_setup_all_rings(const struct pvscsi_adapter *adapter)
  * to the SCSI mid layer.
  */
 static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
-				    const PVSCSIRingCmpDesc *e)
+				    const struct PVSCSIRingCmpDesc *e)
 {
 	struct pvscsi_ctx *ctx;
 	struct scsi_cmnd *cmd;
@@ -632,13 +632,13 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
  */
 static void pvscsi_process_completion_ring(struct pvscsi_adapter *adapter)
 {
-	PVSCSIRingsState *s = adapter->rings_state;
-	PVSCSIRingCmpDesc *ring = adapter->cmp_ring;
+	struct PVSCSIRingsState *s = adapter->rings_state;
+	struct PVSCSIRingCmpDesc *ring = adapter->cmp_ring;
 	u32 cmp_entries = s->cmpNumEntriesLog2;
 
 	while (s->cmpConsIdx != s->cmpProdIdx) {
-		PVSCSIRingCmpDesc *e = ring + (s->cmpConsIdx &
-					       MASK(cmp_entries));
+		struct PVSCSIRingCmpDesc *e = ring + (s->cmpConsIdx &
+						      MASK(cmp_entries));
 		/*
 		 * This barrier() ensures that *e is not dereferenced while
 		 * the device emulation still writes data into the slot.
@@ -664,8 +664,8 @@ static void pvscsi_process_completion_ring(struct pvscsi_adapter *adapter)
 static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 			     struct pvscsi_ctx *ctx, struct scsi_cmnd *cmd)
 {
-	PVSCSIRingsState *s;
-	PVSCSIRingReqDesc *e;
+	struct PVSCSIRingsState *s;
+	struct PVSCSIRingReqDesc *e;
 	struct scsi_device *sdev;
 	u32 req_entries;
 
@@ -958,9 +958,9 @@ static struct scsi_host_template pvscsi_template = {
 };
 
 static void pvscsi_process_msg(const struct pvscsi_adapter *adapter,
-			       const PVSCSIRingMsgDesc *e)
+			       const struct PVSCSIRingMsgDesc *e)
 {
-	PVSCSIRingsState *s = adapter->rings_state;
+	struct PVSCSIRingsState *s = adapter->rings_state;
 	struct Scsi_Host *host = adapter->host;
 	struct scsi_device *sdev;
 
@@ -970,8 +970,8 @@ static void pvscsi_process_msg(const struct pvscsi_adapter *adapter,
 	ASSERT_ON_COMPILE(PVSCSI_MSG_LAST == 2);
 
 	if (e->type == PVSCSI_MSG_DEV_ADDED) {
-		PVSCSIMsgDescDevStatusChanged *desc;
-		desc = (PVSCSIMsgDescDevStatusChanged *)e;
+		struct PVSCSIMsgDescDevStatusChanged *desc;
+		desc = (struct PVSCSIMsgDescDevStatusChanged *)e;
 
 		printk(KERN_INFO "pvscsi: msg: device added at scsi%u:%u:%u\n",
 		       desc->bus, desc->target, desc->lun[1]);
@@ -990,8 +990,8 @@ static void pvscsi_process_msg(const struct pvscsi_adapter *adapter,
 
 		scsi_host_put(host);
 	} else if (e->type == PVSCSI_MSG_DEV_REMOVED) {
-		PVSCSIMsgDescDevStatusChanged *desc;
-		desc = (PVSCSIMsgDescDevStatusChanged *)e;
+		struct PVSCSIMsgDescDevStatusChanged *desc;
+		desc = (struct PVSCSIMsgDescDevStatusChanged *)e;
 
 		printk(KERN_INFO "pvscsi: msg: device removed at scsi%u:%u:%u\n",
 		       desc->bus, desc->target, desc->lun[1]);
@@ -1014,20 +1014,20 @@ static void pvscsi_process_msg(const struct pvscsi_adapter *adapter,
 
 static int pvscsi_msg_pending(const struct pvscsi_adapter *adapter)
 {
-	PVSCSIRingsState *s = adapter->rings_state;
+	struct PVSCSIRingsState *s = adapter->rings_state;
 
 	return s->msgProdIdx != s->msgConsIdx;
 }
 
 static void pvscsi_process_msg_ring(const struct pvscsi_adapter *adapter)
 {
-	PVSCSIRingsState *s = adapter->rings_state;
-	PVSCSIRingMsgDesc *ring = adapter->msg_ring;
+	struct PVSCSIRingsState *s = adapter->rings_state;
+	struct PVSCSIRingMsgDesc *ring = adapter->msg_ring;
 	u32 msg_entries = s->msgNumEntriesLog2;
 
 	while (pvscsi_msg_pending(adapter)) {
-		PVSCSIRingMsgDesc *e = ring + (s->msgConsIdx &
-					       MASK(msg_entries));
+		struct PVSCSIRingMsgDesc *e = ring + (s->msgConsIdx &
+						      MASK(msg_entries));
 
 		barrier();
 		pvscsi_process_msg(adapter, e);
