@@ -864,6 +864,8 @@ typedef struct {           // connect/disconnect page
             dimm  :1,      // disconnect immediate (SCSI-3)
                   :3,
             emdp  :1;      // enable MODIFY DATA POINTER (SCSI-3)
+   uint8    reserved;
+   uint16   firstBurstSize;
 } SCSIConnectPage;
 
 typedef struct {     // peripheral device page
@@ -2369,7 +2371,7 @@ extern SCSICmdInfo scsiCmdInfo[256];
    {SCSI_CMD_RELEASE_UNIT10,   SCSI_XFER_AUTO,     NULL, SCSI_DONT_EMULATE}, \
    {0x58,                      SCSI_XFER_AUTO,     NULL, SCSI_DONT_EMULATE}, \
    {0x59,                      SCSI_XFER_AUTO,     NULL, SCSI_DONT_EMULATE}, \
-   {SCSI_CMD_MODE_SENSE10,     SCSI_XFER_TOHOST,   "MODE SENSE(10)", SCSI_DONT_EMULATE}, \
+   {SCSI_CMD_MODE_SENSE10,     SCSI_XFER_TOHOST,   "MODE SENSE(10)", SCSI_EMULATE}, \
    {SCSI_CMD_CLOSE_SESSION,    SCSI_XFER_AUTO,     NULL, SCSI_DONT_EMULATE}, \
    {SCSI_CMD_READ_BUFFER_CAPACITY, SCSI_XFER_AUTO, NULL, SCSI_DONT_EMULATE}, \
    {SCSI_CMD_SEND_CUE_SHEET,   SCSI_XFER_AUTO,     NULL, SCSI_DONT_EMULATE}, \

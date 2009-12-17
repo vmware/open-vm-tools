@@ -39,6 +39,10 @@
 #define VMXNET3_NPA_CMD_FAILURE   1
 #define VMXNET3_PLUGIN_INFO_LEN  32
 // XXX: unify the definitions
+#define VMXNET3_MAX_TX_DESC_SIZE 256
+#define VMXNET3_MAX_RX_DESC_SIZE 256
+#define VMXNET3_MAX_TX_RINGS 4
+#define VMXNET3_MAX_RX_RINGS 4
 
 /* these structure are versioned using the vmxnet3 version */
 

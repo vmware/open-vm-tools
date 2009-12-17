@@ -436,7 +436,7 @@ vmxnet_set_tx_csum(struct net_device *netdev, uint32 val)
    if (val) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
       struct Vmxnet_Private *lp = netdev_priv(netdev);
-      if (lp->capabilities & VMNET_CAP_HW_CSUM) {
+      if (lp->capabilities & (VMNET_CAP_IP4_CSUM | VMNET_CAP_HW_CSUM)) {
          netdev->features |= NETIF_F_HW_CSUM;
          return 0;
       }
@@ -1305,7 +1305,7 @@ vmxnet_probe_features(struct net_device *dev, // IN:
    printk(KERN_INFO "features:");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
    if (lp->capabilities & VMNET_CAP_IP4_CSUM) {
-      dev->features |= NETIF_F_IP_CSUM;
+      dev->features |= NETIF_F_HW_CSUM;
       printk(" ipCsum");
    }
    if (lp->capabilities & VMNET_CAP_HW_CSUM) {
