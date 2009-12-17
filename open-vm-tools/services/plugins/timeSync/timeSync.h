@@ -28,13 +28,13 @@
 #define G_LOG_DOMAIN "timeSync"
 #include "vm_basic_types.h"
 
-Bool
-TimeSync_GetCurrentTime(int64 *secs,
-                        int64 *usecs);
+#define US_PER_SEC 1000000
 
 Bool
-TimeSync_AddToCurrentTime(int64 deltaSecs,
-                          int64 deltaUsecs);
+TimeSync_GetCurrentTime(int64 *now);
+
+Bool
+TimeSync_AddToCurrentTime(int64 delta);
 
 Bool
 TimeSync_EnableTimeSlew(int64 delta,

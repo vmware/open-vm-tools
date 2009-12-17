@@ -50,14 +50,41 @@
 
 /*
  ******************************************************************************
+ * TimeSyncWriteTimeVal --                                              */ /**
+ *
+ * Convert time represented as microseconds, to a timeval.  For a timeval
+ * to be valid tv_usec must be between 0 and 999999.  See
+ * http://www.gnu.org/s/libc/manual/html_node/Elapsed-Time.html for more
+ * details.
+ *
+ ******************************************************************************
+ */
+
+static INLINE void
+TimeSyncWriteTimeVal(int64 time, struct timeval *tv)
+{
+   int64 sec = time / US_PER_SEC;
+   int64 usec = time - sec * US_PER_SEC;
+   if (usec < 0) {
+      usec += US_PER_SEC;
+      sec--;
+   }
+   ASSERT(0 <= usec && usec < US_PER_SEC &&
+          time == sec * US_PER_SEC + usec);
+   tv->tv_sec = sec;
+   tv->tv_usec = usec;
+}
+
+
+/*
+ ******************************************************************************
  * TimeSync_AddToCurrentTime --                                         */ /**
  *
- * Adjust the current system time by adding the given number of seconds &
- * milliseconds. This function disables any time slewing to correctly set the
- * guest time.
+ * Adjust the current system time by adding the given number of
+ * microseconds. This function disables any time slewing to correctly set
+ * the guest time.
  *
- * @param[in] deltaSecs     Seconds to add.
- * @param[in] deltaUsecs    Microseconds to add.
+ * @param[in] delta    Microseconds to add.
  *
  * @return TRUE on success.
  *
@@ -65,15 +92,13 @@
  */
 
 Bool
-TimeSync_AddToCurrentTime(int64 deltaSecs,
-                          int64 deltaUsecs)
+TimeSync_AddToCurrentTime(int64 delta)
 {
    struct timeval tv;
    int64 newTime;
-   int64 secs;
-   int64 usecs;
+   int64 now;
 
-   if (!TimeSync_GetCurrentTime(&secs, &usecs)) {
+   if (!TimeSync_GetCurrentTime(&now)) {
       return FALSE;
    }
 
@@ -81,7 +106,7 @@ TimeSync_AddToCurrentTime(int64 deltaSecs,
       TimeSync_DisableTimeSlew();
    }
 
-   newTime = (secs + deltaSecs) * 1000000L + (usecs + deltaUsecs);
+   newTime = now + delta;
    ASSERT(newTime > 0);
 
    /*
@@ -91,13 +116,12 @@ TimeSync_AddToCurrentTime(int64 deltaSecs,
     *
     * If it is a 64-bit linux, everything should be fine.
     */
-   if (sizeof tv.tv_sec < 8 && newTime / 1000000L > MAX_INT32) {
-      g_debug("overflow: deltaSecs=%"FMT64"d, secs=%"FMT64"d\n", deltaSecs, secs);
+   if (sizeof tv.tv_sec < 8 && newTime / US_PER_SEC > MAX_INT32) {
+      g_debug("overflow: delta=%"FMT64"d, now=%"FMT64"d\n", delta, now);
       return FALSE;
    }
 
-   tv.tv_sec = newTime / 1000000L;
-   tv.tv_usec = newTime % 1000000L;
+   TimeSyncWriteTimeVal(newTime, &tv);
 
    if (settimeofday(&tv, NULL) < 0) {
       return FALSE;
@@ -189,8 +213,7 @@ TimeSync_EnableTimeSlew(int64 delta,
    struct timeval oldTx;
    int error;
 
-   tx.tv_sec = delta / 1000000L;
-   tx.tv_usec = delta % 1000000L;
+   TimeSyncWriteTimeVal(delta, &tx);
 
    error = adjtime(&tx, &oldTx);
    if (error == -1) {
@@ -216,7 +239,7 @@ TimeSync_EnableTimeSlew(int64 delta,
     */
    tx.modes = ADJ_TICK;
    tick = (timeSyncPeriod + delta) /
-          ((timeSyncPeriod / 1000000) * USER_HZ);
+          ((timeSyncPeriod / US_PER_SEC) * USER_HZ);
    if (tick > TICK_INCR_MAX) {
       tick = TICK_INCR_MAX;
    } else if (tick < TICK_INCR_MIN) {
@@ -255,20 +278,18 @@ TimeSync_EnableTimeSlew(int64 delta,
  */
 
 Bool
-TimeSync_GetCurrentTime(int64 *secs,
-                        int64 *usecs)
+TimeSync_GetCurrentTime(int64 *now)
 {
    struct timeval tv;
 
-   ASSERT(secs);
-   ASSERT(usecs);
+   ASSERT(now);
 
    if (gettimeofday(&tv, NULL) < 0) {
       return FALSE;
    }
 
-   *secs = tv.tv_sec;
-   *usecs = tv.tv_usec;
+   *now = tv.tv_sec * US_PER_SEC + tv.tv_usec;
+   ASSERT(*now == (int64)tv.tv_sec * US_PER_SEC + (int64)tv.tv_usec);
 
    return TRUE;
 }

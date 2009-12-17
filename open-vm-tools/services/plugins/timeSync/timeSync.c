@@ -74,21 +74,19 @@ TimeSyncDoSync(Bool slewCorrection,
    Backdoor_proto bp;
    int64 maxTimeLag;
    int64 interruptLag;
-   int64 guestSecs;
-   int64 guestUsecs;
    int64 hostSecs;
    int64 hostUsecs;
-   int64 diffSecs;
-   int64 diffUsecs;
+   int64 host;
+   int64 guest;
    int64 diff;
    TimeSyncData *data = _data;
    Bool timeLagCall = FALSE;
 #ifdef VMX86_DEBUG
    static int64 lastHostSecs = 0;
-   int64 secs1, usecs1;
-   int64 secs2, usecs2;
+   int64 before;
+   int64 after;
 
-   TimeSync_GetCurrentTime(&secs1, &usecs1);
+   TimeSync_GetCurrentTime(&before);
 #endif
 
    g_debug("Synchronizing time.\n");
@@ -100,7 +98,7 @@ TimeSyncDoSync(Bool slewCorrection,
     * 2) maximum time lag allowed (config option), which is a
     *    threshold that keeps the tools from being over eager about
     *    resetting the time when it is only a little bit off.
-    * 3) interrupt lag
+    * 3) interrupt lag (the amount that apparent time lags real time)
     *
     * First 2 versions of the call add interrupt lag to the maximum allowed
     * time lag, where as in the last call it is returned separately.
@@ -161,18 +159,13 @@ TimeSyncDoSync(Bool slewCorrection,
    }
 
    /* Get the guest OS time */
-   if (!TimeSync_GetCurrentTime(&guestSecs, &guestUsecs)) {
+   if (!TimeSync_GetCurrentTime(&guest)) {
       g_warning("Unable to retrieve the guest OS time: %s.\n\n", Msg_ErrString());
       return FALSE;
    }
 
-   diffSecs = hostSecs - guestSecs;
-   diffUsecs = hostUsecs - guestUsecs;
-   if (diffUsecs < 0) {
-      diffSecs -= 1;
-      diffUsecs += 1000000U;
-   }
-   diff = diffSecs * 1000000L + diffUsecs;
+   host = hostSecs * US_PER_SEC + hostUsecs;
+   diff = host - guest;
 
 #ifdef VMX86_DEBUG
    g_debug("Daemon: Guest clock lost %.6f secs; limit=%.2f; "
@@ -193,7 +186,7 @@ TimeSyncDoSync(Bool slewCorrection,
        */
       if (diff > maxTimeLag + interruptLag || (diff < 0 && allowBackwardSync)) {
          TimeSync_DisableTimeSlew();
-         if (!TimeSync_AddToCurrentTime(diffSecs, diffUsecs)) {
+         if (!TimeSync_AddToCurrentTime(diff)) {
             g_warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
             return FALSE;
          }
@@ -215,13 +208,13 @@ TimeSyncDoSync(Bool slewCorrection,
 
       if (diff > maxTimeLag + interruptLag) {
          TimeSync_DisableTimeSlew();
-         if (!TimeSync_AddToCurrentTime(diffSecs, diffUsecs)) {
+         if (!TimeSync_AddToCurrentTime(diff)) {
             g_warning("Unable to set the guest OS time: %s.\n\n", Msg_ErrString());
             return FALSE;
          }
       } else if (slewCorrection && timeLagCall) {
          int64 slewDiff;
-         int64 timeSyncPeriodUS = data->timeSyncPeriod * 1000000;
+         int64 timeSyncPeriodUS = data->timeSyncPeriod * US_PER_SEC;
 
          /* Don't consider interruptLag during clock slewing. */
          slewDiff = diff - interruptLag;
@@ -239,10 +232,12 @@ TimeSyncDoSync(Bool slewCorrection,
    }
 
 #ifdef VMX86_DEBUG
-      TimeSync_GetCurrentTime(&secs2, &usecs2);
+      TimeSync_GetCurrentTime(&after);
 
-      g_debug("Time changed from %"FMT64"d.%"FMT64"d -> %"FMT64"d.%"FMT64"d\n",
-              secs1, usecs1, secs2, usecs2);
+      g_debug("Time changed from %"FMT64"d.%06"FMT64"d -> "
+              "%"FMT64"d.%06"FMT64"d\n",
+              before / US_PER_SEC, before % US_PER_SEC, 
+              after / US_PER_SEC, after % US_PER_SEC);
 #endif
 
    /*
