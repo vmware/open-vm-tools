@@ -47,7 +47,7 @@
 #include "compat_fs.h"
 #include "compat_module.h"
 #include "compat_namei.h"
-#include "compat_semaphore.h"
+#include "compat_mutex.h"
 #include "compat_slab.h"
 #include "compat_workqueue.h"
 
@@ -112,7 +112,7 @@ typedef struct VmSyncBlockDevice {
 
 typedef struct VmSyncState {
    struct list_head     devices;
-   struct semaphore     lock;
+   compat_mutex_t       lock;
    compat_delayed_work  thawTask;
 } VmSyncState;
 
@@ -121,7 +121,7 @@ typedef struct VmSyncState {
  * Serializes freeze operations. Used to make sure that two different
  * fds aren't allowed to freeze the same device.
  */
-static struct semaphore gFreezeLock;
+static compat_mutex_t gFreezeLock;
 
 /* A global count of how many devices are currently frozen by the driver. */
 static atomic_t gFreezeCount;
@@ -158,7 +158,7 @@ VmSyncThawDevices(void  *_state)  // IN
 
    state = (VmSyncState *) _state;
 
-   down(&state->lock);
+   compat_mutex_lock(&state->lock);
    cancel_delayed_work(&state->thawTask);
    list_for_each_safe(cur, tmp, &state->devices) {
       dev = list_entry(cur, VmSyncBlockDevice, list);
@@ -169,7 +169,7 @@ VmSyncThawDevices(void  *_state)  // IN
       list_del_init(&dev->list);
       kmem_cache_free(gBlockDeviceCache, dev);
    }
-   up(&state->lock);
+   compat_mutex_unlock(&state->lock);
 }
 
 
@@ -322,8 +322,8 @@ VmSyncFreezeDevices(VmSyncState *state,            // IN
       return PTR_ERR(paths);
    }
 
-   down(&gFreezeLock);
-   down(&state->lock);
+   compat_mutex_lock(&gFreezeLock);
+   compat_mutex_lock(&state->lock);
 
    /*
     * First, try to add all paths to the list of paths to be frozen.
@@ -368,8 +368,8 @@ VmSyncFreezeDevices(VmSyncState *state,            // IN
       }
    }
 
-   up(&state->lock);
-   up(&gFreezeLock);
+   compat_mutex_unlock(&state->lock);
+   compat_mutex_unlock(&gFreezeLock);
 
    if (result == 0) {
       compat_schedule_delayed_work(&state->thawTask, VMSYNC_THAW_TASK_DELAY);
@@ -618,7 +618,7 @@ VmSyncStateCtor(COMPAT_KMEM_CACHE_CTOR_ARGS(slabelem))  // IN
    INIT_LIST_HEAD(&state->devices);
    COMPAT_INIT_DELAYED_WORK(&state->thawTask,
                             VmSyncThawDevicesCallback, state);
-   init_MUTEX(&state->lock);
+   compat_mutex_init(&state->lock);
 }
 
 
@@ -645,7 +645,7 @@ init_module(void)
    struct proc_dir_entry *controlProcEntry;
 
    atomic_set(&gFreezeCount, 0);
-   init_MUTEX(&gFreezeLock);
+   compat_mutex_init(&gFreezeLock);
 
    /* Create the slab allocators for the module. */
    gBlockDeviceCache = compat_kmem_cache_create("VmSyncBlockDeviceCache",

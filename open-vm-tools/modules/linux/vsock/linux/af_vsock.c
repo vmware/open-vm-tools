@@ -120,9 +120,7 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include "compat_version.h"
 #include "compat_workqueue.h"
 #include "compat_list.h"
-#if defined(HAVE_COMPAT_IOCTL) || defined(HAVE_UNLOCKED_IOCTL)
-#   include "compat_semaphore.h"
-#endif
+#include "compat_mutex.h"
 
 #include "vmware.h"
 
@@ -344,7 +342,7 @@ typedef struct VSockRecvPktInfo {
    VSockPacket pkt;
 } VSockRecvPktInfo;
 
-static DECLARE_MUTEX(registrationMutex);
+static compat_define_mutex(registrationMutex);
 static int devOpenCount = 0;
 static int vsockVmciSocketCount = 0;
 static int vsockVmciKernClientCount = 0;
@@ -516,7 +514,7 @@ VMCISock_GetAFValue(void)
 {
    int afvalue;
 
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
 
    /*
     * Kernel clients are required to explicitly register themselves before they
@@ -530,7 +528,7 @@ VMCISock_GetAFValue(void)
    afvalue = VSockVmciGetAFValue();
 
 exit:
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
    return afvalue;
 }
 EXPORT_SYMBOL(VMCISock_GetAFValue);
@@ -560,7 +558,7 @@ VMCISock_GetLocalCID(void)
 {
    int cid;
 
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
 
    /*
     * Kernel clients are required to explicitly register themselves before they
@@ -574,7 +572,7 @@ VMCISock_GetLocalCID(void)
    cid = VMCI_GetContextID();
 
 exit:
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
    return cid;
 }
 EXPORT_SYMBOL(VMCISock_GetLocalCID);
@@ -602,9 +600,9 @@ EXPORT_SYMBOL(VMCISock_GetLocalCID);
 void
 VMCISock_KernelRegister(void)
 {
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    vsockVmciKernClientCount++;
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 }
 EXPORT_SYMBOL(VMCISock_KernelRegister);
 
@@ -630,10 +628,10 @@ EXPORT_SYMBOL(VMCISock_KernelRegister);
 void
 VMCISock_KernelDeregister(void)
 {
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    vsockVmciKernClientCount--;
    VSockVmciTestUnregister();
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 }
 EXPORT_SYMBOL(VMCISock_KernelDeregister);
 
@@ -689,9 +687,9 @@ VSockVmci_GetAFValue(void)
 {
    int afvalue;
 
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    afvalue = VSockVmciGetAFValue();
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 
    return afvalue;
 }
@@ -1297,7 +1295,7 @@ VSockVmciCidChangedCB(VMCIId subId,             // IN
                       void *clientData)         // IN
 {
    int err;
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       VMCIDatagram_DestroyHnd(vmciStreamHandle);
@@ -1312,7 +1310,7 @@ VSockVmciCidChangedCB(VMCIId subId,             // IN
       Warning("Unable to create datagram handle. (%d)\n", err);
    }
 
-  up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 }
 
 
@@ -2727,9 +2725,9 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
     * If we go this far, we know the socket family is registered, so there's no
     * need to register it now.
     */
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    vsockVmciSocketCount++;
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 
    sock_init_data(sock, sk);
 
@@ -2910,10 +2908,10 @@ VSockVmciSkDestruct(struct sock *sk) // IN
 
    NOTIFYCALL(vsk, socketDestruct, sk);
 
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    vsockVmciSocketCount--;
    VSockVmciTestUnregister();
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 
 
    VSOCK_STATS_CTLPKT_DUMP_ALL();
@@ -4944,9 +4942,9 @@ int
 VSockVmciDevOpen(struct inode *inode,  // IN
                  struct file *file)    // IN
 {
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    devOpenCount++;
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
    return 0;
 }
 
@@ -4972,10 +4970,10 @@ int
 VSockVmciDevRelease(struct inode *inode,  // IN
                     struct file *file)    // IN
 {
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    devOpenCount--;
    VSockVmciTestUnregister();
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
    return 0;
 }
 
@@ -5142,9 +5140,9 @@ VSockVmciExit(void)
 {
    unregister_ioctl32_handlers();
    misc_deregister(&vsockVmciDevice);
-   down(&registrationMutex);
+   compat_mutex_lock(&registrationMutex);
    VSockVmciUnregisterAddressFamily();
-   up(&registrationMutex);
+   compat_mutex_unlock(&registrationMutex);
 
    VSockVmciUnregisterProto();
 }
