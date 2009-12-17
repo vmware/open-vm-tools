@@ -85,7 +85,6 @@ vmware_user_LDADD += ../lib/hgfs/libHgfs.la
 vmware_user_LDADD += ../lib/message/libMessage.la
 vmware_user_LDADD += ../lib/unicode/libUnicode.la
 vmware_user_LDADD += ../lib/auth/libAuth.la
-vmware_user_LDADD += ../lib/misc/libMisc.la
 vmware_user_LDADD += ../lib/procMgr/libProcMgr.la
 vmware_user_LDADD += ../lib/panicDefault/libPanicDefault.la
 vmware_user_LDADD += ../lib/panic/libPanic.la
@@ -96,12 +95,18 @@ if ENABLE_UNITY
    vmware_user_LDADD += ../lib/raster/libRaster.la
    vmware_user_LDADD += ../lib/region/libRegion.la
 endif
+
 vmware_user_LDADD += -lcrypt
 vmware_user_LDADD += -lstdc++
 if USE_SLASH_PROC
    vmware_user_LDADD += -lgcc_s
    vmware_user_LDADD += ../lib/slashProc/libSlashProc.la
 endif
+
+vmware_user_LDADD += ../lib/lock/libLock.la
+vmware_user_LDADD += ../lib/nothread/libNothread.la
+vmware_user_LDADD += ../lib/misc/libMisc.la
+
 vmware_user_LDADD += @GTK_LIBS@
 if HAVE_GTKMM
    vmware_user_LDADD += @GTKMM_LIBS@

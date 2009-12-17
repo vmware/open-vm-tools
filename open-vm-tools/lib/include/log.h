@@ -56,7 +56,6 @@ EXTERN Bool Log_InitForApp(const char *fileName, const char *config,
 EXTERN Bool Log_InitEx(const LogInitParams *params);
 EXTERN void Log_Exit(void);
 EXTERN void Log_SetConfigDir(const char *configDir);
-EXTERN void Log_SetLockFunc(void (*f)(Bool locking));
 EXTERN void Log_WriteLogFile(const char *msg);
 
 EXTERN Bool Log_Enabled(void);

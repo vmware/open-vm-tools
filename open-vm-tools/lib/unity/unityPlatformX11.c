@@ -3011,6 +3011,29 @@ UnityPlatformUnstickWindow(UnityPlatform *up,      // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformSetConfigDesktopColor --
+ *
+ *      Set the preferred desktop background color for use when in Unity Mode.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+UnityPlatformSetConfigDesktopColor(UnityPlatform *up, int desktopColor)
+{
+   ASSERT(up);
+}
+
+
+/*
  ******************************************************************************
  * Begin file-scope functions.
  *

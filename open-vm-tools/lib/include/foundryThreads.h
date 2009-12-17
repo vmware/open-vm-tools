@@ -35,6 +35,8 @@ extern "C"{
 #include <pthread.h>
 #endif
 
+#include "util.h"
+
 struct FoundryWorkerThread;
 
 typedef void (*FoundryThreadProc)(struct FoundryWorkerThread *threadState);

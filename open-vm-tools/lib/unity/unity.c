@@ -263,6 +263,13 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
            int *blockedWnd,                                        // IN
            DesktopSwitchCallbackManager *desktopSwitchCallbackMgr) // IN
 {
+   /*
+    * If no preferred color is in the config file then use a light gray tone,
+    * the value is stored as xBGR.
+    */
+   int desktopColor =  /* red */ 0xdc |
+                       /* green */ 0xdc << 8 |
+                       /* blue */ 0xdc << 16;
    Debug("Unity_Init\n");
 
    /*
@@ -312,6 +319,8 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
    unity.forceEnable = GuestApp_GetDictEntryBool(conf, "unity.forceEnable");
    unity.isEnabled = FALSE;
 
+   GuestApp_GetDictEntryInt(conf, "unity.desktop.backgroundColor", &desktopColor);
+   UnityPlatformSetConfigDesktopColor(unity.up, desktopColor);
    unity.virtDesktopArray.desktopCount = 0;
 }
 

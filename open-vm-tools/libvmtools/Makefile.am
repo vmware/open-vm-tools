@@ -29,7 +29,6 @@ libvmtools_la_LIBADD += ../lib/guestInfo/libGuestInfo.la
 libvmtools_la_LIBADD += ../lib/guestRpc/libGuestRpc.la
 libvmtools_la_LIBADD += ../lib/hgfs/libHgfs.la
 libvmtools_la_LIBADD += ../lib/message/libMessage.la
-libvmtools_la_LIBADD += ../lib/misc/libMisc.la
 libvmtools_la_LIBADD += ../lib/netUtil/libNetUtil.la
 libvmtools_la_LIBADD += ../lib/panic/libPanic.la
 libvmtools_la_LIBADD += ../lib/procMgr/libProcMgr.la
@@ -46,6 +45,9 @@ libvmtools_la_LIBADD += ../lib/user/libUser.la
 libvmtools_la_LIBADD += ../lib/vmCheck/libVmCheck.la
 libvmtools_la_LIBADD += ../lib/vmSignal/libVmSignal.la
 libvmtools_la_LIBADD += ../lib/wiper/libWiper.la
+libvmtools_la_LIBADD += ../lib/lock/libLock.la
+libvmtools_la_LIBADD += ../lib/nothread/libNothread.la
+libvmtools_la_LIBADD += ../lib/misc/libMisc.la
 libvmtools_la_LIBADD += @LIBVMTOOLS_LIBADD@
 libvmtools_la_LIBADD += @GLIB2_LIBS@
 libvmtools_la_LIBADD += @ICU_LIBS@
@@ -74,6 +76,7 @@ libvmtools_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 libvmtools_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
 libvmtools_la_LDFLAGS += -Wl,-z,defs
-# Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
+# Needed for OS's that don't link shared libraries against libc by
+#default, e.g. FreeBSD
 libvmtools_la_LDFLAGS += -Wl,-lc
 

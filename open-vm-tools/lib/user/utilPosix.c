@@ -53,7 +53,7 @@
 #include "vm_version.h"
 #include "random.h"
 #include "hostinfo.h"
-#include "syncMutex.h"
+#include "userlock.h"
 #include "escape.h"
 #include "unicodeOperations.h"
 #include "err.h"
@@ -556,13 +556,16 @@ Util_GetSafeTmpDir(Bool useConf) // IN
    char *baseTmpDir = NULL;
    char *userName = NULL;
    uid_t userId;
-   SyncMutex *lck;
+   MXUserExclLock *lck;
 
    userId = geteuid();
 
    /* Get and take lock for our safe dir. */
-   lck = SyncMutex_CreateSingleton(&lckStorage);
-   SyncMutex_Lock(lck);
+   lck = MXUser_CreateSingletonExclLock(&lckStorage, __FUNCTION__,
+                                        RANK_UNRANKED);
+   ASSERT_NOT_IMPLEMENTED(lck != NULL);
+
+   MXUser_AcquireExclLock(lck);
 
    /*
     * Check if we've created a temporary dir already and if it is
@@ -636,7 +639,7 @@ Util_GetSafeTmpDir(Bool useConf) // IN
    }
 
   exit:
-   SyncMutex_Unlock(lck);
+   MXUser_ReleaseExclLock(lck);
    free(baseTmpDir);
    free(userName);
 

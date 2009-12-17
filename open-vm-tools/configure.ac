@@ -1182,7 +1182,9 @@ AC_SUBST([LIB_AUTH_CPPFLAGS])
 AC_SUBST([LIB_FILE_CPPFLAGS])
 AC_SUBST([LIB_HGFS_SERVER_CPPFLAGS])
 AC_SUBST([LIB_IMPERSONATE_CPPFLAGS])
+AC_SUBST([LIB_LOCK_CPPFLAGS])
 AC_SUBST([LIB_MISC_CPPFLAGS])
+AC_SUBST([LIB_NOTHREAD_CPPFLAGS])
 AC_SUBST([LIB_PROC_MGR_CPPFLAGS])
 AC_SUBST([LIB_STRING_CPPFLAGS])
 AC_SUBST([LIB_USER_CPPFLAGS])
@@ -1225,9 +1227,11 @@ AC_CONFIG_FILES([                      \
    lib/hgfsServerPolicyGuest/Makefile  \
    lib/image/Makefile                  \
    lib/impersonate/Makefile            \
+   lib/lock/Makefile                   \
    lib/message/Makefile                \
    lib/misc/Makefile                   \
    lib/netUtil/Makefile                \
+   lib/nothread/Makefile               \
    lib/panic/Makefile                  \
    lib/panicDefault/Makefile           \
    lib/printer/Makefile                \

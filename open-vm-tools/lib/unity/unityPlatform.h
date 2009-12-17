@@ -131,6 +131,8 @@ void UnityPlatformSetActiveDnDDetWnd(UnityPlatform *up, UnityDnD *detWnd);
 
 void UnityPlatformDoUpdate(UnityPlatform *up, Bool incremental);
 
+void UnityPlatformSetConfigDesktopColor(UnityPlatform *up, int desktopColor);
+
 /* Functions implemented in unity.c for use by the platform-specific code. */
 void UnityGetUpdateCommon(int flags, DynBuf *buf);
 Bool UnityUpdateChannelInit(UnityUpdateChannel *updateChannel);

@@ -57,7 +57,7 @@
 #include "posix.h"
 #include "file.h"
 #include "util.h"
-#include "syncMutex.h"
+#include "userlock.h"
 #include "su.h"
 #include "codeset.h"
 #include "unicodeOperations.h"
@@ -3675,7 +3675,9 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
     * Seek to the offset and read from the file. Grab the IO lock to make
     * this and the subsequent read atomic.
     */
-   SyncMutex_Lock(&session->fileIOLock);
+
+   MXUser_AcquireExclLock(session->fileIOLock);
+
    if (!sequentialOpen) {
 #   ifdef linux
       {
@@ -3694,13 +3696,13 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
          status = errno;
          LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
                  offset, strerror(status)));
-         SyncMutex_Unlock(&session->fileIOLock);
+         MXUser_ReleaseExclLock(session->fileIOLock);
          goto error;
       }
    }
 
    error = read(fd, payload, requiredSize);
-   SyncMutex_Unlock(&session->fileIOLock);
+   MXUser_ReleaseExclLock(session->fileIOLock);
 #endif
    if (error < 0) {
       status = errno;
@@ -3853,7 +3855,8 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
     * Seek to the offset and write from the file. Grab the IO lock to make
     * this and the subsequent write atomic.
     */
-   SyncMutex_Lock(&session->fileIOLock);
+
+   MXUser_AcquireExclLock(session->fileIOLock);
    if (!sequentialOpen) {
 #   ifdef linux
       {
@@ -3872,13 +3875,13 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
          status = errno;
          LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
                  offset, strerror(status)));
-         SyncMutex_Unlock(&session->fileIOLock);
+         MXUser_ReleaseExclLock(session->fileIOLock);
          goto error;
       }
    }
 
    error = write(fd, payload, requiredSize);
-   SyncMutex_Unlock(&session->fileIOLock);
+   MXUser_ReleaseExclLock(session->fileIOLock);
 #endif
    if (error < 0) {
       status = errno;

@@ -657,4 +657,13 @@ typedef int pid_t;
 #define hosted_lg_pg 0
 #endif
 
+/*
+ * Basic lock ranks.  Others are defined in mutexRank.h.
+ */
+
+#define RANK_UNRANKED            0
+#define RANK_userlevelLock       100
+#define RANK_LEAF                0xFFFE
+#define RANK_INVALID             0xFFFF
+
 #endif // ifndef _VM_BASIC_DEFS_H_

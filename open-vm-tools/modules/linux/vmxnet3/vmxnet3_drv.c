@@ -2275,7 +2275,7 @@ vmxnet3_set_mac_addr(struct net_device *netdev, void *p)
 	struct vmxnet3_adapter *adapter = compat_netdev_priv(netdev);
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	vmxnet3_write_mac_addr(adapter, addr->sa_data);
+	vmxnet3_write_mac_addr(adapter, netdev->dev_addr);
 
 	return 0;
 }

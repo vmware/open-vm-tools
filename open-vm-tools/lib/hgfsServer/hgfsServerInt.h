@@ -73,7 +73,7 @@
 #include "cpName.h"     // for HgfsNameStatus
 #include "hgfsServerPolicy.h"
 #include "hgfsUtil.h"   // for HgfsInternalStatus
-#include "syncMutex.h"
+#include "userlock.h"
 
 /*
  * Does this platform have oplock support? We define it here to avoid long
@@ -285,7 +285,7 @@ typedef struct HgfsSessionInfo {
    HgfsSessionSendFunc *send;
 
    /* Lock to ensure some fileIO requests are atomic for a handle. */
-   SyncMutex fileIOLock;
+   MXUserExclLock *fileIOLock;
 
    Atomic_uint32 refCount;    /* Reference count for session. */
 
@@ -295,7 +295,7 @@ typedef struct HgfsSessionInfo {
     * Lock for the following 6 fields: the node array,
     * counters and lists for this session.
     */
-   SyncMutex nodeArrayLock;
+   MXUserExclLock *nodeArrayLock;
 
    /* Open file nodes of this session. */
    HgfsFileNode *nodeArray;
@@ -322,7 +322,7 @@ typedef struct HgfsSessionInfo {
     * Lock for the following three fields: for the search array
     * and it's counter and list, for this session.
     */
-   SyncMutex searchArrayLock;
+   MXUserExclLock *searchArrayLock;
 
    /* Directory entry cache for this session. */
    HgfsSearch *searchArray;

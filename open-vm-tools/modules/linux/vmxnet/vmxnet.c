@@ -2913,7 +2913,7 @@ vmxnet_load_multicast (struct net_device *dev)
    struct Vmxnet_Private *lp = netdev_priv(dev);
     volatile u16 *mcast_table = (u16 *)lp->dd->LADRF;
     struct dev_mc_list *dmi = dev->mc_list;
-    char *addrs;
+    u8 *addrs;
     int i, j, bit, byte;
     u32 crc, poly = CRC_POLYNOMIAL_LE;
 

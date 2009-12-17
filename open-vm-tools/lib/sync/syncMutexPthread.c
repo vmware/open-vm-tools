@@ -141,56 +141,6 @@ SyncMutex_Unlock(SyncMutex *that) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * SyncMutex_CreateSingleton --
- *
- *      Creates and returns a mutex backed by the specified storage in a
- *      thread-safe manner. This is useful for modules that need to
- *      protect something with a lock but don't have an existing Init()
- *      entry point where a lock can be created.
- *
- * Results:
- *      A pointer to the mutex. Don't destroy it.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-SyncMutex *
-SyncMutex_CreateSingleton(Atomic_Ptr *lckStorage) // IN
-{
-   SyncMutex *before, *lck;
-
-   /* Check if we've created the lock already. */
-   lck = (SyncMutex *) Atomic_ReadPtr(lckStorage);
-
-   if (UNLIKELY(NULL == lck)) {
-      /* We haven't, create it. */
-      lck = (SyncMutex *) Util_SafeMalloc(sizeof *lck);
-      SyncMutex_Init(lck, NULL);
-
-      /*
-       * We have successfully created the lock, save it.
-       */
-
-      before = (SyncMutex *) Atomic_ReadIfEqualWritePtr(lckStorage, NULL, lck);
-
-      if (before) {
-         /* We raced and lost, but it's all cool. */
-         SyncMutex_Destroy(lck);
-         free(lck);
-         lck = before;
-      }
-   }
-
-   return lck;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * SyncMutex_Trylock --
  *
  *      Tries to lock the mutex. Returns without blocking.

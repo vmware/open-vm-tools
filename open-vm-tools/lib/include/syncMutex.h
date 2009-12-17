@@ -71,6 +71,4 @@ Bool SyncMutex_Unlock(SyncMutex *that);
 Bool SyncMutex_Trylock(SyncMutex *that);
 #endif
 
-SyncMutex *SyncMutex_CreateSingleton(Atomic_Ptr *lckStorage);
-
 #endif // #ifndef _SYNC_MUTEX_H_
