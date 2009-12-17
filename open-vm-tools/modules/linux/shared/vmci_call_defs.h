@@ -52,8 +52,14 @@ typedef struct VMCIDatagram {
 } VMCIDatagram;
 
 
-/* Flag for creating a wellknown handle instead of a per context handle. */
+/*
+ * Second flag is for creating a well-known handle instead of a per context
+ * handle.  Next flag is for deferring datagram delivery, so that the
+ * datagram callback is invoked in a delayed context (not interrupt context).
+ */
+#define VMCI_FLAG_DG_NONE          0
 #define VMCI_FLAG_WELLKNOWN_DG_HND 0x1
+#define VMCI_FLAG_DG_DELAYED_CB    0x4
 
 /* Event callback should fire in a delayed context (not interrupt context.) */
 #define VMCI_FLAG_EVENT_NONE       0

@@ -56,6 +56,7 @@ typedef struct DatagramHashEntry {
 
    VMCIHandle                handle;
    uint32                    flags;
+   Bool                      runDelayed;
    VMCIDatagramRecvCB        recvCB;
    void                      *clientData;
    VMCIEvent                 destroyEvent;
@@ -72,7 +73,12 @@ typedef struct DatagramHashEntry {
 typedef struct DatagramHashTable {
    VMCILock lock;
    DatagramHashEntry *entries[HASH_TABLE_SIZE];
-} DatagramHashTable; 
+} DatagramHashTable;
+
+typedef struct VMCIDelayedDatagramInfo {
+   DatagramHashEntry *entry;
+   VMCIDatagram msg;
+} VMCIDelayedDatagramInfo;
 
 
 static int DatagramReleaseCB(void *clientData);
@@ -372,7 +378,7 @@ VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
    if ((flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0) {
       VMCIDatagramWellKnownMapMsg wkMsg;
       if (resourceID == VMCI_INVALID_ID) {
-	 return VMCI_ERROR_INVALID_ARGS;
+         return VMCI_ERROR_INVALID_ARGS;
       }
       wkMsg.hdr.dst.context = VMCI_HYPERVISOR_CONTEXT_ID;
       wkMsg.hdr.dst.resource = VMCI_DATAGRAM_REQUEST_MAP;
@@ -381,9 +387,9 @@ VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
       wkMsg.wellKnownID = resourceID;
       result = VMCI_SendDatagram((VMCIDatagram *)&wkMsg);
       if (result < VMCI_SUCCESS) {
-	 VMCI_LOG(("Failed to reserve wellknown id %d, error %d.\n",
-		   resourceID, result));
-	 return result;
+         VMCI_LOG(("Failed to reserve wellknown id %d, error %d.\n",
+                   resourceID, result));
+         return result;
       }
 
       handle = VMCI_MAKE_HANDLE(VMCI_WELL_KNOWN_CONTEXT_ID, resourceID);
@@ -399,6 +405,16 @@ VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
    entry = VMCI_AllocKernelMem(sizeof *entry, VMCI_MEMORY_NONPAGED);
    if (entry == NULL) {
       return VMCI_ERROR_NO_MEM;
+   }
+
+   if (!VMCI_CanScheduleDelayedWork()) {
+      if (flags & VMCI_FLAG_DG_DELAYED_CB) {
+         VMCI_FreeKernelMem(entry, sizeof *entry);
+         return VMCI_ERROR_INVALID_ARGS;
+      }
+      entry->runDelayed = FALSE;
+   } else {
+      entry->runDelayed = (flags & VMCI_FLAG_DG_DELAYED_CB) ? TRUE : FALSE;
    }
 
    entry->handle = handle;
@@ -655,9 +671,41 @@ VMCIDatagram_Send(VMCIDatagram *msg) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIDatagramDelayedDispatchCB --
+ *
+ *      Calls the specified callback in a delayed context.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VMCIDatagramDelayedDispatchCB(void *data) // IN
+{
+   VMCIDelayedDatagramInfo *dgInfo = (VMCIDelayedDatagramInfo *)data;
+
+   ASSERT(data);
+
+   dgInfo->entry->recvCB(dgInfo->entry->clientData, &dgInfo->msg);
+
+   DatagramHashReleaseEntry(dgInfo->entry);
+   VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)dgInfo->msg.payloadSize);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIDatagram_Dispatch --
  *
- *      Forwards the datagram corresponding entry's callback.
+ *      Forwards the datagram to the corresponding entry's callback.  This will
+ *      defer the datagram if requested by the client, so that the callback
+ *      is invoked in a delayed context.
  *
  * Results:
  *      VMCI_SUCCESS on success, error code if not.
@@ -670,29 +718,53 @@ VMCIDatagram_Send(VMCIDatagram *msg) // IN
 
 int
 VMCIDatagram_Dispatch(VMCIId contextID,  // IN: unused
-		      VMCIDatagram *msg) // IN
+                      VMCIDatagram *msg) // IN
 {
+   int32 err = VMCI_SUCCESS;
    DatagramHashEntry *entry;
-   
+
    ASSERT(msg);
 
    entry = DatagramHashGetEntry(msg->dst);
    if (entry == NULL) {
-      VMCI_LOG(("destination handle 0x%x:0x%x doesn't exists.\n",
+      VMCI_LOG(("destination handle 0x%x:0x%x doesn't exist.\n",
 		msg->dst.context, msg->dst.resource));
       return VMCI_ERROR_NO_HANDLE;
    }
-   
-   if (entry->recvCB) {
-      entry->recvCB(entry->clientData, msg);
-   } else {
-      VMCI_LOG(("no handle callback for handle 0x%x:0x%x payload of "
-		"size %"FMT64"d.\n", 
-		msg->dst.context, msg->dst.resource, msg->payloadSize));
-   }
-   DatagramHashReleaseEntry(entry);
 
-   return VMCI_SUCCESS;
+   if (!entry->recvCB) {
+      VMCI_LOG(("no handle callback for handle 0x%x:0x%x payload of "
+                "size %"FMT64"d.\n",
+                msg->dst.context, msg->dst.resource, msg->payloadSize));
+      goto out;
+   }
+
+   if (entry->runDelayed) {
+      VMCIDelayedDatagramInfo *dgInfo;
+
+      dgInfo = VMCI_AllocKernelMem(sizeof *dgInfo + (size_t)msg->payloadSize,
+                                   VMCI_MEMORY_ATOMIC | VMCI_MEMORY_NONPAGED);
+      if (NULL == dgInfo) {
+         err = VMCI_ERROR_NO_MEM;
+         goto out;
+      }
+
+      dgInfo->entry = entry;
+      memcpy(&dgInfo->msg, msg, VMCI_DG_SIZE(msg));
+
+      err = VMCI_ScheduleDelayedWork(VMCIDatagramDelayedDispatchCB, dgInfo);
+      if (VMCI_SUCCESS == err) {
+         return err;
+      }
+
+      VMCI_FreeKernelMem(dgInfo, sizeof *dgInfo + (size_t)msg->payloadSize);
+   } else {
+      entry->recvCB(entry->clientData, msg);
+   }
+
+out:
+   DatagramHashReleaseEntry(entry);
+   return err;
 }
 
 
