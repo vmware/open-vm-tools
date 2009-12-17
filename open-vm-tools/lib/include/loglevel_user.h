@@ -222,6 +222,7 @@
    LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(button), \
    LOGLEVEL_VAR(util), \
+   LOGLEVEL_VAR(vmcf), \
    LOGLEVEL_VAR(win32util), \
    LOGLEVEL_VAR(largepage), \
    LOGLEVEL_VAR(guestAppMonitor), \
