@@ -1176,41 +1176,41 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   RpcChannelCallback rpcs[] = {
-      { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
-   };
-   ToolsPluginSignalCb sigs[] = {
-      { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
-      { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
-      { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
-      { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
-      { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }
-   };
-   ToolsAppReg regs[] = {
-      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
-      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
-   };
-
    /*
     * This plugin is useless without an RpcChannel.  If we don't have one,
     * just bail.
     */
-   if (ctx->rpc == NULL) {
-      return NULL;
+   if (ctx->rpc != NULL) {
+      RpcChannelCallback rpcs[] = {
+         { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
+      };
+      ToolsPluginSignalCb sigs[] = {
+         { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
+         { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
+         { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
+         { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
+         { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }
+      };
+      ToolsAppReg regs[] = {
+         { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
+         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
+      };
+
+      regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+
+      memset(&gInfoCache, 0, sizeof gInfoCache);
+      GuestInfo_InitDiskInfo(&gInfoCache.diskInfo);
+      vmResumed = FALSE;
+
+      /*
+       * Set up the GuestInfoGather loop.
+       */
+      TweakGatherLoop(ctx);
+
+      return &regData;
    }
 
-   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
-
-   memset(&gInfoCache, 0, sizeof gInfoCache);
-   GuestInfo_InitDiskInfo(&gInfoCache.diskInfo);
-   vmResumed = FALSE;
-
-   /*
-    * Set up the GuestInfoGather loop.
-    */
-   TweakGatherLoop(ctx);
-
-   return &regData;
+   return NULL;
 }
 
 
