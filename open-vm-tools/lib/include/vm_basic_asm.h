@@ -219,11 +219,11 @@ OUT32(uint16 port, uint32 value)
    __asm pop eax \
    __asm mov _eip, eax \
 } while (0)
-#endif
+#endif // VM_X86_64
 
-#else // }
-#error 
-#endif
+#else // } {
+#error
+#endif // }
 
 /* Sequence recommended by Intel for the Pentium 4. */
 #define INTEL_MICROCODE_VERSION() (             \
@@ -247,9 +247,11 @@ ffs(uint32 bitVector)
 #endif
    return idx+1;
 }
-#endif
+#endif // _MSC_VER
 
 #ifdef __GNUC__
+#if defined(__i386__) || defined(__x86_64__)
+
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
@@ -284,6 +286,27 @@ uint32set(void *dst, uint32 val, size_t count)
    return dst;
 }
 
+#else /* unknown system: rely on C to write */
+static INLINE void *
+uint16set(void *dst, uint16 val, size_t count)
+{
+   size_t i;
+   for (i = 0; i < count; i++) {
+     ((uint16 *) dst)[i] = val;
+   }
+   return dst;
+}
+
+static INLINE void *
+uint32set(void *dst, uint32 val, size_t count)
+{
+   size_t i;
+   for (i = 0; i < count; i++) {
+     ((uint32 *) dst)[i] = val;
+   }
+   return dst;
+}
+#endif // defined(__i386__) || defined(__x86_64__)
 #elif defined(_MSC_VER)
 
 static INLINE void *
@@ -340,7 +363,7 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE uint32
 Bswap32(uint32 v) // IN
 {
-#ifdef __GNUC__ // {
+#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) // {
    /* Checked against the Intel manual and GCC. --hpreg */
    __asm__(
       "bswap %0"
@@ -375,6 +398,7 @@ Bswap64(uint64 v) // IN
 }
 
 
+#if defined(__i386__) || defined(__x86_64__)
 #ifdef __GNUC__ // {
 /*
  * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
@@ -477,5 +501,6 @@ RDTSC(void)
 #else
 #define DEBUGBREAK()   __asm__ (" int $3 ")
 #endif
+#endif // defined(__i386__) || defined(__x86_64__)
 
-#endif
+#endif // _VM_BASIC_ASM_H_

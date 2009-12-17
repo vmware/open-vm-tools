@@ -900,9 +900,6 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,   // OUT: Time in Unix form
                           VmTimeType ntTime)           // IN: Time in Windows NT format
 {
 #ifndef VM_X86_64
-   uint32 sec;
-   uint32 nsec;
-
    ASSERT(unixTime);
    /* We assume that time_t is 32bit */
    ASSERT(sizeof (unixTime->tv_sec) == 4);
@@ -925,9 +922,14 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,   // OUT: Time in Unix form
    }
 
 #ifdef __i386__ // only for 32-bit x86
-   Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
-   unixTime->tv_sec = sec;
-   unixTime->tv_nsec = nsec * 100;
+   {
+      uint32 sec;
+      uint32 nsec;
+
+      Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
+      unixTime->tv_sec = sec;
+      unixTime->tv_nsec = nsec * 100;
+   }
 #else
    unixTime->tv_sec = (ntTime - UNIX_EPOCH) / 10000000;
    unixTime->tv_nsec = ((ntTime - UNIX_EPOCH) % 10000000) * 100;

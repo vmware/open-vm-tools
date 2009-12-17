@@ -1001,7 +1001,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
        * change bufIn so a simple cast is safe. --plangdale
        */
 
-#if defined(GLIBC_VERSION_22)
+#if defined(GLIBC_VERSION_22) || (!defined(__i386__) && !defined(__x86_64__))
       status = iconv(cd, (char **)&bufIn, &sizeIn, &out, &outLeft);
 #else
       status = iconv(cd, &bufIn, &sizeIn, &out, &outLeft);

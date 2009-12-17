@@ -110,6 +110,8 @@
          #define SYS_fallocate 324
       #elif __x86_64__
          #define SYS_fallocate 285
+      #elif __arm__
+         #define SYS_fallocate (__NR_SYSCALL_BASE+352) // newer glibc value
       #endif
    #endif
    #if !defined(FALLOC_FL_KEEP_SIZE)

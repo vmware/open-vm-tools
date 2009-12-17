@@ -66,9 +66,6 @@ typedef struct  Atomic_uint64 {
 } Atomic_uint64 ALIGNED(8);
 
 #ifdef __arm__
-#ifndef NOT_IMPLEMENTED
-#error NOT_IMPLEMENTED undefined
-#endif
 #ifdef __GNUC__
 EXTERN Atomic_uint32 atomicLocked64bit;
 #ifndef FAKE_ATOMIC
@@ -84,7 +81,7 @@ EXTERN Atomic_uint32 atomicLocked64bit;
     * use SWP-based spin-lock.
     */
 #if !defined(__linux__)
-#define __kernel_cmpxchg(x, y, z) NOT_IMPLEMENTED()
+#define __kernel_cmpxchg(x, y, z) _fn__kernel_cmpxchgNotImplementedOnNonLinuxARM
 #else
    typedef int (__kernel_cmpxchg_t)(uint32 oldVal,
                                     uint32 newVal,
@@ -1598,7 +1595,7 @@ typedef struct {
  */
 
 #ifdef __arm__
-#define Atomic_CMPXCHG64(x, y, z) NOT_IMPLEMENTED()
+#define Atomic_CMPXCHG64(x, y, z) _fnAtomic_CMPXCHG64_NotImplementedOnARM
 #else // __arm__
 #if defined(__GNUC__) && __GNUC__ < 3
 static Bool
@@ -1787,14 +1784,14 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 
 #ifdef __arm__
 
-#define Atomic_Read64(x)          NOT_IMPLEMENTED()
-#define Atomic_FetchAndAdd64(x,y) NOT_IMPLEMENTED()
-#define Atomic_FetchAndInc64(x)   NOT_IMPLEMENTED()
-#define Atomic_FetchAndDec64(x)   NOT_IMPLEMENTED()
-#define Atomic_Inc64(x)           NOT_IMPLEMENTED()
-#define Atomic_Dec64(x)           NOT_IMPLEMENTED()
-#define Atomic_ReadWrite64(x,y)   NOT_IMPLEMENTED()
-#define Atomic_Write64(x,y)       NOT_IMPLEMENTED()
+#define Atomic_Read64(x)          _fnAtomic_Read64_NotImplementedOnARM
+#define Atomic_FetchAndAdd64(x,y) _fnAtomic_FetchAndAdd64_NotImplementedOnARM
+#define Atomic_FetchAndInc64(x)   _fnAtomic_FetchAndInc64_NotImplementedOnARM
+#define Atomic_FetchAndDec64(x)   _fnAtomic_FetchAndDec64_NotImplementedOnARM
+#define Atomic_Inc64(x)           _fnAtomic_Inc64_NotImplementedOnARM
+#define Atomic_Dec64(x)           _fnAtomic_Dec64_NotImplementedOnARM
+#define Atomic_ReadWrite64(x,y)   _fnAtomic_ReadWrite64_NotImplementedOnARM
+#define Atomic_Write64(x,y)       _fnAtomic_Write64_NotImplementedOnARM
 
 #else // __arm__
 

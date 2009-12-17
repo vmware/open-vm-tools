@@ -26,7 +26,9 @@
 #include "vmware.h"
 #include <string.h>
 
+#if defined(__i386__) || defined(__x86_64__)
 #include "cpuid_info.h"
+#endif
 #include "hostinfo.h"
 #include "util.h"
 
@@ -36,6 +38,7 @@
 #define LGPFX "HOSTINFO:"
 
 
+#if defined(__i386__) || defined(__x86_64__)
 /*
  *----------------------------------------------------------------------
  *
@@ -96,6 +99,7 @@ HostInfoGetAMDCPUCount(CPUIDSummary *cpuid,       // IN
 
    return TRUE;
 }
+#endif // defined(__i386__) || defined(__x86_64__)
 
 
 /*
@@ -120,6 +124,7 @@ HostInfoGetAMDCPUCount(CPUIDSummary *cpuid,       // IN
 Bool
 Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 {
+#if defined(__i386__) || defined(__x86_64__)
    CPUIDSummary cpuid;
    CPUIDRegs id0;
    uint32 numCoresPerPCPU, numThreadsPerCore;
@@ -250,6 +255,9 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
    info->features = cpuid.id1.edxFeatures;
 
    return TRUE;
+#else // defined(__i386__) || defined(__x86_64__)
+   return FALSE;
+#endif // defined(__i386__) || defined(__x86_64__)
 }
 
 
@@ -270,11 +278,12 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
  *----------------------------------------------------------------------
  */
 
-char * 
+char *
 Hostinfo_HypervisorCPUIDSig(void)
 {
+   uint32 *name = NULL;
+#if defined(__i386__) || defined(__x86_64__)
    CPUIDRegs regs;
-   uint32 *name;
 
    __GET_CPUID(1, &regs);
    if (!(regs.ecx & CPUID_FEATURE_COMMON_ID1ECX_HYPERVISOR)) {
@@ -298,6 +307,7 @@ Hostinfo_HypervisorCPUIDSig(void)
    name[1] = regs.ecx;
    name[2] = regs.edx;
    name[3] = 0;
+#endif // defined(__i386__) || defined(__x86_64__)
 
    return (char *)name;
 }

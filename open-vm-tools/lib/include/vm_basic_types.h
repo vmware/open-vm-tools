@@ -253,14 +253,15 @@ typedef signed char        int8;
 #      endif
 #   else
 #      if !defined(__intptr_t_defined) && !defined(intptr_t)
-#         define __intptr_t_defined
-#         define intptr_t  intptr_t
 #         ifdef VM_I386
+#         define __intptr_t_defined
 #            ifdef VM_X86_64
 typedef int64     intptr_t;
 #            else
 typedef int32     intptr_t;
 #            endif
+#         elif defined(__arm__)
+typedef int32     intptr_t;
 #         endif
 #      endif
 
@@ -271,6 +272,8 @@ typedef uint64    uintptr_t;
 #            else
 typedef uint32    uintptr_t;
 #            endif
+#         elif defined(__arm__)
+typedef uint32    uintptr_t;
 #         endif
 #      endif
 #   endif
@@ -837,9 +840,6 @@ typedef void * UserVA;
 
 #   ifdef _BSD_SSIZE_T_
 #      undef _BSD_SSIZE_T_
-#      define _SSIZE_T
-#      define __ssize_t_defined
-#      define _SSIZE_T_DECLARED
 #      ifdef VM_I386
 #         ifdef VM_X86_64
              typedef int64 ssize_t;
@@ -851,29 +851,37 @@ typedef void * UserVA;
 
 #else
 #   ifndef _SIZE_T
-#      define _SIZE_T
 #      ifdef VM_I386
+#         define _SIZE_T
 #         ifdef VM_X86_64
              typedef uint64 size_t;
 #         else
              typedef uint32 size_t;
 #         endif
-#      endif /* VM_I386 */
+#      elif defined(__arm__)
+#         define _SIZE_T
+          typedef uint32 size_t;
+#      endif
 #   endif
 
 #   if !defined(FROBOS) && !defined(_SSIZE_T) && !defined(_SSIZE_T_) && \
        !defined(ssize_t) && !defined(__ssize_t_defined) && \
        !defined(_SSIZE_T_DECLARED)
-#      define _SSIZE_T
-#      define __ssize_t_defined
-#      define _SSIZE_T_DECLARED
 #      ifdef VM_I386
+#         define _SSIZE_T
+#         define __ssize_t_defined
+#         define _SSIZE_T_DECLARED
 #         ifdef VM_X86_64
              typedef int64 ssize_t;
 #         else
              typedef int32 ssize_t;
 #         endif
-#      endif /* VM_I386 */
+#      elif defined(__arm__)
+#         define _SSIZE_T
+#         define __ssize_t_defined
+#         define _SSIZE_T_DECLARED
+          typedef int32 ssize_t;
+#      endif
 #   endif
 
 #endif

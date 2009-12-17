@@ -38,7 +38,7 @@
 #include "vm_atomic.h"
 
 #if defined(__linux__)
-#ifndef GLIBC_VERSION_21
+#if !defined(GLIBC_VERSION_21) && (defined(__i386__) || defined(__x86_64__))
 /*
  * SYS_ constants for glibc 2.0, some of which may already be defined on
  * some of those older systems.

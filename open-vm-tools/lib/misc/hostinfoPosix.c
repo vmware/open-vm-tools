@@ -97,7 +97,11 @@
 #include "vmstdio.h"
 #include "su.h"
 #include "vm_atomic.h"
+
+#if defined(__i386__) || defined(__x86_64__)
 #include "x86cpuid.h"
+#endif
+
 #include "syncMutex.h"
 #include "unicode.h"
 #include "guest_os.h"
@@ -1633,7 +1637,7 @@ Hostinfo_TouchBackDoor(void)
     * it.
     */
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && (defined(__i386__) || defined(__x86_64__))
    uint32 eax;
    uint32 ebx;
    uint32 ecx;
@@ -1688,6 +1692,7 @@ Hostinfo_TouchBackDoor(void)
 Bool
 Hostinfo_NestingSupported(void)
 {
+#if defined(__i386__) || defined(__x86_64__)
    uint32 cmd = NESTING_CONTROL_QUERY << 16 | BDOOR_CMD_NESTING_CONTROL;
    uint32 result;
 
@@ -1702,6 +1707,7 @@ Hostinfo_NestingSupported(void)
    if (result >= NESTING_CONTROL_QUERY && result != ~0U) {
       return TRUE;
    }
+#endif
 
    return FALSE;
 }

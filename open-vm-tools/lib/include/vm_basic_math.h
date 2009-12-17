@@ -45,7 +45,7 @@ RatioOf(uint32 numer1, uint32 numer2, uint32 denom)
 {
    uint64 numer = (uint64)numer1 * numer2;
    /* Calculate "(numer1 * numer2) / denom" avoiding round-off errors. */
-#if defined(VMM)
+#if defined(VMM) || !(defined(__i386__) || defined(__x86_64__))
    return numer / denom;
 #else
    uint32 ratio;
