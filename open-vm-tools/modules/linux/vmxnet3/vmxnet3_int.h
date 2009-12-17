@@ -355,9 +355,23 @@ struct vmxnet3_stat_desc {
 
 #define VMXNET3_MAX_SKB_BUF_SIZE    (3*1024)
 
-inline void set_flag_le16(__le16 *data, u16 flag);
-inline void set_flag_le64(__le64 *data, u64 flag);
-inline void reset_flag_le64(__le64 *data, u64 flag);
+static inline void
+set_flag_le16(__le16 *data, u16 flag)
+{
+	*data = cpu_to_le16(le16_to_cpu(*data) | flag);
+}
+
+static inline void
+set_flag_le64(__le64 *data, u64 flag)
+{
+	*data = cpu_to_le64(le64_to_cpu(*data) | flag);
+}
+
+static inline void
+reset_flag_le64(__le64 *data, u64 flag)
+{
+	*data = cpu_to_le64(le64_to_cpu(*data) & ~flag);
+}
 
 int
 vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq, struct
