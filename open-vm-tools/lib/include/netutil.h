@@ -62,11 +62,6 @@ typedef enum {
 /*
  * Modified from iptypes.h...
  */
-#if (NTDDI_VERSION < NTDDI_WIN2KSP1)
-typedef FIXED_INFO_W2KSP1 FIXED_INFO;
-typedef FIXED_INFO_W2KSP1 *PFIXED_INFO;
-#endif
-
 char *NetUtil_GetPrimaryIP(void);
 
 GuestNic *NetUtil_GetPrimaryNic(void);
