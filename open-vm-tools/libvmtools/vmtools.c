@@ -29,7 +29,6 @@
 #include <glib.h>
 #if defined(_WIN32)
 #  include <windows.h>
-#  include "coreDump.h"
 #  include "netutil.h"
 #endif
 
@@ -85,7 +84,6 @@ VMToolsDllInit(void *lib)
    Bool success;
 #if defined(_WIN32)
    WiperInitData wiperData;
-   CoreDump_SetUnhandledExceptionFilter();
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);
    ASSERT(success);

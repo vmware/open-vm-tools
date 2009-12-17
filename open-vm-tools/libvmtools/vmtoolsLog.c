@@ -36,13 +36,13 @@
 #  include <process.h>
 #else
 #  include <unistd.h>
+#  include <sys/resource.h>
+#  include <sys/time.h>
 #endif
 
-#include "codeset.h"
 #if defined(G_PLATFORM_WIN32)
 #  include "coreDump.h"
 #endif
-#include "file.h"
 #include "hostinfo.h"
 #include "system.h"
 
@@ -297,10 +297,24 @@ VMToolsLogFormat(const gchar *message,
 static INLINE NORETURN void
 VMToolsLogPanic(void)
 {
+   gPanicCount++;
    if (gEnableCoreDump) {
-#if defined(G_PLATFORM_WIN32)
+#if defined(_WIN32)
       CoreDump_CoreDump();
 #else
+      char cwd[PATH_MAX];
+      if (getcwd(cwd, sizeof cwd) != NULL) {
+         if (access(cwd, W_OK) == -1) {
+            /*
+             * Can't write to the working dir. chdir() to the user's home
+             * directory as an attempt to get a valid core dump.
+             */
+            const char *home = getenv("HOME");
+            if (home != NULL) {
+               chdir(home);
+            }
+         }
+      }
       abort();
 #endif
    }
@@ -809,6 +823,55 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
                                                "enableCoreDump", NULL);
    }
 
+   /*
+    * If core dumps are enabled (default: TRUE), then set up the exception
+    * filter on Win32. On POSIX systems, try to modify the resource limit
+    * to allow core dumps, but don't complain if it fails. Core dumps may
+    * still fail, e.g., if the current directory is not writable by the
+    * user running the process.
+    *
+    * On POSIX systems, if the process is itself requesting a core dump (e.g.,
+    * by calling Panic() or g_error()), the core dump routine will try to find
+    * a location where it can successfully create the core file. Applications
+    * can try to set up core dump filters (e.g., a signal handler for SIGSEGV)
+    * that can then call any of the core dumping functions handled by this
+    * library.
+    *
+    * On POSIX systems, the maximum size of a core dump can be controlled by
+    * the "maxCoreSize" config option, where "0" means "no limit". By default,
+    * it's set to 5MB.
+    */
+   if (gEnableCoreDump) {
+#if defined(_WIN32)
+      CoreDump_SetUnhandledExceptionFilter();
+#else
+      GError *err = NULL;
+      struct rlimit limit = { 0, 0 };
+
+      getrlimit(RLIMIT_CORE, &limit);
+      if (limit.rlim_max != 0) {
+         limit.rlim_cur = (rlim_t) g_key_file_get_integer(cfg,
+                                                          LOGGING_GROUP,
+                                                          "maxCoreSize",
+                                                          &err);
+         if (err != NULL) {
+            limit.rlim_cur = 5 * 1024 * 1024;
+            g_clear_error(&err);
+         } else if (limit.rlim_cur == 0) {
+            limit.rlim_cur = RLIM_INFINITY;
+         }
+
+         limit.rlim_cur = MAX(limit.rlim_cur, limit.rlim_max);
+         if (setrlimit(RLIMIT_CORE, &limit) == -1) {
+            g_message("Failed to set core dump size limit, error %d (%s)\n",
+                      errno, g_strerror(errno));
+         } else {
+            g_message("Core dump limit set to %d", (int) limit.rlim_cur);
+         }
+      }
+#endif
+   }
+
 exit:
    /* If needed, restore the old configuration. */
    if (!reset) {
@@ -873,27 +936,28 @@ Panic(const char *fmt, ...)
 {
    va_list args;
 
-   gPanicCount++;
    va_start(args, fmt);
-   if (gPanicCount == 1) {
+   if (gPanicCount == 0) {
       g_logv(gLogDomain, G_LOG_LEVEL_ERROR, fmt, args);
+      /*
+       * In case an user-installed custom handler doesn't panic on error, force a
+       * core dump. Also force a dump in the recursive case.
+       */
+      VMToolsLogPanic();
+   } else if (gPanicCount == 1) {
+      /*
+       * Use a stack allocated string since we're in a recursive panic, so
+       * probably already in a weird state.
+       */
+      gchar msg[1024];
+      g_vsnprintf(msg, sizeof msg, fmt, args);
+      fprintf(stderr, "Recursive panic: %s\n", msg);
+      VMToolsLogPanic();
    } else {
-      char *msg;
-      g_vasprintf(&msg, fmt, args);
-      if (gPanicCount == 2) {
-         fprintf(stderr, "Recursive panic: %s\n", msg);
-      } else {
-         fprintf(stderr, "Recursive panic, giving up: %s\n", msg);
-         exit(-1);
-      }
-      g_free(msg);
+      fprintf(stderr, "Recursive panic, giving up.\n");
+      exit(-1);
    }
    va_end(args);
-   /*
-    * In case an user-installed custom handler doesn't panic on error, force a
-    * core dump. Also force a dump in the recursive case.
-    */
-   VMToolsLogPanic();
 }
 
 
