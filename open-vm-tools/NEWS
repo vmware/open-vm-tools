@@ -1,3 +1,22 @@
+open-vm-tools 2009.12.16 changes:
+	* Some improvements to vmtoolsd, base libraries and and the plugin
+	interface.
+	
+	* Some library refactoring: use new lock library, changes to support
+	compilation of some code on ARM.
+	
+	* some fixes in configure.ac to try to correctly support newer distros.
+	
+	* vsock/vmci improvements.
+	
+	* bug fixes in the vmxnet / vmxnet3 drivers, and FreeBSD's vmblock driver.
+	
+	* vmxnet3 for Linux is now upstream (as of Linux 2.6.32), and will be
+	removed from later releases of open-vm-tools.
+	
+	* pvscsi will be available upstream starting with Linux 2.6.33 and at that
+	time will be removed from open-vm-tools.
+
 open-vm-tools 2009.11.16 changes:
 	* Lots of refactoring and cleanup in the code, mainly targeting the
 	definition of a set of public APIs.
