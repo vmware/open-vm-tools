@@ -2130,7 +2130,7 @@ VixMsgPauseStateChangedEvent;
 typedef
 #include "vmware_pack_begin.h"
 struct VixMsgWaitForUserActionRequest {
-   VixCommandResponseHeader   header;
+   VixCommandRequestHeader    header;
 
    int32                      userType;
    int32                      userAction;

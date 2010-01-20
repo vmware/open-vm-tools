@@ -45,6 +45,7 @@
 
 #ifdef __APPLE__
    #include <IOKit/IOTypes.h>
+   #include <CoreFoundation/CFData.h>
    #include <CoreFoundation/CFNumber.h>
    #include <CoreFoundation/CFDictionary.h>
 #endif
@@ -72,6 +73,7 @@ EXTERN Bool Util_IORegGetNumberProperty(io_object_t entry, CFStringRef property,
                                         CFNumberType type, void *val);
 EXTERN Bool Util_IORegGetBooleanProperty(io_object_t entry, CFStringRef property,
                                          Bool *boolVal);
+EXTERN CFDataRef Util_IORegGetDataProperty(io_object_t entry, CFStringRef property);
 EXTERN CFMutableDictionaryRef UtilMacos_CreateCFDictionary(
    unsigned int numPairs, ...);
 EXTERN io_service_t Util_IORegGetDeviceObjectByName(const char *deviceName);
