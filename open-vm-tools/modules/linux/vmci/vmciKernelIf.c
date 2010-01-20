@@ -31,8 +31,8 @@
 #error "Wrong platform."
 #endif
 
-#if !defined(VMX86_TOOLS) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
-#  error "Host Linux kernels before 2.6.9 are not supported."
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
+#  error "Linux kernels before 2.6.9 are not supported."
 #endif
 
 #define EXPORT_SYMTAB
@@ -40,6 +40,7 @@
 #include "compat_module.h"
 
 #include "compat_version.h"
+#include "compat_sched.h"
 #include "compat_wait.h"
 #include "compat_workqueue.h"
 #include "compat_interrupt.h"
@@ -50,13 +51,8 @@
 #include "compat_mm.h"
 #include "compat_highmem.h"
 #include "vm_basic_types.h"
-#include "pgtbl.h"
 #include <linux/vmalloc.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-#  include <linux/mm.h>         /* For vmalloc_to_page() and get_user_pages()*/
-#else
-#  include <linux/iobuf.h>      /* For map_user_kiobuf() and unmap_kiobuf() */
-#endif
+#include <linux/mm.h>           /* For vmalloc_to_page() and get_user_pages()*/
 #include <linux/socket.h>       /* For memcpy_{to,from}iovec(). */
 #include <linux/pagemap.h>      /* For page_cache_release() */
 #include "vm_assert.h"
@@ -68,24 +64,6 @@
 #include "vmci_queue_pair.h"
 #include "vmci_iocontrols.h"
 
-/*
- * In Linux 2.6.25 kernels and onwards, the symbol init_mm is no
- * longer exported. This affects the function PgtblKVa2MPN, as it
- * calls pgd_offset_k which in turn is a macro referencing init_mm.
- * 
- * We can avoid using PgtblKVa2MPN on more recent kernels by instead
- * using the function vmalloc_to_page followed by
- * page_to_pfn. vmalloc_to_page was introduced in the 2.5 kernels and
- * backported to some 2.4.x kernels. We use vmalloc_to_page on all
- * 2.6.x kernels, where it is present for sure, and use PgtblKVa2MPN
- * on older kernels where it works just fine.
- */
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-#  define VMCIKVaToMPN(_ptr) page_to_pfn(vmalloc_to_page(_ptr))
-#else
-#  define VMCIKVaToMPN(_ptr) PgtblKVa2MPN((VA)_ptr)
-#endif
 
 typedef struct VMCIDelayedWorkInfo {
    compat_work work;
@@ -215,18 +193,7 @@ void
 VMCI_GrabLock_BH(VMCILock *lock,        // IN
                  VMCILockFlags *flags)  // OUT: used to restore
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 4)
    spin_lock_bh(lock);
-#else
-
-   /* 
-    * Before 2.3.4 linux kernels spin_unlock_bh didn't exist so we are using 
-    * spin_lock_irqsave/restore instead. I wanted to define spin_[un]lock_bh
-    * functions in compat_spinlock.h as local_bh_disable;spin_lock(lock) and
-    * so on, but local_bh_disable/enable does not exist on 2.2.26.
-    */
-   spin_lock_irqsave(lock, *flags);
-#endif // LINUX_VERSION_CODE
 }
 
 
@@ -255,19 +222,7 @@ void
 VMCI_ReleaseLock_BH(VMCILock *lock,        // IN
                     VMCILockFlags flags)   // IN
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 4)
    spin_unlock_bh(lock);
-#else
-
-   /* 
-    * Before 2.3.4 linux kernels spin_unlock_bh didn't exist so we are using 
-    * spin_lock_irqsave/restore instead. I wanted to define spin_[un]lock_bh
-    * functions in compat_spinlock.h as local_bh_disable;spin_lock(lock) and
-     * so on, but local_bh_disable/enable does not exist on 2.2.26.
-     */
-
-   spin_unlock_irqrestore(lock, flags);
-#endif // LINUX_VERSION_CODE
 }
 
 
@@ -1096,7 +1051,7 @@ VMCI_AllocPPNSet(void *produceQ,         // IN:
       return VMCI_ERROR_NO_MEM;
    }
 
-   producePPNs[0] = VMCIKVaToMPN(produceQ);
+   producePPNs[0] = page_to_pfn(vmalloc_to_page(produceQ));
    for (i = 1; i < numProducePages; i++) {
       unsigned long pfn;
 
@@ -1111,7 +1066,7 @@ VMCI_AllocPPNSet(void *produceQ,         // IN:
          goto ppnError;
       }
    }
-   consumePPNs[0] = VMCIKVaToMPN(consumeQ);
+   consumePPNs[0] = page_to_pfn(vmalloc_to_page(consumeQ));
    for (i = 1; i < numConsumePages; i++) {
       unsigned long pfn;
 
