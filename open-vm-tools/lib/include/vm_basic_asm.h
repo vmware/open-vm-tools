@@ -110,8 +110,9 @@ void             __stosd(unsigned long*, unsigned long, size_t);
  * compilers (13.01.2035 for _BitScanForward).
  */
 unsigned char  _BitScanForward(unsigned long*, unsigned long);
+unsigned char  _BitScanReverse(unsigned long*, unsigned long);
 void           _mm_pause(void);
-#pragma intrinsic(_BitScanForward, _mm_pause)
+#pragma intrinsic(_BitScanForward, _BitScanReverse, _mm_pause)
 #endif /* VM_X86_64 */
 
 #ifdef __cplusplus
@@ -247,7 +248,23 @@ ffs(uint32 bitVector)
 #endif
    return idx+1;
 }
-#endif // _MSC_VER
+
+static INLINE int
+fls(uint32 bitVector)
+{
+   int idx;
+   if (!bitVector) {
+      return 0;
+   }
+#ifdef VM_X86_64
+   _BitScanReverse((unsigned long*)&idx, (unsigned long)bitVector);
+#else
+   __asm bsr eax, bitVector
+   __asm mov idx, eax
+#endif
+   return idx+1;
+}
+#endif
 
 #ifdef __GNUC__
 #if defined(__i386__) || defined(__x86_64__)

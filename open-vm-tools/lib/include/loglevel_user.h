@@ -229,6 +229,7 @@
    LOGLEVEL_VAR(largepage), \
    LOGLEVEL_VAR(guestAppMonitor), \
    LOGLEVEL_VAR(syncWaitQ), \
+   LOGLEVEL_VAR(sg), /* lib/sg */ \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 
