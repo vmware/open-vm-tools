@@ -42,7 +42,6 @@
 #define LGPFX "HOSTINFO:"
 
 
-#if defined(__i386__) || defined(__x86_64__)
 /*
  * HostinfoOSData caches its returned value.
  */
@@ -52,6 +51,7 @@ char HostinfoCachedOSName[MAX_OS_NAME_LEN];
 char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
 
 
+#if defined(__i386__) || defined(__x86_64__)
 /*
  *----------------------------------------------------------------------
  *
