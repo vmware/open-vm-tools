@@ -2574,8 +2574,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
                                        VSockVmciRecvDgramCB, sk,
                                        &vsk->dgHandle,
                                        vsk->trusted);
-      if (err != VMCI_SUCCESS ||
-          vsk->dgHandle.resource == VMCI_INVALID_ID) {
+      if (err < VMCI_SUCCESS) {
          err = VSockVmci_ErrorToVSockError(err);
          goto out;
       }
@@ -3035,9 +3034,7 @@ VSockVmciRegisterAddressFamily(void)
                                      VSockVmciRecvStreamCB, NULL,
                                      &vmciStreamHandle,
                                      TRUE);
-   if (err < 0 ||
-       vmciStreamHandle.context != VMCI_INVALID_ID ||
-       vmciStreamHandle.resource == VMCI_INVALID_ID) {
+    if (err < VMCI_SUCCESS) {
       Warning("Unable to create datagram handle. (%d)\n", err);
       goto error;
    }
