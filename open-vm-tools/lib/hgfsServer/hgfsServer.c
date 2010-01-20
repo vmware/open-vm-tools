@@ -2494,7 +2494,7 @@ HgfsServerClose(char const *packetIn,      // IN: incoming packet
                 HgfsSessionInfo *session)  // IN: session info
 {
    HgfsHandle file;
-   char *packetOut;
+   char *packetOut = NULL;
    size_t replySize;
    HgfsInternalStatus status = 0;
    HgfsOp op;
@@ -2516,7 +2516,7 @@ HgfsServerClose(char const *packetIn,      // IN: incoming packet
       HgfsFreeFileNode(file, session);
    }
 
-   if (!HgfsPackCloseReply(packetIn, status, op,  &packetOut, &replySize) ||
+   if (!HgfsPackCloseReply(packetIn, status, op, &packetOut, &replySize) ||
        !HgfsPacketSend(packetOut, replySize, session, 0)) {
       status = HGFS_INTERNAL_STATUS_ERROR;
       goto error;
@@ -2554,7 +2554,7 @@ HgfsServerSearchClose(char const *packetIn,      // IN: incoming packet
                       HgfsSessionInfo *session)  // IN: session info
 {
    HgfsHandle search;
-   char *packetOut;
+   char *packetOut = NULL;
    size_t replySize;
    HgfsInternalStatus status = 0;
    HgfsOp op;
