@@ -528,7 +528,7 @@ vmci_ioctl(struct inode *inode,  // IN
    }
 
    case IOCTL_VMCI_CREATE_DATAGRAM_PROCESS: {
-      VMCIDatagramCreateInfo createInfo;
+      VMCIDatagramCreateProcessInfo createInfo;
       VMCIDatagramProcess *dgmProc;
 
       if (devHndl->objType != VMCIOBJ_NOT_SET) {
