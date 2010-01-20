@@ -1052,18 +1052,15 @@ if test "$os" = "solaris"; then
       CPPFLAGS="$CPPFLAGS -DSOL11"
    fi
 
-   # Choose which modules to compile
+   MODULES="$MODULES vmxnet vmmemctl"
+
+   # HGFS and vmblock need Solaris 10 at least.
    if test "$osVersion" -ge 510000; then
       MODULES="$MODULES vmhgfs vmblock"
    fi
 
-   # We build vmxnet and vmballoon on Solaris 9 and 10
-   if test "$osVersion" -lt 511000 -a "$osVersion" -ge 509000; then
-      MODULES="$MODULES vmxnet vmmemctl"
-   fi
-
-   # Vmxnet3 is built on Solaris 10 only and only if GLDv3 is installed
-   if test "$osVersion" -eq 510000; then
+   # vmxnet3 is built on Solaris 10 / 11 only if GLDv3 is installed.
+   if test "$osVersion" -gt 510000; then
       AC_CHECK_HEADER(
          [sys/mac.h],
          [MODULES="$MODULES vmxnet3"],

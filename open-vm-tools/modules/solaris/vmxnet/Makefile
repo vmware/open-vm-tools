@@ -46,18 +46,12 @@ ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.9) # {
 MODULES := $(MODULE_32)
 
 else # } {
-ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10) # {
 
-# Solaris 10
+# Assume Solaris 10 or 11.
 MODULES := $(MODULE_32) $(MODULE_64)
 CFLAGS  += -ffreestanding
 CFLAGS  += -nodefaultlibs
 
-else # } {
-
-$(error "This makefile is only used for Solaris 9 and 10")
-
-endif # }
 endif # }
 
 ifdef OVT_SOURCE_DIR

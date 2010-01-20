@@ -16,8 +16,14 @@
 ##########################################################
 
 ifneq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10)
-$(error "This makefile is only used for Solaris 10")
+SUPPORTED := 1
 endif
+
+ifneq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.11)
+SUPPORTED := 1
+endif
+
+$(if $(SUPPORTED),,$(error "Unsupported Solaris version: $(VM_UNAME)"))
 
 ##
 ## General build locations and variables
