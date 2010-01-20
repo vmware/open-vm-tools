@@ -272,7 +272,7 @@ addtar "/var/run/vmware-*"
 # Add /proc with some exceptions.  stdout redirected to /dev/null.  Some files
 # come and go and confuse find.  Just send whatever works and don't scare user.
 
-for procfile in `find /proc -type f 2>/dev/null| egrep -v kcore\|kmsg\|acpi\|/proc/$$`
+for procfile in `find /proc -type f 2>/dev/null| egrep -v kcore\|kmsg\|acpi\|pagemap\|/proc/$$`
 do
 	addtar "$procfile"
 done
