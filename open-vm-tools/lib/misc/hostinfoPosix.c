@@ -85,6 +85,7 @@
 #include "vmware.h"
 #include "hostType.h"
 #include "hostinfo.h"
+#include "hostinfoInt.h"
 #include "safetime.h"
 #include "vm_version.h"
 #include "str.h"
@@ -760,39 +761,34 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * Hostinfo_GetOSName --
+ * HostinfoOSData --
  *
- *      Return OS version information. First retrieve OS information using
- *      uname, then look in /etc/xxx-release file to get the distro info.
- *      osFullName will be:
- *      <OS NAME> <OS RELEASE> <SPECIFIC_DISTRO_INFO>
- *      An example of such string would be:
- *      Linux 2.4.18-3 Red Hat Linux release 7.3 (Valhalla)
+ *      Determine the OS short (.vmx format) and long names.
  *
- *      osName contains an os name in the same format that is used
- *      in .vmx file.
+ *      First retrieve OS information using uname, then look in
+ *      /etc/xxx-release file to get the distro info.
  *
  * Return value:
  *      Returns TRUE on success and FALSE on failure.
- *      Returns the guest's full OS name (osNameFull)
- *      Returns the guest's OS name in the same format as .vmx file (osName)
  *
  * Side effects:
- *      None
+ *      Cache values are set when returning TRUE.
  *
  *-----------------------------------------------------------------------------
  */
 
 Bool
-Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
-                   uint32 outBufLen,      // IN: length of osName buffer
-                   char *osNameFull,      // OUT: Full OS name
-                   char *osName)          // OUT: OS name (.vmx file format)
+HostinfoOSData(void)
 {
    struct utsname buf;
    unsigned int lastCharPos;
    const char *lsbCmd = "lsb_release -sd 2>/dev/null";
    char *lsbOutput = NULL;
+
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+
+   static Atomic_uint32 mutex = {0};
 
    /*
     * Use uname to get complete OS information.
@@ -805,14 +801,14 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
    }
 
 
-   if (strlen(buf.sysname) + strlen(buf.release) + 3 > outBufFullLen) {
+   if (strlen(buf.sysname) + strlen(buf.release) + 3 > sizeof osNameFull) {
       Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
       return FALSE;
    }
 
-   Str_Strcpy(osName, STR_OS_EMPTY, outBufLen);
-   Str_Sprintf(osNameFull, outBufFullLen, "%s %s", buf.sysname, buf.release);
+   Str_Strcpy(osName, STR_OS_EMPTY, sizeof osName);
+   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname, buf.release);
 
    /*
     * Check to see if this is Linux
@@ -886,22 +882,22 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
 
       HostinfoGetOSShortName(distro, distroShort, distroSize);
 
-      if (strlen(distro) + strlen(osNameFull) + 2 > outBufFullLen) {
+      if (strlen(distro) + strlen(osNameFull) + 2 > sizeof osNameFull) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Strcat(osNameFull, " ", outBufFullLen);
-      Str_Strcat(osNameFull, distro, outBufFullLen);
+      Str_Strcat(osNameFull, " ", sizeof osNameFull);
+      Str_Strcat(osNameFull, distro, sizeof osNameFull);
 
-      if (strlen(distroShort) + 1 > outBufLen) {
+      if (strlen(distroShort) + 1 > sizeof osName) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Strcpy(osName, distroShort, outBufLen);
+      Str_Strcpy(osName, distroShort, sizeof osName);
    } else if (strstr(osNameFull, "FreeBSD")) {
       size_t nameLen = sizeof STR_OS_FREEBSD - 1;
       size_t releaseLen = 0;
@@ -918,13 +914,13 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
          releaseLen = dashPtr - buf.release;
       }
 
-      if (nameLen + releaseLen + 1 > outBufLen) {
+      if (nameLen + releaseLen + 1 > sizeof osName) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Strcpy(osName, STR_OS_FREEBSD, outBufLen);
+      Str_Strcpy(osName, STR_OS_FREEBSD, sizeof osName);
    } else if (strstr(osNameFull, "SunOS")) {
       size_t nameLen = sizeof STR_OS_SOLARIS - 1;
       size_t releaseLen = 0;
@@ -940,22 +936,22 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
          releaseLen = strlen(solarisRelease);
       }
 
-      if (nameLen + releaseLen + 1 > outBufLen) {
+      if (nameLen + releaseLen + 1 > sizeof osName) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Snprintf(osName, outBufLen, "%s%s", STR_OS_SOLARIS, solarisRelease);
+      Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS, solarisRelease);
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {
-      if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > outBufLen) {
+      if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > sizeof osName) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
-      Str_Strcat(osName, STR_OS_64BIT_SUFFIX, outBufLen);
+      Str_Strcat(osName, STR_OS_64BIT_SUFFIX, sizeof osName);
    }
 
    /*
@@ -966,6 +962,22 @@ Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
    if (osNameFull[lastCharPos] == '\n') {
       osNameFull[lastCharPos] = '\0';
    }
+
+   /*
+    * Serialize access. Collisions should be rare - plus the value will
+    * get cached and this won't get called anymore.
+    */
+
+   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
+
+   if (!HostinfoOSNameCacheValid) {
+      Str_Strcpy(HostinfoCachedOSName, osName, sizeof HostinfoCachedOSName);
+      Str_Strcpy(HostinfoCachedOSFullName, osNameFull,
+                 sizeof HostinfoCachedOSFullName);
+      HostinfoOSNameCacheValid = TRUE;
+   }
+
+   Atomic_Write(&mutex, 0);  // unlock
 
    return TRUE;
 }

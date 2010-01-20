@@ -30,6 +30,8 @@
 #include "cpuid_info.h"
 #endif
 #include "hostinfo.h"
+#include "hostinfoInt.h"
+#include "str.h"
 #include "util.h"
 #include "str.h"
 #include "dynbuf.h"
@@ -41,6 +43,15 @@
 
 
 #if defined(__i386__) || defined(__x86_64__)
+/*
+ * HostinfoOSData caches its returned value.
+ */
+
+volatile Bool HostinfoOSNameCacheValid = FALSE;
+char HostinfoCachedOSName[MAX_OS_NAME_LEN];
+char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -365,6 +376,52 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 #else // defined(__i386__) || defined(__x86_64__)
    return FALSE;
 #endif // defined(__i386__) || defined(__x86_64__)
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetOSName --
+ *
+ *      Query the operating system and build a pair of strings to identify it.
+ *      The two strings are osName and osNameFull.  Short osName strings are
+ *      the same as you'd see in a VM's .vmx file.
+ *
+ *      The long names are a bit more descriptive:
+ *         Windows: <OS NAME> <SERVICE PACK> (BUILD <BUILD_NUMBER>)
+ *         example: Windows XP Professional Service Pack 2 (Build 2600)
+ *
+ *         Linux:   <OS NAME> <OS RELEASE> <SPECIFIC_DISTRO_INFO>
+ *         example: Linux 2.4.18-3 Red Hat Linux release 7.3 (Valhalla)
+ *
+ * Return value:
+ *      Returns TRUE on success and FALSE on failure.
+ *      Returns the guest's full OS name (osFullName)
+ *      Returns the guest's OS name in the same format as .vmx file (osName)
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osFullName buffer
+                   uint32 outBufLen,      // IN: length of osName buffer
+                   char *osFullName,      // OUT: Full OS name
+                   char *osName)          // OUT: OS name
+{
+   Bool retval;
+
+   retval = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
+
+   if (retval) {
+       Str_Strcpy(osFullName, HostinfoCachedOSFullName, outBufFullLen);
+       Str_Strcpy(osName, HostinfoCachedOSName, outBufLen);
+   }
+
+   return retval;
 }
 
 
