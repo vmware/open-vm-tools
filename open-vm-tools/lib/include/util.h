@@ -144,10 +144,6 @@ void Util_BacktraceToBuffer(uintptr_t *basePtr,
 
 int Util_CompareDotted(const char *s1, const char *s2);
 
-#if defined(__linux__)
-void Util_PrintLoadedObjects(void *addr_inside_exec);
-#endif
-
 #if defined(VMX86_STATS)
 Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
                             uint64 **transitns, uint64 **residency,
