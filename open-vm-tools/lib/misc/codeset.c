@@ -103,9 +103,9 @@
 
 #define ICU_DATA_FILE "icudt38l.dat"
 #ifdef _WIN32
-#define ICU_DATA_FILE_DIR "%TCROOT%/noarch/icu-data-3.8-1"
+#define ICU_DATA_FILE_DIR "%TCROOT%/noarch/icu-data-3.8-2"
 #else
-#define ICU_DATA_FILE_DIR "/build/toolchain/noarch/icu-data-3.8-1"
+#define ICU_DATA_FILE_DIR "/build/toolchain/noarch/icu-data-3.8-2"
 #endif
 
 #ifdef _WIN32
@@ -181,7 +181,7 @@ CodeSetGetModulePath(HANDLE hModule) // IN
 }
 
 
-#elif vmx86_devel // _WIN32
+#elif vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE) // _WIN32
 
 /*
  *-----------------------------------------------------------------------------
@@ -412,7 +412,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #ifdef _WIN32 // {
 
-#if vmx86_devel
+#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
    /*
     * Devel builds use toolchain directory first.
     */
@@ -522,7 +522,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #else // } _WIN32 {
 
-#if vmx86_devel
+#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
    {
       char *modPath;
       char *lastSlash;
@@ -591,7 +591,7 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
 
 #endif // } _WIN32
 
-#if vmx86_devel
+#if vmx86_devel && !defined(TEST_CUSTOM_ICU_DATA_FILE)
 found:
 #endif
 
