@@ -50,11 +50,9 @@ if ENABLE_UNITY
    SUBDIRS += image
 endif
 SUBDIRS += impersonate
-SUBDIRS += lock
 SUBDIRS += message
 SUBDIRS += misc
 SUBDIRS += netUtil
-SUBDIRS += nothread
 SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer

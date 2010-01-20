@@ -1227,11 +1227,9 @@ AC_CONFIG_FILES([                      \
    lib/hgfsServerPolicyGuest/Makefile  \
    lib/image/Makefile                  \
    lib/impersonate/Makefile            \
-   lib/lock/Makefile                   \
    lib/message/Makefile                \
    lib/misc/Makefile                   \
    lib/netUtil/Makefile                \
-   lib/nothread/Makefile               \
    lib/panic/Makefile                  \
    lib/panicDefault/Makefile           \
    lib/printer/Makefile                \
