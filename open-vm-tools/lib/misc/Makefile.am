@@ -47,5 +47,3 @@ if HAVE_ICU
 libMisc_la_SOURCES += codeset.c
 endif
 
-AM_CFLAGS = @LIB_MISC_CPPFLAGS@
-

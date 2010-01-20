@@ -20,4 +20,3 @@ noinst_LTLIBRARIES = libProcMgr.la
 libProcMgr_la_SOURCES =
 libProcMgr_la_SOURCES += procMgrPosix.c
 
-AM_CFLAGS = @LIB_PROC_MGR_CPPFLAGS@

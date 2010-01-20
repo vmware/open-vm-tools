@@ -21,4 +21,4 @@ libUnityStub_la_SOURCES =
 libUnityStub_la_SOURCES += unityStub.c
 
 AM_CFLAGS = @GTK_CPPFLAGS@
-AM_CFLAGS += @LIB_FILE_CPPFLAGS@
+

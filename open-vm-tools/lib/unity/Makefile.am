@@ -25,5 +25,4 @@ libUnity_la_SOURCES += unityPlatformX11Window.c
 libUnity_la_SOURCES += x11Event.c
 
 AM_CFLAGS = @GTK_CPPFLAGS@
-AM_CFLAGS += @LIB_FILE_CPPFLAGS@
 AM_CFLAGS += @URIPARSER_CPPFLAGS@

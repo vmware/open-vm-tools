@@ -842,21 +842,6 @@ AC_C_VOLATILE
 ### Specific features and OS/arch flags / actions
 ###
 
-# Check to see if SYS_setuid32 is defined. If SYS_setuid32 is unknown, we will
-# certainly error out.
-if test "$os$userSpaceBitness" = "linux32"; then
-   AC_MSG_CHECKING([for SYS_setuid32])
-   AC_TRY_COMPILE(
-      [#include <sys/syscall.h>
-       #include <unistd.h>],
-      [
-         syscall(SYS_setuid32, 1);
-      ],
-      [HAVE_SYS_SETUID="yes"],
-      [HAVE_SYS_SETUID="no"])
-   AC_MSG_RESULT($HAVE_SYS_SETUID)
-fi
-
 # Newer iconv (from glibc 2.2 and later on Linux) takes a char ** as the second
 # argument. Here, we test for the older form and expect a compiler warning/error
 # if the newer form is defined (because, in that case, we would be attempting to
@@ -1106,33 +1091,26 @@ if test "$enable_multimon" = "no"; then
    AC_DEFINE([NO_MULTIMON], 1, [Define to 1 if building without multimon support.])
 fi
 
-if test "$os$userSpaceBitness" = "linux64" || test "$HAVE_SYS_SETUID" = "yes"; then
-   LIB_MISC_CPPFLAGS="$LIB_MISC_CPPFLAGS -DGLIBC_VERSION_21"
-fi
+if test "$os" = "linux"; then
+   if test "$HAVE_LSEEK" = "yes"; then
+      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_21"
+   fi
 
-if test "$HAVE_NEW_ICONV" = "yes"; then
-   LIB_MISC_CPPFLAGS="$LIB_MISC_CPPFLAGS -DGLIBC_VERSION_22"
-fi
+   if test "$HAVE_NEW_ICONV" = "yes"; then
+      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_22"
+   fi
 
-if test "$HAVE_LSEEK" = "yes"; then
-   LIB_FILE_CPPFLAGS="$LIB_FILE_CPPFLAGS -DGLIBC_VERSION_21"
-   LIB_HGFS_SERVER_CPPFLAGS="$LIB_HGFS_SERVER_CPPFLAGS -DGLIBC_VERSION_21"
-fi
-
-if test "$HAVE_SETRESUID" = "yes"; then
-   LIB_PROC_MGR_CPPFLAGS="$LIB_PROC_MGR_CPPFLAGS -DGLIBC_VERSION_23"
+   if test "$HAVE_SETRESUID" = "yes"; then
+      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_23"
+   fi
 fi
 
 LIB_AUTH_CPPFLAGS="$LIB_AUTH_CPPFLAGS $PAM_CPPFLAGS"
 if test "$HAVE_CRYPT" = "yes"; then
-   LIB_AUTH_CPPFLAGS="$LIB_AUTH_CPPFLAGS -DGLIBC_VERSION_22"
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lcrypt"
    VIX_LIBADD="$VIX_LIBADD -lcrypt"
 fi
 
-if test "$HAVE_WCHAR_H" = "yes"; then
-   LIB_STRING_CPPFLAGS="$LIB_STRING_CPPFLAGS -DGLIBC_VERSION_22"
-fi
 
 LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIB"
 VIX_LIBADD="$VIX_LIBADD $THREAD_LIB"
@@ -1189,14 +1167,7 @@ fi
 ### Lib substs
 
 AC_SUBST([LIB_AUTH_CPPFLAGS])
-AC_SUBST([LIB_FILE_CPPFLAGS])
-AC_SUBST([LIB_HGFS_SERVER_CPPFLAGS])
 AC_SUBST([LIB_IMPERSONATE_CPPFLAGS])
-AC_SUBST([LIB_LOCK_CPPFLAGS])
-AC_SUBST([LIB_MISC_CPPFLAGS])
-AC_SUBST([LIB_NOTHREAD_CPPFLAGS])
-AC_SUBST([LIB_PROC_MGR_CPPFLAGS])
-AC_SUBST([LIB_STRING_CPPFLAGS])
 AC_SUBST([LIB_USER_CPPFLAGS])
 AC_SUBST([LIBVMTOOLS_LIBADD])
 
