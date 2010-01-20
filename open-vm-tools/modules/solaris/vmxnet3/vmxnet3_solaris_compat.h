@@ -32,5 +32,6 @@
 #define DB_LSOMSS(mp) ((mp)->b_datap->db_struioun.cksum.pad)
 
 #define ETHERTYPE_VLAN (0x8100)
+#define NEW_MAC_VERSION (0x2)
 
 #endif /* _VMXNET3_SOLARIS_COMPAT_H_ */

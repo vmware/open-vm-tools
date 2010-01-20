@@ -1238,9 +1238,14 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    /*
     * Register with the MAC framework
     */
-   macr = mac_alloc(MAC_VERSION);
+   if (DEVI(dip)->devi_ops->devo_rev <= 3) {
+      macr = mac_alloc(MAC_VERSION);
+   } else {
+      macr = mac_alloc(NEW_MAC_VERSION);
+   }
+
    if (!macr) {
-      VMXNET3_WARN(dp, "mac_alloc() failed\n");
+      VMXNET3_WARN(dp, "mac_alloc() failed.\n");
       goto error_regs_map_1;
    }
 
