@@ -63,7 +63,7 @@ rm -rf $dst
 mkdir -p $dst
 cp -f `dirname $0`/dkms.conf $dst
 
-for m in pvscsi vmblock vmci vmhgfs vmmemctl vmsync vmxnet vmxnet3 vsock
+for m in pvscsi vmblock vmci vmhgfs vmmemctl vmsync vmxnet vsock
 do
    mdst="$dst/$m"
 
@@ -115,8 +115,8 @@ do
       cp -f $src/lib/include/syncDriverIoc.h $mdst
    fi
 
-   # Shared vmxnet / vmxnet3 headers.
-   if test $m = vmxnet -o $m = vmxnet3
+   # Shared vmxnet headers.
+   if test $m = vmxnet
    then
       cp -f $src/modules/shared/vmxnet/* $mdst/shared
    fi

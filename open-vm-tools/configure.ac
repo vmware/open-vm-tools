@@ -986,7 +986,7 @@ if test "$os" = "linux"; then
    CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE"
 
    MODULES="$MODULES vmmemctl vmsync vmci vsock"
-   MODULES="$MODULES vmxnet vmxnet3 pvscsi"
+   MODULES="$MODULES vmxnet pvscsi"
    MODULES="$MODULES vmblock vmhgfs"
    buildHgfsmounter=yes
 fi
