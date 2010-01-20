@@ -112,7 +112,6 @@ HostInfoGetAMDCPUCount(CPUIDSummary *cpuid,       // IN
 
    return TRUE;
 }
-#endif // defined(__i386__) || defined(__x86_64__)
 
 
 /*
@@ -218,6 +217,7 @@ Hostinfo_GetCpuidStr(void)
 
    return DynBuf_Detach(&buf);
 }
+#endif // defined(__i386__) || defined(__x86_64__)
 
 
 /*
