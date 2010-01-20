@@ -1,3 +1,10 @@
+open-vm-tools 2010.01.19 changes:
+	* Linux modules have been updated to compile on newer kernels.
+
+	* Solaris modules now should compile on OpenSolaris (tested on 2009.06).
+
+	* Other than those, mostly bug fixes and minor refactoring.
+
 open-vm-tools 2009.12.16 changes:
 	* Some improvements to vmtoolsd, base libraries and and the plugin
 	interface.

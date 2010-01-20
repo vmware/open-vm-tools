@@ -39,10 +39,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="2009.12.16"
+TOOLS_VERSION="2010.01.19"
 AC_INIT(
    [open-vm-tools],
-   [2009.12.16],
+   [2010.01.19],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
