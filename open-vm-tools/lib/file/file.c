@@ -2102,7 +2102,7 @@ File_FindFileInSearchPath(const char *fileIn,       // IN
    char *cur;
    char *tok;
    Bool found;
-   char *saveptr;
+   char *saveptr = NULL;
    char *sp = NULL;
    char *file = NULL;
 

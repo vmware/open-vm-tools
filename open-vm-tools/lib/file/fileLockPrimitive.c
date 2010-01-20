@@ -276,7 +276,7 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
    FILELOCK_FILE_HANDLE handle;
    uint32 len;
    char *argv[FL_MAX_ARGS];
-   char *saveptr;
+   char *saveptr = NULL;
    int err;
    Unicode path;
    FileData fileData;
