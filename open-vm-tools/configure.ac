@@ -386,10 +386,7 @@ if test "$os" = "linux"; then
       [with_pam=yes])
 
    if test "$with_pam" = "yes"; then
-      if test -z "$CUSTOM_PAM_CPPFLAGS"; then
-         # Assume PAM headers are in /usr/include by default.
-         CUSTOM_PAM_CPPFLAGS="-I/usr/include"
-      fi
+      AC_VMW_DEFAULT_FLAGS([PAM])
       AC_VMW_CHECK_LIB([pam],
                        [PAM],
                        [],
@@ -406,6 +403,7 @@ fi
 # Check for CUnit and disable test code if not available.
 #
 if test "$enable_tests" = "auto" -o "$enable_tests" = "yes"; then
+   AC_VMW_DEFAULT_FLAGS([CUNIT])
    AC_VMW_CHECK_LIB([cunit],
                     [CUNIT],
                     [],
@@ -511,11 +509,7 @@ else
            # Note that we look for uriFreeQueryListA because it's a relatively
            # new symbol that our code needs (it isn't present in the uriparser
            # that shipped with Ubuntu Hardy).
-           if test -z "$CUSTOM_URIPARSER_CPPFLAGS"; then
-              # XXX: No pkg-config and no uriparser-config means we need to
-              # hard-code a sensible default.
-              CUSTOM_URIPARSER_CPPFLAGS="-I/usr/include/uriparser"
-           fi
+           AC_VMW_DEFAULT_FLAGS([URIPARSER], [uriparser])
            AC_VMW_CHECK_LIB([uriparser],
                             [URIPARSER],
                             [],
@@ -539,11 +533,7 @@ else
 
            # Check for the zlib library and headers. Like uriparser, there
            # isn't a pkg-config or zlib-config file.
-           if test -z "$CUSTOM_ZLIB_CPPFLAGS"; then
-              # XXX: No pkg-config and no zlib-config means we need to
-              # hard-code a sensible default.
-              CUSTOM_ZLIB_CPPFLAGS="-I/usr/include"
-           fi
+           AC_VMW_DEFAULT_FLAGS([ZLIB])
            AC_VMW_CHECK_LIB([z],
                             [ZLIB],
                             [],
@@ -605,13 +595,6 @@ AC_CHECK_LIB(
    [HAVE_CRYPT="yes"],
    [AC_MSG_ERROR(
       [libcrypt not found. Please install the libc/libcrypt devel package(s).])])
-
-AC_CHECK_LIB(
-   [notify],
-   [notify_init],
-   [HAVE_NOTIFY="yes"
-    VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lnotify"],
-   [AC_MSG_WARN([libnotify not found; notification disabled])])
 
 AC_CHECK_FUNCS(
    dlopen,
