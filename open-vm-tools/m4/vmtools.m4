@@ -231,8 +231,8 @@ AC_DEFUN([AC_VMW_CHECK_X11_LIB],[
          [X11/extensions/scrnsaver.h],
          [],
          [
-          $have_header=0;
-          ${action-if-not-found}
+          have_header=0;
+          $4
          ],
          [])
    fi
@@ -242,7 +242,7 @@ AC_DEFUN([AC_VMW_CHECK_X11_LIB],[
          [$1],
          [$3],
          [COMMON_XLIBS="-l$1 $COMMON_XLIBS"],
-         [${action-if-not-found}],
+         [$4],
          [$COMMON_XLIBS])
    fi
 ])
