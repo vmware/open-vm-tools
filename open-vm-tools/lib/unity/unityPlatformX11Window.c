@@ -1235,14 +1235,37 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
       }
       upw->isOverrideRedirect = winAttr.override_redirect ? TRUE : FALSE;
 
+      /*
+       * More crazy tests to determine whether a window should be added to the window
+       * tracker.
+       */
+
       if (winAttr.class == InputOnly) {
+         /* This is intrinsically true. */
          isInvisible = TRUE;
-      } else if (!upw->isViewable && onCurrentDesktop) {
+      } else if (!upw->isViewable && onCurrentDesktop && !upw->clientWindow) {
+         /*
+          * Evaluate the map state.  There are reasons why we'd like to keep unmapped
+          * windows in the tracker.
+          *
+          *    1.  The window may be on another desktop.
+          *    2.  The window may be minimized.
+          *
+          * upw->clientWindow == None implies that there is no window in the hierarchy
+          * with a WM_STATE property.  No WM_STATE property means that the window can't
+          * be "minimized".
+          *
+          * I'm using these implications because it saves me from having to explicitly
+          * query for/examine WM_STATE here.
+          */
          isInvisible = TRUE;
       } else if (winAttr.width <= 1 && winAttr.height <= 1) {
          isInvisible = TRUE;
       } else if ((winAttr.x + winAttr.width) < 0
                  || (winAttr.y + winAttr.height) < 0) {
+         /*
+          * XXX This isn't clear to me.  What if winAttr.x > parent's width?
+          */
          isInvisible = TRUE;
       }
 
