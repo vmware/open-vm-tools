@@ -349,6 +349,8 @@ typedef struct VmxnetVMKShared {
    uint32  dontPostActions;  
 } VmxnetVMKShared;
 
+#if defined VMX86_VMX || defined VMKERNEL
+
 /*
  * Inline functions used to assist the implementation of the vmxnet interface.
  */
@@ -377,6 +379,7 @@ static INLINE void
 Vmxnet2_PutRx(Vmxnet2_RxRingEntry *rre, uint32 pktLength, uint16 ownership)
 {
    rre->actualLength = pktLength;
+   COMPILER_MEM_BARRIER();
    rre->ownership = ownership;
 }
 
@@ -426,5 +429,8 @@ Vmxnet2_GetRxEntry(Vmxnet2_RxRingInfo *ri, unsigned int idx)
 {
    return ri->base + idx;
 }
+
+#endif /* defined VMX86_VMX || defined VMKERNEL */
+
 #endif
 

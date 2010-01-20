@@ -1789,35 +1789,6 @@ File_IsSameFile(ConstUnicode path1,  // IN:
    ASSERT(path1);
    ASSERT(path2);
 
-#if defined(VMX86_SERVER)
-   {
-      Unicode fs1;
-      Unicode fs2;
-
-      fs1 = Posix_RealPath(path1);
-      fs2 = Posix_RealPath(path2);
-
-      /*
-       * ESX doesn't have real inodes for VMFS disks in User Worlds. So only
-       * way to check if a file is the same is using real path. So said Satyam.
-       */
-
-      if (fs1 && Unicode_StartsWith(fs1, VCFS_MOUNT_POINT)) {
-         Bool res;
-
-         res = (!fs2 || Unicode_Compare(fs1, fs2) != 0) ? FALSE : TRUE;
-
-         Unicode_Free(fs1);
-         Unicode_Free(fs2);
-
-         return res;
-      }
-
-      Unicode_Free(fs1);
-      Unicode_Free(fs2);
-   }
-#endif
-
    /*
     * First take care of the easy checks.  If the paths are identical, or if
     * the inode numbers don't match, we're done.

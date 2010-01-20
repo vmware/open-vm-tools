@@ -2228,6 +2228,14 @@ typedef enum VixCommandSecurityCategory {
     * commands.
     */
    VIX_COMMAND_CATEGORY_PRIVILEGED,
+
+   /*
+    * A command that may or may not be privileged. Usually, extra inspection
+    * of the payload is required to make the determination. This should be
+    * used sparingly, since must always be accompanied by "deep packet
+    * inspection" code in the VMX (mainDispatch.c).
+    */
+   VIX_COMMAND_CATEGORY_MIXED,
 } VixCommandSecurityCategory;
 
 /*

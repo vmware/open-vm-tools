@@ -131,9 +131,9 @@ static Bool GHITcloSetFocusedWindow(RpcInData *data);
 static Bool GHITcloGetExecInfoHash(RpcInData *data);
 
 DynBuf gTcloUpdate;
-static GHIPlatform *ghiPlatformData;
 
-DblLnkLst_Links launchMenu;
+// The pointer to the platform-specific global state.
+static GHIPlatform *ghiPlatformData = NULL;
 
 /*
  *----------------------------------------------------------------------------
@@ -229,11 +229,16 @@ void
 GHI_Init(VMU_ControllerCB *vmuControllerCB, // IN
          void *ctx)                         // IN
 {
-   Debug("%s\n", __FUNCTION__);
+   Debug("%s: Enter.\n", __FUNCTION__);
 
-   DblLnkLst_Init(&launchMenu);
-
+   // Call the platform-specific initialization function.
    ghiPlatformData = GHIPlatformInit(vmuControllerCB, ctx);
+   if (!ghiPlatformData) {
+      // TODO: We should report this failure to the caller.
+      Debug("%s: GHIPlatformInit returned NULL pointer!\n", __FUNCTION__);
+   }
+
+   Debug("%s: Exit.\n", __FUNCTION__);
 }
 
 
