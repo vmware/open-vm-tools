@@ -188,7 +188,10 @@ typedef void * VMCIBuffer;
 
 typedef struct VMCIHost {
 #if defined(VMKERNEL)
-   World_ID vmmWorldID;
+   World_ID vmmWorldID[2];   /*
+                              * First one is the active one and the second
+                              * one is shadow world during FSR.
+                              */
 #elif defined(linux)
    wait_queue_head_t  waitQueue;
 #elif defined(__APPLE__)
@@ -223,6 +226,10 @@ Bool VMCIHost_WaitForCallLocked(VMCIHost *hostContext,
                                 Bool useBH);
 #ifdef VMKERNEL
 int VMCIHost_ContextToHostVmID(VMCIHost *hostContext, VMCIHostVmID *hostVmID);
+void VMCIHost_SetActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
+Bool VMCIHost_RemoveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
+Bool VMCIHost_IsActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
+uint32 VMCIHost_NumHnds(VMCIHost *hostContext);
 #endif
 
 void *VMCI_AllocKernelMem(size_t size, int flags);

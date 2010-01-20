@@ -48,6 +48,21 @@ int VMCIContext_InitContext(VMCIId cid, VMCIPrivilegeFlags flags,
 int VMCIContext_SetDomainName(VMCIContext *context, const char *domainName);
 int VMCIContext_GetDomainName(VMCIId contextID, char *domainName,
                               size_t domainNameBufSize);
+void VMCIContext_SetFSRState(VMCIContext *context,
+                             Bool isQuiesced,
+                             VMCIId migrateCid,
+                             uintptr_t eventHnd,
+                             Bool isLocked);
+VMCIContext *VMCIContext_FindAndUpdateSrcFSR(VMCIId migrateCid,
+                                             uintptr_t eventHnd);
+Bool VMCIContext_IsActiveHnd(VMCIContext *context,
+                             uintptr_t eventHnd);
+Bool VMCIContext_RemoveHnd(VMCIContext *context,
+                           uintptr_t eventHnd,
+                           uint32 *numOld,
+                           uint32 *numNew);
+void VMCIContext_ClearDatagrams(VMCIContext *context);
+void VMCIContext_SetId(VMCIContext *context, VMCIId cid);
 #endif
 Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);

@@ -2613,6 +2613,10 @@ VixError VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,
                                        int *options,
                                        VixPropertyListImpl *propertyList);
 
+void *VixMsg_MallocClientData(size_t size);
+void *VixMsg_ReallocClientData(void *ptr, size_t size);
+char *VixMsg_StrdupClientData(const char *s, Bool *allocateFailed);
+
 #endif   // VIX_HIDE_FROM_JAVA
 
 

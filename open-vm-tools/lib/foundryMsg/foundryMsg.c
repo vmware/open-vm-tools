@@ -1648,3 +1648,95 @@ VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,  // IN
 
    return err;
 } // VixMsg_ParseGenericRequestMsg
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_MallocClientData --
+ *
+ *      Allocates the memory needed to copy from a client-provided buffer.
+ *
+ * Results:
+ *      Pointer to allocated memory
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+VixMsg_MallocClientData(size_t size)  // IN
+{
+   return malloc(size);
+} // VixMsg_MallocClientData
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_ReallocClientData --
+ *
+ *      Reallocates the memory needed to copy from a client-provided buffer.
+ *
+ * Results:
+ *      Pointer to allocated memory
+ *
+ * Side effects:
+ *      Frees memory pointed to by ptr.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+VixMsg_ReallocClientData(void *ptr,   // IN
+                         size_t size) // IN
+{
+   return realloc(ptr, size);
+} // VixMsg_ReallocClientData
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_StrdupClientData --
+ *
+ *      Allocates memory and copies client-provided string.
+ *
+ * Results:
+ *      Pointer to allocated string
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+VixMsg_StrdupClientData(const char *s,          // IN
+                        Bool *allocateFailed)   // OUT
+{
+   char* newString = NULL;
+
+   ASSERT(allocateFailed);
+   if (NULL == allocateFailed) {
+      goto abort;
+   }
+
+   *allocateFailed = FALSE;
+
+   if (NULL != s) {
+#if defined(_WIN32)
+         newString = _strdup(s);
+#else
+         newString = strdup(s);
+#endif
+      if (NULL == newString) {
+         *allocateFailed = TRUE;
+      }
+   }
+
+abort:
+   return newString;
+} // VixMsg_StrdupClientData

@@ -62,6 +62,7 @@ typedef enum {
 #define VMCI_DEV_QUIESCE          0x03
 #define VMCI_DEV_UNQUIESCE        0x04
 #define VMCI_DEV_QP_BREAK_SHARING 0x05  // DEPRECATED
+#define VMCI_DEV_RESTORE_SYNC     0x06
 
 
 /*

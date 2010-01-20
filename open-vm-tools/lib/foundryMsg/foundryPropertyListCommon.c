@@ -31,6 +31,7 @@
 #include "vm_version.h"
 #include "util.h"
 #include "str.h"
+#include "vixCommands.h"
 
 #include "vixOpenSource.h"
 
@@ -456,6 +457,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
    size_t propertyValueLengthSize;
    size_t headerSize;
    VixPropertyType *propertyTypePtr;
+   Bool allocateFailed;
 
    if ((NULL == propList)
        || (NULL == buffer)) {
@@ -536,7 +538,13 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
                goto abort;
             }
             free(property->value.strValue);
-            property->value.strValue = Util_SafeStrdup(strPtr);
+
+            property->value.strValue =
+               VixMsg_StrdupClientData(strPtr, &allocateFailed);
+            if (allocateFailed) {
+               err = VIX_E_OUT_OF_MEMORY;
+               goto abort;
+            }
             break;
 
          ////////////////////////////////////////////////////////
@@ -569,7 +577,8 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
              * pretty easy to handle.
              */
             free(property->value.blobValue.blobContents);
-            property->value.blobValue.blobContents = malloc(*lengthPtr);
+            property->value.blobValue.blobContents =
+               VixMsg_MallocClientData(*lengthPtr);
             if (NULL == property->value.blobValue.blobContents) {
                err = VIX_E_OUT_OF_MEMORY;
                goto abort;
