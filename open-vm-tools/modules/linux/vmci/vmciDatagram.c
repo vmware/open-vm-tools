@@ -992,9 +992,9 @@ DatagramProcessNotify(void *clientData,   // IN:
  */
 
 int
-VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,    // OUT:
-                           VMCIDatagramCreateInfo *createInfo,  // IN:
-                           uintptr_t eventHnd)                  // IN:
+VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,          // OUT:
+                           VMCIDatagramCreateProcessInfo *createInfo, // IN:
+                           uintptr_t eventHnd)                        // IN:
 {
    VMCIDatagramProcess *dgmProc;
 
@@ -1017,10 +1017,10 @@ VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,    // OUT:
     * createInfo.
     */
    createInfo->result = VMCIDatagram_CreateHnd(createInfo->resourceID,
-					       createInfo->flags,
-					       DatagramProcessNotify,
-					       (void *)dgmProc,
-					       &dgmProc->handle);
+                                               createInfo->flags,
+                                               DatagramProcessNotify,
+                                               (void *)dgmProc,
+                                               &dgmProc->handle);
    if (createInfo->result < VMCI_SUCCESS) {
       VMCI_FreeKernelMem(dgmProc, sizeof *dgmProc);
       return createInfo->result;

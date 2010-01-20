@@ -45,11 +45,11 @@
  *       only. These APIs don't really make sense in the context of the guest.
  */
 
-/* VMCI Device Usage API. */
+/* PUBLIC: VMCI Device Usage API. */
 Bool VMCI_DeviceGet(void);
 void VMCI_DeviceRelease(void);
 
-/* VMCI Datagram API. */
+/* PUBLIC: VMCI Datagram API. */
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
 			   VMCIDatagramRecvCB recvCB, void *clientData,
 			   VMCIHandle *outHandle);
@@ -57,7 +57,6 @@ int VMCIDatagram_CreateHndPriv(VMCIId resourceID, uint32 flags,
 			       VMCIPrivilegeFlags privFlags,
 			       VMCIDatagramRecvCB recvCB, void *clientData,
 			       VMCIHandle *outHandle); /* Compat */
-
 int VMCIDatagram_DestroyHnd(VMCIHandle handle);
 int VMCIDatagram_Send(VMCIDatagram *msg);
 

@@ -65,7 +65,7 @@ int VMCIDatagramRemoveWellKnownMap(VMCIId wellKnownID, VMCIId contextID);
 #ifndef VMX86_SERVER
 /* Userlevel process datagram API for host context. */
 int VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,
-                               VMCIDatagramCreateInfo *createInfo,
+                               VMCIDatagramCreateProcessInfo *createInfo,
                                uintptr_t eventHnd);
 void VMCIDatagramProcess_Destroy(VMCIDatagramProcess *dgmProc);
 int VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc,

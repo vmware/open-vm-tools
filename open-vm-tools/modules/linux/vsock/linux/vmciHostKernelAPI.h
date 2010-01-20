@@ -54,18 +54,26 @@
 #endif
 
 
-/* VMCI Datagram API. */
+/* PUBLIC: VMCI Device Usage API. */
+#if defined(_WIN32)
+Bool VMCI_DeviceGet(void);
+void VMCI_DeviceRelease(void);
+#else // _WIN32
+#  define VMCI_DeviceGet() TRUE
+#  define VMCI_DeviceRelease()
+#endif // _WIN32
 
+/* PUBLIC: VMCI Datagram API. */
 int VMCIHost_DatagramCreateHnd(VMCIId resourceID, uint32 flags,
-  			       VMCIDatagramRecvCB recvCB, void *clientData,
-			       VMCIHandle *outHandle);
+                               VMCIDatagramRecvCB recvCB, void *clientData,
+                               VMCIHandle *outHandle);
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
-			   VMCIDatagramRecvCB recvCB, void *clientData,
-			   VMCIHandle *outHandle);
+                           VMCIDatagramRecvCB recvCB, void *clientData,
+                           VMCIHandle *outHandle);
 int VMCIDatagram_CreateHndPriv(VMCIId resourceID, uint32 flags,
-			       VMCIPrivilegeFlags privFlags,
-			       VMCIDatagramRecvCB recvCB, void *clientData,
-			       VMCIHandle *outHandle);
+                               VMCIPrivilegeFlags privFlags,
+                               VMCIDatagramRecvCB recvCB, void *clientData,
+                               VMCIHandle *outHandle);
 int VMCIDatagram_DestroyHnd(VMCIHandle handle);
 int VMCIDatagram_Send(VMCIDatagram *msg);
 

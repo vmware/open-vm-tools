@@ -170,10 +170,23 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(INIT_CONTEXT),
    IOCTLCMD(CREATE_PROCESS),
    IOCTLCMD(CREATE_DATAGRAM_PROCESS),
-   IOCTLCMD(SHAREDMEM_CREATE),
-   IOCTLCMD(SHAREDMEM_ATTACH),
-   IOCTLCMD(SHAREDMEM_QUERY),
-   IOCTLCMD(SHAREDMEM_DETACH),
+
+   /*
+    * The following two used to be for shared memory.  An old WS6 user-mode
+    * client might try to use them with the new driver.  Since they are issued
+    * in user-mode they will fail, since the IOCTLs replacing them are
+    * kernel-mode only.
+    */
+   IOCTLCMD(CREATE_DATAGRAM_HANDLE),
+   IOCTLCMD(DESTROY_DATAGRAM_HANDLE),
+
+   /*
+    * These two were also for shared memory, but are now unused.  They will
+    * also fail gracefully since we do not recognize their values anymore
+    * in the driver.
+    */
+   IOCTLCMD(UNUSED1),
+   IOCTLCMD(UNUSED2),
    IOCTLCMD(VERSION2),
    IOCTLCMD(QUEUEPAIR_ALLOC),
    IOCTLCMD(QUEUEPAIR_SETPAGEFILE),
@@ -281,14 +294,10 @@ enum IOCTLCmd_VMCI {
 #define IOCTL_VMCI_CREATE_DATAGRAM_PROCESS \
                VMCIIOCTL_BUFFERED(CREATE_DATAGRAM_PROCESS)
 #define IOCTL_VMCI_HYPERCALL            VMCIIOCTL_BUFFERED(HYPERCALL)
-#define IOCTL_VMCI_SHAREDMEM_CREATE  \
-               VMCIIOCTL_BUFFERED(SHAREDMEM_CREATE)
-#define IOCTL_VMCI_SHAREDMEM_ATTACH  \
-               VMCIIOCTL_BUFFERED(SHAREDMEM_ATTACH)
-#define IOCTL_VMCI_SHAREDMEM_QUERY   \
-               VMCIIOCTL_BUFFERED(SHAREDMEM_QUERY)
-#define IOCTL_VMCI_SHAREDMEM_DETACH  \
-               VMCIIOCTL_BUFFERED(SHAREDMEM_DETACH)
+#define IOCTL_VMCI_CREATE_DATAGRAM_HANDLE  \
+               VMCIIOCTL_BUFFERED(CREATE_DATAGRAM_HANDLE)
+#define IOCTL_VMCI_DESTROY_DATAGRAM_HANDLE  \
+               VMCIIOCTL_BUFFERED(DESTROY_DATAGRAM_HANDLE)
 #define IOCTL_VMCI_VERSION2		VMCIIOCTL_BUFFERED(VERSION2)
 #define IOCTL_VMCI_QUEUEPAIR_ALLOC  \
                VMCIIOCTL_BUFFERED(QUEUEPAIR_ALLOC)
@@ -459,9 +468,9 @@ typedef struct VMCIDatagramSendRecvInfo {
 } VMCIDatagramSendRecvInfo;
 
 /* Used to create datagram endpoints in guest or host userlevel. */
-typedef struct VMCIDatagramCreateInfo {
+typedef struct VMCIDatagramCreateProcessInfo {
    VMCIId      resourceID;
-   uint32      flags; 
+   uint32      flags;
 #ifdef _WIN32
    int         eventHnd;
 #else
@@ -469,7 +478,27 @@ typedef struct VMCIDatagramCreateInfo {
 #endif
    int         result;     // result of handle create operation
    VMCIHandle  handle;     // handle if successfull
-} VMCIDatagramCreateInfo;
+} VMCIDatagramCreateProcessInfo;
+
+/*
+ * Used to create datagram endpoints in guest or host kernel-mode.  Note
+ * that because this is kernel-mode only, we use pointers directly, rather
+ * than VA64.
+ */
+typedef struct VMCIDatagramCreateHandleInfo {
+   VMCIId             resourceID;
+   uint32             flags;
+   void               *recvCB;
+   void               *clientData;
+   int                result;
+   VMCIHandle         handle;
+} VMCIDatagramCreateHandleInfo;
+
+/* Used to destroy datagram endpoints in guest or host kernel-mode. */
+typedef struct VMCIDatagramDestroyHandleInfo {
+   int        result;
+   VMCIHandle handle;
+} VMCIDatagramDestroyHandleInfo;
 
 /* Used to add/remove well-known datagram mappings. */
 typedef struct VMCIDatagramMapInfo {
@@ -547,10 +576,10 @@ enum VMCrossTalkSockOpt {
    VMCI_SO_CONTEXT                  = IOCTL_VMCI_INIT_CONTEXT,
    VMCI_SO_PROCESS                  = IOCTL_VMCI_CREATE_PROCESS,
    VMCI_SO_DATAGRAM_PROCESS         = IOCTL_VMCI_CREATE_DATAGRAM_PROCESS,
-   VMCI_SO_SHAREDMEM_CREATE         = IOCTL_VMCI_SHAREDMEM_CREATE,
-   VMCI_SO_SHAREDMEM_ATTACH         = IOCTL_VMCI_SHAREDMEM_ATTACH,
-   VMCI_SO_SHAREDMEM_QUERY          = IOCTL_VMCI_SHAREDMEM_QUERY,
-   VMCI_SO_SHAREDMEM_DETACH         = IOCTL_VMCI_SHAREDMEM_DETACH,
+   VMCI_SO_DATAGRAM_HANDLE          = IOCTL_VMCI_CREATE_DATAGRAM_HANDLE,
+   VMCI_SO_DATAGRAM_DESTROY         = IOCTL_VMCI_DESTROY_DATAGRAM_HANDLE,
+   VMCI_SO_UNUSED1                  = IOCTL_VMCI_UNUSED1,
+   VMCI_SO_UNUSED2                  = IOCTL_VMCI_UNUSED2,
    VMCI_SO_VERSION2                 = IOCTL_VMCI_VERSION2,
    VMCI_SO_QUEUEPAIR_ALLOC          = IOCTL_VMCI_QUEUEPAIR_ALLOC,
    VMCI_SO_QUEUEPAIR_SETPAGEFILE    = IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE,
