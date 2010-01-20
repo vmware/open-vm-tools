@@ -1896,6 +1896,7 @@ struct {
 #define SCSI_FEAT_CODE_REMOVABLEMEDIUM 0x3
 #define SCSI_FEAT_CODE_RANDOMREADABLE  0x10
 #define SCSI_FEAT_CODE_DVDREAD         0x1F
+#define SCSI_FEAT_CODE_VMWARE_LAST     0xFF80
    uint16 code;
    uint8  featureCurrent:1,
           persistent:1,
@@ -2000,6 +2001,23 @@ struct {
 }
 #include "vmware_pack_end.h"
 SCSIRandomReadableFeatureDescriptor;
+
+
+/*
+ * VMware Last Descriptor format. This is a VMware-specific feature descriptor
+ * designed to work around a Windows XP SP3 bug where the last eight bytes of
+ * a GET CONFIGURATION response are ignored by the guest driver. It does so by,
+ * well, occupying the last eight bytes of our emulation's response to a
+ * GET CONFIGURATION request.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SCSIFeatureDescriptor feature;
+   uint8 garbage[4];
+}
+#include "vmware_pack_end.h"
+SCSIVMwareLastFeatureDescriptor;
 
 
 /*
