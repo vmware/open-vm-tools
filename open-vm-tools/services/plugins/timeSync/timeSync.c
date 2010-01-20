@@ -52,12 +52,18 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define TIMESYNC_MAX_SAMPLES 4
 #define TIMESYNC_GOOD_SAMPLE_THRESHOLD 2000
 
+typedef enum TimeSyncState {
+   TIMESYNC_INITIALIZING,
+   TIMESYNC_STOPPED,
+   TIMESYNC_RUNNING,
+} TimeSyncState;
+
 typedef struct TimeSyncData {
-   gboolean    slewCorrection;
-   uint32      slewPercentCorrection;
-   gint        timeSyncState;
-   uint32      timeSyncPeriod;         /* In seconds. */
-   GSource    *timer;
+   gboolean       slewCorrection;
+   uint32         slewPercentCorrection;
+   uint32         timeSyncPeriod;         /* In seconds. */
+   TimeSyncState  state;
+   GSource        *timer;
 } TimeSyncData;
 
 
@@ -371,7 +377,7 @@ TimeSyncDoSync(Bool slewCorrection,
  *
  * @param[in]  _data    Time sync data.
  *
- * @return TRUE on success.
+ * @return always TRUE.
  */
 
 static gboolean
@@ -383,11 +389,6 @@ ToolsDaemonTimeSyncLoop(gpointer _data)
 
    if (!TimeSyncDoSync(data->slewCorrection, FALSE, FALSE, data)) {
       g_warning("Unable to synchronize time.\n");
-      if (data->timer != NULL) {
-         g_source_unref(data->timer);
-         data->timer = NULL;
-      }
-      return FALSE;
    }
 
    return TRUE;
@@ -467,54 +468,68 @@ TimeSyncDisableWinTimeDaemon(void)
 
 
 /**
- * Start or stop the "time synchronization" loop. Nothing will be done if
- * start==TRUE & it's already running or start==FALSE & it's not running.
+ * Start the "time synchronization" loop.
  *
  * @param[in]  ctx      The application context.
  * @param[in]  data     Time sync data.
- * @param[in]  start    See above.
  *
  * @return TRUE on success.
  */
 
 static Bool
-TimeSyncStartStopLoop(ToolsAppCtx *ctx,
-                      TimeSyncData *data,
-                      gboolean start)
+TimeSyncStartLoop(ToolsAppCtx *ctx,
+                  TimeSyncData *data)
 {
    ASSERT(data != NULL);
+   ASSERT(data->state != TIMESYNC_RUNNING);
+   ASSERT(data->timer == NULL);
 
-   if (start && data->timer == NULL) {
-      g_debug("Starting time sync loop.\n");
-      g_debug("New sync period is %d sec.\n", data->timeSyncPeriod);
-      if (!ToolsDaemonTimeSyncLoop(data)) {
-         return FALSE;
-      }
-      data->timer = g_timeout_source_new(data->timeSyncPeriod * 1000);
-      VMTOOLSAPP_ATTACH_SOURCE(ctx, data->timer, ToolsDaemonTimeSyncLoop, data, NULL);
+   g_debug("Starting time sync loop.\n");
 
 #if defined(_WIN32)
-      g_debug("Daemon: Attempting to disable Windows Time daemon\n");
-      if (!TimeSyncDisableWinTimeDaemon()) {
-         g_debug("Daemon: Failed to disable Windows Time daemon\n");
-      }
+   g_debug("Daemon: Attempting to disable Windows Time daemon\n");
+   if (!TimeSyncDisableWinTimeDaemon()) {
+      g_warning("Daemon: Failed to disable Windows Time daemon\n");
+   }
 #endif
 
-      return TRUE;
-   } else if (!start && data->timer != NULL) {
-      g_debug("Stopping time sync loop.\n");
-      TimeSync_DisableTimeSlew();
-      g_source_destroy(data->timer);
-      data->timer = NULL;
+   g_debug("New sync period is %d sec.\n", data->timeSyncPeriod);
 
-      return TRUE;
+   if (!TimeSyncDoSync(data->slewCorrection, FALSE, FALSE, data)) {
+      g_warning("Unable to synchronize time when starting time loop.\n");
    }
 
-   /*
-    * No need to start time sync b/c it's already running or no
-    * need to stop it b/c it's not running.
-    */
+   data->timer = g_timeout_source_new(data->timeSyncPeriod * 1000);
+   VMTOOLSAPP_ATTACH_SOURCE(ctx, data->timer, ToolsDaemonTimeSyncLoop, data, NULL);
+
+   data->state = TIMESYNC_RUNNING;
    return TRUE;
+}
+
+
+/**
+ * Stop the "time synchronization" loop.
+ *
+ * @param[in]  ctx      The application context.
+ * @param[in]  data     Time sync data.
+ */
+
+static void
+TimeSyncStopLoop(ToolsAppCtx *ctx,
+                 TimeSyncData *data)
+{
+   ASSERT(data != NULL);
+   ASSERT(data->state == TIMESYNC_RUNNING);
+   ASSERT(data->timer != NULL);
+
+   g_debug("Stopping time sync loop.\n");
+
+   TimeSync_DisableTimeSlew();
+
+   g_source_destroy(data->timer);
+   data->timer = NULL;
+
+   data->state = TIMESYNC_STOPPED;
 }
 
 
@@ -591,25 +606,28 @@ TimeSyncSetOption(gpointer src,
          return FALSE;
       }
 
-      /*
-       * Try the one-shot time sync if time sync transitions from
-       * 'off' to 'on' and TOOLSOPTION_SYNCTIME_ENABLE is turned on.
-       * Note that during startup we receive TOOLSOPTION_SYNCTIME
-       * before receiving TOOLSOPTION_SYNCTIME_ENABLE and so the
-       * one-shot sync will not be done here. Nor should it because
-       * the startup synchronization behavior is controlled by
-       * TOOLSOPTION_SYNCTIME_STARTUP which is handled separately.
-       */
-      if (data->timeSyncState == 0 && start && syncBeforeLoop) {
+      if (start && data->state != TIMESYNC_RUNNING) {
+         /*
+          * Try the one-shot time sync if time sync transitions from
+          * 'off' to 'on' and TOOLSOPTION_SYNCTIME_ENABLE is turned on.
+          * Note that during startup we receive TOOLSOPTION_SYNCTIME
+          * before receiving TOOLSOPTION_SYNCTIME_ENABLE and so the
+          * one-shot sync will not be done here. Nor should it because
+          * the startup synchronization behavior is controlled by
+          * TOOLSOPTION_SYNCTIME_STARTUP which is handled separately.
+          */
+         if (data->state == TIMESYNC_STOPPED && syncBeforeLoop) {
             TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data);
-      }
+         }
 
-      /* Now start/stop the loop. */
-      if (!TimeSyncStartStopLoop(ctx, data, start)) {
-         return FALSE;
-      }
+         if (!TimeSyncStartLoop(ctx, data)) {
+            g_warning("Unable to change time sync period.\n");
+            return FALSE;
+         }
 
-      data->timeSyncState = start;
+      } else if (!start && data->state == TIMESYNC_RUNNING) {
+         TimeSyncStopLoop(ctx, data);
+      }
 
    } else if (strcmp(option, TOOLSOPTION_SYNCTIME_SLEWCORRECTION) == 0) {
       data->slewCorrection = strcmp(value, "0");
@@ -635,17 +653,20 @@ TimeSyncSetOption(gpointer src,
          return FALSE;
       }
 
+      if (period <= 0)
+         period = TIMESYNC_TIME;
+
       /*
        * If the sync loop is running and the time sync period has changed,
        * restart the loop with the new period value. If the sync loop is
        * not running, just remember the new sync period value.
        */
       if (period != data->timeSyncPeriod) {
-         data->timeSyncPeriod = (period > 0) ? period : TIMESYNC_TIME;
+         data->timeSyncPeriod = period;
 
-         if (data->timer != NULL) {
-            TimeSyncStartStopLoop(ctx, data, FALSE);
-            if (!TimeSyncStartStopLoop(ctx, data, TRUE)) {
+         if (data->state == TIMESYNC_RUNNING) {
+            TimeSyncStopLoop(ctx, data);
+            if (!TimeSyncStartLoop(ctx, data)) {
                g_warning("Unable to change time sync period.\n");
                return FALSE;
             }
@@ -695,9 +716,11 @@ TimeSyncShutdown(gpointer src,
                  ToolsPluginData *plugin)
 {
    TimeSyncData *data = plugin->_private;
-   if (data->timer != NULL) {
-      g_source_destroy(data->timer);
+
+   if (data->state == TIMESYNC_RUNNING) {
+      TimeSyncStopLoop(ctx, data);
    }
+
    g_free(data);
 }
 
@@ -735,7 +758,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    data->slewCorrection = FALSE;
    data->slewPercentCorrection = TIMESYNC_PERCENT_CORRECTION;
-   data->timeSyncState = -1;
+   data->state = TIMESYNC_INITIALIZING;
    data->timeSyncPeriod = TIMESYNC_TIME;
    data->timer = NULL;
 
