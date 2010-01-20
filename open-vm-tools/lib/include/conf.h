@@ -93,6 +93,9 @@
 
 #define CONFNAME_SHOW_WIRELESS_ICON "wirelessIcon.enable"
 
+/** Where to find Tools data in the Win32 registry. */
+#define CONF_VMWARE_TOOLS_REGKEY    "Software\\VMware, Inc.\\VMware Tools"
+
 /*
  * Directory containing the tools library files.  Currently only intended
  * for vmware-user.
