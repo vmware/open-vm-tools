@@ -26,6 +26,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <locale.h>
+
+#ifdef _WIN32
+#include "resource.h"
+#define MAX_STRING_BUFFER   2048
+static char * GetString(unsigned int idString);
+#define GETSTR(str)   GetString(ID##str)
+#else
+#include "messages.h"
+#define GETSTR(str)   str
+#endif
 
 #include "toolboxCmdInt.h"
 #include "toolboxcmd_version.h"
@@ -103,6 +114,37 @@ static CmdTable commands[] = {
    { "help", HelpCommand, FALSE, FALSE, ToolboxCmdHelp},
 };
 
+#ifdef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetString --
+ *
+ *      Gets a localized string based on an identifier.
+ *
+ * Results:
+ *      A pointer to the string. I should not be freed, being static allocated.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+GetString(unsigned int idString)     // IN: the identifier of the string
+{
+   static char szResourceString[MAX_STRING_BUFFER];
+   const int sizeResourceString = ARRAYSIZE(szResourceString);
+
+   szResourceString[0] = '\0';
+
+   LoadString(GetModuleHandle(NULL), idString,
+              szResourceString, sizeResourceString);
+
+   return szResourceString;
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -172,14 +214,7 @@ ToolboxUnknownEntityError(const char *name,    // IN: command name (argv[0])
 static void
 DeviceHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("device: functions related to the virtual machine's hardware devices\n"
-          "Usage: %s device <subcommand> [args]\n"
-          "    dev is the name of the device.\n\n"
-          "Subcommands:\n"
-          "   enable <dev>: enable the device dev\n"
-          "   disable <dev>: disable the device dev\n"
-          "   list: list all available devices\n"
-          "   status <dev>: print the status of a device\n", progName);
+   printf(GETSTR(S_HELP_DEVICE), progName);
 }
 
 
@@ -202,19 +237,7 @@ DeviceHelp(const char *progName) // IN: The name of the program obtained from ar
 static void
 ToolboxCmdHelp(const char *progName)
 {
-   printf("Usage: %s <command> [options] [subcommand]\n"
-          "Type \'%s help <command>\' for help on a specific command.\n"
-          "Type \'%s -v' to see the Vmware Tools version.\n"
-          "Use '-q' option to suppress stdout output.\n"
-          "Most commands take a subcommand.\n\n"
-          "Available commands:\n"
-          "   device\n"
-          "   disk\n"
-          "   script\n"
-          "   stat\n"
-          "   timesync\n"
-          "\n"
-          "For additional information please visit http://www.vmware.com/support/\n\n",
+   printf(GETSTR(S_HELP_TOOLBOXCMD),
           progName, progName, progName);
 }
 
@@ -238,12 +261,7 @@ ToolboxCmdHelp(const char *progName)
 static void
 TimeSyncHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("timesync: functions for controlling time synchronization on the guest OS\n"
-          "Usage: %s timesync <subcommand>\n\n"
-          "Subcommands\n"
-          "   enable: enable time synchronization\n"
-          "   disable: disable time synchronization\n"
-          "   status: print the time synchronization status\n", progName);
+   printf(GETSTR(S_HELP_TIMESYNC), progName);
 }
 
 
@@ -266,14 +284,7 @@ TimeSyncHelp(const char *progName) // IN: The name of the program obtained from 
 static void
 ScriptHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("script: control the scripts run in response to power operations\n"
-          "Usage: %s script <power|resume|suspend|shutdown> <subcommand> [args]\n\n"
-          "Subcommands:\n"
-          "   enable: enable the given script and restore its path to the default\n"
-          "   disable: disable the given script\n"
-          "   set <full_path>: set the given script to the given path\n"
-          "   default: print the default path of the given script\n"
-          "   current: print the current path of the given script\n", progName);
+   printf(GETSTR(S_HELP_SCRIPT), progName);
 }
 
 
@@ -296,12 +307,7 @@ ScriptHelp(const char *progName) // IN: The name of the program obtained from ar
 static void
 DiskHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("disk: perform disk shrink operations\n"
-          "Usage: %s disk <subcommand> [args]\n\n"
-          "Subcommands\n"
-          "   list: list available mountpoints\n"
-          "   shrink <mount-point>: shrinks a file system at the given mountpoint\n",
-          progName);
+   printf(GETSTR(S_HELP_DISK), progName);
 }
 
 
@@ -324,19 +330,7 @@ DiskHelp(const char *progName) // IN: The name of the program obtained from argv
 static void
 StatHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf("stat: print useful guest and host information\n"
-          "Usage: %s stat <subcommand>\n\n"
-          "Subcommands\n"
-          "   hosttime: print the host time\n"
-          "   speed: print the CPU speed in MHz\n"
-          "ESX guests only subcommands\n"
-          "   sessionid: print the current session id\n"
-          "   balloon: print memory ballooning information\n"
-          "   swap: print memory swapping information\n"
-          "   memlimit: print memory limit information\n"
-          "   memres: print memory reservation information\n"
-          "   cpures: print CPU reservation information\n"
-          "   cpulimit: print CPU limit information\n", progName);
+   printf(GETSTR(S_HELP_STAT), progName);
 }
 
 
@@ -666,11 +660,13 @@ main(int argc,    // IN: length of command line arguments
    int c;
    int retval;
 
+   setlocale(LC_ALL, "");
+
    /*
     * Check if we are in a VM
     */
    if (!VmCheck_IsVirtualWorld()) {
-      fprintf(stderr, "%s must be run inside a virtual machine.\n", argv[0]);
+      fprintf(stderr, GETSTR(S_WARNING_VWORLD), argv[0]);
       exit(EXIT_FAILURE);
    }
 
@@ -706,7 +702,7 @@ main(int argc,    // IN: length of command line arguments
 
       case '?':
          /* getopt_long already printed an error message. */
-         fprintf(stderr, "Try '%s -h' for more information.\n", argv[0]);
+         fprintf(stderr, GETSTR(S_HELP_MAIN), argv[0], "-h", "", "");
          return EXIT_FAILURE;
 
       default:
@@ -729,15 +725,7 @@ main(int argc,    // IN: length of command line arguments
          ToolboxUnknownEntityError(argv[0], "command", argv[optind]);
          retval = EX_USAGE;
       } else if (cmd->requireRoot && !System_IsUserAdmin()) {
-         fprintf(stderr,
-#ifdef _WIN32
-                 "%s: Administrator permissions are needed to perform %s "
-                 "operations. Use an administrator command prompt to "
-                 "complete these tasks.",
-#else
-                 "%s: You must be root to perform %s operations",
-#endif
-                 argv[0], cmd->command);
+         fprintf(stderr, GETSTR(S_WARNING_ADMIN), argv[0], cmd->command);
          retval = EX_NOPERM;
       } else if (cmd->requireArguments && ++optind >= argc) {
          ToolboxMissingEntityError(argv[0], "subcommand");
@@ -747,8 +735,8 @@ main(int argc,    // IN: length of command line arguments
       }
 
       if (retval == EX_USAGE && (cmd == NULL || strcmp(cmd->command, "help"))) {
-         fprintf(stderr, "Try '%s help%s%s' for more information.\n",
-                 argv[0], cmd ? " " : "", cmd ? cmd->command : "");
+         fprintf(stderr, GETSTR(S_HELP_MAIN),
+                 argv[0], "help", cmd ? " " : "", cmd ? cmd->command : "");
       }
 
       return retval;
