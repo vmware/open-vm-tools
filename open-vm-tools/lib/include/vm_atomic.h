@@ -40,7 +40,7 @@
 //#define FAKE_ATOMIC /* defined if true atomic not needed */
 
 #define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMMEXT
+
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_VMKDRIVERS

@@ -67,7 +67,6 @@
  *
  *	INCLUDE_ALLOW_VMX 
  *	INCLUDE_ALLOW_USERLEVEL 
- *	INCLUDE_ALLOW_VMMEXT
  *	INCLUDE_ALLOW_VMCORE
  *	INCLUDE_ALLOW_MODULE
  *	INCLUDE_ALLOW_VMKERNEL 
@@ -125,12 +124,6 @@
 #error "The surrounding include file is not allowed at userlevel."
 #endif
 #undef INCLUDE_ALLOW_USERLEVEL
-
-#if defined VMM && !defined VMCORE && \
-    !defined INCLUDE_ALLOW_VMMEXT
-#error "The surrounding include file is not allowed in the monitor."
-#endif
-#undef INCLUDE_ALLOW_VMMEXT
 
 #if defined MODULE && !defined VMKERNEL_MODULE && \
     !defined VMMON && !defined INCLUDE_ALLOW_MODULE

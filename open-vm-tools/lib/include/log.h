@@ -21,7 +21,7 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
-#define INCLUDE_ALLOW_VMMEXT
+
 #include "includeCheck.h"
 
 #include <stdarg.h>

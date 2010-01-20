@@ -46,7 +46,7 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_MODULE
-#define INCLUDE_ALLOW_VMMEXT
+
 #include "includeCheck.h"
 #include "vm_device_version.h"
 
