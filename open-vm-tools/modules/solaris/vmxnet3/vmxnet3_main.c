@@ -45,7 +45,9 @@ static mac_callbacks_t vmxnet3_mac_callbacks = {
    vmxnet3_multicst,   /* mc_multicst */
    vmxnet3_unicst,     /* mc_unicst */
    vmxnet3_tx,         /* mc_tx */
+#ifndef OPEN_SOLARIS
    NULL,               /* mc_resources */
+#endif
    NULL,               /* mc_ioctl */
    vmxnet3_getcapab    /* mc_getcapab */
 };
@@ -1238,13 +1240,7 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    /*
     * Register with the MAC framework
     */
-   if (DEVI(dip)->devi_ops->devo_rev <= 3) {
-      macr = mac_alloc(MAC_VERSION);
-   } else {
-      macr = mac_alloc(NEW_MAC_VERSION);
-   }
-
-   if (!macr) {
+   if (!(macr = mac_alloc(MAC_VERSION))) {
       VMXNET3_WARN(dp, "mac_alloc() failed.\n");
       goto error_regs_map_1;
    }
@@ -1439,15 +1435,15 @@ vmxnet3_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
 
 #define VMXNET3_IDENT "VMware EtherAdapter v3 b" BUILD_NUMBER_NUMERIC_STRING
 
-DDI_DEFINE_STREAM_OPS(vmxnet3_dev_ops,
-                      nulldev,
-                      nulldev,
-                      vmxnet3_attach,
-                      vmxnet3_detach,
-                      nodev,
-                      NULL,
-                      D_NEW | D_MP,
-                      NULL);
+COMPAT_DDI_DEFINE_STREAM_OPS(vmxnet3_dev_ops,
+                             nulldev,
+                             nulldev,
+                             vmxnet3_attach,
+                             vmxnet3_detach,
+                             nodev,
+                             NULL,
+                             D_NEW | D_MP,
+                             NULL);
 
 static struct modldrv vmxnet3_modldrv = {
    &mod_driverops,             /* drv_modops */

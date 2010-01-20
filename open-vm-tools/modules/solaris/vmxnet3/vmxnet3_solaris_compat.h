@@ -25,13 +25,19 @@
 
 #define DDI_INTR_PRI(pri) (void *)((uintptr_t)(pri))
 
+#ifndef OPEN_SOLARIS
 #define LSO_TX_BASIC_TCP_IPV4 0x02
+#define COMPAT_DDI_DEFINE_STREAM_OPS DDI_DEFINE_STREAM_OPS
+#else
+#define COMPAT_DDI_DEFINE_STREAM_OPS(XXname, XXidentify, XXprobe, XXattach, XXdetach, XXreset, XXgetinfo, XXflag, XXstream_tab) \
+   DDI_DEFINE_STREAM_OPS(XXname, XXidentify, XXprobe, XXattach, XXdetach, \
+   XXreset, XXgetinfo, XXflag, XXstream_tab, ddi_quiesce_not_supported)
+#endif	/* OPEN_SOLARIS */
 
 #define HW_LSO 0x10
 
 #define DB_LSOMSS(mp) ((mp)->b_datap->db_struioun.cksum.pad)
 
 #define ETHERTYPE_VLAN (0x8100)
-#define NEW_MAC_VERSION (0x2)
 
 #endif /* _VMXNET3_SOLARIS_COMPAT_H_ */
