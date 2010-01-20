@@ -236,6 +236,11 @@ operator+(ConstUnicode lhs, const string &rhs) {
    return string(lhs) + rhs;
 }
 
+string inline
+operator+(const string& lhs, ConstUnicode rhs) {
+   return lhs + string(rhs);
+}
+
 bool inline
 operator==(ConstUnicode lhs, const string &rhs) {
    return string(lhs) == rhs;

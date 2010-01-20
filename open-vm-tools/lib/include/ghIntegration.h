@@ -25,11 +25,8 @@
 #ifndef _GH_INTEGRATION_H_
 #define _GH_INTEGRATION_H_
 
-#include "dbllnklst.h"
-#include "rpcin.h"
-
-
-extern DblLnkLst_Links launchMenu;
+// Forward declaration.
+struct RpcIn;
 
 /*
  * If other libraries want to use dynamic adding/removing of event monitoring
@@ -44,17 +41,18 @@ typedef HANDLE VMU_EVENT;
 typedef int VMU_EVENT;
 #endif
 
-
 typedef enum VmuCallbackAction {
    VMU_CALLBACK_ACTION_SUCCESS,
    VMU_CALLBACK_ACTION_ABORT
 } VmuCallbackAction;
+
 typedef VmuCallbackAction VMU_EventHandler(void *ctx, VMU_EVENT event);
 
 typedef enum VmuControllerAction {
    VMU_CONTROLLER_CB_ADD_EVENT = 1,
    VMU_CONTROLLER_CB_REMOVE_EVENT
 } VmuControllerAction;
+
 typedef Bool (VMU_ControllerCB)(void *ctx,
                                 VMU_EVENT event,
                                 VMU_EventHandler *eventHandler,
@@ -69,5 +67,4 @@ void GHI_RegisterCaps(void);
 void GHI_UnregisterCaps(void);
 void GHI_Gather(void);
 
-#endif
-
+#endif // _GH_INTEGRATION_H_
