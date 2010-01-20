@@ -105,6 +105,7 @@ Bool CPClipboard_GetItem(const CPClipboard *clip, DND_CPFORMAT fmt,
                          void **buf, size_t *size);
 Bool CPClipboard_ItemExists(const CPClipboard *clip, DND_CPFORMAT fmt);
 Bool CPClipboard_IsEmpty(const CPClipboard *clip);
+size_t CPClipboard_GetTotalSize(const CPClipboard *clip);
 Bool CPClipboard_Copy(CPClipboard *dest, const CPClipboard *src);
 Bool CPClipboard_Serialize(const CPClipboard *clip, DynBuf *buf);
 Bool CPClipboard_Unserialize(CPClipboard *clip, void *buf, size_t len);

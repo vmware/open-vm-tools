@@ -422,4 +422,21 @@ Bool MXUserIsAllUnlocked(const MXUserRWLock *lock);
 void MXUserDumpAndPanic(MXUserHeader *header,
                         const char *fmt,
                         ...);
+
+#if defined(VMX86_DEBUG)
+void MXUserAcquireRankCheck(MXUserHeader *header);
+void MXUserReleaseRankCheck(MXUserHeader *header);
+#else
+static INLINE void
+MXUserAcquireRankCheck(MXUserHeader *header)
+{
+   return;
+}
+
+static INLINE void
+MXUserReleaseRankCheck(MXUserHeader *header)
+{
+   return;
+}
+#endif
 #endif

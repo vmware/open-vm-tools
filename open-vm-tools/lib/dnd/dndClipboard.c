@@ -244,6 +244,13 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
 {
    CPClipItem *item;
    void *newBuf = NULL;
+   /*
+    * Image, rtf and text may be put into a clipboard at same time, and total
+    * size may be more than limit. Image data will be first dropped, then
+    * rtf data.
+    */
+   DND_CPFORMAT filterList[] = {CPFORMAT_IMG_PNG, CPFORMAT_RTF, CPFORMAT_TEXT};
+   int filterIndex = 0;
 
    ASSERT(clip);
 
@@ -259,31 +266,6 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
       return FALSE;
    }
 
-   if (CPFORMAT_RTF == fmt) {
-      size_t textSize = clip->items[CPFormatToIndex(CPFORMAT_TEXT)].size;
-      if ((textSize + size) >= CPCLIPITEM_MAX_SIZE_V3) {
-         /*
-          * If both CPFORMAT_TEXT and CPFORMAT_RTF are availabe but total
-          * size is over limit, only keep CPFORMAT_TEXT.
-          */
-         return TRUE;
-      }
-   }
-
-   if (CPFORMAT_TEXT == fmt) {
-      size_t rtfSize = clip->items[CPFormatToIndex(CPFORMAT_RTF)].size;
-      if ((rtfSize + size) >= CPCLIPITEM_MAX_SIZE_V3) {
-         /*
-          * If both CPFORMAT_TEXT and CPFORMAT_RTF are availabe but total
-          * size is over limit, remove data for CPFORMAT_RTF and add data
-          * for CPFORMAT_TEXT.
-          */
-         if (!CPClipboard_ClearItem(clip, CPFORMAT_RTF)) {
-            return FALSE;
-         }
-      }
-   }
-
    item = &clip->items[CPFormatToIndex(fmt)];
 
    if (clipitem) {
@@ -297,6 +279,15 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    item->buf = newBuf;
    item->size = size;
    item->exists = TRUE;
+
+   /* Drop some data if total size is more than limit. */
+   while (CPClipboard_GetTotalSize(clip) >= CPCLIPITEM_MAX_SIZE_V3 &&
+          filterIndex < ARRAYSIZE(filterList)) {
+      if (!CPClipboard_ClearItem(clip, filterList[filterIndex])) {
+         return FALSE;
+      }
+      filterIndex++;
+   }
 
    return TRUE;
 }
@@ -445,6 +436,40 @@ CPClipboard_IsEmpty(const CPClipboard *clip)    // IN: the clipboard
       }
    }
    return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CPClipboard_GetTotalSize --
+ *
+ *      Get total buffer size of the clipboard.
+ *
+ * Results:
+ *      Total buffer size of the clipboard.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+size_t
+CPClipboard_GetTotalSize(const CPClipboard *clip) // IN: the clipboard
+{
+   unsigned int i = 0;
+   size_t totalSize = 0;
+
+   ASSERT(clip);
+
+   for (i = CPFORMAT_MIN; i < CPFORMAT_MAX; ++i) {
+      if (clip->items[CPFormatToIndex(i)].exists &&
+          clip->items[CPFormatToIndex(i)].size > 0) {
+         totalSize += clip->items[CPFormatToIndex(i)].size;
+      }
+   }
+   return totalSize;
 }
 
 

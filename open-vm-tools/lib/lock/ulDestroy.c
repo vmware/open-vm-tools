@@ -44,7 +44,7 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
 
       if (MXRecLockCount(&lock->lockRecursive) > 0) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Destroy of an acquired exclusive lock",
+                            "%s: Destroy of an acquired exclusive lock\n",
                             __FUNCTION__);
       }
 
@@ -79,7 +79,7 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 
       if (MXRecLockCount(&lock->lockRecursive) > 0) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Destroy of an acquired recursive lock",
+                            "%s: Destroy of an acquired recursive lock\n",
                             __FUNCTION__);
       }
 

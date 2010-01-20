@@ -95,8 +95,6 @@ MXUser_CreateRWLock(const char *userName,  // IN:
    char *properName;
    MXUserRWLock *lock;
 
-   ASSERT(rank == RANK_UNRANKED);  // NOT FOR LONG
-
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
    if (userName == NULL) {
@@ -162,19 +160,21 @@ MXUser_AcquireForRead(MXUserRWLock *lock)  // IN/OUT:
 
    ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
 
+   MXUserAcquireRankCheck(&lock->lockHeader);
+
 #if defined(PTHREAD_RWLOCK_INITIALIZER)
    err = pthread_rwlock_rdlock(&lock->lockReadWrite);
 
    if (err == 0) {
       if (lock->lockTaken[self] == RW_LOCKED_FOR_READ) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: AcquireForRead after AcquireForRead",
+                            "%s: AcquireForRead after AcquireForRead\n",
                             __FUNCTION__);
       }
    } else {
-      MXUserDumpAndPanic(&lock->lockHeader, "%s: %s",
-                         (err == EDEADLK) ? "Deadlock detected (%d)" :
-                                            "Internal error (%d)",
+      MXUserDumpAndPanic(&lock->lockHeader,
+                         (err == EDEADLK) ? "%s: Deadlock detected (%d)\n" :
+                                            "%s: Internal error (%d)\n",
                          __FUNCTION__, err);
    }
 #else
@@ -183,12 +183,12 @@ MXUser_AcquireForRead(MXUserRWLock *lock)  // IN/OUT:
    if (lock->lockTaken[self] != RW_UNLOCKED) {
       if (lock->lockTaken[self] == RW_LOCKED_FOR_READ) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: AcquireForRead after AcquireForRead"
-                            __FUNCTION__, self);
+                            "%s: AcquireForRead after AcquireForRead\n"
+                            __FUNCTION__);
       } else {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: AcquireForRead after AcquireForWrite"
-                            __FUNCTION__, self);
+                            "%s: AcquireForRead after AcquireForWrite\n"
+                            __FUNCTION__);
       }
    }
 
@@ -226,13 +226,15 @@ MXUser_AcquireForWrite(MXUserRWLock *lock)  // IN/OUT:
 
    ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
 
+   MXUserAcquireRankCheck(&lock->lockHeader);
+
 #if defined(PTHREAD_RWLOCK_INITIALIZER)
    err = pthread_rwlock_wrlock(&lock->lockReadWrite);
 
    if (err != 0) {
-      MXUserDumpAndPanic(&lock->lockHeader, "%s: %s",
-                         (err == EDEADLK) ? "Deadlock detected (%d)" :
-                                            "Internal error (%d)",
+      MXUserDumpAndPanic(&lock->lockHeader,
+                         (err == EDEADLK) ? "%s: Deadlock detected (%d)\n" :
+                                            "%s: Internal error (%d)\n",
                          __FUNCTION__, err);
    }
 #else
@@ -241,11 +243,11 @@ MXUser_AcquireForWrite(MXUserRWLock *lock)  // IN/OUT:
    if (lock->lockTaken[self] != RW_UNLOCKED) {
       if (lock->lockTaken[self] == RW_LOCKED_FOR_READ) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: AcquireForRead after AcquireForWrite"
+                            "%s: AcquireForRead after AcquireForWrite\n"
                             __FUNCTION__);
       } else {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: AcquireForWrite after AcquireForWrite"
+                            "%s: AcquireForWrite after AcquireForWrite\n"
                             __FUNCTION__);
       }
    }
@@ -283,9 +285,11 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
 
    if (myState == RW_UNLOCKED) {
       MXUserDumpAndPanic(&lock->lockHeader,
-                         "%s: Release of read-lock not by owner (%d)",
+                         "%s: Release of read-lock not by owner (%d)\n",
                          __FUNCTION__, self);
    }
+
+   MXUserReleaseRankCheck(&lock->lockHeader);
 
    lock->lockTaken[self] = RW_UNLOCKED;
 
@@ -326,7 +330,7 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
 
       if (!MXUserIsAllUnlocked(lock)) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Destroy on read-lock while still acquired",
+                            "%s: Destroy on read-lock while still acquired\n",
                             __FUNCTION__);
       }
 

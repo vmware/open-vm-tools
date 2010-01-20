@@ -16,7 +16,6 @@
  *
  *********************************************************/
 
-
 #include "vmware.h"
 #include "str.h"
 #include "util.h"
@@ -134,14 +133,16 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
    Warning("\tname %s\n", lock->lockHeader.lockName);
    Warning("\trank %d\n", lock->lockHeader.lockRank);
 
-   Warning("\tcount %u\n", lock->lockRecursive.lockCount);
+   if (lock->lockVmm == NULL) {
+      Warning("\tcount %u\n", lock->lockRecursive.lockCount);
 
 #if defined(VMX86_DEBUG)
-   Warning("\tcaller %p\n", lock->lockRecursive.lockCaller);
-   Warning("\tVThreadID %d\n", (int) lock->lockRecursive.lockVThreadID);
+      Warning("\tcaller %p\n", lock->lockRecursive.lockCaller);
+      Warning("\tVThreadID %d\n", (int) lock->lockRecursive.lockVThreadID);
 #endif
-
-   Warning("\tlockVmm %p\n", lock->lockVmm);
+   } else {
+      Warning("\tlockVmm %p\n", lock->lockVmm);
+   }
 }
 
 

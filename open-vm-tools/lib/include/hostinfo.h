@@ -20,7 +20,7 @@
  * hostinfo.h --
  *
  *      Interface to host-specific information functions
- *   
+ *
  */
 
 #if !defined(_HOSTINFO_H_)
@@ -130,6 +130,7 @@ typedef struct {
 
 
 extern uint32 Hostinfo_NumCPUs(void);
+extern char *Hostinfo_GetCpuidStr(void);
 extern Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
 
 #if defined(VMX86_SERVER)
@@ -180,7 +181,7 @@ OS_TYPE Hostinfo_GetOSType(void);
 OS_DETAIL_TYPE Hostinfo_GetOSDetailType(void);
 
 Bool Hostinfo_GetPCFrequency(uint64 *pcHz);
-Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber, 
+Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
 				uint32 *currentMhz, uint32 *maxMhz);
 uint64 Hostinfo_SystemIdleTime(void);
 Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);

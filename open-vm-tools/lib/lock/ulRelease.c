@@ -45,14 +45,16 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
    if (!MXRecLockIsOwner(&lock->lockRecursive)) {
       if (MXRecLockCount(&lock->lockRecursive) == 0) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Release of an unacquired exclusive lock",
+                            "%s: Release of an unacquired exclusive lock\n",
                             __FUNCTION__);
       } else {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Release of owned exclusive lock",
+                            "%s: Release of owned exclusive lock\n",
                             __FUNCTION__);
       }
    }
+
+   MXUserReleaseRankCheck(&lock->lockHeader);
 
    MXRecLockRelease(&lock->lockRecursive);
 }
@@ -82,14 +84,16 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
    if (!MXRecLockIsOwner(&lock->lockRecursive)) {
       if (MXRecLockCount(&lock->lockRecursive) == 0) {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Release of an unacquired recursive lock",
+                            "%s: Release of an unacquired recursive lock\n",
                             __FUNCTION__);
       } else {
          MXUserDumpAndPanic(&lock->lockHeader,
-                            "%s: Release of owned recursive lock",
+                            "%s: Release of owned recursive lock\n",
                             __FUNCTION__);
       }
    }
+
+   MXUserReleaseRankCheck(&lock->lockHeader);
 
    MXRecLockRelease(&lock->lockRecursive);
 }

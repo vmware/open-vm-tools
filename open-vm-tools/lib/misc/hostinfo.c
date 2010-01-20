@@ -31,6 +31,8 @@
 #endif
 #include "hostinfo.h"
 #include "util.h"
+#include "str.h"
+#include "dynbuf.h"
 
 #define LOGLEVEL_MODULE hostinfo
 #include "loglevel_user.h"
@@ -100,6 +102,111 @@ HostInfoGetAMDCPUCount(CPUIDSummary *cpuid,       // IN
    return TRUE;
 }
 #endif // defined(__i386__) || defined(__x86_64__)
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostInfoGetCpuidStrSection --
+ *
+ *       Append a section (either low or high) of CPUID as a string in DynBuf.
+ *       E.g.
+ *          00000000:00000005756E65476C65746E49656E69-
+ *          00000001:00000F4A000208000000649DBFEBFBFF-
+ *       or
+ *          80000000:80000008000000000000000000000000-
+ *          80000001:00000000000000000000000120100000-
+ *          80000008:00003024000000000000000000000000-
+ *
+ *       The returned eax of args[0] is used to determine the upper bound for
+ *       the following input arguments. And the input args should be in ascending
+ *       order.
+ *
+ * Results:
+ *       None. The string will be appended in buf.
+ *
+ * Side effect:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostInfoGetCpuidStrSection(const uint32 args[],    // IN: input eax arguments
+                           const size_t args_size, // IN: size of the argument array
+                           DynBuf *buf)            // IN/OUT: result string in DynBuf
+{
+   static const char format[] = "%08X:%08X%08X%08X%08X-";
+   CPUIDRegs reg;
+   uint32 max_arg;
+   char temp[64];
+   int i;
+
+   __GET_CPUID(args[0], &reg);
+   max_arg = reg.eax;
+   if (max_arg < args[0]) {
+      Warning(LGPFX" No CPUID information available. Based = %08X.\n", args[0]);
+      return;
+   }
+   DynBuf_Append(buf, temp,
+      Str_Sprintf(temp, sizeof temp, format, args[0], reg.eax, reg.ebx, reg.ecx, reg.edx));
+
+   for (i = 1; i < args_size && args[i] <= max_arg; i++) {
+      ASSERT(args[i] > args[i - 1]); // Ascending order.
+      __GET_CPUID(args[i], &reg);
+
+      DynBuf_Append(buf, temp,
+         Str_Sprintf(temp, sizeof temp, format, args[i], reg.eax, reg.ebx, reg.ecx, reg.edx));
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetCpuidStr --
+ *
+ *       Get the basic and extended CPUID as a string. E.g.
+ *          00000000:00000005756E65476C65746E49656E69-
+ *          00000001:00000F4A000208000000649DBFEBFBFF-
+ *          80000000:80000008000000000000000000000000-
+ *          80000001:00000000000000000000000120100000-
+ *          80000008:00003024000000000000000000000000
+ *
+ *       If the extended CPUID is not available, only returns the basic CPUID.
+ *
+ * Results:
+ *       The CPUID string if the processor supports the CPUID instruction and this
+ *       is a processor we recognize. It should never fail, since it would at least
+ *       return leaf 0. Caller needs to free the returned string.
+ *
+ * Side effect:
+ *       None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Hostinfo_GetCpuidStr(void)
+{
+   static const uint32 basic_args[] = {0x0, 0x1, 0xa};
+   static const uint32 extended_args[] = {0x80000000, 0x80000001, 0x80000008};
+   DynBuf buf;
+   char *result;
+
+   DynBuf_Init(&buf);
+
+   HostInfoGetCpuidStrSection(basic_args, ARRAYSIZE(basic_args), &buf);
+   HostInfoGetCpuidStrSection(extended_args, ARRAYSIZE(extended_args), &buf);
+
+   // Trim buffer and set NULL character to replace last '-'.
+   DynBuf_Trim(&buf);
+   result = (char*)DynBuf_Get(&buf);
+   ASSERT(result && result[0]); // We should at least get result from eax = 0x0.
+   result[DynBuf_GetSize(&buf) - 1] = '\0';
+
+   return DynBuf_Detach(&buf);
+}
 
 
 /*
@@ -217,7 +324,7 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
       Log(LGPFX" hyperthreading disabled, setting number of threads per core "
                "to 1.\n");
       numThreadsPerCore = 1;
-   } 
+   }
 #endif
 
    info->numPhysCPUs = info->numLogCPUs / (numCoresPerPCPU *
@@ -349,7 +456,7 @@ Hostinfo_TouchXen(void)
    CPUIDRegs regs;
    uint32 name[4];
 
-   /* 
+   /*
     * PV mode: ud2a "xen" cpuid (faults on native hardware).
     * (Only Linux can run PV, so skip others here).
     * Since PV cannot trap CPUID, this is a Xen hook.
@@ -376,7 +483,7 @@ Hostinfo_TouchXen(void)
    /* Passed checks.  But native and anything non-Xen would #UD before here. */
    NOT_TESTED();
    Log("Xen detected but hypervisor unrecognized (Xen variant?)\n");
-   Log("CPUID 0x4000 0000: eax=%x ebx=%x ecx=%x edx=%x\n", 
+   Log("CPUID 0x4000 0000: eax=%x ebx=%x ecx=%x edx=%x\n",
        regs.eax, regs.ebx, regs.ecx, regs.edx);
 #endif
 

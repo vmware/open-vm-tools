@@ -16,7 +16,6 @@
  *
  *********************************************************/
 
-
 #include "vmware.h"
 #include "userlock.h"
 #include "ulInt.h"
@@ -43,11 +42,13 @@ MXUser_AcquireExclLock(MXUserExclLock *lock) // IN/OUT:
 {
    ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
 
+   MXUserAcquireRankCheck(&lock->lockHeader);
+
    MXRecLockAcquire(&lock->lockRecursive, GetReturnAddress());
 
    if (MXRecLockCount(&lock->lockRecursive) > 1) {
       MXUserDumpAndPanic(&lock->lockHeader,
-                         "%s: Acquire on an acquired exclusive lock",
+                         "%s: Acquire on an acquired exclusive lock\n",
                          __FUNCTION__);
    }
 }
@@ -75,6 +76,8 @@ void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    ASSERT(lock->lockHeader.lockSignature == USERLOCK_SIGNATURE);
+
+   MXUserAcquireRankCheck(&lock->lockHeader);
 
    MXRecLockAcquire(&lock->lockRecursive, GetReturnAddress());
 }
