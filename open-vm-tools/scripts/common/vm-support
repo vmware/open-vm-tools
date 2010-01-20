@@ -61,6 +61,9 @@ VMSUPPORT_ERROR=10
 #	vm-support collection not supported
 VMSUPPORT_UNKNOWN=100
 
+#internal state machine state for update
+update=0
+
 #	Updates the VM with the current state
 
 function UpdateState {
@@ -176,7 +179,6 @@ function runcmd {
 	fi
 }
 
-update = 0
 
 # Parse args
 for option in $@
