@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-#include <linux/autoconf.h>
-#include <linux/version.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 /*
  * Between 2.6.27-rc1 and 2.6.27-rc2 ctor prototype was changed from

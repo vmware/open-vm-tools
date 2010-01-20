@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,21 +16,25 @@
  *
  *********************************************************/
 
-/*
- * Detect whether we have 'struct poll_wqueues'
- * 2.6.x kernels always had this struct.  Stock 2.4.x kernels
- * never had it, but some distros backported epoll patch.
- */
+#ifndef __COMPAT_AUTOCONF_H__
+#   define __COMPAT_AUTOCONF_H__
 
-#include "compat_version.h"
-#include "compat_autoconf.h"
+#define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMCORE
+#define INCLUDE_ALLOW_DISTRIBUTE
+#include "includeCheck.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)
-#include <linux/poll.h>
 
-void poll_test(void) {
-        struct poll_wqueues test;
-
-        return poll_initwait(&test);
-}
+#ifndef LINUX_VERSION_CODE
+#   error "Include compat_version.h before compat_autoconf.h"
 #endif
+
+/* autoconf.h moved from linux/autoconf.h to generated/autoconf.h in 2.6.33-rc1. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
+#   include <linux/autoconf.h>
+#else
+#   include <generated/autoconf.h>
+#endif
+
+#endif /* __COMPAT_AUTOCONF_H__ */

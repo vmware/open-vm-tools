@@ -20,8 +20,8 @@
  * set_user_nice appeared in 2.4.21.  But some distros
  * backported it to older kernels.
  */
-#include <linux/autoconf.h>
-#include <linux/version.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 21)
 #include <linux/sched.h>

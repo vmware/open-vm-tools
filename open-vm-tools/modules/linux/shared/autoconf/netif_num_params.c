@@ -28,8 +28,8 @@
  * takes only single napi argument.
  */
 
-#include <linux/autoconf.h>
-#include <linux/version.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
 #   error This compile test intentionally fails.

@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-#include <linux/autoconf.h>
-#include <linux/version.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 /*
  * All kernels before 2.6.22 take 6 arguments.  All kernels since

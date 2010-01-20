@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-#include <linux/autoconf.h>
-#include <linux/version.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
 #include <linux/fs.h>

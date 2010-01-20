@@ -16,7 +16,8 @@
  *
  *********************************************************/
 
-#include <linux/autoconf.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 #ifdef CONFIG_X86_VOYAGER
 APATH/mach-voyager

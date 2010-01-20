@@ -31,8 +31,8 @@
 #define INCLUDE_ALLOW_MODULE
 #include "includeCheck.h"
 
-#include <linux/autoconf.h>
 #include "compat_version.h"
+#include "compat_autoconf.h"
 
 /*
  * We rely on Kernel Module support.  Check here.

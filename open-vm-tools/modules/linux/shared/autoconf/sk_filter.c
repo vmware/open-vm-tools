@@ -23,8 +23,8 @@
  * This test will fail to build on kernels with the new interface.
  */
 
-#include <linux/autoconf.h>
-#include <linux/version.h>
+#include "compat_version.h"
+#include "compat_autoconf.h"
 
 /*
  * We'd restrict this test to 2.4.21 and earlier kernels, but Mandrake's
