@@ -269,20 +269,20 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
  *--------------------------------------------------------------------------
  */
 
-EXTERN void *Util_SafeInternalMalloc(int bugNumber, size_t size, char *file,
-                                     int lineno);
+EXTERN void *Util_SafeInternalMalloc(int bugNumber, size_t size,
+                                     const char *file, int lineno);
 
 EXTERN void *Util_SafeInternalRealloc(int bugNumber, void *ptr, size_t size,
-                                      char *file, int lineno);
+                                      const char *file, int lineno);
 
 EXTERN void *Util_SafeInternalCalloc(int bugNumber, size_t nmemb,
-                                     size_t size, char *file, int lineno);
+                                     size_t size, const char *file, int lineno);
 
 EXTERN char *Util_SafeInternalStrdup(int bugNumber, const char *s,
-                                     char *file, int lineno);
+                                     const char *file, int lineno);
 
 EXTERN char *Util_SafeInternalStrndup(int bugNumber, const char *s, size_t n,
-                                      char *file, int lineno);
+                                      const char *file, int lineno);
 
 #define Util_SafeMalloc(_size) \
    Util_SafeInternalMalloc(-1, (_size), __FILE__, __LINE__)

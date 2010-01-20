@@ -44,10 +44,10 @@
  */
 
 void *
-Util_SafeInternalMalloc(int bugNumber,  // IN:
-                        size_t size,    // IN:
-			char *file,     // IN:
-                        int lineno)     // IN:
+Util_SafeInternalMalloc(int bugNumber,        // IN:
+                        size_t size,          // IN:
+			const char *file,     // IN:
+                        int lineno)           // IN:
 {
    void *result = malloc(size);
 
@@ -80,11 +80,11 @@ Util_SafeInternalMalloc(int bugNumber,  // IN:
  */
 
 void *
-Util_SafeInternalRealloc(int bugNumber,  // IN:
-                         void *ptr,      // IN:
-                         size_t size,    // IN:
-                         char *file,     // IN:
-                         int lineno)     // IN:
+Util_SafeInternalRealloc(int bugNumber,        // IN:
+                         void *ptr,            // IN:
+                         size_t size,          // IN:
+                         const char *file,     // IN:
+                         int lineno)           // IN:
 {
    void *result = realloc(ptr, size);
 
@@ -117,11 +117,11 @@ Util_SafeInternalRealloc(int bugNumber,  // IN:
  */
 
 void *
-Util_SafeInternalCalloc(int bugNumber,  // IN:
-                        size_t nmemb,   // IN:
-                        size_t size,    // IN:
-			char *file,     // IN:
-                        int lineno)     // IN:
+Util_SafeInternalCalloc(int bugNumber,        // IN:
+                        size_t nmemb,         // IN:
+                        size_t size,          // IN:
+			const char *file,     // IN:
+                        int lineno)           // IN:
 {
    void *result = calloc(nmemb, size);
 
@@ -154,10 +154,10 @@ Util_SafeInternalCalloc(int bugNumber,  // IN:
  */
 
 char *
-Util_SafeInternalStrdup(int bugNumber,  // IN:
-                        const char *s,  // IN:
-                        char *file,     // IN:
-                        int lineno)     // IN:
+Util_SafeInternalStrdup(int bugNumber,        // IN:
+                        const char *s,        // IN:
+                        const char *file,     // IN:
+                        int lineno)           // IN:
 {
    char *result;
 
@@ -201,11 +201,11 @@ Util_SafeInternalStrdup(int bugNumber,  // IN:
  */
 
 char *
-Util_SafeInternalStrndup(int bugNumber,  // IN:
-                         const char *s,  // IN:
-                         size_t n,       // IN:
-                         char *file,     // IN:
-                         int lineno)     // IN:
+Util_SafeInternalStrndup(int bugNumber,        // IN:
+                         const char *s,        // IN:
+                         size_t n,             // IN:
+                         const char *file,     // IN:
+                         int lineno)           // IN:
 {
    size_t size;
    char *copy;
