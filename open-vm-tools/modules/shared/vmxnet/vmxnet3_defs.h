@@ -528,6 +528,9 @@ enum vmxnet3_intr_type {
 /* addition 1 for events */
 #define VMXNET3_MAX_INTRS      25
 
+/* value of intrCtrl */
+#define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
+
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_IntrConf {
@@ -535,7 +538,8 @@ struct Vmxnet3_IntrConf {
    uint8  numIntrs;      /* # of interrupts */
    uint8  eventIntrIdx;
    uint8  modLevels[VMXNET3_MAX_INTRS]; /* moderation level for each intr */
-   __le32 reserved[3];
+   __le32 intrCtrl;
+   __le32 reserved[2];
 }
 #include "vmware_pack_end.h"
 Vmxnet3_IntrConf;
