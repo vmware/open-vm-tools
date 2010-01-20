@@ -620,41 +620,45 @@ HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
                          HgfsHandle *file,           // OUT: file handle
-			 uint32 *caseFlags);         // OUT: case-sensitivity flags
+                         uint32 *caseFlags);         // OUT: case-sensitivity flags
 
 Bool
 HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
                         size_t packetSize,          // IN: request packet size
+                        HgfsOp *op,                 // OUT: requested operation
                         char **cpName,              // OUT: cpName
                         size_t *cpNameSize,         // OUT: cpName size
                         HgfsDeleteHint *hints,      // OUT: delete hints
                         HgfsHandle *file,           // OUT: file handle
-			uint32 *caseFlags);         // OUT: case-sensitivity flags
+                        uint32 *caseFlags);         // OUT: case-sensitivity flags
 
 Bool
 HgfsPackDeleteReply(char const *packetIn,          // IN: incoming packet
                     HgfsInternalStatus status,     // IN: reply status
+                    HgfsOp op,                     // IN: requested operation
                     char **packetOut,              // OUT: outgoing packet
                     size_t *packetSize);           // OUT: size of packet
 
 Bool
 HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
                         size_t packetSize,          // IN: request packet size
+                        HgfsOp *op,                 // OUT: requested operation
                         char **cpOldName,           // OUT: rename src
-                        uint32 *cpOldNameLen,       // OUT: rename src size
+                        size_t *cpOldNameLen,       // OUT: rename src size
                         char **cpNewName,           // OUT: rename dst
-                        uint32 *cpNewNameLen,       // OUT: rename dst size
+                        size_t *cpNewNameLen,       // OUT: rename dst size
                         HgfsRenameHint *hints,      // OUT: rename hints
                         HgfsHandle *srcFile,        // OUT: src file handle
                         HgfsHandle *targetFile,     // OUT: target file handle
-			uint32 *oldCaseFlags,       // OUT: old case-sensitivity flags
-			uint32 *newCaseFlags);      // OUT: new case-sensitivity flags
+                        uint32 *oldCaseFlags,       // OUT: old case-sensitivity flags
+                        uint32 *newCaseFlags);      // OUT: new case-sensitivity flags
 
 Bool
-HgfsPackRenameReply(char const *packetIn,       // IN: incoming packet
-                    HgfsInternalStatus status,  // IN: reply status
-                    char **packetOut,           // OUT: outgoing packet
-                    size_t *packetSize);        // OUT: size of packet
+HgfsPackRenameReply(char const *packetIn,      // IN: incoming packet
+                    HgfsInternalStatus status, // IN: reply status
+                    HgfsOp op,                 // IN: requested operation
+                    char **packetOut,          // OUT: outgoing packet
+                    size_t *packetSize);       // OUT: size of packet
 
 Bool
 HgfsPackGetattrReply(char const *packetIn,       // IN: incoming packet
@@ -689,11 +693,12 @@ HgfsUnpackSetattrRequest(char const *packetIn,            // IN: request packet
                          char **cpName,                   // OUT: cpName
                          size_t *cpNameSize,              // OUT: cpName size
                          HgfsHandle *file,                // OUT: server file ID
-			 uint32 *caseFlags);              // OUT: case-sensitivity flags
+                         uint32 *caseFlags);              // OUT: case-sensitivity flags
 
 Bool
 HgfsPackSetattrReply(char const *packetIn,       // IN: setattrOp operation version
                      HgfsInternalStatus status,  // IN: reply status
+                     HgfsOp op,                  // IN: request type
                      char **packetOut,           // OUT: outgoing packet
                      size_t *packetSize);        // OUT: size of packet
 
@@ -706,23 +711,48 @@ HgfsUnpackCreateDirRequest(char const *packetIn,     // IN: incoming packet
 Bool
 HgfsPackCreateDirReply(char const *packetIn,      // IN: incoming packet
                        HgfsInternalStatus status, // IN: reply status
+                       HgfsOp op,                 // IN: request type
                        char **packetOut,          // OUT: outgoing packet
                        size_t *packetSize);       // OUT: size of packet
 
 Bool
 HgfsUnpackWriteWin32StreamRequest(char const *packetIn, // IN: incoming packet
-				  size_t packetSize,    // IN: size of packet
-				  HgfsHandle *file,     // OUT: file to write to
-				  char **payload,       // OUT: data to write
-				  size_t *requiredSize, // OUT: size of data
-				  Bool *doSecurity);    // OUT: restore sec.str.
+                                  size_t packetSize,    // IN: size of packet
+                                  HgfsOp *op,           // OUT: request type
+                                  HgfsHandle *file,     // OUT: file to write to
+                                  char **payload,       // OUT: data to write
+                                  size_t *requiredSize, // OUT: size of data
+                                  Bool *doSecurity);    // OUT: restore sec.str.
 
 Bool
 HgfsPackWriteWin32StreamReply(char const *packetIn,      // IN: incoming packet
-			      HgfsInternalStatus status, // IN: reply status
-			      uint32 actualSize,         // IN: amount written
-			      char **packetOut,          // OUT: outgoing packet
-			      size_t *packetSize);       // OUT: size of packet
+                              HgfsInternalStatus status, // IN: reply status
+                              HgfsOp op,                 // IN: request type
+                              uint32 actualSize,         // IN: amount written
+                              char **packetOut,          // OUT: outgoing packet
+                              size_t *packetSize);       // OUT: size of packet
+Bool
+HgfsUnpackCloseRequest(char const *packetIn,        // IN: request packet
+                       size_t packetSize,           // IN: request packet size
+                       HgfsOp *op,                  // OUT: request type
+                       HgfsHandle *file);           // OUT: Handle to close
+Bool
+HgfsPackCloseReply(char const *packetIn,      // IN: incoming packet
+                  HgfsInternalStatus status,  // IN: reply status
+                  HgfsOp op,                  // IN: request type
+                  char **packetOut,           // OUT: outgoing packet
+                  size_t *packetSize);        // OUT: size of packet
+Bool
+HgfsUnpackSearchCloseRequest(char const *packetIn,        // IN: request packet
+                             size_t packetSize,           // IN: request packet size
+                             HgfsOp *op,                  // OUT: request type
+                             HgfsHandle *file);           // OUT: Handle to close
+Bool
+HgfsPackSearchCloseReply(char const *packetIn,      // IN: incoming packet
+                         HgfsInternalStatus status,  // IN: reply status
+                         HgfsOp op,                  // IN: request type
+                         char **packetOut,           // OUT: outgoing packet
+                         size_t *packetSize);        // OUT: size of packet
 
 /* Node cache functions. */
 
