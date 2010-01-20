@@ -144,8 +144,8 @@ VMCIHandleArray_AppendEntry(VMCIHandleArray **arrayPtr,
       uint32 arraySize = sizeof array->capacity + sizeof array->size +
          array->capacity * sizeof(VMCIHandle);
       VMCIHandleArray *newArray = (VMCIHandleArray *)
-	      VMCI_AllocKernelMem(arraySize + array->capacity * sizeof(VMCIHandle),
-                             VMCI_MEMORY_NONPAGED);
+         VMCI_AllocKernelMem(arraySize + array->capacity * sizeof(VMCIHandle),
+                             VMCI_MEMORY_NONPAGED | VMCI_MEMORY_ATOMIC);
       if (newArray == NULL) {
          return;
       }
@@ -331,7 +331,8 @@ VMCIHandleArray_GetCopy(const VMCIHandleArray *array)
    arrayCopy = (VMCIHandleArray *)VMCI_AllocKernelMem(sizeof array->capacity + 
                                                       sizeof array->size +
                                                       array->size * sizeof(VMCIHandle),
-                                                      VMCI_MEMORY_NONPAGED);
+                                                      VMCI_MEMORY_NONPAGED |
+                                                         VMCI_MEMORY_ATOMIC);
    if (arrayCopy != NULL) {
       memcpy(&arrayCopy->size, &array->size,
              sizeof array->size + array->size * sizeof(VMCIHandle));
