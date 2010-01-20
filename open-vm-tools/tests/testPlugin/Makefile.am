@@ -19,6 +19,7 @@ plugindir = @TEST_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libtestPlugin.la
 
 libtestPlugin_la_CPPFLAGS =
+libtestPlugin_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 
@@ -26,6 +27,7 @@ libtestPlugin_la_LDFLAGS =
 libtestPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libtestPlugin_la_LIBADD =
+libtestPlugin_la_LIBADD += @CUNIT_LIBS@
 libtestPlugin_la_LIBADD += @GOBJECT_LIBS@
 libtestPlugin_la_LIBADD += @VMTOOLS_LIBS@
 libtestPlugin_la_LIBADD += @XDR_LIBS@

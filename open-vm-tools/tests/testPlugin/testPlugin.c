@@ -28,10 +28,13 @@
 
 #include <glib-object.h>
 #include <gmodule.h>
+#include <CUnit/CUnit.h>
+
 #include "testData.h"
 #include "util.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
 #include "vmware/tools/plugin.h"
+#include "vmware/tools/rpcdebug.h"
 #include "vmware/tools/utils.h"
 
 #define TEST_APP_PROVIDER        "TestProvider"
@@ -72,9 +75,9 @@ TestPluginRpc1(RpcInData *data)
    char *cmd;
    size_t cmdLen;
 
-   g_assert(details->width == 100);
-   g_assert(details->height == 200);
-   g_assert(strcmp(details->identifier, "rpc1test") == 0);
+   CU_ASSERT_EQUAL(details->width, 100);
+   CU_ASSERT_EQUAL(details->height, 200);
+   CU_ASSERT_STRING_EQUAL(details->identifier, "rpc1test");
 
    g_signal_emit_by_name(ctx->serviceObj, "test-signal");
 
@@ -185,7 +188,7 @@ TestPluginReset(gpointer src,
                 ToolsAppCtx *ctx,
                 ToolsPluginData *plugin)
 {
-   g_assert(ctx != NULL);
+   RPCDEBUG_ASSERT(ctx != NULL, FALSE);
    g_debug("%s: reset signal for app %s\n", __FUNCTION__, ctx->name);
    return TRUE;
 }
@@ -238,10 +241,10 @@ TestPluginShutdown(gpointer src,
                    ToolsPluginData *plugin)
 {
    g_debug("%s: shutdown signal.\n", __FUNCTION__);
-   ASSERT(gInvalidSigError);
-   ASSERT(gInvalidAppError);
-   ASSERT(gInvalidAppProvider);
-   ASSERT(gValidAppRegistration);
+   CU_ASSERT(gInvalidSigError);
+   CU_ASSERT(gInvalidAppError);
+   CU_ASSERT(gInvalidAppProvider);
+   CU_ASSERT(gValidAppRegistration);
 }
 
 
@@ -290,7 +293,7 @@ TestProviderRegisterApp(ToolsAppCtx *ctx,
    TestApp *app = reg;
    g_debug("%s: registration data is '%s'\n", __FUNCTION__, app->name);
    gValidAppRegistration |= strcmp(app->name, TEST_APP_NAME) == 0;
-   ASSERT(strcmp(app->name, TEST_APP_DONT_REGISTER) != 0);
+   CU_ASSERT(strcmp(app->name, TEST_APP_DONT_REGISTER) != 0);
    return (strcmp(app->name, TEST_APP_ERROR) != 0);
 }
 
@@ -313,23 +316,21 @@ TestPluginErrorCb(ToolsAppCtx *ctx,
    /* Make sure the non-existant signal we tried to register fires an error. */
    if (type == TOOLS_APP_SIGNALS) {
       ToolsPluginSignalCb *sig = data;
-      ASSERT(strcmp(sig->signame, TEST_SIG_INVALID) == 0);
-      (void) sig;
+      CU_ASSERT(strcmp(sig->signame, TEST_SIG_INVALID) == 0);
       gInvalidSigError = TRUE;
    }
 
    /* Make sure we're notified about the "error" app we tried to register. */
    if (type == 42) {
       TestApp *app = data;
-      ASSERT(strcmp(app->name, TEST_APP_ERROR) == 0);
-      (void) app;
+      CU_ASSERT(strcmp(app->name, TEST_APP_ERROR) == 0);
       gInvalidAppError = TRUE;
       return FALSE;
    }
 
    /* Make sure we're notified about a non-existant app provider. */
    if (type == 43) {
-      ASSERT(data == NULL);
+      CU_ASSERT(data == NULL);
       gInvalidAppProvider = TRUE;
    }
 

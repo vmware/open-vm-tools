@@ -40,6 +40,50 @@
 #include "vmware/tools/utils.h"
 
 
+/*
+ ******************************************************************************
+ * ToolsCoreCleanup --                                                  */ /**
+ *
+ * Cleans up the main loop after it has executed. After this function
+ * returns, the fields of the state object shouldn't be used anymore.
+ *
+ * @param[in]  state       Service state.
+ *
+ ******************************************************************************
+ */
+
+static void
+ToolsCoreCleanup(ToolsServiceState *state)
+{
+   ToolsCore_UnloadPlugins(state);
+   if (state->ctx.rpc != NULL) {
+      RpcChannel_Destroy(state->ctx.rpc);
+      state->ctx.rpc = NULL;
+   }
+   g_key_file_free(state->ctx.config);
+   g_main_loop_unref(state->ctx.mainLoop);
+
+#if defined(G_PLATFORM_WIN32)
+   if (state->ctx.comInitialized) {
+      CoUninitialize();
+      state->ctx.comInitialized = FALSE;
+   }
+#endif
+
+#if !defined(_WIN32)
+   if (state->ctx.envp) {
+      System_FreeNativeEnviron(state->ctx.envp);
+      state->ctx.envp = NULL;
+   }
+#endif
+
+   g_object_unref(state->ctx.serviceObj);
+   state->ctx.serviceObj = NULL;
+   state->ctx.config = NULL;
+   state->ctx.mainLoop = NULL;
+}
+
+
 /**
  * Loads the debug library and calls its initialization function. This function
  * panics is something goes wrong.
@@ -88,49 +132,59 @@ ToolsCoreConfFileCb(gpointer clientData)
 }
 
 
-/**
- * Cleans up the main loop after it has executed. After this function
- * returns, the fields of the state object shouldn't be used anymore.
+/*
+ ******************************************************************************
+ * ToolsCoreRunLoop --                                                  */ /**
+ *
+ * Loads and registers all plugins, and runs the service's main loop.
  *
  * @param[in]  state       Service state.
+ *
+ * @return Exit code.
+ *
+ ******************************************************************************
  */
 
-void
-ToolsCore_Cleanup(ToolsServiceState *state)
+static int
+ToolsCoreRunLoop(ToolsServiceState *state)
 {
-   ToolsCore_UnloadPlugins(state);
-   if (state->ctx.rpc != NULL) {
-      RpcChannel_Destroy(state->ctx.rpc);
-      state->ctx.rpc = NULL;
+   if (ToolsCore_GetTcloName(state) != NULL && !ToolsCore_InitRpc(state)) {
+      return 1;
    }
-   g_key_file_free(state->ctx.config);
-   g_main_loop_unref(state->ctx.mainLoop);
 
-#if defined(G_PLATFORM_WIN32)
-   if (state->ctx.comInitialized) {
-      CoUninitialize();
-      state->ctx.comInitialized = FALSE;
+   /*
+    * Start the RPC channel if it's been created. The channel may be NULL if this is
+    * not running in the context of a VM.
+    */
+   if (state->ctx.rpc && !RpcChannel_Start(state->ctx.rpc)) {
+      return 1;
    }
+
+   if (!ToolsCore_LoadPlugins(state)) {
+      return 1;
+   }
+
+   /*
+    * If not in a VM then there's no point in trying to run the loop, just exit
+    * with a '0' return status (see bug 297528 for why '0'). If we ever want
+    * to run vmtoolsd on physical hardware (or another hypervisor), we'll have
+    * to revisit this code.
+    */
+   if (!state->ctx.isVMware) {
+      return 0;
+   }
+
+   ToolsCore_RegisterPlugins(state);
+   g_timeout_add(CONF_POLL_TIME * 10, ToolsCoreConfFileCb, state);
+
+#if defined(__APPLE__)
+   ToolsCore_CFRunLoop(state);
+#else
+   g_main_loop_run(state->ctx.mainLoop);
 #endif
 
-   if (state->debugData != NULL) {
-      state->debugData->shutdown(&state->ctx, state->debugData);
-      g_module_close(state->debugLib);
-      state->debugData = NULL;
-      state->debugLib = NULL;
-   }
-
-#if !defined(_WIN32)
-   if (state->ctx.envp) {
-      System_FreeNativeEnviron(state->ctx.envp);
-      state->ctx.envp = NULL;
-   }
-#endif
-
-   g_object_unref(state->ctx.serviceObj);
-   state->ctx.serviceObj = NULL;
-   state->ctx.config = NULL;
-   state->ctx.mainLoop = NULL;
+   ToolsCoreCleanup(state);
+   return state->ctx.errorCode;
 }
 
 
@@ -248,11 +302,9 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
  * Performs any initial setup steps for the service's main loop.
  *
  * @param[in]  state       Service state.
- *
- * @return Whether initialization was successful.
  */
 
-gboolean
+void
 ToolsCore_Setup(ToolsServiceState *state)
 {
    GMainContext *gctx;
@@ -278,40 +330,6 @@ ToolsCore_Setup(ToolsServiceState *state)
    if (state->debugPlugin != NULL) {
       ToolsCoreInitializeDebug(state);
    }
-
-   /* Initialize the RpcIn channel for the known tools services. */
-   if (ToolsCore_GetTcloName(state) != NULL &&
-       !ToolsCore_InitRpc(state)) {
-      goto error;
-   }
-
-   /*
-    * Start the RPC channel if it's been created. The channel may be NULL if this is
-    * not running in the context of a VM.
-    */
-   if (state->ctx.rpc && !RpcChannel_Start(state->ctx.rpc)) {
-      goto error;
-   }
-
-   if (!ToolsCore_LoadPlugins(state)) {
-      goto error;
-   }
-
-   ToolsCore_RegisterPlugins(state);
-   goto exit;
-
-error:
-   if (state->ctx.rpc != NULL) {
-      RpcChannel_Destroy(state->ctx.rpc);
-      state->ctx.rpc = NULL;
-   }
-   if (state->ctx.mainLoop != NULL) {
-      g_main_loop_unref(state->ctx.mainLoop);
-      state->ctx.mainLoop = NULL;
-   }
-
-exit:
-   return (state->ctx.mainLoop != NULL);
 }
 
 
@@ -326,21 +344,16 @@ exit:
 int
 ToolsCore_Run(ToolsServiceState *state)
 {
-   /*
-    * If there's no RPC channel (not in a VM) then there's no point in trying to
-    * run the loop, just exit with a '0' return status (see bug 297528 for why '0').
-    */
-   if (!state->ctx.rpc) {
-      return 0;
+   if (state->debugData != NULL) {
+      int ret = state->debugData->run(&state->ctx,
+                                      ToolsCoreRunLoop,
+                                      state,
+                                      state->debugData);
+      g_module_close(state->debugLib);
+      state->debugData = NULL;
+      state->debugLib = NULL;
+      return ret;
    }
-
-   g_timeout_add(CONF_POLL_TIME * 10, ToolsCoreConfFileCb, state);
-
-#if defined(__APPLE__)
-   ToolsCore_CFRunLoop(state);
-#else
-   g_main_loop_run(state->ctx.mainLoop);
-#endif
-   return state->ctx.errorCode;
+   return ToolsCoreRunLoop(state);
 }
 

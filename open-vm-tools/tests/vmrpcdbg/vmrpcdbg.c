@@ -25,15 +25,15 @@
 #define G_LOG_DOMAIN "rpcdbg"
 
 #include <gmodule.h>
-#include <rpc/rpc.h>
-#include "util.h"
-#include "vmware/tools/rpcdebug.h"
+#include "CUnit/Basic.h"
+#include <CUnit/CUnit.h>
 
-#if !defined(__APPLE__)
+#include "util.h"
+#include "vmrpcdbgInt.h"
+
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
-#endif
 
 static GModule *gPlugin = NULL;
 
@@ -43,6 +43,98 @@ static volatile gint gRefCount = 0;
 #else
 static gint gRefCount = 0;
 #endif
+
+
+/*
+ * Static variables to hold the app's main loop data. CUnit test functions
+ * don't take any parameters so there's no other way to do this...
+ */
+static void (*gRunMainLoop)(gpointer);
+static gpointer gRunData;
+
+
+/*
+ ******************************************************************************
+ * RpcDebugRunLoop --                                                   */ /**
+ *
+ * Runs the app's main loop as part of a CUnit test.
+ *
+ ******************************************************************************
+ */
+
+static void
+RpcDebugRunLoop(void)
+{
+   ASSERT(gRunMainLoop);
+   ASSERT(gRunData);
+   gRunMainLoop(gRunData);
+}
+
+
+/*
+ ******************************************************************************
+ * RpcDebugRun --                                                       */ /**
+ *
+ * Runs the main application's main loop function through CUnit so that we
+ * get all the test tracking / reporting goodness that it provides.
+ *
+ * @param[in] runMainLoop     A function that runs the application's main loop.
+ *                            The function should take one argument,
+ * @param[in] runData         Argument to be passed to the main loop function.
+ * @param[in] ldata           Debug library data.
+ *
+ * @return CUnit test run result (cast to int).
+ *
+ ******************************************************************************
+ */
+
+static int
+RpcDebugRun(ToolsAppCtx *ctx,
+            gpointer runMainLoop,
+            gpointer runData,
+            RpcDebugLibData *ldata)
+{
+   CU_ErrorCode err;
+   CU_Suite *suite;
+   CU_Test *test;
+
+   ASSERT(runMainLoop != NULL);
+   ASSERT(ldata != NULL);
+
+   err = CU_initialize_registry();
+   ASSERT(err == CUE_SUCCESS);
+
+   suite = CU_add_suite(g_module_name(gPlugin), NULL, NULL);
+   ASSERT(suite != NULL);
+
+   test = CU_add_test(suite, g_module_name(gPlugin), RpcDebugRunLoop);
+   ASSERT(test != NULL);
+
+   gRunMainLoop = runMainLoop;
+   gRunData = runData;
+
+   err = CU_basic_run_tests();
+
+   /* Clean up internal library / debug plugin state. */
+   ASSERT(g_atomic_int_get(&gRefCount) == 0);
+   ASSERT(ldata != NULL);
+
+   if (ldata->debugPlugin->shutdownFn != NULL) {
+      ldata->debugPlugin->shutdownFn(ctx, ldata->debugPlugin);
+   }
+
+   if (gPlugin != NULL) {
+      g_module_close(gPlugin);
+      gPlugin = NULL;
+   }
+
+   if (CU_get_failure_list() != NULL) {
+      err = 1;
+   }
+
+   CU_cleanup_registry();
+   return (int) err;
+}
 
 
 /**
@@ -90,9 +182,10 @@ RpcDebug_Initialize(ToolsAppCtx *ctx,
    RpcDebugOnLoadFn onload;
    RpcDebugLibData *ldata;
 
+   ASSERT(gPlugin == NULL);
+
    ldata = g_malloc(sizeof *ldata);
 
-   g_assert(gPlugin == NULL);
    gPlugin = g_module_open(dbgPlugin, G_MODULE_BIND_LOCAL);
    if (gPlugin == NULL) {
       g_error("Can't load plugin: %s\n", dbgPlugin);
@@ -108,7 +201,7 @@ RpcDebug_Initialize(ToolsAppCtx *ctx,
    }
 
    ldata->newDebugChannel = RpcDebug_NewDebugChannel;
-   ldata->shutdown = RpcDebug_Shutdown;
+   ldata->run = RpcDebugRun;
 
    return ldata;
 }
@@ -158,31 +251,6 @@ RpcDebug_SetResult(const char *str,
    }
    if (len != NULL) {
       *len = strlen(str);
-   }
-}
-
-
-/**
- * Shuts down the debug library. Unloads the debug plugin. The plugin's data
- * shouldn't be used after this function is called.
- *
- * @param[in]  ctx      The application context.
- * @param[in]  ldata    Debug library data.
- */
-
-void
-RpcDebug_Shutdown(ToolsAppCtx *ctx,
-                  RpcDebugLibData *ldata)
-{
-   g_assert(g_atomic_int_get(&gRefCount) == 0);
-   g_assert(ldata != NULL);
-
-   if (ldata->debugPlugin != NULL && ldata->debugPlugin->shutdownFn != NULL) {
-      ldata->debugPlugin->shutdownFn(ctx, ldata->debugPlugin);
-   }
-   if (gPlugin != NULL) {
-      g_module_close(gPlugin);
-      gPlugin = NULL;
    }
 }
 

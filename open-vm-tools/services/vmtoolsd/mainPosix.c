@@ -187,9 +187,7 @@ main(int argc,
       return 0;
    }
 
-   if (!ToolsCore_Setup(&gState)) {
-      goto exit;
-   }
+   ToolsCore_Setup(&gState);
 
    src = VMTools_NewSignalSource(SIGHUP);
    VMTOOLSAPP_ATTACH_SOURCE(&gState.ctx, src,
@@ -223,8 +221,6 @@ main(int argc,
    gState.ctx.envp = System_GetNativeEnviron(envp);
 
    ret = ToolsCore_Run(&gState);
-
-   ToolsCore_Cleanup(&gState);
 
    if (gState.pidFile != NULL) {
       g_unlink(gState.pidFile);

@@ -203,6 +203,14 @@ AC_ARG_ENABLE(
    [enable_docs="$enableval"],
    [enable_docs="yes"])
 
+AC_ARG_ENABLE(
+   tests,
+   AS_HELP_STRING(
+      [--disable-tests],
+      [disable compilation of test code.]),
+   [enable_tests="$enableval"],
+   [enable_tests="auto"])
+
 # If we're not going to use Gtk 2.0, disable Unity.
 if test "$with_gtk2" != "yes"; then
    enable_unity="no"
@@ -394,6 +402,27 @@ if test "$os" = "linux"; then
    fi
 fi
 
+#
+# Check for CUnit and disable test code if not available.
+#
+if test "$enable_tests" = "auto" -o "$enable_tests" = "yes"; then
+   AC_VMW_CHECK_LIB([cunit],
+                    [CUNIT],
+                    [],
+                    [],
+                    [],
+                    [CUnit/CUnit.h],
+                    [CU_initialize_registry],
+                    [have_cunit=yes],
+                    [have_cunit=no])
+   if test "$have_cunit" = "no"; then
+      if test "$enable_tests" = "yes"; then
+         AC_VMW_LIB_ERROR([CUNIT], [cunit])
+      else
+         AC_MSG_WARN([CUnit not found, tests won't be compiled.])
+      fi
+   fi
+fi
 
 # If the user explicitly disables X11, then don't try to detect the X-related libraries
 if test "$have_x" = "disabled"; then
@@ -1076,6 +1105,7 @@ AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
+AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")

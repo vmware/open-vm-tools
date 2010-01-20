@@ -31,9 +31,9 @@
 
 #include "strutil.h"
 #include "util.h"
+#include "vmrpcdbgInt.h"
 #include "vmxrpc.h"
 #include "xdrutil.h"
-#include "vmware/tools/rpcdebug.h"
 #include "vmware/tools/utils.h"
 
 typedef struct DbgChannelData {
@@ -184,7 +184,7 @@ RpcDebugSend(RpcChannel *chan,
    RpcDebugRecvFn recvFn = NULL;
    gboolean ret = TRUE;
 
-   g_assert(chan->appName != NULL);
+   ASSERT(chan->appName != NULL);
 
    /* Be paranoid. Like the VMX, NULL-terminate the incoming data. */
    copy = g_malloc(dataLen + 1);
@@ -214,7 +214,7 @@ RpcDebugSend(RpcChannel *chan,
       if (mapping->xdrProc != NULL) {
          char *start;
 
-         g_assert(mapping->xdrSize > 0);
+         ASSERT(mapping->xdrSize > 0);
 
          /* Find out where the XDR data starts. */
          start = strchr(copy, ' ');
@@ -265,7 +265,7 @@ static void
 RpcDebugShutdown(RpcChannel *chan)
 {
    DbgChannelData *cdata = chan->_private;
-   g_assert(chan->appName != NULL);
+   ASSERT(chan->appName != NULL);
    if (cdata->hasLibRef) {
       RpcDebug_DecRef(chan->appCtx);
    }
@@ -292,7 +292,7 @@ RpcDebug_NewDebugChannel(ToolsAppCtx *ctx,
    DbgChannelData *cdata;
    RpcChannel *ret;
 
-   g_assert(data != NULL);
+   ASSERT(data != NULL);
 
    ret = g_malloc0(sizeof *ret);
    ret->start = RpcDebugStart;

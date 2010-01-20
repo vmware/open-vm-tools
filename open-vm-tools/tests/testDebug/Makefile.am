@@ -19,6 +19,7 @@ plugindir = @TEST_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libtestDebug.la
 
 libtestDebug_la_CPPFLAGS =
+libtestDebug_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libtestDebug_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
 libtestDebug_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 
@@ -26,6 +27,7 @@ libtestDebug_la_LDFLAGS =
 libtestDebug_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libtestDebug_la_LIBADD =
+libtestDebug_la_LIBADD += @CUNIT_LIBS@
 libtestDebug_la_LIBADD += @GOBJECT_LIBS@
 libtestDebug_la_LIBADD += @VMTOOLS_LIBS@
 libtestDebug_la_LIBADD += ../vmrpcdbg/libvmrpcdbg.la

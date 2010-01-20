@@ -18,6 +18,7 @@
 noinst_LTLIBRARIES = libvmrpcdbg.la
 
 libvmrpcdbg_la_CPPFLAGS =
+libvmrpcdbg_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += @GMODULE_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@
 
@@ -25,6 +26,7 @@ libvmrpcdbg_la_LDFLAGS =
 libvmrpcdbg_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libvmrpcdbg_la_LIBADD =
+libvmrpcdbg_la_LIBADD += @CUNIT_LIBS@
 libvmrpcdbg_la_LIBADD += @GMODULE_LIBS@
 libvmrpcdbg_la_LIBADD += @VMTOOLS_LIBS@
 libvmrpcdbg_la_LIBADD += @XDR_LIBS@

@@ -47,7 +47,9 @@ if HAVE_FUSE
    SUBDIRS += vmblock-fuse
 endif
 SUBDIRS += xferlogs
-SUBDIRS += tests
+if ENABLE_TESTS
+   SUBDIRS += tests
+endif
 if WITH_KERNEL_MODULES
    SUBDIRS += modules
 endif

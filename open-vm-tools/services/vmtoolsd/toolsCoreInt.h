@@ -100,9 +100,6 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
                            char *argv[]);
 
 void
-ToolsCore_Cleanup(ToolsServiceState *state);
-
-void
 ToolsCore_DumpPluginInfo(ToolsServiceState *state);
 
 void
@@ -114,7 +111,7 @@ ToolsCore_GetTcloName(ToolsServiceState *state);
 int
 ToolsCore_Run(ToolsServiceState *state);
 
-gboolean
+void
 ToolsCore_Setup(ToolsServiceState *state);
 
 gboolean

@@ -31,6 +31,19 @@
 
 #include "vmware/tools/plugin.h"
 
+
+/**
+ * Shorthand macro to both call CU_ASSERT() and return from the
+ * function if the assertion fails. Note that this file doesn't
+ * include CUnit.h, so you'll need to include that header to use
+ * this macro.
+ */
+#define RPCDEBUG_ASSERT(test, retval) do {   \
+   CU_ASSERT(test);                          \
+   g_return_val_if_fail(test, retval);       \
+} while (0)
+
+
 struct RpcDebugPlugin;
 
 /**
@@ -125,8 +138,12 @@ struct RpcDebugLibData;
  * the library to use the debugging functionality.
  */
 typedef struct RpcDebugLibData {
-   RpcChannel *    (*newDebugChannel)  (ToolsAppCtx *, struct RpcDebugLibData *);
-   void            (*shutdown)         (ToolsAppCtx *, struct RpcDebugLibData *);
+   RpcChannel *    (*newDebugChannel)  (ToolsAppCtx *,
+                                        struct RpcDebugLibData *);
+   int             (*run)              (ToolsAppCtx *,
+                                        gpointer runMainLoop,
+                                        gpointer runData,
+                                        struct RpcDebugLibData *);
    RpcDebugPlugin   *debugPlugin;
 } RpcDebugLibData;
 
@@ -146,10 +163,6 @@ RpcDebugLibData *
 RpcDebug_Initialize(ToolsAppCtx *ctx,
                     gchar *dbgPlugin);
 
-RpcChannel *
-RpcDebug_NewDebugChannel(ToolsAppCtx *ctx,
-                         RpcDebugLibData *data);
-
 gboolean
 RpcDebug_SendNext(RpcDebugMsgMapping *rpcdata,
                   RpcDebugMsgList *list);
@@ -158,10 +171,6 @@ void
 RpcDebug_SetResult(const char *str,
                    char **res,
                    size_t *len);
-
-void
-RpcDebug_Shutdown(ToolsAppCtx *ctx,
-                  RpcDebugLibData *data);
 
 G_END_DECLS
 
