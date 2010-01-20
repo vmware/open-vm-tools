@@ -98,6 +98,9 @@ EXTERN char *Str_Strnstr(const char *src, const char *sub, size_t n);
 EXTERN char *Str_Strcpy(char *dst, const char *src, size_t maxLen);
 EXTERN char *Str_Strcat(char *dst, const char *src, size_t maxLen);
 EXTERN char *Str_Strncat(char *buf, size_t bufSize, const char *src, size_t n);
+#if defined(GLIBC_VERSION_23)
+EXTERN const char *Str_Strerror(int errnum);
+#endif
 
 EXTERN char *Str_Asprintf(size_t *length,
                           const char *format, ...) PRINTF_DECL(2, 3);

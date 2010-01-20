@@ -48,6 +48,9 @@
 #include "bsd_output.h"
 #endif
 #include "codeset.h"
+#if defined(GLIBC_VERSION_23)
+#define MAX_ERRSTR_SIZE 128
+#endif
 
 #if defined _WIN32 && !defined HAS_BSD_PRINTF
 #define vsnprintf _vsnprintf
@@ -101,7 +104,6 @@ Str_Sprintf(char *buf,       // OUT
             const char *fmt, // IN
             ...)             // IN
 {
-   uint32 *stack = (uint32*) &buf;
    va_list args;
    int i;
    
@@ -109,7 +111,8 @@ Str_Sprintf(char *buf,       // OUT
    i = Str_Vsnprintf(buf, maxSize, fmt, args);
    va_end(args);
    if (i < 0) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
    }
    return i;
 }
@@ -241,7 +244,6 @@ Str_Strcpy(char *buf,       // OUT
            const char *src, // IN
            size_t maxSize)  // IN
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t len;
 
    ASSERT(buf != NULL);
@@ -249,8 +251,9 @@ Str_Strcpy(char *buf,       // OUT
 
    len = strlen(src);
    if (len >= maxSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
-      ASSERT_BUG(5686, FALSE);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
+      ASSERT_BUG(5686, FALSE); // Presumably in case Panic is stubbed
    }
    return memcpy(buf, src, len + 1);
 }
@@ -359,7 +362,6 @@ Str_Strcat(char *buf,       // IN-OUT
            const char *src, // IN
            size_t maxSize)  // IN
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
    size_t srcLen;
 
@@ -371,7 +373,8 @@ Str_Strcat(char *buf,       // IN-OUT
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
    }
 
    memcpy(buf + bufLen, src, srcLen + 1);
@@ -405,13 +408,11 @@ Str_Strncat(char *buf,       // IN-OUT
             const char *src, // IN: String to append
             size_t n)        // IN: Max chars of src to append
 {
-   uint32 *stack; 
    size_t bufLen; 
 
    ASSERT(buf != NULL);
    ASSERT(src != NULL);
 
-   stack = (uint32 *)&buf;
    bufLen = strlen(buf);
 
    /*
@@ -428,7 +429,8 @@ Str_Strncat(char *buf,       // IN-OUT
 
    if (bufLen + n >= bufSize &&
        bufLen + strlen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__,__LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__,__LINE__,
+            GetReturnAddress());
    }
 
    /*
@@ -438,6 +440,41 @@ Str_Strncat(char *buf,       // IN-OUT
 
    return strncat(buf, src, n);
 }
+
+
+#if defined(GLIBC_VERSION_23)
+/*
+ *----------------------------------------------------------------------
+ *
+ * Str_Strerror --
+ *
+ *    User level wrapper for strerror that is thread safe.
+ *
+ * Results:
+ *    Same as strerror.
+ *
+ * Side effects:
+ *    Allocates per-thread strerror string.
+ *
+ *----------------------------------------------------------------------
+ */
+
+const char *
+Str_Strerror(int errnum)  // IN: errno value
+{
+   static __thread char strerrorString[MAX_ERRSTR_SIZE];
+   char *ret;
+
+   ret = strerror_r(errnum, strerrorString, MAX_ERRSTR_SIZE);
+
+   if (!ret) {
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
+   }
+
+   return ret; 
+}
+#endif
 
 
 /*
@@ -669,7 +706,6 @@ Str_Swprintf(wchar_t *buf,       // OUT
              const wchar_t *fmt, // IN
              ...)                // IN
 {
-   uint32 *stack = (uint32*) &buf;
    va_list args;
    int i;
    
@@ -677,7 +713,8 @@ Str_Swprintf(wchar_t *buf,       // OUT
    i = Str_Vsnwprintf(buf, maxSize, fmt, args);
    va_end(args);
    if (i < 0) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
    }
    return i;
 }
@@ -804,13 +841,13 @@ Str_Wcscpy(wchar_t *buf,       // OUT
            const wchar_t *src, // IN
            size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t len;
 
    len = wcslen(src);
    if (len >= maxSize) { 
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
-      ASSERT_BUG(5686, FALSE); 
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
+      ASSERT_BUG(5686, FALSE); // Presumably in case Panic is stubbed
    }
    return memcpy(buf, src, (len + 1)*sizeof(wchar_t));
 }
@@ -837,7 +874,6 @@ Str_Wcscat(wchar_t *buf,       // IN-OUT
            const wchar_t *src, // IN
            size_t maxSize)     // IN: Size of buf, in wide-characters.
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
    size_t srcLen;
 
@@ -846,7 +882,8 @@ Str_Wcscat(wchar_t *buf,       // IN-OUT
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
    }
 
    memcpy(buf + bufLen, src, (srcLen + 1)*sizeof(wchar_t));
@@ -880,7 +917,6 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
             const wchar_t *src, // IN: String to append
             size_t n)           // IN: Max chars of src to append
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t bufLen = wcslen(buf);
 
    /*
@@ -897,7 +933,8 @@ Str_Wcsncat(wchar_t *buf,       // IN-OUT
 
    if (bufLen + n >= bufSize &&
        bufLen + wcslen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__,__LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__,__LINE__,
+            GetReturnAddress());
    }
 
    /*
@@ -930,12 +967,12 @@ Str_Mbscpy(char *buf,                // OUT
            const char *src,          // IN
            size_t maxSize)           // IN
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t len;
 
    len = strlen((const char *) src);
    if (len >= maxSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
    }
    return memcpy(buf, src, len + 1);
 }
@@ -965,7 +1002,6 @@ Str_Mbscat(char *buf,                // IN-OUT
            const char *src,          // IN
            size_t maxSize)           // IN
 {
-   uint32 *stack = (uint32 *)&buf;
    size_t bufLen;
    size_t srcLen;
 
@@ -974,7 +1010,8 @@ Str_Mbscat(char *buf,                // IN-OUT
 
    /* The first comparison checks for numeric overflow */
    if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
+      Panic("%s:%d Buffer too small %p\n", __FILE__, __LINE__,
+            GetReturnAddress());
    }
 
    memcpy(buf + bufLen, src, srcLen + 1);
