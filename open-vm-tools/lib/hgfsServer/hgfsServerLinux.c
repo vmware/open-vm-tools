@@ -57,7 +57,6 @@
 #include "posix.h"
 #include "file.h"
 #include "util.h"
-#include "userlock.h"
 #include "su.h"
 #include "codeset.h"
 #include "unicodeOperations.h"
@@ -3676,7 +3675,7 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
     * this and the subsequent read atomic.
     */
 
-   MXUser_AcquireExclLock(session->fileIOLock);
+   HGFS_LOCK_ACQUIRE(session->fileIOLock);
 
    if (!sequentialOpen) {
 #   ifdef linux
@@ -3696,13 +3695,13 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
          status = errno;
          LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
                  offset, strerror(status)));
-         MXUser_ReleaseExclLock(session->fileIOLock);
+         HGFS_LOCK_RELEASE(session->fileIOLock);
          goto error;
       }
    }
 
    error = read(fd, payload, requiredSize);
-   MXUser_ReleaseExclLock(session->fileIOLock);
+   HGFS_LOCK_RELEASE(session->fileIOLock);
 #endif
    if (error < 0) {
       status = errno;
@@ -3856,7 +3855,7 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
     * this and the subsequent write atomic.
     */
 
-   MXUser_AcquireExclLock(session->fileIOLock);
+   HGFS_LOCK_ACQUIRE(session->fileIOLock);
    if (!sequentialOpen) {
 #   ifdef linux
       {
@@ -3875,13 +3874,13 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
          status = errno;
          LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
                  offset, strerror(status)));
-         MXUser_ReleaseExclLock(session->fileIOLock);
+         HGFS_LOCK_RELEASE(session->fileIOLock);
          goto error;
       }
    }
 
    error = write(fd, payload, requiredSize);
-   MXUser_ReleaseExclLock(session->fileIOLock);
+   HGFS_LOCK_RELEASE(session->fileIOLock);
 #endif
    if (error < 0) {
       status = errno;

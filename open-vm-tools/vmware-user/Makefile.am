@@ -27,6 +27,7 @@ AM_CFLAGS += -I$(top_builddir)/include
 AM_CFLAGS += -I$(top_srcdir)/lib/dndGuest
 AM_CFLAGS += -DRESOLUTION_X11
 AM_CFLAGS += -I$(top_srcdir)/services/plugins/vix
+AM_CFLAGS += @GTHREAD_CPPFLAGS@
 
 AM_CXXFLAGS = $(AM_CFLAGS)
 
@@ -102,10 +103,9 @@ if USE_SLASH_PROC
    vmware_user_LDADD += ../lib/slashProc/libSlashProc.la
 endif
 
-vmware_user_LDADD += ../lib/lock/libLock.la
-vmware_user_LDADD += ../lib/nothread/libNothread.la
 vmware_user_LDADD += ../lib/misc/libMisc.la
 
+vmware_user_LDADD += @GTHREAD_LIBS@
 vmware_user_LDADD += @GTK_LIBS@
 if HAVE_GTKMM
    vmware_user_LDADD += @GTKMM_LIBS@

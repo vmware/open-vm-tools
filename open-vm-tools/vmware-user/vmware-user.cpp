@@ -34,6 +34,7 @@ extern "C" {
 #include <stdlib.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <glib.h>
 #include <gtk/gtkinvisible.h>
 #include <locale.h>
 #if defined(__FreeBSD__) && (!defined(USING_AUTOCONF) || defined(HAVE_SYSLIMITS_H))
@@ -765,6 +766,7 @@ main(int argc,         // IN
    gSigExit = FALSE;
 
    Atomic_Init();
+   g_thread_init(NULL);
 
    if (!VmCheck_IsVirtualWorld()) {
       Warning("vmware-user must be run inside a virtual machine.\n");
