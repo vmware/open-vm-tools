@@ -1,3 +1,6 @@
+open-vm-tools 2010.02.23 changes:
+	* Mostly bug fixes, cleanups and code refactoring.
+
 open-vm-tools 2010.01.19 changes:
 	* Linux modules have been updated to compile on newer kernels.
 
