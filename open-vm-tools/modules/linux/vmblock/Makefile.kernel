@@ -43,9 +43,6 @@ $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)
 ifdef OVT_SOURCE_DIR
 VMBLOCK_PATH        := $(shell cd $(SRCROOT) && pwd)
 VMBLOCK_SHARED_PATH := $(OVT_SOURCE_DIR)/modules/shared/vmblock
-LIBMISC_PATH        := $(call VMLIB_PATH,misc)
-
-LIBMISC             := dbllnklst.o
 
 VMBLOCK_SHARED      := block.o
 VMBLOCK_SHARED      += stubs.o
@@ -53,13 +50,9 @@ VMBLOCK_SHARED      += stubs.o
 EXTRA_CFLAGS        += -I$(VMBLOCK_PATH)/linux
 EXTRA_CFLAGS        += -I$(VMBLOCK_SHARED_PATH)
 
-$(addprefix $(VMBLOCK_PATH)/,$(LIBMISC)): $(VMBLOCK_PATH)/%.o: $(LIBMISC_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
 $(addprefix $(VMBLOCK_PATH)/,$(VMBLOCK_SHARED)): $(VMBLOCK_PATH)/%.o: $(VMBLOCK_SHARED_PATH)/%.c
 	$(Q)$(rule_cc_o_c)
 
-$(DRIVER)-y += $(LIBMISC)
 $(DRIVER)-y += $(VMBLOCK_SHARED)
 endif
 
