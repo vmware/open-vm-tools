@@ -34,6 +34,7 @@
 #include <glib/gstdio.h>
 #if defined(G_PLATFORM_WIN32)
 #  include <process.h>
+#  include <windows.h>
 #else
 #  include <unistd.h>
 #  include <sys/resource.h>
@@ -474,6 +475,12 @@ VMToolsConfigLogDomain(const gchar *domain,
       }
    } else if (strcmp(handler, "std") == 0) {
       handlerFn = VMToolsLogFile;
+#if defined (_WIN32)
+      /* Fall back to the default if we can't get a console. */
+      if (!VMTools_AttachConsole()) {
+         handlerFn = DEFAULT_HANDLER;
+      }
+#endif
    } else if (strcmp(handler, "file") == 0 ||
               strcmp(handler, "file+") == 0) {
       /* Don't set up the file sink if logging is disabled. */
@@ -727,6 +734,65 @@ VMToolsRestoreLogging(LogHandlerData *oldDefault,
 
 
 /* Public API. */
+
+
+#if defined(_WIN32)
+/**
+ * Attaches a console to the current process. If the parent process already has
+ * a console open, reuse it. Otherwise, create a new console for the current
+ * process. Win32-only.
+ *
+ * It's safe to call this function multiple times (it won't do anything if
+ * the process already has a console).
+ *
+ * @note Attaching to the parent process's console is only available on XP and
+ * later.
+ *
+ * @return Whether the process is attached to a console.
+ */
+
+gboolean
+VMTools_AttachConsole(void)
+{
+   typedef BOOL (WINAPI *AttachConsoleFn)(DWORD);
+   gboolean ret = FALSE;
+   AttachConsoleFn _AttachConsole;
+
+   if (GetConsoleWindow() != NULL) {
+      return TRUE;
+   }
+
+   _AttachConsole = (AttachConsoleFn) GetProcAddress(GetModuleHandleW(L"kernel32.dll"),
+                                                     "AttachConsole");
+   if ((_AttachConsole != NULL && _AttachConsole(ATTACH_PARENT_PROCESS)) ||
+       AllocConsole()) {
+      FILE* fptr;
+
+      fptr = _wfreopen(L"CONOUT$", L"a", stdout);
+      if (fptr == NULL) {
+         g_warning("_wfreopen failed for stdout/CONOUT$: %d (%s)",
+                   errno, strerror(errno));
+         goto exit;
+      }
+
+      fptr = _wfreopen(L"CONOUT$", L"a", stderr);
+      if (fptr == NULL) {
+         g_warning("_wfreopen failed for stderr/CONOUT$: %d (%s)",
+                   errno, strerror(errno));
+         goto exit;
+      }
+      setvbuf(fptr, NULL, _IONBF, 0);
+      ret = TRUE;
+   }
+
+exit:
+   if (!ret) {
+      g_warning("Console redirection unavailable.");
+   }
+   return ret;
+}
+#endif
+
 
 /**
  * Configures the logging system according to the configuration in the given

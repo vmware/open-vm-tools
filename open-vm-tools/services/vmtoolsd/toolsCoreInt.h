@@ -81,7 +81,6 @@ typedef struct ToolsServiceState {
    gchar         *pluginPath;
    GPtrArray     *plugins;
 #if defined(_WIN32)
-   gboolean       useConsole;
    gchar         *displayName;
 #else
    gchar         *pidFile;

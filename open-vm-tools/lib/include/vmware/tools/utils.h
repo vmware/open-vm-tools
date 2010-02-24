@@ -113,6 +113,9 @@ VMTools_WriteConfig(const gchar *path,
 
 #if defined(G_PLATFORM_WIN32)
 
+gboolean
+VMTools_AttachConsole(void);
+
 GSource *
 VMTools_NewHandleSource(HANDLE h);
 

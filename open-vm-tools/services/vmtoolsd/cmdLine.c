@@ -152,6 +152,28 @@ exit:
 
 
 /**
+ * Error hook called when command line parsing fails. On Win32, make sure we
+ * have a terminal where to show the error message.
+ *
+ * @param[in] context    Unused.
+ * @param[in] group      Unused.
+ * @param[in] data       Unused.
+ * @param[in] error      Unused.
+ */
+
+static void
+ToolsCoreCmdLineError(GOptionContext *context,
+                      GOptionGroup *group,
+                      gpointer data,
+                      GError **error)
+{
+#if defined(_WIN32)
+   VMTools_AttachConsole();
+#endif
+}
+
+
+/**
  * Parses the command line. For a list of available options, look at the source
  * below, where the option array is declared.
  *
@@ -193,8 +215,6 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
          N_("Uninstalls the service from the Service Control Manager."), NULL },
       { "displayname", 'd', 0, G_OPTION_ARG_STRING, &state->displayName,
          N_("Service display name (only used with -i)."), N_("name") },
-      { "console", '\0', 0, G_OPTION_ARG_NONE, &state->useConsole,
-         N_("Use the parent process's console window."), NULL },
 #else
       { "background", 'b', 0, G_OPTION_ARG_FILENAME, &state->pidFile,
          N_("Runs in the background and creates a pid file."), N_("pidfile") },
@@ -223,6 +243,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    g_option_context_set_summary(context, N_("Runs the VMware Tools daemon."));
 #endif
    g_option_context_add_main_entries(context, clOptions, NULL);
+   g_option_group_set_error_hook(g_option_context_get_main_group(context),
+                                 ToolsCoreCmdLineError);
 
    if (!g_option_context_parse(context, &argc, &argv, &error)) {
       g_printerr("%s: %s\n", N_("Command line parsing failed"), error->message);
