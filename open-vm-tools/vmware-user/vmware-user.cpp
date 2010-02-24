@@ -116,12 +116,13 @@ static Bool gDnDRegistered;
 static Bool gHgfsServerRegistered;
 static pid_t gParentPid;
 static char gLogFilePath[PATH_MAX];
+static Bool gRpcInStarted;      // Set after ATR handshake.  Indicates RpcIn is a go.
 
 /*
  * The following are flags set by our signal handler.  They are evaluated
  * in main() only if gtk_main() ever returns.
  */
-static Bool gReloadSelf;        // Set by SIGUSR2; triggers reload.
+static Bool gReloadSelf;        // Set by SIGUSR2 + error handlers; triggers reload.
 static Bool gYieldBlock;        // Set by SIGUSR1; triggers DND shutdown
 static Bool gSigExit;           // Set by all but SIGUSR1; triggers app shutdown
 
@@ -369,6 +370,9 @@ VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
    if (p) {
       p->OnReset();
    }
+
+   gRpcInStarted = TRUE;
+
    return RPCIN_SETRETVALS(data, "ATR " TOOLS_DND_NAME, TRUE);
 }
 
@@ -378,13 +382,16 @@ VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
  *
  * VMwareUserRpcInErrorCB  --
  *
- *      Callback called when their is some error on the backdoor channel.
+ *      Callback called when there is some error on the backdoor channel.
  *
  * Results:
- *      None.
+ *      This function calls the exit handler, VMwareUser_OnDestroy.
  *
  * Side effects:
- *      None.
+ *      If the RpcIn channel had been up previously, as indicated by performing
+ *      the ATR handshake, then this function will set the gSigExit and
+ *      gReloadSelf flags.  This is only to attempt recovery from an error
+ *      occurring while vmware-user was in its steady running state.
  *
  *-----------------------------------------------------------------------------
  */
@@ -392,8 +399,15 @@ VMwareUserRpcInResetCB(RpcInData *data)   // IN/OUT
 void
 VMwareUserRpcInErrorCB(void *clientdata, char const *status)
 {
-   Warning("Error in the RPC recieve loop: %s\n", status);
-   Warning("Another instance of VMwareUser may be running.\n\n");
+   Warning("Error in the RPC receive loop: %s\n", status);
+   Warning("Another instance of %s may be running.\n\n", VMUSER_TITLE);
+
+   if (gRpcInStarted) {
+      Debug("Channel had been up previously.  Perhaps we're waking from hibernation?\n");
+      gSigExit = TRUE;
+      gReloadSelf = TRUE;
+   }
+
    VMwareUser_OnDestroy(NULL, NULL);
 }
 
@@ -999,7 +1013,7 @@ main(int argc,         // IN
 
    for (;;) {
       /*
-       * We'll block here until the window is destroyed or a signal is recieved
+       * We'll block here until the window is destroyed or a signal is received.
        */
 #if defined(HAVE_GTKMM)
       main.run();
