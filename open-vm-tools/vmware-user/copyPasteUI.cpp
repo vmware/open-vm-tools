@@ -279,6 +279,8 @@ CopyPasteUI::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
    VmTimeType curTime;
    mBlockAdded = false;
 
+   sd.set(sd.get_target().c_str(), "");
+
    curTime = GetCurrentTime();
 
    /*
@@ -442,6 +444,8 @@ void
 CopyPasteUI::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
                                         guint info)             // Ignored
 {
+   sd.set(sd.get_target().c_str(), "");
+
    if (!mCP.IsCopyPasteAllowed()) {
       return;
    }
@@ -669,7 +673,7 @@ again:
    if (refClipboard->wait_is_text_available()) {
       Debug("%s: ask for text\n", __FUNCTION__);
       Glib::ustring str = refClipboard->wait_for_text();
-      bufSize = str.size();
+      bufSize = str.bytes();
       if (bufSize > 0  &&
           bufSize <= (int)CPCLIPITEM_MAX_SIZE_V3 &&
           CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT,
@@ -759,6 +763,8 @@ CopyPasteUI::LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, // IN
    utf::string uriList = "";
    utf::string pre;
    utf::string post;
+
+   sd.set(sd.get_target().c_str(), "");
 
    /* Provide URIs for each path in the guest's file list. */
    if (FCP_TARGET_INFO_GNOME_COPIED_FILES == info) {
@@ -1050,7 +1056,7 @@ CopyPasteUI::GetRemoteClipboardCB(const CPClipboard *clip) // IN
          targets.push_back(plainText);
          targets.push_back(utf8Text);
          targets.push_back(compountText);
-         mHGTextData = utf::string((const char *)buf);
+         mHGTextData = utf::string((const char *)buf, STRING_ENCODING_UTF8);
 
          mIsClipboardOwner = TRUE;
       }
@@ -1062,7 +1068,7 @@ CopyPasteUI::GetRemoteClipboardCB(const CPClipboard *clip) // IN
 
          targets.push_back(appRtf);
          targets.push_back(textRtf);
-         mHGRTFData = utf::string((const char *)buf);
+         mHGRTFData = utf::string((const char *)buf, STRING_ENCODING_UTF8);
 
          mIsClipboardOwner = TRUE;
       }

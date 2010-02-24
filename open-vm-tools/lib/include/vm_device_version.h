@@ -67,6 +67,7 @@
 #define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
 #define PCI_DEVICE_ID_VMWARE_VMXWIFI    0x07B8
 #define PCI_DEVICE_ID_VMWARE_PVSCSI     0x07C0
+#define PCI_DEVICE_ID_VMWARE_82574      0x07D0
 
 /* The hypervisor device might grow.  Please leave room
  * for 7 more subfunctions.
@@ -112,6 +113,7 @@
 #define PCI_DEVICE_ID_INTEL_82443BX_2   0x7192 /* Used when no AGP support */
 #define PCI_DEVICE_ID_INTEL_82545EM     0x100f
 #define PCI_DEVICE_ID_INTEL_82546EB     0x1010
+#define PCI_DEVICE_ID_INTEL_82574       0x10d3
 #define PCI_DEVICE_ID_INTEL_ICH7_16     0x27d8
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 

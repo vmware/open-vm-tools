@@ -820,7 +820,9 @@ DnDUI::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    const utf::string target = selection_data.get_target().c_str();
 
-   Debug("%s: enter\n", __FUNCTION__);
+   selection_data.set(target.c_str(), "");
+
+   Debug("%s: enter with target %s\n", __FUNCTION__, target.c_str());
 
    if (!m_inHGDrag) {
       Debug("%s: not in drag, return\n", __FUNCTION__);

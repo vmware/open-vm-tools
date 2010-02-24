@@ -72,12 +72,12 @@ typedef pid_t Util_ThreadID;
 
 #ifdef __APPLE__
 EXTERN char *Util_CFStringToUTF8CString(CFStringRef s);
-EXTERN char *Util_IORegGetStringProperty(io_object_t entry, CFStringRef property);
+EXTERN char *Util_IORegCopyStringProperty(io_object_t entry, CFStringRef property);
 EXTERN Bool Util_IORegGetNumberProperty(io_object_t entry, CFStringRef property,
                                         CFNumberType type, void *val);
 EXTERN Bool Util_IORegGetBooleanProperty(io_object_t entry, CFStringRef property,
                                          Bool *boolVal);
-EXTERN CFDataRef Util_IORegGetDataProperty(io_object_t entry, CFStringRef property);
+EXTERN CFDataRef Util_IORegCopyDataProperty(io_object_t entry, CFStringRef property);
 EXTERN CFMutableDictionaryRef UtilMacos_CreateCFDictionary(
    unsigned int numPairs, ...);
 EXTERN io_service_t Util_IORegGetDeviceObjectByName(const char *deviceName);

@@ -2099,8 +2099,9 @@ FilePosixCreateTestFileSize(ConstUnicode dirName, // IN: directory to create lar
  *
  *      Check if the given file is on a VMFS supports such a file size
  *
- *      In the case of VMFS3/4, the largest supported file size is
+ *      In the case of VMFS3, the largest supported file size is
  *         256 * 1024 * B bytes
+ *      VMFS5 supports larger file sizes.
  *
  *      where B represents the blocksize in bytes
  *
@@ -2140,11 +2141,12 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
    }
 
    if (strcmp(fsType, "VMFS") == 0) {
-      if (version >= 3) {
-         /* Get ready for VMFS4 and perform sanity check on version */
-         ASSERT(version == 3 || version == 4);
-
+      if (version == 3) {
          maxFileSize = (VMFS3CONST * (uint64) blockSize * 1024);
+      } else {
+         /* Get ready for 64 TB on VMFS5 and perform sanity check on version */
+         ASSERT(version == 5);
+         maxFileSize = (uint64) 0x400000000000ULL;
       }
 
       if (fileSize <= maxFileSize && maxFileSize != -1) {
