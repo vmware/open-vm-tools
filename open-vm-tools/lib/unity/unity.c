@@ -910,6 +910,12 @@ UnityTcloSetDesktopWorkArea(char const **result,  // IN
                           FALSE);
          goto out;
       }
+
+      if (workAreas[i].x < 0 || workAreas[i].y < 0 ||
+          workAreas[i].width <= 0 || workAreas[i].height <= 0) {
+         RpcIn_SetRetVals(result, resultLen, "Invalid argument", FALSE);
+         goto out;
+      }
    }
 
    if (!UnityPlatformSetDesktopWorkAreas(unity.up, workAreas, count)) {
