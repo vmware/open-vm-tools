@@ -1555,6 +1555,7 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
    UnityPlatformWindow *upw;
    Bool retval = FALSE;
    XWindowAttributes winAttr;
+   XWindowAttributes newAttr;
    UnityRect desiredRect;
 
    ASSERT(moveResizeRect);
@@ -1565,11 +1566,6 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
    }
 
    desiredRect = *moveResizeRect;
-
-   if (upw->lastConfigureEvent) {
-      free(upw->lastConfigureEvent);
-      upw->lastConfigureEvent = NULL;
-   }
 
    UnityPlatformResetErrorCount(up);
    XGetWindowAttributes(up->display, upw->toplevelWindow, &winAttr);
@@ -1634,45 +1630,14 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
       }
    }
 
-   /*
-    * Protect against the window being destroyed while we're waiting for results of the
-    * resize.
-    */
-   UPWindow_Ref(up, upw);
+   XSync(up->display, False);
+   XGetWindowAttributes(up->display, upw->toplevelWindow, &newAttr);
+   moveResizeRect->x = newAttr.x;
+   moveResizeRect->y = newAttr.y;
+   moveResizeRect->width = newAttr.width;
+   moveResizeRect->height = newAttr.height;
 
-   /*
-    * Because the window manager may take a non-trivial amount of time to process the
-    * move/resize request, we have to spin here until a ConfigureNotify event is
-    * generated on the window.
-    */
-   while (!upw->lastConfigureEvent) {
-      Debug("Running main loop iteration\n");
-      UnityPlatformProcessMainLoop(); // Process events, do other Unity stuff, etc.
-   }
-
-   if (upw->lastConfigureEvent && upw->lastConfigureEvent->window == upw->toplevelWindow) {
-      moveResizeRect->x = upw->lastConfigureEvent->x;
-      moveResizeRect->y = upw->lastConfigureEvent->y;
-      moveResizeRect->width = upw->lastConfigureEvent->width;
-      moveResizeRect->height = upw->lastConfigureEvent->height;
-
-      retval = TRUE;
-   } else {
-      /*
-       * There are cases where we only get a ConfigureNotify on the clientWindow because
-       * no actual change happened, in which case we just verify that we have the right
-       * toplevelWindow position and size.
-       */
-      Debug("Didn't get lastConfigureEvent on the toplevel window - requerying\n");
-
-      XGetWindowAttributes(up->display, upw->toplevelWindow, &winAttr);
-      moveResizeRect->x = winAttr.x;
-      moveResizeRect->y = winAttr.y;
-      moveResizeRect->width = winAttr.width;
-      moveResizeRect->height = winAttr.height;
-
-      retval = TRUE;
-   }
+   retval = TRUE;
 
    Debug("MoveResizeWindow(%#lx/%#lx): original (%d,%d)+(%d,%d), desired (%d,%d)+(%d,%d), actual (%d,%d)+(%d,%d) = %d\n",
          upw->toplevelWindow, upw->clientWindow,
@@ -1681,8 +1646,6 @@ UnityPlatformMoveResizeWindow(UnityPlatform *up,         // IN
          moveResizeRect->x, moveResizeRect->y,
          moveResizeRect->width, moveResizeRect->height,
          retval);
-
-   UPWindow_Unref(up, upw);
 
    return retval;
 }
@@ -2523,14 +2486,6 @@ UPWindowProcessConfigureEvent(UnityPlatform *up,        // IN
       const int x = xevent->xconfigure.x;
       const int y = xevent->xconfigure.y;
 
-      /*
-       * Used for implementing the move_resize operation.
-       */
-      if (!upw->lastConfigureEvent) {
-         upw->lastConfigureEvent = Util_SafeMalloc(sizeof *upw->lastConfigureEvent);
-      }
-      *upw->lastConfigureEvent = xevent->xconfigure;
-
       Debug("Moving window %#lx/%#lx to (%d, %d) +(%d, %d)\n",
             upw->toplevelWindow, upw->clientWindow,
             x - border_width,
@@ -2553,10 +2508,6 @@ UPWindowProcessConfigureEvent(UnityPlatform *up,        // IN
          UPWindow_Restack(up, upw, xevent->xconfigure.above);
       }
    } else {
-      if (!upw->lastConfigureEvent) {
-         upw->lastConfigureEvent = Util_SafeMalloc(sizeof *upw->lastConfigureEvent);
-         *upw->lastConfigureEvent = xevent->xconfigure;
-      }
       Debug("ProcessConfigureEvent skipped event on window %#lx (upw was %#lx/%#lx)\n",
             xevent->xconfigure.window, upw->toplevelWindow, upw->clientWindow);
    }

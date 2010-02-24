@@ -345,7 +345,6 @@ struct UnityPlatformWindow {
       UnityIconType type;
    } iconPng;
 
-   XConfigureEvent *lastConfigureEvent; // Used for replying to MoveResizeWindow
    Bool windowProtocols[UNITY_X11_MAX_WIN_PROTOCOLS];
 
    Bool isRelevant; // Whether the window is relayed through the window tracker
