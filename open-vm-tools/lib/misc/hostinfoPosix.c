@@ -1683,6 +1683,57 @@ Hostinfo_TouchBackDoor(void)
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_TouchVirtualPC --
+ *
+ *      Access MS Virtual PC's backdoor. This is used to determine if 
+ *      we are running in a MS Virtual PC or on a physical host.  Works
+ *      the same as Hostinfo_TouchBackDoor, except the entry to MS VPC
+ *      is an invalid opcode instead or writing to a port.  Since
+ *      MS VPC is 32-bit only, the 64-bit path returns FALSE.
+ *      See: http://www.codeproject.com/KB/system/VmDetect.aspx
+ *
+ * Results:
+ *      TRUE if we succesfully accessed MS Virtual PC, FALSE or 
+ *      segfault if not.
+ *
+ * Side effects:
+ *      Exception if not in a VM.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_TouchVirtualPC(void)
+{
+#if defined vm_x86_64
+   return FALSE;
+#else
+
+   uint32 ebxval;
+
+   __asm__ __volatile__ (
+#  if defined __PIC__        // %ebx is reserved by the compiler.
+     "xchgl %%ebx, %1" "\n\t"
+     ".long 0x0B073F0F" "\n\t"
+     "xchgl %%ebx, %1"
+     : "=&rm" (ebxval)
+     : "a" (1),
+       "0" (0)
+#  else
+     ".long 0x0B073F0F"
+     : "=b" (ebxval)
+     : "a" (1),
+       "b" (0)
+#  endif
+  );
+  return !ebxval; // %%ebx is zero if inside Virtual PC
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  Hostinfo_NestingSupported --
  *
  *      Access the backdoor with a nesting control query. This is used
