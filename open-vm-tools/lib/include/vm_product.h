@@ -200,6 +200,8 @@
  *     the future.
  */
 #define PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES \
+   "application/x-vmware-vmrc;version=2.5.0.174726" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
+   "application/x-vmware-vmrc;version=2.5.0.158248" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-vmrc;version=2.5.0.116460" PRODUCT_VMRC_MIMETYPE_SEPARATOR \
    "application/x-vmware-vmrc;version=2.5.0.0"
 

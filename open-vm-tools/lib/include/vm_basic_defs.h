@@ -666,4 +666,11 @@ typedef int pid_t;
 #define RANK_LEAF                0xFFFE
 #define RANK_INVALID             0xFFFF
 
+/*
+ * Use to initialize cbSize for this structure to preserve < Vista
+ * compatibility.
+ */
+#define NONCLIENTMETRICSINFO_V1_SIZE CCSIZEOF_STRUCT(NONCLIENTMETRICS, \
+                                                     lfMessageFont)
+
 #endif // ifndef _VM_BASIC_DEFS_H_

@@ -53,14 +53,19 @@ static void *FoundryThreadWrapperProc(void *lpParameter);
 #endif
 #endif
 
-typedef void (*VixThreadFuncType)(void *);
-typedef void (*VixScheduleWorkFuncType)(VixThreadFuncType, void *);
+#include "vixExternalThread.h"
 
-typedef struct IVixThread {
-   VixScheduleWorkFuncType ScheduleWorkFunc;
-} IVixThread;
+typedef enum VixThreadType {
+   VIX_THREAD_WORKER,
+   VIX_THREAD_IO,
+   VIX_THREAD_DEDICATED
+} VixThreadType;
 
-void Vix_SetExternalThreadInterface(IVixThread *threadInt);
+static struct FoundryWorkerThread *
+FoundryThreadsStartThreadInternal(FoundryThreadProc proc,
+                                  void *threadParam,
+                                  const char *threadName,
+                                  enum VixThreadType type);
 
 static void FoundryThreadWrapperWrapper(void *);
 
@@ -143,9 +148,9 @@ Vix_SetExternalThreadInterface(IVixThread *threadInt) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * FoundryThreads_StartThread --
+ * FoundryThreadsStartThreadInternal --
  *
- *      Start a worker thread.
+ *      Start a thread.
  *
  * Results:
  *      FoundryWorkerThread *
@@ -155,10 +160,11 @@ Vix_SetExternalThreadInterface(IVixThread *threadInt) // IN
  *-----------------------------------------------------------------------------
  */
 
-FoundryWorkerThread *
-FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
-                           void *threadParam,         // IN
-                           const char *threadName)    // IN
+static FoundryWorkerThread *
+FoundryThreadsStartThreadInternal(FoundryThreadProc proc,    // IN
+                                  void *threadParam,         // IN
+                                  const char *threadName,    // IN
+                                  VixThreadType type)        // IN
 {
    VixError err = VIX_OK;
    FoundryWorkerThread *threadState = NULL;
@@ -176,8 +182,22 @@ FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
    threadState->threadName = threadName;
 
    if (UseExternalThreadInterface()) {
-      (*GlobalVixThreadInterface->ScheduleWorkFunc)(
-         FoundryThreadWrapperWrapper, threadState);
+      switch (type) {
+      case VIX_THREAD_WORKER:
+         (*GlobalVixThreadInterface->ScheduleWorkFunc)(
+            FoundryThreadWrapperWrapper, threadState);
+         break;
+      case VIX_THREAD_IO:
+         (*GlobalVixThreadInterface->ScheduleIOFunc)(
+            FoundryThreadWrapperWrapper, threadState);
+         break;
+      case VIX_THREAD_DEDICATED:
+         (*GlobalVixThreadInterface->ScheduleDedicatedFunc)(
+            FoundryThreadWrapperWrapper, threadState);
+         break;
+      default:
+         NOT_IMPLEMENTED();
+      }
       goto abort;
    }
 
@@ -221,7 +241,93 @@ abort:
    }
 
    return threadState;
-} // FoundryThreads_StartThread
+} // FoundryThreadsStartThreadInternal
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FoundryThreads_StartThread --
+ *
+ *      Start a new thread or farm out the specified procedure to an
+ *      external worker thread pool.
+ *      A worker thread should not do blocking I/O.
+ *
+ * Results:
+ *      FoundryWorkerThread *
+ *
+ * Side effects:
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+FoundryWorkerThread *
+FoundryThreads_StartThread(FoundryThreadProc proc,    // IN
+                           void *threadParam,         // IN
+                           const char *threadName)    // IN
+{
+   return FoundryThreadsStartThreadInternal(proc, threadParam, threadName,
+                                            VIX_THREAD_WORKER);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FoundryThreads_StartIOThread --
+ *
+ *      Start a new thread or farmed out the specified procedure to an
+ *      external IO thread pool.
+ *      An IO thread performs short IO operations.
+ *      In hostd (vmacore) IO threads should generally complete quickly and
+ *      should never wait on worker threads. Worker threads can wait on at
+ *      most one IO thread.
+ *
+ * Results:
+ *      FoundryWorkerThread *
+ *
+ * Side effects:
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+FoundryWorkerThread *
+FoundryThreads_StartIOThread(FoundryThreadProc proc,    // IN
+                             void *threadParam,         // IN
+                             const char *threadName)    // IN
+{
+   return FoundryThreadsStartThreadInternal(proc, threadParam, threadName,
+                                            VIX_THREAD_IO);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FoundryThreads_StartDedicatedThread --
+ *
+ *      Start a new thread or farmed out the specified procedure to an
+ *      external dedicated thread pool.
+ *      A dedicated thread has a life time of the containing process.
+ *      Usually the thread alternates wait and work in a loop, such as a poll
+ *      loop.
+ *
+ * Results:
+ *      FoundryWorkerThread *
+ *
+ * Side effects:
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+FoundryWorkerThread *
+FoundryThreads_StartDedicatedThread(FoundryThreadProc proc,    // IN
+                                    void *threadParam,         // IN
+                                    const char *threadName)    // IN
+{
+   return FoundryThreadsStartThreadInternal(proc, threadParam, threadName,
+                                            VIX_THREAD_DEDICATED);
+}
 
 
 /*

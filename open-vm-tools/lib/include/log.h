@@ -62,6 +62,7 @@ EXTERN Bool Log_Enabled(void);
 EXTERN const char *Log_GetFileName(void);
 
 EXTERN void Log_Flush(void);
+EXTERN void Log_UseLocking(Bool useLocking);
 EXTERN void Log_SetAlwaysKeep(Bool alwaysKeep);
 EXTERN Bool Log_RemoveFile(Bool alwaysRemove);
 EXTERN void Log_DisableThrottling(void);
@@ -76,6 +77,8 @@ EXTERN void Log_UpdateState(Bool enable, Bool append, unsigned keepOld,
                             size_t rotateSize, Bool fastRotation);
 EXTERN Bool Log_SwitchFile(const char *fileName, const char *config, Bool copy);
 EXTERN Bool Log_CopyFile(const char *fileName);
+
+EXTERN size_t Log_MakeTimeString(Bool millisec, char *buf, size_t max);
 
 /* Logging that uses the custom guest throttling configuration. */
 EXTERN void GuestLog_Init(void);

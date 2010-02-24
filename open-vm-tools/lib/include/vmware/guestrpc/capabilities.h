@@ -69,6 +69,7 @@ typedef enum {
    UNITY_CAP_STICKY_WINDOWS             = 22, // supports unity.window.{un,}stick
    CAP_CHANGE_HOST_3D_AVAILABILITY_HINT = 23, // supports sending 3D support hint to guest
    CAP_AUTOUPGRADE_AT_SHUTDOWN          = 24, // supports auto-upgrading tools at OS shutdown
+   GHI_CAP_AUTOLOGON                    = 25, // supports autologon
 } GuestCapabilities;
 
 typedef struct {
@@ -135,6 +136,7 @@ static GuestCapElem guestCapTable[] = {
    { UNITY_CAP_STICKY_WINDOWS,             UNITY_CAP_VMDB_PATH, "sticky"},
    { CAP_CHANGE_HOST_3D_AVAILABILITY_HINT, CAP_VMDB_PATH, "changeHost3DAvailabilityHint" },
    { CAP_AUTOUPGRADE_AT_SHUTDOWN,          CAP_VMDB_PATH,       "autoUpgradeAtShutdown"},
+   { GHI_CAP_AUTOLOGON,                    GHI_CAP_VMDB_PATH,   "autologon" },
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

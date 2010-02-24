@@ -245,6 +245,10 @@
 #define GHI_RPC_TRAY_ICON_SEND_EVENT                  "ghi.guest.trayIcon.sendEvent"
 #define GHI_RPC_SET_FOCUSED_WINDOW                    "ghi.guest.setFocusedWindow"
 #define GHI_RPC_GET_EXEC_INFO_HASH                    "ghi.guest.getExecInfoHash"
+#define GHI_RPC_AUTOLOGON_REQUIREMENTS                "ghi.guest.autologon.requirements"
+#define GHI_RPC_AUTOLOGON_SET                         "ghi.guest.autologon.set"
+#define GHI_RPC_AUTOLOGON_QUERY                       "ghi.guest.autologon.query"
+#define GHI_RPC_AUTOLOGON_CLEAR                       "ghi.guest.autologon.clear"
 /* @} */
 
 
