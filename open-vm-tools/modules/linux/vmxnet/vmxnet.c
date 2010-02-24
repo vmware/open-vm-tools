@@ -713,7 +713,6 @@ vmxnet_ethtool_ioctl(struct net_device *dev, struct ifreq *ifr)
          return vmxnet_set_tso(dev, ifr->ifr_data);
 #endif
       default:
-         printk(KERN_DEBUG" ethtool operation %d not supported\n", cmd);
          return -EOPNOTSUPP;
    }
 }
@@ -746,7 +745,6 @@ vmxnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
          return vmxnet_ethtool_ioctl(dev, ifr);
 #endif
    }
-   printk(KERN_DEBUG" ioctl operation %d not supported\n", cmd);
    return -EOPNOTSUPP;
 }
 #endif /* SET_ETHTOOL_OPS */
