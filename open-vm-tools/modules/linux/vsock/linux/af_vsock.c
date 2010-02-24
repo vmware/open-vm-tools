@@ -1544,11 +1544,11 @@ VSockVmciRecvListen(struct sock *sk,   // IN
     * If the proposed size fits within our min/max, accept
     * it. Otherwise propose our own size.
     */
-   if (pkt->u.size >= vsk->queuePairMinSize &&
-       pkt->u.size <= vsk->queuePairMaxSize) {
+   if (pkt->u.size >= vpending->queuePairMinSize &&
+       pkt->u.size <= vpending->queuePairMaxSize) {
       qpSize = pkt->u.size;
    } else {
-      qpSize = vsk->queuePairSize;
+      qpSize = vpending->queuePairSize;
    }
 
    /*
@@ -2720,9 +2720,6 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    vsk->qpHandle = VMCI_INVALID_HANDLE;
    vsk->produceQ = vsk->consumeQ = NULL;
    vsk->produceSize = vsk->consumeSize = 0;
-   vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
-   vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
-   vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
    vsk->listener = NULL;
    INIT_LIST_HEAD(&vsk->pendingLinks);
    INIT_LIST_HEAD(&vsk->acceptQueue);
@@ -2735,8 +2732,14 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    if (parent) {
       psk = vsock_sk(parent);
       vsk->trusted = psk->trusted;
+      vsk->queuePairSize = psk->queuePairSize;
+      vsk->queuePairMinSize = psk->queuePairMinSize;
+      vsk->queuePairMaxSize = psk->queuePairMaxSize;
    } else {
       vsk->trusted = capable(CAP_NET_ADMIN);
+      vsk->queuePairSize = VSOCK_DEFAULT_QP_SIZE;
+      vsk->queuePairMinSize = VSOCK_DEFAULT_QP_SIZE_MIN;
+      vsk->queuePairMaxSize = VSOCK_DEFAULT_QP_SIZE_MAX;
    }
 
    vsk->notifyOps = NULL;
