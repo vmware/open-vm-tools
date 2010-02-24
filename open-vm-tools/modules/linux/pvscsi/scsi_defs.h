@@ -1935,12 +1935,12 @@ SCSIPlayMSFCmd;
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   uint8 opcode;
-   uint8 reserved1:5,
-         reserved2:3;
-   uint8 reserved3[7];
+   uint8  opcode;
+   uint8  reserved1:5,
+          reserved2:3;
+   uint8  reserved3[7];
    uint16 parameterListLength;
-   uint8 control;
+   uint8  control;
 }
 #include "vmware_pack_end.h"
 SCSISetStreamingCmd;
@@ -1948,17 +1948,17 @@ SCSISetStreamingCmd;
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   uint8 ra:1,            // optimize for switching between reads and writes
-         exact:1,         // support exact performance request
-         rdd:1,           // restore logical unit defaults
-         reserved1:5;
-   uint8 reserved2[3];
-   uint32 start;          // first LBA
-   uint32 end;            // last LBA
-   uint32 readSize;       // number of KB per readTime 
-   uint32 readTime;       // number of ms for one readSize
-   uint32 writeSize;      // number of KB per writeTime
-   uint32 writeTime;      // number of ms for one writeSize
+   uint8  ra:1,            // optimize for switching between reads and writes
+          exact:1,         // support exact performance request
+          rdd:1,           // restore logical unit defaults
+          reserved1:5;
+   uint8  reserved2[3];
+   uint32 start;           // first LBA
+   uint32 end;             // last LBA
+   uint32 readSize;        // number of KB per readTime 
+   uint32 readTime;        // number of ms for one readSize
+   uint32 writeSize;       // number of KB per writeTime
+   uint32 writeTime;       // number of ms for one writeSize
 }
 #include "vmware_pack_end.h"
 SCSISSPerformanceDescriptor;
@@ -1970,12 +1970,12 @@ SCSISSPerformanceDescriptor;
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   uint8 opcode;
-   uint8 reserved1:5,
-         reserved2:3;
-   uint32 trigger;        // When this LBA is read, read-ahead at readAhead
+   uint8  opcode;
+   uint8  reserved1:5,
+          reserved2:3;
+   uint32 trigger;        // when this LBA is read, read-ahead at readAhead
    uint32 readAhead;      // LBA at which read-ahead should begin
-   uint8 control;
+   uint8  control;
 }
 #include "vmware_pack_end.h"
 SCSISetReadAheadCmd;
@@ -1991,15 +1991,15 @@ struct {
 #define SCSI_GP_EXCEPTIONS_NONE 0x0
 #define SCSI_GP_EXCEPTIONS_ALL  0x1
 #define SCSI_GP_EXCEPTIONS_SOME 0x2
-   uint8 except:2,        // report nominal performance or exceptions
-         write:1,         // report write performance
-         tolerance:2,     // report performance with some tolerance
-         reserved1:3;
-   uint32 start;          // starting LBA for performance data
-   uint8 reserved2[2];
-   uint16 maxDescriptors; // maximum number of performance descriptors
-   uint8 reserved3;
-   uint8 control;
+   uint8  exceptions:2,    // report nominal performance or exceptions
+          write:1,         // report write performance
+          tolerance:2,     // report performance with some tolerance
+          reserved1:3;
+   uint32 start;           // starting LBA for performance data
+   uint8  reserved2[2];
+   uint16 maxDescriptors;  // maximum number of performance descriptors
+   uint8  reserved3;
+   uint8  control;
 }
 #include "vmware_pack_end.h"
 SCSIGetPerformanceCmd;
@@ -2007,11 +2007,11 @@ SCSIGetPerformanceCmd;
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   uint32 dataLen;        // length of data to follow
-   uint8 except:1,        // reported performance is for exceptions
-         write:1,         // reported performance is for writes
-         reserved1:6;
-   uint8 reserved2[3];
+   uint32 dataLen;         // length of data to follow
+   uint8  exceptions:1,    // reported performance is for exceptions
+          write:1,         // reported performance is for writes
+          reserved1:6;
+   uint8  reserved2[3];
 }
 #include "vmware_pack_end.h"
 SCSIGetPerfResponseHeader;
