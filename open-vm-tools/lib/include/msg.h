@@ -104,11 +104,11 @@ typedef struct MsgCallback {
 #define MSG_PROGRESS_START (-1)
 #define MSG_PROGRESS_STOP 101
 
-EXTERN Msg_String const Msg_YesNoButtons[];
-EXTERN Msg_String const Msg_OKButtons[];
-EXTERN Msg_String const Msg_RetryCancelButtons[];
-EXTERN Msg_String const Msg_OKCancelButtons[];
-EXTERN Msg_String const Msg_RetryAbortButtons[];
+VMX86_EXTERN_DATA Msg_String const Msg_YesNoButtons[];
+VMX86_EXTERN_DATA Msg_String const Msg_OKButtons[];
+VMX86_EXTERN_DATA Msg_String const Msg_RetryCancelButtons[];
+VMX86_EXTERN_DATA Msg_String const Msg_OKCancelButtons[];
+VMX86_EXTERN_DATA Msg_String const Msg_RetryAbortButtons[];
 
 EXTERN Msg_String const Msg_Severities[];
 
