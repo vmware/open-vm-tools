@@ -19,6 +19,5 @@ noinst_LTLIBRARIES = libFoundryMsg.la
 
 libFoundryMsg_la_SOURCES =
 libFoundryMsg_la_SOURCES += foundryMsg.c
-libFoundryMsg_la_SOURCES += foundryThreads.c
 libFoundryMsg_la_SOURCES += foundryPropertyListCommon.c
 libFoundryMsg_la_SOURCES += vixTranslateErrOpenSource.c
