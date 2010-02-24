@@ -980,14 +980,21 @@ typedef struct {
    uint8    page     :6,   // page code: 0x2a
                      :1,
             ps       :1;
-   uint8    len;           // page length 0x12
+   uint8    len;           // page length 0x1e
    uint8    cdrRd    :1,   // CD-R read per Orange Book Part II
             cdeRd    :1,   // CD-E read per Orange Book Part III
             method2  :1,   // CD-R media w/ Addressing Method 2
-                     :5;
+            dvdromRd :1,   // DVD-ROM media read
+            dvdrRd   :1,   // DVD-R media read
+            dvdramRd :1,   // DVD-RAM media read
+                     :2;
    uint8    cdrWr    :1,   // CD-R write per Orange Book Part II
             cdeWr    :1,   // CD-E write per Orange Book Part III
-                     :6;
+            testWr   :1,   // drive supports test write function
+                     :1,
+            dvdrWr   :1,   // DVD-R media write
+            dvdramWr :1,   // DVD-RAM media write
+                     :2;
    uint8    audioPlay:1,   // drive is capable of audio play
             composite:1,   // drive is capable of delivering composite audio+video
             digPort1 :1,   // drive supports digital output (IEC958) on port 1
@@ -995,7 +1002,7 @@ typedef struct {
             mode2Form1:1,  // drive reads Mode 2 Form 1 (XA) format
             mode2Form2:1,  // drive reads Mode 2 Form 2 format
             multiSession:1,// drive reads multi-session or Photo-CD discs
-                     :1;
+            buf      :1;   // drive supports buffer underrun free recording
    uint8    cdDA     :1,   // CD-DA commands (Red Book) supported
             daAccu   :1,   // CD-DA stream is accurate
             rwSupported:1, // R-W supported
@@ -1003,7 +1010,7 @@ typedef struct {
             c2Ptrs   :1,   // C2 Error Pointers supported
             isrc     :1,   // drive returns International Standard Recording Code Info
             upc      :1,   // drive returns Media Catalog Number
-                     :1;
+            barcode  :1;   // drive returns disc bar code
    uint8    lock     :1,   // PREVENT/ALLOW commands lock media into drive
             lockState:1,   // current state of drive
             jumpers  :1,   // state of prevent/allow jumpers
@@ -1014,19 +1021,28 @@ typedef struct {
             scm      :1,   // separate channel mute
             sdp      :1,   // supports disc present in MECHANISM STATUS command
             sss      :1,   // s/w slot selection w/ LOAD/UNLOCK command
-                     :4;
-   uint16   maxSpeed;      // maximum speed supported (in KB/s)
+            scc      :1,   // supports both sides of discs
+            rwinlin  :1,   // can read raw R-W subchannel data from lead-in
+                     :2;
+   uint16   oMaxSpeed;     // (obsolete) maximum speed supported (in KB/s)
    uint16   numVolLevels;  // number of volume levels supported
    uint16   bufSize;       // buffer size supported by drive (KBytes)
-   uint16   curSpeed;      // current speed selected (in KB/s)
-   uint8    reserved;
+   uint16   oCurSpeed;     // (obsolete) current speed selected (in KB/s)
+   uint8    reserved1;
    uint8             :1,   // format of digital data output
             bck      :1,   // data is valid on the falling edge of BCK
             rck      :1,   // HIGH on LRCK indicates left channel
             lsbf     :1,   // LSB first
             length   :2,
                      :2;
-   uint8    reserved2[2];
+   uint16   oMaxWrSpeed;   // (obsolete) maximum write speed supported (in KB/s)
+   uint16   oCurWrSpeed;   // (obsolete) current write speed (in KB/s)
+   uint16   copyRev;       // version of DVD Content Protection supported
+   uint8    reserved2[3];
+   uint8    rotation :2,   // current rotation control
+                     :6;
+   uint16   curWrSpeed;    // current write speed (in KB/s)
+   uint16   numWrDescs;    // number of write speed performance descriptors
 } SCSICDROMCapabilitiesPage;
 
 typedef struct {
