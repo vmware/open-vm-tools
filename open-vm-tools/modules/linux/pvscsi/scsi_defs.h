@@ -2166,6 +2166,34 @@ SCSICdb_IsWrite(uint8 cdb0)       // IN
 /*
  *---------------------------------------------------------------------------
  *
+ * SCSICdb_ModifiesMedia --
+ *
+ *      This function returns TRUE if the scsi command passed as an argument
+ *      changes the storage medium
+ *
+ *      XXX PR 520576 This list needs to be expanded upon in order accurately
+ *                    represent all command types that modify the underlying
+ *                    storage medium
+ *
+ * Results:
+ *      TRUE/FALSE
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+SCSICdb_ModifiesMedia(uint8 cdb0)       // IN
+{
+   return SCSICdb_IsWrite(cdb0) ||
+          cdb0 == SCSI_CMD_WRITE_SAME16;
+}
+
+/*
+ *---------------------------------------------------------------------------
+ *
  * SCSICdb_IsRW --
  *
  *      This function returns TRUE if the scsi command passed as an argument is
