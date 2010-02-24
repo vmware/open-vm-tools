@@ -137,7 +137,11 @@
 #define BDOOR_CMD_XPMODE                62
 #define BDOOR_CMD_NESTING_CONTROL       63
 #define BDOOR_CMD_FIRMWARE_INIT         64
-#define BDOOR_CMD_MAX                   65
+#define BDOOR_CMD_FIRMWARE_ACPI_SERVICES 65
+#  define BDOOR_CMD_FAS_GET_TABLE_SIZE    0
+#  define BDOOR_CMD_FAS_GET_TABLE_DATA    1
+#  define BDOOR_CMD_FAS_GET_PLATFORM_NAME 2
+#define BDOOR_CMD_MAX                   66
 
 
 /* 
