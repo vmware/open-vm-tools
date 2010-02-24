@@ -71,7 +71,7 @@
 #define SCSI_CMD_COPY                  0x18  // autonomous copy from/to another device
 #define SCSI_CMD_ERASE                 0x19  //
 #define SCSI_CMD_MODE_SENSE            0x1a  // read device parameters
-#define SCSI_CMD_START_UNIT            0x1b  // load/unload medium
+#define SCSI_CMD_START_UNIT            0x1b  // start or stop unit
 #define SCSI_CMD_SCAN                  0x1b  // perform scan
 #define SCSI_CMD_STOP_PRINT            0x1b  // interrupt printing
 #define SCSI_CMD_RECV_DIAGNOSTIC       0x1c  // read self-test results
@@ -257,6 +257,7 @@
 #define SCSI_ASC_COMMAND_PHASE_ERROR                           0x4a
 #define SCSI_ASC_DATA_PHASE_ERROR                              0x4b
 #define SCSI_ASC_MEDIUM_REMOVAL_FAILED                         0x53  // w/ 0x4 it is failed, 0x5 is prevented
+#define SCSI_ASCQ_MEDIUM_REMOVAL_PREVENTED                     0x02
 #define SCSI_ASC_INSUFFICIENT_REGISTRATION_RESOURCES           0x55  // during persistent reservations
 #define SCSI_ASCQ_INSUFFICIENT_REGISTRATION_RESOURCES          0x04
 #define SCSI_ASCQ_ASYMMETRIC_ACCESS_STATE_CHANGED              0x06
