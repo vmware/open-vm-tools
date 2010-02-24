@@ -79,6 +79,8 @@ static void UPWindowSetWindows(UnityPlatform *up,
                                Window clientWindow);
 static Window UPWindowLookupClientLeader(UnityPlatform *up,
                                          UnityPlatformWindow *upw);
+static void UPWindowUpdateFrameExtents(UnityPlatform *up,
+                                       UnityPlatformWindow *upw);
 
 #ifdef VMX86_DEVEL
 /*
@@ -2455,6 +2457,8 @@ UPWindowProcessPropertyEvent(UnityPlatform *up,        // IN
       UPWindowUpdateIcon(up, upw);
    } else if (eventAtom == up->atoms._NET_WM_DESKTOP) {
       UPWindowUpdateDesktop(up, upw);
+   } else if (eventAtom == up->atoms._NET_FRAME_EXTENTS) {
+      UPWindowUpdateFrameExtents(up, upw);
    }
 }
 
@@ -2482,21 +2486,36 @@ UPWindowProcessConfigureEvent(UnityPlatform *up,        // IN
 {
    if (xevent->xconfigure.window == upw->toplevelWindow) {
       const int border_width = xevent->xconfigure.border_width;
-      const int x = xevent->xconfigure.x;
-      const int y = xevent->xconfigure.y;
+      int x = xevent->xconfigure.x;
+      int y = xevent->xconfigure.y;
+      int xprime;
+      int yprime;
 
+      xprime = x + xevent->xconfigure.width + border_width;
+      yprime = y + xevent->xconfigure.height + border_width;
+      x -= border_width;
+      y -= border_width;
+
+#ifdef VMX86_DEVEL
       Debug("Moving window %#lx/%#lx to (%d, %d) +(%d, %d)\n",
             upw->toplevelWindow, upw->clientWindow,
-            x - border_width,
-            y - border_width,
-            xevent->xconfigure.width + border_width,
-            xevent->xconfigure.height + border_width);
+            x, y, xprime - x, yprime - y);
+#endif
+
+      /*
+       * If these are the same, then the window hasn't been reparented by
+       * the window manager, and its window decorations are accounted for
+       * by the values of the _NET_FRAME_EXTENTS property.
+       */
+      if (upw->toplevelWindow == upw->clientWindow) {
+         x -= upw->frameExtents[0];             // left
+         y -= upw->frameExtents[2];             // top
+         xprime += upw->frameExtents[1];        // right
+         yprime += upw->frameExtents[3];        // bottom
+      }
 
       UnityWindowTracker_MoveWindow(up->tracker, upw->toplevelWindow,
-                                    x - border_width,
-                                    y - border_width,
-                                    x + xevent->xconfigure.width + border_width,
-                                    y + xevent->xconfigure.height + border_width);
+                                    x, y, xprime, yprime);
 
       if ((xevent->xconfigure.above != None && !upw->lowerWindow)
 	  || (xevent->xconfigure.above == None && upw->lowerWindow)
@@ -3541,14 +3560,35 @@ UPWindowPushFullUpdate(UnityPlatform *up,            // IN
    Atom *props;
    int propCount;
    int i;
+   int x, y, xprime, yprime;
+   int border_width;
 
    XGetWindowAttributes(up->display, upw->toplevelWindow, &winAttr);
+   UPWindowUpdateFrameExtents(up, upw);
 
-   UnityWindowTracker_MoveWindow(up->tracker, (UnityWindowId) upw->toplevelWindow,
-                                 winAttr.x - winAttr.border_width,
-                                 winAttr.y - winAttr.border_width,
-                                 winAttr.x + winAttr.width + winAttr.border_width,
-                                 winAttr.y + winAttr.height + winAttr.border_width);
+   x = winAttr.x;
+   y = winAttr.y;
+   border_width = winAttr.border_width;
+
+   xprime = x + winAttr.width + border_width;
+   yprime = y + winAttr.height + border_width;
+   x -= border_width;
+   y -= border_width;
+
+   /*
+    * If these are the same, then the window hasn't been reparented by
+    * the window manager, and its window decorations are accounted for
+    * by the values of the _NET_FRAME_EXTENTS property.
+    */
+   if (upw->toplevelWindow == upw->clientWindow) {
+      x -= upw->frameExtents[0];             // left
+      y -= upw->frameExtents[2];             // top
+      xprime += upw->frameExtents[1];        // right
+      yprime += upw->frameExtents[3];        // bottom
+   }
+
+   UnityWindowTracker_MoveWindow(up->tracker, upw->toplevelWindow,
+                                 x, y, xprime, yprime);
 
 #if defined(VM_HAVE_X11_SHAPE_EXT)
    UPWindowUpdateShape(up, upw);
@@ -4035,4 +4075,53 @@ UPWindowLookupClientLeader(UnityPlatform *up,           // IN
    XFree(valueReturned);
 
    return leaderWindow;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UPWindowUpdateFrameExtents --
+ *
+ *      Lookup and record (cache) the _NET_FRAME_EXTENTS property.
+ *
+ * Results:
+ *      If _NET_FRAME_EXTENTS is set, upw->frameExtents may be updated.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+UPWindowUpdateFrameExtents(UnityPlatform *up,
+                           UnityPlatformWindow *upw)
+{
+   Atom propertyType;
+   int propertyFormat = 0;
+   unsigned long itemsReturned = 0;
+   unsigned long bytesRemaining;
+   unsigned char *valueReturned = NULL;
+   Window w = upw->clientWindow ? upw->clientWindow : upw->toplevelWindow;
+
+   ASSERT(up);
+   ASSERT(upw);
+
+   if (UnityPlatformWMProtocolSupported(up, UNITY_X11_WM__NET_FRAME_EXTENTS)
+       && XGetWindowProperty(up->display, w, up->atoms._NET_FRAME_EXTENTS, 0,
+                             1024, False, XA_CARDINAL,
+                             &propertyType, &propertyFormat, &itemsReturned,
+                             &bytesRemaining, &valueReturned) == Success
+       && propertyFormat == 32
+       && itemsReturned >= 4) {
+      Atom *atomValue = (Atom *)valueReturned;
+
+      upw->frameExtents[0] = atomValue[0];
+      upw->frameExtents[1] = atomValue[1];
+      upw->frameExtents[2] = atomValue[2];
+      upw->frameExtents[3] = atomValue[3];
+
+      XFree(valueReturned);
+   }
 }

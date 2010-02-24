@@ -396,6 +396,11 @@ struct UnityPlatformWindow {
     * our windows (via a PropertyNotify event), we may act accordingly.
     */
    Bool waitingForWmState;
+
+   /*
+    * See wm-spec::_NET_FRAME_EXTENTS.
+    */
+   uint32 frameExtents[4];
 };
 
 /*
