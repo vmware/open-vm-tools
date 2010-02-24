@@ -33,7 +33,6 @@ HEADERS += transport.h
 COMMON_SRCS := cpName.c
 COMMON_SRCS += cpNameLinux.c
 COMMON_SRCS += cpNameLite.c
-COMMON_SRCS += dbllnklst.c
 COMMON_SRCS += sha1.c
 COMMON_SRCS += hgfsEscape.c
 COMMON_SRCS += hgfsBd.c

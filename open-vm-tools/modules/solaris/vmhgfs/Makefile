@@ -75,7 +75,6 @@ SOLHGFS_64_KRN_OBJS := $(addprefix amd64/, $(SOLHGFS_KRN_OBJS))
 SOLHGFS_LIB_OBJS := backdoor.o
 SOLHGFS_LIB_OBJS += cpName.o
 SOLHGFS_LIB_OBJS += cpNameLinux.o
-SOLHGFS_LIB_OBJS += dbllnklst.o
 SOLHGFS_LIB_OBJS += hgfsBd.o
 SOLHGFS_LIB_OBJS += hgfsEscape.o
 SOLHGFS_LIB_OBJS += hgfsUtil.o

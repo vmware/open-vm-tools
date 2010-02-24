@@ -78,7 +78,6 @@ do
    if test $m = vmblock
    then
       cp -f $src/lib/include/vmblock.h $mdst/linux
-      cp -f $src/lib/misc/dbllnklst.c $mdst/linux
       cp -rf $src/modules/shared/vmblock/* $mdst/linux
    fi
 

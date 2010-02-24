@@ -39,7 +39,6 @@ HEADERS += vmblock_k.h
 HEADERS += os.h
 
 CSRCS  := block.c
-CSRCS  += dbllnklst.c
 CSRCS  += vfsops.c
 CSRCS  += vnops.c
 CSRCS  += subr.c

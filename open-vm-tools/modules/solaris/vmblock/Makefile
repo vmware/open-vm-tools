@@ -48,7 +48,6 @@ CFLAGS   += -I.
 ## Objects needed to build vmblock kernel module
 ##
 VMBLOCK_OBJS := block.o
-VMBLOCK_OBJS += dbllnklst.o
 VMBLOCK_OBJS += module.o
 VMBLOCK_OBJS += stubs.o
 VMBLOCK_OBJS += vfsops.o
