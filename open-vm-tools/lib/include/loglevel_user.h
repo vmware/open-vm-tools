@@ -173,6 +173,7 @@
    LOGLEVEL_VAR(ipc), \
    LOGLEVEL_VAR(smbios), \
    LOGLEVEL_VAR(acpi), \
+   LOGLEVEL_VAR(acpiGPE), \
    LOGLEVEL_VAR(xpmode), \
    LOGLEVEL_VAR(snapshot), \
    LOGLEVEL_VAR(asyncsocket), \
