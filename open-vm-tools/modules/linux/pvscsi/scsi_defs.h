@@ -1930,6 +1930,114 @@ SCSIPlayMSFCmd;
 
 
 /*
+ * SetStreaming packet data.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8 opcode;
+   uint8 reserved1:5,
+         reserved2:3;
+   uint8 reserved3[7];
+   uint16 parameterListLength;
+   uint8 control;
+}
+#include "vmware_pack_end.h"
+SCSISetStreamingCmd;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8 ra:1,            // optimize for switching between reads and writes
+         exact:1,         // support exact performance request
+         rdd:1,           // restore logical unit defaults
+         reserved1:5;
+   uint8 reserved2[3];
+   uint32 start;          // first LBA
+   uint32 end;            // last LBA
+   uint32 readSize;       // number of KB per readTime 
+   uint32 readTime;       // number of ms for one readSize
+   uint32 writeSize;      // number of KB per writeTime
+   uint32 writeTime;      // number of ms for one writeSize
+}
+#include "vmware_pack_end.h"
+SCSISSPerformanceDescriptor;
+
+
+/*
+ * SetReadAhead packet data.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8 opcode;
+   uint8 reserved1:5,
+         reserved2:3;
+   uint32 trigger;        // When this LBA is read, read-ahead at readAhead
+   uint32 readAhead;      // LBA at which read-ahead should begin
+   uint8 control;
+}
+#include "vmware_pack_end.h"
+SCSISetReadAheadCmd;
+
+
+/*
+ * GetPerformance packet data.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8 opcode;
+#define SCSI_GP_EXCEPTIONS_NONE 0x0
+#define SCSI_GP_EXCEPTIONS_ALL  0x1
+#define SCSI_GP_EXCEPTIONS_SOME 0x2
+   uint8 except:2,        // report nominal performance or exceptions
+         write:1,         // report write performance
+         tolerance:2,     // report performance with some tolerance
+         reserved1:3;
+   uint32 start;          // starting LBA for performance data
+   uint8 reserved2[2];
+   uint16 maxDescriptors; // maximum number of performance descriptors
+   uint8 reserved3;
+   uint8 control;
+}
+#include "vmware_pack_end.h"
+SCSIGetPerformanceCmd;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 dataLen;        // length of data to follow
+   uint8 except:1,        // reported performance is for exceptions
+         write:1,         // reported performance is for writes
+         reserved1:6;
+   uint8 reserved2[3];
+}
+#include "vmware_pack_end.h"
+SCSIGetPerfResponseHeader;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 startLBA;       // first LBA tracked by this descriptor
+   uint32 startPerf;      // performance (KB/s) at startLBA
+   uint32 endLBA;         // last LBA tracked by this descriptor
+   uint32 endPerf;        // performance (KB/s) at endLBA
+}
+#include "vmware_pack_end.h"
+SCSIGetPerfResponseNominal;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint32 lba;            // there exists a seek delay between LBA - 1 and LBA
+   uint16 time;           // expected additional delay (tenths of ms)
+}
+#include "vmware_pack_end.h"
+SCSIGetPerfResponseException;
+
+
+/*
  * Definitions for MMC Features and Profiles. See MMC-2, Section 5 for details.
  * The response to a GET CONFIGURATION (0x46) command consists of a Feature
  * Header with zero or more Feature Descriptors.
@@ -1955,15 +2063,16 @@ SCSIFeatureHeader;
 typedef
 #include "vmware_pack_begin.h"
 struct {
-#define SCSI_FEAT_CODE_PROFILELIST     0x0
-#define SCSI_FEAT_CODE_CORE            0x1
-#define SCSI_FEAT_CODE_MORPHING        0x2
-#define SCSI_FEAT_CODE_REMOVABLEMEDIUM 0x3
-#define SCSI_FEAT_CODE_RANDOMREADABLE  0x10
-#define SCSI_FEAT_CODE_DVDREAD         0x1F
-#define SCSI_FEAT_CODE_POWERMANAGEMENT 0x100
-#define SCSI_FEAT_CODE_TIMEOUT         0x105
-#define SCSI_FEAT_CODE_VMWARE_LAST     0xFF80
+#define SCSI_FEAT_CODE_PROFILELIST         0x0
+#define SCSI_FEAT_CODE_CORE                0x1
+#define SCSI_FEAT_CODE_MORPHING            0x2
+#define SCSI_FEAT_CODE_REMOVABLEMEDIUM     0x3
+#define SCSI_FEAT_CODE_RANDOMREADABLE      0x10
+#define SCSI_FEAT_CODE_DVDREAD             0x1F
+#define SCSI_FEAT_CODE_POWERMANAGEMENT     0x100
+#define SCSI_FEAT_CODE_TIMEOUT             0x105
+#define SCSI_FEAT_CODE_REALTIMESTREAMING   0x107
+#define SCSI_FEAT_CODE_VMWARE_LAST         0xFF80
    uint16 code;
    uint8  featureCurrent:1,
           persistent:1,
