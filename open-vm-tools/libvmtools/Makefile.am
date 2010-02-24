@@ -54,7 +54,9 @@ libvmtools_la_LIBADD += ../lib/slashProc/libSlashProc.la
 endif
 
 libvmtools_la_SOURCES =
+libvmtools_la_SOURCES += fileLogger.c
 libvmtools_la_SOURCES += signalSource.c
+libvmtools_la_SOURCES += stdLogger.c
 libvmtools_la_SOURCES += vmtools.c
 libvmtools_la_SOURCES += vmtoolsConfig.c
 libvmtools_la_SOURCES += vmtoolsLog.c
