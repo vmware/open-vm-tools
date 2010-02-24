@@ -138,6 +138,7 @@ Posix_Open(ConstUnicode pathName,  // IN:
    fd = open(path, flags, mode);
 
    free(path);
+
    return fd;
 }
 
@@ -160,8 +161,8 @@ Posix_Open(ConstUnicode pathName,  // IN:
  */
 
 int
-Posix_Creat(ConstUnicode pathName, // IN:
-            mode_t mode)           // IN:
+Posix_Creat(ConstUnicode pathName,  // IN:
+            mode_t mode)            // IN:
 {
    return Posix_Open(pathName, O_CREAT | O_WRONLY | O_TRUNC, mode);
 }
@@ -184,8 +185,8 @@ Posix_Creat(ConstUnicode pathName, // IN:
  */
 
 FILE *
-Posix_Fopen(ConstUnicode pathName, // IN:
-            const char *mode)      // IN:
+Posix_Fopen(ConstUnicode pathName,  // IN:
+            const char *mode)       // IN:
 {
    char *path;
    FILE *stream;
@@ -199,6 +200,7 @@ Posix_Fopen(ConstUnicode pathName, // IN:
    stream = fopen(path, mode);
 
    free(path);
+
    return stream;
 }
 
@@ -234,6 +236,7 @@ Posix_Stat(ConstUnicode pathName,  // IN:
    ret = stat(path, statbuf);
 
    free(path);
+
    return ret;
 }
 
@@ -378,6 +381,7 @@ Posix_Rmdir(ConstUnicode pathName)  // IN:
    ret = rmdir(path);
 
    free(path);
+
    return ret;
 }
 
@@ -400,9 +404,9 @@ Posix_Rmdir(ConstUnicode pathName)  // IN:
  */
 
 FILE *
-Posix_Freopen(ConstUnicode pathName, // IN:
-              const char *mode,      // IN:
-              FILE *input_stream)    // IN:
+Posix_Freopen(ConstUnicode pathName,  // IN:
+              const char *mode,       // IN:
+              FILE *input_stream)     // IN:
 {
    char *path;
    FILE *stream;
@@ -486,6 +490,7 @@ Posix_Utime(ConstUnicode pathName,        // IN:
    ret = utime(path, times);
 
    free(path);
+
    return ret;
 }
 
@@ -537,8 +542,8 @@ Posix_Perror(ConstUnicode str)         // IN:
  */
 
 long
-Posix_Pathconf(ConstUnicode pathName,   // IN:
-               int name)                // IN:
+Posix_Pathconf(ConstUnicode pathName,  // IN:
+               int name)               // IN:
 {
    char *path;
    long ret;
@@ -550,6 +555,7 @@ Posix_Pathconf(ConstUnicode pathName,   // IN:
    ret = pathconf(path, name);
 
    free(path);
+
    return ret;
 }
 
@@ -587,6 +593,7 @@ Posix_Popen(ConstUnicode pathName,  // IN:
    stream = popen(path, mode);
 
    free(path);
+
    return stream;
 }
 
@@ -623,6 +630,7 @@ Posix_Mknod(ConstUnicode pathName,  // IN:
    ret = mknod(path, mode, dev);
 
    free(path);
+
    return ret;
 }
 
@@ -659,6 +667,7 @@ Posix_Chown(ConstUnicode pathName,  // IN:
    ret = chown(path, owner, group);
 
    free(path);
+
    return ret;
 }
 
@@ -695,6 +704,7 @@ Posix_Lchown(ConstUnicode pathName,  // IN:
    ret = lchown(path, owner, group);
 
    free(path);
+
    return ret;
 }
 
@@ -729,6 +739,7 @@ Posix_Link(ConstUnicode pathName1,  // IN:
    }
    if (!PosixConvertToCurrent(pathName2, &path2)) {
       free(path1);
+
       return -1;
    }
 
@@ -736,6 +747,7 @@ Posix_Link(ConstUnicode pathName1,  // IN:
 
    free(path1);
    free(path2);
+
    return ret;
 }
 
@@ -770,6 +782,7 @@ Posix_Symlink(ConstUnicode pathName1,  // IN:
    }
    if (!PosixConvertToCurrent(pathName2, &path2)) {
       free(path1);
+
       return -1;
    }
 
@@ -777,6 +790,7 @@ Posix_Symlink(ConstUnicode pathName1,  // IN:
 
    free(path1);
    free(path2);
+
    return ret;
 }
 
@@ -812,6 +826,7 @@ Posix_Mkfifo(ConstUnicode pathName,  // IN:
    ret = mkfifo(path, mode);
 
    free(path);
+
    return ret;
 }
 
@@ -847,6 +862,7 @@ Posix_Truncate(ConstUnicode pathName,  // IN:
    ret = truncate(path, length);
 
    free(path);
+
    return ret;
 }
 
@@ -882,6 +898,7 @@ Posix_Utimes(ConstUnicode pathName,        // IN:
    ret = utimes(path, times);
 
    free(path);
+
    return ret;
 }
 
@@ -958,6 +975,7 @@ exit:
       Util_FreeStringList(argv, -1);
    }
    free(path);
+
    return ret;
 }
 
@@ -980,8 +998,9 @@ exit:
  */
 
 int
-Posix_Execlp(ConstUnicode fileName,   // IN:
-             ConstUnicode arg0, ...)  // IN:
+Posix_Execlp(ConstUnicode fileName,  // IN:
+             ConstUnicode arg0,      // IN:
+             ...)                    // IN:
 {
    int ret = -1;
    char *file;
@@ -1034,6 +1053,7 @@ exit:
       Util_FreeStringList(argv, -1);
    }
    free(file);
+
    return ret;
 }
 
@@ -1056,8 +1076,8 @@ exit:
  */
 
 int
-Posix_Execv(ConstUnicode pathName,        // IN:
-            Unicode const argVal[])       // IN:
+Posix_Execv(ConstUnicode pathName,   // IN:
+            Unicode const argVal[])  // IN:
 {
    int ret = -1;
    char *path;
@@ -1077,6 +1097,7 @@ exit:
       Util_FreeStringList(argv, -1);
    }
    free(path);
+
    return ret;
 }
 
@@ -1099,9 +1120,9 @@ exit:
  */
 
 int
-Posix_Execve(ConstUnicode pathName,        // IN:
-	     Unicode const argVal[],       // IN:
-             Unicode const envPtr[])       // IN:
+Posix_Execve(ConstUnicode pathName,   // IN:
+	     Unicode const argVal[],  // IN:
+             Unicode const envPtr[])  // IN:
 {
    int ret = -1;
    char *path;
@@ -1128,6 +1149,7 @@ exit:
       Util_FreeStringList(envp, -1);
    }
    free(path);
+
    return ret;
 }
 
@@ -1150,8 +1172,8 @@ exit:
  */
 
 int
-Posix_Execvp(ConstUnicode fileName,        // IN:
-             Unicode const argVal[])       // IN:
+Posix_Execvp(ConstUnicode fileName,   // IN:
+             Unicode const argVal[])  // IN:
 {
    int ret = -1;
    char *file;
@@ -1171,6 +1193,7 @@ exit:
       Util_FreeStringList(argv, -1);
    }
    free(file);
+
    return ret;
 }
 
@@ -1192,7 +1215,7 @@ exit:
  */
 
 int
-Posix_System(ConstUnicode command)         // IN:
+Posix_System(ConstUnicode command)  // IN:
 {
    char *tmpcommand;
    int ret;
@@ -1204,6 +1227,7 @@ Posix_System(ConstUnicode command)         // IN:
    ret = system(tmpcommand);
 
    free(tmpcommand);
+
    return ret;
 }
 
@@ -1239,6 +1263,7 @@ Posix_Mkdir(ConstUnicode pathName,  // IN:
    ret = mkdir(path, mode);
 
    free(path);
+
    return ret;
 }
 
@@ -1273,6 +1298,7 @@ Posix_Chdir(ConstUnicode pathName)  // IN:
    ret = chdir(path);
 
    free(path);
+
    return ret;
 }
 
@@ -1308,6 +1334,7 @@ Posix_RealPath(ConstUnicode pathName)  // IN:
    p = realpath(path, rpath);
 
    free(path);
+
    return p == NULL ? NULL : Unicode_Alloc(rpath, STRING_ENCODING_DEFAULT);
 }
 
@@ -1387,6 +1414,7 @@ Posix_Lstat(ConstUnicode pathName,  // IN:
    ret = lstat(path, statbuf);
 
    free(path);
+
    return ret;
 }
 
@@ -1421,6 +1449,7 @@ Posix_OpenDir(ConstUnicode pathName)  // IN:
    ret = opendir(path);
 
    free(path);
+
    return ret;
 }
 
@@ -1483,9 +1512,10 @@ Posix_Getenv(ConstUnicode name)  // IN:
  */
 
 int
-Posix_Putenv(Unicode name)   // IN:
+Posix_Putenv(Unicode name)  // IN:
 {
    ASSERT(Unicode_IsBufferValid(name, -1, STRING_ENCODING_US_ASCII));
+
    return putenv(name);
 }
 
@@ -1541,9 +1571,8 @@ Posix_Getpwnam(ConstUnicode name)  // IN:
 struct passwd *
 Posix_Getpwuid(uid_t uid)  // IN:
 {
-   struct passwd *pw;
+   struct passwd *pw = getpwuid(uid);
 
-   pw = getpwuid(uid);
    return GetpwInternal(pw);
 }
 
@@ -1605,28 +1634,34 @@ GetpwInternal(struct passwd *pw)  // IN:
    ret = EIO;
 #endif
    if (pw->pw_passwd &&
-       (spw.pw_passwd = Unicode_Alloc(pw->pw_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
+       (spw.pw_passwd = Unicode_Alloc(pw->pw_passwd,
+                                      STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_dir &&
-       (spw.pw_dir = Unicode_Alloc(pw->pw_dir, STRING_ENCODING_DEFAULT)) == NULL) {
+       (spw.pw_dir = Unicode_Alloc(pw->pw_dir,
+                                   STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_name &&
-       (spw.pw_name = Unicode_Alloc(pw->pw_name, STRING_ENCODING_DEFAULT)) == NULL) {
+       (spw.pw_name = Unicode_Alloc(pw->pw_name,
+                                    STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_gecos &&
-       (spw.pw_gecos = Unicode_Alloc(pw->pw_gecos, STRING_ENCODING_DEFAULT)) == NULL) {
+       (spw.pw_gecos = Unicode_Alloc(pw->pw_gecos,
+                                     STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_shell &&
-       (spw.pw_shell = Unicode_Alloc(pw->pw_shell, STRING_ENCODING_DEFAULT)) == NULL) {
+       (spw.pw_shell = Unicode_Alloc(pw->pw_shell,
+                                     STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
 #if defined(__FreeBSD__)
    if (pw->pw_class &&
-       (spw.pw_class = Unicode_Alloc(pw->pw_class, STRING_ENCODING_DEFAULT)) == NULL) {
+       (spw.pw_class = Unicode_Alloc(pw->pw_class,
+                                     STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
 #endif
@@ -1674,6 +1709,7 @@ Posix_Statfs(ConstUnicode pathName,     // IN:
    ret = statfs(path, statfsbuf);
 
    free(path);
+
    return ret;
 }
 #endif // } !defined(sun)
@@ -1724,11 +1760,12 @@ Posix_Setenv(ConstUnicode name,   // IN:
       if (!trackEnv) {
          trackEnv = HashTable_Alloc(16, HASH_STRING_KEY, free);
       }
+
       /*
-       * In order to keep memory management and hash table manipulation simple, each env
-       * var is stored as a memory block containing the NUL-terminated environment
-       * variable name, followed immediately in memory by the full argument to putenv
-       * ('varname=value').
+       * In order to keep memory management and hash table manipulation simple,
+       * each env var is stored as a memory block containing the NUL-terminated
+       * environment variable name, followed immediately in memory by the
+       * full argument to putenv ('varname=value').
        */
 
       rawNameLen = strlen(rawName) + 1;
@@ -1736,9 +1773,12 @@ Posix_Setenv(ConstUnicode name,   // IN:
       fslen = rawNameLen + rawValueLen + 1; // 1 is for '=' sign
       keyStr = malloc(rawNameLen + fslen);
       fullStr = keyStr + rawNameLen;
+
       /*
-       * Use memcpy because Str_Snprintf() doesn't play well with non-UTF8 strings.
+       * Use memcpy because Str_Snprintf() doesn't play well with non-UTF8
+       * strings.
        */
+
       memcpy(keyStr, rawName, rawNameLen);
       memcpy(fullStr, rawName, rawNameLen);
       fullStr[rawNameLen - 1] = '=';
@@ -1756,6 +1796,7 @@ Posix_Setenv(ConstUnicode name,   // IN:
 exit:
    free(rawName);
    free(rawValue);
+
    return ret;
 }
 
@@ -1777,7 +1818,7 @@ exit:
  */
 
 void
-Posix_Unsetenv(ConstUnicode name)   // IN:
+Posix_Unsetenv(ConstUnicode name)  // IN:
 {
    char *rawName;
 
@@ -1811,9 +1852,8 @@ Posix_Unsetenv(ConstUnicode name)   // IN:
 struct passwd *
 Posix_Getpwent(void)
 {
-   struct passwd *pw;
+   struct passwd *pw = getpwent();
 
-   pw = getpwent();
    return GetpwInternal(pw);
 }
 
@@ -1825,8 +1865,9 @@ Posix_Getpwent(void)
  *
  * CopyFieldIntoBuf --
  *
- *      Copies a field in a passwd/group structure into the supplied buffer, and sets
- *      that pointer into dest. Used as a helper function for the EmulateGet* routines.
+ *      Copies a field in a passwd/group structure into the supplied buffer,
+ *      and sets that pointer into dest. Used as a helper function for the
+ *      EmulateGet* routines.
  *
  * Results:
  *      TRUE on success, FALSE on failure.
@@ -1838,10 +1879,10 @@ Posix_Getpwent(void)
  */
 
 static Bool
-CopyFieldIntoBuf(const char *src,
-                 char **dest,
-                 char **buf,
-                 size_t *bufLen)
+CopyFieldIntoBuf(const char *src,  // IN:
+                 char **dest,      // OUT:
+                 char **buf,       // OUT
+                 size_t *bufLen)   // OUT:
 {
    if (src) {
       size_t needLen = strlen(src) + 1;
@@ -1993,11 +2034,11 @@ EmulateGetpwnam_r(const char *name,       // IN
  */
 
 static int
-EmulateGetpwuid_r(uid_t uid,              // IN
-                  struct passwd *pwbuf,   // IN/OUT
-                  char *buf,              // IN
-                  size_t buflen,          // IN
-                  struct passwd **pwbufp) // IN/OUT
+EmulateGetpwuid_r(uid_t uid,               // IN:
+                  struct passwd *pwbuf,    // IN/OUT:
+                  char *buf,               // IN:
+                  size_t buflen,           // IN:
+                  struct passwd **pwbufp)  // IN/OUT:
 {
    static Atomic_uint32 mutex = {0};
    struct passwd *pw;
@@ -2010,6 +2051,7 @@ EmulateGetpwuid_r(uid_t uid,              // IN
    /*
     * XXX Use YIELD() here when it works on FreeBSD.
     */
+
    while (Atomic_ReadWrite(&mutex, 1)); // Spinlock
 
    pw = getpwuid(uid);
@@ -2047,10 +2089,10 @@ EmulateGetpwuid_r(uid_t uid,              // IN
  */
 
 static struct group *
-GroupCopy(struct group *orig, // IN
-          struct group *new,  // IN/OUT
-          char *buf,          // IN
-          size_t bufLen)      // IN
+GroupCopy(struct group *orig,  // IN:
+          struct group *new,   // IN/OUT:
+          char *buf,           // IN:
+          size_t bufLen)       // IN:
 {
    if (!orig) {
       return NULL;
@@ -2071,10 +2113,12 @@ GroupCopy(struct group *orig, // IN
       char **newGrMem;
 
       /*
-       * Before putting the gr_mem 'char **' array into 'buf', aligns the buffer to a
-       * pointer-size boundary.
+       * Before putting the gr_mem 'char **' array into 'buf', aligns the
+       * buffer to a pointer-size boundary.
        */
-      alignLen = ((((uintptr_t) buf) + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1));
+
+      alignLen = ((((uintptr_t) buf) +
+                    (sizeof(void *) - 1)) & ~(sizeof(void *) - 1));
       alignLen -= ((uintptr_t) buf);
 
       if (bufLen < alignLen) {
@@ -2086,6 +2130,7 @@ GroupCopy(struct group *orig, // IN
       /*
        * Count the number of items in the gr_mem array, and then copy them all.
        */
+
       for (i = 0; orig->gr_mem[i]; i++);
       i++; // need space for a terminating NULL
 
@@ -2135,11 +2180,11 @@ GroupCopy(struct group *orig, // IN
  */
 
 static int
-EmulateGetgrnam_r(const char *name,       // IN
-                  struct group *grbuf,    // IN/OUT
-                  char *buf,              // IN
-                  size_t buflen,          // IN
-                  struct group **grbufp)  // IN/OUT
+EmulateGetgrnam_r(const char *name,       // IN:
+                  struct group *grbuf,    // IN/OUT:
+                  char *buf,              // IN:
+                  size_t buflen,          // IN:
+                  struct group **grbufp)  // IN/OUT:
 {
    static Atomic_uint32 mutex = {0};
    struct group *gr;
@@ -2153,6 +2198,7 @@ EmulateGetgrnam_r(const char *name,       // IN
    /*
     * XXX Use YIELD() here once it is available on FreeBSD
     */
+
    while (Atomic_ReadWrite(&mutex, 1)); // Spinlock
 
    gr = getgrnam(name);
@@ -2207,6 +2253,7 @@ Posix_Getpwnam_r(ConstUnicode name,    // IN:
        */
 
       *ppw = NULL;
+
       return errno;
    }
 
@@ -2259,7 +2306,7 @@ Posix_Getpwuid_r(uid_t uid,            // IN:
    ret = EmulateGetpwuid_r(uid, pw, buf, size, ppw);
 #endif
    if (ret != 0 || *ppw == NULL) {
-   // ret is errno on failure, *ppw is NULL if no matching entry found.
+      // ret is errno on failure, *ppw is NULL if no matching entry found.
       return ret;
    }
 
@@ -2311,23 +2358,28 @@ GetpwInternal_r(struct passwd *pw,    // IN:
 
    ret = ENOMEM;
    if (pw->pw_name &&
-       (pwname = Unicode_Alloc(pw->pw_name, STRING_ENCODING_DEFAULT)) == NULL) {
+       (pwname = Unicode_Alloc(pw->pw_name,
+                               STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_passwd &&
-       (passwd = Unicode_Alloc(pw->pw_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
+       (passwd = Unicode_Alloc(pw->pw_passwd,
+                               STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_gecos &&
-       (gecos = Unicode_Alloc(pw->pw_gecos, STRING_ENCODING_DEFAULT)) == NULL) {
+       (gecos = Unicode_Alloc(pw->pw_gecos,
+                              STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_dir &&
-       (dir = Unicode_Alloc(pw->pw_dir, STRING_ENCODING_DEFAULT)) == NULL) {
+       (dir = Unicode_Alloc(pw->pw_dir,
+                            STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (pw->pw_shell &&
-       (shell = Unicode_Alloc(pw->pw_shell, STRING_ENCODING_DEFAULT)) == NULL) {
+       (shell = Unicode_Alloc(pw->pw_shell,
+                              STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
 
@@ -2340,6 +2392,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
 
    if (pwname) {
       size_t len = strlen(pwname) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2349,6 +2402,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
 
    if (passwd != NULL) {
       size_t len = strlen(passwd) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2358,6 +2412,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
 
    if (gecos) {
       size_t len = strlen(gecos) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2367,6 +2422,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
 
    if (dir) {
       size_t len = strlen(dir) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2376,6 +2432,7 @@ GetpwInternal_r(struct passwd *pw,    // IN:
 
    if (shell) {
       size_t len = strlen(shell) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2390,6 +2447,7 @@ exit:
    free(pwname);
    free(gecos);
    free(shell);
+
    return ret;
 }
 
@@ -2414,10 +2472,10 @@ exit:
  */
 
 int
-Posix_GetGroupList(ConstUnicode user,    // IN:
-                   gid_t group,          // IN:
-                   gid_t *groups,        // OUT:
-                   int *ngroups)         // IN/OUT:
+Posix_GetGroupList(ConstUnicode user,  // IN:
+                   gid_t group,        // IN:
+                   gid_t *groups,      // OUT:
+                   int *ngroups)       // IN/OUT:
 {
    char *tmpuser;
    int ret;
@@ -2443,12 +2501,14 @@ Posix_GetGroupList(ConstUnicode user,    // IN:
       }
       ASSERT(groups != NULL);
       *groups = group;
+
       return 1;
    }
 
    ret = getgrouplist(tmpuser, group, groups, ngroups);
 
    free(tmpuser);
+
    return ret;
 }
 
@@ -2503,15 +2563,18 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
 
    ret = ENOMEM;
    if (gr->gr_passwd &&
-       (sgr.gr_passwd = Unicode_Alloc(gr->gr_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
+       (sgr.gr_passwd = Unicode_Alloc(gr->gr_passwd,
+                                      STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (gr->gr_name &&
-       (sgr.gr_name = Unicode_Alloc(gr->gr_name, STRING_ENCODING_DEFAULT)) == NULL) {
+       (sgr.gr_name = Unicode_Alloc(gr->gr_name,
+                                    STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (gr->gr_mem) {
-      sgr.gr_mem = Unicode_AllocList(gr->gr_mem, -1, STRING_ENCODING_DEFAULT);
+      sgr.gr_mem = Unicode_AllocList(gr->gr_mem, -1,
+                                     STRING_ENCODING_DEFAULT);
    }
 
    ret = 0;
@@ -2521,8 +2584,8 @@ Posix_Getgrnam(ConstUnicode name)  // IN:
       errno = ret;
       return NULL;
    }
-   return &sgr;
 
+   return &sgr;
 }
 
 
@@ -2565,6 +2628,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
        */
 
       *pgr = NULL;
+
       return errno;
    }
 
@@ -2593,11 +2657,13 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
 
    ret = ENOMEM;
    if (gr->gr_name &&
-       (grname = Unicode_Alloc(gr->gr_name, STRING_ENCODING_DEFAULT)) == NULL) {
+       (grname = Unicode_Alloc(gr->gr_name,
+                               STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (gr->gr_passwd &&
-       (grpasswd = Unicode_Alloc(gr->gr_passwd, STRING_ENCODING_DEFAULT)) == NULL) {
+       (grpasswd = Unicode_Alloc(gr->gr_passwd,
+                                 STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (gr->gr_mem) {
@@ -2613,6 +2679,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
 
    if (grname) {
       size_t len = strlen(grname) + 1;
+
       if (n + len > size) {
          goto exit;
       }
@@ -2622,6 +2689,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
 
    if (grpasswd != NULL) {
       size_t len = strlen(grpasswd) + 1;
+
       if (n + len > size) {
          goto exit;
       }
@@ -2632,6 +2700,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    if (grmem) {
       for (i = 0; grmem[i]; i++) {
          size_t len = strlen(grmem[i]) + 1;
+
          if (n + len > size) {
 	    goto exit;
          }
@@ -2648,6 +2717,7 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
    if (grmem) {
       Unicode_FreeList(grmem, -1);
    }
+
    return ret;
 }
 
@@ -2673,11 +2743,11 @@ Posix_Getgrnam_r(ConstUnicode name,    // IN:
  */
 
 int
-Posix_Mount(ConstUnicode source,             // IN:
-            ConstUnicode target,             // IN:
-            const char *filesystemtype,      // IN:
-            unsigned long mountflags,        // IN:
-            const void *data)                // IN:
+Posix_Mount(ConstUnicode source,         // IN:
+            ConstUnicode target,         // IN:
+            const char *filesystemtype,  // IN:
+            unsigned long mountflags,    // IN:
+            const void *data)            // IN:
 {
    int ret = -1;
    char *tmpsource = NULL;
@@ -2695,6 +2765,7 @@ Posix_Mount(ConstUnicode source,             // IN:
 exit:
    free(tmpsource);
    free(tmptarget);
+
    return ret;
 }
 
@@ -2717,7 +2788,7 @@ exit:
  */
 
 int
-Posix_Umount(ConstUnicode target)             // IN:
+Posix_Umount(ConstUnicode target)  // IN:
 {
    char *tmptarget;
    int ret;
@@ -2729,6 +2800,7 @@ Posix_Umount(ConstUnicode target)             // IN:
    ret = umount(tmptarget);
 
    free(tmptarget);
+
    return ret;
 }
 
@@ -2751,8 +2823,8 @@ Posix_Umount(ConstUnicode target)             // IN:
  */
 
 FILE *
-Posix_Setmntent(ConstUnicode pathName, // IN:
-                const char *mode)      // IN:
+Posix_Setmntent(ConstUnicode pathName,  // IN:
+                const char *mode)       // IN:
 {
    char *path;
    FILE *stream;
@@ -2766,6 +2838,7 @@ Posix_Setmntent(ConstUnicode pathName, // IN:
    stream = setmntent(path, mode);
 
    free(path);
+
    return stream;
 }
 
@@ -2814,19 +2887,23 @@ Posix_Getmntent(FILE *fp)  // IN:
 
    ret = ENOMEM;
    if (m->mnt_fsname &&
-       (sm.mnt_fsname = Unicode_Alloc(m->mnt_fsname, STRING_ENCODING_DEFAULT)) == NULL) {
+       (sm.mnt_fsname = Unicode_Alloc(m->mnt_fsname,
+                                      STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (m->mnt_dir &&
-       (sm.mnt_dir = Unicode_Alloc(m->mnt_dir, STRING_ENCODING_DEFAULT)) == NULL) {
+       (sm.mnt_dir = Unicode_Alloc(m->mnt_dir,
+                                   STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (m->mnt_type &&
-       (sm.mnt_type = Unicode_Alloc(m->mnt_type, STRING_ENCODING_DEFAULT)) == NULL) {
+       (sm.mnt_type = Unicode_Alloc(m->mnt_type,
+                                    STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (m->mnt_opts &&
-       (sm.mnt_opts = Unicode_Alloc(m->mnt_opts, STRING_ENCODING_DEFAULT)) == NULL) {
+       (sm.mnt_opts = Unicode_Alloc(m->mnt_opts,
+                                    STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    ret = 0;
@@ -2836,6 +2913,7 @@ exit:
       errno = ret;
       return NULL;
    }
+
    return &sm;
 }
 
@@ -2879,15 +2957,18 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    ret = ENOMEM;
    if (m->mnt_fsname &&
-       (fsname = Unicode_Alloc(m->mnt_fsname, STRING_ENCODING_DEFAULT)) == NULL) {
+       (fsname = Unicode_Alloc(m->mnt_fsname,
+                               STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (m->mnt_dir &&
-       (dir = Unicode_Alloc(m->mnt_dir, STRING_ENCODING_DEFAULT)) == NULL) {
+       (dir = Unicode_Alloc(m->mnt_dir,
+                            STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (m->mnt_type &&
-       (type = Unicode_Alloc(m->mnt_type, STRING_ENCODING_DEFAULT)) == NULL) {
+       (type = Unicode_Alloc(m->mnt_type,
+                             STRING_ENCODING_DEFAULT)) == NULL) {
       goto exit;
    }
    if (m->mnt_opts &&
@@ -2904,6 +2985,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    if (fsname) {
       int len = strlen(fsname) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2913,6 +2995,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    if (dir != NULL) {
       int len = strlen(dir) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2922,6 +3005,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    if (type) {
       int len = strlen(type) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2931,6 +3015,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
    if (opts) {
       size_t len = strlen(opts) + 1;
+
       if (n + len > size || n + len < n) {
          goto exit;
       }
@@ -2948,8 +3033,10 @@ exit:
 
    if (ret != 0) {
       errno = ret;
+
       return NULL;
    }
+
    return m;
 }
 
@@ -2972,8 +3059,8 @@ exit:
  */
 
 int
-Posix_Printf(ConstUnicode format,
-             ...)
+Posix_Printf(ConstUnicode format,  // IN:
+             ...)                  // IN:
 {
    va_list args;
    Unicode output;
@@ -2991,6 +3078,7 @@ Posix_Printf(ConstUnicode format,
 
    free(output);
    free(outCurr);
+
    return numChars;
 }
 
@@ -3013,9 +3101,9 @@ Posix_Printf(ConstUnicode format,
  */
 
 int
-Posix_Fprintf(FILE *stream,
-              ConstUnicode format,
-              ...)
+Posix_Fprintf(FILE *stream,         // IN:
+              ConstUnicode format,  // IN:
+              ...)                  // IN:
 {
    va_list args;
    Unicode output;
@@ -3033,6 +3121,7 @@ Posix_Fprintf(FILE *stream,
 
    free(output);
    free(outCurr);
+
    return nOutput;
 }
 

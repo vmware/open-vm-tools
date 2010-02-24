@@ -53,10 +53,14 @@ typedef int (*HashTableForEachCallback)(const char *key, void *value,
 #define HASH_FLAG_COPYKEY	0x10	// copy string key
 
 HashTable *
-HashTable_Alloc(uint32 numEntries, int keyType, HashTableFreeEntryFn fn);
+HashTable_Alloc(uint32               numEntries,
+                int                  keyType,
+                HashTableFreeEntryFn fn);
 
 HashTable *
-HashTable_AllocOnce(Atomic_Ptr *var, uint32 numEntries, int keyType,
+HashTable_AllocOnce(Atomic_Ptr          *var,
+                    uint32               numEntries,
+                    int                  keyType,
                     HashTableFreeEntryFn fn);
 
 void
@@ -64,53 +68,53 @@ HashTable_Free(HashTable *hashTable);
 
 Bool
 HashTable_Insert(HashTable  *hashTable,
-                 const char *keyStr,
+                 const void *keyStr,
                  void       *clientData);
 
 Bool
 HashTable_Lookup(HashTable  *hashTable,
-                 const char *keyStr,
-                 void **clientData);
+                 const void *keyStr,
+                 void      **clientData);
 
 void *
 HashTable_LookupOrInsert(HashTable  *hashTable,
-                         const char *keyStr,
+                         const void *keyStr,
                          void       *clientData);
 
 Bool
 HashTable_ReplaceOrInsert(HashTable  *hashTable,
-                          const char *keyStr,
+                          const void *keyStr,
                           void       *clientData);
 
 Bool
 HashTable_ReplaceIfEqual(HashTable  *hashTable,
-                         const char *keyStr,
+                         const void *keyStr,
                          void       *oldClientData,
                          void       *newClientData);
 
 Bool
 HashTable_Delete(HashTable  *hashTable,
-                 const char *keyStr);
+                 const void *keyStr);
 
 Bool
 HashTable_LookupAndDelete(HashTable  *hashTable,
-                          const char *keyStr,
-			  void **clientData);
+                          const void *keyStr,
+			  void      **clientData);
 
 void
 HashTable_Clear(HashTable *ht);
 
 void
-HashTable_ToArray(const HashTable *ht,
-                  void ***clientDatas,
-                  size_t *size);
+HashTable_ToArray(const HashTable   *ht,
+                  void            ***clientDatas,
+                  size_t            *size);
 
 size_t
 HashTable_GetNumElements(const HashTable *ht);
 
 int
-HashTable_ForEach(const HashTable *ht,
-                  HashTableForEachCallback cb,
-                  void *clientData);
+HashTable_ForEach(const HashTable          *ht,
+                  HashTableForEachCallback  cb,
+                  void                     *clientData);
 
 #endif

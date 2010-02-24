@@ -72,7 +72,8 @@ typedef enum {
 
 EXTERN FileMacosUnmountStatus FileMacos_UnmountDev(char const *bsdDev,
                                                    Bool wholeDev,
-                                                   Bool eject);
+                                                   Bool eject,
+                                                   Bool su);
 
 EXTERN void FileMacos_MountDevAsyncNoResult(char const *bsdSliceDev,
                                             Bool su);
