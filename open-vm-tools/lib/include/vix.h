@@ -215,6 +215,7 @@ enum {
    VIX_E_SNAPSHOT_MAXSNAPSHOTS                  = 13019,
    VIX_E_SNAPSHOT_MIN_FREE_SPACE                = 13020,
    VIX_E_SNAPSHOT_HIERARCHY_TOODEEP             = 13021,
+   VIX_E_SNAPSHOT_RRSUSPEND                     = 13022,
 
    /* Host Errors */
    VIX_E_HOST_DISK_INVALID_VALUE                = 14003,
