@@ -107,7 +107,7 @@ FileIO_MsgError(FileIOResult status) // IN
        * because you can call your native function to retrieve a more
        * accurate message.
        */
-      result = MSGID(fileio.generic) "Generic error";
+      result = MSGID(fileio.generic) "Error";
       break;
 
    case FILEIO_OPEN_ERROR_EXIST:
@@ -127,7 +127,7 @@ FileIO_MsgError(FileIOResult status) // IN
       break;
 
    case FILEIO_NO_PERMISSION:
-      result = MSGID(fileio.noPerm) "Insufficient permissions to access the file";
+      result = MSGID(fileio.noPerm) "Insufficient permission to access the file";
       break;
 
    case FILEIO_FILE_NAME_TOO_LONG:

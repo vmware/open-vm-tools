@@ -464,7 +464,7 @@ File_Cwd(ConstUnicode drive)  // IN:
    if (getcwd(buffer, FILE_MAXPATH) == NULL) {
       Msg_Append(MSGID(filePosix.getcwd)
                  "Unable to retrieve the current working directory: %s. "
-                 "Please check if the directory has been deleted or "
+                 "Check if the directory has been deleted or "
                  "unmounted.\n",
                  Msg_ErrString());
       Warning(LGPFX" %s: getcwd() failed: %s\n", __FUNCTION__,
