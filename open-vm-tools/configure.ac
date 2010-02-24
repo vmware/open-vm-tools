@@ -812,6 +812,14 @@ AC_CHECK_HEADER(
    [HAVE_WCHAR_H="yes"],
    [HAVE_WCHAR_H="no"])
 
+if test "$os" = "linux"; then
+   # Make sure kernel-headers package is installed.
+   AC_CHECK_HEADER(
+      [linux/unistd.h],
+      [],
+      [AC_MSG_ERROR(linux/unistd.h is not found. Please install kernel-headers/linux-userspace-headers/linux-libc-dev package.)])
+fi
+
 if test "$enable_multimon" != "no"; then
    AC_CHECK_HEADER(
       [X11/extensions/panoramiXproto.h],
