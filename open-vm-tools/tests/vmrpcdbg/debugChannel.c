@@ -37,6 +37,7 @@
 #include "vmware/tools/utils.h"
 
 typedef struct DbgChannelData {
+   ToolsAppCtx      *ctx;
    gboolean          hasLibRef;
    RpcDebugPlugin   *plugin;
    GSource          *msgTimer;
@@ -68,7 +69,7 @@ RpcDebugDispatch(gpointer _chan)
    memset(&rpcdata, 0, sizeof rpcdata);
 
    if (!plugin->sendFn(&rpcdata)) {
-      RpcDebug_DecRef(chan->appCtx);
+      RpcDebug_DecRef(cdata->ctx);
       cdata->hasLibRef = FALSE;
       return FALSE;
    } else if (rpcdata.message == NULL) {
@@ -80,7 +81,7 @@ RpcDebugDispatch(gpointer _chan)
    }
 
    data.clientData = chan;
-   data.appCtx = chan->appCtx;
+   data.appCtx = cdata->ctx;
    data.args = rpcdata.message;
    data.argsSize = rpcdata.messageLen;
 
@@ -100,8 +101,8 @@ RpcDebugDispatch(gpointer _chan)
    }
 
    if (!ret) {
-      VMTOOLSAPP_ERROR((ToolsAppCtx *) chan->appCtx, 1);
-      RpcDebug_DecRef(chan->appCtx);
+      VMTOOLSAPP_ERROR(cdata->ctx, 1);
+      RpcDebug_DecRef(cdata->ctx);
       cdata->hasLibRef = FALSE;
       return FALSE;
    }
@@ -124,11 +125,11 @@ RpcDebugStart(RpcChannel *chan)
 {
    DbgChannelData *data = chan->_private;
 
-   ASSERT(chan->appName != NULL);
+   ASSERT(data->ctx != NULL);
    ASSERT(data->msgTimer == NULL);
 
    data->msgTimer = g_timeout_source_new(100);
-   VMTOOLSAPP_ATTACH_SOURCE((ToolsAppCtx *)chan->appCtx,
+   VMTOOLSAPP_ATTACH_SOURCE(data->ctx,
                             data->msgTimer,
                             RpcDebugDispatch,
                             chan,
@@ -179,12 +180,13 @@ RpcDebugSend(RpcChannel *chan,
 {
    char *copy;
    gpointer xdrdata = NULL;
-   RpcDebugPlugin *plugin = ((DbgChannelData *)chan->_private)->plugin;
+   DbgChannelData *cdata = chan->_private;
+   RpcDebugPlugin *plugin = cdata->plugin;
    RpcDebugRecvMapping *mapping = NULL;
    RpcDebugRecvFn recvFn = NULL;
    gboolean ret = TRUE;
 
-   ASSERT(chan->appName != NULL);
+   ASSERT(cdata->ctx != NULL);
 
    /* Be paranoid. Like the VMX, NULL-terminate the incoming data. */
    copy = g_malloc(dataLen + 1);
@@ -256,7 +258,27 @@ exit:
 
 
 /**
- * Does nothing.
+ * Intiializes internal state for the inbound channel.
+ *
+ * @param[in]  chan     The RPC channel instance.
+ * @param[in]  ctx      Unused.
+ * @param[in]  appName  Unused.
+ * @param[in]  appCtx   A ToolsAppCtx instance.
+ */
+
+static void
+RpcDebugSetup(RpcChannel *chan,
+              GMainContext *ctx,
+              const char *appName,
+              gpointer appCtx)
+{
+   DbgChannelData *cdata = chan->_private;
+   cdata->ctx = appCtx;
+}
+
+
+/**
+ * Cleans up the internal channel state.
  *
  * @param[in]  chan     The RPC channel instance.
  */
@@ -265,9 +287,9 @@ static void
 RpcDebugShutdown(RpcChannel *chan)
 {
    DbgChannelData *cdata = chan->_private;
-   ASSERT(chan->appName != NULL);
+   ASSERT(cdata->ctx != NULL);
    if (cdata->hasLibRef) {
-      RpcDebug_DecRef(chan->appCtx);
+      RpcDebug_DecRef(cdata->ctx);
    }
    g_free(chan->_private);
 }
@@ -293,11 +315,11 @@ RpcDebug_NewDebugChannel(ToolsAppCtx *ctx,
    RpcChannel *ret;
 
    ASSERT(data != NULL);
-
-   ret = g_malloc0(sizeof *ret);
+   ret = RpcChannel_Create();
    ret->start = RpcDebugStart;
    ret->stop = RpcDebugStop;
    ret->send = RpcDebugSend;
+   ret->setup = RpcDebugSetup;
    ret->shutdown = RpcDebugShutdown;
 
    cdata = g_malloc0(sizeof *cdata);

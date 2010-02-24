@@ -244,7 +244,7 @@ ToolsCore_InitRpc(ToolsServiceState *state)
                    state->name);
          state->ctx.rpc = NULL;
       } else {
-         state->ctx.rpc = RpcChannel_NewBackdoorChannel(mainCtx);
+         state->ctx.rpc = BackdoorChannel_New();
       }
       app = ToolsCore_GetTcloName(state);
       ASSERT(app != NULL);

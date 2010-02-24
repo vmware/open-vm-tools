@@ -116,6 +116,10 @@ typedef gboolean (*RpcChannelSendFn)(struct RpcChannel *,
                                      size_t dataLen,
                                      char **result,
                                      size_t *resultLen);
+typedef void (*RpcChannelSetupFn)(struct RpcChannel *chan,
+                                  GMainContext *mainCtx,
+                                  const char *appName,
+                                  gpointer appCtx);
 
 
 /**
@@ -135,18 +139,8 @@ typedef struct RpcChannel {
    RpcChannelStartFn       start;
    RpcChannelStopFn        stop;
    RpcChannelSendFn        send;
-   /* Private section: don't use the fields below directly. */
+   RpcChannelSetupFn       setup;
    RpcChannelShutdownFn    shutdown;
-   gchar                  *appName;
-   GHashTable             *rpcs;
-   GMainContext           *mainCtx;
-   GSource                *resetCheck;
-   gpointer                appCtx;
-   RpcChannelCallback      resetReg;
-   RpcChannelResetCb       resetCb;
-   gpointer                resetData;
-   gboolean                rpcError;
-   guint                   rpcErrorCount;
    gpointer                _private;
 } RpcChannel;
 
@@ -217,6 +211,9 @@ RpcChannel_BuildXdrCommand(const char *cmd,
                            char **result,
                            size_t *resultLen);
 
+RpcChannel *
+RpcChannel_Create(void);
+
 gboolean
 RpcChannel_Destroy(RpcChannel *chan);
 
@@ -246,7 +243,7 @@ RpcChannel_UnregisterCallback(RpcChannel *chan,
 
 
 RpcChannel *
-RpcChannel_NewBackdoorChannel(GMainContext *mainCtx);
+BackdoorChannel_New(void);
 
 G_END_DECLS
 

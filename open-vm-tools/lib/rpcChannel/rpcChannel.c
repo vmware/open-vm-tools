@@ -31,6 +31,22 @@
 #include "vmxrpc.h"
 #include "xdrutil.h"
 
+/** Internal state of a channel. */
+typedef struct RpcChannelInt {
+   RpcChannel              impl;
+   gchar                  *appName;
+   GHashTable             *rpcs;
+   GMainContext           *mainCtx;
+   GSource                *resetCheck;
+   gpointer                appCtx;
+   RpcChannelCallback      resetReg;
+   RpcChannelResetCb       resetCb;
+   gpointer                resetData;
+   gboolean                rpcError;
+   guint                   rpcErrorCount;
+} RpcChannelInt;
+
+
 /** Max number of times to attempt a channel restart. */
 #define RPCIN_MAX_RESTARTS 60
 
@@ -68,13 +84,13 @@ RpcChannelPing(RpcInData *data)
 static gboolean
 RpcChannelRestart(gpointer _chan)
 {
-   RpcChannel *chan = _chan;
+   RpcChannelInt *chan = _chan;
 
-   chan->stop(chan);
-   if (!chan->start(chan)) {
+   RpcChannel_Stop(&chan->impl);
+   if (!RpcChannel_Start(&chan->impl)) {
       g_warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
       if (chan->resetCb != NULL) {
-         chan->resetCb(chan, FALSE, chan->resetData);
+         chan->resetCb(&chan->impl, FALSE, chan->resetData);
       }
    } else {
       chan->rpcError = FALSE;
@@ -97,7 +113,7 @@ static gboolean
 RpcChannelCheckReset(gpointer _chan)
 {
    static int channelTimeoutAttempts = RPCIN_MAX_RESTARTS;
-   RpcChannel *chan = _chan;
+   RpcChannelInt *chan = _chan;
 
    /* Check the channel state. */
    if (chan->rpcError) {
@@ -107,7 +123,7 @@ RpcChannelCheckReset(gpointer _chan)
          g_warning("Failed to reset channel after %u attempts\n",
                    chan->rpcErrorCount - 1);
          if (chan->resetCb != NULL) {
-            chan->resetCb(chan, FALSE, chan->resetData);
+            chan->resetCb(&chan->impl, FALSE, chan->resetData);
          }
          goto exit;
       }
@@ -126,7 +142,7 @@ RpcChannelCheckReset(gpointer _chan)
    chan->rpcErrorCount = 0;
 
    if (chan->resetCb != NULL) {
-      chan->resetCb(chan, TRUE, chan->resetData);
+      chan->resetCb(&chan->impl, TRUE, chan->resetData);
    }
 
 exit:
@@ -148,7 +164,7 @@ static gboolean
 RpcChannelReset(RpcInData *data)
 {
    gchar *msg;
-   RpcChannel *chan = data->clientData;
+   RpcChannelInt *chan = data->clientData;
 
    if (chan->resetCheck == NULL) {
       chan->resetCheck = g_idle_source_new();
@@ -301,6 +317,26 @@ exit:
 
 
 /**
+ * Creates a new RpcChannel without any implementation.
+ *
+ * This is mainly for use of code that is implementing a custom RpcChannel.
+ * Such implementations should provide their own "constructor"-type function
+ * which should then call this function to get an RpcChannel instance. They
+ * should then fill in the function pointers that provide the implementation
+ * for the channel before making the channel available to the callers.
+ *
+ * @return A new RpcChannel instance.
+ */
+
+RpcChannel *
+RpcChannel_Create(void)
+{
+   RpcChannelInt *chan = g_new0(RpcChannelInt, 1);
+   return &chan->impl;
+}
+
+
+/**
  * Dispatches the given RPC to the registered handler. This mimics the behavior
  * of the RpcIn library (but is not tied to that particular implementation of
  * an RPC channel).
@@ -318,7 +354,7 @@ RpcChannel_Dispatch(RpcInData *data)
    size_t nameLen;
    Bool status;
    RpcChannelCallback *rpc = NULL;
-   RpcChannel *chan = data->clientData;
+   RpcChannelInt *chan = data->clientData;
 
    name = StrUtil_GetNextToken(&index, data->args, " ");
    if (name == NULL) {
@@ -370,37 +406,40 @@ gboolean
 RpcChannel_Destroy(RpcChannel *chan)
 {
    size_t i;
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
 
-   if (chan->shutdown != NULL) {
-      chan->shutdown(chan);
+   if (cdata->impl.shutdown != NULL) {
+      cdata->impl.shutdown(chan);
    }
 
-   RpcChannel_UnregisterCallback(chan, &chan->resetReg);
+   RpcChannel_UnregisterCallback(chan, &cdata->resetReg);
    for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
       RpcChannel_UnregisterCallback(chan, &gRpcHandlers[i]);
    }
 
-   if (chan->rpcs != NULL) {
-      g_hash_table_destroy(chan->rpcs);
-      chan->rpcs = NULL;
+   if (cdata->rpcs != NULL) {
+      g_hash_table_destroy(cdata->rpcs);
+      cdata->rpcs = NULL;
    }
 
-   chan->resetCb = NULL;
-   chan->resetData = NULL;
-   chan->appCtx = NULL;
+   cdata->resetCb = NULL;
+   cdata->resetData = NULL;
+   cdata->appCtx = NULL;
 
-   g_free(chan->appName);
-   chan->appName = NULL;
+   g_free(cdata->appName);
+   cdata->appName = NULL;
 
-   g_main_context_unref(chan->mainCtx);
-   chan->mainCtx = NULL;
-
-   if (chan->resetCheck != NULL) {
-      g_source_destroy(chan->resetCheck);
-      chan->resetCheck = NULL;
+   if (cdata->mainCtx != NULL) {
+      g_main_context_unref(cdata->mainCtx);
+      cdata->mainCtx = NULL;
    }
 
-   g_free(chan);
+   if (cdata->resetCheck != NULL) {
+      g_source_destroy(cdata->resetCheck);
+      cdata->resetCheck = NULL;
+   }
+
+   g_free(cdata);
    return TRUE;
 }
 
@@ -417,7 +456,7 @@ void
 RpcChannel_Error(void *_chan,
                  char const *status)
 {
-   RpcChannel *chan = _chan;
+   RpcChannelInt *chan = _chan;
    chan->rpcError = TRUE;
    g_warning("Error in the RPC receive loop: %s.\n", status);
 
@@ -430,8 +469,11 @@ RpcChannel_Error(void *_chan,
 
 
 /**
- * Initializes the RPC channel for use. This function must be called before
- * starting the channel.
+ * Initializes the RPC channel for inbound operations.
+ *
+ * This function must be called before starting the channel if the application
+ * wants to receive messages on the channel. Applications don't need to call it
+ * if only using the outbound functionality.
  *
  * @param[in]  chan        The RPC channel.
  * @param[in]  appName     TCLO application name.
@@ -450,25 +492,29 @@ RpcChannel_Setup(RpcChannel *chan,
                  gpointer resetData)
 {
    size_t i;
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
 
-   chan->appName = g_strdup(appName);
-   chan->appCtx = appCtx;
-   chan->mainCtx = g_main_context_ref(mainCtx);
-   chan->resetCb = resetCb;
-   chan->resetData = resetData;
+   cdata->appName = g_strdup(appName);
+   cdata->appCtx = appCtx;
+   cdata->mainCtx = g_main_context_ref(mainCtx);
+   cdata->resetCb = resetCb;
+   cdata->resetData = resetData;
 
-   chan->resetReg.name = "reset";
-   chan->resetReg.callback = RpcChannelReset;
-   chan->resetReg.clientData = chan;
+   cdata->resetReg.name = "reset";
+   cdata->resetReg.callback = RpcChannelReset;
+   cdata->resetReg.clientData = chan;
 
    /* Register the callbacks handled by the rpcChannel library. */
-   RpcChannel_RegisterCallback(chan, &chan->resetReg);
+   RpcChannel_RegisterCallback(chan, &cdata->resetReg);
 
    for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
       RpcChannel_RegisterCallback(chan, &gRpcHandlers[i]);
    }
-}
 
+   if (cdata->impl.setup != NULL) {
+      cdata->impl.setup(&cdata->impl, mainCtx, appName, appCtx);
+   }
+}
 
 
 /**
@@ -508,16 +554,17 @@ void
 RpcChannel_RegisterCallback(RpcChannel *chan,
                             RpcChannelCallback *rpc)
 {
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
    ASSERT(rpc->name != NULL && strlen(rpc->name) > 0);
    ASSERT(rpc->callback);
    ASSERT(rpc->xdrIn == NULL || rpc->xdrInSize > 0);
-   if (chan->rpcs == NULL) {
-      chan->rpcs = g_hash_table_new(g_str_hash, g_str_equal);
+   if (cdata->rpcs == NULL) {
+      cdata->rpcs = g_hash_table_new(g_str_hash, g_str_equal);
    }
-   if (g_hash_table_lookup(chan->rpcs, rpc->name) != NULL) {
+   if (g_hash_table_lookup(cdata->rpcs, rpc->name) != NULL) {
       g_error("Trying to overwrite existing RPC registration for %s!\n", rpc->name);
    }
-   g_hash_table_insert(chan->rpcs, (gpointer) rpc->name, rpc);
+   g_hash_table_insert(cdata->rpcs, (gpointer) rpc->name, rpc);
 }
 
 
@@ -533,8 +580,9 @@ void
 RpcChannel_UnregisterCallback(RpcChannel *chan,
                               RpcChannelCallback *rpc)
 {
-   if (chan->rpcs != NULL) {
-      g_hash_table_remove(chan->rpcs, rpc->name);
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
+   if (cdata->rpcs != NULL) {
+      g_hash_table_remove(cdata->rpcs, rpc->name);
    }
 }
 

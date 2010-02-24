@@ -33,12 +33,35 @@
 #define RPCIN_MAX_DELAY    10
 
 typedef struct BackdoorChannel {
+   GMainContext  *mainCtx;
    GStaticMutex   outLock;
    RpcIn         *in;
    RpcOut        *out;
    gboolean       inStarted;
    gboolean       outStarted;
 } BackdoorChannel;
+
+
+/**
+ * Initializes internal state for the inbound channel.
+ *
+ * @param[in]  chan     The RPC channel instance.
+ * @param[in]  ctx      Main application context.
+ * @param[in]  appName  Unused.
+ * @param[in]  appCtx   Unused.
+ */
+
+static void
+RpcInSetup(RpcChannel *chan,
+           GMainContext *ctx,
+           const char *appName,
+           gpointer appCtx)
+{
+   BackdoorChannel *bdoor = chan->_private;
+   bdoor->mainCtx = g_main_context_ref(ctx);
+   bdoor->in = RpcIn_Construct(ctx, RpcChannel_Dispatch, chan);
+   ASSERT(bdoor->in != NULL);
+}
 
 
 /**
@@ -52,21 +75,22 @@ typedef struct BackdoorChannel {
 static gboolean
 RpcInStart(RpcChannel *chan)
 {
-   gboolean ret;
+   gboolean ret = TRUE;
    BackdoorChannel *bdoor = chan->_private;
 
-   ASSERT(chan->appName != NULL);
-   ASSERT(!bdoor->inStarted);
+   ASSERT(bdoor->in == NULL || !bdoor->inStarted);
    ASSERT(!bdoor->outStarted);
 
-   ret = RpcIn_start(bdoor->in, RPCIN_MAX_DELAY, RpcChannel_Error, chan);
+   if (bdoor->in != NULL) {
+      ret = RpcIn_start(bdoor->in, RPCIN_MAX_DELAY, RpcChannel_Error, chan);
+   }
    if (ret) {
       ret = RpcOut_start(bdoor->out);
       if (!ret) {
          RpcIn_stop(bdoor->in);
       }
    }
-   bdoor->inStarted = TRUE;
+   bdoor->inStarted = (bdoor->in != NULL);
    bdoor->outStarted = TRUE;
    return ret;
 }
@@ -88,7 +112,6 @@ RpcInStop(RpcChannel *chan)
 {
    BackdoorChannel *bdoor = chan->_private;
 
-   ASSERT(chan->appName != NULL);
    g_static_mutex_lock(&bdoor->outLock);
    if (bdoor->out != NULL) {
       if (bdoor->outStarted) {
@@ -124,9 +147,14 @@ RpcInShutdown(RpcChannel *chan)
 {
    BackdoorChannel *bdoor = chan->_private;
    RpcInStop(chan);
-   RpcIn_Destruct(bdoor->in);
+   if (bdoor->in != NULL) {
+      RpcIn_Destruct(bdoor->in);
+   }
    RpcOut_Destruct(bdoor->out);
    g_static_mutex_free(&bdoor->outLock);
+   if (bdoor->mainCtx != NULL) {
+      g_main_context_unref(bdoor->mainCtx);
+   }
    g_free(bdoor);
 }
 
@@ -155,13 +183,10 @@ RpcInSend(RpcChannel *chan,
    size_t replyLen;
    BackdoorChannel *bdoor = chan->_private;
 
-   ASSERT(chan->appName != NULL);
-
    g_static_mutex_lock(&bdoor->outLock);
    if (!bdoor->outStarted) {
       goto exit;
    }
-
 
    ret = RpcOut_send(bdoor->out, data, dataLen, &reply, &replyLen);
 
@@ -222,24 +247,19 @@ exit:
 
 
 /**
- * Creates a new RpcIn channel.
- *
- * @param[in]  mainCtx     The app's main context.
+ * Creates a new RpcChannel channel that uses the backdoor for communication.
  *
  * @return A new channel instance (never NULL).
  */
 
 RpcChannel *
-RpcChannel_NewBackdoorChannel(GMainContext *mainCtx)
+BackdoorChannel_New(void)
 {
    RpcChannel *ret;
    BackdoorChannel *bdoor;
 
-   ret = g_malloc0(sizeof *ret);
-
-   bdoor = g_malloc(sizeof *bdoor);
-   bdoor->in = RpcIn_Construct(mainCtx, RpcChannel_Dispatch, ret);
-   ASSERT(bdoor->in != NULL);
+   ret = RpcChannel_Create();
+   bdoor = g_malloc0(sizeof *bdoor);
 
    g_static_mutex_init(&bdoor->outLock);
    bdoor->out = RpcOut_Construct();
@@ -251,6 +271,7 @@ RpcChannel_NewBackdoorChannel(GMainContext *mainCtx)
    ret->start = RpcInStart;
    ret->stop = RpcInStop;
    ret->send = RpcInSend;
+   ret->setup = RpcInSetup;
    ret->shutdown = RpcInShutdown;
    ret->_private = bdoor;
 
