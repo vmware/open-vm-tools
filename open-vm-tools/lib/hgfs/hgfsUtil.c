@@ -251,6 +251,7 @@ HgfsConvertFromInternalStatus(HgfsInternalStatus status) // IN
       return HGFS_STATUS_INVALID_HANDLE;
    case EPERM:
       return HGFS_STATUS_OPERATION_NOT_PERMITTED;
+   case EISDIR:
    case EEXIST:
       return HGFS_STATUS_FILE_EXISTS;
    case ENOTDIR:
