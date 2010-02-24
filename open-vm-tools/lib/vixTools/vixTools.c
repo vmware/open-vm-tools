@@ -3795,8 +3795,10 @@ VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,   // IN
 
 abort:
    VixPropertyList_RemoveAllWithoutHandles(&propList);
-   VMX_XDR_FREE(xdr_GuestNic, nicEntry);
-   free(nicEntry);
+   if (NULL != nicEntry) {
+      VMX_XDR_FREE(xdr_GuestNic, nicEntry);
+      free(nicEntry);
+   }
 
    return err;
 } // VixToolsGetGuestNetworkingConfig

@@ -48,6 +48,8 @@
    #include <CoreFoundation/CFData.h>
    #include <CoreFoundation/CFNumber.h>
    #include <CoreFoundation/CFDictionary.h>
+   #include <CoreFoundation/CFArray.h>
+   #include <CoreFoundation/CFString.h>
 #endif
 
 #include "vm_assert.h"
@@ -78,11 +80,14 @@ EXTERN Bool Util_IORegGetNumberProperty(io_object_t entry, CFStringRef property,
 EXTERN Bool Util_IORegGetBooleanProperty(io_object_t entry, CFStringRef property,
                                          Bool *boolVal);
 EXTERN CFDataRef Util_IORegCopyDataProperty(io_object_t entry, CFStringRef property);
+EXTERN CFDictionaryRef Util_IORegCopyDictionaryProperty(io_object_t entry,
+                                                        CFStringRef property);
 EXTERN CFMutableDictionaryRef UtilMacos_CreateCFDictionary(
    unsigned int numPairs, ...);
 EXTERN io_service_t Util_IORegGetDeviceObjectByName(const char *deviceName);
 EXTERN char *Util_GetBSDName(const char *deviceName);
 EXTERN char *Util_IORegGetDriveType(const char *deviceName);
+EXTERN uint64 Util_GetPartitionOffset(const char *bsdDev);
 EXTERN char *Util_GetMacOSDefaultVMPath();
 
 /* 
@@ -108,6 +113,15 @@ typedef struct RemoteDiscList {
 
 EXTERN RemoteDiscList *Util_GetRemoteDiscList(void);
 EXTERN void Util_FreeRemoteDiscList(RemoteDiscList *list);
+
+/*
+ * Additional keys for disk/partition device properties.
+ */
+EXTERN const CFStringRef kUtilMacosDeviceSerialNumberKey;
+EXTERN const CFStringRef kUtilMacosVolumeOffsetKey;
+
+EXTERN CFDictionaryRef UtilMacos_CopyDiskDeviceProperties(const char *bsdDev);
+EXTERN CFArrayRef UtilMacos_CopyDiskDeviceBSDNames(const char *parentDisk);
 #endif // __APPLE__
 
 
