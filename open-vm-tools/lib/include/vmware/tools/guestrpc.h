@@ -191,7 +191,7 @@ RpcChannel_Stop(RpcChannel *chan)
  * @param[in]  chan        The RPC channel instance.
  * @param[in]  data        Data to send.
  * @param[in]  dataLen     Number of bytes to send.
- * @param[out] result      Response from other side.
+ * @param[out] result      Response from other side (should be freed by caller).
  * @param[out] resultLen   Number of bytes in response.
  *
  * @return The status from the remote end (TRUE if call was successful).
