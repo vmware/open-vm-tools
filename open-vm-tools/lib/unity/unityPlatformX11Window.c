@@ -1347,8 +1347,7 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
             upw->windowType = UNITY_WINDOW_TYPE_SPLASH;
          } else if (netWmWindowType == up->atoms._NET_WM_WINDOW_TYPE_TOOLBAR) {
             upw->windowType = UNITY_WINDOW_TYPE_TOOLBAR;
-         } else if (netWmWindowType == up->atoms._NET_WM_WINDOW_TYPE_TOOLTIP
-                    || upw->isOverrideRedirect) {
+         } else if (netWmWindowType == up->atoms._NET_WM_WINDOW_TYPE_TOOLTIP) {
             upw->windowType = UNITY_WINDOW_TYPE_TOOLTIP;
          } else {
             upw->windowType = UNITY_WINDOW_TYPE_NORMAL;
