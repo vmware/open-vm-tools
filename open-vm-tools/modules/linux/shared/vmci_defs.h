@@ -320,7 +320,7 @@ typedef struct VMCIDsRequestHeader {
    int32       msgid;
    VMCIHandle  handle;
    int32       nameLen;
-   int8        name[1];   
+   char        name[1];
 } VMCIDsRequestHeader;
 
 
