@@ -796,10 +796,10 @@ typedef struct {
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   uint8   pageCode:6,
+   uint8   page:6,      // page code: 0x08
            reserved1:1,
            ps:1;
-   uint8   pageLength;
+   uint8   len;         // page length (0x12)
    uint8   rcd:1,
            mf:1,
            wce:1,   // set if device has a write cache and it is enabled
@@ -886,7 +886,7 @@ struct {
    uint8    page  :6,      // page code: 0x0a
             spf   :1,
             ps    :1;
-   uint8    pageLength;  // page length (0x0a)
+   uint8    len;           // page length (0x0a)
    uint8    rlec     :1,
             gltsd    :1,
             d_sense  :1,
