@@ -108,9 +108,7 @@ static int const gSignals[] = {
 /*
  * From toolboxInt.h
  */
-GdkPixmap* pixmap;
-GdkBitmap* bitmask;
-GdkColormap* colormap;
+GList *gIconList;
 GtkWidget *optionsTimeSync;
 GtkWidget *scriptsApply;
 DblLnkLst_Links *gEventQueue;
@@ -356,7 +354,7 @@ ToolsMain_MsgBox(gchar *title, // IN: dialog's title
    gtk_widget_show(dialog);
    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
    gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), 10);
-   gdk_window_set_icon(dialog->window, NULL, pixmap, bitmask);
+   gdk_window_set_icon_list(dialog->window, gIconList);
 
    label = gtk_label_new (msg);
    gtk_widget_show(label);
@@ -413,7 +411,7 @@ ToolsMain_YesNoBox(gchar *title, gchar *msg)
    gtk_widget_show(dialog);
    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
    gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), 10);
-   gdk_window_set_icon(dialog->window, NULL, pixmap, bitmask);
+   gdk_window_set_icon_list(dialog->window, gIconList);
    gtk_signal_connect(GTK_OBJECT(dialog), "destroy",
                       GTK_SIGNAL_FUNC(ToolsMain_YesNoBoxOnDestroy), &ret);
 
@@ -1075,6 +1073,7 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
    Bool optIconify, optHelp, optVersion;
    struct sigaction olds[ARRAYSIZE(gSignals)];
    GKeyFile *pConfDict;
+   GdkPixbuf *iconPixbuf;
 
    if (!VmCheck_IsVirtualWorld()) {
       Warning("The VMware Toolbox must be run inside a virtual machine.\n");
@@ -1190,11 +1189,14 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
                      DefaultScreen (GDK_DISPLAY ()));
    }
 
-   /* Create the icon from a pixmap */
-   colormap = gtk_widget_get_colormap(toolsMain);
-   pixmap = gdk_pixmap_colormap_create_from_xpm_d(NULL,colormap,&bitmask,NULL,
-                                                  smallIcon_xpm);
-   gdk_window_set_icon(toolsMain->window, NULL, pixmap, bitmask);
+   /*
+    * Cast below is needed, in perfect world gdk_pixbuf_new_from_xpm_data
+    * should be taking 'const char * const * data', not 'const char **data'.
+    */
+   iconPixbuf = gdk_pixbuf_new_from_xpm_data((const char**)smallIcon_xpm);
+   gIconList = g_list_append(gIconList, iconPixbuf);
+
+   gdk_window_set_icon_list(toolsMain->window, gIconList);
 
    gXDisplay = GDK_WINDOW_XDISPLAY(toolsMain->window);
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
@@ -1214,8 +1216,9 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
    Signal_ResetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals));
    System_FreeNativeEnviron(gNativeEnviron);
 
-   gdk_pixmap_unref(pixmap);
-   gdk_bitmap_unref(bitmask);
+   g_list_foreach(gIconList, (GFunc)gdk_pixbuf_unref, NULL);
+   g_list_free(gIconList);
+
    g_free(hlpDir);
 
    return 0;

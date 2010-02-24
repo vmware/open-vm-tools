@@ -307,7 +307,7 @@ Shrink_DoWipe(WiperPartition *part, GtkWidget* mainWnd) // IN: partition to be w
    gtk_window_set_modal(GTK_WINDOW(shrinkWipeDlg), TRUE);
    gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(shrinkWipeDlg)->vbox),
                                   10);
-   gdk_window_set_icon(shrinkWipeDlg->window, NULL, pixmap, bitmask);
+   gdk_window_set_icon_list(shrinkWipeDlg->window, gIconList);
    gtk_signal_connect(GTK_OBJECT(shrinkWipeDlg), "destroy",
                       GTK_SIGNAL_FUNC(Shrink_OnWipeDestroy), shrinkWipeDlg);
 

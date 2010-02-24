@@ -74,9 +74,7 @@ void Devices_OnDeviceToggled(gpointer btn, gpointer data);
 void Pointer_SetXCursorPos(int x, int y);
 void Scripts_OnApply(gpointer btn, gpointer data);
 
-extern GdkPixmap* pixmap;
-extern GdkBitmap* bitmask;
-extern GdkColormap* colormap;
+extern GList *gIconList;
 extern GtkWidget *optionsTimeSync;
 extern DblLnkLst_Links *gEventQueue;
 extern GtkWidget *scriptsApply;
