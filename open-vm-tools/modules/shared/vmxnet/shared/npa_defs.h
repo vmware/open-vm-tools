@@ -91,6 +91,7 @@ NPA_PluginConf;
 /* vmkernel and device backend shared definitions */
 
 #define VMXNET3_PLUGIN_NAME_LEN  256
+#define VMXNET3_PLUGIN_REPOSITORY "/usr/lib/vmware/npa_plugins"
 #define NPA_MEMIO_REGIONS_MAX    6
 
 typedef uint32 VF_ID;
