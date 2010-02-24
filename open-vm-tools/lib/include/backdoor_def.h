@@ -141,7 +141,8 @@
 #  define BDOOR_CMD_FAS_GET_TABLE_SIZE    0
 #  define BDOOR_CMD_FAS_GET_TABLE_DATA    1
 #  define BDOOR_CMD_FAS_GET_PLATFORM_NAME 2
-#define BDOOR_CMD_MAX                   66
+#define BDOOR_CMD_SENDPSHAREHINTS       66
+#define BDOOR_CMD_MAX                   67
 
 
 /* 
