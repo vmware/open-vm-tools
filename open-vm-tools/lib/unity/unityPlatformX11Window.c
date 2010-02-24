@@ -3554,6 +3554,7 @@ UPWindowPushFullUpdate(UnityPlatform *up,            // IN
 #if defined(VM_HAVE_X11_SHAPE_EXT)
    UPWindowUpdateShape(up, upw);
 #endif
+   UPWindowUpdateType(up, upw);
 
    propCount = 0;
    UnityPlatformResetErrorCount(up);
