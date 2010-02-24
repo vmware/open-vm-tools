@@ -222,7 +222,7 @@
    LOGLEVEL_VAR(vmnetBridge), \
    LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(pvfslib), \
-   LOGLEVEL_VAR(brtalk), /* macWireless and wpa_supplicant */ \
+   LOGLEVEL_VAR(brtalk), \
    LOGLEVEL_VAR(button), \
    LOGLEVEL_VAR(util), \
    LOGLEVEL_VAR(vmcf), \
@@ -231,6 +231,7 @@
    LOGLEVEL_VAR(guestAppMonitor), \
    LOGLEVEL_VAR(syncWaitQ), \
    LOGLEVEL_VAR(sg), /* lib/sg */ \
+   LOGLEVEL_VAR(wrapLib),  \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 
