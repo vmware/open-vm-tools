@@ -48,9 +48,6 @@
 #include "bsd_output.h"
 #endif
 #include "codeset.h"
-#if defined(GLIBC_VERSION_23)                                                             
-#define MAX_ERRSTR_SIZE 128                                                               
-#endif
 
 #if defined _WIN32 && !defined HAS_BSD_PRINTF
 #define vsnprintf _vsnprintf
@@ -441,42 +438,6 @@ Str_Strncat(char *buf,       // IN-OUT
 
    return strncat(buf, src, n);
 }
-
-#if defined(GLIBC_VERSION_23)
-/*
- *----------------------------------------------------------------------
- *
- * Str_Strerror --
- *
- *    User level wrapper for strerror that is thread safe.
- *
- * Results:
- *    Same as strerror.
- *
- * Side effects:
- *    Allocates per-thread strerror string.
- *
- *----------------------------------------------------------------------
- */
-
-const char *
-Str_Strerror(int errnum)  // IN: errno value
-{
-   uint32 *stack;
-   char *ret;
-   static __thread char strerrorString[MAX_ERRSTR_SIZE];
-
-   stack = (uint32 *)&errnum;
-
-   ret = strerror_r(errnum, strerrorString, MAX_ERRSTR_SIZE);
-
-   if (!ret) {
-      Panic("%s:%d Buffer too small 0x%x\n", __FILE__, __LINE__, stack[-1]);
-   }
-
-   return ret;
-}
-#endif
 
 
 /*
