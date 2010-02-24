@@ -617,45 +617,6 @@ Atomic_And(Atomic_uint32 *var, // IN
 #define Atomic_And32 Atomic_And
 
 
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_And64 --
- *
- *      Atomic read, bitwise AND with a value, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_And64(Atomic_uint64 *var, // IN
-             uint64 val)         // IN
-{
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; andq %1, %0"
-      : "+m" (var->value)
-      : "ri" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif defined _MSC_VER
-   _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_And64
-#endif
-}
-#endif
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -716,45 +677,6 @@ Atomic_Or(Atomic_uint32 *var, // IN
 #endif
 }
 #define Atomic_Or32 Atomic_Or
-
-
-#if defined(__x86_64__)
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Or64 --
- *
- *      Atomic read, bitwise OR with a value, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Or64(Atomic_uint64 *var, // IN
-            uint64 val)         // IN
-{
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; orq %1, %0"
-      : "+m" (var->value)
-      : "ri" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif defined _MSC_VER
-   _InterlockedOr64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_Or64
-#endif
-}
-#endif
 
 
 /*
@@ -1792,6 +1714,8 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 #define Atomic_Dec64(x)           _fnAtomic_Dec64_NotImplementedOnARM
 #define Atomic_ReadWrite64(x,y)   _fnAtomic_ReadWrite64_NotImplementedOnARM
 #define Atomic_Write64(x,y)       _fnAtomic_Write64_NotImplementedOnARM
+#define Atomic_And64(x)           _fnAtomic_And64_NotImplementedOnARM
+#define Atomic_Or64(x)            _fnAtomic_Or64_NotImplementedOnARM
 
 #else // __arm__
 
@@ -2092,6 +2016,99 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    (void)Atomic_ReadWrite64(var, val);
 #endif
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Or64 --
+ *
+ *      Atomic read, bitwise OR with a 64-bit value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Or64(Atomic_uint64 *var, // IN
+            uint64 val)         // IN
+{
+#if defined(__x86_64__)
+#if defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; orq %1, %0"
+      : "+m" (var->value)
+      : "ri" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   _InterlockedOr64((__int64 *)&var->value, (__int64)val);
+#else
+#error No compiler defined for Atomic_Or64
+#endif
+#else // __x86_64__
+   uint64 oldVal;
+   uint64 newVal;
+   do {
+      oldVal = var->value;
+      newVal = oldVal | val;
+   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_And64 --
+ *
+ *      Atomic read, bitwise AND with a 64-bit value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_And64(Atomic_uint64 *var, // IN
+             uint64 val)         // IN
+{
+#if defined(__x86_64__)
+#if defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; andq %1, %0"
+      : "+m" (var->value)
+      : "ri" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
+#else
+#error No compiler defined for Atomic_And64
+#endif
+#else // __x86_64__
+   uint64 oldVal;
+   uint64 newVal;
+   do {
+      oldVal = var->value;
+      newVal = oldVal & val;
+   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+#endif
+}
+
 #endif // __arm__
 
 
