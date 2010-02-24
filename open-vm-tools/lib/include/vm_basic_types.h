@@ -484,13 +484,10 @@ typedef User_CartelID User_CartelGroupID;
 typedef uint32 Worldlet_ID;
 #define INVALID_WORLDLET_ID ((Worldlet_ID)-1)
 
-/* world page number */
-typedef uint32    WPN;
-
 /* The Xserver source compiles with -ansi -pendantic */
 #ifndef __STRICT_ANSI__
-typedef uint64     MA;
-typedef uint32     MPN;
+typedef uint64 MA;
+typedef uint32 MPN;
 #endif
 
 /*
@@ -573,16 +570,16 @@ typedef void * UserVA;
 
 #define INVALID_BPN     ((BPN)0x1fffffff)
 
+#define RESERVED_MPN    ((MPN) 0)
 #define INVALID_MPN     ((MPN)-1)
 #define MEMREF_MPN      ((MPN)-2)
-#define RESERVED_MPN    ((MPN) 0)
+#define RELEASED_MPN    ((MPN)-3)
 #define MAX_MPN         ((MPN)0x7fffffff)  /* 43 bits of address space. */
 
 #define INVALID_LPN     ((LPN)-1)
 #define INVALID_VPN     ((VPN)-1)
 #define INVALID_LPN64   ((LPN64)-1)
 #define INVALID_PAGENUM ((PageNum)-1)
-#define INVALID_WPN     ((WPN) -1)
 
 
 /*
