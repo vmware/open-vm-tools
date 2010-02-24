@@ -674,6 +674,7 @@ typedef struct {
 #define SCSI_MS_PAGE_CONFIG   0x10     // device configuration (TAPE)
 #define SCSI_MS_PAGE_POWER    0x1a     // power condition (CDROM)
 #define SCSI_MS_PAGE_EXCEPT   0x1c     // informal exception (ALL:SCSI-3)
+#define SCSI_MS_PAGE_TIMEOUT  0x1d     // time-out and protect (CDROM)
 #define SCSI_MS_PAGE_CDCAPS   0x2a     // CD-ROM capabilities and mechanical status (CDROM)
 // more defined...
 #define SCSI_MS_PAGE_ALL      0x3f     // all available pages (ALL)
@@ -989,6 +990,21 @@ typedef struct {
    uint32   idleTimer;     // inactivity time until idle (100 ms)
    uint32   standbyTimer;  // inactivity time until standby (100 ms)
 } SCSICDROMPowerPage;
+
+typedef struct {
+   uint8    page     :6,   // page code: 0x1d
+                     :1,
+            ps       :1;
+   uint8    len;           // page length 0x08
+   uint8    reserved1[2];
+   uint8    swpp     :1,   // software write protect
+            disp     :1,   // make unit unavailable until power is reapplied
+            tmoe     :1,   // time out parameters are in effect
+                     :5;
+   uint8    reserved2;
+   uint16   minTimeOut1;   // "Group 1 Minimum Time-out (Seconds)"
+   uint16   minTimeOut2;   // "Group 2 Minimum Time-out (Seconds)"
+} SCSICDROMTimeoutPage;
 
 typedef struct {
    uint8    page     :6,   // page code: 0x2a
@@ -1946,6 +1962,7 @@ struct {
 #define SCSI_FEAT_CODE_RANDOMREADABLE  0x10
 #define SCSI_FEAT_CODE_DVDREAD         0x1F
 #define SCSI_FEAT_CODE_POWERMANAGEMENT 0x100
+#define SCSI_FEAT_CODE_TIMEOUT         0x105
 #define SCSI_FEAT_CODE_VMWARE_LAST     0xFF80
    uint16 code;
    uint8  featureCurrent:1,
