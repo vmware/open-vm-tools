@@ -441,8 +441,8 @@ vmxnet3_tx(void *data, mblk_t *mps)
    /* Notify the device */
    mutex_enter(&dp->txLock);
    if (txqCtrl->txNumDeferred >= txqCtrl->txThreshold) {
-      VMXNET3_BAR0_PUT32(dp, VMXNET3_REG_TXPROD, cmdRing->next2fill);
       txqCtrl->txNumDeferred = 0;
+      VMXNET3_BAR0_PUT32(dp, VMXNET3_REG_TXPROD, cmdRing->next2fill);
    }
    mutex_exit(&dp->txLock);
 

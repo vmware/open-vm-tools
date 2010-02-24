@@ -1427,6 +1427,24 @@ typedef
 #include "vmware_pack_begin.h"
 struct {
    uint8    opcode;
+   uint8    relAdr  :1,         // relative address
+            bytChk  :1,         // byte
+            blkvfy  :1,         // blank blocks verification, scsi-2 rev 8.
+                    :1,  
+            dpo     :1,         // cache control bit
+            resvd   :3;         // reserved
+   uint64   lbn;                // logical block address
+   uint32   length;             // verification length
+   uint8    reserved;
+   uint8    control;            // control byte
+}
+#include "vmware_pack_end.h"
+SCSIVerify16Cmd;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint8    opcode;
    uint8    polled   :1,         // asynchronous or not
                      :7;
    uint8    reserved0[2];

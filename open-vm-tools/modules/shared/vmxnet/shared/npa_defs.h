@@ -35,6 +35,7 @@
 
 #define NPA_PLUGIN_NUMPAGES      64
 #define NPA_MEMIO_NUMPAGES       32
+#define NPA_SHARED_NUMPAGES      6
 #define VMXNET3_NPA_CMD_SUCCESS   0
 #define VMXNET3_NPA_CMD_FAILURE   1
 #define VMXNET3_PLUGIN_INFO_LEN  32
@@ -67,9 +68,19 @@ NPA_MemioPages;
 
 typedef
 #include "vmware_pack_begin.h"
+struct NPA_SharedPages {
+   PPN64  startPPN;
+   uint32 numPages;
+}
+#include "vmware_pack_end.h"
+NPA_SharedPages;
+
+typedef
+#include "vmware_pack_begin.h"
 struct NPA_PluginConf {
    NPA_PluginPages   pluginPages;
    NPA_MemioPages    memioPages;
+   NPA_SharedPages   sharedPages;
    uint64            entryVA;    // address of entry function in the plugin 
    uint32            deviceInfo[VMXNET3_PLUGIN_INFO_LEN]; // opaque data returned by PF driver
 }

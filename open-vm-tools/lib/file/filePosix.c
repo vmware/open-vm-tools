@@ -1293,7 +1293,67 @@ done:
    }
    return ret;
 }
-#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_GetVMFSMountInfo --
+ *
+ *      Acquire the FS mount point info such as fsType, major version,
+ *      local mount point (/vmfs/volumes/xyz), and for NFS,
+ *      remote IP and remote mount point for a given file.     
+ *
+ * Results:
+ *      Integer return value and allocated data
+ *
+ * Side effects:
+ *      Only implemented on ESX. Will fail on other platforms. 
+ *      remoteIP and remoteMountPoint are only populated for files on NFS.   
+ *
+ *----------------------------------------------------------------------
+ */
+
+int 
+File_GetVMFSMountInfo(ConstUnicode pathName,
+                     char **fsType,
+                     uint32 *version,
+                     char **remoteIP,
+                     char **remoteMountPoint,
+                     char **localMountPoint)
+{
+   int ret;
+   int len;
+   FS_PartitionListResult *fsAttrs;
+
+   *localMountPoint = File_GetUniqueFileSystemID(pathName);
+
+   if (*localMountPoint == NULL) {
+      return -1;
+   }
+
+   // Get file IP and mount point
+   ret = File_GetVMFSAttributes(pathName, &fsAttrs);  
+   if (ret >= 0 && fsAttrs) { 
+      *version = fsAttrs->versionNumber;
+      *fsType = Util_SafeStrdup(fsAttrs->fsType);
+ 
+      if (strncmp(fsAttrs->fsType, "NFS", sizeof("NFS")) == 0) {
+         len = strlen(fsAttrs->logicalDevice);
+         *remoteIP = Util_SafeMalloc(len);
+         *remoteMountPoint = Util_SafeMalloc(len);
+         sscanf(fsAttrs->logicalDevice, "%s %s", *remoteIP, *remoteMountPoint);
+      } else {
+         *remoteIP = NULL;
+         *remoteMountPoint = NULL;   
+      }  
+   }
+
+   free(fsAttrs);
+   return ret;
+}
+
+#endif 
 
 
 /*

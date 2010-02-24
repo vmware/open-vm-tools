@@ -299,11 +299,6 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #else
 
-#   define compat_netif_napi_add(dev, napi, pollcb, quota) \
-   do {                        \
-      (dev)->poll = (pollcb);    \
-      (dev)->weight = (quota);\
-   } while (0)
 #   define compat_napi_schedule(dev, napi) netif_rx_schedule(dev)
 #   define compat_napi_enable(dev, napi)   netif_poll_enable(dev)
 #   define compat_napi_disable(dev, napi)  netif_poll_disable(dev)
@@ -311,11 +306,24 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 /* RedHat ported GRO to 2.6.18 bringing new napi_struct with it */
 #   if defined NETIF_F_GRO
 #      define compat_napi_complete(dev, napi) napi_complete(napi)
+#      define compat_netif_napi_add(netdev, napi, pollcb, quota) \
+      do {                        \
+         (netdev)->poll = (pollcb);    \
+         (netdev)->weight = (quota);\
+         (napi)->dev = (netdev); \
+      } while (0)
+
 #   else
 #      define compat_napi_complete(dev, napi) netif_rx_complete(dev)
        struct napi_struct {
           int dummy;
        };
+#      define compat_netif_napi_add(dev, napi, pollcb, quota) \
+       do {                        \
+          (dev)->poll = (pollcb);    \
+          (dev)->weight = (quota);\
+       } while (0)
+
 #   endif
 
 #endif

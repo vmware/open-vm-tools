@@ -214,5 +214,7 @@ HMODULE W32Util_GetModuleByAddress(const void *addr);
 
 Bool W32Util_VerifyXPModeHostLicense(void);
 
+Unicode W32Util_GetPipeNameFromFilePath(ConstUnicode fileName);
+
 #endif // _WIN32
 #endif // WIN32UTIL_H_
