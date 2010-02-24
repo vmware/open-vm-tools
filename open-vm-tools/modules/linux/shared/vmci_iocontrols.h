@@ -530,33 +530,6 @@ typedef struct VMCISetNotifyInfo {
    uint32      _pad;
 } VMCISetNotifyInfo;
 
-/* User space daemon command numbers. */
-typedef enum VMCIDRequestType {
-    VMCID_REQ_NEW_PAGE_STORE,
-    VMCID_REQ_FREE_PAGE_STORE,
-    VMCID_REQ_ATTACH_PAGE_STORE,
-    VMCID_REQ_DETACH_PAGE_STORE,
-} VMCIDRequestType;
-
-#define VMCI_VMCID_INVALID_REQ  CONST64U(-1)
-
-/* Used to pass requests/responses to the user space daemon. */
-typedef struct VMCIDRpc {
-    uint64           reqId;
-    uint32           reqType;
-    uint32           reqResult;
-    /* Passing page file names */
-    VA64             producePageFile; /* User VA. */
-    VA64             consumePageFile; /* User VA. */
-    uint64           producePageFileSize; /* Size of the file name array. */
-    uint64           consumePageFileSize; /* Size of the file name array. */
-    /* Used for attach/detach */
-    VA64             produceVA;
-    VA64             consumeVA;
-    uint64           numProducePages;
-    uint64           numConsumePages;
-} VMCIDRpc;
-
 #ifdef __APPLE__
 /*
  * Mac OS ioctl definitions.
