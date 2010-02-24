@@ -43,8 +43,5 @@ TimeSync_EnableTimeSlew(int64 delta,
 Bool
 TimeSync_DisableTimeSlew(void);
 
-Bool
-TimeSync_IsTimeSlewEnabled(void);
-
 #endif /* _TIMESYNC_INT_H_ */
 

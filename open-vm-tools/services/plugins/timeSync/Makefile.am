@@ -31,3 +31,13 @@ libtimeSync_la_SOURCES =
 libtimeSync_la_SOURCES += timeSync.c
 libtimeSync_la_SOURCES += timeSyncPosix.c
 
+if SOLARIS
+libtimeSync_la_SOURCES += slewAdjtime.c
+endif
+if FREEBSD
+libtimeSync_la_SOURCES += slewAdjtime.c
+endif
+if LINUX
+libtimeSync_la_SOURCES += slewLinux.c
+endif
+
