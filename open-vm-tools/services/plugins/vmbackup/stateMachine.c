@@ -180,6 +180,10 @@ VmBackupFinalize(void)
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
 
+   if (gBackupState->abortTimer != NULL) {
+      g_source_destroy(gBackupState->abortTimer);
+      g_source_unref(gBackupState->abortTimer);
+   }
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
       VmBackup_Release(gBackupState->currentOp);
@@ -290,6 +294,56 @@ VmBackupOnError(void)
    }
 
    return (gBackupState->machineState == VMBACKUP_MSTATE_IDLE);
+}
+
+
+/**
+ * Aborts the current operation, unless we're already in an error state.
+ */
+
+static void
+VmBackupDoAbort(void)
+{
+   g_debug("*** %s\n", __FUNCTION__);
+   ASSERT(gBackupState != NULL);
+   if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
+       gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
+      /* Mark the current operation as cancelled. */
+      if (gBackupState->currentOp != NULL) {
+         VmBackup_Cancel(gBackupState->currentOp);
+         VmBackup_Release(gBackupState->currentOp);
+         gBackupState->currentOp = NULL;
+      }
+
+      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
+                         VMBACKUP_REMOTE_ABORT,
+                         "Backup aborted.");
+
+      /* Transition to the error state. */
+      if (VmBackupOnError()) {
+         VmBackupFinalize();
+      }
+   }
+}
+
+
+/**
+ * Timer callback to abort the current operation.
+ *
+ * @param[in] data    Unused.
+ *
+ * @return FALSE
+ */
+
+static gboolean
+VmBackupAbortTimer(gpointer data)
+{
+   ASSERT(gBackupState != NULL);
+   g_warning("Aborting backup operation due to timeout.");
+   VmBackupDoAbort();
+   g_source_unref(gBackupState->abortTimer);
+   gBackupState->abortTimer = NULL;
+   return FALSE;
 }
 
 
@@ -466,6 +520,9 @@ VmBackupEnableSync(void)
 static gboolean
 VmBackupStart(RpcInData *data)
 {
+   GError *err = NULL;
+   guint timeout;
+
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
       return RPCIN_SETRETVALS(data, "Backup operation already in progress.", FALSE);
@@ -506,6 +563,35 @@ VmBackupStart(RpcInData *data)
       return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
    }
 
+   /*
+    * VC has a 15 minute timeout for quiesced snapshots. After that timeout,
+    * it just discards the operation and sends an error to the caller. But
+    * Tools can still keep running, blocking any new quiesced snapshot
+    * requests. So we set up our own timer (which is configurable, in case
+    * anyone wants to play with it), so that we abort any ongoing operation
+    * if we also hit that timeout.
+    *
+    * See bug 506106.
+    */
+   timeout = (guint) g_key_file_get_integer(gBackupState->ctx->config,
+                                            "vmbackup",
+                                            "timeout",
+                                            &err);
+   if (err != NULL) {
+      g_clear_error(&err);
+      timeout = 15 * 60;
+   }
+
+   /* Treat "0" as no timeout. */
+   if (timeout != 0) {
+      gBackupState->abortTimer = g_timeout_source_new_seconds(timeout);
+      VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
+                               gBackupState->abortTimer,
+                               VmBackupAbortTimer,
+                               NULL,
+                               NULL);
+   }
+
    VMBACKUP_ENQUEUE_EVENT();
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
@@ -527,30 +613,9 @@ VmBackupAbort(RpcInData *data)
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState == NULL) {
       return RPCIN_SETRETVALS(data, "Error: no backup in progress", FALSE);
-   } else if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
-              gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
-      /* Mark the current operation as cancelled. */
-      if (gBackupState->currentOp != NULL) {
-         VmBackup_Cancel(gBackupState->currentOp);
-         VmBackup_Release(gBackupState->currentOp);
-         gBackupState->currentOp = NULL;
-      }
-
-      /* If the sync provider is engaged, signal that it should stop. */
-      if (gBackupState->machineState == VMBACKUP_MSTATE_SYNC_FREEZE ||
-          gBackupState->machineState == VMBACKUP_MSTATE_SYNC_THAW) {
-         gSyncProvider->abort(gBackupState, gSyncProvider->clientData);
-      }
-
-      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
-                         VMBACKUP_REMOTE_ABORT,
-                         "Remote abort.");
-
-      /* Transition to the error state. */
-      if (VmBackupOnError()) {
-         VmBackupFinalize();
-      }
    }
+
+   VmBackupDoAbort();
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
 

@@ -265,31 +265,6 @@ VmBackupSyncDriverStart(VmBackupState *state,
 /*
  *-----------------------------------------------------------------------------
  *
- *  VmBackupSyncDriverAbort --
- *
- *    Does nothing.
- *
- * Result
- *    TRUE.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-VmBackupSyncDriverAbort(VmBackupState *state,
-                        void *clientData)
-{
-   g_debug("*** %s\n", __FUNCTION__);
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  *  VmBackupSyncDriverSnapshotDone --
  *
  *    Starts an asynchronous operation to disable the sync driver.
@@ -371,7 +346,6 @@ VmBackup_NewSyncDriverProvider(void)
 
    provider = Util_SafeMalloc(sizeof *provider);
    provider->start = VmBackupSyncDriverStart;
-   provider->abort = VmBackupSyncDriverAbort;
    provider->snapshotDone = VmBackupSyncDriverSnapshotDone;
    provider->release = VmBackupSyncDriverRelease;
    provider->clientData = NULL;

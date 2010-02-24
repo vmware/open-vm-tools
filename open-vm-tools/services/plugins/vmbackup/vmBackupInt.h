@@ -82,6 +82,7 @@ typedef struct VmBackupState {
    char          *volumes;
    char          *snapshots;
    guint          pollPeriod;
+   GSource       *abortTimer;
    GSource       *timerEvent;
    GSource       *keepAlive;
    Bool (*callback)(struct VmBackupState *);
@@ -106,7 +107,6 @@ typedef Bool (*VmBackupProviderCallback)(VmBackupState *, void *clientData);
 
 typedef struct VmBackupSyncProvider {
    VmBackupProviderCallback start;
-   VmBackupProviderCallback abort;
    VmBackupProviderCallback snapshotDone;
    void (*release)(struct VmBackupSyncProvider *);
    void *clientData;
