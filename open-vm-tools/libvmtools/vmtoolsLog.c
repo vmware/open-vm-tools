@@ -608,7 +608,10 @@ VMToolsRestoreLogging(LogHandlerData *oldDefault,
       }
    }
 
-   if (gDefaultData != NULL && oldDefault != NULL && gDefaultData->copyfn != NULL) {
+   if (gDefaultData != NULL &&
+       oldDefault != NULL &&
+       gDefaultData->copyfn != NULL &&
+       gDefaultData->type == oldDefault->type) {
       gDefaultData->copyfn(gDefaultData, oldDefault);
    }
 

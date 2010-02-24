@@ -115,30 +115,39 @@ VMFileLoggerLog(const gchar *domain,
                 LogHandlerData *_data,
                 LogErrorFn errfn)
 {
+   gboolean ret = FALSE;
    FileLoggerData *data = (FileLoggerData *) _data;
 
    if (data->error) {
-      return FALSE;
+      goto exit;
    }
 
    if (data->file == NULL) {
-      ASSERT(data->path != NULL);
-      data->file = VMFileLoggerOpen(data->path, data->append);
-      if (data->file == NULL) {
-         data->error = TRUE;
-         errfn(domain, G_LOG_LEVEL_WARNING | G_LOG_FLAG_RECURSION,
-               "Unable to open log file %s for domain %s.\n",
-               data->path, data->handler.domain);
-         return FALSE;
+      if (data->path == NULL) {
+         /* We should only get in this situation if the domain's log level is "none". */
+         ASSERT(data->handler.mask == 0);
+         errfn(domain, level, message);
+         ret = TRUE;
+         goto exit;
+      } else {
+         data->file = VMFileLoggerOpen(data->path, data->append);
+         if (data->file == NULL) {
+            data->error = TRUE;
+            errfn(domain, G_LOG_LEVEL_WARNING | G_LOG_FLAG_RECURSION,
+                  "Unable to open log file %s for domain %s.\n",
+                  data->path, data->handler.domain);
+            goto exit;
+         }
       }
    }
 
    if (fputs(message, data->file) >= 0) {
       fflush(data->file);
-      return TRUE;
+      ret = TRUE;
    }
 
-   return FALSE;
+exit:
+   return ret;
 }
 
 
@@ -162,11 +171,11 @@ VMFileLoggerCopy(LogHandlerData *_current,
    FileLoggerData *current = (FileLoggerData *) _current;
    FileLoggerData *old = (FileLoggerData *) _old;
 
-   ASSERT(old->path != NULL);
-   ASSERT(current->path != NULL);
    ASSERT(current->file == NULL);
-
-   if (old->file != NULL && strcmp(current->path, old->path) == 0) {
+   if (current->path != NULL &&
+       old->path != NULL &&
+       old->file != NULL &&
+       strcmp(current->path, old->path) == 0) {
       g_free(current->path);
       current->file = old->file;
       current->path = old->path;
@@ -281,6 +290,6 @@ VMFileLoggerConfig(const gchar *domain,
    data->append = (name != NULL && strcmp(name, "file+") == 0);
 
 exit:
-   return &data->handler;
+   return (data != NULL) ? &data->handler : NULL;
 }
 
