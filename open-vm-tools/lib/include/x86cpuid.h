@@ -103,10 +103,10 @@ CPUIDQuery;
  * CPUID levels the monitor caches and ones that are not cached, but
  * have fields defined below (short name and actual value).
  * 
- * The first parameter defines whether the level is masked/tested
- * during power-on/migration.  Any level which is marked as FALSE here
- * *must* have all monitor support types set to NA.  A static assert
- * in lib/cpuidcompat/cpuidcompat.c will check this.
+ * The first parameter defines whether the level has its default masks
+ * generated from the values in this file.  Any level which is marked
+ * as FALSE here *must* have all monitor support types set to NA.  A
+ * static assert in lib/cpuidcompat/cpuidcompat.c will check this.
  */
 
 #define CPUID_CACHED_LEVELS                     \
@@ -493,7 +493,7 @@ FLAGDEF(  8A, EAX, AMD,     8,  1, SVM_HYPERVISOR,      NO,  FALSE)            \
 FIELDDEF( 8A, EAX, AMD,     9, 23, SVMEAX_RSVD,         NO,  FALSE)            \
 FIELDDEF( 8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         NO,  FALSE)            \
 FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         NO,  FALSE)            \
-FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              NO,  FALSE, NPT)       \
+FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              YES, FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            NO,  FALSE)            \
