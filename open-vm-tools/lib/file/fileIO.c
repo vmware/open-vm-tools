@@ -269,7 +269,7 @@ FileIO_Lock(FileIODescriptor *file, // IN/OUT:
          /* Describe the lock not acquired situation in detail */
          Warning(LGPFX" %s on '%s' failed: %s\n",
                  __FUNCTION__, UTF8(file->fileName),
-                 (err == 0) ? "Lock timed out" : strerror(err));
+                 (err == 0) ? "Lock timed out" : Err_Errno2String(err));
 
          /* Return a serious failure status if the locking code did */
          switch (err) {
@@ -331,7 +331,7 @@ FileIO_Unlock(FileIODescriptor *file)     // IN/OUT:
 
       if (err != 0) {
          Warning(LGPFX" %s on '%s' failed: %s\n",
-                 __FUNCTION__, UTF8(file->fileName), strerror(err));
+                 __FUNCTION__, UTF8(file->fileName), Err_Errno2String(err));
 
          ret = FILEIO_ERROR;
       }

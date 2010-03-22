@@ -41,6 +41,7 @@
 #include "util.h"
 #include "log.h"
 #include "str.h"
+#include "err.h"
 #include "vm_product.h"
 
 #define LOGLEVEL_MODULE main
@@ -325,7 +326,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
       int saveErrno = errno;
 
       Warning("%s getifaddrs failure: %s.\n", __FUNCTION__,
-              strerror(saveErrno));
+              Err_Errno2String(saveErrno));
 
       return saveErrno;
    }
@@ -603,7 +604,7 @@ Hostinfo_MachineID(uint32 *hostNameHash,    // OUT:
       erc = ObtainHardwareID(&cachedHardwareID);
       if (erc != 0) {
          Warning("%s ObtainHardwareID failure (%s); providing default.\n",
-                 __FUNCTION__, strerror(erc));
+                 __FUNCTION__, Err_Errno2String(erc));
 
          cachedHardwareID = 0;
       }

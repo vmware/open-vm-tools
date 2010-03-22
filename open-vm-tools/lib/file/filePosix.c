@@ -381,7 +381,7 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
 
       if (Posix_Statfs(pathName, &sfbuf) == -1) {
          Log(LGPFX" %s: statfs(%s) failed: %s\n", __func__, UTF8(pathName),
-             strerror(errno));
+             Err_Errno2String(errno));
 
          return TRUE;
       }
@@ -679,8 +679,7 @@ File_GetTimes(ConstUnicode pathName,       // IN:
 
    if (Posix_Lstat(pathName, &statBuf) == -1) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
-          UTF8(pathName), strerror(errno));
-
+          UTF8(pathName), Err_Errno2String(errno));
       return FALSE;
    }
 
@@ -813,7 +812,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
 
    if (err != 0) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
-          UTF8(pathName), strerror(err));
+          UTF8(pathName), Err_Errno2String(err));
       free(path);
 
       return FALSE;
@@ -854,7 +853,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
 
    if (err != 0) {
       Log(LGPFX" %s: utimes error on file \"%s\": %s\n", __FUNCTION__,
-          UTF8(pathName), strerror(err));
+          UTF8(pathName), Err_Errno2String(err));
 
       return FALSE;
    }
@@ -888,7 +887,7 @@ File_SetFilePermissions(ConstUnicode pathName,  // IN:
    if (Posix_Chmod(pathName, perms) == -1) {
       /* The error is not critical, just log it. */
       Log(LGPFX" %s: failed to change permissions on file \"%s\": %s\n",
-          __FUNCTION__, UTF8(pathName), strerror(errno));
+          __FUNCTION__, UTF8(pathName), Err_Errno2String(errno));
 
       return FALSE;
    }

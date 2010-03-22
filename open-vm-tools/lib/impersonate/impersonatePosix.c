@@ -219,7 +219,7 @@ ImpersonateOwner(const char *file)          // IN
 
    if (Posix_Stat(file, &buf) == -1) {
       Warning("Failed to lookup owner for: %s. Reason: %s\n", file, 
-              strerror(errno));
+              Err_Errno2String(errno));
       return FALSE;
    }
 
@@ -228,7 +228,7 @@ ImpersonateOwner(const char *file)          // IN
          error = ENOENT;
       }
       Warning("Failed to lookup user with uid: %" FMTUID ". Reason: %s\n", buf.st_uid,
-              strerror(error));
+              Err_Errno2String(error));
       return FALSE;
    }
    
@@ -274,7 +274,8 @@ ImpersonateUndo(void)
          error = ENOENT;
       }
       ret = error;
-      Warning("Failed to get password entry for uid 0: %s\n", strerror(error));
+      Warning("Failed to get password entry for uid 0: %s\n",
+              Err_Errno2String(error));
       goto exit;
    }
 
@@ -437,7 +438,7 @@ ImpersonateDo(const char *user,       // IN
          error = ENOENT;
       }
       Warning("Failed to get password entry for : %s. Reason: %s\n", user,
-              strerror(error));
+              Err_Errno2String(error));
       return FALSE;
    }
 

@@ -79,6 +79,7 @@
 /* Check for non-matching prototypes */
 #include "vmware.h"
 #include "str.h"
+#include "err.h"
 #include "posix.h"
 #include "file.h"
 #include "fileIO.h"
@@ -1180,7 +1181,7 @@ FileIO_Read(FileIODescriptor *fd,       // IN
          }
          fret = FileIOErrno2Result(errno);
          if (FILEIO_ERROR == fret) {
-            Log("read failed, errno=%d, %s\n", errno, strerror(errno));
+            Log("read failed, errno=%d, %s\n", errno, Err_Errno2String(errno));
          }
          break;
       }
@@ -2106,7 +2107,8 @@ FileIO_SupportsFileSize(const FileIODescriptor *fd,  // IN:
    struct statfs buf;
 
    if (fstatfs(fd->posix, &buf) == -1) {
-      Log(LGPFX" %s fstatfs failure: %s\n", __FUNCTION__, strerror(errno));
+      Log(LGPFX" %s fstatfs failure: %s\n", __FUNCTION__,
+          Err_Errno2String(errno));
       /* Be optimistic despite failure */
       return TRUE;
    }
@@ -2311,7 +2313,7 @@ FileIO_ResetExcludedFromTimeMachine(char const *pathName) // IN
    }
    if (errno != ENOATTR) {
       LOG_ONCE((LGPFX" %s Couldn't get xattr on path [%s]: %s.\n",
-                __func__, pathName, strerror(errno)));
+                __func__, pathName, Err_Errno2String(errno)));
       result = FALSE;
       goto exit;
    }
@@ -2324,7 +2326,7 @@ FileIO_ResetExcludedFromTimeMachine(char const *pathName) // IN
                            &xattr, sizeof(xattr), 0, 0);
    if (sXattrResult == -1) {
       LOG_ONCE((LGPFX" %s Couldn't set xattr on path [%s]: %s.\n",
-                __func__, pathName, strerror(errno)));
+                __func__, pathName, Err_Errno2String(errno)));
       result = FALSE;
       goto exit;
    }
@@ -2372,7 +2374,7 @@ FileIO_SetExcludedFromTimeMachine(char const *pathName, // IN
 
    if (!image) {
       LOG_ONCE((LGPFX" %s Couldn't dlopen [%s]: %s.\n",
-               __func__, libPath, strerror(errno)));
+               __func__, libPath, Err_Errno2String(errno)));
       goto exit;
    }
 
@@ -2381,7 +2383,7 @@ FileIO_SetExcludedFromTimeMachine(char const *pathName, // IN
 
    if (!backupFunc) {
       LOG_ONCE((LGPFX" %s Couldn't dlsym [%s]: %s.\n",
-               __func__, symbolName, strerror(errno)));
+               __func__, symbolName, Err_Errno2String(errno)));
       goto exit;
    }
 

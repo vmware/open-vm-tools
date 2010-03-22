@@ -89,6 +89,7 @@
 #include "safetime.h"
 #include "vm_version.h"
 #include "str.h"
+#include "err.h"
 #include "msg.h"
 #include "log.h"
 #include "posix.h"
@@ -227,7 +228,7 @@ HostinfoOSVersionInit(void)
 
    if (uname(&u) < 0) {
       Warning("%s: unable to get host OS version (uname): %s\n",
-	      __FUNCTION__, strerror(errno));
+	      __FUNCTION__, Err_Errno2String(errno));
       NOT_IMPLEMENTED();
    }
 
@@ -2711,7 +2712,8 @@ Hostinfo_SystemUpTime(void)
       fd = open("/proc/uptime", O_RDONLY);
 
       if (fd == -1) {
-         Warning(LGPFX" Failed to open /proc/uptime: %s\n", strerror(errno));
+         Warning(LGPFX" Failed to open /proc/uptime: %s\n",
+                 Err_Errno2String(errno));
 
          return 0;
       }
@@ -2737,19 +2739,21 @@ Hostinfo_SystemUpTime(void)
        */
 
       if (Atomic_ReadIfEqualWrite(&logFailedPread, 1, 0) == 1) {
-         Warning(LGPFX" Failed to pread /proc/uptime: %s\n", strerror(errno));
+         Warning(LGPFX" Failed to pread /proc/uptime: %s\n",
+                 Err_Errno2String(errno));
       }
       fd = open("/proc/uptime", O_RDONLY);
       if (fd == -1) {
          Warning(LGPFX" Failed to retry open /proc/uptime: %s\n",
-                 strerror(errno));
+                 Err_Errno2String(errno));
 
          return 0;
       }
       res = read(fd, buf, sizeof buf - 1);
       close(fd);
       if (res == -1) {
-         Warning(LGPFX" Failed to read /proc/uptime: %s\n", strerror(errno));
+         Warning(LGPFX" Failed to read /proc/uptime: %s\n",
+                 Err_Errno2String(errno));
 
          return 0;
       }
@@ -3334,7 +3338,7 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
 
    if (path == NULL) {
       Warning(LGPFX" %s: readlink failed: %s\n", __FUNCTION__,
-              strerror(errno));
+              Err_Errno2String(errno));
    }
 #endif
 

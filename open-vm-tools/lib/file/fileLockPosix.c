@@ -51,6 +51,7 @@
 #include "fileInt.h"
 #include "util.h"
 #include "str.h"
+#include "err.h"
 #include "vm_version.h"
 #include "localconfig.h"
 #include "hostinfo.h"
@@ -111,7 +112,8 @@ IsLinkingAvailable(const char *fileName)  // IN:
    status = statfs(fileName, &buf);
 
    if (status == -1) {
-      Log(LGPFX" Bad statfs using %s (%s).\n", fileName, strerror(errno));
+      Log(LGPFX" Bad statfs using %s (%s).\n", fileName,
+          Err_Errno2String(errno));
 
       return FALSE;
    }
@@ -201,7 +203,7 @@ RemoveStaleLockFile(const char *lockFileName)  // IN:
 
    if (ret < 0) {
       Warning(LGPFX" Failed to remove stale lock file %s (%s).\n",
-              lockFileName, strerror(saveErrno));
+              lockFileName, Err_Errno2String(saveErrno));
 
       return FALSE;
    }
@@ -250,7 +252,7 @@ GetLockFileValues(const char *lockFileName,  // IN:
 
    if (lockFile == NULL) {
       Warning(LGPFX" Failed to open existing lock file %s (%s).\n",
-              lockFileName, strerror(saveErrno));
+              lockFileName, Err_Errno2String(saveErrno));
 
       return (saveErrno == ENOENT) ? 0 : -1;
    }
@@ -262,7 +264,7 @@ GetLockFileValues(const char *lockFileName,  // IN:
 
    if (p == NULL) {
       Warning(LGPFX" Failed to read line from lock file %s (%s).\n",
-              lockFileName, strerror(saveErrno));
+              lockFileName, Err_Errno2String(saveErrno));
 
       deleteLockFile = TRUE;
    } else {
@@ -377,7 +379,7 @@ FileLockCreateLockFile(const char *lockFileName,  // IN:
 
       if (lockFD == -1) {
          Log(LGPFX" Failed to create new lock file %s (%s).\n",
-             lockFileLink, strerror(saveErrno));
+             lockFileLink, Err_Errno2String(saveErrno));
 
          return (saveErrno == EEXIST) ? 0 : -1;
       }
@@ -398,7 +400,7 @@ FileLockCreateLockFile(const char *lockFileName,  // IN:
 
       if (lockFD == -1) {
          Log(LGPFX" Failed to create new lock file %s (%s).\n",
-             lockFileName, strerror(saveErrno));
+             lockFileName, Err_Errno2String(saveErrno));
 
          return (saveErrno == EEXIST) ? 0 : -1;
       }
@@ -411,7 +413,7 @@ FileLockCreateLockFile(const char *lockFileName,  // IN:
 
    if (err != strlen(uniqueID)) {
       Warning(LGPFX" Failed to write to new lock file %s (%s).\n",
-              lockFileName, strerror(saveErrno));
+              lockFileName, Err_Errno2String(saveErrno));
       status = -1;
       goto exit;
    }
@@ -432,7 +434,7 @@ exit:
 
       if (err < 0) {
          Warning(LGPFX" Failed to remove temporary lock file %s (%s).\n",
-                 lockFileLink, strerror(errno));
+                 lockFileLink, Err_Errno2String(errno));
       }
 
    }
@@ -574,7 +576,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
 
    if (ret < 0) {
       Log(LGPFX" Cannot remove lock file %s (%s).\n",
-          path, strerror(saveErrno));
+          path, Err_Errno2String(saveErrno));
       free(path);
 
       return FALSE;
@@ -733,7 +735,7 @@ ProcessCreationTime(pid_t pid)  // IN:
     /* Log any failures */
     if (err == -1) {
        Warning(LGPFX" %s sysctl for pid %d failed: %s\n", __FUNCTION__,
-               pid, strerror(errno));
+               pid, Err_Errno2String(errno));
 
        return 0;
     }

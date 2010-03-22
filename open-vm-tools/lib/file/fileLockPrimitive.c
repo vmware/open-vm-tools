@@ -170,7 +170,7 @@ RemoveLockingFile(ConstUnicode lockDir,   // IN:
          err = 0;
       } else {
          Warning(LGPFX" %s of '%s' failed: %s\n", __FUNCTION__,
-                 UTF8(path), strerror(err));
+                 UTF8(path), Err_Errno2String(err));
       }
    }
 
@@ -302,7 +302,7 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
 
       if (err != ENOENT) {
          Warning(LGPFX" %s open failure on '%s': %s\n", __FUNCTION__,
-                 UTF8(path), strerror(err));
+                 UTF8(path), Err_Errno2String(err));
       }
 
       goto bail;
@@ -313,7 +313,7 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
 
    if (err != 0) {
       Warning(LGPFX" %s file size failure on '%s': %s\n", __FUNCTION__,
-              UTF8(path), strerror(err));
+              UTF8(path), Err_Errno2String(err));
 
       FileLockCloseFile(handle);
 
@@ -337,7 +337,7 @@ FileLockMemberValues(ConstUnicode lockDir,      // IN:
 
    if (err != 0) {
       Warning(LGPFX" %s read failure on '%s': %s\n",
-              __FUNCTION__, UTF8(path), strerror(err));
+              __FUNCTION__, UTF8(path), Err_Errno2String(err));
 
       goto bail;
    }
@@ -952,7 +952,7 @@ FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
 
       if (err && vmx86_debug) {
          Log(LGPFX" %s failed for '%s': %s\n",
-             __FUNCTION__, (char *) lockToken, strerror(err));
+             __FUNCTION__, (char *) lockToken, Err_Errno2String(err));
       }
 
       /*
@@ -1282,13 +1282,13 @@ CreateEntryDirectory(const char *machineID,    // IN:
 
             if ((err != 0) && (err != EEXIST)) {
                Warning(LGPFX" %s creation failure on '%s': %s\n",
-                       __FUNCTION__, UTF8(lockDir), strerror(err));
+                       __FUNCTION__, UTF8(lockDir), Err_Errno2String(err));
 
                break;
             }
          } else {
             Warning(LGPFX" %s stat failure on '%s': %s\n",
-                    __FUNCTION__, UTF8(lockDir), strerror(err));
+                    __FUNCTION__, UTF8(lockDir), Err_Errno2String(err));
 
             break;
          }
@@ -1332,7 +1332,7 @@ CreateEntryDirectory(const char *machineID,    // IN:
 
             if (vmx86_debug) {
                Log(LGPFX" %s stat failure on '%s': %s\n",
-                   __FUNCTION__, UTF8(*memberFilePath), strerror(err));
+                   __FUNCTION__, UTF8(*memberFilePath), Err_Errno2String(err));
              }
          }
 
@@ -1341,7 +1341,8 @@ CreateEntryDirectory(const char *machineID,    // IN:
           if ((err != EEXIST) &&  // Another process/thread created it...
               (err != ENOENT)) {  // lockDir is gone...
              Warning(LGPFX" %s creation failure on '%s': %s\n",
-                     __FUNCTION__, UTF8(*entryDirectory), strerror(err));
+                     __FUNCTION__, UTF8(*entryDirectory),
+                     Err_Errno2String(err));
 
              break;
           }
@@ -1429,7 +1430,7 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
 
    if (err != 0) {
       Warning(LGPFX" %s write of '%s' failed: %s\n", __FUNCTION__,
-              UTF8(entryFilePath), strerror(err));
+              UTF8(entryFilePath), Err_Errno2String(err));
 
       FileLockCloseFile(entryHandle);
 
@@ -1440,7 +1441,7 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
 
    if (err != 0) {
       Warning(LGPFX" %s close of '%s' failed: %s\n", __FUNCTION__,
-              UTF8(entryFilePath), strerror(err));
+              UTF8(entryFilePath), Err_Errno2String(err));
 
       return err;
    }
@@ -1457,16 +1458,16 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
    if (err != 0) {
       Warning(LGPFX" %s FileRename of '%s' to '%s' failed: %s\n",
               __FUNCTION__, UTF8(entryFilePath), UTF8(memberFilePath),
-              strerror(err));
+              Err_Errno2String(err));
 
       if (vmx86_debug) {
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, UTF8(entryFilePath),
-            strerror(FileAttributesRobust(entryFilePath, NULL)));
+            Err_Errno2String(FileAttributesRobust(entryFilePath, NULL)));
 
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, UTF8(memberFilePath),
-            strerror(FileAttributesRobust(memberFilePath, NULL)));
+            Err_Errno2String(FileAttributesRobust(memberFilePath, NULL)));
       }
 
       return err;
@@ -1822,7 +1823,7 @@ FileLockHackVMX(ConstUnicode pathName)  // IN:
    } else {
       if (vmx86_debug) {
          Warning(LGPFX" %s clean-up failure for '%s': %s\n",
-                 __FUNCTION__, UTF8(pathName), strerror(err));
+                 __FUNCTION__, UTF8(pathName), Err_Errno2String(err));
       }
    }
 
