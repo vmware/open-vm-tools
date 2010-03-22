@@ -1,3 +1,16 @@
+open-vm-tools 2010.03.20 changes:
+	* New i18n support for Tools; it is based on VMware's internal tools
+	(instead of gettext).
+
+	* Logging infrastructure has been enhanced and now supports rotation
+	(without the need for logrotate) and syslog.
+
+	* Bug fixes in several areas (DnD, backup support, thread safety).
+
+	* Updates in Linux kernel modules for compatibility with newer kernels.
+
+	* New functionality in the Unity support code.
+
 open-vm-tools 2010.02.23 changes:
 	* Mostly bug fixes, cleanups and code refactoring.
 
