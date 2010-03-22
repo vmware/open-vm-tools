@@ -32,8 +32,9 @@
 #  include "netutil.h"
 #endif
 
-#include "vm_assert.h"
+#include "vmware.h"
 #include "wiper.h"
+#include "vmtoolsInt.h"
 #include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
@@ -109,6 +110,7 @@ VMToolsDllFini(void)
 #if defined(_WIN32)
    NetUtil_FreeIpHlpApiDll();
 #endif
+   VMToolsMsgCleanup();
 }
 
 

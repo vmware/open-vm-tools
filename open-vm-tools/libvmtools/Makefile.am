@@ -55,6 +55,7 @@ endif
 
 libvmtools_la_SOURCES =
 libvmtools_la_SOURCES += fileLogger.c
+libvmtools_la_SOURCES += i18n.c
 libvmtools_la_SOURCES += signalSource.c
 libvmtools_la_SOURCES += stdLogger.c
 libvmtools_la_SOURCES += vmtools.c
@@ -70,6 +71,7 @@ libvmtools_la_SOURCES += $(top_srcdir)/lib/stubs/stub-log.c
 libvmtools_la_CPPFLAGS =
 libvmtools_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
 libvmtools_la_CPPFLAGS += -DNO_LOG_STUB
+libvmtools_la_CPPFLAGS += -DVMTOOLS_DATA_DIR=\"$(datadir)/open-vm-tools\"
 libvmtools_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 
 libvmtools_la_LDFLAGS =

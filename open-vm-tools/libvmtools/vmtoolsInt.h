@@ -28,6 +28,13 @@
 #include "vmware/tools/utils.h"
 
 /* ************************************************************************** *
+ * Internationalization.                                                      *
+ * ************************************************************************** */
+
+void
+VMToolsMsgCleanup(void);
+
+/* ************************************************************************** *
  * Logging.                                                                   *
  * ************************************************************************** */
 
@@ -80,6 +87,11 @@ VMFileLoggerConfig(const gchar *domain,
 
 LogHandlerData *
 VMStdLoggerConfig(const gchar *domain,
+                  const gchar *name,
+                  GKeyFile *cfg);
+
+LogHandlerData *
+VMSysLoggerConfig(const gchar *domain,
                   const gchar *name,
                   GKeyFile *cfg);
 
