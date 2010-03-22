@@ -392,6 +392,18 @@ FIELDDEF(  B, ECX, INTEL,   8,  8, LEVEL_TYPE,          NA,  FALSE)            \
 FIELDDEF(  B, EDX, INTEL,   0, 32, X2APIC_ID,           NA,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
+#define CPUID_FIELD_DATA_LEVEL_400                                             \
+FIELDDEF(400, EAX, COMMON,  0, 32, NUM_HYP_LEVELS,      NA,  FALSE)            \
+FIELDDEF(400, EBX, COMMON,  0, 32, HYPERVISOR1,         NA,  FALSE)            \
+FIELDDEF(400, ECX, COMMON,  0, 32, HYPERVISOR2,         NA,  FALSE)            \
+FIELDDEF(400, EDX, COMMON,  0, 32, HYPERVISOR3,         NA,  FALSE)
+
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
+#define CPUID_FIELD_DATA_LEVEL_410                                             \
+FIELDDEF(410, EAX, COMMON,  0, 32, TSC_HZ,              NA,  FALSE)            \
+FIELDDEF(410, EBX, COMMON,  0, 32, ACPIBUS_HZ,          NA,  FALSE)
+
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_80                                              \
 FIELDDEF( 80, EAX, COMMON,  0, 32, NUM_EXT_LEVELS,      NA,  FALSE)            \
 FIELDDEF( 80, EBX, AMD,     0, 32, AMD_VENDOR1,         NA,  FALSE)            \
@@ -503,6 +515,8 @@ FIELDDEF( 8A, EDX, AMD,    11, 21, SVMEDX_RSVD1,        NO,  FALSE)
    CPUID_FIELD_DATA_LEVEL_6                                           \
    CPUID_FIELD_DATA_LEVEL_A                                           \
    CPUID_FIELD_DATA_LEVEL_B                                           \
+   CPUID_FIELD_DATA_LEVEL_400                                         \
+   CPUID_FIELD_DATA_LEVEL_410                                         \
    CPUID_FIELD_DATA_LEVEL_80                                          \
    CPUID_FIELD_DATA_LEVEL_81                                          \
    CPUID_FIELD_DATA_LEVEL_8x                                          \
