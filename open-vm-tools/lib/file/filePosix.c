@@ -190,6 +190,7 @@ FileDeletion(ConstUnicode pathName,   // IN:
 
    if (pathName == NULL) {
       errno = EFAULT;
+
       return errno;
    } else if ((primaryPath = Unicode_GetAllocBytes(pathName,
                                STRING_ENCODING_DEFAULT)) == NULL) {
@@ -1754,8 +1755,8 @@ FilePosixNearestExistingAncestor(char const *path)  // IN: File path
 
    resultSize = MAX(strlen(path), 1) + 1;
    result = Util_SafeMalloc(resultSize);
-
    Str_Strcpy(result, path, resultSize);
+
    for (;;) {
       char *ptr;
 
@@ -2309,6 +2310,7 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
       /* Don't create the file list if we aren't providing it to the caller. */
       if (ids) {
          Unicode id = Unicode_Alloc(entry->d_name, STRING_ENCODING_DEFAULT);
+
          DynBuf_Append(&b, &id, sizeof id);
       }
 
