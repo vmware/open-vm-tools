@@ -231,17 +231,13 @@ Hostinfo_HostName(void)
  *
  * Hostinfo_HostName --
  *
- *      Return the fully qualified host name of the host.
+ *      Stub for uncoded OSen
  *
  * Results:
- *      The host name on success; must be freed
- *      NULL on failure
+ *      NULL
  *
  * Side effects:
- *       None
- *
- * Note:
- *	This is a dummy catcher for uncoded OSen.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
@@ -249,7 +245,6 @@ Hostinfo_HostName(void)
 Unicode
 Hostinfo_HostName(void)
 {
-   return Unicode_Alloc("Hostinfo_HostName: unimplemented for OS", 
-                        STRING_ENCODING_US_ASCII);
+   return NULL;
 }
 #endif

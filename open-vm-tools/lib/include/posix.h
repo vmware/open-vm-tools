@@ -28,6 +28,7 @@
 #if !defined(_WIN32)
 #include <sys/types.h>
 #include <dirent.h>
+#include <netdb.h>
 #endif
 
 #include "vm_basic_types.h"
@@ -93,7 +94,9 @@ int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
  * Make them NULL wrappers for all other platforms.
  */
 #define Posix_GetHostName gethostname
+#if defined(__APPLE__)
 #define Posix_GetHostByName gethostbyname
+#endif
 #define Posix_GetAddrInfo getaddrinfo
 #define Posix_GetNameInfo getnameinfo
 
@@ -166,8 +169,119 @@ int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 #endif // !defined(sun)
 #endif // !defined(N_PLAT_NLM)
-#else  // !define(_WIN32)
+#if !defined(__APPLE__)
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_GetHostByName --
+ *
+ *      Wrapper for gethostbyname().  Caller should release memory
+ *      allocated for the hostent structure returned by calling
+ *      Posix_FreeHostent().
+ *      
+ * Results:
+ *      NULL    Error
+ *      !NULL   Pointer to hostent structure
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE struct hostent*
+Posix_GetHostByName(ConstUnicode name)  // IN
+{
+   struct hostent *newhostent;
+   int error;
+   struct hostent he;
+   char buffer[1024];
+   struct hostent *phe = &he;
+   char **p;
+   int i;
+   int naddrs;
+
+   ASSERT(name);
+
+   if ((gethostbyname_r(name, &he, buffer, sizeof buffer,
+#if !defined(sun) && !defined(SOLARIS) && !defined(SOL10)
+                        &phe, 
+#endif
+                        &error) == 0) && phe) {
+
+      newhostent = (struct hostent *)Util_SafeMalloc(sizeof *newhostent);
+      newhostent->h_name = Unicode_Alloc(phe->h_name,
+                                         STRING_ENCODING_DEFAULT);
+      if (phe->h_aliases) {
+         newhostent->h_aliases = Unicode_AllocList(phe->h_aliases,
+                                                   -1,
+                                                   STRING_ENCODING_DEFAULT);
+      } else {
+         newhostent->h_aliases = NULL;
+      }
+      newhostent->h_addrtype = phe->h_addrtype;
+      newhostent->h_length = phe->h_length;
+
+      naddrs = 1;
+      for (p = phe->h_addr_list; *p; p++) {
+         naddrs++;
+      }
+      newhostent->h_addr_list = (char **)Util_SafeMalloc(naddrs * 
+                                 sizeof(*(phe->h_addr_list)));
+      for (i = 0; i < naddrs - 1; i++) {
+         newhostent->h_addr_list[i] = (char *)Util_SafeMalloc(phe->h_length);
+         memcpy(newhostent->h_addr_list[i], phe->h_addr_list[i], phe->h_length);
+      }
+      newhostent->h_addr_list[naddrs - 1] = NULL;
+      return newhostent;
+   } 
+   /* There has been an error */
+   return NULL;
+}
+#endif // !define(__APPLE__)
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_FreeHostent --
+ *
+ *      Free the memory allocated for an hostent structure returned
+ *      by Posix_GetHostByName.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+Posix_FreeHostent(struct hostent *he)
+{
+#if !defined(__APPLE__)
+   char **p;
+
+   if (he) {
+      Unicode_Free(he->h_name);
+      if (he->h_aliases) {
+         Unicode_FreeList(he->h_aliases, -1);
+      }
+      p = he->h_addr_list;
+      while (*p) {
+         free(*p++);
+      }
+      free(he->h_addr_list);
+      free(he);
+   }
+#endif
+}
+
+#else  // !define(_WIN32)
 
 #if defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
 #include <winbase.h>
@@ -228,9 +342,6 @@ Posix_GetHostName(Unicode name, // OUT
  *      allocated for the hostent structure returned by calling
  *      Posix_FreeHostent().
  *      
- *      TODO: Implement this wrapper and Posix_FreeHostent() for the
- *      non-Windows platforms.
- *
  * Results:
  *      NULL    Error
  *      !NULL   Pointer to hostent structure
@@ -289,13 +400,13 @@ Posix_GetHostByName(ConstUnicode name)  // IN
  * Posix_FreeHostent --
  *
  *      Free the memory allocated for an hostent structure returned
- *      by Posix_AllocGetHostByName.
+ *      by Posix_GetHostByName.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *      NOne.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -311,7 +422,7 @@ Posix_FreeHostent(struct hostent *he)
       free(he);
    }
 }
-#endif	// defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
+#endif  // defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
 
 #ifdef _WS2TCPIP_H_
 typedef int (WINAPI *GetAddrInfoWFnType)(PCWSTR pNodeName, PCWSTR pServiceName,
