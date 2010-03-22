@@ -63,9 +63,10 @@ VMStdLoggerLog(const gchar *domain,
  *
  * Configures a new std logger.
  *
- * @param[in] domain    Name of log domain.
- * @param[in] name      Name of log handler.
- * @param[in] cfg       Configuration data.
+ * @param[in] defaultDomain   Unused.
+ * @param[in] domain          Name of log domain.
+ * @param[in] name            Name of log handler.
+ * @param[in] cfg             Configuration data.
  *
  * @return The std logger data.
  *
@@ -73,7 +74,8 @@ VMStdLoggerLog(const gchar *domain,
  */
 
 LogHandlerData *
-VMStdLoggerConfig(const gchar *domain,
+VMStdLoggerConfig(const gchar *defaultDomain,
+                  const gchar *domain,
                   const gchar *name,
                   GKeyFile *cfg)
 {

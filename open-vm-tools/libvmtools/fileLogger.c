@@ -362,9 +362,10 @@ VMFileLoggerDestroy(LogHandlerData *_data)
  *
  * Configures a new file logger based on the given configuration.
  *
- * @param[in] domain    Name of log domain.
- * @param[in] name      Name of log handler.
- * @param[in] cfg       Configuration data.
+ * @param[in] defaultDomain   Unused.
+ * @param[in] domain          Name of log domain.
+ * @param[in] name            Name of log handler.
+ * @param[in] cfg             Configuration data.
  *
  * @return The file logger data, or NULL on failure.
  *
@@ -372,7 +373,8 @@ VMFileLoggerDestroy(LogHandlerData *_data)
  */
 
 LogHandlerData *
-VMFileLoggerConfig(const gchar *domain,
+VMFileLoggerConfig(const gchar *defaultDomain,
+                   const gchar *domain,
                    const gchar *name,
                    GKeyFile *cfg)
 {

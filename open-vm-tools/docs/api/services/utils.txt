@@ -48,7 +48,7 @@ for each domain are:
      - This value is required when configuring a domain.
    - handler: the handler to use when logging.
      - Valid values: std, outputdebugstring (Win32-only), file, file+
-       (same as "file", but appends to existing log file).
+       (same as "file", but appends to existing log file), syslog (Unix only).
      - Default: "std" on Unix, "outputdebugstring" on Windows.
 
 For file handlers, the following extra configuration information can be
@@ -59,6 +59,14 @@ provided:
      default, at most 10 backed up log files will be kept. Value should be >= 1.
    - maxLogSize: maximum size of each log file, defaults to 10 (MB). A value of
      0 disables log rotation.
+
+When using syslog, the following options are available:
+
+   - facility: either of "daemon", "user" or "local[0-7]". Controls whether to
+     connect to syslog as LOG_DAEMON, LOG_USER or LOG_LOCAL[0-7], respectively
+     (see syslog(3)). Defaults to "user". Any unknown value is mapped to
+     LOG_USER. This option should be defined for the application's default
+     log domain (it's ignored for all other domains).
 
 Logging configuration should be under the "[logging]" group in the
 application's configuration file.

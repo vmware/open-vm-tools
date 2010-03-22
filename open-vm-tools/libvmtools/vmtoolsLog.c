@@ -78,7 +78,8 @@ VMToolsLogOutputDebugString(const gchar *domain,
                             gpointer _data);
 #endif
 
-typedef LogHandlerData * (*LogHandlerConfigFn)(const gchar *domain,
+typedef LogHandlerData * (*LogHandlerConfigFn)(const gchar *defaultDomain,
+                                               const gchar *domain,
                                                const gchar *name,
                                                GKeyFile *cfg);
 
@@ -103,6 +104,7 @@ static LogHandler gHandlers[] = {
    { 3,  "outputdebugstring", VMDebugOutputConfig },
    { -1, NULL,                VMDebugOutputConfig },
 #else
+   { 3,  "syslog",            VMSysLoggerConfig },
    { -1, NULL,                VMStdLoggerConfig },
 #endif
 };
@@ -423,7 +425,7 @@ VMToolsConfigLogDomain(const gchar *domain,
          goto exit;
       }
 
-      data = configfn(domain, handler, cfg);
+      data = configfn(gLogDomain, domain, handler, cfg);
    } else if (strcmp(domain, gLogDomain) == 0) {
       /*
        * If no handler defined and we're configuring the default domain,
@@ -431,7 +433,7 @@ VMToolsConfigLogDomain(const gchar *domain,
        */
       hid = DEFAULT_HANDLER->id;
       configfn = DEFAULT_HANDLER->configfn;
-      data = configfn(domain, NULL, cfg);
+      data = configfn(gLogDomain, domain, NULL, cfg);
       ASSERT(data != NULL);
    } else {
       /* An inherited handler. Just create a dummy instance. */
@@ -737,7 +739,7 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
    }
 
    gLogDomain = g_strdup(defaultDomain);
-   gErrorData = DEFAULT_HANDLER->configfn(gLogDomain, NULL, NULL);
+   gErrorData = DEFAULT_HANDLER->configfn(gLogDomain, gLogDomain, NULL, NULL);
 
    /*
     * Configure the default domain first. See function documentation for
