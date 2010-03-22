@@ -1098,6 +1098,34 @@ end:
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_OnVMFS --
+ *
+ *      Return TRUE if file is on a VMFS file system.
+ *
+ * Results:
+ *      Boolean
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_OnVMFS(ConstUnicode pathName)  // IN:
+{
+   /*
+    * VMFS exists only on ESX and all file systems appear to be directly
+    * attached and VMFS.
+    */
+
+   return HostType_OSIsVMK();
+}
+
+
 #if defined(VMX86_SERVER)
 /*
  *----------------------------------------------------------------------
@@ -1360,36 +1388,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,
 
    return ret;
 }
-
 #endif 
-
-
-/*
- *----------------------------------------------------------------------
- *
- * File_OnVMFS --
- *
- *      Return TRUE if file is on a VMFS file system.
- *
- * Results:
- *      Boolean
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-File_OnVMFS(ConstUnicode pathName)  // IN:
-{
-   /*
-    * VMFS exists only on ESX and all file systems appear to be directly
-    * attached and VMFS.
-    */
-
-   return HostType_OSIsVMK();
-}
 
 
 /*
