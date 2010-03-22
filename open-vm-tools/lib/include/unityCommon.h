@@ -232,6 +232,7 @@
 #define UNITY_RPC_WINDOW_DESKTOP_SET      "unity.window.desktop.set"
 #define UNITY_RPC_WINDOW_STICK            "unity.window.stick"
 #define UNITY_RPC_WINDOW_UNSTICK          "unity.window.unstick"
+#define UNITY_RPC_WINDOW_CONTENTS_REQUEST "unity.window.contents.request"
 
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
 #define GHI_RPC_SET_GUEST_HANDLER                     "ghi.guest.handler.set"
@@ -268,6 +269,10 @@
 #define GHI_RPC_TRASH_FOLDER_STATE        "ghi.guest.trashFolder.state"
 #define GHI_RPC_TRAY_ICON_UPDATE          "ghi.guest.trayIcon.update"
 #define GHI_RPC_HOST_SHELL_ACTION         "ghi.host.shell.action"
+#define UNITY_RPC_WINDOW_CONTENTS_START   "unity.window.contents.start"
+#define UNITY_RPC_WINDOW_CONTENTS_CHUNK   "unity.window.contents.chunk"
+#define UNITY_RPC_WINDOW_CONTENTS_END     "unity.window.contents.end"
+
 /* @} */
 
 

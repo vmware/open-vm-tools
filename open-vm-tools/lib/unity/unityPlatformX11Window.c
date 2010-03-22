@@ -2144,7 +2144,9 @@ UnityPlatformGetWindowPath(UnityPlatform *up,        // IN: Platform data
 Bool
 UnityPlatformGetWindowContents(UnityPlatform *up,     // IN
                                UnityWindowId window,  // IN
-                               DynBuf *imageData)     // IN
+                               DynBuf *imageData,     // IN
+                               uint32 *width,         // OUT
+                               uint32 *height)        // OUT
 {
    UnityPlatformWindow *upw;
    Pixmap pixmap = 0;
@@ -2157,6 +2159,8 @@ UnityPlatformGetWindowContents(UnityPlatform *up,     // IN
 
    ASSERT(up);
    ASSERT(imageData);
+   ASSERT(width);
+   ASSERT(height);
 
    upw = UPWindow_Lookup(up, window);
 
@@ -2214,6 +2218,11 @@ UnityPlatformGetWindowContents(UnityPlatform *up,     // IN
 
    if (ImageUtil_ConstructPNGBuffer(&vmimage, NULL, imageData)) {
       result = TRUE;
+   }
+
+   if (result) {
+      *width = vmimage.width;
+      *height = vmimage.height;
    }
 
   out:

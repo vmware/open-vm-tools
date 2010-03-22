@@ -91,7 +91,9 @@ Bool UnityPlatformMaximizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformUnmaximizeWindow(UnityPlatform *up, UnityWindowId window);
 Bool UnityPlatformGetWindowContents(UnityPlatform *up,
                                     UnityWindowId window,
-                                    DynBuf *imageData);
+                                    DynBuf *imageData,
+                                    uint32 *width,
+                                    uint32 *height);
 Bool UnityPlatformMoveResizeWindow(UnityPlatform *up,
                                    UnityWindowId window,
                                    UnityRect *moveResizeRect);
@@ -133,11 +135,22 @@ void UnityPlatformDoUpdate(UnityPlatform *up, Bool incremental);
 
 void UnityPlatformSetConfigDesktopColor(UnityPlatform *up, int desktopColor);
 
+Bool UnityPlatformRequestWindowContents(UnityPlatform *up,
+                                        UnityWindowId windowIds[],
+                                        uint32 numWindowIds);
+
 /* Functions implemented in unity.c for use by the platform-specific code. */
 void UnityGetUpdateCommon(int flags, DynBuf *buf);
 Bool UnityUpdateChannelInit(UnityUpdateChannel *updateChannel);
 void UnityUpdateChannelCleanup(UnityUpdateChannel *updateChannel);
 Bool UnitySendUpdates(UnityUpdateChannel *updateChannel);
+
+/* Sends the provided window contents to the host. */
+Bool UnitySendWindowContents(UnityWindowId windowID,
+                             uint32 imageWidth,
+                             uint32 imageHeight,
+                             const char *imageData,
+                             uint32 imageLength);
 
 #ifdef __cplusplus
 };

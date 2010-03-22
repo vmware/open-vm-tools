@@ -3055,6 +3055,35 @@ UnityPlatformSetConfigDesktopColor(UnityPlatform *up, int desktopColor)
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformRequestWindowContents --
+ *
+ *     Validate the list of supplied window IDs and once validated add them to a list
+ *     of windows whose contents should be sent to the host.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+UnityPlatformRequestWindowContents(UnityPlatform *up,
+                                   UnityWindowId windowIds[],
+                                   uint32 numWindowIds)
+{
+   ASSERT(up);
+
+   /* Not implemented */
+   return FALSE;
+}
+
+
+/*
  ******************************************************************************
  * Begin file-scope functions.
  *

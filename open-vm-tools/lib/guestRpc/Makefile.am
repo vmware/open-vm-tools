@@ -26,6 +26,7 @@ libGuestRpc_la_SOURCES += ghiStartMenu_xdr.c
 libGuestRpc_la_SOURCES += guestlibV3_xdr.c
 libGuestRpc_la_SOURCES += nicinfo_xdr.c
 libGuestRpc_la_SOURCES += unityActive_xdr.c
+libGuestRpc_la_SOURCES += unity_xdr.c
 
 # XXX: Autoreconf complains about this and recommends using AM_CFLAGS instead.
 # Problem is, $(CFLAGS) is appended to the compiler command line after AM_CFLAGS
@@ -49,6 +50,8 @@ CLEANFILES += nicinfo.h
 CLEANFILES += nicinfo_xdr.c
 CLEANFILES += unityActive.h
 CLEANFILES += unityActive_xdr.c
+CLEANFILES += unity.h
+CLEANFILES += unity_xdr.c
 
 EXTRA_DIST =
 EXTRA_DIST += cpFileContents.x
@@ -59,6 +62,7 @@ EXTRA_DIST += ghiStartMenu.x
 EXTRA_DIST += guestlibV3.x
 EXTRA_DIST += nicinfo.x
 EXTRA_DIST += unityActive.x
+EXTRA_DIST += unity.x
 
 ## `make clean` should also remove the copied headers.
 clean-local:
@@ -179,4 +183,17 @@ unityActive.h: unityActive.x
 
 unityActive_xdr.c: unityActive.x unityActive.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/unityActive.x
+
+unity.h: unity.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                  \
+	   cp -f $(top_srcdir)/lib/guestRpc/unity.x $(builddir); \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/unity.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+unity_xdr.c: unity.x unity.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/unity.x
 

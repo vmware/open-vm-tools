@@ -22,6 +22,9 @@
  *    misc util functions
  */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>

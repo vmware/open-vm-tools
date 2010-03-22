@@ -92,6 +92,10 @@
 /* Guest detection window width and height. */
 #define DRAG_DET_WINDOW_WIDTH 15
 
+/* Clipboard image size limit. */
+#define CLIPBOARD_IMAGE_MAX_WIDTH  4000
+#define CLIPBOARD_IMAGE_MAX_HEIGHT 4000
+
 typedef enum
 {
    CPFORMAT_UNKNOWN = 0,

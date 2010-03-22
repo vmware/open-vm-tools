@@ -335,9 +335,11 @@ static INLINE_SINGLE_CALLER uintptr_t
 GetFrameAddr(void)
 {
    uintptr_t bp;
-#if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ == 0))
+#if    __GNUC__ < 4 \
+    || (__GNUC__ == 4 && __GNUC_MINOR__ == 0) \
+    || (__GNUC__ == 4 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 1)
    bp = (uintptr_t)__builtin_frame_address(0);
-#elif (__GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ <= 3)
+#elif __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ <= 3
 #  if defined(VMM) || defined(VM_X86_64)
      __asm__ __volatile__("movq %%rbp, %0\n" : "=g" (bp));
 #  else
