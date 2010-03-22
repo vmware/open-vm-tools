@@ -727,9 +727,12 @@ HgfsAttrToBSD(struct vnode *vp,             // IN:  The vnode for this file
        DEBUG(VM_DEBUG_ATTR, "Do not set create time\n");
    }
 
-   DEBUG(VM_DEBUG_ATTR, "Attrib mask %lld\n", hgfsAttrV2->mask);
+   DEBUG(VM_DEBUG_ATTR, "Attrib mask %"FMT64"d\n", hgfsAttrV2->mask);
+
+#if defined __APPLE__
    DEBUG(VM_DEBUG_ATTR, "Supported %lld, active %lld\n", vap->va_supported,
          vap->va_active);
+#endif
 
    HgfsDebugPrintVattr(vap);
 }

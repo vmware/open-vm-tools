@@ -170,20 +170,17 @@ typedef signed __int64 int64;
 
 #elif __GNUC__
 /* The Xserver source compiles with -ansi -pendantic */
-#ifndef __STRICT_ANSI__
-#if defined(VM_X86_64)
+#   if !defined(__STRICT_ANSI__) || defined(__FreeBSD__)
+#      if defined(VM_X86_64)
 typedef unsigned long uint64;
 typedef long int64;
-#else
+#      else
 typedef unsigned long long uint64;
 typedef long long int64;
-#endif
-#elif defined __FreeBSD__
-typedef unsigned long long uint64;
-typedef long long int64;
-#endif
+#      endif
+#   endif
 #else
-#error - Need compiler define for int64/uint64
+#   error - Need compiler define for int64/uint64
 #endif /* _MSC_VER */
 
 typedef unsigned int       uint32;
