@@ -233,6 +233,7 @@
 #define UNITY_RPC_SET_OPTIONS             "unity.set.options"
 #define UNITY_RPC_WINDOW_STICK            "unity.window.stick"
 #define UNITY_RPC_WINDOW_UNSTICK          "unity.window.unstick"
+#define UNITY_RPC_CONFIRM_OPERATION       "unity.operation.confirm"
 #define UNITY_RPC_WINDOW_CONTENTS_REQUEST "unity.window.contents.request"
 
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
@@ -270,6 +271,8 @@
 #define GHI_RPC_TRASH_FOLDER_STATE        "ghi.guest.trashFolder.state"
 #define GHI_RPC_TRAY_ICON_UPDATE          "ghi.guest.trayIcon.update"
 #define GHI_RPC_HOST_SHELL_ACTION         "ghi.host.shell.action"
+#define UNITY_RPC_REQUEST_OPERATION       "unity.operation.request"
+#define UNITY_RPC_ACK_OPERATION           "unity.operation.ack"
 #define UNITY_RPC_WINDOW_CONTENTS_START   "unity.window.contents.start"
 #define UNITY_RPC_WINDOW_CONTENTS_CHUNK   "unity.window.contents.chunk"
 #define UNITY_RPC_WINDOW_CONTENTS_END     "unity.window.contents.end"
@@ -780,6 +783,13 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    @endcode
    @param[in] UnityWindowId UnityWindowId of window to unstick.
 
+   @def         UNITY_RPC_CONFIRM_OPERATION
+   @brief       Confirm (or deny) that a previously requested operation should now be performed.
+   @code
+   UNITY_RPC_CONFIRM_OPERATION XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
    @}
 */
 
@@ -847,6 +857,20 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    UNITY_RPC_UNITY_ACTIVE flag
    @endcode
    @param[in] flag If 1, Unity is active. If 0, Unity is not active
+
+   @def         UNITY_RPC_REQUEST_OPERATION
+   @brief       Request that the host should allow the guest to perform an operation.
+   @code
+   UNITY_RPC_REQUEST_OPERATION XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
+   @def         UNITY_RPC_ACK_OPERATION
+   @brief       Acknowledge that a previously confirmed operations has been performed.
+   @code
+   UNITY_RPC_ACK_OPERATION XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
 
    @}
 */

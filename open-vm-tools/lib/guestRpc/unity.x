@@ -67,6 +67,76 @@ case UNITY_OPTIONS_V1:
 
 
 /*
+ * Unity Request, Confirm and Acknowledge XDR structures.
+ *
+ * The guest will request (from the host) that it be allowed to perform certain types
+ * of window operations - for example minimize, the host will later confirm that the
+ * guest can (or cannot) go ahead with the operation. Once the guest has performed
+ * the requested operation it will acknowledge its completion back to the host.
+ * In many ways this is analagous to the three way handshaking used by TCP.
+ */
+
+/*
+ * Enumerates the different versions of the messages. Note that all three types of
+ * messages (request, confirm, acknowledge) share the same version value. They must
+ * be managed together when updating versions.
+ */
+enum UnityOperationVersion {
+  UNITY_OP_V1 = 1
+};
+
+enum UnityOperations {
+   MINIMIZE = 1
+};
+
+/*
+ * The structure used to distinguish the operations of the message.
+ */
+union UnityOperationDetails switch (UnityOperations op) {
+case MINIMIZE:
+   int dummy;        /* Dummy value to avoid empty union */
+};
+
+struct UnityRequestOperationV1 {
+  /*
+   * sequence should be used to associate a request with a later confirmation so that
+   * state can be maintained within the guest as to oustanding requests (or to set
+   * an error for requests that must maintain order and do not reflect the order
+   * back correctly.).
+   */
+   int sequence;
+   int windowId;
+   UnityOperationDetails details;
+};
+
+struct UnityConfirmOperationV1 {
+   int sequence;
+   int windowId;
+   UnityOperationDetails details;
+   bool allow;
+};
+
+/*
+ * This defines the protocol for a 'unityRequestOperation' message.
+ *
+ * The union allows us to introduce new versions of the protocol later by
+ * creating new values in the enumeration, without having to change much of
+ * the code calling the (de)serialization functions.
+ *
+ * Since the union doesn't have a default case, de-serialization will fail if
+ * an unknown version is provided on the wire.
+ */
+union UnityRequestOperation switch (UnityOperationVersion ver) {
+case UNITY_OP_V1:
+   struct UnityRequestOperationV1 *unityRequestOpV1;
+};
+
+union UnityConfirmOperation switch (UnityOperationVersion ver) {
+case UNITY_OP_V1:
+   struct UnityConfirmOperationV1 *unityConfirmOpV1;
+};
+
+/*
  * Protocol to send the scraped/grabbed contents of a window to the host.
  */
 enum UnityWindowContentsVersion {
