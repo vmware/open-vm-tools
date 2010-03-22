@@ -223,6 +223,18 @@
    PRODUCT_VMRC_PLUGIN_PREVIOUS_MIMETYPES PRODUCT_VMRC_MIMETYPE_TERMINATOR
 
 /*
+ * VMware USB Arbitration Service version definitions
+ */
+
+#define PRODUCT_USB_ARBITRATOR_SHORT_NAME "vmware-usbarbitrator"
+#define PRODUCT_USB_ARBITRATOR_NAME MAKE_NAME("USB Arbitration Service")
+#ifdef _WIN32
+#define PRODUCT_USB_ARBITRATOR_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-usbarbitrator.exe"
+#else
+#define PRODUCT_USB_ARBITRATOR_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-usbarbitrator"
+#endif
+
+/*
  * TODO: This properly lives in productState, but we need it here to
  * define DEFAULT_LIBDIRECTORY.  If that can be moved to productState,
  * it's no longer needed here.
