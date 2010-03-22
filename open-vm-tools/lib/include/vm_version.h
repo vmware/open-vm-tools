@@ -83,7 +83,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMERIC below has to match this */
+   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
@@ -91,7 +91,7 @@
 #elif defined(VMX86_VLICENSE)
    #define PRODUCT_VERSION    1,1,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
-   #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMERIC below has to match this */
+   #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
 
 /*
@@ -194,7 +194,7 @@
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
-#define WORKSTATION_VERSION_NUMERIC "7.1.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "7.1.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
 #define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
 #define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
@@ -202,7 +202,7 @@
 #define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
-#define PLAYER_VERSION_NUMERIC "3.1.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "3.1.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0

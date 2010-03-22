@@ -68,6 +68,11 @@ SOFTWARE.
  *				  and MAXSHORT with winnt.h
  *      04/03/2007 shelleygong  - use int instead of short for data
  *                                inside the region
+ * 02/12/2010 michael - Since coordinates are kept as ints, coordinate values
+ *    shouldn't be clamped to the range of short. I removed R_{MIN,MAX}SHORT
+ *    and changed clamping to be in the range R_MININT..R_MAXINT instead.
+ *    Since some code does "n < R_MININT" and "n > R_MAXINT", R_MININT must be
+ *    greater than INT_MIN and R_MAXINT must be less than INT_MAX.
  */
 
 #ifndef __REGION_H__
@@ -91,11 +96,8 @@ SOFTWARE.
 #define NullBox ((BoxPtr)0)
 #define NullRegion ((RegionPtr)0)
 
-#define R_MAXSHORT SHRT_MAX
-#define R_MINSHORT SHRT_MIN
-
-#define R_MAXINT 0x7FFFFFFF
-#define R_MININT 0x8FFFFFFF
+#define R_MAXINT 0x0FFFFFFF   /* Must be less than INT_MAX */
+#define R_MININT 0x8FFFFFFF   /* Must be greater than INT_MIN */
 
 #define CT_YXBANDED 18
 

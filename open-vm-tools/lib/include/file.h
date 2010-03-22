@@ -75,14 +75,14 @@ EXTERN FileMacosUnmountStatus FileMacos_UnmountDev(char const *bsdDev,
                                                    Bool eject,
                                                    Bool su);
 
-EXTERN void FileMacos_MountDevAsyncNoResult(char const *bsdSliceDev,
+EXTERN void FileMacos_MountDevAsyncNoResult(char const *bsdDev,
                                             Bool su);
 
 EXTERN Bool FileMacos_IsOnExternalDevice(int fd);
 EXTERN Bool FileMacos_IsOnSparseDmg(int fd);
 EXTERN Bool FileMacos_IsSliceDevice(char const *bsdDev);
 
-EXTERN char *FileMacos_DiskDevToDiskName(char const *bsdDiskDev);
+EXTERN char *FileMacos_DiskDevToUserFriendlyName(char const *bsdDiskDev);
 
 EXTERN char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
 EXTERN char *FileMacos_UniqueIDToDiskDevice(char const *identifier);

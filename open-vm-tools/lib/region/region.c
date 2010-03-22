@@ -106,6 +106,11 @@ Equipment Corporation.
  *				  and MAXSHORT with winnt.h
  *      04/03/2007 shelleygong  - use int instead of short for data
  *                                inside the region *
+ * 02/12/2010 michael - Since coordinates are kept as ints, coordinate values
+ *    shouldn't be clamped to the range of short. I removed R_{MIN,MAX}SHORT
+ *    and changed clamping to be in the range R_MININT..R_MAXINT instead.
+ *    Since some code does "n < R_MININT" and "n > R_MAXINT", R_MININT must be
+ *    greater than INT_MIN and R_MAXINT must be less than INT_MAX.
  */
 
 #include <stdlib.h>
@@ -2080,7 +2085,7 @@ miRectsToRegionByBoundary(
 
 /*
  * Construct the region from rects using the default values
- * R_MINSHORT and R_MAXSHORT for boundary check
+ * R_MININT and R_MAXINT for boundary check
  */
 RegionPtr
 miRectsToRegion(
@@ -2089,7 +2094,7 @@ miRectsToRegion(
                 int			ctype)
 {
    return miRectsToRegionByBoundary(nrects, prect, ctype,
-                                    R_MINSHORT, R_MAXSHORT);
+                                    R_MININT, R_MAXINT);
 }
 
 /*======================================================================
@@ -2561,7 +2566,7 @@ miTranslateRegionByBoundary(
 
 /*
  * Translate the region and use the default values which are
- * R_MINSHORT, R_MAXSHORT for boundary check 
+ * R_MININT, R_MAXINT for boundary check 
  */
 
 void
@@ -2570,17 +2575,7 @@ miTranslateRegion(
                   register int x,
                   register int y)
 {
-    /*
-     * This check is here to validate the fix for bug 357509. R_MINSHORT was
-     * defined incorrectly. I changed it to SHRT_MIN, but that introduced the
-     * possibility of a comparison in miTranslateRegionByBoundary underflowing.
-     * miTranslateRegionByBoundary currently uses ints, so it won't underflow
-     * as long as the range of int is larger than the range of short.
-     * This assert checks that that is indeed the case.
-     */
-    ASSERT_ON_COMPILE(INT_MIN < SHRT_MIN);
-
-    miTranslateRegionByBoundary(pReg, x, y, R_MINSHORT, R_MAXSHORT);
+    miTranslateRegionByBoundary(pReg, x, y, R_MININT, R_MAXINT);
 }
 
 
