@@ -48,6 +48,7 @@
 
 #include "vm_basic_types.h"
 #include "community_source.h"
+#include "x86vendor.h"
 
 /*
  * The linux kernel's ptrace.h stupidly defines the bare
@@ -161,20 +162,6 @@ typedef enum {
 #undef CPUIDREG
    CPUID_NUM_REGS
 } CpuidReg;
-
-/*
- * CPU vendors
- */
-
-typedef enum {
-   CPUID_VENDOR_UNKNOWN,
-   CPUID_VENDOR_COMMON,
-   CPUID_VENDOR_INTEL,
-   CPUID_VENDOR_AMD,
-   CPUID_VENDOR_CYRIX,
-   CPUID_VENDOR_VIA,
-   CPUID_NUM_VENDORS
-} CpuidVendor;
 
 #define CPUID_INTEL_VENDOR_STRING       "GenuntelineI"
 #define CPUID_AMD_VENDOR_STRING         "AuthcAMDenti"
