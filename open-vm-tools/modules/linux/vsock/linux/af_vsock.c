@@ -209,8 +209,16 @@ static unsigned int VSockVmciPoll(struct file *file,
 static int VSockVmciListen(struct socket *sock, int backlog);
 static int VSockVmciShutdown(struct socket *sock, int mode);
 
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
+typedef int VSockSetsockoptLenType;
+#else
+typedef unsigned int VSockSetsockoptLenType;
+#endif
 static int VSockVmciStreamSetsockopt(struct socket *sock, int level, int optname,
-                                     char __user *optval, int optlen);
+                                     char __user *optval,
+                                     VSockSetsockoptLenType optlen);
+
 static int VSockVmciStreamGetsockopt(struct socket *sock, int level, int optname,
                                      char __user *optval, int __user * optlen);
 
@@ -223,11 +231,16 @@ static int VSockVmciStreamSendmsg(struct kiocb *kiocb,
 static int VSockVmciStreamRecvmsg(struct kiocb *kiocb, struct socket *sock,
                                  struct msghdr *msg, size_t len, int flags);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-static int VSockVmciCreate(struct socket *sock, int protocol);
-#else
-static int VSockVmciCreate(struct net *net, struct socket *sock, int protocol);
+static int VSockVmciCreate(
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+                           struct net *net,
 #endif
+                           struct socket *sock, int protocol
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
+                           , int kern
+#endif
+                          );
+
 
 /*
  * Device operations.
@@ -4080,11 +4093,11 @@ out:
  */
 
 int
-VSockVmciStreamSetsockopt(struct socket *sock,       // IN/OUT
-                          int level,                 // IN
-                          int optname,               // IN
-                          char __user *optval,       // IN
-                          int optlen)                // IN
+VSockVmciStreamSetsockopt(struct socket *sock,           // IN/OUT
+                          int level,                     // IN
+                          int optname,                   // IN
+                          char __user *optval,           // IN
+                          VSockSetsockoptLenType optlen) // IN
 {
    int err;
    struct sock *sk;
@@ -4708,16 +4721,17 @@ out:
  *----------------------------------------------------------------------------
  */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
 static int
-VSockVmciCreate(struct socket *sock,  // IN
-                int protocol)         // IN
-#else
-static int
-VSockVmciCreate(struct net *net,      // IN
-                struct socket *sock,  // IN
-                int protocol)         // IN
+VSockVmciCreate(
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+                struct net *net,      // IN
 #endif
+                struct socket *sock,  // IN
+                int protocol          // IN
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
+                , int kern            // IN
+#endif
+               )
 {
    if (!sock) {
       return -EINVAL;
