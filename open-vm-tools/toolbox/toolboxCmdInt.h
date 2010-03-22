@@ -24,6 +24,8 @@
 #ifndef _TOOLBOX_CMD_INT_H_
 #define _TOOLBOX_CMD_INT_H_
 
+#define VMW_TEXT_DOMAIN "toolboxcmd"
+
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32

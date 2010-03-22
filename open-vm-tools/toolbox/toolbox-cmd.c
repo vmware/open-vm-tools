@@ -27,20 +27,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <locale.h>
-
-#ifdef _WIN32
-#include "resource.h"
-#define MAX_STRING_BUFFER   2048
-static char * GetString(unsigned int idString);
-#define GETSTR(str)   GetString(ID##str)
-#else
-#include "messages.h"
-#define GETSTR(str)   str
-#endif
+#include <glib/gstdio.h>
 
 #include "toolboxCmdInt.h"
 #include "toolboxcmd_version.h"
 #include "system.h"
+#include "vmware/tools/i18n.h"
+#include "vmware/tools/utils.h"
 
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXCMD_VERSION_STRING);
@@ -114,37 +107,6 @@ static CmdTable commands[] = {
    { "help", HelpCommand, FALSE, FALSE, ToolboxCmdHelp},
 };
 
-#ifdef _WIN32
-/*
- *-----------------------------------------------------------------------------
- *
- * GetString --
- *
- *      Gets a localized string based on an identifier.
- *
- * Results:
- *      A pointer to the string. I should not be freed, being static allocated.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static char *
-GetString(unsigned int idString)     // IN: the identifier of the string
-{
-   static char szResourceString[MAX_STRING_BUFFER];
-   const int sizeResourceString = ARRAYSIZE(szResourceString);
-
-   szResourceString[0] = '\0';
-
-   LoadString(GetModuleHandle(NULL), idString,
-              szResourceString, sizeResourceString);
-
-   return szResourceString;
-}
-#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -166,7 +128,7 @@ static void
 ToolboxMissingEntityError(const char *name,     // IN: command name (argv[0])
                           const char *entity)   // IN: what is missing
 {
-   fprintf(stderr, "%s: Missing %s\n", name, entity);
+   g_printerr(SU_(error.missing, "%s: Missing %s\n"), name, entity);
 }
 
 
@@ -191,7 +153,7 @@ ToolboxUnknownEntityError(const char *name,    // IN: command name (argv[0])
                           const char *entity,  // IN: what is unknown
                           const char *str)     // IN: errorneous string
 {
-   fprintf(stderr, "%s: Unknown %s '%s'\n", name, entity, str);
+   g_printerr(SU_(error.unknown, "%s: Unknown %s '%s'\n"), name, entity, str);
 }
 
 
@@ -214,7 +176,16 @@ ToolboxUnknownEntityError(const char *name,    // IN: command name (argv[0])
 static void
 DeviceHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf(GETSTR(S_HELP_DEVICE), progName);
+   g_print(SU_(help.device, "device: functions related to the virtual machine's hardware devices\n"
+                            "Usage: %s device <subcommand> [args]\n"
+                            "dev is the name of the device.\n"
+                            "\n"
+                            "Subcommands:\n"
+                            "   enable <dev>: enable the device dev\n"
+                            "   disable <dev>: disable the device dev\n"
+                            "   list: list all available devices\n"
+                            "   status <dev>: print the status of a device\n"),
+           progName);
 }
 
 
@@ -237,8 +208,19 @@ DeviceHelp(const char *progName) // IN: The name of the program obtained from ar
 static void
 ToolboxCmdHelp(const char *progName)
 {
-   printf(GETSTR(S_HELP_TOOLBOXCMD),
-          progName, progName, progName);
+   g_print(SU_(help.main, "Usage: %s <command> [options] [subcommand]\n"
+                          "Type '%s help <command>' for help on a specific command.\n"
+                          "Type '%s -v' to see the VMware Tools version.\n"
+                          "Use '-q' option to suppress stdout output.\n"
+                          "Most commands take a subcommand.\n\n"
+                          "Available commands:\n"
+                          "   device\n"
+                          "   disk\n"
+                          "   script\n"
+                          "   stat\n"
+                          "   timesync\n\n"
+                          "For additional information please visit http://www.vmware.com/support/\n\n"),
+           progName, progName, progName);
 }
 
 
@@ -261,7 +243,13 @@ ToolboxCmdHelp(const char *progName)
 static void
 TimeSyncHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf(GETSTR(S_HELP_TIMESYNC), progName);
+   g_print(SU_(help.timesync, "timesync: functions for controlling time synchronization on the guest OS\n"
+                              "Usage: %s timesync <subcommand>\n\n"
+                              "Subcommands:\n"
+                              "   enable: enable time synchronization\n"
+                              "   disable: disable time synchronization\n"
+                              "   status: print the time synchronization status\n"),
+           progName);
 }
 
 
@@ -284,7 +272,15 @@ TimeSyncHelp(const char *progName) // IN: The name of the program obtained from 
 static void
 ScriptHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf(GETSTR(S_HELP_SCRIPT), progName);
+   g_print(SU_(help.script, "script: control the scripts run in response to power operations\n"
+                            "Usage: %s script <power|resume|suspend|shutdown> <subcommand> [args]\n\n"
+                            "Subcommands:\n"
+                            "   enable: enable the given script and restore its path to the default\n"
+                            "   disable: disable the given script\n"
+                            "   set <full_path>: set the given script to the given path\n"
+                            "   default: print the default path of the given script\n"
+                            "   current: print the current path of the given script\n"),
+           progName);
 }
 
 
@@ -307,7 +303,12 @@ ScriptHelp(const char *progName) // IN: The name of the program obtained from ar
 static void
 DiskHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf(GETSTR(S_HELP_DISK), progName);
+   g_print(SU_(help.disk, "disk: perform disk shrink operations\n"
+                          "Usage: %s disk <subcommand> [args]\n\n"
+                          "Subcommands:\n"
+                          "   list: list available mountpoints\n"
+                          "   shrink <mount-point>: shrinks a file system at the given mountpoint\n"),
+           progName);
 }
 
 
@@ -330,7 +331,20 @@ DiskHelp(const char *progName) // IN: The name of the program obtained from argv
 static void
 StatHelp(const char *progName) // IN: The name of the program obtained from argv[0]
 {
-   printf(GETSTR(S_HELP_STAT), progName);
+   g_print(SU_(help.stat, "stat: print useful guest and host information\n"
+                          "Usage: %s stat <subcommand>\n\n"
+                          "Subcommands:\n"
+                          "   hosttime: print the host time\n"
+                          "   speed: print the CPU speed in MHz\n"
+                          "ESX guests only subcommands:\n"
+                          "   sessionid: print the current session id\n"
+                          "   balloon: print memory ballooning information\n"
+                          "   swap: print memory swapping information\n"
+                          "   memlimit: print memory limit information\n"
+                          "   memres: print memory reservation information\n"
+                          "   cpures: print CPU reservation information\n"
+                          "   cpulimit: print CPU limit information\n"),
+           progName);
 }
 
 
@@ -366,7 +380,9 @@ HelpCommand(char **argv, // IN: Command line arguments
             return EXIT_SUCCESS;
          }
       }
-      ToolboxUnknownEntityError(argv[0], "subcommand", argv[optind]);
+      ToolboxUnknownEntityError(argv[0],
+                                SU_(arg.subcommand, "subcommand"),
+                                argv[optind]);
       retval = EX_USAGE;
    }
 
@@ -414,11 +430,13 @@ DeviceCommand(char **argv, // IN: Command line arguments
          return Devices_DisableDevice(argv[optind + 1], quiet_flag);
       }
    } else {
-      ToolboxUnknownEntityError(argv[0], "subcommand", subcommand);
+      ToolboxUnknownEntityError(argv[0],
+                                SU_(arg.subcommand, "subcommand"),
+                                subcommand);
       return EX_USAGE;
    }
 
-   ToolboxMissingEntityError(argv[0], "device name");
+   ToolboxMissingEntityError(argv[0], SU_(arg.devicename, "device name"));
    return EX_USAGE;
 }
 
@@ -448,12 +466,14 @@ DiskCommand(char **argv, // IN: command line arguments
       return Shrink_List();
    } else if (toolbox_strcmp(argv[optind], "shrink") == 0) {
       if (++optind >= argc) {
-         ToolboxMissingEntityError(argv[0], "mount point");
+         ToolboxMissingEntityError(argv[0], SU_(arg.mountpoint, "mount point"));
       } else {
          return Shrink_DoShrink(argv[optind], quiet_flag);
       }
    } else {
-      ToolboxUnknownEntityError(argv[0], "subcommand", argv[optind]);
+      ToolboxUnknownEntityError(argv[0],
+                                SU_(arg.subcommand, "subcommand"),
+                                argv[optind]);
    }
    return EX_USAGE;
 }
@@ -499,7 +519,9 @@ StatCommand(char **argv, // IN: Command line arguments
    } else if (toolbox_strcmp(argv[optind], "speed") == 0) {
       return Stat_ProcessorSpeed();
    } else {
-      ToolboxUnknownEntityError(argv[0], "subcommand", argv[optind]);
+      ToolboxUnknownEntityError(argv[0],
+                                SU_(arg.subcommand, "subcommand"),
+                                argv[optind]);
       return EX_USAGE;
    }
 }
@@ -529,19 +551,19 @@ ScriptCommand(char **argv, // IN: command line arguments.
    const char *apm;
 
    if (++optind >= argc) {
-      ToolboxMissingEntityError(argv[0], "script type");
+      ToolboxMissingEntityError(argv[0], SU_(arg.scripttype, "script type"));
       return EX_USAGE;
    }
 
    apm = argv[optind++];
 
    if (!Script_CheckName(apm)) {
-      ToolboxUnknownEntityError(argv[0], "script type", apm);
+      ToolboxUnknownEntityError(argv[0], SU_(arg.scripttype, "script type"), apm);
       return EX_USAGE;
    }
 
    if (optind >= argc) {
-      ToolboxMissingEntityError(argv[0], "subcommand");
+      ToolboxMissingEntityError(argv[0], SU_(arg.subcommand, "subcommand"));
       return EX_USAGE;
    }
 
@@ -551,7 +573,7 @@ ScriptCommand(char **argv, // IN: command line arguments.
       return Script_GetCurrent(apm);
    } else if (toolbox_strcmp(argv[optind], "set") == 0) {
       if (++optind >= argc) {
-         ToolboxMissingEntityError(argv[0], "script path");
+         ToolboxMissingEntityError(argv[0], SU_(arg.scriptpath, "script path"));
          return EX_USAGE;
       }
       return Script_Set(apm, argv[optind], quiet_flag);
@@ -560,7 +582,9 @@ ScriptCommand(char **argv, // IN: command line arguments.
    } else if (toolbox_strcmp(argv[optind], "disable") == 0) {
       return Script_Disable(apm, quiet_flag);
    } else {
-      ToolboxUnknownEntityError(argv[0], "subcommand", argv[optind]);
+      ToolboxUnknownEntityError(argv[0],
+                                SU_(arg.subcommand, "subcommand"),
+                                argv[optind]);
       return EX_USAGE;
    }
 }
@@ -594,7 +618,9 @@ TimeSyncCommand(char **argv, // IN: command line arguments
    } else if (toolbox_strcmp(argv[optind], "status") == 0) {
       return TimeSync_Status();
    } else {
-      ToolboxUnknownEntityError(argv[0], "subcommand", argv[optind]);
+      ToolboxUnknownEntityError(argv[0],
+                                SU_(arg.subcommand, "subcommand"),
+                                argv[optind]);
       return EX_USAGE;
    }
 }
@@ -661,12 +687,15 @@ main(int argc,    // IN: length of command line arguments
    int retval;
 
    setlocale(LC_ALL, "");
+   VMTools_ConfigLogging("toolboxcmd", NULL, FALSE, FALSE);
+   VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
    /*
     * Check if we are in a VM
     */
    if (!VmCheck_IsVirtualWorld()) {
-      fprintf(stderr, GETSTR(S_WARNING_VWORLD), argv[0]);
+      g_printerr(SU_(error.novirtual, "%s must be run inside a virtual machine.\n"),
+                 argv[0]);
       exit(EXIT_FAILURE);
    }
 
@@ -702,7 +731,8 @@ main(int argc,    // IN: length of command line arguments
 
       case '?':
          /* getopt_long already printed an error message. */
-         fprintf(stderr, GETSTR(S_HELP_MAIN), argv[0], "-h", "", "");
+         g_printerr(SU_(help.hint, "Try '%s %s%s%s' for more information.\n"),
+                    argv[0], "-h", "", "");
          return EXIT_FAILURE;
 
       default:
@@ -719,24 +749,34 @@ main(int argc,    // IN: length of command line arguments
        * execute corresponding command
        */
       if (optind >= argc) {
-         ToolboxMissingEntityError(argv[0], "command");
+         ToolboxMissingEntityError(argv[0], SU_(arg.command, "command"));
          retval = EX_USAGE;
       } else if ((cmd = ParseCommand(argv, argc)) == NULL) {
-         ToolboxUnknownEntityError(argv[0], "command", argv[optind]);
+         ToolboxUnknownEntityError(argv[0], SU_(arg.command, "command"), argv[optind]);
          retval = EX_USAGE;
       } else if (cmd->requireRoot && !System_IsUserAdmin()) {
-         fprintf(stderr, GETSTR(S_WARNING_ADMIN), argv[0], cmd->command);
+#if defined(_WIN32)
+         g_printerr(SU_(error.noadmin.win,
+                        "%s: Administrator permissions are needed to perform %s operations.\n"
+                        "Use an administrator command prompt to complete these tasks.\n"),
+                    cmd->command);
+
+#else
+         g_printerr(SU_(error.noadmin.posix,
+                        "%s: You must be root to perform %s operations.\n"),
+                    cmd->command);
+#endif
          retval = EX_NOPERM;
       } else if (cmd->requireArguments && ++optind >= argc) {
-         ToolboxMissingEntityError(argv[0], "subcommand");
+         ToolboxMissingEntityError(argv[0], SU_(arg.subcommand, "subcommand"));
          retval = EX_USAGE;
       } else {
          retval = cmd->func(argv, argc);
       }
 
       if (retval == EX_USAGE && (cmd == NULL || strcmp(cmd->command, "help"))) {
-         fprintf(stderr, GETSTR(S_HELP_MAIN),
-                 argv[0], "help", cmd ? " " : "", cmd ? cmd->command : "");
+         g_printerr(SU_(help.hint, "Try '%s %s%s%s' for more information.\n"),
+                    argv[0], "help", cmd ? " " : "", cmd ? cmd->command : "");
       }
 
       return retval;
