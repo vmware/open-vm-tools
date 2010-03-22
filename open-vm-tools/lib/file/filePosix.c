@@ -67,6 +67,7 @@
 #include "dynbuf.h"
 #include "localconfig.h"
 #include "hostType.h"
+#include "vmfs.h"
 
 #include "unicodeOperations.h"
 
@@ -1029,95 +1030,16 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
-      ret = -1;
-      goto end;
+      return -1;
    }
 
-   if (!FileGetStats(fullPath, doNotAscend, &statfsbuf)) {
+   if (FileGetStats(fullPath, doNotAscend, &statfsbuf)) {
+      ret = (uint64) statfsbuf.f_bavail * statfsbuf.f_bsize;
+   } else {
       Warning("%s: Couldn't statfs %s\n", __func__, fullPath);
       ret = -1;
-      goto end;
    }
 
-   ret = (uint64) statfsbuf.f_bavail * statfsbuf.f_bsize;
-
-#if defined(VMX86_SERVER)
-   /*
-    * The following test is never true on VMvisor but we do not care as
-    * this is only intended for callers going through vmkfs. Direct callers
-    * as we are always get the right answer from statfs above.
-    */
-
-   if (statfsbuf.f_type == VMFS_MAGIC_NUMBER) {
-      int fd;
-      FS_FreeSpaceArgs args = { 0 };
-      Unicode specialPath = NULL;
-
-      /*
-       * If the file exists and can be opened we're all set. If the file
-       * doesn't exist we can use the parent directory for the ioctl.
-       * However, if the file exists and can't be opened (e.g. permissions
-       * issues) a correct answer can only be returned if the target isn't a
-       * directory. If the target is a directory its parent may be a mount
-       * point - leading across a mount point to a different file system.
-       * PR 412387
-       */
-
-      ret = -1;
-
-      fd = Posix_Open(fullPath, O_RDONLY, 0);
-
-      if (fd == -1) {
-         switch (errno) {
-         case EPERM:
-         case EACCES:
-            {
-               int err = errno;
-               struct stat statbuf;
-
-               if (Posix_Stat(fullPath, &statbuf) == -1) {
-                  errno = err;
-                  break;
-               }
-
-               if (S_ISDIR(statbuf.st_mode)) {
-                  Warning(LGPFX" %s: directory (%s) present but inaccessible\n",
-                          __func__, UTF8(fullPath));
-                  errno = err;
-                  break;
-               }
-            }
-            /* FALLTHROUGH */
-
-         case ENOENT:
-         default:
-            File_SplitName(fullPath, NULL, &specialPath, NULL);
-
-            fd = Posix_Open(specialPath, O_RDONLY, 0);
-         }
-      }
-
-      if (fd == -1) {
-         Warning(LGPFX" %s: open of %s failed with: %s\n", __func__,
-                 (specialPath == NULL) ? UTF8(fullPath) : UTF8(specialPath),
-                 Msg_ErrString());
-      } else {
-         if (ioctl(fd, IOCTLCMD_VMFS_GET_FREE_SPACE, &args) == -1) {
-            Warning(LGPFX" %s: ioctl on %s failed with: %s\n", __func__,
-                    (specialPath == NULL) ? UTF8(fullPath) : UTF8(specialPath),
-                    Msg_ErrString());
-         } else {
-            ret = args.bytesFree;
-         }
-
-         close(fd);
-      }
-
-      Unicode_Free(specialPath);
-   }
-#endif
-
-end:
    Unicode_Free(fullPath);
 
    return ret;
@@ -1457,38 +1379,39 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
 char *
 File_GetUniqueFileSystemID(char const *path)  // IN: File path
 {
-#if defined(VMX86_SERVER)
-   char *canPath;
-   char *existPath;
+   if (HostType_OSIsVMK()) {
+      char *canPath;
+      char *existPath;
 
-   existPath = FilePosixNearestExistingAncestor(path);
-   canPath = Posix_RealPath(existPath);
-   free(existPath);
+      existPath = FilePosixNearestExistingAncestor(path);
+      canPath = Posix_RealPath(existPath);
+      free(existPath);
 
-   if (canPath == NULL) {
-      return NULL;
-   }
-
-   /*
-    * VCFS doesn't have real mount points, so the mount point lookup below
-    * returns "/vmfs", instead of the VCFS mount point.
-    *
-    * See bug 61646 for why we care.
-    */
-
-   if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) == 0) {
-      char vmfsVolumeName[FILE_MAXPATH];
-
-      if (sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s", vmfsVolumeName) == 1) {
-         free(canPath);
-
-         return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
-                                 vmfsVolumeName);
+      if (canPath == NULL) {
+         return NULL;
       }
-   }
 
-   free(canPath);
-#endif
+      /*
+       * VCFS doesn't have real mount points, so the mount point lookup below
+       * returns "/vmfs", instead of the VCFS mount point.
+       *
+       * See bug 61646 for why we care.
+       */
+
+      if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) == 0) {
+         char vmfsVolumeName[FILE_MAXPATH];
+
+         if (sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s",
+                    vmfsVolumeName) == 1) {
+            free(canPath);
+
+            return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
+                                    vmfsVolumeName);
+         }
+      }
+
+      free(canPath);
+   }
 
    return FilePosixGetBlockDevice(path);
 }
