@@ -114,8 +114,8 @@ static FileLockOptions fileLockOptions = { 0, FALSE };
  */
 
 void
-FileLock_Init(int lockerPid,            // IN
-              Bool userWorld)           // IN
+FileLock_Init(int lockerPid,   // IN:
+              Bool userWorld)  // IN:
 {
    fileLockOptions.lockerPid = lockerPid;
    fileLockOptions.userWorld = userWorld;
@@ -140,10 +140,10 @@ FileLock_Init(int lockerPid,            // IN
  */
 
 static Bool
-IsLinkingAvailable(const char *fileName)     // IN:
+IsLinkingAvailable(const char *fileName)  // IN:
 {
    struct statfs buf;
-   int           status;
+   int status;
 
    ASSERT(fileName);
 
@@ -268,7 +268,7 @@ FileLockGetPid(void)
  */
 
 static Bool
-RemoveStaleLockFile(const char *lockFileName)      // IN:
+RemoveStaleLockFile(const char *lockFileName)  // IN:
 {
    uid_t uid;
    int ret;
@@ -313,9 +313,9 @@ RemoveStaleLockFile(const char *lockFileName)      // IN:
  */
 
 static int
-GetLockFileValues(const char *lockFileName, // IN:
-                  int *pid,                 // OUT:
-                  char *hostID)             // OUT:
+GetLockFileValues(const char *lockFileName,  // IN:
+                  int *pid,                  // OUT:
+                  char *hostID)              // OUT:
 {
    char *p;
    int  saveErrno;
@@ -556,7 +556,7 @@ exit:
  */
 
 int
-FileLock_LockDevice(const char *deviceName)   // IN:
+FileLock_LockDevice(const char *deviceName)  // IN:
 {
    const char *hostID;
    char       uniqueID[1000];
@@ -696,9 +696,9 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
  */
 
 static int
-ReadSlashProc(const char *procPath, // IN:
-              char *buffer,         // OUT:
-              size_t bufferSize)    // IN:
+ReadSlashProc(const char *procPath,  // IN:
+              char *buffer,          // OUT:
+              size_t bufferSize)     // IN:
 {
    int fd;
    int err;
@@ -754,11 +754,11 @@ ReadSlashProc(const char *procPath, // IN:
  */
 
 static uint64
-ProcessCreationTime(pid_t pid)
+ProcessCreationTime(pid_t pid)  // IN:
 {
-   int    err;
-   char   path[64];
-   char   buffer[1024];
+   int err;
+   char path[64];
+   char buffer[1024];
    uint64 creationTime;
 
    Str_Sprintf(path, sizeof path, "/proc/%d/stat", pid);
@@ -805,12 +805,12 @@ ProcessCreationTime(pid_t pid)
 }
 #elif defined(__APPLE__)
 static uint64
-ProcessCreationTime(pid_t pid)
+ProcessCreationTime(pid_t pid)  // IN:
 {
-    int                err;
-    size_t             size;
+    int err;
+    size_t size;
     struct kinfo_proc  info;
-    int                mib[4];
+    int mib[4];
   
     /* Request information about the specified process */
     mib[0] = CTL_KERN;
@@ -836,7 +836,7 @@ ProcessCreationTime(pid_t pid)
 }
 #else
 static uint64
-ProcessCreationTime(pid_t pid)
+ProcessCreationTime(pid_t pid)  // IN:
 {
    return 0;
 }
@@ -861,8 +861,8 @@ ProcessCreationTime(pid_t pid)
  */
 
 Bool
-FileLockValidOwner(const char *executionID, // IN:
-                   const char *payload)     // IN:
+FileLockValidOwner(const char *executionID,  // IN:
+                   const char *payload)      // IN:
 {
    int pid;
 
@@ -927,9 +927,9 @@ FileLockValidOwner(const char *executionID, // IN:
  */
 
 int
-FileLockOpenFile(ConstUnicode pathName,        // IN:
-                 int flags,                    // IN:
-                 FILELOCK_FILE_HANDLE *handle) // OUT:
+FileLockOpenFile(ConstUnicode pathName,         // IN:
+                 int flags,                     // IN:
+                 FILELOCK_FILE_HANDLE *handle)  // OUT:
 {
    ASSERT(pathName);
 
@@ -957,7 +957,7 @@ FileLockOpenFile(ConstUnicode pathName,        // IN:
  */
 
 int
-FileLockCloseFile(FILELOCK_FILE_HANDLE handle) // IN:
+FileLockCloseFile(FILELOCK_FILE_HANDLE handle)  // IN:
 {
    return (close(handle) == -1) ? errno : 0;
 }

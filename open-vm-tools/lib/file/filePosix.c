@@ -387,6 +387,7 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
    if (Posix_Statfs(pathName, &sfbuf) == -1) {
       Log(LGPFX" %s: statfs(%s) failed: %s\n", __func__, UTF8(pathName),
           strerror(errno));
+
       return TRUE;
    }
 #if defined(__APPLE__)
@@ -395,12 +396,15 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
    if (NFS_SUPER_MAGIC == sfbuf.f_type) {
       return TRUE;
    }
+
    if (SMB_SUPER_MAGIC == sfbuf.f_type) {
       return TRUE;
    }
+
    if (CIFS_SUPER_MAGIC == sfbuf.f_type) {
       return TRUE;
    }
+
    return FALSE;
 #endif
 }
@@ -782,6 +786,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
    if (path == NULL) {
       Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
           __FUNCTION__, UTF8(pathName));
+
       return FALSE;
    }
 
@@ -791,6 +796,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
           UTF8(pathName), strerror(err));
       free(path);
+
       return FALSE;
    }
 
@@ -809,6 +815,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
 
    if (accessTime > 0) {
       struct timespec ts;
+
       TimeUtil_NtTimeToUnixTime(&ts, accessTime);
       aTime->tv_sec = ts.tv_sec;
       aTime->tv_usec = ts.tv_nsec / 1000;
@@ -816,6 +823,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
 
    if (writeTime > 0) {
       struct timespec ts;
+
       TimeUtil_NtTimeToUnixTime(&ts, writeTime);
       wTime->tv_sec = ts.tv_sec;
       wTime->tv_usec = ts.tv_nsec / 1000;
@@ -828,6 +836,7 @@ File_SetTimes(ConstUnicode pathName,      // IN:
    if (err != 0) {
       Log(LGPFX" %s: utimes error on file \"%s\": %s\n", __FUNCTION__,
           UTF8(pathName), strerror(err));
+
       return FALSE;
    }
 
@@ -852,16 +861,19 @@ File_SetTimes(ConstUnicode pathName,      // IN:
  */
 
 Bool
-File_SetFilePermissions(ConstUnicode pathName,     // IN:
-                        int perms)                 // IN: permissions
+File_SetFilePermissions(ConstUnicode pathName,  // IN:
+                        int perms)              // IN: permissions
 {
    ASSERT(pathName);
+
    if (Posix_Chmod(pathName, perms) == -1) {
       /* The error is not critical, just log it. */
-      Log(LGPFX" %s: failed to change permissions on file \"%s\": %s\n", __FUNCTION__,
-          UTF8(pathName), strerror(errno));
+      Log(LGPFX" %s: failed to change permissions on file \"%s\": %s\n",
+          __FUNCTION__, UTF8(pathName), strerror(errno));
+
       return FALSE;
    }
+
    return TRUE;
 }
 
@@ -1210,6 +1222,7 @@ done:
    if (fsAttrs) {
       free(fsAttrs);
    }
+
    return ret;
 }
 
@@ -1250,6 +1263,7 @@ done:
    if (fsAttrs) {
       free(fsAttrs);
    }
+
    return ret;
 }
 
@@ -1291,6 +1305,7 @@ done:
    if (fsAttrs) {
       free(fsAttrs);
    }
+
    return ret;
 }
 
@@ -1350,6 +1365,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,
    }
 
    free(fsAttrs);
+
    return ret;
 }
 
@@ -1462,6 +1478,7 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
 
 end:
    Unicode_Free(fullPath);
+
    return ret;
 }
 
@@ -1599,6 +1616,7 @@ FilePosixLookupMountPoint(char const *canPath, // IN: Canonical file path
 
    // 'canPath' is not a mount point.
    endmntent(f);
+
    return NULL;
 }
 #endif
@@ -1914,6 +1932,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
        (st1.st_blocks == st2.st_blocks)) {
       return TRUE;
    }
+
    return FALSE;
 }
 
@@ -1996,6 +2015,7 @@ bail:
    free(oldPath);
 
    errno = status;
+
    return result;
 }
 
@@ -2129,14 +2149,17 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
 
    if (File_GetVMFSVersion(pathName, &version) < 0) {
       Log(LGPFX" %s: File_GetVMFSVersion Failed\n", __func__);
+
       return FALSE;
    }
    if (File_GetVMFSBlockSize(pathName, &blockSize) < 0) {
       Log(LGPFX" %s: File_GetVMFSBlockSize Failed\n", __func__);
+
       return FALSE;
    }
    if (File_GetVMFSfsType(pathName, &fsType) < 0) {
       Log(LGPFX" %s: File_GetVMFSfsType Failed\n", __func__);
+
       return FALSE;
    }
 
@@ -2151,12 +2174,14 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
 
       if (fileSize <= maxFileSize && maxFileSize != -1) {
          free(fsType);
+
          return TRUE;
       } else {
          Log(LGPFX" %s: Requested file size (%"FMT64"d) larger than maximum "
              "supported filesystem file size (%"FMT64"d)\n", __FUNCTION__,
              fileSize, maxFileSize);
          free(fsType);
+
          return FALSE;
       }
    } else {
@@ -2168,6 +2193,7 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
       if (fullPath == NULL) {
          Log(LGPFX" %s: Error acquiring full path\n", __func__);
          free(fsType);
+
          return FALSE;
       }
 
@@ -2184,6 +2210,7 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
 
 #endif
    Log(LGPFX" %s: did not execute properly\n", __func__);
+
    return FALSE; /* happy compiler */
 }
 
@@ -2423,7 +2450,7 @@ File_ListDirectory(ConstUnicode pathName,  // IN:
  */
 
 WalkDirContext
-File_WalkDirectoryStart(ConstUnicode parentPath) // IN
+File_WalkDirectoryStart(ConstUnicode parentPath)  // IN:
 {
    WalkDirContextImpl *context;
    char * const traversalRoots[] =
@@ -2434,8 +2461,7 @@ File_WalkDirectoryStart(ConstUnicode parentPath) // IN
       return NULL;
    }
 
-   context->fts = fts_open(traversalRoots,
-                           FTS_LOGICAL|FTS_NOSTAT|FTS_NOCHDIR,
+   context->fts = fts_open(traversalRoots, FTS_LOGICAL|FTS_NOSTAT|FTS_NOCHDIR,
                            NULL);
    if (!context->fts) {
       free(context);
@@ -2471,8 +2497,8 @@ File_WalkDirectoryStart(ConstUnicode parentPath) // IN
  */
 
 Bool
-File_WalkDirectoryNext(WalkDirContext context, // IN
-                       Unicode *path)          // OUT
+File_WalkDirectoryNext(WalkDirContext context,  // IN:
+                       Unicode *path)           // OUT:
 {
    FTSENT *nextEntry;
 
@@ -2482,17 +2508,20 @@ File_WalkDirectoryNext(WalkDirContext context, // IN
 
    do {
       nextEntry = fts_read(context->fts);
+
       /*
        * We'll skip any entries that cannot be read, are errors, or
        * are the second traversal (post-order) of a directory.
        */
-      if (   nextEntry
-          && nextEntry->fts_info != FTS_DNR
-          && nextEntry->fts_info != FTS_ERR
-          && nextEntry->fts_info != FTS_DP) {
+
+      if (nextEntry &&
+          nextEntry->fts_info != FTS_DNR &&
+          nextEntry->fts_info != FTS_ERR &&
+          nextEntry->fts_info != FTS_DP) {
          *path = Unicode_AllocWithLength(nextEntry->fts_path,
                                          nextEntry->fts_pathlen,
                                          STRING_ENCODING_DEFAULT);
+
          return TRUE;
       }
    } while (nextEntry);
@@ -2518,7 +2547,7 @@ File_WalkDirectoryNext(WalkDirContext context, // IN
  */
 
 void
-File_WalkDirectoryEnd(WalkDirContext context) // IN
+File_WalkDirectoryEnd(WalkDirContext context)  // IN:
 {
    ASSERT(context);
    ASSERT(context->fts);
@@ -2551,22 +2580,22 @@ File_WalkDirectoryEnd(WalkDirContext context) // IN
  */
 
 WalkDirContext
-File_WalkDirectoryStart(ConstUnicode parentPath) // IN
+File_WalkDirectoryStart(ConstUnicode parentPath)  // IN:
 {
    NOT_IMPLEMENTED();
 }
 
 
 Bool
-File_WalkDirectoryNext(WalkDirContext context, // IN
-                       Unicode *path)          // OUT
+File_WalkDirectoryNext(WalkDirContext context,  // IN:
+                       Unicode *path)           // OUT:
 {
    NOT_IMPLEMENTED();
 }
 
 
 void
-File_WalkDirectoryEnd(WalkDirContext context) // IN
+File_WalkDirectoryEnd(WalkDirContext context)  // IN:
 {
    NOT_IMPLEMENTED();
 }
@@ -2592,7 +2621,7 @@ File_WalkDirectoryEnd(WalkDirContext context) // IN
  */
 
 static Bool
-FileIsGroupsMember(gid_t gid)
+FileIsGroupsMember(gid_t gid)  // IN:
 {
    int nr_members;
    gid_t *members;
@@ -2715,7 +2744,7 @@ FileIsWritableDir(ConstUnicode dirName)  // IN:
  */
 
 static char *
-FileTryDir(const char *dirName) // IN: Is this a writable directory?
+FileTryDir(const char *dirName)  // IN: Is this a writable directory?
 {
    char *edirName;
 
@@ -2753,7 +2782,7 @@ FileTryDir(const char *dirName) // IN: Is this a writable directory?
  */
 
 char *
-File_GetTmpDir(Bool useConf) // IN: Use the config file?
+File_GetTmpDir(Bool useConf)  // IN: Use the config file?
 {
    char *dirName;
    char *edirName;
@@ -2833,7 +2862,7 @@ File_GetTmpDir(Bool useConf) // IN: Use the config file?
  */
 
 Bool
-File_MakeCfgFileExecutable(ConstUnicode pathName)
+File_MakeCfgFileExecutable(ConstUnicode pathName)  // IN:
 {
    struct stat s;
 
