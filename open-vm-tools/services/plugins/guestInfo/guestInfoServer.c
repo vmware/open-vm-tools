@@ -1045,14 +1045,14 @@ NicInfoV3ToV2(const NicInfoV3 *infoV3)
 
    nicList = Util_SafeCalloc(sizeof *nicList, 1);
 
-   XDRUTIL_ARRAYAPPEND(nicList, nics, infoV3->nics.nics_len);
+   (void)XDRUTIL_ARRAYAPPEND(nicList, nics, infoV3->nics.nics_len);
    XDRUTIL_FOREACH(i, infoV3, nics) {
       GuestNicV3 *nic = XDRUTIL_GETITEM(infoV3, nics, i);
       GuestNic *oldNic = XDRUTIL_GETITEM(nicList, nics, i);
 
       Str_Strcpy(oldNic->macAddress, nic->macAddress, sizeof oldNic->macAddress);
 
-      XDRUTIL_ARRAYAPPEND(oldNic, ips, nic->ips.ips_len);
+      (void)XDRUTIL_ARRAYAPPEND(oldNic, ips, nic->ips.ips_len);
 
       XDRUTIL_FOREACH(j, nic, ips) {
          IpAddressEntry *ipEntry = XDRUTIL_GETITEM(nic, ips, j);

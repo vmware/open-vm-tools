@@ -29,8 +29,8 @@
 /*
  * Enumerates the different versions of the messages.
  */
-enum UnityEnterVersion {
-  UNITY_ENTER_V1 = 1
+enum UnityOptionsVersion {
+  UNITY_OPTIONS_V1 = 1
 };
 
 /*
@@ -38,18 +38,20 @@ enum UnityEnterVersion {
  * Unity mode. By default all these features are disabled.
  */
 enum UnityFeatures {
-   UNITY_ADD_HIDDEN_WINDOWS_TO_TRACKER = 1
+   UNITY_ADD_HIDDEN_WINDOWS_TO_TRACKER = 1,
+   UNITY_INTERLOCK_MINIMIZE_OPERATION = 2,
+   UNITY_SEND_WINDOW_CONTENTS = 4
 };
 
 /*
  * The structure used for version 1 of the message.
  */
-struct UnityEnterV1 {
+struct UnityOptionsV1 {
   int featureMask;
 };
 
 /*
- * This defines the protocol for a 'unityEnter' message.
+ * This defines the protocol for a 'unityOptions' message.
  *
  * The union allows us to introduce new versions of the protocol later by
  * creating new values in the enumeration, without having to change much of
@@ -58,9 +60,9 @@ struct UnityEnterV1 {
  * Since the union doesn't have a default case, de-serialization will fail if
  * an unknown version is provided on the wire.
  */
-union UnityEnter switch (UnityEnterVersion ver) {
-case UNITY_ENTER_V1:
-   struct UnityEnterV1 *unityEnterV1;
+union UnityOptions switch (UnityOptionsVersion ver) {
+case UNITY_OPTIONS_V1:
+   struct UnityOptionsV1 *unityOptionsV1;
 };
 
 

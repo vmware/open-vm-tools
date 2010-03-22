@@ -52,6 +52,7 @@
 #include "dynxdr.h"
 #include "guestrpc/unity.h"
 #include "guestrpc/unityActive.h"
+#include "guestrpc/unity.h"
 #include "appUtil.h"
 #include "xdrutil.h"
 #include <stdio.h>
@@ -64,6 +65,7 @@ typedef struct UnityState {
    UnityWindowTracker tracker;
    Bool forceEnable;
    Bool isEnabled;
+   uint32 currentOptions;                       // Last feature mask received via 'set.options'
    UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
    UnityUpdateChannel updateChannel;            // Unity update transmission channel.
    UnityPlatform *up; // Platform-specific state
@@ -152,6 +154,15 @@ static Bool UnityTcloSetWindowDesktop(char const **result,
                                       size_t argsSize,
                                       void *clientData);
 
+static void UnitySetAddHiddenWindows(Bool enabled);
+static void UnitySetInterlockMinimizeOperation(Bool enabled);
+static void UnitySetSendWindowContents(Bool enabled);
+
+/*
+ * Wrapper function for the "unity.set.options" RPC.
+ */
+static Bool UnityTcloSetUnityOptions(RpcInData *data);
+
 /*
  * Wrapper function for the "unity.window.contents.request" RPC.
  */
@@ -207,6 +218,23 @@ static UnityCommandElem unityCommandTable[] = {
    { UNITY_RPC_WINDOW_UNSTICK, UnityPlatformUnstickWindow },
    /* Add more commands and handlers above this. */
    { NULL, NULL }
+};
+
+typedef struct {
+   uint32 featureBit;
+   void (*setter)(Bool enabled);
+} UnityFeatureSetter;
+
+/*
+ * Dispatch table for each unity option and a specific function to handle enabling
+ * or disabling the option. The function is called with an enable (TRUE) bool value.
+ */
+static UnityFeatureSetter unityFeatureTable[] = {
+   { UNITY_ADD_HIDDEN_WINDOWS_TO_TRACKER, UnitySetAddHiddenWindows },
+   { UNITY_INTERLOCK_MINIMIZE_OPERATION, UnitySetInterlockMinimizeOperation },
+   { UNITY_SEND_WINDOW_CONTENTS, UnitySetSendWindowContents },
+   /* Add more Unity Feature Setters above this. */
+   {0, NULL}
 };
 
 /*
@@ -454,6 +482,9 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
                              UnityTcloSetDesktopActive, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_DESKTOP_SET,
                              UnityTcloSetWindowDesktop, NULL);
+
+      RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_SET_OPTIONS,
+                               UnityTcloSetUnityOptions, NULL);
 
       RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_WINDOW_CONTENTS_REQUEST,
                                UnityTcloRequestWindowContents, NULL);
@@ -2021,6 +2052,84 @@ error:
 /*
  *----------------------------------------------------------------------------
  *
+ * UnityTcloSetUnityOptions --
+ *
+ *     Set the Unity options - must be be called before entering Unity mode.
+ *
+ * Results:
+ *     TRUE if RPC was succesfully handled.
+ *     FALSE otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+UnityTcloSetUnityOptions(RpcInData *data)
+{
+   Bool ret = TRUE;
+   UnityOptions optionsMsg;
+   int featureIndex = 0;
+   uint32 featuresChanged;
+
+   memset(&optionsMsg, 0, sizeof optionsMsg);
+
+   /* Check our arguments. */
+   ASSERT(data);
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!(data && data->name && data->args)) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+      goto exit;
+   }
+
+   Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
+         __FUNCTION__, data->name, data->argsSize);
+
+   /*
+    * Deserialize the XDR data. Note that the data begins with args + 1 since
+    * there is a space between the RPC name and the XDR serialization.
+    */
+   if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
+                            xdr_UnityOptions, &optionsMsg)) {
+      Debug("%s: Failed to deserialize data\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
+      goto exit;
+   }
+
+   /*
+    * For each potential feature bit XOR the current mask with the newly
+    * specified set, then if the bit has changed call the specific setter
+    * function with TRUE/FALSE according to the new state of the bit.
+    */
+   featuresChanged = optionsMsg.UnityOptions_u.unityOptionsV1->featureMask ^
+                     unity.currentOptions;
+   while (unityFeatureTable[featureIndex].featureBit != 0) {
+      if (featuresChanged & unityFeatureTable[featureIndex].featureBit) {
+         unityFeatureTable[featureIndex].setter(
+            optionsMsg.UnityOptions_u.unityOptionsV1->featureMask &
+            unityFeatureTable[featureIndex].featureBit);
+      }
+      featureIndex++;
+   }
+
+   ret = RPCIN_SETRETVALS(data,
+                          "",
+                          TRUE);
+exit:
+   VMX_XDR_FREE(xdr_UnityOptions, &optionsMsg);
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * UnityTcloRequestWindowContents --
  *
  *     Request the window contents for a set of windows.
@@ -2094,6 +2203,7 @@ exit:
    return ret;
 }
 
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -2152,7 +2262,7 @@ out:
 
 
 /*
- *------------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * UnitySendWindowContents --
  *
@@ -2230,6 +2340,109 @@ UnitySendWindowContents(UnityWindowId windowID, // IN
 
 exit:
    return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UnitySetAddHiddenWindows --
+ *
+ *     Set (or unset) whether hidden windows should be added to the tracker.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+UnitySetAddHiddenWindows(Bool enabled)
+{
+   /*
+    * Should we add hidden windows to the tracker (the host will use the trackers
+    * attribute field to display hidden windows in the appropriate manner.)
+    */
+   if (enabled) {
+      Debug("%s: Adding hidden windows to tracker\n", __FUNCTION__);
+   } else {
+      Debug("%s: Do not add hidden windows to tracker\n", __FUNCTION__);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UnitySetInterlockMinimizeOperation --
+ *
+ *     Set (or unset) whether window operations should be denied/delayed and
+ *     relayed to the host for later confirmation.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+UnitySetInterlockMinimizeOperation(Bool enabled)
+{
+   /*
+    * Should we interlock operations through the host. For example: instead of
+    * allowing minimize to occur immediately in the guest should we prevent the
+    * minimize of a window in the guest, then relay the minimize to the host and wait
+    * for the hosts confirmation before actually minimizing the window in the guest.
+    */
+   if (enabled) {
+      Debug("%s: Interlocking minimize operations through the host\n",
+            __FUNCTION__);
+   } else {
+      Debug("%s: Do not interlock minimize operations through the host\n",
+            __FUNCTION__);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UnitySetSendWindowContents --
+ *
+ *     Set (or unset) whether window contents should be sent to the host.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+UnitySetSendWindowContents(Bool enabled)
+{
+   /*
+    * Is the host prepared to receive scraped window contents at any time - even though
+    * it may not have previously requested the window contents. Explicit requests from
+    * the host will always be honored - this flag determines whether the guest will send
+    * the window contents directly after a qualifying operation (like changes in the
+    * z-order of a window).
+    */
+   if (enabled) {
+      Debug("%s: Sending window contents to the host on appropriate events\n",
+            __FUNCTION__);
+   } else {
+      Debug("%s: Do not send window contents to the host on appropriate events\n",
+            __FUNCTION__);
+   }
 }
 
 

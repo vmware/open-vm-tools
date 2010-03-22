@@ -230,6 +230,7 @@
 #define UNITY_RPC_DESKTOP_CONFIG_SET      "unity.desktop.config.set"
 #define UNITY_RPC_DESKTOP_ACTIVE_SET      "unity.desktop.active.set"
 #define UNITY_RPC_WINDOW_DESKTOP_SET      "unity.window.desktop.set"
+#define UNITY_RPC_SET_OPTIONS             "unity.set.options"
 #define UNITY_RPC_WINDOW_STICK            "unity.window.stick"
 #define UNITY_RPC_WINDOW_UNSTICK          "unity.window.unstick"
 #define UNITY_RPC_WINDOW_CONTENTS_REQUEST "unity.window.contents.request"
@@ -756,6 +757,14 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    @param[in] offset Offset into desktop configuration, as defined by
                      @ref UNITY_RPC_DESKTOP_CONFIG_SET, 0 or greater.
 
+   @def         UNITY_RPC_SET_OPTIONS
+   @brief       Set optional behaviour for unity mode in the guest.
+   @code
+   UNITY_RPC_SET_OPTIONS
+   @endcode
+   @param[in]   XDR encoded options mask.
+   @note        This must be called before entering Unity mode - setting the options
+                after Unity mode has begun will result in undefined behaviour.
 
    @def         UNITY_RPC_WINDOW_STICK
    @brief       "Stick" a window to the screen.
