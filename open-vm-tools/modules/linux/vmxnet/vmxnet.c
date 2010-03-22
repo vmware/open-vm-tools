@@ -78,7 +78,7 @@ static int vmxnet_close(struct net_device *dev);
 static void vmxnet_set_multicast_list(struct net_device *dev);
 static int vmxnet_set_mac_address(struct net_device *dev, void *addr);
 static struct net_device_stats *vmxnet_get_stats(struct net_device *dev);
-#ifdef HAVE_CHANGE_MTU
+#if defined(HAVE_CHANGE_MTU) || defined(HAVE_NET_DEVICE_OPS)
 static int vmxnet_change_mtu(struct net_device *dev, int new_mtu);
 #endif
 
@@ -271,7 +271,7 @@ static struct pci_driver vmxnet_driver = {
 #endif
                                          };
 
-#ifdef HAVE_CHANGE_MTU
+#if defined(HAVE_CHANGE_MTU) || defined(HAVE_NET_DEVICE_OPS)
 static int
 vmxnet_change_mtu(struct net_device *dev, int new_mtu)
 {
