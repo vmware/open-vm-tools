@@ -66,6 +66,7 @@
 #include "timeutil.h"
 #include "dynbuf.h"
 #include "localconfig.h"
+#include "hostType.h"
 
 #include "unicodeOperations.h"
 
@@ -365,48 +366,39 @@ FileAttributes(ConstUnicode pathName,  // IN:
 Bool
 File_IsRemote(ConstUnicode pathName)  // IN: Path name
 {
-   struct statfs sfbuf;
+   if (HostType_OSIsVMK()) {
+      /*
+       * All files and file systems are treated as "directly attached" in ESX.
+       */
 
-#if defined(VMX86_SERVER)
-   /*
-    * On ESX, statfs() will always return VMFS_MAGIC for files on VMFS so this
-    * function is only correct for files on COS, otherwise it always returns
-    * FALSE.
-    * On VMvisor, statfs() could return VMFS_NFS_MAGIC but it is very slow.
-    * Since there is no COS for VMvisor, just be on par with ESX and return
-    * FALSE directly.
-    * XXX See PR 158284. It is not clear what the side-effects are of this
-    * function being incorrect for VMFS files.
-    */
-
-   if (HostType_OSIsPureVMK()) {
       return FALSE;
-   }
-#endif
+   } else {
+      struct statfs sfbuf;
 
-   if (Posix_Statfs(pathName, &sfbuf) == -1) {
-      Log(LGPFX" %s: statfs(%s) failed: %s\n", __func__, UTF8(pathName),
-          strerror(errno));
+      if (Posix_Statfs(pathName, &sfbuf) == -1) {
+         Log(LGPFX" %s: statfs(%s) failed: %s\n", __func__, UTF8(pathName),
+             strerror(errno));
 
-      return TRUE;
-   }
+         return TRUE;
+      }
 #if defined(__APPLE__)
-   return sfbuf.f_flags & MNT_LOCAL ? FALSE : TRUE;
+      return sfbuf.f_flags & MNT_LOCAL ? FALSE : TRUE;
 #else
-   if (NFS_SUPER_MAGIC == sfbuf.f_type) {
-      return TRUE;
-   }
+      if (NFS_SUPER_MAGIC == sfbuf.f_type) {
+         return TRUE;
+      }
 
-   if (SMB_SUPER_MAGIC == sfbuf.f_type) {
-      return TRUE;
-   }
+      if (SMB_SUPER_MAGIC == sfbuf.f_type) {
+         return TRUE;
+      }
 
-   if (CIFS_SUPER_MAGIC == sfbuf.f_type) {
-      return TRUE;
-   }
+      if (CIFS_SUPER_MAGIC == sfbuf.f_type) {
+         return TRUE;
+      }
 
-   return FALSE;
+      return FALSE;
 #endif
+   }
 }
 #endif /* !FreeBSD && !sun */
 
@@ -1389,52 +1381,14 @@ File_GetVMFSMountInfo(ConstUnicode pathName,
  */
 
 Bool
-File_OnVMFS(ConstUnicode pathName)
+File_OnVMFS(ConstUnicode pathName)  // IN:
 {
-#if defined(VMX86_SERVER)
-   Bool ret;
-   struct statfs statfsbuf;
-
-   /* XXX See Vmfs_IsVMFSDir. Same caveat about fs exclusion. */
-   if (HostType_OSIsPureVMK()) {
-      return TRUE;
-   }
-
    /*
-    * Do a quick statfs() for best performance in the case that the file
-    * exists.  If file doesn't exist, then get the full path and do a
-    * FileGetStats() to check each of the parent directories.
+    * VMFS exists only on ESX and all file systems appear to be directly
+    * attached and VMFS.
     */
 
-   if (Posix_Statfs(pathName, &statfsbuf) == -1) {
-      int err;
-      Unicode fullPath;
-
-      fullPath = File_FullPath(pathName);
-      if (fullPath == NULL) {
-         ret = FALSE;
-         goto end;
-      }
-
-      err = FileGetStats(fullPath, FALSE, &statfsbuf);
-
-      Unicode_Free(fullPath);
-
-      if (err == -1) {
-         Warning(LGPFX" %s: Couldn't statfs\n", __FUNCTION__);
-         ret = FALSE;
-         goto end;
-      }
-   }
-
-   ret = (statfsbuf.f_type == VMFS_MAGIC_NUMBER);
-
-end:
-
-   return ret;
-#else
-   return FALSE;
-#endif
+   return HostType_OSIsVMK();
 }
 
 
@@ -2023,48 +1977,6 @@ bail:
 /*
  *----------------------------------------------------------------------
  *
- * FileIsVMFS --
- *
- *      Determine whether specified file lives on VMFS filesystem.
- *      Only Linux host can have VMFS, so skip it on Solaris
- *      and FreeBSD.
- *
- * Results:
- *      TRUE if specified file lives on VMFS
- *      FALSE if file is not on VMFS or does not exist
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-FileIsVMFS(ConstUnicode pathName)  // IN: file name to test
-{
-#if defined(linux)
-   struct statfs statfsbuf;
-
-#if defined(VMX86_SERVER)
-   /* XXX See Vmfs_IsVMFSFile. Same caveat about fs exclusion. */
-   if (HostType_OSIsPureVMK()) {
-      return TRUE;
-   }
-#endif
-
-   if (Posix_Statfs(pathName, &statfsbuf) == 0) {
-      return statfsbuf.f_type == VMFS_SUPER_MAGIC;
-   }
-
-#endif
-
-   return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * FilePosixCreateTestFileSize --
  *
  *      See if the given directory is on a file system that supports
@@ -2262,7 +2174,7 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    /* 
     * This function expects a filename. If given one, truncate the name to
     * point to the parent directory so we can get accurate results from
-    * FileIsVMFS. If handed a directory directly, no truncation is necessary.
+    * File_OnVMFS. If handed a directory directly, no truncation is necessary.
     */
 
    if (File_IsDirectory(pathName)) {
@@ -2276,7 +2188,7 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
     * See function File_VMFSSupportsFileSize() - PR 146965
     */
 
-   if (FileIsVMFS(folderPath)) {
+   if (File_OnVMFS(folderPath)) {
       supported = File_VMFSSupportsFileSize(pathName, fileSize);
       goto out;
    }
