@@ -1348,18 +1348,39 @@ struct {
 #include "vmware_pack_end.h"
 SCSIReadCapacity16Cmd;
 
+/*
+ * Format of READ CAP(16) response: sbc2r09 (Sec 5.2.12).
+ */
 typedef
 #include "vmware_pack_begin.h"
 struct {
    uint64 lbn;
    uint32 blocksize;
-   uint16 unused;
-   uint8  :6,
-          tprz:1,
-          tpe:1;
 }
 #include "vmware_pack_end.h"
 SCSIReadCapacity16Response;
+
+/*
+ * Format of READ CAP(16) response: sbc3r21 (Sec 5.14.2)
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   uint64 lbn;
+   uint32 blocksize;
+   uint8  reserved1:4,
+          p_type:3,
+          prot_en:1;
+   uint8  pi_exp:4,
+          lbs_exp:4;
+   uint8  firstalignedlbahi:6,
+          tprz:1,
+          tpe:1;
+   uint8  firstalignedlbalo;
+   uint8  reserved2[16];
+}
+#include "vmware_pack_end.h"
+SCSI3ReadCapacity16Response;
 
 /*
  * Format of SYNCHRONIZE CACHE (10) and (16) request and response blocks.
