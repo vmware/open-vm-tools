@@ -27,6 +27,7 @@
 #include "guestApp.h"
 #include "toolsCoreInt.h"
 #include "util.h"
+#include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
 
@@ -476,6 +477,7 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       plugin = g_malloc(sizeof *plugin);
       plugin->module = module;
       plugin->data = data;
+      VMTools_BindTextDomain(data->name, NULL, NULL);
 
       g_ptr_array_add(regs, plugin);
       g_debug("Plugin '%s' initialized.\n", plugin->data->name);

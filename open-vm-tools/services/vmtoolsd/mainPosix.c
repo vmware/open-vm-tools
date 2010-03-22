@@ -24,6 +24,7 @@
 
 
 #include "toolsCoreInt.h"
+#include <locale.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
@@ -34,6 +35,7 @@
 #include "system.h"
 #include "unicode.h"
 #include "util.h"
+#include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
@@ -132,6 +134,10 @@ main(int argc,
    for (i = 0; i < argc; i++) {
       argvCopy[i] = argv[i];
    }
+
+   setlocale(LC_ALL, "");
+   VMTools_ConfigLogging(G_LOG_DOMAIN, NULL, FALSE, FALSE);
+   VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
    if (!ToolsCore_ParseCommandLine(&gState, argc, argvCopy)) {
       g_free(argvCopy);

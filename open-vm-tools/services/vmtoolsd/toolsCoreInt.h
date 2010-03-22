@@ -25,7 +25,8 @@
  *    Internal functions for the tools daemon.
  */
 
-#define G_LOG_DOMAIN       "vmtoolsd"
+#define VMW_TEXT_DOMAIN    "vmtoolsd"
+#define G_LOG_DOMAIN       VMW_TEXT_DOMAIN
 #define TOOLSCORE_COMMON   "common"
 
 #include <glib-object.h>
