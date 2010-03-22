@@ -354,8 +354,22 @@ FileAttributes(ConstUnicode pathName,  // IN:
  * File_IsRemote --
  *
  *      Determine whether a file is on a remote filesystem.
- *      In case of an error be conservative and assume that 
- *      the file is a remote file.
+ *
+ *      On ESX all files are treated as local files, as all
+ *      callers of this function wants to do is to post message
+ *      that performance will be degraded on remote filesystems.
+ *      On ESX (a) performance should be acceptable with remote
+ *      files, and (b) even if it is not, we should not ask users
+ *      whether they are aware that it is poor.  ESX has
+ *      performance monitoring which can notify user if something
+ *      is wrong.
+ *
+ *      On hosted platform we report remote files as faithfully
+ *      as we can because having mainmem file on NFS is known
+ *      to badly affect VM consistency when NFS filesystem gets
+ *      reconnected.  Due to that we are conservative, and report
+ *      filesystem as remote if there was some problem with
+ *      determining file remoteness.
  *
  * Results:
  *      The answer.
@@ -372,9 +386,9 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
 {
    if (HostType_OSIsVMK()) {
       /*
-       * All files and file systems are treated as "directly attached" in ESX.
+       * All files and file systems are treated as "directly attached"
+       * on ESX.  See bug 158284.
        */
-
       return FALSE;
    } else {
       struct statfs sfbuf;
