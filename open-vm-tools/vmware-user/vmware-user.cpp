@@ -176,8 +176,9 @@ static int const gSignals[] = {
  *-----------------------------------------------------------------------------
  */
 
-void VMwareUserCleanupRpc(void)
+void VMwareUserCleanupRpc(Bool isXError) // IN
 {
+   Debug("%s: enter\n", __FUNCTION__);
    if (gRpcIn) {
       Unity_UnregisterCaps();
       GHI_Cleanup();
@@ -190,7 +191,7 @@ void VMwareUserCleanupRpc(void)
       }
 
       if (!RpcIn_stop(gRpcIn)) {
-         Debug("Failed to stop RpcIn loop\n");
+         Debug("%s: failed to stop RpcIn loop\n", __FUNCTION__);
       }
       if (gOpenUrlRegistered) {
          FoundryToolsDaemon_UnregisterOpenUrl();
@@ -198,10 +199,23 @@ void VMwareUserCleanupRpc(void)
       }
 
       CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
+
+      /*
+       * We can't call the normal APIs to tear down DnD/CP because they
+       * involve Xlib calls that can't be made after X IO error. So, use
+       * an entry point that performs a subset of the cleanup we normally
+       * do on a reset, to ensure that any file transfers in flight get
+       * failed properly. See bug 458626.
+       */
       if (p) {
-         p->UnregisterDnD();
-         p->UnregisterCP();
+         if (!isXError) {
+            p->UnregisterDnD();
+            p->UnregisterCP();
+         } else {
+            p->Cancel();
+         }
       }
+
       RpcIn_Destruct(gRpcIn);
       gRpcIn = NULL;
    }
@@ -241,7 +255,7 @@ void VMwareUserSignalHandler(int sig) // IN
    }
 
    if (gSigExit) {
-      VMwareUserCleanupRpc();
+      VMwareUserCleanupRpc(FALSE);
    }
 
 #if defined(HAVE_GTKMM)
@@ -273,7 +287,7 @@ void
 VMwareUser_OnDestroy(GtkWidget *widget, // IN: Unused
                      gpointer data)     // IN: Unused
 {
-   VMwareUserCleanupRpc();
+   VMwareUserCleanupRpc(FALSE);
 #if defined(HAVE_GTKMM)
    Gtk::Main::quit();
 #else
@@ -653,13 +667,13 @@ int VMwareUserXIOErrorHandler(Display *dpy)
     * watching the process being run.  When it dies, it will come
     * through here, so we don't want to let it shut down the Rpc
     */
-   Debug("> VMwareUserXIOErrorHandler\n");
+   Debug("> %s\n", __FUNCTION__);
    if (my_pid == gParentPid) {
-      VMwareUserCleanupRpc();
+      VMwareUserCleanupRpc(TRUE);
       ReloadSelf();
       exit(EXIT_FAILURE);
    } else {
-      Debug("VMwareUserXIOErrorHandler hit from forked() child, not cleaning Rpc\n");
+      Debug("%s hit from forked() child, not cleaning Rpc\n", __FUNCTION__);
       _exit(EXIT_FAILURE);
    }
 

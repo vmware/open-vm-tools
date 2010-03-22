@@ -60,6 +60,7 @@ public:
    void SetCopyPasteAllowed(bool isCopyPasteAllowed)
       { mCP.SetCopyPasteAllowed(isCopyPasteAllowed); }
    void Reset(void);
+   void Cancel(void);
    void SetBlockControl(DnDBlockControl *blockCtrl)
       { Debug("Setting mBlockCtrl to %p\n", blockCtrl);
         mBlockCtrl = blockCtrl; }

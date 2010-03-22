@@ -3084,6 +3084,82 @@ UnityPlatformRequestWindowContents(UnityPlatform *up,
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformConfirmMinimizeOperation --
+ *
+ *     Minimize a window (if allowed) by the host.
+ *
+ * Results:
+ *     Returns TRUE if successful, and FALSE otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+Bool
+UnityPlatformConfirmMinimizeOperation(UnityPlatform *up,        // IN
+                                      UnityWindowId windowId,   // IN
+                                      uint32 sequence,          // IN
+                                      Bool allow)               // IN
+{
+   ASSERT(up);
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformSetInterlockMinimizeOperation --
+ *
+ *     Enable (or Disable) the interlocking (relaying) of minimize operations
+ *     through the host.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void UnityPlatformSetInterlockMinimizeOperation(UnityPlatform *up,   // IN
+                                                Bool enabled)        // IN
+{
+   ASSERT(up);
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnityPlatformWillRemoveWindow --
+ *
+ *    Called when a window is removed from the UnityWindowTracker.
+ *
+ *    NOTE: This function is called with the platform lock held.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *------------------------------------------------------------------------------
+ */
+
+void
+UnityPlatformWillRemoveWindow(UnityPlatform *up,      // IN
+                              UnityWindowId windowId) // IN
+{
+   ASSERT(up);
+}
+
+
+/*
  ******************************************************************************
  * Begin file-scope functions.
  *

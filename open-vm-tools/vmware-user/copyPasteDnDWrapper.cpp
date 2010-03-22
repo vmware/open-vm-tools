@@ -222,6 +222,25 @@ CopyPasteDnDWrapper::RegisterCP()
 
 /**
  *
+ * Cancel DnD and copy paste.
+ */
+
+void
+CopyPasteDnDWrapper::Cancel()
+{
+#if defined(HAVE_GTKMM)
+   if (m_dndUI) {
+      m_dndUI->Cancel();
+   }
+   if (m_copyPasteUI) {
+      m_copyPasteUI->Cancel();
+   }
+#endif
+}
+
+
+/**
+ *
  * Register DnD capabilities with the VMX. Try newest version
  * first, then fall back to the legacy implementation.
  *

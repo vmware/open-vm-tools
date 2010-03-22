@@ -153,6 +153,12 @@ static Bool UnityTcloSetWindowDesktop(char const **result,
                                       const char *args,
                                       size_t argsSize,
                                       void *clientData);
+static Bool UnityTcloConfirmOperation(char const **result,
+                                      size_t *resultLen,
+                                      const char *name,
+                                      const char *args,
+                                      size_t argsSize,
+                                      void *clientData);
 
 static void UnitySetAddHiddenWindows(Bool enabled);
 static void UnitySetInterlockMinimizeOperation(Bool enabled);
@@ -482,6 +488,8 @@ Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
                              UnityTcloSetDesktopActive, NULL);
       RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_DESKTOP_SET,
                              UnityTcloSetWindowDesktop, NULL);
+      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_CONFIRM_OPERATION,
+                             UnityTcloConfirmOperation, NULL);
 
       RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_SET_OPTIONS,
                                UnityTcloSetUnityOptions, NULL);
@@ -1130,6 +1138,67 @@ UnityTcloGetUpdate(char const **result,     // OUT
 /*
  *----------------------------------------------------------------------------
  *
+ * UnityTcloConfirmOperation --
+ *
+ *     RPC handler for 'unity.operation.confirm'.
+ *
+ * Results:
+ *     TRUE if the confirmation could be handled sucessfully.
+ *     FALSE otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+UnityTcloConfirmOperation(char const **result,     // OUT
+                          size_t *resultLen,       // OUT
+                          const char *name,        // IN
+                          const char *args,        // IN
+                          size_t argsSize,         // IN
+                          void *clientData)        // ignored
+{
+   UnityConfirmOperation unityConfirmOpMsg = {0};
+   UnityConfirmOperationV1 *confirmV1 = NULL;
+   Bool retVal = FALSE;
+   unsigned int ret;
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /*
+    * Deserialize the XDR data. Note that the data begins with args + 1 since
+    * there is a space between the RPC name and the XDR serialization.
+    */
+   if (!XdrUtil_Deserialize((char *)args + 1, argsSize - 1,
+                            xdr_UnityConfirmOperation, &unityConfirmOpMsg)) {
+      ret = RpcIn_SetRetVals(result, resultLen, "Failed to deserialize data", FALSE);
+      goto exit;
+   }
+
+   confirmV1 = unityConfirmOpMsg.UnityConfirmOperation_u.unityConfirmOpV1;
+   if (MINIMIZE == confirmV1->details.op) {
+      retVal = UnityPlatformConfirmMinimizeOperation(unity.up,
+                                                     confirmV1->windowId,
+                                                     confirmV1->sequence,
+                                                     confirmV1->allow);
+   } else {
+      Debug("%s: Confirmation for unknown operation ID = %d\n", __FUNCTION__,
+            confirmV1->details.op);
+   }
+   /* Free any memory allocated by XDR - we're done with unityConfirmOpMsg */
+   VMX_XDR_FREE(xdr_UnityConfirmOperation, &unityConfirmOpMsg);
+   ret = RpcIn_SetRetVals(result, resultLen, "", retVal);
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * UnityGetUpdateCommon --
  *
  *     Get the unity window update and append it to the specified output buffer.
@@ -1250,6 +1319,12 @@ UnityUpdateCallbackFn(void *param,          // IN: dynbuf
       break;
 
    case UNITY_UPDATE_REMOVE_WINDOW:
+      /*
+       * Let the platform know that this window has been removed. This is
+       * useful on platforms that must poll for window changes.
+       */
+      UnityPlatformWillRemoveWindow(unity.up, update->u.removeWindow.id);
+
       Str_Sprintf(data, sizeof data, "remove %u", update->u.removeWindow.id);
       DynBuf_AppendString(buf, data);
       break;
@@ -2111,8 +2186,8 @@ UnityTcloSetUnityOptions(RpcInData *data)
    while (unityFeatureTable[featureIndex].featureBit != 0) {
       if (featuresChanged & unityFeatureTable[featureIndex].featureBit) {
          unityFeatureTable[featureIndex].setter(
-            optionsMsg.UnityOptions_u.unityOptionsV1->featureMask &
-            unityFeatureTable[featureIndex].featureBit);
+            (optionsMsg.UnityOptions_u.unityOptionsV1->featureMask &
+            unityFeatureTable[featureIndex].featureBit) != 0);
       }
       featureIndex++;
    }
@@ -2264,6 +2339,76 @@ out:
 /*
  *----------------------------------------------------------------------------
  *
+ * UnityXdrRequestOperation --
+ *
+ *    XDR encoder function for UnityRequestOperation.
+ *
+ *    See UnityXdrSendRpc().
+ *
+ * Results:
+ *    Returns true if the XDR struct was encoded successfully.
+ *
+ * Side-effects:
+ *    None.
+ *------------------------------------------------------------------------------
+ */
+
+Bool
+UnityXdrRequestOperation(XDR *xdrs,    // IN
+                         void *arg)    // IN
+{
+   ASSERT(xdrs);
+   ASSERT(arg);
+   return xdr_UnityRequestOperation(xdrs, (UnityRequestOperation *) arg);
+}
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnitySendRequestMinimizeOperation --
+ *
+ *     Send a request for a minimize operation to the host.
+ *
+ * Results:
+ *     TRUE if everything is successful.
+ *     FALSE otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+UnitySendRequestMinimizeOperation(UnityWindowId windowId,   // IN
+                                  uint32 sequence)          // IN
+{
+   Bool ret = FALSE;
+   UnityRequestOperation msg = { 0 };
+   UnityRequestOperationV1 v1 = { 0 };
+
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   v1.windowId = windowId;
+   v1.sequence = sequence;
+   v1.details.op = MINIMIZE;
+
+   msg.ver = UNITY_OP_V1;
+   msg.UnityRequestOperation_u.unityRequestOpV1 = &v1;
+
+   ret = UnityXdrSendRpc(UNITY_RPC_REQUEST_OPERATION,
+                         &UnityXdrRequestOperation,
+                         &msg);
+
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * UnitySendWindowContents --
  *
  *     Sends the content of a window to the host, as a PNG encoded image. If the
@@ -2407,6 +2552,7 @@ UnitySetInterlockMinimizeOperation(Bool enabled)
       Debug("%s: Do not interlock minimize operations through the host\n",
             __FUNCTION__);
    }
+   UnityPlatformSetInterlockMinimizeOperation(unity.up, enabled);
 }
 
 

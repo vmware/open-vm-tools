@@ -957,6 +957,7 @@ Posix_Execl(ConstUnicode pathName,   // IN:
          va_start(vl, arg0);
          for (i = 1; i < count; i++) {
             if (!PosixConvertToCurrent(va_arg(vl, char *), &argv[i])) {
+               va_end(vl);
                goto exit;
             }
          }
@@ -1035,6 +1036,7 @@ Posix_Execlp(ConstUnicode fileName,  // IN:
          va_start(vl, arg0);
          for (i = 1; i < count; i++) {
             if (!PosixConvertToCurrent(va_arg(vl, char *), &argv[i])) {
+               va_end(vl);
                goto exit;
             }
          }

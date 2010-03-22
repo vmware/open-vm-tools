@@ -271,6 +271,26 @@ DnDUI::CommonResetCB(void)
 }
 
 
+/**
+ *
+ * Cancel any DnD file transfers and reset.
+ */
+
+void
+DnDUI::Cancel()
+{
+   Debug("%s: enter\n", __FUNCTION__);
+   if (m_blockAdded) {
+      /*
+       * If we don't do this, the destination will have something to
+       * copy, and likely truncated. So remove it.
+       */
+      DnD_DeleteStagingFiles(m_HGStagingDir.c_str(), false);
+   }
+   CommonResetCB();
+}
+
+
 /* Source functions for HG DnD. */
 
 /**
@@ -499,6 +519,10 @@ DnDUI::CommonUpdateDetWndCB(bool bShow,
                             int32 x,
                             int32 y)
 {
+   Debug("%s: enter 0x%lx show %d x %d y %d\n",
+         __FUNCTION__,
+         (unsigned long) m_detWnd->get_window()->gobj(), bShow, x, y);
+
    /* If the window is being shown, move it to the right place. */
    if (bShow) {
       x = MAX(x - DRAG_DET_WINDOW_WIDTH / 2, 0);
@@ -538,6 +562,10 @@ DnDUI::CommonUpdateUnityDetWndCB(bool bShow,
                                  uint32 unityWndId,
                                  bool bottom)
 {
+   Debug("%s: enter 0x%lx unityID 0x%x\n",
+         __FUNCTION__,
+         (unsigned long) m_detWnd->get_window()->gobj(),
+         unityWndId);
    if (bShow && ((unityWndId > 0) || bottom)) {
       int width = m_detWnd->GetScreenWidth();
       int height = m_detWnd->GetScreenHeight();
@@ -650,9 +678,9 @@ DnDUI::GtkDestDragMotionCB(const Glib::RefPtr<Gdk::DragContext> &dc,
    /*
     * If this is a Host to Guest drag, we are done here, so return.
     */
-   Debug("%s: enter", __FUNCTION__);
-
    unsigned long curTime = GetTimeInMillis();
+   Debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
    if (curTime - m_destDropTime <= 1000) {
       Debug("%s: ignored %ld %ld %ld\n", __FUNCTION__,
             curTime, m_destDropTime, curTime - m_destDropTime);
@@ -763,7 +791,21 @@ void
 DnDUI::GtkDestDragLeaveCB(const Glib::RefPtr<Gdk::DragContext> &dc,
                           guint time)
 {
-   Debug("%s: enter\n", __FUNCTION__);
+   Debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
+
+   /*
+    * If we reach here after reset DnD, or we are getting a late
+    * DnD drag leave signal (we have started another DnD), then
+    * finish the old DnD. Otherwise, Gtk will not reset and a new
+    * DnD will not start until Gtk+ times out (which appears to
+    * be 5 minutes).
+    * See http://bugzilla.eng.vmware.com/show_bug.cgi?id=528320
+    */
+   if (!m_dc || dc->gobj() != m_dc) {
+      Debug("%s: calling drag_finish\n", __FUNCTION__);
+      dc->drag_finish(true, false, time);
+   }
 }
 
 
@@ -822,7 +864,9 @@ DnDUI::GtkSourceDragDataGetCB(const Glib::RefPtr<Gdk::DragContext> &dc,
 
    selection_data.set(target.c_str(), "");
 
-   Debug("%s: enter with target %s\n", __FUNCTION__, target.c_str());
+   Debug("%s: enter dc %p, m_dc %p with target %s\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL,
+         target.c_str());
 
    if (!m_inHGDrag) {
       Debug("%s: not in drag, return\n", __FUNCTION__);
@@ -994,7 +1038,8 @@ DnDUI::GtkDestDragDataReceivedCB(const Glib::RefPtr<Gdk::DragContext> &dc,
                                  guint info,
                                  guint time)
 {
-   Debug("%s: enter\n", __FUNCTION__);
+   Debug("%s: enter dc %p, m_dc %p\n", __FUNCTION__,
+         dc ? dc->gobj() : NULL, m_dc ? m_dc : NULL);
    /* The GH DnD may already finish before we got response. */
    if (!m_GHDnDInProgress) {
       Debug("%s: not valid\n", __FUNCTION__);
@@ -1060,7 +1105,8 @@ DnDUI::GtkDestDragDropCB(const Glib::RefPtr<Gdk::DragContext> &dc,
                          int y,
                          guint time)
 {
-   Debug("%s: enter x %d y %d\n", __FUNCTION__, x, y);
+   Debug("%s: enter dc %p, m_dc %p x %d y %d\n", __FUNCTION__,
+         (dc ? dc->gobj() : NULL), (m_dc ? m_dc : NULL), x, y);
 
    Glib::ustring target;
 

@@ -67,6 +67,7 @@ public:
    void SetBlockControl(DnDBlockControl *blockCtrl);
    void SetUnityMode(Bool mode)
       {m_unityMode = mode;};
+   void Cancel();
 
    DragDetWnd *GetFullDetWnd() {return m_detWnd;}
    GtkWidget *GetDetWndAsWidget();

@@ -153,6 +153,37 @@ CopyPasteUI::~CopyPasteUI()
 /*
  *-----------------------------------------------------------------------------
  *
+ * CopyPasteUI::Cancel --
+ *
+ *    Cancel file transfer and remove block.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+CopyPasteUI::Cancel()
+{
+   Debug("%s: enter\n", __FUNCTION__);
+   if (mBlockAdded) {
+      DnD_DeleteStagingFiles(mHGStagingDir.c_str(), FALSE);
+      Debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
+      mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
+      mBlockAdded = false;
+   }
+
+   mFileTransferDone = true;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * CopyPasteUI::VmxCopyPasteVersionChanged --
  *
  *      Update version information in mCP.

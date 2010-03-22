@@ -61,6 +61,7 @@ public:
    void SetDnDIsRegistered(bool isRegistered);
    bool IsDnDRegistered();
    void OnReset();
+   void Cancel();
    void SetBlockControl(DnDBlockControl *blockCtrl);
    void SetUserData(const void *userData);
    void SetHGWnd(GtkWidget *wnd) {m_hgWnd = wnd;};
