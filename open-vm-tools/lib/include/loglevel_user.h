@@ -39,6 +39,7 @@
    LOGLEVEL_VAR(stats), \
    LOGLEVEL_VAR(cpucount), \
    LOGLEVEL_VAR(ovhdmem), \
+   LOGLEVEL_VAR(vigor), \
    \
    /* user/io */ \
    LOGLEVEL_VAR(disk), \
