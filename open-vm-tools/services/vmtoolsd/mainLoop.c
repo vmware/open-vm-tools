@@ -38,7 +38,7 @@
 #include "vmcheck.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/utils.h"
-
+#include "vmware/tools/vmbackup.h"
 
 /*
  ******************************************************************************
@@ -127,11 +127,35 @@ ToolsCoreInitializeDebug(ToolsServiceState *state)
 static gboolean
 ToolsCoreConfFileCb(gpointer clientData)
 {
-   ToolsServiceState *state = clientData;
-   if (!state->ctx.disksFrozen) {
-      ToolsCore_ReloadConfig(state, FALSE);
-   }
+   ToolsCore_ReloadConfig(clientData, FALSE);
    return TRUE;
+}
+
+
+/**
+ * IO freeze signal handler. Disables the conf file check task if I/O is
+ * frozen, re-enable it otherwise. See bug 529653.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      Unused.
+ * @param[in]  freeze   Whether I/O is being frozen.
+ * @param[in]  state    Service state.
+ */
+
+static void
+ToolsCoreIOFreezeCb(gpointer src,
+                    ToolsAppCtx *ctx,
+                    gboolean freeze,
+                    ToolsServiceState *state)
+{
+   if (state->configCheckTask > 0 && freeze) {
+      g_source_remove(state->configCheckTask);
+      state->configCheckTask = 0;
+   } else if (state->configCheckTask == 0 && !freeze) {
+      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+                                             ToolsCoreConfFileCb,
+                                             state);
+   }
 }
 
 
@@ -178,7 +202,23 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    }
 
    ToolsCore_RegisterPlugins(state);
-   g_timeout_add(CONF_POLL_TIME * 10, ToolsCoreConfFileCb, state);
+
+   /*
+    * Listen for the I/O freeze signal. We have to disable the config file
+    * check when I/O is frozen or the (Win32) sync driver may cause the service
+    * to hang (and make the VM unusable until it times out).
+    */
+   if (g_signal_lookup(TOOLS_CORE_SIG_IO_FREEZE,
+                       G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+      g_signal_connect(state->ctx.serviceObj,
+                       TOOLS_CORE_SIG_IO_FREEZE,
+                       G_CALLBACK(ToolsCoreIOFreezeCb),
+                       state);
+   }
+
+   state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+                                          ToolsCoreConfFileCb,
+                                          state);
 
 #if defined(__APPLE__)
    ToolsCore_CFRunLoop(state);

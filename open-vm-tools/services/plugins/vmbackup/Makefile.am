@@ -25,10 +25,31 @@ libvmbackup_la_LDFLAGS =
 libvmbackup_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libvmbackup_la_LIBADD =
+libvmbackup_la_LIBADD += @GOBJECT_LIBS@
 libvmbackup_la_LIBADD += @VMTOOLS_LIBS@
 
 libvmbackup_la_SOURCES =
 libvmbackup_la_SOURCES += scriptOps.c
 libvmbackup_la_SOURCES += stateMachine.c
 libvmbackup_la_SOURCES += syncDriverOps.c
+libvmbackup_la_SOURCES += vmBackupSignals.c
+
+BUILT_SOURCES =
+BUILT_SOURCES += vmBackupSignals.c
+BUILT_SOURCES += vmBackupSignals.h
+
+CLEANFILES =
+CLEANFILES += vmBackupSignals.c
+CLEANFILES += vmBackupSignals.h
+
+EXTRA_DIST =
+EXTRA_DIST += vmBackupSignals.gm
+
+vmBackupSignals.c: $(top_srcdir)/services/plugins/vmbackup/vmBackupSignals.gm
+	glib-genmarshal --body $(top_srcdir)/services/plugins/vmbackup/vmBackupSignals.gm > \
+	   $@ || (rm -f $@ && exit 1)
+
+vmBackupSignals.h: $(top_srcdir)/services/plugins/vmbackup/vmBackupSignals.gm
+	glib-genmarshal --header $(top_srcdir)/services/plugins/vmbackup/vmBackupSignals.gm > \
+	   $@ || (rm -f $@ && exit 1)
 

@@ -216,11 +216,6 @@ typedef struct ToolsAppCtx {
     * register and emit their own signals using this object.
     */
    gpointer          serviceObj;
-   /**
-    * If this flag is TRUE, it's not safe to access the disk. Code that tries
-    * to access the disk should avoid running in that case.
-    */
-   gboolean          disksFrozen;
 } ToolsAppCtx;
 
 #if defined(G_PLATFORM_WIN32)

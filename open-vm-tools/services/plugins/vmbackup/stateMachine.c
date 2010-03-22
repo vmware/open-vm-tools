@@ -35,12 +35,15 @@
 
 #include "vmBackupInt.h"
 
+#include <glib-object.h>
 #include <gmodule.h>
 #include "guestApp.h"
 #include "str.h"
 #include "strutil.h"
 #include "util.h"
+#include "vmBackupSignals.h"
 #include "vmware/tools/utils.h"
+#include "vmware/tools/vmbackup.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -281,7 +284,10 @@ VmBackupOnError(void)
       /* Next state is "sync error". */
       gBackupState->pollPeriod = 1000;
       gBackupState->machineState = VMBACKUP_MSTATE_SYNC_ERROR;
-      gBackupState->ctx->disksFrozen = FALSE;
+      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
+                            TOOLS_CORE_SIG_IO_FREEZE,
+                            gBackupState->ctx,
+                            FALSE);
       break;
 
    case VMBACKUP_MSTATE_SCRIPT_THAW:
@@ -446,7 +452,10 @@ VmBackupAsyncCallback(void *clientData)
 
    case VMBACKUP_MSTATE_SYNC_THAW:
       /* Next state is "script thaw". */
-      gBackupState->ctx->disksFrozen = FALSE;
+      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
+                            TOOLS_CORE_SIG_IO_FREEZE,
+                            gBackupState->ctx,
+                            FALSE);
       if (!VmBackupStartScripts(VMBACKUP_SCRIPT_THAW)) {
          VmBackupOnError();
       }
@@ -494,9 +503,15 @@ static Bool
 VmBackupEnableSync(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
-   gBackupState->ctx->disksFrozen = TRUE;
+   g_signal_emit_by_name(gBackupState->ctx->serviceObj,
+                         TOOLS_CORE_SIG_IO_FREEZE,
+                         gBackupState->ctx,
+                         TRUE);
    if (!gSyncProvider->start(gBackupState, gSyncProvider->clientData)) {
-      gBackupState->ctx->disksFrozen = FALSE;
+      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
+                            TOOLS_CORE_SIG_IO_FREEZE,
+                            gBackupState->ctx,
+                            FALSE);
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                          VMBACKUP_SYNC_ERROR,
                          "Error when enabling the sync provider.");
@@ -779,6 +794,19 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
       gSyncProvider = provider;
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+
+      g_signal_new(TOOLS_CORE_SIG_IO_FREEZE,
+                   G_OBJECT_TYPE(ctx->serviceObj),
+                   0,
+                   0,
+                   NULL,
+                   NULL,
+                   g_cclosure_user_marshal_VOID__POINTER_BOOLEAN,
+                   G_TYPE_NONE,
+                   2,
+                   G_TYPE_POINTER,
+                   G_TYPE_BOOLEAN);
+
       return &regData;
    }
 

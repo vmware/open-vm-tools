@@ -76,6 +76,7 @@ typedef struct ToolsServiceState {
    gchar         *name;
    gchar         *configFile;
    time_t         configMtime;
+   guint          configCheckTask;
    gboolean       log;
    gboolean       mainService;
    gchar         *commonPath;
