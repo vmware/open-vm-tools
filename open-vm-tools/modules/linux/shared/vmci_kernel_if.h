@@ -229,7 +229,9 @@ int VMCIHost_ContextToHostVmID(VMCIHost *hostContext, VMCIHostVmID *hostVmID);
 void VMCIHost_SetActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 Bool VMCIHost_RemoveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 Bool VMCIHost_IsActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
+void VMCIHost_SetInactiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 uint32 VMCIHost_NumHnds(VMCIHost *hostContext);
+uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
 #endif
 
 void *VMCI_AllocKernelMem(size_t size, int flags);

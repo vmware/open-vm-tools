@@ -233,6 +233,8 @@
 #define SCSI_ASC_LU_NOT_READY_ASCQ_MANUAL_INTERVENTION_REQUIRED   0x03
 #define SCSI_ASC_LU_NOT_READY_ASCQ_TARGET_PORT_IN_TRANSITION      0x0a  // an ascq
 #define SCSI_ASC_LU_NOT_READY_ASCQ_TARGET_PORT_IN_STANDBY_MODE    0x0b  // an ascq
+#define SCSI_ASC_COPY_FAILED                                   0x0d
+#define SCSI_ASC_COPY_FAILED_ASCQ_UNREACHABLE                  0x02
 #define SCSI_ASC_LU_NOT_READY_ASCQ_SPACE_ALLOCATION_IN_PROGRESS   0x14  // an ascq
 #define SCSI_ASC_LU_NO_RESPONSE_TO_SELECTION                   0x05  // logical unit doesn't respond to selection
 #define SCSI_ASC_NO_REFERENCE_POSITION_FOUND                   0x06
@@ -474,6 +476,7 @@ typedef struct {
 #define SCSI_INQ_PAGE_0x00 0x00
 #define SCSI_INQ_PAGE_0x80 0x80
 #define SCSI_INQ_PAGE_0x83 0x83
+#define SCSI_INQ_PAGE_0xB1 0xb1
 
 /*
  * The following structures define the Page format supported by the
@@ -597,6 +600,36 @@ struct SCSI2InqPage83ResponseDescriptor {
 }
 #include "vmware_pack_end.h"
 SCSI2InqPage83ResponseDescriptor;
+
+#define SCSI_INQ_PAGE_B1_LEN                   64
+
+// Inquiry page 0xB1: Medium Rotation Rate
+#define SCSI_ROTATION_RATE_NOT_REPORTED        0x0
+#define SCSI_ROTATION_RATE_NON_ROTATING_MEDIUM 0x1
+
+// Inquiry page 0xB1: Form Factor
+#define SCSI_FORM_FACTOR_NOT_REPORTED          0x0
+
+/*
+ * Format of INQUIRY EVPD Page B1 response
+ * SBC3-r18, Section 6.5.3 table 138 Page 178
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct SCSIInqPageB1ResponseHeader {
+   uint8  devClass	:5,
+   	  pQual		:3;
+   uint8  pageCode;
+   uint8  reserved1;
+   uint8  pageLength;
+   uint16 mediumRotationRate;
+   uint8  reserved2;
+   uint8  formFactor:4,
+          reserved3:4;
+   uint8  reserved4[56];
+}
+#include "vmware_pack_end.h"
+SCSIInqPageB1ResponseHeader;
 
 typedef
 #include "vmware_pack_begin.h"

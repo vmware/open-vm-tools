@@ -54,9 +54,12 @@ void VMCIContext_SetFSRState(VMCIContext *context,
                              uintptr_t eventHnd,
                              Bool isLocked);
 VMCIContext *VMCIContext_FindAndUpdateSrcFSR(VMCIId migrateCid,
-                                             uintptr_t eventHnd);
+                                             uintptr_t eventHnd,
+                                             uintptr_t *srcEventHnd);
 Bool VMCIContext_IsActiveHnd(VMCIContext *context,
                              uintptr_t eventHnd);
+void VMCIContext_SetInactiveHnd(VMCIContext *context,
+                                uintptr_t eventHnd);
 Bool VMCIContext_RemoveHnd(VMCIContext *context,
                            uintptr_t eventHnd,
                            uint32 *numOld,

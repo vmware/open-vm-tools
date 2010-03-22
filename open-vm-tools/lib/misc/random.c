@@ -284,3 +284,36 @@ Random_Quick(void *context)  // IN/OUT:
    return y;
 }
 
+
+/**
+ *----------------------------------------------------------------------
+ *
+ * FastRand --
+ *
+ *      Lifted from Util_FastRand() in
+ *      /vmkernel-main/bora/vmcore/vmm/main/util_monitor.c The header
+ *      comment of Util_FastRand(): Generates the next random number in the
+ *      pseudo-random sequence defined by the multiplicative linear
+ *      congruential generator S' = 16807 * S mod (2^31 - 1).  This is the
+ *      ACM "minimal standard random number generator".  Based on method
+ *      described by D.G. Carta in CACM, January 1990.  Usage: provide
+ *      previous random number as the seed for next one.
+ *
+ * Results:
+ *      A random integrer number is returned.
+ *
+ * Side Effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+FastRand(int seed)
+{
+   uint64 product    = 33614 * (uint64)seed;
+   uint32 product_lo = (uint32)(product & 0xffffffff) >> 1;
+   uint32 product_hi = product >> 32;
+   int32  test       = product_lo + product_hi;
+   return test > 0 ? test : (test & 0x7fffffff) + 1;
+}

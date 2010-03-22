@@ -68,11 +68,13 @@ SOFTWARE.
  *				  and MAXSHORT with winnt.h
  *      04/03/2007 shelleygong  - use int instead of short for data
  *                                inside the region
- * 02/12/2010 michael - Since coordinates are kept as ints, coordinate values
- *    shouldn't be clamped to the range of short. I removed R_{MIN,MAX}SHORT
- *    and changed clamping to be in the range R_MININT..R_MAXINT instead.
- *    Since some code does "n < R_MININT" and "n > R_MAXINT", R_MININT must be
- *    greater than INT_MIN and R_MAXINT must be less than INT_MAX.
+ *      02/12/2010 michael - Since coordinates are kept as ints, coordinate values
+ *      shouldn't be clamped to the range of short. I removed R_{MIN,MAX}SHORT
+ *      and changed clamping to be in the range R_MININT..R_MAXINT instead.
+ *      Since some code does "n < R_MININT" and "n > R_MAXINT", R_MININT must be
+ *      greater than INT_MIN and R_MAXINT must be less than INT_MAX.
+ *      03/08/2010 amarp        - Move xalloc macro outside the header because of
+ *                                boost conflict with macro
  */
 
 #ifndef __REGION_H__
@@ -101,7 +103,6 @@ SOFTWARE.
 
 #define CT_YXBANDED 18
 
-#define xalloc(n)        malloc(n)
 #define xrealloc(ptr, n) realloc((ptr), (n))
 #define xfree(ptr)       free(ptr)
 
