@@ -281,6 +281,7 @@ VmBackupOnError(void)
       /* Next state is "sync error". */
       gBackupState->pollPeriod = 1000;
       gBackupState->machineState = VMBACKUP_MSTATE_SYNC_ERROR;
+      gBackupState->ctx->disksFrozen = FALSE;
       break;
 
    case VMBACKUP_MSTATE_SCRIPT_THAW:
@@ -445,6 +446,7 @@ VmBackupAsyncCallback(void *clientData)
 
    case VMBACKUP_MSTATE_SYNC_THAW:
       /* Next state is "script thaw". */
+      gBackupState->ctx->disksFrozen = FALSE;
       if (!VmBackupStartScripts(VMBACKUP_SCRIPT_THAW)) {
          VmBackupOnError();
       }
@@ -492,7 +494,9 @@ static Bool
 VmBackupEnableSync(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
+   gBackupState->ctx->disksFrozen = TRUE;
    if (!gSyncProvider->start(gBackupState, gSyncProvider->clientData)) {
+      gBackupState->ctx->disksFrozen = FALSE;
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                          VMBACKUP_SYNC_ERROR,
                          "Error when enabling the sync provider.");

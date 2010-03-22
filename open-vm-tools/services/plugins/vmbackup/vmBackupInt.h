@@ -88,7 +88,7 @@ typedef struct VmBackupState {
    Bool (*callback)(struct VmBackupState *);
    Bool           forceRequeue;
    Bool           generateManifests;
-   intptr_t       clientData;
+   gpointer       clientData;
    void          *scripts;
    const char    *configDir;
    ssize_t        currentScript;

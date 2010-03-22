@@ -127,7 +127,10 @@ ToolsCoreInitializeDebug(ToolsServiceState *state)
 static gboolean
 ToolsCoreConfFileCb(gpointer clientData)
 {
-   ToolsCore_ReloadConfig(clientData, FALSE);
+   ToolsServiceState *state = clientData;
+   if (!state->ctx.disksFrozen) {
+      ToolsCore_ReloadConfig(state, FALSE);
+   }
    return TRUE;
 }
 

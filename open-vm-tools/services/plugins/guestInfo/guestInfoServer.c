@@ -360,6 +360,12 @@ GuestInfoGather(gpointer data)
 
    g_debug("Entered guest info gather.\n");
 
+   /* See bug 529653. */
+   if (ctx->disksFrozen) {
+      g_debug("Skipping guest info gathering while disks are frozen.");
+      return TRUE;
+   }
+
    /* Send tools version. */
    if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER)) {
       /*
