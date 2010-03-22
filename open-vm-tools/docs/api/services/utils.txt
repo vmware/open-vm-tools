@@ -50,8 +50,15 @@ for each domain are:
      - Valid values: std, outputdebugstring (Win32-only), file, file+
        (same as "file", but appends to existing log file).
      - Default: "std" on Unix, "outputdebugstring" on Windows.
-   - data: optional configuration data for the handler.
-     - Required for the "file" handlers (path to log file).
+
+For file handlers, the following extra configuration information can be
+provided:
+
+   - data: path to the log file, required.
+   - maxOldLogFiles: maximum number of rotated log files to keep around. By
+     default, at most 10 backed up log files will be kept. Value should be >= 1.
+   - maxLogSize: maximum size of each log file, defaults to 10 (MB). A value of
+     0 disables log rotation.
 
 Logging configuration should be under the "[logging]" group in the
 application's configuration file.
@@ -85,10 +92,15 @@ unity.data = /tmp/unity.log
 vmtoolsd.level = none
 @endverbatim
 
-Log file names can contain variable references. Currently, only two variables
-are expanded: @a ${USER} expands to the current user's login name, and @a ${PID}
-expands to the current process's ID. So, for example, @a log.${USER}.${PID}.txt
-would expand to "log.jdoe.1234.txt" for user "jdoe" if the process ID were 1234.
+Log file names can contain variable references. The following variables are
+expanded when determining the path of the log file:
+
+   - @a ${USER}: expands to the current user's login name
+   - @a ${PID}: expands to the current process's ID.
+   - @a ${IDX}: expands to the log file index (for rolling logs).
+
+So, for example, @a log.${USER}.${PID}.txt would expand to "log.jdoe.1234.txt"
+for user "jdoe" if the process ID were 1234.
 
 */
 

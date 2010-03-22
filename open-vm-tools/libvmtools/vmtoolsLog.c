@@ -232,21 +232,19 @@ VMToolsLogFormat(const gchar *message,
    }
 
    if (msg != NULL && data->convertToLocal) {
-      size_t msgCurrLen;
-      gchar *msgCurr = g_locale_from_utf8(msg, strlen(msg), NULL, &msgCurrLen, NULL);
-
-      /*
-       * The log messages from glib itself (and probably other libraries based
-       * on glib) do not include a trailing new line. Most of our code does. So
-       * we detect whether the original message already had a new line, and
-       * remove it, to avoid having two newlines when printing our log messages.
-       */
-      if (msgCurr != NULL && msgCurr[msgCurrLen - 2] == '\n') {
-         msgCurr[msgCurrLen - 1] = '\0';
-      }
-
+      gchar *msgCurr = g_locale_from_utf8(msg, len, NULL, &len, NULL);
       g_free(msg);
       msg = msgCurr;
+   }
+
+   /*
+    * The log messages from glib itself (and probably other libraries based
+    * on glib) do not include a trailing new line. Most of our code does. So
+    * we detect whether the original message already had a new line, and
+    * remove it, to avoid having two newlines when printing our log messages.
+    */
+   if (msg != NULL && msg[len - 2] == '\n') {
+      msg[len - 1] = '\0';
    }
 
    return msg;

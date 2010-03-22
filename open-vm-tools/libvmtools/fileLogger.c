@@ -34,15 +34,108 @@
 #endif
 
 #include "vm_assert.h"
-#include "hostinfo.h"
 
 typedef struct FileLoggerData {
    LogHandlerData    handler;
    FILE             *file;
    gchar            *path;
+   gsize             logSize;
+   gsize             maxSize;
+   guint             maxFiles;
    gboolean          append;
    gboolean          error;
 } FileLoggerData;
+
+
+/*
+ ******************************************************************************
+ * VMFileLoggerGetPath --                                               */ /**
+ *
+ * Parses the given template file name and expands embedded variables, and
+ * places the log index information at the right position.
+ *
+ * The following variables are expanded:
+ *
+ *    - ${USER}:  user's login name.
+ *    - ${PID}:   current process's pid.
+ *    - ${IDX}:   index of the log file (for rotation).
+ *
+ * @param[in] data         Log handler data.
+ * @param[in] index        Index of the log file.
+ *
+ * @return The expanded log file path.
+ *
+ ******************************************************************************
+ */
+
+static gchar *
+VMFileLoggerGetPath(FileLoggerData *data,
+                    gint index)
+{
+   gboolean hasIndex = FALSE;
+   gchar indexStr[11];
+   gchar *logpath;
+   gchar *vars[] = {
+      "${USER}",  NULL,
+      "${PID}",   NULL,
+      "${IDX}",   indexStr,
+   };
+   gchar *tmp;
+   size_t i;
+
+   logpath = g_strdup(data->path);
+   vars[1] = (char *) g_get_user_name();
+   vars[3] = g_strdup_printf("%"FMTPID, getpid());
+   g_snprintf(indexStr, sizeof indexStr, "%d", index);
+
+   for (i = 0; i < ARRAYSIZE(vars); i += 2) {
+      char *last = logpath;
+      char *start;
+      while ((start = strstr(last, vars[i])) != NULL) {
+         gchar *tmp;
+         char *end = start + strlen(vars[i]);
+         size_t offset = (start - last) + strlen(vars[i+1]);
+
+         *start = '\0';
+         tmp = g_strdup_printf("%s%s%s", logpath, vars[i+1], end);
+         g_free(logpath);
+         logpath = tmp;
+         last = logpath + offset;
+
+         /* XXX: ugly, but well... */
+         if (i == 4) {
+            hasIndex = TRUE;
+         }
+      }
+   }
+
+   g_free(vars[3]);
+
+   /*
+    * Always make sure we add the index if it's not 0, since that's used for
+    * backing up old log files.
+    */
+   if (index != 0 && !hasIndex) {
+      char *sep = strrchr(logpath, '.');
+      char *pathsep = strrchr(logpath, '/');
+
+      if (pathsep == NULL) {
+         pathsep = strrchr(logpath, '\\');
+      }
+
+      if (sep != NULL && sep > pathsep) {
+         *sep = '\0';
+         sep++;
+         tmp = g_strdup_printf("%s.%d.%s", logpath, index, sep);
+      } else {
+         tmp = g_strdup_printf("%s.%d", logpath, index);
+      }
+      g_free(logpath);
+      logpath = tmp;
+   }
+
+   return logpath;
+}
 
 
 /*
@@ -52,40 +145,78 @@ typedef struct FileLoggerData {
  * Opens a log file for writing, backing up the existing log file if one is
  * present. Only one old log file is preserved.
  *
- * @param[in] path   Path to log file.
- * @param[in] append Whether to open the log for appending (if TRUE, a backup
- *                   file is not generated).
+ * @param[in] data   Log handler data.
  *
- * @return File pointer for writing to the file (NULL on error).
+ * @return Log file pointer (NULL on error).
  *
  ******************************************************************************
  */
 
 static FILE *
-VMFileLoggerOpen(const gchar *path,
-                 gboolean append)
+VMFileLoggerOpen(FileLoggerData *data)
 {
    FILE *logfile = NULL;
-   gchar *pathLocal;
+   gchar *path;
 
-   ASSERT(path != NULL);
-   pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
+   ASSERT(data != NULL);
+   path = VMFileLoggerGetPath(data, 0);
 
-   if (!append && g_file_test(pathLocal, G_FILE_TEST_EXISTS)) {
-      /* Back up existing log file. */
-      gchar *bakFile = g_strdup_printf("%s.old", pathLocal);
-      if (!g_file_test(bakFile, G_FILE_TEST_IS_DIR) &&
-          (!g_file_test(bakFile, G_FILE_TEST_EXISTS) ||
-           g_unlink(bakFile) == 0)) {
-         g_rename(pathLocal, bakFile);
-      } else {
-         g_unlink(pathLocal);
+   if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+      struct stat fstats;
+      if (g_stat(path, &fstats) > -1) {
+         data->logSize = (guint) fstats.st_size;
       }
-      g_free(bakFile);
+
+      if (!data->append || data->logSize >= data->maxSize) {
+         /*
+          * Find the last log file and iterate back, changing the indices as we go,
+          * so that the oldest log file has the highest index (the new log file
+          * will always be index "0"). When not rotating, "maxFiles" is 1, so we
+          * always keep one backup.
+          */
+         gchar *log;
+         guint id;
+         GPtrArray *logfiles = g_ptr_array_new();
+
+         /*
+          * Find the id of the last log file. The pointer array will hold
+          * the names of all existing log files + the name of the last log
+          * file, which may or may not exist.
+          */
+         for (id = 0; id < data->maxFiles; id++) {
+            log = VMFileLoggerGetPath(data, id);
+            g_ptr_array_add(logfiles, log);
+            if (!g_file_test(log, G_FILE_TEST_IS_REGULAR)) {
+               break;
+            }
+         }
+
+         /* Rename the existing log files, increasing their index by 1. */
+         for (id = logfiles->len - 1; id > 0; id--) {
+            gchar *dest = g_ptr_array_index(logfiles, id);
+            gchar *src = g_ptr_array_index(logfiles, id - 1);
+
+            if (!g_file_test(dest, G_FILE_TEST_IS_DIR) &&
+                (!g_file_test(dest, G_FILE_TEST_EXISTS) ||
+                 g_unlink(dest) == 0)) {
+               g_rename(src, dest);
+            } else {
+               g_unlink(src);
+            }
+         }
+
+         /* Cleanup. */
+         for (id = 0; id < logfiles->len; id++) {
+            g_free(g_ptr_array_index(logfiles, id));
+         }
+         g_ptr_array_free(logfiles, TRUE);
+         data->logSize = 0;
+         data->append = FALSE;
+      }
    }
 
-   logfile = g_fopen(pathLocal, append ? "a" : "w");
-   VMTOOLS_RELEASE_FILENAME_LOCAL(pathLocal);
+   logfile = g_fopen(path, data->append ? "a" : "w");
+   g_free(path);
    return logfile;
 }
 
@@ -130,7 +261,7 @@ VMFileLoggerLog(const gchar *domain,
          ret = TRUE;
          goto exit;
       } else {
-         data->file = VMFileLoggerOpen(data->path, data->append);
+         data->file = VMFileLoggerOpen(data);
          if (data->file == NULL) {
             data->error = TRUE;
             errfn(domain, G_LOG_LEVEL_WARNING | G_LOG_FLAG_RECURSION,
@@ -141,8 +272,24 @@ VMFileLoggerLog(const gchar *domain,
       }
    }
 
+   /* Write the log file and do log rotation accounting. */
    if (fputs(message, data->file) >= 0) {
-      fflush(data->file);
+      if (data->maxSize > 0) {
+         data->logSize += strlen(message);
+#if defined(_WIN32)
+         /* Account for \r. */
+         data->logSize += 1;
+#endif
+         if (data->logSize >= data->maxSize) {
+            fclose(data->file);
+            data->append = FALSE;
+            data->file = VMFileLoggerOpen(data);
+         } else {
+            fflush(data->file);
+         }
+      } else {
+         fflush(data->file);
+      }
       ret = TRUE;
    }
 
@@ -179,6 +326,7 @@ VMFileLoggerCopy(LogHandlerData *_current,
       g_free(current->path);
       current->file = old->file;
       current->path = old->path;
+      current->logSize = old->logSize;
       old->file = NULL;
       old->path = NULL;
    }
@@ -232,6 +380,7 @@ VMFileLoggerConfig(const gchar *domain,
    FileLoggerData *data = NULL;
    gchar *level;
    gchar key[128];
+   GError *err = NULL;
 
    g_snprintf(key, sizeof key, "%s.level", domain);
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
@@ -242,38 +391,6 @@ VMFileLoggerConfig(const gchar *domain,
       if (logpath == NULL) {
          g_warning("Missing log path for file handler (%s).\n", domain);
          goto exit;
-      } else {
-         /*
-          * Do some variable expansion in the input string. Currently only
-          * ${USER} and ${PID} are expanded.
-          */
-         gchar *vars[] = {
-            "${USER}",  NULL,
-            "${PID}",   NULL
-         };
-         size_t i;
-
-         vars[1] = Hostinfo_GetUser();
-         vars[3] = g_strdup_printf("%"FMTPID, getpid());
-
-         for (i = 0; i < ARRAYSIZE(vars); i += 2) {
-            char *last = logpath;
-            char *start;
-            while ((start = strstr(last, vars[i])) != NULL) {
-               gchar *tmp;
-               char *end = start + strlen(vars[i]);
-               size_t offset = (start - last) + strlen(vars[i+1]);
-
-               *start = '\0';
-               tmp = g_strdup_printf("%s%s%s", logpath, vars[i+1], end);
-               g_free(logpath);
-               logpath = tmp;
-               last = logpath + offset;
-            }
-         }
-
-         vm_free(vars[1]);
-         g_free(vars[3]);
       }
    }
    g_free(level);
@@ -286,8 +403,37 @@ VMFileLoggerConfig(const gchar *domain,
    data->handler.copyfn = VMFileLoggerCopy;
    data->handler.dtor = VMFileLoggerDestroy;
 
-   data->path = logpath;
    data->append = (name != NULL && strcmp(name, "file+") == 0);
+
+   if (logpath != NULL) {
+      data->path = g_filename_from_utf8(logpath, -1, NULL, NULL, NULL);
+      ASSERT(data->path != NULL);
+      g_free(logpath);
+
+      /*
+       * Read the rolling file configuration. By default, log rotation is enabled
+       * with a max file size of 10MB and a maximum of 10 log files kept around.
+       */
+      g_snprintf(key, sizeof key, "%s.maxOldLogFiles", domain);
+      data->maxFiles = (guint) g_key_file_get_integer(cfg, LOGGING_GROUP, key, &err);
+      if (err != NULL) {
+         g_clear_error(&err);
+         data->maxFiles = 10;
+      } else if (data->maxFiles < 1) {
+         data->maxFiles = 1;
+      }
+
+      /* Add 1 to account for the active log file. */
+      data->maxFiles += 1;
+
+      g_snprintf(key, sizeof key, "%s.maxLogSize", domain);
+      data->maxSize = (gsize) g_key_file_get_integer(cfg, LOGGING_GROUP, key, &err);
+      if (err != NULL) {
+         g_clear_error(&err);
+         data->maxSize = 10;
+      }
+      data->maxSize = data->maxSize * 1024 * 1024;
+   }
 
 exit:
    return (data != NULL) ? &data->handler : NULL;
