@@ -61,9 +61,23 @@
 #  include "vmciQueuePair.h"
 #endif
 
-#include "vmci_queue_pair.h"
+#include "vmciQueue.h"
 #include "vmci_iocontrols.h"
 
+
+/*
+ * The Kernel specific component of the VMCIQueue structure.
+ */
+
+#if defined VMX86_TOOLS
+struct VMCIQueueKernelIf {
+   struct page *page[0];
+};
+#else
+struct VMCIQueueKernelIf {
+   struct page **page;
+};
+#endif
 
 typedef struct VMCIDelayedWorkInfo {
    compat_work work;
@@ -916,10 +930,14 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
  *
  * VMCI_AllocQueue --
  *
- *      Allocates kernel memory for the queue header (1 page) plus the
- *      translation structure for offset -> page mappings.  Allocates physical
- *      pages for the queue (buffer area), and initializes the translation
- *      structure.
+ *      Allocates kernel VA space of specified size, plus space for the
+ *      queue structure/kernel interface and the queue header.  Allocates
+ *      physical pages for the queue data pages.
+ *
+ *      PAGE m:      VMCIQueueHeader (VMCIQueue->qHeader)
+ *      PAGE m+1:    VMCIQueue
+ *      PAGE m+1+q:  VMCIQueueKernelIf (VMCIQueue->kernelIf)
+ *      PAGE n-size: Data pages (VMCIQueue->kernelIf->page[])
  *
  * Results:
  *      Pointer to the queue on success, NULL otherwise.
@@ -933,32 +951,36 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
 void *
 VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
 {
-   const uint64 numPages = CEILING(size, PAGE_SIZE);
+   uint64 i;
    VMCIQueue *queue;
+   VMCIQueueHeader *qHeader;
+   const uint64 numDataPages = CEILING(size, PAGE_SIZE);
+   const uint queueSize =
+      PAGE_SIZE +
+      sizeof *queue +
+      numDataPages * sizeof queue->kernelIf->page[0];
 
-   queue = vmalloc(sizeof *queue + numPages * sizeof queue->page[0]);
-   if (queue) {
-      uint64 i;
+   qHeader = (VMCIQueueHeader *)vmalloc(queueSize);
+   if (!qHeader) {
+      return NULL;
+   }
 
-      /*
-       * Allocate physical pages, they will be mapped/unmapped on demand.
-       */
-      for (i = 0; i < numPages; i++) {
-         queue->page[i] = alloc_pages(GFP_KERNEL, 0); /* One page. */
-         if (!queue->page[i]) {
-            /*
-             * Free all pages allocated.
-             */
-            while (i) {
-               __free_page(queue->page[--i]);
-            }
-            vfree(queue);
-            queue = NULL;
-            break;
+   queue = (VMCIQueue *)((uint8 *)qHeader + PAGE_SIZE);
+   queue->qHeader = qHeader;
+   queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
+
+   for (i = 0; i < numDataPages; i++) {
+      queue->kernelIf->page[i] = alloc_pages(GFP_KERNEL, 0);
+      if (!queue->kernelIf->page[i]) {
+         while (i) {
+            __free_page(queue->kernelIf->page[--i]);
          }
+         vfree(qHeader);
+         return NULL;
       }
    }
-   return queue;
+
+   return (void *)queue;
 }
 
 
@@ -967,9 +989,8 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
  *
  * VMCI_FreeQueue --
  *
- *      Frees kernel memory for a given queue (header plus translation
- *      structure).  Frees all physical pages that held the buffers for this
- *      queue.
+ *      Frees kernel VA space for a given queue and its queue header, and
+ *      frees physical data pages.
  *
  * Results:
  *      None.
@@ -988,11 +1009,10 @@ VMCI_FreeQueue(void *q,     // IN:
 
    if (queue) {
       uint64 i;
-
       for (i = 0; i < CEILING(size, PAGE_SIZE); i++) {
-         __free_page(queue->page[i]);
+         __free_page(queue->kernelIf->page[i]);
       }
-      vfree(queue);
+      vfree(queue->qHeader);
    }
 }
 
@@ -1017,14 +1037,16 @@ VMCI_FreeQueue(void *q,     // IN:
  */
 
 int
-VMCI_AllocPPNSet(void *produceQ,         // IN:
+VMCI_AllocPPNSet(void *prodQ,            // IN:
                  uint64 numProducePages, // IN: for queue plus header
-                 void *consumeQ,         // IN:
+                 void *consQ,            // IN:
                  uint64 numConsumePages, // IN: for queue plus header
                  PPNSet *ppnSet)         // OUT:
 {
    VMCIPpnList producePPNs;
    VMCIPpnList consumePPNs;
+   VMCIQueue *produceQ = prodQ;
+   VMCIQueue *consumeQ = consQ;
    uint64 i;
 
    if (!produceQ || !numProducePages || !consumeQ || !numConsumePages ||
@@ -1051,11 +1073,11 @@ VMCI_AllocPPNSet(void *produceQ,         // IN:
       return VMCI_ERROR_NO_MEM;
    }
 
-   producePPNs[0] = page_to_pfn(vmalloc_to_page(produceQ));
+   producePPNs[0] = page_to_pfn(vmalloc_to_page(produceQ->qHeader));
    for (i = 1; i < numProducePages; i++) {
       unsigned long pfn;
 
-      producePPNs[i] = pfn = page_to_pfn(((VMCIQueue *)produceQ)->page[i - 1]);
+      producePPNs[i] = pfn = page_to_pfn(produceQ->kernelIf->page[i - 1]);
 
       /*
        * Fail allocation if PFN isn't supported by hypervisor.
@@ -1066,11 +1088,11 @@ VMCI_AllocPPNSet(void *produceQ,         // IN:
          goto ppnError;
       }
    }
-   consumePPNs[0] = page_to_pfn(vmalloc_to_page(consumeQ));
+   consumePPNs[0] = page_to_pfn(vmalloc_to_page(consumeQ->qHeader));
    for (i = 1; i < numConsumePages; i++) {
       unsigned long pfn;
 
-      consumePPNs[i] = pfn = page_to_pfn(((VMCIQueue *)consumeQ)->page[i - 1]);
+      consumePPNs[i] = pfn = page_to_pfn(consumeQ->kernelIf->page[i - 1]);
 
       /*
        * Fail allocation if PFN isn't supported by hypervisor.
@@ -1190,12 +1212,13 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                     size_t size,        // IN:
                     Bool isIovec)       // IN: if src is a struct iovec *
 {
+   VMCIQueueKernelIf *kernelIf = queue->kernelIf;
    size_t bytesCopied = 0;
 
    while (bytesCopied < size) {
       uint64 pageIndex = (queueOffset + bytesCopied) / PAGE_SIZE;
       size_t pageOffset = (queueOffset + bytesCopied) & (PAGE_SIZE - 1);
-      void *va = kmap(queue->page[pageIndex]);
+      void *va = kmap(kernelIf->page[pageIndex]);
       size_t toCopy;
 
       ASSERT(va);
@@ -1213,7 +1236,7 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
          /* The iovec will track bytesCopied internally. */
          err = memcpy_fromiovec((uint8 *)va + pageOffset, iov, toCopy);
          if (err != 0) {
-            kunmap(queue->page[pageIndex]);
+            kunmap(kernelIf->page[pageIndex]);
             return err;
          }
       } else {
@@ -1221,7 +1244,7 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
       }
 
       bytesCopied += toCopy;
-      kunmap(queue->page[pageIndex]);
+      kunmap(kernelIf->page[pageIndex]);
    }
 
    return 0;
@@ -1254,12 +1277,13 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
                       size_t size,            // IN:
                       Bool isIovec)           // IN: if dest is a struct iovec *
 {
+   VMCIQueueKernelIf *kernelIf = queue->kernelIf;
    size_t bytesCopied = 0;
 
    while (bytesCopied < size) {
       uint64 pageIndex = (queueOffset + bytesCopied) / PAGE_SIZE;
       size_t pageOffset = (queueOffset + bytesCopied) & (PAGE_SIZE - 1);
-      void *va = kmap(queue->page[pageIndex]);
+      void *va = kmap(kernelIf->page[pageIndex]);
       size_t toCopy;
 
       ASSERT(va);
@@ -1277,7 +1301,7 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
          /* The iovec will track bytesCopied internally. */
          err = memcpy_toiovec(iov, (uint8 *)va + pageOffset, toCopy);
          if (err != 0) {
-            kunmap(queue->page[pageIndex]);
+            kunmap(kernelIf->page[pageIndex]);
             return err;
          }
       } else {
@@ -1285,7 +1309,7 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
       }
 
       bytesCopied += toCopy;
-      kunmap(queue->page[pageIndex]);
+      kunmap(kernelIf->page[pageIndex]);
    }
 
    return 0;
@@ -1315,7 +1339,8 @@ VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                   uint64 queueOffset, // IN:
                   const void *src,    // IN:
                   size_t srcOffset,   // IN:
-                  size_t size)        // IN:
+                  size_t size,        // IN:
+                  int bufType)        // IN: Unused
 {
    return __VMCIMemcpyToQueue(queue, queueOffset,
                               (uint8 *)src + srcOffset, size, FALSE);
@@ -1345,7 +1370,8 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
                     size_t destOffset,      // IN:
                     const VMCIQueue *queue, // IN:
                     uint64 queueOffset,     // IN:
-                    size_t size)            // IN:
+                    size_t size,            // IN:
+                    int bufType)            // IN: Unused
 {
    return __VMCIMemcpyFromQueue((uint8 *)dest + destOffset,
                                 queue, queueOffset, size, FALSE);
@@ -1375,7 +1401,8 @@ VMCIMemcpyToQueueV(VMCIQueue *queue,      // OUT:
                    uint64 queueOffset,    // IN:
                    const void *src,       // IN: iovec
                    size_t srcOffset,      // IN: ignored
-                   size_t size)           // IN:
+                   size_t size,           // IN:
+                   int bufType)           // IN: ignored
 {
 
    /*
@@ -1409,7 +1436,8 @@ VMCIMemcpyFromQueueV(void *dest,              // OUT: iovec
                      size_t destOffset,       // IN: ignored
                      const VMCIQueue *queue,  // IN:
                      uint64 queueOffset,      // IN:
-                     size_t size)             // IN:
+                     size_t size,             // IN:
+                     int bufType)             // IN: ignored
 {
    /*
     * We ignore destOffset because dest is really a struct iovec * and will
@@ -1456,6 +1484,69 @@ VMCIWellKnownID_AllowMap(VMCIId wellKnownID,           // IN:
 
 
 #ifndef VMX86_TOOLS
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIHost_AllocQueue --
+ *
+ *      Allocates kernel VA space of specified size plus space for the queue
+ *      and kernel interface.  This is different from the guest queue allocator,
+ *      because we do not allocate our own queue header/data pages here but
+ *      share those of the guest.
+ *
+ * Results:
+ *      A pointer to an allocated and initialized VMCIQueue structure or NULL.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMCIQueue *
+VMCIHost_AllocQueue(uint64 size) // IN:
+{
+   VMCIQueue *queue;
+   const uint queueSize = sizeof *queue + sizeof *(queue->kernelIf);
+
+   queue = VMCI_AllocKernelMem(queueSize, VMCI_MEMORY_NORMAL);
+   if (queue) {
+      queue->qHeader = NULL;
+      queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
+   }
+
+   return queue;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIHost_FreeQueue --
+ *
+ *      Frees kernel memory for a given queue (header plus translation
+ *      structure).
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Memory is freed.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VMCIHost_FreeQueue(VMCIQueue *queue,   // IN:
+                   uint64 queueSize)   // IN:
+{
+   if (queue) {
+      const uint queueSize = sizeof *queue + sizeof *(queue->kernelIf);
+      VMCI_FreeKernelMem(queue, queueSize);
+   }
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1539,10 +1630,10 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
    }
 
    if (err == VMCI_SUCCESS) {
-      produceQ->queueHeaderPtr = kmap(attach->producePages[0]);
-      produceQ->page = &attach->producePages[1];
-      consumeQ->queueHeaderPtr = kmap(attach->consumePages[0]);
-      consumeQ->page = &attach->consumePages[1];
+      produceQ->qHeader = kmap(attach->producePages[0]);
+      produceQ->kernelIf->page = &attach->producePages[1];
+      consumeQ->qHeader = kmap(attach->consumePages[0]);
+      consumeQ->kernelIf->page = &attach->consumePages[1];
    }
 
 out:

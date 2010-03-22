@@ -37,8 +37,7 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-
-#include "vmci_queue_pair.h"
+#include "vmciQueue.h"
 
 /*
  * Note: APIs marked as compat are provided for compatibility with the host
@@ -46,10 +45,12 @@
  */
 
 /* PUBLIC: VMCI Device Usage API. */
+
 Bool VMCI_DeviceGet(void);
 void VMCI_DeviceRelease(void);
 
 /* PUBLIC: VMCI Datagram API. */
+
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
 			   VMCIDatagramRecvCB recvCB, void *clientData,
 			   VMCIHandle *outHandle);
@@ -61,6 +62,7 @@ int VMCIDatagram_DestroyHnd(VMCIHandle handle);
 int VMCIDatagram_Send(VMCIDatagram *msg);
 
 /* VMCI Utility API. */
+
 VMCIId VMCI_GetContextID(void);
 uint32 VMCI_Version(void);
 
@@ -78,15 +80,9 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID); /* Compat */
 
 /* VMCI Discovery Service API. */
+
 int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
-int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
-                        uint64 produceSize, VMCIQueue **consumeQ,
-                        uint64 consumeSize, VMCIId peer, uint32 flags);
-int VMCIQueuePair_AllocPriv(VMCIHandle *handle, VMCIQueue **produceQ,
-                            uint64 produceSize, VMCIQueue **consumeQ,
-                            uint64 consumeSize, VMCIId peer, uint32 flags,
-                            VMCIPrivilegeFlags privFlags); /* Compat */
-int VMCIQueuePair_Detach(VMCIHandle handle);
 
 #endif /* !__VMCI_GUESTKERNELAPI_H__ */
+

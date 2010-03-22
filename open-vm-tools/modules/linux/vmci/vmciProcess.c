@@ -32,9 +32,9 @@
 #  include "compat_pci.h"
 #endif // __linux__
 
-#include "vmciInt.h"
-#include "vmci_defs.h"
 #include "vmci_kernel_if.h"
+#include "vmci_defs.h"
+#include "vmciInt.h"
 #include "vmciProcess.h"
 #include "vmciDatagram.h"
 #include "vmci_infrastructure.h"

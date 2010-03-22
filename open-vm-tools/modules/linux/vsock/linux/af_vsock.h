@@ -65,8 +65,7 @@ typedef struct VSockVmciSock {
    VMCIHandle dgHandle;           /* For SOCK_DGRAM only. */
    /* Rest are SOCK_STREAM only. */
    VMCIHandle qpHandle;
-   VMCIQueue *produceQ;
-   VMCIQueue *consumeQ;
+   VMCIQPair *qpair;
    uint64 produceSize;
    uint64 consumeSize;
    uint64 queuePairSize;

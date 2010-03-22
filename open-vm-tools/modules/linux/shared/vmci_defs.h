@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
 #define _VMCI_DEF_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_VMCORE
@@ -30,6 +30,8 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+#include "vm_atomic.h"
+#include "vm_assert.h"
 
 /* Register offsets. */
 #define VMCI_STATUS_ADDR      0x00
@@ -205,7 +207,14 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
 #define VMCI_CONTEXT_RESOURCE_ID 0
 
 
-/* VMCI error codes. */
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCI error codes.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 #define VMCI_SUCCESS_QUEUEPAIR_ATTACH     5
 #define VMCI_SUCCESS_QUEUEPAIR_CREATE     4
 #define VMCI_SUCCESS_LAST_DETACH          3
@@ -250,7 +259,7 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
 #define VMCI_ERROR_QUEUEPAIR_NODATA      (-36)
 #define VMCI_ERROR_BUSMEM_INVALIDATION   (-37)
 #define VMCI_ERROR_MODULE_NOT_LOADED     (-38)
- 
+
 /* Internal error codes. */
 #define VMCI_SHAREDMEM_ERROR_BAD_CONTEXT (-1000)
 
@@ -340,6 +349,434 @@ typedef struct VMCIDsReplyHeader {
 #define VMCI_DOMAIN_NAME_MAXLEN  32
 
 #define VMCI_LGPFX "VMCI: "
+
+
+/*
+ * VMCIQueueHeader
+ *
+ * A Queue cannot stand by itself as designed.  Each Queue's header
+ * contains a pointer into itself (the producerTail) and into its peer
+ * (consumerHead).  The reason for the separation is one of
+ * accessibility: Each end-point can modify two things: where the next
+ * location to enqueue is within its produceQ (producerTail); and
+ * where the next dequeue location is in its consumeQ (consumerHead).
+ *
+ * An end-point cannot modify the pointers of its peer (guest to
+ * guest; NOTE that in the host both queue headers are mapped r/w).
+ * But, each end-point needs read access to both Queue header
+ * structures in order to determine how much space is used (or left)
+ * in the Queue.  This is because for an end-point to know how full
+ * its produceQ is, it needs to use the consumerHead that points into
+ * the produceQ but -that- consumerHead is in the Queue header for
+ * that end-points consumeQ.
+ *
+ * Thoroughly confused?  Sorry.
+ *
+ * producerTail: the point to enqueue new entrants.  When you approach
+ * a line in a store, for example, you walk up to the tail.
+ *
+ * consumerHead: the point in the queue from which the next element is
+ * dequeued.  In other words, who is next in line is he who is at the
+ * head of the line.
+ *
+ * Also, producerTail points to an empty byte in the Queue, whereas
+ * consumerHead points to a valid byte of data (unless producerTail ==
+ * consumerHead in which case consumerHead does not point to a valid
+ * byte of data).
+ *
+ * For a queue of buffer 'size' bytes, the tail and head pointers will be in
+ * the range [0, size-1].
+ *
+ * If produceQHeader->producerTail == consumeQHeader->consumerHead
+ * then the produceQ is empty.
+ */
+
+typedef struct VMCIQueueHeader {
+   /* All fields are 64bit and aligned. */
+   VMCIHandle    handle;       /* Identifier. */
+   Atomic_uint64 producerTail; /* Offset in this queue. */
+   Atomic_uint64 consumerHead; /* Offset in peer queue. */
+} VMCIQueueHeader;
+
+
+/*
+ * If one client of a QueuePair is a 32bit entity, we restrict the QueuePair
+ * size to be less than 4GB, and use 32bit atomic operations on the head and
+ * tail pointers. 64bit atomic read on a 32bit entity involves cmpxchg8b which
+ * is an atomic read-modify-write. This will cause traces to fire when a 32bit
+ * consumer tries to read the producer's tail pointer, for example, because the
+ * consumer has read-only access to the producer's tail pointer.
+ *
+ * We provide the following macros to invoke 32bit or 64bit atomic operations
+ * based on the architecture the code is being compiled on.
+ */
+
+/* Architecture independent maximum queue size. */
+#define QP_MAX_QUEUE_SIZE_ARCH_ANY   CONST64U(0xffffffff)
+
+#ifdef __x86_64__
+#  define QP_MAX_QUEUE_SIZE_ARCH     CONST64U(0xffffffffffffffff)
+#  define QPAtomic_ReadOffset(x)     Atomic_Read64(x)
+#  define QPAtomic_WriteOffset(x, y) Atomic_Write64(x, y)
+#else
+   /*
+    * Wrappers below are being used to call Atomic_Read32 because of the
+    * 'type punned' compilation warning received when Atomic_Read32 is
+    * called with a Atomic_uint64 pointer typecasted to Atomic_uint32
+    * pointer from QPAtomic_ReadOffset. Ditto with QPAtomic_WriteOffset.
+    */
+
+   static INLINE uint32
+   TypeSafe_Atomic_Read32(void *var) // IN:
+   {
+      return Atomic_Read32((Atomic_uint32 *)(var));
+   }
+
+   static INLINE void
+   TypeSafe_Atomic_Write32(void *var, uint32 val) // IN:
+   {
+      Atomic_Write32((Atomic_uint32 *)(var), (uint32)(val));
+   }
+
+#  define QP_MAX_QUEUE_SIZE_ARCH  CONST64U(0xffffffff)
+#  define QPAtomic_ReadOffset(x)  TypeSafe_Atomic_Read32((void *)(x))
+#  define QPAtomic_WriteOffset(x, y) \
+          TypeSafe_Atomic_Write32((void *)(x), (uint32)(y))
+#endif	/* __x86_64__  */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * QPAddPointer --
+ *
+ *      Helper to add a given offset to a head or tail pointer. Wraps the value
+ *      of the pointer around the max size of the queue.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+QPAddPointer(Atomic_uint64 *var, // IN:
+             size_t add,         // IN:
+             uint64 size)        // IN:
+{
+   uint64 newVal = QPAtomic_ReadOffset(var);
+
+   if (newVal >= size - add) {
+      newVal -= size;
+   }
+   newVal += add;
+
+   QPAtomic_WriteOffset(var, newVal);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_ProducerTail() --
+ *
+ *      Helper routine to get the Producer Tail from the supplied queue.
+ *
+ * Results:
+ *      The contents of the queue's producer tail.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+VMCIQueueHeader_ProducerTail(const VMCIQueueHeader *qHeader) // IN:
+{
+   VMCIQueueHeader *qh = (VMCIQueueHeader *)qHeader;
+   return QPAtomic_ReadOffset(&qh->producerTail);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_ConsumerHead() --
+ *
+ *      Helper routine to get the Consumer Head from the supplied queue.
+ *
+ * Results:
+ *      The contents of the queue's consumer tail.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+VMCIQueueHeader_ConsumerHead(const VMCIQueueHeader *qHeader) // IN:
+{
+   VMCIQueueHeader *qh = (VMCIQueueHeader *)qHeader;
+   return QPAtomic_ReadOffset(&qh->consumerHead);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_AddProducerTail() --
+ *
+ *      Helper routine to increment the Producer Tail.  Fundamentally,
+ *      QPAddPointer() is used to manipulate the tail itself.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueHeader_AddProducerTail(VMCIQueueHeader *qHeader, // IN/OUT:
+                                size_t add,               // IN:
+                                uint64 queueSize)         // IN:
+{
+   QPAddPointer(&qHeader->producerTail, add, queueSize);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_AddConsumerHead() --
+ *
+ *      Helper routine to increment the Consumer Head.  Fundamentally,
+ *      QPAddPointer() is used to manipulate the head itself.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueHeader_AddConsumerHead(VMCIQueueHeader *qHeader, // IN/OUT:
+                                size_t add,               // IN:
+                                uint64 queueSize)         // IN:
+{
+   QPAddPointer(&qHeader->consumerHead, add, queueSize);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_CheckAlignment --
+ *
+ *      Checks if the given queue is aligned to page boundary.  Returns TRUE if
+ *      the alignment is good.
+ *
+ * Results:
+ *      TRUE or FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+VMCIQueueHeader_CheckAlignment(const VMCIQueueHeader *qHeader) // IN:
+{
+   uintptr_t hdr, offset;
+
+   hdr = (uintptr_t) qHeader;
+   offset = hdr & (PAGE_SIZE -1);
+
+   return offset == 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_GetPointers --
+ *
+ *      Helper routine for getting the head and the tail pointer for a queue.
+ *      Both the VMCIQueues are needed to get both the pointers for one queue.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueHeader_GetPointers(const VMCIQueueHeader *produceQHeader, // IN:
+                            const VMCIQueueHeader *consumeQHeader, // IN:
+                            uint64 *producerTail,                  // OUT:
+                            uint64 *consumerHead)                  // OUT:
+{
+   if (producerTail) {
+      *producerTail = VMCIQueueHeader_ProducerTail(produceQHeader);
+   }
+
+   if (consumerHead) {
+      *consumerHead = VMCIQueueHeader_ConsumerHead(consumeQHeader);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_ResetPointers --
+ *
+ *      Reset the tail pointer (of "this" queue) and the head pointer (of
+ *      "peer" queue).
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueHeader_ResetPointers(VMCIQueueHeader *qHeader) // IN/OUT:
+{
+   QPAtomic_WriteOffset(&qHeader->producerTail, CONST64U(0));
+   QPAtomic_WriteOffset(&qHeader->consumerHead, CONST64U(0));
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_Init --
+ *
+ *      Initializes a queue's state (head & tail pointers).
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VMCIQueueHeader_Init(VMCIQueueHeader *qHeader, // IN/OUT:
+                     const VMCIHandle handle)  // IN:
+{
+   ASSERT_NOT_IMPLEMENTED(VMCIQueueHeader_CheckAlignment(qHeader));
+
+   qHeader->handle = handle;
+   VMCIQueueHeader_ResetPointers(qHeader);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_FreeSpace --
+ *
+ *      Finds available free space in a produce queue to enqueue more
+ *      data or reports an error if queue pair corruption is detected.
+ *
+ * Results:
+ *      Free space size in bytes or an error code.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int64
+VMCIQueueHeader_FreeSpace(const VMCIQueueHeader *produceQHeader, // IN:
+                          const VMCIQueueHeader *consumeQHeader, // IN:
+                          const uint64 produceQSize)             // IN:
+{
+   uint64 tail;
+   uint64 head;
+   uint64 freeSpace;
+
+   tail = VMCIQueueHeader_ProducerTail(produceQHeader);
+   head = VMCIQueueHeader_ConsumerHead(consumeQHeader);
+
+   if (tail >= produceQSize || head >= produceQSize) {
+      return VMCI_ERROR_INVALID_SIZE;
+   }
+
+   /*
+    * Deduct 1 to avoid tail becoming equal to head which causes ambiguity. If
+    * head and tail are equal it means that the queue is empty.
+    */
+
+   if (tail >= head) {
+      freeSpace = produceQSize - (tail - head) - 1;
+   } else {
+      freeSpace = head - tail - 1;
+   }
+
+   return freeSpace;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMCIQueueHeader_BufReady --
+ *
+ *      VMCIQueueHeader_FreeSpace() does all the heavy lifting of
+ *      determing the number of free bytes in a Queue.  This routine,
+ *      then subtracts that size from the full size of the Queue so
+ *      the caller knows how many bytes are ready to be dequeued.
+ *
+ * Results:
+ *      On success, available data size in bytes (up to MAX_INT64).
+ *      On failure, appropriate error code.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int64
+VMCIQueueHeader_BufReady(const VMCIQueueHeader *consumeQHeader, // IN:
+                         const VMCIQueueHeader *produceQHeader, // IN:
+                         const uint64 consumeQSize)             // IN:
+{
+   int64 freeSpace;
+
+   freeSpace = VMCIQueueHeader_FreeSpace(consumeQHeader,
+                                         produceQHeader,
+                                         consumeQSize);
+   if (freeSpace < VMCI_SUCCESS) {
+      return freeSpace;
+   } else {
+      return consumeQSize - freeSpace - 1;
+   }
+}
+
 
 #endif
 

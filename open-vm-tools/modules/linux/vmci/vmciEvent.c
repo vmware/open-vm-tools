@@ -27,8 +27,8 @@
 #  include "compat_kernel.h"
 #  include "compat_module.h"
 #endif // __linux__
-#include "vmci_defs.h"
 #include "vmci_kernel_if.h"
+#include "vmci_defs.h"
 #include "vmci_infrastructure.h"
 #include "vmciEvent.h"
 #ifdef VMX86_TOOLS

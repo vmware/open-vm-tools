@@ -717,37 +717,31 @@ VSockVmci_GetAFValue(void)
  */
 
 static int
-VSockVmciQueuePairAlloc(VMCIHandle *handle,   // IN/OUT
-                        VMCIQueue **produceQ, // OUT
+VSockVmciQueuePairAlloc(VMCIQPair **qpair,    // OUT
+                        VMCIHandle *handle,   // IN/OUT
                         uint64 produceSize,   // IN
-                        VMCIQueue **consumeQ, // OUT
                         uint64 consumeSize,   // IN
                         VMCIId peer,          // IN
                         uint32 flags,         // IN
                         Bool trusted)         // IN
 {
    int err = 0;
+
    if (trusted) {
       /*
        * Try to allocate our queue pair as trusted. This will only work
        * if vsock is running in the host.
        */
-      err = VMCIQueuePair_AllocPriv(handle,
-                                    produceQ, produceSize,
-                                    consumeQ, consumeSize,
-                                    peer,
-                                    flags,
-                                    VMCI_PRIVILEGE_FLAG_TRUSTED);
+
+      err = VMCIQPair_Alloc(qpair, handle, produceSize, consumeSize,
+                            peer, flags, VMCI_PRIVILEGE_FLAG_TRUSTED);
       if (err != VMCI_ERROR_NO_ACCESS) {
          goto out;
       }
    }
 
-   err = VMCIQueuePair_Alloc(handle,
-                             produceQ, produceSize,
-                             consumeQ, consumeSize,
-                             peer,
-                             flags);
+   err = VMCIQPair_Alloc(qpair, handle, produceSize, consumeSize,
+                         peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
 out:
    if (err < 0) {
       Log("Could not attach to queue pair with %d\n", err);
@@ -785,11 +779,13 @@ VSockVmciDatagramCreateHnd(VMCIId resourceID,            // IN
                            Bool trusted)                 // IN
 {
    int err = 0;
+
    if (trusted) {
       /*
        * Try to allocate our datagram handler as trusted. This will only work
        * if vsock is running in the host.
        */
+
       err = VMCIDatagram_CreateHndPriv(resourceID, flags,
                                        VMCI_PRIVILEGE_FLAG_TRUSTED,
                                        recvCB, clientData,
@@ -1149,8 +1145,7 @@ VSockVmciHandleDetach(struct sock *sk) // IN
 
    vsk = vsock_sk(sk);
    if (!VMCI_HANDLE_INVALID(vsk->qpHandle)) {
-      ASSERT(vsk->produceQ);
-      ASSERT(vsk->consumeQ);
+      ASSERT(vsk->qpair);
 
       compat_sock_set_done(sk);
 
@@ -1667,8 +1662,7 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
 {
    VSockVmciSock *vpending;
    VMCIHandle handle;
-   VMCIQueue *produceQ;
-   VMCIQueue *consumeQ;
+   VMCIQPair *qpair;
    Bool isLocal;
    uint32 flags;
    VMCIId detachSubId;
@@ -1741,9 +1735,10 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
    flags = VMCI_QPFLAG_ATTACH_ONLY;
    flags |= isLocal ? VMCI_QPFLAG_LOCAL : 0;
 
-   err = VSockVmciQueuePairAlloc(&handle,
-                                 &produceQ, vpending->produceSize,
-                                 &consumeQ, vpending->consumeSize,
+   err = VSockVmciQueuePairAlloc(&qpair,
+                                 &handle,
+                                 vpending->produceSize,
+                                 vpending->consumeSize,
                                  VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src),
                                  flags,
                                  vpending->trusted);
@@ -1753,12 +1748,11 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
       goto destroy;
    }
 
-   VMCIQueue_Init(handle, produceQ);
+   VMCIQPair_Init(qpair);
 
    ASSERT(VMCI_HANDLE_EQUAL(handle, pkt->u.handle));
    vpending->qpHandle = handle;
-   vpending->produceQ = produceQ;
-   vpending->consumeQ = consumeQ;
+   vpending->qpair = qpair;
 
    /* Notify our peer of our attach. */
    err = VSOCK_SEND_ATTACH(pending, handle);
@@ -1871,8 +1865,7 @@ VSockVmciRecvConnectingClient(struct sock *sk,       // IN: socket
           VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src) != vsk->remoteAddr.svm_cid ||
           pkt->srcPort != vsk->remoteAddr.svm_port ||
           !VMCI_HANDLE_INVALID(vsk->qpHandle) ||
-          vsk->produceQ ||
-          vsk->consumeQ ||
+          vsk->qpair ||
           vsk->produceSize != 0 ||
           vsk->consumeSize != 0 ||
           vsk->attachSubId != VMCI_INVALID_ID ||
@@ -1968,8 +1961,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    int err;
    VSockVmciSock *vsk;
    VMCIHandle handle;
-   VMCIQueue *produceQ;
-   VMCIQueue *consumeQ;
+   VMCIQPair *qpair;
    VMCIId attachSubId;
    VMCIId detachSubId;
    Bool isLocal;
@@ -1989,8 +1981,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    ASSERT(vsk->remoteAddr.svm_cid == VMCI_HANDLE_TO_CONTEXT_ID(pkt->dg.src));
    ASSERT(vsk->remoteAddr.svm_port == pkt->srcPort);
    ASSERT(VMCI_HANDLE_INVALID(vsk->qpHandle));
-   ASSERT(vsk->produceQ == NULL);
-   ASSERT(vsk->consumeQ == NULL);
+   ASSERT(vsk->qpair == NULL);
    ASSERT(vsk->produceSize == 0);
    ASSERT(vsk->consumeSize == 0);
    ASSERT(vsk->attachSubId == VMCI_INVALID_ID);
@@ -2068,9 +2059,10 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    isLocal = vsk->remoteAddr.svm_cid == vsk->localAddr.svm_cid;
    flags = isLocal ? VMCI_QPFLAG_LOCAL : 0;
 
-   err = VSockVmciQueuePairAlloc(&handle,
-                                 &produceQ, pkt->u.size,
-                                 &consumeQ, pkt->u.size,
+   err = VSockVmciQueuePairAlloc(&qpair,
+                                 &handle,
+                                 pkt->u.size,
+                                 pkt->u.size,
                                  vsk->remoteAddr.svm_cid,
                                  flags,
                                  vsk->trusted);
@@ -2078,7 +2070,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
       goto destroy;
    }
 
-   VMCIQueue_Init(handle, produceQ);
+   VMCIQPair_Init(qpair);
 
    err = VSOCK_SEND_QP_OFFER(sk, handle);
    if (err < 0) {
@@ -2087,8 +2079,7 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    }
 
    vsk->qpHandle = handle;
-   vsk->produceQ = produceQ;
-   vsk->consumeQ = consumeQ;
+   vsk->qpair = qpair;
 
    vsk->produceSize = vsk->consumeSize = pkt->u.size;
 
@@ -2111,7 +2102,8 @@ destroy:
    }
 
    if (!VMCI_HANDLE_INVALID(handle)) {
-      VMCIQueuePair_Detach(handle);
+      ASSERT(vsk->qpair);
+      VMCIQPair_Detach(&qpair);
       ASSERT(VMCI_HANDLE_INVALID(vsk->qpHandle));
    }
 
@@ -2718,7 +2710,7 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    INIT_LIST_HEAD(&vsk->connectedTable);
    vsk->dgHandle = VMCI_INVALID_HANDLE;
    vsk->qpHandle = VMCI_INVALID_HANDLE;
-   vsk->produceQ = vsk->consumeQ = NULL;
+   vsk->qpair = NULL;
    vsk->produceSize = vsk->consumeSize = 0;
    vsk->listener = NULL;
    INIT_LIST_HEAD(&vsk->pendingLinks);
@@ -2851,9 +2843,10 @@ VSockVmciSkDestruct(struct sock *sk) // IN
    }
 
    if (!VMCI_HANDLE_INVALID(vsk->qpHandle)) {
-      VMCIQueuePair_Detach(vsk->qpHandle);
+      ASSERT(vsk->qpair);
+      VMCIQPair_Detach(&vsk->qpair);
       vsk->qpHandle = VMCI_INVALID_HANDLE;
-      vsk->produceQ = vsk->consumeQ = NULL;
+      ASSERT(vsk->qpair == NULL);
       vsk->produceSize = vsk->consumeSize = 0;
    }
 
@@ -3170,8 +3163,7 @@ VSockVmciStreamHasData(VSockVmciSock *vsk) // IN
 {
    ASSERT(vsk);
 
-   return VMCIQueue_BufReady(vsk->consumeQ,
-			     vsk->produceQ, vsk->consumeSize);
+   return VMCIQPair_ConsumeBufReady(vsk->qpair);
 }
 
 
@@ -3199,8 +3191,7 @@ VSockVmciStreamHasSpace(VSockVmciSock *vsk) // IN
 {
    ASSERT(vsk);
 
-   return VMCIQueue_FreeSpace(vsk->produceQ,
-			      vsk->consumeQ, vsk->produceSize);
+   return VMCIQPair_ProduceFreeSpace(vsk->qpair);
 }
 
 
@@ -4379,9 +4370,8 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
        * able to send.
        */
 
-      written = VMCIQueue_EnqueueV(vsk->produceQ, vsk->consumeQ,
-                                   vsk->produceSize, msg->msg_iov,
-                                   len - totalWritten);
+      written = VMCIQPair_EnqueueV(vsk->qpair, msg->msg_iov,
+                                   len - totalWritten, 0);
       if (written < 0) {
          err = -ENOMEM;
          goto outWait;
@@ -4650,11 +4640,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    }
 
    if (flags & MSG_PEEK) {
-      copied = VMCIQueue_PeekV(vsk->produceQ, vsk->consumeQ,
-                               vsk->consumeSize, msg->msg_iov, len);
+      copied = VMCIQPair_PeekV(vsk->qpair, msg->msg_iov, len, 0);
    } else {
-      copied = VMCIQueue_DequeueV(vsk->produceQ, vsk->consumeQ,
-                                  vsk->consumeSize, msg->msg_iov, len);
+      copied = VMCIQPair_DequeueV(vsk->qpair, msg->msg_iov, len, 0);
    }
 
    if (copied < 0) {

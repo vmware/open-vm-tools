@@ -59,9 +59,6 @@
    /* Include compat_page.h now so PAGE_SIZE and friends don't get redefined. */
 #     include "driver-config.h"
 #     include "compat_page.h"
-#     if defined VMX86_TOOLS
-#        include "vmci_queue_pair.h"
-#     endif
     /*
      * In the kernel we call back into af_vsock.c to get the address family
      * being used.  Otherwise an ioctl(2) is performed (see vmci_sockets.h).
@@ -74,8 +71,7 @@
 #  endif
 #elif defined __APPLE__
 #  if defined KERNEL
-#     include "vmci_queue_pair.h"
-
+#     include <IOKit/system.h>
 #     define VMCI_SOCKETS_AF_VALUE PF_SYSTEM
 #     define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
 #  else // KERNEL
@@ -88,6 +84,9 @@
 #include "vmci_call_defs.h"
 #include "vmci_sockets_int.h"
 #include "vmci_sockets.h"
+#if defined __KERNEL__ && !defined VMX86_VMX
+#  include "vmciQPair.h"
+#endif
 
 #if defined WINNT_DDK
 #  include <winsock2.h>
