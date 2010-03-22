@@ -116,6 +116,27 @@ static int unityX11ErrorCount = 0;
 Bool
 UnityPlatformIsSupported(void)
 {
+   Display *dpy;
+   int major;
+   int event_base;
+   int error_base;
+
+   dpy = GDK_DISPLAY();
+   /*
+    * Unity/X11 doesn't yet work with the new vmwgfx driver.  Until that is
+    * fixed, we have to disable the feature.
+    *
+    * As for detecting which driver is in use, the legacy driver provides the
+    * VMWARE_CTRL extension for resolution and topology operations, while the
+    * new driver is instead controlled via XRandR.  If we don't find said
+    * extension, then we'll assume the new driver is in use and disable Unity.
+    */
+   if (XQueryExtension(dpy, "VMWARE_CTRL", &major, &event_base, &error_base) ==
+       False) {
+      Debug("Unity is not yet supported under the vmwgfx driver.\n");
+      return FALSE;
+   }
+
    return TRUE;
 }
 
