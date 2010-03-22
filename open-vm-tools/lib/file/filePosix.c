@@ -1039,7 +1039,7 @@ File_GetFreeSpace(ConstUnicode pathName,  // IN: File name
       goto end;
    }
 
-   ret = (uint64)statfsbuf.f_bavail * statfsbuf.f_bsize;
+   ret = (uint64) statfsbuf.f_bavail * statfsbuf.f_bsize;
 
 #if defined(VMX86_SERVER)
    /*
@@ -1225,18 +1225,17 @@ static int
 File_GetVMFSVersion(ConstUnicode pathName,  // IN: Filename to test
                     uint32 *version)        // IN/OUT: version number of VMFS
 {
-   int ret = -1;
+   int ret;
    FS_PartitionListResult *fsAttrs = NULL;
 
    ret = File_GetVMFSAttributes(pathName, &fsAttrs);
+
    if (ret < 0) {
       Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
-      goto done;
+   } else {
+      *version = fsAttrs->versionNumber;
    }
 
-   *version = fsAttrs->versionNumber;
-
-done:
    if (fsAttrs) {
       free(fsAttrs);
    }
@@ -1266,18 +1265,17 @@ int
 File_GetVMFSBlockSize(ConstUnicode pathName,  // IN: File name to test
                       uint32 *blockSize)      // IN/OUT: VMFS block size
 {
-   int ret = -1;
+   int ret;
    FS_PartitionListResult *fsAttrs = NULL;
 
    ret = File_GetVMFSAttributes(pathName, &fsAttrs);
+
    if (ret < 0) {
       Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
-      goto done;
+   } else {
+      *blockSize = fsAttrs->fileBlockSize;
    }
 
-   *blockSize = fsAttrs->fileBlockSize;
-
-done:
    if (fsAttrs) {
       free(fsAttrs);
    }
@@ -1307,19 +1305,18 @@ int
 File_GetVMFSfsType(ConstUnicode pathName,  // IN: File name to test
                    char **fsType)          // IN/OUT: VMFS fsType
 {
-   int ret = -1;
+   int ret;
    FS_PartitionListResult *fsAttrs = NULL;
 
    ret = File_GetVMFSAttributes(pathName, &fsAttrs);
+
    if (ret < 0) {
       Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
-      goto done;
+   } else {
+      *fsType = Util_SafeMalloc(sizeof(char) * FS_PLIST_DEF_MAX_FSTYPE_LEN);
+      memcpy(*fsType, fsAttrs->fsType, FS_PLIST_DEF_MAX_FSTYPE_LEN);
    }
 
-   *fsType = Util_SafeMalloc(sizeof(char) * FS_PLIST_DEF_MAX_FSTYPE_LEN);
-   memcpy(*fsType, fsAttrs->fsType, FS_PLIST_DEF_MAX_FSTYPE_LEN);
-
-done:
    if (fsAttrs) {
       free(fsAttrs);
    }
@@ -1415,19 +1412,16 @@ File_GetCapacity(ConstUnicode pathName)  // IN: Path name
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
-      ret = -1;
-      goto end;
+      return -1;
    }
 
-   if (!FileGetStats(fullPath, FALSE, &statfsbuf)) {
+   if (FileGetStats(fullPath, FALSE, &statfsbuf)) {
+      ret = (uint64) statfsbuf.f_blocks * statfsbuf.f_bsize;
+   } else {
       Warning(LGPFX" %s: Couldn't statfs\n", __func__);
       ret = -1;
-      goto end;
    }
 
-   ret = (uint64)statfsbuf.f_blocks * statfsbuf.f_bsize;
-
-end:
    Unicode_Free(fullPath);
 
    return ret;
