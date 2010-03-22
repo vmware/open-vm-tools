@@ -197,6 +197,7 @@ void DebugToFile(const char *str) // IN
 
    FileIO_Seek(&fd, 0, FILEIO_SEEK_END);
    fr = FileIO_Write(&fd, timePrefixUtf8, strlen(timePrefixUtf8), &bytesWritten);
+   fr = FileIO_Write(&fd, ": ", 2, &bytesWritten);
    fr = FileIO_Write(&fd, str, strlen(str), &bytesWritten);
    Unicode_Free(timePrefix);
    if (fr != FILEIO_SUCCESS) {

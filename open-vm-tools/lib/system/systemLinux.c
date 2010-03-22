@@ -171,7 +171,7 @@ System_Uptime(void)
  *      Returns the current time as a formatted string, useful for prepending
  *      to debugging output.
  *
- *      For example: "Oct 05 18:03:24.948: "
+ *      For example: "Oct 05 18:03:24.948"
  *
  * Results:
  *      On success, allocates and returns a string containing the formatted
@@ -230,7 +230,7 @@ System_GetTimeAsString(void)
    if (dateTime == NULL) {
       goto out;
    }
-   output = Unicode_Format("%s.%03d: ", dateTime, msec);
+   output = Unicode_Format("%s.%03d", dateTime, msec);
 
   out:
    free(buf);
