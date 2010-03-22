@@ -167,8 +167,8 @@ FileRename(ConstUnicode oldName,  // IN:
  *----------------------------------------------------------------------
  *
  *  FileDeletion --
- *	     Delete the specified file.  A NULL pathName will result in an error
- *	     and errno will be set to EFAULT.
+ *      Delete the specified file.  A NULL pathName will result in an error
+ *      and errno will be set to EFAULT.
  *
  * Results:
  *	0	success
@@ -196,6 +196,7 @@ FileDeletion(ConstUnicode pathName,   // IN:
       Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
           __FUNCTION__, UTF8(pathName));
       errno = UNICODE_CONVERSION_ERRNO;
+
       return errno;
    }
 
@@ -232,6 +233,7 @@ FileDeletion(ConstUnicode pathName,   // IN:
 bail:
    free(primaryPath);
    free(linkPath);
+
    return err;
 }
 
@@ -406,6 +408,30 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
 /*
  *----------------------------------------------------------------------
  *
+ * File_OnVMFS --
+ *
+ *      Return TRUE if file is on a VMFS file system.
+ *
+ * Results:
+ *      TRUE   Caller is running on ESX (all FS are consider VMFS)
+ *      FALSE  Otherwise
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_OnVMFS(ConstUnicode pathName)  // IN:
+{
+   return HostType_OSIsVMK();
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_IsSymLink --
  *
  *      Check if the specified file is a symbolic link or not
@@ -574,9 +600,7 @@ File_FullPath(ConstUnicode pathName)  // IN:
           ret = FileStripFwdSlashes(pathName);
        }
    } else {
-      Unicode path;
-
-      path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
+      Unicode path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
 
       ret = Posix_RealPath(path);
 
@@ -636,11 +660,11 @@ File_IsFullPath(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_GetTimes(ConstUnicode pathName,      // IN:
-              VmTimeType *createTime,     // OUT: Windows NT time format
-              VmTimeType *accessTime,     // OUT: Windows NT time format
-              VmTimeType *writeTime,      // OUT: Windows NT time format
-              VmTimeType *attrChangeTime) // OUT: Windows NT time format
+File_GetTimes(ConstUnicode pathName,       // IN:
+              VmTimeType *createTime,      // OUT: Windows NT time format
+              VmTimeType *accessTime,      // OUT: Windows NT time format
+              VmTimeType *writeTime,       // OUT: Windows NT time format
+              VmTimeType *attrChangeTime)  // OUT: Windows NT time format
 {
    struct stat statBuf;
 
@@ -654,6 +678,7 @@ File_GetTimes(ConstUnicode pathName,      // IN:
    if (Posix_Lstat(pathName, &statBuf) == -1) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
           UTF8(pathName), strerror(errno));
+
       return FALSE;
    }
 
@@ -1098,34 +1123,6 @@ end:
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * File_OnVMFS --
- *
- *      Return TRUE if file is on a VMFS file system.
- *
- * Results:
- *      Boolean
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-File_OnVMFS(ConstUnicode pathName)  // IN:
-{
-   /*
-    * VMFS exists only on ESX and all file systems appear to be directly
-    * attached and VMFS.
-    */
-
-   return HostType_OSIsVMK();
-}
-
-
 #if defined(VMX86_SERVER)
 /*
  *----------------------------------------------------------------------
@@ -1350,12 +1347,12 @@ done:
  */
 
 int 
-File_GetVMFSMountInfo(ConstUnicode pathName,
-                     char **fsType,
-                     uint32 *version,
-                     char **remoteIP,
-                     char **remoteMountPoint,
-                     char **localMountPoint)
+File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
+                     char **fsType,           // OUT:
+                     uint32 *version,         // OUT:
+                     char **remoteIP,         // OUT:
+                     char **remoteMountPoint, // OUT:
+                     char **localMountPoint)  // OUT:
 {
    int ret;
    int len;
@@ -1463,7 +1460,7 @@ end:
  */
 
 char *
-File_GetUniqueFileSystemID(char const *path) // IN: File path
+File_GetUniqueFileSystemID(char const *path)  // IN: File path
 {
 #if defined(VMX86_SERVER)
    char *canPath;
@@ -1524,8 +1521,8 @@ File_GetUniqueFileSystemID(char const *path) // IN: File path
  */
 
 static char *
-FilePosixLookupMountPoint(char const *canPath, // IN: Canonical file path
-                          Bool *bind)          // OUT: Mounted with --[r]bind?
+FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
+                          Bool *bind)           // OUT: Mounted with --[r]bind?
 {
    FILE *f;
    struct mntent *mnt;
@@ -1596,7 +1593,7 @@ FilePosixLookupMountPoint(char const *canPath, // IN: Canonical file path
  */
 
 char *
-FilePosixGetBlockDevice(char const *path) // IN: File path
+FilePosixGetBlockDevice(char const *path)  // IN: File path
 {
    char *existPath;
    Bool failed;
@@ -1749,7 +1746,7 @@ retry:
  */
 
 static char *
-FilePosixNearestExistingAncestor(char const *path) // IN: File path
+FilePosixNearestExistingAncestor(char const *path)  // IN: File path
 {
    size_t resultSize;
    char *result;
@@ -1994,8 +1991,8 @@ bail:
  */
 
 static Bool
-FilePosixCreateTestFileSize(ConstUnicode dirName, // IN: directory to create large file
-                            uint64 fileSize)      // IN: test file size
+FilePosixCreateTestFileSize(ConstUnicode dirName,  // IN: test directory
+                            uint64 fileSize)       // IN: test file size
 {
    Bool retVal;
    int posixFD;
@@ -2541,6 +2538,7 @@ FileIsGroupsMember(gid_t gid)  // IN:
 
    members = NULL;
    nr_members = 0;
+
    for (;;) {
       gid_t *new;
 
