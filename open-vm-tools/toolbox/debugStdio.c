@@ -119,29 +119,6 @@ Debug_EnableToFile(const char *file,      // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * Debug_IsEnabled --
- *
- *    Is debugging output enabled?
- *
- * Result
- *    TRUE/FALSE
- *
- * Side-effects
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Debug_IsEnabled(void)
-{
-   return debugEnabled;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * DebugToFile --
  *
  *    Print a string to the given file. This opens & closes the file

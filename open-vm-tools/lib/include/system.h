@@ -36,7 +36,6 @@
 
 uint64 System_Uptime(void);
 Unicode System_GetTimeAsString(void);
-Bool System_IsACPI(void);
 void System_Shutdown(Bool reboot);
 Bool System_IsUserAdmin(void);
 
@@ -92,11 +91,8 @@ Bool System_SetAeroState(AeroStateCommand command, AeroStateCommand *oldState);
  *        preprocessor option.
  */
 #if !defined(_WIN32)
-Bool System_WritePidFile(const char *fileName, pid_t pid);
 const char **System_GetNativeEnviron(const char **compatEnviron);
 void System_FreeNativeEnviron(const char **nativeEnviron);
-int System_UnsetEnv(const char *variableName);
-char *System_SetLDPath(const char *path, const Bool native);
 #endif
 
 #endif /* __SYSTEM_H__ */

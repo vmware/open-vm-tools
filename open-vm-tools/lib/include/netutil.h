@@ -73,7 +73,6 @@ typedef  FIXED_INFO_W2KSP1 *PFIXED_INFO;
 
 DWORD NetUtil_LoadIpHlpApiDll(void);
 DWORD NetUtil_FreeIpHlpApiDll(void);
-Bool NetUtil_ReleaseRenewIP(Bool release);
 
 /* Wrappers for functions in iphlpapi.dll */
 PFIXED_INFO NetUtil_GetNetworkParams(void);
