@@ -39,11 +39,12 @@ typedef struct FileLoggerData {
    LogHandlerData    handler;
    FILE             *file;
    gchar            *path;
-   gsize             logSize;
-   gsize             maxSize;
+   gint              logSize;
+   gint              maxSize;
    guint             maxFiles;
    gboolean          append;
    gboolean          error;
+   GStaticRWLock     lock;
 } FileLoggerData;
 
 
@@ -145,6 +146,8 @@ VMFileLoggerGetPath(FileLoggerData *data,
  * Opens a log file for writing, backing up the existing log file if one is
  * present. Only one old log file is preserved.
  *
+ * @note Make sure this function is called with the write lock held.
+ *
  * @param[in] data   Log handler data.
  *
  * @return Log file pointer (NULL on error).
@@ -164,10 +167,10 @@ VMFileLoggerOpen(FileLoggerData *data)
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
       struct stat fstats;
       if (g_stat(path, &fstats) > -1) {
-         data->logSize = (guint) fstats.st_size;
+         g_atomic_int_set(&data->logSize, (gint) fstats.st_size);
       }
 
-      if (!data->append || data->logSize >= data->maxSize) {
+      if (!data->append || g_atomic_int_get(&data->logSize) >= data->maxSize) {
          /*
           * Find the last log file and iterate back, changing the indices as we go,
           * so that the oldest log file has the highest index (the new log file
@@ -210,7 +213,7 @@ VMFileLoggerOpen(FileLoggerData *data)
             g_free(g_ptr_array_index(logfiles, id));
          }
          g_ptr_array_free(logfiles, TRUE);
-         data->logSize = 0;
+         g_atomic_int_set(&data->logSize, 0);
          data->append = FALSE;
       }
    }
@@ -249,6 +252,8 @@ VMFileLoggerLog(const gchar *domain,
    gboolean ret = FALSE;
    FileLoggerData *data = (FileLoggerData *) _data;
 
+   g_static_rw_lock_reader_lock(&data->lock);
+
    if (data->error) {
       goto exit;
    }
@@ -261,7 +266,17 @@ VMFileLoggerLog(const gchar *domain,
          ret = TRUE;
          goto exit;
       } else {
-         data->file = VMFileLoggerOpen(data);
+         /*
+          * We need to drop the read lock and acquire a write lock to open
+          * the log file.
+          */
+         g_static_rw_lock_reader_unlock(&data->lock);
+         g_static_rw_lock_writer_lock(&data->lock);
+         if (data->file == NULL) {
+            data->file = VMFileLoggerOpen(data);
+         }
+         g_static_rw_lock_writer_unlock(&data->lock);
+         g_static_rw_lock_reader_lock(&data->lock);
          if (data->file == NULL) {
             data->error = TRUE;
             errfn(domain, G_LOG_LEVEL_WARNING | G_LOG_FLAG_RECURSION,
@@ -275,15 +290,22 @@ VMFileLoggerLog(const gchar *domain,
    /* Write the log file and do log rotation accounting. */
    if (fputs(message, data->file) >= 0) {
       if (data->maxSize > 0) {
-         data->logSize += strlen(message);
+         g_atomic_int_add(&data->logSize, strlen(message));
 #if defined(_WIN32)
          /* Account for \r. */
-         data->logSize += 1;
+         g_atomic_int_add(&data->logSize, 1);
 #endif
-         if (data->logSize >= data->maxSize) {
-            fclose(data->file);
-            data->append = FALSE;
-            data->file = VMFileLoggerOpen(data);
+         if (g_atomic_int_get(&data->logSize) >= data->maxSize) {
+            /* Drop the reader lock, grab the writer lock and re-check. */
+            g_static_rw_lock_reader_unlock(&data->lock);
+            g_static_rw_lock_writer_lock(&data->lock);
+            if (g_atomic_int_get(&data->logSize) >= data->maxSize) {
+               fclose(data->file);
+               data->append = FALSE;
+               data->file = VMFileLoggerOpen(data);
+            }
+            g_static_rw_lock_writer_unlock(&data->lock);
+            g_static_rw_lock_reader_lock(&data->lock);
          } else {
             fflush(data->file);
          }
@@ -294,6 +316,7 @@ VMFileLoggerLog(const gchar *domain,
    }
 
 exit:
+   g_static_rw_lock_reader_unlock(&data->lock);
    return ret;
 }
 
@@ -351,6 +374,7 @@ VMFileLoggerDestroy(LogHandlerData *_data)
    if (data->file != NULL) {
       fclose(data->file);
    }
+   g_static_rw_lock_free(&data->lock);
    g_free(data->path);
    g_free(data);
 }
@@ -406,6 +430,7 @@ VMFileLoggerConfig(const gchar *defaultDomain,
    data->handler.dtor = VMFileLoggerDestroy;
 
    data->append = (name != NULL && strcmp(name, "file+") == 0);
+   g_static_rw_lock_init(&data->lock);
 
    if (logpath != NULL) {
       data->path = g_filename_from_utf8(logpath, -1, NULL, NULL, NULL);
