@@ -55,38 +55,14 @@
 #include "localconfig.h"
 #include "hostinfo.h"
 #include "su.h"
+#include "hostType.h"
 
 #include "unicodeOperations.h"
-
-#if defined(VMX86_SERVER)
-#include "hostType.h"
-/*
- * UserWorlds have to handle file locking slightly differently than COS
- * applications, as they are in a different pid space.  The problem is that
- * if a UserWorld tries to write its UserWorld pid to a lock file, a COS
- * program will think the lock file is stale, as that pid won't be valid on
- * the COS. Luckily, every UW is attached to a COS proxy, so, for the
- * purposes of this file, the UW can use its COS proxy's pid as its pid when
- * locking files. This way, if a COS app looks up the proxy pid, it will be
- * valid and the COS app will wait for the lock.
- */
-#include "uwvmk.h"
-#endif
 
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
 
 #define DEVICE_LOCK_DIR "/var/lock"
-
-/*
- * Parameters used by the file library.
- */
-typedef struct FileLockOptions {
-   int lockerPid;
-   Bool userWorld;
-} FileLockOptions;
-
-static FileLockOptions fileLockOptions = { 0, FALSE };
 
 /*
  * XXX
@@ -96,30 +72,6 @@ static FileLockOptions fileLockOptions = { 0, FALSE };
  * important, and should be presented directly to the user, not go silently
  * into the log file.
  */
-
-/*
- *----------------------------------------------------------------------
- *
- * FileLock_Init --
- *
- *      Initialize the file locking library.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Allows the user to enable locking on random file systems.
- *
- *----------------------------------------------------------------------
- */
-
-void
-FileLock_Init(int lockerPid,   // IN:
-              Bool userWorld)  // IN:
-{
-   fileLockOptions.lockerPid = lockerPid;
-   fileLockOptions.userWorld = userWorld;
-}
 
 #if !defined(__FreeBSD__) && !defined(sun)
 /*
@@ -147,12 +99,14 @@ IsLinkingAvailable(const char *fileName)  // IN:
 
    ASSERT(fileName);
 
-#if defined(VMX86_SERVER)
-   // Never supported on VMvisor
-   if (HostType_OSIsPureVMK()) {
+   /*
+    * Don't use linking on ESX/VMFS... the overheads are expensive and this
+    * path really isn't used.
+    */
+
+   if (HostType_OSIsVMK()) {
       return FALSE;
    }
-#endif
 
    status = statfs(fileName, &buf);
 
@@ -194,7 +148,6 @@ IsLinkingAvailable(const char *fileName)  // IN:
    case TMPFS_SUPER_MAGIC:
    case JFS_SUPER_MAGIC:
         return TRUE;                        // these are known to work
-   case VMFS_SUPER_MAGIC:
    case SMB_SUPER_MAGIC:
    case MSDOS_SUPER_MAGIC:
         return FALSE;
@@ -209,45 +162,6 @@ IsLinkingAvailable(const char *fileName)  // IN:
 #endif
 
    return FALSE;
-}
-
-
-/*
- *---------------------------------------------------------------------------
- *
- * FileLockGetPid --
- *
- *      Returns the pid of the main thread if we're running in a
- *      multithreaded process, otherwise return the result of getpid().
- *
- * Results:
- *      a pid.
- *
- * Side effects:
- *      None.
- *
- *---------------------------------------------------------------------------
- */
-
-static int
-FileLockGetPid(void)
-{
-#if defined(VMX86_SERVER)
-   /*
-    * For a UserWorld, we want to get this cartel's proxy's cos pid.
-    */
-   if (fileLockOptions.userWorld) {
-      int pid, err;
-
-      err = VMKernel_GetLockPid(&pid);
-      ASSERT_NOT_IMPLEMENTED(err == 0);
-
-      return pid;
-   }
-#endif
-
-   return fileLockOptions.lockerPid > 0 ?
-                         fileLockOptions.lockerPid : (int) getpid();
 }
 
 
@@ -400,12 +314,6 @@ FileLockIsValidProcess(int pid)  // IN:
    uid_t uid;
    int err;
    Bool ret;
-
-#if defined(VMX86_SERVER)
-   if (fileLockOptions.userWorld) {
-      return (VMKernel_IsLockPidAlive(pid) == 0) ? TRUE : FALSE;
-   }
-#endif
 
    uid = Id_BeginSuperUser();
    err = (kill(pid, 0) == -1) ? errno : 0;
@@ -571,14 +479,14 @@ FileLock_LockDevice(const char *deviceName)  // IN:
                                    deviceName);
 
    lockFileLink = Str_SafeAsprintf(NULL, "%s/LTMP..%s.t%05d", DEVICE_LOCK_DIR,
-                                   deviceName, FileLockGetPid());
+                                   deviceName, getpid());
 
    LOG(1, ("Requesting lock %s (temp = %s).\n", lockFileName,
            lockFileLink));
 
    hostID = FileLockGetMachineID();
    Str_Sprintf(uniqueID, sizeof uniqueID, "%d %s\n",
-               FileLockGetPid(), hostID);
+               getpid(), hostID);
 
    while ((status = FileLockCreateLockFile(lockFileName, lockFileLink,
                                            uniqueID)) == 0) {
@@ -1064,7 +972,7 @@ FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN:
 char *
 FileLockGetExecutionID(void)
 {
-   return Str_SafeAsprintf(NULL, "%d", FileLockGetPid());
+   return Str_SafeAsprintf(NULL, "%d", getpid());
 }
 
 
@@ -1178,7 +1086,7 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    }
 
    Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
-               ProcessCreationTime(FileLockGetPid()));
+               ProcessCreationTime(getpid()));
 
    lockToken = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
                                  creationTimeString, err);

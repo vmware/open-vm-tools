@@ -30,13 +30,6 @@
 
 #include "unicodeTypes.h"
 
-#if !defined(_WIN32)
-/*
- * Set the file type config variables for linux.
- */
-EXTERN void FileLock_Init(int lockerPid, Bool userWorld);
-#endif
-
 // Horrible hack that exists to please VMX; should be removed ASAP
 EXTERN int  FileLock_DeleteFileVMX(ConstUnicode filePath);
 
