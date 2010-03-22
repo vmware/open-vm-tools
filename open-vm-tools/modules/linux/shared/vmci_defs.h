@@ -685,8 +685,6 @@ static INLINE void
 VMCIQueueHeader_Init(VMCIQueueHeader *qHeader, // IN/OUT:
                      const VMCIHandle handle)  // IN:
 {
-   ASSERT_NOT_IMPLEMENTED(VMCIQueueHeader_CheckAlignment(qHeader));
-
    qHeader->handle = handle;
    VMCIQueueHeader_ResetPointers(qHeader);
 }
