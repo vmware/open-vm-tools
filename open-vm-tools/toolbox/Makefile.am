@@ -122,3 +122,11 @@ else
    vmware_toolbox_cmd_LINK = $(LINK)
 endif
 
+# Message catalogs.
+catalogsdir = $(datadir)/open-vm-tools/messages
+
+catalogs_DATA =
+catalogs_DATA += messages/toolboxcmd_de.vmsg
+catalogs_DATA += messages/toolboxcmd_ja.vmsg
+catalogs_DATA += messages/toolboxcmd_zh.vmsg
+
