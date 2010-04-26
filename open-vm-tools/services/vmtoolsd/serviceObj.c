@@ -97,10 +97,19 @@ ToolsCoreCapabilitiesAccumulator(GSignalInvocationHint *ihint,
  * Accumulator function for the "service control" signal. Updates the return
  * value according to the signal's documentation.
  *
- * @param[in]  ihint       Unused.
- * @param[out] retval      Return value of the signal.
- * @param[in]  handlerRet  Return value from the current handler.
- * @param[in]  data        Unused.
+ * The gobject library initializes the return value to "0" regardless of
+ * what the signal emitter sets it to. So the accumulator does two things
+ * to have a non-zero default return value:
+ *
+ *    - if the current return value is zero, it's set to the default return
+ *      value (ERROR_CALL_NOT_IMPLEMENTED).
+ *    - the return value is always offset by one; so the signal emitter
+ *      should decrement the return value when looking at it.
+ *
+ * @param[in]     ihint       Unused.
+ * @param[in,out] retval      Return value of the signal (offset by 1).
+ * @param[in]     handlerRet  Return value from the current handler.
+ * @param[in]     data        Unused.
  *
  * @return TRUE.
  */
@@ -113,24 +122,31 @@ ToolsCoreServiceControlAccumulator(GSignalInvocationHint *ihint,
 {
    guint ret = g_value_get_uint(retval);
    guint handlerVal = g_value_get_uint(handlerRet);
+
+   if (ret == 0) {
+      ret = ERROR_CALL_NOT_IMPLEMENTED + 1;
+   }
+
    switch (ret) {
-   case ERROR_CALL_NOT_IMPLEMENTED:
-      ret = handlerVal;
+   case ERROR_CALL_NOT_IMPLEMENTED + 1:
+      ret = handlerVal + 1;
       break;
 
-   case NO_ERROR:
+   case NO_ERROR + 1:
       if (handlerVal != ERROR_CALL_NOT_IMPLEMENTED) {
-         ret = handlerVal;
+         ret = handlerVal + 1;
       }
       break;
 
    default:
       break;
    }
+
    g_value_set_uint(retval, ret);
    return TRUE;
 }
 #endif
+
 
 /**
  * Initializes the ToolsCoreService class. Sets up the signals that are sent
@@ -212,7 +228,7 @@ ToolsCore_Service_class_init(gpointer _klass,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,
                 0,
-                NULL,
+                ToolsCoreServiceControlAccumulator,
                 NULL,
                 g_cclosure_user_marshal_UINT__POINTER_POINTER_UINT_UINT_POINTER,
                 G_TYPE_UINT,
