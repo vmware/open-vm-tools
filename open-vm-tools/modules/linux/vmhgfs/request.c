@@ -59,7 +59,6 @@
 
 static void
 HgfsRequestInit(HgfsReq *req,       // IN: request to initialize
-                size_t bufferSize,  // Size of the buffer allocated with request
                 int requestId)      // IN: ID assigned to the request
 {
    ASSERT(req);
@@ -69,8 +68,8 @@ HgfsRequestInit(HgfsReq *req,       // IN: request to initialize
    init_waitqueue_head(&req->queue);
    req->id = requestId;
    req->payloadSize = 0;
-   req->bufferSize = bufferSize;
    req->state = HGFS_REQ_STATE_ALLOCATED;
+   req->numEntries = 0;
 }
 
 /*
@@ -102,11 +101,11 @@ HgfsGetNewRequest(void)
       return NULL;
    }
 
-   HgfsRequestInit(req, HGFS_PACKET_MAX,
-                   atomic_inc_return(&hgfsIdCounter) - 1);
+   HgfsRequestInit(req, atomic_inc_return(&hgfsIdCounter) - 1);
 
    return req;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -139,9 +138,12 @@ HgfsCopyRequest(HgfsReq *req)   // IN: request to be copied
       return NULL;
    }
 
-   HgfsRequestInit(newReq, req->bufferSize, req->id);
+   HgfsRequestInit(newReq, req->id);
 
-   /* Copy payload from the original request. */
+   memcpy(newReq->dataPacket, req->dataPacket,
+          req->numEntries * sizeof (req->dataPacket[0]));
+
+   newReq->numEntries = req->numEntries;
    newReq->payloadSize = req->payloadSize;
    memcpy(newReq->payload, req->payload, req->payloadSize);
 
@@ -170,8 +172,8 @@ HgfsSendRequest(HgfsReq *req)       // IN/OUT: Outgoing request
    int ret;
 
    ASSERT(req);
-   ASSERT(req->payloadSize <= HGFS_PACKET_MAX);
-
+   ASSERT(req->payloadSize <= req->bufferSize);
+   LOG(4, (KERN_WARNING "Size of buffer %Zu\n", req->bufferSize));
    req->state = HGFS_REQ_STATE_UNSENT;
 
    LOG(8, (KERN_DEBUG "VMware hgfs: HgfsSendRequest: Sending request id %d\n",
@@ -205,7 +207,7 @@ static void HgfsRequestFreeMemory(struct kref *kref)
 
    LOG(10, (KERN_DEBUG "VMware hgfs: %s: freeing request %d\n",
             __func__, req->id));
-   kfree(req);
+   HgfsTransportFreeRequest(req);
 }
 
 /*

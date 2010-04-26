@@ -3397,10 +3397,11 @@ HgfsServerScandir(char const *baseDir,      // IN: Directory to search in
  */
 
 HgfsInternalStatus
-HgfsServerOpen(char const *packetIn,     // IN: incoming packet
-               size_t packetSize,        // IN: size of packet
-               HgfsSessionInfo *session) // IN: session info
+HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsNameStatus nameStatus;
    HgfsInternalStatus status;
    int newFd = -1;
@@ -3519,10 +3520,10 @@ HgfsServerOpen(char const *packetIn,     // IN: incoming packet
          goto exit;
       }
 
-      if (HgfsPackOpenReply(packetIn, status, &openInfo, &packetOut,
-                            &packetOutSize)) {
-         if (!HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-            free(packetOut);
+      if (HgfsPackOpenReply(input->packet, packetIn, status, &openInfo, &packetOut,
+                            &packetOutSize, session)) {
+         if (!HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+            HSPU_PutReplyPacket(input->packet, session);
          }
       } else {
          status = EPROTO;
@@ -3563,10 +3564,10 @@ HgfsServerOpen(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerRead(char const *packetIn,     // IN: incoming packet
-               size_t packetSize,        // IN: size of packet
-               HgfsSessionInfo *session) // IN: session info
+HgfsServerRead(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   HgfsSessionInfo *session = input->session;
    HgfsRequest *header = (HgfsRequest *)packetIn;
    int fd;
    int error;
@@ -3579,12 +3580,38 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
    char *payload;
    uint32 *replyActualSize;
    size_t replySize;
+   size_t replyPacketSize;
    char *packetOut;
 
    ASSERT(packetIn);
    ASSERT(session);
 
-   if (header->op == HGFS_OP_READ_V3) {
+   if (header->op == HGFS_OP_READ_FAST_V3) {
+      HgfsRequestReadV3 *request =
+                        (HgfsRequestReadV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
+      HgfsReplyReadV3 *reply;
+
+      file = request->file;
+      offset = request->offset;
+      requiredSize = request->requiredSize;
+
+      replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply) - 1;
+      /* Get a data packet buffer that is writeable */
+      payload = HSPU_GetDataPacketBuf(input->packet, HGFS_BUF_WRITEABLE, session);
+      if (!payload) {
+         ASSERT_DEVEL(payload);
+         status = EPROTO;
+         goto error;
+      }
+      replyPacketSize = replySize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize, replyPacketSize, status, error);
+      reply = (HgfsReplyReadV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
+
+      replyActualSize = &reply->actualSize;
+      reply->reserved = 0;
+
+   } else if (header->op == HGFS_OP_READ_V3) {
       HgfsRequestReadV3 *request =
                         (HgfsRequestReadV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       HgfsReplyReadV3 *reply;
@@ -3598,18 +3625,19 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
       extra = HGFS_LARGE_PACKET_MAX - replySize;
 
       /*
-       * requiredSize is user-provided, so this test must be carefully
-       * written to prevent wraparounds.
-       */
+      * requiredSize is user-provided, so this test must be carefully
+      * written to prevent wraparounds.
+      */
       if (requiredSize > extra) {
          /*
           * The client wants to read more bytes than our payload can handle.
           * Truncate the request
           */
-         requiredSize = extra;
+        requiredSize = extra;
       }
-
-      packetOut = Util_SafeMalloc(replySize + requiredSize);
+      replyPacketSize = replySize + requiredSize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize + requiredSize, replyPacketSize, status, error);
       reply = (HgfsReplyReadV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
       payload = reply->payload;
       replyActualSize = &reply->actualSize;
@@ -3638,7 +3666,9 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
          requiredSize = extra;
       }
 
-      packetOut = Util_SafeMalloc(replySize + requiredSize);
+      replyPacketSize = replySize + requiredSize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize + requiredSize, replyPacketSize, status, error);
       reply = (HgfsReplyRead *)packetOut;
       payload = reply->payload;
       replyActualSize = &reply->actualSize;
@@ -3652,14 +3682,13 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
 
    if (status != 0) {
       LOG(4, ("%s: Could not get file descriptor\n", __FUNCTION__));
-      free(packetOut);
-      return status;
+      goto error;
    }
 
    if (!HgfsHandleIsSequentialOpen(file, session, &sequentialOpen)) {
       LOG(4, ("%s: Could not get sequenial open status\n", __FUNCTION__));
-      free(packetOut);
-      return EBADF;
+      status = EBADF;
+      goto error;
    }
 
 #if defined(GLIBC_VERSION_21) || defined(__APPLE__)
@@ -3712,17 +3741,23 @@ HgfsServerRead(char const *packetIn,     // IN: incoming packet
 
    LOG(4, ("%s: read %d bytes\n", __FUNCTION__, error));
    *replyActualSize = error;
-   replySize += error;
+
+   if (header->op == HGFS_OP_READ_FAST_V3) {
+      HSPU_PutDataPacketBuf(input->packet, session);
+   } else {
+      replySize += error;
+   }
 
    /* Send the reply. */
-   if (!HgfsPackAndSendPacket(packetOut, replySize, 0, header->id, session, 0)) {
+   if (!HgfsPackAndSendPacket(input->packet, packetOut, replySize, 0,
+                              header->id, session, 0)) {
       status = 0;
       goto error;
    }
-   return 0;
 
+   return 0;
 error:
-   free(packetOut);
+   HSPU_PutReplyPacket(input->packet, session);
    return status;
 }
 
@@ -3745,12 +3780,12 @@ error:
  */
 
 HgfsInternalStatus
-HgfsServerWrite(char const *packetIn,     // IN: incoming packet
-                size_t packetSize,        // IN: size of packet
-                HgfsSessionInfo *session) // IN: session info
+HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsRequest *header = (HgfsRequest *)packetIn;
-   uint32 extra;
    HgfsInternalStatus status;
    int fd;
    int error;
@@ -3762,17 +3797,50 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
    char *payload;
    uint32 *actualSize;
    size_t replySize;
+   size_t replyPacketSize;
    char *packetOut;
 
    ASSERT(packetIn);
    ASSERT(session);
 
-   if (header->op == HGFS_OP_WRITE_V3) {
+   if (header->op == HGFS_OP_WRITE_FAST_V3) {
       HgfsRequestWriteV3 *request;
       HgfsReplyWriteV3 *reply;
 
       replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
-      packetOut = Util_SafeMalloc(replySize);
+      replyPacketSize = replySize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize, replyPacketSize, status, error);
+
+      request = (HgfsRequestWriteV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
+      reply = (HgfsReplyWriteV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
+
+      /* Enforced by the dispatch function */
+      ASSERT(packetSize >= HGFS_REQ_PAYLOAD_SIZE_V3(request) - 1);
+
+      file = request->file;
+      flags = request->flags;
+      offset = request->offset;
+      requiredSize = request->requiredSize;
+      reply->reserved = 0;
+      actualSize = &reply->actualSize;
+      /* Get a data packet buffer that is readable */
+      payload = HSPU_GetDataPacketBuf(input->packet, HGFS_BUF_READABLE, session);
+      if (!payload) {
+         ASSERT_DEVEL(payload);
+         status = EPROTO;
+         goto error;
+      }
+
+   } else if (header->op == HGFS_OP_WRITE_V3) {
+      HgfsRequestWriteV3 *request;
+      HgfsReplyWriteV3 *reply;
+      uint32 extra;
+
+      replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply);
+      replyPacketSize = replySize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize, replyPacketSize, status, error);
 
       request = (HgfsRequestWriteV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       reply = (HgfsReplyWriteV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
@@ -3784,16 +3852,29 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
       file = request->file;
       flags = request->flags;
       offset = request->offset;
-      payload = request->payload;
       requiredSize = request->requiredSize;
-      actualSize = &reply->actualSize;
       reply->reserved = 0;
+      actualSize = &reply->actualSize;
+
+      payload = request->payload;
+
+      /*
+       * requiredSize is user-provided, so this test must be carefully
+       * written to prevent wraparounds.
+       */
+      if (requiredSize > extra) {
+         requiredSize = extra;
+      }
+
    } else {
       HgfsRequestWrite *request;
       HgfsReplyWrite *reply;
+      uint32 extra;
 
       replySize = sizeof *reply;
-      packetOut = Util_SafeMalloc(replySize);
+      replyPacketSize = replySize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize, replyPacketSize, status, error);
 
       request = (HgfsRequestWrite *)packetIn;
       reply = (HgfsReplyWrite *)packetOut;
@@ -3808,10 +3889,18 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
       payload = request->payload;
       requiredSize = request->requiredSize;
       actualSize = &reply->actualSize;
+
+      /*
+       * requiredSize is user-provided, so this test must be carefully
+       * written to prevent wraparounds.
+       */
+      if (requiredSize > extra) {
+         requiredSize = extra;
+      }
    }
 
-   LOG(4, ("%s: write fh %u, offset %"FMT64"u, count %u, extra %u\n",
-           __FUNCTION__, file, offset, requiredSize, extra));
+   LOG(4, ("%s: write fh %u, offset %"FMT64"u, count %u\n",
+           __FUNCTION__, file, offset, requiredSize));
 
    /* Get the file desriptor from the cache */
    status = HgfsGetFd(file, session, ((flags & HGFS_WRITE_APPEND) ?
@@ -3820,26 +3909,13 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
 
    if (status != 0) {
       LOG(4, ("%s: Could not get file descriptor\n", __FUNCTION__));
-      free(packetOut);
-      return status;
+      goto error;
    }
 
    if (!HgfsHandleIsSequentialOpen(file, session, &sequentialOpen)) {
       LOG(4, ("%s: Could not get sequential open status\n", __FUNCTION__));
-      free(packetOut);
-      return EBADF;
-   }
-
-   /*
-    * requiredSize is user-provided, so this test must be carefully
-    * written to prevent wraparounds.
-    */
-   if (requiredSize > extra) {
-      /*
-       * The driver wants to write more bytes than there is in its payload.
-       * Truncate the request
-       */
-      requiredSize = extra;
+      status = EBADF;
+      goto error;
    }
 
 #if defined(GLIBC_VERSION_21) || defined(__APPLE__)
@@ -3893,14 +3969,19 @@ HgfsServerWrite(char const *packetIn,     // IN: incoming packet
    *actualSize = error;
    status = 0;
 
-   if (!HgfsPackAndSendPacket(packetOut, replySize, 0, header->id,
-                              session, 0)) {
+   if (header->op == HGFS_OP_WRITE_FAST_V3) {
+      HSPU_PutDataPacketBuf(input->packet, session);
+   }
+
+   if (!HgfsPackAndSendPacket(input->packet, packetOut, replySize,
+                              0, header->id, session, 0)) {
       goto error;
    }
+
    return 0;
 
 error:
-   free(packetOut);
+   HSPU_PutReplyPacket(input->packet, session);
    return status;
 }
 
@@ -3923,10 +4004,11 @@ error:
  */
 
 HgfsInternalStatus
-HgfsServerSearchOpen(char const *packetIn,     // IN: incoming packet
-                     size_t packetSize,        // IN: size of packet
-                     HgfsSessionInfo *session) // IN: session info
+HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsRequest *header;
    HgfsHandle *replySearch;
    uint32 extra;
@@ -3939,6 +4021,7 @@ HgfsServerSearchOpen(char const *packetIn,     // IN: incoming packet
    uint32 dirNameLength;
    HgfsCaseType caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
    size_t replySize;
+   size_t replyPacketSize;
    char *packetOut;
    HgfsShareInfo shareInfo;
 
@@ -3951,7 +4034,9 @@ HgfsServerSearchOpen(char const *packetIn,     // IN: incoming packet
       HgfsReplySearchOpenV3 *replyV3;
 
       replySize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
-      packetOut = Util_SafeMalloc(replySize);
+      replyPacketSize = replySize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize, replyPacketSize, status, exit);
 
       requestV3 = (HgfsRequestSearchOpenV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       replyV3 = (HgfsReplySearchOpenV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
@@ -3970,7 +4055,9 @@ HgfsServerSearchOpen(char const *packetIn,     // IN: incoming packet
       HgfsRequestSearchOpen *request = (HgfsRequestSearchOpen *)packetIn;
 
       replySize = sizeof (HgfsReplySearchOpen);
-      packetOut = Util_SafeMalloc(replySize);
+      replyPacketSize = replySize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, replySize, replyPacketSize, status, exit);
 
       /* Enforced by the dispatch function */
       ASSERT(packetSize >= sizeof *request);
@@ -4087,15 +4174,15 @@ HgfsServerSearchOpen(char const *packetIn,     // IN: incoming packet
     */
    *replySearch = handle;
 
-   if (!HgfsPackAndSendPacket(packetOut, replySize, 0, header->id,
-                              session, 0)) {
+   if (!HgfsPackAndSendPacket(input->packet, packetOut, replySize,
+                              0, header->id, session, 0)) {
       status = 0;
       goto exit;
    }
    return 0;
 
 exit:
-   free(packetOut);
+   HSPU_PutReplyPacket(input->packet, session);
    return status;
 }
 
@@ -4118,10 +4205,11 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsServerSearchRead(char const *packetIn,     // IN: incoming packet
-                     size_t packetSize,        // IN: size of packet
-                     HgfsSessionInfo *session) // IN: session info
+HgfsServerSearchRead(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    uint32 requestedOffset;
    HgfsFileAttrInfo attr;
    HgfsInternalStatus status;
@@ -4319,8 +4407,8 @@ HgfsServerSearchRead(char const *packetIn,     // IN: incoming packet
        * since what filesystems allow dent lengths as high as 6144 bytes?
        */
       status = 0;
-      if (!HgfsPackSearchReadReply(packetIn, status, entryName, entryNameLen,
-                                   &attr, &packetOut, &packetOutSize)) {
+      if (!HgfsPackSearchReadReply(input->packet, packetIn, status, entryName, entryNameLen,
+                                   &attr, &packetOut, &packetOutSize, session)) {
          status = EPROTO;
       }
 
@@ -4330,8 +4418,9 @@ HgfsServerSearchRead(char const *packetIn,     // IN: incoming packet
       free(dent);
 
       if (status == 0 &&
-          !HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-         free(packetOut);
+          !HgfsPacketSend(input->packet,
+                          packetOut, packetOutSize, session, 0)) {
+         HSPU_PutReplyPacket(input->packet, session);
       }
       return status;
    }
@@ -4341,13 +4430,13 @@ HgfsServerSearchRead(char const *packetIn,     // IN: incoming packet
    free(search.utf8ShareName);
    LOG(4, ("%s: no entry\n", __FUNCTION__));
    status = 0;
-   if (!HgfsPackSearchReadReply(packetIn, status, NULL, 0, &attr,
-                                &packetOut, &packetOutSize)) {
+   if (!HgfsPackSearchReadReply(input->packet, packetIn, status, NULL, 0, &attr,
+                                &packetOut, &packetOutSize, session)) {
       status = EPROTO;
    }
    if (status == 0 &&
-       !HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+       !HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
    }
    return status;
 }
@@ -4371,10 +4460,11 @@ HgfsServerSearchRead(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerGetattr(char const *packetIn,     // IN: incoming packet
-                  size_t packetSize,        // IN: size of packet
-                  HgfsSessionInfo *session) // IN: session info
+HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    char *localName;
    HgfsAttrHint hints = 0;
    HgfsFileAttrInfo attr;
@@ -4479,13 +4569,13 @@ HgfsServerGetattr(char const *packetIn,     // IN: incoming packet
       }
       targetNameLen = targetName ? strlen(targetName) : 0;
    }
-   status = HgfsPackGetattrReply(packetIn, status, &attr, targetName,
-                                 targetNameLen, &packetOut, &packetOutSize) ? 0 : EPROTO;
+   status = HgfsPackGetattrReply(input->packet, packetIn, status, &attr, targetName,
+                                 targetNameLen, &packetOut, &packetOutSize, session) ? 0 : EPROTO;
    free(targetName);
 
    if (status == 0 &&
-       !HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+       !HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
    }
 
 exit:
@@ -4511,10 +4601,11 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsServerSetattr(char const *packetIn,     // IN: incoming packet
-                  size_t packetSize,        // IN: size of packet
-                  HgfsSessionInfo *session) // IN: session info
+HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsInternalStatus status;
    HgfsFileAttrInfo attr;
    char *cpName;
@@ -4542,12 +4633,13 @@ HgfsServerSetattr(char const *packetIn,     // IN: incoming packet
       status = HgfsSetattrFromName(cpName, cpNameSize, &attr, hints,
 				   caseFlags, session);
    }
-   if (!HgfsPackSetattrReply(packetIn, status, attr.requestType, &packetOut, &packetOutSize)) {
+   if (!HgfsPackSetattrReply(input->packet, packetIn, status, attr.requestType,
+                             &packetOut, &packetOutSize, session)) {
       status = EPROTO;
       goto exit;
    }
-   if (!HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+   if (!HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
       /* We can't send the packet, ignore the error if any. */
    }
    status = 0;
@@ -4577,10 +4669,11 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsServerCreateDir(char const *packetIn,     // IN: incoming packet
-                    size_t packetSize,        // IN: size of packet
-                    HgfsSessionInfo *session) // IN: session info
+HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsNameStatus nameStatus;
    HgfsCreateDirInfo info;
    char *localName;
@@ -4670,12 +4763,12 @@ HgfsServerCreateDir(char const *packetIn,     // IN: incoming packet
       LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(error)));
       return error;
    }
-   if (!HgfsPackCreateDirReply(packetIn, 0, info.requestType,
-                               &packetOut, &packetOutSize)) {
+   if (!HgfsPackCreateDirReply(input->packet, packetIn, 0, info.requestType,
+                               &packetOut, &packetOutSize, session)) {
       return EPROTO;
    }
-   if (!HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+   if (!HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
    }
    return 0;
 }
@@ -4702,10 +4795,11 @@ HgfsServerCreateDir(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerDeleteFile(char const *packetIn,     // IN: incoming packet
-                     size_t packetSize,        // IN: size of packet
-                     HgfsSessionInfo *session) // IN: session info
+HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsNameStatus nameStatus;
    char *localName;
    int error;
@@ -4777,11 +4871,12 @@ HgfsServerDeleteFile(char const *packetIn,     // IN: incoming packet
 
       return error;
    }
-   if (!HgfsPackDeleteReply(packetIn, 0, op, &packetOut, &packetOutSize)) {
+   if (!HgfsPackDeleteReply(input->packet, packetIn, 0, op, &packetOut,
+                            &packetOutSize, session)) {
       return EPROTO;
    }
-   if (!HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+   if (!HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
    }
    return 0;
 }
@@ -4808,10 +4903,11 @@ HgfsServerDeleteFile(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerDeleteDir(char const *packetIn,     // IN: incoming packet
-                    size_t packetSize,        // IN: size of packet
-                    HgfsSessionInfo *session) // IN: session info
+HgfsServerDeleteDir(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsNameStatus nameStatus;
    char *localName = NULL;
    int error;
@@ -4891,11 +4987,12 @@ HgfsServerDeleteDir(char const *packetIn,     // IN: incoming packet
       return error;
    }
 
-   if (!HgfsPackDeleteReply(packetIn, 0, op, &packetOut, &packetOutSize)) {
+   if (!HgfsPackDeleteReply(input->packet, packetIn, 0, op, &packetOut,
+                            &packetOutSize, session)) {
       return EPROTO;
    }
-   if (!HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+   if (!HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
    }
    return 0;
 }
@@ -4922,10 +5019,11 @@ HgfsServerDeleteDir(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerRename(char const *packetIn,     // IN: incoming packet
-                 size_t packetSize,        // IN: size of packet
-                 HgfsSessionInfo *session) // IN: session info
+HgfsServerRename(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsNameStatus nameStatus;
    char *localOldName = NULL;
    size_t localOldNameLen;
@@ -5109,12 +5207,13 @@ HgfsServerRename(char const *packetIn,     // IN: incoming packet
     */
    status = 0;
    HgfsUpdateNodeNames(localOldName, localNewName, session);
-   if (!HgfsPackRenameReply(packetIn, status, op, &packetOut, &packetOutSize)) {
+   if (!HgfsPackRenameReply(input->packet, packetIn, status, op, &packetOut,
+                            &packetOutSize, session)) {
       status = EPROTO;
       goto exit;
    }
-   if (!HgfsPacketSend(packetOut, packetOutSize, session, 0)) {
-      free(packetOut);
+   if (!HgfsPacketSend(input->packet, packetOut, packetOutSize, session, 0)) {
+      HSPU_PutReplyPacket(input->packet, session);
    }
 
   exit:
@@ -5150,10 +5249,11 @@ HgfsServerRename(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerQueryVolume(char const *packetIn,     // IN: incoming packet
-                      size_t packetSize,        // IN: size of packet
-                      HgfsSessionInfo *session) // IN: session info
+HgfsServerQueryVolume(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsRequest *header;
    uint32 extra;
    char *utf8Name = NULL;
@@ -5178,6 +5278,7 @@ HgfsServerQueryVolume(char const *packetIn,     // IN: incoming packet
    uint64 *totalBytes;
    char *packetOut;
    size_t packetOutSize;
+   size_t replyPacketSize;
    HgfsShareInfo shareInfo;
 
    ASSERT(packetIn);
@@ -5191,7 +5292,10 @@ HgfsServerQueryVolume(char const *packetIn,     // IN: incoming packet
       HgfsReplyQueryVolumeV3 *replyV3;
 
       packetOutSize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
-      packetOut = Util_SafeMalloc(packetOutSize);
+      replyPacketSize = packetOutSize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, packetOutSize, replyPacketSize, status, exit);
+
       replyV3 = (HgfsReplyQueryVolumeV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
 
       /*
@@ -5221,7 +5325,10 @@ HgfsServerQueryVolume(char const *packetIn,     // IN: incoming packet
       HgfsReplyQueryVolume *reply;
 
       packetOutSize = sizeof *reply;
-      packetOut = Util_SafeMalloc(packetOutSize);
+      replyPacketSize = packetOutSize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, packetOutSize, replyPacketSize, status, exit);
+
       reply = (HgfsReplyQueryVolume *)packetOut;
 
       freeBytes = &reply->freeBytes;
@@ -5230,7 +5337,6 @@ HgfsServerQueryVolume(char const *packetIn,     // IN: incoming packet
       /* Enforced by the dispatch function. */
       ASSERT(packetSize >= sizeof *request);
       extra = packetSize - sizeof *request;
-
       fileName = request->fileName.name;
       fileNameLength = request->fileName.length;
    }
@@ -5401,14 +5507,14 @@ HgfsServerQueryVolume(char const *packetIn,     // IN: incoming packet
    *totalBytes = outTotalBytes;
    status = 0;
 
-   if (!HgfsPackAndSendPacket(packetOut, packetOutSize, status, header->id,
-                              session, 0)) {
+   if (!HgfsPackAndSendPacket(input->packet, packetOut, packetOutSize,
+                              status, header->id, session, 0)) {
       goto exit;
    }
    return status;
 
 exit:
-   free(packetOut);
+   HSPU_PutReplyPacket(input->packet, session);
    return status;
 }
 
@@ -5431,10 +5537,11 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
-                        size_t packetSize,        // IN: size of packet
-                        HgfsSessionInfo *session) // IN: session info
+HgfsServerSymlinkCreate(HgfsInputParam *input)  // IN: Input params
 {
+   const char *packetIn = input->metaPacket;
+   size_t packetSize = input->metaPacketSize;
+   HgfsSessionInfo *session = input->session;
    HgfsRequest *header;
    uint32 extra;
    char *localSymlinkName = NULL;
@@ -5449,6 +5556,7 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
    HgfsShareOptions configOptions;
    char *packetOut = NULL;
    size_t packetOutSize;
+   size_t replyPacketSize;
    HgfsInternalStatus status = 0;
    size_t localSymlinkNameLen;
    HgfsShareInfo shareInfo;
@@ -5486,54 +5594,59 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
        */
       if (requestV3->symlinkName.flags & HGFS_FILE_NAME_USE_FILE_DESC ||
           targetNameP->flags & HGFS_FILE_NAME_USE_FILE_DESC) {
-		 LOG(4, ("%s: Doesn't support file handle.\n", __FUNCTION__));
+         LOG(4, ("%s: Doesn't support file handle.\n", __FUNCTION__));
+         return EPARAMETERNOTSUPPORTED;
+      }
 
-		 return EPARAMETERNOTSUPPORTED;
-	      }
+      packetOutSize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
+      replyPacketSize = packetOutSize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, packetOutSize, replyPacketSize, status, exit);
 
-	      packetOutSize = HGFS_REP_PAYLOAD_SIZE_V3(replyV3);
-	      packetOut = Util_SafeMalloc(packetOutSize);
-	      replyV3 = (HgfsReplySymlinkCreateV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
-	      replyV3->reserved = 0;
-	   } else {
-	      HgfsRequestSymlinkCreate *request;
-	      HgfsFileName *targetNameP;
-	      request = (HgfsRequestSymlinkCreate *)packetIn;
+      replyV3 = (HgfsReplySymlinkCreateV3 *)HGFS_REP_GET_PAYLOAD_V3(packetOut);
+      replyV3->reserved = 0;
 
-	      /* Enforced by the dispatch function. */
-	      ASSERT(packetSize >= sizeof *request);
-	      extra = packetSize - sizeof *request;
+   } else {
+      HgfsRequestSymlinkCreate *request;
+      HgfsFileName *targetNameP;
+      request = (HgfsRequestSymlinkCreate *)packetIn;
 
-	      symlinkName = request->symlinkName.name;
-	      symlinkNameLength = request->symlinkName.length;
+      /* Enforced by the dispatch function. */
+      ASSERT(packetSize >= sizeof *request);
+      extra = packetSize - sizeof *request;
 
-	      /*
-	       * targetName starts after symlinkName + the variable length array
-	       * in symlinkName.
-	       */
+      symlinkName = request->symlinkName.name;
+      symlinkNameLength = request->symlinkName.length;
 
-	      targetNameP = (HgfsFileName *)(symlinkName + 1 + symlinkNameLength);
-	      targetName = targetNameP->name;
-	      targetNameLength = targetNameP->length;
-	      packetOutSize = sizeof(struct HgfsReplySymlinkCreate);
-	      packetOut = Util_SafeMalloc(packetOutSize);
-	   }
+      /*
+       * targetName starts after symlinkName + the variable length array
+       * in symlinkName.
+       */
 
-	   /*
-	    * request->symlinkName.length is user-provided, so this test must
-	    * be carefully written to prevent wraparounds.
-	    */
+      targetNameP = (HgfsFileName *)(symlinkName + 1 + symlinkNameLength);
+      targetName = targetNameP->name;
+      targetNameLength = targetNameP->length;
+      packetOutSize = sizeof(struct HgfsReplySymlinkCreate);
+      replyPacketSize = packetOutSize;
+      packetOut = HSPU_GetReplyPacket(input->packet, &replyPacketSize, session);
+      HGFS_REPLYPKT_CHECK(packetOut, packetOutSize, replyPacketSize, status, exit);
+   }
 
-	   if (symlinkNameLength > extra) {
-	      /* The input packet is smaller than the request */
-	      status = EPROTO;
-	      goto exit;
-	   }
+   /*
+    * request->symlinkName.length is user-provided, so this test must
+    * be carefully written to prevent wraparounds.
+    */
 
-	   /*
-	    * It is now safe to read the symlink file name and the
-	    * "targetName" field
-	    */
+   if (symlinkNameLength > extra) {
+      /* The input packet is smaller than the request */
+      status = EPROTO;
+      goto exit;
+   }
+
+   /*
+    * It is now safe to read the symlink file name and the
+    * "targetName" field
+    */
 
    nameStatus = HgfsServerGetShareInfo(symlinkName,
                                        symlinkNameLength,
@@ -5609,7 +5722,8 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
    }
 
    status = 0;
-   if (!HgfsPackAndSendPacket(packetOut, packetOutSize, status, header->id,
+   if (!HgfsPackAndSendPacket(input->packet, packetOut, packetOutSize,
+                              status, header->id,
                               session, 0)) {
       goto exit;
    }
@@ -5618,7 +5732,7 @@ HgfsServerSymlinkCreate(char const *packetIn,     // IN: incoming packet
 
 exit:
    free(localSymlinkName);
-   free(packetOut);
+   HSPU_PutReplyPacket(input->packet, session);
    return status;
 }
 
@@ -5775,9 +5889,7 @@ exit:
  */
 
 HgfsInternalStatus
-HgfsServerWriteWin32Stream(char const *packetIn,     // IN: incoming packet
-                           size_t packetSize,        // IN: size of packet
-                           HgfsSessionInfo *session) // IN: session info
+HgfsServerWriteWin32Stream(HgfsInputParam *input)  // IN: Input params
 {
    return EOPNOTSUPP;
 }
@@ -5802,9 +5914,7 @@ HgfsServerWriteWin32Stream(char const *packetIn,     // IN: incoming packet
  */
 
 HgfsInternalStatus
-HgfsServerServerLockChange(char const *packetIn,     // IN: incoming packet
-                           size_t packetSize,        // IN: size of packet
-                           HgfsSessionInfo *session) // IN: session info
+HgfsServerServerLockChange(HgfsInputParam *input) // IN: Input params
 {
    return EOPNOTSUPP;
 }

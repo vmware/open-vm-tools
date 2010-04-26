@@ -45,14 +45,14 @@
 /* Must be included after sched.h. */
 #include <linux/smp_lock.h>
 
-#include "bdhandler.h"
 #include "hgfsDevLinux.h"
 #include "hgfsProto.h"
 #include "module.h"
 #include "request.h"
-#include "tcp.h"
 #include "transport.h"
 #include "vm_assert.h"
+
+extern int USE_VMCI;
 
 COMPAT_KTHREAD_DECLARE_STOP_INFO();
 static HgfsTransportChannel *hgfsChannel;     /* Current active channel. */
@@ -157,10 +157,22 @@ HgfsTransportSetupNewChannel(void)
 {
    HgfsTransportChannel *newChannel;
 
+   newChannel = HgfsGetVmciChannel();
+   if (newChannel != NULL) {
+      if (HgfsTransportOpenChannel(newChannel)) {
+         hgfsChannel = newChannel;
+         LOG(10, ("CHANNEL: Vmci channel\n"));
+         return TRUE;
+      }
+   }
+
+   USE_VMCI = 0;
+
    newChannel = HgfsGetVSocketChannel();
    if (newChannel != NULL) {
       if (HgfsTransportOpenChannel(newChannel)) {
          hgfsChannel = newChannel;
+         LOG(10, ("CHANNEL: Vsocket channel\n"));
          return TRUE;
       }
    }
@@ -169,11 +181,13 @@ HgfsTransportSetupNewChannel(void)
    if (newChannel != NULL) {
       if (HgfsTransportOpenChannel(newChannel)) {
          hgfsChannel = newChannel;
+         LOG(10, ("CHANNEL: Tcp channel\n"));
          return TRUE;
       }
    }
 
    newChannel = HgfsGetBdChannel();
+   LOG(10, ("CHANNEL: Bd channel\n"));
    ASSERT(newChannel);
    hgfsChannel = newChannel;
    return HgfsTransportOpenChannel(newChannel);
@@ -345,6 +359,36 @@ HgfsTransportAllocateRequest(size_t bufferSize)   // IN: size of the buffer
    return req;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsTransportFreeRequest --
+ *
+ *     Free HGFS request structre using channel-specific free function.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+HgfsTransportFreeRequest(HgfsReq *req)   // IN: size of the buffer
+{
+   /*
+    * We cannot use hgfsChannel structre because global channel could
+    * changes in the meantime. We remember the channel when we do
+    * allocation and call the same channel for de-allocation. Smart.
+    */
+
+   HgfsTransportChannel *channel = (HgfsTransportChannel *)req->transportId;
+   channel->ops.free(req);
+   return;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -370,7 +414,7 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
 
    ASSERT(req);
    ASSERT(req->state == HGFS_REQ_STATE_UNSENT);
-   ASSERT(req->payloadSize <= HGFS_PACKET_MAX);
+   ASSERT(req->payloadSize <= req->bufferSize);
 
    compat_mutex_lock(&hgfsChannelLock);
 
@@ -393,7 +437,7 @@ HgfsTransportSendRequest(HgfsReq *req)   // IN: Request to send
       ASSERT(hgfsChannel->ops.send);
 
       /* If channel changed since we created request we need to adjust */
-      if (req->transportId != hgfsChannel) {
+     if (req->transportId != hgfsChannel) {
 
          HgfsTransportRemovePendingRequest(req);
 

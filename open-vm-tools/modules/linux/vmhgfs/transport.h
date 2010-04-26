@@ -36,6 +36,7 @@ typedef struct HgfsTransportChannelOps {
    void (*close)(struct HgfsTransportChannel *);
    HgfsReq* (*allocate)(size_t payloadSize);
    int (*send)(struct HgfsTransportChannel *, HgfsReq *);
+   void (*free)(HgfsReq *);
 } HgfsTransportChannelOps;
 
 typedef enum {
@@ -57,10 +58,16 @@ typedef struct HgfsTransportChannel {
 void HgfsTransportInit(void);
 void HgfsTransportExit(void);
 HgfsReq *HgfsTransportAllocateRequest(size_t payloadSize);
+void HgfsTransportFreeRequest(HgfsReq *req);
 int HgfsTransportSendRequest(HgfsReq *req);
 HgfsReq *HgfsTransportGetPendingRequest(HgfsHandle id);
 void HgfsTransportFinishRequest(HgfsReq *req, Bool success, Bool do_put);
 void HgfsTransportFlushRequests(void);
 void HgfsTransportMarkDead(void);
+
+HgfsTransportChannel* HgfsGetVmciChannel(void);
+HgfsTransportChannel* HgfsGetTcpChannel(void);
+HgfsTransportChannel* HgfsGetVSocketChannel(void);
+HgfsTransportChannel *HgfsGetBdChannel(void);
 
 #endif // _HGFS_DRIVER_TRANSPORT_H_

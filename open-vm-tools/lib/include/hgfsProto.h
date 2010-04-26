@@ -118,7 +118,8 @@ typedef enum {
    HGFS_OP_CREATE_SYMLINK_V3,     /* Create a symlink */
    HGFS_OP_SERVER_LOCK_CHANGE_V3, /* Change the oplock on a file */
    HGFS_OP_WRITE_WIN32_STREAM_V3, /* Write WIN32_STREAM_ID format data to file */
-
+   HGFS_OP_READ_FAST_V3,          /* Read */
+   HGFS_OP_WRITE_FAST_V3,         /* Write */
    /*
     * Operations for version 4, deprecating version 3 operations.
     */
@@ -164,55 +165,6 @@ typedef enum {
 /* XXX: Needs change when VMCI is supported. */
 #define HGFS_REQ_GET_PAYLOAD_V3(hgfsReq) ((char *)(hgfsReq) + sizeof(HgfsRequest))
 #define HGFS_REP_GET_PAYLOAD_V3(hgfsRep) ((char *)(hgfsRep) + sizeof(HgfsReply))
-
-/* Some fudged values for TCP over sockets. */
-#define HGFS_HOST_PORT 2000
-
-/* Socket packet magic. */
-#define HGFS_SOCKET_VERSION1   1
-
-/*
- * Socket status codes.
- */
-
-typedef enum {
-   HGFS_SOCKET_STATUS_SUCCESS,                  /* Socket header is good. */
-   HGFS_SOCKET_STATUS_SIZE_MISMATCH,            /* Size and version are incompatible. */
-   HGFS_SOCKET_STATUS_VERSION_NOT_SUPPORTED,    /* Version not handled by remote. */
-   HGFS_SOCKET_STATUS_INVALID_PACKETLEN,        /* Message len exceeds maximum. */
-} HgfsSocketStatus;
-
-/*
- * Socket flags.
- */
-
-typedef uint32 HgfsSocketFlags;
-
-/* Used by backdoor proxy socket client to Hgfs server (out of VMX process). */
-#define HGFS_SOCKET_SYNC         (1 << 0)
-
-/* Socket packet header. */
-typedef
-#include "vmware_pack_begin.h"
-struct HgfsSocketHeader {
-   uint32 version;            /* Header version. */
-   uint32 size;               /* Header size, should match for the specified version. */
-   HgfsSocketStatus status;   /* Status: always success when sending (ignored) valid on replies. */
-   uint32 packetLen;          /* The length of the packet to follow. */
-   HgfsSocketFlags flags;     /* The flags to indicate how to deal with the packet. */
-}
-#include "vmware_pack_end.h"
-HgfsSocketHeader;
-
-#define HgfsSocketHeaderInit(hdr, _version, _size, _status, _pktLen, _flags) \
-   do {                                                                      \
-      (hdr)->version    = (_version);                                        \
-      (hdr)->size       = (_size);                                           \
-      (hdr)->status     = (_status);                                         \
-      (hdr)->packetLen  = (_pktLen);                                         \
-      (hdr)->flags      = (_flags);                                          \
-   } while (0)
-
 
 /*
  * File types, used in HgfsAttr. We support regular files,

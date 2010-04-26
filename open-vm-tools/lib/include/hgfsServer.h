@@ -35,6 +35,49 @@ typedef struct HgfsServerStateLogger {
    void                       *loggerData;   // logger callback private data
 } HgfsServerStateLogger;
 
+
+#define HGFS_MAX_IOV 3
+#define HGFS_BUF_READABLE  0x0000cafe
+#define HGFS_BUF_WRITEABLE 0x0000babe
+
+typedef
+struct HgfsVmxIov {
+   void *va;           /* Virtual addr */
+   uint64 pa;          /* Physical address passed by the guest */
+   uint32 len;         /* length of data; should be <= PAGE_SIZE for VMCI; arbitrary for backdoor */
+   char *token;        /* Token for physMem_ APIs */
+} HgfsVmxIov;
+
+typedef
+struct HgfsVaIov {
+   void *va;
+   uint32 len;
+} HgfsVaIov;
+
+typedef
+struct HgfsPacket {
+   /* For metapacket we always establish writeable mappings */
+   void *metaPacket;
+   size_t metaPacketSize;
+   Bool metaPacketIsAllocated;
+
+   void *dataPacket;
+   size_t dataPacketSize;
+   uint32 dataPacketIovIndex;
+   Bool dataPacketIsAllocated;
+   /* What type of mapping was established - readable/ writeable ? */
+   uint32 dataMappingType;
+
+   void *replyPacket;
+   size_t replyPacketSize;
+   Bool replyPacketIsAllocated;
+
+   uint32 iovCount;
+   HgfsVmxIov iov[1];
+
+} HgfsPacket;
+
+
 /*
  * Function used for sending replies to the client for a session.
  * Passed by the caller at session connect time.
@@ -75,13 +118,21 @@ HgfsSessionSendFunc(void *opaqueSession,  // IN
                     size_t bufferLen,     // IN
                     HgfsSendFlags flags); // IN
 
+typedef struct HgfsServerChannelCallbacks {
+    void* (*getReadVa)(uint64 pa, uint32 size, char **token);
+    void* (*getWriteVa)(uint64 pa, uint32 size, char **token);
+    void (*putVa)(char **token);
+    Bool (*send)(void *opaqueSession, HgfsPacket *packet, char *buffer,
+                 size_t bufferLen, HgfsSendFlags flags);
+}HgfsServerChannelCallbacks;
+
 typedef struct HgfsServerSessionCallbacks {
-   Bool (*connect)(void *, HgfsSessionSendFunc *, void **);
+   Bool (*connect)(void *, HgfsServerChannelCallbacks *, void **);
    void (*disconnect)(void *);
    void (*close)(void *);
-   void (*receive)(char const *,size_t, void *, HgfsReceiveFlags);
+   void (*receive)(HgfsPacket *packet, void *, HgfsReceiveFlags);
    void (*invalidateObjects)(void *, DblLnkLst_Links *);
-   void (*sendComplete)(void *, char *);
+   void (*sendComplete)(HgfsPacket *, void *);
 } HgfsServerSessionCallbacks;
 
 Bool HgfsServer_InitState(HgfsServerSessionCallbacks **, HgfsServerStateLogger *);

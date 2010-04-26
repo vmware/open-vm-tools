@@ -47,7 +47,7 @@
 #include "hgfsProto.h"
 #include "hgfsDevLinux.h"
 #include "module.h"
-#include "tcp.h"
+#include "transport.h"
 
 static char *HOST_IP;
 module_param(HOST_IP, charp, 0444);
@@ -112,6 +112,37 @@ static DECLARE_WAIT_QUEUE_HEAD(hgfsRecvThreadWait); /* Wait queue for recv threa
 static unsigned long hgfsRecvThreadFlags; /* Used to signal recv data availability. */
 
 static void (*oldSocketDataReady)(struct sock *, int);
+
+static Bool HgfsVSocketChannelOpen(HgfsTransportChannel *channel);
+static int HgfsSocketChannelSend(HgfsTransportChannel *channel, HgfsReq *req);
+static void HgfsVSocketChannelClose(HgfsTransportChannel *channel);
+static Bool HgfsTcpChannelOpen(HgfsTransportChannel *channel);
+static void HgfsTcpChannelClose(HgfsTransportChannel *channel);
+static HgfsReq * HgfsSocketChannelAllocate(size_t payloadSize);
+void HgfsSocketChannelFree(HgfsReq *req);
+
+static HgfsTransportChannel vsockChannel = {
+   .name = "vsocket",
+   .ops.close = HgfsVSocketChannelClose,
+   .ops.send = HgfsSocketChannelSend,
+   .ops.open = HgfsVSocketChannelOpen,
+   .ops.allocate = NULL,
+   .ops.free = NULL,
+   .priv = NULL,
+   .status = HGFS_CHANNEL_NOTCONNECTED
+};
+
+static HgfsTransportChannel tcpChannel = {
+   .name = "tcp",
+   .ops.open = HgfsTcpChannelOpen,
+   .ops.close = HgfsTcpChannelClose,
+   .ops.allocate = HgfsSocketChannelAllocate,
+   .ops.free = HgfsSocketChannelFree,
+   .ops.send = HgfsSocketChannelSend,
+   .priv = NULL,
+   .status = HGFS_CHANNEL_NOTCONNECTED
+};
+
 
 /*
  *----------------------------------------------------------------------
@@ -855,9 +886,34 @@ HgfsSocketChannelAllocate(size_t payloadSize) // IN: size of the payload
                  GFP_KERNEL);
    if (likely(req)) {
       req->payload = req->buffer + sizeof(HgfsSocketHeader);
+      req->bufferSize = payloadSize;
    }
 
    return req;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsSocketChannelFree --
+ *
+ *     Free previously allocated request.
+ *
+ * Results:
+ *      none
+ *
+ * Side effects:
+ *      Object is freed
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsSocketChannelFree(HgfsReq *req)
+{
+   ASSERT(req);
+   kfree(req);
 }
 
 
@@ -880,21 +936,11 @@ HgfsSocketChannelAllocate(size_t payloadSize) // IN: size of the payload
 HgfsTransportChannel *
 HgfsGetTcpChannel(void)
 {
-   static HgfsTransportChannel channel;
-
-   channel.name = "tcp";
-   channel.ops.open = HgfsTcpChannelOpen;
-   channel.ops.close = HgfsTcpChannelClose;
-   channel.ops.allocate = HgfsSocketChannelAllocate;
-   channel.ops.send = HgfsSocketChannelSend;
-   channel.priv = NULL;
-   channel.status = HGFS_CHANNEL_NOTCONNECTED;
-
    if (!HOST_IP) {
       return NULL;
    }
 
-   return &channel;
+   return &tcpChannel;
 }
 
 
@@ -917,18 +963,10 @@ HgfsGetTcpChannel(void)
 HgfsTransportChannel *
 HgfsGetVSocketChannel(void)
 {
-   static HgfsTransportChannel channel;
-
-   channel.name = "vsocket";
-   channel.ops.open = HgfsVSocketChannelOpen;
-   channel.ops.close = HgfsVSocketChannelClose;
-   channel.ops.send = HgfsSocketChannelSend;
-   channel.priv = NULL;
-   channel.status = HGFS_CHANNEL_NOTCONNECTED;
-
    if (!HOST_VSOCKET_PORT) {
       return NULL;
    }
 
-   return &channel;
+   return &vsockChannel;
 }
+

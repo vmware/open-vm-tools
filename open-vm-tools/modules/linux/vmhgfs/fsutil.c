@@ -164,7 +164,7 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
       length = replyV3->symlinkTarget.length;
 
       /* Skip the symlinkTarget if it's too long. */
-      if (length > HGFS_NAME_BUFFER_SIZET(sizeof *replyV3 + sizeof(HgfsReply))) {
+      if (length > HGFS_NAME_BUFFER_SIZET(req->bufferSize, sizeof *replyV3 + sizeof(HgfsReply))) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackGetattrReply: symlink "
                  "target name too long, ignoring\n"));
          return -ENAMETOOLONG;
@@ -176,7 +176,7 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
       length = replyV2->symlinkTarget.length;
 
       /* Skip the symlinkTarget if it's too long. */
-      if (length > HGFS_NAME_BUFFER_SIZE(replyV2)) {
+      if (length > HGFS_NAME_BUFFER_SIZE(req->bufferSize, replyV2)) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsUnpackGetattrReply: symlink "
                  "target name too long, ignoring\n"));
          return -ENAMETOOLONG;
@@ -279,7 +279,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       }
       requestV3->reserved = 0;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
-      reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize);
       break;
    }
 
@@ -308,7 +308,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
          fileNameLength = &requestV2->fileName.length;
       }
       reqSize = sizeof *requestV2;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(requestV2);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(req->bufferSize, requestV2);
       break;
    }
 
@@ -322,7 +322,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       fileName = requestV1->fileName.name;
       fileNameLength = &requestV1->fileName.length;
       reqSize = sizeof *requestV1;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(requestV1);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(req->bufferSize, requestV1);
       break;
    }
 

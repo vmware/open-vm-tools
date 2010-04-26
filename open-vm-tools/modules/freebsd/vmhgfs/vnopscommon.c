@@ -554,7 +554,7 @@ HgfsSetattrInt(struct vnode *vp,     // IN : vnode of the file
    fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
 
    /*
     * Convert an input string to utf8 precomposed form, convert it to
@@ -1431,7 +1431,7 @@ HgfsMkdirInt(struct vnode *dvp,         // IN : directory vnode
    request->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
 
    /*
     * Convert an input string to utf8 precomposed form, convert it to
@@ -2179,7 +2179,7 @@ HgfsDelete(HgfsSuperInfo *sip,          // IN: Superinfo
    request->reserved = 0;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
 
    /*
     * Convert an input string to utf8 precomposed form, convert it to
@@ -2523,7 +2523,7 @@ HgfsSymlinkInt(struct vnode *dvp,         // IN : directory vnode
    request->symlinkName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
 
    /*
     * Convert an input string to utf8 precomposed form, convert it to
@@ -2781,7 +2781,7 @@ HgfsQueryAttrInt(const char *path,       // IN : Path to get attributes for
    request->reserved = 0;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
 
    /*
     * Per the calling conventions of this function, if the path is NULL then

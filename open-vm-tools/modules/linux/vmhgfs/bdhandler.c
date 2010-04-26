@@ -27,15 +27,32 @@
 
 #include <linux/errno.h>
 
-#include "bdhandler.h"
+#include "transport.h"
 #include "hgfsBd.h"
 #include "hgfsDevLinux.h"
 #include "hgfsProto.h"
 #include "module.h"
 #include "request.h"
 #include "rpcout.h"
-#include "transport.h"
 #include "vm_assert.h"
+
+
+static Bool HgfsBdChannelOpen(HgfsTransportChannel *channel);
+static void HgfsBdChannelClose(HgfsTransportChannel *channel);
+static HgfsReq * HgfsBdChannelAllocate(size_t payloadSize);
+void HgfsBdChannelFree(HgfsReq *req);
+static int HgfsBdChannelSend(HgfsTransportChannel *channel, HgfsReq *req);
+
+static HgfsTransportChannel channel = {
+   .name = "backdoor",
+   .ops.open = HgfsBdChannelOpen,
+   .ops.close = HgfsBdChannelClose,
+   .ops.allocate = HgfsBdChannelAllocate,
+   .ops.free = HgfsBdChannelFree,
+   .ops.send = HgfsBdChannelSend,
+   .priv = NULL,
+   .status = HGFS_CHANNEL_NOTCONNECTED
+};
 
 
 /*
@@ -104,7 +121,7 @@ HgfsBdChannelClose(HgfsTransportChannel *channel) // IN: Channel
  *
  * HgfsBdChannelAllocate --
  *
- *      Allocate request uin the way that is suitable for sending through
+ *      Allocate request in a way that is suitable for sending through
  *      backdoor.
  *
  * Results:
@@ -129,9 +146,34 @@ HgfsBdChannelAllocate(size_t payloadSize) // IN: size of requests payload
              HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
 
       req->payload = req->buffer + HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
+      req->bufferSize = payloadSize;
    }
 
    return req;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsBdChannelFree --
+ *
+ *     Free previously allocated request.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsBdChannelFree(HgfsReq *req)
+{
+   ASSERT(req);
+   kfree(req);
 }
 
 
@@ -161,7 +203,7 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
 
    ASSERT(req);
    ASSERT(req->state == HGFS_REQ_STATE_UNSENT);
-   ASSERT(req->payloadSize <= HGFS_PACKET_MAX);
+   ASSERT(req->payloadSize <= req->bufferSize);
 
    LOG(8, ("VMware hgfs: %s: backdoor sending.\n", __func__));
    payloadSize = req->payloadSize;
@@ -200,15 +242,5 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
 HgfsTransportChannel*
 HgfsGetBdChannel(void)
 {
-   static HgfsTransportChannel channel;
-
-   channel.name = "backdoor";
-   channel.ops.open = HgfsBdChannelOpen;
-   channel.ops.close = HgfsBdChannelClose;
-   channel.ops.allocate = HgfsBdChannelAllocate;
-   channel.ops.send = HgfsBdChannelSend;
-   channel.priv = NULL;
-   channel.status = HGFS_CHANNEL_NOTCONNECTED;
-
    return &channel;
 }

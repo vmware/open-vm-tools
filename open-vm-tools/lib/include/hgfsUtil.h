@@ -114,8 +114,8 @@ struct timespec {
 #define EPROTO (ELAST + 1)
 #endif
 
-#define HGFS_NAME_BUFFER_SIZE(request) (HGFS_PACKET_MAX - (sizeof *request - 1))
-#define HGFS_NAME_BUFFER_SIZET(sizet) (HGFS_PACKET_MAX - ((sizet) - 1))
+#define HGFS_NAME_BUFFER_SIZE(packetSize, request) (packetSize - (sizeof *request - 1))
+#define HGFS_NAME_BUFFER_SIZET(packetSize, sizet) (packetSize - ((sizet) - 1))
 
 #ifndef _WIN32
 /*

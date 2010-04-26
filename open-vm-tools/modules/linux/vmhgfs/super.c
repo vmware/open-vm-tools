@@ -227,7 +227,7 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
    }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(name, HGFS_PACKET_MAX - (requestSize - 1),
+   if (HgfsBuildPath(name, req->bufferSize - (requestSize - 1),
                      dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackQueryVolumeRequest: build path failed\n"));
       return -EINVAL;
@@ -237,7 +237,7 @@ HgfsPackQueryVolumeRequest(struct dentry *dentry,   // IN: File pointer for this
 
    /* Convert to CP name. */
    result = CPName_ConvertTo(name,
-                             HGFS_PACKET_MAX - (requestSize - 1),
+                             req->bufferSize - (requestSize - 1),
                              name);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackQueryVolumeRequest: CP conversion failed\n"));

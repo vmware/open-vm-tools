@@ -35,6 +35,7 @@
 #include "compat_wait.h"
 
 #include "hgfs.h" /* For common HGFS definitions. */
+#include "hgfsTransport.h"
 #include "vm_basic_types.h"
 
 /* Macros for accessing the payload portion of the HGFS request packet. */
@@ -43,6 +44,8 @@
 /* XXX: Needs change when VMCI is supported. */
 #define HGFS_REQ_PAYLOAD_V3(hgfsReq) (HGFS_REQ_PAYLOAD(hgfsReq) + sizeof(HgfsRequest))
 #define HGFS_REP_PAYLOAD_V3(hgfsRep) (HGFS_REQ_PAYLOAD(hgfsRep) + sizeof(HgfsReply))
+
+#define HGFS_MAX_PAGES 2
 
 /*
  * HGFS_REQ_STATE_ALLOCATED:
@@ -75,6 +78,16 @@ typedef enum {
    HGFS_REQ_STATE_SUBMITTED,
    HGFS_REQ_STATE_COMPLETED,  /* Both header and payload were received. */
 } HgfsState;
+
+/*
+ * Each page that is sent from guest to host is described in the following
+ * format.
+ */
+typedef struct HgfsDataPacket {
+   struct page *page;
+   uint32 offset;
+   uint32 len;
+} HgfsDataPacket;
 
 /*
  * A request to be sent to the user process.
@@ -111,9 +124,19 @@ typedef struct HgfsReq {
    /*
     * Size of the data buffer (below), not including size of chunk
     * used by transport. Must be enough to hold both request and
-    * reply (but not at the same time).
+    * reply (but not at the same time). Initialized in channels.
     */
    size_t bufferSize;
+
+  /*
+   * Used by read and write calls. Hgfs client passes in
+   * pages to the vmci channel using datapackets and vmci channel
+   * uses it to pass PA's to the host.
+   */
+   HgfsDataPacket *dataPacket;
+
+   /* Number of entries in data packet */
+   uint32 numEntries;
 
    /*
     * Packet of data, for both incoming and outgoing messages.

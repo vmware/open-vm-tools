@@ -117,6 +117,7 @@ static struct file_system_type hgfsType = {
    .kill_sb      = kill_anon_super,
 };
 
+extern int USE_VMCI;
 
 /*
  * Private functions implementations.
@@ -527,6 +528,12 @@ HgfsResetOps(void)
    hgfsVersionRename          = HGFS_OP_RENAME_V3;
    hgfsVersionQueryVolumeInfo = HGFS_OP_QUERY_VOLUME_INFO_V3;
    hgfsVersionCreateSymlink   = HGFS_OP_CREATE_SYMLINK_V3;
+
+   if (USE_VMCI) {
+      hgfsVersionRead = HGFS_OP_READ_FAST_V3;
+      hgfsVersionWrite = HGFS_OP_WRITE_FAST_V3;
+   }
+
 }
 
 
