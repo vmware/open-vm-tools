@@ -95,6 +95,7 @@ extern "C" {
 #include "os.h"
 #include "backdoor.h"
 #include "backdoor_balloon.h"
+#include "dbllnklst.h"
 #include "vmballoon.h"
 
 /*
@@ -138,7 +139,7 @@ extern "C" {
  */
 #define BALLOON_PAGE_ALLOC_FAILURE      1000
 
-// Maximum number of page allocations without yielding processor
+/* Maximum number of page allocations without yielding processor */
 #define BALLOON_ALLOC_YIELD_THRESHOLD   1024
 
 
@@ -148,19 +149,18 @@ extern "C" {
 
 typedef struct BalloonChunk {
    PageHandle page[BALLOON_CHUNK_PAGES];
-   uint32 nextPage;
-   struct BalloonChunk *prev;
-   struct BalloonChunk *next;
+   uint32 pageCount;
+   DblLnkLst_Links node;
 } BalloonChunk;
 
 typedef struct {
    PageHandle page[BALLOON_ERROR_PAGES];
-   uint32 nextPage;
+   uint32 pageCount;
 } BalloonErrorPages;
 
 typedef struct {
    /* sets of reserved physical pages */
-   BalloonChunk *chunks;
+   DblLnkLst_Links chunks;
    int nChunks;
 
    /* transient list of non-balloonable pages */
@@ -218,47 +218,6 @@ static int BalloonMonitorUnlockPage(Balloon *b, PageHandle handle);
 #else
 #define STATS_INC(stat)
 #endif
-
-/*
- * Macros to generate operations for simple lists of OBJ.
- * OBJ must contain next and prev fields.
- */
-
-#define GENERATE_LIST_INSERT(OBJ)                       \
-static void OBJ ## _Insert(OBJ **head, OBJ *obj)        \
-{                                                       \
-   OBJ *h = *head;                                      \
-                                                        \
-   /* add element to head of list */                    \
-   obj->next = h;                                       \
-   if (h != NULL) {                                     \
-      h->prev = obj;                                    \
-   }                                                    \
-   *head = obj;                                         \
-   obj->prev = NULL;                                    \
-}
-
-#define GENERATE_LIST_REMOVE(OBJ)                       \
-static void OBJ ## _Remove(OBJ **head, OBJ *obj)        \
-{                                                       \
-    /* splice element out of list */                    \
-    if (obj->prev != NULL) {                            \
-      obj->prev->next = obj->next;                      \
-    } else {                                            \
-      *head = obj->next;                                \
-    }                                                   \
-    if (obj->next != NULL) {                            \
-      obj->next->prev = obj->prev;                      \
-    }                                                   \
-}
-
-/*
- * List Operations
- */
-
-GENERATE_LIST_INSERT(BalloonChunk);
-GENERATE_LIST_REMOVE(BalloonChunk);
-
 
 /*
  *----------------------------------------------------------------------
@@ -410,6 +369,7 @@ BalloonChunk_Create(void)
 
    /* initialize */
    OS_MemZero(chunk, sizeof *chunk);
+   DblLnkLst_Init(&chunk->node);
 
    return chunk;
 }
@@ -460,6 +420,8 @@ Balloon_Init(Balloon *b) // IN
 {
    /* clear state */
    OS_MemZero(b, sizeof *b);
+
+   DblLnkLst_Init(&b->chunks);
 
    /* initialize rates */
    b->rateAlloc = BALLOON_RATE_ALLOC_MAX;
@@ -614,15 +576,14 @@ BalloonErrorPagesAlloc(Balloon *b,      // IN
                        PageHandle page) // IN
 {
    /* fail if list already full */
-   if (b->errors.nextPage >= BALLOON_ERROR_PAGES) {
-      return(BALLOON_FAILURE);
+   if (b->errors.pageCount >= BALLOON_ERROR_PAGES) {
+      return BALLOON_FAILURE;
    }
 
    /* add page to list */
-   b->errors.page[b->errors.nextPage] = page;
-   b->errors.nextPage++;
+   b->errors.page[b->errors.pageCount++] = page;
    STATS_INC(b->stats.primErrorPageAlloc);
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
 
 /*
@@ -648,12 +609,12 @@ BalloonErrorPagesFree(Balloon *b) // IN
    unsigned int i;
 
    /* free all non-balloonable "error" pages */
-   for (i = 0; i < b->errors.nextPage; i++) {
+   for (i = 0; i < b->errors.pageCount; i++) {
       OS_ReservedPageFree(b->errors.page[i]);
       b->errors.page[i] = PAGE_HANDLE_INVALID;
       STATS_INC(b->stats.primErrorPageFree);
    }
-   b->errors.nextPage = 0;
+   b->errors.pageCount = 0;
 }
 
 
@@ -678,7 +639,7 @@ static int
 BalloonPageAlloc(Balloon *b,                     // IN
                  BalloonPageAllocType allocType) // IN
 {
-   BalloonChunk *chunk;
+   BalloonChunk *chunk = NULL;
    PageHandle page;
    int status;
 
@@ -704,9 +665,17 @@ BalloonPageAlloc(Balloon *b,                     // IN
       return BALLOON_PAGE_ALLOC_FAILURE;
    }
 
-   /* find chunk with space, create if necessary */
-   chunk = b->chunks;
-   if ((chunk == NULL) || (chunk->nextPage >= BALLOON_CHUNK_PAGES)) {
+   /* Find chunk with free space, create it if necessary. */
+   if (DblLnkLst_IsLinked(&b->chunks)) {
+      /* Get first chunk from the list */
+      chunk = DblLnkLst_Container(b->chunks.next, BalloonChunk, node);
+      if (chunk->pageCount >= BALLOON_CHUNK_PAGES) {
+         /* This chunk is full. */
+         chunk = NULL;
+      }
+   }
+
+   if (chunk == NULL) {
       /* create new chunk */
       chunk = BalloonChunk_Create();
       if (chunk == NULL) {
@@ -714,7 +683,8 @@ BalloonPageAlloc(Balloon *b,                     // IN
          OS_ReservedPageFree(page);
          return BALLOON_PAGE_ALLOC_FAILURE;
       }
-      BalloonChunk_Insert(&b->chunks, chunk);
+
+      DblLnkLst_LinkFirst(&b->chunks, &chunk->node);
 
       /* update stats */
       b->nChunks++;
@@ -735,8 +705,7 @@ BalloonPageAlloc(Balloon *b,                     // IN
    }
 
    /* track allocated page */
-   chunk->page[chunk->nextPage] = page;
-   chunk->nextPage++;
+   chunk->page[chunk->pageCount++] = page;
 
    /* update balloon size */
    b->nPages++;
@@ -767,38 +736,41 @@ static int
 BalloonPageFree(Balloon *b,        // IN
                 int monitorUnlock) // IN
 {
-   BalloonChunk *chunk;
+   DblLnkLst_Links *node, *next;
+   BalloonChunk *chunk = NULL;
    PageHandle page;
    int status;
 
-   chunk = b->chunks;
+   DblLnkLst_ForEachSafe(node, next, &b->chunks) {
+      chunk = DblLnkLst_Container(node, BalloonChunk, node);
+      if (chunk->pageCount > 0) {
+         break;
+      }
 
-   while ((chunk != NULL) && (chunk->nextPage == 0)) {
       /* destroy empty chunk */
-      BalloonChunk_Remove(&b->chunks, chunk);
+      DblLnkLst_Unlink1(node);
       BalloonChunk_Destroy(chunk);
+      chunk = NULL;
 
       /* update stats */
       b->nChunks--;
-
-      chunk = b->chunks;
    }
 
-   if (chunk == NULL) {
-      return(BALLOON_FAILURE);
+   if (!chunk) {
+      /* We could not find a single non-empty chunk. */
+      return BALLOON_FAILURE;
    }
 
-   /* select page to deallocate */
-   chunk->nextPage--;
-   page = chunk->page[chunk->nextPage];
+   /* deallocate last page */
+   page = chunk->page[--chunk->pageCount];
 
    /* inform monitor via backdoor */
    if (monitorUnlock) {
       status = BalloonMonitorUnlockPage(b, page);
       if (status != BALLOON_SUCCESS) {
          /* reset next pointer, fail */
-         chunk->nextPage++;
-         return(status);
+         chunk->pageCount++;
+         return status;
       }
    }
 
@@ -810,9 +782,9 @@ BalloonPageFree(Balloon *b,        // IN
    b->nPages--;
 
    /* reclaim chunk, if empty */
-   if (chunk->nextPage == 0) {
+   if (chunk->pageCount == 0) {
       /* destroy empty chunk */
-      BalloonChunk_Remove(&b->chunks, chunk);
+      DblLnkLst_Unlink1(&chunk->node);
       BalloonChunk_Destroy(chunk);
 
       /* update stats */
@@ -947,7 +919,7 @@ BalloonInflate(Balloon *b,    // IN
              * pages, and fail.
              */
             BalloonErrorPagesFree(b);
-            return(status);
+            return status;
          }
          /*
           * NOSLEEP page allocation failed, so the guest is under memory
@@ -972,7 +944,7 @@ BalloonInflate(Balloon *b,    // IN
       BalloonIncreaseRateAlloc(b, nAllocNoSleep);
       /* release non-balloonable pages, succeed */
       BalloonErrorPagesFree(b);
-      return(BALLOON_SUCCESS);
+      return BALLOON_SUCCESS;
    } else {
       /*
        * NOSLEEP allocation failed, so the guest is under memory pressure.
@@ -983,7 +955,7 @@ BalloonInflate(Balloon *b,    // IN
          BalloonIncreaseRateAlloc(b, i);
          /* release non-balloonable pages, succeed */
          BalloonErrorPagesFree(b);
-         return(BALLOON_SUCCESS);
+         return BALLOON_SUCCESS;
       } else {
          /* update successful NOSLEEP allocations, and proceed */
          nAllocNoSleep = i;
@@ -1015,7 +987,7 @@ BalloonInflate(Balloon *b,    // IN
          }
          /* release non-balloonable pages, fail */
          BalloonErrorPagesFree(b);
-         return(status);
+         return status;
       }
 
       if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
@@ -1032,7 +1004,7 @@ BalloonInflate(Balloon *b,    // IN
 
    /* release non-balloonable pages, succeed */
    BalloonErrorPagesFree(b);
-   return(BALLOON_SUCCESS);
+   return BALLOON_SUCCESS;
 }
 
 
@@ -1070,7 +1042,7 @@ BalloonDeflate(Balloon *b,    // IN
             /* quickly decrease rate if error */
             b->rateFree = MAX(b->rateFree / 2, BALLOON_RATE_FREE_MIN);
          }
-         return(status);
+         return status;
       }
    }
 
@@ -1105,23 +1077,14 @@ static int
 BalloonAdjustSize(Balloon *b,    // IN
                   uint32 target) // IN
 {
-   /* done if already at target */
-   if (b->nPages == target) {
-      return(BALLOON_SUCCESS);
-   }
-
-   /* inflate balloon if below target */
    if (b->nPages < target) {
       return BalloonInflate(b, target);
-   }
-
-   /* deflate balloon if above target */
-   if (b->nPages > target) {
+   } else if (b->nPages > target) {
       return BalloonDeflate(b, target);
+   } else {
+      /* already at target */
+      return BALLOON_SUCCESS;
    }
-
-   /* not reached */
-   return(BALLOON_FAILURE);
 }
 
 
@@ -1431,13 +1394,7 @@ BalloonMonitorUnlockPage(Balloon *b,        // IN
 int
 Balloon_ModuleInit(void)
 {
-   static int initialized = 0;
    Balloon *b = &globalBalloon;
-
-   /* initialize only once */
-   if (initialized++) {
-      return BALLOON_FAILURE;
-   }
 
    /* os-specific initialization */
    if (!OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE, BalloonProcRead)) {
