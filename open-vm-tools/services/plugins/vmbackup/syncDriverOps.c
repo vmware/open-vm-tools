@@ -40,7 +40,6 @@ typedef struct VmBackupDriverOp {
    Bool freeze;
    Bool canceled;
    SyncDriverHandle *syncHandle;
-   gboolean syncEnabled;
 } VmBackupDriverOp;
 
 
@@ -96,10 +95,6 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
    VmBackupDriverOp *op = (VmBackupDriverOp *) _op;
    VmBackupOpStatus ret;
 
-   if (!op->syncEnabled) {
-      return VMBACKUP_STATUS_FINISHED;
-   }
-
    if (op->freeze) {
       SyncDriverStatus st = SyncDriver_QueryStatus(*op->syncHandle, 0);
 
@@ -113,6 +108,11 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
          if (op->canceled) {
             VmBackupDriverThaw(op);
          }
+         /*
+          * This prevents the release callback from freeing the handle, which
+          * will be used when thawing in the POSIX case.
+          */
+         op->syncHandle = NULL;
          ret = (op->canceled) ? VMBACKUP_STATUS_CANCELED : VMBACKUP_STATUS_FINISHED;
          break;
 
@@ -205,7 +205,7 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
                     SyncDriverHandle *handle,   // IN
                     const char *volumes)        // IN
 {
-   GError *err = NULL;
+   Bool success;
    VmBackupDriverOp *op = NULL;
 
    g_return_val_if_fail((handle == NULL || *handle == SYNCDRIVER_INVALID_HANDLE) ||
@@ -221,31 +221,18 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
    op->freeze = freeze;
    op->volumes = volumes;
 
-   op->syncHandle = Util_SafeMalloc(sizeof *op->syncHandle);
+   op->syncHandle = g_new0(SyncDriverHandle, 1);
    *op->syncHandle = (handle != NULL) ? *handle : SYNCDRIVER_INVALID_HANDLE;
-   op->syncEnabled = g_key_file_get_boolean(state->ctx->config,
-                                            "vmbackup",
-                                            "enableSyncDriver",
-                                            &err);
 
-   /* Enable the driver by default. */
-   if (err != NULL) {
-      g_clear_error(&err);
-      op->syncEnabled = TRUE;
+   if (freeze) {
+      success = SyncDriver_Freeze(op->volumes, op->syncHandle);
+   } else {
+      success = VmBackupDriverThaw(op);
    }
-
-   if (op->syncEnabled) {
-      Bool success;
-      if (freeze) {
-         success = SyncDriver_Freeze(op->volumes, op->syncHandle);
-      } else {
-         success = VmBackupDriverThaw(op);
-      }
-      if (!success) {
-         g_warning("Error %s filesystems.", freeze ? "freezing" : "thawing");
-         free(op);
-         op = NULL;
-      }
+   if (!success) {
+      g_warning("Error %s filesystems.", freeze ? "freezing" : "thawing");
+      free(op);
+      op = NULL;
    }
    return op;
 }
@@ -346,6 +333,7 @@ VmBackupSyncDriverSnapshotDone(VmBackupState *state,
    g_debug("*** %s\n", __FUNCTION__);
 
    op = VmBackupNewDriverOp(state, FALSE, state->clientData, NULL);
+   g_free(state->clientData);
    state->clientData = NULL;
 
    return VmBackup_SetCurrentOp(state, (VmBackupOp *) op, NULL, __FUNCTION__);

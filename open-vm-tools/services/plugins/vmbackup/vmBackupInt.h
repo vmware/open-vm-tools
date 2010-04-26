@@ -69,6 +69,8 @@ typedef struct VmBackupOp {
 } VmBackupOp;
 
 
+struct VmBackupSyncProvider;
+
 /**
  * Holds information about the current state of the backup operation.
  * Don't modify the fields directly - rather, use VmBackup_SetCurrentOp,
@@ -93,6 +95,7 @@ typedef struct VmBackupState {
    const char    *configDir;
    ssize_t        currentScript;
    VmBackupMState machineState;
+   struct VmBackupSyncProvider *provider;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);
@@ -134,6 +137,7 @@ VmBackup_SetCurrentOp(VmBackupState *state,
 {
    ASSERT(state != NULL);
    ASSERT(state->currentOp == NULL);
+   ASSERT(currentOpName != NULL);
    state->currentOp = op;
    state->callback = callback;
    state->currentOpName = currentOpName;
@@ -187,10 +191,15 @@ VmBackup_Cancel(VmBackupOp *op)
 static INLINE void
 VmBackup_Release(VmBackupOp *op)
 {
-   ASSERT(op != NULL);
-   op->releaseFn(op);
+   if (op != NULL) {
+      ASSERT(op->releaseFn != NULL);
+      op->releaseFn(op);
+   }
 }
 
+
+VmBackupSyncProvider *
+VmBackup_NewNullProvider(void);
 
 VmBackupSyncProvider *
 VmBackup_NewSyncDriverProvider(void);

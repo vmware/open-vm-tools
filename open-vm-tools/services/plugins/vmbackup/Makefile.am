@@ -29,6 +29,7 @@ libvmbackup_la_LIBADD += @GOBJECT_LIBS@
 libvmbackup_la_LIBADD += @VMTOOLS_LIBS@
 
 libvmbackup_la_SOURCES =
+libvmbackup_la_SOURCES += nullProvider.c
 libvmbackup_la_SOURCES += scriptOps.c
 libvmbackup_la_SOURCES += stateMachine.c
 libvmbackup_la_SOURCES += syncDriverOps.c

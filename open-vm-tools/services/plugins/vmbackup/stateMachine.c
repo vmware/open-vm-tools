@@ -62,7 +62,6 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 } while (0)
 
 static VmBackupState *gBackupState = NULL;
-static VmBackupSyncProvider *gSyncProvider = NULL;
 
 static Bool
 VmBackupEnableSync(void);
@@ -202,9 +201,10 @@ VmBackupFinalize(void)
       g_source_destroy(gBackupState->keepAlive);
    }
 
+   gBackupState->provider->release(gBackupState->provider);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
-   free(gBackupState);
+   g_free(gBackupState);
    gBackupState = NULL;
 }
 
@@ -366,6 +366,8 @@ VmBackupAbortTimer(gpointer data)
 static gboolean
 VmBackupAsyncCallback(void *clientData)
 {
+   VmBackupOpStatus status = VMBACKUP_STATUS_FINISHED;
+
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
 
@@ -373,43 +375,44 @@ VmBackupAsyncCallback(void *clientData)
    gBackupState->timerEvent = NULL;
 
    if (gBackupState->currentOp != NULL) {
-      VmBackupOpStatus status;
-
       g_debug("VmBackupAsyncCallback: checking %s\n", gBackupState->currentOpName);
       status = VmBackup_QueryStatus(gBackupState->currentOp);
+   }
 
-      switch (status) {
-      case VMBACKUP_STATUS_PENDING:
-         goto exit;
+   switch (status) {
+   case VMBACKUP_STATUS_PENDING:
+      goto exit;
 
-      case VMBACKUP_STATUS_FINISHED:
-         g_debug("Async request completed\n");
+   case VMBACKUP_STATUS_FINISHED:
+      if (gBackupState->currentOpName != NULL) {
+         g_debug("Async request '%s' completed\n", gBackupState->currentOpName);
+         VmBackup_Release(gBackupState->currentOp);
+         gBackupState->currentOpName = NULL;
+      }
+      gBackupState->currentOp = NULL;
+      break;
+
+   default:
+      {
+         Bool freeMsg = TRUE;
+         char *errMsg = Str_Asprintf(NULL,
+                                     "Asynchronous operation failed: %s",
+                                     gBackupState->currentOpName);
+         if (errMsg == NULL) {
+            freeMsg = FALSE;
+            errMsg = "Asynchronous operation failed.";
+         }
+         VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                            VMBACKUP_UNEXPECTED_ERROR,
+                            errMsg);
+         if (freeMsg) {
+            vm_free(errMsg);
+         }
+
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
-         break;
-
-      default:
-         {
-            Bool freeMsg = TRUE;
-            char *errMsg = Str_Asprintf(NULL,
-                                        "Asynchronous operation failed: %s",
-                                        gBackupState->currentOpName);
-            if (errMsg == NULL) {
-               freeMsg = FALSE;
-               errMsg = "Asynchronous operation failed.";
-            }
-            VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
-                               VMBACKUP_UNEXPECTED_ERROR,
-                               errMsg);
-            if (freeMsg) {
-               free(errMsg);
-            }
-
-            VmBackup_Release(gBackupState->currentOp);
-            gBackupState->currentOp = NULL;
-            VmBackupOnError();
-            goto exit;
-         }
+         VmBackupOnError();
+         goto exit;
       }
    }
 
@@ -507,7 +510,8 @@ VmBackupEnableSync(void)
                          TOOLS_CORE_SIG_IO_FREEZE,
                          gBackupState->ctx,
                          TRUE);
-   if (!gSyncProvider->start(gBackupState, gSyncProvider->clientData)) {
+   if (!gBackupState->provider->start(gBackupState,
+                                      gBackupState->provider->clientData)) {
       g_signal_emit_by_name(gBackupState->ctx->serviceObj,
                             TOOLS_CORE_SIG_IO_FREEZE,
                             gBackupState->ctx,
@@ -541,18 +545,60 @@ VmBackupStart(RpcInData *data)
 {
    GError *err = NULL;
    guint timeout;
+   ToolsAppCtx *ctx = data->appCtx;
+   VmBackupSyncProvider *provider = NULL;
+
+   size_t i;
+   
+   /* List of available providers, in order of preference for loading. */
+   struct SyncProvider {
+      VmBackupSyncProvider *(*ctor)(void);
+      const gchar *cfgEntry;
+   } providers[] = {
+#if defined(_WIN32)
+      { VmBackup_NewVssProvider, "enableVSS" },
+#endif
+      { VmBackup_NewSyncDriverProvider, "enableSyncDriver" },
+      { VmBackup_NewNullProvider, NULL },
+   };
 
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
       return RPCIN_SETRETVALS(data, "Backup operation already in progress.", FALSE);
    }
 
-   gBackupState = Util_SafeMalloc(sizeof *gBackupState);
-   memset(gBackupState, 0, sizeof *gBackupState);
+   /* Instantiate the sync provider. */
+   for (i = 0; i < ARRAYSIZE(providers); i++) {
+      gboolean enabled = TRUE;
+      struct SyncProvider *sp = &providers[i];
 
+      if (sp->cfgEntry != NULL) {
+         enabled = g_key_file_get_boolean(ctx->config,
+                                          "vmbackup",
+                                          sp->cfgEntry,
+                                          &err);
+         if (err != NULL) {
+            g_clear_error(&err);
+            enabled = TRUE;
+         }
+      }
+
+      if (enabled) {
+         provider = sp->ctor();
+         if (provider != NULL) {
+            break;
+         }
+      }
+   }
+
+   ASSERT(provider != NULL);
+
+   /* Instantiate the backup state and start the operation. */
+   gBackupState = g_new0(VmBackupState, 1);
    gBackupState->ctx = data->appCtx;
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
+   gBackupState->provider = provider;
 
    if (data->argsSize > 0) {
       int generateManifests = 0;
@@ -569,17 +615,14 @@ VmBackupStart(RpcInData *data)
 
    gBackupState->configDir = GuestApp_GetConfPath();
    if (gBackupState->configDir == NULL) {
-      free(gBackupState);
-      gBackupState = NULL;
-      return RPCIN_SETRETVALS(data, "Error getting configuration directory.", FALSE);
+      g_warning("Error getting configuration directory.");
+      goto error;
    }
 
    VmBackup_SendEvent(VMBACKUP_EVENT_RESET, VMBACKUP_SUCCESS, "");
 
    if (!VmBackupStartScripts(VMBACKUP_SCRIPT_FREEZE)) {
-      free(gBackupState);
-      gBackupState = NULL;
-      return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
+      goto error;
    }
 
    /*
@@ -613,6 +656,11 @@ VmBackupStart(RpcInData *data)
 
    VMBACKUP_ENQUEUE_EVENT();
    return RPCIN_SETRETVALS(data, "", TRUE);
+
+error:
+   gBackupState->provider->release(gBackupState->provider);
+   g_free(gBackupState);
+   return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
 }
 
 
@@ -664,7 +712,8 @@ VmBackupSnapshotDone(RpcInData *data)
       if (data->argsSize > 1) {
          gBackupState->snapshots = g_strndup(data->args + 1, data->argsSize - 1);
       }
-      if (!gSyncProvider->snapshotDone(gBackupState, gSyncProvider->clientData)) {
+      if (!gBackupState->provider->snapshotDone(gBackupState,
+                                                gBackupState->provider->clientData)) {
          VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                             VMBACKUP_SYNC_ERROR,
                             "Error when notifying the sync provider.");
@@ -734,9 +783,6 @@ VmBackupShutdown(gpointer src,
    if (gBackupState != NULL) {
       VmBackupFinalize();
    }
-
-   gSyncProvider->release(gSyncProvider);
-   gSyncProvider = NULL;
 }
 
 
@@ -758,58 +804,45 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   /*
-    * For Win32, first check whether we have VSS support available. Otherwise,
-    * check if there is a sync driver installed. If nothing is found, return
-    * NULL, since we don't want to register any handlers.
-    */
-
-   VmBackupSyncProvider *provider = NULL;
+   RpcChannelCallback rpcs[] = {
+      { VMBACKUP_PROTOCOL_START, VmBackupStart, NULL, NULL, NULL, 0 },
+      { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
+      { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
+   };
+   ToolsPluginSignalCb sigs[] = {
+      { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
+      { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
+      { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },
+   };
+   ToolsAppReg regs[] = {
+      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
+      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
+   };
 
 #if defined(G_PLATFORM_WIN32)
-   if (ToolsCore_InitializeCOM(ctx)) {
-      provider = VmBackup_NewVssProvider();
+   /*
+    * If initializing COM fails (unlikely), we'll fallback to the sync driver
+    * or the null provider, depending on the configuration.
+    */
+   if (!ToolsCore_InitializeCOM(ctx)) {
+      g_warning("Failed to initialize COM, VSS support will be unavailable.");
    }
 #endif
 
-   if (provider == NULL) {
-      provider = VmBackup_NewSyncDriverProvider();
-   }
+   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
-   if (provider != NULL) {
-      RpcChannelCallback rpcs[] = {
-         { VMBACKUP_PROTOCOL_START, VmBackupStart, NULL, NULL, NULL, 0 },
-         { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
-         { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
-      };
-      ToolsPluginSignalCb sigs[] = {
-         { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
-         { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
-         { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },
-      };
-      ToolsAppReg regs[] = {
-         { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
-         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
-      };
+   g_signal_new(TOOLS_CORE_SIG_IO_FREEZE,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                0,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_user_marshal_VOID__POINTER_BOOLEAN,
+                G_TYPE_NONE,
+                2,
+                G_TYPE_POINTER,
+                G_TYPE_BOOLEAN);
 
-      gSyncProvider = provider;
-      regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
-
-      g_signal_new(TOOLS_CORE_SIG_IO_FREEZE,
-                   G_OBJECT_TYPE(ctx->serviceObj),
-                   0,
-                   0,
-                   NULL,
-                   NULL,
-                   g_cclosure_user_marshal_VOID__POINTER_BOOLEAN,
-                   G_TYPE_NONE,
-                   2,
-                   G_TYPE_POINTER,
-                   G_TYPE_BOOLEAN);
-
-      return &regData;
-   }
-
-   return NULL;
+   return &regData;
 }
 
