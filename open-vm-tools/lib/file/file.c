@@ -166,10 +166,10 @@ File_IsDirectory(ConstUnicode pathName)  // IN:
  *
  * File_GetFilePermissions --
  *
- *	Return the read / write / execute permissions of a file.
+ *      Return the read / write / execute permissions of a file.
  *
  * Results:
- *	TRUE if success, FALSE otherwise.
+ *      TRUE if success, FALSE otherwise.
  *
  * Side effects:
  *      None
@@ -513,14 +513,14 @@ FileLockGetMachineID(void)
  *
  * OldMachineIDMatch --
  *
- *	Do the old-style MachineIDs match?
+ *      Do the old-style MachineIDs match?
  *
  * Results:
  *      TRUE     Yes
  *      FALSE    No
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -581,14 +581,14 @@ OldMachineIDMatch(const char *first,  // IN:
  *
  * FileLockMachineIDMatch --
  *
- *	Do the MachineIDs match?
+ *      Do the MachineIDs match?
  *
  * Results:
  *      TRUE     Yes
  *      FALSE    No
  *
  * Side effects:
- *	None.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -657,8 +657,8 @@ File_IsEmptyDirectory(ConstUnicode pathName)  // IN:
  *      Check if specified file is a regular file.
  *
  * Results:
- *      TRUE	is a regular file
- *      FALSE	is not a regular file or an error occured.
+ *      TRUE    is a regular file
+ *      FALSE   is not a regular file or an error occured.
  *
  * Side effects:
  *      None
@@ -2302,14 +2302,14 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
  *
  * File_ExpandAndCheckDir --
  *
- *	Expand any environment variables in the given path and check that
- *	the named directory is writeable.
+ *      Expand any environment variables in the given path and check that
+ *      the named directory is writeable.
  *
  * Results:
- *	NULL if error, the expanded path otherwise.
+ *      NULL if error, the expanded path otherwise.
  *
  * Side effects:
- *	The result is allocated.
+ *      The result is allocated.
  *
  *----------------------------------------------------------------------
  */
@@ -2327,7 +2327,7 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
             edirName[len] = '\0';
          }
 
-	 return edirName;
+         return edirName;
       }
    }
 
@@ -2342,7 +2342,7 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
  *
  *      Return a random number in the range of 0 and 2^32-1.
  *
- *	This isn't thread safe but it's more than good enough for the
+ *      This isn't thread safe but it's more than good enough for the
  *      purposes required of it.
  *
  * Results:
@@ -2397,15 +2397,16 @@ FileSimpleRandom(void)
  *
  * FileSleeper
  *
- *	Sleep for a random amount of time between the specified minimum and
- *      maximum sleep values. This provides "jitter" on retries such
- *      that two or more threads don't easily get into resonance.
+ *      Sleep for a random amount of time, no less than the specified minimum
+ *      and no more than the specified maximum sleep time values. This often
+ *      proves useful to "jitter" retries such that multiple threads don't
+ *      easily get into resonance performing necessary actions.
  *
  * Results:
  *      Somnambulistic behavior; the amount of time slept is returned.
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -2416,6 +2417,8 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
 {
    uint32 variance;
    uint32 msecActualSleepTime;
+
+   ASSERT(msecMinSleepTime <= msecMaxSleepTime);
 
    variance = msecMaxSleepTime - msecMinSleepTime;
 
