@@ -1,6 +1,6 @@
 #!/bin/bash
 ##########################################################
-# Copyright (C) 2006-2008 VMware, Inc. All rights reserved.
+# Copyright (C) 2006-2010 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@ TARFILE=vm-$(date -I).$$.tgz
 VER=0.87
 OUTPUT_DIR=vm-support.$$
 
-#	Function: banner prints any number of strings padded with 
+#	Function: banner prints any number of strings padded with
 #	newlines before and after.
 
 function banner {
@@ -97,7 +97,7 @@ function UpdateSpinner {
         echo -en "\rPreparing Files: $SPINNER"
 }
 
-#	Function: addtar copies whatever files and directories you give it to 
+#	Function: addtar copies whatever files and directories you give it to
 #	a self contained output directory for later tar'ing
 #	Working on copies could slow this down with VERY large files but:
 #	1) We don't expect VERY large files
@@ -138,7 +138,7 @@ function addtar {
 				cp -pr "$line" "${OUTPUT_DIR}$DIR" 2>/dev/null
 
 				# If a file from /proc does not copy,
-				# ignore - they're funny.  
+				# ignore - they're funny.
 				# Otherwise, exit for failed copy.
 				if [ $? != 0 ]; then
 					echo "$line" | grep ^/proc > /dev/null
@@ -157,15 +157,15 @@ function addtar {
 }
 
 
-#	Function: runcmd executes the command ($1) 
-#	redirected to a file ($2) and then adds that 
-#	file to the list of files to tar. 
+#	Function: runcmd executes the command ($1)
+#	redirected to a file ($2) and then adds that
+#	file to the list of files to tar.
 #	It then deletes the temp file since addtar makes a copy in its own
 #	selft contained area.
 
 function runcmd {
 	$1 > $2 2>/dev/null
-	
+
 	if [ $? != 0 ]; then
 		banner "Either could not run $1 or could not write to $2" \
 "Do you have a full disk?" "Continuing..."
@@ -174,7 +174,7 @@ function runcmd {
 		rm "$2"
 
 		if [ $? != 0 ]; then
-			banner "Could not delete $2.  Continuing..." 
+			banner "Could not delete $2.  Continuing..."
 		fi
 	fi
 }
@@ -215,7 +215,7 @@ if [ -f /etc/profile ]; then
 	. /etc/profile
 fi
 
-# Protect against non-default values of $IFS (Not all scripts in /etc/profile.d/ 
+# Protect against non-default values of $IFS (Not all scripts in /etc/profile.d/
 # are good citizens).
 unset IFS
 
@@ -277,8 +277,8 @@ do
 	addtar "$procfile"
 done
 
-#	Commands to run ($1) and redirect to logs ($2) for 
-#	inclusion. 
+#	Commands to run ($1) and redirect to logs ($2) for
+#	inclusion.
 
 runcmd "echo vm-support version: $VER" "/tmp/vm-support-version.$$.txt"
 runcmd "lspci -H1 -M" "/tmp/lspci1.$$.txt"
