@@ -49,12 +49,24 @@ typedef enum {
 /* Guestcalls currently support a maximum of 8 uint64 arguments. */
 #define VMCI_GUESTCALL_MAX_ARGS_SIZE 64
 
+/* 
+ * Structure used for checkpointing the doorbell mappings. It is
+ * written to the checkpoint as is, so changing this structure will
+ * break checkpoint compatibility.
+ */
+
+typedef struct VMCIDoorbellCptState {
+   VMCIHandle handle;
+   uint64     bitmapIdx;
+} VMCIDoorbellCptState;
+
 /* Used to determine what checkpoint state to get and set. */
 #define VMCI_NOTIFICATION_CPT_STATE 0x1
 #define VMCI_WELLKNOWN_CPT_STATE    0x2
 #define VMCI_DG_OUT_STATE           0x3
 #define VMCI_DG_IN_STATE            0x4
 #define VMCI_DG_IN_SIZE_STATE       0x5
+#define VMCI_DOORBELL_CPT_STATE     0x6
 
 /* Used to control the VMCI device in the vmkernel */
 #define VMCI_DEV_RESET            0x01
@@ -63,6 +75,7 @@ typedef enum {
 #define VMCI_DEV_UNQUIESCE        0x04
 #define VMCI_DEV_QP_BREAK_SHARING 0x05  // DEPRECATED
 #define VMCI_DEV_RESTORE_SYNC     0x06
+#define VMCI_DEV_BMASTER_OFF      0x07
 
 
 /*

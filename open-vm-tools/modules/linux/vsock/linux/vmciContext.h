@@ -33,6 +33,7 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
+#include "vmci_handle_array.h"
 #include "vmci_infrastructure.h"
 
 #define MAX_QUEUED_GUESTCALLS_PER_VM  100
@@ -99,7 +100,21 @@ void VMCIUnsetNotify(VMCIContext *context);
 #  endif
 #endif
 
-#ifdef VMKERNEL
+int VMCIContext_DoorbellCreate(VMCIId contextID, VMCIHandle handle);
+int VMCIContext_DoorbellDestroy(VMCIId contextID, VMCIHandle handle);
+int VMCIContext_DoorbellDestroyAll(VMCIId contextID);
+int VMCIContext_NotifyDoorbell(VMCIId cid, VMCIHandle handle);
+
+int VMCIContext_ReceiveNotificationsGet(VMCIId contextID,
+                                        VMCIHandleArray **dbHandleArray,
+                                        VMCIHandleArray **qpHandleArray);
+void VMCIContext_ReceiveNotificationsRelease(VMCIId contextID,
+                                             VMCIHandleArray *dbHandleArray,
+                                             VMCIHandleArray *qpHandleArray,
+                                             Bool success);
+#if defined(VMKERNEL)
+void VMCIContext_SignalPendingDoorbells(VMCIId contextID);
+
 int VMCIContextID2HostVmID(VMCIId contextID, void *hostVmID, size_t hostVmIDLen);
 #endif
 

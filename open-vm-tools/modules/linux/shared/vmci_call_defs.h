@@ -127,40 +127,47 @@ typedef struct VMCIResourcesQueryMsg {
       + VMCI_RESOURCE_QUERY_MAX_NUM * sizeof(VMCI_Resource)
 
 /* 
- * Struct used for making VMCI_SHAREDMEM_CREATE message. Struct size is 24 bytes.
- * All fields in struct are aligned to their natural alignment.
+ * Struct used for setting the notification bitmap.  All fields in
+ * struct are aligned to their natural alignment.
  */
-typedef struct VMCISharedMemCreateMsg {
+typedef struct VMCINotifyBitmapSetMsg {
+   VMCIDatagram hdr;
+   PPN          bitmapPPN;
+   uint32       _pad;
+} VMCINotifyBitmapSetMsg;
+
+
+/* 
+ * Struct used for linking a doorbell handle with an index in the
+ * notify bitmap. All fields in struct are aligned to their natural
+ * alignment.
+ */
+typedef struct VMCIDoorbellLinkMsg {
    VMCIDatagram hdr;
    VMCIHandle   handle;
-   uint32       memSize;
-   uint32       _padding;
-   /* PPNs placed after struct. */
-} VMCISharedMemCreateMsg;
+   uint64       notifyIdx;
+} VMCIDoorbellLinkMsg;
 
 
 /* 
- * Struct used for sending VMCI_SHAREDMEM_ATTACH messages. Same as struct used 
- * for create messages.
+ * Struct used for unlinking a doorbell handle from an index in the
+ * notify bitmap. All fields in struct are aligned to their natural
+ * alignment.
  */
-typedef VMCISharedMemCreateMsg VMCISharedMemAttachMsg;
-
-
-/* 
- * Struct used for sending VMCI_SHAREDMEM_DETACH messsages. Struct size is 16
- * bytes. All fields in struct are aligned to their natural alignment.
- */
-typedef struct VMCISharedMemDetachMsg {
+typedef struct VMCIDoorbellUnlinkMsg {
    VMCIDatagram hdr;
-   VMCIHandle handle;
-} VMCISharedMemDetachMsg;
+   VMCIHandle   handle;
+} VMCIDoorbellUnlinkMsg;
 
 
 /* 
- * Struct used for sending VMCI_SHAREDMEM_QUERY messages. Same as struct used 
- * for detach messages.
+ * Struct used for generating a notification on a doorbell handle. All
+ * fields in struct are aligned to their natural alignment.
  */
-typedef VMCISharedMemDetachMsg VMCISharedMemQueryMsg;
+typedef struct VMCIDoorbellNotifyMsg {
+   VMCIDatagram hdr;
+   VMCIHandle   handle;
+} VMCIDoorbellNotifyMsg;
 
 
 /* 

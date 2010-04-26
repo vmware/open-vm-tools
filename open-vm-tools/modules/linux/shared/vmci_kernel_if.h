@@ -232,6 +232,7 @@ Bool VMCIHost_IsActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 void VMCIHost_SetInactiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
 uint32 VMCIHost_NumHnds(VMCIHost *hostContext);
 uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
+void VMCIHost_SignalBitmap(VMCIHost *hostContext);
 #endif
 
 void *VMCI_AllocKernelMem(size_t size, int flags);

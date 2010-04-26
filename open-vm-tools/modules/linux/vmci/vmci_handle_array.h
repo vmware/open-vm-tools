@@ -342,4 +342,32 @@ VMCIHandleArray_GetCopy(const VMCIHandleArray *array)
    return arrayCopy;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------------
+ *
+ * VMCIHandleArray_GetHandles --
+ *
+ * Results:
+ *      NULL if the array is empty. Otherwise, a pointer to the array
+ *      of VMCI handles in the handle array.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------------
+ */
+
+static INLINE VMCIHandle *
+VMCIHandleArray_GetHandles(VMCIHandleArray *array) // IN
+{
+   ASSERT(array);
+
+   if (array->size) {
+      return array->entries;
+   } else {
+      return NULL;
+   }
+}
+
 #endif // _VMCI_HANDLE_ARRAY_H_

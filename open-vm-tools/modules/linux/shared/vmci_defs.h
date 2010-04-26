@@ -56,15 +56,18 @@
 #define VMCI_CONTROL_INT_DISABLE  0x4
 
 /* Capabilities register bits. */
-#define VMCI_CAPS_HYPERCALL    0x1 
-#define VMCI_CAPS_GUESTCALL    0x2
-#define VMCI_CAPS_DATAGRAM     0x4
+#define VMCI_CAPS_HYPERCALL     0x1 
+#define VMCI_CAPS_GUESTCALL     0x2
+#define VMCI_CAPS_DATAGRAM      0x4
+#define VMCI_CAPS_NOTIFICATIONS 0x8
 
 /* Interrupt Cause register bits. */
-#define VMCI_ICR_DATAGRAM     0x1
+#define VMCI_ICR_DATAGRAM      0x1
+#define VMCI_ICR_NOTIFICATION  0x2
 
 /* Interrupt Mask register bits. */
-#define VMCI_IMR_DATAGRAM     0x1
+#define VMCI_IMR_DATAGRAM      0x1
+#define VMCI_IMR_NOTIFICATION  0x2
 
 /* 
  * We have a fixed set of resource IDs available in the VMX. 
@@ -79,10 +82,10 @@ typedef uint32 VMCI_Resource;
 /* VMCI reserved hypervisor datagram resource IDs. */
 #define VMCI_RESOURCES_QUERY      0
 #define VMCI_GET_CONTEXT_ID       1
-#define VMCI_SHAREDMEM_CREATE     2
-#define VMCI_SHAREDMEM_ATTACH     3
-#define VMCI_SHAREDMEM_DETACH     4
-#define VMCI_SHAREDMEM_QUERY      5
+#define VMCI_SET_NOTIFY_BITMAP    2
+#define VMCI_DOORBELL_LINK        3
+#define VMCI_DOORBELL_UNLINK      4
+#define VMCI_DOORBELL_NOTIFY      5
 #define VMCI_DATAGRAM_REQUEST_MAP 6
 #define VMCI_DATAGRAM_REMOVE_MAP  7
 #define VMCI_EVENT_SUBSCRIBE      8

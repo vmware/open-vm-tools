@@ -123,7 +123,8 @@ VMCIPtrToVA64(void const *ptr) // IN
  * driver.
  */
 
-#define VMCI_VERSION                VMCI_VERSION_HOSTQP
+#define VMCI_VERSION                VMCI_VERSION_NOTIFY
+#define VMCI_VERSION_NOTIFY         VMCI_MAKE_VERSION(10, 0)
 #define VMCI_VERSION_HOSTQP         VMCI_MAKE_VERSION(9, 0)
 #define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
 #define VMCI_VERSION_PREVERS2       VMCI_MAKE_VERSION(1, 0)
@@ -181,12 +182,14 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(DESTROY_DATAGRAM_HANDLE),
 
    /*
-    * These two were also for shared memory, but are now unused.  They will
-    * also fail gracefully since we do not recognize their values anymore
-    * in the driver.
+    * The follwoing two were also used to be for shared memory. An old
+    * WS6 user-mode client might try to use them with the new driver,
+    * but since we ensure that only contexts created by VMX'en of the
+    * appropriate version (VMCI_VERSION_NOTIFY) or higher use this
+    * ioctl, everything is fine.
     */
-   IOCTLCMD(UNUSED1),
-   IOCTLCMD(UNUSED2),
+   IOCTLCMD(NOTIFY_RESOURCE),
+   IOCTLCMD(NOTIFICATIONS_RECEIVE),
    IOCTLCMD(VERSION2),
    IOCTLCMD(QUEUEPAIR_ALLOC),
    IOCTLCMD(QUEUEPAIR_SETPAGEFILE),
@@ -298,6 +301,10 @@ enum IOCTLCmd_VMCI {
                VMCIIOCTL_BUFFERED(CREATE_DATAGRAM_HANDLE)
 #define IOCTL_VMCI_DESTROY_DATAGRAM_HANDLE  \
                VMCIIOCTL_BUFFERED(DESTROY_DATAGRAM_HANDLE)
+#define IOCTL_VMCI_NOTIFY_RESOURCE    \
+               VMCIIOCTL_BUFFERED(NOTIFY_RESOURCE)
+#define IOCTL_VMCI_NOTIFICATIONS_RECEIVE    \
+               VMCIIOCTL_BUFFERED(NOTIFICATIONS_RECEIVE)
 #define IOCTL_VMCI_VERSION2		VMCIIOCTL_BUFFERED(VERSION2)
 #define IOCTL_VMCI_QUEUEPAIR_ALLOC  \
                VMCIIOCTL_BUFFERED(QUEUEPAIR_ALLOC)
@@ -530,6 +537,40 @@ typedef struct VMCISetNotifyInfo {
    uint32      _pad;
 } VMCISetNotifyInfo;
 
+#define VMCI_NOTIFY_RESOURCE_QUEUE_PAIR 0 
+#define VMCI_NOTIFY_RESOURCE_DOOR_BELL  1
+
+#define VMCI_NOTIFY_RESOURCE_ACTION_NOTIFY  0 
+#define VMCI_NOTIFY_RESOURCE_ACTION_CREATE  1 
+#define VMCI_NOTIFY_RESOURCE_ACTION_DESTROY 2 
+
+/*
+ * Used to create and destroy doorbells, and generate a notification
+ * for a doorbell or queue pair.
+ */
+
+typedef struct VMCINotifyResourceInfo {
+   VMCIHandle  handle;
+   uint16      resource;
+   uint16      action;
+   int32       result;
+} VMCINotifyResourceInfo;
+
+/*
+ * Used to recieve pending notifications for doorbells and queue
+ * pairs.
+ */
+
+typedef struct VMCINotificationReceiveInfo {
+   VA64        dbHandleBufUVA;
+   uint64      dbHandleBufSize;
+   VA64        qpHandleBufUVA;
+   uint64      qpHandleBufSize;
+   int32       result;
+   uint32      _pad;
+} VMCINotificationReceiveInfo;
+
+
 #ifdef __APPLE__
 /*
  * Mac OS ioctl definitions.
@@ -551,8 +592,8 @@ enum VMCrossTalkSockOpt {
    VMCI_SO_DATAGRAM_PROCESS         = IOCTL_VMCI_CREATE_DATAGRAM_PROCESS,
    VMCI_SO_DATAGRAM_HANDLE          = IOCTL_VMCI_CREATE_DATAGRAM_HANDLE,
    VMCI_SO_DATAGRAM_DESTROY         = IOCTL_VMCI_DESTROY_DATAGRAM_HANDLE,
-   VMCI_SO_UNUSED1                  = IOCTL_VMCI_UNUSED1,
-   VMCI_SO_UNUSED2                  = IOCTL_VMCI_UNUSED2,
+   VMCI_SO_NOTIFY_RESOURCE          = IOCTL_VMCI_NOTIFY_RESOURCE,
+   VMCI_SO_NOTIFICATIONS_RECEIVE    = IOCTL_VMCI_NOTIFICATIONS_RECEIVE,
    VMCI_SO_VERSION2                 = IOCTL_VMCI_VERSION2,
    VMCI_SO_QUEUEPAIR_ALLOC          = IOCTL_VMCI_QUEUEPAIR_ALLOC,
    VMCI_SO_QUEUEPAIR_SETPAGEFILE    = IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE,
