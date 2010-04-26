@@ -381,6 +381,33 @@ GHI_Gather(void)
 }
 
 
+#ifndef _WIN32
+/*
+ ******************************************************************************
+ * GHIX11_FindDesktopUriByExec --                                        */ /**
+ *
+ * Given an executable path, attempt to generate an "execUri" associated with a
+ * corresponding .desktop file.
+ *
+ * @note Returned pointer belongs to the GHI module.  Caller must not free it.
+ *
+ * @param[in]  execPath Input binary path.  May be absolute or relative.
+ *
+ * @return Pointer to a URI string on success, NULL on failure.
+ *
+ ******************************************************************************
+ */
+
+const char *
+GHIX11_FindDesktopUriByExec(const char *exec)
+{
+   ASSERT(ghiPlatformData);
+
+   return GHIX11FindDesktopUriByExec(ghiPlatformData, exec);
+}
+#endif // ifndef _WIN32
+
+
 /*
  *----------------------------------------------------------------------------
  *

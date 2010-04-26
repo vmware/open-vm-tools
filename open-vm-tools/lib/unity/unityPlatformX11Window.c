@@ -36,6 +36,7 @@
 
 #include "Uri.h"
 #include "appUtil.h"
+#include "ghIntegration.h"
 
 /*
  * Utility routines
@@ -988,18 +989,19 @@ UPWindowSetRelevance(UnityPlatform *up,        // IN
    if (isRelevant) {
       DynBuf windowPath;
       DynBuf execPath;
-      Bool retval;
 
       DynBuf_Init(&windowPath);
       DynBuf_Init(&execPath);
 
-      retval = UnityPlatformGetWindowPath(up,
-                                          upw->toplevelWindow,
-                                          &windowPath,
-                                          &execPath);
-
-      if (!retval) {
-         Debug("GetWindowPath didn't know how to identify the window...\n");
+      if (upw->windowType == UNITY_WINDOW_TYPE_NORMAL) {
+         Bool retval;
+         retval = UnityPlatformGetWindowPath(up,
+                                             upw->toplevelWindow,
+                                             &windowPath,
+                                             &execPath);
+         if (!retval) {
+            Debug("GetWindowPath didn't know how to identify the window...\n");
+         }
       }
 
       Debug("Adding window %#lx to tracker\n", upw->toplevelWindow);
@@ -1757,7 +1759,8 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
    char **argv;
    char *windowQueryString = NULL;
    char *execQueryString = NULL;
-   char *uriString = NULL;
+   const char *uriString = NULL;
+   const char *desktopUriString = NULL;
    Bool retval = FALSE;
 
    ASSERT(argc);
@@ -1776,51 +1779,55 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
       return FALSE;
    }
 
-   if (argv[0][0] != '/') {
-      char *ctmp = NULL;
-      if ((ctmp = AppUtil_CanonicalizeAppName(argv[0], cwd))) {
-         char **newArgv;
-         newArgv = alloca(argc * sizeof argv[0]);
-         memcpy(newArgv, argv, argc * sizeof argv[0]);
-         argv = newArgv;
-         i = strlen(ctmp) + 1;
-         argv[0] = alloca(i);
-         memcpy(argv[0], ctmp, i);
-         g_free(ctmp);
-      } else {
-         Debug("%s: Program %s not found\n", __FUNCTION__, argv[0]);
-         return FALSE;
-      }
-   }
+   desktopUriString = GHIX11_FindDesktopUriByExec(argv[0]);
 
-   /*
-    * If the program in question takes any arguments, they will be appended as URI
-    * query parameters.  (I.e., we're adding only arguments from argv[1] and beyond.)
-    */
-   numQueryArgs = argc - 1;
-
-   if (numQueryArgs > 0) {
-      UriQueryListA *queryList;
-      int j;
-
-      /*
-       * First build query string containing only program arguments.
-       */
-      queryList = alloca(numQueryArgs * sizeof *queryList);
-      for (i = 1, j = 0; i < argc; i++, j++) {
-         queryList[j].key = "argv[]";
-         queryList[j].value = argv[i];
-         queryList[j].next = &queryList[j + 1];
+   if (!desktopUriString) {
+      if (argv[0][0] != '/') {
+         char *ctmp = NULL;
+         if ((ctmp = AppUtil_CanonicalizeAppName(argv[0], cwd))) {
+            char **newArgv;
+            newArgv = alloca(argc * sizeof argv[0]);
+            memcpy(newArgv, argv, argc * sizeof argv[0]);
+            argv = newArgv;
+            i = strlen(ctmp) + 1;
+            argv[0] = alloca(i);
+            memcpy(argv[0], ctmp, i);
+            g_free(ctmp);
+         } else {
+            Debug("%s: Program %s not found\n", __FUNCTION__, argv[0]);
+            return FALSE;
+         }
       }
 
       /*
-       * Terminate queryList.
+       * If the program in question takes any arguments, they will be appended as URI
+       * query parameters.  (I.e., we're adding only arguments from argv[1] and beyond.)
        */
-      queryList[numQueryArgs - 1].next = NULL;
+      numQueryArgs = argc - 1;
 
-      if (uriComposeQueryMallocA(&execQueryString, queryList)) {
-         Debug("uriComposeQueryMallocA failed\n");
-         return FALSE;
+      if (numQueryArgs > 0) {
+         UriQueryListA *queryList;
+         int j;
+
+         /*
+          * First build query string containing only program arguments.
+          */
+         queryList = alloca(numQueryArgs * sizeof *queryList);
+         for (i = 1, j = 0; i < argc; i++, j++) {
+            queryList[j].key = "argv[]";
+            queryList[j].value = argv[i];
+            queryList[j].next = &queryList[j + 1];
+         }
+
+         /*
+          * Terminate queryList.
+          */
+         queryList[numQueryArgs - 1].next = NULL;
+
+         if (uriComposeQueryMallocA(&execQueryString, queryList)) {
+            Debug("uriComposeQueryMallocA failed\n");
+            return FALSE;
+         }
       }
    }
 
@@ -1839,11 +1846,16 @@ UnityPlatformArgvToWindowPaths(UnityPlatform *up,        // IN
          g_strdup_printf("WindowXID=%lu", xid);
    }
 
-   uriString = alloca(10 + 3 * strlen(argv[0])); // This formula comes from URI.h
-   err = uriUnixFilenameToUriStringA(argv[0], uriString);
-   if (err) {
-      Debug("uriUnixFilenameToUriStringA failed\n");
-      goto out;
+   if (desktopUriString) {
+      uriString = desktopUriString;
+   } else {
+      char *mutableUriString = alloca(10 + 3 * strlen(argv[0])); // This formula comes from URI.h
+      err = uriUnixFilenameToUriStringA(argv[0], mutableUriString);
+      if (err) {
+         Debug("uriUnixFilenameToUriStringA failed\n");
+         goto out;
+      }
+      uriString = mutableUriString;
    }
 
    /*

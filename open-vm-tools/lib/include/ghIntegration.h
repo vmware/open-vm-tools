@@ -67,4 +67,8 @@ void GHI_RegisterCaps(void);
 void GHI_UnregisterCaps(void);
 void GHI_Gather(void);
 
+#ifndef _WIN32
+const char *GHIX11_FindDesktopUriByExec(const char *exec);
+#endif
+
 #endif // _GH_INTEGRATION_H_

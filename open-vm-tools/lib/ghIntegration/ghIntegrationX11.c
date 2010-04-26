@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #ifndef GTK2
 #error "Gtk 2.0 is required"
@@ -141,6 +142,15 @@ struct _GHIPlatform {
    GTree *apps; // Tree of GHIMenuDirectory's, keyed & ordered by their dirname
    GHashTable *appsByExecutable; // Translates full executable path to GHIMenuItem
    GHashTable *appsByDesktopEntry; // Translates full .desktop path to GHIMenuItem
+   /*
+    * Translates arbitrary executable paths as discovered through
+    * UnityPlatformGetWindowPaths to a .desktop-ful executable URI.
+    *
+    * Example:
+    * (key)   /usr/lib/firefox-3.6.3/firefox-bin (via Firefox window's _NET_WM_PID)
+    * (value) file:///usr/bin/firefox?DesktopEntry=/usr/share/applications/firefox.desktop
+    */
+   GHashTable *appsByWindowExecutable;
 
    Bool trackingEnabled;
    GArray *directoriesTracked;
@@ -341,6 +351,8 @@ GHIPlatformInit(VMU_ControllerCB *vmuControllerCB,  // IN
    ghip = Util_SafeCalloc(1, sizeof *ghip);
    ghip->directoriesTracked = g_array_new(FALSE, FALSE, sizeof(GHIDirectoryWatch));
    ghip->nativeEnviron = System_GetNativeEnviron(environ);
+   ghip->appsByWindowExecutable =
+      g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
    AppUtil_Init();
 
    return ghip;
@@ -503,6 +515,7 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
       System_FreeNativeEnviron(ghip->nativeEnviron);
       ghip->nativeEnviron = NULL;
    }
+   g_hash_table_destroy(ghip->appsByWindowExecutable);
    free(ghip);
 }
 
@@ -1456,6 +1469,7 @@ GHIPlatformReadApplicationsDir(GHIPlatform *ghip, // IN
            && S_ISDIR(sbuf.st_mode))) {
          GHIPlatformReadApplicationsDir(ghip, subpath);
       } else if ((dent->d_type == DT_REG ||
+                  dent->d_type == DT_LNK ||
                   (dent->d_type == DT_UNKNOWN
                    && S_ISREG(sbuf.st_mode)))
                  && StrUtil_EndsWith(dent->d_name, ".desktop")) {
@@ -2872,4 +2886,133 @@ Bool GHIPlatformGetExecInfoHash(GHIPlatform *ghip,
    ASSERT(reply);
 
    return FALSE;
+}
+
+
+/*
+ ******************************************************************************
+ * GHIX11FindDesktopUriByExec --                                         */ /**
+ *
+ * Given an executable path, attempt to generate an "execUri" associated with a
+ * corresponding .desktop file.
+ *
+ * @sa GHIX11_FindDesktopUriByExec
+ *
+ * @note Returned pointer belongs to the GHI module.  Caller must not free it.
+ *
+ * @param[in]  ghip     GHI platform-specific context.
+ * @param[in]  execPath Input binary path.  May be absolute or relative.
+ *
+ * @return Pointer to a URI string on success, NULL on failure.
+ *
+ ******************************************************************************
+ */
+
+const gchar *
+GHIX11FindDesktopUriByExec(GHIPlatform *ghip,
+                           const char *exec)
+{
+   char pathbuf[MAXPATHLEN];
+   gchar *pathname = NULL;
+   gchar *uri = NULL;
+   GHIMenuItem *gmi;
+   gboolean fudged = FALSE;
+   gboolean basenamed = FALSE;
+
+   ASSERT(ghip);
+   ASSERT(exec);
+
+   /*
+    * Check our hash table first.  Negative entries are also cached.
+    */
+   if (g_hash_table_lookup_extended(ghip->appsByWindowExecutable,
+                                    exec, NULL, (gpointer*)&uri)) {
+      return uri;
+   }
+
+   /*
+    * Okay, execPath may be absolute or relative.
+    *
+    * We'll search for a matching .desktop entry using the following methods:
+    *
+    * 1.  Use absolute path of exec.
+    * 2.  Use absolute path of basename of exec.  (Resolves /opt/Adobe/Reader9/
+    *     Reader/intellinux/bin/acroread to /usr/bin/acroread.)
+    * 3.  Consult whitelist of known applications and guess at possible
+    *     launchers.  (firefox-bin => firefox, soffice.bin => ooffice.)
+    */
+
+   /*
+    * Attempt #1:  Start with unmodified input.
+    */
+   Str_Strcpy(pathbuf, exec, sizeof pathbuf);
+
+tryagain:
+   g_free(pathname);    // Placed here rather than at each goto.  I'm lazy.
+
+   pathname = g_find_program_in_path(pathbuf);
+   if (pathname) {
+      gmi = (GHIMenuItem*)g_hash_table_lookup(ghip->appsByExecutable, pathname);
+      if (gmi) {
+         uri = GHIPlatformMenuItemToURI(ghip, gmi);
+      }
+   }
+
+   if (!uri) {
+      /*
+       * Attempt #2:  Take the basename of exec.
+       */
+      if (!basenamed) {
+         char tmpbuf[MAXPATHLEN];
+         char *ctmp;
+
+         basenamed = TRUE;
+
+         /* basename(3) may modify the input buffer, so make a temporary copy. */
+         Str_Strcpy(tmpbuf, pathbuf, sizeof tmpbuf);
+         ctmp = basename(tmpbuf);
+         if (ctmp != NULL) {
+            Str_Strcpy(pathbuf, ctmp, sizeof pathbuf);
+            goto tryagain;
+         }
+      }
+
+      /*
+       * Attempt #3:  Get our whitelist on.
+       */
+      if (!fudged) {
+         static struct {
+            const gchar *pattern;
+            const gchar *exec;
+         } fudgePatterns[] = {
+            /*
+             * XXX Worth compiling once?  Consider placing in an external filter
+             * file to allow users to update it themselves easily.
+             */
+            { "*firefox*-bin", "firefox" },
+            { "*thunderbird*-bin", "thunderbird" },
+            { "*soffice.bin", "ooffice" }
+         };
+         int i;
+
+         fudged = TRUE;
+
+         for (i = 0; i < ARRAYSIZE(fudgePatterns); i++) {
+            if (g_pattern_match_simple(fudgePatterns[i].pattern,
+                                       pathbuf)) {
+               Str_Strcpy(pathbuf, fudgePatterns[i].exec, sizeof pathbuf);
+               goto tryagain;
+            }
+         }
+      }
+   }
+
+   g_free(pathname);
+
+   /*
+    * Cache the result, even if it was negative.
+    */
+   g_hash_table_insert(ghip->appsByWindowExecutable, g_strdup(exec), uri);
+
+   return uri;
 }

@@ -132,6 +132,12 @@ Bool GHIPlatformGetExecInfoHash(GHIPlatform *ghip,
                                 const GHIGetExecInfoHashRequest *request,
                                 GHIGetExecInfoHashReply *reply);
 
+#ifndef _WIN32
+const gchar *
+GHIX11FindDesktopUriByExec(GHIPlatform *ghip,
+                           const char *exec);
+#endif
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
