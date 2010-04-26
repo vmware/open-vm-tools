@@ -1432,18 +1432,60 @@ FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
                           Bool *bind)           // OUT: Mounted with --[r]bind?
 {
    FILE *f;
-   struct mntent *mnt;
+   struct mntent mnt;
+   char *buf;
+   size_t size;
+   size_t used;
+   char *ret = NULL;
 
    ASSERT(canPath);
    ASSERT(bind);
 
+   size = 4 * FILE_MAXPATH;  // Should suffice for most locales
+
+retry:
    f = setmntent(MOUNTED, "r");
    if (f == NULL) {
       return NULL;
    }
 
-   /* XXX getmntent() is not thread-safe. Use getmntent_r() instead. */
-   while ((mnt = getmntent(f)) != NULL) {
+   buf = Util_SafeMalloc(size);
+
+   while (Posix_Getmntent_r(f, &mnt, buf, size) != NULL) {
+
+      /*
+       * Our Posix_Getmntent_r graciously sets errno when the buffer 
+       * is too small, but on UTF-8 based platforms Posix_Getmntent_r
+       * is #defined to the system's getmntent_r, which can simply 
+       * truncate the strings with no other indication.  See how much 
+       * space it used and increase the buffer size if needed.  Note
+       * that if some of the strings are empty, they may share a
+       * common nul in the buffer, and the resulting size calculation 
+       * will be a little over-zealous.
+       */
+
+      used = 0;  
+      if (mnt.mnt_fsname) {
+         used += strlen(mnt.mnt_fsname) + 1;
+      } 
+      if (mnt.mnt_dir) {
+         used += strlen(mnt.mnt_dir) + 1;
+      } 
+      if (mnt.mnt_type) {
+         used += strlen(mnt.mnt_type) + 1;
+      } 
+      if (mnt.mnt_opts) {
+         used += strlen(mnt.mnt_opts) + 1;
+      } 
+      if (used >= size || !mnt.mnt_fsname || !mnt.mnt_dir || 
+          !mnt.mnt_type || !mnt.mnt_opts) {
+         size += 4 * FILE_MAXPATH;
+         ASSERT(size <= 32 * FILE_MAXPATH);
+         free(buf);
+         endmntent(f);
+         goto retry;
+      }
+
       /*
        * NB: A call to realpath is not needed as getmntent() already
        *     returns it in canonical form.  Additionally, it is bad
@@ -1453,9 +1495,7 @@ FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
        *     all expecting.
        */
 
-      if (strcmp(mnt->mnt_dir, canPath) == 0) {
-         endmntent(f);
-
+      if (strcmp(mnt.mnt_dir, canPath) == 0) {
          /*
           * The --bind and --rbind options behave differently. See 
           * FilePosixGetBlockDevice() for details.
@@ -1465,16 +1505,20 @@ FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
           * always "bind".
           */
 
-         *bind = strstr(mnt->mnt_opts, "bind") != NULL;
+         *bind = strstr(mnt.mnt_opts, "bind") != NULL;
 
-         return Util_SafeStrdup(mnt->mnt_fsname);
+         ret = Util_SafeStrdup(mnt.mnt_fsname);
+
+	 break;
       }
    }
 
    // 'canPath' is not a mount point.
    endmntent(f);
 
-   return NULL;
+   free(buf);
+
+   return ret;
 }
 #endif
 
