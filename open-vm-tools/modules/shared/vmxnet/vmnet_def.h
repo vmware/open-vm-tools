@@ -76,4 +76,6 @@
 #define VMNET_CAP_TSO256k      0x200000	/* Can do TSO segmentation offload for pkts up to 256kB. */
 #define VMNET_CAP_UPT          0x400000	/* Support UPT */
 #define VMNET_CAP_RDONLY_INETHDRS 0x800000 /* Modifies inet headers for TSO/CSUm */
+#define VMNET_CAP_NPA         0x1000000	/* Support NPA */
+
 #endif // _VMNET_DEF_H_
