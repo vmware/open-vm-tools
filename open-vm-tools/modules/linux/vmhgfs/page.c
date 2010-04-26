@@ -169,8 +169,10 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
    char *payload = NULL;
    HgfsStatus replyStatus;
    char *buf;
+   uint32 count;
    ASSERT(numEntries == 1);
-   uint32 count = dataPacket[0].len;
+
+   count = dataPacket[0].len;
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -363,8 +365,10 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
    uint32 reqSize;
    HgfsStatus replyStatus;
    char *buf;
+   uint32 count;
    ASSERT(numEntries == 1);
-   uint32 count = dataPacket[0].len;
+
+   count = dataPacket[0].len;
 
    req = HgfsGetNewRequest();
    if (!req) {
