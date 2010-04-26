@@ -653,9 +653,13 @@ typedef int pid_t;
  */
 
 #define RANK_UNRANKED            0
-#define RANK_userlevelLock       100
-#define RANK_LEAF                0xFFFE
-#define RANK_INVALID             0xFFFF
+#define RANK_LEAF                0xFFFFFFFE
+#define RANK_INVALID             0xFFFFFFFF
+
+/*
+ * VMX/VMM/device lock rank space is from 1 to 200. See
+ * vmx/public/mutexRank.h.
+ */
 
 /*
  * Use to initialize cbSize for this structure to preserve < Vista
