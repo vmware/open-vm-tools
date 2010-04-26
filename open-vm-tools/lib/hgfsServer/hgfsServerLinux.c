@@ -3586,7 +3586,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
    ASSERT(packetIn);
    ASSERT(session);
 
-   if (header->op == HGFS_OP_READ_FAST_V3) {
+   if (header->op == HGFS_OP_READ_FAST_V4) {
       HgfsRequestReadV3 *request =
                         (HgfsRequestReadV3 *)HGFS_REQ_GET_PAYLOAD_V3(packetIn);
       HgfsReplyReadV3 *reply;
@@ -3625,9 +3625,9 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
       extra = HGFS_LARGE_PACKET_MAX - replySize;
 
       /*
-      * requiredSize is user-provided, so this test must be carefully
-      * written to prevent wraparounds.
-      */
+       * requiredSize is user-provided, so this test must be carefully
+       * written to prevent wraparounds.
+       */
       if (requiredSize > extra) {
          /*
           * The client wants to read more bytes than our payload can handle.
@@ -3742,7 +3742,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
    LOG(4, ("%s: read %d bytes\n", __FUNCTION__, error));
    *replyActualSize = error;
 
-   if (header->op == HGFS_OP_READ_FAST_V3) {
+   if (header->op == HGFS_OP_READ_FAST_V4) {
       HSPU_PutDataPacketBuf(input->packet, session);
    } else {
       replySize += error;
@@ -3803,7 +3803,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    ASSERT(packetIn);
    ASSERT(session);
 
-   if (header->op == HGFS_OP_WRITE_FAST_V3) {
+   if (header->op == HGFS_OP_WRITE_FAST_V4) {
       HgfsRequestWriteV3 *request;
       HgfsReplyWriteV3 *reply;
 
@@ -3969,7 +3969,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    *actualSize = error;
    status = 0;
 
-   if (header->op == HGFS_OP_WRITE_FAST_V3) {
+   if (header->op == HGFS_OP_WRITE_FAST_V4) {
       HSPU_PutDataPacketBuf(input->packet, session);
    }
 

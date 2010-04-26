@@ -1641,9 +1641,9 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    return equal;
 #elif defined _MSC_VER
 #if defined(__x86_64__)
-   return *oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
-                                                   (__int64)*newVal,
-						   (__int64)*oldVal);
+   return (__int64)*oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
+                                                            (__int64)*newVal,
+                                                            (__int64)*oldVal);
 #else
 #pragma warning(push)
 #pragma warning(disable : 4035)		// disable no-return warning

@@ -118,14 +118,15 @@ typedef enum {
    HGFS_OP_CREATE_SYMLINK_V3,     /* Create a symlink */
    HGFS_OP_SERVER_LOCK_CHANGE_V3, /* Change the oplock on a file */
    HGFS_OP_WRITE_WIN32_STREAM_V3, /* Write WIN32_STREAM_ID format data to file */
-   HGFS_OP_READ_FAST_V3,          /* Read */
-   HGFS_OP_WRITE_FAST_V3,         /* Write */
+
    /*
     * Operations for version 4, deprecating version 3 operations.
     */
 
    HGFS_OP_CREATE_SESSION_V4,     /* Create a session and return host capabilities. */
    HGFS_OP_DESTROY_SESSION_V4,    /* Destroy/close session. */
+   HGFS_OP_READ_FAST_V4,          /* Read */
+   HGFS_OP_WRITE_FAST_V4,         /* Write */
    HGFS_OP_OPEN_V4,               /* Open file */
    HGFS_OP_DIRECTORY_READ_V4,     /* Read directory entries. */
    HGFS_OP_ENUMERATE_STREAMS_V4,  /* Enumerate alternative named streams for a file. */

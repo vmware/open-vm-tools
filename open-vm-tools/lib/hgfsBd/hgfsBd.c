@@ -262,14 +262,16 @@ HgfsBd_Dispatch(RpcOut *out,            // IN: Channel to send on
    Bool success;
    char const *reply;
    size_t replyLen;
+   char *bdPacket = packetIn - HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
 
    ASSERT(out);
    ASSERT(packetIn);
    ASSERT(packetSize);
    ASSERT(packetOut);
 
-   success = RpcOut_send(out, packetIn - HGFS_CLIENT_CMD_LEN, 
-                         *packetSize + HGFS_CLIENT_CMD_LEN, 
+   memcpy(bdPacket, HGFS_SYNC_REQREP_CLIENT_CMD, HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
+
+   success = RpcOut_send(out, bdPacket, *packetSize + HGFS_CLIENT_CMD_LEN,
                          &reply, &replyLen);
    if (success == FALSE) {
       Debug("HgfsBd_Dispatch: RpcOut_send returned failure\n");

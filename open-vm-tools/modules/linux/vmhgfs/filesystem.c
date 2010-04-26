@@ -530,8 +530,8 @@ HgfsResetOps(void)
    hgfsVersionCreateSymlink   = HGFS_OP_CREATE_SYMLINK_V3;
 
    if (USE_VMCI) {
-      hgfsVersionRead = HGFS_OP_READ_FAST_V3;
-      hgfsVersionWrite = HGFS_OP_WRITE_FAST_V3;
+      hgfsVersionRead = HGFS_OP_READ_FAST_V4;
+      hgfsVersionWrite = HGFS_OP_WRITE_FAST_V4;
    }
 
 }

@@ -1768,6 +1768,9 @@ HgfsRemoveFromCacheInternal(HgfsHandle handle,        // IN: Hgfs handle to the 
       DblLnkLst_Unlink1(&node->links);
       node->state = FILENODE_STATE_IN_USE_NOT_CACHED;
       session->numCachedOpenNodes--;
+      LOG(4, ("%s: cache entries %u remove node %s id %"FMT64"u fd %u .\n", __FUNCTION__,
+              session->numCachedOpenNodes, node->utf8Name,
+              node->localId.fileId, node->fileDesc));
 
       /*
        * XXX: From this point and up in the call chain (i.e. this function and
@@ -2646,6 +2649,15 @@ static struct {
    { HgfsServerSymlinkCreate,    HGFS_SIZEOF_OP(HgfsRequestSymlinkCreateV3)    },
    { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange)          },
    { HgfsServerWriteWin32Stream, HGFS_SIZEOF_OP(HgfsRequestWriteWin32StreamV3) },
+   /*
+    * XXX
+    *    Will be replaced with the real thing when during merge with another outstanding
+    *    change.
+    *    For now just set min size big enough so request gets rejected when
+    *    such request comes from the client.
+    */
+   { NULL, 0xffffff      },   // Implemented in another change
+   { NULL, 0xffffff      },   // Implemented in another change
    { HgfsServerRead,             HGFS_SIZEOF_OP(HgfsRequestReadV3)             },
    { HgfsServerWrite,            HGFS_SIZEOF_OP(HgfsRequestWriteV3)            },
 };
@@ -4547,12 +4559,13 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    len = CPName_GetComponent(openInfo->cpName, inEnd, &next);
    if (len < 0) {
       LOG(4, ("%s: get first component failed\n", __FUNCTION__));
-
+      HgfsCloseFile(fileDesc, NULL);
       return FALSE;
    }
 
    /* See if we are dealing with the base of the namespace */
    if (!len) {
+      HgfsCloseFile(fileDesc, NULL);
       return FALSE;
    }
 
@@ -4569,11 +4582,15 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       LOG(4, ("%s: Failed to add new node.\n", __FUNCTION__));
       HGFS_LOCK_RELEASE(session->nodeArrayLock);
 
+      HgfsCloseFile(fileDesc, NULL);
       return FALSE;
    }
    handle = HgfsFileNode2Handle(node);
 
    if (!HgfsAddToCacheInternal(handle, session)) {
+      HgfsFreeFileNodeInternal(handle, session);
+      HgfsCloseFile(fileDesc, NULL);
+
       LOG(4, ("%s: Failed to add node to the cache.\n", __FUNCTION__));
       HGFS_LOCK_RELEASE(session->nodeArrayLock);
 

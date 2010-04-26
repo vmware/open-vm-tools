@@ -184,7 +184,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
 
  retry:
    opUsed = hgfsVersionRead;
-   if (opUsed == HGFS_OP_READ_FAST_V3) {
+   if (opUsed == HGFS_OP_READ_FAST_V4) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
 
@@ -207,7 +207,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       memcpy(req->dataPacket, dataPacket, numEntries * sizeof req->dataPacket[0]);
       req->numEntries = numEntries;
 
-      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Read\n"));
+      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Read V4\n"));
    } else if (opUsed == HGFS_OP_READ_V3) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
@@ -245,7 +245,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
 
       switch (result) {
       case 0:
-         if (opUsed == HGFS_OP_READ_FAST_V3) {
+         if (opUsed == HGFS_OP_READ_FAST_V4) {
             actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
          } else if (opUsed == HGFS_OP_READ_V3) {
             actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
@@ -285,8 +285,8 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       case -EPROTO:
          /* Retry with older version(s). Set globally. */
          switch (opUsed) {
-         case HGFS_OP_READ_FAST_V3:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Fast Read not "
+         case HGFS_OP_READ_FAST_V4:
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Fast Read V4 not "
                     "supported. Falling back to V3 Read.\n"));
             hgfsVersionRead = HGFS_OP_READ_V3;
             goto retry;
@@ -380,7 +380,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
 
  retry:
    opUsed = hgfsVersionWrite;
-   if (opUsed == HGFS_OP_WRITE_FAST_V3) {
+   if (opUsed == HGFS_OP_WRITE_FAST_V4) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
 
@@ -408,7 +408,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       req->numEntries = numEntries;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
       req->payloadSize = reqSize;
-      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Write\n"));
+      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Write V4\n"));
    } else if (opUsed == HGFS_OP_WRITE_V3) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
@@ -462,7 +462,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
 
       switch (result) {
       case 0:
-         if (opUsed == HGFS_OP_WRITE_V3 || opUsed == HGFS_OP_WRITE_FAST_V3) {
+         if (opUsed == HGFS_OP_WRITE_V3 || opUsed == HGFS_OP_WRITE_FAST_V4) {
             actualSize = ((HgfsReplyWriteV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
          } else {
             actualSize = ((HgfsReplyWrite *)HGFS_REQ_PAYLOAD(req))->actualSize;
@@ -477,8 +477,8 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       case -EPROTO:
          /* Retry with older version(s). Set globally. */
          switch (opUsed) {
-         case HGFS_OP_WRITE_FAST_V3:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Fast Write not "
+         case HGFS_OP_WRITE_FAST_V4:
+            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Fast Write V4 not "
                     "supported. Falling back to V3 write.\n"));
             hgfsVersionRead = HGFS_OP_WRITE_V3;
             goto retry;

@@ -69,7 +69,6 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
        * the outgoing packet. I changed it to HGFS_LARGE_PACKET_MAX.
        */
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
-      goto exit;
    } else if (session->channelCbTable && session->channelCbTable->getWriteVa) {
      /* Can we write directly into guest memory ? */
       if (packet->metaPacket) {
@@ -77,23 +76,22 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
          ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketSize);
          packet->replyPacket = packet->metaPacket;
          packet->replyPacketSize = packet->metaPacketSize;
-         goto exit;
+      } else {
+         /* This should really never happen in existing scenarios */
+         ASSERT_DEVEL(0);
+         LOG(10, ("%s Mapping meta packet for reply packet\n", __FUNCTION__));
+         packet->replyPacket = HSPU_GetBuf(packet, 0, &packet->metaPacket,
+                                           packet->metaPacketSize,
+                                           &packet->metaPacketIsAllocated,
+                                           HGFS_BUF_WRITEABLE,
+                                           session);
+         /*
+          * Really this can never happen, we would have caught bad physical address
+          * during getMetaPacket.
+          */
+         ASSERT(packet->replyPacket);
+         packet->replyPacketSize = packet->metaPacketSize;
       }
-
-      /* This should really never happen in existing scenarios */
-      ASSERT_DEVEL(0);
-      LOG(10, ("%s Mapping meta packet for reply packet\n", __FUNCTION__));
-      packet->replyPacket = HSPU_GetBuf(packet, 0, &packet->metaPacket,
-                                        packet->metaPacketSize,
-                                        &packet->metaPacketIsAllocated,
-                                        HGFS_BUF_WRITEABLE,
-                                        session);
-      /*
-       * Really this can never happen, we would have caught bad physical address
-       * during getMetaPacket.
-       */
-      ASSERT(packet->replyPacket);
-      packet->replyPacketSize = packet->metaPacketSize;
    } else {
       /* For sockets channel we always need to allocate buffer */
       LOG(10, ("%s Allocating reply packet\n", __FUNCTION__));
@@ -102,7 +100,6 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       packet->replyPacketSize = *replyPacketSize;
    }
 
-exit:
    *replyPacketSize = packet->replyPacketSize;
    return packet->replyPacket;
 }
@@ -556,7 +553,6 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
    size_t remainingSize = bufSize;
    size_t copyAmount;
    size_t copiedAmount = 0;
-   int i;
 
    ASSERT(packet);
    ASSERT(buf);
@@ -579,28 +575,23 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
 
       /* Debugging check: Iov in VMCI should never cross page boundary */
       ASSERT_DEVEL(packet->iov[iovCount].len <=
-      (4096 - (packet->iov[iovCount].pa & 0xfff)));
+                  (4096 - (packet->iov[iovCount].pa & 0xfff)));
 
       packet->iov[iovCount].va = session->channelCbTable->getWriteVa(packet->iov[iovCount].pa,
                                                      packet->iov[iovCount].len,
                                                      &packet->iov[iovCount].token);
       ASSERT_DEVEL(packet->iov[iovCount].va);
-      if (packet->iov[iovCount].va == NULL) {
-         goto freeMem;
+      if (packet->iov[iovCount].va != NULL) {
+         memcpy(packet->iov[iovCount].va, (char *)buf + copiedAmount, copyAmount);
+         session->channelCbTable->putVa(&packet->iov[iovCount].token);
+         remainingSize -= copyAmount;
+         copiedAmount += copyAmount;
+      } else {
+         break;
       }
-
-      memcpy(packet->iov[iovCount].va, (char *)buf + copiedAmount, copyAmount);
-      remainingSize -= copyAmount;
-      copiedAmount += copyAmount;
    }
 
-   ASSERT(remainingSize == 0);
-   return;
-
-freeMem:
-   for (i = startIndex; i < iovCount; i++) {
-      session->channelCbTable->putVa(&packet->iov[i].token);
-   }
+   ASSERT_DEVEL(remainingSize == 0);
 }
 
 
