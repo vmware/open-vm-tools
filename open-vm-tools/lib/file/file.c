@@ -23,6 +23,10 @@
  *        fileWin32.c, etc.
  */
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -43,6 +47,8 @@
 #include "util.h"
 #include "str.h"
 #include "msg.h"
+#include "random.h"
+#include "vthreadBase.h"
 #include "uuid.h"
 #include "config.h"
 #include "posix.h"
@@ -2333,12 +2339,12 @@ File_ExpandAndCheckDir(const char *dirName)
  *
  * FileSleeper
  *
- *	Sleep for the specified number of milliseconds plus some "slop time".
- *      The "slop time" is added to provide some "jitter" on retries such
+ *	Sleep for a random amount of time between the specified minimum and
+ *      maximum sleep values. This provides "jitter" on retries such
  *      that two or more threads don't easily get into resonance.
  *
  * Results:
- *      Sonambulistic behavior
+ *      Sonambulistic behavior; the amount of time slept is returned.
  *
  * Side effects:
  *	None
@@ -2346,24 +2352,47 @@ File_ExpandAndCheckDir(const char *dirName)
  *----------------------------------------------------------------------
  */
 
-void
-FileSleeper(uint32 msecSleepTime)  // IN:
+uint32
+FileSleeper(uint32 msecMinSleepTime,  // IN:
+            uint32 msecMaxSleepTime)  // IN:
 {
-   static uint32 rng = 0;
+   uint32 variance;
+   uint32 msecActualSleepTime;
 
-   rng = 1103515245*rng + 12345;  // simple, noisy RNG
+   variance = msecMaxSleepTime - msecMinSleepTime;
 
-   /* Add some "slop" to the sleep time */
-   if (msecSleepTime < 50) {
-      msecSleepTime += rng & 1;
+   if (variance == 0) {
+      msecActualSleepTime = msecMinSleepTime;
    } else {
-      msecSleepTime += rng & 3;
+      int sample;
+      float fpRand;
+      static int32 rng;  // implicitly 0
+
+      if (rng == 0) {
+         int pid;
+
+#if defined(_WIN32)
+         pid = GetCurrentProcessId();
+#else
+         pid = getpid();
+#endif
+
+         rng = (pid << 16) | VThread_CurID();
+      }
+
+      sample = FastRand(rng);
+      fpRand = ((float) sample) / ((float) MAX_INT32);
+      rng = sample;
+
+      msecActualSleepTime = msecMinSleepTime + (uint32) (fpRand * variance);
    }
 
 #if defined(_WIN32)
-   Sleep(msecSleepTime);
+   Sleep(msecActualSleepTime);
 #else
-   usleep(1000 * msecSleepTime);
+   usleep(1000 * msecActualSleepTime);
 #endif
+
+   return msecActualSleepTime;
 }
 #endif // N_PLAT_NLM

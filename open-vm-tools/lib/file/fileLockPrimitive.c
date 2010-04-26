@@ -121,12 +121,11 @@ Sleeper(LockValues *myValues,  // IN/OUT:
 
    myValues->waitTime += msecSleepTime;
 
+   /* Clamp individual sleeps to avoid Windows issues */
    while (msecSleepTime) {
       uint32 sleepTime = (msecSleepTime > 900) ? 900 : msecSleepTime;
 
-      FileSleeper(sleepTime);
-
-      msecSleepTime -= sleepTime;
+      msecSleepTime -= FileSleeper(sleepTime, sleepTime);
    }
 
    return 0;
@@ -883,7 +882,8 @@ Scanner(ConstUnicode lockDir,    // IN:
          ptr = ptr->next;
       }
 
-      FileSleeper(FILELOCK_PROGRESS_SAMPLE); // relax
+      FileSleeper(FILELOCK_PROGRESS_SAMPLE,
+                  FILELOCK_PROGRESS_SAMPLE); // relax
    }
 
    /* Clean up anything still on the list; they are no longer important */
