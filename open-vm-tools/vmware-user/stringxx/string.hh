@@ -103,6 +103,8 @@ public:
 #ifdef _WIN32
    string(const ubstr_t &s);
    explicit string(const _bstr_t &s);
+   string(const uvariant_t &v);
+   explicit string(const _variant_t &v);
 #endif
 
    string(const utf16string &s);
@@ -216,6 +218,11 @@ private:
    // Cache accessors
    const utf16_t *GetUtf16Cache() const;
 
+#ifdef _WIN32
+   // Private utility constructor.
+   void init_bstr_t(const _bstr_t &s);
+#endif
+
    // utf::string is internally backed by Glib::ustring.
    Glib::ustring mUstr;
 
@@ -291,7 +298,7 @@ string VMSTRING_EXPORT
 IntToStr(int64 val);
 
 void VMSTRING_EXPORT CreateWritableBuffer(const string& s,
-                                          std::vector<char>& buf); 
+                                          std::vector<char>& buf);
 void VMSTRING_EXPORT CreateWritableBuffer(const string& s,
                                           std::vector<utf16_t>& buf);
 

@@ -2228,14 +2228,14 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
          _exit(EXIT_SUCCESS);
       }
    } else {
-      errno = err;
-
       if (pidPath) {
          Posix_Unlink(pidPath);
       }
+
+      errno = err;
    }
 
-   return (err == 0);
+   return err == 0;
 }
 
 

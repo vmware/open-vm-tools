@@ -81,6 +81,10 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) }
    };
 
+#if defined(G_PLATFORM_WIN32)
+   ToolsCore_InitializeCOM(ctx);
+#endif
+
    FoundryToolsDaemon_Initialize(ctx);
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 

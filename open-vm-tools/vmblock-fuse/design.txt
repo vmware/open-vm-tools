@@ -143,9 +143,9 @@ beagle (linux)
 According to http://beagle-project.org/Indexing_Data, by default, everything in $(HOME)
 is indexed.
 
-spotlight (mac)
-I don't know if /tmp even exists on macs. I need to revisit this once I get vmblock-fuse
-running on mac.
+spotlight (Mac OS)
+I don't know if /tmp even exists on Mac OS. I need to revisit this once I get vmblock-fuse
+running on Mac OS.
 
 google desktop search (windows, linux)
 On linux, doesn't index /tmp. Also doesn't index hidden (.*) directories. This might be
