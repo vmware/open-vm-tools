@@ -240,6 +240,10 @@
 #define XSTR(x) MAKESTR(x)
 #endif
 
+// This extra version define is here so the Makefiles can easily pick it up.
+// See the VMRC_PLUGIN_VERSION section in /mk/defs-onetime.mk
+#define VMRC_PLUGIN_VERSION_NUMBER "2.5.0"
+
 #define VMRC_PLUGIN_VERSION_MAJOR 2
 #define VMRC_PLUGIN_VERSION_MINOR 5
 #define VMRC_PLUGIN_VERSION_Z     0
