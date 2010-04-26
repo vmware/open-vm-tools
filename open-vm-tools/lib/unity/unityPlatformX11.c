@@ -2360,21 +2360,30 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
           * XSetProperty(..._NET_WM_STRUTS_PARTIAL).  I.e., look up that
           * property's entry in NetWM/wm-spec for more info on the indices.
           *
-          * I went the switch/case route only because it does a better job (for me)
-          * of organizing & showing -all- possible cases.  YMMV.
+          * I went the switch/case route only because it does a better job
+          * (for me) of organizing & showing -all- possible cases.  YMMV.
+          *
+          * The region code treats rectanges as ranges from [x1,x2) and
+          * [y1,y2).  In other words, x2 and y2 are OUTSIDE the region.  I
+          * guess it makes calculating widths/heights easier.  However, the
+          * strut width/height dimensions are INCLUSIVE, so we'll subtract 1
+          * from the "end" (as opposed to "start") value.
+          *
+          * (Ex:  A 1600x1200 display with a 25px top strut would be marked
+          * as top = 25, top_start_x = 0, top_end_x = 1599.)
           */
          switch (bounds) {
          case TOUCHES_LEFT | TOUCHES_RIGHT | TOUCHES_TOP:
             /* Top strut. */
             strutInfos[numStrutInfos][2] = p->y2 - p->y1;
             strutInfos[numStrutInfos][8] = p->x1;
-            strutInfos[numStrutInfos][9] = p->x2;
+            strutInfos[numStrutInfos][9] = p->x2 - 1;
             break;
          case TOUCHES_LEFT | TOUCHES_RIGHT | TOUCHES_BOTTOM:
             /* Bottom strut. */
             strutInfos[numStrutInfos][3] = p->y2 - p->y1;
             strutInfos[numStrutInfos][10] = p->x1;
-            strutInfos[numStrutInfos][11] = p->x2;
+            strutInfos[numStrutInfos][11] = p->x2 - 1;
             break;
          case TOUCHES_LEFT:
          case TOUCHES_LEFT | TOUCHES_TOP:
@@ -2383,7 +2392,7 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
             /* Left strut. */
             strutInfos[numStrutInfos][0] = p->x2 - p->x1;
             strutInfos[numStrutInfos][4] = p->y1;
-            strutInfos[numStrutInfos][5] = p->y2;
+            strutInfos[numStrutInfos][5] = p->y2 - 1;
             break;
          case TOUCHES_RIGHT:
          case TOUCHES_RIGHT | TOUCHES_TOP:
@@ -2392,7 +2401,7 @@ UnityPlatformSetDesktopWorkAreas(UnityPlatform *up,     // IN
             /* Right strut. */
             strutInfos[numStrutInfos][1] = p->x2 - p->x1;
             strutInfos[numStrutInfos][6] = p->y1;
-            strutInfos[numStrutInfos][7] = p->y2;
+            strutInfos[numStrutInfos][7] = p->y2 - 1;
             break;
          case TOUCHES_LEFT | TOUCHES_RIGHT | TOUCHES_TOP | TOUCHES_BOTTOM:
             Warning("%s: Struts occupy entire display.", __func__);
