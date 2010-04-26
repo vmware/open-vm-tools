@@ -17,7 +17,6 @@ EXTRA_ARGS += "SYSDIR=@SYSDIR@"
 endif
 
 if LINUX
-export pvscsidir := $(MODULES_DIR)/drivers/scsi
 export vmblockdir := $(MODULES_DIR)/fs/vmblock
 export vmcidir := $(MODULES_DIR)/drivers/misc
 export vmhgfsdir := $(MODULES_DIR)/fs/vmhgfs

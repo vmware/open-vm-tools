@@ -64,7 +64,7 @@ rm -rf $dst
 mkdir -p $dst
 cp -f `dirname $0`/dkms.conf $dst
 
-for m in pvscsi vmblock vmci vmhgfs vmmemctl vmsync vmxnet vsock
+for m in vmblock vmci vmhgfs vmmemctl vmsync vmxnet vsock
 do
    mdst="$dst/$m"
 
