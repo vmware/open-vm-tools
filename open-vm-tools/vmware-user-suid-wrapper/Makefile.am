@@ -27,3 +27,6 @@ AM_CPPFLAGS += -DVMWARE_USER_PATH=\"$(VMWARE_USER_PATH)\"
 vmware_user_suid_wrapper_SOURCES =
 vmware_user_suid_wrapper_SOURCES += main.c
 vmware_user_suid_wrapper_SOURCES += wrapper-@TARGET_OS@.c
+
+vmware_user_suid_wrapper_LDADD =
+vmware_user_suid_wrapper_LDADD += ../lib/vmSignal/libVmSignal.la
