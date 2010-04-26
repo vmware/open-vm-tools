@@ -2911,8 +2911,6 @@ UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
    ASSERT(up);
    ASSERT(up->updateChannel);
 
-   DynBuf_SetSize(&up->updateChannel->updates, up->updateChannel->cmdSize);
-
    if (!incremental) {
       UnityPlatformUpdateWindowState(up, up->tracker);
    }

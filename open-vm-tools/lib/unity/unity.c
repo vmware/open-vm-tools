@@ -1611,6 +1611,12 @@ retry_send:
       }
    }
 
+   /*
+    * With the update queue sent, purge the DynBuf by trimming it to the length
+    * of the command preamble.
+    */
+   DynBuf_SetSize(&updateChannel->updates, updateChannel->cmdSize);
+
    return TRUE;
 }
 
