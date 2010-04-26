@@ -1540,6 +1540,9 @@ HgfsStatusConvertToLinux(HgfsStatus hgfsStatus) // IN: Status code to convert
    case HGFS_STATUS_GENERIC_ERROR:
       return -EIO;
 
+   case HGFS_STATUS_NOT_SAME_DEVICE:
+      return -EXDEV;
+
    default:
       LOG(10, (KERN_DEBUG "VMware hgfs: HgfsStatusConvertToLinux: unknown "
                "error: %u\n", hgfsStatus));

@@ -169,6 +169,7 @@ typedef enum {
    HGFS_STATUS_OPERATION_NOT_SUPPORTED,
    HGFS_STATUS_NAME_TOO_LONG,
    HGFS_STATUS_INVALID_PARAMETER,
+   HGFS_STATUS_NOT_SAME_DEVICE,
    /*
     * Following error codes are for V4 and above protocol only.
     * Server must never retun these codes for legacy clients.
