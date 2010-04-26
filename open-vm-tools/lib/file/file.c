@@ -179,9 +179,11 @@ File_GetFilePermissions(ConstUnicode pathName,  // IN:
    FileData fileData;
 
    ASSERT(mode);
+
    if (FileAttributes(pathName, &fileData) != 0) {
       return FALSE;
    }
+
    *mode = fileData.fileMode;
 #if defined(_WIN32)
       /*
@@ -326,6 +328,7 @@ Bool
 File_EnsureDirectory(ConstUnicode pathName)  // IN:
 {
    int res = FileCreateDirectory(pathName);
+
    return ((0 == res) || (EEXIST == res));
 }
 
@@ -388,16 +391,16 @@ GetOldMachineID(void)
 
       Hostinfo_MachineID(&hashValue, &hardwareID);
 
-      // Build the raw machineID
+      /* Build the raw machineID */
       memcpy(rawMachineID, &hashValue, sizeof hashValue);
       memcpy(&rawMachineID[sizeof hashValue], &hardwareID,
              sizeof hardwareID);
 
-      // Base 64 encode the binary data to obtain printable characters
+      /* Base 64 encode the binary data to obtain printable characters */
       Base64_Encode(rawMachineID, sizeof rawMachineID, encodedMachineID,
                     sizeof encodedMachineID, NULL);
 
-      // remove any '/' from the encoding; no problem using it for a file name
+      /* remove '/' from the encoding; no problem using it for a file name */
       for (p = encodedMachineID; *p; p++) {
          if (*p == '/') {
             *p = '-';
@@ -539,6 +542,7 @@ OldMachineIDMatch(const char *first,  // IN:
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #1 (%s)\n", __FUNCTION__,
               first);
+
       return FALSE;
    }
 
@@ -553,6 +557,7 @@ OldMachineIDMatch(const char *first,  // IN:
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #2 (%s)\n", __FUNCTION__,
               second);
+
       return FALSE;
    }
 
