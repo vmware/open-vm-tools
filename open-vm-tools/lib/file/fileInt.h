@@ -176,9 +176,9 @@ EXTERN int FileRemoveDirectory(ConstUnicode pathName);
 typedef struct active_lock
 {
   struct active_lock *next;
-  uint32             age;
-  Bool               marked;
-  Unicode            dirName;
+  uint32              age;
+  Bool                marked;
+  Unicode             dirName;
 } ActiveLock;
 
 typedef struct lock_values
@@ -188,10 +188,10 @@ typedef struct lock_values
    char         *payload;
    char         *lockType;
    char         *locationChecksum;
-   Unicode      memberName;
-   unsigned int lamportNumber;
-   uint32       waitTime;
-   uint32       msecMaxWaitTime;
+   Unicode       memberName;
+   unsigned int  lamportNumber;
+   uint32        waitTime;
+   uint32        msecMaxWaitTime;
    ActiveLock   *lockList;
 } LockValues;
 
