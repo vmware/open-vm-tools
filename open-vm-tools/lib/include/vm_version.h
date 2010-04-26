@@ -222,7 +222,7 @@
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.2"
 #define DDK_VERSION "e.x.p"
-#define VIM_API_VERSION "4.1"
+#define VIM_API_VERSION "5.0"
 #define VIPERL_VERSION "1.1.0"
 #define RCLI_VERSION "4.5.0"
 #define VDM_VERSION "e.x.p"
