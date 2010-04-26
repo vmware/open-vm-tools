@@ -1,0 +1,252 @@
+#!/bin/sh
+##########################################################
+# Copyright (C) 2001-2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+
+#
+# network (Linux)
+#
+# Using a combination of a system networking script, ifconfig, and ifup,
+# attempt to release and renew DHCP leases upon receipt of suspend and resume
+# events, respectively.
+#
+
+
+echo `date` ": Executing '$0'"
+echo
+
+. `dirname "$0"`/../../statechange.subr
+
+
+#
+# find_networking_script --
+#
+#    Searches common Linux distro init/rc paths to find a singular network
+#    services script.
+#
+# Result:
+#    Returns a valid networking script path on success or "error" on failure.
+#
+# Side effects:
+#    None.
+#
+
+find_networking_script() {
+    local script="error"
+    for dir in "/etc/init.d" "/sbin/init.d" "/etc" "/etc/rc.d" ; do
+        if [ -d "$dir/rc0.d" ] &&
+	    [ -d "$dir/rc1.d" ] &&
+	    [ -d "$dir/rc2.d" ] &&
+	    [ -d "$dir/rc3.d" ] &&
+	    [ -d "$dir/rc4.d" ] &&
+	    [ -d "$dir/rc5.d" ] &&
+	    [ -d "$dir/rc6.d" ]; then
+
+	    # Now find the appropriate networking script.
+	    if [ -d "$dir/init.d" ]; then
+		if [ -x "$dir/init.d/network" ]; then
+		    script="$dir/init.d/network"
+		elif [ -x "$dir/init.d/networking" ]; then
+		    script="$dir/init.d/networking"
+		fi
+	    else
+		if [ -x "$dir/network" ]; then
+		    script="$dir/network"
+		elif [ -x "$dir/networking" ]; then
+		    script="$dir/networking"
+		fi
+	    fi
+        fi
+    done
+
+    echo "$script"
+}
+
+
+#
+# save_active_NIC_list --
+#
+#    Records a list of every active NIC to /var/run/vmware-active-nics.
+#
+#    XXX What's the story on aliases?  Should they still be included, or will
+#    they be recreated automatically upon resume?
+#
+# Results:
+#    $activeList has, one per line, a list of all active NICs.
+#
+# Side effects:
+#    None.
+#
+
+save_active_NIC_list() {
+   >$activeList
+
+   for nic in `ifconfig | awk '/^eth/ { print $1 }'`; do
+      ifconfig $nic | egrep -q '\bUP\b' && echo $nic >> $activeList
+      exitCode=`expr $exitCode \| $?`
+   done
+}
+
+
+#
+# rescue_NIC --
+#
+#    For each NIC recorded in $activeList that is not currently "up", run
+#    "ifup $nic".
+#
+# Results:
+#    All downed NICs should be active.
+#
+
+rescue_NIC() {
+   if [ -f "$activeList" ]; then
+      while read nic; do
+         if ifconfig $nic | egrep -q '\bUP\b'; then
+            echo `date` "[rescue_nic] $nic is already active."
+         else
+            echo `date` "[rescue_nic] activating $nic ..."
+
+            ifup $nic
+            exitCode=`expr $exitCode \| $?`
+         fi
+      done < $activeList
+
+      rm -f $activeList
+   fi
+}
+
+
+#
+# TranquilizeNetworkManager --
+#
+#    Put the NetworkManager daemon to sleep (maybe).
+#
+#    See http://projects.gnome.org/NetworkManager/developers/spec.html .
+#
+# Results:
+#    Sleep(true) request is sent to the NetworkManager D-Bus interface.
+#
+# Side effects:
+#    None.
+#
+
+TranquilizeNetworkManager() {
+   # `which' may be a bit noisy, so we'll shush it.
+   dbusSend=`which dbus-send 2>/dev/null`
+   if [ $? -eq 0 ]; then
+      # NetworkManager 0.6
+      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
+         /org/freedesktop/NetworkManager                                \
+         org.freedesktop.NetworkManager.sleep
+      # NetworkManager 0.7.0
+      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
+         /org/freedesktop/NetworkManager                                \
+         org.freedesktop.NetworkManager.Sleep boolean:true
+   fi
+}
+
+
+#
+# WakeNetworkManager --
+#
+#    Wake the NetworkManager daemon (maybe).
+#
+#    See http://projects.gnome.org/NetworkManager/developers/spec.html .
+#
+# Results:
+#    Sleep(false)request is sent to the NetworkManager D-Bus interface.
+#
+# Side effects:
+#    None.
+#
+
+WakeNetworkManager() {
+   # `which' may be a bit noisy, so we'll shush it.
+   dbusSend=`which dbus-send 2>/dev/null`
+   if [ $? -eq 0 ]; then
+      # NetworkManager 0.6
+      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
+         /org/freedesktop/NetworkManager                                \
+         org.freedesktop.NetworkManager.wake
+      # NetworkManager 0.7.0
+      $dbusSend --system --dest=org.freedesktop.NetworkManager          \
+         /org/freedesktop/NetworkManager                                \
+         org.freedesktop.NetworkManager.Sleep boolean:false
+   fi
+}
+
+
+#
+# main --
+#
+#    Main entry point.  Perform some sanity checking, then map state change
+#    events to relevant networking operations.
+#
+# Results:
+#    See comment at top of file.
+#
+
+main() {
+   exitCode=0
+   activeList=/var/run/vmware-active-nics
+
+   networkScript=`find_networking_script`
+   [ "$networkScript" != "error" ] || Panic "Cannot find system networking script."
+
+   # XXX Are these really necessary?  If so, we should have seen customer
+   # complaints by now.
+   which ifup >/dev/null 2>&1      || Panic "ifup not in search path."
+   which ifconfig >/dev/null 2>&1  || Panic "ifconfig not in search path."
+
+   case "$1" in
+      poweron-vm)
+         rm -f $activeList
+         ;;
+      suspend-vm)
+         save_active_NIC_list
+         "$networkScript" stop
+         TranquilizeNetworkManager
+         ;;
+      resume-vm)
+         # According to hfu, "/etc/init.d/networking restart" on Debian 5.0
+         # may bring down ethernet interfaces tagged as "allow-hotplug" without
+         # bringing them back up.
+         #
+         # This is especially a problem when reverting to a live, running
+         # VM snapshot where an active NIC list hadn't yet been generated,
+         # resulting in sudden loss of an otherwise operational NIC.
+         #
+         # So, if the active list doesn't exist, assume we're coming back to
+         # a live snapshot and capture the current active list now for
+         # rescue later.
+         if [ ! -s $activeList ]; then
+            save_active_NIC_list
+         fi
+         WakeNetworkManager
+         # XXX Do we really want restart or is start sufficient?  Like, would
+         # using start avoid the problem mentioned above?
+         "$networkScript" restart
+         rescue_NIC
+         ;;
+      *) ;;
+   esac
+
+   return $exitCode
+}
+
+main "$@"

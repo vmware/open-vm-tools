@@ -1,0 +1,103 @@
+#!/bin/sh
+##########################################################
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+##########################################################################
+# DO NOT modify this file directly as it will be overwritten the next
+# time the VMware Tools are installed.
+##########################################################################
+
+#
+# network (FreeBSD 6.3 and above)
+#
+# This script uses FreeBSD's rc(8) scripts to stop and restart networking
+# services in response to suspend and resume events, respectively.
+#
+
+
+echo `date` ": Executing '$0'"
+echo
+
+. `dirname "$0"`/../../statechange.subr
+
+
+#
+# ToggleNetwork --
+#
+#    Sources native configuration files in a subshell and executes native
+#    scripts to either start or stop networking services associated with
+#    a single interface.
+#
+# Results:
+#    See description above.
+#
+# Side effects:
+#    All side effects implied by FreeBSD's netif script.
+#
+
+ToggleNetwork() {
+   (
+      . /etc/rc.subr
+      . /etc/network.subr
+
+      load_rc_config network
+
+      for intf in `list_net_interfaces dhcp`; do
+         /etc/rc.d/netif $1 $intf
+         ec=$?
+
+         # Failure to stop an interface should not interfere with suspend.
+         if [ "$1" != "stop" ]; then
+            exitCode=`expr $exitCode \| $ec`
+         fi
+      done
+   )
+}
+
+
+#
+# main --
+#
+#    Main entry point.  Perform some sanity checking, then map state change
+#    events to relevant networking operations.
+#
+# Results:
+#    See comment at top of file.
+#
+
+main() {
+   exitCode=0
+
+   [ -r /etc/rc.subr ] || Panic "Cannot read /etc/rc.subr."
+   [ -r /etc/network.subr ] || Panic "Cannot read /etc/network.subr"
+   [ -x /etc/rc.d/netif ] || Panic "Cannot read /etc/rc.d/netif"
+
+   case "$1" in
+      suspend-vm)
+         ToggleNetwork stop
+         ;;
+      resume-vm)
+         ToggleNetwork start
+         ;;
+      *) ;;
+   esac
+
+   return $exitCode
+}
+
+main "$@"

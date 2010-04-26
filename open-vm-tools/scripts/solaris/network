@@ -1,0 +1,88 @@
+#!/bin/sh
+##########################################################
+# Copyright (C) 2006-2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+##########################################################################
+# DO NOT modify this file directly as it will be overwritten the next
+# time the VMware Tools are installed.
+##########################################################################
+
+#
+# network (Solaris 10+)
+#
+# Solaris's ifconfig conveniently handles DHCP arguments directly, so we
+# may use it to release and renew DHCP leases upon receipt of suspend
+# and resume events, respectively.
+#
+
+
+echo `date` ": Executing '$0'"
+echo
+
+
+#
+# main --
+#
+#    Script entry point.
+#
+# Results:
+#
+# Side effects:
+#
+
+main() {
+   activeList=/var/run/vmware-active-nics
+   exitCode=0
+
+   case "$1" in
+      poweron-vm)
+         rm -f $activeList
+         ;;
+      suspend-vm)
+         >$activeList
+
+         # Release DHCP addresses and note each interface in our active list
+         # so it can be brought back up on resume
+         for nic in `ifconfig -a | awk -F: '/DHCP/ { print $1; }'`; do
+            # Sometimes interfaces will claim DHCP and not actually be "under
+            # DHCP control".  Let's double check the status to ensure this
+            # isn't the case.
+            if ifconfig "$nic" dhcp status > /dev/null 2>&1; then
+               echo "$0: releasing DHCP address for $nic"
+               echo "$nic" >> $activeList
+               ifconfig "$nic" dhcp release
+            fi
+         done
+      ;;
+      resume-vm)
+         if [ -s $activeList ]; then
+            while read nic; do
+               echo "$0: bringing up DHCP on $nic"
+               ifconfig "$nic" dhcp
+               exitCode=`expr $exitCode \| $?`
+            done < $activeList
+         fi
+      ;;
+      *)
+      ;;
+   esac
+
+   return $exitCode
+}
+
+main "$@"
