@@ -13,5 +13,6 @@ vmwsrcdir = $(confdir)/scripts/vmware
 
 vmwsrc_SCRIPTS = $(MODULES_OS)/network
 
-$(defaultscripts): ./common/statechange.sh
-	cp $< $@
+$(defaultscripts): $(top_srcdir)/scripts/common/statechange.sh
+	cp $(top_srcdir)/scripts/common/statechange.sh $@
+
