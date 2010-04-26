@@ -135,20 +135,20 @@ EXTERN int FileListDirectoryRetry(ConstUnicode pathName,
 #define FileCreateDirectory(a)  FileCreateDirectoryRetry((a), 0)
 #define FileRemoveDirectory(a)  FileRemoveDirectoryRetry((a), 0)
 
-#define FILE_MAX_WAIT_TIME 2000
+#define FILE_MAX_WAIT_TIME_MS 2000  // maximum wait time in milliseconds
 
 #define FileListDirectoryRobust(a, b) \
-                    FileListDirectoryRetry((a), FILE_MAX_WAIT_TIME, (b))
+                    FileListDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS, (b))
 #define FileAttributesRobust(a, b) \
-                    FileAttributesRetry((a), FILE_MAX_WAIT_TIME, (b))
+                    FileAttributesRetry((a), FILE_MAX_WAIT_TIME_MS, (b))
 #define FileRenameRobust(a, b) \
-                    FileRenameRetry((a), (b), FILE_MAX_WAIT_TIME)
+                    FileRenameRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
 #define FileDeletionRobust(a, b) \
-                    FileDeletionRetry((a), (b), FILE_MAX_WAIT_TIME)
+                    FileDeletionRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
 #define FileCreateDirectoryRobust(a) \
-                    FileCreateDirectoryRetry((a), FILE_MAX_WAIT_TIME)
+                    FileCreateDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
 #define FileRemoveDirectoryRobust(a) \
-                    FileRemoveDirectoryRetry((a), FILE_MAX_WAIT_TIME)
+                    FileRemoveDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
 #else
 EXTERN char *FilePosixGetBlockDevice(char const *path);
 
@@ -209,6 +209,8 @@ typedef int FILELOCK_FILE_HANDLE;
 
 EXTERN uint32 FileSleeper(uint32 msecMinSleepTime,
                           uint32 msecMaxSleepTime);
+
+EXTERN uint32 FileSimpleRandom(void);
 
 EXTERN const char *FileLockGetMachineID(void);
 

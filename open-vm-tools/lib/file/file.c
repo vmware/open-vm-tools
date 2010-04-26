@@ -48,9 +48,6 @@
 #include "str.h"
 #include "msg.h"
 #include "random.h"
-#if defined(VMX86_VMX)
-#include "vthreadBase.h"
-#endif
 #include "uuid.h"
 #include "config.h"
 #include "posix.h"
@@ -193,9 +190,10 @@ File_GetFilePermissions(ConstUnicode pathName,  // IN:
    }
 
    *mode = fileData.fileMode;
+
 #if defined(_WIN32)
       /*
-       *  On Win32 implementation of FileAttributes does not return execution
+       * On Win32 implementation of FileAttributes does not return execution
        * bit.
        */
 
@@ -203,6 +201,7 @@ File_GetFilePermissions(ConstUnicode pathName,  // IN:
          *mode |= S_IXUSR;
       }
 #endif
+
    return TRUE;
 }
 
@@ -2079,11 +2078,13 @@ File_PrependToPath(const char *searchPath,   // IN
          }
          break;
       }
+
       if (!next) {
          break;
       }
       path = next + 1;
    }
+
    return newPath;
 }
 
@@ -2314,12 +2315,10 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
  */
 
 char *
-File_ExpandAndCheckDir(const char *dirName)
+File_ExpandAndCheckDir(const char *dirName)  // IN:
 {
-   char *edirName;
-
    if (dirName != NULL) {
-      edirName = Util_ExpandString(dirName);
+      char *edirName = Util_ExpandString(dirName);
 
       if ((edirName != NULL) && FileIsWritableDir(edirName)) {
          size_t len = strlen(edirName) - 1;
@@ -2333,6 +2332,63 @@ File_ExpandAndCheckDir(const char *dirName)
    }
 
    return NULL;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileSimpleRandom --
+ *
+ *      Return a random number in the range of 0 and 2^32-1.
+ *
+ *	This isn't thread safe but it's more than good enough for the
+ *      purposes required of it.
+ *
+ * Results:
+ *      Random number is returned.
+ *
+ * Side Effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+uint32
+FileSimpleRandom(void)
+{
+   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
+   char *context;
+
+   context = Atomic_ReadPtr(&atomic);
+
+   if (UNLIKELY(context == NULL)) {
+      void *p;
+      uint32 value;
+
+      /*
+       * Threads will hash up this RNG - this isn't officially thread safe
+       * which is just fine - but ensure that different processes have
+       * different answer streams.
+       */
+
+#if defined(_WIN32)
+      value = GetCurrentProcessId();
+#else
+      value = getpid();
+#endif
+
+      p = Random_QuickSeed(value);
+
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
+         free(p);
+      }
+
+      context = Atomic_ReadPtr(&atomic);
+      ASSERT(context);
+   }
+
+   return Random_Quick(context);
 }
 
 
@@ -2366,38 +2422,12 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
    if (variance == 0) {
       msecActualSleepTime = msecMinSleepTime;
    } else {
-      int sample;
-      float fpRand;
-      static int32 rng;  // implicitly 0
-
-      if (rng == 0) {
-         int pid;
-
-#if defined(_WIN32)
-         pid = GetCurrentProcessId();
-#else
-         pid = getpid();
-#endif
-
-         rng = (pid << 16);
-
-#if defined(VMX86_VMX)
-         rng |= VThread_CurID();
-#endif
-      }
-
-      sample = FastRand(rng);
-      fpRand = ((float) sample) / ((float) MAX_INT32);
-      rng = sample;
+      float fpRand = ((float) FileSimpleRandom()) / ((float) ~((uint32) 0));
 
       msecActualSleepTime = msecMinSleepTime + (uint32) (fpRand * variance);
    }
 
-#if defined(_WIN32)
-   Sleep(msecActualSleepTime);
-#else
    usleep(1000 * msecActualSleepTime);
-#endif
 
    return msecActualSleepTime;
 }
