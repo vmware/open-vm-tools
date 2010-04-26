@@ -158,7 +158,7 @@ FileIO_MsgError(FileIOResult status) // IN
    }
 
    if (!result) {
-      Warning("FileIO_MsgError was passed bad code %d\n", status);
+      Warning("%s: bad code %d\n", __FUNCTION__, status);
       ASSERT(0);
       result = MSGID(fileio.unknown) "Unknown error";
    }
@@ -243,8 +243,8 @@ FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
  */
 
 FileIOResult
-FileIO_Lock(FileIODescriptor *file, // IN/OUT:
-            int access)             // IN:
+FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
+            int access)              // IN:
 {
    FileIOResult ret = FILEIO_SUCCESS;
 
@@ -317,7 +317,7 @@ FileIO_Lock(FileIODescriptor *file, // IN/OUT:
  */
 
 FileIOResult
-FileIO_Unlock(FileIODescriptor *file)     // IN/OUT:
+FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 {
    FileIOResult ret = FILEIO_SUCCESS;
 
@@ -472,8 +472,10 @@ FileIO_StatsExit(const FileIODescriptor *fd)  // IN:
  */
 
 ConstUnicode
-FileIO_Filename(FileIODescriptor *fd) // IN
+FileIO_Filename(FileIODescriptor *fd)  // IN:
 {
+   ASSERT(fd);
+
    return fd->fileName;
 }
 
@@ -500,10 +502,10 @@ FileIO_Filename(FileIODescriptor *fd) // IN
  */
 
 FileIOResult
-FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
-             void *buf,               // IN: Buffer to read into
-             size_t len,              // IN: Length of the buffer
-             uint64 offset)           // IN: Offset to start reading
+FileIO_Pread(FileIODescriptor *fd,  // IN: File descriptor
+             void *buf,             // IN: Buffer to read into
+             size_t len,            // IN: Length of the buffer
+             uint64 offset)         // IN: Offset to start reading
 {
    struct iovec iov;
 
@@ -536,10 +538,10 @@ FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
  */
 
 FileIOResult
-FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
-              void const *buf,        // IN: Buffer to write from
-              size_t len,             // IN: Length of the buffer
-              uint64 offset)          // IN: Offset to start writing
+FileIO_Pwrite(FileIODescriptor *fd,  // IN: File descriptor
+              void const *buf,       // IN: Buffer to write from
+              size_t len,            // IN: Length of the buffer
+              uint64 offset)         // IN: Offset to start writing
 {
    struct iovec iov;
 
