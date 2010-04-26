@@ -45,6 +45,6 @@ uint32
 Random_Quick(void *context);
 
 int
-FastRand(int seed);
+Random_Simple(int seed);
 
 #endif /* __RANDOM_H__ */
