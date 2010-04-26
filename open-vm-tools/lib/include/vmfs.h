@@ -99,21 +99,6 @@ typedef enum {
 
 #if defined(VMX86_SERVER)
 char *Vmfs_GetCOSFileName(const char *vmfsFile);
-Bool Vmfs_IsVMFSDir(ConstUnicode dir);
-Bool Vmfs_IsVMFSFile(ConstUnicode pathName);
-#else
-
-static INLINE Bool
-Vmfs_IsVMFSDir(ConstUnicode dir)
-{
-   return FALSE;
-}
-
-static INLINE Bool
-Vmfs_IsVMFSFile(ConstUnicode pathName)
-{
-   return FALSE;
-}
 #endif /* VM86_SERVER */
 
 #endif /* __VMFS_H__ */
