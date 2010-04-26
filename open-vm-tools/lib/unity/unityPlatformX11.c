@@ -287,6 +287,7 @@ UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
    INIT_ATOM(WM_PROTOCOLS);
    INIT_ATOM(WM_STATE);
    INIT_ATOM(WM_TRANSIENT_FOR);
+   INIT_ATOM(WM_WINDOW_ROLE);
 
 #  undef INIT_ATOM
 
@@ -1522,6 +1523,13 @@ UnityPlatformProcessXEvent(UnityPlatform *up,      // IN
 
          return;
       } else if (xevent->type == CreateNotify) {
+         /* Ignore decoration widgets.  They'll be reparented later. */
+         if (UnityX11Util_IsWindowDecorationWidget(up, realEventWindow)) {
+            Debug("%s: Window %#lx is a decoration widget.  Ignore it.\n",
+                  __func__, realEventWindow);
+            return;
+         }
+
          /*
           * It may be a new window that we don't know about yet. Let's create an object
           * to track it.
@@ -1546,6 +1554,11 @@ UnityPlatformProcessXEvent(UnityPlatform *up,      // IN
 
    if (upw) {
       UPWindow_ProcessEvent(up, upw, realEventWindow, xevent);
+      if (upw->deleteWhenSafe) {
+         Debug("%s: refs %u, deleteWhenSafe %u\n", __func__, upw->refs,
+               upw->deleteWhenSafe);
+         UPWindow_Unref(up, upw);
+      }
    }
 }
 

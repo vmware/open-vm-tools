@@ -245,7 +245,8 @@ struct _UnityPlatform {
       WM_NAME,
       WM_PROTOCOLS,
       WM_STATE,
-      WM_TRANSIENT_FOR;
+      WM_TRANSIENT_FOR,
+      WM_WINDOW_ROLE;
    } atoms;
 
    UnityWindowTracker *tracker;
@@ -398,6 +399,19 @@ struct UnityPlatformWindow {
    Bool waitingForWmState;
 
    /*
+    * It isn't safe to delete a UnityPlatformWindow object in the guts of the
+    * event processing code.  (Example:  processing a DestroyNotify event or
+    * learning that a window is irrelevant to Unity/X11.)  Unfortunately, other
+    * parts of this codebase don't use the ref counting scheme correctly, so
+    * this hack will simply mark a UPW for deletion, and the outermost event
+    * entry point will take care of deleting if set.
+    *
+    * XXX Ditch this flag and instead make use of the reference counting
+    * bits.
+    */
+   Bool deleteWhenSafe;
+
+   /*
     * See wm-spec::_NET_FRAME_EXTENTS.
     */
    uint32 frameExtents[4];
@@ -460,5 +474,13 @@ gboolean UnityX11HandleEvents(gpointer data);
 
 void UnityX11EventEstablishSource(UnityPlatform *up);
 void UnityX11EventTeardownSource(UnityPlatform *up);
+
+
+/*
+ * Implemented in x11Util.c.
+ */
+
+Bool UnityX11Util_IsWindowDecorationWidget(UnityPlatform *up,
+                                           Window operand);
 
 #endif

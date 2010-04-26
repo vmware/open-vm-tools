@@ -82,6 +82,7 @@ static Window UPWindowLookupClientLeader(UnityPlatform *up,
 static void UPWindowUpdateFrameExtents(UnityPlatform *up,
                                        UnityPlatformWindow *upw);
 
+
 #ifdef VMX86_DEVEL
 /*
  *-----------------------------------------------------------------------------
@@ -1080,6 +1081,13 @@ UPWindow_CheckRelevance(UnityPlatform *up,        // IN
                   Debug("%s: PropertyNotify: FindWindows failed again!\n", __func__);
                   return;
                }
+            } else if (event->atom == up->atoms.WM_WINDOW_ROLE &&
+                       event->state == PropertyNewValue &&
+                       UnityX11Util_IsWindowDecorationWidget(up, upw->toplevelWindow)) {
+               Debug("%s: Window %#lx is a decoration widget.  Ignore it.\n",
+                     __func__, upw->toplevelWindow);
+               upw->deleteWhenSafe = TRUE;
+               return;
             } else if (event->atom == up->atoms._NET_WM_DESKTOP) {
                if (upw->wantSetDesktopNumberOnUnmap) {
                   /*
@@ -2811,7 +2819,7 @@ UPWindow_ProcessEvent(UnityPlatform *up,        // IN
        * Release the UnityPlatform object's reference to this UnityPlatformWindow,
        */
       upw->windowType = UNITY_WINDOW_TYPE_NONE;
-      UPWindow_Unref(up, upw);
+      upw->deleteWhenSafe = TRUE;
 #ifdef VMX86_DEVEL
    CompareStackingOrder(up, upw->rootWindow, __func__);
 #endif
