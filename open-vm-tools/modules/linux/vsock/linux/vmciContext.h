@@ -103,7 +103,8 @@ void VMCIUnsetNotify(VMCIContext *context);
 int VMCIContext_DoorbellCreate(VMCIId contextID, VMCIHandle handle);
 int VMCIContext_DoorbellDestroy(VMCIId contextID, VMCIHandle handle);
 int VMCIContext_DoorbellDestroyAll(VMCIId contextID);
-int VMCIContext_NotifyDoorbell(VMCIId cid, VMCIHandle handle);
+int VMCIContext_NotifyDoorbell(VMCIId cid, VMCIHandle handle,
+                               VMCIPrivilegeFlags srcPrivFlags);
 
 int VMCIContext_ReceiveNotificationsGet(VMCIId contextID,
                                         VMCIHandleArray **dbHandleArray,

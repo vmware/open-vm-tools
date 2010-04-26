@@ -92,6 +92,18 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 
 VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID);
 
+/* VMCI Doorbell API. */
+
+#define VMCI_FLAG_DELAYED_CB    0x01
+
+typedef void (*VMCICallback)(void *clientData);
+
+int VMCIDoorbell_Create(VMCIHandle *handle, uint32 flags,
+                        VMCIPrivilegeFlags privFlags,
+                        VMCICallback notifyCB, void *clientData);
+int VMCIDoorbell_Destroy(VMCIHandle handle);
+int VMCIDoorbell_Notify(VMCIHandle handle,
+                        VMCIPrivilegeFlags privFlags);
 
 #endif /* !__VMCI_HOSTKERNELAPI_H__ */
 
