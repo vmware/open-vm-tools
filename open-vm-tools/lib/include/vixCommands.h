@@ -1866,175 +1866,6 @@ VixMsgSampleCommandResponse;
 // End of "HOWTO: Adding a new Vix Command. Step 3."
 
 
-
-/*
- * **********************************************************
- * Report and manage the state of a Msg_Post dialogs.
- */
-
-/*
- * This is used to report a MsgPost is opening.
- * This is the non-localized version. It passes the original format string
- * and a list of vararg-style parameters.
- *
- * See VixMsgOpenMsgPostEventLocalized for the localized version.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgOpenMsgPostEvent {
-   VixMsgEventHeader          eventHeader;
-
-   int32                      dialogType;
-   uint64                     dialogCookie;
-   int32                      dialogOptions;
-
-   int32                      severity;
-   int32                      defaultAnswer;
-   int32                      percent;
-   int32                      cancelButton;
-   int32                      hintOptions;
-
-   uint32                     localeStrLength;
-   int32                      numMessages;
-   int32                      numButtons;
-
-   /*
-    * Followed by:
-    *       A locale string (a null-terminated string)
-    *       A list of messages, each is stored in one VixMsgDialogStr.
-    *       A list of button strings (each is a null-terminated string.
-    */
-}
-#include "vmware_pack_end.h"
-VixMsgOpenMsgPostEvent;
-
-/*
- * These are the flags set in the dialogOptions field.
- */
-enum VixMsgPostStateValues {
-   VIX_COMMAND_DIALOG_OPTIONS_VMX_IS_BLOCKED       = 0x01,
-};
-
-
-/*
- * This is one string in the message. It corresponds to a
- * single MsgList object.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDialogStr {
-   uint32         idLength;
-   uint32         formatLength;
-   int32          numArgs;
-   /*
-    * Followed by:
-    *       The ID string (with NULL terminator)
-    *       The format string (with NULL terminator)
-    *       A list of arguments, each is one VixMsgDialogStrArg.
-    */
-}
-#include "vmware_pack_end.h"
-VixMsgDialogStr;
-
-
-/*
- * This is one argument to the message. It corresponds to a
- * single MsgFmt_Arg object.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDialogStrArg {
-   int32          argType;
-   uint32         argSize;
-   /*
-    * Followed by the actual argument data.
-    */
-}
-#include "vmware_pack_end.h"
-VixMsgDialogStrArg;
-
-
-/*
- * This is used to report a MsgPost is closing.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCloseUIDialogEvent {
-   VixMsgEventHeader          eventHeader;
-
-   uint64                     dialogCookie;
-   int32                      numMessages;
-
-   /*
-    * Followed by:
-    *       A list of strings, each is one MsgPost Id.
-    */
-}
-#include "vmware_pack_end.h"
-VixMsgCloseUIDialogEvent;
-
-
-/*
- * Answer a Msg_Post post/hint/question
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgAnswerMsgPost {
-   VixCommandRequestHeader   header;
-
-   uint64                    dialogCookie;
-
-   int32                     options;
-
-   int32                     answer;
-   void                      *progressState;
-
-   uint32                    idStrSize;
-   uint32                    propertyListBufferSize;
-
-   /*
-    * Followed by:
-    *       msgIdStr.
-    *       The serialized properties
-    */
-}
-#include "vmware_pack_end.h"
-VixMsgAnswerMsgPost;
-
-
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetLocaleRequest {
-   VixCommandRequestHeader header;
-
-   int32                   localeOptions;
-   
-   uint32                  localeStrLength;
-   char                    localeStr[1];
-   // This is followed by the country code string.
-}
-#include "vmware_pack_end.h"
-VixMsgSetLocaleRequest;
-
-
-
-/*
- * This is used to report progress.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgLazyProgressEvent {
-   VixMsgEventHeader          eventHeader;
-
-   uint64                     dialogCookie;
-   int32                      percent;
-}
-#include "vmware_pack_end.h"
-VixMsgLazyProgressEvent;
-
-
-
 /*
  * **********************************************************
  *  Debugger related commands.
@@ -2372,8 +2203,8 @@ enum {
    VIX_COMMAND_GET_SNAPSHOT_LOG_INFO            = 124,
    VIX_COMMAND_SET_REPLAY_SPEED                 = 125,
 
-   VIX_COMMAND_ANSWER_USER_MESSAGE              = 126,
-   VIX_COMMAND_SET_CLIENT_LOCALE                = 127,
+   /* DEPRECATED VIX_COMMAND_ANSWER_USER_MESSAGE              = 126, */
+   /* DEPRECATED VIX_COMMAND_SET_CLIENT_LOCALE                = 127, */
 
    VIX_COMMAND_GET_PERFORMANCE_DATA             = 128,
 
@@ -2404,7 +2235,7 @@ enum {
    VIX_COMMAND_SET_REPLAY_STATE                 = 147,
    VIX_COMMAND_REMOVE_REPLAY_STATE              = 148,
 
-   VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150,
+   /* DEPRECATED VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150, */
    
    VIX_COMMAND_GET_VMX_DEVICE_STATE             = 151,
 
