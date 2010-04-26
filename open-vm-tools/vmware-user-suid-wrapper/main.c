@@ -51,6 +51,7 @@
 
 #include "vmware.h"
 #include "vmblock.h"
+#include "vmsignal.h"
 #include "wrapper.h"
 
 #include "wrapper_version.h"
@@ -70,6 +71,7 @@ static Bool MakeDirectory(const char *path, mode_t mode, uid_t uid, gid_t gid);
 static Bool ChmodChownDirectory(const char *path,
                                 mode_t mode, uid_t uid, gid_t gid);
 #endif
+static void MaskSignals(void);
 static Bool StartVMwareUser(char *const envp[]);
 
 
@@ -106,6 +108,8 @@ main(int argc,
      char *argv[],
      char *envp[])
 {
+   MaskSignals();
+
 #ifdef TOGGLE_VMBLOCK
    ToggleVMBlock();
 #endif
@@ -359,6 +363,42 @@ out:
    return ret;
 }
 #endif  // ifdef TOGGLE_VMBLOCK
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MaskSignals --
+ *
+ *      Sets SIG_IGN as the handler for SIGUSR1 and SIGUSR2 which may arrive
+ *      prematurely from our services script.  See bug 542135.
+ *
+ * Results:
+ *      Returns if applicable signals are blocked.
+ *      Exits with EXIT_FAILURE otherwise.
+ *
+ * Side effects:
+ *      SIG_IGN disposition persists across execve().  These signals will
+ *      remain masked until vmware-user defines its own handlers.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MaskSignals(void)
+{
+   int const signals[] = {
+      SIGUSR1,
+      SIGUSR2
+   };
+   struct sigaction olds[ARRAYSIZE(signals)];
+
+   if (Signal_SetGroupHandler(signals, olds, ARRAYSIZE(signals),
+                              SIG_IGN) == 0) {
+      /* Signal_SetGroupHandler will write error message to stderr. */
+      exit(EXIT_FAILURE);
+   }
+}
 
 
 /*
