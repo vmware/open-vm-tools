@@ -2344,7 +2344,7 @@ File_ExpandAndCheckDir(const char *dirName)
  *      that two or more threads don't easily get into resonance.
  *
  * Results:
- *      Sonambulistic behavior; the amount of time slept is returned.
+ *      Somnambulistic behavior; the amount of time slept is returned.
  *
  * Side effects:
  *	None
