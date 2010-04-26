@@ -1007,7 +1007,11 @@ HgfsReaddir(struct file *file, // IN:  Directory to read from
           * but if the driver ever goes in the host it's probably not
           * a good idea for an attacker to be able to hang the host
           * simply by using a bogus file type in a reply. [bac]
-          */
+	  *
+	  * Well it happens! Refer bug 548177 for details. In short,
+	  * when the user deletes a share, we hit this code path.
+	  *
+	  */
          d_type = DT_UNKNOWN;
          break;
       }

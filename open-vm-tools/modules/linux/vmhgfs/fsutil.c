@@ -773,6 +773,24 @@ HgfsPrivateGetattr(struct dentry *dentry,  // IN: Dentry containing name
       case 0:
          result = HgfsUnpackGetattrReply(req, attr, fileName);
          break;
+
+      case -EIO:
+	 /*
+	  * Fix for bug 548177.
+	  * When user deletes a share, we still show that share during directory
+	  * enumeration to minimize user's surprise. Now when we get getattr on
+	  * that share server returns EIO. Linux file manager doesn't like this,
+	  * and it doesn't display any valid shares too. So as a workaround, we
+	  * remap EIO to success and create minimal fake attributes.
+	  */
+         LOG(1, (KERN_DEBUG "Hgfs:Server returned EIO on unknown file\n"));
+         /* Create fake attributes */
+         attr->mask = HGFS_ATTR_VALID_TYPE | HGFS_ATTR_VALID_SIZE;
+         attr->type = HGFS_FILE_TYPE_DIRECTORY;
+         attr->size = 0;
+         result = 0;
+         break;
+
       case -EBADF:
          /*
           * This can happen if we attempted a getattr by handle and the handle
