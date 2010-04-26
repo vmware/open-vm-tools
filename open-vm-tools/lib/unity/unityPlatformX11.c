@@ -2919,11 +2919,32 @@ UnityPlatformDoUpdate(UnityPlatform *up,        // IN:
                                      incremental ? UNITY_UPDATE_INCREMENTAL : 0,
                                      &up->updateChannel->updates);
 
-   DynBuf_AppendString(&up->updateChannel->updates, "");
+   /*
+    * Notify the host iff UnityWindowTracker_RequestUpdates pushed a valid
+    * update into the UpdateChannel buffer.
+    */
+   if (DynBuf_GetSize(&up->updateChannel->updates) > (up->updateChannel->cmdSize + 2)) {
+#ifdef VMX86_DEBUG
+      const char *dataBuf = DynBuf_Get(&up->updateChannel->updates);
+      size_t dataSize = DynBuf_GetSize(&up->updateChannel->updates);
+      ASSERT(dataBuf[up->updateChannel->cmdSize] != '\0');
+      ASSERT(dataBuf[dataSize - 1] == '\0');
+#endif
 
-   if (DynBuf_GetSize(&up->updateChannel->updates) > (up->updateChannel->cmdSize + 1)) {
+      /* The update must be double nul terminated. */
+      DynBuf_AppendString(&up->updateChannel->updates, "");
+
       if (!UnitySendUpdates(up->updateChannel)) {
+         /* XXX We should probably exit Unity. */
          Debug("UPDATE TRANSMISSION FAILED! --------------------\n");
+         /*
+          * At this point, the update buffer contains a stream of updates
+          * terminated by a double nul. Rather than flush the input stream,
+          * let's "unseal" it by removing the second nul, allowing further
+          * updates to be appended and sent later.
+          */
+         DynBuf_SetSize(&up->updateChannel->updates,
+                        DynBuf_GetSize(&up->updateChannel->updates) - 1);
       }
    }
 }

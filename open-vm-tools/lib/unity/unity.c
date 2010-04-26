@@ -1456,6 +1456,7 @@ UnityUpdateChannelInit(UnityUpdateChannel *updateChannel) // IN
 
    /* Exclude the null. */
    updateChannel->cmdSize = DynBuf_GetSize(&updateChannel->updates) - 1;
+   DynBuf_SetSize(&updateChannel->updates, updateChannel->cmdSize);
 
    updateChannel->rpcOut = RpcOut_Construct();
    if (updateChannel->rpcOut == NULL) {
