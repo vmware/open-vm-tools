@@ -159,7 +159,7 @@ main(int argc, char *argv[])
    if (SetSignalHandler(ERROR_SIGNAL, SignalHandler, FALSE)) {
       ret = RpcToolCommand(argc, argv);
    }
-   ret = SetSignalHandler(ERROR_SIGNAL, NULL, TRUE) ? 0 : 1;
+   SetSignalHandler(ERROR_SIGNAL, NULL, TRUE);
 #endif
    return ret;
 }
