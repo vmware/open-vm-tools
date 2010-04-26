@@ -681,6 +681,7 @@ Scripts_OnBrowse(gpointer btn,  // IN: unused
 
    scriptsUseFileDlg = TRUE;
 
+   gtk_window_set_modal(GTK_WINDOW(scriptsFileDlg), TRUE);
    gtk_widget_show(scriptsFileDlg);
 
    defaultPath = gtk_entry_get_text(GTK_ENTRY(scriptsPath));
