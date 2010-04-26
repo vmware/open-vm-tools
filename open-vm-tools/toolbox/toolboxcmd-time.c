@@ -25,6 +25,7 @@
 #include "toolboxCmdInt.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/guestrpc/timesync.h"
+#include "vmware/tools/i18n.h"
 
 
 /*
@@ -55,7 +56,7 @@ TimeSyncSet(Bool enable) // IN: status
 /*
  *-----------------------------------------------------------------------------
  *
- *  TimeSync_Enable --
+ *  TimeSyncEnable --
  *
  *      Enable time sync.
  *
@@ -68,11 +69,11 @@ TimeSyncSet(Bool enable) // IN: status
  *-----------------------------------------------------------------------------
  */
 
-int
-TimeSync_Enable(int quiet_flag) // IN: verbosity flag
+static int
+TimeSyncEnable(gboolean quiet) // IN: verbosity flag
 {
    TimeSyncSet(TRUE);
-   if (!quiet_flag) {
+   if (!quiet) {
       printf("Enabled\n");
    }
    return EXIT_SUCCESS;
@@ -82,7 +83,7 @@ TimeSync_Enable(int quiet_flag) // IN: verbosity flag
 /*
  *-----------------------------------------------------------------------------
  *
- *  TimeSync_Disable --
+ *  TimeSyncDisable --
  *
  *      Disable time sync.
  *
@@ -95,11 +96,11 @@ TimeSync_Enable(int quiet_flag) // IN: verbosity flag
  *-----------------------------------------------------------------------------
  */
 
-int
-TimeSync_Disable(int quiet_flag) // IN: verbosity flag
+static int
+TimeSyncDisable(gboolean quiet) // IN: verbosity flag
 {
    TimeSyncSet(FALSE);
-   if (!quiet_flag) {
+   if (!quiet) {
       printf("Disabled\n");
    }
    return EXIT_SUCCESS;
@@ -109,7 +110,7 @@ TimeSync_Disable(int quiet_flag) // IN: verbosity flag
 /*
  *-----------------------------------------------------------------------------
  *
- *  TimeSync_Status --
+ *  TimeSyncStatus --
  *
  *      Checks the status of time sync in VMX.
  *
@@ -122,8 +123,8 @@ TimeSync_Disable(int quiet_flag) // IN: verbosity flag
  *-----------------------------------------------------------------------------
  */
 
-int
-TimeSync_Status(void)
+static int
+TimeSyncStatus(void)
 {
    Bool status = FALSE;
    if (GuestApp_OldGetOptions() & VMWARE_GUI_SYNC_TIME) {
@@ -132,3 +133,71 @@ TimeSync_Status(void)
    printf("%s\n", status ? "Enabled" : "Disabled");
    return EXIT_SUCCESS;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TimeSyncCommand --
+ *
+ *      Parse and Handle timesync commands.
+ *
+ * Results:
+ *      Returns EXIT_SUCCESS on success.
+ *      Returns the appropriate exit code errors.
+ *
+ * Side effects:
+ *      Might enable time sync, which would change the time in the guest os.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+TimeSync_Command(char **argv,     // IN: command line arguments
+                 int argc,        // IN: The length of the command line arguments
+                 gboolean quiet)  // IN
+{
+   if (toolbox_strcmp(argv[optind], "enable") == 0) {
+      return TimeSyncEnable(quiet);
+   } else if (toolbox_strcmp(argv[optind], "disable") == 0) {
+      return TimeSyncDisable(quiet);
+   } else if (toolbox_strcmp(argv[optind], "status") == 0) {
+      return TimeSyncStatus();
+   } else {
+      ToolsCmd_UnknownEntityError(argv[0],
+                                  SU_(arg.subcommand, "subcommand"),
+                                  argv[optind]);
+      return EX_USAGE;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TimeSync_Help --
+ *
+ *      Prints the help for timesync command.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+TimeSync_Help(const char *progName, // IN: The name of the program obtained from argv[0]
+              const char *cmd)      // IN
+{
+   g_print(SU_(help.timesync, "%s: functions for controlling time synchronization on the guest OS\n"
+                              "Usage: %s %s <subcommand>\n\n"
+                              "Subcommands:\n"
+                              "   enable: enable time synchronization\n"
+                              "   disable: disable time synchronization\n"
+                              "   status: print the time synchronization status\n"),
+           cmd, progName, cmd);
+}
+

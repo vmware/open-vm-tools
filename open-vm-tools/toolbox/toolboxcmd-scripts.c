@@ -30,6 +30,7 @@
 
 #include "system.h"
 #include "toolboxCmdInt.h"
+#include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
 
@@ -42,10 +43,6 @@ typedef enum ScriptType {
    Default,
    Current
 } ScriptType;
-
-static int ScriptToggle(const char *apm, Bool enable, int quiet_flag);
-static const char* GetConfName(const char *apm);
-static int GetConfEntry(const char *apm, ScriptType type);
 
 
 /*
@@ -175,7 +172,7 @@ GetConfEntry(const char *apm,  // IN: apm name
 /*
  *-----------------------------------------------------------------------------
  *
- * Script_GetDefault  --
+ * ScriptGetDefault  --
  *
  *      Gets the path to default script.
  *
@@ -190,8 +187,8 @@ GetConfEntry(const char *apm,  // IN: apm name
  *-----------------------------------------------------------------------------
  */
 
-int
-Script_GetDefault(const char *apm) // IN: APM name
+static int
+ScriptGetDefault(const char *apm) // IN: APM name
 {
    return GetConfEntry(apm, Default);
 }
@@ -200,7 +197,7 @@ Script_GetDefault(const char *apm) // IN: APM name
 /*
  *-----------------------------------------------------------------------------
  *
- * Script_GetCurrent  --
+ * ScriptGetCurrent  --
  *
  *      Gets the path to Current script.
  *
@@ -215,8 +212,8 @@ Script_GetDefault(const char *apm) // IN: APM name
  *-----------------------------------------------------------------------------
  */
 
-int
-Script_GetCurrent(const char *apm) // IN: apm function name
+static int
+ScriptGetCurrent(const char *apm) // IN: apm function name
 {
    return GetConfEntry(apm, Current);
 }
@@ -244,7 +241,7 @@ Script_GetCurrent(const char *apm) // IN: apm function name
 static int
 ScriptToggle(const char *apm, // IN: APM name
              Bool enable,     // IN: status
-             int quiet_flag)  // IN: Verbosity flag
+             gboolean quiet)  // IN: Verbosity flag
 {
    const char *path;
    const char *confName;
@@ -282,59 +279,12 @@ ScriptToggle(const char *apm, // IN: APM name
 /*
  *-----------------------------------------------------------------------------
  *
- * Script_Enable  --
+ * ScriptSet  --
  *
- *      enables script.
- *
- * Results:
- *      Same as ScriptToggle.
- *
- * Side effects:
- *      Same as ScriptToggle.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-Script_Enable(const char *apm,   // IN: APM name
-              int quiet_flag)    // IN: Verbosity flag
-{
-   return ScriptToggle(apm, TRUE, quiet_flag);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Script_Disable  --
- *
- *      disable script
+ *      Sets a script to the given path.
  *
  * Results:
- *      Same as ScriptToggle.
- *
- * Side effects:
- *      Same as ScriptToggle.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-Script_Disable(const char *apm,  // IN: APM name
-               int quiet_flag)   // IN: Verbosity Flag
-{
-   return ScriptToggle(apm, FALSE, quiet_flag);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * sets a script to the given path  --
- *
- *      disable script.
- *
- * Results:
+ *      EX_OSFILE if path doesn't exist.
  *      EXIT_SUCCESS on success.
  *      EX_USAGE on parse errors.
  *      EX_TEMPFAIL on failure.
@@ -346,10 +296,9 @@ Script_Disable(const char *apm,  // IN: APM name
  *-----------------------------------------------------------------------------
  */
 
-int
-Script_Set(const char *apm,   // IN: APM name
-           const char *path,  // IN: path to script
-           int quiet_flag)    // IN: Verbosity flag
+static int
+ScriptSet(const char *apm,    // IN: APM name
+          const char *path)   // IN: Verbosity flag
 {
    const char *confName;
    int ret = EXIT_SUCCESS;
@@ -384,7 +333,7 @@ Script_Set(const char *apm,   // IN: APM name
 /*
  *-----------------------------------------------------------------------------
  *
- * Script_CheckName  --
+ * ScriptCheckName  --
  *
  *      Check if it is known script
  *
@@ -397,8 +346,106 @@ Script_Set(const char *apm,   // IN: APM name
  *-----------------------------------------------------------------------------
  */
 
-Bool
-Script_CheckName(const char *apm) // IN: script name
+static Bool
+ScriptCheckName(const char *apm) // IN: script name
 {
    return GetConfName(apm) != NULL;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Script_Command --
+ *
+ *      Handle and parse script commands.
+ *
+ * Results:
+ *      Returns EXIT_SUCCESS on success.
+ *      Returns the exit code on errors.
+ *
+ * Side effects:
+ *      Might enables, disables, or change APM scripts.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+Script_Command(char **argv,    // IN: command line arguments.
+               int argc,       // IN: the length of the command line arguments.
+               gboolean quiet) // IN
+{
+   const char *apm;
+
+   if (++optind >= argc) {
+      ToolsCmd_MissingEntityError(argv[0], SU_(arg.scripttype, "script type"));
+      return EX_USAGE;
+   }
+
+   apm = argv[optind++];
+
+   if (!ScriptCheckName(apm)) {
+      ToolsCmd_UnknownEntityError(argv[0], SU_(arg.scripttype, "script type"), apm);
+      return EX_USAGE;
+   }
+
+   if (optind >= argc) {
+      ToolsCmd_MissingEntityError(argv[0], SU_(arg.subcommand, "subcommand"));
+      return EX_USAGE;
+   }
+
+   if (toolbox_strcmp(argv[optind], "default") == 0) {
+      return ScriptGetDefault(apm);
+   } else if (toolbox_strcmp(argv[optind], "current") == 0) {
+      return ScriptGetCurrent(apm);
+   } else if (toolbox_strcmp(argv[optind], "set") == 0) {
+      if (++optind >= argc) {
+         ToolsCmd_MissingEntityError(argv[0], SU_(arg.scriptpath, "script path"));
+         return EX_USAGE;
+      }
+      return ScriptSet(apm, argv[optind]);
+   } else if (toolbox_strcmp(argv[optind], "enable") == 0) {
+      return ScriptToggle(apm, TRUE, quiet);
+   } else if (toolbox_strcmp(argv[optind], "disable") == 0) {
+      return ScriptToggle(apm, FALSE, quiet);
+   } else {
+      ToolsCmd_UnknownEntityError(argv[0],
+                                  SU_(arg.subcommand, "subcommand"),
+                                  argv[optind]);
+      return EX_USAGE;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Script_Help --
+ *
+ *      Prints the help for the script command.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Script_Help(const char *progName, // IN: The name of the program obtained from argv[0]
+            const char *cmd)      // IN
+{
+   g_print(SU_(help.script,
+               "%s: control the scripts run in response to power operations\n"
+               "Usage: %s %s <power|resume|suspend|shutdown> <subcommand> [args]\n\n"
+               "Subcommands:\n"
+               "   enable: enable the given script and restore its path to the default\n"
+               "   disable: disable the given script\n"
+               "   set <full_path>: set the given script to the given path\n"
+               "   default: print the default path of the given script\n"
+               "   current: print the current path of the given script\n"),
+           cmd, progName, cmd);
+}
+

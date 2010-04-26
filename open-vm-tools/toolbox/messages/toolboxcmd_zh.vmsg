@@ -23,8 +23,8 @@ error.noadmin.win =
 error.novirtual = "%1$s 必须在虚拟机中运行。\n"
 
 help.device =
-   "device: 与虚拟机硬件设备相关的功能\n"
-   "用途: %s device <子命令> [参数]\n"
+   "%1$s: 与虚拟机硬件设备相关的功能\n"
+   "用途: %2$s %3$s <子命令> [参数]\n"
    "   dev 是设备的名称。\n"
    "\n"
    "子命令:\n"
@@ -34,8 +34,8 @@ help.device =
    "   status <dev>: 打印设备状态\n"
 
 help.disk =
-   "disk: 执行磁盘压缩操作\n"
-   "用途: %1$s disk <子命令> [参数]\n"
+   "%1$s: 执行磁盘压缩操作\n"
+   "用途: %2$s %3$s <子命令> [参数]\n"
    "\n"
    "子命令:\n"
    "   list: 列出可用的装载点\n"
@@ -45,8 +45,8 @@ help.hint = "尝试 '%1$s %2$s%3$s%4$s' 获取更多信息。\n"
 
 help.main =
    "用途: %1$s <命令> [选项] [子命令]\n"
-   "键入 '%2$s help <命令>' 获取关于特定命令的帮助。\n"
-   "键入 '%3$s -v' 查看 VMware Tools 版本。\n"
+   "键入 '%2$s %3$s <命令>' 获取关于特定命令的帮助。\n"
+   "键入 '%4$s -v' 查看 VMware Tools 版本。\n"
    "使用 '-q' 用于隐藏 stdout 输出的选项。\n"
    "多数命令都带有一个子命令。\n"
    "\n"
@@ -61,8 +61,8 @@ help.main =
    "\n"
 
 help.script =
-   "script: 控制由电源操作触发的脚本\n"
-   "用途: %1$s script <power|resume|suspend|shutdown> <子命令> [参数]\n"
+   "%1$s: 控制由电源操作触发的脚本\n"
+   "用途: %2$s %3$s <power|resume|suspend|shutdown> <子命令> [参数]\n"
    "\n"
    "子命令:\n"
    "   enable: 启用给定的脚本，并将其路径恢复为默认值\n"
@@ -72,8 +72,8 @@ help.script =
    "   current: 打印给定脚本的当前路径\n"
 
 help.stat =
-   "stat: 有益なゲストおよびホスト情報をプリントする\n"
-   "使用方法: %1$s stat <サブコマンド>\n"
+   "%1$s: 有益なゲストおよびホスト情報をプリントする\n"
+   "使用方法: %2$s %3$s <サブコマンド>\n"
    "\n"
    "サブコマンド:\n"
    "   hosttime: ホスト時間をプリントする\n"
@@ -88,8 +88,8 @@ help.stat =
    "   cpulimit: CPU 制限情報をプリントする\n"
 
 help.timesync =
-   "timesync: 用于控制宾客机操作系统上的时间同步功能\n"
-   "用途: %1$s timesync <子命令>\n"
+   "%1$s: 用于控制宾客机操作系统上的时间同步功能\n"
+   "用途: %2$s %3$s <子命令>\n"
    "\n"
    "子命令:\n"
    "   enable: 启用时间同步\n"

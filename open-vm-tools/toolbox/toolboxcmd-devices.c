@@ -27,14 +27,13 @@
 #include <stdio.h>
 #include "toolboxInt.h"
 #include "toolboxCmdInt.h"
-
-static int DevicesSetStatus (char *devName, Bool enable, int quiet_flag);
+#include "vmware/tools/i18n.h"
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Devices_ListDevices  --
+ * DevicesList  --
  *
  *      prints device names and status to stdout.
  *
@@ -47,8 +46,8 @@ static int DevicesSetStatus (char *devName, Bool enable, int quiet_flag);
  *-----------------------------------------------------------------------------
  */
 
-int
-Devices_ListDevices(void)
+static int
+DevicesList(void)
 {
    int i;
    for (i = 0; i < MAX_DEVICES; i++) {
@@ -64,7 +63,7 @@ Devices_ListDevices(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Devices_DeviceStatus  --
+ * DevicesGetStatus  --
  *
  *      Prints device names to stdout.
  *
@@ -78,8 +77,8 @@ Devices_ListDevices(void)
  *-----------------------------------------------------------------------------
  */
 
-int
-Devices_DeviceStatus(char *devName)  // IN: Device Name
+static int
+DevicesGetStatus(char *devName)  // IN: Device Name
 {
    int i;
    for (i = 0; i < MAX_DEVICES; i++) {
@@ -118,7 +117,7 @@ Devices_DeviceStatus(char *devName)  // IN: Device Name
 static int
 DevicesSetStatus(char *devName,  // IN: device name
                  Bool enable,    // IN: status
-                 int quiet_flag) // IN: Verbosity flag
+                 gboolean quiet) // IN: Verbosity flag
 {
    int dev_id;
    for (dev_id = 0; dev_id < MAX_DEVICES; dev_id++) {
@@ -137,7 +136,7 @@ DevicesSetStatus(char *devName,  // IN: device name
            "error fetching interface information: Device not found\n");
    return EX_OSFILE;
   exit:
-   if (!quiet_flag) {
+   if (!quiet) {
       printf("%s\n", enable ? "Enabled" : "Disabled");
    }
    return EXIT_SUCCESS;
@@ -147,48 +146,83 @@ DevicesSetStatus(char *devName,  // IN: device name
 /*
  *-----------------------------------------------------------------------------
  *
- * Devices_EnableDevice  --
+ * Device_Command --
  *
- *      Connects a device.
+ *      Handle and parse device commands.
  *
  * Results:
- *      Same as DevicesSetStatus.
+ *      Returns EXIT_SUCCESS on success.
+ *      Returns the exit code on errors.
  *
  * Side effects:
- *      Possibly connect a device.
- *      Print to stderr on error.
+ *      Might enable or disable a device.
  *
  *-----------------------------------------------------------------------------
  */
 
 int
-Devices_EnableDevice(char *name,     // IN: device name
-                     int quiet_flag) // IN: Verbosity flag
+Device_Command(char **argv,    // IN: Command line arguments
+               int argc,       // IN: Length of command line arguments
+               gboolean quiet) // IN
 {
-   return DevicesSetStatus(name, TRUE, quiet_flag);
+   char *subcommand = argv[optind];
+   Bool haveDeviceArg = optind + 1 < argc;
+
+   if (toolbox_strcmp(subcommand, "list") == 0) {
+      return DevicesList();
+   } else if (toolbox_strcmp(subcommand, "status") == 0) {
+      if (haveDeviceArg) {
+         return DevicesGetStatus(argv[optind + 1]);
+      }
+   } else if (toolbox_strcmp(subcommand, "enable") == 0) {
+      if (haveDeviceArg) {
+         return DevicesSetStatus(argv[optind + 1], TRUE, quiet);
+      }
+   } else if (toolbox_strcmp(subcommand, "disable") == 0) {
+      if (haveDeviceArg) {
+         return DevicesSetStatus(argv[optind + 1], FALSE, quiet);
+      }
+   } else {
+      ToolsCmd_UnknownEntityError(argv[0],
+                                  SU_(arg.subcommand, "subcommand"),
+                                  subcommand);
+      return EX_USAGE;
+   }
+
+   ToolsCmd_MissingEntityError(argv[0], SU_(arg.devicename, "device name"));
+   return EX_USAGE;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Devices_DisableDevice  --
+ * Device_Help --
  *
- *      disconnects a device.
+ *      Prints the help for device commands.
  *
  * Results:
- *      Same as DevicesSetStatus.
+ *      None.
  *
  * Side effects:
- *      Possibly disconnect a device.
- *      Print to stderr on error.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
-int
-Devices_DisableDevice(char *name,     // IN: device name
-                      int quiet_flag) // IN: Verbosity flag
+void
+Device_Help(const char *progName, // IN: The name of the program obtained from argv[0]
+            const char *cmd)      // IN
 {
-   return DevicesSetStatus(name, FALSE, quiet_flag);
+   g_print(SU_(help.device, "%s: functions related to the virtual machine's hardware devices\n"
+                            "Usage: %s %s <subcommand> [args]\n"
+                            "dev is the name of the device.\n"
+                            "\n"
+                            "Subcommands:\n"
+                            "   enable <dev>: enable the device dev\n"
+                            "   disable <dev>: disable the device dev\n"
+                            "   list: list all available devices\n"
+                            "   status <dev>: print the status of a device\n"),
+           cmd, progName, cmd);
 }
+
