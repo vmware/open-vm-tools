@@ -2358,12 +2358,12 @@ uint32
 FileSimpleRandom(void)
 {
    static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
-   char *context;
+   rqContext *context;
 
    context = Atomic_ReadPtr(&atomic);
 
    if (UNLIKELY(context == NULL)) {
-      void *p;
+      rqContext *newContext;
       uint32 value;
 
       /*
@@ -2378,10 +2378,10 @@ FileSimpleRandom(void)
       value = getpid();
 #endif
 
-      p = Random_QuickSeed(value);
+      newContext = Random_QuickSeed(value);
 
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, (void *) newContext)) {
+         free(newContext);
       }
 
       context = Atomic_ReadPtr(&atomic);

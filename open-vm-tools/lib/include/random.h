@@ -29,20 +29,27 @@
 
 #include "vm_basic_types.h"
 
-
 Bool
 Random_Crypto(unsigned int size, // IN
               void *buffer);     // OUT
 
 /*
- * High quality random number generator.
+ * High quality - research grade - random number generator.
+ *
+ * Despite its apparent complexity this RNG is extremely fast.
  */
 
-void *
-Random_QuickSeed(uint32 seed); // IN
+typedef struct rqContext rqContext;
+
+rqContext *
+Random_QuickSeed(uint32 seed);
 
 uint32
-Random_Quick(void *context);
+Random_Quick(rqContext *context);
+
+/*
+ * Simple multiplicative conguential RNG.
+ */
 
 int
 Random_Simple(int seed);
