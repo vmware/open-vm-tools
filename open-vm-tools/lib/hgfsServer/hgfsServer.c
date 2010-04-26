@@ -4427,6 +4427,7 @@ HgfsRemoveLruNode(HgfsSessionInfo *session)   // IN: session info
    HgfsFileNode *lruNode = NULL;
    HgfsHandle handle;
    Bool found = FALSE;
+   uint32 numOpenNodes = session->numCachedOpenNodes;
 
    ASSERT(session);
    ASSERT(session->numCachedOpenNodes > 0);
@@ -4435,7 +4436,7 @@ HgfsRemoveLruNode(HgfsSessionInfo *session)   // IN: session info
     * Remove the first item from the list that does not have a server lock,
     * file context or is open in sequential mode.
     */
-   while (!found) {
+   while (!found && (numOpenNodes-- > 0)) {
       lruNode = DblLnkLst_Container(session->nodeCachedList.next,
                                     HgfsFileNode, links);
 
