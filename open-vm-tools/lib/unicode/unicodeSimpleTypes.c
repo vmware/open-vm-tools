@@ -2580,6 +2580,9 @@ Unicode_EncodingEnumToName(StringEncoding encoding) // IN
 
    encoding = Unicode_ResolveEncoding(encoding);
 
+   /* If you hit this, you probably need to call Unicode_Init() */
+   ASSERT(encoding != STRING_ENCODING_UNKNOWN);
+
    /*
     * Look for a match in the xRef table. If found, return the
     * preferred MIME name. Whether ICU supports this encoding or
@@ -2728,6 +2731,7 @@ UnicodeInitInternal(int argc,               // IN
 #if !defined(__APPLE__) && !defined(VMX86_SERVER)
    char **list;
    StringEncoding encoding;
+   const char *currentCodeSetName;
 #endif
    Bool success = FALSE;
    char panicMsg[1024];
@@ -2763,12 +2767,13 @@ UnicodeInitInternal(int argc,               // IN
 
    // UTF-8 native encoding for these two
 #if !defined(__APPLE__) && !defined(VMX86_SERVER)
-   encoding = Unicode_EncodingNameToEnum(CodeSet_GetCurrentCodeSet());
+   currentCodeSetName = CodeSet_GetCurrentCodeSet();
+   encoding = Unicode_EncodingNameToEnum(currentCodeSetName);
    if (!Unicode_IsEncodingValid(encoding)) {
 #ifndef N_PLAT_NLM
       snprintf(panicMsg, sizeof panicMsg,
-         "Unsupported local character encoding \"%s\".\n",
-         Unicode_EncodingEnumToName(STRING_ENCODING_DEFAULT));
+              "Unsupported local character encoding \"%s\".\n",
+               currentCodeSetName);
 #endif
       goto exit;
    }
