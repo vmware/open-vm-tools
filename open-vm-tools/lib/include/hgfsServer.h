@@ -35,8 +35,6 @@ typedef struct HgfsServerStateLogger {
    void                       *loggerData;   // logger callback private data
 } HgfsServerStateLogger;
 
-
-#define HGFS_MAX_IOV 3
 #define HGFS_BUF_READABLE  0x0000cafe
 #define HGFS_BUF_WRITEABLE 0x0000babe
 

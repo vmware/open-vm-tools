@@ -40,7 +40,6 @@
 # define _HGFS_TRANSPORT_H_
 
 #include "vmci_defs.h"
-#include "hgfsServer.h"   /* For HGFS_MAX_IOV */
 
 /****************************************
  * Vsock, Tcp specific data structures  *

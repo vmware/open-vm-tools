@@ -370,8 +370,6 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
 
    transportHeader->iovCount = iovCount;
 
-   ASSERT(iovCount <= HGFS_MAX_IOV);
-
    /* Initialize transport Status */
    transportStatus = (HgfsVmciTransportStatus *)req->buffer;
    transportStatus->status = HGFS_VMCI_IO_PENDING;

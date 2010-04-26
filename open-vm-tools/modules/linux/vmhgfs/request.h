@@ -45,8 +45,6 @@
 #define HGFS_REQ_PAYLOAD_V3(hgfsReq) (HGFS_REQ_PAYLOAD(hgfsReq) + sizeof(HgfsRequest))
 #define HGFS_REP_PAYLOAD_V3(hgfsRep) (HGFS_REQ_PAYLOAD(hgfsRep) + sizeof(HgfsReply))
 
-#define HGFS_MAX_PAGES 2
-
 /*
  * HGFS_REQ_STATE_ALLOCATED:
  *    The filesystem half has allocated the request from the slab
