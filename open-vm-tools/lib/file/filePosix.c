@@ -389,6 +389,7 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
        * All files and file systems are treated as "directly attached"
        * on ESX.  See bug 158284.
        */
+
       return FALSE;
    } else {
       struct statfs sfbuf;
@@ -419,30 +420,6 @@ File_IsRemote(ConstUnicode pathName)  // IN: Path name
    }
 }
 #endif /* !FreeBSD && !sun */
-
-
-/*
- *----------------------------------------------------------------------
- *
- * File_OnVMFS --
- *
- *      Return TRUE if file is on a VMFS file system.
- *
- * Results:
- *      TRUE   Caller is running on ESX (all FS are consider VMFS)
- *      FALSE  Otherwise
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-File_OnVMFS(ConstUnicode pathName)  // IN:
-{
-   return HostType_OSIsVMK();
-}
 
 
 /*
@@ -1095,9 +1072,8 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
 
    File_SplitName(fullPath, NULL, &parentPath, NULL);
 
-   if (!File_OnVMFS(pathName)) {
-      Log(LGPFX" %s: File %s not on VMFS volume\n", __func__,
-          UTF8(pathName));
+   if (!HostType_OSIsVMK()) {
+      Log(LGPFX" %s: File %s not on VMFS volume\n", __func__, UTF8(pathName));
       ret = -1;
       goto bail;
    }
@@ -2075,9 +2051,9 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
                       uint64 fileSize)        // IN:
 {
    Unicode fullPath;
+   Unicode folderPath;
 
    Bool supported = FALSE;
-   Unicode folderPath = NULL;
 
    /* All supported filesystems can hold at least 2GB - 1 files. */
    if (fileSize <= 0x7FFFFFFF) {
@@ -2099,23 +2075,11 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    }
 
    /* 
-    * This function expects a filename. If given one, truncate the name to
-    * point to the parent directory so we can get accurate results from
-    * File_OnVMFS. If handed a directory directly, no truncation is necessary.
-    */
-
-   if (File_IsDirectory(pathName)) {
-      folderPath = Unicode_Duplicate(fullPath);
-   } else {
-      File_SplitName(fullPath, NULL, &folderPath, NULL);
-   }
-
-   /* 
     * We know that VMFS supports large files - But they have limitations
     * See function File_VMFSSupportsFileSize() - PR 146965
     */
 
-   if (File_OnVMFS(folderPath)) {
+   if (HostType_OSIsVMK()) {
       supported = File_VMFSSupportsFileSize(pathName, fileSize);
       goto out;
    }
@@ -2134,15 +2098,22 @@ File_SupportsFileSize(ConstUnicode pathName,  // IN:
    }
 
    /*
-    * On unknown filesystems create temporary file and use it as a test.
+    * On unknown filesystems create a temporary file in the argument file's
+    * parent directory and use it as a test.
     */
 
+   if (File_IsDirectory(pathName)) {
+      folderPath = Unicode_Duplicate(fullPath);
+   } else {
+      folderPath = NULL;
+      File_SplitName(fullPath, NULL, &folderPath, NULL);
+   }
+
    supported = FilePosixCreateTestFileSize(folderPath, fileSize);
+   Unicode_Free(folderPath);
 
 out:
    Unicode_Free(fullPath);
-   Unicode_Free(folderPath);
-
    return supported;
 }
 

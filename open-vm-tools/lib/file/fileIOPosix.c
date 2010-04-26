@@ -88,6 +88,7 @@
 #include "util.h"
 #include "iovector.h"
 #include "stats_file.h"
+#include "hostType.h"
 
 #include "unicodeOperations.h"
 #include "memaligned.h"
@@ -772,7 +773,7 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
     * (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_LOCKED) are passed, and we are
     * on VMFS, then pass in special flags to get exclusive, multiwriter, or
     * cross-host read-only mode.  The first if statement is to avoid calling
-    * File_OnVMFS() unless really necessary.
+    * HostType_OSIsVMK() unless really necessary.
     *
     * If the above conditions are met FILEIO_OPEN_LOCKED, is filtered out --
     * vmfs will be handling the locking, so there is no need to create
@@ -783,7 +784,7 @@ FileIO_Create(FileIODescriptor *file,    // OUT:
        (access & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE |
                   FILEIO_OPEN_LOCKED)) ==
        (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_LOCKED)) {
-      if (File_OnVMFS(pathName)) {
+      if (HostType_OSIsVMK()) {
          access &= ~FILEIO_OPEN_LOCKED;
          if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
             flags |= O_MULTIWRITER_LOCK;

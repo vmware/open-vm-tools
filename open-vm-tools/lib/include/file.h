@@ -299,8 +299,6 @@ EXTERN Unicode File_ReplaceExtension(ConstUnicode pathName,
                                      uint32 numExtensions,
                                      ...);
 
-EXTERN Bool File_OnVMFS(ConstUnicode pathName);
-
 EXTERN Bool File_MakeCfgFileExecutable(ConstUnicode pathName);
 
 EXTERN char *File_ExpandAndCheckDir(const char *dirName);
