@@ -83,6 +83,22 @@ VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID); /* Compat */
 
 int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
+/* VMCI Doorbell API. */
+
+#if !defined(SOLARIS) && !defined(__APPLE__)
+
+#define VMCI_FLAG_DELAYED_CB    0x01
+
+typedef void (*VMCICallback)(void *clientData);
+
+int VMCIDoorbell_Create(VMCIHandle *handle, uint32 flags,
+                        VMCIPrivilegeFlags privFlags,
+                        VMCICallback notifyCB, void *clientData);
+int VMCIDoorbell_Destroy(VMCIHandle handle);
+int VMCIDoorbell_Notify(VMCIHandle handle,
+                        VMCIPrivilegeFlags privFlags);
+
+#endif // !defined(SOLARIS) && !defined(__APPLE__)
 
 #endif /* !__VMCI_GUESTKERNELAPI_H__ */
 

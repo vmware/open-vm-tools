@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,16 +17,23 @@
  *********************************************************/
 
 /*
- * vmci_version.h --
+ * vmciNotifications.h --
  *
- * Version definitions for the Linux vmci driver.
+ *     VMCI notifications API for OS device drivers.
  */
 
-#ifndef _VMCI_VERSION_H_
-#define _VMCI_VERSION_H_
+#ifndef _VMCI_NOTIFICATIONS_H_
+#define _VMCI_NOTIFICATIONS_H_
 
-#define VMCI_DRIVER_VERSION          1.0.21.0
-#define VMCI_DRIVER_VERSION_COMMAS   1,0,21,0
-#define VMCI_DRIVER_VERSION_STRING   "1.0.21.0"
+void VMCINotifications_Init(void);
+void VMCINotifications_Exit(void);
 
-#endif /* _VMCI_VERSION_H_ */
+Bool VMCI_RegisterNotificationBitmap(PPN bitmapPPN);
+void VMCI_ScanNotificationBitmap(uint8 *bitmap);
+
+int VMCINotificationRegister(VMCIHandle *handle, Bool doorbell, uint32 flags,
+                             VMCICallback notifyCB, void *callbackData);
+int VMCINotificationUnregister(VMCIHandle handle, Bool doorbell);
+
+#endif /* !_VMCI_NOTIFICATIONS_H_ */
+

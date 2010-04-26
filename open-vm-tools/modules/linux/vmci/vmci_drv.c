@@ -46,6 +46,7 @@
 #include "vmciProcess.h"
 #include "vmciUtil.h"
 #include "vmciEvent.h"
+#include "vmciNotifications.h"
 #include "vmciQueuePairInt.h"
 #include "vmci_version.h"
 #include "vmciCommonInt.h"
@@ -79,6 +80,7 @@ static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id,
 static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id);
 #endif
 static void dispatch_datagrams(unsigned long data);
+static void process_bitmap(unsigned long data);
 
 static const struct pci_device_id vmci_ids[] = {
    { PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_VMCI), },
@@ -105,7 +107,10 @@ static vmci_device vmci_dev;
 /* We dynamically request the device major number at init time. */
 static int device_major_nr = 0;
 
-DECLARE_TASKLET(vmci_tasklet, dispatch_datagrams,
+DECLARE_TASKLET(vmci_dg_tasklet, dispatch_datagrams,
+                (unsigned long)&vmci_dev);
+
+DECLARE_TASKLET(vmci_bm_tasklet, process_bitmap,
                 (unsigned long)&vmci_dev);
 
 /*
@@ -115,6 +120,13 @@ DECLARE_TASKLET(vmci_tasklet, dispatch_datagrams,
 
 static uint8 *data_buffer = NULL;
 static uint32 data_buffer_size = VMCI_MAX_DG_SIZE;
+
+/*
+ * If the VMCI hardware supports the notification bitmap, we allocate
+ * and register a page with the device.
+ */
+
+static uint8 *notification_bitmap = NULL;
 
 
 /*
@@ -266,8 +278,26 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
       goto release;
    }
 
+   /*
+    * If the hardware supports notifications, we will use that as
+    * well.
+    */
+   if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
+      capabilities = VMCI_CAPS_DATAGRAM;
+      notification_bitmap = vmalloc(PAGE_SIZE);
+      if (notification_bitmap == NULL) {
+         printk(KERN_ERR "VMCI device unable to allocate notification bitmap.\n");
+      } else {
+         memset(notification_bitmap, 0, PAGE_SIZE);
+         capabilities |= VMCI_CAPS_NOTIFICATIONS;
+      }
+   } else {
+      capabilities = VMCI_CAPS_DATAGRAM;
+   }
+   printk(KERN_INFO "VMCI: using capabilities 0x%x.\n", capabilities);
+
    /* Let the host know which capabilities we intend to use. */
-   outl(VMCI_CAPS_DATAGRAM, ioaddr + VMCI_CAPS_ADDR);
+   outl(capabilities, ioaddr + VMCI_CAPS_ADDR);
 
    /* Device struct initialization. */
    compat_mutex_lock(&vmci_dev.lock);
@@ -280,9 +310,23 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    vmci_dev.ioaddr_size = ioaddr_size;
    vmci_dev.irq = pdev->irq;
 
+   /*
+    * Register notification bitmap with device if that capability is
+    * used
+    */
+   if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
+      unsigned long bitmapPPN;
+      bitmapPPN = page_to_pfn(vmalloc_to_page(notification_bitmap));
+      if (!VMCI_RegisterNotificationBitmap(bitmapPPN)) {
+         printk(KERN_ERR "VMCI device unable to register notification bitmap "
+                "with PPN 0x%x.\n", (uint32)bitmapPPN);
+         goto unlock;
+      }
+   }
+
    /* Check host capabilities. */
    if (!VMCI_CheckHostCapabilities()) {
-      goto unlock;
+      goto remove_bitmap;
    }
 
    /* Enable device. */
@@ -303,6 +347,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCIDatagram_Init();
    VMCIEvent_Init();
    VMCIUtil_Init();
+   VMCINotifications_Init();
    VMCIQueuePair_Init();
 
    if (request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED,
@@ -316,7 +361,12 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    compat_mutex_unlock(&vmci_dev.lock);
 
    /* Enable specific interrupt bits. */
-   outl(VMCI_IMR_DATAGRAM, vmci_dev.ioaddr + VMCI_IMR_ADDR);
+   if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
+      outl(VMCI_IMR_DATAGRAM | VMCI_IMR_NOTIFICATION,
+           vmci_dev.ioaddr + VMCI_IMR_ADDR);
+   } else {
+      outl(VMCI_IMR_DATAGRAM, vmci_dev.ioaddr + VMCI_IMR_ADDR);
+   }
 
    /* Enable interrupts. */
    outl(VMCI_CONTROL_INT_ENABLE, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
@@ -325,12 +375,20 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
  components_exit:
    VMCIQueuePair_Exit();
+   VMCINotifications_Exit();
    VMCIUtil_Exit();
    VMCIEvent_Exit();
    VMCIProcess_Exit();
+ remove_bitmap:
+   if (notification_bitmap) {
+      outl(VMCI_CONTROL_RESET, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
+   }
  unlock:
    compat_mutex_unlock(&vmci_dev.lock);
  release:
+   if (notification_bitmap) {
+      vfree(notification_bitmap);
+   }
    release_region(ioaddr, ioaddr_size);
  pci_disable:
    compat_pci_disable_device(pdev);
@@ -375,6 +433,10 @@ vmci_remove_device(struct pci_dev* pdev)
    free_irq(dev->irq, dev);
    release_region(dev->ioaddr, dev->ioaddr_size);
    dev->enabled = FALSE;
+   VMCINotifications_Exit();
+   if (notification_bitmap) {
+      vfree(notification_bitmap);
+   }
 
    printk(KERN_INFO "Unregistered vmci device.\n");
    compat_mutex_unlock(&dev->lock);
@@ -658,7 +720,7 @@ vmci_ioctl(struct inode *inode,  // IN
       retval = copy_to_user((void *)arg, &cid, sizeof cid);
       break;
    }
-
+ 
    default:
       printk(KERN_DEBUG "vmci_ioctl(): unknown ioctl 0x%x.\n", cmd);
       retval = -EINVAL;
@@ -759,13 +821,17 @@ vmci_interrupt(int irq,               // IN
 
    /* Acknowledge interrupt and determine what needs doing. */
    icr = inl(dev->ioaddr + VMCI_ICR_ADDR);
-   if (icr == 0) {
+   if (icr == 0 || icr == 0xffffffff) {
       return COMPAT_IRQ_NONE;
    }
 
    if (icr & VMCI_ICR_DATAGRAM) {
-      tasklet_schedule(&vmci_tasklet);
+      tasklet_schedule(&vmci_dg_tasklet);
       icr &= ~VMCI_ICR_DATAGRAM;
+   }
+   if (icr & VMCI_ICR_NOTIFICATION) {
+      tasklet_schedule(&vmci_bm_tasklet);
+      icr &= ~VMCI_ICR_NOTIFICATION;
    }
    if (icr != 0) {
       printk(KERN_INFO LGPFX"Ignoring unknown interrupt cause (%d).\n", icr);
@@ -899,6 +965,44 @@ dispatch_datagrams(unsigned long data)
 
    VMCI_ReadDatagramsFromPort((VMCIIoHandle) 0, dev->ioaddr + VMCI_DATA_IN_ADDR,
 			      data_buffer, data_buffer_size);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * process_bitmap --
+ *
+ *      Scans the notification bitmap for raised flags, clears them
+ *      and handles the notifications.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+process_bitmap(unsigned long data)
+{
+   vmci_device *dev = (vmci_device *)data;
+
+   if (dev == NULL) {
+      printk(KERN_DEBUG "vmci: process_bitmaps(): no vmci device"
+	     "present.\n");
+      return;
+   }
+
+   if (notification_bitmap == NULL) {
+      printk(KERN_DEBUG "vmci: process_bitmaps(): no bitmap present.\n");
+      return;
+   }
+
+
+   VMCI_ScanNotificationBitmap(notification_bitmap);
 }
 
 
