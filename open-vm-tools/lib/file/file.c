@@ -2377,7 +2377,11 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
          pid = getpid();
 #endif
 
-         rng = (pid << 16) | VThread_CurID();
+         rng = (pid << 16);
+
+#if defined(VMX86_VMX)
+         rng |= VThread_CurID();
+#endif
       }
 
       sample = FastRand(rng);
