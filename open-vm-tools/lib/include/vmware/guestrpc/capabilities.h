@@ -70,6 +70,7 @@ typedef enum {
    CAP_CHANGE_HOST_3D_AVAILABILITY_HINT = 23, // supports sending 3D support hint to guest
    CAP_AUTOUPGRADE_AT_SHUTDOWN          = 24, // supports auto-upgrading tools at OS shutdown
    GHI_CAP_AUTOLOGON                    = 25, // supports autologon
+   CAP_DESKTOP_AUTOLOCK                 = 26, // supports desktop autolock
 } GuestCapabilities;
 
 typedef struct {
@@ -137,6 +138,7 @@ static GuestCapElem guestCapTable[] = {
    { CAP_CHANGE_HOST_3D_AVAILABILITY_HINT, CAP_VMDB_PATH, "changeHost3DAvailabilityHint" },
    { CAP_AUTOUPGRADE_AT_SHUTDOWN,          CAP_VMDB_PATH,       "autoUpgradeAtShutdown"},
    { GHI_CAP_AUTOLOGON,                    GHI_CAP_VMDB_PATH,   "autologon" },
+   { CAP_DESKTOP_AUTOLOCK,                 CAP_VMDB_PATH, "desktopAutolock" },
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING
