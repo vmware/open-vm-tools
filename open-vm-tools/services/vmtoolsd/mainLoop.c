@@ -113,6 +113,9 @@ ToolsCoreInitializeDebug(ToolsServiceState *state)
    ASSERT(libdata->debugPlugin != NULL);
 
    state->debugData = libdata;
+#if defined(_WIN32)
+   VMTools_AttachConsole();
+#endif
 }
 
 
@@ -175,7 +178,7 @@ ToolsCoreIOFreezeCb(gpointer src,
 static int
 ToolsCoreRunLoop(ToolsServiceState *state)
 {
-   if (ToolsCore_GetTcloName(state) != NULL && !ToolsCore_InitRpc(state)) {
+   if (!ToolsCore_InitRpc(state)) {
       return 1;
    }
 

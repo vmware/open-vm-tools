@@ -58,7 +58,9 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
       gchar *msg;
 
       app = ToolsCore_GetTcloName(state);
-      ASSERT(app != NULL);
+      if (app == NULL) {
+         app = state->name;
+      }
 
       msg = g_strdup_printf("vmx.capability.unified_loop %s", app);
       if (!RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL)) {
@@ -71,9 +73,7 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
        * Log the Tools build number to the VMX log file. We don't really care
        * if sending the message fails.
        */
-      msg = g_strdup_printf("log %s: Version: %s",
-                            ToolsCore_GetTcloName(state),
-                            BUILD_NUMBER);
+      msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
       RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
       g_free(msg);
 
@@ -247,7 +247,10 @@ ToolsCore_InitRpc(ToolsServiceState *state)
          state->ctx.rpc = BackdoorChannel_New();
       }
       app = ToolsCore_GetTcloName(state);
-      ASSERT(app != NULL);
+      if (app == NULL) {
+         g_warning("Trying to start RPC channel for invalid %s container.", state->name);
+         return FALSE;
+      }
    }
 
    if (state->ctx.rpc) {

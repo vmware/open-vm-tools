@@ -176,6 +176,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
+   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
+       strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
+      g_message("Unknown container '%s', not loading HGFS plugin.", ctx->name);
+      return NULL;
+   }
+
    /*
     * Passing NULL here is safe because the shares maintained by the guest
     * policy server never change, invalidating the need for an invalidate
