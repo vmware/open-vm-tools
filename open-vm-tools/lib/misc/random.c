@@ -285,7 +285,7 @@ Random_Quick(void *context)  // IN/OUT:
 }
 
 
-/**
+/*
  *----------------------------------------------------------------------
  *
  * FastRand --
@@ -309,11 +309,12 @@ Random_Quick(void *context)  // IN/OUT:
  */
 
 int
-FastRand(int seed)
+FastRand(int seed)  // IN:
 {
    uint64 product    = 33614 * (uint64)seed;
    uint32 product_lo = (uint32)(product & 0xffffffff) >> 1;
    uint32 product_hi = product >> 32;
    int32  test       = product_lo + product_hi;
+
    return test > 0 ? test : (test & 0x7fffffff) + 1;
 }
