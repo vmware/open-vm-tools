@@ -25,7 +25,9 @@
 #ifndef _SHA1_H_
 #define _SHA1_H_
 
+#define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMKERNEL
 
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"

@@ -144,8 +144,8 @@ ResolutionResolutionSetCB(RpcInData *data)
    ResolutionInfoType *resInfo = &resolutionInfo;
 
    if (!resInfo->initialized) {
-      Debug("%s: FAIL! Request for resolution set but plugin is not initialized\n",
-            __FUNCTION__);
+      g_debug("%s: FAIL! Request for resolution set but plugin is not initialized\n",
+              __FUNCTION__);
       return RPCIN_SETRETVALS(data, "Invalid guest state: resolution set not initialized", FALSE);
    }
 
@@ -182,10 +182,10 @@ ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data)
    gboolean success = FALSE;
    unsigned int index = 0;
 
-   Debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter\n", __FUNCTION__);
 
    if (!StrUtil_GetNextUintToken(&set, &index, data->args, " ")) {
-      Debug("%s: invalid arguments\n", __FUNCTION__);
+      g_debug("%s: invalid arguments\n", __FUNCTION__);
       return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected \"set\"",
                               FALSE);
@@ -195,7 +195,7 @@ ResolutionChangeHost3DAvailabilityHintCB(RpcInData *data)
 
    RPCIN_SETRETVALS(data, success ? "" : "ResolutionChangeHost3DAvailabilityHint failed", success);
 
-   Debug("%s: leave\n", __FUNCTION__);
+   g_debug("%s: leave\n", __FUNCTION__);
    return success;
 }
 
@@ -228,7 +228,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
    gboolean success = FALSE;
    const char *p;
 
-   Debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter\n", __FUNCTION__);
 
    /*
     * The argument string will look something like:
@@ -239,7 +239,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
     */
 
    if (sscanf(data->args, "%u %u %u", &count, &screen, &cmd) != 3) {
-      Debug("%s: invalid arguments\n", __FUNCTION__);
+      g_debug("%s: invalid arguments\n", __FUNCTION__);
       return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected \"count\", \"screen\",  and \"cmd\"",
                               FALSE);
@@ -247,7 +247,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
 
    displays = malloc(sizeof *displays * count);
    if (!displays) {
-      Debug("%s: alloc failed\n", __FUNCTION__);
+      g_debug("%s: alloc failed\n", __FUNCTION__);
       RPCIN_SETRETVALS(data,
                        "Failed to alloc buffer for display modes",
                        FALSE);
@@ -257,7 +257,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
    for (p = data->args, i = 0; i < count; i++) {
       p = strchr(p, ',');
       if (!p) {
-         Debug("%s: expected comma separated display modes list\n", __FUNCTION__);
+         g_debug("%s: expected comma separated display modes list\n", __FUNCTION__);
          RPCIN_SETRETVALS(data,
                           "Expected comma separated display modes list",
                           FALSE);
@@ -266,7 +266,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
       p++; /* Skip past the , */
 
       if (sscanf(p, " %d %d ", &displays[i].width, &displays[i].height) != 2) {
-         Debug("%s: expected w, h in display modes entry\n", __FUNCTION__);
+         g_debug("%s: expected w, h in display modes entry\n", __FUNCTION__);
          RPCIN_SETRETVALS(data,
                           "Expected w, h in display modes entry",
                           FALSE);
@@ -280,7 +280,7 @@ ResolutionDisplayTopologyModesSetCB(RpcInData *data)
 
 out:
    free(displays);
-   Debug("%s: leave\n", __FUNCTION__);
+   g_debug("%s: leave\n", __FUNCTION__);
    return success;
 }
 #endif
@@ -307,8 +307,8 @@ ResolutionDisplayTopologySetCB(RpcInData *data)
    ResolutionInfoType *resInfo = &resolutionInfo;
 
    if (!resInfo->initialized) {
-      Debug("%s: FAIL! Request for topology set but plugin is not initialized\n",
-            __FUNCTION__);
+      g_debug("%s: FAIL! Request for topology set but plugin is not initialized\n",
+              __FUNCTION__);
       RPCIN_SETRETVALS(data, "Invalid guest state: topology set not initialized", FALSE);
       goto out;
    }
@@ -431,7 +431,7 @@ ResolutionSetCapabilities(gpointer src,
 
    ResolutionInfoType *resInfo = &resolutionInfo;
 
-   Debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter\n", __FUNCTION__);
 
    if (!resInfo->initialized) {
       return FALSE;
@@ -490,8 +490,8 @@ ResolutionSetCapabilities(gpointer src,
     *      Vista, so we always set the capabilities here, regardless of the
     *      value of resInfo->canSetTopology.
     */
-   Debug("%s: setting DPY_TOPO_MODES_SET_IDX to %u\n", __FUNCTION__,
-         set ? 1 : 0);
+   g_debug("%s: setting DPY_TOPO_MODES_SET_IDX to %u\n", __FUNCTION__,
+           set ? 1 : 0);
 
    capabilityArray[capabilityCount].type  = TOOLS_CAP_NEW;
    capabilityArray[capabilityCount].name  = NULL;

@@ -569,7 +569,21 @@ Unity_SetActiveDnDDetWnd(UnityDnD *state)
 void
 Unity_Exit(void)
 {
+   int featureIndex = 0;
+
    if (unity.isEnabled) {
+      /*
+       * Reset any Unity Options - they'll be re-enabled as required before the
+       * next UnityTcloEnter.
+       */
+      while (unityFeatureTable[featureIndex].featureBit != 0) {
+         if (unity.currentOptions & unityFeatureTable[featureIndex].featureBit) {
+            unityFeatureTable[featureIndex].setter(FALSE);
+         }
+         featureIndex++;
+      }
+      unity.currentOptions = 0;
+
       /* Hide full-screen detection window for Unity DnD. */
       UnityPlatformUpdateDnDDetWnd(unity.up, FALSE);
 
@@ -2198,6 +2212,8 @@ UnityTcloSetUnityOptions(RpcInData *data)
       }
       featureIndex++;
    }
+
+   unity.currentOptions = optionsMsg.UnityOptions_u.unityOptionsV1->featureMask;
 
    ret = RPCIN_SETRETVALS(data,
                           "",

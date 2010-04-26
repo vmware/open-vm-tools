@@ -81,4 +81,9 @@ void ResolutionSetSessionChange(DWORD code, DWORD sessionID);
 Bool ResolutionSetTopology(unsigned int ndisplays, DisplayTopologyInfo displays[]);
 Bool ResolutionSetTopologyModes(unsigned int screen, unsigned int cmd, unsigned int ndisplays, DisplayTopologyInfo displays[]);
 
+#if defined(G_LOG_DOMAIN)
+#error Please include this file before glib.h
+#endif
+#define G_LOG_DOMAIN "resolutionSet"
+
 #endif // ifndef _LIB_RESOLUTIONINT_H_
