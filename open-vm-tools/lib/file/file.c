@@ -526,8 +526,8 @@ FileLockGetMachineID(void)
  */
 
 static Bool
-OldMachineIDMatch(const char *first,  // IN:
-                  const char *second) // IN:
+OldMachineIDMatch(const char *first,   // IN:
+                  const char *second)  // IN:
 {
 #if defined(__APPLE__) || defined(linux)
    /* Ignore the host name hash */
@@ -594,8 +594,8 @@ OldMachineIDMatch(const char *first,  // IN:
  */
 
 Bool
-FileLockMachineIDMatch(char *hostMachineID,  // IN:
-                       char *otherMachineID) // IN:
+FileLockMachineIDMatch(char *hostMachineID,   // IN:
+                       char *otherMachineID)  // IN:
 {
    if (strncmp(hostMachineID, "uuid=", 5) == 0) {
       if (strncmp(otherMachineID, "uuid=", 5) == 0) {
@@ -1045,7 +1045,7 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
  */
 
 Unicode
-File_StripSlashes(ConstUnicode path) // IN
+File_StripSlashes(ConstUnicode path)  // IN:
 {
    Unicode result, volume, dir, base;
 
@@ -1759,10 +1759,10 @@ File_SupportsLargeFiles(ConstUnicode pathName)  // IN:
  */
 
 char *
-File_MapPathPrefix(const char *oldPath,               // IN
-                   const char **oldPrefixes,          // IN
-                   const char **newPrefixes,          // IN
-                   size_t numPrefixes)                // IN
+File_MapPathPrefix(const char *oldPath,       // IN:
+                   const char **oldPrefixes,  // IN:
+                   const char **newPrefixes,  // IN:
+                   size_t numPrefixes)        // IN:
 {
    int i;
    size_t oldPathLen = strlen(oldPath);
@@ -1834,7 +1834,7 @@ File_MapPathPrefix(const char *oldPath,               // IN
  */
 
 int64
-File_GetSizeByPath(ConstUnicode pathName)
+File_GetSizeByPath(ConstUnicode pathName)  // IN:
 {
    return (pathName == NULL) ? -1 : FileIO_GetSizeByPath(pathName);
 }
@@ -1857,7 +1857,7 @@ File_GetSizeByPath(ConstUnicode pathName)
  */
 
 Bool
-File_CreateDirectoryHierarchy(ConstUnicode pathName)
+File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
 {
    Unicode volume;
    UnicodeIndex index;
@@ -2049,8 +2049,8 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
  */
 
 char *
-File_PrependToPath(const char *searchPath,   // IN
-                   const char *elem)         // IN
+File_PrependToPath(const char *searchPath,  // IN:
+                   const char *elem)        // IN:
 {
    const char sep = FILE_SEARCHPATHTOKEN[0];
    char *newPath;
@@ -2108,10 +2108,10 @@ File_PrependToPath(const char *searchPath,   // IN
  */
 
 Bool
-File_FindFileInSearchPath(const char *fileIn,       // IN
-                          const char *searchPath,   // IN
-                          const char *cwd,          // IN
-                          char **result)            // OUT
+File_FindFileInSearchPath(const char *fileIn,      // IN:
+                          const char *searchPath,  // IN:
+                          const char *cwd,         // IN:
+                          char **result)           // OUT:
 {
    char *cur;
    char *tok;
