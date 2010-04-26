@@ -52,15 +52,12 @@
 #include <math.h>
 #include <string.h>
 #include <wchar.h>
+#ifndef _WIN32
+#include <pthread.h>
+#endif
 
 #include "vmware.h"
 #include "bsd_output_int.h"
-
-#ifdef _WIN32
-#define strdup(string) _strdup(string)
-#define fcvt(number, ndigits, decpt, sign) _fcvt(number, ndigits, decpt, sign)
-#define ecvt(number, ndigits, decpt, sign) _ecvt(number, ndigits, decpt, sign)
-#endif
 
 #ifndef NO_FLOATING_POINT
 
@@ -107,8 +104,13 @@ dtoa(double d,       // IN
    char *str = NULL;
    int dec;
 
+#ifndef _WIN32
+   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
    if (2 == mode) {
+      pthread_mutex_lock(&mutex);
       str = strdup(ecvt(d, prec, &dec, sign));
+      pthread_mutex_unlock(&mutex);
    } else {
       ASSERT(3 == mode);
 
@@ -128,24 +130,45 @@ dtoa(double d,       // IN
 
       if (prec == 0) {
 	 size_t l;
+         pthread_mutex_lock(&mutex);
 	 str = strdup(fcvt(round(d), 1, &dec, sign));
-	 if (str == NULL) {
-	    goto exit;
-	 }
-	 l = strlen(str);
-	 ASSERT(l > 0);
-	 l--;
-	 ASSERT(str[l] == '0');
-	 str[l] = '\0';
-      } else
-#endif
-
-      str = strdup(fcvt(d, prec, &dec, sign));
-
-#ifdef _WIN32
+         pthread_mutex_unlock(&mutex);
+	 if (str) {
+	    l = strlen(str);
+	    ASSERT(l > 0);
+	    l--;
+	    ASSERT(str[l] == '0');
+	    str[l] = '\0';
+         }
+      } else 
+#endif // __APPLE__
+      {
+         pthread_mutex_lock(&mutex);
+         str = strdup(fcvt(d, prec, &dec, sign));
+         pthread_mutex_unlock(&mutex);
+      }
+   }
+#else // _WIN32
+   if (2 == mode) {
+      str = malloc(_CVTBUFSIZE);
+      if (str) {
+         if (_ecvt_s(str, _CVTBUFSIZE, d, prec, &dec, sign)) {
+            free(str);
+            str = NULL;
+         }
+      }
+   } else {
+      ASSERT(3 == mode);
+      str = malloc(_CVTBUFSIZE);
+      if (str) {
+         if (_fcvt_s(str, _CVTBUFSIZE, d, prec, &dec, sign)) {
+            free(str);
+            str = NULL;
+         }
+      }
       /*
        * When the value is not zero but rounds to zero at prec digits,
-       * the Windows fcvt() sometimes return the empty string and
+       * the Windows fcvt() sometimes returns the empty string and
        * a negative dec that goes too far (as in -dec > prec).
        * For example, converting 0.001 with prec 1 results in
        * the empty string and dec -2.  (See bug 253674.)
@@ -159,26 +182,23 @@ dtoa(double d,       // IN
        * for this bug.
        */
 
-      if (*str == '\0' && dec < 0 && dec < -prec) {
+      if (str && *str == '\0' && dec < 0 && dec < -prec) {
 	 dec = -prec;
       }
-#endif
+   }
+#endif // _WIN32
+
+   if (str) {
+      *strEnd = str + strlen(str);
+
+      /* strip trailing zeroes */
+      while ((*strEnd > str) && ('0' == *((*strEnd) - 1))) {
+         (*strEnd)--;
+      }
+
+      *expOut = dec;
    }
 
-   if (!str) {
-      goto exit;
-   }
-
-   *strEnd = str + strlen(str);
-
-   /* strip trailing zeroes */
-   while ((*strEnd > str) && ('0' == *((*strEnd) - 1))) {
-      (*strEnd)--;
-   }
-
-   *expOut = dec;
-
-  exit:
    return str;
 }
 
