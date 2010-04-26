@@ -2041,8 +2041,31 @@ Atomic_Write64(Atomic_uint64 *var, // IN
                uint64 val)         // IN
 {
 #if defined(__x86_64__)
+#if defined(__GNUC__)
+   /*
+    * There is no move instruction for 64-bit immediate to memory, so unless
+    * the immediate value fits in 32-bit (i.e. can be sign-extended), GCC
+    * breaks the assignment into two movl instructions.  The code below forces
+    * GCC to load the immediate value into a register first.
+    */
+
+   __asm__ __volatile__(
+      "movq %1, %0"
+      : "=m" (var->value)
+      : "r" (val)
+   );
+#elif defined _MSC_VER
+   /*
+    * Microsoft docs guarantee "Simple reads and writes to properly aligned 
+    * 64-bit variables are atomic on 64-bit Windows."
+    * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
+    */
+
    var->value = val;
 #else
+#error No compiler defined for Atomic_Write64
+#endif
+#else  /* defined(__x86_64__) */
    (void)Atomic_ReadWrite64(var, val);
 #endif
 }
