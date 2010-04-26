@@ -293,7 +293,7 @@ FLAGDEF(   1, ECX, INTEL,  18,  1, DCA,                 NO,  FALSE)            \
 FLAGDEFA(  1, ECX, INTEL,  19,  1, SSE41,               YES, TRUE,  SSE41)     \
 FLAGDEFA(  1, ECX, INTEL,  20,  1, SSE42,               YES, TRUE,  SSE42)     \
 FLAGDEF(   1, ECX, INTEL,  21,  1, X2APIC,              NO,  FALSE)            \
-FLAGDEF(   1, ECX, INTEL,  22,  1, MOVBE,               NO,  TRUE)             \
+FLAGDEFA(  1, ECX, INTEL,  22,  1, MOVBE,               YES, TRUE,  MOVBE)     \
 FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, TRUE,  POPCNT)    \
 FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  TRUE)             \
 FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, TRUE, AES)        \
