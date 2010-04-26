@@ -289,6 +289,7 @@ FLAGDEFA(  1, ECX, INTEL,  12,  1, FMA,                 NO,  TRUE,  FMA)       \
 FLAGDEFA(  1, ECX, COMMON, 13,  1, CMPX16,              YES, TRUE,  CMPX16)    \
 FLAGDEF(   1, ECX, INTEL,  14,  1, xPPR,                NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  15,  1, PERF_MSR,            NO,  FALSE)            \
+FLAGDEF(   1, ECX, INTEL,  17,  1, PCID,                NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  18,  1, DCA,                 NO,  FALSE)            \
 FLAGDEFA(  1, ECX, INTEL,  19,  1, SSE41,               YES, TRUE,  SSE41)     \
 FLAGDEFA(  1, ECX, INTEL,  20,  1, SSE42,               YES, TRUE,  SSE42)     \
@@ -700,6 +701,10 @@ FIELD_FUNC(TOPOLOGY_X2APIC_ID,          CPUID_INTEL_IDBEDX_X2APIC_ID)
 #define CPUID_MODEL_ATOM_1C    0x1c  // Silverthorne / Diamondville
 #define CPUID_MODEL_CORE_1D    0x1d  // Dunnington
 #define CPUID_MODEL_NEHALEM_1E 0x1e  // Lynnfield
+#define CPUID_MODEL_NEHALEM_1F 0x1f  // Havendale
+#define CPUID_MODEL_NEHALEM_25 0x25  // Westmere / Clarkdale
+#define CPUID_MODEL_NEHALEM_2C 0x2c  // Westmere-EP
+#define CPUID_MODEL_NEHALEM_2E 0x2e  // Nehalem-EX
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -838,8 +843,12 @@ CPUID_UARCH_IS_NEHALEM(uint32 v) // IN: %eax from CPUID with %eax=1.
 
    return CPUID_FAMILY_IS_P6(v) &&
           (
+           effectiveModel == CPUID_MODEL_NEHALEM_1A ||
            effectiveModel == CPUID_MODEL_NEHALEM_1E ||
-           effectiveModel == CPUID_MODEL_NEHALEM_1A);
+           effectiveModel == CPUID_MODEL_NEHALEM_1F ||
+           effectiveModel == CPUID_MODEL_NEHALEM_25 ||
+           effectiveModel == CPUID_MODEL_NEHALEM_2C ||
+           effectiveModel == CPUID_MODEL_NEHALEM_2E);
 }
 
 
