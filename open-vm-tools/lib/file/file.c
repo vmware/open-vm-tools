@@ -48,7 +48,9 @@
 #include "str.h"
 #include "msg.h"
 #include "random.h"
+#if defined(VMX86_VMX)
 #include "vthreadBase.h"
+#endif
 #include "uuid.h"
 #include "config.h"
 #include "posix.h"
