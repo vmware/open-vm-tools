@@ -254,10 +254,6 @@ void VMwareUserSignalHandler(int sig) // IN
       gSigExit = TRUE;
    }
 
-   if (gSigExit) {
-      VMwareUserCleanupRpc(FALSE);
-   }
-
 #if defined(HAVE_GTKMM)
    Gtk::Main::quit();
 #else
@@ -287,7 +283,6 @@ void
 VMwareUser_OnDestroy(GtkWidget *widget, // IN: Unused
                      gpointer data)     // IN: Unused
 {
-   VMwareUserCleanupRpc(FALSE);
 #if defined(HAVE_GTKMM)
    Gtk::Main::quit();
 #else
@@ -1068,6 +1063,11 @@ main(int argc,         // IN
       Notify_Cleanup();
    }
 #endif
+
+   /*
+    * Clean up everything attached to the backdoor before waving goodbye.
+    */
+   VMwareUserCleanupRpc(FALSE);
 
    /*
     * SIGUSR2 sets this to TRUE, indicating that we should relaunch ourselves.
