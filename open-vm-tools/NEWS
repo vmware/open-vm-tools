@@ -1,3 +1,18 @@
+open-vm-tools 2010.04.25 changes:
+	* VMCI and HGFS get some initial work for new features.
+
+	* vmbackup support has been extended to more systems, allowing its
+	use even if the system lacks a proper "sync" implementation.
+
+	* A few bug fixes in different areas: Unity/X11, vmware-user startup
+	on upstart-based systems, and other minor fixes / thread safety fixes.
+
+	* The pvscsi driver was removed from the open-vm-tools distribution (it
+	is upstream as of Linux 2.6.33).
+
+	* The vmmemctl driver will be upstream as of Linux 2.6.34, at which
+	point it will be removed from open-vm-tools.
+
 open-vm-tools 2010.03.20 changes:
 	* New i18n support for Tools; it is based on VMware's internal tools
 	(instead of gettext).
