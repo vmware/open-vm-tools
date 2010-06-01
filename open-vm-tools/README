@@ -43,10 +43,15 @@ project the following configure command will display a list of help options:
 2) Run "make" to build Unix userland programs
 3) Run "make modules" to build kernel modules
 
-(*)Packaging:
-If you are interested in creating a Tools package, please see
-<https://sourceforge.net/apps/mediawiki/open-vm-tools/index.php?title=Packaging>
-for more information.
+(*)Why is there no "make install" make target?
+	In their current state, the various Tools applications and modules require a
+fair bit of installation support to run properly.  VMware currently maintains a 
+Perl-based installer for the Tools that is pretty good about providing that 
+support under a variety of distributions and environments.  It doesn't make 
+sense to rewrite this installer under make; distribution-specific Tools 
+packages (tailored for a particular target environment) are better suited to 
+the task.  If you are interested in creating a Tools package, please see
+<http://open-vm-tools.sourceforge.net/> for more information.
 
 ================================================================================
 Build suggestions:

@@ -33,7 +33,6 @@
 #include <sys/time.h>
 #include <sys/timeb.h>
 #include <pwd.h>
-#include <pthread.h>
 #include <sys/resource.h>
 #if defined(sun)
 #include <sys/systeminfo.h>
@@ -52,7 +51,6 @@
 #include <mach/mach_init.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-#include <sys/mman.h>
 #elif defined(__FreeBSD__)
 #if !defined(RLIMIT_AS)
 #  if defined(RLIMIT_VMEM)
@@ -85,11 +83,9 @@
 #include "vmware.h"
 #include "hostType.h"
 #include "hostinfo.h"
-#include "hostinfoInt.h"
 #include "safetime.h"
 #include "vm_version.h"
 #include "str.h"
-#include "err.h"
 #include "msg.h"
 #include "log.h"
 #include "posix.h"
@@ -99,11 +95,10 @@
 #include "vmstdio.h"
 #include "su.h"
 #include "vm_atomic.h"
-
 #if defined(__i386__) || defined(__x86_64__)
 #include "x86cpuid.h"
 #endif
-
+#include "syncMutex.h"
 #include "unicode.h"
 #include "guest_os.h"
 #include "dynbuf.h"
@@ -143,9 +138,9 @@ typedef struct lsb_distro_info {
 
 
 static LSBDistroInfo lsbFields[] = {
-   {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
-   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"},
-   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"},
+   {"DISTRIB_ID=", "DISTRIB_ID=%s"},
+   {"DISTRIB_RELEASE=", "DISTRIB_RELEASE=%s"},
+   {"DISTRIB_CODENAME=", "DISTRIB_CODENAME=%s"},
    {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s"},
    {NULL, NULL},
 };
@@ -158,44 +153,44 @@ typedef struct distro_info {
 
 
 static DistroInfo distroArray[] = {
-   {"RedHat",             "/etc/redhat-release"},
-   {"RedHat",             "/etc/redhat_version"},
-   {"Sun",                "/etc/sun-release"},
-   {"SuSE",               "/etc/SuSE-release"},
-   {"SuSE",               "/etc/novell-release"},
-   {"SuSE",               "/etc/sles-release"},
-   {"Debian",             "/etc/debian_version"},
-   {"Debian",             "/etc/debian_release"},
-   {"Mandrake",           "/etc/mandrake-release"},
-   {"Mandriva",           "/etc/mandriva-release"},
-   {"Mandrake",           "/etc/mandrakelinux-release"},
-   {"TurboLinux",         "/etc/turbolinux-release"},
-   {"Fedora Core",        "/etc/fedora-release"},
-   {"Gentoo",             "/etc/gentoo-release"},
-   {"Novell",             "/etc/nld-release"},
-   {"Ubuntu",             "/etc/lsb-release"},
-   {"Annvix",             "/etc/annvix-release"},
-   {"Arch",               "/etc/arch-release"},
-   {"Arklinux",           "/etc/arklinux-release"},
-   {"Aurox",              "/etc/aurox-release"},
-   {"BlackCat",           "/etc/blackcat-release"},
-   {"Cobalt",             "/etc/cobalt-release"},
-   {"Conectiva",          "/etc/conectiva-release"},
-   {"Immunix",            "/etc/immunix-release"},
-   {"Knoppix",            "/etc/knoppix_version"},
+   {"RedHat", "/etc/redhat-release"},
+   {"RedHat", "/etc/redhat_version"},
+   {"Sun", "/etc/sun-release"},
+   {"SuSE", "/etc/SuSE-release"},
+   {"SuSE", "/etc/novell-release"},
+   {"SuSE", "/etc/sles-release"},
+   {"Debian", "/etc/debian_version"},
+   {"Debian", "/etc/debian_release"},
+   {"Mandrake", "/etc/mandrake-release"},
+   {"Mandriva", "/etc/mandriva-release"},
+   {"Mandrake", "/etc/mandrakelinux-release"},
+   {"TurboLinux", "/etc/turbolinux-release"},
+   {"Fedora Core", "/etc/fedora-release"},
+   {"Gentoo", "/etc/gentoo-release"},
+   {"Novell", "/etc/nld-release"},
+   {"Ubuntu", "/etc/lsb-release"},
+   {"Annvix", "/etc/annvix-release"},
+   {"Arch", "/etc/arch-release"},
+   {"Arklinux", "/etc/arklinux-release"},
+   {"Aurox", "/etc/aurox-release"},
+   {"BlackCat", "/etc/blackcat-release"},
+   {"Cobalt", "/etc/cobalt-release"},
+   {"Conectiva", "/etc/conectiva-release"},
+   {"Immunix", "/etc/immunix-release"},
+   {"Knoppix", "/etc/knoppix_version"},
    {"Linux-From-Scratch", "/etc/lfs-release"},
-   {"Linux-PPC",          "/etc/linuxppc-release"},
-   {"MkLinux",            "/etc/mklinux-release"},
-   {"PLD",                "/etc/pld-release"},
-   {"Slackware",          "/etc/slackware-version"},
-   {"Slackware",          "/etc/slackware-release"},
-   {"SMEServer",          "/etc/e-smith-release"},
-   {"Solaris",            "/etc/release"},
-   {"Tiny Sofa",          "/etc/tinysofa-release"},
-   {"UltraPenguin",       "/etc/ultrapenguin-release"},
-   {"UnitedLinux",        "/etc/UnitedLinux-release"},
-   {"VALinux",            "/etc/va-release"},
-   {"Yellow Dog",         "/etc/yellowdog-release"},
+   {"Linux-PPC", "/etc/linuxppc-release"},
+   {"MkLinux", "/etc/mklinux-release"},
+   {"PLD", "/etc/pld-release"},
+   {"Slackware", "/etc/slackware-version"},
+   {"Slackware", "/etc/slackware-release"},
+   {"SMEServer", "/etc/e-smith-release"},
+   {"Solaris", "/etc/release"},
+   {"Tiny Sofa", "/etc/tinysofa-release"},
+   {"UltraPenguin", "/etc/ultrapenguin-release"},
+   {"UnitedLinux", "/etc/UnitedLinux-release"},
+   {"VALinux", "/etc/va-release"},
+   {"Yellow Dog", "/etc/yellowdog-release"},
    {NULL, NULL},
 };
 
@@ -227,8 +222,8 @@ HostinfoOSVersionInit(void)
    }
 
    if (uname(&u) < 0) {
-      Warning("%s: unable to get host OS version (uname): %s\n",
-	      __FUNCTION__, Err_Errno2String(errno));
+      Warning("%s unable to get host OS version (uname): %s\n",
+	      __FUNCTION__, strerror(errno));
       NOT_IMPLEMENTED();
    }
 
@@ -238,7 +233,7 @@ HostinfoOSVersionInit(void)
    if (sscanf(u.release, "%d.%d.%d%s",
 	      &hostinfoOSVersion[0], &hostinfoOSVersion[1],
 	      &hostinfoOSVersion[2], extra) < 1) {
-      Warning("%s: unable to parse host OS version string: %s\n",
+      Warning("%s unable to parse host OS version string: %s\n",
               __FUNCTION__, u.release);
       NOT_IMPLEMENTED();
    }
@@ -321,7 +316,7 @@ Hostinfo_OSVersion(int i)
  *----------------------------------------------------------------------
  */
 
-void
+void 
 Hostinfo_GetTimeOfDay(VmTimeType *time)
 {
    struct timeval tv;
@@ -379,7 +374,7 @@ Hostinfo_GetSystemBitness(void)
 #      if !defined SOL10
    /*
     * XXX: This is bad.  We define SI_ARCHITECTURE_K to what it is on Solaris
-    * 10 so that we can use a single guestd build for Solaris 9 and 10. In the
+    * 10 so that we can use a single guestd build for Solaris 9 and 10.  In the
     * future we should have the Solaris 9 build just return 32 -- since it did
     * not support 64-bit x86 -- and let the Solaris 10 headers define
     * SI_ARCHITECTURE_K, then have the installer symlink to the correct binary.
@@ -498,37 +493,16 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_ARCH, distroShortSize);
    } else if (strstr(distroLower, "arklinux")) {
       Str_Strcpy(distroShort, STR_OS_ARKLINUX, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 3") ||
-              strstr(distroLower, "asianux client 3")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_3, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 4") ||
-              strstr(distroLower, "asianux client 4")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_4, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
    } else if (strstr(distroLower, "black cat")) {
       Str_Strcpy(distroShort, STR_OS_BLACKCAT, distroShortSize);
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
-   } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
-      if (strstr(distroLower, "4.0")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
-      } else if (strstr(distroLower, "5.0")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
-      }
-   } else if (StrUtil_StartsWith(distroLower, "enterprise linux")) {
-      /*
-       * [root@localhost ~]# lsb_release -sd
-       * "Enterprise Linux Enterprise Linux Server release 5.4 (Carthage)"
-       *
-       * Not sure why they didn't brand their releases as "Oracle Enterprise
-       * Linux".  Oh well.
-       */
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_DEBIAN, distroShortSize);
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
    } else if (strstr(distroLower, "gentoo")) {
@@ -600,8 +574,7 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    int i = 0;
 
    if ((fd = open(filename, O_RDONLY)) < 0) {
-      Warning("%s: could not open file%s: %d\n", __FUNCTION__, filename,
-              errno);
+      Warning("%s: could not open file%s: %d\n", __FUNCTION__, filename, errno);
 
       return FALSE;
    }
@@ -762,34 +735,39 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoOSData --
+ * Hostinfo_GetOSName --
  *
- *      Determine the OS short (.vmx format) and long names.
+ *      Return OS version information. First retrieve OS information using
+ *      uname, then look in /etc/xxx-release file to get the distro info.
+ *      osFullName will be:
+ *      <OS NAME> <OS RELEASE> <SPECIFIC_DISTRO_INFO>
+ *      An example of such string would be:
+ *      Linux 2.4.18-3 Red Hat Linux release 7.3 (Valhalla)
  *
- *      First retrieve OS information using uname, then look in
- *      /etc/xxx-release file to get the distro info.
+ *      osName contains an os name in the same format that is used
+ *      in .vmx file.
  *
  * Return value:
  *      Returns TRUE on success and FALSE on failure.
+ *      Returns the guest's full OS name (osNameFull)
+ *      Returns the guest's OS name in the same format as .vmx file (osName)
  *
  * Side effects:
- *      Cache values are set when returning TRUE.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
 
 Bool
-HostinfoOSData(void)
+Hostinfo_GetOSName(uint32 outBufFullLen,  // IN: length of osNameFull buffer
+                   uint32 outBufLen,      // IN: length of osName buffer
+                   char *osNameFull,      // OUT: Full OS name
+                   char *osName)          // OUT: OS name (.vmx file format)
 {
    struct utsname buf;
    unsigned int lastCharPos;
    const char *lsbCmd = "lsb_release -sd 2>/dev/null";
    char *lsbOutput = NULL;
-
-   char osName[MAX_OS_NAME_LEN];
-   char osNameFull[MAX_OS_FULLNAME_LEN];
-
-   static Atomic_uint32 mutex = {0};
 
    /*
     * Use uname to get complete OS information.
@@ -802,14 +780,14 @@ HostinfoOSData(void)
    }
 
 
-   if (strlen(buf.sysname) + strlen(buf.release) + 3 > sizeof osNameFull) {
+   if (strlen(buf.sysname) + strlen(buf.release) + 3 > outBufFullLen) {
       Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
       return FALSE;
    }
 
-   Str_Strcpy(osName, STR_OS_EMPTY, sizeof osName);
-   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname, buf.release);
+   Str_Strcpy(osName, STR_OS_EMPTY, outBufLen);
+   Str_Sprintf(osNameFull, outBufFullLen, "%s %s", buf.sysname, buf.release);
 
    /*
     * Check to see if this is Linux
@@ -883,31 +861,31 @@ HostinfoOSData(void)
 
       HostinfoGetOSShortName(distro, distroShort, distroSize);
 
-      if (strlen(distro) + strlen(osNameFull) + 2 > sizeof osNameFull) {
+      if (strlen(distro) + strlen(osNameFull) + 2 > outBufFullLen) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Strcat(osNameFull, " ", sizeof osNameFull);
-      Str_Strcat(osNameFull, distro, sizeof osNameFull);
+      Str_Strcat(osNameFull, " ", outBufFullLen);
+      Str_Strcat(osNameFull, distro, outBufFullLen);
 
-      if (strlen(distroShort) + 1 > sizeof osName) {
+      if (strlen(distroShort) + 1 > outBufLen) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Strcpy(osName, distroShort, sizeof osName);
+      Str_Strcpy(osName, distroShort, outBufLen);
    } else if (strstr(osNameFull, "FreeBSD")) {
       size_t nameLen = sizeof STR_OS_FREEBSD - 1;
       size_t releaseLen = 0;
       char *dashPtr;
 
       /*
-       * FreeBSD releases report their version as "x.y-RELEASE". We'll be
-       * naive look for the first dash, and use everything before it as the
-       * version number.
+       * FreeBSD releases report their version as "x.y-RELEASE". We'll be naive
+       * look for the first dash, and use everything before it as the version
+       * number.
        */
 
       dashPtr = Str_Strchr(buf.release, '-');
@@ -915,13 +893,13 @@ HostinfoOSData(void)
          releaseLen = dashPtr - buf.release;
       }
 
-      if (nameLen + releaseLen + 1 > sizeof osName) {
+      if (nameLen + releaseLen + 1 > outBufLen) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Strcpy(osName, STR_OS_FREEBSD, sizeof osName);
+      Str_Strcpy(osName, STR_OS_FREEBSD, outBufLen);
    } else if (strstr(osNameFull, "SunOS")) {
       size_t nameLen = sizeof STR_OS_SOLARIS - 1;
       size_t releaseLen = 0;
@@ -930,29 +908,29 @@ HostinfoOSData(void)
       /*
        * Solaris releases report their version as "x.y". For our supported
        * releases it seems that x is always "5", and is ignored in favor of
-       * "y" for the version number.
+       * y for the version number.
        */
 
       if (sscanf(buf.release, "5.%2[0-9]", solarisRelease) == 1) {
          releaseLen = strlen(solarisRelease);
       }
 
-      if (nameLen + releaseLen + 1 > sizeof osName) {
+      if (nameLen + releaseLen + 1 > outBufLen) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
 
-      Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS, solarisRelease);
+      Str_Snprintf(osName, outBufLen, "%s%s", STR_OS_SOLARIS, solarisRelease);
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {
-      if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > sizeof osName) {
+      if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > outBufLen) {
          Warning("%s: Error: buffer too small\n", __FUNCTION__);
 
          return FALSE;
       }
-      Str_Strcat(osName, STR_OS_64BIT_SUFFIX, sizeof osName);
+      Str_Strcat(osName, STR_OS_64BIT_SUFFIX, outBufLen);
    }
 
    /*
@@ -963,22 +941,6 @@ HostinfoOSData(void)
    if (osNameFull[lastCharPos] == '\n') {
       osNameFull[lastCharPos] = '\0';
    }
-
-   /*
-    * Serialize access. Collisions should be rare - plus the value will
-    * get cached and this won't get called anymore.
-    */
-
-   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
-
-   if (!HostinfoOSNameCacheValid) {
-      Str_Strcpy(HostinfoCachedOSName, osName, sizeof HostinfoCachedOSName);
-      Str_Strcpy(HostinfoCachedOSFullName, osNameFull,
-                 sizeof HostinfoCachedOSFullName);
-      HostinfoOSNameCacheValid = TRUE;
-   }
-
-   Atomic_Write(&mutex, 0);  // unlock
 
    return TRUE;
 }
@@ -1012,7 +974,7 @@ HostinfoReadProc(const char *str)  // IN:
    uint32 count;
 
    ASSERT(!strcmp("logical", str) || !strcmp("cores", str) ||
-          !strcmp("packages", str));
+          !strcmp("packages", str)); 
 
    ASSERT(!HostType_OSIsVMK()); // Don't use /proc/vmware
 
@@ -1038,7 +1000,7 @@ HostinfoReadProc(const char *str)  // IN:
    return -1;
 }
 
-
+ 
 /*
  *----------------------------------------------------------------------
  *
@@ -1062,7 +1024,6 @@ Hostinfo_HTDisabled(void)
 
    if (HostType_OSIsVMK()) {
       VMK_ReturnStatus status = VMKernel_HTEnabledCPU();
-
       if (status != VMK_OK) {
          return TRUE;
       } else {
@@ -1073,7 +1034,6 @@ Hostinfo_HTDisabled(void)
    if (logical == 0 && cores == 0) {
       logical = HostinfoReadProc("logical");
       cores = HostinfoReadProc("cores");
-
       if (logical <= 0 || cores <= 0) {
          logical = cores = 0;
       }
@@ -1112,15 +1072,7 @@ Hostinfo_HTDisabled(void)
 uint32
 Hostinfo_NumCPUs(void)
 {
-#if defined(sun)
-   static int count = 0;
-
-   if (count <= 0) {
-      count = sysconf(_SC_NPROCESSORS_CONF);
-   }
-
-   return count;
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
    uint32 out;
    size_t outSize = sizeof out;
 
@@ -1193,7 +1145,7 @@ Hostinfo_NumCPUs(void)
       char *line;
 
       f = Posix_Fopen("/proc/cpuinfo", "r");
-      if (f == NULL) {
+      if (f == NULL) { 
 	 return -1;
       }
 
@@ -1376,7 +1328,6 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
    res = getloadavg(avg, 3);
    if (res < 3) {
       NOT_TESTED_ONCE();
-
       return FALSE;
    }
 
@@ -1392,7 +1343,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
 
    return TRUE;
 #else
-   /*
+   /* 
     * Not implemented. This function is currently only used in the vmx, so
     * getloadavg is always available to us. If the linux tools ever need this,
     * we can go back to having a look at the output of /proc/loadavg, but
@@ -1549,7 +1500,6 @@ Hostinfo_RawSystemTimerUS(void)
       status = VMKernel_GetUptimeUS(&uptime);
       if (status != VMK_OK) {
          Log("%s: failure!\n", __FUNCTION__);
-
          return 0;  // A timer read failure - this is really bad!
       }
 
@@ -1621,12 +1571,12 @@ Hostinfo_LogMemUsage(void)
  *
  *  Hostinfo_TouchBackDoor --
  *
- *      Access the backdoor. This is used to determine if we are
+ *      Access the backdoor. This is used to determine if we are 
  *      running in a VM or on a physical host. On a physical host
  *      this should generate a GP which we catch and thereby determine
  *      that we are not in a VM. However some OSes do not handle the
  *      GP correctly and the process continues running returning garbage.
- *      In this case we check the EBX register which should be
+ *      In this case we check the EBX register which should be 
  *      BDOOR_MAGIC if the IN was handled in a VM. Based on this we
  *      return either TRUE or FALSE.
  *
@@ -1635,7 +1585,7 @@ Hostinfo_LogMemUsage(void)
  *      if not.
  *
  * Side effects:
- *	Exception if not in a VM.
+ *	Exception if not in a VM. 
  *
  *----------------------------------------------------------------------
  */
@@ -1647,9 +1597,11 @@ Hostinfo_TouchBackDoor(void)
     * XXX: This can cause Apple's Crash Reporter to erroneously display
     * a crash, even though the process has caught the SIGILL and handled
     * it.
+    *
+    * It's also annoying in gdb, so we'll turn it off in devel builds.
     */
 
-#if !defined(__APPLE__) && (defined(__i386__) || defined(__x86_64__))
+#if !defined(__APPLE__) && !defined(VMX86_DEVEL) && (defined(__i386__) || defined(__x86_64__))
    uint32 eax;
    uint32 ebx;
    uint32 ecx;
@@ -1676,102 +1628,6 @@ Hostinfo_TouchBackDoor(void)
       return TRUE;
    }
 #endif
-
-   return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  Hostinfo_TouchVirtualPC --
- *
- *      Access MS Virtual PC's backdoor. This is used to determine if 
- *      we are running in a MS Virtual PC or on a physical host.  Works
- *      the same as Hostinfo_TouchBackDoor, except the entry to MS VPC
- *      is an invalid opcode instead or writing to a port.  Since
- *      MS VPC is 32-bit only, the 64-bit path returns FALSE.
- *      See: http://www.codeproject.com/KB/system/VmDetect.aspx
- *
- * Results:
- *      TRUE if we succesfully accessed MS Virtual PC, FALSE or 
- *      segfault if not.
- *
- * Side effects:
- *      Exception if not in a VM.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_TouchVirtualPC(void)
-{
-#if defined vm_x86_64
-   return FALSE;
-#else
-
-   uint32 ebxval;
-
-   __asm__ __volatile__ (
-#  if defined __PIC__        // %ebx is reserved by the compiler.
-     "xchgl %%ebx, %1" "\n\t"
-     ".long 0x0B073F0F" "\n\t"
-     "xchgl %%ebx, %1"
-     : "=&rm" (ebxval)
-     : "a" (1),
-       "0" (0)
-#  else
-     ".long 0x0B073F0F"
-     : "=b" (ebxval)
-     : "a" (1),
-       "b" (0)
-#  endif
-  );
-  return !ebxval; // %%ebx is zero if inside Virtual PC
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  Hostinfo_NestingSupported --
- *
- *      Access the backdoor with a nesting control query. This is used
- *      to determine if we are running inside a VM that supports nesting.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
- *
- * Results:
- *      TRUE if the outer VM supports nesting.
- *	FALSE otherwise.
- *
- * Side effects:
- *	Exception if not in a VM, so don't do that!
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_NestingSupported(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-   uint32 cmd = NESTING_CONTROL_QUERY << 16 | BDOOR_CMD_NESTING_CONTROL;
-   uint32 result;
-
-   __asm__ __volatile__(
-      "inl %%dx, %%eax"
-      : "=a" (result)
-      :	"0"  (BDOOR_MAGIC),
-        "c"  (cmd),
-        "d"  (BDOOR_PORT)
-   );
-
-   if (result >= NESTING_CONTROL_QUERY && result != ~0U) {
-      return TRUE;
-   }
-#endif
-
    return FALSE;
 }
 
@@ -1800,6 +1656,10 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
    int s, fd;
    struct sigaction sa;
    struct rlimit rlim;
+#ifdef __linux__
+   int err;
+   uid_t euid;
+#endif
 
    /*
     * Disable itimers before resetting the signal handlers.
@@ -1842,21 +1702,15 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
 #ifdef __linux__
    /*
     * Drop iopl to its default value.
-    * iopl() is not implemented in userworlds
     */
-   if (!vmx86_server) {
-      int err;
-      uid_t euid;
-
-      euid = Id_GetEUid();
-      /* At this point, _unless we are running as root_, we shouldn't have root
-         privileges --hpreg */
-      ASSERT(euid != 0 || getuid() == 0);
-      Id_SetEUid(0);
-      err = iopl(0);
-      Id_SetEUid(euid);
-      ASSERT_NOT_IMPLEMENTED(err == 0);
-   }
+   euid = Id_GetEUid();
+   /* At this point, _unless we are running as root_, we shouldn't have root
+      privileges --hpreg */
+   ASSERT(euid != 0 || getuid() == 0);
+   Id_SetEUid(0);
+   err = iopl(0);
+   Id_SetEUid(euid);
+   ASSERT_NOT_IMPLEMENTED(err == 0);
 #endif
 }
 
@@ -1902,7 +1756,7 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
  *      process to that path.
  *
  * Results:
- *      FALSE if the process could not be daemonized.  errno contains
+ *      FALSE if the process could not be daemonized.  Err_Errno() contains
  *      the error on failure.
  *      TRUE if 'flags' does not contain HOSTINFO_DAEMONIZE_EXIT and
  *      the process was daemonized.
@@ -1959,7 +1813,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    ASSERT(numKeepFds == 0 || keepFds);
 
    if (pipe(pipeFds) == -1) {
-      err = errno;
+      err = Err_Errno();
       Warning("%s: Couldn't create pipe, error %u.\n", __FUNCTION__, err);
       pipeFds[0] = pipeFds[1] = -1;
       goto cleanup;
@@ -1968,7 +1822,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    numKeepFds++;
    tempFds = malloc(sizeof tempFds[0] * numKeepFds);
    if (!tempFds) {
-      err = errno;
+      err = Err_Errno();
       Warning("%s: Couldn't allocate memory, error %u.\n", __FUNCTION__, err);
       goto cleanup;
    }
@@ -1978,7 +1832,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    if (fcntl(pipeFds[1], F_SETFD, 1) == -1) {
-      err = errno;
+      err = Err_Errno();
       Warning("%s: Couldn't set close-on-exec for fd %d, error %u.\n",
               __FUNCTION__, pipeFds[1], err);
       goto cleanup;
@@ -2014,9 +1868,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
    switch (childPid) {
    case -1:
-      err = errno;
-      Warning("%s: Couldn't fork first child, error %u.\n", __FUNCTION__,
-              err);
+      err = Err_Errno();
+      Warning("%s: Couldn't fork first child, error %u.\n", __FUNCTION__, err);
       goto cleanup;
    case 0:
       /* We're the first child.  Continue on. */
@@ -2054,7 +1907,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
                Warning("%s: Child could not exec %s, read %d, error %u.\n",
                        __FUNCTION__, path, res, err);
                goto cleanup;
-            } else if ((res == -1) && (errno == EINTR)) {
+            } else if (res == -1 && errno == EINTR) {
                continue;
             }
             break;
@@ -2066,8 +1919,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    /*
-    * Close all fds except for the write end of the error pipe (which we've
-    * already set to close on successful exec), and the ones requested by
+    * Close all fds except for the write end of the error pipe (which
+    * we've already set to close on successful exec), and the ones requested by
     * the caller. Also reset the signal mask to unblock all signals. fork()
     * clears pending signals.
     */
@@ -2080,7 +1933,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
    if (!(flags & HOSTINFO_DAEMONIZE_NOCLOSE) && setsid() == -1) {
       Warning("%s: Couldn't create new session, error %d.\n",
-              __FUNCTION__, errno);
+              __FUNCTION__, Err_Errno());
 
       _exit(EXIT_FAILURE);
    }
@@ -2089,7 +1942,7 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    case -1:
       {
          Warning("%s: Couldn't fork second child, error %d.\n",
-                 __FUNCTION__, errno);
+                 __FUNCTION__, Err_Errno());
 
          _exit(EXIT_FAILURE);
       }
@@ -2115,14 +1968,14 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
     */
 
    if (!(flags & HOSTINFO_DAEMONIZE_NOCHDIR) && chdir("/") == -1) {
-      uint32 err = errno;
+      uint32 err = Err_Errno();
 
       Warning("%s: Couldn't chdir to /, error %u.\n", __FUNCTION__, err);
 
       /* Let the original process know we failed to chdir. */
       if (write(pipeFds[1], &err, sizeof err) == -1) {
-         Warning("%s: Couldn't write to parent pipe: %u, "
-                 "original error: %u.\n", __FUNCTION__, errno, err);
+         Warning("%s: Couldn't write to parent pipe: %u, original error: %u.\n",
+                 __FUNCTION__, Err_Errno(), err);
       }
       _exit(EXIT_FAILURE);
    }
@@ -2157,13 +2010,13 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
       pidPathFd = open(pidPathLocalEncoding, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 
       if (pidPathFd == -1) {
-         err = errno;
+         err = Err_Errno();
          Warning("%s: Couldn't open PID path [%s], error %d.\n",
                  __FUNCTION__, pidPath, err);
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
-                    "error: %u.\n", __FUNCTION__, errno, err);
+                    "error: %u.\n", __FUNCTION__, Err_Errno(), err);
          }
          _exit(EXIT_FAILURE);
       }
@@ -2176,19 +2029,19 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
-                    "error: %u.\n", __FUNCTION__, errno, err);
+                    "error: %u.\n", __FUNCTION__, Err_Errno(), err);
          }
          _exit(EXIT_FAILURE);
       }
 
       if (write(pidPathFd, pidString, pidStringLen) != pidStringLen) {
-         err = errno;
+         err = Err_Errno();
          Warning("%s: Couldn't write PID to path [%s], error %d.\n",
                  __FUNCTION__, pidPath, err);
 
          if (write(pipeFds[1], &err, sizeof err) == -1) {
             Warning("%s: Couldn't write to parent pipe: %u, original "
-                    "error: %u.\n", __FUNCTION__, errno, err);
+                    "error: %u.\n", __FUNCTION__, Err_Errno(), err);
          }
          _exit(EXIT_FAILURE);
       }
@@ -2197,13 +2050,13 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
    }
 
    if (execv(pathLocalEncoding, argsLocalEncoding) == -1) {
-      err = errno;
+      err = Err_Errno();
       Warning("%s: Couldn't exec %s, error %d.\n", __FUNCTION__, path, err);
 
       /* Let the original process know we failed to exec. */
       if (write(pipeFds[1], &err, sizeof err) == -1) {
-         Warning("%s: Couldn't write to parent pipe: %u, "
-                 "original error: %u.\n", __FUNCTION__, errno, err);
+         Warning("Couldn't write to parent pipe: %u, original error: %u.\n",
+                 Err_Errno(), err);
       }
       _exit(EXIT_FAILURE);
    }
@@ -2228,14 +2081,14 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
          _exit(EXIT_SUCCESS);
       }
    } else {
+      Err_SetErrno(err);
+
       if (pidPath) {
          Posix_Unlink(pidPath);
       }
-
-      errno = err;
    }
 
-   return err == 0;
+   return (err == 0);
 }
 
 
@@ -2268,13 +2121,13 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
 
    f = Posix_Fopen("/proc/cpuinfo", "r");
 
-   if (f == NULL) {
+   if (f == NULL) { 
       Warning(LGPFX" %s: Unable to open /proc/cpuinfo\n", __FUNCTION__);
 
       return NULL;
    }
-
-   while (cpu <= nCpu &&
+      
+   while (cpu <= nCpu && 
           StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
       char *s;
       char *e;
@@ -2288,20 +2141,20 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
          for (; s < e && isspace(*s); s++);
          for (; s < e && isspace(e[-1]); e--);
          *e = 0;
-
+         
          /* Free previous value */
          free(value);
          value = strdup(s);
          ASSERT_MEM_ALLOC(value);
-
+         
          cpu++;
       }
       free(line);
-   }
+   }     
 
    fclose(f);
 
-   return value;
+   return value; 
 }
 #endif
 
@@ -2311,7 +2164,7 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
  *
  * Hostinfo_GetRatedCpuMhz --
  *
- *      Get the rated CPU speed of a given processor.
+ *      Get the rated CPU speed of a given processor. 
  *      Return value is in MHz.
  *
  * Results:
@@ -2354,11 +2207,11 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
 #else
    float fMhz = 0;
    char *readVal = HostinfoGetCpuInfo(cpuNumber, "cpu MHz");
-
+   
    if (readVal == NULL) {
       return FALSE;
    }
-
+   
    if (sscanf(readVal, "%f", &fMhz) == 1) {
       *mHz = (unsigned int)(fMhz + 0.5);
    }
@@ -2424,7 +2277,7 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
 
       /* VMKernel treats mName as an in/out parameter so terminate it. */
       mName[0] = '\0';
-      if (VMKernel_GetCPUModelName(cpuNumber, mName,
+      if (VMKernel_GetCPUModelName(mName, cpuNumber,
                                    sizeof(mName)) == VMK_OK) {
 	 mName[sizeof(mName) - 1] = '\0';
 
@@ -2497,850 +2350,4 @@ Hostinfo_Execute(const char *command,  // IN:
    } else {
       return 0;
    }
-}
-
-
-#ifdef __APPLE__
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_GetKernelZoneElemSize --
- *
- *      Retrieve the size of the elements in a named kernel zone.
- *
- *      We used to do it like zprint (see
- *      darwinsource-10.4.5/system_cmds-336.10/zprint.tproj/zprint.c::main()),
- *      i.e. by calling host_zone_info(), but there are 3 problems with that:
- *
- *      1) mach/mach_host.defs defines both arrays passed to host_zone_info()
- *         as 'out' parameters, but the implementation of the function in
- *         xnu-792.13.8/osfmk/kern/zalloc.c clearly expects them as 'inout'
- *         parameters. This issue is confirmed in practice: the input values
- *         passed by the user process are ignored. Now comes the scary part: is
- *         the input of the kernel function deterministically invalid, or is it
- *         some non-deterministic garbage (in which case the user process can
- *         corrupt its address space)? The answer is in the Mach IPC code. A
- *         cursory kernel debugging session seems to imply that the input
- *         pointer values are garbage, but the input size values are always 0.
- *         So the function seems safe to use in practice.
- *
- *      2) Starting with Mac OS 10.6, host_zone_info() always returns
- *         KERN_NOT_SUPPORTED when the sizes of the user and kernel virtual
- *         address spaces (32-bit or 64-bit) do not match. Was bug 377049.
- *
- *      3) Apple broke the ABI: For 64-bit code, the 'zone_info.zi_*_size'
- *         fields are 32-bit in the Mac OS 10.5 SDK, but 64-bit in the Mac OS
- *         10.6 SDK. So a 64-bit VMX compiled against the Mac OS 10.5 SDK works
- *         with the Mac OS 10.5 (32-bit) kernel but fails with the Mac OS 10.6
- *         64-bit kernel.
- *
- *      So now we just let Apple deal with their own mess: we invoke zprint,
- *      and we parse its non-localized output. Should Apple stop shipping
- *      zprint, we can always ship our own replacement for it.
- *
- * Results:
- *      On success: the size (in bytes) > 0.
- *      On failure: 0.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-size_t
-Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
-{
-   size_t retval = 0;
-   struct {
-      size_t retval;
-   } volatile *shared;
-   pid_t child;
-   pid_t pid;
-
-   /*
-    * popen(3) incorrectly executes the shell with the identity of the calling
-    * process, ignoring a potential per-thread identity. And starting with
-    * Mac OS 10.6 it is even worse: if there is a per-thread identity,
-    * popen(3) removes it!
-    *
-    * So we run this code in a separate process which runs with the same
-    * identity as the current thread.
-    */
-
-   shared = mmap(NULL, sizeof *shared, PROT_READ | PROT_WRITE,
-                 MAP_ANON | MAP_SHARED, -1, 0);
-
-   if (shared == (void *)-1) {
-      Warning("%s: mmap error %d.\n", __FUNCTION__, errno);
-
-      return retval;
-   }
-
-   // In case the child is terminated before it can set it.
-   shared->retval = retval;
-
-   child = fork();
-   if (child == (pid_t)-1) {
-      Warning("%s: fork error %d.\n", __FUNCTION__, errno);
-      munmap((void *)shared, sizeof *shared);
-
-      return retval;
-   }
-
-   // This executes only in the child process.
-   if (!child) {
-      size_t nameLen;
-      FILE *stream;
-      Bool parsingProperties = FALSE;
-
-      ASSERT(name);
-
-      nameLen = strlen(name);
-      ASSERT(nameLen && *name != '\t');
-
-      stream = popen("/usr/bin/zprint -C", "r");
-      if (!stream) {
-         Warning("%s: popen error %d.\n", __FUNCTION__, errno);
-         exit(EXIT_SUCCESS);
-      }
-
-      for (;;) {
-         char *line;
-         size_t lineLen;
-
-         if (StdIO_ReadNextLine(stream, &line, 0,
-                                &lineLen) != StdIO_Success) {
-            break;
-         }
-
-         if (parsingProperties) {
-            if (   // Not a property line anymore. Property not found.
-                   lineLen < 1 || memcmp(line, "\t", 1)
-                   // Property found.
-                || sscanf(line, " elem_size: %"FMTSZ"u bytes",
-                          &shared->retval) == 1) {
-               free(line);
-               break;
-            }
-         } else if (!(lineLen < nameLen + 6 ||
-                    memcmp(line, name, nameLen) ||
-                    memcmp(line + nameLen, " zone:", 6))) {
-            // Zone found.
-            parsingProperties = TRUE;
-         }
-
-         free(line);
-      }
-
-      pclose(stream);
-      exit(EXIT_SUCCESS);
-   }
-
-   /*
-    * This executes only in the parent process.
-    * Wait for the child to terminate, and return its retval.
-    */
-
-   do {
-      int status;
-
-      pid = waitpid(child, &status, 0);
-   } while ((pid == -1) && (errno == EINTR));
-
-   ASSERT_NOT_IMPLEMENTED(pid == child);
-
-   retval = shared->retval;
-   munmap((void *)shared, sizeof *shared);
-
-   return retval;
-}
-#endif /* __APPLE__ */
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_SystemUpTime --
- *
- *      Return system uptime in microseconds.
- *
- *      Please note that the actual resolution of this "clock" is undefined -
- *      it varies between OSen and OS versions. Use Hostinfo_SystemTimerUS
- *      whenever possible.
- *
- * Results:
- *      System uptime in microseconds or zero in case of a failure.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VmTimeType
-Hostinfo_SystemUpTime(void)
-{
-#if defined(__APPLE__)
-   return Hostinfo_RawSystemTimerUS();
-#elif defined(VMX86_SERVER)
-   uint64 uptime;
-   VMK_ReturnStatus status;
-
-   if (VmkSyscall_Init(FALSE, NULL, 0)) {
-      status = VMKernel_GetUptimeUS(&uptime);
-
-      if (status == VMK_OK) {
-         return uptime;
-      }
-   }
-
-   return 0;
-#elif defined(__linux__)
-   int res;
-   double uptime;
-   int fd;
-   char buf[256];
-
-   static Atomic_Int fdStorage = { -1 };
-   static Atomic_uint32 logFailedPread = { 1 };
-
-   fd = Atomic_ReadInt(&fdStorage);
-
-   /* Do we need to open the file the first time through? */
-   if (UNLIKELY(fd == -1)) {
-      fd = open("/proc/uptime", O_RDONLY);
-
-      if (fd == -1) {
-         Warning(LGPFX" Failed to open /proc/uptime: %s\n",
-                 Err_Errno2String(errno));
-
-         return 0;
-      }
-
-      /* Try to swap ours in. If we lose the race, close our fd */
-      if (Atomic_ReadIfEqualWriteInt(&fdStorage, -1, fd) != -1) {
-         close(fd);
-      }
-
-      /* Get the winning fd - either ours or theirs, doesn't matter anymore */
-      fd = Atomic_ReadInt(&fdStorage);
-   }
-
-   ASSERT(fd != -1);
-
-   res = pread(fd, buf, sizeof buf - 1, 0);
-   if (res == -1) {
-      /*
-       * In case some kernel broke pread (like 2.6.28-rc1), have a fall-back
-       * instead of spewing the log.  This should be rare.  Using a lock
-       * around lseek and read does not work here as it will deadlock with
-       * allocTrack/fileTrack enabled.
-       */
-
-      if (Atomic_ReadIfEqualWrite(&logFailedPread, 1, 0) == 1) {
-         Warning(LGPFX" Failed to pread /proc/uptime: %s\n",
-                 Err_Errno2String(errno));
-      }
-      fd = open("/proc/uptime", O_RDONLY);
-      if (fd == -1) {
-         Warning(LGPFX" Failed to retry open /proc/uptime: %s\n",
-                 Err_Errno2String(errno));
-
-         return 0;
-      }
-      res = read(fd, buf, sizeof buf - 1);
-      close(fd);
-      if (res == -1) {
-         Warning(LGPFX" Failed to read /proc/uptime: %s\n",
-                 Err_Errno2String(errno));
-
-         return 0;
-      }
-   }
-   ASSERT(res < sizeof buf);
-   buf[res] = '\0';
-
-   if (sscanf(buf, "%lf", &uptime) != 1) {
-      Warning(LGPFX" Failed to parse /proc/uptime\n");
-
-      return 0;
-   }
-
-   return uptime * 1000 * 1000;
-#else
-NOT_IMPLEMENTED();
-#endif
-}
-
-
-#if !defined(__APPLE__)
-/*
- *----------------------------------------------------------------------
- *
- * HostinfoFindEntry --
- *
- *      Search a buffer for a pair `STRING <blanks> DIGITS'
- *	and return the number DIGITS, or 0 when fail.
- *
- * Results:
- *      TRUE on  success, FALSE on failure
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-static Bool 
-HostinfoFindEntry(char *buffer,         // IN: Buffer
-                  char *string,         // IN: String sought
-                  unsigned int *value)  // OUT: Value
-{
-   char *p = strstr(buffer, string);
-   unsigned int val;
-
-   if (p == NULL) {
-      return FALSE;
-   }
-
-   p += strlen(string);
-
-   while (*p == ' ' || *p == '\t') {
-      p++;
-   }
-   if (*p < '0' || *p > '9') {
-      return FALSE;
-   }
-
-   val = strtoul(p, NULL, 10);
-   if ((errno == ERANGE) || (errno == EINVAL)) {
-      return FALSE;
-   }
-
-   *value = val;
-
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HostinfoGetMemInfo --
- *
- *      Get some attribute from /proc/meminfo
- *      Return value is in KB.
- *
- * Results:
- *      TRUE on success, FALSE on failure
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-HostinfoGetMemInfo(char *name,           // IN:
-                   unsigned int *value)  // OUT:
-{
-   size_t len;
-   char   buffer[4096];
-
-   int fd = Posix_Open("/proc/meminfo", O_RDONLY);
-
-   if (fd == -1) {
-      Warning(LGPFX" %s: Unable to open /proc/meminfo\n", __FUNCTION__);
-
-      return FALSE;
-   }
-
-   len = read(fd, buffer, sizeof buffer - 1);
-   close(fd);
-
-   if (len == -1) {
-      return FALSE;
-   }
-
-   buffer[len] = '\0';
-
-   return HostinfoFindEntry(buffer, name, value);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoSysinfo --
- *
- *      Retrieve system information on a Linux system.
- *    
- * Results:
- *      TRUE on success: '*totalRam', '*freeRam', '*totalSwap' and '*freeSwap'
- *                       are set if not NULL
- *      FALSE on failure
- *
- * Side effects:
- *      None.
- *
- *      This seems to be a very expensive call: like 5ms on 1GHz P3 running
- *      RH6.1 Linux 2.2.12-20.  Yes, that's 5 milliseconds.  So caller should
- *      take care.  -- edward
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-HostinfoSysinfo(uint64 *totalRam,  // OUT: Total RAM in bytes
-                uint64 *freeRam,   // OUT: Free RAM in bytes
-                uint64 *totalSwap, // OUT: Total swap in bytes
-                uint64 *freeSwap)  // OUT: Free swap in bytes
-{
-#ifdef HAVE_SYSINFO
-   // Found in linux/include/kernel.h for a 2.5.6 kernel --hpreg
-   struct vmware_sysinfo {
-	   long uptime;			/* Seconds since boot */
-	   unsigned long loads[3];	/* 1, 5, and 15 minute load averages */
-	   unsigned long totalram;	/* Total usable main memory size */
-	   unsigned long freeram;	/* Available memory size */
-	   unsigned long sharedram;	/* Amount of shared memory */
-	   unsigned long bufferram;	/* Memory used by buffers */
-	   unsigned long totalswap;	/* Total swap space size */
-	   unsigned long freeswap;	/* swap space still available */
-	   unsigned short procs;	/* Number of current processes */
-	   unsigned short pad;		/* explicit padding for m68k */
-	   unsigned long totalhigh;	/* Total high memory size */
-	   unsigned long freehigh;	/* Available high memory size */
-	   unsigned int mem_unit;	/* Memory unit size in bytes */
-	   // Padding: libc5 uses this..
-	   char _f[20 - 2 * sizeof(long) - sizeof(int)];
-   };
-   struct vmware_sysinfo si;
-
-   if (sysinfo((struct sysinfo *)&si) < 0) {
-      return FALSE;
-   }
-   
-   if (si.mem_unit == 0) {
-      /*
-       * Kernel versions < 2.3.23. Those kernels used a smaller sysinfo
-       * structure, whose last meaningful field is 'procs' --hpreg
-       */
-
-      si.mem_unit = 1;
-   }
-
-   if (totalRam) {
-      *totalRam = (uint64)si.totalram * si.mem_unit;
-   }
-   if (freeRam) {
-      *freeRam = (uint64)si.freeram * si.mem_unit;
-   }
-   if (totalSwap) {
-      *totalSwap = (uint64)si.totalswap * si.mem_unit;
-   }
-   if (freeSwap) {
-      *freeSwap = (uint64)si.freeswap * si.mem_unit;
-   }
-
-   return TRUE;
-#else // ifdef HAVE_SYSINFO
-   NOT_IMPLEMENTED();
-#endif // ifdef HAVE_SYSINFO
-}
-#endif // ifndef __APPLE__
-
-
-#if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoGetLinuxMemoryInfoInPages --
- *
- *      Obtain the minimum memory to be maintained, total memory available,
- *      and free memory available on the host (Linux or COS) in pages.
- *
- * Results:
- *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,      // OUT:
-                                  unsigned int *maxSize,      // OUT:
-                                  unsigned int *currentSize)  // OUT:
-{
-   uint64 total; 
-   uint64 free;
-   unsigned int cached = 0;
-   
-   /*
-    * Note that the free memory provided by linux does not include buffer and
-    * cache memory. Linux tries to use the free memory to cache file. Most of
-    * those memory can be freed immediately when free memory is low,
-    * so for our purposes it should be counted as part of the free memory .
-    * There is no good way to collect the useable free memory in 2.2 and 2.4
-    * kernel.
-    *
-    * Here is our solution: The free memory we report includes cached memory.
-    * Mmapped memory is reported as cached. The guest RAM memory, which is
-    * mmaped to a ram file, therefore make up part of the cached memory. We
-    * exclude the size of the guest RAM from the amount of free memory that we
-    * report here. Since we don't know about the RAM size of other VMs, we
-    * leave that to be done in serverd/MUI.
-    */
-
-   if (HostinfoSysinfo(&total, &free, NULL, NULL) == FALSE) {
-      return FALSE;
-   }
-
-   /*
-    * Convert to pages and round up total memory to the nearest multiple of 8
-    * or 32 MB, since the "total" amount of memory reported by Linux is the
-    * total physical memory - amount used by the kernel.
-    */
-
-   if (total < (uint64)128 * 1024 * 1024) {
-      total = ROUNDUP(total, (uint64)8 * 1024 * 1024);
-   } else {
-      total = ROUNDUP(total, (uint64)32 * 1024 * 1024);
-   }
-
-   *minSize = 128; // XXX - Figure out this value
-   *maxSize = total / PAGE_SIZE;
-
-   HostinfoGetMemInfo("Cached:", &cached);
-   if (currentSize) {
-      *currentSize = free / PAGE_SIZE + cached / (PAGE_SIZE / 1024);
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoGetSwapInfoInPages --
- *
- *      Obtain the total swap and free swap on the host (Linux or COS) in
- *      pages.
- *
- * Results:
- *      TRUE on success: '*totalSwap' and '*freeSwap' are set if not NULL
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,  // OUT:
-                            unsigned int *freeSwap)   // OUT:
-{
-   uint64 total; 
-   uint64 free;
-
-   if (HostinfoSysinfo(NULL, NULL, &total, &free) == FALSE) {
-      return FALSE;
-   }
-
-   if (totalSwap != NULL) {
-      *totalSwap = total / PAGE_SIZE;
-   }
-
-   if (freeSwap != NULL) {
-      *freeSwap = free / PAGE_SIZE;
-   }
-
-   return TRUE;
-}
-#endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_GetMemoryInfoInPages --
- *
- *      Obtain the minimum memory to be maintained, total memory available,
- *      and free memory available on the host in pages.
- *
- * Results:
- *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
-                              unsigned int *maxSize,      // OUT:
-                              unsigned int *currentSize)  // OUT:
-{
-#if defined(__APPLE__)
-   mach_msg_type_number_t count;
-   vm_statistics_data_t stat;
-   kern_return_t error;
-   uint64_t memsize;
-   size_t memsizeSize = sizeof memsize;
-
-   /*
-    * Largely inspired by
-    * darwinsource-10.4.5/top-15/libtop.c::libtop_p_vm_sample().
-    */
-
-   count = HOST_VM_INFO_COUNT;
-   error = host_statistics(mach_host_self(), HOST_VM_INFO,
-                           (host_info_t) &stat, &count);
-
-   if (error != KERN_SUCCESS || count != HOST_VM_INFO_COUNT) {
-      Warning("%s: Unable to retrieve host vm stats.\n", __FUNCTION__);
-
-      return FALSE;
-   }
-
-   // XXX Figure out this value.
-   *minSize = 128;
-
-   /*
-    * XXX Hopefully this includes cached memory as well. We should check.
-    * No. It returns only completely used pages.
-    */
-
-   *currentSize = stat.free_count;
-
-   /*
-    * Adding up the stat values does not sum to 100% of physical memory.
-    * The correct value is available from sysctl so we do that instead.
-    */
-
-   if (sysctlbyname("hw.memsize", &memsize, &memsizeSize, NULL, 0) == -1) {
-      Warning("%s: Unable to retrieve host vm hw.memsize.\n", __FUNCTION__);
-
-      return FALSE;
-   }
-
-   *maxSize = memsize / PAGE_SIZE;
-   return TRUE;
-#elif defined(VMX86_SERVER)
-   uint64 total; 
-   uint64 free;
-   VMK_ReturnStatus status;
-
-   if (VmkSyscall_Init(FALSE, NULL, 0)) {
-      status = VMKernel_GetMemSize(&total, &free);
-      if (status == VMK_OK) {
-         *minSize = 128;
-         *maxSize = total / PAGE_SIZE;
-         *currentSize = free / PAGE_SIZE;
-
-         return TRUE;
-      }
-   }
-
-   return FALSE;
-#else
-   return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
-#endif
-}
-
-
-#ifdef VMX86_SERVER
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_GetCOSMemoryInfoInPages --
- *
- *      Obtain the minimum memory to be maintained, total memory available, and
- *      free memory available on the COS in pages.
- *
- * Results:
- *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,      // OUT:
-                                 unsigned int *maxSize,      // OUT:
-                                 unsigned int *currentSize)  // OUT:
-{
-   if (HostType_OSIsPureVMK()) {
-      return FALSE;
-   } else {
-      return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
-   }
-}
-#endif
-
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_SystemTimerUS --
- *
- *      This is the routine to use when performing timing measurements. It
- *      is valid (finish-time - start-time) only within a single process.
- *      Don't send a time obtained this way to another process and expect
- *      a relative time measurement to be correct.
- *
- *      This timer is documented to never go backwards.
- *
- * Results:
- *      Relative time in microseconds or zero if a failure.
- *
- *      Please note that the actual resolution of this "clock" is undefined -
- *      it varies between OSen and OS versions.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VmTimeType
-Hostinfo_SystemTimerUS(void)
-{
-#if defined(__APPLE__)
-   /*
-    * On Mac OS a commpage timer is used. Such timers are ensured to never
-    * go backwards so don't use the mutex technique - it's inefficient.
-    */
-
-   return Hostinfo_RawSystemTimerUS();
-#else
-   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-   VmTimeType curTime;
-   VmTimeType newTime;
-
-   static VmTimeType lastTimeBase;
-   static VmTimeType lastTimeRead;
-   static VmTimeType lastTimeReset;
-
-   pthread_mutex_lock(&mutex);  // use native mechanism, just like Windows
-
-   curTime = Hostinfo_RawSystemTimerUS();
-
-   if (curTime == 0) {
-      newTime = 0;
-      goto exit;
-   }
-
-   /*
-    * Don't let time be negative or go backward.  We do this by
-    * tracking a base and moving foward from there.
-    */
-
-   newTime = lastTimeBase + (curTime - lastTimeReset);
-
-   if (newTime < lastTimeRead) {
-      lastTimeReset = curTime;
-      lastTimeBase = lastTimeRead + 1;
-      newTime = lastTimeBase + (curTime - lastTimeReset);
-   }
-
-   lastTimeRead = newTime;
-
-exit:
-   pthread_mutex_unlock(&mutex);
-
-   return newTime;
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_GetModulePath --
- *
- *	Retrieve the full path to the executable. Not supported under VMvisor.
- *
- *      The value can be controlled by the invoking user, so the calling code
- *      should perform extra checks if it is going to use the value to
- *      open/exec content in a security-sensitive context.
- *
- * Results:
- *      On success: The allocated, NUL-terminated file path.
- *         Note: This path can be a symbolic or hard link; it's just one
- *         possible path to access the executable.
- *
- *      On failure: NULL.
- *
- * Side effects:
- *	None
- *
- *-----------------------------------------------------------------------------
- */
-
-Unicode
-Hostinfo_GetModulePath(uint32 priv)  // IN:
-{
-   Unicode path;
-
-#if defined(__APPLE__)
-   uint32_t pathSize = FILE_MAXPATH;
-#else
-   uid_t uid = -1;
-#endif
-
-   if ((priv != HGMP_PRIVILEGE) && (priv != HGMP_NO_PRIVILEGE)) {
-      Warning("%s: invalid privilege parameter\n", __FUNCTION__);
-
-      return NULL;
-   }
-
-#if defined(__APPLE__)
-   path = Util_SafeMalloc(pathSize);
-   if (_NSGetExecutablePath(path, &pathSize)) {
-      Warning(LGPFX" %s: _NSGetExecutablePath failed.\n", __FUNCTION__);
-      free(path);
-
-      return NULL;
-   }
-
-#else
-#if defined(VMX86_SERVER)
-   if (HostType_OSIsVMK()) {
-      return NULL;
-   }
-#endif
-
-   // "/proc/self/exe" only exists on Linux 2.2+.
-   ASSERT(Hostinfo_OSVersion(0) >= 2 && Hostinfo_OSVersion(1) >= 2);
-
-   if (priv == HGMP_PRIVILEGE) {
-      uid = Id_BeginSuperUser();
-   }
-
-   path = Posix_ReadLink("/proc/self/exe");
-
-   if (priv == HGMP_PRIVILEGE) {
-      Id_EndSuperUser(uid);
-   }
-
-   if (path == NULL) {
-      Warning(LGPFX" %s: readlink failed: %s\n", __FUNCTION__,
-              Err_Errno2String(errno));
-   }
-#endif
-
-   return path;
 }

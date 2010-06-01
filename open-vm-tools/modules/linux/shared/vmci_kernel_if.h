@@ -151,7 +151,6 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 #else
   typedef unsigned long VMCILockRank;
 
-  #define VMCI_LOCK_RANK_HIGHER_BH      0x8000
   #define VMCI_LOCK_RANK_HIGH_BH        0x4000
   #define VMCI_LOCK_RANK_MIDDLE_BH      0x2000
   #define VMCI_LOCK_RANK_LOW_BH         0x1000
@@ -188,10 +187,7 @@ typedef void * VMCIBuffer;
 
 typedef struct VMCIHost {
 #if defined(VMKERNEL)
-   World_ID vmmWorldID[2];   /*
-                              * First one is the active one and the second
-                              * one is shadow world during FSR.
-                              */
+   World_ID vmmWorldID;
 #elif defined(linux)
    wait_queue_head_t  waitQueue;
 #elif defined(__APPLE__)
@@ -226,13 +222,6 @@ Bool VMCIHost_WaitForCallLocked(VMCIHost *hostContext,
                                 Bool useBH);
 #ifdef VMKERNEL
 int VMCIHost_ContextToHostVmID(VMCIHost *hostContext, VMCIHostVmID *hostVmID);
-void VMCIHost_SetActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
-Bool VMCIHost_RemoveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
-Bool VMCIHost_IsActiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
-void VMCIHost_SetInactiveHnd(VMCIHost *hostContext, uintptr_t eventHnd);
-uint32 VMCIHost_NumHnds(VMCIHost *hostContext);
-uintptr_t VMCIHost_GetActiveHnd(VMCIHost *hostContext);
-void VMCIHost_SignalBitmap(VMCIHost *hostContext);
 #endif
 
 void *VMCI_AllocKernelMem(size_t size, int flags);
@@ -269,16 +258,6 @@ Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,
 int VMCI_CopyFromUser(void *dst, VA64 src, size_t len);
 #endif
 
-#if defined(_WIN32)
-void VMCI_InitHelperQueue(void);
-void VMCI_ExitHelperQueue(void);
-#endif // _WIN32
-
-typedef void (VMCIWorkFn)(void *data);
-Bool VMCI_CanScheduleDelayedWork(void);
-int VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,
-                             void *data);
-
 int VMCIMutex_Init(VMCIMutex *mutex);
 void VMCIMutex_Destroy(VMCIMutex *mutex);
 void VMCIMutex_Acquire(VMCIMutex *mutex);
@@ -306,13 +285,9 @@ void VMCI_FreePPNSet(PPNSet *ppnSet);
 int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 #endif
 
-#if !defined(VMX86_TOOLS)
-struct VMCIQueue;
-
-#if  !defined(VMKERNEL)
+#if !defined(VMX86_TOOLS) && !defined(VMKERNEL)
 struct PageStoreAttachInfo;
-struct VMCIQueue *VMCIHost_AllocQueue(uint64 queueSize);
-void VMCIHost_FreeQueue(struct VMCIQueue *queue, uint64 queueSize);
+struct VMCIQueue;
 
 int VMCIHost_GetUserMemory(struct PageStoreAttachInfo *attach,
                            struct VMCIQueue *produceQ,
@@ -320,14 +295,8 @@ int VMCIHost_GetUserMemory(struct PageStoreAttachInfo *attach,
 void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach,
                                 struct VMCIQueue *produceQ,
                                 struct VMCIQueue *detachQ);
-#endif // VMKERNEL
-#ifdef _WIN32
-void VMCIHost_InitQueueMutex(struct VMCIQueue *produceQ,
-                             struct VMCIQueue *consumeQ);
-void VMCIHost_AcquireQueueMutex(struct VMCIQueue *queue);
-void VMCIHost_ReleaseQueueMutex(struct VMCIQueue *queue);
-Bool VMCIHost_EnqueueToDevNull(struct VMCIQueue *queue);
 
+#ifdef _WIN32
 /*
  * Special routine used on the Windows platform to save a queue when
  * its backing memory goes away.
@@ -337,13 +306,8 @@ void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
                            struct VMCIQueue *produceQ,
                            struct VMCIQueue *detachQ,
                            const uint64 produceQSize);
-#else // _WIN32
-#  define VMCIHost_InitQueueMutex(_pq, _cq)
-#  define VMCIHost_AcquireQueueMutex(_q)
-#  define VMCIHost_ReleaseQueueMutex(_q)
-#  define VMCIHost_EnqueueToDevNull(_q) FALSE
 #endif // _WIN32
-#endif // !VMX86_TOOLS
+#endif // !VMX86_TOOLS && !VMKERNEL
 
 
 #endif // _VMCI_KERNEL_IF_H_

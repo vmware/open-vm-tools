@@ -20,7 +20,7 @@
  * hostinfo.h --
  *
  *      Interface to host-specific information functions
- *
+ *   
  */
 
 #if !defined(_HOSTINFO_H_)
@@ -73,9 +73,7 @@ extern Bool Hostinfo_OSIsSMP(void);
 extern Bool Hostinfo_OSIsWinNT(void);
 extern Bool Hostinfo_OSIsWow64(void);
 #endif
-extern Bool Hostinfo_NestingSupported(void);
 extern Bool Hostinfo_TouchBackDoor(void);
-extern Bool Hostinfo_TouchVirtualPC(void);
 extern Bool Hostinfo_TouchXen(void);
 extern char *Hostinfo_HypervisorCPUIDSig(void);
 
@@ -113,7 +111,7 @@ extern void Hostinfo_LogMemUsage(void);
  */
 
 typedef struct {
-   CpuidVendor vendor;
+   CpuidVendors vendor;
 
    uint32 version;
    uint8 family;
@@ -182,7 +180,7 @@ OS_TYPE Hostinfo_GetOSType(void);
 OS_DETAIL_TYPE Hostinfo_GetOSDetailType(void);
 
 Bool Hostinfo_GetPCFrequency(uint64 *pcHz);
-Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
+Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber, 
 				uint32 *currentMhz, uint32 *maxMhz);
 uint64 Hostinfo_SystemIdleTime(void);
 Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
@@ -190,8 +188,5 @@ Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
 void Hostinfo_LogLoadAverage(void);
 Bool Hostinfo_GetLoadAverage(uint32 *l);
 
-#ifdef __APPLE__
-size_t Hostinfo_GetKernelZoneElemSize(char const *name);
-#endif
 
 #endif /* ifndef _HOSTINFO_H_ */

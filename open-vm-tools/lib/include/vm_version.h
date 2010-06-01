@@ -21,9 +21,10 @@
 #define VM_VERSION_H
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_VMKDRIVERS
 #define INCLUDE_ALLOW_VMCORE
@@ -83,13 +84,11 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_DESKTOP)
-   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    7,1,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* WORKSTATION_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VCB)
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#elif defined(VMX86_VLICENSE)
-   #define PRODUCT_VERSION    1,1,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
@@ -159,6 +158,7 @@
  * When updating the ESX_VERSION* and ESX_RELEASE* macros, you will also
  * need to update:
  *
+ *   > bora/install/server/weasel/packages.xml
  *   > bora/support/gobuild/targets/server.py
  *   > console-os26/SOURCES/kernel-2.6.spec
  *
@@ -182,8 +182,8 @@
  * 4.0.0-1.7: update 1
  * 4.0.0-1.8: patch 3
  */
-#define ESX_VERSION_MAJOR "5"
-#define ESX_VERSION_MINOR "0"
+#define ESX_VERSION_MAJOR "4"
+#define ESX_VERSION_MINOR "1"
 #define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
@@ -195,18 +195,18 @@
 #define GSX_VERSION "e.x.p"
 #define VMSERVER_VERSION "e.x.p"
 #define WORKSTATION_VERSION_NUMBER "7.1.0" /* this version number should always match real WS version number */
-#define WORKSTATION_VERSION "e.x.p"
-#define WORKSTATION_ENTERPRISE_VERSION "e.x.p"
-#define ACE_MANAGEMENT_SERVER_VERSION "e.x.p"
+#define WORKSTATION_VERSION "7.1.0"
+#define WORKSTATION_ENTERPRISE_VERSION "7.1.0"
+#define ACE_MANAGEMENT_SERVER_VERSION "2.7.0"
 #define MUI_VERSION "4.1.0"
 #define CONSOLE_VERSION "4.1.0"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
 #define PLAYER_VERSION_NUMBER "3.1.0" /* this version number should always match real Player version number */
-#define PLAYER_VERSION "e.x.p"
+#define PLAYER_VERSION "3.1.0"
 #define V2V_VERSION "e.x.p"
 #define V2V_FILE_VERSION 1,0,0,0
-#define FUSION_VERSION "e.x.p"
+#define FUSION_VERSION "3.1.0"
 
 // These must match VIE_FILEVERSION above
 #define SYSIMAGE_VERSION "4.0.0"
@@ -217,16 +217,16 @@
 #define VPX_VERSION "e.x.p"
 #define WBC_VERSION "e.x.p"
 #define SDK_VERSION "4.1.0"
-#define FOUNDRY_VERSION "1.10.0"
-#define FOUNDRY_FILE_VERSION 1,10,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define FOUNDRY_VERSION "1.9.0"
+#define FOUNDRY_FILE_VERSION 1,9,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
-#define VLICENSE_VERSION "1.1.2"
+#define VLICENSE_VERSION "e.x.p"
 #define DDK_VERSION "e.x.p"
+#define VIM_API_VERSION "4.0"
 #define VIPERL_VERSION "1.1.0"
-#define RCLI_VERSION "4.5.0"
+#define RCLI_VERSION "4.0.0"
 #define VDM_VERSION "e.x.p"
-#define VMSAFE_VERSION        "1.1.0"
-#define VMSAFE_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VMSAFE_VERSION "e.x.p"
 #define VDDK_VERSION          "1.1.0"
 #define VDDK_FILE_VERSION      1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "1.0.0"
@@ -238,10 +238,6 @@
 #define MAKESTR(x) #x
 #define XSTR(x) MAKESTR(x)
 #endif
-
-// This extra version define is here so the Makefiles can easily pick it up.
-// See the VMRC_PLUGIN_VERSION section in /mk/defs-onetime.mk
-#define VMRC_PLUGIN_VERSION_NUMBER "2.5.0"
 
 #define VMRC_PLUGIN_VERSION_MAJOR 2
 #define VMRC_PLUGIN_VERSION_MINOR 5
@@ -257,16 +253,6 @@
  * The current Tools version, derived from vm_tools_version.h. Do not modify this.
  */
 #define TOOLS_VERSION TOOLS_VERSION_CURRENT_STR
-
-/*
- * USB Arbitrator Component version. This encompasses the USB Arbitrator, hcmon, and
- * vmusb. This is used by the installer to determine if an upgrade should take place. The
- * major version should be bumped with every major hosted release (and the minor to 0)
- * while the minor version should be bumped with each change affecting the USB Arbitrator.
- *
- * Currently set to 2.x for the hosted10 branch.
- */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "2.0"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
@@ -433,6 +419,9 @@
 #define CONFIG_VERSION_MSNAP            "8"     /* Multiple Snapshots */
 #define CONFIG_VERSION_WS5              "8"     /* WS5.0 */
 
+#define VMVISOR_VERSION "4.1.0"
+
+
 /*
  * Product version strings allows UIs to refer to a single place for specific
  * versions of product names.  These do not include a "VMware" prefix.
@@ -443,9 +432,9 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_3 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.x"
 #define PRODUCT_VERSION_SCALABLE_SERVER_30 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.0"
 #define PRODUCT_VERSION_SCALABLE_SERVER_31 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 3.5"
-#define PRODUCT_VERSION_SCALABLE_SERVER_40 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 4.0"
+#define PRODUCT_VERSION_SCALABLE_SERVER_40 PRODUCT_SCALABLE_SERVER_BRIEF_NAME " 4.x"
 #define PRODUCT_VERSION_WGS_1 PRODUCT_WGS_BRIEF_NAME " 1.x"
-#define PRODUCT_VERSION_WGS_2 PRODUCT_WGS_BRIEF_NAME " 2.0"
+#define PRODUCT_VERSION_WGS_2 PRODUCT_WGS_BRIEF_NAME " 2.x"
 #define PRODUCT_VERSION_GSX_2 PRODUCT_GSX_BRIEF_NAME " 2.x"
 #define PRODUCT_VERSION_GSX_3 PRODUCT_GSX_BRIEF_NAME " 3.x"
 #define PRODUCT_VERSION_WORKSTATION_4 PRODUCT_WORKSTATION_BRIEF_NAME " 4.x"
@@ -453,14 +442,13 @@
 #define PRODUCT_VERSION_WORKSTATION_6 PRODUCT_WORKSTATION_BRIEF_NAME " 6.0"
 #define PRODUCT_VERSION_WORKSTATION_65 PRODUCT_WORKSTATION_BRIEF_NAME " 6.5"
 #define PRODUCT_VERSION_WORKSTATION_7 PRODUCT_WORKSTATION_BRIEF_NAME " 7.x"
-#define PRODUCT_VERSION_WORKSTATION_80 PRODUCT_WORKSTATION_BRIEF_NAME " 8.0"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_1 "ACE 1.x"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_2 "ACE 2.0"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_25 "ACE 2.5"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
-#define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.0"
-#define PRODUCT_VERSION_MAC_DESKTOP_3 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 3.0"
+#define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_3 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 3.x"
 
 
 /*

@@ -26,9 +26,10 @@
 #define _VM_BASIC_MATH_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_VMKDRIVERS
 #define INCLUDE_ALLOW_VMK_MODULE
@@ -45,7 +46,7 @@ RatioOf(uint32 numer1, uint32 numer2, uint32 denom)
 {
    uint64 numer = (uint64)numer1 * numer2;
    /* Calculate "(numer1 * numer2) / denom" avoiding round-off errors. */
-#if defined(VMM) || !(defined(__i386__) || defined(__x86_64__))
+#if defined(VMM)
    return numer / denom;
 #else
    uint32 ratio;

@@ -4181,7 +4181,7 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
 
    /* Ensure we got an entire header. */
    if (HgfsValidateReply(req, sizeof reply->header) != 0) {
-      DEBUG(VM_DEBUG_FAIL, "%s: invalid reply received.\n", __func__);
+      DEBUG(VM_DEBUG_FAIL, "%s: invalid reply received.\n"i, __func__);
       ret = EPROTO;
       goto out;
    }
@@ -4213,6 +4213,7 @@ HgfsDoRead(HgfsSuperInfo *sip,  // IN: Superinfo pointer
       if (ret) {
          DEBUG(VM_DEBUG_FAIL, "%s: uiomove failed, rc: %d\n.",
                __func__, ret);
+         ret = EIO;
          goto out;
       }
    }
@@ -4295,6 +4296,7 @@ HgfsDoWrite(HgfsSuperInfo *sip, // IN: Superinfo pointer
    if (ret) {
       DEBUG(VM_DEBUG_FAIL,
             "%s: uiomove(9F) failed copying data from user.\n", __func__);
+      ret = EIO;
       /* We need to set the request state to error before destroying. */
       req->state = HGFS_REQ_ERROR;
       goto out;

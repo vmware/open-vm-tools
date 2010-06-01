@@ -27,7 +27,8 @@
 
 #include <linux/errno.h>
 #include <linux/pagemap.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
 #include <linux/namei.h>
 #endif
 
@@ -49,6 +50,26 @@
 #include "request.h"
 #include "fsutil.h"
 #include "vm_assert.h"
+
+/*
+ * The inode_operations structure changed in 2.5.18:
+ * before:
+ * . 'getattr' was defined but unused
+ * . 'revalidate' was defined and used
+ * after:
+ * 1) 'getattr' changed and became used
+ * 2) 'revalidate' was removed
+ *
+ * Note: Mandrake backported 1) but not 2) starting with 2.4.8-26mdk
+ *
+ *   --hpreg
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 18)
+#   define HGFS_GETATTR_ONLY 1
+#else
+#   undef HGFS_GETATTR_ONLY
+#endif
+
 
 /* Private functions. */
 static int HgfsDelete(struct inode *dir,
@@ -72,6 +93,7 @@ static int HgfsPackSymlinkCreateRequest(struct dentry *dentry,
                                         HgfsReq *req);
 
 /* HGFS inode operations. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static int HgfsCreate(struct inode *dir,
                       struct dentry *dentry,
                       int mode,
@@ -79,6 +101,13 @@ static int HgfsCreate(struct inode *dir,
 static struct dentry *HgfsLookup(struct inode *dir,
                                  struct dentry *dentry,
                                  struct nameidata *nd);
+#else
+static int HgfsCreate(struct inode *dir,
+                      struct dentry *dentry,
+                      int mode);
+static struct dentry *HgfsLookup(struct inode *dir,
+                                 struct dentry *dentry);
+#endif
 static int HgfsMkdir(struct inode *dir,
                      struct dentry *dentry,
                      int mode);
@@ -93,7 +122,8 @@ static int HgfsRename(struct inode *oldDir,
 static int HgfsSymlink(struct inode *dir,
                        struct dentry *dentry,
                        const char *symname);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
 static int HgfsPermission(struct inode *inode,
                           int mask,
                           struct nameidata *nameidata);
@@ -101,9 +131,11 @@ static int HgfsPermission(struct inode *inode,
 static int HgfsPermission(struct inode *inode,
                           int mask);
 #endif
+#ifdef HGFS_GETATTR_ONLY
 static int HgfsGetattr(struct vfsmount *mnt,
                        struct dentry *dentry,
                        struct kstat *stat);
+#endif
 
 #define HGFS_CREATE_DIR_MASK (HGFS_CREATE_DIR_VALID_FILE_NAME | \
                               HGFS_CREATE_DIR_VALID_SPECIAL_PERMS | \
@@ -127,8 +159,13 @@ struct inode_operations HgfsDirInodeOperations = {
    .permission  = HgfsPermission,
    .setattr     = HgfsSetattr,
 
+#ifdef HGFS_GETATTR_ONLY
    /* Optional */
    .getattr     = HgfsGetattr,
+#else
+   /* Optional */
+   .revalidate  = HgfsRevalidate,
+#endif
 };
 
 /* HGFS inode operations structure for files. */
@@ -136,8 +173,13 @@ struct inode_operations HgfsFileInodeOperations = {
    .permission  = HgfsPermission,
    .setattr     = HgfsSetattr,
 
+#ifdef HGFS_GETATTR_ONLY
    /* Optional */
    .getattr     = HgfsGetattr,
+#else
+   /* Optional */
+   .revalidate  = HgfsRevalidate,
+#endif
 };
 
 /*
@@ -238,7 +280,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
    }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(fileName, HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize),
+   if (HgfsBuildPath(fileName, HGFS_NAME_BUFFER_SIZET(reqSize),
                      dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: build path failed\n"));
       result = -EINVAL;
@@ -249,7 +291,7 @@ HgfsDelete(struct inode *dir,      // IN: Parent dir of file/dir to delete
 
    /* Convert to CP name. */
    result = CPName_ConvertTo(fileName,
-                             HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize),
+                             HGFS_NAME_BUFFER_SIZET(reqSize),
                              fileName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDelete: CP conversion failed\n"));
@@ -449,7 +491,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
       }
       requestV3->reserved = 0;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(requestV3);
-      reqBufferSize = HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
 
       /*
        * We only support changing these attributes:
@@ -552,7 +594,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
 	 fileNameLength = &requestV2->fileName.length;
       }
       reqSize = sizeof *requestV2;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(req->bufferSize, requestV2);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(requestV2);
 
       /*
        * We only support changing these attributes:
@@ -626,7 +668,7 @@ HgfsPackSetattrRequest(struct iattr *iattr,   // IN: Inode attrs to update from
       fileName = request->fileName.name;
       fileNameLength = &request->fileName.length;
       reqSize = sizeof *request;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(req->bufferSize, request);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(request);
 
 
       /*
@@ -811,7 +853,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
 
    /* Build full name to send to server. */
    if (HgfsBuildPath(fileName,
-                     req->bufferSize - (requestSize - 1),
+                     HGFS_PACKET_MAX - (requestSize - 1),
                      dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackCreateDirRequest: build path "
               "failed\n"));
@@ -822,7 +864,7 @@ HgfsPackCreateDirRequest(struct dentry *dentry, // IN: Directory to create
 
    /* Convert to CP name. */
    result = CPName_ConvertTo(fileName,
-                             req->bufferSize - (requestSize - 1),
+                             HGFS_PACKET_MAX - (requestSize - 1),
                              fileName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackCreateDirRequest: CP "
@@ -944,11 +986,18 @@ HgfsTruncatePages(struct inode *inode, // IN: Inode whose page to truncate
  *----------------------------------------------------------------------
  */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static int
 HgfsCreate(struct inode *dir,     // IN: Parent dir to create in
            struct dentry *dentry, // IN: Dentry containing name to create
            int mode,              // IN: Mode of file to be created
 	   struct nameidata *nd)  // IN: Intent, vfsmount, ...
+#else
+static int
+HgfsCreate(struct inode *dir,     // IN: Parent dir to create in
+           struct dentry *dentry, // IN: Dentry containing name to create
+           int mode)              // IN: Mode of file to be created
+#endif
 {
    HgfsAttrInfo attr;
    int result;
@@ -1018,10 +1067,16 @@ HgfsCreate(struct inode *dir,     // IN: Parent dir to create in
  *----------------------------------------------------------------------
  */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
 static struct dentry *
 HgfsLookup(struct inode *dir,      // IN: Inode of parent directory
            struct dentry *dentry,  // IN: Dentry containing name to look up
-           struct nameidata *nd)   // IN: Intent, vfsmount, ...
+	   struct nameidata *nd)   // IN: Intent, vfsmount, ...
+#else
+static struct dentry *
+HgfsLookup(struct inode *dir,      // IN: Inode of parent directory
+           struct dentry *dentry)  // IN: Dentry containing name to look up
+#endif
 {
    HgfsAttrInfo attr;
    struct inode *inode;
@@ -1364,7 +1419,7 @@ retry:
    }
 
    /* Build full old name to send to server. */
-   if (HgfsBuildPath(oldName, HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize),
+   if (HgfsBuildPath(oldName, HGFS_NAME_BUFFER_SIZET(reqSize),
                      oldDentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: build old path failed\n"));
       result = -EINVAL;
@@ -1375,7 +1430,7 @@ retry:
 
    /* Convert old name to CP format. */
    result = CPName_ConvertTo(oldName,
-                             HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize),
+                             HGFS_NAME_BUFFER_SIZET(reqSize),
                              oldName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: oldName CP "
@@ -1413,7 +1468,7 @@ retry:
       newNameLength = &newNameP->length;
    }
 
-   if (HgfsBuildPath(newName, HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize) - result,
+   if (HgfsBuildPath(newName, HGFS_NAME_BUFFER_SIZET(reqSize) - result,
                      newDentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: build new path failed\n"));
       result = -EINVAL;
@@ -1424,7 +1479,7 @@ retry:
 
    /* Convert new name to CP format. */
    result = CPName_ConvertTo(newName,
-                             HGFS_NAME_BUFFER_SIZET(req->bufferSize, reqSize) - result,
+                             HGFS_NAME_BUFFER_SIZET(reqSize) - result,
                              newName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRename: newName CP "
@@ -1545,7 +1600,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
       return -EPROTO;
    }
 
-   if (HgfsBuildPath(symlinkName, req->bufferSize - (requestSize - 1),
+   if (HgfsBuildPath(symlinkName, HGFS_PACKET_MAX - (requestSize - 1),
                      dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: build symlink path "
               "failed\n"));
@@ -1557,7 +1612,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
 
    /* Convert symlink name to CP format. */
    result = CPName_ConvertTo(symlinkName,
-                             req->bufferSize - (requestSize - 1),
+                             HGFS_PACKET_MAX - (requestSize - 1),
                              symlinkName);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: symlinkName CP "
@@ -1597,7 +1652,7 @@ HgfsPackSymlinkCreateRequest(struct dentry *dentry,   // IN: File pointer for th
    targetNameBytes = strlen(symname) + 1;
 
    /* Copy target name into request packet. */
-   if (targetNameBytes > req->bufferSize - (requestSize - 1)) {
+   if (targetNameBytes > HGFS_PACKET_MAX - (requestSize - 1)) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackSymlinkCreateRequest: target name is too "
               "big\n"));
       return -EINVAL;
@@ -1717,6 +1772,7 @@ out:
  *----------------------------------------------------------------------------
  */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 static int
 HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
               int mask)              // IN: access mode requested.
@@ -1756,6 +1812,7 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
    }
    return ret;
 }
+#endif
 
 
 /*
@@ -1775,33 +1832,41 @@ HgfsAccessInt(struct dentry *dentry, // IN: dentry to check access for
  *----------------------------------------------------------------------
  */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
 static int
-HgfsPermission(struct inode *inode,
-               int mask
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
-               , struct nameidata *nd
+HgfsPermission(struct inode *inode, int mask, struct nameidata *nd)
+#else
+static int
+HgfsPermission(struct inode *inode, int mask)
 #endif
-               )
 {
    LOG(8, ("VMware hgfs: %s: inode->mode: %8x mask: %8x\n", __func__,
            inode->i_mode, mask));
    /*
     * For sys_access, we go to the host for permission checking;
     * otherwise return 0.
+    *
+    * XXX When the kernel version is less than 2.6.0, we didn't have a good way
+    * to tell whether this is for sys_access. Simply returning 0 is not what we
+    * want. Need to fix it.
     */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
    if (nd != NULL && (nd->flags & LOOKUP_ACCESS)) { /* For sys_access. */
 #else
    if (mask & MAY_ACCESS) { /* For sys_access. */
 #endif
-      struct dentry *dentry = list_entry(inode->i_dentry.next,
-                                         struct dentry, d_alias);
+      struct dentry *dentry;
+      dentry = list_entry(inode->i_dentry.next, struct dentry, d_alias);
       return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
    }
+#endif
    return 0;
 }
 
 
+#ifdef HGFS_GETATTR_ONLY
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1841,6 +1906,7 @@ HgfsGetattr(struct vfsmount *mnt,  // Unused
 
    return 0;
 }
+#endif
 
 /*
  * Public function implementations.

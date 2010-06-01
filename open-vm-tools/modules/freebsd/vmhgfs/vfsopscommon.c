@@ -92,7 +92,7 @@ HgfsStatfsInt(struct vnode *vp,          // IN: vnode
    request->reserved = 0;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
 
    fullPath = HGFS_VP_TO_FILENAME(vp);
    fullPathLen = HGFS_VP_TO_FILENAME_LENGTH(vp);

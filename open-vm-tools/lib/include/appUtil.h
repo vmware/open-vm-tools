@@ -31,7 +31,7 @@ extern "C" {
 #endif // __cplusplus
 
 #include "vmware.h"
-#include "vmware/guestrpc/capabilities.h"
+#include "guestCaps.h"
 
 #ifdef __cplusplus
 };
@@ -105,8 +105,9 @@ AppUtil_GetIconIndexAndLocationForShortcut(const TCHAR *shortcut,
 };
 #endif // __cplusplus
 
-#else // not _WIN32
+#endif //_WIN32
 
+#if defined(linux)
 #include <glib.h>
 
 void AppUtil_Init(void);

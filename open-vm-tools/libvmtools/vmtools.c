@@ -29,19 +29,21 @@
 #include <glib.h>
 #if defined(_WIN32)
 #  include <windows.h>
+#  include "coreDump.h"
 #  include "netutil.h"
 #endif
 
-#include "vmware.h"
+#include "vm_assert.h"
+#include "vmtools.h"
 #include "wiper.h"
-#include "vmtoolsInt.h"
-#include "vmware/tools/utils.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
 #include "vmtoolslib_version.h"
 VM_EMBED_VERSION(VMTOOLSLIB_VERSION_STRING);
 #endif
+
+extern void VMTools_ResetLogging(gboolean cleanDefault);
 
 
 /**
@@ -85,12 +87,15 @@ VMToolsDllInit(void *lib)
    Bool success;
 #if defined(_WIN32)
    WiperInitData wiperData;
+   CoreDump_SetUnhandledExceptionFilter();
+   VMTools_ResetLogging(FALSE);
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);
-   ASSERT(success);
+   g_assert(success);
    success = Wiper_Init(&wiperData);
-   ASSERT(success);
+   g_assert(success);
 #else
+   VMTools_ResetLogging(FALSE);
    success = Wiper_Init(NULL);
    ASSERT(success);
 #endif
@@ -110,7 +115,7 @@ VMToolsDllFini(void)
 #if defined(_WIN32)
    NetUtil_FreeIpHlpApiDll();
 #endif
-   VMToolsMsgCleanup();
+   VMTools_ResetLogging(TRUE);
 }
 
 

@@ -118,7 +118,6 @@ enum {
    VIX_E_LICENSE                                = 32,
    VIX_E_VM_HOST_DISCONNECTED                   = 34,
    VIX_E_AUTHENTICATION_FAIL                    = 35,
-   VIX_E_HOST_CONNECTION_LOST                   = 36,
 
    /* Handle Errors */
    VIX_E_INVALID_HANDLE                         = 1000,
@@ -176,7 +175,6 @@ enum {
    VIX_E_TEMPLATE_VM                            = 4003,
    VIX_E_VM_ALREADY_LOADED                      = 4004,
    VIX_E_VM_ALREADY_UP_TO_DATE                  = 4006,
-   VIX_E_VM_UNSUPPORTED_GUEST                   = 4011,
 
    /* Property Errors */
    VIX_E_UNRECOGNIZED_PROPERTY                  = 6000,
@@ -184,6 +182,7 @@ enum {
    VIX_E_READ_ONLY_PROPERTY                     = 6002,
    VIX_E_MISSING_REQUIRED_PROPERTY              = 6003,
    VIX_E_INVALID_SERIALIZED_DATA                = 6004,
+   VIX_E_PROPERTY_TYPE_MISMATCH                 = 6005,
 
    /* Completion Errors */
    VIX_E_BAD_VM_INDEX                           = 8000,
@@ -214,9 +213,7 @@ enum {
    VIX_E_SNAPSHOT_MEMORY_ON_INDEPENDENT_DISK    = 13018,
    VIX_E_SNAPSHOT_MAXSNAPSHOTS                  = 13019,
    VIX_E_SNAPSHOT_MIN_FREE_SPACE                = 13020,
-   VIX_E_SNAPSHOT_HIERARCHY_TOODEEP             = 13021,
-   VIX_E_SNAPSHOT_RRSUSPEND                     = 13022,
-   VIX_E_SNAPSHOT_NOT_REVERTABLE                = 13024,
+   VIX_E_SNAPSHOT_RRSUSPEND                     = 13021,
 
    /* Host Errors */
    VIX_E_HOST_DISK_INVALID_VALUE                = 14003,
@@ -319,73 +316,6 @@ enum {
    VIX_E_WRAPPER_VERSION_NOT_FOUND              = 22002,
    VIX_E_WRAPPER_SERVICEPROVIDER_NOT_FOUND      = 22003,
    VIX_E_WRAPPER_PLAYER_NOT_INSTALLED           = 22004,
-   VIX_E_WRAPPER_RUNTIME_NOT_INSTALLED          = 22005,
-   VIX_E_WRAPPER_MULTIPLE_SERVICEPROVIDERS      = 22006,
-
-   /* FuseMnt errors*/
-   VIX_E_MNTAPI_MOUNTPT_NOT_FOUND               = 24000,
-   VIX_E_MNTAPI_MOUNTPT_IN_USE                  = 24001,
-   VIX_E_MNTAPI_DISK_NOT_FOUND                  = 24002,
-   VIX_E_MNTAPI_DISK_NOT_MOUNTED                = 24003,
-   VIX_E_MNTAPI_DISK_IS_MOUNTED                 = 24004,
-   VIX_E_MNTAPI_DISK_NOT_SAFE                   = 24005,
-   VIX_E_MNTAPI_DISK_CANT_OPEN                  = 24006,
-   VIX_E_MNTAPI_CANT_READ_PARTS                 = 24007,
-   VIX_E_MNTAPI_UMOUNT_APP_NOT_FOUND            = 24008,
-   VIX_E_MNTAPI_UMOUNT                          = 24009,
-   VIX_E_MNTAPI_NO_MOUNTABLE_PARTITONS          = 24010,
-   VIX_E_MNTAPI_PARTITION_RANGE                 = 24011,
-   VIX_E_MNTAPI_PERM                            = 24012,
-   VIX_E_MNTAPI_DICT                            = 24013,
-   VIX_E_MNTAPI_DICT_LOCKED                     = 24014,
-   VIX_E_MNTAPI_OPEN_HANDLES                    = 24015,
-   VIX_E_MNTAPI_CANT_MAKE_VAR_DIR               = 24016,
-   VIX_E_MNTAPI_NO_ROOT                         = 24017,
-   VIX_E_MNTAPI_LOOP_FAILED                     = 24018,
-   VIX_E_MNTAPI_DAEMON                          = 24019,
-   VIX_E_MNTAPI_INTERNAL                        = 24020,
-   VIX_E_MNTAPI_SYSTEM                          = 24021,
-   VIX_E_MNTAPI_NO_CONNECTION_DETAILS           = 24022,
-   /* FuseMnt errors: Do not exceed 24299 */
-
-   /* VixMntapi errors*/
-   VIX_E_MNTAPI_INCOMPATIBLE_VERSION            = 24300,
-   VIX_E_MNTAPI_OS_ERROR                        = 24301,
-   VIX_E_MNTAPI_DRIVE_LETTER_IN_USE             = 24302,
-   VIX_E_MNTAPI_DRIVE_LETTER_ALREADY_ASSIGNED   = 24303,
-   VIX_E_MNTAPI_VOLUME_NOT_MOUNTED              = 24304,
-   VIX_E_MNTAPI_VOLUME_ALREADY_MOUNTED          = 24305,
-   VIX_E_MNTAPI_FORMAT_FAILURE                  = 24306,
-   VIX_E_MNTAPI_NO_DRIVER                       = 24307,
-   VIX_E_MNTAPI_ALREADY_OPENED                  = 24308,
-   VIX_E_MNTAPI_ITEM_NOT_FOUND                  = 24309,
-   VIX_E_MNTAPI_UNSUPPROTED_BOOT_LOADER         = 24310,
-   VIX_E_MNTAPI_UNSUPPROTED_OS                  = 24311,
-   VIX_E_MNTAPI_CODECONVERSION                  = 24312,
-   VIX_E_MNTAPI_REGWRITE_ERROR                  = 24313,
-   VIX_E_MNTAPI_UNSUPPORTED_FT_VOLUME           = 24314,
-   VIX_E_MNTAPI_PARTITION_NOT_FOUND             = 24315,
-   VIX_E_MNTAPI_PUTFILE_ERROR                   = 24316,
-   VIX_E_MNTAPI_GETFILE_ERROR                   = 24317,
-   VIX_E_MNTAPI_REG_NOT_OPENED                  = 24318,
-   VIX_E_MNTAPI_REGDELKEY_ERROR                 = 24319,
-   VIX_E_MNTAPI_CREATE_PARTITIONTABLE_ERROR     = 24320,
-   VIX_E_MNTAPI_OPEN_FAILURE                    = 24321,
-   VIX_E_MNTAPI_VOLUME_NOT_WRITABLE             = 24322,
-
-   /* Network Errors */
-   VIX_E_NET_HTTP_UNSUPPORTED_PROTOCOL     = 30001,
-   VIX_E_NET_HTTP_URL_MALFORMAT            = 30003,
-   VIX_E_NET_HTTP_COULDNT_RESOLVE_PROXY    = 30005,
-   VIX_E_NET_HTTP_COULDNT_RESOLVE_HOST     = 30006,
-   VIX_E_NET_HTTP_COULDNT_CONNECT          = 30007,
-   VIX_E_NET_HTTP_HTTP_RETURNED_ERROR      = 30022,
-   VIX_E_NET_HTTP_OPERATION_TIMEDOUT       = 30028,
-   VIX_E_NET_HTTP_SSL_CONNECT_ERROR        = 30035,
-   VIX_E_NET_HTTP_TOO_MANY_REDIRECTS       = 30047,
-   VIX_E_NET_HTTP_TRANSFER                 = 30200,
-   VIX_E_NET_HTTP_SSL_SECURITY             = 30201,
-   VIX_E_NET_HTTP_GENERIC                  = 30202,
 };
 
 // {{ End VIX_ERROR }}
@@ -438,8 +368,6 @@ enum {
    VIX_PROPERTY_VM_VMTEAM_PATHNAME                    = 105, 
    VIX_PROPERTY_VM_MEMORY_SIZE                        = 106,
    VIX_PROPERTY_VM_READ_ONLY                          = 107,
-   VIX_PROPERTY_VM_NAME                               = 108,
-   VIX_PROPERTY_VM_GUESTOS                            = 109,
    VIX_PROPERTY_VM_IN_VMTEAM                          = 128,
    VIX_PROPERTY_VM_POWER_STATE                        = 129,
    VIX_PROPERTY_VM_TOOLS_STATE                        = 152,
@@ -474,7 +402,6 @@ enum {
    VIX_PROPERTY_JOB_RESULT_SCREEN_IMAGE_DATA          = 3059,
    VIX_PROPERTY_JOB_RESULT_FILE_SIZE                  = 3061,
    VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME              = 3062,
-   VIX_PROPERTY_JOB_RESULT_EXTRA_ERROR_INFO           = 3084,
 
    /* Event properties; these are sent in the moreEventInfo for some events. */
    VIX_PROPERTY_FOUND_ITEM_LOCATION                   = 4010,

@@ -31,7 +31,7 @@
 #include "syncDriver.h"
 #include "vixCommands.h"
 #include "vixPluginInt.h"
-#include "vmware/tools/utils.h"
+#include "vmtools.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"

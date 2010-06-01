@@ -14,12 +14,15 @@
  *
  *********************************************************/
 
-/*
+/* 
  * os.c --
  *
- *      Wrappers for Solaris system functions required by "vmmemctl".
+ * 	Wrappers for Solaris system functions required by "vmmemctl".
  */
 
+/*
+ * Includes
+ */
 #include <sys/types.h>
 #include <sys/cred.h>
 #include <sys/file.h>
@@ -38,8 +41,6 @@
 #include <sys/ksynch.h>
 
 #include "os.h"
-#include "vmballoon.h"
-#include "vm_assert.h"
 #include "balloon_def.h"
 #include "vmballoon_kstats.h"
 #include "vmmemctl.h"
@@ -55,7 +56,7 @@ extern void memscrub_disable(void);
  * Constants
  */
 
-#define ONE_SECOND_IN_MICROSECONDS 1000000
+#define ONE_SECOND_IN_MICROSECONDS	1000000
 
 /*
  * Types
@@ -72,7 +73,7 @@ typedef struct {
    kcondvar_t cv;
 
    /* registered state */
-   OSTimerHandler *handler;
+   os_timer_handler handler;
    void *data;
    int period;
 } os_timer;
@@ -103,125 +104,31 @@ typedef struct {
 static os_state global_state;
 static dev_info_t *vmmemctl_dip;	/* only one instance */
 
-
 /*
- *-----------------------------------------------------------------------------
- *
- * OS_Malloc --
- *
- *      Allocates kernel memory.
- *
- * Results:
- *      On success: Pointer to allocated memory
- *      On failure: NULL
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * Simple Wrappers
  */
 
-void *
-OS_Malloc(size_t size) // IN
+void *os_kmalloc_nosleep(unsigned int size)
 {
    return (kmem_alloc(size, KM_NOSLEEP));
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Free --
- *
- *      Free allocated kernel memory.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_Free(void *ptr,   // IN
-        size_t size) // IN
+void os_kfree(void *obj, unsigned int size)
 {
-   kmem_free(ptr, size);
+   kmem_free(obj, size);
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_MemZero --
- *
- *      Fill a memory location with 0s.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_MemZero(void *ptr,   // OUT
-           size_t size) // IN
+void os_bzero(void *b, unsigned int len)
 {
-   bzero(ptr, size);
+   bzero(b, len);
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_MemCopy --
- *
- *      Copy a memory portion into another location.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_MemCopy(void *dest,      // OUT
-           const void *src, // IN
-           size_t size)     // IN
+void os_memcpy(void *dest, const void *src, unsigned int size)
 {
    bcopy(src, dest, size);
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Snprintf --
- *
- *      Print a string into a bounded memory location.
- *
- * Results:
- *      Number of character printed including trailing \0.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-OS_Snprintf(char *buf,          // OUT
-            size_t size,        // IN
-            const char *format, // IN
-            ...)                // IN
+int os_sprintf(char *str, const char *format, ...)
 {
    ASSERT(0);
    /*
@@ -232,76 +139,29 @@ OS_Snprintf(char *buf,          // OUT
    return 0;
 }
 
-
 /*
- *-----------------------------------------------------------------------------
- *
- * OS_Identity --
- *
- *      Returns an identifier for the guest OS family.
- *
- * Results:
- *      The identifier
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * System-Dependent Operations
  */
 
-BalloonGuest
-OS_Identity(void)
+char *os_identity(void)
 {
-   return BALLOON_GUEST_SOLARIS;
+   return "solaris";
 }
-
 
 /*
- *-----------------------------------------------------------------------------
+ * Predict the maximum achievable balloon size.
  *
- * OS_ReservedPageGetLimit --
- *
- *      Predict the maximum achievable balloon size.
- *
- * Results:
- *      Currently we just return the total memory pages.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * Currently we just return the total memory pages.
  */
-
-unsigned long
-OS_ReservedPageGetLimit(void)
+unsigned int os_predict_max_balloon_pages(void)
 {
-   return maxmem;
+   return(maxmem);
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_ReservedPageGetPPN --
- *
- *      Convert a page handle (of a physical page previously reserved with
- *      OS_ReservedPageAlloc()) to a ppn.
- *
- * Results:
- *      The ppn.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-unsigned long
-OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
+unsigned long os_addr_to_ppn(unsigned long addr)
 {
-   return page_pptonum(((os_page *)handle)->pp);
+   return (ulong_t)page_pptonum(((os_page *)addr)->pp);
 }
-
 
 /*
  * NOTE: cast id before shifting to avoid overflow (id_t is 32 bits,
@@ -312,38 +172,19 @@ OS_ReservedPageGetPPN(PageHandle handle) // IN: A valid page handle
 #define idtooff(id)	((u_offset_t)(id) << PAGESHIFT)
 #define offtoid(off)	((id_t)((off) >> PAGESHIFT))
 
-
 /*
- *-----------------------------------------------------------------------------
+ * This is a bit ugly.  In order to allocate a page, we need a vnode to
+ * hang it from and a unique offset within that vnode.  We do this by
+ * using our own vnode (used only to hang pages from) and allocating
+ * offsets by use of the id space allocator.  The id allocator hands
+ * us back unique integers between 0 and INT_MAX; we can then use those
+ * as page indices into our fake vnode space.
  *
- * OS_ReservedPageAlloc --
- *
- *      Reserve a physical page for the exclusive use of this driver.
- *
- *      This is a bit ugly.  In order to allocate a page, we need a vnode to
- *      hang it from and a unique offset within that vnode.  We do this by
- *      using our own vnode (used only to hang pages from) and allocating
- *      offsets by use of the id space allocator.  The id allocator hands
- *      us back unique integers between 0 and INT_MAX; we can then use those
- *      as page indices into our fake vnode space.
- *
- *      Future versions of Solaris will have a devmap_pmem_alloc/free
- *      interface for allocating physical pages that may allow us to
- *      eliminate some of this.
- *
- * Results:
- *      On success: A valid page handle that can be passed to OS_ReservedPageGetPPN()
- *                  or OS_ReservedPageFree().
- *      On failure: PAGE_HANDLE_INVALID
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
+ * Future versions of Solaris will have a devmap_pmem_alloc/free
+ * interface for allocating physical pages that may allow us to
+ * eliminate some of this.
  */
-
-PageHandle
-OS_ReservedPageAlloc(int canSleep) // IN
+unsigned long os_alloc_reserved_page(int can_sleep)
 {
    os_state *state = &global_state;
    page_t *pp;
@@ -357,19 +198,19 @@ OS_ReservedPageAlloc(int canSleep) // IN
    /*
     * Reserve space for the page.
     */
-   flags = canSleep ? KM_SLEEP : KM_NOSLEEP;
+   flags = can_sleep ? KM_SLEEP : KM_NOSLEEP;
    if (!page_resv(1, flags))
-      return PAGE_HANDLE_INVALID; /* no space! */
+      return 0;		/* no space! */
 
    /*
-    * Allocating space for os_page early simplifies error handling.
+    * Allocating space for os_page early simplifies error handling. 
     */
    if ((page = kmem_alloc(sizeof (os_page), flags)) == NULL) {
       page_unresv(1);
-      return PAGE_HANDLE_INVALID;
+      return 0;
    }
 
-   /*
+   /* 
     * Construct an offset for page_create.
     */
    off = idtooff(id_alloc(idp));
@@ -378,7 +219,7 @@ OS_ReservedPageAlloc(int canSleep) // IN
     * Allocate the page itself.  Note that this can fail.
     */
    kseg.s_as = &kas;
-   flags = canSleep ? PG_EXCL | PG_WAIT : PG_EXCL;
+   flags = can_sleep ? PG_EXCL | PG_WAIT : PG_EXCL;
    pp = page_create_va(vp, off, PAGESIZE, flags, &kseg,
 		       (caddr_t)(ulong_t)off);
    if (pp != NULL) {
@@ -401,31 +242,13 @@ OS_ReservedPageAlloc(int canSleep) // IN
       page = NULL;
    }
 
-   return (PageHandle)page;
+   return (unsigned long)page;
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_ReservedPageFree --
- *
- *      Unreserve a physical page previously reserved with OS_ReservedPageAlloc().
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
+void os_free_reserved_page(unsigned long addr)
 {
    os_state *state = &global_state;
-   os_page *page = (os_page *)handle;
+   os_page *page = (os_page *)addr;
    page_t *pp = page->pp;
    u_offset_t off = page->offset;
    id_space_t *idp = state->id_space;
@@ -436,28 +259,12 @@ OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
    kmem_free(page, sizeof (os_page));
 }
 
-
 /*
- *-----------------------------------------------------------------------------
- *
- * os_worker --
- *
- *      Worker thread that periodically calls the timer handler.  This is
- *      executed by a user context thread so that it can block waiting for
- *      memory without fear of deadlock.
- *
- * Results:
- *      On success: 0
- *      On failure: error code
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * Worker thread that periodically calls the timer handler.  This is
+ * executed by a user context thread so that it can block waiting for
+ * memory without fear of deadlock.
  */
-
-static int
-os_worker(void)
+static int os_worker(void)
 {
    os_timer *t = &global_state.timer;
    clock_t timeout;
@@ -486,63 +293,31 @@ os_worker(void)
    return 0;			/* normal termination */
 }
 
-
 /*
- *-----------------------------------------------------------------------------
- *
- * OS_TimerStart --
- *
- *      Setup the timer callback function, then start it.
- *
- * Results:
- *      Always TRUE, cannot fail.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * Initialize timer data.
  */
-
-Bool
-OS_TimerStart(OSTimerHandler *handler, // IN
-              void *clientData)        // IN
+void os_timer_init(os_timer_handler handler, void *data, int period)
 {
    os_timer *t = &global_state.timer;
 
-   /* setup the timer structure */
    t->id = 0;
    t->handler = handler;
-   t->data = clientData;
-   t->period = drv_usectohz(ONE_SECOND_IN_MICROSECONDS);
+   t->data = data;
+   t->period = period;
+   t->stop = 0;
 
    mutex_init(&t->lock, NULL, MUTEX_DRIVER, NULL);
    cv_init(&t->cv, NULL, CV_DRIVER, NULL);
-
-   /* start the timer */
-   t->stop = 0;
-
-   return TRUE;
 }
 
+void os_timer_start(void)
+{
+   os_timer *t = &global_state.timer;
 
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_TimerStop --
- *
- *      Stop the timer.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
+   t->stop = 0;
+}
 
-void
-OS_TimerStop(void)
+void os_timer_stop(void)
 {
    os_timer *t = &global_state.timer;
 
@@ -557,9 +332,7 @@ OS_TimerStop(void)
    mutex_exit(&t->lock);
 }
 
-
-static void
-os_timer_cleanup(void)
+static void os_timer_cleanup(void)
 {
    os_timer *timer = &global_state.timer;
 
@@ -567,58 +340,26 @@ os_timer_cleanup(void)
    cv_destroy(&timer->cv);
 }
 
+unsigned int os_timer_hz(void)
+{
+   return drv_usectohz(ONE_SECOND_IN_MICROSECONDS);
+}
 
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Yield --
- *
- *      Yield the CPU, if needed.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_Yield(void)
+void os_yield(void)
 {
    /* Do nothing. */
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Init --
- *
- *      Called at driver startup, initializes the balloon state and structures.
- *
- * Results:
- *      On success: TRUE
- *      On failure: FALSE
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-OS_Init(const char *name,         // IN
-        const char *nameVerbose,  // IN
-        OSStatusHandler *handler) // IN
+void os_init(const char *name,
+             const char *name_verbose,
+             os_status_handler handler)
 {
    os_state *state = &global_state;
    static int initialized = 0;
 
    /* initialize only once */
    if (initialized++) {
-      return FALSE;
+      return;
    }
 
    /* zero global state */
@@ -627,7 +368,7 @@ OS_Init(const char *name,         // IN
    state->kstats = BalloonKstatCreate();
    state->id_space = id_space_create("vmmemctl", 0, INT_MAX);
    state->name = name;
-   state->name_verbose = nameVerbose;
+   state->name_verbose = name_verbose;
 
    /* disable memscrubber */
 #if defined(SOL9)
@@ -637,29 +378,10 @@ OS_Init(const char *name,         // IN
 #endif
 
    /* log device load */
-   cmn_err(CE_CONT, "!%s initialized\n", nameVerbose);
-   return TRUE;
+   cmn_err(CE_CONT, "!%s initialized\n", name_verbose);
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Cleanup --
- *
- *      Called when the driver is terminating, cleanup initialized structures.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_Cleanup(void)
+void os_cleanup(void)
 {
    os_state *state = &global_state;
 
@@ -671,15 +393,17 @@ OS_Cleanup(void)
    cmn_err(CE_CONT, "!%s unloaded\n", state->name_verbose);
 }
 
+/*
+ * Module Load/Unload Operations
+ */
+
+extern int  init_module(void);
+extern void cleanup_module(void);
 
 /*
  * Device configuration entry points
  */
-
-
-static int
-vmmemctl_attach(dev_info_t *dip,      // IN
-                ddi_attach_cmd_t cmd) // IN
+static int vmmemctl_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
    switch (cmd) {
    case DDI_ATTACH:
@@ -695,10 +419,7 @@ vmmemctl_attach(dev_info_t *dip,      // IN
    }
 }
 
-
-static int
-vmmemctl_detach(dev_info_t *dip,      // IN
-                ddi_detach_cmd_t cmd) // IN
+static int vmmemctl_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
 {
    switch (cmd) {
    case DDI_DETACH:
@@ -710,33 +431,13 @@ vmmemctl_detach(dev_info_t *dip,      // IN
    }
 }
 
-
 /*
- *-----------------------------------------------------------------------------
- *
- * vmmemctl_ioctl --
- *
- *      Commands used by the user level daemon to control the driver.
- *      Since the daemon is single threaded, we use a simple monitor to
- *      make sure that only one thread is executing here at a time.
- *
- * Results:
- *      On success: 0
- *      On failure: error code
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ * Commands used by the user level daemon to control the driver.
+ * Since the daemon is single threaded, we use a simple monitor to
+ * make sure that only one thread is executing here at a time.
  */
-
-static int
-vmmemctl_ioctl(dev_t dev,    // IN: Unused
-               int cmd,      // IN
-               intptr_t arg, // IN: Unused
-               int mode,     // IN: Unused
-               cred_t *cred, // IN
-               int *rvalp)   // IN: Unused
+static int vmmemctl_ioctl(dev_t dev, int cmd, intptr_t arg, int mode,
+			  cred_t *cred, int *rvalp)
 {
    int error = 0;
    static int busy = 0;		/* set when a thread is in this function */
@@ -821,32 +522,23 @@ static struct modlinkage vmmodlinkage = {
    {&vmmodldrv, NULL}
 };
 
-
-int
-_init(void)
+int _init(void)
 {
    int error;
 
-   if (Balloon_ModuleInit() != BALLOON_SUCCESS) {
-      return EAGAIN;
-   }
-   error = mod_install(&vmmodlinkage);
-   if (error != 0) {
-      Balloon_ModuleCleanup();
-   }
+   if (init_module() != BALLOON_SUCCESS)
+      return EINVAL;
+   if ((error = mod_install(&vmmodlinkage)) != 0)
+      cleanup_module();
    return error;
 }
 
-
-int
-_info(struct modinfo *modinfop) // IN
+int _info(struct modinfo *modinfop)
 {
    return mod_info(&vmmodlinkage, modinfop);
 }
 
-
-int
-_fini(void)
+int _fini(void)
 {
    int error;
 
@@ -854,10 +546,8 @@ _fini(void)
     * Check if the module is busy (i.e., there's a worker thread active)
     * before cleaning up.
     */
-   error = mod_remove(&vmmodlinkage);
-   if (error == 0) {
-      Balloon_ModuleCleanup();
-   }
+   if ((error = mod_remove(&vmmodlinkage)) == 0)
+      cleanup_module();
    return error;
 }
 

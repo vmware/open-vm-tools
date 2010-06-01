@@ -46,18 +46,19 @@ ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.9) # {
 MODULES := $(MODULE_32)
 
 else # } {
+ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10) # {
 
-# Assume Solaris 10 or 11.
+# Solaris 10
 MODULES := $(MODULE_32) $(MODULE_64)
 CFLAGS  += -ffreestanding
 CFLAGS  += -nodefaultlibs
 
-endif # }
+else # } {
 
-ifdef OVT_SOURCE_DIR
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
-   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmxnet
-endif
+$(error "This makefile is only used for Solaris 9 and 10")
+
+endif # }
+endif # }
 
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32

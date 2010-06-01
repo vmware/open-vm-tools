@@ -47,6 +47,7 @@
 #include "vmware.h"
 #include "procMgr.h"
 #include "vm_version.h"
+#include "vm_app.h"
 #include "message.h"
 
 #if defined(VMTOOLS_USE_GLIB)
@@ -69,7 +70,7 @@
 #include "conf.h"
 #include "vixCommands.h"
 #include "base64.h"
-#include "guestInfoLib.h"
+#include "guestInfo.h"
 #include "hostinfo.h"
 #include "hgfsServer.h"
 #include "hgfs.h"
@@ -96,11 +97,6 @@
 #include "win32u.h"
 #endif /* _WIN32 */
 #include "hgfsHelper.h"
-
-#ifdef linux
-#include "mntinfo.h"
-#include <sys/vfs.h>
-#endif
 
 #define SECONDS_BETWEEN_POLL_TEST_FINISHED     1
 
@@ -223,10 +219,6 @@ static VixError VixToolsCheckUserAccount(VixCommandRequestHeader *requestMsg);
 static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
                                           char **result,
                                           size_t *resultValueResult);
-
-static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
-                                        char **result);
-
 
 #if defined(__linux__) || defined(_WIN32)
 static VixError VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,
@@ -1033,6 +1025,8 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
 
 #ifdef _WIN32
    osFamily = GUEST_OS_FAMILY_WINDOWS;
+#elif defined(N_PLAT_NLM)
+   osFamily = GUEST_OS_FAMILY_NETWARE;
 #else
    osFamily = GUEST_OS_FAMILY_LINUX;
 #endif
@@ -3020,8 +3014,6 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
    VixCommandNamePassword *namePasswordStruct;
    int credentialType;
 
-   Debug(">%s\n", __FUNCTION__);
-
    credentialField = ((char *) requestMsg)
                            + requestMsg->commonHeader.headerLength 
                            + requestMsg->commonHeader.bodyLength;
@@ -3052,8 +3044,6 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       }
 #endif
    }
-
-   Debug("<%s\n", __FUNCTION__);
 
    return(err);
 } // VixToolsImpersonateUser
@@ -3519,7 +3509,7 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    hgfsPacket = ((char *) requestMsg) + sizeof(*requestMsg);
    hgfsPacketSize = requestMsg->hgfsPacketSize;
 
-#if !defined(__FreeBSD__)
+#if !defined(N_PLAT_NLM) && !defined(__FreeBSD__)
    /*
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
@@ -3545,166 +3535,6 @@ abort:
 
    return err;
 } // VixToolsProcessHgfsPacket
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixToolsListFileSystems --
- *
- *
- * Return value:
- *    VixError
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-VixError
-VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
-                        char **result)                       // OUT
-{
-   VixError err = VIX_OK;
-   static char resultBuffer[MAX_PROCESS_LIST_RESULT_LENGTH];
-   Bool impersonatingVMWareUser = FALSE;
-   void *userToken = NULL;
-   char *destPtr;
-   char *endDestPtr;
-#if defined(_WIN32) || defined(linux)
-   const char *listFileSystemsFormatString = "<filesystem>"
-                                             "<name>%s</name>"
-                                             "<size>%"FMT64"u</size>"
-                                             "<freeSpace>%"FMT64"u</freeSpace>"
-                                             "<type>%s</type>"
-                                             "</filesystem>";
-#endif
-#if defined(_WIN32)
-   Unicode *driveList = NULL;
-   int numDrives = -1;
-   uint64 freeBytesToUser = 0;
-   uint64 totalBytesToUser = 0;
-   uint64 freeBytes = 0;
-   Unicode fileSystemType;
-   int i;
-#endif
-#ifdef linux
-   MNTHANDLE fp;
-   DECLARE_MNTINFO(mnt);
-   const char *mountfile = NULL;
-#endif
-
-   Debug(">%s\n", __FUNCTION__);
-
-   destPtr = resultBuffer;
-   *destPtr = 0;
-   endDestPtr = resultBuffer + sizeof(resultBuffer);
-
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
-
-#if defined(_WIN32)
-   numDrives = Win32U_GetLogicalDriveStrings(&driveList);
-   if (-1 == numDrives) {
-      Warning("unable to get drive listing: windows error code %d\n",
-              GetLastError());
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      goto abort;
-   }
-
-   for (i = 0; i < numDrives; i++) {
-      if (!Win32U_GetDiskFreeSpaceEx(driveList[i],
-                                     (PULARGE_INTEGER) &freeBytesToUser,
-                                     (PULARGE_INTEGER) &totalBytesToUser,
-                                     (PULARGE_INTEGER) &freeBytes)) {
-         /*
-          * If we encounter an error, just return 0 values for the space info
-          */
-         freeBytesToUser = 0;
-         totalBytesToUser = 0;
-         freeBytes = 0;
-
-         Warning("unable to get drive size info: windows error code %d\n",
-                 GetLastError());
-      }
-
-      // If it fails, fileSystemType will be NULL
-      Win32U_GetVolumeInformation(driveList[i],
-                                  NULL,
-                                  NULL,
-                                  NULL,
-                                  NULL,
-                                  &fileSystemType);
-
-      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             listFileSystemsFormatString,
-                             driveList[i],
-                             totalBytesToUser,
-                             freeBytesToUser,
-                             fileSystemType);
-
-      Unicode_Free(fileSystemType);
-   }
-
-#elif defined(linux)
-
-   mountfile = "/etc/mtab";
-
-   fp = Posix_Setmntent(mountfile, "r");
-   if (fp == NULL) {
-      Warning("failed to open mount file\n");
-      err = VIX_E_FILE_NOT_FOUND;
-      goto abort;
-   }
-
-   while (GETNEXT_MNTINFO(fp, mnt)) {
-      struct statfs statfsbuf;
-      uint64 size, freeSpace;
-
-      if (Posix_Statfs(MNTINFO_MNTPT(mnt), &statfsbuf)) {
-         Warning("%s unable to stat mount point %s\n",
-                 __FUNCTION__, MNTINFO_MNTPT(mnt));
-         continue;
-      }
-      size = (uint64) statfsbuf.f_blocks * (uint64) statfsbuf.f_bsize;
-      freeSpace = (uint64) statfsbuf.f_bfree * (uint64) statfsbuf.f_bsize;
-      destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
-                             listFileSystemsFormatString,
-                             MNTINFO_NAME(mnt),
-                             size,
-                             freeSpace,
-                             MNTINFO_FSTYPE(mnt));
-
-   }
-   CLOSE_MNTFILE(fp);
-#else
-   err = VIX_E_NOT_SUPPORTED;
-#endif
-
-abort:
-#if defined(_WIN32)
-   for (i = 0; i < numDrives; i++) {
-      Unicode_Free(driveList[i]);
-   }
-
-   free(driveList);
-#endif
-
-   if (impersonatingVMWareUser) {
-      VixToolsUnimpersonateUser(userToken);
-   }
-   VixToolsLogoutUser(userToken);
-
-   *result = resultBuffer;
-
-   Debug("<%s\n", __FUNCTION__);
-
-   return(err);
-} // VixToolsListFileSystems
 
 
 /*
@@ -4239,7 +4069,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       *deleteResultBufferResult = FALSE;
    }
 
-   Debug("%s: command %d\n", __FUNCTION__, requestMsg->opCode);
 
    switch (requestMsg->opCode) {
       ////////////////////////////////////
@@ -4417,12 +4246,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          err = VixToolsSetProperties(requestMsg, confDictRef);
          break;
 #endif
-
-      ////////////////////////////////////
-      case VIX_COMMAND_LIST_FILESYSTEMS:
-         err = VixToolsListFileSystems(requestMsg, &resultValue);
-         // resultValue is static. Do not free it.
-         break;
 
       ////////////////////////////////////
       default:

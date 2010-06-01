@@ -90,7 +90,7 @@ BalloonKstatUpdate(kstat_t *ksp, int rw)
    if (rw == KSTAT_WRITE)
       return (EACCES);
 
-   Balloon_GetStats(&stats);
+   BalloonGetStats(&stats);
 
    /* size info */
    bkp->nPagesTarget.value.ui32 = stats.nPagesTarget;

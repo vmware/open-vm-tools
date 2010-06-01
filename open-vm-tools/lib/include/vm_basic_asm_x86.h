@@ -16,20 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 /*
  * vm_basic_asm_x86.h
  *
@@ -40,9 +26,10 @@
 #define _VM_BASIC_ASM_X86_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
@@ -58,6 +45,35 @@
 #error "x86-64 not supported"
 #endif
 
+
+
+
+/*
+ * from linux: usr/include/asm/io.h
+ */
+#ifdef __GNUC__
+#ifndef __SLOW_DOWN_IO
+#ifdef SLOW_IO_BY_JUMPING
+#define __SLOW_DOWN_IO __asm__ __volatile__("jmp 1f\n1:\tjmp 1f\n1:")
+#else
+#define __SLOW_DOWN_IO __asm__ __volatile__("outb %al,$0x80")
+#endif
+#endif
+#elif defined _MSC_VER
+#ifdef SLOW_IO_BY_JUMPING
+#define __SLOW_DOWN_IO __asm jmp SHORT $+2 __asm  jmp SHORT $+2
+#else
+#define __SLOW_DOWN_IO __asm out 80h,al
+#endif
+#else
+#error
+#endif
+
+#ifdef REALLY_SLOW_IO
+#define SLOW_DOWN_IO { __SLOW_DOWN_IO; __SLOW_DOWN_IO; __SLOW_DOWN_IO; __SLOW_DOWN_IO; }
+#else
+#define SLOW_DOWN_IO __SLOW_DOWN_IO
+#endif
 
 /*
  * FXSAVE/FXRSTOR

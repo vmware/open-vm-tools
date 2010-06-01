@@ -181,6 +181,15 @@ Modules_Init(void)
    char *moduleListPath;
    GList *modules, *modulesNotInstalled;
 
+   /*
+    * XXX XXX XXX
+    * This code is disabled for Chex and Iron. The return statement below
+    * disables this entire subsystem. -jkwan
+    * XXX XXX XXX
+    */
+
+   return FALSE;
+
    if (!InstallerDB_Init("/etc/vmware-tools", TRUE)) {
       return FALSE;
    }

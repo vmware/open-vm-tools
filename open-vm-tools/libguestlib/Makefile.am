@@ -30,19 +30,3 @@ libguestlib_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
 libguestlib_la_LDFLAGS += -Wl,-lc
-
-libguestlib_includedir = $(includedir)/vmGuestLib
-
-libguestlib_include_HEADERS =
-libguestlib_include_HEADERS += $(top_srcdir)/lib/include/includeCheck.h
-libguestlib_include_HEADERS += $(top_srcdir)/lib/include/vmGuestLib.h
-libguestlib_include_HEADERS += $(top_srcdir)/lib/include/vmSessionId.h
-libguestlib_include_HEADERS += $(top_srcdir)/lib/include/vm_basic_types.h
-
-EXTRA_DIST = vmguestlib.pc.in
-
-pkgconfigdir   = $(libdir)/pkgconfig
-pkgconfig_DATA = vmguestlib.pc
-
-$(pkgconfig_DATA): $(top_builddir)/config.status
-

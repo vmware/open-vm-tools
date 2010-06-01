@@ -33,7 +33,7 @@
 #include "af_vsock.h"
 
 #define PKT_FIELD(vsk, fieldName) \
-   (vsk)->notify.pkt.fieldName
+   (vsk)->notify.fieldName
 
 #define VSOCK_MAX_DGRAM_RESENDS       10
 
@@ -105,7 +105,8 @@ VSockVmciNotifyWaitingWrite(VSockVmciSock *vsk)    // IN
     *   if writeNotifyWindow > bufferReady then notify
     * as freeSpace == ConsumeSize - bufferReady.
     */
-   retval = VMCIQPair_ConsumeFreeSpace(vsk->qpair) > notifyLimit;
+   retval = VMCIQueue_FreeSpace(vsk->consumeQ, vsk->produceQ, vsk->consumeSize) >
+            notifyLimit;
 #ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
    if (retval) {
       /*
@@ -153,7 +154,8 @@ VSockVmciNotifyWaitingRead(VSockVmciSock *vsk)  // IN
     * not require a protocol change and will retain compatibility between
     * endpoints with mixed versions of this function.
     */
-   return VMCIQPair_ProduceBufReady(vsk->qpair) > 0;
+   return VMCIQueue_BufReady(vsk->produceQ,
+			     vsk->consumeQ, vsk->produceSize) > 0;
 #else
    return TRUE;
 #endif
@@ -337,7 +339,7 @@ VSockVmciSendWaitingRead(struct sock *sk,    // IN
              vsk->consumeSize);
    }
 
-   VMCIQPair_GetConsumeIndexes(vsk->qpair, &tail, &head);
+   VMCIQueue_GetPointers(vsk->consumeQ, vsk->produceQ, &tail, &head);
    roomLeft = vsk->consumeSize - head;
    if (roomNeeded >= roomLeft) {
       waitingInfo.offset = roomNeeded - roomLeft;
@@ -396,7 +398,7 @@ VSockVmciSendWaitingWrite(struct sock *sk,   // IN
       return TRUE;
    }
 
-   VMCIQPair_GetProduceIndexes(vsk->qpair, &tail, &head);
+   VMCIQueue_GetPointers(vsk->produceQ, vsk->consumeQ, &tail, &head);
    roomLeft = vsk->produceSize - tail;
    if (roomNeeded + 1 >= roomLeft) {
       /* Wraps around to current generation. */
@@ -829,9 +831,8 @@ VSockVmciNotifyPktRecvPreDequeue(struct sock *sk,               // IN
     * socket locked we should copy at least ready bytes.
     */
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-   VMCIQPair_GetConsumeIndexes(vsk->qpair,
-                               &data->produceTail,
-                               &data->consumeHead);
+   VMCIQueue_GetPointers(vsk->consumeQ, vsk->produceQ,
+                         &data->produceTail, &data->consumeHead);
 #endif
 
    return 0;
@@ -988,9 +989,8 @@ VSockVmciNotifyPktSendPreEnqueue(struct sock *sk,               // IN
    vsk = vsock_sk(sk);
 
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
-      VMCIQPair_GetProduceIndexes(vsk->qpair,
-                                  &data->produceTail,
-                                  &data->consumeHead);
+      VMCIQueue_GetPointers(vsk->produceQ, vsk->consumeQ,
+                            &data->produceTail, &data->consumeHead);
 #endif
 
    return 0;;
@@ -1124,65 +1124,6 @@ VSockVmciNotifyPktHandlePkt(struct sock *sk,         // IN
    }
 }
 
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciNotifyPktProcessRequest
- *
- *      Called near the end of process request.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciNotifyPktProcessRequest(struct sock *sk) // IN
-{
-   VSockVmciSock *vsk;
-
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-
-   PKT_FIELD(vsk, writeNotifyWindow) = vsk->consumeSize;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VSockVmciNotifyPktProcessNegotiate
- *
- *      Called near the end of process negotiate.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VSockVmciNotifyPktProcessNegotiate(struct sock *sk) // IN
-{
-   VSockVmciSock *vsk;
-
-   ASSERT(sk);
-
-   vsk = vsock_sk(sk);
-
-   PKT_FIELD(vsk, writeNotifyWindow) = vsk->consumeSize;
-}
-
-
 /* Socket control packet based operations. */
 VSockVmciNotifyOps vSockVmciNotifyPktOps = {
    VSockVmciNotifyPktSocketInit,
@@ -1197,7 +1138,5 @@ VSockVmciNotifyOps vSockVmciNotifyPktOps = {
    VSockVmciNotifyPktSendInit,
    VSockVmciNotifyPktSendPreBlock,
    VSockVmciNotifyPktSendPreEnqueue,
-   VSockVmciNotifyPktSendPostEnqueue,
-   VSockVmciNotifyPktProcessRequest,
-   VSockVmciNotifyPktProcessNegotiate,
+   VSockVmciNotifyPktSendPostEnqueue
 };

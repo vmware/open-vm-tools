@@ -78,11 +78,11 @@ static const uint8 byte_masks_8bgr[9][3] = {
  */
 
 static void RasterConvert15to16(uint8 *tof, uint32 line_increment,
-				const uint8 *src, uint32 src_increment,
+				uint8 *src, uint32 src_increment,
 				uint32 src_x, uint32 src_y,
 				uint32 x, uint32 y, uint32 w, uint32 h);
 static void RasterConvertShortTo24(uint8 *tof, uint32 line_increment,
-				   const uint8 *src, uint32 src_increment,
+				   uint8 *src, uint32 src_increment,
 				   uint32 src_x, uint32 src_y,
 				   uint32 x, uint32 y, uint32 w, uint32 h,
 				   uint32 redMask, uint32 greenMask,
@@ -91,7 +91,7 @@ static void RasterConvertShortTo24(uint8 *tof, uint32 line_increment,
 				   uint32 greenShift1, uint32 greenShift2,
 				   uint32 blueShift1, uint32 blueShift2);
 static void RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
-				   const uint8 *src, uint32 src_increment,
+				   uint8 *src, uint32 src_increment,
 				   uint32 src_x, uint32 src_y,
 				   uint32 x, uint32 y, uint32 w, uint32 h,
 				   uint32 redMask, uint32 greenMask,
@@ -100,11 +100,11 @@ static void RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
 				   uint32 greenShift1, uint32 greenShift2,
 				   uint32 blueShift1, uint32 blueShift2);
 static void RasterConvert16to15(uint8 *tof, uint32 line_increment,
-				const uint8 *src, uint32 src_increment,
+				uint8 *src, uint32 src_increment,
 				uint32 src_x, uint32 src_y,
 				uint32 x, uint32 y, uint32 w, uint32 h);
 static void RasterConvert24toShort(uint8 *tof, uint32 line_increment,
-				   const uint8 *src, uint32 src_increment,
+				   uint8 *src, uint32 src_increment,
 				   uint32 src_x, uint32 src_y,
 				   uint32 x, uint32 y, uint32 w, uint32 h,
 				   uint32 redMask, uint32 greenMask,
@@ -112,11 +112,11 @@ static void RasterConvert24toShort(uint8 *tof, uint32 line_increment,
 				   uint32 redShift, uint32 greenShift,
 				   uint32 blueShift);
 static void RasterConvert24to32(uint8 *tof, uint32 line_increment,
-				const uint8 *src, uint32 src_increment,
+				uint8 *src, uint32 src_increment,
 				uint32 src_x, uint32 src_y,
 				uint32 x, uint32 y, uint32 w, uint32 h);
 static void RasterConvert32toShort(uint8 *tof, uint32 line_increment,
-				   const uint8 *src, uint32 src_increment,
+				   uint8 *src, uint32 src_increment,
 				   uint32 src_x, uint32 src_y,
 				   uint32 x, uint32 y, uint32 w, uint32 h,
 				   uint32 redMask, uint32 greenMask,
@@ -124,12 +124,12 @@ static void RasterConvert32toShort(uint8 *tof, uint32 line_increment,
 				   uint32 redShift, uint32 greenShift,
 				   uint32 blueShift);
 static void RasterConvert32to24(uint8 *tof, uint32 line_increment,
-				const uint8 *src, uint32 src_increment,
+				uint8 *src, uint32 src_increment,
 				uint32 src_x, uint32 src_y,
 				uint32 x, uint32 y, uint32 w, uint32 h);
 static void RasterConvertIndextoShort(uint8 *tof, uint32 line_increment,
-				      const uint8 *src, uint32 src_increment,
-				      const uint32 *pixels,
+				      uint8 *src, uint32 src_increment,
+				      uint32 *pixels,
 				      uint32 src_x, uint32 src_y,
 				      uint32 x, uint32 y, uint32 w, uint32 h,
 				      uint32 redMask, uint32 greenMask,
@@ -137,37 +137,36 @@ static void RasterConvertIndextoShort(uint8 *tof, uint32 line_increment,
 				      uint32 redShift, uint32 greenShift,
 				      uint32 blueShift);
 static void RasterConvertIndexto24(uint8 *tof, uint32 line_increment,
-				   const uint8 *src, uint32 src_increment,
-				   const uint32 *pixels,
+				   uint8 *src, uint32 src_increment,
+				   uint32 *pixels,
 				   uint32 src_x, uint32 src_y,
 				   uint32 x, uint32 y, uint32 w, uint32 h);
 static void RasterConvertIndexto32(uint8 *tof, uint32 line_increment,
-				   const uint8 *src, uint32 src_increment,
-				   const uint32 *pixels,
+				   uint8 *src, uint32 src_increment,
+				   uint32 *pixels,
 				   uint32 src_x, uint32 src_y,
 				   uint32 x, uint32 y, uint32 w, uint32 h);
 
 static void RasterConvert32to8(uint8 *tof, uint32 line_increment,
-			       const uint8 *src, uint32 src_increment,
+			       uint8 *src, uint32 src_increment,
 			       uint32 src_x, uint32 src_y,
 			       uint32 x, uint32 y, uint32 w, uint32 h,
 			       uint32 redMask, uint32 greenMask, uint32 blueMask,
 			       uint32 redShift, uint32 greenShift, uint32 blueShift);
 static void RasterConvert24to8(uint8 *tof, uint32 line_increment,
-			       const uint8 *src, uint32 src_increment,
+			       uint8 *src, uint32 src_increment,
 			       uint32 src_x, uint32 src_y,
 			       uint32 x, uint32 y, uint32 w, uint32 h,
 			       uint32 redMask, uint32 greenMask, uint32 blueMask,
 			       uint32 redShift, uint32 greenShift, uint32 blueShift);
 static void RasterConvert16to8(uint8 *tof, uint32 line_increment,
-                               const uint8 *src, uint32 src_increment,
+                               uint8 *src, uint32 src_increment,
                                uint32 src_x, uint32 src_y,
                                uint32 x, uint32 y, uint32 w, uint32 h,
                                uint32 redMask, uint32 greenMask, uint32 blueMask,
                                int redShift, int greenShift, int blueShift);
 static void RasterConvertIndexto8(uint8 *tof, uint32 line_increment,
-				  const uint8 *src, uint32 src_increment,
-                                  const uint32 *pixels,
+				  uint8 *src, uint32 src_increment, uint32 *pixels,
 				  uint32 src_x, uint32 src_y,
 				  uint32 x, uint32 y, uint32 w, uint32 h,
 				  uint32 redMask, uint32 greenMask, uint32 blueMask,
@@ -257,20 +256,19 @@ Raster_GetBPPDepth(uint32 depth, uint32 bpp)
  *	None
  *
  * Side effects:
- *      If converting from a lower true-color depth to 32-bpp, fills the
- *      alpha values of the destination rectangle to 0xFF.
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
 void
 Raster_ConvertPixels(uint8 *tof, int32 line_increment, int bppdepth,
-		     const uint8 *src, int32 src_increment, int src_bppdepth,
-		     Bool pseudoColor, const uint32 *pixels,
+		     uint8 *src, int32 src_increment, int src_bppdepth,
+		     Bool pseudoColor, uint32 *pixels,
 		     uint32 src_x, uint32 src_y,
 		     uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   int redShift, greenShift, blueShift;
+   int redShift,greenShift, blueShift;
 
    if (pseudoColor) {
       if (src_bppdepth > 8) {
@@ -541,7 +539,7 @@ Raster_ConvertPixels(uint8 *tof, int32 line_increment, int bppdepth,
 
 uint32
 Raster_ConvertOnePixel(uint32 pix, int src_bppdepth, int bppdepth,
-		       Bool pseudoColor, const uint32 *pixels)
+		       Bool pseudoColor, uint32 *pixels)
 {
    if (pseudoColor) {
       if (src_bppdepth != 8) {
@@ -661,10 +659,8 @@ Raster_ConvertOnePixel(uint32 pix, int src_bppdepth, int bppdepth,
  */
 
 Bool
-Raster_ConversionParameters(int bppdepth,      // IN
-                            uint32 *redMask,   // OUT
-			    uint32 *greenMask, // OUT
-                            uint32 *blueMask)  // OUT
+Raster_ConversionParameters(int bppdepth, uint32 *redMask,
+			    uint32 *greenMask, uint32 *blueMask)
 {
    switch (bppdepth) {
       case 15:
@@ -718,12 +714,11 @@ Raster_ConversionParameters(int bppdepth,      // IN
 
 static void
 RasterConvert15to16(uint8 *tof, uint32 line_increment,
-		    const uint8 *src, uint32 src_increment,
+		    uint8 *src, uint32 src_increment,
 		    uint32 src_x, uint32 src_y,
 		    uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   const uint16 *srcptr;
-   uint16 *dstptr;
+   uint16 *srcptr, *dstptr;
    int i, j;
 
    src_increment >>= 1;
@@ -766,7 +761,7 @@ RasterConvert15to16(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvertShortTo24(uint8 *tof, uint32 line_increment,
-		       const uint8 *src, uint32 src_increment,
+		       uint8 *src, uint32 src_increment,
 		       uint32 src_x, uint32 src_y,
 		       uint32 x, uint32 y, uint32 w, uint32 h,
 		       uint32 redMask, uint32 greenMask, uint32 blueMask,
@@ -774,7 +769,7 @@ RasterConvertShortTo24(uint8 *tof, uint32 line_increment,
 		       uint32 greenShift1, uint32 greenShift2,
 		       uint32 blueShift1, uint32 blueShift2)
 {
-   const uint16 *srcptr;
+   uint16 *srcptr;
    uint8 *dstptr;
    int i, j, k;
 
@@ -813,14 +808,14 @@ RasterConvertShortTo24(uint8 *tof, uint32 line_increment,
  *	None
  *
  * Side effects:
- *      Fills the alpha values of the destination rectangle to 0xFF.
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
 static void
 RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
-		       const uint8 *src, uint32 src_increment,
+		       uint8 *src, uint32 src_increment,
 		       uint32 src_x, uint32 src_y,
 		       uint32 x, uint32 y, uint32 w, uint32 h,
 		       uint32 redMask, uint32 greenMask, uint32 blueMask,
@@ -828,7 +823,7 @@ RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
 		       uint32 greenShift1, uint32 greenShift2,
 		       uint32 blueShift1, uint32 blueShift2)
 {
-   const uint16 *srcptr;
+   uint16 *srcptr;
    uint32 *dstptr;
    int i, j;
 
@@ -843,8 +838,7 @@ RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
    for (i=0; i<h; i++) {
       for (j=0; j<w; j++) {
 	 uint32 pix = srcptr[j];
-	 dstptr[j] = (0xFF << 24) |
-                     (REDMASK_32 &
+	 dstptr[j] = (REDMASK_32 &
 		      ((((pix & redMask) >> redShift1) |
 			((pix & redMask) >> redShift2)) << 16)) |
 		     (GREENMASK_32 &
@@ -879,12 +873,11 @@ RasterConvertShortTo32(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert16to15(uint8 *tof, uint32 line_increment,
-		    const uint8 *src, uint32 src_increment,
+		    uint8 *src, uint32 src_increment,
 		    uint32 src_x, uint32 src_y,
 		    uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   const uint16 *srcptr;
-   uint16 *dstptr;
+   uint16 *srcptr, *dstptr;
    int i, j;
 
    src_increment >>= 1;
@@ -926,13 +919,13 @@ RasterConvert16to15(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert24toShort(uint8 *tof, uint32 line_increment,
-		       const uint8 *src, uint32 src_increment,
+		       uint8 *src, uint32 src_increment,
 		       uint32 src_x, uint32 src_y,
 		       uint32 x, uint32 y, uint32 w, uint32 h,
 		       uint32 redMask, uint32 greenMask, uint32 blueMask,
 		       uint32 redShift, uint32 greenShift, uint32 blueShift)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint16 *dstptr;
    int i, j, k;
 
@@ -970,18 +963,18 @@ RasterConvert24toShort(uint8 *tof, uint32 line_increment,
  *	None
  *
  * Side effects:
- *      Fills the alpha values of the destination rectangle to 0xFF.
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
 static void
 RasterConvert24to32(uint8 *tof, uint32 line_increment,
-		    const uint8 *src, uint32 src_increment,
+		    uint8 *src, uint32 src_increment,
 		    uint32 src_x, uint32 src_y,
 		    uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint32 *dstptr;
    int i, j, k;
 
@@ -997,8 +990,7 @@ RasterConvert24to32(uint8 *tof, uint32 line_increment,
 	 uint8 blue = srcptr[k++];
 	 uint8 green = srcptr[k++];
 	 uint8 red = srcptr[k++];
-	 dstptr[j] = (0xFF << 24) |
-                     ((red << 16) & REDMASK_32) |
+	 dstptr[j] = ((red << 16) & REDMASK_32) |
 		     ((green << 8) & GREENMASK_32) |
 		     (blue & BLUEMASK_32);
       }
@@ -1027,13 +1019,13 @@ RasterConvert24to32(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert32toShort(uint8 *tof, uint32 line_increment,
-		       const uint8 *src, uint32 src_increment,
+		       uint8 *src, uint32 src_increment,
 		       uint32 src_x, uint32 src_y,
 		       uint32 x, uint32 y, uint32 w, uint32 h,
 		       uint32 redMask, uint32 greenMask, uint32 blueMask,
 		       uint32 redShift, uint32 greenShift, uint32 blueShift)
 {
-   const uint32 *srcptr;
+   uint32 *srcptr;
    uint16 *dstptr;
    int i, j;
 
@@ -1077,11 +1069,11 @@ RasterConvert32toShort(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert32to24(uint8 *tof, uint32 line_increment,
-		    const uint8 *src, uint32 src_increment,
+		    uint8 *src, uint32 src_increment,
 		    uint32 src_x, uint32 src_y,
 		    uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   const uint32 *srcptr;
+   uint32 *srcptr;
    uint8 *dstptr;
    int i, j, k;
 
@@ -1125,13 +1117,13 @@ RasterConvert32to24(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvertIndexto8(uint8 *tof, uint32 line_increment,
-			  const uint8 *src, uint32 src_increment, const uint32 *pixels,
+			  uint8 *src, uint32 src_increment, uint32 *pixels,
 			  uint32 src_x, uint32 src_y,
 			  uint32 x, uint32 y, uint32 w, uint32 h,
 			  uint32 redMask, uint32 greenMask, uint32 blueMask,
 			  uint32 redShift, uint32 greenShift, uint32 blueShift)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint8 *dstptr;
    int i, j;
 
@@ -1173,13 +1165,13 @@ RasterConvertIndexto8(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvertIndextoShort(uint8 *tof, uint32 line_increment,
-			  const uint8 *src, uint32 src_increment, const uint32 *pixels,
+			  uint8 *src, uint32 src_increment, uint32 *pixels,
 			  uint32 src_x, uint32 src_y,
 			  uint32 x, uint32 y, uint32 w, uint32 h,
 			  uint32 redMask, uint32 greenMask, uint32 blueMask,
 			  uint32 redShift, uint32 greenShift, uint32 blueShift)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint16 *dstptr;
    int i, j;
 
@@ -1222,11 +1214,11 @@ RasterConvertIndextoShort(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvertIndexto24(uint8 *tof, uint32 line_increment,
-		       const uint8 *src, uint32 src_increment, const uint32 *pixels,
+		       uint8 *src, uint32 src_increment, uint32 *pixels,
 		       uint32 src_x, uint32 src_y,
 		       uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint8 *dstptr;
    int i, j, k;
 
@@ -1261,18 +1253,18 @@ RasterConvertIndexto24(uint8 *tof, uint32 line_increment,
  *	None
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
 static void
 RasterConvertIndexto32(uint8 *tof, uint32 line_increment,
-		       const uint8 *src, uint32 src_increment, const uint32 *pixels,
+		       uint8 *src, uint32 src_increment, uint32 *pixels,
 		       uint32 src_x, uint32 src_y,
 		       uint32 x, uint32 y, uint32 w, uint32 h)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint32 *dstptr;
    int i, j;
 
@@ -1314,13 +1306,13 @@ RasterConvertIndexto32(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert32to8(uint8 *tof, uint32 line_increment,
-		   const uint8 *src, uint32 src_increment,
+		   uint8 *src, uint32 src_increment,
 		   uint32 src_x, uint32 src_y,
 		   uint32 x, uint32 y, uint32 w, uint32 h,
 		   uint32 redMask, uint32 greenMask, uint32 blueMask,
 		   uint32 redShift, uint32 greenShift, uint32 blueShift)
 {
-   const uint32 *srcptr;
+   uint32 *srcptr;
    uint8 *dstptr;
    int i, j;
 
@@ -1364,13 +1356,13 @@ RasterConvert32to8(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert24to8(uint8 *tof, uint32 line_increment,
-		   const uint8 *src, uint32 src_increment,
+		   uint8 *src, uint32 src_increment,
 		   uint32 src_x, uint32 src_y,
 		   uint32 x, uint32 y, uint32 w, uint32 h,
 		   uint32 redMask, uint32 greenMask, uint32 blueMask,
 		   uint32 redShift, uint32 greenShift, uint32 blueShift)
 {
-   const uint8 *srcptr;
+   uint8 *srcptr;
    uint8 *dstptr;
    int i, j, k;
 
@@ -1418,13 +1410,13 @@ RasterConvert24to8(uint8 *tof, uint32 line_increment,
 
 static void
 RasterConvert16to8(uint8 *tof, uint32 line_increment,
-                   const uint8 *src, uint32 src_increment,
+                   uint8 *src, uint32 src_increment,
                    uint32 src_x, uint32 src_y,
                    uint32 x, uint32 y, uint32 w, uint32 h,
                    uint32 redMask, uint32 greenMask, uint32 blueMask,
                    int redShift, int greenShift, int blueShift)
 {
-   const uint16 *srcptr;
+   uint16 *srcptr;
    uint8 *dstptr;
    int i, j;
 

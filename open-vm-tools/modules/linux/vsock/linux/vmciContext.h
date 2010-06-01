@@ -33,7 +33,6 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-#include "vmci_handle_array.h"
 #include "vmci_infrastructure.h"
 
 #define MAX_QUEUED_GUESTCALLS_PER_VM  100
@@ -49,24 +48,6 @@ int VMCIContext_InitContext(VMCIId cid, VMCIPrivilegeFlags flags,
 int VMCIContext_SetDomainName(VMCIContext *context, const char *domainName);
 int VMCIContext_GetDomainName(VMCIId contextID, char *domainName,
                               size_t domainNameBufSize);
-void VMCIContext_SetFSRState(VMCIContext *context,
-                             Bool isQuiesced,
-                             VMCIId migrateCid,
-                             uintptr_t eventHnd,
-                             Bool isLocked);
-VMCIContext *VMCIContext_FindAndUpdateSrcFSR(VMCIId migrateCid,
-                                             uintptr_t eventHnd,
-                                             uintptr_t *srcEventHnd);
-Bool VMCIContext_IsActiveHnd(VMCIContext *context,
-                             uintptr_t eventHnd);
-void VMCIContext_SetInactiveHnd(VMCIContext *context,
-                                uintptr_t eventHnd);
-Bool VMCIContext_RemoveHnd(VMCIContext *context,
-                           uintptr_t eventHnd,
-                           uint32 *numOld,
-                           uint32 *numNew);
-void VMCIContext_ClearDatagrams(VMCIContext *context);
-void VMCIContext_SetId(VMCIContext *context, VMCIId cid);
 #endif
 Bool VMCIContext_SupportsHostQP(VMCIContext *context);
 void VMCIContext_ReleaseContext(VMCIContext *context);
@@ -100,22 +81,7 @@ void VMCIUnsetNotify(VMCIContext *context);
 #  endif
 #endif
 
-int VMCIContext_DoorbellCreate(VMCIId contextID, VMCIHandle handle);
-int VMCIContext_DoorbellDestroy(VMCIId contextID, VMCIHandle handle);
-int VMCIContext_DoorbellDestroyAll(VMCIId contextID);
-int VMCIContext_NotifyDoorbell(VMCIId cid, VMCIHandle handle,
-                               VMCIPrivilegeFlags srcPrivFlags);
-
-int VMCIContext_ReceiveNotificationsGet(VMCIId contextID,
-                                        VMCIHandleArray **dbHandleArray,
-                                        VMCIHandleArray **qpHandleArray);
-void VMCIContext_ReceiveNotificationsRelease(VMCIId contextID,
-                                             VMCIHandleArray *dbHandleArray,
-                                             VMCIHandleArray *qpHandleArray,
-                                             Bool success);
-#if defined(VMKERNEL)
-void VMCIContext_SignalPendingDoorbells(VMCIId contextID);
-
+#ifdef VMKERNEL
 int VMCIContextID2HostVmID(VMCIId contextID, void *hostVmID, size_t hostVmIDLen);
 #endif
 

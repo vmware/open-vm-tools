@@ -104,7 +104,6 @@ typedef struct MsgFmt_Arg {
       uint32 unsigned32;
       uint64 unsigned64;
       double float64;
-      char *string8char;   // same as string8, different type
       int8 *string8;
       int16 *string16;
       int32 *string32;

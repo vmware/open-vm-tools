@@ -16,20 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 
 /*
  * hgfsUtil.h --
@@ -114,8 +100,8 @@ struct timespec {
 #define EPROTO (ELAST + 1)
 #endif
 
-#define HGFS_NAME_BUFFER_SIZE(packetSize, request) (packetSize - (sizeof *request - 1))
-#define HGFS_NAME_BUFFER_SIZET(packetSize, sizet) (packetSize - ((sizet) - 1))
+#define HGFS_NAME_BUFFER_SIZE(request) (HGFS_PACKET_MAX - (sizeof *request - 1))
+#define HGFS_NAME_BUFFER_SIZET(sizet) (HGFS_PACKET_MAX - ((sizet) - 1))
 
 #ifndef _WIN32
 /*

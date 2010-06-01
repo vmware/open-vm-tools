@@ -34,7 +34,7 @@
 #include "hgfsProto.h"
 #include "conf.h"
 #include "str.h"
-#include "vmware/tools/utils.h"
+#include "vmtools.h"
 
 #include "hgfsclient_version.h"
 #include "embed_version.h"
@@ -316,14 +316,20 @@ static Bool
 HgfsClient_Init(void)
 {
    Bool success = FALSE;
-   GKeyFile *conf = NULL;
+   gchar *confFile;
+   GKeyFile *conf;
 
-   VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &conf, NULL);
-   VMTools_ConfigLogging("hgfsclient", conf, FALSE, FALSE);
+   confFile = VMTools_GetToolsConfFile();
+   conf = VMTools_LoadConfig(confFile, G_KEY_FILE_NONE, FALSE);
+
    if (conf != NULL) {
+      VMTools_ConfigLogging(conf);
       g_key_file_free(conf);
       conf = NULL;
    }
+
+   g_free(confFile);
+   confFile = NULL;
 
    if (!VmCheck_IsVirtualWorld()) {
       Warning("This application must be run in a Virtual Machine.\n");

@@ -51,7 +51,7 @@ HEADER_DIR = /lib/modules/$(VM_UNAME)/build/include
 BUILD_DIR = $(HEADER_DIR)/..
 
 DRIVER := vmblock
-PRODUCT := tools-source
+PRODUCT := tools
 
 # Grep program
 GREP = /bin/grep

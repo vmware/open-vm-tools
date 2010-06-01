@@ -25,7 +25,7 @@
  *    Internal definitions for the RPC channel library.
  */
 
-#include "vmware/tools/guestrpc.h"
+#include "rpcChannel.h"
 
 void
 RpcChannel_Error(void *_state,

@@ -35,6 +35,7 @@
 
 #include "vm_assert.h"
 #include "vmci_kernel_if.h"
+#include "vmci_queue_pair.h"
 #include "vmciQueuePairInt.h"
 #include "vmciUtil.h"
 #include "vmciInt.h"
@@ -402,8 +403,21 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
                     uint32     flags)       // IN:
 {
    ASSERT_ON_COMPILE(sizeof(VMCIQueueHeader) <= PAGE_SIZE);
+#  define VMCIQP_OFFSET_OF(Struct, field) ((uintptr_t)&(((Struct *)0)->field))
+#ifdef __linux__
+   ASSERT_ON_COMPILE(VMCIQP_OFFSET_OF(VMCIQueue, page) == PAGE_SIZE);
+#elif !defined(SOLARIS)
+   ASSERT_ON_COMPILE(VMCIQP_OFFSET_OF(VMCIQueue, buffer) == PAGE_SIZE);
+#endif
+#  undef VMCIQP_OFFSET_OF
 
-   return VMCIQueuePair_AllocPriv(handle, produceQ, produceSize, consumeQ, consumeSize, peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
+   if (!handle || !produceQ || !consumeQ || (!produceSize && !consumeSize) ||
+       (flags & ~VMCI_QP_ALL_FLAGS)) {
+      return VMCI_ERROR_INVALID_ARGS;
+   }
+
+   return VMCIQueuePairAllocHelper(handle, produceQ, produceSize, consumeQ,
+                                   consumeSize, peer, flags);
 }
 
 
@@ -439,17 +453,7 @@ VMCIQueuePair_AllocPriv(VMCIHandle *handle,           // IN/OUT:
                         uint32     flags,             // IN:
                         VMCIPrivilegeFlags privFlags) // IN:
 {
-   if (privFlags != VMCI_NO_PRIVILEGE_FLAGS) {
-      return VMCI_ERROR_NO_ACCESS;
-   }
-
-   if (!handle || !produceQ || !consumeQ || (!produceSize && !consumeSize) ||
-       (flags & ~VMCI_QP_ALL_FLAGS)) {
-      return VMCI_ERROR_INVALID_ARGS;
-   }
-
-   return VMCIQueuePairAllocHelper(handle, produceQ, produceSize, consumeQ,
-                                   consumeSize, peer, flags);
+   return VMCI_ERROR_NO_ACCESS;
 }
 
 
@@ -809,8 +813,8 @@ out:
     */
    if ((queuePairEntry->flags & VMCI_QPFLAG_LOCAL) &&
        queuePairEntry->refCount == 1) {
-      VMCIQueueHeader_Init((*produceQ)->qHeader, *handle);
-      VMCIQueueHeader_Init((*consumeQ)->qHeader, *handle);
+      VMCIQueue_Init(*handle, *produceQ);
+      VMCIQueue_Init(*handle, *consumeQ);
    }
 
    QueuePairList_Unlock();

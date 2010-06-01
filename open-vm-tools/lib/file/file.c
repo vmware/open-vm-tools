@@ -166,10 +166,10 @@ File_IsDirectory(ConstUnicode pathName)  // IN:
  *
  * File_GetFilePermissions --
  *
- *      Return the read / write / execute permissions of a file.
+ *	Return the read / write / execute permissions of a file.
  *
  * Results:
- *      TRUE if success, FALSE otherwise.
+ *	TRUE if success, FALSE otherwise.
  *
  * Side effects:
  *      None
@@ -184,24 +184,18 @@ File_GetFilePermissions(ConstUnicode pathName,  // IN:
    FileData fileData;
 
    ASSERT(mode);
-
    if (FileAttributes(pathName, &fileData) != 0) {
       return FALSE;
    }
-
    *mode = fileData.fileMode;
-
-#if defined(_WIN32)
+#ifdef _WIN32
       /*
-       * On Win32 implementation of FileAttributes does not return execution
-       * bit.
+       *  On Win32 implementation of FileAttributes does not return execution bit.
        */
-
       if (FileIO_Access(pathName, FILEIO_ACCESS_EXEC) == FILEIO_SUCCESS) {
          *mode |= S_IXUSR;
       }
 #endif
-
    return TRUE;
 }
 
@@ -335,7 +329,6 @@ Bool
 File_EnsureDirectory(ConstUnicode pathName)  // IN:
 {
    int res = FileCreateDirectory(pathName);
-
    return ((0 == res) || (EEXIST == res));
 }
 
@@ -398,16 +391,16 @@ GetOldMachineID(void)
 
       Hostinfo_MachineID(&hashValue, &hardwareID);
 
-      /* Build the raw machineID */
+      // Build the raw machineID
       memcpy(rawMachineID, &hashValue, sizeof hashValue);
       memcpy(&rawMachineID[sizeof hashValue], &hardwareID,
              sizeof hardwareID);
 
-      /* Base 64 encode the binary data to obtain printable characters */
+      // Base 64 encode the binary data to obtain printable characters
       Base64_Encode(rawMachineID, sizeof rawMachineID, encodedMachineID,
                     sizeof encodedMachineID, NULL);
 
-      /* remove '/' from the encoding; no problem using it for a file name */
+      // remove any '/' from the encoding; no problem using it for a file name
       for (p = encodedMachineID; *p; p++) {
          if (*p == '/') {
             *p = '-';
@@ -513,21 +506,21 @@ FileLockGetMachineID(void)
  *
  * OldMachineIDMatch --
  *
- *      Do the old-style MachineIDs match?
+ *	Do the old-style MachineIDs match?
  *
  * Results:
  *      TRUE     Yes
  *      FALSE    No
  *
  * Side effects:
- *      None.
+ *	None.
  *
  *-----------------------------------------------------------------------------
  */
 
 static Bool
-OldMachineIDMatch(const char *first,   // IN:
-                  const char *second)  // IN:
+OldMachineIDMatch(const char *first,  // IN:
+                  const char *second) // IN:
 {
 #if defined(__APPLE__) || defined(linux)
    /* Ignore the host name hash */
@@ -549,7 +542,6 @@ OldMachineIDMatch(const char *first,   // IN:
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #1 (%s)\n", __FUNCTION__,
               first);
-
       return FALSE;
    }
 
@@ -564,7 +556,6 @@ OldMachineIDMatch(const char *first,   // IN:
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #2 (%s)\n", __FUNCTION__,
               second);
-
       return FALSE;
    }
 
@@ -581,21 +572,21 @@ OldMachineIDMatch(const char *first,   // IN:
  *
  * FileLockMachineIDMatch --
  *
- *      Do the MachineIDs match?
+ *	Do the MachineIDs match?
  *
  * Results:
  *      TRUE     Yes
  *      FALSE    No
  *
  * Side effects:
- *      None.
+ *	None.
  *
  *-----------------------------------------------------------------------------
  */
 
 Bool
-FileLockMachineIDMatch(char *hostMachineID,   // IN:
-                       char *otherMachineID)  // IN:
+FileLockMachineIDMatch(char *hostMachineID,  // IN:
+                       char *otherMachineID) // IN:
 {
    if (strncmp(hostMachineID, "uuid=", 5) == 0) {
       if (strncmp(otherMachineID, "uuid=", 5) == 0) {
@@ -657,8 +648,8 @@ File_IsEmptyDirectory(ConstUnicode pathName)  // IN:
  *      Check if specified file is a regular file.
  *
  * Results:
- *      TRUE    is a regular file
- *      FALSE   is not a regular file or an error occured.
+ *      TRUE	is a regular file
+ *      FALSE	is not a regular file or an error occured.
  *
  * Side effects:
  *      None
@@ -1045,7 +1036,7 @@ File_GetPathName(ConstUnicode fullPath,  // IN:
  */
 
 Unicode
-File_StripSlashes(ConstUnicode path)  // IN:
+File_StripSlashes(ConstUnicode path) // IN
 {
    Unicode result, volume, dir, base;
 
@@ -1065,8 +1056,7 @@ File_StripSlashes(ConstUnicode path)  // IN:
        * Don't strip first slash on Windows, since we want at least
        * one slash to trail a drive letter/colon or UNC specifier.
        */
-
-#if defined(_WIN32)
+#ifdef _WIN32
       while ((i > 1) && (('/' == dir2[i - 1]) ||
                          ('\\' == dir2[i - 1]))) {
 #else
@@ -1284,7 +1274,6 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
       if (!FileIO_IsSuccess(fretR) && (fretR != FILEIO_READ_ERROR_EOF)) {
          Msg_Append(MSGID(File.CopyFromFdToFd.read.failure)
                                "Read error: %s.\n\n", FileIO_MsgError(fretR));
-
          return FALSE;
       }
 
@@ -1292,7 +1281,6 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
       if (!FileIO_IsSuccess(fretW)) {
          Msg_Append(MSGID(File.CopyFromFdToFd.write.failure)
                               "Write error: %s.\n\n", FileIO_MsgError(fretW));
-
          return FALSE;
       }
    } while (fretR != FILEIO_READ_ERROR_EOF);
@@ -1474,7 +1462,6 @@ File_CopyFromNameToName(ConstUnicode srcName,  // IN:
       Msg_Append(MSGID(File.CopyFromNameToName.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
-
       return FALSE;
    }
 
@@ -1531,7 +1518,6 @@ File_CopyFromFd(FileIODescriptor src,     // IN:
       Msg_Append(MSGID(File.CopyFromFdToName.create.failure)
                  "Unable to create a new '%s' file: %s.\n\n", UTF8(dstName),
                  FileIO_MsgError(fret));
-
       return FALSE;
    }
 
@@ -1592,7 +1578,6 @@ File_Copy(ConstUnicode srcName,    // IN:
       Msg_Append(MSGID(File.Copy.open.failure)
                  "Unable to open the '%s' file for read access: %s.\n\n",
                  UTF8(srcName), FileIO_MsgError(fret));
-
       return FALSE;
    }
 
@@ -1741,81 +1726,6 @@ File_SupportsLargeFiles(ConstUnicode pathName)  // IN:
 }
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * File_MapPathPrefix --
- *
- *      Given a path and a newPrefix -> oldPrefix mapping, transform
- *      oldPath according to the mapping.
- *
- * Results:
- *      The new path, or NULL if there is no mapping.
- *
- * Side effects:
- *      The returned string is allocated, free it.
- *
- *-----------------------------------------------------------------------------
- */
-
-char *
-File_MapPathPrefix(const char *oldPath,       // IN:
-                   const char **oldPrefixes,  // IN:
-                   const char **newPrefixes,  // IN:
-                   size_t numPrefixes)        // IN:
-{
-   int i;
-   size_t oldPathLen = strlen(oldPath);
-
-   for (i = 0; i < numPrefixes; i++) {
-      char *newPath;
-      char *oldPrefix;
-      char *newPrefix;
-      size_t oldPrefixLen;
-
-      oldPrefix = File_StripSlashes(oldPrefixes[i]);
-      newPrefix = File_StripSlashes(newPrefixes[i]);
-      oldPrefixLen = strlen(oldPrefix);
-
-      /*
-       * If the prefix matches on a DIRSEPS boundary, or the prefix is the
-       * whole string, replace it.
-       * If we don't insist on matching a whole directory name, we could
-       * mess things of if one directory is a substring of another.
-       */
-
-      if ((oldPathLen >= oldPrefixLen) &&
-          (memcmp(oldPath, oldPrefix, oldPrefixLen) == 0) &&
-          (strchr(VALID_DIRSEPS, oldPath[oldPrefixLen]) ||
-              (oldPath[oldPrefixLen] == '\0'))) {
-         size_t newPrefixLen = strlen(newPrefix);
-         size_t newPathLen = (oldPathLen - oldPrefixLen) + newPrefixLen;
-
-         ASSERT(newPathLen > 0);
-         ASSERT(oldPathLen >= oldPrefixLen);
-
-         newPath = Util_SafeMalloc((newPathLen + 1) * sizeof(char));
-         memcpy(newPath, newPrefix, newPrefixLen);
-         memcpy(newPath + newPrefixLen, oldPath + oldPrefixLen,
-                oldPathLen - oldPrefixLen + 1);
-         /*
-          * It should only match once.  Weird self-referencing mappings
-          * aren't allowed.
-          */
-
-         free(oldPrefix);
-         free(newPrefix);
-
-         return newPath;
-      }
-      free(oldPrefix);
-      free(newPrefix);
-   }
-
-   return NULL;
-}
-
-
 #if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------------
@@ -1834,7 +1744,7 @@ File_MapPathPrefix(const char *oldPath,       // IN:
  */
 
 int64
-File_GetSizeByPath(ConstUnicode pathName)  // IN:
+File_GetSizeByPath(ConstUnicode pathName)
 {
    return (pathName == NULL) ? -1 : FileIO_GetSizeByPath(pathName);
 }
@@ -1857,7 +1767,7 @@ File_GetSizeByPath(ConstUnicode pathName)  // IN:
  */
 
 Bool
-File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
+File_CreateDirectoryHierarchy(ConstUnicode pathName)
 {
    Unicode volume;
    UnicodeIndex index;
@@ -1922,12 +1832,11 @@ File_CreateDirectoryHierarchy(ConstUnicode pathName)  // IN:
  * File_DeleteDirectoryTree --
  *
  *      Deletes the specified directory tree. If filesystem errors are
- *      encountered along the way, the function will continue to delete what
- *      it can but will return FALSE.
+ *      encountered along the way, the function will continue to delete what it
+ *      can but will return FALSE.
  *
  * Results:
- *      TRUE   the entire tree was deleted or didn't exist
- *      FALSE  otherwise.
+ *      TRUE if the entire tree was deleted or didn't exist, FALSE otherwise.
  *      
  * Side effects:
  *      Deletes the directory tree from disk.
@@ -1968,46 +1877,29 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
 
    for (i = 0; i < numFiles; i++) {
       Unicode curPath;
-      struct stat statbuf;
 
       curPath = Unicode_Append(base, fileList[i]);
 
-      if (Posix_Lstat(curPath, &statbuf) == 0) {
-         switch (statbuf.st_mode & S_IFMT) {
-         case S_IFDIR:
-            /* Directory, recurse */
-            if (!File_DeleteDirectoryTree(curPath)) {
-               sawFileError = TRUE;
-            }
-            break;
-
-#if !defined(_WIN32)
-         case S_IFLNK:
-            /* Delete symlink, not what it points to */
-            if (FileDeletion(curPath, FALSE) != 0) {
-               sawFileError = TRUE;
-            }
-            break;
-#endif
-
-         default:
-            if (FileDeletion(curPath, FALSE) != 0) {
-#if defined(_WIN32)
-               if (File_SetFilePermissions(curPath, S_IWUSR)) {
-                  if (FileDeletion(curPath, FALSE) != 0) {
-                     sawFileError = TRUE;
-                  }
-               } else {
-                  sawFileError = TRUE;
-               }
-#else
-               sawFileError = TRUE;
-#endif
-            }
-            break;
+      if (File_IsDirectory(curPath)) {
+         /* is dir, recurse */
+         if (!File_DeleteDirectoryTree(curPath)) {
+            sawFileError = TRUE;
          }
       } else {
-         sawFileError = TRUE;
+         /* is file, delete */
+         if (File_Unlink(curPath) == -1) {
+#if defined(_WIN32)
+            if (File_SetFilePermissions(curPath, S_IWUSR)) {
+               if (File_Unlink(curPath) == -1) {
+                  sawFileError = TRUE;
+               }
+            } else {
+               sawFileError = TRUE;
+            }
+#else
+            sawFileError = TRUE;
+#endif
+         }
       }
 
       Unicode_Free(curPath);
@@ -2049,8 +1941,8 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
  */
 
 char *
-File_PrependToPath(const char *searchPath,  // IN:
-                   const char *elem)        // IN:
+File_PrependToPath(const char *searchPath,   // IN
+                   const char *elem)         // IN
 {
    const char sep = FILE_SEARCHPATHTOKEN[0];
    char *newPath;
@@ -2078,13 +1970,11 @@ File_PrependToPath(const char *searchPath,  // IN:
          }
          break;
       }
-
       if (!next) {
          break;
       }
       path = next + 1;
    }
-
    return newPath;
 }
 
@@ -2108,10 +1998,10 @@ File_PrependToPath(const char *searchPath,  // IN:
  */
 
 Bool
-File_FindFileInSearchPath(const char *fileIn,      // IN:
-                          const char *searchPath,  // IN:
-                          const char *cwd,         // IN:
-                          char **result)           // OUT:
+File_FindFileInSearchPath(const char *fileIn,       // IN
+                          const char *searchPath,   // IN
+                          const char *cwd,          // IN
+                          char **result)            // OUT
 {
    char *cur;
    char *tok;
@@ -2302,23 +2192,25 @@ File_ReplaceExtension(ConstUnicode pathName,      // IN:
  *
  * File_ExpandAndCheckDir --
  *
- *      Expand any environment variables in the given path and check that
- *      the named directory is writeable.
+ *	Expand any environment variables in the given path and check that
+ *	the named directory is writeable.
  *
  * Results:
- *      NULL if error, the expanded path otherwise.
+ *	NULL if error, the expanded path otherwise.
  *
  * Side effects:
- *      The result is allocated.
+ *	The result is allocated.
  *
  *----------------------------------------------------------------------
  */
 
 char *
-File_ExpandAndCheckDir(const char *dirName)  // IN:
+File_ExpandAndCheckDir(const char *dirName)
 {
+   char *edirName;
+
    if (dirName != NULL) {
-      char *edirName = Util_ExpandString(dirName);
+      edirName = Util_ExpandString(dirName);
 
       if ((edirName != NULL) && FileIsWritableDir(edirName)) {
          size_t len = strlen(edirName) - 1;
@@ -2327,7 +2219,7 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
             edirName[len] = '\0';
          }
 
-         return edirName;
+	 return edirName;
       }
    }
 
@@ -2336,77 +2228,19 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * FileSimpleRandom --
- *
- *      Return a random number in the range of 0 and 2^32-1.
- *
- *      This isn't thread safe but it's more than good enough for the
- *      purposes required of it.
- *
- * Results:
- *      Random number is returned.
- *
- * Side Effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-uint32
-FileSimpleRandom(void)
-{
-   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
-   rqContext *context;
-
-   context = Atomic_ReadPtr(&atomic);
-
-   if (UNLIKELY(context == NULL)) {
-      rqContext *newContext;
-      uint32 value;
-
-      /*
-       * Threads will hash up this RNG - this isn't officially thread safe
-       * which is just fine - but ensure that different processes have
-       * different answer streams.
-       */
-
-#if defined(_WIN32)
-      value = GetCurrentProcessId();
-#else
-      value = getpid();
-#endif
-
-      newContext = Random_QuickSeed(value);
-
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, (void *) newContext)) {
-         free(newContext);
-      }
-
-      context = Atomic_ReadPtr(&atomic);
-      ASSERT(context);
-   }
-
-   return Random_Quick(context);
-}
-
-
-/*
  *----------------------------------------------------------------------
  *
  * FileSleeper
  *
- *      Sleep for a random amount of time, no less than the specified minimum
- *      and no more than the specified maximum sleep time values. This often
- *      proves useful to "jitter" retries such that multiple threads don't
- *      easily get into resonance performing necessary actions.
+ *	Sleep for a random amount of time between the specified minimum and
+ *      maximum sleep values. This provides "jitter" on retries such
+ *      that two or more threads don't easily get into resonance.
  *
  * Results:
- *      Somnambulistic behavior; the amount of time slept is returned.
+ *      Sonambulistic behavior; the amount of time slept is returned.
  *
  * Side effects:
- *      None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -2418,19 +2252,35 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
    uint32 variance;
    uint32 msecActualSleepTime;
 
-   ASSERT(msecMinSleepTime <= msecMaxSleepTime);
-
    variance = msecMaxSleepTime - msecMinSleepTime;
 
    if (variance == 0) {
       msecActualSleepTime = msecMinSleepTime;
    } else {
-      float fpRand = ((float) FileSimpleRandom()) / ((float) ~((uint32) 0));
+      int sample;
+      float fpRand;
+      static int32 rng;  // implicitly 0
+
+      if (rng == 0) {
+#if defined(_WIN32)
+         rng = GetCurrentProcessId();
+#else
+         rng = getpid();
+#endif
+      }
+
+      sample = FastRand(rng);
+      fpRand = ((float) sample) / ((float) MAX_INT32);
+      rng = sample;
 
       msecActualSleepTime = msecMinSleepTime + (uint32) (fpRand * variance);
    }
 
+#if defined(_WIN32)
+   Sleep(msecActualSleepTime);
+#else
    usleep(1000 * msecActualSleepTime);
+#endif
 
    return msecActualSleepTime;
 }

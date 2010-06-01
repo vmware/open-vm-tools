@@ -32,6 +32,7 @@ extern "C" {
 #include <string.h>
 
 #include "vmware.h"
+#include "vm_app.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
 #include "guestApp.h"
@@ -49,11 +50,12 @@ extern "C" {
 #include "codeset.h"
 #include "productState.h"
 #include "posix.h"
-#include "vmware/guestrpc/tclodefs.h"
 
-#include "hgfs.h"
-#include "cpName.h"
-#include "cpNameUtil.h"
+#if !defined(N_PLAT_NLM)
+# include "hgfs.h"
+# include "cpName.h"
+# include "cpNameUtil.h"
+#endif
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -70,7 +72,9 @@ extern "C" {
  * intelligent for that platform as well.
  */
 
-#if defined(_WIN32)
+#if defined(N_PLAT_NLM)
+#define GUESTAPP_TOOLS_INSTALL_PATH "SYS:\\ETC\\VMWTOOL"
+#elif defined(_WIN32)
 #define GUESTAPP_TOOLS_INSTALL_PATH ""
 #else
 #define GUESTAPP_TOOLS_INSTALL_PATH "/etc/vmware-tools"
@@ -100,6 +104,8 @@ struct GuestApp_Dict {
 typedef HRESULT (WINAPI *PSHGETFOLDERPATH)(HWND, int, HANDLE, DWORD, LPWSTR);
 static PSHGETFOLDERPATH pfnSHGetFolderPath = NULL;
 #endif
+
+Bool runningInForeignVM = FALSE;
 
 
 /*
@@ -439,7 +445,7 @@ GuestApp_GetDictEntryBool(GuestApp_Dict *dict, // IN
       return FALSE;
    }
 
-#if defined (_WIN32)
+#if  (defined N_PLAT_NLM || defined _WIN32)
    return (stricmp(value, "TRUE") == 0);
 #else
    return (strcasecmp(value, "TRUE") == 0);
@@ -533,11 +539,15 @@ GuestApp_OldGetOptions(void)
 {
    Backdoor_proto bp;
 
-   Debug("Retrieving tools options (old)\n");
+   if (runningInForeignVM) {
+      return(0);
+   } else {
+      Debug("Retrieving tools options (old)\n");
 
-   bp.in.cx.halfs.low = BDOOR_CMD_GETGUIOPTIONS;
-   Backdoor(&bp);
-   return bp.out.ax.word;
+      bp.in.cx.halfs.low = BDOOR_CMD_GETGUIOPTIONS;
+      Backdoor(&bp);
+      return bp.out.ax.word;
+   }
 }
 
 
@@ -562,11 +572,13 @@ GuestApp_OldSetOptions(uint32 options) // IN
 {
    Backdoor_proto bp;
 
-   Debug("Setting tools options (old)\n");
+   if (!runningInForeignVM) {
+      Debug("Setting tools options (old)\n");
 
-   bp.in.cx.halfs.low = BDOOR_CMD_SETGUIOPTIONS;
-   bp.in.size = options;
-   Backdoor(&bp);
+      bp.in.cx.halfs.low = BDOOR_CMD_SETGUIOPTIONS;
+      bp.in.size = options;
+      Backdoor(&bp);
+   }
 }
 
 
@@ -869,6 +881,82 @@ GuestApp_GetDefaultScript(const char *confName) // IN
    return value;
 }
 
+#ifdef _WIN32
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * GuestApp_GetInstallPathW --
+ *
+ *    Returns the tools installation path as a UTF-16 encoded string, or NULL on
+ *    error. The caller must deallocate the returned string using free.
+ *
+ * Results:
+ *    See above.
+ *
+ * Side effects:
+ *    None.
+ *------------------------------------------------------------------------------
+ */
+
+LPWSTR
+GuestApp_GetInstallPathW(void)
+{
+   static LPCWSTR TOOLS_KEY_NAME = L"Software\\VMware, Inc.\\VMware Tools";
+   static LPCWSTR INSTALLPATH_VALUE_NAME = L"InstallPath";
+
+   HKEY   key    = NULL;
+   LONG   rc     = ERROR_SUCCESS;
+   DWORD  cbData = 0;
+   DWORD  temp   = 0;
+   PWCHAR data   = NULL;
+
+   rc = RegOpenKeyExW(HKEY_LOCAL_MACHINE, TOOLS_KEY_NAME, 0, KEY_READ, &key);
+   if (ERROR_SUCCESS != rc) {
+      Debug("%s: Couldn't open key \"%S\".\n", __FUNCTION__, TOOLS_KEY_NAME);
+      Debug("%s: RegOpenKeyExW error 0x%x.\n", __FUNCTION__, GetLastError());
+      goto exit;
+   }
+
+   rc = RegQueryValueExW(key, INSTALLPATH_VALUE_NAME, 0, NULL, NULL, &cbData);
+   if (ERROR_SUCCESS != rc) {
+      Debug("%s: Couldn't get length of value \"%S\".\n", __FUNCTION__,
+            INSTALLPATH_VALUE_NAME);
+      Debug("%s: RegQueryValueExW error 0x%x.\n", __FUNCTION__, GetLastError());
+      goto exit;
+   }
+
+   /*
+    * The data in the registry may not be null terminated. So allocate enough
+    * space for one extra WCHAR and use that space to write our own NULL.
+    */
+   data = (LPWSTR) malloc(cbData + sizeof(WCHAR));
+   if (NULL == data) {
+      Debug("%s: Couldn't allocate %d bytes.\n", __FUNCTION__, cbData);
+      goto exit;
+   }
+
+   temp = cbData;
+   rc = RegQueryValueExW(key, INSTALLPATH_VALUE_NAME, 0, NULL, (LPBYTE) data,
+                         &temp);
+   if (ERROR_SUCCESS != rc) {
+      Debug("%s: Couldn't get data for value \"%S\".\n", __FUNCTION__,
+            INSTALLPATH_VALUE_NAME);
+      Debug("%s: RegQueryValueExW error 0x%x.\n", __FUNCTION__, GetLastError());
+      goto exit;
+   }
+
+   data[cbData / sizeof(WCHAR)] = L'\0';
+
+exit:
+   if (NULL != key) {
+      RegCloseKey(key);
+   }
+
+   return data;
+}
+
+#endif
 
 /*
  *----------------------------------------------------------------------
@@ -936,9 +1024,9 @@ GuestApp_GetInstallPath(void)
  *      lib/user/win32util.c because we can't use that file inside guest
  *      code. If we do, we'll break Win95 Tools.
  *
- *      XXX: For Windows, this function will only fail on pre-2k/Me systems 
- *      that haven't installed IE4 _and_ haven't ever used our installer 
- *      (it is thought that the installer will copy shfolder.dll if the 
+ *      XXX: For Windows, this function will only fail on pre-2k/Me systems
+ *      that haven't installed IE4 _and_ haven't ever used our installer
+ *      (it is thought that the installer will copy shfolder.dll if the
  *      system needs it).
  *
  *      However, the function will also return NULL if we fail to create
@@ -948,7 +1036,7 @@ GuestApp_GetInstallPath(void)
  *      a non-root user process calls this function, the directory exists.
  *
  * Results:
- *      The path in UTF-8, or NULL on failure. 
+ *      The path in UTF-8, or NULL on failure.
  *
  * Side effects:
  *      Allocates memory.
@@ -974,15 +1062,15 @@ GuestApp_GetConfPath(void)
    if (!pfnSHGetFolderPath) {
       HMODULE h = LoadLibraryW(L"shfolder.dll");
       if (h) {
-         pfnSHGetFolderPath = (PSHGETFOLDERPATH) 
+         pfnSHGetFolderPath = (PSHGETFOLDERPATH)
             GetProcAddress(h, "SHGetFolderPathW");
       }
-         
+
       /* win32util.c avoids calling FreeLibrary() so we will too. */
    }
 
-   /* 
-    * Get the Common Application data folder - create if it doesn't 
+   /*
+    * Get the Common Application data folder - create if it doesn't
     * exist.
     */
 
@@ -1084,7 +1172,7 @@ GuestApp_GetLogPath(void)
    /* We should log to %TEMP%. */
    LPWSTR buffer = NULL;
    DWORD bufferSize = 0, neededSize;
-   
+
    if ((neededSize = GetEnvironmentVariableW(L"TEMP", buffer, bufferSize)) == 0) {
       return NULL;
    }
@@ -1160,12 +1248,14 @@ GuestApp_GetAbsoluteMouseState(void)
    Backdoor_proto bp;
    GuestAppAbsoluteMouseState state = GUESTAPP_ABSMOUSE_UNKNOWN;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_ISMOUSEABSOLUTE;
-   Backdoor(&bp);
-   if (bp.out.ax.word == 0) {
-      state = GUESTAPP_ABSMOUSE_UNAVAILABLE;
-   } else if (bp.out.ax.word == 1) {
-      state = GUESTAPP_ABSMOUSE_AVAILABLE;
+   if (!runningInForeignVM) {
+      bp.in.cx.halfs.low = BDOOR_CMD_ISMOUSEABSOLUTE;
+      Backdoor(&bp);
+      if (bp.out.ax.word == 0) {
+         state = GUESTAPP_ABSMOUSE_UNAVAILABLE;
+      } else if (bp.out.ax.word == 1) {
+         state = GUESTAPP_ABSMOUSE_AVAILABLE;
+      }
    }
 
    return state;
@@ -1274,10 +1364,15 @@ GuestApp_GetPos(int16 *x, // OUT
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_GETPTRLOCATION;
-   Backdoor(&bp);
-   *x = bp.out.ax.word >> 16;
-   *y = bp.out.ax.word;
+   if (runningInForeignVM) {
+      *x = 0;
+      *y = 0;
+   } else {
+      bp.in.cx.halfs.low = BDOOR_CMD_GETPTRLOCATION;
+      Backdoor(&bp);
+      *x = bp.out.ax.word >> 16;
+      *y = bp.out.ax.word;
+   }
 }
 
 
@@ -1304,9 +1399,11 @@ GuestApp_SetPos(uint16 x, // IN
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_SETPTRLOCATION;
-   bp.in.size = (x << 16) | y;
-   Backdoor(&bp);
+   if (!runningInForeignVM) {
+      bp.in.cx.halfs.low = BDOOR_CMD_SETPTRLOCATION;
+      bp.in.size = (x << 16) | y;
+      Backdoor(&bp);
+   }
 }
 
 
@@ -1343,9 +1440,13 @@ GuestApp_GetHostSelectionLen(void)
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_GETSELLENGTH;
-   Backdoor(&bp);
-   return bp.out.ax.word;
+   if (runningInForeignVM) {
+      return(0);
+   } else {
+      bp.in.cx.halfs.low = BDOOR_CMD_GETSELLENGTH;
+      Backdoor(&bp);
+      return bp.out.ax.word;
+   }
 }
 
 
@@ -1370,9 +1471,13 @@ GuestAppGetNextPiece(void)
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_GETNEXTPIECE;
-   Backdoor(&bp);
-   return bp.out.ax.word;
+   if (runningInForeignVM) {
+      return(0);
+   } else {
+      bp.in.cx.halfs.low = BDOOR_CMD_GETNEXTPIECE;
+      Backdoor(&bp);
+      return bp.out.ax.word;
+   }
 }
 
 
@@ -1430,9 +1535,11 @@ GuestApp_SetSelLength(uint32 length) // IN
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_SETSELLENGTH;
-   bp.in.size = length;
-   Backdoor(&bp);
+   if (!runningInForeignVM) {
+      bp.in.cx.halfs.low = BDOOR_CMD_SETSELLENGTH;
+      bp.in.size = length;
+      Backdoor(&bp);
+   }
 }
 
 
@@ -1457,9 +1564,11 @@ GuestApp_SetNextPiece(uint32 data) // IN
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_SETNEXTPIECE;
-   bp.in.size = data;
-   Backdoor(&bp);
+   if (!runningInForeignVM) {
+      bp.in.cx.halfs.low = BDOOR_CMD_SETNEXTPIECE;
+      bp.in.size = data;
+      Backdoor(&bp);
+   }
 }
 
 
@@ -1486,10 +1595,14 @@ GuestApp_SetDeviceState(uint16 id,      // IN: Device ID
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_TOGGLEDEVICE;
-   bp.in.size = (connected ? 0x80000000 : 0) | id;
-   Backdoor(&bp);
-   return bp.out.ax.word ? TRUE : FALSE;
+   if (runningInForeignVM) {
+      return(TRUE);
+   } else {
+      bp.in.cx.halfs.low = BDOOR_CMD_TOGGLEDEVICE;
+      bp.in.size = (connected ? 0x80000000 : 0) | id;
+      Backdoor(&bp);
+      return bp.out.ax.word ? TRUE : FALSE;
+   }
 }
 
 
@@ -1524,14 +1637,19 @@ GuestAppGetDeviceListElement(uint16 id,     // IN : Device ID
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_GETDEVICELISTELEMENT;
-   bp.in.size = (id << 16) | offset;
-   Backdoor(&bp);
-   if (bp.out.ax.word == FALSE) {
-      return FALSE;
+   if (runningInForeignVM) {
+      *data = 0;
+      return TRUE;
+   } else {
+      bp.in.cx.halfs.low = BDOOR_CMD_GETDEVICELISTELEMENT;
+      bp.in.size = (id << 16) | offset;
+      Backdoor(&bp);
+      if (bp.out.ax.word == FALSE) {
+         return FALSE;
+      }
+      *data = bp.out.bx.word;
+      return TRUE;
    }
-   *data = bp.out.bx.word;
-   return TRUE;
 }
 
 
@@ -1608,19 +1726,24 @@ GuestApp_HostCopyStep(uint8 c) // IN
 {
    Backdoor_proto bp;
 
-   bp.in.cx.halfs.low = BDOOR_CMD_HOSTCOPY;
-   bp.in.size = c;
-   Backdoor(&bp);
-   return bp.out.ax.word;
+   if (runningInForeignVM) {
+      return(0);
+   } else {
+      bp.in.cx.halfs.low = BDOOR_CMD_HOSTCOPY;
+      bp.in.size = c;
+      Backdoor(&bp);
+      return bp.out.ax.word;
+   }
 }
 
 
+#if !defined(N_PLAT_NLM)
 /*
  *----------------------------------------------------------------------------
  *
  * GuestApp_RpcSendOneArgCPName --
  *
- *    Wrapper for GuestApp_RpcSendOneCPName with an extra argument. Sends a 
+ *    Wrapper for GuestApp_RpcSendOneCPName with an extra argument. Sends a
  *    single RPCI command with arg and cpNameArg both in UTF-8 encodeding.
  *
  *    The UTF-8 encoded arg is optional so that one can send a single UTF-8
@@ -1761,6 +1884,35 @@ GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
 
    free(rpcMessage);
    return TRUE;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GuestApp_ControlRecord --
+ *
+ *    Start or stop recording process, flagged by command.
+ *    Command definition is in statelogger_backdoor_def.h.
+ *
+ * Results:
+ *    TRUE on success and FALSE on failure.
+ *
+ * Side effects:
+ *    Host VMware product starts or stops recording this vm.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+GuestApp_ControlRecord(int32 command) // IN: flag of starting or stopping recording
+{
+   Backdoor_proto bp;
+   bp.in.size = command;
+   bp.in.cx.halfs.low = BDOOR_CMD_STATELOGGER;
+   Backdoor(&bp);
+   return (bp.out.ax.halfs.low == 1);
 }
 
 #ifdef __cplusplus

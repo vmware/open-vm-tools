@@ -20,7 +20,7 @@
 #define _VMCI_CALL_DEFS_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_VMCORE
@@ -52,19 +52,8 @@ typedef struct VMCIDatagram {
 } VMCIDatagram;
 
 
-/*
- * Second flag is for creating a well-known handle instead of a per context
- * handle.  Next flag is for deferring datagram delivery, so that the
- * datagram callback is invoked in a delayed context (not interrupt context).
- */
-#define VMCI_FLAG_DG_NONE          0
+/* Flag for creating a wellknown handle instead of a per context handle. */
 #define VMCI_FLAG_WELLKNOWN_DG_HND 0x1
-#define VMCI_FLAG_ANYCID_DG_HND    0x2
-#define VMCI_FLAG_DG_DELAYED_CB    0x4
-
-/* Event callback should fire in a delayed context (not interrupt context.) */
-#define VMCI_FLAG_EVENT_NONE       0
-#define VMCI_FLAG_EVENT_DELAYED_CB 0x1
 
 /* 
  * Maximum supported size of a VMCI datagram for routable datagrams.
@@ -96,7 +85,7 @@ typedef struct VMCIDatagramWellKnownMapMsg {
  * Struct size is 16 bytes. All fields in struct are aligned to their natural
  * alignment.
  */
-typedef struct VMCIResourcesQueryHdr {
+typedef struct VMCIResourcesQueuryHdr {
    VMCIDatagram hdr;
    uint32       numResources;
    uint32       _padding;
@@ -127,47 +116,40 @@ typedef struct VMCIResourcesQueryMsg {
       + VMCI_RESOURCE_QUERY_MAX_NUM * sizeof(VMCI_Resource)
 
 /* 
- * Struct used for setting the notification bitmap.  All fields in
- * struct are aligned to their natural alignment.
+ * Struct used for making VMCI_SHAREDMEM_CREATE message. Struct size is 24 bytes.
+ * All fields in struct are aligned to their natural alignment.
  */
-typedef struct VMCINotifyBitmapSetMsg {
+typedef struct VMCISharedMemCreateMsg {
    VMCIDatagram hdr;
-   PPN          bitmapPPN;
-   uint32       _pad;
-} VMCINotifyBitmapSetMsg;
+   VMCIHandle   handle;
+   uint32       memSize;
+   uint32       _padding;
+   /* PPNs placed after struct. */
+} VMCISharedMemCreateMsg;
 
 
 /* 
- * Struct used for linking a doorbell handle with an index in the
- * notify bitmap. All fields in struct are aligned to their natural
- * alignment.
+ * Struct used for sending VMCI_SHAREDMEM_ATTACH messages. Same as struct used 
+ * for create messages.
  */
-typedef struct VMCIDoorbellLinkMsg {
-   VMCIDatagram hdr;
-   VMCIHandle   handle;
-   uint64       notifyIdx;
-} VMCIDoorbellLinkMsg;
+typedef VMCISharedMemCreateMsg VMCISharedMemAttachMsg;
 
 
 /* 
- * Struct used for unlinking a doorbell handle from an index in the
- * notify bitmap. All fields in struct are aligned to their natural
- * alignment.
+ * Struct used for sending VMCI_SHAREDMEM_DETACH messsages. Struct size is 16
+ * bytes. All fields in struct are aligned to their natural alignment.
  */
-typedef struct VMCIDoorbellUnlinkMsg {
+typedef struct VMCISharedMemDetachMsg {
    VMCIDatagram hdr;
-   VMCIHandle   handle;
-} VMCIDoorbellUnlinkMsg;
+   VMCIHandle handle;
+} VMCISharedMemDetachMsg;
 
 
 /* 
- * Struct used for generating a notification on a doorbell handle. All
- * fields in struct are aligned to their natural alignment.
+ * Struct used for sending VMCI_SHAREDMEM_QUERY messages. Same as struct used 
+ * for detach messages.
  */
-typedef struct VMCIDoorbellNotifyMsg {
-   VMCIDatagram hdr;
-   VMCIHandle   handle;
-} VMCIDoorbellNotifyMsg;
+typedef VMCISharedMemDetachMsg VMCISharedMemQueryMsg;
 
 
 /* 

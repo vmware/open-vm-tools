@@ -28,11 +28,9 @@
 
 typedef struct semaphore compat_mutex_t;
 
-# define compat_define_mutex(_mx)               DECLARE_MUTEX(_mx)
-# define compat_mutex_init(_mx)                 init_MUTEX(_mx)
-# define compat_mutex_lock(_mx)                 down(_mx)
-# define compat_mutex_lock_interruptible(_mx)   down_interruptible(_mx)
-# define compat_mutex_unlock(_mx)               up(_mx)
+# define compat_mutex_init(_mx)         init_MUTEX(_mx)
+# define compat_mutex_lock(_mx)         down(_mx)
+# define compat_mutex_unlock(_mx)       up(_mx)
 
 #else
 
@@ -40,11 +38,9 @@ typedef struct semaphore compat_mutex_t;
 
 typedef struct mutex compat_mutex_t;
 
-# define compat_define_mutex(_mx)               DEFINE_MUTEX(_mx)
-# define compat_mutex_init(_mx)                 mutex_init(_mx)
-# define compat_mutex_lock(_mx)                 mutex_lock(_mx)
-# define compat_mutex_lock_interruptible(_mx)   mutex_lock_interruptible(_mx)
-# define compat_mutex_unlock(_mx)               mutex_unlock(_mx)
+# define compat_mutex_init(_mx)         mutex_init(_mx)
+# define compat_mutex_lock(_mx)         mutex_lock(_mx)
+# define compat_mutex_unlock(_mx)       mutex_unlock(_mx)
 
 #endif
 

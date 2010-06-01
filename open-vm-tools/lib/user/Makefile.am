@@ -18,6 +18,9 @@
 noinst_LTLIBRARIES = libUser.la
 
 libUser_la_SOURCES =
+libUser_la_SOURCES += hostinfo.c
+libUser_la_SOURCES += hostinfoPosix2.c
 libUser_la_SOURCES += util.c
+libUser_la_SOURCES += utilPosix.c
 
 AM_CFLAGS = @LIB_USER_CPPFLAGS@

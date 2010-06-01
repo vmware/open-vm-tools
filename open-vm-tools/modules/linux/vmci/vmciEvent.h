@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-/*
+/* 
  * vmciEvent.h --
  *
  *      Event code for the vmci guest driver
@@ -33,11 +33,7 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-#ifdef VMX86_TOOLS
 #include "vmciGuestKernelAPI.h"
-#else
-#include "vmciHostKernelAPI.h"
-#endif
 
 void VMCIEvent_Init(void);
 void VMCIEvent_Exit(void);
@@ -46,12 +42,14 @@ int  VMCIEvent_Dispatch(VMCIDatagram *msg);
 Bool VMCIEvent_CheckHostCapabilities(void);
 #endif
 
+
 /*
- * Non-public VMCI Event API for the kernel.
+ * Non-public VMCI Event API for guest kernel.
  */
 
-int VMCIEventSubscribe(VMCI_Event event, uint32 flags, VMCI_EventCB callback,
+int VMCIEventSubscribe(VMCI_Event event, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEventUnsubscribe(VMCIId subID);
+
 
 #endif //__VMCI_EVENT_H__

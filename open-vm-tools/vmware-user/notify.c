@@ -180,6 +180,15 @@ UnloadLibNotify(void)
 Bool
 Notify_Init(GuestApp_Dict *confDict)  // IN: Configuration dictionary
 {
+   /*
+    * XXX XXX XXX
+    * This code is disabled for Chex and Iron. The return statement below
+    * disables this entire subsystem. -jkwan
+    * XXX XXX XXX
+    */
+
+   return FALSE;
+
 #ifdef USE_NOTIFY_DLOPEN
    if (LoadLibNotify() == FALSE) {
       return FALSE;

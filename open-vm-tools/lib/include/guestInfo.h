@@ -56,6 +56,7 @@
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
+#define GUESTINFO_TIME_INTERVAL_MSEC 3000  /* time interval in msec */
 
 /* Value to be used when "primary" IP address is indeterminable. */
 #define GUESTINFO_IP_UNKNOWN "unknown"
@@ -104,6 +105,22 @@ typedef struct _DiskInfo {
    unsigned int numEntries;
    PPartitionEntry partitionList;
 } GuestDiskInfo, *PGuestDiskInfo;
+
+
+
+/*
+ * Global functions
+ */
+
+#ifndef N_PLAT_NLM
+extern Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
+extern Bool GuestInfo_GetNicInfo(GuestNicList *nicInfo);
+extern Bool GuestInfo_GetDiskInfo(PGuestDiskInfo di);
+extern Bool GuestInfo_GetOSName(unsigned int outBufFullLen,
+                                unsigned int outBufLen, char *osNameFull,
+                                char *osName);
+extern int GuestInfo_GetSystemBitness(void);
+#endif // #ifndef N_PLAT_NLM
 
 /**
  * @}

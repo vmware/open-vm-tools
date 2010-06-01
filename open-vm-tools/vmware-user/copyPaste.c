@@ -67,20 +67,21 @@
 #include "debug.h"
 #include "str.h"
 #include "strutil.h"
+#include "vm_app.h"
 #include "eventManager.h"
 #include "guestApp.h"
 #include "dnd.h"
 #include "util.h"
 #include "cpName.h"
 #include "cpNameUtil.h"
-#include "guestInfoLib.h"
+#include "guestInfoServer.h"
 #include "vmblock.h"
 #include "file.h"
 #include "codeset.h"
 #include "escape.h"
 #include "hostinfo.h"
 #include "wiper.h"
-#include "vmware/guestrpc/tclodefs.h"
+
 
 /*
  * Gtk 1.2 doesn't know about the CLIPBOARD selection, but that doesn't matter, we
@@ -498,7 +499,7 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
    const char *post = NULL;
    size_t preLen = 0;
    size_t postLen = 0;
-   int len = 0;
+   size_t len = 0;
    char *text = NULL;
    size_t textLen = 1;
    Bool blockAdded = FALSE;

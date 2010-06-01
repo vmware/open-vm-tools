@@ -26,7 +26,7 @@
 #define _VIX_COMMANDS_H_
 
 #include "vm_version.h"
-#include "vixOpenSource.h"
+#include "vix.h"
 
 /*
  * These describe the format of the message objects.
@@ -95,7 +95,6 @@ enum {
    VIX_REQUESTMSG_RUN_IN_ANY_VMX_STATE                = 0x04,
    VIX_REQUESTMSG_REQUIRES_INTERACTIVE_ENVIRONMENT    = 0x08,
    VIX_REQUESTMSG_INCLUDES_AUTH_DATA_V1               = 0x10,
-   VIX_REQUESTMSG_REQUIRES_VMDB_NOTIFICATION          = 0x20,
 };
 
 
@@ -103,11 +102,9 @@ enum {
  * These are the flags set in responseFlags.
  */
 enum VixResponseFlagsValues {
-   VIX_RESPONSE_SOFT_POWER_OP             = 0x0001,
-   VIX_RESPONSE_EXTENDED_RESULT_V1        = 0x0002,
-   VIX_RESPONSE_TRUNCATED                 = 0x0004,
-   VIX_RESPONSE_FSR                       = 0x0008,
-   VIX_RESPONSE_VMDB_NOTIFICATION_POSTED  = 0x0010,
+   VIX_RESPONSE_SOFT_POWER_OP       = 0x0001,
+   VIX_RESPONSE_EXTENDED_RESULT_V1  = 0x0002,
+   VIX_RESPONSE_TRUNCATED           = 0x0004,
 };
 
 
@@ -1299,15 +1296,6 @@ struct VixMsgFaultToleranceControlRequest {
 #include "vmware_pack_end.h"
 VixMsgFaultToleranceControlRequest;
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixFaultToleranceControlResponse {
-   VixCommandResponseHeader header;
-   uint32 propertyListBufferSize;
-   // Followed by a serialized property list containing error context.
-}
-#include "vmware_pack_end.h"
-VixFaultToleranceControlResponse;
 
 
 /*
@@ -1866,6 +1854,175 @@ VixMsgSampleCommandResponse;
 // End of "HOWTO: Adding a new Vix Command. Step 3."
 
 
+
+/*
+ * **********************************************************
+ * Report and manage the state of a Msg_Post dialogs.
+ */
+
+/*
+ * This is used to report a MsgPost is opening.
+ * This is the non-localized version. It passes the original format string
+ * and a list of vararg-style parameters.
+ *
+ * See VixMsgOpenMsgPostEventLocalized for the localized version.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgOpenMsgPostEvent {
+   VixMsgEventHeader          eventHeader;
+
+   int32                      dialogType;
+   uint64                     dialogCookie;
+   int32                      dialogOptions;
+
+   int32                      severity;
+   int32                      defaultAnswer;
+   int32                      percent;
+   int32                      cancelButton;
+   int32                      hintOptions;
+
+   uint32                     localeStrLength;
+   int32                      numMessages;
+   int32                      numButtons;
+
+   /*
+    * Followed by:
+    *       A locale string (a null-terminated string)
+    *       A list of messages, each is stored in one VixMsgDialogStr.
+    *       A list of button strings (each is a null-terminated string.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgOpenMsgPostEvent;
+
+/*
+ * These are the flags set in the dialogOptions field.
+ */
+enum VixMsgPostStateValues {
+   VIX_COMMAND_DIALOG_OPTIONS_VMX_IS_BLOCKED       = 0x01,
+};
+
+
+/*
+ * This is one string in the message. It corresponds to a
+ * single Msg_List object.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgDialogStr {
+   uint32         idLength;
+   uint32         formatLength;
+   int32          numArgs;
+   /*
+    * Followed by:
+    *       The ID string (with NULL terminator)
+    *       The format string (with NULL terminator)
+    *       A list of arguments, each is one VixMsgDialogStrArg.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgDialogStr;
+
+
+/*
+ * This is one argument to the message. It corresponds to a
+ * single MsgFmt_Arg object.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgDialogStrArg {
+   int32          argType;
+   uint32         argSize;
+   /*
+    * Followed by the actual argument data.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgDialogStrArg;
+
+
+/*
+ * This is used to report a MsgPost is closing.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgCloseUIDialogEvent {
+   VixMsgEventHeader          eventHeader;
+
+   uint64                     dialogCookie;
+   int32                      numMessages;
+
+   /*
+    * Followed by:
+    *       A list of strings, each is one MsgPost Id.
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgCloseUIDialogEvent;
+
+
+/*
+ * Answer a Msg_Post post/hint/question
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgAnswerMsgPost {
+   VixCommandRequestHeader   header;
+
+   uint64                    dialogCookie;
+
+   int32                     options;
+
+   int32                     answer;
+   void                      *progressState;
+
+   uint32                    idStrSize;
+   uint32                    propertyListBufferSize;
+
+   /*
+    * Followed by:
+    *       msgIdStr.
+    *       The serialized properties
+    */
+}
+#include "vmware_pack_end.h"
+VixMsgAnswerMsgPost;
+
+
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgSetLocaleRequest {
+   VixCommandRequestHeader header;
+
+   int32                   localeOptions;
+   
+   uint32                  localeStrLength;
+   char                    localeStr[1];
+   // This is followed by the country code string.
+}
+#include "vmware_pack_end.h"
+VixMsgSetLocaleRequest;
+
+
+
+/*
+ * This is used to report progress.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgLazyProgressEvent {
+   VixMsgEventHeader          eventHeader;
+
+   uint64                     dialogCookie;
+   int32                      percent;
+}
+#include "vmware_pack_end.h"
+VixMsgLazyProgressEvent;
+
+
+
 /*
  * **********************************************************
  *  Debugger related commands.
@@ -1961,7 +2118,7 @@ VixMsgPauseStateChangedEvent;
 typedef
 #include "vmware_pack_begin.h"
 struct VixMsgWaitForUserActionRequest {
-   VixCommandRequestHeader    header;
+   VixCommandResponseHeader   header;
 
    int32                      userType;
    int32                      userAction;
@@ -1994,40 +2151,6 @@ struct VixMsgWaitForUserActionResponse {
 VixMsgWaitForUserActionResponse;
 
 
-/*
- * **********************************************************
- * List filesystems
- */
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandListFileSystemsRequest {
-   VixCommandRequestHeader    header;
-
-   uint32                     options;
-   uint32                     propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixCommandListFileSystemsRequest;
-
-
-/*
- * **********************************************************
- * A simple request packet that contains an options field and a
- * property list.
- */
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandGenericRequest {
-   VixCommandRequestHeader    header;
-
-   uint32                     options;
-   uint32                     propertyListSize;
-   // This is followed by the buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixCommandGenericRequest;
 
 
 /*
@@ -2059,14 +2182,6 @@ typedef enum VixCommandSecurityCategory {
     * commands.
     */
    VIX_COMMAND_CATEGORY_PRIVILEGED,
-
-   /*
-    * A command that may or may not be privileged. Usually, extra inspection
-    * of the payload is required to make the determination. This should be
-    * used sparingly, since must always be accompanied by "deep packet
-    * inspection" code in the VMX (mainDispatch.c).
-    */
-   VIX_COMMAND_CATEGORY_MIXED,
 } VixCommandSecurityCategory;
 
 /*
@@ -2203,8 +2318,8 @@ enum {
    VIX_COMMAND_GET_SNAPSHOT_LOG_INFO            = 124,
    VIX_COMMAND_SET_REPLAY_SPEED                 = 125,
 
-   /* DEPRECATED VIX_COMMAND_ANSWER_USER_MESSAGE              = 126, */
-   /* DEPRECATED VIX_COMMAND_SET_CLIENT_LOCALE                = 127, */
+   VIX_COMMAND_ANSWER_USER_MESSAGE              = 126,
+   VIX_COMMAND_SET_CLIENT_LOCALE                = 127,
 
    VIX_COMMAND_GET_PERFORMANCE_DATA             = 128,
 
@@ -2235,7 +2350,7 @@ enum {
    VIX_COMMAND_SET_REPLAY_STATE                 = 147,
    VIX_COMMAND_REMOVE_REPLAY_STATE              = 148,
 
-   /* DEPRECATED VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150, */
+   VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150,
    
    VIX_COMMAND_GET_VMX_DEVICE_STATE             = 151,
 
@@ -2270,9 +2385,7 @@ enum {
    VIX_COMMAND_SUSPEND_AND_RESUME               = 171,
 
    VIX_COMMAND_REMOVE_BULK_SNAPSHOT             = 172,
-
    VIX_COMMAND_COPY_FILE_FROM_READER_TO_GUEST   = 173,
-
    VIX_COMMAND_GENERATE_NONCE                   = 174,
 
    VIX_COMMAND_CHANGE_DISPLAY_TOPOLOGY_MODES    = 175,
@@ -2439,22 +2552,6 @@ VixCommandSecurityCategory VixMsg_GetCommandSecurityCategory(int opCode);
 enum {
    VIX_PROPERTY_VM_POWER_OFF_TO_SNAPSHOT_UID       = 5102,
 };
-
-VixError VixMsg_AllocGenericRequestMsg(int opCode,
-                                       uint64 cookie,
-                                       int credentialType,
-                                       const char *userNamePassword,
-                                       int options,
-                                       VixPropertyListImpl *propertyList,
-                                       VixCommandGenericRequest **request);
-
-VixError VixMsg_ParseGenericRequestMsg(const VixCommandGenericRequest *request,
-                                       int *options,
-                                       VixPropertyListImpl *propertyList);
-
-void *VixMsg_MallocClientData(size_t size);
-void *VixMsg_ReallocClientData(void *ptr, size_t size);
-char *VixMsg_StrdupClientData(const char *s, Bool *allocateFailed);
 
 #endif   // VIX_HIDE_FROM_JAVA
 

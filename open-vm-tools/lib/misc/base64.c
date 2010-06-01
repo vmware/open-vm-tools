@@ -191,22 +191,20 @@ static const char base64Reverse[256] = {
  */
 
 Bool
-Base64_Encode(uint8 const *src,  // IN:
-              size_t srcSize,    // IN:
-              char *dst,         // OUT:
-              size_t dstMax,     // IN: max result length, including NUL byte
-              size_t *dstSize)   // OUT: result length, may be NULL
+Base64_Encode(uint8 const *src,        // IN
+              size_t       srcSize,    // IN
+              char        *dst,        // OUT
+              size_t       dstMax,     // IN: max result length, including NUL byte
+              size_t      *dstSize)    // OUT: result length, may be NULL
 {
    char *dst0 = dst;
-
    ASSERT(src || srcSize == 0);
    ASSERT(dst);
 
-   if (4 * ((srcSize + 2) / 3) >= dstMax) {
+   if (4 * ((srcSize+2) / 3) >= dstMax) {
       if (dstSize) {
          *dstSize = 0;
       }
-
       return FALSE;
    }
 
@@ -236,10 +234,8 @@ Base64_Encode(uint8 const *src,  // IN:
    if (dstSize) {
       *dstSize = dst - dst0;
    }
-
    return TRUE;
 }
-
 
 #ifdef __I_WANT_TO_TEST_THIS__
 main()
@@ -312,7 +308,6 @@ main()
 }
 #endif
 
-
 /*
  *----------------------------------------------------------------------------
  *
@@ -333,10 +328,10 @@ main()
  */
 
 Bool
-Base64_Decode(char const *in,      // IN:
-              uint8 *out,          // OUT:
-              size_t outSize,      // IN:
-              size_t *dataLength)  // OUT:
+Base64_Decode(char const *in,         // IN
+              uint8      *out,        // OUT
+              size_t      outSize,    // IN
+              size_t     *dataLength) // OUT
 {
    uint32 b = 0;
    int n = 0;
@@ -390,11 +385,10 @@ Base64_Decode(char const *in,      // IN:
  */
 
 Bool
-Base64_ValidEncoding(char const *src,   // IN:
-                     size_t srcLength)  // IN:
+Base64_ValidEncoding(char const *src, // IN
+                     size_t srcLength) // IN
 {
    size_t i;
-
    ASSERT(src);
    for (i = 0; i < srcLength; i++) {
       uint8 c = src[i]; /* MSVC CRT will die on negative arguments to is* */
@@ -404,7 +398,6 @@ Base64_ValidEncoding(char const *src,   // IN:
          return FALSE;
       }
    }
-
    return TRUE;
 }
 
@@ -426,9 +419,7 @@ Base64_ValidEncoding(char const *src,   // IN:
  */
 
 size_t
-Base64_EncodedLength(uint8 const *src,  // IN:
-                     size_t srcLength)  // IN:
-{
+Base64_EncodedLength(uint8 const *src, size_t srcLength) {
    return ((srcLength + 2) / 3 * 4) + 1;
 }
 
@@ -453,9 +444,7 @@ Base64_EncodedLength(uint8 const *src,  // IN:
  */
 
 size_t
-Base64_DecodedLength(char const *src,   // IN:
-                     size_t srcLength)  // IN:
-{
+Base64_DecodedLength(char const *src, size_t srcLength) {
    size_t length;
 
    ASSERT(src);

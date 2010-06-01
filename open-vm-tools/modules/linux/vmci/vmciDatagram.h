@@ -55,7 +55,7 @@ int VMCIDatagramCreateHndPriv(VMCIId resourceID,
 int VMCIDatagramDestroyHndInt(VMCIHandle handle);
 
 int VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,
-                               VMCIDatagramCreateProcessInfo *createInfo,
+                               VMCIDatagramCreateInfo *createInfo,
                                uintptr_t eventHnd);
 void VMCIDatagramProcess_Destroy(VMCIDatagramProcess *dgmProc);
 int VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc,

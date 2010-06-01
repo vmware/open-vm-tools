@@ -35,7 +35,6 @@
 #include "vm_basic_types.h"
 #include "msgid.h"
 #include "msgfmt.h"
-#include "msgList.h"
 
 
 #define INVALID_MSG_CODE (-1)
@@ -72,6 +71,15 @@ typedef enum HintOptions {
    HINT_OKCANCEL
 } HintOptions;
 
+typedef struct Msg_List Msg_List;
+struct Msg_List {
+   Msg_List *next;
+   char *id;
+   char *format;
+   MsgFmt_Arg *args;
+   int numArgs;
+};
+
 typedef struct MsgCallback {
    void (*post)(MsgSeverity severity, const char *msgID, const char *message);
    int (*question)(char const * const *names, int defaultAnswer,
@@ -91,12 +99,12 @@ typedef struct MsgCallback {
                          int percent);
    void  (*lazyProgressEnd)(void *handle);
 
-   void (*postList)(MsgSeverity severity, MsgList *messages);
+   void (*postList)(MsgSeverity severity, Msg_List *messages);
    int (*questionList)(const Msg_String *buttons, int defaultAnswer,
-                       MsgList *messages);
-   int (*progressList)(MsgList *messages, int percent, Bool cancelButton);
-   HintResult (*hintList)(HintOptions options, MsgList *messages);
-   void *(*lazyProgressStartList)(MsgList *messages);
+                       Msg_List *messages);
+   int (*progressList)(Msg_List *messages, int percent, Bool cancelButton);
+   HintResult (*hintList)(HintOptions options, Msg_List *messages);
+   void *(*lazyProgressStartList)(Msg_List *messages);
 } MsgCallback;
 
 #define MSG_QUESTION_MAX_BUTTONS   10
@@ -104,11 +112,11 @@ typedef struct MsgCallback {
 #define MSG_PROGRESS_START (-1)
 #define MSG_PROGRESS_STOP 101
 
-VMX86_EXTERN_DATA Msg_String const Msg_YesNoButtons[];
-VMX86_EXTERN_DATA Msg_String const Msg_OKButtons[];
-VMX86_EXTERN_DATA Msg_String const Msg_RetryCancelButtons[];
-VMX86_EXTERN_DATA Msg_String const Msg_OKCancelButtons[];
-VMX86_EXTERN_DATA Msg_String const Msg_RetryAbortButtons[];
+EXTERN Msg_String const Msg_YesNoButtons[];
+EXTERN Msg_String const Msg_OKButtons[];
+EXTERN Msg_String const Msg_RetryCancelButtons[];
+EXTERN Msg_String const Msg_OKCancelButtons[];
+EXTERN Msg_String const Msg_RetryAbortButtons[];
 
 EXTERN Msg_String const Msg_Severities[];
 
@@ -121,7 +129,7 @@ EXTERN void Msg_Append(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
 EXTERN void Msg_Post(MsgSeverity severity, const char *idFmt, ...)
        PRINTF_DECL(2, 3);
-EXTERN void Msg_PostMsgList(MsgSeverity severity, MsgList *msg);
+EXTERN void Msg_PostMsgList(MsgSeverity severity, Msg_List *msg);
 
 EXTERN char *Msg_Format(const char *idFmt, ...)
        PRINTF_DECL(1, 2);
@@ -133,6 +141,7 @@ EXTERN void Msg_AppendMsgList(char* id,
                               char* fmt,
                               MsgFmt_Arg *args,
                               int numArgs);
+EXTERN Msg_List *Msg_VCreateMsgList(const char *idFmt, va_list args);
 
 /*
  * Unfortunately, gcc warns about both NULL and "" being passed as format
@@ -160,8 +169,7 @@ EXTERN void Msg_LazyProgressEnd(void *handle);
 EXTERN HintResult Msg_Hint(Bool defaultShow, HintOptions options,
                            const char *idFmt, ...)
        PRINTF_DECL(3, 4);
-EXTERN HintResult Msg_HintMsgList(Bool defaultShow, HintOptions options,
-                                  MsgList *msg);
+EXTERN HintResult Msg_HintMsgList(Bool defaultShow, HintOptions options, Msg_List *msg);
 EXTERN int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
 			     const char *string);
 EXTERN char *Msg_GetString(const char *idString);
@@ -182,9 +190,12 @@ EXTERN Bool Msg_LoadMessageFile(const char *locale, const char *fileName);
 
 EXTERN const char *Msg_GetMessages(void);
 EXTERN const char *Msg_GetMessagesAndReset(void);
-EXTERN MsgList *Msg_GetMsgList(void);
-EXTERN MsgList *Msg_GetMsgListAndReset(void);
-EXTERN char *Msg_LocalizeList(const MsgList *messages);
+EXTERN Msg_List *Msg_GetMsgList(void);
+EXTERN Msg_List *Msg_GetMsgListAndReset(void);
+EXTERN Msg_List *Msg_CopyMsgList(const Msg_List *src);
+EXTERN void Msg_FreeMsgList(Msg_List *messages);
+EXTERN char *Msg_LocalizeList(const Msg_List *messages);
+EXTERN const char *Msg_GetMsgListId(const Msg_List *messages);
 EXTERN void Msg_Reset(Bool log);
 EXTERN Bool Msg_Present(void);
 EXTERN void Msg_Exit(void);

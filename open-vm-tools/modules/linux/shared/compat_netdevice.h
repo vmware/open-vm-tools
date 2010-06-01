@@ -299,6 +299,11 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 
 #else
 
+#   define compat_netif_napi_add(dev, napi, pollcb, quota) \
+   do {                        \
+      (dev)->poll = (pollcb);    \
+      (dev)->weight = (quota);\
+   } while (0)
 #   define compat_napi_schedule(dev, napi) netif_rx_schedule(dev)
 #   define compat_napi_enable(dev, napi)   netif_poll_enable(dev)
 #   define compat_napi_disable(dev, napi)  netif_poll_disable(dev)
@@ -306,39 +311,13 @@ static inline int compat_unregister_netdevice_notifier(struct notifier_block *nb
 /* RedHat ported GRO to 2.6.18 bringing new napi_struct with it */
 #   if defined NETIF_F_GRO
 #      define compat_napi_complete(dev, napi) napi_complete(napi)
-#      define compat_netif_napi_add(netdev, napi, pollcb, quota) \
-      do {                        \
-         (netdev)->poll = (pollcb);    \
-         (netdev)->weight = (quota);\
-         (napi)->dev = (netdev); \
-      } while (0)
-
 #   else
 #      define compat_napi_complete(dev, napi) netif_rx_complete(dev)
        struct napi_struct {
           int dummy;
        };
-#      define compat_netif_napi_add(dev, napi, pollcb, quota) \
-       do {                        \
-          (dev)->poll = (pollcb);    \
-          (dev)->weight = (quota);\
-       } while (0)
-
 #   endif
 
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
-#   define compat_netif_tx_lock(dev) netif_tx_lock(dev)
-#   define compat_netif_tx_unlock(dev) netif_tx_unlock(dev)
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
-#   define compat_netif_tx_lock(dev) spin_lock(&dev->xmit_lock)
-#   define compat_netif_tx_unlock(dev) spin_unlock(&dev->xmit_lock)
-#else
-/* Vendor backporting (SLES 10) has muddled the tx_lock situation. Pick whichever
- * of the above works for you. */
-#   define compat_netif_tx_lock(dev) do {} while (0)
-#   define compat_netif_tx_unlock(dev) do {} while (0)
 #endif
 
 #endif /* __COMPAT_NETDEVICE_H__ */

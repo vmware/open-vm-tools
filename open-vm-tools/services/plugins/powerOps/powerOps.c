@@ -26,13 +26,13 @@
 
 #include "vm_assert.h"
 #include "vm_basic_defs.h"
+#include "vmtoolsApp.h"
 
 #include "conf.h"
 #include "procMgr.h"
 #include "system.h"
-#include "vmware/guestrpc/powerops.h"
-#include "vmware/tools/plugin.h"
-#include "vmware/tools/utils.h"
+#include "vm_app.h"
+#include "vmtools.h"
 
 #if defined(G_PLATFORM_WIN32)
 #  define INVALID_PID NULL
@@ -231,7 +231,7 @@ PowerOpsScriptCallback(gpointer _state)
 {
    PowerOpState *state = _state;
 
-   ASSERT(state->pid != INVALID_PID);
+   g_assert(state->pid != INVALID_PID);
 
    if (!ProcMgr_IsAsyncProcRunning(state->pid)) {
       int exitcode;
@@ -320,7 +320,7 @@ PowerOpsScriptCallback(GPid pid,
 {
    PowerOpState *state = _state;
 
-   ASSERT(state->pid != INVALID_PID);
+   g_assert(state->pid != INVALID_PID);
 
    PowerOpsStateChangeDone(_state, status == 0);
    g_spawn_close_pid(state->pid);
@@ -390,7 +390,7 @@ PowerOpsRunScript(PowerOpState *state,
  * @return TRUE on success.
  */
 
-static gboolean
+static Bool
 PowerOpsStateChange(RpcInData *data)
 {
    size_t i;
@@ -450,7 +450,7 @@ PowerOpsStateChange(RpcInData *data)
             char *tmp;
 
             dfltPath = GuestApp_GetInstallPath();
-            ASSERT(dfltPath != NULL);
+            g_assert(dfltPath != NULL);
 
             /*
              * Before the switch to vmtoolsd, the config file was saved with
@@ -481,7 +481,7 @@ PowerOpsStateChange(RpcInData *data)
          }
 
          g_free(script);
-         return RPCIN_SETRETVALS(data, (char *) result, ret);
+         return RPCIN_SETRETVALS(data, result, ret);
       }
    }
 

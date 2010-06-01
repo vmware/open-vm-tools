@@ -29,37 +29,21 @@
 
 
 #include "guestInfo.h"
-#include "guestInfoLib.h"
 #include "guestrpc/nicinfo.h"
 
-#if defined __FreeBSD__ || defined __sun__ || defined __APPLE__
-#   include <sys/socket.h>      // struct sockaddr
-#endif
-
 Bool GuestInfoGetFqdn(int outBufLen, char fqdn[]);
-Bool GuestInfoGetNicInfo(NicInfoV3 *nicInfo);
+Bool GuestInfoGetNicInfo(GuestNicList *nicInfo);
 void GuestInfoMemset(void * mem, int value, unsigned int size);
 Bool GuestInfoGetDiskInfo(PGuestDiskInfo di);
 Bool GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
 
-GuestNicV3 *GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                    // IN/OUT
-                                 const char macAddress[NICINFO_MAC_LEN], // IN
-                                 DnsConfigInfo *dnsInfo,                // IN
-                                 WinsConfigInfo *winsInfo);             // IN
+GuestNic *GuestInfoAddNicEntry(GuestNicList *nicInfo,
+                               const char macAddress[NICINFO_MAC_LEN]);
+VmIpAddress *GuestInfoAddIpAddress(GuestNic *nic,
+                                   const char *ipAddr,
+                                   const uint32 af_type);
+void GuestInfoAddSubnetMask(VmIpAddress *ipAddressEntry,
+                            const uint32 subnetMaskBits,
+                            Bool convertToMask);
 
-IpAddressEntry *GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OUT
-                                      const struct sockaddr *sockAddr,  // IN
-                                      InetAddressPrefixLength pfxLen,   // IN
-                                      const IpAddressOrigin *origin,    // IN
-                                      const IpAddressStatus *status);   // IN
-#if defined linux || defined _WIN32
-Bool GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,  // IN
-                                int ifIndex,         // IN
-                                int *nicIfIndex);    // OUT
-#endif // if defined linux || defined _WIN32
-void GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,    // IN
-                                       TypedIpAddress *typedIp);     // OUT
-
-/* XXX */
-void * Util_DupeThis(const void *source, size_t sourceSize);
 #endif

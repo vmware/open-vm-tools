@@ -100,49 +100,6 @@ string::string(ConstUnicode s) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * utf::string::init_bstr_t --
- *
- *      Utility function to construct from a _bstr_t object.
- *      Copies the UTF-16 representation of the _bstr_t.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Makes a copy of the _bstr_t data and frees that data when
- *      the utf::string is destroyed.
- *
- * Note:
- *      WIN32 only call
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-string::init_bstr_t(const _bstr_t &s) // IN
-{
-   // If the input is empty, then there's nothing to do.
-   if (s.length() == 0) {
-      return;
-   }
-
-   Unicode utf8 = Unicode_AllocWithUTF16(static_cast<const utf16_t *>(s));
-
-   try {
-      mUstr = utf8;
-      Unicode_Free(utf8);
-   } catch (...) {
-      Unicode_Free(utf8);
-      throw;
-   }
-
-   ASSERT(Validate(mUstr));
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * utf::string::string --
  *
  *      Constructor from a ubstr_t object.  Copies the UTF-16 representation of
@@ -171,7 +128,7 @@ string::string(const ubstr_t &s) // IN
       return;
    }
 
-   mUstr = static_cast<const char *>(s);
+   mUstr = Glib::ustring(static_cast<const char *>(s));
    ASSERT(Validate(mUstr));
 }
 
@@ -202,91 +159,22 @@ string::string(const _bstr_t &s) // IN
      mUtf16Cache(NULL),
      mUtf16Length(npos)
 {
-   init_bstr_t(s);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * utf::string::string --
- *
- *      Constructor from a uvariant_t object. Copies the UTF-16 representation
- *      of the ubstr_t interface.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Makes a copy of the uvariant_t data and frees that data when the
- *      utf::string is destroyed.
- *
- * Note:
- *      WIN32 only call
- *
- *-----------------------------------------------------------------------------
- */
-
-string::string(const uvariant_t &v) // IN
-   : mUstr(),
-     mUtf16Cache(NULL),
-     mUtf16Length(npos)
-{
-   ubstr_t s;
-
-   try {
-      s = v;
-   } catch (...) {
-      Warning("Invalid uvariant_t to ubstr_t conversion.\n");
-      throw;
-   }
-
    // If the input is empty, then there's nothing to do.
    if (s.length() == 0) {
       return;
    }
 
-   mUstr = static_cast<const char *>(s);
-   ASSERT(Validate(mUstr));
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * utf::string::string --
- *
- *      Constructor from a _variant_t object. Copies the UTF-16 representation
- *      of the _variant_t.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Makes a copy of the _variant_t data and frees that data when
- *      the utf::string is destroyed.
- *
- * Note:
- *      WIN32 only call
- *
- *-----------------------------------------------------------------------------
- */
-
-string::string(const _variant_t &v) // IN
-   : mUstr(),
-     mUtf16Cache(NULL),
-     mUtf16Length(npos)
-{
-   _bstr_t s;
+   Unicode utf8 = Unicode_AllocWithUTF16(static_cast<const utf16_t *>(s));
 
    try {
-      s = v;
+      mUstr = Glib::ustring(utf8);
+      Unicode_Free(utf8);
    } catch (...) {
-      Warning("Invalid _variant_t to _bstr_t conversion.\n");
+      Unicode_Free(utf8);
       throw;
    }
 
-   init_bstr_t(s);
+   ASSERT(Validate(mUstr));
 }
 
 #endif
@@ -355,7 +243,7 @@ string::string(const utf16_t *s) // IN
    Unicode utf8 = Unicode_AllocWithUTF16(s);
 
    try {
-      mUstr = utf8;
+      mUstr = Glib::ustring(utf8);
       Unicode_Free(utf8);
    } catch (...) {
       Unicode_Free(utf8);
@@ -393,7 +281,7 @@ string::string(const char *s,           // IN
    Unicode utf8 = Unicode_Alloc(s, encoding);
 
    try {
-      mUstr = utf8;
+      mUstr = Glib::ustring(utf8);
       Unicode_Free(utf8);
    } catch (...) {
       Unicode_Free(utf8);

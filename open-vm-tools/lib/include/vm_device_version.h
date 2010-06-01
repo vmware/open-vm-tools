@@ -20,18 +20,14 @@
 #define VM_DEVICE_VERSION_H
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 #ifdef _WIN32
-#ifdef __MINGW32__
-#include "initguid.h"
-#else
 #include "guiddef.h"
-#endif
 #endif
 
 /* LSILogic 53C1030 Parallel SCSI controller
@@ -60,15 +56,12 @@
 #define PCI_DEVICE_ID_VMWARE_82545EM    0x0750 /* single port */
 #define PCI_DEVICE_ID_VMWARE_82546EB    0x0760 /* dual port   */
 #define PCI_DEVICE_ID_VMWARE_EHCI       0x0770
-#define PCI_DEVICE_ID_VMWARE_UHCI       0x0774
-#define PCI_DEVICE_ID_VMWARE_XHCI       0x0778
 #define PCI_DEVICE_ID_VMWARE_1394       0x0780
 #define PCI_DEVICE_ID_VMWARE_BRIDGE     0x0790
 #define PCI_DEVICE_ID_VMWARE_ROOTPORT   0x07A0
 #define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
 #define PCI_DEVICE_ID_VMWARE_VMXWIFI    0x07B8
 #define PCI_DEVICE_ID_VMWARE_PVSCSI     0x07C0
-#define PCI_DEVICE_ID_VMWARE_82574      0x07D0
 
 /* The hypervisor device might grow.  Please leave room
  * for 7 more subfunctions.
@@ -114,7 +107,6 @@
 #define PCI_DEVICE_ID_INTEL_82443BX_2   0x7192 /* Used when no AGP support */
 #define PCI_DEVICE_ID_INTEL_82545EM     0x100f
 #define PCI_DEVICE_ID_INTEL_82546EB     0x1010
-#define PCI_DEVICE_ID_INTEL_82574       0x10d3
 #define PCI_DEVICE_ID_INTEL_ICH7_16     0x27d8
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 
@@ -161,7 +153,7 @@
 #define MAX_ETHERNET_CARDS      10
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 6
+#define MAX_PCI_PASSTHRU_DEVICES 2
 
 /************* USB implementation limits ********************************/
 #define MAX_USB_DEVICES_PER_HOST_CONTROLLER 127

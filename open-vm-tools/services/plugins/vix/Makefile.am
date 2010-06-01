@@ -15,8 +15,7 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-plugindir = @COMMON_PLUGIN_INSTALLDIR@
-plugin_LTLIBRARIES = libvix.la
+noinst_LTLIBRARIES = libvix.la
 
 libvix_la_CPPFLAGS =
 libvix_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -37,4 +36,12 @@ libvix_la_SOURCES += foundryToolsDaemon.c
 libvix_la_SOURCES += vixPlugin.c
 libvix_la_SOURCES += $(top_srcdir)/lib/vixTools/vixTools.c
 libvix_la_SOURCES += $(top_srcdir)/lib/hgfsHelper/hgfsHelperPosix.c
+
+install-exec-local:
+	mkdir -p $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
+	cp -L $(builddir)/.libs/libvix.so $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)
+if HAVE_X11
+	mkdir -p $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
+	cp -L $(builddir)/.libs/libvix.so $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)
+endif
 

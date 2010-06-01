@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2010 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,48 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of VMware Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission of VMware Inc.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *********************************************************/
-
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 /*
  * vm_basic_defs.h --
  *
@@ -68,9 +26,10 @@
 #define _VM_BASIC_DEFS_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_VMKDRIVERS
 #define INCLUDE_ALLOW_VMK_MODULE
@@ -86,11 +45,10 @@
 
 #if defined _WIN32 && defined USERLEVEL
    #include <stddef.h>  /*
-                         * We redefine offsetof macro from stddef; make 
-                         * sure that it's already defined before we do that.
+                         * We re-define offsetof macro from stddef, make 
+                         * sure that its already defined before we do it
                          */
    #include <windows.h>	// for Sleep() and LOWORD() etc.
-   #undef GetFreeSpace  // Unpollute preprocessor namespace.
 #endif
 
 
@@ -269,10 +227,6 @@ Max(int a, int b)
 #define VM_PAE_LARGE_2_SMALL_PAGES (BYTES_2_PAGES(VM_PAE_LARGE_PAGE_SIZE))
 #endif
 
-#ifndef NR_MPNS_PER_PAGE
-#define NR_MPNS_PER_PAGE (PAGE_SIZE / sizeof(MPN))
-#endif
-
 /*
  * Word operations
  */
@@ -340,7 +294,7 @@ GetFrameAddr(void)
     || (__GNUC__ == 4 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 1)
    bp = (uintptr_t)__builtin_frame_address(0);
 #elif __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ <= 3
-#  if defined(VMM) || defined(VM_X86_64)
+#  if defined(VMM64) || defined(VM_X86_64)
      __asm__ __volatile__("movq %%rbp, %0\n" : "=g" (bp));
 #  else
      __asm__ __volatile__("movl %%ebp, %0\n" : "=g" (bp));
@@ -518,17 +472,47 @@ typedef int pid_t;
 #endif
 #endif
 
+/* 
+ * Convenience macro for COMMUNITY_SOURCE
+ */
+#undef EXCLUDE_COMMUNITY_SOURCE
+#ifdef COMMUNITY_SOURCE
+   #define EXCLUDE_COMMUNITY_SOURCE(x) 
+#else
+   #define EXCLUDE_COMMUNITY_SOURCE(x) x
+#endif
+
+#undef COMMUNITY_SOURCE_INTEL_SECRET
+#if !defined(COMMUNITY_SOURCE) || defined(INTEL_SOURCE)
+/*
+ * It's ok to include INTEL_SECRET source code for non-commsrc,
+ * or for drops directed at Intel.
+ */
+   #define COMMUNITY_SOURCE_INTEL_SECRET
+#endif
+
 /*
  * Convenience macros and definitions. Can often be used instead of #ifdef.
  */
 
 #undef DEBUG_ONLY
+#undef SL_DEBUG_ONLY
+#undef VMX86_SL_DEBUG
 #ifdef VMX86_DEBUG
 #define vmx86_debug      1
 #define DEBUG_ONLY(x)    x
+/*
+ * Be very, very, very careful with SL_DEBUG. Pls ask ganesh or min before 
+ * using it.
+ */
+#define VMX86_SL_DEBUG
+#define vmx86_sl_debug   1
+#define SL_DEBUG_ONLY(x) x
 #else
 #define vmx86_debug      0
 #define DEBUG_ONLY(x)
+#define vmx86_sl_debug   0
+#define SL_DEBUG_ONLY(x)
 #endif
 
 #ifdef VMX86_STATS
@@ -553,6 +537,14 @@ typedef int pid_t;
 #else
 #define vmx86_log     0
 #define LOG_ONLY(x)
+#endif
+
+#ifdef VMX86_VMM_SERIAL_LOGGING
+#define vmx86_vmm_serial_log     1
+#define VMM_SERIAL_LOG_ONLY(x)   x
+#else
+#define vmx86_vmm_serial_log     0
+#define VMM_SERIAL_LOG_ONLY(x)
 #endif
 
 #ifdef VMX86_SERVER
@@ -587,12 +579,6 @@ typedef int pid_t;
 #else
 #define WIN32_ONLY(x)
 #define POSIX_ONLY(x) x
-#endif
-
-#ifdef __linux__
-#define LINUX_ONLY(x) x
-#else
-#define LINUX_ONLY(x)
 #endif
 
 #ifdef VMM
@@ -641,31 +627,5 @@ typedef int pid_t;
 #endif
 #endif
 #endif // _WIN32
-
-#ifdef HOSTED_LG_PG
-#define hosted_lg_pg 1
-#else
-#define hosted_lg_pg 0
-#endif
-
-/*
- * Basic lock ranks.  Others are defined in mutexRank.h.
- */
-
-#define RANK_UNRANKED            0
-#define RANK_LEAF                0xFFFFFFFE
-#define RANK_INVALID             0xFFFFFFFF
-
-/*
- * VMX/VMM/device lock rank space is from 1 to 200. See
- * vmx/public/mutexRank.h.
- */
-
-/*
- * Use to initialize cbSize for this structure to preserve < Vista
- * compatibility.
- */
-#define NONCLIENTMETRICSINFO_V1_SIZE CCSIZEOF_STRUCT(NONCLIENTMETRICS, \
-                                                     lfMessageFont)
 
 #endif // ifndef _VM_BASIC_DEFS_H_

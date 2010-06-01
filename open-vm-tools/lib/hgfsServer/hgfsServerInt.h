@@ -50,7 +50,7 @@
       uint64 d_off;
       uint16 d_reclen;
       uint8  d_type;
-      char   d_name[256];
+      int8   d_name[256];
    } DirectoryEntry;
 #  else
 #    include <dirent.h>
@@ -73,47 +73,7 @@
 #include "cpName.h"     // for HgfsNameStatus
 #include "hgfsServerPolicy.h"
 #include "hgfsUtil.h"   // for HgfsInternalStatus
-#include "vm_atomic.h"
-
-/*
- * Locking: if requested, use glib's locking functions to avoid more bora
- * dependencies. In other builds, stick with bora/lib/lock.
- */
-
-#if defined(VMTOOLS_USE_GLIB)
-#  include <glib.h>
-
-   typedef GMutex HgfsLock;
-#  define HGFS_LOCK_NEW(name)       g_mutex_new()
-#  define HGFS_LOCK_ACQUIRE(lock)   g_mutex_lock(lock)
-#  define HGFS_LOCK_RELEASE(lock)   g_mutex_unlock(lock)
-#  define HGFS_LOCK_DESTROY(lock)   g_mutex_free(lock)
-#else /* !VMTOOLS_USE_GLIB */
-#  include "userlock.h"
-
-   typedef MXUserExclLock HgfsLock;
-#  define HGFS_LOCK_NEW(name)       MXUser_CreateExclLock(name, RANK_UNRANKED)
-#  define HGFS_LOCK_ACQUIRE(lock)   MXUser_AcquireExclLock(lock)
-#  define HGFS_LOCK_RELEASE(lock)   MXUser_ReleaseExclLock(lock)
-#  define HGFS_LOCK_DESTROY(lock)   MXUser_DestroyExclLock(lock)
-#endif
-
-#ifdef _WIN32
-# define HGFS_REPLYPKT_STATUS  RPC_S_PROTOCOL_ERROR
-#else
-# define HGFS_REPLYPKT_STATUS  EPROTO
-#endif
-
-#define HGFS_REPLYPKT_CHECK(replyPacket, replySize, replyPacketSize, status, label)  \
-   do {                                                         \
-      LOG(4, ("%s: \n", __FUNCTION__));                         \
-      ASSERT_DEVEL(replyPacket);                                \
-      if (!replyPacket || ((replySize) > (replyPacketSize))) {  \
-         status = HGFS_REPLYPKT_STATUS;                         \
-         goto label;                                            \
-      }                                                         \
-   } while(0)
-
+#include "syncMutex.h"
 
 /*
  * Does this platform have oplock support? We define it here to avoid long
@@ -233,14 +193,6 @@ typedef struct HgfsFileNode {
    /* File flags - see below. */
    uint32 flags;
 
-   /*
-    * Context as required by some file operations. Eg: BackupWrite on
-    * Windows: BackupWrite requires the caller to hold on to a pointer
-    * to a Windows internal data structure between subsequent calls to
-    * BackupWrite while restoring a file.
-    */
-   void *fileCtx;
-
    /* Parameters associated with the share. */
    HgfsShareInfo shareInfo;
 } HgfsFileNode;
@@ -321,11 +273,11 @@ typedef struct HgfsSessionInfo {
    /* Session is dynamic or internal. */
    HgfsSessionInfoType type;
 
-   /* Function callbacks into Hgfs Channels. */
-   HgfsServerChannelCallbacks *channelCbTable;
+   /* Function to send reply for a packet after processing. */
+   HgfsSessionSendFunc *send;
 
    /* Lock to ensure some fileIO requests are atomic for a handle. */
-   HgfsLock *fileIOLock;
+   SyncMutex fileIOLock;
 
    Atomic_uint32 refCount;    /* Reference count for session. */
 
@@ -335,7 +287,7 @@ typedef struct HgfsSessionInfo {
     * Lock for the following 6 fields: the node array,
     * counters and lists for this session.
     */
-   HgfsLock *nodeArrayLock;
+   SyncMutex nodeArrayLock;
 
    /* Open file nodes of this session. */
    HgfsFileNode *nodeArray;
@@ -362,7 +314,7 @@ typedef struct HgfsSessionInfo {
     * Lock for the following three fields: for the search array
     * and it's counter and list, for this session.
     */
-   HgfsLock *searchArrayLock;
+   SyncMutex searchArrayLock;
 
    /* Directory entry cache for this session. */
    HgfsSearch *searchArray;
@@ -454,14 +406,6 @@ typedef struct {
    HgfsServerLock serverLock;
 } ServerLockData;
 
-typedef
-struct HgfsInputParam {
-   const char *metaPacket;
-   size_t metaPacketSize;
-   HgfsSessionInfo *session;
-   HgfsPacket *packet;
-}
-HgfsInputParam;
 
 Bool
 HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
@@ -548,49 +492,74 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
  */
 
 HgfsInternalStatus
-HgfsServerOpen(HgfsInputParam *input);  // IN: Input params
+HgfsServerOpen(char const *packetIn,       // IN: incoming packet
+               size_t packetSize,          // IN: size of packet
+               HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerRead(HgfsInputParam *input);  // IN: Input params
+HgfsServerRead(char const *packetIn,       // IN: incoming packet
+               size_t packetSize,          // IN: size of packet
+               HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerWrite(HgfsInputParam *input);  // IN: Input params
+HgfsServerWrite(char const *packetIn,       // IN: incoming packet
+                size_t packetSize,          // IN: size of packet
+                HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerSearchOpen(HgfsInputParam *input);  // IN: Input params
+HgfsServerSearchOpen(char const *packetIn,       // IN: incoming packet
+                     size_t packetSize,          // IN: size of packet
+                     HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerSearchRead(HgfsInputParam *input);  // IN: Input params
+HgfsServerSearchRead(char const *packetIn,       // IN: incoming packet
+                     size_t packetSize,          // IN: size of packet
+                     HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerGetattr(HgfsInputParam *input);  // IN: Input params
+HgfsServerGetattr(char const *packetIn,       // IN: incoming packet
+                  size_t packetSize,          // IN: size of packet
+                  HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerSetattr(HgfsInputParam *input);  // IN: Input params
+HgfsServerSetattr(char const *packetIn,       // IN: incoming packet
+                  size_t packetSize,          // IN: size of packet
+                  HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerCreateDir(HgfsInputParam *input);  // IN: Input params
+HgfsServerCreateDir(char const *packetIn,       // IN: incoming packet
+                    size_t packetSize,          // IN: size of packet
+                    HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerDeleteFile(HgfsInputParam *input);  // IN: Input params
+HgfsServerDeleteFile(char const *packetIn,       // IN: incoming packet
+                     size_t packetSize,          // IN: size of packet
+                     HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerDeleteDir(HgfsInputParam *input);  // IN: Input params
+HgfsServerDeleteDir(char const *packetIn,       // IN: incoming packet
+                    size_t packetSize,          // IN: size of packet
+                    HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerRename(HgfsInputParam *input);  // IN: Input params
+HgfsServerRename(char const *packetIn,	     // IN: incoming packet
+                 size_t packetSize,          // IN: size of packet
+                 HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerQueryVolume(HgfsInputParam *input);  // IN: Input params
+HgfsServerQueryVolume(char const *packetIn,       // IN: incoming packet
+                      size_t packetSize,          // IN: size of packet
+                      HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerSymlinkCreate(HgfsInputParam *input);  // IN: Input params
+HgfsServerSymlinkCreate(char const *packetIn,       // IN: incoming packet
+                        size_t packetSize,          // IN: size of packet
+                        HgfsSessionInfo *session);  // IN: opaque transport data
 
 HgfsInternalStatus
-HgfsServerServerLockChange(HgfsInputParam *input);  // IN: Input params
-
-HgfsInternalStatus
-HgfsServerWriteWin32Stream(HgfsInputParam *input);  // IN: Input params
+HgfsServerServerLockChange(char const *packetIn,       // IN: incoming packet
+                           size_t packetSize,          // IN: size of packet
+                           HgfsSessionInfo *session);  // IN: opaque transport data
 
 /* Unpack/pack requests/reply helper functions. */
 
@@ -600,13 +569,12 @@ HgfsUnpackOpenRequest(char const *packetIn,        // IN: incoming packet
                      HgfsFileOpenInfo *openInfo);  // IN/OUT: open info struct
 
 Bool
-HgfsPackOpenReply(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
-                  char const *packetIn,          // IN: incoming packet
-                  HgfsInternalStatus status,     // IN: reply status
-                  HgfsFileOpenInfo *openInfo,    // IN: open info struct
-                  char **packetOut,              // OUT: outgoing packet
-                  size_t *packetSize,            // OUT: size of packet
-                  HgfsSessionInfo *session);     // IN: Session info
+HgfsPackOpenReply(char const *packetIn,         // IN: incoming packet
+                  HgfsInternalStatus status,    // IN: reply status
+                  HgfsFileOpenInfo *openInfo,   // IN: open info struct
+                  char **packetOut,             // OUT: outgoing packet
+                  size_t *packetSize);          // OUT: outgoing packet size
+
 Bool
 HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
                          size_t packetSize,          // IN: request packet size
@@ -615,60 +583,51 @@ HgfsUnpackGetattrRequest(char const *packetIn,       // IN: request packet
                          char **cpName,              // OUT: cpName
                          size_t *cpNameSize,         // OUT: cpName size
                          HgfsHandle *file,           // OUT: file handle
-                         uint32 *caseFlags);         // OUT: case-sensitivity flags
+			 uint32 *caseFlags);         // OUT: case-sensitivity flags
 
 Bool
 HgfsUnpackDeleteRequest(char const *packetIn,       // IN: request packet
                         size_t packetSize,          // IN: request packet size
-                        HgfsOp *op,                 // OUT: requested operation
                         char **cpName,              // OUT: cpName
                         size_t *cpNameSize,         // OUT: cpName size
                         HgfsDeleteHint *hints,      // OUT: delete hints
                         HgfsHandle *file,           // OUT: file handle
-                        uint32 *caseFlags);         // OUT: case-sensitivity flags
+			uint32 *caseFlags);         // OUT: case-sensitivity flags
 
 Bool
-HgfsPackDeleteReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                    char const *packetIn,       // IN: incoming packet
-                    HgfsInternalStatus status,  // IN: reply status
-                    HgfsOp op,                  // IN: requested operation
-                    char **packetOut,           // OUT: outgoing packet
-                    size_t *packetSize,         // OUT: size of packet
-                    HgfsSessionInfo *session);  // IN: Session Info
+HgfsPackDeleteReply(char const *packetIn,          // IN: incoming packet
+                    HgfsInternalStatus status,     // IN: reply status
+                    char **packetOut,              // OUT: outgoing packet
+                    size_t *packetSize);           // OUT: size of packet
 
 Bool
 HgfsUnpackRenameRequest(char const *packetIn,       // IN: request packet
                         size_t packetSize,          // IN: request packet size
-                        HgfsOp *op,                 // OUT: requested operation
                         char **cpOldName,           // OUT: rename src
-                        size_t *cpOldNameLen,       // OUT: rename src size
+                        uint32 *cpOldNameLen,       // OUT: rename src size
                         char **cpNewName,           // OUT: rename dst
-                        size_t *cpNewNameLen,       // OUT: rename dst size
+                        uint32 *cpNewNameLen,       // OUT: rename dst size
                         HgfsRenameHint *hints,      // OUT: rename hints
                         HgfsHandle *srcFile,        // OUT: src file handle
                         HgfsHandle *targetFile,     // OUT: target file handle
-                        uint32 *oldCaseFlags,       // OUT: old case-sensitivity flags
-                        uint32 *newCaseFlags);      // OUT: new case-sensitivity flags
+			uint32 *oldCaseFlags,       // OUT: old case-sensitivity flags
+			uint32 *newCaseFlags);      // OUT: new case-sensitivity flags
 
 Bool
-HgfsPackRenameReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                    char const *packetIn,       // IN: incoming packet
+HgfsPackRenameReply(char const *packetIn,       // IN: incoming packet
                     HgfsInternalStatus status,  // IN: reply status
-                    HgfsOp op,                  // IN: requested operation
                     char **packetOut,           // OUT: outgoing packet
-                    size_t *packetSize,         // OUT: size of packet
-                    HgfsSessionInfo *session);  // IN: Session Info
+                    size_t *packetSize);        // OUT: size of packet
 
 Bool
-HgfsPackGetattrReply(HgfsPacket *packet,          // IN/OUT: Hgfs packet
-                     char const *packetIn,        // IN: incoming packet
-                     HgfsInternalStatus status,   // IN: reply status
-                     HgfsFileAttrInfo *attr,      // IN: attr stucture
-                     const char *utf8TargetName,  // IN: optional target name
-                     uint32 utf8TargetNameLen,    // IN: file name length
-                     char **packetOut,            // OUT: outgoing packet
-                     size_t *packetSize,          // OUT: size of packet
-                     HgfsSessionInfo *session);   // IN: Session Info
+HgfsPackGetattrReply(char const *packetIn,       // IN: incoming packet
+                     HgfsInternalStatus status,  // IN: reply status
+                     HgfsFileAttrInfo *attr,     // IN: attr stucture
+                     const char *utf8TargetName, // IN: optional target name
+                     uint32 utf8TargetNameLen,   // IN: file name length
+                     char **packetOut,           // OUT: outgoing packet
+                     size_t *packetSize);        // OUT: size of packet
+
 Bool
 HgfsUnpackSearchReadRequest(const char *packetIn,         // IN: request packet
                             size_t packetSize,            // IN: packet size
@@ -677,15 +636,13 @@ HgfsUnpackSearchReadRequest(const char *packetIn,         // IN: request packet
                             uint32 *offset);              // OUT: entry offset
 
 Bool
-HgfsPackSearchReadReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                        char const *packetIn,       // IN: incoming packet
-                        HgfsInternalStatus status,  // IN: reply status
-                        const char *utf8Name,       // IN: file name
-                        size_t utf8NameLen,         // IN: file name length
-                        HgfsFileAttrInfo *attr,     // IN: file attr struct
-                        char **packetOut,           // OUT: outgoing packet
-                        size_t *packetSize,         // OUT: size of packet
-                        HgfsSessionInfo *session);  // IN: Session Info
+HgfsPackSearchReadReply(char const *packetIn,      // IN: incoming packet
+                        HgfsInternalStatus status, // IN: reply status
+                        const char *utf8Name,      // IN: file name
+                        size_t utf8NameLen,        // IN: file name length
+                        HgfsFileAttrInfo *attr,    // IN: file attr struct
+                        char **packetOut,          // OUT: outgoing packet
+                        size_t *packetSize);       // OUT: size of packet
 
 Bool
 HgfsUnpackSetattrRequest(char const *packetIn,            // IN: request packet
@@ -695,16 +652,14 @@ HgfsUnpackSetattrRequest(char const *packetIn,            // IN: request packet
                          char **cpName,                   // OUT: cpName
                          size_t *cpNameSize,              // OUT: cpName size
                          HgfsHandle *file,                // OUT: server file ID
-                         uint32 *caseFlags);              // OUT: case-sensitivity flags
+			 uint32 *caseFlags);              // OUT: case-sensitivity flags
 
 Bool
-HgfsPackSetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                     char const *packetIn,       // IN: incoming packet
+HgfsPackSetattrReply(char const *packetIn,       // IN: setattrOp operation version
                      HgfsInternalStatus status,  // IN: reply status
-                     HgfsOp op,                  // IN: request type
                      char **packetOut,           // OUT: outgoing packet
-                     size_t *packetSize,         // OUT: size of packet
-                     HgfsSessionInfo *session);  // IN: Session Info
+                     size_t *packetSize);        // OUT: size of packet
+
 
 Bool
 HgfsUnpackCreateDirRequest(char const *packetIn,     // IN: incoming packet
@@ -712,62 +667,10 @@ HgfsUnpackCreateDirRequest(char const *packetIn,     // IN: incoming packet
                            HgfsCreateDirInfo *info); // IN/OUT: info struct
 
 Bool
-HgfsPackCreateDirReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                       char const *packetIn,       // IN: create dir operation version
-                       HgfsInternalStatus status , // IN: reply status
-                       HgfsOp op,                  // IN: request type
-                       char **packetOut,           // OUT: outgoing packet
-                       size_t *packetSize,         // OUT: size of packet
-                       HgfsSessionInfo *session);  // IN: Session Info
-
-Bool
-HgfsUnpackWriteWin32StreamRequest(char const *packetIn, // IN: incoming packet
-                                  size_t packetSize,    // IN: size of packet
-                                  HgfsOp *op,           // OUT: request type
-                                  HgfsHandle *file,     // OUT: file to write to
-                                  char **payload,       // OUT: data to write
-                                  size_t *requiredSize, // OUT: size of data
-                                  Bool *doSecurity);    // OUT: restore sec.str.
-
-Bool
-HgfsPackWriteWin32StreamReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                              char const *packetIn,       // IN: incoming packet
-			      HgfsInternalStatus status,  // IN: reply status
-                              HgfsOp op,                  // IN: request type
-			      uint32 actualSize,          // IN: amount written
-			      char **packetOut,           // OUT: outgoing packet
-			      size_t *packetSize,         // OUT: size of packet
-                              HgfsSessionInfo *session);  // IN:Session Info
-
-Bool
-HgfsUnpackCloseRequest(char const *packetIn,        // IN: request packet
-                       size_t packetSize,           // IN: request packet size
-                       HgfsOp *op,                  // OUT: request type
-                       HgfsHandle *file);           // OUT: Handle to close
-
-Bool
-HgfsPackCloseReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
-                   char const *packetIn,        // IN: incoming packet
-                   HgfsInternalStatus status,   // IN: reply status
-                   HgfsOp op,                   // IN: request type
-                   char **packetOut,            // OUT: outgoing packet
-                   size_t *packetSize,          // OUT: size of packet
-                   HgfsSessionInfo *session);   // IN: Session Info
-
-Bool
-HgfsUnpackSearchCloseRequest(char const *packetIn,        // IN: request packet
-                             size_t packetSize,           // IN: request packet size
-                             HgfsOp *op,                  // OUT: request type
-                             HgfsHandle *file);           // OUT: Handle to close
-
-Bool
-HgfsPackSearchCloseReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
-                         char const *packetIn,        // IN: incoming packet
-                         HgfsInternalStatus status,   // IN: reply status
-                         HgfsOp op,                   // IN: request type
-                         char **packetOut,            // OUT: outgoing packet
-                         size_t *packetSize,          // OUT: size of packet
-                         HgfsSessionInfo *session);   // IN: Session Info
+HgfsPackCreateDirReply(char const *packetIn,      // IN: incoming packet
+                       HgfsInternalStatus status, // IN: reply status
+                       char **packetOut,          // OUT: outgoing packet
+                       size_t *packetSize);       // OUT: size of packet
 
 /* Node cache functions. */
 
@@ -789,8 +692,7 @@ HgfsIsServerLockAllowed(HgfsSessionInfo *session);  // IN: session info
 Bool
 HgfsHandle2FileDesc(HgfsHandle handle,        // IN: Hgfs file handle
                     HgfsSessionInfo *session, // IN: session info
-                    fileDesc *fd,             // OUT: OS handle (file descriptor)
-                    void **fileCtx);          // OUT: OS file context
+                    fileDesc *fd);            // OUT: OS handle (file descriptor)
 
 Bool
 HgfsFileDesc2Handle(fileDesc fd,              // IN: OS handle (file descriptor)
@@ -832,8 +734,7 @@ HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
 Bool
 HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
                        HgfsSessionInfo *session, // IN: session info
-                       fileDesc fd,              // IN: OS handle (file desc
-                       void *fileCtx);           // IN: OS file context
+                       fileDesc fd);             // OUT: OS handle (file desc
 
 Bool
 HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
@@ -872,8 +773,7 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
                   HgfsSearch *copy);        // IN/OUT: Copy of the search
 
 HgfsInternalStatus
-HgfsCloseFile(fileDesc fileDesc,            // IN: OS handle of the file
-              void *fileCtx);               // IN: file context
+HgfsCloseFile(fileDesc fileDesc);           // IN: OS handle of the file
 
 Bool
 HgfsServerGetOpenMode(HgfsFileOpenInfo *openInfo, // IN:  Open info to examine
@@ -924,83 +824,21 @@ HgfsAckOplockBreak(ServerLockData *lockData,  // IN: server lock info
 
 /* Transport related functions. */
 Bool
-HgfsPackAndSendPacket(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-                      char *packetOut,              // IN: Output packet to send
-                      size_t packetOutLen,          // IN: Output packet size
-                      HgfsInternalStatus status,    // IN: status
-                      HgfsHandle id,                // IN: id of the request packet
-                      HgfsSessionInfo *session,     // IN: session info
-                      HgfsSendFlags flags);         // IN: flags how to send
+HgfsPackAndSendPacket(char *packet,               // IN: packet to send
+                      size_t packetSize,          // IN: packet size
+                      HgfsInternalStatus status,  // IN: status
+                      HgfsHandle id,              // IN: id of the request packet
+                      HgfsSessionInfo *session,   // IN: session info
+                      HgfsSendFlags flags);       // IN: flags how to send
 
 Bool
-HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
-               char *packetOut,               // IN: Output packet buffer
-               size_t packetOutLen,           // IN: Output packet size
-               HgfsSessionInfo *session,      // IN: session info
-               HgfsSendFlags flags);          // IN: flags how to send
+HgfsPacketSend(char *packet,                // IN: packet buffer
+               size_t packetSize,           // IN: packet size
+               HgfsSessionInfo *session,    // IN: session info
+               HgfsSendFlags flags);        // IN: flags how to send
 
 Bool
 HgfsServerCheckOpenFlagsForShare(HgfsFileOpenInfo *openInfo, // IN: Hgfs file handle
                                  HgfsOpenFlags *flags);      // IN/OUT: open mode
 
-
-void *
-HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
-            uint32 startIndex,            // IN: start index of iov
-            void **buf,                   // OUT: Contigous buffer
-            size_t bufSize,               // IN: Size of buffer
-            Bool *isAllocated,            // OUT: Was buffer allocated ?
-            uint32 mappingType,           // IN: Readable/ Writeable ?
-            HgfsSessionInfo *session);    // IN: Session Info
-
-void *
-HSPU_GetMetaPacket(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
-                   size_t *metaPacketSize,      // OUT: Size of metaPacket
-                   HgfsSessionInfo *session);   // IN: Session Info
-
-void *
-HSPU_GetDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                      uint32 mappingType,        // IN: Readable/ Writeable ?
-                      HgfsSessionInfo *session); // IN: Session Info
-
-void
-HSPU_PutPacket(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-	       HgfsSessionInfo *session);  // IN: Session Info
-
-void
-HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-            uint32 startIndex,         // IN: Start of iov
-            void **buf,                // IN/OUT: Buffer to be freed
-            size_t *bufSize,           // IN: Size of the buffer
-	    Bool *isAllocated,         // IN: Was buffer allocated ?
-            uint32 mappingType,        // IN: Readable/ Writeable ?
-	    HgfsSessionInfo *session); // IN: Session info
-
-void
-HSPU_PutDataPacketBuf(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
-                      HgfsSessionInfo *session);  // IN: Session Info
-
-void
-HSPU_PutMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                   HgfsSessionInfo *session); // IN: Session Info
-
-void
-HSPU_CopyBufToDataIovec(HgfsPacket *packet,       // IN/OUT: Hgfs packet
-                        void *buf,                // IN: Buffer to copy from
-                        uint32 bufSize,           // IN: Size of buffer
-                        HgfsSessionInfo *session);// IN: Session Info
-void
-HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                    uint32 startIndex,        // IN: start index into iov
-                    void *buf,                // IN: Buffer
-                    size_t bufSize,           // IN: Size of buffer
-                    HgfsSessionInfo *session); // IN: Session Info
-void *
-HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    size_t *replyPacketSize,   //IN/OUT: Size of reply Packet
-                    HgfsSessionInfo *session); // IN: Session Info
-
-void
-HSPU_PutReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                    HgfsSessionInfo *session); // IN: Session Info
 #endif /* __HGFS_SERVER_INT_H__ */

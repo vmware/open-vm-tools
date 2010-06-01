@@ -33,12 +33,13 @@
 #  include <sys/syslog.h>         // for log(9), LOG_* macros
 #elif defined __APPLE__
 #  include <kern/debug.h>         // for panic
-#  if defined VMX86_DEVEL
-#    include <pexpert/pexpert.h>  // for kprintf
-#  endif
 #endif
 
 #include <sys/vnode.h>            // for struct vattr
+
+#if defined VMX86_DEVEL
+#  include <pexpert/pexpert.h>    // for kprintf
+#endif
 
 #include "hgfs_kernel.h"
 

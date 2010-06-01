@@ -122,6 +122,7 @@
 #include <X11/Xatom.h>                  /* for XA_WINDOW */
 
 #include "vmwareuserInt.h"
+#include "vm_app.h"
 #include "vm_assert.h"
 #include "vm_basic_defs.h"
 #include "eventManager.h"
@@ -138,7 +139,7 @@
 #include "hgfsServerPolicy.h"
 #include "vmblock.h"
 #include "escape.h"
-#include "vmware/guestrpc/tclodefs.h"
+
 
 #define DND_MAX_PATH                    6144
 #define DRAG_TARGET_NAME_URI_LIST       "text/uri-list"
@@ -1156,7 +1157,7 @@ DnDGtkDataRequestCB(GtkWidget *widget,                // IN
    const char *post;
    size_t preLen;
    size_t postLen;
-   int len;
+   size_t len;
    Bool insertSpace;
    char *text = NULL;
    size_t textLen = 1;

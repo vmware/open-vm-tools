@@ -44,9 +44,7 @@
 #   include "strutil.h"
 #endif
 
-#if defined(VMTOOLS_USE_GLIB)
-#  include "vmware/tools/guestrpc.h"
-#endif
+
 
 #include "vmware.h"
 #include "message.h"
@@ -912,7 +910,6 @@ RpcIn_restart(RpcIn *in)  // IN
 }
 
 
-#if !defined(VMTOOLS_USE_GLIB)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -947,4 +944,4 @@ RpcIn_SetRetVals(char const **result,   // OUT
 
    return retVal;
 }
-#endif
+

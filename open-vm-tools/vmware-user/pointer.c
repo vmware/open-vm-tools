@@ -30,9 +30,9 @@
 #include "debug.h"
 #include "str.h"
 #include "strutil.h"
+#include "vm_app.h"
 #include "guestApp.h"
 #include "eventManager.h"
-#include "vmware/guestrpc/tclodefs.h"
 
 static GuestAppAbsoluteMouseState absoluteMouseState = GUESTAPP_ABSMOUSE_UNKNOWN;
 static Bool mouseIsGrabbed;

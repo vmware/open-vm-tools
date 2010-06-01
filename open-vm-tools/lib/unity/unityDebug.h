@@ -28,6 +28,10 @@
 
 #include "unityWindowTracker.h"
 
+#ifdef  __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 #if defined(VMX86_DEVEL)
 void UnityDebug_Init(UnityWindowTracker *tracker);
 void UnityDebug_OnUpdate(void);
@@ -36,6 +40,9 @@ void UnityDebug_OnUpdate(void);
 #  define UnityDebug_OnUpdate()
 #endif
 
+#ifdef __cplusplus
+};
+#endif // __cplusplus
 
 #endif
 

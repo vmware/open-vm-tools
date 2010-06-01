@@ -16,20 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 /*
  * message.c --
  *
@@ -68,28 +54,66 @@ extern "C" {
 #include "backdoor.h"
 #include "message.h"
 
+static MessageOpenProcType externalOpenProc = NULL;
+static MessageGetReadEventProcType externalGetReadEventProc = NULL;
+static MessageSendProcType externalSendProc = NULL;
+static MessageReceiveProcType externalReceiveProc = NULL;
+static MessageCloseProcType externalCloseProc = NULL;
 
-#if defined(MESSAGE_DEBUG)
-#  define MESSAGE_LOG(...)   Warning(__VA_ARGS__)
-#else
-#  define MESSAGE_LOG(...)
-#endif
+/*
+ * Currently, the default implementation is to use the backdoor. Soon,
+ * this will not be the default, as we will explicitly set it when we
+ * decide to use the backdoor.
+ */
+EXTERN Message_Channel *MessageBackdoor_Open(uint32 proto);
 
-/* The channel object */
-struct Message_Channel {
-   /* Identifier */
-   uint16 id;
+EXTERN Bool MessageBackdoor_GetReadEvent(Message_Channel *chan,
+                                         int64 *event);
 
-   /* Reception buffer */
-   /*  Data */
-   unsigned char *in;
-   /*  Allocated size */
-   size_t inAlloc;
+EXTERN Bool MessageBackdoor_Send(Message_Channel *chan,
+                                 const unsigned char *buf,
+                                 size_t bufSize);
 
-   /* The cookie */
-   uint32 cookieHigh;
-   uint32 cookieLow;
-};
+EXTERN Bool MessageBackdoor_Receive(Message_Channel *chan,
+                                    unsigned char **buf,
+                                    size_t *bufSize);
+
+EXTERN Bool MessageBackdoor_Close(Message_Channel *chan);
+
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Message_SetTransport --
+ *
+ *    This tells the message layer to use an alternate transport
+ *    for messages. By default, we use the backdoor, so this function
+ *    overrides that default at runtime and switches everything over to
+ *    an alternate transport.
+ *
+ * Result:
+ *    None
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void 
+Message_SetTransport(MessageOpenProcType openProc,                   // IN
+                     MessageGetReadEventProcType getReadEeventProc,  // IN
+                     MessageSendProcType sendProc,                   // IN
+                     MessageReceiveProcType receiveProc,             // IN
+                     MessageCloseProcType closeProc)                 // IN
+{
+   externalOpenProc = openProc;
+   externalGetReadEventProc = getReadEeventProc;
+   externalSendProc = sendProc;
+   externalReceiveProc = receiveProc;
+   externalCloseProc = closeProc;
+}
 
 
 /*
@@ -112,52 +136,55 @@ struct Message_Channel {
 Message_Channel *
 Message_Open(uint32 proto) // IN
 {
-   Message_Channel *chan;
-   uint32 flags;
-   Backdoor_proto bp;
-
-   chan = (Message_Channel *)malloc(sizeof(*chan));
-   if (chan == NULL) {
-      goto error_quit;
+   /*
+    * If there is an alterate backdoor implementation, then call that.
+    */
+   if (NULL != externalOpenProc) {
+      return((*externalOpenProc)(proto));
    }
 
-   flags = GUESTMSG_FLAG_COOKIE;
-retry:
-   /* IN: Type */
-   bp.in.cx.halfs.high = MESSAGE_TYPE_OPEN;
-   /* IN: Magic number of the protocol and flags */
-   bp.in.size = proto | flags;
+   /*
+    * Otherwise, we default to the backdoor.
+    */
+   return(MessageBackdoor_Open(proto));
+}
 
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
 
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      if (flags) {
-         /* Cookies not supported. Fall back to no cookie. --hpreg */
-         flags = 0;
-         goto retry;
-      }
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Message_GetReadEvent --
+ *
+ *    This allows higher levels of the IPC stack to use an event to detect
+ *    when a message has arrived. This allows an asynchronous, event-based-model 
+ *    rather than continually calling Message_Receive in a busy loop. This may 
+ *    only be supported by some transports. The backdoor does not, so the IPC
+ *    code will still have to poll in those cases.
+ *
+ * Result:
+ *    Bool - whether this feature is supported by this transport.
+ *
+ * Side-effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-      MESSAGE_LOG("Message: Unable to open a communication channel\n");
-      goto error_quit;
+Bool 
+Message_GetReadEvent(Message_Channel *chan,  // IN
+                     int64 *event)           // OUT
+{
+   /*
+    * If there is an alterate backdoor implementation, then call that.
+    */
+   if (NULL != externalGetReadEventProc) {
+      return((*externalGetReadEventProc)(chan, event));
    }
 
-   /* OUT: Id and cookie */
-   chan->id = bp.in.dx.halfs.high;
-   chan->cookieHigh = bp.out.si.word;
-   chan->cookieLow = bp.out.di.word;
-
-   /* Initialize the channel */
-   chan->in = NULL;
-   chan->inAlloc = 0;
-
-   return chan;
-
-error_quit:
-   free(chan);
-   chan = NULL;
-   return NULL;
+   /*
+    * Otherwise, we default to the backdoor.
+    */
+   return(MessageBackdoor_GetReadEvent(chan, event));
 }
 
 
@@ -183,127 +210,17 @@ Message_Send(Message_Channel *chan,    // IN/OUT
              const unsigned char *buf, // IN
              size_t bufSize)           // IN
 {
-   const unsigned char *myBuf;
-   size_t myBufSize;
-   Backdoor_proto bp;
-
-retry:
-   myBuf = buf;
-   myBufSize = bufSize;
+   /*
+    * If there is an alterate backdoor implementation, then call that.
+    */
+   if (NULL != externalSendProc) {
+      return((*externalSendProc)(chan, buf, bufSize));
+   }
 
    /*
-    * Send the size.
+    * Otherwise, we default to the backdoor.
     */
-
-   /* IN: Type */
-   bp.in.cx.halfs.high = MESSAGE_TYPE_SENDSIZE;
-   /* IN: Id and cookie */
-   bp.in.dx.halfs.high = chan->id;
-   bp.in.si.word = chan->cookieHigh;
-   bp.in.di.word = chan->cookieLow;
-   /* IN: Size */
-   bp.in.size = myBufSize;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
-
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      MESSAGE_LOG("Message: Unable to send a message over the communication "
-                  "channel %u\n", chan->id);
-      return FALSE;
-   }
-
-   if (bp.in.cx.halfs.high & MESSAGE_STATUS_HB) {
-      /*
-       * High-bandwidth backdoor port supported. Send the message in one
-       * backdoor operation. --hpreg
-       */
-
-      if (myBufSize) {
-         Backdoor_proto_hb bphb;
-
-         bphb.in.bx.halfs.low = BDOORHB_CMD_MESSAGE;
-         bphb.in.bx.halfs.high = MESSAGE_STATUS_SUCCESS;
-         bphb.in.dx.halfs.high = chan->id;
-         bphb.in.bp.word = chan->cookieHigh;
-         bphb.in.dstAddr = chan->cookieLow;
-         bphb.in.size = myBufSize;
-         bphb.in.srcAddr = (uintptr_t) myBuf;
-         Backdoor_HbOut(&bphb);
-         if ((bphb.in.bx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-            if ((bphb.in.bx.halfs.high & MESSAGE_STATUS_CPT) != 0) {
-               /* A checkpoint occurred. Retry the operation. --hpreg */
-               goto retry;
-            }
-
-            MESSAGE_LOG("Message: Unable to send a message over the "
-                        "communication channel %u\n", chan->id);
-            return FALSE;
-         }
-      }
-   } else {
-      /*
-       * High-bandwidth backdoor port not supported. Send the message, 4 bytes
-       * at a time. --hpreg
-       */
-
-      for (;;) {
-         if (myBufSize == 0) {
-            /* We are done */
-	    break;
-         }
-
-         /* IN: Type */
-         bp.in.cx.halfs.high = MESSAGE_TYPE_SENDPAYLOAD;
-         /* IN: Id and cookie */
-         bp.in.dx.halfs.high = chan->id;
-         bp.in.si.word = chan->cookieHigh;
-         bp.in.di.word = chan->cookieLow;
-         /* IN: Piece of message */
-         /*
-          * Beware in case we are not allowed to read extra bytes beyond the
-          * end of the buffer.
-          */
-         switch (myBufSize) {
-         case 1:
-            bp.in.size = myBuf[0];
-            myBufSize -= 1;
-            break;
-         case 2:
-            bp.in.size = myBuf[0] | myBuf[1] << 8;
-            myBufSize -= 2;
-            break;
-         case 3:
-            bp.in.size = myBuf[0] | myBuf[1] << 8 | myBuf[2] << 16;
-            myBufSize -= 3;
-            break;
-         default:
-            bp.in.size = *(const uint32 *)myBuf;
-            myBufSize -= 4;
-            break;
-         }
-
-         bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-         Backdoor(&bp);
-
-         /* OUT: Status */
-         if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-            if ((bp.in.cx.halfs.high & MESSAGE_STATUS_CPT) != 0) {
-               /* A checkpoint occurred. Retry the operation. --hpreg */
-               goto retry;
-            }
-
-            MESSAGE_LOG("Message: Unable to send a message over the "
-                        "communication channel %u\n", chan->id);
-            return FALSE;
-         }
-
-         myBuf += 4;
-      }
-   }
-
-   return TRUE;
+   return(MessageBackdoor_Send(chan, buf, bufSize));
 }
 
 
@@ -329,227 +246,17 @@ Message_Receive(Message_Channel *chan, // IN/OUT
                 unsigned char **buf,   // OUT
                 size_t *bufSize)       // OUT
 {
-   Backdoor_proto bp;
-   size_t myBufSize;
-   unsigned char *myBuf;
-
-retry:
    /*
-    * Is there a message waiting for our retrieval?
+    * If there is an alterate backdoor implementation, then call that.
     */
-
-   /* IN: Type */
-   bp.in.cx.halfs.high = MESSAGE_TYPE_RECVSIZE;
-   /* IN: Id and cookie */
-   bp.in.dx.halfs.high = chan->id;
-   bp.in.si.word = chan->cookieHigh;
-   bp.in.di.word = chan->cookieLow;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
-
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      MESSAGE_LOG("Message: Unable to poll for messages over the "
-                  "communication channel %u\n", chan->id);
-      return FALSE;
-   }
-
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_DORECV) == 0) {
-      /* No message to retrieve */
-      *bufSize = 0;
-      return TRUE;
+   if (NULL != externalReceiveProc) {
+      return((*externalReceiveProc)(chan, buf, bufSize));
    }
 
    /*
-    * Receive the size.
+    * Otherwise, we default to the backdoor.
     */
-
-   /* OUT: Type */
-   if (bp.in.dx.halfs.high != MESSAGE_TYPE_SENDSIZE) {
-      MESSAGE_LOG("Message: Protocol error. Expected a "
-                  "MESSAGE_TYPE_SENDSIZE request from vmware\n");
-      return FALSE;
-   }
-
-   /* OUT: Size */
-   myBufSize = bp.out.bx.word;
-
-   /*
-    * Allocate an extra byte for a trailing NUL character. The code that will
-    * deal with this message may not know about binary strings, and may expect
-    * a C string instead. --hpreg
-    */
-   if (myBufSize + 1 > chan->inAlloc) {
-      myBuf = (unsigned char *)realloc(chan->in, myBufSize + 1);
-      if (myBuf == NULL) {
-         MESSAGE_LOG("Message: Not enough memory to receive a message over "
-                     "the communication channel %u\n", chan->id);
-         goto error_quit;
-      }
-
-      chan->in = myBuf;
-      chan->inAlloc = myBufSize + 1;
-   }
-   *bufSize = myBufSize;
-   myBuf = *buf = chan->in;
-
-   if (bp.in.cx.halfs.high & MESSAGE_STATUS_HB) {
-      /*
-       * High-bandwidth backdoor port supported. Receive the message in one
-       * backdoor operation. --hpreg
-       */
-
-      if (myBufSize) {
-         Backdoor_proto_hb bphb;
-
-         bphb.in.bx.halfs.low = BDOORHB_CMD_MESSAGE;
-         bphb.in.bx.halfs.high = MESSAGE_STATUS_SUCCESS;
-         bphb.in.dx.halfs.high = chan->id;
-         bphb.in.srcAddr = chan->cookieHigh;
-         bphb.in.bp.word = chan->cookieLow;
-         bphb.in.size = myBufSize;
-         bphb.in.dstAddr = (uintptr_t) myBuf;
-         Backdoor_HbIn(&bphb);
-         if ((bphb.in.bx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-            if ((bphb.in.bx.halfs.high & MESSAGE_STATUS_CPT) != 0) {
-               /* A checkpoint occurred. Retry the operation. --hpreg */
-               goto retry;
-            }
-
-            MESSAGE_LOG("Message: Unable to receive a message over the "
-                        "communication channel %u\n", chan->id);
-            goto error_quit;
-         }
-      }
-   } else {
-      /*
-       * High-bandwidth backdoor port not supported. Receive the message, 4
-       * bytes at a time. --hpreg
-       */
-
-      for (;;) {
-         if (myBufSize == 0) {
-            /* We are done */
-            break;
-         }
-
-         /* IN: Type */
-         bp.in.cx.halfs.high = MESSAGE_TYPE_RECVPAYLOAD;
-         /* IN: Id and cookie */
-         bp.in.dx.halfs.high = chan->id;
-         bp.in.si.word = chan->cookieHigh;
-         bp.in.di.word = chan->cookieLow;
-         /* IN: Status for the previous request (that succeeded) */
-         bp.in.size = MESSAGE_STATUS_SUCCESS;
-
-         bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-         Backdoor(&bp);
-
-         /* OUT: Status */
-         if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-            if ((bp.in.cx.halfs.high & MESSAGE_STATUS_CPT) != 0) {
-               /* A checkpoint occurred. Retry the operation. --hpreg */
-               goto retry;
-            }
-
-            MESSAGE_LOG("Message: Unable to receive a message over the "
-                        "communication channel %u\n", chan->id);
-            goto error_quit;
-         }
-
-         /* OUT: Type */
-         if (bp.in.dx.halfs.high != MESSAGE_TYPE_SENDPAYLOAD) {
-            MESSAGE_LOG("Message: Protocol error. Expected a "
-                        "MESSAGE_TYPE_SENDPAYLOAD from vmware\n");
-            goto error_quit;
-         }
-
-         /* OUT: Piece of message */
-         /*
-          * Beware in case we are not allowed to write extra bytes beyond the
-          * end of the buffer. --hpreg
-          */
-         switch (myBufSize) {
-         case 1:
-            myBuf[0] = bp.out.bx.word & 0xff;
-            myBufSize -= 1;
-            break;
-         case 2:
-            myBuf[0] = bp.out.bx.word & 0xff;
-            myBuf[1] = (bp.out.bx.word >> 8) & 0xff;
-            myBufSize -= 2;
-            break;
-         case 3:
-            myBuf[0] = bp.out.bx.word & 0xff;
-            myBuf[1] = (bp.out.bx.word >> 8) & 0xff;
-            myBuf[2] = (bp.out.bx.word >> 16) & 0xff;
-            myBufSize -= 3;
-            break;
-         default:
-            *(uint32 *)myBuf = bp.out.bx.word;
-            myBufSize -= 4;
-            break;
-         }
-
-         myBuf += 4;
-      }
-   }
-
-   /* Write a trailing NUL just after the message. --hpreg */
-   chan->in[*bufSize] = '\0';
-
-   /* IN: Type */
-   bp.in.cx.halfs.high = MESSAGE_TYPE_RECVSTATUS;
-   /* IN: Id and cookie */
-   bp.in.dx.halfs.high = chan->id;
-   bp.in.si.word = chan->cookieHigh;
-   bp.in.di.word = chan->cookieLow;
-   /* IN: Status for the previous request (that succeeded) */
-   bp.in.size = MESSAGE_STATUS_SUCCESS;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
-
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      if ((bp.in.cx.halfs.high & MESSAGE_STATUS_CPT) != 0) {
-	 /* A checkpoint occurred. Retry the operation. --hpreg */
-	 goto retry;
-      }
-
-      MESSAGE_LOG("Message: Unable to receive a message over the "
-                  "communication channel %u\n", chan->id);
-      goto error_quit;
-   }
-
-   return TRUE;
-
-error_quit:
-   /* IN: Type */
-   if (myBufSize == 0) {
-      bp.in.cx.halfs.high = MESSAGE_TYPE_RECVSTATUS;
-   } else {
-      bp.in.cx.halfs.high = MESSAGE_TYPE_RECVPAYLOAD;
-   }
-   /* IN: Id and cookie */
-   bp.in.dx.halfs.high = chan->id;
-   bp.in.si.word = chan->cookieHigh;
-   bp.in.di.word = chan->cookieLow;
-   /* IN: Status for the previous request (that failed) */
-   bp.in.size = 0;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
-
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      MESSAGE_LOG("Message: Unable to signal an error of reception over the "
-                  "communication channel %u\n", chan->id);
-      return FALSE;
-   }
-
-   return FALSE;
+   return(MessageBackdoor_Receive(chan, buf, bufSize));
 }
 
 
@@ -573,31 +280,17 @@ error_quit:
 Bool
 Message_Close(Message_Channel *chan) // IN/OUT
 {
-   Backdoor_proto bp;
-   Bool ret = TRUE;
-
-   /* IN: Type */
-   bp.in.cx.halfs.high = MESSAGE_TYPE_CLOSE;
-   /* IN: Id and cookie */
-   bp.in.dx.halfs.high = chan->id;
-   bp.in.si.word = chan->cookieHigh;
-   bp.in.di.word = chan->cookieLow;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_MESSAGE;
-   Backdoor(&bp);
-
-   /* OUT: Status */
-   if ((bp.in.cx.halfs.high & MESSAGE_STATUS_SUCCESS) == 0) {
-      MESSAGE_LOG("Message: Unable to close the communication channel %u\n",
-                  chan->id);
-      ret = FALSE;
+   /*
+    * If there is an alterate backdoor implementation, then call that.
+    */
+   if (NULL != externalCloseProc) {
+      return((*externalCloseProc)(chan));
    }
 
-   free(chan->in);
-   chan->in = NULL;
-
-   free(chan);
-   return ret;
+   /*
+    * Otherwise, we default to the backdoor.
+    */
+   return(MessageBackdoor_Close(chan));
 }
 
 #ifdef __cplusplus

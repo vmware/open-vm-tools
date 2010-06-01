@@ -95,9 +95,8 @@ Printer_GetDefault(void)
 
    /* Make sure function has been loaded. */
    if (!getDefaultPrinterFunc) {
-      Log("%s: DLL not loaded\n", __FUNCTION__);
+      Log("Printer_GetDefault: DLL not loaded\n");
       ASSERT(FALSE);
-
       return NULL;
    }
 
@@ -105,31 +104,27 @@ Printer_GetDefault(void)
    success = getDefaultPrinterFunc(printerName, &bufSize);
    error = Err_Errno();
    if (success) {
-      Log("%s: Didn't fail with zero buffer\n", __FUNCTION__);
-
+      Log("Printer_GetDefault: Didn't fail with zero buffer\n");
       return NULL;
    }
 
    if (error != ERROR_INSUFFICIENT_BUFFER) {
-      Log("%s: Unexpected failure %d: %s\n", error,
-          __FUNCTION__, Err_Errno2String(error));
-
+      Log("Printer_GetDefault: Unexpected failure %d: %s\n",
+          error, Err_Errno2String(error));
       return NULL;
    }
 
    printerName = malloc(bufSize);
    if (!printerName) {
-      Log("%s: Memory allocation failure\n", __FUNCTION__);
-
+      Log("Printer_GetDefault: Memory allocation failure\n");
       return NULL;
    }
 
    success = getDefaultPrinterFunc(printerName, &bufSize);
    if (!success) {
       error = Err_Errno();
-      Log("%s: Failed to get default printer\n", __FUNCTION__);
+      Log("Printer_GetDefault: Failed to get default printer\n");
       free(printerName);
-
       return NULL;
    }
 
@@ -169,21 +164,18 @@ Printer_SetDefault(char const *printerName) // IN
 
    /* Make sure function has been loaded. */
    if (!setDefaultPrinterFunc) {
-      Log("%s: DLL not loaded\n", __FUNCTION__);
+      Log("Printer_SetDefault: DLL not loaded\n");
       ASSERT(FALSE);
-
       return FALSE;
    }
 
    /*
     * Attempt to set the default printer.
     */
-
    if (!setDefaultPrinterFunc(printerName)) {
       error = Err_Errno();
-      Log("%s: Unable to SetDefaultPrinter %d: %s\n", __FUNCTION__,
+      Log("Printer_SetDefault: Unable to SetDefaultPrinter %d: %s\n",
           error, Err_Errno2String(error));
-
       return FALSE;
    }
 
@@ -231,7 +223,7 @@ Printer_AddConnection(char *printerName, // IN:  Name of printer to add
 
    /* Make sure function has been loaded. */
    if (!addPrinterConnectionFunc) {
-      Log("%s: DLL not loaded\n", __FUNCTION__);
+      Log("Printer_AddConnection: DLL not loaded\n");
       ASSERT(FALSE);
       return FALSE;
    }
@@ -239,18 +231,16 @@ Printer_AddConnection(char *printerName, // IN:  Name of printer to add
    /* Try to add the printer. */
    if (!addPrinterConnectionFunc((LPSTR)printerName)) {
       error = Err_Errno();
-      Log("%s: Failed to add printer %s : %d %s\n", __FUNCTION__,
+      Log("Printer_AddConnection: Failed to add printer %s : %d %s\n",
           printerName, error, Err_Errno2String(error));
       success = FALSE;
    }
 
    *sysError = error;
-
    return success;
 
 #else
    NOT_IMPLEMENTED();
-
    return FALSE;
 #endif
 }
@@ -288,17 +278,16 @@ Printer_Init(void)
    winspoolDll = Win32U_LoadLibrary("Winspool.drv");
    if (!winspoolDll) {
       error = Err_Errno();
-      Log("%s: Failed to load Winspool.drv  %d: %s\n", __FUNCTION__,
+      Log("Printer_Init: Failed to load Winspool.drv  %d: %s\n",
           error, Err_Errno2String(error));
 
-      Log("%s: Trying to load Winspool as Winspool.dll...\n", __FUNCTION__);
+      Log("Printer_Init: Trying to load Winspool as Winspool.dll...\n");
       winspoolDll = Win32U_LoadLibrary("Winspool");
       if (!winspoolDll) {
          error = Err_Errno();
-         Log("%s: Failed to load Winspool.dll  %d: %s\n", __FUNCTION__,
+         Log("Printer_Init: Failed to load Winspool.dll  %d: %s\n",
              error, Err_Errno2String(error));
          Log("Unable to load Winspool, giving up.\n");
-
          return FALSE;
       }
    }
@@ -308,7 +297,7 @@ Printer_Init(void)
                                                                  "GetDefaultPrinterA");
    if (!getDefaultPrinterFunc) {
       error = Err_Errno();
-      Log("%s: Failed to load GetDefaultPrinter %d: %s\n", __FUNCTION__,
+      Log("Printer_Init: Failed to load GetDefaultPrinter %d: %s\n",
           error, Err_Errno2String(error));
       goto error;
    }
@@ -317,7 +306,7 @@ Printer_Init(void)
                                                                  "SetDefaultPrinterA");
    if (!setDefaultPrinterFunc) {
       error = Err_Errno();
-      Log("%s: Failed to load SetDefaultPrinter %d: %s\n", __FUNCTION__,
+      Log("Printer_Init: Failed to load SetDefaultPrinter %d: %s\n",
           error, Err_Errno2String(error));
       goto error;
    }
@@ -326,7 +315,7 @@ Printer_Init(void)
                                                              "AddPrinterConnectionA");
    if (!addPrinterConnectionFunc) {
       error = Err_Errno();
-      Log("%s: Failed to load AddPrinterConnection %d: %s\n", __FUNCTION__,
+      Log("Printer_Init: Failed to load AddPrinterConnection %d: %s\n",
           error, Err_Errno2String(error));
       goto error;
    }
@@ -370,8 +359,7 @@ Printer_Cleanup(void)
    DWORD error;
 
    if (!winspoolDll) {
-      Log("%s: Printer library not loaded.\n", __FUNCTION__);
-
+      Log("Printer_Cleanup: Printer library not loaded.\n");
       return FALSE;
    }
 
@@ -381,15 +369,13 @@ Printer_Cleanup(void)
 
    if (!FreeLibrary(winspoolDll)) {
       error = Err_Errno();
-      Log("%s: Failed to FreeLibrary %d: %s\n", __FUNCTION__,
+      Log("Printer_Cleanup: Failed to FreeLibrary %d: %s\n",
           error, Err_Errno2String(error));
       winspoolDll = NULL;
-
       return FALSE;
    }
 
    winspoolDll = NULL;
-
    return TRUE;
 
 #else

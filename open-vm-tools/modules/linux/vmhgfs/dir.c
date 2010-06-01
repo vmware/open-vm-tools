@@ -1,3 +1,4 @@
+
 /*********************************************************
  * Copyright (C) 2006 VMware, Inc. All rights reserved.
  *
@@ -167,7 +168,7 @@ HgfsUnpackSearchReadReply(HgfsReq *req,        // IN: Reply packet
     * Make sure name length is legal.
     */
    if (fileNameLength > NAME_MAX ||
-       fileNameLength > req->bufferSize - replySize) {
+       fileNameLength > HGFS_PACKET_MAX - replySize) {
       return -ENAMETOOLONG;
    }
 
@@ -395,7 +396,7 @@ HgfsPackDirOpenRequest(struct file *file,   // IN: File pointer for this open
    }
 
    /* Build full name to send to server. */
-   if (HgfsBuildPath(name, req->bufferSize - (requestSize - 1),
+   if (HgfsBuildPath(name, HGFS_PACKET_MAX - (requestSize - 1),
                      file->f_dentry) < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: build path failed\n"));
       return -EINVAL;
@@ -405,7 +406,7 @@ HgfsPackDirOpenRequest(struct file *file,   // IN: File pointer for this open
 
    /* Convert to CP name. */
    result = CPName_ConvertTo(name,
-                             req->bufferSize - (requestSize - 1),
+                             HGFS_PACKET_MAX - (requestSize - 1),
                              name);
    if (result < 0) {
       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: CP conversion failed\n"));

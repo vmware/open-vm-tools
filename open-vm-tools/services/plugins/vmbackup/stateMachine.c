@@ -35,15 +35,12 @@
 
 #include "vmBackupInt.h"
 
-#include <glib-object.h>
 #include <gmodule.h>
 #include "guestApp.h"
 #include "str.h"
 #include "strutil.h"
 #include "util.h"
-#include "vmBackupSignals.h"
-#include "vmware/tools/utils.h"
-#include "vmware/tools/vmbackup.h"
+#include "vmtools.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -62,6 +59,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 } while (0)
 
 static VmBackupState *gBackupState = NULL;
+static VmBackupSyncProvider *gSyncProvider = NULL;
 
 static Bool
 VmBackupEnableSync(void);
@@ -180,12 +178,9 @@ static void
 VmBackupFinalize(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
-   ASSERT(gBackupState != NULL);
+   g_assert(gBackupState != NULL);
+   g_assert(gBackupState->machineState == VMBACKUP_MSTATE_IDLE);
 
-   if (gBackupState->abortTimer != NULL) {
-      g_source_destroy(gBackupState->abortTimer);
-      g_source_unref(gBackupState->abortTimer);
-   }
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
       VmBackup_Release(gBackupState->currentOp);
@@ -201,10 +196,8 @@ VmBackupFinalize(void)
       g_source_destroy(gBackupState->keepAlive);
    }
 
-   gBackupState->provider->release(gBackupState->provider);
-   g_free(gBackupState->volumes);
-   g_free(gBackupState->snapshots);
-   g_free(gBackupState);
+   free(gBackupState->volumes);
+   free(gBackupState);
    gBackupState = NULL;
 }
 
@@ -284,10 +277,6 @@ VmBackupOnError(void)
       /* Next state is "sync error". */
       gBackupState->pollPeriod = 1000;
       gBackupState->machineState = VMBACKUP_MSTATE_SYNC_ERROR;
-      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
-                            TOOLS_CORE_SIG_IO_FREEZE,
-                            gBackupState->ctx,
-                            FALSE);
       break;
 
    case VMBACKUP_MSTATE_SCRIPT_THAW:
@@ -305,56 +294,6 @@ VmBackupOnError(void)
 
 
 /**
- * Aborts the current operation, unless we're already in an error state.
- */
-
-static void
-VmBackupDoAbort(void)
-{
-   g_debug("*** %s\n", __FUNCTION__);
-   ASSERT(gBackupState != NULL);
-   if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
-       gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
-      /* Mark the current operation as cancelled. */
-      if (gBackupState->currentOp != NULL) {
-         VmBackup_Cancel(gBackupState->currentOp);
-         VmBackup_Release(gBackupState->currentOp);
-         gBackupState->currentOp = NULL;
-      }
-
-      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
-                         VMBACKUP_REMOTE_ABORT,
-                         "Backup aborted.");
-
-      /* Transition to the error state. */
-      if (VmBackupOnError()) {
-         VmBackupFinalize();
-      }
-   }
-}
-
-
-/**
- * Timer callback to abort the current operation.
- *
- * @param[in] data    Unused.
- *
- * @return FALSE
- */
-
-static gboolean
-VmBackupAbortTimer(gpointer data)
-{
-   ASSERT(gBackupState != NULL);
-   g_warning("Aborting backup operation due to timeout.");
-   VmBackupDoAbort();
-   g_source_unref(gBackupState->abortTimer);
-   gBackupState->abortTimer = NULL;
-   return FALSE;
-}
-
-
-/**
  * Callback that checks for the status of the current operation. Calls the
  * queued operations as needed.
  *
@@ -366,53 +305,50 @@ VmBackupAbortTimer(gpointer data)
 static gboolean
 VmBackupAsyncCallback(void *clientData)
 {
-   VmBackupOpStatus status = VMBACKUP_STATUS_FINISHED;
-
    g_debug("*** %s\n", __FUNCTION__);
-   ASSERT(gBackupState != NULL);
+   g_assert(gBackupState != NULL);
 
    g_source_unref(gBackupState->timerEvent);
    gBackupState->timerEvent = NULL;
 
    if (gBackupState->currentOp != NULL) {
+      VmBackupOpStatus status;
+
       g_debug("VmBackupAsyncCallback: checking %s\n", gBackupState->currentOpName);
       status = VmBackup_QueryStatus(gBackupState->currentOp);
-   }
 
-   switch (status) {
-   case VMBACKUP_STATUS_PENDING:
-      goto exit;
+      switch (status) {
+      case VMBACKUP_STATUS_PENDING:
+         goto exit;
 
-   case VMBACKUP_STATUS_FINISHED:
-      if (gBackupState->currentOpName != NULL) {
-         g_debug("Async request '%s' completed\n", gBackupState->currentOpName);
-         VmBackup_Release(gBackupState->currentOp);
-         gBackupState->currentOpName = NULL;
-      }
-      gBackupState->currentOp = NULL;
-      break;
-
-   default:
-      {
-         Bool freeMsg = TRUE;
-         char *errMsg = Str_Asprintf(NULL,
-                                     "Asynchronous operation failed: %s",
-                                     gBackupState->currentOpName);
-         if (errMsg == NULL) {
-            freeMsg = FALSE;
-            errMsg = "Asynchronous operation failed.";
-         }
-         VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
-                            VMBACKUP_UNEXPECTED_ERROR,
-                            errMsg);
-         if (freeMsg) {
-            vm_free(errMsg);
-         }
-
+      case VMBACKUP_STATUS_FINISHED:
+         g_debug("Async request completed\n");
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
-         VmBackupOnError();
-         goto exit;
+         break;
+
+      default:
+         {
+            Bool freeMsg = TRUE;
+            char *errMsg = Str_Asprintf(NULL,
+                                        "Asynchronous operation failed: %s",
+                                        gBackupState->currentOpName);
+            if (errMsg == NULL) {
+               freeMsg = FALSE;
+               errMsg = "Asynchronous operation failed.";
+            }
+            VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
+                               VMBACKUP_UNEXPECTED_ERROR,
+                               errMsg);
+            if (freeMsg) {
+               free(errMsg);
+            }
+
+            VmBackup_Release(gBackupState->currentOp);
+            gBackupState->currentOp = NULL;
+            VmBackupOnError();
+            goto exit;
+         }
       }
    }
 
@@ -455,10 +391,6 @@ VmBackupAsyncCallback(void *clientData)
 
    case VMBACKUP_MSTATE_SYNC_THAW:
       /* Next state is "script thaw". */
-      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
-                            TOOLS_CORE_SIG_IO_FREEZE,
-                            gBackupState->ctx,
-                            FALSE);
       if (!VmBackupStartScripts(VMBACKUP_SCRIPT_THAW)) {
          VmBackupOnError();
       }
@@ -506,16 +438,7 @@ static Bool
 VmBackupEnableSync(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
-   g_signal_emit_by_name(gBackupState->ctx->serviceObj,
-                         TOOLS_CORE_SIG_IO_FREEZE,
-                         gBackupState->ctx,
-                         TRUE);
-   if (!gBackupState->provider->start(gBackupState,
-                                      gBackupState->provider->clientData)) {
-      g_signal_emit_by_name(gBackupState->ctx->serviceObj,
-                            TOOLS_CORE_SIG_IO_FREEZE,
-                            gBackupState->ctx,
-                            FALSE);
+   if (!gSyncProvider->start(gBackupState, gSyncProvider->clientData)) {
       VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                          VMBACKUP_SYNC_ERROR,
                          "Error when enabling the sync provider.");
@@ -540,65 +463,20 @@ VmBackupEnableSync(void)
  * @return TRUE on success.
  */
 
-static gboolean
+static Bool
 VmBackupStart(RpcInData *data)
 {
-   GError *err = NULL;
-   guint timeout;
-   ToolsAppCtx *ctx = data->appCtx;
-   VmBackupSyncProvider *provider = NULL;
-
-   size_t i;
-   
-   /* List of available providers, in order of preference for loading. */
-   struct SyncProvider {
-      VmBackupSyncProvider *(*ctor)(void);
-      const gchar *cfgEntry;
-   } providers[] = {
-#if defined(_WIN32)
-      { VmBackup_NewVssProvider, "enableVSS" },
-#endif
-      { VmBackup_NewSyncDriverProvider, "enableSyncDriver" },
-      { VmBackup_NewNullProvider, NULL },
-   };
-
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState != NULL) {
       return RPCIN_SETRETVALS(data, "Backup operation already in progress.", FALSE);
    }
 
-   /* Instantiate the sync provider. */
-   for (i = 0; i < ARRAYSIZE(providers); i++) {
-      gboolean enabled = TRUE;
-      struct SyncProvider *sp = &providers[i];
+   gBackupState = Util_SafeMalloc(sizeof *gBackupState);
+   memset(gBackupState, 0, sizeof *gBackupState);
 
-      if (sp->cfgEntry != NULL) {
-         enabled = g_key_file_get_boolean(ctx->config,
-                                          "vmbackup",
-                                          sp->cfgEntry,
-                                          &err);
-         if (err != NULL) {
-            g_clear_error(&err);
-            enabled = TRUE;
-         }
-      }
-
-      if (enabled) {
-         provider = sp->ctor();
-         if (provider != NULL) {
-            break;
-         }
-      }
-   }
-
-   ASSERT(provider != NULL);
-
-   /* Instantiate the backup state and start the operation. */
-   gBackupState = g_new0(VmBackupState, 1);
    gBackupState->ctx = data->appCtx;
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
-   gBackupState->provider = provider;
 
    if (data->argsSize > 0) {
       int generateManifests = 0;
@@ -609,58 +487,27 @@ VmBackupStart(RpcInData *data)
       }
 
       if (data->args[index] != '\0') {
-         gBackupState->volumes = g_strndup(data->args + index, data->argsSize - index);
+         gBackupState->volumes = Util_SafeStrdup(data->args + index);
       }
    }
 
    gBackupState->configDir = GuestApp_GetConfPath();
    if (gBackupState->configDir == NULL) {
-      g_warning("Error getting configuration directory.");
-      goto error;
+      free(gBackupState);
+      gBackupState = NULL;
+      return RPCIN_SETRETVALS(data, "Error getting configuration directory.", FALSE);
    }
 
    VmBackup_SendEvent(VMBACKUP_EVENT_RESET, VMBACKUP_SUCCESS, "");
 
    if (!VmBackupStartScripts(VMBACKUP_SCRIPT_FREEZE)) {
-      goto error;
-   }
-
-   /*
-    * VC has a 15 minute timeout for quiesced snapshots. After that timeout,
-    * it just discards the operation and sends an error to the caller. But
-    * Tools can still keep running, blocking any new quiesced snapshot
-    * requests. So we set up our own timer (which is configurable, in case
-    * anyone wants to play with it), so that we abort any ongoing operation
-    * if we also hit that timeout.
-    *
-    * See bug 506106.
-    */
-   timeout = (guint) g_key_file_get_integer(gBackupState->ctx->config,
-                                            "vmbackup",
-                                            "timeout",
-                                            &err);
-   if (err != NULL) {
-      g_clear_error(&err);
-      timeout = 15 * 60;
-   }
-
-   /* Treat "0" as no timeout. */
-   if (timeout != 0) {
-      gBackupState->abortTimer = g_timeout_source_new_seconds(timeout);
-      VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
-                               gBackupState->abortTimer,
-                               VmBackupAbortTimer,
-                               NULL,
-                               NULL);
+      free(gBackupState);
+      gBackupState = NULL;
+      return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
    }
 
    VMBACKUP_ENQUEUE_EVENT();
    return RPCIN_SETRETVALS(data, "", TRUE);
-
-error:
-   gBackupState->provider->release(gBackupState->provider);
-   g_free(gBackupState);
-   return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
 }
 
 
@@ -674,15 +521,36 @@ error:
  * @return TRUE
  */
 
-static gboolean
+static Bool
 VmBackupAbort(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState == NULL) {
       return RPCIN_SETRETVALS(data, "Error: no backup in progress", FALSE);
-   }
+   } else if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
+              gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
+      /* Mark the current operation as cancelled. */
+      if (gBackupState->currentOp != NULL) {
+         VmBackup_Cancel(gBackupState->currentOp);
+         VmBackup_Release(gBackupState->currentOp);
+         gBackupState->currentOp = NULL;
+      }
 
-   VmBackupDoAbort();
+      /* If the sync provider is engaged, signal that it should stop. */
+      if (gBackupState->machineState == VMBACKUP_MSTATE_SYNC_FREEZE ||
+          gBackupState->machineState == VMBACKUP_MSTATE_SYNC_THAW) {
+         gSyncProvider->abort(gBackupState, gSyncProvider->clientData);
+      }
+
+      VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ABORT,
+                         VMBACKUP_REMOTE_ABORT,
+                         "Remote abort.");
+
+      /* Transition to the error state. */
+      if (VmBackupOnError()) {
+         VmBackupFinalize();
+      }
+   }
    return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
@@ -696,7 +564,7 @@ VmBackupAbort(RpcInData *data)
  * @return TRUE
  */
 
-static gboolean
+static Bool
 VmBackupSnapshotDone(RpcInData *data)
 {
    g_debug("*** %s\n", __FUNCTION__);
@@ -709,11 +577,7 @@ VmBackupSnapshotDone(RpcInData *data)
                               "Error: unexpected state for snapshot done message.",
                               FALSE);
    } else {
-      if (data->argsSize > 1) {
-         gBackupState->snapshots = g_strndup(data->args + 1, data->argsSize - 1);
-      }
-      if (!gBackupState->provider->snapshotDone(gBackupState,
-                                                gBackupState->provider->clientData)) {
+      if (!gSyncProvider->snapshotDone(gBackupState, gSyncProvider->clientData)) {
          VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                             VMBACKUP_SYNC_ERROR,
                             "Error when notifying the sync provider.");
@@ -783,6 +647,9 @@ VmBackupShutdown(gpointer src,
    if (gBackupState != NULL) {
       VmBackupFinalize();
    }
+
+   gSyncProvider->release(gSyncProvider);
+   gSyncProvider = NULL;
 }
 
 
@@ -804,45 +671,45 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   RpcChannelCallback rpcs[] = {
-      { VMBACKUP_PROTOCOL_START, VmBackupStart, NULL, NULL, NULL, 0 },
-      { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
-      { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
-   };
-   ToolsPluginSignalCb sigs[] = {
-      { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
-      { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
-      { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },
-   };
-   ToolsAppReg regs[] = {
-      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
-      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
-   };
+   /*
+    * For Win32, first check whether we have VSS support available. Otherwise,
+    * check if there is a sync driver installed. If nothing is found, return
+    * NULL, since we don't want to register any handlers.
+    */
+
+   VmBackupSyncProvider *provider = NULL;
 
 #if defined(G_PLATFORM_WIN32)
-   /*
-    * If initializing COM fails (unlikely), we'll fallback to the sync driver
-    * or the null provider, depending on the configuration.
-    */
-   if (!ToolsCore_InitializeCOM(ctx)) {
-      g_warning("Failed to initialize COM, VSS support will be unavailable.");
+   if (ToolsCore_InitializeCOM(ctx)) {
+      provider = VmBackup_NewVssProvider();
    }
 #endif
 
-   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+   if (provider == NULL) {
+      provider = VmBackup_NewSyncDriverProvider();
+   }
 
-   g_signal_new(TOOLS_CORE_SIG_IO_FREEZE,
-                G_OBJECT_TYPE(ctx->serviceObj),
-                0,
-                0,
-                NULL,
-                NULL,
-                g_cclosure_user_marshal_VOID__POINTER_BOOLEAN,
-                G_TYPE_NONE,
-                2,
-                G_TYPE_POINTER,
-                G_TYPE_BOOLEAN);
+   if (provider != NULL) {
+      RpcChannelCallback rpcs[] = {
+         { VMBACKUP_PROTOCOL_START, VmBackupStart, NULL, NULL, NULL, 0 },
+         { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
+         { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
+      };
+      ToolsPluginSignalCb sigs[] = {
+         { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
+         { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
+         { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },
+      };
+      ToolsAppReg regs[] = {
+         { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
+         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
+      };
 
-   return &regData;
+      gSyncProvider = provider;
+      regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+      return &regData;
+   }
+
+   return NULL;
 }
 

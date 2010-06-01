@@ -75,10 +75,12 @@ SOLHGFS_64_KRN_OBJS := $(addprefix amd64/, $(SOLHGFS_KRN_OBJS))
 SOLHGFS_LIB_OBJS := backdoor.o
 SOLHGFS_LIB_OBJS += cpName.o
 SOLHGFS_LIB_OBJS += cpNameLinux.o
+SOLHGFS_LIB_OBJS += dbllnklst.o
 SOLHGFS_LIB_OBJS += hgfsBd.o
 SOLHGFS_LIB_OBJS += hgfsEscape.o
 SOLHGFS_LIB_OBJS += hgfsUtil.o
 SOLHGFS_LIB_OBJS += message.o
+SOLHGFS_LIB_OBJS += messageBackdoor.o
 SOLHGFS_LIB_OBJS += rpcout.o
 SOLHGFS_LIB_OBJS += sha1.o
 
@@ -93,19 +95,6 @@ SOLHGFS_64_OBJS := $(SOLHGFS_64_KRN_OBJS) $(SOLHGFS_64_LIB_OBJS)
 
 MODULE_32 := i386/$(MODULE)
 MODULE_64 := amd64/$(MODULE)
-
-ifdef OVT_SOURCE_DIR
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/backdoor
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/hgfs
-
-   VPATH  := $(OVT_SOURCE_DIR)/lib/backdoor
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/hgfs
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/hgfsBd
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/message
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/misc
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/lib/rpcOut
-endif
 
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32

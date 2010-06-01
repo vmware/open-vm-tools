@@ -32,50 +32,34 @@
 #include "vmblockInt.h"
 #include "filesystem.h"
 
-#if defined(VMW_FILLDIR_2618)
-typedef u64 inode_num_t;
-#else
-typedef ino_t inode_num_t;
-#endif
-
 /* Specifically for our filldir_t callback */
 typedef struct FilldirInfo {
    filldir_t filldir;
    void *dirent;
 } FilldirInfo;
 
+/* File operations */
+static int FileOpOpen(struct inode *inode, struct file *file);
+static int FileOpReaddir(struct file *file, void *dirent, filldir_t filldir);
+static int FileOpRelease(struct inode *inode, struct file *file);
 
-/*
- *----------------------------------------------------------------------------
- *
- * Filldir --
- *
- *    Callback function for readdir that we use in place of the one provided.
- *    This allows us to specify that each dentry is a symlink, but pass through
- *    everything else to the original filldir function.
- *
- * Results:
- *    Original filldir's return value.
- *
- * Side effects:
- *    Directory information gets copied to user's buffer.
- *
- *----------------------------------------------------------------------------
- */
+/* Local functions */
+#if defined(VMW_FILLDIR_2618)
+static int Filldir(void *buf, const char *name, int namelen,
+                   loff_t offset, u64 ino, unsigned int d_type);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 9)
+static int Filldir(void *buf, const char *name, int namelen,
+                   loff_t offset, ino_t ino, unsigned int d_type);
+#else
+static int Filldir(void *buf, const char *name, int namelen,
+                   off_t offset, ino_t ino, unsigned int d_type);
+#endif
 
-static int
-Filldir(void *buf,              // IN: Dirent buffer passed from FileOpReaddir
-        const char *name,       // IN: Dirent name
-        int namelen,            // IN: len of dirent's name
-        loff_t offset,          // IN: Offset
-        inode_num_t ino,        // IN: Inode number of dirent
-        unsigned int d_type)    // IN: Type of file
-{
-   FilldirInfo *info = buf;
-
-   /* Specify DT_LNK regardless */
-   return info->filldir(info->dirent, name, namelen, offset, ino, DT_LNK);
-}
+struct file_operations RootFileOps = {
+   .readdir = FileOpReaddir,
+   .open    = FileOpOpen,
+   .release = FileOpRelease,
+};
 
 
 /* File operations */
@@ -236,9 +220,56 @@ FileOpRelease(struct inode *inode, // IN
 }
 
 
-struct file_operations RootFileOps = {
-   .readdir = FileOpReaddir,
-   .open    = FileOpOpen,
-   .release = FileOpRelease,
-};
+/* Local functions */
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Filldir --
+ *
+ *    Callback function for readdir that we use in place of the one provided.
+ *    This allows us to specify that each dentry is a symlink, but pass through
+ *    everything else to the original filldir function.
+ *
+ * Results:
+ *    Original filldir's return value.
+ *
+ * Side effects:
+ *    Directory information gets copied to user's buffer.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#if defined(VMW_FILLDIR_2618)
+static int
+Filldir(void *buf,              // IN: Dirent buffer passed from FileOpReaddir
+        const char *name,       // IN: Dirent name
+        int namelen,            // IN: len of dirent's name
+        loff_t offset,          // IN: Offset
+        u64 ino,                // IN: Inode number of dirent
+        unsigned int d_type)    // IN: Type of file
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 9)
+static int
+Filldir(void *buf,              // IN: Dirent buffer passed from FileOpReaddir
+        const char *name,       // IN: Dirent name
+        int namelen,            // IN: len of dirent's name
+        loff_t offset,          // IN: Offset
+        ino_t ino,              // IN: Inode number of dirent
+        unsigned int d_type)    // IN: Type of file
+#else
+static int
+Filldir(void *buf,              // IN: Dirent buffer passed from FileOpReaddir
+        const char *name,       // IN: Dirent name
+        int namelen,            // IN: len of dirent's name
+        off_t offset,           // IN: Offset
+        ino_t ino,              // IN: Inode number of dirent
+        unsigned int d_type)    // IN: Type of file
+#endif
+{
+   FilldirInfo *info = (FilldirInfo *)buf;
+
+   /* Specify DT_LNK regardless */
+   return info->filldir(info->dirent, name, namelen, offset, ino, DT_LNK);
+}
+
 

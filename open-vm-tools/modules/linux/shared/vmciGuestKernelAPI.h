@@ -37,20 +37,19 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-#include "vmciQueue.h"
+
+#include "vmci_queue_pair.h"
 
 /*
  * Note: APIs marked as compat are provided for compatibility with the host
  *       only. These APIs don't really make sense in the context of the guest.
  */
 
-/* PUBLIC: VMCI Device Usage API. */
-
+/* VMCI Device Usage API. */
 Bool VMCI_DeviceGet(void);
 void VMCI_DeviceRelease(void);
 
-/* PUBLIC: VMCI Datagram API. */
-
+/* VMCI Datagram API. */
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
 			   VMCIDatagramRecvCB recvCB, void *clientData,
 			   VMCIHandle *outHandle);
@@ -58,11 +57,11 @@ int VMCIDatagram_CreateHndPriv(VMCIId resourceID, uint32 flags,
 			       VMCIPrivilegeFlags privFlags,
 			       VMCIDatagramRecvCB recvCB, void *clientData,
 			       VMCIHandle *outHandle); /* Compat */
+
 int VMCIDatagram_DestroyHnd(VMCIHandle handle);
 int VMCIDatagram_Send(VMCIDatagram *msg);
 
 /* VMCI Utility API. */
-
 VMCIId VMCI_GetContextID(void);
 uint32 VMCI_Version(void);
 
@@ -71,7 +70,7 @@ uint32 VMCI_Version(void);
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
 			     void *clientData);
 
-int VMCIEvent_Subscribe(VMCI_Event event, uint32 flags, VMCI_EventCB callback,
+int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEvent_Unsubscribe(VMCIId subID);
 
@@ -80,25 +79,15 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID); /* Compat */
 
 /* VMCI Discovery Service API. */
-
 int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
-/* VMCI Doorbell API. */
-
-#if !defined(SOLARIS) && !defined(__APPLE__)
-
-#define VMCI_FLAG_DELAYED_CB    0x01
-
-typedef void (*VMCICallback)(void *clientData);
-
-int VMCIDoorbell_Create(VMCIHandle *handle, uint32 flags,
-                        VMCIPrivilegeFlags privFlags,
-                        VMCICallback notifyCB, void *clientData);
-int VMCIDoorbell_Destroy(VMCIHandle handle);
-int VMCIDoorbell_Notify(VMCIHandle handle,
-                        VMCIPrivilegeFlags privFlags);
-
-#endif // !defined(SOLARIS) && !defined(__APPLE__)
+int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
+                        uint64 produceSize, VMCIQueue **consumeQ,
+                        uint64 consumeSize, VMCIId peer, uint32 flags);
+int VMCIQueuePair_AllocPriv(VMCIHandle *handle, VMCIQueue **produceQ,
+                            uint64 produceSize, VMCIQueue **consumeQ,
+                            uint64 consumeSize, VMCIId peer, uint32 flags,
+                            VMCIPrivilegeFlags privFlags); /* Compat */
+int VMCIQueuePair_Detach(VMCIHandle handle);
 
 #endif /* !__VMCI_GUESTKERNELAPI_H__ */
-

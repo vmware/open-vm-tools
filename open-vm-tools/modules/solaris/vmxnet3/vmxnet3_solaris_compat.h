@@ -25,14 +25,7 @@
 
 #define DDI_INTR_PRI(pri) (void *)((uintptr_t)(pri))
 
-#ifndef OPEN_SOLARIS
 #define LSO_TX_BASIC_TCP_IPV4 0x02
-#define COMPAT_DDI_DEFINE_STREAM_OPS DDI_DEFINE_STREAM_OPS
-#else
-#define COMPAT_DDI_DEFINE_STREAM_OPS(XXname, XXidentify, XXprobe, XXattach, XXdetach, XXreset, XXgetinfo, XXflag, XXstream_tab) \
-   DDI_DEFINE_STREAM_OPS(XXname, XXidentify, XXprobe, XXattach, XXdetach, \
-   XXreset, XXgetinfo, XXflag, XXstream_tab, ddi_quiesce_not_supported)
-#endif	/* OPEN_SOLARIS */
 
 #define HW_LSO 0x10
 

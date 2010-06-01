@@ -39,7 +39,7 @@ Msg_Append(const char *fmt,
    Str_Vsnprintf(buf, sizeof buf, fmt, args);
    va_end(args);
 
-   Warning("%s [STUB]: %s\n", __FUNCTION__, buf);
+   Warning("Msg_Append: %s\n", buf);
 }
 
 
@@ -64,7 +64,7 @@ Msg_Question(Msg_String const *buttons,
    Str_Vsnprintf(buf, sizeof buf, fmt, args);
    va_end(args);
 
-   Warning("%s [STUB]: %s\n", __FUNCTION__, buf);
+   Warning("Msg_Question: %s\n", buf);
 
    return (unsigned int) defaultAnswer;
 }

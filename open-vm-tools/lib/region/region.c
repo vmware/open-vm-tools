@@ -106,14 +106,11 @@ Equipment Corporation.
  *				  and MAXSHORT with winnt.h
  *      04/03/2007 shelleygong  - use int instead of short for data
  *                                inside the region *
- *      02/12/2010 michael - Since coordinates are kept as ints, coordinate
- *      values shouldn't be clamped to the range of short. I removed R_{MIN,MAX}SHORT
- *      and changed clamping to be in the range R_MININT..R_MAXINT instead.
- *      Since some code does "n < R_MININT" and "n > R_MAXINT", R_MININT must be
- *      greater than INT_MIN and R_MAXINT must be less than INT_MAX.
- *
- *      03/08/2010 amarp        - xalloc conflicts with boost macros. Move it
- *                                out of the header into the implementation
+ * 02/12/2010 michael - Since coordinates are kept as ints, coordinate values
+ *    shouldn't be clamped to the range of short. I removed R_{MIN,MAX}SHORT
+ *    and changed clamping to be in the range R_MININT..R_MAXINT instead.
+ *    Since some code does "n < R_MININT" and "n > R_MAXINT", R_MININT must be
+ *    greater than INT_MIN and R_MAXINT must be less than INT_MAX.
  */
 
 #include <stdlib.h>
@@ -126,7 +123,6 @@ void miSetExtents(RegionPtr pReg);
 int miFindMaxBand(RegionPtr prgn);
 
 #define good(reg) ASSERT(miValidRegion(reg))
-#define xalloc(n) malloc(n)
 
 /*
  * The functions in this file implement the Region abstraction used extensively

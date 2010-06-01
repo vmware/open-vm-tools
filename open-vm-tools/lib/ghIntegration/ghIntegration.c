@@ -28,6 +28,7 @@
 #include "dynxdr.h"
 #include "ghIntegration.h"
 #include "ghIntegrationInt.h"
+#include "guestCaps.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
 #include "guestrpc/ghiProtocolHandler.h"
 #include "guestrpc/ghiStartMenu.h"
@@ -39,7 +40,6 @@
 #include "unityCommon.h"
 #include "util.h"
 #include "xdrutil.h"
-#include "vmware/guestrpc/capabilities.h"
 
 
 /*

@@ -26,7 +26,7 @@
 #define _VMCI_INFRASTRUCTURE_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_VMCORE
@@ -42,41 +42,24 @@ typedef enum {
    VMCIOBJ_CONTEXT,
    VMCIOBJ_PROCESS,
    VMCIOBJ_DATAGRAM_PROCESS,
-   VMCIOBJ_SOCKET,
    VMCIOBJ_NOT_SET,
 } VMCIObjType;
 
 /* Guestcalls currently support a maximum of 8 uint64 arguments. */
 #define VMCI_GUESTCALL_MAX_ARGS_SIZE 64
 
-/* 
- * Structure used for checkpointing the doorbell mappings. It is
- * written to the checkpoint as is, so changing this structure will
- * break checkpoint compatibility.
- */
-
-typedef struct VMCIDoorbellCptState {
-   VMCIHandle handle;
-   uint64     bitmapIdx;
-} VMCIDoorbellCptState;
-
 /* Used to determine what checkpoint state to get and set. */
 #define VMCI_NOTIFICATION_CPT_STATE 0x1
-#define VMCI_WELLKNOWN_CPT_STATE    0x2
-#define VMCI_DG_OUT_STATE           0x3
-#define VMCI_DG_IN_STATE            0x4
-#define VMCI_DG_IN_SIZE_STATE       0x5
-#define VMCI_DOORBELL_CPT_STATE     0x6
+#define VMCI_WELLKNOWN_CPT_STATE 0x2
+#define VMCI_QP_CPT_STATE 0x3
+#define VMCI_QP_INFO_CPT_STATE 0x4
 
 /* Used to control the VMCI device in the vmkernel */
 #define VMCI_DEV_RESET            0x01
-#define VMCI_DEV_QP_RESET         0x02  // DEPRECATED
+#define VMCI_DEV_QP_RESET         0x02
 #define VMCI_DEV_QUIESCE          0x03
 #define VMCI_DEV_UNQUIESCE        0x04
-#define VMCI_DEV_QP_BREAK_SHARING 0x05  // DEPRECATED
-#define VMCI_DEV_RESTORE_SYNC     0x06
-#define VMCI_DEV_BMASTER_OFF      0x07
-
+#define VMCI_DEV_QP_BREAK_SHARING 0x05
 
 /*
  *-------------------------------------------------------------------------
@@ -105,38 +88,6 @@ VMCI_Hash(VMCIHandle handle, // IN
 
    for (i = 0; i < sizeof handle; i++) {
       hash = ((hash << 5) + hash) + (uint8)(handleValue >> (i * 8));
-   }
-   return hash & (size - 1);
-}
-
-
-/*
- *-------------------------------------------------------------------------
- *
- *  VMCI_HashId --
- *
- *     Hash function used by the Simple Datagram API. Hashes only a VMCI id
- *     (not the full VMCI handle) Based on the djb2
- *     hash function by Dan Bernstein.
- *
- *  Result:
- *     Returns guest call size.
- *
- *  Side effects:
- *     None.
- *
- *-------------------------------------------------------------------------
- */
-
-static INLINE int
-VMCI_HashId(VMCIId id,      // IN
-            unsigned size)  // IN
-{
-   unsigned     i;
-   int          hash        = 5381;
-
-   for (i = 0; i < sizeof id; i++) {
-      hash = ((hash << 5) + hash) + (uint8)(id >> (i * 8));
    }
    return hash & (size - 1);
 }

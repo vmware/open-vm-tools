@@ -21,7 +21,7 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
-
+#define INCLUDE_ALLOW_VMMEXT
 #include "includeCheck.h"
 
 #include <stdarg.h>
@@ -56,13 +56,13 @@ EXTERN Bool Log_InitForApp(const char *fileName, const char *config,
 EXTERN Bool Log_InitEx(const LogInitParams *params);
 EXTERN void Log_Exit(void);
 EXTERN void Log_SetConfigDir(const char *configDir);
+EXTERN void Log_SetLockFunc(void (*f)(Bool locking));
 EXTERN void Log_WriteLogFile(const char *msg);
 
 EXTERN Bool Log_Enabled(void);
 EXTERN const char *Log_GetFileName(void);
 
 EXTERN void Log_Flush(void);
-EXTERN void Log_UseLocking(Bool useLocking);
 EXTERN void Log_SetAlwaysKeep(Bool alwaysKeep);
 EXTERN Bool Log_RemoveFile(Bool alwaysRemove);
 EXTERN void Log_DisableThrottling(void);

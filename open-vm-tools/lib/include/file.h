@@ -89,12 +89,6 @@ EXTERN char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 #elif defined VMX86_SERVER
 EXTERN int File_GetVMFSBlockSize(ConstUnicode pathName, uint32 *blockSize);
 EXTERN int File_GetVMFSfsType(ConstUnicode pathName, char **fsType);
-EXTERN int File_GetVMFSMountInfo(ConstUnicode pathName,
-                                 char **fsType,
-                                 uint32 *version,
-                                 char **remoteIP,
-                                 char **remoteMountPoint,
-                                 char **localMountPoint);
 #endif
 
 EXTERN Bool File_Exists(ConstUnicode pathName);
@@ -205,11 +199,6 @@ EXTERN Bool File_SupportsFileSize(ConstUnicode pathName,
 
 EXTERN Bool File_SupportsLargeFiles(ConstUnicode pathName);
 
-EXTERN char *File_MapPathPrefix(const char *oldPath,
-                                const char **oldPrefixes,
-                                const char **newPrefixes,
-                                size_t numPrefixes);
-
 EXTERN Bool File_CopyFromFdToFd(FileIODescriptor src, 
                                 FileIODescriptor dst);
 
@@ -298,6 +287,8 @@ EXTERN Unicode File_ReplaceExtension(ConstUnicode pathName,
                                      ConstUnicode newExtension,
                                      uint32 numExtensions,
                                      ...);
+
+EXTERN Bool File_OnVMFS(ConstUnicode pathName);
 
 EXTERN Bool File_MakeCfgFileExecutable(ConstUnicode pathName);
 

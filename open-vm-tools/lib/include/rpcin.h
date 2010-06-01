@@ -33,26 +33,18 @@ extern "C" {
 
 #if defined(VMTOOLS_USE_GLIB)
 #  include <glib.h>
-   typedef gboolean RpcInRet;
 #else
 #  include "dbllnklst.h"
-   typedef Bool RpcInRet;
 #endif
+
+/* Helper macro for porting old callbacks that currently use RpcIn_SetRetVals. */
+#define RPCIN_SETRETVALS(data, val, retVal)                                \
+   RpcIn_SetRetVals((char const **) &(data)->result, &(data)->resultLen,   \
+                    (val), (retVal))
 
 typedef void RpcIn_ErrorFunc(void *clientData, char const *status);
 
 typedef struct RpcIn RpcIn;
-
-#if defined(VMTOOLS_USE_GLIB)
-
-RpcIn *RpcIn_Construct(GMainContext *mainCtx,
-                       RpcIn_Callback dispatch,
-                       gpointer clientData);
-
-Bool RpcIn_start(RpcIn *in, unsigned int delay,
-                 RpcIn_ErrorFunc *errorFunc, void *errorData);
-
-#else
 
 /* Data passed to new-style RpcIn callbacks. */
 typedef struct RpcInData {
@@ -74,8 +66,19 @@ typedef struct RpcInData {
  * Type for RpcIn callbacks. The callback function is responsible for
  * allocating memory for the result string.
  */
-typedef RpcInRet (*RpcIn_Callback)(RpcInData *data);
+typedef Bool (*RpcIn_Callback)(RpcInData *data);
 
+
+#if defined(VMTOOLS_USE_GLIB)
+
+RpcIn *RpcIn_Construct(GMainContext *mainCtx,
+                       RpcIn_Callback dispatch,
+                       gpointer clientData);
+
+Bool RpcIn_start(RpcIn *in, unsigned int delay,
+                 RpcIn_ErrorFunc *errorFunc, void *errorData);
+
+#else
 
 /*
  * Type for old RpcIn callbacks. Don't use this anymore - this is here
@@ -106,20 +109,14 @@ void RpcIn_RegisterCallbackEx(RpcIn *in, const char *name,
                               RpcIn_Callback callback, void *clientData);
 void RpcIn_UnregisterCallback(RpcIn *in, const char *name);
 
-/* Helper macro for porting old callbacks that currently use RpcIn_SetRetVals. */
-#define RPCIN_SETRETVALS(data, val, retVal)                                \
-   RpcIn_SetRetVals((char const **) &(data)->result, &(data)->resultLen,   \
-                    (val), (retVal))
-
-unsigned int RpcIn_SetRetVals(char const **result, size_t *resultLen,
-                              const char *resultVal, Bool retVal);
-
 #endif
 
 void RpcIn_Destruct(RpcIn *in);
 Bool RpcIn_restart(RpcIn *in);
 Bool RpcIn_stop(RpcIn *in);
 
+unsigned int RpcIn_SetRetVals(char const **result, size_t *resultLen,
+                              const char *resultVal, Bool retVal);
 
 #ifdef __cplusplus
 } // extern "C"

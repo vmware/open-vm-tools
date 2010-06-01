@@ -25,7 +25,6 @@ vmtoolsd_CPPFLAGS += @GMODULE_CPPFLAGS@
 vmtoolsd_CPPFLAGS += @GOBJECT_CPPFLAGS@
 vmtoolsd_CPPFLAGS += @GTHREAD_CPPFLAGS@
 vmtoolsd_CPPFLAGS += -I$(builddir)
-vmtoolsd_CPPFLAGS += -DVMTOOLSD_PLUGIN_ROOT=\"$(pkglibdir)/plugins\"
 
 vmtoolsd_LDADD =
 vmtoolsd_LDADD += @VMTOOLS_LIBS@
@@ -71,15 +70,15 @@ else
    vmtoolsd_LINK = $(LINK)
 endif
 
-# PAM support is currently only available for Linux, so HAVE_PAM is only
-# defined for that OS.
-if HAVE_PAM
+if LINUX
+if PAMD
 if THIRTY_TWO_BIT_USERSPACE
 pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/vmtoolsd
 else
-pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/64/vmtoolsd
+pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/vmtoolsd-x64
 endif !THIRTY_TWO_BIT_USERSPACE
-endif HAVE_PAM
+endif PAMD
+endif LINUX
 
 install-exec-hook:
 	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools

@@ -97,20 +97,17 @@ XXX document the escaping/unescaping process: rationale for which chars we escap
 
 
 /*
- * The dictionary line format:
- *
- *    <ws> <name> <ws> = <ws> <value> <ws> <comment>
- * or
- *    <ws> <name> <ws> = <ws> " <quoted-value> " <ws> <comment>
- *
- * where
- *    <name> does not contain any whitespace or = or #
- *    <value> does not contain any double-quote or #
- *    <quoted-value> does not contain any double-quote
- *    <comment> begins with # and ends at the end of the line
- *    <ws> is a sequence spaces and/or tabs
- *    <comment> and <ws> are optional
- */
+XXX document the dict format:
+
+     whitespaces <name> whitespaces '=' whitespaces <value> whitespaces comment
+  or
+     whitespaces <name> whitespaces '=' whitespaces '"' <value> '"' whitespaces comment
+
+  where:
+
+  . <name> does not contain any whitespace or = or pound
+  . <value> does not contain any double-quote or pound
+*/
 
 
 /*
@@ -393,15 +390,15 @@ DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
 
    if (name) {
       /*
-       * Double quote, pipe, 0x7F, and all control characters but
+       * Double quote, pound, pipe, 0x7F, and all control characters but
        * tab --hpreg
-       * 0x80 to 0xff are unescaped so characters in encodings
-       * like UTF-8 will be displayed normally.
+       * XXX Why 7F? Why not also 84 and 85 and 90 which do funny things in a
+       *     xterm?
        */
       static int const toEscape[] = {
          1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-         0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

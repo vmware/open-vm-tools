@@ -90,7 +90,7 @@ HgfsSendOpenDirRequest(HgfsSuperInfo *sip,   // IN: Superinfo pointer
    request->reserved = 0;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
 
    /*
     * Convert an input string to utf8 precomposed form, convert it to
@@ -190,7 +190,7 @@ HgfsSendOpenRequest(HgfsSuperInfo *sip,   // IN: Superinfo pointer
    request->reserved2 = 0;
 
    reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-   reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_PACKET_MAX, reqSize);
+   reqBufferSize = HGFS_NAME_BUFFER_SIZET(reqSize);
    request->mode = openMode;
    request->flags = openFlags;
    DEBUG(VM_DEBUG_COMM, "open flags are %x\n", request->flags);

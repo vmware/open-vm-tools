@@ -31,22 +31,6 @@ obj-m += $(DRIVER).o
 
 $(DRIVER)-y := $(subst $(SRCROOT)/, , $(patsubst %.c, %.o, $(wildcard $(SRCROOT)/*.c)))
 
-#
-# Compile the common sources from the shared directory.
-#
-STUBS      := kernelStubsLinux.o
-$(DRIVER)-y += $(STUBS)
-
-VMCI_PATH  := $(shell cd $(SRCROOT) && pwd)
-ifdef OVT_SOURCE_DIR
-STUBS_PATH := $(OVT_SOURCE_DIR)/modules/linux/shared
-else
-STUBS_PATH := $(VMCI_PATH)/shared
-endif
-
-$(addprefix $(VMCI_PATH)/,$(STUBS)): $(VMCI_PATH)/%.o: $(STUBS_PATH)/%.c
-	$(Q)$(rule_cc_o_c)
-
 clean:
 	rm -rf $(wildcard $(DRIVER).mod.c $(DRIVER).ko .tmp_versions \
 	       Modules.symvers Module.markers modules.order \

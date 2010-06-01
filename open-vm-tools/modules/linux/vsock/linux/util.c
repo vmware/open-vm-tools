@@ -83,8 +83,6 @@ VSockVmciLogPkt(char const *function,   // IN
       [VSOCK_PACKET_TYPE_SHUTDOWN]       = "SHUTDOWN",
       [VSOCK_PACKET_TYPE_WAITING_WRITE]  = "WAITING_WRITE",
       [VSOCK_PACKET_TYPE_WAITING_READ]   = "WAITING_READ",
-      [VSOCK_PACKET_TYPE_REQUEST2]       = "REQUEST2",
-      [VSOCK_PACKET_TYPE_NEGOTIATE2]     = "NEGOTIATE2",
    };
 
    written = snprintf(cur, left, "PKT: %u:%u -> %u:%u",
@@ -140,14 +138,6 @@ VSockVmciLogPkt(char const *function,   // IN
 
       break;
 
-   case VSOCK_PACKET_TYPE_REQUEST2:
-   case VSOCK_PACKET_TYPE_NEGOTIATE2:
-      written = snprintf(cur, left, ", %s, size = %"FMT64"u, "
-                         "proto = %u",
-                         typeStrings[pkt->type], pkt->u.size,
-                         pkt->proto);
-      break;
-
    default:
       written = snprintf(cur, left, ", unrecognized type");
    }
@@ -164,12 +154,12 @@ VSockVmciLogPkt(char const *function,   // IN
       goto error;
    }
 
-   LOG(8, ("%s", buf));
+   Log("%s", buf);
 
    return;
 
 error:
-   LOG(8, ("could not log packet\n"));
+   Log("could not log packet\n");
 }
 
 
@@ -367,7 +357,7 @@ __VSockVmciFindBoundSocket(struct sockaddr_vm *addr)  // IN
 
 
    list_for_each_entry(vsk, vsockBoundSockets(addr), boundTable) {
-      if (VSockAddr_EqualsAddrAny(addr, &vsk->localAddr)) {
+      if (VSockAddr_EqualsAddr(addr, &vsk->localAddr)) {
          sk = sk_vsock(vsk);
 
          /* We only store stream sockets in the bound table. */

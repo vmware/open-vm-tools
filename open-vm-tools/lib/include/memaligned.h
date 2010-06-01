@@ -98,7 +98,7 @@ AlignedMallocImpl(size_t size) // IN
       return NULL;
    }
 
-   buf = (void **)malloc(paddedSize);
+   buf = malloc(paddedSize);
    if (!buf) {
       return NULL;
    }

@@ -49,8 +49,7 @@
  */
 
 int
-daemon(int nochdir,  // IN:
-       int noclose)  // IN:
+daemon(int nochdir, int noclose)
 {
    int fd;
 
@@ -80,7 +79,6 @@ daemon(int nochdir,  // IN:
          close (fd);
       }
    }
-
    return (0);
 }
 #endif

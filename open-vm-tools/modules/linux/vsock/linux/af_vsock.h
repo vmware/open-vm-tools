@@ -38,20 +38,21 @@
 
 #include "notify.h"
 
-#ifdef VMX86_DEVEL
-extern int LOGLEVEL_THRESHOLD;
-
-#define LOG(level, args) ((void) (LOGLEVEL_THRESHOLD >= (level) ? (Log args) : 0))
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 5)
+# define vsock_sk(__sk)    ((VSockVmciSock *)(__sk)->user_data)
+# define sk_vsock(__vsk)   ((__vsk)->sk)
 #else
-#define LOG(level, args)
-#endif
-
 # define vsock_sk(__sk)    ((VSockVmciSock *)__sk)
 # define sk_vsock(__vsk)   (&(__vsk)->sk)
+#endif
 
 typedef struct VSockVmciSock {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 5)
+   struct sock *sk;
+#else
    /* sk must be the first member. */
    struct sock  sk;
+#endif
    struct sockaddr_vm localAddr;
    struct sockaddr_vm remoteAddr;
    /* Links for the global tables of bound and connected sockets. */
@@ -65,7 +66,8 @@ typedef struct VSockVmciSock {
    VMCIHandle dgHandle;           /* For SOCK_DGRAM only. */
    /* Rest are SOCK_STREAM only. */
    VMCIHandle qpHandle;
-   VMCIQPair *qpair;
+   VMCIQueue *produceQ;
+   VMCIQueue *consumeQ;
    uint64 produceSize;
    uint64 consumeSize;
    uint64 queuePairSize;
@@ -91,8 +93,6 @@ typedef struct VSockVmciSock {
    Bool rejected;
    compat_delayed_work dwork;
    uint32 peerShutdown;
-   Bool sentRequest;
-   Bool ignoreConnectingRst;
 } VSockVmciSock;
 
 int VSockVmciSendControlPktBH(struct sockaddr_vm *src,
@@ -107,9 +107,7 @@ int VSockVmciReplyControlPktFast(VSockPacket *pkt, VSockPacketType type,
                                  VSockWaitingInfo *wait, VMCIHandle handle);
 int VSockVmciSendControlPkt(struct sock *sk, VSockPacketType type,
                             uint64 size, uint64 mode,
-                            VSockWaitingInfo *wait,
-                            VSockProtoVersion version,
-                            VMCIHandle handle);
+                            VSockWaitingInfo *wait, VMCIHandle handle);
 
 int64 VSockVmciStreamHasData(VSockVmciSock *vsk);
 int64 VSockVmciStreamHasSpace(VSockVmciSock *vsk);
@@ -132,50 +130,34 @@ int64 VSockVmciStreamHasSpace(VSockVmciSock *vsk);
    ((_pkt)->type == VSOCK_PACKET_TYPE_RST) ?                            \
       0 :                                                               \
       VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_RST,               \
-                              0, 0, NULL, VSOCK_PROTO_INVALID,          \
-                              VMCI_INVALID_HANDLE)
+                              0, 0, NULL, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_NEGOTIATE(_sk, _size)                                \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_NEGOTIATE,            \
-                           _size, 0, NULL, VSOCK_PROTO_INVALID,         \
-                           VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_NEGOTIATE2(_sk, _size, signalProto)                  \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_NEGOTIATE2,           \
-                           _size, 0, NULL, signalProto,                 \
-                           VMCI_INVALID_HANDLE)
+                           _size, 0, NULL, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_QP_OFFER(_sk, _handle)                               \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_OFFER,                \
-                           0, 0, NULL, VSOCK_PROTO_INVALID, _handle)
+                           0, 0, NULL, _handle)
 #define VSOCK_SEND_CONN_REQUEST(_sk, _size)                             \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_REQUEST,              \
-                           _size, 0, NULL, VSOCK_PROTO_INVALID,         \
-                           VMCI_INVALID_HANDLE)
-#define VSOCK_SEND_CONN_REQUEST2(_sk, _size, signalProto)               \
-   VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_REQUEST2,             \
-                           _size, 0, NULL, signalProto,                 \
-                           VMCI_INVALID_HANDLE)
+                           _size, 0, NULL, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_ATTACH(_sk, _handle)                                 \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_ATTACH,               \
-                           0, 0, NULL, VSOCK_PROTO_INVALID, _handle)
+                           0, 0, NULL, _handle)
 #define VSOCK_SEND_WROTE(_sk)                                           \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WROTE,                \
-                           0, 0, NULL, VSOCK_PROTO_INVALID,             \
-                           VMCI_INVALID_HANDLE)
+                           0, 0, NULL, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_READ(_sk)                                            \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_READ,                 \
-                           0, 0, NULL, VSOCK_PROTO_INVALID,             \
-                           VMCI_INVALID_HANDLE)
+                           0, 0, NULL, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_SHUTDOWN(_sk, _mode)                                 \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_SHUTDOWN,             \
-                           0, _mode, NULL, VSOCK_PROTO_INVALID,         \
-                           VMCI_INVALID_HANDLE)
+                           0, _mode, NULL, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_WAITING_WRITE(_sk, _waitInfo)                        \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_WRITE,        \
-                           0, 0, _waitInfo, VSOCK_PROTO_INVALID,        \
-                           VMCI_INVALID_HANDLE)
+                           0, 0, _waitInfo, VMCI_INVALID_HANDLE)
 #define VSOCK_SEND_WAITING_READ(_sk, _waitInfo)                         \
    VSockVmciSendControlPkt(_sk, VSOCK_PACKET_TYPE_WAITING_READ,         \
-                           0, 0, _waitInfo, VSOCK_PROTO_INVALID,        \
-                           VMCI_INVALID_HANDLE)
+                           0, 0, _waitInfo, VMCI_INVALID_HANDLE)
 #define VSOCK_REPLY_RESET(_pkt)                                         \
    VSockVmciReplyControlPktFast(_pkt, VSOCK_PACKET_TYPE_RST,            \
                                 0, 0, NULL, VMCI_INVALID_HANDLE)

@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-
+  
 #ifndef _LOGLEVEL_USER_H_
 #define _LOGLEVEL_USER_H_
 
@@ -38,8 +38,6 @@
    LOGLEVEL_VAR(vui), \
    LOGLEVEL_VAR(stats), \
    LOGLEVEL_VAR(cpucount), \
-   LOGLEVEL_VAR(ovhdmem), \
-   LOGLEVEL_VAR(vigor), \
    \
    /* user/io */ \
    LOGLEVEL_VAR(disk), \
@@ -70,13 +68,9 @@
    LOGLEVEL_VAR(uhci), \
    LOGLEVEL_VAR(pci_ehci), \
    LOGLEVEL_VAR(ehci), \
-   LOGLEVEL_VAR(pci_xhci), \
-   LOGLEVEL_VAR(xhci), \
    LOGLEVEL_VAR(usb), \
    LOGLEVEL_VAR(vusbmouse), \
    LOGLEVEL_VAR(vusbkeyboard), \
-   LOGLEVEL_VAR(vusbhid), \
-   LOGLEVEL_VAR(vusbtablet), \
    LOGLEVEL_VAR(hidQueue), \
    LOGLEVEL_VAR(pci_1394), \
    LOGLEVEL_VAR(1394), \
@@ -97,7 +91,6 @@
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(heci), \
-   LOGLEVEL_VAR(vmiopluginlib), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -174,7 +167,6 @@
    LOGLEVEL_VAR(ipc), \
    LOGLEVEL_VAR(smbios), \
    LOGLEVEL_VAR(acpi), \
-   LOGLEVEL_VAR(acpiGPE), \
    LOGLEVEL_VAR(xpmode), \
    LOGLEVEL_VAR(snapshot), \
    LOGLEVEL_VAR(asyncsocket), \
@@ -222,19 +214,14 @@
    LOGLEVEL_VAR(blit), /* lib/blit */ \
    LOGLEVEL_VAR(vmnetBridge), \
    LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
-   LOGLEVEL_VAR(pvfslib), \
    LOGLEVEL_VAR(brtalk), \
    LOGLEVEL_VAR(button), \
    LOGLEVEL_VAR(util), \
-   LOGLEVEL_VAR(vmcf), \
-   LOGLEVEL_VAR(win32util), \
-   LOGLEVEL_VAR(largepage), \
    LOGLEVEL_VAR(guestAppMonitor), \
    LOGLEVEL_VAR(syncWaitQ), \
-   LOGLEVEL_VAR(sg), /* lib/sg */ \
+   LOGLEVEL_VAR(win32util), \
    LOGLEVEL_VAR(wrapLib),  \
-   LOGLEVEL_VAR(digestlib) \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);
 
-#endif /* _LOGLEVEL_USER_H_ */
+#endif /* _LOGLEVEL_USER_H_ */ 

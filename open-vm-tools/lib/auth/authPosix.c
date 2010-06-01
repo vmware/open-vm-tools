@@ -112,9 +112,7 @@ AuthLoadPAM(void)
        * XXX do we even try to configure the pam libraries?
        * potential nightmare on all the possible guest OSes
        */
-
       Log("System PAM libraries are unusable: %s\n", dlerror());
-
       return FALSE;
 #else
       char *liblocation;
@@ -123,7 +121,6 @@ AuthLoadPAM(void)
       libdir = LocalConfig_GetPathName(DEFAULT_LIBDIRECTORY, CONFIG_VMWAREDIR);
       if (!libdir) {
          Log("System PAM library unusable and bundled one not found.\n");
-
          return FALSE;
       }
       liblocation = Str_SafeAsprintf(NULL, "%s/lib/%s/%s", libdir,
@@ -135,7 +132,6 @@ AuthLoadPAM(void)
          Log("Neither system nor bundled (%s) PAM libraries usable: %s\n",
              liblocation, dlerror());
          free(liblocation);
-
          return FALSE;
       }
       free(liblocation);
@@ -143,20 +139,14 @@ AuthLoadPAM(void)
    }
    for (i = 0; i < ARRAYSIZE(authPAMImported); i++) {
       void *symbol = dlsym(pam_library, authPAMImported[i].procname);
-
       if (!symbol) {
-         Log("PAM library does not contain required function: %s\n",
-             dlerror());
-
+         Log("PAM library does not contain required function: %s\n", dlerror());
          return FALSE;
       }
-
       *(authPAMImported[i].procaddr) = symbol;
    }
-
    authPamLibraryHandle = pam_library;
    Log("PAM up and running.\n");
-
    return TRUE;
 }
 
@@ -164,13 +154,12 @@ AuthLoadPAM(void)
 static const char *PAM_username;
 static const char *PAM_password;
 
-static int PAM_conv (int num_msg,                     // IN:
-		     const struct pam_message **msg,  // IN:
-		     struct pam_response **resp,      // OUT:
-		     void *appdata_ptr) {             // IN:
+static int PAM_conv (int num_msg,
+		     const struct pam_message **msg,
+		     struct pam_response **resp,
+		     void *appdata_ptr) {
    int count;
    struct pam_response *reply = calloc(num_msg, sizeof(struct pam_response));
-
    if (!reply) {
       return PAM_CONV_ERR;
    }
@@ -201,13 +190,11 @@ static int PAM_conv (int num_msg,                     // IN:
             free(reply[count].resp);
          }
          free(reply);
-
          return PAM_CONV_ERR;
       }
    }
    
    *resp = reply;
-
    return PAM_SUCCESS;
 }
 
@@ -237,8 +224,8 @@ static struct pam_conv PAM_conversation = {
  */
 
 AuthToken
-Auth_AuthenticateUser(const char *user,  // IN:
-                      const char *pass)  // IN:
+Auth_AuthenticateUser(const char *user,       //IN
+                      const char *pass)       //IN
 {
    struct passwd *pwd;
 
@@ -258,32 +245,26 @@ Auth_AuthenticateUser(const char *user,  // IN:
 
 #ifdef USE_PAM
 #ifdef ACCEPT_XXX_PASS
-   if (strcmp("XXX", pass) != 0) {
+   if(strcmp("XXX", pass) != 0) {
 #endif
       if (!AuthLoadPAM()) {
          return NULL;
       }
-
       /*
        * XXX PAM can blow away our syslog level settings so we need
        * to call Log_Init() again before doing any more Log()s
        */
-
 #define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
                   dlpam_end(pamh, pam_error); \
                   return NULL; \
                  }
       PAM_username = user;
       PAM_password = pass;
-
 #if defined(VMX86_TOOLS)
-      pam_error = dlpam_start("vmtoolsd", PAM_username, &PAM_conversation,
-                              &pamh);
+      pam_error = dlpam_start("vmtoolsd", PAM_username, &PAM_conversation, &pamh);
 #else
-      pam_error = dlpam_start("vmware-authd", PAM_username, &PAM_conversation,
-                              &pamh);
+      pam_error = dlpam_start("vmware-authd", PAM_username, &PAM_conversation, &pamh);
 #endif
-
       PAM_BAIL;
       pam_error = dlpam_authenticate(pamh, 0);
       PAM_BAIL;
@@ -292,7 +273,6 @@ Auth_AuthenticateUser(const char *user,  // IN:
       pam_error = dlpam_setcred(pamh, PAM_ESTABLISH_CRED);
       PAM_BAIL;
       dlpam_end(pamh, PAM_SUCCESS);
-
 #if ACCEPT_XXX_PASS
    }
 #endif
@@ -318,7 +298,6 @@ Auth_AuthenticateUser(const char *user,  // IN:
 
    if (*pwd->pw_passwd != '\0') {
       char *namep = (char *) crypt(pass, pwd->pw_passwd);
-
       if (strcmp(namep, pwd->pw_passwd)
 #ifdef ACCEPT_XXX_PASS
           && strcmp("XXX", pass) != 0
@@ -353,7 +332,7 @@ Auth_AuthenticateUser(const char *user,  // IN:
  */
 
 void
-Auth_CloseToken(AuthToken token)  // IN:
+Auth_CloseToken(AuthToken token)       //IN
 {
 }
 

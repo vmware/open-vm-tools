@@ -30,14 +30,13 @@
 #include <gmodule.h>
 
 #include "strutil.h"
+#include "vmrpcdbg.h"
+#include "vmtools.h"
 #include "util.h"
-#include "vmrpcdbgInt.h"
 #include "vmxrpc.h"
 #include "xdrutil.h"
-#include "vmware/tools/utils.h"
 
 typedef struct DbgChannelData {
-   ToolsAppCtx      *ctx;
    gboolean          hasLibRef;
    RpcDebugPlugin   *plugin;
    GSource          *msgTimer;
@@ -58,7 +57,7 @@ typedef struct DbgChannelData {
 static gboolean
 RpcDebugDispatch(gpointer _chan)
 {
-   gboolean ret;
+   Bool ret;
    RpcChannel *chan = _chan;
    DbgChannelData *cdata = chan->_private;
    RpcDebugPlugin *plugin = cdata->plugin;
@@ -69,7 +68,7 @@ RpcDebugDispatch(gpointer _chan)
    memset(&rpcdata, 0, sizeof rpcdata);
 
    if (!plugin->sendFn(&rpcdata)) {
-      RpcDebug_DecRef(cdata->ctx);
+      RpcDebug_DecRef(chan->appCtx);
       cdata->hasLibRef = FALSE;
       return FALSE;
    } else if (rpcdata.message == NULL) {
@@ -81,13 +80,13 @@ RpcDebugDispatch(gpointer _chan)
    }
 
    data.clientData = chan;
-   data.appCtx = cdata->ctx;
+   data.appCtx = chan->appCtx;
    data.args = rpcdata.message;
    data.argsSize = rpcdata.messageLen;
 
    ret = RpcChannel_Dispatch(&data);
    if (rpcdata.validateFn != NULL) {
-      ret = rpcdata.validateFn(&data, ret);
+      ret = (Bool) rpcdata.validateFn(&data, ret);
    } else if (!ret) {
       g_debug("RpcChannel_Dispatch returned error for RPC.\n");
    }
@@ -101,8 +100,8 @@ RpcDebugDispatch(gpointer _chan)
    }
 
    if (!ret) {
-      VMTOOLSAPP_ERROR(cdata->ctx, 1);
-      RpcDebug_DecRef(cdata->ctx);
+      VMTOOLSAPP_ERROR((ToolsAppCtx *) chan->appCtx, 1);
+      RpcDebug_DecRef(chan->appCtx);
       cdata->hasLibRef = FALSE;
       return FALSE;
    }
@@ -120,16 +119,16 @@ RpcDebugDispatch(gpointer _chan)
  * @return TRUE.
  */
 
-static gboolean
+static Bool
 RpcDebugStart(RpcChannel *chan)
 {
    DbgChannelData *data = chan->_private;
 
-   ASSERT(data->ctx != NULL);
+   ASSERT(chan->appName != NULL);
    ASSERT(data->msgTimer == NULL);
 
    data->msgTimer = g_timeout_source_new(100);
-   VMTOOLSAPP_ATTACH_SOURCE(data->ctx,
+   VMTOOLSAPP_ATTACH_SOURCE((ToolsAppCtx *)chan->appCtx,
                             data->msgTimer,
                             RpcDebugDispatch,
                             chan,
@@ -171,7 +170,7 @@ RpcDebugStop(RpcChannel *chan)
  *         a validation function was not provided.
  */
 
-static gboolean
+static Bool
 RpcDebugSend(RpcChannel *chan,
              char *data,
              size_t dataLen,
@@ -180,13 +179,12 @@ RpcDebugSend(RpcChannel *chan,
 {
    char *copy;
    gpointer xdrdata = NULL;
-   DbgChannelData *cdata = chan->_private;
-   RpcDebugPlugin *plugin = cdata->plugin;
+   RpcDebugPlugin *plugin = ((DbgChannelData *)chan->_private)->plugin;
    RpcDebugRecvMapping *mapping = NULL;
    RpcDebugRecvFn recvFn = NULL;
-   gboolean ret = TRUE;
+   Bool ret = TRUE;
 
-   ASSERT(cdata->ctx != NULL);
+   g_assert(chan->appName != NULL);
 
    /* Be paranoid. Like the VMX, NULL-terminate the incoming data. */
    copy = g_malloc(dataLen + 1);
@@ -216,12 +214,12 @@ RpcDebugSend(RpcChannel *chan,
       if (mapping->xdrProc != NULL) {
          char *start;
 
-         ASSERT(mapping->xdrSize > 0);
+         g_assert(mapping->xdrSize > 0);
 
          /* Find out where the XDR data starts. */
          start = strchr(copy, ' ');
          if (start == NULL) {
-            RpcDebug_SetResult("Can't find command delimiter.", result, resultLen);
+            RPCDEBUG_SET_RESULT("Can't find command delimiter.", result, resultLen);
             ret = FALSE;
             goto exit;
          }
@@ -232,7 +230,7 @@ RpcDebugSend(RpcChannel *chan,
                                   dataLen - (start - copy),
                                   mapping->xdrProc,
                                   xdrdata)) {
-            RpcDebug_SetResult("XDR deserialization failed.", result, resultLen);
+            RPCDEBUG_SET_RESULT("XDR deserialization failed.", result, resultLen);
             ret = FALSE;
             goto exit;
          }
@@ -244,7 +242,7 @@ RpcDebugSend(RpcChannel *chan,
    if (recvFn != NULL) {
       ret = recvFn((xdrdata != NULL) ? xdrdata : copy, dataLen, result, resultLen);
    } else {
-      RpcDebug_SetResult("", result, resultLen);
+      RPCDEBUG_SET_RESULT("", result, resultLen);
    }
 
 exit:
@@ -258,27 +256,7 @@ exit:
 
 
 /**
- * Intiializes internal state for the inbound channel.
- *
- * @param[in]  chan     The RPC channel instance.
- * @param[in]  ctx      Unused.
- * @param[in]  appName  Unused.
- * @param[in]  appCtx   A ToolsAppCtx instance.
- */
-
-static void
-RpcDebugSetup(RpcChannel *chan,
-              GMainContext *ctx,
-              const char *appName,
-              gpointer appCtx)
-{
-   DbgChannelData *cdata = chan->_private;
-   cdata->ctx = appCtx;
-}
-
-
-/**
- * Cleans up the internal channel state.
+ * Does nothing.
  *
  * @param[in]  chan     The RPC channel instance.
  */
@@ -287,9 +265,9 @@ static void
 RpcDebugShutdown(RpcChannel *chan)
 {
    DbgChannelData *cdata = chan->_private;
-   ASSERT(cdata->ctx != NULL);
+   g_assert(chan->appName != NULL);
    if (cdata->hasLibRef) {
-      RpcDebug_DecRef(cdata->ctx);
+      RpcDebug_DecRef(chan->appCtx);
    }
    g_free(chan->_private);
 }
@@ -314,12 +292,12 @@ RpcDebug_NewDebugChannel(ToolsAppCtx *ctx,
    DbgChannelData *cdata;
    RpcChannel *ret;
 
-   ASSERT(data != NULL);
-   ret = RpcChannel_Create();
+   g_assert(data != NULL);
+
+   ret = g_malloc0(sizeof *ret);
    ret->start = RpcDebugStart;
    ret->stop = RpcDebugStop;
    ret->send = RpcDebugSend;
-   ret->setup = RpcDebugSetup;
    ret->shutdown = RpcDebugShutdown;
 
    cdata = g_malloc0(sizeof *cdata);

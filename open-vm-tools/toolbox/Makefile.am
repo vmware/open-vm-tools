@@ -37,6 +37,7 @@ COMMON += ../lib/backdoor/libBackdoor.la
 COMMON += ../lib/dict/libDict.la
 COMMON += ../lib/message/libMessage.la
 COMMON += ../lib/unicode/libUnicode.la
+COMMON += ../lib/sync/libSync.la
 COMMON += ../lib/misc/libMisc.la
 COMMON += ../lib/panicDefault/libPanicDefault.la
 COMMON += ../lib/panic/libPanic.la
@@ -121,12 +122,4 @@ if HAVE_ICU
 else
    vmware_toolbox_cmd_LINK = $(LINK)
 endif
-
-# Message catalogs.
-catalogsdir = $(datadir)/open-vm-tools/messages
-
-catalogs_DATA =
-catalogs_DATA += messages/toolboxcmd_de.vmsg
-catalogs_DATA += messages/toolboxcmd_ja.vmsg
-catalogs_DATA += messages/toolboxcmd_zh.vmsg
 

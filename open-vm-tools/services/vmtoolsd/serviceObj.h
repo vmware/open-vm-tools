@@ -29,6 +29,7 @@
  */
 
 #include <glib-object.h>
+#include "vmtoolsApp.h"
 
 #define TOOLSCORE_TYPE_SERVICE   ToolsCore_Service_get_type()
 

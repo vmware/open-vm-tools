@@ -18,7 +18,10 @@
 DOXYGEN_INPUT =
 DOXYGEN_INPUT += $(top_srcdir)/docs/api
 DOXYGEN_INPUT += $(top_srcdir)/docs/api/services
-DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmware/tools
+DOXYGEN_INPUT += $(top_srcdir)/lib/include/rpcChannel.h
+DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmtoolsApp.h
+DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmtools.h
+DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmrpcdbg.h
 DOXYGEN_INPUT += $(top_srcdir)/libvmtools
 DOXYGEN_INPUT += $(top_srcdir)/tests/vmrpcdbg
 
@@ -28,11 +31,6 @@ DOXYGEN_CPP_PREDEFINED += G_LOG_DOMAIN=
 
 DOXYGEN_CPP_EXPAND =
 
-DOXYGEN_EXTRA_PATTERNS =
-DOXYGEN_EXTRA_PATTERNS += *.c
-DOXYGEN_EXTRA_PATTERNS += *.h
-DOXYGEN_EXTRA_PATTERNS += *.txt
-
 # This rule has no dependencies, so it's executed every time. Not optimal,
 # but generation of the docs is pretty quick, and having the right dependencies
 # here is very non-trivial.
@@ -40,20 +38,14 @@ build/index.html:
 	mkdir -p build
 	sed \
 	   -e 's,##{BUILD_DIR}##,$(top_builddir),'                \
-	   -e 's,##{BUILD_OUTPUT}##,build,'                       \
-	   -e 's,##{CLIENT_ROOT}##,$(top_srcdir),'                \
 	   -e 's,##{CPP_EXPAND}##,$(DOXYGEN_CPP_EXPAND),'         \
 	   -e 's,##{CPP_PREDEFINED}##,$(DOXYGEN_CPP_PREDEFINED),' \
 	   -e 's,##{DOT}##,@DOT@,'                                \
-	   -e 's,##{FILE_PATTERNS}##,$(DOXYGEN_EXTRA_PATTERNS),'  \
 	   -e 's,##{HAVE_DOT}##,@HAVE_DOT@,'                      \
-	   -e 's,##{INCLUDE_PATHS}##,$(top_srcdir)/lib/include,'  \
-	   -e 's,##{INPUT_PATHS}##,$(DOXYGEN_INPUT),'             \
+	   -e 's,##{INPUT}##,$(DOXYGEN_INPUT),'                   \
 	   -e 's,##{MSCGEN_DIR}##,@MSCGEN_DIR@,'                  \
-	   -e 's,##{PERL}##,,'                                    \
-	   -e 's,##{PROJECT_NAME}##,@PACKAGE_STRING@,'            \
 	   -e 's,##{PROJECT_VERSION}##,@TOOLS_VERSION@,'          \
-	   -e 's,##{WARNING_LOG}##,warnings.log,'                 \
+	   -e 's,##{SOURCE_DIR}##,$(top_srcdir),'                 \
 	   $(top_srcdir)/docs/api/doxygen.conf > doxygen.parsed.conf
 	doxygen doxygen.parsed.conf > /dev/null
 

@@ -35,7 +35,13 @@
 #include "unicode.h"
 
 uint64 System_Uptime(void);
+Bool System_GetCurrentTime(int64 *secs, int64 *usecs);
+Bool System_AddToCurrentTime(int64 deltaSecs, int64 deltaUsecs);
 Unicode System_GetTimeAsString(void);
+Bool System_EnableTimeSlew(int64 delta, int64 timeSyncPeriod);
+Bool System_DisableTimeSlew(void);
+Bool System_IsTimeSlewEnabled(void);
+Bool System_IsACPI(void);
 void System_Shutdown(Bool reboot);
 Bool System_IsUserAdmin(void);
 
@@ -69,7 +75,7 @@ typedef struct MonListNode {
  */
 #define VM_SERVICE_STATE_UNKNOWN 0xffffffff
 
-BOOL System_SetProcessPrivilege(wchar_t *privName, Bool enable);
+BOOL System_SetProcessPrivilege(LPCTSTR lpszPrivilege, Bool bEnablePrivilege);
 int32 System_GetSPVersion(void);
 Bool System_IsLoginScreenActive(void);
 Bool System_IsProcessElevated(void);
@@ -90,9 +96,12 @@ Bool System_SetAeroState(AeroStateCommand command, AeroStateCommand *oldState);
  *        then acted upon and translates to a -DPOSIX_LIKE_ENVIRONMENT
  *        preprocessor option.
  */
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(N_PLAT_NLM)
+Bool System_WritePidFile(const char *fileName, pid_t pid);
 const char **System_GetNativeEnviron(const char **compatEnviron);
 void System_FreeNativeEnviron(const char **nativeEnviron);
+int System_UnsetEnv(const char *variableName);
+char *System_SetLDPath(const char *path, const Bool native);
 #endif
 
 #endif /* __SYSTEM_H__ */

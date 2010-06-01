@@ -37,6 +37,7 @@
 #include "wiper.h"
 #include "backdoor_def.h"
 #include "backdoor.h"
+#include "vm_app.h"
 
 
 #define MAX_DEVICES 50  /* maximum number of devices we'll show */

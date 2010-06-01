@@ -26,18 +26,17 @@
 
 #define G_LOG_DOMAIN "testDebug"
 #include <glib-object.h>
-#include <CUnit/CUnit.h>
-
 #include "util.h"
+#include "vm_app.h"
+#include "vmrpcdbg.h"
+#include "vmtools.h"
 #include "guestrpc/ghiGetBinaryHandlers.h"
-#include "vmware/guestrpc/tclodefs.h"
-#include "vmware/tools/rpcdebug.h"
 
 static gboolean
-TestDebugValidateReset(RpcInData *data, gboolean ret);
+TestDebugValidateReset(RpcInData *data, Bool ret);
 
 static gboolean
-TestDebugValidateUnknown(RpcInData *data, gboolean ret);
+TestDebugValidateUnknown(RpcInData *data, Bool ret);
 
 #define SET_OPTION_TEST ("Set_Option " TOOLSOPTION_BROADCASTIP " 1")
 
@@ -90,11 +89,13 @@ TestDebugHandleSignal(gpointer src,
 
 static gboolean
 TestDebugValidateReset(RpcInData *data,
-                       gboolean ret)
+                       Bool ret)
 {
    ToolsAppCtx *ctx = data->appCtx;
-   RPCDEBUG_ASSERT(data->result != NULL, FALSE);
-   CU_ASSERT_STRING_EQUAL(data->result, "ATR debug");
+   g_assert(data->result != NULL);
+   if (strcmp(data->result, "ATR debug") != 0) {
+      g_error("Unexpected response to reset: %s\n", data->result);
+   }
 
    /*
     * If reset was successful, connect the "test-signal" signal so we
@@ -132,11 +133,12 @@ TestDebugReceiveRpc1(char *data,
 {
    GHIBinaryHandlersIconDetails *details = (GHIBinaryHandlersIconDetails *) data;
 
-   CU_ASSERT(gSignalReceived);
-   CU_ASSERT(details->width == 100);
-   CU_ASSERT(details->height == 200);
-   CU_ASSERT_STRING_EQUAL(details->identifier, "rpc1test");
+   g_assert(gSignalReceived);
+   g_assert(details->width == 100);
+   g_assert(details->height == 200);
+   g_assert(strcmp(details->identifier, "rpc1test") == 0);
 
+   g_debug("Successfully validated rpc1!\n");
    return TRUE;
 }
 
@@ -160,7 +162,7 @@ TestDebugReceiveVersion(char *data,
                         size_t *resultLen)
 {
    g_debug("Received tools version message: %s\n", data);
-   RpcDebug_SetResult("", result, resultLen);
+   RPCDEBUG_SET_RESULT("", result, resultLen);
    return TRUE;
 }
 
@@ -176,9 +178,9 @@ TestDebugReceiveVersion(char *data,
 
 static gboolean
 TestDebugValidateUnknown(RpcInData *data,
-                         gboolean ret)
+                         Bool ret)
 {
-   CU_ASSERT_STRING_EQUAL(data->result, "Unknown Command");
+   g_assert(strcmp(data->result, "Unknown Command") == 0);
    return !ret;
 }
 

@@ -16,20 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 /*
  * hgfsBd.c --
  *
@@ -262,16 +248,14 @@ HgfsBd_Dispatch(RpcOut *out,            // IN: Channel to send on
    Bool success;
    char const *reply;
    size_t replyLen;
-   char *bdPacket = packetIn - HGFS_SYNC_REQREP_CLIENT_CMD_LEN;
 
    ASSERT(out);
    ASSERT(packetIn);
    ASSERT(packetSize);
    ASSERT(packetOut);
 
-   memcpy(bdPacket, HGFS_SYNC_REQREP_CLIENT_CMD, HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
-
-   success = RpcOut_send(out, bdPacket, *packetSize + HGFS_CLIENT_CMD_LEN,
+   success = RpcOut_send(out, packetIn - HGFS_CLIENT_CMD_LEN, 
+                         *packetSize + HGFS_CLIENT_CMD_LEN, 
                          &reply, &replyLen);
    if (success == FALSE) {
       Debug("HgfsBd_Dispatch: RpcOut_send returned failure\n");

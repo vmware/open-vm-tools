@@ -34,24 +34,6 @@
 #include "str.h"
 #include "util.h"
 
-/*
- * These are legacy scripts used before the vmbackup-based backups. To
- * aid people who will be transitioned to the new scheme after we're
- * deprecating the old code paths, also check for them when running
- * freeze / thaw scripts. The paths were hardcoded like this in hostd
- * before (although they were configurable in hostd's config file), so
- * there's no point in figuring out the correct Windows directory for
- * this particular feature.
- */
-
-#if defined(_WIN32)
-#  define   LEGACY_FREEZE_SCRIPT    "c:\\windows\\pre-freeze-script.bat"
-#  define   LEGACY_THAW_SCRIPT      "c:\\windows\\post-thaw-script.bat"
-#else
-#  define   LEGACY_FREEZE_SCRIPT    "/usr/sbin/pre-freeze-script"
-#  define   LEGACY_THAW_SCRIPT      "/usr/sbin/post-thaw-script"
-#endif
-
 
 typedef struct VmBackupScript {
    char *path;
@@ -84,7 +66,7 @@ typedef struct VmBackupScriptOp {
  *-----------------------------------------------------------------------------
  */
 
-static char *
+char *
 VmBackupGetScriptPath(void)
 {
    char *scriptPath = NULL;
@@ -154,45 +136,28 @@ VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
    while (index >= 0 && scripts[index].path != NULL) {
       char *cmd;
 
-      if (File_IsFile(scripts[index].path)) {
-         cmd = Str_Asprintf(NULL, "\"%s\" %s", scripts[index].path, scriptOp);
-         if (cmd != NULL) {
-            scripts[index].proc = ProcMgr_ExecAsync(cmd, NULL);
-         }
-
-         if (cmd == NULL || scripts[index].proc == NULL) {
-            if (op->type == VMBACKUP_SCRIPT_FREEZE) {
-               ret = -1;
-               break;
-            } else {
-               op->thawFailed = TRUE;
-            }
-         } else {
-            ret = 1;
-            break;
-         }
-      }
-
-      if (op->type == VMBACKUP_SCRIPT_FREEZE) {
-         index = ++op->state->currentScript;
-      } else {
+      cmd = Str_Asprintf(NULL, "\"%s\" %s", scripts[index].path, scriptOp);
+      if (cmd == NULL) {
          index = --op->state->currentScript;
+         op->thawFailed = TRUE;
       }
 
-      /*
-       * This happens if all thaw/fail scripts failed to start. Since the first
-       * entry may be a legacy script (which may not exist), need to check
-       * whether the interesting failure is the first or the second entry in
-       * the script list.
-       */
-      if (index == -1) {
-         size_t failIdx = 0;
-         if (!File_IsFile(scripts[0].path)) {
-            failIdx = 1;
-         }
-         if (scripts[failIdx].proc == NULL && scripts[failIdx].path != NULL) {
+      if ((scripts[index].proc = ProcMgr_ExecAsync(cmd, NULL)) == NULL) {
+         if (op->type == VMBACKUP_SCRIPT_FREEZE) {
             ret = -1;
+            break;
+         } else {
+            index = --op->state->currentScript;
+            op->thawFailed = TRUE;
          }
+      } else {
+         ret = 1;
+         break;
+      }
+
+      /* This happens if all thaw/fail scripts failed to start. */
+      if (index == -1 && scripts[0].proc == NULL) {
+         ret = -1;
       }
    }
 
@@ -450,51 +415,30 @@ VmBackup_NewScriptOp(VmBackupScriptType type, // IN
     *
     * This logic won't recurse into directories, so only files directly under
     * the script dir will be considered.
-    *
-    * Legacy scripts will be the first ones to run (or last ones in the
-    * case of thawing). If either the legacy freeze or thaw script
-    * exist, the first entry in the script list will be reserved for
-    * them, and their path might not exist (in case, for example, the
-    * freeze script exists but the thaw script doesn't).
     */
-   if (type == VMBACKUP_SCRIPT_FREEZE) {
-      VmBackupScript *scripts = NULL;
-      int legacy = 0;
-      size_t idx = 0;
+   if (type == VMBACKUP_SCRIPT_FREEZE && File_IsDirectory(scriptDir)) {
+      size_t scriptCount = 0;
 
       state->scripts = NULL;
       state->currentScript = 0;
+      numFiles = File_ListDirectory(scriptDir, &fileList);
 
-      if (File_IsFile(LEGACY_FREEZE_SCRIPT) ||
-          File_IsFile(LEGACY_THAW_SCRIPT)) {
-         legacy = 1;
-      }
+      if (numFiles > 0) {
+         VmBackupScript *scripts;
 
-      if (File_IsDirectory(scriptDir)) {
-         numFiles = File_ListDirectory(scriptDir, &fileList);
-      }
-
-      if (numFiles + legacy > 0) {
-         scripts = calloc(numFiles + legacy + 1, sizeof *scripts);
+         scripts = calloc(1, (numFiles + 1) * sizeof *scripts);
          if (scripts == NULL) {
             fail = TRUE;
             goto exit;
          }
+
+         state->scripts = scripts;
 
          /*
           * VmBackupRunNextScript increments the index, so need to make it point
           * to "before the first script".
           */
          state->currentScript = -1;
-         state->scripts = scripts;
-      }
-
-      if (legacy > 0) {
-         scripts[idx++].path = Util_SafeStrdup(LEGACY_FREEZE_SCRIPT);
-      }
-
-      if (numFiles > 0) {
-         size_t i;
 
          if (numFiles > 1) {
             qsort(fileList, (size_t) numFiles, sizeof *fileList, VmBackupStringCompare);
@@ -508,17 +452,11 @@ VmBackup_NewScriptOp(VmBackupScriptType type, // IN
                fail = TRUE;
                goto exit;
             } else if (File_IsFile(script)) {
-               scripts[idx++].path = script;
+               scripts[scriptCount++].path = script;
             } else {
                free(script);
             }
          }
-      }
-   } else if (state->scripts != NULL) {
-      VmBackupScript *scripts = state->scripts;
-      if (strcmp(scripts[0].path, LEGACY_FREEZE_SCRIPT) == 0) {
-         vm_free(scripts[0].path);
-         scripts[0].path = Util_SafeStrdup(LEGACY_THAW_SCRIPT);
       }
    }
 

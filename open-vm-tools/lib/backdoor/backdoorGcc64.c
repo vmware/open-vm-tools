@@ -16,20 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 /*
  * backdoorGcc64.c --
  *
@@ -76,14 +62,6 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
    uint64 dummy;
 
    __asm__ __volatile__(
-#ifdef __APPLE__
-        /*
-         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
-         * clobber it - it erroneously thinks %rbx is the PIC register.
-         * (Radar bug 7304232)
-         */
-        "pushq %%rbx"           "\n\t"
-#endif
         "pushq %%rax"           "\n\t"
         "movq 40(%%rax), %%rdi" "\n\t"
         "movq 32(%%rax), %%rsi" "\n\t"
@@ -98,22 +76,14 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
         "movq %%rdx, 24(%%rax)" "\n\t"
         "movq %%rcx, 16(%%rax)" "\n\t"
         "movq %%rbx,  8(%%rax)" "\n\t"
-        "popq          (%%rax)" "\n\t"
-#ifdef __APPLE__
-        "popq %%rbx"            "\n\t"
-#endif
+        "popq          (%%rax)"
       : "=a" (dummy)
       : "0" (myBp)
       /*
        * vmware can modify the whole VM state without the compiler knowing
        * it. So far it does not modify EFLAGS. --hpreg
        */
-      :
-#ifndef __APPLE__
-      /* %rbx is unchanged at the end of the function on Mac OS. */
-      "rbx",
-#endif
-      "rcx", "rdx", "rsi", "rdi", "memory"
+      : "rbx", "rcx", "rdx", "rsi", "rdi", "memory"
    );
 }
 
@@ -143,14 +113,7 @@ BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
 
    __asm__ __volatile__(
         "pushq %%rbp"           "\n\t"
-#ifdef __APPLE__
-        /*
-         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
-         * clobber it - it erroneously thinks %rbx is the PIC register.
-         * (Radar bug 7304232)
-         */
-        "pushq %%rbx"           "\n\t"
-#endif
+
         "pushq %%rax"           "\n\t"
         "movq 48(%%rax), %%rbp" "\n\t"
         "movq 40(%%rax), %%rdi" "\n\t"
@@ -169,9 +132,7 @@ BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
         "movq %%rcx, 16(%%rax)" "\n\t"
         "movq %%rbx,  8(%%rax)" "\n\t"
         "popq          (%%rax)" "\n\t"
-#ifdef __APPLE__
-        "popq %%rbx"            "\n\t"
-#endif
+
         "popq %%rbp"
       : "=a" (dummy)
       : "0" (myBp)
@@ -179,12 +140,7 @@ BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
        * vmware can modify the whole VM state without the compiler knowing
        * it. --hpreg
        */
-      :
-#ifndef __APPLE__
-      /* %rbx is unchanged at the end of the function on Mac OS. */
-      "rbx",
-#endif
-      "rcx", "rdx", "rsi", "rdi", "memory", "cc"
+      : "rbx", "rcx", "rdx", "rsi", "rdi", "memory", "cc"
    );
 }
 
@@ -196,14 +152,7 @@ BackdoorHbOut(Backdoor_proto_hb *myBp) // IN/OUT
 
    __asm__ __volatile__(
         "pushq %%rbp"           "\n\t"
-#ifdef __APPLE__
-        /*
-         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
-         * clobber it - it erroneously thinks %rbx is the PIC register.
-         * (Radar bug 7304232)
-         */
-        "pushq %%rbx"           "\n\t"
-#endif
+
         "pushq %%rax"           "\n\t"
         "movq 48(%%rax), %%rbp" "\n\t"
         "movq 40(%%rax), %%rdi" "\n\t"
@@ -222,18 +171,11 @@ BackdoorHbOut(Backdoor_proto_hb *myBp) // IN/OUT
         "movq %%rcx, 16(%%rax)" "\n\t"
         "movq %%rbx,  8(%%rax)" "\n\t"
         "popq          (%%rax)" "\n\t"
-#ifdef __APPLE__
-        "popq %%rbx"            "\n\t"
-#endif
+
         "popq %%rbp"
       : "=a" (dummy)
       : "0" (myBp)
-      :
-#ifndef __APPLE__
-      /* %rbx is unchanged at the end of the function on Mac OS. */
-      "rbx",
-#endif
-      "rcx", "rdx", "rsi", "rdi", "memory", "cc"
+      : "rbx", "rcx", "rdx", "rsi", "rdi", "memory", "cc"
    );
 }
 

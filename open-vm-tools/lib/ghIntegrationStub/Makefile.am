@@ -20,3 +20,4 @@ noinst_LTLIBRARIES = libGhIntegrationStub.la
 libGhIntegrationStub_la_SOURCES =
 libGhIntegrationStub_la_SOURCES += ghIntegrationStub.c
 
+AM_CFLAGS = @LIB_FILE_CPPFLAGS@

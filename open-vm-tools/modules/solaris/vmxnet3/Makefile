@@ -16,14 +16,8 @@
 ##########################################################
 
 ifneq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10)
-SUPPORTED := 1
+$(error "This makefile is only used for Solaris 10")
 endif
-
-ifneq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.11)
-SUPPORTED := 1
-endif
-
-$(if $(SUPPORTED),,$(error "Unsupported Solaris version: $(VM_UNAME)"))
 
 ##
 ## General build locations and variables
@@ -41,11 +35,6 @@ CFLAGS    += -I../../../lib/include    # for buildNumber.h
 
 CFLAGS    += -ffreestanding
 CFLAGS    += -nodefaultlibs
-
-ifdef OVT_SOURCE_DIR
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
-   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmxnet
-endif
 
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32

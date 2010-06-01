@@ -25,15 +25,15 @@
 #include <string.h>
 
 #define G_LOG_DOMAIN "hgfsd"
+#include "vmtoolsApp.h"
 
 #include "hgfs.h"
 #include "hgfsServerPolicy.h"
 #include "hgfsServer.h"
 #include "hgfsChannel.h"
+#include "vm_app.h"
 #include "vm_assert.h"
-#include "vmware/guestrpc/tclodefs.h"
-#include "vmware/tools/plugin.h"
-#include "vmware/tools/utils.h"
+#include "vmtools.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -88,7 +88,7 @@ HgfsChannel_Exit(void *data)
  * @return TRUE on success, FALSE on error.
  */
 
-static gboolean
+static Bool
 HgfsServerRpcInDispatch(RpcInData *data)
 {
    size_t packetSize;
@@ -175,12 +175,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL,
       NULL
    };
-
-   if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
-       strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
-      g_message("Unknown container '%s', not loading HGFS plugin.", ctx->name);
-      return NULL;
-   }
 
    /*
     * Passing NULL here is safe because the shares maintained by the guest

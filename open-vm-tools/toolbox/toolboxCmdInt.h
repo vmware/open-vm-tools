@@ -24,11 +24,8 @@
 #ifndef _TOOLBOX_CMD_INT_H_
 #define _TOOLBOX_CMD_INT_H_
 
-#define VMW_TEXT_DOMAIN "toolboxcmd"
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #ifdef _WIN32
 #   include "getoptwin32.h"
 #else
@@ -76,38 +73,53 @@
 #   define toolbox_strcmp  strcmp
 #endif
 
+
 /*
- * Common functions.
+ * Devices Operations
  */
 
-void
-ToolsCmd_MissingEntityError(const char *name,
-                            const char *entity);
+int Devices_ListDevices(void);
+int Devices_DeviceStatus(char*);
+int Devices_EnableDevice(char*, int);
+int Devices_DisableDevice(char*, int);
 
-void
-ToolsCmd_UnknownEntityError(const char *name,
-                            const char *entity,
-                            const char *str);
+/*
+ * TimeSync Operations
+ */
+int TimeSync_Enable(int);
+int TimeSync_Disable(int);
+int TimeSync_Status(void);
 
-
-/**
- * A shorthand macro for declaring a command entry. This just declares
- * two functions ("foo_Command" and "foo_Help" for a command "foo").
- * The command implementation should provide those functions, which will
- * be used by the main dispatch table when executing commands.
+/*
+ * Script Operations
  */
 
-#define DECLARE_COMMAND(name)             \
-   int name##_Command(char **argv,        \
-                      int argc,           \
-                      gboolean quiet);    \
-   void name##_Help(const char *progName, \
-                    const char *cmd);
+int Script_GetDefault(const char *);
+int Script_GetCurrent(const char *);
+int Script_Enable(const char *, int);
+int Script_Disable(const char *, int);
+int Script_Set(const char *, const char *, int);
+Bool Script_CheckName(const char *);
 
-DECLARE_COMMAND(Device);
-DECLARE_COMMAND(Disk);
-DECLARE_COMMAND(Script);
-DECLARE_COMMAND(Stat);
-DECLARE_COMMAND(TimeSync);
+/*
+ * Disk Shrink Operations
+ */
+
+int Shrink_List(void);
+int Shrink_DoShrink(char*, int);
+
+/*
+ * Stat commands
+ */
+
+int Stat_HostTime(void);
+int Stat_ProcessorSpeed(void);
+int Stat_GetSessionID(void);
+int Stat_GetCpuLimit(void);
+int Stat_GetCpuReservation(void);
+int Stat_GetMemoryBallooned(void);
+int Stat_GetMemorySwapped(void);
+int Stat_GetMemoryLimit(void);
+int Stat_GetMemoryReservation(void);
 
 #endif /*_TOOLBOX_CMD_H_*/

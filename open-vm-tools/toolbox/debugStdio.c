@@ -119,6 +119,29 @@ Debug_EnableToFile(const char *file,      // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * Debug_IsEnabled --
+ *
+ *    Is debugging output enabled?
+ *
+ * Result
+ *    TRUE/FALSE
+ *
+ * Side-effects
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Debug_IsEnabled(void)
+{
+   return debugEnabled;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DebugToFile --
  *
  *    Print a string to the given file. This opens & closes the file
@@ -174,7 +197,6 @@ void DebugToFile(const char *str) // IN
 
    FileIO_Seek(&fd, 0, FILEIO_SEEK_END);
    fr = FileIO_Write(&fd, timePrefixUtf8, strlen(timePrefixUtf8), &bytesWritten);
-   fr = FileIO_Write(&fd, ": ", 2, &bytesWritten);
    fr = FileIO_Write(&fd, str, strlen(str), &bytesWritten);
    Unicode_Free(timePrefix);
    if (fr != FILEIO_SUCCESS) {

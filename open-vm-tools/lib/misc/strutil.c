@@ -299,14 +299,11 @@ StrUtil_StrToInt(int32 *out,      // OUT
 
    val = strtol(str, &ptr, 0);
    *out = (int32)val;
-
    /*
-    * Input must be complete, no overflow, and value read must fit into
-    * 32 bits - both signed and unsigned values are accepted.
+    * Input must be complete, no overflow, and value read must fit into 32 bits -
+    * both signed and unsigned values are accepted.
     */
-
-   return *ptr == '\0' && errno != ERANGE &&
-          (val == (int32)val || val == (uint32)val);
+   return *ptr == '\0' && errno != ERANGE && (val == (int32)val || val == (uint32)val);
 }
 
 
@@ -341,14 +338,11 @@ StrUtil_StrToUint(uint32 *out,     // OUT
 
    val = strtoul(str, &ptr, 0);
    *out = (uint32)val;
-
    /*
-    * Input must be complete, no overflow, and value read must fit into 32
-    * bits - both signed and unsigned values are accepted.
+    * Input must be complete, no overflow, and value read must fit into 32 bits -
+    * both signed and unsigned values are accepted.
     */
-
-   return *ptr == '\0' && errno != ERANGE &&
-          (val == (uint32)val || val == (int32)val);
+   return *ptr == '\0' && errno != ERANGE && (val == (uint32)val || val == (int32)val);
 }
 
 
@@ -542,7 +536,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
    return TRUE;
 }
 #endif
-                
+ 
 
 /*
  *-----------------------------------------------------------------------------
@@ -568,10 +562,9 @@ StrUtil_FormatSizeInBytesUnlocalized(uint64 size) // IN
    /*
     * XXX TODO, BUG 199661:
     * This is a direct copy of Msg_FormatSizeInBytes without localization.
-    * These two functions should ideally share the basic functionality, and
-    * just differ in the string localization
+    * These two functions should ideally share the basic functionality, and just
+    * differ in the string localization
     */
-
    char const *fmt;
    double sizeInSelectedUnit;
    unsigned int precision;
@@ -686,7 +679,6 @@ StrUtil_GetLongestLineLength(const char *buf,   //IN
        bufLength -= len;
        buf = next;
     }
-
     return longest;
 }
 
@@ -713,7 +705,6 @@ StrUtil_StartsWith(const char *s,      // IN
 {
    ASSERT(s != NULL);
    ASSERT(prefix != NULL);
-
    return Str_Strncmp(s, prefix, strlen(prefix)) == 0;
 }
 
@@ -740,7 +731,6 @@ StrUtil_CaselessStartsWith(const char *s,      // IN
 {
    ASSERT(s != NULL);
    ASSERT(prefix != NULL);
-
    return Str_Strncasecmp(s, prefix, strlen(prefix)) == 0;
 }
 
@@ -753,8 +743,7 @@ StrUtil_CaselessStartsWith(const char *s,      // IN
  *      Detects if a string ends with another string.
  *
  * Results:
- *      TRUE  if string 'suffix' is found at the end of string 's'
- *      FALSE otherwise.
+ *      TRUE if string 'suffix' is found at the end of string 's', FALSE otherwise.
  *
  * Side effects:
  *      None.
@@ -814,7 +803,6 @@ StrUtil_VDynBufPrintf(DynBuf *b,        // IN/OUT
     * Arbitrary lower-limit on buffer size allocation, to avoid doing
     * many tiny enlarge operations.
     */
-
    const size_t minAllocSize = 128;
 
    while (1) {
@@ -857,9 +845,7 @@ StrUtil_VDynBufPrintf(DynBuf *b,        // IN/OUT
           * happens, believe it or not. See bug 253674.
           */
 
-         ASSERT(i + size == allocSize ||
-                ((char *)DynBuf_Get(b))[i + size] == '\0');
-
+         ASSERT(i + size == allocSize || ((char*)DynBuf_Get(b))[i + size] == '\0');
          DynBuf_SetSize(b, size + i);
          break;
 
@@ -871,7 +857,6 @@ StrUtil_VDynBufPrintf(DynBuf *b,        // IN/OUT
           */
 
          Bool success = DynBuf_Enlarge(b, size + minAllocSize);
-
          if (!success) {
             return FALSE;
          }

@@ -33,13 +33,11 @@
 #endif
 #include <glib/gi18n.h>
 
-#include "vm_assert.h"
 #include "conf.h"
 #include "rpcout.h"
 #include "str.h"
+#include "vmtools.h"
 #include "vmtoolsd_version.h"
-#include "vmware/tools/utils.h"
-#include "vmware/tools/i18n.h"
 
 
 /**
@@ -153,28 +151,6 @@ exit:
 
 
 /**
- * Error hook called when command line parsing fails. On Win32, make sure we
- * have a terminal where to show the error message.
- *
- * @param[in] context    Unused.
- * @param[in] group      Unused.
- * @param[in] data       Unused.
- * @param[in] error      Unused.
- */
-
-static void
-ToolsCoreCmdLineError(GOptionContext *context,
-                      GOptionGroup *group,
-                      gpointer data,
-                      GError **error)
-{
-#if defined(_WIN32)
-   VMTools_AttachConsole();
-#endif
-}
-
-
-/**
  * Parses the command line. For a list of available options, look at the source
  * below, where the option array is declared.
  *
@@ -198,53 +174,36 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
 #endif
    GOptionEntry clOptions[] = {
       { "name", 'n', 0, G_OPTION_ARG_STRING, &state->name,
-         SU_(cmdline.name, "Name of the service being started."),
-         SU_(cmdline.name.argument, "svcname") },
-      { "common-path", '\0', 0, G_OPTION_ARG_FILENAME, &state->commonPath,
-         SU_(cmdline.commonpath, "Path to the common plugin directory."),
-         SU_(cmdline.path, "path") },
+         N_("Name of the service being started."), N_("svcname") },
       { "plugin-path", 'p', 0, G_OPTION_ARG_FILENAME, &state->pluginPath,
-         SU_(cmdline.pluginpath, "Path to the plugin directory."),
-         SU_(cmdline.path, "path") },
+         N_("Path to the plugin directory."), N_("path") },
       { "cmd", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommand,
-         SU_(cmdline.rpc, "Sends an RPC command to the host and exits."),
-         SU_(cmdline.rpc.command, "command") },
+         N_("Sends an RPC command to the host and exits."), N_("command") },
 #if defined(G_PLATFORM_WIN32)
       { "dump-state", 's', 0, G_OPTION_ARG_NONE, &dumpState,
-         SU_(cmdline.state, "Dumps the internal state of a running service instance to the logs."),
-         NULL },
+         N_("Dumps the internal state of a running service instance to the logs."), 0 },
       { "kill", 'k', 0, G_OPTION_ARG_NONE, &kill,
-         SU_(cmdline.kill, "Stops a running instance of a tools service."),
-         NULL },
+         N_("Stops a running instance of a tools service."), 0 },
       { "install", 'i', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, ToolsCoreIgnoreArg,
-         SU_(cmdline.install, "Installs the service with the Service Control Manager."),
-         SU_(cmdline.install.args, "args") },
+         N_("Installs the service with the Service Control Manager."), N_("args") },
       { "uninstall", 'u', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, ToolsCoreIgnoreArg,
-         SU_(cmdline.uninstall, "Uninstalls the service from the Service Control Manager."),
-         NULL },
+         N_("Uninstalls the service from the Service Control Manager."), NULL },
       { "displayname", 'd', 0, G_OPTION_ARG_STRING, &state->displayName,
-         SU_(cmdline.displayname, "Service display name (only used with -i)."),
-         SU_(cmdline.displayname.argument, "name") },
+         N_("Service display name (only used with -i)."), N_("name") },
 #else
       { "background", 'b', 0, G_OPTION_ARG_FILENAME, &state->pidFile,
-         SU_(cmdline.background, "Runs in the background and creates a pid file."),
-         SU_(cmdline.background.pidfile, "pidfile") },
+         N_("Runs in the background and creates a pid file."), N_("pidfile") },
       { "blockFd", '\0', 0, G_OPTION_ARG_INT, &state->ctx.blockFD,
-         SU_(cmdline.blockfd, "File descriptor for the VMware blocking fs."),
-         SU_(cmdline.blockfd.fd, "fd") },
+         N_("File descriptor for the VMware blocking fs."), N_("fd") },
 #endif
       { "config", 'c', 0, G_OPTION_ARG_FILENAME, &state->configFile,
-         SU_(cmdline.config, "Uses the config file at the given path."),
-         SU_(cmdline.path, "path") },
+         N_("Uses the config file at the given path."), N_("path") },
       { "debug", 'g', 0, G_OPTION_ARG_FILENAME, &state->debugPlugin,
-         SU_(cmdline.debug, "Runs in debug mode, using the given plugin."),
-         SU_(cmdline.path, "path") },
+         N_("Runs in debug mode, using the given plugin."), N_("path") },
       { "log", 'l', 0, G_OPTION_ARG_NONE, &state->log,
-         SU_(cmdline.log, "Turns on logging. Overrides the config file."),
-         NULL },
+         N_("Turns on logging. Overrides the config file."), NULL },
       { "version", 'v', 0, G_OPTION_ARG_NONE, &version,
-         SU_(cmdline.version, "Prints the daemon version and exits."),
-         NULL },
+         N_("Prints the daemon version and exits."), NULL },
       { NULL }
    };
    GError *error = NULL;
@@ -259,11 +218,9 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    g_option_context_set_summary(context, N_("Runs the VMware Tools daemon."));
 #endif
    g_option_context_add_main_entries(context, clOptions, NULL);
-   g_option_group_set_error_hook(g_option_context_get_main_group(context),
-                                 ToolsCoreCmdLineError);
 
    if (!g_option_context_parse(context, &argc, &argv, &error)) {
-      g_printerr("%s: %s\n", N_("Command line parsing failed"), error->message);
+      g_print("%s: %s\n", N_("Command line parsing failed"), error->message);
       goto exit;
    }
 
@@ -273,21 +230,13 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       exit(0);
    }
 
+   VMTools_EnableLogging(state->log);
    if (state->name == NULL) {
       state->name = VMTOOLS_GUEST_SERVICE;
       state->mainService = TRUE;
    } else {
-      if (strcmp(state->name, TOOLSCORE_COMMON) == 0) {
-         g_printerr("%s is an invalid container name.\n", state->name);
-         goto exit;
-      }
       state->mainService = (strcmp(state->name, VMTOOLS_GUEST_SERVICE) == 0);
    }
-
-   VMTools_ConfigLogging(state->name,
-                         NULL,
-                         state->log,
-                         FALSE);
 
 #if defined(G_PLATFORM_WIN32)
    if (kill) {

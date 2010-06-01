@@ -78,14 +78,12 @@ Random_Crypto(unsigned int size,  // IN:
    if (CryptGenRandom(csp, size, buffer) == FALSE) {
       CryptReleaseContext(csp, 0);
       Log("%s: CryptGenRandom failed %d\n", __FUNCTION__, GetLastError());
-
       return FALSE;
    }
 
    if (CryptReleaseContext(csp, 0) == FALSE) {
       Log("%s: CryptReleaseContext failed %d\n", __FUNCTION__,
           GetLastError());
-
       return FALSE;
    }
 #else
@@ -128,7 +126,6 @@ Random_Crypto(unsigned int size,  // IN:
 
    if (fd == -1) {
       Log("%s: Failed to open random device: %d\n", __FUNCTION__, errno);
-
       return FALSE;
    }
 
@@ -141,7 +138,6 @@ Random_Crypto(unsigned int size,  // IN:
 
          close(fd);
          Log("%s: Short read: %d\n", __FUNCTION__, error);
-
          return FALSE;
       }
       if (bytesRead > 0) {
@@ -152,7 +148,6 @@ Random_Crypto(unsigned int size,  // IN:
 
    if (close(fd) == -1) {
       Log("%s: Failed to close: %d\n", __FUNCTION__, errno);
-
       return FALSE;
    }
 #endif
@@ -175,9 +170,6 @@ Random_Crypto(unsigned int size,  // IN:
  * Side Effects:
  *      None
  *
- * NOTE:
- *      Despite the look of the code this RNG is extremely fast.
- *
  *-----------------------------------------------------------------------------
  */
 
@@ -191,15 +183,15 @@ Random_Crypto(unsigned int size,  // IN:
 #define C 0xDB8B0000
 #define L 16
 
-struct rqContext {
+struct rngstate {
   uint32 x[N];
   int p, q;
 };
 
-rqContext *
+void *
 Random_QuickSeed(uint32 seed)  // IN:
 {
-   struct rqContext *rs;
+   struct rngstate *rs;
 
    const uint32 xx[N] = {
       0x95F24DAB, 0x0B685215, 0xE76CCAE7, 0xAF3EC239, 0x715FAD23,
@@ -209,7 +201,7 @@ Random_QuickSeed(uint32 seed)  // IN:
       0x512C0C03, 0xEA857CCD, 0x4CC1D30F, 0x8891A8A1, 0xA6B7AADB
    };
 
-   rs = (struct rqContext *) malloc(sizeof *rs);
+   rs = (struct rngstate *) malloc(sizeof *rs);
 
    if (rs != NULL) {
       uint32 i;
@@ -222,7 +214,7 @@ Random_QuickSeed(uint32 seed)  // IN:
       rs->q = N - M - 1;
    }
 
-   return rs;
+   return (void *) rs;
 }
 
 
@@ -242,18 +234,17 @@ Random_QuickSeed(uint32 seed)  // IN:
  * Side Effects:
  *      The RNG context is modified for later use by Random_Quick.
  *
- * NOTE:
- *      Despite the look of the code this RNG is extremely fast.
- *
  *-----------------------------------------------------------------------------
  */
 
 uint32
-Random_Quick(rqContext *rs)  // IN/OUT:
+Random_Quick(void *context)  // IN/OUT:
 {
    uint32 y, z;
 
-   ASSERT(rs);
+   struct rngstate *rs = (struct rngstate *) context;
+
+   ASSERT(context);
 
    if (rs->p == N - 1) {
       rs->p = 0;
@@ -292,18 +283,19 @@ Random_Quick(rqContext *rs)  // IN/OUT:
 /*
  *----------------------------------------------------------------------
  *
- * Random_Simple --
+ * FastRand --
  *
- *      Generates the next random number in the pseudo-random sequence
- *      defined by the multiplicative linear congruential generator
- *      S' = 33614 * S mod (2^31 - 1).  This is the ACM "minimal standard
- *      random number generator". Based on method described by D.G. Carta
- *      in CACM, January 1990.
- *
- *      Usage: provide previous random number as the seed for next one.
+ *      Lifted from Util_FastRand() in
+ *      /vmkernel-main/bora/vmcore/vmm/main/util_monitor.c The header
+ *      comment of Util_FastRand(): Generates the next random number in the
+ *      pseudo-random sequence defined by the multiplicative linear
+ *      congruential generator S' = 16807 * S mod (2^31 - 1).  This is the
+ *      ACM "minimal standard random number generator".  Based on method
+ *      described by D.G. Carta in CACM, January 1990.  Usage: provide
+ *      previous random number as the seed for next one.
  *
  * Results:
- *      A random integer number is returned.
+ *      A random integrer number is returned.
  *
  * Side Effects:
  *      None.
@@ -312,12 +304,12 @@ Random_Quick(rqContext *rs)  // IN/OUT:
  */
 
 int
-Random_Simple(int seed)  // IN:
+FastRand(int seed)  // IN:
 {
-   uint64 product    = 33614 * (uint64) seed;
-   uint32 product_lo = (uint32) (product & 0xFFFFFFFF) >> 1;
+   uint64 product    = 33614 * (uint64)seed;
+   uint32 product_lo = (uint32)(product & 0xffffffff) >> 1;
    uint32 product_hi = product >> 32;
    int32  test       = product_lo + product_hi;
 
-   return test > 0 ? test : (test & 0x7FFFFFFF) + 1;
+   return test > 0 ? test : (test & 0x7fffffff) + 1;
 }

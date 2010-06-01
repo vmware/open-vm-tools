@@ -70,16 +70,6 @@ Bool
 DynBuf_Copy(DynBuf *src,    // IN
             DynBuf *dest);  // OUT
 
-void
-DynBuf_SafeInternalAppend(DynBuf *b,            // IN
-                          void const *data,     // IN
-                          size_t size,          // IN
-                          char const *file,     // IN
-                          unsigned int lineno); // IN
-
-#define DynBuf_SafeAppend(_buf, _data, _size) \
-   DynBuf_SafeInternalAppend(_buf, _data, _size, __FILE__, __LINE__)
-
 
 /*
  *-----------------------------------------------------------------------------

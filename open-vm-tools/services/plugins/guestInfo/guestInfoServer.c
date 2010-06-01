@@ -33,10 +33,6 @@
 #include <math.h>
 #include <limits.h>
 
-#ifndef WIN32
-#   include <arpa/inet.h>
-#endif
-
 #include "vmware.h"
 #include "buildNumber.h"
 #include "conf.h"
@@ -46,18 +42,18 @@
 #include "guestInfoInt.h"
 #include "guest_msg_def.h" // For GUESTMSG_MAX_IN_SIZE
 #include "netutil.h"
+#include "rpcChannel.h"
 #include "rpcvmx.h"
 #include "procMgr.h"
 #include "str.h"
 #include "strutil.h"
 #include "system.h"
 #include "util.h"
+#include "vm_app.h"
+#include "vmtools.h"
+#include "vmtoolsApp.h"
 #include "xdrutil.h"
 #include "vmsupport.h"
-#include "vmware/guestrpc/tclodefs.h"
-#include "vmware/tools/plugin.h"
-#include "vmware/tools/utils.h"
-#include "vmware/tools/vmbackup.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -65,11 +61,6 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
-
-/**
- * Default poll interval is 30s (in milliseconds).
- */
-#define GUESTINFO_TIME_INTERVAL_MSEC 30000
 
 #define GUESTINFO_DEFAULT_DELIMITER ' '
 
@@ -79,23 +70,9 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 typedef struct _GuestInfoCache{
    char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
-   NicInfoV3     *nicInfo;
+   GuestNicList  nicInfo;
    GuestDiskInfo diskInfo;
 } GuestInfoCache;
-
-
-/**
- * Defines the current poll interval (in milliseconds).
- *
- * This value is controlled by the guestinfo.poll-interval config file option.
- */
-int guestInfoPollInterval = 0;
-
-
-/**
- * Gather loop timeout source.
- */
-static GSource *gatherTimeoutSource = NULL;
 
 
 /* Local cache of the guest information that was last sent to vmx. */
@@ -112,10 +89,10 @@ static Bool vmResumed;
 static Bool GuestInfoUpdateVmdb(ToolsAppCtx *ctx, GuestInfoType infoType, void *info);
 static Bool SetGuestInfo(ToolsAppCtx *ctx, GuestInfoType key,
                          const char *value, char delimiter);
+static Bool NicInfoChanged(GuestNicList *nicInfo);
 static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
 static void GuestInfoClearCache(void);
-static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
-static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean enable);
+static int PrintNicInfo(GuestNicList *nicInfo, int (*PrintFunc)(const char *, ...));
 
 
 /**
@@ -126,7 +103,7 @@ static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean enable);
  * @return TRUE on success.
  */
 
-static gboolean
+static Bool
 GuestInfoVMSupport(RpcInData *data)
 {
 #if defined(_WIN32)
@@ -199,53 +176,6 @@ GuestInfoVMSupport(RpcInData *data)
 }
 
 
-/*
- ******************************************************************************
- * GuestInfoServerConfReload --                                          */ /**
- *
- * @brief Reconfigures the poll loop interval upon config file reload.
- *
- * @param[in]  src     The source object.
- * @param[in]  ctx     The application context.
- * @param[in]  data    Unused.
- *
- ******************************************************************************
- */
-
-static void
-GuestInfoServerConfReload(gpointer src,
-                          ToolsAppCtx *ctx,
-                          gpointer data)
-{
-   TweakGatherLoop(ctx, TRUE);
-}
-
-
-/*
- ******************************************************************************
- * GuestInfoServerIOFreeze --                                           */ /**
- *
- * IO freeze signal handler. Disables info gathering while I/O is frozen.
- * See bug 529653.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      The application context.
- * @param[in]  freeze   Whether I/O is being frozen.
- * @param[in]  data     Unused.
- *
- ******************************************************************************
- */
-
-static void
-GuestInfoServerIOFreeze(gpointer src,
-                        ToolsAppCtx *ctx,
-                        gboolean freeze,
-                        gpointer data)
-{
-   TweakGatherLoop(ctx, !freeze);
-}
-
-
 /**
  * Cleanup internal data on shutdown.
  *
@@ -260,11 +190,6 @@ GuestInfoServerShutdown(gpointer src,
                         gpointer data)
 {
    GuestInfoClearCache();
-
-   if (gatherTimeoutSource != NULL) {
-      g_source_destroy(gatherTimeoutSource);
-      gatherTimeoutSource = NULL;
-   }
 }
 
 
@@ -377,7 +302,7 @@ GuestInfoGather(gpointer data)
    char osNameFull[MAX_VALUE_LEN];
    char osName[MAX_VALUE_LEN];
    gboolean disableQueryDiskInfo;
-   NicInfoV3 *nicInfo = NULL;
+   GuestNicList nicInfo;
    GuestDiskInfo diskInfo;
 #if defined(_WIN32) || defined(linux)
    GuestMemInfo vmStats = {0};
@@ -385,6 +310,8 @@ GuestInfoGather(gpointer data)
    ToolsAppCtx *ctx = data;
 
    g_debug("Entered guest info gather.\n");
+
+   memset(&nicInfo, 0, sizeof nicInfo);
 
    /* Send tools version. */
    if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER)) {
@@ -409,9 +336,10 @@ GuestInfoGather(gpointer data)
       }
    }
 
-   disableQueryDiskInfo =
-      g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
-                             CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, NULL);
+   disableQueryDiskInfo = g_key_file_get_boolean(ctx->config,
+                                                 "guestinfo",
+                                                 CONFNAME_DISABLEQUERYDISKINFO,
+                                                 NULL);
    if (!disableQueryDiskInfo) {
       if (!GuestInfo_GetDiskInfo(&diskInfo)) {
          g_warning("Failed to get disk info.\n");
@@ -419,7 +347,11 @@ GuestInfoGather(gpointer data)
          if (!GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, &diskInfo)) {
             g_warning("Failed to update VMDB\n.");
          }
-         GuestInfo_FreeDiskInfo(&diskInfo);
+      }
+      /* Free memory allocated in GuestInfoGetDiskInfo. */
+      if (diskInfo.partitionList != NULL) {
+         vm_free(diskInfo.partitionList);
+         diskInfo.partitionList = NULL;
       }
    }
 
@@ -432,19 +364,20 @@ GuestInfoGather(gpointer data)
    /* Get NIC information. */
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
-   } else if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
-      g_debug("Nic info not changed.\n");
-      GuestInfo_FreeNicInfo(nicInfo);
-   } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo)) {
-      /*
-       * Since the update succeeded, free the old cached object, and assign
-       * ours to the cache.
-       */
-      GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
-      gInfoCache.nicInfo = nicInfo;
+   } else if (NicInfoChanged(&nicInfo)) {
+      if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, &nicInfo)) {
+         /*
+          * Update the cache. Release the memory previously used by the cache,
+          * and copy the new information into the cache.
+          */
+         VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
+         gInfoCache.nicInfo = nicInfo;
+      } else {
+         g_warning("Failed to update VMDB.\n");
+      }
    } else {
-      g_warning("Failed to update VMDB.\n");
-      GuestInfo_FreeNicInfo(nicInfo);
+      g_debug("Nic info not changed.\n");
+      VMX_XDR_FREE(xdr_GuestNicList, &nicInfo);
    }
 
    /* Send the uptime to VMX so that it can detect soft resets. */
@@ -486,15 +419,17 @@ GuestInfoGather(gpointer data)
  *----------------------------------------------------------------------
  */
 
-void
-GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
+Bool
+GuestInfoConvertNicInfoToNicInfoV1(GuestNicList *info,        // IN
                                    GuestNicInfoV1 *infoV1)    // OUT
 {
    uint32 maxNics;
    u_int i;
 
-   ASSERT(info);
-   ASSERT(infoV1);
+   if ((NULL == info) ||
+       (NULL == infoV1)) {
+      return FALSE;
+   }
 
    maxNics = MIN(info->nics.nics_len, MAX_NICS);
    infoV1->numNicEntries = maxNics;
@@ -505,7 +440,7 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
    XDRUTIL_FOREACH(i, info, nics) {
       u_int j;
       uint32 maxIPs;
-      GuestNicV3 *nic = XDRUTIL_GETITEM(info, nics, i);
+      GuestNic *nic = XDRUTIL_GETITEM(info, nics, i);
 
       Str_Strcpy(infoV1->nicList[i].macAddress,
                  nic->macAddress,
@@ -515,20 +450,18 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
       infoV1->nicList[i].numIPs = 0;
 
       XDRUTIL_FOREACH(j, nic, ips) {
-         IpAddressEntry *ip = XDRUTIL_GETITEM(nic, ips, j);
-         TypedIpAddress *typedIp = &ip->ipAddressAddr;
+         VmIpAddress *ip = XDRUTIL_GETITEM(nic, ips, j);
 
-         if (typedIp->ipAddressAddrType != IAT_IPV4) {
-            continue;
-         }
-
-         if (NetUtil_InetNToP(AF_INET, typedIp->ipAddressAddr.InetAddress_val,
-                              infoV1->nicList[i].ipAddress[j],
-                              sizeof infoV1->nicList[i].ipAddress[j])) {
+         if (strlen(ip->ipAddress) < sizeof infoV1->nicList[i].ipAddress[j]) {
+            Str_Strcpy(infoV1->nicList[i].ipAddress[j],
+                       ip->ipAddress,
+                       sizeof infoV1->nicList[i].ipAddress[j]);
             infoV1->nicList[i].numIPs++;
             if (infoV1->nicList[i].numIPs == maxIPs) {
                break;
             }
+         } else {
+            g_debug("Ignoring IPV6 address for compatibility.\n");
          }
       }
 
@@ -539,6 +472,8 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
          break;
       }
    }
+
+   return TRUE;
 }
 
 
@@ -603,110 +538,72 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
 
    case INFO_IPADDRESS:
       {
-         static NicInfoVersion supportedVersion = NIC_INFO_V3;
-         NicInfoV3 *nicInfoV3 = (NicInfoV3 *)info;
+         static Bool isCmdV1 = FALSE;
          char *reply = NULL;
          size_t replyLen;
          Bool status;
 
-nicinfo_fsm:
-         switch (supportedVersion) {
-         case NIC_INFO_V3:
-         case NIC_INFO_V2:
-            {
-               /*
-                * 13 = max size of string representation of an int + 3 spaces.
-                * XXX Ditch the magic numbers.
-                */
-               char request[sizeof GUEST_INFO_COMMAND + 13];
-               GuestNicProto message = {0};
-               GuestNicList *nicList = NULL;
-               NicInfoVersion fallbackVersion;
-               XDR xdrs;
+         if (FALSE == isCmdV1) {
+            /* 13 = max size of string representation of an int + 3 spaces. */
+            char request[sizeof GUEST_INFO_COMMAND + 13];
+            GuestNicProto message;
+            XDR xdrs;
 
-               if (DynXdr_Create(&xdrs) == NULL) {
-                  return FALSE;
-               }
-
-               /* Add the RPC preamble: message name, and type. */
-               Str_Sprintf(request, sizeof request, "%s  %d ",
-                           GUEST_INFO_COMMAND, INFO_IPADDRESS_V2);
-
-               /*
-                * Fill in message according to the version we'll attempt.  Also
-                * note which version we'll fall back to should the VMX reject
-                * our update.
-                */
-               if (supportedVersion == NIC_INFO_V3) {
-                  message.ver = NIC_INFO_V3;
-                  message.GuestNicProto_u.nicInfoV3 = nicInfoV3;
-
-                  fallbackVersion = NIC_INFO_V2;
-               } else {
-                  nicList = NicInfoV3ToV2(nicInfoV3);
-                  message.ver = NIC_INFO_V2;
-                  message.GuestNicProto_u.nicsV2 = nicList;
-
-                  fallbackVersion = NIC_INFO_V1;
-               }
-
-               /* Write preamble and serialized nic info to XDR stream. */
-               if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
-                   !xdr_GuestNicProto(&xdrs, &message)) {
-                  g_warning("Error serializing nic info v2 data.");
-                  DynXdr_Destroy(&xdrs, TRUE);
-                  return FALSE;
-               }
-
-               status = RpcChannel_Send(ctx->rpc,
-                                        DynXdr_Get(&xdrs),
-                                        xdr_getpos(&xdrs),
-                                        &reply,
-                                        &replyLen);
-               DynXdr_Destroy(&xdrs, TRUE);
-
-               /*
-                * Do not free/destroy contents of `message`.  The v3 nicInfo
-                * passed to us belongs to our caller.  Instead, we'll only
-                * destroy our local V2 converted data.
-                */
-               if (nicList) {
-                  VMX_XDR_FREE(xdr_GuestNicList, nicList);
-                  free(nicList);
-                  nicList = NULL;
-               }
-
-               if (!status) {
-                  g_warning("NicInfo update failed: version %u, reply \"%s\".\n",
-                            supportedVersion, reply);
-                  supportedVersion = fallbackVersion;
-                  vm_free(reply);
-                  reply = NULL;
-                  goto nicinfo_fsm;
-               }
+            if (DynXdr_Create(&xdrs) == NULL) {
+               return FALSE;
             }
-            break;
 
-         case NIC_INFO_V1:
-            {
-               /*
-                * Could be that we are talking to the old protocol that
-                * GuestNicInfo is still fixed size.  Another try to send the
-                * fixed sized Nic info.
-                */
-               char request[sizeof (GuestNicInfoV1) + sizeof GUEST_INFO_COMMAND +
+            /* Add the RPC preamble: message name, and type. */
+            Str_Sprintf(request, sizeof request, "%s  %d ",
+                        GUEST_INFO_COMMAND, INFO_IPADDRESS_V2);
+
+            message.ver = NIC_INFO_V2;
+            message.GuestNicProto_u.nicsV2 = info;
+
+            /* Write preamble and serialized nic info to XDR stream. */
+            if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
+                !xdr_GuestNicProto(&xdrs, &message)) {
+               g_warning("Error serializing nic info v2 data.");
+               DynXdr_Destroy(&xdrs, TRUE);
+               return FALSE;
+            }
+
+            status = RpcChannel_Send(ctx->rpc,
+                                     DynXdr_Get(&xdrs),
+                                     xdr_getpos(&xdrs),
+                                     &reply,
+                                     &replyLen);
+            DynXdr_Destroy(&xdrs, TRUE);
+            if (!status) {
+               g_warning("Failed to send V2 nic info message.\n");
+            }
+
+            if (g_key_file_get_boolean(ctx->config, "guestinfo", "printNicInfo", NULL)) {
+               PrintNicInfo((GuestNicList *) info,
+                            (int (*)(const char *fmt, ...)) RpcVMX_Log);
+            }
+         } else {
+            status = FALSE;
+         }
+         if (!status) {
+            /*
+             * Could be that we are talking to the old protocol that GuestNicInfo is
+             * still fixed size.  Another try to send the fixed sized Nic info.
+             */
+            char request[sizeof (GuestNicInfoV1) + sizeof GUEST_INFO_COMMAND +
                          2 +                 /* 2 bytes are for digits of infotype. */
                          3 * sizeof (char)]; /* 3 spaces */
-               GuestNicInfoV1 nicInfo;
+            GuestNicInfoV1 nicInfo;
 
-               Str_Sprintf(request,
-                           sizeof request,
-                           "%s  %d ",
-                           GUEST_INFO_COMMAND,
-                           INFO_IPADDRESS);
+            vm_free(reply);
+            reply = NULL;
 
-               GuestInfoConvertNicInfoToNicInfoV1(nicInfoV3, &nicInfo);
-
+            Str_Sprintf(request,
+                        sizeof request,
+                        "%s  %d ",
+                        GUEST_INFO_COMMAND,
+                        INFO_IPADDRESS);
+            if (GuestInfoConvertNicInfoToNicInfoV1(info, &nicInfo)) {
                memcpy(request + strlen(request),
                       &nicInfo,
                       sizeof(GuestNicInfoV1));
@@ -720,16 +617,15 @@ nicinfo_fsm:
                                         &replyLen);
 
                g_debug("Just sent fixed sized nic info message.\n");
-
                if (!status) {
                   g_debug("Failed to update fixed sized nic information\n");
                   vm_free(reply);
                   return FALSE;
                }
+               isCmdV1 = TRUE;
+            } else {
+               return FALSE;
             }
-            break;
-         default:
-            NOT_REACHED();
          }
 
          g_debug("Updated new NIC information\n");
@@ -777,7 +673,8 @@ nicinfo_fsm:
          char *reply;
          size_t replyLen;
          Bool status;
-         GuestDiskInfo *pdi = info;
+         PGuestDiskInfo pdi = (PGuestDiskInfo)info;
+         int j = 0;
 
          if (!DiskInfoChanged(pdi)) {
             g_debug("Disk info not changed.\n");
@@ -821,25 +718,34 @@ nicinfo_fsm:
 
          g_debug("sizeof request is %d\n", requestSize);
          status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply, &replyLen);
-         if (status) {
-            status = (*reply == '\0');
-         }
 
-         vm_free(request);
-         vm_free(reply);
-
-         if (!status) {
+         if (!status || (strncmp(reply, "", 1) != 0)) {
             g_warning("Failed to update disk information.\n");
+            vm_free(request);
+            vm_free(reply);
             return FALSE;
          }
 
          g_debug("Updated disk info information\n");
+         vm_free(reply);
+         vm_free(request);
 
-         if (!GuestInfo_CopyDiskInfo(&gInfoCache.diskInfo, pdi)) {
-            g_warning("Could not cache the disk info data.\n");
+         /* Free any memory previously allocated in the cache. */
+         if (gInfoCache.diskInfo.partitionList != NULL) {
+            vm_free(gInfoCache.diskInfo.partitionList);
+            gInfoCache.diskInfo.partitionList = NULL;
+         }
+         gInfoCache.diskInfo.numEntries = pdi->numEntries;
+         gInfoCache.diskInfo.partitionList = calloc(pdi->numEntries,
+                                                         sizeof(PartitionEntry));
+         if (gInfoCache.diskInfo.partitionList == NULL) {
+            g_warning("Could not allocate memory for the disk info cache.\n");
             return FALSE;
          }
 
+         for (j = 0; j < pdi->numEntries; j++) {
+            gInfoCache.diskInfo.partitionList[j] = pdi->partitionList[j];
+         }
          break;
       }
    default:
@@ -902,7 +808,7 @@ SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
    }
 
    /* The reply indicates whether the key,value pair was updated in VMDB. */
-   status = (*reply == '\0');
+   status = (strncmp(reply, "", 1) == 0);
    vm_free(reply);
    return status;
 }
@@ -925,20 +831,151 @@ SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
  *-----------------------------------------------------------------------------
  */
 
-GuestNicV3 *
-GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
+GuestNic *
+GuestInfoFindMacAddress(GuestNicList *nicInfo,  // IN/OUT
                         const char *macAddress) // IN
 {
    u_int i;
 
    for (i = 0; i < nicInfo->nics.nics_len; i++) {
-      GuestNicV3 *nic = &nicInfo->nics.nics_val[i];
+      GuestNic *nic = &nicInfo->nics.nics_val[i];
       if (strncmp(nic->macAddress, macAddress, NICINFO_MAC_LEN) == 0) {
          return nic;
       }
    }
 
    return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NicInfoChanged --
+ *
+ *      Checks whether Nic information just obtained is different from
+ *      the information last sent to VMDB.
+ *
+ * Results:
+ *
+ *      TRUE if the NIC info has changed, FALSE otherwise
+ *
+ * Side effects:
+ *
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+NicInfoChanged(GuestNicList *nicInfo)  // IN
+{
+   u_int i;
+   GuestNicList *cachedNicInfo = &gInfoCache.nicInfo;
+
+   if (cachedNicInfo->nics.nics_len != nicInfo->nics.nics_len) {
+      g_debug("Number of nics has changed\n");
+      return TRUE;
+   }
+
+   for (i = 0; i < cachedNicInfo->nics.nics_len; i++) {
+      u_int j;
+      GuestNic *cachedNic = &cachedNicInfo->nics.nics_val[i];
+      GuestNic *matchedNic;
+
+      /* Find the corresponding nic in the new nic info. */
+      matchedNic = GuestInfoFindMacAddress(nicInfo, cachedNic->macAddress);
+
+      if (NULL == matchedNic) {
+         /* This mac address has been deleted. */
+         return TRUE;
+      }
+
+      if (matchedNic->ips.ips_len != cachedNic->ips.ips_len) {
+         g_debug("Count of ip addresses for mac %d\n",
+                 matchedNic->ips.ips_len);
+         return TRUE;
+      }
+
+      /* Which IP addresses have been modified for this NIC? */
+      for (j = 0; j < cachedNic->ips.ips_len; j++) {
+         VmIpAddress *cachedIp = &cachedNic->ips.ips_val[j];
+         Bool foundIP = FALSE;
+         u_int k;
+
+         for (k = 0; k < matchedNic->ips.ips_len; k++) {
+            VmIpAddress *matchedIp = &matchedNic->ips.ips_val[k];
+            if (0 == strncmp(cachedIp->ipAddress,
+                             matchedIp->ipAddress,
+                             NICINFO_MAX_IP_LEN)) {
+               foundIP = TRUE;
+               break;
+            }
+         }
+
+         if (FALSE == foundIP) {
+            /* This ip address couldn't be found and has been modified. */
+            g_debug("MAC address %s, ipaddress %s deleted\n",
+                    cachedNic->macAddress,
+                    cachedIp->ipAddress);
+            return TRUE;
+         }
+
+      }
+
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * PrintNicInfo --
+ *
+ *      Print NIC info struct using the specified print function.
+ *
+ * Results:
+ *      Sum of return values of print function (for printf, this will be the
+ *      number of characters printed).
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+PrintNicInfo(GuestNicList *nicInfo,               // IN
+             int (*PrintFunc)(const char *, ...)) // IN
+{
+   int ret = 0;
+   u_int i = 0;
+
+   ret += PrintFunc("NicInfo: count: %ud\n", nicInfo->nics.nics_len);
+   for (i = 0; i < nicInfo->nics.nics_len; i++) {
+      u_int j;
+      GuestNic *nic = &nicInfo->nics.nics_val[i];
+
+      ret += PrintFunc("NicInfo: nic [%d/%d] mac:      %s",
+                       i+1,
+                       nicInfo->nics.nics_len,
+                       nic->macAddress);
+
+      for (j = 0; j < nic->ips.ips_len; j++) {
+         VmIpAddress *ipAddress = &nic->ips.ips_val[j];
+
+         ret += PrintFunc("NicInfo: nic [%d/%d] IP [%d/%d]: %s",
+                          i+1,
+                          nicInfo->nics.nics_len,
+                          j+1,
+                          nic->ips.ips_len,
+                          ipAddress->ipAddress);
+      }
+   }
+
+   return ret;
 }
 
 
@@ -1037,159 +1074,9 @@ GuestInfoClearCache(void)
       gInfoCache.value[i][0] = 0;
    }
 
-   GuestInfo_FreeDiskInfo(&gInfoCache.diskInfo);
-
-   GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
-   gInfoCache.nicInfo = NULL;
+   VMX_XDR_FREE(xdr_GuestNicList, &gInfoCache.nicInfo);
+   memset(&gInfoCache.nicInfo, 0, sizeof gInfoCache.nicInfo);
 }
-
-
-/*
- ***********************************************************************
- * NicInfoV3ToV2 --                                             */ /**
- *
- * @brief Converts the NicInfoV3 NIC list to a GuestNicList.
- *
- * @note  This function performs @e shallow copies of things such as
- *        IP address array, making it depend on the source NicInfoV3.
- *        In other words, do @e not free NicInfoV3 before freeing the
- *        returned pointer.
- *
- * @param[in]  infoV3   Source NicInfoV3 container.
- *
- * @return Pointer to a GuestNicList.  Caller should free it using
- *         plain ol' @c free.
- *
- ***********************************************************************
- */
-
-static GuestNicList *
-NicInfoV3ToV2(const NicInfoV3 *infoV3)
-{
-   GuestNicList *nicList;
-   unsigned int i, j;
-
-   nicList = Util_SafeCalloc(sizeof *nicList, 1);
-
-   (void)XDRUTIL_ARRAYAPPEND(nicList, nics, infoV3->nics.nics_len);
-   XDRUTIL_FOREACH(i, infoV3, nics) {
-      GuestNicV3 *nic = XDRUTIL_GETITEM(infoV3, nics, i);
-      GuestNic *oldNic = XDRUTIL_GETITEM(nicList, nics, i);
-
-      Str_Strcpy(oldNic->macAddress, nic->macAddress, sizeof oldNic->macAddress);
-
-      (void)XDRUTIL_ARRAYAPPEND(oldNic, ips, nic->ips.ips_len);
-
-      XDRUTIL_FOREACH(j, nic, ips) {
-         IpAddressEntry *ipEntry = XDRUTIL_GETITEM(nic, ips, j);
-         TypedIpAddress *ip = &ipEntry->ipAddressAddr;
-         VmIpAddress *oldIp = XDRUTIL_GETITEM(oldNic, ips, j);
-
-         /* XXX */
-         oldIp->addressFamily = (ip->ipAddressAddrType == IAT_IPV4) ?
-            NICINFO_ADDR_IPV4 : NICINFO_ADDR_IPV6;
-
-         NetUtil_InetNToP(ip->ipAddressAddrType == IAT_IPV4 ?
-                          AF_INET : AF_INET6,
-                          ip->ipAddressAddr.InetAddress_val, oldIp->ipAddress,
-                          sizeof oldIp->ipAddress);
-
-         Str_Sprintf(oldIp->subnetMask, sizeof oldIp->subnetMask, "%u",
-                     ipEntry->ipAddressPrefixLength);
-      }
-   }
-
-   return nicList;
-}
-
-
-/*
- ******************************************************************************
- * TweakGatherLoop --                                                    */ /**
- *
- * @brief Start, stop, reconfigure the GuestInfoGather poll loop.
- *
- * This function is responsible for creating, manipulating, and resetting the
- * GuestInfoGather loop timeout source.
- *
- * @param[in]  ctx      The app context.
- * @param[in]  enable   Whether to enable the gather loop.
- *
- * @sa CONFNAME_GUESTINFO_POLLINTERVAL
- *
- ******************************************************************************
- */
-
-static void
-TweakGatherLoop(ToolsAppCtx *ctx,
-                gboolean enable)
-{
-   GError *gError = NULL;
-   gint pollInterval = 0;
-
-   if (enable) {
-      pollInterval = GUESTINFO_TIME_INTERVAL_MSEC;
-
-      /*
-       * Check the config registry for a custom poll interval, converting from
-       * seconds to milliseconds.
-       */
-      if (g_key_file_has_key(ctx->config, CONFGROUPNAME_GUESTINFO,
-                             CONFNAME_GUESTINFO_POLLINTERVAL, NULL)) {
-         pollInterval = g_key_file_get_integer(ctx->config, CONFGROUPNAME_GUESTINFO,
-                                               CONFNAME_GUESTINFO_POLLINTERVAL, &gError);
-         pollInterval *= 1000;
-
-         if (pollInterval < 0 || gError) {
-            g_warning("Invalid %s.%s value.  Using default.\n",
-                      CONFGROUPNAME_GUESTINFO, CONFNAME_GUESTINFO_POLLINTERVAL);
-            pollInterval = GUESTINFO_TIME_INTERVAL_MSEC;
-         }
-      }
-   }
-
-   /*
-    * If the interval hasn't changed, let's not interfere with the existing
-    * timeout source.
-    */
-   if (guestInfoPollInterval == pollInterval) {
-      ASSERT(pollInterval || gatherTimeoutSource == NULL);
-      return;
-   }
-
-   /*
-    * All checks have passed.  Destroy the existing timeout source, if it
-    * exists, then create and attach a new one.
-    */
-
-   if (gatherTimeoutSource != NULL) {
-      g_source_destroy(gatherTimeoutSource);
-      gatherTimeoutSource = NULL;
-   }
-
-   guestInfoPollInterval = pollInterval;
-
-   if (guestInfoPollInterval) {
-      g_message("New poll interval is %us.\n", guestInfoPollInterval / 1000);
-
-      gatherTimeoutSource = g_timeout_source_new(guestInfoPollInterval);
-      VMTOOLSAPP_ATTACH_SOURCE(ctx, gatherTimeoutSource, GuestInfoGather, ctx, NULL);
-      g_source_unref(gatherTimeoutSource);
-   } else {
-      g_message("Poll loop disabled.\n");
-   }
-
-   g_clear_error(&gError);
-}
-
-
-/*
- ******************************************************************************
- * BEGIN Tools Core Services goodies.
- *
- * TODO Move GuestInfoServerShutdown and friends within this block.  Saving
- * that for a later changeset.
- */
 
 
 /**
@@ -1209,46 +1096,34 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   /*
-    * This plugin is useless without an RpcChannel.  If we don't have one,
-    * just bail.
-    */
-   if (ctx->rpc != NULL) {
-      RpcChannelCallback rpcs[] = {
-         { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
-      };
-      ToolsPluginSignalCb sigs[] = {
-         { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
-         { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
-         { TOOLS_CORE_SIG_IO_FREEZE, GuestInfoServerIOFreeze, NULL },
-         { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
-         { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
-         { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }
-      };
-      ToolsAppReg regs[] = {
-         { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
-         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
-      };
+   GSource *src;
 
-      regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+   RpcChannelCallback rpcs[] = {
+      { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
+   };
+   ToolsPluginSignalCb sigs[] = {
+      { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
+      { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
+      { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
+      { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }
+   };
+   ToolsAppReg regs[] = {
+      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
+      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
+   };
 
-      memset(&gInfoCache, 0, sizeof gInfoCache);
-      GuestInfo_InitDiskInfo(&gInfoCache.diskInfo);
-      vmResumed = FALSE;
+   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
-      /*
-       * Set up the GuestInfoGather loop.
-       */
-      TweakGatherLoop(ctx, TRUE);
+   memset(&gInfoCache, 0, sizeof gInfoCache);
+   vmResumed = FALSE;
 
-      return &regData;
+   /* Add the first timer event. */
+   if (ctx->rpc) {
+      src = g_timeout_source_new(GUESTINFO_TIME_INTERVAL_MSEC * 10);
+      VMTOOLSAPP_ATTACH_SOURCE(ctx, src, GuestInfoGather, ctx, NULL);
+      g_source_unref(src);
    }
 
-   return NULL;
+   return &regData;
 }
 
-
-/*
- * END Tools Core Services goodies.
- ******************************************************************************
- */

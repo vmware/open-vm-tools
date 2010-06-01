@@ -28,27 +28,47 @@
  *    before including glib.h.
  */
 
-#include "vmtoolsInt.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <glib/gstdio.h>
 #if defined(G_PLATFORM_WIN32)
-#  include <windows.h>
+#  include <process.h>
 #else
 #  include <unistd.h>
-#  include <sys/resource.h>
-#  include <sys/time.h>
 #endif
 
+#include "vmtools.h"
+#include "codeset.h"
 #if defined(G_PLATFORM_WIN32)
 #  include "coreDump.h"
 #endif
+#include "file.h"
+#include "hostinfo.h"
+#include "str.h"
 #include "system.h"
 
+#if defined(G_PLATFORM_WIN32)
+#  define  DEFAULT_HANDLER    VMToolsLogOutputDebugString
+#else
+#  define  DEFAULT_HANDLER    VMToolsLogFile
+#endif
+
+#define LOGGING_GROUP         "logging"
 #define MAX_DOMAIN_LEN        64
 
-/** Alias to retrieve the default handler from the handler array. */
-#define DEFAULT_HANDLER (&gHandlers[ARRAYSIZE(gHandlers) - 1])
+/*
+ * glib will send log messages to the default handler if there's no
+ * handler specified for a given log level. We want to avoid that,
+ * and force configuration at each different log domain, so we always
+ * register the handlers for all log levels, and filter at the handler
+ * function.
+ */
+#define ALL_LOG_LEVELS        G_LOG_LEVEL_ERROR    |  \
+                              G_LOG_LEVEL_CRITICAL |  \
+                              G_LOG_LEVEL_WARNING  |  \
+                              G_LOG_LEVEL_MESSAGE  |  \
+                              G_LOG_LEVEL_INFO     |  \
+                              G_LOG_LEVEL_DEBUG
 
 /** Tells whether the given log level is a fatal error. */
 #define IS_FATAL(level) ((level) & G_LOG_FLAG_FATAL)
@@ -61,14 +81,12 @@
 #define SHOULD_LOG(level, data) (IS_FATAL(level) || \
                                  (gLogEnabled && ((data)->mask & (level))))
 
-/** Clean up the contents of a log handler. */
-#define CLEAR_LOG_HANDLER(handler) do { \
-   if ((handler) != NULL) {             \
-      g_free((handler)->domain);        \
-      (handler)->dtor(handler);         \
-   }                                    \
-} while (0)
 
+static void
+VMToolsLogFile(const gchar *domain,
+               GLogLevelFlags level,
+               const gchar *message,
+               gpointer _data);
 
 #if defined(G_PLATFORM_WIN32)
 static void
@@ -78,70 +96,64 @@ VMToolsLogOutputDebugString(const gchar *domain,
                             gpointer _data);
 #endif
 
-typedef LogHandlerData * (*LogHandlerConfigFn)(const gchar *defaultDomain,
-                                               const gchar *domain,
-                                               const gchar *name,
-                                               GKeyFile *cfg);
+void VMTools_ResetLogging(gboolean cleanDefault);
 
-typedef struct LogHandler {
-   const guint          id;
-   const gchar         *name;
-   LogHandlerConfigFn   configfn;
-} LogHandler;
-
-
-/**
- * List of available log handlers, mapped to their config file entries.
- * The NULL entry means the default handler (if the config file entry
- * doesn't exist, or doesn't match any existing handler), and must be
- * the last entry.
- */
-static LogHandler gHandlers[] = {
-   { 0,  "std",               VMStdLoggerConfig },
-   { 1,  "file",              VMFileLoggerConfig },
-   { 2,  "file+",             VMFileLoggerConfig },
-#if defined(_WIN32)
-   { 3,  "outputdebugstring", VMDebugOutputConfig },
-   { -1, NULL,                VMDebugOutputConfig },
-#else
-   { 3,  "syslog",            VMSysLoggerConfig },
-   { -1, NULL,                VMStdLoggerConfig },
-#endif
-};
-
+typedef struct LogHandlerData {
+   gchar            *domain;
+   GLogLevelFlags    mask;
+   FILE             *file;
+   gchar            *path;
+   gboolean          append;
+   guint             handlerId;
+   gboolean          inherited;
+   gboolean          error;
+} LogHandlerData;
 
 static gchar *gLogDomain = NULL;
 static gboolean gEnableCoreDump = TRUE;
 static gboolean gLogEnabled = FALSE;
 static guint gPanicCount = 0;
 static LogHandlerData *gDefaultData = NULL;
-static LogHandlerData *gErrorData = NULL;
+static GLogFunc gDefaultLogFunc = DEFAULT_HANDLER;
 static GPtrArray *gDomains = NULL;
 
 /* Internal functions. */
 
-
 /**
- * glib-based version of Str_Asprintf().
+ * Opens a log file for writing, backing up the existing log file if one is
+ * present. Only one old log file is preserved.
  *
- * @param[out] string   Where to store the result.
- * @param[in]  format   String format.
- * @param[in]  ...      String arguments.
+ * @param[in] path   Path to log file.
+ * @param[in] append Whether to open the log for appending (if TRUE, a backup
+ *                   file is not generated).
  *
- * @return Number of bytes printed.
+ * @return File pointer for writing to the file (NULL on error).
  */
 
-static INLINE gint
-VMToolsAsprintf(gchar **string,
-                gchar const *format,
-                ...)
+static FILE *
+VMToolsLogOpenFile(const gchar *path,
+                   gboolean append)
 {
-   gint cnt;
-   va_list args;
-   va_start(args, format);
-   cnt = g_vasprintf(string, format, args);
-   va_end(args);
-   return cnt;
+   FILE *logfile = NULL;
+   gchar *pathLocal;
+
+   ASSERT(path != NULL);
+   pathLocal = VMTOOLS_GET_FILENAME_LOCAL(path, NULL);
+
+   if (!append && g_file_test(path, G_FILE_TEST_EXISTS)) {
+      /* Back up existing log file. */
+      gchar *bakFile = g_strdup_printf("%s.old", pathLocal);
+      if (!g_file_test(bakFile, G_FILE_TEST_IS_DIR) &&
+          (!g_file_test(bakFile, G_FILE_TEST_EXISTS) ||
+           g_unlink(bakFile) == 0)) {
+         g_rename(pathLocal, bakFile);
+      }
+      g_free(bakFile);
+   }
+
+   logfile = g_fopen(pathLocal, append ? "a" : "w");
+   VMTOOLS_RELEASE_FILENAME_LOCAL(pathLocal);
+   return logfile;
 }
 
 
@@ -153,32 +165,23 @@ VMToolsAsprintf(gchar **string,
  * @param[in] message      User log message.
  * @param[in] domain       Log domain.
  * @param[in] level        Log level.
- * @param[in] data         Log handler data.
+ * @param[in] timestamp    Whether to print the timestamp.
  *
- * @return Formatted log message according to the log domain's config.
- *         Should be g_free()'d.
+ * @return Formatted log message in the current encoding. Should be free()'d.
  */
 
-static gchar *
+static char *
 VMToolsLogFormat(const gchar *message,
                  const gchar *domain,
                  GLogLevelFlags level,
-                 LogHandlerData *data)
+                 gboolean timestamp)
 {
    char *msg = NULL;
-   const char *slevel;
-   size_t len = 0;
+   char *msgCurr = NULL;
+   char *slevel;
 
    if (domain == NULL) {
       domain = gLogDomain;
-   }
-
-   /*
-    * glib 2.16 on Windows has a bug where its printf implementations don't
-    * like NULL.
-    */
-   if (message == NULL) {
-      message = "<null>";
    }
 
    switch (level & G_LOG_LEVEL_MASK) {
@@ -210,79 +213,38 @@ VMToolsLogFormat(const gchar *message,
       slevel = "unknown";
    }
 
-   if (data->timestamp) {
+   if (timestamp) {
       char *tstamp;
 
       tstamp = System_GetTimeAsString();
-      if (data->shared) {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
-                               (tstamp != NULL) ? tstamp : "no time",
-                               slevel, gLogDomain, domain, message);
-      } else {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] %s\n",
-                               (tstamp != NULL) ? tstamp : "no time",
-                               slevel, domain, message);
-      }
+      msg = Str_Asprintf(NULL, "[%s] [%8s] [%s] %s\n",
+                         (tstamp != NULL) ? tstamp : "no time",
+                         slevel, domain, message);
       free(tstamp);
    } else {
-      if (data->shared) {
-         len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
-                               slevel, gLogDomain, domain, message);
-      } else {
-         len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+      msg = Str_Asprintf(NULL, "[%8s] [%s] %s", slevel, domain, message);
+   }
+
+   if (msg != NULL) {
+      size_t len;
+      CodeSet_Utf8ToCurrent(msg, strlen(msg), &msgCurr, &len);
+
+      /*
+       * The log messages from glib itself (and probably other libraries based
+       * on glib) do not include a trailing new line. Most of our code does. So
+       * we detect whether the original message already had a new line, and
+       * remove it, to avoid having two newlines when printing our log messages.
+       */
+      if (msgCurr != NULL && msgCurr[len - 2] == '\n') {
+         msgCurr[len - 1] = '\0';
       }
    }
 
-   if (msg != NULL && data->convertToLocal) {
-      gchar *msgCurr = g_locale_from_utf8(msg, len, NULL, &len, NULL);
-      g_free(msg);
-      msg = msgCurr;
+   if (msgCurr != NULL) {
+      free(msg);
+      return msgCurr;
    }
-
-   /*
-    * The log messages from glib itself (and probably other libraries based
-    * on glib) do not include a trailing new line. Most of our code does. So
-    * we detect whether the original message already had a new line, and
-    * remove it, to avoid having two newlines when printing our log messages.
-    */
-   if (msg != NULL && msg[len - 2] == '\n') {
-      msg[len - 1] = '\0';
-   }
-
    return msg;
-}
-
-
-/**
- * Logs a message to the error log domain. This is used when a log handler
- * encounters an error while logging a message, and wants to log information
- * about that error.
- *
- * @param[in] domain    Log domain.
- * @param[in] level     Log level.
- * @param[in] fmt       Message format.
- * @param[in] ...       Message parameters.
- */
-
-static void
-VMToolsError(const gchar *domain,
-             GLogLevelFlags level,
-             const gchar *fmt,
-             ...)
-{
-   gchar *message;
-   gchar *formatted;
-   va_list args;
-
-   va_start(args, fmt);
-   g_vasprintf(&message, fmt, args);
-   va_end(args);
-
-   formatted = VMToolsLogFormat(message, domain, level, gErrorData);
-
-   gErrorData->logfn(domain, level, formatted, gErrorData, VMToolsError);
-   g_free(formatted);
-   g_free(message);
 }
 
 
@@ -293,26 +255,10 @@ VMToolsError(const gchar *domain,
 static INLINE NORETURN void
 VMToolsLogPanic(void)
 {
-   gPanicCount++;
    if (gEnableCoreDump) {
-#if defined(_WIN32)
+#if defined(G_PLATFORM_WIN32)
       CoreDump_CoreDump();
 #else
-      char cwd[PATH_MAX];
-      if (getcwd(cwd, sizeof cwd) != NULL) {
-         if (access(cwd, W_OK) == -1) {
-            /*
-             * Can't write to the working dir. chdir() to the user's home
-             * directory as an attempt to get a valid core dump.
-             */
-            const char *home = getenv("HOME");
-            if (home != NULL) {
-               if (chdir(home)) {
-                  /* Just to make glibc headers happy. */
-               }
-            }
-         }
-      }
       abort();
 #endif
    }
@@ -321,9 +267,9 @@ VMToolsLogPanic(void)
 }
 
 
+#if defined(G_PLATFORM_WIN32)
 /**
- * Log handler function that does the common processing of log messages,
- * and delegates the actual printing of the message to the given handler.
+ * Logs a message to OutputDebugString.
  *
  * @param[in] domain    Log domain.
  * @param[in] level     Log level.
@@ -332,25 +278,79 @@ VMToolsLogPanic(void)
  */
 
 static void
-VMToolsLog(const gchar *domain,
-           GLogLevelFlags level,
-           const gchar *message,
-           gpointer _data)
+VMToolsLogOutputDebugString(const gchar *domain,
+                            GLogLevelFlags level,
+                            const gchar *message,
+                            gpointer _data)
 {
    LogHandlerData *data = _data;
    if (SHOULD_LOG(level, data)) {
-      gchar *msg = VMToolsLogFormat(message, domain, level, data);
-      data = data->inherited ? gDefaultData : data;
-      if (!data->logfn(domain, level, msg, data, VMToolsError)) {
-         /*
-          * The logger for some reason indicated that it couldn't log the
-          * message. Use the error handler to do it, and ignore any
-          * errors.
-          */
-         VMToolsError(domain, level | G_LOG_FLAG_RECURSION, message,
-                      gErrorData, VMToolsError);
+      char *msg = VMToolsLogFormat(message, domain, level, FALSE);
+      if (msg != NULL) {
+         OutputDebugStringA(msg);
+         free(msg);
       }
-      g_free(msg);
+   }
+   if (IS_FATAL(level)) {
+      VMToolsLogPanic();
+   }
+}
+#endif
+
+
+/**
+ * Logs a message to a file streams. When writing to the standard streams,
+ * any level >= MESSAGE will cause the message to go to stdout; otherwise,
+ * it will go to stderr.
+ *
+ * @param[in] domain    Log domain.
+ * @param[in] level     Log level.
+ * @param[in] message   Message to log.
+ * @param[in] _data     LogHandlerData pointer.
+ */
+
+static void
+VMToolsLogFile(const gchar *domain,
+               GLogLevelFlags level,
+               const gchar *message,
+               gpointer _data)
+{
+   LogHandlerData *data = _data;
+   if (SHOULD_LOG(level, data)) {
+      FILE *dest;
+      data = data->inherited ? gDefaultData : data;
+      if (!data->error && data->file == NULL && data->path != NULL) {
+         data->file = VMToolsLogOpenFile(data->path, data->append);
+         if (data->file == NULL) {
+            /*
+             * glib's documentation says that we can set up log handlers that
+             * handle G_LOG_FLAG_RECURSION, but looking at the source code of
+             * the g_logv() function that's not really true (at least up to
+             * current top of tree - glib 2.20?). So we have to avoid recursion
+             * here and bypass the log system.
+             */
+            gchar warn[1024];
+            g_snprintf(warn, sizeof warn,
+                       "Unable to open log file %s for domain %s.\n",
+                       data->path, data->domain);
+
+            data->error = TRUE;
+            DEFAULT_HANDLER(domain, G_LOG_LEVEL_WARNING | G_LOG_FLAG_RECURSION,
+                            warn, gDefaultData);
+         }
+      }
+      if (!(level & G_LOG_FLAG_RECURSION) && data->error) {
+         DEFAULT_HANDLER(domain, level | G_LOG_FLAG_RECURSION, message, gDefaultData);
+      } else {
+         char *msg = VMToolsLogFormat(message, domain, level, TRUE);
+         if (msg != NULL) {
+            dest = (data->file != NULL) ? data->file
+                     : ((level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout);
+            fputs(msg, dest);
+            fflush(dest);
+            vm_free(msg);
+         }
+      }
    }
    if (IS_FATAL(level)) {
       VMToolsLogPanic();
@@ -360,11 +360,12 @@ VMToolsLog(const gchar *domain,
 
 /**
  * Configures the given log domain based on the data provided in the given
- * dictionary. If the log domain being configured doesn't match the default, and
- * no specific handler is defined for the domain, the handler is inherited from
- * the default domain, instead of using the default handler. This allows reusing
- * the same log file, for example, while maintaining the ability to enable
- * different log levels for different domains.
+ * dictionary. If the log domain being configured doesn't match the default
+ * (@see VMTools_GetDefaultLogDomain()), and no specific handler is defined
+ * for the domain, the handler is inherited from the default domain, instead
+ * of using the default handler. This allows reusing the same log file, for
+ * example, while maintaining the ability to enable different log levels
+ * for different domains.
  *
  * For the above to properly work, the default log domain has to be configured
  * before any other domains.
@@ -379,12 +380,11 @@ VMToolsConfigLogDomain(const gchar *domain,
 {
    gchar *handler = NULL;
    gchar *level = NULL;
+   gchar *logpath = NULL;
    gchar key[128];
-   guint hid;
-   size_t i;
 
+   GLogFunc handlerFn = NULL;
    GLogLevelFlags levelsMask;
-   LogHandlerConfigFn configfn = NULL;
    LogHandlerData *data;
 
    /* Arbitrary limit. */
@@ -396,7 +396,7 @@ VMToolsConfigLogDomain(const gchar *domain,
       goto exit;
    }
 
-   g_snprintf(key, sizeof key, "%s.level", domain);
+   Str_Sprintf(key, sizeof key, "%s.level", domain);
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (level == NULL) {
 #ifdef VMX86_DEBUG
@@ -407,49 +407,69 @@ VMToolsConfigLogDomain(const gchar *domain,
    }
 
    /* Parse the handler information. */
-   g_snprintf(key, sizeof key, "%s.handler", domain);
+   Str_Sprintf(key, sizeof key, "%s.handler", domain);
    handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
 
-   if (handler != NULL) {
-      for (i = 0; i < ARRAYSIZE(gHandlers) - 1; i++) {
-         if (handler == gHandlers[i].name ||
-             strcmp(handler, gHandlers[i].name) == 0) {
-            hid = gHandlers[i].id;
-            configfn = gHandlers[i].configfn;
-            break;
+   if (handler == NULL) {
+      if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
+         handlerFn = DEFAULT_HANDLER;
+      } else {
+         handlerFn = gDefaultLogFunc;
+      }
+   } else if (strcmp(handler, "std") == 0) {
+      handlerFn = VMToolsLogFile;
+   } else if (strcmp(handler, "file") == 0 ||
+              strcmp(handler, "file+") == 0) {
+      /* Don't set up the file sink if logging is disabled. */
+      if (strcmp(level, "none") != 0) {
+         handlerFn = VMToolsLogFile;
+         Str_Sprintf(key, sizeof key, "%s.data", domain);
+         logpath = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+         if (logpath == NULL) {
+            g_warning("Missing log path for file handler (%s).\n", domain);
+            goto exit;
+         } else {
+            /*
+             * Do some variable expansion in the input string. Currently only
+             * ${USER} and ${PID} are expanded.
+             */
+            gchar *vars[] = {
+               "${USER}",  NULL,
+               "${PID}",   NULL
+            };
+            size_t i;
+
+            vars[1] = Hostinfo_GetUser();
+            vars[3] = g_strdup_printf("%"FMTPID, getpid());
+
+            for (i = 0; i < ARRAYSIZE(vars); i += 2) {
+               char *last = logpath;
+               char *start;
+               while ((start = strstr(last, vars[i])) != NULL) {
+                  gchar *tmp;
+                  char *end = start + strlen(vars[i]);
+                  size_t offset = (start - last) + strlen(vars[i+1]);
+
+                  *start = '\0';
+                  tmp = g_strdup_printf("%s%s%s", logpath, vars[i+1], end);
+                  g_free(logpath);
+                  logpath = tmp;
+                  last = logpath + offset;
+               }
+            }
+
+            free(vars[1]);
+            g_free(vars[3]);
          }
       }
-
-      if (configfn == NULL) {
-         g_warning("Unknown log handler '%s', using default.", handler);
-         goto exit;
-      }
-
-      data = configfn(gLogDomain, domain, handler, cfg);
-   } else if (strcmp(domain, gLogDomain) == 0) {
-      /*
-       * If no handler defined and we're configuring the default domain,
-       * then instantiate the default handler.
-       */
-      hid = DEFAULT_HANDLER->id;
-      configfn = DEFAULT_HANDLER->configfn;
-      data = configfn(gLogDomain, domain, NULL, cfg);
-      ASSERT(data != NULL);
+#if defined(G_PLATFORM_WIN32)
+   } else if (strcmp(handler, "outputdebugstring") == 0) {
+      handlerFn = VMToolsLogOutputDebugString;
+#endif
    } else {
-      /* An inherited handler. Just create a dummy instance. */
-      ASSERT(gDefaultData != NULL);
-      data = g_new0(LogHandlerData, 1);
-      data->inherited = TRUE;
-      data->logfn = gDefaultData->logfn;
-      data->convertToLocal = gDefaultData->convertToLocal;
-      data->timestamp = gDefaultData->timestamp;
-      data->shared = gDefaultData->shared;
-      data->dtor = (LogHandlerDestroyFn) g_free;
-      hid = -1;
+      g_warning("Unknown log handler: %s\n", handler);
+      goto exit;
    }
-
-   ASSERT(data->logfn != NULL);
-   ASSERT(data->dtor != NULL);
 
    /* Parse the log level configuration, and build the mask. */
    if (strcmp(level, "error") == 0) {
@@ -473,7 +493,7 @@ VMToolsConfigLogDomain(const gchar *domain,
                    G_LOG_LEVEL_MESSAGE |
                    G_LOG_LEVEL_INFO;
    } else if (strcmp(level, "debug") == 0) {
-      levelsMask = G_LOG_LEVEL_MASK;
+      levelsMask = ALL_LOG_LEVELS;
    } else if (strcmp(level, "none") == 0) {
       levelsMask = 0;
    } else {
@@ -481,11 +501,14 @@ VMToolsConfigLogDomain(const gchar *domain,
       goto exit;
    }
 
+   data = g_malloc0(sizeof *data);
    data->domain = g_strdup(domain);
    data->mask = levelsMask;
-   data->type = hid;
+   data->path = logpath;
+   data->append = (handler != NULL && strcmp(handler, "file+") == 0);
+   logpath = NULL;
 
-   if (strcmp(domain, gLogDomain) == 0) {
+   if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
       /*
        * Replace the global log configuration. If the default log domain was
        * logging to a file and the file path hasn't changed, then keep the old
@@ -493,14 +516,27 @@ VMToolsConfigLogDomain(const gchar *domain,
        */
       LogHandlerData *old = gDefaultData;
 
-      if (old != NULL && old->type == data->type && old->copyfn != NULL) {
-         data->copyfn(data, old);
+      if (old->file != NULL) {
+         ASSERT(old->path);
+         if (data->path != NULL && strcmp(data->path, old->path) == 0) {
+            g_free(data->path);
+            data->file = old->file;
+            data->path = old->path;
+            old->path = NULL;
+         } else {
+            fclose(old->file);
+            g_free(old->path);
+         }
       }
 
-      g_log_set_default_handler(VMToolsLog, data);
+      g_log_set_default_handler(handlerFn, data);
       gDefaultData = data;
-      CLEAR_LOG_HANDLER(old);
       data = NULL;
+      gDefaultLogFunc = handlerFn;
+      g_free(old);
+   } else if (handler == NULL) {
+      ASSERT(data->file == NULL);
+      data->inherited = TRUE;
    }
 
    if (data != NULL) {
@@ -508,244 +544,74 @@ VMToolsConfigLogDomain(const gchar *domain,
          gDomains = g_ptr_array_new();
       }
       g_ptr_array_add(gDomains, data);
-      data->handlerId = g_log_set_handler(domain,
-                                          G_LOG_LEVEL_MASK |
-                                          G_LOG_FLAG_FATAL |
-                                          G_LOG_FLAG_RECURSION,
-                                          VMToolsLog,
-                                          data);
+      data->handlerId = g_log_set_handler(domain, ALL_LOG_LEVELS | G_LOG_FATAL_MASK,
+                                          handlerFn, data);
    }
 
 exit:
    g_free(handler);
+   g_free(logpath);
    g_free(level);
-}
-
-
-/**
- * Resets the vmtools logging subsystem, freeing up data and restoring the
- * original glib configuration.
- *
- * @param[in]  hard     Whether to do a "hard" reset of the logging system
- *                      (cleaning up any log domain existing state and freeing
- *                      associated memory).
- */
-
-static void
-VMToolsResetLogging(gboolean hard)
-{
-   gLogEnabled = FALSE;
-   g_log_set_default_handler(g_log_default_handler, NULL);
-
-   CLEAR_LOG_HANDLER(gErrorData);
-   gErrorData = NULL;
-
-   if (gDomains != NULL) {
-      guint i;
-      for (i = 0; i < gDomains->len; i++) {
-         LogHandlerData *data = g_ptr_array_index(gDomains, i);
-         g_log_remove_handler(data->domain, data->handlerId);
-         if (hard) {
-            CLEAR_LOG_HANDLER(data);
-         }
-      }
-      if (hard) {
-         g_ptr_array_free(gDomains, TRUE);
-         gDomains = NULL;
-      }
-   }
-
-   if (hard && gDefaultData != NULL) {
-      CLEAR_LOG_HANDLER(gDefaultData);
-      gDefaultData = NULL;
-   }
-
-   if (gLogDomain != NULL) {
-      g_free(gLogDomain);
-      gLogDomain = NULL;
-   }
-}
-
-
-/**
- * Restores the logging configuration in the given config data. This means doing
- * the following:
- *
- * . if the old log domain exists in the current configuration, and in case both
- *   the old and new configuration used log files, then re-use the file that was
- *   already opened.
- * . if they don't use the same configuration, close the log file for the old
- *   configuration.
- * . if an old log domain doesn't exist in the new configuration, then
- *   release any resources the old configuration was using for that domain.
- *
- * @param[in] oldDefault    Data for the old default domain.
- * @param[in] oldDomains    List of old log domains.
- */
-
-static void
-VMToolsRestoreLogging(LogHandlerData *oldDefault,
-                      GPtrArray *oldDomains)
-{
-   /* First, restore what needs to be restored. */
-   if (gDomains != NULL && oldDomains != NULL) {
-      guint i;
-      for (i = 0; i < gDomains->len; i++) {
-         guint j;
-         LogHandlerData *data = g_ptr_array_index(gDomains, i);
-
-         /* Try to find the matching old config. */
-         for (j = 0; j < oldDomains->len; j++) {
-            LogHandlerData *olddata = g_ptr_array_index(oldDomains, j);
-            if (data->type == olddata->type &&
-                strcmp(data->domain, olddata->domain) == 0) {
-               if (!data->inherited && data->copyfn != NULL) {
-                  data->copyfn(data, olddata);
-               }
-               break;
-            }
-         }
-      }
-   }
-
-   if (gDefaultData != NULL &&
-       oldDefault != NULL &&
-       gDefaultData->copyfn != NULL &&
-       gDefaultData->type == oldDefault->type) {
-      gDefaultData->copyfn(gDefaultData, oldDefault);
-   }
-
-   /* Second, clean up the old configuration data. */
-   if (oldDomains != NULL) {
-      while (oldDomains->len > 0) {
-         LogHandlerData *data = g_ptr_array_remove_index_fast(oldDomains,
-                                                              oldDomains->len - 1);
-         CLEAR_LOG_HANDLER(data);
-      }
-   }
-
-   if (oldDefault != NULL) {
-      CLEAR_LOG_HANDLER(oldDefault);
-   }
 }
 
 
 /* Public API. */
 
-
-#if defined(_WIN32)
 /**
- * Attaches a console to the current process. If the parent process already has
- * a console open, reuse it. Otherwise, create a new console for the current
- * process. Win32-only.
+ * Returns the default log domain for the application.
  *
- * It's safe to call this function multiple times (it won't do anything if
- * the process already has a console).
- *
- * @note Attaching to the parent process's console is only available on XP and
- * later.
- *
- * @return Whether the process is attached to a console.
+ * @return  A string with the name of the log domain.
  */
 
-gboolean
-VMTools_AttachConsole(void)
+const char *
+VMTools_GetDefaultLogDomain(void)
 {
-   typedef BOOL (WINAPI *AttachConsoleFn)(DWORD);
-   gboolean ret = FALSE;
-   AttachConsoleFn _AttachConsole;
-
-   if (GetConsoleWindow() != NULL) {
-      return TRUE;
-   }
-
-   _AttachConsole = (AttachConsoleFn) GetProcAddress(GetModuleHandleW(L"kernel32.dll"),
-                                                     "AttachConsole");
-   if ((_AttachConsole != NULL && _AttachConsole(ATTACH_PARENT_PROCESS)) ||
-       AllocConsole()) {
-      FILE* fptr;
-
-      fptr = _wfreopen(L"CONOUT$", L"a", stdout);
-      if (fptr == NULL) {
-         g_warning("_wfreopen failed for stdout/CONOUT$: %d (%s)",
-                   errno, strerror(errno));
-         goto exit;
-      }
-
-      fptr = _wfreopen(L"CONOUT$", L"a", stderr);
-      if (fptr == NULL) {
-         g_warning("_wfreopen failed for stderr/CONOUT$: %d (%s)",
-                   errno, strerror(errno));
-         goto exit;
-      }
-      setvbuf(fptr, NULL, _IONBF, 0);
-      ret = TRUE;
-   }
-
-exit:
-   if (!ret) {
-      g_warning("Console redirection unavailable.");
-   }
-   return ret;
+   return gLogDomain;
 }
-#endif
 
 
 /**
- * Configures the logging system according to the configuration in the given
- * dictionary.
+ * Sets the default log domain. This only changes the output of the default
+ * log handler.
  *
- * Optionally, it's possible to reset the logging subsystem; this will shut
- * down all log handlers managed by the vmtools library before configuring
- * the log system, which means that logging will behave as if the application
- * was just started. A visible side-effect of this is that log files may be
- * rotated (if they're not configure for appending).
- *
- * @param[in] defaultDomain   Name of the default log domain.
- * @param[in] cfg             The configuration data. May be NULL.
- * @param[in] force           Whether to force logging to be enabled.
- * @param[in] reset           Whether to reset the logging subsystem first.
+ * @param[in]  domain   The log domain.
  */
 
 void
-VMTools_ConfigLogging(const gchar *defaultDomain,
-                      GKeyFile *cfg,
-                      gboolean force,
-                      gboolean reset)
+VMTools_SetDefaultLogDomain(const gchar *domain)
 {
-   gboolean allocDict = (cfg == NULL);
+   g_assert(domain != NULL);
+   if (gLogDomain != NULL) {
+      g_free(gLogDomain);
+   }
+   gLogDomain = g_strdup(domain);
+}
+
+
+/**
+ * Configures the logging system according to the configuration provided from
+ * the given dictionary.
+ *
+ * @param[in] cfg    The configuration data.
+ */
+
+void
+VMTools_ConfigLogging(GKeyFile *cfg)
+{
    gchar **list;
    gchar **curr;
-   GPtrArray *oldDomains = NULL;
-   LogHandlerData *oldDefault = NULL;
 
-   g_return_if_fail(defaultDomain != NULL);
+   VMTools_ResetLogging(FALSE);
 
-   if (allocDict) {
-      cfg = g_key_file_new();
+   if (!g_key_file_has_group(cfg, LOGGING_GROUP)) {
+      return;
    }
-
-   /*
-    * If not resetting the logging system, keep the old domains around. After
-    * we're done loading the new configuration, we'll go through the old domains
-    * and restore any data that needs restoring, and clean up anything else.
-    */
-   VMToolsResetLogging(reset);
-   if (!reset) {
-      oldDefault = gDefaultData;
-      oldDomains = gDomains;
-      gDomains = NULL;
-      gDefaultData = NULL;
-   }
-
-   gLogDomain = g_strdup(defaultDomain);
-   gErrorData = DEFAULT_HANDLER->configfn(gLogDomain, gLogDomain, NULL, NULL);
 
    /*
     * Configure the default domain first. See function documentation for
     * VMToolsConfigLogDomain() for the reason.
     */
-   VMToolsConfigLogDomain(gLogDomain, cfg);
+   VMToolsConfigLogDomain(VMTools_GetDefaultLogDomain(), cfg);
 
    list = g_key_file_get_keys(cfg, LOGGING_GROUP, NULL, NULL);
 
@@ -761,7 +627,7 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
       domain[strlen(domain) - 6] = '\0';
 
       /* Skip the default domain. */
-      if (strcmp(domain, gLogDomain) == 0) {
+      if (strcmp(domain, VMTools_GetDefaultLogDomain()) == 0) {
          continue;
       }
 
@@ -775,68 +641,96 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
       gEnableCoreDump = g_key_file_get_boolean(cfg, LOGGING_GROUP,
                                                "enableCoreDump", NULL);
    }
+}
 
-   /*
-    * If core dumps are enabled (default: TRUE), then set up the exception
-    * filter on Win32. On POSIX systems, try to modify the resource limit
-    * to allow core dumps, but don't complain if it fails. Core dumps may
-    * still fail, e.g., if the current directory is not writable by the
-    * user running the process.
-    *
-    * On POSIX systems, if the process is itself requesting a core dump (e.g.,
-    * by calling Panic() or g_error()), the core dump routine will try to find
-    * a location where it can successfully create the core file. Applications
-    * can try to set up core dump filters (e.g., a signal handler for SIGSEGV)
-    * that can then call any of the core dumping functions handled by this
-    * library.
-    *
-    * On POSIX systems, the maximum size of a core dump can be controlled by
-    * the "maxCoreSize" config option, where "0" means "no limit". By default,
-    * it's set to 5MB.
-    */
-   if (gEnableCoreDump) {
-#if defined(_WIN32)
-      CoreDump_SetUnhandledExceptionFilter();
-#else
-      GError *err = NULL;
-      struct rlimit limit = { 0, 0 };
 
-      getrlimit(RLIMIT_CORE, &limit);
-      if (limit.rlim_max != 0) {
-         limit.rlim_cur = (rlim_t) g_key_file_get_integer(cfg,
-                                                          LOGGING_GROUP,
-                                                          "maxCoreSize",
-                                                          &err);
-         if (err != NULL) {
-            limit.rlim_cur = 5 * 1024 * 1024;
-            g_clear_error(&err);
-         } else if (limit.rlim_cur == 0) {
-            limit.rlim_cur = RLIM_INFINITY;
+/**
+ * Enables of disables all the log domains configured by the vmtools library.
+ * This doesn't affect other log domains that may have configured by other
+ * code.
+ *
+ * @param[in] enable    Whether logging should be enabled.
+ */
+
+void
+VMTools_EnableLogging(gboolean enable)
+{
+   gLogEnabled = enable;
+}
+
+
+/**
+ * Resets the vmtools logging subsystem, freeing up data and optionally
+ * restoring the original glib configuration.
+ *
+ * @param[in]  cleanDefault   Whether to clean up the default handler and
+ *                            restore the original glib handler.
+ */
+
+void
+VMTools_ResetLogging(gboolean cleanDefault)
+{
+   gboolean oldLogEnabled = gLogEnabled;
+   gchar *currentPath = NULL;
+   FILE *currentFile = NULL;
+
+   /* Disable logging while we're playing with the configuration. */
+   gLogEnabled = FALSE;
+
+   if (cleanDefault) {
+      g_log_set_default_handler(g_log_default_handler, NULL);
+   }
+
+   if (gDomains != NULL) {
+      guint i;
+      for (i = 0; i < gDomains->len; i++) {
+         LogHandlerData *data = g_ptr_array_index(gDomains, i);
+         g_log_remove_handler(data->domain, data->handlerId);
+         if (data->file != NULL) {
+            fclose(data->file);
          }
-
-         limit.rlim_cur = MAX(limit.rlim_cur, limit.rlim_max);
-         if (setrlimit(RLIMIT_CORE, &limit) == -1) {
-            g_message("Failed to set core dump size limit, error %d (%s)\n",
-                      errno, g_strerror(errno));
-         } else {
-            g_message("Core dump limit set to %d", (int) limit.rlim_cur);
-         }
+         g_free(data->path);
+         g_free(data->domain);
+         g_free(data);
       }
+      g_ptr_array_free(gDomains, TRUE);
+      gDomains = NULL;
+   }
+
+   if (gDefaultData != NULL) {
+      currentFile = gDefaultData->file;
+      currentPath = gDefaultData->path;
+      g_free(gDefaultData);
+      gDefaultData = NULL;
+   }
+
+   if (cleanDefault && gLogDomain != NULL) {
+      g_free(gLogDomain);
+      gLogDomain = NULL;
+   }
+
+   gDefaultLogFunc = DEFAULT_HANDLER;
+
+   if (!cleanDefault) {
+      if (gLogDomain == NULL) {
+         gLogDomain = g_strdup("vmtools");
+      }
+      gDefaultData = g_malloc0(sizeof *gDefaultData);
+      gDefaultData->mask = G_LOG_LEVEL_ERROR |
+                           G_LOG_LEVEL_CRITICAL |
+                           G_LOG_LEVEL_WARNING;
+#if defined(VMX86_DEBUG)
+      gDefaultData->mask |= G_LOG_LEVEL_MESSAGE;
 #endif
-   }
-
-   /* If needed, restore the old configuration. */
-   if (!reset) {
-      VMToolsRestoreLogging(oldDefault, oldDomains);
-      if (oldDomains != NULL) {
-         g_ptr_array_free(oldDomains, TRUE);
+      gDefaultData->file = currentFile;
+      gDefaultData->path = currentPath;
+      gLogEnabled = oldLogEnabled;
+      g_log_set_default_handler(gDefaultLogFunc, gDefaultData);
+   } else {
+      if (currentFile != NULL) {
+         fclose(currentFile);
       }
-   }
-
-   gLogEnabled |= force;
-
-   if (allocDict) {
-      g_key_file_free(cfg);
+      g_free(currentPath);
    }
 }
 
@@ -891,28 +785,27 @@ Panic(const char *fmt, ...)
 {
    va_list args;
 
+   gPanicCount++;
    va_start(args, fmt);
-   if (gPanicCount == 0) {
+   if (gPanicCount == 1) {
       g_logv(gLogDomain, G_LOG_LEVEL_ERROR, fmt, args);
-      /*
-       * In case an user-installed custom handler doesn't panic on error, force a
-       * core dump. Also force a dump in the recursive case.
-       */
-      VMToolsLogPanic();
-   } else if (gPanicCount == 1) {
-      /*
-       * Use a stack allocated string since we're in a recursive panic, so
-       * probably already in a weird state.
-       */
-      gchar msg[1024];
-      g_vsnprintf(msg, sizeof msg, fmt, args);
-      fprintf(stderr, "Recursive panic: %s\n", msg);
-      VMToolsLogPanic();
    } else {
-      fprintf(stderr, "Recursive panic, giving up.\n");
-      exit(-1);
+      char *msg;
+      g_vasprintf(&msg, fmt, args);
+      if (gPanicCount == 2) {
+         fprintf(stderr, "Recursive panic: %s\n", msg);
+      } else {
+         fprintf(stderr, "Recursive panic, giving up: %s\n", msg);
+         exit(-1);
+      }
+      g_free(msg);
    }
    va_end(args);
+   /*
+    * In case an user-installed custom handler doesn't panic on error, force a
+    * core dump. Also force a dump in the recursive case.
+    */
+   VMToolsLogPanic();
 }
 
 

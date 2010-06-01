@@ -38,8 +38,27 @@
  */
 
 int LOGLEVEL_THRESHOLD = 4;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 module_param(LOGLEVEL_THRESHOLD, int, 0444);
+#else
+MODULE_PARM(LOGLEVEL_THRESHOLD, "i");
+#endif
+
 MODULE_PARM_DESC(LOGLEVEL_THRESHOLD, "Set verbosity (0 means no log, 10 means very verbose, 4 is default)");
+#endif
+
+char *HOST_IP = NULL;
+int HOST_PORT = 2000; /* Defaulted to 2000. */
+int HOST_VSOCKET_PORT = 0; /* Disabled by default. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
+module_param(HOST_IP, charp, 0444);
+module_param(HOST_PORT, int, 0444);
+module_param(HOST_VSOCKET_PORT, int, 0444);
+#else
+MODULE_PARM(HOST_IP, "s");
+MODULE_PARM(HOST_PORT, "i");
+MODULE_PARM(HOST_VSOCKET_PORT, "i");
 #endif
 
 /* Module information. */
@@ -47,7 +66,6 @@ MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Host/Guest File System");
 MODULE_VERSION(VMHGFS_DRIVER_VERSION_STRING);
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("vmware_vmhgfs");
 /*
  * Starting with SLE10sp2, Novell requires that IHVs sign a support agreement
  * with them and mark their kernel modules as externally supported via a

@@ -27,7 +27,6 @@
 
 #include <rpc/rpc.h>
 #include "vm_basic_types.h"
-#include "util.h"
 
 /*
  * Helper macros for iterating over an rpcgen-generated array. Given a struct S:
@@ -59,62 +58,11 @@
  * Wrapper for XdrUtil_ArrayAppend that automatically populates the arguments
  * from a given XDR array.
  */
-#ifdef __GNUC__
-#   define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                 \
-       (typeof ((ptr)->field.field##_val))                      \
-       XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val, \
-                           &(ptr)->field.field##_len,           \
-                           sizeof *(ptr)->field.field##_val,    \
-                           (cnt))
-#else
-#   define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                 \
-       XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val, \
-                           &(ptr)->field.field##_len,           \
-                           sizeof *(ptr)->field.field##_val,    \
-                           (cnt))
-#endif
-
-/*
- * Macros for assigning to XDR optional strings, opaque fields, and
- * optional opaque fields.
- *
- * Usage:
- * // XDR
- * struct MyFoo { string *foo; };
- * struct MyBar { opaque bar; };
- * struct MyOptBar { opaque *bar; };
- *
- * // C
- * char buf[] = { 0xca, 0xfe, 0xba, 0xbe, 0x80, 0x08 };
- *
- * MyFoo foo;
- * XDRUTIL_STRING_OPT(&foo.foo, "Hello, world!");
- *
- * MyBar bar;
- * XDRUTIL_OPAQUE(&bar.bar, buf, sizeof buf);
- *
- * MyOptBar obar;
- * XDRUTIL_OPAQUE_OPT(&obar.bar, buf, sizeof buf);
- */
-
-#define XDRUTIL_STRING_OPT(ptr, src)                            do {    \
-   (ptr) = Util_SafeMalloc(sizeof *(ptr));                              \
-   *(ptr) = Util_SafeStrdup((src));                                     \
-} while (0)
-
-#define XDRUTIL_OPAQUE(ptr, src, srcSize)                       do {    \
-   struct { u_int len; char *val; } __opaque_temp = {(srcSize), NULL};  \
-   ASSERT_ON_COMPILE(sizeof(*(ptr)) == sizeof(__opaque_temp));          \
-                                                                        \
-   __opaque_temp.val = Util_SafeMalloc((srcSize));                      \
-   memcpy(__opaque_temp.val, (src), (srcSize));                         \
-   memcpy(ptr, &__opaque_temp, sizeof __opaque_temp);                   \
-} while (0)
-
-#define XDRUTIL_OPAQUE_OPT(ptr, src, srcSize)                   do {    \
-   *(ptr) = Util_SafeMalloc(sizeof (struct { u_len; void*; }));         \
-   XDRUTIL_OPAQUE(*(ptr), (src), (srcSize));                            \
-} while(0)
+#define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                \
+   XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val, \
+                       &(ptr)->field.field##_len,           \
+                       sizeof *(ptr)->field.field##_val,    \
+                       (cnt))
 
 void *
 XdrUtil_ArrayAppend(void **array, u_int *arrayLen, size_t elemSz, u_int elemCnt);

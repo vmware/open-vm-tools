@@ -30,8 +30,6 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-#include "vm_basic_defs.h"
-
 #ifndef VMKERNEL
 #include <string.h>
 #endif

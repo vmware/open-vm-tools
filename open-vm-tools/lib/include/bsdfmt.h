@@ -122,12 +122,16 @@ char *BSDFmt_UJToA(uintmax_t, char *, int, int, const char *, int, char,
 
 
 /*
+ * Pretend to have wcsrtombs() and wcrtomb().
  * Don't use typedef for mbstate_t because it's actually defined
- * in VS2003/VC7/include/wchar.h -- edward
+ * in VS2003/VC7/include/wchar.h, but the functions don't exist.
+ * I don't know why, nor do I care.  -- edward
  */
 
 #ifdef _WIN32
 #define mbstate_t int
+#define wcsrtombs(dest, srcp, n, state) wcstombs(dest, *(srcp), n)
+#define wcrtomb(dest, wc, state) wctomb(dest, wc)
 #endif
 
 

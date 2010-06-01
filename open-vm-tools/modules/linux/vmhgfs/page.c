@@ -32,7 +32,9 @@
 #include "compat_fs.h"
 #include "compat_kernel.h"
 #include "compat_pagemap.h"
+#ifdef HGFS_ENABLE_WRITEBACK
 #include <linux/writeback.h>
+#endif
 
 #include "cpName.h"
 #include "hgfsProto.h"
@@ -43,17 +45,15 @@
 #include "inode.h"
 #include "vm_assert.h"
 #include "vm_basic_types.h"
-#include "hgfsTransport.h"
-
 
 /* Private functions. */
 static int HgfsDoWrite(HgfsHandle handle,
-                       HgfsDataPacket dataPacket[],
-                       uint32 numEntries,
+                       const char *buf,
+                       size_t count,
                        loff_t offset);
 static int HgfsDoRead(HgfsHandle handle,
-                      HgfsDataPacket dataPacket[],
-                      uint32 numEntries,
+                      char *buf,
+                      size_t count,
                       loff_t offset);
 static int HgfsDoReadpage(HgfsHandle handle,
                           struct page *page,
@@ -76,8 +76,12 @@ static int HgfsDoWriteEnd(struct file *file,
 /* HGFS address space operations. */
 static int HgfsReadpage(struct file *file,
                         struct page *page);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 52)
 static int HgfsWritepage(struct page *page,
                          struct writeback_control *wbc);
+#else
+static int HgfsWritepage(struct page *page);
+#endif
 
 /*
  * Write aop interface has changed in 2.6.28. Specifically,
@@ -124,7 +128,9 @@ struct address_space_operations HgfsAddressSpaceOperations = {
    .prepare_write = HgfsPrepareWrite,
    .commit_write  = HgfsCommitWrite,
 #endif
+#ifdef HGFS_ENABLE_WRITEBACK
    .set_page_dirty = __set_page_dirty_nobuffers,
+#endif
 };
 
 
@@ -145,8 +151,6 @@ struct address_space_operations HgfsAddressSpaceOperations = {
  *    It is assumed that this function is never called with a larger read than
  *    what can be sent in one request.
  *
- *    HgfsDataPacket is an array of pages into which data will be read.
- *
  * Results:
  *    Returns the number of bytes read on success, or an error on failure.
  *
@@ -157,10 +161,10 @@ struct address_space_operations HgfsAddressSpaceOperations = {
  */
 
 static int
-HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
-           HgfsDataPacket dataPacket[],   // IN/OUT: Data description
-           uint32 numEntries,             // IN: Number of entries in dataPacket
-           loff_t offset)                 // IN:  Offset at which to read
+HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
+           char *buf,          // OUT: Buffer to copy data into
+           size_t count,       // IN:  Number of bytes to read
+           loff_t offset)      // IN:  Offset at which to read
 {
    HgfsReq *req;
    HgfsOp opUsed;
@@ -168,11 +172,8 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
    uint32 actualSize = 0;
    char *payload = NULL;
    HgfsStatus replyStatus;
-   char *buf;
-   uint32 count;
-   ASSERT(numEntries == 1);
 
-   count = dataPacket[0].len;
+   ASSERT(buf);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -184,7 +185,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
 
  retry:
    opUsed = hgfsVersionRead;
-   if (opUsed == HGFS_OP_READ_FAST_V4) {
+   if (opUsed == HGFS_OP_READ_V3) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
 
@@ -197,31 +198,6 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       request->offset = offset;
       request->requiredSize = count;
       request->reserved = 0;
-      req->dataPacket = kmalloc(numEntries * sizeof req->dataPacket[0],
-                                GFP_KERNEL);
-      if (!req->dataPacket) {
-         LOG(4, (KERN_DEBUG "%s: Failed to allocate mem\n", __func__));
-         result = -ENOMEM;
-         goto out;
-      }
-      memcpy(req->dataPacket, dataPacket, numEntries * sizeof req->dataPacket[0]);
-      req->numEntries = numEntries;
-
-      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Read V4\n"));
-   } else if (opUsed == HGFS_OP_READ_V3) {
-      HgfsRequest *header;
-      HgfsRequestReadV3 *request;
-
-      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-      header->id = req->id;
-      header->op = opUsed;
-
-      request = (HgfsRequestReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
-      request->file = handle;
-      request->offset = offset;
-      request->requiredSize = count;
-      request->reserved = 0;
-      req->dataPacket = NULL;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRead *request;
@@ -232,9 +208,9 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       request->file = handle;
       request->offset = offset;
       request->requiredSize = count;
-      req->dataPacket = NULL;
       req->payloadSize = sizeof *request;
    }
+
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
@@ -245,9 +221,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
 
       switch (result) {
       case 0:
-         if (opUsed == HGFS_OP_READ_FAST_V4) {
-            actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
-         } else if (opUsed == HGFS_OP_READ_V3) {
+         if (opUsed == HGFS_OP_READ_V3) {
             actualSize = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
             payload = ((HgfsReplyReadV3 *)HGFS_REP_PAYLOAD_V3(req))->payload;
          } else {
@@ -263,7 +237,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
          }
 
          if (!actualSize) {
-            /* We got no bytes. */
+            /* We got no bytes, so don't need to copy to user. */
             LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: server returned "
                    "zero\n"));
             result = actualSize;
@@ -271,34 +245,19 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
          }
 
          /* Return result. */
-         if (opUsed == HGFS_OP_READ_V3 || opUsed == HGFS_OP_READ) {
-            buf = kmap(dataPacket[0].page) + dataPacket[0].offset;
-            ASSERT(buf);
-            memcpy(buf, payload, actualSize);
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: copied %u\n",
-                    actualSize));
-            kunmap(dataPacket[0].page);
-         }
+         memcpy(buf, payload, actualSize);
+         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: copied %u\n",
+                 actualSize));
          result = actualSize;
 	 break;
 
       case -EPROTO:
          /* Retry with older version(s). Set globally. */
-         switch (opUsed) {
-         case HGFS_OP_READ_FAST_V4:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Fast Read V4 not "
-                    "supported. Falling back to V3 Read.\n"));
-            hgfsVersionRead = HGFS_OP_READ_V3;
-            goto retry;
-
-         case HGFS_OP_READ_V3:
+         if (opUsed == HGFS_OP_READ_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Version 3 not "
                     "supported. Falling back to version 1.\n"));
             hgfsVersionRead = HGFS_OP_READ;
             goto retry;
-
-         default:
-            break;
          }
 	 break;
 
@@ -316,9 +275,6 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
    }
 
 out:
-   if (req->dataPacket) {
-      kfree(req->dataPacket);
-   }
    HgfsFreeRequest(req);
    return result;
 }
@@ -338,9 +294,6 @@ out:
  *    It is assumed that this function is never called with a larger write
  *    than what can be sent in one request.
  *
- *    HgfsDataPacket is an array of pages from which data will be written
- *    to file.
- *
  * Results:
  *    Returns the number of bytes written on success, or an error on failure.
  *
@@ -351,10 +304,10 @@ out:
  */
 
 static int
-HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
-            HgfsDataPacket dataPacket[],   // IN: Data description
-            uint32 numEntries,             // IN: Number of entries in dataPacket
-            loff_t offset)                 // IN: Offset to begin writing at
+HgfsDoWrite(HgfsHandle handle,       // IN: Handle for this file
+            const char *buf,         // IN: Buffer containing data
+            size_t count,            // IN: Number of bytes to write
+            loff_t offset)           // IN: Offset to begin writing at
 {
    HgfsReq *req;
    int result = 0;
@@ -364,11 +317,8 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
    char *payload = NULL;
    uint32 reqSize;
    HgfsStatus replyStatus;
-   char *buf;
-   uint32 count;
-   ASSERT(numEntries == 1);
 
-   count = dataPacket[0].len;
+   ASSERT(buf);
 
    req = HgfsGetNewRequest();
    if (!req) {
@@ -380,36 +330,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
 
  retry:
    opUsed = hgfsVersionWrite;
-   if (opUsed == HGFS_OP_WRITE_FAST_V4) {
-      HgfsRequest *header;
-      HgfsRequestWriteV3 *request;
-
-      header = (HgfsRequest *)(HGFS_REQ_PAYLOAD(req));
-      header->id = req->id;
-      header->op = opUsed;
-
-      request = (HgfsRequestWriteV3 *)(HGFS_REQ_PAYLOAD_V3(req));
-      request->file = handle;
-      request->flags = 0;
-      request->offset = offset;
-      request->requiredSize = count;
-      request->reserved = 0;
-      payload = request->payload;
-      requiredSize = request->requiredSize;
-
-      req->dataPacket = kmalloc(numEntries * sizeof req->dataPacket[0],
-                                GFP_KERNEL);
-      if (!req->dataPacket) {
-         LOG(4, (KERN_DEBUG "%s: Failed to allocate mem\n", __func__));
-         result = -ENOMEM;
-         goto out;
-      }
-      memcpy(req->dataPacket, dataPacket, numEntries * sizeof req->dataPacket[0]);
-      req->numEntries = numEntries;
-      reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-      req->payloadSize = reqSize;
-      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Write V4\n"));
-   } else if (opUsed == HGFS_OP_WRITE_V3) {
+   if (opUsed == HGFS_OP_WRITE_V3) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
 
@@ -426,12 +347,6 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       payload = request->payload;
       requiredSize = request->requiredSize;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
-      req->dataPacket = NULL;
-      buf = kmap(dataPacket[0].page) + dataPacket[0].offset;
-      memcpy(payload, buf, requiredSize);
-      kunmap(dataPacket[0].page);
-
-      req->payloadSize = reqSize + requiredSize - 1;
    } else {
       HgfsRequestWrite *request;
 
@@ -445,13 +360,10 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       payload = request->payload;
       requiredSize = request->requiredSize;
       reqSize = sizeof *request;
-      req->dataPacket = NULL;
-      buf = kmap(dataPacket[0].page) + dataPacket[0].offset;
-      memcpy(payload, buf, requiredSize);
-      kunmap(dataPacket[0].page);
-
-      req->payloadSize = reqSize + requiredSize - 1;
    }
+
+   memcpy(payload, buf, requiredSize);
+   req->payloadSize = reqSize + requiredSize - 1;
 
    /* Send the request and process the reply. */
    result = HgfsSendRequest(req);
@@ -462,7 +374,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
 
       switch (result) {
       case 0:
-         if (opUsed == HGFS_OP_WRITE_V3 || opUsed == HGFS_OP_WRITE_FAST_V4) {
+         if (opUsed == HGFS_OP_WRITE_V3) {
             actualSize = ((HgfsReplyWriteV3 *)HGFS_REP_PAYLOAD_V3(req))->actualSize;
          } else {
             actualSize = ((HgfsReplyWrite *)HGFS_REQ_PAYLOAD(req))->actualSize;
@@ -476,21 +388,11 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
 
       case -EPROTO:
          /* Retry with older version(s). Set globally. */
-         switch (opUsed) {
-         case HGFS_OP_WRITE_FAST_V4:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Fast Write V4 not "
-                    "supported. Falling back to V3 write.\n"));
-            hgfsVersionRead = HGFS_OP_WRITE_V3;
-            goto retry;
-
-         case HGFS_OP_WRITE_V3:
+         if (opUsed == HGFS_OP_WRITE_V3) {
             LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Version 3 not "
                     "supported. Falling back to version 1.\n"));
             hgfsVersionWrite = HGFS_OP_WRITE;
             goto retry;
-
-         default:
-            break;
          }
          break;
 
@@ -510,9 +412,6 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
    }
 
 out:
-   if (req->dataPacket) {
-      kfree(req->dataPacket);
-   }
    HgfsFreeRequest(req);
    return result;
 }
@@ -545,9 +444,9 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
                unsigned pageTo)    // IN:     Where to stop reading
 {
    int result = 0;
+   char *buffer = kmap(page) + pageFrom;
    loff_t curOffset = ((loff_t)page->index << PAGE_CACHE_SHIFT) + pageFrom;
    size_t nextCount, remainingCount = pageTo - pageFrom;
-   HgfsDataPacket dataPacket[1];
 
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoReadpage: read %Zu bytes from fh %u "
            "at offset %Lu\n", remainingCount, handle, curOffset));
@@ -561,10 +460,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
    do {
       nextCount = (remainingCount > HGFS_IO_MAX) ?
          HGFS_IO_MAX : remainingCount;
-      dataPacket[0].page = page;
-      dataPacket[0].offset = pageFrom;
-      dataPacket[0].len = nextCount;
-      result = HgfsDoRead(handle, dataPacket, 1, curOffset);
+      result = HgfsDoRead(handle, buffer, nextCount, curOffset);
       if (result < 0) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoReadpage: read error %d\n",
                  result));
@@ -572,7 +468,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
       }
       remainingCount -= result;
       curOffset += result;
-      pageFrom += result;
+      buffer += result;
    } while ((result > 0) && (remainingCount > 0));
 
    /*
@@ -580,11 +476,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
     * than a page in the file from this offset, so we should zero the rest of
     * the page's memory.
     */
-   if (remainingCount) {
-      char *buffer = kmap(page) + pageTo;
-      memset(buffer - remainingCount, 0, remainingCount);
-      kunmap(page);
-   }
+   memset(buffer, 0, remainingCount);
 
    /*
     * We read a full page (or all of the page that actually belongs to the
@@ -596,6 +488,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
    result = 0;
 
   out:
+   kunmap(page);
    return result;
 }
 
@@ -641,11 +534,11 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
                 unsigned pageTo)    // IN: Ending page offset
 {
    int result = 0;
+   char *buffer = kmap(page) + pageFrom;
    loff_t curOffset = ((loff_t)page->index << PAGE_CACHE_SHIFT) + pageFrom;
    size_t nextCount;
    size_t remainingCount = pageTo - pageFrom;
    struct inode *inode;
-   HgfsDataPacket dataPacket[1];
 
    ASSERT(page->mapping);
    ASSERT(page->mapping->host);
@@ -660,10 +553,7 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
    do {
       nextCount = (remainingCount > HGFS_IO_MAX) ?
          HGFS_IO_MAX : remainingCount;
-      dataPacket[0].page = page;
-      dataPacket[0].offset = pageFrom;
-      dataPacket[0].len = nextCount;
-      result = HgfsDoWrite(handle, dataPacket, 1, curOffset);
+      result = HgfsDoWrite(handle, buffer, nextCount, curOffset);
       if (result < 0) {
          LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWritepage: write error %d\n",
                  result));
@@ -671,7 +561,7 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
       }
       remainingCount -= result;
       curOffset += result;
-      pageFrom += result;
+      buffer += result;
 
       /* Update the inode's size now rather than waiting for a revalidate. */
       if (curOffset > compat_i_size_read(inode)) {
@@ -682,6 +572,7 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
    result = 0;
 
   out:
+   kunmap(page);
    return result;
 }
 
@@ -755,9 +646,14 @@ HgfsReadpage(struct file *file, // IN:     File to read from
  *-----------------------------------------------------------------------------
  */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 52)
 static int
 HgfsWritepage(struct page *page,             // IN: Page to write from
               struct writeback_control *wbc) // IN: Ignored
+#else
+static int
+HgfsWritepage(struct page *page)             // IN: Page to write from
+#endif
 {
    struct inode *inode;
    HgfsHandle handle;
@@ -863,6 +759,9 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
                  unsigned pageFrom,         // IN: Starting page offset
                  unsigned pageTo)           // IN: Ending page offset
 {
+#ifndef HGFS_ENABLE_WRITEBACK
+   ASSERT(page);
+#else
    loff_t offset;
    loff_t currentFileSize;
 
@@ -889,6 +788,7 @@ HgfsDoWriteBegin(struct page *page,         // IN: Page to be written
       kunmap_atomic(kaddr, KM_USER0);
       flush_dcache_page(page);
    }
+#endif
 }
 
 
@@ -919,6 +819,18 @@ HgfsPrepareWrite(struct file *file,  // IN: Ignored
 {
    HgfsDoWriteBegin(page, pageFrom, pageTo);
 
+   /*
+    * Prior to 2.4.10, our caller expected to call page_address(page) between
+    * the calls to prepare_write() and commit_write(). This meant filesystems
+    * had to kmap() the page in prepare_write() and kunmap() it in
+    * commit_write(). In 2.4.10, the call to page_address() was replaced with
+    * __copy_to_user(), and while its not clear to me why this is safer,
+    * nfs_prepare_write() dropped the kmap()/kunmap() calls in the same patch,
+    * so the two events must be related.
+    */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 10)
+   kmap(page);
+#endif
    return 0;
 }
 
@@ -1009,6 +921,11 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
    currentFileSize = compat_i_size_read(inode);
    offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
 
+   /* See comment in HgfsPrepareWrite. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 10)
+   kunmap(page);
+#endif
+
    if (writeTo > currentFileSize) {
       compat_i_size_write(inode, writeTo);
    }
@@ -1018,6 +935,7 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
       SetPageUptodate(page);
    }
 
+#ifdef HGFS_ENABLE_WRITEBACK
    /*
     * Check if this is a partial write to a new page, which was
     * initialized in HgfsDoWriteBegin.
@@ -1035,7 +953,7 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
       set_page_dirty(page);
       return 0;
    }
-
+#endif
    /*
     * We've recieved a partial write to page that is not uptodate, so
     * do the write now while the page is still locked.  Another

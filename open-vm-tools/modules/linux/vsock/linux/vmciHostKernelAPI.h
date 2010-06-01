@@ -42,33 +42,30 @@
 #define VMCI_MINOR_VERSION(v)       ((v) & 0xffff)
 
 #include "vmci_defs.h"
+#if defined(VMKERNEL)
+#include "vm_atomic.h"
+#include "return_status.h"
+#include "util_copy_dist.h"
+#endif
 #include "vmci_call_defs.h"
 
-#include "vmciQueue.h"
+#if !defined(VMKERNEL)
+#include "vmci_queue_pair.h"
+#endif
 
 
-/* PUBLIC: VMCI Device Usage API. */
-
-#if defined(_WIN32)
-Bool VMCI_DeviceGet(void);
-void VMCI_DeviceRelease(void);
-#else // _WIN32
-#  define VMCI_DeviceGet() TRUE
-#  define VMCI_DeviceRelease()
-#endif // _WIN32
-
-/* PUBLIC: VMCI Datagram API. */
+/* VMCI Datagram API. */
 
 int VMCIHost_DatagramCreateHnd(VMCIId resourceID, uint32 flags,
-                               VMCIDatagramRecvCB recvCB, void *clientData,
-                               VMCIHandle *outHandle);
+  			       VMCIDatagramRecvCB recvCB, void *clientData,
+			       VMCIHandle *outHandle);
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
-                           VMCIDatagramRecvCB recvCB, void *clientData,
-                           VMCIHandle *outHandle);
+			   VMCIDatagramRecvCB recvCB, void *clientData,
+			   VMCIHandle *outHandle);
 int VMCIDatagram_CreateHndPriv(VMCIId resourceID, uint32 flags,
-                               VMCIPrivilegeFlags privFlags,
-                               VMCIDatagramRecvCB recvCB, void *clientData,
-                               VMCIHandle *outHandle);
+			       VMCIPrivilegeFlags privFlags,
+			       VMCIDatagramRecvCB recvCB, void *clientData,
+			       VMCIHandle *outHandle);
 int VMCIDatagram_DestroyHnd(VMCIHandle handle);
 int VMCIDatagram_Send(VMCIDatagram *msg);
 
@@ -84,7 +81,7 @@ int VMCI_ContextID2HostVmID(VMCIId contextID, void *hostVmID,
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
 			     void *clientData);
 
-int VMCIEvent_Subscribe(VMCI_Event event, uint32 flags, VMCI_EventCB callback,
+int VMCIEvent_Subscribe(VMCI_Event event, VMCI_EventCB callback,
                         void *callbackData, VMCIId *subID);
 int VMCIEvent_Unsubscribe(VMCIId subID);
 
@@ -92,18 +89,70 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 
 VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID);
 
-/* VMCI Doorbell API. */
+/*
+ * Queue pair operations for manipulating the content of a queue
+ * pair are defined in vmci_queue_pair.h for non-vmkernel hosts.
+ * Here we define the API for allocating and detaching from queue
+ * pairs for all hosts, and content manipulation functions for
+ * VMKERNEL.
+ */
 
-#define VMCI_FLAG_DELAYED_CB    0x01
+#if defined(VMKERNEL)
 
-typedef void (*VMCICallback)(void *clientData);
+/*
+ * For guest kernels, the VMCIQueue is directly mapped onto the
+ * metadata page of the queue. In vmkernel, we use the VMCIQueue
+ * structure to store the information necessary to retrieve the MPNs
+ * of the queue. By redefining the structure, queue pair code using
+ * the API below will be portable between guests and host kernels.
+ */
 
-int VMCIDoorbell_Create(VMCIHandle *handle, uint32 flags,
-                        VMCIPrivilegeFlags privFlags,
-                        VMCICallback notifyCB, void *clientData);
-int VMCIDoorbell_Destroy(VMCIHandle handle);
-int VMCIDoorbell_Notify(VMCIHandle handle,
-                        VMCIPrivilegeFlags privFlags);
+typedef struct VMCIQueue {
+   uint32 offset;                // Start page of queue in backing store
+   uint32 len;                   // Number of pages in the queue
+   struct QueuePairEntry *entry; // Endpoint state for the queue pair
+} VMCIQueue;
+
+/* VMCI Queuepair API  */
+void VMCIQueue_Init(const VMCIHandle handle, VMCIQueue *queue);
+void VMCIQueue_GetPointers(const VMCIQueue *produceQ, const VMCIQueue *consumeQ,
+                           uint64 *producerTail, uint64 *consumerHead);
+int64 VMCIQueue_FreeSpace(const VMCIQueue *produceQueue,
+                          const VMCIQueue *consumeQueue,
+                          const uint64 produceQSize);
+int64 VMCIQueue_BufReady(const VMCIQueue *consumeQueue,
+                         const VMCIQueue *produceQueue,
+                         const uint64 consumeQSize);
+ssize_t VMCIQueue_Enqueue(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                          const uint64 produceQSize, const void *buf,
+                          size_t bufSize, Util_BufferType bufType);
+ssize_t VMCIQueue_Peek(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                       const uint64 consumeQSize, void *buf,
+                       size_t bufSize, Util_BufferType bufType);
+ssize_t VMCIQueue_PeekV(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                        const uint64 consumeQSize, void *buf,
+                        size_t bufSize, Util_BufferType bufType);
+ssize_t VMCIQueue_Discard(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                          const uint64 consumeQSize, size_t bufSize);
+ssize_t VMCIQueue_Dequeue(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                          const uint64 consumeQSize, void *buf,
+                          size_t bufSize, Util_BufferType bufType);
+ssize_t VMCIQueue_EnqueueV(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                           const uint64 produceQSize, const void *buf,
+                           size_t bufSize, Util_BufferType bufType);
+ssize_t VMCIQueue_DequeueV(VMCIQueue *produceQueue, const VMCIQueue *consumeQueue,
+                           const uint64 consumeQSize, void *buf,
+                           size_t bufSize, Util_BufferType bufType);
+#endif	/* VMKERNEL  */
+
+int VMCIQueuePair_Alloc(VMCIHandle *handle, VMCIQueue **produceQ,
+                        uint64 produceSize, VMCIQueue **consumeQ,
+                        uint64 consumeSize, VMCIId peer, uint32 flags);
+int VMCIQueuePair_AllocPriv(VMCIHandle *handle, VMCIQueue **produceQ,
+                            uint64 produceSize, VMCIQueue **consumeQ,
+                            uint64 consumeSize, VMCIId peer, uint32 flags,
+                            VMCIPrivilegeFlags privFlags);
+int VMCIQueuePair_Detach(VMCIHandle handle);
 
 #endif /* !__VMCI_HOSTKERNELAPI_H__ */
 

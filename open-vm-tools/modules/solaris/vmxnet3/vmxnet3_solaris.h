@@ -39,9 +39,6 @@
 #include <sys/strsubr.h>
 #include <sys/pattr.h>
 #include <sys/mac.h>
-#ifdef OPEN_SOLARIS
-#  include <sys/mac_provider.h>
-#endif
 #include <sys/mac_ether.h>
 #include <inet/common.h>
 #include <inet/ip.h>

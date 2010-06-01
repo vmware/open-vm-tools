@@ -15,11 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-plugindir = @TEST_PLUGIN_INSTALLDIR@
-plugin_LTLIBRARIES = libtestPlugin.la
+noinst_LTLIBRARIES = libtestPlugin.la
 
 libtestPlugin_la_CPPFLAGS =
-libtestPlugin_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 
@@ -27,7 +25,6 @@ libtestPlugin_la_LDFLAGS =
 libtestPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libtestPlugin_la_LIBADD =
-libtestPlugin_la_LIBADD += @CUNIT_LIBS@
 libtestPlugin_la_LIBADD += @GOBJECT_LIBS@
 libtestPlugin_la_LIBADD += @VMTOOLS_LIBS@
 libtestPlugin_la_LIBADD += @XDR_LIBS@

@@ -43,7 +43,6 @@ typedef enum {
    PARTITION_FAT,
    PARTITION_UFS,
    PARTITION_PCFS,
-   PARTITION_EXT4
 } WiperPartition_Type;
 
 /* Max size of a path */

@@ -25,6 +25,7 @@
 #include "toolsCoreInt.h"
 #include "serviceObj.h"
 #include "svcSignals.h"
+#include "vmtoolsApp.h"
 
 
 /**
@@ -92,62 +93,6 @@ ToolsCoreCapabilitiesAccumulator(GSignalInvocationHint *ihint,
 }
 
 
-#if defined(_WIN32)
-/**
- * Accumulator function for the "service control" signal. Updates the return
- * value according to the signal's documentation.
- *
- * The gobject library initializes the return value to "0" regardless of
- * what the signal emitter sets it to. So the accumulator does two things
- * to have a non-zero default return value:
- *
- *    - if the current return value is zero, it's set to the default return
- *      value (ERROR_CALL_NOT_IMPLEMENTED).
- *    - the return value is always offset by one; so the signal emitter
- *      should decrement the return value when looking at it.
- *
- * @param[in]     ihint       Unused.
- * @param[in,out] retval      Return value of the signal (offset by 1).
- * @param[in]     handlerRet  Return value from the current handler.
- * @param[in]     data        Unused.
- *
- * @return TRUE.
- */
-
-static gboolean
-ToolsCoreServiceControlAccumulator(GSignalInvocationHint *ihint,
-                                   GValue *retval,
-                                   const GValue *handlerRet,
-                                   gpointer data)
-{
-   guint ret = g_value_get_uint(retval);
-   guint handlerVal = g_value_get_uint(handlerRet);
-
-   if (ret == 0) {
-      ret = ERROR_CALL_NOT_IMPLEMENTED + 1;
-   }
-
-   switch (ret) {
-   case ERROR_CALL_NOT_IMPLEMENTED + 1:
-      ret = handlerVal + 1;
-      break;
-
-   case NO_ERROR + 1:
-      if (handlerVal != ERROR_CALL_NOT_IMPLEMENTED) {
-         ret = handlerVal + 1;
-      }
-      break;
-
-   default:
-      break;
-   }
-
-   g_value_set_uint(retval, ret);
-   return TRUE;
-}
-#endif
-
-
 /**
  * Initializes the ToolsCoreService class. Sets up the signals that are sent
  * by the vmtoolsd service.
@@ -171,16 +116,6 @@ ToolsCore_Service_class_init(gpointer _klass,
                 2,
                 G_TYPE_POINTER,
                 G_TYPE_BOOLEAN);
-   g_signal_new(TOOLS_CORE_SIG_CONF_RELOAD,
-                G_OBJECT_CLASS_TYPE(klass),
-                G_SIGNAL_RUN_LAST,
-                0,
-                NULL,
-                NULL,
-                g_cclosure_marshal_VOID__POINTER,
-                G_TYPE_NONE,
-                1,
-                G_TYPE_POINTER);
    g_signal_new(TOOLS_CORE_SIG_DUMP_STATE,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,
@@ -224,19 +159,29 @@ ToolsCore_Service_class_init(gpointer _klass,
                 1,
                 G_TYPE_POINTER);
 #if defined(G_PLATFORM_WIN32)
-   g_signal_new(TOOLS_CORE_SIG_SERVICE_CONTROL,
+   g_signal_new(TOOLS_CORE_SIG_SESSION_CHANGE,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,
                 0,
-                ToolsCoreServiceControlAccumulator,
                 NULL,
-                g_cclosure_user_marshal_UINT__POINTER_POINTER_UINT_UINT_POINTER,
-                G_TYPE_UINT,
-                5,
+                NULL,
+                g_cclosure_user_marshal_VOID__POINTER_UINT_UINT,
+                G_TYPE_NONE,
+                3,
                 G_TYPE_POINTER,
+                G_TYPE_UINT,
+                G_TYPE_UINT);
+
+   g_signal_new(TOOLS_CORE_SIG_PRESHUTDOWN,
+                G_OBJECT_CLASS_TYPE(klass),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_user_marshal_VOID__POINTER_POINTER,
+                G_TYPE_NONE,
+                2,
                 G_TYPE_POINTER,
-                G_TYPE_UINT,
-                G_TYPE_UINT,
                 G_TYPE_POINTER);
 #endif
 }

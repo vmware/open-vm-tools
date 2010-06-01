@@ -123,8 +123,7 @@ VMCIPtrToVA64(void const *ptr) // IN
  * driver.
  */
 
-#define VMCI_VERSION                VMCI_VERSION_NOTIFY
-#define VMCI_VERSION_NOTIFY         VMCI_MAKE_VERSION(10, 0)
+#define VMCI_VERSION                VMCI_VERSION_HOSTQP
 #define VMCI_VERSION_HOSTQP         VMCI_MAKE_VERSION(9, 0)
 #define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
 #define VMCI_VERSION_PREVERS2       VMCI_MAKE_VERSION(1, 0)
@@ -171,25 +170,10 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(INIT_CONTEXT),
    IOCTLCMD(CREATE_PROCESS),
    IOCTLCMD(CREATE_DATAGRAM_PROCESS),
-
-   /*
-    * The following two used to be for shared memory.  An old WS6 user-mode
-    * client might try to use them with the new driver.  Since they are issued
-    * in user-mode they will fail, since the IOCTLs replacing them are
-    * kernel-mode only.
-    */
-   IOCTLCMD(CREATE_DATAGRAM_HANDLE),
-   IOCTLCMD(DESTROY_DATAGRAM_HANDLE),
-
-   /*
-    * The follwoing two were also used to be for shared memory. An old
-    * WS6 user-mode client might try to use them with the new driver,
-    * but since we ensure that only contexts created by VMX'en of the
-    * appropriate version (VMCI_VERSION_NOTIFY) or higher use this
-    * ioctl, everything is fine.
-    */
-   IOCTLCMD(NOTIFY_RESOURCE),
-   IOCTLCMD(NOTIFICATIONS_RECEIVE),
+   IOCTLCMD(SHAREDMEM_CREATE),
+   IOCTLCMD(SHAREDMEM_ATTACH),
+   IOCTLCMD(SHAREDMEM_QUERY),
+   IOCTLCMD(SHAREDMEM_DETACH),
    IOCTLCMD(VERSION2),
    IOCTLCMD(QUEUEPAIR_ALLOC),
    IOCTLCMD(QUEUEPAIR_SETPAGEFILE),
@@ -271,7 +255,6 @@ enum IOCTLCmd_VMCI {
  * or opening the device in kernel-mode, and are always in UNICODE.
  */
 #define VMCI_DEVICE_NAME         TEXT("\\\\.\\VMCI")
-#define VMCI_DEVICE_NAME_NT      L"\\??\\VMCI"
 #define VMCI_DEVICE_NAME_PATH    L"\\Device\\vmci"
 #define VMCI_DEVICE_LINK_PATH    L"\\DosDevices\\vmci"
 
@@ -297,14 +280,14 @@ enum IOCTLCmd_VMCI {
 #define IOCTL_VMCI_CREATE_DATAGRAM_PROCESS \
                VMCIIOCTL_BUFFERED(CREATE_DATAGRAM_PROCESS)
 #define IOCTL_VMCI_HYPERCALL            VMCIIOCTL_BUFFERED(HYPERCALL)
-#define IOCTL_VMCI_CREATE_DATAGRAM_HANDLE  \
-               VMCIIOCTL_BUFFERED(CREATE_DATAGRAM_HANDLE)
-#define IOCTL_VMCI_DESTROY_DATAGRAM_HANDLE  \
-               VMCIIOCTL_BUFFERED(DESTROY_DATAGRAM_HANDLE)
-#define IOCTL_VMCI_NOTIFY_RESOURCE    \
-               VMCIIOCTL_BUFFERED(NOTIFY_RESOURCE)
-#define IOCTL_VMCI_NOTIFICATIONS_RECEIVE    \
-               VMCIIOCTL_BUFFERED(NOTIFICATIONS_RECEIVE)
+#define IOCTL_VMCI_SHAREDMEM_CREATE  \
+               VMCIIOCTL_BUFFERED(SHAREDMEM_CREATE)
+#define IOCTL_VMCI_SHAREDMEM_ATTACH  \
+               VMCIIOCTL_BUFFERED(SHAREDMEM_ATTACH)
+#define IOCTL_VMCI_SHAREDMEM_QUERY   \
+               VMCIIOCTL_BUFFERED(SHAREDMEM_QUERY)
+#define IOCTL_VMCI_SHAREDMEM_DETACH  \
+               VMCIIOCTL_BUFFERED(SHAREDMEM_DETACH)
 #define IOCTL_VMCI_VERSION2		VMCIIOCTL_BUFFERED(VERSION2)
 #define IOCTL_VMCI_QUEUEPAIR_ALLOC  \
                VMCIIOCTL_BUFFERED(QUEUEPAIR_ALLOC)
@@ -350,25 +333,23 @@ enum IOCTLCmd_VMCI {
                VMCIIOCTL_BUFFERED(SOCKETS_IOCTL)
 #define IOCTL_VMCI_SOCKETS_LISTEN \
                VMCIIOCTL_BUFFERED(SOCKETS_LISTEN)
+#define IOCTL_VMCI_SOCKETS_RECV \
+               VMCIIOCTL_BUFFERED(SOCKETS_RECV)
 #define IOCTL_VMCI_SOCKETS_RECV_FROM \
                VMCIIOCTL_BUFFERED(SOCKETS_RECV_FROM)
 #define IOCTL_VMCI_SOCKETS_SELECT \
                VMCIIOCTL_BUFFERED(SOCKETS_SELECT)
+#define IOCTL_VMCI_SOCKETS_SEND \
+               VMCIIOCTL_BUFFERED(SOCKETS_SEND)
 #define IOCTL_VMCI_SOCKETS_SEND_TO \
                VMCIIOCTL_BUFFERED(SOCKETS_SEND_TO)
 #define IOCTL_VMCI_SOCKETS_SET_SOCK_OPT \
                VMCIIOCTL_BUFFERED(SOCKETS_SET_SOCK_OPT)
 #define IOCTL_VMCI_SOCKETS_SHUTDOWN \
                VMCIIOCTL_BUFFERED(SOCKETS_SHUTDOWN)
+#define IOCTL_VMCI_SOCKETS_SOCKET \
+               VMCIIOCTL_BUFFERED(SOCKETS_SOCKET)
 /* END VMCI SOCKETS */
-
-
-/*
- * For accessing VMCIOBJ_SOCKET in IOCTLs.  Both functions take a file object's
- * fs context and get or set the socket.
- */
-PVOID VMCIFsContext_GetSocket(PVOID fsContext);
-void VMCIFsContext_SetSocket(PVOID fsContext, PVOID socket);
 
 #endif // _WIN32
 
@@ -399,15 +380,10 @@ typedef struct VMCIQueuePairAllocInfo {
    uint32     flags;
    uint64     produceSize;
    uint64     consumeSize;
-#if !defined(VMX86_SERVER) && !defined(VMKERNEL)
    VA64       producePageFile; /* User VA. */
    VA64       consumePageFile; /* User VA. */
    uint64     producePageFileSize; /* Size of the file name array. */
    uint64     consumePageFileSize; /* Size of the file name array. */ 
-#else
-   PPN *      PPNs;
-   uint64     numPPNs;
-#endif
    int32      result;
    uint32     _pad;
 } VMCIQueuePairAllocInfo;
@@ -450,12 +426,10 @@ typedef struct VMCIQueuePairPageFileInfo_NoHostQP {
 
 typedef struct VMCIQueuePairPageFileInfo {
    VMCIHandle handle;
-#if !defined(VMX86_SERVER) && !defined(VMKERNEL)
    VA64       producePageFile; /* User VA. */
    VA64       consumePageFile; /* User VA. */
    uint64     producePageFileSize; /* Size of the file name array. */
    uint64     consumePageFileSize; /* Size of the file name array. */
-#endif
    int32      result;
    uint32     version;   /* Was _pad. */
    VA64       produceVA; /* User VA of the mapped file. */
@@ -475,9 +449,9 @@ typedef struct VMCIDatagramSendRecvInfo {
 } VMCIDatagramSendRecvInfo;
 
 /* Used to create datagram endpoints in guest or host userlevel. */
-typedef struct VMCIDatagramCreateProcessInfo {
+typedef struct VMCIDatagramCreateInfo {
    VMCIId      resourceID;
-   uint32      flags;
+   uint32      flags; 
 #ifdef _WIN32
    int         eventHnd;
 #else
@@ -485,27 +459,7 @@ typedef struct VMCIDatagramCreateProcessInfo {
 #endif
    int         result;     // result of handle create operation
    VMCIHandle  handle;     // handle if successfull
-} VMCIDatagramCreateProcessInfo;
-
-/*
- * Used to create datagram endpoints in guest or host kernel-mode.  Note
- * that because this is kernel-mode only, we use pointers directly, rather
- * than VA64.
- */
-typedef struct VMCIDatagramCreateHandleInfo {
-   VMCIId             resourceID;
-   uint32             flags;
-   void               *recvCB;
-   void               *clientData;
-   int                result;
-   VMCIHandle         handle;
-} VMCIDatagramCreateHandleInfo;
-
-/* Used to destroy datagram endpoints in guest or host kernel-mode. */
-typedef struct VMCIDatagramDestroyHandleInfo {
-   int        result;
-   VMCIHandle handle;
-} VMCIDatagramDestroyHandleInfo;
+} VMCIDatagramCreateInfo;
 
 /* Used to add/remove well-known datagram mappings. */
 typedef struct VMCIDatagramMapInfo {
@@ -537,39 +491,32 @@ typedef struct VMCISetNotifyInfo {
    uint32      _pad;
 } VMCISetNotifyInfo;
 
-#define VMCI_NOTIFY_RESOURCE_QUEUE_PAIR 0 
-#define VMCI_NOTIFY_RESOURCE_DOOR_BELL  1
+/* User space daemon command numbers. */
+typedef enum VMCIDRequestType {
+    VMCID_REQ_NEW_PAGE_STORE,
+    VMCID_REQ_FREE_PAGE_STORE,
+    VMCID_REQ_ATTACH_PAGE_STORE,
+    VMCID_REQ_DETACH_PAGE_STORE,
+} VMCIDRequestType;
 
-#define VMCI_NOTIFY_RESOURCE_ACTION_NOTIFY  0 
-#define VMCI_NOTIFY_RESOURCE_ACTION_CREATE  1 
-#define VMCI_NOTIFY_RESOURCE_ACTION_DESTROY 2 
+#define VMCI_VMCID_INVALID_REQ  CONST64U(-1)
 
-/*
- * Used to create and destroy doorbells, and generate a notification
- * for a doorbell or queue pair.
- */
-
-typedef struct VMCINotifyResourceInfo {
-   VMCIHandle  handle;
-   uint16      resource;
-   uint16      action;
-   int32       result;
-} VMCINotifyResourceInfo;
-
-/*
- * Used to recieve pending notifications for doorbells and queue
- * pairs.
- */
-
-typedef struct VMCINotificationReceiveInfo {
-   VA64        dbHandleBufUVA;
-   uint64      dbHandleBufSize;
-   VA64        qpHandleBufUVA;
-   uint64      qpHandleBufSize;
-   int32       result;
-   uint32      _pad;
-} VMCINotificationReceiveInfo;
-
+/* Used to pass requests/responses to the user space daemon. */
+typedef struct VMCIDRpc {
+    uint64           reqId;
+    uint32           reqType;
+    uint32           reqResult;
+    /* Passing page file names */
+    VA64             producePageFile; /* User VA. */
+    VA64             consumePageFile; /* User VA. */
+    uint64           producePageFileSize; /* Size of the file name array. */
+    uint64           consumePageFileSize; /* Size of the file name array. */
+    /* Used for attach/detach */
+    VA64             produceVA;
+    VA64             consumeVA;
+    uint64           numProducePages;
+    uint64           numConsumePages;
+} VMCIDRpc;
 
 #ifdef __APPLE__
 /*
@@ -590,10 +537,10 @@ enum VMCrossTalkSockOpt {
    VMCI_SO_CONTEXT                  = IOCTL_VMCI_INIT_CONTEXT,
    VMCI_SO_PROCESS                  = IOCTL_VMCI_CREATE_PROCESS,
    VMCI_SO_DATAGRAM_PROCESS         = IOCTL_VMCI_CREATE_DATAGRAM_PROCESS,
-   VMCI_SO_DATAGRAM_HANDLE          = IOCTL_VMCI_CREATE_DATAGRAM_HANDLE,
-   VMCI_SO_DATAGRAM_DESTROY         = IOCTL_VMCI_DESTROY_DATAGRAM_HANDLE,
-   VMCI_SO_NOTIFY_RESOURCE          = IOCTL_VMCI_NOTIFY_RESOURCE,
-   VMCI_SO_NOTIFICATIONS_RECEIVE    = IOCTL_VMCI_NOTIFICATIONS_RECEIVE,
+   VMCI_SO_SHAREDMEM_CREATE         = IOCTL_VMCI_SHAREDMEM_CREATE,
+   VMCI_SO_SHAREDMEM_ATTACH         = IOCTL_VMCI_SHAREDMEM_ATTACH,
+   VMCI_SO_SHAREDMEM_QUERY          = IOCTL_VMCI_SHAREDMEM_QUERY,
+   VMCI_SO_SHAREDMEM_DETACH         = IOCTL_VMCI_SHAREDMEM_DETACH,
    VMCI_SO_VERSION2                 = IOCTL_VMCI_VERSION2,
    VMCI_SO_QUEUEPAIR_ALLOC          = IOCTL_VMCI_QUEUEPAIR_ALLOC,
    VMCI_SO_QUEUEPAIR_SETPAGEFILE    = IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE,

@@ -32,8 +32,8 @@
 #include "str.h"
 #include "strutil.h"
 #include "toolsCoreInt.h"
+#include "vmtools.h"
 #include "vm_tools_version.h"
-#include "vmware/tools/utils.h"
 
 
 /**
@@ -58,9 +58,7 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
       gchar *msg;
 
       app = ToolsCore_GetTcloName(state);
-      if (app == NULL) {
-         app = state->name;
-      }
+      g_assert(app != NULL);
 
       msg = g_strdup_printf("vmx.capability.unified_loop %s", app);
       if (!RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL)) {
@@ -73,7 +71,9 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
        * Log the Tools build number to the VMX log file. We don't really care
        * if sending the message fails.
        */
-      msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
+      msg = g_strdup_printf("log %s: Version: %s",
+                            ToolsCore_GetTcloName(state),
+                            BUILD_NUMBER);
       RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
       g_free(msg);
 
@@ -96,7 +96,7 @@ ToolsCoreCheckReset(struct RpcChannel *chan,
  * @return TRUE.
  */
 
-static gboolean
+static Bool
 ToolsCoreRpcCapReg(RpcInData *data)
 {
    char *confPath = GuestApp_GetConfPath();
@@ -163,10 +163,10 @@ ToolsCoreRpcCapReg(RpcInData *data)
  *
  * @param[in]  data     The RPC data.
  *
- * @return Whether the option was successfully processed.
+ * @return TRUE.
  */
 
-static gboolean
+static Bool
 ToolsCoreRpcSetOption(RpcInData *data)
 {
 
@@ -182,23 +182,29 @@ ToolsCoreRpcSetOption(RpcInData *data)
    index++;
    value = StrUtil_GetNextToken(&index, data->args, "");
 
-   if (option != NULL && value != NULL && strlen(value) != 0) {
-
-      g_debug("Setting option '%s' to '%s'.\n", option, value);
-      g_signal_emit_by_name(state->ctx.serviceObj,
-                            TOOLS_CORE_SIG_SET_OPTION,
-                            &state->ctx,
-                            option,
-                            value,
-                            &retVal);
+   if (option == NULL || value == NULL || strlen(value) == 0) {
+      goto exit;
    }
 
+   g_debug("Setting option '%s' to '%s'.\n", option, value);
+   g_key_file_set_string(state->ctx.config, state->ctx.name, option, value);
+
+   g_signal_emit_by_name(state->ctx.serviceObj,
+                         TOOLS_CORE_SIG_SET_OPTION,
+                         &state->ctx,
+                         option,
+                         value,
+                         &retVal);
+
+exit:
    vm_free(option);
    vm_free(value);
-
-   RPCIN_SETRETVALS(data, retVal ? "" : "Unknown or invalid option", retVal);
-
-   return retVal;
+   if (retVal) {
+      RPCIN_SETRETVALS(data, "", retVal);
+   } else {
+      RPCIN_SETRETVALS(data, "Unknown or invalid option", retVal);
+   }
+   return (Bool) retVal;
 }
 
 
@@ -223,7 +229,7 @@ ToolsCore_InitRpc(ToolsServiceState *state)
    const gchar *app;
    GMainContext *mainCtx = g_main_loop_get_context(state->ctx.mainLoop);
 
-   ASSERT(state->ctx.rpc == NULL);
+   g_assert(state->ctx.rpc == NULL);
 
    if (state->debugPlugin != NULL) {
       app = "debug";
@@ -244,13 +250,10 @@ ToolsCore_InitRpc(ToolsServiceState *state)
                    state->name);
          state->ctx.rpc = NULL;
       } else {
-         state->ctx.rpc = BackdoorChannel_New();
+         state->ctx.rpc = RpcChannel_NewBackdoorChannel(mainCtx);
       }
       app = ToolsCore_GetTcloName(state);
-      if (app == NULL) {
-         g_warning("Trying to start RPC channel for invalid %s container.", state->name);
-         return FALSE;
-      }
+      g_assert(app != NULL);
    }
 
    if (state->ctx.rpc) {

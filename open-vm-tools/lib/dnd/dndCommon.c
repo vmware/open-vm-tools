@@ -127,16 +127,16 @@ DnD_CreateStagingDirectory(void)
 
    /* Only create a directory if we didn't find one above. */
    if (!found) {
-      rqContext *context;
+      void *p;
 
-      context = Random_QuickSeed((unsigned)time(NULL));
+      p = Random_QuickSeed((unsigned)time(NULL));
 
       for (i = 0; i < 10; i++) {
          Unicode temp;
 
          /* Each staging directory is given a random name. */
          Unicode_Free(ret);
-         temp = Unicode_Format("%08x%c", Random_Quick(context), DIRSEPC);
+         temp = Unicode_Format("%08x%c", Random_Quick(p), DIRSEPC);
          ASSERT_MEM_ALLOC(temp);
          ret = Unicode_Append(root, temp);
          Unicode_Free(temp);
@@ -148,7 +148,7 @@ DnD_CreateStagingDirectory(void)
          }
       }
 
-      free(context);
+      free(p);
    }
 
 exit:

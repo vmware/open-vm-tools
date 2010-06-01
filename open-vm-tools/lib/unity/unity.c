@@ -53,6 +53,7 @@
 #include "guestrpc/unity.h"
 #include "guestrpc/unityActive.h"
 #include "guestrpc/unity.h"
+#include "guestCaps.h"
 #include "appUtil.h"
 #include "xdrutil.h"
 #include <stdio.h>

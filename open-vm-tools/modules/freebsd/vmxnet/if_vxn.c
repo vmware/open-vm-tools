@@ -23,7 +23,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
 
 /*
  * FreeBSD 5.3 introduced an MP-safe (multiprocessor-safe) network stack.
@@ -434,10 +433,6 @@ vxn_attach(device_t dev)
       VXN_IF_FREE(sc);
    }
 
-   pci_disable_io(dev, SYS_RES_IOPORT);
-   pci_disable_busmaster(dev);
-   VXN_MTX_DESTROY(&sc->vxn_mtx);
-
   done:
 
    splx(s);
@@ -480,14 +475,12 @@ vxn_detach(device_t dev)
    /*
     * Cleanup - release resources and memory
     */
-   VXN_IF_FREE(sc);
    contigfree(sc->vxn_dd, sc->vxn_dd->length, M_DEVBUF);
    bus_teardown_intr(dev, sc->vxn_irq, sc->vxn_intrhand);
    bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vxn_irq);
    bus_release_resource(dev, SYS_RES_IOPORT, VXN_PCIR_MAPS, sc->vxn_io);
-   pci_disable_io(dev, SYS_RES_IOPORT);
-   pci_disable_busmaster(dev);
    VXN_MTX_DESTROY(&sc->vxn_mtx);
+   VXN_IF_FREE(sc);
 
    splx(s);
    return 0;
@@ -1142,7 +1135,7 @@ vxn_rx(vxn_softc_t *sc)
                m_new = NULL;
             }
          }
-
+	
          /*
           * replace the current mbuf in the descriptor with the new one
           * and pass the packet up to the kernel
@@ -1262,14 +1255,9 @@ vxn_init_rings(vxn_softc_t *sc)
     */
    for (i = 0; i < sc->vxn_num_rx_bufs; i++) {
       struct mbuf *m_new = NULL;
-
-      /*
-       * Allocate an mbuf and initialize it to contain a packet header and
-       * internal data.
-       */
+	
       MGETHDR(m_new, M_DONTWAIT, MT_DATA);
       if (m_new != NULL) {
-         /* Allocate and attach an mbuf cluster to mbuf. */
          MCLGET(m_new, M_DONTWAIT);
          if (m_new->m_flags & M_EXT) {
             m_adj(m_new, ETHER_ALIGN);
@@ -1279,16 +1267,12 @@ vxn_init_rings(vxn_softc_t *sc)
             sc->vxn_rx_buffptr[i] = m_new;
             sc->vxn_rx_ring[i].ownership = VMXNET2_OWNERSHIP_NIC;
          } else {
-            /*
-             * Allocation and attachment of mbuf clusters failed.
-             */
             m_freem(m_new);
             m_new = NULL;
-            goto err_release_ring;
+            return ENOMEM;
          }
       } else {
-         /* Allocation of mbuf failed. */
-         goto err_release_ring;
+         return ENOMEM;
       }
    }
 
@@ -1315,19 +1299,6 @@ vxn_init_rings(vxn_softc_t *sc)
 
    sc->vxn_rings_allocated = 1;
    return 0;
-err_release_ring:
-   /*
-    * Clearup already allocated mbufs and attached clusters.
-    */
-  for (--i; i >= 0; i--) {
-     m_freem(sc->vxn_rx_buffptr[i]);
-     sc->vxn_rx_buffptr[i] = NULL;
-     sc->vxn_rx_ring[i].paddr = 0;
-     sc->vxn_rx_ring[i].bufferLength = 0;
-     sc->vxn_rx_ring[i].ownership = 0;
-  }
-  return ENOMEM;
-
 }
 
 /*

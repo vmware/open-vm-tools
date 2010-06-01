@@ -916,7 +916,6 @@ DnD::OnGHPrivateDrop(int32 x, // IN
 void
 DnD::OnGHCancel(void)
 {
-   ghCancel.emit();
    /*
     * UI layer should do all cleanup, and simulate a mouse drop inside the
     * detection window to cancel the GH DnD. Because our detection window will

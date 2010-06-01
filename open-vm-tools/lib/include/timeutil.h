@@ -50,10 +50,6 @@ typedef struct TimeUtil_Date {
    unsigned int second; /* [0, 61] (for leap seconds) */
 } TimeUtil_Date;
 
-typedef struct TimeUtil_TimeOfDay {
-   unsigned long seconds;
-   unsigned long useconds;
-} TimeUtil_TimeOfDay;
 
 typedef struct TimeUtil_Expiration {
    /*
@@ -96,8 +92,6 @@ EXTERN void TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
 
 EXTERN void TimeUtil_PopulateWithCurrent(Bool local,        // IN
                                          TimeUtil_Date *d); // OUT
-
-EXTERN void TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *d); // OUT
 
 EXTERN unsigned int TimeUtil_DaysLeft(TimeUtil_Date const *d); // IN
 

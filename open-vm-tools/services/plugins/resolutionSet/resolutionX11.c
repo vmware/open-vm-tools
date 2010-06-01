@@ -26,8 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "resolutionInt.h"
-
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 #ifndef NO_MULTIMON
@@ -41,6 +39,7 @@
 #include "vmware.h"
 
 #include "resolution.h"
+#include "resolutionInt.h"
 
 #include "debug.h"
 #include "fileIO.h"
@@ -124,7 +123,7 @@ ResolutionBackendInit(InitHandle handle)
    resInfoX->display = handle;
 
    if (resInfoX->display == NULL) {
-      g_warning("%s: Called with invalid X display!\n", __func__);
+      Warning("%s: Called with invalid X display!\n", __func__);
       return FALSE;
    }
 
@@ -246,8 +245,8 @@ ResolutionSetTopology(unsigned int ndisplays,
    }
 
    if (minX != 0 || minY != 0) {
-      g_warning("The bounding box of the display topology does not have an "
-                "origin of (0,0)\n");
+      Warning("The bounding box of the display topology does not have an "
+              "origin of (0,0)\n");
    }
 
    /*
@@ -263,12 +262,12 @@ ResolutionSetTopology(unsigned int ndisplays,
    if (resInfoX->canUseVMwareCtrlTopologySet) {
       if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display),
                                   displays, ndisplays)) {
-         g_debug("Failed to set topology in the driver.\n");
+         Debug("Failed to set topology in the driver.\n");
          goto out;
       }
 
       if (!SelectResolution(maxX - minX, maxY - minY)) {
-         g_debug("Failed to set new resolution.\n");
+         Debug("Failed to set new resolution.\n");
          goto out;
       }
 
@@ -357,7 +356,7 @@ ResolutionCanSet(void)
          if (i == xrrRes->noutput) {
             resInfoX->canUseRandR12 = TRUE;
          } else {
-            g_debug("RandR >= 1.2 not usable\n");
+            Debug("RandR >= 1.2 not usable\n");
          }
 
          XRRFreeScreenResources(xrrRes);
@@ -795,13 +794,13 @@ SelectResolution(uint32 width,
    }
 
    if (bestFitSize > 0) {
-      g_debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
-              xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
+      Debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
+            xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
       XRRSetScreenConfig(resInfoX->display, xrrConfig, resInfoX->rootWindow,
                          bestFitIndex, xrrCurRotation, GDK_CURRENT_TIME);
    } else {
-      g_debug("Can't find a suitable guest resolution, ignoring request for %dx%d\n",
-              width, height);
+      Debug("Can't find a suitable guest resolution, ignoring request for %dx%d\n",
+            width, height);
    }
 
    XRRFreeScreenConfigInfo(xrrConfig);

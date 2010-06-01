@@ -20,10 +20,5 @@ noinst_LTLIBRARIES = libHgfsServer.la
 libHgfsServer_la_SOURCES =
 libHgfsServer_la_SOURCES += hgfsServer.c
 libHgfsServer_la_SOURCES += hgfsServerLinux.c
-libHgfsServer_la_SOURCES += hgfsServerPacketUtil.c
-libHgfsServer_la_SOURCES += hgfsDirNotifyStub.c
 
-AM_CFLAGS =
-AM_CFLAGS += -DVMTOOLS_USE_GLIB
-AM_CFLAGS += @GLIB2_CPPFLAGS@
-
+AM_CFLAGS = @LIB_HGFS_SERVER_CPPFLAGS@

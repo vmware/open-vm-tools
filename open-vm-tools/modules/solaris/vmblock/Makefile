@@ -48,6 +48,7 @@ CFLAGS   += -I.
 ## Objects needed to build vmblock kernel module
 ##
 VMBLOCK_OBJS := block.o
+VMBLOCK_OBJS += dbllnklst.o
 VMBLOCK_OBJS += module.o
 VMBLOCK_OBJS += stubs.o
 VMBLOCK_OBJS += vfsops.o
@@ -58,14 +59,6 @@ VMBLOCK_64_OBJS := $(addprefix amd64/, $(VMBLOCK_OBJS))
 
 MODULE_32 := i386/$(MODULE)
 MODULE_64 := amd64/$(MODULE)
-
-ifdef OVT_SOURCE_DIR
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
-   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmblock
-   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/solaris/vmblock
-   VPATH  := $(OVT_SOURCE_DIR)/lib/misc
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/modules/shared/vmblock
-endif
 
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32

@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "vmware.h"
+#include "vm_app.h"
 #include "debug.h"
 #include "rpcout.h"
 #include "str.h"

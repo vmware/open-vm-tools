@@ -31,10 +31,6 @@
 #error "Wrong platform."
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 9)
-#  error "Linux kernels before 2.6.9 are not supported."
-#endif
-
 #define EXPORT_SYMTAB
 #define __NO_VERSION__
 #include "compat_module.h"
@@ -42,7 +38,6 @@
 #include "compat_version.h"
 #include "compat_sched.h"
 #include "compat_wait.h"
-#include "compat_workqueue.h"
 #include "compat_interrupt.h"
 #include "compat_spinlock.h"
 #include "compat_slab.h"
@@ -52,7 +47,12 @@
 #include "compat_highmem.h"
 #include "vm_basic_types.h"
 #include <linux/vmalloc.h>
-#include <linux/mm.h>           /* For vmalloc_to_page() and get_user_pages()*/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+#  include <linux/mm.h>         /* For vmalloc_to_page() and get_user_pages()*/
+#else
+#  include <linux/iobuf.h>      /* For map_user_kiobuf() and unmap_kiobuf() */
+#  include "pgtbl.h"            /* For PgtblKVa2MPN */
+#endif
 #include <linux/socket.h>       /* For memcpy_{to,from}iovec(). */
 #include <linux/pagemap.h>      /* For page_cache_release() */
 #include "vm_assert.h"
@@ -61,30 +61,27 @@
 #  include "vmciQueuePair.h"
 #endif
 
-#include "vmciQueue.h"
+#include "vmci_queue_pair.h"
 #include "vmci_iocontrols.h"
 
-
 /*
- * The Kernel specific component of the VMCIQueue structure.
+ * In Linux 2.6.25 kernels and onwards, the symbol init_mm is no
+ * longer exported. This affects the function PgtblKVa2MPN, as it
+ * calls pgd_offset_k which in turn is a macro referencing init_mm.
+ * 
+ * We can avoid using PgtblKVa2MPN on more recent kernels by instead
+ * using the function vmalloc_to_page followed by
+ * page_to_pfn. vmalloc_to_page was introduced in the 2.5 kernels and
+ * backported to some 2.4.x kernels. We use vmalloc_to_page on all
+ * 2.6.x kernels, where it is present for sure, and use PgtblKVa2MPN
+ * on older kernels where it works just fine.
  */
 
-#if defined VMX86_TOOLS
-struct VMCIQueueKernelIf {
-   struct page *page[0];
-};
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+#  define VMCIKVaToMPN(_ptr) page_to_pfn(vmalloc_to_page(_ptr))
 #else
-struct VMCIQueueKernelIf {
-   struct page **page;
-};
+#  define VMCIKVaToMPN(_ptr) PgtblKVa2MPN((VA)_ptr)
 #endif
-
-typedef struct VMCIDelayedWorkInfo {
-   compat_work work;
-   VMCIWorkFn *workFn;
-   void *data;
-} VMCIDelayedWorkInfo;
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -207,7 +204,18 @@ void
 VMCI_GrabLock_BH(VMCILock *lock,        // IN
                  VMCILockFlags *flags)  // OUT: used to restore
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 4)
    spin_lock_bh(lock);
+#else
+
+   /* 
+    * Before 2.3.4 linux kernels spin_unlock_bh didn't exist so we are using 
+    * spin_lock_irqsave/restore instead. I wanted to define spin_[un]lock_bh
+    * functions in compat_spinlock.h as local_bh_disable;spin_lock(lock) and
+    * so on, but local_bh_disable/enable does not exist on 2.2.26.
+    */
+   spin_lock_irqsave(lock, *flags);
+#endif // LINUX_VERSION_CODE
 }
 
 
@@ -236,7 +244,19 @@ void
 VMCI_ReleaseLock_BH(VMCILock *lock,        // IN
                     VMCILockFlags flags)   // IN
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 4)
    spin_unlock_bh(lock);
+#else
+
+   /* 
+    * Before 2.3.4 linux kernels spin_unlock_bh didn't exist so we are using 
+    * spin_lock_irqsave/restore instead. I wanted to define spin_[un]lock_bh
+    * functions in compat_spinlock.h as local_bh_disable;spin_lock(lock) and
+     * so on, but local_bh_disable/enable does not exist on 2.2.26.
+     */
+
+   spin_unlock_irqrestore(lock, flags);
+#endif // LINUX_VERSION_CODE
 }
 
 
@@ -602,102 +622,6 @@ VMCI_CopyFromUser(void *dst,  // OUT: Kernel VA
 
 
 /*
- *----------------------------------------------------------------------------
- *
- * VMCIDelayedWorkCB
- *
- *      Called in a worker thread context.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static void
-VMCIDelayedWorkCB(compat_work_arg work) // IN
-{
-   VMCIDelayedWorkInfo *delayedWorkInfo;
-
-   delayedWorkInfo = COMPAT_WORK_GET_DATA(work, VMCIDelayedWorkInfo, work);
-   ASSERT(delayedWorkInfo);
-   ASSERT(delayedWorkInfo->workFn);
-
-   delayedWorkInfo->workFn(delayedWorkInfo->data);
-
-   VMCI_FreeKernelMem(delayedWorkInfo, sizeof *delayedWorkInfo);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VMCI_CanScheduleDelayedWork --
- *
- *      Checks to see if the given platform supports delayed work callbacks.
- *
- * Results:
- *      TRUE if it does. FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-VMCI_CanScheduleDelayedWork(void)
-{
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * VMCI_ScheduleDelayedWork --
- *
- *      Schedule the specified callback.
- *
- * Results:
- *      Zero on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-int
-VMCI_ScheduleDelayedWork(VMCIWorkFn  *workFn,   // IN
-                         void *data)            // IN
-{
-   VMCIDelayedWorkInfo *delayedWorkInfo;
-
-   ASSERT(workFn);
-
-   delayedWorkInfo = VMCI_AllocKernelMem(sizeof *delayedWorkInfo,
-                                         VMCI_MEMORY_ATOMIC);
-   if (!delayedWorkInfo) {
-      return VMCI_ERROR_NO_MEM;
-   }
-
-   delayedWorkInfo->workFn = workFn;
-   delayedWorkInfo->data = data;
-
-   COMPAT_INIT_WORK(&delayedWorkInfo->work, VMCIDelayedWorkCB,
-                    delayedWorkInfo);
-
-   compat_schedule_work(&delayedWorkInfo->work);
-
-   return VMCI_SUCCESS;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * VMCI_CreateEvent --
@@ -930,14 +854,10 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
  *
  * VMCI_AllocQueue --
  *
- *      Allocates kernel VA space of specified size, plus space for the
- *      queue structure/kernel interface and the queue header.  Allocates
- *      physical pages for the queue data pages.
- *
- *      PAGE m:      VMCIQueueHeader (VMCIQueue->qHeader)
- *      PAGE m+1:    VMCIQueue
- *      PAGE m+1+q:  VMCIQueueKernelIf (VMCIQueue->kernelIf)
- *      PAGE n-size: Data pages (VMCIQueue->kernelIf->page[])
+ *      Allocates kernel memory for the queue header (1 page) plus the
+ *      translation structure for offset -> page mappings.  Allocates physical
+ *      pages for the queue (buffer area), and initializes the translation
+ *      structure.
  *
  * Results:
  *      Pointer to the queue on success, NULL otherwise.
@@ -951,36 +871,32 @@ VMCIMutex_Release(VMCIMutex *mutex) // IN:
 void *
 VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
 {
-   uint64 i;
+   const uint64 numPages = CEILING(size, PAGE_SIZE);
    VMCIQueue *queue;
-   VMCIQueueHeader *qHeader;
-   const uint64 numDataPages = CEILING(size, PAGE_SIZE);
-   const uint queueSize =
-      PAGE_SIZE +
-      sizeof *queue +
-      numDataPages * sizeof queue->kernelIf->page[0];
 
-   qHeader = (VMCIQueueHeader *)vmalloc(queueSize);
-   if (!qHeader) {
-      return NULL;
-   }
+   queue = vmalloc(sizeof *queue + numPages * sizeof queue->page[0]);
+   if (queue) {
+      uint64 i;
 
-   queue = (VMCIQueue *)((uint8 *)qHeader + PAGE_SIZE);
-   queue->qHeader = qHeader;
-   queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
-
-   for (i = 0; i < numDataPages; i++) {
-      queue->kernelIf->page[i] = alloc_pages(GFP_KERNEL, 0);
-      if (!queue->kernelIf->page[i]) {
-         while (i) {
-            __free_page(queue->kernelIf->page[--i]);
+      /*
+       * Allocate physical pages, they will be mapped/unmapped on demand.
+       */
+      for (i = 0; i < numPages; i++) {
+         queue->page[i] = alloc_pages(GFP_KERNEL, 0); /* One page. */
+         if (!queue->page[i]) {
+            /*
+             * Free all pages allocated.
+             */
+            while (i) {
+               __free_page(queue->page[--i]);
+            }
+            vfree(queue);
+            queue = NULL;
+            break;
          }
-         vfree(qHeader);
-         return NULL;
       }
    }
-
-   return (void *)queue;
+   return queue;
 }
 
 
@@ -989,8 +905,9 @@ VMCI_AllocQueue(uint64 size) // IN: size of queue (not including header)
  *
  * VMCI_FreeQueue --
  *
- *      Frees kernel VA space for a given queue and its queue header, and
- *      frees physical data pages.
+ *      Frees kernel memory for a given queue (header plus translation
+ *      structure).  Frees all physical pages that held the buffers for this
+ *      queue.
  *
  * Results:
  *      None.
@@ -1009,10 +926,11 @@ VMCI_FreeQueue(void *q,     // IN:
 
    if (queue) {
       uint64 i;
+
       for (i = 0; i < CEILING(size, PAGE_SIZE); i++) {
-         __free_page(queue->kernelIf->page[i]);
+         __free_page(queue->page[i]);
       }
-      vfree(queue->qHeader);
+      vfree(queue);
    }
 }
 
@@ -1037,16 +955,14 @@ VMCI_FreeQueue(void *q,     // IN:
  */
 
 int
-VMCI_AllocPPNSet(void *prodQ,            // IN:
+VMCI_AllocPPNSet(void *produceQ,         // IN:
                  uint64 numProducePages, // IN: for queue plus header
-                 void *consQ,            // IN:
+                 void *consumeQ,         // IN:
                  uint64 numConsumePages, // IN: for queue plus header
                  PPNSet *ppnSet)         // OUT:
 {
    VMCIPpnList producePPNs;
    VMCIPpnList consumePPNs;
-   VMCIQueue *produceQ = prodQ;
-   VMCIQueue *consumeQ = consQ;
    uint64 i;
 
    if (!produceQ || !numProducePages || !consumeQ || !numConsumePages ||
@@ -1073,11 +989,11 @@ VMCI_AllocPPNSet(void *prodQ,            // IN:
       return VMCI_ERROR_NO_MEM;
    }
 
-   producePPNs[0] = page_to_pfn(vmalloc_to_page(produceQ->qHeader));
+   producePPNs[0] = VMCIKVaToMPN(produceQ);
    for (i = 1; i < numProducePages; i++) {
       unsigned long pfn;
 
-      producePPNs[i] = pfn = page_to_pfn(produceQ->kernelIf->page[i - 1]);
+      producePPNs[i] = pfn = page_to_pfn(((VMCIQueue *)produceQ)->page[i - 1]);
 
       /*
        * Fail allocation if PFN isn't supported by hypervisor.
@@ -1088,11 +1004,11 @@ VMCI_AllocPPNSet(void *prodQ,            // IN:
          goto ppnError;
       }
    }
-   consumePPNs[0] = page_to_pfn(vmalloc_to_page(consumeQ->qHeader));
+   consumePPNs[0] = VMCIKVaToMPN(consumeQ);
    for (i = 1; i < numConsumePages; i++) {
       unsigned long pfn;
 
-      consumePPNs[i] = pfn = page_to_pfn(consumeQ->kernelIf->page[i - 1]);
+      consumePPNs[i] = pfn = page_to_pfn(((VMCIQueue *)consumeQ)->page[i - 1]);
 
       /*
        * Fail allocation if PFN isn't supported by hypervisor.
@@ -1212,13 +1128,12 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                     size_t size,        // IN:
                     Bool isIovec)       // IN: if src is a struct iovec *
 {
-   VMCIQueueKernelIf *kernelIf = queue->kernelIf;
    size_t bytesCopied = 0;
 
    while (bytesCopied < size) {
       uint64 pageIndex = (queueOffset + bytesCopied) / PAGE_SIZE;
       size_t pageOffset = (queueOffset + bytesCopied) & (PAGE_SIZE - 1);
-      void *va = kmap(kernelIf->page[pageIndex]);
+      void *va = kmap(queue->page[pageIndex]);
       size_t toCopy;
 
       ASSERT(va);
@@ -1236,7 +1151,7 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
          /* The iovec will track bytesCopied internally. */
          err = memcpy_fromiovec((uint8 *)va + pageOffset, iov, toCopy);
          if (err != 0) {
-            kunmap(kernelIf->page[pageIndex]);
+            kunmap(queue->page[pageIndex]);
             return err;
          }
       } else {
@@ -1244,7 +1159,7 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
       }
 
       bytesCopied += toCopy;
-      kunmap(kernelIf->page[pageIndex]);
+      kunmap(queue->page[pageIndex]);
    }
 
    return 0;
@@ -1277,13 +1192,12 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
                       size_t size,            // IN:
                       Bool isIovec)           // IN: if dest is a struct iovec *
 {
-   VMCIQueueKernelIf *kernelIf = queue->kernelIf;
    size_t bytesCopied = 0;
 
    while (bytesCopied < size) {
       uint64 pageIndex = (queueOffset + bytesCopied) / PAGE_SIZE;
       size_t pageOffset = (queueOffset + bytesCopied) & (PAGE_SIZE - 1);
-      void *va = kmap(kernelIf->page[pageIndex]);
+      void *va = kmap(queue->page[pageIndex]);
       size_t toCopy;
 
       ASSERT(va);
@@ -1301,7 +1215,7 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
          /* The iovec will track bytesCopied internally. */
          err = memcpy_toiovec(iov, (uint8 *)va + pageOffset, toCopy);
          if (err != 0) {
-            kunmap(kernelIf->page[pageIndex]);
+            kunmap(queue->page[pageIndex]);
             return err;
          }
       } else {
@@ -1309,7 +1223,7 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
       }
 
       bytesCopied += toCopy;
-      kunmap(kernelIf->page[pageIndex]);
+      kunmap(queue->page[pageIndex]);
    }
 
    return 0;
@@ -1339,8 +1253,7 @@ VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
                   uint64 queueOffset, // IN:
                   const void *src,    // IN:
                   size_t srcOffset,   // IN:
-                  size_t size,        // IN:
-                  int bufType)        // IN: Unused
+                  size_t size)        // IN:
 {
    return __VMCIMemcpyToQueue(queue, queueOffset,
                               (uint8 *)src + srcOffset, size, FALSE);
@@ -1370,8 +1283,7 @@ VMCIMemcpyFromQueue(void *dest,             // OUT:
                     size_t destOffset,      // IN:
                     const VMCIQueue *queue, // IN:
                     uint64 queueOffset,     // IN:
-                    size_t size,            // IN:
-                    int bufType)            // IN: Unused
+                    size_t size)            // IN:
 {
    return __VMCIMemcpyFromQueue((uint8 *)dest + destOffset,
                                 queue, queueOffset, size, FALSE);
@@ -1401,8 +1313,7 @@ VMCIMemcpyToQueueV(VMCIQueue *queue,      // OUT:
                    uint64 queueOffset,    // IN:
                    const void *src,       // IN: iovec
                    size_t srcOffset,      // IN: ignored
-                   size_t size,           // IN:
-                   int bufType)           // IN: ignored
+                   size_t size)           // IN:
 {
 
    /*
@@ -1436,8 +1347,7 @@ VMCIMemcpyFromQueueV(void *dest,              // OUT: iovec
                      size_t destOffset,       // IN: ignored
                      const VMCIQueue *queue,  // IN:
                      uint64 queueOffset,      // IN:
-                     size_t size,             // IN:
-                     int bufType)             // IN: ignored
+                     size_t size)             // IN:
 {
    /*
     * We ignore destOffset because dest is really a struct iovec * and will
@@ -1488,69 +1398,6 @@ VMCIWellKnownID_AllowMap(VMCIId wellKnownID,           // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIHost_AllocQueue --
- *
- *      Allocates kernel VA space of specified size plus space for the queue
- *      and kernel interface.  This is different from the guest queue allocator,
- *      because we do not allocate our own queue header/data pages here but
- *      share those of the guest.
- *
- * Results:
- *      A pointer to an allocated and initialized VMCIQueue structure or NULL.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCIQueue *
-VMCIHost_AllocQueue(uint64 size) // IN:
-{
-   VMCIQueue *queue;
-   const uint queueSize = sizeof *queue + sizeof *(queue->kernelIf);
-
-   queue = VMCI_AllocKernelMem(queueSize, VMCI_MEMORY_NORMAL);
-   if (queue) {
-      queue->qHeader = NULL;
-      queue->kernelIf = (VMCIQueueKernelIf *)((uint8 *)queue + sizeof *queue);
-   }
-
-   return queue;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIHost_FreeQueue --
- *
- *      Frees kernel memory for a given queue (header plus translation
- *      structure).
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Memory is freed.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VMCIHost_FreeQueue(VMCIQueue *queue,   // IN:
-                   uint64 queueSize)   // IN:
-{
-   if (queue) {
-      const uint queueSize = sizeof *queue + sizeof *(queue->kernelIf);
-      VMCI_FreeKernelMem(queue, queueSize);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCIHost_GetUserMemory --
  *       Lock the user pages referenced by the {produce,consume}Buffer
  *       struct into memory and populate the {produce,consume}Pages
@@ -1570,6 +1417,7 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                        VMCIQueue *produceQ,              // OUT
                        VMCIQueue *consumeQ)              // OUT
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
    int retval;
    int err = VMCI_SUCCESS;
 
@@ -1630,10 +1478,10 @@ VMCIHost_GetUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
    }
 
    if (err == VMCI_SUCCESS) {
-      produceQ->qHeader = kmap(attach->producePages[0]);
-      produceQ->kernelIf->page = &attach->producePages[1];
-      consumeQ->qHeader = kmap(attach->consumePages[0]);
-      consumeQ->kernelIf->page = &attach->consumePages[1];
+      produceQ->queueHeaderPtr = kmap(attach->producePages[0]);
+      produceQ->page = &attach->producePages[1];
+      consumeQ->queueHeaderPtr = kmap(attach->consumePages[0]);
+      consumeQ->page = &attach->consumePages[1];
    }
 
 out:
@@ -1654,6 +1502,70 @@ errorDealloc:
    }
 
    return err;
+
+#else
+   /*
+    * Host queue pair support for earlier kernels temporarily
+    * disabled. See bug 365496.
+    */
+
+   ASSERT_NOT_IMPLEMENTED(FALSE);
+#if 0
+   attach->produceIoBuf = VMCI_AllocKernelMem(sizeof *attach->produceIoBuf,
+                                              VMCI_MEMORY_NORMAL);
+   if (attach->produceIoBuf == NULL) {
+      return VMCI_ERROR_NO_MEM;
+   }
+
+   attach->consumeIoBuf = VMCI_AllocKernelMem(sizeof *attach->consumeIoBuf,
+                                              VMCI_MEMORY_NORMAL);
+   if (attach->consumeIoBuf == NULL) {
+      VMCI_FreeKernelMem(attach->produceIoBuf,
+                         sizeof *attach->produceIoBuf);
+      return VMCI_ERROR_NO_MEM;
+   }
+
+   retval = map_user_kiobuf(WRITE, attach->produceIoBuf,
+                            (VA)attach->produceBuffer,
+                            attach->numProducePages * PAGE_SIZE);
+   if (retval < 0) {
+      err = VMCI_ERROR_NO_ACCESS;
+      goto out;
+   }
+
+   retval = map_user_kiobuf(WRITE, attach->consumeIoBuf,
+                            (VA)attach->consumeBuffer,
+                            attach->numConsumePages * PAGE_SIZE);
+   if (retval < 0) {
+      unmap_kiobuf(attach->produceIoBuf);
+      err = VMCI_ERROR_NO_ACCESS;
+   }
+
+   if (err == VMCI_SUCCESS) {
+      produceQ->queueHeaderPtr = kmap(attach->produceIoBuf->maplist[0]);
+      produceQ->page = &attach->produceIoBuf->maplist[1];
+      consumeQ->queueHeaderPtr = kmap(attach->consumeIoBuf->maplist[0]);
+      consumeQ->page = &attach->consumeIoBuf->maplist[1];
+   }
+
+out:
+
+   if (err < VMCI_SUCCESS) {
+      if (attach->produceIoBuf != NULL) {
+         VMCI_FreeKernelMem(attach->produceIoBuf,
+                            sizeof *attach->produceIoBuf);
+      }
+      if (attach->consumeIoBuf != NULL) {
+         VMCI_FreeKernelMem(attach->consumeIoBuf,
+                            sizeof *attach->consumeIoBuf);
+      }
+   }
+
+   return err;
+#else // 0 -- Instead just return FALSE
+   return FALSE;
+#endif // 0
+#endif // Linux version >= 2.6.0
 }
 
 
@@ -1679,6 +1591,8 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
                            VMCIQueue *produceQ,              // OUT
                            VMCIQueue *consumeQ)              // OUT
 {
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
    int i;
 
    ASSERT(attach->producePages);
@@ -1707,6 +1621,31 @@ VMCIHost_ReleaseUserMemory(PageStoreAttachInfo *attach,      // IN/OUT
    VMCI_FreeKernelMem(attach->consumePages,
                       attach->numConsumePages *
                       sizeof attach->consumePages[0]);
+#else
+   /*
+    * Host queue pair support for earlier kernels temporarily
+    * disabled. See bug 365496.
+    */
+
+   ASSERT_NOT_IMPLEMENTED(FALSE);
+#if 0
+   kunmap(attach->produceIoBuf->maplist[0]);
+   kunmap(attach->consumeIoBuf->maplist[0]);
+
+   mark_dirty_kiobuf(attach->produceIoBuf,
+                     attach->numProducePages * PAGE_SIZE);
+   unmap_kiobuf(attach->produceIoBuf);
+
+   mark_dirty_kiobuf(attach->consumeIoBuf,
+                     attach->numConsumePages * PAGE_SIZE);
+   unmap_kiobuf(attach->consumeIoBuf);
+
+   VMCI_FreeKernelMem(attach->produceIoBuf,
+                      sizeof *attach->produceIoBuf);
+   VMCI_FreeKernelMem(attach->consumeIoBuf,
+                      sizeof *attach->consumeIoBuf);
+#endif
+#endif
 }
 
-#endif  /* Host only code */
+#endif

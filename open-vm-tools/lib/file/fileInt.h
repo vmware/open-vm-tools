@@ -135,20 +135,20 @@ EXTERN int FileListDirectoryRetry(ConstUnicode pathName,
 #define FileCreateDirectory(a)  FileCreateDirectoryRetry((a), 0)
 #define FileRemoveDirectory(a)  FileRemoveDirectoryRetry((a), 0)
 
-#define FILE_MAX_WAIT_TIME_MS 2000  // maximum wait time in milliseconds
+#define FILE_MAX_WAIT_TIME 2000
 
 #define FileListDirectoryRobust(a, b) \
-                    FileListDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS, (b))
+                    FileListDirectoryRetry((a), FILE_MAX_WAIT_TIME, (b))
 #define FileAttributesRobust(a, b) \
-                    FileAttributesRetry((a), FILE_MAX_WAIT_TIME_MS, (b))
+                    FileAttributesRetry((a), FILE_MAX_WAIT_TIME, (b))
 #define FileRenameRobust(a, b) \
-                    FileRenameRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
+                    FileRenameRetry((a), (b), FILE_MAX_WAIT_TIME)
 #define FileDeletionRobust(a, b) \
-                    FileDeletionRetry((a), (b), FILE_MAX_WAIT_TIME_MS)
+                    FileDeletionRetry((a), (b), FILE_MAX_WAIT_TIME)
 #define FileCreateDirectoryRobust(a) \
-                    FileCreateDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
+                    FileCreateDirectoryRetry((a), FILE_MAX_WAIT_TIME)
 #define FileRemoveDirectoryRobust(a) \
-                    FileRemoveDirectoryRetry((a), FILE_MAX_WAIT_TIME_MS)
+                    FileRemoveDirectoryRetry((a), FILE_MAX_WAIT_TIME)
 #else
 EXTERN char *FilePosixGetBlockDevice(char const *path);
 
@@ -176,9 +176,9 @@ EXTERN int FileRemoveDirectory(ConstUnicode pathName);
 typedef struct active_lock
 {
   struct active_lock *next;
-  uint32              age;
-  Bool                marked;
-  Unicode             dirName;
+  uint32             age;
+  Bool               marked;
+  Unicode            dirName;
 } ActiveLock;
 
 typedef struct lock_values
@@ -188,10 +188,10 @@ typedef struct lock_values
    char         *payload;
    char         *lockType;
    char         *locationChecksum;
-   Unicode       memberName;
-   unsigned int  lamportNumber;
-   uint32        waitTime;
-   uint32        msecMaxWaitTime;
+   Unicode      memberName;
+   unsigned int lamportNumber;
+   uint32       waitTime;
+   uint32       msecMaxWaitTime;
    ActiveLock   *lockList;
 } LockValues;
 
@@ -209,8 +209,6 @@ typedef int FILELOCK_FILE_HANDLE;
 
 EXTERN uint32 FileSleeper(uint32 msecMinSleepTime,
                           uint32 msecMaxSleepTime);
-
-EXTERN uint32 FileSimpleRandom(void);
 
 EXTERN const char *FileLockGetMachineID(void);
 

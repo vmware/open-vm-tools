@@ -59,21 +59,18 @@ VMMCTLD_32_OBJS := $(addprefix i386/, $(VMMCTLD_OBJS))
 VMMCTLD_64_OBJS := $(addprefix amd64/, $(VMMCTLD_OBJS))
 
 
-ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.9)
+ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.9) # {
 
 # Solaris 9
-SUPPORTED := 1
 MODULES := $(MODULE_32)
 PROGS   := $(PROG_32)
 INSTALL := install32
 CFLAGS  += -D__STDC__=0 -DSOL9
 
-endif
-
-ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10)
+else # } {
+ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10) # {
 
 # Solaris 10
-SUPPORTED := 1
 MODULES := $(MODULE_32) $(MODULE_64)
 PROGS   := $(PROG_32) $(PROG_64)
 INSTALL := install32 install64
@@ -81,32 +78,12 @@ CFLAGS  += -DSOL10
 KFLAGS  += -ffreestanding
 KFLAGS  += -nodefaultlibs
 
-endif
+else # } {
 
-ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.11)
+$(error "This makefile is only used for Solaris 9 and 10")
 
-# Solaris 11
-SUPPORTED := 1
-MODULES := $(MODULE_32) $(MODULE_64)
-PROGS   := $(PROG_32) $(PROG_64)
-INSTALL := install32 install64
-CFLAGS  += -DSOL11
-KFLAGS  += -ffreestanding
-KFLAGS  += -nodefaultlibs
-
-endif
-
-$(if $(SUPPORTED),,$(error "Unsupported Solaris version: $(VM_UNAME)"))
-
-
-ifdef OVT_SOURCE_DIR
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/include
-   CFLAGS += -I$(OVT_SOURCE_DIR)/lib/backdoor
-   CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmmemctl
-
-   VPATH  := $(OVT_SOURCE_DIR)/lib/backdoor
-   VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/modules/shared/vmmemctl
-endif
+endif # }
+endif # }
 
 CFLAGS_32  := $(CFLAGS)
 CFLAGS_32  += -m32

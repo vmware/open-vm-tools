@@ -40,9 +40,10 @@
 //#define FAKE_ATOMIC /* defined if true atomic not needed */
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMKDRIVERS
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
@@ -66,6 +67,9 @@ typedef struct  Atomic_uint64 {
 } Atomic_uint64 ALIGNED(8);
 
 #ifdef __arm__
+#ifndef NOT_IMPLEMENTED
+#error NOT_IMPLEMENTED undefined
+#endif
 #ifdef __GNUC__
 EXTERN Atomic_uint32 atomicLocked64bit;
 #ifndef FAKE_ATOMIC
@@ -81,7 +85,7 @@ EXTERN Atomic_uint32 atomicLocked64bit;
     * use SWP-based spin-lock.
     */
 #if !defined(__linux__)
-#define __kernel_cmpxchg(x, y, z) _fn__kernel_cmpxchgNotImplementedOnNonLinuxARM
+#define __kernel_cmpxchg(x, y, z) NOT_IMPLEMENTED()
 #else
    typedef int (__kernel_cmpxchg_t)(uint32 oldVal,
                                     uint32 newVal,
@@ -243,8 +247,15 @@ AtomicEpilogue(void)
                  "lfence\n\t"
                  "2:\n\t"
                  ".pushsection .patchtext\n\t"
+#ifdef VMM32
+                 ".long 1b\n\t"
+                 ".long 0\n\t"
+                 ".long 2b\n\t"
+                 ".long 0\n\t"
+#else
                  ".quad 1b\n\t"
                  ".quad 2b\n\t"
+#endif
                  ".popsection\n\t" ::: "memory");
 #else
    if (UNLIKELY(AtomicUseFence)) {
@@ -617,6 +628,45 @@ Atomic_And(Atomic_uint32 *var, // IN
 #define Atomic_And32 Atomic_And
 
 
+#if defined(__x86_64__)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_And64 --
+ *
+ *      Atomic read, bitwise AND with a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_And64(Atomic_uint64 *var, // IN
+             uint64 val)         // IN
+{
+#if defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; andq %1, %0"
+      : "+m" (var->value)
+      : "ri" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
+#else
+#error No compiler defined for Atomic_And64
+#endif
+}
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -677,6 +727,45 @@ Atomic_Or(Atomic_uint32 *var, // IN
 #endif
 }
 #define Atomic_Or32 Atomic_Or
+
+
+#if defined(__x86_64__)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Or64 --
+ *
+ *      Atomic read, bitwise OR with a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Or64(Atomic_uint64 *var, // IN
+            uint64 val)         // IN
+{
+#if defined(__GNUC__)
+   /* Checked against the AMD manual and GCC --hpreg */
+   __asm__ __volatile__(
+      "lock; orq %1, %0"
+      : "+m" (var->value)
+      : "ri" (val)
+      : "cc"
+   );
+   AtomicEpilogue();
+#elif defined _MSC_VER
+   _InterlockedOr64((__int64 *)&var->value, (__int64)val);
+#else
+#error No compiler defined for Atomic_Or64
+#endif
+}
+#endif
 
 
 /*
@@ -1517,7 +1606,7 @@ typedef struct {
  */
 
 #ifdef __arm__
-#define Atomic_CMPXCHG64(x, y, z) _fnAtomic_CMPXCHG64_NotImplementedOnARM
+#define Atomic_CMPXCHG64(x, y, z) NOT_IMPLEMENTED()
 #else // __arm__
 #if defined(__GNUC__) && __GNUC__ < 3
 static Bool
@@ -1539,7 +1628,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    Bool equal;
 
    /* Checked against the Intel manual and GCC --walken */
-#if defined(__x86_64__)
+#ifdef VMM64
    uint64 dummy;
    __asm__ __volatile__(
       "lock; cmpxchgq %3, %0" "\n\t"
@@ -1553,7 +1642,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    );
 #else /* 32-bit version */
    int dummy1, dummy2;
-#   if defined __PIC__
+#   if defined __PIC__ && !vm_x86_64
    /*
     * Rules for __asm__ statements in __PIC__ code
     * --------------------------------------------
@@ -1641,9 +1730,9 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    return equal;
 #elif defined _MSC_VER
 #if defined(__x86_64__)
-   return (__int64)*oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
-                                                            (__int64)*newVal,
-                                                            (__int64)*oldVal);
+   return *oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
+                                                   (__int64)*newVal,
+						   (__int64)*oldVal);
 #else
 #pragma warning(push)
 #pragma warning(disable : 4035)		// disable no-return warning
@@ -1736,16 +1825,14 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 
 #ifdef __arm__
 
-#define Atomic_Read64(x)          _fnAtomic_Read64_NotImplementedOnARM
-#define Atomic_FetchAndAdd64(x,y) _fnAtomic_FetchAndAdd64_NotImplementedOnARM
-#define Atomic_FetchAndInc64(x)   _fnAtomic_FetchAndInc64_NotImplementedOnARM
-#define Atomic_FetchAndDec64(x)   _fnAtomic_FetchAndDec64_NotImplementedOnARM
-#define Atomic_Inc64(x)           _fnAtomic_Inc64_NotImplementedOnARM
-#define Atomic_Dec64(x)           _fnAtomic_Dec64_NotImplementedOnARM
-#define Atomic_ReadWrite64(x,y)   _fnAtomic_ReadWrite64_NotImplementedOnARM
-#define Atomic_Write64(x,y)       _fnAtomic_Write64_NotImplementedOnARM
-#define Atomic_And64(x)           _fnAtomic_And64_NotImplementedOnARM
-#define Atomic_Or64(x)            _fnAtomic_Or64_NotImplementedOnARM
+#define Atomic_Read64(x)          NOT_IMPLEMENTED()
+#define Atomic_FetchAndAdd64(x,y) NOT_IMPLEMENTED()
+#define Atomic_FetchAndInc64(x)   NOT_IMPLEMENTED()
+#define Atomic_FetchAndDec64(x)   NOT_IMPLEMENTED()
+#define Atomic_Inc64(x)           NOT_IMPLEMENTED()
+#define Atomic_Dec64(x)           NOT_IMPLEMENTED()
+#define Atomic_ReadWrite64(x,y)   NOT_IMPLEMENTED()
+#define Atomic_Write64(x,y)       NOT_IMPLEMENTED()
 
 #else // __arm__
 
@@ -2069,99 +2156,6 @@ Atomic_Write64(Atomic_uint64 *var, // IN
    (void)Atomic_ReadWrite64(var, val);
 #endif
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Or64 --
- *
- *      Atomic read, bitwise OR with a 64-bit value, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_Or64(Atomic_uint64 *var, // IN
-            uint64 val)         // IN
-{
-#if defined(__x86_64__)
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; orq %1, %0"
-      : "+m" (var->value)
-      : "ri" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif defined _MSC_VER
-   _InterlockedOr64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_Or64
-#endif
-#else // __x86_64__
-   uint64 oldVal;
-   uint64 newVal;
-   do {
-      oldVal = var->value;
-      newVal = oldVal | val;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_And64 --
- *
- *      Atomic read, bitwise AND with a 64-bit value, write.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_And64(Atomic_uint64 *var, // IN
-             uint64 val)         // IN
-{
-#if defined(__x86_64__)
-#if defined(__GNUC__)
-   /* Checked against the AMD manual and GCC --hpreg */
-   __asm__ __volatile__(
-      "lock; andq %1, %0"
-      : "+m" (var->value)
-      : "ri" (val)
-      : "cc"
-   );
-   AtomicEpilogue();
-#elif defined _MSC_VER
-   _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_And64
-#endif
-#else // __x86_64__
-   uint64 oldVal;
-   uint64 newVal;
-   do {
-      oldVal = var->value;
-      newVal = oldVal & val;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
-#endif
-}
-
 #endif // __arm__
 
 

@@ -28,7 +28,6 @@
 #if !defined(_WIN32)
 #include <sys/types.h>
 #include <dirent.h>
-#include <netdb.h>
 #endif
 
 #include "vm_basic_types.h"
@@ -85,7 +84,6 @@ int Posix_Mkdir(ConstUnicode pathName, mode_t mode);
 int Posix_Chdir(ConstUnicode pathName);
 Unicode Posix_Getenv(ConstUnicode name);
 long Posix_Pathconf(ConstUnicode pathName, int name);
-int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 #endif
 
 #if !defined(_WIN32)
@@ -94,9 +92,7 @@ int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
  * Make them NULL wrappers for all other platforms.
  */
 #define Posix_GetHostName gethostname
-#if defined(__APPLE__)
 #define Posix_GetHostByName gethostbyname
-#endif
 #define Posix_GetAddrInfo getaddrinfo
 #define Posix_GetNameInfo getnameinfo
 
@@ -119,6 +115,7 @@ int Posix_Execv(ConstUnicode pathName, Unicode const argVal[]);
 int Posix_Execve(ConstUnicode pathName, Unicode const argVal[], 
                  Unicode const envPtr[]);
 int Posix_Execvp(ConstUnicode fileName, Unicode const argVal[]);
+int Posix_Lstat(ConstUnicode pathName, struct stat *statbuf);
 DIR *Posix_OpenDir(ConstUnicode pathName);
 int Posix_System(ConstUnicode command);
 int Posix_Putenv(Unicode name);
@@ -129,12 +126,15 @@ void Posix_Unsetenv(ConstUnicode name);
  * freed by the caller so they must be used in the ESX environment. They
  * are different than their POSIX "base" functions.
  */
-
 Unicode Posix_RealPath(ConstUnicode pathName);
 Unicode Posix_ReadLink(ConstUnicode pathName);
 
 struct passwd *Posix_Getpwnam(ConstUnicode name);
 struct passwd *Posix_Getpwuid(uid_t uid);
+
+#if !defined(sun)
+int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
+#endif
 
 int Posix_Setenv(ConstUnicode name, ConstUnicode value, int overWrite);
 
@@ -143,16 +143,15 @@ int Posix_Getpwnam_r(ConstUnicode name, struct passwd *pw,
 int Posix_Getpwuid_r(uid_t uid, struct passwd *pw,
                      char *buf, size_t size, struct passwd **ppw);
 struct passwd *Posix_Getpwent(void);
+#if !defined(sun)
+int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
+                       int *ngroups);
+#endif
 struct group *Posix_Getgrnam(ConstUnicode name);
 int Posix_Getgrnam_r(ConstUnicode name, struct group *gr,
                  char *buf, size_t size, struct group **pgr);
 
 #if !defined(sun)
-int Posix_Statfs(ConstUnicode pathName, struct statfs *statfsbuf);
-
-int Posix_GetGroupList(ConstUnicode user, gid_t group, gid_t *groups,
-                       int *ngroups);
-
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
 int Posix_Mount(ConstUnicode source, ConstUnicode target,
                 const char *filesystemtype, unsigned long mountflags,
@@ -169,119 +168,8 @@ int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 #endif // !defined(sun)
 #endif // !defined(N_PLAT_NLM)
-#if !defined(__APPLE__)
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Posix_GetHostByName --
- *
- *      Wrapper for gethostbyname().  Caller should release memory
- *      allocated for the hostent structure returned by calling
- *      Posix_FreeHostent().
- *      
- * Results:
- *      NULL    Error
- *      !NULL   Pointer to hostent structure
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE struct hostent*
-Posix_GetHostByName(ConstUnicode name)  // IN
-{
-   struct hostent *newhostent;
-   int error;
-   struct hostent he;
-   char buffer[1024];
-   struct hostent *phe = &he;
-   char **p;
-   int i;
-   int naddrs;
-
-   ASSERT(name);
-
-   if ((gethostbyname_r(name, &he, buffer, sizeof buffer,
-#if !defined(sun) && !defined(SOLARIS) && !defined(SOL10)
-                        &phe, 
-#endif
-                        &error) == 0) && phe) {
-
-      newhostent = (struct hostent *)Util_SafeMalloc(sizeof *newhostent);
-      newhostent->h_name = Unicode_Alloc(phe->h_name,
-                                         STRING_ENCODING_DEFAULT);
-      if (phe->h_aliases) {
-         newhostent->h_aliases = Unicode_AllocList(phe->h_aliases,
-                                                   -1,
-                                                   STRING_ENCODING_DEFAULT);
-      } else {
-         newhostent->h_aliases = NULL;
-      }
-      newhostent->h_addrtype = phe->h_addrtype;
-      newhostent->h_length = phe->h_length;
-
-      naddrs = 1;
-      for (p = phe->h_addr_list; *p; p++) {
-         naddrs++;
-      }
-      newhostent->h_addr_list = (char **)Util_SafeMalloc(naddrs * 
-                                 sizeof(*(phe->h_addr_list)));
-      for (i = 0; i < naddrs - 1; i++) {
-         newhostent->h_addr_list[i] = (char *)Util_SafeMalloc(phe->h_length);
-         memcpy(newhostent->h_addr_list[i], phe->h_addr_list[i], phe->h_length);
-      }
-      newhostent->h_addr_list[naddrs - 1] = NULL;
-      return newhostent;
-   } 
-   /* There has been an error */
-   return NULL;
-}
-#endif // !define(__APPLE__)
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Posix_FreeHostent --
- *
- *      Free the memory allocated for an hostent structure returned
- *      by Posix_GetHostByName.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE void
-Posix_FreeHostent(struct hostent *he)
-{
-#if !defined(__APPLE__)
-   char **p;
-
-   if (he) {
-      Unicode_Free(he->h_name);
-      if (he->h_aliases) {
-         Unicode_FreeList(he->h_aliases, -1);
-      }
-      p = he->h_addr_list;
-      while (*p) {
-         free(*p++);
-      }
-      free(he->h_addr_list);
-      free(he);
-   }
-#endif
-}
-
 #else  // !define(_WIN32)
+
 
 #if defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
 #include <winbase.h>
@@ -319,8 +207,7 @@ Posix_GetHostName(Unicode name, // OUT
 
    if (retval == 0) {
       nameUTF8 = Unicode_Alloc(nameMBCS, STRING_ENCODING_DEFAULT);
-      if (!Unicode_CopyBytes(name, nameUTF8, namelen, NULL,
-                             STRING_ENCODING_UTF8)) {
+      if (!Unicode_CopyBytes(name, nameUTF8, namelen, NULL, STRING_ENCODING_UTF8)) {
          retval = -1;
          WSASetLastError(WSAEFAULT);
       }
@@ -342,6 +229,9 @@ Posix_GetHostName(Unicode name, // OUT
  *      allocated for the hostent structure returned by calling
  *      Posix_FreeHostent().
  *      
+ *      TODO: Implement this wrapper and Posix_FreeHostent() for the
+ *      non-Windows platforms.
+ *
  * Results:
  *      NULL    Error
  *      !NULL   Pointer to hostent structure
@@ -374,8 +264,7 @@ Posix_GetHostByName(ConstUnicode name)  // IN
          newhostent->h_name = Unicode_Alloc(hostentMBCS->h_name,
                                             STRING_ENCODING_DEFAULT);
          if (hostentMBCS->h_aliases) {
-            newhostent->h_aliases = Unicode_AllocList(hostentMBCS->h_aliases,
-                                                      -1,
+            newhostent->h_aliases = Unicode_AllocList(hostentMBCS->h_aliases, -1,
                                                       STRING_ENCODING_DEFAULT);
          } else {
             newhostent->h_aliases = NULL;
@@ -400,13 +289,13 @@ Posix_GetHostByName(ConstUnicode name)  // IN
  * Posix_FreeHostent --
  *
  *      Free the memory allocated for an hostent structure returned
- *      by Posix_GetHostByName.
+ *      by Posix_AllocGetHostByName.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *      None.
+ *      NOne.
  *
  *----------------------------------------------------------------------
  */
@@ -422,7 +311,7 @@ Posix_FreeHostent(struct hostent *he)
       free(he);
    }
 }
-#endif  // defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
+#endif	// defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
 
 #ifdef _WS2TCPIP_H_
 typedef int (WINAPI *GetAddrInfoWFnType)(PCWSTR pNodeName, PCWSTR pServiceName,
@@ -479,8 +368,7 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
        * fields ai_canonname (char * vs. PWSTR) and ai_next (obviously).
        */
 
-      GetAddrInfoWFn = (GetAddrInfoWFnType)GetProcAddress(hWs2_32,
-                                                          "GetAddrInfoW");
+      GetAddrInfoWFn = (GetAddrInfoWFnType)GetProcAddress(hWs2_32, "GetAddrInfoW");
 
       if (GetAddrInfoWFn) {
          utf16_t *nodenameW = Unicode_GetAllocUTF16(nodename);
@@ -513,10 +401,8 @@ Posix_GetAddrInfo(ConstUnicode nodename,        // IN
     * convert strings to and from the local encoding.
     */
 
-   nodenameMBCS = (char *)Unicode_GetAllocBytes(nodename,
-                                                STRING_ENCODING_DEFAULT);
-   servnameMBCS = (char *)Unicode_GetAllocBytes(servname,
-                                                STRING_ENCODING_DEFAULT);
+   nodenameMBCS = (char *)Unicode_GetAllocBytes(nodename, STRING_ENCODING_DEFAULT);
+   servnameMBCS = (char *)Unicode_GetAllocBytes(servname, STRING_ENCODING_DEFAULT);
 
    retval = getaddrinfo(nodenameMBCS, servnameMBCS, hints, res);
 
@@ -589,8 +475,7 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
        * conversion required is between UTF-8 and UTF-16 encodings.
        */
 
-      GetNameInfoWFn = (GetNameInfoWFnType)GetProcAddress(hWs2_32,
-                                                          "GetNameInfoW");
+      GetNameInfoWFn = (GetNameInfoWFnType)GetProcAddress(hWs2_32, "GetNameInfoW");
 
       if (GetNameInfoWFn) {
          if (host) {
@@ -600,8 +485,7 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
             servW = (utf16_t *)Util_SafeMalloc(servlen * sizeof *servW);
          }
 
-         retval = (*GetNameInfoWFn)(sa, salen, hostW, hostlen, servW,
-                                    servlen, flags);
+         retval = (*GetNameInfoWFn)(sa, salen, hostW, hostlen, servW, servlen, flags);
 
          if (retval == 0) {
             if (host) {
@@ -642,8 +526,7 @@ Posix_GetNameInfo(const struct sockaddr *sa,    // IN
       servMBCS = (char *)Util_SafeMalloc(servlen * sizeof *servMBCS);
    }
 
-   retval = getnameinfo(sa, salen, hostMBCS, hostlen, servMBCS, servlen,
-                        flags);
+   retval = getnameinfo(sa, salen, hostMBCS, hostlen, servMBCS, servlen, flags);
 
    if (retval == 0) {
       if (host) {

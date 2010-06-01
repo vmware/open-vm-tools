@@ -68,13 +68,11 @@ PosixConvertToCurrent(ConstUnicode in,   // IN: string to convert
    char *p = Unicode_GetAllocBytes(in, STRING_ENCODING_DEFAULT);
    Bool success = p != NULL || in == NULL;
 
-   if (success) {
-      errno = e;
-      *out = p;
-   } else {
-      errno = UNICODE_CONVERSION_ERRNO;
-      *out = NULL;
+   if (!success) {
+      e = UNICODE_CONVERSION_ERRNO;
    }
+   *out = p;
+   errno = e;
    return success;
 }
 

@@ -27,344 +27,12 @@
 #include "guestApp.h"
 #include "toolsCoreInt.h"
 #include "util.h"
-#include "vmware/tools/i18n.h"
-#include "vmware/tools/utils.h"
+#include "vmtools.h"
 
 
 #ifdef USE_APPLOADER
 static Bool (*LoadDependencies)(char *libName, Bool useShipped);
 #endif
-
-typedef void (*PluginDataCallback)(ToolsServiceState *state,
-                                   ToolsPluginData *plugin);
-
-typedef gboolean (*PluginAppRegCallback)(ToolsServiceState *state,
-                                         ToolsPluginData *plugin,
-                                         ToolsAppType type,
-                                         ToolsAppProviderReg *preg,
-                                         gpointer reg);
-
-
-/**
- * State dump callback for application registration information.
- *
- * @param[in]  state The service state.
- * @param[in]  plugin   The plugin information.
- * @param[in]  type     Application type.
- * @param[in]  preg     Provider information.
- * @param[in]  reg      Application registration.
- *
- * @return TRUE
- */
-
-static gboolean
-ToolsCoreDumpAppInfo(ToolsServiceState *state,
-                     ToolsPluginData *plugin,
-                     ToolsAppType type,
-                     ToolsAppProviderReg *preg,
-                     gpointer reg)
-{
-   if (preg != NULL) {
-      if (preg->prov->dumpState != NULL) {
-         preg->prov->dumpState(&state->ctx, preg->prov, reg);
-      } else {
-         g_message("      App type %u (no provider info).\n", type);
-      }
-    } else {
-      g_message("      App type %u (no provider).\n", type);
-   }
-   return TRUE;
-}
-
-
-/**
- * State dump callback for generic plugin information.
- *
- * @param[in]  state    The service state.
- * @param[in]  plugin   The plugin information.
- */
-
-static void
-ToolsCoreDumpPluginInfo(ToolsServiceState *state,
-                        ToolsPluginData *plugin)
-{
-   g_message("   Plugin: %s\n", plugin->name);
-
-   if (plugin->regs == NULL) {
-      g_message("      No registrations.\n");
-   }
-}
-
-
-/**
- * State dump callback for GuestRPC applications.
- *
- * @param[in]  ctx   The application context.
- * @param[in]  prov  Unused.
- * @param[in]  reg   The application registration data.
- */
-
-static void
-ToolsCoreDumpRPC(ToolsAppCtx *ctx,
-                 ToolsAppProvider *prov,
-                 gpointer reg)
-{
-   if (reg != NULL) {
-      RpcChannelCallback *cb = reg;
-      g_message("      RPC callback: %s\n", cb->name);
-   }
-}
-
-
-/**
- * State dump callback for signal connections.
- *
- * @param[in]  ctx   The application context.
- * @param[in]  prov  Unused.
- * @param[in]  reg   The application registration data.
- */
-
-static void
-ToolsCoreDumpSignal(ToolsAppCtx *ctx,
-                    ToolsAppProvider *prov,
-                    gpointer reg)
-{
-   if (reg != NULL) {
-      ToolsPluginSignalCb *sig = reg;
-      g_message("      Signal callback: %s\n", sig->signame);
-   }
-}
-
-
-/**
- * Callback to register applications with the given provider.
- *
- * @param[in]  state    The service state.
- * @param[in]  plugin   The plugin information.
- * @param[in]  type     Application type.
- * @param[in]  preg     Provider information.
- * @param[in]  reg      Application registration.
- *
- * @return Whether to continue registering other apps.
- */
-
-static gboolean
-ToolsCoreRegisterApp(ToolsServiceState *state,
-                     ToolsPluginData *plugin,
-                     ToolsAppType type,
-                     ToolsAppProviderReg *preg,
-                     gpointer reg)
-{
-   gboolean error = TRUE;
-
-   if (type == TOOLS_APP_PROVIDER) {
-      /* We should already have registered all providers. */
-      return TRUE;
-   }
-
-   ASSERT(preg != NULL);
-
-   if (preg->state == TOOLS_PROVIDER_ERROR) {
-      g_warning("Plugin %s wants to register app of type %d but the "
-                "provider failed to activate.\n", plugin->name, type);
-      goto exit;
-   }
-
-   /*
-    * Register the app with the provider, activating it if necessary. If
-    * it fails to activate, tag it so we don't try again.
-    */
-   if (preg->state == TOOLS_PROVIDER_IDLE) {
-      if (preg->prov->activate != NULL) {
-         GError *err = NULL;
-         preg->prov->activate(&state->ctx, preg->prov, &err);
-         if (err != NULL) {
-            g_warning("Error activating provider %s: %s.\n",
-                      preg->prov->name, err->message);
-            preg->state = TOOLS_PROVIDER_ERROR;
-            g_clear_error(&err);
-            goto exit;
-         }
-      }
-      preg->state = TOOLS_PROVIDER_ACTIVE;
-   }
-
-   if (!preg->prov->registerApp(&state->ctx, preg->prov, reg)) {
-      g_warning("Failed registration of app type %d (%s) from plugin %s.",
-                type, preg->prov->name, plugin->name);
-      goto exit;
-   }
-   error = FALSE;
-
-exit:
-   if (error && plugin->errorCb != NULL) {
-      return plugin->errorCb(&state->ctx, type, reg, plugin);
-   }
-   return TRUE;
-}
-
-
-/**
- * Callback to register application providers.
- *
- * @param[in]  state    The service state.
- * @param[in]  plugin   The plugin information.
- * @param[in]  type     Application type.
- * @param[in]  preg     Provider information.
- * @param[in]  reg      Application registration.
- *
- * @return TRUE
- */
-
-static gboolean
-ToolsCoreRegisterProvider(ToolsServiceState *state,
-                          ToolsPluginData *plugin,
-                          ToolsAppType type,
-                          ToolsAppProviderReg *preg,
-                          gpointer reg)
-{
-   if (type == TOOLS_APP_PROVIDER) {
-      guint k;
-      ToolsAppProvider *prov = reg;
-      ToolsAppProviderReg newreg = { prov, TOOLS_PROVIDER_IDLE };
-
-      ASSERT(prov->name != NULL);
-      ASSERT(prov->registerApp != NULL);
-
-      /* Assert that no two providers choose the same app type. */
-      for (k = 0; k < state->providers->len; k++) {
-         ToolsAppProviderReg *existing = &g_array_index(state->providers,
-                                                        ToolsAppProviderReg,
-                                                        k);
-         ASSERT(prov->regType != existing->prov->regType);
-         g_return_val_if_fail(prov->regType != existing->prov->regType, TRUE);
-      }
-
-      g_array_append_val(state->providers, newreg);
-   }
-
-   return TRUE;
-}
-
-
-/**
- * Iterates through the list of plugins, and through each plugin's app
- * registration data, calling the appropriate callback for each piece
- * of data.
- *
- * One of the two callback arguments must be provided.
- *
- * @param[in]  state       Service state.
- * @param[in]  pluginCb    Callback called for each plugin data instance.
- * @param[in]  appRegCb    Callback called for each application registration.
- */
-
-static void
-ToolsCoreForEachPlugin(ToolsServiceState *state,
-                       PluginDataCallback pluginCb,
-                       PluginAppRegCallback appRegCb)
-{
-   guint i;
-
-   ASSERT(pluginCb != NULL || appRegCb != NULL);
-
-   for (i = 0; i < state->plugins->len; i++) {
-      ToolsPlugin *plugin = g_ptr_array_index(state->plugins, i);
-      GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
-      guint j;
-
-      if (pluginCb != NULL) {
-         pluginCb(state, plugin->data);
-      }
-
-      if (regs == NULL || appRegCb == NULL) {
-         continue;
-      }
-
-      for (j = 0; j < regs->len; j++) {
-         guint k;
-         ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
-         ToolsAppProviderReg *preg = NULL;
-
-         /* Find the provider for the desired reg type. */
-         for (k = 0; k < state->providers->len; k++) {
-            ToolsAppProviderReg *tmp = &g_array_index(state->providers,
-                                                      ToolsAppProviderReg,
-                                                      k);
-            if (tmp->prov->regType == reg->type) {
-               preg = tmp;
-               break;
-            }
-         }
-
-         if (preg == NULL) {
-            g_message("Cannot find provider for app type %d, plugin %s may not work.\n",
-                      reg->type, plugin->data->name);
-            if (plugin->data->errorCb != NULL &&
-                !plugin->data->errorCb(&state->ctx, reg->type, NULL, plugin->data)) {
-               break;
-            }
-            continue;
-         }
-
-         for (k = 0; k < reg->data->len; k++) {
-            gpointer appdata = &reg->data->data[preg->prov->regSize * k];
-            if (!appRegCb(state, plugin->data, reg->type, preg, appdata)) {
-               /* Break out of the outer loop. */
-               j = regs->len;
-               break;
-            }
-         }
-      }
-   }
-}
-
-
-/**
- * Registration callback for GuestRPC applications.
- *
- * @param[in]  ctx   The application context.
- * @param[in]  prov  Unused.
- * @param[in]  reg   The application registration data.
- *
- * @return TRUE.
- */
-
-static gboolean
-ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
-                     ToolsAppProvider *prov,
-                     gpointer reg)
-{
-   RpcChannel_RegisterCallback(ctx->rpc, reg);
-   return TRUE;
-}
-
-
-/**
- * Registration callback for signal connections.
- *
- * @param[in]  ctx   The application context.
- * @param[in]  prov  Unused.
- * @param[in]  reg   The application registration data.
- *
- * @return TRUE if the signal exists.
- */
-
-static gboolean
-ToolsCoreRegisterSignal(ToolsAppCtx *ctx,
-                        ToolsAppProvider *prov,
-                        gpointer reg)
-{
-   ToolsPluginSignalCb *sig = reg;
-   if (g_signal_lookup(sig->signame, G_OBJECT_TYPE(ctx->serviceObj)) != 0) {
-      g_signal_connect(ctx->serviceObj,
-                       sig->signame,
-                       sig->callback,
-                       sig->clientData);
-      return TRUE;
-   }
-   return FALSE;
-}
 
 
 /**
@@ -387,18 +55,17 @@ ToolsCoreStrPtrCompare(gconstpointer _str1,
 
 
 /**
- * Loads all the plugins found in the given directory, adding the registration
- * data to the given array.
+ * Loads all plugins present in the plugin directory. If the plugin path
+ * is NULL, then default directories are used in case the service is either
+ * the main tools service of the user daemon, otherwise failure is returned.
  *
- * @param[in]  ctx         Application context.
- * @param[in]  pluginPath  Path where to look for plugins.
- * @param[out] regs        Array where to store plugin registration info.
+ * @param[in]  state    The service state.
+ *
+ * @return Whether loading the plugins was successful.
  */
 
-static gboolean
-ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
-                       const gchar *pluginPath,
-                       GPtrArray *regs)
+gboolean
+ToolsCore_LoadPlugins(ToolsServiceState *state)
 {
    gboolean ret = FALSE;
    const gchar *staticEntry;
@@ -407,7 +74,36 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
    GError *err = NULL;
    GPtrArray *plugins;
 
-   dir = g_dir_open(pluginPath, 0, &err);
+   g_assert(g_module_supported());
+
+   if (state->pluginPath == NULL) {
+      if (state->mainService ||
+          strcmp(state->name, VMTOOLS_USER_SERVICE) == 0) {
+         char *instPath;
+         char *subdir = "";
+#if defined(sun) && defined(__x86_64__)
+         subdir = "/amd64";
+#endif
+         instPath = GuestApp_GetInstallPath();
+         state->pluginPath = g_strdup_printf("%s%cplugins%s%c%s",
+                                             instPath,
+                                             DIRSEPC,
+                                             subdir,
+                                             DIRSEPC,
+                                             state->name);
+         vm_free(instPath);
+      } else {
+         g_warning("No plugin path provided for service '%s'.\n", state->name);
+         goto exit;
+      }
+   }
+
+   if (!g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR)) {
+      g_warning("Plugin path is not a directory: %s\n", state->pluginPath);
+      goto exit;
+   }
+
+   dir = g_dir_open(state->pluginPath, 0, &err);
    if (dir == NULL) {
       g_warning("Error opening dir: %s\n", err->message);
       goto exit;
@@ -420,14 +116,29 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
     * regardless of how the filesystem returns entries.
     */
    while ((staticEntry = g_dir_read_name(dir)) != NULL) {
-      if (g_str_has_suffix(staticEntry, "." G_MODULE_SUFFIX)) {
-         g_ptr_array_add(plugins, g_strdup(staticEntry));
-      }
+      g_ptr_array_add(plugins, g_strdup(staticEntry));
    }
 
-   g_dir_close(dir);
-
    g_ptr_array_sort(plugins, ToolsCoreStrPtrCompare);
+
+   state->plugins = g_ptr_array_new();
+
+#ifdef USE_APPLOADER
+   {
+      Bool ret = FALSE;
+      GModule *mainModule = g_module_open(NULL, G_MODULE_BIND_LAZY);
+      ASSERT(mainModule);
+
+      ret = g_module_symbol(mainModule, "AppLoader_LoadLibraryDependencies",
+                            (gpointer *)&LoadDependencies);
+      g_module_close(mainModule);
+
+      if (!ret) {
+         g_critical("Unable to locate library dependency loading function.\n");
+         goto exit;
+      }
+   }
+#endif
 
    for (i = 0; i < plugins->len; i++) {
       gchar *entry;
@@ -438,7 +149,7 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       ToolsPluginOnLoad onload;
 
       entry = g_ptr_array_index(plugins, i);
-      path = g_strdup_printf("%s%c%s", pluginPath, DIRSEPC, entry);
+      path = g_strdup_printf("%s%c%s", state->pluginPath, DIRSEPC, entry);
 
       if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
          g_warning("File '%s' is not a regular file, skipping.\n", entry);
@@ -464,7 +175,7 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
       }
 
       if (onload != NULL) {
-         data = onload(ctx);
+         data = onload(&state->ctx);
       }
 
       if (data == NULL) {
@@ -472,14 +183,13 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
          goto next;
       }
 
-      ASSERT(data->name != NULL);
+      g_assert(data->name != NULL);
       g_module_make_resident(module);
       plugin = g_malloc(sizeof *plugin);
       plugin->module = module;
       plugin->data = data;
-      VMTools_BindTextDomain(data->name, NULL, NULL);
 
-      g_ptr_array_add(regs, plugin);
+      g_ptr_array_add(state->plugins, plugin);
       g_debug("Plugin '%s' initialized.\n", plugin->data->name);
 
    next:
@@ -498,121 +208,10 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
    ret = TRUE;
 
 exit:
-   return ret;
-}
-
-
-/**
- * State dump callback for logging information about loaded plugins.
- *
- * @param[in]  state    The service state.
- */
-
-void
-ToolsCore_DumpPluginInfo(ToolsServiceState *state)
-{
-   if (state->plugins == NULL) {
-      g_message("   No plugins loaded.");
-   } else {
-      ToolsCoreForEachPlugin(state, ToolsCoreDumpPluginInfo, ToolsCoreDumpAppInfo);
+   if (dir != NULL) {
+      g_dir_close(dir);
    }
-}
-
-
-/**
- * Loads all plugins present in the plugin directory. If the plugin path
- * is NULL, then default directories are used in case the service is either
- * the main tools service of the user daemon, otherwise failure is returned.
- *
- * @param[in]  state    The service state.
- *
- * @return Whether loading the plugins was successful.
- */
-
-gboolean
-ToolsCore_LoadPlugins(ToolsServiceState *state)
-{
-   gboolean ret = FALSE;
-   gchar *pluginRoot;
-
-#if defined(sun) && defined(__x86_64__)
-   const char *subdir = "/amd64";
-#else
-   const char *subdir = "";
-#endif
-
-#if defined(OPEN_VM_TOOLS)
-   pluginRoot = g_strdup(VMTOOLSD_PLUGIN_ROOT);
-#else
-   char *instPath = GuestApp_GetInstallPath();
-   pluginRoot = g_strdup_printf("%s%cplugins", instPath, DIRSEPC);
-   vm_free(instPath);
-#endif
-
-   ASSERT(g_module_supported());
-
-#ifdef USE_APPLOADER
-   {
-      Bool ret = FALSE;
-      GModule *mainModule = g_module_open(NULL, G_MODULE_BIND_LAZY);
-      ASSERT(mainModule);
-
-      ret = g_module_symbol(mainModule, "AppLoader_LoadLibraryDependencies",
-                            (gpointer *)&LoadDependencies);
-      g_module_close(mainModule);
-
-      if (!ret) {
-         g_critical("Unable to locate library dependency loading function.\n");
-         goto exit;
-      }
-   }
-#endif
-
-   state->plugins = g_ptr_array_new();
-
-   /*
-    * First, load plugins from the common directory. The common directory
-    * is not required to exist unless provided on the command line.
-    */
-   if (state->commonPath == NULL) {
-      state->commonPath = g_strdup_printf("%s%s%c%s",
-                                          pluginRoot,
-                                          subdir,
-                                          DIRSEPC,
-                                          TOOLSCORE_COMMON);
-   } else if (!g_file_test(state->commonPath, G_FILE_TEST_IS_DIR)) {
-      g_warning("Common plugin path is not a directory: %s\n", state->commonPath);
-      goto exit;
-   }
-
-   if (g_file_test(state->commonPath, G_FILE_TEST_IS_DIR) &&
-       !ToolsCoreLoadDirectory(&state->ctx, state->commonPath, state->plugins)) {
-      goto exit;
-   }
-
-   /* Load the container-specific plugins. */
-
-   if (state->pluginPath == NULL) {
-      state->pluginPath = g_strdup_printf("%s%s%c%s",
-                                          pluginRoot,
-                                          subdir,
-                                          DIRSEPC,
-                                          state->name);
-   }
-
-   if (!g_file_test(state->pluginPath, G_FILE_TEST_IS_DIR)) {
-      g_warning("Plugin path is not a directory: %s\n", state->pluginPath);
-      goto exit;
-   }
-
-   if (!ToolsCoreLoadDirectory(&state->ctx, state->pluginPath, state->plugins)) {
-      goto exit;
-   }
-
-   ret = TRUE;
-
-exit:
-   g_free(pluginRoot);
+   g_clear_error(&err);
    return ret;
 }
 
@@ -626,66 +225,59 @@ exit:
 void
 ToolsCore_RegisterPlugins(ToolsServiceState *state)
 {
-   ToolsAppProvider *fakeProv;
-   ToolsAppProviderReg fakeReg;
+   guint i;
 
    if (state->plugins == NULL) {
       return;
    }
 
-   /*
-    * Create "fake" app providers for the functionality provided by
-    * vmtoolsd (GuestRPC channel, glib signals, custom app providers).
-    */
-   state->providers = g_array_new(FALSE, TRUE, sizeof (ToolsAppProviderReg));
+   for (i = 0; i < state->plugins->len; i++) {
+      ToolsPlugin *plugin = g_ptr_array_index(state->plugins, i);
+      GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
+      guint j;
 
-   if (state->ctx.rpc != NULL) {
-      fakeProv = g_malloc0(sizeof *fakeProv);
-      fakeProv->regType = TOOLS_APP_GUESTRPC;
-      fakeProv->regSize = sizeof (RpcChannelCallback);
-      fakeProv->name = "GuestRPC";
-      fakeProv->registerApp = ToolsCoreRegisterRPC;
-      fakeProv->dumpState = ToolsCoreDumpRPC;
+      if (regs == NULL) {
+         continue;
+      }
 
-      fakeReg.prov = fakeProv;
-      fakeReg.state = TOOLS_PROVIDER_ACTIVE;
-      g_array_append_val(state->providers, fakeReg);
+      for (j = 0; j < regs->len; j++) {
+         guint k;
+         ToolsAppReg *reg = &g_array_index(regs, ToolsAppReg, j);
+
+         switch (reg->type) {
+         case TOOLS_APP_GUESTRPC:
+            ASSERT(reg->data != NULL);
+            if (state->ctx.rpc == NULL) {
+               g_warning("Plugin '%s' asked to register a Guest RPC handler, "
+                         "but there's no RPC channel.\n", plugin->data->name);
+            } else {
+               for (k = 0; k < reg->data->len; k++) {
+                  RpcChannelCallback *cb = &g_array_index(reg->data,
+                                                          RpcChannelCallback,
+                                                          k);
+                  RpcChannel_RegisterCallback(state->ctx.rpc, cb);
+               }
+            }
+            break;
+
+         case TOOLS_APP_SIGNALS:
+            ASSERT(reg->data != NULL);
+            for (k = 0; k < reg->data->len; k++) {
+               ToolsPluginSignalCb *sig = &g_array_index(reg->data,
+                                                         ToolsPluginSignalCb,
+                                                         k);
+               g_signal_connect(state->ctx.serviceObj,
+                                sig->signame,
+                                sig->callback,
+                                sig->clientData);
+            }
+            break;
+
+         default:
+            NOT_IMPLEMENTED();
+         }
+      }
    }
-
-   fakeProv = g_malloc0(sizeof *fakeProv);
-   fakeProv->regType = TOOLS_APP_SIGNALS;
-   fakeProv->regSize = sizeof (ToolsPluginSignalCb);
-   fakeProv->name = "Signals";
-   fakeProv->registerApp = ToolsCoreRegisterSignal;
-   fakeProv->dumpState = ToolsCoreDumpSignal;
-
-   fakeReg.prov = fakeProv;
-   fakeReg.state = TOOLS_PROVIDER_ACTIVE;
-   g_array_append_val(state->providers, fakeReg);
-
-   fakeProv = g_malloc0(sizeof *fakeProv);
-   fakeProv->regType = TOOLS_APP_PROVIDER;
-   fakeProv->regSize = sizeof (ToolsAppProvider);
-   fakeProv->name = "App Provider";
-   fakeProv->registerApp = NULL;
-   fakeProv->dumpState = NULL;
-
-   fakeReg.prov = fakeProv;
-   fakeReg.state = TOOLS_PROVIDER_ACTIVE;
-   g_array_append_val(state->providers, fakeReg);
-
-
-   /*
-    * First app providers need to be identified, so that we know that they're
-    * available for use by plugins who need them.
-    */
-   ToolsCoreForEachPlugin(state, NULL, ToolsCoreRegisterProvider);
-
-   /*
-    * Now that we know all app providers, register all the apps, activating
-    * individual app providers as necessary.
-    */
-   ToolsCoreForEachPlugin(state, NULL, ToolsCoreRegisterApp);
 }
 
 
@@ -705,7 +297,6 @@ ToolsCore_RegisterPlugins(ToolsServiceState *state)
 void
 ToolsCore_UnloadPlugins(ToolsServiceState *state)
 {
-   guint i;
    GArray *pcaps = NULL;
 
    if (state->plugins == NULL) {
@@ -726,26 +317,6 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
    }
 
    g_signal_emit_by_name(state->ctx.serviceObj, TOOLS_CORE_SIG_SHUTDOWN, &state->ctx);
-
-   /*
-    * Stop all app providers, and free the memory we allocated for the two
-    * internal app providers.
-    */
-   for (i = 0; i < state->providers->len; i++) {
-       ToolsAppProviderReg *preg = &g_array_index(state->providers,
-                                                  ToolsAppProviderReg,
-                                                  i);
-
-      if (preg->prov->shutdown != NULL) {
-         preg->prov->shutdown(&state->ctx, preg->prov);
-      }
-
-      if (preg->prov->regType == TOOLS_APP_GUESTRPC ||
-          preg->prov->regType == TOOLS_APP_SIGNALS ||
-          preg->prov->regType == TOOLS_APP_PROVIDER) {
-         g_free(preg->prov);
-      }
-   }
 
    while (state->plugins->len > 0) {
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
@@ -768,9 +339,6 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       g_module_close(plugin->module);
       g_free(plugin);
    }
-
-   g_array_free(state->providers, TRUE);
-   state->providers = NULL;
 
    g_ptr_array_free(state->plugins, TRUE);
    state->plugins = NULL;

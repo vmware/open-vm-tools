@@ -30,7 +30,7 @@
 #include "debug.h"
 #include "guestApp.h"
 #include "util.h"
-#include "vmware/tools/utils.h"
+#include "vmtools.h"
 
 
 /*
@@ -106,18 +106,19 @@ Toolbox_GetScriptPath(const gchar *script)   // IN
 GKeyFile *
 Toolbox_LoadToolsConf(void)
 {
-   GKeyFile *config = NULL;
+   gchar *path = VMTools_GetToolsConfFile();
+   GKeyFile *config;
 
-   VMTools_LoadConfig(NULL,
-                      G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS,
-                      &config,
-                      NULL);
+   config = VMTools_LoadConfig(path,
+                               G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS,
+                               TRUE);
 
    if (config == NULL) {
       Debug("Unable to load config file.\n");
       config = g_key_file_new();
    }
 
+   g_free(path);
    return config;
 }
 
@@ -145,15 +146,18 @@ gboolean
 Toolbox_SaveToolsConf(GKeyFile *config)   // IN
 {
    gboolean ret = FALSE;
+   gchar *path = NULL;
    GError *err = NULL;
 
-   ret = VMTools_WriteConfig(NULL, config, &err);
+   path = VMTools_GetToolsConfFile();
+   ret = VMTools_WriteConfig(path, config, &err);
 
    if (!ret) {
       Warning("Error saving conf data: %s\n", err->message);
       g_clear_error(&err);
    }
 
+   g_free(path);
    return ret;
 }
 

@@ -31,7 +31,6 @@
 #include "vm_version.h"
 #include "util.h"
 #include "str.h"
-#include "vixCommands.h"
 
 #include "vixOpenSource.h"
 
@@ -457,7 +456,6 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
    size_t propertyValueLengthSize;
    size_t headerSize;
    VixPropertyType *propertyTypePtr;
-   Bool allocateFailed;
 
    if ((NULL == propList)
        || (NULL == buffer)) {
@@ -538,13 +536,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
                goto abort;
             }
             free(property->value.strValue);
-
-            property->value.strValue =
-               VixMsg_StrdupClientData(strPtr, &allocateFailed);
-            if (allocateFailed) {
-               err = VIX_E_OUT_OF_MEMORY;
-               goto abort;
-            }
+            property->value.strValue = Util_SafeStrdup(strPtr);
             break;
 
          ////////////////////////////////////////////////////////
@@ -577,8 +569,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
              * pretty easy to handle.
              */
             free(property->value.blobValue.blobContents);
-            property->value.blobValue.blobContents =
-               VixMsg_MallocClientData(*lengthPtr);
+            property->value.blobValue.blobContents = malloc(*lengthPtr);
             if (NULL == property->value.blobValue.blobContents) {
                err = VIX_E_OUT_OF_MEMORY;
                goto abort;
@@ -1512,62 +1503,5 @@ VixPropertyList_PropertyExists(VixPropertyListImpl *propList,     // IN
 
    return(foundIt);
 } // VixPropertyList_PropertyExists
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixPropertyList_NumItems --
- *
- *       Returns a count of the properties in the list.
- *
- * Results:
- *       int - Number of properties in property list.
- *
- * Side effects:
- *       None.
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-VixPropertyList_NumItems(VixPropertyListImpl *propList)     // IN
-{
-   VixPropertyValue *prop;
-   int count = 0;
-
-   if (propList == NULL) {
-      return 0;
-   }
-
-   for (prop = propList->properties; prop != NULL; prop = prop->next) {
-      ++count;
-   }
-
-   return count;
-} // VixPropertyList_NumItems
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixPropertyList_Empty --
- *
- *       Returns whether the property list has no properties.
- *
- * Results:
- *       Bool - True iff property list has no properties.
- *
- * Side effects:
- *       None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-VixPropertyList_Empty(VixPropertyListImpl *propList)     // IN
-{
-   return (propList == NULL || propList->properties == NULL);
-} // VixPropertyList_Empty
 
 

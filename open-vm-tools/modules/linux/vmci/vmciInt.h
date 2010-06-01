@@ -28,8 +28,6 @@
 
 #define DOLOG(...) printk(KERN_INFO __VA_ARGS__)
 #define VMCI_LOG(_args) DOLOG _args
-/* XXX We need to make this consistant between the guest and the host. */
-#define VMCILOG(_args) DOLOG _args
 
 /* 
  * Called by common code, hence the different naming convention. 

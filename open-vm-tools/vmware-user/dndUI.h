@@ -79,6 +79,7 @@ private:
     */
    void AddBlock();
    void RemoveBlock();
+   bool TryXTestFakeDeviceButtonEvent(void);
 
    /**
     * Callbacks from Common DnD layer.

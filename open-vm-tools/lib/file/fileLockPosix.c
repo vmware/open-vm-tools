@@ -51,19 +51,42 @@
 #include "fileInt.h"
 #include "util.h"
 #include "str.h"
-#include "err.h"
 #include "vm_version.h"
 #include "localconfig.h"
 #include "hostinfo.h"
 #include "su.h"
-#include "hostType.h"
 
 #include "unicodeOperations.h"
+
+#if defined(VMX86_SERVER)
+#include "hostType.h"
+/*
+ * UserWorlds have to handle file locking slightly differently than COS
+ * applications, as they are in a different pid space.  The problem is that
+ * if a UserWorld tries to write its UserWorld pid to a lock file, a COS
+ * program will think the lock file is stale, as that pid won't be valid on
+ * the COS. Luckily, every UW is attached to a COS proxy, so, for the
+ * purposes of this file, the UW can use its COS proxy's pid as its pid when
+ * locking files. This way, if a COS app looks up the proxy pid, it will be
+ * valid and the COS app will wait for the lock.
+ */
+#include "uwvmk.h"
+#endif
 
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
 
 #define DEVICE_LOCK_DIR "/var/lock"
+
+/*
+ * Parameters used by the file library.
+ */
+typedef struct FileLockOptions {
+   int lockerPid;
+   Bool userWorld;
+} FileLockOptions;
+
+static FileLockOptions fileLockOptions = { 0, FALSE };
 
 /*
  * XXX
@@ -73,6 +96,30 @@
  * important, and should be presented directly to the user, not go silently
  * into the log file.
  */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileLock_Init --
+ *
+ *      Initialize the file locking library.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Allows the user to enable locking on random file systems.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+FileLock_Init(int lockerPid,            // IN
+              Bool userWorld)           // IN
+{
+   fileLockOptions.lockerPid = lockerPid;
+   fileLockOptions.userWorld = userWorld;
+}
 
 #if !defined(__FreeBSD__) && !defined(sun)
 /*
@@ -93,27 +140,24 @@
  */
 
 static Bool
-IsLinkingAvailable(const char *fileName)  // IN:
+IsLinkingAvailable(const char *fileName)     // IN:
 {
    struct statfs buf;
-   int status;
+   int           status;
 
    ASSERT(fileName);
 
-   /*
-    * Don't use linking on ESX/VMFS... the overheads are expensive and this
-    * path really isn't used.
-    */
-
-   if (HostType_OSIsVMK()) {
+#if defined(VMX86_SERVER)
+   // Never supported on VMvisor
+   if (HostType_OSIsPureVMK()) {
       return FALSE;
    }
+#endif
 
    status = statfs(fileName, &buf);
 
    if (status == -1) {
-      Log(LGPFX" Bad statfs using %s (%s).\n", fileName,
-          Err_Errno2String(errno));
+      Log(LGPFX" Bad statfs using %s (%s).\n", fileName, strerror(errno));
 
       return FALSE;
    }
@@ -150,6 +194,7 @@ IsLinkingAvailable(const char *fileName)  // IN:
    case TMPFS_SUPER_MAGIC:
    case JFS_SUPER_MAGIC:
         return TRUE;                        // these are known to work
+   case VMFS_SUPER_MAGIC:
    case SMB_SUPER_MAGIC:
    case MSDOS_SUPER_MAGIC:
         return FALSE;
@@ -164,6 +209,44 @@ IsLinkingAvailable(const char *fileName)  // IN:
 #endif
 
    return FALSE;
+}
+
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * FileLockGetPid --
+ *
+ *      Returns the pid of the main thread if we're running in a
+ *      multithreaded process, otherwise return the result of getpid().
+ *
+ * Results:
+ *      a pid.
+ *
+ * Side effects:
+ *      None.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+static int
+FileLockGetPid(void)
+{
+#if defined(VMX86_SERVER)
+   /*
+    * For a UserWorld, we want to get this cartel's proxy's cos pid.
+    */
+   if (fileLockOptions.userWorld) {
+      int pid = 0;
+
+      VMKernel_GetLockPid(&pid);
+
+      return pid;
+   }
+#endif
+
+   return fileLockOptions.lockerPid > 0 ?
+                         fileLockOptions.lockerPid : (int) getpid();
 }
 
 
@@ -184,7 +267,7 @@ IsLinkingAvailable(const char *fileName)  // IN:
  */
 
 static Bool
-RemoveStaleLockFile(const char *lockFileName)  // IN:
+RemoveStaleLockFile(const char *lockFileName)      // IN:
 {
    uid_t uid;
    int ret;
@@ -203,7 +286,7 @@ RemoveStaleLockFile(const char *lockFileName)  // IN:
 
    if (ret < 0) {
       Warning(LGPFX" Failed to remove stale lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
+              lockFileName, strerror(saveErrno));
 
       return FALSE;
    }
@@ -229,9 +312,9 @@ RemoveStaleLockFile(const char *lockFileName)  // IN:
  */
 
 static int
-GetLockFileValues(const char *lockFileName,  // IN:
-                  int *pid,                  // OUT:
-                  char *hostID)              // OUT:
+GetLockFileValues(const char *lockFileName, // IN:
+                  int *pid,                 // OUT:
+                  char *hostID)             // OUT:
 {
    char *p;
    int  saveErrno;
@@ -252,7 +335,7 @@ GetLockFileValues(const char *lockFileName,  // IN:
 
    if (lockFile == NULL) {
       Warning(LGPFX" Failed to open existing lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
+              lockFileName, strerror(saveErrno));
 
       return (saveErrno == ENOENT) ? 0 : -1;
    }
@@ -264,7 +347,7 @@ GetLockFileValues(const char *lockFileName,  // IN:
 
    if (p == NULL) {
       Warning(LGPFX" Failed to read line from lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
+              lockFileName, strerror(saveErrno));
 
       deleteLockFile = TRUE;
    } else {
@@ -316,6 +399,12 @@ FileLockIsValidProcess(int pid)  // IN:
    uid_t uid;
    int err;
    Bool ret;
+
+#if defined(VMX86_SERVER)
+   if (fileLockOptions.userWorld) {
+      return (VMKernel_IsLockPidAlive(pid) == 0) ? TRUE : FALSE;
+   }
+#endif
 
    uid = Id_BeginSuperUser();
    err = (kill(pid, 0) == -1) ? errno : 0;
@@ -379,7 +468,7 @@ FileLockCreateLockFile(const char *lockFileName,  // IN:
 
       if (lockFD == -1) {
          Log(LGPFX" Failed to create new lock file %s (%s).\n",
-             lockFileLink, Err_Errno2String(saveErrno));
+             lockFileLink, strerror(saveErrno));
 
          return (saveErrno == EEXIST) ? 0 : -1;
       }
@@ -400,7 +489,7 @@ FileLockCreateLockFile(const char *lockFileName,  // IN:
 
       if (lockFD == -1) {
          Log(LGPFX" Failed to create new lock file %s (%s).\n",
-             lockFileName, Err_Errno2String(saveErrno));
+             lockFileName, strerror(saveErrno));
 
          return (saveErrno == EEXIST) ? 0 : -1;
       }
@@ -413,7 +502,7 @@ FileLockCreateLockFile(const char *lockFileName,  // IN:
 
    if (err != strlen(uniqueID)) {
       Warning(LGPFX" Failed to write to new lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
+              lockFileName, strerror(saveErrno));
       status = -1;
       goto exit;
    }
@@ -434,7 +523,7 @@ exit:
 
       if (err < 0) {
          Warning(LGPFX" Failed to remove temporary lock file %s (%s).\n",
-                 lockFileLink, Err_Errno2String(errno));
+                 lockFileLink, strerror(errno));
       }
 
    }
@@ -466,7 +555,7 @@ exit:
  */
 
 int
-FileLock_LockDevice(const char *deviceName)  // IN:
+FileLock_LockDevice(const char *deviceName)   // IN:
 {
    const char *hostID;
    char       uniqueID[1000];
@@ -481,14 +570,14 @@ FileLock_LockDevice(const char *deviceName)  // IN:
                                    deviceName);
 
    lockFileLink = Str_SafeAsprintf(NULL, "%s/LTMP..%s.t%05d", DEVICE_LOCK_DIR,
-                                   deviceName, getpid());
+                                   deviceName, FileLockGetPid());
 
    LOG(1, ("Requesting lock %s (temp = %s).\n", lockFileName,
            lockFileLink));
 
    hostID = FileLockGetMachineID();
    Str_Sprintf(uniqueID, sizeof uniqueID, "%d %s\n",
-               getpid(), hostID);
+               FileLockGetPid(), hostID);
 
    while ((status = FileLockCreateLockFile(lockFileName, lockFileLink,
                                            uniqueID)) == 0) {
@@ -576,7 +665,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
 
    if (ret < 0) {
       Log(LGPFX" Cannot remove lock file %s (%s).\n",
-          path, Err_Errno2String(saveErrno));
+          path, strerror(saveErrno));
       free(path);
 
       return FALSE;
@@ -606,9 +695,9 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
  */
 
 static int
-ReadSlashProc(const char *procPath,  // IN:
-              char *buffer,          // OUT:
-              size_t bufferSize)     // IN:
+ReadSlashProc(const char *procPath, // IN:
+              char *buffer,         // OUT:
+              size_t bufferSize)    // IN:
 {
    int fd;
    int err;
@@ -664,11 +753,11 @@ ReadSlashProc(const char *procPath,  // IN:
  */
 
 static uint64
-ProcessCreationTime(pid_t pid)  // IN:
+ProcessCreationTime(pid_t pid)
 {
-   int err;
-   char path[64];
-   char buffer[1024];
+   int    err;
+   char   path[64];
+   char   buffer[1024];
    uint64 creationTime;
 
    Str_Sprintf(path, sizeof path, "/proc/%d/stat", pid);
@@ -715,12 +804,12 @@ ProcessCreationTime(pid_t pid)  // IN:
 }
 #elif defined(__APPLE__)
 static uint64
-ProcessCreationTime(pid_t pid)  // IN:
+ProcessCreationTime(pid_t pid)
 {
-    int err;
-    size_t size;
+    int                err;
+    size_t             size;
     struct kinfo_proc  info;
-    int mib[4];
+    int                mib[4];
   
     /* Request information about the specified process */
     mib[0] = CTL_KERN;
@@ -735,7 +824,7 @@ ProcessCreationTime(pid_t pid)  // IN:
     /* Log any failures */
     if (err == -1) {
        Warning(LGPFX" %s sysctl for pid %d failed: %s\n", __FUNCTION__,
-               pid, Err_Errno2String(errno));
+               pid, strerror(errno));
 
        return 0;
     }
@@ -746,7 +835,7 @@ ProcessCreationTime(pid_t pid)  // IN:
 }
 #else
 static uint64
-ProcessCreationTime(pid_t pid)  // IN:
+ProcessCreationTime(pid_t pid)
 {
    return 0;
 }
@@ -771,8 +860,8 @@ ProcessCreationTime(pid_t pid)  // IN:
  */
 
 Bool
-FileLockValidOwner(const char *executionID,  // IN:
-                   const char *payload)      // IN:
+FileLockValidOwner(const char *executionID, // IN:
+                   const char *payload)     // IN:
 {
    int pid;
 
@@ -837,9 +926,9 @@ FileLockValidOwner(const char *executionID,  // IN:
  */
 
 int
-FileLockOpenFile(ConstUnicode pathName,         // IN:
-                 int flags,                     // IN:
-                 FILELOCK_FILE_HANDLE *handle)  // OUT:
+FileLockOpenFile(ConstUnicode pathName,        // IN:
+                 int flags,                    // IN:
+                 FILELOCK_FILE_HANDLE *handle) // OUT:
 {
    ASSERT(pathName);
 
@@ -867,7 +956,7 @@ FileLockOpenFile(ConstUnicode pathName,         // IN:
  */
 
 int
-FileLockCloseFile(FILELOCK_FILE_HANDLE handle)  // IN:
+FileLockCloseFile(FILELOCK_FILE_HANDLE handle) // IN:
 {
    return (close(handle) == -1) ? errno : 0;
 }
@@ -974,7 +1063,7 @@ FileLockWriteFile(FILELOCK_FILE_HANDLE handle,  // IN:
 char *
 FileLockGetExecutionID(void)
 {
-   return Str_SafeAsprintf(NULL, "%d", getpid());
+   return Str_SafeAsprintf(NULL, "%d", FileLockGetPid());
 }
 
 
@@ -1088,7 +1177,7 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    }
 
    Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
-               ProcessCreationTime(getpid()));
+               ProcessCreationTime(FileLockGetPid()));
 
    lockToken = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
                                  creationTimeString, err);

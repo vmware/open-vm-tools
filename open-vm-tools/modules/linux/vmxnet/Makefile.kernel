@@ -23,10 +23,6 @@
 
 INCLUDE += -I.
 
-ifdef OVT_SOURCE_DIR
-INCLUDE += -I$(OVT_SOURCE_DIR)/modules/shared/vmxnet
-endif
-
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
 
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/skblin.c, -DVMW_SKB_LINEARIZE_2618, )

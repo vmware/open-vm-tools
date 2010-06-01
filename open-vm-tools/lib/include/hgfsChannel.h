@@ -47,4 +47,5 @@ typedef struct HgfsChannelCBTable {
 Bool HgfsChannel_Init(void *data);  /* Optional data, used in guest. */
 void HgfsChannel_Exit(void *data);  /* Optional data, used in guest. */
 void HgfsChannel_InvalidateObjects(DblLnkLst_Links *shares);
+
 #endif

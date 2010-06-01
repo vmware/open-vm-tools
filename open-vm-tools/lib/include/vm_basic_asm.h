@@ -16,20 +16,6 @@
  *
  *********************************************************/
 
-/*********************************************************
- * The contents of this file are subject to the terms of the Common
- * Development and Distribution License (the "License") version 1.0
- * and no later version.  You may not use this file except in
- * compliance with the License.
- *
- * You can obtain a copy of the License at
- *         http://www.opensource.org/licenses/cddl1.php
- *
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- *********************************************************/
-
 /*
  * vm_basic_asm.h
  *
@@ -42,9 +28,10 @@
 #define _VM_BASIC_ASM_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
+#define INCLUDE_ALLOW_VMMEXT
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
+#define INCLUDE_ALLOW_VMNIXMOD
 #define INCLUDE_ALLOW_VMK_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_DISTRIBUTE
@@ -53,6 +40,7 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+#include "x86cpuid.h"
 
 #if defined VM_X86_64
 #include "vm_basic_asm_x86_64.h"
@@ -100,19 +88,19 @@ void _ReadWriteBarrier(void);
 /*
  * intrinsic functions only supported by x86-64 windows as of 2k3sp1
  */
+void             __cpuid(unsigned int*, unsigned int);
 unsigned __int64 __rdtsc(void);
 void             __stosw(unsigned short*, unsigned short, size_t);
 void             __stosd(unsigned long*, unsigned long, size_t);
-#pragma intrinsic(__rdtsc, __stosw, __stosd)
+#pragma intrinsic(__cpuid, __rdtsc, __stosw, __stosd)
 
 /*
  * intrinsic functions supported by x86-64 windows and newer x86
  * compilers (13.01.2035 for _BitScanForward).
  */
 unsigned char  _BitScanForward(unsigned long*, unsigned long);
-unsigned char  _BitScanReverse(unsigned long*, unsigned long);
 void           _mm_pause(void);
-#pragma intrinsic(_BitScanForward, _BitScanReverse, _mm_pause)
+#pragma intrinsic(_BitScanForward, _mm_pause)
 #endif /* VM_X86_64 */
 
 #ifdef __cplusplus
@@ -173,8 +161,154 @@ __GCC_IN(l, uint32, IN32)
 #define OUTW(port, val) __GCC_OUT(w, w, port, val)
 #define OUT32(port, val) __GCC_OUT(l, , port, val)
 
+
 #define GET_CURRENT_EIP(_eip) \
       __asm__ __volatile("call 0\n\tpopl %0" : "=r" (_eip): );
+
+
+/*
+ * Checked against the Intel manual and GCC --hpreg
+ * 
+ * Need __volatile__ and "memory" since CPUID has a synchronizing effect.
+ * The CPUID may also change at runtime (APIC flag, etc).
+ *
+ */
+
+/*
+ * %ebx is reserved on i386 PIC.  Apple's gcc-5493 (gcc 4.0) compiling
+ * for x86_64 incorrectly errors out saying %ebx is reserved.  This is
+ * Apple bug 7304232.
+ */
+#if vm_x86_64 ? (defined __APPLE_CC__ && __APPLE_CC__ == 5493) : defined __PIC__
+#if vm_x86_64
+/*
+ * Note that this generates movq %rbx,%rbx; cpuid; xchgq %rbx,%rbx ...
+ * Unfortunately Apple's assembler does not have .ifnes, and I cannot
+ * figure out how to do that with .if.   If we ever enable this code
+ * on other 64bit systems, both movq & xchgq should be surrounded by
+ * .ifnes \"%%rbx\", \"%q1\" & .endif
+ */
+#define VM_CPUID_BLOCK  "movq %%rbx, %q1\n\t" \
+                        "cpuid\n\t"           \
+                        "xchgq %%rbx, %q1\n\t"
+#define VM_EBX_OUT(reg) "=&r"(reg)
+#else
+#define VM_CPUID_BLOCK  "movl %%ebx, %1\n\t" \
+                        "cpuid\n\t"          \
+                        "xchgl %%ebx, %1\n\t"
+#define VM_EBX_OUT(reg) "=&rm"(reg)
+#endif
+#else
+#define VM_CPUID_BLOCK  "cpuid"
+#define VM_EBX_OUT(reg) "=b"(reg)
+#endif
+
+static INLINE void
+__GET_CPUID(int eax,         // IN
+            CPUIDRegs *regs) // OUT
+{
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (regs->eax), VM_EBX_OUT(regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
+      : "a" (eax)
+      : "memory"
+   );
+}
+
+static INLINE void
+__GET_CPUID2(int eax,         // IN
+             int ecx,         // IN
+             CPUIDRegs *regs) // OUT
+{
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (regs->eax), VM_EBX_OUT(regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
+      : "a" (eax), "c" (ecx)
+      : "memory"
+   );
+}
+
+static INLINE uint32
+__GET_EAX_FROM_CPUID(int eax) // IN
+{
+   uint32 ebx;
+
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx)
+      : "a" (eax)
+      : "memory", "%ecx", "%edx"
+   );
+
+   return eax;
+}
+
+static INLINE uint32
+__GET_EBX_FROM_CPUID(int eax) // IN
+{
+   uint32 ebx;
+
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx)
+      : "a" (eax)
+      : "memory", "%ecx", "%edx"
+   );
+
+   return ebx;
+}
+
+static INLINE uint32
+__GET_ECX_FROM_CPUID(int eax) // IN
+{
+   uint32 ecx;
+   uint32 ebx;
+
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx), "=c" (ecx)
+      : "a" (eax)
+      : "memory", "%edx"
+   );
+
+   return ecx;
+}
+
+static INLINE uint32
+__GET_EDX_FROM_CPUID(int eax) // IN
+{
+   uint32 edx;
+   uint32 ebx;
+
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx), "=d" (edx)
+      : "a" (eax)
+      : "memory", "%ecx"
+   );
+
+   return edx;
+}
+
+
+static INLINE uint32
+__GET_EAX_FROM_CPUID4(int ecx) // IN
+{
+   uint32 eax;
+   uint32 ebx;
+
+   __asm__ __volatile__(
+      VM_CPUID_BLOCK
+      : "=a" (eax), VM_EBX_OUT(ebx), "=c" (ecx)
+      : "a" (4), "c" (ecx)
+      : "memory", "%edx"
+   );
+
+   return eax;
+}
+
+#undef VM_CPUID_BLOCK
+#undef VM_EBX_OUT
 
 #endif // x86*
 
@@ -220,17 +354,243 @@ OUT32(uint16 port, uint32 value)
    __asm pop eax \
    __asm mov _eip, eax \
 } while (0)
+#endif
+
+static INLINE void
+__GET_CPUID(int input, CPUIDRegs *regs)
+{
+#ifdef VM_X86_64
+   __cpuid((unsigned int *)regs, input);
+#else
+   __asm push esi
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm mov  esi, regs
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov 0x0[esi], eax
+   __asm mov 0x4[esi], ebx
+   __asm mov 0x8[esi], ecx
+   __asm mov 0xC[esi], edx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+   __asm pop esi
+#endif
+}
+
+#ifdef VM_X86_64
+
+/*
+ * No inline assembly in Win64. Implemented in bora/lib/user in
+ * cpuidMasm64.asm.
+ */
+
+extern void
+__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs);
+
+#else // VM_X86_64
+
+static INLINE void
+__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
+{
+   __asm push esi
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, inputEax
+   __asm mov  ecx, inputEcx
+   __asm mov  esi, regs
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov 0x0[esi], eax
+   __asm mov 0x4[esi], ebx
+   __asm mov 0x8[esi], ecx
+   __asm mov 0xC[esi], edx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+   __asm pop esi
+}
+#endif
+
+static INLINE uint32
+__GET_EAX_FROM_CPUID(int input)
+{
+#ifdef VM_X86_64
+   CPUIDRegs regs;
+   __cpuid((unsigned int *)&regs, input);
+   return regs.eax;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, eax
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
+}
+
+static INLINE uint32
+__GET_EBX_FROM_CPUID(int input)
+{
+#ifdef VM_X86_64
+   CPUIDRegs regs;
+   __cpuid((unsigned int *)&regs, input);
+   return regs.ebx;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, ebx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
+}
+
+static INLINE uint32
+__GET_ECX_FROM_CPUID(int input)
+{
+#ifdef VM_X86_64
+   CPUIDRegs regs;
+   __cpuid((unsigned int *)&regs, input);
+   return regs.ecx;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, ecx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
+}
+
+static INLINE uint32
+__GET_EDX_FROM_CPUID(int input)
+{
+#ifdef VM_X86_64
+   CPUIDRegs regs;
+   __cpuid((unsigned int *)&regs, input);
+   return regs.edx;
+#else
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, input
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, edx
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+#endif
+}
+
+#ifdef VM_X86_64
+
+/*
+ * No inline assembly in Win64. Implemented in bora/lib/user in
+ * cpuidMasm64.asm.
+ */
+
+extern uint32
+__GET_EAX_FROM_CPUID4(int inputEcx);
+
+#else // VM_X86_64
+
+static INLINE uint32
+__GET_EAX_FROM_CPUID4(int inputEcx)
+{
+   uint32 output;
+
+   //NOT_TESTED();
+   __asm push ebx
+   __asm push ecx
+   __asm push edx
+
+   __asm mov  eax, 4
+   __asm mov  ecx, inputEcx
+   __asm _emit 0x0f __asm _emit 0xa2
+   __asm mov  output, eax
+
+   __asm pop edx
+   __asm pop ecx
+   __asm pop ebx
+
+   return output;
+}
+
 #endif // VM_X86_64
 
-#else // } {
-#error
-#endif // }
+#else // }
+#error 
+#endif
+
+#define CPUID_FOR_SIDE_EFFECTS() ((void)__GET_EAX_FROM_CPUID(0))
+
+static INLINE void
+__GET_CPUID4(int inputEcx, CPUIDRegs *regs)
+{
+   __GET_CPUID2(4, inputEcx, regs);
+}
+
+/* The first parameter is used as an rvalue and then as an lvalue. */
+#define GET_CPUID(_ax, _bx, _cx, _dx) { \
+   CPUIDRegs regs;                      \
+   __GET_CPUID(_ax, &regs);             \
+   _ax = regs.eax;                      \
+   _bx = regs.ebx;                      \
+   _cx = regs.ecx;                      \
+   _dx = regs.edx;                      \
+}
+
 
 /* Sequence recommended by Intel for the Pentium 4. */
 #define INTEL_MICROCODE_VERSION() (             \
    __SET_MSR(MSR_BIOS_SIGN_ID, 0),              \
    __GET_EAX_FROM_CPUID(1),                     \
    __GET_MSR(MSR_BIOS_SIGN_ID))
+
 
 #ifdef _MSC_VER   
 static INLINE int
@@ -248,27 +608,9 @@ ffs(uint32 bitVector)
 #endif
    return idx+1;
 }
-
-static INLINE int
-fls(uint32 bitVector)
-{
-   int idx;
-   if (!bitVector) {
-      return 0;
-   }
-#ifdef VM_X86_64
-   _BitScanReverse((unsigned long*)&idx, (unsigned long)bitVector);
-#else
-   __asm bsr eax, bitVector
-   __asm mov idx, eax
-#endif
-   return idx+1;
-}
 #endif
 
 #ifdef __GNUC__
-#if defined(__i386__) || defined(__x86_64__)
-
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
@@ -303,27 +645,6 @@ uint32set(void *dst, uint32 val, size_t count)
    return dst;
 }
 
-#else /* unknown system: rely on C to write */
-static INLINE void *
-uint16set(void *dst, uint16 val, size_t count)
-{
-   size_t i;
-   for (i = 0; i < count; i++) {
-     ((uint16 *) dst)[i] = val;
-   }
-   return dst;
-}
-
-static INLINE void *
-uint32set(void *dst, uint32 val, size_t count)
-{
-   size_t i;
-   for (i = 0; i < count; i++) {
-     ((uint32 *) dst)[i] = val;
-   }
-   return dst;
-}
-#endif // defined(__i386__) || defined(__x86_64__)
 #elif defined(_MSC_VER)
 
 static INLINE void *
@@ -380,7 +701,7 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE uint32
 Bswap32(uint32 v) // IN
 {
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) // {
+#ifdef __GNUC__ // {
    /* Checked against the Intel manual and GCC. --hpreg */
    __asm__(
       "bswap %0"
@@ -415,7 +736,6 @@ Bswap64(uint64 v) // IN
 }
 
 
-#if defined(__i386__) || defined(__x86_64__)
 #ifdef __GNUC__ // {
 /*
  * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
@@ -518,6 +838,5 @@ RDTSC(void)
 #else
 #define DEBUGBREAK()   __asm__ (" int $3 ")
 #endif
-#endif // defined(__i386__) || defined(__x86_64__)
 
-#endif // _VM_BASIC_ASM_H_
+#endif

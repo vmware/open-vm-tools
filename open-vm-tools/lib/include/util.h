@@ -186,6 +186,10 @@ void Util_BacktraceToBuffer(uintptr_t *basePtr,
 
 int Util_CompareDotted(const char *s1, const char *s2);
 
+#if defined(__linux__)
+void Util_PrintLoadedObjects(void *addr_inside_exec);
+#endif
+
 #if defined(VMX86_STATS)
 Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
                             uint64 **transitns, uint64 **residency,
@@ -196,7 +200,6 @@ Bool Util_QueryCStResidency(uint32 *numCpus, uint32 *numCStates,
  * In util_shared.h
  */
 EXTERN Bool Util_Throttle(uint32 count);
-EXTERN uint32 Util_FastRand(uint32 seed);
 
 /*
  *----------------------------------------------------------------------
@@ -270,7 +273,6 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
 #else
 #   define DIRSEPS	      "/"
 #   define DIRSEPC	      '/'
-#   define VALID_DIRSEPS      DIRSEPS
 #endif
 
 
@@ -310,19 +312,20 @@ EXTERN Bool Util_MakeSureDirExistsAndAccessible(char const *path,
  */
 
 EXTERN void *Util_SafeInternalMalloc(int bugNumber, size_t size,
-                                     const char *file, int lineno);
+                                     char const *file, int lineno);
 
 EXTERN void *Util_SafeInternalRealloc(int bugNumber, void *ptr, size_t size,
-                                      const char *file, int lineno);
+                                      char const *file, int lineno);
 
 EXTERN void *Util_SafeInternalCalloc(int bugNumber, size_t nmemb,
-                                     size_t size, const char *file, int lineno);
+                                     size_t size, char const *file,
+                                     int lineno);
 
 EXTERN char *Util_SafeInternalStrdup(int bugNumber, const char *s,
-                                     const char *file, int lineno);
+                                     char const *file, int lineno);
 
 EXTERN char *Util_SafeInternalStrndup(int bugNumber, const char *s, size_t n,
-                                      const char *file, int lineno);
+                                      char const *file, int lineno);
 
 #define Util_SafeMalloc(_size) \
    Util_SafeInternalMalloc(-1, (_size), __FILE__, __LINE__)
@@ -546,71 +549,5 @@ Util_FreeStringList(char **list,      // IN/OUT: the list to free
 {
    Util_FreeList((void **) list, length);
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * fls0 --
- *
- *      Highest bit set in the 'n', or -1 if all bits are clear.
- *
- * Results:
- *      fls0 (== floor(log2(n)) for n != 0)
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE int
-fls0(unsigned int n)
-{
-   if (n) {
-#ifdef _MSC_VER
-#  ifdef VM_X86_64
-      unsigned long idx;
-
-      _BitScanReverse(&idx, n);
-      return idx;
-#  else
-      int idx;
-
-      __asm bsr eax, n
-      __asm mov idx, eax
-      return idx;
-#  endif
-#else
-      int idx;
-
-      __asm__ __volatile__("bsrl %1, %0"
-                           :"=r"(idx)
-                           :"rm"(n)
-                           :"cc");
-      return idx;
-#endif
-   }
-   return -1;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_Log2 --
- *
- *      Compute floor(log2(n)).  Returns -1 for n == 0 (-1 == log2(0.5))
- *
- * Results:
- *      floor(log2(n))
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-#define Util_Log2(n) fls0(n)
 
 #endif /* UTIL_H */

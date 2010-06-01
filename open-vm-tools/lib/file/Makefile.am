@@ -25,3 +25,4 @@ libFile_la_SOURCES += fileIOPosix.c
 libFile_la_SOURCES += fileLockPrimitive.c
 libFile_la_SOURCES += fileLockPosix.c
 
+AM_CFLAGS = @LIB_FILE_CPPFLAGS@

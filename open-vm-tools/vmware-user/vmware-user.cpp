@@ -34,7 +34,6 @@ extern "C" {
 #include <stdlib.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <glib.h>
 #include <gtk/gtkinvisible.h>
 #include <locale.h>
 #if defined(__FreeBSD__) && (!defined(USING_AUTOCONF) || defined(HAVE_SYSLIMITS_H))
@@ -43,6 +42,7 @@ extern "C" {
 
 #include "vmwareuserInt.h"
 #include "vm_assert.h"
+#include "vm_app.h"
 #include "eventManager.h"
 #include "hgfsServerManager.h"
 #include "vmcheck.h"
@@ -55,7 +55,7 @@ extern "C" {
 #include "dnd.h"
 #include "syncDriver.h"
 #include "str.h"
-#include "guestApp.h"
+#include "guestApp.h" // for ALLOW_TOOLS_IN_FOREIGN_VM
 #include "unity.h"
 #include "ghIntegration.h"
 #include "resolution.h"
@@ -64,8 +64,8 @@ extern "C" {
 #include "vm_atomic.h"
 #include "hostinfo.h"
 #include "vmwareuser_version.h"
+
 #include "embed_version.h"
-#include "vmware/guestrpc/tclodefs.h"
 } // extern "C"
 VM_EMBED_VERSION(VMWAREUSER_VERSION_STRING);
 
@@ -98,6 +98,12 @@ Bool VMwareUserRpcInCapRegCB   (char const **result, size_t *resultLen,
                                 const char *name, const char *args,
                                 size_t argsSize, void *clientData);
 void VMwareUserRpcInErrorCB    (void *clientdata, char const *status);
+
+extern "C" {
+extern Bool ForeignTools_Initialize(GuestApp_Dict *configDictionaryParam,
+                                    DblLnkLst_Links *eventQueue);
+extern void ForeignTools_Shutdown(void);
+}
 
 static Bool InitGroupLeader(Window *groupLeader, Window *rootWindow);
 static Bool AcquireDisplayLock(void);
@@ -567,7 +573,7 @@ VMwareUserRpcInSetOptionCB(char const **result,     // OUT
    char *value;
    unsigned int index = 0;
    Bool ret = FALSE;
-   const char *retStr = NULL;
+   char *retStr = NULL;
 
    /* parse the option & value string */
    option = StrUtil_GetNextToken(&index, args, " ");
@@ -789,11 +795,14 @@ main(int argc,         // IN
    gSigExit = FALSE;
 
    Atomic_Init();
-   g_thread_init(NULL);
 
    if (!VmCheck_IsVirtualWorld()) {
+#ifndef ALLOW_TOOLS_IN_FOREIGN_VM
       Warning("vmware-user must be run inside a virtual machine.\n");
       return EXIT_SUCCESS;
+#else
+      runningInForeignVM = TRUE;
+#endif
    }
 
    confDict = Conf_Load();
@@ -943,6 +952,13 @@ main(int argc,         // IN
       p->SetGHWnd(gGHWnd);
    }
 
+   if (runningInForeignVM) {
+      Bool success = ForeignTools_Initialize(confDict, gEventQueue);
+      if (!success) {
+         return EXIT_FAILURE;
+      }
+   }
+
    EventManager_Add(gEventQueue, CONF_POLL_TIME, VMwareUserConfFileLoop,
                     &confDict);
 
@@ -1047,6 +1063,10 @@ main(int argc,         // IN
          }
          gYieldBlock = FALSE;
       }
+   }
+
+   if (runningInForeignVM) {
+      ForeignTools_Shutdown();
    }
 
    Signal_ResetGroupHandler(gSignals, olds, ARRAYSIZE(gSignals));
