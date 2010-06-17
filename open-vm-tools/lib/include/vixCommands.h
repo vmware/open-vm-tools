@@ -1319,35 +1319,6 @@ struct VixMsgSetSharedFolderRequest {
 VixMsgSetSharedFolderRequest;
 
 
-
-/*
- * **********************************************************
- * Get properties of a disk.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetDiskPropertiesRequest {
-   VixCommandRequestHeader   header;
-
-   int32                     options;
-   uint32                    diskPathNameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgGetDiskPropertiesRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetDiskPropertiesResponse {
-   VixCommandResponseHeader  header;
-
-   int64                     capacity;
-   int64                     spaceUsed;
-   int32                     diskLibDiskType;
-   uint32                    physicalPathLength;
-}
-#include "vmware_pack_end.h"
-VixMsgGetDiskPropertiesResponse;
-
 /*
  * **********************************************************
  * Open a URL in the guest.
@@ -2081,7 +2052,7 @@ enum {
    VIX_COMMAND_ADD_SHARED_FOLDER                = 45,
    VIX_COMMAND_RUN_SCRIPT_IN_GUEST              = 46,
    VIX_COMMAND_OPEN_VM                          = 47,
-   VIX_COMMAND_GET_DISK_PROPERTIES              = 48,
+   /* DEPRECATED VIX_COMMAND_GET_DISK_PROPERTIES              = 48, */
    VIX_COMMAND_OPEN_URL                         = 49,
    VIX_COMMAND_GET_HANDLE_STATE                 = 50,
    VIX_COMMAND_SET_HANDLE_STATE                 = 51,

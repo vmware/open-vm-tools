@@ -163,8 +163,7 @@ static const VixCommandInfo vixCommandInfoTable[] = {
                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_OPEN_VM,
                            VIX_COMMAND_CATEGORY_PRIVILEGED),
-   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_GET_DISK_PROPERTIES,
-                           VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_UNUSED_COMMAND,
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_OPEN_URL,
                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
    /* GET_HANDLE_STATE is needed for the initial handshake */
