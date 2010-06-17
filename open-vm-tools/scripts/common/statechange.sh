@@ -30,13 +30,13 @@
 # in other words, `basename "$0"` might be poweron-vm-default.
 #
 # Handy reference/shorthand used in this doc/scripts:
-#    toolsConfDir  ::= Depends on platform and installation settings.  Likely
+#    TOOLS_CONFDIR ::= Depends on platform and installation settings.  Likely
 #                      "/etc/vmware-tools" or
 #                      "/Library/Application Support/VMware Tools"
 #    powerOp       ::= One of "poweron-vm", "poweroff-vm", "suspend-vm", and
 #                      "resume-vm".
-#    vmwScriptDir  ::= $toolsConfDir/scripts/vmware
-#    userScriptDir ::= $toolsConfDir/scripts/${powerOp}-default.d
+#    vmwScriptDir  ::= $TOOLS_CONFDIR/scripts/vmware
+#    userScriptDir ::= $TOOLS_CONFDIR/scripts/${powerOp}-default.d
 #
 # End users may install scripts of their own under $userScriptDir.  They
 # are executed in alphabetical order with "$powerOp" as the only argument.
@@ -67,10 +67,11 @@
 echo `date` ": Executing '$0'"
 
 # See above.
-toolsConfDir=`dirname "$0"`
+TOOLS_CONFDIR=`dirname "$0"`
+export TOOLS_CONFDIR
 
 # Pull in subroutines like Panic.
-. "$toolsConfDir"/statechange.subr
+. "$TOOLS_CONFDIR"/statechange.subr
 
 
 #
@@ -110,8 +111,8 @@ main() {
    powerOp=`basename "$0" | sed 's,-default,,'`
    exitCode=0
 
-   vmwScriptDir="$toolsConfDir/scripts/vmware"
-   userScriptDir="$toolsConfDir/scripts/${powerOp}-default.d"
+   vmwScriptDir="$TOOLS_CONFDIR/scripts/vmware"
+   userScriptDir="$TOOLS_CONFDIR/scripts/${powerOp}-default.d"
 
    case "$powerOp" in
       poweron-vm|resume-vm)

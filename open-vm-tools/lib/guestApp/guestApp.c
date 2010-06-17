@@ -66,14 +66,14 @@ extern "C" {
  * is the hardcoded value below. For Windows, it is
  * determined dynamically in GuestApp_GetInstallPath(),
  * so the empty string here is just for completeness.
- * XXX. Whoever does the Mac port should do something
- * intelligent for that platform as well.
  */
 
-#if defined(_WIN32)
-#define GUESTAPP_TOOLS_INSTALL_PATH ""
+#if defined _WIN32
+#   define GUESTAPP_TOOLS_INSTALL_PATH ""
+#elif defined __APPLE__
+#   define GUESTAPP_TOOLS_INSTALL_PATH "/Library/Application Support/VMware Tools"
 #else
-#define GUESTAPP_TOOLS_INSTALL_PATH "/etc/vmware-tools"
+#   define GUESTAPP_TOOLS_INSTALL_PATH "/etc/vmware-tools"
 #endif
 
 /*
