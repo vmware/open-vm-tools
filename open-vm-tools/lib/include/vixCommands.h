@@ -2277,6 +2277,7 @@ enum {
 
    VIX_COMMAND_CHANGE_DISPLAY_TOPOLOGY_MODES    = 175,
 
+   VIX_COMMAND_QUERY_CHILDREN                   = 176,
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2287,7 +2288,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg. as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 176,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 177,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
