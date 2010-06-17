@@ -230,7 +230,7 @@ static INLINE int
 MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
                    uint32 msecWait,         // IN: unused
-                   Bool *Signalled)         // OUT:
+                   Bool *signalled)         // OUT:
 {
    int err;
 
