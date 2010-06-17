@@ -255,6 +255,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
       if (success) {
          signalled = TRUE;
+         err = ERROR_SUCCESS;
       } else {
          signalled = FALSE;
          err = GetLastError();
@@ -504,6 +505,11 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       struct timespec endTime;
       uint64 endNS;
 
+      /*
+       * pthread_cond_timedwait takes an absolute time. Yes, this is
+       * beyond ridiculous, and the justifications for this
+       * vs. relative time make no sense. But IIWII.
+       */
 #define A_BILLION (1000 * 1000 * 1000)
       gettimeofday(&curTime, NULL);
       endNS = ((uint64) curTime.tv_sec * A_BILLION) +
