@@ -264,6 +264,10 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
+#ifdef DISABLE_MXUSER_LOCK_RANKS
+   checkRank = FALSE;
+#endif
+
    /* Rank checking anyone? */
    if (checkRank && (header->lockRank != RANK_UNRANKED)) {
       uint32 i;
@@ -633,7 +637,7 @@ MXUserListLocks(void)
       for (i = 0; i < perThread->locksHeld; i++) {
          MXUserHeader *hdr = perThread->lockArray[i];
 
-         Warning("\tMXUser lock %s (@%p) rank %d\n", hdr->lockName, hdr,
+         Warning("\tMXUser lock %s (@%p) rank 0x%x\n", hdr->lockName, hdr,
                  hdr->lockRank);
       }
    }

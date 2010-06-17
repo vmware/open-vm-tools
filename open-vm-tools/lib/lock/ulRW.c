@@ -353,7 +353,7 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
 
    Warning("\tsignature %X\n", lock->header.lockSignature);
    Warning("\tname %s\n", lock->header.lockName);
-   Warning("\trank %d\n", lock->header.lockRank);
+   Warning("\trank 0x%x\n", lock->header.lockRank);
 
    if (LIKELY(lock->useNative)) {
       Warning("\tnativeLock %p\n", &lock->nativeLock);
