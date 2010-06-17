@@ -136,6 +136,8 @@
 #define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("View Client")
 #define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
 
+#define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
+
 // XXX VMvisor is the underlying technology for possibly several products,
 // XXX not the product. Fix when names are decided.
 // #define PRODUCT_VMVISOR_NAME MAKE_NAME("VMvisor")
