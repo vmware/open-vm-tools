@@ -235,7 +235,7 @@ static int VSockVmciCreate(
                            struct net *net,
 #endif
                            struct socket *sock, int protocol
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
+#ifdef VMW_NETCREATE_KERNARG
                            , int kern
 #endif
                           );
@@ -4727,7 +4727,7 @@ VSockVmciCreate(
 #endif
                 struct socket *sock,  // IN
                 int protocol          // IN
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
+#ifdef VMW_NETCREATE_KERNARG
                 , int kern            // IN
 #endif
                )
