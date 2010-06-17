@@ -136,7 +136,7 @@ ImageUtil_ReadPNGBuffer(ImageInfo *image,          // OUT
       goto exit;
    }
 
-   if (setjmp(png_ptr->jmpbuf)) {
+   if (setjmp(png_jmpbuf(png_ptr))) {
       png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
       goto exit;
    }
@@ -350,7 +350,7 @@ ImageUtil_ConstructPNGBuffer(const ImageInfo *image,               // IN
       goto error;
    }
 
-   if (setjmp(png_ptr->jmpbuf)) {
+   if (setjmp(png_jmpbuf(png_ptr))) {
       png_destroy_write_struct(&png_ptr, &info_ptr);
       goto error;
    }
