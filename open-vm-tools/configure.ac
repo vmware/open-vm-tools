@@ -1230,6 +1230,7 @@ AC_CONFIG_FILES([                      \
    lib/hgfsServerPolicyGuest/Makefile  \
    lib/image/Makefile                  \
    lib/impersonate/Makefile            \
+   lib/lock/Makefile                   \
    lib/message/Makefile                \
    lib/misc/Makefile                   \
    lib/netUtil/Makefile                \
