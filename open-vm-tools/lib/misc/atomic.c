@@ -65,7 +65,6 @@ void
 AtomicInitFence(void)
 {
    Bool needFence = FALSE;
-   ASSERT(!atomicFenceInitialized);
 #if defined(__i386__) || defined(__x86_64__)
    {
       CPUIDRegs regs;

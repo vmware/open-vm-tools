@@ -497,6 +497,9 @@ VThreadBaseCooked(void)
    ASSERT(vthreadBaseGlobals.noIDFunc);
 
    if (UNLIKELY(base == NULL)) {
+      /* Just saw a new thread.  Ensure atomics are correct... */
+      Atomic_Init();
+
       /*
        * The code between the last pthread_getspecific and the eventual
        * call to pthread_setspecific either needs to run with async signals
