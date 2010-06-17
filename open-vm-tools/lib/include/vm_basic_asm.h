@@ -336,19 +336,17 @@ mssb64_0(const uint64 value)
 static INLINE int
 lssb32_0(uint32 value)
 {
+#if defined(USE_ARCH_X86_CUSTOM)
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
       int pos;
-
-#if defined(USE_ARCH_X86_CUSTOM)
       __asm__ __volatile__("bsfl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-#else
-      pos =  __builtin_ffs(value) - 1;
-#endif
-
       return pos;
    }
+#else
+   return __builtin_ffs(value) - 1;
+#endif
 }
 
 static INLINE int
@@ -372,12 +370,12 @@ mssb32_0(uint32 value)
 static INLINE int
 lssb64_0(const uint64 value)
 {
+#if defined(USE_ARCH_X86_CUSTOM)
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
       intptr_t pos;
 
-#if defined(USE_ARCH_X86_CUSTOM)
 #if defined(VM_X86_64)
       __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
 #else
@@ -390,12 +388,12 @@ lssb64_0(const uint64 value)
          }
       }
 #endif
-#else
-      pos =  __builtin_ffsll(value) - 1;
-#endif
 
       return pos;
    }
+#else
+   return __builtin_ffsll(value) - 1;
+#endif
 }
 
 static INLINE int
