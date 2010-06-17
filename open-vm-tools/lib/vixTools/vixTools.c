@@ -1273,115 +1273,6 @@ exit:
 }
 
 
-#if 0
-/*
- *-----------------------------------------------------------------------------
- *
- * VixToolsSetProperties --
- *
- *    Get information about test features.
- *
- * Return value:
- *    VixError
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-VixError
-VixToolsSetProperties(VixCommandRequestHeader *requestMsg,    // IN
-                      GuestApp_Dict **confDictRef)            // IN
-{
-   VixError err = VIX_OK;
-#if !defined(__FreeBSD__) && !defined(sun)
-   size_t serialBufferLength;
-   char *serialBuffer = NULL;
-   VixPropertyListImpl propList;
-   char *propString = NULL;
-   VixMsgSetVMStateRequest *setPropertiesRequest;
-
-   VixPropertyList_Initialize(&propList);
-
-   setPropertiesRequest = (VixMsgSetVMStateRequest *) requestMsg;
-   serialBufferLength = setPropertiesRequest->bufferSize;
-   serialBuffer = ((char*)setPropertiesRequest + sizeof(*setPropertiesRequest));
-
-   /*
-    * Create a temporary property list and deserialize the buffer into.
-    */
-   err = VixPropertyList_Deserialize(&propList, 
-                                     serialBuffer, 
-                                     serialBufferLength);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-
-   ////////////////////////////////////////////
-   free(propString);
-   propString = NULL;
-   err = VixPropertyList_GetString(&propList,
-                                   VIX_PROPERTY_GUEST_SUSPEND_SCRIPT,
-                                   0,
-                                   &propString);
-   if ( (VIX_OK == err) && (NULL != confDictRef) && (NULL != *confDictRef)) {
-      GuestApp_SetDictEntry(*confDictRef,
-                            CONFNAME_SUSPENDSCRIPT,
-                            propString);
-   }
-
-   ////////////////////////////////////////////
-   free(propString);
-   propString = NULL;
-   err = VixPropertyList_GetString(&propList,
-                                   VIX_PROPERTY_GUEST_RESUME_SCRIPT,
-                                   0,
-                                   &propString);
-   if ( (VIX_OK == err) && (NULL != confDictRef) && (NULL != *confDictRef))  {
-      GuestApp_SetDictEntry(*confDictRef,
-                            CONFNAME_RESUMESCRIPT,
-                            propString);
-   }
-
-   ////////////////////////////////
-   free(propString);
-   propString = NULL;
-   err = VixPropertyList_GetString(&propList,
-                                   VIX_PROPERTY_GUEST_POWER_ON_SCRIPT,
-                                   0,
-                                   &propString);
-   if ( (VIX_OK == err) && (NULL != confDictRef) && (NULL != *confDictRef))  {
-      GuestApp_SetDictEntry(*confDictRef,
-                            CONFNAME_POWERONSCRIPT,
-                            propString);
-   }
-
-   ////////////////////////////////
-   free(propString);
-   propString = NULL;
-   err = VixPropertyList_GetString(&propList,
-                                   VIX_PROPERTY_GUEST_POWER_OFF_SCRIPT,
-                                   0,
-                                   &propString);
-   if ( (VIX_OK == err) && (NULL != confDictRef) && (NULL != *confDictRef))  {
-      GuestApp_SetDictEntry(*confDictRef,
-                            CONFNAME_POWEROFFSCRIPT,
-                            propString);
-   }
-
-
-   err = VIX_OK;
-
-abort:
-   VixPropertyList_RemoveAllWithoutHandles(&propList);
-#endif // __FreeBSD__ || sun
-
-   return err;
-} // VixToolsSetProperties
-#endif
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -4401,18 +4292,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_SET_GUEST_NETWORKING_CONFIG:
          err = VixToolsSetGuestNetworkingConfig(requestMsg);
-         break;
-#endif
-
-#if 0
-      /*
-       * Do not register for commands that have not been tested and publicly released.
-       * When we do support these commands, we do not want to accidentally run
-       * pre-release untested versions.
-       */
-      ////////////////////////////////////
-      case VIX_COMMAND_SET_HANDLE_STATE:
-         err = VixToolsSetProperties(requestMsg, confDictRef);
          break;
 #endif
 

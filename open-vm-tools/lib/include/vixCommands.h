@@ -2055,7 +2055,7 @@ enum {
    /* DEPRECATED VIX_COMMAND_GET_DISK_PROPERTIES              = 48, */
    VIX_COMMAND_OPEN_URL                         = 49,
    VIX_COMMAND_GET_HANDLE_STATE                 = 50,
-   VIX_COMMAND_SET_HANDLE_STATE                 = 51,
+   /* DEPRECATED VIX_COMMAND_SET_HANDLE_STATE                 = 51, */
    VIX_COMMAND_CREATE_WORKING_COPY              = 55, // DELETE this when we switch remote foundry to VIM
    VIX_COMMAND_DISCARD_WORKING_COPY             = 56, // DELETE this when we switch remote foundry to VIM
    VIX_COMMAND_SAVE_WORKING_COPY                = 57, // DELETE this when we switch remote foundry to VIM
