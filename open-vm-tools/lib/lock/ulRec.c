@@ -689,6 +689,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                uint32 msecWait)         // IN:
 {
    ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                             msecWait);
