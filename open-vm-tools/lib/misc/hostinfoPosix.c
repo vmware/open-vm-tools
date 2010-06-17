@@ -1491,6 +1491,220 @@ Hostinfo_LogLoadAverage(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoGetTimeOfDayMonotonic --
+ *
+ *      Return the system time as indicated by Hostinfo_GetTimeOfDay(), with
+ *      locking to ensure monotonicity.
+ *
+ *      Uses OS native locks as lib/lock is not available in lib/misc.  This
+ *      is safe because nothing occurs while locked that can be reentrant.
+ *
+ * Results:
+ *      The time in microseconds is returned. Zero upon error.
+ *
+ * Side effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VmTimeType
+HostinfoGetTimeOfDayMonotonic(void)
+{
+   VmTimeType newTime;
+   VmTimeType curTime;
+
+   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+   static VmTimeType lastTimeBase;
+   static VmTimeType lastTimeRead;
+   static VmTimeType lastTimeReset;
+
+   pthread_mutex_lock(&mutex);  // Use native mechanism, just like Windows
+
+   Hostinfo_GetTimeOfDay(&curTime);
+
+   if (curTime == 0) {
+      newTime = 0;
+      goto exit;
+   }
+
+   /*
+    * Don't let time be negative or go backward.  We do this by tracking a
+    * base and moving forward from there.
+    */
+
+   newTime = lastTimeBase + (curTime - lastTimeReset);
+
+   if (newTime < lastTimeRead) {
+      lastTimeReset = curTime;
+      lastTimeBase = lastTimeRead + 1;
+      newTime = lastTimeBase + (curTime - lastTimeReset);
+   }
+
+   lastTimeRead = newTime;
+
+exit:
+   pthread_mutex_unlock(&mutex);
+
+   return newTime;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSystemTimerVmkernel --
+ * HostinfoSystemTimerMach --
+ * HostinfoSystemTimerPosix --
+ *
+ *      Returns system time based on a monotonic, nanosecond-resolution,
+ *      fast timer provided by the (relevant) operating system.
+ *
+ *      Caller should check return value, as some variants may not be known
+ *      to be absent until runtime.  Where possible, these functions collapse
+ *      into constants at compile-time.
+ *
+ * Results:
+ *      TRUE if timer is available; FALSE to indicate unavailability.
+ *      If available, the current time is returned via 'result'.
+ *
+ * Side effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSystemTimerVmkernel(VmTimeType *result)  // OUT
+{
+   if (HostType_OSIsPureVMK()) {
+      uint64 uptime = 0;
+      /*
+       * The uptime is ensured to never go backwards and is valid across
+       * processes.
+       *
+       * TODO: get a vmkernel uptime that reports in ns (for real?)
+       */
+#ifdef VMX86_SERVER
+      if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
+         Log("%s: failure!\n", __FUNCTION__);
+
+         uptime = 0;  // A timer read failure - this is really bad!
+      }
+#endif
+
+      *result = 1000 * uptime;  // Convert to nanoseconds
+      return TRUE;
+   } else {
+      return FALSE;
+   }
+}
+
+static Bool
+HostinfoSystemTimerMach(VmTimeType *result)  // OUT
+{
+#if __APPLE__
+#  define vmx86_apple 1
+   VmTimeType raw;
+   mach_timebase_info_data_t *ptr;
+   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
+
+   /*
+    * On Mac OS a commpage timer is used. Such timers are ensured to never
+    * go backwards - and be valid across all processes.
+    */
+
+   /* Ensure that the time base values are correct. */
+   ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
+
+   if (UNLIKELY(ptr == NULL)) {
+      char *p;
+
+      p = Util_SafeMalloc(sizeof(mach_timebase_info_data_t));
+
+      mach_timebase_info((mach_timebase_info_data_t *) p);
+
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
+         free(p);
+      }
+
+      ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
+   }
+
+   raw = mach_absolute_time();
+
+   if ((ptr->numer == 1) && (ptr->denom == 1)) {
+      /* The scaling values are unity, save some time/arithmetic */
+      *result = raw;
+   } else {
+      /* The scaling values are not unity. Prevent overflow when scaling */
+      *result = ((double) raw) * (((double) ptr->numer) / ((double) ptr->denom));
+   }
+   return TRUE;
+#else
+#  define vmx86_apple 0
+   return FALSE;
+#endif
+}
+
+static Bool
+HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
+{
+#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0 && defined(_POSIX_MONOTONIC_CLOCK)
+#  define vmx86_posix 1
+   /* Weak declaration to avoid librt.so dependency */
+   extern int clock_gettime(clockid_t clk_id, struct timespec *tp) __attribute__ ((weak));
+
+   /* Assignment is idempotent (expected to always be same answer). */
+   static volatile enum { UNKNOWN, PRESENT, FAILED } hasGetTime = UNKNOWN;
+
+   struct timespec ts;
+   int ret;
+
+   switch (hasGetTime) {
+   case FAILED:
+      break;
+   case UNKNOWN:
+      if (clock_gettime == NULL) {
+         /* librt.so is not present.  No clock_gettime() */
+         hasGetTime = FAILED;
+         break;
+      }
+      ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+      if (ret != 0) {
+         hasGetTime = FAILED;
+         /*
+          * Well-understood error codes:
+          * ENOSYS, OS does not implement syscall
+          * EINVAL, OS implements syscall but not CLOCK_MONOTONIC
+          */
+         if (errno != ENOSYS && errno != EINVAL) {
+            Log("%s: failure, err %d!\n", __FUNCTION__, errno);
+         }
+         break;
+      }
+      hasGetTime = PRESENT;
+      /* Fall through to 'case PRESENT' */
+
+   case PRESENT:
+      ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+      ASSERT(ret == 0);
+      *result = (VmTimeType)ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
+      return TRUE;
+   }
+   return FALSE;
+#else
+#  define vmx86_posix 0
+   /* No Posix support for clock_gettime() */
+   return FALSE;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Hostinfo_RawSystemTimerNS --
  *
  *      Return the raw time.
@@ -1523,151 +1737,39 @@ Hostinfo_LogLoadAverage(void)
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__APPLE__)
-VmTimeType
-Hostinfo_RawSystemTimerNS(void)
-{
-   VmTimeType raw;
-   mach_timebase_info_data_t *ptr;
-   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
-
-   /*
-    * On Mac OS a commpage timer is used. Such timers are ensured to never
-    * go backwards - and be valid across all processes.
-    */
-
-   /* Ensure that the time base values are correct. */
-   ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
-
-   if (UNLIKELY(ptr == NULL)) {
-      char *p;
-
-      p = Util_SafeMalloc(sizeof(mach_timebase_info_data_t));
-
-      mach_timebase_info((mach_timebase_info_data_t *) p);
-
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
-      }
-
-      ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
-   }
-
-   raw = mach_absolute_time();
-
-   if ((ptr->numer == 1) && (ptr->denom == 1)) {
-      /* The scaling values are unity, save some time/arithmetic */
-      return raw;
-   } else {
-      /* The scaling values are not unity. Prevent overflow when scaling */
-      return ((double) raw) * (((double) ptr->numer) / ((double) ptr->denom));
-   }
-}
-
-
-VmTimeType
-Hostinfo_SystemTimerNS(void)
-{
-   return Hostinfo_RawSystemTimerNS();
-}
-#elif defined(VMX86_SERVER)
-VmTimeType
-Hostinfo_RawSystemTimerNS(void)
-{
-   VmTimeType uptime;
-
-   /*
-    * The uptime is ensured to never go backwards and is valid across
-    * processes.
-    *
-    * TODO: get a vmkernel uptime that reports in ns (for real?)
-    */
-
-   if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
-      Log("%s: failure!\n", __FUNCTION__);
-
-      uptime = 0;  // A timer read failure - this is really bad!
-   }
-
-   return 1000 * uptime;  // Convert to nanoseconds
-}
-
-
-VmTimeType
-Hostinfo_SystemTimerNS(void)
-{
-   return Hostinfo_RawSystemTimerNS();
-}
-#else
 VmTimeType
 Hostinfo_RawSystemTimerNS(void)
 {
    VmTimeType result;
-   struct timeval tval;
 
-   /* Read the time from the operating system - may go backwards. */
-   if (LIKELY(gettimeofday(&tval, NULL) == 0)) {
-      /* Convert into nanoseconds. */
-      result = 1000ULL * (((VmTimeType)tval.tv_sec) * 1000000 + tval.tv_usec);
+   if ((vmx86_server && HostinfoSystemTimerVmkernel(&result)) ||
+       (vmx86_apple && HostinfoSystemTimerMach(&result)) ||
+       (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
+      /* Host provides monotonic clock source. */
    } else {
-      Log("%s: failure!\n", __FUNCTION__);
-
-      result = 0;  // A timer read failure - this is really bad!
+      Hostinfo_GetTimeOfDay(&result);
+      result *= 1000;  /* GetTimeOfDay is microseconds. */
    }
-
    return result;
 }
-
 
 VmTimeType
 Hostinfo_SystemTimerNS(void)
 {
-   VmTimeType newTime;
-   VmTimeType curTime;
+   VmTimeType result;
 
-   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-   static VmTimeType lastTimeBase;
-   static VmTimeType lastTimeRead;
-   static VmTimeType lastTimeReset;
-
-   /*
-    * TODO: research using -lrt and clock_gettime.
-    *
-    * These routines live in lib/misc and cannot use routines from other
-    * libraries, including lib/lock.
-    */
-
-   pthread_mutex_lock(&mutex);  // Use native mechanism, just like Windows
-
-   curTime = Hostinfo_RawSystemTimerNS();
-
-   if (curTime == 0) {
-      newTime = 0;
-      goto exit;
+   if ((vmx86_server && HostinfoSystemTimerVmkernel(&result)) ||
+       (vmx86_apple && HostinfoSystemTimerMach(&result)) ||
+       (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
+      /* Host provides monotonic clock source. */
+      return result;
+   } else {
+      /* GetTimeOfDay is microseconds. */
+      return HostinfoGetTimeOfDayMonotonic() * 1000;
    }
-
-   /*
-    * Don't let time be negative or go backward.  We do this by tracking a
-    * base and moving forward from there.
-    */
-
-   newTime = lastTimeBase + (curTime - lastTimeReset);
-
-   if (newTime < lastTimeRead) {
-      lastTimeReset = curTime;
-      lastTimeBase = lastTimeRead + 1;
-      newTime = lastTimeBase + (curTime - lastTimeReset);
-   }
-
-   lastTimeRead = newTime;
-
-exit:
-   pthread_mutex_unlock(&mutex);
-
-   return newTime;
 }
-#endif
+#undef vmx86_apple
+#undef vmx86_posix
 
 
 /*
