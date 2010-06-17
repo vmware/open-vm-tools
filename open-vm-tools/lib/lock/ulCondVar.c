@@ -112,10 +112,10 @@ MXUserNativeCVSupported(void)
                                    GetProcAddress(kernel32,
                                                    "WakeConditionVariable");
 
-         result = ((pInitializeConditionVariable == NULL) ||
-                   (pSleepConditionVariableCS == NULL) ||
-                   (pWakeAllConditionVariable == NULL) ||
-                   (pWakeConditionVariable == NULL)) ? FALSE : TRUE;
+         result = ((pInitializeConditionVariable != NULL) &&
+                   (pSleepConditionVariableCS != NULL) &&
+                   (pWakeAllConditionVariable != NULL) &&
+                   (pWakeConditionVariable != NULL));
 
       } else {
          result = FALSE;

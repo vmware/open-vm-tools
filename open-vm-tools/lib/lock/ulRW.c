@@ -87,11 +87,11 @@ MXUserNativeRWSupported(void)
                                     GetProcAddress(kernel32,
                                                    "ReleaseSRWLockExclusive");
 
-         result = ((pInitializeSRWLock == NULL) ||
-                   (pAcquireSRWLockShared == NULL) ||
-                   (pAcquireSRWLockExclusive == NULL) ||
-                   (pReleaseSRWLockShared == NULL) ||
-                   (pReleaseSRWLockExclusive == NULL)) ? FALSE : TRUE;
+         result = ((pInitializeSRWLock != NULL) &&
+                   (pAcquireSRWLockShared != NULL) &&
+                   (pReleaseSRWLockShared != NULL) &&
+                   (pAcquireSRWLockExclusive != NULL) &&
+                   (pReleaseSRWLockExclusive != NULL));
       } else {
          result = FALSE;
       }
