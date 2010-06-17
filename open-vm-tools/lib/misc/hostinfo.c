@@ -129,8 +129,8 @@ HostInfoGetAMDCPUCount(CPUIDSummary *cpuid,       // IN
  *          80000008:00003024000000000000000000000000-
  *
  *       The returned eax of args[0] is used to determine the upper bound for
- *       the following input arguments. And the input args should be in ascending
- *       order.
+ *       the following input arguments. And the input args should be in
+ *       ascending order.
  *
  * Results:
  *       None. The string will be appended in buf.
@@ -155,18 +155,21 @@ HostInfoGetCpuidStrSection(const uint32 args[],    // IN: input eax arguments
    __GET_CPUID(args[0], &reg);
    max_arg = reg.eax;
    if (max_arg < args[0]) {
-      Warning(LGPFX" No CPUID information available. Based = %08X.\n", args[0]);
+      Warning(LGPFX" No CPUID information available. Based = %08X.\n",
+              args[0]);
       return;
    }
    DynBuf_Append(buf, temp,
-      Str_Sprintf(temp, sizeof temp, format, args[0], reg.eax, reg.ebx, reg.ecx, reg.edx));
+                 Str_Sprintf(temp, sizeof temp, format, args[0], reg.eax,
+                             reg.ebx, reg.ecx, reg.edx));
 
    for (i = 1; i < args_size && args[i] <= max_arg; i++) {
       ASSERT(args[i] > args[i - 1]); // Ascending order.
       __GET_CPUID(args[i], &reg);
 
       DynBuf_Append(buf, temp,
-         Str_Sprintf(temp, sizeof temp, format, args[i], reg.eax, reg.ebx, reg.ecx, reg.edx));
+                    Str_Sprintf(temp, sizeof temp, format, args[i], reg.eax,
+                                reg.ebx, reg.ecx, reg.edx));
    }
 }
 
@@ -186,9 +189,9 @@ HostInfoGetCpuidStrSection(const uint32 args[],    // IN: input eax arguments
  *       If the extended CPUID is not available, only returns the basic CPUID.
  *
  * Results:
- *       The CPUID string if the processor supports the CPUID instruction and this
- *       is a processor we recognize. It should never fail, since it would at least
- *       return leaf 0. Caller needs to free the returned string.
+ *       The CPUID string if the processor supports the CPUID instruction and
+ *       this is a processor we recognize. It should never fail, since it
+ *       would at least return leaf 0. Caller needs to free the returned string.
  *
  * Side effect:
  *       None
