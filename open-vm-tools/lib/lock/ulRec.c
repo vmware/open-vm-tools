@@ -22,37 +22,6 @@
 #include "userlock.h"
 #include "ulInt.h"
 
-#if defined(VMX86_VMX)
-#include "mutexInt.h"
-#include "mutexRank.h"
-#else
-typedef struct MX_MutexRec MX_MutexRec;
-
-static INLINE void
-MX_LockRec(MX_MutexRec *lock)  // IN:
-{
-   NOT_IMPLEMENTED();
-}
-
-static INLINE void
-MX_UnlockRec(MX_MutexRec *lock)  // IN:
-{
-   NOT_IMPLEMENTED();
-}
-
-static INLINE Bool 
-MX_TryLockRec(MX_MutexRec *lock)  // IN:
-{
-   NOT_IMPLEMENTED();
-}
-
-static INLINE Bool 
-MX_IsLockedByCurThreadRec(MX_MutexRec *lock)  // IN:
-{
-   NOT_IMPLEMENTED();
-}
-#endif
-
 struct MXUserRecLock
 {
    MXUserHeader            header;
@@ -79,7 +48,7 @@ struct MXUserRecLock
     *         MXUser_BindMXMutexRec was used to create the lock
     */
 
-   MX_MutexRec            *vmmLock;
+   struct MX_MutexRec     *vmmLock;
 };
 
 #if defined(MXUSER_STATS)
@@ -279,7 +248,7 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
    if (lock != NULL) {
       ASSERT(lock->header.lockSignature == USERLOCK_SIGNATURE);
 
-      if (!lock->vmmLock) {
+      if (lock->vmmLock == NULL) {
          if (MXRecLockCount(&lock->recursiveLock) > 0) {
             MXUserDumpAndPanic(&lock->header,
                                "%s: Destroy of an acquired recursive lock\n",
@@ -327,7 +296,8 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
 
    if (lock->vmmLock) {
-      MX_LockRec(lock->vmmLock);
+      ASSERT(MXUserMX_LockRec);
+      (*MXUserMX_LockRec)(lock->vmmLock);
    } else {
 #if defined(MXUSER_STATS)
       Bool contended;
@@ -386,7 +356,8 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
 
    if (lock->vmmLock) {
-      MX_UnlockRec(lock->vmmLock);
+      ASSERT(MXUserMX_UnlockRec);
+      (*MXUserMX_UnlockRec)(lock->vmmLock);
    } else {
 #if defined(MXUSER_STATS)
       if (MXRecLockCount(&lock->recursiveLock) == 1) {
@@ -448,7 +419,8 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
 
    if (lock->vmmLock) {
-      success = MX_TryLockRec(lock->vmmLock);
+      ASSERT(MXUserMX_TryLockRec);
+      success = (*MXUserMX_TryLockRec)(lock->vmmLock);
    } else {
 #if defined(MXUSER_STATS)
       uint64 begin;
@@ -500,10 +472,17 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 Bool
 MXUser_IsCurThreadHoldingRecLock(const MXUserRecLock *lock)  // IN:
 {
+   Bool result;
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
 
-   return (lock->vmmLock) ? MX_IsLockedByCurThreadRec(lock->vmmLock) :
-                            MXRecLockIsOwner(&lock->recursiveLock);
+   if (lock->vmmLock) {
+      ASSERT(MXUserMX_IsLockedByCurThreadRec);
+      result = (*MXUserMX_IsLockedByCurThreadRec)(lock->vmmLock);
+   } else {
+      result = MXRecLockIsOwner(&lock->recursiveLock);
+   }
+
+   return result;
 }
 
 
@@ -532,6 +511,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
    Bool result;
 
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    switch (command) {
 #if defined(MXUSER_STATS)
@@ -646,6 +626,7 @@ MXUserCondVar *
 MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
 {
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    return MXUserCreateCondVar(&lock->header, &lock->recursiveLock);
 }
@@ -674,12 +655,12 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                           MXUserCondVar *condVar)  // IN:
 {
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar);
 }
 
 
-#if defined(VMX86_VMX)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -696,7 +677,7 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
  *-----------------------------------------------------------------------------
  */
 
-MX_MutexRec *
+struct MX_MutexRec *
 MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 {
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
@@ -749,11 +730,23 @@ MXUser_GetRecLockRank(const MXUserRecLock *lock)  // IN:
  */
 
 MXUserRecLock *
-MXUser_BindMXMutexRec(MX_MutexRec *mutex)  // IN:
+MXUser_BindMXMutexRec(struct MX_MutexRec *mutex)  // IN:
 {
    MXUserRecLock *lock;
 
    ASSERT(mutex);
+
+   /*
+    * Cannot perform a binding unless MX_Init has been called. As a side
+    * effect it registers these hook functions.
+    */
+
+   if ((MXUserMX_LockRec == NULL) ||
+       (MXUserMX_UnlockRec == NULL) ||
+       (MXUserMX_TryLockRec == NULL) ||
+       (MXUserMX_IsLockedByCurThreadRec == NULL)) {
+       return NULL;
+    }
 
    /*
     * Initialize the header (so it looks correct in memory) but don't connect
@@ -763,11 +756,10 @@ MXUser_BindMXMutexRec(MX_MutexRec *mutex)  // IN:
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
-   lock->header.lockName = Str_SafeAsprintf(NULL, "MX_LockID%d",
-                                            mutex->lck.lid);
+   lock->header.lockName = Str_SafeAsprintf(NULL, "MX_%p", mutex);
 
    lock->header.lockSignature = USERLOCK_SIGNATURE;
-   lock->header.lockRank = mutex->lck.rank;
+   lock->header.lockRank = RANK_UNRANKED;  // unused
    lock->header.lockDumper = NULL;
 
 #if defined(MXUSER_STATS)
@@ -780,6 +772,9 @@ MXUser_BindMXMutexRec(MX_MutexRec *mutex)  // IN:
    return lock;
 }
 
+
+#if defined(VMX86_VMX)
+#include "mutex.h"
 
 /*
  *----------------------------------------------------------------------------

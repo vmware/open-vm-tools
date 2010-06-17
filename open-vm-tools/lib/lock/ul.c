@@ -21,6 +21,7 @@
 #include "util.h"
 #include "userlock.h"
 #include "ulInt.h"
+#include "ulIntShared.h"
 #include "hashTable.h"
 
 
@@ -30,6 +31,10 @@ Bool (*MXUserTryAcquireForceFail)() = NULL;
 
 static MX_Rank (*MXUserMxCheckRank)(void) = NULL;
 static void (*MXUserMxLockLister)(void) = NULL;
+void (*MXUserMX_LockRec)(struct MX_MutexRec *lock) = NULL;
+void (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock) = NULL;
+Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock) = NULL;
+Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock) = NULL;
 
 
 #if defined(MXUSER_DEBUG) || defined(MXUSER_STATS)
@@ -561,8 +566,12 @@ MXUser_InPanic(void)
  */
 
 void
-MXUserInstallMxHooks(void (*theMxLockLister)(void),   // IN: MX list function
-                     MX_Rank (*theMxRankFunc)(void))  // IN: MX rank function
+MXUserInstallMxHooks(void (*theLockListFunc)(void),
+                     MX_Rank (*theRankFunc)(void),
+                     void (*theLockFunc)(struct MX_MutexRec *lock),
+                     void (*theUnlockFunc)(struct MX_MutexRec *lock),
+                     Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
+                     Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock))
 {
    /*
     * This function can be called more than once but the second and later
@@ -571,12 +580,24 @@ MXUserInstallMxHooks(void (*theMxLockLister)(void),   // IN: MX list function
     */
 
    if ((MXUserMxLockLister == NULL) &&
-       (MXUserMxCheckRank == NULL)) {
-      MXUserMxLockLister = theMxLockLister;
-      MXUserMxCheckRank = theMxRankFunc;
+       (MXUserMxCheckRank == NULL) &&
+       (MXUserMX_LockRec == NULL) &&
+       (MXUserMX_UnlockRec == NULL) &&
+       (MXUserMX_TryLockRec == NULL) &&
+       (MXUserMX_IsLockedByCurThreadRec == NULL)) {
+      MXUserMxLockLister = theLockListFunc;
+      MXUserMxCheckRank = theRankFunc;
+      MXUserMX_LockRec = theLockFunc;
+      MXUserMX_UnlockRec = theUnlockFunc;
+      MXUserMX_TryLockRec = theTryLockFunc;
+      MXUserMX_IsLockedByCurThreadRec = theIsLockedFunc;
    } else {
-      ASSERT((MXUserMxLockLister == theMxLockLister) &&
-             (MXUserMxCheckRank == theMxRankFunc)
+      ASSERT((MXUserMxLockLister == theLockListFunc) &&
+             (MXUserMxCheckRank == theRankFunc) &&
+             (MXUserMX_LockRec == theLockFunc) &&
+             (MXUserMX_UnlockRec == theUnlockFunc) &&
+             (MXUserMX_TryLockRec == theTryLockFunc) &&
+             (MXUserMX_IsLockedByCurThreadRec == theIsLockedFunc)
             );
    }
 }

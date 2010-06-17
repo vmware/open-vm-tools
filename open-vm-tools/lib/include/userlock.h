@@ -131,23 +131,20 @@ void MXUser_DestroyCondVar(MXUserCondVar *condVar);
 #define MXUSER_DEFAULT_HISTO_MIN_VALUE_NS  1000  // 1 usec
 #define MXUSER_DEFAULT_HISTO_DECADES       7     // 1 usec to 10 seconds
 
+struct MX_MutexRec;
+
 #if defined(VMX86_VMX)
-#include "mutex.h"
-
-MXUserRecLock *MXUser_BindMXMutexRec(MX_MutexRec *mutex);
-MX_MutexRec   *MXUser_GetRecLockVmm(const MXUserRecLock *lock);
-MX_Rank        MXUser_GetRecLockRank(const MXUserRecLock *lock);
-
-MXUserRecLock *MXUser_InitFromMXRec(const char *name, MX_MutexRec *mutex,
-                                    MX_Rank rank, Bool isBelowBull);
+MXUserRecLock *MXUser_InitFromMXRec(const char *name,
+                                    struct MX_MutexRec *mutex,
+                                    MX_Rank rank,
+                                    Bool isBelowBull);
 
 #if defined(__i386__) || defined(__x86_64__)
-#if defined(VMX86_STATS)
+#if defined(VMX86_STATS) 
 #define MXUSER_STATS  // stats "only inside the VMX" when requested
 #endif
 #endif  // X86 and X86-64
-
-#endif  // VMX86_VMX
+#endif
 
 #if defined(VMX86_DEBUG)
 #define MXUSER_DEBUG  // debugging "everywhere" when requested
@@ -164,7 +161,10 @@ void MXUser_StatisticsControl(double contentionRatio,
 void MXUser_LogStats(unsigned epoch);
 #endif
 
-extern void MXUser_SetInPanic(void);
-extern Bool MXUser_InPanic(void);
+void MXUser_SetInPanic(void);
+Bool MXUser_InPanic(void);
 
+MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex);
+struct MX_MutexRec  *MXUser_GetRecLockVmm(const MXUserRecLock *lock);
+MX_Rank              MXUser_GetRecLockRank(const MXUserRecLock *lock);
 #endif  // _USERLOCK_H_

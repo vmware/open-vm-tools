@@ -38,7 +38,6 @@ typedef pthread_t MXThreadID;
 
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
-#include "ulIntShared.h"
 
 #if defined(MXUSER_STATS)
 #include "circList.h"
@@ -555,5 +554,10 @@ void MXUserForceHisto(Atomic_Ptr *histoPtr,
                       uint64 minValue,
                       uint32 decades);
 #endif
+
+extern void (*MXUserMX_LockRec)(struct MX_MutexRec *lock);
+extern void (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock);
+extern Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock);
+extern Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock);
 
 #endif

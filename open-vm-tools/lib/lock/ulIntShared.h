@@ -22,6 +22,10 @@
 extern void MXUserListLocks(void);
 
 extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),
-                                 MX_Rank (*theRankFunc)(void));
+                                 MX_Rank (*theRankFunc)(void),
+                                 void (*theLockFunc)(struct MX_MutexRec *lock),
+                                 void (*theUnlockFunc)(struct MX_MutexRec *lock),
+                                 Bool (*theTryLockFunc)(struct MX_MutexRec *lock),
+                                 Bool (*theIsLockedFunc)(const struct MX_MutexRec *lock));
 
 #endif
