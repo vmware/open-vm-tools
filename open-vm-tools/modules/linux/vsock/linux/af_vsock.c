@@ -1593,7 +1593,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
       protoInt &= VSockVmciNewProtoSupportedVersions();
 
       /* We choose the highest possible protocol version and use that one. */
-      pos = fls(protoInt);
+      pos = mssb32(protoInt);
       if (pos) {
          activeProtoVersion = (1 << (pos - 1));
          if (VSockVmciProtoToNotifyStruct(pending, &activeProtoVersion, FALSE)) {
