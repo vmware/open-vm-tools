@@ -46,9 +46,16 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMCORE
 
 #include "includeCheck.h"
 #include "vm_device_version.h"
+
+#ifdef USERLEVEL
+#include "config.h"
+#include "str.h"
+#include "strutil.h"
+#endif
 
 #define ETHERNET_MTU         1518
 #define ETH_MIN_FRAME_LEN      60
@@ -85,6 +92,13 @@
 
 #define MORPH_PORT_SIZE 4
 
+typedef struct Net_AdapterCount {
+   uint8 vlance;
+   uint8 vmxnet2;
+   uint8 vmxnet3;
+   uint8 e1000;
+   uint8 e1000e;
+} Net_AdapterCount;
 
 #ifdef USERLEVEL
 
@@ -143,6 +157,59 @@ Net_AddAddrToLadrf(const uint8 *addr,  // IN: pointer to MAC address
    }
 
    ladrf[hashcode >> 3] |= 1 << (hashcode & 0x07);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Net_GetNumAdapters --
+ *
+ *      Returns the number of each type of network adapter configured in this 
+ *      VM.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+Net_GetNumAdapters(Net_AdapterCount *counts)
+{
+   uint32 i;
+
+   counts->vlance = 0;
+   counts->vmxnet2 = 0;
+   counts->vmxnet3 = 0;
+   counts->e1000 = 0;
+   counts->e1000e = 0;
+
+   for (i = 0; i < MAX_ETHERNET_CARDS; i++) {
+      char* adapterStr;
+
+      if (!Config_GetBool(FALSE, "ethernet%d.present", i)) {
+	 continue;
+      }
+      adapterStr = Config_GetString("vlance", "ethernet%d.virtualDev", i);
+      if (Str_Strcasecmp(adapterStr, "vmxnet3") == 0) {
+         counts->vmxnet3++;
+      } else if (Str_Strcasecmp(adapterStr, "vlance") == 0) {
+         counts->vlance++;
+      } else if (Str_Strcasecmp(adapterStr, "vmxnet") == 0) {
+         counts->vmxnet2++;
+      } else if (Str_Strcasecmp(adapterStr, "e1000") == 0) {
+         counts->e1000++;
+      } else if (Str_Strcasecmp(adapterStr, "e1000e") == 0) {
+         counts->e1000e++;
+      } else {
+         LOG_ONCE(("%s: unknown adapter: %s\n", __FUNCTION__, adapterStr));
+      }
+      free(adapterStr);      
+   }
 }
 
 #endif // USERLEVEL
