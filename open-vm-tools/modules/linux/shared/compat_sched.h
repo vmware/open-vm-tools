@@ -217,18 +217,6 @@ static inline void daemonize(void) {
 
 
 /*
- * set priority for specified thread. Exists on 2.6.x kernels and some
- * 2.4.x vendor's kernels.
- */
-#if defined(VMW_HAVE_SET_USER_NICE)
-#define compat_set_user_nice(task, n) set_user_nice((task), (n))
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 0)
-#define compat_set_user_nice(task, n) do { (task)->priority = 20 - (n); } while (0)
-#elif !defined(VMW_HAVE_SET_USER_NICE)
-#define compat_set_user_nice(task, n) do { (task)->nice = (n); } while (0)
-#endif
-
-/*
  * try to freeze a process. For kernels 2.6.11 or newer, we know how to choose
  * the interface. The problem is that the oldest interface, introduced in
  * 2.5.18, was backported to 2.4.x kernels. So if we're older than 2.6.11,
