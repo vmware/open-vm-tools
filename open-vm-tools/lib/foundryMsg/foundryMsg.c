@@ -427,6 +427,8 @@ static const VixCommandInfo vixCommandInfoTable[] = {
 
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_QUERY_CHILDREN,
                            VIX_COMMAND_CATEGORY_PRIVILEGED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_LIST_FILES,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
 };
 
 

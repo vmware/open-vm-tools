@@ -29,10 +29,30 @@ extern "C" {
 
 #include <stdlib.h>
 
+#ifdef WINNT_DDK
+#   include <ntddk.h>
+#endif
+
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
+
+/*
+ * backdoor.h includes some files which redefine constants in ntddk.h.  Ignore
+ * warnings about these redefinitions for WIN32 platform.
+ */
+#ifdef WINNT_DDK
+#pragma warning (push)
+// Warning: Conditional expression is constant.
+#pragma warning( disable:4127 )
+#endif
+
 #include "backdoor.h"
+
+#ifdef WINNT_DDK
+#pragma warning (pop)
+#endif
+
 #include "backdoor_def.h"
 #include "debug.h"
 
@@ -40,7 +60,6 @@ extern "C" {
 #   include "vmsignal.h"
 #   include "setjmp.h"
 #endif
-
 
 #if !defined(_WIN32)
 static sigjmp_buf jmpBuf;

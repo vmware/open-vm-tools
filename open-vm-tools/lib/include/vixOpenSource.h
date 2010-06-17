@@ -388,6 +388,20 @@ enum {
 
 
 /*
+ * These are the property flags for each file.  This is a superset
+ * of the values defined in the public header.
+ */
+
+enum {
+   //VIX_FILE_ATTRIBUTES_DIRECTORY     = 0x0001,
+   //VIX_FILE_ATTRIBUTES_SYMLINK       = 0x0002,
+   VIX_FILE_ATTRIBUTES_HIDDEN          = 0x0004,
+   VIX_FILE_ATTRIBUTES_READONLY        = 0x0008,
+};
+
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * VixDebug --
