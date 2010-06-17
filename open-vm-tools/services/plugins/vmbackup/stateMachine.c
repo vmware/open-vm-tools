@@ -152,6 +152,7 @@ VmBackup_SendEvent(const char *event,
    g_debug("*** %s\n", __FUNCTION__);
    if (gBackupState->keepAlive != NULL) {
       g_source_destroy(gBackupState->keepAlive);
+      g_source_unref(gBackupState->keepAlive);
    }
 
    msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s", event, code, desc);
@@ -195,10 +196,12 @@ VmBackupFinalize(void)
 
    if (gBackupState->timerEvent != NULL) {
       g_source_destroy(gBackupState->timerEvent);
+      g_source_unref(gBackupState->timerEvent);
    }
 
    if (gBackupState->keepAlive != NULL) {
       g_source_destroy(gBackupState->keepAlive);
+      g_source_unref(gBackupState->keepAlive);
    }
 
    gBackupState->provider->release(gBackupState->provider);
