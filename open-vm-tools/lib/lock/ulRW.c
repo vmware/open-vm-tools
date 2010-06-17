@@ -278,8 +278,7 @@ struct MXUserRWLock
  */
 
 static void
-MXUserStatsActionRW(MXUserHeader *header,  // IN:
-                    unsigned epoch)        // IN:
+MXUserStatsActionRW(MXUserHeader *header)  // IN:
 {
    Bool isHot;
    Bool doLog;
@@ -291,16 +290,16 @@ MXUserStatsActionRW(MXUserHeader *header,  // IN:
     * Dump the statistics for the specified lock.
     */
 
-   MXUserDumpAcquisitionStats(&lock->acquisitionStats, header, epoch);
+   MXUserDumpAcquisitionStats(&lock->acquisitionStats, header);
 
    if (Atomic_ReadPtr(&lock->acquisitionHisto) != NULL) {
-      MXUserHistoDump(Atomic_ReadPtr(&lock->acquisitionHisto), header, epoch);
+      MXUserHistoDump(Atomic_ReadPtr(&lock->acquisitionHisto), header);
    }
 
-   MXUserDumpBasicStats(&lock->heldStats, header, epoch);
+   MXUserDumpBasicStats(&lock->heldStats, header);
 
    if (Atomic_ReadPtr(&lock->heldHisto) != NULL) {
-      MXUserHistoDump(Atomic_ReadPtr(&lock->heldHisto), header, epoch);
+      MXUserHistoDump(Atomic_ReadPtr(&lock->heldHisto), header);
    }
 
    /*

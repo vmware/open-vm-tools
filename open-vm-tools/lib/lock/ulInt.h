@@ -42,8 +42,8 @@ typedef pthread_t MXThreadID;
 #if defined(MXUSER_STATS)
 #include "circList.h"
 
-#define MXUSER_STAT_CLASS_ACQUISITION "acquisition"
-#define MXUSER_STAT_CLASS_HELD        "held"
+#define MXUSER_STAT_CLASS_ACQUISITION "a"
+#define MXUSER_STAT_CLASS_HELD        "h"
 #endif
 
 /*
@@ -396,7 +396,7 @@ typedef struct MXUserHeader {
    void       (*lockDumper)(struct MXUserHeader *);
 
 #if defined(MXUSER_STATS)
-   void       (*lockStatsAction)(struct MXUserHeader *, unsigned epoch);
+   void       (*lockStatsAction)(struct MXUserHeader *);
    ListItem     lockItem;
    uint32       lockID;
 #endif
@@ -512,8 +512,7 @@ void MXUserHistoSample(MXUserHisto *histo,
                        uint64 value);
 
 void MXUserHistoDump(MXUserHisto *histo,
-                     MXUserHeader *header,
-                     unsigned epoch);
+                     MXUserHeader *header);
 
 void MXUserAcquisitionStatsSetUp(MXUserAcquisitionStats *stats);
 
@@ -522,8 +521,7 @@ void MXUserAcquisitionSample(MXUserAcquisitionStats *stats,
                              uint64 timeToAcquire);
 
 void MXUserDumpAcquisitionStats(MXUserAcquisitionStats *stats,
-                                MXUserHeader *header,
-                                unsigned epoch);
+                                MXUserHeader *header);
 
 void MXUserAcquisitionStatsTearDown(MXUserAcquisitionStats *stats);
 
@@ -536,8 +534,7 @@ MXUserBasicStatsSample(MXUserBasicStats *stats,
                        uint64 value);
  
 void MXUserDumpBasicStats(MXUserBasicStats *stats,
-                          MXUserHeader *header,
-                          unsigned epoch);
+                          MXUserHeader *header);
 
 void MXUserBasicStatsTearDown(MXUserBasicStats *stats);
 

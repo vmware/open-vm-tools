@@ -177,7 +177,7 @@ void MXUser_TryAcquireFailureControl(Bool (*func)(const char *lockName));
 void MXUser_StatisticsControl(double contentionRatio,
                               uint64 minCount);
 
-void MXUser_PerLockData(unsigned epoch);
+void MXUser_PerLockData(void);
 void MXUser_PerThreadData(VThreadID tid,
                           uint64 *totalAcquisitions,
                           uint64 *contendedAcquisitions);

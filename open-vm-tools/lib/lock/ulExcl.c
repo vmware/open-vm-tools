@@ -60,8 +60,7 @@ struct MXUserExclLock
  */
 
 static void
-MXUserStatsActionExcl(MXUserHeader *header,  // IN:
-                      unsigned epoch)        // IN:
+MXUserStatsActionExcl(MXUserHeader *header)  // IN:
 {
    Bool isHot;
    Bool doLog;
@@ -73,16 +72,16 @@ MXUserStatsActionExcl(MXUserHeader *header,  // IN:
     * Dump the statistics for the specified lock.
     */
 
-   MXUserDumpAcquisitionStats(&lock->acquisitionStats, header, epoch);
+   MXUserDumpAcquisitionStats(&lock->acquisitionStats, header);
 
    if (Atomic_ReadPtr(&lock->acquisitionHisto) != NULL) {
-      MXUserHistoDump(Atomic_ReadPtr(&lock->acquisitionHisto), header, epoch);
+      MXUserHistoDump(Atomic_ReadPtr(&lock->acquisitionHisto), header);
    }
 
-   MXUserDumpBasicStats(&lock->heldStats, header, epoch);
+   MXUserDumpBasicStats(&lock->heldStats, header);
 
    if (Atomic_ReadPtr(&lock->heldHisto) != NULL) {
-      MXUserHistoDump(Atomic_ReadPtr(&lock->heldHisto), header, epoch);
+      MXUserHistoDump(Atomic_ReadPtr(&lock->heldHisto), header);
    }
 
    /*
