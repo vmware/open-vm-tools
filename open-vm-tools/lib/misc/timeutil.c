@@ -500,15 +500,16 @@ TimeUtil_PopulateWithCurrent(Bool local,       // IN
    d->second = currentTime.wSecond;
 #else
    struct tm *currentTime;
+   struct tm tmbuf;
    time_t utcTime;
 
    ASSERT(d);
 
    utcTime = time(NULL);
    if (local) {
-      currentTime = localtime(&utcTime);
+      currentTime = localtime_r(&utcTime, &tmbuf);
    } else {
-      currentTime = gmtime(&utcTime);
+      currentTime = gmtime_r(&utcTime, &tmbuf);
    }
    ASSERT_NOT_IMPLEMENTED(currentTime);
    d->year   = 1900 + currentTime->tm_year;
