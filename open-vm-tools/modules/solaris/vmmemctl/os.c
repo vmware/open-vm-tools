@@ -69,7 +69,6 @@ typedef struct {
    kcondvar_t cv;
 
    /* registered state */
-   OSTimerHandler *handler;
    void *data;
    int period;
 } os_timer;
@@ -192,29 +191,6 @@ OS_MemCopy(void *dest,      // OUT
            size_t size)     // IN
 {
    bcopy(src, dest, size);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Identity --
- *
- *      Returns an identifier for the guest OS family.
- *
- * Results:
- *      The identifier
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-BalloonGuest
-OS_Identity(void)
-{
-   return BALLOON_GUEST_SOLARIS;
 }
 
 
@@ -402,7 +378,7 @@ OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 /*
  *-----------------------------------------------------------------------------
  *
- * os_worker --
+ * vmememctl_poll_worker --
  *
  *      Worker thread that periodically calls the timer handler.  This is
  *      executed by a user context thread so that it can block waiting for
@@ -419,7 +395,7 @@ OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
  */
 
 static void
-os_worker(os_timer *t)	// IN
+vmmemctl_poll_worker(os_timer *t) // IN
 {
    clock_t timeout;
 
@@ -428,8 +404,7 @@ os_worker(os_timer *t)	// IN
    while (!t->stop) {
       mutex_exit(&t->lock);
 
-      /* invoke registered handler */
-      (void) (*(t->handler))(t->data);
+      Balloon_QueryAndExecute();
 
       mutex_enter(&t->lock);
       /* check again whether we should stop */
@@ -464,42 +439,38 @@ os_worker(os_timer *t)	// IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
-OS_TimerStart(OSTimerHandler *handler, // IN
-              void *clientData)        // IN
+static int
+vmmemctl_poll_start(void)
 {
    os_timer *t = &global_state.timer;
    kthread_t *tp;
 
    /* setup the timer structure */
    t->id = 0;
-   t->handler = handler;
-   t->data = clientData;
-   t->period = drv_usectohz(ONE_SECOND_IN_MICROSECONDS);
+   t->stop = 0;
+   t->period = drv_usectohz(BALLOON_POLL_PERIOD * ONE_SECOND_IN_MICROSECONDS);
 
    mutex_init(&t->lock, NULL, MUTEX_DRIVER, NULL);
    cv_init(&t->cv, NULL, CV_DRIVER, NULL);
-
-   /* start the timer */
-   t->stop = 0;
 
    /*
     * All Solaris drivers that I checked assume that thread_create() will
     * succeed, let's follow the suit.
     */
-   tp = thread_create(NULL, 0, os_worker, (void *)t, 0, &p0, TS_RUN, minclsyspri);
+   tp = thread_create(NULL, 0, vmmemctl_poll_worker, (void *)t,
+                      0, &p0, TS_RUN, minclsyspri);
    t->thread_id = tp->t_did;
 
-   return TRUE;
+   return 0;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * OS_TimerStop --
+ * vmmemctl_poll_stop --
  *
- *      Stop the timer.
+ *      Signal polling thread to stop and wait till it exists.
  *
  * Results:
  *      None
@@ -510,8 +481,8 @@ OS_TimerStart(OSTimerHandler *handler, // IN
  *-----------------------------------------------------------------------------
  */
 
-void
-OS_TimerStop(void)
+static void
+vmmemctl_poll_stop(void)
 {
    os_timer *t = &global_state.timer;
 
@@ -530,16 +501,9 @@ OS_TimerStop(void)
       thread_join(t->thread_id);
       t->thread_id = 0;
    }
-}
 
-
-static void
-os_timer_cleanup(void)
-{
-   os_timer *timer = &global_state.timer;
-
-   mutex_destroy(&timer->lock);
-   cv_destroy(&timer->cv);
+   mutex_destroy(&t->lock);
+   cv_destroy(&t->cv);
 }
 
 
@@ -567,70 +531,6 @@ OS_Yield(void)
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * OS_Init --
- *
- *      Called at driver startup, initializes the balloon state and structures.
- *
- * Results:
- *      On success: TRUE
- *      On failure: FALSE
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-OS_Init(void)
-{
-   os_state *state = &global_state;
-
-   state->kstats = BalloonKstatCreate();
-   state->id_space = id_space_create(BALLOON_NAME, 0, INT_MAX);
-
-   /* disable memscrubber */
-   memscrub_disable();
-
-   /* log device load */
-   cmn_err(CE_CONT, "!%s initialized\n", BALLOON_NAME_VERBOSE);
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Cleanup --
- *
- *      Called when the driver is terminating, cleanup initialized structures.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_Cleanup(void)
-{
-   os_state *state = &global_state;
-
-   os_timer_cleanup();
-   BalloonKstatDelete(state->kstats);
-   id_space_destroy(state->id_space);
-
-   /* log device unload */
-   cmn_err(CE_CONT, "!%s unloaded\n", BALLOON_NAME_VERBOSE);
-}
-
-
-/*
  * Module linkage
  */
 
@@ -648,15 +548,41 @@ static struct modlinkage vmmodlinkage = {
 int
 _init(void)
 {
+   os_state *state = &global_state;
    int error;
 
-   if (Balloon_ModuleInit() != BALLOON_SUCCESS) {
-      return EAGAIN;
+   if (!Balloon_Init(BALLOON_GUEST_SOLARIS)) {
+      return EIO;
    }
+
+   state->kstats = BalloonKstatCreate();
+   state->id_space = id_space_create(BALLOON_NAME, 0, INT_MAX);
+
+   /* disable memscrubber */
+   memscrub_disable();
+
+   error = vmmemctl_poll_start();
+   if (error) {
+      goto err_do_cleanup;
+   }
+
+
    error = mod_install(&vmmodlinkage);
-   if (error != 0) {
-      Balloon_ModuleCleanup();
+   if (error) {
+      goto err_stop_poll;
    }
+
+   cmn_err(CE_CONT, "!%s initialized\n", BALLOON_NAME_VERBOSE);
+   return 0;
+
+err_stop_poll:
+   vmmemctl_poll_stop();
+
+err_do_cleanup:
+   id_space_destroy(state->id_space);
+   BalloonKstatDelete(state->kstats);
+   Balloon_Cleanup();
+
    return error;
 }
 
@@ -671,17 +597,25 @@ _info(struct modinfo *modinfop) // IN
 int
 _fini(void)
 {
+   os_state *state = &global_state;
    int error;
 
    /*
-    * Check if the module is busy (i.e., there's a worker thread active)
-    * before cleaning up.
+    * Check if the module is busy before cleaning up.
     */
    error = mod_remove(&vmmodlinkage);
-   if (error == 0) {
-      Balloon_ModuleCleanup();
+   if (error) {
+      return error;
    }
-   return error;
+
+   vmmemctl_poll_stop();
+   BalloonKstatDelete(state->kstats);
+   id_space_destroy(state->id_space);
+   Balloon_Cleanup();
+
+   cmn_err(CE_CONT, "!%s unloaded\n", BALLOON_NAME_VERBOSE);
+
+   return 0;
 }
 
 

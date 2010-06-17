@@ -162,6 +162,8 @@ typedef struct {
    /* transient list of non-balloonable pages */
    BalloonErrorPages errors;
 
+   BalloonGuest guestType;
+
    /* balloon size */
    int nPages;
    int nPagesTarget;
@@ -185,7 +187,6 @@ typedef struct {
  */
 
 static Balloon globalBalloon;
-static Bool timerStarted;
 
 /*
  * Balloon operations
@@ -194,7 +195,6 @@ static int  BalloonPageAlloc(Balloon *b, BalloonPageAllocType allocType);
 static int  BalloonPageFree(Balloon *b, int monitorUnlock);
 static int  BalloonAdjustSize(Balloon *b, uint32 target);
 static void BalloonReset(Balloon *b);
-static void BalloonTimerHandler(void *clientData);
 
 /*
  * Backdoor Operations
@@ -322,41 +322,6 @@ BalloonChunk_Destroy(BalloonChunk *chunk) // IN
 /*
  *----------------------------------------------------------------------
  *
- * Balloon_Init --
- *
- *      Initializes device state for balloon "b".
- *
- * Results:
- *      Returns BALLOON_SUCCESS.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Balloon_Init(Balloon *b) // IN
-{
-   /* clear state */
-   OS_MemZero(b, sizeof *b);
-
-   DblLnkLst_Init(&b->chunks);
-
-   /* initialize rates */
-   b->rateAlloc = BALLOON_RATE_ALLOC_MAX;
-   b->rateFree  = BALLOON_RATE_FREE_MAX;
-
-   /* initialize reset flag */
-   b->resetFlag = 1;
-
-   return BALLOON_SUCCESS;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Balloon_Deallocate --
  *
  *      Frees all allocated pages.
@@ -426,26 +391,25 @@ BalloonReset(Balloon *b) // IN
 /*
  *----------------------------------------------------------------------
  *
- * BalloonTimerHandler --
+ * Balloon_QueryAndExecute --
  *
- *      Balloon bottom half handler.  Contacts monitor via backdoor
- *      to obtain balloon size target, and starts adjusting balloon
- *      size to achieve target by allocating or deallocating pages.
- *      Resets balloon if requested by the monitor.
+ *      Contacts monitor via backdoor to obtain balloon size target,
+ *      and starts adjusting balloon size to achieve target by allocating
+ *      or deallocating pages. Resets balloon if requested by the monitor.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *      Schedules next execution of balloon timer handler.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
 
-static void
-BalloonTimerHandler(void *clientData) // IN
+void
+Balloon_QueryAndExecute(void)
 {
-   Balloon *b = (Balloon *) clientData;
+   Balloon *b = &globalBalloon;
    uint32 target = 0; // Silence compiler warning.
    int status;
 
@@ -1071,15 +1035,13 @@ static int
 BalloonMonitorGuestType(Balloon *b) // IN
 {
    uint32 status, target;
-   BalloonGuest identity;
    Backdoor_proto bp;
 
-   identity = OS_Identity();
-   ASSERT(identity == (uint32) identity);
+   ASSERT(b->guestType == (uint32) b->guestType);
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GUEST_ID;
-   bp.in.size = identity;
+   bp.in.size = b->guestType;
 
    /* invoke backdoor */
    Backdoor_Balloon(&bp);
@@ -1297,51 +1259,45 @@ BalloonMonitorUnlockPage(Balloon *b,        // IN
 /*
  *----------------------------------------------------------------------
  *
- * Balloon_ModuleInit --
+ * Balloon_Init --
  *
- *      Startup the balloon module.
+ *      Initializes state oif the balloon.
  *
  * Results:
- *      On success: BALLOON_SUCCESS
- *      On failure: BALLOON_FAILURE
+ *      Returns TRUE on success (always).
  *
  * Side effects:
- *      None
+ *      None.
  *
  *----------------------------------------------------------------------
  */
 
-int
-Balloon_ModuleInit(void)
+Bool
+Balloon_Init(BalloonGuest guestType)
 {
    Balloon *b = &globalBalloon;
 
-   /* os-specific initialization */
-   if (!OS_Init()) {
-      return BALLOON_FAILURE;
-   }
+   DblLnkLst_Init(&b->chunks);
 
-   /* initialize global state */
-   Balloon_Init(b);
+   b->guestType = guestType;
 
-   /* start timer */
-   timerStarted = FALSE;
-   if (!OS_TimerStart(BalloonTimerHandler, b)) {
-      Balloon_ModuleCleanup();
-      return BALLOON_FAILURE;
-   }
+   /* initialize rates */
+   b->rateAlloc = BALLOON_RATE_ALLOC_MAX;
+   b->rateFree  = BALLOON_RATE_FREE_MAX;
 
-   timerStarted = TRUE;
-   return BALLOON_SUCCESS;
+   /* initialize reset flag */
+   b->resetFlag = TRUE;
+
+   return TRUE;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * Balloon_ModuleCleanup --
+ * Balloon_Cleanup --
  *
- *      Terminate and cleanup the balloon module.
+ *      Cleanup after ballooning.
  *
  * Results:
  *      None
@@ -1353,14 +1309,9 @@ Balloon_ModuleInit(void)
  */
 
 void
-Balloon_ModuleCleanup(void)
+Balloon_Cleanup(void)
 {
    Balloon *b = &globalBalloon;
-
-   /* stop timer */
-   if (timerStarted) {
-      OS_TimerStop();
-   }
 
    /*
     * Deallocate all reserved memory, and reset connection with monitor.
@@ -1369,9 +1320,6 @@ Balloon_ModuleCleanup(void)
     */
    BalloonMonitorStart(b);
    Balloon_Deallocate(b);
-
-   /* os-specific cleanup */
-   OS_Cleanup();
 }
 
 #ifdef __cplusplus

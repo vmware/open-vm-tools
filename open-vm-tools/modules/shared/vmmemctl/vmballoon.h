@@ -70,6 +70,8 @@
 #define BALLOON_NAME                    "vmmemctl"
 #define BALLOON_NAME_VERBOSE            "VMware memory control driver"
 
+#define BALLOON_POLL_PERIOD             1 /* sec */
+
 /*
  * Page allocation flags
  */
@@ -120,9 +122,11 @@ typedef struct {
  * Operations
  */
 
-extern int  Balloon_ModuleInit(void);
-extern void Balloon_ModuleCleanup(void);
+Bool Balloon_Init(BalloonGuest guestType);
+void Balloon_Cleanup(void);
 
-extern const BalloonStats *Balloon_GetStats(void);
+void Balloon_QueryAndExecute(void);
+
+const BalloonStats *Balloon_GetStats(void);
 
 #endif	/* VMBALLOON_H */

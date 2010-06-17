@@ -74,8 +74,6 @@
  * Types
  */
 
-typedef void OSTimerHandler(void *clientData);
-typedef int  OSStatusHandler(char *buf, size_t size);
 typedef uintptr_t PageHandle;
 
 #define PAGE_HANDLE_INVALID 0
@@ -84,10 +82,6 @@ typedef uintptr_t PageHandle;
  * Operations
  */
 
-extern Bool OS_Init(void);
-extern void OS_Cleanup(void);
-extern BalloonGuest OS_Identity(void);
-
 extern void OS_MemZero(void *ptr, size_t size);
 extern void OS_MemCopy(void *dest, const void *src, size_t size);
 
@@ -95,9 +89,6 @@ extern void *OS_Malloc(size_t size);
 extern void OS_Free(void *ptr, size_t size);
 
 extern void OS_Yield(void);
-
-extern Bool OS_TimerStart(OSTimerHandler *handler, void *clientData);
-extern void OS_TimerStop(void);
 
 extern unsigned long OS_ReservedPageGetLimit(void);
 extern unsigned long OS_ReservedPageGetPPN(PageHandle handle);

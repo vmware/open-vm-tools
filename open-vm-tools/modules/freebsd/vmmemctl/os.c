@@ -66,11 +66,6 @@ typedef struct {
 
    /* termination flag */
    volatile int stop;
-
-   /* registered state */
-   OSTimerHandler *handler;
-   void *data;
-   int period;
 } os_timer;
 
 typedef struct {
@@ -206,29 +201,6 @@ static __inline__ unsigned long os_ffz(unsigned long word)
            :"r" (~word));
 #endif
    return word;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Identity --
- *
- *      Returns an identifier for the guest OS family.
- *
- * Results:
- *      The identifier
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-BalloonGuest
-OS_Identity(void)
-{
-   return BALLOON_GUEST_BSD;
 }
 
 
@@ -486,86 +458,6 @@ OS_ReservedPageFree(PageHandle handle) // IN: A valid page handle
 }
 
 
-static void
-os_timer_internal(void *data) // IN
-{
-   os_timer *t = (os_timer *) data;
-
-   if (!t->stop) {
-      /* invoke registered handler, rearm timer */
-      (void) (*(t->handler))(t->data);
-      t->callout_handle = timeout(os_timer_internal, t, t->period);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_TimerStart --
- *
- *      Setup the timer callback function, then start it.
- *
- * Results:
- *      Always TRUE, cannot fail.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-OS_TimerStart(OSTimerHandler *handler, // IN
-              void *clientData)        // IN
-{
-   os_timer *t = &global_state.timer;
-
-   /* setup the timer structure */
-   callout_handle_init(&t->callout_handle);
-   t->handler = handler;
-   t->data = clientData;
-   t->period = hz;
-
-   /* clear termination flag */
-   t->stop = 0;
-
-   /* scheduler timer handler */
-   t->callout_handle = timeout(os_timer_internal, t, t->period);
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_TimerStop --
- *
- *      Stop the timer.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-OS_TimerStop(void)
-{
-   os_timer *t = &global_state.timer;
-
-   /* set termination flag */
-   t->stop = 1;
-
-   /* deschedule timer handler */
-   untimeout(os_timer_internal, t, t->callout_handle);
-}
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -590,15 +482,42 @@ OS_Yield(void)
 
 
 /*
+ * vmmemctl_poll -
+ *
+ *      Calls Balloon_QueryAndExecute() to perform ballooning tasks and
+ *      then reschedules itself to be executed in BALLOON_POLL_PERIOD
+ *      seconds.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ */
+
+static void
+vmmemctl_poll(void *data) // IN
+{
+   os_timer *t = data;
+
+   if (!t->stop) {
+      /* invoke registered handler, rearm timer */
+      Balloon_QueryAndExecute();
+      t->callout_handle = timeout(vmmemctl_poll, t, BALLOON_POLL_PERIOD * hz);
+   }
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
- * OS_Init --
+ * vmmemctl_init --
  *
  *      Called at driver startup, initializes the balloon state and structures.
  *
  * Results:
- *      On success: TRUE
- *      On failure: FALSE
+ *      On success: 0
+ *      On failure: standard error code
  *
  * Side effects:
  *      None
@@ -606,11 +525,16 @@ OS_Yield(void)
  *-----------------------------------------------------------------------------
  */
 
-Bool
-OS_Init(void)
+static int
+vmmemctl_init(void)
 {
    os_state *state = &global_state;
+   os_timer *t = &state->timer;
    os_pmap *pmap = &state->pmap;
+
+   if (!Balloon_Init(BALLOON_GUEST_BSD)) {
+      return EIO;
+   }
 
    /* initialize timer state */
    callout_handle_init(&state->timer.callout_handle);
@@ -618,18 +542,23 @@ OS_Init(void)
    os_pmap_init(pmap);
    os_balloonobject_create();
 
+   /* Set up and start polling */
+   callout_handle_init(&t->callout_handle);
+   t->stop = FALSE;
+   t->callout_handle = timeout(vmmemctl_poll, t, BALLOON_POLL_PERIOD * hz);
+
    vmmemctl_init_sysctl();
 
    /* log device load */
    printf(BALLOON_NAME_VERBOSE " initialized\n");
-   return TRUE;
+   return 0;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * OS_Cleanup --
+ * vmmemctl_cleanup --
  *
  *      Called when the driver is terminating, cleanup initialized structures.
  *
@@ -642,13 +571,20 @@ OS_Init(void)
  *-----------------------------------------------------------------------------
  */
 
-void
-OS_Cleanup(void)
+static void
+vmmemctl_cleanup(void)
 {
    os_state *state = &global_state;
+   os_timer *t = &state->timer;
    os_pmap *pmap = &state->pmap;
 
    vmmemctl_deinit_sysctl();
+
+   Balloon_Cleanup();
+
+   /* Stop polling */
+   t->stop = TRUE;
+   untimeout(vmmemctl_poll, t, t->callout_handle);
 
    os_balloonobject_delete();
    os_pmap_free(pmap);
@@ -662,7 +598,6 @@ OS_Cleanup(void)
  * Module Load/Unload Operations
  */
 
-
 static int
 vmmemctl_load(module_t mod, // IN: Unused
               int cmd,      // IN
@@ -672,9 +607,7 @@ vmmemctl_load(module_t mod, // IN: Unused
 
    switch (cmd) {
    case MOD_LOAD:
-      if (Balloon_ModuleInit() != BALLOON_SUCCESS) {
-         err = EAGAIN;
-      }
+      err = vmmemctl_init();
       break;
 
     case MOD_UNLOAD:
@@ -682,7 +615,7 @@ vmmemctl_load(module_t mod, // IN: Unused
           /* prevent module unload */
           err = EBUSY;
        } else {
-          Balloon_ModuleCleanup();
+          vmmemctl_cleanup();
        }
        break;
 
