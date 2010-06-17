@@ -410,7 +410,7 @@ VMFileLoggerConfig(const gchar *defaultDomain,
 
    g_snprintf(key, sizeof key, "%s.level", domain);
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
-   if (strcmp(level, "none") != 0) {
+   if (level == NULL || strcmp(level, "none") != 0) {
       g_snprintf(key, sizeof key, "%s.data", domain);
 
       logpath = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
