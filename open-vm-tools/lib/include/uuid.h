@@ -52,6 +52,8 @@ char *UUID_ProperHostUUID(void);
 char *UUID_GetHostUUID(void);
 #if defined(_WIN32)
 /* like UUID_GetHostUUID, except gets actual host UUID */
-char *UUID_GetRealHostUUID(void); 
-#endif /* _WIN32 */ 
+char *UUID_GetRealHostUUID(void);
+#else
+#define UUID_GetRealHostUUID() UUID_GetHostUUID()
+#endif /* _WIN32 */
 #endif
