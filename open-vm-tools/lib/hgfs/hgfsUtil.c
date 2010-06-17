@@ -233,6 +233,7 @@ HgfsConvertFromInternalStatus(HgfsInternalStatus status) // IN
       return HGFS_STATUS_INVALID_PARAMETER;
    case ERROR_NOT_SAME_DEVICE:
       return HGFS_STATUS_NOT_SAME_DEVICE;
+   case ERROR_INTERNAL_ERROR:
    case HGFS_INTERNAL_STATUS_ERROR:
    default:
       return HGFS_STATUS_GENERIC_ERROR;
@@ -276,6 +277,7 @@ HgfsConvertFromInternalStatus(HgfsInternalStatus status) // IN
       return HGFS_STATUS_INVALID_PARAMETER;
    case EXDEV:
       return HGFS_STATUS_NOT_SAME_DEVICE;
+   case EINTERNAL:
    case HGFS_INTERNAL_STATUS_ERROR:
    default:
       return HGFS_STATUS_GENERIC_ERROR;

@@ -22,6 +22,7 @@ libHgfsServer_la_SOURCES += hgfsServer.c
 libHgfsServer_la_SOURCES += hgfsServerLinux.c
 libHgfsServer_la_SOURCES += hgfsServerPacketUtil.c
 libHgfsServer_la_SOURCES += hgfsDirNotifyStub.c
+libHgfsServer_la_SOURCES += hgfsServerParameters.c
 
 AM_CFLAGS =
 AM_CFLAGS += -DVMTOOLS_USE_GLIB

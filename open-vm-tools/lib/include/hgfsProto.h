@@ -118,7 +118,6 @@ typedef enum {
    HGFS_OP_CREATE_SYMLINK_V3,     /* Create a symlink */
    HGFS_OP_SERVER_LOCK_CHANGE_V3, /* Change the oplock on a file */
    HGFS_OP_WRITE_WIN32_STREAM_V3, /* Write WIN32_STREAM_ID format data to file */
-
    /*
     * Operations for version 4, deprecating version 3 operations.
     */
@@ -1664,6 +1663,10 @@ struct HgfsHeader {
 HgfsHeader;
 
 /*
+ * If no flags are set then the capability is not supported by the host.
+ */
+#define HGFS_REQUEST_NOT_SUPPORTED              0
+/*
  * Flag HGFS_REQUEST_SUPPORTED is set for every requests that are supported by the host.
  */
 #define HGFS_REQUEST_SUPPORTED                  (1 << 0)
@@ -1761,18 +1764,19 @@ HgfsIdentity;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestCreateSession {
+struct HgfsRequestCreateSessionV4 {
    uint32 numCapabilities;            /* Number of capabilities to follow. */
    uint32 maxPacketSize;              /* Maximum packet size supported. */
    uint64 reserved;                   /* Reserved for future use. */
    HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
 }
 #include "vmware_pack_end.h"
-HgfsRequestCreateSession;
+HgfsRequestCreateSessionV4;
 
+#define HGFS_INVALID_SESSION_ID 0xffffffff
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyCreateSession {
+struct HgfsReplyCreateSessionV4 {
    uint64 sessionId;                  /* Session ID. */
    uint32 numCapabilities;            /* Number of capabilities to follow. */
    uint32 maxPacketSize;              /* Maximum packet size supported. */
@@ -1781,24 +1785,23 @@ struct HgfsReplyCreateSession {
    HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyCreateSession;
+HgfsReplyCreateSessionV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestDestroySession {
-   uint64 sessionId;   /* Session ID. */
+struct HgfsRequestDestroySessionV4 {
    uint64 reserved;    /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsRequestDestroySession;
+HgfsRequestDestroySessionV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyDestroySession {
+struct HgfsReplyDestroySessionV4 {
    uint64 reserved;    /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyDestroySession;
+HgfsReplyDestroySessionV4;
 
 /* Adds new error status: HGFS_STATUS_INVALID_SESSION. */
 

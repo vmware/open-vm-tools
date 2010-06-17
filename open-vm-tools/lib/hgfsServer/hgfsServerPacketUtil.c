@@ -71,16 +71,16 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       ASSERT_DEVEL(*replyPacketSize <= packet->replyPacketSize);
    } else if (session->channelCbTable && session->channelCbTable->getWriteVa) {
      /* Can we write directly into guest memory ? */
+      ASSERT_DEVEL(packet->metaPacket);
       if (packet->metaPacket) {
          LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
          ASSERT_DEVEL(*replyPacketSize <= packet->metaPacketSize);
          packet->replyPacket = packet->metaPacket;
          packet->replyPacketSize = packet->metaPacketSize;
-      } else {
-         /* This should really never happen in existing scenarios */
-         ASSERT_DEVEL(0);
          LOG(10, ("%s Mapping meta packet for reply packet\n", __FUNCTION__));
-         packet->replyPacket = HSPU_GetBuf(packet, 0, &packet->metaPacket,
+         packet->replyPacket = HSPU_GetBuf(packet,
+                                           0,
+                                           &packet->metaPacket,
                                            packet->metaPacketSize,
                                            &packet->metaPacketIsAllocated,
                                            BUF_WRITEABLE,
@@ -436,9 +436,9 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
             uint32 startIndex,         // IN: Start of iov
             void **buf,                // IN/OUT: Buffer to be freed
             size_t *bufSize,           // IN: Size of the buffer
-	    Bool *isAllocated,         // IN: Was buffer allocated ?
-            uint32 mappingType,        // IN: Readable / Writeable ?
-	    HgfsSessionInfo *session)  // IN: Session info
+            Bool *isAllocated,         // IN: Was buffer allocated ?
+            MappingType mappingType,   // IN: Readable / Writeable ?
+            HgfsSessionInfo *session)  // IN: Session info
 {
    uint32 iovCount = 0;
    int size = *bufSize;
