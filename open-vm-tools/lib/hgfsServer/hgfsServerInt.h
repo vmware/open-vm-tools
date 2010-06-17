@@ -74,29 +74,7 @@
 #include "hgfsServerPolicy.h"
 #include "hgfsUtil.h"   // for HgfsInternalStatus
 #include "vm_atomic.h"
-
-/*
- * Locking: if requested, use glib's locking functions to avoid more bora
- * dependencies. In other builds, stick with bora/lib/lock.
- */
-
-#if defined(VMTOOLS_USE_GLIB)
-#  include <glib.h>
-
-   typedef GMutex HgfsLock;
-#  define HGFS_LOCK_NEW(name)       g_mutex_new()
-#  define HGFS_LOCK_ACQUIRE(lock)   g_mutex_lock(lock)
-#  define HGFS_LOCK_RELEASE(lock)   g_mutex_unlock(lock)
-#  define HGFS_LOCK_DESTROY(lock)   g_mutex_free(lock)
-#else /* !VMTOOLS_USE_GLIB */
-#  include "userlock.h"
-
-   typedef MXUserExclLock HgfsLock;
-#  define HGFS_LOCK_NEW(name)       MXUser_CreateExclLock(name, RANK_UNRANKED)
-#  define HGFS_LOCK_ACQUIRE(lock)   MXUser_AcquireExclLock(lock)
-#  define HGFS_LOCK_RELEASE(lock)   MXUser_ReleaseExclLock(lock)
-#  define HGFS_LOCK_DESTROY(lock)   MXUser_DestroyExclLock(lock)
-#endif
+#include "userlock.h"
 
 #ifdef _WIN32
 # define HGFS_REPLYPKT_STATUS  RPC_S_PROTOCOL_ERROR
@@ -325,7 +303,7 @@ typedef struct HgfsSessionInfo {
    HgfsServerChannelCallbacks *channelCbTable;
 
    /* Lock to ensure some fileIO requests are atomic for a handle. */
-   HgfsLock *fileIOLock;
+   MXUserExclLock *fileIOLock;
 
    Atomic_uint32 refCount;    /* Reference count for session. */
 
@@ -335,7 +313,7 @@ typedef struct HgfsSessionInfo {
     * Lock for the following 6 fields: the node array,
     * counters and lists for this session.
     */
-   HgfsLock *nodeArrayLock;
+   MXUserExclLock *nodeArrayLock;
 
    /* Open file nodes of this session. */
    HgfsFileNode *nodeArray;
@@ -362,7 +340,7 @@ typedef struct HgfsSessionInfo {
     * Lock for the following three fields: for the search array
     * and it's counter and list, for this session.
     */
-   HgfsLock *searchArrayLock;
+   MXUserExclLock *searchArrayLock;
 
    /* Directory entry cache for this session. */
    HgfsSearch *searchArray;

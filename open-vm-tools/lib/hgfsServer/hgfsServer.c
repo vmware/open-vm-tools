@@ -32,6 +32,7 @@
 #include "wiper.h"
 #include "hgfsDirNotify.h"
 #include "hgfsTransport.h"
+#include "userlock.h"
 
 #if defined(_WIN32)
 #include <io.h>
@@ -498,7 +499,7 @@ HgfsHandle2FileDesc(HgfsHandle handle,        // IN: Hgfs file handle
    Bool found = FALSE;
    HgfsFileNode *fileNode = NULL;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    fileNode = HgfsHandle2FileNode(handle, session);
    if (fileNode == NULL) {
       goto exit;
@@ -511,7 +512,7 @@ HgfsHandle2FileDesc(HgfsHandle handle,        // IN: Hgfs file handle
    found = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -543,7 +544,7 @@ HgfsHandle2AppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
    Bool found = FALSE;
    HgfsFileNode *fileNode = NULL;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    fileNode = HgfsHandle2FileNode(handle, session);
    if (fileNode == NULL) {
       goto exit;
@@ -553,7 +554,7 @@ HgfsHandle2AppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
    found = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -587,7 +588,7 @@ HgfsHandle2LocalId(HgfsHandle handle,        // IN: Hgfs file handle
 
    ASSERT(localId);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    fileNode = HgfsHandle2FileNode(handle, session);
    if (fileNode == NULL) {
       goto exit;
@@ -599,7 +600,7 @@ HgfsHandle2LocalId(HgfsHandle handle,        // IN: Hgfs file handle
    found = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -635,7 +636,7 @@ HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
 
    ASSERT(lock);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    fileNode = HgfsHandle2FileNode(handle, session);
    if (fileNode == NULL) {
       goto exit;
@@ -645,7 +646,7 @@ HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
    found = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 #else
@@ -684,7 +685,7 @@ HgfsFileDesc2Handle(fileDesc fd,              // IN: OS handle (file descriptor)
    ASSERT(session);
    ASSERT(session->nodeArray);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    for (i = 0; i < session->numNodes; i++) {
       existingFileNode = &session->nodeArray[i];
@@ -696,7 +697,7 @@ HgfsFileDesc2Handle(fileDesc fd,              // IN: OS handle (file descriptor)
       }
    }
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -732,7 +733,7 @@ HgfsHandle2ShareMode(HgfsHandle handle,         // IN: Hgfs file handle
       return found;
    }
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    existingFileNode = HgfsHandle2FileNode(handle, session);
    if (existingFileNode == NULL) {
@@ -745,7 +746,7 @@ HgfsHandle2ShareMode(HgfsHandle handle,         // IN: Hgfs file handle
    found = (nameStatus == HGFS_NAME_STATUS_COMPLETE);
 
 exit_unlock:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -814,7 +815,7 @@ HgfsHandle2FileNameMode(HgfsHandle handle,       // IN: Hgfs file handle
       return found;
    }
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    existingFileNode = HgfsHandle2FileNode(handle, session);
    if (existingFileNode == NULL) {
@@ -833,7 +834,7 @@ HgfsHandle2FileNameMode(HgfsHandle handle,       // IN: Hgfs file handle
    found = TRUE;
 
 exit_unlock:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    *fileName = name;
    *fileNameSize = nameSize;
@@ -875,7 +876,7 @@ HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
    ASSERT(session);
    ASSERT(session->nodeArray);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    for (i = 0; i < session->numNodes; i++) {
       HgfsFileNode *existingFileNode = &session->nodeArray[i];
@@ -890,7 +891,7 @@ HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
       }
    }
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 #else
@@ -929,7 +930,7 @@ HgfsGetNodeCopy(HgfsHandle handle,        // IN: Hgfs file handle
 
    ASSERT(copy);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    original = HgfsHandle2FileNode(handle, session);
    if (original == NULL) {
@@ -960,7 +961,7 @@ HgfsGetNodeCopy(HgfsHandle handle,        // IN: Hgfs file handle
    found = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return found;
 }
@@ -993,7 +994,7 @@ HgfsHandleIsSequentialOpen(HgfsHandle handle,        // IN:  Hgfs file handle
 
    ASSERT(sequentialOpen);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    node = HgfsHandle2FileNode(handle, session);
    if (node == NULL) {
@@ -1004,7 +1005,7 @@ HgfsHandleIsSequentialOpen(HgfsHandle handle,        // IN:  Hgfs file handle
    success = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return success;
 }
@@ -1037,7 +1038,7 @@ HgfsHandleIsSharedFolderOpen(HgfsHandle handle,        // IN:  Hgfs file handle
 
    ASSERT(sharedFolderOpen);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    node = HgfsHandle2FileNode(handle, session);
    if (node == NULL) {
@@ -1048,7 +1049,7 @@ HgfsHandleIsSharedFolderOpen(HgfsHandle handle,        // IN:  Hgfs file handle
    success = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return success;
 }
@@ -1081,7 +1082,7 @@ HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
    HgfsFileNode *node;
    Bool updated = FALSE;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    node = HgfsHandle2FileNode(handle, session);
    if (node == NULL) {
@@ -1093,7 +1094,7 @@ HgfsUpdateNodeFileDesc(HgfsHandle handle,        // IN: Hgfs file handle
    updated = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return updated;
 }
@@ -1129,7 +1130,7 @@ HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
    ASSERT(session);
    ASSERT(session->nodeArray);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    for (i = 0; i < session->numNodes; i++) {
       existingFileNode = &session->nodeArray[i];
@@ -1142,7 +1143,7 @@ HgfsUpdateNodeServerLock(fileDesc fd,                // IN: OS handle
       }
    }
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return updated;
 }
@@ -1173,7 +1174,7 @@ HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
    HgfsFileNode *node;
    Bool updated = FALSE;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    node = HgfsHandle2FileNode(handle, session);
    if (node == NULL) {
@@ -1186,7 +1187,7 @@ HgfsUpdateNodeAppendFlag(HgfsHandle handle,        // IN: Hgfs file handle
    updated = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return updated;
 }
@@ -1530,9 +1531,9 @@ static void
 HgfsFreeFileNode(HgfsHandle handle,         // IN: Handle to free
                  HgfsSessionInfo *session)  // IN: Session info
 {
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    HgfsFreeFileNodeInternal(handle, session);
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 }
 
 
@@ -1880,9 +1881,9 @@ HgfsIsServerLockAllowed(HgfsSessionInfo *session)  // IN: session info
 {
    Bool allowed;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    allowed = session->numCachedLockedNodes < MAX_LOCKED_FILENODES;
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return allowed;
 }
@@ -2079,7 +2080,7 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
 
    ASSERT(copy);
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
    original = HgfsSearchHandle2Search(handle, session);
    if (original == NULL) {
       goto exit;
@@ -2110,7 +2111,7 @@ HgfsGetSearchCopy(HgfsHandle handle,        // IN: Hgfs search handle
    found = TRUE;
 
 exit:
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    return found;
 }
@@ -2262,7 +2263,7 @@ HgfsRemoveSearch(HgfsHandle handle,        // IN: search
    HgfsSearch *search;
    Bool success = FALSE;
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsSearchHandle2Search(handle, session);
    if (search != NULL) {
@@ -2270,7 +2271,7 @@ HgfsRemoveSearch(HgfsHandle handle,        // IN: search
       success = TRUE;
    }
 
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    return success;
 }
@@ -2304,7 +2305,7 @@ HgfsGetSearchResult(HgfsHandle handle,         // IN: Handle to search
    HgfsSearch *search;
    DirectoryEntry *dent = NULL;
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsSearchHandle2Search(handle, session);
    if (search == NULL || search->dents == NULL) {
@@ -2360,7 +2361,7 @@ HgfsGetSearchResult(HgfsHandle handle,         // IN: Handle to search
    }
 
   out:
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    return dent;
 }
@@ -2444,7 +2445,7 @@ HgfsUpdateNodeNames(const char *oldLocalName,  // IN: Name of file to look for
 
    newBufferLen = strlen(newLocalName);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    for (i = 0; i < session->numNodes; i++) {
       fileNode = &session->nodeArray[i];
@@ -2470,7 +2471,7 @@ HgfsUpdateNodeNames(const char *oldLocalName,  // IN: Name of file to look for
       }
    }
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 }
 
 
@@ -2970,7 +2971,7 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
     * Initialize all our locks first as these can fail.
     */
 
-   session->fileIOLock = HGFS_LOCK_NEW("HgfsFileIOLock");
+   session->fileIOLock = MXUser_CreateExclLock("HgfsFileIOLock", RANK_UNRANKED);
    if (session->fileIOLock == NULL) {
       free(session);
       LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
@@ -2978,19 +2979,19 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
       return FALSE;
    }
 
-   session->nodeArrayLock = HGFS_LOCK_NEW("HgfsNodeArrayLock");
+   session->nodeArrayLock = MXUser_CreateExclLock("HgfsNodeArrayLock", RANK_UNRANKED);
    if (session->nodeArrayLock == NULL) {
-      HGFS_LOCK_DESTROY(session->fileIOLock);
+      MXUser_DestroyExclLock(session->fileIOLock);
       free(session);
       LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
 
       return FALSE;
    }
 
-   session->searchArrayLock = HGFS_LOCK_NEW("HgfsSearchArrayLock");
+   session->searchArrayLock = MXUser_CreateExclLock("HgfsSearchArrayLock", RANK_UNRANKED);
    if (session->searchArrayLock == NULL) {
-      HGFS_LOCK_DESTROY(session->fileIOLock);
-      HGFS_LOCK_DESTROY(session->nodeArrayLock);
+      MXUser_DestroyExclLock(session->fileIOLock);
+      MXUser_DestroyExclLock(session->nodeArrayLock);
       free(session);
       LOG(4, ("%s: Could not create search array sync mutex.\n", __FUNCTION__));
 
@@ -3149,7 +3150,7 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    ASSERT(session->nodeArray);
    ASSERT(session->searchArray);
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    LOG(4, ("%s: exiting.\n", __FUNCTION__));
    /* Recycle all nodes that are still in use, then destroy the node pool. */
@@ -3167,14 +3168,14 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    free(session->nodeArray);
    session->nodeArray = NULL;
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    /*
     * Recycle all searches that are still in use, then destroy the
     * search pool.
     */
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    for (i = 0; i < session->numSearches; i++) {
       if (DblLnkLst_IsLinked(&session->searchArray[i].links)) {
@@ -3185,12 +3186,12 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    free(session->searchArray);
    session->searchArray = NULL;
 
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    /* Teardown the locks for the sessions and destroy itself. */
-   HGFS_LOCK_DESTROY(session->nodeArrayLock);
-   HGFS_LOCK_DESTROY(session->searchArrayLock);
-   HGFS_LOCK_DESTROY(session->fileIOLock);
+   MXUser_DestroyExclLock(session->nodeArrayLock);
+   MXUser_DestroyExclLock(session->searchArrayLock);
+   MXUser_DestroyExclLock(session->fileIOLock);
    free(session);
 }
 
@@ -3473,7 +3474,7 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
    LOG(4, ("%s: Beginning\n", __FUNCTION__));
 
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    /*
     * Iterate over each node, skipping those that are unused. For each node,
@@ -3515,9 +3516,9 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
       }
    }
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    /*
     * Iterate over each search, skipping those that are on the free list. For
@@ -3554,7 +3555,7 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
       }
    }
 
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    LOG(4, ("%s: Ending\n", __FUNCTION__));
 }
@@ -4012,7 +4013,7 @@ HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
    unsigned int i;
    HgfsSearch *search;
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsSearchHandle2Search(searchHandle, session);
    if (search != NULL) {
@@ -4025,7 +4026,7 @@ HgfsServerDumpDents(HgfsHandle searchHandle,  // IN: Handle to dump dents from
       }
    }
 
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 #endif
 }
 
@@ -4235,7 +4236,7 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
    ASSERT(handle);
    ASSERT(shareName);
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsAddNewSearch(baseDir, DIRECTORY_SEARCH_TYPE_DIR, shareName,
                              rootDir, session);
@@ -4270,7 +4271,7 @@ HgfsServerSearchRealDir(char const *baseDir,      // IN: Directory to search
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    return status;
 }
@@ -4313,7 +4314,7 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
    ASSERT(cleanupName);
    ASSERT(handle);
 
-   HGFS_LOCK_ACQUIRE(session->searchArrayLock);
+   MXUser_AcquireExclLock(session->searchArrayLock);
 
    search = HgfsAddNewSearch("", type, "", "", session);
    if (!search) {
@@ -4334,7 +4335,7 @@ HgfsServerSearchVirtualDir(HgfsGetNameFunc *getName,     // IN: Name enumerator
    *handle = HgfsSearch2SearchHandle(search);
 
   out:
-   HGFS_LOCK_RELEASE(session->searchArrayLock);
+   MXUser_ReleaseExclLock(session->searchArrayLock);
 
    return status;
 }
@@ -4365,9 +4366,9 @@ HgfsRemoveFromCache(HgfsHandle handle,	      // IN: Hgfs handle to the node
 {
    Bool removed = FALSE;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    removed = HgfsRemoveFromCacheInternal(handle, session);
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return removed;
 }
@@ -4396,9 +4397,9 @@ HgfsIsCached(HgfsHandle handle,         // IN: Structure representing file node
 {
    Bool cached = FALSE;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    cached = HgfsIsCachedInternal(handle, session);
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return cached;
 }
@@ -4507,9 +4508,9 @@ HgfsAddToCache(HgfsHandle handle,        // IN: HGFS file handle
 {
    Bool added = FALSE;
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
    added = HgfsAddToCacheInternal(handle, session);
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    return added;
 }
@@ -4573,14 +4574,14 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       sharedFolderOpen = TRUE;
    }
 
-   HGFS_LOCK_ACQUIRE(session->nodeArrayLock);
+   MXUser_AcquireExclLock(session->nodeArrayLock);
 
    node = HgfsAddNewFileNode(openInfo, localId, fileDesc, append, len,
                              openInfo->cpName, sharedFolderOpen, session);
 
    if (node == NULL) {
       LOG(4, ("%s: Failed to add new node.\n", __FUNCTION__));
-      HGFS_LOCK_RELEASE(session->nodeArrayLock);
+      MXUser_ReleaseExclLock(session->nodeArrayLock);
 
       HgfsCloseFile(fileDesc, NULL);
       return FALSE;
@@ -4592,12 +4593,12 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
       HgfsCloseFile(fileDesc, NULL);
 
       LOG(4, ("%s: Failed to add node to the cache.\n", __FUNCTION__));
-      HGFS_LOCK_RELEASE(session->nodeArrayLock);
+      MXUser_ReleaseExclLock(session->nodeArrayLock);
 
       return FALSE;
    }
 
-   HGFS_LOCK_RELEASE(session->nodeArrayLock);
+   MXUser_ReleaseExclLock(session->nodeArrayLock);
 
    /* Only after everything is successful, save the handle in the open info. */
    openInfo->file = handle;

@@ -60,6 +60,7 @@
 #include "su.h"
 #include "codeset.h"
 #include "unicodeOperations.h"
+#include "userlock.h"
 
 #if defined(linux) && !defined(SYS_getdents64)
 /* For DT_UNKNOWN */
@@ -3704,7 +3705,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
     * this and the subsequent read atomic.
     */
 
-   HGFS_LOCK_ACQUIRE(session->fileIOLock);
+   MXUser_AcquireExclLock(session->fileIOLock);
 
    if (!sequentialOpen) {
 #   ifdef linux
@@ -3724,13 +3725,13 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
          status = errno;
          LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
                  offset, strerror(status)));
-         HGFS_LOCK_RELEASE(session->fileIOLock);
+         MXUser_ReleaseExclLock(session->fileIOLock);
          goto error;
       }
    }
 
    error = read(fd, payload, requiredSize);
-   HGFS_LOCK_RELEASE(session->fileIOLock);
+   MXUser_ReleaseExclLock(session->fileIOLock);
 #endif
    if (error < 0) {
       status = errno;
@@ -3931,7 +3932,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
     * this and the subsequent write atomic.
     */
 
-   HGFS_LOCK_ACQUIRE(session->fileIOLock);
+   MXUser_AcquireExclLock(session->fileIOLock);
    if (!sequentialOpen) {
 #   ifdef linux
       {
@@ -3950,13 +3951,13 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
          status = errno;
          LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
                  offset, strerror(status)));
-         HGFS_LOCK_RELEASE(session->fileIOLock);
+         MXUser_ReleaseExclLock(session->fileIOLock);
          goto error;
       }
    }
 
    error = write(fd, payload, requiredSize);
-   HGFS_LOCK_RELEASE(session->fileIOLock);
+   MXUser_ReleaseExclLock(session->fileIOLock);
 #endif
    if (error < 0) {
       status = errno;
