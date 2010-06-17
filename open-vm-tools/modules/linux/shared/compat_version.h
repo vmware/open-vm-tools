@@ -100,11 +100,6 @@
 #   define KERNEL_2_4_8
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 22)
-/*  New vmap() */
-#   define KERNEL_2_4_22
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 2)
 /*  New kdev_t, major()/minor() API --hpreg */
 #   define KERNEL_2_5_2
