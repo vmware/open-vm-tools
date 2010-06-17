@@ -50,24 +50,24 @@
 
 #define INVALID_OBJECT_HANDLE  0xffffffff
 
-typedef uint32 SharedFolderHandle;
-typedef uint64 SubscriberHandle;
+typedef uint32 HgfsSharedFolderHandle;
+typedef uint64 HgfsSubscriberHandle;
 
 uint32 HgfsNotify_Init(void);
 void HgfsNotify_Shutdown(void);
 
-SharedFolderHandle HgfsNotify_AddSharedFolder(const char* path);
-SubscriberHandle HgfsNotify_AddSubscriber(SharedFolderHandle sharedFolder,
-                                          const char *path,
-                                          uint32 eventFilter,
-                                          uint32 recursive);
+HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path);
+HgfsSubscriberHandle HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder,
+                                              const char *path,
+                                              uint32 eventFilter,
+                                              uint32 recursive);
 
-uint32 HgfsNotify_RemoveSharedFolder(SharedFolderHandle sharedFolder);
-uint32 HgfsNotify_RemoveSubscriber(SubscriberHandle subscriber);
+uint32 HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder);
+uint32 HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber);
 
 /* This is a callback that is implemented in hgfsServer.c */
-void Hgfs_NotificationCallback(SharedFolderHandle sharedFolder,
-                               SubscriberHandle subscriber,
-                               char* name,
-                               char* newName,
+void Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
+                               HgfsSubscriberHandle subscriber,
+                               char *name,
+                               char *newName,
                                uint32 mask);

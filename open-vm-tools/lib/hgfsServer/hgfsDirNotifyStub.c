@@ -93,8 +93,8 @@ HgfsNotify_Shutdown(void)
  *-----------------------------------------------------------------------------
  */
 
-SharedFolderHandle
-HgfsNotify_AddSharedFolder(const char* path) // IN
+HgfsSharedFolderHandle
+HgfsNotify_AddSharedFolder(const char *path) // IN
 {
    return INVALID_OBJECT_HANDLE;
 }
@@ -118,11 +118,11 @@ HgfsNotify_AddSharedFolder(const char* path) // IN
  *-----------------------------------------------------------------------------
  */
 
-SubscriberHandle
-HgfsNotify_AddSubscriber(SharedFolderHandle sharedFolder, // IN
-              const char *path,                // IN path relative to shared folder
-              uint32 eventFilter,              // IN
-              uint32 recursive)                // IN TRUE if look in subdirectories
+HgfsSubscriberHandle
+HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN
+                         const char *path,                    // IN path relative to shared folder
+                         uint32 eventFilter,                  // IN
+                         uint32 recursive)                    // IN TRUE if look in subdirectories
 {
    return INVALID_OBJECT_HANDLE;
 }
@@ -146,7 +146,7 @@ HgfsNotify_AddSubscriber(SharedFolderHandle sharedFolder, // IN
  */
 
 uint32
-HgfsNotify_RemoveSharedFolder(SharedFolderHandle sharedFolder) // IN
+HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder) // IN
 {
    return EINVAL;
 }
@@ -169,7 +169,7 @@ HgfsNotify_RemoveSharedFolder(SharedFolderHandle sharedFolder) // IN
  */
 
 uint32
-HgfsNotify_RemoveSubscriber(SubscriberHandle subscriber) // IN
+HgfsNotify_RemoveSubscriber(HgfsSubscriberHandle subscriber) // IN
 {
    return EINVAL;
 }

@@ -8427,8 +8427,8 @@ HgfsBuildRelativePath(const char* source,    // IN: source file name
  */
 
 void
-Hgfs_NotificationCallback(SharedFolderHandle sharedFolder,
-                          SubscriberHandle subscriber,
+Hgfs_NotificationCallback(HgfsSharedFolderHandle sharedFolder,
+                          HgfsSubscriberHandle subscriber,
                           char* name,
                           char* newName,
                           uint32 mask)
