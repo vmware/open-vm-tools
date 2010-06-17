@@ -854,12 +854,14 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
 #else
    char *str;
    char buf[26];
+   time_t t = (time_t) utcTime;  // Implicit narrowing conversion on 32-bit
+
 #if defined sun
-   str = Util_SafeStrdup(ctime_r((const time_t *) &utcTime, buf, 26));
+   str = Util_SafeStrdup(ctime_r((const time_t *) &t, buf, sizeof buf));
 #else
-   str = Util_SafeStrdup(ctime_r((const time_t *) &utcTime, buf));
+   str = Util_SafeStrdup(ctime_r((const time_t *) &t, buf));
 #endif
-   str[strlen(str)-1] = '\0';
+   str[strlen(str) - 1] = '\0';  // Remove the trailing '\n'.
 
    return str;
 #endif // _WIN32
