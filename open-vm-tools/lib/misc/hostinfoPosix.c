@@ -43,7 +43,6 @@
 # include <sys/sysctl.h>
 #endif
 #if defined(__APPLE__)
-#define SYS_NMLN _SYS_NAMELEN
 #include <assert.h>
 #include <CoreServices/CoreServices.h>
 #include <mach-o/dyld.h>
@@ -126,13 +125,12 @@
    MAX(sizeof SYSTEM_BITNESS_64_SUN, \
        sizeof SYSTEM_BITNESS_64_LINUX))
 
-static Bool hostinfoOSVersionInitialized;
+struct hostinfoOSVersion {
+   int hostinfoOSVersion[4];
+   char *hostinfoOSVersionString;
+};
 
-#if defined(__APPLE__)
-#define SYS_NMLN _SYS_NAMELEN
-#endif
-static int hostinfoOSVersion[4];
-static char hostinfoOSVersionString[SYS_NMLN];
+static Atomic_Ptr hostinfoOSVersion;
 
 #define DISTRO_BUF_SIZE 255
 
@@ -219,10 +217,12 @@ static DistroInfo distroArray[] = {
 static void
 HostinfoOSVersionInit(void)
 {
+   struct hostinfoOSVersion *version;
    struct utsname u;
-   char extra[SYS_NMLN] = "";
+   char *extra;
+   char *p;
 
-   if (hostinfoOSVersionInitialized) {
+   if (Atomic_ReadPtr(&hostinfoOSVersion)) {
       return;
    }
 
@@ -232,23 +232,43 @@ HostinfoOSVersionInit(void)
       NOT_IMPLEMENTED();
    }
 
-   Str_Strcpy(hostinfoOSVersionString, u.release, SYS_NMLN);
+   version = Util_SafeCalloc(1, sizeof *version);
+   version->hostinfoOSVersionString = Util_SafeStrndup(u.release, 
+                                                       sizeof u.release);
 
-   ASSERT(ARRAYSIZE(hostinfoOSVersion) >= 4);
+   ASSERT(ARRAYSIZE(version->hostinfoOSVersion) >= 4);
+
+   /*
+    * The first three numbers are separated by '.', if there is 
+    * a fourth number, it's probably separated by '.' or '-',
+    * but it could be preceded by anything.
+    */
+
+   extra = Util_SafeCalloc(1, sizeof u.release);
    if (sscanf(u.release, "%d.%d.%d%s",
-	      &hostinfoOSVersion[0], &hostinfoOSVersion[1],
-	      &hostinfoOSVersion[2], extra) < 1) {
+	      &version->hostinfoOSVersion[0], &version->hostinfoOSVersion[1],
+	      &version->hostinfoOSVersion[2], extra) < 1) {
       Warning("%s: unable to parse host OS version string: %s\n",
               __FUNCTION__, u.release);
       NOT_IMPLEMENTED();
    }
 
-   /* If there is a 4th number, use it, otherwise use 0. */
-   if (sscanf(extra, ".%d%*s", &hostinfoOSVersion[3]) < 1) {
-      hostinfoOSVersion[3] = 0;
-   }
+   /*
+    * If there is a 4th number, use it, otherwise use 0.
+    * Explicitly skip over any non-digits, including '-'
+    */
 
-   hostinfoOSVersionInitialized = TRUE;
+   p = extra;
+   while (*p && !isdigit(*p)) {
+      p++;
+   }
+   sscanf(p, "%d", &version->hostinfoOSVersion[3]);
+   free(extra);
+
+   if (Atomic_ReadIfEqualWritePtr(&hostinfoOSVersion, NULL, version)) {
+      free(version->hostinfoOSVersionString);
+      free(version);
+   }
 }
 
 
@@ -272,9 +292,13 @@ HostinfoOSVersionInit(void)
 const char *
 Hostinfo_OSVersionString(void)
 {
+   struct hostinfoOSVersion *version;
+
    HostinfoOSVersionInit();
 
-   return hostinfoOSVersionString;
+   version = Atomic_ReadPtr(&hostinfoOSVersion);
+
+   return version->hostinfoOSVersionString;
 }
 
 
@@ -296,11 +320,16 @@ Hostinfo_OSVersionString(void)
  */
 
 int
-Hostinfo_OSVersion(int i)
+Hostinfo_OSVersion(unsigned int i)  // IN:
 {
+   struct hostinfoOSVersion *version;
+
    HostinfoOSVersionInit();
 
-   return i < ARRAYSIZE(hostinfoOSVersion) ? hostinfoOSVersion[i] : 0;
+   version = Atomic_ReadPtr(&hostinfoOSVersion);
+
+   return (i < ARRAYSIZE(version->hostinfoOSVersion)) ?
+           version->hostinfoOSVersion[i] : 0;
 }
 
 

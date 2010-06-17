@@ -61,7 +61,7 @@ extern VmTimeType Hostinfo_RawSystemTimerNS(void);
 extern VmTimeType Hostinfo_RawSystemTimerUS(void);
 extern VmTimeType Hostinfo_SystemTimerNS(void);
 extern VmTimeType Hostinfo_SystemTimerUS(void);
-extern int Hostinfo_OSVersion(int i);
+extern int Hostinfo_OSVersion(unsigned int i);
 extern int Hostinfo_GetSystemBitness(void);
 extern const char *Hostinfo_OSVersionString(void);
 
