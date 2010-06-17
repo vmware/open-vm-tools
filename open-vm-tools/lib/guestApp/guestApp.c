@@ -869,6 +869,82 @@ GuestApp_GetDefaultScript(const char *confName) // IN
    return value;
 }
 
+#ifdef _WIN32
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * GuestApp_GetInstallPathW --
+ *
+ *    Returns the tools installation path as a UTF-16 encoded string, or NULL on
+ *    error. The caller must deallocate the returned string using free.
+ *
+ * Results:
+ *    See above.
+ *
+ * Side effects:
+ *    None.
+ *------------------------------------------------------------------------------
+ */
+
+LPWSTR
+GuestApp_GetInstallPathW(void)
+{
+   static LPCWSTR TOOLS_KEY_NAME = L"Software\\VMware, Inc.\\VMware Tools";
+   static LPCWSTR INSTALLPATH_VALUE_NAME = L"InstallPath";
+
+   HKEY   key    = NULL;
+   LONG   rc     = ERROR_SUCCESS;
+   DWORD  cbData = 0;
+   DWORD  temp   = 0;
+   PWCHAR data   = NULL;
+
+   rc = RegOpenKeyExW(HKEY_LOCAL_MACHINE, TOOLS_KEY_NAME, 0, KEY_READ, &key);
+   if (ERROR_SUCCESS != rc) {
+      Debug("%s: Couldn't open key \"%S\".\n", __FUNCTION__, TOOLS_KEY_NAME);
+      Debug("%s: RegOpenKeyExW error 0x%x.\n", __FUNCTION__, GetLastError());
+      goto exit;
+   }
+
+   rc = RegQueryValueExW(key, INSTALLPATH_VALUE_NAME, 0, NULL, NULL, &cbData);
+   if (ERROR_SUCCESS != rc) {
+      Debug("%s: Couldn't get length of value \"%S\".\n", __FUNCTION__,
+            INSTALLPATH_VALUE_NAME);
+      Debug("%s: RegQueryValueExW error 0x%x.\n", __FUNCTION__, GetLastError());
+      goto exit;
+   }
+
+   /*
+    * The data in the registry may not be null terminated. So allocate enough
+    * space for one extra WCHAR and use that space to write our own NULL.
+    */
+   data = (LPWSTR) malloc(cbData + sizeof(WCHAR));
+   if (NULL == data) {
+      Debug("%s: Couldn't allocate %d bytes.\n", __FUNCTION__, cbData);
+      goto exit;
+   }
+
+   temp = cbData;
+   rc = RegQueryValueExW(key, INSTALLPATH_VALUE_NAME, 0, NULL, (LPBYTE) data,
+                         &temp);
+   if (ERROR_SUCCESS != rc) {
+      Debug("%s: Couldn't get data for value \"%S\".\n", __FUNCTION__,
+            INSTALLPATH_VALUE_NAME);
+      Debug("%s: RegQueryValueExW error 0x%x.\n", __FUNCTION__, GetLastError());
+      goto exit;
+   }
+
+   data[cbData / sizeof(WCHAR)] = L'\0';
+
+exit:
+   if (NULL != key) {
+      RegCloseKey(key);
+   }
+
+   return data;
+}
+
+#endif
 
 /*
  *----------------------------------------------------------------------
@@ -936,9 +1012,9 @@ GuestApp_GetInstallPath(void)
  *      lib/user/win32util.c because we can't use that file inside guest
  *      code. If we do, we'll break Win95 Tools.
  *
- *      XXX: For Windows, this function will only fail on pre-2k/Me systems 
- *      that haven't installed IE4 _and_ haven't ever used our installer 
- *      (it is thought that the installer will copy shfolder.dll if the 
+ *      XXX: For Windows, this function will only fail on pre-2k/Me systems
+ *      that haven't installed IE4 _and_ haven't ever used our installer
+ *      (it is thought that the installer will copy shfolder.dll if the
  *      system needs it).
  *
  *      However, the function will also return NULL if we fail to create
@@ -948,7 +1024,7 @@ GuestApp_GetInstallPath(void)
  *      a non-root user process calls this function, the directory exists.
  *
  * Results:
- *      The path in UTF-8, or NULL on failure. 
+ *      The path in UTF-8, or NULL on failure.
  *
  * Side effects:
  *      Allocates memory.
@@ -974,15 +1050,15 @@ GuestApp_GetConfPath(void)
    if (!pfnSHGetFolderPath) {
       HMODULE h = LoadLibraryW(L"shfolder.dll");
       if (h) {
-         pfnSHGetFolderPath = (PSHGETFOLDERPATH) 
+         pfnSHGetFolderPath = (PSHGETFOLDERPATH)
             GetProcAddress(h, "SHGetFolderPathW");
       }
-         
+
       /* win32util.c avoids calling FreeLibrary() so we will too. */
    }
 
-   /* 
-    * Get the Common Application data folder - create if it doesn't 
+   /*
+    * Get the Common Application data folder - create if it doesn't
     * exist.
     */
 
@@ -1084,7 +1160,7 @@ GuestApp_GetLogPath(void)
    /* We should log to %TEMP%. */
    LPWSTR buffer = NULL;
    DWORD bufferSize = 0, neededSize;
-   
+
    if ((neededSize = GetEnvironmentVariableW(L"TEMP", buffer, bufferSize)) == 0) {
       return NULL;
    }
@@ -1598,7 +1674,7 @@ GuestApp_HostCopyStep(uint8 c) // IN
  *
  * GuestApp_RpcSendOneArgCPName --
  *
- *    Wrapper for GuestApp_RpcSendOneCPName with an extra argument. Sends a 
+ *    Wrapper for GuestApp_RpcSendOneCPName with an extra argument. Sends a
  *    single RPCI command with arg and cpNameArg both in UTF-8 encodeding.
  *
  *    The UTF-8 encoded arg is optional so that one can send a single UTF-8

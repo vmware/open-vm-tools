@@ -104,6 +104,11 @@ GuestApp_GetPtrGrabCap(const char *channel); // IN
 Bool
 GuestApp_Log(const char *s); // IN
 
+#ifdef _WIN32
+LPWSTR
+GuestApp_GetInstallPathW(void);
+#endif
+
 char *
 GuestApp_GetInstallPath(void);
 

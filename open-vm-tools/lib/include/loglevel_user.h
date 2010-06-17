@@ -201,6 +201,7 @@
    LOGLEVEL_VAR(duiMKS), \
    LOGLEVEL_VAR(worker), \
    LOGLEVEL_VAR(duiDevices), \
+   LOGLEVEL_VAR(duiLocalization), \
    LOGLEVEL_VAR(duiProxyApps), \
    LOGLEVEL_VAR(docker), \
    LOGLEVEL_VAR(vmIPC), \
