@@ -598,7 +598,7 @@ MXUser_CreateCondVarExclLock(MXUserExclLock *lock)
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CondWaitExclLock --
+ * MXUser_WaitCondVarExclLock --
  *
  *      Block (sleep) on the specified condition variable. The specified lock
  *      is released upon blocking and is reacquired before returning from this
@@ -619,5 +619,37 @@ MXUser_WaitCondVarExclLock(MXUserExclLock *lock,    // IN:
 {
    ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
 
-   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar);
+   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
+                     MXUSER_WAIT_INFINITE);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_TimedWaitCondVarExclLock --
+ *
+ *      Block (sleep) on the specified condition variable for no longer than
+ *      the specified amount of time. The specified lock is released upon
+ *      blocking and is reacquired before returning from this function.
+ *
+ * Results:
+ *      TRUE   condVar was signalled
+ *      FALSE  timed out waiting for signal
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,    // IN:
+                                MXUserCondVar *condVar,  // IN:
+                                uint32 msecWait)         // IN:
+{
+   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+
+   return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
+                            msecWait);
 }

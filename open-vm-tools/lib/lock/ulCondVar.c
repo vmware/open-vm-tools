@@ -229,25 +229,30 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE int
 MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
-                   uint32 msecWait,         // IN: unused
+                   uint32 msecWait,         // IN:
                    Bool *signalled)         // OUT:
 {
    int err;
 
-   /*
-    * When using the native lock found within the MXUser lock, be sure to
-    * decrement the count before the wait/sleep and increment it after the
-    * wait/sleep - the (native) wait/sleep will perform a lock release before
-    * the wait/sleep and a lock acquisition after the wait/sleep. The
-    * MXUser internal accounting information must be maintained.
-    */
+   DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
 
    if (pSleepConditionVariableCS) {
+      Bool success;
+
+      /*
+       * When using the native lock found within the MXUser lock, be sure to
+       * decrement the count before the wait/sleep and increment it after the
+       * wait/sleep - the (native) wait/sleep will perform a lock release
+       * before the wait/sleep and a lock acquisition after the wait/sleep.
+       * The MXUser internal accounting information must be maintained.
+       */
+
       MXRecLockDecCount(lock);
-      err = (*pSleepConditionVariableCS)(&condVar->x.condObject,
-                                         &lock->nativeLock, INFINITE) ?
-                                         0 : GetLastError();
+      success = (*pSleepConditionVariableCS)(&condVar->x.condObject,
+                                             &lock->nativeLock, waitTime);
       MXRecLockIncCount(lock, GetReturnAddress());
+
+      err = success ? 0 : GetLastError();
    } else {
       Bool done = FALSE;
 
@@ -258,17 +263,32 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       MXRecLockRelease(lock);
 
       do {
-         WaitForSingleObject(condVar->x.compat.signalEvent, INFINITE);
+         DWORD status = WaitForSingleObject(condVar->x.compat.signalEvent,
+                                            waitTime);
 
          EnterCriticalSection(&condVar->x.compat.condVarLock);
 
          ASSERT(condVar->x.compat.numWaiters > 0);
 
-         if (condVar->x.compat.numForRelease > 0) {
+         if (status == WAIT_OBJECT_0) {
+            if (condVar->x.compat.numForRelease > 0) {
+               condVar->x.compat.numWaiters--;
+
+               if (--condVar->x.compat.numForRelease == 0) {
+                  ResetEvent(condVar->x.compat.signalEvent);
+               }
+
+               err = 0;
+               done = TRUE;
+            }
+         } else {
             condVar->x.compat.numWaiters--;
 
-            if (--condVar->x.compat.numForRelease == 0) {
-               ResetEvent(condVar->x.compat.signalEvent);
+            if ((status == WAIT_TIMEOUT) || (status == WAIT_ABANDONED)) {
+               err = WAIT_TIMEOUT;
+            } else {
+               ASSERT(status == WAIT_FAILED);
+               err = GetLastError();
             }
 
             done = TRUE;
@@ -278,11 +298,17 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       } while (!done);
 
       MXRecLockAcquire(lock, GetReturnAddress());
-
-      err = 0;
    }
 
-   *signalled = TRUE;
+   if (err == 0) {
+      *signalled = TRUE;
+   } else {
+      *signalled = FALSE;
+
+      if (err == WAIT_TIMEOUT) {
+         err = 0;
+      }
+   }
 
    return err;
 }
@@ -449,10 +475,30 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
     */
 
    MXRecLockDecCount(lock);
-   err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
+
+   if (msecWait == MXUSER_WAIT_INFINITE) {
+      err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
+   } else {
+      struct timespec waitTime;
+
+      waitTime.tv_sec = msecWait / 1000;
+      waitTime.tv_nsec == 1000 * 1000 * (msecWait % 1000);
+
+      err = pthread_cond_timedwait(&condVar->condObject, &lock->nativeLock,
+                                   &waitTime);
+   }
+
    MXRecLockIncCount(lock, GetReturnAddress());
 
-   *signalled = TRUE;
+   if (err == 0) {
+      *signalled = TRUE;
+   } else {
+      *signalled = FALSE;
+
+      if (err == ETIMEDOUT) {
+         err = 0;
+      }
+   }
 
    return err;
 }
@@ -554,7 +600,8 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
  *      The internal wait on a condition variable routine.
  *
  * Results:
- *      None.
+ *      TRUE   condvar was signalled
+ *      FALSE  timed out waiting for signal
  *
  * Side effects:
  *      An attempt to use a lock other than the one the specified condition
@@ -563,17 +610,19 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-void
+Bool
 MXUserWaitCondVar(MXUserHeader *header,    // IN:
                   MXRecLock *lock,         // IN:
-                  MXUserCondVar *condVar)  // IN/OUT:
+                  MXUserCondVar *condVar,  // IN:
+                  uint32 msecWait)         // IN:
 {
    int err;
-   Bool signalled;
+   Bool signalled = FALSE;
 
    ASSERT(header);
    ASSERT(lock);
    ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
+   ASSERT(msecWait > 0);
 
    if (condVar->ownerLock != lock) {
       MXUserDumpAndPanic(header,
@@ -597,6 +646,8 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    }
 
    Atomic_Dec(&condVar->referenceCount);
+
+   return signalled;
 }
 
 

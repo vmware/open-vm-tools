@@ -63,6 +63,10 @@ MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
 void MXUser_WaitCondVarExclLock(MXUserExclLock *lock,
                                 MXUserCondVar *condVar);
 
+Bool MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
+                                     MXUserCondVar *condVar,
+                                     uint32 msecWait);
+
 
 /*
  * Recursive lock.
@@ -93,6 +97,10 @@ MXUser_CreateCondVarRecLock(MXUserRecLock *lock);
 void MXUser_WaitCondVarRecLock(MXUserRecLock *lock,
                                MXUserCondVar *condVar);
 
+Bool MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
+                                    MXUserCondVar *condVar,
+                                    uint32 msecWait);
+
 /*
  * Read-write lock
  */
@@ -122,6 +130,8 @@ MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
 /*
  * Generic conditional variable functions.
  */
+
+#define MXUSER_WAIT_INFINITE 0xFFFFFFFF
 
 void MXUser_SignalCondVar(MXUserCondVar *condVar);
 void MXUser_BroadcastCondVar(MXUserCondVar *condVar);
