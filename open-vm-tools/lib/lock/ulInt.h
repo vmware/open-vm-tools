@@ -38,6 +38,7 @@ typedef pthread_t MXThreadID;
 
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
+#include "hostinfo.h"
 
 #if defined(MXUSER_STATS)
 #include "circList.h"
@@ -495,7 +496,6 @@ typedef struct {
    MXUserBasicStats  basicStats;       // total held statistics
 } MXUserReleaseStats;
 
-uint64 MXUserReadTimerNS(void);
 uint32 MXUserAllocID(void);
 void MXUserAddToList(MXUserHeader *header);
 void MXUserRemoveFromList(MXUserHeader *header);

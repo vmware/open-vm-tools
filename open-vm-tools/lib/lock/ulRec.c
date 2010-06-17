@@ -309,7 +309,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       MXUserAcquisitionTracking(&lock->header, TRUE);
 
 #if defined(MXUSER_STATS)
-      begin = MXUserReadTimerNS();
+      begin = Hostinfo_SystemTimerNS();
 
       contended =
 #endif
@@ -319,7 +319,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 #if defined(MXUSER_STATS)
       if (MXRecLockCount(&lock->recursiveLock) == 1) {
          MXUserHisto *histo;
-         uint64 value = MXUserReadTimerNS() - begin;
+         uint64 value = Hostinfo_SystemTimerNS() - begin;
 
          MXUserAcquisitionSample(&lock->acquisitionStats, contended, value);
 
@@ -329,7 +329,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
             MXUserHistoSample(histo, value);
          }
 
-         lock->holdStart = MXUserReadTimerNS();
+         lock->holdStart = Hostinfo_SystemTimerNS();
       }
 #endif
    }
@@ -363,7 +363,7 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
    } else {
 #if defined(MXUSER_STATS)
       if (MXRecLockCount(&lock->recursiveLock) == 1) {
-         uint64 value = MXUserReadTimerNS() - lock->holdStart;
+         uint64 value = Hostinfo_SystemTimerNS() - lock->holdStart;
          MXUserHisto *histo = Atomic_ReadPtr(&lock->heldHisto);
 
          MXUserBasicStatsSample(&lock->heldStats, value);
@@ -433,7 +433,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       }
 
 #if defined(MXUSER_STATS)
-      begin = MXUserReadTimerNS();
+      begin = Hostinfo_SystemTimerNS();
 #endif
 
       success = MXRecLockTryAcquire(&lock->recursiveLock, GetReturnAddress());
@@ -442,7 +442,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 #if defined(MXUSER_STATS)
          if (MXRecLockCount(&lock->recursiveLock) == 1) {
             MXUserAcquisitionSample(&lock->acquisitionStats, FALSE,
-                                  MXUserReadTimerNS() - begin);
+                                  Hostinfo_SystemTimerNS() - begin);
          }
 #endif
 

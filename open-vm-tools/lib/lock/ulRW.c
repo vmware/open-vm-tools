@@ -622,7 +622,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    }
 
 #if defined(MXUSER_STATS)
-   begin = MXUserReadTimerNS();
+   begin = Hostinfo_SystemTimerNS();
 #endif
 
    contended = lock->useNative ? MXUserNativeRWAcquire(&lock->nativeLock,
@@ -635,7 +635,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    }
 
 #if defined(MXUSER_STATS)
-   value = MXUserReadTimerNS() - begin;
+   value = Hostinfo_SystemTimerNS() - begin;
 
    /* The statistics are not atomically safe so protect them when necessary */
    if (forRead && lock->useNative) {
@@ -663,7 +663,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    myContext->state = forRead ? RW_LOCKED_FOR_READ : RW_LOCKED_FOR_WRITE;
 
 #if defined(MXUSER_STATS)
-   myContext->holdStart = MXUserReadTimerNS();
+   myContext->holdStart = Hostinfo_SystemTimerNS();
 #endif
 }
 
@@ -783,7 +783,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    HolderContext *myContext;
 
 #if defined(MXUSER_STATS)
-   uint64 holdEnd = MXUserReadTimerNS();
+   uint64 holdEnd = Hostinfo_SystemTimerNS();
    uint64 duration;
    MXUserHisto *histo;
 #endif
