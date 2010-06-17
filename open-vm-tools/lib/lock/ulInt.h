@@ -132,7 +132,7 @@ MXRecLockSetNoOwner(MXRecLock *lock)  // IN:
 static INLINE void
 MXRecLockSetOwner(MXRecLock *lock)  // IN/OUT:
 {
-   lock->nativeThreadID = GetCurrentThreadID();
+   lock->nativeThreadID = GetCurrentThreadId();
 }
 
 
@@ -221,7 +221,9 @@ MXRecLockReleaseInternal(MXRecLock *lock)  // IN:
 static INLINE Bool
 MXRecLockInit(MXRecLock *lock)  // IN/OUT:
 {
-   if (MXRecLockCreateInternal(lock) == 0) {
+   Bool success = (MXRecLockCreateInternal(lock) == 0);
+
+   if (success) {
       MXRecLockSetNoOwner(lock);
 
       lock->referenceCount = 0;
@@ -230,11 +232,9 @@ MXRecLockInit(MXRecLock *lock)  // IN/OUT:
       lock->portableThreadID = VTHREAD_INVALID_ID;
       lock->ownerRetAddr = NULL;
 #endif
-
-      return TRUE;
-   } else {
-      return FALSE;
    }
+
+   return success;
 }
 
 
@@ -263,9 +263,7 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
 
       contended = FALSE;
    } else {
-      int err;
-
-      err = MXRecLockTryAcquireInternal(lock);
+      int err = MXRecLockTryAcquireInternal(lock);
 
       if (err == 0) {
          contended = FALSE;
