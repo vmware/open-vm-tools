@@ -52,24 +52,6 @@
 
 #include "iovector.h"        // for struct iovec
 
-#if defined(VMX86_STATS)
-
-struct StatsUserBlock;
-
-#define FILEIO_STATS_VARS \
-   uint32 readIn, readDirect; \
-   uint32 writeIn, writeDirect; \
-   uint32 readvIn, readvDirect; \
-   uint32 writevIn, writevDirect; \
-   uint32 preadvIn, preadDirect; \
-   uint32 pwritevIn, pwriteDirect; \
-   uint64 bytesRead, bytesWritten; \
-   uint32 numReadCoalesced, numWriteCoalesced; \
-   struct StatsUserBlock *stats;
-#else
-#define FILEIO_STATS_VARS
-#endif
-
 #if defined(_WIN32)
 
 # include <windows.h>
@@ -79,7 +61,6 @@ typedef struct FileIODescriptor {
    uint32 flags;
    Unicode fileName;
    void *lockToken;
-   FILEIO_STATS_VARS
 } FileIODescriptor;
 
 #else
@@ -89,7 +70,6 @@ typedef struct FileIODescriptor {
    int flags;
    Unicode fileName;
    void *lockToken;
-   FILEIO_STATS_VARS
 } FileIODescriptor;
 
 #endif
@@ -372,12 +352,6 @@ void FileIO_Init(FileIODescriptor *fd,
                  ConstUnicode pathName);
 
 void FileIO_Cleanup(FileIODescriptor *fd);
-
-void FileIO_StatsInit(FileIODescriptor *fd);
-
-void FileIO_StatsLog(FileIODescriptor *fd);
-
-void FileIO_StatsExit(const FileIODescriptor *fd);
 
 const char *FileIO_ErrorEnglish(FileIOResult status);
 

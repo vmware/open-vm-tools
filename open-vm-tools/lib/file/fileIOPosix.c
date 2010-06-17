@@ -87,7 +87,6 @@
 #include "config.h"
 #include "util.h"
 #include "iovector.h"
-#include "stats_file.h"
 #include "hostType.h"
 
 #include "unicodeOperations.h"
@@ -336,11 +335,6 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
    FileIODescriptor fd;
 
    FileIO_Invalidate(&fd);
-
-#if defined(VMX86_STATS)
-   STATS_USER_INIT_MODULE_ONCE();
-   fd.stats = STATS_USER_INIT_INST("Created");
-#endif
 
    if (flags & O_RDWR) {
       fd.flags |= (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE);
@@ -758,17 +752,6 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
       return FILEIO_ERROR;
    }
 
-#if defined(VMX86_STATS)
-   {
-      Unicode tmp;
-
-      File_SplitName(pathName, NULL, NULL, &tmp);
-      STATS_USER_INIT_MODULE_ONCE();
-      file->stats = STATS_USER_INIT_INST(tmp);
-      Unicode_Free(tmp);
-   }
-#endif
-
    ASSERT(!FileIO_IsValid(file));
    ASSERT(file->lockToken == NULL);
    ASSERT_ON_COMPILE(FILEIO_ERROR_LAST < 16); /* See comment in fileIO.h */
@@ -916,8 +899,6 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
    }
 
    file->posix = fd;
-
-   FileIO_StatsInit(file);
 
    return FILEIO_SUCCESS;
 
@@ -1102,20 +1083,12 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
 
    ASSERT(fd);
 
-   STAT_INST_INC(fd->stats, NumWrites);
-   STAT_INST_INC_BY(fd->stats, BytesWritten, requested);
-   STATS_ONLY({
-      fd->writeIn++;
-      fd->bytesWritten += requested;
-   })
-
    ASSERT_NOT_IMPLEMENTED(requested < 0x80000000);
 
    initial_requested = requested;
    while (requested > 0) {
       ssize_t res;
 
-      STATS_ONLY(fd->writeDirect++;)
       res = write(fd->posix, buf, requested);
 
       if (res == -1) {
@@ -1173,20 +1146,12 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
 
    ASSERT(fd);
 
-   STAT_INST_INC(fd->stats, NumReads);
-   STAT_INST_INC_BY(fd->stats, BytesRead, requested);
-   STATS_ONLY({
-      fd->readIn++;
-      fd->bytesRead += requested;
-   })
-
    ASSERT_NOT_IMPLEMENTED(requested < 0x80000000);
 
    initial_requested = requested;
    while (requested > 0) {
       ssize_t res;
 
-      STATS_ONLY(fd->readDirect++;)
       res = read(fd->posix, buf, requested);
       if (res == -1) {
          if (errno == EINTR) {
@@ -1269,8 +1234,6 @@ FileIO_Close(FileIODescriptor *file)  // IN:
    ASSERT(file);
 
    err = (close(file->posix) == -1) ? errno : 0;
-
-   FileIO_StatsExit(file);
 
    /* Unlock the file if it was locked */
    FileIO_Unlock(file);
@@ -1479,16 +1442,6 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE,
                                 FALSE, fd->flags, &coV);
 
-   STAT_INST_INC(fd->stats, NumReadvs);
-   STAT_INST_INC_BY(fd->stats, BytesReadv, totalSize);
-   STATS_ONLY({
-      fd->readvIn++;
-      fd->bytesRead += totalSize;
-      if (didCoalesce) {
-         fd->numReadCoalesced++;
-      }
-   })
-
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
    numVec = didCoalesce ? 1 : numEntries;
@@ -1498,7 +1451,6 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
       ssize_t retval;
 
       ASSERT(numVec > 0);
-      STATS_ONLY(fd->readvDirect++;)
       retval = readv(fd->posix, vPtr, numVec);
 
       if (retval == -1) {
@@ -1602,16 +1554,6 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE,
                                 FALSE, fd->flags, &coV);
 
-   STAT_INST_INC(fd->stats, NumWritevs);
-   STAT_INST_INC_BY(fd->stats, BytesWritev, totalSize);
-   STATS_ONLY({
-      fd->writevIn++;
-      fd->bytesWritten += totalSize;
-      if (didCoalesce) {
-         fd->numWriteCoalesced++;
-      }
-   })
-
    ASSERT_NOT_IMPLEMENTED(totalSize < 0x80000000);
 
    numVec = didCoalesce ? 1 : numEntries;
@@ -1621,7 +1563,6 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
       ssize_t retval;
 
       ASSERT(numVec > 0);
-      STATS_ONLY(fd->writevDirect++;)
       retval = writev(fd->posix, vPtr, numVec);
 
       if (retval == -1) {
@@ -1710,21 +1651,10 @@ FileIO_Preadv(FileIODescriptor *fd,   // IN: File descriptor
    count = didCoalesce ? 1 : numEntries;
    vPtr = didCoalesce ? &coV : entries;
 
-   STAT_INST_INC(fd->stats, NumPreadvs);
-   STAT_INST_INC_BY(fd->stats, BytesPreadv, totalSize);
-   STATS_ONLY({
-      fd->preadvIn++;
-      fd->bytesRead += totalSize;
-      if (didCoalesce) {
-         fd->numReadCoalesced++;
-      }
-   })
-
    fileOffset = offset;
    while (count > 0) {
       size_t leftToRead = vPtr->iov_len;
       uint8 *buf = (uint8 *) vPtr->iov_base;
-      STATS_ONLY(fd->preadDirect++;)
 
       while (leftToRead > 0) {
          ssize_t retval = pread(fd->posix, buf, leftToRead, fileOffset);
@@ -1809,21 +1739,10 @@ FileIO_Pwritev(FileIODescriptor *fd,   // IN: File descriptor
    count = didCoalesce ? 1 : numEntries;
    vPtr = didCoalesce ? &coV : entries;
 
-   STAT_INST_INC(fd->stats, NumPwritevs);
-   STAT_INST_INC_BY(fd->stats, BytesPwritev, totalSize);
-   STATS_ONLY({
-      fd->pwritevIn++;
-      fd->bytesWritten += totalSize;
-      if (didCoalesce) {
-         fd->numWriteCoalesced++;
-      }
-   })
-
    fileOffset = offset;
    while (count > 0) {
       size_t leftToWrite = vPtr->iov_len;
       uint8 *buf = (uint8 *)vPtr->iov_base;
-      STATS_ONLY(fd->pwriteDirect++;)
 
       while (leftToWrite > 0) {
          ssize_t retval = pwrite(fd->posix, buf, leftToWrite, fileOffset);

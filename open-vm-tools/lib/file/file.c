@@ -54,7 +54,6 @@
 #include "file.h"
 #include "fileIO.h"
 #include "fileInt.h"
-#include "stats_file.h"
 #include "dynbuf.h"
 #include "base64.h"
 #include "timeutil.h"
@@ -64,9 +63,6 @@
 #endif
 
 #include "unicodeOperations.h"
-
-#define SETUP_DEFINE_VARS
-#include "stats_user_setup.h"
 
 #if !defined(O_BINARY)
 #define O_BINARY 0
