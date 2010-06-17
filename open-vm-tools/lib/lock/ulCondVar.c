@@ -638,7 +638,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 
    Atomic_Inc(&condVar->referenceCount);
 
-   err = MXUserWaitInternal(lock, condVar, 0, &signalled);
+   err = MXUserWaitInternal(lock, condVar, msecWait, &signalled);
 
    if (err != 0) {
       MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
