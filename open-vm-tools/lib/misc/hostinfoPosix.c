@@ -1527,51 +1527,40 @@ Hostinfo_LogLoadAverage(void)
 VmTimeType
 Hostinfo_RawSystemTimerNS(void)
 {
-   struct macHandy {
-      mach_timebase_info_data_t scaleValues;
-      Bool noScaling;
-   };
-
    VmTimeType raw;
-   struct macHandy *ptr;
+   mach_timebase_info_data_t *ptr;
    static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
 
    /*
     * On Mac OS a commpage timer is used. Such timers are ensured to never
     * go backwards - and be valid across all processes.
-    *
-    * Grab the time base values; we'll use them to ensure the time is correct.
     */
 
-   ptr = (struct macHandy *) Atomic_ReadPtr(&atomic);
+   /* Ensure that the time base values are correct. */
+   ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
 
    if (UNLIKELY(ptr == NULL)) {
-      struct macHandy *new;
+      char *p;
 
-      new = Util_SafeMalloc(sizeof(*new));
+      p = Util_SafeMalloc(sizeof(mach_timebase_info_data_t));
 
-      mach_timebase_info(&new->scaleValues);
-      new->noScaling = (ptr->scaleValues.numer == 1) &&
-                       (ptr->scaleValues.denom == 1);
- 
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, (void *) new)) {
-         free(new);
+      mach_timebase_info((mach_timebase_info_data_t *) p);
+
+      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
+         free(p);
       }
 
-      ptr = (struct macHandy *) Atomic_ReadPtr(&atomic);
+      ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
    }
 
    raw = mach_absolute_time();
 
-   if (ptr->noScaling) {
+   if ((ptr->numer == 1) && (ptr->denom == 1)) {
+      /* The scaling values are unity, save some time/arithmetic */
       return raw;
    } else {
       /* The scaling values are not unity. Prevent overflow when scaling */
-
-      double scalingFactor = ((double) ptr->scaleValues.numer) /
-                             ((double) ptr->scaleValues.denom);
-
-      return ((double) raw) * scalingFactor;
+      return ((double) raw) * (((double) ptr->numer) / ((double) ptr->denom));
    }
 }
 
