@@ -1075,7 +1075,6 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
 {
    void *lockToken;
    Unicode normalizedPath;
-   char creationTimeString[32];
 
    ASSERT(filePath);
    ASSERT(err);
@@ -1084,16 +1083,18 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    if (normalizedPath == NULL) {
       *err = EINVAL;
 
-      return NULL;
+      lockToken = NULL;
+   } else {
+      char creationTimeString[32];
+
+      Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
+                  ProcessCreationTime(getpid()));
+
+      lockToken = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
+                                    creationTimeString, err);
+
+      Unicode_Free(normalizedPath);
    }
-
-   Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
-               ProcessCreationTime(getpid()));
-
-   lockToken = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
-                                 creationTimeString, err);
-
-   Unicode_Free(normalizedPath);
 
    return lockToken;
 }
@@ -1131,12 +1132,12 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
          *err = EINVAL;
       }
 
-      return FALSE;
+      isLocked = FALSE;
+   } else {
+      isLocked = FileLockIsLocked(normalizedPath, err);
+
+      Unicode_Free(normalizedPath);
    }
-
-   isLocked = FileLockIsLocked(normalizedPath, err);
-
-   Unicode_Free(normalizedPath);
 
    return isLocked;
 }
@@ -1171,12 +1172,12 @@ FileLock_Unlock(ConstUnicode filePath,  // IN:
 
    normalizedPath = FileLockNormalizePath(filePath);
    if (normalizedPath == NULL) {
-      return EINVAL;
+      err = EINVAL;
+   } else {
+      err = FileUnlockIntrinsic(normalizedPath, lockToken);
+
+      Unicode_Free(normalizedPath);
    }
-
-   err = FileUnlockIntrinsic(normalizedPath, lockToken);
-
-   Unicode_Free(normalizedPath);
 
    return err;
 }
@@ -1212,12 +1213,12 @@ FileLock_DeleteFileVMX(ConstUnicode filePath)  // IN:
 
    normalizedPath = FileLockNormalizePath(filePath);
    if (normalizedPath == NULL) {
-      return EINVAL;
+      err = EINVAL;
+   } else {
+      err = FileLockHackVMX(normalizedPath);
+
+      Unicode_Free(normalizedPath);
    }
-
-   err = FileLockHackVMX(normalizedPath);
-
-   Unicode_Free(normalizedPath);
 
    return err;
 }
