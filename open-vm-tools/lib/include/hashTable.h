@@ -109,6 +109,11 @@ HashTable_ToArray(const HashTable   *ht,
                   void            ***clientDatas,
                   size_t            *size);
 
+void
+HashTable_KeyArray(const HashTable   *ht,
+                   const void      ***keys,
+                   size_t            *size);
+
 size_t
 HashTable_GetNumElements(const HashTable *ht);
 

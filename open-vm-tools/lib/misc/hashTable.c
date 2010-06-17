@@ -813,6 +813,62 @@ HashTable_GetNumElements(const HashTable *ht)  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * HashTable_KeyArray --
+ *
+ *      Returns an array of pointers to each key in the hash table.
+ *
+ * Results:
+ *      The key array plus its size. If the hash table is empty
+ *      'size' is 0 and 'keys' is NULL. Free 'keys' array with free(). Do *not*
+ *      free the individual elements of the array.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+HashTable_KeyArray(const HashTable *ht,  // IN:
+                   const void ***keys,   // OUT:
+                   size_t *size)         // OUT:
+{
+   uint32 i;
+   size_t j;
+
+   ASSERT(ht);
+   ASSERT(keys);
+   ASSERT(size);
+
+   ASSERT(!ht->atomic);
+
+   *keys = NULL;
+   *size = HashTable_GetNumElements(ht);
+
+   if (0 == *size) {
+      return;
+   }
+
+   /* alloc array */
+   *keys = Util_SafeMalloc(*size * sizeof **keys);
+
+   /* fill array */
+   for (i = 0, j = 0; i < ht->numEntries; i++) {
+      HashTableEntry *entry;
+
+      for (entry = ENTRY(ht->buckets[i]);
+           entry != NULL;
+           entry = ENTRY(entry->next)) {
+         (*keys)[j++] = entry->keyStr;
+      }
+   }
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * HashTable_ToArray --
  *
  *      Returns an array of pointers to each clientData structure in the
