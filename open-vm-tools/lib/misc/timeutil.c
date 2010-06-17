@@ -853,7 +853,12 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
 
 #else
    char *str;
-   str = Util_SafeStrdup(ctime((const time_t *) &utcTime));
+   char buf[26];
+#if defined sun
+   str = Util_SafeStrdup(ctime_r((const time_t *) &utcTime, buf, 26));
+#else
+   str = Util_SafeStrdup(ctime_r((const time_t *) &utcTime, buf));
+#endif
    str[strlen(str)-1] = '\0';
 
    return str;
