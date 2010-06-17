@@ -321,7 +321,7 @@ MXUserStatsActionRW(MXUserHeader *header)  // IN:
 
       if (doLog) {
          Log("HOT LOCK (%s); contention ratio %f\n",
-             lock->header.lockName, contentionRatio);
+             lock->header.name, contentionRatio);
       }
    }
 }
@@ -351,9 +351,9 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
 
    Warning("%s: Read-write lock @ %p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature %X\n", lock->header.lockSignature);
-   Warning("\tname %s\n", lock->header.lockName);
-   Warning("\trank 0x%x\n", lock->header.lockRank);
+   Warning("\tsignature %X\n", lock->header.signature);
+   Warning("\tname %s\n", lock->header.name);
+   Warning("\trank 0x%x\n", lock->header.rank);
 
    if (LIKELY(lock->useNative)) {
       Warning("\tnativeLock %p\n", &lock->nativeLock);
@@ -447,14 +447,14 @@ MXUser_CreateRWLock(const char *userName,  // IN:
                                           HASH_INT_KEY | HASH_FLAG_ATOMIC,
                                           MXUserFreeHashEntry);
 
-      lock->header.lockName = properName;
-      lock->header.lockSignature = MXUSER_RW_SIGNATURE;
-      lock->header.lockRank = rank;
-      lock->header.lockDumper = MXUserDumpRWLock;
+      lock->header.name = properName;
+      lock->header.signature = MXUSER_RW_SIGNATURE;
+      lock->header.rank = rank;
+      lock->header.dumpFunc = MXUserDumpRWLock;
 
 #if defined(MXUSER_STATS)
-      lock->header.lockStatsAction = MXUserStatsActionRW;
-      lock->header.lockID = MXUserAllocID();
+      lock->header.statsFunc = MXUserStatsActionRW;
+      lock->header.identifier = MXUserAllocID();
 
       MXUserAddToList(&lock->header);
       MXUserAcquisitionStatsSetUp(&lock->acquisitionStats);
@@ -490,7 +490,7 @@ void
 MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
 {
    if (LIKELY(lock != NULL)) {
-      ASSERT(lock->header.lockSignature == MXUSER_RW_SIGNATURE);
+      ASSERT(lock->header.signature == MXUSER_RW_SIGNATURE);
 
       if (Atomic_Read(&lock->holderCount) != 0) {
          MXUserDumpAndPanic(&lock->header,
@@ -522,9 +522,9 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
 #endif
 
       HashTable_Free(lock->holderTable);
-      lock->header.lockSignature = 0;  // just in case...
-      free((void *) lock->header.lockName);  // avoid const warnings
-      lock->header.lockName = NULL;
+      lock->header.signature = 0;  // just in case...
+      free((void *) lock->header.name);  // avoid const warnings
+      lock->header.name = NULL;
       free(lock);
    }
 }
@@ -608,7 +608,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    MXUserHisto *histo;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
 
@@ -739,7 +739,7 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
 {
    HolderContext *myContext;
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
 
    myContext = MXUserGetHolderContext(lock);
 
@@ -790,7 +790,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    MXUserHisto *histo;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_RW_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
 
    myContext = MXUserGetHolderContext(lock);
 

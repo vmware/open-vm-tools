@@ -326,7 +326,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
    if (err != ERROR_SUCCESS) {
       Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
-            condVar, condVar->header->lockName);
+            condVar, condVar->header->name);
    }
 
    return signalled;
@@ -535,7 +535,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
-            condVar, condVar->header->lockName);
+            condVar, condVar->header->name);
    }
 
    return signalled;
@@ -663,13 +663,12 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 
    if (condVar->ownerLock != lock) {
       Panic("%s: invalid use of lock %s with condVar (%p; %s)\n",
-             __FUNCTION__, header->lockName, condVar,
-             condVar->header->lockName);
+             __FUNCTION__, header->name, condVar, condVar->header->name);
    }
 
    if (!MXRecLockIsOwner(lock)) {
       Panic("%s: lock %s for condVar (%p) not owned\n",
-            __FUNCTION__, condVar->header->lockName, condVar);
+            __FUNCTION__, condVar->header->name, condVar);
    }
 
    Atomic_Inc(&condVar->referenceCount);
@@ -708,7 +707,7 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s) \n", __FUNCTION__, err,
-            condVar, condVar->header->lockName);
+            condVar, condVar->header->name);
    }
 }
 
@@ -741,7 +740,7 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s) \n", __FUNCTION__, err,
-            condVar, condVar->header->lockName);
+            condVar, condVar->header->name);
    }
 }
 
@@ -772,7 +771,7 @@ MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
 
       if (Atomic_Read(&condVar->referenceCount) != 0) {
          Panic("%s: Attempted destroy on active condVar (%p; %s)\n",
-               __FUNCTION__, condVar, condVar->header->lockName);
+               __FUNCTION__, condVar, condVar->header->name);
       }
 
       MXUserDestroyInternal(condVar);

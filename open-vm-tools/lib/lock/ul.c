@@ -269,7 +269,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 #endif
 
    /* Rank checking anyone? */
-   if (checkRank && (header->lockRank != RANK_UNRANKED)) {
+   if (checkRank && (header->rank != RANK_UNRANKED)) {
       uint32 i;
       MX_Rank maxRank;
       Bool firstInstance = TRUE;
@@ -285,7 +285,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
       for (i = 0; i < perThread->locksHeld; i++) {
          MXUserHeader *chkHdr = perThread->lockArray[i];
 
-         maxRank = MAX(chkHdr->lockRank, maxRank);
+         maxRank = MAX(chkHdr->rank, maxRank);
 
          if (chkHdr == header) {
             firstInstance = FALSE;
@@ -304,7 +304,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
        * (real) harm done.
        */
 
-      if (firstInstance && (header->lockRank <= maxRank)) {
+      if (firstInstance && (header->rank <= maxRank)) {
          Warning("%s: lock rank violation by thread %s\n", __FUNCTION__,
                  VThread_CurName());
          Warning("%s: locks held:\n", __FUNCTION__);
@@ -407,7 +407,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
  */
 
 void
-MXUser_TryAcquireFailureControl(Bool (*func)(const char *lockName))  // IN:
+MXUser_TryAcquireFailureControl(Bool (*func)(const char *name))  // IN:
 {
    MXUserTryAcquireForceFail = func;
 }
@@ -488,9 +488,9 @@ MXUserDumpAndPanic(MXUserHeader *header,  // IN:
    char *msg;
    va_list ap;
 
-   ASSERT((header != NULL) && (header->lockDumper != NULL));
+   ASSERT((header != NULL) && (header->dumpFunc != NULL));
 
-   (*header->lockDumper)(header);
+   (*header->dumpFunc)(header);
 
    va_start(ap, fmt);
    msg = Str_SafeVasprintf(NULL, fmt, ap);
@@ -637,8 +637,8 @@ MXUserListLocks(void)
       for (i = 0; i < perThread->locksHeld; i++) {
          MXUserHeader *hdr = perThread->lockArray[i];
 
-         Warning("\tMXUser lock %s (@%p) rank 0x%x\n", hdr->lockName, hdr,
-                 hdr->lockRank);
+         Warning("\tMXUser lock %s (@%p) rank 0x%x\n", hdr->name, hdr,
+                 hdr->rank);
       }
    }
 #endif

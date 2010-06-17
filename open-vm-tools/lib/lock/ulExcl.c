@@ -102,7 +102,7 @@ MXUserStatsActionExcl(MXUserHeader *header)  // IN:
 
       if (doLog) {
          Log("HOT LOCK (%s); contention ratio %f\n",
-             lock->header.lockName, contentionRatio);
+             lock->header.name, contentionRatio);
       }
    }
 }
@@ -132,9 +132,9 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
 
    Warning("%s: Exclusive lock @ %p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature %X\n", lock->header.lockSignature);
-   Warning("\tname %s\n", lock->header.lockName);
-   Warning("\trank 0x%x\n", lock->header.lockRank);
+   Warning("\tsignature %X\n", lock->header.signature);
+   Warning("\tname %s\n", lock->header.name);
+   Warning("\trank 0x%x\n", lock->header.rank);
 
    Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
@@ -184,14 +184,14 @@ MXUser_CreateExclLock(const char *userName,  // IN:
       return NULL;
    }
 
-   lock->header.lockName = properName;
-   lock->header.lockSignature = MXUSER_EXCL_SIGNATURE;
-   lock->header.lockRank = rank;
-   lock->header.lockDumper = MXUserDumpExclLock;
+   lock->header.name = properName;
+   lock->header.signature = MXUSER_EXCL_SIGNATURE;
+   lock->header.rank = rank;
+   lock->header.dumpFunc = MXUserDumpExclLock;
 
 #if defined(MXUSER_STATS)
-   lock->header.lockStatsAction = MXUserStatsActionExcl;
-   lock->header.lockID = MXUserAllocID();
+   lock->header.statsFunc = MXUserStatsActionExcl;
+   lock->header.identifier = MXUserAllocID();
 
    MXUserAddToList(&lock->header);
    MXUserAcquisitionStatsSetUp(&lock->acquisitionStats);
@@ -222,7 +222,7 @@ void
 MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
 {
    if (lock != NULL) {
-      ASSERT(lock->header.lockSignature == MXUSER_EXCL_SIGNATURE);
+      ASSERT(lock->header.signature == MXUSER_EXCL_SIGNATURE);
 
       if (MXRecLockCount(&lock->recursiveLock) > 0) {
          MXUserDumpAndPanic(&lock->header,
@@ -240,9 +240,9 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
       MXUserHistoTearDown(Atomic_ReadPtr(&lock->heldHisto));
 #endif
 
-      lock->header.lockSignature = 0;  // just in case...
-      free((void *) lock->header.lockName);  // avoid const warnings
-      lock->header.lockName = NULL;
+      lock->header.signature = 0;  // just in case...
+      free((void *) lock->header.name);  // avoid const warnings
+      lock->header.name = NULL;
       free(lock);
    }
 }
@@ -274,7 +274,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
    MXUserHisto *histo;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
 
@@ -334,7 +334,7 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
    MXUserHisto *histo;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
 #if defined(MXUSER_STATS)
    value = Hostinfo_SystemTimerNS() - lock->holdStart;
@@ -393,9 +393,9 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
    VmTimeType begin;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
-   if (MXUserTryAcquireFail(lock->header.lockName)) {
+   if (MXUserTryAcquireFail(lock->header.name)) {
       return FALSE;
    }
 
@@ -447,7 +447,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 Bool
 MXUser_IsCurThreadHoldingExclLock(const MXUserExclLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    return MXRecLockIsOwner(&lock->recursiveLock);
 }
@@ -477,7 +477,7 @@ MXUser_ControlExclLock(MXUserExclLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    switch (command) {
 #if defined(MXUSER_STATS)
@@ -593,7 +593,7 @@ MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,  // IN/OUT:
 MXUserCondVar *
 MXUser_CreateCondVarExclLock(MXUserExclLock *lock)
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    return MXUserCreateCondVar(&lock->header, &lock->recursiveLock);
 }
@@ -621,7 +621,7 @@ void
 MXUser_WaitCondVarExclLock(MXUserExclLock *lock,    // IN:
                            MXUserCondVar *condVar)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                      MXUSER_WAIT_INFINITE);
@@ -652,7 +652,7 @@ MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,    // IN:
                                 MXUserCondVar *condVar,  // IN:
                                 uint32 msecWait)         // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                             msecWait);

@@ -114,7 +114,7 @@ MXUserStatsActionRec(MXUserHeader *header)  // IN:
 
       if (doLog) {
          Log("HOT LOCK (%s); contention ratio %f\n",
-             lock->header.lockName, contentionRatio);
+             lock->header.name, contentionRatio);
       }
    }
 }
@@ -144,9 +144,9 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 
    Warning("%s: Recursive lock @ %p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature %X\n", lock->header.lockSignature);
-   Warning("\tname %s\n", lock->header.lockName);
-   Warning("\trank 0x%x\n", lock->header.lockRank);
+   Warning("\tsignature %X\n", lock->header.signature);
+   Warning("\tname %s\n", lock->header.name);
+   Warning("\trank 0x%x\n", lock->header.rank);
 
    if (lock->vmmLock == NULL) {
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
@@ -204,14 +204,14 @@ MXUser_CreateRecLock(const char *userName,  // IN:
 
    lock->vmmLock = NULL;
 
-   lock->header.lockName = properName;
-   lock->header.lockSignature = MXUSER_REC_SIGNATURE;
-   lock->header.lockRank = rank;
-   lock->header.lockDumper = MXUserDumpRecLock;
+   lock->header.name = properName;
+   lock->header.signature = MXUSER_REC_SIGNATURE;
+   lock->header.rank = rank;
+   lock->header.dumpFunc = MXUserDumpRecLock;
 
 #if defined(MXUSER_STATS)
-   lock->header.lockStatsAction = MXUserStatsActionRec;
-   lock->header.lockID = MXUserAllocID();
+   lock->header.statsFunc = MXUserStatsActionRec;
+   lock->header.identifier = MXUserAllocID();
 
    MXUserAddToList(&lock->header);
    MXUserAcquisitionStatsSetUp(&lock->acquisitionStats);
@@ -246,7 +246,7 @@ void
 MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 {
    if (lock != NULL) {
-      ASSERT(lock->header.lockSignature == MXUSER_REC_SIGNATURE);
+      ASSERT(lock->header.signature == MXUSER_REC_SIGNATURE);
 
       if (lock->vmmLock == NULL) {
          if (MXRecLockCount(&lock->recursiveLock) > 0) {
@@ -266,9 +266,9 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 #endif
       }
 
-      lock->header.lockSignature = 0;  // just in case...
-      free((void *) lock->header.lockName);  // avoid const warnings
-      lock->header.lockName = NULL;
+      lock->header.signature = 0;  // just in case...
+      free((void *) lock->header.name);  // avoid const warnings
+      lock->header.name = NULL;
       free(lock);
    }
 }
@@ -295,7 +295,7 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_LockRec);
@@ -355,7 +355,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 void
 MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_UnlockRec);
@@ -418,7 +418,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    Bool success;
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_TryLockRec);
@@ -428,7 +428,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       VmTimeType begin;
 #endif
 
-      if (MXUserTryAcquireFail(lock->header.lockName)) {
+      if (MXUserTryAcquireFail(lock->header.name)) {
          return FALSE;
       }
 
@@ -475,7 +475,7 @@ Bool
 MXUser_IsCurThreadHoldingRecLock(const MXUserRecLock *lock)  // IN:
 {
    Bool result;
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_IsLockedByCurThreadRec);
@@ -512,7 +512,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    switch (command) {
@@ -629,7 +629,7 @@ MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,  // IN/OUT:
 MXUserCondVar *
 MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    return MXUserCreateCondVar(&lock->header, &lock->recursiveLock);
@@ -658,7 +658,7 @@ void
 MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                           MXUserCondVar *condVar)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
@@ -690,7 +690,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
                                uint32 msecWait)         // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
@@ -717,7 +717,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 struct MX_MutexRec *
 MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
    return lock->vmmLock;
 }
@@ -742,9 +742,9 @@ MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 MX_Rank
 MXUser_GetRecLockRank(const MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
 
-   return lock->header.lockRank;
+   return lock->header.rank;
 }
 
 
@@ -794,15 +794,15 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
-   lock->header.lockName = Str_SafeAsprintf(NULL, "MX_%p", mutex);
+   lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
 
-   lock->header.lockSignature = MXUSER_REC_SIGNATURE;
-   lock->header.lockRank = rank;
-   lock->header.lockDumper = NULL;
+   lock->header.signature = MXUSER_REC_SIGNATURE;
+   lock->header.rank = rank;
+   lock->header.dumpFunc = NULL;
 
 #if defined(MXUSER_STATS)
-   lock->header.lockStatsAction = NULL;
-   lock->header.lockID = MXUserAllocID();
+   lock->header.statsFunc = NULL;
+   lock->header.identifier = MXUserAllocID();
 #endif
 
    lock->vmmLock = mutex;

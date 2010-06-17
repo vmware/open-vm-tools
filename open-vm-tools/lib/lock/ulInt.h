@@ -386,19 +386,19 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 
 
 /*
- * MXUser lock header - all MXUser locks start with this
+ * MXUser header - all MXUser objects start with this
  */
 
 typedef struct MXUserHeader {
-   uint32       lockSignature;
-   MX_Rank      lockRank;
-   const char  *lockName;
-   void       (*lockDumper)(struct MXUserHeader *);
+   uint32       signature;
+   MX_Rank      rank;
+   const char  *name;
+   void       (*dumpFunc)(struct MXUserHeader *);
 
 #if defined(MXUSER_STATS)
-   void       (*lockStatsAction)(struct MXUserHeader *);
-   ListItem     lockItem;
-   uint32       lockID;
+   void       (*statsFunc)(struct MXUserHeader *);
+   ListItem     item;
+   uint32       identifier;
 #endif
 } MXUserHeader;
 
@@ -456,12 +456,12 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN:
 #endif
 
 static INLINE Bool
-MXUserTryAcquireFail(const char *lockName)  // IN:
+MXUserTryAcquireFail(const char *name)  // IN:
 {
-   extern Bool (*MXUserTryAcquireForceFail)(const char *lockName);
+   extern Bool (*MXUserTryAcquireForceFail)(const char *name);
 
    return vmx86_debug && MXUserTryAcquireForceFail &&
-          (*MXUserTryAcquireForceFail)(lockName);
+          (*MXUserTryAcquireForceFail)(name);
 }
 
 MXUserCondVar *MXUserCreateCondVar(MXUserHeader *header,
