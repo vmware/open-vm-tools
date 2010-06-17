@@ -249,9 +249,9 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
       MXRecLockDecCount(lock);
       success = (*pSleepConditionVariableCS)(&condVar->x.condObject,
                                              &lock->nativeLock, waitTime);
-      err = success ? 0 : GetLastError();
+      err = success ? ERROR_SUCCESS : GetLastError();
       MXRecLockIncCount(lock, GetReturnAddress());
-      signalled = (err == 0) ? TRUE : FALSE;
+      signalled = (err == ERROR_SUCCESS) ? TRUE : FALSE;
    } else {
       Bool done = FALSE;
 
