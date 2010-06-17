@@ -39,7 +39,6 @@
 
 #include "os.h"
 #include "vmballoon.h"
-#include "vm_assert.h"
 #include "balloon_def.h"
 #include "vmballoon_kstats.h"
 #include "vmmemctl.h"
