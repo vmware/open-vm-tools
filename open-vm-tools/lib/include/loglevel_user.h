@@ -152,7 +152,6 @@
    LOGLEVEL_VAR(macbw), \
    LOGLEVEL_VAR(macfi), \
    LOGLEVEL_VAR(vmkcfg), \
-   LOGLEVEL_VAR(vmxfer), \
    LOGLEVEL_VAR(poll), \
    LOGLEVEL_VAR(barrier), \
    LOGLEVEL_VAR(mstat), \
