@@ -95,6 +95,7 @@
    LOGLEVEL_VAR(vmxnet3), \
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(vcpuhotplug), \
+   LOGLEVEL_VAR(vcpuNUMA), \
    LOGLEVEL_VAR(heci), \
    LOGLEVEL_VAR(vmiopluginlib), \
    \
