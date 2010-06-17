@@ -753,6 +753,8 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
  *
  *      Destroy a condition variable.
  *
+ *      A condVar must be destroyed before the lock it is associated with.
+ *
  * Results:
  *      As above. Don't use the pointer again...
  *
