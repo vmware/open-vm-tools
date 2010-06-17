@@ -39,6 +39,7 @@ typedef pthread_t MXThreadID;
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
 #include "hostinfo.h"
+#include "ulIntShared.h"
 
 #if defined(MXUSER_STATS)
 #include "circList.h"

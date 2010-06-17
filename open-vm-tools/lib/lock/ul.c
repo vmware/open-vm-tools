@@ -21,11 +21,12 @@
 #include "util.h"
 #include "userlock.h"
 #include "ulInt.h"
-#include "ulIntShared.h"
 #include "hashTable.h"
 
 
 static Bool mxInPanic = FALSE;  // track when involved in a panic
+
+void (*MXUserVThreadWatchDog)(void);
 
 Bool (*MXUserTryAcquireForceFail)() = NULL;
 
@@ -642,4 +643,29 @@ MXUserListLocks(void)
       }
    }
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_PlantThreadWatchDog --
+ *
+ *      Plant the pointer to VThread_WatchDog.
+ *
+ *      If this is called lib/thread is around.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUser_PlantThreadWatchDog(void (*func)(void))
+{
+   MXUserVThreadWatchDog = func;
 }
