@@ -60,7 +60,6 @@
 #include "vm_basic_asm_x86.h"
 #endif
 
-
 /*
  * x86-64 windows doesn't support inline asm so we have to use these
  * intrinsic functions defined in the compiler.  Not all of these are well
@@ -101,19 +100,19 @@ void _ReadWriteBarrier(void);
  * intrinsic functions only supported by x86-64 windows as of 2k3sp1
  */
 unsigned __int64 __rdtsc(void);
-void             __stosw(unsigned short*, unsigned short, size_t);
-void             __stosd(unsigned long*, unsigned long, size_t);
-#pragma intrinsic(__rdtsc, __stosw, __stosd)
+void             __stosw(unsigned short *, unsigned short, size_t);
+void             __stosd(unsigned long *, unsigned long, size_t);
+void             _mm_pause(void);
+#pragma intrinsic(__rdtsc, __stosw, __stosd, _mm_pause)
 
-/*
- * intrinsic functions supported by x86-64 windows and newer x86
- * compilers (13.01.2035 for _BitScanForward).
- */
-unsigned char  _BitScanForward(unsigned long*, unsigned long);
-unsigned char  _BitScanReverse(unsigned long*, unsigned long);
-void           _mm_pause(void);
-#pragma intrinsic(_BitScanForward, _BitScanReverse, _mm_pause)
+unsigned char  _BitScanForward64(unsigned long *, unsigned __int64);
+unsigned char  _BitScanReverse64(unsigned long *, unsigned __int64);
+#pragma intrinsic(_BitScanForward64, _BitScanReverse64)
 #endif /* VM_X86_64 */
+
+unsigned char  _BitScanForward(unsigned long *, unsigned long);
+unsigned char  _BitScanReverse(unsigned long *, unsigned long);
+#pragma intrinsic(_BitScanForward, _BitScanReverse)
 
 #ifdef __cplusplus
 }
@@ -232,39 +231,248 @@ OUT32(uint16 port, uint32 value)
    __GET_EAX_FROM_CPUID(1),                     \
    __GET_MSR(MSR_BIOS_SIGN_ID))
 
-#ifdef _MSC_VER   
+/*
+ * Locate most and least significant bit set functions. Use our own name
+ * space to avoid namespace collisions. The new names follow a pattern,
+ * <prefix><size><option>, where:
+ *
+ * <prefix> is [lm]ssb (least/most significant bit set)
+ * <size> is size of the argument: 32 (32-bit), 64 (64-bit) or Ptr (pointer)
+ * <option> is for alternative versions of the functions
+ *
+ * NAME        FUNCTION                    BITS     FUNC(0)
+ *-----        --------                    ----     -------
+ * lssb32_0    LSB set (uint32)            0..31    -1
+ * mssb32_0    MSB set (uint32)            0..31    -1
+ * lssb64_0    LSB set (uint64)            0..63    -1
+ * mssb64_0    MSB set (uint64)            0..63    -1
+ * lssbPtr_0   LSB set (uintptr_t;32-bit)  0..31    -1
+ * lssbPtr_0   LSB set (uintptr_t;64-bit)  0..63    -1
+ * mssbPtr_0   MSB set (uintptr_t;32-bit)  0..31    -1
+ * mssbPtr_0   MSB set (uintptr_t;64-bit)  0..63    -1
+ * lssbPtr     LSB set (uintptr_t;32-bit)  1..32    0
+ * lssbPtr     LSB set (uintptr_t;64-bit)  1..64    0
+ * mssbPtr     MSB set (uintptr_t;32-bit)  1..32    0
+ * mssbPtr     MSB set (uintptr_t;64-bit)  1..64    0
+ * lssb32      LSB set (uint32)            1..32    0
+ * mssb32      MSB set (uint32)            1..32    0
+ * lssb64      LSB set (uint64)            1..64    0
+ * mssb64      MSB set (uint64)            1..64    0
+ */
+
+#if defined(_MSC_VER)
 static INLINE int
-ffs(uint32 bitVector)
+lssb32_0(const uint32 value)
 {
-   int idx;
-   if (!bitVector) {
-      return 0;
+   unsigned long idx;
+   if (UNLIKELY(value == 0)) {
+      return -1;
    }
-#ifdef VM_X86_64
-   _BitScanForward((unsigned long*)&idx, (unsigned long)bitVector);
-#else
-   __asm bsf eax, bitVector
-   __asm mov idx, eax
-#endif
-   return idx+1;
+   _BitScanForward(&idx, (unsigned long) value);
+   return idx;
 }
 
 static INLINE int
-fls(uint32 bitVector)
+mssb32_0(const uint32 value)
 {
-   int idx;
-   if (!bitVector) {
-      return 0;
+   unsigned long idx;
+   if (UNLIKELY(value == 0)) {
+      return -1;
    }
-#ifdef VM_X86_64
-   _BitScanReverse((unsigned long*)&idx, (unsigned long)bitVector);
+   _BitScanReverse(&idx, (unsigned long) value);
+   return idx;
+}
+
+static INLINE int
+lssb64_0(const uint64 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+#if defined(VM_X86_64)
+      unsigned long idx;
+      _BitScanForward64(&idx, (unsigned __int64) value);
+      return idx;
 #else
-   __asm bsr eax, bitVector
-   __asm mov idx, eax
+      /* The coding was chosen to minimize conditionals and operations */
+      int lowFirstBit = lssb32_0((uint32) value);
+      if (lowFirstBit == -1) {
+         lowFirstBit = lssb32_0((uint32) (value >> 32));
+         if (lowFirstBit != -1) {
+            return lowFirstBit + 32;
+         }
+      }
+      return lowFirstBit;
 #endif
-   return idx+1;
+   }
+}
+
+static INLINE int
+mssb64_0(const uint64 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+#if defined(VM_X86_64)
+      unsigned long idx;
+      _BitScanReverse64(&idx, (unsigned __int64) value);
+      return idx;
+#else
+      /* The coding was chosen to minimize conditionals and operations */
+      if (value > 0xFFFFFFFFULL) {
+         return 32 + mssb32_0((uint32) (value >> 32));
+      }
+      return mssb32_0((uint32) value);
+#endif
+   }
+}
+
+static INLINE int
+ffs(uint32 value)
+{
+   return lssb32_0(value) + 1;  // temporary alias
+}
+
+static INLINE int
+fls(uint32 value)
+{
+   return mssb32_0(value) + 1;  // temporary alias
 }
 #endif
+
+#if defined(__GNUC__)
+#if defined(__i386__) || defined(__x86_64__)
+static INLINE int
+lssb32_0(uint32 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+      int pos;
+      __asm__ __volatile__("bsfl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+      return pos;
+   }
+}
+
+static INLINE int
+mssb32_0(uint32 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+      int pos;
+      __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+      return pos;
+   }
+}
+
+static INLINE int
+lssb64_0(const uint64 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+#if defined(VM_X86_64)
+      intptr_t pos;
+      __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+      return pos;
+#else
+      /* The coding was chosen to minimize conditionals and operations */
+      int lowFirstBit = lssb32_0((uint32) value);
+      if (lowFirstBit == -1) {
+         lowFirstBit = lssb32_0((uint32) (value >> 32));
+         if (lowFirstBit != -1) {
+            return lowFirstBit + 32;
+         }
+      }
+      return lowFirstBit;
+#endif
+   }
+}
+
+static INLINE int
+mssb64_0(const uint64 value)
+{
+   if (UNLIKELY(value == 0)) {
+      return -1;
+   } else {
+      /* Replace body of else with "64 - __builtin_clzll(value) - 1"? */
+#if defined(VM_X86_64)
+      intptr_t pos;
+      __asm__ __volatile__("bsr %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+      return pos;
+#else
+      /* The coding was chosen to minimize conditionals and operations */
+      if (value > 0xFFFFFFFFULL) {
+         return 32 + mssb32_0((uint32) (value >> 32));
+      }
+      return mssb32_0((uint32) value);
+#endif
+   }
+}
+#endif
+
+/*
+ * ARM and other architectures will live here, implementing the 4 basic
+ * functions.
+ */
+#endif
+
+static INLINE int
+lssbPtr_0(const uintptr_t value)
+{
+#if defined(VM_X86_64)
+   return lssb64_0((uint64) value);
+#else
+   return lssb32_0((uint32) value);
+#endif
+}
+
+static INLINE int
+lssbPtr(const uintptr_t value)
+{
+   return lssbPtr_0(value) + 1;
+}
+
+static INLINE int
+mssbPtr_0(const uintptr_t value)
+{
+#if defined(VM_X86_64)
+   return mssb64_0((uint64) value);
+#else
+   return mssb32_0((uint32) value);
+#endif
+}
+
+static INLINE int
+mssbPtr(const uintptr_t value)
+{
+   return mssbPtr_0(value) + 1;
+}
+
+static INLINE int
+lssb32(const uint32 value)
+{
+   return lssb32_0(value) + 1;
+}
+
+static INLINE int
+mssb32(const uint32 value)
+{
+   return mssb32_0(value) + 1;
+}
+
+static INLINE int
+lssb64(const uint64 value)
+{
+   return lssb64_0(value) + 1;
+}
+
+static INLINE int
+mssb64(const uint64 value)
+{
+   return mssb64_0(value) + 1;
+}
 
 #ifdef __GNUC__
 #if defined(__i386__) || defined(__x86_64__)
