@@ -55,14 +55,17 @@
 #define VMCI_DEVICE_MINOR_NUM 0
 
 typedef struct vmci_device {
-   compat_mutex_t lock;
+   compat_mutex_t    lock;
 
-   unsigned int ioaddr;
-   unsigned int ioaddr_size;
-   unsigned int irq;
+   unsigned int      ioaddr;
+   unsigned int      ioaddr_size;
+   unsigned int      irq;
+   unsigned int      intr_type;
+   Bool              exclusive_vectors;
+   struct msix_entry msix_entries[VMCI_MAX_INTRS];
 
-   Bool         enabled;
-   spinlock_t   dev_spinlock;
+   Bool              enabled;
+   spinlock_t        dev_spinlock;
 } vmci_device;
 
 static int vmci_probe_device(struct pci_dev *pdev,
@@ -75,9 +78,12 @@ static int vmci_ioctl(struct inode *inode, struct file *file,
 static unsigned int vmci_poll(struct file *file, poll_table *wait);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
 static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id,
-                                         struct pt_regs * regs);
+                                           struct pt_regs * regs);
+static compat_irqreturn_t vmci_interrupt_bm(int irq, void *dev_id,
+                                            struct pt_regs * regs);
 #else
 static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id);
+static compat_irqreturn_t vmci_interrupt_bm(int irq, void *dev_id);
 #endif
 static void dispatch_datagrams(unsigned long data);
 static void process_bitmap(unsigned long data);
@@ -162,6 +168,8 @@ vmci_init(void)
 
    /* Initialize device data. */
    compat_mutex_init(&vmci_dev.lock);
+   vmci_dev.intr_type = VMCI_INTR_TYPE_INTX;
+   vmci_dev.exclusive_vectors = FALSE;
    spin_lock_init(&vmci_dev.dev_spinlock);
    vmci_dev.enabled = FALSE;
 
@@ -209,6 +217,43 @@ vmci_exit(void)
    unregister_chrdev(device_major_nr, "vmci");
 
    vfree(data_buffer);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmci_enable_msix --
+ *
+ *      Enable MSI-X.  Try exclusive vectors first, then shared vectors.
+ *
+ * Results:
+ *      0 on success, other error codes on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+vmci_enable_msix(struct pci_dev *pdev) // IN
+{
+   int i;
+   int result;
+
+   for (i = 0; i < VMCI_MAX_INTRS; ++i) {
+      vmci_dev.msix_entries[i].entry = i;
+      vmci_dev.msix_entries[i].vector = i;
+   }
+
+   result = pci_enable_msix(pdev, vmci_dev.msix_entries, VMCI_MAX_INTRS);
+   if (!result) {
+      vmci_dev.exclusive_vectors = TRUE;
+   } else if (result > 0) {
+      result = pci_enable_msix(pdev, vmci_dev.msix_entries, 1);
+   }
+   return result;
 }
 
 
@@ -308,7 +353,6 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
    vmci_dev.ioaddr = ioaddr;
    vmci_dev.ioaddr_size = ioaddr_size;
-   vmci_dev.irq = pdev->irq;
 
    /*
     * Register notification bitmap with device if that capability is
@@ -350,10 +394,45 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCINotifications_Init();
    VMCIQueuePair_Init();
 
-   if (request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED,
-                   "vmci", &vmci_dev)) {
-      printk(KERN_ERR "vmci: irq %u in use\n", vmci_dev.irq);
+   /*
+    * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
+    * legacy interrupts.
+    */
+   if (!vmci_enable_msix(pdev)) {
+      vmci_dev.intr_type = VMCI_INTR_TYPE_MSIX;
+      vmci_dev.irq = vmci_dev.msix_entries[0].vector;
+   } else if (!pci_enable_msi(pdev)) {
+      vmci_dev.intr_type = VMCI_INTR_TYPE_MSI;
+      vmci_dev.irq = pdev->irq;
+   } else {
+      vmci_dev.intr_type = VMCI_INTR_TYPE_INTX;
+      vmci_dev.irq = pdev->irq;
+   }
+
+   /* Request IRQ for legacy or MSI interrupts, or for first MSI-X vector. */
+   result = request_irq(vmci_dev.irq, vmci_interrupt, COMPAT_IRQF_SHARED,
+                        "vmci", &vmci_dev);
+   if (result) {
+      printk(KERN_ERR "vmci: irq %u in use: %d\n", vmci_dev.irq, result);
       goto components_exit;
+   }
+
+   /*
+    * For MSI-X with exclusive vectors we need to request an interrupt for each
+    * vector so that we get a separate interrupt handler routine.  This allows
+    * us to distinguish between the vectors.
+    */
+
+   if (vmci_dev.exclusive_vectors) {
+      ASSERT(vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX);
+      result = request_irq(vmci_dev.msix_entries[1].vector, vmci_interrupt_bm,
+                           0, "vmci", &vmci_dev);
+      if (result) {
+         printk(KERN_ERR "vmci: irq %u in use: %d\n",
+                vmci_dev.msix_entries[1].vector, result);
+         free_irq(vmci_dev.irq, &vmci_dev);
+         goto components_exit;
+      }
    }
 
    printk(KERN_INFO "Registered vmci device.\n");
@@ -379,6 +458,11 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    VMCIUtil_Exit();
    VMCIEvent_Exit();
    VMCIProcess_Exit();
+   if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSIX) {
+      pci_disable_msix(pdev);
+   } else if (vmci_dev.intr_type == VMCI_INTR_TYPE_MSI) {
+      pci_disable_msi(pdev);
+   }
  remove_bitmap:
    if (notification_bitmap) {
       outl(VMCI_CONTROL_RESET, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
@@ -430,7 +514,24 @@ vmci_remove_device(struct pci_dev* pdev)
    compat_mutex_lock(&dev->lock);
    printk(KERN_INFO "Resetting vmci device\n");
    outl(VMCI_CONTROL_RESET, vmci_dev.ioaddr + VMCI_CONTROL_ADDR);
+
+   /*
+    * Free IRQ and then disable MSI/MSI-X as appropriate.  For MSI-X, we might
+    * have multiple vectors, each with their own IRQ, which we must free too.
+    */
+
    free_irq(dev->irq, dev);
+   if (dev->intr_type == VMCI_INTR_TYPE_MSIX) {
+      if (dev->exclusive_vectors) {
+         free_irq(dev->msix_entries[1].vector, dev);
+      }
+      pci_disable_msix(pdev);
+   } else if (dev->intr_type == VMCI_INTR_TYPE_MSI) {
+      pci_disable_msi(pdev);
+   }
+   dev->exclusive_vectors = FALSE;
+   dev->intr_type = VMCI_INTR_TYPE_INTX;
+
    release_region(dev->ioaddr, dev->ioaddr_size);
    dev->enabled = FALSE;
    VMCINotifications_Exit();
@@ -788,10 +889,12 @@ vmci_poll(struct file *file, // IN
  *
  * vmci_interrupt --
  *
- *      Interrupt handler.
+ *      Interrupt handler for legacy or MSI interrupt, or for first MSI-X
+ *      interrupt (vector VMCI_INTR_DATAGRAM).
  *
  * Results:
- *      None.
+ *      COMPAT_IRQ_HANDLED if the interrupt is handled, COMPAT_IRQ_NONE if
+ *      not an interrupt.
  *
  * Side effects:
  *      None.
@@ -811,31 +914,89 @@ vmci_interrupt(int irq,               // IN
 #endif
 {
    vmci_device *dev = clientdata;
-   unsigned int icr = 0;
 
    if (dev == NULL) {
-      printk (KERN_DEBUG "vmci_interrupt(): irq %d for unknown device.\n",
-              irq);
+      printk(KERN_DEBUG "vmci_interrupt(): irq %d for unknown device.\n", irq);
       return COMPAT_IRQ_NONE;
    }
 
-   /* Acknowledge interrupt and determine what needs doing. */
-   icr = inl(dev->ioaddr + VMCI_ICR_ADDR);
-   if (icr == 0 || icr == 0xffffffff) {
-      return COMPAT_IRQ_NONE;
-   }
+   /*
+    * If we are using MSI-X with exclusive vectors then we simply schedule
+    * the datagram tasklet, since we know the interrupt was meant for us.
+    * Otherwise we must read the ICR to determine what to do.
+    */
 
-   if (icr & VMCI_ICR_DATAGRAM) {
+   if (dev->intr_type == VMCI_INTR_TYPE_MSIX && dev->exclusive_vectors) {
       tasklet_schedule(&vmci_dg_tasklet);
-      icr &= ~VMCI_ICR_DATAGRAM;
+   } else {
+      unsigned int icr;
+
+      ASSERT(dev->intr_type == VMCI_INTR_TYPE_INTX ||
+             dev->intr_type == VMCI_INTR_TYPE_MSI);
+
+      /* Acknowledge interrupt and determine what needs doing. */
+      icr = inl(dev->ioaddr + VMCI_ICR_ADDR);
+      if (icr == 0 || icr == 0xffffffff) {
+         return COMPAT_IRQ_NONE;
+      }
+
+      if (icr & VMCI_ICR_DATAGRAM) {
+         tasklet_schedule(&vmci_dg_tasklet);
+         icr &= ~VMCI_ICR_DATAGRAM;
+      }
+      if (icr & VMCI_ICR_NOTIFICATION) {
+         tasklet_schedule(&vmci_bm_tasklet);
+         icr &= ~VMCI_ICR_NOTIFICATION;
+      }
+      if (icr != 0) {
+         printk(KERN_INFO LGPFX"Ignoring unknown interrupt cause (%d).\n", icr);
+      }
    }
-   if (icr & VMCI_ICR_NOTIFICATION) {
-      tasklet_schedule(&vmci_bm_tasklet);
-      icr &= ~VMCI_ICR_NOTIFICATION;
+
+   return COMPAT_IRQ_HANDLED;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmci_interrupt_bm --
+ *
+ *      Interrupt handler for MSI-X interrupt vector VMCI_INTR_NOTIFICATION,
+ *      which is for the notification bitmap.  Will only get called if we are
+ *      using MSI-X with exclusive vectors.
+ *
+ * Results:
+ *      COMPAT_IRQ_HANDLED if the interrupt is handled, COMPAT_IRQ_NONE if
+ *      not an interrupt.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
+static compat_irqreturn_t
+vmci_interrupt_bm(int irq,               // IN
+                  void *clientdata,      // IN
+                  struct pt_regs *regs)  // IN
+#else
+static compat_irqreturn_t
+vmci_interrupt_bm(int irq,               // IN
+                  void *clientdata)      // IN
+#endif
+{
+   vmci_device *dev = clientdata;
+
+   if (dev == NULL) {
+      printk(KERN_DEBUG "vmci_interrupt_bm(): irq %d for unknown device.\n", irq);
+      return COMPAT_IRQ_NONE;
    }
-   if (icr != 0) {
-      printk(KERN_INFO LGPFX"Ignoring unknown interrupt cause (%d).\n", icr);
-   }
+
+   /* For MSI-X we can just assume it was meant for us. */
+   ASSERT(dev->intr_type == VMCI_INTR_TYPE_MSIX && dev->exclusive_vectors);
+   tasklet_schedule(&vmci_bm_tasklet);
 
    return COMPAT_IRQ_HANDLED;
 }
@@ -916,7 +1077,7 @@ VMCI_SendDatagram(VMCIDatagram *dg)
       "rep outsb\n\t"
       : /* No output. */
       : "d"(vmci_dev.ioaddr + VMCI_DATA_OUT_ADDR),
-	"c"(VMCI_DG_SIZE(dg)), "S"(dg)
+        "c"(VMCI_DG_SIZE(dg)), "S"(dg)
       );
 
    /*
