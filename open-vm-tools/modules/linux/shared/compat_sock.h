@@ -68,6 +68,12 @@
 # define compat_sk_rcvtimeo             sk_rcvtimeo
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
+static inline wait_queue_head_t *sk_sleep(struct sock *sk)
+{
+    return sk->compat_sk_sleep;
+}
+#endif
 
 /*
  * Prior to 2.5.65, struct sock contained individual fields for certain
