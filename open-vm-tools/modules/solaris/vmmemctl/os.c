@@ -577,12 +577,6 @@ Bool
 OS_Init(void)
 {
    os_state *state = &global_state;
-   static int initialized = 0;
-
-   /* initialize only once */
-   if (initialized++) {
-      return FALSE;
-   }
 
    state->kstats = BalloonKstatCreate();
    state->id_space = id_space_create(BALLOON_NAME, 0, INT_MAX);

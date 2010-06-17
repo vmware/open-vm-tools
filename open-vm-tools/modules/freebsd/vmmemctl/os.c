@@ -611,12 +611,6 @@ OS_Init(void)
 {
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
-   static int initialized = 0;
-
-   /* initialize only once */
-   if (initialized++) {
-      return FALSE;
-   }
 
    /* initialize timer state */
    callout_handle_init(&state->timer.callout_handle);
