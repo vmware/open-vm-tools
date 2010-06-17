@@ -482,7 +482,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       struct timespec waitTime;
 
       waitTime.tv_sec = msecWait / 1000;
-      waitTime.tv_nsec == 1000 * 1000 * (msecWait % 1000);
+      waitTime.tv_nsec = 1000 * 1000 * (msecWait % 1000);
 
       err = pthread_cond_timedwait(&condVar->condObject, &lock->nativeLock,
                                    &waitTime);
