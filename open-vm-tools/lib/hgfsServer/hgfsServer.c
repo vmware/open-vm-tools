@@ -5610,13 +5610,27 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
             }
          }
       } else {
-         LOG(4, ("%s: shared folder does not exist.\n", __FUNCTION__));
-
-         if (HGFS_NAME_STATUS_DOES_NOT_EXIST == nameStatus) {
-            status = HGFS_ERROR_ACCESS_DENIED;
+         /*
+          * Check if the name does not exist - the share was not found.
+          * Then it could one of two things: the share was removed/disabled;
+          * or we could be in the root share itself and have a new name.
+          * To return the correct error, if we are in the root share,
+          * we must check the open mode too - creation of new files/folders
+          * should fail access denied, for anything else "not found" is acceptable.
+          */
+         if (nameStatus == HGFS_NAME_STATUS_DOES_NOT_EXIST) {
+             if (HgfsServerIsSharedFolderOnly(info.cpName,
+                                              info.cpNameSize)) {
+               nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
+               LOG(4, ("%s: New file creation in share root not allowed\n", __FUNCTION__));
+            } else {
+               LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
+            }
          } else {
-            status = HgfsPlatformConvertFromNameStatus(nameStatus);
+            LOG(4, ("%s: Shared folder access error %u\n", __FUNCTION__, nameStatus));
          }
+
+         status = HgfsPlatformConvertFromNameStatus(nameStatus);
       }
 
    } else {
@@ -6198,7 +6212,29 @@ HgfsServerValidateOpenParameters(HgfsFileOpenInfo *openInfo, // IN/OUT: openfile
             status = HGFS_ERROR_PROTOCOL;
          }
       } else {
-         LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
+         /*
+          * Check if the name does not exist - the share was not found.
+          * Then it could one of two things: the share was removed/disabled;
+          * or we could be in the root share itself and have a new name.
+          * To return the correct error, if we are in the root share,
+          * we must check the open mode too - creation of new files/folders
+          * should fail access denied, for anything else "not found" is acceptable.
+          */
+         if (nameStatus == HGFS_NAME_STATUS_DOES_NOT_EXIST) {
+            if ((openInfo->mask & HGFS_OPEN_VALID_FLAGS &&
+                 (openInfo->flags == HGFS_OPEN_CREATE ||
+                  openInfo->flags == HGFS_OPEN_CREATE_SAFE ||
+                  openInfo->flags == HGFS_OPEN_CREATE_EMPTY)) &&
+                HgfsServerIsSharedFolderOnly(openInfo->cpName,
+                                             openInfo->cpNameSize)) {
+               nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
+               LOG(4, ("%s: New file creation in share root not allowed\n", __FUNCTION__));
+            } else {
+               LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
+            }
+         } else {
+            LOG(4, ("%s: Shared folder access error %u\n", __FUNCTION__, nameStatus));
+         }
          status = HgfsPlatformConvertFromNameStatus(nameStatus);
       }
    } else {
