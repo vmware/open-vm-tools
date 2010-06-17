@@ -943,7 +943,8 @@ HostinfoOSData(void)
          return FALSE;
       }
 
-      Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS, solarisRelease);
+      Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
+                   solarisRelease);
    }
 
    if (Hostinfo_GetSystemBitness() == 64) {
@@ -1061,13 +1062,7 @@ Hostinfo_HTDisabled(void)
    static uint32 logical = 0, cores = 0;
 
    if (HostType_OSIsVMK()) {
-      VMK_ReturnStatus status = VMKernel_HTEnabledCPU();
-
-      if (status != VMK_OK) {
-         return TRUE;
-      } else {
-         return FALSE;
-      }
+      return VMKernel_HTEnabledCPU() != VMK_OK;
    }
 
    if (logical == 0 && cores == 0) {
@@ -1464,17 +1459,36 @@ Hostinfo_LogLoadAverage(void)
 }
 
 
-#if defined(__APPLE__)
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoMacAbsTimeNS --
+ * Hostinfo_RawSystemTimerNS --
+ * Hostinfo_RawSystemTimerUS --
  *
- *      Return the Mac OS absolute time.
+ *      Return the raw time.
+ *         - Do this as fast as is practical; no locks are used
+ *         - These timers may go backwards or make no forward progress
+ *
+ * Hostinfo_SystemTimerNS --
+ * Hostinfo_SystemTimerUS --
+ *
+ *      Return the time.
+ *         - These timers are documented to never go backwards.
+ *         - These timers may take locks
+ *
+ * NOTES:
+ *      These are the routines to use when performing timing measurements.
+ *
+ *      The value returned is valid (finish-time - start-time) only within a
+ *      single process. Don't send a time measurement obtained with these
+ *      routines to another process and expect a relative time measurement
+ *      to be correct.
+ *
+ *      The actual resolution of these "clocks" are undefined - it varies
+ *      depending on hardware, OSen and OS versions.
  *
  * Results:
- *      The absolute time in nanoseconds is returned. This time is documented
- *      to NEVER go backwards.
+ *      The time in nanoseconds or microseconds is returned.
  *
  * Side effects:
  *	None.
@@ -1482,14 +1496,20 @@ Hostinfo_LogLoadAverage(void)
  *-----------------------------------------------------------------------------
  */
 
-static inline VmTimeType
-HostinfoMacAbsTimeNS(void)
+#if defined(__APPLE__)
+VmTimeType
+Hostinfo_RawSystemTimerNS(void)
 {
    VmTimeType raw;
    mach_timebase_info_data_t *ptr;
    static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
 
-   /* Insure that the time base values are correct. */
+   /*
+    * On Mac OS a commpage timer is used. Such timers are ensured to never
+    * go backwards.
+    */
+
+   /* Ensure that the time base values are correct. */
    ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
 
    if (ptr == NULL) {
@@ -1516,63 +1536,136 @@ HostinfoMacAbsTimeNS(void)
       return ((double) raw) * (((double) ptr->numer) / ((double) ptr->denom));
    }
 }
-#endif
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoRawSystemTimerUS --
- *
- *      Obtain the raw system timer value.
- *
- * Results:
- *      Relative time in microseconds or zero if a failure.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
+VmTimeType
+Hostinfo_SystemTimerNS(void)
+{
+   return Hostinfo_RawSystemTimerNS();
+}
+
+
+VmTimeType
+Hostinfo_SystemTimerUS(void)
+{
+   return Hostinfo_RawSystemTimerNS() / 1000ULL;
+}
+#else  // !__APPLE__
+#if defined(VMX86_SERVER)
+VmTimeType
+Hostinfo_RawSystemTimerNS(void)
+{
+   VmTimeType uptime;
+   VMK_ReturnStatus status;
+
+   /* TODO: get a vmkernel uptime that reports in ns (for real?) */
+   status = VMKernel_GetUptimeUS(&uptime);  // never goes backwards
+   if (status != VMK_OK) {
+      Log("%s: failure!\n", __FUNCTION__);
+
+      uptime = 0;  // A timer read failure - this is really bad!
+   }
+
+   return 1000ULL * uptime;  // convert to nanoseconds
+}
+
+
+VmTimeType
+Hostinfo_SystemTimerNS(void)
+{
+   return Hostinfo_RawSystemTimerNS();
+}
+
+
+VmTimeType
+Hostinfo_SystemTimerUS(void)
+{
+   return Hostinfo_RawSystemTimerNS() / 1000ULL;
+}
+
+#else  // !VMX86_SERVER
+VmTimeType
+Hostinfo_RawSystemTimerNS(void)
+{
+   VmTimeType result;
+   struct timeval tval;
+
+   /* Read the time from the operating system - may go backwards */
+   if (gettimeofday(&tval, NULL) == 0) {
+      /* Convert into nanoseconds */
+      result = 1000ULL * (((VmTimeType)tval.tv_sec) * 1000000 + tval.tv_usec);
+   } else {
+      Log("%s: failure!\n", __FUNCTION__);
+
+      result = 0;  // A timer read failure - this is really bad!
+   }
+
+   return result;
+}
+
+
+VmTimeType
+Hostinfo_SystemTimerNS(void)
+{
+   VmTimeType newTime;
+   VmTimeType curTime;
+
+   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+   static VmTimeType lastTimeBase;
+   static VmTimeType lastTimeRead;
+   static VmTimeType lastTimeReset;
+
+   /*
+    * TODO: research using -lrt and clock_gettime.
+    */
+
+   pthread_mutex_lock(&mutex);  // use native mechanism, just like Windows
+
+   curTime = Hostinfo_RawSystemTimerNS();
+
+   if (curTime == 0) {
+      newTime = 0;
+      goto exit;
+   }
+
+   /*
+    * Don't let time be negative or go backward.  We do this by tracking a
+    * base and moving forward from there.
+    */
+
+   newTime = lastTimeBase + (curTime - lastTimeReset);
+
+   if (newTime < lastTimeRead) {
+      lastTimeReset = curTime;
+      lastTimeBase = lastTimeRead + 1;
+      newTime = lastTimeBase + (curTime - lastTimeReset);
+   }
+
+   lastTimeRead = newTime;
+
+exit:
+   pthread_mutex_unlock(&mutex);
+
+   return newTime;
+}
+
+
+VmTimeType
+Hostinfo_SystemTimerUS(void)
+{
+   return Hostinfo_SystemTimerNS() / 1000ULL;
+}
+
+#endif  // VMX86_SERVER
+#endif  // __APPLE__
+
 
 VmTimeType
 Hostinfo_RawSystemTimerUS(void)
 {
-#if defined(__APPLE__)
-   return HostinfoMacAbsTimeNS() / 1000ULL;
-#else
-#if defined(VMX86_SERVER)
-   if (HostType_OSIsPureVMK()) {
-      uint64 uptime;
-      VMK_ReturnStatus status;
-
-      status = VMKernel_GetUptimeUS(&uptime);
-      if (status != VMK_OK) {
-         Log("%s: failure!\n", __FUNCTION__);
-
-         return 0;  // A timer read failure - this is really bad!
-      }
-
-      return uptime;
-   } else {
-#endif /* ifdef VMX86_SERVER */
-      struct timeval tval;
-
-      /* Read the time from the operating system */
-      if (gettimeofday(&tval, NULL) != 0) {
-         Log("%s: failure!\n", __FUNCTION__);
-
-         return 0;  // A timer read failure - this is really bad!
-      }
-
-      /* Convert into microseconds */
-      return (((VmTimeType)tval.tv_sec) * 1000000 + tval.tv_usec);
-#if defined(VMX86_SERVER)
-   }
-#endif /* ifdef VMX86_SERVER */
-#endif /* ifdef __APPLE__ */
+   return Hostinfo_RawSystemTimerNS() / 1000ULL;
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -2681,21 +2774,8 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
 VmTimeType
 Hostinfo_SystemUpTime(void)
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(VMX86_SERVER)
    return Hostinfo_RawSystemTimerUS();
-#elif defined(VMX86_SERVER)
-   uint64 uptime;
-   VMK_ReturnStatus status;
-
-   if (VmkSyscall_Init(FALSE, NULL, 0)) {
-      status = VMKernel_GetUptimeUS(&uptime);
-
-      if (status == VMK_OK) {
-         return uptime;
-      }
-   }
-
-   return 0;
 #elif defined(__linux__)
    int res;
    double uptime;
@@ -3188,82 +3268,6 @@ Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,      // OUT:
    }
 }
 #endif
-
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_SystemTimerUS --
- *
- *      This is the routine to use when performing timing measurements. It
- *      is valid (finish-time - start-time) only within a single process.
- *      Don't send a time obtained this way to another process and expect
- *      a relative time measurement to be correct.
- *
- *      This timer is documented to never go backwards.
- *
- * Results:
- *      Relative time in microseconds or zero if a failure.
- *
- *      Please note that the actual resolution of this "clock" is undefined -
- *      it varies between OSen and OS versions.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VmTimeType
-Hostinfo_SystemTimerUS(void)
-{
-#if defined(__APPLE__)
-   /*
-    * On Mac OS a commpage timer is used. Such timers are ensured to never
-    * go backwards so don't use the mutex technique - it's inefficient.
-    */
-
-   return Hostinfo_RawSystemTimerUS();
-#else
-   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-   VmTimeType curTime;
-   VmTimeType newTime;
-
-   static VmTimeType lastTimeBase;
-   static VmTimeType lastTimeRead;
-   static VmTimeType lastTimeReset;
-
-   pthread_mutex_lock(&mutex);  // use native mechanism, just like Windows
-
-   curTime = Hostinfo_RawSystemTimerUS();
-
-   if (curTime == 0) {
-      newTime = 0;
-      goto exit;
-   }
-
-   /*
-    * Don't let time be negative or go backward.  We do this by
-    * tracking a base and moving foward from there.
-    */
-
-   newTime = lastTimeBase + (curTime - lastTimeReset);
-
-   if (newTime < lastTimeRead) {
-      lastTimeReset = curTime;
-      lastTimeBase = lastTimeRead + 1;
-      newTime = lastTimeBase + (curTime - lastTimeReset);
-   }
-
-   lastTimeRead = newTime;
-
-exit:
-   pthread_mutex_unlock(&mutex);
-
-   return newTime;
-#endif
-}
 
 
 /*
