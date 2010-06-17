@@ -101,7 +101,8 @@ MXRecLockCreateInternal(MXRecLock *lock)  // IN/OUT:
 {
    /* http://msdn.microsoft.com/en-us/library/ms682530(VS.85).aspx */
    /* magic number - allocate resources immediately; spin 0x400 times */
-   return InitializeCriticalSectionAndSpinCount(nativeLock, 0x80000400) != 0;
+   return InitializeCriticalSectionAndSpinCount(&lock->nativeLock,
+                                                0x80000400) != 0;
 }
 
 
