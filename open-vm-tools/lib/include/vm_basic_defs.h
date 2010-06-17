@@ -433,7 +433,7 @@ sleep(unsigned int sec)
 static INLINE void
 usleep(unsigned long usec)
 {
-   Sleep(CEILING(usec, 1000));
+   Sleep(CEILING(usec/1000, 1000));
 }
 
 typedef int pid_t;

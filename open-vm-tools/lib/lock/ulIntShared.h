@@ -19,8 +19,6 @@
 #ifndef _ULINTSHARED_H_
 #define _ULINTSHARED_H_
 
-extern void (*MXUserVThreadWatchDog)(void);
-
 extern void MXUserListLocks(void);
 
 extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),

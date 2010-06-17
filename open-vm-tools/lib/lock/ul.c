@@ -27,8 +27,6 @@
 
 static Bool mxInPanic = FALSE;  // track when involved in a panic
 
-void (*MXUserVThreadWatchDog)(void);
-
 Bool (*MXUserTryAcquireForceFail)() = NULL;
 
 static MX_Rank (*MXUserMxCheckRank)(void) = NULL;
@@ -644,29 +642,4 @@ MXUserListLocks(void)
       }
    }
 #endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUser_PlantThreadWatchDog --
- *
- *      Plant the pointer to VThread_WatchDog.
- *
- *      If this is called lib/thread is around.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-MXUser_PlantThreadWatchDog(void (*func)(void))
-{
-   MXUserVThreadWatchDog = func;
 }

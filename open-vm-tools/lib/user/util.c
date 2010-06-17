@@ -1112,7 +1112,8 @@ Util_MakeSureDirExistsAndAccessible(char const *path,  // IN
  *
  *    On Win32, terminate the process and all of its threads, without
  *    calling any of the DLL termination handlers.
- *    On Linux, call exit().
+
+ *    On Linux, call _exit().
  *
  * Results:
  *    None
@@ -1127,9 +1128,9 @@ void
 Util_ExitProcessAbruptly(int code) // IN
 {
 #if defined(_WIN32)
-   TerminateProcess(GetCurrentProcess(),code);
+   TerminateProcess(GetCurrentProcess(), code);
 #else
-   exit(code);
+   _exit(code);
 #endif
 }
 

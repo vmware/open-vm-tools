@@ -149,8 +149,6 @@ void MXUser_DestroyCondVar(MXUserCondVar *condVar);
 
 struct MX_MutexRec;
 
-void MXUser_PlantThreadWatchDog(void (*func)(void));
-
 #if defined(VMX86_VMX)
 MXUserRecLock *MXUser_InitFromMXRec(const char *name,
                                     struct MX_MutexRec *mutex,
