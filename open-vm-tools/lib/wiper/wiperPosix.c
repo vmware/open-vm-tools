@@ -440,6 +440,12 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
    } if (strcmp(MNTINFO_FSTYPE(mnt), "pcfs") == 0) {
       item->type = PARTITION_PCFS;
 
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "hfs") == 0) {
+      item->type = PARTITION_HFS;
+
+   } if (strcmp(MNTINFO_FSTYPE(mnt), "msdos") == 0) {
+      item->type = PARTITION_FAT;
+
    } else {
       comment = "Unknown filesystem. Contact VMware";
    }
