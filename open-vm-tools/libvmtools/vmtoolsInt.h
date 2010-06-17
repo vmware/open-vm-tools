@@ -25,6 +25,7 @@
  * Internal definitions used by the vmtools library.
  */
 
+#include "vmware.h"
 #include "vmware/tools/utils.h"
 
 /* ************************************************************************** *
@@ -105,6 +106,21 @@ VMSysLoggerConfig(const gchar *defaultDomain,
                   const gchar *name,
                   GKeyFile *cfg);
 #endif
+
+LogHandlerData *
+VMXLoggerConfig(const gchar *defaultDomain,
+                const gchar *domain,
+                const gchar *name,
+                GKeyFile *cfg);
+
+/* ************************************************************************** *
+ * Miscelaneous.                                                              *
+ * ************************************************************************** */
+
+gint
+VMToolsAsprintf(gchar **string,
+                gchar const *format,
+                ...)  PRINTF_DECL(2, 3);
 
 #endif /* _VMTOOLSINT_H_ */
 

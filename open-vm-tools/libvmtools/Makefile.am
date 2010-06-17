@@ -63,6 +63,7 @@ libvmtools_la_SOURCES += sysLogger.c
 libvmtools_la_SOURCES += vmtools.c
 libvmtools_la_SOURCES += vmtoolsConfig.c
 libvmtools_la_SOURCES += vmtoolsLog.c
+libvmtools_la_SOURCES += vmxLogger.c
 
 # Recompile the rpcIn library with GLIB support.
 libvmtools_la_SOURCES += $(top_srcdir)/lib/rpcIn/rpcin.c

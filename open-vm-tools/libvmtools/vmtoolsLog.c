@@ -100,11 +100,12 @@ static LogHandler gHandlers[] = {
    { 0,  "std",               VMStdLoggerConfig },
    { 1,  "file",              VMFileLoggerConfig },
    { 2,  "file+",             VMFileLoggerConfig },
+   { 3,  "vmx",               VMXLoggerConfig },
 #if defined(_WIN32)
-   { 3,  "outputdebugstring", VMDebugOutputConfig },
+   { 4,  "outputdebugstring", VMDebugOutputConfig },
    { -1, NULL,                VMDebugOutputConfig },
 #else
-   { 3,  "syslog",            VMSysLoggerConfig },
+   { 4,  "syslog",            VMSysLoggerConfig },
    { -1, NULL,                VMStdLoggerConfig },
 #endif
 };
@@ -131,7 +132,7 @@ static GPtrArray *gDomains = NULL;
  * @return Number of bytes printed.
  */
 
-static INLINE gint
+gint
 VMToolsAsprintf(gchar **string,
                 gchar const *format,
                 ...)
