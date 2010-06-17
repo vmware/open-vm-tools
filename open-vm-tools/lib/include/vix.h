@@ -184,6 +184,7 @@ enum {
    VIX_E_READ_ONLY_PROPERTY                     = 6002,
    VIX_E_MISSING_REQUIRED_PROPERTY              = 6003,
    VIX_E_INVALID_SERIALIZED_DATA                = 6004,
+   VIX_E_PROPERTY_TYPE_MISMATCH                 = 6005,
 
    /* Completion Errors */
    VIX_E_BAD_VM_INDEX                           = 8000,
