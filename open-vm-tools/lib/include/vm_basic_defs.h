@@ -327,38 +327,25 @@ void *_ReturnAddress(void);
 #ifdef __GNUC__
 #ifndef sun
 
-/*
- * Get the frame pointer. We use this assembly hack instead of
- * __builtin_frame_address() due to a bug introduced in gcc 4.1.1
- */
 static INLINE_SINGLE_CALLER uintptr_t
 GetFrameAddr(void)
 {
    uintptr_t bp;
-#if    __GNUC__ < 4 \
-    || (__GNUC__ == 4 && __GNUC_MINOR__ == 0) \
-    || (__GNUC__ == 4 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 1)
+#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
    bp = (uintptr_t)__builtin_frame_address(0);
-#elif __GNUC__ == 4 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ <= 3
-#  if defined(VMM) || defined(VM_X86_64)
-     __asm__ __volatile__("movq %%rbp, %0\n" : "=g" (bp));
-#  else
-     __asm__ __volatile__("movl %%ebp, %0\n" : "=g" (bp));
-#  endif
 #else
-   __asm__ __volatile__(
-#ifdef __linux__
-      ".print \"This newer version of GCC may or may not have the "
-               "__builtin_frame_address bug.  Need to update this. "
-               "See bug 147638.\"\n"
-      ".abort"
-#else /* MacOS */
-      ".abort \"This newer version of GCC may or may not have the "
-               "__builtin_frame_address bug.  Need to update this. "
-               "See bug 147638.\"\n"
-#endif
-      : "=g" (bp)
-   );
+   /*
+    * We use this assembly hack due to a bug discovered in gcc 4.1.1.
+    * The bug was fixed in 4.2.0; assume it originated with 4.0.
+    * PR147638, PR554369.
+    */
+     __asm__ __volatile__(
+#  if defined(VM_X86_64)
+                          "movq %%rbp, %0\n"
+#  else
+                          "movl %%ebp, %0\n"
+#  endif
+                          : "=g" (bp));
 #endif
    return bp;
 }

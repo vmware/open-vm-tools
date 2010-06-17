@@ -660,11 +660,6 @@ typedef void * UserVA;
  * extra __always_inline__ attribute.
  */
 #   define INLINE_SINGLE_CALLER INLINE __attribute__((__always_inline__))
-#   if    defined(VMM) \
-       && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 1))
-#      warning Verify INLINE_SINGLE_CALLER '__always_inline__' attribute (did \
-             monitor size change?)
-#   endif
 #else
 #   define INLINE_SINGLE_CALLER INLINE
 #endif
