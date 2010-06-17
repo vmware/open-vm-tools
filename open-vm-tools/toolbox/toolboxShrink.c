@@ -29,7 +29,9 @@
 #include "toolboxGtkInt.h"
 #include "debug.h"
 #include "guestApp.h"
+#include "rpcout.h"
 #include "wiper.h"
+#include "vmware/guestrpc/tclodefs.h"
 
 /*
  * Globals
