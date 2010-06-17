@@ -475,11 +475,12 @@ Bool MXUserWaitCondVar(MXUserHeader *header,
 
 #if defined(MXUSER_STATS)
 typedef struct {
-   uint64  numSamples;      // Population sample size
-   uint64  minTime;         // Minimum
-   uint64  maxTime;         // Maximum
-   uint64  timeSum;         // Sum of times (for mean)
-   double  timeSquaredSum;  // Sum of times^2 (for S.D.)
+   char    *typeName;        // Name
+   uint64   numSamples;      // Population sample size
+   uint64   minTime;         // Minimum
+   uint64   maxTime;         // Maximum
+   uint64   timeSum;         // Sum of times (for mean)
+   double   timeSquaredSum;  // Sum of times^2 (for S.D.)
 } MXUserBasicStats;
 
 typedef struct {
@@ -501,7 +502,8 @@ void MXUserRemoveFromList(MXUserHeader *header);
 
 typedef struct MXUserHisto MXUserHisto;
 
-MXUserHisto *MXUserHistoSetUp(uint64 minValue,
+MXUserHisto *MXUserHistoSetUp(char *typeName,
+                              uint64 minValue,
                               uint32 decades);
 
 void MXUserHistoTearDown(MXUserHisto *histo);
@@ -509,32 +511,35 @@ void MXUserHistoTearDown(MXUserHisto *histo);
 void MXUserHistoSample(MXUserHisto *histo,
                        uint64 value);
 
-void MXUserHistoDump(unsigned epoch,
-                     const char *className,
+void MXUserHistoDump(MXUserHisto *histo,
                      MXUserHeader *header,
-                     MXUserHisto *histo);
+                     unsigned epoch);
 
 void MXUserAcquisitionStatsSetUp(MXUserAcquisitionStats *stats);
 
 void MXUserAcquisitionSample(MXUserAcquisitionStats *stats,
-                           Bool wasContended,
-                           uint64 timeToAcquire);
+                             Bool wasContended,
+                             uint64 timeToAcquire);
 
-void MXUserDumpAcquisitionStats(unsigned epoch,
-                                const char *className,
+void MXUserDumpAcquisitionStats(MXUserAcquisitionStats *stats,
                                 MXUserHeader *header,
-                                MXUserAcquisitionStats *stats);
+                                unsigned epoch);
+
+void MXUserAcquisitionStatsTearDown(MXUserAcquisitionStats *stats);
+
 void
-MXUserBasicStatsSetUp(MXUserBasicStats *stats);
+MXUserBasicStatsSetUp(MXUserBasicStats *stats,
+                      char *typeName);
 
 void
 MXUserBasicStatsSample(MXUserBasicStats *stats,
                        uint64 value);
  
-void MXUserDumpBasicStats(unsigned epoch,
-                         const char *className,
-                         MXUserHeader *header,
-                         MXUserBasicStats *stats);
+void MXUserDumpBasicStats(MXUserBasicStats *stats,
+                          MXUserHeader *header,
+                          unsigned epoch);
+
+void MXUserBasicStatsTearDown(MXUserBasicStats *stats);
 
 void MXUserKitchen(MXUserAcquisitionStats *stats,
                    double *contentionRatio,
@@ -542,6 +547,7 @@ void MXUserKitchen(MXUserAcquisitionStats *stats,
                    Bool *doLog);
 
 void MXUserForceHisto(Atomic_Ptr *histoPtr,
+                      char *typeName,
                       uint64 minValue,
                       uint32 decades);
 #endif

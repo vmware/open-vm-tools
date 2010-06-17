@@ -85,20 +85,16 @@ MXUserStatsActionRec(MXUserHeader *header,  // IN:
     * Dump the statistics for the specified lock.
     */
 
-   MXUserDumpAcquisitionStats(epoch, MXUSER_STAT_CLASS_ACQUISITION, header,
-                              &lock->acquisitionStats);
+   MXUserDumpAcquisitionStats(&lock->acquisitionStats, header, epoch);
 
    if (Atomic_ReadPtr(&lock->acquisitionHisto) != NULL) {
-      MXUserHistoDump(epoch, MXUSER_STAT_CLASS_ACQUISITION, header,
-                      Atomic_ReadPtr(&lock->acquisitionHisto));
+      MXUserHistoDump(Atomic_ReadPtr(&lock->acquisitionHisto), header, epoch);
    }
 
-   MXUserDumpBasicStats(epoch, MXUSER_STAT_CLASS_HELD, header,
-                        &lock->heldStats);
+   MXUserDumpBasicStats(&lock->heldStats, header, epoch);
 
    if (Atomic_ReadPtr(&lock->heldHisto) != NULL) {
-      MXUserHistoDump(epoch, MXUSER_STAT_CLASS_HELD, header,
-                      Atomic_ReadPtr(&lock->heldHisto));
+      MXUserHistoDump(Atomic_ReadPtr(&lock->heldHisto), header, epoch);
    }
 
    /*
@@ -109,9 +105,11 @@ MXUserStatsActionRec(MXUserHeader *header,  // IN:
 
    if (isHot) {
       MXUserForceHisto(&lock->acquisitionHisto,
+                       MXUSER_STAT_CLASS_ACQUISITION,
                        MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
                        MXUSER_DEFAULT_HISTO_DECADES);
       MXUserForceHisto(&lock->heldHisto,
+                       MXUSER_STAT_CLASS_HELD,
                        MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
                        MXUSER_DEFAULT_HISTO_DECADES);
 
@@ -218,7 +216,7 @@ MXUser_CreateRecLock(const char *userName,  // IN:
 
    MXUserAddToList(&lock->header);
    MXUserAcquisitionStatsSetUp(&lock->acquisitionStats);
-   MXUserBasicStatsSetUp(&lock->heldStats);
+   MXUserBasicStatsSetUp(&lock->heldStats, MXUSER_STAT_CLASS_HELD);
 #endif
 
    return lock;
@@ -262,6 +260,8 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 
 #if defined(MXUSER_STATS)
          MXUserRemoveFromList(&lock->header);
+         MXUserAcquisitionStatsTearDown(&lock->acquisitionStats);
+         MXUserBasicStatsTearDown(&lock->heldStats);
          MXUserHistoTearDown(Atomic_ReadPtr(&lock->acquisitionHisto));
          MXUserHistoTearDown(Atomic_ReadPtr(&lock->heldHisto));
 #endif
@@ -528,7 +528,8 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
       decades = va_arg(a, uint32);
       va_end(a);
 
-      MXUserForceHisto(&lock->acquisitionHisto, minValue, decades);
+      MXUserForceHisto(&lock->acquisitionHisto, MXUSER_STAT_CLASS_ACQUISITION,
+                       minValue, decades);
 
       result = TRUE;
       break;
@@ -544,7 +545,8 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
       decades = va_arg(a, uint32);
       va_end(a);
 
-      MXUserForceHisto(&lock->heldHisto, minValue, decades);
+      MXUserForceHisto(&lock->heldHisto, MXUSER_STAT_CLASS_HELD,
+                       minValue, decades);
       
       result = TRUE;
       break; 
