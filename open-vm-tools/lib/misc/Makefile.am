@@ -41,6 +41,7 @@ libMisc_la_SOURCES += util_misc.c
 libMisc_la_SOURCES += utilMem.c
 libMisc_la_SOURCES += vmstdio.c
 libMisc_la_SOURCES += strutil.c
+libMisc_la_SOURCES += vthreadBase.c
 
 if HAVE_ICU
 libMisc_la_SOURCES += codeset.c

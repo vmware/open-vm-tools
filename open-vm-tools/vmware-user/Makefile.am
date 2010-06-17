@@ -103,6 +103,7 @@ if USE_SLASH_PROC
    vmware_user_LDADD += ../lib/slashProc/libSlashProc.la
 endif
 
+vmware_user_LDADD += ../lib/lock/libLock.la
 vmware_user_LDADD += ../lib/misc/libMisc.la
 
 vmware_user_LDADD += @GTHREAD_LIBS@

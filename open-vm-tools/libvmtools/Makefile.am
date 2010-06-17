@@ -18,6 +18,7 @@
 lib_LTLIBRARIES = libvmtools.la
 
 libvmtools_la_LIBADD =
+libvmtools_la_LIBADD += ../lib/lock/libLock.la
 libvmtools_la_LIBADD += ../lib/backdoor/libBackdoor.la
 libvmtools_la_LIBADD += ../lib/conf/libConf.la
 libvmtools_la_LIBADD += ../lib/dict/libDict.la
