@@ -98,15 +98,28 @@ HgfsSocketHeader;
  *    VMCI specific data structures, macros     *
  ************************************************/
 
-#define HGFS_VMCI_VERSION_1          0xabcdabcd
+#define HGFS_VMCI_VERSION_1          0x1
 
-/* Helpful for debugging purposes */
-#define HGFS_VMCI_IO_PENDING         0xdeadbeef
-#define HGFS_VMCI_IO_COMPLETE        0xfaceb00c
-#define HGFS_VMCI_MORE_SPACE_NEEDED  0xc00becaf
-#define HGFS_VMCI_IO_FAILED          0xbeef0000
+typedef enum {
+   HGFS_TS_IO_PENDING,
+   HGFS_TS_IO_COMPLETE,
+   HGFS_TS_IO_FAILED,
+} HgfsTransportRequestState;
+
+typedef enum {
+   HGFS_ASYNC_IOREQ_SHMEM,
+   HGFS_ASYNC_IOREQ_GET_PAGES,
+   HGFS_ASYNC_IOREP,
+} HgfsAsyncReplyFlags;
+
+typedef enum {
+   HGFS_TH_REP_GET_PAGES,
+   HGFS_TH_REQUEST,
+   HGFS_TH_TERMINATE_SESSION,
+} HgfsTransportPacketType;
 
 #define HGFS_VMCI_TRANSPORT_ERROR   (VMCI_ERROR_CLIENT_MIN - 1)
+#define HGFS_VMCI_VERSION_MISMATCH  (VMCI_ERROR_CLIENT_MIN - 2)
 
 /*
  * Used By : Guest and Host
@@ -123,6 +136,24 @@ struct HgfsIov {
 HgfsIov;
 
 /*
+ * Used By : Guest and Host
+ * Lives in : Inside HgfsVmciTransportHeader
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsAsyncIov {
+   uint64 pa;                 /* Physical addr */
+   uint64 va;                 /* Virtual addr */
+   uint32 len;                /* length of data; should be <= PAGE_SIZE */
+   uint64 index;              /* Guest opaque data; should not be changed by
+                                 host */
+   Bool chain;                /* Are pages chained ? */
+}
+#include "vmware_pack_end.h"
+HgfsAsyncIov;
+
+/*
  * Every VMCI request will have this transport Header sent over
  * in the datagram by the Guest OS.
  *
@@ -133,8 +164,12 @@ typedef
 #include "vmware_pack_begin.h"
 struct HgfsVmciTransportHeader {
    uint32 version;                          /* Version number */
+   HgfsTransportPacketType pktType;         /* Type of packet */
    uint32 iovCount;                         /* Number of iovs */
-   HgfsIov iov[1];                          /* (PA, len) */
+   union {
+      HgfsIov iov[1];                       /* (PA, len) */
+      HgfsAsyncIov asyncIov[1];
+   };
 }
 #include "vmware_pack_end.h"
 HgfsVmciTransportHeader;
@@ -149,12 +184,41 @@ HgfsVmciTransportHeader;
 typedef
 #include "vmware_pack_begin.h"
 struct HgfsVmciTransportStatus {
-   uint32 status;              /* IO_PENDING, COMPLETE, MORE SPACE NEEDED, FAILED etc */
-   uint32 flags;               /* ASYNC_PEND, VALID_ASYNC_PEND_REPLY */
-   uint32 size;                /* G->H: Size of the packet,H->G: How much more space is needed */
+   HgfsTransportRequestState status; /* IO_PENDING, IO_COMPLETE, IO_FAILED etc */
+   uint32 size;                      /* G->H: Size of the packet,H->G: How much more space is needed */
 }
 #include "vmware_pack_end.h"
 HgfsVmciTransportStatus;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsVmciAsyncResponse {
+   uint64 id;            /* Id corresponding to the guest request */
+}
+#include "vmware_pack_end.h"
+HgfsVmciAsyncResponse;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsVmciAsyncShmem {
+   uint32 count;          /* Number of iovs */
+   HgfsAsyncIov iov[1];
+}
+#include "vmware_pack_end.h"
+HgfsVmciAsyncShmem;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsVmciAsyncReply {
+   uint32 version;
+   HgfsAsyncReplyFlags pktType;
+   union {
+     HgfsVmciAsyncResponse response;
+     HgfsVmciAsyncShmem shmem;
+   };
+}
+#include "vmware_pack_end.h"
+HgfsVmciAsyncReply;
 
 #endif /* _HGFS_TRANSPORT_H_ */
 

@@ -33,6 +33,7 @@
 #include "hgfsDirNotify.h"
 #include "hgfsTransport.h"
 #include "userlock.h"
+#include "poll.h"
 
 #if defined(_WIN32)
 #include <io.h>
@@ -156,8 +157,7 @@ struct HgfsStaticSession {
 
 /* Session related callbacks. */
 static void HgfsServerSessionReceive(HgfsPacket *packet,
-                                     void *clientData,
-                                     HgfsReceiveFlags flags);
+                                     void *clientData);
 static Bool HgfsServerSessionConnect(void *transportData,
                                      HgfsServerChannelCallbacks *channelCbTable,
                                      void **clientData);
@@ -229,6 +229,13 @@ static void HgfsPackReplyHeaderV4(HgfsInternalStatus status,
                                   uint32 payloadSize,
                                   HgfsHeader const *packetIn,
                                   HgfsHeader *header);
+static void HgfsServer_ProcessRequest(void *data);
+void HgfsServer_ReplyWithError(HgfsPacket *packet,
+                               const char *metaPacket,
+                               HgfsStatus status,
+                               Bool v4header,
+                               HgfsSessionInfo *session);
+
 
 /*
  *----------------------------------------------------------------------------
@@ -2606,50 +2613,54 @@ static struct {
 
    /* Minimal size of the request packet */
    unsigned int minReqSize;
+
+   /* How do you process the request {sync, async} ? */
+   RequestHint reqType;
+
 } const handlers[] = {
-   { HgfsServerOpen,             sizeof (HgfsRequestOpen)              },
-   { HgfsServerRead,             sizeof (HgfsRequestRead)              },
-   { HgfsServerWrite,            sizeof (HgfsRequestWrite)             },
-   { HgfsServerClose,            sizeof (HgfsRequestClose)             },
-   { HgfsServerSearchOpen,       sizeof (HgfsRequestSearchOpen)        },
-   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchRead)        },
-   { HgfsServerSearchClose,      sizeof (HgfsRequestSearchClose)       },
-   { HgfsServerGetattr,          sizeof (HgfsRequestGetattr)           },
-   { HgfsServerSetattr,          sizeof (HgfsRequestSetattr)           },
-   { HgfsServerCreateDir,        sizeof (HgfsRequestCreateDir)         },
-   { HgfsServerDeleteFile,       sizeof (HgfsRequestDelete)            },
-   { HgfsServerDeleteDir,        sizeof (HgfsRequestDelete)            },
-   { HgfsServerRename,           sizeof (HgfsRequestRename)            },
-   { HgfsServerQueryVolume,      sizeof (HgfsRequestQueryVolume)       },
+   { HgfsServerOpen,             sizeof (HgfsRequestOpen),              REQ_SYNC },
+   { HgfsServerRead,             sizeof (HgfsRequestRead),              REQ_SYNC },
+   { HgfsServerWrite,            sizeof (HgfsRequestWrite),             REQ_SYNC },
+   { HgfsServerClose,            sizeof (HgfsRequestClose),             REQ_SYNC },
+   { HgfsServerSearchOpen,       sizeof (HgfsRequestSearchOpen),        REQ_SYNC },
+   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchRead),        REQ_SYNC },
+   { HgfsServerSearchClose,      sizeof (HgfsRequestSearchClose),       REQ_SYNC },
+   { HgfsServerGetattr,          sizeof (HgfsRequestGetattr),           REQ_SYNC },
+   { HgfsServerSetattr,          sizeof (HgfsRequestSetattr),           REQ_SYNC },
+   { HgfsServerCreateDir,        sizeof (HgfsRequestCreateDir),         REQ_SYNC },
+   { HgfsServerDeleteFile,       sizeof (HgfsRequestDelete),            REQ_SYNC },
+   { HgfsServerDeleteDir,        sizeof (HgfsRequestDelete),            REQ_SYNC },
+   { HgfsServerRename,           sizeof (HgfsRequestRename),            REQ_SYNC },
+   { HgfsServerQueryVolume,      sizeof (HgfsRequestQueryVolume),       REQ_SYNC },
 
-   { HgfsServerOpen,             sizeof (HgfsRequestOpenV2)            },
-   { HgfsServerGetattr,          sizeof (HgfsRequestGetattrV2)         },
-   { HgfsServerSetattr,          sizeof (HgfsRequestSetattrV2)         },
-   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchReadV2)      },
-   { HgfsServerSymlinkCreate,    sizeof (HgfsRequestSymlinkCreate)     },
-   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange)  },
-   { HgfsServerCreateDir,        sizeof (HgfsRequestCreateDirV2)       },
-   { HgfsServerDeleteFile,       sizeof (HgfsRequestDeleteV2)          },
-   { HgfsServerDeleteDir,        sizeof (HgfsRequestDeleteV2)          },
-   { HgfsServerRename,           sizeof (HgfsRequestRenameV2)          },
+   { HgfsServerOpen,             sizeof (HgfsRequestOpenV2),            REQ_SYNC },
+   { HgfsServerGetattr,          sizeof (HgfsRequestGetattrV2),         REQ_SYNC },
+   { HgfsServerSetattr,          sizeof (HgfsRequestSetattrV2),         REQ_SYNC },
+   { HgfsServerSearchRead,       sizeof (HgfsRequestSearchReadV2),      REQ_SYNC },
+   { HgfsServerSymlinkCreate,    sizeof (HgfsRequestSymlinkCreate),     REQ_SYNC },
+   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange),  REQ_SYNC },
+   { HgfsServerCreateDir,        sizeof (HgfsRequestCreateDirV2),       REQ_SYNC },
+   { HgfsServerDeleteFile,       sizeof (HgfsRequestDeleteV2),          REQ_SYNC },
+   { HgfsServerDeleteDir,        sizeof (HgfsRequestDeleteV2),          REQ_SYNC },
+   { HgfsServerRename,           sizeof (HgfsRequestRenameV2),          REQ_SYNC },
 
-   { HgfsServerOpen,             HGFS_SIZEOF_OP(HgfsRequestOpenV3)             },
-   { HgfsServerRead,             HGFS_SIZEOF_OP(HgfsRequestReadV3)             },
-   { HgfsServerWrite,            HGFS_SIZEOF_OP(HgfsRequestWriteV3)            },
-   { HgfsServerClose,            HGFS_SIZEOF_OP(HgfsRequestCloseV3)            },
-   { HgfsServerSearchOpen,       HGFS_SIZEOF_OP(HgfsRequestSearchOpenV3)       },
-   { HgfsServerSearchRead,       HGFS_SIZEOF_OP(HgfsRequestSearchReadV3)       },
-   { HgfsServerSearchClose,      HGFS_SIZEOF_OP(HgfsRequestSearchCloseV3)      },
-   { HgfsServerGetattr,          HGFS_SIZEOF_OP(HgfsRequestGetattrV3)          },
-   { HgfsServerSetattr,          HGFS_SIZEOF_OP(HgfsRequestSetattrV3)          },
-   { HgfsServerCreateDir,        HGFS_SIZEOF_OP(HgfsRequestCreateDirV3)        },
-   { HgfsServerDeleteFile,       HGFS_SIZEOF_OP(HgfsRequestDeleteV3)           },
-   { HgfsServerDeleteDir,        HGFS_SIZEOF_OP(HgfsRequestDeleteV3)           },
-   { HgfsServerRename,           HGFS_SIZEOF_OP(HgfsRequestRenameV3)           },
-   { HgfsServerQueryVolume,      HGFS_SIZEOF_OP(HgfsRequestQueryVolumeV3)      },
-   { HgfsServerSymlinkCreate,    HGFS_SIZEOF_OP(HgfsRequestSymlinkCreateV3)    },
-   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange)          },
-   { HgfsServerWriteWin32Stream, HGFS_SIZEOF_OP(HgfsRequestWriteWin32StreamV3) },
+   { HgfsServerOpen,             HGFS_SIZEOF_OP(HgfsRequestOpenV3),             REQ_SYNC },
+   { HgfsServerRead,             HGFS_SIZEOF_OP(HgfsRequestReadV3),             REQ_SYNC },
+   { HgfsServerWrite,            HGFS_SIZEOF_OP(HgfsRequestWriteV3),            REQ_SYNC },
+   { HgfsServerClose,            HGFS_SIZEOF_OP(HgfsRequestCloseV3),            REQ_SYNC },
+   { HgfsServerSearchOpen,       HGFS_SIZEOF_OP(HgfsRequestSearchOpenV3),       REQ_SYNC },
+   { HgfsServerSearchRead,       HGFS_SIZEOF_OP(HgfsRequestSearchReadV3),       REQ_SYNC },
+   { HgfsServerSearchClose,      HGFS_SIZEOF_OP(HgfsRequestSearchCloseV3),      REQ_SYNC },
+   { HgfsServerGetattr,          HGFS_SIZEOF_OP(HgfsRequestGetattrV3),          REQ_SYNC },
+   { HgfsServerSetattr,          HGFS_SIZEOF_OP(HgfsRequestSetattrV3),          REQ_SYNC },
+   { HgfsServerCreateDir,        HGFS_SIZEOF_OP(HgfsRequestCreateDirV3),        REQ_SYNC },
+   { HgfsServerDeleteFile,       HGFS_SIZEOF_OP(HgfsRequestDeleteV3),           REQ_SYNC },
+   { HgfsServerDeleteDir,        HGFS_SIZEOF_OP(HgfsRequestDeleteV3),           REQ_SYNC },
+   { HgfsServerRename,           HGFS_SIZEOF_OP(HgfsRequestRenameV3),           REQ_SYNC },
+   { HgfsServerQueryVolume,      HGFS_SIZEOF_OP(HgfsRequestQueryVolumeV3),      REQ_SYNC },
+   { HgfsServerSymlinkCreate,    HGFS_SIZEOF_OP(HgfsRequestSymlinkCreateV3),    REQ_SYNC },
+   { HgfsServerServerLockChange, sizeof (HgfsRequestServerLockChange),          REQ_SYNC },
+   { HgfsServerWriteWin32Stream, HGFS_SIZEOF_OP(HgfsRequestWriteWin32StreamV3), REQ_SYNC },
    /*
     * XXX
     *    Will be replaced with the real thing when during merge with another outstanding
@@ -2657,10 +2668,10 @@ static struct {
     *    For now just set min size big enough so request gets rejected when
     *    such request comes from the client.
     */
-   { NULL, 0xffffff      },   // Implemented in another change
-   { NULL, 0xffffff      },   // Implemented in another change
-   { HgfsServerRead,             HGFS_SIZEOF_OP(HgfsRequestReadV3)             },
-   { HgfsServerWrite,            HGFS_SIZEOF_OP(HgfsRequestWriteV3)            },
+   { NULL, 0xffffff, REQ_ASYNC      },   // Implemented in another change
+   { NULL, 0xffffff, REQ_ASYNC      },   // Implemented in another change
+   { HgfsServerRead,             HGFS_SIZEOF_OP(HgfsRequestReadV3),             REQ_SYNC },
+   { HgfsServerWrite,            HGFS_SIZEOF_OP(HgfsRequestWriteV3),            REQ_SYNC },
 };
 
 
@@ -2696,8 +2707,7 @@ static struct {
 
 static void
 HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
-                         void *clientData,        // IN: session info
-                         HgfsReceiveFlags flags)  // IN: flags to indicate processing
+                         void *clientData)        // IN: session info
 {
    HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
    HgfsRequest *request;
@@ -2705,7 +2715,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    HgfsOp op;
    HgfsStatus status;
    Bool v4header = FALSE;
-   HgfsInputParam input;
+   HgfsInputParam *input;
    size_t metaPacketSize;
    char *metaPacket;
 
@@ -2714,7 +2724,6 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    if (session->state == HGFS_SESSION_STATE_CLOSED) {
       LOG(4, ("%s: %d: Received packet after disconnected.\n", __FUNCTION__,
               __LINE__));
-
       return;
    }
 
@@ -2746,11 +2755,11 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    /* Increment the session's reference count until we send the reply. */
    HgfsServerSessionGet(session);
 
-   id = request->id;
+   packet->id = id = request->id;
    op = request->op;
 
    /* If it is a V4 packet then handle it appropriately. */
-  if (HGFS_V4_LEGACY_OPCODE == op) {
+   if (HGFS_V4_LEGACY_OPCODE == op) {
       HgfsHeader *header = (HgfsHeader *)metaPacket;
       if (metaPacketSize < sizeof *header) {
          status = HGFS_STATUS_PROTOCOL_ERROR;
@@ -2771,13 +2780,55 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    HGFS_ASSERT_MINIMUM_OP(op);
    if (op < sizeof handlers / sizeof handlers[0]) {
       if (metaPacketSize >= handlers[op].minReqSize) {
-         HgfsInternalStatus internalStatus;
-         input.metaPacket = metaPacket;
-         input.metaPacketSize = metaPacketSize;
-         input.session = session;
-         input.packet = packet;
-         internalStatus = (*handlers[op].handler)(&input);
-         status = HgfsConvertFromInternalStatus(internalStatus);
+         input = Util_SafeMalloc(sizeof *input);
+         input->metaPacket = NULL;
+         input->metaPacketSize = 0;
+         input->session = session;
+         input->packet = packet;
+         input->v4header = v4header;
+         input->op = op;
+
+         /*
+          * Do the decision making here, whether we want to process request
+          * synchronously or asynchronously. Various factors to consider:
+          *
+          * - Use hints from the client, for instance, windows OS explicitly
+          * tells the file system whether request is async or not.
+          * - Determine statically - Simple to reason out, Simple to code
+          */
+         if (packet->supportsAsync &&
+             ((handlers[op].reqType == REQ_ASYNC) || HGFS_DEBUG_ASYNC)) {
+            /*
+             * Asynchronous processing is supported by the transport.
+             * We can release mappings here and reacquire when needed.
+             */
+            HSPU_PutMetaPacket(packet, session);
+            packet->processedAsync = TRUE;
+            LOG(4, ("%s: %d: @@Async\n", __FUNCTION__, __LINE__));
+#ifndef VMX86_TOOLS
+            /* Remove pending requests during poweroff */
+            Poll_Callback(POLL_CS_MAIN,
+                          POLL_FLAG_REMOVE_AT_POWEROFF,
+                          HgfsServer_ProcessRequest,
+                          input,
+                          POLL_REALTIME,
+                          1000,
+                          NULL);
+#else
+            /* Tools code should never process request async */
+            ASSERT(0);
+#endif
+            /* free(input) in HgfsServer_ProcessRequest */
+         } else {
+            LOG(4, ("%s: %d: ##Sync\n", __FUNCTION__, __LINE__));
+            packet->processedAsync = FALSE;
+            input->metaPacket = metaPacket;
+            input->metaPacketSize = metaPacketSize;
+
+            HgfsServer_ProcessRequest(input);
+            /* free(input) in HgfsServer_ProcessRequest */
+         }
+         return;
       } else {
          /*
           * The input packet is smaller than the minimal size needed for the
@@ -2799,44 +2850,112 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
 err:
    /* Send error if we fail to process the op. */
    if (status != HGFS_STATUS_SUCCESS) {
-      char *packetOut;
-      uint32 replySize;
-      size_t replyPacketSize;
-      if (v4header) {
-         HgfsHeader *header;
-         replyPacketSize = sizeof *header;
-         header = HSPU_GetReplyPacket(packet, &replyPacketSize, session);
-         if (!header || sizeof *header > replyPacketSize) {
-            /*
-             * Transport should probably check for minimum hgfs packet size.
-             * How should we send an error back if there is no meta packet ?
-             */
-            return;
-         }
-         HgfsPackReplyHeaderV4(status, 0, (HgfsHeader *)metaPacket, header);
-         packetOut = (char *)header;
-         replySize = sizeof *header;
-      } else {
-         HgfsReply *reply;
-         replyPacketSize = sizeof *reply;
-         reply = HSPU_GetReplyPacket(packet, &replyPacketSize, session);
-         if (!reply || sizeof *reply > replyPacketSize) {
-            /*
-             * Transport should probably check for minimum hgfs packet size.
-             * How should we send an error back if there is no meta packet ?
-             */
-            return;
-         }
-         reply->id = id;
-         reply->status = status;
-         packetOut = (char *)reply;
-         replySize = sizeof *reply;
+      HgfsServer_ReplyWithError(packet, metaPacket, status, v4header, session);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServer_ProcessRequest --
+ *
+ *    Reply with an error packet
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    Guest memory mappings may be established.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServer_ProcessRequest(void *data)
+{
+   HgfsStatus status;
+   HgfsInternalStatus internalStatus;
+   HgfsInputParam *input = (HgfsInputParam *)data;
+
+   if (!input->metaPacket) {
+      input->metaPacket = HSPU_GetMetaPacket(input->packet,
+                                             &input->metaPacketSize,
+                                             input->session);
+   }
+   ASSERT(input->metaPacket);
+
+   internalStatus = (*handlers[input->op].handler)(input);
+   status = HgfsConvertFromInternalStatus(internalStatus);
+   if (status != HGFS_STATUS_SUCCESS) {
+      HgfsServer_ReplyWithError(input->packet, input->metaPacket,
+                                status, input->v4header, input->session);
+   }
+   free(input);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServer_ReplyWithError --
+ *
+ *    Reply with an error packet
+ *
+ * Results:
+ *    TRUE if succeeded, FALSE if failed.
+ *
+ * Side effects:
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServer_ReplyWithError(HgfsPacket *packet,
+                          const char *metaPacket,
+                          HgfsStatus status,
+                          Bool v4header,
+                          HgfsSessionInfo *session)
+{
+   char *packetOut;
+   uint32 replySize;
+   size_t replyPacketSize;
+
+   if (v4header) {
+      HgfsHeader *header;
+      replyPacketSize = sizeof *header;
+      header = HSPU_GetReplyPacket(packet, &replyPacketSize, session);
+      if (!header || sizeof *header > replyPacketSize) {
+         /*
+          * Transport should probably check for minimum hgfs packet size.
+          * How should we send an error back if there is no meta packet ?
+          */
+         return;
       }
-      LOG(4, ("Error occured for id = %u\n", (uint32)id));
-      if (!HgfsPacketSend(packet, packetOut, replySize, session, 0)) {
-         /* Send failed. Drop the reply. */
-         HSPU_PutReplyPacket(packet, session);
+
+      HgfsPackReplyHeaderV4(status, 0, (HgfsHeader *)metaPacket, header);
+      packetOut = (char *)header;
+      replySize = sizeof *header;
+   } else {
+      HgfsReply *reply;
+      replyPacketSize = sizeof *reply;
+      reply = HSPU_GetReplyPacket(packet, &replyPacketSize, session);
+      if (!reply || sizeof *reply > replyPacketSize) {
+         /*
+          * Transport should probably check for minimum hgfs packet size.
+          * How should we send an error back if there is no meta packet ?
+          */
+         return;
       }
+      reply->id = packet->id;
+      reply->status = status;
+      packetOut = (char *)reply;
+      replySize = sizeof *reply;
+   }
+   LOG(0, ("Error occured for id = %u %d status\n", (uint32)packet->id, status));
+   if (!HgfsPacketSend(packet, packetOut, replySize, session, 0)) {
+      /* Send failed. Drop the reply. */
+      HSPU_PutReplyPacket(packet, session);
    }
 }
 
@@ -3268,8 +3387,7 @@ HgfsServer_SetHandleCounter(uint32 newHandleCounter)
 void
 HgfsServer_ProcessPacket(char const *packetIn,   // IN: incoming packet
                          char *packetOut,        // OUT: outgoing packet
-                         size_t *packetLen,      // IN/OUT: packet length
-                         HgfsReceiveFlags flags) // IN: flags
+                         size_t *packetLen)     // IN/OUT: packet length
 {
    HgfsPacket packet;
    ASSERT(packetIn);
@@ -3305,10 +3423,10 @@ HgfsServer_ProcessPacket(char const *packetIn,   // IN: incoming packet
    packet.metaPacketSize = *packetLen;
    packet.replyPacket = packetOut;
    packet.replyPacketSize = HGFS_LARGE_PACKET_MAX;
+   packet.supportsAsync = FALSE;
 
    HgfsServerSessionReceive(&packet,
-                            hgfsStaticSession.session,
-                            0);
+                            hgfsStaticSession.session);
 
    /*
     * At this point, all the HGFS ops send reply synchronously. So
@@ -3381,7 +3499,6 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
    Bool result = FALSE;
 
    ASSERT(packet);
-   ASSERT(packetOut);
    ASSERT(session);
 
    if (session->state == HGFS_SESSION_STATE_OPEN) {
@@ -4632,6 +4749,7 @@ HgfsValidatePacket(char const *packetIn,        // IN: request packet
 {
    HgfsRequest *request = (HgfsRequest *)packetIn;
    Bool result = TRUE;
+
    if (packetSize < sizeof *request) {
       return FALSE;
    }
@@ -4645,7 +4763,7 @@ HgfsValidatePacket(char const *packetIn,        // IN: request packet
                packetSize >= header->packetSize;
    } else {
        result = packetSize >= sizeof *request;
-  }
+   }
    return result;
 }
 
@@ -4682,6 +4800,7 @@ HgfsGetPayloadSize(char const *packetIn,        // IN: request packet
       ASSERT(header->packetSize >= header->headerSize);
       result = header->packetSize - header->headerSize;
    }
+
    return result;
 }
 
@@ -4973,7 +5092,7 @@ HgfsUnpackOpenRequest(char const *packetIn,        // IN: request packet
 
    ASSERT(packetIn);
    ASSERT(openInfo);
-   
+
    if (!HgfsParseRequest(packetIn, packetSize, &payload, &payloadSize, &op)) {
       return FALSE;
    }

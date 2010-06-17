@@ -102,7 +102,7 @@ HgfsServerRpcInDispatch(RpcInData *data)
    }
 
    packetSize = data->argsSize - 1;
-   HgfsServer_ProcessPacket(data->args + 1, packet, &packetSize, 0);
+   HgfsServer_ProcessPacket(data->args + 1, packet, &packetSize);
 
    data->result = packet;
    data->resultLen = packetSize;

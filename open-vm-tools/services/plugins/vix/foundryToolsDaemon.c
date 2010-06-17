@@ -1328,8 +1328,7 @@ ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
     */
    HgfsServer_ProcessPacket(data->args,        // packet in buf
                             hgfsReplyPacket,   // packet out buf
-                            &hgfsPacketSize,   // in/out size
-                            0);                // receive process flags
+                            &hgfsPacketSize);   // in/out size
 
 abort:
    if (impersonatingVMWareUser) {

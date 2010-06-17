@@ -3526,8 +3526,7 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
     */
    HgfsServer_ProcessPacket(hgfsPacket,        // packet in buf
                             hgfsReplyPacket,   // packet out buf
-                            &hgfsPacketSize,   // in/out size
-                            0);                // in flags
+                            &hgfsPacketSize);  // in/out size
 #endif
 
    if (NULL != resultValueResult) {

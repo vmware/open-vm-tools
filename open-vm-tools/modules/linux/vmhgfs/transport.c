@@ -44,6 +44,8 @@
 #include <linux/timer.h>
 /* Must be included after sched.h. */
 #include <linux/smp_lock.h>
+#include <linux/interrupt.h> /* for spin_lock_bh */
+
 
 #include "hgfsDevLinux.h"
 #include "hgfsProto.h"
@@ -215,9 +217,9 @@ HgfsTransportAddPendingRequest(HgfsReq *req)   // IN: Request to add
 {
    ASSERT(req);
 
-   spin_lock(&hgfsRepQueueLock);
+   spin_lock_bh(&hgfsRepQueueLock);
    list_add_tail(&req->list, &hgfsRepPending);
-   spin_unlock(&hgfsRepQueueLock);
+   spin_unlock_bh(&hgfsRepQueueLock);
 }
 
 
@@ -237,14 +239,14 @@ HgfsTransportAddPendingRequest(HgfsReq *req)   // IN: Request to add
  *----------------------------------------------------------------------
  */
 
-static void
+void
 HgfsTransportRemovePendingRequest(HgfsReq *req)   // IN: Request to dequeue
 {
    ASSERT(req);
 
-   spin_lock(&hgfsRepQueueLock);
+   spin_lock_bh(&hgfsRepQueueLock);
    list_del_init(&req->list);
-   spin_unlock(&hgfsRepQueueLock);
+   spin_unlock_bh(&hgfsRepQueueLock);
 }
 
 
@@ -270,7 +272,7 @@ HgfsTransportFlushPendingRequests(void)
 {
    struct HgfsReq *req;
 
-   spin_lock(&hgfsRepQueueLock);
+   spin_lock_bh(&hgfsRepQueueLock);
 
    list_for_each_entry(req, &hgfsRepPending, list) {
       if (req->state == HGFS_REQ_STATE_SUBMITTED) {
@@ -280,7 +282,7 @@ HgfsTransportFlushPendingRequests(void)
       }
    }
 
-   spin_unlock(&hgfsRepQueueLock);
+   spin_unlock_bh(&hgfsRepQueueLock);
 }
 
 /*
@@ -306,7 +308,7 @@ HgfsTransportGetPendingRequest(HgfsHandle id)   // IN: id of the request
 {
    HgfsReq *cur, *req = NULL;
 
-   spin_lock(&hgfsRepQueueLock);
+   spin_lock_bh(&hgfsRepQueueLock);
 
    list_for_each_entry(cur, &hgfsRepPending, list) {
       if (cur->id == id) {
@@ -316,7 +318,7 @@ HgfsTransportGetPendingRequest(HgfsHandle id)   // IN: id of the request
       }
    }
 
-   spin_unlock(&hgfsRepQueueLock);
+   spin_unlock_bh(&hgfsRepQueueLock);
 
    return req;
 }
@@ -478,11 +480,13 @@ out:
    compat_mutex_unlock(&hgfsChannelLock);
 
    if (likely(ret == 0)) {
-      /* Send succeeded, wait for the reply */
-      if (wait_event_interruptible(req->queue,
-                                   req->state == HGFS_REQ_STATE_COMPLETED)) {
-         ret = -EINTR; /* Interrupted by some signal. */
-      }
+      /*
+       * Send succeeded, wait for the reply.
+       * Right now, we cannot cancel request once they
+       * are dispatched to the host.
+       */
+      wait_event(req->queue,
+                 req->state == HGFS_REQ_STATE_COMPLETED);
    }
 
    HgfsTransportRemovePendingRequest(req);

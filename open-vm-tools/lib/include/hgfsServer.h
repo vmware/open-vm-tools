@@ -35,9 +35,6 @@ typedef struct HgfsServerStateLogger {
    void                       *loggerData;   // logger callback private data
 } HgfsServerStateLogger;
 
-#define HGFS_BUF_READABLE  0x0000cafe
-#define HGFS_BUF_WRITEABLE 0x0000babe
-
 typedef
 struct HgfsVmxIov {
    void *va;           /* Virtual addr */
@@ -50,10 +47,26 @@ typedef
 struct HgfsVaIov {
    void *va;
    uint32 len;
-} HgfsVaIov;
+}HgfsVaIov;
+
+typedef enum {
+   BUF_READABLE,  /* Establish readable mappings */
+   BUF_WRITEABLE, /* Establish writeable mappings */
+} MappingType;
 
 typedef
 struct HgfsPacket {
+   uint64 id;
+
+   /* Does the transport support Async operations ? */
+   Bool supportsAsync;
+
+   /* Does transport need to send Async reply ? */
+   Bool processedAsync;
+
+   /* Is the packet guest initiated ? */
+   Bool guestInitiated;
+
    /* For metapacket we always establish writeable mappings */
    void *metaPacket;
    size_t metaPacketSize;
@@ -64,7 +77,7 @@ struct HgfsPacket {
    uint32 dataPacketIovIndex;
    Bool dataPacketIsAllocated;
    /* What type of mapping was established - readable/ writeable ? */
-   uint32 dataMappingType;
+   MappingType dataMappingType;
 
    void *replyPacket;
    size_t replyPacketSize;
@@ -98,17 +111,6 @@ typedef uint32 HgfsSendFlags;
 #define HGFS_SEND_CAN_DELAY         (1 << 0)
 #define HGFS_SEND_NO_COMPLETE       (1 << 1)
 
-/*
- * Receive flags.
- *
- * Contains a bitwise OR of a combination of the following flags:
- * HGFS_RECEIVE_CAN_DELAY - directs the server to handle the message
- * asynchronously.
- */
-
-typedef uint32 HgfsReceiveFlags;
-
-#define HGFS_RECEIVE_CAN_DELAY      (1 << 0)
 
 typedef Bool
 HgfsSessionSendFunc(void *opaqueSession,  // IN
@@ -128,7 +130,7 @@ typedef struct HgfsServerSessionCallbacks {
    Bool (*connect)(void *, HgfsServerChannelCallbacks *, void **);
    void (*disconnect)(void *);
    void (*close)(void *);
-   void (*receive)(HgfsPacket *packet, void *, HgfsReceiveFlags);
+   void (*receive)(HgfsPacket *packet, void *);
    void (*invalidateObjects)(void *, DblLnkLst_Links *);
    void (*sendComplete)(HgfsPacket *, void *);
 } HgfsServerSessionCallbacks;
@@ -142,8 +144,7 @@ void HgfsServer_SetHandleCounter(uint32 newHandleCounter);
 #ifdef VMX86_TOOLS
 void HgfsServer_ProcessPacket(char const *packetIn,
                               char *packetOut,
-                              size_t *packetSize,
-                              HgfsReceiveFlags flags);
+                              size_t *packetSize);
 #endif
 
 /*

@@ -83,7 +83,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
          packet->replyPacket = HSPU_GetBuf(packet, 0, &packet->metaPacket,
                                            packet->metaPacketSize,
                                            &packet->metaPacketIsAllocated,
-                                           HGFS_BUF_WRITEABLE,
+                                           BUF_WRITEABLE,
                                            session);
          /*
           * Really this can never happen, we would have caught bad physical address
@@ -159,7 +159,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    return HSPU_GetBuf(packet, 0, &packet->metaPacket,
                       packet->metaPacketSize,
                       &packet->metaPacketIsAllocated,
-                      HGFS_BUF_WRITEABLE, session);
+                      BUF_WRITEABLE, session);
 }
 
 
@@ -208,7 +208,7 @@ HSPU_GetDataPacketIov(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
 
 void *
 HSPU_GetDataPacketBuf(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
-                      uint32 mappingType,       // IN: Writeable/Readable
+                      MappingType mappingType,  // IN: Writeable/Readable
                       HgfsSessionInfo *session) // IN: Session Info
 {
    packet->dataMappingType = mappingType;
@@ -240,7 +240,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
             void **buf,                   // OUT: Contigous buffer
             size_t  bufSize,              // IN: Size of buffer
             Bool *isAllocated,            // OUT: Was buffer allocated ?
-            uint32 mappingType,           // IN: Readable/Writeable ?
+            MappingType mappingType,      // IN: Readable/Writeable ?
             HgfsSessionInfo *session)     // IN: Session Info
 {
    uint32 iovCount;
@@ -256,19 +256,18 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       return NULL;
    }
 
-   ASSERT_DEVEL(session->channelCbTable);
    if (!session->channelCbTable) {
       return NULL;
    }
 
-   if (mappingType == HGFS_BUF_WRITEABLE) {
+   if (mappingType == BUF_WRITEABLE) {
       func = session->channelCbTable->getWriteVa;
    } else {
-      ASSERT(mappingType == HGFS_BUF_READABLE);
+      ASSERT(mappingType == BUF_READABLE);
       func = session->channelCbTable->getReadVa;
    }
 
-   ASSERT_DEVEL(func);
+   /* Looks like we are in the middle of poweroff. */
    if (func == NULL) {
       return NULL;
    }
@@ -281,7 +280,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
 
       /* Debugging check: Iov in VMCI should never cross page boundary */
       ASSERT_DEVEL(packet->iov[iovCount].len <=
-      (4096 - (packet->iov[iovCount].pa & 0xfff)));
+      (PAGE_SIZE - PAGE_OFFSET(packet->iov[iovCount].pa)));
 
       packet->iov[iovCount].va = func(packet->iov[iovCount].pa,
                                       packet->iov[iovCount].len,
@@ -362,7 +361,7 @@ HSPU_PutMetaPacket(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
    HSPU_PutBuf(packet, 0, &packet->metaPacket,
                &packet->metaPacketSize,
                &packet->metaPacketIsAllocated,
-               HGFS_BUF_WRITEABLE, session);
+               BUF_WRITEABLE, session);
 }
 
 
@@ -454,7 +453,7 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    }
 
    if (*isAllocated) {
-      if (mappingType == HGFS_BUF_WRITEABLE) {
+      if (mappingType == BUF_WRITEABLE) {
          HSPU_CopyBufToIovec(packet, startIndex, *buf, *bufSize, session);
       }
       LOG(10, ("%s: Hgfs Freeing buffer \n", __FUNCTION__));
@@ -472,7 +471,6 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       ASSERT(size <= 0);
    }
    *buf = NULL;
-   *bufSize = 0;
 }
 
 
@@ -575,7 +573,7 @@ HSPU_CopyBufToIovec(HgfsPacket *packet,       // IN/OUT: Hgfs Packet
 
       /* Debugging check: Iov in VMCI should never cross page boundary */
       ASSERT_DEVEL(packet->iov[iovCount].len <=
-                  (4096 - (packet->iov[iovCount].pa & 0xfff)));
+                  (PAGE_SIZE - PAGE_OFFSET(packet->iov[iovCount].pa)));
 
       packet->iov[iovCount].va = session->channelCbTable->getWriteVa(packet->iov[iovCount].pa,
                                                      packet->iov[iovCount].len,

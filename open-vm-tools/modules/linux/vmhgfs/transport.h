@@ -61,6 +61,7 @@ HgfsReq *HgfsTransportAllocateRequest(size_t payloadSize);
 void HgfsTransportFreeRequest(HgfsReq *req);
 int HgfsTransportSendRequest(HgfsReq *req);
 HgfsReq *HgfsTransportGetPendingRequest(HgfsHandle id);
+void HgfsTransportRemovePendingRequest(HgfsReq *req);
 void HgfsTransportFinishRequest(HgfsReq *req, Bool success, Bool do_put);
 void HgfsTransportFlushRequests(void);
 void HgfsTransportMarkDead(void);

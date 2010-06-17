@@ -134,7 +134,7 @@ HgfsServerManagerRpcInDispatch(char const **result,        // OUT
 
    ASSERT(args[0] == ' ');
    packetSize = argsSize - 1;
-   HgfsServer_ProcessPacket((char const *)(args + 1), packet, &packetSize, 0);
+   HgfsServer_ProcessPacket((char const *)(args + 1), packet, &packetSize);
 
    *result = packet;
    *resultLen = packetSize;

@@ -3598,7 +3598,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
 
       replySize = HGFS_REP_PAYLOAD_SIZE_V3(reply) - 1;
       /* Get a data packet buffer that is writeable */
-      payload = HSPU_GetDataPacketBuf(input->packet, HGFS_BUF_WRITEABLE, session);
+      payload = HSPU_GetDataPacketBuf(input->packet, BUF_WRITEABLE, session);
       if (!payload) {
          ASSERT_DEVEL(payload);
          status = EPROTO;
@@ -3826,7 +3826,7 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
       reply->reserved = 0;
       actualSize = &reply->actualSize;
       /* Get a data packet buffer that is readable */
-      payload = HSPU_GetDataPacketBuf(input->packet, HGFS_BUF_READABLE, session);
+      payload = HSPU_GetDataPacketBuf(input->packet, BUF_READABLE, session);
       if (!payload) {
          ASSERT_DEVEL(payload);
          status = EPROTO;

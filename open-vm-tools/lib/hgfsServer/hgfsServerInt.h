@@ -92,6 +92,7 @@
       }                                                         \
    } while(0)
 
+#define HGFS_DEBUG_ASYNC   (0)
 
 /*
  * Does this platform have oplock support? We define it here to avoid long
@@ -111,6 +112,11 @@ typedef struct HgfsLocalId {
    uint64 volumeId;
    uint64 fileId;
 } HgfsLocalId;
+
+typedef enum {
+   REQ_ASYNC,    /* Hint that request should be processed Async */
+   REQ_SYNC,     /*               "                       Sync  */
+} RequestHint;
 
 
 /* Three possible filenode states */
@@ -438,6 +444,8 @@ struct HgfsInputParam {
    size_t metaPacketSize;
    HgfsSessionInfo *session;
    HgfsPacket *packet;
+   Bool v4header;
+   HgfsOp op;
 }
 HgfsInputParam;
 
@@ -928,7 +936,7 @@ HSPU_GetBuf(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
             void **buf,                   // OUT: Contigous buffer
             size_t bufSize,               // IN: Size of buffer
             Bool *isAllocated,            // OUT: Was buffer allocated ?
-            uint32 mappingType,           // IN: Readable/ Writeable ?
+            MappingType mappingType,      // IN: Readable/ Writeable ?
             HgfsSessionInfo *session);    // IN: Session Info
 
 void *
@@ -938,7 +946,7 @@ HSPU_GetMetaPacket(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
 
 void *
 HSPU_GetDataPacketBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
-                      uint32 mappingType,        // IN: Readable/ Writeable ?
+                      MappingType mappingType,   // IN: Readable/ Writeable ?
                       HgfsSessionInfo *session); // IN: Session Info
 
 void
@@ -951,7 +959,7 @@ HSPU_PutBuf(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
             void **buf,                // IN/OUT: Buffer to be freed
             size_t *bufSize,           // IN: Size of the buffer
 	    Bool *isAllocated,         // IN: Was buffer allocated ?
-            uint32 mappingType,        // IN: Readable/ Writeable ?
+            MappingType mappingType,        // IN: Readable/ Writeable ?
 	    HgfsSessionInfo *session); // IN: Session info
 
 void
