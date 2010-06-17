@@ -64,7 +64,7 @@ rm -rf $dst
 mkdir -p $dst
 cp -f `dirname $0`/dkms.conf $dst
 
-for m in vmblock vmci vmhgfs vmmemctl vmsync vmxnet vsock
+for m in vmblock vmci vmhgfs vmsync vmxnet vsock
 do
    mdst="$dst/$m"
 
@@ -101,12 +101,6 @@ do
       cp -f $src/lib/hgfsBd/*.c $mdst
       cp -f $src/lib/message/*.c $mdst
       cp -f $src/lib/rpcOut/*.c $mdst
-   fi
-
-   # Shared vmmemctl code.
-   if test $m = vmmemctl
-   then
-      cp -f $src/modules/shared/vmmemctl/* $mdst
    fi
 
    # Extra header file for vmsync.
