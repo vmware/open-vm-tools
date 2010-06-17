@@ -114,13 +114,11 @@ const char *VThreadBase_CurName(void);
 VThreadID VThreadBase_CurID(void);
 void VThreadBase_SetName(const char *name);
 
-/* Note: only used to set VTHREAD_ID_MKS nowadays */
-VThreadID VThreadBase_InitThread(VThreadID tid, const char *name);
-
 /* For implementing a thread library */
 Bool VThreadBase_InitWithTLS(VThreadBaseData *tls);
-VThreadBaseData * VThreadBase_ForgetSelf(void);
-void VThreadBase_SetNoIDFunc(void (*func)(void));
+void VThreadBase_ForgetSelf(void);
+void VThreadBase_SetNoIDFunc(void (*func)(void),
+                             void (*destr)(void *));
 
 /* Match up historical VThread_ names with VThreadBase_ names */
 static INLINE const char *
