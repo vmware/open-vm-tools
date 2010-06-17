@@ -215,10 +215,8 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *      MXUserCondVar.
  *
  * Results:
- *      0   No error AND *signalled may be:
- *             TRUE   condVar was signalled
- *             FALSE  timed out waiting for condVar
- *      !0  Error
+ *      TRUE   condvar was signalled
+ *      FALSE  timed out waiting for signal
  *
  * Side effects:
  *      None
@@ -226,13 +224,14 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int
-MXUserWaitInternal(MXRecLock *lock,         // IN:
+static INLINE Bool
+MXUserWaitInternal(MXUserHeader *header,    // IN:
+                   MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
-                   uint32 msecWait,         // IN:
-                   Bool *signalled)         // OUT:
+                   uint32 msecWait)         // IN:
 {
-   int err;
+   DWORD err;
+   Bool signalled;
 
    DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
 
@@ -250,9 +249,9 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       MXRecLockDecCount(lock);
       success = (*pSleepConditionVariableCS)(&condVar->x.condObject,
                                              &lock->nativeLock, waitTime);
-      MXRecLockIncCount(lock, GetReturnAddress());
-
       err = success ? 0 : GetLastError();
+      MXRecLockIncCount(lock, GetReturnAddress());
+      signalled = (err == 0) ? TRUE : FALSE;
    } else {
       Bool done = FALSE;
 
@@ -278,19 +277,27 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
                   ResetEvent(condVar->x.compat.signalEvent);
                }
 
-               err = 0;
+               err = ERROR_SUCCESS;
+               signalled = TRUE;
                done = TRUE;
             }
          } else {
             condVar->x.compat.numWaiters--;
 
-            if ((status == WAIT_TIMEOUT) || (status == WAIT_ABANDONED)) {
-               err = WAIT_TIMEOUT;
+            if (status == WAIT_TIMEOUT) {
+               if (msecWait == MXUSER_WAIT_INFINITE) {
+                  err = ERROR_CALL_NOT_IMPLEMENTED;  // ACK! "IMPOSSIBLE"
+               } else {
+                  err = ERROR_SUCCESS;
+               }
+            } else if (status == WAIT_ABANDONED) {
+               err = ERROR_WAIT_NO_CHILDREN;
             } else {
                ASSERT(status == WAIT_FAILED);
                err = GetLastError();
             }
 
+            signalled = FALSE;
             done = TRUE;
          }
 
@@ -300,17 +307,12 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       MXRecLockAcquire(lock, GetReturnAddress());
    }
 
-   if (err == 0) {
-      *signalled = TRUE;
-   } else {
-      *signalled = FALSE;
-
-      if (err == WAIT_TIMEOUT) {
-         err = 0;
-      }
+   if (err != ERROR_SUCCESS) {
+      MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
+                         __FUNCTION__, err, condVar, condVar->name);
    }
 
-   return err;
+   return signalled;
 }
 
 
@@ -447,10 +449,8 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *      MXUserCondVar.
  *
  * Results:
- *      0   Success AND *signalled may be:
- *             TRUE   condVar was signalled
- *             FALSE  timed out waiting for condVar
- *      !0  Error
+ *      TRUE   condvar was signalled
+ *      FALSE  timed out waiting for signal
  *
  * Side effects:
  *      None
@@ -458,13 +458,14 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int
-MXUserWaitInternal(MXRecLock *lock,         // IN:
+static INLINE Bool
+MXUserWaitInternal(MXUserHeader *header,    // IN:
+                   MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
-                   uint32 msecWait,         // IN:
-                   Bool *signalled)         // OUT:
+                   uint32 msecWait)         // IN:
 {
    int err;
+   Bool signalled;
 
    /*
     * When using the native lock found within the MXUser lock, be sure to
@@ -478,6 +479,8 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
    if (msecWait == MXUSER_WAIT_INFINITE) {
       err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
+
+      signalled = (err == 0) ? TRUE : FALSE;
    } else {
       struct timespec waitTime;
 
@@ -486,21 +489,22 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
       err = pthread_cond_timedwait(&condVar->condObject, &lock->nativeLock,
                                    &waitTime);
-   }
 
-   MXRecLockIncCount(lock, GetReturnAddress());
-
-   if (err == 0) {
-      *signalled = TRUE;
-   } else {
-      *signalled = FALSE;
+      signalled = (err == 0) ? TRUE : FALSE;
 
       if (err == ETIMEDOUT) {
          err = 0;
       }
    }
 
-   return err;
+   MXRecLockIncCount(lock, GetReturnAddress());
+
+   if (err != 0) {
+      MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
+                         __FUNCTION__, err, condVar, condVar->name);
+   }
+
+   return signalled;
 }
 
 
@@ -616,8 +620,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
                   MXUserCondVar *condVar,  // IN:
                   uint32 msecWait)         // IN:
 {
-   int err;
-   Bool signalled = FALSE;
+   Bool signalled;
 
    ASSERT(header);
    ASSERT(lock);
@@ -637,14 +640,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    }
 
    Atomic_Inc(&condVar->referenceCount);
-
-   err = MXUserWaitInternal(lock, condVar, msecWait, &signalled);
-
-   if (err != 0) {
-      MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
-                         __FUNCTION__, err, condVar, condVar->name);
-   }
-
+   signalled = MXUserWaitInternal(header, lock, condVar, msecWait);
    Atomic_Dec(&condVar->referenceCount);
 
    return signalled;
