@@ -322,7 +322,7 @@ Hostinfo_OSVersion(int i)
  */
 
 void
-Hostinfo_GetTimeOfDay(VmTimeType *time)
+Hostinfo_GetTimeOfDay(VmTimeType *time)  // OUT:
 {
    struct timeval tv;
 
