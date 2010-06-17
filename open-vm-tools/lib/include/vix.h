@@ -267,9 +267,6 @@ enum {
    VIX_E_DISK_NOLICENSE                         = 16064,
    VIX_E_DISK_NODEVICE                          = 16065,
    VIX_E_DISK_UNSUPPORTEDDEVICE                 = 16066,
-   VIX_E_DISK_CAPACITY_MISMATCH                 = 16067,
-   VIX_E_DISK_PARENT_NOTALLOWED                 = 16068,
-   VIX_E_DISK_ATTACH_ROOTLINK                   = 16069,
 
    /* Crypto Library Errors */
    VIX_E_CRYPTO_UNKNOWN_ALGORITHM               = 17000,
