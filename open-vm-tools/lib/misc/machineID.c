@@ -43,6 +43,7 @@
 #include "str.h"
 #include "err.h"
 #include "vm_product.h"
+#include "vm_atomic.h"
 
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
@@ -576,16 +577,19 @@ void
 Hostinfo_MachineID(uint32 *hostNameHash,    // OUT:
                    uint64 *hostHardwareID)  // OUT:
 {
-   static Bool fetchValues = TRUE;
-   static uint64 cachedHardwareID;
-   static uint32 cachedHostNameHash;
+   static Atomic_Ptr cachedHardwareID;
+   static Atomic_Ptr cachedHostNameHash;
+   uint64 *tmpHardwareID;
+   uint32 *tmpNameHash;
 
    ASSERT(hostNameHash);
    ASSERT(hostHardwareID);
 
-   if (fetchValues) {
-      int  erc;
+   tmpNameHash = Atomic_ReadPtr(&cachedHostNameHash);
+   if (!tmpNameHash) {
       char *hostName;
+
+      tmpNameHash = Util_SafeMalloc(sizeof *tmpNameHash);
 
       // 4 bytes (32 bits) of host name information
       hostName = (char *) Hostinfo_HostName();
@@ -594,24 +598,40 @@ Hostinfo_MachineID(uint32 *hostNameHash,    // OUT:
          Warning("%s Hostinfo_HostName failure; providing default.\n",
                 __FUNCTION__);
 
-         cachedHostNameHash = 0;
+         *tmpNameHash = 0;
       } else {
-         cachedHostNameHash = HostNameHash((unsigned char *) hostName);
+         *tmpNameHash = HostNameHash((unsigned char *) hostName);
          free(hostName);
       }
 
+      if (Atomic_ReadIfEqualWritePtr(&cachedHostNameHash, NULL, 
+                                     tmpNameHash)) {
+         free(tmpNameHash);
+         tmpNameHash = Atomic_ReadPtr(&cachedHostNameHash);
+      }
+   }
+   *hostNameHash = *tmpNameHash;
+
+   tmpHardwareID = Atomic_ReadPtr(&cachedHardwareID);
+   if (!tmpHardwareID) {
+      int  erc;
+
+      tmpHardwareID = Util_SafeMalloc(sizeof *tmpHardwareID);
+
       // 8 bytes (64 bits) of hardware information
-      erc = ObtainHardwareID(&cachedHardwareID);
+      erc = ObtainHardwareID(tmpHardwareID);
       if (erc != 0) {
          Warning("%s ObtainHardwareID failure (%s); providing default.\n",
                  __FUNCTION__, Err_Errno2String(erc));
 
-         cachedHardwareID = 0;
+         *tmpHardwareID = 0;
       }
 
-      fetchValues = FALSE;
+      if (Atomic_ReadIfEqualWritePtr(&cachedHardwareID, NULL, 
+                                     tmpHardwareID)) {
+         free(tmpHardwareID);
+         tmpHardwareID = Atomic_ReadPtr(&cachedHardwareID);
+      }
    }
-
-   *hostNameHash = cachedHostNameHash;
-   *hostHardwareID = cachedHardwareID;
+   *hostHardwareID = *tmpHardwareID;
 }
