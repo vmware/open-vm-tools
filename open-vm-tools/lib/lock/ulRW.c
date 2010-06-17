@@ -837,3 +837,52 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    myContext->state = RW_UNLOCKED;
    Atomic_Dec(&lock->holderCount);
 }
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_CreateSingletonRWLock --
+ *
+ *      Ensures that the specified backing object (Atomic_Ptr) contains a
+ *      RW lock. This is useful for modules that need to protect something
+ *      with a lock but don't have an existing Init() entry point where a
+ *      lock can be created.
+ *
+ * Results:
+ *      A pointer to the requested lock.
+ *
+ * Side effects:
+ *      Generally the lock's resources are intentionally leaked (by design).
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserRWLock *
+MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,  // IN/OUT:
+                             const char *name,         // IN:
+                             MX_Rank rank)             // IN:
+{
+   MXUserRWLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserRWLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      MXUserRWLock *before;
+
+      lock = MXUser_CreateRWLock(name, rank);
+
+      before = (MXUserRWLock *) Atomic_ReadIfEqualWritePtr(lockStorage, NULL,
+                                                           (void *) lock);
+
+      if (before) {
+         MXUser_DestroyRWLock(lock);
+
+         lock = before;
+      }
+   }
+
+   return lock;
+}
+

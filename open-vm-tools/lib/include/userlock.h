@@ -113,6 +113,12 @@ void MXUser_DestroyRWLock(MXUserRWLock *lock);
 Bool MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,
                                      uint32 queryType);
 
+MXUserRWLock *
+MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
+                             const char *name,
+                             MX_Rank rank);
+
+
 /*
  * Generic conditional variable functions.
  */
