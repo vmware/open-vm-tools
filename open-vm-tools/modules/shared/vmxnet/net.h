@@ -51,7 +51,7 @@
 #include "includeCheck.h"
 #include "vm_device_version.h"
 
-#ifdef USERLEVEL
+#ifdef VMCORE
 #include "config.h"
 #include "str.h"
 #include "strutil.h"
@@ -92,6 +92,7 @@
 
 #define MORPH_PORT_SIZE 4
 
+#ifdef VMCORE
 typedef struct Net_AdapterCount {
    uint8 vlance;
    uint8 vmxnet2;
@@ -99,6 +100,7 @@ typedef struct Net_AdapterCount {
    uint8 e1000;
    uint8 e1000e;
 } Net_AdapterCount;
+#endif
 
 #ifdef USERLEVEL
 
@@ -158,8 +160,9 @@ Net_AddAddrToLadrf(const uint8 *addr,  // IN: pointer to MAC address
 
    ladrf[hashcode >> 3] |= 1 << (hashcode & 0x07);
 }
+#endif // USERLEVEL
 
-
+#ifdef VMCORE
 /*
  *----------------------------------------------------------------------
  *
@@ -212,6 +215,6 @@ Net_GetNumAdapters(Net_AdapterCount *counts)
    }
 }
 
-#endif // USERLEVEL
+#endif // VMCORE
 
 #endif // VMWARE_DEVICES_NET_H
