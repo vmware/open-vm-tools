@@ -23,8 +23,6 @@ extern void (*MXUserVThreadWatchDog)(void);
 
 extern void MXUserListLocks(void);
 
-extern void MXUserPerThreadData(VThreadID, uint64 *, uint64 *);
-
 extern void MXUserInstallMxHooks(void (*theLockListFunc)(void),
                                  MX_Rank (*theRankFunc)(void),
                                  void (*theLockFunc)(struct MX_MutexRec *lock),
