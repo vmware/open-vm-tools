@@ -50,10 +50,6 @@ Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id, int vpxdInstanceId);
 char *UUID_PackText(const char *text, char *pack, int packLen);
 char *UUID_ProperHostUUID(void);
 char *UUID_GetHostUUID(void);
-#if defined(_WIN32)
 /* like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
-#else
-#define UUID_GetRealHostUUID() UUID_GetHostUUID()
-#endif /* _WIN32 */
 #endif
