@@ -714,7 +714,7 @@ MXUser_AcquireForWrite(MXUserRWLock *lock)  // IN/OUT:
 {
    MXUserAcquisition(lock, FALSE);
 }
-        
+
 
 /*      
  *-----------------------------------------------------------------------------
@@ -842,6 +842,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
 
    myContext->state = RW_UNLOCKED;
 }
+
 
 /*
  *-----------------------------------------------------------------------------
