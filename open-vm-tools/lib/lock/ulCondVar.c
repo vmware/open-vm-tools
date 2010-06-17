@@ -38,14 +38,14 @@ struct MXUserCondVar {
    Atomic_uint32      referenceCount;
 
 #if defined(_WIN32)
-   CRITICAL_SECTION   condVarLock;
    union {
       struct {
-         HANDLE           signalEvent;
-         uint32           numWaiters;
-         uint32           numForRelease;
+         CRITICAL_SECTION   condVarLock;
+         HANDLE             signalEvent;
+         uint32             numWaiters;
+         uint32             numForRelease;
       } compat;
-      CONDITION_VARIABLE  condObject;
+      CONDITION_VARIABLE    condObject;
    } x;
 #else
    pthread_cond_t     condObject;
@@ -155,14 +155,14 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
    MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof(*condVar));
 
 #if defined(_WIN32)
-   if (InitializeCriticalSectionAndSpinCount(&condVar->condVarLock,
-                                             0x80000400) == 0) {
-      success = FALSE;
+   if (MXUserNativeCVSupported()) {
+      ASSERT(pInitializeConditionVariable);
+      (*pInitializeConditionVariable)(&condVar->x.condObject);
+      success = TRUE;
    } else {
-      if (MXUserNativeCVSupported()) {
-         ASSERT(pInitializeConditionVariable);
-         (*pInitializeConditionVariable)(&condVar->x.condObject);
-         success = TRUE;
+      if (InitializeCriticalSectionAndSpinCount(&condVar->x.compat.condVarLock,
+                                             0x80000400) == 0) {
+         success = FALSE;
       } else {
          condVar->x.compat.numWaiters = 0;
          condVar->x.compat.numForRelease = 0;
@@ -175,7 +175,7 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
          success = (condVar->x.compat.signalEvent != NULL);
 
          if (!success) {
-            DeleteCriticalSection(&condVar->condVarLock);
+            DeleteCriticalSection(&condVar->x.compat.condVarLock);
          }
       }
    }
@@ -256,16 +256,16 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    } else {
       Bool done = FALSE;
 
-      EnterCriticalSection(&condVar->condVarLock);
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
       condVar->x.compat.numWaiters++;
-      LeaveCriticalSection(&condVar->condVarLock);
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
 
       MXRecLockRelease(lock);
 
       do {
          WaitForSingleObject(condVar->x.compat.signalEvent, INFINITE);
 
-         EnterCriticalSection(&condVar->condVarLock);
+         EnterCriticalSection(&condVar->x.compat.condVarLock);
 
          ASSERT(condVar->x.compat.numWaiters > 0);
 
@@ -279,7 +279,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
             done = TRUE;
          }
 
-         LeaveCriticalSection(&condVar->condVarLock);
+         LeaveCriticalSection(&condVar->x.compat.condVarLock);
       } while (!done);
 
       MXRecLockAcquire(lock, GetReturnAddress());
@@ -331,14 +331,14 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
    if (pWakeConditionVariable) {
       (*pWakeConditionVariable)(&condVar->x.condObject);
    } else {
-      EnterCriticalSection(&condVar->condVarLock);
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
 
       if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
          SetEvent(condVar->x.compat.signalEvent);
          condVar->x.compat.numForRelease++;
       }
 
-      LeaveCriticalSection(&condVar->condVarLock);
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
    }
 #else
    err = pthread_cond_signal(&condVar->condObject);
@@ -381,14 +381,14 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
    if (pWakeAllConditionVariable) {
       (*pWakeAllConditionVariable)(&condVar->x.condObject);
    } else {
-      EnterCriticalSection(&condVar->condVarLock);
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
 
       if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
          SetEvent(condVar->x.compat.signalEvent);
          condVar->x.compat.numForRelease = condVar->x.compat.numWaiters;
       }
 
-      LeaveCriticalSection(&condVar->condVarLock);
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
    }
 #else
    err = pthread_cond_broadcast(&condVar->condObject);
@@ -429,8 +429,8 @@ MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
       }
 
 #if defined(_WIN32)
-      DeleteCriticalSection(&condVar->condVarLock);
       if (pInitializeConditionVariable == NULL) {
+         DeleteCriticalSection(&condVar->x.compat.condVarLock);
          CloseHandle(condVar->x.compat.signalEvent);
       }
 #else
