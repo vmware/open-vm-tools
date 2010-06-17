@@ -554,12 +554,6 @@ Hostinfo_TouchXen(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Hostinfo_RawSystemTimerUS --
- *
- *      Return the raw time.
- *         - Do this as fast as is practical; no locks are used
- *         - These timers may go backwards or make no forward progress
- *
  * Hostinfo_SystemTimerUS --
  *
  *      Return the time.
@@ -585,13 +579,6 @@ Hostinfo_TouchXen(void)
  *
  *-----------------------------------------------------------------------------
  */
-
-VmTimeType 
-Hostinfo_RawSystemTimerUS(void)
-{
-   return Hostinfo_RawSystemTimerNS() / 1000;
-}
-
 
 VmTimeType 
 Hostinfo_SystemTimerUS(void)

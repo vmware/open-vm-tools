@@ -57,8 +57,6 @@ extern Bool Hostinfo_GetRatedCpuMhz(int32 cpuNumber,
 extern char *Hostinfo_GetCpuDescription(uint32 cpuNumber);
 extern void Hostinfo_GetTimeOfDay(VmTimeType *time);
 extern VmTimeType Hostinfo_SystemUpTime(void);
-extern VmTimeType Hostinfo_RawSystemTimerNS(void);
-extern VmTimeType Hostinfo_RawSystemTimerUS(void);
 extern VmTimeType Hostinfo_SystemTimerNS(void);
 extern VmTimeType Hostinfo_SystemTimerUS(void);
 extern int Hostinfo_OSVersion(unsigned int i);

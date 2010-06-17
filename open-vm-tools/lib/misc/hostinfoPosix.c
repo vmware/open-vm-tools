@@ -1705,12 +1705,6 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * Hostinfo_RawSystemTimerNS --
- *
- *      Return the raw time.
- *         - Do this as fast as is practical; no locks are used
- *         - These timers may go backwards or make no forward progress
- *
  * Hostinfo_SystemTimerNS --
  *
  *      Return the time.
@@ -1736,22 +1730,6 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
  *
  *-----------------------------------------------------------------------------
  */
-
-VmTimeType
-Hostinfo_RawSystemTimerNS(void)
-{
-   VmTimeType result;
-
-   if ((vmx86_server && HostinfoSystemTimerVmkernel(&result)) ||
-       (vmx86_apple && HostinfoSystemTimerMach(&result)) ||
-       (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
-      /* Host provides monotonic clock source. */
-   } else {
-      Hostinfo_GetTimeOfDay(&result);
-      result *= 1000;  /* GetTimeOfDay is microseconds. */
-   }
-   return result;
-}
 
 VmTimeType
 Hostinfo_SystemTimerNS(void)
@@ -2880,7 +2858,7 @@ VmTimeType
 Hostinfo_SystemUpTime(void)
 {
 #if defined(__APPLE__) || defined(VMX86_SERVER)
-   return Hostinfo_RawSystemTimerUS();
+   return Hostinfo_SystemTimerUS();
 #elif defined(__linux__)
    int res;
    double uptime;
