@@ -88,7 +88,6 @@ EXTERN char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
 EXTERN char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 #elif defined VMX86_SERVER
 EXTERN int File_GetVMFSBlockSize(ConstUnicode pathName, uint32 *blockSize);
-EXTERN int File_GetVMFSfsType(ConstUnicode pathName, char **fsType);
 EXTERN int File_GetVMFSMountInfo(ConstUnicode pathName,
                                  char **fsType,
                                  uint32 *version,
@@ -96,6 +95,8 @@ EXTERN int File_GetVMFSMountInfo(ConstUnicode pathName,
                                  char **remoteMountPoint,
                                  char **localMountPoint);
 #endif
+
+EXTERN Bool File_SupportsZeroedThick(ConstUnicode pathName);
 
 EXTERN Bool File_Exists(ConstUnicode pathName);
 

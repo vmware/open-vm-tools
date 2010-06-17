@@ -114,6 +114,11 @@ struct WalkDirContextImpl
 
 #endif
 
+/* A string for NFS on ESX file system type */
+#define FS_NFS_ON_ESX "NFS"
+/* A string for VMFS on ESX file system type */
+#define FS_VMFS_ON_ESX "VMFS"
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1118,46 +1123,6 @@ bail:
 /*
  *----------------------------------------------------------------------
  *
- * File_GetVMFSVersion --
- *
- *      Acquire the version number for a given file on a VMFS file system.
- *
- * Results:
- *      Integer return value and version number
- *
- * Side effects:
- *      Will fail if file is not on VMFS or not enough memory for partition
- *      query results
- *
- *----------------------------------------------------------------------
- */
-
-static int
-File_GetVMFSVersion(ConstUnicode pathName,  // IN: Filename to test
-                    uint32 *version)        // IN/OUT: version number of VMFS
-{
-   int ret;
-   FS_PartitionListResult *fsAttrs = NULL;
-
-   ret = File_GetVMFSAttributes(pathName, &fsAttrs);
-
-   if (ret < 0) {
-      Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
-   } else {
-      *version = fsAttrs->versionNumber;
-   }
-
-   if (fsAttrs) {
-      free(fsAttrs);
-   }
-
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * File_GetVMFSBlockSize --
  *
  *      Acquire the blocksize for a given file on a VMFS file system.
@@ -1185,47 +1150,6 @@ File_GetVMFSBlockSize(ConstUnicode pathName,  // IN: File name to test
       Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
    } else {
       *blockSize = fsAttrs->fileBlockSize;
-   }
-
-   if (fsAttrs) {
-      free(fsAttrs);
-   }
-
-   return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * File_GetVMFSfsType --
- *
- *      Acquire the fsType for a given file on a VMFS.
- *
- * Results:
- *      Integer return value and fs type
- *
- * Side effects:
- *      Will fail if file is not on VMFS or not enough memory for partition
- *      query results
- *
- *----------------------------------------------------------------------
- */
-
-int
-File_GetVMFSfsType(ConstUnicode pathName,  // IN: File name to test
-                   char **fsType)          // IN/OUT: VMFS fsType
-{
-   int ret;
-   FS_PartitionListResult *fsAttrs = NULL;
-
-   ret = File_GetVMFSAttributes(pathName, &fsAttrs);
-
-   if (ret < 0) {
-      Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
-   } else {
-      *fsType = Util_SafeMalloc(sizeof(char) * FS_PLIST_DEF_MAX_FSTYPE_LEN);
-      memcpy(*fsType, fsAttrs->fsType, FS_PLIST_DEF_MAX_FSTYPE_LEN);
    }
 
    if (fsAttrs) {
@@ -1279,7 +1203,7 @@ File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
       *version = fsAttrs->versionNumber;
       *fsType = Util_SafeStrdup(fsAttrs->fsType);
  
-      if (strncmp(fsAttrs->fsType, "NFS", sizeof("NFS")) == 0) {
+      if (strncmp(fsAttrs->fsType, FS_NFS_ON_ESX, sizeof(FS_NFS_ON_ESX)) == 0) {
          len = strlen(fsAttrs->logicalDevice);
          *remoteIP = Util_SafeMalloc(len);
          *remoteMountPoint = Util_SafeMalloc(len);
@@ -1295,6 +1219,50 @@ File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
    return ret;
 }
 #endif 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SupportsZeroedThick --
+ *
+ *      Check if the given file is on an FS supports creation of
+ *      the zeroed-thick files.
+ *      Currently only VMFS on ESX does support zeroed-thick files, but
+ *      this may change in the future.
+ *
+ * Results:
+ *      TRUE if FS supports creation of the zeroed-thick files.
+ *
+ * Side effects:
+ *       None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_SupportsZeroedThick(ConstUnicode pathName) // IN: File name to test
+{
+   Bool result = FALSE;
+
+#if defined(VMX86_SERVER)
+   /* Right now only VMFS supports ZeroedThick */
+   FS_PartitionListResult *fsAttrs = NULL;
+
+   if (File_GetVMFSAttributes(pathName, &fsAttrs) >= 0) {
+      result = strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
+                       sizeof(FS_VMFS_ON_ESX)) == 0;
+   } else {
+      Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
+   }
+
+   if (fsAttrs) {
+      free(fsAttrs);
+   }
+#endif
+ 
+   return result;
+}
 
 
 /*
@@ -2000,46 +1968,34 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
                           uint64 fileSize)        // IN:
 {
 #if defined(VMX86_SERVER)
-   uint32 version = -1;
-   uint32 blockSize = -1;
    uint64 maxFileSize = -1;
    Bool supported;
-   char *fsType = NULL;
+   FS_PartitionListResult *fsAttrs = NULL;
 
-   if (File_GetVMFSVersion(pathName, &version) < 0) {
-      Log(LGPFX" %s: File_GetVMFSVersion Failed\n", __func__);
-
-      return FALSE;
-   }
-   if (File_GetVMFSBlockSize(pathName, &blockSize) < 0) {
-      Log(LGPFX" %s: File_GetVMFSBlockSize Failed\n", __func__);
-
-      return FALSE;
-   }
-   if (File_GetVMFSfsType(pathName, &fsType) < 0) {
-      Log(LGPFX" %s: File_GetVMFSfsType Failed\n", __func__);
+   if (File_GetVMFSAttributes(pathName, &fsAttrs) < 0) {
+      Log(LGPFX" %s: File_GetVMFSAttributes Failed\n", __func__);
 
       return FALSE;
    }
 
-   if (strcmp(fsType, "VMFS") == 0) {
-      if (version == 3) {
-         maxFileSize = (VMFS3CONST * (uint64) blockSize * 1024);
+   if (strcmp(fsAttrs->fsType, FS_VMFS_ON_ESX) == 0) {
+      if (fsAttrs->versionNumber == 3) {
+         maxFileSize = (VMFS3CONST * (uint64) fsAttrs->fileBlockSize * 1024);
       } else {
          /* Get ready for 64 TB on VMFS5 and perform sanity check on version */
-         ASSERT(version == 5);
+         ASSERT(fsAttrs->versionNumber == 5);
          maxFileSize = (uint64) 0x400000000000ULL;
       }
 
       if (fileSize <= maxFileSize && maxFileSize != -1) {
-         free(fsType);
+         free(fsAttrs);
 
          return TRUE;
       } else {
          Log(LGPFX" %s: Requested file size (%"FMT64"d) larger than maximum "
              "supported filesystem file size (%"FMT64"d)\n", __FUNCTION__,
              fileSize, maxFileSize);
-         free(fsType);
+         free(fsAttrs);
 
          return FALSE;
       }
@@ -2051,7 +2007,7 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
 
       if (fullPath == NULL) {
          Log(LGPFX" %s: Error acquiring full path\n", __func__);
-         free(fsType);
+         free(fsAttrs);
 
          return FALSE;
       }
@@ -2060,7 +2016,7 @@ File_VMFSSupportsFileSize(ConstUnicode pathName,  // IN:
 
       supported = FilePosixCreateTestFileSize(parentPath, fileSize);
 
-      free(fsType);
+      free(fsAttrs);
       Unicode_Free(fullPath);
       Unicode_Free(parentPath);
 
