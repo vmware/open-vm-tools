@@ -142,21 +142,21 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 {
    MXUserRecLock *lock = (MXUserRecLock *) header;
 
-   Warning("%s: Recursive lock @ %p\n", __FUNCTION__, lock);
+   Warning("%s: Recursive lock @ 0x%p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature %X\n", lock->header.signature);
+   Warning("\tsignature 0x%X\n", lock->header.signature);
    Warning("\tname %s\n", lock->header.name);
-   Warning("\trank 0x%x\n", lock->header.rank);
+   Warning("\trank 0x%X\n", lock->header.rank);
 
    if (lock->vmmLock == NULL) {
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
 #if defined(MXUSER_DEBUG)
-      Warning("\tcaller %p\n", lock->recursiveLock.ownerRetAddr);
+      Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
       Warning("\tVThreadID %d\n", (int) lock->recursiveLock.portableThreadID);
 #endif
    } else {
-      Warning("\tvmmLock %p\n", lock->vmmLock);
+      Warning("\tvmmLock 0x%p\n", lock->vmmLock);
    }
 }
 

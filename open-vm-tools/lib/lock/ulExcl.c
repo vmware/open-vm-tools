@@ -130,16 +130,16 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
 {
    MXUserExclLock *lock = (MXUserExclLock *) header;
 
-   Warning("%s: Exclusive lock @ %p\n", __FUNCTION__, lock);
+   Warning("%s: Exclusive lock @ 0x%p\n", __FUNCTION__, lock);
 
-   Warning("\tsignature %X\n", lock->header.signature);
+   Warning("\tsignature 0x%X\n", lock->header.signature);
    Warning("\tname %s\n", lock->header.name);
-   Warning("\trank 0x%x\n", lock->header.rank);
+   Warning("\trank 0x%X\n", lock->header.rank);
 
    Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
 #if defined(MXUSER_DEBUG)
-   Warning("\tcaller %p\n", lock->recursiveLock.ownerRetAddr);
+   Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
    Warning("\tVThreadID %d\n", (int) lock->recursiveLock.portableThreadID);
 #endif
 }
