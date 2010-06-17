@@ -653,13 +653,35 @@ typedef int pid_t;
  */
 
 #define RANK_UNRANKED            0
-#define RANK_LEAF                0xFFFFFFFE
+#define RANK_LEAF                0xFF000000
 #define RANK_INVALID             0xFFFFFFFF
 
 /*
- * VMX/VMM/device lock rank space is from 1 to 200. See
- * vmx/public/mutexRank.h.
+ * VMX/VMM/device lock rank space is at the bottom, from 1 to
+ * RANK_VMX_LEAF. See vmx/public/mutexRank.h for definitions.
  */
+
+/*
+ * bora/lib lock rank space is from RANK_libLockBase on up to
+ * RANK_LEAF.
+ */
+#define RANK_libLockBase         0xF0000000
+
+/*
+ * bora/lib/allocTrack is a special case. It hooks malloc/free and the
+ * like, and thus can basically sneak in underneath anyone. So we put
+ * it above RANK_LEAF. In the future, if there come to be other bora
+ * libraries that hook other system APIs and take locks, their locks
+ * could also be above RANK_LEAF.
+ */
+#define RANK_allocTrack          RANK_LEAF+1
+
+/*
+ * For situations where we need to create locks on behalf of
+ * third-party code, but we don't know what ranking scheme, if any,
+ * that code uses.  For now, the only usage is in bora/lib/ssl.
+ */
+#define RANK_THIRDPARTY          RANK_UNRANKED
 
 /*
  * Use to initialize cbSize for this structure to preserve < Vista
