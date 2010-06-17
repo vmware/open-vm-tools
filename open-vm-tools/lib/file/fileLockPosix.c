@@ -988,7 +988,7 @@ FileLockGetExecutionID(void)
  *      points to.
  *
  * Results:
- *      The normalized path
+ *      The normalized path or NULL on error
  *
  * Side effects:
  *      None
@@ -1000,41 +1000,28 @@ static Unicode
 FileLockNormalizePath(ConstUnicode filePath)  // IN:
 {
    Unicode result;
-   struct stat statbuf;
+   Unicode fullPath;
 
-   if ((Posix_Lstat(filePath, &statbuf) == 0) &&
-        (S_ISLNK(statbuf.st_mode))) {
-      Unicode fullPath;
-      Unicode baseDir = NULL;
-      Unicode fileName = NULL;
+   Unicode dirName = NULL;
+   Unicode fileName = NULL;
 
-      /*
-       * The file to be locked is a symbolic path. Place the lock file
-       * next to the file, not where the symbolic path points to.
-       */
+   /*
+    * If the file to be locked is a symbolic link the lock file belongs next
+    * to the symbolic link, not "off" where the symbolic link points to.
+    * Translation: Don't "full path" the entire path of the file to be locked;
+    * "full path" the dirName of the path, leaving the fileName alone.
+    */
 
-       File_GetPathName(filePath, &baseDir, &fileName);
+   File_GetPathName(filePath, &dirName, &fileName);
 
-       fullPath = File_FullPath(baseDir);
+   fullPath = File_FullPath(dirName);
 
-       if (fullPath == NULL) {
-          result = NULL;
-       } else {
-          result = Unicode_Join(fullPath, DIRSEPS, fileName, NULL);
+   result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
+                                                     fileName, NULL);
 
-          Unicode_Free(fullPath);
-       }
-
-       Unicode_Free(baseDir);
-       Unicode_Free(fileName);
-   } else {
-      /*
-       * The stat failed or the file is not a symbolic link - do a fullpath
-       * on the argument path to normalize it.
-       */
-
-      result = File_FullPath(filePath);
-   }
+   Unicode_Free(fullPath);
+   Unicode_Free(dirName);
+   Unicode_Free(fileName);
 
    return result;
 }
