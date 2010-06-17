@@ -233,6 +233,7 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
    DWORD err;
    Bool signalled;
 
+   uint32 lockCount = MXRecLockCount(lock);
    DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
 
    if (pSleepConditionVariableCS) {
@@ -246,11 +247,11 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
        * The MXUser internal accounting information must be maintained.
        */
 
-      MXRecLockDecCount(lock);
+      MXRecLockDecCount(lock, lockCount);
       success = (*pSleepConditionVariableCS)(&condVar->x.condObject,
                                              &lock->nativeLock, waitTime);
       err = success ? ERROR_SUCCESS : GetLastError();
-      MXRecLockIncCount(lock, GetReturnAddress());
+      MXRecLockIncCount(lock, GetReturnAddress(), lockCount);
       signalled = (err == ERROR_SUCCESS) ? TRUE : FALSE;
    } else {
       Bool done = FALSE;
@@ -259,6 +260,7 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
       condVar->x.compat.numWaiters++;
       LeaveCriticalSection(&condVar->x.compat.condVarLock);
 
+      MXRecLockDecCount(lock, lockCount - 1);
       MXRecLockRelease(lock);
 
       do {
@@ -305,6 +307,7 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
       } while (!done);
 
       MXRecLockAcquire(lock, GetReturnAddress());
+      MXRecLockIncCount(lock, GetReturnAddress(), lockCount - 1);
    }
 
    if (err != ERROR_SUCCESS) {
@@ -466,6 +469,7 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
 {
    int err;
    Bool signalled;
+   uint32 lockCount = MXRecLockCount(lock);
 
    /*
     * When using the native lock found within the MXUser lock, be sure to
@@ -475,7 +479,7 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
     * MXUser internal accounting information must be maintained.
     */
 
-   MXRecLockDecCount(lock);
+   MXRecLockDecCount(lock, lockCount);
 
    if (msecWait == MXUSER_WAIT_INFINITE) {
       err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
@@ -497,7 +501,7 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
       }
    }
 
-   MXRecLockIncCount(lock, GetReturnAddress());
+   MXRecLockIncCount(lock, GetReturnAddress(), lockCount);
 
    if (err != 0) {
       MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
@@ -633,9 +637,9 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
                          __FUNCTION__, header->lockName, condVar->name);
    }
 
-   if (MXRecLockCount(lock) == 0) {
+   if (!MXRecLockIsOwner(lock)) {
       MXUserDumpAndPanic(header,
-                         "%s: unlocked lock %s with condVar (%p; %s)\n",
+                         "%s: do not own lock %s for condVar (%p; %s)\n",
                          __FUNCTION__, header->lockName, condVar->name);
    }
 

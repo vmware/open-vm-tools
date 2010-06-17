@@ -262,7 +262,8 @@ MXRecLockCount(const MXRecLock *lock)  // IN:
 
 static INLINE void
 MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
-                  void *location)   // IN:
+                  void *location,   // IN:
+                  uint32 count)     // IN:
 {
    if (MXRecLockCount(lock) == 0) {
 #if defined(MXUSER_DEBUG)
@@ -275,7 +276,7 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
       MXRecLockSetOwner(lock);
    }
 
-   lock->referenceCount++;
+   lock->referenceCount += count;
 }
 
 
@@ -313,7 +314,7 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
       ASSERT(lock->referenceCount == 0);
    }
 
-   MXRecLockIncCount(lock, location);
+   MXRecLockIncCount(lock, location, 1);
 
    return contended;
 }
@@ -329,7 +330,7 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
    err = MXRecLockTryAcquireInternal(lock);
 
    if (err == 0) {
-      MXRecLockIncCount(lock, location);
+      MXRecLockIncCount(lock, location, 1);
 
       ASSERT((MXRecLockCount(lock) > 0) &&
              (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
@@ -348,9 +349,11 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
 }
 
 static INLINE void
-MXRecLockDecCount(MXRecLock *lock)  // IN/OUT:
+MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
+                  uint32 count)     // IN:
 {
-   lock->referenceCount--;
+   ASSERT(count <= lock->referenceCount);
+   lock->referenceCount -= count;
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetNoOwner(lock);
@@ -369,7 +372,7 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
    ASSERT((MXRecLockCount(lock) > 0) &&
           (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
 
-   MXRecLockDecCount(lock);
+   MXRecLockDecCount(lock, 1);
 
    if (MXRecLockCount(lock) == 0) {
       int err = MXRecLockReleaseInternal(lock);
