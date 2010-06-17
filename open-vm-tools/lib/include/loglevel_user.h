@@ -70,7 +70,7 @@
    LOGLEVEL_VAR(pci_ehci), \
    LOGLEVEL_VAR(ehci), \
    LOGLEVEL_VAR(pci_xhci), \
-   LOGLEVEL_VAR(xhci), \
+   LOGLEVEL_VAR(usb_xhci), \
    LOGLEVEL_VAR(usb), \
    LOGLEVEL_VAR(vusbmouse), \
    LOGLEVEL_VAR(vusbkeyboard), \
