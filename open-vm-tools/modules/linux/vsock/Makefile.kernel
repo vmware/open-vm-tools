@@ -30,9 +30,6 @@ EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c,   -DVMW_HAVE_EPO
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/setnice.c, -DVMW_HAVE_SET_USER_NICE, )
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/netcreate_num_params.c, -DVMW_NETCREATE_KERNARG, )
 
-# This test is inverted.
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/sk_filter.c,, -DVMW_HAVE_NEW_SKFILTER )
-
 
 MODPOST_VMCI_SYMVERS := $(wildcard $(MODULEBUILDDIR)/VMwareVMCIModule.symvers)
 

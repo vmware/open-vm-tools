@@ -113,55 +113,20 @@ static inline wait_queue_head_t *sk_sleep(struct sock *sk)
 # define compat_sock_owned_by_user(sk)  sock_owned_by_user(sk)
 #endif
 
-/*
- * Up until 2.4.21 for the 2.4 series and 2.5.60 for the 2.5 series,
- * sk_filter() calls were protected with CONFIG_FILTER.  Wrapping our compat
- * definition in a similar check allows us to build on those kernels.
- *
- */
-#ifdef CONFIG_FILTER
-/*
- * Unfortunately backports for certain kernels require the use of an autoconf
- * program to check the interface for sk_filter().
- */
-# ifndef VMW_HAVE_NEW_SKFILTER
-/* 
- * Up until 2.4.21 for the 2.4 series and 2.5.60 for the 2.5 series,
- * callers to sk->filter were responsible for ensuring that the filter
- * was not NULL.
- * Additionally, the new version of sk_filter returns 0 or -EPERM on error
- * while the old function returned 0 or 1. Return -EPERM here as well to
- * be consistent.
- */
-#  define compat_sk_filter(sk, skb, needlock)           \
-    ({                                                  \
-       int rc = 0;                                      \
-                                                        \
-       if ((sk)->filter) {                              \
-	  rc = sk_filter(skb, (sk)->filter);            \
-          if (rc) {                                     \
-             rc = -EPERM;                               \
-          }                                             \
-       }                                                \
-                                                        \
-       rc;                                              \
-    })
-# else
-#  define compat_sk_filter(sk, skb, needlock)  sk_filter(sk, skb, needlock)
-# endif
-#else
-# define compat_sk_filter(sk, skb, needlock)   0
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
+
+#ifndef CONFIG_FILTER
+# define sk_filter(sk, skb, needlock)    0
+#endif
+
 /* Taken from 2.6.16's sock.h and modified for macro. */
 # define compat_sk_receive_skb(sk, skb, nested)         \
    ({                                                   \
      int rc = NET_RX_SUCCESS;                           \
                                                         \
-     if (compat_sk_filter(sk, skb, 0)) {                \
+     if (sk_filter(sk, skb, 0)) {                       \
         kfree_skb(skb);                                 \
-        sock_put(sk);                                   \
      } else {                                           \
         skb->dev = NULL;                                \
         bh_lock_sock(sk);                               \
@@ -171,9 +136,9 @@ static inline wait_queue_head_t *sk_sleep(struct sock *sk)
            sk_add_backlog(sk, skb);                     \
         }                                               \
         bh_unlock_sock(sk);                             \
-        sock_put(sk);                                   \
      }                                                  \
                                                         \
+     sock_put(sk);                                      \
      rc;                                                \
     })
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
