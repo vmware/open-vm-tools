@@ -1,3 +1,27 @@
+open-vm-tools 2010.06.16 changes:
+	* VMCI moves towards unifying the guest and host driver APIs,
+	and gets support for MSI/MSI-X.
+
+	* More work on new VMCI-backed HGFS protocol.
+
+	* vmmemctl: Linux driver removed (it's now upstream), plus
+	cleanup and simplification of the FreeBSD and Solaris drivers.
+
+	* some Linux kernel compatibility fixes.
+
+	* Cleanup of old kernel support code.
+
+	* Some cleanup of old VIX features.
+
+	* toolbox-cmd was updated to use newer APIs, and got some i18n
+	enhancements.
+
+	* some bug fixes and enhancements to the logging code.
+
+	* update detection and use of some needed libraries.
+
+	* More progress in making libraries thread-safe.
+
 open-vm-tools 2010.04.25 changes:
 	* VMCI and HGFS get some initial work for new features.
 
