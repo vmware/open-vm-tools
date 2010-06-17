@@ -136,10 +136,12 @@ MXUserStatsActionRec(MXUserHeader *header,  // IN:
    MXUserKitchen(&lock->acquisitionStats, &contentionRatio, &isHot, &doLog);
 
    if (isHot) {
-      MXUserForceHisto(&lock->acquisitionHisto, MXUSER_HISTOGRAM_MAX_BINS,
-                       MXUSER_HISTOGRAM_NS_PER_BIN);
-      MXUserForceHisto(&lock->heldHisto, MXUSER_HISTOGRAM_MAX_BINS,
-                       MXUSER_HISTOGRAM_NS_PER_BIN);
+      MXUserForceHisto(&lock->acquisitionHisto,
+                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                       MXUSER_DEFAULT_HISTO_DECADES);
+      MXUserForceHisto(&lock->heldHisto,
+                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                       MXUSER_DEFAULT_HISTO_DECADES);
 
       if (doLog) {
          Log("HOT LOCK (%s); contention ratio %f\n",
@@ -535,15 +537,15 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
 #if defined(MXUSER_STATS)
    case MXUSER_CONTROL_ACQUISITION_HISTO: {
       va_list a;
-      uint32 numBins;
-      uint32 binWidth;
+      uint64 minValue;
+      uint32 decades;
 
       va_start(a, command);
-      numBins = va_arg(a, uint32);
-      binWidth = va_arg(a, uint32);
+      minValue = va_arg(a, uint64);
+      decades = va_arg(a, uint32);
       va_end(a);
 
-      MXUserForceHisto(&lock->acquisitionHisto, numBins, binWidth);
+      MXUserForceHisto(&lock->acquisitionHisto, minValue, decades);
 
       result = TRUE;
       break;
@@ -551,15 +553,15 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
 
    case MXUSER_CONTROL_HELD_HISTO: {
       va_list a;
-      uint32 numBins;
-      uint32 binWidth;
+      uint64 minValue;
+      uint32 decades;
 
       va_start(a, command);
-      numBins = va_arg(a, uint32);
-      binWidth = va_arg(a, uint32);
+      minValue = va_arg(a, uint64);
+      decades = va_arg(a, uint32);
       va_end(a);
 
-      MXUserForceHisto(&lock->heldHisto, numBins, binWidth);
+      MXUserForceHisto(&lock->heldHisto, minValue, decades);
       
       result = TRUE;
       break; 

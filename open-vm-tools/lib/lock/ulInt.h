@@ -43,9 +43,6 @@ typedef pthread_t MXThreadID;
 #if defined(MXUSER_STATS)
 #include "circList.h"
 
-#define MXUSER_HISTOGRAM_NS_PER_BIN 2000
-#define MXUSER_HISTOGRAM_MAX_BINS 500
-
 #define MXUSER_STAT_CLASS_ACQUISITION "acquisition"
 #define MXUSER_STAT_CLASS_HELD        "held"
 #endif
@@ -514,8 +511,8 @@ void MXUserRemoveFromList(MXUserHeader *header);
 
 typedef struct MXUserHisto MXUserHisto;
 
-MXUserHisto *MXUserHistoSetUp(uint32 maxBins,
-                              uint32 binWidth);
+MXUserHisto *MXUserHistoSetUp(uint64 minValue,
+                              uint32 decades);
 
 void MXUserHistoTearDown(MXUserHisto *histo);
 
@@ -555,8 +552,8 @@ void MXUserKitchen(MXUserAcquisitionStats *stats,
                    Bool *doLog);
 
 void MXUserForceHisto(Atomic_Ptr *histoPtr,
-                      uint32 maxBins,
-                      uint32 binWidth);
+                      uint64 minValue,
+                      uint32 decades);
 #endif
 
 #endif

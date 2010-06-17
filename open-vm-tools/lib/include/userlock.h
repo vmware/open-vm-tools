@@ -125,8 +125,11 @@ void MXUser_DestroyCondVar(MXUserCondVar *condVar);
  * MXUser_Control[Excl, Rec] commands
  */
 
-#define MXUSER_CONTROL_ACQUISITION_HISTO 0  // numBins, binWidth
-#define MXUSER_CONTROL_HELD_HISTO        1  // numBins, binWidth
+#define MXUSER_CONTROL_ACQUISITION_HISTO   0     // minValue, decades
+#define MXUSER_CONTROL_HELD_HISTO          1     // minValue, decades
+
+#define MXUSER_DEFAULT_HISTO_MIN_VALUE_NS  1000  // 1 usec
+#define MXUSER_DEFAULT_HISTO_DECADES       7     // 1 usec to 10 seconds
 
 #if defined(VMX86_VMX)
 #include "mutex.h"

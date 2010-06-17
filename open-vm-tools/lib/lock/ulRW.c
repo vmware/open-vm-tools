@@ -312,10 +312,12 @@ MXUserStatsActionRW(MXUserHeader *header,  // IN:
    MXUserKitchen(&lock->acquisitionStats, &contentionRatio, &isHot, &doLog);
 
    if (isHot) {
-      MXUserForceHisto(&lock->acquisitionHisto, MXUSER_HISTOGRAM_MAX_BINS,
-                       MXUSER_HISTOGRAM_NS_PER_BIN);
-      MXUserForceHisto(&lock->heldHisto, MXUSER_HISTOGRAM_MAX_BINS,
-                       MXUSER_HISTOGRAM_NS_PER_BIN);
+      MXUserForceHisto(&lock->acquisitionHisto,
+                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                       MXUSER_DEFAULT_HISTO_DECADES);
+      MXUserForceHisto(&lock->heldHisto,
+                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                       MXUSER_DEFAULT_HISTO_DECADES);
 
       if (doLog) {
          Log("HOT LOCK (%s); contention ratio %f\n",
