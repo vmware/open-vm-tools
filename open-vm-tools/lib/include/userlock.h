@@ -33,14 +33,33 @@ typedef struct MXUserExclLock   MXUserExclLock;
 typedef struct MXUserRecLock    MXUserRecLock;
 typedef struct MXUserRWLock     MXUserRWLock;
 typedef struct MXUserCondVar    MXUserCondVar;
+typedef struct MXUserSemaphore  MXUserSemaphore;
+
+/*
+ * Counting semaphore
+ */
+
+MXUserSemaphore *MXUser_CreateSemaphore(const char *name,
+                                        MX_Rank rank);
+
+void MXUser_DestroySemaphore(MXUserSemaphore *sema);
+void MXUser_UpSemaphore(MXUserSemaphore *sema);
+void MXUser_DownSemaphore(MXUserSemaphore *sema);
+Bool MXUser_TryDownSemaphore(MXUserSemaphore *sema);
+
+Bool MXUser_TimedDownSemaphore(MXUserSemaphore *sema,
+                               uint32 msecWait);
+
+MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
+                                                 const char *name,
+                                                 MX_Rank rank);
 
 /*
  * Exclusive ownership lock
  */
 
-MXUserExclLock *
-MXUser_CreateExclLock(const char *name,
-                    MX_Rank rank);
+MXUserExclLock *MXUser_CreateExclLock(const char *name,
+                                      MX_Rank rank);
 
 void MXUser_AcquireExclLock(MXUserExclLock *lock);
 Bool MXUser_TryAcquireExclLock(MXUserExclLock *lock);
@@ -48,17 +67,15 @@ void MXUser_ReleaseExclLock(MXUserExclLock *lock);
 void MXUser_DestroyExclLock(MXUserExclLock *lock);
 Bool MXUser_IsCurThreadHoldingExclLock(const MXUserExclLock *lock);
 
-MXUserExclLock *
-MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
-                               const char *name,
-                               MX_Rank rank);
+MXUserExclLock *MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
+                                               const char *name,
+                                               MX_Rank rank);
 
 Bool MXUser_ControlExclLock(MXUserExclLock *lock,
                             uint32 command,
                             ...);
 
-MXUserCondVar *
-MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
+MXUserCondVar *MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
 
 void MXUser_WaitCondVarExclLock(MXUserExclLock *lock,
                                 MXUserCondVar *condVar);
@@ -72,9 +89,8 @@ Bool MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
  * Recursive lock.
  */
 
-MXUserRecLock *
-MXUser_CreateRecLock(const char *name,
-                     MX_Rank rank);
+MXUserRecLock *MXUser_CreateRecLock(const char *name,
+                                    MX_Rank rank);
 
 void MXUser_AcquireRecLock(MXUserRecLock *lock);
 Bool MXUser_TryAcquireRecLock(MXUserRecLock *lock);
@@ -82,17 +98,15 @@ void MXUser_ReleaseRecLock(MXUserRecLock *lock);
 void MXUser_DestroyRecLock(MXUserRecLock *lock);
 Bool MXUser_IsCurThreadHoldingRecLock(const MXUserRecLock *lock);
 
-MXUserRecLock *
-MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
-                              const char *name,
-                              MX_Rank rank);
+MXUserRecLock *MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
+                                             const char *name,
+                                             MX_Rank rank);
 
 Bool MXUser_ControlRecLock(MXUserRecLock *lock,
                            uint32 command,
                            ...);
 
-MXUserCondVar *
-MXUser_CreateCondVarRecLock(MXUserRecLock *lock);
+MXUserCondVar *MXUser_CreateCondVarRecLock(MXUserRecLock *lock);
 
 void MXUser_WaitCondVarRecLock(MXUserRecLock *lock,
                                MXUserCondVar *condVar);
@@ -105,9 +119,8 @@ Bool MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
  * Read-write lock
  */
 
-MXUserRWLock *
-MXUser_CreateRWLock(const char *name,
-                    MX_Rank rank);
+MXUserRWLock *MXUser_CreateRWLock(const char *name,
+                                   MX_Rank rank);
 
 void MXUser_AcquireForRead(MXUserRWLock *lock);
 void MXUser_AcquireForWrite(MXUserRWLock *lock);
@@ -121,10 +134,9 @@ void MXUser_DestroyRWLock(MXUserRWLock *lock);
 Bool MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,
                                      uint32 queryType);
 
-MXUserRWLock *
-MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
-                             const char *name,
-                             MX_Rank rank);
+MXUserRWLock *MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
+                                           const char *name,
+                                           MX_Rank rank);
 
 
 /*
