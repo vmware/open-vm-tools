@@ -3850,7 +3850,12 @@ HgfsPlatformDeleteDirByHandle(HgfsHandle file,          // IN: File being delete
 HgfsInternalStatus
 HgfsPlatformFileExists(char *localTargetName) // IN: Full file path utf8 encoding
 {
-   return Posix_Access(localTargetName, F_OK);
+   int err;
+   err = Posix_Access(localTargetName, F_OK);
+   if (-1 == err) {
+      err = errno;
+   }
+   return err;
 }
 
 
