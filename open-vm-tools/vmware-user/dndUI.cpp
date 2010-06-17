@@ -1394,11 +1394,18 @@ DnDUI::SendFakeXEvents(const bool showWidget,
 {
    GtkWidget *widget;
    Window rootWnd;
-   bool ret;
+   bool ret = false;
    Display *dndXDisplay;
    Window dndXWindow;
+   Window rootReturn;
    int x;
    int y;
+   Window childReturn;
+   int rootXReturn;
+   int rootYReturn;
+   int winXReturn;
+   int winYReturn;
+   unsigned int maskReturn;
 
    x = xCoord;
    y = yCoord;
@@ -1412,6 +1419,7 @@ DnDUI::SendFakeXEvents(const bool showWidget,
 
    dndXDisplay = GDK_WINDOW_XDISPLAY(widget->window);
    dndXWindow = GDK_WINDOW_XWINDOW(widget->window);
+   rootWnd = RootWindow(dndXDisplay, DefaultScreen(dndXDisplay));
 
    /*
     * Turn on X synchronization in order to ensure that our X events occur in
@@ -1429,22 +1437,11 @@ DnDUI::SendFakeXEvents(const bool showWidget,
 
    /* Get the current location of the mouse if coordinates weren't provided. */
    if (!coordsProvided) {
-      Window rootReturn;
-      Window childReturn;
-      int rootXReturn;
-      int rootYReturn;
-      int winXReturn;
-      int winYReturn;
-      unsigned int maskReturn;
-
-      rootWnd = RootWindow(dndXDisplay, DefaultScreen(dndXDisplay));
-      ret = XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
-                          &rootXReturn, &rootYReturn, &winXReturn, &winYReturn,
-                          &maskReturn);
-      if (ret == False) {
+      if (!XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
+                         &rootXReturn, &rootYReturn, &winXReturn, &winYReturn,
+                         &maskReturn)) {
          Warning("%s: XQueryPointer() returned False.\n", __FUNCTION__);
-         XSynchronize(dndXDisplay, False);
-         return false;
+         goto exit;
       }
 
       Debug("%s: current mouse is at (%d, %d)\n", __FUNCTION__,
@@ -1517,9 +1514,120 @@ DnDUI::SendFakeXEvents(const bool showWidget,
       Debug("%s: faking left mouse button %s\n", __FUNCTION__,
             buttonPress ? "press" : "release");
       XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);
+      XSync(dndXDisplay, False);
+
+      if (!buttonPress) {
+         /*
+          * The button release simulation may be failed with some distributions
+          * like Ubuntu 10.4 and RHEL 6 for guest->host DnD. So first query
+          * mouse button status. If some button is still down, we will try
+          * mouse device level event simulation. For details please refer
+          * to bug 552807.
+          */
+         if (!XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
+                            &rootXReturn, &rootYReturn, &winXReturn,
+                            &winYReturn, &maskReturn)) {
+            Warning("%s: XQueryPointer returned False.\n", __FUNCTION__);
+            goto exit;
+         }
+
+         if ((maskReturn & Button1Mask) ||
+             (maskReturn & Button2Mask) ||
+             (maskReturn & Button3Mask) ||
+             (maskReturn & Button4Mask) ||
+             (maskReturn & Button5Mask)) {
+            Debug("%s: XTestFakeButtonEvent was not working for button "
+                  "release, trying XTestFakeDeviceButtonEvent now.\n",
+                  __FUNCTION__);
+            ret = TryXTestFakeDeviceButtonEvent();
+         } else {
+            Debug("%s: XTestFakeButtonEvent was working for button release.\n",
+                  __FUNCTION__);
+            ret = true;
+         }
+      } else {
+         ret = true;
+      }
    }
 
+exit:
    XSynchronize(dndXDisplay, False);
+   return ret;
+}
+
+
+/**
+ * Fake X mouse events in device level.
+ *
+ * XXX The function will only be called if XTestFakeButtonEvent does not work
+ * for mouse button release. Later on we may only call this one for mouse
+ * button simulation if this is more reliable.
+ *
+ * @return true on success, false on failure.
+ */
+
+bool
+DnDUI::TryXTestFakeDeviceButtonEvent(void)
+{
+   XDeviceInfo *list = NULL;
+   XDeviceInfo *list2 = NULL;
+   XDevice *tdev = NULL;
+   XDevice *buttonDevice = NULL;
+   int numDevices = 0;
+   int i = 0;
+   int j = 0;
+   XInputClassInfo *ip = NULL;
+   GtkWidget *widget;
+   Display *dndXDisplay;
+
+   widget = GetDetWndAsWidget();
+
+   if (!widget) {
+      Debug("%s: unable to get widget\n", __FUNCTION__);
+      return false;
+   }
+
+   dndXDisplay = GDK_WINDOW_XDISPLAY(widget->window);
+
+   /* First get list of all input device. */
+   if (!(list = XListInputDevices (dndXDisplay, &numDevices))) {
+      Debug("%s: XListInputDevices failed\n", __FUNCTION__);
+      return false;
+   } else {
+      Debug("%s: XListInputDevices got %d devices\n", __FUNCTION__, numDevices);
+   }
+
+   list2 = list;
+
+   for (i = 0; i < numDevices; i++, list++) {
+      /* We only care about mouse device. */
+      if (list->use != IsXExtensionPointer) {
+         continue;
+      }
+
+      tdev = XOpenDevice(dndXDisplay, list->id);
+      if (!tdev) {
+         Debug("%s: XOpenDevice failed\n", __FUNCTION__);
+         continue;
+      }
+
+      for (ip = tdev->classes, j = 0; j < tdev->num_classes; j++, ip++) {
+         if (ip->input_class == ButtonClass) {
+            buttonDevice = tdev;
+            break;
+         }
+      }
+
+      if (buttonDevice) {
+         Debug("%s: calling XTestFakeDeviceButtonEvent for %s\n",
+               __FUNCTION__, list->name);
+         XTestFakeDeviceButtonEvent(dndXDisplay, buttonDevice, 1, False,
+                                    NULL, 0, CurrentTime);
+         buttonDevice = NULL;
+      }
+      XCloseDevice(dndXDisplay, tdev);
+   }
+   XFreeDeviceList(list2);
    return true;
 }
 

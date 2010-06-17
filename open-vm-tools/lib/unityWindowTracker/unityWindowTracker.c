@@ -42,6 +42,7 @@ static int GarbageCollectRemovedWindows(const char *key, void *value,
                                         void *clientData);
 static int ResetChangedBits(const char *key, void *value, void *clientData);
 static int PushUpdates(const char *key, void *value, void *clientData);
+static int PushRemoveWindow(const char *key, void *value, void *clientData);
 static Bool TitlesEqual(DynBuf *first, DynBuf *second);
 static int PushZOrder(UnityWindowTracker *tracker);
 static int PushActiveDesktop(UnityWindowTracker *tracker);
@@ -1070,8 +1071,11 @@ UnityWindowTracker_RequestUpdates(UnityWindowTracker *tracker, // IN
 
    /*
     * Push updates for the windows remaining...
+    * We push removed windows last to prevent temporary periods where a guest
+    * app has no windows.
     */
    HashTable_ForEach(tracker->windows, PushUpdates, tracker);
+   HashTable_ForEach(tracker->windows, PushRemoveWindow, tracker);
 
    /* Push Z order */
    PushZOrder(tracker);
@@ -1243,6 +1247,48 @@ ResetChangedBits(const char *key,       // IN: window id
 /*
  *----------------------------------------------------------------------------
  *
+ * PushRemoveWindow --
+ *
+ *      Sends a remove window update for this window.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+PushRemoveWindow(const char *key,       // IN: window id
+                 void *value,           // IN: UnityWindowInfo
+                 void *clientData)      // IN: UnityWindowTracker
+{
+   UnityWindowInfo *info = (UnityWindowInfo *)value;
+
+   if (info->changed & UNITY_CHANGED_REMOVED) {
+      UnityWindowTracker *tracker = (UnityWindowTracker *)clientData;
+      UnityWindowId id = (UnityWindowId)(long)key;
+      UnityUpdate update;
+
+      /*
+       * Now that we've sent the update, mark the window as deleted
+       * so it will be reaped.
+       */
+      info->reap = TRUE;
+      update.type = UNITY_UPDATE_REMOVE_WINDOW;
+      update.u.removeWindow.id = id;
+      (*tracker->cb)(tracker->cbparam, &update);
+   }
+
+   return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * PushUpdates --
  *
  *      Fire all callback functions relevant for this window (as determined
@@ -1269,108 +1315,102 @@ PushUpdates(const char *key,       // IN: window id
    Bool incremental = (tracker->updateFlags & UNITY_UPDATE_INCREMENTAL) != 0;
 
    if (info->changed & UNITY_CHANGED_REMOVED) {
-      /*
-       * Now that we've sent the update, mark the window as deleted
-       * so it will be reaped.
-       */
-      info->reap = TRUE;
-      update.type = UNITY_UPDATE_REMOVE_WINDOW;
-      update.u.removeWindow.id = id;
-      (*tracker->cb)(tracker->cbparam, &update);
-   } else {
-      if (!incremental || (info->changed & UNITY_CHANGED_ADDED)) {
-         update.type = UNITY_UPDATE_ADD_WINDOW;
-         update.u.addWindow.id = id;
-         DynBuf_Init(&update.u.addWindow.windowPathUtf8);
-         DynBuf_Init(&update.u.addWindow.execPathUtf8);
-         if (DynBuf_GetSize(&info->windowPathUtf8)) {
-            DynBuf_Copy(&info->windowPathUtf8, &update.u.addWindow.windowPathUtf8);
-         }
-         if (DynBuf_GetSize(&info->execPathUtf8)) {
-            DynBuf_Copy(&info->execPathUtf8, &update.u.addWindow.execPathUtf8);
-         }
-         (*tracker->cb)(tracker->cbparam, &update);
-         DynBuf_Destroy(&update.u.addWindow.windowPathUtf8);
-         DynBuf_Destroy(&update.u.addWindow.execPathUtf8);
-      }
-      if (!incremental || (info->changed & UNITY_CHANGED_POSITION)) {
-         update.type = UNITY_UPDATE_MOVE_WINDOW;
-         update.u.moveWindow.id = id;
-         update.u.moveWindow.rect = info->rect;
-         (*tracker->cb)(tracker->cbparam, &update);
-      }
-      if (!incremental || (info->changed & UNITY_CHANGED_REGION)) {
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_REGION;
-         update.u.changeWindowRegion.id = id;
-         update.u.changeWindowRegion.region = info->region;
-         (*tracker->cb)(tracker->cbparam, &update);
-      }
-      if (!incremental || (info->changed & UNITY_CHANGED_TITLE)) {
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_TITLE;
-         update.u.changeWindowTitle.id = id;
-         DynBuf_Init(&update.u.changeWindowTitle.titleUtf8);
-         DynBuf_Copy(&info->titleUtf8, &update.u.changeWindowTitle.titleUtf8);
-         (*tracker->cb)(tracker->cbparam, &update);
-         DynBuf_Destroy(&update.u.changeWindowTitle.titleUtf8);
-      }
-      if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_ICONS)) {
-         UnityIconType i;
-
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_ICON;
-         update.u.changeWindowIcon.id = id;
-         for (i = 0; i < UNITY_MAX_ICONS; i++) {
-            if ((info->icons[i] & UNITY_INFO_ATTR_EXISTS)
-                && (!incremental
-                    || (info->icons[i] & UNITY_INFO_ATTR_CHANGED))) {
-               update.u.changeWindowIcon.iconType = i;
-               (*tracker->cb)(tracker->cbparam, &update);
-            }
-         }
-      }
-      if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_TYPE)) {
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_TYPE;
-         update.u.changeWindowType.id = id;
-         update.u.changeWindowType.winType = info->type;
-         (*tracker->cb)(tracker->cbparam, &update);
-      }
-
-      /*
-       * Please make sure WINDOW_ATTRIBUTES is checked before WINDOW_STATE, to allow
-       * vmware-vmx on the host side to only pay attention to WINDOW_ATTRIBUTES if
-       * desired.
-       */
-      if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_ATTRIBUTES)) {
-         UnityWindowAttribute i;
-
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_ATTRIBUTE;
-         update.u.changeWindowAttribute.id = id;
-         for (i = 0; i < UNITY_MAX_ATTRIBUTES; i++) {
-            if ((info->attributes[i] & UNITY_INFO_ATTR_EXISTS)
-                && (!incremental ||
-                    (info->attributes[i] & UNITY_INFO_ATTR_CHANGED))) {
-               update.u.changeWindowAttribute.attr = i;
-               update.u.changeWindowAttribute.value =
-                  (info->attributes[i] & UNITY_INFO_ATTR_ENABLED) ? TRUE : FALSE;
-               (*tracker->cb)(tracker->cbparam, &update);
-            }
-         }
-      }
-
-      if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_STATE)) {
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_STATE;
-         update.u.changeWindowState.id = id;
-         update.u.changeWindowState.state = info->state;
-         (*tracker->cb)(tracker->cbparam, &update);
-      }
-
-      if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_DESKTOP)) {
-         update.type = UNITY_UPDATE_CHANGE_WINDOW_DESKTOP;
-         update.u.changeWindowDesktop.id = id;
-         update.u.changeWindowDesktop.desktopId = info->desktopId;
-         (*tracker->cb)(tracker->cbparam, &update);
-      }
-
+      // This is handled in PushRemoveWindow.
+      return 0;
    }
+
+   if (!incremental || (info->changed & UNITY_CHANGED_ADDED)) {
+      update.type = UNITY_UPDATE_ADD_WINDOW;
+      update.u.addWindow.id = id;
+      DynBuf_Init(&update.u.addWindow.windowPathUtf8);
+      DynBuf_Init(&update.u.addWindow.execPathUtf8);
+      if (DynBuf_GetSize(&info->windowPathUtf8)) {
+         DynBuf_Copy(&info->windowPathUtf8, &update.u.addWindow.windowPathUtf8);
+      }
+      if (DynBuf_GetSize(&info->execPathUtf8)) {
+         DynBuf_Copy(&info->execPathUtf8, &update.u.addWindow.execPathUtf8);
+      }
+      (*tracker->cb)(tracker->cbparam, &update);
+      DynBuf_Destroy(&update.u.addWindow.windowPathUtf8);
+      DynBuf_Destroy(&update.u.addWindow.execPathUtf8);
+   }
+   if (!incremental || (info->changed & UNITY_CHANGED_POSITION)) {
+      update.type = UNITY_UPDATE_MOVE_WINDOW;
+      update.u.moveWindow.id = id;
+      update.u.moveWindow.rect = info->rect;
+      (*tracker->cb)(tracker->cbparam, &update);
+   }
+   if (!incremental || (info->changed & UNITY_CHANGED_REGION)) {
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_REGION;
+      update.u.changeWindowRegion.id = id;
+      update.u.changeWindowRegion.region = info->region;
+      (*tracker->cb)(tracker->cbparam, &update);
+   }
+   if (!incremental || (info->changed & UNITY_CHANGED_TITLE)) {
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_TITLE;
+      update.u.changeWindowTitle.id = id;
+      DynBuf_Init(&update.u.changeWindowTitle.titleUtf8);
+      DynBuf_Copy(&info->titleUtf8, &update.u.changeWindowTitle.titleUtf8);
+      (*tracker->cb)(tracker->cbparam, &update);
+      DynBuf_Destroy(&update.u.changeWindowTitle.titleUtf8);
+   }
+   if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_ICONS)) {
+      UnityIconType i;
+
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_ICON;
+      update.u.changeWindowIcon.id = id;
+      for (i = 0; i < UNITY_MAX_ICONS; i++) {
+         if ((info->icons[i] & UNITY_INFO_ATTR_EXISTS)
+             && (!incremental
+                 || (info->icons[i] & UNITY_INFO_ATTR_CHANGED))) {
+            update.u.changeWindowIcon.iconType = i;
+            (*tracker->cb)(tracker->cbparam, &update);
+         }
+      }
+   }
+   if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_TYPE)) {
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_TYPE;
+      update.u.changeWindowType.id = id;
+      update.u.changeWindowType.winType = info->type;
+      (*tracker->cb)(tracker->cbparam, &update);
+   }
+
+   /*
+    * Please make sure WINDOW_ATTRIBUTES is checked before WINDOW_STATE, to allow
+    * vmware-vmx on the host side to only pay attention to WINDOW_ATTRIBUTES if
+    * desired.
+    */
+   if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_ATTRIBUTES)) {
+      UnityWindowAttribute i;
+
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_ATTRIBUTE;
+      update.u.changeWindowAttribute.id = id;
+      for (i = 0; i < UNITY_MAX_ATTRIBUTES; i++) {
+         if ((info->attributes[i] & UNITY_INFO_ATTR_EXISTS)
+             && (!incremental ||
+                 (info->attributes[i] & UNITY_INFO_ATTR_CHANGED))) {
+            update.u.changeWindowAttribute.attr = i;
+            update.u.changeWindowAttribute.value =
+               (info->attributes[i] & UNITY_INFO_ATTR_ENABLED) ? TRUE : FALSE;
+            (*tracker->cb)(tracker->cbparam, &update);
+         }
+      }
+   }
+
+   if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_STATE)) {
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_STATE;
+      update.u.changeWindowState.id = id;
+      update.u.changeWindowState.state = info->state;
+      (*tracker->cb)(tracker->cbparam, &update);
+   }
+
+   if (!incremental || (info->changed & UNITY_CHANGED_WINDOW_DESKTOP)) {
+      update.type = UNITY_UPDATE_CHANGE_WINDOW_DESKTOP;
+      update.u.changeWindowDesktop.id = id;
+      update.u.changeWindowDesktop.desktopId = info->desktopId;
+      (*tracker->cb)(tracker->cbparam, &update);
+   }
+
    return 0;
 }
 

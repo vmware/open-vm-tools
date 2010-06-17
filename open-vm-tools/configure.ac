@@ -465,6 +465,14 @@ else
    fi
 
    AC_CHECK_LIB(
+      [Xi],
+      [XOpenDevice],
+      [COMMON_XLIBS="-lXi $COMMON_XLIBS"],
+      [AC_MSG_ERROR(
+         [libXi not found. Please configure without X11 (using --without-x), or install the libXi devel package(s).])],
+      [$COMMON_XLIBS])
+
+   AC_CHECK_LIB(
       [Xrender],
       [XRenderQueryVersion],
       [COMMON_XLIBS="-lXrender $COMMON_XLIBS"],
