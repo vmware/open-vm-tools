@@ -264,7 +264,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
-#ifdef DISABLE_MXUSER_LOCK_RANKS
+#if defined(DISABLE_MXUSER_LOCK_RANKS)
    checkRank = FALSE;
 #endif
 
