@@ -3511,22 +3511,26 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
    }
 
    if (error < 0) {
-      status = errno;
       LOG(4, ("%s: could not seek to %"FMT64"u: %s\n", __FUNCTION__,
-              offset, strerror(status)));
+              offset, strerror(errno)));
    } else {
       error = write(fd, payload, requiredSize);
-      if (error < 0) {
-         status = errno;
-         LOG(4, ("%s: error writing to file: %s\n", __FUNCTION__, 
-            strerror(status)));
-      } else {
-         LOG(4, ("%s: wrote %d bytes\n", __FUNCTION__, error));
-         *actualSize = error;
-      }
    }
-   MXUser_ReleaseExclLock(session->fileIOLock);
+   {
+      int savedErr = errno;
+      MXUser_ReleaseExclLock(session->fileIOLock);
+      errno = savedErr;
+   }
 #endif
+
+   if (error < 0) {
+      status = errno;
+      LOG(4, ("%s: error writing to file: %s\n", __FUNCTION__, 
+         strerror(status)));
+   } else {
+      LOG(4, ("%s: wrote %d bytes\n", __FUNCTION__, error));
+      *actualSize = error;
+   }
    return status;
 }
 
@@ -3732,8 +3736,8 @@ HgfsPlatformDeleteFileByHandle(HgfsHandle file,          // IN: File being delet
    char *localName;
    size_t localNameSize;
 
-   if (!HgfsHandle2FileNameMode(file, session, &writePermissions,
-                                &readPermissions, &localName, &localNameSize)) {
+   if (HgfsHandle2FileNameMode(file, session, &writePermissions,
+                               &readPermissions, &localName, &localNameSize)) {
       if (writePermissions && readPermissions) {
          status = HgfsPlatformDeleteFileByName(localName);
       } else {
@@ -3814,8 +3818,8 @@ HgfsPlatformDeleteDirByHandle(HgfsHandle file,          // IN: File being delete
    char *localName;
    size_t localNameSize;
 
-   if (!HgfsHandle2FileNameMode(file, session, &writePermissions,
-                                &readPermissions, &localName, &localNameSize)) {
+   if (HgfsHandle2FileNameMode(file, session, &writePermissions,
+                               &readPermissions, &localName, &localNameSize)) {
       if (writePermissions && readPermissions) {
          status = HgfsPlatformDeleteDirByName(localName);
       } else {
