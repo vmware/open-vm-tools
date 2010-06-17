@@ -192,7 +192,6 @@
    LOGLEVEL_VAR(battery), \
    LOGLEVEL_VAR(fakeDma), \
    LOGLEVEL_VAR(shader), \
-   LOGLEVEL_VAR(numa), \
    LOGLEVEL_VAR(machPoll), \
    LOGLEVEL_VAR(replayVMX), \
    LOGLEVEL_VAR(vmWindowController), \
