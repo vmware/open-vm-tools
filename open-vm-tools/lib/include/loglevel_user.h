@@ -179,6 +179,8 @@
    LOGLEVEL_VAR(mainMem), \
    LOGLEVEL_VAR(mainMemReplayCheck), \
    LOGLEVEL_VAR(memoryHotplug), \
+   LOGLEVEL_VAR(numa), \
+   LOGLEVEL_VAR(numaHost), \
    LOGLEVEL_VAR(remoteDevice), \
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
