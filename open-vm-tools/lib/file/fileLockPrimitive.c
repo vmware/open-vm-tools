@@ -25,6 +25,7 @@
  * if the directory contains any files.
  */
 
+#define _GNU_SOURCE /* For O_NOFOLLOW */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1454,6 +1455,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
 {
    FILELOCK_FILE_HANDLE handle;
    LockValues myValues;
+   int createFlags;
 
    Unicode lockDir = NULL;
    Unicode entryFilePath = NULL;
@@ -1520,7 +1522,11 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
           Unicode_LengthInCodeUnits(pathName) <= FILELOCK_OVERHEAD);
 
    /* Attempt to create the entry file */
-   *err = FileLockOpenFile(entryFilePath, O_CREAT | O_WRONLY, &handle);
+   createFlags = O_CREAT | O_WRONLY; 
+#ifndef _WIN32
+   createFlags |= O_NOFOLLOW;
+#endif
+   *err = FileLockOpenFile(entryFilePath, createFlags, &handle);
 
    if (*err != 0) {
       /* clean up */
@@ -1622,7 +1628,7 @@ FileLockIsLocked(ConstUnicode pathName,  // IN:
                  int *err)               // OUT:
 {
    uint32 i;
-   int errValue;
+   int errValue = 0;
    int numEntries;
    Unicode lockDir;
 
@@ -1634,7 +1640,13 @@ FileLockIsLocked(ConstUnicode pathName,  // IN:
    numEntries = FileListDirectoryRobust(lockDir, &fileList);
 
    if (numEntries == -1) {
-      errValue = errno;
+      /*
+       * If the lock directory doesn't exist, we should not count this
+       * as an error.  This is expected if the file isn't locked.
+       */
+      if (errno != ENOENT) {
+         errValue = errno;
+      }
 
       goto bail;
    }
@@ -1651,8 +1663,6 @@ FileLockIsLocked(ConstUnicode pathName,  // IN:
    }
 
    free(fileList);
-
-   errValue = 0;
 
 bail:
    Unicode_Free(lockDir);
