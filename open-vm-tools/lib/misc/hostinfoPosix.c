@@ -1554,7 +1554,6 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoSystemTimerVmkernel --
  * HostinfoSystemTimerMach --
  * HostinfoSystemTimerPosix --
  *
@@ -1574,32 +1573,6 @@ exit:
  *
  *-----------------------------------------------------------------------------
  */
-
-static Bool
-HostinfoSystemTimerVmkernel(VmTimeType *result)  // OUT
-{
-   if (HostType_OSIsPureVMK()) {
-      uint64 uptime = 0;
-      /*
-       * The uptime is ensured to never go backwards and is valid across
-       * processes.
-       *
-       * TODO: get a vmkernel uptime that reports in ns (for real?)
-       */
-#ifdef VMX86_SERVER
-      if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
-         Log("%s: failure!\n", __FUNCTION__);
-
-         uptime = 0;  // A timer read failure - this is really bad!
-      }
-#endif
-
-      *result = 1000 * uptime;  // Convert to nanoseconds
-      return TRUE;
-   } else {
-      return FALSE;
-   }
-}
 
 static Bool
 HostinfoSystemTimerMach(VmTimeType *result)  // OUT
@@ -1695,6 +1668,9 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
    }
    return FALSE;
 #else
+#if vmx86_server && defined(GLIBC_VERSION_23)
+#  error Posix clock_gettime support required on ESX
+#endif
 #  define vmx86_posix 0
    /* No Posix support for clock_gettime() */
    return FALSE;
@@ -1736,8 +1712,7 @@ Hostinfo_SystemTimerNS(void)
 {
    VmTimeType result;
 
-   if ((vmx86_server && HostinfoSystemTimerVmkernel(&result)) ||
-       (vmx86_apple && HostinfoSystemTimerMach(&result)) ||
+   if ((vmx86_apple && HostinfoSystemTimerMach(&result)) ||
        (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
       /* Host provides monotonic clock source. */
       return result;
@@ -2857,7 +2832,7 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
 VmTimeType
 Hostinfo_SystemUpTime(void)
 {
-#if defined(__APPLE__) || defined(VMX86_SERVER)
+#if defined(__APPLE__)
    return Hostinfo_SystemTimerUS();
 #elif defined(__linux__)
    int res;
@@ -2867,6 +2842,22 @@ Hostinfo_SystemUpTime(void)
 
    static Atomic_Int fdStorage = { -1 };
    static Atomic_uint32 logFailedPread = { 1 };
+
+   /*
+    * /proc/uptime does not exist on Visor.  Use syscall instead.
+    * Discovering Visor is a run-time check with a compile-time hint.
+    */
+   if (vmx86_server && HostType_OSIsPureVMK()) {
+      uint64 uptime;
+#ifdef VMX86_SERVER
+      if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
+         Log("%s: failure!\n", __FUNCTION__);
+
+         uptime = 0;  // A timer read failure - this is really bad!
+      }
+#endif
+      return uptime;
+   }
 
    fd = Atomic_ReadInt(&fdStorage);
 
