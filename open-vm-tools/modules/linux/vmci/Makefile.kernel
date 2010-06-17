@@ -24,7 +24,6 @@
 INCLUDE += -I.
 
 EXTRA_CFLAGS := $(CC_OPTS) $(INCLUDE)
-EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/epoll.c, -DVMW_HAVE_EPOLL, )
 EXTRA_CFLAGS += -DVMX86_TOOLS
 
 obj-m += $(DRIVER).o
