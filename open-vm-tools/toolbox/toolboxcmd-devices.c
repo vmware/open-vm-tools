@@ -53,7 +53,9 @@ DevicesList(void)
    for (i = 0; i < MAX_DEVICES; i++) {
       RD_Info info;
       if (GuestApp_GetDeviceInfo(i, &info) && strlen(info.name) > 0) {
-         printf ("%s: %s\n", info.name, info.enabled ? "Enabled" : "Disabled");
+         const char *status = info.enabled ? SU_(option.enabled, "Enabled")
+                                           : SU_(option.disabled, "Disabled");
+         printf("%s: %s\n", info.name, status);
       }
    }
    return EXIT_SUCCESS;
@@ -68,8 +70,9 @@ DevicesList(void)
  *      Prints device names to stdout.
  *
  * Results:
- *      Returns EXIT_SUCCESS on success
- *      Returns EXIT_OSFILE if devName was not found
+ *      Returns EXIT_SUCCESS if device is enabled.
+ *      Returns EX_UNAVAILABLE if device is disabled.
+ *      Returns EXIT_OSFILE if devName was not found.
  *
  * Side effects:
  *      Print to stderr on error.
@@ -85,12 +88,19 @@ DevicesGetStatus(char *devName)  // IN: Device Name
       RD_Info info;
       if (GuestApp_GetDeviceInfo(i, &info)
           && toolbox_strcmp(info.name, devName) == 0) {
-         printf("%s\n", info.enabled ? "Enabled" : "Disabled");
+         if (info.enabled) {
+            ToolsCmd_Print("%s\n", SU_(option.enabled, "Enabled"));
+            return EXIT_SUCCESS;
+         } else {
+            ToolsCmd_Print("%s\n", SU_(option.disabled, "Disabled"));
+            return EX_UNAVAILABLE;
+         }
          return EXIT_SUCCESS;
       }
    }
-   fprintf(stderr,
-            "error fetching interface information: Device not found\n");
+   ToolsCmd_PrintErr("%s",
+                     SU_(device.notfound,
+                         "Error fetching interface information: device not found.\n"));
    return EX_OSFILE;
 }
 
@@ -116,28 +126,39 @@ DevicesGetStatus(char *devName)  // IN: Device Name
 
 static int
 DevicesSetStatus(char *devName,  // IN: device name
-                 Bool enable,    // IN: status
-                 gboolean quiet) // IN: Verbosity flag
+                 Bool enable)    // IN: status
 {
    int dev_id;
    for (dev_id = 0; dev_id < MAX_DEVICES; dev_id++) {
       RD_Info info;
-      if (GuestApp_GetDeviceInfo(dev_id, &info)
-	  && toolbox_strcmp(info.name, devName) == 0) {
+      if (GuestApp_GetDeviceInfo(dev_id, &info) &&
+          toolbox_strcmp(info.name, devName) == 0) {
          if (!GuestApp_SetDeviceState(dev_id, enable)) {
-            fprintf(stderr, "Unable to %s device %s\n", enable ? "connect"
-                    : "disconnect", info.name);
+            if (enable) {
+               ToolsCmd_PrintErr(SU_(device.connect.error,
+                                     "Unable to connect device %s.\n"),
+                                 info.name);
+            } else {
+               ToolsCmd_PrintErr(SU_(device.disconnect.error,
+                                     "Unable to disconnect device %s.\n"),
+                                 info.name);
+            }
             return EX_TEMPFAIL;
          }
          goto exit;
       }
    }
-   fprintf(stderr,
-           "error fetching interface information: Device not found\n");
+
+   ToolsCmd_PrintErr("%s",
+                     SU_(device.notfound,
+                         "Error fetching interface information: device not found.\n"));
    return EX_OSFILE;
-  exit:
-   if (!quiet) {
-      printf("%s\n", enable ? "Enabled" : "Disabled");
+
+exit:
+   if (enable) {
+      ToolsCmd_Print("%s\n", SU_(option.enabled, "Enabled"));
+   } else {
+      ToolsCmd_Print("%s\n", SU_(option.disabled, "Disabled"));
    }
    return EXIT_SUCCESS;
 }
@@ -176,11 +197,11 @@ Device_Command(char **argv,    // IN: Command line arguments
       }
    } else if (toolbox_strcmp(subcommand, "enable") == 0) {
       if (haveDeviceArg) {
-         return DevicesSetStatus(argv[optind + 1], TRUE, quiet);
+         return DevicesSetStatus(argv[optind + 1], TRUE);
       }
    } else if (toolbox_strcmp(subcommand, "disable") == 0) {
       if (haveDeviceArg) {
-         return DevicesSetStatus(argv[optind + 1], FALSE, quiet);
+         return DevicesSetStatus(argv[optind + 1], FALSE);
       }
    } else {
       ToolsCmd_UnknownEntityError(argv[0],

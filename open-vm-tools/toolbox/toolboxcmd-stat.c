@@ -51,12 +51,16 @@ OpenHandle(VMGuestLibHandle *glHandle, // OUT: The guestlib handle
 {
    *glError = VMGuestLib_OpenHandle(glHandle);
    if (*glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "OpenHandle failed: %s\n", VMGuestLib_GetErrorText(*glError));
+      ToolsCmd_PrintErr(SU_(stat.openhandle.failed,
+                            "OpenHandle failed: %s\n"),
+                        VMGuestLib_GetErrorText(*glError));
       return EX_UNAVAILABLE;
    }
    *glError = VMGuestLib_UpdateInfo(*glHandle);
    if (*glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "UpdateInfo failed: %s\n", VMGuestLib_GetErrorText(*glError));
+      ToolsCmd_PrintErr(SU_(stat.update.failed,
+                            "UpdateInfo failed: %s\n"),
+                        VMGuestLib_GetErrorText(*glError));
       return EX_TEMPFAIL;
    }
    return 0;  // We don't return EXIT_SUCCESSS to indicate that this is not
@@ -91,7 +95,8 @@ StatProcessorSpeed(void)
    Backdoor(&bp);
    speed = bp.out.ax.word;
    if (speed < 0) {
-      fprintf(stderr, "Unable to get processor speed\n");
+      ToolsCmd_PrintErr("%s",
+                        SU_(stat.getspeed.failed, "Unable to get processor speed.\n"));
       return EX_TEMPFAIL;
    }
    printf("%u MHz\n", speed);
@@ -138,13 +143,15 @@ StatHostTime(void)
    hostUsecs = bp.out.bx.word;
 
    if (hostSecs <= 0) {
-      fprintf(stderr, "Unable to get host time\n");
+      ToolsCmd_PrintErr("%s",
+                        SU_(stat.gettime.failed, "Unable to get host time.\n"));
       return EX_TEMPFAIL;
    }
 
    sec = hostSecs + (hostUsecs / 1000000);
    if (strftime(buf, sizeof buf, "%d %b %Y %H:%M:%S", localtime(&sec)) == 0) {
-      fprintf(stderr, "Unable to format host time\n");
+      ToolsCmd_PrintErr("%s",
+                        SU_(stat.formattime.failed, "Unable to format host time.\n"));
       return EX_TEMPFAIL;
    }
    printf("%s\n", buf);
@@ -184,8 +191,9 @@ StatGetSessionID(void)
    }
    glError = VMGuestLib_GetSessionId(glHandle, &session);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get session ID: %s\n",
-              VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.getsession.failed,
+                            "Failed to get session ID: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("0x%"FMT64"x\n", session);
@@ -227,7 +235,9 @@ StatGetMemoryBallooned(void)
    }
    glError = VMGuestLib_GetMemBalloonedMB(glHandle, &memBallooned);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get CPU Limit: %s\n", VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.balloon.failed,
+                            "Failed to get ballooned memory: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("%u MHz\n", memBallooned);
@@ -269,7 +279,9 @@ StatGetMemoryReservation(void)
    }
    glError = VMGuestLib_GetMemReservationMB(glHandle, &memReservation);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get CPU Limit: %s\n", VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.memres.failed,
+                            "Failed to get memory reservation: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("%u MB\n", memReservation);
@@ -312,7 +324,9 @@ StatGetMemorySwapped(void)
    }
    glError = VMGuestLib_GetMemSwappedMB(glHandle, &memSwapped);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get CPU Limit: %s\n", VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.memswap.failed,
+                            "Failed to get swapped memory: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("%u MB\n", memSwapped);
@@ -354,7 +368,9 @@ StatGetMemoryLimit(void)
    }
    glError = VMGuestLib_GetMemLimitMB(glHandle, &memLimit);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get CPU Limit: %s\n", VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.maxmem.failed,
+                            "Failed to get memory limit: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("%u MB\n", memLimit);
@@ -396,7 +412,9 @@ StatGetCpuReservation(void)
    }
    glError = VMGuestLib_GetCpuReservationMHz(glHandle, &cpuReservation);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get CPU Limit: %s\n", VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.cpumin.failed,
+                            "Failed to get CPU minimum: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("%u MHz\n", cpuReservation);
@@ -438,7 +456,9 @@ StatGetCpuLimit(void)
    }
    glError = VMGuestLib_GetCpuLimitMHz(glHandle, &cpuLimit);
    if (glError != VMGUESTLIB_ERROR_SUCCESS) {
-      fprintf(stderr, "Failed to get CPU Limit: %s\n", VMGuestLib_GetErrorText(glError));
+      ToolsCmd_PrintErr(SU_(stat.cpumax.failed,
+                            "Failed to get CPU limit: %s\n"),
+                        VMGuestLib_GetErrorText(glError));
       exitStatus = EX_TEMPFAIL;
    } else {
       printf("%u MHz\n", cpuLimit);

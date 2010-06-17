@@ -70,12 +70,10 @@ TimeSyncSet(Bool enable) // IN: status
  */
 
 static int
-TimeSyncEnable(gboolean quiet) // IN: verbosity flag
+TimeSyncEnable(void)
 {
    TimeSyncSet(TRUE);
-   if (!quiet) {
-      printf("Enabled\n");
-   }
+   ToolsCmd_Print("%s\n", SU_(option.enabled, "Enabled"));
    return EXIT_SUCCESS;
 }
 
@@ -97,12 +95,10 @@ TimeSyncEnable(gboolean quiet) // IN: verbosity flag
  */
 
 static int
-TimeSyncDisable(gboolean quiet) // IN: verbosity flag
+TimeSyncDisable(void)
 {
    TimeSyncSet(FALSE);
-   if (!quiet) {
-      printf("Disabled\n");
-   }
+   ToolsCmd_Print("%s\n", SU_(option.disabled, "Disabled"));
    return EXIT_SUCCESS;
 }
 
@@ -115,7 +111,8 @@ TimeSyncDisable(gboolean quiet) // IN: verbosity flag
  *      Checks the status of time sync in VMX.
  *
  * Results:
- *      EXIT_SUCCESS
+ *      EXIT_SUCCESS: time sync is enabled.
+ *      EX_UNAVAILABLE: time sync is disabled.
  *
  * Side effects:
  *      None.
@@ -130,8 +127,13 @@ TimeSyncStatus(void)
    if (GuestApp_OldGetOptions() & VMWARE_GUI_SYNC_TIME) {
       status = TRUE;
    }
-   printf("%s\n", status ? "Enabled" : "Disabled");
-   return EXIT_SUCCESS;
+   if (status) {
+      ToolsCmd_Print("%s\n", SU_(option.enabled, "Enabled"));
+      return EXIT_SUCCESS;
+   } else {
+      ToolsCmd_Print("%s\n", SU_(option.disabled, "Disabled"));
+      return EX_UNAVAILABLE;
+   }
 }
 
 
@@ -158,9 +160,9 @@ TimeSync_Command(char **argv,     // IN: command line arguments
                  gboolean quiet)  // IN
 {
    if (toolbox_strcmp(argv[optind], "enable") == 0) {
-      return TimeSyncEnable(quiet);
+      return TimeSyncEnable();
    } else if (toolbox_strcmp(argv[optind], "disable") == 0) {
-      return TimeSyncDisable(quiet);
+      return TimeSyncDisable();
    } else if (toolbox_strcmp(argv[optind], "status") == 0) {
       return TimeSyncStatus();
    } else {

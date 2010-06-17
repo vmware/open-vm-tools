@@ -62,11 +62,15 @@ static Bool
 ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
 {
    if (!GuestApp_IsDiskShrinkCapable()) {
-      fprintf(stderr, SHRINK_FEATURE_ERR);
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.unavailable, SHRINK_FEATURE_ERR));
    } else if (!GuestApp_IsDiskShrinkEnabled()) {
-      fprintf(stderr, SHRINK_DISABLED_ERR);
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.disabled, SHRINK_DISABLED_ERR));
    } else if (!WiperPartition_Open(pl)) {
-      fprintf(stderr, "Unable to collect partition data.\n");
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.partition.error,
+                            "Unable to collect partition data.\n"));
    } else {
       return TRUE;
    }
@@ -195,12 +199,16 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
 
    part = ShrinkGetPartition(mountPoint);
    if (part == NULL) {
-      fprintf(stderr, "Unable to find partition %s\n", mountPoint);
+      ToolsCmd_PrintErr(SU_(disk.shrink.partition.notfound,
+                            "Unable to find partition %s\n"),
+                        mountPoint);
       return EX_OSFILE;
    }
 
    if (part->type == PARTITION_UNSUPPORTED) {
-      fprintf(stderr, "Partition %s is not shrinkable\n", part->mountPoint);
+      ToolsCmd_PrintErr(SU_(disk.shrink.partition.unsupported,
+                            "Partition %s is not shrinkable\n"),
+                        part->mountPoint);
       rc = EX_UNAVAILABLE;
       goto out;
    }
@@ -211,7 +219,8 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
     * the case where the user takes a snapshot with the toolbox open.
     */
    if (!GuestApp_IsDiskShrinkEnabled()) {
-      fprintf(stderr, SHRINK_CONFLICT_ERR);
+      ToolsCmd_PrintErr("%s",
+                        SU_(disk.shrink.conflict, SHRINK_CONFLICT_ERR));
       rc = EX_TEMPFAIL;
       goto out;
    }
@@ -222,9 +231,11 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
       err = Wiper_Next(&wiper, &progress);
       if (strlen(err) > 0) {
          if (strcmp(err, "error.create") == 0) {
-            fprintf(stderr, "Error, Unable to create wiper file\n");
+            ToolsCmd_PrintErr("%s",
+                              SU_(disk.wiper.file.error,
+                                  "Error, Unable to create wiper file.\n"));
          } else {
-            fprintf(stderr, "Error, %s", err);
+            ToolsCmd_PrintErr(SU_(disk.wiper.error, "Error: %s"), err);
          }
 
          rc = EX_TEMPFAIL;
@@ -244,19 +255,21 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
       char *result;
       size_t resultLen;
 
+      ToolsCmd_PrintErr("\n");
+
       if (ToolsCmd_SendRPC(DISK_SHRINK_CMD, sizeof DISK_SHRINK_CMD - 1,
                            &result, &resultLen)) {
-         if (!quiet) {
-            printf("\nDisk shrinking complete\n");
-         }
+         ToolsCmd_Print("%s",
+                        SU_(disk.shrink.complete, "Disk shrinking complete.\n"));
          rc = EXIT_SUCCESS;
          goto out;
       }
 
-      fprintf(stderr, "\n%s\n", result);
+      ToolsCmd_PrintErr(SU_(disk.shrink.error, "Error while shrinking: %s\n"), result);
    }
 
-   fprintf(stderr, "Shrinking not completed\n");
+   ToolsCmd_PrintErr("%s",
+                     SU_(disk.shrink.incomplete, "Shrinking not completed.\n"));
    rc = EX_TEMPFAIL;
 
 out:
@@ -292,7 +305,7 @@ ShrinkWiperDestroy(int signal)	// IN: Signal caught
       Wiper_Cancel(&wiper);
       wiper = NULL;
    }
-   printf("Disk shrink canceled\n");
+   ToolsCmd_Print("%s", SU_(disk.shrink.canceled, "Disk shrink canceled.\n"));
    exit(EXIT_SUCCESS);
 }
 #endif
