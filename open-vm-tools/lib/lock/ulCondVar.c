@@ -40,12 +40,12 @@ struct MXUserCondVar {
 #if defined(_WIN32)
    union {
       struct {
-         MXRecLock       condVarLock;
-         HANDLE          signalEvent;
-         uint32          numWaiters;
-         uint32          numForRelease;
+         CRITICAL_SECTION  condVarLock;
+         HANDLE            signalEvent;
+         uint32            numWaiters;
+         uint32            numForRelease;
       } compat;
-      CONDITION_VARIABLE condObject;
+      CONDITION_VARIABLE   condObject;
    } x;
 #else
    pthread_cond_t     condObject;
@@ -163,7 +163,8 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
       condVar->x.compat.numWaiters = 0;
       condVar->x.compat.numForRelease = 0;
 
-      if (MXRecLockInit(&condVar->x.compat.condVarLock)) {
+      if (InitializeCriticalSectionAndSpinCount(&condVar->x.compat.condVarLock,
+                                                0x80000400) != 0) {
          condVar->x.compat.signalEvent = CreateEvent(NULL,  // no security
                                                      TRUE,  // manual-reset
                                                      FALSE, // non-signaled
@@ -172,7 +173,7 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
          success = (condVar->x.compat.signalEvent != NULL);
 
          if (!success) {
-            MXRecLockDestroy(&condVar->x.compat.condVarLock);
+            DeleteCriticalSection(&condVar->x.compat.condVarLock);
          }
       } else {
          success = FALSE;
@@ -229,6 +230,12 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
                          __FUNCTION__, header->lockName, condVar->name);
    }
 
+   if (MXRecLockCount(lock) == 0) {
+      MXUserDumpAndPanic(header,
+                         "%s: unlocked lock %s with condVar (%p; %s)\n",
+                         __FUNCTION__, header->lockName, condVar->name);
+   }
+
    Atomic_Inc(&condVar->referenceCount);
 
 #if defined(_WIN32)
@@ -239,16 +246,16 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    } else {
       Bool done = FALSE;
 
-      MXRecLockAcquire(&condVar->x.compat.condVarLock, GetReturnAddress());
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
       condVar->x.compat.numWaiters++;
-      MXRecLockRelease(&condVar->x.compat.condVarLock);
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
 
       MXRecLockRelease(lock);
 
       do {
          WaitForSingleObject(condVar->x.compat.signalEvent, INFINITE);
 
-         MXRecLockAcquire(&condVar->x.compat.condVarLock, GetReturnAddress());
+         EnterCriticalSection(&condVar->x.compat.condVarLock);
 
          ASSERT(condVar->x.compat.numWaiters > 0);
 
@@ -262,7 +269,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
             done = TRUE;
          }
 
-         MXRecLockRelease(&condVar->x.compat.condVarLock);
+         LeaveCriticalSection(&condVar->x.compat.condVarLock);
       } while (!done);
 
       MXRecLockAcquire(lock, GetReturnAddress());
@@ -312,14 +319,14 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
    if (pWakeConditionVariable) {
       (*pWakeConditionVariable)(&condVar->x.condObject);
    } else {
-      MXRecLockAcquire(&condVar->x.compat.condVarLock, GetReturnAddress());
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
 
       if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
          SetEvent(condVar->x.compat.signalEvent);
          condVar->x.compat.numForRelease++;
       }
 
-      MXRecLockRelease(&condVar->x.compat.condVarLock);
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
    }
 #else
    err = pthread_cond_signal(&condVar->condObject);
@@ -362,14 +369,14 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
    if (pWakeAllConditionVariable) {
       (*pWakeAllConditionVariable)(&condVar->x.condObject);
    } else {
-      MXRecLockAcquire(&condVar->x.compat.condVarLock, GetReturnAddress());
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
 
       if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
          SetEvent(condVar->x.compat.signalEvent);
          condVar->x.compat.numForRelease = condVar->x.compat.numWaiters;
       }
 
-      MXRecLockRelease(&condVar->x.compat.condVarLock);
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
    }
 #else
    err = pthread_cond_broadcast(&condVar->condObject);
@@ -412,7 +419,7 @@ MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
 #if defined(_WIN32)
       if (pInitializeConditionVariable == NULL) {
          CloseHandle(condVar->x.compat.signalEvent);
-         MXRecLockDestroy(&condVar->x.compat.condVarLock);
+         DeleteCriticalSection(&condVar->x.compat.condVarLock);
       }
 #else
       pthread_cond_destroy(&condVar->condObject);
