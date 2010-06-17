@@ -126,20 +126,19 @@ MXUserNativeCVSupported(void)
 
    return result;
 }
-#endif
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserCreateCondVar --
+ * MXUserCreateInternal --
  *
- *      Create/initialize a condition variable associated with the specified
- *      lock.
+ *      Create/initialize the environmentally specific portion of an
+ *      MXUserCondVar.
  *
  * Results:
- *      !NULL  Success; a pointer to the (new) condition variable
- *      NULL   Failure
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      None.
@@ -147,14 +146,11 @@ MXUserNativeCVSupported(void)
  *-----------------------------------------------------------------------------
  */
 
-MXUserCondVar *
-MXUserCreateCondVar(MXUserHeader *header,  // IN:
-                    MXRecLock *lock)       // IN:
+static INLINE Bool
+MXUserCreateInternal(MXUserCondVar *condVar)  // IN/OUT:
 {
    Bool success;
-   MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof(*condVar));
 
-#if defined(_WIN32)
    if (MXUserNativeCVSupported()) {
       ASSERT(pInitializeConditionVariable);
       (*pInitializeConditionVariable)(&condVar->x.condObject);
@@ -179,64 +175,64 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
          }
       }
    }
-#else
-   success = pthread_cond_init(&condVar->condObject, NULL) == 0;
-#endif
 
-   if (success) {
-      condVar->signature = MXUSER_CONDVAR_SIGNATURE;
-      condVar->name = Util_SafeStrdup(header->lockName);
-      condVar->ownerLock = lock;
-   } else {
-      free(condVar);
-      condVar = NULL;
-   }
-
-   return condVar;
+   return success;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserWaitCondVar --
+ * MXUserDestroyInternal --
  *
- *      The internal wait on a condition variable routine.
+ *      Destroy the environmentally specific portion of an MXUserCondVar.
  *
  * Results:
- *      None.
+ *      As expect.
  *
  * Side effects:
- *      An attempt to use a lock other than the one the specified condition
- *      variable was specified for will result in a panic.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
 
-void
-MXUserWaitCondVar(MXUserHeader *header,    // IN:
-                  MXRecLock *lock,         // IN:
-                  MXUserCondVar *condVar)  // IN:
+static INLINE void
+MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   if (pInitializeConditionVariable == NULL) {
+      DeleteCriticalSection(&condVar->x.compat.condVarLock);
+      CloseHandle(condVar->x.compat.signalEvent);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserWaitInternal --
+ *
+ *      Perform the environmentally specific portion of a wait on an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      0   No error AND *signalled may be:
+ *             TRUE   condVar was signalled
+ *             FALSE  timed out waiting for condVar
+ *      !0  Error
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+MXUserWaitInternal(MXRecLock *lock,         // IN:
+                   MXUserCondVar *condVar,  // IN:
+                   uint32 msecWait,         // IN: unused
+                   Bool *Signalled)         // OUT:
 {
    int err;
-
-   ASSERT(header);
-   ASSERT(lock);
-   ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
-
-   if (condVar->ownerLock != lock) {
-      MXUserDumpAndPanic(header,
-                         "%s: invalid use of lock %s with condVar (%p; %s)\n",
-                         __FUNCTION__, header->lockName, condVar->name);
-   }
-
-   if (MXRecLockCount(lock) == 0) {
-      MXUserDumpAndPanic(header,
-                         "%s: unlocked lock %s with condVar (%p; %s)\n",
-                         __FUNCTION__, header->lockName, condVar->name);
-   }
-
-   Atomic_Inc(&condVar->referenceCount);
 
    /*
     * When using the native lock found within the MXUser lock, be sure to
@@ -246,7 +242,6 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
     * MXUser internal accounting information must be maintained.
     */
 
-#if defined(_WIN32)
    if (pSleepConditionVariableCS) {
       MXRecLockDecCount(lock);
       err = (*pSleepConditionVariableCS)(&condVar->x.condObject,
@@ -286,11 +281,315 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 
       err = 0;
    }
+
+   *signalled = TRUE;
+
+   return err;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserSignalInternal --
+ *
+ *      Perform the environmentally specific portion of signalling an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      0    Success
+ *      !0   Error
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+MXUserSignalInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   if (pWakeConditionVariable) {
+      (*pWakeConditionVariable)(&condVar->x.condObject);
+   } else {
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
+
+      if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
+         SetEvent(condVar->x.compat.signalEvent);
+         condVar->x.compat.numForRelease++;
+      }
+
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
+   }
+
+   return 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserBroadcastInternal --
+ *
+ *      Perform the environmentally specific portion of broadasting on an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      0    Success
+ *      !0   Error
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+
+static INLINE int
+MXUserBroadcastInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   if (pWakeAllConditionVariable) {
+      (*pWakeAllConditionVariable)(&condVar->x.condObject);
+   } else {
+      EnterCriticalSection(&condVar->x.compat.condVarLock);
+
+      if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
+         SetEvent(condVar->x.compat.signalEvent);
+         condVar->x.compat.numForRelease = condVar->x.compat.numWaiters;
+      }
+
+      LeaveCriticalSection(&condVar->x.compat.condVarLock);
+   }
+
+   return 0;
+}
 #else
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserCreateInternal --
+ *
+ *      Create/initialize the environmentally specific portion of an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+MXUserCreateInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   return pthread_cond_init(&condVar->condObject, NULL) == 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserDestroyInternal --
+ *
+ *      Destroy the environmentally specific portion of an MXUserCondVar.
+ *
+ * Results:
+ *      As expected.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   pthread_cond_destroy(&condVar->condObject);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserWaitInternal --
+ *
+ *      Perform the environmentally specific portion of a wait on an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      0   Success AND *signalled may be:
+ *             TRUE   condVar was signalled
+ *             FALSE  timed out waiting for condVar
+ *      !0  Error
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+MXUserWaitInternal(MXRecLock *lock,         // IN:
+                   MXUserCondVar *condVar,  // IN:
+                   uint32 msecWait,         // IN:
+                   Bool *signalled)         // OUT:
+{
+   int err;
+
+   /*
+    * When using the native lock found within the MXUser lock, be sure to
+    * decrement the count before the wait/sleep and increment it after the
+    * wait/sleep - the (native) wait/sleep will perform a lock release before
+    * the wait/sleep and a lock acquisition after the wait/sleep. The
+    * MXUser internal accounting information must be maintained.
+    */
+
    MXRecLockDecCount(lock);
    err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
    MXRecLockIncCount(lock, GetReturnAddress());
+
+   *signalled = TRUE;
+
+   return err;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserSignalInternal --
+ *
+ *      Perform the environmentally specific portion of signalling an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      0    Success
+ *      !0   Error
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+MXUserSignalInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   return pthread_cond_signal(&condVar->condObject);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserBroadcaseInternal --
+ *
+ *      Perform the environmentally specific portion of broadasting on an
+ *      MXUserCondVar.
+ *
+ * Results:
+ *      0    Success
+ *      !0   Error
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int
+MXUserBroadcastInternal(MXUserCondVar *condVar)  // IN/OUT:
+{
+   return pthread_cond_broadcast(&condVar->condObject);
+}
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserCreateCondVar --
+ *
+ *      Create/initialize a condition variable associated with the specified
+ *      lock.
+ *
+ * Results:
+ *      !NULL  Success; a pointer to the (new) condition variable
+ *      NULL   Failure
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserCondVar *
+MXUserCreateCondVar(MXUserHeader *header,  // IN:
+                    MXRecLock *lock)       // IN:
+{
+   MXUserCondVar *condVar = Util_SafeCalloc(1, sizeof(*condVar));
+
+   if (MXUserCreateInternal(condVar)) {
+      condVar->signature = MXUSER_CONDVAR_SIGNATURE;
+      condVar->name = Util_SafeStrdup(header->lockName);
+      condVar->ownerLock = lock;
+   } else {
+      free(condVar);
+      condVar = NULL;
+   }
+
+   return condVar;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserWaitCondVar --
+ *
+ *      The internal wait on a condition variable routine.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      An attempt to use a lock other than the one the specified condition
+ *      variable was specified for will result in a panic.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUserWaitCondVar(MXUserHeader *header,    // IN:
+                  MXRecLock *lock,         // IN:
+                  MXUserCondVar *condVar)  // IN/OUT:
+{
+   int err;
+   Bool signalled;
+
+   ASSERT(header);
+   ASSERT(lock);
+   ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
+
+   if (condVar->ownerLock != lock) {
+      MXUserDumpAndPanic(header,
+                         "%s: invalid use of lock %s with condVar (%p; %s)\n",
+                         __FUNCTION__, header->lockName, condVar->name);
+   }
+
+   if (MXRecLockCount(lock) == 0) {
+      MXUserDumpAndPanic(header,
+                         "%s: unlocked lock %s with condVar (%p; %s)\n",
+                         __FUNCTION__, header->lockName, condVar->name);
+   }
+
+   Atomic_Inc(&condVar->referenceCount);
+
+   err = MXUserWaitInternal(lock, condVar, 0, &signalled);
 
    if (err != 0) {
       MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
@@ -321,33 +620,16 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 void
 MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
 {
-#if !defined(_WIN32)
    int err;
-#endif
 
    ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
 
-#if defined(_WIN32)
-   if (pWakeConditionVariable) {
-      (*pWakeConditionVariable)(&condVar->x.condObject);
-   } else {
-      EnterCriticalSection(&condVar->x.compat.condVarLock);
-
-      if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
-         SetEvent(condVar->x.compat.signalEvent);
-         condVar->x.compat.numForRelease++;
-      }
-
-      LeaveCriticalSection(&condVar->x.compat.condVarLock);
-   }
-#else
-   err = pthread_cond_signal(&condVar->condObject);
+   err = MXUserSignalInternal(condVar);
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s) \n", __FUNCTION__, err,
             condVar, condVar->name);
    }
-#endif
 }
 
 
@@ -371,33 +653,16 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
 void
 MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
 {
-#if !defined(_WIN32)
-   Err_Number err;
-#endif
+   int err;
 
    ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
 
-#if defined(_WIN32)
-   if (pWakeAllConditionVariable) {
-      (*pWakeAllConditionVariable)(&condVar->x.condObject);
-   } else {
-      EnterCriticalSection(&condVar->x.compat.condVarLock);
-
-      if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
-         SetEvent(condVar->x.compat.signalEvent);
-         condVar->x.compat.numForRelease = condVar->x.compat.numWaiters;
-      }
-
-      LeaveCriticalSection(&condVar->x.compat.condVarLock);
-   }
-#else
-   err = pthread_cond_broadcast(&condVar->condObject);
+   err = MXUserBroadcastInternal(condVar);
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s) \n", __FUNCTION__, err,
             condVar, condVar->name);
    }
-#endif
 }
 
 
@@ -428,14 +693,7 @@ MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
                __FUNCTION__, condVar, condVar->name);
       }
 
-#if defined(_WIN32)
-      if (pInitializeConditionVariable == NULL) {
-         DeleteCriticalSection(&condVar->x.compat.condVarLock);
-         CloseHandle(condVar->x.compat.signalEvent);
-      }
-#else
-      pthread_cond_destroy(&condVar->condObject);
-#endif
+      MXUserDestroyInternal(condVar);
 
       condVar->signature = 0;  // just in case...
       free(condVar->name);
