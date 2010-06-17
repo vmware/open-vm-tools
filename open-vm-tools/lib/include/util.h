@@ -163,6 +163,11 @@ EXTERN char *Util_GetSafeTmpDir(Bool useConf);
 EXTERN int Util_MakeSafeTemp(ConstUnicode tag,
                              Unicode *presult);
 
+typedef struct UtilSingleUseResource UtilSingleUseResource;
+UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
+void Util_SingleUseRelease(UtilSingleUseResource *res);
+
+
 #if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
 EXTERN Bool Util_GetProcessName(pid_t pid, char *bufOut, size_t bufOutSize);
 #endif
