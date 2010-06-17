@@ -99,10 +99,14 @@ typedef struct {
 static INLINE int
 MXRecLockCreateInternal(MXRecLock *lock)  // IN/OUT:
 {
+   Bool success;
+
    /* http://msdn.microsoft.com/en-us/library/ms682530(VS.85).aspx */
    /* magic number - allocate resources immediately; spin 0x400 times */
-   return InitializeCriticalSectionAndSpinCount(&lock->nativeLock,
-                                                0x80000400) != 0;
+   success = InitializeCriticalSectionAndSpinCount(&lock->nativeLock,
+                                                   0x80000400);
+
+   return success ? 0 : GetLastError();
 }
 
 
