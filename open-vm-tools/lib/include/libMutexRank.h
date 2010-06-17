@@ -31,25 +31,12 @@
  */
 
 /*
- * VMDB upper range:
- * (RANK_libLockBase + 0x2500, RANK_libLockBase + 0x2600)
- *
- * VMDB has an unfortunate tendency to hold the CNX lock around
- * callbacks. Specifically, callbacks into VMHS. So that lock (and the
- * couple other VMDB locks above it) has to be above everything else.
- */
-#define RANK_vmuSecPolicyLock        RANK_UNRANKED//(RANK_libLockBase + 0x2505)
-#define RANK_vmdbCnxRpcLock          RANK_UNRANKED//(RANK_libLockBase + 0x2510)
-#define RANK_vmdbCnxRpcBarrierLock   RANK_UNRANKED//(RANK_libLockBase + 0x2520)
-#define RANK_vmdbCnxLock             RANK_UNRANKED//(RANK_libLockBase + 0x2530)
-
-/*
  * vmhs locks
  */
-#define RANK_vmhsThrMxLock          RANK_UNRANKED//(RANK_libLockBase + 0x3005)
-#define RANK_vmhsVmxMxLock          RANK_UNRANKED//(RANK_libLockBase + 0x3005)
-#define RANK_vmhsMvmtsMxLock        RANK_UNRANKED//(RANK_libLockBase + 0x3005)
-#define RANK_vmhsHotfixesMxLock     RANK_UNRANKED//(RANK_libLockBase + 0x3005)
+#define RANK_vmhsThrMxLock          (RANK_libLockBase + 0x3005)
+#define RANK_vmhsVmxMxLock          (RANK_libLockBase + 0x3005)
+#define RANK_vmhsMvmtsMxLock        (RANK_libLockBase + 0x3005)
+#define RANK_vmhsHotfixesMxLock     (RANK_libLockBase + 0x3005)
 
 /*
  * hgfs locks
@@ -90,17 +77,18 @@
 #define RANK_vigorClientLock         (RANK_libLockBase + 0x5400)
 
 /*
- * VMDB lower range:
+ * VMDB range:
  * (RANK_libLockBase + 0x5500, RANK_libLockBase + 0x5600)
- *
- * These are lower-level locks not held around VMDB callbacks (unlike
- * those locks in the upper range.)
  */
-#define RANK_vmdbSecureLock          (RANK_libLockBase + 0x5505)
-#define RANK_vmdbDbLock              (RANK_libLockBase + 0x5510)
-#define RANK_vmdbW32HookLock         (RANK_libLockBase + 0x5520)
-#define RANK_vmdbWQPoolLock          (RANK_libLockBase + 0x5530)
-#define RANK_vmdbMemMapLock          (RANK_libLockBase + 0x5540)
+#define RANK_vmuSecPolicyLock        (RANK_libLockBase + 0x5505)
+#define RANK_vmdbCnxRpcLock          (RANK_libLockBase + 0x5510)
+#define RANK_vmdbCnxRpcBarrierLock   (RANK_libLockBase + 0x5520)
+#define RANK_vmdbCnxLock             (RANK_libLockBase + 0x5530)
+#define RANK_vmdbSecureLock          (RANK_libLockBase + 0x5540)
+#define RANK_vmdbDbLock              (RANK_libLockBase + 0x5550)
+#define RANK_vmdbW32HookLock         (RANK_libLockBase + 0x5560)
+#define RANK_vmdbWQPoolLock          (RANK_libLockBase + 0x5570)
+#define RANK_vmdbMemMapLock          (RANK_libLockBase + 0x5580)
 
 /*
  * poll default lock
