@@ -24,7 +24,6 @@
 
 #ifdef __linux__
 #  include "driver-config.h"
-#  define EXPORT_SYMTAB
 #  include <asm/page.h>
 #  include <linux/module.h>
 #elif defined(_WIN32)
@@ -234,7 +233,7 @@ VMCIQueuePair_Exit(void)
          detachMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
          detachMsg.hdr.payloadSize = sizeof entry->handle;
          detachMsg.handle = entry->handle;
-         
+
          (void)VMCI_SendDatagram((VMCIDatagram *)&detachMsg);
       }
       /*
@@ -388,10 +387,6 @@ QueuePairList_GetHead(void)
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIQueuePair_Alloc);
-#endif
-
 int
 VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
                     VMCIQueue  **produceQ,  // OUT:
@@ -424,10 +419,6 @@ VMCIQueuePair_Alloc(VMCIHandle *handle,     // IN/OUT:
  *
  *-----------------------------------------------------------------------------
  */
-
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIQueuePair_AllocPriv);
-#endif
 
 int
 VMCIQueuePair_AllocPriv(VMCIHandle *handle,           // IN/OUT:
@@ -469,10 +460,6 @@ VMCIQueuePair_AllocPriv(VMCIHandle *handle,           // IN/OUT:
  *
  *-----------------------------------------------------------------------------
  */
-
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIQueuePair_Detach);
-#endif
 
 int
 VMCIQueuePair_Detach(VMCIHandle handle) // IN:
@@ -519,7 +506,7 @@ QueuePairEntryCreate(VMCIHandle handle,  // IN:
                           2; /* One page each for the queue headers. */
 
    ASSERT((produceSize || consumeSize) && produceQ && consumeQ);
-   
+
    if (VMCI_HANDLE_INVALID(handle)) {
       VMCIId contextID = VMCI_GetContextID();
       VMCIId oldRID = queuePairRID;
@@ -908,11 +895,10 @@ out:
 
    /* If we didn't remove the entry, this could change once we unlock. */
    refCount = entry ? entry->refCount :
-                      0xffffffff; /* 
+                      0xffffffff; /*
                                    * Value does not matter, silence the
                                    * compiler.
                                    */
-                                       
 
    QueuePairList_Unlock();
 

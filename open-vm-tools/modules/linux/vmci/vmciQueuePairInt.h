@@ -25,7 +25,8 @@
 #ifndef _VMCI_QUEUE_PAIR_INT_H_
 #define _VMCI_QUEUE_PAIR_INT_H_
 
-#include "vmciGuestKernelAPI.h"
+#include "vmci_defs.h"
+#include "vmciQueue.h"
 
 void VMCIQueuePair_Init(void);
 void VMCIQueuePair_Exit(void);

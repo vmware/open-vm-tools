@@ -36,7 +36,7 @@
 #  include "compat_interrupt.h"
 #elif defined(_WIN32)
 #  ifndef WINNT_DDK
-#     error  This file only works with the NT ddk 
+#     error  This file only works with the NT ddk
 #  endif // WINNT_DDK
 #  include <ntddk.h>
 #elif defined(SOLARIS)
@@ -45,7 +45,7 @@
 #  include <sys/disp.h>
 #elif defined(__APPLE__)
 #  include <IOKit/IOLib.h>
-#else 
+#else
 #error "platform not supported."
 #endif //linux
 
@@ -88,14 +88,14 @@ static Atomic_uint32 vmContextID = { VMCI_INVALID_ID };
 void
 VMCIUtil_Init(void)
 {
-   /* 
+   /*
     * We subscribe to the VMCI_EVENT_CTX_ID_UPDATE here so we can update the
     * internal context id when needed.
     */
    if (VMCIEvent_Subscribe(VMCI_EVENT_CTX_ID_UPDATE, VMCI_FLAG_EVENT_NONE,
                            VMCIUtilCidUpdate, NULL,
                            &ctxUpdateSubID) < VMCI_SUCCESS) {
-      VMCI_LOG(("VMCIUtil: Failed to subscribe to event %d.\n", 
+      VMCI_LOG(("VMCIUtil: Failed to subscribe to event %d.\n",
                 VMCI_EVENT_CTX_ID_UPDATE));
    }
 }
@@ -106,7 +106,7 @@ VMCIUtil_Init(void)
  *
  * VMCIUtil_Exit --
  *
- *      Cleanup 
+ *      Cleanup
  *
  * Results:
  *      None.
@@ -192,7 +192,7 @@ VMCIUtil_CheckHostCapabilities(void)
 {
    int result;
    VMCIResourcesQueryMsg *msg;
-   uint32 msgSize = sizeof(VMCIResourcesQueryHdr) + 
+   uint32 msgSize = sizeof(VMCIResourcesQueryHdr) +
       VMCI_UTIL_NUM_RESOURCES * sizeof(VMCI_Resource);
    VMCIDatagram *checkMsg = VMCI_AllocKernelMem(msgSize, VMCI_MEMORY_NONPAGED);
 
@@ -201,7 +201,7 @@ VMCIUtil_CheckHostCapabilities(void)
       return FALSE;
    }
 
-   checkMsg->dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID, 
+   checkMsg->dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
                                     VMCI_RESOURCES_QUERY);
    checkMsg->src = VMCI_ANON_SRC_HANDLE;
    checkMsg->payloadSize = msgSize - VMCI_DG_HEADERSIZE;
@@ -223,7 +223,7 @@ VMCIUtil_CheckHostCapabilities(void)
  *
  * VMCI_GetContextID --
  *
- *      Returns the context id. 
+ *      Returns the context id.
  *
  * Results:
  *      Context id.
@@ -294,7 +294,7 @@ VMCI_CheckHostCapabilities(void)
  *
  *     Returns the version of the VMCI guest driver.
  *
- * Results: 
+ * Results:
  *      Returns a version number.
  *
  * Side effects:
@@ -321,7 +321,7 @@ VMCI_Version()
  *
  *     Determines if we are running in tasklet/dispatch level or above.
  *
- * Results: 
+ * Results:
  *      TRUE if tasklet/dispatch or above, FALSE otherwise.
  *
  * Side effects:
@@ -358,7 +358,7 @@ VMCI_InInterrupt()
  *      the callers intention to use the device until it calls
  *      VMCI_DeviceRelease().
  *
- * Results: 
+ * Results:
  *      TRUE if a valid VMCI device is present, FALSE otherwise.
  *
  * Side effects:
@@ -385,7 +385,7 @@ VMCI_DeviceGet(void)
  *
  *      Indicates that the caller is done using the VMCI device.
  *
- * Results: 
+ * Results:
  *      None.
  *
  * Side effects:
@@ -441,15 +441,15 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
    ASSERT(dgInBufferSize >= PAGE_SIZE);
 
    VMCI_ReadPortBytes(ioHandle, dgInPort, dgInBuffer, currentDgInBufferSize);
-   dg = (VMCIDatagram *)dgInBuffer; 
+   dg = (VMCIDatagram *)dgInBuffer;
    remainingBytes = currentDgInBufferSize;
-   
+
    while (dg->dst.resource != VMCI_INVALID_ID || remainingBytes > PAGE_SIZE) {
       unsigned dgInSize;
-      
+
       /*
        * When the input buffer spans multiple pages, a datagram can
-       * start on any page boundary in the buffer. 
+       * start on any page boundary in the buffer.
        */
 
       if (dg->dst.resource == VMCI_INVALID_ID) {
@@ -461,7 +461,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
       }
 
       dgInSize = VMCI_DG_SIZE_ALIGNED(dg);
-      
+
       if (dgInSize <= dgInBufferSize) {
          int result;
 
@@ -471,7 +471,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
           * enough room for it and then we read the reminder of the
           * datagram and possibly any following datagrams.
           */
- 
+
          if (dgInSize > remainingBytes) {
 
             if (remainingBytes != currentDgInBufferSize) {
@@ -481,11 +481,11 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
                 * the reminder of the datagram and possibly following
                 * calls into the following bytes.
                 */
-       
+
                memmove(dgInBuffer, dgInBuffer + currentDgInBufferSize - remainingBytes,
                        remainingBytes);
 
-               dg = (VMCIDatagram *)dgInBuffer; 
+               dg = (VMCIDatagram *)dgInBuffer;
             }
 
             if (currentDgInBufferSize != dgInBufferSize) {
@@ -495,9 +495,9 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
             VMCI_ReadPortBytes(ioHandle, dgInPort, dgInBuffer + remainingBytes,
                                currentDgInBufferSize - remainingBytes);
          }
-         
+
          /* We special case event datagrams from the hypervisor. */
-         if (dg->src.context == VMCI_HYPERVISOR_CONTEXT_ID && 
+         if (dg->src.context == VMCI_HYPERVISOR_CONTEXT_ID &&
              dg->dst.resource == VMCI_EVENT_HANDLER) {
             result = VMCIEvent_Dispatch(dg);
          } else {
@@ -507,19 +507,19 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
             VMCI_LOG(("Datagram with resource %d failed with err %x.\n",
                       dg->dst.resource, result));
          }
-         
+
          /* On to the next datagram. */
          dg = (VMCIDatagram *)((uint8 *)dg + dgInSize);
       } else {
          size_t bytesToSkip;
-         
+
          /*
           * Datagram doesn't fit in datagram buffer of maximal size. We drop it.
           */
 
          VMCI_LOG(("Failed to receive datagram of size %u.\n",
                    dgInSize));
-         
+
          bytesToSkip = dgInSize - remainingBytes;
          if (currentDgInBufferSize != dgInBufferSize) {
             currentDgInBufferSize = dgInBufferSize;
@@ -533,12 +533,12 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
          }
          dg = (VMCIDatagram *)(dgInBuffer + bytesToSkip);
       }
-      
+
       remainingBytes = (size_t) (dgInBuffer + currentDgInBufferSize - (uint8 *)dg);
-      
+
       if (remainingBytes < VMCI_DG_HEADERSIZE) {
          /* Get the next batch of datagrams. */
-         
+
          VMCI_ReadPortBytes(ioHandle, dgInPort, dgInBuffer, currentDgInBufferSize);
          dg = (VMCIDatagram *)dgInBuffer;
          remainingBytes = currentDgInBufferSize;
@@ -571,4 +571,33 @@ VMCIPrivilegeFlags
 VMCIContext_GetPrivFlags(VMCIId contextID) // IN
 {
    return VMCI_NO_PRIVILEGE_FLAGS;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VMCI_ContextID2HostVmID --
+ *
+ *      Provided for compatibility with the host VMCI API.
+ *
+ * Results:
+ *      Returns VMCI_ERROR_UNAVAILABLE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#ifdef __linux__
+EXPORT_SYMBOL(VMCI_ContextID2HostVmID);
+#endif
+
+int
+VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
+                        void *hostVmID,      // OUT
+                        size_t hostVmIDLen)  // IN
+{
+   return VMCI_ERROR_UNAVAILABLE;
 }

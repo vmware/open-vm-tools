@@ -25,19 +25,15 @@
 #ifndef __VMCI_GUESTKERNELAPI_H__
 #define __VMCI_GUESTKERNELAPI_H__
 
-/* VMCI guest kernel API version number. */
-#define VMCI_GUEST_KERNEL_API_VERSION  1
-
 /* Macros to operate on the driver version number. */
 #define VMCI_MAJOR_VERSION(v)       (((v) >> 16) & 0xffff)
-#define VMCI_MINOT_VERSION(v)       ((v) & 0xffff)
+#define VMCI_MINOR_VERSION(v)       ((v) & 0xffff)
 
 #define INCLUDE_ALLOW_MODULE
 #include "includeCheck.h"
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-#include "vmciQueue.h"
 
 /*
  * Note: APIs marked as compat are provided for compatibility with the host
@@ -65,6 +61,8 @@ int VMCIDatagram_Send(VMCIDatagram *msg);
 
 VMCIId VMCI_GetContextID(void);
 uint32 VMCI_Version(void);
+int VMCI_ContextID2HostVmID(VMCIId contextID, void *hostVmID,
+                            size_t hostVmIDLen);
 
 /* VMCI Event API. */
 
@@ -85,8 +83,6 @@ int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
 /* VMCI Doorbell API. */
 
-#if !defined(SOLARIS) && !defined(__APPLE__)
-
 #define VMCI_FLAG_DELAYED_CB    0x01
 
 typedef void (*VMCICallback)(void *clientData);
@@ -97,8 +93,6 @@ int VMCIDoorbell_Create(VMCIHandle *handle, uint32 flags,
 int VMCIDoorbell_Destroy(VMCIHandle handle);
 int VMCIDoorbell_Notify(VMCIHandle handle,
                         VMCIPrivilegeFlags privFlags);
-
-#endif // !defined(SOLARIS) && !defined(__APPLE__)
 
 #endif /* !__VMCI_GUESTKERNELAPI_H__ */
 
