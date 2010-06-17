@@ -61,20 +61,12 @@
 #define UNIX_S32_MAX (UNIX_EPOCH + (uint64)0x80000000 * 10000000)
 
 /*
- * Days in month defines. The month is 1 - 12.
- * Notice that there are 28 days in february. It will updated for leap year
- * as necessary by the function using this defines.
- */
-#define DAYS_IN_MONTH { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
-
-
-/*
  * Local Definitions
  */
 
 static void TimeUtilInit(TimeUtil_Date *d);
 static Bool TimeUtilLoadDate(TimeUtil_Date *d, const char *date);
-static Bool TimeUtilIsLeapYear(unsigned int year);
+static const unsigned int *TimeUtilMonthDaysForYear(unsigned int year);
 static Bool TimeUtilIsValidDate(unsigned int year,
                                 unsigned int month,
                                 unsigned int day);
@@ -418,18 +410,14 @@ void
 TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
                  unsigned int nr)  // IN
 {
-   static unsigned int monthdays[13] = DAYS_IN_MONTH;
+   const unsigned int *monthDays;
    unsigned int i;
 
    /*
     * Initialize the table
     */
 
-   if (TimeUtilIsLeapYear(d->year)) {
-      monthdays[2] = 29;
-   } else {
-      monthdays[2] = 28;
-   }
+   monthDays = TimeUtilMonthDaysForYear(d->year);
 
    for (i = 0; i < nr; i++) {
       /*
@@ -437,7 +425,7 @@ TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
        */
 
       d->day++;
-      if (d->day > monthdays[d->month]) {
+      if (d->day > monthDays[d->month]) {
          d->day = 1;
          d->month++;
          if (d->month > 12) {
@@ -448,11 +436,7 @@ TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
              * Update the table
              */
 
-            if (TimeUtilIsLeapYear(d->year)) {
-               monthdays[2] = 29;
-            } else {
-               monthdays[2] = 28;
-            }
+            monthDays = TimeUtilMonthDaysForYear(d->year);
          }
       }
    }
@@ -1198,21 +1182,17 @@ TimeUtilIsValidDate(unsigned int year,   // IN
                     unsigned int month,  // IN
                     unsigned int day)    // IN
 {
-   static unsigned int monthdays[13] = DAYS_IN_MONTH;
+   const unsigned int *monthDays;
 
    /*
     * Initialize the table
     */
 
-   if (TimeUtilIsLeapYear(year)) {
-      monthdays[2] = 29;
-   } else {
-      monthdays[2] = 28;
-   }
+   monthDays = TimeUtilMonthDaysForYear(year);
 
    if ((year >= 1) &&
        (month >= 1) && (month <= 12) &&
-       (day >= 1) && (day <= monthdays[month])) {
+       (day >= 1) && (day <= monthDays[month])) {
       return TRUE;
    }
 
@@ -1223,12 +1203,14 @@ TimeUtilIsValidDate(unsigned int year,   // IN
 /*
  *----------------------------------------------------------------------
  *
- * TimeUtilIsLeapYear --
+ * TimeUtilMonthDaysForYear --
  *
- *    Check whether the argument represents a leap year.
+ *    Return an array of days in months depending on whether the 
+ *    argument represents a leap year.
  *
  * Results:
- *    TRUE or FALSE.
+ *    A pointer to an array of 13 ints representing the days in the 
+ *    12 months.  There are 13 entries because month is 1-12.
  *
  * Side effects:
  *    None.
@@ -1236,16 +1218,16 @@ TimeUtilIsValidDate(unsigned int year,   // IN
  *----------------------------------------------------------------------
  */
 
-static Bool
-TimeUtilIsLeapYear(unsigned int year)  // IN
+static unsigned int const *
+TimeUtilMonthDaysForYear(unsigned int year) // IN
 {
-   if ((year % 4) == 0 &&
-       ((year % 100) != 0 ||
-        (year % 400) == 0)) {
-      return TRUE;
-   }
+   static const unsigned int leap[13] =
+                   { 0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+   static const unsigned int common[13] =
+                   { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-   return FALSE;
+   return ((year % 4) == 0 && ((year % 100) != 0 || (year % 400) == 0)) ? 
+           leap : common;
 }
 
 
