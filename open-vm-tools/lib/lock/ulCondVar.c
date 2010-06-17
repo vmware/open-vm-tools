@@ -238,11 +238,21 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
 
    Atomic_Inc(&condVar->referenceCount);
 
+   /*
+    * When using the native lock found within the MXUser lock, be sure to
+    * decrement the count before the wait/sleep and increment it after the
+    * wait/sleep - the (native) wait/sleep will perform a lock release before
+    * the wait/sleep and a lock acquisition after the wait/sleep. The
+    * MXUser internal accounting information must be maintained.
+    */
+
 #if defined(_WIN32)
    if (pSleepConditionVariableCS) {
+      MXRecLockDecCount(lock);
       err = (*pSleepConditionVariableCS)(&condVar->x.condObject,
                                          &lock->nativeLock, INFINITE) ?
                                          0 : GetLastError();
+      MXRecLockIncCount(lock, GetReturnAddress());
    } else {
       Bool done = FALSE;
 
@@ -277,7 +287,9 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
       err = 0;
    }
 #else
+   MXRecLockDecCount(lock);
    err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
+   MXRecLockIncCount(lock, GetReturnAddress());
 #endif
 
    if (err != 0) {

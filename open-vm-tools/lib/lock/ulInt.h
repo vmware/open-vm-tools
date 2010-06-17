@@ -246,6 +246,32 @@ MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
    if (vmx86_debug && (err != 0)) {
       Panic("%s: MXRecLockDestroyInternal returned %d\n", __FUNCTION__, err);
    }
+} 
+
+
+static INLINE uint32
+MXRecLockCount(const MXRecLock *lock)  // IN:
+{
+   return lock->referenceCount;
+}
+
+
+static INLINE void
+MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
+                  void *location)   // IN:
+{
+   if (MXRecLockCount(lock) == 0) {
+#if defined(MXUSER_DEBUG)
+      ASSERT(lock->portableThreadID == VTHREAD_INVALID_ID);
+
+      lock->ownerRetAddr = location;
+      lock->portableThreadID = VThread_CurID();
+#endif
+
+      MXRecLockSetOwner(lock);
+   }
+
+   lock->referenceCount++;
 }
 
 
@@ -255,11 +281,9 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
 {
    Bool contended;
 
-   if ((lock->referenceCount != 0) && MXRecLockIsOwner(lock)) {
-      ASSERT((lock->referenceCount > 0) &&
-             (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
-
-      lock->referenceCount++;
+   if ((MXRecLockCount(lock) != 0) && MXRecLockIsOwner(lock)) {
+      ASSERT((MXRecLockCount(lock) > 0) &&
+             (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
 
       contended = FALSE;
    } else {
@@ -283,17 +307,9 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
       }
 
       ASSERT(lock->referenceCount == 0);
-
-#if defined(MXUSER_DEBUG)
-      ASSERT(lock->portableThreadID == VTHREAD_INVALID_ID);
-
-      lock->ownerRetAddr = location;
-      lock->portableThreadID = VThread_CurID();
-#endif
-
-      MXRecLockSetOwner(lock);
-      lock->referenceCount = 1;
    }
+
+   MXRecLockIncCount(lock, location);
 
    return contended;
 }
@@ -309,21 +325,10 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
    err = MXRecLockTryAcquireInternal(lock);
 
    if (err == 0) {
-      ASSERT((lock->referenceCount >= 0) &&
-             (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
+      ASSERT((MXRecLockCount(lock) > 0) &&
+             (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
 
-      if (lock->referenceCount == 0) {
-#if defined(MXUSER_DEBUG)
-         ASSERT(lock->portableThreadID == VTHREAD_INVALID_ID);
-
-         lock->ownerRetAddr = location;
-         lock->portableThreadID = VThread_CurID();
-#endif
-
-         MXRecLockSetOwner(lock);
-      }
-
-      lock->referenceCount++;
+      MXRecLockIncCount(lock, location);
 
       acquired = TRUE;
    } else {
@@ -338,26 +343,32 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
    return acquired;
 }
 
-
 static INLINE void
-MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
+MXRecLockDecCount(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT((lock->referenceCount > 0) &&
-          (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
-
    lock->referenceCount--;
 
-   if (lock->referenceCount == 0) {
-      int err;
-
+   if (MXRecLockCount(lock) == 0) {
       MXRecLockSetNoOwner(lock);
 
 #if defined(MXUSER_DEBUG)
       lock->ownerRetAddr = NULL;
       lock->portableThreadID = VTHREAD_INVALID_ID;
 #endif
+   }
+}
 
-      err = MXRecLockReleaseInternal(lock);
+
+static INLINE void
+MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
+{
+   ASSERT((MXRecLockCount(lock) > 0) &&
+          (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
+
+   MXRecLockDecCount(lock);
+
+   if (MXRecLockCount(lock) == 0) {
+      int err = MXRecLockReleaseInternal(lock);
 
       if (vmx86_debug && (err != 0)) {
          Panic("%s: MXRecLockReleaseInternal returned %d\n", __FUNCTION__,
@@ -366,12 +377,6 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
    }
 }
 
-
-static INLINE uint32
-MXRecLockCount(const MXRecLock *lock)  // IN:
-{
-   return lock->referenceCount;
-}
 
 /*
  * MXUser lock header - all MXUser locks start with this
