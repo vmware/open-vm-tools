@@ -22,6 +22,8 @@
 #include "userlock.h"
 #include "ulInt.h"
 
+#define MXUSER_REC_SIGNATURE 0x43524B4C // 'LKRC' in memory
+
 struct MXUserRecLock
 {
    MXUserHeader            header;
@@ -205,7 +207,7 @@ MXUser_CreateRecLock(const char *userName,  // IN:
    lock->vmmLock = NULL;
 
    lock->header.lockName = properName;
-   lock->header.lockSignature = USERLOCK_SIGNATURE;
+   lock->header.lockSignature = MXUSER_REC_SIGNATURE;
    lock->header.lockRank = rank;
    lock->header.lockDumper = MXUserDumpRecLock;
 
@@ -246,7 +248,7 @@ void
 MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 {
    if (lock != NULL) {
-      ASSERT(lock->header.lockSignature == USERLOCK_SIGNATURE);
+      ASSERT(lock->header.lockSignature == MXUSER_REC_SIGNATURE);
 
       if (lock->vmmLock == NULL) {
          if (MXRecLockCount(&lock->recursiveLock) > 0) {
@@ -293,7 +295,7 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_LockRec);
@@ -353,7 +355,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 void
 MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_UnlockRec);
@@ -416,7 +418,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    Bool success;
 
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_TryLockRec);
@@ -473,7 +475,7 @@ Bool
 MXUser_IsCurThreadHoldingRecLock(const MXUserRecLock *lock)  // IN:
 {
    Bool result;
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    if (lock->vmmLock) {
       ASSERT(MXUserMX_IsLockedByCurThreadRec);
@@ -510,7 +512,7 @@ MXUser_ControlRecLock(MXUserRecLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    switch (command) {
@@ -625,7 +627,7 @@ MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,  // IN/OUT:
 MXUserCondVar *
 MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    return MXUserCreateCondVar(&lock->header, &lock->recursiveLock);
@@ -654,7 +656,7 @@ void
 MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                           MXUserCondVar *condVar)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
    MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
@@ -686,7 +688,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
                                uint32 msecWait)         // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                             msecWait);
@@ -712,7 +714,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 struct MX_MutexRec *
 MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    return lock->vmmLock;
 }
@@ -737,7 +739,7 @@ MXUser_GetRecLockVmm(const MXUserRecLock *lock)  // IN:
 MX_Rank
 MXUser_GetRecLockRank(const MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_REC_SIGNATURE));
 
    return lock->header.lockRank;
 }
@@ -791,7 +793,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
    lock->header.lockName = Str_SafeAsprintf(NULL, "MX_%p", mutex);
 
-   lock->header.lockSignature = USERLOCK_SIGNATURE;
+   lock->header.lockSignature = MXUSER_REC_SIGNATURE;
    lock->header.lockRank = rank;
    lock->header.lockDumper = NULL;
 

@@ -27,6 +27,8 @@
 #include "userlock.h"
 #include "ulInt.h"
 
+#define MXUSER_RW_SIGNATURE 0x57524B4C // 'LKRW' in memory
+
 
 /*
  * Environment specific implementations of portable read-write locks.
@@ -448,7 +450,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
                                           MXUserFreeHashEntry);
 
       lock->header.lockName = properName;
-      lock->header.lockSignature = USERLOCK_SIGNATURE;
+      lock->header.lockSignature = MXUSER_RW_SIGNATURE;
       lock->header.lockRank = rank;
       lock->header.lockDumper = MXUserDumpRWLock;
 
@@ -488,7 +490,7 @@ void
 MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
 {
    if (LIKELY(lock != NULL)) {
-      ASSERT(lock->header.lockSignature == USERLOCK_SIGNATURE);
+      ASSERT(lock->header.lockSignature == MXUSER_RW_SIGNATURE);
 
       if (Atomic_Read(&lock->holderCount) != 0) {
          MXUserDumpAndPanic(&lock->header,
@@ -604,7 +606,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    MXUserHisto *histo;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_RW_SIGNATURE));
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
 
@@ -735,7 +737,7 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
 {
    HolderContext *myContext;
 
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_RW_SIGNATURE));
 
    myContext = MXUserGetHolderContext(lock);
 
@@ -786,7 +788,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    MXUserHisto *histo;
 #endif
 
-   ASSERT(lock && (lock->header.lockSignature == USERLOCK_SIGNATURE));
+   ASSERT(lock && (lock->header.lockSignature == MXUSER_RW_SIGNATURE));
 
    myContext = MXUserGetHolderContext(lock);
 

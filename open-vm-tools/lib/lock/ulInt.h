@@ -386,8 +386,6 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
  * MXUser lock header - all MXUser locks start with this
  */
 
-#define USERLOCK_SIGNATURE 0x4B434F4C // 'LOCK' in memory
-
 typedef struct MXUserHeader {
    uint32       lockSignature;
    MX_Rank      lockRank;
