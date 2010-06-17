@@ -29,7 +29,7 @@
 #include <CUnit/CUnit.h>
 
 #include "util.h"
-#include "guestrpc/ghiGetBinaryHandlers.h"
+#include "testData.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/rpcdebug.h"
 
@@ -114,7 +114,7 @@ TestDebugValidateReset(RpcInData *data,
 /**
  * Validates a "test.rpcout.msg1" message sent by the test plugin. This message
  * is sent when the plugin receives a "test.rpcin.msg1" RPC, and contains an
- * XDR-encoded GHIBinaryHandlersIconDetails struct.
+ * XDR-encoded TestPluginData struct.
  *
  * @param[in]  data        Incoming data.
  * @param[in]  dataLen     Size of incoming data.
@@ -130,12 +130,10 @@ TestDebugReceiveRpc1(char *data,
                      char **result,
                      size_t *resultLen)
 {
-   GHIBinaryHandlersIconDetails *details = (GHIBinaryHandlersIconDetails *) data;
+   TestPluginData *details = (TestPluginData *) data;
 
    CU_ASSERT(gSignalReceived);
-   CU_ASSERT(details->width == 100);
-   CU_ASSERT(details->height == 200);
-   CU_ASSERT_STRING_EQUAL(details->identifier, "rpc1test");
+   CU_ASSERT_STRING_EQUAL(details->data, "rpc1test");
 
    return TRUE;
 }
@@ -233,7 +231,7 @@ RpcDebugOnLoad(ToolsAppCtx *ctx)
    static RpcDebugRecvMapping recvFns[] = {
       { "tools.set.version", TestDebugReceiveVersion, NULL, 0 },
       { "test.rpcout.msg1", TestDebugReceiveRpc1,
-        xdr_GHIBinaryHandlersIconDetails, sizeof (GHIBinaryHandlersIconDetails) },
+        xdr_TestPluginData, sizeof (TestPluginData) },
       { NULL, NULL }
    };
    static RpcDebugPlugin regData = {
@@ -243,15 +241,13 @@ RpcDebugOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   GHIBinaryHandlersIconDetails details;
-   details.width = 100;
-   details.height = 200;
-   details.identifier = "rpc1test";
+   TestPluginData testdata;
+   testdata.data = "rpc1test";
 
    /* Build the command for the "test.rpcin.msg1" RPC. */
    if (!RpcChannel_BuildXdrCommand("test.rpcin.msg1",
-                                   xdr_GHIBinaryHandlersIconDetails,
-                                   &details,
+                                   xdr_TestPluginData,
+                                   &testdata,
                                    &gRpcMessages[4].message,
                                    &gRpcMessages[4].messageLen)) {
       g_error("Failed to create test.rpcin.msg1 command.\n");

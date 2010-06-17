@@ -32,7 +32,6 @@
 
 #include "testData.h"
 #include "util.h"
-#include "guestrpc/ghiGetBinaryHandlers.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/rpcdebug.h"
 #include "vmware/tools/utils.h"
@@ -57,7 +56,7 @@ static gboolean gValidAppRegistration = FALSE;
 
 /**
  * Handles a "test.rpcin.msg1" RPC message. The incoming data should be an
- * XDR-encoded GHIBinaryHandlersIconDetails struct; the struct is written back
+ * XDR-encoded TestPluginData struct; the struct is written back
  * to the RPC channel using RpcChannel_Send (command "test.rpcout.msg1").
  *
  * Also emits a "test-signal", to test custom signal registration.
@@ -71,19 +70,17 @@ static gboolean
 TestPluginRpc1(RpcInData *data)
 {
    ToolsAppCtx *ctx = data->appCtx;
-   GHIBinaryHandlersIconDetails *details = (GHIBinaryHandlersIconDetails *) data->args;
+   TestPluginData *testdata = (TestPluginData *) data->args;
    char *cmd;
    size_t cmdLen;
 
-   CU_ASSERT_EQUAL(details->width, 100);
-   CU_ASSERT_EQUAL(details->height, 200);
-   CU_ASSERT_STRING_EQUAL(details->identifier, "rpc1test");
+   CU_ASSERT_STRING_EQUAL(testdata->data, "rpc1test");
 
    g_signal_emit_by_name(ctx->serviceObj, "test-signal");
 
    if (!RpcChannel_BuildXdrCommand("test.rpcout.msg1",
-                                   xdr_GHIBinaryHandlersIconDetails,
-                                   details,
+                                   xdr_TestPluginData,
+                                   testdata,
                                    &cmd,
                                    &cmdLen)) {
       g_error("Failed to create test.rpcout.msg1 command.\n");
@@ -359,8 +356,8 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    RpcChannelCallback rpcs[] = {
       { "test.rpcin.msg1",
-         TestPluginRpc1, NULL, xdr_GHIBinaryHandlersIconDetails, NULL,
-         sizeof (GHIBinaryHandlersIconDetails) },
+         TestPluginRpc1, NULL, xdr_TestPluginData, NULL,
+         sizeof (TestPluginData) },
       { "test.rpcin.msg2",
          TestPluginRpc2, NULL, NULL, NULL, 0 },
       { "test.rpcin.msg3",
