@@ -2137,8 +2137,8 @@ enum {
    VIX_COMMAND_ADD_TIMEMARKER                   = 131,
 
    VIX_COMMAND_WAIT_FOR_USER_ACTION_IN_GUEST    = 132,
-   VIX_COMMAND_VMDB_END_TRANSACTION             = 133,
-   VIX_COMMAND_VMDB_SET                         = 134,
+   /* DEPRECATED VIX_COMMAND_VMDB_END_TRANSACTION             = 133, */
+   /* DEPRECATED VIX_COMMAND_VMDB_SET                         = 134, */
 
    VIX_COMMAND_CHANGE_VIRTUAL_HARDWARE          = 135,
 
