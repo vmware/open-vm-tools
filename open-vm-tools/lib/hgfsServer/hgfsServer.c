@@ -34,6 +34,7 @@
 #include "hgfsTransport.h"
 #include "userlock.h"
 #include "poll.h"
+#include "libMutexRank.h"
 
 #if defined(_WIN32)
 #include <io.h>
@@ -3090,7 +3091,8 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
     * Initialize all our locks first as these can fail.
     */
 
-   session->fileIOLock = MXUser_CreateExclLock("HgfsFileIOLock", RANK_UNRANKED);
+   session->fileIOLock = MXUser_CreateExclLock("HgfsFileIOLock",
+                                               RANK_hgfsFileIOLock);
    if (session->fileIOLock == NULL) {
       free(session);
       LOG(4, ("%s: Could not create node array sync mutex.\n", __FUNCTION__));
@@ -3098,7 +3100,8 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
       return FALSE;
    }
 
-   session->nodeArrayLock = MXUser_CreateExclLock("HgfsNodeArrayLock", RANK_UNRANKED);
+   session->nodeArrayLock = MXUser_CreateExclLock("HgfsNodeArrayLock",
+                                                  RANK_hgfsNodeArrayLock);
    if (session->nodeArrayLock == NULL) {
       MXUser_DestroyExclLock(session->fileIOLock);
       free(session);
@@ -3107,7 +3110,8 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
       return FALSE;
    }
 
-   session->searchArrayLock = MXUser_CreateExclLock("HgfsSearchArrayLock", RANK_UNRANKED);
+   session->searchArrayLock = MXUser_CreateExclLock("HgfsSearchArrayLock",
+                                                    RANK_hgfsSearchArrayLock);
    if (session->searchArrayLock == NULL) {
       MXUser_DestroyExclLock(session->fileIOLock);
       MXUser_DestroyExclLock(session->nodeArrayLock);
