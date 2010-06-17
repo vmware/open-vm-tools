@@ -195,6 +195,14 @@ Max(int a, int b)
 
 
 /*
+ * Wide versions of string constants.
+ */
+
+#define WSTR_(X)     L ## X
+#define WSTR(X)      WSTR_(X)
+
+
+/*
  * Page operations
  *
  * It has been suggested that these definitions belong elsewhere
