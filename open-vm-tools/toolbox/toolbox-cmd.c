@@ -32,6 +32,7 @@
 #include "toolboxCmdInt.h"
 #include "toolboxcmd_version.h"
 #include "system.h"
+#include "vmware/tools/guestrpc.h"
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
@@ -75,6 +76,7 @@ static struct option long_options[] = {
    { 0, 0, 0, 0 } };
 #endif
 
+static gboolean gQuiet = FALSE;
 static const char *options = "hqv";
 
 /*
@@ -101,6 +103,9 @@ static CmdTable commands[] = {
    { "disk",      Disk_Command,     TRUE,    TRUE,    Disk_Help},
    { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
    { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
+#if (defined(_WIN32) || defined(linux)) && !defined(OPEN_VM_TOOLS)
+   { "upgrade",   Upgrade_Command,  TRUE,    FALSE,   Upgrade_Help},
+#endif
    { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
 };
 
@@ -126,6 +131,112 @@ ToolsCmd_MissingEntityError(const char *name,     // IN: command name (argv[0])
                             const char *entity)   // IN: what is missing
 {
    g_printerr(SU_(error.missing, "%s: Missing %s\n"), name, entity);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsCmd_Print --
+ *
+ *      Prints a message to stdout unless quiet output was requested.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+ToolsCmd_Print(const char *fmt,
+               ...)
+{
+   if (!gQuiet) {
+      gchar *str;
+      va_list args;
+
+      va_start(args, fmt);
+      g_vasprintf(&str, fmt, args);
+      va_end(args);
+
+      g_print(str);
+      g_free(str);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsCmd_PrintErr --
+ *
+ *      Prints a message to stderr unless quiet output was requested.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+ToolsCmd_PrintErr(const char *fmt,
+                  ...)
+{
+   if (!gQuiet) {
+      gchar *str;
+      va_list args;
+
+      va_start(args, fmt);
+      g_vasprintf(&str, fmt, args);
+      va_end(args);
+
+      g_printerr(str);
+      g_free(str);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsCmd_SendRPC --
+ *
+ *    Sends an RPC message to the host.
+ *
+ * Results:
+ *    The return value from the RPC.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+gboolean
+ToolsCmd_SendRPC(const char *rpc,      // IN
+                 size_t rpcLen,        // IN
+                 char **result,        // OUT
+                 size_t *resultLen)    // OUT
+{
+   RpcChannel *chan = BackdoorChannel_New();
+   gboolean ret = RpcChannel_Start(chan);
+
+   if (!ret) {
+      g_warning("Error starting RPC channel.");
+      goto exit;
+   }
+
+   ret = RpcChannel_Send(chan, (char *) rpc, rpcLen, result, resultLen);
+
+exit:
+   RpcChannel_Destroy(chan);
+   return ret;
 }
 
 
@@ -184,7 +295,9 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "   disk\n"
                           "   script\n"
                           "   stat\n"
-                          "   timesync\n\n"
+                          "   timesync\n"
+                          "   upgrade (not available on all operating systems)\n"
+                          "\n"
                           "For additional information please visit http://www.vmware.com/support/\n\n"),
            progName, progName, cmd, progName);
 }
@@ -293,7 +406,6 @@ main(int argc,    // IN: length of command line arguments
    CmdTable *cmd = NULL;
    int c;
    int retval;
-   gboolean quiet = FALSE;
 
    setlocale(LC_ALL, "");
    VMTools_ConfigLogging("toolboxcmd", NULL, FALSE, FALSE);
@@ -335,7 +447,7 @@ main(int argc,    // IN: length of command line arguments
          break;
 
       case 'q':
-         quiet = TRUE;
+         gQuiet = TRUE;
          break;
 
       case '?':
@@ -380,7 +492,7 @@ main(int argc,    // IN: length of command line arguments
          ToolsCmd_MissingEntityError(argv[0], SU_(arg.subcommand, "subcommand"));
          retval = EX_USAGE;
       } else {
-         retval = cmd->func(argv, argc, quiet);
+         retval = cmd->func(argv, argc, gQuiet);
       }
 
       if (retval == EX_USAGE && (cmd == NULL || strcmp(cmd->command, "help"))) {

@@ -89,6 +89,23 @@ ToolsCmd_UnknownEntityError(const char *name,
                             const char *entity,
                             const char *str);
 
+void
+ToolsCmd_Print(const char *fmt,
+               ...) PRINTF_DECL(1, 2);
+
+void
+ToolsCmd_PrintErr(const char *fmt,
+                  ...) PRINTF_DECL(1, 2);
+
+gboolean
+ToolsCmd_SendRPC(const char *rpc,
+                 size_t rpcLen,
+                 char **result,
+                 size_t *resultLen);
+
+/*
+ * Command declarations.
+ */
 
 /**
  * A shorthand macro for declaring a command entry. This just declares
@@ -109,5 +126,9 @@ DECLARE_COMMAND(Disk);
 DECLARE_COMMAND(Script);
 DECLARE_COMMAND(Stat);
 DECLARE_COMMAND(TimeSync);
+
+#if defined(_WIN32) || (defined(linux) && !defined(OPEN_VM_TOOLS))
+DECLARE_COMMAND(Upgrade);
+#endif
 
 #endif /*_TOOLBOX_CMD_H_*/

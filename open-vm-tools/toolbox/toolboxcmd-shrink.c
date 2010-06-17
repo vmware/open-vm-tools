@@ -32,6 +32,7 @@
 
 #include "toolboxCmdInt.h"
 #include "rpcout.h"
+#include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/i18n.h"
 
 #ifndef _WIN32
@@ -243,7 +244,8 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
       char *result;
       size_t resultLen;
 
-      if (RpcOut_sendOne(&result, &resultLen, "disk.shrink")) {
+      if (ToolsCmd_SendRPC(DISK_SHRINK_CMD, sizeof DISK_SHRINK_CMD - 1,
+                           &result, &resultLen)) {
          if (!quiet) {
             printf("\nDisk shrinking complete\n");
          }
@@ -251,7 +253,7 @@ ShrinkDoShrink(char *mountPoint, // IN: mount point
          goto out;
       }
 
-      fprintf(stderr, "%s\n", result);
+      fprintf(stderr, "\n%s\n", result);
    }
 
    fprintf(stderr, "Shrinking not completed\n");

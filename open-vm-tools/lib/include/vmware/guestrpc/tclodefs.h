@@ -40,6 +40,8 @@
 /** TCLO channel name for the HGFS driver. */
 #define TOOLS_HGFS_NAME           "tools-hgfs"
 
+/** Reply from host when the command is not recognized. */
+#define RPCI_UNKNOWN_COMMAND      "Unknown command"
 
 /*
  * Tools options.
@@ -51,6 +53,19 @@
 #define TOOLSOPTION_ENABLEDND                "enableDnD"
 #define TOOLSOPTION_MAP_ROOT_HGFS_SHARE      "mapRootHgfsShare"
 #define TOOLSOPTION_LINK_ROOT_HGFS_SHARE     "linkRootHgfsShare"
+
+/*
+ * Auto-upgrade commands.
+ */
+
+#define AUTOUPGRADE_AVAILABLE_CMD   "vmx.capability.tools_is_upgradable"
+#define AUTOUPGRADE_START_CMD       "guest.initiateAutoUpgrade"
+
+/*
+ * Shrink commands.
+ */
+
+#define DISK_SHRINK_CMD             "disk.shrink"
 
 
 /*
