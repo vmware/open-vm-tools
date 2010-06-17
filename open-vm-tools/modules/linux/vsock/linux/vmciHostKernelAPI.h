@@ -34,9 +34,6 @@
 #include "includeCheck.h"
 
 
-/* VMCI host kernel API version number. */
-#define VMCI_HOST_KERNEL_API_VERSION  1
-
 /* Macros to operate on the driver version number. */
 #define VMCI_MAJOR_VERSION(v)       (((v) >> 16) & 0xffff)
 #define VMCI_MINOR_VERSION(v)       ((v) & 0xffff)
@@ -44,24 +41,14 @@
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 
-#include "vmciQueue.h"
-
 
 /* PUBLIC: VMCI Device Usage API. */
 
-#if defined(_WIN32)
 Bool VMCI_DeviceGet(void);
 void VMCI_DeviceRelease(void);
-#else // _WIN32
-#  define VMCI_DeviceGet() TRUE
-#  define VMCI_DeviceRelease()
-#endif // _WIN32
 
 /* PUBLIC: VMCI Datagram API. */
 
-int VMCIHost_DatagramCreateHnd(VMCIId resourceID, uint32 flags,
-                               VMCIDatagramRecvCB recvCB, void *clientData,
-                               VMCIHandle *outHandle);
 int VMCIDatagram_CreateHnd(VMCIId resourceID, uint32 flags,
                            VMCIDatagramRecvCB recvCB, void *clientData,
                            VMCIHandle *outHandle);
@@ -74,12 +61,12 @@ int VMCIDatagram_Send(VMCIDatagram *msg);
 
 /* VMCI Utility API. */
 
-#if defined(VMKERNEL)
+VMCIId VMCI_GetContextID(void);
+uint32 VMCI_Version(void);
 int VMCI_ContextID2HostVmID(VMCIId contextID, void *hostVmID,
                             size_t hostVmIDLen);
-#endif
 
-/* VMCI Event API  */
+/* VMCI Event API. */
 
 typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
 			     void *clientData);
@@ -91,6 +78,10 @@ int VMCIEvent_Unsubscribe(VMCIId subID);
 /* VMCI Context API */
 
 VMCIPrivilegeFlags VMCIContext_GetPrivFlags(VMCIId contextID);
+
+/* VMCI Discovery Service API. */
+
+int VMCIDs_Lookup(const char *name, VMCIHandle *out);
 
 /* VMCI Doorbell API. */
 
