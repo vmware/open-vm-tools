@@ -326,18 +326,6 @@ mssb64_0(const uint64 value)
 #endif
    }
 }
-
-static INLINE int
-ffs(uint32 value)
-{
-   return lssb32_0(value) + 1;  // temporary alias
-}
-
-static INLINE int
-fls(uint32 value)
-{
-   return mssb32_0(value) + 1;  // temporary alias
-}
 #endif
 
 #if defined(__GNUC__)
