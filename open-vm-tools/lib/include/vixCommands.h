@@ -2123,7 +2123,7 @@ enum {
 
    VIX_COMMAND_VM_PAUSE                         = 122,
    VIX_COMMAND_VM_UNPAUSE                       = 123,
-   VIX_COMMAND_GET_SNAPSHOT_LOG_INFO            = 124,
+   /* DEPRECATED VIX_COMMAND_GET_SNAPSHOT_LOG_INFO            = 124, */
    VIX_COMMAND_SET_REPLAY_SPEED                 = 125,
 
    /* DEPRECATED VIX_COMMAND_ANSWER_USER_MESSAGE              = 126, */
