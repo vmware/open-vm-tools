@@ -33,7 +33,7 @@
 
 struct MXUserCondVar {
    uint32             signature;
-   char              *name;
+   MXUserHeader      *header;
    MXRecLock         *ownerLock;
    Atomic_uint32      referenceCount;
 
@@ -225,8 +225,7 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  */
 
 static INLINE Bool
-MXUserWaitInternal(MXUserHeader *header,    // IN:
-                   MXRecLock *lock,         // IN:
+MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
                    uint32 msecWait)         // IN:
 {
@@ -311,8 +310,8 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
    }
 
    if (err != ERROR_SUCCESS) {
-      MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
-                         __FUNCTION__, err, condVar, condVar->name);
+      Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
+            condVar, condVar->header->lockName);
    }
 
    return signalled;
@@ -462,8 +461,7 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
  */
 
 static INLINE Bool
-MXUserWaitInternal(MXUserHeader *header,    // IN:
-                   MXRecLock *lock,         // IN:
+MXUserWaitInternal(MXRecLock *lock,         // IN:
                    MXUserCondVar *condVar,  // IN:
                    uint32 msecWait)         // IN:
 {
@@ -504,8 +502,8 @@ MXUserWaitInternal(MXUserHeader *header,    // IN:
    MXRecLockIncCount(lock, GetReturnAddress(), lockCount);
 
    if (err != 0) {
-      MXUserDumpAndPanic(header, "%s: failure %d on condVar (%p; %s)\n",
-                         __FUNCTION__, err, condVar, condVar->name);
+      Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,
+            condVar, condVar->header->lockName);
    }
 
    return signalled;
@@ -589,7 +587,7 @@ MXUserCreateCondVar(MXUserHeader *header,  // IN:
 
    if (MXUserCreateInternal(condVar)) {
       condVar->signature = MXUSER_CONDVAR_SIGNATURE;
-      condVar->name = Util_SafeStrdup(header->lockName);
+      condVar->header = header;
       condVar->ownerLock = lock;
    } else {
       free(condVar);
@@ -632,19 +630,18 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    ASSERT(msecWait > 0);
 
    if (condVar->ownerLock != lock) {
-      MXUserDumpAndPanic(header,
-                         "%s: invalid use of lock %s with condVar (%p; %s)\n",
-                         __FUNCTION__, header->lockName, condVar->name);
+      Panic("%s: invalid use of lock %s with condVar (%p; %s)\n",
+             __FUNCTION__, header->lockName, condVar,
+             condVar->header->lockName);
    }
 
    if (!MXRecLockIsOwner(lock)) {
-      MXUserDumpAndPanic(header,
-                         "%s: do not own lock %s for condVar (%p; %s)\n",
-                         __FUNCTION__, header->lockName, condVar->name);
+      Panic("%s: lock %s for condVar (%p) not owned\n",
+            __FUNCTION__, condVar->header->lockName, condVar);
    }
 
    Atomic_Inc(&condVar->referenceCount);
-   signalled = MXUserWaitInternal(header, lock, condVar, msecWait);
+   signalled = MXUserWaitInternal(lock, condVar, msecWait);
    Atomic_Dec(&condVar->referenceCount);
 
    return signalled;
@@ -679,7 +676,7 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN:
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s) \n", __FUNCTION__, err,
-            condVar, condVar->name);
+            condVar, condVar->header->lockName);
    }
 }
 
@@ -712,7 +709,7 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN:
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s) \n", __FUNCTION__, err,
-            condVar, condVar->name);
+            condVar, condVar->header->lockName);
    }
 }
 
@@ -741,14 +738,13 @@ MXUser_DestroyCondVar(MXUserCondVar *condVar)  // IN:
 
       if (Atomic_Read(&condVar->referenceCount) != 0) {
          Panic("%s: Attempted destroy on active condVar (%p; %s)\n",
-               __FUNCTION__, condVar, condVar->name);
+               __FUNCTION__, condVar, condVar->header->lockName);
       }
 
       MXUserDestroyInternal(condVar);
 
       condVar->signature = 0;  // just in case...
-      free(condVar->name);
-      condVar->name = NULL;
+      condVar->header = NULL;
       condVar->ownerLock = NULL;
 
       free(condVar);
