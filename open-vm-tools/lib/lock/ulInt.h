@@ -26,13 +26,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #if defined(_WIN32)
 typedef DWORD MXThreadID;
 #define MXUSER_INVALID_OWNER 0xFFFFFFFF
 #else
 #include <pthread.h>
-#include <errno.h>
 typedef pthread_t MXThreadID;
 #endif
 
@@ -77,14 +77,16 @@ typedef struct {
  *     - exclusive (non-recursive) locks catch the recursion and panic
  *       rather than deadlock.
  *
- * There are 6 environment specific primitives:
+ * There are 8 environment specific primitives:
  *
- * MXRecLockObjectInit   initialize native lock before use
- * MXRecLockDestroy      destroy lock after use
- * MXRecLockIsOwner      is lock owned by caller?
- * MXRecLockAcquire      lock
- * MXRecLockTryAcquire   conditional lock
- * MXRecLockRelease      unlock
+ * MXRecLockCreateInternal      Create lock before use
+ * MXRecLockDestroyInternal     Destroy lock after use
+ * MXRecLockIsOwner             Is lock owned by the caller?
+ * MXRecLockSetNoOwner          Set lock as owner by "nobody"
+ * MXRecLockSetOwner            Set lock owner
+ * MXRecLockAcquireInternal     Lock the lock
+ * MXRecLockTryAcquireInternal  conditionally acquire the lock
+ * MXRecLockReleaseInternal     Unlock the lock
  *
  * Windows has a native recursive lock, the CRITICAL_SECTION. POSIXen,
  * unfortunately, do not ensure access to such a facility. The recursive
@@ -94,8 +96,8 @@ typedef struct {
  */
 
 #if defined(_WIN32)
-static INLINE Bool
-MXRecLockObjectInit(CRITICAL_SECTION *nativeLock)  // IN/OUT:
+static INLINE int
+MXRecLockCreateInternal(MXRecLock *lock)  // IN/OUT:
 {
    /* http://msdn.microsoft.com/en-us/library/ms682530(VS.85).aspx */
    /* magic number - allocate resources immediately; spin 0x400 times */
@@ -103,10 +105,12 @@ MXRecLockObjectInit(CRITICAL_SECTION *nativeLock)  // IN/OUT:
 }
 
 
-static INLINE void
-MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
+static INLINE int
+MXRecLockDestroyInternal(MXRecLock *lock)  // IN/OUT:
 {
    DeleteCriticalSection(&lock->nativeLock);
+
+   return 0;
 }
 
 
@@ -117,115 +121,55 @@ MXRecLockIsOwner(const MXRecLock *lock)  // IN:
 }
 
 
-static INLINE Bool
-MXRecLockAcquire(MXRecLock *lock,        // IN/OUT:
-                 const void *location)   // IN:
+static INLINE void
+MXRecLockSetNoOwner(MXRecLock *lock)  // IN:
 {
-   Bool acquired;
-   Bool contended;
-
-   acquired = TryEnterCriticalSection(&lock->nativeLock);
-
-   if (acquired) {
-      contended = FALSE;
-   } else {
-      EnterCriticalSection(&lock->nativeLock);
-      contended = TRUE;
-   }
-
-   ASSERT((lock->referenceCount >= 0) &&
-           (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
-
-   if (lock->referenceCount == 0) {
-      ASSERT(lock->nativeThreadID == MXUSER_INVALID_OWNER);
-      lock->nativeThreadID = GetCurrentThreadId();
-
-#if defined(MXUSER_DEBUG)
-      lock->ownerRetAddr = location;
-      lock->portableThreadID = VThread_CurID();
-#endif
-   }
-
-   lock->referenceCount++;
-
-   return contended;
-}
-
-
-static INLINE Bool
-MXRecLockTryAcquire(MXRecLock *lock,        // IN/OUT:
-                    const void *location)   // IN:
-{
-   Bool acquired;
-
-   acquired = TryEnterCriticalSection(&lock->nativeLock);
-
-   if (acquired) {
-      ASSERT((lock->referenceCount >= 0) &&
-             (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
-
-      if (lock->referenceCount == 0) {
-         ASSERT(lock->nativeThreadID == MXUSER_INVALID_OWNER);
-         lock->nativeThreadID = GetCurrentThreadId();
-
-#if defined(MXUSER_DEBUG)
-         lock->ownerRetAddr = location;
-         lock->portableThreadID = VThread_CurID();
-#endif
-      }
-
-      lock->referenceCount++;
-   }
-
-   return acquired;
+   lock->nativeThreadID = MXUSER_INVALID_OWNER;
 }
 
 
 static INLINE void
-MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
+MXRecLockSetOwner(MXRecLock *lock)  // IN/OUT:
 {
-   ASSERT((lock->referenceCount > 0) &&
-          (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
+   lock->nativeThreadID = GetCurrentThreadID();
+}
 
-   lock->referenceCount--;
 
-   if (lock->referenceCount == 0) {
-      lock->nativeThreadID = MXUSER_INVALID_OWNER;
+static INLINE int
+MXRecLockAcquireInternal(MXRecLock *lock)  // IN:
+{
+   EnterCriticalSection(&lock->nativeLock);
 
-#if defined(MXUSER_DEBUG)
-      lock->ownerRetAddr = NULL;
-      lock->portableThreadID = VTHREAD_INVALID_ID;
-#endif
-   }
+   return 0;
+}
 
+
+static INLINE int
+MXRecLockTryAcquireInternal(MXRecLock *lock)  // IN:
+{
+   return TryEnterCriticalSection(&lock->nativeLock) ? 0 : EBUSY;
+}
+
+
+static INLINE int
+MXRecLockReleaseInternal(MXRecLock *lock)  // IN:
+{
    LeaveCriticalSection(&lock->nativeLock);
+
+   return 0;
 }
 #else
-static INLINE Bool
-MXRecLockObjectInit(pthread_mutex_t *nativeLock)  // IN/OUT:
+static INLINE int
+MXRecLockCreateInternal(MXRecLock *lock)  // IN/OUT:
 {
-   int err;
-
-   err = pthread_mutex_init(nativeLock, NULL);
-
-   if (vmx86_debug && (err != 0)) {
-      Panic("%s: pthread_mutex_init returned %d\n", __FUNCTION__, err);
-   }
-
-   return err == 0;
+   return pthread_mutex_init(&lock->nativeLock, NULL);
 }
 
 
-static INLINE void
-MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
+static INLINE int
+MXRecLockDestroyInternal(MXRecLock *lock)  // IN:
 {
-   int err;
-
-   err = pthread_mutex_destroy(&lock->nativeLock);
-
-   if (vmx86_debug && (err != 0)) {
-      Panic("%s: pthread_mutex_destroy returned %d\n", __FUNCTION__, err);
-   }
+   return pthread_mutex_destroy(&lock->nativeLock);
 }
 
 
@@ -236,14 +180,81 @@ MXRecLockIsOwner(const MXRecLock *lock)  // IN:
 }
 
 
+static INLINE void
+MXRecLockSetNoOwner(MXRecLock *lock)  // IN/OUT:
+{
+   /* a hack but it works portably */
+   memset((void *) &lock->nativeThreadID, 0xFF, sizeof(lock->nativeThreadID));
+}
+
+
+static INLINE void
+MXRecLockSetOwner(MXRecLock *lock)  // IN:
+{
+   lock->nativeThreadID = pthread_self();
+}
+
+
+static INLINE int
+MXRecLockAcquireInternal(MXRecLock *lock)  // IN:
+{
+   return pthread_mutex_lock(&lock->nativeLock);
+}
+
+
+static INLINE int
+MXRecLockTryAcquireInternal(MXRecLock *lock)  // IN:
+{
+   return pthread_mutex_trylock(&lock->nativeLock);
+}
+
+
+static INLINE int
+MXRecLockReleaseInternal(MXRecLock *lock)  // IN:
+{
+   return pthread_mutex_unlock(&lock->nativeLock);
+}
+#endif
+
+
+static INLINE Bool
+MXRecLockInit(MXRecLock *lock)  // IN/OUT:
+{
+   if (MXRecLockCreateInternal(lock) == 0) {
+      MXRecLockSetNoOwner(lock);
+
+      lock->referenceCount = 0;
+
+#if defined(MXUSER_DEBUG)
+      lock->portableThreadID = VTHREAD_INVALID_ID;
+      lock->ownerRetAddr = NULL;
+#endif
+
+      return TRUE;
+   } else {
+      return FALSE;
+   }
+}
+
+
+static INLINE void
+MXRecLockDestroy(MXRecLock *lock)  // IN/OUT:
+{
+   int err = MXRecLockDestroyInternal(lock);
+
+   if (vmx86_debug && (err != 0)) {
+      Panic("%s: MXRecLockDestroyInternal returned %d\n", __FUNCTION__, err);
+   }
+}
+
+
 static INLINE Bool
 MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
                  void *location)   // IN:
 {
    Bool contended;
 
-   if ((lock->referenceCount != 0) &&
-        pthread_equal(lock->nativeThreadID, pthread_self())) {
+   if ((lock->referenceCount != 0) && MXRecLockIsOwner(lock)) {
       ASSERT((lock->referenceCount > 0) &&
              (lock->referenceCount < MXUSER_MAX_REC_DEPTH));
 
@@ -253,22 +264,23 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
    } else {
       int err;
 
-      err = pthread_mutex_trylock(&lock->nativeLock);
+      err = MXRecLockTryAcquireInternal(lock);
 
       if (err == 0) {
          contended = FALSE;
       } else {
          if (vmx86_debug && (err != EBUSY)) {
-            Panic("%s: pthread_mutex_trylock returned %d\n", __FUNCTION__,
-                  err);
+            Panic("%s: MXRecLockTryAcquireInternal returned %d\n",
+                  __FUNCTION__, err);
          }
 
-         err = pthread_mutex_lock(&lock->nativeLock);
+         err = MXRecLockAcquireInternal(lock);
          contended = TRUE;
       }
 
       if (vmx86_debug && (err != 0)) {
-         Panic("%s: pthread_mutex_lock returned %d\n", __FUNCTION__, err);
+         Panic("%s: MXRecLockAcquireInternal returned %d\n", __FUNCTION__,
+               err);
       }
 
       ASSERT(lock->referenceCount == 0);
@@ -280,7 +292,7 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
       lock->portableThreadID = VThread_CurID();
 #endif
 
-      lock->nativeThreadID = pthread_self();
+      MXRecLockSetOwner(lock);
       lock->referenceCount = 1;
    }
 
@@ -295,7 +307,7 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
    int err;
    Bool acquired;
 
-   err = pthread_mutex_trylock(&lock->nativeLock);
+   err = MXRecLockTryAcquireInternal(lock);
 
    if (err == 0) {
       ASSERT((lock->referenceCount >= 0) &&
@@ -309,7 +321,7 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
          lock->portableThreadID = VThread_CurID();
 #endif
 
-         lock->nativeThreadID = pthread_self();
+         MXRecLockSetOwner(lock);
       }
 
       lock->referenceCount++;
@@ -317,7 +329,8 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
       acquired = TRUE;
    } else {
       if (vmx86_debug && (err != EBUSY)) {
-         Panic("%s: pthread_mutex_trylock returned %d\n", __FUNCTION__, err);
+         Panic("%s: MXRecLockTryAcquireInternal returned %d\n", __FUNCTION__,
+               err);
       }
 
       acquired = FALSE;
@@ -338,51 +351,20 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
    if (lock->referenceCount == 0) {
       int err;
 
-      /* a hack but it works portably */
-      memset((void *) &lock->nativeThreadID, 0xFF,
-             sizeof(lock->nativeThreadID));
+      MXRecLockSetNoOwner(lock);
 
 #if defined(MXUSER_DEBUG)
       lock->ownerRetAddr = NULL;
       lock->portableThreadID = VTHREAD_INVALID_ID;
 #endif
 
-      err = pthread_mutex_unlock(&lock->nativeLock);
+      err = MXRecLockReleaseInternal(lock);
 
       if (vmx86_debug && (err != 0)) {
-         Panic("%s: pthread_mutex_unlock returned %d\n", __FUNCTION__, err);
+         Panic("%s: MXRecLockReleaseInternal returned %d\n", __FUNCTION__,
+               err);
       }
    }
-}
-#endif
-
-
-/*
- * Initialization of portable recursive lock.
- */
-
-static INLINE Bool
-MXRecLockInit(MXRecLock *lock)  // IN/OUT:
-{
-   if (!MXRecLockObjectInit(&lock->nativeLock)) {
-      return FALSE;
-   }
-
-#if defined(_WIN32)
-   lock->nativeThreadID = MXUSER_INVALID_OWNER;
-#else
-   /* a hack but it works portably */
-   memset((void *) &lock->nativeThreadID, 0xFF, sizeof(lock->nativeThreadID));
-#endif
-
-   lock->referenceCount = 0;
-
-#if defined(MXUSER_DEBUG)
-   lock->portableThreadID = VTHREAD_INVALID_ID;
-   lock->ownerRetAddr = NULL;
-#endif
-
-   return TRUE;
 }
 
 
