@@ -93,7 +93,7 @@ typedef struct {
    vm_object_t vmobject;     /* vm backing object */
 } os_state;
 
-MALLOC_DEFINE(M_VMMEMCTL, "vmmemctl", "vmmemctl metadata"); 
+MALLOC_DEFINE(M_VMMEMCTL, "vmmemctl", "vmmemctl metadata");
 
 /*
  * Globals
@@ -752,11 +752,8 @@ vmmemctl_load(module_t mod, // IN: Unused
    return err;
 }
 
-/* All these interfaces got added in 4.x, so we support 5.0 and above with them */
-#if __FreeBSD_version >= 500000
 
-static struct sysctl_oid *oid = NULL;
-
+static struct sysctl_oid *oid;
 
 /*
  *-----------------------------------------------------------------------------
@@ -836,34 +833,5 @@ vmmemctl_deinit_sysctl(void)
    }
 }
 
-#else
-
-static void
-vmmemctl_init_sysctl(void)
-{
-   printf("Not providing sysctl for FreeBSD below 5.0\n");
-}
-
-static void
-vmmemctl_deinit_sysctl(void)
-{
-   printf("Not uninstalling sysctl for FreeBSD below 5.0\n");
-}
-
-#endif
-
-/*
- * FreeBSD 3.2 does not have DEV_MODULE
- */
-#ifndef DEV_MODULE
-#define DEV_MODULE(name, evh, arg)                                      \
-static moduledata_t name##_mod = {                                      \
-    #name,                                                              \
-    evh,                                                                \
-    arg                                                                 \
-};                                                                      \
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
-#endif
-	    
 DEV_MODULE(vmmemctl, vmmemctl_load, NULL);
 
