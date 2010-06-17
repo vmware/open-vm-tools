@@ -162,7 +162,7 @@ ToolsCmd_Print(const char *fmt,
       g_vasprintf(&str, fmt, args);
       va_end(args);
 
-      g_print(str);
+      g_print("%s", str);
       g_free(str);
    }
 }
@@ -196,7 +196,7 @@ ToolsCmd_PrintErr(const char *fmt,
       g_vasprintf(&str, fmt, args);
       va_end(args);
 
-      g_printerr(str);
+      g_printerr("%s", str);
       g_free(str);
    }
 }
@@ -224,6 +224,7 @@ ToolsCmd_SendRPC(const char *rpc,      // IN
                  char **result,        // OUT
                  size_t *resultLen)    // OUT
 {
+   char *lrpc = (char *) rpc;
    RpcChannel *chan = BackdoorChannel_New();
    gboolean ret = RpcChannel_Start(chan);
 
@@ -232,7 +233,7 @@ ToolsCmd_SendRPC(const char *rpc,      // IN
       goto exit;
    }
 
-   ret = RpcChannel_Send(chan, (char *) rpc, rpcLen, result, resultLen);
+   ret = RpcChannel_Send(chan, lrpc, rpcLen, result, resultLen);
 
 exit:
    RpcChannel_Destroy(chan);
