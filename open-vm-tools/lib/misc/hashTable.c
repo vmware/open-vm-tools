@@ -182,25 +182,6 @@ strcasecmp(const char *s1,  // IN:
    
    return tolower(*s1) - tolower(*s2);
 }
-
-static int
-ffs(uint32 bits)
-{
-   uint32 i;
-
-   if (bits == 0) {
-      i = 0;
-   } else {
-      i = 1;
-
-      while ((bits & 0x1) == 0) {
-         i++;
-         bits >>= 1;
-      }
-   }
-
-   return i;
-}
 #endif
 
 
@@ -275,7 +256,7 @@ HashTable_Alloc(uint32 numEntries,        // IN: must be a power of 2
    ht = Util_SafeMalloc(sizeof *ht);
    ASSERT_MEM_ALLOC(ht);
 
-   ht->numBits = ffs(numEntries) - 1;
+   ht->numBits = lssb32_0(numEntries);
    ht->numEntries = numEntries;
    ht->keyType = keyType & HASH_TYPE_MASK;
    ht->atomic = (keyType & HASH_FLAG_ATOMIC) != 0;
