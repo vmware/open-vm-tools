@@ -122,9 +122,6 @@ GuestApp_IsDiskShrinkEnabled(void);
 Bool
 GuestApp_IsDiskShrinkCapable(void);
 
-Bool
-GuestApp_DiskShrink(void);
-
 void
 GuestApp_GetPos(int16 *x,  // OUT
                 int16 *y); // OUT

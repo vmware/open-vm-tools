@@ -1231,28 +1231,6 @@ GuestApp_IsDiskShrinkEnabled(void) {
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestApp_DiskShrink --
- *
- *      Shrink disk
- *
- * Results:
- *      TRUE if the shrinking is successful
- *      FALSE if disk shrinking is not successful
- * Side effects:
- *	None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-GuestApp_DiskShrink(void) {
-   return RpcOut_sendOne(NULL, NULL, "disk.shrink");
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * GuestApp_GetPos --
  *
  *      Retrieve the host notion of the guest pointer location. --hpreg
