@@ -32,7 +32,7 @@
 #include "vmci_kernel_if.h"
 #include "vm_basic_types.h"
 #include "vm_assert.h"
-#include "vmciGuestKernelAPI.h"
+#include "vmciKernelAPI.h"
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 #include "vmciInt.h"

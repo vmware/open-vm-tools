@@ -53,7 +53,6 @@
 #  define VMCI_SOCKETS_AF_VALUE AF_VMCI /* Defined in uwvmkAPI.h. */
    /* The address family is fixed in the vmkernel. */
 #  define VMCISockGetAFValueInt() VMCI_SOCKETS_AF_VALUE
-#  include "vmciHostKernelAPI.h"
 #elif defined linux
 #  if defined __KERNEL__
    /* Include compat_page.h now so PAGE_SIZE and friends don't get redefined. */
@@ -84,9 +83,6 @@
 #include "vmci_call_defs.h"
 #include "vmci_sockets_int.h"
 #include "vmci_sockets.h"
-#if defined __KERNEL__ && !defined VMX86_VMX
-#  include "vmciQPair.h"
-#endif
 
 #if defined WINNT_DDK
 #  include <winsock2.h>

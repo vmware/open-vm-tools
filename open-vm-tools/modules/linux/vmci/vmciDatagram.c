@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmciDatagram.c --
  *
  *      Simple Datagram API for the guest driver.
@@ -49,6 +49,7 @@
 #include "vmciUtil.h"
 #include "vmciDatagram.h"
 #include "vmciCommonInt.h"
+#include "vmciKernelAPI.h"
 
 typedef struct DatagramHashEntry {
    struct DatagramHashEntry  *next;
@@ -67,8 +68,8 @@ typedef struct DatagramHashEntry {
 #define VMCI_HASHRESOURCE(handle, size)                              \
    VMCI_HashId(VMCI_HANDLE_TO_RESOURCE_ID(handle), (size))
 
-/* 
- * Hash table containing all the datagram handles for this VM. It is 
+/*
+ * Hash table containing all the datagram handles for this VM. It is
  * synchronized using a single lock but we should consider making it more
  * fine grained, e.g. a per bucket lock or per set of buckets' lock.
  */
@@ -100,12 +101,12 @@ DatagramHashTable hashTable;
  *
  *  DatagramReleaseCB --
  *
- *     Callback to release the datagram entry reference. It is called by the 
+ *     Callback to release the datagram entry reference. It is called by the
  *     VMCI_WaitOnEvent function before it blocks.
- * 
+ *
  *  Result:
  *     None.
- *     
+ *
  *------------------------------------------------------------------------------
  */
 
@@ -131,7 +132,7 @@ DatagramReleaseCB(void *clientData)
  *
  *  Result:
  *     VMCI_SUCCESS if added, error if not.
- *     
+ *
  *-------------------------------------------------------------------------
  */
 
@@ -183,7 +184,7 @@ DatagramHashAddEntry(DatagramHashEntry *entry, // IN:
          return VMCI_ERROR_NO_HANDLE;
       }
    }
-   
+
    ASSERT(!VMCI_HANDLE_INVALID(entry->handle));
    idx = VMCI_HASHRESOURCE(entry->handle, HASH_TABLE_SIZE);
 
@@ -204,13 +205,13 @@ DatagramHashAddEntry(DatagramHashEntry *entry, // IN:
  *
  *  Result:
  *     VMCI_SUCCESS if removed, VMCI_ERROR_NO_HANDLE if not found.
- *     
+ *
  *-------------------------------------------------------------------------
  */
 
 static int
 DatagramHashRemoveEntry(VMCIHandle handle)
-{ 
+{
    int result = VMCI_ERROR_NOT_FOUND;
    VMCILockFlags flags;
    DatagramHashEntry *prev, *cur;
@@ -232,11 +233,11 @@ DatagramHashRemoveEntry(VMCIHandle handle)
 	 }
 
 	 cur->refCount--;
-	 
-	 /* 
-	  * We know that DestroyHnd still has a reference so refCount must be 
+
+	 /*
+	  * We know that DestroyHnd still has a reference so refCount must be
 	  * at least 1.
-	  */	  
+	  */
 	 ASSERT(cur->refCount > 0);
 	 result = VMCI_SUCCESS;
 	 break;
@@ -852,11 +853,11 @@ out:
  *-----------------------------------------------------------------------------
  */
 
-void 
+void
 VMCIDatagram_Init(void)
 {
    int i;
-   
+
    VMCI_InitLock(&hashTable.lock,
                  "VMCIDatagramHashtable",
                  VMCI_LOCK_RANK_MIDDLE_BH);
@@ -871,7 +872,7 @@ VMCIDatagram_Init(void)
  *
  * VMCIDatagram_CheckHostCapabilities --
  *
- *      Verify that the host supports the resources we need. 
+ *      Verify that the host supports the resources we need.
  *      None are required for datagrams since they are implicitly supported.
  *
  * Results:
@@ -916,7 +917,7 @@ DatagramProcessNotify(void *clientData,   // IN:
    VMCIDatagram *dgm;
    DatagramQueueEntry *dqEntry;
    VMCILockFlags flags;
-   
+
    ASSERT(dgmProc != NULL && msg != NULL);
    dgmSize = VMCI_DG_SIZE(msg);
    ASSERT(dgmSize <= VMCI_MAX_DG_SIZE);
@@ -931,7 +932,7 @@ DatagramProcessNotify(void *clientData,   // IN:
    memcpy(dgm, msg, dgmSize);
 
    /* Allocate datagram queue entry and add it to the target fd's queue. */
-   dqEntry = VMCI_AllocKernelMem(sizeof *dqEntry, 
+   dqEntry = VMCI_AllocKernelMem(sizeof *dqEntry,
 				 VMCI_MEMORY_NONPAGED | VMCI_MEMORY_ATOMIC);
    if (dqEntry == NULL) {
       VMCI_FreeKernelMem(dgm, dgmSize);
@@ -953,8 +954,8 @@ DatagramProcessNotify(void *clientData,   // IN:
    dgmProc->pendingDatagrams++;
    dgmProc->datagramQueueSize += dgmSize;
 #ifdef SOLARIS
-   /* 
-    * Release the lock here for Solaris. Otherwise, a deadlock 
+   /*
+    * Release the lock here for Solaris. Otherwise, a deadlock
     * may occur since pollwakeup(9F) (invoked from VMCIHost_SignalCall)
     * and poll_common (invoked from poll(2)) try to grab a common lock.
     * The man pages of pollwakeup(9F) and chpoll(9E) talk about this.
@@ -1013,7 +1014,7 @@ VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,          // OUT:
    dgmProc->datagramQueue = NULL;
 
    /*
-    * We pass the result and corresponding handle to user level via the 
+    * We pass the result and corresponding handle to user level via the
     * createInfo.
     */
    createInfo->result = VMCIDatagram_CreateHnd(createInfo->resourceID,
@@ -1061,8 +1062,8 @@ VMCIDatagramProcess_Destroy(VMCIDatagramProcess *dgmProc) // IN:
 
    if (!VMCI_HANDLE_EQUAL(dgmProc->handle, VMCI_INVALID_HANDLE)) {
 
-      /* 
-       * We block in destroy so we know that there can be no more 
+      /*
+       * We block in destroy so we know that there can be no more
        * callbacks to DatagramProcessNotifyCB when we return from
        * this call.
        */
@@ -1105,7 +1106,7 @@ VMCIDatagramProcess_Destroy(VMCIDatagramProcess *dgmProc) // IN:
 int
 VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc, // IN:
                              size_t maxSize,               // IN: max size of dg
-                             VMCIDatagram **dg)            // OUT: 
+                             VMCIDatagram **dg)            // OUT:
 {
    DatagramQueueEntry *dqEntry;
    ListItem *listItem;
@@ -1153,7 +1154,7 @@ VMCIDatagramProcess_ReadCall(VMCIDatagramProcess *dgmProc, // IN:
       VMCI_LOG(("VMCI: Caller's buffer is too small.\n"));
       return VMCI_ERROR_NO_MEM;
    }
-   
+
    LIST_DEL(listItem, &dgmProc->datagramQueue);
    dgmProc->pendingDatagrams--;
    dgmProc->datagramQueueSize -= VMCI_DG_SIZE(dqEntry->dg);

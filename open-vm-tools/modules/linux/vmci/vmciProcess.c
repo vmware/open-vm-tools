@@ -40,7 +40,6 @@
 #include "vmci_infrastructure.h"
 #include "circList.h"
 #include "vmciUtil.h"
-#include "vmciGuestKernelAPI.h"
 #include "vmciCommonInt.h"
 
 static ListItem *processList = NULL;
@@ -205,7 +204,7 @@ VMCIProcess_Destroy(VMCIProcess *process)
 VMCIProcess *
 VMCIProcess_Get(VMCIId processID)  // IN
 {
-   VMCIProcess *process = NULL;  
+   VMCIProcess *process = NULL;
    ListItem *next;
    VMCILockFlags flags;
 

@@ -33,11 +33,7 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-#ifdef VMX86_TOOLS
-#include "vmciGuestKernelAPI.h"
-#else
-#include "vmciHostKernelAPI.h"
-#endif
+#include "vmciKernelAPI.h"
 
 void VMCIEvent_Init(void);
 void VMCIEvent_Exit(void);

@@ -39,7 +39,7 @@
 #include "vm_assert.h"
 #include "vmci_call_defs.h"
 #include "vmci_defs.h"
-#include "vmciGuestKernelAPI.h"
+#include "vmciKernelAPI.h"
 
 static Bool HgfsVmciChannelOpen(HgfsTransportChannel *channel);
 static void HgfsVmciChannelClose(HgfsTransportChannel *channel);

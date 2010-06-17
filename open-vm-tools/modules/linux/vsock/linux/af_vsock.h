@@ -30,11 +30,7 @@
 #include "vsockPacket.h"
 #include "compat_workqueue.h"
 
-#if defined(VMX86_TOOLS)
-#   include "vmciGuestKernelAPI.h"
-#else
-#   include "vmciHostKernelAPI.h"
-#endif
+#include "vmciKernelAPI.h"
 
 #include "notify.h"
 

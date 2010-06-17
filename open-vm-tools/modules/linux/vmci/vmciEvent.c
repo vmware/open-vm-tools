@@ -31,9 +31,9 @@
 #include "vmci_defs.h"
 #include "vmci_infrastructure.h"
 #include "vmciEvent.h"
+#include "vmciKernelAPI.h"
 #ifdef VMX86_TOOLS
 #  include "vmciInt.h"
-#  include "vmciGuestKernelAPI.h"
 #  include "vmciUtil.h"
 #elif defined(VMKERNEL)
 #  include "vmciVmkInt.h"
@@ -42,7 +42,6 @@
 #  include "vmciDriver.h"
 #else
 #  include "vmciDriver.h"
-#  include "vmciHostKernelAPI.h"
 #endif
 #include "circList.h"  /* Must come after vmciVmkInt.h. */
 

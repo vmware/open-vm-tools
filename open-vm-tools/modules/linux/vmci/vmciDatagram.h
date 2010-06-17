@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmciDatagram.h --
  *
  *      Simple Datagram API for the Linux guest driver.
@@ -29,9 +29,9 @@
 #include "includeCheck.h"
 
 #include "vmci_defs.h"
+#include "vmci_call_defs.h"
 #include "vmci_kernel_if.h"
 #include "vmci_infrastructure.h"
-#include "vmciGuestKernelAPI.h"
 #include "vmci_iocontrols.h"
 
 typedef struct DatagramQueueEntry DatagramQueueEntry;

@@ -52,6 +52,7 @@
 #include "vmciInt.h"
 #include "vmciUtil.h"
 #include "vmciDatagram.h"
+#include "vmciKernelAPI.h"
 
 static Atomic_uint32 MsgIdCounter = { 0 };
 
@@ -71,12 +72,12 @@ static int VMCIDsRecvCB(void *clientData, struct VMCIDatagram *msg);
  *
  *  VMCIDs_Lookup --
  *
- *       Look up a handle in the VMCI discovery service based on 
+ *       Look up a handle in the VMCI discovery service based on
  *       the given name.
  *
  *  Results:
  *       Error code. 0 if success.
- *     
+ *
  *  Side effects:
  *       None.
  *
@@ -87,9 +88,9 @@ static int VMCIDsRecvCB(void *clientData, struct VMCIDatagram *msg);
 EXPORT_SYMBOL(VMCIDs_Lookup);
 #endif
 
-int 
+int
 VMCIDs_Lookup(const char *name,	  // IN
-              VMCIHandle *out)    // 
+              VMCIHandle *out)    //
 {
    return VMCIDsDoCall(VMCI_DS_ACTION_LOOKUP, name, VMCI_INVALID_HANDLE, out);
 }
@@ -106,7 +107,7 @@ VMCIDs_Lookup(const char *name,	  // IN
  *
  *  Results:
  *       Error code. 0 if success.
- *     
+ *
  *  Side effects:
  *       None.
  *
@@ -130,7 +131,7 @@ VMCIDsDoCall(int action,            // IN
    VMCIDatagram *dgram;
    VMCIDsRequestHeader *request;
    VMCILockFlags flags;
-   
+
    nameLen = strlen(name);
    if (nameLen + sizeof *request > sendBufferSize) {
       res = VMCI_ERROR_INVALID_ARGS;
@@ -159,23 +160,23 @@ VMCIDsDoCall(int action,            // IN
 
    /* Serialize request. */
    request->action = action;
-   request->msgid = savedMsgIdCounter;  
+   request->msgid = savedMsgIdCounter;
    request->handle = handle;
    request->nameLen = nameLen;
    memcpy(request->name, name, nameLen + 1);
-   
+
    requestSize = sizeof *request + nameLen;
 
-   if (VMCIDatagram_CreateHnd(VMCI_INVALID_ID, 0, VMCIDsRecvCB, 
+   if (VMCIDatagram_CreateHnd(VMCI_INVALID_ID, 0, VMCIDsRecvCB,
                               recvData, &dsHandle) != VMCI_SUCCESS) {
       res = VMCI_ERROR_NO_HANDLE;
       goto out;
    }
-   
+
    dgram->dst = VMCI_DS_HANDLE;
    dgram->src = dsHandle;
    dgram->payloadSize = requestSize;
-   
+
    /* Send the datagram to CDS. */
    res = VMCIDatagram_Send(dgram);
    if (res <=  0) {
@@ -186,7 +187,7 @@ VMCIDsDoCall(int action,            // IN
    VMCI_GrabLock_BH(&recvData->lock, &flags);
    VMCIHost_WaitForCallLocked(&recvData->context, &recvData->lock, &flags, TRUE);
    VMCI_ReleaseLock_BH(&recvData->lock, flags);
-   
+
    if (recvData->status != VMCI_SUCCESS) {
       res = recvData->status;
       goto out;
@@ -198,11 +199,11 @@ VMCIDsDoCall(int action,            // IN
       res = VMCI_ERROR_GENERIC;
       goto out;
    }
-   
+
    if (handleOut != NULL) {
       *handleOut = reply->handle;
    }
-   
+
    res = reply->code;
 
 out:
@@ -239,7 +240,7 @@ out:
  */
 
 
-static int 
+static int
 VMCIDsRecvCB(void *clientData,          // IN: client data for handler
              struct VMCIDatagram *msg)  // IN
 {

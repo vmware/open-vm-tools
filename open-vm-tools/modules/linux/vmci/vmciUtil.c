@@ -61,6 +61,7 @@
 #include "vmciDatagram.h"
 #include "vmciUtil.h"
 #include "vmciEvent.h"
+#include "vmciKernelAPI.h"
 
 static void VMCIUtilCidUpdate(VMCIId subID, VMCI_EventData *eventData,
                               void *clientData);

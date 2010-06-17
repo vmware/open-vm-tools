@@ -76,15 +76,13 @@
 #  include "circList.h"
 #endif
 #if defined VMKERNEL || !defined VMX86_TOOLS
-#  include "vmciHostKernelAPI.h"
 #  include "vmciQueuePair.h"
 #else
 #  include "vmciGuestKernelIf.h"
-#  include "vmciGuestKernelAPI.h"
 #  include "vmciQueuePairInt.h"
 #endif
 
-#include "vmciQPair.h"
+#include "vmciKernelAPI.h"
 
 /*
  * VMCIQPair

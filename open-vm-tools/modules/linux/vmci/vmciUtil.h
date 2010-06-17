@@ -16,7 +16,7 @@
  *
  *********************************************************/
 
-/* 
+/*
  * vmciUtil.h --
  *
  *      Helper functions.
@@ -30,7 +30,6 @@
 
 #include "vmciGuestKernelIf.h"
 #include "vmci_infrastructure.h"
-#include "vmciGuestKernelAPI.h"
 
 #define VMCI_MAJOR_VERSION_NUMBER   1
 #define VMCI_MINOR_VERSION_NUMBER   0
