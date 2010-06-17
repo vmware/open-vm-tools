@@ -95,9 +95,8 @@ VThread_CurName(void)
 
 #define VTHREAD_VMX_ID		0
 #define VTHREAD_MKS_ID		1
-#define VTHREAD_UI_ID		2
-#define VTHREAD_OTHER_ID	3
-#define VTHREAD_ALLOCSTART_ID	4
+#define VTHREAD_OTHER_ID	2
+#define VTHREAD_ALLOCSTART_ID	3
 
 #define VTHREADBASE_MAX_NAME    32  /* Arbitrary */
 
