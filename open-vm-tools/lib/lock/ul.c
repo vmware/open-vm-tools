@@ -564,11 +564,21 @@ void
 MXUserInstallMxHooks(void (*theMxLockLister)(void),   // IN: MX list function
                      MX_Rank (*theMxRankFunc)(void))  // IN: MX rank function
 {
-   /* Only allow registration once */
-   ASSERT((MXUserMxLockLister == NULL) && (MXUserMxCheckRank == NULL));
+   /*
+    * This function can be called more than once but the second and later
+    * invocations must be attempting to install the same hook functions as
+    * the first invocation.
+    */
 
-   MXUserMxLockLister = theMxLockLister;
-   MXUserMxCheckRank = theMxRankFunc;
+   if ((MXUserMxLockLister == NULL) &&
+       (MXUserMxCheckRank == NULL)) {
+      MXUserMxLockLister = theMxLockLister;
+      MXUserMxCheckRank = theMxRankFunc;
+   } else {
+      ASSERT((MXUserMxLockLister == theMxLockLister) &&
+             (MXUserMxCheckRank == theMxRankFunc)
+            );
+   }
 }
 
 
