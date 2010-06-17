@@ -437,6 +437,7 @@ FLAGDEF(  81, ECX, AMD,    10,  1, IBS,                 NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    11,  1, SSE5,                NO,  TRUE)             \
 FLAGDEF(  81, ECX, AMD,    12,  1, SKINIT,              NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    13,  1, WATCHDOG,            NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    19,  1, NODEID,              NO,  FALSE)            \
 FLAGDEF(  81, EDX, AMD,     0,  1, FPU,                 YES, TRUE)             \
 FLAGDEF(  81, EDX, AMD,     1,  1, VME,                 YES, FALSE)            \
 FLAGDEF(  81, EDX, AMD,     2,  1, DBGE,                YES, FALSE)            \
