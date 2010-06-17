@@ -762,27 +762,6 @@ VixMsgCreateFileRequest;
 
 /*
  * **********************************************************
- * Hot add and remove a disk in a running VM.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotDiskRequest {
-   VixCommandRequestHeader header;
-   int32                    hotDiskOptions;
-   uint32                   adapterTypeLength;
-   uint32                   typeLength;
-   uint32                   nameLength;
-   uint32                   modeLength;
-   uint32                   deviceTypeLength;
-   int32                    adapterNum;
-   int32                    targetNum;
-}
-#include "vmware_pack_end.h"
-VixMsgHotDiskRequest;
-
-
-/*
- * **********************************************************
  * Hot extend a disk in a running VM.
  */
 typedef
@@ -2116,8 +2095,8 @@ enum {
    VIX_COMMAND_DELETE_VM                        = 32,
    VIX_COMMAND_SYNCDRIVER_FREEZE                = 33,
    VIX_COMMAND_SYNCDRIVER_THAW                  = 34,
-   VIX_COMMAND_HOT_ADD_DISK                     = 35,
-   VIX_COMMAND_HOT_REMOVE_DISK                  = 36,
+   /* DEPRECATED VIX_COMMAND_HOT_ADD_DISK                     = 35, */
+   /* DEPRECATED VIX_COMMAND_HOT_REMOVE_DISK                  = 36, */
    VIX_COMMAND_SET_GUEST_PRINTER                = 37,
    VIX_COMMAND_WAIT_FOR_TOOLS                   = 38,
    VIX_COMMAND_CREATE_RUNNING_VM_SNAPSHOT       = 39,
