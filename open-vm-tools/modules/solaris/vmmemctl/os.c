@@ -43,11 +43,7 @@
 #include "vmballoon_kstats.h"
 #include "buildNumber.h"
 
-#if defined(SOL9)
-extern unsigned disable_memscrub;
-#else
 extern void memscrub_disable(void);
-#endif
 
 /*
  * Constants
@@ -596,11 +592,7 @@ OS_Init(void)
    state->id_space = id_space_create(BALLOON_NAME, 0, INT_MAX);
 
    /* disable memscrubber */
-#if defined(SOL9)
-   disable_memscrub = 1;
-#else
    memscrub_disable();
-#endif
 
    /* log device load */
    cmn_err(CE_CONT, "!%s initialized\n", BALLOON_NAME_VERBOSE);

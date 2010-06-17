@@ -46,16 +46,6 @@ VMMCTL_32_OBJS += i386/backdoorGcc32.o
 VMMCTL_64_OBJS := $(addprefix amd64/, $(VMMCTL_OBJS))
 VMMCTL_64_OBJS += amd64/backdoorGcc64.o
 
-ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.9)
-
-# Solaris 9
-SUPPORTED := 1
-MODULES := $(MODULE_32)
-INSTALL := install32
-CFLAGS  += -D__STDC__=0 -DSOL9
-
-endif
-
 ifeq ($(shell echo "$(VM_UNAME)" | cut -c-4),5.10)
 
 # Solaris 10
