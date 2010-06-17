@@ -148,11 +148,18 @@ __int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
 #endif /* _MSC_VER */
 
 
-/* Convert a volatile int to Atomic_uint32. */
+/* Convert a volatile uint32 to Atomic_uint32. */
 static INLINE Atomic_uint32 *
 Atomic_VolatileToAtomic(volatile uint32 *var)
 {
    return (Atomic_uint32 *)var;
+}
+
+/* Convert a volatile uint64 to Atomic_uint64. */
+static INLINE Atomic_uint64 *
+Atomic_VolatileToAtomic64(volatile uint64 *var)
+{
+   return (Atomic_uint64 *)var;
 }
 
 /*
