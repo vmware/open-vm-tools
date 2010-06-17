@@ -1145,33 +1145,6 @@ VixMsgListRollingTierResponse;
 
 
 /*
- * Fork a running VM.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMForkRequest {
-   VixCommandRequestHeader    header;
-
-   int32                      options;
-   Bool                       disconnectRemovable;
-
-   uint32                     cfgFileNameLen;
-   uint32                     displayNameLen;
-}
-#include "vmware_pack_end.h"
-VixMsgVMForkRequest;
-
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMForkResponse {
-   VixCommandResponseHeader  header;
-}
-#include "vmware_pack_end.h"
-VixMsgVMForkResponse;
-
-
-/*
  * Stop recording or playback of a snapshot event log.
  */
 typedef
@@ -2136,7 +2109,7 @@ enum {
    VIX_CREATE_SESSION_KEY_COMMAND               = 83,
    VMXI_HGFS_SEND_PACKET_COMMAND                = 84,
    VIX_COMMAND_KILL_PROCESS                     = 85,
-   VIX_VM_FORK_COMMAND                          = 86,
+   /* DEPRECATED VIX_VM_FORK_COMMAND                          = 86, */
    VIX_COMMAND_LOGOUT_IN_GUEST                  = 87,
    VIX_COMMAND_READ_VARIABLE                    = 88,
    VIX_COMMAND_WRITE_VARIABLE                   = 89,
