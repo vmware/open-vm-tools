@@ -123,6 +123,7 @@ typedef pthread_key_t VThreadBaseKeyType;
 #endif
 
 static void VThreadBaseSimpleNoID(void);
+static void VThreadBaseSafeDeleteTLS(void *data);
 
 static struct {
    Atomic_Int key;
@@ -218,8 +219,6 @@ extern void * pthread_getspecific(pthread_key_t key)
    __attribute__ ((weak));
 extern int pthread_sigmask(int how, const sigset_t *newmask, sigset_t *oldmask)
    __attribute__ ((weak));
-extern int pthread_kill(pthread_t thread, int signo)
-   __attribute__ ((weak));
 
 
 static const pthread_key_t nothreadTLSKey = 0x12345;  /* Chosen to be obvious */
@@ -233,7 +232,6 @@ static void *nothreadTLSData;
  * fake_setspecific --
  * fake_getspecific --
  * fake_sigmask --
- * fake_kill --
  *
  *      Trivial implementations of equivalent pthread functions, to be used
  *      when the weak pthread_xxx symbols are not defined (e.g. when
@@ -303,18 +301,6 @@ fake_sigmask(int how, const sigset_t *newmask, sigset_t *oldmask)
    return sigprocmask(how, newmask, oldmask);
 }
 
-static int
-fake_kill(pthread_t thread, int signo)
-{
-   /*
-    * If there is no thread library, there is only one thread,
-    * and it is obviously running because it called this function.
-    * It is impossible to obtain any other pthread_t value.
-    */
-   ASSERT(signo == 0);
-   ASSERT(pthread_equal(thread, pthread_self()));
-   return 0;
-}
 
 /*
  * Replace all pthread_xxx calls with a runtime choice.  This
@@ -328,7 +314,6 @@ fake_kill(pthread_t thread, int signo)
 #define pthread_getspecific  WRAP_WEAK(getspecific)
 #define pthread_setspecific  WRAP_WEAK(setspecific)
 #define pthread_sigmask      WRAP_WEAK(sigmask)
-#define pthread_kill         WRAP_WEAK(kill)
 
 #endif  /* FAKE_PTHREADS */
 
@@ -404,7 +389,8 @@ VThreadBaseGetKey(void)
       newKey = TlsAlloc();
       ASSERT_NOT_IMPLEMENTED(newKey != VTHREADBASE_INVALID_KEY);
 #else
-      Bool success = pthread_key_create(&newKey, NULL) == 0;
+      Bool success = pthread_key_create(&newKey, 
+                                        &VThreadBaseSafeDeleteTLS) == 0;
       ASSERT_NOT_IMPLEMENTED(success);
 #endif
 
@@ -424,6 +410,31 @@ VThreadBaseGetKey(void)
    }
 
    return key;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VThreadBaseGetNativeHash --
+ *
+ *      Get the default hash table of native thread IDs.  This is used by
+ *      the "simple" allocation function to enable re-using of VThreadIDs.
+ *
+ * Results:
+ *      An atomic HashTable *.
+ *
+ * Side effects:
+ *      Allocates the HashTable on first call.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HashTable *
+VThreadBaseGetNativeHash(void)
+{
+   return HashTable_AllocOnce(&vthreadBaseGlobals.nativeHash,
+                              128, HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
 }
 
 
@@ -743,21 +754,11 @@ VThreadBase_InitThread(VThreadID newID,   // IN: new VThreadID
        * uses locks, which query VThreadIDs, and thus can cause this code
        * to become reentrant (and thus pick up the wrong VThreadID).  This
        * is actually OK for fatal errors because the VThreadID does not
-       * matter, but is a problem on success.
+       * matter, but is a problem on success because we cannot detect the
+       * double-allocation.
        *
        * As a solution, cheat and put a stack-allocated structure into TLS,
        * then allocate memory, then put the real structure into TLS.
-       * This depends on not crashing during that interval (a crash
-       * could invoke the TLS destructor and free a stack address).  A flag
-       * within the field is not sufficient: our code could have been
-       * dlclose()ed so there is no resident destructor to read it.  It is
-       * also convienient to allow lib/thread to supply memory that it
-       * manages independently, to avoid two copies of some state.
-       *
-       * So in the end, just don't use a TLS destructor.  If threads
-       * exit outside of our control, leak a little memory (~40 bytes).
-       * Since starting/stopping lots of threads is very unusual, it
-       * is best to not add complexity to tolerate that workload.
        */
 
       tmpBase.id = newID;
@@ -787,6 +788,76 @@ VThreadBase_InitThread(VThreadID newID,   // IN: new VThreadID
 /*
  *-----------------------------------------------------------------------------
  *
+ * VThreadBaseSafeDeleteTLS --
+ *
+ *      Safely delete the TLS slot.  Called when manually "forgetting" a thread,
+ *      or (for Posix) at TLS destruction (so we can forget the pthread_t).
+ *
+ *      Some of the cleanups have to be performed with a valid TLS slot so
+ *      e.g. AllocTrack knows the current thread.  Note that the argument is
+ *      'void *' only so this can serve as a TLS destructor.
+ *
+ *      BUG: right now, the memory for the data block is unavoidably
+ *      leaked (see comment in VThreadBase_InitThread for details) unless
+ *      the caller manages memory (which lib/thread does).
+ *      As creation/destruction of many threads is not common, this is
+ *      tolerable.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Temporarily sets TLS, and restores it before returning.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+VThreadBaseSafeDeleteTLS(void *tlsData)
+{
+   VThreadBaseKeyType key = VThreadBaseGetKey();
+   VThreadBaseData *data = tlsData;
+
+   if (data != NULL) {
+      if (vthreadBaseGlobals.noIDFunc == VThreadBaseSimpleNoID) {
+         Bool success;
+         HashTable *ht = VThreadBaseGetNativeHash();
+         const void *hashKey = (const void *)(uintptr_t)data->id;
+         VThreadBaseData tmpData = *data;
+
+         /*
+          * Cleanup routines need to be called with valid TLS, so switch
+          * to a stack-based TLS slot, clean up, then clear the TLS slot.
+          * (This dance only needed for the "Simple" VThreadID allocator.)
+          */
+#if defined _WIN32
+         success = TlsSetValue(key, &tmpData);
+#else
+         success = pthread_setspecific(key, &tmpData) == 0;
+#endif
+         ASSERT_NOT_IMPLEMENTED(success);
+
+         if (vmx86_debug) {
+            Log("Forgetting VThreadID %d (\"%s\").\n", data->id, data->name);
+         }
+         HashTable_ReplaceOrInsert(ht, hashKey, NULL);
+
+#if defined _WIN32
+         success = TlsSetValue(key, NULL);
+#else
+         success = pthread_setspecific(key, NULL) == 0;
+#endif
+         ASSERT_NOT_IMPLEMENTED(success);
+      }
+
+      Atomic_Dec(&vthreadBaseGlobals.numThreads);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VThreadBase_ForgetSelf --
  *
  *      Forget the TLS parts of a thread.
@@ -794,12 +865,6 @@ VThreadBase_InitThread(VThreadID newID,   // IN: new VThreadID
  *      If not intending to reallocate TLS, avoid querying the thread's
  *      VThread_CurID or VThread_CurName between this call and thread
  *      destruction.
- *
- *      BUG: right now, the memory for the data block is unavoidably
- *      leaked (see comment in VThreadBase_InitThread for details) unless
- *      the caller manages memory (which lib/thread does).
- *      As creation/destruction of many threads is not common, this is
- *      tolerable.
  *
  * Results:
  *      None.
@@ -823,8 +888,9 @@ VThreadBase_ForgetSelf(void)
    success = pthread_setspecific(key, NULL) == 0;
 #endif
    ASSERT_NOT_IMPLEMENTED(success);
-   if (data != NULL) {
-      Atomic_Dec(&vthreadBaseGlobals.numThreads);
+
+   if (data) {
+      VThreadBaseSafeDeleteTLS(data);
    }
    return data;
 }
@@ -895,6 +961,7 @@ VThreadBaseGetNative(void)
 }
 
 
+#ifdef _WIN32
 /*
  *-----------------------------------------------------------------------------
  *
@@ -919,7 +986,6 @@ VThreadBaseGetNative(void)
 static Bool
 VThreadBaseNativeIsAlive(void *native)
 {
-#ifdef _WIN32
    HANDLE hThread = OpenThread(THREAD_QUERY_INFORMATION, FALSE,
                                (DWORD)(uintptr_t)native);
 
@@ -934,10 +1000,8 @@ VThreadBaseNativeIsAlive(void *native)
    } else {
       return FALSE;
    }
-#else
-   return pthread_kill((pthread_t)(uintptr_t)native, 0) != ESRCH;
-#endif
 }
+#endif
 
 
 /*
@@ -966,58 +1030,62 @@ VThreadBaseSimpleNoID(void)
 {
    char name[VTHREADBASE_MAX_NAME];
    VThreadID newID;
-   HashTable *ht = HashTable_AllocOnce(&vthreadBaseGlobals.nativeHash,
-                                       128, HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
+   Bool reused = FALSE;
+   void *newNative = VThreadBaseGetNative();
+   HashTable *ht = VThreadBaseGetNativeHash();
 
-   /*
-    * Before allocating a new ID, try to reap any old IDs.
-    */
+   /* Before allocating a new ID, try to reclaim any old IDs. */
    for (newID = 0;
         newID < Atomic_Read(&vthreadBaseGlobals.dynamicID);
         newID++) {
-      const void *newKey = (const void *)(uintptr_t)newID;
-      void *oldNative;
-      Bool found = HashTable_Lookup(ht, newKey, &oldNative);
+      void *newKey = (void *)(uintptr_t)newID;
 
       /*
-       * Entry may not be found due to races if multiple threads are created
-       * at the same time.  However, any entry that is found represents
-       * a live or reclaimable VThreadID.
+       * Windows: any entry that is found and not (alive or NULL)
+       *    is reclaimable.  The check is slightly racy, but the race
+       *    would only cause missing a reclaim which isn't a problem.
+       * Posix: thread exit is hooked (via TLS destructor) and sets
+       *    entries to NULL, so any entry that is NULL is reclaimable.
        */
-      if (found && !VThreadBaseNativeIsAlive(oldNative) &&
-          HashTable_ReplaceIfEqual(ht, newKey, oldNative,
-                                   VThreadBaseGetNative())) {
-         /*
-          * We reclaimed a stale VThreadID.  It is already updated with
-          * the current thread's native ID.  Now populate TLS.
-          */
-         Atomic_Dec(&vthreadBaseGlobals.numThreads);
-         Str_Sprintf(name, sizeof name, "vthread-%u", newID);
-         VThreadBase_InitThread(newID, name);
-         if (vmx86_debug) {
-            Log("VThreadBase reused VThreadID %d.\n", newID);
-         }
-         return;
+#ifdef _WIN32
+      void *oldNative;
+      reused = HashTable_Lookup(ht, newKey, &oldNative) &&
+               (oldNative == NULL ||
+                !VThreadBaseNativeIsAlive(oldNative)) &&
+               HashTable_ReplaceIfEqual(ht, newKey, oldNative, newNative);
+#else
+      reused = HashTable_ReplaceIfEqual(ht, newKey, NULL, newNative);
+#endif
+      if (reused) {
+         break;
       }
    }
 
-   newID = Atomic_FetchAndInc(&vthreadBaseGlobals.dynamicID);
-   {
-      Bool result;
-      const void *newKey = (const void *)(uintptr_t)newID;
-
+   if (!reused) {
+      newID = Atomic_FetchAndInc(&vthreadBaseGlobals.dynamicID);
       /*
        * Detect VThreadID overflow (~0 is used as a sentinal).
        * Leave a space of ~10 IDs, since the increment and bounds-check
        * are not atomic.
        */
       ASSERT_NOT_IMPLEMENTED(newID < VTHREAD_INVALID_ID - 10);
+   }
 
-      Str_Sprintf(name, sizeof name, "vthread-%u", newID);
-      VThreadBase_InitThread(newID, name);
+   Str_Sprintf(name, sizeof name, "vthread-%u", newID);
+   VThreadBase_InitThread(newID, name);
 
-      result = HashTable_Insert(ht, newKey, VThreadBaseGetNative());
+   if (!reused) {
+      Bool result;
+      void *newKey = (void *)(uintptr_t)newID;
+
+      /*
+       * New inseration must occur after init-thread, because new insertion
+       * allocates memory and we need a valid TLS slot when that happens.
+       */
+      result = HashTable_Insert(ht, newKey, newNative);
       ASSERT(result);
+   } else if (vmx86_debug) {
+      Log("VThreadBase reused VThreadID %d.\n", newID);
    }
 
    if (Atomic_Read(&vthreadBaseGlobals.numThreads) > 1) {
