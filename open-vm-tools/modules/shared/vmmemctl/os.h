@@ -84,8 +84,7 @@ typedef uintptr_t PageHandle;
  * Operations
  */
 
-extern Bool OS_Init(const char *name,
-                    const char *nameVerbose);
+extern Bool OS_Init(void);
 extern void OS_Cleanup(void);
 extern BalloonGuest OS_Identity(void);
 

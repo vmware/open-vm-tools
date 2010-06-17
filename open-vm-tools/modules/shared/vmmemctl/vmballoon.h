@@ -67,6 +67,9 @@
 
 #include "vm_basic_types.h"
 
+#define BALLOON_NAME                    "vmmemctl"
+#define BALLOON_NAME_VERBOSE            "VMware memory control driver"
+
 /*
  * Page allocation flags
  */

@@ -105,9 +105,6 @@ extern "C" {
 #define NULL 0
 #endif
 
-#define BALLOON_NAME                    "vmmemctl"
-#define BALLOON_NAME_VERBOSE            "VMware memory control driver"
-
 #define BALLOON_PROTOCOL_VERSION        2
 
 #define BALLOON_CHUNK_PAGES             1000
@@ -1320,7 +1317,7 @@ Balloon_ModuleInit(void)
    Balloon *b = &globalBalloon;
 
    /* os-specific initialization */
-   if (!OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE)) {
+   if (!OS_Init()) {
       return BALLOON_FAILURE;
    }
 

@@ -74,25 +74,18 @@ typedef struct {
 } os_timer;
 
 typedef struct {
-   /* registered state */
-   const char *name_verbose;
-   const char *name;
-} os_status;
-
-typedef struct {
    unsigned long size;       /* bitmap size in bytes */
    unsigned long *bitmap;    /* bitmap words */
    unsigned int  hint;       /* start searching from this word */
 } os_pmap;
 
 typedef struct {
-   os_status   status;
    os_timer    timer;
    os_pmap     pmap;
    vm_object_t vmobject;     /* vm backing object */
 } os_state;
 
-MALLOC_DEFINE(M_VMMEMCTL, "vmmemctl", "vmmemctl metadata");
+MALLOC_DEFINE(M_VMMEMCTL, BALLOON_NAME, "vmmemctl metadata");
 
 /*
  * Globals
@@ -614,8 +607,7 @@ OS_Yield(void)
  */
 
 Bool
-OS_Init(const char *name,         // IN
-        const char *nameVerbose)  // IN
+OS_Init(void)
 {
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
@@ -626,15 +618,8 @@ OS_Init(const char *name,         // IN
       return FALSE;
    }
 
-   /* zero global state */
-   bzero(state, sizeof(global_state));
-
    /* initialize timer state */
    callout_handle_init(&state->timer.callout_handle);
-
-   /* initialize status state */
-   state->status.name = name;
-   state->status.name_verbose = nameVerbose;
 
    os_pmap_init(pmap);
    os_balloonobject_create();
@@ -642,7 +627,7 @@ OS_Init(const char *name,         // IN
    vmmemctl_init_sysctl();
 
    /* log device load */
-   printf("%s initialized\n", state->status.name_verbose);
+   printf(BALLOON_NAME_VERBOSE " initialized\n");
    return TRUE;
 }
 
@@ -668,7 +653,6 @@ OS_Cleanup(void)
 {
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
-   os_status *status = &state->status;
 
    vmmemctl_deinit_sysctl();
 
@@ -676,7 +660,7 @@ OS_Cleanup(void)
    os_pmap_free(pmap);
 
    /* log device unload */
-   printf("%s unloaded\n", status->name_verbose);
+   printf(BALLOON_NAME_VERBOSE " unloaded\n");
 }
 
 
@@ -809,9 +793,9 @@ static void
 vmmemctl_init_sysctl(void)
 {
    oid =  sysctl_add_oid(NULL, SYSCTL_STATIC_CHILDREN(_vm), OID_AUTO,
-                         global_state.status.name, CTLTYPE_STRING | CTLFLAG_RD,
+                         BALLOON_NAME, CTLTYPE_STRING | CTLFLAG_RD,
                          0, 0, vmmemctl_sysctl, "A",
-                         global_state.status.name_verbose);
+                         BALLOON_NAME_VERBOSE);
 }
 
 

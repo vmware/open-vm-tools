@@ -87,8 +87,6 @@ typedef struct {
 } os_page;
 
 typedef struct {
-   const char	*name;
-   const char	*name_verbose;
    os_timer	timer;
    kstat_t	*kstats;
    id_space_t	*id_space;
@@ -576,8 +574,7 @@ OS_Yield(void)
  */
 
 Bool
-OS_Init(const char *name,         // IN
-        const char *nameVerbose)  // IN
+OS_Init(void)
 {
    os_state *state = &global_state;
    static int initialized = 0;
@@ -587,13 +584,8 @@ OS_Init(const char *name,         // IN
       return FALSE;
    }
 
-   /* zero global state */
-   bzero(state, sizeof(global_state));
-
    state->kstats = BalloonKstatCreate();
-   state->id_space = id_space_create("vmmemctl", 0, INT_MAX);
-   state->name = name;
-   state->name_verbose = nameVerbose;
+   state->id_space = id_space_create(BALLOON_NAME, 0, INT_MAX);
 
    /* disable memscrubber */
 #if defined(SOL9)
@@ -603,7 +595,7 @@ OS_Init(const char *name,         // IN
 #endif
 
    /* log device load */
-   cmn_err(CE_CONT, "!%s initialized\n", nameVerbose);
+   cmn_err(CE_CONT, "!%s initialized\n", BALLOON_NAME_VERBOSE);
    return TRUE;
 }
 
@@ -634,7 +626,7 @@ OS_Cleanup(void)
    id_space_destroy(state->id_space);
 
    /* log device unload */
-   cmn_err(CE_CONT, "!%s unloaded\n", state->name_verbose);
+   cmn_err(CE_CONT, "!%s unloaded\n", BALLOON_NAME_VERBOSE);
 }
 
 
