@@ -20,6 +20,7 @@
 #include "str.h"
 #include "util.h"
 #include "userlock.h"
+#include "hostinfo.h"
 #include "ulInt.h"
 
 #define MXUSER_REC_SIGNATURE 0x43524B4C // 'LKRC' in memory
@@ -303,7 +304,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
    } else {
 #if defined(MXUSER_STATS)
       Bool contended;
-      uint64 begin;
+      VmTimeType begin;
 #endif
       /* Rank checking is only done on the first acquisition */
       MXUserAcquisitionTracking(&lock->header, TRUE);
@@ -319,7 +320,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 #if defined(MXUSER_STATS)
       if (MXRecLockCount(&lock->recursiveLock) == 1) {
          MXUserHisto *histo;
-         uint64 value = Hostinfo_SystemTimerNS() - begin;
+         VmTimeType value = Hostinfo_SystemTimerNS() - begin;
 
          MXUserAcquisitionSample(&lock->acquisitionStats, contended, value);
 
@@ -363,7 +364,7 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
    } else {
 #if defined(MXUSER_STATS)
       if (MXRecLockCount(&lock->recursiveLock) == 1) {
-         uint64 value = Hostinfo_SystemTimerNS() - lock->holdStart;
+         VmTimeType value = Hostinfo_SystemTimerNS() - lock->holdStart;
          MXUserHisto *histo = Atomic_ReadPtr(&lock->heldHisto);
 
          MXUserBasicStatsSample(&lock->heldStats, value);
@@ -425,7 +426,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       success = (*MXUserMX_TryLockRec)(lock->vmmLock);
    } else {
 #if defined(MXUSER_STATS)
-      uint64 begin;
+      VmTimeType begin;
 #endif
 
       if (MXUserTryAcquireFail(lock->header.lockName)) {

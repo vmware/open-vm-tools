@@ -21,6 +21,7 @@
 #include "util.h"
 #include "userlock.h"
 #include "ulInt.h"
+#include "ulIntShared.h"
 #include "hashTable.h"
 
 

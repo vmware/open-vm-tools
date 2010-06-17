@@ -20,6 +20,7 @@
 #include "str.h"
 #include "util.h"
 #include "userlock.h"
+#include "hostinfo.h"
 #include "ulInt.h"
 
 #define MXUSER_EXCL_SIGNATURE 0x58454B4C // 'LKEX' in memory
@@ -30,7 +31,7 @@ struct MXUserExclLock
    MXRecLock               recursiveLock;
 
 #if defined(MXUSER_STATS)
-   uint64                  holdStart;
+   VmTimeType              holdStart;
 
    MXUserAcquisitionStats  acquisitionStats;
    Atomic_Ptr              acquisitionHisto;
@@ -268,8 +269,8 @@ void
 MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 {
 #if defined(MXUSER_STATS)
-   uint64 begin;
-   uint64 value;
+   VmTimeType begin;
+   VmTimeType value;
    Bool contended;
    MXUserHisto *histo;
 #endif
@@ -330,7 +331,7 @@ void
 MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
 {
 #if defined(MXUSER_STATS)
-   uint64 value;
+   VmTimeType value;
    MXUserHisto *histo;
 #endif
 
@@ -390,7 +391,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
    Bool success;
 
 #if defined(MXUSER_STATS)
-   uint64 begin;
+   VmTimeType begin;
 #endif
 
    ASSERT(lock && (lock->header.lockSignature == MXUSER_EXCL_SIGNATURE));
@@ -407,7 +408,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 
    if (success) {
 #if defined(MXUSER_STATS)
-      uint64 end = Hostinfo_SystemTimerNS();
+      VmTimeType end = Hostinfo_SystemTimerNS();
 #endif
 
       MXUserAcquisitionTracking(&lock->header, FALSE);

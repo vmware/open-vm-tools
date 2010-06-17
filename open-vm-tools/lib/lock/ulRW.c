@@ -25,6 +25,7 @@
 #include "util.h"
 #include "hashTable.h"
 #include "userlock.h"
+#include "hostinfo.h"
 #include "ulInt.h"
 
 #define MXUSER_RW_SIGNATURE 0x57524B4C // 'LKRW' in memory
@@ -232,7 +233,7 @@ typedef enum {
 
 typedef struct {
 #if defined(MXUSER_STATS)
-   uint64       holdStart;
+   VmTimeType   holdStart;
 #endif
 
    HolderState  state;
@@ -601,8 +602,8 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    HolderContext *myContext;
 
 #if defined(MXUSER_STATS)
-   uint64 begin;
-   uint64 value;
+   VmTimeType begin;
+   VmTimeType value;
    MXUserHisto *histo;
 #endif
 
@@ -783,8 +784,8 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    HolderContext *myContext;
 
 #if defined(MXUSER_STATS)
-   uint64 holdEnd = Hostinfo_SystemTimerNS();
-   uint64 duration;
+   VmTimeType holdEnd = Hostinfo_SystemTimerNS();
+   VmTimeType duration;
    MXUserHisto *histo;
 #endif
 
