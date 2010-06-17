@@ -223,7 +223,7 @@ static HgfsHandle HgfsFileNode2Handle(HgfsFileNode const *fileNode);
 static HgfsFileNode *HgfsHandle2FileNode(HgfsHandle handle,
                                          HgfsSessionInfo *session);
 static void HgfsServerExitSessionInternal(HgfsSessionInfo *session);
-static Bool HgfsValidatePacket(char const *packetIn, size_t packetSize);
+static Bool HgfsValidatePacket(char const *packetIn, size_t packetSize, Bool v4header);
 static void HgfsPackReplyHeaderV4(HgfsInternalStatus status,
                                   uint32 payloadSize,
                                   HgfsHeader const *packetIn,
@@ -2760,7 +2760,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
       v4header = TRUE;
    }
 
-   if (!HgfsValidatePacket(metaPacket, metaPacketSize)) {
+   if (!HgfsValidatePacket(metaPacket, metaPacketSize, v4header)) {
       status = HGFS_STATUS_PROTOCOL_ERROR;
       LOG(4, ("%s: %d: Possible BUG! malformed packet.\n", __FUNCTION__,
                __LINE__));
@@ -4626,16 +4626,15 @@ HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct
 
 static Bool
 HgfsValidatePacket(char const *packetIn,        // IN: request packet
-                   size_t packetSize)           // IN: request packet size
+                   size_t packetSize,           // IN: request packet size
+                   Bool v4header)               // IN: header version
 {
    HgfsRequest *request = (HgfsRequest *)packetIn;
    Bool result = TRUE;
    if (packetSize < sizeof *request) {
       return FALSE;
    }
-   if (request->op < HGFS_OP_CREATE_SESSION_V4) {
-      result = packetSize >= sizeof *request;
-   } else {
+   if (v4header) {
       HgfsHeader *header = (HgfsHeader *)packetIn;
       ASSERT(packetSize >= header->packetSize);
       ASSERT(header->packetSize >= header->headerSize);
@@ -4643,7 +4642,9 @@ HgfsValidatePacket(char const *packetIn,        // IN: request packet
                header->headerSize >= offsetof(HgfsHeader, reserved) &&
                header->packetSize >= header->headerSize &&
                packetSize >= header->packetSize;
-   }
+   } else {
+       result = packetSize >= sizeof *request;
+  }
    return result;
 }
 
