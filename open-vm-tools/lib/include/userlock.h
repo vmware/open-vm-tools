@@ -164,7 +164,8 @@ void MXUser_LogStats(unsigned epoch);
 void MXUser_SetInPanic(void);
 Bool MXUser_InPanic(void);
 
-MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex);
+MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,
+                                           MX_Rank rank);
 struct MX_MutexRec  *MXUser_GetRecLockVmm(const MXUserRecLock *lock);
 MX_Rank              MXUser_GetRecLockRank(const MXUserRecLock *lock);
 #endif  // _USERLOCK_H_

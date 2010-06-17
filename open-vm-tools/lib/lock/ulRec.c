@@ -730,7 +730,8 @@ MXUser_GetRecLockRank(const MXUserRecLock *lock)  // IN:
  */
 
 MXUserRecLock *
-MXUser_BindMXMutexRec(struct MX_MutexRec *mutex)  // IN:
+MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
+                      MX_Rank rank)               // IN:
 {
    MXUserRecLock *lock;
 
@@ -759,7 +760,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex)  // IN:
    lock->header.lockName = Str_SafeAsprintf(NULL, "MX_%p", mutex);
 
    lock->header.lockSignature = USERLOCK_SIGNATURE;
-   lock->header.lockRank = RANK_UNRANKED;  // unused
+   lock->header.lockRank = rank;
    lock->header.lockDumper = NULL;
 
 #if defined(MXUSER_STATS)
@@ -805,7 +806,7 @@ MXUser_InitFromMXRec(const char *name,    // IN:
    ASSERT(isBelowBull == (rank < RANK_userlevelLock));
 
    MX_InitLockRec(name, rank, mutex);
-   userLock = MXUser_BindMXMutexRec(mutex);
+   userLock = MXUser_BindMXMutexRec(mutex, rank);
    ASSERT(userLock);
 
    return userLock;
