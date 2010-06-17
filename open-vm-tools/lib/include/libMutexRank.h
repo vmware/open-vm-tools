@@ -38,10 +38,10 @@
  * callbacks. Specifically, callbacks into VMHS. So that lock (and the
  * couple other VMDB locks above it) has to be above everything else.
  */
-#define RANK_vmuSecPolicyLock        (RANK_libLockBase + 0x2505)
-#define RANK_vmdbCnxRpcLock          (RANK_libLockBase + 0x2510)
-#define RANK_vmdbCnxRpcBarrierLock   (RANK_libLockBase + 0x2520)
-#define RANK_vmdbCnxLock             (RANK_libLockBase + 0x2530)
+#define RANK_vmuSecPolicyLock        RANK_UNRANKED//(RANK_libLockBase + 0x2505)
+#define RANK_vmdbCnxRpcLock          RANK_UNRANKED//(RANK_libLockBase + 0x2510)
+#define RANK_vmdbCnxRpcBarrierLock   RANK_UNRANKED//(RANK_libLockBase + 0x2520)
+#define RANK_vmdbCnxLock             RANK_UNRANKED//(RANK_libLockBase + 0x2530)
 
 /*
  * vmhs locks
