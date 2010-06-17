@@ -18,6 +18,8 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#else
+#include <sys/time.h>
 #endif
 
 #include "vmware.h"
@@ -249,9 +251,21 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       MXRecLockDecCount(lock, lockCount);
       success = (*pSleepConditionVariableCS)(&condVar->x.condObject,
                                              &lock->nativeLock, waitTime);
-      err = success ? ERROR_SUCCESS : GetLastError();
       MXRecLockIncCount(lock, GetReturnAddress(), lockCount);
-      signalled = (err == ERROR_SUCCESS) ? TRUE : FALSE;
+
+      if (success) {
+         signalled = TRUE;
+      } else {
+         signalled = FALSE;
+         err = GetLastError();
+         if (WAIT_TIMEOUT == err) {
+            if (msecWait == MXUSER_WAIT_INFINITE) {
+               err = ERROR_CALL_NOT_IMPLEMENTED;  // ACK! "IMPOSSIBLE"
+            } else {
+               err = ERROR_SUCCESS;
+            }
+         }
+      }
    } else {
       Bool done = FALSE;
 
@@ -393,7 +407,9 @@ MXUserBroadcastInternal(MXUserCondVar *condVar)  // IN/OUT:
 
    return 0;
 }
-#else
+
+#else /* _WIN32 */
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -484,13 +500,23 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
 
       signalled = (err == 0) ? TRUE : FALSE;
    } else {
-      struct timespec waitTime;
+      struct timeval curTime;
+      struct timespec endTime;
+      uint64 endNS;
 
-      waitTime.tv_sec = msecWait / 1000;
-      waitTime.tv_nsec = 1000 * 1000 * (msecWait % 1000);
+#define A_BILLION (1000 * 1000 * 1000)
+      gettimeofday(&curTime, NULL);
+      endNS = ((uint64) curTime.tv_sec * A_BILLION) +
+              ((uint64) curTime.tv_usec * 1000) +
+              ((uint64) msecWait * (1000 * 1000));
 
-      err = pthread_cond_timedwait(&condVar->condObject, &lock->nativeLock,
-                                   &waitTime);
+      endTime.tv_sec = (time_t) (endNS / A_BILLION);
+      endTime.tv_nsec = (long int) (endNS % A_BILLION);
+#undef A_BILLION
+
+      err = pthread_cond_timedwait(&condVar->condObject,
+                                   &lock->nativeLock,
+                                   &endTime);
 
       signalled = (err == 0) ? TRUE : FALSE;
 
@@ -558,7 +584,8 @@ MXUserBroadcastInternal(MXUserCondVar *condVar)  // IN/OUT:
 {
    return pthread_cond_broadcast(&condVar->condObject);
 }
-#endif
+
+#endif /* _WIN32 */
 
 
 /*
@@ -627,7 +654,6 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    ASSERT(header);
    ASSERT(lock);
    ASSERT(condVar && (condVar->signature == MXUSER_CONDVAR_SIGNATURE));
-   ASSERT(msecWait > 0);
 
    if (condVar->ownerLock != lock) {
       Panic("%s: invalid use of lock %s with condVar (%p; %s)\n",
