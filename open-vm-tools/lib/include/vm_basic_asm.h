@@ -329,7 +329,10 @@ mssb64_0(const uint64 value)
 #endif
 
 #if defined(__GNUC__)
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) // Only on x86*
+#define USE_ARCH_X86_CUSTOM
+#endif
+
 static INLINE int
 lssb32_0(uint32 value)
 {
@@ -337,7 +340,13 @@ lssb32_0(uint32 value)
       return -1;
    } else {
       int pos;
+
+#if defined(USE_ARCH_X86_CUSTOM)
       __asm__ __volatile__("bsfl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+#else
+      pos =  __builtin_ffs(value) - 1;
+#endif
+
       return pos;
    }
 }
@@ -349,7 +358,13 @@ mssb32_0(uint32 value)
       return -1;
    } else {
       int pos;
+
+#if defined(USE_ARCH_X86_CUSTOM)
       __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
+#else
+      pos = 32 - __builtin_clz(value) - 1;
+#endif
+
       return pos;
    }
 }
@@ -360,21 +375,26 @@ lssb64_0(const uint64 value)
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
-#if defined(VM_X86_64)
       intptr_t pos;
+
+#if defined(USE_ARCH_X86_CUSTOM)
+#if defined(VM_X86_64)
       __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-      return pos;
 #else
       /* The coding was chosen to minimize conditionals and operations */
-      int lowFirstBit = lssb32_0((uint32) value);
-      if (lowFirstBit == -1) {
-         lowFirstBit = lssb32_0((uint32) (value >> 32));
-         if (lowFirstBit != -1) {
-            return lowFirstBit + 32;
+      pos = lssb32_0((uint32) value);
+      if (pos == -1) {
+         pos = lssb32_0((uint32) (value >> 32));
+         if (pos != -1) {
+            return pos + 32;
          }
       }
-      return lowFirstBit;
 #endif
+#else
+      pos =  __builtin_ffsll(value) - 1;
+#endif
+
+      return pos;
    }
 }
 
@@ -384,26 +404,31 @@ mssb64_0(const uint64 value)
    if (UNLIKELY(value == 0)) {
       return -1;
    } else {
-      /* Replace body of else with "64 - __builtin_clzll(value) - 1"? */
-#if defined(VM_X86_64)
       intptr_t pos;
+
+#if defined(USE_ARCH_X86_CUSTOM)
+#if defined(VM_X86_64)
       __asm__ __volatile__("bsr %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-      return pos;
 #else
       /* The coding was chosen to minimize conditionals and operations */
       if (value > 0xFFFFFFFFULL) {
-         return 32 + mssb32_0((uint32) (value >> 32));
+         pos = 32 + mssb32_0((uint32) (value >> 32));
+      } else {
+         pos = mssb32_0((uint32) value);
       }
-      return mssb32_0((uint32) value);
 #endif
-   }
-}
+#else
+      pos = 64 - __builtin_clzll(value) - 1;
 #endif
 
-/*
- * ARM and other architectures will live here, implementing the 4 basic
- * functions.
- */
+      return pos;
+   }
+}
+
+#if defined(USE_ARCH_X86_CUSTOM)
+#undef USE_ARCH_X86_CUSTOM
+#endif
+
 #endif
 
 static INLINE int
