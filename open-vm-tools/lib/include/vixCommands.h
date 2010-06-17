@@ -78,7 +78,7 @@ enum VixCommonCommandOptionValues {
    VIX_COMMAND_FORWARD_TO_GUEST              = 0x04,
    VIX_COMMAND_GUEST_RETURNS_STRING          = 0x08,
    VIX_COMMAND_GUEST_RETURNS_INTEGER_STRING  = 0x10,
-   VIX_COMMAND_GUEST_RETURNS_ENCODED_STRING  = 0x20,
+   /* DEPRECATED VIX_COMMAND_GUEST_RETURNS_ENCODED_STRING  = 0x20, */
    VIX_COMMAND_GUEST_RETURNS_PROPERTY_LIST   = 0x40,
    VIX_COMMAND_GUEST_RETURNS_BINARY          = 0x80,
    // We cannot add more constants here. This is stored in a uint8,
@@ -2040,8 +2040,8 @@ enum {
    VIX_COMMAND_VM_RESET                         = 2,
    VIX_COMMAND_VM_SUSPEND                       = 3,
    VIX_COMMAND_RUN_PROGRAM                      = 4,
-   VIX_COMMAND_GET_PROPERTY                     = 5,
-   VIX_COMMAND_SET_PROPERTY                     = 6,
+   /* DEPRECATED VIX_COMMAND_GET_PROPERTY                     = 5, */
+   /* DEPRECATED VIX_COMMAND_SET_PROPERTY                     = 6, */
    VIX_COMMAND_KEYSTROKES                       = 7,
    VIX_COMMAND_READ_REGISTRY                    = 8,
    VIX_COMMAND_WRITE_REGISTRY                   = 10,

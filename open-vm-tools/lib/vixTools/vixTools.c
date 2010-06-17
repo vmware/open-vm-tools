@@ -4248,7 +4248,6 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
-      case VIX_COMMAND_GET_PROPERTY:
       case VIX_COMMAND_GET_TOOLS_STATE:
          err = VixTools_GetToolsPropertiesImpl(confDictRef,
                                                &resultValue,
