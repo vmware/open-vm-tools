@@ -92,7 +92,10 @@ typedef uint32 VMCI_Resource;
 #define VMCI_EVENT_UNSUBSCRIBE    9
 #define VMCI_QUEUEPAIR_ALLOC      10
 #define VMCI_QUEUEPAIR_DETACH     11
-#define VMCI_VSOCK_VMX_LOOKUP     12
+/*
+ * VMCI_VSOCK_VMX_LOOKUP was assigned to 12 for Fusion 3.0/3.1,
+ * WS 7.0/7.1 and ESX 4.1
+ */
 #define VMCI_HGFS_TRANSPORT       13
 #define VMCI_RESOURCE_MAX         14
 

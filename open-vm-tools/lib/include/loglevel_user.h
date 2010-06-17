@@ -33,7 +33,6 @@
    LOGLEVEL_VAR(aio), \
    LOGLEVEL_VAR(passthrough), \
    LOGLEVEL_VAR(tools), \
-   LOGLEVEL_VAR(vsockLookup), \
    LOGLEVEL_VAR(license), \
    LOGLEVEL_VAR(vui), \
    LOGLEVEL_VAR(stats), \

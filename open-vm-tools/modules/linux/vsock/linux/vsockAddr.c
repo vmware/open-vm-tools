@@ -441,9 +441,7 @@ VSockAddr_SocketContextDgram(uint32 cid,  // IN
                              uint32 rid)  // IN
 {
    if (cid == VMCI_HYPERVISOR_CONTEXT_ID) {
-      if (rid != VMCI_VSOCK_VMX_LOOKUP) {
-         return FALSE;
-      }
+      return FALSE;
    }
 
    return TRUE;
