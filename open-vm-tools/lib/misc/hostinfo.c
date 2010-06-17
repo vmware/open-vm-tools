@@ -546,3 +546,52 @@ Hostinfo_TouchXen(void)
 
    return FALSE;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_RawSystemTimerUS --
+ *
+ *      Return the raw time.
+ *         - Do this as fast as is practical; no locks are used
+ *         - These timers may go backwards or make no forward progress
+ *
+ * Hostinfo_SystemTimerUS --
+ *
+ *      Return the time.
+ *         - These timers are documented to never go backwards.
+ *         - These timers may take locks
+ *
+ * NOTES:
+ *      These are the routines to use when performing timing measurements.
+ *
+ *      The value returned is valid (finish-time - start-time) only within a
+ *      single process. Don't send a time measurement obtained with these
+ *      routines to another process and expect a relative time measurement
+ *      to be correct.
+ *
+ *      The actual resolution of these "clocks" are undefined - it varies
+ *      depending on hardware, OSen and OS versions.
+ *
+ * Results:
+ *      The time in microseconds is returned. Zero upon error.
+ *
+ * Side effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VmTimeType 
+Hostinfo_RawSystemTimerUS(void)
+{
+   return Hostinfo_RawSystemTimerNS() / 1000;
+}
+
+
+VmTimeType 
+Hostinfo_SystemTimerUS(void)
+{
+   return Hostinfo_SystemTimerNS() / 1000;
+}

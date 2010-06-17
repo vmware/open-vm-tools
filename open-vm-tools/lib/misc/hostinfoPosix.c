@@ -1463,14 +1463,12 @@ Hostinfo_LogLoadAverage(void)
  *-----------------------------------------------------------------------------
  *
  * Hostinfo_RawSystemTimerNS --
- * Hostinfo_RawSystemTimerUS --
  *
  *      Return the raw time.
  *         - Do this as fast as is practical; no locks are used
  *         - These timers may go backwards or make no forward progress
  *
  * Hostinfo_SystemTimerNS --
- * Hostinfo_SystemTimerUS --
  *
  *      Return the time.
  *         - These timers are documented to never go backwards.
@@ -1488,7 +1486,7 @@ Hostinfo_LogLoadAverage(void)
  *      depending on hardware, OSen and OS versions.
  *
  * Results:
- *      The time in nanoseconds or microseconds is returned. Zero upon error.
+ *      The time in nanoseconds is returned. Zero upon error.
  *
  * Side effects:
  *	None.
@@ -1543,13 +1541,6 @@ Hostinfo_SystemTimerNS(void)
 {
    return Hostinfo_RawSystemTimerNS();
 }
-
-
-VmTimeType
-Hostinfo_SystemTimerUS(void)
-{
-   return Hostinfo_RawSystemTimerNS() / 1000ULL;
-}
 #elif defined(VMX86_SERVER)
 VmTimeType
 Hostinfo_RawSystemTimerNS(void)
@@ -1577,13 +1568,6 @@ VmTimeType
 Hostinfo_SystemTimerNS(void)
 {
    return Hostinfo_RawSystemTimerNS();
-}
-
-
-VmTimeType
-Hostinfo_SystemTimerUS(void)
-{
-   return Hostinfo_RawSystemTimerNS() / 1000;
 }
 #else
 VmTimeType
@@ -1620,9 +1604,12 @@ Hostinfo_SystemTimerNS(void)
 
    /*
     * TODO: research using -lrt and clock_gettime.
+    *
+    * These routines live in lib/misc and cannot use routines from other
+    * libraries, including lib/lock.
     */
 
-   pthread_mutex_lock(&mutex);  // use native mechanism, just like Windows
+   pthread_mutex_lock(&mutex);  // Use native mechanism, just like Windows
 
    curTime = Hostinfo_RawSystemTimerNS();
 
@@ -1651,21 +1638,8 @@ exit:
 
    return newTime;
 }
-
-
-VmTimeType
-Hostinfo_SystemTimerUS(void)
-{
-   return Hostinfo_SystemTimerNS() / 1000;
-}
 #endif
 
-
-VmTimeType
-Hostinfo_RawSystemTimerUS(void)
-{
-   return Hostinfo_RawSystemTimerNS() / 1000ULL;
-}
 
 /*
  *-----------------------------------------------------------------------------
