@@ -822,6 +822,8 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
 
    MXUserReleaseTracking(&lock->header);
 
+   Atomic_Dec(&lock->holderCount);
+
    if (LIKELY(lock->useNative)) {
       int err = MXUserNativeRWRelease(&lock->nativeLock, myContext->state);
 
@@ -835,7 +837,6 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
    }
 
    myContext->state = RW_UNLOCKED;
-   Atomic_Dec(&lock->holderCount);
 }
 
 /*
