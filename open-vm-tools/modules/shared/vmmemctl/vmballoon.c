@@ -86,7 +86,6 @@ extern "C" {
 #define BALLOON_DEBUG_VERBOSE   0
 
 #define BALLOON_STATS
-#define BALLOON_STATS_PROCFS
 
 /*
  * Includes
@@ -219,81 +218,6 @@ static int BalloonMonitorUnlockPage(Balloon *b, PageHandle handle);
 #define STATS_INC(stat)
 #endif
 
-/*
- *----------------------------------------------------------------------
- *
- * BalloonProcRead --
- *
- *      Ballon driver status reporting routine.  Note that this is only
- *      used for Linux.
- *
- * Results:
- *      Writes ASCII status information into "buf".
- *      Returns number of bytes written.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BalloonProcRead(char *buf,   // OUT
-                size_t size) // IN
-{
-   int len = 0;
-   BalloonStats stats;
-
-   Balloon_GetStats(&stats);
-
-   /* format size info */
-   len += OS_Snprintf(buf + len, size - len,
-                     "target:             %8d pages\n"
-                     "current:            %8d pages\n",
-                     stats.nPagesTarget,
-                     stats.nPages);
-
-   /* format rate info */
-   len += OS_Snprintf(buf + len, size - len,
-                     "rateNoSleepAlloc:   %8d pages/sec\n"
-                     "rateSleepAlloc:     %8d pages/sec\n"
-                     "rateFree:           %8d pages/sec\n",
-                     BALLOON_NOSLEEP_ALLOC_MAX,
-                     stats.rateAlloc,
-                     stats.rateFree);
-
-#ifdef BALLOON_STATS_PROCFS
-   len += OS_Snprintf(buf + len, size - len,
-                     "\n"
-                     "timer:              %8u\n"
-                     "start:              %8u (%4u failed)\n"
-                     "guestType:          %8u (%4u failed)\n"
-                     "lock:               %8u (%4u failed)\n"
-                     "unlock:             %8u (%4u failed)\n"
-                     "target:             %8u (%4u failed)\n"
-                     "primNoSleepAlloc:   %8u (%4u failed)\n"
-                     "primCanSleepAlloc:  %8u (%4u failed)\n"
-                     "primFree:           %8u\n"
-                     "errAlloc:           %8u\n"
-                     "errFree:            %8u\n",
-                     stats.timer,
-                     stats.start, stats.startFail,
-                     stats.guestType, stats.guestTypeFail,
-                     stats.lock,  stats.lockFail,
-                     stats.unlock, stats.unlockFail,
-                     stats.target, stats.targetFail,
-                     stats.primAlloc[BALLOON_PAGE_ALLOC_NOSLEEP],
-                     stats.primAllocFail[BALLOON_PAGE_ALLOC_NOSLEEP],
-                     stats.primAlloc[BALLOON_PAGE_ALLOC_CANSLEEP],
-                     stats.primAllocFail[BALLOON_PAGE_ALLOC_CANSLEEP],
-                     stats.primFree,
-                     stats.primErrorPageAlloc,
-                     stats.primErrorPageFree);
-#endif
-
-   return len;
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -313,15 +237,11 @@ BalloonProcRead(char *buf,   // OUT
  *----------------------------------------------------------------------
  */
 
-void
-Balloon_GetStats(BalloonStats *stats) // OUT
+const BalloonStats *
+Balloon_GetStats(void)
 {
    Balloon *b = &globalBalloon;
-
-   /*
-    * Copy statistics out of global structure.
-    */
-   OS_MemCopy(stats, &b->stats, sizeof *stats);
+   BalloonStats *stats = &b->stats;
 
    /*
     * Fill in additional information about size and rates, which is
@@ -329,8 +249,11 @@ Balloon_GetStats(BalloonStats *stats) // OUT
     */
    stats->nPages = b->nPages;
    stats->nPagesTarget = b->nPagesTarget;
+   stats->rateNoSleepAlloc = BALLOON_NOSLEEP_ALLOC_MAX;
    stats->rateAlloc = b->rateAlloc;
    stats->rateFree = b->rateFree;
+
+   return stats;
 }
 
 
@@ -1397,7 +1320,7 @@ Balloon_ModuleInit(void)
    Balloon *b = &globalBalloon;
 
    /* os-specific initialization */
-   if (!OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE, BalloonProcRead)) {
+   if (!OS_Init(BALLOON_NAME, BALLOON_NAME_VERBOSE)) {
       return BALLOON_FAILURE;
    }
 

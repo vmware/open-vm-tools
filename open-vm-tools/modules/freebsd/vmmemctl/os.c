@@ -75,7 +75,6 @@ typedef struct {
 
 typedef struct {
    /* registered state */
-   OSStatusHandler *handler;
    const char *name_verbose;
    const char *name;
 } os_status;
@@ -214,39 +213,6 @@ static __inline__ unsigned long os_ffz(unsigned long word)
            :"r" (~word));
 #endif
    return word;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * OS_Snprintf --
- *
- *      Print a string into a bounded memory location.
- *
- * Results:
- *      Number of character printed including trailing \0.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-OS_Snprintf(char *buf,          // OUT
-            size_t size,        // IN
-            const char *format, // IN
-            ...)                // IN
-{
-   int result;
-   va_list args;
-
-   va_start(args, format);
-   result = vsnprintf(buf, size, format, args);
-   va_end(args);
-
-   return result;
 }
 
 
@@ -649,8 +615,7 @@ OS_Yield(void)
 
 Bool
 OS_Init(const char *name,         // IN
-        const char *nameVerbose,  // IN
-        OSStatusHandler *handler) // IN
+        const char *nameVerbose)  // IN
 {
    os_state *state = &global_state;
    os_pmap *pmap = &state->pmap;
@@ -668,7 +633,6 @@ OS_Init(const char *name,         // IN
    callout_handle_init(&state->timer.callout_handle);
 
    /* initialize status state */
-   state->status.handler = handler;
    state->status.name = name;
    state->status.name_verbose = nameVerbose;
 
@@ -774,12 +738,54 @@ static struct sysctl_oid *oid;
 static int
 vmmemctl_sysctl(SYSCTL_HANDLER_ARGS)
 {
-   char stats[PAGE_SIZE];
-   size_t len;
+   char buf[PAGE_SIZE];
+   size_t len = 0;
+   const BalloonStats *stats = Balloon_GetStats();
 
-   len = 1 + global_state.status.handler(stats, PAGE_SIZE);
+   /* format size info */
+   len += snprintf(buf + len, sizeof(buf) - len,
+                   "target:             %8d pages\n"
+                   "current:            %8d pages\n",
+                   stats->nPagesTarget,
+                   stats->nPages);
 
-   return SYSCTL_OUT(req, stats, len);
+   /* format rate info */
+   len += snprintf(buf + len, sizeof(buf) - len,
+                   "rateNoSleepAlloc:   %8d pages/sec\n"
+                   "rateSleepAlloc:     %8d pages/sec\n"
+                   "rateFree:           %8d pages/sec\n",
+                   stats->rateNoSleepAlloc,
+                   stats->rateAlloc,
+                   stats->rateFree);
+
+   len += snprintf(buf + len, sizeof(buf) - len,
+                   "\n"
+                   "timer:              %8u\n"
+                   "start:              %8u (%4u failed)\n"
+                   "guestType:          %8u (%4u failed)\n"
+                   "lock:               %8u (%4u failed)\n"
+                   "unlock:             %8u (%4u failed)\n"
+                   "target:             %8u (%4u failed)\n"
+                   "primNoSleepAlloc:   %8u (%4u failed)\n"
+                   "primCanSleepAlloc:  %8u (%4u failed)\n"
+                   "primFree:           %8u\n"
+                   "errAlloc:           %8u\n"
+                   "errFree:            %8u\n",
+                   stats->timer,
+                   stats->start, stats->startFail,
+                   stats->guestType, stats->guestTypeFail,
+                   stats->lock,  stats->lockFail,
+                   stats->unlock, stats->unlockFail,
+                   stats->target, stats->targetFail,
+                   stats->primAlloc[BALLOON_PAGE_ALLOC_NOSLEEP],
+                   stats->primAllocFail[BALLOON_PAGE_ALLOC_NOSLEEP],
+                   stats->primAlloc[BALLOON_PAGE_ALLOC_CANSLEEP],
+                   stats->primAllocFail[BALLOON_PAGE_ALLOC_CANSLEEP],
+                   stats->primFree,
+                   stats->primErrorPageAlloc,
+                   stats->primErrorPageFree);
+
+   return SYSCTL_OUT(req, buf, len + 1);
 }
 
 

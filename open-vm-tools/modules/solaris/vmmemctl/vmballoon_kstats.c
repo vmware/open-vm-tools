@@ -25,9 +25,6 @@
  * Compile-Time Options
  */
 
-#define	BALLOON_STATS
-#define	BALLOON_STATS_PROCFS
-
 #include <sys/types.h>
 #include <sys/kstat.h>
 #include <sys/errno.h>
@@ -84,41 +81,41 @@ static int
 BalloonKstatUpdate(kstat_t *ksp, int rw)
 {
    int i;
-   BalloonStats stats;
+   const BalloonStats *stats;
    BalloonKstats *bkp = ksp->ks_data;
 
    if (rw == KSTAT_WRITE)
       return (EACCES);
 
-   Balloon_GetStats(&stats);
+   stats = Balloon_GetStats();
 
    /* size info */
-   bkp->nPagesTarget.value.ui32 = stats.nPagesTarget;
-   bkp->nPages.value.ui32 = stats.nPages;
+   bkp->nPagesTarget.value.ui32 = stats->nPagesTarget;
+   bkp->nPages.value.ui32 = stats->nPages;
 
    /* rate info */
-   bkp->rateAlloc.value.ui32 = stats.rateAlloc;
-   bkp->rateFree.value.ui32 = stats.rateFree;
+   bkp->rateAlloc.value.ui32 = stats->rateAlloc;
+   bkp->rateFree.value.ui32 = stats->rateFree;
 
    /* statistics */
-   bkp->timer.value.ui32 = stats.timer;
-   bkp->start.value.ui32 = stats.start;
-   bkp->startFail.value.ui32 = stats.startFail;
-   bkp->guestType.value.ui32 = stats.guestType;
-   bkp->guestTypeFail.value.ui32 = stats.guestTypeFail;
-   bkp->lock.value.ui32 = stats.lock;
-   bkp->lockFail.value.ui32 = stats.lockFail;
-   bkp->unlock.value.ui32 = stats.unlock;
-   bkp->unlockFail.value.ui32 = stats.unlockFail;
-   bkp->target.value.ui32 = stats.target;
-   bkp->targetFail.value.ui32 = stats.targetFail;
+   bkp->timer.value.ui32 = stats->timer;
+   bkp->start.value.ui32 = stats->start;
+   bkp->startFail.value.ui32 = stats->startFail;
+   bkp->guestType.value.ui32 = stats->guestType;
+   bkp->guestTypeFail.value.ui32 = stats->guestTypeFail;
+   bkp->lock.value.ui32 = stats->lock;
+   bkp->lockFail.value.ui32 = stats->lockFail;
+   bkp->unlock.value.ui32 = stats->unlock;
+   bkp->unlockFail.value.ui32 = stats->unlockFail;
+   bkp->target.value.ui32 = stats->target;
+   bkp->targetFail.value.ui32 = stats->targetFail;
    for (i = 0; i < BALLOON_PAGE_ALLOC_TYPES_NR; i++) {
-      bkp->primAlloc[i].value.ui32 = stats.primAlloc[i];
-      bkp->primAllocFail[i].value.ui32 = stats.primAllocFail[i];
+      bkp->primAlloc[i].value.ui32 = stats->primAlloc[i];
+      bkp->primAllocFail[i].value.ui32 = stats->primAllocFail[i];
    }
-   bkp->primFree.value.ui32 = stats.primFree;
-   bkp->primErrorPageAlloc.value.ui32 = stats.primErrorPageAlloc;
-   bkp->primErrorPageFree.value.ui32 = stats.primErrorPageFree;
+   bkp->primFree.value.ui32 = stats->primFree;
+   bkp->primErrorPageAlloc.value.ui32 = stats->primErrorPageAlloc;
+   bkp->primErrorPageFree.value.ui32 = stats->primErrorPageFree;
 
    return 0;
 }

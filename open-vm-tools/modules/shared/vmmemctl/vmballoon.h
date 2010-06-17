@@ -86,6 +86,7 @@ typedef struct {
    uint32 nPagesTarget;
 
    /* adjustment rates */
+   uint32 rateNoSleepAlloc;
    uint32 rateAlloc;
    uint32 rateFree;
 
@@ -119,6 +120,6 @@ typedef struct {
 extern int  Balloon_ModuleInit(void);
 extern void Balloon_ModuleCleanup(void);
 
-extern void Balloon_GetStats(BalloonStats *stats);
+extern const BalloonStats *Balloon_GetStats(void);
 
 #endif	/* VMBALLOON_H */

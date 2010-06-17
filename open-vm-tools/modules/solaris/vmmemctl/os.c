@@ -203,38 +203,6 @@ OS_MemCopy(void *dest,      // OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * OS_Snprintf --
- *
- *      Print a string into a bounded memory location.
- *
- * Results:
- *      Number of character printed including trailing \0.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-int
-OS_Snprintf(char *buf,          // OUT
-            size_t size,        // IN
-            const char *format, // IN
-            ...)                // IN
-{
-   ASSERT(0);
-   /*
-    * XXX disabled because the varargs header file doesn't seem to
-    * work in the current (gcc 2.95.3) cross-compiler environment.
-    * Not used for Solaris anyway.
-    */
-   return 0;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * OS_Identity --
  *
  *      Returns an identifier for the guest OS family.
@@ -609,8 +577,7 @@ OS_Yield(void)
 
 Bool
 OS_Init(const char *name,         // IN
-        const char *nameVerbose,  // IN
-        OSStatusHandler *handler) // IN
+        const char *nameVerbose)  // IN
 {
    os_state *state = &global_state;
    static int initialized = 0;
