@@ -209,8 +209,7 @@ static unsigned int VSockVmciPoll(struct file *file,
 static int VSockVmciListen(struct socket *sock, int backlog);
 static int VSockVmciShutdown(struct socket *sock, int mode);
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
 typedef int VSockSetsockoptLenType;
 #else
 typedef unsigned int VSockSetsockoptLenType;
