@@ -66,12 +66,6 @@ static const char *rpcChannelName = NULL;
  */
 ResolutionInfoType resolutionInfo;
 
-/*
- * Local function prototypes
- */
-
-static void ResolutionSetServerCapability(unsigned int value);
-
 
 /*
  * Global function definitions
@@ -384,24 +378,29 @@ ResolutionSetShutdown(gpointer src,
 /**
  * Sends the tools.capability.resolution_server RPC to the VMX.
  *
+ * @param[in]  chan     The RPC channel.
  * @param[in]  value    The value to send for the capability bit.
  */
-void
-ResolutionSetServerCapability(unsigned int value)
+
+static void
+ResolutionSetServerCapability(RpcChannel *chan,
+                              unsigned int value)
 {
+   gchar *msg;
+
    if (!rpcChannelName) {
       g_debug("Channel name is null, RPC not sent.\n");
       return;
    }
 
-   if (!RpcOut_sendOne(NULL,
-                       NULL,
-                       "tools.capability.resolution_server %s %d",
-                       rpcChannelName,
-                       value)) {
+   msg = g_strdup_printf("tools.capability.resolution_server %s %d",
+                         rpcChannelName,
+                         value);
+   if (!RpcChannel_Send(chan, msg, strlen(msg), NULL, NULL)) {
       g_warning("%s: Unable to set tools.capability.resolution_server\n",
                 __FUNCTION__);
    }
+   g_free(msg);
 }
 
 
@@ -457,7 +456,7 @@ ResolutionSetCapabilities(gpointer src,
        *      resolution set RPCs as an argument.
        */
       if (ctx && ctx->rpc && ctx->isVMware) {
-         ResolutionSetServerCapability(set ? 1 : 0);
+         ResolutionSetServerCapability(ctx->rpc, set ? 1 : 0);
       }
    }
 
