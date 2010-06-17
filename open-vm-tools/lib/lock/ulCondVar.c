@@ -28,6 +28,7 @@
 #include "util.h"
 #include "userlock.h"
 #include "ulInt.h"
+#include "ulIntShared.h"
 
 /*
  * A portable condition variable
@@ -506,9 +507,9 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       uint64 endNS;
 
       /*
-       * pthread_cond_timedwait takes an absolute time. Yes, this is
-       * beyond ridiculous, and the justifications for this
-       * vs. relative time make no sense. But IIWII.
+       * pthread_cond_timedwait takes an absolute time. Yes, this is beyond
+       * ridiculous, and the justifications for this vs. relative time make
+       * no sense. But IIWII.
        */
 #define A_BILLION (1000 * 1000 * 1000)
       gettimeofday(&curTime, NULL);
@@ -520,11 +521,10 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       endTime.tv_nsec = (long int) (endNS % A_BILLION);
 #undef A_BILLION
 
-      err = pthread_cond_timedwait(&condVar->condObject,
-                                   &lock->nativeLock,
+      err = pthread_cond_timedwait(&condVar->condObject, &lock->nativeLock,
                                    &endTime);
 
-      signalled = (err == 0) ? TRUE : FALSE;
+      signalled = (err == 0);
 
       if (err == ETIMEDOUT) {
          err = 0;
@@ -673,7 +673,31 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    }
 
    Atomic_Inc(&condVar->referenceCount);
-   signalled = MXUserWaitInternal(lock, condVar, msecWait);
+
+   /*
+    * When the watchdog callback has been planted - lib/thread is present
+    * and initialized - call the watchdog periodically on long or infinite
+    * waits.
+    */
+
+   if (MXUserVThreadWatchDog) {
+      do {
+         uint32 thisWait = (msecWait > 1000) ? 1000 : msecWait;
+
+         signalled = MXUserWaitInternal(lock, condVar, thisWait);
+
+         if (thisWait != 0) {
+            (*MXUserVThreadWatchDog)();
+
+            if (msecWait != MXUSER_WAIT_INFINITE) {
+               msecWait -= thisWait;
+            }
+         }
+      } while ((msecWait != 0) && !signalled);
+   } else {
+      signalled = MXUserWaitInternal(lock, condVar, msecWait);
+   }
+
    Atomic_Dec(&condVar->referenceCount);
 
    return signalled;
