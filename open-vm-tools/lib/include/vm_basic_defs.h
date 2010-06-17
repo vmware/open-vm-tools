@@ -656,12 +656,10 @@ typedef int pid_t;
 
 /*
  * bora/lib/allocTrack is a special case. It hooks malloc/free and the
- * like, and thus can basically sneak in underneath anyone. So we put
- * it above RANK_LEAF. In the future, if there come to be other bora
- * libraries that hook other system APIs and take locks, their locks
- * could also be above RANK_LEAF.
+ * like, and thus can basically sneak in underneath anyone. To that end
+ * allocTrack uses unranked, native locks internally to avoid any
+ * complications.
  */
-#define RANK_allocTrack          RANK_LEAF+1
 
 /*
  * For situations where we need to create locks on behalf of
