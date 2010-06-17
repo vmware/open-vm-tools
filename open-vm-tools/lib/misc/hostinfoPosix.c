@@ -1488,7 +1488,7 @@ Hostinfo_LogLoadAverage(void)
  *      depending on hardware, OSen and OS versions.
  *
  * Results:
- *      The time in nanoseconds or microseconds is returned.
+ *      The time in nanoseconds or microseconds is returned. Zero upon error.
  *
  * Side effects:
  *	None.
@@ -1506,13 +1506,13 @@ Hostinfo_RawSystemTimerNS(void)
 
    /*
     * On Mac OS a commpage timer is used. Such timers are ensured to never
-    * go backwards.
+    * go backwards - and be valid across all processes.
     */
 
    /* Ensure that the time base values are correct. */
    ptr = (mach_timebase_info_data_t *) Atomic_ReadPtr(&atomic);
 
-   if (ptr == NULL) {
+   if (UNLIKELY(ptr == NULL)) {
       char *p;
 
       p = Util_SafeMalloc(sizeof(mach_timebase_info_data_t));
@@ -1550,23 +1550,26 @@ Hostinfo_SystemTimerUS(void)
 {
    return Hostinfo_RawSystemTimerNS() / 1000ULL;
 }
-#else  // !__APPLE__
-#if defined(VMX86_SERVER)
+#elif defined(VMX86_SERVER)
 VmTimeType
 Hostinfo_RawSystemTimerNS(void)
 {
    VmTimeType uptime;
-   VMK_ReturnStatus status;
 
-   /* TODO: get a vmkernel uptime that reports in ns (for real?) */
-   status = VMKernel_GetUptimeUS(&uptime);  // never goes backwards
-   if (status != VMK_OK) {
+   /*
+    * The uptime is ensured to never go backwards and is valid across
+    * processes.
+    *
+    * TODO: get a vmkernel uptime that reports in ns (for real?)
+    */
+
+   if (UNLIKELY(VMKernel_GetUptimeUS(&uptime) != VMK_OK)) {
       Log("%s: failure!\n", __FUNCTION__);
 
       uptime = 0;  // A timer read failure - this is really bad!
    }
 
-   return 1000ULL * uptime;  // convert to nanoseconds
+   return 1000 * uptime;  // Convert to nanoseconds
 }
 
 
@@ -1580,19 +1583,18 @@ Hostinfo_SystemTimerNS(void)
 VmTimeType
 Hostinfo_SystemTimerUS(void)
 {
-   return Hostinfo_RawSystemTimerNS() / 1000ULL;
+   return Hostinfo_RawSystemTimerNS() / 1000;
 }
-
-#else  // !VMX86_SERVER
+#else
 VmTimeType
 Hostinfo_RawSystemTimerNS(void)
 {
    VmTimeType result;
    struct timeval tval;
 
-   /* Read the time from the operating system - may go backwards */
-   if (gettimeofday(&tval, NULL) == 0) {
-      /* Convert into nanoseconds */
+   /* Read the time from the operating system - may go backwards. */
+   if (LIKELY(gettimeofday(&tval, NULL) == 0)) {
+      /* Convert into nanoseconds. */
       result = 1000ULL * (((VmTimeType)tval.tv_sec) * 1000000 + tval.tv_usec);
    } else {
       Log("%s: failure!\n", __FUNCTION__);
@@ -1654,11 +1656,9 @@ exit:
 VmTimeType
 Hostinfo_SystemTimerUS(void)
 {
-   return Hostinfo_SystemTimerNS() / 1000ULL;
+   return Hostinfo_SystemTimerNS() / 1000;
 }
-
-#endif  // VMX86_SERVER
-#endif  // __APPLE__
+#endif
 
 
 VmTimeType
