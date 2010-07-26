@@ -79,6 +79,8 @@ Bool Log_SwitchFile(const char *fileName, const char *config, Bool copy);
 Bool Log_CopyFile(const char *fileName);
 
 size_t Log_MakeTimeString(Bool millisec, char *buf, size_t max);
+uint32 Log_MaxLineLength(void);
+
 
 void LogV(const char *fmt, va_list args);
 void WarningV(const char *fmt, va_list args);
@@ -121,8 +123,6 @@ void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
 
 #define LOG_DEFAULT_THROTTLE_THRESHOLD 1000000
-
-#define LOG_MAX_MSG_SIZE (12 * 1024)
 
 
 /*

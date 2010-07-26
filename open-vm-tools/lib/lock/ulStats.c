@@ -300,40 +300,69 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
 
 #if defined(MXUSER_STATS)
    if (histo->totalSamples) {
+      char *p;
       uint32 i;
-      char histoData[LOG_MAX_MSG_SIZE];
+      uint32 spaceLeft;
 
-      char *p = histoData;
-      uint32 numEntries = 0;
-      uint32 spaceLeft = sizeof(histoData) - 1;
+      static uint32 maxLine = 0;
+      static char *histoLine = NULL;
 
-      histoData[0] = '\0';
+      /*
+       * Statistics are reported from a single thread. This avoids allocating
+       * a potentially large buffer on the stack.
+       */ 
 
+      if (maxLine == 0) {
+         maxLine = Log_MaxLineLength();  // includes terminating NUL
+         ASSERT(maxLine >= 1024);        // assert a rational minimum
+
+         histoLine = Util_SafeMalloc(maxLine);
+      }
+
+      i = Str_Sprintf(histoLine, maxLine,
+                      "MXUser: h l=%u t=%s min=%"FMT64"u max=%"FMT64"u\n",
+                      header->identifier, histo->typeName, histo->minValue,
+                      histo->maxValue);
+
+      /*
+       * The terminating "\n\0" will be overwritten each time a histogram
+       * bin is added to the line. This will ensure that the line is always
+       * properly terminated no matter what happens.
+       */
+
+      p = &histoLine[i - 1];
+      spaceLeft = maxLine - i - 2;
+
+      /* Add as many histogram bins as possible within the line limitations */
       for (i = 0; i < histo->numBins; i++) {
          if (histo->binData[i] != 0) {
             uint32 len;
             char binEntry[32];
 
-            Str_Sprintf(binEntry, sizeof(binEntry), " %u-%"FMT64"u",
+            Str_Sprintf(binEntry, sizeof binEntry, " %u-%"FMT64"u\n",
                         i, histo->binData[i]);
 
             len = strlen(binEntry);
 
             if (len < spaceLeft) {
-               Str_Strcpy(p, binEntry, len + 1);
-               p += len;
-               spaceLeft -= len;
+               /*
+                * Append the bin number, bin count pair to the end of the
+                * string. This includes the terminating "\n\0". Update the
+                * pointer to the next free place to point to the '\n'. If
+                * another entry is made, things work out properly. If not
+                * the string is properly terminated as a line.
+                */
 
-               numEntries++;
+               Str_Strcpy(p, binEntry, len + 1);
+               p += len - 1;
+               spaceLeft -= len;
             } else {
                break;
             }
          }
       }
 
-      StatsLog("MXUser: h l=%u t=%s min=%"FMT64"u max=%"FMT64"u n=%u %s\n",
-                header->identifier, histo->typeName, histo->minValue,
-                histo->maxValue, numEntries, histoData);
+      StatsLog(histoLine);
    }
 #endif
 }
