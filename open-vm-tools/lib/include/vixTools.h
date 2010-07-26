@@ -107,26 +107,6 @@ VixError VixToolsGetUserTmpDir(void *userToken,
 Bool VixToolsUserIsMemberOfAdministratorGroup(VixCommandRequestHeader *requestMsg);
 #endif // _WIN32
 
-#if IMPLEMENT_SOCKET_MGR
-VixError VixToolsSocketConnect(VixCommandRequestHeader *requestMsg,
-                               char **result);
-
-VixError VixToolsSocketListen(VixCommandRequestHeader *requestMsg,
-                              char **result);
-
-VixError VixToolsSocketAccept(VixCommandRequestHeader *requestMsg,
-                              char *testName);
-
-VixError VixToolsSocketSend(VixCommandRequestHeader *requestMsg,
-                            char *testName);
-
-VixError VixToolsSocketRecv(VixCommandRequestHeader *requestMsg,
-                            char *testName);
-
-VixError VixToolsSocketClose(VixCommandRequestHeader *requestMsg);
-#endif // IMPLEMENT_SOCKET_MGR
-
-
 #endif /* __VIX_TOOLS_H__ */
 
 

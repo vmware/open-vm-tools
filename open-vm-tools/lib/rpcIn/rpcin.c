@@ -854,64 +854,6 @@ error:
 }
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcIn_restart --
- *
- *    Stops/starts the background loop that receives RPC from VMware.
- *    Keeps already registered callbacks. Regardless of the value returned,
- *    callers are still expected to call RpcIn_stop() when done using rpcin,
- *    to properly release used resources.
- *
- * Result
- *    TRUE on success
- *    FALSE on failure
- *
- * Side-effects
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-RpcIn_restart(RpcIn *in)  // IN
-{
-   ASSERT(in);
-
-   if (RpcIn_stop(in) == FALSE) {
-      return FALSE;
-   }
-
-   ASSERT(in->channel == NULL);
-   in->channel = Message_Open(0x4f4c4354);
-   if (in->channel == NULL) {
-      Debug("RpcIn_restart: couldn't open channel with TCLO protocol\n");
-      return FALSE;
-   }
-
-   if (in->last_result) {
-      free(in->last_result);
-      in->last_result = NULL;
-   }
-   in->last_resultLen = 0;
-   in->mustSend = TRUE;
-
-   ASSERT(in->nextEvent == NULL);
-#if defined(VMTOOLS_USE_GLIB)
-   RPCIN_SCHED_EVENT(in, g_idle_source_new());
-#else
-   in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
-#endif
-   if (in->nextEvent == NULL) {
-      Debug("RpcIn_restart: couldn't start the loop\n");
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
 #if !defined(VMTOOLS_USE_GLIB)
 /*
  *-----------------------------------------------------------------------------

@@ -117,7 +117,6 @@ unsigned int RpcIn_SetRetVals(char const **result, size_t *resultLen,
 #endif
 
 void RpcIn_Destruct(RpcIn *in);
-Bool RpcIn_restart(RpcIn *in);
 Bool RpcIn_stop(RpcIn *in);
 
 

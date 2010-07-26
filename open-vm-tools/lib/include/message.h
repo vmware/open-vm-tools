@@ -49,29 +49,6 @@ extern "C" {
 
 typedef struct Message_Channel Message_Channel;
 
-
-/*
- * These functions must be implemented by any external Message
- * transport implementation. Some examples include crossTalk,
- * a network socket, or a Microsoft Hypervisor backdoor.
- *
- * These external functions mirror the same corresponding Message_* 
- * functions below.
- */
-typedef Message_Channel *(*MessageOpenProcType)(uint32 proto);
-
-typedef Bool (*MessageGetReadEventProcType)(Message_Channel *chan,
-                                            int64 *readEvent);
-
-typedef Bool (*MessageSendProcType)(Message_Channel *chan,
-                                    const unsigned char *buf,
-                                    size_t bufSize);
-typedef Bool (*MessageReceiveProcType)(Message_Channel *chan,
-                                       unsigned char **buf,
-                                       size_t *bufSize);
-typedef Bool (*MessageCloseProcType)(Message_Channel *chan);
-
-
 Message_Channel *
 Message_Open(uint32 proto); // IN
 

@@ -60,10 +60,6 @@ GuestInfo_GetOSName(unsigned int outBufFullLen,
                     char *osNameFull,
                     char *osName);
 
-int
-GuestInfo_GetSystemBitness(void);
-
-
 /*
  * Comparison routines -- handy for caching, unit testing.
  */
