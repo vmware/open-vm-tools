@@ -338,48 +338,6 @@ struct VixMsgPowerOpRequest {
 VixMsgPowerOpRequest;
 
 
-
-/*
- * **********************************************************
- * Set NIC request. The response is just a generic
- * response header (it has no body).
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgNICBandwidth {
-   Bool        validNICNum;
-   int32       nicNum;
-   char        pvnGUID[64];
-
-   uint32      totalBandwidth;
-   uint32      maxSendBandwidth;
-   uint32      maxReceiveBandwidth;
-
-   uint32      packetLossPattern;
-   uint32      packetLossRate;
-   uint32      packetLossMinBurstDuration;
-   uint32      packetLossMaxBurstDuration;
-
-   uint32      minLatency;
-   uint32      maxLatency;
-
-   uint32      options;
-}
-#include "vmware_pack_end.h"
-VixMsgNICBandwidth;
-   
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetNICBandwidthRequest {
-   VixCommandRequestHeader header;
-   VixMsgNICBandwidth      nicSettings;
-}
-#include "vmware_pack_end.h"
-VixMsgSetNICBandwidthRequest;
-
-
-
 /*
  * **********************************************************
  * Get/Set Properties Request
@@ -451,6 +409,29 @@ struct VixMsgConfigurationObjectType {
 #include "vmware_pack_end.h"
 VixMsgConfigurationObjectType;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgNICBandwidth {
+   Bool        validNICNum;
+   int32       nicNum;
+   char        pvnGUID[64];
+
+   uint32      totalBandwidth;
+   uint32      maxSendBandwidth;
+   uint32      maxReceiveBandwidth;
+
+   uint32      packetLossPattern;
+   uint32      packetLossRate;
+   uint32      packetLossMinBurstDuration;
+   uint32      packetLossMaxBurstDuration;
+
+   uint32      minLatency;
+   uint32      maxLatency;
+
+   uint32      options;
+}
+#include "vmware_pack_end.h"
+VixMsgNICBandwidth;
 
 typedef
 #include "vmware_pack_begin.h"
