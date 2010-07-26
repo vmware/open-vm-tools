@@ -263,8 +263,6 @@
  * vmusb. This is used by the installer to determine if an upgrade should take place. The
  * major version should be bumped with every major hosted release (and the minor to 0)
  * while the minor version should be bumped with each change affecting the USB Arbitrator.
- *
- * Currently set to 2.x for the hosted10 branch.
  */
 #define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "2.0"
 
