@@ -868,7 +868,7 @@ MXUser_PerLockData(void)
 uint32
 MXUserAllocID(void)
 {
-   static Atomic_uint32 firstFreeID = { 0 };
+   static Atomic_uint32 firstFreeID = { 1 };  // must start not zero
 
    return Atomic_FetchAndInc(&firstFreeID);
 }

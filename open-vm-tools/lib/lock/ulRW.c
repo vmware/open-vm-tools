@@ -460,15 +460,13 @@ MXUser_CreateRWLock(const char *userName,  // IN:
       lock->header.statsFunc = MXUserStatsActionRW;
       lock->header.identifier = MXUserAllocID();
 
-     stats = Util_SafeCalloc(1, sizeof(*stats));
-#else
-     stats = NULL;
-#endif
+      stats = Util_SafeCalloc(1, sizeof(*stats));
 
-      if (stats) {
-         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-      }
+      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+      MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
+#else
+      stats = NULL;
+#endif
 
       MXUserAddToList(&lock->header);
    } else {

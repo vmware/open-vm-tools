@@ -524,15 +524,13 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
       sema->header.identifier = MXUserAllocID();
 
       stats = Util_SafeCalloc(1, sizeof(*stats));
+
+      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
 #else
       stats = NULL;
 #endif
 
       Atomic_WritePtr(&sema->statsMem, stats);
-
-      if (stats) {
-         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-      }
 
       MXUserAddToList(&sema->header);
    } else {
