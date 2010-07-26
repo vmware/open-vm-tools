@@ -120,6 +120,8 @@
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 
 #define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
+#define E1000E_PCI_SUB_VENDOR_ID_CONFIG_STR "e1000e.pci.subVendorID"
+#define E1000E_PCI_SUB_DEVICE_ID_CONFIG_STR "e1000e.pci.subDeviceID"
 
 
 /************* Strings for IDE Identity Fields **************************/
