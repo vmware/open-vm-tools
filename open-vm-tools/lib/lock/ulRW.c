@@ -641,7 +641,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
       MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
    }
 
-   MXUserAcquisitionSample(&lock->acquisitionStats, contended, value);
+   MXUserAcquisitionSample(&lock->acquisitionStats, TRUE, contended, value);
 
    histo = Atomic_ReadPtr(&lock->acquisitionHisto);
 

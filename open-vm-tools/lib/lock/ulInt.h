@@ -520,8 +520,9 @@ void MXUserHistoDump(MXUserHisto *histo,
 void MXUserAcquisitionStatsSetUp(MXUserAcquisitionStats *stats);
 
 void MXUserAcquisitionSample(MXUserAcquisitionStats *stats,
+                             Bool wasAcquired,
                              Bool wasContended,
-                             uint64 timeToAcquire);
+                             uint64 elapsedTime);
 
 void MXUserDumpAcquisitionStats(MXUserAcquisitionStats *stats,
                                 MXUserHeader *header);

@@ -320,7 +320,8 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
          MXUserHisto *histo;
          VmTimeType value = Hostinfo_SystemTimerNS() - begin;
 
-         MXUserAcquisitionSample(&lock->acquisitionStats, contended, value);
+         MXUserAcquisitionSample(&lock->acquisitionStats, TRUE, contended,
+                                 value);
 
          histo = Atomic_ReadPtr(&lock->acquisitionHisto);
 
@@ -432,7 +433,8 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       if (success) {
 #if defined(MXUSER_STATS)
          if (MXRecLockCount(&lock->recursiveLock) == 1) {
-            MXUserAcquisitionSample(&lock->acquisitionStats, FALSE, 0ULL);
+            MXUserAcquisitionSample(&lock->acquisitionStats, success, FALSE,
+                                    0ULL);
          }
 #endif
 

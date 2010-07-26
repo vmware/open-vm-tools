@@ -626,8 +626,8 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
             MXUserHisto *histo;
             VmTimeType value = Hostinfo_SystemTimerNS() - begin;
 
-            MXUserAcquisitionSample(&sema->acquisitionStats, !tryDownSuccess,
-                                    value);
+            MXUserAcquisitionSample(&sema->acquisitionStats, TRUE,
+                                    !tryDownSuccess, value);
 
             histo = Atomic_ReadPtr(&sema->acquisitionHisto);
 
@@ -703,8 +703,8 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
             MXUserHisto *histo;
             VmTimeType value = Hostinfo_SystemTimerNS() - begin;
 
-            MXUserAcquisitionSample(&sema->acquisitionStats, !tryDownSuccess,
-                                    value);
+            MXUserAcquisitionSample(&sema->acquisitionStats, downOccurred,
+                                    !tryDownSuccess, value);
 
             histo = Atomic_ReadPtr(&sema->acquisitionHisto);
 

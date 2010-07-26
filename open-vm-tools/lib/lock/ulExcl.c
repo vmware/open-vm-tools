@@ -288,7 +288,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 #if defined(MXUSER_STATS)
    value = Hostinfo_SystemTimerNS() - begin;
 
-   MXUserAcquisitionSample(&lock->acquisitionStats, contended, value);
+   MXUserAcquisitionSample(&lock->acquisitionStats, TRUE, contended, value);
 
    histo = Atomic_ReadPtr(&lock->acquisitionHisto);
 
@@ -407,7 +407,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
       }
 
 #if defined(MXUSER_STATS)
-      MXUserAcquisitionSample(&lock->acquisitionStats, FALSE, 0ULL);
+      MXUserAcquisitionSample(&lock->acquisitionStats, success, FALSE, 0ULL);
 #endif
    }
 
