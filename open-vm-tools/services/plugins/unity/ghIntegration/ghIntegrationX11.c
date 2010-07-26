@@ -346,12 +346,11 @@ GHIPlatformIsSupported(void)
 GHIPlatform *
 GHIPlatformInit(ToolsAppCtx *ctx)                          // IN
 {
-   extern const char **environ;
    GHIPlatform *ghip;
 
    ghip = Util_SafeCalloc(1, sizeof *ghip);
    ghip->directoriesTracked = g_array_new(FALSE, FALSE, sizeof(GHIDirectoryWatch));
-   ghip->nativeEnviron = System_GetNativeEnviron(environ);
+   ghip->nativeEnviron = ctx->envp;
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
    AppUtil_Init();
@@ -512,10 +511,7 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
    GHIPlatformSetMenuTracking(ghip, FALSE);
    g_array_free(ghip->directoriesTracked, TRUE);
    ghip->directoriesTracked = NULL;
-   if (ghip->nativeEnviron) {
-      System_FreeNativeEnviron(ghip->nativeEnviron);
-      ghip->nativeEnviron = NULL;
-   }
+   ghip->nativeEnviron = NULL;
    g_hash_table_destroy(ghip->appsByWindowExecutable);
    free(ghip);
 }

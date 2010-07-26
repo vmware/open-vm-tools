@@ -237,4 +237,4 @@ struct UnityMouseWheelV1
 union UnityMouseWheel switch (UnityMouseWheelVersion ver) {
 case UNITY_MOUSE_WHEEL_V1:
    struct UnityMouseWheelV1 *mouseWheelV1;
-}
+};
