@@ -109,21 +109,33 @@ static GuestInfoCache gInfoCache;
 
 static Bool vmResumed;
 
+
+/*
+ * Local functions
+ */
+
+
 static Bool GuestInfoUpdateVmdb(ToolsAppCtx *ctx, GuestInfoType infoType, void *info);
 static Bool SetGuestInfo(ToolsAppCtx *ctx, GuestInfoType key,
-                         const char *value, char delimiter);
-static Bool DiskInfoChanged(PGuestDiskInfo diskInfo);
+                         const char *value);
+static void SendUptime(ToolsAppCtx *ctx);
+static Bool DiskInfoChanged(const GuestDiskInfo *diskInfo);
 static void GuestInfoClearCache(void);
 static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
 static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean enable);
 
 
-/**
- * Lauches the VM support process in the guest when requested by the host.
+/*
+ ******************************************************************************
+ * GuestInfoVMSupport --                                                 */ /**
  *
- * @param[in]  data     RPC request data.
+ * Launches the vm-support process.  Data returned asynchronously via RPCI.
  *
- * @return TRUE on success.
+ * @param[in]   data     RPC request data.
+ *
+ * @return      TRUE if able to launch script, FALSE if script failed.
+ *
+ ******************************************************************************
  */
 
 static gboolean
@@ -201,173 +213,15 @@ GuestInfoVMSupport(RpcInData *data)
 
 /*
  ******************************************************************************
- * GuestInfoServerConfReload --                                          */ /**
+ * GuestInfoGather --                                                    */ /**
  *
- * @brief Reconfigures the poll loop interval upon config file reload.
- *
- * @param[in]  src     The source object.
- * @param[in]  ctx     The application context.
- * @param[in]  data    Unused.
- *
- ******************************************************************************
- */
-
-static void
-GuestInfoServerConfReload(gpointer src,
-                          ToolsAppCtx *ctx,
-                          gpointer data)
-{
-   TweakGatherLoop(ctx, TRUE);
-}
-
-
-/*
- ******************************************************************************
- * GuestInfoServerIOFreeze --                                           */ /**
- *
- * IO freeze signal handler. Disables info gathering while I/O is frozen.
- * See bug 529653.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      The application context.
- * @param[in]  freeze   Whether I/O is being frozen.
- * @param[in]  data     Unused.
- *
- ******************************************************************************
- */
-
-static void
-GuestInfoServerIOFreeze(gpointer src,
-                        ToolsAppCtx *ctx,
-                        gboolean freeze,
-                        gpointer data)
-{
-   TweakGatherLoop(ctx, !freeze);
-}
-
-
-/**
- * Cleanup internal data on shutdown.
- *
- * @param[in]  src     The source object.
- * @param[in]  ctx     Unused.
- * @param[in]  data    Unused.
- */
-
-static void
-GuestInfoServerShutdown(gpointer src,
-                        ToolsAppCtx *ctx,
-                        gpointer data)
-{
-   GuestInfoClearCache();
-
-   if (gatherTimeoutSource != NULL) {
-      g_source_destroy(gatherTimeoutSource);
-      gatherTimeoutSource = NULL;
-   }
-}
-
-
-/**
- * Reset callback - sets the internal flag that says we should purge all
- * caches.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      Unused.
- * @param[in]  data     Unused.
- */
-
-static void
-GuestInfoServerReset(gpointer src,
-                     ToolsAppCtx *ctx,
-                     gpointer data)
-{
-   vmResumed = TRUE;
-}
-
-
-/**
- * Send the guest uptime through the backdoor, if @a set is TRUE.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      The application context.
- * @param[in]  set      Whether capabilities are being set.
- * @param[in]  data     Unused.
- *
- * @return NULL
- */
-
-static GArray *
-GuestInfoServerSendUptime(gpointer src,
-                          ToolsAppCtx *ctx,
-                          gboolean set,
-                          gpointer data)
-{
-   if (set) {
-      gchar *uptime = g_strdup_printf("%"FMT64"u", System_Uptime());
-      g_debug("Setting guest uptime to '%s'\n", uptime);
-      GuestInfoUpdateVmdb(ctx, INFO_UPTIME, uptime);
-      g_free(uptime);
-   }
-   return NULL;
-}
-
-
-/**
- * Responds to a "broadcastIP" Set_Option command, by sending the primary IP
- * back to the VMX.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      The application context.
- * @param[in]  option   Option name.
- * @param[in]  value    Option value.
- * @param[in]  data     Unused.
- */
-
-static gboolean
-GuestInfoServerSetOption(gpointer src,
-                         ToolsAppCtx *ctx,
-                         const gchar *option,
-                         const gchar *value,
-                         gpointer data)
-{
-   char *ip;
-   Bool ret = FALSE;
-
-   if (strcmp(option, TOOLSOPTION_BROADCASTIP) != 0) {
-      goto exit;
-   }
-
-   if (strcmp(value, "0") == 0) {
-      ret = TRUE;
-      goto exit;
-   }
-
-   if (strcmp(value, "1") != 0) {
-      goto exit;
-   }
-
-   ip = NetUtil_GetPrimaryIP();
-
-   if (ip != NULL) {
-      gchar *msg;
-      msg = g_strdup_printf("info-set guestinfo.ip %s", ip);
-      ret = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);
-      vm_free(ip);
-      g_free(msg);
-   }
-
-exit:
-   return (gboolean) ret;
-}
-
-
-/**
- * Periodically collects all the desired guest information and updates VMDB.
+ * Collects all the desired guest information and updates the VMX.
  *
  * @param[in]  data     The application context.
  *
- * @return TRUE.
+ * @return TRUE to indicate that the timer should be rescheduled.
+ *
+ ******************************************************************************
  */
 
 static gboolean
@@ -448,7 +302,7 @@ GuestInfoGather(gpointer data)
    }
 
    /* Send the uptime to VMX so that it can detect soft resets. */
-   GuestInfoServerSendUptime(NULL, ctx, TRUE, NULL);
+   SendUptime(ctx);
 
 #if defined(_WIN32) || defined(linux)
    /* Send the vmstats to the VMX. */
@@ -468,27 +322,25 @@ GuestInfoGather(gpointer data)
 
 
 /*
- *----------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfoConvertNicInfoToNicInfoV1 --                                 */ /**
  *
- * GuestInfoConvertNicInfoToNicInfoV1 --
+ * Converts V3 XDR NicInfo to hand-packed GuestNicInfoV1.
  *
- *      Convert the new dynamic nicInfoNew to fixed size struct GuestNicInfoV1.
+ * @note Any NICs above MAX_NICS or IPs above MAX_IPS will be truncated.
  *
- * Results:
- *      TRUE if successfully converted
- *      FALSE otherwise
+ * @param[in]  info   V3 input data.
+ * @param[out] infoV1 V1 output data.
  *
- * Side effects:
- *      If number of NICs or number of IP addresses on any of the NICs
- *      exceeding MAX_NICS and MAX_IPS respectively, the extra ones
- *      are truncated, on successful return.
+ * @retval TRUE Conversion succeeded.
+ * @retval FALSE Conversion failed.
  *
- *----------------------------------------------------------------------
+ ******************************************************************************
  */
 
 void
-GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
-                                   GuestNicInfoV1 *infoV1)    // OUT
+GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,
+                                   GuestNicInfoV1 *infoV1)
 {
    uint32 maxNics;
    u_int i;
@@ -543,23 +395,21 @@ GuestInfoConvertNicInfoToNicInfoV1(NicInfoV3 *info,           // IN
 
 
 /*
- *-----------------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfoUpdateVmdb --                                                */ /**
  *
- * GuestInfoUpdateVmdb --
+ * Push singular GuestInfo snippets to the VMX.
  *
- *    Update VMDB with new guest information.
- *    This is the only function that should need to change when the VMDB pipe
- *    is implemented. Since we dont currently have a VMDB instance in the guest
- *    the function updates the VMDB instance on the host. Updates are sent only
- *    if the values have changed.
+ * @note Data are cached, so updates are sent only if they have changed.
  *
- * Result
- *    TRUE on success, FALSE on failure.
+ * @param[in] ctx       Application context.
+ * @param[in] infoType  Guest information type.
+ * @param[in] info      Type-specific information.
  *
- * Side-effects
- *    VMDB is updated if the given value has changed.
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
  *
- *-----------------------------------------------------------------------------
+ ******************************************************************************
  */
 
 Bool
@@ -592,7 +442,7 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
          break;
       }
 
-      if (!SetGuestInfo(ctx, infoType, (char *)info, 0)) {
+      if (!SetGuestInfo(ctx, infoType, (char *)info)) {
          g_warning("Failed to update key/value pair for type %d.\n", infoType);
          return FALSE;
       }
@@ -853,29 +703,46 @@ nicinfo_fsm:
 
 
 /*
- *----------------------------------------------------------------------
+ ******************************************************************************
+ * SendUptime --                                                         */ /**
  *
- * SetGuestInfo --
+ * Send the guest uptime through the backdoor.
  *
- *      Ask Vmx to write some information about the guest into VMDB.
+ * @param[in]  ctx      The application context.
  *
- * Results:
+ ******************************************************************************
+ */
+
+static void
+SendUptime(ToolsAppCtx *ctx)
+{
+   gchar *uptime = g_strdup_printf("%"FMT64"u", System_Uptime());
+   g_debug("Setting guest uptime to '%s'\n", uptime);
+   GuestInfoUpdateVmdb(ctx, INFO_UPTIME, uptime);
+   g_free(uptime);
+}
+
+
+/*
+ ******************************************************************************
+ * SetGuestInfo --                                                       */ /**
  *
- *      TRUE/FALSE depending on whether the RPCI succeeded or failed.
+ * Sends a simple key-value update request to the VMX.
  *
- * Side effects:
+ * @param[in] ctx       Application context.
+ * @param[in] key       VMDB key to set
+ * @param[in] value     GuestInfo data
  *
- *	None.
+ * @retval TRUE  RPCI succeeded.
+ * @retval FALSE RPCI failed.
  *
- *----------------------------------------------------------------------
+ ******************************************************************************
  */
 
 Bool
-SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
-             GuestInfoType key,  // IN: the VMDB key to set
-             const char *value,  // IN:
-             char delimiter)     // IN: delimiting character for the rpc
-                                 //     message. 0 indicates default.
+SetGuestInfo(ToolsAppCtx *ctx,
+             GuestInfoType key,
+             const char *value)
 {
    Bool status;
    char *reply;
@@ -885,12 +752,13 @@ SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
    ASSERT(key);
    ASSERT(value);
 
-   if (!delimiter) {
-      delimiter = GUESTINFO_DEFAULT_DELIMITER;
-   }
-
+   /*
+    * XXX Consider retiring this runtime "delimiter" business and just
+    * insert raw spaces into the format string.
+    */
    msg = g_strdup_printf("%s %c%d%c%s", GUEST_INFO_COMMAND,
-                         delimiter, key, delimiter, value);
+                         GUESTINFO_DEFAULT_DELIMITER, key,
+                         GUESTINFO_DEFAULT_DELIMITER, value);
 
    status = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, &reply, &replyLen);
    g_free(msg);
@@ -909,21 +777,19 @@ SetGuestInfo(ToolsAppCtx *ctx,   // IN: application context
 
 
 /*
- *-----------------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfoFindMacAddress --                                            */ /**
  *
- * GuestInfoFindMacAddress --
+ * Locates a NIC with the given MAC address in the NIC list.
  *
- *      Locates a NIC with the given MAC address in the NIC list.
+ * @param[in] nicInfo    NicInfoV3 container.
+ * @param[in] macAddress Requested MAC address.
  *
- * Return value:
- *      If there is an entry in nicInfo which corresponds to this MAC address,
- *      it is returned. If not NULL is returned.
+ * @return Valid pointer if NIC found, else NULL.
  *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
+ ******************************************************************************
  */
+
 
 GuestNicV3 *
 GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
@@ -943,26 +809,22 @@ GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
 
 
 /*
- *----------------------------------------------------------------------
+ ******************************************************************************
+ * DiskInfoChanged --                                                    */ /**
  *
- * DiskInfoChanged --
+ * Checks whether disk info information just obtained is different from the
+ * information last sent to the VMX.
  *
- *      Checks whether disk info information just obtained is different from
- *      the information last sent to VMDB.
+ * @param[in]  diskInfo New disk info.
  *
- * Results:
+ * @retval TRUE  Data has changed.
+ * @retval FALSE Data has not changed.
  *
- *      TRUE if the disk info has changed, FALSE otherwise.
- *
- * Side effects:
- *
- *	None.
- *
- *----------------------------------------------------------------------
+ ******************************************************************************
  */
 
-Bool
-DiskInfoChanged(PGuestDiskInfo diskInfo)     // IN:
+static Bool
+DiskInfoChanged(const GuestDiskInfo *diskInfo)
 {
    int index;
    char *name;
@@ -1013,19 +875,12 @@ DiskInfoChanged(PGuestDiskInfo diskInfo)     // IN:
 
 
 /*
- *----------------------------------------------------------------------
+ ******************************************************************************
+ * GuestInfoClearCache --                                                */ /**
  *
- * GuestInfoClearCache --
+ * Clears the cached guest info data.
  *
- *    Clears the cached guest info data.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    gInfoCache is cleared.
- *
- *----------------------------------------------------------------------
+ ******************************************************************************
  */
 
 static void
@@ -1186,18 +1041,204 @@ TweakGatherLoop(ToolsAppCtx *ctx,
 /*
  ******************************************************************************
  * BEGIN Tools Core Services goodies.
- *
- * TODO Move GuestInfoServerShutdown and friends within this block.  Saving
- * that for a later changeset.
  */
 
 
-/**
+/*
+ ******************************************************************************
+ * GuestInfoServerConfReload --                                          */ /**
+ *
+ * @brief Reconfigures the poll loop interval upon config file reload.
+ *
+ * @param[in]  src     The source object.
+ * @param[in]  ctx     The application context.
+ * @param[in]  data    Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoServerConfReload(gpointer src,
+                          ToolsAppCtx *ctx,
+                          gpointer data)
+{
+   TweakGatherLoop(ctx, TRUE);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoServerIOFreeze --                                           */ /**
+ *
+ * IO freeze signal handler. Disables info gathering while I/O is frozen.
+ * See bug 529653.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The application context.
+ * @param[in]  freeze   Whether I/O is being frozen.
+ * @param[in]  data     Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoServerIOFreeze(gpointer src,
+                        ToolsAppCtx *ctx,
+                        gboolean freeze,
+                        gpointer data)
+{
+   TweakGatherLoop(ctx, !freeze);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoServerShutdown --                                            */ /**
+ *
+ * Cleanup internal data on shutdown.
+ *
+ * @param[in]  src     The source object.
+ * @param[in]  ctx     Unused.
+ * @param[in]  data    Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoServerShutdown(gpointer src,
+                        ToolsAppCtx *ctx,
+                        gpointer data)
+{
+   GuestInfoClearCache();
+
+   if (gatherTimeoutSource != NULL) {
+      g_source_destroy(gatherTimeoutSource);
+      gatherTimeoutSource = NULL;
+   }
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoServerReset --                                               */ /**
+ *
+ * Reset callback - sets the internal flag that says we should purge all
+ * caches.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      Unused.
+ * @param[in]  data     Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoServerReset(gpointer src,
+                     ToolsAppCtx *ctx,
+                     gpointer data)
+{
+   vmResumed = TRUE;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoServerSendCaps --                                            */ /**
+ *
+ * Send capabilities callback.  If setting capabilities, sends VM's uptime.
+ *
+ * This is weird.  There's sort of an old Tools <-> VMX understanding that
+ * vmsvc should report the guest's uptime in response to a "what're your
+ * capabilities?" RPC.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The application context.
+ * @param[in]  set      TRUE if setting capabilities, FALSE if unsetting them.
+ * @param[in]  data     Client data.
+ *
+ * @retval NULL This function returns no capabilities.
+ *
+ ******************************************************************************
+ */
+
+static GArray *
+GuestInfoServerSendCaps(gpointer src,
+                        ToolsAppCtx *ctx,
+                        gboolean set,
+                        gpointer data)
+{
+   if (set) {
+      SendUptime(ctx);
+   }
+   return NULL;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoServerSetOption --                                           */ /**
+ *
+ * Responds to a "broadcastIP" Set_Option command, by sending the primary IP
+ * back to the VMX.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The application context.
+ * @param[in]  option   Option name.
+ * @param[in]  value    Option value.
+ * @param[in]  data     Unused.
+ *
+ ******************************************************************************
+ */
+
+static gboolean
+GuestInfoServerSetOption(gpointer src,
+                         ToolsAppCtx *ctx,
+                         const gchar *option,
+                         const gchar *value,
+                         gpointer data)
+{
+   char *ip;
+   Bool ret = FALSE;
+
+   if (strcmp(option, TOOLSOPTION_BROADCASTIP) != 0) {
+      goto exit;
+   }
+
+   if (strcmp(value, "0") == 0) {
+      ret = TRUE;
+      goto exit;
+   }
+
+   if (strcmp(value, "1") != 0) {
+      goto exit;
+   }
+
+   ip = NetUtil_GetPrimaryIP();
+
+   if (ip != NULL) {
+      gchar *msg;
+      msg = g_strdup_printf("info-set guestinfo.ip %s", ip);
+      ret = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);
+      vm_free(ip);
+      g_free(msg);
+   }
+
+exit:
+   return (gboolean) ret;
+}
+
+
+/*
+ ******************************************************************************
+ * ToolsOnLoad --                                                        */ /**
+ *
  * Plugin entry point. Initializes internal plugin state.
  *
  * @param[in]  ctx   The app context.
  *
  * @return The registration data.
+ *
+ ******************************************************************************
  */
 
 TOOLS_MODULE_EXPORT ToolsPluginData *
@@ -1218,7 +1259,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          { RPC_VMSUPPORT_START, GuestInfoVMSupport, &regData, NULL, NULL, 0 }
       };
       ToolsPluginSignalCb sigs[] = {
-         { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendUptime, NULL },
+         { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendCaps, NULL },
          { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
          { TOOLS_CORE_SIG_IO_FREEZE, GuestInfoServerIOFreeze, NULL },
          { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
