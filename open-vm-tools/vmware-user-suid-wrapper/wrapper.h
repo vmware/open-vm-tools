@@ -57,14 +57,15 @@
  */
 
 typedef enum {
-   QUERY_LIBDIR = 0,    /* Ask for "BINDIR" */
-   QUERY_BINDIR,        /* Ask for "LIBDIR" */
+   QUERY_LIBDIR = 0,    /* Ask for "LIBDIR" */
+   QUERY_BINDIR,        /* Ask for "BINDIR" */
+   QUERY_SBINDIR,       /* Ask for "SBINDIR" */
    QUERY_MAX            /* Upper limit -- Insert other queries above only. */
 } Selector;
 #else
-#   ifndef VMWARE_USER_PATH
-#      error This program requires either USES_LOCATIONS_DB or VMWARE_USER_PATH.
-#   endif // ifndef VMWARE_USER_PATH
+#   ifndef VMTOOLSD_PATH
+#      error This program requires either USES_LOCATIONS_DB or VMTOOLSD_PATH.
+#   endif // ifndef VMTOOLSD_PATH
 #endif // ifdef USES_LOCATIONS_DB
 
 

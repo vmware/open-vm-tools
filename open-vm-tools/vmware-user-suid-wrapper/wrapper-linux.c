@@ -74,16 +74,16 @@ BuildExecPath(char *execPath,           // OUT: Buffer to store executable's pat
     * paths to all the other paths selected during Tools configuration.  The
     * locations database file is only writable by root, so we can trust it.
     */
-   if (!QueryLocationsDB(LOCATIONS_PATH, QUERY_BINDIR, tmpPath, sizeof tmpPath)) {
-      Error("could not obtain BINDIR\n");
+   if (!QueryLocationsDB(LOCATIONS_PATH, QUERY_SBINDIR, tmpPath, sizeof tmpPath)) {
+      Error("could not obtain SBINDIR\n");
       return FALSE;
    }
 
-   if (strlen(tmpPath) + strlen("/vmware-user-wrapper") + 1 > sizeof tmpPath) {
+   if (strlen(tmpPath) + strlen("/vmtoolsd") + 1 > sizeof tmpPath) {
       Error("could not construct program filename\n");
       return FALSE;
    }
-   strcat(tmpPath, "/vmware-user-wrapper");
+   strcat(tmpPath, "/vmtoolsd");
 
    /*
     * From readlink(2), "The readlink() system call does not append a NUL

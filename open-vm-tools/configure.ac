@@ -1278,7 +1278,6 @@ AC_CONFIG_FILES([                      \
    services/plugins/vix/Makefile       \
    services/plugins/vixUser/Makefile   \
    services/plugins/vmbackup/Makefile  \
-   vmware-user/Makefile                \
    vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
    hgfsclient/Makefile                 \

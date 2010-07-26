@@ -430,7 +430,8 @@ StartVMwareUser(char *const envp[])
    int fd = -1;
    int ret;
    char path[MAXPATHLEN];
-   char *argv[4];
+   char *argv[6];
+   size_t idx = 0;
 
    if (!BuildExecPath(path, sizeof path)) {
       return FALSE;
@@ -480,25 +481,25 @@ StartVMwareUser(char *const envp[])
     * can't parse the descriptor to pass as an argument.  We set up the
     * argument vector accordingly.
     */
-   argv[0] = path;
+   argv[idx++] = path;
+   argv[idx++] = "-n";
+   argv[idx++] = "vmusr";
 
    if (fd < 0) {
       Error("could not open %s\n", VMBLOCK_DEVICE);
-      argv[1] = NULL;
    } else {
       char fdStr[8];
 
       ret = snprintf(fdStr, sizeof fdStr, "%d", fd);
       if (ret == 0 || ret >= sizeof fdStr) {
          Error("could not parse file descriptor (%d)\n", fd);
-         argv[1] = NULL;
       } else {
-         argv[1] = "--blockFd";
-         argv[2] = fdStr;
-         argv[3] = NULL;
+         argv[idx++] = "--blockFd";
+         argv[idx++] = fdStr;
       }
    }
 
+   argv[idx++] = NULL;
    CompatExec(path, argv, envp);
 
    /*
@@ -506,7 +507,7 @@ StartVMwareUser(char *const envp[])
     * if CompatExec fails.
     */
    Error("could not execute %s: %s\n", path, strerror(errno));
-   exit(EXIT_FAILURE);
+   _exit(EXIT_FAILURE);
 }
 
 
@@ -533,10 +534,10 @@ Bool
 BuildExecPath(char *execPath,           // OUT: Buffer to store executable's path
               size_t execPathSize)      // IN : size of execPath buffer
 {
-   if (execPathSize < sizeof VMWARE_USER_PATH) {
+   if (execPathSize < sizeof VMTOOLSD_PATH) {
       return FALSE;
    }
-   strcpy(execPath, VMWARE_USER_PATH);
+   strcpy(execPath, VMTOOLSD_PATH);
    return TRUE;
 }
 #endif // ifndef USES_LOCATIONS_DB
