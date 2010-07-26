@@ -33,7 +33,6 @@
 #include "driver-config.h"
 
 #include <linux/errno.h>
-#include "compat_kthread.h"
 #include "compat_list.h"
 #include "compat_mutex.h"
 #include "compat_sched.h"
@@ -56,7 +55,6 @@
 
 extern int USE_VMCI;
 
-COMPAT_KTHREAD_DECLARE_STOP_INFO();
 static HgfsTransportChannel *hgfsChannel;     /* Current active channel. */
 static compat_mutex_t hgfsChannelLock;        /* Lock to protect hgfsChannel. */
 static struct list_head hgfsRepPending;       /* Reply pending queue. */

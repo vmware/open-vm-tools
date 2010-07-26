@@ -33,9 +33,9 @@
 #include <linux/net.h>
 #include <linux/inet.h>
 #include <linux/errno.h>
+#include <linux/kthread.h>
 
 #include "compat_kernel.h"
-#include "compat_kthread.h"
 #include "compat_mutex.h"
 #include "compat_version.h"
 #include "compat_sched.h"
@@ -406,11 +406,11 @@ HgfsSocketReceiveHandler(void *data)
 
       /* Wait for data to become available */
       wait_event_interruptible(hgfsRecvThreadWait,
-                  (HgfsSocketIsReceiverIdle() && compat_kthread_should_stop()) ||
+                  (HgfsSocketIsReceiverIdle() && kthread_should_stop()) ||
                   test_bit(HGFS_REQ_THREAD_RECV, &hgfsRecvThreadFlags));
 
       /* Kill yourself if told so. */
-      if (compat_kthread_should_stop()) {
+      if (kthread_should_stop()) {
          LOG(6, (KERN_DEBUG "VMware hgfs: %s: told to exit\n", __func__));
          break;
       }
@@ -591,8 +591,7 @@ HgfsSocketChannelOpen(HgfsTransportChannel *channel,
    LOG(8, ("%s: socket channel connected.\n", __func__));
 
    /* Create the recv thread. */
-   recvThread = compat_kthread_run(HgfsSocketReceiveHandler,
-                                   channel, "vmhgfs-rep");
+   recvThread = kthread_run(HgfsSocketReceiveHandler, channel, "vmhgfs-rep");
    if (IS_ERR(recvThread)) {
       LOG(4, (KERN_ERR "VMware hgfs: %s: "
               "failed to create recv thread, err %ld\n",
@@ -682,7 +681,7 @@ HgfsSocketChannelClose(HgfsTransportChannel *channel)
 {
    /* Stop the recv thread before we change the channel status. */
    ASSERT(recvThread != NULL);
-   compat_kthread_stop(recvThread);
+   kthread_stop(recvThread);
 
    sock_release(channel->priv);
    channel->priv = NULL;
