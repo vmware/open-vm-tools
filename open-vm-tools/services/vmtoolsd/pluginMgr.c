@@ -472,6 +472,11 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
          goto next;
       }
 
+      /* Break early if a plugin has requested the container to quit. */
+      if (ctx->errorCode != 0) {
+         break;
+      }
+
       ASSERT(data->name != NULL);
       g_module_make_resident(module);
       plugin = g_malloc(sizeof *plugin);

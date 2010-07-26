@@ -195,39 +195,39 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    }
 
    /*
-    * If not in a VM then there's no point in trying to run the loop, just exit
+    * Don't run the loop if a plugin has requested it not to run during
+    * initialization, or if not running under a VMware hypervisor. If not
+    * in a VM then there's no point in trying to run the loop, just exit
     * with a '0' return status (see bug 297528 for why '0'). If we ever want
     * to run vmtoolsd on physical hardware (or another hypervisor), we'll have
     * to revisit this code.
     */
-   if (!state->ctx.isVMware) {
-      return 0;
-   }
+   if (state->ctx.isVMware && state->ctx.errorCode == 0) {
+      ToolsCore_RegisterPlugins(state);
 
-   ToolsCore_RegisterPlugins(state);
+      /*
+       * Listen for the I/O freeze signal. We have to disable the config file
+       * check when I/O is frozen or the (Win32) sync driver may cause the service
+       * to hang (and make the VM unusable until it times out).
+       */
+      if (g_signal_lookup(TOOLS_CORE_SIG_IO_FREEZE,
+                          G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+         g_signal_connect(state->ctx.serviceObj,
+                          TOOLS_CORE_SIG_IO_FREEZE,
+                          G_CALLBACK(ToolsCoreIOFreezeCb),
+                          state);
+      }
 
-   /*
-    * Listen for the I/O freeze signal. We have to disable the config file
-    * check when I/O is frozen or the (Win32) sync driver may cause the service
-    * to hang (and make the VM unusable until it times out).
-    */
-   if (g_signal_lookup(TOOLS_CORE_SIG_IO_FREEZE,
-                       G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
-      g_signal_connect(state->ctx.serviceObj,
-                       TOOLS_CORE_SIG_IO_FREEZE,
-                       G_CALLBACK(ToolsCoreIOFreezeCb),
-                       state);
-   }
-
-   state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
-                                          ToolsCoreConfFileCb,
-                                          state);
+      state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 10,
+                                             ToolsCoreConfFileCb,
+                                             state);
 
 #if defined(__APPLE__)
-   ToolsCore_CFRunLoop(state);
+      ToolsCore_CFRunLoop(state);
 #else
-   g_main_loop_run(state->ctx.mainLoop);
+      g_main_loop_run(state->ctx.mainLoop);
 #endif
+   }
 
    ToolsCoreCleanup(state);
    return state->ctx.errorCode;
