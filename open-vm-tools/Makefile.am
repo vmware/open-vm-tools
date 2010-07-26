@@ -30,6 +30,7 @@ X11_SUBDIRS += vmware-user-suid-wrapper
 SUBDIRS =
 SUBDIRS += lib
 SUBDIRS += libvmtools
+SUBDIRS += libhgfs
 if HAVE_X11
    SUBDIRS += $(X11_SUBDIRS)
 endif

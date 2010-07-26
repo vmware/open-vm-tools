@@ -27,7 +27,7 @@ libvix_la_LDFLAGS += @PLUGIN_LDFLAGS@
 libvix_la_LIBADD =
 libvix_la_LIBADD += @VIX_LIBADD@
 libvix_la_LIBADD += @VMTOOLS_LIBS@
-libvix_la_LIBADD += ../hgfsServer/libhgfsServer.la
+libvix_la_LIBADD += @HGFS_LIBS@
 libvix_la_LIBADD += $(top_builddir)/lib/auth/libAuth.la
 libvix_la_LIBADD += $(top_builddir)/lib/foundryMsg/libFoundryMsg.la
 libvix_la_LIBADD += $(top_builddir)/lib/impersonate/libImpersonate.la
@@ -36,5 +36,4 @@ libvix_la_SOURCES =
 libvix_la_SOURCES += foundryToolsDaemon.c
 libvix_la_SOURCES += vixPlugin.c
 libvix_la_SOURCES += $(top_srcdir)/lib/vixTools/vixTools.c
-libvix_la_SOURCES += $(top_srcdir)/lib/hgfsHelper/hgfsHelperPosix.c
 

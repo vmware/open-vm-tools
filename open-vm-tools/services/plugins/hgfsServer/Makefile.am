@@ -26,8 +26,7 @@ libhgfsServer_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libhgfsServer_la_LIBADD =
 libhgfsServer_la_LIBADD += @VMTOOLS_LIBS@
-libhgfsServer_la_LIBADD += $(top_builddir)/lib/hgfsServer/libHgfsServer.la
-libhgfsServer_la_LIBADD += $(top_builddir)/lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
+libhgfsServer_la_LIBADD += @HGFS_LIBS@
 
 libhgfsServer_la_SOURCES =
 libhgfsServer_la_SOURCES += hgfsPlugin.c

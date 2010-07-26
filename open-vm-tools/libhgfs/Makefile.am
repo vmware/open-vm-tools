@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2007 VMware, Inc.  All rights reserved.
+### Copyright 2010 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -15,25 +15,27 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-bin_PROGRAMS = vmware-hgfsclient
+lib_LTLIBRARIES = libhgfs.la
 
-vmware_hgfsclient_LDADD =
-vmware_hgfsclient_LDADD += ../lib/hgfsBd/libHgfsBd.la
-vmware_hgfsclient_LDADD += @VMTOOLS_LIBS@
-vmware_hgfsclient_LDADD += @HGFS_LIBS@
+libhgfs_la_LIBADD =
+libhgfs_la_LIBADD += ../lib/hgfs/libHgfs.la
+libhgfs_la_LIBADD += ../lib/hgfsHelper/libHgfsHelper.la
+libhgfs_la_LIBADD += ../lib/hgfsServer/libHgfsServer.la
+libhgfs_la_LIBADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
+libhgfs_la_LIBADD += @GLIB2_LIBS@
+libhgfs_la_LIBADD += @GTHREAD_LIBS@
+libhgfs_la_LIBADD += @VMTOOLS_LIBS@
 
-vmware_hgfsclient_CPPFLAGS =
-vmware_hgfsclient_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+libhgfs_la_SOURCES =
+libhgfs_la_SOURCES += hgfslib.c
 
-vmware_hgfsclient_SOURCES =
-vmware_hgfsclient_SOURCES += hgfsclient.c
+libhgfs_la_CPPFLAGS =
+libhgfs_la_CPPFLAGS += -I$(top_srcdir)/libvmtools
 
-if HAVE_ICU
-   vmware_hgfsclient_LDADD += @ICU_LIBS@
-   vmware_hgfsclient_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
-                            $(LIBTOOLFLAGS) --mode=link $(CXX) \
-                            $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
-                            $(LDFLAGS) -o $@
-else
-   vmware_hgfsclient_LINK = $(LINK)
-endif
+libhgfs_la_LDFLAGS =
+# We require GCC, so we're fine passing compiler-specific flags.
+libhgfs_la_LDFLAGS += -Wl,-z,defs
+# Needed for OS's that don't link shared libraries against libc by
+#default, e.g. FreeBSD
+libhgfs_la_LDFLAGS += -Wl,-lc
+

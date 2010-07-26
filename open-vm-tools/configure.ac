@@ -1148,6 +1148,8 @@ VMWARE_USER_LDADD="$VMWARE_USER_LDADD $THREAD_LIB"
 
 ### Core Services definitions.
 
+HGFS_LIBS="$BUILDDIR/libhgfs/libhgfs.la"
+
 VMTOOLS_LIBS="$BUILDDIR/libvmtools/libvmtools.la $GLIB2_LIBS"
 VMTOOLS_CPPFLAGS="-DVMTOOLS_USE_GLIB $GLIB2_CPPFLAGS"
 
@@ -1169,6 +1171,7 @@ VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
 ### General substs
 
+AC_SUBST([HGFS_LIBS])
 AC_SUBST([TOOLS_VERSION])
 AC_SUBST([TARGET_OS])
 AC_SUBST([KERNEL_RELEASE])
@@ -1288,6 +1291,7 @@ AC_CONFIG_FILES([                      \
    rpctool/Makefile                    \
    libguestlib/Makefile                \
    libguestlib/vmguestlib.pc           \
+   libhgfs/Makefile                    \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \
    modules/Makefile                    \
