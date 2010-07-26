@@ -685,6 +685,20 @@ VixCommandRenameFileRequest;
 
 typedef
 #include "vmware_pack_begin.h"
+struct VixCommandRenameFileRequestEx {
+   VixCommandRequestHeader header;
+
+   int32                   copyFileOptions;
+   uint32                  oldPathNameLength;
+   uint32                  newPathNameLength;
+   uint32                  filePropertiesLength;
+   Bool                    overwrite;
+}
+#include "vmware_pack_end.h"
+VixCommandRenameFileRequestEx;
+
+typedef
+#include "vmware_pack_begin.h"
 struct VixCommandHgfsSendPacket {
    VixCommandRequestHeader header;
 
@@ -774,6 +788,19 @@ struct VixMsgCreateFileRequest {
 }
 #include "vmware_pack_end.h"
 VixMsgCreateFileRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgCreateFileRequestEx {
+   VixCommandRequestHeader header;
+
+   int32                   fileOptions;
+   uint32                  guestPathNameLength;
+   uint32                  filePropertiesLength;
+   Bool                    createParentDirectories;
+}
+#include "vmware_pack_end.h"
+VixMsgCreateFileRequestEx;
 
 
 /*
@@ -2220,6 +2247,12 @@ enum {
 
    VIX_COMMAND_LIST_FILES                       = 177,
 
+   VIX_COMMAND_CREATE_DIRECTORY_EX              = 178,
+
+   VIX_COMMAND_MOVE_GUEST_FILE_EX               = 179,
+
+   VIX_COMMAND_MOVE_GUEST_DIRECTORY             = 180,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2230,7 +2263,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg. as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 178,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 181,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

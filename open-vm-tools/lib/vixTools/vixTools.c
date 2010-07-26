@@ -219,7 +219,7 @@ static VixError VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,
 
 static const char *scriptFileBaseName = "vixScript";
 
-static VixError VixToolsMoveFile(VixCommandRequestHeader *requestMsg);
+static VixError VixToolsMoveObject(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,
                                        char **result);
@@ -2005,7 +2005,7 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * VixToolsMoveFile --
+ * VixToolsMoveObject --
  *
  *
  * Return value:
@@ -2018,7 +2018,7 @@ abort:
  */
 
 VixError
-VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
+VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
 {
    VixError err = VIX_OK;
    char *srcFilePathName = NULL;
@@ -2026,11 +2026,28 @@ VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
    Bool success;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   VixCommandRenameFileRequest *renameRequest;
+   Bool overwrite = TRUE;
 
-   renameRequest = (VixCommandRenameFileRequest *) requestMsg;
-   srcFilePathName = ((char *) renameRequest) + sizeof(*renameRequest);
-   destFilePathName = srcFilePathName + renameRequest->oldPathNameLength + 1;
+   if (VIX_COMMAND_MOVE_GUEST_FILE == requestMsg->opCode) {
+      VixCommandRenameFileRequest *renameRequest;
+      renameRequest = (VixCommandRenameFileRequest *) requestMsg;
+      srcFilePathName = ((char *) renameRequest) + sizeof(*renameRequest);
+      destFilePathName = srcFilePathName + renameRequest->oldPathNameLength + 1;
+   } else if ((VIX_COMMAND_MOVE_GUEST_FILE_EX == requestMsg->opCode) ||
+              (VIX_COMMAND_MOVE_GUEST_DIRECTORY == requestMsg->opCode)) {
+      VixCommandRenameFileRequestEx *renameRequest;
+      renameRequest = (VixCommandRenameFileRequestEx *) requestMsg;
+      srcFilePathName = ((char *) renameRequest) + sizeof(*renameRequest);
+      destFilePathName = srcFilePathName + renameRequest->oldPathNameLength + 1;
+      overwrite = renameRequest->overwrite;
+   } else {
+      ASSERT(0);
+      Debug("%s: Invalid request with opcode %d received\n ",
+            __FUNCTION__, requestMsg->opCode);
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
    if ((0 == *srcFilePathName) || (0 == *destFilePathName)) {
       err = VIX_E_INVALID_ARG;
       goto abort;
@@ -2041,6 +2058,11 @@ VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
       goto abort;
    }
    impersonatingVMWareUser = TRUE;
+
+   if (!(File_Exists(srcFilePathName))) {
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
 
    /*
     * Be careful. Renaming a file to itself can cause it to be deleted.
@@ -2070,6 +2092,24 @@ VixToolsMoveFile(VixCommandRequestHeader *requestMsg)        // IN
       goto abort;
    }
 
+   if (VIX_COMMAND_MOVE_GUEST_FILE_EX == requestMsg->opCode) {
+      if (File_IsDirectory(srcFilePathName)) {
+         err = VIX_E_NOT_A_FILE;
+         goto abort;
+      }
+      if (!overwrite) {
+         if (File_Exists(destFilePathName)) {
+            err = VIX_E_FILE_ALREADY_EXISTS;
+            goto abort;
+         }
+      }
+   } else if (VIX_COMMAND_MOVE_GUEST_DIRECTORY == requestMsg->opCode) {
+      if (!(File_IsDirectory(srcFilePathName))) {
+         err = VIX_E_NOT_A_DIRECTORY;
+         goto abort;
+      }
+   }
+
    success = File_Rename(srcFilePathName, destFilePathName);
    if (!success) {
       err = FoundryToolsDaemon_TranslateSystemErr();
@@ -2083,7 +2123,7 @@ abort:
    VixToolsLogoutUser(userToken);
 
    return err;
-} // VixToolsMoveFile
+} // VixToolsMoveObject
 
 
 /*
@@ -2251,10 +2291,27 @@ VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
    char *dirPathName = NULL;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   VixMsgCreateFileRequest *dirRequest = NULL;
+   Bool createParentDirectories = TRUE;
 
-   dirRequest = (VixMsgCreateFileRequest *) requestMsg;
-   dirPathName = ((char *) dirRequest) + sizeof(*dirRequest);
+   if (VIX_COMMAND_CREATE_DIRECTORY == requestMsg->opCode) {
+      VixMsgCreateFileRequest *dirRequest = NULL;
+
+      dirRequest = (VixMsgCreateFileRequest *) requestMsg;
+      dirPathName = ((char *) dirRequest) + sizeof(*dirRequest);
+   } else if (VIX_COMMAND_CREATE_DIRECTORY_EX == requestMsg->opCode) {
+      VixMsgCreateFileRequestEx *dirRequest = NULL;
+
+      dirRequest = (VixMsgCreateFileRequestEx *) requestMsg;
+      dirPathName = ((char *) dirRequest) + sizeof(*dirRequest);
+      createParentDirectories = dirRequest->createParentDirectories;
+   } else {
+      ASSERT(0);
+      Debug("%s: Invalid request with opcode %d received\n ",
+            __FUNCTION__, requestMsg->opCode);
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
    if (0 == *dirPathName) {
       err = VIX_E_INVALID_ARG;
       goto abort;
@@ -2271,9 +2328,16 @@ VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
-   if (!(File_CreateDirectoryHierarchy(dirPathName))) {
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      goto abort;
+   if (createParentDirectories) {
+      if (!(File_CreateDirectoryHierarchy(dirPathName))) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
+      }
+   } else {
+      if (!(File_CreateDirectory(dirPathName))) {
+         err = FoundryToolsDaemon_TranslateSystemErr();
+         goto abort;
+      }
    }
 
 abort:
@@ -4584,12 +4648,15 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
       ////////////////////////////////////
       case VIX_COMMAND_CREATE_DIRECTORY:
+      case VIX_COMMAND_CREATE_DIRECTORY_EX:
          err = VixToolsCreateDirectory(requestMsg);
          break;
 
       ////////////////////////////////////
       case VIX_COMMAND_MOVE_GUEST_FILE:
-         err = VixToolsMoveFile(requestMsg);
+      case VIX_COMMAND_MOVE_GUEST_FILE_EX:
+      case VIX_COMMAND_MOVE_GUEST_DIRECTORY:
+         err = VixToolsMoveObject(requestMsg);
          break;
 
       ////////////////////////////////////
