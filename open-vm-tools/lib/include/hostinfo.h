@@ -67,6 +67,7 @@ extern Bool Hostinfo_OSIsSMP(void);
 #if defined(_WIN32)
 extern Bool Hostinfo_OSIsWinNT(void);
 extern Bool Hostinfo_OSIsWow64(void);
+DWORD Hostinfo_OpenProcessBits(void);
 #endif
 extern Bool Hostinfo_NestingSupported(void);
 extern Bool Hostinfo_TouchBackDoor(void);
