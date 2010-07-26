@@ -56,6 +56,12 @@ typedef struct WiperPartition {
 
    /* Type of the partition */
    WiperPartition_Type type;
+   
+   /* 
+    * Clients should specifically set this flag to TRUE to enable free space
+    * reclamation using unmaps.
+    */
+   Bool attemptUnmaps;
 
    /*
     * NULL if type is not PARTITION_UNSUPPORTED, otherwise describes

@@ -1933,11 +1933,15 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
    }
 
    /*
-    * Just close() the file, since we're not going to use it.
+    * Just close() the file, since we're not going to use it. But, when we
+    * create a temporary directory, VixToolsGetTempFile() sets 'fd' to 0 on
+    * success. On windows, close() shouldn't be called for invalid fd values.
+    * So, call close() only if 'fd' is valid.
     */
-
-   if (close(fd) < 0) {
-      Debug("Unable to close a file, errno is %d.\n", errno);
+   if (fd > 0) {
+      if (close(fd) < 0) {
+         Debug("Unable to close a file, errno is %d.\n", errno);
+      }
    }
 
    *result = filePathName;
@@ -4134,6 +4138,14 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
          free(directoryPath);
          directoryPath = NULL;
          err = VixToolsGetUserTmpDir(userToken, &directoryPath);
+      } else {
+         /*
+          * Initially, when 'err' variable is defined, it is initialized to
+          * VIX_E_FAIL. At this point in the code, user has already specified
+          * the directory path in which the temporary file has to be created.
+          * This is completely fine. So, just set 'err' to VIX_OK.
+          */
+         err = VIX_OK;
       }
 
       /*
