@@ -566,7 +566,6 @@ _init(void)
       goto err_do_cleanup;
    }
 
-
    error = mod_install(&vmmodlinkage);
    if (error) {
       goto err_stop_poll;
@@ -579,9 +578,9 @@ err_stop_poll:
    vmmemctl_poll_stop();
 
 err_do_cleanup:
+   Balloon_Cleanup();
    id_space_destroy(state->id_space);
    BalloonKstatDelete(state->kstats);
-   Balloon_Cleanup();
 
    return error;
 }
@@ -609,9 +608,9 @@ _fini(void)
    }
 
    vmmemctl_poll_stop();
-   BalloonKstatDelete(state->kstats);
-   id_space_destroy(state->id_space);
    Balloon_Cleanup();
+   id_space_destroy(state->id_space);
+   BalloonKstatDelete(state->kstats);
 
    cmn_err(CE_CONT, "!%s unloaded\n", BALLOON_NAME_VERBOSE);
 
