@@ -52,6 +52,7 @@
 #include "fileInt.h"
 #include "random.h"
 #include "vm_atomic.h"
+#include "util.h"
 
 #include "unicodeOperations.h"
 
@@ -919,54 +920,55 @@ Scanner(ConstUnicode lockDir,    // IN:
  */
 
 int
-FileUnlockIntrinsic(ConstUnicode pathName,  // IN:
-                    const void *lockToken)  // IN:
+FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 {
    int err;
 
-   ASSERT(pathName);
-   ASSERT(lockToken);
+   ASSERT(tokenPtr && (tokenPtr->signature == FILE_LOCK_TOKEN_SIGNATURE));
 
-   LOG(1, ("Requesting unlock on %s\n", UTF8(pathName)));
+   LOG(1, ("Requesting unlock on %s\n", UTF8(tokenPtr->pathName)));
 
-   if (lockToken == &implicitReadToken) {
-      /*
-       * The lock token is the fixed-address implicit read lock token.
-       * Since no lock file was created no further action is required.
-       */
+   /*
+    * If the lockFilePath (a pointer) is the fixed-address token representing
+    * an implicit read lock, there is no lock file and the token can simply
+    * be discarded.
+    */
 
+   if (tokenPtr->lockFilePath == &implicitReadToken) {
       err = 0;
+
+      free(tokenPtr->pathName);
    } else {
       Unicode lockDir;
 
       /* The lock directory path */
-      lockDir = Unicode_Append(pathName, FILELOCK_SUFFIX);
+      lockDir = Unicode_Append(tokenPtr->pathName, FILELOCK_SUFFIX);
 
       /*
-       * The lock token is the (unicode) path of the lock file.
-       *
        * TODO: under vmx86_debug validate the contents of the lock file as
        *       matching the machineID and executionID.
        */
 
-      err = FileDeletionRobust((Unicode) lockToken, FALSE);
+      err = FileDeletionRobust(tokenPtr->lockFilePath, FALSE);
 
       if (err && vmx86_debug) {
          Log(LGPFX" %s failed for '%s': %s\n",
-             __FUNCTION__, (char *) lockToken, Err_Errno2String(err));
+             __FUNCTION__, tokenPtr->lockFilePath, Err_Errno2String(err));
       }
 
       /*
-       * The lockToken (a unicode path) was allocated in FileLockIntrinsic
-       * and returned to the caller hidden behind a "void *" pointer.
+       * Attempt to clean up the locking directory.
        */
-
-      Unicode_Free((Unicode) lockToken);
 
       FileRemoveDirectoryRobust(lockDir); // just in case we can clean up
 
       Unicode_Free(lockDir);
+      free(tokenPtr->lockFilePath);
+      free(tokenPtr->pathName);
    }
+
+   tokenPtr->signature = 0;  // Just in case...
+   free(tokenPtr);
 
    return err;
 }
@@ -1446,7 +1448,7 @@ CreateMemberFile(FILELOCK_FILE_HANDLE entryHandle,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-void *
+FileLockToken *
 FileLockIntrinsic(ConstUnicode pathName,   // IN:
                   Bool exclusivity,        // IN:
                   uint32 msecMaxWaitTime,  // IN:
@@ -1456,6 +1458,7 @@ FileLockIntrinsic(ConstUnicode pathName,   // IN:
    FILELOCK_FILE_HANDLE handle;
    LockValues myValues;
    int createFlags;
+   FileLockToken *tokenPtr;
 
    Unicode lockDir = NULL;
    Unicode entryFilePath = NULL;
@@ -1593,16 +1596,22 @@ bail:
    free(myValues.locationChecksum);
    free(myValues.executionID);
 
-   if (*err != 0) {
+   if (*err == 0) {
+      tokenPtr = Util_SafeMalloc(sizeof(FileLockToken));
+
+      tokenPtr->signature = FILE_LOCK_TOKEN_SIGNATURE;
+      tokenPtr->pathName = Unicode_Duplicate(pathName);
+      tokenPtr->lockFilePath = memberFilePath;
+   } else {
       Unicode_Free(memberFilePath);
-      memberFilePath = NULL;
+      tokenPtr = NULL;
 
       if (*err == EAGAIN) {
          *err = 0; // lock not acquired
       }
    }
 
-   return (void *) memberFilePath;
+   return tokenPtr;
 }
 
 

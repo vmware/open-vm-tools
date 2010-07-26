@@ -195,6 +195,22 @@ typedef struct lock_values
    ActiveLock   *lockList;
 } LockValues;
 
+/*
+ * The lock token. This is returned by the lock operation and must be sent
+ * to the unlock operation.
+ */
+
+#define FILE_LOCK_TOKEN_SIGNATURE 0x4B434C46  // 'FLCK' in memory
+
+struct FileLockToken
+{
+   uint32  signature;
+   Unicode pathName;
+   Unicode lockFilePath;  // &implicitReadToken for implicit read locks
+};
+
+typedef struct FileLockToken FileLockToken;
+
 #include "file_extensions.h"
 
 #define FILELOCK_SUFFIX "." LOCK_FILE_EXTENSION
@@ -243,14 +259,13 @@ EXTERN int FileLockWriteFile(FILELOCK_FILE_HANDLE handle,
                              uint32 requestedBytes,
                              uint32 *resultantBytes);
 
-EXTERN void *FileLockIntrinsic(ConstUnicode filePathName,
-                               Bool exclusivity,
-                               uint32 msecMaxWaitTime,
-                               const char *payload,
-                               int *err);
+EXTERN FileLockToken *FileLockIntrinsic(ConstUnicode filePathName,
+                                        Bool exclusivity,
+                                        uint32 msecMaxWaitTime,
+                                        const char *payload,
+                                        int *err);
 
-EXTERN int FileUnlockIntrinsic(ConstUnicode filePathName,
-                               const void *lockToken);
+EXTERN int FileUnlockIntrinsic(FileLockToken *tokenPtr);
 
 EXTERN Bool FileLockIsLocked(ConstUnicode filePath,
                              int *err);

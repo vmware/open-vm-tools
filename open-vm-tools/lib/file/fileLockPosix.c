@@ -1060,8 +1060,8 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
               const uint32 msecMaxWaitTime,  // IN:
               int *err)                      // OUT:
 {
-   void *lockToken;
    Unicode normalizedPath;
+   FileLockToken *tokenPtr;
 
    ASSERT(filePath);
    ASSERT(err);
@@ -1070,20 +1070,20 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
    if (normalizedPath == NULL) {
       *err = EINVAL;
 
-      lockToken = NULL;
+      tokenPtr = NULL;
    } else {
       char creationTimeString[32];
 
       Str_Sprintf(creationTimeString, sizeof creationTimeString, "%"FMT64"u",
                   ProcessCreationTime(getpid()));
 
-      lockToken = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
-                                    creationTimeString, err);
+      tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
+                                   creationTimeString, err);
 
       Unicode_Free(normalizedPath);
    }
 
-   return lockToken;
+   return (void *) tokenPtr;
 }
 
 
@@ -1151,22 +1151,10 @@ int
 FileLock_Unlock(ConstUnicode filePath,  // IN:
                 const void *lockToken)  // IN:
 {
-   int err;
-   Unicode normalizedPath;
-
    ASSERT(filePath);
    ASSERT(lockToken);
 
-   normalizedPath = FileLockNormalizePath(filePath);
-   if (normalizedPath == NULL) {
-      err = EINVAL;
-   } else {
-      err = FileUnlockIntrinsic(normalizedPath, lockToken);
-
-      Unicode_Free(normalizedPath);
-   }
-
-   return err;
+   return FileUnlockIntrinsic((FileLockToken *) lockToken);
 }
 
 
