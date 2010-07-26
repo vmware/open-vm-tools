@@ -200,7 +200,7 @@ typedef struct lock_values
  * to the unlock operation.
  */
 
-#define FILE_LOCK_TOKEN_SIGNATURE 0x4B434C46  // 'FLCK' in memory
+#define FILELOCK_TOKEN_SIGNATURE 0x4B434C46  // 'FLCK' in memory
 
 struct FileLockToken
 {

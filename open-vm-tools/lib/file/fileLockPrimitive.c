@@ -924,7 +924,7 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 {
    int err;
 
-   ASSERT(tokenPtr && (tokenPtr->signature == FILE_LOCK_TOKEN_SIGNATURE));
+   ASSERT(tokenPtr && (tokenPtr->signature == FILELOCK_TOKEN_SIGNATURE));
 
    LOG(1, ("Requesting unlock on %s\n", UTF8(tokenPtr->pathName)));
 
@@ -952,8 +952,8 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
       err = FileDeletionRobust(tokenPtr->lockFilePath, FALSE);
 
       if (err && vmx86_debug) {
-         Log(LGPFX" %s failed for '%s': %s\n",
-             __FUNCTION__, tokenPtr->lockFilePath, Err_Errno2String(err));
+         Log(LGPFX" %s failed for '%s': %s\n", __FUNCTION__,
+             UTF8(tokenPtr->lockFilePath), Err_Errno2String(err));
       }
 
       /*
@@ -963,11 +963,13 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
       FileRemoveDirectoryRobust(lockDir); // just in case we can clean up
 
       Unicode_Free(lockDir);
-      free(tokenPtr->lockFilePath);
-      free(tokenPtr->pathName);
+      Unicode_Free(tokenPtr->pathName);
+      Unicode_Free(tokenPtr->lockFilePath);
    }
 
-   tokenPtr->signature = 0;  // Just in case...
+   tokenPtr->signature = 0;        // Just in case...
+   tokenPtr->pathName = NULL;      // Just in case...
+   tokenPtr->lockFilePath = NULL;  // Just in case...
    free(tokenPtr);
 
    return err;
@@ -1599,7 +1601,7 @@ bail:
    if (*err == 0) {
       tokenPtr = Util_SafeMalloc(sizeof(FileLockToken));
 
-      tokenPtr->signature = FILE_LOCK_TOKEN_SIGNATURE;
+      tokenPtr->signature = FILELOCK_TOKEN_SIGNATURE;
       tokenPtr->pathName = Unicode_Duplicate(pathName);
       tokenPtr->lockFilePath = memberFilePath;
    } else {
@@ -1681,6 +1683,35 @@ bail:
    }
 
    return isLocked;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileLock_TokenPathName --
+ *
+ *      Return the path name associated with a lock (token). The path name
+ *      is returned as a dynamically allocated string the caller is
+ *      responsible for.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Unicode
+FileLock_TokenPathName(const void *lockToken)  // IN:
+{
+   FileLockToken *tokenPtr = (FileLockToken *) lockToken;
+
+   ASSERT(tokenPtr && (tokenPtr->signature == FILELOCK_TOKEN_SIGNATURE));
+
+   return Unicode_Duplicate(tokenPtr->pathName);
 }
 
 

@@ -327,7 +327,7 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
    if (file->lockToken != NULL) {
       int err;
 
-      err = FileLock_Unlock(file->fileName, file->lockToken);
+      err = FileLock_Unlock(file->lockToken);
 
       if (err != 0) {
          Warning(LGPFX" %s on '%s' failed: %s\n",

@@ -50,22 +50,24 @@ EXTERN int  FileLock_DeleteFileVMX(ConstUnicode filePath);
 #define	FILELOCK_OVERHEAD 15
 
 // File locking functions
-EXTERN void *FileLock_Lock(ConstUnicode filePath,
-                           const Bool readOnly,
-                           const uint32 msecMaxWaitTime,
-                           int *err);
+void *FileLock_Lock(ConstUnicode filePath,
+                    const Bool readOnly,
+                    const uint32 msecMaxWaitTime,
+                    int *err);
 
-EXTERN int FileLock_Unlock(ConstUnicode filePath,
-                           const void *fileLockToken);
+Unicode FileLock_TokenPathName(const void *lockToken);
 
-EXTERN Bool FileLock_IsLocked(ConstUnicode filePath,
-                              int *err);
+Unicode FileLock_Name(const void *fileLockToken);
+int FileLock_Unlock(const void *fileLockToken);
 
-EXTERN int FileLock_Remove(ConstUnicode filePath);
-EXTERN int FileLock_CleanupVM(ConstUnicode cfgfilePath);
+Bool FileLock_IsLocked(ConstUnicode filePath,
+                       int *err);
+
+int FileLock_Remove(ConstUnicode filePath);
+int FileLock_CleanupVM(ConstUnicode cfgfilePath);
 
 // Device locking functions, for compatibility
-EXTERN int FileLock_LockDevice(const char *device);
-EXTERN Bool FileLock_UnlockDevice(const char *device);
+int FileLock_LockDevice(const char *device);
+Bool FileLock_UnlockDevice(const char *device);
 
 #endif // ifndef _FILELOCK_H_

@@ -1148,10 +1148,8 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
  */
 
 int
-FileLock_Unlock(ConstUnicode filePath,  // IN:
-                const void *lockToken)  // IN:
+FileLock_Unlock(const void *lockToken)  // IN:
 {
-   ASSERT(filePath);
    ASSERT(lockToken);
 
    return FileUnlockIntrinsic((FileLockToken *) lockToken);
