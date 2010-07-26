@@ -25,6 +25,12 @@
 #ifndef _GH_INTEGRATION_H_
 #define _GH_INTEGRATION_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "vmware.h"
+
 // Forward declaration.
 struct RpcIn;
 
@@ -36,6 +42,7 @@ struct RpcIn;
  * prefix.
  */
 #ifdef _WIN32
+#include <windows.h>
 typedef HANDLE VMU_EVENT;
 #else
 typedef int VMU_EVENT;
@@ -71,4 +78,7 @@ void GHI_Gather(void);
 const char *GHIX11_FindDesktopUriByExec(const char *exec);
 #endif
 
+#ifdef __cplusplus
+}; /* extern "C" */
+#endif // __cplusplus
 #endif // _GH_INTEGRATION_H_

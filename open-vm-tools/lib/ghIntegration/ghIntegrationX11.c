@@ -2477,8 +2477,11 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
  */
 
 Bool
-GHIPlatformShellAction(GHIPlatform *ghip,       // IN: platform-specific state
-                       const XDR *xdrs)         // IN: XDR Serialized arguments
+GHIPlatformShellAction(GHIPlatform *ghip,          // IN: platform-specific state
+                       const char *actionURI,      // IN
+                       const char *targetURI,      // IN
+                       const char **locations,     // IN
+                       int numLocations)           // IN
 {
    /*
     * TODO: implement the shell action execution.
@@ -2486,7 +2489,8 @@ GHIPlatformShellAction(GHIPlatform *ghip,       // IN: platform-specific state
     * used right now. Its functionality should be integrated here.
     */
    ASSERT(ghip);
-   ASSERT(xdrs);
+   ASSERT(actionURI);
+   ASSERT(targetURI);
 
    Debug("%s not implemented yet.\n", __FUNCTION__);
 
@@ -2809,10 +2813,13 @@ GHIPlatformTrashFolderGetIcon(GHIPlatform *ghip,
 
 Bool
 GHIPlatformTrayIconSendEvent(GHIPlatform *ghip,
-                             const XDR   *xdrs)
+                             const char *iconID,
+                             uint32 event,
+                             uint32 x,
+                             uint32 y)
 {
    ASSERT(ghip);
-   ASSERT(xdrs);
+   ASSERT(iconID);
    return FALSE;
 }
 
@@ -2878,12 +2885,12 @@ GHIPlatformSetFocusedWindow(GHIPlatform *ghip,
  */
 
 Bool GHIPlatformGetExecInfoHash(GHIPlatform *ghip,
-                                const GHIGetExecInfoHashRequest *request,
-                                GHIGetExecInfoHashReply *reply)
+                                const char *execPath,
+                                char **execInfoHash)
 {
    ASSERT(ghip);
-   ASSERT(request);
-   ASSERT(reply);
+   ASSERT(execPath);
+   ASSERT(execInfoHash);
 
    return FALSE;
 }

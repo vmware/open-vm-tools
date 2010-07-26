@@ -25,8 +25,6 @@
 #ifndef _GH_INTEGRATION_INT_H_
 #define _GH_INTEGRATION_INT_H_
 
-#include "dynbuf.h"
-#include "unityCommon.h"
 #include "guestrpc/ghiGetExecInfoHash.h"
 #include "guestrpc/ghiProtocolHandler.h"
 #include "ghIntegration.h"
@@ -34,6 +32,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "dynbuf.h"
+#include "unityCommon.h"
 
 typedef struct _GHIPlatform GHIPlatform;
 
@@ -62,7 +63,11 @@ Bool GHIPlatformCloseStartMenuTree(GHIPlatform *ghip,
                                    uint32 handle);
 Bool GHIPlatformShellOpen(GHIPlatform *ghip,
                           const char *fileUtf8);
-Bool GHIPlatformShellAction(GHIPlatform *ghip, const XDR *xdrs);
+Bool GHIPlatformShellAction(GHIPlatform *ghip,
+                            const char *actionURI,
+                            const char *targetURI,
+                            const char **locations,
+                            int numLocations);
 Bool GHIPlatformSetGuestHandler(GHIPlatform *ghip, const XDR *xdrs);
 Bool GHIPlatformRestoreDefaultGuestHandler(GHIPlatform *ghip, const XDR *xdrs);
 
@@ -93,7 +98,11 @@ Bool GHIPlatformTrashFolderGetIcon(GHIPlatform *ghip, XDR *xdrs);
 /*
  * Send a mouse event to a tray icon.
  */
-Bool GHIPlatformTrayIconSendEvent(GHIPlatform *ghip, const XDR *xdrs);
+Bool GHIPlatformTrayIconSendEvent(GHIPlatform *ghip,
+                                  const char *iconID,
+                                  uint32 event,
+                                  uint32 x,
+                                  uint32 y);
 
 /*
  * Start sending tray icon updates to the VMX.
@@ -129,8 +138,8 @@ Bool GHIPlatformSetFocusedWindow(GHIPlatform *ghip, const XDR *xdrs);
  * Get the hash (or timestamp) of information returned by get.binary.info.
  */
 Bool GHIPlatformGetExecInfoHash(GHIPlatform *ghip,
-                                const GHIGetExecInfoHashRequest *request,
-                                GHIGetExecInfoHashReply *reply);
+                                const char *execPath,
+                                char **execInfoHash);
 
 #ifndef _WIN32
 const gchar *

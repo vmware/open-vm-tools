@@ -23,6 +23,8 @@ libGuestRpc_la_SOURCES += ghiGetBinaryHandlers_xdr.c
 libGuestRpc_la_SOURCES += ghiGetExecInfoHash_xdr.c
 libGuestRpc_la_SOURCES += ghiProtocolHandler_xdr.c
 libGuestRpc_la_SOURCES += ghiStartMenu_xdr.c
+libGuestRpc_la_SOURCES += ghiShellAction_xdr.c
+libGuestRpc_la_SOURCES += ghiTrayIcon_xdr.c
 libGuestRpc_la_SOURCES += guestlibV3_xdr.c
 libGuestRpc_la_SOURCES += nicinfo_xdr.c
 libGuestRpc_la_SOURCES += unityActive_xdr.c
@@ -44,6 +46,10 @@ CLEANFILES += ghiProtocolHandler.h
 CLEANFILES += ghiProtocolHandler_xdr.c
 CLEANFILES += ghiStartMenu.h
 CLEANFILES += ghiStartMenu_xdr.c
+CLEANFILES += ghiShellAction.h
+CLEANFILES += ghiShellAction_xdr.c
+CLEANFILES += ghiTrayIcon.h
+CLEANFILES += ghiTrayIcon_xdr.c
 CLEANFILES += guestlibV3.h
 CLEANFILES += guestlibV3_xdr.c
 CLEANFILES += nicinfo.h
@@ -59,6 +65,8 @@ EXTRA_DIST += ghiGetBinaryHandlers.x
 EXTRA_DIST += ghiGetExecInfoHash.x
 EXTRA_DIST += ghiProtocolHandler.x
 EXTRA_DIST += ghiStartMenu.x
+EXTRA_DIST += ghiShellAction.x
+EXTRA_DIST += ghiTrayIcon.x
 EXTRA_DIST += guestlibV3.x
 EXTRA_DIST += nicinfo.x
 EXTRA_DIST += unityActive.x
@@ -144,6 +152,34 @@ ghiStartMenu.h: ghiStartMenu.x
 
 ghiStartMenu_xdr.c: ghiStartMenu.x ghiStartMenu.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiStartMenu.x
+
+ghiShellAction.h: ghiShellAction.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiCommonDefines.h $(builddir);     \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiShellAction.x $(builddir);         \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiShellAction.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiShellAction_xdr.c: ghiShellAction.x ghiShellAction.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiShellAction.x
+
+ghiTrayIcon.h: ghiTrayIcon.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiCommonDefines.h $(builddir);     \
+	   cp -f $(top_srcdir)/lib/guestRpc/ghiTrayIcon.x $(builddir);         \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/ghiTrayIcon.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+ghiTrayIcon_xdr.c: ghiTrayIcon.x ghiTrayIcon.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/ghiTrayIcon.x
 
 nicinfo.h: nicinfo.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then               \

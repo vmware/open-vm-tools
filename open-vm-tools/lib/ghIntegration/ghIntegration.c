@@ -22,15 +22,13 @@
  *    Guest-host integration functions.
  */
 
-#include "vmware.h"
 #include "appUtil.h"
-#include "debug.h"
-#include "dynxdr.h"
 #include "ghIntegration.h"
 #include "ghIntegrationInt.h"
-#include "guestrpc/ghiGetBinaryHandlers.h"
-#include "guestrpc/ghiProtocolHandler.h"
-#include "guestrpc/ghiStartMenu.h"
+
+#include "vmware.h"
+#include "debug.h"
+#include "dynxdr.h"
 #include "guest_msg_def.h"
 #include "rpcin.h"
 #include "rpcout.h"
@@ -39,6 +37,12 @@
 #include "unityCommon.h"
 #include "util.h"
 #include "xdrutil.h"
+
+#include "guestrpc/ghiGetBinaryHandlers.h"
+#include "guestrpc/ghiProtocolHandler.h"
+#include "guestrpc/ghiShellAction.h"
+#include "guestrpc/ghiStartMenu.h"
+#include "guestrpc/ghiTrayIcon.h"
 #include "vmware/guestrpc/capabilities.h"
 
 
@@ -371,7 +375,6 @@ GHI_Gather(void)
    }
 
    VMX_XDR_FREE(xdr_GHIProtocolHandlerList, &protocolHandlers);
-
 
 #ifdef _WIN32
    AppUtil_BuildGlobalApplicationList();
@@ -734,7 +737,7 @@ GHITcloCloseStartMenu(char const **result,     // OUT
                       void *clientData)        // ignored
 {
    uint32 index = 0;
-   uint32 handle = 0;
+   int32 handle = 0;
 
    Debug("%s name:%s args:'%s'\n", __FUNCTION__, name, args);
 
@@ -868,17 +871,40 @@ GHITcloShellAction(char const **result, // OUT
                    void *clientData)    // ignored
 {
    Bool ret = TRUE;
-   XDR xdrs;
+   GHIShellAction shellActionMsg;
+   GHIShellActionV1 *shellActionV1Ptr;
 
    /*
     * Build an XDR Stream from the argument data which beings are args + 1
     * since there is a space separator between the RPC name and the XDR serialization.
     */
-   xdrmem_create(&xdrs, (char *) args + 1, argsSize - 1, XDR_DECODE);
+   if (!XdrUtil_Deserialize((char *)args + 1, argsSize - 1,
+                            xdr_GHIShellAction, &shellActionMsg)) {
+      Debug("%s: Failed to deserialize data\n", __FUNCTION__);
+      ret = RpcIn_SetRetVals(result, resultLen,
+                             "Failed to deserialize data.",
+                             FALSE);
+      goto exit;
+   }
 
-   ret = GHIPlatformShellAction(ghiPlatformData, &xdrs);
+   ASSERT(shellActionMsg.ver == GHI_SHELL_ACTION_V1);
+   if (shellActionMsg.ver != GHI_SHELL_ACTION_V1) {
+      Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, shellActionMsg.ver);
+      ret = RpcIn_SetRetVals(result, resultLen,
+                             "Unexpected XDR version.",
+                             FALSE);
+      goto exit;
+   }
 
-   xdr_destroy(&xdrs);
+   shellActionV1Ptr = shellActionMsg.GHIShellAction_u.actionV1;
+   ret = GHIPlatformShellAction(ghiPlatformData,
+                                shellActionV1Ptr->actionURI,
+                                shellActionV1Ptr->targetURI,
+                                (const char **)shellActionV1Ptr->locations.locations_val,
+                                shellActionV1Ptr->locations.locations_len);
+
+   VMX_XDR_FREE(xdr_GHIShellAction, &shellActionMsg);
+exit:
 
    if (!ret) {
       Debug("%s: Could not perform the requested shell action.\n", __FUNCTION__);
@@ -1483,7 +1509,8 @@ Bool
 GHITcloTrayIconSendEvent(RpcInData *data)
 {
    Bool ret = FALSE;
-   XDR xdrs;
+   GHITrayIconEventV1 *v1ptr = NULL;
+   GHITrayIconEvent eventMsg;
 
    Debug("%s: Enter.\n", __FUNCTION__);
 
@@ -1501,34 +1528,47 @@ GHITcloTrayIconSendEvent(RpcInData *data)
          __FUNCTION__, data->name, data->argsSize);
 
    /*
-    * Build an XDR stream from the argument data.
-    *
-    * Note that the argument data begins with args + 1 since there is a space
-    * between the RPC name and the XDR serialization.
+    * Deserialize the XDR data. Note that the data begins with args + 1 since
+    * there is a space between the RPC name and the XDR serialization.
     */
-   xdrmem_create(&xdrs, (char*) data->args + 1, data->argsSize - 1, XDR_DECODE);
+   if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
+                            xdr_GHITrayIconEvent, &eventMsg)) {
+      Debug("%s: Failed to deserialize data\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
+      goto exit;
+   }
+
+   ASSERT(eventMsg.ver == GHI_TRAY_ICON_EVENT_V1);
+   if (eventMsg.ver != GHI_TRAY_ICON_EVENT_V1) {
+      Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, eventMsg.ver);
+      ret = RPCIN_SETRETVALS(data, "Unexpected XDR version.", FALSE);
+      goto exit;
+   }
+
+   v1ptr = eventMsg.GHITrayIconEvent_u.trayIconEventV1;
 
    /* Call the platform implementation of our RPC. */
-   ret = GHIPlatformTrayIconSendEvent(ghiPlatformData, &xdrs);
-
-   /* Destroy the XDR stream. */
-   xdr_destroy(&xdrs);
+   ret = GHIPlatformTrayIconSendEvent(ghiPlatformData,
+                                      v1ptr->iconID,
+                                      v1ptr->event,
+                                      v1ptr->x,
+                                      v1ptr->y);
 
    if (ret == FALSE) {
       Debug("%s: RPC failed.\n", __FUNCTION__);
       RPCIN_SETRETVALS(data, "RPC failed", FALSE);
-      goto exit;
+   } else {
+      /*
+       * We don't have any out parameters, so we write empty values into the
+       * result fields of the RpcInData structure.
+       */
+      RPCIN_SETRETVALS(data, "", TRUE);
+
+      /* Set our return value and return to the caller. */
+      ret = TRUE;
    }
 
-   /*
-    * We don't have any out parameters, so we write empty values into the
-    * result fields of the RpcInData structure.
-    */
-   RPCIN_SETRETVALS(data, "", FALSE);
-
-   /* Set our return value and return to the caller. */
-   ret = TRUE;
-
+   VMX_XDR_FREE(xdr_GHITrayIconEvent, &eventMsg);
 exit:
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
@@ -1755,6 +1795,9 @@ GHITcloGetExecInfoHash(RpcInData *data)
    GHIGetExecInfoHashRequest requestMsg;
    GHIGetExecInfoHashReply replyMsg;
    XDR xdrs;
+   GHIGetExecInfoHashRequestV1 *requestV1;
+   GHIGetExecInfoHashReplyV1 replyV1;
+   char *execHash = NULL;
 
    memset(&requestMsg, 0, sizeof requestMsg);
    memset(&replyMsg, 0, sizeof replyMsg);
@@ -1767,7 +1810,7 @@ GHITcloGetExecInfoHash(RpcInData *data)
    if (!(data && data->name && data->args)) {
       Debug("%s: Invalid arguments.\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-      goto exit;
+      goto error;
    }
 
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
@@ -1781,16 +1824,29 @@ GHITcloGetExecInfoHash(RpcInData *data)
                             xdr_GHIGetExecInfoHashRequest, &requestMsg)) {
       Debug("%s: Failed to deserialize data\n", __FUNCTION__);
       ret = RPCIN_SETRETVALS(data, "Failed to deserialize data.", FALSE);
+      goto error;
+   }
+
+   ASSERT(requestMsg.ver == GHI_GET_EXEC_INFO_HASH_V1);
+   if (requestMsg.ver != GHI_GET_EXEC_INFO_HASH_V1) {
+      Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, requestMsg.ver);
+      ret = RPCIN_SETRETVALS(data, "Unexpected XDR version.", FALSE);
       goto exit;
    }
+
+   requestV1 = requestMsg.GHIGetExecInfoHashRequest_u.requestV1;
 
    /*
     * Call the platform implementation of the RPC handler.
     */
-   if (!GHIPlatformGetExecInfoHash(ghiPlatformData, &requestMsg, &replyMsg)) {
+   if (!GHIPlatformGetExecInfoHash(ghiPlatformData, requestV1->execPath, &execHash)) {
       ret = RPCIN_SETRETVALS(data, "Could not get executable info hash.", FALSE);
       goto exit;
    }
+
+   replyV1.execHash = execHash;
+   replyMsg.ver = GHI_GET_EXEC_INFO_HASH_V1;
+   replyMsg.GHIGetExecInfoHashReply_u.replyV1 = &replyV1;
 
    /*
     * Serialize the result data and return.
@@ -1819,7 +1875,8 @@ GHITcloGetExecInfoHash(RpcInData *data)
 
 exit:
    VMX_XDR_FREE(xdr_GHIGetExecInfoHashRequest, &requestMsg);
-   VMX_XDR_FREE(xdr_GHIGetExecInfoHashReply, &replyMsg);
-
+error:
+   /* Free the memory allocated in the platform layer for the hash */
+   free(execHash);
    return ret;
 }
