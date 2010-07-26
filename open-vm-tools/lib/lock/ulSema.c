@@ -684,7 +684,39 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
 
    MXUserAcquisitionTracking(&sema->header, TRUE);  // rank checking
 
+#if defined(MXUSER_STATS)
+   { 
+      Bool tryDownSuccess = FALSE;
+      VmTimeType begin = Hostinfo_SystemTimerNS();
+
+      err = MXUserTryDown(&sema->nativeSemaphore, &tryDownSuccess);
+
+      if (LIKELY(err == 0)) {
+         if (tryDownSuccess) {
+            downOccurred = TRUE;
+         } else {
+            err = MXUserTimedDown(&sema->nativeSemaphore, msecWait,
+                                  &downOccurred);
+         }
+
+         if (LIKELY(err == 0) && downOccurred) {
+            MXUserHisto *histo;
+            VmTimeType value = Hostinfo_SystemTimerNS() - begin;
+
+            MXUserAcquisitionSample(&sema->acquisitionStats, !tryDownSuccess,
+                                    value);
+
+            histo = Atomic_ReadPtr(&sema->acquisitionHisto);
+
+            if (UNLIKELY(histo != NULL)) {
+               MXUserHistoSample(histo, value);
+            }
+         }
+      }
+   }
+#else
    err = MXUserTimedDown(&sema->nativeSemaphore, msecWait, &downOccurred);
+#endif
 
    if (UNLIKELY(err != 0)) {
       MXUserDumpAndPanic(&sema->header, "%s: Internal error (%d)\n",

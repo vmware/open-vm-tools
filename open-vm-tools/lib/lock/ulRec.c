@@ -423,25 +423,16 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       ASSERT(MXUserMX_TryLockRec);
       success = (*MXUserMX_TryLockRec)(lock->vmmLock);
    } else {
-#if defined(MXUSER_STATS)
-      VmTimeType begin;
-#endif
-
       if (MXUserTryAcquireFail(lock->header.name)) {
          return FALSE;
       }
-
-#if defined(MXUSER_STATS)
-      begin = Hostinfo_SystemTimerNS();
-#endif
 
       success = MXRecLockTryAcquire(&lock->recursiveLock, GetReturnAddress());
 
       if (success) {
 #if defined(MXUSER_STATS)
          if (MXRecLockCount(&lock->recursiveLock) == 1) {
-            MXUserAcquisitionSample(&lock->acquisitionStats, FALSE,
-                                  Hostinfo_SystemTimerNS() - begin);
+            MXUserAcquisitionSample(&lock->acquisitionStats, FALSE, 0ULL);
          }
 #endif
 

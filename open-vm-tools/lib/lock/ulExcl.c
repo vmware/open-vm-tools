@@ -388,27 +388,16 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 {
    Bool success;
 
-#if defined(MXUSER_STATS)
-   VmTimeType begin;
-#endif
-
    ASSERT(lock && (lock->header.signature == MXUSER_EXCL_SIGNATURE));
 
    if (MXUserTryAcquireFail(lock->header.name)) {
       return FALSE;
    }
 
-#if defined(MXUSER_STATS)
-   begin = Hostinfo_SystemTimerNS();
-#endif
 
    success = MXRecLockTryAcquire(&lock->recursiveLock, GetReturnAddress());
 
    if (success) {
-#if defined(MXUSER_STATS)
-      VmTimeType end = Hostinfo_SystemTimerNS();
-#endif
-
       MXUserAcquisitionTracking(&lock->header, FALSE);
 
       if (MXRecLockCount(&lock->recursiveLock) > 1) {
@@ -418,7 +407,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
       }
 
 #if defined(MXUSER_STATS)
-      MXUserAcquisitionSample(&lock->acquisitionStats, FALSE, end - begin);
+      MXUserAcquisitionSample(&lock->acquisitionStats, FALSE, 0ULL);
 #endif
    }
 
