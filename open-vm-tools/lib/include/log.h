@@ -45,44 +45,47 @@ typedef struct
    unsigned int rotateSize;          // Size at which log should be rotated
 } LogInitParams;
 
-EXTERN void Log_GetInitDefaults(const char *fileName, const char *config,
-                                const char *suffix, LogInitParams *params);
+void Log_GetInitDefaults(const char *fileName, const char *config,
+                         const char *suffix, LogInitParams *params);
 
-EXTERN Bool Log_Init(const char *fileName, const char *config,
+Bool Log_Init(const char *fileName, const char *config,
                      const char *suffix);
-EXTERN Bool Log_InitForApp(const char *fileName, const char *config,
-                           const char *suffix, const char *appName,
-                           const char *appVersion);
-EXTERN Bool Log_InitEx(const LogInitParams *params);
-EXTERN void Log_Exit(void);
-EXTERN void Log_SetConfigDir(const char *configDir);
-EXTERN void Log_WriteLogFile(const char *msg);
+Bool Log_InitForApp(const char *fileName, const char *config,
+                    const char *suffix, const char *appName,
+                    const char *appVersion);
+Bool Log_InitEx(const LogInitParams *params);
+void Log_Exit(void);
+void Log_SetConfigDir(const char *configDir);
+void Log_WriteLogFile(const char *msg);
 
-EXTERN Bool Log_Enabled(void);
-EXTERN const char *Log_GetFileName(void);
+Bool Log_Enabled(void);
+const char *Log_GetFileName(void);
 
-EXTERN void Log_Flush(void);
-EXTERN void Log_SkipLocking(Bool skipLocking);
-EXTERN void Log_SetAlwaysKeep(Bool alwaysKeep);
-EXTERN Bool Log_RemoveFile(Bool alwaysRemove);
-EXTERN void Log_DisableThrottling(void);
+void Log_Flush(void);
+void Log_SkipLocking(Bool skipLocking);
+void Log_SetAlwaysKeep(Bool alwaysKeep);
+Bool Log_RemoveFile(Bool alwaysRemove);
+void Log_DisableThrottling(void);
 
-EXTERN Bool Log_GetQuietWarning(void);
-EXTERN void Log_SetQuietWarning(Bool quiet);
-EXTERN void Log_RegisterBasicFunctions(LogBasicFunc *log,
-                                       LogBasicFunc *warning);
+Bool Log_GetQuietWarning(void);
+void Log_SetQuietWarning(Bool quiet);
+void Log_RegisterBasicFunctions(LogBasicFunc *log,
+                                LogBasicFunc *warning);
 
-EXTERN void Log_BackupOldFiles(const char *fileName);
-EXTERN void Log_UpdateState(Bool enable, Bool append, unsigned keepOld,
-                            size_t rotateSize, Bool fastRotation);
-EXTERN Bool Log_SwitchFile(const char *fileName, const char *config, Bool copy);
-EXTERN Bool Log_CopyFile(const char *fileName);
+void Log_BackupOldFiles(const char *fileName);
+void Log_UpdateState(Bool enable, Bool append, unsigned keepOld,
+                     size_t rotateSize, Bool fastRotation);
+Bool Log_SwitchFile(const char *fileName, const char *config, Bool copy);
+Bool Log_CopyFile(const char *fileName);
 
-EXTERN size_t Log_MakeTimeString(Bool millisec, char *buf, size_t max);
+size_t Log_MakeTimeString(Bool millisec, char *buf, size_t max);
+
+void LogV(const char *fmt, va_list args);
+void WarningV(const char *fmt, va_list args);
 
 /* Logging that uses the custom guest throttling configuration. */
-EXTERN void GuestLog_Init(void);
-EXTERN void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
+void GuestLog_Init(void);
+void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 // I left DEFAULT_DEBUG in here because the vmx is still using it for now
 #if defined(VMX86_DEVEL)
@@ -119,14 +122,16 @@ EXTERN void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 #define LOG_DEFAULT_THROTTLE_THRESHOLD 1000000
 
+#define LOG_MAX_MSG_SIZE (12 * 1024)
+
 
 /*
  * Debugging
  */
 
-EXTERN void Log_HexDump(const char *prefix, const uint8 *data, int size);
-EXTERN void Log_Time(VmTimeType *time, int count, const char *message);
-EXTERN void Log_Histogram(uint32 n, uint32 histo[], int nbuckets,
-			  const char *message, int *count, int limit);
+void Log_HexDump(const char *prefix, const uint8 *data, int size);
+void Log_Time(VmTimeType *time, int count, const char *message);
+void Log_Histogram(uint32 n, uint32 histo[], int nbuckets,
+                   const char *message, int *count, int limit);
 
 #endif /* VMWARE_LOG_H */

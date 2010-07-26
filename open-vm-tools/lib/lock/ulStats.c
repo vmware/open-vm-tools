@@ -28,9 +28,9 @@
 #include "userlock.h"
 #include "ulInt.h"
 #include "hostinfo.h"
+#include "log.h"
 #include "logFixed.h"
 #if defined(MXUSER_STATS)
-#include "logInt.h"
 #include "statsLog.h"
 #endif
 
