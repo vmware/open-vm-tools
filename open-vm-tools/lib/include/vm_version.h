@@ -264,7 +264,7 @@
  * major version should be bumped with every major hosted release (and the minor to 0)
  * while the minor version should be bumped with each change affecting the USB Arbitrator.
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "2.0"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "2.1"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
