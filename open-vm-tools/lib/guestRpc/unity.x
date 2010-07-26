@@ -215,3 +215,25 @@ union UnityWindowContentsRequest switch (UnityWindowContentsVersion ver) {
 case UNITY_WINDOW_CONTENTS_V1:
 	struct UnityWindowContentsRequestV1 *requestV1;
 };
+
+
+/*
+ * Mouse wheel.
+ */
+
+enum UnityMouseWheelVersion {
+   UNITY_MOUSE_WHEEL_V1 = 1
+};
+
+struct UnityMouseWheelV1
+{
+   int32 deltaX;
+   int32 deltaY;
+   int32 deltaZ;
+   uint32 modifierFlags;
+};
+
+union UnityMouseWheel switch (UnityMouseWheelVersion ver) {
+case UNITY_MOUSE_WHEEL_V1:
+   struct UnityMouseWheelV1 *mouseWheelV1;
+};--- lib/unityWindowTracker/unityWindowTracker.c 

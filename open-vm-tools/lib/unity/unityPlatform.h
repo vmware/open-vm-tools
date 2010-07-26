@@ -144,6 +144,12 @@ Bool UnityPlatformRequestWindowContents(UnityPlatform *up,
                                         UnityWindowId windowIds[],
                                         uint32 numWindowIds);
 
+Bool UnityPlatformSendMouseWheel(UnityPlatform *up,
+                                 int32 deltaX,
+                                 int32 deltaY,
+                                 int32 deltaZ,
+                                 uint32 modifierFlags);
+
 /*
  * Function called by UnityUpdateCallbackFn whenever a window is removed from
  * the tracker.

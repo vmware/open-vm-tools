@@ -1095,6 +1095,58 @@ exit:
 /*
  *----------------------------------------------------------------------------
  *
+ * UnityTcloSendMouseWheel --
+ *
+ *     RPC handler for 'unity.sendMouseWheel'.
+ *
+ * Results:
+ *     TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+RpcInRet
+UnityTcloSendMouseWheel(RpcInData *data)   // IN/OUT
+{
+   UnityMouseWheel unityMouseWheelMsg = {0};
+   UnityMouseWheelV1 *mouseWheelV1 = NULL;
+   Bool retVal = FALSE;
+   unsigned int ret;
+   Debug("%s: Enter.\n", __FUNCTION__);
+
+   /*
+    * Deserialize the XDR data. Note that the data begins with args + 1 since
+    * there is a space between the RPC name and the XDR serialization.
+    */
+   if (!XdrUtil_Deserialize(data->args + 1, data->argsSize - 1,
+                            xdr_UnityMouseWheel, &unityMouseWheelMsg)) {
+      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data", FALSE);
+      goto exit;
+   }
+
+   mouseWheelV1 = unityMouseWheelMsg.UnityMouseWheel_u.mouseWheelV1;
+   retVal = UnityPlatformSendMouseWheel(unity.up,
+                                        mouseWheelV1->deltaX,
+                                        mouseWheelV1->deltaY,
+                                        mouseWheelV1->deltaZ,
+                                        mouseWheelV1->modifierFlags);
+
+   /* Free any memory allocated by XDR - we're done with unityMouseWheelMsg */
+   VMX_XDR_FREE(xdr_UnityMouseWheel, &unityMouseWheelMsg);
+   ret = RPCIN_SETRETVALS(data, "", retVal);
+
+exit:
+   Debug("%s: Exit.\n", __FUNCTION__);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * UnityGetUpdateCommon --
  *
  *     Get the unity window update and append it to the specified output buffer.

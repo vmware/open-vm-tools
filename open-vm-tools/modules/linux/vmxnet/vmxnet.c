@@ -2951,7 +2951,7 @@ vmxnet_load_multicast (struct net_device *dev)
 {
    struct Vmxnet_Private *lp = netdev_priv(dev);
     volatile u16 *mcast_table = (u16 *)lp->dd->LADRF;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 34)
     struct netdev_hw_addr *dmi;
 #else
     struct dev_mc_list *dmi = dev->mc_list;
@@ -2965,7 +2965,7 @@ vmxnet_load_multicast (struct net_device *dev)
     lp->dd->LADRF[1] = 0;
 
     /* Add addresses */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 34)
     netdev_for_each_mc_addr(dmi, dev) {
 	addrs = dmi->addr;
 #else

@@ -92,8 +92,20 @@ int            _outp(unsigned short, int);
 unsigned short _outpw(unsigned short, unsigned short);
 unsigned long  _outpd(uint16, unsigned long);
 #pragma intrinsic(_inp, _inpw, _inpd, _outp, _outpw, _outpw, _outpd)
+
+/*
+ * Prevents compiler from re-ordering reads, writes and reads&writes.
+ * These functions do not add any instructions thus only affect
+ * the compiler ordering.
+ *
+ * See:
+ * `Lockless Programming Considerations for Xbox 360 and Microsoft Windows'
+ * http://msdn.microsoft.com/en-us/library/bb310595(VS.85).aspx
+ */
+void _ReadBarrier(void);
+void _WriteBarrier(void);
 void _ReadWriteBarrier(void);
-#pragma intrinsic(_ReadWriteBarrier)
+#pragma intrinsic(_ReadBarrier, _WriteBarrier, _ReadWriteBarrier)
 
 #ifdef VM_X86_64
 /*
@@ -635,15 +647,19 @@ Bswap64(uint64 v) // IN
 
 
 #if defined(__i386__) || defined(__x86_64__)
-#ifdef __GNUC__ // {
 /*
  * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
  * references accross the barrier.  NOTE: It does not generate any
  * instruction, so the CPU is free to do whatever it wants to...
  */
-#define COMPILER_MEM_BARRIER() __asm__ __volatile__ ("": : :"memory")
-#elif defined(_MSC_VER) // } {
-#define COMPILER_MEM_BARRIER() _ReadWriteBarrier()
+#ifdef __GNUC__ // {
+#define COMPILER_MEM_BARRIER()   __asm__ __volatile__ ("": : :"memory")
+#define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
+#define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
+#elif _MSC_VER
+#define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
+#define COMPILER_READ_BARRIER()  _ReadBarrier()
+#define COMPILER_WRITE_BARRIER() _WriteBarrier()
 #endif // }
 
 

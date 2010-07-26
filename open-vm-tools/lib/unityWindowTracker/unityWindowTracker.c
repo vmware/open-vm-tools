@@ -22,8 +22,10 @@
  *    Used to buffer state about a window manager.
  */
 
+#include <stdio.h>
 #include "vmware.h"
 #include "str.h"
+#include "strutil.h"
 #include "util.h"
 #include "log.h"
 #include "unityWindowTracker.h"
@@ -1508,4 +1510,278 @@ TitlesEqual(DynBuf *first,       // IN: First window title
    return (strncmp((const unsigned char*)DynBuf_Get(first),
                    (const unsigned char*)DynBuf_Get(second),
                    DynBuf_GetSize(first)) == 0) ? TRUE : FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityWindowTracker_ParseUnityUpdate --
+ *
+ *      Validate and parse Unity update command strings. The caller
+ *      should pass in a UnityUpdateCallback function (see lib/public/
+ *      unityWindowTracker.h).  The callback will fire once for each
+ *      window update in the result string.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+UnityWindowTracker_ParseUnityUpdate(const char *result,     // IN
+                                    int len,                // IN
+                                    UnityUpdateCallback cb, // IN
+                                    void *param)            // IN
+{
+   if (result && len > 1) {
+      uint32 id = 0;
+      int x1, y1, x2, y2;
+      const char *buf;
+
+      /*
+       * Protect against malicious guests.  If the string is not double
+       * null terminated, ignore it completely.
+       */
+
+      if (result[len - 1] || result[len - 2]) {
+         Warning("%s called with non-double null terminated string!\n",
+                 __FUNCTION__);
+
+         return;
+      }
+
+      /*
+       * Parse the result
+       */
+
+      for (buf = result; *buf; buf += strlen(buf) + 1) {
+         UnityUpdate update;
+         Bool ok = FALSE;
+
+         if (StrUtil_StartsWith(buf, "add ")) {
+            const char *argumentStart = buf + strlen("add ");
+            unsigned int index = 0;
+
+            DynBuf_Init(&update.u.addWindow.windowPathUtf8);
+            DynBuf_Init(&update.u.addWindow.execPathUtf8);
+
+            /*
+             * The arguments take the form 'add <id> [arguments]' where [arguments] are
+             * space seperated 'key=value' pairs, if an argument is simply key= the value
+             * should be treated as an empty string.
+             * Only the <id> may be present if the guest is running certain older
+             * versions of tools.
+             */
+            ok = StrUtil_GetNextUintToken(&id, &index, argumentStart, " ");
+
+            /*
+             * If we failed to get the required <id> argument there's little point
+             * carrying on. However failure to receive any of the following arguments
+             * is not an error (they're optional) - it's also not an error to get
+             * an expected key here since we may well add new keys in the future and
+             * don't want to log needless error messages if the host hasn't been updated
+             * to match.
+             */
+            if (ok) {
+               char *field;
+               update.type = UNITY_UPDATE_ADD_WINDOW;
+               update.u.addWindow.id = id;
+               while ((field = StrUtil_GetNextToken(&index, argumentStart, " "))) {
+
+                  if (StrUtil_StartsWith(field, "windowPath=")) {
+                     ok = DynBuf_AppendString(&update.u.addWindow.windowPathUtf8,
+                                              field + strlen("windowPath="));
+                  }
+
+                  if (StrUtil_StartsWith(field, "execPath=")) {
+                     ok = DynBuf_AppendString(&update.u.addWindow.execPathUtf8,
+                                              field + strlen("execPath="));
+                  }
+
+                  /*
+                   * Free the results of the tokenization (field)
+                   */
+                  free(field);
+               }
+            } else {
+               LOG(0, ("TOOLS Expected window id but no id found in string.\n"));
+            }
+         } else if (StrUtil_StartsWith(buf, "remove ")) {
+            if (sscanf(buf, "remove %u", &id) == 1) {
+               update.type = UNITY_UPDATE_REMOVE_WINDOW;
+               update.u.removeWindow.id = id;
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "move ")) {
+            if (sscanf(buf, "move %u %d %d %d %d", &id, &x1, &y1,
+                       &x2, &y2) == 5) {
+               update.type = UNITY_UPDATE_MOVE_WINDOW;
+               update.u.moveWindow.id = id;
+               RECT_SETRECT(&update.u.moveWindow.rect, x1, y1, x2, y2);
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "title ")) {
+            const char *titleInfo = buf + 6;
+
+            /* StrUtil_* functions do not like NULL strings. */
+            if (*titleInfo) {
+               unsigned int index = 0;
+               if (StrUtil_GetNextUintToken(&id, &index, titleInfo, " ")) {
+                  char *titleUtf8 = NULL;
+                  update.u.changeWindowTitle.id = id;
+
+                  if (titleInfo[index] == ' ') {
+                     index++; // Skip the space
+                     if (titleInfo[index]) {
+                        titleUtf8 = StrUtil_GetNextToken(&index, titleInfo,
+                                                         "");
+                     }
+                  }
+                  if (!titleUtf8) {
+                     titleUtf8 = Util_SafeStrdup("");
+                  }
+
+                  DynBuf_Init(&update.u.changeWindowTitle.titleUtf8);
+                  if (DynBuf_AppendString(&update.u.changeWindowTitle.titleUtf8,
+                                          titleUtf8)) {
+                     update.type = UNITY_UPDATE_CHANGE_WINDOW_TITLE;
+                     ok = TRUE;
+                  }
+                  free(titleUtf8);
+               } else {
+                  LOG(0,
+                      ("TOOLS Malformed title string, couldn't get the window id.\n"));
+               }
+            } else {
+               LOG(0, ("TOOLS Empty title string, couldn't get the title.\n"));
+            }
+         } else if (StrUtil_StartsWith(buf, "zorder ")) {
+            int count = 0;
+            int i = 0;
+            const char *bufPtr = buf;
+            bufPtr = strchr(bufPtr, ' ');
+            if (sscanf(bufPtr, " %d", &count) == 1) {
+               count = MIN(count, ARRAYSIZE(update.u.zorder.ids));
+               bufPtr = strchr(++bufPtr, ' ');
+               while (bufPtr && *bufPtr && i < count &&
+                        sscanf(bufPtr, " %u", update.u.zorder.ids + i) == 1) {
+                  i++;
+                  bufPtr = strchr(++bufPtr, ' ');
+               }
+               if (i == count) {
+                  update.type = UNITY_UPDATE_CHANGE_ZORDER;
+                  update.u.zorder.count = count;
+                  ok = TRUE;
+               } else {
+                  LOG(0, ("TOOLS Expected %d but received %d in zorder string.\n",
+                          count, i));
+               }
+            } else {
+               LOG(0, ("TOOLS Malformed zorder string, couldn't scan count.\n"));
+            }
+         } else if (StrUtil_StartsWith(buf, "region ")) {
+            int current = 0, numRects;
+            if (sscanf(buf, "region %u %d", &id, &numRects) == 2) {
+               RegionPtr region = NULL;
+
+               update.type = UNITY_UPDATE_CHANGE_WINDOW_REGION;
+               update.u.changeWindowRegion.region = NULL;
+               update.u.changeWindowRegion.id = id;
+
+               if (numRects) {
+                  BoxRec rc;
+                  RECT_SETRECT(&rc, 0, 0, 0, 0);
+                  region = miRegionCreate(&rc, 0);
+
+                  do {
+                     buf += strlen(buf) + 1;
+                     current++;
+                     if (sscanf(buf, "rect %d %d %d %d", &x1, &y1, &x2, &y2) == 4) {
+                        RECT_SETRECT(&rc, x1, y1, x2, y2);
+                        miApplyRect(region, region, &rc, miUnion);
+                     } else {
+                        Warning("Malformed processing unity region" \
+                                " (attempting to continue): %s.\n",
+                                buf);
+                     }
+                  } while (current < numRects && *buf);
+               }
+               update.u.changeWindowRegion.region = region;
+               ok = TRUE;
+            } else {
+               Warning("Malformed processing unity region %s.\n", buf);
+            }
+         } else if (StrUtil_StartsWith(buf, "state ")) {
+            uint32 state = 0;
+
+            update.type = UNITY_UPDATE_CHANGE_WINDOW_STATE;
+            if (sscanf(buf, "state %u %d", &id, &state) == 2) {
+               update.u.changeWindowState.id = id;
+               update.u.changeWindowState.state = state;
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "attr ")) {
+            update.type = UNITY_UPDATE_CHANGE_WINDOW_ATTRIBUTE;
+            if (sscanf(buf, "attr %u %u %u",
+                       &update.u.changeWindowAttribute.id,
+                       (unsigned int *)&update.u.changeWindowAttribute.attr,
+                       &update.u.changeWindowAttribute.value) == 3 &&
+                update.u.changeWindowAttribute.attr < UNITY_MAX_ATTRIBUTES) {
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "type ")) {
+            update.type = UNITY_UPDATE_CHANGE_WINDOW_TYPE;
+            if (sscanf(buf, "type %u %d", &update.u.changeWindowType.id,
+                       (int *)&update.u.changeWindowType.winType) == 2 &&
+                update.u.changeWindowType.winType < UNITY_MAX_WINDOW_TYPES) {
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "icon ")) {
+            update.type = UNITY_UPDATE_CHANGE_WINDOW_ICON;
+            if (sscanf(buf, "icon %u %u", &update.u.changeWindowIcon.id,
+                       (unsigned int *)&update.u.changeWindowIcon.iconType) == 2 &&
+                update.u.changeWindowIcon.iconType < UNITY_MAX_ICONS) {
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "desktop ")) {
+            update.type = UNITY_UPDATE_CHANGE_WINDOW_DESKTOP;
+            if (sscanf(buf, "desktop %u %d", &update.u.changeWindowDesktop.id,
+               &update.u.changeWindowDesktop.desktopId) == 2) {
+               ok = TRUE;
+            }
+         } else if (StrUtil_StartsWith(buf, "activedesktop ")) {
+            update.type = UNITY_UPDATE_CHANGE_ACTIVE_DESKTOP;
+            if (sscanf(buf, "activedesktop %d",
+                       &update.u.changeActiveDesktop.desktopId) == 1) {
+               ok = TRUE;
+            }
+         }
+
+         if (ok) {
+            (*cb)(param, &update);
+         } else {
+            Warning("Malformed unity response string: %s.\n", buf);
+         }
+
+         if (ok && (update.type == UNITY_UPDATE_ADD_WINDOW)) {
+            DynBuf_Destroy(&update.u.addWindow.windowPathUtf8);
+            DynBuf_Destroy(&update.u.addWindow.execPathUtf8);
+         }
+
+         if (ok && (update.type == UNITY_UPDATE_CHANGE_WINDOW_TITLE)) {
+            DynBuf_Destroy(&update.u.changeWindowTitle.titleUtf8);
+         }
+
+         if (ok &&
+             (update.type == UNITY_UPDATE_CHANGE_WINDOW_REGION) &&
+             (update.u.changeWindowRegion.region != NULL)) {
+            miRegionDestroy(update.u.changeWindowRegion.region);
+         }
+      }
+   }
 }

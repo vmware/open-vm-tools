@@ -3298,6 +3298,34 @@ SetWindowStickiness(UnityPlatform *up,          // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformSendMouseWheel --
+ *
+ *     Sends the given mouse wheel event to the window at the given location.
+ *
+ * Results:
+ *     Returns TRUE if successful, and FALSE otherwise.
+ *
+ * Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+Bool
+UnityPlatformSendMouseWheel(UnityPlatform *up,    // IN
+                            int32 deltaX,         // IN
+                            int32 deltaY,         // IN
+                            int32 deltaZ,         // IN
+                            uint32 modifierFlags) // IN
+{
+   ASSERT(up);
+   return FALSE;
+}
+
+
+/*
  *
  * End file-scope functions.
  ******************************************************************************

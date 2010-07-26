@@ -235,6 +235,7 @@
 #define UNITY_RPC_WINDOW_UNSTICK          "unity.window.unstick"
 #define UNITY_RPC_CONFIRM_OPERATION       "unity.operation.confirm"
 #define UNITY_RPC_WINDOW_CONTENTS_REQUEST "unity.window.contents.request"
+#define UNITY_RPC_SEND_MOUSE_WHEEL        "unity.sendMouseWheel"
 
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
 #define GHI_RPC_SET_GUEST_HANDLER                     "ghi.guest.handler.set"
@@ -789,6 +790,17 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    UNITY_RPC_CONFIRM_OPERATION XDR_REP
    @endcode
    @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
+   @def         UNITY_RPC_SEND_MOUSE_WHEEL
+   @brief       Send mouse wheel events to the window under the mouse.
+   @code
+   UNITY_RPC_SEND_MOUSE_WHEEL horizontal deltaX deltaY deltaZ modifierFlags
+   @endcode
+   @param[in] horizontal 0 to send vertical mouse wheel event, 1 for horizontal
+   @param[in] deltaX the horizontal distance the wheel is rotated
+   @param[in] deltaY the vertial distance the wheel is rotated
+   @param[in] deltaZ the distance the wheel is rotated in the Z axis
+   @param[in] modifierFlags modifier flags pressed during the event
 
    @}
 */

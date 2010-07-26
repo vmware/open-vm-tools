@@ -100,8 +100,7 @@ CPUIDSummary_RegsFromCpuid0(CPUID0* id0In,
  *
  *      Determines whether it is safe to write to the MCE control
  *      register MC0_CTL.
- *      Known safe:     P4, Nahalem, All AMD.
- *      Known not safe: P6, Core, Core2, Penryn
+ *      Known safe:     P4, All AMD, all family 6 model > 0x1a, except core/atom
  *      Don't know:     P2, P3
  *
  * Results:
@@ -120,8 +119,12 @@ CPUIDSummary_SafeToUseMC0_CTL(CPUIDSummary* cpuidSummary)
    CPUIDSummary_RegsFromCpuid0(&cpuidSummary->id0, &id0);   
    return CPUID_IsVendorAMD(&id0) ||
       (CPUID_IsVendorIntel(&id0) &&
-       (CPUID_FAMILY_IS_PENTIUM4(id0.eax) ||
-        CPUID_UARCH_IS_NEHALEM(cpuidSummary->id1.version)));
+       (CPUID_FAMILY_IS_PENTIUM4(cpuidSummary->id1.version) ||
+        (CPUID_FAMILY_IS_P6(cpuidSummary->id1.version) &&
+         (CPUID_EFFECTIVE_MODEL(cpuidSummary->id1.version) ==
+            CPUID_MODEL_NEHALEM_1A ||
+          CPUID_EFFECTIVE_MODEL(cpuidSummary->id1.version) >=
+            CPUID_MODEL_NEHALEM_1E))));
 }
 
 

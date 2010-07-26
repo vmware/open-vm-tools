@@ -182,6 +182,11 @@ typedef struct UnityUpdate {
 
 typedef void (*UnityUpdateCallback)(void *param, UnityUpdate *update);
 
+void UnityWindowTracker_ParseUnityUpdate(const char *result,
+                                         int len,
+                                         UnityUpdateCallback cb,
+                                         void *param);
+
 /*
  * Internal state --
  * Do not fiddle with these bits!  They are included in this header to aid in debugging.
