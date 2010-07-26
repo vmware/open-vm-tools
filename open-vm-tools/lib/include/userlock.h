@@ -75,9 +75,8 @@ Bool MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
 MXUserRecLock *MXUser_CreateRecLock(const char *name,
                                     MX_Rank rank);
 
-MXUserRecLock *MXUser_CreateRecLockEx(const char *name,
-                                      MX_Rank rank,
-                                      Bool beSilent);
+MXUserRecLock *MXUser_CreateRecLockSilent(const char *name,
+                                          MX_Rank rank);
 
 void MXUser_AcquireRecLock(MXUserRecLock *lock);
 Bool MXUser_TryAcquireRecLock(MXUserRecLock *lock);
