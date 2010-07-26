@@ -125,7 +125,7 @@ enum {
    /* VMX properties. */
    VIX_PROPERTY_VMX_VERSION                           = 4400,
    VIX_PROPERTY_VMX_PRODUCT_NAME                      = 4401,
-   VIX_PROPERTY_VMX_VIX_FEATURES                      = 4402,
+   /* DEPRECTATED VIX_PROPERTY_VMX_VIX_FEATURES                      = 4402, */
 
    /* GuestOS and Tools properties. */
    VIX_PROPERTY_GUEST_TOOLS_VERSION                   = 4500,
