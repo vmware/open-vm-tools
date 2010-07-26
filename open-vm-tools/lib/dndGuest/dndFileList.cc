@@ -411,7 +411,7 @@ std::string
 DnDFileList::GetRelPathsStr()
    const
 {
-   std::string stringList;
+   std::string stringList("");
    std::vector<std::string>::const_iterator i;
 
    for (i = mRelPaths.begin(); i != mRelPaths.end(); ++i) {
