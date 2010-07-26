@@ -62,6 +62,7 @@
 #include "system.h"
 #include "codeset.h"
 #include "imageUtil.h"
+#include "str.h"
 #include "strutil.h"
 #include <paths.h>
 #include "vm_atomic.h"

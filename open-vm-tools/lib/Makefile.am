@@ -17,6 +17,9 @@
 
 SUBDIRS =
 SUBDIRS += guestRpc
+if HAVE_X11
+   SUBDIRS += appUtil
+endif
 SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf
@@ -33,6 +36,9 @@ SUBDIRS += hgfsHelper
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
+if ENABLE_UNITY
+   SUBDIRS += image
+endif
 SUBDIRS += impersonate
 SUBDIRS += lock
 SUBDIRS += message
@@ -42,6 +48,10 @@ SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer
 SUBDIRS += procMgr
+if ENABLE_UNITY
+   SUBDIRS += raster
+   SUBDIRS += region
+endif
 if HAVE_X11
    SUBDIRS += resolution
 endif
