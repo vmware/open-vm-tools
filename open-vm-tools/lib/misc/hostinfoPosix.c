@@ -501,9 +501,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       }
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
-         if (strstr(distroLower, "server 11")) {
+         if (strstr(distroLower, "server 11") ||
+             strstr(distroLower, "desktop 11")) {
             Str_Strcpy(distroShort, STR_OS_SLES_11, distroShortSize);
-         } else if (strstr(distroLower, "server 10")) {
+         } else if (strstr(distroLower, "server 10") ||
+                    strstr(distroLower, "desktop 10")) {
             Str_Strcpy(distroShort, STR_OS_SLES_10, distroShortSize);
          } else {
             Str_Strcpy(distroShort, STR_OS_SUSE_EN, distroShortSize);
