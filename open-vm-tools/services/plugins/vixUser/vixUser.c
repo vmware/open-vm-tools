@@ -33,7 +33,6 @@
 #include "str.h"
 #include "strutil.h"
 #include "vixCommands.h"
-#include "vixTools.h"
 #include "util.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
@@ -222,103 +221,6 @@ abort:
 
 
 /**
- * Handles the command to set the printer on the guest.
- *
- * XXX: This code is copied from foundryToolsDaemon.c. The original code
- * should be cleaned up when the old service code is phased out.
- *
- * @param[in]  data  RPC request data.
- *
- * @return TRUE on success, FALSE on failure.
- */
-
-static gboolean
-VixUserSetPrinter(RpcInData *data)
-{
-   static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
-#if defined(_WIN32)
-   VixError err = VIX_OK;
-   char *printerName = NULL;
-   char *defaultString = NULL;
-   int defaultInt;
-   DWORD sysError = ERROR_SUCCESS;
-   g_debug(">ToolsDaemonTcloSetPrinter\n");
-
-   /*
-    * Parse the arguments
-    */
-   printerName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-   defaultString = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-
-   /*
-    * Validate the arguments.
-    */
-   if ((NULL == printerName) || (NULL == defaultString)) {
-      err = VIX_E_INVALID_ARG;
-      g_debug("Failed to get string args\n");
-      goto abort;
-   }
-
-   if (!StrUtil_StrToInt(&defaultInt, defaultString)) {
-      err = VIX_E_INVALID_ARG;
-      g_debug("Failed to convert int arg\n");
-      goto abort;
-   }
-
-   g_debug("Setting printer to: \"%s\", %ssetting as default\n",
-           printerName, (defaultInt != 0) ? "" : "not ");
-
-   /* Actually set the printer. */
-   if (!Printer_AddConnection(printerName, &sysError)) {
-      err = VIX_E_FAIL;
-      g_debug("Failed to add printer %s : %d %s\n", printerName, sysError,
-              Err_Errno2String(sysError));
-      goto abort;
-   }
-
-   /* Set this printer as the default if requested. */
-   if (defaultInt != 0) {
-      if (!Win32U_SetDefaultPrinter(printerName)) {
-         /*
-          * We couldn't set this printer as default. Oh well. We'll
-          * still report success or failure based purely on whether
-          * the actual printer add succeeded or not.
-          */
-         g_debug("Unable to set \"%s\" as the default printer\n",
-                 printerName);
-      }
-   }
-
-abort:
-   /*
-    * All Foundry tools commands return results that start with a
-    * foundry error and a guest-OS-specific error.
-    */
-   Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
-   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
-
-   /*
-    * These were allocated by ToolsDaemonTcloGetQuotedString.
-    */
-   free(printerName);
-   free(defaultString);
-
-   g_debug("<ToolsDaemonTcloSetPrinter\n");
-   return TRUE;
-
-#else
-   Str_Sprintf(resultBuffer,
-               sizeof resultBuffer,
-               "%d %d 0",
-               VIX_E_OP_NOT_SUPPORTED_ON_GUEST,
-               Err_Errno());
-   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
-   return TRUE;
-#endif
-}
-
-
-/**
  * Returns the list of the plugin's capabilities.
  *
  * @param[in]  src      The source object.
@@ -337,7 +239,6 @@ VixUserCapabilities(gpointer src,
 {
    const ToolsAppCapability caps[] = {
       { TOOLS_CAP_OLD, "open_url", 0, 1 },
-      { TOOLS_CAP_OLD, "printer_set", 0, 1 }
    };
 
    return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
@@ -363,7 +264,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    RpcChannelCallback rpcs[] = {
       { VIX_BACKDOORCOMMAND_OPEN_URL, VixUserOpenUrl, NULL, NULL, NULL, 0 },
-      { VIX_BACKDOORCOMMAND_SET_GUEST_PRINTER, VixUserSetPrinter, NULL, NULL, NULL, 0 }
    };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_CAPABILITIES, VixUserCapabilities, NULL }
