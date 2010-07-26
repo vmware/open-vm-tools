@@ -672,7 +672,9 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
  *
  * MXUser_AcquireForRead --
  *
- *      Acquire a read-write lock for read-shared access.
+ *      Acquire a read-write lock for read-shared access. A thread may have
+ *      only one read lock outstanding on a read-write lock - no recursive
+ *      access.
  *
  * Results:
  *      The lock is acquired.
@@ -695,7 +697,8 @@ MXUser_AcquireForRead(MXUserRWLock *lock)  // IN/OUT:
  *
  * MXUser_AcquireForWrite --
  *
- *      Acquire a read-write lock for write-exclusive access.
+ *      Acquire a read-write lock for write-exclusive access. A thread may
+ *      have only a single write lock outstanding on a read-write lock.
  *
  * Results:
  *      The lock is acquired.
