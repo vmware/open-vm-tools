@@ -174,7 +174,7 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
  *
  *      Create a recursive lock specifying if the lock must always be
  *      silent - never logging any messages. Silent locks will never
- *      produce any statistics, amongst the other aspect of "silent".
+ *      produce any statistics, amongst the aspects of "silent".
  *
  *      Only the owner (thread) of a recursive lock may recurse on it.
  *
