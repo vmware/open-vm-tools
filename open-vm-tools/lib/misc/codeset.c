@@ -1817,8 +1817,10 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
 
    /*
     * Now that we know the length, allocate the memory for the UTF8 string.
-    * For simplicity's sake we overkill the calculation but in most cases
-    * the memory wastage will be very short lived and very small.
+    * The UTF8 string length calculation ensures that there will always be
+    * sufficient space to represent the UTF32 string. Most of the time this
+    * will involved allocating too much memory however the memory wastage
+    * will be very short lived and very small.
     */
 
    *utf8 = Util_SafeMalloc((4 * len) + 1);  // cover the NUL byte
