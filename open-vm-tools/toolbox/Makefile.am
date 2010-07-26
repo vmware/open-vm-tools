@@ -55,7 +55,6 @@ if HAVE_X11
    vmware_toolbox_LDADD += @GTK_LIBS@
 
    vmware_toolbox_SOURCES =
-   vmware_toolbox_SOURCES += debugStdio.c
    vmware_toolbox_SOURCES += toolbox-gtk.c
    vmware_toolbox_SOURCES += toolboxAbout.c
    vmware_toolbox_SOURCES += toolboxDevices.c
@@ -63,10 +62,15 @@ if HAVE_X11
    vmware_toolbox_SOURCES += toolboxOptions.c
    vmware_toolbox_SOURCES += toolboxScripts.c
    vmware_toolbox_SOURCES += toolboxShrink.c
+   vmware_toolbox_SOURCES += $(top_srcdir)/libvmtools/fileLogger.c
+   vmware_toolbox_SOURCES += $(top_srcdir)/libvmtools/stdLogger.c
+   vmware_toolbox_SOURCES += $(top_srcdir)/libvmtools/sysLogger.c
    vmware_toolbox_SOURCES += $(top_srcdir)/libvmtools/vmtoolsConfig.c
+   vmware_toolbox_SOURCES += $(top_srcdir)/libvmtools/vmtoolsLog.c
 
    vmware_toolbox_CPPFLAGS =
    vmware_toolbox_CPPFLAGS += -DG_LOG_DOMAIN=\"toolbox\"
+   vmware_toolbox_CPPFLAGS += -I$(top_srcdir)/libvmtools
 
 # Here's something wacky: automake will muck up the translation of this
 # conditional if it is indented. For more details, see:

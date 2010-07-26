@@ -49,6 +49,7 @@
 #include "system.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/guestrpc/timesync.h"
+#include "vmware/tools/utils.h"
 
 #include "embed_version.h"
 VM_EMBED_VERSION(TOOLBOXGTK_VERSION_STRING);
@@ -1086,11 +1087,7 @@ main(int argc,                  // IN: ARRAY_SIZEOF(argv)
    }
 
    pConfDict = Toolbox_LoadToolsConf();
-   Debug_Set(g_key_file_get_boolean(pConfDict, "logging", CONFNAME_LOG, NULL),
-             DEBUG_PREFIX);
-   Debug_EnableToFile(g_key_file_get_string(pConfDict, "logging",
-                                            CONFNAME_LOGFILE, NULL),
-                      FALSE);
+   VMTools_ConfigLogging(G_LOG_DOMAIN, pConfDict, FALSE, FALSE);
    InitHelpDir();
    g_key_file_free(pConfDict);
 
