@@ -1115,6 +1115,10 @@ GuestInfoServerShutdown(gpointer src,
       g_source_destroy(gatherTimeoutSource);
       gatherTimeoutSource = NULL;
    }
+
+#ifdef _WIN32
+   NetUtil_FreeIpHlpApiDll();
+#endif
 }
 
 
@@ -1270,6 +1274,13 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
          { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
       };
+
+#ifdef _WIN32
+      if (NetUtil_LoadIpHlpApiDll() != ERROR_SUCCESS) {
+         g_warning("Failed to load iphlpapi.dll.  Cannot report networking details.\n");
+         return NULL;
+      }
+#endif
 
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
