@@ -256,10 +256,16 @@ DynArray_Copy(DynArray *src,        // IN
 #define DEFINE_DYNARRAY_TYPE(T)     DEFINE_DYNARRAY_NAMED_TYPE(T, T)
 
 #define DEFINE_DYNARRAY_NAMED_TYPE(T, TYPE)                             \
+   DECLARE_DYNARRAY_TYPE(T)                                             \
+   DEFINEONLY_DYNARRAY_NAMED_TYPE(T, TYPE)
+
+#define DECLARE_DYNARRAY_TYPE(T)                                        \
+   typedef DynArray T##Array;
+
+#define DEFINEONLY_DYNARRAY_NAMED_TYPE(T, TYPE)                         \
                                                                         \
    typedef int (CDECLCONV *DynArray##T##Cmp)(const TYPE *,              \
                                              const TYPE *);             \
-   typedef DynArray T##Array;                                           \
                                                                         \
    static INLINE Bool                                                   \
    T##Array_Init(T##Array *a, unsigned int count)                       \
