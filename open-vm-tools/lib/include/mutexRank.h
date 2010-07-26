@@ -71,6 +71,15 @@
  */
 
 /*
+ * Foundry lock rank space.
+ *
+ * This rank space is from RANK_foundryLockBase on up to
+ * RANK_foundryLockLeaf. See apps/lib/foundry/mutexRankFoundry.h for
+ * definitions.
+ */
+#define RANK_foundryLockBase     0x80000000
+
+/*
  * bora/lib lock rank space.
  *
  * This rank space is from RANK_libLockBase on up to RANK_LEAF. See
