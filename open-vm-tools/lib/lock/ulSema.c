@@ -851,9 +851,7 @@ MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,  // IN/OUT:
    sema = (MXUserSemaphore *) Atomic_ReadPtr(semaStorage);
 
    if (UNLIKELY(sema == NULL)) {
-      MXUserSemaphore *newSema;
-
-      newSema = MXUser_CreateSemaphore(name, rank);
+      MXUserSemaphore *newSema = MXUser_CreateSemaphore(name, rank);
 
       sema = (MXUserSemaphore *) Atomic_ReadIfEqualWritePtr(semaStorage,
                                                             NULL,

@@ -267,18 +267,16 @@ MXUser_CreateSingletonBarrier(Atomic_Ptr *barrierStorage,  // IN/OUT:
    barrier = (MXUserBarrier *) Atomic_ReadPtr(barrierStorage);
 
    if (UNLIKELY(barrier == NULL)) {
-      MXUserBarrier *before;
+      MXUserBarrier *newBarrier = MXUser_CreateBarrier(name, rank, count);
 
-      barrier = MXUser_CreateBarrier(name, rank, count);
+      barrier = (MXUserBarrier *) Atomic_ReadIfEqualWritePtr(barrierStorage,
+                                                             NULL,
+                                                           (void *) newBarrier);
 
-      before = (MXUserBarrier *) Atomic_ReadIfEqualWritePtr(barrierStorage,
-                                                            NULL,
-                                                            (void *) barrier);
-
-      if (before) {
-         MXUser_DestroyBarrier(barrier);
-
-         barrier = before;
+      if (barrier) {
+         MXUser_DestroyBarrier(newBarrier);
+      } else {
+         barrier = (MXUserBarrier *) Atomic_ReadPtr(barrierStorage);
       }
    }
 

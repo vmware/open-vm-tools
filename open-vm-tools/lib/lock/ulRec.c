@@ -581,9 +581,7 @@ MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,  // IN/OUT:
    lock = (MXUserRecLock *) Atomic_ReadPtr(lockStorage);
 
    if (UNLIKELY(lock == NULL)) {
-      MXUserRecLock *newLock;
-
-      newLock = MXUser_CreateRecLock(name, rank);
+      MXUserRecLock *newLock = MXUser_CreateRecLock(name, rank);
 
       lock = (MXUserRecLock *) Atomic_ReadIfEqualWritePtr(lockStorage, NULL,
                                                           (void *) newLock);
