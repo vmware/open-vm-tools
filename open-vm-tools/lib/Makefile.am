@@ -30,7 +30,6 @@ SUBDIRS += err
 SUBDIRS += eventManager
 SUBDIRS += file
 SUBDIRS += foundryMsg
-SUBDIRS += ghIntegrationStub
 SUBDIRS += guestApp
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd

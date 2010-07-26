@@ -1228,7 +1228,6 @@ AC_CONFIG_FILES([                      \
    lib/file/Makefile                   \
    lib/foundryMsg/Makefile             \
    lib/ghIntegration/Makefile          \
-   lib/ghIntegrationStub/Makefile      \
    lib/guestApp/Makefile               \
    lib/guestRpc/Makefile               \
    lib/hgfs/Makefile                   \
