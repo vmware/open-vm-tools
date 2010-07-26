@@ -17,9 +17,6 @@
 
 SUBDIRS =
 SUBDIRS += guestRpc
-if ENABLE_UNITY
-   SUBDIRS += appUtil
-endif
 SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf
@@ -33,11 +30,7 @@ SUBDIRS += err
 SUBDIRS += eventManager
 SUBDIRS += file
 SUBDIRS += foundryMsg
-if ENABLE_UNITY
-   SUBDIRS += ghIntegration
-else
-   SUBDIRS += ghIntegrationStub
-endif
+SUBDIRS += ghIntegrationStub
 SUBDIRS += guestApp
 SUBDIRS += guestInfo
 SUBDIRS += hgfs
@@ -46,9 +39,6 @@ SUBDIRS += hgfsHelper
 SUBDIRS += hgfsServer
 SUBDIRS += hgfsServerManagerGuest
 SUBDIRS += hgfsServerPolicyGuest
-if ENABLE_UNITY
-   SUBDIRS += image
-endif
 SUBDIRS += impersonate
 SUBDIRS += lock
 SUBDIRS += message
@@ -58,10 +48,6 @@ SUBDIRS += panic
 SUBDIRS += panicDefault
 SUBDIRS += printer
 SUBDIRS += procMgr
-if ENABLE_UNITY
-   SUBDIRS += raster
-   SUBDIRS += region
-endif
 if HAVE_X11
    SUBDIRS += resolution
 endif
@@ -78,14 +64,7 @@ SUBDIRS += stubs
 SUBDIRS += syncDriver
 SUBDIRS += system
 SUBDIRS += unicode
-if ENABLE_UNITY
-   SUBDIRS += unity
-   SUBDIRS += unityWindowTracker
-else
-   SUBDIRS += unityStub
-endif
 SUBDIRS += user
-SUBDIRS += vixTools
 SUBDIRS += vmCheck
 SUBDIRS += vmSignal
 SUBDIRS += wiper

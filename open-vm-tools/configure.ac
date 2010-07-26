@@ -1099,7 +1099,6 @@ AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
-AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
@@ -1264,10 +1263,8 @@ AC_CONFIG_FILES([                      \
    lib/system/Makefile                 \
    lib/unicode/Makefile                \
    lib/unity/Makefile                  \
-   lib/unityStub/Makefile              \
    lib/unityWindowTracker/Makefile     \
    lib/user/Makefile                   \
-   lib/vixTools/Makefile               \
    lib/vmCheck/Makefile                \
    lib/vmSignal/Makefile               \
    lib/wiper/Makefile                  \
