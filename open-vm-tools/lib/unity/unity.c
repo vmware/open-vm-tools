@@ -82,6 +82,17 @@ static void UnitySetAddHiddenWindows(Bool enabled);
 static void UnitySetInterlockMinimizeOperation(Bool enabled);
 static void UnitySetSendWindowContents(Bool enabled);
 static void FireEnterUnitySignal(ToolsAppCtx *ctx, gboolean entered);
+static void UnitySetDisableCompositing(Bool disabled);
+
+/*
+ * Wrapper function for the "unity.set.options" RPC.
+ */
+RpcInRet UnityTcloSetUnityOptions(RpcInData *data);
+
+/*
+ * Wrapper function for the "unity.window.contents.request" RPC.
+ */
+RpcInRet UnityTcloRequestWindowContents(RpcInData *data);
 
 /* Sends the unity.window.contents.start RPC to the host. */
 Bool UnitySendWindowContentsStart(UnityWindowId window,
@@ -148,6 +159,7 @@ static UnityFeatureSetter unityFeatureTable[] = {
    { UNITY_ADD_HIDDEN_WINDOWS_TO_TRACKER, UnitySetAddHiddenWindows },
    { UNITY_INTERLOCK_MINIMIZE_OPERATION, UnitySetInterlockMinimizeOperation },
    { UNITY_SEND_WINDOW_CONTENTS, UnitySetSendWindowContents },
+   { UNITY_DISABLE_COMPOSITING_IN_GUEST, UnitySetDisableCompositing },
    /* Add more Unity Feature Setters above this. */
    {0, NULL}
 };
@@ -2617,6 +2629,42 @@ UnitySetSendWindowContents(Bool enabled)
       Debug("%s: Do not send window contents to the host on appropriate events\n",
             __FUNCTION__);
    }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * UnitySetDisableCompositing --
+ *
+ *     Set (or unset) whether the compositing features of the guest window
+ *     manager should be disabled.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+UnitySetDisableCompositing(Bool disabled)
+{
+   /*
+    * Does the host wish us to disable the compositing features of the guest window
+    * manager. The flag only takes effect on subsequent 'enter unity' calls where
+    * it is checked and used to disable compositing in the platform layer.
+    */
+   if (disabled) {
+      Debug("%s: Window compositing will be disabled in the guest window manager.\n",
+            __FUNCTION__);
+   } else {
+      Debug("%s: Window compositing will be enabled in the guest window manager.\n",
+            __FUNCTION__);
+   }
+   UnityPlatformSetDisableCompositing(unity.up, disabled);
 }
 
 

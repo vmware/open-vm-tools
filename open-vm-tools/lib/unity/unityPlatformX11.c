@@ -3201,6 +3201,30 @@ UnityPlatformWillRemoveWindow(UnityPlatform *up,      // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * UnityPlatformSetDisableCompositing --
+ *
+ *     Disable (or Enable) the compositing features of the window manager the
+ *     next time Unity starts.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void UnityPlatformSetDisableCompositing(UnityPlatform *up,      // IN
+                                        Bool disabled)          // IN
+{
+   ASSERT(up);
+}
+
+
+/*
  ******************************************************************************
  * Begin file-scope functions.
  *

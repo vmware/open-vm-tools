@@ -172,6 +172,8 @@ Bool UnitySendWindowContents(UnityWindowId windowID,
                              const char *imageData,
                              uint32 imageLength);
 
+void UnityPlatformSetDisableCompositing(UnityPlatform *up, Bool disabled);
+
 #ifdef __cplusplus
 };
 #endif // __cplusplus
