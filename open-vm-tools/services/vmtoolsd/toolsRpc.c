@@ -120,7 +120,7 @@ ToolsCoreRpcCapReg(RpcInData *data)
    if (!RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL)) {
       g_debug("Unable to register guest conf directory capability.\n");
    }
-   free(msg);
+   g_free(msg);
    msg = NULL;
 
    /* Send the tools version to the VMX. */
