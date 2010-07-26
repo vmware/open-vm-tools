@@ -130,7 +130,12 @@ VMToolsConfigUpgrade(GuestApp_Dict *old,
 #if defined(_WIN32)
       /* Tray options. */
       { CONFNAME_SHOW_WIRELESS_ICON, "vmtray", CONFNAME_SHOW_WIRELESS_ICON, CFG_BOOLEAN, NULL },
+      { CONFNAME_DISABLEPMTIMERWARNING, "desktopevents", CONFNAME_DISABLEPMTIMERWARNING, CFG_BOOLEAN, NULL },
 #endif
+      /* Unity options. */
+      { "unity.debug", CONFGROUPNAME_UNITY, CONFNAME_UNITY_ENABLEDEBUG, CFG_BOOLEAN, NULL },
+      { "unity.forceEnable", CONFGROUPNAME_UNITY, CONFNAME_UNITY_FORCEENABLE, CFG_BOOLEAN, NULL },
+      { "unity.desktop.backgroundColor", CONFGROUPNAME_UNITY, CONFNAME_UNITY_BACKGROUNDCOLOR, CFG_INTEGER, NULL },
       /* Null terminator. */
       { NULL, }
    };

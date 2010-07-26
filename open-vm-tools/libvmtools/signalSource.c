@@ -42,7 +42,7 @@ typedef enum {
 
 /* Use NSIG if it's defined, otherwise use a hardcoded limit. */
 #if defined(NSIG)
-#  define MAX_SIGNALS   (NSIG - 1)
+#  define MAX_SIGNALS   NSIG
 #else
 #  define MAX_SIGNALS   64
 #endif

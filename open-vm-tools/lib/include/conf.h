@@ -88,6 +88,37 @@
 
 
 /*
+ ******************************************************************************
+ * BEGIN Unity goodies.
+ */
+
+/**
+ * Defines the string used for the Unity config file group.
+ */
+#define CONFGROUPNAME_UNITY "unity"
+
+/**
+ * Lets users enable debug info from Unity.
+ */
+#define CONFNAME_UNITY_ENABLEDEBUG "debug"
+
+/**
+ * Lets users override system decisions about whether unity should be available.
+ */
+#define CONFNAME_UNITY_FORCEENABLE "forceEnable"
+
+/**
+ * Lets users override the desktop background color when in Unity mode.
+ */
+#define CONFNAME_UNITY_BACKGROUNDCOLOR "desktop.backgroundColor"
+
+/*
+ * END Unity goodies.
+ ******************************************************************************
+ */
+
+
+/*
  * Tell the tools to show the wireless icon in the guest.
  */
 
