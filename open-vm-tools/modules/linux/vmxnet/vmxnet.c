@@ -2951,9 +2951,13 @@ vmxnet_load_multicast (struct net_device *dev)
 {
    struct Vmxnet_Private *lp = netdev_priv(dev);
     volatile u16 *mcast_table = (u16 *)lp->dd->LADRF;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+    struct netdev_hw_addr *dmi;
+#else
     struct dev_mc_list *dmi = dev->mc_list;
+#endif
     u8 *addrs;
-    int i, j, bit, byte;
+    int i = 0, j, bit, byte;
     u32 crc, poly = CRC_POLYNOMIAL_LE;
 
     /* clear the multicast filter */
@@ -2961,9 +2965,14 @@ vmxnet_load_multicast (struct net_device *dev)
     lp->dd->LADRF[1] = 0;
 
     /* Add addresses */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+    netdev_for_each_mc_addr(dmi, dev) {
+	addrs = dmi->addr;
+#else
     for (i = 0; i < dev->mc_count; i++){
 	addrs = dmi->dmi_addr;
 	dmi   = dmi->next;
+#endif
 
 	/* multicast address? */
 	if (!(*addrs & 1))
