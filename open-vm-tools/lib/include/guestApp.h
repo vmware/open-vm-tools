@@ -89,20 +89,11 @@ GuestApp_FreeDict(GuestApp_Dict *dict); // IN
 Bool
 GuestApp_LoadDict(GuestApp_Dict *dict); // IN
 
-Bool
-GuestApp_WriteDict(GuestApp_Dict *dict); // IN
-
 const char *
 GuestApp_GetDefaultScript(const char *confName); // IN
 
 Bool
 GuestApp_GetUnifiedLoopCap(const char *channel); // IN
-
-Bool
-GuestApp_GetPtrGrabCap(const char *channel); // IN
-
-Bool
-GuestApp_Log(const char *s); // IN
 
 #ifdef _WIN32
 LPWSTR
@@ -114,12 +105,6 @@ GuestApp_GetInstallPath(void);
 
 char *
 GuestApp_GetConfPath(void);
-
-char *
-GuestApp_GetLogPath(void);
-
-Bool
-GuestApp_IsHgfsCapable(void);
 
 Bool
 GuestApp_IsDiskShrinkEnabled(void);
@@ -156,22 +141,6 @@ Bool
 GuestApp_GetDeviceInfo(uint16 id,      // IN: Device ID
                        RD_Info *info); // OUT
 
-uint32
-GuestApp_HostCopyStep(uint8 c);  // IN
-
-Bool
-GuestApp_RpcSendOneArgCPName(char const *cmd,       // IN: RPCI command
-                             char const *arg,       // IN: UTF-8 encoded string
-                             size_t argSize,        // IN: size of arg
-                             char delimiter,        // IN: delimiter
-                             char const *cpNameArg, // IN: UTF-8 encoded CPName
-                             size_t cpNameArgSize); // IN: size of cpNameArg
-Bool
-GuestApp_RpcSendOneCPName(char const *cmd, // IN: RPCI command
-                          char delimiter,  // IN: delimiter
-                          char const *arg, // IN: string to be Utf8/CPName encoded
-                          size_t argSize); // IN: size of arg
-
 Bool GuestApp_OpenUrl(const char *url, Bool maximize);
 
 typedef enum {
@@ -181,22 +150,6 @@ typedef enum {
 } GuestAppAbsoluteMouseState;
 
 GuestAppAbsoluteMouseState GuestApp_GetAbsoluteMouseState(void);
-
-#if defined(_WIN32)
-void GuestApp_SetDictEntryW(GuestApp_Dict *dict,
-                            const WCHAR *name,
-                            const WCHAR *value);
-
-void GuestApp_SetDictEntryDefaultW(GuestApp_Dict *dict,
-                                   const WCHAR *name,
-                                   const WCHAR *defaultVal);
-
-WCHAR *GuestApp_GetDictEntryW(GuestApp_Dict *dict,
-                              const WCHAR *name);
-
-WCHAR *GuestApp_GetDictEntryDefaultW(GuestApp_Dict *dict,
-                                     const WCHAR *name);
-#endif
 
 #ifndef _WIN32
 void GuestApp_SetSpawnEnviron(const char **spawnEnviron);

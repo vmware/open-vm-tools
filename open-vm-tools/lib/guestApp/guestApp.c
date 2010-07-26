@@ -23,10 +23,6 @@
  *    Utility functions common to all guest applications
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,10 +46,6 @@ extern "C" {
 #include "productState.h"
 #include "posix.h"
 #include "vmware/guestrpc/tclodefs.h"
-
-#include "hgfs.h"
-#include "cpName.h"
-#include "cpNameUtil.h"
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -603,29 +595,6 @@ GuestApp_SetOptionInVMX(const char *option,     // IN
 /*
  *----------------------------------------------------------------------
  *
- * GuestApp_Log --
- *
- *      Send a string to VMware's log via the backdoor.
- *
- * Results:
- *      TRUE/FALSE depending on whether the RPCI succeeded or failed.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_Log(const char *s) // IN
-{
-   return RpcOut_sendOne(NULL, NULL, "log %s: %s", TOOLS_DAEMON_NAME, s);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * GuestApp_GetUnifiedLoopCap --
  *
  *    Check to see if the VMX supports TCLO as the medium for
@@ -662,34 +631,6 @@ GuestApp_GetUnifiedLoopCap(const char *channel) // IN: send options to which cha
          channel);
 
    return unifiedLoopCap;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_GetPtrGrabCap --
- *
- *      Check to see if the VMX supports the functionality that informs
- *      us when the mouse pointer is grabbed
- *
- * Results:
- *      TRUE if VMX supports the pointer grab notification capability
- *      FALSE otherwise
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_GetPtrGrabCap(const char *channel) // IN
-{
-   ASSERT(channel);
-   return RpcOut_sendOne(NULL, NULL,
-                        "vmx.capability.ptr_grab_notification %s",
-                        channel);
 }
 
 
@@ -771,66 +712,6 @@ GuestApp_LoadDict(GuestApp_Dict *dict)  // IN/OUT
       dict->fileModTime = File_GetModTime(dict->fileName);
       Debug("Loaded dict from '%s' with mod time=%"FMT64"d\n",
             dict->fileName, dict->fileModTime);
-   }
-
-   return retVal;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_WriteDict --
- *
- *      Write the dict file onto disk. Assumes the
- *      given dict has been constructed.
- *
- * Results:
- *      TRUE/FALSE: success/failure
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_WriteDict(GuestApp_Dict *dict)  // IN/OUT
-{
-   FILE *stream;
-   Bool retVal = TRUE;
-   GuestApp_DictEntry *p;
-
-   ASSERT(dict);
-   ASSERT(dict->fileName);
-
-   stream = Posix_Fopen(dict->fileName, "w");
-   if (stream == NULL) {
-      Warning("Unable to open \"%s\"\n", dict->fileName);
-
-      return FALSE;
-   }
-
-   for (p = dict->head.next; p; p = p->next) {
-      if (!DictLL_WriteLine(stream, p->name, p->value)) {
-         Warning("Unable to write line to \"%s\": %s\n", dict->fileName,
-                 Msg_ErrString());
-
-         retVal = FALSE;
-         break;
-      }
-   }
-
-   if (fclose(stream)) {
-      Warning("Unable to close \"%s\": %s\n", dict->fileName, Msg_ErrString());
-
-      return FALSE;
-   }
-
-   if (retVal) {
-      dict->fileModTime = File_GetModTime(dict->fileName);
-      Debug("Wrote dict to '%s' with mod time=%"FMT64"d\n", dict->fileName,
-            dict->fileModTime);
    }
 
    return retVal;
@@ -973,7 +854,7 @@ GuestApp_GetInstallPath(void)
    size_t pathLen = 0;
 
    if (WinReg_GetSZ(HKEY_LOCAL_MACHINE,
-                    "Software\\VMware, Inc.\\VMware Tools",
+                    CONF_VMWARE_TOOLS_REGKEY,
                     "InstallPath",
                     &pathUtf8) != ERROR_SUCCESS) {
       Warning("%s: Unable to retrieve install path: %s\n",
@@ -1131,86 +1012,6 @@ error:
     /* Just call into GuestApp_GetInstallPath. */
    return GuestApp_GetInstallPath();
 #endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_GetLogPath --
- *
- *      Get the path that the Tools should log to. The returned path
- *      is in UTF-8.
- *
- * Results:
- *      Allocates the path or NULL on failure.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-char *
-GuestApp_GetLogPath(void)
-{
-#if defined(_WIN32)
-   char *bufferUtf8 = NULL;
-   Bool conversionRes;
-   /* We should log to %TEMP%. */
-   LPWSTR buffer = NULL;
-   DWORD bufferSize = 0, neededSize;
-
-   if ((neededSize = GetEnvironmentVariableW(L"TEMP", buffer, bufferSize)) == 0) {
-      return NULL;
-   }
-   buffer = malloc(neededSize * sizeof *buffer);
-   if (buffer == NULL) {
-      return NULL;
-   }
-   bufferSize = neededSize;
-   if (GetEnvironmentVariableW(L"TEMP", buffer, bufferSize) != neededSize) {
-      free(buffer);
-      return NULL;
-   }
-
-   conversionRes = CodeSet_Utf16leToUtf8((const char *)buffer,
-                                         wcslen(buffer) * sizeof(WCHAR),
-                                         &bufferUtf8,
-                                         NULL);
-   free(buffer);
-   if (!conversionRes) {
-      return NULL;
-   }
-   return bufferUtf8;
-#else
-   /* XXX: Is this safe for EVERYONE who isn't Windows? */
-   return strdup("/var/log");
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestApp_IsHgfsCapable --
- *
- *      Is the host capable of handling hgfs requests?
- *
- * Results:
- *      TRUE if hgfs capable.
- *      FALSE if not hgfs capable
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-GuestApp_IsHgfsCapable(void)
-{
-   return RpcOut_sendOne(NULL, NULL, HGFS_SYNC_REQREP_CLIENT_CMD);
 }
 
 
@@ -1629,194 +1430,3 @@ GuestApp_GetDeviceInfo(uint16 id,     // IN: Device ID
    return TRUE;
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestApp_HostCopyStep --
- *
- *      Do the next step of a host copy operation. --hpreg
- *
- *      This backdoor function allows the guest to ask the VMX to send it the
- *      content of arbitrary files. That is why it is only available in devel
- *      builds in the VMX.
- *
- *      In Windows guests, it is already deprecated by the DnD feature.
- *      In Linux/FreeBSD/NetWare guests, it will soon be deprecated either by
- *      the DnD feature, or by some kind of "Copy host file to guest" GUI menu
- *      entry (effectively a poor man's host to guest DnD). All those solutions
- *      are based on letting the host fully in control, and simply running an
- *      HGFS server in the guest.
- *
- * Results:
- *      The result of the step
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-uint32
-GuestApp_HostCopyStep(uint8 c) // IN
-{
-   Backdoor_proto bp;
-
-   bp.in.cx.halfs.low = BDOOR_CMD_HOSTCOPY;
-   bp.in.size = c;
-   Backdoor(&bp);
-   return bp.out.ax.word;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * GuestApp_RpcSendOneArgCPName --
- *
- *    Wrapper for GuestApp_RpcSendOneCPName with an extra argument. Sends a
- *    single RPCI command with arg and cpNameArg both in UTF-8 encodeding.
- *
- *    The UTF-8 encoded arg is optional so that one can send a single UTF-8
- *    and CPName encoded string using this function.
- *
- *    Note that the UTF-8 string always preceeds the UTF-8 & CPName string in
- *    the resulting message.
- *
- * Results:
- *    TRUE on success, FALSE on failure.
- *
- * Side effects:
- *    None.
- *
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-GuestApp_RpcSendOneArgCPName(char const *cmd,        // IN: RPCI command
-                             char const *arg,        // IN: UTF-8 encoded string
-                             size_t argSize,         // IN: size of arg
-                             char delimiter,         // IN: arg/cpNameArg delim.
-                             char const *cpNameArg,  // IN: UTF-8 encoded CPName
-                             size_t cpNameArgSize)   // IN: size of cpNameArg
-{
-   Bool ret = FALSE;
-
-   ASSERT(cmd);
-   ASSERT(cpNameArg);
-
-
-   Debug("GuestApp_RpcSendOneUtf8CPName: cpNameArg=\"%s\" (%"FMTSZ"u)\n",
-         CPName_Print(cpNameArg, cpNameArgSize), cpNameArgSize);
-
-   if (arg) {
-      char *rpcMessage;
-
-      Debug("GuestApp_RpcSendOneUtf8CPName: arg=\"%s\"\n", arg);
-
-      /* Merge command and argument */
-      rpcMessage = Str_Asprintf(NULL, "%s %s", cmd, arg);
-      if (!rpcMessage) {
-         Debug("GuestApp_RpcSendOneUtf8CPName: Error, out of memory\n");
-         goto abort;
-      }
-
-      ret = GuestApp_RpcSendOneCPName(rpcMessage, delimiter,
-                                      cpNameArg, cpNameArgSize);
-      free(rpcMessage);
-   } else {
-      ret = GuestApp_RpcSendOneCPName(cmd, delimiter,
-                                      cpNameArg, cpNameArgSize);
-   }
-
-abort:
-   return ret;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestApp_RpcSendOneCPName --
- *
- *    Wrapper for RpcOut_SendOneRaw. Sends a single RPCI command with
- *    a single string argument. The argument will be CPName encoded and sent
- *    safely over the backdoor.
- *
- *    This is used instead of RpcOut_sendOne because that function uses
- *    Str_Asprintf, which uses FormatMessage.  FormatMessage would interpret
- *    the encoded arg as being in the current locale and corrupts the string
- *    if it is also UTF-8 encoded.  The string will certainly be UTF-8
- *    encoded when this function is invoked by the
- *    GuestApp_RpcSendOneUtf8CPName() wrapper.  This function is used for
- *    commands which pass file paths over the backdoor.
- *
- * Results:
- *    TRUE on success.
- *    FALSE on error.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-GuestApp_RpcSendOneCPName(char const *cmd,  // IN: RPCI command
-                          char delimiter,   // IN: cmd and arg delimiter
-                          char const *arg,  // IN: string to CPName encode
-                          size_t argSize)   // IN: size of arg
-{
-   char cpName[HGFS_PACKET_MAX];
-   int32 cpNameSize;
-   char *rpcMessage;
-   size_t cmdSize;
-   size_t messageSize;
-
-   ASSERT(cmd);
-   ASSERT(arg);
-
-   /*
-    * In addition to converting to CPName, this will also prepend  "root" and
-    * "drive"|"unc" if needed (for Windows).
-    */
-   cpNameSize = CPNameUtil_ConvertToRoot(arg,
-                                         sizeof cpName,
-                                         cpName);
-   if (cpNameSize < 0) {
-      Debug("GuestApp_RpcSendOneCPName: Error, could not convert to CPName.\n");
-      return FALSE;
-   }
-
-   cmdSize = strlen(cmd);
-   messageSize = cmdSize + 1 + cpNameSize + 1;
-   rpcMessage = (char *)malloc(messageSize);
-   if (!rpcMessage) {
-      Debug("GuestApp_RpcSendOneCPName: Error, out of memory\n");
-      return FALSE;
-   }
-
-   Debug("GuestApp_RpcSendOneCPName: cpname=\"%s\", len=%d\n",
-         CPName_Print(cpName, cpNameSize), cpNameSize);
-
-   memcpy(rpcMessage, cmd, cmdSize);
-   rpcMessage[cmdSize] = delimiter;
-   memcpy(&rpcMessage[cmdSize + 1], cpName, cpNameSize + 1);
-
-   Debug("GuestApp_RpcSendOneCPName: about to send rpc message = *%s*, len = %"
-         FMTSZ"u\n", CPName_Print(rpcMessage, messageSize), messageSize);
-
-   if (!RpcOut_SendOneRaw(rpcMessage, messageSize, NULL, NULL)) {
-      Debug("GuestApp_RpcSendOneCPName: Failed to send message to host\n");
-      free(rpcMessage);
-      return FALSE;
-   }
-
-   free(rpcMessage);
-   return TRUE;
-}
-
-#ifdef __cplusplus
-}
-#endif

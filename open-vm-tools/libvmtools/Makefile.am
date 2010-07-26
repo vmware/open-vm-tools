@@ -27,7 +27,6 @@ libvmtools_la_LIBADD += ../lib/err/libErr.la
 libvmtools_la_LIBADD += ../lib/file/libFile.la
 libvmtools_la_LIBADD += ../lib/guestApp/libGuestApp.la
 libvmtools_la_LIBADD += ../lib/guestRpc/libGuestRpc.la
-libvmtools_la_LIBADD += ../lib/hgfs/libHgfs.la
 libvmtools_la_LIBADD += ../lib/message/libMessage.la
 libvmtools_la_LIBADD += ../lib/netUtil/libNetUtil.la
 libvmtools_la_LIBADD += ../lib/panic/libPanic.la
