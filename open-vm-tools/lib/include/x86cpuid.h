@@ -129,7 +129,8 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, B, 0xB)                    \
    CPUIDLEVEL(FALSE, D, 0xD)                    \
    CPUIDLEVEL(FALSE, 86, 0x80000006)		\
-   CPUIDLEVEL(FALSE, 81D, 0x8000001D)
+   CPUIDLEVEL(FALSE, 81D, 0x8000001D)           \
+   CPUIDLEVEL(FALSE, 81E, 0x8000001E)
 
 #define CPUID_ALL_LEVELS                        \
    CPUID_CACHED_LEVELS                          \
@@ -523,6 +524,9 @@ FIELDDEFA( 81D,EAX, AMD,     0,  5, CACHE_TYPE,          NA,  FALSE, AMD_CACHE_T
 FIELDDEFA( 81D,EAX, AMD,     5,  3, CACHE_LEVEL,         NA,  FALSE, AMD_CACHE_LEVEL) \
 FIELDDEFA( 81D,EBX, AMD,    22, 10, CACHE_WAYS,          NA,  FALSE, AMD_CACHE_WAYS)
 
+#define CPUID_FIELD_DATA_LEVEL_81E					       \
+FIELDDEFA( 81E,ECX, AMD,     8,  3, NODES_PER_PKG,       NA,  FALSE, AMD_NODES_PER_PKG)
+
 
 #define CPUID_FIELD_DATA                                              \
    CPUID_FIELD_DATA_LEVEL_0                                           \
@@ -539,7 +543,8 @@ FIELDDEFA( 81D,EBX, AMD,    22, 10, CACHE_WAYS,          NA,  FALSE, AMD_CACHE_W
    CPUID_FIELD_DATA_LEVEL_81                                          \
    CPUID_FIELD_DATA_LEVEL_8x                                          \
    CPUID_FIELD_DATA_LEVEL_8A_BD                                       \
-   CPUID_FIELD_DATA_LEVEL_81D
+   CPUID_FIELD_DATA_LEVEL_81D                                         \
+   CPUID_FIELD_DATA_LEVEL_81E
 
 
 /*
@@ -679,6 +684,7 @@ FIELD_FUNC(TOPOLOGY_X2APIC_ID,          CPUID_INTEL_IDBEDX_X2APIC_ID)
 FIELD_FUNC(AMD_CACHE_TYPE,      CPUID_AMD_ID81DEAX_CACHE_TYPE)
 FIELD_FUNC(AMD_CACHE_LEVEL,     CPUID_AMD_ID81DEAX_CACHE_LEVEL)
 FIELD_FUNC(AMD_CACHE_WAYS,      CPUID_AMD_ID81DEBX_CACHE_WAYS)
+FIELD_FUNC(AMD_NODES_PER_PKG,   CPUID_AMD_ID81EECX_NODES_PER_PKG)
 #undef FIELD_FUNC
 
 

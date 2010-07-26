@@ -1253,7 +1253,16 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
          break;
       }
 
+#if defined(_WIN32)
+      /*
+       * On windows, Posix_Open() fails with EACCES if a directory
+       * already exists with the same name. In such case, we need to
+       * ignore EACCES error and continue trying out.
+       */
+      if ((errno != EEXIST) && (errno != EACCES)) {
+#else
       if (errno != EEXIST) {
+#endif
          err = errno;
          Msg_Append(MSGID(file.maketemp.openFailed)
                  "Failed to create temporary file \"%s\": %s.\n",

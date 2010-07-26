@@ -33,6 +33,14 @@
 #define UUID_STRSIZE (2*UUID_SIZE + 1)
 #define	UUID_MAXLEN 48
 
+typedef enum {
+   UUID_WITH_PATH = 0,
+   UUID_RANDOM,
+   UUID_VPX_BIOS,
+   UUID_VPX_INSTANCE,
+   UUID_UNKNOWN
+} UUIDStyle;
+
 Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE], const char *text);
 char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
 
@@ -45,11 +53,12 @@ char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
 char *UUID_Create(const char *configFileFullPath, int schemeControl);
 
 char *UUID_CreateRandom(void);
-char *UUID_CreateRandomVpxStyle(uint8 vpxdId);
+char *UUID_CreateRandomVpxStyle(uint8 vpxdId, UUIDStyle);
 Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id, int vpxdInstanceId);
 char *UUID_PackText(const char *text, char *pack, int packLen);
 char *UUID_ProperHostUUID(void);
 char *UUID_GetHostUUID(void);
+UUIDStyle UUID_GetStyle(const uint8 *id);
 /* like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
 #endif
