@@ -50,6 +50,7 @@
 #undef Bool
 
 #include "vmware.h"
+#include "vmware/tools/guestrpc.h"
 #include "base64.h"
 #include "rpcin.h"
 #include "dbllnklst.h"
@@ -342,8 +343,7 @@ GHIPlatformIsSupported(void)
  */
 
 GHIPlatform *
-GHIPlatformInit(VMU_ControllerCB *vmuControllerCB,  // IN
-                void *ctx)                          // IN
+GHIPlatformInit(ToolsAppCtx *ctx)                          // IN
 {
    extern const char **environ;
    GHIPlatform *ghip;

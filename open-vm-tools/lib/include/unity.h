@@ -30,11 +30,13 @@
 #include "dbllnklst.h"
 #include "guestApp.h"
 #include "dynbuf.h"
+#include "vmware/tools/plugin.h"
 #include "str.h"
-#include "rpcin.h"
 #ifdef _WIN32
+#include "libExport.hh"
 #include "unityCommon.h"
 #endif
+
 /*
  * In Unity mode, all our DnD detection windows will be ignored and not displayed
  * on host desktop. Right now we have 4 DnD detection window. 2 for DnD version 2
@@ -87,19 +89,19 @@ extern "C" {
 
 void Unity_Init(GuestApp_Dict *conf,
                 int *blockedWnd,
-                DesktopSwitchCallbackManager *desktopSwitchCallbackMgr);
-void Unity_InitBackdoor(struct RpcIn *rpcIn);
+                DesktopSwitchCallbackManager *desktopSwitchCallbackMgr,
+                ToolsAppCtx *ctx);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);
 void Unity_SetActiveDnDDetWnd(UnityDnD *state);
-void Unity_Exit(void);
-void Unity_Cleanup(void);
+void Unity_Exit(ToolsAppCtx *ctx);
+void Unity_Cleanup(ToolsAppCtx *ctx);
 void Unity_RegisterCaps(void);
 void Unity_UnregisterCaps(void);
 void Unity_UnityToLocalPoint(UnityPoint *localPt, UnityPoint *unityPt);
 void Unity_LocalToUnityPoint(UnityPoint *unityPt, UnityPoint *localPt);
 #ifdef _WIN32
-HWND Unity_GetHwndFromUnityId(UnityWindowId id);
+LIB_EXPORT HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif
 
 #ifdef __cplusplus

@@ -49,11 +49,6 @@ Unity_Init(GuestApp_Dict *conf,
 {
 }
 
-void
-Unity_InitBackdoor(struct RpcIn *rpcIn)
-{
-}
-
 Bool
 Unity_IsSupported(void)
 {

@@ -25,6 +25,7 @@
 #ifndef _UNITY_PLATFORM_H_
 #define _UNITY_PLATFORM_H_
 
+#include "rpcout.h"
 #include "unityWindowTracker.h"
 #include "unity.h"
 

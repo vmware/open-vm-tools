@@ -29,21 +29,85 @@
 #include "guestrpc/ghiProtocolHandler.h"
 #include "ghIntegration.h"
 
+#include "vmware/tools/plugin.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "dynbuf.h"
 #include "unityCommon.h"
+#include "rpcin.h"
 
 typedef struct _GHIPlatform GHIPlatform;
+
+/*
+ * RPC Entry points
+ */
+RpcInRet GHITcloGetBinaryInfo(RpcInData *data);
+RpcInRet GHITcloGetBinaryHandlers(RpcInData *data);
+RpcInRet GHITcloGetStartMenuItem(RpcInData *data);
+RpcInRet GHITcloOpenStartMenu(RpcInData *data);
+RpcInRet GHITcloCloseStartMenu(RpcInData *data);
+RpcInRet GHITcloShellOpen(RpcInData *data);
+RpcInRet GHITcloShellAction(RpcInData *data);
+
+RpcInRet GHITcloSetGuestHandler(RpcInData *data);
+RpcInRet GHITcloRestoreDefaultGuestHandler(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.outlook.set.tempFolder" RPC.
+ */
+RpcInRet GHITcloSetOutlookTempFolder(RpcInData* data);
+
+/*
+ * Wrapper function for the "ghi.guest.outlook.restore.tempFolder" RPC.
+ */
+RpcInRet GHITcloRestoreOutlookTempFolder(RpcInData* data);
+
+/*
+ * Wrapper function for the "ghi.guest.trashFolder.action" RPC.
+ */
+RpcInRet GHITcloTrashFolderAction(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.trashFolder.getIcon" RPC.
+ */
+RpcInRet GHITcloTrashFolderGetIcon(RpcInData *data);
+
+RpcInRet GHIUpdateHost(GHIProtocolHandlerList *handlers);
+
+/*
+ * Wrapper function for the "ghi.guest.trayIcon.sendEvent" RPC.
+ */
+RpcInRet GHITcloTrayIconSendEvent(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.trayIcon.startUpdates" RPC.
+ */
+RpcInRet GHITcloTrayIconStartUpdates(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.trayIcon.stopUpdates" RPC.
+ */
+RpcInRet GHITcloTrayIconStopUpdates(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.setFocusedWindow" RPC.
+ */
+RpcInRet GHITcloSetFocusedWindow(RpcInData *data);
+
+/*
+ * Wrapper function for the "ghi.guest.getExecInfoHash" RPC.
+ */
+RpcInRet GHITcloGetExecInfoHash(RpcInData *data);
 
 /*
  * Implemented by ghIntegration[Win32|X11|Cocoa (ha!)].c
  */
 
 Bool GHIPlatformIsSupported(void);
-GHIPlatform *GHIPlatformInit(VMU_ControllerCB *vmuControllerCB, void *ctx);
+GHIPlatform *GHIPlatformInit(ToolsAppCtx *ctx);
 void GHIPlatformCleanup(GHIPlatform *ghip);
 Bool GHIPlatformGetBinaryInfo(GHIPlatform *ghip,
                               const char *pathURIUtf8,

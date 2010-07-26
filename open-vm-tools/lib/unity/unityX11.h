@@ -48,6 +48,7 @@
 #undef Bool
 
 #include "vmware.h"
+#include "vmware/tools/guestrpc.h"
 #include "rpcin.h"
 #include "rpcout.h"
 #include "unity.h"

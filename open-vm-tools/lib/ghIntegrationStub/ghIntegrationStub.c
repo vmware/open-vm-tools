@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,16 +23,10 @@
  */
 
 #include "vmware.h" 
-#include "rpcin.h"
 #include "ghIntegration.h"
 
 void
-GHI_Init(VMU_ControllerCB *vmuControllerCB, void *ctx)
-{
-}
-
-void
-GHI_InitBackdoor(struct RpcIn *rpcIn)
+GHI_Init(void *ctx)
 {
 }
 

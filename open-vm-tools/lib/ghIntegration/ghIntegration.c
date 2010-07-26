@@ -27,6 +27,7 @@
 #include "ghIntegrationInt.h"
 
 #include "vmware.h"
+#include "vmware/tools/guestrpc.h"
 #include "debug.h"
 #include "dynxdr.h"
 #include "guest_msg_def.h"
@@ -45,94 +46,6 @@
 #include "guestrpc/ghiTrayIcon.h"
 #include "vmware/guestrpc/capabilities.h"
 
-
-/*
- * Local functions
- */
-
-static Bool GHITcloGetBinaryInfo(char const **result, size_t *resultLen,
-                                 const char *name, const char *args,
-                                 size_t argsSize, void *clientData);
-static Bool GHITcloGetBinaryHandlers(RpcInData *data);
-static Bool GHITcloGetStartMenuItem(char const **result,
-                                    size_t *resultLen,
-                                    const char *name,
-                                    const char *args,
-                                    size_t argsSize,
-                                    void *clientData);
-static Bool GHITcloOpenStartMenu(char const **result,
-                                 size_t *resultLen,
-                                 const char *name,
-                                 const char *args,
-                                 size_t argsSize,
-                                 void *clientData);
-static Bool GHITcloCloseStartMenu(char const **result,
-                                  size_t *resultLen,
-                                  const char *name,
-                                  const char *args,
-                                  size_t argsSize,
-                                  void *clientData);
-static Bool GHITcloShellOpen(char const **result,
-                             size_t *resultLen,
-                             const char *name,
-                             const char *args,
-                             size_t argsSize,
-                             void *clientData);
-static Bool GHITcloShellAction(char const **result,
-                               size_t *resultLen,
-                               const char *name,
-                               const char *args,
-                               size_t argsSize,
-                               void *clientData);
-static Bool GHITcloSetGuestHandler(RpcInData *data);
-static Bool GHITcloRestoreDefaultGuestHandler(RpcInData *data);
-
-/*
- * Wrapper function for the "ghi.guest.outlook.set.tempFolder" RPC.
- */
-static Bool GHITcloSetOutlookTempFolder(RpcInData* data);
-
-/*
- * Wrapper function for the "ghi.guest.outlook.restore.tempFolder" RPC.
- */
-static Bool GHITcloRestoreOutlookTempFolder(RpcInData* data);
-
-/*
- * Wrapper function for the "ghi.guest.trashFolder.action" RPC.
- */
-static Bool GHITcloTrashFolderAction(RpcInData *data);
-
-/*
- * Wrapper function for the "ghi.guest.trashFolder.getIcon" RPC.
- */
-static Bool GHITcloTrashFolderGetIcon(RpcInData *data);
-
-static Bool GHIUpdateHost(GHIProtocolHandlerList *handlers);
-
-/*
- * Wrapper function for the "ghi.guest.trayIcon.sendEvent" RPC.
- */
-static Bool GHITcloTrayIconSendEvent(RpcInData *data);
-
-/*
- * Wrapper function for the "ghi.guest.trayIcon.startUpdates" RPC.
- */
-static Bool GHITcloTrayIconStartUpdates(RpcInData *data);
-
-/*
- * Wrapper function for the "ghi.guest.trayIcon.stopUpdates" RPC.
- */
-static Bool GHITcloTrayIconStopUpdates(RpcInData *data);
-
-/*
- * Wrapper function for the "ghi.guest.setFocusedWindow" RPC.
- */
-static Bool GHITcloSetFocusedWindow(RpcInData *data);
-
-/*
- * Wrapper function for the "ghi.guest.getExecInfoHash" RPC.
- */
-static Bool GHITcloGetExecInfoHash(RpcInData *data);
 
 DynBuf gTcloUpdate;
 
@@ -230,13 +143,12 @@ GHI_UnregisterCaps(void)
  */
 
 void
-GHI_Init(VMU_ControllerCB *vmuControllerCB, // IN
-         void *ctx)                         // IN
+GHI_Init(void *ctx)                         // IN
 {
    Debug("%s: Enter.\n", __FUNCTION__);
 
    // Call the platform-specific initialization function.
-   ghiPlatformData = GHIPlatformInit(vmuControllerCB, ctx);
+   ghiPlatformData = GHIPlatformInit((ToolsAppCtx*) ctx);
    if (!ghiPlatformData) {
       // TODO: We should report this failure to the caller.
       Debug("%s: GHIPlatformInit returned NULL pointer!\n", __FUNCTION__);
@@ -267,75 +179,6 @@ GHI_Cleanup(void)
 {
    GHIPlatformCleanup(ghiPlatformData);
    ghiPlatformData = NULL;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHI_InitBackdoor --
- *
- *    One time initialization stuff for the backdoor.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-GHI_InitBackdoor(struct RpcIn *rpcIn)   // IN
-{
-   /*
-    * Only register the callback if the guest is capable of supporting GHI.
-    * This way, if the VMX/UI sends us a GHI request on a non-supported platform
-    * (for whatever reason), we will reply with 'command not supported'.
-    */
-
-   if (GHI_IsSupported()) {
-      /* "Old-style callbacks. */
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_BINARY_INFO,
-                             GHITcloGetBinaryInfo, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_OPEN_LAUNCHMENU,
-                             GHITcloOpenStartMenu, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_LAUNCHMENU_ITEM,
-                             GHITcloGetStartMenuItem, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_CLOSE_LAUNCHMENU,
-                             GHITcloCloseStartMenu, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_SHELL_OPEN,
-                             GHITcloShellOpen, NULL);
-      RpcIn_RegisterCallback(rpcIn, GHI_RPC_GUEST_SHELL_ACTION,
-                             GHITcloShellAction, NULL);
-
-      /* "New-style" callbacks. */
-      RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_GET_BINARY_HANDLERS,
-                               GHITcloGetBinaryHandlers, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_SET_GUEST_HANDLER,
-                               GHITcloSetGuestHandler, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_RESTORE_DEFAULT_GUEST_HANDLER,
-                               GHITcloRestoreDefaultGuestHandler, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_OUTLOOK_SET_TEMP_FOLDER,
-                               GHITcloSetOutlookTempFolder, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_OUTLOOK_RESTORE_TEMP_FOLDER,
-                               GHITcloRestoreOutlookTempFolder, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRASH_FOLDER_ACTION,
-                               GHITcloTrashFolderAction, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRASH_FOLDER_GET_ICON,
-                               GHITcloTrashFolderGetIcon, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRAY_ICON_SEND_EVENT,
-                               GHITcloTrayIconSendEvent, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRAY_ICON_START_UPDATES,
-                               GHITcloTrayIconStartUpdates, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_TRAY_ICON_STOP_UPDATES,
-                               GHITcloTrayIconStopUpdates, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_SET_FOCUSED_WINDOW,
-                               GHITcloSetFocusedWindow, NULL);
-      RpcIn_RegisterCallbackEx(rpcIn, GHI_RPC_GET_EXEC_INFO_HASH,
-                               GHITcloGetExecInfoHash, NULL);
-   }
 }
 
 
@@ -429,31 +272,39 @@ GHIX11_FindDesktopUriByExec(const char *exec)
  *----------------------------------------------------------------------------
  */
 
-static Bool
-GHITcloGetBinaryInfo(char const **result,     // OUT
-                     size_t *resultLen,       // OUT
-                     const char *name,        // IN
-                     const char *args,        // IN
-                     size_t argsSize,         // ignored
-                     void *clientData)        // ignored
-
+RpcInRet
+GHITcloGetBinaryInfo(RpcInData *data)        // IN/OUT
 {
    char *binaryPathUtf8;
    DynBuf *buf = &gTcloUpdate;
    unsigned int index = 0;
    Bool ret = TRUE;
 
-   Debug("%s name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Skip the leading space. */
    index++;
 
    /* The binary path provided by the VMX is in UTF8. */
-   binaryPathUtf8 = StrUtil_GetNextToken(&index, args, "");
+   binaryPathUtf8 = StrUtil_GetNextToken(&index, data->args, "");
 
    if (!binaryPathUtf8) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Invalid arguments. Expected \"binary_path\"",
                              FALSE);
       goto exit;
@@ -462,7 +313,7 @@ GHITcloGetBinaryInfo(char const **result,     // OUT
    DynBuf_SetSize(buf, 0);
    if (!GHIPlatformGetBinaryInfo(ghiPlatformData, binaryPathUtf8, buf)) {
       Debug("%s: Could not get binary info.\n", __FUNCTION__);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Could not get binary info",
                              FALSE);
       goto exit;
@@ -471,8 +322,8 @@ GHITcloGetBinaryInfo(char const **result,     // OUT
    /*
     * Write the final result into the result out parameters and return!
     */
-   *result = (char *)DynBuf_Get(buf);
-   *resultLen = DynBuf_GetSize(buf);
+   data->result = (char *)DynBuf_Get(buf);
+   data->resultLen = DynBuf_GetSize(buf);
 
 exit:
    free(binaryPathUtf8);
@@ -498,13 +349,27 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
+RpcInRet
 GHITcloGetBinaryHandlers(RpcInData *data)        // IN/OUT
 {
    char *binaryPathUtf8;
    XDR xdrs;
    unsigned int index = 0;
    Bool ret = TRUE;
+
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
 
    Debug("%s name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
@@ -577,13 +442,8 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-GHITcloOpenStartMenu(char const **result,     // OUT
-                     size_t *resultLen,       // OUT
-                     const char *name,        // IN
-                     const char *args,        // IN
-                     size_t argsSize,         // IN
-                     void *clientData)        // ignored
+RpcInRet
+GHITcloOpenStartMenu(RpcInData *data)        // IN/OUT
 {
    char *rootUtf8 = NULL;
    DynBuf *buf = &gTcloUpdate;
@@ -591,17 +451,31 @@ GHITcloOpenStartMenu(char const **result,     // OUT
    uint32 index = 0;
    Bool ret = TRUE;
 
-   Debug("%s name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Skip the leading space. */
    index++;
 
    /* The start menu root provided by the VMX is in UTF8. */
-   rootUtf8 = StrUtil_GetNextToken(&index, args, "");
+   rootUtf8 = StrUtil_GetNextToken(&index, data->args, "");
 
    if (!rootUtf8) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Invalid arguments. Expected \"root\"",
                              FALSE);
       goto exit;
@@ -612,9 +486,9 @@ GHITcloOpenStartMenu(char const **result,     // OUT
     * the VMX don't send this parameter, so it's not an error if it is not
     * present in the RPC.
     */
-   if (++index < argsSize && sscanf(args + index, "%u", &flags) != 1) {
+   if (++index < data->argsSize && sscanf(data->args + index, "%u", &flags) != 1) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Invalid arguments. Expected flags",
                              FALSE);
       goto exit;
@@ -623,7 +497,7 @@ GHITcloOpenStartMenu(char const **result,     // OUT
    DynBuf_SetSize(buf, 0);
    if (!GHIPlatformOpenStartMenuTree(ghiPlatformData, rootUtf8, flags, buf)) {
       Debug("%s: Could not open start menu.\n", __FUNCTION__);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Could not get start menu count",
                              FALSE);
       goto exit;
@@ -632,8 +506,8 @@ GHITcloOpenStartMenu(char const **result,     // OUT
    /*
     * Write the final result into the result out parameters and return!
     */
-   *result = (char *)DynBuf_Get(buf);
-   *resultLen = DynBuf_GetSize(buf);
+   data->result = (char *)DynBuf_Get(buf);
+   data->resultLen = DynBuf_GetSize(buf);
 
 exit:
    free(rootUtf8);
@@ -661,13 +535,8 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-GHITcloGetStartMenuItem(char const **result,     // OUT
-                        size_t *resultLen,       // OUT
-                        const char *name,        // IN
-                        const char *args,        // IN
-                        size_t argsSize,         // ignored
-                        void *clientData)        // ignored
+RpcInRet
+GHITcloGetStartMenuItem(RpcInData *data)        // IN/OUT
 {
    DynBuf *buf = &gTcloUpdate;
    uint32 index = 0;
@@ -675,20 +544,34 @@ GHITcloGetStartMenuItem(char const **result,     // OUT
    uint32 itemIndex = 0;
    uint32 handle = 0;
 
-   Debug("%s name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Parse the handle of the menu tree that VMX wants. */
-   if (!StrUtil_GetNextUintToken(&handle, &index, args, " ")) {
+   if (!StrUtil_GetNextUintToken(&handle, &index, data->args, " ")) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected handle index",
                               FALSE);
    }
 
    /* The index of the menu item to be send back. */
-   if (!StrUtil_GetNextUintToken(&itemIndex, &index, args, " ")) {
+   if (!StrUtil_GetNextUintToken(&itemIndex, &index, data->args, " ")) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected handle index",
                               FALSE);
    }
@@ -696,7 +579,7 @@ GHITcloGetStartMenuItem(char const **result,     // OUT
    DynBuf_SetSize(buf, 0);
    if (!GHIPlatformGetStartMenuItem(ghiPlatformData, handle, itemIndex, buf)) {
       Debug("%s: Could not get start menu item.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Could not get start menu item",
                               FALSE);
    }
@@ -704,8 +587,8 @@ GHITcloGetStartMenuItem(char const **result,     // OUT
    /*
     * Write the final result into the result out parameters and return!
     */
-   *result = (char *)DynBuf_Get(buf);
-   *resultLen = DynBuf_GetSize(buf);
+   data->result = (char *)DynBuf_Get(buf);
+   data->resultLen = DynBuf_GetSize(buf);
 
    return ret;
 }
@@ -728,30 +611,39 @@ GHITcloGetStartMenuItem(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-GHITcloCloseStartMenu(char const **result,     // OUT
-                      size_t *resultLen,       // OUT
-                      const char *name,        // IN
-                      const char *args,        // IN
-                      size_t argsSize,         // ignored
-                      void *clientData)        // ignored
+RpcInRet
+GHITcloCloseStartMenu(RpcInData *data)        // IN/OUT
 {
    uint32 index = 0;
    int32 handle = 0;
 
-   Debug("%s name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Parse the handle of the menu tree that VMX wants. */
-   if (!StrUtil_GetNextIntToken(&handle, &index, args, " ")) {
+   if (!StrUtil_GetNextIntToken(&handle, &index, data->args, " ")) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected handle",
                               FALSE);
    }
 
    GHIPlatformCloseStartMenuTree(ghiPlatformData, handle);
 
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -775,29 +667,38 @@ GHITcloCloseStartMenu(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-GHITcloShellOpen(char const **result, // OUT
-                 size_t *resultLen,   // OUT
-                 const char *name,    // IN
-                 const char *args,    // IN
-                 size_t argsSize,     // ignored
-                 void *clientData)    // ignored
+RpcInRet
+GHITcloShellOpen(RpcInData *data)    // IN/OUT
 {
    char *fileUtf8 = NULL;
    Bool ret = TRUE;
    unsigned int index = 0;
 
-   Debug("%s: name: '%s', args: '%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name: '%s', args: '%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Skip the leading space. */
    index++;
 
    /* The file path provided by the VMX is in UTF8. */
-   fileUtf8 = StrUtil_GetNextToken(&index, args, "");
+   fileUtf8 = StrUtil_GetNextToken(&index, data->args, "");
 
    if (!fileUtf8) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected file_name",
                               FALSE);
    }
@@ -807,12 +708,12 @@ GHITcloShellOpen(char const **result, // OUT
 
    if (!ret) {
       Debug("%s: Could not perform the requested shell open action.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Could not perform the requested shell open action.",
                               FALSE);
    }
 
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -862,26 +763,35 @@ GHITcloShellOpen(char const **result, // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-GHITcloShellAction(char const **result, // OUT
-                   size_t *resultLen,   // OUT
-                   const char *name,    // IN
-                   const char *args,    // IN
-                   size_t argsSize,     // IN
-                   void *clientData)    // ignored
+RpcInRet
+GHITcloShellAction(RpcInData *data)    // IN/OUT
 {
    Bool ret = TRUE;
    GHIShellAction shellActionMsg;
    GHIShellActionV1 *shellActionV1Ptr;
 
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
    /*
     * Build an XDR Stream from the argument data which beings are args + 1
     * since there is a space separator between the RPC name and the XDR serialization.
     */
-   if (!XdrUtil_Deserialize((char *)args + 1, argsSize - 1,
+   if (!XdrUtil_Deserialize((char *)data->args + 1, data->argsSize - 1,
                             xdr_GHIShellAction, &shellActionMsg)) {
       Debug("%s: Failed to deserialize data\n", __FUNCTION__);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Failed to deserialize data.",
                              FALSE);
       goto exit;
@@ -890,7 +800,7 @@ GHITcloShellAction(char const **result, // OUT
    ASSERT(shellActionMsg.ver == GHI_SHELL_ACTION_V1);
    if (shellActionMsg.ver != GHI_SHELL_ACTION_V1) {
       Debug("%s: Unexpected XDR version = %d\n", __FUNCTION__, shellActionMsg.ver);
-      ret = RpcIn_SetRetVals(result, resultLen,
+      ret = RPCIN_SETRETVALS(data,
                              "Unexpected XDR version.",
                              FALSE);
       goto exit;
@@ -908,12 +818,12 @@ exit:
 
    if (!ret) {
       Debug("%s: Could not perform the requested shell action.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Could not perform the requested shell action.",
                               FALSE);
    }
 
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -935,11 +845,25 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
+RpcInRet
 GHITcloSetGuestHandler(RpcInData *data)        // IN/OUT
 {
    Bool ret = FALSE;
    XDR xdrs;
+
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
 
    Debug("%s name:%s args length: %"FMTSZ"u\n", __FUNCTION__, data->name, data->argsSize);
 
@@ -987,11 +911,25 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
+RpcInRet
 GHITcloRestoreDefaultGuestHandler(RpcInData *data)        // IN/OUT
 {
    Bool ret = FALSE;
    XDR xdrs;
+
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
 
    Debug("%s name:%s args length: %"FMTSZ"u\n", __FUNCTION__, data->name, data->argsSize);
 
@@ -1111,7 +1049,7 @@ GHILaunchMenuChangeRPC(int numFolderKeys,                // IN
  *-----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 GHIUpdateHost(GHIProtocolHandlerList *handlers) // IN: type specific information
 {
    /* +1 for the space separator */
@@ -1168,7 +1106,7 @@ GHIUpdateHost(GHIProtocolHandlerList *handlers) // IN: type specific information
  *----------------------------------------------------------------------------
  */
 
-static Bool
+RpcInRet
 GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
 {
    Bool ret = FALSE;
@@ -1176,14 +1114,18 @@ GHITcloSetOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
 
    Debug("%s: Enter.\n", __FUNCTION__);
 
-   // Check our arguments.
+   /* Check our arguments. */
    ASSERT(data);
-   ASSERT(data->name);
-   ASSERT(data->argsSize > 0);
+   if (!data) {
+      return FALSE;
+   }
 
-   if (!(data && data->name && data->argsSize > 0)) {
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
       Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      goto exit;
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
    }
 
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
@@ -1240,7 +1182,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
+RpcInRet
 GHITcloRestoreOutlookTempFolder(RpcInData *data) // IN/OUT: RPC data
 {
    Bool ret = FALSE;
@@ -1293,7 +1235,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloTrashFolderAction(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1303,12 +1245,16 @@ GHITcloTrashFolderAction(RpcInData *data)
 
    /* Check our arguments. */
    ASSERT(data);
-   ASSERT(data->name);
-   ASSERT(data->argsSize > 0);
+   if (!data) {
+      return FALSE;
+   }
 
-   if (!(data && data->name && data->argsSize > 0)) {
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
       Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      goto exit;
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
    }
 
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
@@ -1430,7 +1376,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloTrashFolderGetIcon(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1505,7 +1451,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloTrayIconSendEvent(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1583,7 +1529,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloTrayIconStartUpdates(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1627,7 +1573,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloTrayIconStopUpdates(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1734,7 +1680,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloSetFocusedWindow(RpcInData *data)
 {
    Bool ret = FALSE;
@@ -1788,7 +1734,7 @@ exit:
  * @retval FALSE The RPC failed.
  */
 
-Bool
+RpcInRet
 GHITcloGetExecInfoHash(RpcInData *data)
 {
    Bool ret = TRUE;

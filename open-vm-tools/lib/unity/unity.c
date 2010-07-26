@@ -38,6 +38,7 @@
  */
 
 #include "vmware.h"
+#include "vmware/tools/guestrpc.h"
 #include "rpcin.h"
 #include "rpcout.h"
 #include "debug.h"
@@ -47,8 +48,11 @@
 #include "unityWindowTracker.h"
 #include "unityCommon.h"
 #include "unity.h"
+#include "unityInt.h"
 #include "unityPlatform.h"
 #include "unityDebug.h"
+#include "vmware/tools/unityevents.h"
+#include "vmware/tools/plugin.h"
 #include "dynxdr.h"
 #include "guestrpc/unity.h"
 #include "guestrpc/unityActive.h"
@@ -56,27 +60,16 @@
 #include "appUtil.h"
 #include "xdrutil.h"
 #include <stdio.h>
-
-
-/*
- * Singleton object for tracking the state of the service.
- */
-typedef struct UnityState {
-   UnityWindowTracker tracker;
-   Bool forceEnable;
-   Bool isEnabled;
-   uint32 currentOptions;                       // Last feature mask received via 'set.options'
-   UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
-   UnityUpdateChannel updateChannel;            // Unity update transmission channel.
-   UnityPlatform *up; // Platform-specific state
-} UnityState;
-
-static UnityState unity;
+#include <glib-object.h>
 
 static GuestCapabilities unityCaps[] = {
    UNITY_CAP_STATUS_UNITY_ACTIVE
 };
 
+/*
+ * Singleton object for tracking the state of the service.
+ */
+UnityState unity;
 
 /*
  * Helper Functions
@@ -84,95 +77,11 @@ static GuestCapabilities unityCaps[] = {
 
 static Bool UnityUpdateState(void);
 static void UnityUpdateCallbackFn(void *param, UnityUpdate *update);
-static Bool UnityTcloGetUpdate(char const **result, size_t *resultLen, const char *name,
-                               const char *args, size_t argsSize, void *clientData);
-static Bool UnityTcloEnter(char const **result, size_t *resultLen, const char *name,
-                           const char *args, size_t argsSize, void *clientData);
-static Bool UnityTcloExit(char const **result, size_t *resultLen, const char *name,
-                          const char *args, size_t argsSize, void *clientData);
-static Bool UnityTcloGetWindowPath(char const **result, size_t *resultLen,
-                                   const char *name, const char *args,
-                                   size_t argsSize, void *clientData);
-static Bool UnityTcloWindowCommand(char const **result,
-                                   size_t *resultLen,
-                                   const char *name,
-                                   const char *args,
-                                   size_t argsSize,
-                                   void *clientData);
-static Bool UnityTcloGetWindowContents(char const **result,
-                                       size_t *resultLen,
-                                       const char *name,
-                                       const char *args,
-                                       size_t argsSize,
-                                       void *clientData);
-static Bool UnityTcloGetIconData(char const **result,
-                                 size_t *resultLen,
-                                 const char *name,
-                                 const char *args,
-                                 size_t argsSize,
-                                 void *clientData);
-static Bool UnityTcloSetDesktopWorkArea(char const **result,
-                                       size_t *resultLen,
-                                       const char *name,
-                                       const char *args,
-                                       size_t argsSize,
-                                       void *clientData);
-static Bool UnityTcloSetTopWindowGroup(char const **result,
-                                       size_t *resultLen,
-                                       const char *name,
-                                       const char *args,
-                                       size_t argsSize,
-                                       void *clientData);
-static Bool UnityTcloShowTaskbar(char const **result,
-                                 size_t *resultLen,
-                                 const char *name,
-                                 const char *args,
-                                 size_t argsSize,
-                                 void *clientData);
-static Bool UnityTcloMoveResizeWindow(char const **result,
-                                      size_t *resultLen,
-                                      const char *name,
-                                      const char *args,
-                                      size_t argsSize,
-                                      void *clientData);
-static Bool UnityTcloSetDesktopConfig(char const **result,
-                                      size_t *resultLen,
-                                      const char *name,
-                                      const char *args,
-                                      size_t argsSize,
-                                      void *clientData);
-static Bool UnityTcloSetDesktopActive(char const **result,
-                                      size_t *resultLen,
-                                      const char *name,
-                                      const char *args,
-                                      size_t argsSize,
-                                      void *clientData);
-static Bool UnityTcloSetWindowDesktop(char const **result,
-                                      size_t *resultLen,
-                                      const char *name,
-                                      const char *args,
-                                      size_t argsSize,
-                                      void *clientData);
-static Bool UnityTcloConfirmOperation(char const **result,
-                                      size_t *resultLen,
-                                      const char *name,
-                                      const char *args,
-                                      size_t argsSize,
-                                      void *clientData);
 
 static void UnitySetAddHiddenWindows(Bool enabled);
 static void UnitySetInterlockMinimizeOperation(Bool enabled);
 static void UnitySetSendWindowContents(Bool enabled);
-
-/*
- * Wrapper function for the "unity.set.options" RPC.
- */
-static Bool UnityTcloSetUnityOptions(RpcInData *data);
-
-/*
- * Wrapper function for the "unity.window.contents.request" RPC.
- */
-static Bool UnityTcloRequestWindowContents(RpcInData *data);
+static void FireEnterUnitySignal(ToolsAppCtx *ctx, gboolean entered);
 
 /* Sends the unity.window.contents.start RPC to the host. */
 Bool UnitySendWindowContentsStart(UnityWindowId window,
@@ -329,15 +238,9 @@ Unity_IsActive(void)
 void
 Unity_Init(GuestApp_Dict *conf,                                    // IN
            int *blockedWnd,                                        // IN
-           DesktopSwitchCallbackManager *desktopSwitchCallbackMgr) // IN
+           DesktopSwitchCallbackManager *desktopSwitchCallbackMgr, // IN
+           ToolsAppCtx *ctx)                                       // IN
 {
-   /*
-    * If no preferred color is in the config file then use a light gray tone,
-    * the value is stored as xBGR.
-    */
-   int desktopColor =  /* red */ 0xdc |
-                       /* green */ 0xdc << 8 |
-                       /* blue */ 0xdc << 16;
    Debug("Unity_Init\n");
 
    /*
@@ -370,26 +273,18 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
     */
    DynBuf_Init(&gTcloUpdate);
 
-   /*
-    * If debugging has been enabled, initialize the debug module.  On Windows,
-    * this will pop up a small HUD window which shows an echo of the current
-    * state of the windowing system.
-    */
-   if (GuestApp_GetDictEntryBool(conf, "unity.debug")) {
-      UnityDebug_Init(&unity.tracker);
-   }
-
-   /*
-    * Check if the user specified the option to always enable unity regardless
-    * of the guest OS type.
-    */
-
-   unity.forceEnable = GuestApp_GetDictEntryBool(conf, "unity.forceEnable");
-   unity.isEnabled = FALSE;
-
-   GuestApp_GetDictEntryInt(conf, "unity.desktop.backgroundColor", &desktopColor);
-   UnityPlatformSetConfigDesktopColor(unity.up, desktopColor);
    unity.virtDesktopArray.desktopCount = 0;
+
+   g_signal_new(UNITY_SIG_ENTER_LEAVE_UNITY,
+                G_OBJECT_TYPE(ctx->serviceObj),
+                (GSignalFlags) 0,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_marshal_VOID__BOOLEAN,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_BOOLEAN);
 }
 
 
@@ -410,7 +305,7 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
  */
 
 void
-Unity_Cleanup(void)
+Unity_Cleanup(ToolsAppCtx *ctx)    // IN
 {
    UnityPlatform *up;
 
@@ -420,7 +315,7 @@ Unity_Cleanup(void)
    /*
     * Exit Unity.
     */
-   Unity_Exit();
+   Unity_Exit(ctx);
 
    /*
     * Do one-time final platform-specific cleanup.
@@ -432,79 +327,6 @@ Unity_Cleanup(void)
    UnityUpdateChannelCleanup(&unity.updateChannel);
    UnityWindowTracker_Cleanup(&unity.tracker);
    DynBuf_Destroy(&gTcloUpdate);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Unity_InitBackdoor  --
- *
- *    One time initialization stuff for the backdoor.
- *
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Unity_InitBackdoor(struct RpcIn *rpcIn)   // IN
-{
-   /*
-    * Only register the callback if the guest is capable of supporting Unity.
-    * This way, if the VMX/UI sends us a Unity request on a non-supported platform
-    * (for whatever reason), we will reply with 'command not supported'.
-    */
-
-   if (Unity_IsSupported()) {
-      UnityCommandElem *elem;
-
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_ENTER, UnityTcloEnter, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_UPDATE_FULL, UnityTcloGetUpdate, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_UPDATE_INCREMENTAL,
-                             UnityTcloGetUpdate, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_WINDOW_PATH,
-                             UnityTcloGetWindowPath, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_SETTOP,
-                             UnityTcloSetTopWindowGroup, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_WINDOW_CONTENTS,
-                             UnityTcloGetWindowContents, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_GET_ICON_DATA,
-                             UnityTcloGetIconData, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_DESKTOP_WORK_AREA_SET,
-                             UnityTcloSetDesktopWorkArea, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_SHOW_TASKBAR, UnityTcloShowTaskbar, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_EXIT, UnityTcloExit, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_MOVE_RESIZE,
-                             UnityTcloMoveResizeWindow, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_DESKTOP_CONFIG_SET,
-                             UnityTcloSetDesktopConfig, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_DESKTOP_ACTIVE_SET,
-                             UnityTcloSetDesktopActive, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_WINDOW_DESKTOP_SET,
-                             UnityTcloSetWindowDesktop, NULL);
-      RpcIn_RegisterCallback(rpcIn, UNITY_RPC_CONFIRM_OPERATION,
-                             UnityTcloConfirmOperation, NULL);
-
-      RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_SET_OPTIONS,
-                               UnityTcloSetUnityOptions, NULL);
-
-      RpcIn_RegisterCallbackEx(rpcIn, UNITY_RPC_WINDOW_CONTENTS_REQUEST,
-                               UnityTcloRequestWindowContents, NULL);
-
-      /*
-       * Handle all of the UnityTcloWindowCommand RPCs at once.
-       */
-      for (elem = unityCommandTable; elem->name != NULL; elem++) {
-         RpcIn_RegisterCallback(rpcIn, elem->name, UnityTcloWindowCommand,
-                                NULL);
-      }
-   }
 }
 
 
@@ -567,7 +389,7 @@ Unity_SetActiveDnDDetWnd(UnityDnD *state)
  */
 
 void
-Unity_Exit(void)
+Unity_Exit(ToolsAppCtx *ctx) // IN
 {
    int featureIndex = 0;
 
@@ -594,6 +416,7 @@ Unity_Exit(void)
       UnityPlatformRestoreSystemSettings(unity.up);
 
       unity.isEnabled = FALSE;
+      FireEnterUnitySignal(ctx, FALSE);
    }
 }
 
@@ -698,14 +521,15 @@ Unity_UnregisterCaps(void)
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloEnter(char const **result,     // OUT
-               size_t *resultLen,       // OUT
-               const char *name,        // IN
-               const char *args,        // IN
-               size_t argsSize,         // ignored
-               void *clientData)        // ignored
+RpcInRet
+UnityTcloEnter(RpcInData *data)         //  IN/OUT
 {
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
    Debug("%s\n", __FUNCTION__);
 
    if (!unity.isEnabled) {
@@ -723,7 +547,7 @@ UnityTcloEnter(char const **result,     // OUT
 
          UnityPlatformKillHelperThreads(unity.up);
          UnityPlatformRestoreSystemSettings(unity.up);
-         return RpcIn_SetRetVals(result, resultLen,
+         return RPCIN_SETRETVALS(data,
                                  "Could not start unity helper threads", FALSE);
       }
 
@@ -739,12 +563,13 @@ UnityTcloEnter(char const **result,     // OUT
        *    catched for Unity DnD.
        */
       UnityPlatformUpdateDnDDetWnd(unity.up, TRUE);
+      FireEnterUnitySignal(data->appCtx, TRUE);
       unity.isEnabled = TRUE;
    }
 
    UnityUpdateState();
 
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -764,20 +589,21 @@ UnityTcloEnter(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloExit(char const **result,     // OUT
-              size_t *resultLen,       // OUT
-              const char *name,        // IN
-              const char *args,        // IN
-              size_t argsSize,         // ignored
-              void *clientData)        // ignored
+RpcInRet
+UnityTcloExit(RpcInData *data)   // IN/OUT
 {
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
    Debug("UnityTcloExit.\n");
 
-   Unity_Exit();
+   Unity_Exit(data->appCtx);
 
    UnityUpdateState();
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -804,14 +630,8 @@ UnityTcloExit(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloGetWindowPath(char const **result,     // OUT
-                       size_t *resultLen,       // OUT
-                       const char *name,        // IN
-                       const char *args,        // IN
-                       size_t argsSize,         // ignored
-                       void *clientData)        // ignored
-
+RpcInRet
+UnityTcloGetWindowPath(RpcInData *data)   // IN/OUT
 {
    UnityWindowId window;
    DynBuf windowPathUtf8;
@@ -820,18 +640,32 @@ UnityTcloGetWindowPath(char const **result,     // OUT
    unsigned int index = 0;
    Bool ret = TRUE;
 
-   Debug("UnityTcloGetWindowPath name:%s args:'%s'\n", name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Parse the command & window id.*/
 
-   if (!StrUtil_GetNextIntToken(&window, &index, args, " ")) {
+   if (!StrUtil_GetNextIntToken(&window, &index, data->args, " ")) {
       Debug("UnityTcloGetWindowInfo: Invalid RPC arguments.\n");
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected \"windowId\"",
                               FALSE);
    }
 
-   Debug("UnityTcloGetWindowInfo: window %d\n", window);
+   Debug("%s: window %d\n", __FUNCTION__, window);
 
    /*
     * Please note that the UnityPlatformGetWindowPath implementations assume that the
@@ -843,8 +677,8 @@ UnityTcloGetWindowPath(char const **result,     // OUT
    DynBuf_Init(&windowPathUtf8);
    DynBuf_Init(&execPathUtf8);
    if (!UnityPlatformGetWindowPath(unity.up, window, &windowPathUtf8, &execPathUtf8)) {
-      Debug("UnityTcloGetWindowInfo: Could not get window path.\n");
-      ret = RpcIn_SetRetVals(result, resultLen,
+      Debug("%s: Could not get window path.\n", __FUNCTION__);
+      ret = RPCIN_SETRETVALS(data,
                              "Could not get window path",
                              FALSE);
       goto exit;
@@ -860,8 +694,8 @@ UnityTcloGetWindowPath(char const **result,     // OUT
    /*
     * Write the final result into the result out parameters and return!
     */
-   *result = (char *)DynBuf_Get(&gTcloUpdate);
-   *resultLen = DynBuf_GetSize(&gTcloUpdate);
+   data->result = (char *)DynBuf_Get(&gTcloUpdate);
+   data->resultLen = DynBuf_GetSize(&gTcloUpdate);
 
 exit:
    DynBuf_Destroy(&windowPathUtf8);
@@ -887,46 +721,55 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloWindowCommand(char const **result,     // OUT
-                       size_t *resultLen,       // OUT
-                       const char *name,        // IN
-                       const char *args,        // IN
-                       size_t argsSize,         // ignored
-                       void *clientData)        // ignored
+RpcInRet
+UnityTcloWindowCommand(RpcInData *data)   // IN/OUT
 {
    UnityWindowId window;
    unsigned int index = 0;
    unsigned int i;
 
-   Debug("UnityTcloWindowCommand: name:%s args:'%s'\n", name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("UnityTcloWindowCommand: name:%s args:'%s'\n", data->name, data->args);
 
    /* Parse the command & window id.*/
 
-   if (!StrUtil_GetNextIntToken(&window, &index, args, " ")) {
-      Debug("UnityTcloWindowCommand: Invalid RPC arguments.\n");
-      return RpcIn_SetRetVals(result, resultLen,
+   if (!StrUtil_GetNextIntToken(&window, &index, data->args, " ")) {
+      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected \"windowId\"",
                               FALSE);
 
    }
 
-   Debug("UnityTcloWindowCommand: %s window %d\n", name, window);
+   Debug("%s: %s window %d\n", __FUNCTION__, data->name, window);
 
    for (i = 0; unityCommandTable[i].name != NULL; i++) {
-      if (strcmp(unityCommandTable[i].name, name) == 0) {
+      if (strcmp(unityCommandTable[i].name, data->name) == 0) {
          if (!unityCommandTable[i].exec(unity.up, window)) {
-            Debug("Unity window command failed.\n");
-            return RpcIn_SetRetVals(result, resultLen,
+            Debug("%s: Unity window command failed.\n", __FUNCTION__);
+            return RPCIN_SETRETVALS(data,
                                    "Could not execute window command",
                                    FALSE);
          } else {
-            return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+            return RPCIN_SETRETVALS(data, "", TRUE);
          }
       }
    }
 
-   return RpcIn_SetRetVals(result, resultLen, "Bad command", FALSE);
+   return RPCIN_SETRETVALS(data, "Bad command", FALSE);
 }
 
 
@@ -947,18 +790,27 @@ UnityTcloWindowCommand(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloSetDesktopWorkArea(char const **result,  // IN
-                            size_t *resultLen,    // IN
-                            const char *name,     // IN
-                            const char *args,     // IN
-                            size_t argsSize,      // IN
-                            void *clientData)     // IN
+RpcInRet
+UnityTcloSetDesktopWorkArea(RpcInData *data)    // IN/OUT
 {
    Bool success = FALSE;
    unsigned int count;
    unsigned int i;
    UnityRect *workAreas = NULL;
+
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
 
    /*
     * The argument string will look something like:
@@ -968,34 +820,36 @@ UnityTcloSetDesktopWorkArea(char const **result,  // IN
     *    3 , 0 0 640 480 , 640 0 800 600 , 0 480 640 480
     */
 
-   if (sscanf(args, "%u", &count) != 1) {
-      return RpcIn_SetRetVals(result, resultLen,
+   if (sscanf(data->args, "%u", &count) != 1) {
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected \"count\"",
                               FALSE);
    }
 
-   workAreas = (UnityRect *)malloc(sizeof *workAreas * count);
-   if (!workAreas) {
-      RpcIn_SetRetVals(result, resultLen,
-                       "Failed to alloc buffer for work areas",
-                       FALSE);
-      goto out;
+   if (count != 0) {
+      workAreas = (UnityRect *)malloc(sizeof *workAreas * count);
+      if (!workAreas) {
+         RPCIN_SETRETVALS(data,
+                          "Failed to alloc buffer for work areas",
+                          FALSE);
+         goto out;
+      }
    }
 
    for (i = 0; i < count; i++) {
-      args = strchr(args, ',');
-      if (!args) {
-         RpcIn_SetRetVals(result, resultLen,
+      char *argList = strchr(data->args, ',');
+      if (!argList) {
+         RPCIN_SETRETVALS(data,
                           "Expected comma separated display list",
                           FALSE);
          goto out;
       }
-      args++; /* Skip past the , */
+      argList++; /* Skip past the , */
 
-      if (sscanf(args, " %d %d %d %d ",
+      if (sscanf(argList, " %d %d %d %d ",
                  &workAreas[i].x, &workAreas[i].y,
                  &workAreas[i].width, &workAreas[i].height) != 4) {
-         RpcIn_SetRetVals(result, resultLen,
+         RPCIN_SETRETVALS(data,
                           "Expected x, y, w, h in display entry",
                           FALSE);
          goto out;
@@ -1003,19 +857,19 @@ UnityTcloSetDesktopWorkArea(char const **result,  // IN
 
       if (workAreas[i].x < 0 || workAreas[i].y < 0 ||
           workAreas[i].width <= 0 || workAreas[i].height <= 0) {
-         RpcIn_SetRetVals(result, resultLen, "Invalid argument", FALSE);
+         RPCIN_SETRETVALS(data, "Invalid argument", FALSE);
          goto out;
       }
    }
 
    if (!UnityPlatformSetDesktopWorkAreas(unity.up, workAreas, count)) {
-      RpcIn_SetRetVals(result, resultLen,
+      RPCIN_SETRETVALS(data,
                        "UnityPlatformSetDesktopWorkAreas failed",
                        FALSE);
       goto out;
    }
 
-   success = RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   success = RPCIN_SETRETVALS(data, "", TRUE);
 
 out:
    free(workAreas);
@@ -1040,29 +894,38 @@ out:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloSetTopWindowGroup(char const **result,     // OUT
-                           size_t *resultLen,       // OUT
-                           const char *name,        // IN
-                           const char *args,        // IN
-                           size_t argsSize,         // ignored
-                           void *clientData)        // ignored
+RpcInRet
+UnityTcloSetTopWindowGroup(RpcInData *data)  // IN/OUT
 {
    UnityWindowId window;
    unsigned int index = 0;
    unsigned int windowCount = 0;
    UnityWindowId windows[UNITY_MAX_SETTOP_WINDOW_COUNT];
 
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /* Parse the command & window ids.*/
 
-   while (StrUtil_GetNextUintToken(&window, &index, args, " ")) {
+   while (StrUtil_GetNextUintToken(&window, &index, data->args, " ")) {
       windows[windowCount] = window;
       windowCount++;
       if (windowCount == UNITY_MAX_SETTOP_WINDOW_COUNT) {
          Debug("%s: Too many windows.\n", __FUNCTION__);
-         return RpcIn_SetRetVals(result, resultLen,
+         return RPCIN_SETRETVALS(data,
                                  "Invalid arguments. Too many windows",
                                  FALSE);
       }
@@ -1070,18 +933,18 @@ UnityTcloSetTopWindowGroup(char const **result,     // OUT
 
    if (windowCount == 0) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments. Expected at least one windowId",
                               FALSE);
    }
 
    if (!UnityPlatformSetTopWindowGroup(unity.up, windows, windowCount)) {
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Could not execute window command",
                               FALSE);
    }
 
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -1104,23 +967,32 @@ UnityTcloSetTopWindowGroup(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloGetUpdate(char const **result,     // OUT
-                   size_t *resultLen,       // OUT
-                   const char *name,        // IN
-                   const char *args,        // IN
-                   size_t argsSize,         // ignored
-                   void *clientData)        // ignored
+RpcInRet
+UnityTcloGetUpdate(RpcInData *data)    // IN/OUT
 {
    Bool incremental = FALSE;
 
-   Debug("UnityTcloGetUpdate name:%s args:'%s'", name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'", __FUNCTION__, data->name, data->args);
 
    /*
     * Specify incremental or non-incremetal updates based on whether or
     * not the client set the "incremental" arg.
     */
-   if (strstr(name, "incremental")) {
+   if (strstr(data->name, "incremental")) {
       incremental = TRUE;
    }
 
@@ -1134,8 +1006,8 @@ UnityTcloGetUpdate(char const **result,     // OUT
    /*
     * To maintain compatibility, we'll return a successful but empty response.
     */
-   *result = "";
-   *resultLen = 0;
+   data->result = "";
+   data->resultLen = 0;
 
    /*
     * Give the debugger a crack to do something interesting at this point
@@ -1166,27 +1038,37 @@ UnityTcloGetUpdate(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloConfirmOperation(char const **result,     // OUT
-                          size_t *resultLen,       // OUT
-                          const char *name,        // IN
-                          const char *args,        // IN
-                          size_t argsSize,         // IN
-                          void *clientData)        // ignored
+RpcInRet
+UnityTcloConfirmOperation(RpcInData *data)   // IN/OUT
 {
    UnityConfirmOperation unityConfirmOpMsg = {0};
    UnityConfirmOperationV1 *confirmV1 = NULL;
    Bool retVal = FALSE;
    unsigned int ret;
+
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
    Debug("%s: Enter.\n", __FUNCTION__);
 
    /*
     * Deserialize the XDR data. Note that the data begins with args + 1 since
     * there is a space between the RPC name and the XDR serialization.
     */
-   if (!XdrUtil_Deserialize((char *)args + 1, argsSize - 1,
+   if (!XdrUtil_Deserialize(data->args + 1, data->argsSize - 1,
                             xdr_UnityConfirmOperation, &unityConfirmOpMsg)) {
-      ret = RpcIn_SetRetVals(result, resultLen, "Failed to deserialize data", FALSE);
+      ret = RPCIN_SETRETVALS(data, "Failed to deserialize data", FALSE);
       goto exit;
    }
 
@@ -1202,7 +1084,7 @@ UnityTcloConfirmOperation(char const **result,     // OUT
    }
    /* Free any memory allocated by XDR - we're done with unityConfirmOpMsg */
    VMX_XDR_FREE(xdr_UnityConfirmOperation, &unityConfirmOpMsg);
-   ret = RpcIn_SetRetVals(result, resultLen, "", retVal);
+   ret = RPCIN_SETRETVALS(data, "", retVal);
 
 exit:
    Debug("%s: Exit.\n", __FUNCTION__);
@@ -1654,13 +1536,8 @@ retry_send:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloGetWindowContents(char const **result,     // OUT
-                           size_t *resultLen,       // OUT
-                           const char *name,        // IN
-                           const char *args,        // IN
-                           size_t argsSize,         // ignored
-                           void *clientData)        // ignored
+RpcInRet
+UnityTcloGetWindowContents(RpcInData *data)     // IN/OUT
 {
    unsigned int window;
    unsigned int index = 0;
@@ -1668,19 +1545,33 @@ UnityTcloGetWindowContents(char const **result,     // OUT
    uint32 width;
    uint32 height;
 
-   Debug("UnityTcloGetWindowContents: name:%s args:'%s'\n", name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /*
     * Parse the command & window id.
     */
-   if (!StrUtil_GetNextIntToken(&window, &index, args, " ")) {
-      Debug("UnityTcloGetWindowContents: Invalid RPC arguments.\n");
-      return RpcIn_SetRetVals(result, resultLen,
+   if (!StrUtil_GetNextIntToken(&window, &index, data->args, " ")) {
+      Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data,
                               "failed: arguments. Expected \"windowId\"",
                               FALSE);
 
    }
-   Debug("UnityTcloGetWindowContents: window %d\n", window);
+   Debug("%s: window %d\n", __FUNCTION__, window);
 
    /*
     * Read the contents of the window, compress it as a .png and
@@ -1688,13 +1579,13 @@ UnityTcloGetWindowContents(char const **result,     // OUT
     */
    DynBuf_SetSize(imageData, 0);
    if (!UnityPlatformGetWindowContents(unity.up, window, imageData, &width, &height)) {
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "failed: Could not read window contents",
                               FALSE);
    }
 
-   *result = (char *)DynBuf_Get(imageData);
-   *resultLen = DynBuf_GetSize(imageData);
+   data->result = (char *)DynBuf_Get(imageData);
+   data->resultLen = DynBuf_GetSize(imageData);
 
    return TRUE;
 }
@@ -1718,13 +1609,8 @@ UnityTcloGetWindowContents(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloGetIconData(char const **result,     // OUT
-                     size_t *resultLen,       // OUT
-                     const char *name,        // IN
-                     const char *args,        // IN
-                     size_t argsSize,         // ignored
-                     void *clientData)        // ignored
+RpcInRet
+UnityTcloGetIconData(RpcInData *data)  // IN/OUT
 {
    UnityWindowId window;
    UnityIconType iconType;
@@ -1733,14 +1619,28 @@ UnityTcloGetIconData(char const **result,     // OUT
    uint32 fullLength;
    size_t retLength;
    DynBuf *results = &gTcloUpdate, imageData;
-   char data[1024];
+   char bitmapData[1024];
 
-   Debug("UnityTcloGetIconData: name:%s args:'%s'\n", name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    /*
     * Parse the arguments.
     */
-   if ((sscanf(args, "%u %u %u %u %u",
+   if ((sscanf(data->args, "%u %u %u %u %u",
                &window,
                &iconType,
                &iconSize,
@@ -1748,7 +1648,7 @@ UnityTcloGetIconData(char const **result,     // OUT
                &dataLength) != 5)
        || (dataLength > UNITY_MAX_ICON_DATA_CHUNK)) {
       Debug("UnityTcloGetIconData: Invalid RPC arguments.\n");
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "failed: arguments missing",
                               FALSE);
    }
@@ -1764,7 +1664,7 @@ UnityTcloGetIconData(char const **result,     // OUT
    DynBuf_Init(&imageData);
    if (!UnityPlatformGetIconData(unity.up, window, iconType, iconSize,
                                  dataOffset, dataLength, &imageData, &fullLength)) {
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "failed: Could not read icon data properly",
                               FALSE);
    }
@@ -1773,16 +1673,18 @@ UnityTcloGetIconData(char const **result,     // OUT
    DynBuf_SetSize(results, 0);
    retLength = DynBuf_GetSize(&imageData);
    retLength = MIN(retLength, UNITY_MAX_ICON_DATA_CHUNK);
-   DynBuf_Append(results, data, Str_Snprintf(data, sizeof data, "%u %" FMTSZ "u ",
-                                             fullLength, retLength));
+   DynBuf_Append(results, bitmapData, Str_Snprintf(bitmapData,
+                                                   sizeof bitmapData,
+                                                   "%u %" FMTSZ "u ",
+                                                   fullLength, retLength));
    DynBuf_Append(results, DynBuf_Get(&imageData), retLength);
 
    /*
     * Guarantee that the results have a trailing \0 in case anything does a strlen...
     */
    DynBuf_AppendString(results, "");
-   *result = (char *)DynBuf_Get(results);
-   *resultLen = DynBuf_GetSize(results);
+   data->result = (char *)DynBuf_Get(results);
+   data->resultLen = DynBuf_GetSize(results);
    DynBuf_Destroy(&imageData);
 
    return TRUE;
@@ -1806,22 +1708,31 @@ UnityTcloGetIconData(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloShowTaskbar(char const **result,     // OUT
-                     size_t *resultLen,       // OUT
-                     const char *name,        // IN
-                     const char *args,        // IN
-                     size_t argsSize,         // IN: Size of args
-                     void *clientData)        // ignored
+RpcInRet
+UnityTcloShowTaskbar(RpcInData *data)     // IN/OUT
 {
    uint32 command = 0;
    unsigned int index = 0;
 
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
 
-   if (!StrUtil_GetNextUintToken(&command, &index, args, " ")) {
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
+
+   if (!StrUtil_GetNextUintToken(&command, &index, data->args, " ")) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments.",
                               FALSE);
    }
@@ -1830,7 +1741,7 @@ UnityTcloShowTaskbar(char const **result,     // OUT
 
    UnityPlatformShowTaskbar(unity.up, (command == 0) ? FALSE : TRUE);
 
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -1852,36 +1763,45 @@ UnityTcloShowTaskbar(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloMoveResizeWindow(char const **result,     // OUT
-                          size_t *resultLen,       // OUT
-                          const char *name,        // IN
-                          const char *args,        // IN
-                          size_t argsSize,         // IN: Size of args
-                          void *clientData)        // ignored
+RpcInRet
+UnityTcloMoveResizeWindow(RpcInData *data)      // IN/OUT
 {
    DynBuf *buf = &gTcloUpdate;
    UnityWindowId window;
    UnityRect moveResizeRect = {0};
    char temp[1024];
 
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
 
-   if (sscanf(args, "%u %d %d %d %d",
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
+
+   if (sscanf(data->args, "%u %d %d %d %d",
               &window,
               &moveResizeRect.x,
               &moveResizeRect.y,
               &moveResizeRect.width,
               &moveResizeRect.height) != 5) {
       Debug("%s: Invalid RPC arguments.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Invalid arguments.",
                               FALSE);
    }
 
    if (!UnityPlatformMoveResizeWindow(unity.up, window, &moveResizeRect)) {
       Debug("%s: Could not read window coordinates.\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen,
+      return RPCIN_SETRETVALS(data,
                               "Could not read window coordinates",
                               FALSE);
    }
@@ -1899,8 +1819,8 @@ UnityTcloMoveResizeWindow(char const **result,     // OUT
     * Write the final result into the result out parameters and return!
     */
 
-   *result = (char *)DynBuf_Get(buf);
-   *resultLen = DynBuf_GetSize(buf);
+   data->result = (char *)DynBuf_Get(buf);
+   data->resultLen = DynBuf_GetSize(buf);
 
    return TRUE;
 }
@@ -1926,29 +1846,38 @@ UnityTcloMoveResizeWindow(char const **result,     // OUT
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloSetDesktopConfig(char const **result,  // OUT
-                          size_t *resultLen,    // OUT
-                          const char *name,     // IN
-                          const char *args,     // IN
-                          size_t argsSize,      // IN
-                          void *clientData)     // IN: ignored
+RpcInRet
+UnityTcloSetDesktopConfig(RpcInData *data)      // IN/OUT
 {
    unsigned int index = 0;
    char *desktopStr = NULL;
    char *errorMsg;
    uint32 initialDesktopIndex = 0;
 
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
 
-   if (argsSize == 0) {
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
+
+   if (data->argsSize == 0) {
       errorMsg = "Invalid arguments: desktop config is expected";
       goto error;
    }
 
    unity.virtDesktopArray.desktopCount = 0;
    /* Read the virtual desktop configuration. */
-   while ((desktopStr = StrUtil_GetNextToken(&index, args, " ")) != NULL) {
+   while ((desktopStr = StrUtil_GetNextToken(&index, data->args, " ")) != NULL) {
       UnityVirtualDesktop desktop;
       uint32 desktopCount = unity.virtDesktopArray.desktopCount;
 
@@ -1989,7 +1918,7 @@ UnityTcloSetDesktopConfig(char const **result,  // OUT
       goto error;
    }
 
-   return RpcIn_SetRetVals(result, resultLen,
+   return RPCIN_SETRETVALS(data,
                            "",
                            TRUE);
 error:
@@ -1997,7 +1926,7 @@ error:
    unity.virtDesktopArray.desktopCount = 0;
    Debug("%s: %s\n", __FUNCTION__, errorMsg);
 
-   return RpcIn_SetRetVals(result, resultLen,
+   return RPCIN_SETRETVALS(data,
                            errorMsg,
                            FALSE);
 }
@@ -2020,25 +1949,34 @@ error:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloSetDesktopActive(char const **result,  // OUT
-                          size_t *resultLen,    // OUT
-                          const char *name,     // IN
-                          const char *args,     // IN
-                          size_t argsSize,      // IN
-                          void *clientData)     // IN: ignored
+RpcInRet
+UnityTcloSetDesktopActive(RpcInData *data)      // IN/OUT
 {
    UnityDesktopId desktopId = 0;
    char *errorMsg;
 
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    if (unity.isEnabled == FALSE) {
       errorMsg = "Unity not enabled - cannot change active desktop";
       goto error;
    }
 
-   if (sscanf(args, " %d", &desktopId) != 1) {
+   if (sscanf(data->args, " %d", &desktopId) != 1) {
       errorMsg = "Invalid arguments: expected \"desktopId\"";
       goto error;
    }
@@ -2057,12 +1995,12 @@ UnityTcloSetDesktopActive(char const **result,  // OUT
       goto error;
    }
 
-   return RpcIn_SetRetVals(result, resultLen,
+   return RPCIN_SETRETVALS(data,
                            "",
                            TRUE);
 error:
    Debug("%s: %s\n", __FUNCTION__, errorMsg);
-   return RpcIn_SetRetVals(result, resultLen,
+   return RPCIN_SETRETVALS(data,
                            errorMsg,
                            FALSE);
 }
@@ -2085,26 +2023,35 @@ error:
  *----------------------------------------------------------------------------
  */
 
-static Bool
-UnityTcloSetWindowDesktop(char const **result,  // OUT
-                          size_t *resultLen,    // OUT
-                          const char *name,     // IN
-                          const char *args,     // IN
-                          size_t argsSize,      // IN
-                          void *clientData)     // IN: ignored
+RpcInRet
+UnityTcloSetWindowDesktop(RpcInData *data)   // IN/OUT
 {
    UnityWindowId windowId;
    uint32 desktopId = 0;
    char *errorMsg;
 
-   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, name, args);
+   /* Check our arguments. */
+   ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
+   ASSERT(data->name);
+   ASSERT(data->args);
+
+   if (!data->name || !data->args) {
+      Debug("%s: Invalid arguments.\n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
+   }
+
+   Debug("%s: name:%s args:'%s'\n", __FUNCTION__, data->name, data->args);
 
    if (unity.isEnabled == FALSE) {
       errorMsg = "Unity not enabled - cannot set window desktop";
       goto error;
    }
 
-   if (sscanf(args, " %u %d", &windowId, &desktopId) != 2) {
+   if (sscanf(data->args, " %u %d", &windowId, &desktopId) != 2) {
       errorMsg = "Invalid arguments: expected \"windowId desktopId\"";
       goto error;
    }
@@ -2134,12 +2081,12 @@ UnityTcloSetWindowDesktop(char const **result,  // OUT
       goto error;
    }
 
-   return RpcIn_SetRetVals(result, resultLen,
+   return RPCIN_SETRETVALS(data,
                            "",
                            TRUE);
 error:
    Debug("%s: %s\n", __FUNCTION__, errorMsg);
-   return RpcIn_SetRetVals(result, resultLen,
+   return RPCIN_SETRETVALS(data,
                            errorMsg,
                            FALSE);
 }
@@ -2162,7 +2109,7 @@ error:
  *----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 UnityTcloSetUnityOptions(RpcInData *data)
 {
    Bool ret = TRUE;
@@ -2174,13 +2121,16 @@ UnityTcloSetUnityOptions(RpcInData *data)
 
    /* Check our arguments. */
    ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
    ASSERT(data->name);
    ASSERT(data->args);
 
-   if (!(data && data->name && data->args)) {
+   if (!data->name || !data->args) {
       Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      ret = RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-      goto exit;
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
    }
 
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
@@ -2242,7 +2192,7 @@ exit:
  *----------------------------------------------------------------------------
  */
 
-Bool
+RpcInRet
 UnityTcloRequestWindowContents(RpcInData *data)    // IN
 {
    Bool ret = TRUE;
@@ -2252,13 +2202,16 @@ UnityTcloRequestWindowContents(RpcInData *data)    // IN
 
    /* Check our arguments. */
    ASSERT(data);
+   if (!data) {
+      return FALSE;
+   }
+
    ASSERT(data->name);
    ASSERT(data->args);
 
-   if (!(data && data->name && data->args)) {
+   if (!data->name || !data->args) {
       Debug("%s: Invalid arguments.\n", __FUNCTION__);
-      ret = RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
-      goto exit;
+      return RPCIN_SETRETVALS(data, "Invalid arguments.", FALSE);
    }
 
    Debug("%s: Got RPC, name: \"%s\", argument length: %"FMTSZ"u.\n",
@@ -2887,3 +2840,22 @@ exit:
    Debug("%s: Exit.\n", __FUNCTION__);
    return ret;
 }
+
+
+/**
+ * Fire signal to broadcast when unity is entered and exited.
+ *
+ * @param[in] ctx tools application context
+ * @param[in] enter if TRUE, unity was entered. If FALSE, unity has exited.
+ */
+
+static void
+FireEnterUnitySignal(ToolsAppCtx *ctx,
+                     gboolean enter)
+{
+   Debug("%s: enter. enter argument is set to %s\n", __FUNCTION__, enter ? "true" : "false");
+   g_signal_emit_by_name(ctx->serviceObj,
+                         UNITY_SIG_ENTER_LEAVE_UNITY,
+                         enter);
+}
+
