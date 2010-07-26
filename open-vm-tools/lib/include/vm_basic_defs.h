@@ -590,6 +590,14 @@ typedef int pid_t;
 #define LINUX_ONLY(x)
 #endif
 
+#ifdef __APPLE__
+#define vmx86_apple 1
+#define APPLE_ONLY(x) x
+#else
+#define vmx86_apple 0
+#define APPLE_ONLY(x) 
+#endif
+
 #ifdef VMM
 #define VMM_ONLY(x) x
 #define USER_ONLY(x)
