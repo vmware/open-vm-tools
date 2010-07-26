@@ -176,7 +176,7 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
 
    req = HgfsGetNewRequest();
    if (!req) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: out of memory while "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: out of memory while "
               "getting new request\n"));
       result = -ENOMEM;
       goto out;
@@ -200,14 +200,14 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       req->dataPacket = kmalloc(numEntries * sizeof req->dataPacket[0],
                                 GFP_KERNEL);
       if (!req->dataPacket) {
-         LOG(4, (KERN_DEBUG "%s: Failed to allocate mem\n", __func__));
+         LOG(4, (KERN_WARNING "%s: Failed to allocate mem\n", __func__));
          result = -ENOMEM;
          goto out;
       }
       memcpy(req->dataPacket, dataPacket, numEntries * sizeof req->dataPacket[0]);
       req->numEntries = numEntries;
 
-      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Read V4\n"));
+      LOG(4, (KERN_WARNING "VMware hgfs: Fast Read V4\n"));
    } else if (opUsed == HGFS_OP_READ_V3) {
       HgfsRequest *header;
       HgfsRequestReadV3 *request;
@@ -219,9 +219,11 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       request = (HgfsRequestReadV3 *)(HGFS_REQ_PAYLOAD_V3(req));
       request->file = handle;
       request->offset = offset;
-      request->requiredSize = count;
+      request->requiredSize = MIN(req->bufferSize - sizeof *request -
+                                  sizeof *header, count);
       request->reserved = 0;
       req->dataPacket = NULL;
+      req->numEntries = 0;
       req->payloadSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
    } else {
       HgfsRequestRead *request;
@@ -231,8 +233,9 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
       request->header.op = opUsed;
       request->file = handle;
       request->offset = offset;
-      request->requiredSize = count;
+      request->requiredSize = MIN(req->bufferSize - sizeof *request, count);
       req->dataPacket = NULL;
+      req->numEntries = 0;
       req->payloadSize = sizeof *request;
    }
 
@@ -257,14 +260,14 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
 
          /* Sanity check on read size. */
          if (actualSize > count) {
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: read too big!\n"));
+            LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: read too big!\n"));
             result = -EPROTO;
             goto out;
          }
 
          if (!actualSize) {
             /* We got no bytes. */
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: server returned "
+            LOG(6, (KERN_WARNING "VMware hgfs: HgfsDoRead: server returned "
                    "zero\n"));
             result = actualSize;
             goto out;
@@ -275,24 +278,28 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
             buf = kmap(dataPacket[0].page) + dataPacket[0].offset;
             ASSERT(buf);
             memcpy(buf, payload, actualSize);
-            LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoRead: copied %u\n",
+            LOG(6, (KERN_WARNING "VMware hgfs: HgfsDoRead: copied %u\n",
                     actualSize));
             kunmap(dataPacket[0].page);
          }
          result = actualSize;
-	 break;
+	      break;
 
       case -EPROTO:
          /* Retry with older version(s). Set globally. */
          switch (opUsed) {
          case HGFS_OP_READ_FAST_V4:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Fast Read V4 not "
+            LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: Fast Read V4 not "
                     "supported. Falling back to V3 Read.\n"));
+            if (req->dataPacket) {
+               kfree(req->dataPacket);
+               req->dataPacket = NULL;
+            }
             hgfsVersionRead = HGFS_OP_READ_V3;
             goto retry;
 
          case HGFS_OP_READ_V3:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: Version 3 not "
+            LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: Version 3 not "
                     "supported. Falling back to version 1.\n"));
             hgfsVersionRead = HGFS_OP_READ;
             goto retry;
@@ -300,18 +307,18 @@ HgfsDoRead(HgfsHandle handle,             // IN:  Handle for this file
          default:
             break;
          }
-	 break;
+	      break;
 
       default:
          break;
       }
    } else if (result == -EIO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: timed out\n"));
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: timed out\n"));
    } else if (result == -EPROTO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: server "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: server "
               "returned error: %d\n", result));
    } else {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoRead: unknown error: "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoRead: unknown error: "
               "%d\n", result));
    }
 
@@ -372,7 +379,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
 
    req = HgfsGetNewRequest();
    if (!req) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: out of memory while "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: out of memory while "
               "getting new request\n"));
       result = -ENOMEM;
       goto out;
@@ -400,7 +407,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       req->dataPacket = kmalloc(numEntries * sizeof req->dataPacket[0],
                                 GFP_KERNEL);
       if (!req->dataPacket) {
-         LOG(4, (KERN_DEBUG "%s: Failed to allocate mem\n", __func__));
+         LOG(4, (KERN_WARNING "%s: Failed to allocate mem\n", __func__));
          result = -ENOMEM;
          goto out;
       }
@@ -408,7 +415,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       req->numEntries = numEntries;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
       req->payloadSize = reqSize;
-      LOG(4, (KERN_DEBUG "VMware hgfs: Fast Write V4\n"));
+      LOG(4, (KERN_WARNING "VMware hgfs: Fast Write V4\n"));
    } else if (opUsed == HGFS_OP_WRITE_V3) {
       HgfsRequest *header;
       HgfsRequestWriteV3 *request;
@@ -421,12 +428,15 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       request->file = handle;
       request->flags = 0;
       request->offset = offset;
-      request->requiredSize = count;
+      request->requiredSize = MIN(req->bufferSize - sizeof *header -
+                                  sizeof *request, count);
+      LOG(4, (KERN_WARNING "VMware hgfs: Using write V3\n"));
       request->reserved = 0;
       payload = request->payload;
       requiredSize = request->requiredSize;
       reqSize = HGFS_REQ_PAYLOAD_SIZE_V3(request);
       req->dataPacket = NULL;
+      req->numEntries = 0;
       buf = kmap(dataPacket[0].page) + dataPacket[0].offset;
       memcpy(payload, buf, requiredSize);
       kunmap(dataPacket[0].page);
@@ -441,11 +451,12 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
       request->file = handle;
       request->flags = 0;
       request->offset = offset;
-      request->requiredSize = count;
+      request->requiredSize = MIN(req->bufferSize - sizeof *request, count);
       payload = request->payload;
       requiredSize = request->requiredSize;
       reqSize = sizeof *request;
       req->dataPacket = NULL;
+      req->numEntries = 0;
       buf = kmap(dataPacket[0].page) + dataPacket[0].offset;
       memcpy(payload, buf, requiredSize);
       kunmap(dataPacket[0].page);
@@ -469,7 +480,7 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
          }
 
          /* Return result. */
-         LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: wrote %u bytes\n",
+         LOG(6, (KERN_WARNING "VMware hgfs: HgfsDoWrite: wrote %u bytes\n",
                  actualSize));
          result = actualSize;
          break;
@@ -478,13 +489,17 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
          /* Retry with older version(s). Set globally. */
          switch (opUsed) {
          case HGFS_OP_WRITE_FAST_V4:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Fast Write V4 not "
+            LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: Fast Write V4 not "
                     "supported. Falling back to V3 write.\n"));
-            hgfsVersionRead = HGFS_OP_WRITE_V3;
+            if (req->dataPacket) {
+               kfree(req->dataPacket);
+               req->dataPacket = NULL;
+            }
+            hgfsVersionWrite = HGFS_OP_WRITE_V3;
             goto retry;
 
          case HGFS_OP_WRITE_V3:
-            LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: Version 3 not "
+            LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: Version 3 not "
                     "supported. Falling back to version 1.\n"));
             hgfsVersionWrite = HGFS_OP_WRITE;
             goto retry;
@@ -495,17 +510,17 @@ HgfsDoWrite(HgfsHandle handle,             // IN: Handle for this file
          break;
 
       default:
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: server "
+         LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: server "
                  "returned error: %d\n", result));
          break;
       }
    } else if (result == -EIO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: timed out\n"));
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: timed out\n"));
    } else if (result == -EPROTO) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: server "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: server "
               "returned error: %d\n", result));
    } else {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWrite: unknown error: "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWrite: unknown error: "
               "%d\n", result));
    }
 
@@ -549,7 +564,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
    size_t nextCount, remainingCount = pageTo - pageFrom;
    HgfsDataPacket dataPacket[1];
 
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsDoReadpage: read %Zu bytes from fh %u "
+   LOG(6, (KERN_WARNING "VMware hgfs: HgfsDoReadpage: read %Zu bytes from fh %u "
            "at offset %Lu\n", remainingCount, handle, curOffset));
 
    /*
@@ -566,7 +581,7 @@ HgfsDoReadpage(HgfsHandle handle,  // IN:     Handle to use for reading
       dataPacket[0].len = nextCount;
       result = HgfsDoRead(handle, dataPacket, 1, curOffset);
       if (result < 0) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoReadpage: read error %d\n",
+         LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoReadpage: read error %d\n",
                  result));
          goto out;
       }
@@ -665,7 +680,7 @@ HgfsDoWritepage(HgfsHandle handle,  // IN: Handle to use for writing
       dataPacket[0].len = nextCount;
       result = HgfsDoWrite(handle, dataPacket, 1, curOffset);
       if (result < 0) {
-         LOG(4, (KERN_DEBUG "VMware hgfs: HgfsDoWritepage: write error %d\n",
+         LOG(4, (KERN_WARNING "VMware hgfs: HgfsDoWritepage: write error %d\n",
                  result));
          goto out;
       }
@@ -724,7 +739,7 @@ HgfsReadpage(struct file *file, // IN:     File to read from
    ASSERT(page);
 
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: HgfsReadPage: reading from handle %u\n",
+   LOG(6, (KERN_WARNING "VMware hgfs: HgfsReadPage: reading from handle %u\n",
            handle));
 
    page_cache_get(page);
@@ -776,7 +791,7 @@ HgfsWritepage(struct page *page,             // IN: Page to write from
                           HGFS_OPEN_MODE_WRITE_ONLY + 1,
                           &handle);
    if (result) {
-      LOG(4, (KERN_DEBUG "VMware hgfs: HgfsWritepage: could not get writable "
+      LOG(4, (KERN_WARNING "VMware hgfs: HgfsWritepage: could not get writable "
               "file handle\n"));
       goto exit;
    }
@@ -1043,7 +1058,7 @@ HgfsDoWriteEnd(struct file *file, // IN: File we're writing to
     * would make it uptodate (ie a complete cached page).
     */
    handle = FILE_GET_FI_P(file)->handle;
-   LOG(6, (KERN_DEBUG "VMware hgfs: %s: writing to handle %u\n", __func__,
+   LOG(6, (KERN_WARNING "VMware hgfs: %s: writing to handle %u\n", __func__,
            handle));
    return HgfsDoWritepage(handle, page, pageFrom, pageTo);
 }

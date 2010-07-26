@@ -669,6 +669,7 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
    int j;
 
    ASSERT(req);
+   ASSERT(req->buffer);
    ASSERT(req->state == HGFS_REQ_STATE_UNSENT || req->state == HGFS_REQ_STATE_ALLOCATED);
    ASSERT(req->payloadSize <= req->bufferSize);
 
@@ -718,10 +719,11 @@ HgfsVmciChannelSend(HgfsTransportChannel *channel, // IN: Channel
    ASSERT(total == 0);
    ASSERT(bufferSize == req->bufferSize + sizeof (HgfsVmciTransportStatus));
 
-   LOG(8, ("Size of request is %Zu\n", req->payloadSize));
+   LOG(0, (KERN_WARNING "Size of request is %Zu\n", req->payloadSize));
 
    for (j = 0; j < req->numEntries; j++, iovCount++) {
       /* I will have to probably do page table walk here, haven't figured it out yet */
+      ASSERT(req->dataPacket);
       transportHeader->iov[iovCount].pa = page_to_phys(req->dataPacket[j].page);
       transportHeader->iov[iovCount].pa += req->dataPacket[j].offset;
       transportHeader->iov[iovCount].len = req->dataPacket[j].len;
