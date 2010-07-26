@@ -1,3 +1,16 @@
+open-vm-tools 2010.07.25 changes:
+	* Features previously provided by vmware-user are now provided
+	as vmtoolsd plugins. vmware-user has been removed and code that
+	interacted with it changed to start the correct vmtoolsd instance.
+
+	* Lots of cleanup: removed old compatibility headers not needed
+	anymore, removed dead code, consolidated logging code.
+
+	* Time synchronization now works more like NTP.
+
+	* New code for features not yet exposed by VMware host software
+	is being added.
+
 open-vm-tools 2010.06.16 changes:
 	* VMCI moves towards unifying the guest and host driver APIs,
 	and gets support for MSI/MSI-X.
