@@ -19,15 +19,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#ifndef GLIBC_VERSION_22
-#define __USE_XOPEN
-#endif
-#include <unistd.h> // for access, etc.
-
-#if (defined(GLIBC_VERSION_22) && !defined(USING_AUTOCONF)) || defined(HAVE_CRYPT_H)
-#include <crypt.h>
-#endif
+#include <unistd.h> // for access, crypt, etc.
 
 #include "vmware.h"
 #include "vm_version.h"

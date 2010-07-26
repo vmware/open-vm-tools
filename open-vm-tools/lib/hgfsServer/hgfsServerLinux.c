@@ -95,21 +95,6 @@
 #   include "sig.h"
 #endif
 
-#if defined(linux) && !defined(GLIBC_VERSION_21)
-/*
- * Implements the system call (it is not wrapped by glibc 2.1.1)
- */
-static INLINE int
-_llseek(unsigned int fd,
-        unsigned long offset_high,
-        unsigned long offset_low,
-        loff_t *result,
-        unsigned int whence)
-{
-   return syscall(SYS__llseek, fd, offset_high, offset_low, result, whence);
-}
-#endif
-
 /*
  * On Linux, we must wrap getdents64, as glibc does not wrap it for us. We use getdents64
  * (rather than getdents) because with the latter, we'll get 64-bit offsets and inode
@@ -3377,7 +3362,7 @@ HgfsPlatformReadFile(HgfsHandle file,             // IN: Hgfs file handle
       return EBADF;
    }
 
-#if defined(GLIBC_VERSION_21) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
    /* Read from the file. */
    if (sequentialOpen) {
       error = read(fd, payload, requiredSize);
@@ -3480,7 +3465,7 @@ HgfsPlatformWriteFile(HgfsHandle file,             // IN: Hgfs file handle
       return EBADF;
    }
 
-#if defined(GLIBC_VERSION_21) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
    /* Write to the file. */
    if (sequentialOpen) {
       error = write(fd, payload, requiredSize);

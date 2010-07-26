@@ -1604,7 +1604,7 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 }
 
 
-#if defined(GLIBC_VERSION_21) || defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 
 /*
  *----------------------------------------------------------------------
@@ -1784,7 +1784,7 @@ exit:
 
    return fret;
 }
-#endif /* defined(GLIBC_VERSION_21) || defined(__APPLE__) || defined(__FreeBSD__) */
+#endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) */
 #endif /* !defined(N_PLAT_NLM) */
 
 /*

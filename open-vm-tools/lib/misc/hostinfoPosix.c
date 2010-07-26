@@ -1394,8 +1394,7 @@ HostinfoGetLoadAverage(float *avg0,  // IN/OUT:
                        float *avg1,  // IN/OUT:
                        float *avg2)  // IN/OUT:
 {
-   /* getloadavg(3) was introduced with glibc 2.2 */
-#if defined(GLIBC_VERSION_22) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
    double avg[3];
    int res;
 

@@ -64,10 +64,10 @@ extern int vasprintf(char **ptr, const char *f, va_list arg);
  * for x86, so we just assume it's already there.)
  *
  * XXX Str_Vsnwprintf and friends are still protected by _WIN32 and
- * GLIBC_VERSION_22.  I.e., even though they should be able to work on
+ * glibc >= 2.2.  I.e., even though they should be able to work on
  * FreeBSD 5.0+ and Solaris 8+, they aren't made available there.
  */
-#   if !(defined(GLIBC_VERSION_22) ||                                   \
+#   if !(defined(__linux__) ||                                          \
          (defined(__FreeBSD__) && (__FreeBSD_version >= 500000)) ||     \
          defined(sun))
 extern int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *format, va_list args);
@@ -645,7 +645,7 @@ Str_SafeVasprintf(size_t *length,       // OUT
    return StrVasprintfInternal(length, format, arguments, TRUE);
 }
 
-#if defined(_WIN32) || defined(GLIBC_VERSION_22)
+#if defined(_WIN32) || defined(__linux__)
 
 /*
  *----------------------------------------------------------------------
@@ -1175,7 +1175,7 @@ Str_SafeVaswprintf(size_t *length,         // OUT
    return StrVaswprintfInternal(length, format, arguments, TRUE);
 }
 
-#endif // defined(_WIN32) || defined(GLIBC_VERSION_22)
+#endif // defined(_WIN32) || defined(__linux__)
 
 #ifndef _WIN32
 

@@ -373,7 +373,7 @@ FileIO_Filename(FileIODescriptor *fd)  // IN:
 }
 
 
-#if defined(_WIN32) || defined(GLIBC_VERSION_21) || defined(__APPLE__) || \
+#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || \
     defined(__FreeBSD__)
 /*
  *----------------------------------------------------------------------

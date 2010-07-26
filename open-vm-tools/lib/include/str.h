@@ -44,7 +44,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#if defined(GLIBC_VERSION_22)
+#if defined(__linux__)
 #include <wchar.h>
 #elif defined(_WIN32)
 #include <tchar.h>
@@ -108,7 +108,7 @@ EXTERN char *Str_SafeAsprintf(size_t *length,
 EXTERN char *Str_SafeVasprintf(size_t *length, const char *format,
                                va_list arguments);
 
-#if defined(_WIN32) || defined(GLIBC_VERSION_22) // {
+#if defined(_WIN32) || defined(__linux__) // {
 
 /*
  * wchar_t versions
@@ -167,7 +167,7 @@ unsigned char *Str_Mbscat(char *buf, const char *src,
 #endif
 #endif
 
-#endif // } defined(_WIN32) || defined(GLIBC_VERSION_22)
+#endif // } defined(_WIN32) || defined(__linux__)
 
 
 /*

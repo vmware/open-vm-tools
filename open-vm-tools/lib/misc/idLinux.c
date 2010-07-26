@@ -38,26 +38,6 @@
 #include "vm_atomic.h"
 
 #if defined(__linux__)
-#if !defined(GLIBC_VERSION_21) && (defined(__i386__) || defined(__x86_64__))
-/*
- * SYS_ constants for glibc 2.0, some of which may already be defined on
- * some of those older systems.
- */
-
-#ifndef SYS_setresuid
-#define SYS_setresuid          164
-#endif
-#ifndef SYS_setresgid
-#define SYS_setresgid          170
-#endif
-#define SYS_setreuid32         203
-#define SYS_setregid32         204
-#define SYS_setresuid32        208
-#define SYS_setresgid32        210
-#define SYS_setuid32           213
-#define SYS_setgid32           214
-#endif // ifndef GLIBC_VERSION_21
-
 /*
  * 64bit linux has no 16 bit versions and
  * the 32bit versions have the un-suffixed names.

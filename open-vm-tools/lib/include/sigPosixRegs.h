@@ -56,27 +56,15 @@
 #    define REG_R14 GNU_REG_R14
 #    define REG_R15 GNU_REG_R15
 #  elif defined(__i386__)
-#    if GLIBC_VERSION_22
-#       define REG_EAX GNU_REG_EAX
-#       define REG_EBX GNU_REG_EBX
-#       define REG_ECX GNU_REG_ECX
-#       define REG_EDX GNU_REG_EDX
-#       define REG_ESI GNU_REG_ESI
-#       define REG_EDI GNU_REG_EDI
-#       define REG_ESP GNU_REG_ESP
-#       define REG_EBP GNU_REG_EBP
-#       define REG_EIP GNU_REG_EIP
-#    else
-#       define EAX GNU_REG_EAX
-#       define EBX GNU_REG_EBX
-#       define ECX GNU_REG_ECX
-#       define EDX GNU_REG_EDX
-#       define ESI GNU_REG_ESI
-#       define EDI GNU_REG_EDI
-#       define ESP GNU_REG_ESP
-#       define EBP GNU_REG_EBP
-#       define EIP GNU_REG_EIP
-#    endif
+#    define REG_EAX GNU_REG_EAX
+#    define REG_EBX GNU_REG_EBX
+#    define REG_ECX GNU_REG_ECX
+#    define REG_EDX GNU_REG_EDX
+#    define REG_ESI GNU_REG_ESI
+#    define REG_EDI GNU_REG_EDI
+#    define REG_ESP GNU_REG_ESP
+#    define REG_EBP GNU_REG_EBP
+#    define REG_EIP GNU_REG_EIP
 #  endif
 #endif
 
@@ -103,27 +91,15 @@
 #    undef REG_R14
 #    undef REG_R15
 #  elif defined(__i386__)
-#    if GLIBC_VERSION_22
-#       undef REG_EAX
-#       undef REG_EBX
-#       undef REG_ECX
-#       undef REG_EDX
-#       undef REG_ESI
-#       undef REG_EDI
-#       undef REG_ESP
-#       undef REG_EBP
-#       undef REG_EIP
-#    else
-#       undef EAX
-#       undef EBX
-#       undef ECX
-#       undef EDX
-#       undef ESI
-#       undef EDI
-#       undef ESP
-#       undef EBP
-#       undef EIP
-#    endif
+#    undef REG_EAX
+#    undef REG_EBX
+#    undef REG_ECX
+#    undef REG_EDX
+#    undef REG_ESI
+#    undef REG_EDI
+#    undef REG_ESP
+#    undef REG_EBP
+#    undef REG_EIP
 #  endif
 #endif
 
