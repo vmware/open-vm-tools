@@ -1738,7 +1738,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
 
    /*
     * First take care of the easy checks.  If the paths are identical, or if
-    * the inode numbers don't match, we're done.
+    * the inode numbers or resident devices don't match, we're done.
     */
 
    if (Unicode_Compare(path1, path2) == 0) {
@@ -1757,6 +1757,10 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return FALSE;
    }
 
+   if (st1.st_dev != st2.st_dev) {
+      return FALSE;
+   }
+
    if (HostType_OSIsPureVMK()) {
       /*
        * On ESX, post change 1074635 the st_dev field of the stat structure
@@ -1764,7 +1768,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
        * systems - no need to use statfs to obtain file system information.
        */
 
-      return st1.st_dev == st2.st_dev;
+      return TRUE;
    }
 
    if (Posix_Statfs(path1, &stfs1) != 0) {
@@ -1777,12 +1781,12 @@ File_IsSameFile(ConstUnicode path1,  // IN:
 
 #if defined(__APPLE__)
    if ((stfs1.f_flags & MNT_LOCAL) && (stfs2.f_flags & MNT_LOCAL)) {
-      return st1.st_dev == st2.st_dev;
+      return TRUE;
    }
 #else
    if ((stfs1.f_type != NFS_SUPER_MAGIC) &&
        (stfs2.f_type != NFS_SUPER_MAGIC)) {
-      return st1.st_dev == st2.st_dev;
+      return TRUE;
    }
 #endif
 
@@ -1800,8 +1804,7 @@ File_IsSameFile(ConstUnicode path1,  // IN:
     * false positive.
     */
 
-   if ((st1.st_dev == st2.st_dev) &&
-       (st1.st_mode == st2.st_mode) &&
+   if ((st1.st_mode == st2.st_mode) &&
        (st1.st_nlink == st2.st_nlink) &&
        (st1.st_uid == st2.st_uid) &&
        (st1.st_gid == st2.st_gid) &&
