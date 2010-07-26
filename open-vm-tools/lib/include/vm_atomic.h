@@ -1777,9 +1777,21 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
 {
 #if defined(FAKE_ATOMIC)
    return var->value;
-#elif defined(__x86_64__)
-   return var->value;
-#elif defined(__GNUC__) && defined(__i386__) /* GCC on x86 */
+#elif defined(__GNUC__) && defined(__x86_64__)
+   uint64 value;
+
+   /*
+    * We have no evidence that suggests GCC will split this read into
+    * two move instructions.  However, we prefer to be defensive in
+    * light of errors seen in Atomic_Write64.
+    */
+   __asm__ __volatile__(
+      "movq %1, %0"
+      : "=r" (value)
+      : "m" (var->value)
+   );
+   return value;
+#elif defined(__GNUC__) && defined(__i386__)
    uint64 value;
    /*
     * Since cmpxchg8b will replace the contents of EDX:EAX with the
@@ -1800,7 +1812,16 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
    );
    AtomicEpilogue();
    return value;
-#elif defined _MSC_VER /* MSC (assume on x86 for now) */
+#elif defined (_MSC_VER) && defined(__x86_64__)
+   /*
+    * Microsoft docs guarantee "Simple reads and writes to properly
+    * aligned 64-bit variables are atomic on 64-bit Windows."
+    * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
+    *
+    * XXX Verify that value is properly aligned. Bug 61315.
+    */
+   return var->value;
+#elif defined (_MSC_VER) && defined(__i386__)
 #   pragma warning(push)
 #   pragma warning(disable : 4035)		// disable no-return warning
    {
@@ -2066,6 +2087,8 @@ Atomic_Write64(Atomic_uint64 *var, // IN
     * Microsoft docs guarantee "Simple reads and writes to properly aligned 
     * 64-bit variables are atomic on 64-bit Windows."
     * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
+    *
+    * XXX Verify that value is properly aligned. Bug 61315.
     */
 
    var->value = val;
