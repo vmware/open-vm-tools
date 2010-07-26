@@ -77,9 +77,9 @@
  *
  *      XXX - This function invokes access(), which uses the real uid,
  *      not the effective uid, so it probably does not do what you 
- *      expect.  Instead it should use FileAttributes(), which calls
- *      Posix_Stat() and uses the effective uid, but it's too risky 
- *      to fix right now.  See PR 459242.
+ *      expect.  Instead it should use Posix_EuidAccess(), which 
+ *      uses the effective uid, but it's too risky to fix right now.
+ *      See PR 459242.
  *
  * Results:
  *      TRUE    file is accessible with the process' real uid
@@ -2049,15 +2049,15 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
    Unicode *fileList = NULL;
    Bool sawFileError = FALSE;
 
-   switch (FileAttributes(pathName, NULL)) {
-   case 0:
-      break;
-   case ENOENT:
-   case ENOTDIR:
-      /* path does not exist or is inaccessible */
-      return TRUE;
-   default:
-      return FALSE;
+   if (Posix_EuidAccess(pathName, F_OK)) {
+      switch (errno) {
+      case ENOENT:
+      case ENOTDIR:
+         /* path does not exist or is inaccessible */
+         return TRUE;
+      default:
+         break;
+      }
    }
 
    /* get list of files in current directory */
@@ -2238,7 +2238,10 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
       cur = Str_SafeAsprintf(NULL, "%s%s%s", cwd, DIRSEPS, fileIn);
    }
 
-   if (FileAttributes(cur, NULL) == 0) {
+   if (Posix_EuidAccess(cur, F_OK) == 0) {
+      goto done;
+   }
+   if (errno == ENOSYS && FileAttributes(cur, NULL) == 0) {
       goto done;
    }
 
@@ -2270,7 +2273,10 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
          }
       }
 
-      if (FileAttributes(cur, NULL) == 0) {
+      if (Posix_EuidAccess(cur, F_OK) == 0) {
+         break;
+      }
+      if (errno == ENOSYS && FileAttributes(cur, NULL) == 0) {
          break;
       }
 

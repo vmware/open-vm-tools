@@ -41,9 +41,6 @@
 # endif
 #include <signal.h>
 #endif
-#if defined(GLIBC_VERSION_24)
-#define _GNU_SOURCE
-#endif
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -291,20 +288,6 @@ FileAttributes(ConstUnicode pathName,  // IN:
 {
    int err;
    struct stat statbuf;
-
-#if defined(GLIBC_VERSION_24)
-   char *path;
-
-   if (fileData == NULL) {
-      if (!PosixConvertToCurrent(pathName, &path)) {
-         return -1;
-      }
-      ret = euidaccess(path, F_OK);
-      free(path);
-
-      return ret;
-   }
-#endif
 
    if (Posix_Stat(pathName, &statbuf) == -1) {
       err = errno;

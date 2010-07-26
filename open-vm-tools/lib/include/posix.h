@@ -74,6 +74,7 @@ int Posix_Rmdir(ConstUnicode pathName);
 int Posix_Unlink(ConstUnicode pathName);
 FILE *Posix_Freopen(ConstUnicode pathName, const char *mode, FILE *stream);
 int Posix_Access(ConstUnicode pathName, int mode);
+int Posix_EuidAccess(ConstUnicode pathName, int mode);
 int Posix_Stat(ConstUnicode pathName, struct stat *statbuf);
 int Posix_Chmod(ConstUnicode pathName, mode_t mode);
 void Posix_Perror(ConstUnicode str);

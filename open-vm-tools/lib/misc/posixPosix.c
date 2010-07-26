@@ -21,6 +21,11 @@
 #endif
 
 #define UNICODE_BUILDING_POSIX_WRAPPERS
+
+#if __linux__
+#define _GNU_SOURCE // Needed to get euidaccess()
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -81,6 +86,8 @@
 #if defined(sun)
 #include "hashTable.h" // For setenv emulation
 #endif
+
+#include "vm_basic_defs.h"
 
 #if !defined(N_PLAT_NLM)
 static struct passwd *GetpwInternal(struct passwd *pw);
@@ -456,6 +463,47 @@ Posix_Access(ConstUnicode pathName,  // IN:
 
    free(path);
    return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_EuidAccess --
+ *
+ *      POSIX euidaccess().
+ *
+ * Results:
+ *      -1	Error
+ *      0	Success
+ *
+ * Side effects:
+ *      errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_EuidAccess(ConstUnicode pathName,  // IN:
+                 int mode)               // IN:
+{
+#if defined(GLIBC_VERSION_24)
+   char *path;
+   int ret;
+   int err;
+
+   if (!PosixConvertToCurrent(pathName, &path)) {
+      return -1;
+   }
+   ret = euidaccess(path, mode);
+   err = errno;
+   free(path);
+   errno = err;
+   return ret;
+#else
+   errno = ENOSYS;
+   return -1;
+#endif
 }
 
 
