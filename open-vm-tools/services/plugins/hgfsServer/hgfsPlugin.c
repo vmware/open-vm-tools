@@ -135,7 +135,7 @@ HgfsServerCapReg(gpointer src,
    } else if (strcmp(ctx->name, VMTOOLS_USER_SERVICE) == 0) {
       appName = TOOLS_DND_NAME;
    } else {
-      g_error("Shouldn't reach this.\n");
+      NOT_REACHED();
    }
 
    msg = g_strdup_printf("tools.capability.hgfs_server %s %d",
