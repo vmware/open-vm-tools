@@ -1757,6 +1757,16 @@ File_IsSameFile(ConstUnicode path1,  // IN:
       return FALSE;
    }
 
+   if (HostType_OSIsPureVMK()) {
+      /*
+       * On ESX, post change 1074635 the st_dev field of the stat structure
+       * is valid and differentiates between resident devices or NFS file
+       * systems - no need to use statfs to obtain file system information.
+       */
+
+      return st1.st_dev == st2.st_dev;
+   }
+
    if (Posix_Statfs(path1, &stfs1) != 0) {
       return FALSE;
    }
