@@ -37,11 +37,21 @@ Bool
 TimeSync_AddToCurrentTime(int64 delta);
 
 Bool
-TimeSync_EnableTimeSlew(int64 delta,
-                        int64 timeSyncPeriod);
+TimeSync_Slew(int64 delta,
+              int64 timeSyncPeriod,
+              int64 *remaining);
 
 Bool
 TimeSync_DisableTimeSlew(void);
+
+Bool
+TimeSync_PLLUpdate(int64 offset);
+
+Bool
+TimeSync_PLLSetFrequency(int64 ppmCorrection);
+
+Bool
+TimeSync_PLLSupported(void);
 
 #endif /* _TIMESYNC_INT_H_ */
 

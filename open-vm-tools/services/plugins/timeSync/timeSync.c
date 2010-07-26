@@ -115,23 +115,40 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define TIMESYNC_MAX_SAMPLES 4
 #define TIMESYNC_GOOD_SAMPLE_THRESHOLD 2000
 
+/* Once the error drops below TIMESYNC_PLL_ACTIVATE, activate the PLL.
+ * 500ppm error acumulated over a 60 second interval can produce 30ms of
+ * error. */
+#define TIMESYNC_PLL_ACTIVATE (30 * 1000) /* 30ms. */
+/* If the error goes above TIMESYNC_PLL_UNSYNC, deactivate the PLL. */
+#define TIMESYNC_PLL_UNSYNC (2 * TIMESYNC_PLL_ACTIVATE)
+/* Period during which the frequency error of guest time is measured. */
+#define TIMESYNC_CALIBRATION_DURATION (15 * 60 * US_PER_SEC) /* 15min. */
+
 typedef enum TimeSyncState {
    TIMESYNC_INITIALIZING,
    TIMESYNC_STOPPED,
    TIMESYNC_RUNNING,
 } TimeSyncState;
 
+typedef enum TimeSyncSlewState {
+   TimeSyncUncalibrated,
+   TimeSyncCalibrating,
+   TimeSyncPLL,
+} TimeSyncSlewState;
+
 typedef struct TimeSyncData {
-   gboolean       slewActive;
-   gboolean       slewCorrection;
-   uint32         slewPercentCorrection;
-   uint32         timeSyncPeriod;         /* In seconds. */
-   TimeSyncState  state;
-   GSource        *timer;
+   gboolean           slewActive;
+   gboolean           slewCorrection;
+   uint32             slewPercentCorrection;
+   uint32             timeSyncPeriod;         /* In seconds. */
+   TimeSyncState      state;
+   TimeSyncSlewState  slewState;
+   GSource           *timer;
 } TimeSyncData;
 
 
 static void TimeSyncSetSlewState(TimeSyncData *data, gboolean active);
+static void TimeSyncResetSlew(TimeSyncData *data);
 
 /**
  * Read the time reported by the Host OS.
@@ -371,8 +388,18 @@ TimeSyncStepTime(TimeSyncData *data, int64 adjustment)
 
 
 /**
- * Slew the guest OS time advancement to correct the time.  Only correct a
- * portion of the error to avoid overcorrection.
+ * Slew the guest OS time advancement to correct the time.
+ *
+ * In addition to standard slewing (implemented via TimeSync_Slew), we
+ * also support using an NTP style PLL to slew the time.  The PLL can take
+ * a while to end up with an accurate measurement of the frequency error,
+ * so before entering PLL mode we calibrate the frequency error over a
+ * period of TIMESYNC_PLL_ACTIVATE seconds.  
+ *
+ * When using standard slewing, only correct slewPercentCorrection of the
+ * error.  This is to avoid overcorrection when the error is mis-measured,
+ * or overcorrection caused by the daemon waking up later than it is
+ * supposed to leaving the slew in place for longer than anticpiated.
  *
  * @param[in]  data              Structure tracking time sync state.
  * @param[in]  adjustment        Amount to correct the guest time.
@@ -381,10 +408,76 @@ TimeSyncStepTime(TimeSyncData *data, int64 adjustment)
 static gboolean
 TimeSyncSlewTime(TimeSyncData *data, int64 adjustment)
 {
+   static int64 calibrationStart;
+   static int64 calibrationAdjustment;
+
+   int64 now;
+   int64 remaining = 0;
    int64 timeSyncPeriodUS = data->timeSyncPeriod * US_PER_SEC;
    int64 slewDiff = (adjustment * data->slewPercentCorrection) / 100;
    
-   return TimeSync_EnableTimeSlew(slewDiff, timeSyncPeriodUS);
+   if (!TimeSync_GetCurrentTime(&now)) {
+      return FALSE;
+   }
+
+   if (adjustment > TIMESYNC_PLL_UNSYNC && 
+       data->slewState != TimeSyncUncalibrated) {
+      g_debug("Adjustment too large (%"FMT64"d), resetting PLL state.\n", 
+              adjustment);
+      data->slewState = TimeSyncUncalibrated;
+   }
+
+   if (data->slewState == TimeSyncUncalibrated) {
+      g_debug("Slewing time: adjustment %"FMT64"d\n", adjustment);
+      if (!TimeSync_Slew(slewDiff, timeSyncPeriodUS, &remaining)) {
+         data->slewState = TimeSyncUncalibrated;
+         return FALSE;
+      }
+      if (adjustment < TIMESYNC_PLL_ACTIVATE && TimeSync_PLLSupported()) {
+         g_debug("Starting PLL calibration.\n");
+         calibrationStart = now;
+         /* Starting out the calibration period we are adjustment behind,
+          * but have already requested to correct slewDiff of that. */
+         calibrationAdjustment = slewDiff - adjustment;
+         data->slewState = TimeSyncCalibrating;
+      }
+   } else if (data->slewState == TimeSyncCalibrating) {
+      if (now > calibrationStart + TIMESYNC_CALIBRATION_DURATION) {
+         int64 ppmErr;
+         /* Reset slewing to nominal and find out remaining slew. */
+         TimeSync_Slew(0, timeSyncPeriodUS, &remaining);
+         calibrationAdjustment += adjustment;
+         calibrationAdjustment -= remaining;
+         ppmErr = ((1000000 * calibrationAdjustment) << 16) / 
+                   (now - calibrationStart);
+         if (ppmErr >> 16 < 500 && ppmErr >> 16 > -500) {
+            g_debug("Activating PLL ppmEst=%"FMT64"d (%"FMT64"d)\n", 
+                    ppmErr >> 16, ppmErr);
+            TimeSync_PLLUpdate(adjustment);
+            TimeSync_PLLSetFrequency(ppmErr);
+            data->slewState = TimeSyncPLL;
+         } else {
+            /* PPM error is too large to try the PLL. */
+            g_debug("PPM error too large: %"FMT64"d (%"FMT64"d) "
+                    "not activating PLL\n", ppmErr >> 16, ppmErr);
+            data->slewState = TimeSyncUncalibrated;
+         }
+      } else {
+         g_debug("Calibrating error: adjustment %"FMT64"d\n", adjustment);
+         if (!TimeSync_Slew(slewDiff, timeSyncPeriodUS, &remaining)) {
+            return FALSE;
+         }
+         calibrationAdjustment += slewDiff;
+         calibrationAdjustment -= remaining;
+      }
+   } else {
+      ASSERT(data->slewState == TimeSyncPLL);
+      g_debug("Updating PLL: adjustment %"FMT64"d\n", adjustment);
+      if (!TimeSync_PLLUpdate(adjustment)) {
+         TimeSyncResetSlew(data);
+      }
+   }
+   return TRUE;
 }
 
 
@@ -397,7 +490,14 @@ TimeSyncSlewTime(TimeSyncData *data, int64 adjustment)
 static void
 TimeSyncResetSlew(TimeSyncData *data)
 {
-   TimeSyncSlewTime(data, 0);
+   int64 remaining;
+   int64 timeSyncPeriodUS = data->timeSyncPeriod * US_PER_SEC;
+   data->slewState = TimeSyncUncalibrated;
+   TimeSync_Slew(0, timeSyncPeriodUS, &remaining);
+   if (TimeSync_PLLSupported()) {
+      TimeSync_PLLUpdate(0);
+      TimeSync_PLLSetFrequency(0);
+   }
 }
 
 
@@ -817,6 +917,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    data->slewCorrection = FALSE;
    data->slewPercentCorrection = TIMESYNC_PERCENT_CORRECTION;
    data->state = TIMESYNC_INITIALIZING;
+   data->slewState = TimeSyncUncalibrated;
    data->timeSyncPeriod = TIMESYNC_TIME;
    data->timer = NULL;
 

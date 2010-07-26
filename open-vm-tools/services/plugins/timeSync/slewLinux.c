@@ -82,17 +82,22 @@ TimeSync_DisableTimeSlew(void)
 
 /*
  ******************************************************************************
- * TimeSync_EnableTimeSlew --                                           */ /**
+ * TimeSync_Slew --                                                     */ /**
  *
  * Slew the clock so that the time difference is covered within the
- * timeSyncPeriod. timeSyncPeriod is the interval of the time sync loop and we
- * intend to catch up delta us.
+ * timeSyncPeriod. timeSyncPeriod is the interval of the time sync loop
+ * and we intend to catch up delta us.  Report the amount of the previous
+ * correction that has not been applied (this may be negative if more than
+ * timeSyncPeriod elapsed since the last call).
  *
  * This changes the tick frequency and hence needs to be reset after the time
  * sync is achieved.
  *
- * @param[in] delta              Time difference in us.
- * @param[in] timeSyncPeriod     Time interval in us.
+ * All times are in microseconds.
+ *
+ * @param[in]  delta              Correction to apply.
+ * @param[in]  timeSyncPeriod     Time interval.
+ * @param[out] remaining          Amount of previous correction not applied.
  *
  * @return TRUE on success.
  *
@@ -100,33 +105,54 @@ TimeSync_DisableTimeSlew(void)
  */
 
 Bool
-TimeSync_EnableTimeSlew(int64 delta,
-                        int64 timeSyncPeriod)
+TimeSync_Slew(int64 delta,
+              int64 timeSyncPeriod,
+              int64 *remaining)
 {
+   static int64 startTime = 0;
+   static int64 tickLength;
+   static int64 deltaRequested;
+
    struct timex tx;
    int error;
-   int64 tick;
+   int64 now;
 
    ASSERT(timeSyncPeriod > 0);
 
-   /*
-    * Set the tick so that delta time is corrected in timeSyncPeriod period.
-    * tick is the number of microseconds added per clock tick. We adjust this
-    * so that we get the desired delta + the timeSyncPeriod in timeSyncPeriod
-    * interval.
-    */
-   tx.modes = ADJ_TICK;
-   tick = (timeSyncPeriod + delta) /
-          ((timeSyncPeriod / US_PER_SEC) * USER_HZ);
-   if (tick > TICK_INCR_MAX) {
-      tick = TICK_INCR_MAX;
-   } else if (tick < TICK_INCR_MIN) {
-      tick = TICK_INCR_MIN;
+   if (!TimeSync_GetCurrentTime(&now)) {
+      return FALSE;
    }
-   tx.tick = tick;
+
+   if (startTime != 0) {
+      int64 ticksElapsed = (now - startTime) / tickLength;
+      int64 deltaApplied = ticksElapsed * (tickLength - TICK_INCR_NOMINAL);
+      *remaining = deltaRequested - deltaApplied;
+   }
+
+   /*
+    * Set the tick length so that delta time is corrected in
+    * timeSyncPeriod period.  tick is the number of microseconds added per
+    * clock tick. We adjust this so that we get the desired delta + the
+    * timeSyncPeriod in timeSyncPeriod interval.
+    */
+   tickLength = 
+      (timeSyncPeriod + delta) / ((timeSyncPeriod / US_PER_SEC) * USER_HZ);
+   if (tickLength > TICK_INCR_MAX) {
+      tickLength = TICK_INCR_MAX;
+   } else if (tickLength < TICK_INCR_MIN) {
+      tickLength = TICK_INCR_MIN;
+   }
+   tx.tick = tickLength;
+   tx.modes = ADJ_TICK;
+
+   ASSERT(delta != 0 || tickLength == TICK_INCR_NOMINAL);
+   
+   startTime = now;
+   deltaRequested = delta;
 
    error = adjtimex(&tx);
    if (error == -1) {
+      startTime = 0;
       g_debug("adjtimex failed: %s\n", strerror(errno));
       return FALSE;
    }

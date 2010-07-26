@@ -63,13 +63,15 @@ TimeSync_DisableTimeSlew(void)
 
 /*
  ******************************************************************************
- * TimeSync_EnableTimeSlew --                                           */ /**
+ * TimeSync_Slew --                                                     */ /**
  *
  * Slew the clock, correcting 'delta' microseconds.  timeSyncPeriod is
- * ignored by this implementation.
+ * ignored by this implementation.  Report the amount of the previous
+ * correction that has not been applied.
  *
- * @param[in] delta              Time difference in us.
- * @param[in] timeSyncPeriod     Time interval in us.
+ * @param[in]  delta              Correction to apply in us.
+ * @param[in]  timeSyncPeriod     Time interval in us.
+ * @param[out] remaining          Amount of previous correction not applied.
  *
  * @return TRUE on success.
  *
@@ -77,8 +79,9 @@ TimeSync_DisableTimeSlew(void)
  */
 
 Bool
-TimeSync_EnableTimeSlew(int64 delta,
-                        int64 timeSyncPeriod)
+TimeSync_Slew(int64 delta,
+              int64 timeSyncPeriod,
+              int64 *remaining)
 {
    struct timeval tx;
    struct timeval oldTx;
@@ -92,5 +95,8 @@ TimeSync_EnableTimeSlew(int64 delta,
       return FALSE;
    }
    g_debug("time slew start.\n");
+
+   *remaining = (int64)oldTx.tv_sec * US_PER_SEC + (int64)oldTx.tv_usec;
+
    return TRUE;
 }
