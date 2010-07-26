@@ -76,7 +76,6 @@
 # include "vmblock_k.h"
 #endif
 #include "block.h"
-#include "stubs.h"
 #include "dbllnklst.h"
 
 typedef struct BlockInfo {

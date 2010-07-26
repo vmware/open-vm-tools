@@ -38,8 +38,8 @@
 
 #include "fsops.h"
 #include "block.h"
-#include "stubs.h"
 #include "vm_basic_types.h"
+#include "vm_assert.h"
 
 /* Regular directories on a linux ext3 partition are 4K. */
 

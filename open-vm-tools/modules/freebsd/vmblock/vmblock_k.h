@@ -56,6 +56,7 @@
 #include <sys/vnode.h>
 
 #include "vm_basic_types.h"
+#include "vm_assert.h"
 #include "block.h"
 
 
@@ -81,28 +82,12 @@
 #define VMBLOCK_ENTRY_LOGLEVEL  LOG_DEBUG
 #define Warning(fmt, args...)   log(VMBLOCK_ERROR, fmt, ##args)
 
-/* ASSERT() for FreeBSD is redefined below. */
-#undef ASSERT
-
 #ifdef VMX86_DEVEL
-   /*
-    * If making a devel build, we rely on some of FreeBSD's devel-only
-    * functions such as KASSERT and sx_assert.  By devel-only, I mean
-    * that the kernel & modules must be compiled with -DINVARIANTS (or
-    * 'options "INVARIANTS", options "INVARIANT_SUPPORT"' in the kernel
-    * config file).  On a FreeBSD system, use "man 9 KASSERT" for more
-    * information.
-    */
-#   ifndef INVARIANTS
-#      error "VMX86_DEVEL builds require FreeBSD's INVARIANTS; check your Makefile(s)"
-#   endif /* INVARIANTS */
 #   define LOG(level, fmt, args...)     printf(fmt, ##args)
-#   define ASSERT(expr)                 KASSERT(expr, (#expr))
 #   define VMBLOCKDEBUG(fmt, args...)   log(VMBLOCK_DEBUG, fmt, ##args)
 #   define Debug(level, fmt, args...)   log(VMBLOCK_DEBUG, fmt, ##args)
 #else
 #   define LOG(level, fmt, args...)
-#   define ASSERT(expr)
 #   define VMBLOCKDEBUG(fmt, args...)
 #   define Debug(level, fmt, args...)
 #endif
