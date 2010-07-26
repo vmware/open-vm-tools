@@ -77,5 +77,6 @@
 #define VMNET_CAP_UPT          0x400000	/* Support UPT */
 #define VMNET_CAP_RDONLY_INETHDRS 0x800000 /* Modifies inet headers for TSO/CSUm */
 #define VMNET_CAP_NPA         0x1000000	/* Support NPA */
+#define VMNET_CAP_DCB         0x2000000	/* Support DCB */
 
 #endif // _VMNET_DEF_H_

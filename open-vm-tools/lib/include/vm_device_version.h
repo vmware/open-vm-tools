@@ -150,6 +150,12 @@
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES	 16	  // BT-958 emulates only 16
+#define PVSCSI_MAX_DEVICES       255      // 255 (including the controller)
+/*
+ * VSCSI_BV_INTS is the number of uint32's needed for a bit vector 
+ * to cover all scsi devices per target.
+ */
+#define VSCSI_BV_INTS            CEILING(PVSCSI_MAX_DEVICES, 8 * sizeof (uint32))
 #define SCSI_IDE_CHANNEL         SCSI_MAX_CONTROLLERS
 #define SCSI_IDE_HOSTED_CHANNEL  (SCSI_MAX_CONTROLLERS + 1)
 #define SCSI_MAX_CHANNELS        (SCSI_MAX_CONTROLLERS + 2)
