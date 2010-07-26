@@ -23,6 +23,7 @@
 #endif
 
 #include "vmware.h"
+#include "vm_basic_asm.h"
 #include "str.h"
 #include "err.h"
 #include "util.h"
@@ -113,6 +114,8 @@ MXUserNativeCVSupported(void)
          pWakeConditionVariable = (WakeConditionVariableFn)
                                    GetProcAddress(kernel32,
                                                    "WakeConditionVariable");
+
+         COMPILER_MEM_BARRIER();
 
          result = ((pInitializeConditionVariable != NULL) &&
                    (pSleepConditionVariableCS != NULL) &&

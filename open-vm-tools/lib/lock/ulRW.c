@@ -21,6 +21,7 @@
 #endif
 
 #include "vmware.h"
+#include "vm_basic_asm.h"
 #include "str.h"
 #include "util.h"
 #include "hashTable.h"
@@ -87,6 +88,8 @@ MXUserNativeRWSupported(void)
          pReleaseSRWLockExclusive = (ReleaseSRWLockExclusiveFn)
                                     GetProcAddress(kernel32,
                                                    "ReleaseSRWLockExclusive");
+
+         COMPILER_MEM_BARRIER();
 
          result = ((pInitializeSRWLock != NULL) &&
                    (pAcquireSRWLockShared != NULL) &&
