@@ -246,11 +246,11 @@ Max(int a, int b)
 #endif
 
 #ifndef BYTES_2_PAGES
-#define BYTES_2_PAGES(_nbytes) ((_nbytes) >> PAGE_SHIFT)
+#define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
 #endif
 
 #ifndef PAGES_2_BYTES
-#define PAGES_2_BYTES(_npages) (((uint64)(_npages)) << PAGE_SHIFT)
+#define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
 #endif
 
 #ifndef MBYTES_2_PAGES
@@ -259,6 +259,14 @@ Max(int a, int b)
 
 #ifndef PAGES_2_MBYTES
 #define PAGES_2_MBYTES(_npages) ((_npages) >> (20 - PAGE_SHIFT))
+#endif
+
+#ifndef BYTES_2_MBYTES
+#define BYTES_2_MBYTES(_nbytes) ((_nbytes) >> 20)
+#endif
+
+#ifndef MBYTES_2_BYTES
+#define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 20)
 #endif
 
 #ifndef VM_PAE_LARGE_PAGE_SHIFT
