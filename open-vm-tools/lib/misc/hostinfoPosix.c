@@ -3113,7 +3113,7 @@ HostinfoSysinfo(uint64 *totalRam,  // OUT: Total RAM in bytes
  * HostinfoGetLinuxMemoryInfoInPages --
  *
  *      Obtain the minimum memory to be maintained, total memory available,
- *      and free memory available on the host (Linux or COS) in pages.
+ *      and free memory available on the host (Linux) in pages.
  *
  * Results:
  *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
@@ -3183,7 +3183,7 @@ HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,      // OUT:
  *
  * HostinfoGetSwapInfoInPages --
  *
- *      Obtain the total swap and free swap on the host (Linux or COS) in
+ *      Obtain the total swap and free swap on the host (Linux) in
  *      pages.
  *
  * Results:
@@ -3309,39 +3309,6 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
    return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
 #endif
 }
-
-
-#ifdef VMX86_SERVER
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_GetCOSMemoryInfoInPages --
- *
- *      Obtain the minimum memory to be maintained, total memory available, and
- *      free memory available on the COS in pages.
- *
- * Results:
- *      TRUE on success: '*minSize', '*maxSize' and '*currentSize' are set
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,      // OUT:
-                                 unsigned int *maxSize,      // OUT:
-                                 unsigned int *currentSize)  // OUT:
-{
-   if (HostType_OSIsPureVMK()) {
-      return FALSE;
-   } else {
-      return HostinfoGetLinuxMemoryInfoInPages(minSize, maxSize, currentSize);
-   }
-}
-#endif
 
 
 /*

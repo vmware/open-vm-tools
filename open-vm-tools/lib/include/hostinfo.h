@@ -47,11 +47,6 @@ extern Bool Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,
 extern Bool Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,
                                         unsigned int *freeSwap);
 #endif
-#ifdef VMX86_SERVER
-extern Bool Hostinfo_GetCOSMemoryInfoInPages(unsigned int *minSize,
-                                             unsigned int *maxSize,
-                                             unsigned int *currentSize);
-#endif
 extern Bool Hostinfo_GetRatedCpuMhz(int32 cpuNumber,
                                     uint32 *mHz);
 extern char *Hostinfo_GetCpuDescription(uint32 cpuNumber);
