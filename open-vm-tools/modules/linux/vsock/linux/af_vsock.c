@@ -104,6 +104,7 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/bitops.h>
+#include <linux/list.h>
 #include <asm/io.h>
 #if defined(__x86_64__) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 12)
 #   include <linux/ioctl32.h>
@@ -119,7 +120,6 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include "compat_wait.h"
 #include "compat_version.h"
 #include "compat_workqueue.h"
-#include "compat_list.h"
 #include "compat_mutex.h"
 
 #include "vmware.h"

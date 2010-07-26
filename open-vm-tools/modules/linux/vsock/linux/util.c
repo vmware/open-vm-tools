@@ -24,9 +24,9 @@
  */
 
 #include "driver-config.h"
+#include <linux/list.h>
 #include <linux/socket.h>
 #include "compat_sock.h"
-#include "compat_list.h"
 
 #include "af_vsock.h"
 #include "util.h"

@@ -33,7 +33,7 @@
 #include "driver-config.h"
 
 #include <linux/errno.h>
-#include "compat_list.h"
+#include <linux/list.h>
 #include "compat_mutex.h"
 #include "compat_sched.h"
 #include "compat_spinlock.h"
