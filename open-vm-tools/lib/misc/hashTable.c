@@ -375,7 +375,8 @@ HashTable_Clear(HashTable *ht)  // IN/OUT:
  *
  * HashTable_Free --
  *
- *      Free the hash table skeleton.
+ *      Free the hash table skeleton. Do not call this if the hashTable is
+ *      atomic; use HashTable_FreeUnsafe and HEED THE RESTRICTIONS!
  *
  * Results:
  *      None.
