@@ -100,7 +100,7 @@ CopyPaste::~CopyPaste(void)
  */
 
 void
-CopyPaste::VmxCopyPasteVersionChanged(struct RpcIn *rpcIn, // IN
+CopyPaste::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
                                       uint32 version)      // IN
 {
    /* Do nothing if version is not changed. */
@@ -123,7 +123,7 @@ CopyPaste::VmxCopyPasteVersionChanged(struct RpcIn *rpcIn, // IN
       /* Here should create CopyPasteRpcV2 for version 1 & 2. */
       break;
    case 3:
-      mRpc = new CopyPasteRpcV3(rpcIn);
+      mRpc = new CopyPasteRpcV3(chan);
       break;
    default:
       Debug("%s: got unsupported guest CopyPaste version %u.\n",

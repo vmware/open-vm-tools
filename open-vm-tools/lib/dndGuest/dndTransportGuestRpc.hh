@@ -31,6 +31,7 @@
 
 extern "C" {
    #include "dnd.h"
+   #include "vmware/tools/guestrpc.h"
 }
 
 class DnDTransportGuestRpc
@@ -38,7 +39,7 @@ class DnDTransportGuestRpc
      public sigc::trackable
 {
 public:
-   DnDTransportGuestRpc(struct RpcIn *rpcIn,
+   DnDTransportGuestRpc(RpcChannel *chan,
                         const char *rpcCmd);
    virtual ~DnDTransportGuestRpc(void);
 
@@ -49,7 +50,8 @@ public:
 
 private:
    char *mRpcCmd;
-   struct RpcIn *mRpcIn;
+   RpcChannel *mRpc;
+   RpcChannelCallback mRpcCb;
 
    DnDTransportBuffer mSendBuf;
    DnDTransportBuffer mRecvBuf;

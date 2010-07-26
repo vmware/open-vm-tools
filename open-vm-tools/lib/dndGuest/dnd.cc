@@ -22,6 +22,21 @@
  *     Implementation of common layer DnD object.
  */
 
+#if defined (_WIN32)
+
+/*
+ * When compiling this file for Windows dnd plugin dll, there may be
+ * a conflict between the CRT and MFC libraries. From
+ * http://support.microsoft.com/default.aspx?scid=kb;en-us;q148652: The CRT
+ * libraries use weak external linkage for the DllMain function. The MFC
+ * libraries also contain this function. The function requires the MFC
+ * libraries to be linked before the CRT library. The Afx.h include file
+ * forces the correct order of the libraries.
+ */
+
+#include <afx.h>
+#endif
+
 #include "dnd.hh"
 #include "dndRpcV3.hh"
 
@@ -34,9 +49,9 @@ extern "C" {
    #include "eventManager.h"
 }
 
-#define UNGRAB_TIMEOUT 50        // 0.5 s
-#define UNITY_DND_DET_TIMEOUT 50 // 0.5 s
-#define HIDE_DET_WND_TIMER 50    // 0.5s
+#define UNGRAB_TIMEOUT 500        // 0.5 s
+#define UNITY_DND_DET_TIMEOUT 500 // 0.5 s
+#define HIDE_DET_WND_TIMER 500    // 0.5s
 
 
 /*
@@ -55,13 +70,13 @@ extern "C" {
  *---------------------------------------------------------------------
  */
 
-static Bool
+static gboolean
 DnDUngrabTimeout(void *clientData) // IN
 {
    ASSERT(clientData);
    DnD *dnd = (DnD *)clientData;
    dnd->UngrabTimeout();
-   return TRUE;
+   return FALSE;
 }
 
 
@@ -81,13 +96,13 @@ DnDUngrabTimeout(void *clientData) // IN
  *---------------------------------------------------------------------
  */
 
-static Bool
+static gboolean
 DnDUnityDetTimeout(void *clientData)      // IN
 {
    ASSERT(clientData);
    DnD *dnd = (DnD *)clientData;
    dnd->UnityDnDDetTimeout();
-   return TRUE;
+   return FALSE;
 }
 
 
@@ -135,15 +150,15 @@ DnDHideDetWndTimer(void *clientData)      // IN
  *---------------------------------------------------------------------
  */
 
-DnD::DnD(DblLnkLst_Links *eventQueue) // IN
+DnD::DnD(ToolsAppCtx *ctx) // IN
    : mRpc(NULL),
      mVmxDnDVersion(0),
      mDnDAllowed(false),
      mStagingDir(""),
+     mHideDetWndTimer(NULL),
      mUngrabTimeout(NULL),
      mUnityDnDDetTimeout(NULL),
-     mHideDetWndTimer(NULL),
-     mEventQueue(eventQueue)
+     mCtx(ctx)
 {
    mState = DNDSTATE_INVALID;
    mFeedback = DROP_UNKNOWN;
@@ -169,20 +184,23 @@ DnD::DnD(DblLnkLst_Links *eventQueue) // IN
 
 DnD::~DnD(void)
 {
-   delete mRpc;
+   if (mRpc) {
+      delete mRpc;
+      mRpc = NULL;
+   }
    CPClipboard_Destroy(&mClipboard);
 
    /* Remove untriggered timers. */
    if (mHideDetWndTimer) {
-      EventManager_Remove(mHideDetWndTimer);
+      g_source_destroy(mHideDetWndTimer);
       mHideDetWndTimer = NULL;
    }
    if (mUngrabTimeout) {
-      EventManager_Remove(mUngrabTimeout);
+      g_source_destroy(mUngrabTimeout);
       mUngrabTimeout = NULL;
    }
    if (mUnityDnDDetTimeout) {
-      EventManager_Remove(mUnityDnDDetTimeout);
+      g_source_destroy(mUnityDnDDetTimeout);
       mUnityDnDDetTimeout = NULL;
    }
 }
@@ -206,7 +224,7 @@ DnD::~DnD(void)
  */
 
 void
-DnD::VmxDnDVersionChanged(struct RpcIn *rpcIn, // IN
+DnD::VmxDnDVersionChanged(RpcChannel *chan,    // IN
                           uint32 version)      // IN
 {
    /* Do nothing if version is not changed. */
@@ -216,8 +234,10 @@ DnD::VmxDnDVersionChanged(struct RpcIn *rpcIn, // IN
 
    mVmxDnDVersion = version;
 
-   delete mRpc;
-   mRpc = NULL;
+   if (mRpc) {
+      delete mRpc;
+      mRpc = NULL;
+   }
    mState = DNDSTATE_INVALID;
    Debug("%s: state changed to INVALID\n", __FUNCTION__);
 
@@ -227,7 +247,7 @@ DnD::VmxDnDVersionChanged(struct RpcIn *rpcIn, // IN
       /* Here should create DnDRpcV2 for version 1 & 2. */
       break;
    case 3:
-      mRpc = new DnDRpcV3(rpcIn);
+      mRpc = new DnDRpcV3(chan);
       break;
    default:
       Debug("%s: got unsupported vmx DnD version %u.\n", __FUNCTION__, version);
@@ -443,8 +463,8 @@ DnD::OnHGCancel(void)
     */
    /* Hide detection window. */
    if (NULL == mHideDetWndTimer) {
-      mHideDetWndTimer = EventManager_Add(mEventQueue, HIDE_DET_WND_TIMER,
-                                          DnDHideDetWndTimer, this);
+      mHideDetWndTimer = g_timeout_source_new(HIDE_DET_WND_TIMER);
+      VMTOOLSAPP_ATTACH_SOURCE(mCtx, mHideDetWndTimer, DnDHideDetWndTimer, this, NULL);
    }
    mState = DNDSTATE_READY;
    Debug("%s: state changed to READY\n", __FUNCTION__);
@@ -654,11 +674,11 @@ DnD::OnGHUpdateUnityDetWnd(bool bShow,        // IN
        */
       UpdateDetWnd(bShow, 1, 1);
       if (mUnityDnDDetTimeout) {
-         EventManager_Remove(mUnityDnDDetTimeout);
+         g_source_unref(mUnityDnDDetTimeout);
          mUnityDnDDetTimeout = NULL;
       }
-      mUnityDnDDetTimeout = EventManager_Add(mEventQueue, UNITY_DND_DET_TIMEOUT,
-                                             DnDUnityDetTimeout, this);
+      mUnityDnDDetTimeout = g_timeout_source_new(UNITY_DND_DET_TIMEOUT);
+      VMTOOLSAPP_ATTACH_SOURCE(mCtx, mUnityDnDDetTimeout, DnDUnityDetTimeout, this, NULL);
    } else {
       /*
        * If there is active DnD, the regular detection window will be hidden
@@ -722,6 +742,7 @@ void
 DnD::OnGHQueryPendingDrag(int32 x, // IN
                           int32 y) // IN
 {
+   Debug("%s: enter\n", __FUNCTION__);
    if (mState != DNDSTATE_READY) {
       /* Reset DnD for any wrong state. */
       Debug("%s: Bad state: %d\n", __FUNCTION__, mState);
@@ -740,8 +761,9 @@ DnD::OnGHQueryPendingDrag(int32 x, // IN
     * for some reason.
     */
    if (NULL == mUngrabTimeout) {
-      mUngrabTimeout = EventManager_Add(mEventQueue, UNGRAB_TIMEOUT,
-                                        DnDUngrabTimeout, this);
+      Debug("%s: adding UngrabTimeout\n", __FUNCTION__);
+      mUngrabTimeout = g_timeout_source_new(UNGRAB_TIMEOUT);
+      VMTOOLSAPP_ATTACH_SOURCE(mCtx, mUngrabTimeout, DnDUngrabTimeout, this, NULL);
    }
 }
 
@@ -765,8 +787,8 @@ DnD::OnGHQueryPendingDrag(int32 x, // IN
 void
 DnD::UngrabTimeout(void)
 {
+   Debug("%s: enter\n", __FUNCTION__);
    mUngrabTimeout = NULL;
-
    if (mState != DNDSTATE_QUERY_EXITING) {
       /* Reset DnD for any wrong state. */
       Debug("%s: Bad state: %d\n", __FUNCTION__, mState);
@@ -776,7 +798,6 @@ DnD::UngrabTimeout(void)
 
    ASSERT(mRpc);
    mRpc->GHUngrabTimeout();
-
 
    /* Hide detection window. */
    UpdateDetWnd(false, 0, 0);
@@ -807,6 +828,7 @@ DnD::UngrabTimeout(void)
 void
 DnD::DragEnter(const CPClipboard *clip)
 {
+   Debug("%s: enter\n", __FUNCTION__);
    if (DNDSTATE_DRAGGING_OUTSIDE == mState ||
        DNDSTATE_DRAGGING_INSIDE == mState) {
       /*
@@ -832,7 +854,7 @@ DnD::DragEnter(const CPClipboard *clip)
 
    /* Remove untriggered ungrab timer. */
    if (mUngrabTimeout) {
-      EventManager_Remove(mUngrabTimeout);
+      g_source_destroy(mUngrabTimeout);
       mUngrabTimeout = NULL;
    }
 
@@ -930,12 +952,13 @@ DnD::OnGHCancel(void)
     * file copy/move).
     */
    if (NULL == mHideDetWndTimer) {
-      mHideDetWndTimer = EventManager_Add(mEventQueue, HIDE_DET_WND_TIMER,
-                                          DnDHideDetWndTimer, this);
+      Debug("%s: creating mHideDetWndTimer\n", __FUNCTION__);
+      mHideDetWndTimer = g_timeout_source_new(HIDE_DET_WND_TIMER);
+      VMTOOLSAPP_ATTACH_SOURCE(mCtx, mHideDetWndTimer, DnDHideDetWndTimer, this, NULL);
    }
    /* Remove the timer. */
    if (mUngrabTimeout) {
-      EventManager_Remove(mUngrabTimeout);
+      g_source_unref(mUngrabTimeout);
       mUngrabTimeout = NULL;
    }
    mState = DNDSTATE_READY;
@@ -965,7 +988,7 @@ DnD::UpdateDetWnd(bool show, // IN
                   int32 y)   // IN
 {
    if (mHideDetWndTimer) {
-      EventManager_Remove(mHideDetWndTimer);
+      g_source_destroy(mHideDetWndTimer);
       mHideDetWndTimer = NULL;
    }
    updateDetWndChanged.emit(show, x, y);
@@ -996,3 +1019,18 @@ DnD::ResetDnD(void)
    reset.emit();
 }
 
+
+/**
+ * Set the hide detection window timer.
+ *
+ * @param[in] e timer object.
+ */
+
+void
+DnD::SetHideDetWndTimer(GSource *e)
+{
+   if (!e && mHideDetWndTimer) {
+      g_source_destroy(mHideDetWndTimer);
+   }
+   mHideDetWndTimer = e;
+}

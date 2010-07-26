@@ -32,6 +32,7 @@
 extern "C" {
    #include "dnd.h"
    #include "dndMsg.h"
+   #include "vmware/tools/guestrpc.h"
 }
 
 class DnDRpcV3
@@ -39,7 +40,7 @@ class DnDRpcV3
      public sigc::trackable
 {
    public:
-      DnDRpcV3(struct RpcIn *rpcIn);
+      DnDRpcV3(RpcChannel *chan);
       virtual ~DnDRpcV3(void);
 
       /* DnD functions. */

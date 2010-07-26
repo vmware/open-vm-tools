@@ -80,7 +80,7 @@ class LIB_EXPORT DnDBase
       /* cui DnD protocol layer API exposed to UI (all platforms). */
 
       /* Local UI as DnD source. */
-      virtual void UpdateUnityDetWnd(bool bShow, uint32 unityWndId) {};
+      virtual void UpdateUnityDetWnd(bool bShow, uint32 unityWndId, bool bottom){};
       virtual void DragLeave(int32 x, int32 y) = 0;
       virtual void SourceCancel(void) = 0;
       virtual void SourceDrop(DND_DROPEFFECT feedback) = 0;

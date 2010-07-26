@@ -38,11 +38,23 @@
  *        big buffer for each direction. Any following big size message will
  *        be dropped before the pending transfer is done.Small message (<64K)
  *        can be sent at any time.
- *     2. Caller can not cancel any pending big buffer sending and 
+ *     2. Caller can not cancel any pending big buffer sending and
  *        receiving.
  *     3. Pending big buffer will be dropped if there is any error.
  */
 
+#if defined (_WIN32)
+/*
+ * When compile this file for Windows dnd plugin dll, there may be a conflict
+ * between CRT and MFC libraries.  From
+ * http://support.microsoft.com/default.aspx?scid=kb;en-us;q148652: The CRT
+ * libraries use weak external linkage for the DllMain function. The MFC
+ * libraries also contain this function. The function requires the MFC
+ * libraries to be linked before the CRT library. The Afx.h include file
+ * forces the correct order of the libraries.
+ */
+#include <afx.h>
+#endif
 
 #include <sigc++/hide.h>
 
@@ -50,8 +62,6 @@
 
 extern "C" {
    #include "util.h"
-   #include "rpcout.h"
-   #include "rpcin.h"
    #include "debug.h"
    #include "str.h"
    #include "hostinfo.h"
@@ -74,24 +84,19 @@ extern "C" {
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-RecvMsgCB(char const **result,     // OUT
-          size_t *resultLen,       // OUT
-          const char *name,        // IN
-          const char *args,        // IN
-          size_t argsSize,         // IN: Size of args
-          void *clientData)        // IN
+static gboolean
+RecvMsgCB(RpcInData *data) // IN/OUT
 {
-   DnDTransportGuestRpc *transport = (DnDTransportGuestRpc *)clientData;
+   DnDTransportGuestRpc *transport = (DnDTransportGuestRpc *)data->clientData;
    ASSERT(transport);
 
    /* '- 1' is to ignore empty space between command and args. */
-   if ((argsSize - 1) <= 0) {
+   if ((data->argsSize - 1) <= 0) {
       Debug("%s: invalid argsSize\n", __FUNCTION__);
-      return RpcIn_SetRetVals(result, resultLen, "invalid arg size", FALSE);
+      return RPCIN_SETRETVALS(data, "invalid arg size", FALSE);
    }
-   transport->RecvMsg((DnDTransportPacketHeader *)(args + 1), argsSize - 1);
-   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
+   transport->RecvMsg((DnDTransportPacketHeader *)(data->args + 1), data->argsSize - 1);
+   return RPCIN_SETRETVALS(data, "", TRUE);
 }
 
 
@@ -111,14 +116,21 @@ RecvMsgCB(char const **result,     // OUT
  *-----------------------------------------------------------------------------
  */
 
-DnDTransportGuestRpc::DnDTransportGuestRpc(struct RpcIn *rpcIn, // IN
+DnDTransportGuestRpc::DnDTransportGuestRpc(RpcChannel *rpc,     // IN
                                            const char *rpcCmd)  // IN
-   : mRpcIn(rpcIn)
+   : mRpc(rpc)
 {
-   ASSERT(rpcIn);
+   mRpcCb.name = rpcCmd;
+   mRpcCb.callback = RecvMsgCB;
+   mRpcCb.clientData = this;
+   mRpcCb.xdrIn = NULL;
+   mRpcCb.xdrOut = NULL;
+   mRpcCb.xdrInSize = 0;
+
+   ASSERT(rpc);
    ASSERT(rpcCmd);
 
-   RpcIn_RegisterCallback(rpcIn, rpcCmd, RecvMsgCB, this);
+   RpcChannel_RegisterCallback(rpc, &mRpcCb);
    mRpcCmd = Util_SafeStrdup(rpcCmd);
 
    mSendBuf.buffer = NULL;
@@ -147,7 +159,8 @@ DnDTransportGuestRpc::DnDTransportGuestRpc(struct RpcIn *rpcIn, // IN
 
 DnDTransportGuestRpc::~DnDTransportGuestRpc(void)
 {
-   RpcIn_UnregisterCallback(mRpcIn, mRpcCmd);
+   RpcChannelCallback cb = {mRpcCmd, RecvMsgCB, this, NULL, NULL, 0};
+   RpcChannel_UnregisterCallback(mRpc, &cb);
    free(mRpcCmd);
    free(mSendBuf.buffer);
    free(mRecvBuf.buffer);
@@ -182,8 +195,6 @@ DnDTransportGuestRpc::SendMsg(uint8 *msg,    // IN
       Debug("%s: message is too big, quit.\n", __FUNCTION__);
       return FALSE;
    }
-
-   Debug("%s: got message, size %"FMTSZ"u\n", __FUNCTION__, length);
 
    if (length <= DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE) {
       /*
@@ -267,8 +278,8 @@ DnDTransportGuestRpc::SendPacket(uint8 *packet,     // IN
    ASSERT(nrWritten + packetSize <= rpcSize);
    memcpy(rpc + nrWritten, packet, packetSize);
 
-   ret = (TRUE == RpcOut_SendOneRaw(rpc, rpcSize, NULL, NULL));
-   
+   ret = (TRUE == RpcChannel_Send(mRpc, rpc, rpcSize, NULL, NULL));
+
    if (!ret) {
       Debug("%s: failed to send msg to host\n", __FUNCTION__);
    }
@@ -304,8 +315,6 @@ DnDTransportGuestRpc::RecvMsg(DnDTransportPacketHeader *packet, // IN
       Debug("%s: Received invalid data.\n", __FUNCTION__);
       return;
    }
-
-   Debug("%s: received data, size %"FMTSZ"u.\n", __FUNCTION__, packetSize);
 
    switch (packet->type) {
    case DND_TRANSPORT_PACKET_TYPE_SINGLE:

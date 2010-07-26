@@ -29,12 +29,16 @@
 #include "copyPasteRpc.hh"
 #include "dndTransport.hh"
 
+extern "C" {
+#include "vmware/tools/guestrpc.h"
+}
+
 class CopyPasteRpcV3
    : public CopyPasteRpc,
      public sigc::trackable
 {
    public:
-      CopyPasteRpcV3(struct RpcIn *rpcIn);
+      CopyPasteRpcV3(RpcChannel *chan);
       virtual ~CopyPasteRpcV3(void);
 
       /* CopyPaste Rpc functions. */

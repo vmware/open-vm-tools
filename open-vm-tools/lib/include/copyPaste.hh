@@ -30,6 +30,10 @@
 #include "copyPasteBase.h"
 #include "copyPasteRpc.hh"
 
+extern "C" {
+   #include "vmware/tools/guestrpc.h"
+}
+
 class CopyPaste
    : public CopyPasteBase,
      public sigc::trackable
@@ -48,7 +52,7 @@ class CopyPaste
 
       virtual bool IsCopyPasteAllowed(void) { return mCopyPasteAllowed; }
 
-      void VmxCopyPasteVersionChanged(struct RpcIn *rpcIn,
+      void VmxCopyPasteVersionChanged(RpcChannel *chan,
                                       uint32 version);
       void SetCopyPasteAllowed(bool isCopyPasteAllowed)
          { mCopyPasteAllowed = isCopyPasteAllowed; }

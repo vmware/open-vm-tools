@@ -22,6 +22,18 @@
  *     Implementation of the DnDRpcV3 interface.
  */
 
+#if defined (_WIN32)
+/*
+ * When compile this file for Windows dnd plugin dll, there may be a conflict
+ * between CRT and MFC libraries.  From
+ * http://support.microsoft.com/default.aspx?scid=kb;en-us;q148652: The CRT
+ * libraries use weak external linkage for the DllMain function. The MFC
+ * libraries also contain this function. The function requires the MFC
+ * libraries to be linked before the CRT library. The Afx.h include file
+ * forces the correct order of the libraries.
+ */
+#include <afx.h>
+#endif
 
 #include "dndRpcV3.hh"
 #include "dndTransportGuestRpc.hh"
@@ -48,9 +60,9 @@ extern "C" {
  *-----------------------------------------------------------------------------
  */
 
-DnDRpcV3::DnDRpcV3(struct RpcIn *rpcIn) // IN
+DnDRpcV3::DnDRpcV3(RpcChannel *chan) // IN
 {
-   mTransport = new DnDTransportGuestRpc(rpcIn, "dnd.transport");
+   mTransport = new DnDTransportGuestRpc(chan, "dnd.transport");
    mTransport->recvMsgChanged.connect(sigc::mem_fun(this, &DnDRpcV3::OnRecvMsg));
 
    mHostMinorVersion = 0;

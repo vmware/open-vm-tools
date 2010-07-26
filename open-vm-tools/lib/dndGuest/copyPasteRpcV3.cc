@@ -48,9 +48,9 @@ extern "C" {
  *-----------------------------------------------------------------------------
  */
 
-CopyPasteRpcV3::CopyPasteRpcV3(struct RpcIn *rpcIn) // IN
+CopyPasteRpcV3::CopyPasteRpcV3(RpcChannel *chan) // IN
 {
-   mTransport = new DnDTransportGuestRpc(rpcIn, "copypaste.transport");
+   mTransport = new DnDTransportGuestRpc(chan, "copypaste.transport");
    mTransport->recvMsgChanged.connect(sigc::mem_fun(this, &CopyPasteRpcV3::OnRecvMsg));
 }
 

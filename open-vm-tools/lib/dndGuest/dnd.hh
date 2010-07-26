@@ -30,15 +30,17 @@
 #include "dndBase.h"
 #include "dndRpc.hh"
 
-struct Event;
-struct DblLnkLst_Links;
+extern "C" {
+   #include "vmware/tools/plugin.h"
+   #include "vmware/tools/guestrpc.h"
+}
 
 class DnD
    : public DnDBase,
      public sigc::trackable
 {
    public:
-      DnD(DblLnkLst_Links *eventQueue);
+      DnD(ToolsAppCtx *ctx);
       virtual ~DnD(void);
 
       /* Common DnD layer API exposed to UI (all platforms). */
@@ -59,7 +61,7 @@ class DnD
 
       virtual bool IsDnDAllowed(void) { return mDnDAllowed; }
 
-      void VmxDnDVersionChanged(struct RpcIn *rpcIn,
+      void VmxDnDVersionChanged(RpcChannel *chan,
                                 uint32 version);
 
       void SetDnDAllowed(bool isDnDAllowed)
@@ -70,8 +72,7 @@ class DnD
       void HGDragStartDone(void);
       void OnUpdateMouse(int32 x, int32 y);
       void UpdateDetWnd(bool show, int32 x, int32 y);
-      void SetHideDetWndTimer(Event *e) { mHideDetWndTimer = e; }
-
+      void SetHideDetWndTimer(GSource *e);
    private:
       /* Callbacks from rpc. */
       void OnGHUpdateUnityDetWnd(bool bShow, uint32 unityWndId);
@@ -92,10 +93,10 @@ class DnD
       uint32 mVmxDnDVersion;
       bool mDnDAllowed;
       std::string mStagingDir;
-      Event *mUngrabTimeout;
-      Event *mUnityDnDDetTimeout;
-      Event *mHideDetWndTimer;
-      DblLnkLst_Links *mEventQueue;
+      GSource *mHideDetWndTimer;
+      GSource *mUngrabTimeout;
+      GSource *mUnityDnDDetTimeout;
+      ToolsAppCtx *mCtx;
 };
 
 #endif // DND_HH

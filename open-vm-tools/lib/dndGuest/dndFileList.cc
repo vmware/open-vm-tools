@@ -30,8 +30,21 @@
  *      local format.
  *
  *      XXX This file is almost identical to bora/apps/lib/cui/dndFileList.cc
- *      but right now we can not find a way to share the file. 
+ *      but right now we can not find a way to share the file.
  */
+
+#if defined (_WIN32)
+/*
+ * When compile this file for Windows dnd plugin dll, there may be a conflict
+ * between CRT and MFC libraries.  From
+ * http://support.microsoft.com/default.aspx?scid=kb;en-us;q148652: The CRT
+ * libraries use weak external linkage for the DllMain function. The MFC
+ * libraries also contain this function. The function requires the MFC
+ * libraries to be linked before the CRT library. The Afx.h include file
+ * forces the correct order of the libraries.
+ */
+#include <afx.h>
+#endif
 
 #include "dndFileList.hh"
 
