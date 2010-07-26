@@ -24,8 +24,6 @@
 #include <linux/poll.h>
 #include <linux/file.h>
 
-#include "compat_file.h"
-
 
 /*
  * The DECLARE_WAITQUEUE() API appeared in 2.3.1
