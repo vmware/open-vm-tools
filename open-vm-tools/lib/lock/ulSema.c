@@ -699,17 +699,18 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
                                   &downOccurred);
          }
 
-         if (LIKELY(err == 0) && downOccurred) {
-            MXUserHisto *histo;
+         if (LIKELY(err == 0)) {
             VmTimeType value = Hostinfo_SystemTimerNS() - begin;
 
             MXUserAcquisitionSample(&sema->acquisitionStats, downOccurred,
                                     !tryDownSuccess, value);
 
-            histo = Atomic_ReadPtr(&sema->acquisitionHisto);
+            if (downOccurred) {
+               MXUserHisto *histo = Atomic_ReadPtr(&sema->acquisitionHisto);
 
-            if (UNLIKELY(histo != NULL)) {
-               MXUserHistoSample(histo, value);
+               if (UNLIKELY(histo != NULL)) {
+                  MXUserHistoSample(histo, value);
+               }
             }
          }
       }
