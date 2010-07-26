@@ -170,9 +170,10 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CreateRecLock --
+ * MXUser_CreateRecLockEx --
  *
- *      Create a recursive lock.
+ *      Create a recursive lock specifying if the lock must always be
+ *      silent - never logging any messages.
  *
  *      Only the owner (thread) of a recursive lock may recurse on it.
  *
@@ -187,8 +188,9 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
  */
 
 MXUserRecLock *
-MXUser_CreateRecLock(const char *userName,  // IN:
-                     MX_Rank rank)          // IN:
+MXUser_CreateRecLockEx(const char *userName,  // IN:
+                       MX_Rank rank,          // IN:
+                       Bool beSilent)         // IN:
 {
    char *properName;
    MXUserStats *stats;
@@ -219,22 +221,53 @@ MXUser_CreateRecLock(const char *userName,  // IN:
 #if defined(MXUSER_STATS)
    lock->header.statsFunc = MXUserStatsActionRec;
    lock->header.identifier = MXUserAllocID();
-
-   stats = Util_SafeCalloc(1, sizeof(*stats));
-#else
-   stats = NULL;
 #endif
 
-   Atomic_WritePtr(&lock->statsMem, stats);
+   if (beSilent) {
+      stats = NULL;
+   } else {
+#if defined(MXUSER_STATS)
+      stats = Util_SafeCalloc(1, sizeof(*stats));
 
-   if (stats) {
       MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
       MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
+#else
+      stats = NULL;
+#endif
    }
+
+   Atomic_WritePtr(&lock->statsMem, stats);
 
    MXUserAddToList(&lock->header);
 
    return lock;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_CreateRecLock --
+ *
+ *      Create a recursive lock.
+ *
+ *      Only the owner (thread) of a recursive lock may recurse on it.
+ *
+ * Results:
+ *      NULL  Creation failed
+ *      !NULL Creation succeeded
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+MXUserRecLock *
+MXUser_CreateRecLock(const char *userName,  // IN:
+                     MX_Rank rank)          // IN:
+{
+   return MXUser_CreateRecLockEx(userName, rank, FALSE);
 }
 
 
