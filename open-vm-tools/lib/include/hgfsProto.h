@@ -126,6 +126,9 @@ typedef enum {
    HGFS_OP_DESTROY_SESSION_V4,    /* Destroy/close session. */
    HGFS_OP_READ_FAST_V4,          /* Read */
    HGFS_OP_WRITE_FAST_V4,         /* Write */
+   HGFS_OP_SET_WATCH_V4,          /* Start monitoring directory changes. */
+   HGFS_OP_REMOVE_WATCH_V4,       /* Stop monitoring directory changes. */
+   HGFS_OP_NOTIFY_V4,             /* Notification for a directory change event. */
    HGFS_OP_OPEN_V4,               /* Open file */
    HGFS_OP_DIRECTORY_READ_V4,     /* Read directory entries. */
    HGFS_OP_ENUMERATE_STREAMS_V4,  /* Enumerate alternative named streams for a file. */
@@ -143,9 +146,6 @@ typedef enum {
    HGFS_OP_UNLOCK_BYTE_RANGE_V4,  /* Release byte range lock. */
    HGFS_OP_QUERY_EAS_V4,          /* Query extended attributes. */
    HGFS_OP_SET_EAS_V4,            /* Add or modify extended attributes. */
-   HGFS_OP_SET_WATCH_V4,          /* Start monitoring directory changes. */
-   HGFS_OP_REMOVE_WATCH_V4,       /* Stop monitoring directory changes. */
-   HGFS_OP_NOTIFY_V4,             /* Notification for a directory change event. */
 
    HGFS_OP_MAX,                   /* Dummy op, must be last in enum */
 } HgfsOp;
@@ -1811,14 +1811,14 @@ HgfsReplyDestroySessionV4;
  */
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestSetWatch {
+struct HgfsRequestSetWatchV4 {
     uint64 events;             /* What events to watch? */
     uint32 flags;              /* Flags. */
     uint64 reserved;           /* Reserved for future use. */
     HgfsFileNameV3 fileName;   /* Filename to watch. */
 }
 #include "vmware_pack_end.h"
-HgfsRequestSetWatch;
+HgfsRequestSetWatchV4;
 
 /*
  *  Coarse grain notification event types.
@@ -1866,28 +1866,28 @@ HgfsRequestSetWatch;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplySetWatch {
+struct HgfsReplySetWatchV4 {
     HgfsHandle watchId;    /* Watch identifier for subsequent references. */
     uint64 reserved;       /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsReplySetWatch;
+HgfsReplySetWatchV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestRemoveWatch {
+struct HgfsRequestRemoveWatchV4 {
     HgfsHandle watchId;    /* Watch identifier to remove. */
 }
 #include "vmware_pack_end.h"
-HgfsRequestRemoveWatch;
+HgfsRequestRemoveWatchV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyRemoveWatch {
+struct HgfsReplyRemoveWatchV4 {
     uint64 reserved;       /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyRemoveWatch;
+HgfsReplyRemoveWatchV4;
 
 typedef
 #include "vmware_pack_begin.h"
