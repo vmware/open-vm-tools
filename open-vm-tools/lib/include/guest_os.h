@@ -89,6 +89,9 @@ typedef enum GuestOSType {
    GUEST_OS_ECOMSTATION         = GUEST_OS_BASE + 51, // OS/2 variant
    GUEST_OS_RHEL6               = GUEST_OS_BASE + 52,
    GUEST_OS_RHEL6_64            = GUEST_OS_BASE + 53,
+   GUEST_OS_WINEIGHT            = GUEST_OS_BASE + 54, // Windows 8
+   GUEST_OS_WINEIGHT_64         = GUEST_OS_BASE + 55, // Windows 8 x64
+   GUEST_OS_WINEIGHTSERVER_64   = GUEST_OS_BASE + 56, // Windows 8 Server X64
 } GuestOSType;
 
 
@@ -136,13 +139,23 @@ typedef enum GuestOSFamilyType {
 #define ALLWINSEVEN64   BS(WINSEVEN_64)
 #define ALLWINSEVEN     (ALLWINSEVEN32 | ALLWINSEVEN64)
 
+#define ALLWINEIGHTSERVER64 BS(WINEIGHTSERVER_64)
+#define ALLWINEIGHTSERVER   ALLWINEIGHTSERVER64
+
+#define ALLWINEIGHT32   BS(WINEIGHT)
+#define ALLWINEIGHT64   BS(WINEIGHT_64)
+#define ALLWINEIGHT     (ALLWINEIGHT32 | ALLWINEIGHT64)
+
+
 #define ALLWINNT32	(BS(WINNT) | ALLWIN2000 | ALLWINXP32 | ALLWINNET32 | \
                          ALLWINVISTA32 | ALLWINLONGHORN32 | \
-                         ALLWINSEVEN32 | ALLWIN2008R2_32)
+                         ALLWINSEVEN32 | ALLWIN2008R2_32 | \
+                         ALLWINEIGHT32)
 
 #define ALLWINNT64	(ALLWINXP64 | ALLWINNET64 | \
                          ALLWINVISTA64 | ALLWINLONGHORN64 | \
-                         ALLWINSEVEN64 | ALLWIN2008R2_64)
+                         ALLWINSEVEN64 | ALLWIN2008R2_64 | \
+                         ALLWINEIGHT64 | ALLWINEIGHTSERVER)
 
 #define ALLWINNT	(ALLWINNT32 | ALLWINNT64)
 
@@ -242,6 +255,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_VALINUX            "VALinux" 
 #define STR_OS_YELLOW_DOG         "Yellow Dog"
 #define STR_OS_ECOMSTATION        "eComStation"
+#define STR_OS_ECOMSTATION2       "eComStation2"
 
 /* Windows */
 #define STR_OS_WIN_31                   "win31"
@@ -388,6 +402,19 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_WIN_2008R2_ENTERPRISE_FULL "Windows Server 2008 R2 Enterprise Edition"
 #define STR_OS_WIN_2008R2_DATACENTER_FULL "Windows Server 2008 R2 Datacenter Edition"
 #define STR_OS_WIN_2008R2_WEB_SERVER_FULL "Windows Web Server 2008 R2 Edition"
+
+/* Windows 8 */
+
+#define STR_OS_WIN_EIGHT     "windows8"
+#define STR_OS_WIN_EIGHT_X64 "windows8-64"
+
+/* Full names will eventually go here, similar to Windows 7 */
+
+/* Windows 8 based server - whatever it will be called */
+
+#define STR_OS_WIN_EIGHTSERVER_X64 "windows8srv-64"
+
+/* Full names will eventually go here, similar to Windows Server 2008 R2 */
 
 /* XXX */
 #define STR_OS_HYPERV "winHyperV"
