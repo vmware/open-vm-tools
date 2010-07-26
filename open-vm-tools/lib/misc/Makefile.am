@@ -31,6 +31,7 @@ libMisc_la_SOURCES += hostname.c
 libMisc_la_SOURCES += hostType.c
 libMisc_la_SOURCES += idLinux.c
 libMisc_la_SOURCES += iovector.c
+libMisc_la_SOURCES += logFixed.c
 libMisc_la_SOURCES += machineID.c
 libMisc_la_SOURCES += miscSolaris.c
 libMisc_la_SOURCES += posixDlopen.c
