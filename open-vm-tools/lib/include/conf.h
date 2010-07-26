@@ -68,6 +68,8 @@
 
 /**
  * Lets users disable just DiskInfo.
+ *
+ * If thinking of deprecating this, please read bug 535343 first.
  */
 #define CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO "disable-query-diskinfo"
 
