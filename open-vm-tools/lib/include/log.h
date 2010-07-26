@@ -62,7 +62,7 @@ EXTERN Bool Log_Enabled(void);
 EXTERN const char *Log_GetFileName(void);
 
 EXTERN void Log_Flush(void);
-EXTERN void Log_UseLocking(Bool useLocking);
+EXTERN void Log_SkipLocking(Bool skipLocking);
 EXTERN void Log_SetAlwaysKeep(Bool alwaysKeep);
 EXTERN Bool Log_RemoveFile(Bool alwaysRemove);
 EXTERN void Log_DisableThrottling(void);
