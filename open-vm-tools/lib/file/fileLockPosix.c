@@ -1054,7 +1054,7 @@ FileLockNormalizePath(ConstUnicode filePath)  // IN:
  *----------------------------------------------------------------------
  */
 
-void *
+FileLockToken *
 FileLock_Lock(ConstUnicode filePath,         // IN:
               const Bool readOnly,           // IN:
               const uint32 msecMaxWaitTime,  // IN:
@@ -1083,7 +1083,7 @@ FileLock_Lock(ConstUnicode filePath,         // IN:
       Unicode_Free(normalizedPath);
    }
 
-   return (void *) tokenPtr;
+   return tokenPtr;
 }
 
 
@@ -1148,7 +1148,7 @@ FileLock_IsLocked(ConstUnicode filePath,  // IN:
  */
 
 int
-FileLock_Unlock(const void *lockToken)  // IN:
+FileLock_Unlock(const FileLockToken *lockToken)  // IN:
 {
    ASSERT(lockToken);
 

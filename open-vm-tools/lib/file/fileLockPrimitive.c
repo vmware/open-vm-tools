@@ -76,6 +76,20 @@ typedef struct parse_table
    void *valuePtr;
 } ParseTable;
 
+/*
+ * The lock token. This is returned by the lock operation and must be sent
+ * to the unlock operation.
+ */
+
+#define FILELOCK_TOKEN_SIGNATURE 0x4B434C46  // 'FLCK' in memory
+
+struct FileLockToken
+{
+   uint32  signature;
+   Unicode pathName;
+   Unicode lockFilePath;  // &implicitReadToken for implicit read locks
+};
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1705,13 +1719,11 @@ bail:
  */
 
 Unicode
-FileLock_TokenPathName(const void *lockToken)  // IN:
+FileLock_TokenPathName(const FileLockToken *lockToken)  // IN:
 {
-   FileLockToken *tokenPtr = (FileLockToken *) lockToken;
+   ASSERT(lockToken && (lockToken->signature == FILELOCK_TOKEN_SIGNATURE));
 
-   ASSERT(tokenPtr && (tokenPtr->signature == FILELOCK_TOKEN_SIGNATURE));
-
-   return Unicode_Duplicate(tokenPtr->pathName);
+   return Unicode_Duplicate(lockToken->pathName);
 }
 
 

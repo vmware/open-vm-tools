@@ -52,6 +52,8 @@
 
 #include "iovector.h"        // for struct iovec
 
+struct FileLockToken;
+
 #if defined(_WIN32)
 
 # include <windows.h>
@@ -60,7 +62,7 @@ typedef struct FileIODescriptor {
    HANDLE win32;
    uint32 flags;
    Unicode fileName;
-   void *lockToken;
+   struct FileLockToken *lockToken;
 } FileIODescriptor;
 
 #else
@@ -69,7 +71,7 @@ typedef struct FileIODescriptor {
    int posix;
    int flags;
    Unicode fileName;
-   void *lockToken;
+   struct FileLockToken *lockToken;
 } FileIODescriptor;
 
 #endif

@@ -31,7 +31,7 @@
 #include "unicodeTypes.h"
 
 // Horrible hack that exists to please VMX; should be removed ASAP
-EXTERN int  FileLock_DeleteFileVMX(ConstUnicode filePath);
+int  FileLock_DeleteFileVMX(ConstUnicode filePath);
 
 // The default time, in msec, to wait for a lock before giving up
 #define	FILELOCK_DEFAULT_WAIT 2500
@@ -50,15 +50,15 @@ EXTERN int  FileLock_DeleteFileVMX(ConstUnicode filePath);
 #define	FILELOCK_OVERHEAD 15
 
 // File locking functions
-void *FileLock_Lock(ConstUnicode filePath,
-                    const Bool readOnly,
-                    const uint32 msecMaxWaitTime,
-                    int *err);
+typedef struct FileLockToken FileLockToken;
 
-Unicode FileLock_TokenPathName(const void *lockToken);
+FileLockToken *FileLock_Lock(ConstUnicode filePath,
+                             const Bool readOnly,
+                             const uint32 msecMaxWaitTime,
+                             int *err);
 
-Unicode FileLock_Name(const void *fileLockToken);
-int FileLock_Unlock(const void *fileLockToken);
+Unicode FileLock_TokenPathName(const FileLockToken *fileLockToken);
+int FileLock_Unlock(const FileLockToken *lockToken);
 
 Bool FileLock_IsLocked(ConstUnicode filePath,
                        int *err);

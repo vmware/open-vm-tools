@@ -195,22 +195,6 @@ typedef struct lock_values
    ActiveLock   *lockList;
 } LockValues;
 
-/*
- * The lock token. This is returned by the lock operation and must be sent
- * to the unlock operation.
- */
-
-#define FILELOCK_TOKEN_SIGNATURE 0x4B434C46  // 'FLCK' in memory
-
-struct FileLockToken
-{
-   uint32  signature;
-   Unicode pathName;
-   Unicode lockFilePath;  // &implicitReadToken for implicit read locks
-};
-
-typedef struct FileLockToken FileLockToken;
-
 #include "file_extensions.h"
 
 #define FILELOCK_SUFFIX "." LOCK_FILE_EXTENSION
