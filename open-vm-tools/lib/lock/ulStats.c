@@ -653,9 +653,23 @@ MXUserKitchen(MXUserAcquisitionStats *stats,  // IN:
    if (stats->numAttempts == 0) {
       *contentionRatio = 0.0;
    } else {
-      uint64 failures = stats->numAttempts - stats->numSuccesses;
+      double basic;
+      double acquisition;
 
-      *contentionRatio = ((double) failures) / ((double) stats->numAttempts);
+      /*
+       * Contention shows up in two ways - failed attempts to acquire
+       * and detected contention while acquiring. Determine which is
+       * the largest and use that as the contention ratio for the
+       * specified statistics.
+       */
+
+      basic = ((double) stats->numAttempts - stats->numSuccesses) /
+               ((double) stats->numAttempts);
+
+      acquisition = ((double) stats->numSuccessesContended) /
+                     ((double) stats->numSuccesses);
+
+      *contentionRatio = (basic < acquisition) ? acquisition : basic;
    }
 
    /*
