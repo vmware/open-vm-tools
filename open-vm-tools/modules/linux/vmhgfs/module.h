@@ -29,7 +29,6 @@
 #include "driver-config.h"
 
 #include <asm/atomic.h>
-#include "compat_completion.h"
 #include "compat_fs.h"
 #include "compat_semaphore.h"
 #include "compat_slab.h"

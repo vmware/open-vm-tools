@@ -31,7 +31,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
-#include "compat_completion.h"
 #include "compat_cred.h"
 #include "compat_dcache.h"
 #include "compat_fs.h"

@@ -32,47 +32,6 @@
 #endif
 
 /*
- * wait_for_completion and friends did not exist before 2.4.9.
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 9)
-
-#define compat_complete_and_exit(comp, status) complete_and_exit(comp, status)
-
-#else
-
-#include "compat_completion.h"
-
-/*
- * Used by _syscallX macros. Note that this is global variable, so
- * do not rely on its contents too much. As exit() is only function
- * we use, and we never check return value from exit(), we have
- * no problem...
- */
-extern int errno;
-
-/*
- * compat_exit() provides an access to the exit() function. It must 
- * be named compat_exit(), as exit() (with different signature) is 
- * provided by x86-64, arm and other (but not by i386).
- */
-#define __NR_compat_exit __NR_exit
-static inline _syscall1(int, compat_exit, int, exit_code);
-
-/*
- * See compat_wait_for_completion in compat_completion.h.
- * compat_exit implicitly performs an unlock_kernel, in resident code,
- * ensuring that the thread is no longer running in module code when the
- * module is unloaded.
- */
-#define compat_complete_and_exit(comp, status) do { \
-   lock_kernel(); \
-   compat_complete(comp); \
-   compat_exit(status); \
-} while (0)
-
-#endif
-
-/*
  * vsnprintf became available in 2.4.10. For older kernels, just fall back on
  * vsprintf.
  */
