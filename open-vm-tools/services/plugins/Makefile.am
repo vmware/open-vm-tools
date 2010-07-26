@@ -19,6 +19,9 @@ SUBDIRS =
 if HAVE_X11
    SUBDIRS += desktopEvents
 endif
+if HAVE_GTKMM
+   SUBDIRS += dndcp
+endif
 SUBDIRS += guestInfo
 SUBDIRS += hgfsServer
 SUBDIRS += powerOps

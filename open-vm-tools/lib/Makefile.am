@@ -21,10 +21,6 @@ SUBDIRS += auth
 SUBDIRS += backdoor
 SUBDIRS += conf
 SUBDIRS += dict
-SUBDIRS += dnd
-if HAVE_GTKMM
-   SUBDIRS += dndGuest
-endif
 SUBDIRS += dynxdr
 SUBDIRS += err
 SUBDIRS += eventManager

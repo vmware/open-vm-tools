@@ -1220,8 +1220,6 @@ AC_CONFIG_FILES([                      \
    lib/backdoor/Makefile               \
    lib/conf/Makefile                   \
    lib/dict/Makefile                   \
-   lib/dnd/Makefile                    \
-   lib/dndGuest/Makefile               \
    lib/dynxdr/Makefile                 \
    lib/err/Makefile                    \
    lib/eventManager/Makefile           \
@@ -1270,6 +1268,7 @@ AC_CONFIG_FILES([                      \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
    services/plugins/desktopEvents/Makefile \
+   services/plugins/dndcp/Makefile     \
    services/plugins/guestInfo/Makefile \
    services/plugins/guestInfo/getlib/Makefile \
    services/plugins/hgfsServer/Makefile \
