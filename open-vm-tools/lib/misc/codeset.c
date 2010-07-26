@@ -1581,6 +1581,7 @@ CodeSet_IsEncodingSupported(const char *name) // IN
    cv = ucnv_open(name, &uerr);
    if (cv) {
       ucnv_close(cv);
+
       return TRUE;
    }
 
@@ -1644,4 +1645,221 @@ CodeSet_Validate(const char *buf,   // IN: the string
    ucnv_close(cv);
 
    return uerr == U_BUFFER_OVERFLOW_ERROR;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_LengthInCodePoints --
+ *
+ *    Return the length of a UTF8 string in code points (the number of
+ *    unicode characters present in the string, not the length of the 
+ *    string in bytes).
+ *
+ *    Like strlen, the length returned does not include the terminating NUL.
+ *
+ * Results:
+ *    -1 on error
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+CodeSet_LengthInCodePoints(const char *utf8)  // IN:
+{
+   char *p;
+   char *end;
+   uint32 codePoints = 0;
+
+   ASSERT(utf8);
+
+   p = (char *) utf8;
+   end = p + strlen(utf8);
+
+   while (p < end) {
+      uint32 utf32;
+      uint32 len = CodeSetOldGetUtf8(p, end, &utf32);
+
+      if (len == 0) {
+         return -1;
+      }
+
+      p += len;
+      codePoints++;
+   }
+
+   return codePoints;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_UTF8ToUTF32 --
+ *
+ *    Convert a UTF8 string into a UTF32 string. The result is returned as a
+ *    dynamically allocated string that the caller is responsible for.
+ *
+ * Results:
+ *    TRUE   Input string was valid, converted string in *utf32
+ *    FALSE  Input string was invalid or internal error
+ *
+ * Side effects:
+ *    Allocates memory
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSet_UTF8ToUTF32(const char *utf8,  // IN:
+                    char **utf32)      // OUT:
+{
+   char *p;
+   char *end;
+   uint32 *ptr;
+   int codePoints;
+
+   ASSERT(utf32);
+
+   if (utf8 == NULL) {  // NULL is not an error
+      *utf32 = NULL;
+
+      return TRUE;
+   }
+
+   codePoints = CodeSet_LengthInCodePoints(utf8);
+   if (codePoints == -1) {
+      *utf32 = NULL;
+
+      return FALSE;
+   }
+
+   p = (char *) utf8;
+   end = p + strlen(utf8);
+
+   ptr = Util_SafeMalloc(sizeof(*ptr) * (codePoints + 1));
+   *utf32 = (char *) ptr;
+
+   while (p < end) {
+      p += CodeSetOldGetUtf8(p, end, ptr++);
+   }
+
+   *ptr = 0;
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_UTF8ToUTF32 --
+ *
+ *    Convert a UTF32 string into a UTF8 string. The result is returned as a
+ *    dynamically allocated string that the caller is responsible for.
+ *
+ * Results:
+ *    TRUE   Input string was valid, converted string in *utf8
+ *    FALSE  Input string was invalid or internal error
+ *
+ * Side effects:
+ *    Allocates memory
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+
+Bool
+CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
+                    char **utf8)        // OUT:
+{
+   uint32 i;
+   uint8 *p;
+   uint8 *q;
+   uint32 len;
+   union {
+      uint32  word;
+      uint8   bytes[4];
+   } value;
+
+   ASSERT(utf8);
+
+   if (utf32 == NULL) {  // NULL is not an error
+      *utf8 = NULL;
+
+      return TRUE;
+   }
+
+   /*
+    * Determine the length of the UTF32 string. A UTF32 string terminates
+    * with four (4) bytes of zero (0).
+    */
+
+   len = 0;
+   p = (char *) utf32;
+
+   while (TRUE) {
+      value.bytes[0] = *p++;
+      value.bytes[1] = *p++;
+      value.bytes[2] = *p++;
+      value.bytes[3] = *p++;
+
+      if (value.word == 0) {
+         break;
+      }
+
+      len++;
+   }
+
+   /*
+    * Now that we know the length, allocate the memory for the UTF8 string.
+    * For simplicity's sake we overkill the calculation but in most cases
+    * the memory wastage will be very short lived and very small.
+    */
+
+   *utf8 = Util_SafeMalloc((4 * len) + 1);  // cover the NUL byte
+
+   /*
+    * Process the UTF32 string, converting each code point into its
+    * UTF8 equivalent.
+    */
+
+   p = (char *) utf32;
+   q = *utf8;
+
+   for (i = 0; i < len; i++) {
+      value.bytes[0] = *p++;
+      value.bytes[1] = *p++;
+      value.bytes[2] = *p++;
+      value.bytes[3] = *p++;
+
+      if (value.word < 0x80) {                      // One byte case (ASCII)
+         *q++ = value.word;
+      } else if (value.word < 0x800) {              // Two byte case
+         *q++ = 0xC0 | (value.word >> 6);
+         *q++ = 0x80 | (value.word & 0x3F);
+      } else if (value.word < 0x10000) {            // Three byte case
+         *q++ = 0xE0 | (value.word >> 12);
+         *q++ = 0x80 | ((value.word >> 6) & 0x3F);
+         *q++ = 0x80 | (value.word & 0x3F);
+      } else if (value.word < 0x110000) {           // Four byte case
+         *q++ = 0xF0 | (value.word >> 18);
+         *q++ = 0x80 | ((value.word >> 12) & 0x3F);
+         *q++ = 0x80 | ((value.word >> 6) & 0x3F);
+         *q++ = 0x80 | (value.word & 0x3F);
+      } else {  // INVALID VALUE!
+         free(*utf8);
+         *utf8 = NULL;
+
+         return FALSE;
+      }
+   }
+
+   *q = '\0';
+
+   return TRUE;
 }

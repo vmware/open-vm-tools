@@ -98,7 +98,7 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int
+int
 CodeSetOldGetUtf8(const char *string,  // IN: string
                   const char *end,     // IN: end of string
                   uint32 *uchar)       // OUT: the Unicode character

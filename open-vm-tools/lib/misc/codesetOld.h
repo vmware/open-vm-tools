@@ -206,5 +206,10 @@ CodeSetOld_Validate(const char *buf,   // IN: the string
 Bool
 CodeSetOld_Init(const char *dataDir);  // UNUSED
 
+int
+CodeSetOldGetUtf8(const char *string,  // IN: string
+                  const char *end,     // IN: end of string
+                  uint32 *uchar);      // OUT: the Unicode character
+
 
 #endif /* __CODESET_OLD_H__ */
