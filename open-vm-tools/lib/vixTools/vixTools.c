@@ -22,6 +22,17 @@
  *    VIX commands that run in the guest OS.
  */
 
+/*
+ * When adding new functions, be sure to update
+ * VixToolsSetAPIEnabledProperties() (adding a property and associated code
+ * in apps/lib/foundry/foundryVM.c if necessary).  The enabled properties
+ * provide hints to an API developer as to which APIs are available,
+ * and can be affected to guest OS attributes or guest-side conifguration.
+ *
+ * See Vim.Vm.Guest.QueryDisabledMethods()
+ *
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -35,6 +46,7 @@
 #include "wminic.h"
 #include "win32u.h"
 #include <sys/stat.h>
+#include <time.h>
 #else
 #include <unistd.h>
 #endif
@@ -47,6 +59,7 @@
 
 #include "vmware.h"
 #include "procMgr.h"
+#include "timeutil.h"
 #include "vm_version.h"
 #include "message.h"
 
@@ -170,6 +183,8 @@ static HashTable *userEnvironmentTable = NULL;
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
                                     char **result);
 
+static VixError VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg);
+
 #if defined(VMTOOLS_USE_GLIB)
 static gboolean VixToolsMonitorAsyncProc(void *clientData);
 #else
@@ -283,6 +298,10 @@ static VixError VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *reques
 static VixError VixTools_Base64EncodeBuffer(char **resultValuePtr, size_t *resultValLengthPtr);
 
 static VixError VixToolsSetSharedFoldersProperties(VixPropertyListImpl *propList);
+
+#if !defined(__FreeBSD__) && !defined(sun)
+static VixError VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList);
+#endif
 
 #if defined(_WIN32)
 static HRESULT VixToolsEnableDHCPOnPrimary(void);
@@ -1213,6 +1232,15 @@ VixTools_GetToolsPropertiesImpl(GuestApp_Dict **confDictRef,      // IN
 
    /* Retrieve the share folders UNC root path. */
    err = VixToolsSetSharedFoldersProperties(&propList);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+
+   /* Set up the API status properties */
+   err = VixToolsSetAPIEnabledProperties(&propList);
+   if (VIX_OK != err) {
+      goto abort;
+   }
 
    /*
     * Serialize the property list to buffer then encode it.
@@ -1313,6 +1341,170 @@ exit:
    }
    return err;
 }
+
+
+#if !defined(__FreeBSD__) && !defined(sun)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsSetAPIEnabledProperties --
+ *
+ *    Set information about the state of APIs.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList)    // IN
+{
+   VixError err = VIX_OK;
+
+   /*
+    * XXX TODO
+    *
+    * These values need to be adjusted as each API is implemented.
+    *
+    * They will also need guest-side configuration checks at some point.
+    */
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_START_PROGRAM_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_LIST_PROCESSES_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   // XXX not strictly true -- some error code work is still TBD
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_TERMINATE_PROCESS_ENABLED,
+                                 TRUE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_READ_ENVIRONMENT_VARIABLE_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_VALIDATE_CREDENTIALS_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_ACQUIRE_CREDENTIALS_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_RELEASE_CREDENTIALS_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_MAKE_DIRECTORY_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_DELETE_FILE_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_DELETE_DIRECTORY_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_MOVE_DIRECTORY_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_MOVE_FILE_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_CREATE_TEMP_FILE_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_CREATE_TEMP_DIRECTORY_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_LIST_FILES_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_CHANGE_FILE_ATTRIBUTES_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_INITIATE_FILE_TRANSFER_FROM_GUEST_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+   err = VixPropertyList_SetBool(propList,
+                                 VIX_PROPERTY_GUEST_INITIATE_FILE_TRANSFER_TO_GUEST_ENABLED,
+                                 FALSE);
+   if (VIX_OK != err) {
+      goto exit;
+   }
+
+exit:
+   Debug("finished %s, err %"FMT64"d\n", __FUNCTION__, err);
+   return err;
+} // VixToolsSetAPIEnabledProperties
+#endif // !defined(__FreeBSD__) && !defined(sun)
 
 
 /*
@@ -2841,6 +3033,156 @@ abort:
 
    return err;
 } // VixToolsGetFileInfo
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsSetFileAttributes --
+ *
+ *    Set the file attributes for a specified file.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
+{
+#if (defined(_WIN32) || defined(__linux__))
+   VixError err = VIX_OK;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   char *filePathName;
+   VixMsgSetGuestFileAttributesRequest *setGuestFileAttributesRequest = NULL;
+   struct timespec timeBuf;
+   Bool success = FALSE;
+   int64 createTime;
+   int64 accessTime;
+   int64 modificationTime;
+
+#ifdef _WIN32
+   DWORD fileAttr = 0;
+#endif
+
+   setGuestFileAttributesRequest =
+               (VixMsgSetGuestFileAttributesRequest *) requestMsg;
+
+   if ((requestMsg->commonHeader.bodyLength +
+        requestMsg->commonHeader.headerLength) !=
+       (((uint64) sizeof(*setGuestFileAttributesRequest)) +
+        setGuestFileAttributesRequest->guestPathNameLength + 1)) {
+      ASSERT(0);
+      Debug("%s: Invalid request message received\n", __FUNCTION__);
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   filePathName = ((char *) requestMsg) +
+                  sizeof(*setGuestFileAttributesRequest);
+   if ('\0' == *filePathName) {
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
+   if ('\0' != *(filePathName +
+                 setGuestFileAttributesRequest->guestPathNameLength)) {
+      ASSERT(0);
+      Debug("%s: Invalid request message received.\n", __FUNCTION__);
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   if (!(File_Exists(filePathName))) {
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
+
+   /*
+    * User specifies the time in Unix Time Format. File_SetTimes()
+    * accepts times in Windows NT Format. We should convert the time
+    * from Unix Format to Windows NT Format.
+    */
+   timeBuf.tv_sec  = setGuestFileAttributesRequest->createTime;
+   timeBuf.tv_nsec = 0;
+   createTime      = TimeUtil_UnixTimeToNtTime(timeBuf);
+
+   timeBuf.tv_sec  = setGuestFileAttributesRequest->accessTime;
+   timeBuf.tv_nsec = 0;
+   accessTime      = TimeUtil_UnixTimeToNtTime(timeBuf);
+
+   timeBuf.tv_sec    = setGuestFileAttributesRequest->modificationTime;
+   timeBuf.tv_nsec   = 0;
+   modificationTime  = TimeUtil_UnixTimeToNtTime(timeBuf);
+
+   success = File_SetTimes(filePathName,
+                           createTime,
+                           accessTime,
+                           modificationTime,
+                           modificationTime);
+   if (!success) {
+      Debug("%s: Failed to set the times.\n", __FUNCTION__);
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
+
+#if defined(_WIN32)
+   fileAttr = Win32U_GetFileAttributes(filePathName);
+   if (fileAttr != INVALID_FILE_ATTRIBUTES) {
+      if (setGuestFileAttributesRequest->hidden) {
+         fileAttr |= FILE_ATTRIBUTE_HIDDEN;
+      } else {
+         fileAttr &= (~FILE_ATTRIBUTE_HIDDEN);
+      }
+
+      if (setGuestFileAttributesRequest->readOnly) {
+         fileAttr |= FILE_ATTRIBUTE_READONLY;
+      } else {
+         fileAttr &= (~FILE_ATTRIBUTE_READONLY);
+      }
+
+      Win32U_SetFileAttributes(filePathName, fileAttr);
+   }
+#else
+   success = File_SetFilePermissions(filePathName,
+                                     setGuestFileAttributesRequest->permissions);
+   if (!success) {
+      Debug("%s: Failed to set the file permissions\n", __FUNCTION__);
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
+
+   if (Posix_Chown(filePathName,
+                    setGuestFileAttributesRequest->ownerId,
+                    setGuestFileAttributesRequest->groupId)) {
+      Debug("%s: Failed to set the owner/group Id\n", __FUNCTION__);
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
+#endif
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   return err;
+#else
+   return VIX_E_NOT_SUPPORTED;
+#endif
+} // VixToolsSetGuestFileAttributes
 
 
 /*
@@ -4856,6 +5198,11 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       case VIX_COMMAND_GET_FILE_INFO:
          err = VixToolsGetFileInfo(requestMsg, &resultValue);
          deleteResultValue = TRUE;
+         break;
+
+      ///////////////////////////////////
+      case VIX_COMMAND_SET_GUEST_FILE_ATTRIBUTES:
+         err = VixToolsSetFileAttributes(requestMsg);
          break;
 
       ///////////////////////////////////

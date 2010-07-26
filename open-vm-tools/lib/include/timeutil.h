@@ -39,6 +39,12 @@
 
 struct timeval;
 
+#ifdef _WIN32
+struct timespec {
+   time_t tv_sec;
+   long   tv_nsec;
+};
+#endif
 
 /* Similar to a struct tm but with slightly less weird semantics. */
 typedef struct TimeUtil_Date {
@@ -113,7 +119,7 @@ EXTERN char * TimeUtil_GetTimeFormat(int64 utcTime,  // IN
                                      Bool showDate,  // IN
                                      Bool showTime); // IN
 
-#if !defined _WIN32 && !defined N_PLAT_NLM
+#if !defined N_PLAT_NLM
 EXTERN int TimeUtil_NtTimeToUnixTime(struct timespec *unixTime, // OUT
                                      VmTimeType ntTime);        // IN
 EXTERN VmTimeType TimeUtil_UnixTimeToNtTime(struct timespec unixTime); // IN

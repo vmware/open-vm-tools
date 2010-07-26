@@ -689,6 +689,25 @@ struct VixCommandHgfsSendPacket {
 #include "vmware_pack_end.h"
 VixCommandHgfsSendPacket;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgSetGuestFileAttributesRequest {
+   VixCommandRequestHeader header;
+
+   int32                  fileOptions;
+   int64                  createTime;
+   int64                  accessTime;
+   int64                  modificationTime;
+   int32                  ownerId;
+   int32                  groupId;
+   int32                  permissions;
+   Bool                   hidden;
+   Bool                   readOnly;
+   uint32                 guestPathNameLength;
+}
+#include "vmware_pack_end.h"
+VixMsgSetGuestFileAttributesRequest;
+
 
 /*
  * **********************************************************
@@ -2253,6 +2272,9 @@ enum {
 
    VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY       = 182,
 
+   VIX_COMMAND_SET_GUEST_FILE_ATTRIBUTES        = 183,
+
+   VIX_COMMAND_COPY_FILE_FROM_GUEST_TO_READER   = 184,
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2263,7 +2285,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg. as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 183,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 185,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

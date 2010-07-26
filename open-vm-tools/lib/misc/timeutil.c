@@ -872,7 +872,8 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
 #endif // _WIN32
 }
 
-#if !defined _WIN32 && !defined N_PLAT_NLM
+
+#if !defined N_PLAT_NLM
 /*
  *-----------------------------------------------------------------------------
  *
@@ -958,7 +959,7 @@ TimeUtil_UnixTimeToNtTime(struct timespec unixTime) // IN: Time in Unix format
    return (VmTimeType)unixTime.tv_sec * 10000000 +
                                           unixTime.tv_nsec / 100 + UNIX_EPOCH;
 }
-#endif // _WIN32 && N_PLAT_NLM
+#endif // N_PLAT_NLM
 
 #ifdef _WIN32
 /*
