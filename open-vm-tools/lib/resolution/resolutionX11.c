@@ -298,7 +298,10 @@ ResolutionSetTopology(unsigned int ndisplays,
       displays[i].y_org -= minY;
    }
 
-   if (resInfoX->canUseVMwareCtrlTopologySet) {
+   if (resInfoX->canUseVMwareCtrl && resInfoX->canUseRandR12) {
+      success = RandR12_SetTopology(ndisplays, displays,
+                                    maxX - minX, maxY - minY);
+   } else if (resInfoX->canUseVMwareCtrlTopologySet) {
       if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display),
                                   displays, ndisplays)) {
          Debug("Failed to set topology in the driver.\n");
@@ -311,9 +314,6 @@ ResolutionSetTopology(unsigned int ndisplays,
       }
 
       success = TRUE;
-   } else if (resInfoX->canUseRandR12) {
-      success = RandR12_SetTopology(ndisplays, displays,
-                                    maxX - minX, maxY - minY);
    }
 
 out:
@@ -332,15 +332,17 @@ out:
  *
  * ResolutionCanSet --
  *
- *      Is the VMware SVGA driver a high enough version to support resolution
- *      changing? We check by searching the driver binary for a known version
- *      string.
+ *      Does VMware SVGA driver support resolution changing? We check by
+ *      testing RandR version and the availability of VMWCTRL extension. It
+ *      also check the output names for RandR 1.2 and above which is used for
+ *      the vmwgfx driver. Finaly it searches the driver binary for a known
+ *      version string.
  *
  * Results:
- *      TRUE if the driver version is high enough, FALSE otherwise.
+ *      TRUE if we're able to set resolution, otherwise FALSE.
  *
  * Side effects:
- *      None.
+ *      resInfoX->canUseRandR12 will be set if RandR12 is usable.
  *
  *-----------------------------------------------------------------------------
  */
@@ -363,11 +365,6 @@ ResolutionCanSet(void)
    /* See if the randr X module is loaded */
    if (!XRRQueryVersion(resInfoX->display, &major, &minor) ) {
       return FALSE;
-   }
-
-   /* See if the VMWARE_CTRL extension is supported */
-   if (resInfoX->canUseVMwareCtrl) {
-      return TRUE;
    }
 
 #ifndef NO_MULTIMON
@@ -412,11 +409,19 @@ ResolutionCanSet(void)
 
       XUngrabServer(resInfoX->display);
 
-      if (resInfoX->canUseRandR12) {
+      if (resInfoX->canUseRandR12 && resInfoX->canUseVMwareCtrl) {
          return TRUE;
       }
    }
 #endif // ifndef NO_MULTIMON
+
+   /*
+    * See if the VMWARE_CTRL extension is supported.
+    * Needs to be checked after RandR12 since the new vmwgfx driver uses both.
+    */
+   if (resInfoX->canUseVMwareCtrl) {
+      return TRUE;
+   }
 
    /*
     * XXX: This check does not work with XOrg 6.9/7.0 for two reasons: Both
@@ -490,7 +495,8 @@ ResolutionCanSet(void)
  *      TRUE if we're able to reset topology, otherwise FALSE.
  *
  * Side effects:
- *      resInfoX->canUseVMwareCtrlTopologySet will be set to TRUE on success.
+ *      resInfoX->canUseVMwareCtrlTopologySet will be set to TRUE if we should
+ *      use the old driver path when setting topology.
  *
  *-----------------------------------------------------------------------------
  */
@@ -506,7 +512,10 @@ TopologyCanSet(void)
    int major;
    int minor;
 
-   if (resInfoX->canUseRandR12) {
+   /*
+    * This is set in ResolutionCanSet so it needs to be called first.
+    */
+   if (resInfoX->canUseVMwareCtrl && resInfoX->canUseRandR12) {
       return TRUE;
    }
 
@@ -533,6 +542,13 @@ TopologyCanSet(void)
  * RandR12_SetTopology --
  *
  *      Employs the RandR 1.2 extension to set a new display topology.
+ *      This is for the new vmwgfx X driver, it works a lot like the old
+ *      driver except it uses RandR 1.2 to driver multiple outputs.
+ *
+ *      It first sets the layout via the vmwctrl extensions, this updates the
+ *      prefered modes and connection status of the outputs. Then it uses
+ *      RandR to setup the prefered layout using the prefered modes adding any
+ *      missing modes needed.
  *
  * Results:
  *      TRUE if operation succeeded, FALSE otherwise.
@@ -583,6 +599,15 @@ RandR12_SetTopology(unsigned int ndisplays,
     * - Make our changes appear as atomic as possible to other clients.
     */
    XGrabServer(resInfoX->display);
+
+   /*
+    * Set the topology first, setting up the prefered modes.
+    */
+   if (!VMwareCtrl_SetTopology(resInfoX->display, DefaultScreen(resInfoX->display),
+                               displays, ndisplays)) {
+      Debug("Failed to set topology in the driver.\n");
+      goto error;
+   }
 
    xrrRes = XRRGetScreenResources(resInfoX->display, resInfoX->rootWindow);
    if (!xrrRes) {
