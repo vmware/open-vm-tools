@@ -431,15 +431,13 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
       success = MXRecLockTryAcquire(&lock->recursiveLock, GetReturnAddress());
 
       if (success) {
-#if defined(MXUSER_STATS)
-         if (MXRecLockCount(&lock->recursiveLock) == 1) {
-            MXUserAcquisitionSample(&lock->acquisitionStats, success, FALSE,
-                                    0ULL);
-         }
-#endif
-
          MXUserAcquisitionTracking(&lock->header, FALSE);
       }
+
+#if defined(MXUSER_STATS)
+      MXUserAcquisitionSample(&lock->acquisitionStats, success,
+                              !success, 0ULL);
+#endif
    }
 
    return success;

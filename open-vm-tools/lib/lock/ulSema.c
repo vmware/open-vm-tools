@@ -770,6 +770,11 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
                          __FUNCTION__, err);
    }
 
+#if defined(MXUSER_STATS)
+   MXUserAcquisitionSample(&sema->acquisitionStats, downOccurred,
+                           !downOccurred, 0ULL);
+#endif
+
    Atomic_Dec(&sema->activeUserCount);
 
    return downOccurred;
@@ -782,7 +787,7 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
  * MXUser_UpSemaphore --
  *
  *      Perform an up (V; verhogen; "increase") operation on a semaphore.
- *
+ * 
  * Results:
  *      The semaphore count is incremented. Any thread waiting on the
  *      semaphore is awoken.

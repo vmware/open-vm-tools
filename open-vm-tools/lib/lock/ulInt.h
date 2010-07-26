@@ -487,10 +487,11 @@ typedef struct {
 } MXUserBasicStats;
 
 typedef struct {
-   uint64            numContended;     // Number of contended acquires
-   uint64            timeContended;    // Time spent contended on acquires
-   uint64            numUncontended;   // Number of uncontended acquires
-   uint64            timeUncontended;  // Time spent uncontended on acquires
+   uint64            numAttempts;
+   uint64            numSuccesses;
+   uint64            numSuccessesContended;
+   uint64            successContentionTime;
+   uint64            totalContentionTime;
 
    MXUserBasicStats  basicStats;
 } MXUserAcquisitionStats;

@@ -405,11 +405,11 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
                             "%s: Acquire on an acquired exclusive lock\n",
                             __FUNCTION__);
       }
+   }
 
 #if defined(MXUSER_STATS)
-      MXUserAcquisitionSample(&lock->acquisitionStats, success, FALSE, 0ULL);
+   MXUserAcquisitionSample(&lock->acquisitionStats, success, !success, 0ULL);
 #endif
-   }
 
    return success;
 }
