@@ -3455,6 +3455,7 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
    ASSERT(session);
 
    if (session->state == HGFS_SESSION_STATE_OPEN) {
+      packet->replyPacketSize = packetOutLen;
 #ifndef VMX86_TOOLS
       ASSERT(session->type == HGFS_SESSION_TYPE_REGULAR);
       result = session->channelCbTable->send(session->transportData,
