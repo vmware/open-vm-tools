@@ -105,6 +105,7 @@
 #include <linux/smp_lock.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 #include <asm/io.h>
 #if defined(__x86_64__) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 12)
 #   include <linux/ioctl32.h>
@@ -117,7 +118,6 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #include "compat_kernel.h"
 #include "compat_init.h"
 #include "compat_sock.h"
-#include "compat_wait.h"
 #include "compat_version.h"
 #include "compat_workqueue.h"
 #include "compat_mutex.h"
@@ -3385,7 +3385,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
    struct sockaddr_vm *remoteAddr;
    long timeout;
    Bool oldPktProto = FALSE;
-   COMPAT_DEFINE_WAIT(wait);
+   DEFINE_WAIT(wait);
 
    err = 0;
    sk = sock->sk;
@@ -3480,7 +3480,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
     * a notification of an error.
     */
    timeout = sock_sndtimeo(sk, flags & O_NONBLOCK);
-   compat_init_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+   prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while (sk->sk_state != SS_CONNECTED && sk->sk_err == 0) {
       if (timeout == 0) {
@@ -3503,7 +3503,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
          goto outWaitError;
       }
 
-      compat_cont_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+      prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
    }
 
    if (sk->sk_err) {
@@ -3515,7 +3515,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
    }
 
 outWait:
-   compat_finish_wait(sk_sleep(sk), &wait, TASK_RUNNING);
+   finish_wait(sk_sleep(sk), &wait);
 out:
    release_sock(sk);
    return err;
@@ -3553,7 +3553,7 @@ VSockVmciAccept(struct socket *sock,     // IN
    struct sock *connected;
    VSockVmciSock *vconnected;
    long timeout;
-   COMPAT_DEFINE_WAIT(wait);
+   DEFINE_WAIT(wait);
 
    err = 0;
    listener = sock->sk;
@@ -3575,7 +3575,7 @@ VSockVmciAccept(struct socket *sock,     // IN
     * upon connection establishment.
     */
    timeout = sock_sndtimeo(listener, flags & O_NONBLOCK);
-   compat_init_prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
+   prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
 
    while ((connected = VSockVmciDequeueAccept(listener)) == NULL &&
           listener->sk_err == 0) {
@@ -3591,7 +3591,7 @@ VSockVmciAccept(struct socket *sock,     // IN
          goto outWait;
       }
 
-      compat_cont_prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
+      prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
    }
 
    if (listener->sk_err) {
@@ -3625,7 +3625,7 @@ VSockVmciAccept(struct socket *sock,     // IN
    }
 
 outWait:
-   compat_finish_wait(sk_sleep(listener), &wait, TASK_RUNNING);
+   finish_wait(sk_sleep(listener), &wait);
 out:
    release_sock(listener);
    return err;
@@ -4275,7 +4275,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
    int err;
    VSockVmciSendNotifyData sendData;
 
-   COMPAT_DEFINE_WAIT(wait);
+   DEFINE_WAIT(wait);
 
    sk = sock->sk;
    vsk = vsock_sk(sk);
@@ -4322,7 +4322,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
       goto out;
    }
 
-   compat_init_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+   prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while (totalWritten < len) {
       Bool sentWrote;
@@ -4360,8 +4360,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
             goto outWait;
          }
 
-         compat_cont_prepare_to_wait(sk_sleep(sk),
-                                     &wait, TASK_INTERRUPTIBLE);
+         prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
       }
 
       /*
@@ -4412,7 +4411,7 @@ outWait:
    if (totalWritten > 0) {
       err = totalWritten;
    }
-   compat_finish_wait(sk_sleep(sk), &wait, TASK_RUNNING);
+   finish_wait(sk_sleep(sk), &wait);
 out:
    release_sock(sk);
    return err;
@@ -4543,7 +4542,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
 
    VSockVmciRecvNotifyData recvData;
 
-   COMPAT_DEFINE_WAIT(wait);
+   DEFINE_WAIT(wait);
 
    sk = sock->sk;
    vsk = vsock_sk(sk);
@@ -4598,7 +4597,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
       goto out;
    }
 
-   compat_init_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+   prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while ((ready = VSockVmciStreamHasData(vsk)) < target &&
           sk->sk_err == 0 &&
@@ -4638,7 +4637,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
          goto outWait;
       }
 
-      compat_cont_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+      prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
    }
 
    if (sk->sk_err) {
@@ -4702,7 +4701,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    err = copied;
 
 outWait:
-   compat_finish_wait(sk_sleep(sk), &wait, TASK_RUNNING);
+   finish_wait(sk_sleep(sk), &wait);
 out:
    release_sock(sk);
    return err;

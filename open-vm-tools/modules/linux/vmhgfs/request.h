@@ -29,10 +29,11 @@
 /* Must come before any kernel header file. */
 #include "driver-config.h"
 
+#include <linux/kref.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 #include "compat_sched.h"
 #include "compat_spinlock.h"
-#include "compat_wait.h"
 
 #include "hgfs.h" /* For common HGFS definitions. */
 #include "hgfsTransport.h"

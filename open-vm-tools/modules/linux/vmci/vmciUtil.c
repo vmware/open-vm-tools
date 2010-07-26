@@ -29,10 +29,8 @@
 #  define EXPORT_SYMTAB
 
 #  include <linux/module.h>
-#  include <linux/module.h>
 #  include "compat_kernel.h"
 #  include "compat_slab.h"
-#  include "compat_wait.h"
 #  include "compat_interrupt.h"
 #elif defined(_WIN32)
 #  ifndef WINNT_DDK

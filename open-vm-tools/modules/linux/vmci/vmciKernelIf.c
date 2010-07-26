@@ -37,11 +37,16 @@
 
 #define EXPORT_SYMTAB
 #define __NO_VERSION__
-#include "compat_module.h"
 
+#include <linux/mm.h>           /* For vmalloc_to_page() and get_user_pages()*/
+#include <linux/pagemap.h>      /* For page_cache_release() */
+#include <linux/socket.h>       /* For memcpy_{to,from}iovec(). */
+#include <linux/wait.h>
+#include <linux/vmalloc.h>
+
+#include "compat_module.h"
 #include "compat_version.h"
 #include "compat_sched.h"
-#include "compat_wait.h"
 #include "compat_workqueue.h"
 #include "compat_interrupt.h"
 #include "compat_spinlock.h"
@@ -51,10 +56,6 @@
 #include "compat_mm.h"
 #include "compat_highmem.h"
 #include "vm_basic_types.h"
-#include <linux/vmalloc.h>
-#include <linux/mm.h>           /* For vmalloc_to_page() and get_user_pages()*/
-#include <linux/socket.h>       /* For memcpy_{to,from}iovec(). */
-#include <linux/pagemap.h>      /* For page_cache_release() */
 #include "vm_assert.h"
 #include "vmci_kernel_if.h"
 #ifndef VMX86_TOOLS

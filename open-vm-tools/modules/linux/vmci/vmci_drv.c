@@ -25,11 +25,11 @@
 #include "driver-config.h"
 
 #include <linux/moduleparam.h>
+#include <linux/poll.h>
 
 #include "compat_kernel.h"
 #include "compat_module.h"
 #include "compat_pci.h"
-#include "compat_wait.h"
 #include "compat_init.h"
 #include "compat_ioport.h"
 #include "compat_interrupt.h"

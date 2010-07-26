@@ -37,8 +37,8 @@
 #endif 
 
 #if defined(linux) && !defined(VMKERNEL)
+#  include <linux/wait.h>
 #  include "compat_version.h"
-#  include "compat_wait.h"
 #  include "compat_spinlock.h"
 #  include "compat_semaphore.h"
 #endif // linux
