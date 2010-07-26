@@ -1778,8 +1778,8 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
                     char **utf8)        // OUT:
 {
    uint32 i;
-   uint8 *p;
-   uint8 *q;
+   char *p;
+   char *q;
    uint32 len;
    union {
       uint32  word;
