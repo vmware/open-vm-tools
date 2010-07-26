@@ -36,6 +36,10 @@
 #  include <dlfcn.h>
 #endif
 
+#if defined(HAVE_CONFIG_H) || defined(sun)
+#  include <crypt.h>
+#endif
+
 #define LOGLEVEL_MODULE auth
 #include "loglevel_user.h"
 
