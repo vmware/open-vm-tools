@@ -47,11 +47,3 @@ Util_ExitProcessAbruptly(int code) // IN
    exit(code);
 #endif
 }
-
-
-char *
-Util_ExpandString(const char *fileName)
-{
-   NOT_IMPLEMENTED();
-}
-

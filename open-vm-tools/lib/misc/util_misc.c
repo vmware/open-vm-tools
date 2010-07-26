@@ -60,6 +60,7 @@
 #include "su.h"
 #include "escape.h"
 #include "posix.h"
+#include "unicode.h"
 
 #if defined(_WIN32)
 #include "win32u.h"
@@ -506,5 +507,395 @@ Util_GetCurrentThreadId(void)
 #endif
 }
 
-#endif // N_PLAT_NLM
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilIsAlphaOrNum --
+ *
+ *      Checks if character is a numeric digit or a letter of the 
+ *      english alphabet.
+ *
+ * Results:
+ *      Returns TRUE if character is a digit or a letter, FALSE otherwise.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+UtilIsAlphaOrNum(char ch) //IN
+{
+   if ((ch >= '0' && ch <= '9') ||
+       (ch >= 'a' && ch <= 'z') ||
+       (ch >= 'A' && ch <= 'Z')) {
+      return TRUE;
+   } else {
+      return FALSE;
+   }
+}
+
+
+#ifndef _WIN32
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilGetHomeDirectory --
+ *
+ *      Unicode wrapper for posix getpwnam call for working directory.
+ *
+ * Results:
+ *      Returns initial working directory or NULL if it fails.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+UtilGetHomeDirectory(const char *name) // IN: user name
+{
+   char *dir;
+   struct passwd *pwd;
+
+   ASSERT(name);
+
+   pwd = Posix_Getpwnam(name);
+   if (pwd->pw_dir) {
+      dir = Util_SafeStrdup(pwd->pw_dir);
+   } else {
+      dir = NULL;
+   }
+   endpwent();
+
+   return dir;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilGetLoginName --
+ *
+ *      Unicode wrapper for posix getpwnam call for working directory.
+ *
+ * Results:
+ *      Returns user's login name or NULL if it fails.
+ *
+ * Side effects:
+ *	     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+UtilGetLoginName(int uid) //IN: user id
+{
+   char *name;
+   struct passwd *pwd;
+
+   pwd = Posix_Getpwuid(uid);
+   if (pwd->pw_name) {
+      name = Util_SafeStrdup(pwd->pw_name);
+   } else {
+      name = NULL;
+   }
+   endpwent();
+
+   return name;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * UtilDoTildeSubst --
+ *
+ *	Given a string following a tilde, this routine returns the
+ *	corresponding home directory.
+ *
+ * Results:
+ *	The result is a pointer to a static string containing the home
+ *	directory in native format.  The returned string is a newly
+ *      allocated string which may/must be freed by the caller
+ *
+ * Side effects:
+ *	Information may be left in resultPtr.
+ *
+ * Credit: derived from J.K.Ousterhout's Tcl
+ *----------------------------------------------------------------------
+ */
+
+static Unicode
+UtilDoTildeSubst(Unicode user)  // IN - name of user
+{
+   Unicode str = NULL;
+
+   if (*user == '\0') {
+      str = Unicode_Duplicate(Posix_Getenv("HOME"));
+      if (str == NULL) {
+         Log("Could not expand environment variable HOME.\n");
+      }
+   } else {
+      str = UtilGetHomeDirectory(user);
+      if (str == NULL) {
+         Log("Could not get information for user '%s'.\n", user);
+      }
+   }
+   return str;
+}
+
+#endif // !_WIN32
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_ExpandString --
+ *
+ *      converts the strings by expanding "~", "~user" and environment
+ *      variables
+ *
+ * Results:
+ *
+ *	Return a newly allocated string.  The caller is responsible
+ *	for deallocating it.
+ *
+ *      Return NULL in case of error.
+ *
+ * Side effects:
+ *      memory allocation
+ *
+ * Bugs:
+ *      the handling of enviroment variable references is very
+ *	simplistic: there can be only one in a pathname segment
+ *	and it must appear last in the string
+ *
+ *----------------------------------------------------------------------
+ */
+
+#define UTIL_MAX_PATH_CHUNKS 100
+
+Unicode
+Util_ExpandString(ConstUnicode fileName) // IN  file path to expand
+{
+   Unicode copy = NULL;
+   Unicode result = NULL;
+   int nchunk = 0;
+   char *chunks[UTIL_MAX_PATH_CHUNKS];
+   int chunkSize[UTIL_MAX_PATH_CHUNKS];
+   Bool freeChunk[UTIL_MAX_PATH_CHUNKS];
+   char *cp;
+   int i;
+
+   ASSERT(fileName);
+
+   copy = Unicode_Duplicate(fileName);
+
+   /*
+    * quick exit
+    */
+   if (!Unicode_StartsWith(fileName, "~") && 
+       Unicode_Find(fileName, "$") == UNICODE_INDEX_NOT_FOUND) {
+      return copy;
+   }
+
+   /*
+    * XXX Because the rest part of code depends pretty heavily from
+    *     character pointer operations we want to leave it as-is and
+    *     don't want to re-work it with using unicode library. However
+    *     it's acceptable only until our Unicode type is utf-8 and
+    *     until code below works correctly with utf-8.
+    */
+
+   /*
+    * Break string into nice chunks for separate expansion.
+    *
+    * The rule for terminating a ~ expansion is historical.  -- edward
+    */
+
+   nchunk = 0;
+   for (cp = copy; *cp;) {
+      size_t len;
+      if (*cp == '$') {
+	 char *p;
+	 for (p = cp + 1; UtilIsAlphaOrNum(*p) || *p == '_'; p++) {
+	 }
+	 len = p - cp;
+#if !defined(_WIN32)
+      } else if (cp == copy && *cp == '~') {
+	 len = strcspn(cp, DIRSEPS);
+#endif
+      } else {
+	 len = strcspn(cp, "$");
+      }
+      if (nchunk >= UTIL_MAX_PATH_CHUNKS) {
+         Log("%s: Filename \"%s\" has too many chunks.\n", __FUNCTION__,
+             UTF8(fileName));
+	 goto out;
+      }
+      chunks[nchunk] = cp;
+      chunkSize[nchunk] = len;
+      freeChunk[nchunk] = FALSE;
+      nchunk++;
+      cp += len;
+   }
+
+   /*
+    * Expand leanding ~
+    */
+
+#if !defined(_WIN32)
+   if (chunks[0][0] == '~') {
+      char save = (cp = chunks[0])[chunkSize[0]];
+      cp[chunkSize[0]] = 0;
+      ASSERT(!freeChunk[0]);
+      chunks[0] = UtilDoTildeSubst(chunks[0] + 1);
+      cp[chunkSize[0]] = save;
+      if (chunks[0] == NULL) {
+         /* It could not be expanded, therefore leave as original. */
+         chunks[0] = cp;
+      } else {
+         /* It was expanded, so adjust the chunks. */
+         chunkSize[0] = strlen(chunks[0]);
+         freeChunk[0] = TRUE;
+      }
+   }
+#endif
+
+   /*
+    * Expand $
+    */
+
+   for (i = 0; i < nchunk; i++) {
+      char save;
+      Unicode expand = NULL;
+      char buf[100];
+#if defined(_WIN32)
+      utf16_t bufW[100];
+#endif
+      cp = chunks[i];
+
+      if (*cp != '$' || chunkSize[i] == 1) {
+
+         /*
+          * Skip if the chuck has only the $ character.
+          * $ will be kept as a part of the pathname.
+          */
+
+	 continue;
+      }
+
+      save = cp[chunkSize[i]];
+      cp[chunkSize[i]] = 0;
+
+      /*
+       * $PID and $USER are interpreted specially.
+       * Others are just getenv().
+       */
+
+      expand = Unicode_Duplicate(Posix_Getenv(cp + 1));
+      if (expand != NULL) {
+      } else if (strcasecmp(cp + 1, "PID") == 0) {
+	 Str_Snprintf(buf, sizeof buf, "%"FMTPID, getpid());
+	 expand = Util_SafeStrdup(buf);
+      } else if (strcasecmp(cp + 1, "USER") == 0) {
+#if !defined(_WIN32)
+	 int uid = getuid();
+	 expand = UtilGetLoginName(uid);
+#else
+	 DWORD n = ARRAYSIZE(bufW);
+	 if (GetUserNameW(bufW, &n)) {
+	    expand = Unicode_AllocWithUTF16(bufW);
+	 }
+#endif
+	 if (expand == NULL) {
+	    expand = Unicode_Duplicate("unknown");
+	 }
+      } else {
+	 Warning("Environment variable '%s' not defined in '%s'.\n",
+		 cp + 1, fileName);
+#if !defined(_WIN32)
+         /*
+          * Strip off the env variable string from the pathname.
+          */
+
+	 expand = Unicode_Duplicate("");
+
+#else    // _WIN32
+
+         /*
+          * The problem is we have really no way to distinguish the caller's
+          * intention is a dollar sign ($) is used as a part of the pathname
+          * or as an environment variable.
+          *
+          * If the token does not expand to an environment variable,
+          * then assume it is a part of the pathname. Do not strip it
+          * off like it is done in linux host (see above)
+          *
+          * XXX   We should also consider using %variable% convention instead
+          *       of $variable for Windows platform.
+          */
+
+         Str_Strcpy(buf, cp, 100);
+         expand = Unicode_AllocWithUTF8(buf);
+#endif
+      }
+
+      cp[chunkSize[i]] = save;
+
+      ASSERT(expand != NULL);
+      ASSERT(!freeChunk[i]);
+      chunks[i] = expand;
+      if (chunks[i] == NULL) {
+	 Log("%s: Cannot allocate memory to expand \"%s\" in \"%s\".\n",
+             __FUNCTION__, expand, UTF8(fileName));
+	 goto out;
+      }
+      chunkSize[i] = strlen(expand);
+      freeChunk[i] = TRUE;
+   }
+
+   /*
+    * Put all the chunks back together.
+    */
+
+   {
+      int size = 1;	// 1 for the terminating null
+      for (i = 0; i < nchunk; i++) {
+	 size += chunkSize[i];
+      }
+      result = malloc(size);
+   }
+   if (result == NULL) {
+      Log("%s: Cannot allocate memory for the expansion of \"%s\".\n",
+          __FUNCTION__, UTF8(fileName));
+      goto out;
+   }
+   cp = result;
+   for (i = 0; i < nchunk; i++) {
+      memcpy(cp, chunks[i], chunkSize[i]);
+      cp += chunkSize[i];
+   }
+   *cp = 0;
+
+out:
+   /*
+    * Clean up and return.
+    */
+
+   for (i = 0; i < nchunk; i++) {
+      if (freeChunk[i]) {
+	 free(chunks[i]);
+      }
+   }
+   free(copy);
+
+   return result;
+}
+
+#endif // N_PLAT_NLM

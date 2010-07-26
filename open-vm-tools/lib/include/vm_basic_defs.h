@@ -660,6 +660,21 @@ typedef int pid_t;
 #define RANK_INVALID             0xFFFFFFFF
 
 /*
+ * Log lock rank. Very special case. Don't change it. The effect is
+ * that critical logging code cannot call anything else which requires
+ * a lock, but everyone else can safely Log() while holding a leaf
+ * lock.
+ */
+#define RANK_logLock             (RANK_LEAF + 1)
+
+/*
+ * bora/lib/allocTrack is another special case. It hooks malloc/free
+ * and the like, and thus can basically sneak in underneath anyone. To
+ * that end allocTrack uses unranked, native locks internally to avoid
+ * any complications.
+ */
+
+/*
  * VMX/VMM/device lock rank space is at the bottom, from 1 to
  * RANK_VMX_LEAF. See vmx/public/mutexRank.h for definitions.
  */
@@ -669,13 +684,6 @@ typedef int pid_t;
  * RANK_LEAF.
  */
 #define RANK_libLockBase         0xF0000000
-
-/*
- * bora/lib/allocTrack is a special case. It hooks malloc/free and the
- * like, and thus can basically sneak in underneath anyone. To that end
- * allocTrack uses unranked, native locks internally to avoid any
- * complications.
- */
 
 /*
  * For situations where we need to create locks on behalf of
