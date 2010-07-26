@@ -128,6 +128,7 @@ MXUser_CreateBarrier(const char *userName,  // IN:
    }
 
    barrier->configCount = count;
+   barrier->emptying = FALSE;
 
    barrier->header.name = properName;
    barrier->header.signature = MXUSER_BARRIER_SIGNATURE;
