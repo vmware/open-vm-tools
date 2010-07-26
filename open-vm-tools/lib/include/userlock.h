@@ -35,25 +35,7 @@ typedef struct MXUserRecLock    MXUserRecLock;
 typedef struct MXUserRWLock     MXUserRWLock;
 typedef struct MXUserCondVar    MXUserCondVar;
 typedef struct MXUserSemaphore  MXUserSemaphore;
-
-/*
- * Counting semaphore
- */
-
-MXUserSemaphore *MXUser_CreateSemaphore(const char *name,
-                                        MX_Rank rank);
-
-void MXUser_DestroySemaphore(MXUserSemaphore *sema);
-void MXUser_UpSemaphore(MXUserSemaphore *sema);
-void MXUser_DownSemaphore(MXUserSemaphore *sema);
-Bool MXUser_TryDownSemaphore(MXUserSemaphore *sema);
-
-Bool MXUser_TimedDownSemaphore(MXUserSemaphore *sema,
-                               uint32 msecWait);
-
-MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
-                                                 const char *name,
-                                                 MX_Rank rank);
+typedef struct MXUserBarrier    MXUserBarrier;
 
 /*
  * Exclusive ownership lock
@@ -138,6 +120,42 @@ Bool MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,
 MXUserRWLock *MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
                                            const char *name,
                                            MX_Rank rank);
+
+/*
+ * Computational barrier
+ */
+
+MXUserBarrier *MXUser_CreateBarrier(const char *name,
+                                    MX_Rank rank,
+                                    uint32 count);
+
+void MXUser_DestroyBarrier(MXUserBarrier *barrier);
+void MXUser_EnterBarrier(MXUserBarrier *barrier);
+
+MXUserBarrier *MXUser_CreateSingletonBarrier(Atomic_Ptr *barrierStorage,
+                                             const char *name,
+                                             MX_Rank rank,
+                                             uint32 count);
+
+/*
+ * Counting semaphore
+ */
+
+MXUserSemaphore *MXUser_CreateSemaphore(const char *name,
+                                        MX_Rank rank);
+
+void MXUser_DestroySemaphore(MXUserSemaphore *sema);
+void MXUser_UpSemaphore(MXUserSemaphore *sema);
+void MXUser_DownSemaphore(MXUserSemaphore *sema);
+Bool MXUser_TryDownSemaphore(MXUserSemaphore *sema);
+
+Bool MXUser_TimedDownSemaphore(MXUserSemaphore *sema,
+                               uint32 msecWait);
+
+MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
+                                                 const char *name,
+                                                 MX_Rank rank);
+
 
 
 /*

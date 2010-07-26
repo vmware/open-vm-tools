@@ -24,5 +24,6 @@ libLock_la_SOURCES += ulExcl.c
 libLock_la_SOURCES += ulRec.c
 libLock_la_SOURCES += ulRW.c
 libLock_la_SOURCES += ulSema.c
+libLock_la_SOURCES += ulBarrier.c
 
 AM_CFLAGS = @LIB_USER_CPPFLAGS@
