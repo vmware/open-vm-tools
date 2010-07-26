@@ -520,7 +520,7 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
       MXUserHistoTearDown(Atomic_ReadPtr(&lock->heldHisto));
 #endif
 
-      HashTable_Free(lock->holderTable);
+      HashTable_FreeUnsafe(lock->holderTable);
       lock->header.signature = 0;  // just in case...
       free((void *) lock->header.name);  // avoid const warnings
       lock->header.name = NULL;

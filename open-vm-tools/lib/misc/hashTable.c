@@ -311,13 +311,62 @@ HashTable_AllocOnce(Atomic_Ptr *var,          // IN/OUT: the atomic var
       if (ht == NULL) {
          ht = new;
       } else {
-         new->atomic = FALSE;
-         HashTable_Free(new);
+         HashTable_FreeUnsafe(new);
       }
    }
    ASSERT(ht == Atomic_ReadPtr(var));
 
    return ht;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HashTable_Clear --
+ *
+ *      Clear all entries a hashtable by freeing them.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HashTableClearInternal(HashTable *ht)  // IN/OUT:
+{
+   int i;
+
+   ht->numElements = 0;
+
+   for (i = 0; i < ht->numEntries; i++) {
+      HashTableEntry *entry;
+
+      while ((entry = ENTRY(ht->buckets[i])) != NULL) {
+         SETENTRY(ht->buckets[i], ENTRY(entry->next));
+         if (ht->copyKey) {
+            free((void *) entry->keyStr);
+         }
+         if (ht->freeEntryFn) {
+            ht->freeEntryFn(Atomic_ReadPtr(&entry->clientData));
+         }
+         free(entry);
+      }
+   }
+}
+
+
+void
+HashTable_Clear(HashTable *ht)  // IN/OUT:
+{
+   ASSERT(ht);
+   ASSERT(!ht->atomic);
+
+   HashTableClearInternal(ht);
 }
 
 
@@ -343,7 +392,7 @@ HashTable_Free(HashTable *ht)  // IN/OUT:
    ASSERT(ht);
    ASSERT(!ht->atomic);
 
-   HashTable_Clear(ht);
+   HashTableClearInternal(ht);
 
    free(ht->buckets);
    free(ht);
@@ -353,9 +402,11 @@ HashTable_Free(HashTable *ht)  // IN/OUT:
 /*
  *----------------------------------------------------------------------
  *
- * HashTable_Clear --
+ * HashTable_FreeUnsafe --
  *
- *      Clear all entries a hashtable by freeing them.
+ *      HashTable_Free for atomic hash tables.  Non-atomic hash tables
+ *      should always use HashTable_Free.  The caller should make sure
+ *      no other thread may access the hash table when this is called.
  *
  * Results:
  *      None.
@@ -367,29 +418,14 @@ HashTable_Free(HashTable *ht)  // IN/OUT:
  */
 
 void
-HashTable_Clear(HashTable *ht)  // IN/OUT:
+HashTable_FreeUnsafe(HashTable *ht)  // IN/OUT:
 {
-   int i;
-
    ASSERT(ht);
-   ASSERT(!ht->atomic);
 
-   ht->numElements = 0;
+   HashTableClearInternal(ht);
 
-   for (i = 0; i < ht->numEntries; i++) {
-      HashTableEntry *entry;
-
-      while ((entry = ENTRY(ht->buckets[i])) != NULL) {
-         SETENTRY(ht->buckets[i], ENTRY(entry->next));
-         if (ht->copyKey) {
-            free((void *) entry->keyStr);
-         }
-         if (ht->freeEntryFn) {
-            ht->freeEntryFn(Atomic_ReadPtr(&entry->clientData));
-         }
-         free(entry);
-      }
-   }
+   free(ht->buckets);
+   free(ht);
 }
 
 

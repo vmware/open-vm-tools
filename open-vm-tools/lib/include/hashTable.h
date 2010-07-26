@@ -66,6 +66,9 @@ HashTable_AllocOnce(Atomic_Ptr          *var,
 void
 HashTable_Free(HashTable *hashTable);
 
+void
+HashTable_FreeUnsafe(HashTable *hashTable);
+
 Bool
 HashTable_Insert(HashTable  *hashTable,
                  const void *keyStr,
