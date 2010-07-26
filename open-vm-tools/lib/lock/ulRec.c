@@ -30,9 +30,9 @@ struct MXUserRecLock
    MXUserHeader            header;
    MXRecLock               recursiveLock;
 
+#if defined(MXUSER_STATS)
    uint64                  holdStart;
 
-#if defined(MXUSER_STATS)
    MXUserAcquisitionStats  acquisitionStats;
    Atomic_Ptr              acquisitionHisto;
 
