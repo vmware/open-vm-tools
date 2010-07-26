@@ -35,5 +35,5 @@ libvix_la_LIBADD += $(top_builddir)/lib/impersonate/libImpersonate.la
 libvix_la_SOURCES =
 libvix_la_SOURCES += foundryToolsDaemon.c
 libvix_la_SOURCES += vixPlugin.c
-libvix_la_SOURCES += $(top_srcdir)/lib/vixTools/vixTools.c
+libvix_la_SOURCES += vixTools.c
 

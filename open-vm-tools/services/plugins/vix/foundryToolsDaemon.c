@@ -55,15 +55,8 @@
 #include "vm_version.h"
 #include "message.h"
 
-#if defined(VMTOOLS_USE_GLIB)
-#  include "vixPluginInt.h"
-#  include "vmware/tools/utils.h"
-#else
-#  include "debug.h"
-#  include "eventManager.h"
-#  include "rpcin.h"
-#  include "rpcout.h"
-#endif
+#include "vixPluginInt.h"
+#include "vmware/tools/utils.h"
 
 #include "util.h"
 #include "strutil.h"
@@ -94,10 +87,6 @@
 
 #include "vixTools.h"
 #include "vixOpenSource.h"
-
-#if !defined(VMTOOLS_USE_GLIB)
-static DblLnkLst_Links *globalEventQueue;   // event queue for main event loop
-#endif
 
 #define GUESTMSG_MAX_IN_SIZE (64 * 1024) /* vmx/main/guest_msg.c */
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
@@ -184,11 +173,7 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    ProcMgr_Pid pid;
-#if defined(VMTOOLS_USE_GLIB)
    GMainLoop *eventQueue = ((ToolsAppCtx *)data->appCtx)->mainLoop;
-#else
-   DblLnkLst_Links *eventQueue = data->clientData;
-#endif
 
    /*
     * Parse the arguments. Some of these are optional, so they
@@ -295,11 +280,7 @@ FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
    size_t base64BufferLength = 0;
    Bool success;
    char *returnBuffer = NULL;
-#if defined(VMTOOLS_USE_GLIB)
    GKeyFile *confDictRef;
-#else
-   GuestApp_Dict **confDictRef;
-#endif
    
    /*
     * Collect some values about the host.
@@ -432,7 +413,6 @@ abort:
    return TRUE;
 } // ToolsDaemonTcloCheckUserAccount
 
-#if defined(VMTOOLS_USE_GLIB)
 
 /**
  * Initializes internal state of the Foundry daemon.
@@ -463,119 +443,6 @@ FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx)
 
 }
 
-#else
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FoundryToolsDaemon_RegisterRoutines --
- *
- *    Register the Foundry RPC callbacks
- *
- * Return value:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-FoundryToolsDaemon_RegisterRoutines(RpcIn *in,                        // IN
-                                    GuestApp_Dict **confDictRef,      // IN
-                                    DblLnkLst_Links *eventQueue,      // IN
-                                    const char * const *orginalEnvp,  // IN
-                                    Bool runAsRoot)                   // IN
-{
-   static Bool inited = FALSE;
-#if defined(linux) || defined(_WIN32)
-   static Bool sync_driver_inited = FALSE;
-#endif
-
-   ASSERT(in);
-   ASSERT(confDictRef);
-   ASSERT(*confDictRef);
-
-   thisProcessRunsAsRoot = runAsRoot;
-   globalEventQueue = eventQueue;
-
-   (void) VixTools_Initialize(thisProcessRunsAsRoot,
-                              orginalEnvp,
-                              ToolsDaemonTcloReportProgramCompleted,
-                              NULL);
-
-#if defined(linux) || defined(_WIN32)
-   /*
-    * Be careful, Impersonate_Init should only be ever called once per process.
-    *
-    * We can get back here if the tools re-inits due to an error state,
-    * such as hibernation.
-    */
-   if (!inited && thisProcessRunsAsRoot) {
-      Impersonate_Init();
-   }
-#endif
-
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_RUN_PROGRAM,
-                            FoundryToolsDaemonRunProgram,
-                            eventQueue);
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_GET_PROPERTIES,
-                            FoundryToolsDaemonGetToolsProperties,
-                            confDictRef);
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_CHECK_USER_ACCOUNT,
-                            ToolsDaemonTcloCheckUserAccount,
-                            NULL);
-#if !defined(N_PLAT_NLM)
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET,
-                            ToolsDaemonHgfsImpersonated,
-                            NULL);
-#endif
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_COMMAND,
-                            ToolsDaemonTcloReceiveVixCommand,
-                            confDictRef);
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_MOUNT_VOLUME_LIST,
-                            ToolsDaemonTcloMountHGFS,
-                            NULL);
-
-#if defined(linux) || defined(_WIN32)
-
-   /*
-    * Only init once, but always register the RpcIn.
-    */
-   if (!sync_driver_inited) {
-      sync_driver_inited = SyncDriver_Init();
-   }
-   if (sync_driver_inited) {
-      /*
-       * These only get registered if SyncDriver_Init succeeds. We do
-       * support running the sync/thaw scripts even on guests where
-       * the Sync driver is not supported (Linux, Windows older than
-       * Win2k) but the running of the scripts is implemented using
-       * VIX_BACKDOORCOMMAND_RUN_PROGRAM.
-       */
-      RpcIn_RegisterCallbackEx(in,
-                               VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE,
-                               ToolsDaemonTcloSyncDriverFreeze,
-                               eventQueue);
-      RpcIn_RegisterCallbackEx(in,
-                               VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW,
-                               ToolsDaemonTcloSyncDriverThaw,
-                               NULL);
-   } else {
-      Debug("FoundryToolsDaemon: Failed to init SyncDriver, skipping command handlers.\n");
-   }
-#endif
-   inited = TRUE;
-} // FoundryToolsDaemon_RegisterRoutines
-
-#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -679,106 +546,6 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
 }
 
 
-#if !defined(VMTOOLS_USE_GLIB)
-/*
- *-----------------------------------------------------------------------------
- *
- * ToolsDaemonTcloOpenUrl --
- *
- *    Open a URL on the guest.
- *
- * Return value:
- *    TRUE on success
- *    FALSE on failure
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-RpcInRet
-ToolsDaemonTcloOpenUrl(RpcInData *data) // IN
-{
-   static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
-   VixError err = VIX_OK;
-   char *url = NULL;
-   char *windowState = NULL;
-   char *credentialTypeStr = NULL;
-   char *obfuscatedNamePassword = NULL;
-   uint32 sysError = 0;
-   Bool impersonatingVMWareUser = FALSE;
-   void *userToken = NULL;
-   Debug(">ToolsDaemonTcloOpenUrl\n");
-
-   /*
-    * Parse the arguments
-    */
-   url = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args);
-   windowState = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-   // These parameters at the end are optional, so they may be NULL.
-   credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-   obfuscatedNamePassword = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
-
-   /*
-    * Validate the arguments.
-    */
-   if ((NULL == url) || (NULL == windowState)) {
-      err = VIX_E_INVALID_ARG;
-      Debug("Failed to get string args\n");
-      goto abort;
-   }
-
-   if ((NULL != credentialTypeStr) 
-         && (*credentialTypeStr)
-         && (thisProcessRunsAsRoot)) {
-      impersonatingVMWareUser = VixToolsImpersonateUserImpl(credentialTypeStr, 
-                                                            VIX_USER_CREDENTIAL_NONE,
-                                                            obfuscatedNamePassword, 
-                                                            &userToken);
-      if (!impersonatingVMWareUser) {
-         err = VIX_E_GUEST_USER_PERMISSIONS;
-         goto abort;
-      }
-   }
-
-   Debug("Opening URL: \"%s\"\n", url);
-
-   /* Actually open the URL. */
-   if (!GuestApp_OpenUrl(url, strcmp(windowState, "maximize") == 0)) {
-      err = VIX_E_FAIL;
-      Debug("Failed to open the url \"%s\"\n", url);
-      goto abort;
-   }
-
-abort:
-   if (impersonatingVMWareUser) {
-      VixToolsUnimpersonateUser(userToken);
-   }
-   VixToolsLogoutUser(userToken);
-
-   /*
-    * All Foundry tools commands return results that start with a
-    * foundry error and a guest-OS-specific error.
-    */
-   Str_Sprintf(resultBuffer, sizeof resultBuffer, "%"FMT64"d %d", err, sysError);
-   RPCIN_SETRETVALS(data, resultBuffer, TRUE);
-
-   /*
-    * These were allocated by ToolsDaemonTcloGetQuotedString.
-    */
-   free(url);
-   free(windowState);
-   free(credentialTypeStr);
-   free(obfuscatedNamePassword);
-
-   Debug("<ToolsDaemonTcloOpenUrl\n");
-   return TRUE;
-}
-
-#endif
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -806,12 +573,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    char *timeout = NULL;
    int timeoutVal;
    DECLARE_SYNCDRIVER_ERROR(sysError);
-#if defined(VMTOOLS_USE_GLIB)
    ToolsAppCtx *ctx = data->appCtx;
    GSource *timer;
-#else
-   Event *cbEvent;
-#endif
    
    Debug(">ToolsDaemonTcloSyncDriverFreeze\n");
 
@@ -862,26 +625,9 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    /* Start the timer callback to automatically thaw. */
    if (0 != timeoutVal) {
       Debug("ToolsDaemonTcloSyncDriverFreeze: Starting timer callback %d\n", timeoutVal);
-#if defined(VMTOOLS_USE_GLIB)
       timer = g_timeout_source_new(timeoutVal * 10);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, timer, ToolsDaemonSyncDriverThawCallback, NULL, NULL);
       g_source_unref(timer);
-#else
-      cbEvent = EventManager_Add(data->clientData,
-                                 timeoutVal,
-                                 ToolsDaemonSyncDriverThawCallback,
-                                 NULL);
-      if (!cbEvent) {
-         Debug("ToolsDaemonTcloSyncDriverFreeze: Failed to start callback, aborting\n");
-         if (!SyncDriver_Thaw(gSyncDriverHandle)) {
-            Debug("ToolsDaemonTcloSyncDriverFreeze: Unable to abort freeze. Oh well.\n");
-         }
-         SyncDriver_CloseHandle(&gSyncDriverHandle);
-         err = VIX_E_FAIL;
-         sysError = SYNCDRIVERERROR;
-         goto abort;
-      }
-#endif
    }
 
 abort:
@@ -1001,125 +747,6 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 }
 #endif
 
-#if !defined(VMTOOLS_USE_GLIB)
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FoundryToolsDaemon_RegisterOpenUrlCapability --
- *
- *      Register the OpenUrl capability. Sometimes this needs to
- *      be done separately from the TCLO callback registration, so we
- *      provide it separately here.
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-FoundryToolsDaemon_RegisterOpenUrlCapability(void)
-{
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.open_url 1")) {
-      Debug("Unable to register open url capability\n");
-      Debug("<FoundryToolsDaemon_RegisterOpenUrlCapability");
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FoundryToolsDaemon_RegisterOpenUrl --
- *
- *      Register the OpenUrl capability and TCLO handler.
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-FoundryToolsDaemon_RegisterOpenUrl(RpcIn *in) // IN
-{
-   /* Register the TCLO handler. */
-   RpcIn_RegisterCallbackEx(in,
-                            VIX_BACKDOORCOMMAND_OPEN_URL,
-                            ToolsDaemonTcloOpenUrl,
-                            NULL);
-   /*
-    * Inform the VMX that we support opening urls in the guest; the UI
-    * and VMX need to know about this capability in advance (rather than
-    * simply trying and failing). I've put this here on the theory that
-    * it's better to have it close to the command that handles the
-    * actual request than it is to have it near the other capabilities
-    * registration code, which is in toolsDaemon.c.
-    *
-    * Eventually, Foundry might want to have a unified way of
-    * registering support for only a subset of the foundry commands in
-    * the guest.
-    */
-   if (!FoundryToolsDaemon_RegisterOpenUrlCapability()) {
-      // Unregister Callback to avoid double registration down the line
-      RpcIn_UnregisterCallback(in, VIX_BACKDOORCOMMAND_OPEN_URL);
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FoundryToolsDaemon_UnregisterOpenUrl --
- *
- *      Unregister the "OpenUrl" capability.
- *
- * Results:
- *      TRUE on success
- *      FALSE on failure
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-FoundryToolsDaemon_UnregisterOpenUrl(void) 
-{
-   /*
-    * RpcIn doesn't have an unregister facility, so all we need to do
-    * here is unregister the capability.
-    */
-
-   /*
-    * Report no longer supporting open url;
-    */
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.open_url 0")) {
-      Debug("<FoundryToolsDaemon_UnregisterOpenUrl\n");
-      Debug("Unable to unregister OpenUrl capability\n");
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -1425,8 +1052,6 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
                                       void *clientData)           // IN
 {
    Bool sentResult;
-
-#if defined(VMTOOLS_USE_GLIB)
    ToolsAppCtx *ctx = clientData;
    gchar *msg = g_strdup_printf("%s %s %"FMT64"d %d %d %"FMT64"d",
                                 VIX_BACKDOORCOMMAND_RUN_PROGRAM_DONE,
@@ -1435,19 +1060,9 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
                                 Err_Errno(),
                                 exitCode,
                                 (int64) pid);
+
    sentResult = RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL);
    g_free(msg);
-#else
-   sentResult = RpcOut_sendOne(NULL,
-                               NULL,
-                               "%s %s %"FMT64"d %d %d %"FMT64"d",
-                               VIX_BACKDOORCOMMAND_RUN_PROGRAM_DONE,
-                               requestName,
-                               err,
-                               Err_Errno(),
-                               exitCode,
-                               (int64) pid);
-#endif
 
    if (!sentResult) {
       Warning("Unable to send results from polling the result program.\n\n");
@@ -1493,14 +1108,9 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
     */
    static char tcloBuffer[GUESTMSG_MAX_IN_SIZE];
 
-#if defined(VMTOOLS_USE_GLIB)
    ToolsAppCtx *ctx = data->appCtx;
    GMainLoop *eventQueue = ctx->mainLoop;
    GKeyFile *confDictRef = ctx->config;
-#else
-   DblLnkLst_Links *eventQueue = globalEventQueue;
-   GuestApp_Dict **confDictRef = data->clientData;
-#endif
 
    requestName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 

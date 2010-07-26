@@ -29,30 +29,9 @@
 #   define __VIX_TOOLS_DAEMON_H__
 
 
-#if defined(VMTOOLS_USE_GLIB)
-
 #include "vmware/tools/plugin.h"
 
 void
 FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
-
-#else /* not vix plugin */
-
-#include "vm_basic_types.h"
-#include "rpcin.h"
-#include "guestApp.h"
-
-void FoundryToolsDaemon_RegisterRoutines(RpcIn *in, 
-                                         GuestApp_Dict **confDictRef, 
-                                         DblLnkLst_Links *eventQueue,
-                                         const char * const *originalEnvp,
-                                         Bool runAsRoot);
-/* There isn't an _UnregisterRoutines yet. */
-
-Bool FoundryToolsDaemon_RegisterOpenUrl(RpcIn *in);
-Bool FoundryToolsDaemon_RegisterOpenUrlCapability(void);
-Bool FoundryToolsDaemon_UnregisterOpenUrl(void);
-
-#endif
 
 #endif /* __VIX_TOOLS_DAEMON_H__ */
