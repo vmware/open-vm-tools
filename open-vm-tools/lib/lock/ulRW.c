@@ -232,12 +232,17 @@ typedef enum {
 } HolderState;
 
 typedef struct {
-#if defined(MXUSER_STATS)
-   VmTimeType   holdStart;
-#endif
-
    HolderState  state;
+   VmTimeType   holdStart;
 } HolderContext;
+
+typedef struct {
+   MXUserAcquisitionStats  acquisitionStats;
+   Atomic_Ptr              acquisitionHisto;
+
+   MXUserBasicStats        heldStats;
+   Atomic_Ptr              heldHisto;
+} MXUserStats;
 
 struct MXUserRWLock
 {
@@ -250,13 +255,7 @@ struct MXUserRWLock
    Atomic_uint32   holderCount;
    HashTable      *holderTable;
 
-#if defined(MXUSER_STATS)
-   MXUserAcquisitionStats  acquisitionStats;
-   Atomic_Ptr              acquisitionHisto;
-
-   MXUserBasicStats        heldStats;
-   Atomic_Ptr              heldHisto;
-#endif
+   Atomic_Ptr      statsMem;
 };
 
 
@@ -280,48 +279,52 @@ struct MXUserRWLock
 static void
 MXUserStatsActionRW(MXUserHeader *header)  // IN:
 {
-   Bool isHot;
-   Bool doLog;
-   double contentionRatio;
-
    MXUserRWLock *lock = (MXUserRWLock *) header;
+   MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
-   /*
-    * Dump the statistics for the specified lock.
-    */
+   if (stats) {
+      Bool isHot;
+      Bool doLog;
+      double contentionRatio;
 
-   MXUserDumpAcquisitionStats(&lock->acquisitionStats, header);
+      /*
+       * Dump the statistics for the specified lock.
+       */
 
-   if (Atomic_ReadPtr(&lock->acquisitionHisto) != NULL) {
-      MXUserHistoDump(Atomic_ReadPtr(&lock->acquisitionHisto), header);
-   }
+      MXUserDumpAcquisitionStats(&stats->acquisitionStats, header);
 
-   MXUserDumpBasicStats(&lock->heldStats, header);
+      if (Atomic_ReadPtr(&stats->acquisitionHisto) != NULL) {
+         MXUserHistoDump(Atomic_ReadPtr(&stats->acquisitionHisto), header);
+      }
 
-   if (Atomic_ReadPtr(&lock->heldHisto) != NULL) {
-      MXUserHistoDump(Atomic_ReadPtr(&lock->heldHisto), header);
-   }
+      MXUserDumpBasicStats(&stats->heldStats, header);
 
-   /*
-    * Has the lock gone "hot"? If so, implement the hot actions.
-    * Allow the read and write statistics to go independently hot.
-    */
+      if (Atomic_ReadPtr(&stats->heldHisto) != NULL) {
+         MXUserHistoDump(Atomic_ReadPtr(&stats->heldHisto), header);
+      }
 
-   MXUserKitchen(&lock->acquisitionStats, &contentionRatio, &isHot, &doLog);
+      /*
+       * Has the lock gone "hot"? If so, implement the hot actions.
+       * Allow the read and write statistics to go independently hot.
+       */
 
-   if (isHot) {
-      MXUserForceHisto(&lock->acquisitionHisto,
-                       MXUSER_STAT_CLASS_ACQUISITION,
-                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
-                       MXUSER_DEFAULT_HISTO_DECADES);
-      MXUserForceHisto(&lock->heldHisto,
-                       MXUSER_STAT_CLASS_HELD,
-                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
-                       MXUSER_DEFAULT_HISTO_DECADES);
+      MXUserKitchen(&stats->acquisitionStats, &contentionRatio, &isHot,
+                    &doLog);
 
-      if (doLog) {
-         Log("HOT LOCK (%s); contention ratio %f\n",
-             lock->header.name, contentionRatio);
+      if (isHot) {
+         MXUserForceHisto(&stats->acquisitionHisto,
+                          MXUSER_STAT_CLASS_ACQUISITION,
+                          MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                          MXUSER_DEFAULT_HISTO_DECADES);
+         MXUserForceHisto(&stats->heldHisto,
+                          MXUSER_STAT_CLASS_HELD,
+                          MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                          MXUSER_DEFAULT_HISTO_DECADES);
+
+         if (doLog) {
+            Log("HOT LOCK (%s); contention ratio %f\n",
+                lock->header.name, contentionRatio);
+         }
       }
    }
 }
@@ -442,6 +445,8 @@ MXUser_CreateRWLock(const char *userName,  // IN:
    }
 
    if (LIKELY(lockInited)) {
+      MXUserStats *stats;
+
       lock->holderTable = HashTable_Alloc(256,
                                           HASH_INT_KEY | HASH_FLAG_ATOMIC,
                                           MXUserFreeHashEntry);
@@ -455,10 +460,17 @@ MXUser_CreateRWLock(const char *userName,  // IN:
       lock->header.statsFunc = MXUserStatsActionRW;
       lock->header.identifier = MXUserAllocID();
 
-      MXUserAddToList(&lock->header);
-      MXUserAcquisitionStatsSetUp(&lock->acquisitionStats);
-      MXUserBasicStatsSetUp(&lock->heldStats, MXUSER_STAT_CLASS_HELD);
+     stats = Util_SafeCalloc(1, sizeof(*stats));
+#else
+     stats = NULL;
 #endif
+
+      if (stats) {
+         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
+      }
+
+      MXUserAddToList(&lock->header);
    } else {
       free(properName);
       free(lock);
@@ -489,6 +501,8 @@ void
 MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
 {
    if (LIKELY(lock != NULL)) {
+      MXUserStats *stats;
+
       ASSERT(lock->header.signature == MXUSER_RW_SIGNATURE);
 
       if (Atomic_Read(&lock->holderCount) != 0) {
@@ -512,13 +526,18 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
          MXRecLockDestroy(&lock->recursiveLock);  
       }
 
-#if defined(MXUSER_STATS)
       MXUserRemoveFromList(&lock->header);
-      MXUserAcquisitionStatsTearDown(&lock->acquisitionStats);
-      MXUserBasicStatsTearDown(&lock->heldStats);
-      MXUserHistoTearDown(Atomic_ReadPtr(&lock->acquisitionHisto));
-      MXUserHistoTearDown(Atomic_ReadPtr(&lock->heldHisto));
-#endif
+
+      stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
+      if (stats) {
+         MXUserAcquisitionStatsTearDown(&stats->acquisitionStats);
+         MXUserBasicStatsTearDown(&stats->heldStats);
+         MXUserHistoTearDown(Atomic_ReadPtr(&stats->acquisitionHisto));
+         MXUserHistoTearDown(Atomic_ReadPtr(&stats->heldHisto));
+
+         free(stats);
+      }
 
       HashTable_FreeUnsafe(lock->holderTable);
       lock->header.signature = 0;  // just in case...
@@ -557,10 +576,7 @@ MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
    if (!HashTable_Lookup(lock->holderTable, threadID, (void **) &result)) {
       HolderContext *newContext = Util_SafeMalloc(sizeof(HolderContext));
 
-#if defined(MXUSER_STATS)
       newContext->holdStart = 0;
-#endif
-
       newContext->state = RW_UNLOCKED;
 
       result = HashTable_LookupOrInsert(lock->holderTable, threadID,
@@ -597,13 +613,8 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
 {
    int err = 0;
    Bool contended;
+   MXUserStats *stats;
    HolderContext *myContext;
-
-#if defined(MXUSER_STATS)
-   VmTimeType begin;
-   VmTimeType value;
-   MXUserHisto *histo;
-#endif
 
    ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
 
@@ -620,39 +631,53 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
                                                                    "Write");
    }
 
-#if defined(MXUSER_STATS)
-   begin = Hostinfo_SystemTimerNS();
-#endif
+   stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
-   contended = lock->useNative ? MXUserNativeRWAcquire(&lock->nativeLock,
-                                                       forRead, &err) :
-                                 MXRecLockAcquire(&lock->recursiveLock,
-                                                  GetReturnAddress());
-   if (UNLIKELY(err != 0)) {
-      MXUserDumpAndPanic(&lock->header, "%s: Error %d: contended %d\n",
-                         __FUNCTION__, err, contended);
+   if (stats) {
+      VmTimeType begin = Hostinfo_SystemTimerNS();
+      VmTimeType value;
+      MXUserHisto *histo;
+
+      contended = lock->useNative ? MXUserNativeRWAcquire(&lock->nativeLock,
+                                                          forRead, &err) :
+                                    MXRecLockAcquire(&lock->recursiveLock,
+                                                     GetReturnAddress());
+
+      value = Hostinfo_SystemTimerNS() - begin;
+
+      if (UNLIKELY(err != 0)) {
+         MXUserDumpAndPanic(&lock->header, "%s: Error %d: contended %d\n",
+                            __FUNCTION__, err, contended);
+      }
+
+      /*
+       * The statistics are not atomically safe so protect them when
+       * necessary
+       */
+
+      if (forRead && lock->useNative) {
+         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+      }
+
+      MXUserAcquisitionSample(&stats->acquisitionStats, TRUE, contended,
+                              value);
+
+      histo = Atomic_ReadPtr(&stats->acquisitionHisto);
+
+      if (UNLIKELY(histo != NULL)) {
+         MXUserHistoSample(histo, value);
+      }
+
+      if (forRead && lock->useNative) {
+         MXRecLockRelease(&lock->recursiveLock);
+      }
+   } else {
+      if (LIKELY(lock->useNative)) {
+         MXUserNativeRWAcquire(&lock->nativeLock, forRead, &err);
+      } else {
+         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+      }
    }
-
-#if defined(MXUSER_STATS)
-   value = Hostinfo_SystemTimerNS() - begin;
-
-   /* The statistics are not atomically safe so protect them when necessary */
-   if (forRead && lock->useNative) {
-      MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
-   }
-
-   MXUserAcquisitionSample(&lock->acquisitionStats, TRUE, contended, value);
-
-   histo = Atomic_ReadPtr(&lock->acquisitionHisto);
-
-   if (UNLIKELY(histo != NULL)) {
-      MXUserHistoSample(histo, value);
-   }
-
-   if (forRead && lock->useNative) {
-      MXRecLockRelease(&lock->recursiveLock);
-   }
-#endif
 
    if (!forRead || !lock->useNative) {
       ASSERT(Atomic_Read(&lock->holderCount) == 0);
@@ -661,9 +686,9 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    Atomic_Inc(&lock->holderCount);
    myContext->state = forRead ? RW_LOCKED_FOR_READ : RW_LOCKED_FOR_WRITE;
 
-#if defined(MXUSER_STATS)
-   myContext->holdStart = Hostinfo_SystemTimerNS();
-#endif
+   if (stats) {
+      myContext->holdStart = Hostinfo_SystemTimerNS();
+   }
 }
 
 
@@ -782,47 +807,49 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
 void
 MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
 {
+   MXUserStats *stats;
    HolderContext *myContext;
-
-#if defined(MXUSER_STATS)
-   VmTimeType holdEnd = Hostinfo_SystemTimerNS();
-   VmTimeType duration;
-   MXUserHisto *histo;
-#endif
 
    ASSERT(lock && (lock->header.signature == MXUSER_RW_SIGNATURE));
 
    myContext = MXUserGetHolderContext(lock);
+   stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
-   if (UNLIKELY(myContext->state == RW_UNLOCKED)) {
-      uint32 lockCount = Atomic_Read(&lock->holderCount);
+   if (stats) {
+      VmTimeType duration = Hostinfo_SystemTimerNS() - myContext->holdStart;
+      MXUserHisto *histo;
 
-      MXUserDumpAndPanic(&lock->header,
-                         "%s: Non-owner release of an %s read-write lock\n",
-                         __FUNCTION__,
-                         lockCount == 0 ? "unacquired" : "acquired");
+      if (UNLIKELY(myContext->state == RW_UNLOCKED)) {
+         uint32 lockCount = Atomic_Read(&lock->holderCount);
+
+         MXUserDumpAndPanic(&lock->header,
+                            "%s: Non-owner release of an %s read-write lock\n",
+                            __FUNCTION__,
+                            lockCount == 0 ? "unacquired" : "acquired");
+      }
+
+
+      /*
+       * The statistics are not always atomically safe so protect them
+       * when necessary
+       */
+
+      if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
+         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+      }
+
+      MXUserBasicStatsSample(&stats->heldStats, duration);
+
+      histo = Atomic_ReadPtr(&stats->heldHisto);
+
+      if (UNLIKELY(histo != NULL)) {
+         MXUserHistoSample(histo, duration);
+      }
+
+      if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
+         MXRecLockRelease(&lock->recursiveLock);
+      }
    }
-
-#if defined(MXUSER_STATS)
-   duration = holdEnd - myContext->holdStart;
-
-   /* The statistics are not atomically safe so protect them when necessary */
-   if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
-      MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
-   }
-
-   MXUserBasicStatsSample(&lock->heldStats, duration);
-
-   histo = Atomic_ReadPtr(&lock->heldHisto);
-
-   if (UNLIKELY(histo != NULL)) {
-      MXUserHistoSample(histo, duration);
-   }
-
-   if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
-      MXRecLockRelease(&lock->recursiveLock);
-   }
-#endif
 
    MXUserReleaseTracking(&lock->header);
 

@@ -39,12 +39,10 @@ typedef pthread_t MXThreadID;
 #include "vm_basic_types.h"
 #include "vthreadBase.h"
 
-#if defined(MXUSER_STATS)
 #include "circList.h"
 
 #define MXUSER_STAT_CLASS_ACQUISITION "a"
 #define MXUSER_STAT_CLASS_HELD        "h"
-#endif
 
 /*
  * A portable recursive lock.
@@ -419,12 +417,12 @@ typedef struct MXUserHeader {
    uint32       signature;
    MX_Rank      rank;
    const char  *name;
+   uint32       identifier;
    void       (*dumpFunc)(struct MXUserHeader *);
 
 #if defined(MXUSER_STATS)
    void       (*statsFunc)(struct MXUserHeader *);
    ListItem     item;
-   uint32       identifier;
 #endif
 } MXUserHeader;
 
@@ -476,7 +474,6 @@ Bool MXUserWaitCondVar(MXUserHeader *header,
                        uint32 msecWait);
 
 
-#if defined(MXUSER_STATS)
 typedef struct {
    char    *typeName;        // Name
    uint64   numSamples;      // Population sample size
@@ -501,8 +498,23 @@ typedef struct {
 } MXUserReleaseStats;
 
 uint32 MXUserAllocID(void);
+
+#if defined(MXUSER_STATS)
 void MXUserAddToList(MXUserHeader *header);
 void MXUserRemoveFromList(MXUserHeader *header);
+#else
+static INLINE void
+MXUserAddToList(MXUserHeader *header)
+{
+   return;
+}
+
+static INLINE void
+MXUserRemoveFromList(MXUserHeader *header)
+{
+   return;
+}
+#endif
 
 typedef struct MXUserHisto MXUserHisto;
 
@@ -552,7 +564,6 @@ void MXUserForceHisto(Atomic_Ptr *histoPtr,
                       char *typeName,
                       uint64 minValue,
                       uint32 decades);
-#endif
 
 extern void (*MXUserMX_LockRec)(struct MX_MutexRec *lock);
 extern void (*MXUserMX_UnlockRec)(struct MX_MutexRec *lock);
