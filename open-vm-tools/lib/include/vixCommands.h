@@ -1559,6 +1559,21 @@ struct VixMsgCreateTempFileRequest {
 VixMsgCreateTempFileRequest;
 
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgCreateTempFileRequestEx {
+   VixCommandRequestHeader header;
+
+   int32                   options;
+   uint32                  filePrefixLength;
+   uint32                  fileSuffixLength;
+   uint32                  directoryPathLength;
+   uint32                  propertyListLength;
+}
+#include "vmware_pack_end.h"
+VixMsgCreateTempFileRequestEx;
+
+
 /*
  * **********************************************************
  * Connect/Disconnect device request. The response is just a generic
@@ -2234,6 +2249,10 @@ enum {
 
    VIX_COMMAND_MOVE_GUEST_DIRECTORY             = 180,
 
+   VIX_COMMAND_CREATE_TEMPORARY_FILE_EX         = 181,
+
+   VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY       = 182,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2244,7 +2263,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg. as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 181,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 183,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

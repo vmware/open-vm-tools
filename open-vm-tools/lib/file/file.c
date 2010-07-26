@@ -1087,6 +1087,46 @@ File_StripSlashes(ConstUnicode path)  // IN:
 
 
 /*
+ *----------------------------------------------------------------------------
+ *
+ * FileMakeTempExCreateNameFunc --
+ *
+ *      This is a helper function designed for File_MakeTempEx function.
+ *      Everytime this function is called, this creates a fileName with the
+ *      format <num><fileName> and returns back to the caller.
+ *
+ *      'num' specifies the nth time this function is called.
+ *
+ *      'data' specifies the payload that is specified when File_MakeTempEx2()
+ *      function is called. This points to a Unicode string.
+ *
+ * Results:
+ *      if successful, a dynamically allocated string with the basename of
+ *      the temp file. NULL otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Unicode
+FileMakeTempExCreateNameFunc(int num,               // IN:
+                             void *data)            // IN:
+{
+   Unicode filePath;
+
+   if (data == NULL) {
+      return NULL;
+   }
+
+   filePath = Unicode_Format("%s%d", (Unicode) data, num);
+
+   return filePath;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  *  File_MakeTempEx --
@@ -1115,14 +1155,63 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
                 ConstUnicode fileName,  // IN:
                 Unicode *presult)       // OUT:
 {
-   int fd;
+   return File_MakeTempEx2(dir,
+                           TRUE,
+                           FileMakeTempExCreateNameFunc,
+                           (void *) fileName,
+                           presult);
+
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  File_MakeTempEx2 --
+ *
+ *      Create a temporary file or a directory.
+ *      If a temporary file is created successfully, then return an open file
+ *      descriptor to that file.
+ *
+ *      'dir' specifies the directory in which to create the file. It
+ *      must not end in a slash.
+ *
+ *      'createTempFile', if TRUE, then a temporary file will be created. If
+ *      FALSE, then a temporary directory will be created.
+ *
+ *      'createNameFunc' specifies the user-specified callback function that
+ *      will be called to construct the fileName. 'createNameFuncData' will be
+ *      passed everytime 'createNameFunc' is called. 'createNameFunc'
+ *      should return the proper fileName.
+ *
+ *      Check the documentation for File_MakeTempHelperFunc.
+ *
+ * Results:
+ *      if a temporary file is created, then Open file descriptor or -1;
+ *      if a temporary directory is created, then 0 or -1;
+ *      If successful then presult points to a dynamically allocated
+ *      string with the pathname of the temp file.
+ *
+ * Side effects:
+ *      Creates a file if successful. Errno is set on error
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_MakeTempEx2(ConstUnicode dir,                                // IN:
+                 Bool createTempFile,                             // IN:
+                 File_MakeTempCreateNameFunc *createNameFunc,     // IN:
+                 void *createNameFuncData,                        // IN:
+                 Unicode *presult)                                // OUT:
+{
+   int fd = -1;
    int err;
    uint32 var;
 
    Unicode path = NULL;
-   Unicode basePath = NULL;
 
-   if ((dir == NULL) || (fileName == NULL)) {
+   if ((dir == NULL) || (createNameFunc == NULL)) {
       errno = EFAULT;
       return -1;
    }
@@ -1131,21 +1220,32 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
 
    *presult = NULL;
 
-   /* construct base full pathname to use */
-   basePath = Unicode_Join(dir, DIRSEPS, fileName, NULL);
-
    for (var = 0; var < 0xFFFFFFFF; var++) {
-      Unicode temp;
+      Unicode fileName = NULL;
 
       /* construct suffixed pathname to use */
       Unicode_Free(path);
+      path = NULL;
 
-      temp = Unicode_Format("%d", var);
-      ASSERT_MEM_ALLOC(temp);
-      path = Unicode_Append(basePath, temp);
-      Unicode_Free(temp);
+      fileName = (*createNameFunc)(var, createNameFuncData);
 
-      fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
+      if (fileName == NULL) {
+         Msg_Append(MSGID(file.maketemp.helperFuncFailed)
+                  "Failed to construct the file name\n");
+         errno = EFAULT;
+         goto exit;
+      }
+
+      /* construct base full pathname to use */
+      path = Unicode_Join(dir, DIRSEPS,  fileName, NULL);
+
+      Unicode_Free(fileName);
+
+      if (createTempFile) {
+         fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
+      } else {
+         fd = Posix_Mkdir(path, 0600);
+      }
 
       if (fd != -1) {
          *presult = path;
@@ -1173,7 +1273,6 @@ File_MakeTempEx(ConstUnicode dir,       // IN:
 
   exit:
    err = errno;
-   Unicode_Free(basePath);
    Unicode_Free(path);
    errno = err;
 

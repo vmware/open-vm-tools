@@ -63,6 +63,28 @@ extern "C"{
 typedef struct WalkDirContextImpl WalkDirContextImpl;
 typedef const WalkDirContextImpl *WalkDirContext;
 
+/*
+ * When File_MakeTempEx2 is called, it creates a temporary file or a directory
+ * in a specified directory. File_MakeTempEx2 calls a user-specified callback
+ * function to get the filename. Callback function should be of type
+ * File_MakeTempCreateNameFunc.
+ *
+ * 'num' specifies nth time this function is called.
+ *
+ * 'data' specifies the payload that the user specified when executing
+ * File_MakeTempEx2 function.
+ *
+ * If successful, this function should return a dynamically allocated string
+ * with the filename.
+ *
+ * File_MakeTempEx2 frees the fileName after a successful call to this
+ * function.
+ *
+ */
+
+typedef Unicode File_MakeTempCreateNameFunc(int num,
+                                            void *data);
+
 #if defined(__APPLE__)
 typedef enum {
    FILEMACOS_UNMOUNT_SUCCESS,
@@ -176,6 +198,12 @@ EXTERN int File_MakeTemp(ConstUnicode tag,
 EXTERN int File_MakeTempEx(ConstUnicode dir,
                            ConstUnicode fileName,
                            Unicode *presult);
+
+EXTERN int File_MakeTempEx2(ConstUnicode dir,
+                            Bool createTempFile,
+                            File_MakeTempCreateNameFunc *createNameFunc,
+                            void *createFuncData,
+                            Unicode *presult);
 
 EXTERN int64 File_GetModTime(ConstUnicode pathName);
 

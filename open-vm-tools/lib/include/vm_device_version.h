@@ -115,8 +115,11 @@
 #define PCI_DEVICE_ID_INTEL_82545EM     0x100f
 #define PCI_DEVICE_ID_INTEL_82546EB     0x1010
 #define PCI_DEVICE_ID_INTEL_82574       0x10d3
+#define PCI_DEVICE_ID_INTEL_82574_APPLE 0x10f6
 #define PCI_DEVICE_ID_INTEL_ICH7_16     0x27d8
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
+
+#define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
 
 
 /************* Strings for IDE Identity Fields **************************/

@@ -137,6 +137,15 @@ typedef struct VixToolsRunProgramState {
 #endif
 } VixToolsRunProgramState;
 
+/*
+ * This structure is designed to implemente CreateTemporaryFile,
+ * CreateTemporaryDirectory VI guest operations.
+ */
+typedef struct VixToolsGetTempFileCreateNameFuncData {
+   char *filePrefix;
+   char *tag;
+   char *fileSuffix;
+} VixToolsGetTempFileCreateNameFuncData;
 
 /*
  * Global state.
@@ -207,7 +216,7 @@ static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
                                           "</fxi>";
 #endif
 
-static VixError VixToolsGetTempFile(const char *tag,
+static VixError VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,
                                     void *userToken,
                                     char **tempFile,
                                     int *tempFileFd);
@@ -1780,9 +1789,16 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
    int fd = -1;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   VixMsgCreateTempFileRequest *makeTempFileRequest;
 
-   makeTempFileRequest = (VixMsgCreateTempFileRequest *) requestMsg;
+   if ((VIX_COMMAND_CREATE_TEMPORARY_FILE != requestMsg->opCode) &&
+       (VIX_COMMAND_CREATE_TEMPORARY_FILE_EX != requestMsg->opCode) &&
+       (VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY != requestMsg->opCode)) {
+      ASSERT(0);
+      err = VIX_E_FAIL;
+      Debug("%s: Received a request with an invalid opcode: %d\n",
+            __FUNCTION__, requestMsg->opCode);
+      goto abort;
+   }
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
    if (VIX_OK != err) {
@@ -1790,11 +1806,11 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
    }
    impersonatingVMWareUser = TRUE;
 
-   err = VixToolsGetTempFile("vmware", userToken, &filePathName, &fd);
+   err = VixToolsGetTempFile(requestMsg, userToken, &filePathName, &fd);
    if (VIX_FAILED(err)) {
       goto abort;
    }
-   
+
    /*
     * Just close() the file, since we're not going to use it.
     */
@@ -3695,6 +3711,58 @@ VixToolsFreeRunProgramState(VixToolsRunProgramState *asyncState) // IN
 
 
 /*
+ *----------------------------------------------------------------------------
+ *
+ *  VixToolsGetTempFileCreateNameFunc --
+ *
+ *       This function is designed as part of implementing CreateTempFile,
+ *       CreateTempoDirectory VI guest operations.
+ *
+ *       This function will be passed to File_MakeTempEx2 when
+ *       VixToolsGetTempFile() is called.
+ *
+ *  Return Value:
+ *       If success, a dynamically allocated string with the base name of
+ *       of the file. NULL otherwise.
+ *
+ *  Side effects:
+ *        None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static char *
+VixToolsGetTempFileCreateNameFunc(int num,                    // IN
+                                  void *payload)              // IN
+{
+   char *fileName = NULL;
+
+   VixToolsGetTempFileCreateNameFuncData *data =
+                           (VixToolsGetTempFileCreateNameFuncData *) payload;
+
+   if (payload == NULL) {
+      goto abort;
+   }
+
+   if ((data->filePrefix == NULL) ||
+       (data->tag == NULL) ||
+       (data->fileSuffix == NULL)) {
+      goto abort;
+   }
+
+   fileName = Str_SafeAsprintf(NULL,
+                               "%s%s%d%s",
+                               data->filePrefix,
+                               data->tag,
+                               num,
+                               data->fileSuffix);
+
+abort:
+   return fileName;
+} // VixToolsGetTempFileCreateNameFunc
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * VixToolsGetTempFile --
@@ -3713,24 +3781,91 @@ VixToolsFreeRunProgramState(VixToolsRunProgramState *asyncState) // IN
  *-----------------------------------------------------------------------------
  */
 
-static VixError 
-VixToolsGetTempFile(const char *tag,   // IN
-                    void *userToken,   // IN
-                    char **tempFile,   // OUT
-                    int *tempFileFd)   // OUT
+static VixError
+VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
+                    void *userToken,                       // IN
+                    char **tempFile,                       // OUT
+                    int *tempFileFd)                       // OUT
 {
    VixError err = VIX_E_FAIL;
-   char *tempDirPath = NULL;
    char *tempFilePath = NULL;
    int fd = -1;
+   char *directoryPath = NULL;
+   VixToolsGetTempFileCreateNameFuncData data;
+   Bool createTempFile = TRUE;
 
    if (NULL == tempFile || NULL == tempFileFd) {
       ASSERT(0);
-      goto abort;
+      return err;
    }
 
    *tempFile = NULL;
    *tempFileFd = -1;
+
+   data.filePrefix = NULL;
+   data.fileSuffix = NULL;
+   data.tag = Util_SafeStrdup("vmware");
+
+   if ((VIX_COMMAND_CREATE_TEMPORARY_FILE_EX == requestMsg->opCode) ||
+       (VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY == requestMsg->opCode)) {
+      VixMsgCreateTempFileRequestEx *makeTempFileRequest;
+      char *tempPtr = NULL;
+
+      makeTempFileRequest = (VixMsgCreateTempFileRequestEx *) requestMsg;
+
+      if ((requestMsg->commonHeader.bodyLength +
+           requestMsg->commonHeader.headerLength) !=
+          (((uint64) sizeof(*makeTempFileRequest)) +
+           makeTempFileRequest->filePrefixLength + 1 +
+           makeTempFileRequest->fileSuffixLength + 1 +
+           makeTempFileRequest->directoryPathLength + 1 +
+           makeTempFileRequest->propertyListLength)) {
+         ASSERT(0);
+         Debug("%s: Invalid request message received\n", __FUNCTION__);
+         err = VIX_E_INVALID_MESSAGE_BODY;
+         goto abort;
+      }
+
+      tempPtr = ((char *) makeTempFileRequest) + sizeof(*makeTempFileRequest);
+
+      if ('\0' != *(tempPtr + makeTempFileRequest->filePrefixLength)) {
+         ASSERT(0);
+         Debug("%s: Invalid request message received\n", __FUNCTION__);
+         err = VIX_E_INVALID_MESSAGE_BODY;
+         goto abort;
+      }
+
+      data.filePrefix = Util_SafeStrdup(tempPtr);
+      tempPtr += makeTempFileRequest->filePrefixLength + 1;
+
+      if ('\0' != *(tempPtr + makeTempFileRequest->fileSuffixLength)) {
+         ASSERT(0);
+         Debug("%s: Invalid request message received\n", __FUNCTION__);
+         err = VIX_E_INVALID_MESSAGE_BODY;
+         goto abort;
+      }
+
+      data.fileSuffix = Util_SafeStrdup(tempPtr);
+      tempPtr += makeTempFileRequest->fileSuffixLength + 1;
+
+      if ('\0' != *(tempPtr + makeTempFileRequest->directoryPathLength)) {
+         ASSERT(0);
+         Debug("%s: Invalid request message received\n", __FUNCTION__);
+         err = VIX_E_INVALID_MESSAGE_BODY;
+         goto abort;
+      }
+
+      directoryPath = Util_SafeStrdup(tempPtr);
+
+      if (VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY == requestMsg->opCode) {
+         createTempFile = FALSE;
+      }
+
+   } else {
+      data.filePrefix = Util_SafeStrdup("");
+      data.fileSuffix = Util_SafeStrdup("");
+      directoryPath = Util_SafeStrdup("");
+   }
 
 #ifdef _WIN32
    /*
@@ -3743,16 +3878,24 @@ VixToolsGetTempFile(const char *tag,   // IN
     *      trick.
     */
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
-      err = VixToolsGetUserTmpDir(userToken, &tempDirPath);
+      if (!(strcmp(directoryPath, ""))) {
+         free(directoryPath);
+         directoryPath = NULL;
+         err = VixToolsGetUserTmpDir(userToken, &directoryPath);
+      }
 
-      /* 
+      /*
        * Don't give up if VixToolsGetUserTmpDir() failed. It might just
        * have failed to load DLLs, so we might be running on Win 9x.
        * Just fall through to use the old fashioned File_MakeTemp().
        */
 
       if (VIX_SUCCEEDED(err)) {
-         fd = File_MakeTempEx(tempDirPath, tag, &tempFilePath);
+         fd = File_MakeTempEx2(directoryPath,
+                               createTempFile,
+                               VixToolsGetTempFileCreateNameFunc,
+                               &data,
+                               &tempFilePath);
          if (fd < 0) {
             err = FoundryToolsDaemon_TranslateSystemErr();
             goto abort;
@@ -3764,13 +3907,23 @@ VixToolsGetTempFile(const char *tag,   // IN
 
    /*
     * We need to use File_MakeTemp and not Util_MakeSafeTemp.
-    * File_MakeTemp uses File_GetTmpDir, while Util_MakeSafeTemp 
-    * uses Util_GetSafeTmpDir. We can't use Util_GetSafeTmpDir 
-    * because much of win32util.c which gets used in that call creates 
+    * File_MakeTemp uses File_GetTmpDir, while Util_MakeSafeTemp
+    * uses Util_GetSafeTmpDir. We can't use Util_GetSafeTmpDir
+    * because much of win32util.c which gets used in that call creates
     * dependencies on code that won't run on win9x.
     */
    if (NULL == tempFilePath) {
-      fd = File_MakeTemp(tag, &tempFilePath);
+      if (!strcmp(directoryPath, "")) {
+         free(directoryPath);
+         directoryPath = NULL;
+         directoryPath = File_GetTmpDir(TRUE);
+      }
+
+      fd = File_MakeTempEx2(directoryPath,
+                            createTempFile,
+                            VixToolsGetTempFileCreateNameFunc,
+                            &data,
+                            &tempFilePath);
       if (fd < 0) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
@@ -3782,7 +3935,11 @@ VixToolsGetTempFile(const char *tag,   // IN
    err = VIX_OK;
 
 abort:
-   free(tempDirPath);
+   free(data.filePrefix);
+   free(data.fileSuffix);
+   free(data.tag);
+
+   free(directoryPath);
 
    return err;
 } // VixToolsGetTempFile
@@ -4678,6 +4835,8 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
       ////////////////////////////////////
       case VIX_COMMAND_CREATE_TEMPORARY_FILE:
+      case VIX_COMMAND_CREATE_TEMPORARY_FILE_EX:
+      case VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY:
          err = VixToolsCreateTempFile(requestMsg, &resultValue);
          deleteResultValue = TRUE;
          break;
