@@ -43,21 +43,9 @@
    #include <sys/types.h>
 #endif
 
-#ifdef __APPLE__
-   #include <IOKit/IOTypes.h>
-   #include <CoreFoundation/CFData.h>
-   #include <CoreFoundation/CFNumber.h>
-   #include <CoreFoundation/CFDictionary.h>
-   #include <CoreFoundation/CFArray.h>
-   #include <CoreFoundation/CFString.h>
-#endif
-
 #include "vm_assert.h"
 #include "unicodeTypes.h"
 
-#ifdef __APPLE__
-   #define SYSTEM_VOL_DIR "/Volumes"
-#endif
 
 /*
  * Define the Util_ThreadID type.
@@ -71,58 +59,6 @@ typedef DWORD Util_ThreadID;
 #include <unistd.h>
 typedef pid_t Util_ThreadID;
 #endif
-
-#ifdef __APPLE__
-EXTERN char *Util_CFStringToUTF8CString(CFStringRef s);
-EXTERN char *Util_IORegCopyStringProperty(io_object_t entry, CFStringRef property);
-EXTERN Bool Util_IORegGetNumberProperty(io_object_t entry, CFStringRef property,
-                                        CFNumberType type, void *val);
-EXTERN Bool Util_IORegGetBooleanProperty(io_object_t entry, CFStringRef property,
-                                         Bool *boolVal);
-EXTERN CFDataRef Util_IORegCopyDataProperty(io_object_t entry, CFStringRef property);
-EXTERN CFDictionaryRef Util_IORegCopyDictionaryProperty(io_object_t entry,
-                                                        CFStringRef property);
-EXTERN CFMutableDictionaryRef UtilMacos_CreateCFDictionary(
-   unsigned int numPairs, ...);
-EXTERN io_service_t Util_IORegGetDeviceObjectByName(const char *deviceName);
-EXTERN char *Util_GetBSDName(const char *deviceName);
-EXTERN char *Util_IORegGetDriveType(const char *deviceName);
-EXTERN uint64 Util_GetPartitionOffset(const char *bsdDev);
-EXTERN char *Util_GetMacOSDefaultVMPath();
-
-/* 
- * Mac laptops without a cdrom drive (currently only the Air, but maybe
- * more in the future) provide a way to use a desktop's cdrom drive
- * remotely over the network.  These functions enumerate all such
- * remote disks currently mounted as volumes, and return a list of
- * volume to bsd name mappings.  The bsd device can be considered a
- * flat-file representation of the disk contents and can be connected
- * to our cdrom image backend.  We also include the size, since we must
- * get that from the IO registry as well, and it doesn't change while
- * the disk is mounted.
- * 
- * FYI, Apple calls this "Remote Disc" not "Remote Disk", so we follow
- * that convention here too.
- */
-typedef struct RemoteDiscList {
-   char                  *bsdName;
-   char                  *name;
-   uint64                 size; // In bytes
-   struct RemoteDiscList *next;
-} RemoteDiscList;
-
-EXTERN RemoteDiscList *Util_GetRemoteDiscList(void);
-EXTERN void Util_FreeRemoteDiscList(RemoteDiscList *list);
-
-/*
- * Additional keys for disk/partition device properties.
- */
-EXTERN const CFStringRef kUtilMacosDeviceSerialNumberKey;
-EXTERN const CFStringRef kUtilMacosVolumeOffsetKey;
-
-EXTERN CFDictionaryRef UtilMacos_CopyDiskDeviceProperties(const char *bsdDev);
-EXTERN CFArrayRef UtilMacos_CopyDiskDeviceBSDNames(const char *parentDisk);
-#endif // __APPLE__
 
 
 EXTERN uint32 CRC_Compute(const uint8 *buf, int len);

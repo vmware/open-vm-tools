@@ -40,6 +40,13 @@
 /** TCLO channel name for the HGFS driver. */
 #define TOOLS_HGFS_NAME           "tools-hgfs"
 
+/*
+ * The TCLO channel names used by the View Agent Service.
+ * vdiagent may register RPC callbacks to be notified of certain events not
+ * handled by Tools Service.
+ */
+#define TOOLS_VDIAGENT_NAME       "vdiagent"
+
 /** Reply from host when the command is not recognized. */
 #define RPCI_UNKNOWN_COMMAND      "Unknown command"
 
