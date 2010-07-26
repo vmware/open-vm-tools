@@ -100,8 +100,6 @@ MXUserGetPerThread(void *tid,      // IN: native thread ID
          if (perThread != newEntry) {
             free(newEntry);
          }
-
-         MXUserMaintainMaxTid(tid);  // track the maximum known tid
       } else {
          perThread = NULL;
       }
