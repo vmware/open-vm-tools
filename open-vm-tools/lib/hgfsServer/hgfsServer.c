@@ -37,7 +37,7 @@
 #include "hgfsTransport.h"
 #include "userlock.h"
 #include "poll.h"
-#include "libMutexRank.h"
+#include "mutexRankLib.h"
 #include "vm_basic_asm.h"
 
 #if defined(_WIN32)

@@ -660,47 +660,6 @@ typedef int pid_t;
 #endif
 
 /*
- * Basic lock ranks.  Others are defined in mutexRank.h.
- */
-
-#define RANK_UNRANKED            0
-#define RANK_LEAF                0xFF000000
-#define RANK_INVALID             0xFFFFFFFF
-
-/*
- * Log lock rank. Very special case. Don't change it. The effect is
- * that critical logging code cannot call anything else which requires
- * a lock, but everyone else can safely Log() while holding a leaf
- * lock.
- */
-#define RANK_logLock             (RANK_LEAF + 1)
-
-/*
- * bora/lib/allocTrack is another special case. It hooks malloc/free
- * and the like, and thus can basically sneak in underneath anyone. To
- * that end allocTrack uses unranked, native locks internally to avoid
- * any complications.
- */
-
-/*
- * VMX/VMM/device lock rank space is at the bottom, from 1 to
- * RANK_VMX_LEAF. See vmx/public/mutexRank.h for definitions.
- */
-
-/*
- * bora/lib lock rank space is from RANK_libLockBase on up to
- * RANK_LEAF.
- */
-#define RANK_libLockBase         0xF0000000
-
-/*
- * For situations where we need to create locks on behalf of
- * third-party code, but we don't know what ranking scheme, if any,
- * that code uses.  For now, the only usage is in bora/lib/ssl.
- */
-#define RANK_THIRDPARTY          RANK_UNRANKED
-
-/*
  * Use to initialize cbSize for this structure to preserve < Vista
  * compatibility.
  */

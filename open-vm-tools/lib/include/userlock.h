@@ -27,6 +27,7 @@
 #include "vm_atomic.h"
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
+#include "mutexRank.h"
 #include "vthreadBase.h"
 
 typedef struct MXUserExclLock   MXUserExclLock;

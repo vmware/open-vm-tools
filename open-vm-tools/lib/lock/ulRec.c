@@ -803,7 +803,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
 #if defined(VMX86_VMX)
 #include "mutex.h"
-#include "mutexRank.h"
+#include "mutexRankVMX.h"
 
 /*
  *----------------------------------------------------------------------------
