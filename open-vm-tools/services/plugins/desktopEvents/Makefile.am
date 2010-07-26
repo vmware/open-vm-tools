@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright 2009 VMware, Inc.  All rights reserved.
+### Copyright 2010 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -15,32 +15,24 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-SUBDIRS =
-if HAVE_X11
-   SUBDIRS += desktopEvents
-endif
-SUBDIRS += guestInfo
-SUBDIRS += hgfsServer
-SUBDIRS += powerOps
-if HAVE_X11
-   SUBDIRS += resolutionSet
-endif
-SUBDIRS += timeSync
-SUBDIRS += vix
-if HAVE_X11
-   SUBDIRS += vixUser
-endif
-SUBDIRS += vmbackup
+plugindir = @VMUSR_PLUGIN_INSTALLDIR@
+plugin_LTLIBRARIES = libdesktopEvents.la
 
-#
-# plugin_LTLIBRARIES causes both .la and .so files to be installed to the
-# plugin directories. Clean up the .la files and keep just the shared
-# libraries around. Sometimes, even though we're passing "-shared" to
-# libtool, .a files are also generated, so clean up those too.
-#
-install-exec-local:
-	rm -f $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/*.a
-	rm -f $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/*.la
-	rm -f $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)/*.a
-	rm -f $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)/*.la
+libdesktopEvents_la_CPPFLAGS =
+libdesktopEvents_la_CPPFLAGS += @GTK_CPPFLAGS@
+libdesktopEvents_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+
+libdesktopEvents_la_LDFLAGS =
+libdesktopEvents_la_LDFLAGS += @PLUGIN_LDFLAGS@
+
+libdesktopEvents_la_LIBADD =
+libdesktopEvents_la_LIBADD += @COMMON_XLIBS@
+libdesktopEvents_la_LIBADD += @GTK_LIBS@
+libdesktopEvents_la_LIBADD += @VMTOOLS_LIBS@
+
+libdesktopEvents_la_SOURCES =
+libdesktopEvents_la_SOURCES += desktopEvents.c
+libdesktopEvents_la_SOURCES += reload.c
+libdesktopEvents_la_SOURCES += x11Lock.c
+libdesktopEvents_la_SOURCES += xioError.c
 
