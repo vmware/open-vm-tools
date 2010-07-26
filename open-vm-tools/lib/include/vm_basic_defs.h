@@ -620,7 +620,7 @@ typedef int pid_t;
 #ifdef _WIN32
 #define VMW_INVALID_HANDLE INVALID_HANDLE_VALUE
 #else
-#define VMW_INVALID_HANDLE (-1)
+#define VMW_INVALID_HANDLE (-1LL)
 #endif
 
 #ifdef _WIN32

@@ -989,11 +989,7 @@ typedef int MXSemaHandle;
  * Define type for poll device handles.
  */
 
-#ifdef _WIN32
-typedef uintptr_t PollDevHandle;
-#else
-typedef int PollDevHandle;
-#endif
+typedef int64 PollDevHandle;
 
 /*
  * Define the utf16_t type.

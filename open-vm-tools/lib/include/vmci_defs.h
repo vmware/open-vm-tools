@@ -248,7 +248,7 @@ static const VMCIHandle VMCI_INVALID_HANDLE = {VMCI_INVALID_ID,
 #define VMCI_SUCCESS_LAST_DETACH          3
 #define VMCI_SUCCESS_ACCESS_GRANTED       2
 #define VMCI_SUCCESS_ENTRY_DEAD           1
-#define VMCI_SUCCESS                      0
+#define VMCI_SUCCESS                      0LL
 #define VMCI_ERROR_INVALID_RESOURCE      (-1)
 #define VMCI_ERROR_INVALID_ARGS          (-2)
 #define VMCI_ERROR_NO_MEM                (-3)
