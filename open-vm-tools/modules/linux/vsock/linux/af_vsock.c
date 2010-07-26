@@ -140,6 +140,15 @@ sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 #  error "Linux kernels before 2.6.9 are not supported."
 #endif
 
+/*
+ * All kernels above 2.6.33 have the kern parameter for the create
+ * call in struct net_proto_family.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33) && \
+    !defined(VMW_NETCREATE_KERNARG)
+#  define VMW_NETCREATE_KERNARG
+#endif
+
 #define VSOCK_INVALID_FAMILY        NPROTO
 #define VSOCK_AF_IS_REGISTERED(val) ((val) >= 0 && (val) < NPROTO)
 
