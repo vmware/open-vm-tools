@@ -378,6 +378,38 @@ System_SetEnv(Bool global,      // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * System_GetNodeName --
+ *
+ *      Returns the guest's configured node name.  Does not necessarily
+ *      correspond to a proper DNS host name.
+ *
+ * Results:
+ *      On success, returns TRUE with node name written to outBuf.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+System_GetNodeName(size_t outBufSize, // IN:  size of output buffer
+                   char *outBuf)      // OUT: output buffer
+{
+   ASSERT(outBuf);
+
+   if (gethostname(outBuf, outBufSize) < 0) {
+      Debug("Error, gethostname failed\n");
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * System_GetNativeEnviron --
  *
  *      Returns a copy of the native / unwrapped environment.

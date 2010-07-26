@@ -32,7 +32,6 @@ SUBDIRS += file
 SUBDIRS += foundryMsg
 SUBDIRS += ghIntegrationStub
 SUBDIRS += guestApp
-SUBDIRS += guestInfo
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd
 SUBDIRS += hgfsHelper

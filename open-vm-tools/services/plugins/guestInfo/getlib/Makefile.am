@@ -25,6 +25,7 @@ libGuestInfo_la_SOURCES += util.c
 
 libGuestInfo_la_CPPFLAGS =
 libGuestInfo_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libGuestInfo_la_CPPFLAGS += -I$(srcdir)/..
 
 AM_CFLAGS = $(DNET_CPPFLAGS)
 

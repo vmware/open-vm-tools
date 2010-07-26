@@ -37,10 +37,12 @@
 uint64 System_Uptime(void);
 Unicode System_GetTimeAsString(void);
 void System_Shutdown(Bool reboot);
-Bool System_IsUserAdmin(void);
+Bool System_GetNodeName(size_t outBufSize, char *outBuf);
 
 char *System_GetEnv(Bool global, const char *valueName);
 int System_SetEnv(Bool global, const char *valueName, const char *value);
+
+Bool System_IsUserAdmin(void);
 
 #ifdef _WIN32
 typedef enum AeroStateCommand {

@@ -15,6 +15,9 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+SUBDIRS =
+SUBDIRS += getlib
+
 plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libguestInfo.la
 
@@ -28,8 +31,8 @@ libguestInfo_la_LIBADD =
 libguestInfo_la_LIBADD += @VMTOOLS_LIBS@
 libguestInfo_la_LIBADD += @PROCPS_LIBS@
 libguestInfo_la_LIBADD += @XDR_LIBS@
+libguestInfo_la_LIBADD += getlib/libGuestInfo.la
 
 libguestInfo_la_SOURCES =
 libguestInfo_la_SOURCES += guestInfoServer.c
 libguestInfo_la_SOURCES += perfMonLinux.c
-

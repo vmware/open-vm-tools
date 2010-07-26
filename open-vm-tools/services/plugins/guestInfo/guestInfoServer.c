@@ -277,7 +277,7 @@ GuestInfoGather(gpointer data)
       }
    }
 
-   if (!GuestInfo_GetFqdn(sizeof name, name)) {
+   if (!System_GetNodeName(sizeof name, name)) {
       g_warning("Failed to get netbios name.\n");
    } else if (!GuestInfoUpdateVmdb(ctx, INFO_DNS_NAME, name)) {
       g_warning("Failed to update VMDB.\n");

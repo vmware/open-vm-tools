@@ -73,12 +73,12 @@
 #include "str.h"
 #include "file.h"
 #include "err.h"
+#include "guestInfo.h"  // MAX_VALUE_LEN
 #include "hostinfo.h"
 #include "guest_os.h"
 #include "conf.h"
 #include "vixCommands.h"
 #include "base64.h"
-#include "guestInfoLib.h"
 #include "hostinfo.h"
 #include "hgfsServer.h"
 #include "hgfs.h"
@@ -1016,7 +1016,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
     * hack, since the GuestInfo API expects a pre-allocated buffer.
     */
    guestName = Util_SafeMalloc(512);
-   foundHostName = GuestInfo_GetFqdn(512, guestName);
+   foundHostName = System_GetNodeName(512, guestName);
    if (!foundHostName) {
       free(guestName);
 #ifdef _WIN32

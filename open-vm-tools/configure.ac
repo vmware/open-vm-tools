@@ -1230,7 +1230,6 @@ AC_CONFIG_FILES([                      \
    lib/ghIntegration/Makefile          \
    lib/ghIntegrationStub/Makefile      \
    lib/guestApp/Makefile               \
-   lib/guestInfo/Makefile              \
    lib/guestRpc/Makefile               \
    lib/hgfs/Makefile                   \
    lib/hgfsBd/Makefile                 \
@@ -1272,6 +1271,7 @@ AC_CONFIG_FILES([                      \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
    services/plugins/guestInfo/Makefile \
+   services/plugins/guestInfo/getlib/Makefile \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
