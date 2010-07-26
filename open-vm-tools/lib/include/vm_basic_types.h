@@ -308,7 +308,11 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
 #elif defined __APPLE__
    /* Mac OS hosts use the same formatters for 32- and 64-bit. */
    #define FMT64 "ll"
-   #define FMTSZ "z"
+   #if KERNEL
+      #define FMTSZ "l"
+   #else
+      #define FMTSZ "z"
+   #endif
    #define FMTPD "l"
    #define FMTH ""
 #elif __GNUC__
