@@ -153,7 +153,6 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 
 #if defined(MXUSER_DEBUG)
       Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
-      Warning("\tVThreadID %d\n", (int) lock->recursiveLock.portableThreadID);
 #endif
    } else {
       Warning("\tvmmLock 0x%p\n", lock->vmmLock);

@@ -179,7 +179,7 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
 #endif
 
 #if defined(MXUSER_DEBUG)
-Bool MXUser_AnyLocksHeld(VThreadID tid);
+Bool MXUser_IsCurThreadHoldingLocks(void);
 void MXUser_TryAcquireFailureControl(Bool (*func)(const char *lockName));
 #endif
 
@@ -188,9 +188,6 @@ void MXUser_StatisticsControl(double contentionRatio,
                               uint64 minCount);
 
 void MXUser_PerLockData(void);
-void MXUser_PerThreadData(VThreadID tid,
-                          uint64 *totalAcquisitions,
-                          uint64 *contendedAcquisitions);
 #endif
 
 void MXUser_SetInPanic(void);

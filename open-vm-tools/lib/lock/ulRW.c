@@ -362,7 +362,6 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
 
 #if defined(MXUSER_DEBUG)
       Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
-      Warning("\tVThreadID %d\n", (int) lock->recursiveLock.portableThreadID);
 #endif
    }
 
@@ -551,12 +550,11 @@ static HolderContext *
 MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
 {
    HolderContext *result;
-   VThreadID tid = VThread_CurID();
+   void *threadID = MXUserGetNativeTID();
 
    ASSERT(lock->holderTable);
 
-   if (!HashTable_Lookup(lock->holderTable, (void *) (uintptr_t) tid,
-                         (void **) &result)) {
+   if (!HashTable_Lookup(lock->holderTable, threadID, (void **) &result)) {
       HolderContext *newContext = Util_SafeMalloc(sizeof(HolderContext));
 
 #if defined(MXUSER_STATS)
@@ -565,8 +563,7 @@ MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
 
       newContext->state = RW_UNLOCKED;
 
-      result = HashTable_LookupOrInsert(lock->holderTable,
-                                        (void *) (uintptr_t) tid,
+      result = HashTable_LookupOrInsert(lock->holderTable, threadID,
                                         (void *) newContext);
 
       if (result != newContext) {

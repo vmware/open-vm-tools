@@ -63,7 +63,6 @@ typedef struct {
    MXThreadID       nativeThreadID;   // Native thread ID
 
 #if defined(MXUSER_DEBUG)
-   VThreadID        portableThreadID;  // VThreadID, when available
    const void      *ownerRetAddr;      // return address of acquisition routine
 #endif
 } MXRecLock;
@@ -233,7 +232,6 @@ MXRecLockInit(MXRecLock *lock)  // IN/OUT:
       lock->referenceCount = 0;
 
 #if defined(MXUSER_DEBUG)
-      lock->portableThreadID = VTHREAD_INVALID_ID;
       lock->ownerRetAddr = NULL;
 #endif
    }
@@ -267,10 +265,7 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
 {
    if (MXRecLockCount(lock) == 0) {
 #if defined(MXUSER_DEBUG)
-      ASSERT(lock->portableThreadID == VTHREAD_INVALID_ID);
-
       lock->ownerRetAddr = location;
-      lock->portableThreadID = VThread_CurID();
 #endif
 
       MXRecLockSetOwner(lock);
@@ -360,7 +355,6 @@ MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
 
 #if defined(MXUSER_DEBUG)
       lock->ownerRetAddr = NULL;
-      lock->portableThreadID = VTHREAD_INVALID_ID;
 #endif
    }
 }
@@ -386,6 +380,38 @@ MXRecLockRelease(MXRecLock *lock)  // IN/OUT:
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserGetNativeTID --
+ *
+ *      Gets a native representation of the thread ID, which can be stored
+ *      in a pointer.
+ *
+ * Results:
+ *      Native representation of a thread ID.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+MXUserGetNativeTID(void)
+{
+   /* All thread types must fit into a uintptr_t  */
+
+#if defined(_WIN32)
+   ASSERT_ON_COMPILE(sizeof(DWORD) <= sizeof (void *));
+   return (void *) (uintptr_t) GetCurrentThreadId();
+#else
+   ASSERT_ON_COMPILE(sizeof(pthread_t) <= sizeof (void *));
+   return (void *) (uintptr_t) pthread_self();
+#endif
+}
+
+
+/*
  * MXUser header - all MXUser objects start with this
  */
 
@@ -402,29 +428,6 @@ typedef struct MXUserHeader {
 #endif
 } MXUserHeader;
 
-
-/*
- * The per thread information.
- */
-
-#if defined(MXUSER_DEBUG) || defined(MXUSER_STATS)
-#define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
-
-typedef struct {
-#if defined(MXUSER_DEBUG)
-   uint32         locksHeld;
-   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
-#endif
-
-#if defined(MXUSER_STATS)
-   uint64         totalAcquisitions;      // total thread lock acquisitions
-   uint64         contendedAcquisitions;  // contended subset of above
-#endif
-} MXUserPerThread;
-
-MXUserPerThread *MXUserGetPerThread(VThreadID tid,
-                                    Bool mayAlloc);
-#endif
 
 /*
  * Internal functions

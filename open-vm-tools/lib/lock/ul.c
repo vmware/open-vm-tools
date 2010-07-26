@@ -37,38 +37,15 @@ Bool (*MXUserMX_TryLockRec)(struct MX_MutexRec *lock) = NULL;
 Bool (*MXUserMX_IsLockedByCurThreadRec)(const struct MX_MutexRec *lock) = NULL;
 
 
-#if defined(MXUSER_DEBUG) || defined(MXUSER_STATS)
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserMaintainMaxTid --
- *
- *      Maintain the maximum known thread ID.
- *
- * Results:
- *      As Above.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
+#if defined(MXUSER_DEBUG)
+#define MXUSER_MAX_LOCKS_PER_THREAD (2 * MXUSER_MAX_REC_DEPTH)
 
-static Atomic_uint32 mxMaxThreadID;  // implicitly initialized to 0 -- mbellon
+typedef struct {
+   uint32         locksHeld;
+   MXUserHeader  *lockArray[MXUSER_MAX_LOCKS_PER_THREAD];
+} MXUserPerThread;
 
-static void
-MXUserMaintainMaxTid(VThreadID tid)  // IN:
-{
-   while (TRUE) {
-      uint32 curValue = Atomic_Read(&mxMaxThreadID);
-
-      if (tid <= curValue) {
-         break;
-      }
-
-      Atomic_ReadIfEqualWrite(&mxMaxThreadID, curValue, tid);
-   } 
-}
+static Atomic_Ptr hashTableMem;
 
 
 /*
@@ -93,64 +70,18 @@ MXUserMaintainMaxTid(VThreadID tid)  // IN:
  */
 
 MXUserPerThread *
-MXUserGetPerThread(VThreadID tid,  // IN: thread ID
+MXUserGetPerThread(void *tid,      // IN: native thread ID
                    Bool mayAlloc)  // IN: alloc perThread if not present?
 {
-   MXUserPerThread *perThread;
-
-#if defined(VMX86_VMX)
-   /*
-    * Inside the VMX we have a tightly controlled environment with a rigidly
-    * controlled maximum number of threads. That being the case, use a simple,
-    * low memory usage and *VERY* fast scheme to manage the perThread data.
-    */
-
-   static Atomic_Ptr perThreadArray[VTHREAD_MAX_THREADS];
-
-   if (tid >= VTHREAD_MAX_THREADS) {
-      Panic("%s: tid out of bounds (%u)\n", __FUNCTION__, tid);
-   }
-
-   perThread = Atomic_ReadPtr(&perThreadArray[tid]);
-
-   if ((perThread == NULL) && mayAlloc) {
-      MXUserPerThread *before;
-
-      perThread = Util_SafeCalloc(1, sizeof(MXUserPerThread));
-
-      before = Atomic_ReadIfEqualWritePtr(&perThreadArray[tid], NULL,
-                                       (void *) perThread);
-
-      if (before) {
-         free(perThread);
-      }
-
-      MXUserMaintainMaxTid(tid);  // track the maximum known tid
-
-      perThread = Atomic_ReadPtr(&perThreadArray[tid]);
-      ASSERT(perThread);
-   }
-#else
-   /*
-    * Outside the VMX there are no controls on the number of threads that can
-    * use MXUser locks. Here use an open ended, reasonably fast scheme for
-    * managing the perThread data.
-    *
-    * Use an atomic hash table to manage the perThread data. This avoids a
-    * great deal of locking and syncronization overhead. 
-    */
-
    HashTable *hash;
-
-   static Atomic_Ptr hashTableMem;
+   MXUserPerThread *perThread;
 
    hash = HashTable_AllocOnce(&hashTableMem, 1024,
                               HASH_INT_KEY | HASH_FLAG_ATOMIC, NULL);
 
    perThread = NULL;
 
-   if (!HashTable_Lookup(hash, (void *) (uintptr_t) tid,
-                         (void **) &perThread)) {
+   if (!HashTable_Lookup(hash, tid, (void **) &perThread)) {
       /* No entry for this tid was found, allocate one? */
 
       if (mayAlloc) {
@@ -163,8 +94,7 @@ MXUserGetPerThread(VThreadID tid,  // IN: thread ID
           * the mess.
           */
 
-         perThread = HashTable_LookupOrInsert(hash, (void *) (uintptr_t) tid,
-                                              newEntry);
+         perThread = HashTable_LookupOrInsert(hash, tid, newEntry);
          ASSERT(perThread);
 
          if (perThread != newEntry) {
@@ -176,28 +106,17 @@ MXUserGetPerThread(VThreadID tid,  // IN: thread ID
          perThread = NULL;
       }
    }
-#endif
 
    return perThread;
 }
-#endif
 
 
-#if defined(MXUSER_DEBUG)
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_AnyLocksHeld --
+ * MXUser_IsCurThreadHoldingLocks --
  *
- *      Are any MXUser locks held?
- *
- *      A tid of VTHREAD_INVALID_ID asks to check locks across all threads
- *      (via an linear search over all threads); such a check may return an
- *      incorrect or stale result in an active multi-threaded environment.
- *
- *      A tid other than VTHREAD_INVALID_ID will check locks for the specified
- *      thread. The results of this check are always valid for the calling
- *      thread but may be incorrect or stale for other threads.
+ *      Are any MXUser locks held by the calling thread?
  *
  * Results:
  *      TRUE   Yes
@@ -210,31 +129,12 @@ MXUserGetPerThread(VThreadID tid,  // IN: thread ID
  */
 
 Bool
-MXUser_AnyLocksHeld(VThreadID tid)  // IN:
+MXUser_IsCurThreadHoldingLocks(void)
 {
-   Bool result;
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetNativeTID(),
+                                                   FALSE);
 
-   if (tid == VTHREAD_INVALID_ID) {
-      uint32 i;
-      uint32 maxThreadID = Atomic_Read(&mxMaxThreadID);
-
-      result = FALSE;
-
-      for (i = 0; i < maxThreadID; i++) {
-         MXUserPerThread *perThread = MXUserGetPerThread(i, FALSE);
-
-         if (perThread && (perThread->locksHeld != 0)) {
-            result = TRUE;
-            break;
-         }
-      }
-   } else {
-      MXUserPerThread *perThread = MXUserGetPerThread(tid, FALSE);
-
-      result = (perThread == NULL) ? FALSE : (perThread->locksHeld != 0);
-   }
-
-   return result;
+   return (perThread == NULL) ? FALSE : (perThread->locksHeld != 0);
 }
 
 
@@ -259,8 +159,7 @@ void
 MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
                           Bool checkRank)        // IN:
 {
-   VThreadID tid = VThread_CurID();
-   MXUserPerThread *perThread = MXUserGetPerThread(tid, TRUE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetNativeTID(), TRUE);
 
    ASSERT_NOT_IMPLEMENTED(perThread->locksHeld < MXUSER_MAX_LOCKS_PER_THREAD);
 
@@ -353,12 +252,12 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 {
    uint32 i;
    uint32 lastEntry;
-   VThreadID tid = VThread_CurID();
+   void *tid = MXUserGetNativeTID();
    MXUserPerThread *perThread = MXUserGetPerThread(tid, FALSE);
 
    /* MXUserAcquisitionTracking should have already created a perThread */
    if (UNLIKELY(perThread == NULL)) {
-      MXUserDumpAndPanic(header, "%s: perThread not found! (thread %u)\n",
+      MXUserDumpAndPanic(header, "%s: perThread not found! (thread %p)\n",
                          __FUNCTION__, tid);
    }
 
@@ -371,7 +270,7 @@ MXUserReleaseTracking(MXUserHeader *header)  // IN: lock, via its header
 
    /* The argument lock had better be in the perThread */
    if (UNLIKELY(i >= perThread->locksHeld)) {
-      MXUserDumpAndPanic(header, "%s: lock not found! (thread %u; count %u)\n",
+      MXUserDumpAndPanic(header, "%s: lock not found! (thread %p; count %u)\n",
                          __FUNCTION__, tid, perThread->locksHeld);
    }
 
@@ -629,7 +528,8 @@ void
 MXUserListLocks(void)
 {
 #if defined(MXUSER_DEBUG)
-   MXUserPerThread *perThread = MXUserGetPerThread(VThread_CurID(), FALSE);
+   MXUserPerThread *perThread = MXUserGetPerThread(MXUserGetNativeTID(),
+                                                   FALSE);
 
    if (perThread != NULL) {
       uint32 i;
