@@ -39,11 +39,9 @@
 #include "util.h"
 #include "userlock.h"
 #include "ulInt.h"
+#include "hostinfo.h"
 #if defined(_WIN32)
 #include "win32u.h"
-#endif
-#if defined(__APPLE__)
-#include "hostinfo.h"
 #endif
 
 #define MXUSER_SEMA_SIGNATURE 0x414D4553 // 'SEMA' in memory
@@ -61,10 +59,15 @@ typedef sem_t NativeSemaphore;
 
 struct MXUserSemaphore
 {
-   MXUserHeader     header;
-   Atomic_uint32    activeUserCount;
+   MXUserHeader            header;
+   Atomic_uint32           activeUserCount;
 
-   NativeSemaphore  nativeSemaphore;
+   NativeSemaphore         nativeSemaphore;
+
+#if defined(MXUSER_STATS)
+   MXUserAcquisitionStats  acquisitionStats;
+   Atomic_Ptr              acquisitionHisto;
+#endif
 };
 
 
@@ -380,6 +383,63 @@ MXUserUp(NativeSemaphore *sema)  // IN:
 #endif  // _WIN32
 
 
+#if defined(MXUSER_STATS)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserStatsActionSema --
+ *
+ *      Perform the statistics action for the specified semaphore.
+ *
+ * Results:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+MXUserStatsActionSema(MXUserHeader *header)  // IN:
+{
+   Bool isHot;
+   Bool doLog;
+   double contentionRatio;
+
+   MXUserSemaphore *sema = (MXUserSemaphore *) header;
+
+   /*
+    * Dump the statistics for the specified semaphore.
+    */
+
+   MXUserDumpAcquisitionStats(&sema->acquisitionStats, header);
+
+   if (Atomic_ReadPtr(&sema->acquisitionHisto) != NULL) {
+      MXUserHistoDump(Atomic_ReadPtr(&sema->acquisitionHisto), header);
+   }
+
+   /*
+    * Has the semaphore gone "hot"? If so, implement the hot actions.
+    */
+
+   MXUserKitchen(&sema->acquisitionStats, &contentionRatio, &isHot, &doLog);
+
+   if (isHot) {
+      MXUserForceHisto(&sema->acquisitionHisto,
+                       MXUSER_STAT_CLASS_ACQUISITION,
+                       MXUSER_DEFAULT_HISTO_MIN_VALUE_NS,
+                       MXUSER_DEFAULT_HISTO_DECADES);
+
+      if (doLog) {
+         Log("HOT SEMAPHORE (%s); contention ratio %f\n",
+             sema->header.name, contentionRatio);
+      }
+   }
+}
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -453,10 +513,11 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
       sema->header.dumpFunc = MXUserDumpSemaphore;
 
 #if defined(MXUSER_STATS)
-      sema->header.statsFunc = NULL;
+      sema->header.statsFunc = MXUserStatsActionSema;
       sema->header.identifier = MXUserAllocID();
 
       MXUserAddToList(&sema->header);
+      MXUserAcquisitionStatsSetUp(&sema->acquisitionStats);
 #endif
 
    } else {
@@ -508,6 +569,8 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
 
 #if defined(MXUSER_STATS)
       MXUserRemoveFromList(&sema->header);
+      MXUserAcquisitionStatsTearDown(&sema->acquisitionStats);
+      MXUserHistoTearDown(Atomic_ReadPtr(&sema->acquisitionHisto));
 #endif
 
       sema->header.signature = 0;  // just in case...
@@ -547,7 +610,36 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
 
    MXUserAcquisitionTracking(&sema->header, TRUE);  // rank checking
 
+#if defined(MXUSER_STATS)
+   { 
+      Bool tryDownSuccess = FALSE;
+      VmTimeType begin = Hostinfo_SystemTimerNS();
+
+      err = MXUserTryDown(&sema->nativeSemaphore, &tryDownSuccess);
+
+      if (LIKELY(err == 0)) {
+         if (!tryDownSuccess) {
+            err = MXUserDown(&sema->nativeSemaphore);
+         }
+
+         if (LIKELY(err == 0)) {
+            MXUserHisto *histo;
+            VmTimeType value = Hostinfo_SystemTimerNS() - begin;
+
+            MXUserAcquisitionSample(&sema->acquisitionStats, !tryDownSuccess,
+                                    value);
+
+            histo = Atomic_ReadPtr(&sema->acquisitionHisto);
+
+            if (UNLIKELY(histo != NULL)) {
+               MXUserHistoSample(histo, value);
+            }
+         }
+      }
+   }
+#else
    err = MXUserDown(&sema->nativeSemaphore);
+#endif
 
    if (UNLIKELY(err != 0)) {
       MXUserDumpAndPanic(&sema->header, "%s: Internal error (%d)\n",
