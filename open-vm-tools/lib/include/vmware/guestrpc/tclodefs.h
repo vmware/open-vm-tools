@@ -46,7 +46,7 @@
 /*
  * Tools options.
  */
- 
+
 #define TOOLSOPTION_COPYPASTE                "copypaste"
 #define TOOLSOPTION_AUTOHIDE                 "autohide"
 #define TOOLSOPTION_BROADCASTIP              "broadcastIP"
@@ -66,6 +66,12 @@
  */
 
 #define DISK_SHRINK_CMD             "disk.shrink"
+
+/*
+ * Auto-lock commands.
+ */
+
+#define DESKTOP_AUTOLOCK_CMD        "Autolock_Desktop"
 
 
 /*

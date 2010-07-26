@@ -33,6 +33,7 @@
 #endif
 
 #include "vmware.h"
+#include "vm_atomic.h"
 #include "wiper.h"
 #include "vmtoolsInt.h"
 #include "vmware/tools/utils.h"
@@ -83,14 +84,16 @@ static void
 VMToolsDllInit(void *lib)
 {
    Bool success;
-#if defined(_WIN32)
    WiperInitData wiperData;
+   Atomic_Init();
+#if defined(_WIN32)
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);
    ASSERT(success);
    success = Wiper_Init(&wiperData);
    ASSERT(success);
 #else
+   (void) wiperData;
    success = Wiper_Init(NULL);
    ASSERT(success);
 #endif
