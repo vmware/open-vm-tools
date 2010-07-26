@@ -127,6 +127,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 6, 6)                      \
    CPUIDLEVEL(FALSE, A, 0xA)                    \
    CPUIDLEVEL(FALSE, B, 0xB)                    \
+   CPUIDLEVEL(FALSE, D, 0xD)                    \
    CPUIDLEVEL(FALSE, 86, 0x80000006)
 
 #define CPUID_ALL_LEVELS                        \
@@ -298,9 +299,9 @@ FLAGDEFA(  1, ECX, INTEL,  22,  1, MOVBE,               YES, TRUE,  MOVBE)     \
 FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, TRUE,  POPCNT)    \
 FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  TRUE)             \
 FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, TRUE, AES)        \
-FLAGDEFA(  1, ECX, INTEL,  26,  1, XSAVE,               NO,  FALSE, XSAVE)     \
-FLAGDEF(   1, ECX, INTEL,  27,  1, OSXSAVE,             NO,  TRUE)             \
-FLAGDEFA(  1, ECX, INTEL,  28,  1, AVX,                 NO,  TRUE,  AVX)       \
+FLAGDEFA(  1, ECX, COMMON, 26,  1, XSAVE,               NO,  FALSE, XSAVE)     \
+FLAGDEF(   1, ECX, COMMON, 27,  1, OSXSAVE,             NO,  TRUE)             \
+FLAGDEFA(  1, ECX, COMMON, 28,  1, AVX,                 NO,  TRUE,  AVX)       \
 FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, FALSE, HYPERVISOR)\
 FLAGDEFA(  1, EDX, COMMON, 0,   1, FPU,                 YES, TRUE, FPU)        \
 FLAGDEFA(  1, EDX, COMMON, 1,   1, VME,                 YES, FALSE, VME)       \
@@ -391,6 +392,13 @@ FIELDDEF(  B, EBX, INTEL,   0, 16, CPUS_SHARING_LEVEL,  NA,  FALSE)            \
 FIELDDEF(  B, ECX, INTEL,   0,  8, LEVEL_NUMBER,        NA,  FALSE)            \
 FIELDDEF(  B, ECX, INTEL,   8,  8, LEVEL_TYPE,          NA,  FALSE)            \
 FIELDDEF(  B, EDX, INTEL,   0, 32, X2APIC_ID,           NA,  FALSE)
+
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
+#define CPUID_FIELD_DATA_LEVEL_D                                               \
+FIELDDEFA( D, EAX, COMMON,  0, 32, XCR0_MASTER_LOWER,   NA,  FALSE, XCR0_MASTER_LOWER) \
+FIELDDEF(  D, EBX, COMMON,  0, 32, XSAVE_ENABLED_SIZE,  NA,  FALSE)	       \
+FIELDDEFA( D, ECX, COMMON,  0, 32, XSAVE_MAX_SIZE,      NA,  FALSE, XSAVE_MAX_SIZE) \
+FIELDDEFA( D, EDX, COMMON,  0, 32, XCR0_MASTER_UPPER,   NA,  FALSE, XCR0_MASTER_UPPER)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_400                                             \
@@ -517,6 +525,7 @@ FIELDDEF( 8A, EDX, AMD,    11, 21, SVMEDX_RSVD1,        NO,  FALSE)
    CPUID_FIELD_DATA_LEVEL_6                                           \
    CPUID_FIELD_DATA_LEVEL_A                                           \
    CPUID_FIELD_DATA_LEVEL_B                                           \
+   CPUID_FIELD_DATA_LEVEL_D                                           \
    CPUID_FIELD_DATA_LEVEL_400                                         \
    CPUID_FIELD_DATA_LEVEL_410                                         \
    CPUID_FIELD_DATA_LEVEL_80                                          \

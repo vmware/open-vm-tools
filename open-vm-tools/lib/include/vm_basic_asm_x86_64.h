@@ -140,6 +140,117 @@ FXRSTOR_AMD_ES0(const uint8 *load)
 
 #endif /* __GNUC__ */
 
+/*
+ * XSAVE/XRSTOR
+ *     save/restore GSSE/SIMD/MMX fpu state
+ *
+ * The pointer passed in must be 64-byte aligned.
+ * See above comment for more information.
+ */
+#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+
+static INLINE void 
+XSAVE_ES1(uint8 *save, uint64 mask)
+{
+#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
+   __asm__ __volatile__ (
+        ".byte 0x48, 0x0f, 0xae, 0x21 \n"
+        :
+        : "c" (save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#else
+   __asm__ __volatile__ (
+        "xsaveq %0 \n"
+        : "=m" (*save)
+        : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#endif
+}
+
+static INLINE void 
+XSAVE_COMPAT_ES1(uint8 *save, uint64 mask)
+{
+#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
+   __asm__ __volatile__ (
+        ".byte 0x0f, 0xae, 0x21 \n"
+        :
+        : "c" (save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#else
+   __asm__ __volatile__ (
+        "xsave %0 \n"
+        : "=m" (*save)
+        : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#endif
+}
+
+static INLINE void 
+XRSTOR_ES1(const uint8 *load, uint64 mask)
+{
+#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
+   __asm__ __volatile__ (
+        ".byte 0x48, 0x0f, 0xae, 0x29 \n"
+        :
+        : "c" (load), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#else
+   __asm__ __volatile__ (
+        "xrstorq %0 \n"
+        :
+        : "m" (*load), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#endif
+}
+
+static INLINE void 
+XRSTOR_COMPAT_ES1(const uint8 *load, uint64 mask)
+{
+#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
+   __asm__ __volatile__ (
+        ".byte 0x0f, 0xae, 0x29 \n"
+        :
+        : "c" (load), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#else
+   __asm__ __volatile__ (
+        "xrstor %0 \n"
+        :
+        : "m" (*load), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+#endif
+}
+
+static INLINE void 
+XRSTOR_AMD_ES0(const uint8 *load, uint64 mask)
+{
+   uint64 dummy = 0;
+      
+   __asm__ __volatile__ 
+       ("fnstsw  %%ax    \n"     // Grab x87 ES bit
+        "bt      $7,%%ax \n"     // Test ES bit
+        "jnc     1f      \n"     // Jump if ES=0
+        "fnclex          \n"     // ES=1. Clear it so fild doesn't trap
+        "1:              \n"
+        "ffree   %%st(7) \n"     // Clear tag bit - avoid poss. stack overflow
+        "fildl   %0      \n"     // Dummy Load from "safe address" changes all
+                                 // x87 exception pointers.
+        "mov %%ebx, %%eax \n"
+#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
+        ".byte 0x48, 0x0f, 0xae, 0x29 \n"
+        :
+        : "m" (dummy),
+          "c" (load), "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
+#else
+        "xrstorq %1 \n"
+        :
+        : "m" (dummy), "m" (*load), "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
+#endif
+        : "eax", "memory");
+}
+
+#endif /* __GNUC__ */
+
 
 /*
  *-----------------------------------------------------------------------------
