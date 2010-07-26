@@ -500,7 +500,7 @@ FIELDDEFA(88, ECX, AMD,    12,  4, APICID_COREID_SIZE,  NA,  FALSE, AMD_APICID_C
 FIELDDEFA(8A, EAX, AMD,     0,  8, SVM_REVISION,        YES, FALSE, SVM_REVISION) \
 FLAGDEF(  8A, EAX, AMD,     8,  1, SVM_HYPERVISOR,      NO,  FALSE)            \
 FIELDDEF( 8A, EAX, AMD,     9, 23, SVMEAX_RSVD,         NO,  FALSE)            \
-FIELDDEF( 8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         ANY, FALSE)            \
+FIELDDEFA(8A, EBX, AMD,     0, 32, SVM_N_ASIDS,         YES, FALSE, SVM_NUM_ASIDS) \
 FIELDDEF( 8A, ECX, AMD,     0, 32, SVMECX_RSVD,         NO,  FALSE)            \
 FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              YES, FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
