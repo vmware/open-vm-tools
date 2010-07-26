@@ -337,22 +337,20 @@ MXUserInternalSingleton(Atomic_Ptr *storage)  // IN:
    MXRecLock *lock = (MXRecLock *) Atomic_ReadPtr(storage);
 
    if (UNLIKELY(lock == NULL)) {
-      lock = Util_SafeMalloc(sizeof(MXRecLock));
+      MXRecLock *newLock = Util_SafeMalloc(sizeof(MXRecLock));
 
-      if (MXRecLockInit(lock)) {
-         MXRecLock *before;
+      if (MXRecLockInit(newLock)) {
+         lock = (MXRecLock *) Atomic_ReadIfEqualWritePtr(storage, NULL,
+                                                         (void *) newLock);
 
-         before = (MXRecLock *) Atomic_ReadIfEqualWritePtr(storage, NULL,
-                                                           (void *) lock);
-
-         if (before) {
-            MXRecLockDestroy(lock);
-            free(lock);
-
-            lock = before;
+         if (lock) {
+            MXRecLockDestroy(newLock);
+            free(newLock);
+         } else {
+            lock = Atomic_ReadPtr(storage);
          }
       } else {
-         free(lock);
+         free(newLock);
          lock = Atomic_ReadPtr(storage);  // maybe another thread succeeded
       }
    }

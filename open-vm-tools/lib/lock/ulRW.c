@@ -875,17 +875,17 @@ MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,  // IN/OUT:
    lock = (MXUserRWLock *) Atomic_ReadPtr(lockStorage);
 
    if (UNLIKELY(lock == NULL)) {
-      MXUserRWLock *before;
+      MXUserRWLock *newLock;
 
-      lock = MXUser_CreateRWLock(name, rank);
+      newLock = MXUser_CreateRWLock(name, rank);
 
-      before = (MXUserRWLock *) Atomic_ReadIfEqualWritePtr(lockStorage, NULL,
-                                                           (void *) lock);
+      lock = (MXUserRWLock *) Atomic_ReadIfEqualWritePtr(lockStorage, NULL,
+                                                         (void *) newLock);
 
-      if (before) {
-         MXUser_DestroyRWLock(lock);
-
-         lock = before;
+      if (lock) {
+         MXUser_DestroyRWLock(newLock);
+      } else {
+         lock = (MXUserRWLock *) Atomic_ReadPtr(lockStorage);
       }
    }
 

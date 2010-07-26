@@ -543,17 +543,17 @@ MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,  // IN/OUT:
    lock = (MXUserExclLock *) Atomic_ReadPtr(lockStorage);
 
    if (UNLIKELY(lock == NULL)) {
-      MXUserExclLock *before;
+      MXUserExclLock *newLock;
 
-      lock = MXUser_CreateExclLock(name, rank);
+      newLock = MXUser_CreateExclLock(name, rank);
 
-      before = (MXUserExclLock *) Atomic_ReadIfEqualWritePtr(lockStorage, NULL,
-                                                           (void *) lock);
+      lock = (MXUserExclLock *) Atomic_ReadIfEqualWritePtr(lockStorage, NULL,
+                                                           (void *) newLock);
 
-      if (before) {
-         MXUser_DestroyExclLock(lock);
-
-         lock = before;
+      if (lock) {
+         MXUser_DestroyExclLock(newLock);
+      } else {
+         lock = (MXUserExclLock *) Atomic_ReadPtr(lockStorage);
       }
    }
 

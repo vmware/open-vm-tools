@@ -851,18 +851,18 @@ MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,  // IN/OUT:
    sema = (MXUserSemaphore *) Atomic_ReadPtr(semaStorage);
 
    if (UNLIKELY(sema == NULL)) {
-      MXUserSemaphore *before;
+      MXUserSemaphore *newSema;
 
-      sema = MXUser_CreateSemaphore(name, rank);
+      newSema = MXUser_CreateSemaphore(name, rank);
 
-      before = (MXUserSemaphore *) Atomic_ReadIfEqualWritePtr(semaStorage,
-                                                              NULL,
-                                                              (void *) sema);
+      sema = (MXUserSemaphore *) Atomic_ReadIfEqualWritePtr(semaStorage,
+                                                            NULL,
+                                                            (void *) newSema);
 
-      if (before) {
-         MXUser_DestroySemaphore(sema);
-
-         sema = before;
+      if (sema) {
+         MXUser_DestroySemaphore(newSema);
+      } else {
+         sema = (MXUserSemaphore *) Atomic_ReadPtr(semaStorage);
       }
    }
 
