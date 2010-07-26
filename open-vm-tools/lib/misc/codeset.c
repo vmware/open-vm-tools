@@ -1778,8 +1778,8 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
                     char **utf8)        // OUT:
 {
    uint32 i;
-   char *p;
-   char *q;
+   uint8 *p;
+   uint8 *q;
    uint32 len;
    union {
       uint32  word;
@@ -1800,7 +1800,7 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
     */
 
    len = 0;
-   p = (char *) utf32;
+   p = (uint8 *) utf32;
 
    while (TRUE) {
       value.bytes[0] = *p++;
@@ -1830,8 +1830,8 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
     * UTF8 equivalent.
     */
 
-   p = (char *) utf32;
-   q = *utf8;
+   p = (uint8 *) utf32;
+   q = (uint8 *) *utf8;
 
    for (i = 0; i < len; i++) {
       value.bytes[0] = *p++;
