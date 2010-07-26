@@ -186,11 +186,9 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
                                     MX_Rank rank,
                                     Bool isBelowBull);
 
-#if defined(__i386__) || defined(__x86_64__)
 #if defined(VMX86_STATS) 
 #define MXUSER_STATS  // stats "only inside the VMX" when requested
 #endif
-#endif  // X86 and X86-64
 #endif
 
 #if defined(VMX86_DEBUG)
