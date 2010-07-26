@@ -204,6 +204,38 @@ DnDFileList::AddFiles(const std::vector<std::string> fullPathList, // IN: filena
 /*
  *----------------------------------------------------------------------------
  *
+ * DnDFileList::AddFileAttributes --
+ *
+ *      Adds files attributes.
+ *
+ *      Will not add attributes if the file list was created from a clipboard
+ *      buffer.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+DnDFileList::AddFileAttributes(const CPFileAttributes& attributes)  // IN
+{
+   ASSERT(mFullPathsBinary.empty());
+
+   if (!mFullPathsBinary.empty()) {
+      return;
+   }
+
+   mAttributeList.push_back(attributes);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * DnDFileList::SetRelPathsStr --
  *
  *      Set the relative paths based on the serialized input string. Paths are
@@ -271,6 +303,30 @@ std::vector<std::string>
 DnDFileList::GetRelPaths() const
 {
    return mRelPaths;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DnDFileList::GetFileAttributes --
+ *
+ *      Gets a vector containing file attributes.
+ *
+ * Results:
+ *      File attributes.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+std::vector<CPFileAttributes>
+DnDFileList::GetFileAttributes()
+   const
+{
+   return mAttributeList;
 }
 
 
@@ -447,6 +503,45 @@ DnDFileList::FromCPClipboard(const void *buf,   // IN: Source buffer
 /*
  *----------------------------------------------------------------------------
  *
+ * DnDFileList::AttributesFromCPClipboard --
+ *
+ *      Loads the attribute list from a buffer, typically from CPClipboard.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+bool
+DnDFileList::AttributesFromCPClipboard(const void *buf, // IN: Source buffer
+                                       size_t len)      // IN: Buffer length
+{
+   const CPAttributeList *alist;
+
+   ASSERT(buf);
+   ASSERT(len);
+   if (!buf || !len) {
+      return false;
+   }
+
+   alist = reinterpret_cast<const CPAttributeList *>(buf);
+
+   mAttributeList.resize(alist->attributesLen);
+   for (uint32 i = 0; i < alist->attributesLen; i++) {
+      mAttributeList[i] = alist->attributeList[i];
+   }
+
+   return true;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * DnDFileList::ToCPClipboard --
  *
  *      Serializes contents for CPClipboard in eithr CPFormat or local format.
@@ -541,6 +636,45 @@ DnDFileList::ToUriClipboard(DynBuf *out) // OUT: Initialized output buffer
 /*
  *----------------------------------------------------------------------------
  *
+ * DnDFileList::AttributesToCPClipboard --
+ *
+ *      Serializes attributes for CPClipboard in Attributes Format.
+ *
+ * Results:
+ *      false on error, true on success.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+bool
+DnDFileList::AttributesToCPClipboard(DynBuf *out) // IN
+   const
+{
+   CPAttributeList header;
+
+   if (!out) {
+      return false;
+   }
+
+   header.attributesLen = mAttributeList.size();
+
+   DynBuf_Append(out, &header, URI_ATTRIBUTES_LIST_HEADER_SIZE);
+   if (header.attributesLen > 0) {
+      DynBuf_Append(out,
+                    &mAttributeList[0],
+                    header.attributesLen * sizeof(CPFileAttributes));
+   }
+
+   return true;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * DnDFileList::Clear --
  *
  *      Clears the contents of the filelist.
@@ -560,6 +694,7 @@ DnDFileList::Clear()
    mRelPaths.clear();
    mFullPaths.clear();
    mUriPaths.clear();
+   mAttributeList.clear();
    mFullPathsBinary.clear();
    mFileSize = 0;
 }

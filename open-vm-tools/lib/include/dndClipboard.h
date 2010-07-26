@@ -73,6 +73,28 @@ UriFileList;
 
 #define URI_FILELIST_HEADER_SIZE (1* sizeof(uint64) + 1 * sizeof(uint32))
 
+typedef
+#include "vmware_pack_begin.h"
+struct CPFileAttributes {
+   // File, Directory, or link. See HgfsFileType.
+   uint64 fileType;
+   // Read, write, execute permissions. See File_GetFilePermissions().
+   uint64 filePermissions;
+}
+#include "vmware_pack_end.h"
+CPFileAttributes;
+
+typedef
+#include "vmware_pack_begin.h"
+struct CPAttributeList {
+   uint32 attributesLen;
+   CPFileAttributes attributeList[1];
+}
+#include "vmware_pack_end.h"
+CPAttributeList;
+
+#define URI_ATTRIBUTES_LIST_HEADER_SIZE (1* sizeof(uint32))
+
 /* Types which can be stored on the clipboard. */
 /*
  * XXX

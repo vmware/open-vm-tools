@@ -30,6 +30,7 @@
 
 extern "C" {
 #include "vm_basic_types.h"
+#include "dndClipboard.h"
 #include "dynbuf.h"
 }
 
@@ -45,6 +46,7 @@ class DnDFileList {
       void AddFileUri(const std::string uriPath);
       void AddFiles(const std::vector<std::string> fullPathList,
                     const std::vector<std::string> relPathList);
+      void AddFileAttributes(const CPFileAttributes& attributes);
 
       /* Copy paste/dndV2 V2 rpc */
       void SetRelPathsStr(const std::string inpath);
@@ -56,11 +58,14 @@ class DnDFileList {
 
       /* UI Local clipboard */
       std::vector<std::string> GetRelPaths() const;
+      std::vector<CPFileAttributes> GetFileAttributes() const;
 
       /* CPClipboard */
       bool ToCPClipboard(DynBuf *out, bool local) const;
       bool ToUriClipboard(DynBuf *out) const;
+      bool AttributesToCPClipboard(DynBuf *out) const;
       bool FromCPClipboard(const void *buf, size_t len);
+      bool AttributesFromCPClipboard(const void *buf, size_t len);
 
       void Clear();
 
@@ -69,6 +74,7 @@ class DnDFileList {
       std::vector<std::string> mRelPaths;
       std::vector<std::string> mFullPaths;
       std::vector<std::string> mUriPaths;
+      std::vector<CPFileAttributes> mAttributeList;
       std::string mFullPathsBinary;
       uint64 mFileSize;
 };
