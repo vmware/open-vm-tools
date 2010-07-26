@@ -132,7 +132,7 @@ VSockVmciHandleRead(struct sock *sk,            // IN
                     struct sockaddr_vm *src)    // IN: unused
 {
 
-   sk->compat_sk_write_space(sk);
+   sk->sk_write_space(sk);
 }
 
 
@@ -159,7 +159,7 @@ VSockVmciHandleWrote(struct sock *sk,            // IN
                      struct sockaddr_vm *dst,    // IN: unused
                      struct sockaddr_vm *src)    // IN: unused
 {
-   sk->compat_sk_data_ready(sk, 0);
+   sk->sk_data_ready(sk, 0);
 }
 
 
@@ -352,7 +352,7 @@ VSockVmciNotifyPktPollIn(struct sock *sk,    // IN
        * We can't read right now because there is nothing in the queue.
        * Ask for notifications when there is something to read.
        */
-      if (sk->compat_sk_state == SS_CONNECTED) {
+      if (sk->sk_state == SS_CONNECTED) {
          VSockVmciBlockUpdateWriteWindow(sk);
       }
       *dataReadyNow = FALSE;
@@ -564,7 +564,7 @@ VSockVmciNotifyPktRecvPostDequeue(struct sock *sk,               // IN
       }
 
       /* See the comment in VSockVmciNotifyPktSendPostEnqueue */
-      sk->compat_sk_data_ready(sk, 0);
+      sk->sk_data_ready(sk, 0);
    }
 
    return err;

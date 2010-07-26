@@ -476,7 +476,7 @@ HgfsCreateTcpSocket(void)
    addr.sin_addr.s_addr = in_aton(HOST_IP);
    addr.sin_port = htons(HOST_PORT);
 
-   error = compat_sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &socket);
+   error = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &socket);
    if (error < 0) {
       LOG(8, ("%s: sock_create_kern failed: %d.\n", __func__, error));
       return NULL;
@@ -525,7 +525,7 @@ HgfsCreateVsockSocket(void)
    addr.svm_cid = VMCI_HOST_CONTEXT_ID;
    addr.svm_port = HOST_VSOCKET_PORT;
 
-   error = compat_sock_create_kern(family, SOCK_STREAM, IPPROTO_TCP, &socket);
+   error = sock_create_kern(family, SOCK_STREAM, IPPROTO_TCP, &socket);
    if (error < 0) {
       LOG(8, ("%s: sock_create_kern failed: %d.\n", __func__, error));
       return NULL;
@@ -580,7 +580,7 @@ HgfsSocketChannelOpen(HgfsTransportChannel *channel,
     * Install the new "data ready" handler that will wake up the
     * receiving thread.
     */
-   oldSocketDataReady = xchg(&socket->sk->compat_sk_data_ready,
+   oldSocketDataReady = xchg(&socket->sk->sk_data_ready,
                              HgfsSocketDataReady);
 
    /* Reset receive buffer when a new connection is connected. */

@@ -881,8 +881,8 @@ VSockVmciRecvDgramCB(void *data,          // IN
    sk = (struct sock *)data;
 
    ASSERT(sk);
-   /* XXX Figure out why sk->compat_sk_socket can be NULL. */
-   ASSERT(sk->compat_sk_socket ? sk->compat_sk_socket->type == SOCK_DGRAM : 1);
+   /* XXX Figure out why sk->sk_socket can be NULL. */
+   ASSERT(sk->sk_socket ? sk->sk_socket->type == SOCK_DGRAM : 1);
 
    size = VMCI_DG_SIZE(dg);
 
@@ -1036,7 +1036,7 @@ VSockVmciRecvStreamCB(void *data,           // IN
     */
    bh_lock_sock(sk);
 
-   if (!compat_sock_owned_by_user(sk) && sk->compat_sk_state == SS_CONNECTED) {
+   if (!sock_owned_by_user(sk) && sk->sk_state == SS_CONNECTED) {
       NOTIFYCALL(vsk, handleNotifyPkt, sk, pkt, TRUE, &dst, &src, &bhProcessPkt);
    }
 
@@ -1159,7 +1159,7 @@ VSockVmciHandleDetach(struct sock *sk) // IN
    if (!VMCI_HANDLE_INVALID(vsk->qpHandle)) {
       ASSERT(vsk->qpair);
 
-      compat_sock_set_done(sk);
+      sock_set_flag(sk, SOCK_DONE);
 
       /* On a detach the peer will not be sending or receiving anymore. */
       vsk->peerShutdown = SHUTDOWN_MASK;
@@ -1170,9 +1170,9 @@ VSockVmciHandleDetach(struct sock *sk) // IN
        * queue.
        */
       if (VSockVmciStreamHasData(vsk) <= 0) {
-         sk->compat_sk_state = SS_UNCONNECTED;
+         sk->sk_state = SS_UNCONNECTED;
       }
-      sk->compat_sk_state_change(sk);
+      sk->sk_state_change(sk);
    }
 }
 
@@ -1332,7 +1332,7 @@ VSockVmciPendingWork(compat_delayed_work_arg work)    // IN
       goto out;
    }
 
-   listener->compat_sk_ack_backlog--;
+   listener->sk_ack_backlog--;
 
    /*
     * We need to remove ourself from the global connected sockets list so
@@ -1343,7 +1343,7 @@ VSockVmciPendingWork(compat_delayed_work_arg work)    // IN
       VSockVmciRemoveConnected(sk);
    }
 
-   sk->compat_sk_state = SS_FREE;
+   sk->sk_state = SS_FREE;
 
 out:
    release_sock(sk);
@@ -1396,7 +1396,7 @@ VSockVmciRecvPktWork(compat_work_arg work)  // IN
 
    lock_sock(sk);
 
-   switch (sk->compat_sk_state) {
+   switch (sk->sk_state) {
    case SS_LISTEN:
       err = VSockVmciRecvListen(sk, pkt);
       break;
@@ -1465,7 +1465,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
 
    ASSERT(sk);
    ASSERT(pkt);
-   ASSERT(sk->compat_sk_state == SS_LISTEN);
+   ASSERT(sk->sk_state == SS_LISTEN);
 
    vsk = vsock_sk(sk);
    err = 0;
@@ -1480,7 +1480,7 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    pending = VSockVmciGetPending(sk, pkt);
    if (pending) {
       lock_sock(pending);
-      switch (pending->compat_sk_state) {
+      switch (pending->sk_state) {
       case SS_CONNECTING:
          err = VSockVmciRecvConnectingServer(sk, pending, pkt);
          break;
@@ -1520,16 +1520,16 @@ VSockVmciRecvListen(struct sock *sk,   // IN
     * a reset.  Otherwise we create and initialize a child socket and reply
     * with a connection negotiation.
     */
-   if (sk->compat_sk_ack_backlog >= sk->compat_sk_max_ack_backlog) {
+   if (sk->sk_ack_backlog >= sk->sk_max_ack_backlog) {
       VSOCK_REPLY_RESET(pkt);
       return -ECONNREFUSED;
    }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-   pending = __VSockVmciCreate(NULL, sk, GFP_KERNEL, sk->compat_sk_type);
+   pending = __VSockVmciCreate(NULL, sk, GFP_KERNEL, sk->sk_type);
 #else
    pending = __VSockVmciCreate(compat_sock_net(sk), NULL, sk, GFP_KERNEL,
-			       sk->compat_sk_type);
+			       sk->sk_type);
 #endif
    if (!pending) {
       VSOCK_SEND_RESET(sk, pkt);
@@ -1615,9 +1615,9 @@ VSockVmciRecvListen(struct sock *sk,   // IN
    }
 
    VSockVmciAddPending(sk, pending);
-   sk->compat_sk_ack_backlog++;
+   sk->sk_ack_backlog++;
 
-   pending->compat_sk_state = SS_CONNECTING;
+   pending->sk_state = SS_CONNECTING;
    vpending->produceSize = vpending->consumeSize = qpSize;
    vpending->queuePairSize = qpSize;
 
@@ -1683,8 +1683,8 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
 
    ASSERT(listener);
    ASSERT(pkt);
-   ASSERT(listener->compat_sk_state == SS_LISTEN);
-   ASSERT(pending->compat_sk_state == SS_CONNECTING);
+   ASSERT(listener->sk_state == SS_LISTEN);
+   ASSERT(pending->sk_state == SS_CONNECTING);
 
    vpending = vsock_sk(pending);
    detachSubId = VMCI_INVALID_ID;
@@ -1784,7 +1784,7 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
     * if a reset comes before the connection is accepted, the socket will be
     * valid until it is removed from the queue.
     */
-   pending->compat_sk_state = SS_CONNECTED;
+   pending->sk_state = SS_CONNECTED;
 
    VSockVmciInsertConnected(vsockConnectedSocketsVsk(vpending), pending);
 
@@ -1795,13 +1795,13 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
     * Callers of accept() will be be waiting on the listening socket, not the
     * pending socket.
     */
-   listener->compat_sk_state_change(listener);
+   listener->sk_state_change(listener);
 
    return 0;
 
 destroy:
-   pending->compat_sk_err = skerr;
-   pending->compat_sk_state = SS_UNCONNECTED;
+   pending->sk_err = skerr;
+   pending->sk_state = SS_UNCONNECTED;
    /*
     * As long as we drop our reference, all necessary cleanup will handle when
     * the cleanup function drops its reference and our destruct implementation
@@ -1847,7 +1847,7 @@ VSockVmciRecvConnectingClient(struct sock *sk,       // IN: socket
 
    ASSERT(sk);
    ASSERT(pkt);
-   ASSERT(sk->compat_sk_state == SS_CONNECTING);
+   ASSERT(sk->sk_state == SS_CONNECTING);
 
    vsk = vsock_sk(sk);
 
@@ -1865,10 +1865,10 @@ VSockVmciRecvConnectingClient(struct sock *sk,       // IN: socket
        * Also place the socket in the connected table for accounting (it can
        * already be found since it's in the bound table).
        */
-      sk->compat_sk_state = SS_CONNECTED;
-      sk->compat_sk_socket->state = SS_CONNECTED;
+      sk->sk_state = SS_CONNECTED;
+      sk->sk_socket->state = SS_CONNECTED;
       VSockVmciInsertConnected(vsockConnectedSocketsVsk(vsk), sk);
-      sk->compat_sk_state_change(sk);
+      sk->sk_state_change(sk);
 
       break;
    case VSOCK_PACKET_TYPE_NEGOTIATE:
@@ -1940,9 +1940,9 @@ VSockVmciRecvConnectingClient(struct sock *sk,       // IN: socket
 destroy:
    VSOCK_SEND_RESET(sk, pkt);
 
-   sk->compat_sk_state = SS_UNCONNECTED;
-   sk->compat_sk_err = skerr;
-   sk->compat_sk_error_report(sk);
+   sk->sk_state = SS_UNCONNECTED;
+   sk->sk_err = skerr;
+   sk->sk_error_report(sk);
    return err;
 }
 
@@ -2207,7 +2207,7 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
 
    ASSERT(sk);
    ASSERT(pkt);
-   ASSERT(sk->compat_sk_state == SS_CONNECTED);
+   ASSERT(sk->sk_state == SS_CONNECTED);
 
    /*
     * In cases where we are closing the connection, it's sufficient to mark
@@ -2223,7 +2223,7 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
          vsk = vsock_sk(sk);
 
          vsk->peerShutdown |= pkt->u.mode;
-         sk->compat_sk_state_change(sk);
+         sk->sk_state_change(sk);
       }
       break;
 
@@ -2239,12 +2239,12 @@ VSockVmciRecvConnected(struct sock *sk,      // IN
        * off the queuepair. Always treat a RST pkt in connected mode
        * like a clean shutdown.
        */
-      compat_sock_set_done(sk);
+      sock_set_flag(sk, SOCK_DONE);
       vsk->peerShutdown = SHUTDOWN_MASK;
       if (VSockVmciStreamHasData(vsk) <= 0) {
-	 sk->compat_sk_state = SS_DISCONNECTING;
+	 sk->sk_state = SS_DISCONNECTING;
       }
-      sk->compat_sk_state_change(sk);
+      sk->sk_state_change(sk);
       break;
 
    default:
@@ -2431,8 +2431,8 @@ VSockVmciSendControlPkt(struct sock *sk,         // IN
     * New sockets for connection establishment won't have socket structures
     * yet; if one exists, ensure it is of the proper type.
     */
-   ASSERT(sk->compat_sk_socket ?
-             sk->compat_sk_socket->type == SOCK_STREAM :
+   ASSERT(sk->sk_socket ?
+             sk->sk_socket->type == SOCK_STREAM :
              1);
 
    vsk = vsock_sk(sk);
@@ -2488,7 +2488,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
    int err;
 
    ASSERT(sk);
-   ASSERT(sk->compat_sk_socket);
+   ASSERT(sk->sk_socket);
    ASSERT(addr);
 
    vsk = vsock_sk(sk);
@@ -2514,7 +2514,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
 
    newAddr.svm_cid = addr->svm_cid;
 
-   switch (sk->compat_sk_socket->type) {
+   switch (sk->sk_socket->type) {
    case SOCK_STREAM: {
       spin_lock_bh(&vsockTableLock);
 
@@ -2602,7 +2602,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
     * table for easy lookup by its address.  The unbound list is simply an
     * extra entry at the end of the hash table, a trick used by AF_UNIX.
     */
-   if (sk->compat_sk_socket->type == SOCK_STREAM) {
+   if (sk->sk_socket->type == SOCK_STREAM) {
       __VSockVmciRemoveBound(sk);
       __VSockVmciInsertBound(vsockBoundSockets(&vsk->localAddr), sk);
       spin_unlock_bh(&vsockTableLock);
@@ -2613,7 +2613,7 @@ __VSockVmciBind(struct sock *sk,          // IN/OUT
    return 0;
 
 out:
-   if (sk->compat_sk_socket->type == SOCK_STREAM) {
+   if (sk->sk_socket->type == SOCK_STREAM) {
       spin_unlock_bh(&vsockTableLock);
    }
    return err;
@@ -2701,22 +2701,22 @@ __VSockVmciCreate(struct net *net,       // IN: Network namespace
    sock_init_data(sock, sk);
 
    /*
-    * sk->compat_sk_type is normally set in sock_init_data, but only if
+    * sk->sk_type is normally set in sock_init_data, but only if
     * sock is non-NULL. We make sure that our sockets always have a type
     * by setting it here if needed.
     */
    if (!sock) {
-      sk->compat_sk_type = type;
+      sk->sk_type = type;
    }
 
    vsk = vsock_sk(sk);
    VSockAddr_Init(&vsk->localAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
    VSockAddr_Init(&vsk->remoteAddr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
 
-   sk->compat_sk_destruct = VSockVmciSkDestruct;
-   sk->compat_sk_backlog_rcv = VSockVmciQueueRcvSkb;
-   sk->compat_sk_state = SS_UNCONNECTED;
-   compat_sock_reset_done(sk);
+   sk->sk_destruct = VSockVmciSkDestruct;
+   sk->sk_backlog_rcv = VSockVmciQueueRcvSkb;
+   sk->sk_state = SS_UNCONNECTED;
+   sock_reset_flag(sk, SOCK_DONE);
 
    INIT_LIST_HEAD(&vsk->boundTable);
    INIT_LIST_HEAD(&vsk->connectedTable);
@@ -2798,9 +2798,9 @@ __VSockVmciRelease(struct sock *sk) // IN
 
       lock_sock(sk);
       sock_orphan(sk);
-      sk->compat_sk_shutdown = SHUTDOWN_MASK;
+      sk->sk_shutdown = SHUTDOWN_MASK;
 
-      while ((skb = skb_dequeue(&sk->compat_sk_receive_queue))) {
+      while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
          kfree_skb(skb);
       }
 
@@ -3403,8 +3403,8 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       err = -EALREADY;
       break;
    default:
-      ASSERT(sk->compat_sk_state == SS_FREE ||
-             sk->compat_sk_state == SS_UNCONNECTED);
+      ASSERT(sk->sk_state == SS_FREE ||
+             sk->sk_state == SS_UNCONNECTED);
       if (VSockAddr_Cast(addr, addrLen, &remoteAddr) != 0) {
          err = -EINVAL;
          goto out;
@@ -3437,12 +3437,12 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
          vsk->localAddr.svm_cid = VMCI_GetContextID();
       }
 
-      sk->compat_sk_state = SS_CONNECTING;
+      sk->sk_state = SS_CONNECTING;
 
       if (VSockVmciOldProtoOverride(&oldPktProto) && oldPktProto) {
          err = VSOCK_SEND_CONN_REQUEST(sk, vsk->queuePairSize);
          if (err < 0) {
-            sk->compat_sk_state = SS_UNCONNECTED;
+            sk->sk_state = SS_UNCONNECTED;
             goto out;
          }
       } else {
@@ -3450,7 +3450,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
          err = VSOCK_SEND_CONN_REQUEST2(sk, vsk->queuePairSize,
                                         supportedProtoVersions);
          if (err < 0) {
-            sk->compat_sk_state = SS_UNCONNECTED;
+            sk->sk_state = SS_UNCONNECTED;
             goto out;
          }
 
@@ -3473,7 +3473,7 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
    timeout = sock_sndtimeo(sk, flags & O_NONBLOCK);
    compat_init_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
-   while (sk->compat_sk_state != SS_CONNECTED && sk->compat_sk_err == 0) {
+   while (sk->sk_state != SS_CONNECTED && sk->sk_err == 0) {
       if (timeout == 0) {
          /*
           * If we're not going to block, skip ahead to preserve error code set
@@ -3497,11 +3497,11 @@ VSockVmciStreamConnect(struct socket *sock,   // IN
       compat_cont_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
    }
 
-   if (sk->compat_sk_err) {
-      err = -sk->compat_sk_err;
+   if (sk->sk_err) {
+      err = -sk->sk_err;
       goto outWaitError;
    } else {
-      ASSERT(sk->compat_sk_state == SS_CONNECTED);
+      ASSERT(sk->sk_state == SS_CONNECTED);
       err = 0;
    }
 
@@ -3512,7 +3512,7 @@ out:
    return err;
 
 outWaitError:
-   sk->compat_sk_state = SS_UNCONNECTED;
+   sk->sk_state = SS_UNCONNECTED;
    sock->state = SS_UNCONNECTED;
    goto outWait;
 }
@@ -3556,7 +3556,7 @@ VSockVmciAccept(struct socket *sock,     // IN
       goto out;
    }
 
-   if (listener->compat_sk_state != SS_LISTEN) {
+   if (listener->sk_state != SS_LISTEN) {
       err = -EINVAL;
       goto out;
    }
@@ -3569,7 +3569,7 @@ VSockVmciAccept(struct socket *sock,     // IN
    compat_init_prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
 
    while ((connected = VSockVmciDequeueAccept(listener)) == NULL &&
-          listener->compat_sk_err == 0) {
+          listener->sk_err == 0) {
       release_sock(listener);
       timeout = schedule_timeout(timeout);
       lock_sock(listener);
@@ -3585,12 +3585,12 @@ VSockVmciAccept(struct socket *sock,     // IN
       compat_cont_prepare_to_wait(sk_sleep(listener), &wait, TASK_INTERRUPTIBLE);
    }
 
-   if (listener->compat_sk_err) {
-      err = -listener->compat_sk_err;
+   if (listener->sk_err) {
+      err = -listener->sk_err;
    }
 
    if (connected) {
-      listener->compat_sk_ack_backlog--;
+      listener->sk_ack_backlog--;
 
       lock_sock(connected);
       vconnected = vsock_sk(connected);
@@ -3717,7 +3717,7 @@ VSockVmciPoll(struct file *file,    // IN
    poll_wait(file, sk_sleep(sk), wait);
    mask = 0;
 
-   if (sk->compat_sk_err) {
+   if (sk->sk_err) {
       /* Signify that there has been an error on this socket. */
       mask |= POLLERR;
    }
@@ -3726,15 +3726,15 @@ VSockVmciPoll(struct file *file,    // IN
     * INET sockets treat local write shutdown and peer write shutdown
     * as a case of POLLHUP set.
     */
-   if ((sk->compat_sk_shutdown == SHUTDOWN_MASK) ||
-       ((sk->compat_sk_shutdown & SEND_SHUTDOWN) &&
+   if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
+       ((sk->sk_shutdown & SEND_SHUTDOWN) &&
         (vsk->peerShutdown & SEND_SHUTDOWN))) {
       mask |= POLLHUP;
    }
 
    /* POLLRDHUP wasn't added until 2.6.17. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 17)
-   if (sk->compat_sk_shutdown & RCV_SHUTDOWN ||
+   if (sk->sk_shutdown & RCV_SHUTDOWN ||
        vsk->peerShutdown & SEND_SHUTDOWN) {
       mask |= POLLRDHUP;
    }
@@ -3745,12 +3745,12 @@ VSockVmciPoll(struct file *file,    // IN
        * For datagram sockets we can read if there is something in the queue
        * and write as long as the socket isn't shutdown for sending.
        */
-      if (!skb_queue_empty(&sk->compat_sk_receive_queue) ||
-          (sk->compat_sk_shutdown & RCV_SHUTDOWN)) {
+      if (!skb_queue_empty(&sk->sk_receive_queue) ||
+          (sk->sk_shutdown & RCV_SHUTDOWN)) {
          mask |= POLLIN | POLLRDNORM;
       }
 
-      if (!(sk->compat_sk_shutdown & SEND_SHUTDOWN)) {
+      if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
          mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
       }
    } else if (sock->type == SOCK_STREAM) {
@@ -3763,7 +3763,7 @@ VSockVmciPoll(struct file *file,    // IN
       /*
        * Listening sockets that have connections in their accept queue can be read.
        */
-      if (sk->compat_sk_state == SS_LISTEN && !VSockVmciIsAcceptQueueEmpty(sk)) {
+      if (sk->sk_state == SS_LISTEN && !VSockVmciIsAcceptQueueEmpty(sk)) {
 	 mask |= POLLIN | POLLRDNORM;
       }
 
@@ -3771,7 +3771,7 @@ VSockVmciPoll(struct file *file,    // IN
        * If there is something in the queue then we can read.
        */
       if (!VMCI_HANDLE_INVALID(vsk->qpHandle) &&
-	  !(sk->compat_sk_shutdown & RCV_SHUTDOWN)) {
+	  !(sk->sk_shutdown & RCV_SHUTDOWN)) {
          Bool dataReadyNow = FALSE;
          int32 ret = 0;
          NOTIFYCALLRET(vsk, ret, pollIn, sk, 1, &dataReadyNow);
@@ -3788,7 +3788,7 @@ VSockVmciPoll(struct file *file,    // IN
        * Sockets whose connections have been close, reset, or terminated should also
        * be considered read, and we check the shutdown flag for that.
        */
-      if (sk->compat_sk_shutdown & RCV_SHUTDOWN ||
+      if (sk->sk_shutdown & RCV_SHUTDOWN ||
           vsk->peerShutdown & SEND_SHUTDOWN) {
           mask |= POLLIN | POLLRDNORM;
       }
@@ -3796,8 +3796,8 @@ VSockVmciPoll(struct file *file,    // IN
       /*
        * Connected sockets that can produce data can be written.
        */
-      if (sk->compat_sk_state == SS_CONNECTED) {
-	 if (!(sk->compat_sk_shutdown & SEND_SHUTDOWN)) {
+      if (sk->sk_state == SS_CONNECTED) {
+	 if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
             Bool spaceAvailNow = FALSE;
             int32 ret = 0;
 
@@ -3817,8 +3817,8 @@ VSockVmciPoll(struct file *file,    // IN
        * Simulate INET socket poll behaviors, which sets POLLOUT|POLLWRNORM when
        * peer is closed and nothing to read, but local send is not shutdown.
        */
-      if (sk->compat_sk_state == SS_UNCONNECTED) {
-         if (!(sk->compat_sk_shutdown & SEND_SHUTDOWN)) {
+      if (sk->sk_state == SS_UNCONNECTED) {
+         if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
             mask |= POLLOUT | POLLWRNORM;
          }
       }
@@ -3875,8 +3875,8 @@ VSockVmciListen(struct socket *sock,    // IN
       goto out;
    }
 
-   sk->compat_sk_max_ack_backlog = backlog;
-   sk->compat_sk_state = SS_LISTEN;
+   sk->sk_max_ack_backlog = backlog;
+   sk->sk_state = SS_LISTEN;
 
    err = 0;
 
@@ -3932,13 +3932,13 @@ VSockVmciShutdown(struct socket *sock,  // IN
    mode = mode & (RCV_SHUTDOWN | SEND_SHUTDOWN);
    if (mode) {
       lock_sock(sk);
-      sk->compat_sk_shutdown |= mode;
-      sk->compat_sk_state_change(sk);
+      sk->sk_shutdown |= mode;
+      sk->sk_state_change(sk);
       release_sock(sk);
    }
 
-   if (sk->compat_sk_type == SOCK_STREAM && mode) {
-      compat_sock_reset_done(sk);
+   if (sk->sk_type == SOCK_STREAM && mode) {
+      sock_reset_flag(sk, SOCK_DONE);
       VSOCK_SEND_SHUTDOWN(sk, mode);
    }
 
@@ -4281,18 +4281,18 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
 
    /* Callers should not provide a destination with stream sockets. */
    if (msg->msg_namelen) {
-      err = sk->compat_sk_state == SS_CONNECTED ? -EISCONN : -EOPNOTSUPP;
+      err = sk->sk_state == SS_CONNECTED ? -EISCONN : -EOPNOTSUPP;
       goto out;
    }
 
    /* Send data only if both sides are not shutdown in the direction. */
-   if (sk->compat_sk_shutdown & SEND_SHUTDOWN ||
+   if (sk->sk_shutdown & SEND_SHUTDOWN ||
        vsk->peerShutdown & RCV_SHUTDOWN) {
       err = -EPIPE;
       goto out;
    }
 
-   if (sk->compat_sk_state != SS_CONNECTED ||
+   if (sk->sk_state != SS_CONNECTED ||
        !VSockAddr_Bound(&vsk->localAddr)) {
       err = -ENOTCONN;
       goto out;
@@ -4324,8 +4324,8 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
       retries = 0;
 
       while (VSockVmciStreamHasSpace(vsk) == 0 &&
-             sk->compat_sk_err == 0 &&
-             !(sk->compat_sk_shutdown & SEND_SHUTDOWN) &&
+             sk->sk_err == 0 &&
+             !(sk->sk_shutdown & SEND_SHUTDOWN) &&
              !(vsk->peerShutdown & RCV_SHUTDOWN)) {
 
          /* Don't wait for non-blocking sockets. */
@@ -4359,10 +4359,10 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
        * These checks occur both as part of and after the loop conditional
        * since we need to check before and after sleeping.
        */
-      if (sk->compat_sk_err) {
-         err = -sk->compat_sk_err;
+      if (sk->sk_err) {
+         err = -sk->sk_err;
          goto outWait;
-      } else if ((sk->compat_sk_shutdown & SEND_SHUTDOWN) ||
+      } else if ((sk->sk_shutdown & SEND_SHUTDOWN) ||
                  (vsk->peerShutdown & RCV_SHUTDOWN)) {
          err = -EPIPE;
          goto outWait;
@@ -4542,13 +4542,13 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
 
    lock_sock(sk);
 
-   if (sk->compat_sk_state != SS_CONNECTED) {
+   if (sk->sk_state != SS_CONNECTED) {
       /*
        * Recvmsg is supposed to return 0 if a peer performs an orderly shutdown.
        * Differentiate between that case and when a peer has not connected or a
        * local shutdown occured with the SOCK_DONE flag.
        */
-      if (compat_sock_test_done(sk)) {
+      if (sock_flag(sk, SOCK_DONE)) {
 	 err = 0;
       } else {
 	 err = -ENOTCONN;
@@ -4565,7 +4565,7 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
     * We don't check peerShutdown flag here since peer may actually shut down,
     * but there can be data in the VMCI queue that local socket can receive.
     */
-   if (sk->compat_sk_shutdown & RCV_SHUTDOWN) {
+   if (sk->sk_shutdown & RCV_SHUTDOWN) {
       err = 0;
       goto out;
    }
@@ -4592,8 +4592,8 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
    compat_init_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while ((ready = VSockVmciStreamHasData(vsk)) < target &&
-          sk->compat_sk_err == 0 &&
-          !(sk->compat_sk_shutdown & RCV_SHUTDOWN) &&
+          sk->sk_err == 0 &&
+          !(sk->sk_shutdown & RCV_SHUTDOWN) &&
           !(vsk->peerShutdown & SEND_SHUTDOWN)) {
 
       if (ready < 0) {
@@ -4632,10 +4632,10 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
       compat_cont_prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
    }
 
-   if (sk->compat_sk_err) {
-      err = -sk->compat_sk_err;
+   if (sk->sk_err) {
+      err = -sk->sk_err;
       goto outWait;
-   } else if (sk->compat_sk_shutdown & RCV_SHUTDOWN) {
+   } else if (sk->sk_shutdown & RCV_SHUTDOWN) {
       err = 0;
       goto outWait;
    } else if ((vsk->peerShutdown & SEND_SHUTDOWN) &&
@@ -4676,9 +4676,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
        */
       if (vsk->peerShutdown & SEND_SHUTDOWN) {
          if (VSockVmciStreamHasData(vsk) <= 0) {
-            sk->compat_sk_state = SS_UNCONNECTED;
-            compat_sock_set_done(sk);
-            sk->compat_sk_state_change(sk);
+            sk->sk_state = SS_UNCONNECTED;
+            sock_set_flag(sk, SOCK_DONE);
+            sk->sk_state_change(sk);
          }
       }
    }

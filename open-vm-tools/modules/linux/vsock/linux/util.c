@@ -371,8 +371,8 @@ __VSockVmciFindBoundSocket(struct sockaddr_vm *addr)  // IN
          sk = sk_vsock(vsk);
 
          /* We only store stream sockets in the bound table. */
-         ASSERT(sk->compat_sk_socket ?
-                   sk->compat_sk_socket->type == SOCK_STREAM :
+         ASSERT(sk->sk_socket ?
+                   sk->sk_socket->type == SOCK_STREAM :
                    1);
          goto found;
       }
