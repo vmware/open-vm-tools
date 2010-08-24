@@ -25,12 +25,12 @@
 #ifndef _UNITY_H_
 #define _UNITY_H_
 
+#include <glib.h>
 #include <string.h>
 #include "dndGuest.h"
 #include "dbllnklst.h"
 #include "guestApp.h"
 #include "dynbuf.h"
-#include "vmware/tools/plugin.h"
 #include "str.h"
 #ifdef _WIN32
 #include "libExport.hh"
@@ -89,12 +89,12 @@ extern "C" {
 
 void Unity_Init(GuestApp_Dict *conf,
                 int *blockedWnd,
-                ToolsAppCtx *ctx);
+                gpointer serviceObj);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);
 void Unity_SetActiveDnDDetWnd(UnityDnD *state);
-void Unity_Exit(ToolsAppCtx *ctx);
-void Unity_Cleanup(ToolsAppCtx *ctx);
+void Unity_Exit(void);
+void Unity_Cleanup(void);
 void Unity_RegisterCaps(void);
 void Unity_UnregisterCaps(void);
 void Unity_UnityToLocalPoint(UnityPoint *localPt, UnityPoint *unityPt);

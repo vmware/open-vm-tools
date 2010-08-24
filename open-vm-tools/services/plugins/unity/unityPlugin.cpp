@@ -49,9 +49,13 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx)
 {
    ASSERT(ctx);
 
-   Unity_Init(NULL, NULL, ctx);
+   Unity_Init(NULL, NULL, ctx->serviceObj);
 
-   GHI_Init(ctx);
+#if defined(G_PLATFORM_WIN32)
+   GHI_Init(ctx->mainLoop, NULL);
+#else
+   GHI_Init(ctx->mainLoop, ctx->envp);
+#endif // G_PLATFORM_WIN32
 
    if (g_key_file_get_boolean(ctx->config, CONFGROUPNAME_UNITY,
                               CONFNAME_UNITY_ENABLEDEBUG, NULL)) {

@@ -50,6 +50,7 @@ typedef struct UnityState {
    UnityVirtualDesktopArray virtDesktopArray;   // Virtual desktop configuration
    UnityUpdateChannel updateChannel;            // Unity update transmission channel.
    UnityPlatform *up; // Platform-specific state
+   gpointer serviceObj; // 'Plugin' Host service object - used for signaling Unity state
 } UnityState;
 
 extern UnityState unity;

@@ -235,6 +235,7 @@
    LOGLEVEL_VAR(syncWaitQ), \
    LOGLEVEL_VAR(sg), /* lib/sg */ \
    LOGLEVEL_VAR(wrapLib),  \
+   LOGLEVEL_VAR(bluetooth),  \
    LOGLEVEL_VAR(digestlib) \
 
 LOGLEVEL_EXTENSION_DECLARE(LOGLEVEL_USER);

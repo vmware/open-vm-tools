@@ -81,7 +81,7 @@ static void UnityUpdateCallbackFn(void *param, UnityUpdate *update);
 static void UnitySetAddHiddenWindows(Bool enabled);
 static void UnitySetInterlockMinimizeOperation(Bool enabled);
 static void UnitySetSendWindowContents(Bool enabled);
-static void FireEnterUnitySignal(ToolsAppCtx *ctx, gboolean entered);
+static void FireEnterUnitySignal(gpointer serviceObj, gboolean entered);
 static void UnitySetDisableCompositing(Bool disabled);
 
 /*
@@ -250,7 +250,7 @@ Unity_IsActive(void)
 void
 Unity_Init(GuestApp_Dict *conf,                                    // IN
            int *blockedWnd,                                        // IN
-           ToolsAppCtx *ctx)                                       // IN
+           gpointer serviceObj)                                    // IN
 {
    Debug("Unity_Init\n");
 
@@ -285,8 +285,12 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
 
    unity.virtDesktopArray.desktopCount = 0;
 
+   /*
+    * Cache the service object and use it to create the enter/exit Unity signal.
+    */
+   unity.serviceObj = serviceObj;
    g_signal_new(UNITY_SIG_ENTER_LEAVE_UNITY,
-                G_OBJECT_TYPE(ctx->serviceObj),
+                G_OBJECT_TYPE(serviceObj),
                 (GSignalFlags) 0,
                 0,
                 NULL,
@@ -315,7 +319,7 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
  */
 
 void
-Unity_Cleanup(ToolsAppCtx *ctx)    // IN
+Unity_Cleanup()
 {
    UnityPlatform *up;
 
@@ -325,7 +329,9 @@ Unity_Cleanup(ToolsAppCtx *ctx)    // IN
    /*
     * Exit Unity.
     */
-   Unity_Exit(ctx);
+   Unity_Exit();
+
+   unity.serviceObj = NULL;
 
    /*
     * Do one-time final platform-specific cleanup.
@@ -399,7 +405,7 @@ Unity_SetActiveDnDDetWnd(UnityDnD *state)
  */
 
 void
-Unity_Exit(ToolsAppCtx *ctx) // IN
+Unity_Exit()
 {
    int featureIndex = 0;
 
@@ -426,7 +432,7 @@ Unity_Exit(ToolsAppCtx *ctx) // IN
       UnityPlatformRestoreSystemSettings(unity.up);
 
       unity.isEnabled = FALSE;
-      FireEnterUnitySignal(ctx, FALSE);
+      FireEnterUnitySignal(unity.serviceObj, FALSE);
    }
 }
 
@@ -573,7 +579,7 @@ UnityTcloEnter(RpcInData *data)         //  IN/OUT
        *    catched for Unity DnD.
        */
       UnityPlatformUpdateDnDDetWnd(unity.up, TRUE);
-      FireEnterUnitySignal(data->appCtx, TRUE);
+      FireEnterUnitySignal(unity.serviceObj, TRUE);
       unity.isEnabled = TRUE;
    }
 
@@ -610,7 +616,7 @@ UnityTcloExit(RpcInData *data)   // IN/OUT
 
    Debug("UnityTcloExit.\n");
 
-   Unity_Exit(data->appCtx);
+   Unity_Exit();
 
    UnityUpdateState();
    return RPCIN_SETRETVALS(data, "", TRUE);
@@ -2948,11 +2954,11 @@ exit:
  */
 
 static void
-FireEnterUnitySignal(ToolsAppCtx *ctx,
+FireEnterUnitySignal(gpointer serviceObj,
                      gboolean enter)
 {
    Debug("%s: enter. enter argument is set to %s\n", __FUNCTION__, enter ? "true" : "false");
-   g_signal_emit_by_name(ctx->serviceObj,
+   g_signal_emit_by_name(serviceObj,
                          UNITY_SIG_ENTER_LEAVE_UNITY,
                          enter);
 }

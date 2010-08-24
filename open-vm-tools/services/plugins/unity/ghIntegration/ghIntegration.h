@@ -29,10 +29,12 @@
 extern "C" {
 #endif
 
+#include <glib.h>
+
 #include "vmware.h"
 
 Bool GHI_IsSupported(void);
-void GHI_Init(void *ctx);
+void GHI_Init(GMainLoop *mainLoop, const char **envp);
 void GHI_Cleanup(void);
 void GHI_RegisterCaps(void);
 void GHI_UnregisterCaps(void);

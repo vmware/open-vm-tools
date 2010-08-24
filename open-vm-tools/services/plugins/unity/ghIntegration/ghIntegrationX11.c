@@ -344,13 +344,14 @@ GHIPlatformIsSupported(void)
  */
 
 GHIPlatform *
-GHIPlatformInit(ToolsAppCtx *ctx)                          // IN
+GHIPlatformInit(GMainLoop *mainLoop,   // IN
+                const char **envp)     // IN
 {
    GHIPlatform *ghip;
 
    ghip = Util_SafeCalloc(1, sizeof *ghip);
    ghip->directoriesTracked = g_array_new(FALSE, FALSE, sizeof(GHIDirectoryWatch));
-   ghip->nativeEnviron = ctx->envp;
+   ghip->nativeEnviron = envp;
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
    AppUtil_Init();

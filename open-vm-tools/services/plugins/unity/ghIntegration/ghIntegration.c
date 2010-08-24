@@ -143,12 +143,13 @@ GHI_UnregisterCaps(void)
  */
 
 void
-GHI_Init(void *ctx)                         // IN
+GHI_Init(GMainLoop *mainLoop, // IN
+         const char **envp)   // IN
 {
    Debug("%s: Enter.\n", __FUNCTION__);
 
    // Call the platform-specific initialization function.
-   ghiPlatformData = GHIPlatformInit((ToolsAppCtx*) ctx);
+   ghiPlatformData = GHIPlatformInit(mainLoop, envp);
    if (!ghiPlatformData) {
       // TODO: We should report this failure to the caller.
       Debug("%s: GHIPlatformInit returned NULL pointer!\n", __FUNCTION__);

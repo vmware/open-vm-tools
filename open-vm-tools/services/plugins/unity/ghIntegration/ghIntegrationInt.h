@@ -107,7 +107,7 @@ RpcInRet GHITcloGetExecInfoHash(RpcInData *data);
  */
 
 Bool GHIPlatformIsSupported(void);
-GHIPlatform *GHIPlatformInit(ToolsAppCtx *ctx);
+GHIPlatform *GHIPlatformInit(GMainLoop *mainLoop, const char **envp);
 void GHIPlatformCleanup(GHIPlatform *ghip);
 Bool GHIPlatformGetBinaryInfo(GHIPlatform *ghip,
                               const char *pathURIUtf8,

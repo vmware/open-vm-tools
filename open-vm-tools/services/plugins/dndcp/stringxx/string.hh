@@ -149,6 +149,7 @@ public:
    // String-level member methods.
    string& append(const string &s);
    string& append(const string &s, size_type i, size_type n);
+   string& append(const char *s, size_type n);
    string& assign(const string &s);
    void push_back(value_type uc);
    void clear();

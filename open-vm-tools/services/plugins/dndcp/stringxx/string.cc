@@ -1095,6 +1095,17 @@ string::append(const string &s, // IN
 }
 
 
+string&
+string::append(const char *s,   // IN
+               size_type n)     // IN
+{
+   InvalidateCache();
+   mUstr.append(s, n);
+
+   return *this;
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
