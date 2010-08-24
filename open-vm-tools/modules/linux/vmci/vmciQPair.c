@@ -603,6 +603,7 @@ EXPORT_SYMBOL(VMCIQPair_ConsumeBufReady);
  *      VMCI_ERROR_QUEUEPAIR_NOSPACE if no space was available to enqueue data.
  *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *      (as defined by the queue size).
+ *      VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
  *      Otherwise, the number of bytes written to the queue is returned.
  *
  * Side effects:
@@ -623,6 +624,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
    int64 freeSpace;
    uint64 tail;
    size_t written;
+   ssize_t result;
 
 #if !defined VMX86_TOOLS && !defined VMX86_VMX
    if (UNLIKELY(VMCIHost_EnqueueToDevNull(produceQ))) {
@@ -648,18 +650,23 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
    written = (size_t)(freeSpace > bufSize ? bufSize : freeSpace);
    tail = VMCIQueueHeader_ProducerTail(produceQ->qHeader);
    if (LIKELY(tail + written < produceQSize)) {
-      memcpyToQueue(produceQ, tail, buf, 0, written, bufType);
+      result = memcpyToQueue(produceQ, tail, buf, 0, written, bufType);
    } else {
       /* Tail pointer wraps around. */
 
       const size_t tmp = (size_t)(produceQSize - tail);
 
-      memcpyToQueue(produceQ, tail, buf, 0, tmp, bufType);
-      memcpyToQueue(produceQ, 0, buf, tmp, written - tmp, bufType);
+      result = memcpyToQueue(produceQ, tail, buf, 0, tmp, bufType);
+      if (result >= VMCI_SUCCESS) {
+         result = memcpyToQueue(produceQ, 0, buf, tmp, written - tmp, bufType);
+      }
+   }
+
+   if (result < VMCI_SUCCESS) {
+      return result;
    }
 
    VMCIQueueHeader_AddProducerTail(produceQ->qHeader, written, produceQSize);
-
    return written;
 }
 
@@ -678,6 +685,7 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
  *      VMCI_ERROR_QUEUEPAIR_NODATA if no data was available to dequeue.
  *      VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *      (as defined by the queue size).
+ *      VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
  *      Otherwise the number of bytes dequeued is returned.
  *
  * Side effects:
@@ -698,7 +706,8 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
 {
    int64 bufReady;
    uint64 head;
-   size_t written;
+   size_t read;
+   ssize_t result;
 
 #if defined _WIN32 && !defined VMX86_TOOLS && !defined VMX86_VMX
    if (UNLIKELY(!produceQ->qHeader ||
@@ -717,26 +726,32 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
       return (ssize_t)bufReady;
    }
 
-   written = (size_t)(bufReady > bufSize ? bufSize : bufReady);
+   read = (size_t)(bufReady > bufSize ? bufSize : bufReady);
    head = VMCIQueueHeader_ConsumerHead(produceQ->qHeader);
-   if (LIKELY(head + written < consumeQSize)) {
-      memcpyFromQueue(buf, 0, consumeQ, head, written, bufType);
+   if (LIKELY(head + read < consumeQSize)) {
+      result = memcpyFromQueue(buf, 0, consumeQ, head, read, bufType);
    } else {
       /* Head pointer wraps around. */
 
       const size_t tmp = (size_t)(consumeQSize - head);
 
-      memcpyFromQueue(buf, 0, consumeQ, head, tmp, bufType);
-      memcpyFromQueue(buf, tmp, consumeQ, 0, written - tmp, bufType);
+      result = memcpyFromQueue(buf, 0, consumeQ, head, tmp, bufType);
+      if (result >= VMCI_SUCCESS) {
+         result = memcpyFromQueue(buf, tmp, consumeQ, 0, read - tmp, bufType);
+      }
+   }
+
+   if (result < VMCI_SUCCESS) {
+      return result;
    }
 
    if (updateConsumer) {
       VMCIQueueHeader_AddConsumerHead(produceQ->qHeader,
-                                      written,
+                                      read,
                                       consumeQSize);
    }
 
-   return written;
+   return read;
 }
 
 

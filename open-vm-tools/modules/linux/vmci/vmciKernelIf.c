@@ -1238,7 +1238,7 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
          err = memcpy_fromiovec((uint8 *)va + pageOffset, iov, toCopy);
          if (err != 0) {
             kunmap(kernelIf->page[pageIndex]);
-            return err;
+            return VMCI_ERROR_INVALID_ARGS;
          }
       } else {
          memcpy((uint8 *)va + pageOffset, (uint8 *)src + bytesCopied, toCopy);
@@ -1248,7 +1248,7 @@ __VMCIMemcpyToQueue(VMCIQueue *queue,   // OUT:
       kunmap(kernelIf->page[pageIndex]);
    }
 
-   return 0;
+   return VMCI_SUCCESS;
 }
 
 
@@ -1303,7 +1303,7 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
          err = memcpy_toiovec(iov, (uint8 *)va + pageOffset, toCopy);
          if (err != 0) {
             kunmap(kernelIf->page[pageIndex]);
-            return err;
+            return VMCI_ERROR_INVALID_ARGS;
          }
       } else {
          memcpy((uint8 *)dest + bytesCopied, (uint8 *)va + pageOffset, toCopy);
@@ -1313,7 +1313,7 @@ __VMCIMemcpyFromQueue(void *dest,             // OUT:
       kunmap(kernelIf->page[pageIndex]);
    }
 
-   return 0;
+   return VMCI_SUCCESS;
 }
 
 
