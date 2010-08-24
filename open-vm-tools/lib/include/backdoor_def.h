@@ -152,6 +152,17 @@
  * the registers. Otherwise backwards compatibility will suffer.
  */
 
+/* Processing mode for guest pshare hints (SENDPSHAREHINTS cmd) */
+#define BDOOR_PSHARE_HINTS_ASYNC 0
+#define BDOOR_PSHARE_HINTS_SYNC  1
+
+#define BDOOR_PSHARE_HINTS_TYPE(ecx)   (((ecx) >> 16) & 0x1)
+
+/* Version of backdoor pshare hints protocol */
+#define BDOOR_PSHARE_HINTS_VERSION          1
+#define BDOOR_PSHARE_HINTS_GUEST_VER(ecx)   (((ecx) >> 24) & 0x7f)
+#define BDOOR_PSHARE_HINTS_HOST_VER(ecx)    (((ecx) >> 17) & 0x7f)
+
 /* Nesting control operations */
 
 #define NESTING_CONTROL_RESTRICT_BACKDOOR 0
