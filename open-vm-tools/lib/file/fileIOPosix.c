@@ -2176,19 +2176,61 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * FileIO_FDToStream
+ *
+ *      Return a FILE * stream equivalent to the given (POSIX) file descriptor.
+ *      This is the logical equivalent of Posix dup() then fdopen().
+ *
+ *      Caller should fclose the returned descriptor when finished.
+ *
+ * Results:
+ *      !NULL  A FILE * associated with the file associated with the fd
+ *      NULL   Failure
+ *
+ * Side effects:
+ *      New fd allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+
+FILE *
+FileIO_FDToStream(int fd,            // IN:
+                  const char *mode,  // IN:
+                  Bool textMode)     // IN: unused
+{
+   int dupFD;
+   FILE *stream;
+
+   dupFD = dup(fd);
+
+   if (dupFD == -1) {
+      return NULL;
+   }
+
+   stream = fdopen(dupFD, mode);
+
+   if (stream == NULL) {
+      close(dupFD);
+   }
+
+   return stream;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * FileIO_DescriptorToStream
  *
  *      Return a FILE * stream equivalent to the given FileIODescriptor.
  *      This is the logical equivalent of Posix dup() then fdopen().
  *
- *      Since the passed descriptor and returned FILE * represent the same
- *      underlying file, and their cursor is shared, you should avoid
- *      interleaving uses to both.
+ *      Caller should fclose the returned descriptor when finished.
  *
  * Results:
- *      A FILE * representing the same underlying file as the passed descriptor
- *      NULL if there was an error.
- *      Caller should fclose the returned descriptor when finished.
+ *      !NULL  A FILE * associated with the file associated with the fd
+ *      NULL   Failure
  *
  * Side effects:
  *      New fd allocated.
@@ -2200,20 +2242,13 @@ FILE *
 FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
                           Bool textMode)            // IN: unused
 {
-   int dupFd;
-   const char *mode;
    int tmpFlags;
-   FILE *stream;
+   const char *mode;
 
    /* The file you pass us should be valid and opened for *something* */
    ASSERT(FileIO_IsValid(fdesc));
    ASSERT((fdesc->flags & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE)) != 0);
    tmpFlags = fdesc->flags & (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE);
-
-   dupFd = dup(fdesc->posix);
-   if (dupFd == -1) {
-      return NULL;
-   }
 
    if (tmpFlags == (FILEIO_OPEN_ACCESS_READ | FILEIO_OPEN_ACCESS_WRITE)) {
       mode = "r+";
@@ -2223,18 +2258,11 @@ FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
       mode = "r";
    }
 
-   stream = fdopen(dupFd, mode);
-
-   if (stream == NULL) {
-      close(dupFd);
-   }
-
-   return stream;
+   return FileIO_FDToStream(fdesc->posix, mode, textMode);
 }
 
 
 #if defined(__APPLE__)
-
 /*
  *-----------------------------------------------------------------------------
  *

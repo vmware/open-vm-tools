@@ -31,7 +31,7 @@ typedef void (LogBasicFunc)(const char *fmt, va_list args);
 
 
 typedef enum {
-   LOG_NO_SYSTEM_LOGGER,
+   LOG_SYSTEM_LOGGER_NONE,
    LOG_SYSTEM_LOGGER_ADJUNCT,
    LOG_SYSTEM_LOGGER_ONLY
 } SysLogger;
@@ -100,11 +100,11 @@ uint32 Log_MaxLineLength(void);
 void Log_RegisterBasicFunctions(LogBasicFunc *log,
                                 LogBasicFunc *warning);
 
-Bool Log_SwitchFile(const char *fileName,
-                    const char *config,
-                    Bool copy,
-                    uint32 systemLoggerUse,
-                    char *systemLoggerID);
+Bool Log_SetOutput(const char *fileName,
+                   const char *config,
+                   Bool copy,
+                   uint32 systemLoggerUse,
+                   char *systemLoggerID);
 
 size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
