@@ -2715,7 +2715,15 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       }
    } else {
       HgfsReply *reply;
-      replySize = sizeof *reply + replyPayloadSize;
+
+      /*
+       * Starting from HGFS V3 header is not included in the payload size.
+       */
+      if (input->op < HGFS_OP_OPEN_V3) {
+         replySize = replyPayloadSize;
+      } else {
+         replySize = sizeof *reply + replyPayloadSize;
+      }
       replyPacketSize = replySize;
       reply = HSPU_GetReplyPacket(input->packet, &replyPacketSize, input->session);
       packetOut = (char *)reply;
