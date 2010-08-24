@@ -49,7 +49,7 @@ UnityPlugin::UnityPlugin(ToolsAppCtx *ctx)
 {
    ASSERT(ctx);
 
-   Unity_Init(NULL, NULL, NULL, ctx);
+   Unity_Init(NULL, NULL, ctx);
 
    GHI_Init(ctx);
 

@@ -60,8 +60,7 @@ extern "C" {
 Bool UnityPlatformIsSupported(void);
 UnityPlatform *UnityPlatformInit(UnityWindowTracker *tracker,
                                  UnityUpdateChannel *updateChannel,
-                                 int *blockedWnd,
-                                 DesktopSwitchCallbackManager *desktopSwitchCallbackMgr);
+                                 int *blockedWnd);
 void UnityPlatformCleanup(UnityPlatform *up);
 void UnityPlatformRegisterCaps(UnityPlatform *up);
 void UnityPlatformUnregisterCaps(UnityPlatform *up);

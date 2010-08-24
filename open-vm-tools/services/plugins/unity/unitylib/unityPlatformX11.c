@@ -160,8 +160,7 @@ UnityPlatformIsSupported(void)
 UnityPlatform *
 UnityPlatformInit(UnityWindowTracker *tracker,                            // IN
                   UnityUpdateChannel *updateChannel,                      // IN
-                  int *blockedWnd,                                        // IN, not used
-                  DesktopSwitchCallbackManager *desktopSwitchCallbackMgr) // IN, not used
+                  int *blockedWnd)                                        // IN: not used
 {
    UnityPlatform *up;
    char *displayName;

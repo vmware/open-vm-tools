@@ -89,7 +89,6 @@ extern "C" {
 
 void Unity_Init(GuestApp_Dict *conf,
                 int *blockedWnd,
-                DesktopSwitchCallbackManager *desktopSwitchCallbackMgr,
                 ToolsAppCtx *ctx);
 Bool Unity_IsActive(void);
 Bool Unity_IsSupported(void);

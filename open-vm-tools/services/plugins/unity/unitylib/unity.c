@@ -250,7 +250,6 @@ Unity_IsActive(void)
 void
 Unity_Init(GuestApp_Dict *conf,                                    // IN
            int *blockedWnd,                                        // IN
-           DesktopSwitchCallbackManager *desktopSwitchCallbackMgr, // IN
            ToolsAppCtx *ctx)                                       // IN
 {
    Debug("Unity_Init\n");
@@ -277,8 +276,7 @@ Unity_Init(GuestApp_Dict *conf,                                    // IN
     */
    unity.up = UnityPlatformInit(&unity.tracker,
                                 &unity.updateChannel,
-                                blockedWnd,
-                                desktopSwitchCallbackMgr);
+                                blockedWnd);
 
    /*
     * Init our global dynbuf used to send results back.
