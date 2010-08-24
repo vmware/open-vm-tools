@@ -424,7 +424,6 @@ typedef enum GuestOSFamilyType {
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
-#define STR_OS_OPENSOLARIS "openSolaris"
 
 /* All */
 #define STR_OS_64BIT_SUFFIX "-64"
