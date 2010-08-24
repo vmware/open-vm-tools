@@ -2137,8 +2137,8 @@ enum {
    VIX_COMMAND_CANCEL_INSTALL_TOOLS             = 26,
    VIX_COMMAND_UPGRADE_VIRTUAL_HARDWARE         = 27,
    VIX_COMMAND_SET_NIC_BANDWIDTH                = 28,
-   VIX_COMMAND_CREATE_DISK                      = 29,
-   VIX_COMMAND_CREATE_FLOPPY                    = 30,
+   /* DEPRECATED VIX_COMMAND_CREATE_DISK                      = 29, */
+   /* DEPRECATED VIX_COMMAND_CREATE_FLOPPY                    = 30, */
    VIX_COMMAND_RELOAD_VM                        = 31,
    VIX_COMMAND_DELETE_VM                        = 32,
    VIX_COMMAND_SYNCDRIVER_FREEZE                = 33,
