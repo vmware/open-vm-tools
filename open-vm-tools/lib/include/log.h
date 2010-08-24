@@ -43,47 +43,68 @@ typedef struct
    unsigned int throttleBytesPerSec; // BPS for throttle
    Bool switchFile;                  // Switch the initial log file
    unsigned int rotateSize;          // Size at which log should be rotated
+   Bool useSystemLogger;             // Use the system logger too
+   char *systemLoggerIDString;       // identifier for system logger
 } LogInitParams;
 
-void Log_GetInitDefaults(const char *fileName, const char *config,
-                         const char *suffix, LogInitParams *params);
+void Log_GetInitDefaults(const char *fileName,
+                         const char *config,
+                         const char *suffix,
+                         LogInitParams *params);
 
-Bool Log_Init(const char *fileName, const char *config,
-                     const char *suffix);
-Bool Log_InitForApp(const char *fileName, const char *config,
-                    const char *suffix, const char *appName,
+Bool Log_Init(const char *fileName,
+              const char *config,
+              const char *suffix);
+
+Bool Log_InitSystemLogger(char *systemLoggerIdentifier);
+
+Bool Log_InitForApp(const char *fileName,
+                    const char *config,
+                    const char *suffix,
+                    const char *appName,
                     const char *appVersion);
+
 Bool Log_InitEx(const LogInitParams *params);
+
+void Log_UpdateState(Bool enable,
+                     Bool append,
+                     unsigned keepOld,
+                     size_t rotateSize,
+                     Bool fastRotation);
+
 void Log_Exit(void);
 void Log_SetConfigDir(const char *configDir);
 void Log_WriteLogFile(const char *msg);
 
 Bool Log_Enabled(void);
 const char *Log_GetFileName(void);
-
 void Log_Flush(void);
 void Log_SkipLocking(Bool skipLocking);
 void Log_SetAlwaysKeep(Bool alwaysKeep);
 Bool Log_RemoveFile(Bool alwaysRemove);
 void Log_DisableThrottling(void);
-
 Bool Log_GetQuietWarning(void);
 void Log_SetQuietWarning(Bool quiet);
+void Log_BackupOldFiles(const char *fileName);
+Bool Log_CopyFile(const char *fileName);
+uint32 Log_MaxLineLength(void);
+
 void Log_RegisterBasicFunctions(LogBasicFunc *log,
                                 LogBasicFunc *warning);
 
-void Log_BackupOldFiles(const char *fileName);
-void Log_UpdateState(Bool enable, Bool append, unsigned keepOld,
-                     size_t rotateSize, Bool fastRotation);
-Bool Log_SwitchFile(const char *fileName, const char *config, Bool copy);
-Bool Log_CopyFile(const char *fileName);
+Bool Log_SwitchFile(const char *fileName,
+                    const char *config,
+                    Bool copy);
 
-size_t Log_MakeTimeString(Bool millisec, char *buf, size_t max);
-uint32 Log_MaxLineLength(void);
+size_t Log_MakeTimeString(Bool millisec,
+                          char *buf,
+                          size_t max);
 
+void LogV(const char *fmt,
+          va_list args);
 
-void LogV(const char *fmt, va_list args);
-void WarningV(const char *fmt, va_list args);
+void WarningV(const char *fmt,
+              va_list args);
 
 /* Logging that uses the custom guest throttling configuration. */
 void GuestLog_Init(void);
@@ -129,9 +150,19 @@ void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
  * Debugging
  */
 
-void Log_HexDump(const char *prefix, const uint8 *data, int size);
-void Log_Time(VmTimeType *time, int count, const char *message);
-void Log_Histogram(uint32 n, uint32 histo[], int nbuckets,
-                   const char *message, int *count, int limit);
+void Log_HexDump(const char *prefix,
+                 const uint8 *data,
+                 int size);
+
+void Log_Time(VmTimeType *time,
+              int count,
+              const char *message);
+
+void Log_Histogram(uint32 n,
+                   uint32 histo[],
+                   int nbuckets,
+                   const char *message,
+                   int *count,
+                   int limit);
 
 #endif /* VMWARE_LOG_H */
