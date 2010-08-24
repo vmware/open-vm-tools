@@ -257,6 +257,14 @@ VMCINotifyHashAddEntry(VMCINotifyHashEntry *entry) // IN
          goto out;
       }
       entry->handle = newHandle;
+   } else if (VMCI_GetContextID() != entry->handle.context) {
+      /*
+       * The context id passed down should either be invalid or
+       * the context id of the guest.
+       */
+
+      result = VMCI_ERROR_INVALID_ARGS;
+      goto out;
    }
 
    if (VMCINotifyHashFindByHandle(entry->handle, entry->doorbell, &bucket)) {
