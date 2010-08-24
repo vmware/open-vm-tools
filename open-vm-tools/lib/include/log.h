@@ -67,11 +67,12 @@ typedef struct
    Bool           useTimeStamp;         // Use a log line time stamp
    Bool           useMilliseconds;      // Show milliseconds in time stamp
    Bool           fastRotation;         // ESX log rotation optimization
+   Bool           preventRemove;        // prevert Log_RemoveFile(FALSE)
 
-   unsigned int   keepOld;              // Number of old logs to keep
-   unsigned int   throttleThreshold;    // Threshold for throttling
-   unsigned int   throttleBytesPerSec;  // BPS for throttle
-   unsigned int   rotateSize;           // Size at which log should be rotated
+   uint32         keepOld;              // Number of old logs to keep
+   uint32         throttleThreshold;    // Threshold for throttling
+   uint32         throttleBPS;          // BPS for throttle
+   uint32         rotateSize;           // Size at which log should be rotated
 
    SysLogger      systemLoggerUse;      // System logger options
    char           systemLoggerID[128];  // Identifier for system logger
@@ -100,7 +101,9 @@ Bool Log_InitEx(const LogInitParams *params);
 void Log_UpdateFileControl(Bool append,
                            unsigned keepOld,
                            size_t rotateSize,
-                           Bool fastRotation);
+                           Bool fastRotation,
+                           uint32 throttleThreshold,
+                           uint32 throttleBPS);
 
 void Log_UpdatePerLine(Bool perLineTimeStamps,
                        Bool perLineMilliseconds,
