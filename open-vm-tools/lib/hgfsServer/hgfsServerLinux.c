@@ -3872,24 +3872,23 @@ HgfsPlatformRename(char *localSrcName,     // IN: local path to source file
                    HgfsRenameHint hints)   // IN: rename hints
 {
    HgfsInternalStatus status = 0;
-   int error;
 
    if (hints & HGFS_RENAME_HINT_NO_REPLACE_EXISTING) {
-      status = HgfsPlatformFileExists(localTargetName);
-      if (0 == status) {
+      if (0 == HgfsPlatformFileExists(localTargetName)) {
          status = EEXIST;
+         goto exit;
       }
    }
 
-   if (0 == status) {
-      LOG(4, ("%s: renaming \"%s\" to \"%s\"\n", __FUNCTION__,
-         localSrcName, localTargetName));
-      error = Posix_Rename(localSrcName, localTargetName);
-      if (error) {
-         status = errno;
-         LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(status)));
-      }
+   LOG(4, ("%s: renaming \"%s\" to \"%s\"\n", __FUNCTION__,
+       localSrcName, localTargetName));
+   status = Posix_Rename(localSrcName, localTargetName);
+   if (status) {
+      status = errno;
+      LOG(4, ("%s: error: %s\n", __FUNCTION__, strerror(status)));
    }
+
+exit:
    return status;
 }
 
