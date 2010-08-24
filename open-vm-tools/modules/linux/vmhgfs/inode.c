@@ -1794,8 +1794,20 @@ HgfsPermission(struct inode *inode,
 #else
    if (mask & MAY_ACCESS) { /* For sys_access. */
 #endif
-      struct dentry *dentry = list_entry(inode->i_dentry.next,
-                                         struct dentry, d_alias);
+      struct list_head *pos;
+      int dcount = 0;
+      struct dentry *dentry = NULL;
+
+      /* Find a dentry with valid d_count. Refer bug 587789. */
+      list_for_each(pos, &inode->i_dentry) {
+         dentry = list_entry(pos, struct dentry, d_alias);
+         dcount = atomic_read(&dentry->d_count);
+         if (dcount) {
+            LOG(4, ("Found %s %d \n", (dentry)->d_name.name, dcount));
+            break;
+         }
+      }
+      ASSERT(dcount);
       return HgfsAccessInt(dentry, mask & (MAY_READ | MAY_WRITE | MAY_EXEC));
    }
    return 0;
