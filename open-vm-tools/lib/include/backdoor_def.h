@@ -143,7 +143,9 @@
 #  define BDOOR_CMD_FAS_GET_PLATFORM_NAME 2
 #define BDOOR_CMD_SENDPSHAREHINTS       66
 #define BDOOR_CMD_ENABLE_USB_MOUSE      67
-#define BDOOR_CMD_MAX                   68
+#define BDOOR_CMD_GET_VCPU_INFO         68
+#  define BDOOR_CMD_VCPU_SLC64            0
+#define BDOOR_CMD_MAX                   69
 
 
 /* 
