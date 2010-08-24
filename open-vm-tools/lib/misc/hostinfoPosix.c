@@ -510,7 +510,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
                     strstr(distroLower, "desktop 10")) {
             Str_Strcpy(distroShort, STR_OS_SLES_10, distroShortSize);
          } else {
-            Str_Strcpy(distroShort, STR_OS_SUSE_EN, distroShortSize);
+            Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
          }
       } else if (strstr(distroLower, "sun")) {
          Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
