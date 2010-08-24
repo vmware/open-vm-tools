@@ -122,7 +122,7 @@ Bool Log_RemoveFile(Bool alwaysRemove);
 void Log_DisableThrottling(void);
 Bool Log_GetQuietWarning(void);
 void Log_SetQuietWarning(Bool quiet);
-void Log_BackupOldFiles(const char *fileName);
+void Log_BackupOldFiles(const char *fileName, Bool noRename);
 Bool Log_CopyFile(const char *fileName);
 uint32 Log_MaxLineLength(void);
 
