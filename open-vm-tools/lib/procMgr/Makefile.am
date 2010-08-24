@@ -19,4 +19,6 @@ noinst_LTLIBRARIES = libProcMgr.la
 
 libProcMgr_la_SOURCES =
 libProcMgr_la_SOURCES += procMgrPosix.c
-
+if SOLARIS
+   libProcMgr_la_SOURCES += procMgrSolaris.c
+endif

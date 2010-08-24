@@ -1604,7 +1604,8 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 }
 
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
+    defined(sun)
 
 /*
  *----------------------------------------------------------------------
@@ -1784,7 +1785,8 @@ exit:
 
    return fret;
 }
-#endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) */
+#endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
+          defined(sun) */
 #endif /* !defined(N_PLAT_NLM) */
 
 /*

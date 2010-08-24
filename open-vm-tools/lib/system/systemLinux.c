@@ -329,11 +329,7 @@ System_GetEnv(Bool global,           // IN
 {
    char *result;
 
-#if defined(sun)
-   result = NULL;
-#else
    result = Posix_Getenv(valueName);
-#endif
 
    if (NULL != result) {
       result = strdup(result);
@@ -367,11 +363,7 @@ System_SetEnv(Bool global,      // IN
               const char *valueName,  // IN: UTF-8
               const char *value)      // IN: UTF-8
 {
-#if defined(sun)
-   return(-1);
-#else
    return Posix_Setenv(valueName, value, 1);
-#endif
 } // System_SetEnv
 
 

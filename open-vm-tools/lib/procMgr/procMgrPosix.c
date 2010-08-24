@@ -156,11 +156,12 @@ setresgid(gid_t ruid,
  *----------------------------------------------------------------------
  */
 
+#if !defined(sun)
 ProcMgr_ProcList *
 ProcMgr_ListProcesses(void)
 {
    ProcMgr_ProcList *procList = NULL;
-#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
    Bool failed = FALSE;
    DynBuf dbProcId;
    DynBuf dbProcCmd;
@@ -512,10 +513,11 @@ abort:
       ProcMgr_FreeProcList(procList);
       procList = NULL;
    }
-#endif // !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+#endif // !defined(__FreeBSD__) && !defined(__APPLE__)
 
    return procList;
 }
+#endif // !defined(sun)
 
 
 /*

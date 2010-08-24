@@ -303,7 +303,8 @@ static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
                                               char const *obfuscatedNamePassword,
                                               void **userToken);
 
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(linux) || \
+    (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
 static VixError VixToolsDoesUsernameMatchCurrentUser(const char *username);
 #endif
 
@@ -991,7 +992,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    VixPropertyListImpl propList;
    char *serializedBuffer = NULL;
    size_t serializedBufferLength = 0;
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__)
    char *guestName;
    int osFamily;
    char *packageList = NULL;
@@ -1165,11 +1166,13 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
       goto abort;
    }
 
+#if !defined(sun)
    /* Set up the API status properties */
    err = VixToolsSetAPIEnabledProperties(&propList);
    if (VIX_OK != err) {
       goto abort;
    }
+#endif
 
    /*
     * Serialize the property list to buffer then encode it.
@@ -1194,7 +1197,7 @@ abort:
    free(tempDir);
 #else
    /*
-    * FreeBSD or Solaris.  Return an empty serialized property list.
+    * FreeBSD.  Return an empty serialized property list.
     */
 
    VixPropertyList_Initialize(&propList);
@@ -1220,7 +1223,7 @@ abort:
 abort:
    VixPropertyList_RemoveAllWithoutHandles(&propList);
    free(serializedBuffer);
-#endif // __FreeBSD__ || sun
+#endif // __FreeBSD__
    
    return err;
 } // VixTools_GetToolsPropertiesImpl
@@ -3721,10 +3724,12 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
    }
 
 ///////////////////////////////////////////////////////////////////////
-#if defined(__FreeBSD__) || defined(sun)
+#if defined(__FreeBSD__) || \
+    (defined(sun) && !defined(VIX_ENABLE_SOLARIS_GUESTOPS))
    err = VIX_E_NOT_SUPPORTED;
 ///////////////////////////////////////////////////////////////////////
-#elif defined(_WIN32) || defined(linux)
+#elif defined(_WIN32) || defined(linux) || \
+      (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
    {
       Bool success = FALSE;
       AuthToken authToken;
@@ -3890,7 +3895,7 @@ VixToolsUnimpersonateUser(void *userToken)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
 #if defined(_WIN32)
       Impersonate_Undo();
-#elif defined(linux)
+#elif defined(linux) || (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
       ProcMgr_ImpersonateUserStop();
 #endif
    }
@@ -3918,7 +3923,8 @@ VixToolsLogoutUser(void *userToken)    // IN
       return;
    }
 
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && \
+    !(defined(sun) && !defined(VIX_ENABLE_SOLARIS_GUESTOPS))
    if (NULL != userToken) {
       AuthToken authToken = (AuthToken) userToken;
       Auth_CloseToken(authToken);
@@ -4683,7 +4689,8 @@ abort:
 #endif
 
 
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(linux) || \
+    (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
 /*
  *-----------------------------------------------------------------------------
  *
@@ -4888,7 +4895,8 @@ abort:
    
    return err;
 }
-#endif  // #if defined(_WIN32) || defined(linux)
+#endif  /* #if defined(_WIN32) || defined(linux) ||
+               (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS)) */
 
 
 /*

@@ -44,7 +44,11 @@
 #include "loglevel_user.h"
 
 #ifdef USE_PAM
+#if defined(sun)
+#define CURRENT_PAM_LIBRARY	"libpam.so.1"
+#else
 #define CURRENT_PAM_LIBRARY	"libpam.so.0"
+#endif
 
 static typeof(&pam_start) dlpam_start;
 static typeof(&pam_end) dlpam_end;
@@ -160,10 +164,18 @@ AuthLoadPAM(void)
 static const char *PAM_username;
 static const char *PAM_password;
 
+#if defined(sun)
+static int PAM_conv (int num_msg,                     // IN:
+		     struct pam_message **msg,        // IN:
+		     struct pam_response **resp,      // OUT:
+		     void *appdata_ptr)               // IN:
+#else
 static int PAM_conv (int num_msg,                     // IN:
 		     const struct pam_message **msg,  // IN:
 		     struct pam_response **resp,      // OUT:
-		     void *appdata_ptr) {             // IN:
+		     void *appdata_ptr)               // IN:
+#endif
+{
    int count;
    struct pam_response *reply = calloc(num_msg, sizeof(struct pam_response));
 
