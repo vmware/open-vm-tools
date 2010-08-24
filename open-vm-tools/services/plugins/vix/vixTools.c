@@ -80,7 +80,7 @@
 #include "vixCommands.h"
 #include "base64.h"
 #include "hostinfo.h"
-#include "hgfsServer.h"
+#include "hgfsServerManager.h"
 #include "hgfs.h"
 #include "system.h"
 #include "codeset.h"
@@ -208,6 +208,9 @@ typedef struct VixToolsEnvironmentTableIterator {
  * Stores the environment variables to use when executing guest applications.
  */
 static HashTable *userEnvironmentTable = NULL;
+#endif
+#if !defined(__FreeBSD__)
+static HgfsServerMgrData gVixHgfsBkdrConn;
 #endif
 
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
@@ -411,9 +414,41 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
 #ifndef _WIN32
    VixToolsBuildUserEnvironmentTable(originalEnvp);
 #endif
+#if !defined(__FreeBSD__)
+   /* Register a straight through connection with the Hgfs server. */
+   HgfsServerManager_DataInit(&gVixHgfsBkdrConn,
+                              VIX_BACKDOORCOMMAND_COMMAND,
+                              NULL,    // no RPC registration
+                              NULL);   // rpc callback
+   HgfsServerManager_Register(&gVixHgfsBkdrConn);
+#endif
 
    return(err);
 } // VixTools_Initialize
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_Uninitialize --
+ *
+ *
+ * Return value:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VixTools_Uninitialize(void) // IN
+{
+#if !defined(__FreeBSD__)
+   HgfsServerManager_Unregister(&gVixHgfsBkdrConn);
+#endif
+}
 
 
 #ifndef _WIN32
@@ -5173,7 +5208,7 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    void *userToken = NULL;
    Bool impersonatingVMWareUser = FALSE;
    char *hgfsPacket;
-   size_t hgfsPacketSize = 0;
+   size_t hgfsReplyPacketSize = 0;
    static char hgfsReplyPacket[HGFS_LARGE_PACKET_MAX];
 
    if ((NULL == requestMsg) || (0 == requestMsg->hgfsPacketSize)) {
@@ -5190,20 +5225,22 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
    impersonatingVMWareUser = TRUE;
 
    hgfsPacket = ((char *) requestMsg) + sizeof(*requestMsg);
-   hgfsPacketSize = requestMsg->hgfsPacketSize;
+   hgfsReplyPacketSize = sizeof hgfsReplyPacket;
 
 #if !defined(__FreeBSD__)
    /*
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
     */
-   HgfsServer_ProcessPacket(hgfsPacket,        // packet in buf
-                            hgfsReplyPacket,   // packet out buf
-                            &hgfsPacketSize);  // in/out size
+   HgfsServerManager_ProcessPacket(&gVixHgfsBkdrConn,          // connection
+                                   hgfsPacket,                 // packet in buf
+                                   requestMsg->hgfsPacketSize, // packet in size
+                                   hgfsReplyPacket,            // packet out buf
+                                   &hgfsReplyPacketSize);      // in/out size
 #endif
 
    if (NULL != resultValueResult) {
-      *resultValueResult = hgfsPacketSize;
+      *resultValueResult = hgfsReplyPacketSize;
    }
    if (NULL != result) {
       *result = hgfsReplyPacket;

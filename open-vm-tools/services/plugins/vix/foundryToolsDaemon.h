@@ -33,5 +33,7 @@
 
 void
 FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx);
+void
+FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx);
 
 #endif /* __VIX_TOOLS_DAEMON_H__ */

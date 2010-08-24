@@ -42,6 +42,8 @@ VixError VixTools_Initialize(Bool thisProcessRunsAsRootArg,
                              VixToolsReportProgramDoneProcType reportProgramDoneProc,
                              void *clientData);
 
+void VixTools_Uninitialize(void);
+
 void VixTools_SetConsoleUserPolicy(Bool allowConsoleUserOpsParam);
 
 void VixTools_SetRunProgramCallback(VixToolsReportProgramDoneProcType reportProgramDoneProc,

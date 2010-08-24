@@ -27,13 +27,12 @@
 #define G_LOG_DOMAIN "hgfsd"
 
 #include "hgfs.h"
-#include "hgfsServerPolicy.h"
-#include "hgfsServer.h"
-#include "hgfsChannel.h"
+#include "hgfsServerManager.h"
 #include "vm_assert.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
+
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -43,40 +42,21 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 
 /**
- * Sets up the channel for HGFS.
+ * Clean up internal state on shutdown.
  *
- * NOTE: Initialize the Hgfs server for only for now.
- * This will move into a separate file when full interface implemented.
- *
- * @param[in]  data  Unused RPC request data.
- *
- * @return TRUE on success, FALSE on error.
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      Unused.
+ * @param[in]  plugin   Plugin registration data.
  */
 
-Bool
-HgfsChannel_Init(void *data)     // IN: Unused data
+static void
+HgfsServerShutdown(gpointer src,
+                   ToolsAppCtx *ctx,
+                   ToolsPluginData *plugin)
 {
-   HgfsServerSessionCallbacks *serverCBTable = NULL;
-   return HgfsServer_InitState(&serverCBTable, NULL);
-}
-
-
-/**
- * Close up the channel for HGFS.
- *
- * NOTE: Close open sessions in the HGFS server currently.
- * This will move into a separate file when full interface implemented.
- *
- * @param[in]  data  Unused RPC request data.
- *
- * @return None.
- */
-
-void
-HgfsChannel_Exit(void *data)
-{
-   ASSERT(data != NULL);
-   HgfsServer_ExitState();
+   HgfsServerMgrData *mgrData = plugin->_private;
+   HgfsServerManager_Unregister(mgrData);
+   g_free(mgrData);
 }
 
 
@@ -89,23 +69,25 @@ HgfsChannel_Exit(void *data)
  */
 
 static gboolean
-HgfsServerRpcInDispatch(RpcInData *data)
+HgfsServerRpcDispatch(RpcInData *data)
 {
-   size_t packetSize;
-   static char packet[HGFS_LARGE_PACKET_MAX];
+   HgfsServerMgrData *mgrData;
+   size_t replySize;
+   static char reply[HGFS_LARGE_PACKET_MAX];
 
 
-   ASSERT(data->clientData == NULL);
+   ASSERT(data->clientData != NULL);
+   mgrData = data->clientData;
 
    if (data->argsSize == 0) {
       return RPCIN_SETRETVALS(data, "1 argument required", FALSE);
    }
 
-   packetSize = data->argsSize - 1;
-   HgfsServer_ProcessPacket(data->args + 1, packet, &packetSize);
+   replySize = sizeof reply;
+   HgfsServerManager_ProcessPacket(mgrData, data->args + 1, data->argsSize - 1, reply, &replySize);
 
-   data->result = packet;
-   data->resultLen = packetSize;
+   data->result = reply;
+   data->resultLen = replySize;
    return TRUE;
 }
 
@@ -125,7 +107,7 @@ static GArray *
 HgfsServerCapReg(gpointer src,
                  ToolsAppCtx *ctx,
                  gboolean set,
-                 gpointer data)
+                 ToolsPluginData *plugin)
 {
    gchar *msg;
    const char *appName = NULL;
@@ -175,6 +157,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL,
       NULL
    };
+   HgfsServerMgrData *mgrData;
 
    if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) != 0 &&
        strcmp(ctx->name, VMTOOLS_USER_SERVICE) != 0) {
@@ -182,28 +165,25 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       return NULL;
    }
 
-   /*
-    * Passing NULL here is safe because the shares maintained by the guest
-    * policy server never change, invalidating the need for an invalidate
-    * function.
-    */
-   if (!HgfsServerPolicy_Init(NULL)) {
-      g_warning("HgfsServerPolicy_Init() failed, aborting HGFS server init.\n");
-      return NULL;
-   }
+   mgrData = g_malloc0(sizeof *mgrData);
+   HgfsServerManager_DataInit(mgrData,
+                              ctx->name,
+                              NULL,       // rpc channel unused
+                              NULL);      // no rpc callback
 
-   if (!HgfsChannel_Init(NULL)) {
+   if (!HgfsServerManager_Register(mgrData)) {
       g_warning("HgfsServer_InitState() failed, aborting HGFS server init.\n");
-      HgfsServerPolicy_Cleanup();
+      g_free(mgrData);
       return NULL;
    }
 
    {
       RpcChannelCallback rpcs[] = {
-         { HGFS_SYNC_REQREP_CMD, HgfsServerRpcInDispatch, NULL, NULL, NULL, 0 }
+         { HGFS_SYNC_REQREP_CMD, HgfsServerRpcDispatch, mgrData, NULL, NULL, 0 }
       };
       ToolsPluginSignalCb sigs[] = {
-         { TOOLS_CORE_SIG_CAPABILITIES, HgfsServerCapReg, &regData }
+         { TOOLS_CORE_SIG_CAPABILITIES, HgfsServerCapReg, &regData },
+         { TOOLS_CORE_SIG_SHUTDOWN, HgfsServerShutdown, &regData }
       };
       ToolsAppReg regs[] = {
          { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
@@ -212,6 +192,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
    }
+   regData._private = mgrData;
 
    return &regData;
 }

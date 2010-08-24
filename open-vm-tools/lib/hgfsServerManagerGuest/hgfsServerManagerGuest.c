@@ -25,85 +25,21 @@
  *
  */
 
-#include "rpcout.h"
-#include "rpcin.h"
 #include "hgfsServerPolicy.h"
-#include "hgfsServer.h"
-#include "hgfsChannel.h"
+#include "hgfsChannelGuestInt.h"
 #include "hgfsServerManager.h"
 #include "vm_assert.h"
 #include "hgfs.h"
-#include "vmware/guestrpc/tclodefs.h"
 
-
-static Bool HgfsServerManagerRpcInDispatch(char const **result,
-                                           size_t *resultLen,
-                                           const char *name,
-                                           const char *args,
-                                           size_t argsSize,
-                                           void *clientData);
 
 
 /*
  *----------------------------------------------------------------------------
  *
- * HgfsChannel_Init --
+ * HgfsServerManager_ProcessPacket --
  *
- *      Sets up the channel for HGFS.
- *
- *      NOTE: Initialize the Hgfs server for only for now.
- *      This will move into a separate file when full interface implemented.
- *
- * Results:
- *      TRUE on success, FALSE on failure.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-Bool
-HgfsChannel_Init(void *data)     // IN: Unused rpc data
-{
-   HgfsServerSessionCallbacks *serverCBTable = NULL;
-   return HgfsServer_InitState(&serverCBTable, NULL);
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsChannel_Exit --
- *
- *      Close the channel for HGFS.
- *
- *      NOTE: Close open sessions in the HGFS server currently.
- *      This will move into a separate file when full interface implemented.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Closes the worker group and all the channels.
- *
- *----------------------------------------------------------------------------
- */
-
-void
-HgfsChannel_Exit(void *data)  // IN: Unused rpc data
-{
-   ASSERT(data != NULL);
-   HgfsServer_ExitState();
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsServerManagerRpcInDispatch --
- *
- *    Handles hgfs requests.
+ *    Handles hgfs requests from a client not by our
+ *    registered RPC callback.
  *
  * Results:
  *    TRUE on success, FALSE on error.
@@ -114,65 +50,18 @@ HgfsChannel_Exit(void *data)  // IN: Unused rpc data
  *----------------------------------------------------------------------------
  */
 
-static Bool
-HgfsServerManagerRpcInDispatch(char const **result,        // OUT
-                               size_t *resultLen,          // OUT
-                               const char *name,           // IN
-                               const char *args,           // IN
-                               size_t argsSize,            // IN
-                               void *clientData)           // Unused
+Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,  // IN: hgfs mgr
+                                     char const *packetIn,        // IN: rqst
+                                     size_t packetInSize,         // IN: rqst size
+                                     char *packetOut,             // OUT: rep
+                                     size_t *packetOutSize)       // IN/OUT: rep buf/data size
 {
-   size_t packetSize;
-   static char packet[HGFS_LARGE_PACKET_MAX];
-
-
-   ASSERT(clientData == NULL);
-
-   if (argsSize == 0) {
-      return RpcIn_SetRetVals(result, resultLen, "1 argument required", FALSE);
-   }
-
-   ASSERT(args[0] == ' ');
-   packetSize = argsSize - 1;
-   HgfsServer_ProcessPacket((char const *)(args + 1), packet, &packetSize);
-
-   *result = packet;
-   *resultLen = packetSize;
-   return TRUE;
-}
-
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsServerManager_CapReg --
- *
- *    Tell the vmx that the specified guest app can (or no longer can) 
- *    receive hgfs requests.
- *
- * Results:
- *    TRUE on success, FALSE on failure.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-HgfsServerManager_CapReg(const char *appName, // IN
-                         Bool enable)         // IN
-{
-   /*
-    * Register/unregister this channel as an hgfs server.
-    */
-   if (!RpcOut_sendOne(NULL, NULL, "tools.capability.hgfs_server %s %s",
-                       appName, enable ? "1" : "0")) {
-      return FALSE;
-   }
-
-   return TRUE;
+   /* Pass to the channel to handle processing and the server. */
+   return HgfsChannelGuest_Receive(mgrData,
+                                   packetIn,
+                                   packetInSize,
+                                   packetOut,
+                                   packetOutSize);
 }
 
 
@@ -193,17 +82,13 @@ HgfsServerManager_CapReg(const char *appName, // IN
  */
 
 Bool
-HgfsServerManager_Register(void *rpcIn,         // IN: RpcIn channel
-                           const char *appName) // IN: App with HGFS server
+HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
 {
-   RpcIn *myRpcIn = (RpcIn *)rpcIn;
 
-   /*
-    * myRpcIn may be NULL for some cases. When we run the tools as
-    * a guest application in a non-VMware VM, for example, we do not
-    * have a backdoor.
-    */
-   ASSERT(appName);
+   ASSERT(data);
+   ASSERT(data->appName);
+
+
 
    /*
     * Passing NULL here is safe because the shares maintained by the guest
@@ -214,26 +99,9 @@ HgfsServerManager_Register(void *rpcIn,         // IN: RpcIn channel
       return FALSE;
    }
 
-   if (!HgfsChannel_Init(myRpcIn)) {
+   if (!HgfsChannelGuest_Init(data)) {
       HgfsServerPolicy_Cleanup();
       return FALSE;
-   }
-
-   if (NULL != myRpcIn) {
-      RpcIn_RegisterCallback(myRpcIn, HGFS_SYNC_REQREP_CMD,
-                             HgfsServerManagerRpcInDispatch, NULL);
-   }
-
-   /*
-    * Prior to WS55, the VMX did not know about the "hgfs_server"
-    * capability. This doesn't mean that the HGFS server wasn't needed, it's
-    * just that the capability was introduced in CS 225439 so that the VMX
-    * could decide which HGFS server to communicate with.
-    *
-    * Long story short, we shouldn't care if this function fails.
-    */
-   if (NULL != myRpcIn) {
-      HgfsServerManager_CapReg(appName, TRUE);
    }
 
    return TRUE;
@@ -257,17 +125,13 @@ HgfsServerManager_Register(void *rpcIn,         // IN: RpcIn channel
  */
 
 void
-HgfsServerManager_Unregister(void *rpcIn,         // IN: RpcIn channel
-                             const char *appName) // IN: App with HGFS server
+HgfsServerManager_Unregister(HgfsServerMgrData *data)         // IN: RpcIn channel
 
 {
-   RpcIn *myRpcIn = (RpcIn *)rpcIn;
 
-   ASSERT(myRpcIn);
-   ASSERT(appName);
+   ASSERT(data);
+   ASSERT(data->appName != NULL);
 
-   HgfsServerManager_CapReg(appName, FALSE);
-   RpcIn_UnregisterCallback(myRpcIn, HGFS_SYNC_REQREP_CMD);
-   HgfsChannel_Exit(myRpcIn);
+   HgfsChannelGuest_Exit(data);
    HgfsServerPolicy_Cleanup();
 }

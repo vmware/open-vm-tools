@@ -35,12 +35,31 @@ void HgfsServerManager_GetDeviceLock(DeviceLock **lock);
 Bool HgfsServerManager_ChangeState(Bool enable);
 
 #else  /* VMX86_TOOLS */
-Bool HgfsServerManager_Register(void *rpcIn,
-                                const char *appName);
-void HgfsServerManager_Unregister(void *rpcIn,
-                                  const char *appName);
-Bool HgfsServerManager_CapReg(const char *appName,
-                              Bool enable);
+//#include "hgfsServer.h" // For HgfsReceiveFlags
+
+typedef struct HgfsServerMgrData {
+   const char  *appName;         // Application name to register
+   void        *rpc;             // RpcChannel unused
+   void        *rpcCallback;     // RpcChannelCallback unused
+   void        *connection;      // Connection object returned on success
+} HgfsServerMgrData;
+
+
+#define HgfsServerManager_DataInit(mgr, _name, _rpc, _rpcCallback) \
+   do {                                                            \
+      (mgr)->appName       = (_name);                              \
+      (mgr)->rpc           = (_rpc);                               \
+      (mgr)->rpcCallback   = (_rpcCallback);                       \
+      (mgr)->connection    = NULL;                                 \
+   } while (0)
+
+Bool HgfsServerManager_Register(HgfsServerMgrData *data);
+void HgfsServerManager_Unregister(HgfsServerMgrData *data);
+Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,
+                                     char const *packetIn,
+                                     size_t packetInSize,
+                                     char *packetOut,
+                                     size_t *packetOutSize);
 #endif
 
 #endif // _HGFS_SERVER_MANAGER_H_

@@ -39,6 +39,22 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
+/**
+ * Clean up internal state on shutdown.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      Unused.
+ * @param[in]  plugin   Plugin registration data.
+ */
+
+static void
+VixShutdown(gpointer src,
+            ToolsAppCtx *ctx,
+            ToolsPluginData *plugin)
+{
+   FoundryToolsDaemon_Uninitialize(ctx);
+}
+
 
 /**
  * Returns the registration data for either the guestd or userd process.
@@ -77,8 +93,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          ToolsDaemonTcloSyncDriverThaw, NULL, NULL, NULL, 0 }
 #endif
    };
+   ToolsPluginSignalCb sigs[] = {
+      { TOOLS_CORE_SIG_SHUTDOWN, VixShutdown, &regData }
+   };
    ToolsAppReg regs[] = {
-      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) }
+      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
+      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
    };
 
 #if defined(G_PLATFORM_WIN32)

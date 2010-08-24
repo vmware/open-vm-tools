@@ -19,3 +19,5 @@ noinst_LTLIBRARIES = libHgfsServerManagerGuest.la
 
 libHgfsServerManagerGuest_la_SOURCES =
 libHgfsServerManagerGuest_la_SOURCES += hgfsServerManagerGuest.c
+libHgfsServerManagerGuest_la_SOURCES += hgfsChannelGuest.c
+libHgfsServerManagerGuest_la_SOURCES += hgfsChannelGuestBd.c

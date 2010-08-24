@@ -154,15 +154,6 @@ static HgfsServerStateLogger *hgfsMgrData = NULL;
  * if the close session is called from the channel.
  */
 
-#ifdef VMX86_TOOLS
-/* We need to have a static session for use of HGFS server inside Tools. */
-struct HgfsStaticSession {
-   HgfsSessionInfo *session;        /* Session. */
-   char *bufferOut;                 /* Reply buffer. */
-   size_t bufferOutLen;             /* Reply buffer length. */
-} hgfsStaticSession;
-#endif
-
 /* Session related callbacks. */
 static void HgfsServerSessionReceive(HgfsPacket *packet,
                                      void *clientData);
@@ -2918,13 +2909,6 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
    }
 #endif
 
-
-#ifdef VMX86_TOOLS
-   hgfsStaticSession.session = NULL;
-   hgfsStaticSession.bufferOut = NULL;
-   hgfsStaticSession.bufferOutLen = 0;
-#endif
-
    if (HgfsNotify_Init() == 0) {
       hgfsChangeNotificationSupported = TRUE;
    }
@@ -2964,12 +2948,6 @@ HgfsServer_InitState(HgfsServerSessionCallbacks **callbackTable,  // IN/OUT: our
 void
 HgfsServer_ExitState(void)
 {
-
-#ifdef VMX86_TOOLS
-   if (hgfsStaticSession.session != NULL) {
-      HgfsServerSessionPut(hgfsStaticSession.session);
-   }
-#endif
 
    if (hgfsChangeNotificationSupported) {
       HgfsNotify_Shutdown();
@@ -3315,88 +3293,6 @@ HgfsServer_SetHandleCounter(uint32 newHandleCounter)
 }
 
 
-#ifdef VMX86_TOOLS
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsServer_ProcessPacket --
- *
- *    Process packet not associated with any session.
- *
- *    This function is used in the HGFS server inside Tools.
- *
- *    Create an internal session if not already created, and process the packet.
- *
- * Results:
- *    None
- *
- * Side effects:
- *    None
- *
- *----------------------------------------------------------------------------
- */
-
-void
-HgfsServer_ProcessPacket(char const *packetIn,   // IN: incoming packet
-                         char *packetOut,        // OUT: outgoing packet
-                         size_t *packetLen)     // IN/OUT: packet length
-{
-   HgfsPacket packet;
-   ASSERT(packetIn);
-   ASSERT(packetOut);
-   ASSERT(packetLen);
-
-   if (*packetLen == 0) {
-      return;
-   }
-
-   /*
-    * Create the session if not already created.
-    * This session is destroyed in HgfsServer_ExitState.
-    */
-
-   if (hgfsStaticSession.session == NULL) {
-      if (!HgfsServerSessionConnect(NULL, NULL,
-                                    (void **)&hgfsStaticSession.session)) {
-         *packetLen = 0;
-
-         return;
-      }
-
-      /* Mark the session as internal. */
-      hgfsStaticSession.session->type = HGFS_SESSION_TYPE_INTERNAL;
-   }
-
-   memset(&packet, 0, sizeof packet);
-   packet.iov[0].va = (void *)packetIn;
-   packet.iov[0].len = *packetLen;
-   packet.iovCount = 1;
-   packet.metaPacket = (void *)packetIn;
-   packet.metaPacketSize = *packetLen;
-   packet.replyPacket = packetOut;
-   packet.replyPacketSize = HGFS_LARGE_PACKET_MAX;
-   packet.supportsAsync = FALSE;
-
-   HgfsServerSessionReceive(&packet,
-                            hgfsStaticSession.session);
-
-   /*
-    * At this point, all the HGFS ops send reply synchronously. So
-    * we should have the reply by now.
-    * XXX This should change if any async replies are expected.
-    */
-
-   ASSERT(hgfsStaticSession.bufferOut);
-
-   *packetLen = hgfsStaticSession.bufferOutLen;
-
-   HgfsServerSessionSendComplete(&packet,
-                                 hgfsStaticSession.session);
-   hgfsStaticSession.bufferOut = NULL;
-}
-#endif
-
-
 /*
  *----------------------------------------------------------------------------
  *
@@ -3456,18 +3352,10 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
 
    if (session->state == HGFS_SESSION_STATE_OPEN) {
       packet->replyPacketSize = packetOutLen;
-#ifndef VMX86_TOOLS
       ASSERT(session->type == HGFS_SESSION_TYPE_REGULAR);
       result = session->channelCbTable->send(session->transportData,
                                              packet, packetOut,
                                              packetOutLen, flags);
-#else
-      /* This is internal session. */
-      ASSERT(session->type == HGFS_SESSION_TYPE_INTERNAL);
-      hgfsStaticSession.bufferOut = packetOut;
-      hgfsStaticSession.bufferOutLen = packetOutLen;
-      result = TRUE;
-#endif
    }
 
    return result;
@@ -3618,12 +3506,6 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
    HgfsSessionInfo *session = (HgfsSessionInfo *)clientData;
 
    HgfsInvalidateSessionObjects(shares, session);
-
-#ifdef VMX86_TOOLS
-   if (hgfsStaticSession.session != NULL) {
-      HgfsInvalidateSessionObjects(shares, hgfsStaticSession.session);
-   }
-#endif
 }
 
 

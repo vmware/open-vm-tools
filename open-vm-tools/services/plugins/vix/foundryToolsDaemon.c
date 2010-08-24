@@ -71,7 +71,7 @@
 #include "printer.h"
 #include "base64.h"
 #include "syncDriver.h"
-#include "hgfsServer.h"
+#include "hgfsServerManager.h"
 #include "hgfs.h"
 #include "system.h"
 #include "codeset.h"
@@ -114,6 +114,7 @@ static char * ToolsDaemonTcloGetEncodedQuotedString(const char *args,
 
 RpcInRet ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
+static HgfsServerMgrData gFoundryHgfsBkdrConn;
 RpcInRet ToolsDaemonHgfsImpersonated(RpcInData *data);
 
 #if defined(linux) || defined(_WIN32)
@@ -138,7 +139,6 @@ void ToolsDaemonTcloReportProgramCompleted(const char *requestName,
 #define DEFAULT_RESULT_MSG_MAX_LENGTH     1024
 
 static Bool thisProcessRunsAsRoot = FALSE;
-
 
 
 /*
@@ -441,6 +441,27 @@ FoundryToolsDaemon_Initialize(ToolsAppCtx *ctx)
    }
 #endif
 
+   /* Register a straight through connection with the Hgfs server. */
+   HgfsServerManager_DataInit(&gFoundryHgfsBkdrConn,
+                              VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET,
+                              NULL,    // rpc - no rpc registered
+                              NULL);   // rpc callback
+   HgfsServerManager_Register(&gFoundryHgfsBkdrConn);
+
+}
+
+
+/**
+ * Uninitializes internal state of the Foundry daemon.
+ *
+ * @param[in]  ctx      Application context.
+ */
+
+void
+FoundryToolsDaemon_Uninitialize(ToolsAppCtx *ctx)
+{
+   HgfsServerManager_Unregister(&gFoundryHgfsBkdrConn);
+   VixTools_Uninitialize();
 }
 
 
@@ -867,6 +888,7 @@ ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
 {
    VixError err;
    size_t hgfsPacketSize = 0;
+   size_t hgfsReplySize = 0;
    const char *origArgs = data->args;
    Bool impersonatingVMWareUser = FALSE;
    char *credentialTypeStr = NULL;
@@ -944,7 +966,6 @@ ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
                                                             &userToken);
       if (!impersonatingVMWareUser) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
-         hgfsPacketSize = 0;
          goto abort;
       }
    }
@@ -953,9 +974,12 @@ ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
     * Impersonation was okay, so let's give our packet to
     * the HGFS server and forward the reply packet back.
     */
-   HgfsServer_ProcessPacket(data->args,        // packet in buf
-                            hgfsReplyPacket,   // packet out buf
-                            &hgfsPacketSize);   // in/out size
+   hgfsReplySize = sizeof resultPacket - (hgfsReplyPacket - resultPacket);
+   HgfsServerManager_ProcessPacket(&gFoundryHgfsBkdrConn, // hgfs server connection
+                                   data->args,            // packet in buf
+                                   hgfsPacketSize,        // packet in size
+                                   hgfsReplyPacket,       // packet out buf
+                                   &hgfsReplySize);       // reply buf/data size
 
 abort:
    if (impersonatingVMWareUser) {
@@ -972,7 +996,7 @@ abort:
    data->result = resultPacket;
    data->resultLen = STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
                         + OTHER_TEXT_SIZE
-                        + hgfsPacketSize;
+                        + hgfsReplySize;
    
    /*
     * Render the foundry error codes into the buffer.
