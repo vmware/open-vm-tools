@@ -57,7 +57,7 @@
  *
  *      log2(x) = ((BINARY_BASE * P) + table[index]) / BINARY_BASE
  *
- *      maxError = 5.623179E-03; avgError = 1.982728E-3 over the range
+ *      maxError = 2.821500E-03; avgError = 1.935068E-05 over the range
  *      1 to 2E6. The test program is below.
  *
  *-----------------------------------------------------------------------------
@@ -95,26 +95,59 @@ static const uint16 log2Table[] = {
  64421,  64608,  64794,  64980,  65165,  65351
 };
 
+
 void
 LogFixed_Base2(uint64 value,         // IN:
                uint32 *numerator,    // OUT:
                uint32 *denominator)  // OUT:
 {
    uint32 index;
+   uint32 rawBits;
+   uint32 maxBits;
    uint32 highBit;
+   uint32 bitsOver;
 
    ASSERT_ON_COMPILE(ARRAYSIZE(log2Table) == (1 << TABLE_BITS));
 
    highBit = mssb64_0(value);
    ASSERT(highBit != -1);
 
-   if (highBit < TABLE_BITS) {
+   if (highBit <= TABLE_BITS) {
       index = (value << (TABLE_BITS - highBit)) & ((1 << TABLE_BITS) - 1);
-   } else {
-      index = (value >> (highBit - TABLE_BITS)) & ((1 << TABLE_BITS) - 1);
+
+      *numerator = (BINARY_BASE * highBit) + log2Table[index];
+      *denominator = BINARY_BASE;
+
+      return;
    }
 
+   /*
+    * If additional bits are available, use them to interpolate the table
+    * to decrease the errors (especially the average). Bound the number of
+    * additional bits as there is only a limited amount of bits available
+    * from the interpolation table.
+    */
+
+   bitsOver = highBit - TABLE_BITS;
+   if (bitsOver > 16) {
+      bitsOver = 16;
+   }
+
+   maxBits = TABLE_BITS + bitsOver;
+
+   rawBits = (value >> (highBit - maxBits)) & ((1 << maxBits) - 1);
+
+   index = rawBits >> bitsOver;
+
    *numerator = (BINARY_BASE * highBit) + log2Table[index];
+
+   if (index < (1 << TABLE_BITS) - 1) {
+      uint32 extraBits = rawBits & ((1 << bitsOver) - 1);
+      uint16 delta = log2Table[index + 1] - log2Table[index];
+
+      *numerator += (extraBits * delta) / (1 << bitsOver);
+   }
+
    *denominator = BINARY_BASE;
 }
 
@@ -143,7 +176,7 @@ LogFixed_Base2(uint64 value,         // IN:
  *
  *      log2(10) is 3.321928
  *
- *      maxError = 1.669614E-03; avgError = 5.731591E-04 over the range
+ *      maxError = 8.262237E-04; avgError = -1.787911E-05 over the range
  *      1 to 2E6. The test program is below.
  *
  *-----------------------------------------------------------------------------
