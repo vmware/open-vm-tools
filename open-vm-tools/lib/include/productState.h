@@ -69,14 +69,13 @@ typedef enum {
 /*
  * Public functions.
  *
- * It is not generally safe to cache returned const pointers; if a caller
- * wants to cache a value, they should copy it.
+ * PR 567850
+ * ProductState_Set should only be called once. Subsequent calls will be ignored.
  */
 
 void ProductState_Set(Product product, const char *name, const char *version,
                       unsigned int buildNumber, ProductCaps capabilities,
                       const char *licenseName, const char *licenseVersion);
-void ProductState_Reset(void);
 
 Product ProductState_GetProduct(void);
 Bool ProductState_IsProduct(ProductMask product);
