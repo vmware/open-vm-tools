@@ -196,6 +196,25 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
 
 
 /*
+ ******************************************************************************
+ * GuestInfo_GetDiskInfo --                                              */ /**
+ *
+ * Uses wiper library to enumerate fixed volumes and lookup utilization data.
+ *
+ * @return Pointer to a GuestDiskInfo structure on success or NULL on failure.
+ *         Caller should free returned pointer with GuestInfoFreeDiskInfo.
+ *
+ ******************************************************************************
+ */
+
+GuestDiskInfo *
+GuestInfo_GetDiskInfo(void)
+{
+   return GuestInfoGetDiskInfoWiper();
+}
+
+
+/*
  * Local functions
  */
 

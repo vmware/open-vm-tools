@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,7 +80,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 typedef struct _GuestInfoCache{
    char value[INFO_MAX][MAX_VALUE_LEN]; /* Stores values of all key-value pairs. */
    NicInfoV3     *nicInfo;
-   GuestDiskInfo diskInfo;
+   GuestDiskInfo *diskInfo;
 } GuestInfoCache;
 
 
@@ -232,7 +232,7 @@ GuestInfoGather(gpointer data)
    char osName[MAX_VALUE_LEN];
    gboolean disableQueryDiskInfo;
    NicInfoV3 *nicInfo = NULL;
-   GuestDiskInfo diskInfo;
+   GuestDiskInfo *diskInfo = NULL;
 #if defined(_WIN32) || defined(linux)
    GuestMemInfo vmStats = {0};
 #endif
@@ -267,13 +267,16 @@ GuestInfoGather(gpointer data)
       g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
                              CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, NULL);
    if (!disableQueryDiskInfo) {
-      if (!GuestInfo_GetDiskInfo(&diskInfo)) {
+      if ((diskInfo = GuestInfo_GetDiskInfo()) == NULL) {
          g_warning("Failed to get disk info.\n");
       } else {
-         if (!GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, &diskInfo)) {
+         if (GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, diskInfo)) {
+            GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
+            gInfoCache.diskInfo = diskInfo;
+         } else {
             g_warning("Failed to update VMDB\n.");
+            GuestInfo_FreeDiskInfo(diskInfo);
          }
-         GuestInfo_FreeDiskInfo(&diskInfo);
       }
    }
 
@@ -634,13 +637,12 @@ nicinfo_fsm:
             break;
          }
 
+         ASSERT((pdi->numEntries && pdi->partitionList) ||
+                (!pdi->numEntries && !pdi->partitionList));
+
          requestSize += sizeof pdi->numEntries +
                         sizeof *pdi->partitionList * pdi->numEntries;
-         request = (char *)calloc(requestSize, sizeof (char));
-         if (request == NULL) {
-            g_warning("Could not allocate memory for request.\n");
-            break;
-         }
+         request = Util_SafeCalloc(requestSize, sizeof *request);
 
          Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
                      INFO_DISK_FREE_SPACE);
@@ -666,8 +668,15 @@ nicinfo_fsm:
           * it's safe to send it from 64-bit Tools to a 32-bit VMX, etc.
           */
          memcpy(request + offset, &partitionCount, sizeof partitionCount);
-         memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
-                sizeof *pdi->partitionList * pdi->numEntries);
+
+         /*
+          * Conditioned because memcpy(dst, NULL, 0) -may- lead to undefined
+          * behavior.
+          */
+         if (pdi->partitionList) {
+            memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
+                   sizeof *pdi->partitionList * pdi->numEntries);
+         }
 
          g_debug("sizeof request is %d\n", requestSize);
          status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply, &replyLen);
@@ -684,11 +693,6 @@ nicinfo_fsm:
          }
 
          g_debug("Updated disk info information\n");
-
-         if (!GuestInfo_CopyDiskInfo(&gInfoCache.diskInfo, pdi)) {
-            g_warning("Could not cache the disk info data.\n");
-            return FALSE;
-         }
 
          break;
       }
@@ -832,7 +836,14 @@ DiskInfoChanged(const GuestDiskInfo *diskInfo)
    int matchedPartition;
    PGuestDiskInfo cachedDiskInfo;
 
-   cachedDiskInfo = &gInfoCache.diskInfo;
+   cachedDiskInfo = gInfoCache.diskInfo;
+
+   if (cachedDiskInfo == diskInfo) {
+      return FALSE;
+      /* Implies that either cachedDiskInfo or diskInfo != NULL. */
+   } else if (!cachedDiskInfo || !diskInfo) {
+      return TRUE;
+   }
 
    if (cachedDiskInfo->numEntries != diskInfo->numEntries) {
       g_debug("Number of disks has changed\n");
@@ -892,7 +903,8 @@ GuestInfoClearCache(void)
       gInfoCache.value[i][0] = 0;
    }
 
-   GuestInfo_FreeDiskInfo(&gInfoCache.diskInfo);
+   GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
+   gInfoCache.diskInfo = NULL;
 
    GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
    gInfoCache.nicInfo = NULL;
@@ -1285,7 +1297,6 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
       memset(&gInfoCache, 0, sizeof gInfoCache);
-      GuestInfo_InitDiskInfo(&gInfoCache.diskInfo);
       vmResumed = FALSE;
 
       /*

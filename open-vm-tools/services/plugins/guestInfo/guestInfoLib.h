@@ -28,9 +28,6 @@
 #include "vm_basic_types.h"
 #include "guestInfo.h"
 
-uint64
-GuestInfo_GetAvailableDiskSpace(char *pathName);
-
 Bool
 GuestInfo_GetFqdn(int outBufLen,
                   char fqdn[]);
@@ -41,15 +38,8 @@ GuestInfo_GetNicInfo(NicInfoV3 **nicInfo);
 void
 GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo);
 
-void
-GuestInfo_InitDiskInfo(GuestDiskInfo *di);
-
-Bool
-GuestInfo_GetDiskInfo(GuestDiskInfo *di);
-
-Bool
-GuestInfo_CopyDiskInfo(GuestDiskInfo *dest,
-                       GuestDiskInfo *src);
+GuestDiskInfo *
+GuestInfo_GetDiskInfo(void);
 
 void
 GuestInfo_FreeDiskInfo(GuestDiskInfo *di);

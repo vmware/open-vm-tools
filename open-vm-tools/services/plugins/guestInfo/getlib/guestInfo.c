@@ -34,9 +34,9 @@
 #include "guestInfoInt.h"
 #include "str.h"
 #include "util.h"
-#include "wiper.h"
 #include "xdrutil.h"
 #include "netutil.h"
+#include "wiper.h"
 
 
 /**
@@ -55,49 +55,6 @@
 /*
  * Global functions.
  */
-
-
-/*
- ******************************************************************************
- * GuestInfo_GetAvailableDiskSpace --                                    */ /**
- *
- * @brief Given a mount point, return the amount of free space on that volume.
- *
- * Get the amount of disk space available on the volume the FCP (file copy/
- * paste) staging area is in. DnD and FCP use same staging area in guest.
- * But it is only called in host->guest FCP case. DnD checks guest available
- * disk space in host side (UI).
- *
- * @param[in]  pathName Mount point to examine.
- *
- * @todo This doesn't belong in lib/guestInfo.
- *
- * @return Bytes free on success, 0 on failure.
- *
- ******************************************************************************
- */
-
-uint64
-GuestInfo_GetAvailableDiskSpace(char *pathName)
-{
-   WiperPartition p;
-   uint64 freeBytes  = 0;
-   uint64 totalBytes = 0;
-   char *wiperError;
-
-   if (strlen(pathName) > sizeof p.mountPoint) {
-      Debug("GetAvailableDiskSpace: gFileRoot path too long\n");
-      return 0;
-   }
-   Str_Strcpy((char *)p.mountPoint, pathName, sizeof p.mountPoint);
-   wiperError = (char *)WiperSinglePartition_GetSpace(&p, &freeBytes, &totalBytes);
-   if (strlen(wiperError) > 0) {
-      Debug("GetAvailableDiskSpace: error using wiper lib: %s\n", wiperError);
-      return 0;
-   }
-   Debug("GetAvailableDiskSpace: free bytes is %"FMT64"u\n", freeBytes);
-   return freeBytes;
-}
 
 
 /*
@@ -179,44 +136,47 @@ GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo)
    }
 }
 
+
 /*
  ******************************************************************************
- * GuestInfo_InitDiskInfo --                                             */ /**
+ * GuestInfo_FreeDiskInfo --                                             */ /**
  *
- * @brief Initializes disk info container for future use.
+ * @brief Frees memory allocated by GuestInfoGetDiskInfo.
  *
- * @param[in,out] di    DiskInfo container.
+ * @param[in] di    DiskInfo container.
  *
  ******************************************************************************
  */
 
 void
-GuestInfo_InitDiskInfo(GuestDiskInfo *di)
+GuestInfo_FreeDiskInfo(GuestDiskInfo *di)
 {
-   ASSERT(di);
-   di->numEntries = 0;
-   di->partitionList = NULL;
+   if (di) {
+      free(di->partitionList);
+      free(di);
+   }
 }
+
+
+/*
+ * Private library functions.
+ */
+
 
 /*
  ******************************************************************************
- * GuestInfo_GetDiskInfo --                                              */ /**
+ * GuestInfoGetDiskInfoWiper --                                          */ /**
  *
- * @brief Get disk information.
+ * Uses wiper library to enumerate fixed volumes and lookup utilization data.
  *
- * @param[in,out] di    DiskInfo container.
- *
- * @note 
- * Allocates memory for di->partitionList.
- *
- * @retval TRUE  Success.
- * @retval FALSE Failure.
+ * @return Pointer to a GuestDiskInfo structure on success or NULL on failure.
+ *         Caller should free returned pointer with GuestInfoFreeDiskInfo.
  *
  ******************************************************************************
  */
 
-Bool
-GuestInfo_GetDiskInfo(GuestDiskInfo *di)
+GuestDiskInfo *
+GuestInfoGetDiskInfoWiper(void)
 {
    WiperPartition_List pl;
    DblLnkLst_Links *curr;
@@ -225,17 +185,16 @@ GuestInfo_GetDiskInfo(GuestDiskInfo *di)
    uint64 totalBytes = 0;
    unsigned int partNameSize = 0;
    Bool success = FALSE;
-
-   ASSERT(di);
-   GuestInfo_InitDiskInfo(di);
-
-   partNameSize = sizeof (di->partitionList)[0].name;
+   GuestDiskInfo *di;
 
    /* Get partition list. */
    if (!WiperPartition_Open(&pl)) {
       Debug("GetDiskInfo: ERROR: could not get partition list\n");
       return FALSE;
    }
+
+   di = Util_SafeCalloc(1, sizeof *di);
+   partNameSize = sizeof (di->partitionList)[0].name;
 
    DblLnkLst_ForEach(curr, &pl.link) {
       WiperPartition *part = DblLnkLst_Container(curr, WiperPartition, link);
@@ -257,12 +216,9 @@ GuestInfo_GetDiskInfo(GuestDiskInfo *di)
             goto out;
          }
 
-         newPartitionList = realloc(di->partitionList,
-                                    (partCount + 1) * sizeof *di->partitionList);
-         if (newPartitionList == NULL) {
-            Debug("GetDiskInfo: ERROR: could not allocate partition list.\n");
-            goto out;
-         }
+         newPartitionList = Util_SafeRealloc(di->partitionList,
+                                             (partCount + 1) *
+                                             sizeof *di->partitionList);
 
          partEntry = &newPartitionList[partCount++];
          Str_Strcpy(partEntry->name, part->mountPoint, partNameSize);
@@ -279,86 +235,11 @@ GuestInfo_GetDiskInfo(GuestDiskInfo *di)
 out:
    if (!success) {
       GuestInfo_FreeDiskInfo(di);
+      di = NULL;
    }
    WiperPartition_Close(&pl);
-   return success;
+   return di;
 }
-
-
-/*
- ******************************************************************************
- * GuestInfo_CopyDiskInfo --                                             */ /**
- *
- * @brief Perform deep copy of GuestDiskInfo structire
- *
- * @param[in,out] dest     DiskInfo destination container.
- * @param[in]     src      DiskInfo source container.
- *
- * @note
- * If number of entries in dest and src differ the function will free memory
- * previously allocated for the dest->partitionList (if any) and allocate a
- * new chunk.
- *
- * @retval TRUE  Success.
- * @retval FALSE Failure.
- *
- ******************************************************************************
- */
-
-Bool
-GuestInfo_CopyDiskInfo(GuestDiskInfo *dest,
-                       GuestDiskInfo *src)
-{
-   size_t memSize;
-
-   ASSERT(src);
-   ASSERT(dest);
-
-   memSize = src->numEntries * sizeof(src->partitionList[0]);
-
-   if (dest->numEntries != src->numEntries) {
-      GuestInfo_FreeDiskInfo(dest);
-
-      dest->partitionList = malloc(memSize);
-      if (dest->partitionList == NULL) {
-         Debug("CopyDiskInfo: ERROR: could not allocate partition list.\n");
-         return FALSE;
-      }
-
-      dest->numEntries = src->numEntries;
-   }
-
-   memcpy(dest->partitionList, src->partitionList, memSize);
-
-   return TRUE;
-}
-
-/*
- ******************************************************************************
- * GuestInfo_FreeDiskInfo --                                             */ /**
- *
- * @brief Frees memory allocated by GuestInfo_GetDiskInfo.
- *
- * @param[in] di    DiskInfo container.
- *
- * @sa GuestInfo_GetDiskInfo
- *
- ******************************************************************************
- */
-
-void
-GuestInfo_FreeDiskInfo(GuestDiskInfo *di)
-{
-   ASSERT(di);
-   free(di->partitionList);
-   di->partitionList = NULL;
-   di->numEntries = 0;
-}
-
-
-/*
- * Private library functions.
- */
 
 
 /*
