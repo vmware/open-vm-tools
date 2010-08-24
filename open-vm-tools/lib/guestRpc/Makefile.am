@@ -18,7 +18,6 @@
 noinst_LTLIBRARIES = libGuestRpc.la
 
 libGuestRpc_la_SOURCES =
-libGuestRpc_la_SOURCES += cpFileContents_xdr.c
 libGuestRpc_la_SOURCES += guestlibV3_xdr.c
 libGuestRpc_la_SOURCES += nicinfo_xdr.c
 
@@ -28,15 +27,12 @@ libGuestRpc_la_SOURCES += nicinfo_xdr.c
 CFLAGS += -Wno-unused
 
 CLEANFILES =
-CLEANFILES += cpFileContents.h
-CLEANFILES += cpFileContents_xdr.c
 CLEANFILES += guestlibV3.h
 CLEANFILES += guestlibV3_xdr.c
 CLEANFILES += nicinfo.h
 CLEANFILES += nicinfo_xdr.c
 
 EXTRA_DIST =
-EXTRA_DIST += cpFileContents.x
 EXTRA_DIST += guestlibV3.x
 EXTRA_DIST += nicinfo.x
 
@@ -58,19 +54,6 @@ guestlibV3.h: guestlibV3.x
 guestlibV3_xdr.c: guestlibV3.x guestlibV3.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/guestlibV3.x
 
-
-cpFileContents.h: cpFileContents.x
-	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
-	   cp -f $(top_srcdir)/lib/guestRpc/cpFileContents.x $(builddir); \
-	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/cpFileContents.x
-	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
-	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
-
-cpFileContents_xdr.c: cpFileContents.x cpFileContents.h
-	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/cpFileContents.x
 
 nicinfo.h: nicinfo.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then               \

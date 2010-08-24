@@ -18,6 +18,8 @@
 plugindir = @VMUSR_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libdndcp.la
 
+CFLAGS += -Wno-unused
+
 libdndcp_la_CPPFLAGS =
 libdndcp_la_CPPFLAGS += @GTK_CPPFLAGS@
 libdndcp_la_CPPFLAGS += @GTKMM_CPPFLAGS@
@@ -25,6 +27,7 @@ libdndcp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
+libdndcp_la_CPPFLAGS += -I$(top_builddir)/include
 
 libdndcp_la_LDFLAGS =
 libdndcp_la_LDFLAGS += @PLUGIN_LDFLAGS@
@@ -60,4 +63,24 @@ libdndcp_la_SOURCES += dndUIX11.cpp
 libdndcp_la_SOURCES += dndcp.cpp
 libdndcp_la_SOURCES += dragDetWndX11.cpp
 libdndcp_la_SOURCES += pointer.cpp
+
+BUILT_SOURCES =
+BUILT_SOURCES += cpFileContents.h
+BUILT_SOURCES += cpFileContents_xdr.c
+
+libdndcp_la_SOURCES += cpFileContents_xdr.c
+
+cpFileContents.h: cpFileContents.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                               \
+	   cp -f $(top_srcdir)/services/plugins/dndcp/cpFileContents.x $(builddir); \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/cpFileContents.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+cpFileContents_xdr.c: cpFileContents.x cpFileContents.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/cpFileContents.x
+
 
