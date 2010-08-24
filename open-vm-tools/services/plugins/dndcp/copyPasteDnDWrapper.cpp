@@ -489,7 +489,7 @@ CopyPasteDnDWrapper::OnReset()
    GSource *src;
 
    g_debug("%s: enter\n", __FUNCTION__);
-   src = g_timeout_source_new(RPC_POLL_TIME * 30);
+   src = VMTools_CreateTimer(RPC_POLL_TIME * 30);
    if (src) {
       VMTOOLSAPP_ATTACH_SOURCE(m_ctx, src, DnDPluginResetSent, this, NULL);
       g_source_unref(src);

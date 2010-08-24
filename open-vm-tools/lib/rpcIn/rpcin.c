@@ -46,6 +46,7 @@
 
 #if defined(VMTOOLS_USE_GLIB)
 #  include "vmware/tools/guestrpc.h"
+#  include "vmware/tools/utils.h"
 #endif
 
 #include "vmware.h"
@@ -589,16 +590,15 @@ RpcInLoop(void *clientData) // IN
    char const *errmsg;
    char const *reply;
    size_t repLen;
+   Bool resched = FALSE;
+   unsigned int current;
 
    in = (RpcIn *)clientData;
    ASSERT(in);
 
    /* The event has fired: it is no longer valid */
    ASSERT(in->nextEvent);
-#if defined(VMTOOLS_USE_GLIB)
-   g_source_unref(in->nextEvent);
-#endif
-   in->nextEvent = NULL;
+   current = in->delay;
 
    /* This is very important: this is the only way to signal the existence
       of this guest application to VMware */
@@ -743,8 +743,13 @@ RpcInLoop(void *clientData) // IN
    in->mustSend = TRUE;
 
 #if defined(VMTOOLS_USE_GLIB)
-   RPCIN_SCHED_EVENT(in, g_timeout_source_new(in->delay * 10));
+   resched = (in->delay != current);
+   if (resched) {
+      g_source_unref(in->nextEvent);
+      RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
+   }
 #else
+   resched = TRUE; /* Avoid unused warning. */
    in->nextEvent = EventManager_Add(gTimerEventQueue, in->delay, RpcInLoop, in);
 #endif
    if (in->nextEvent == NULL) {
@@ -753,7 +758,7 @@ RpcInLoop(void *clientData) // IN
    }
 
 #if defined(VMTOOLS_USE_GLIB)
-   return FALSE;
+   return !resched;
 #else
    return TRUE;
 #endif
@@ -827,7 +832,7 @@ RpcIn_start(RpcIn *in,                    // IN
 
    ASSERT(in->nextEvent == NULL);
 #if defined(VMTOOLS_USE_GLIB)
-   RPCIN_SCHED_EVENT(in, g_timeout_source_new(in->delay * 10));
+   RPCIN_SCHED_EVENT(in, VMTools_CreateTimer(in->delay * 10));
 #else
    in->nextEvent = EventManager_Add(gTimerEventQueue, 0, RpcInLoop, in);
    if (in->nextEvent == NULL) {

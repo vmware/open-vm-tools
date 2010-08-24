@@ -37,6 +37,7 @@ extern "C" {
 #include "copyPasteDnDWrapper.h"
 
 #include "pointer.h"
+#include "vmware/tools/utils.h"
 
 extern "C" {
    #include "vm_assert.h"
@@ -277,11 +278,9 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
       CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
       ToolsAppCtx *ctx = wrapper->GetToolsAppCtx();
       if (ctx) {
-         src = g_timeout_source_new(POINTER_UPDATE_TIMEOUT);
-         if (src) {
-            VMTOOLSAPP_ATTACH_SOURCE(ctx, src, PointerUpdatePointerLoop, NULL, NULL);
-            g_source_unref(src);
-         }
+         src = VMTools_CreateTimer(POINTER_UPDATE_TIMEOUT);
+         VMTOOLSAPP_ATTACH_SOURCE(ctx, src, PointerUpdatePointerLoop, NULL, NULL);
+         g_source_unref(src);
       }
    }
 

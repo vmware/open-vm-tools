@@ -129,6 +129,9 @@ VMTools_NewSignalSource(int signum);
 
 #endif
 
+GSource *
+VMTools_CreateTimer(gint timeout);
+
 GArray *
 VMTools_WrapArray(gconstpointer data,
                   guint elemSize,
