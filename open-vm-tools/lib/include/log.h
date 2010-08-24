@@ -57,15 +57,6 @@ void Log_GetInitDefaults(const char *fileName,
                          const char *suffix,
                          LogInitParams *params);
 
-#if defined(VMX86_VMX)
-/*
- * If this function shows up outside of the VMX, the originator of the
- * use will be hunted down, bound and drawn and quartered!
- */
-
-Bool Log_EarlyInitVMX(void);
-#endif
-
 Bool Log_Init(const char *fileName,
               const char *config,
               const char *suffix);
