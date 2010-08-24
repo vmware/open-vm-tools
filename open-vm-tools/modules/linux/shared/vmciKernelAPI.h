@@ -105,15 +105,15 @@ int VMCIQPair_Alloc(VMCIQPair **qpair,
                     uint32 flags,
                     VMCIPrivilegeFlags privFlags);
 
-void VMCIQPair_Detach(VMCIQPair **qpair);
+int VMCIQPair_Detach(VMCIQPair **qpair);
 
 void VMCIQPair_Init(VMCIQPair *qpair);
-void VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair,
-                                 uint64 *producerTail,
-                                 uint64 *consumerHead);
-void VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair,
-                                 uint64 *consumerTail,
-                                 uint64 *producerHead);
+int VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair,
+                                uint64 *producerTail,
+                                uint64 *consumerHead);
+int VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair,
+                                uint64 *consumerTail,
+                                uint64 *producerHead);
 int64 VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair);
 int64 VMCIQPair_ProduceBufReady(const VMCIQPair *qpair);
 int64 VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair);
