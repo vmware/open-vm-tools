@@ -29,27 +29,30 @@
 
 typedef void (LogBasicFunc)(const char *fmt, va_list args);
 
+
+typedef enum {
+   LOG_NO_SYSTEM_LOGGER,
+   LOG_SYSTEM_LOGGER_ADJUNCT,
+   LOG_SYSTEM_LOGGER_ONLY
+} sysLogger;
+
 typedef struct
 {
-   const char *fileName;             // File name, if known
-   const char *config;               // Config variable to look up
-   const char *suffix;               // Suffix to generate log file name
-   const char *appName;              // App name for log header
-   const char *appVersion;           // App version for log header
-   Bool logging;                     // Logging is enabled or not
-   Bool append;                      // Append to log file
-   unsigned int keepOld;             // Number of old logs to keep
-   unsigned int throttleThreshold;   // Threshold for throttling
-   unsigned int throttleBytesPerSec; // BPS for throttle
-   Bool switchFile;                  // Switch the initial log file
-   unsigned int rotateSize;          // Size at which log should be rotated
+   const char    *fileName;             // File name, if known
+   const char    *config;               // Config variable to look up
+   const char    *suffix;               // Suffix to generate log file name
+   const char    *appName;              // App name for log header
+   const char    *appVersion;           // App version for log header
+   Bool           logging;              // Logging is enabled or not
+   Bool           append;               // Append to log file
+   unsigned int   keepOld;              // Number of old logs to keep
+   unsigned int   throttleThreshold;    // Threshold for throttling
+   unsigned int   throttleBytesPerSec;  // BPS for throttle
+   Bool           switchFile;           // Switch the initial log file
+   unsigned int   rotateSize;           // Size at which log should be rotated
 
-#define LOG_NO_SYSTEM_LOGGER        0
-#define LOG_SYSTEM_LOGGER_ADJUNCT   1
-#define LOG_SYSTEM_LOGGER_ONLY      2
-
-   uint32 useSystemLogger;           // System logger options
-   char *systemLoggerIDString;       // identifier for system logger
+   sysLogger      systemLoggerUse;      // System logger options
+   const char    *systemLoggerID;       // Identifier for system logger
 } LogInitParams;
 
 void Log_GetInitDefaults(const char *fileName,
@@ -61,7 +64,7 @@ Bool Log_Init(const char *fileName,
               const char *config,
               const char *suffix);
 
-Bool Log_InitSystemLogger(char *systemLoggerIdentifier);
+Bool Log_InitSystemLogger(const char *systemLoggerID);
 
 Bool Log_InitForApp(const char *fileName,
                     const char *config,
@@ -99,7 +102,9 @@ void Log_RegisterBasicFunctions(LogBasicFunc *log,
 
 Bool Log_SwitchFile(const char *fileName,
                     const char *config,
-                    Bool copy);
+                    Bool copy,
+                    uint32 systemLoggerUse,
+                    char *systemLoggerID);
 
 size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
