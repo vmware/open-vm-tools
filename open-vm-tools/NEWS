@@ -1,3 +1,15 @@
+open-vm-tools 2010.08.24 changes:
+	* HGFS and VMCI kernel module bug fixes, and updates to compile
+	in newer Linux kernels.
+
+	* HGFS server interface refactoring was finished, now supports
+	the transport abstraction available for the kernel interface.
+
+	* VIX operations are now properly implemented on Solaris, plus
+	new operations added to support features under development.
+
+	* Other minor cleanups and bug fixes.
+
 open-vm-tools 2010.07.25 changes:
 	* Features previously provided by vmware-user are now provided
 	as vmtoolsd plugins. vmware-user has been removed and code that
