@@ -831,7 +831,6 @@ VMCINotificationUnregister(VMCIHandle handle, // IN
 
    entry = VMCINotifyHashRemoveEntry(handle, doorbell);
    if (!entry) {
-      ASSERT(FALSE);
       return VMCI_ERROR_NOT_FOUND;
    }
 
