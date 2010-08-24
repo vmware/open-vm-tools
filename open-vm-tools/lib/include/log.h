@@ -111,7 +111,7 @@ void Log_UpdatePerLine(Bool perLineTimeStamps,
 
 void Log_Exit(void);
 void Log_SetConfigDir(const char *configDir);
-void Log_WriteLogFile(const char *msg);
+void Log_WriteBytes(const char *msg);
 
 Bool Log_Outputting(void);
 const char *Log_GetFileName(void);
