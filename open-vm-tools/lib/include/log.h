@@ -115,7 +115,6 @@ void Log_WriteBytes(const char *msg);
 
 Bool Log_Outputting(void);
 const char *Log_GetFileName(void);
-void Log_Flush(void);
 void Log_SkipLocking(Bool skipLocking);
 void Log_SetAlwaysKeep(Bool alwaysKeep);
 Bool Log_RemoveFile(Bool alwaysRemove);
