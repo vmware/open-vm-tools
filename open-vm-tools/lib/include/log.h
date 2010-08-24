@@ -157,18 +157,6 @@ void Log_LevelV(int level,
 void GuestLog_Init(void);
 void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 
-// I left DEFAULT_DEBUG in here because the vmx is still using it for now
-#if defined(VMX86_DEVEL)
-#define DEFAULT_MONITOR    "debug"
-#define DEFAULT_DEBUG      1
-#elif defined(VMX86_BETA)
-#define DEFAULT_MONITOR    "debug"
-#define DEFAULT_DEBUG      1
-#else
-#define DEFAULT_MONITOR    "release"
-#define DEFAULT_DEBUG      0
-#endif
-
 
 /*
  * How many old log files to keep around.

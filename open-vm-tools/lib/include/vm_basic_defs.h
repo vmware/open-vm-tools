@@ -686,4 +686,16 @@ typedef int pid_t;
 #define NONCLIENTMETRICSINFO_V1_SIZE CCSIZEOF_STRUCT(NONCLIENTMETRICS, \
                                                      lfMessageFont)
 
+// I left DEFAULT_DEBUG in here because the vmx is still using it for now
+#if defined(VMX86_DEVEL)
+#define DEFAULT_MONITOR    "debug"
+#define DEFAULT_DEBUG      1
+#elif defined(VMX86_BETA)
+#define DEFAULT_MONITOR    "debug"
+#define DEFAULT_DEBUG      1
+#else
+#define DEFAULT_MONITOR    "release"
+#define DEFAULT_DEBUG      0
+#endif
+
 #endif // ifndef _VM_BASIC_DEFS_H_
