@@ -499,6 +499,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       } else {
          Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
       }
+   } else if (strstr(distroLower, "opensuse")) {
+      Str_Strcpy(distroShort, STR_OS_OPENSUSE, distroShortSize);
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
          if (strstr(distroLower, "server 11") ||

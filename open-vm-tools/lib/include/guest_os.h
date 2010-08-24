@@ -218,6 +218,7 @@ typedef enum GuestOSFamilyType {
 #define STR_OS_NOVELL             "nld9"    
 #define STR_OS_NOVELL_FULL        "Novell Linux Desktop 9" 
 #define STR_OS_ORACLE             "oraclelinux"
+#define STR_OS_OPENSUSE           "opensuse"
 #define STR_OS_OTHER              "otherlinux"    
 #define STR_OS_OTHER_24           "other24xlinux"    
 #define STR_OS_OTHER_24_FULL      "Other Linux 2.4.x kernel" 
