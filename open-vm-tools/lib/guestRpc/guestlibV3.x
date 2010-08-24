@@ -34,56 +34,64 @@ struct GuestLibV3StatUint64 {
    uint64 value;
 };
 
+const GUESTLIBV3_STRING_SIZE = 512;
+
 struct GuestLibV3String {
    Bool valid;
-   string value<512>;
+   string value<GUESTLIBV3_STRING_SIZE>;
+};
+
+struct GuestLibV3ByteArray {
+   Bool valid;
+   opaque value<>;
 };
 
 typedef uint32 GuestLibV3StatCount;
 
 enum GuestLibV3TypeIds {
    /* V2 statistics */
-   GUESTLIB_TYPE_RESERVED         = 0,
-   GUESTLIB_CPU_RESERVATION_MHZ   = 1,
-   GUESTLIB_CPU_LIMIT_MHZ         = 2,
-   GUESTLIB_CPU_SHARES            = 3,
-   GUESTLIB_CPU_USED_MS           = 4,
+   GUESTLIB_TYPE_RESERVED           = 0,
+   GUESTLIB_CPU_RESERVATION_MHZ     = 1,
+   GUESTLIB_CPU_LIMIT_MHZ           = 2,
+   GUESTLIB_CPU_SHARES              = 3,
+   GUESTLIB_CPU_USED_MS             = 4,
 
-   GUESTLIB_HOST_MHZ              = 5,
+   GUESTLIB_HOST_MHZ                = 5,
 
-   GUESTLIB_MEM_RESERVATION_MB    = 6,
-   GUESTLIB_MEM_LIMIT_MB          = 7,
-   GUESTLIB_MEM_SHARES            = 8,
-   GUESTLIB_MEM_MAPPED_MB         = 9,
-   GUESTLIB_MEM_ACTIVE_MB         = 10,
-   GUESTLIB_MEM_OVERHEAD_MB       = 11,
-   GUESTLIB_MEM_BALLOONED_MB      = 12,
-   GUESTLIB_MEM_SWAPPED_MB        = 13,
-   GUESTLIB_MEM_SHARED_MB         = 14,
-   GUESTLIB_MEM_SHARED_SAVED_MB   = 15,
-   GUESTLIB_MEM_USED_MB           = 16,
+   GUESTLIB_MEM_RESERVATION_MB      = 6,
+   GUESTLIB_MEM_LIMIT_MB            = 7,
+   GUESTLIB_MEM_SHARES              = 8,
+   GUESTLIB_MEM_MAPPED_MB           = 9,
+   GUESTLIB_MEM_ACTIVE_MB           = 10,
+   GUESTLIB_MEM_OVERHEAD_MB         = 11,
+   GUESTLIB_MEM_BALLOONED_MB        = 12,
+   GUESTLIB_MEM_SWAPPED_MB          = 13,
+   GUESTLIB_MEM_SHARED_MB           = 14,
+   GUESTLIB_MEM_SHARED_SAVED_MB     = 15,
+   GUESTLIB_MEM_USED_MB             = 16,
 
-   GUESTLIB_ELAPSED_MS            = 17,
-   GUESTLIB_RESOURCE_POOL_PATH    = 18,
+   GUESTLIB_ELAPSED_MS              = 17,
+   GUESTLIB_RESOURCE_POOL_PATH      = 18,
 
-   GUESTLIB_CPU_STOLEN_MS         = 19,
-   GUESTLIB_MEM_TARGET_SIZE_MB    = 20,
+   GUESTLIB_CPU_STOLEN_MS           = 19,
+   GUESTLIB_MEM_TARGET_SIZE_MB      = 20,
 
    /* Host specific counters. */
-   GUESTLIB_HOST_CPU_NUM_CORES    = 21,
-   GUESTLIB_HOST_CPU_USED_MS      = 22,
-   GUESTLIB_HOST_MEM_SWAPPED_MB   = 23,
-   GUESTLIB_HOST_MEM_SHARED_MB    = 24,
-   GUESTLIB_HOST_MEM_USED_MB      = 25,
-   GUESTLIB_HOST_MEM_PHYS_MB      = 26,
-   GUESTLIB_HOST_MEM_PHYS_FREE_MB = 27,
-   GUESTLIB_HOST_MEM_KERN_OVHD_MB = 28,
-   GUESTLIB_HOST_MEM_MAPPED_MB    = 29,
-   GUESTLIB_HOST_MEM_UNMAPPED_MB  = 30,
+   GUESTLIB_HOST_CPU_NUM_CORES      = 21,
+   GUESTLIB_HOST_CPU_USED_MS        = 22,
+   GUESTLIB_HOST_MEM_SWAPPED_MB     = 23,
+   GUESTLIB_HOST_MEM_SHARED_MB      = 24,
+   GUESTLIB_HOST_MEM_USED_MB        = 25,
+   GUESTLIB_HOST_MEM_PHYS_MB        = 26,
+   GUESTLIB_HOST_MEM_PHYS_FREE_MB   = 27,
+   GUESTLIB_HOST_MEM_KERN_OVHD_MB   = 28,
+   GUESTLIB_HOST_MEM_MAPPED_MB      = 29,
+   GUESTLIB_HOST_MEM_UNMAPPED_MB    = 30,
+   GUESTLIB_RESOURCE_POOL_PATH_LONG = 31,
    /*------ Add any new statistics above this line. ------- */
 
    /*------ Bump this when adding to this list. -------*/
-   GUESTLIB_MAX_STATISTIC_ID      = 31
+   GUESTLIB_MAX_STATISTIC_ID        = 32
 };
 
 union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
@@ -153,5 +161,7 @@ union GuestLibV3Stat switch (GuestLibV3TypeIds d) {
       struct GuestLibV3StatUint64 hostMemMappedMB;
    case GUESTLIB_HOST_MEM_UNMAPPED_MB:
       struct GuestLibV3StatUint64 hostMemUnmappedMB;
+   case GUESTLIB_RESOURCE_POOL_PATH_LONG:
+      struct GuestLibV3ByteArray resourcePoolPathLong;
 };
 
