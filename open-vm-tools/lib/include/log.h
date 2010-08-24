@@ -26,6 +26,23 @@
 
 #include <stdarg.h>
 
+/*
+ * The log levels are taken from POSIXen syslog. We hijack their values
+ * on POSIXen and provide equivalent defines on all other platforms.
+ */
+
+#if defined(_WIN32)
+#   include <windows.h>
+
+#   define LOG_INFO       EVENTLOG_INFORMATION_TYPE
+#   define LOG_WARNING    EVENTLOG_WARNING_TYPE
+#   define LOG_ERR        EVENTLOG_ERROR_TYPE
+#else
+#   if !defined(VMM)
+#      include <syslog.h>
+#   endif
+#endif
+
 
 typedef void (LogBasicFunc)(const char *fmt, va_list args);
 
@@ -53,6 +70,8 @@ typedef struct
 
    SysLogger      systemLoggerUse;      // System logger options
    const char    *systemLoggerID;       // Identifier for system logger
+
+   Bool           stderrWarnings;       // warning also to stderr?
 } LogInitParams;
 
 void Log_GetInitDefaults(const char *fileName,
@@ -115,6 +134,14 @@ void LogV(const char *fmt,
 
 void WarningV(const char *fmt,
               va_list args);
+
+void Log_Level(int level,
+               const char *fmt,
+               ...);
+
+void Log_LevelV(int level,
+                const char *fmt,
+                va_list args);
 
 /* Logging that uses the custom guest throttling configuration. */
 void GuestLog_Init(void);
