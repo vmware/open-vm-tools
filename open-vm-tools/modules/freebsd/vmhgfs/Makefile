@@ -45,7 +45,9 @@ COMMON_SRCS += backdoorGcc64.c
 COMMON_SRCS += backdoorGcc32.c
 .endif
 
-COMMON_HGFS_SRCS := debug.c
+COMMON_HGFS_SRCS :=
+COMMON_HGFS_SRCS += bdhandler.c
+COMMON_HGFS_SRCS += debug.c
 COMMON_HGFS_SRCS += request.c
 COMMON_HGFS_SRCS += worker.c
 COMMON_HGFS_SRCS += fsutil.c
