@@ -105,6 +105,12 @@ typedef struct ProcMgr_ProcArgs {
     * environment.
     */
    char **envp;
+
+   /*
+    * If non-NULL, the directory to be changed to before the process is
+    * started.
+    */
+   char *workingDirectory;
 #endif
 } ProcMgr_ProcArgs;
 

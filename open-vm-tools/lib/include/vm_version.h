@@ -223,7 +223,7 @@
 #define VLICENSE_VERSION "1.1.2"
 #define DDK_VERSION "e.x.p"
 #define VIPERL_VERSION "1.1.0"
-#define RCLI_VERSION "4.5.0"
+#define RCLI_VERSION "5.0.0"
 #define VDM_VERSION "e.x.p"
 #define VMSAFE_VERSION        "1.1.0"
 #define VMSAFE_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC

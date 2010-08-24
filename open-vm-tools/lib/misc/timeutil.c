@@ -539,8 +539,6 @@ TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)
     * refinement/accuracy than what we are doing below.
     */
 
-   NOT_TESTED();
-
    // Get the system time in UTC format.
    GetSystemTimeAsFileTime(&ft);
    

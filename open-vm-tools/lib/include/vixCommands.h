@@ -1803,6 +1803,52 @@ VixMsgGetPerformanceDataResponse;
 
 
 /*
+ * Run a program in guest with (VI version with more args)
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgStartProgramRequest {
+   VixCommandRequestHeader   header;
+
+   Bool   startMinimized;
+   uint32 programPathLength;
+   uint32 argumentsLength;
+   uint32 workingDirLength;
+   uint32 numEnvVars;
+   uint32 envVarLength;
+
+   // This is followed by the buffer of the args
+}
+#include "vmware_pack_end.h"
+VixMsgStartProgramRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgListProcessesExRequest {
+   VixCommandRequestHeader   header;
+
+   uint32 numPids;
+
+   // This is followed by the list of uint64s
+}
+#include "vmware_pack_end.h"
+VixMsgListProcessesExRequest;
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixMsgReadEnvironmentVariablesRequest {
+   VixCommandRequestHeader   header;
+
+   uint32 numNames;
+   uint32 namesLength;
+
+   // This is followed by the list of NUL-terminated names
+}
+#include "vmware_pack_end.h"
+VixMsgReadEnvironmentVariablesRequest;
+
+
+/*
  * HOWTO: Adding a new Vix Command. Step 3.
  *
  * Add a new struct to pass over the control socket into the VMX.
@@ -2275,6 +2321,13 @@ enum {
    VIX_COMMAND_SET_GUEST_FILE_ATTRIBUTES        = 183,
 
    VIX_COMMAND_COPY_FILE_FROM_GUEST_TO_READER   = 184,
+
+   VIX_COMMAND_START_PROGRAM                    = 185,
+
+   VIX_COMMAND_LIST_PROCESSES_EX                = 186,
+
+   VIX_COMMAND_READ_ENV_VARIABLES               = 187,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2283,9 +2336,9 @@ enum {
     * When people add new command id's in different tree, they may collide and use
     * the same ID values. This can merge without conflicts, and cause runtime bugs.
     * Once a new command is added here, a command info field needs to be added
-    * in bora/lib/foundryMsg. as well.
+    * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 185,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 188,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

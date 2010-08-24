@@ -99,7 +99,8 @@ struct ProcMgr_AsyncProc {
 };
 
 static pid_t ProcMgrStartProcess(char const *cmd,
-                                 char * const  *envp);
+                                 char * const  *envp,
+                                 char const *workingDir);
 
 static Bool ProcMgrWaitForProcCompletion(pid_t pid,
                                          Bool *validExitCode,
@@ -583,7 +584,8 @@ ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
 
    Debug("Executing sync command: %s\n", cmd);
 
-   pid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL);
+   pid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL,
+                             userArgs ? userArgs->workingDirectory : NULL);
 
    if (pid == -1) {
       return FALSE;
@@ -612,7 +614,8 @@ ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
 
 static pid_t
 ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
-                    char * const *envp)         // IN: UTF-8 encoded env vars
+                    char * const *envp,         // IN: UTF-8 encoded env vars
+                    char const *workingDir)     // IN: UTF-8 working directory
 {
    pid_t pid;
    char *cmdCurrent = NULL;
@@ -648,6 +651,13 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       /*
        * Child
        */
+
+      if (NULL != workingDir) {
+         if (chdir(workingDir) != 0) {
+            Warning("%s: Could not chdir(%s) %s\n", __FUNCTION__, workingDir,
+                    strerror(errno));
+         }
+      }
 
       if (NULL != envpCurrent) {
          execve(shellPath, args, envpCurrent);
@@ -765,7 +775,8 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    FileIODescriptor readFd;
    FileIODescriptor writeFd;
 
-   Debug("Executing async command: %s\n", cmd);
+   Debug("Executing async command: '%s' in working dir '%s'\n",
+         cmd, (userArgs && userArgs->workingDirectory) ? userArgs->workingDirectory : "");
    
    if (pipe(fds) == -1) {
       Warning("Unable to create the pipe to launch command: %s.\n", cmd);
@@ -821,7 +832,9 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * Only run the program if we have not already experienced a failure.
        */
       if (status) {
-         childPid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL);
+         childPid = ProcMgrStartProcess(cmd,
+                                        userArgs ? userArgs->envp : NULL,
+                                        userArgs ? userArgs->workingDirectory : NULL);
          status = childPid != -1;
       }
 

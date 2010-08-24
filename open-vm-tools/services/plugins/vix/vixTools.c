@@ -142,6 +142,44 @@ typedef struct VixToolsRunProgramState {
    void                 *eventQueue;
 } VixToolsRunProgramState;
 
+
+/*
+ * State of a single asynch startProgram.
+ */
+typedef struct VixToolsStartProgramState {
+   ProcMgr_AsyncProc    *procState;
+
+   void                 *eventQueue;
+} VixToolsStartProgramState;
+
+
+/*
+ * Tracks processes started via StartProgram, so their exit information can
+ * be returned with ListProcessesEx()
+ *
+ * We need live and dead because the exit status is fetched by from
+ * a timer loop, and StartProgram of a very short lived program
+ * followed immediately by a ListProcesses could miss the program
+ * if we don't save it off for before the timer fires.
+ */
+typedef struct VixToolsExitedProgramState {
+   char                                *name;
+   char                                *user;
+   uint64                              pid;
+   time_t                              startTime;
+   int                                 exitCode;
+   time_t                              endTime;
+   Bool                                isRunning;
+   struct VixToolsExitedProgramState   *next;
+} VixToolsExitedProgramState;
+
+static VixToolsExitedProgramState *exitedProcessList = NULL;
+
+/*
+ * How long we keep the info of exited processes about.
+ */
+#define  VIX_TOOLS_EXITED_PROGRAM_REAP_TIME  (5 * 60)
+
 /*
  * This structure is designed to implemente CreateTemporaryFile,
  * CreateTemporaryDirectory VI guest operations.
@@ -178,6 +216,7 @@ static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
 static VixError VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg);
 
 static gboolean VixToolsMonitorAsyncProc(void *clientData);
+static gboolean VixToolsMonitorStartProgram(void *clientData);
 
 static void VixToolsPrintFileInfo(char *filePathName,
                                   char *fileName,
@@ -225,9 +264,26 @@ static VixError VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,
                                     int *tempFileFd);
 
 static void VixToolsFreeRunProgramState(VixToolsRunProgramState *asyncState);
+static void VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState);
+
+static void VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state);
+static void VixToolsFreeExitedProgramState(VixToolsExitedProgramState *state);
+
+static VixError VixToolsStartProgramImpl(char *requestName,
+                                         char *programPath,
+                                         char *arguments,
+                                         char *workingDir,
+                                         int numEnvVars,
+                                         char **envVars,
+                                         Bool startMinimized,
+                                         void *userToken,
+                                         void *eventQueue,
+                                         int64 *pid);
 
 static VixError VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,
                                         void **userToken);
+
+static char *VixToolsGetImpersonatedUsername(void *userToken);
 
 static const char *scriptFileBaseName = "vixScript";
 
@@ -238,6 +294,9 @@ static VixError VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,
 
 static VixError VixToolsReadVariable(VixCommandRequestHeader *requestMsg,
                                      char **result);
+
+static VixError VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,
+                                         char **result);
 
 static VixError VixToolsWriteVariable(VixCommandRequestHeader *requestMsg);
 
@@ -680,6 +739,124 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixTools_StartProgram --
+ *
+ *    Start a program on the guest.  Much like RunProgram, but
+ *    with additional arguments.  Another key difference is that
+ *    the program's exitCode and endTime will be available to ListProcessesEx
+ *    for a short time.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
+                      char *requestName,                   // IN
+                      void *eventQueue,                    // IN
+                      char **result)                       // OUT
+{
+   VixError err = VIX_OK;
+   VixMsgStartProgramRequest *startProgramRequest;
+   char *programPath = NULL;
+   char *arguments = NULL;
+   char *workingDir = NULL;
+   char **envVars = NULL;
+   char *bp = NULL;
+   Bool impersonatingVMWareUser = FALSE;
+   int64 pid = -1;
+   int i;
+   void *userToken = NULL;
+   static char resultBuffer[32];    // more than enough to hold a 64 bit pid
+   VixToolsExitedProgramState *exitState;
+
+   startProgramRequest = (VixMsgStartProgramRequest *) requestMsg;
+   programPath = ((char *) startProgramRequest) + sizeof(*startProgramRequest);
+   if (0 == *programPath) {
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+   bp = programPath + startProgramRequest->programPathLength;
+   if (startProgramRequest->argumentsLength > 0) {
+      arguments = bp;
+      bp += startProgramRequest->argumentsLength;
+   }
+   if (startProgramRequest->workingDirLength > 0) {
+      workingDir = bp;
+      bp += startProgramRequest->workingDirLength;
+   }
+   if (startProgramRequest->numEnvVars > 0) {
+      envVars = Util_SafeMalloc(sizeof(char*) * (startProgramRequest->numEnvVars + 1));
+      for (i = 0; i < startProgramRequest->numEnvVars; i++) {
+         envVars[i] = bp;
+         bp += strlen(envVars[i]) + 1;
+      }
+      envVars[i] = NULL;
+   }
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   Debug("%s: args: '%s' '%s' '%s'\n", __FUNCTION__, programPath, arguments, workingDir);
+
+   err = VixToolsStartProgramImpl(requestName,
+                                  programPath,
+                                  arguments,
+                                  workingDir,
+                                  startProgramRequest->numEnvVars,
+                                  envVars,
+                                  startProgramRequest->startMinimized,
+                                  userToken,
+                                  eventQueue,
+                                  &pid);
+
+   if (VIX_OK == err) {
+      /*
+       * Save off the program so ListProcessesEx can find it.
+       *
+       * We store it here to avoid the hole between starting it and the
+       * exited process polling proc.
+       */
+      exitState = Util_SafeMalloc(sizeof(VixToolsExitedProgramState));
+      exitState->name = Util_SafeStrdup(programPath);
+      exitState->user = Util_SafeStrdup(VixToolsGetImpersonatedUsername(&userToken));
+      exitState->pid = (uint64) pid;
+      exitState->startTime = time(NULL);
+      exitState->exitCode = 0;
+      exitState->endTime = 0;
+      exitState->isRunning = TRUE;
+      exitState->next = NULL;
+
+      // add it to the list of exited programs
+      VixToolsUpdateExitedProgramList(exitState);
+   }
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   Str_Sprintf(resultBuffer, sizeof(resultBuffer), "%"FMT64"d", pid);
+   *result = resultBuffer;
+
+   free(envVars);
+
+   return err;
+} // VixTools_StartProgram
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsRunProgramImpl --
  *
  *    Run a named program on the guest.
@@ -797,12 +974,12 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    asyncState->requestName = Util_SafeStrdup(requestName);
    asyncState->runProgramOptions = runProgramOptions;
 
+   memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
       forcedRoot = Impersonate_ForceRoot();
    }
 
-   memset(&procArgs, 0, sizeof procArgs);
    memset(&si, 0, sizeof si);
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
    procArgs.bInheritHandles = TRUE;
@@ -858,6 +1035,196 @@ abort:
 
    return err;
 } // VixToolsRunProgramImpl
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsStartProgramImpl --
+ *
+ *    Start a named program on the guest.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    Saves off its state.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsStartProgramImpl(char *requestName,      // IN
+                         char *programPath,      // IN
+                         char *arguments,        // IN
+                         char *workingDir,       // IN
+                         int numEnvVars,         // IN
+                         char **envVars,         // IN
+                         Bool startMinimized,    // IN
+                         void *userToken,        // IN
+                         void *eventQueue,       // IN
+                         int64 *pid)             // OUT
+{
+   VixError err = VIX_OK;
+   char *fullCommandLine = NULL;
+   VixToolsStartProgramState *asyncState = NULL;
+   char *tempCommandLine = NULL;
+   char *startProgramFileName;
+   char *stopProgramFileName;
+   Bool programExists;
+   Bool programIsExecutable;
+   ProcMgr_ProcArgs procArgs;
+#if defined(_WIN32)
+   Bool forcedRoot = FALSE;
+   STARTUPINFO si;
+#endif
+   GSource *timer;
+
+   if (NULL != pid) {
+      *pid = (int64) -1;
+   }
+
+   tempCommandLine = Util_SafeStrdup(programPath);
+   startProgramFileName = tempCommandLine;
+
+   while (' ' == *startProgramFileName) {
+      startProgramFileName++;
+   }
+   if ('\"' == *startProgramFileName) {
+      startProgramFileName++;
+      stopProgramFileName = strstr(startProgramFileName, "\"");
+   } else {
+      stopProgramFileName = NULL;
+   }
+   if (NULL == stopProgramFileName) {
+      stopProgramFileName = startProgramFileName + strlen(startProgramFileName);
+   }
+   *stopProgramFileName = 0;
+
+   /*
+    * Check that the program exists.
+    * On linux, we run the program by exec'ing /bin/sh, and that does not
+    * return a clear error code indicating that the program does not exist
+    * or cannot be executed.
+    * This is a common and user-correctable error, however, so we want to
+    * check for it and return a specific error code in this case.
+    *
+    */
+
+   programExists = File_Exists(startProgramFileName);
+   programIsExecutable =
+      (FileIO_Access(startProgramFileName, FILEIO_ACCESS_EXEC) ==
+                                                       FILEIO_SUCCESS);
+
+   free(tempCommandLine);
+
+   if (!programExists) {
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
+   if (!programIsExecutable) {
+      err = VIX_E_GUEST_USER_PERMISSIONS;
+      goto abort;
+   }
+
+   /* sanity check workingDir if set */
+   if (NULL != workingDir && !File_IsDirectory(workingDir)) {
+      err = VIX_E_NOT_A_DIRECTORY;
+      goto abort;
+   }
+
+   /*
+    * Build up the command line so the args are passed to the command.
+    * To be safe, always put quotes around the program name. If the name
+    * contains spaces (either in the file name of its directory path),
+    * then the quotes are required. If the name doesn't contain spaces, then
+    * unnecessary quotes don't seem to create aproblem for both Windows and
+    * Linux.
+    */
+   if (NULL != arguments) {
+      fullCommandLine = Str_Asprintf(NULL,
+                                     "\"%s\" %s",
+                                     programPath,
+                                     arguments);
+   } else {
+      fullCommandLine = Str_Asprintf(NULL,
+                                     "\"%s\"",
+                                     programPath);
+   }
+
+   if (NULL == fullCommandLine) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   /*
+    * Save some state for when it completes.
+    */
+   asyncState = Util_SafeCalloc(1, sizeof *asyncState);
+
+   memset(&procArgs, 0, sizeof procArgs);
+#if defined(_WIN32)
+   if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+      forcedRoot = Impersonate_ForceRoot();
+   }
+
+   memset(&si, 0, sizeof si);
+   procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
+   procArgs.bInheritHandles = TRUE;
+   procArgs.lpStartupInfo = &si;
+   procArgs.lpCurrentDirectory = UNICODE_GET_UTF16(workingDir);
+   procArgs.lpEnvironment = envVars;
+   si.cb = sizeof si;
+   si.dwFlags = STARTF_USESHOWWINDOW;
+   si.wShowWindow = (startMinimized) ? SW_MINIMIZE : SW_SHOWNORMAL;
+#else
+   procArgs.workingDirectory = workingDir;
+   procArgs.envp = envVars;
+#endif
+
+   asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
+
+#if defined(_WIN32)
+   if (forcedRoot) {
+      Impersonate_UnforceRoot();
+   }
+#endif
+
+   if (NULL == asyncState->procState) {
+      err = VIX_E_PROGRAM_NOT_STARTED;
+      goto abort;
+   }
+
+   if (NULL != pid) {
+      *pid = (int64) ProcMgr_GetPid(asyncState->procState);
+   }
+
+   Debug("%s started '%s', pid %"FMT64"d\n", __FUNCTION__, fullCommandLine, *pid);
+
+   /*
+    * Start a periodic procedure to check the app periodically
+    */
+   asyncState->eventQueue = eventQueue;
+   timer = g_timeout_source_new(SECONDS_BETWEEN_POLL_TEST_FINISHED * 1000);
+   g_source_set_callback(timer, VixToolsMonitorStartProgram, asyncState, NULL);
+   g_source_attach(timer, g_main_loop_get_context(eventQueue));
+   g_source_unref(timer);
+
+   /*
+    * VixToolsMonitorStartProgram will clean asyncState up when the program
+    * finishes.
+    */
+   asyncState = NULL;
+
+abort:
+   free(fullCommandLine);
+
+   if (VIX_FAILED(err)) {
+      VixToolsFreeStartProgramState(asyncState);
+   }
+
+   return err;
+} // VixToolsStartProgramImpl
 
 
 /*
@@ -937,6 +1304,236 @@ done:
 
    return FALSE;
 } // VixToolsMonitorAsyncProc
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsMonitorStartProgram --
+ *
+ *    This polls a program started by StartProgram to see if it has completed.
+ *    If it has, saves off its exitCode and endTime so they can be queried
+ *    via ListProcessesEx.
+ *
+ * Return value:
+ *    TRUE on non-glib implementation.
+ *    FALSE on glib implementation.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static gboolean
+VixToolsMonitorStartProgram(void *clientData) // IN
+{
+   VixToolsStartProgramState *asyncState;
+   Bool procIsRunning = FALSE;
+   int exitCode = 0;
+   ProcMgr_Pid pid = -1;
+   int result = -1;
+   VixToolsExitedProgramState *exitState;
+   GSource *timer;
+
+   asyncState = (VixToolsStartProgramState *) clientData;
+   ASSERT(asyncState);
+
+   /*
+    * Check if the program has completed.
+    */
+   procIsRunning = ProcMgr_IsAsyncProcRunning(asyncState->procState);
+   if (!procIsRunning) {
+      goto done;
+   }
+
+   timer = g_timeout_source_new(SECONDS_BETWEEN_POLL_TEST_FINISHED * 1000);
+   g_source_set_callback(timer, VixToolsMonitorStartProgram, asyncState, NULL);
+   g_source_attach(timer, g_main_loop_get_context(asyncState->eventQueue));
+   g_source_unref(timer);
+   return FALSE;
+
+done:
+
+   result = ProcMgr_GetExitCode(asyncState->procState, &exitCode);
+   pid = ProcMgr_GetPid(asyncState->procState);
+   if (0 != result) {
+      exitCode = -1;
+   }
+
+   /*
+    * Save off the program exit state so ListProcessesEx can find it.
+    *
+    * We only bother to set pid, exitCode and endTime -- we have the
+    * other data from when we made the initial record whne the
+    * progrtam started; that record will be updated with the exitCode
+    * and endTime.
+    */
+   exitState = Util_SafeMalloc(sizeof(VixToolsExitedProgramState));
+   exitState->name = NULL;
+   exitState->user = NULL;
+   exitState->pid = pid;
+   exitState->startTime = 0;
+   exitState->exitCode = exitCode;
+   exitState->endTime = time(NULL);
+   exitState->isRunning = FALSE;
+   exitState->next = NULL;
+
+   // add it to the list of exited programs
+   VixToolsUpdateExitedProgramList(exitState);
+
+   VixToolsFreeStartProgramState(asyncState);
+
+   return FALSE;
+} // VixToolsMonitorStartProgram
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsUpdateExitedProgramList --
+ *
+ *    Adds a new exited program's state to the saved list, and
+ *    removes any that have been there too long.
+ *
+ * Return value:
+ *    None
+ *
+ * Side effects:
+ *    Apps that have been saved past their expiration date are dropped.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static void
+VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
+{
+   VixToolsExitedProgramState *epList = NULL;
+   VixToolsExitedProgramState *last = NULL;
+   VixToolsExitedProgramState *old = NULL;
+   time_t now;
+
+   now = time(NULL);
+
+   /*
+    * Update the 'running' record if necessary.
+    */
+   if (state && (state->isRunning == FALSE)) {
+      epList = exitedProcessList;
+      while (epList) {
+         if (epList->pid == state->pid) {
+            /*
+             * Update the two exit fields now that we have them
+             */
+            epList->exitCode = state->exitCode;
+            epList->endTime = state->endTime;
+            VixToolsFreeExitedProgramState(state);
+            // NULL it out so we don't try to add it later in this function
+            state  = NULL;
+            break;
+         } else {
+            epList = epList->next;
+         }
+      }
+   }
+
+
+   /*
+    * Find and toss any old records.
+    */
+   last = NULL;
+   epList = exitedProcessList;
+   while (epList) {
+      if (!epList->isRunning && (epList->endTime < now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME)) {
+         if (last) {
+            last->next = epList->next;
+         } else {
+            exitedProcessList = epList->next;
+         }
+         old = epList;
+         epList = epList->next;
+         VixToolsFreeExitedProgramState(old);
+      } else {
+         last = epList;
+         epList = epList->next;
+      }
+   }
+
+
+   /*
+    * Add any new record to the list
+    */
+   if (state) {
+      if (last) {
+         last->next = state;
+      } else {
+         exitedProcessList = state;
+      }
+   }
+
+} // VixToolsUpdateExitedProgramList
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsFreeExitedProgramState --
+ *
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VixToolsFreeExitedProgramState(VixToolsExitedProgramState *exitState) // IN
+{
+   if (NULL == exitState) {
+      return;
+   }
+
+   free(exitState->name);
+   free(exitState->user);
+
+   free(exitState);
+} // VixToolsFreeExitedProgramState
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsFindExitedProgramState --
+ *
+ *    Searches the list of running/exited apps to see if the given
+ *    pid was started via StartProgram.
+ *
+ * Results:
+ *    Any state matching the given pid.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixToolsExitedProgramState *
+VixToolsFindExitedProgramState(uint64 pid)
+{
+   VixToolsExitedProgramState *epList;
+
+   epList = exitedProcessList;
+   while (epList) {
+      if (epList->pid == pid) {
+         return epList;
+      }
+      epList = epList->next;
+   }
+
+   return NULL;
+}
 
 
 /*
@@ -2048,6 +2645,97 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsReadEnvVariables --
+ *
+ *    Read environment variables in the guest. The name of the environment
+ *    variables are expected to be in UTF-8.
+ *
+ *    If a variable doesn't exist, nothing is returned for it.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
+                         char **result)                         // OUT: UTF-8
+{
+   VixError err = VIX_OK;
+   char *value;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   VixMsgReadEnvironmentVariablesRequest *readRequest;
+   char *names;
+   char *np;
+   char *tmp;
+   char *results = NULL;
+   int i;
+
+   readRequest = (VixMsgReadEnvironmentVariablesRequest *) requestMsg;
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   if (readRequest->numNames > 0) {
+      names = ((char *) readRequest) + sizeof(*readRequest);
+      for (i = 0, np = names; i < readRequest->numNames; i++) {
+         size_t len = strlen(np) + 1;
+         value = System_GetEnv(FALSE, np);
+         if (NULL != value) {
+            tmp = results;
+            results = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
+                                   tmp, np, value);
+            free(tmp);
+         }
+         np += len;
+      }
+   } else {
+      /*
+       * If none are specified, return all of them.
+       */
+#ifdef _WIN32
+      /* XXX TODO XXX */
+#elif defined(linux)
+      char **ep;
+
+      /*
+       * The full env var list is in a magic char ** extern in the form
+       * 'VAR=VAL'
+       */
+      ep = __environ;
+      while (*ep) {
+         tmp = results;
+         results = Str_Asprintf(NULL, "%s<ev>%s</ev>",
+                                tmp, *ep);
+         free(tmp);
+         ep++;
+      }
+#endif
+   }
+
+   *result = results;
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   return err;
+} // VixToolsReadVariable
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsWriteVariable --
  *
  *    Write an environment variable in the guest. The name of the environment
@@ -2348,6 +3036,179 @@ abort:
 
    return(err);
 } // VixToolsListProcesses
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsListProcessesEx --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
+                        char **result)                       // OUT
+{
+   VixError err = VIX_OK;
+   static char resultBuffer[MAX_PROCESS_LIST_RESULT_LENGTH];
+   ProcMgr_ProcList *procList = NULL;
+   char *destPtr;
+   char *endDestPtr;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   VixToolsExitedProgramState *epList;
+   VixMsgListProcessesExRequest *listRequest;
+   uint64 *pids = NULL;
+   uint32 numPids;
+   int i;
+   int j;
+
+   destPtr = resultBuffer;
+   *destPtr = 0;
+
+   listRequest = (VixMsgListProcessesExRequest *) requestMsg;
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   procList = ProcMgr_ListProcesses();
+   if (NULL == procList) {
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
+
+   numPids = listRequest->numPids;
+   if (numPids > 0) {
+      pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
+   }
+
+   endDestPtr = resultBuffer + sizeof(resultBuffer);
+
+   /*
+    * First check the procecess we've started via StartProgram, which
+    * will find those running and recently deceased.
+    */
+   VixToolsUpdateExitedProgramList(NULL);
+   if (numPids > 0) {
+      for (i = 0; i < numPids; i++) {
+         epList = exitedProcessList;
+         while (epList) {
+            if (pids[i] == epList->pid) {
+               destPtr += Str_Sprintf(destPtr,
+                                      endDestPtr - destPtr,
+                                      "<proc><name>%s</name><pid>%"FMT64"d</pid>"
+                                      "<user>%s</user><start>%d</start>"
+                                      "<eCode>%d</eCode><eTime>%d</eTime>"
+                                      "</proc>",
+                                      epList->name,
+                                      epList->pid,
+                                      epList->user,
+                                      (int) epList->startTime,
+                                      epList->exitCode,
+                                      (int) epList->endTime);
+            }
+            epList = epList->next;
+         }
+      }
+   } else {
+      epList = exitedProcessList;
+      while (epList) {
+         destPtr += Str_Sprintf(destPtr,
+                                endDestPtr - destPtr,
+                                "<proc><name>%s</name><pid>%"FMT64"d</pid>"
+                                "<user>%s</user><start>%d</start>"
+                                "<eCode>%d</eCode><eTime>%d</eTime>"
+                                "</proc>",
+                                epList->name,
+                                epList->pid,
+                                epList->user,
+                                (int) epList->startTime,
+                                epList->exitCode,
+                                (int) epList->endTime);
+         epList = epList->next;
+      }
+   }
+
+
+   /*
+    * Now look at the running list.  Note that we set endTime
+    * and exitCode to dummy values, since we'll be getting results on
+    * the Vix side with GetNthProperty, and can have a mix of live and
+    * dead processes.
+    */
+   if (numPids > 0) {
+      for (i = 0; i < numPids; i++) {
+         for (j = 0; j < procList->procCount; j++) {
+            // ignore it if its on the exited list -- we added it above
+            if (VixToolsFindExitedProgramState(pids[i])) {
+               continue;
+            }
+            if (pids[i] == procList->procIdList[j]) {
+               destPtr += Str_Sprintf(destPtr,
+                                      endDestPtr - destPtr,
+                                      "<proc><name>%s</name><pid>%d</pid>"
+                                      "<user>%s</user><start>%d</start>"
+                                      "<eCode>0</eCode><eTime>0</eTime>"
+                                      "</proc>",
+                                      procList->procCmdList[j],
+                                      (int) procList->procIdList[j],
+                                      (NULL == procList->procOwnerList
+                                        || NULL == procList->procOwnerList[j])
+                                          ? ""
+                                          : procList->procOwnerList[j],
+                                      (NULL == procList->startTime)
+                                          ? 0
+                                          : (int) procList->startTime[j]);
+            }
+         }
+      }
+   } else {
+      for (i = 0; i < procList->procCount; i++) {
+         // ignore it if its on the exited list -- we added it above
+         if (VixToolsFindExitedProgramState(procList->procIdList[i])) {
+            continue;
+         }
+         destPtr += Str_Sprintf(destPtr,
+                                endDestPtr - destPtr,
+                                "<proc><name>%s</name><pid>%d</pid>"
+                                "<user>%s</user><start>%d</start>"
+                                "<eCode>0</eCode><eTime>0</eTime>"
+                                "</proc>",
+                                procList->procCmdList[i],
+                                (int) procList->procIdList[i],
+                                (NULL == procList->procOwnerList
+                                  || NULL == procList->procOwnerList[i])
+                                    ? ""
+                                    : procList->procOwnerList[i],
+                                (NULL == procList->startTime)
+                                    ? 0
+                                    : (int) procList->startTime[i]);
+      }
+   }
+
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+   ProcMgr_FreeProcList(procList);
+
+   *result = resultBuffer;
+
+   return(err);
+} // VixToolsListProcessesEx
 
 
 /*
@@ -3936,6 +4797,38 @@ VixToolsLogoutUser(void *userToken)    // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsGetImpersonatedUsername --
+ *
+ *
+ * Return value:
+ *    The name of the user being impersonated.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+VixToolsGetImpersonatedUsername(void *userToken)
+{
+   /*
+    * XXX
+    *
+    * Not clear yet how to do this.  One way is to pull the username
+    * out of the request credentials, but that won't work for ticketed
+    * sessions.  Another is to look at the current user and get its
+    * name.  Punt til I understand ticketed credentials better.
+    *
+    */
+   return "XXX TBD XXX";
+
+} // VixToolsUnimpersonateUser
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsFreeRunProgramState --
  *
  *
@@ -3973,12 +4866,42 @@ VixToolsFreeRunProgramState(VixToolsRunProgramState *asyncState) // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsFreeStartProgramState --
+ *
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState) // IN
+{
+   if (NULL == asyncState) {
+      return;
+   }
+
+   if (NULL != asyncState->procState) {
+      ProcMgr_Free(asyncState->procState);
+   }
+
+   free(asyncState);
+} // VixToolsFreeStartProgramState
+
+
+/*
  *----------------------------------------------------------------------------
  *
  *  VixToolsGetTempFileCreateNameFunc --
  *
  *       This function is designed as part of implementing CreateTempFile,
- *       CreateTempoDirectory VI guest operations.
+ *       CreateTempDirectory VI guest operations.
  *
  *       This function will be passed to File_MakeTempEx2 when
  *       VixToolsGetTempFile() is called.
@@ -5017,6 +5940,12 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
+      case VIX_COMMAND_LIST_PROCESSES_EX:
+         err = VixToolsListProcessesEx(requestMsg, &resultValue);
+         // resultValue is static. Do not free it.
+         break;
+
+      ////////////////////////////////////
       case VIX_COMMAND_LIST_DIRECTORY:
          err = VixToolsListDirectory(requestMsg,
                                      maxResultBufferSize,
@@ -5089,6 +6018,12 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
+      case VIX_COMMAND_START_PROGRAM:
+         err = VixTools_StartProgram(requestMsg, requestName, eventQueue, &resultValue);
+         // resultValue is static. Do not free it.
+         break;
+
+      ////////////////////////////////////
       case VIX_COMMAND_OPEN_URL:
          err = VixToolsOpenUrl(requestMsg);
          break;
@@ -5104,6 +6039,12 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ///////////////////////////////////
       case VIX_COMMAND_READ_VARIABLE:
          err = VixToolsReadVariable(requestMsg, &resultValue);
+         deleteResultValue = TRUE;
+         break;
+
+      ///////////////////////////////////
+      case VIX_COMMAND_READ_ENV_VARIABLES:
+         err = VixToolsReadEnvVariables(requestMsg, &resultValue);
          deleteResultValue = TRUE;
          break;
 

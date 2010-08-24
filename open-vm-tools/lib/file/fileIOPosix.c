@@ -197,6 +197,8 @@ FileIOErrno2Result(int error)  // IN: errno to convert
       return FILEIO_WRITE_ERROR_DQUOT;
 #endif
    default:
+      Log("%s: Unexpected errno=%d, %s\n", __FUNCTION__,
+          error, Err_Errno2String(error));
       return FILEIO_ERROR;
    }
 }
