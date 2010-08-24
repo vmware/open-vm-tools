@@ -43,7 +43,12 @@ typedef struct
    unsigned int throttleBytesPerSec; // BPS for throttle
    Bool switchFile;                  // Switch the initial log file
    unsigned int rotateSize;          // Size at which log should be rotated
-   Bool useSystemLogger;             // Use the system logger too
+
+#define LOG_NO_SYSTEM_LOGGER        0
+#define LOG_SYSTEM_LOGGER_ADJUNCT   1
+#define LOG_SYSTEM_LOGGER_ONLY      2
+
+   uint32 useSystemLogger;           // System logger options
    char *systemLoggerIDString;       // identifier for system logger
 } LogInitParams;
 
@@ -51,6 +56,15 @@ void Log_GetInitDefaults(const char *fileName,
                          const char *config,
                          const char *suffix,
                          LogInitParams *params);
+
+#if defined(VMX86_VMX)
+/*
+ * If this function shows up outside of the VMX, the originator of the
+ * use will be hunted down, bound and drawn and quartered!
+ */
+
+Bool Log_EarlyInitVMX(void);
+#endif
 
 Bool Log_Init(const char *fileName,
               const char *config,
