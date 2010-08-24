@@ -34,6 +34,7 @@
 #endif
 #include "unicode.h"
 
+uint64 System_GetTimeMonotonic(void);
 uint64 System_Uptime(void);
 Unicode System_GetTimeAsString(void);
 void System_Shutdown(Bool reboot);

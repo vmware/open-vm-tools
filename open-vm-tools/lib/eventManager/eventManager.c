@@ -139,18 +139,10 @@ EventManager_Add(DblLnkLst_Links *eventQueue,       // IN:
    DblLnkLst_Init(&e->l);
 
    /*
-    * Most of the event managers I have studied rely on the system time to fire
-    * an event in the future. This is bad, because the system time can be
-    * modified: if you schedule an event to fire in 5 seconds, and then
-    * somebody substract 1 hour (daylight savings?) to the system time, then
-    * your event will actually fire in 1 hour + 5 seconds, which is probably
-    * not what you want... Instead, I use the system uptime, which can not be
-    * modified.
-    *
-    *   --hpreg
+    * Stick to an immutable, monotonically increasing clock.
     */
 
-   currentTime = System_Uptime();
+   currentTime = System_GetTimeMonotonic();
    if (currentTime == -1) {
       /*
        * Unable to retrieve the uptime
@@ -254,7 +246,7 @@ EventManager_ProcessNext(DblLnkLst_Links *eventQueue, // IN:
       return 0;
    }
     
-   currentTime = System_Uptime();
+   currentTime = System_GetTimeMonotonic();
    if (currentTime == -1) {
       /*
        * Unable to retrieve the uptime

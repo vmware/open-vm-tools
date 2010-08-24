@@ -55,6 +55,10 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 
+#if defined sun || defined __APPLE__
+#   include <utmpx.h>
+#endif
+
 #ifdef __FreeBSD__
 #include "ifaddrs.h"
 #endif
@@ -67,6 +71,7 @@
 #include "dynbuf.h"
 #include "hashTable.h"
 #include "strutil.h"
+#include "vmstdio.h"
 
 #define MAX_IFACES      4
 #define LOOPBACK        "lo"
@@ -110,30 +115,24 @@ static int SNEForEachCallback(const char *key, void *value, void *clientData);
 
 
 /*
- * System_Uptime --
+ *-----------------------------------------------------------------------------
  *
- *    Retrieve the time (in hundredth of s.) since the system has started.
+ * System_GetTimeMonotonic --
  *
- *    Note: On 32-bit Linux, whether you read /proc/uptime (2 system calls: seek(2)
- *          and read(2)) or times(2) (1 system call), the uptime information
- *          comes from the 'jiffies' kernel variable, whose type is 'unsigned
- *          long'. This means that on a ix86 with HZ == 100, it will wrap after
- *          497 days. This function can detect the wrapping and still return
- *          a correct, monotonic, 64 bit wide value if it is called at least
- *          once every 497 days.
+ *      See POSIX clock_gettime(CLOCK_MONOTONIC).
  *
- * Result:
- *    The value on success
- *    -1 on failure (never happens in this implementation)
+ * Results:
+ *      Returns monotonically increasing time in hundredths of a second on
+ *      success, -1 on failure.
  *
  * Side effects:
- *    None
+ *      None.
  *
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  */
 
 uint64
-System_Uptime(void)
+System_GetTimeMonotonic(void)
 {
    /*
     * Dummy variable b/c times(NULL) segfaults on FreeBSD 3.2 --greg
@@ -160,6 +159,89 @@ System_Uptime(void)
 
    return times(&tp);
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * System_Uptime --
+ *
+ *      Retrieve the time (in hundredth of s.) since the system has started.
+ *
+ * Result:
+ *      Returns the uptime on success or -1 on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+uint64
+System_Uptime(void)
+{
+   uint64 uptime = -1;
+
+#ifdef __linux__
+   {
+      FILE *procStream;
+      char *buf = NULL;
+      size_t bufSize;
+      uint64 sec;
+      unsigned int csec;
+
+      if (((procStream = Posix_Fopen("/proc/uptime", "r")) != NULL) &&
+          (StdIO_ReadNextLine(procStream, &buf, 80, &bufSize) == StdIO_Success) &&
+          (sscanf(buf, "%"FMT64"u.%2u", &sec, &csec) == 2)) {
+         uptime = sec * 100 + csec;
+      } else {
+         Warning("%s: Unable to parse /proc/uptime.\n", __func__);
+      }
+
+      free(buf);
+
+      if (procStream) {
+         fclose(procStream);
+      }
+   }
+#elif defined sun || defined __APPLE__
+   {
+      struct utmpx *boot, tmp;
+
+      tmp.ut_type = BOOT_TIME;
+      if ((boot = getutxid(&tmp)) != NULL) {
+         struct timeval now;
+         struct timeval *boottime = &boot->ut_tv;
+
+         gettimeofday(&now, NULL);
+         uptime =
+            (now.tv_sec * 100 + now.tv_usec / 10000) -
+            (boottime->tv_sec * 100 + boottime->tv_usec / 10000);
+      } else {
+         Warning("%s: Unable to determine boot time.\n", __func__);
+      }
+
+      endutxent();
+   }
+#else // FreeBSD
+   {
+      /*
+       * FreeBSD: src/usr.bin/w/w.c rev 1.59:
+       *   "Obtain true uptime through clock_gettime(CLOCK_MONOTONIC,
+       *    struct *timespec) instead of subtracting 'bootime' from 'now'."
+       */
+      struct timespec ts;
+
+      if (clock_gettime(CLOCK_MONOTONIC, &ts) != -1) {
+         uptime = ts.tv_sec * 100 + ts.tv_nsec / 10000000;
+      } else {
+         Warning("%s: clock_gettime: %d\n", __func__, errno);
+      }
+   }
+#endif
+
+   return uptime;
 }
 
 
