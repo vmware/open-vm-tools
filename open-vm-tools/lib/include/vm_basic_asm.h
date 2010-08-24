@@ -671,7 +671,7 @@ Bswap64(uint64 v) // IN
 #define COMPILER_MEM_BARRIER()   __asm__ __volatile__ ("": : :"memory")
 #define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
 #define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
 #define COMPILER_READ_BARRIER()  _ReadBarrier()
 #define COMPILER_WRITE_BARRIER() _WriteBarrier()
