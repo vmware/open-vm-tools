@@ -61,12 +61,12 @@ typedef struct
    const char    *appName;              // App name for log header
    const char    *appVersion;           // App version for log header
 
-   Bool           logging;              // Logging is enabled or not
    Bool           append;               // Append to log file
    Bool           switchFile;           // Switch the initial log file
    Bool           useThreadName;        // Thread name on log line
    Bool           useTimeStamp;         // Use a log line time stamp
    Bool           useMilliseconds;      // Show milliseconds in time stamp
+   Bool           fastRotation;         // ESX log rotation optimization
 
    unsigned int   keepOld;              // Number of old logs to keep
    unsigned int   throttleThreshold;    // Threshold for throttling
@@ -74,7 +74,7 @@ typedef struct
    unsigned int   rotateSize;           // Size at which log should be rotated
 
    SysLogger      systemLoggerUse;      // System logger options
-   const char    *systemLoggerID;       // Identifier for system logger
+   char           systemLoggerID[128];  // Identifier for system logger
 
    Bool           stderrWarnings;       // warning also to stderr?
 } LogInitParams;
@@ -82,13 +82,12 @@ typedef struct
 void Log_GetInitDefaults(const char *fileName,
                          const char *config,
                          const char *suffix,
+                         const char *appPrefix,
                          LogInitParams *params);
 
 Bool Log_Init(const char *fileName,
               const char *config,
               const char *suffix);
-
-Bool Log_InitSystemLogger(const char *systemLoggerID);
 
 Bool Log_InitForApp(const char *fileName,
                     const char *config,
@@ -98,11 +97,10 @@ Bool Log_InitForApp(const char *fileName,
 
 Bool Log_InitEx(const LogInitParams *params);
 
-void Log_UpdateState(Bool enable,
-                     Bool append,
-                     unsigned keepOld,
-                     size_t rotateSize,
-                     Bool fastRotation);
+void Log_UpdateFileControl(Bool append,
+                           unsigned keepOld,
+                           size_t rotateSize,
+                           Bool fastRotation);
 
 void Log_UpdatePerLine(Bool perLineTimeStamps,
                        Bool perLineMilliseconds,
@@ -112,7 +110,7 @@ void Log_Exit(void);
 void Log_SetConfigDir(const char *configDir);
 void Log_WriteLogFile(const char *msg);
 
-Bool Log_Enabled(void);
+Bool Log_Outputting(void);
 const char *Log_GetFileName(void);
 void Log_Flush(void);
 void Log_SkipLocking(Bool skipLocking);
