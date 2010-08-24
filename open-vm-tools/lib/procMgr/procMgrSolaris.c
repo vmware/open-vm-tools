@@ -398,7 +398,7 @@ ReadArgsFromAddressSpaceFile(FileIODescriptor asFd,     //IN
        * argOff[i] + strlen(arg[i]) + 1 should be equal to argOff[i + 1].
        */
       if ((argOff == 0) || (argOff != nextArgOff)) {
-         break;
+         goto fail;
       }
       argBuf = ExtractArgStringFromAddressSpaceFile(asFd, argOff);
       if (argBuf == NULL) {
