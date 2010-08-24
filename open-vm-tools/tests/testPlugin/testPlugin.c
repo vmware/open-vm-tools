@@ -75,6 +75,8 @@ TestPluginRpc1(RpcInData *data)
    size_t cmdLen;
 
    CU_ASSERT_STRING_EQUAL(testdata->data, "rpc1test");
+   CU_ASSERT_EQUAL(testdata->f_int, 1357);
+   CU_ASSERT(testdata->f_bool);
 
    g_signal_emit_by_name(ctx->serviceObj, "test-signal");
 
@@ -130,6 +132,8 @@ TestPluginRpc3(RpcInData *data)
 
    ret = g_malloc(sizeof *ret);
    ret->data = Util_SafeStrdup("Hello World!");
+   ret->f_int = 8642;
+   ret->f_bool = TRUE;
 
    data->result = (char *) ret;
    return TRUE;

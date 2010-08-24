@@ -30,6 +30,7 @@
 
 #include "util.h"
 #include "testData.h"
+#include "xdrutil.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/rpcdebug.h"
 
@@ -38,6 +39,9 @@ TestDebugValidateReset(RpcInData *data, gboolean ret);
 
 static gboolean
 TestDebugValidateUnknown(RpcInData *data, gboolean ret);
+
+static gboolean
+TestDebugValidateRpc3(RpcInData *data, gboolean ret);
 
 #define SET_OPTION_TEST ("Set_Option " TOOLSOPTION_BROADCASTIP " 1")
 
@@ -50,7 +54,7 @@ static RpcDebugMsgMapping gRpcMessages[] = {
    /* This one is initialized manually, since it contains dynamic data. */
    { NULL, 0, NULL, TRUE },
    { "test.rpcin.msg2", sizeof "test.rpcin.msg2", NULL, FALSE },
-   { "test.rpcin.msg3", sizeof "test.rpcin.msg3", NULL, FALSE },
+   { "test.rpcin.msg3", sizeof "test.rpcin.msg3", TestDebugValidateRpc3, FALSE },
    { SET_OPTION_TEST, sizeof SET_OPTION_TEST, NULL, FALSE },
    { "Capabilities_Register", sizeof "Capabilities_Register", NULL, FALSE },
    /* NULL terminator. */
@@ -134,8 +138,37 @@ TestDebugReceiveRpc1(char *data,
 
    CU_ASSERT(gSignalReceived);
    CU_ASSERT_STRING_EQUAL(details->data, "rpc1test");
+   CU_ASSERT_EQUAL(details->f_int, 1357);
+   CU_ASSERT(details->f_bool);
 
    return TRUE;
+}
+
+
+/**
+ * Validates the response of the "msg3" RPC.
+ *
+ * @param[in] data   RPC data.
+ * @param[in] ret    RPC result.
+ *
+ * @return Whether the RPC succeded.
+ */
+
+static gboolean
+TestDebugValidateRpc3(RpcInData *data,
+                      gboolean ret)
+{
+   TestPluginData pdata = { NULL, };
+
+   CU_ASSERT(XdrUtil_Deserialize(data->result, data->resultLen,
+                                 xdr_TestPluginData, &pdata));
+
+   CU_ASSERT_STRING_EQUAL(pdata.data, "Hello World!");
+   CU_ASSERT_EQUAL(pdata.f_int, 8642);
+   CU_ASSERT(pdata.f_bool);
+
+   VMX_XDR_FREE(xdr_TestPluginData, &pdata);
+   return ret;
 }
 
 
@@ -243,6 +276,8 @@ RpcDebugOnLoad(ToolsAppCtx *ctx)
 
    TestPluginData testdata;
    testdata.data = "rpc1test";
+   testdata.f_int = 1357;
+   testdata.f_bool = TRUE;
 
    /* Build the command for the "test.rpcin.msg1" RPC. */
    if (!RpcChannel_BuildXdrCommand("test.rpcin.msg1",

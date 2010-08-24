@@ -24,5 +24,7 @@
 
 struct TestPluginData {
    string      data<128>;
+   uint32      f_int;
+   Bool        f_bool;
 };
 
