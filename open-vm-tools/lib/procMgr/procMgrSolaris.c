@@ -315,7 +315,9 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo) //IN: psinfo struct
       for (i = 0; i < argc; i++) {
          buf = DynBuf_Get(DynBufArray_AddressOf(&args, i));
          DynBuf_Append(&cmdLine, buf, strlen(buf));
-         DynBuf_Append(&cmdLine, " ", 1);
+         if (i + 1 < argc) {
+            DynBuf_Append(&cmdLine, " ", 1);
+         }
          DynBuf_Destroy(DynBufArray_AddressOf(&args, i));
       }
       DynBuf_AppendString(&cmdLine,"");
@@ -403,7 +405,7 @@ ReadArgsFromAddressSpaceFile(FileIODescriptor asFd,     //IN
          goto fail;
       }
       nextArgOff = argOff + strlen(argBuf) + 1;
-      argBufPtr = argBuf +  strlen(argBuf) + 1;
+      argBufPtr = argBuf +  strlen(argBuf);
       while ((argBufPtr > argBuf) && isspace(*(argBufPtr - 1))) {
          argBufPtr--;
       }
