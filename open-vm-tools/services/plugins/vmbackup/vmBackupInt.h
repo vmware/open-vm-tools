@@ -90,6 +90,12 @@ typedef struct VmBackupState {
    Bool (*callback)(struct VmBackupState *);
    Bool           forceRequeue;
    Bool           generateManifests;
+   Bool           quiesceApps;
+   Bool           quiesceFS;
+   Bool           allowHWProvider;
+   Bool           execScripts;
+   char          *scriptArg;
+   guint          timeout;
    gpointer       clientData;
    void          *scripts;
    const char    *configDir;

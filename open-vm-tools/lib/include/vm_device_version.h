@@ -123,6 +123,22 @@
 #define E1000E_PCI_SUB_VENDOR_ID_CONFIG_STR "e1000e.pci.subVendorID"
 #define E1000E_PCI_SUB_DEVICE_ID_CONFIG_STR "e1000e.pci.subDeviceID"
 
+/*
+ * Fresco Logic xHCI (USB 3.0) Controller
+ */
+#define PCI_VENDOR_ID_FRESCO            0x1B73
+#define PCI_DEVICE_ID_FRESCO_FL1000     0x1000   // Original 1-port chip
+#define PCI_DEVICE_ID_FRESCO_FL1009     0x1009   // New 2-port chip (Driver 3.0.98+)
+#define PCI_DEVICE_ID_FRESCO_DEVEL      0x1400   // Unknown (development hardware?)
+
+/*
+ * NEC/Renesas xHCI (USB 3.0) Controller
+ */
+#define PCI_VENDOR_ID_NEC               0x1033
+#define PCI_DEVICE_ID_NEC_UPD720200     0x0194
+#define PCI_REVISION_NEC_UPD720200      0x03
+#define PCI_FIRMWARE_NEC_UPD720200      0x3015
+
 
 /************* Strings for IDE Identity Fields **************************/
 #define VIDE_ID_SERIAL_STR	"00000000000000000001"	/* Must be 20 Bytes */
@@ -170,6 +186,9 @@
 
 /************* Ethernet implementation limits ***************************/
 #define MAX_ETHERNET_CARDS      10
+
+/********************** Floppy limits ***********************************/
+#define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
 #define MAX_PCI_PASSTHRU_DEVICES 6

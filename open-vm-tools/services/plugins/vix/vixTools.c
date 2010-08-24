@@ -99,6 +99,7 @@
 
 #include "vixOpenSource.h"
 #include "vixTools.h"
+#include "vixToolsInt.h"
 
 #ifdef _WIN32
 #include "registryWin32.h"
@@ -348,6 +349,8 @@ static VixError VixToolsListDirectory(VixCommandRequestHeader *requestMsg,
 static VixError VixToolsListFiles(VixCommandRequestHeader *requestMsg,
                                   size_t maxBufferSize,
                                   char **result);
+
+static VixError VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsKillProcess(VixCommandRequestHeader *requestMsg);
 
@@ -3101,6 +3104,156 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsInitiateFileTransferToGuest --
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
+{
+   VixError err = VIX_OK;
+   char *guestPathName = NULL;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   Bool overwrite = TRUE;
+   char *dirName = NULL;
+   char *baseName = NULL;
+#if defined(_WIN32)
+   int fd = -1;
+   char *tempFilePath = NULL;
+#else
+   FileIOResult res;
+#endif
+
+   VixCommandInitiateFileTransferToGuestRequest *commandRequest =
+      (VixCommandInitiateFileTransferToGuestRequest *) requestMsg;
+
+   ASSERT(NULL != requestMsg);
+
+   guestPathName = ((char *) commandRequest) + sizeof(*commandRequest);
+   overwrite = commandRequest->overwrite;
+
+   if ((requestMsg->commonHeader.bodyLength +
+        requestMsg->commonHeader.headerLength) !=
+       (((uint64) sizeof(*commandRequest)) +
+        commandRequest->guestPathNameLength + 1)) {
+      ASSERT(0);
+      Debug("%s: Invalid request message received\n", __FUNCTION__);
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   if (0 == *guestPathName) {
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   if (File_Exists(guestPathName)) {
+      if (File_IsDirectory(guestPathName)) {
+         err = VIX_E_NOT_A_FILE;
+         goto abort;
+      } else if (!overwrite) {
+         err = VIX_E_FILE_ALREADY_EXISTS;
+         goto abort;
+      }
+   }
+
+   File_GetPathName(guestPathName, &dirName, &baseName);
+   if ((NULL == dirName) || (NULL == baseName)) {
+      err = VIX_E_FILE_NAME_INVALID;
+      goto abort;
+   }
+
+   if (!File_IsDirectory(dirName)) {
+      err = VIX_E_FILE_NAME_INVALID;
+      goto abort;
+   }
+
+#if defined(_WIN32)
+   /*
+    * Ideally, we just need to check if the user has proper write
+    * access to create a child inside the directory. This can be
+    * checked by calling FileIO_Access(). FileIO_Access works perfectly
+    * fine for linux platforms. But on Windows, FileIO_Access just
+    * checks the read-only attribute of the directory and returns the result
+    * based on that. This is not the proper way to check the write
+    * permissions.
+    *
+    * One other way to check the write access is to call CreateFile()
+    * with GENERIC_WRITE and OPEN_EXISTING flags. Check the documentation
+    * for CreateFile() at
+    * http://msdn.microsoft.com/en-us/library/aa363858%28v=VS.85%29.aspx.
+    * But this has got few limitations. CreateFile() doesn't return proper
+    * result when called for directories on NTFS systems.
+    * Checks the KB article available at
+    * http://support.microsoft.com/kb/810881.
+    *
+    * So, for windows, the best bet is to create an empty temporary file
+    * inside the directory and immediately unlink that. If creation is
+    * successful, it ensures that the user has proper write access for
+    * the directory.
+    *
+    * Since we are just checking the write access, there is no need to
+    * create the temporary file with the exact specified filename. Any name
+    * would be fine.
+    */
+   fd = File_MakeTempEx(dirName, baseName, &tempFilePath);
+
+   if (fd > 0) {
+      close(fd);
+   } else {
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      Debug("Unable to create a tmp file to test directory permissions,"
+            " errno is %d\n", errno);
+      goto abort;
+   }
+
+   free(tempFilePath);
+#else
+   /*
+    * We need to check if the user has write access to create
+    * a child inside the directory. Call FileIO_Access() to check
+    * for the proper write permissions for the directory.
+    */
+   res = FileIO_Access(dirName, FILEIO_ACCESS_WRITE);
+
+   if (FILEIO_SUCCESS != res) {
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      Debug("Unable to get access permissions for the directory: %s\n",
+            dirName);
+      goto abort;
+   }
+#endif
+
+abort:
+   free(baseName);
+   free(dirName);
+
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   return err;
+} // VixToolsInitiateFileTransferToGuest
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsListProcesses --
  *
  *
@@ -3672,6 +3825,12 @@ abort:
  *
  * VixToolsListFiles --
  *
+ *    This function is called to implement two opcodes i.e.
+ *    VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST and
+ *    VIX_COMMAND_LIST_FILES.
+ *
+ *    If the opcode is VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST,
+ *    then the specified filepath should not point to a directory.
  *
  * Return value:
  *    VixError
@@ -3716,6 +3875,17 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    GError *gerr = NULL;
 #endif
 
+   ASSERT(NULL != requestMsg);
+
+   if ((VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST != requestMsg->opCode) &&
+       (VIX_COMMAND_LIST_FILES != requestMsg->opCode)) {
+      ASSERT(0);
+      err = VIX_E_FAIL;
+      Debug("%s: Received a request with an invalid opcode: %d\n",
+            __FUNCTION__, requestMsg->opCode);
+      goto abort;
+   }
+
    listRequest = (VixMsgListFilesRequest *) requestMsg;
    offset = listRequest->offset;
    index = listRequest->index;
@@ -3759,6 +3929,17 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    }
 
    if (File_IsDirectory(dirPathName)) {
+      /*
+       * Ideally we should not overload VixToolsListFiles(). We should
+       * implement a separate function for implementing VIX_COMMAND_LIST_FILES
+       * and VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST. For now, adding
+       * this check is OK. But, we should revisit this later.
+       */
+      if (VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST == requestMsg->opCode) {
+         err = VIX_E_NOT_A_FILE;
+         goto abort;
+      }
+
       numFiles = File_ListDirectory(dirPathName, &fileNameList);
       if (numFiles < 0) {
          err = FoundryToolsDaemon_TranslateSystemErr();
@@ -5221,6 +5402,24 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
        */
 
       if (VIX_SUCCEEDED(err)) {
+
+         /*
+          * If the specified directory path doesn't exist or points to an
+          * existing regular file, then File_MakeTempEx2() returns different
+          * errors on Windows and Linux platforms. So, check for the proper
+          * filetype and return proper errors before calling
+          * File_MakeTempEx2().
+          */
+         if (!File_Exists(directoryPath)) {
+            err = VIX_E_FILE_NOT_FOUND;
+            goto abort;
+         }
+
+         if (File_IsFile(directoryPath)) {
+            err = VIX_E_NOT_A_FILE;
+            goto abort;
+         }
+
          fd = File_MakeTempEx2(directoryPath,
                                createTempFile,
                                VixToolsGetTempFileCreateNameFunc,
@@ -5247,6 +5446,23 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
          free(directoryPath);
          directoryPath = NULL;
          directoryPath = File_GetTmpDir(TRUE);
+      }
+
+      /*
+       * If the specified directory path doesn't exist or points to an
+       * existing regular file, then File_MakeTempEx2() returns different
+       * errors on Windows and Linux platforms. So, check for the proper
+       * filetype and return proper errors before calling
+       * File_MakeTempEx2().
+       */
+      if (!File_Exists(directoryPath)) {
+         err = VIX_E_FILE_NOT_FOUND;
+         goto abort;
+      }
+
+      if (File_IsFile(directoryPath)) {
+         err = VIX_E_NOT_A_FILE;
+         goto abort;
       }
 
       fd = File_MakeTempEx2(directoryPath,
@@ -6091,6 +6307,16 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
                                 VIX_TOOLS_CONFIG_API_CHANGE_FILE_ATTRS_NAME);
          break;
 
+      case VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_FROM_GUEST_NAME);
+         break;
+
+      case VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_TO_GUEST_NAME);
+         break;
+
       /*
        * None of these opcode have a matching config entry (yet),
        * so they can all share.
@@ -6232,6 +6458,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
+      case VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST:
       case VIX_COMMAND_LIST_FILES:
          err = VixToolsListFiles(requestMsg,
                                  maxResultBufferSize,
@@ -6384,6 +6611,11 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       case VIX_COMMAND_LIST_FILESYSTEMS:
          err = VixToolsListFileSystems(requestMsg, &resultValue);
          // resultValue is static. Do not free it.
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST:
+         err = VixToolsInitiateFileTransferToGuest(requestMsg);
          break;
 
       ////////////////////////////////////

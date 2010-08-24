@@ -155,12 +155,24 @@ VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
       char *cmd;
 
       if (File_IsFile(scripts[index].path)) {
-         cmd = Str_Asprintf(NULL, "\"%s\" %s", scripts[index].path, scriptOp);
-         if (cmd != NULL) {
-            scripts[index].proc = ProcMgr_ExecAsync(cmd, NULL);
+         if (op->state->scriptArg != NULL) {
+            cmd = Str_Asprintf(NULL, "\"%s\" %s \"%s\"", scripts[index].path,
+                               scriptOp, op->state->scriptArg);
+         } else {
+            cmd = Str_Asprintf(NULL, "\"%s\" %s", scripts[index].path,
+                               scriptOp);
          }
+         if (cmd != NULL) {
+            g_debug("Running script: %s\n", cmd);
+            scripts[index].proc = ProcMgr_ExecAsync(cmd, NULL);
+         } else {
+            g_debug("Failed to allocate memory to run script: %s\n",
+                    scripts[index].path);
+            scripts[index].proc = NULL;
+         }
+         vm_free(cmd);
 
-         if (cmd == NULL || scripts[index].proc == NULL) {
+         if (scripts[index].proc == NULL) {
             if (op->type == VMBACKUP_SCRIPT_FREEZE) {
                ret = -1;
                break;

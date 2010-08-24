@@ -756,6 +756,18 @@ struct VixMsgListFilesRequest {
 #include "vmware_pack_end.h"
 VixMsgListFilesRequest;
 
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandInitiateFileTransferToGuestRequest {
+   VixCommandRequestHeader header;
+
+   int32                   options;
+   uint32                  guestPathNameLength;
+   Bool                    overwrite;
+}
+#include "vmware_pack_end.h"
+VixCommandInitiateFileTransferToGuestRequest;
+
 
 /*
  * This is used to reply to several operations, like testing whether
@@ -2328,6 +2340,10 @@ enum {
 
    VIX_COMMAND_READ_ENV_VARIABLES               = 187,
 
+   VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST   = 188,
+
+   VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST     = 189,
+
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
     *
@@ -2338,7 +2354,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 188,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 190,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,

@@ -75,6 +75,9 @@ Vix_TranslateSystemError(int systemError) // IN
    case ERROR_BUFFER_OVERFLOW: 
       err = VIX_E_FILE_NOT_FOUND;
       break;
+   case ERROR_DIR_NOT_EMPTY:
+      err = VIX_E_DIRECTORY_NOT_EMPTY;
+      break;
    case ERROR_TOO_MANY_OPEN_FILES:
    case ERROR_NO_MORE_FILES:
    case ERROR_WRITE_FAULT:
@@ -138,14 +141,18 @@ Vix_TranslateSystemError(int systemError) // IN
    case EFBIG:
       err = VIX_E_FILE_TOO_BIG;
       break;
+   case ENOTEMPTY:
+      err = VIX_E_DIRECTORY_NOT_EMPTY;
+      break;
+   case ENOTDIR:
+      err = VIX_E_NOT_A_DIRECTORY;
+      break;
    case ETIMEDOUT:
    case EIO:
    case EMFILE:
    case ENFILE:
    case EMLINK:
    case ENOBUFS:
-   case ENOTDIR:
-   case ENOTEMPTY:
    case EROFS:
       Log("%s: system error = %d\n", __FUNCTION__,
                         systemError);

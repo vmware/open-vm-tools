@@ -98,6 +98,9 @@ VixError Vix_TranslateCOMError(HRESULT comError);
 enum {
    VIX_E_OP_NOT_SUPPORTED_ON_NON_VMWARE_VM         = 3038,
 
+   /* File Errors */
+   VIX_E_DIRECTORY_NOT_EMPTY                       = 20006,
+
    /* Reg Errors*/
    VIX_E_REG_INCORRECT_VALUE_TYPE                  = 25000
    /* WARNING. Do not exceed 2**16 */

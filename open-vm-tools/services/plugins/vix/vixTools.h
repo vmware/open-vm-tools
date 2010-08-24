@@ -102,13 +102,6 @@ void VixToolsUnimpersonateUser(void *userToken);
 
 void VixToolsLogoutUser(void *userToken);
 
-#ifdef _WIN32
-VixError VixToolsGetUserTmpDir(void *userToken,
-                               char **tmpDirPath);
-
-Bool VixToolsUserIsMemberOfAdministratorGroup(VixCommandRequestHeader *requestMsg);
-#endif // _WIN32
-
 #endif /* __VIX_TOOLS_H__ */
 
 

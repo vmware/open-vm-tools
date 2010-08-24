@@ -90,6 +90,9 @@
    #define PRODUCT_VERSION    1,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VLICENSE)
    #define PRODUCT_VERSION    1,1,2,PRODUCT_BUILD_NUMBER_NUMERIC
+#elif defined(VMX86_VPX)
+   /* this should be kept in sync with the corresponding vpx branch. */
+   #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    #define PRODUCT_VERSION    3,1,0,PRODUCT_BUILD_NUMBER_NUMERIC  /* PLAYER_VERSION_NUMBER below has to match this */
 #endif
@@ -118,7 +121,7 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
-#define VIE_FILEVERSION 3,2,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VIE_FILEVERSION 5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * This string can be a little more "free form".  The license
@@ -209,13 +212,14 @@
 #define FUSION_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "4.0.0"
+#define SYSIMAGE_VERSION "5.0.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
-#define VPX_VERSION "e.x.p"
-#define WBC_VERSION "e.x.p"
+#define VIM_VERSION "5.0.0"
+#define VPX_VERSION "5.0.0"
+#define WBC_VERSION "5.0.0"
 #define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "1.10.0"
 #define FOUNDRY_FILE_VERSION 1,10,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -300,7 +304,11 @@
 #elif defined(VMX86_API)
 #  define PRODUCT_VERSION_NUMBER API_SCRIPTING_VERSION
 #elif defined(VMX86_VPX)
-#  define PRODUCT_VERSION_NUMBER VPX_VERSION
+#  if defined(XVP)
+#     define PRODUCT_VERSION_NUMBER XVP_VERSION
+#  else
+#     define PRODUCT_VERSION_NUMBER VPX_VERSION
+#  endif
 #elif defined(VMX86_WBC)
 #  define PRODUCT_VERSION_NUMBER WBC_VERSION
 #elif defined(VMX86_SDK)
@@ -371,7 +379,7 @@
 #      define PRODUCT_LICENSE_VERSION "7.0"
 #    endif
 #  elif defined(VMX86_VPX)
-#    define PRODUCT_LICENSE_VERSION "1.0"
+#    define PRODUCT_LICENSE_VERSION "5.0"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)

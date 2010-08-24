@@ -35,6 +35,7 @@
 
 #include "vmBackupInt.h"
 
+#include "dynxdr.h"
 #include <glib-object.h>
 #include <gmodule.h>
 #include "guestApp.h"
@@ -42,8 +43,12 @@
 #include "strutil.h"
 #include "util.h"
 #include "vmBackupSignals.h"
+#if defined(_WIN32)
+#include "vmware/guestrpc/guestQuiesce.h"
+#endif
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
+#include "xdrutil.h"
 
 #if !defined(__APPLE__)
 #include "embed_version.h"
@@ -205,6 +210,7 @@ VmBackupFinalize(void)
    }
 
    gBackupState->provider->release(gBackupState->provider);
+   g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
    g_free(gBackupState);
@@ -247,7 +253,8 @@ VmBackupStartScripts(VmBackupScriptType type)
          NOT_REACHED();
    }
 
-   if (!VmBackup_SetCurrentOp(gBackupState,
+   if (gBackupState->execScripts &&
+       !VmBackup_SetCurrentOp(gBackupState,
                               VmBackup_NewScriptOp(type, gBackupState),
                               NULL,
                               opName)) {
@@ -530,29 +537,56 @@ VmBackupEnableSync(void)
 }
 
 
-/* RpcIn callbacks. */
+/**
+ * Get boolean entry for the key from the config file.
+ *
+ * @param[in]  config        Config file to read the key from.
+ * @param[in]  key           Key to look for in the config file.
+ * @param[in]  defaultValue  Default value if the key is not found.
+ */
+
+static gboolean
+VmBackupConfigGetBoolean(GKeyFile *config,
+                         const char *key,
+                         gboolean defValue)
+{
+   GError *err = NULL;
+   gboolean value = defValue;
+
+   if (key != NULL) {
+      value = g_key_file_get_boolean(config,
+                                     "vmbackup",
+                                     key,
+                                     &err);
+      if (err != NULL) {
+         g_clear_error(&err);
+         value = defValue;
+      }
+   }
+   return value;
+}
 
 
 /**
- * Handler for the "vmbackup.start" message. Starts the "freeze" scripts
- * unless there's another backup operation going on or some other
- * unexpected error occurs.
+ * Starts the quiesce operation according to the supplied specification unless
+ * some unexpected error occurs.
  *
- * @param[in]  data     RPC data.
+ * @param[in]  data      RPC data.
+ * @param[in]  forceVss  Only allow Vss quiescing or no quiescing.
  *
  * @return TRUE on success.
  */
 
 static gboolean
-VmBackupStart(RpcInData *data)
+VmBackupStartCommon(RpcInData *data,
+                    gboolean forceVss)
 {
    GError *err = NULL;
-   guint timeout;
    ToolsAppCtx *ctx = data->appCtx;
    VmBackupSyncProvider *provider = NULL;
 
    size_t i;
-   
+
    /* List of available providers, in order of preference for loading. */
    struct SyncProvider {
       VmBackupSyncProvider *(*ctor)(void);
@@ -565,31 +599,32 @@ VmBackupStart(RpcInData *data)
       { VmBackup_NewNullProvider, NULL },
    };
 
-   g_debug("*** %s\n", __FUNCTION__);
-   if (gBackupState != NULL) {
-      return RPCIN_SETRETVALS(data, "Backup operation already in progress.", FALSE);
-   }
-
-   /* Instantiate the sync provider. */
-   for (i = 0; i < ARRAYSIZE(providers); i++) {
-      gboolean enabled = TRUE;
-      struct SyncProvider *sp = &providers[i];
-
-      if (sp->cfgEntry != NULL) {
-         enabled = g_key_file_get_boolean(ctx->config,
-                                          "vmbackup",
-                                          sp->cfgEntry,
-                                          &err);
-         if (err != NULL) {
-            g_clear_error(&err);
-            enabled = TRUE;
-         }
+   if (forceVss) {
+      if (gBackupState->quiesceApps || gBackupState->quiesceFS) {
+          /* If quiescing is requested, only allow VSS provider */
+#if defined(_WIN32)
+          if (VmBackupConfigGetBoolean(ctx->config, "enableVSS", TRUE)) {
+             provider = VmBackup_NewVssProvider();
+          }
+#endif
+      } else {
+         /* If no quiescing is requested only allow null provider */
+         provider = VmBackup_NewNullProvider();
       }
+      if (provider == NULL) {
+         g_warning("Requested quiescing cannot be initialized.");
+         goto error;
+      }
+   } else {
+      /* Instantiate the sync provider. */
+      for (i = 0; i < ARRAYSIZE(providers); i++) {
+         struct SyncProvider *sp = &providers[i];
 
-      if (enabled) {
-         provider = sp->ctor();
-         if (provider != NULL) {
-            break;
+         if (VmBackupConfigGetBoolean(ctx->config, sp->cfgEntry, TRUE)) {
+            provider = sp->ctor();
+            if (provider != NULL) {
+               break;
+            }
          }
       }
    }
@@ -597,24 +632,18 @@ VmBackupStart(RpcInData *data)
    ASSERT(provider != NULL);
 
    /* Instantiate the backup state and start the operation. */
-   gBackupState = g_new0(VmBackupState, 1);
    gBackupState->ctx = data->appCtx;
    gBackupState->pollPeriod = 1000;
    gBackupState->machineState = VMBACKUP_MSTATE_IDLE;
    gBackupState->provider = provider;
-
-   if (data->argsSize > 0) {
-      int generateManifests = 0;
-      int index = 0;
-
-      if (StrUtil_GetNextIntToken(&generateManifests, &index, data->args, " ")) {
-         gBackupState->generateManifests = generateManifests;
-      }
-
-      if (data->args[index] != '\0') {
-         gBackupState->volumes = g_strndup(data->args + index, data->argsSize - index);
-      }
-   }
+   g_debug("Using quiesceApps = %d, quiesceFS = %d, allowHWProvider = %d,"
+           "execScripts = %d, scriptArg = %s, timeout = %u\n",
+           gBackupState->quiesceApps, gBackupState->quiesceFS,
+           gBackupState->allowHWProvider, gBackupState->execScripts,
+           (gBackupState->scriptArg != NULL) ? gBackupState->scriptArg : "",
+           gBackupState->timeout);
+   g_debug("Quiescing volumes: %s",
+           (gBackupState->volumes) ? gBackupState->volumes : "(null)");
 
    gBackupState->configDir = GuestApp_GetConfPath();
    if (gBackupState->configDir == NULL) {
@@ -636,20 +665,27 @@ VmBackupStart(RpcInData *data)
     * anyone wants to play with it), so that we abort any ongoing operation
     * if we also hit that timeout.
     *
+    * First check if the timeout is specified by the RPC command, if not,
+    * check the tools.conf file, otherwise use the default.
+    *
     * See bug 506106.
     */
-   timeout = (guint) g_key_file_get_integer(gBackupState->ctx->config,
-                                            "vmbackup",
-                                            "timeout",
-                                            &err);
-   if (err != NULL) {
-      g_clear_error(&err);
-      timeout = 15 * 60;
+   if (gBackupState->timeout == 0) {
+      gBackupState->timeout = (guint) g_key_file_get_integer(
+                                               gBackupState->ctx->config,
+                                               "vmbackup",
+                                               "timeout",
+                                               &err);
+      if (err != NULL) {
+         g_clear_error(&err);
+         gBackupState->timeout = 15 * 60;
+      }
    }
 
    /* Treat "0" as no timeout. */
-   if (timeout != 0) {
-      gBackupState->abortTimer = g_timeout_source_new_seconds(timeout);
+   if (gBackupState->timeout != 0) {
+      gBackupState->abortTimer =
+          g_timeout_source_new_seconds(gBackupState->timeout);
       VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
                                gBackupState->abortTimer,
                                VmBackupAbortTimer,
@@ -661,11 +697,129 @@ VmBackupStart(RpcInData *data)
    return RPCIN_SETRETVALS(data, "", TRUE);
 
 error:
-   gBackupState->provider->release(gBackupState->provider);
+   if (gBackupState->provider) {
+      gBackupState->provider->release(gBackupState->provider);
+   }
+   g_free(gBackupState->scriptArg);
+   g_free(gBackupState->volumes);
    g_free(gBackupState);
+   gBackupState = NULL;
    return RPCIN_SETRETVALS(data, "Error initializing backup.", FALSE);
 }
 
+
+/* RpcIn callbacks. */
+
+
+/**
+ * Handler for the "vmbackup.start" message. Starts the "freeze" scripts
+ * unless there's another backup operation going on or some other
+ * unexpected error occurs.
+ *
+ * @param[in]  data     RPC data.
+ *
+ * @return TRUE on success.
+ */
+
+static gboolean
+VmBackupStart(RpcInData *data)
+{
+   g_debug("*** %s\n", __FUNCTION__);
+   if (gBackupState != NULL) {
+      return RPCIN_SETRETVALS(data, "Backup operation already in progress.", FALSE);
+   }
+   gBackupState = g_new0(VmBackupState, 1);
+   if (data->argsSize > 0) {
+      int generateManifests = 0;
+      uint32 index = 0;
+
+      if (StrUtil_GetNextIntToken(&generateManifests, &index, data->args, " ")) {
+         gBackupState->generateManifests = generateManifests;
+      }
+      gBackupState->quiesceApps = TRUE;
+      gBackupState->quiesceFS = TRUE;
+      gBackupState->allowHWProvider = TRUE;
+      gBackupState->execScripts = TRUE;
+      gBackupState->scriptArg = NULL;
+      gBackupState->timeout = 0;
+
+      /* get volume uuids if provided */
+      if (data->args[index] != '\0') {
+         gBackupState->volumes = g_strndup(data->args + index,
+                                           data->argsSize - index);
+      }
+   }
+   return VmBackupStartCommon(data, FALSE);
+}
+
+#if defined(_WIN32)
+
+/**
+ * Handler for the "vmbackup.startWithOpts" message. Starts processing the
+ * quiesce operation according to the supplied specification unless there's
+ * another backup operation going on or some other unexpected error occurs.
+ *
+ * . If createManifest is true, the guest generates a manifest about the
+ *   application involved during quiescing.
+ * . If quiesceApps is true, the guest involves applications during
+ *   quiescing. If quiesceFS is true, the guest performs file system
+ *   quiescing. If both quiesceApps and quiesceFS are true, the guest
+ *   falls back to file system quiescing if application quiescing is not
+ *   supported in the guest. If both quiesceApps and quiesceFS are false,
+ *   the guest performs no quiescing but will still run the custom scripts
+ *   provided execScripts is true.
+ * . If writableSnapshot is true, the guest assumes that writable snapshot
+ *   based quiescing can be performed.
+ * . If execScripts is true, the guest calls pre-freeze and post-thaw
+ *   scripts before and after quiescing.
+ * . The scriptArg string is passed to the pre-freeze and post-thaw scripts
+ *   as an argument so that the scripts can be configured to perform
+ *   actions based this argument.
+ * . The timeout in seconds overrides the default timeout of 15 minutes
+ *   that the guest uses to abort a long quiesce operation. If the timeout
+ *   is 0, the default timeout is used.
+ * . The volumes argument is a list of diskUuids separated by space.
+ *
+ * @param[in]  data     RPC data.
+ *
+ * @return TRUE on success.
+ */
+
+static gboolean
+VmBackupStartWithOpts(RpcInData *data)
+{
+   GuestQuiesceParams *params;
+   GuestQuiesceParamsV1 *paramsV1;
+   gboolean retval;
+
+   g_debug("*** %s\n", __FUNCTION__);
+   if (gBackupState != NULL) {
+      return RPCIN_SETRETVALS(data, "Backup operation already in progress.",
+                              FALSE);
+   }
+   params = (GuestQuiesceParams *)data->args;
+   if (params->ver != GUESTQUIESCEPARAMS_V1) {
+      g_warning("%s: Incompatible quiesce parameter version. \n", __FUNCTION__);
+      return RPCIN_SETRETVALS(data, "Incompatible quiesce parameter version",
+                              FALSE);
+   }
+   gBackupState = g_new0(VmBackupState, 1);
+   paramsV1 = params->GuestQuiesceParams_u.guestQuiesceParamsV1;
+   gBackupState->generateManifests = paramsV1->createManifest;
+   gBackupState->quiesceApps = paramsV1->quiesceApps;
+   gBackupState->quiesceFS = paramsV1->quiesceFS;
+   gBackupState->allowHWProvider = paramsV1->writableSnapshot;
+   gBackupState->execScripts = paramsV1->execScripts;
+   gBackupState->scriptArg = g_strndup(paramsV1->scriptArg,
+                                       strlen(paramsV1->scriptArg));
+   gBackupState->timeout = paramsV1->timeout;
+   gBackupState->volumes = g_strndup(paramsV1->diskUuids,
+                                     strlen(paramsV1->diskUuids));
+   retval = VmBackupStartCommon(data, TRUE);
+   return retval;
+}
+
+#endif
 
 /**
  * Aborts the current operation if one is active, and stops the backup
@@ -809,6 +963,11 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    RpcChannelCallback rpcs[] = {
       { VMBACKUP_PROTOCOL_START, VmBackupStart, NULL, NULL, NULL, 0 },
+#if defined(_WIN32)
+      /* START_WITH_OPTS command supported only on Windows for now */
+      { VMBACKUP_PROTOCOL_START_WITH_OPTS, VmBackupStartWithOpts, NULL,
+                    xdr_GuestQuiesceParams, NULL, sizeof (GuestQuiesceParams) },
+#endif
       { VMBACKUP_PROTOCOL_ABORT, VmBackupAbort, NULL, NULL, NULL, 0 },
       { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
    };
