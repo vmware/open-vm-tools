@@ -122,6 +122,8 @@ ProcMgr_ListProcesses(void)
       FileIOResult res;
 
       errno = 0;
+      FileIO_Invalidate(&psInfoFd);
+
       ent = readdir(dir);
       if (ent == NULL) {
          if (errno == 0) {
@@ -288,7 +290,9 @@ ExtractCommandLineFromAddressSpaceFile(psinfo_t *procInfo) //IN: psinfo struct
    DynBufArray args;
    pid_t pid;
 
+   FileIO_Invalidate(&asFd);
    pid = procInfo->pr_pid;
+
    if (Str_Snprintf(tempPath,
                 sizeof tempPath,
                 "/proc/%"FMT64"d/as",
