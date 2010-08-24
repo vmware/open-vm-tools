@@ -30,8 +30,7 @@
 #include "request.h"
 #include "requestInt.h"
 #include "os.h"
-
-#include "hgfsBd.h"
+#include "channel.h"
 
 
 /*
@@ -47,6 +46,7 @@ OS_THREAD_T hgfsKReqWorkerThread;
  * See requestInt.h.
  */
 HgfsKReqWState hgfsKReqWorkerState;
+HgfsTransportChannel *gHgfsChannel;
 
 
 /*
@@ -77,11 +77,11 @@ HgfsKReqWorker(void *arg)
    DblLnkLst_Links *currNode, *nextNode;
    HgfsKReqWState *ws = (HgfsKReqWState *)arg;
    HgfsKReqObject *req;
-   RpcOut *hgfsRpcOut = NULL;
-   char const *replyPacket;
    int ret = 0;
 
    ws->running = TRUE;
+
+   gHgfsChannel = HgfsGetBdChannel();
 
    for (;;) {
       /*
@@ -93,7 +93,7 @@ HgfsKReqWorker(void *arg)
       os_mutex_lock(hgfsKReqWorkItemLock);
 
       while (!ws->exit && !DblLnkLst_IsLinked(&hgfsKReqWorkItemList)) {
-	 os_cv_wait(&hgfsKReqWorkItemCv, hgfsKReqWorkItemLock);
+         os_cv_wait(&hgfsKReqWorkItemCv, hgfsKReqWorkItemLock);
       }
 
       if (ws->exit) {
@@ -126,12 +126,14 @@ HgfsKReqWorker(void *arg)
       os_mutex_lock(req->stateLock);
       switch (req->state) {
       case HGFS_REQ_SUBMITTED:
-         if (!HgfsBd_OpenBackdoor(&hgfsRpcOut)) {
-            req->state = HGFS_REQ_ERROR;
-            os_cv_signal(&req->stateCv);
-            os_mutex_unlock(req->stateLock);
-	    os_mutex_unlock(hgfsKReqWorkItemLock);
-            goto done;
+         if (gHgfsChannel->status != HGFS_CHANNEL_CONNECTED) {
+            if (!gHgfsChannel->ops.open(gHgfsChannel)) {
+               req->state = HGFS_REQ_ERROR;
+               os_cv_signal(&req->stateCv);
+               os_mutex_unlock(req->stateLock);
+               os_mutex_unlock(hgfsKReqWorkItemLock);
+               goto done;
+            }
          }
          break;
       case HGFS_REQ_ABANDONED:
@@ -150,25 +152,7 @@ HgfsKReqWorker(void *arg)
        */
       os_mutex_unlock(hgfsKReqWorkItemLock);
 
-      ret = HgfsBd_Dispatch(hgfsRpcOut, req->payload, &req->payloadSize,
-                            &replyPacket);
-
-      /*
-       * We have a response.  (Maybe.)  Re-lock the request, update its state,
-       * etc.
-       */
-
-      os_mutex_lock(req->stateLock);
-
-      if ((ret == 0) && (req->state == HGFS_REQ_SUBMITTED)) {
-         bcopy(replyPacket, req->payload, req->payloadSize);
-         req->state = HGFS_REQ_COMPLETED;
-      } else {
-         req->state = HGFS_REQ_ERROR;
-      }
-
-      os_cv_signal(&req->stateCv);
-      os_mutex_unlock(req->stateLock);
+      ret = gHgfsChannel->ops.send(gHgfsChannel, req);
 
       if (ret != 0) {
          /*
@@ -176,7 +160,7 @@ HgfsKReqWorker(void *arg)
           * now. We do this because subsequent requests deserve a chance to
           * reopen it.
           */
-         HgfsBd_CloseBackdoor(&hgfsRpcOut);
+         gHgfsChannel->ops.close(gHgfsChannel);
       }
 
 done:
@@ -213,9 +197,6 @@ done:
 
    ws->running = FALSE;
 
-   if (hgfsRpcOut != NULL ) {
-      HgfsBd_CloseBackdoor(&hgfsRpcOut);
-   }
-
+   gHgfsChannel->ops.close(gHgfsChannel);
    os_thread_exit(0);
 }

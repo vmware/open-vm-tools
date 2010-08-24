@@ -62,10 +62,10 @@ OS_CV_T hgfsKReqWorkItemCv;
  * Local functions (prototypes)
  */
 
-   static int   HgfsKReqZCtor(void *mem, int size, void *arg, int flags);
-   static void  HgfsKReqZDtor(void *mem, int size, void *arg);
-   static int   HgfsKReqZInit(void *mem, int size, int flags);
-   static void  HgfsKReqZFini(void *mem, int size);
+static int   HgfsKReqZCtor(void *mem, int size, void *arg, int flags);
+static void  HgfsKReqZDtor(void *mem, int size, void *arg);
+static int   HgfsKReqZInit(void *mem, int size, int flags);
+static void  HgfsKReqZFini(void *mem, int size);
 
 /*
  * Global functions (definitions)
@@ -719,10 +719,7 @@ HgfsKReqZInit(void *mem,     // IN: Pointer to the allocated object
    HgfsKReqObject *req = (HgfsKReqObject *)mem;
    ASSERT(size == sizeof *req);
 
-   /*
-    * Zero out the object.  (Do NOT pass UMA_ZEROINIT to uma_zcreate, as
-    * that will override this routine and zero everything -after- us.)
-    */
+   /* Zero out the object. */
    bzero(req, sizeof *req);
 
    /*
@@ -746,8 +743,6 @@ HgfsKReqZInit(void *mem,     // IN: Pointer to the allocated object
 
    /* Clear packet of request before allocating to clients. */
    bzero(&req->__rpc_packet, sizeof req->__rpc_packet);
-   bcopy(HGFS_SYNC_REQREP_CLIENT_CMD, req->__rpc_packet._command,
-         HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
 
    return 0;
 }
@@ -817,9 +812,6 @@ HgfsKReqZCtor(void *mem,     // IN: Pointer to memory allocated to user
    /* Initialize state & reference count. */
    req->state = HGFS_REQ_ALLOCATED;
    req->refcnt = 1;
-
-   ASSERT(!strncmp(req->__rpc_packet._command, HGFS_SYNC_REQREP_CLIENT_CMD, HGFS_SYNC_REQREP_CLIENT_CMD_LEN));
-
    return 0;
 }
 
