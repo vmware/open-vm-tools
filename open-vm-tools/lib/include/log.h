@@ -169,7 +169,9 @@ void GuestLog_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 #define LOG_DEFAULT_KEEPOLD 3
 #endif
 
-#define LOG_NO_BPS_LIMIT        0xFFFFFFFF
+#define LOG_NO_BPS_LIMIT             0xFFFFFFFF
+#define LOG_NO_ROTATION_SIZE         0
+#define LOG_NO_THROTTLE_THRESHOLD    0
 
 #ifdef VMX86_RELEASE
 #define LOG_DEFAULT_THROTTLE_BPS       1000
