@@ -328,11 +328,13 @@ HgfsVmciChannelCompleteRequest(uint64 id) // IN: Request ID
    /* Reference is taken here */
    req = HgfsTransportGetPendingRequest(id);
    if (!req) {
+      LOG(0, (KERN_WARNING "No request with id %"FMT64"u \n", id));
       goto exit;
    }
 
    transportStatus = (HgfsVmciTransportStatus *)req->buffer;
    if (transportStatus->status != HGFS_TS_IO_COMPLETE) {
+      LOG(0, (KERN_WARNING "Request not completed with id %"FMT64"u \n", id));
       goto exit;
    }
 
@@ -432,6 +434,7 @@ HgfsVmciChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 
    ASSERT(channel->status == HGFS_CHANNEL_NOTCONNECTED);
    ASSERT(channel->priv == NULL);
+   memset(&gHgfsShmemPages, 0, sizeof gHgfsShmemPages);
 
    if (USE_VMCI == 0) {
       goto error;
@@ -454,13 +457,13 @@ HgfsVmciChannelOpen(HgfsTransportChannel *channel) // IN: Channel
       goto error;
    }
 
-   gHgfsShmemPages.list = kmalloc(sizeof gHgfsShmemPages.list * HGFS_VMCI_SHMEM_PAGES,
+   gHgfsShmemPages.list = kmalloc(sizeof *gHgfsShmemPages.list * HGFS_VMCI_SHMEM_PAGES,
                                   GFP_KERNEL);
    if (!gHgfsShmemPages.list) {
       goto error;
    }
 
-   memset(gHgfsShmemPages.list, 0, sizeof gHgfsShmemPages.list * HGFS_VMCI_SHMEM_PAGES);
+   memset(gHgfsShmemPages.list, 0, sizeof *gHgfsShmemPages.list * HGFS_VMCI_SHMEM_PAGES);
 
    for (i = 0; i < HGFS_VMCI_SHMEM_PAGES; i++) {
       gHgfsShmemPages.list[i].va = __get_free_page(GFP_KERNEL);
@@ -482,6 +485,10 @@ HgfsVmciChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 
    ret = HgfsVmciChannelPassGuestPages(channel);
    if (!ret) {
+      for (i = 0; i < gHgfsShmemPages.totalPageCount; i++) {
+         LOG(1, (KERN_WARNING "Freeing pages\n"));
+         free_page(gHgfsShmemPages.list[i].va);
+      }
       LOG(1, (KERN_WARNING "Failed to pass pages to the guest %d\n", ret));
       goto error;
    }
@@ -538,6 +545,12 @@ HgfsVmciChannelTerminateSession(HgfsTransportChannel *channel) {
    if ((ret = VMCIDatagram_Send(dg)) < VMCI_SUCCESS) {
       if (ret == HGFS_VMCI_TRANSPORT_ERROR) {
          LOG(0, (KERN_WARNING "HGFS Transport error occured. Don't blame VMCI\n"));
+      }
+      LOG(0, (KERN_WARNING "Cannot communicate with Server.\n"));
+   } else {
+      int i;
+      for (i = 0; i < gHgfsShmemPages.totalPageCount; i++) {
+         free_page(gHgfsShmemPages.list[i].va);
       }
    }
 
