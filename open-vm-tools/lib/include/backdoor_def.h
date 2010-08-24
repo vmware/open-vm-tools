@@ -159,9 +159,8 @@
 #define BDOOR_PSHARE_HINTS_TYPE(ecx)   (((ecx) >> 16) & 0x1)
 
 /* Version of backdoor pshare hints protocol */
-#define BDOOR_PSHARE_HINTS_VERSION          1
-#define BDOOR_PSHARE_HINTS_GUEST_VER(ecx)   (((ecx) >> 24) & 0x7f)
-#define BDOOR_PSHARE_HINTS_HOST_VER(ecx)    (((ecx) >> 17) & 0x7f)
+#define BDOOR_PSHARE_HINTS_VERSION     1
+#define BDOOR_PSHARE_HINTS_VER(ecx)    (((ecx) >> 17) & 0x7f)
 
 /* Nesting control operations */
 
