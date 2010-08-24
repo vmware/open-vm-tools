@@ -167,7 +167,7 @@ EXTERN int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
 EXTERN char *Msg_GetString(const char *idString);
 EXTERN char *Msg_GetStringSafe(const char *idString);
 EXTERN char *Msg_GetPlainButtonText(const char *idString);
-EXTERN const char *Msg_GetLocale(void);
+EXTERN char *Msg_GetLocale(void);
 EXTERN void Msg_SetLocale(const char *locale, const char *binaryName);
 EXTERN void Msg_SetLocaleEx(const char *locale, const char *binaryName,
                             const char *baseDirPath);
@@ -189,6 +189,7 @@ EXTERN MsgList *Msg_GetMsgListAndReset(void);
 EXTERN char *Msg_LocalizeList(const MsgList *messages);
 EXTERN void Msg_Reset(Bool log);
 EXTERN Bool Msg_Present(void);
+EXTERN void Msg_ExitThread(void);
 EXTERN void Msg_Exit(void);
 
 
@@ -225,7 +226,10 @@ EXTERN void Msg_Exit(void);
  */
 
 EXTERN void Msg_SetCallback(MsgCallback *cb);
+EXTERN void Msg_SetThreadCallback(MsgCallback *cb);
+
 EXTERN void Msg_GetCallback(MsgCallback *cb);
+EXTERN void Msg_GetThreadCallback(MsgCallback *cb);
 
 
 /*
