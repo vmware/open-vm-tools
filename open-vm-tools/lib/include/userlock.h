@@ -92,6 +92,8 @@ Bool MXUser_ControlRecLock(MXUserRecLock *lock,
                            uint32 command,
                            ...);
 
+void MXUser_DumpRecLock(MXUserRecLock *lock);
+
 MXUserCondVar *MXUser_CreateCondVarRecLock(MXUserRecLock *lock);
 
 void MXUser_WaitCondVarRecLock(MXUserRecLock *lock,

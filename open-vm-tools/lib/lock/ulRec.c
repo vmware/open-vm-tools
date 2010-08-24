@@ -133,7 +133,7 @@ MXUserStatsActionRec(MXUserHeader *header)  // IN:
  *
  * MXUserDumpRecLock --
  *
- *      Dump an recursive lock.
+ *      Dump a recursive lock.
  *
  * Results:
  *      A dump.
@@ -157,6 +157,13 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
 
    if (lock->vmmLock == NULL) {
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
+
+#if defined(_WIN32)
+      Warning("\towner %u\n", lock->recursiveLock.nativeThreadID);
+#else
+      Warning("\towner 0x%p\n",
+              (void *)(uintptr_t)lock->recursiveLock.nativeThreadID);
+#endif
 
 #if defined(MXUSER_DEBUG)
       Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
@@ -780,6 +787,31 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 
    return MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
                             msecWait);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_DumpRecLock --
+ *
+ *      Dump a recursive lock.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
+{
+   ASSERT(lock && (lock->header.signature == MXUSER_REC_SIGNATURE));
+
+   MXUserDumpRecLock(&lock->header);
 }
 
 
