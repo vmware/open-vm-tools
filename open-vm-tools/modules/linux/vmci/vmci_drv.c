@@ -73,8 +73,12 @@ static int vmci_probe_device(struct pci_dev *pdev,
 static void vmci_remove_device(struct pci_dev* pdev);
 static int vmci_open(struct inode *inode, struct file *file);
 static int vmci_close(struct inode *inode, struct file *file);
-static int vmci_ioctl(struct inode *inode, struct file *file,
+static int vmci_ioctl(struct inode *dummy, struct file *file,
                       unsigned int cmd, unsigned long arg);
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
+static long vmci_unlocked_ioctl(struct file *file,
+                                unsigned int cmd, unsigned long arg);
+#endif
 static unsigned int vmci_poll(struct file *file, poll_table *wait);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
 static compat_irqreturn_t vmci_interrupt(int irq, void *dev_id,
@@ -97,7 +101,14 @@ static struct file_operations vmci_ops = {
    .owner   = THIS_MODULE,
    .open    = vmci_open,
    .release = vmci_close,
+#ifdef HAVE_UNLOCKED_IOCTL
+   .unlocked_ioctl = vmci_unlocked_ioctl,
+#else
    .ioctl   = vmci_ioctl,
+#endif
+#ifdef HAVE_COMPAT_IOCTL
+   .compat_ioctl = vmci_unlocked_ioctl,
+#endif
    .poll    = vmci_poll,
 };
 
@@ -656,7 +667,7 @@ vmci_close(struct inode *inode,  // IN
  */
 
 static int
-vmci_ioctl(struct inode *inode,  // IN
+vmci_ioctl(struct inode *dummy,  // IN: NULL or inode; do not use
            struct file *file,    // IN
            unsigned int cmd,     // IN
            unsigned long arg)    // IN
@@ -665,13 +676,17 @@ vmci_ioctl(struct inode *inode,  // IN
    return -ENOTTY;
 #else
    int retval;
-   VMCIGuestDeviceHandle *devHndl =
-      (VMCIGuestDeviceHandle *) file->private_data;
+   VMCIGuestDeviceHandle *devHndl = file->private_data;
 
    if (devHndl == NULL) {
       return -EINVAL;
    }
 
+   /*
+    * When adding new ioctls make sure that their data structures are same
+    * for i386 and x86_64 architectures, as this handler is used for both ia32
+    * and x86_64 ioctls.
+    */
    switch (cmd) {
    case IOCTL_VMCI_CREATE_PROCESS: {
       if (devHndl->objType != VMCIOBJ_NOT_SET) {
@@ -729,7 +744,7 @@ vmci_ioctl(struct inode *inode,  // IN
 
    case IOCTL_VMCI_DATAGRAM_SEND: {
       VMCIDatagramSendRecvInfo sendInfo;
-      VMCIDatagram *dg = NULL;
+      VMCIDatagram *dg;
 
       if (devHndl->objType != VMCIOBJ_DATAGRAM_PROCESS) {
          printk("VMCI: Ioctl %d only valid for process datagram handle.\n",
@@ -831,6 +846,39 @@ vmci_ioctl(struct inode *inode,  // IN
    return retval;
 #endif
 }
+
+
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * vmci_unlocked_ioctl --
+ *
+ *      IOCTL interface to device.
+ *
+ * Results:
+ *      Negative error code, or per-ioctl result.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static long
+vmci_unlocked_ioctl(struct file *filp,    // IN:
+                    u_int iocmd,          // IN:
+                    unsigned long ioarg)  // IN:
+{
+   long err;
+
+   lock_kernel();
+   err = vmci_ioctl(NULL, filp, iocmd, ioarg);
+   unlock_kernel();
+
+   return err;
+}
+#endif
 
 
 /*
