@@ -2176,51 +2176,6 @@ FileIO_PrivilegedPosixOpen(ConstUnicode pathName,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileIO_FDToStream
- *
- *      Return a FILE * stream equivalent to the given (POSIX) file descriptor.
- *      This is the logical equivalent of Posix dup() then fdopen().
- *
- *      Caller should fclose the returned descriptor when finished.
- *
- * Results:
- *      !NULL  A FILE * associated with the file associated with the fd
- *      NULL   Failure
- *
- * Side effects:
- *      New fd allocated.
- *
- *-----------------------------------------------------------------------------
- */
-
-
-FILE *
-FileIO_FDToStream(int fd,            // IN:
-                  const char *mode,  // IN:
-                  Bool textMode)     // IN: unused
-{
-   int dupFD;
-   FILE *stream;
-
-   dupFD = dup(fd);
-
-   if (dupFD == -1) {
-      return NULL;
-   }
-
-   stream = fdopen(dupFD, mode);
-
-   if (stream == NULL) {
-      close(dupFD);
-   }
-
-   return stream;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * FileIO_DescriptorToStream
  *
  *      Return a FILE * stream equivalent to the given FileIODescriptor.
@@ -2242,8 +2197,15 @@ FILE *
 FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
                           Bool textMode)            // IN: unused
 {
-   int tmpFlags;
+   int dupFD;
    const char *mode;
+   int tmpFlags;
+   FILE *stream;
+
+   dupFD = dup(fdesc->posix);
+   if (dupFD == -1) {
+      return NULL;
+   }
 
    /* The file you pass us should be valid and opened for *something* */
    ASSERT(FileIO_IsValid(fdesc));
@@ -2258,7 +2220,13 @@ FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
       mode = "r";
    }
 
-   return FileIO_FDToStream(fdesc->posix, mode, textMode);
+   stream = fdopen(dupFD, mode);
+
+   if (stream == NULL) {
+      close(dupFD);
+   }
+
+   return stream;
 }
 
 
