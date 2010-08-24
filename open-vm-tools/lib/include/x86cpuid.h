@@ -1036,9 +1036,8 @@ CPUID_AMDCoresPerPackage(uint32 v) /* %ecx from CPUID with %eax=0x80000008. */
  * Hypervisor CPUID space is 0x400000XX.
  */
 static INLINE Bool
-CPUID_IsHypervisorLevel(uint32 level, uint32 *offset)
+CPUID_IsHypervisorLevel(uint32 level)
 {
-   *offset = level & 0xff;
    return (level & 0xffffff00) == 0x40000000;
 }
 
