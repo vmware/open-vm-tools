@@ -449,9 +449,10 @@ FLAGDEF(  81, ECX, AMD,     7,  1, MISALIGNED_SSE,      YES, TRUE)             \
 FLAGDEFA( 81, ECX, AMD,     8,  1, 3DNPREFETCH,         YES, TRUE, 3DNPREFETCH) \
 FLAGDEFA( 81, ECX, AMD,     9,  1, OSVW,                ANY, FALSE, OSVW)      \
 FLAGDEF(  81, ECX, AMD,    10,  1, IBS,                 NO,  FALSE)            \
-FLAGDEF(  81, ECX, AMD,    11,  1, SSE5,                NO,  TRUE)             \
+FLAGDEFA( 81, ECX, AMD,    11,  1, XOP,                 YES, TRUE,  XOP)       \
 FLAGDEF(  81, ECX, AMD,    12,  1, SKINIT,              NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    13,  1, WATCHDOG,            NO,  FALSE)            \
+FLAGDEFA( 81, ECX, AMD,    16,  1, FMA4,                YES, TRUE,  FMA4)      \
 FLAGDEF(  81, ECX, AMD,    19,  1, NODEID,              NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    22,  1, TOPOLOGY,            NO,  FALSE)            \
 FLAGDEF(  81, EDX, AMD,     0,  1, FPU,                 YES, TRUE)             \
