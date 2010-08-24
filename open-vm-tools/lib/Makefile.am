@@ -52,9 +52,6 @@ if ENABLE_UNITY
    SUBDIRS += raster
    SUBDIRS += region
 endif
-if HAVE_X11
-   SUBDIRS += resolution
-endif
 SUBDIRS += rpcChannel
 SUBDIRS += rpcIn
 SUBDIRS += rpcOut

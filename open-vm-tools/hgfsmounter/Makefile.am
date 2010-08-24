@@ -26,7 +26,6 @@ mount_vmhgfs_LDADD += ../lib/stubs/libStubs.la
 
 mount_vmhgfs_SOURCES =
 mount_vmhgfs_SOURCES += hgfsmounter.c
-mount_vmhgfs_SOURCES += stub-user-util.c
 
 if FREEBSD
 install-exec-hook:

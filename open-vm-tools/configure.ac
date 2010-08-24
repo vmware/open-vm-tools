@@ -679,7 +679,6 @@ if test "$with_procps" = "yes"; then
                     [getstat],
                     [
                      have_procps=yes;
-                     VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
                     ],
                     [])
 
@@ -693,7 +692,6 @@ if test "$with_procps" = "yes"; then
                        [getstat],
                        [
                         have_procps=yes;
-                        VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"
                        ],
                        [])
    fi
@@ -706,7 +704,7 @@ if test "$with_procps" = "yes"; then
                        [],
                        [],
                        [getstat],
-                       [VMWARE_USER_LDADD="$VMWARE_USER_LDADD $PROCPS_LIBS"],
+                       [],
                        [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
    fi
 fi
@@ -721,9 +719,8 @@ AC_ARG_WITH([dnet],
 	    [],
 	    [with_dnet=yes])
 
+have_dnet="no"
 if test "$with_dnet" = "yes"; then
-   have_dnet=0
-
 	# On Debian, dnet is installed via the libdumbnet package. We need to
 	# detect this so that our source files include dumbnet.h instead of
 	# dnet.h, which is part of a different package altogether.
@@ -734,11 +731,11 @@ if test "$with_dnet" = "yes"; then
                     [],
                     [dumbnet.h],
                     [intf_open],
-                    [have_dnet=1;
+                    [have_dnet="yes";
                      AC_DEFINE([DNET_IS_DUMBNET], 1, [Define to 1 if substituting Debian's libdumbnet for libdnet.])],
                     [])
 
-   if test $have_dnet -eq 0; then
+   if test $have_dnet = "no"; then
       AC_VMW_CHECK_LIB([dnet],
                        [DNET],
                        [],
@@ -746,14 +743,11 @@ if test "$with_dnet" = "yes"; then
                        [],
                        [dnet.h],
                        [intf_open],
-                       [have_dnet=1],
+                       [have_dnet="yes"],
                        [])
    fi
 
-   if test $have_dnet -eq 1; then
-      LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $DNET_LIBS"
-      VMWARE_USER_LDADD="$VMWARE_USER_LDADD $DNET_LIBS"
-   else
+   if test $have_dnet = "no"; then
 		AC_MSG_ERROR(
 		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
 	fi
@@ -873,40 +867,13 @@ AC_C_VOLATILE
 ### Specific features and OS/arch flags / actions
 ###
 
-# Newer iconv (from glibc 2.2 and later on Linux) takes a char ** as the second
-# argument. Here, we test for the older form and expect a compiler warning/error
-# if the newer form is defined (because, in that case, we would be attempting to
-# remove const'ness without an explicit cast).
-AC_MSG_CHECKING([for the new format of iconv])
-ORIGINAL_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -Werror"
-AC_TRY_COMPILE(
-   [#include <iconv.h>],
-   [
-      iconv_t cd;
-      char const *inbuf;
-      size_t inbytesleft;
-      char *outbuf;
-      size_t outbytesleft;
-
-      iconv(cd, &inbuf, &inbytesleft, &outbuf, &outbytesleft);
-   ],
-   [HAVE_NEW_ICONV="no"],
-   [HAVE_NEW_ICONV="yes"])
-CFLAGS="$ORIGINAL_CFLAGS"
-AC_MSG_RESULT($HAVE_NEW_ICONV)
-
 if test "$os" = "linux"; then
-   AC_CHECK_FUNCS(
-      [lseek],
-      [HAVE_LSEEK="yes"],
-      [HAVE_LSEEK="no"])
+   # Ensure an error is thrown if function is unknown.
+   ORIGINAL_CFLAGS="$CFLAGS"
+   CFLAGS="$CFLAGS -Werror-implicit-function-declaration -Werror"
 
    # setresuid() was wrapped beginning in glibc 2.3.2.
    AC_MSG_CHECKING([for setresuid])
-   # Ensure an error is thrown if setresuid is unknown.
-   ORIGINAL_CFLAGS="$CFLAGS"
-   CFLAGS="$CFLAGS -Werror-implicit-function-declaration -Werror"
    AC_TRY_COMPILE(
       [#define _GNU_SOURCE
        #include <unistd.h>],
@@ -915,8 +882,21 @@ if test "$os" = "linux"; then
       ],
       [HAVE_SETRESUID="yes"],
       [HAVE_SETRESUID="no"])
-   CFLAGS="$ORIGINAL_CFLAGS"
    AC_MSG_RESULT($HAVE_SETRESUID)
+
+   # euidaccess was added in glibc 2.4
+   AC_MSG_CHECKING([for euidaccess])
+   AC_TRY_COMPILE(
+      [#define _GNU_SOURCE
+       #include <unistd.h>],
+      [
+         euidaccess("/", R_OK);
+      ],
+      [HAVE_EUIDACCESS="yes"],
+      [HAVE_EUIDACCESS="no"])
+   AC_MSG_RESULT($HAVE_EUIDACCESS)
+
+   CFLAGS="$ORIGINAL_CFLAGS"
 fi
 
 ### General flags / actions
@@ -1049,13 +1029,6 @@ if test "$os" = "solaris"; then
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lresolv"
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrpcsvc"
 
-   VMWARE_USER_CPPFLAGS="$VMWARE_USER_CPPFLAGS -I/usr/X11/include/"
-   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lXext"
-   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lX11"
-   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lsocket"
-   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lnsl"
-   VMWARE_USER_LDADD="$VMWARE_USER_LDADD -lrpcsvc"
-
    # Setup defines to identify the OS version.
    if test "$osVersion" -eq 509000; then
       CPPFLAGS="$CPPFLAGS -DSOL9"
@@ -1102,6 +1075,7 @@ AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
 AM_CONDITIONAL(ENABLE_UNITY, test "$enable_unity" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
+AM_CONDITIONAL(HAVE_DNET, test "$have_dnet" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
@@ -1122,16 +1096,11 @@ if test "$enable_multimon" = "no"; then
 fi
 
 if test "$os" = "linux"; then
-   if test "$HAVE_LSEEK" = "yes"; then
-      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_21"
-   fi
-
-   if test "$HAVE_NEW_ICONV" = "yes"; then
-      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_22"
-   fi
-
    if test "$HAVE_SETRESUID" = "yes"; then
       CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_23"
+   fi
+   if test "$HAVE_EUIDACCESS" = "yes"; then
+      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_24"
    fi
 fi
 
@@ -1144,7 +1113,6 @@ fi
 
 LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIB"
 VIX_LIBADD="$VIX_LIBADD $THREAD_LIB"
-VMWARE_USER_LDADD="$VMWARE_USER_LDADD $THREAD_LIB"
 
 ### Core Services definitions.
 
@@ -1207,8 +1175,6 @@ AC_SUBST([LIBVMTOOLS_LIBADD])
 ### Program substs
 
 AC_SUBST([VIX_LIBADD])
-AC_SUBST([VMWARE_USER_CPPFLAGS])
-AC_SUBST([VMWARE_USER_LDADD])
 
 ###
 ### Create the Makefiles
@@ -1246,7 +1212,6 @@ AC_CONFIG_FILES([                      \
    lib/procMgr/Makefile                \
    lib/raster/Makefile                 \
    lib/region/Makefile                 \
-   lib/resolution/Makefile             \
    lib/rpcChannel/Makefile             \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \

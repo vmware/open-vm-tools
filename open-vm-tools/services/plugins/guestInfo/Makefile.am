@@ -28,11 +28,14 @@ libguestInfo_la_LDFLAGS =
 libguestInfo_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libguestInfo_la_LIBADD =
-libguestInfo_la_LIBADD += @DNET_LIBS@
 libguestInfo_la_LIBADD += @VMTOOLS_LIBS@
 libguestInfo_la_LIBADD += @PROCPS_LIBS@
 libguestInfo_la_LIBADD += @XDR_LIBS@
 libguestInfo_la_LIBADD += getlib/libGuestInfo.la
+
+if HAVE_DNET
+   libguestInfo_la_LIBADD += @DNET_LIBS@
+endif
 
 libguestInfo_la_SOURCES =
 libguestInfo_la_SOURCES += guestInfoServer.c
