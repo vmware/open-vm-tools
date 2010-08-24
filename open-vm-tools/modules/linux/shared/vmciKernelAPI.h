@@ -132,7 +132,8 @@ ssize_t VMCIQPair_Peek(VMCIQPair *qpair,
                        int mode);
 
 #if defined (SOLARIS) || (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
-    (defined(__linux__) && defined(__KERNEL__))
+    (defined(__linux__) && defined(__KERNEL__)) || \
+    (defined(_WIN32) && defined(WINNT_DDK))
 /*
  * Environments that support struct iovec
  */

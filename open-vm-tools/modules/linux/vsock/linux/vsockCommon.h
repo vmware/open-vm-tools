@@ -81,6 +81,7 @@
 #include "vmware.h"
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
+#include "vmci_infrastructure.h"
 #include "vmci_sockets_int.h"
 #include "vmci_sockets.h"
 

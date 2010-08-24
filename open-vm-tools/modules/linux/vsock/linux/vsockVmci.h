@@ -100,5 +100,61 @@ VSockVmci_ErrorToVSockError(int32 vmciError) // IN
 }
 
 
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmci_GetVmciObjSocket --
+ *
+ *      Get a socket from a VMCI object, but only if the object is of the
+ *      appropriate type.
+ *
+ * Results:
+ *      A socket if the object is of the correct type, NULL otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void *
+VSockVmci_GetVmciObjSocket(VMCIObj *obj) // IN
+{
+   ASSERT(obj);
+   if (NULL != obj->ptr && VMCIOBJ_SOCKET == obj->type) {
+      return obj->ptr;
+   }
+   return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VSockVmci_SetVmciObjSocket --
+ *
+ *      Set the socket in a VMCI object.  This will also set the type
+ *      accordingly.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static INLINE void
+VSockVmci_SetVmciObjSocket(VMCIObj *obj, // OUT
+                           void *s)      // IN
+{
+   ASSERT(obj);
+   ASSERT(s);
+   obj->ptr = s;
+   obj->type = VMCIOBJ_SOCKET;
+}
+
+
 #endif // _VSOCK_VMCI_H_
 

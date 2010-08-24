@@ -362,14 +362,6 @@ enum IOCTLCmd_VMCI {
                VMCIIOCTL_BUFFERED(SOCKETS_SHUTDOWN)
 /* END VMCI SOCKETS */
 
-
-/*
- * For accessing VMCIOBJ_SOCKET in IOCTLs.  Both functions take a file object's
- * fs context and get or set the socket.
- */
-PVOID VMCIFsContext_GetSocket(PVOID fsContext);
-void VMCIFsContext_SetSocket(PVOID fsContext, PVOID socket);
-
 #endif // _WIN32
 
 

@@ -102,6 +102,18 @@ typedef int VMCIMemcpyFromQueueFunc(void *dest, size_t destOffset,
                                     size_t size, BUF_TYPE bufType);
 
 
+#if defined(_WIN32) && defined(WINNT_DDK)
+/*
+ * Windows needs iovec for the V functions.  We use an MDL for the actual
+ * buffers, but we also have an offset that comes from WSK_BUF.
+ */
+typedef struct iovec {
+   PMDL mdl;     // List of memory descriptors.
+   ULONG offset; // Base offset.
+};
+#endif // _WIN32 && WINNT_DDK
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -128,12 +140,8 @@ int VMCIMemcpyFromQueue(void *dest, size_t destOffset, const VMCIQueue *queue,
 
 #if defined VMKERNEL || defined (SOLARIS)         || \
    (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
-   (defined(__linux__) && defined(__KERNEL__))
-
-   /*
-    * Solaris/Mac/Linux vmciKernelIf.c files provide these functions
-    */
-
+   (defined(__linux__) && defined(__KERNEL__))    || \
+   (defined(_WIN32) && defined(WINNT_DDK))
 int VMCIMemcpyToQueueV(VMCIQueue *queue, uint64 queueOffset, const void *src,
                        size_t srcOffset, size_t size, BUF_TYPE bufType);
 int VMCIMemcpyFromQueueV(void *dest, size_t destOffset, const VMCIQueue *queue,

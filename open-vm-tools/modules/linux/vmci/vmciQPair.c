@@ -815,7 +815,8 @@ EXPORT_SYMBOL(VMCIQPair_Peek);
 
 
 #if defined (SOLARIS) || (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
-    (defined(__linux__) && defined(__KERNEL__))
+    (defined(__linux__) && defined(__KERNEL__)) || \
+    (defined(_WIN32) && defined(WINNT_DDK))
 
 /*
  *-----------------------------------------------------------------------------
@@ -840,7 +841,7 @@ VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
                    size_t iovSize,          // IN
                    int bufType)             // IN
 {
-   int64 result;
+   ssize_t result;
 
    VMCIQPairLock(qpair);
 
@@ -879,7 +880,7 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
                    size_t iovSize,           // IN
                    int bufType)              // IN
 {
-   int64 result;
+   ssize_t result;
 
    VMCIQPairLock(qpair);
 
@@ -920,7 +921,7 @@ VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
                 size_t iovSize,             // IN
                 int bufType)                // IN
 {
-   int64 result;
+   ssize_t result;
 
    VMCIQPairLock(qpair);
 

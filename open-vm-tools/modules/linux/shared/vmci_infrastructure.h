@@ -46,6 +46,12 @@ typedef enum {
    VMCIOBJ_NOT_SET,
 } VMCIObjType;
 
+/* For storing VMCI structures in file handles. */
+typedef struct VMCIObj {
+   void *ptr;
+   VMCIObjType type;
+} VMCIObj;
+
 /* Guestcalls currently support a maximum of 8 uint64 arguments. */
 #define VMCI_GUESTCALL_MAX_ARGS_SIZE 64
 
