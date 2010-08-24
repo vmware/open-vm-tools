@@ -686,9 +686,9 @@ HgfsEscapeEnumerate(char const *bufIn,              // IN:  Buffer with unescape
 
 int
 HgfsEscape_Do(char const *bufIn, // IN:  Buffer with unescaped input
-	           uint32 sizeIn,     // IN:  Size of input buffer
-	           uint32 sizeBufOut, // IN:  Size of output buffer
-	           char *bufOut)      // OUT: Buffer for escaped output
+              uint32 sizeIn,     // IN:  Size of input buffer
+              uint32 sizeBufOut, // IN:  Size of output buffer
+              char *bufOut)      // OUT: Buffer for escaped output
 {
    const char *currentComponent = bufIn;
    uint32 sizeLeft = sizeBufOut;
@@ -861,11 +861,14 @@ HgfsEscapeUndoComponent(char   *bufIn,             // IN: Characters to be unesc
                                                    //     in the whole name
 {
    size_t offset;
-   size_t sizeIn = strlen(bufIn);
-   char* curOutBuffer = bufIn;
+   size_t sizeIn;
+   char* curOutBuffer;
    char* escapePointer;
-   ASSERT(bufIn);
 
+   ASSERT(bufIn != NULL);
+
+   curOutBuffer = bufIn;
+   sizeIn = strlen(curOutBuffer);
    escapePointer = strchr(curOutBuffer, HGFS_ESCAPE_CHAR);
    while (escapePointer != NULL) {
       offset = escapePointer - bufIn;

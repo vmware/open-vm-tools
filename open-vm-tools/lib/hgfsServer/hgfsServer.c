@@ -6237,7 +6237,7 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
  *    Gets a directory entry at specified offset.
  *
  * Results:
- *    None.
+ *    A platform specific error or success.
  *
  * Side effects:
  *    None
@@ -6257,6 +6257,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
 {
    HgfsInternalStatus status;
    DirectoryEntry *dent;
+   Bool unescapeName = TRUE;
 
    dent = HgfsGetSearchResult(hgfsSearchHandle, session, requestedOffset, FALSE);
    if (dent) {
@@ -6331,6 +6332,12 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
 
       case DIRECTORY_SEARCH_TYPE_BASE:
 
+         /*
+          * We only want to unescape names that we could have escaped.
+          * This cannot apply to our shares since they are created by the user.
+          * The client will take care of escaping anything it requires.
+          */
+         unescapeName = FALSE;
          /*
           * For a search enumerating all shares, give the default attributes
           * for '.' and ".." (which aren't really shares anyway). Each real
@@ -6411,6 +6418,11 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
          NOT_IMPLEMENTED();
 #endif
          /*
+          * We only want to unescape names that we could have escaped.
+          * This cannot apply to these entries.
+          */
+         unescapeName = FALSE;
+         /*
           * All "other" searches get the default attributes. This includes
           * an enumeration of drive, and the root enumeration (which contains
           * a "drive" dent and a "unc" dent).
@@ -6427,7 +6439,11 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
        */
       if (HGFS_ERROR_SUCCESS == status) {
          *entryName = strdup(dent->d_name);
-         *nameLength = HgfsEscape_Undo(dent->d_name, length + 1);
+         if (unescapeName) {
+            *nameLength = HgfsEscape_Undo(*entryName, length + 1);
+         } else {
+            *nameLength = length;
+         }
          LOG(4, ("%s: dent name is \"%s\" len = %"FMTSZ"u\n", __FUNCTION__,
                  *entryName, *nameLength));
       } else {

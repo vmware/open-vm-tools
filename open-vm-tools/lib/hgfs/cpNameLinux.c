@@ -186,8 +186,5 @@ CPName_ConvertTo(char const *nameIn, // IN:  Buf to convert
 {
    int result;
    result = CPName_LinuxConvertTo(nameIn, bufOutSize, bufOut);
-   if (result > 0) {
-      result = HgfsEscape_Undo(bufOut, result);
-   }
    return result;
 }
