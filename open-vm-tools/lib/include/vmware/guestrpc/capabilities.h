@@ -71,6 +71,7 @@ typedef enum {
    CAP_AUTOUPGRADE_AT_SHUTDOWN          = 24, // supports auto-upgrading tools at OS shutdown
    GHI_CAP_AUTOLOGON                    = 25, // supports autologon
    CAP_DESKTOP_AUTOLOCK                 = 26, // supports desktop autolock
+   CAP_UPDATE_AGENT                     = 27, // supports guest update agent
 } GuestCapabilities;
 
 typedef struct {
@@ -130,15 +131,16 @@ static GuestCapElem guestCapTable[] = {
    { UNITY_CAP_STATUS_UNITY_ACTIVE,        UNITY_CAP_VMDB_PATH, "unityActive" },
    { GHI_CAP_SET_OUTLOOK_TEMP_FOLDER,      GHI_CAP_VMDB_PATH,   "setOutlookTempFolder" },
    { GHI_CAP_TRASH_FOLDER,                 GHI_CAP_VMDB_PATH,   "trashFolder" },
-   { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH, "displayTopologyModesSet" },
+   { CAP_SET_TOPO_MODES,                   CAP_VMDB_PATH,       "displayTopologyModesSet" },
    { GHI_CAP_TRAY_ICONS,                   GHI_CAP_VMDB_PATH,   "trayIcons" },
    { GHI_CAP_SET_FOCUSED_WINDOW,           GHI_CAP_VMDB_PATH,   "setFocusedWindow"},
    { GHI_CAP_GET_EXEC_INFO_HASH,           GHI_CAP_VMDB_PATH,   "getExecInfoHash"},
    { UNITY_CAP_STICKY_WINDOWS,             UNITY_CAP_VMDB_PATH, "sticky"},
-   { CAP_CHANGE_HOST_3D_AVAILABILITY_HINT, CAP_VMDB_PATH, "changeHost3DAvailabilityHint" },
+   { CAP_CHANGE_HOST_3D_AVAILABILITY_HINT, CAP_VMDB_PATH,       "changeHost3DAvailabilityHint" },
    { CAP_AUTOUPGRADE_AT_SHUTDOWN,          CAP_VMDB_PATH,       "autoUpgradeAtShutdown"},
    { GHI_CAP_AUTOLOGON,                    GHI_CAP_VMDB_PATH,   "autologon" },
-   { CAP_DESKTOP_AUTOLOCK,                 CAP_VMDB_PATH, "desktopAutolock" },
+   { CAP_DESKTOP_AUTOLOCK,                 CAP_VMDB_PATH,       "desktopAutolock" },
+   { CAP_UPDATE_AGENT,                     CAP_VMDB_PATH,       "updateAgent"},
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING
