@@ -34,7 +34,7 @@ typedef enum {
    LOG_NO_SYSTEM_LOGGER,
    LOG_SYSTEM_LOGGER_ADJUNCT,
    LOG_SYSTEM_LOGGER_ONLY
-} sysLogger;
+} SysLogger;
 
 typedef struct
 {
@@ -51,7 +51,7 @@ typedef struct
    Bool           switchFile;           // Switch the initial log file
    unsigned int   rotateSize;           // Size at which log should be rotated
 
-   sysLogger      systemLoggerUse;      // System logger options
+   SysLogger      systemLoggerUse;      // System logger options
    const char    *systemLoggerID;       // Identifier for system logger
 } LogInitParams;
 
