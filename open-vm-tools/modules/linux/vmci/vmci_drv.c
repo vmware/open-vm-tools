@@ -26,6 +26,7 @@
 
 #include <linux/moduleparam.h>
 #include <linux/poll.h>
+#include <linux/smp_lock.h>
 
 #include "compat_kernel.h"
 #include "compat_module.h"
