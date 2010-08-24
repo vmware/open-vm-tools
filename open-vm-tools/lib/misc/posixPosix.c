@@ -459,9 +459,22 @@ Posix_Access(ConstUnicode pathName,  // IN:
       return -1;
    }
 
+#if defined(VMX86_SERVER)
+   /*
+    * ESX can return EINTR making retries a necessity. This is a bug in
+    * ESX that is being worked around here - POSIX says access cannot return
+    * EINTR.
+    */
+
+   do {
+      ret = access(path, mode);
+   } while ((ret == -1) && (errno == EINTR));
+#else
    ret = access(path, mode);
+#endif
 
    free(path);
+
    return ret;
 }
 
