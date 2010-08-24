@@ -714,7 +714,12 @@ StrUtil_StartsWith(const char *s,      // IN
    ASSERT(s != NULL);
    ASSERT(prefix != NULL);
 
-   return Str_Strncmp(s, prefix, strlen(prefix)) == 0;
+   while (*prefix && *prefix == *s) {
+      prefix++;
+      s++;
+   }
+
+   return *prefix == '\0';
 }
 
 
