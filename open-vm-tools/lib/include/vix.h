@@ -304,6 +304,7 @@ enum {
    VIX_E_NOT_A_DIRECTORY                        = 20002,
    VIX_E_NO_SUCH_PROCESS                        = 20003,
    VIX_E_FILE_NAME_TOO_LONG                     = 20004,
+   VIX_E_OPERATION_DISABLED                     = 20005,
 
    /* Tools install errors */
    VIX_E_TOOLS_INSTALL_NO_IMAGE                 = 21000,

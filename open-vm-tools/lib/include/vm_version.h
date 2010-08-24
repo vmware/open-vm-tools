@@ -357,7 +357,7 @@
 #  define PRODUCT_LICENSE_VERSION "0.0"
 #else
 #  if defined(VMX86_SERVER)
-#    define PRODUCT_LICENSE_VERSION "4.0"
+#    define PRODUCT_LICENSE_VERSION "5.0"
 #  elif defined(VMX86_WGS_MIGRATION)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_WGS)

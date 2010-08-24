@@ -126,6 +126,41 @@
 
 
 /*
+ * The config file groupname for API configuration.
+ */
+#define  VIX_TOOLS_CONFIG_API_GROUPNAME               "guestoperations"
+
+/*
+ * The switch that controls all APIs
+ */
+#define  VIX_TOOLS_CONFIG_API_ALL_NAME                "disabled"
+
+/*
+ * Individual API names for configuration.
+ */
+#define  VIX_TOOLS_CONFIG_API_START_PROGRAM_NAME      "StartProgramInGuest"
+#define  VIX_TOOLS_CONFIG_API_LIST_PROCESSES_NAME     "ListProcessesInGuest"
+#define  VIX_TOOLS_CONFIG_API_TERMINATE_PROCESS_NAME  "TerminateProcessInGuest"
+#define  VIX_TOOLS_CONFIG_API_READ_ENV_VARS_NAME      "ReadEnvironmentVariableInGuest"
+
+#define  VIX_TOOLS_CONFIG_API_MAKE_DIRECTORY_NAME     "MakeDirectoryInGuest"
+#define  VIX_TOOLS_CONFIG_API_DELETE_FILE_NAME        "DeleteFileInGuest"
+#define  VIX_TOOLS_CONFIG_API_DELETE_DIRECTORY_NAME   "DeleteDirectoryInGuest"
+#define  VIX_TOOLS_CONFIG_API_MOVE_DIRECTORY_NAME     "MoveDirectoryInGuest"
+#define  VIX_TOOLS_CONFIG_API_MOVE_FILE_NAME          "MoveFileInGuest"
+#define  VIX_TOOLS_CONFIG_API_CREATE_TMP_FILE_NAME    "CreateTemporaryFileInGuest"
+#define  VIX_TOOLS_CONFIG_API_CREATE_TMP_DIRECTORY_NAME          "CreateTemporaryDirectoryInGuest"
+#define  VIX_TOOLS_CONFIG_API_LIST_FILES_NAME         "ListFilesInGuest"
+#define  VIX_TOOLS_CONFIG_API_CHANGE_FILE_ATTRS_NAME  "ChangeFileAttributesInGuest"
+#define  VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_FROM_GUEST_NAME  "InitiateFileTransferFromGuest"
+#define  VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_TO_GUEST_NAME  "InitiateFileTransferToGuest"
+
+#define  VIX_TOOLS_CONFIG_API_VALIDATE_CREDENTIALS_NAME   "ValidateCredentialsInGuest"
+#define  VIX_TOOLS_CONFIG_API_ACQUIRE_CREDENTIALS_NAME   "AcquireCredentialsInGuest"
+#define  VIX_TOOLS_CONFIG_API_RELEASE_CREDENTIALS_NAME   "ReleaseCredentialsInGuest"
+
+
+/*
  * State of a single asynch runProgram.
  */
 typedef struct VixToolsRunProgramState {
@@ -350,7 +385,8 @@ static VixError VixTools_Base64EncodeBuffer(char **resultValuePtr, size_t *resul
 static VixError VixToolsSetSharedFoldersProperties(VixPropertyListImpl *propList);
 
 #if !defined(__FreeBSD__) && !defined(sun)
-static VixError VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList);
+static VixError VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,
+                                                GKeyFile *confDictRef);
 #endif
 
 #if defined(_WIN32)
@@ -1799,7 +1835,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
 
 #if !defined(sun)
    /* Set up the API status properties */
-   err = VixToolsSetAPIEnabledProperties(&propList);
+   err = VixToolsSetAPIEnabledProperties(&propList, confDictRef);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -1906,6 +1942,66 @@ exit:
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsGetAPIDisabledFromConf --
+ *
+ *    Helper function for fetching the API config setting.
+ *
+ * Return value:
+ *    Bool
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
+                               const char *varName)              // IN
+{
+   gboolean disabled = FALSE;
+   char disabledName[128];
+
+   /*
+    * g_key_get_file_boolean() will also return FALSE if there's no
+    * entry in the config file.
+    */
+
+
+   /*
+    * First check the global kill-switch, which will override the
+    * per-API configs.
+    */
+   if (confDictRef != NULL) {
+      disabled = g_key_file_get_boolean(confDictRef,
+                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                        VIX_TOOLS_CONFIG_API_ALL_NAME,
+                                        NULL);
+      if (disabled) {
+         return TRUE;
+      }
+   }
+
+   /*
+    * Check the individual API
+    */
+   if (NULL != varName) {
+      snprintf(disabledName, sizeof(disabledName), "%s.disabled", varName);
+      if (confDictRef != NULL) {
+         disabled = g_key_file_get_boolean(confDictRef,
+                                           VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                           disabledName,
+                                           NULL);
+      }
+   }
+
+   return disabled;
+}
+
+
 #if !defined(__FreeBSD__) && !defined(sun)
 /*
  *-----------------------------------------------------------------------------
@@ -1924,141 +2020,151 @@ exit:
  */
 
 static VixError
-VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList)    // IN
+VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
+                                GKeyFile *confDictRef)            // IN
 {
    VixError err = VIX_OK;
 
-   /*
-    * XXX TODO
-    *
-    * These values need to be adjusted as each API is implemented.
-    *
-    * They will also need guest-side configuration checks at some point.
-    */
-
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_START_PROGRAM_ENABLED,
-                                 FALSE);
+                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_START_PROGRAM_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_LIST_PROCESSES_ENABLED,
-                                 FALSE);
+                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_LIST_PROCESSES_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
-   // XXX not strictly true -- some error code work is still TBD
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_TERMINATE_PROCESS_ENABLED,
-                                 TRUE);
+                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VIX_TOOLS_CONFIG_API_TERMINATE_PROCESS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_READ_ENVIRONMENT_VARIABLE_ENABLED,
-                                 FALSE);
+                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_READ_ENV_VARS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_VALIDATE_CREDENTIALS_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_VALIDATE_CREDENTIALS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_ACQUIRE_CREDENTIALS_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_ACQUIRE_CREDENTIALS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_RELEASE_CREDENTIALS_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_RELEASE_CREDENTIALS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_MAKE_DIRECTORY_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                                  VIX_TOOLS_CONFIG_API_MAKE_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_DELETE_FILE_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                       VIX_TOOLS_CONFIG_API_DELETE_FILE_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_DELETE_DIRECTORY_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_DELETE_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_MOVE_DIRECTORY_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                                   VIX_TOOLS_CONFIG_API_MOVE_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_MOVE_FILE_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                       VIX_TOOLS_CONFIG_API_MOVE_FILE_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_CREATE_TEMP_FILE_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_CREATE_TMP_FILE_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_CREATE_TEMP_DIRECTORY_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_CREATE_TMP_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_LIST_FILES_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                       VIX_TOOLS_CONFIG_API_LIST_FILES_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_CHANGE_FILE_ATTRIBUTES_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_CHANGE_FILE_ATTRS_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_INITIATE_FILE_TRANSFER_FROM_GUEST_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_FROM_GUEST_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_INITIATE_FILE_TRANSFER_TO_GUEST_ENABLED,
-                                 FALSE);
+                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_TO_GUEST_NAME));
    if (VIX_OK != err) {
       goto exit;
    }
@@ -5892,6 +5998,140 @@ VixToolsPidRefersToThisProcess(ProcMgr_Pid pid)  // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsCheckIfVixCommandEnabled --
+ *
+ *    Checks to see if the opcode has been disabled via the tools
+ *    configuration.
+ *
+ *    This does not affect VIX_COMMAND_GET_TOOLS_STATE; that always
+ *    needs to work.
+ *
+ *    Many non-VMODL APIs do not have an API specific option; those
+ *    are only affected by the global setting.
+ *
+ * Return value:
+ *    TRUE if enabled, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
+                                 GKeyFile *confDictRef)               // IN
+{
+   Bool enabled = TRUE;
+   switch (opcode) {
+      /*
+       * We always let this through, since its needed to do basic
+       * init work.
+       */
+      case VIX_COMMAND_GET_TOOLS_STATE:
+         enabled = TRUE;
+         break;
+
+      case VIX_COMMAND_LIST_PROCESSES:
+      case VIX_COMMAND_LIST_PROCESSES_EX:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                    VIX_TOOLS_CONFIG_API_LIST_PROCESSES_NAME);
+         break;
+
+      case VIX_COMMAND_LIST_FILES:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_LIST_FILES_NAME);
+         break;
+      case VIX_COMMAND_DELETE_GUEST_FILE:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_DELETE_FILE_NAME);
+         break;
+      case VIX_COMMAND_DELETE_GUEST_DIRECTORY:
+      case VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_DELETE_DIRECTORY_NAME);
+         break;
+      case VIX_COMMAND_KILL_PROCESS:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_TERMINATE_PROCESS_NAME);
+         break;
+      case VIX_COMMAND_CREATE_DIRECTORY:
+      case VIX_COMMAND_CREATE_DIRECTORY_EX:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_MAKE_DIRECTORY_NAME);
+         break;
+      case VIX_COMMAND_MOVE_GUEST_FILE:
+      case VIX_COMMAND_MOVE_GUEST_FILE_EX:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_MOVE_FILE_NAME);
+         break;
+      case VIX_COMMAND_MOVE_GUEST_DIRECTORY:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_MOVE_DIRECTORY_NAME);
+         break;
+      case VIX_COMMAND_START_PROGRAM:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_START_PROGRAM_NAME);
+         break;
+      case VIX_COMMAND_CREATE_TEMPORARY_FILE:
+      case VIX_COMMAND_CREATE_TEMPORARY_FILE_EX:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                   VIX_TOOLS_CONFIG_API_CREATE_TMP_FILE_NAME);
+         break;
+      case VIX_COMMAND_CREATE_TEMPORARY_DIRECTORY:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_CREATE_TMP_DIRECTORY_NAME);
+         break;
+      case VIX_COMMAND_READ_ENV_VARIABLES:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_READ_ENV_VARS_NAME);
+         break;
+      case VIX_COMMAND_SET_GUEST_FILE_ATTRIBUTES:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_CHANGE_FILE_ATTRS_NAME);
+         break;
+
+      /*
+       * None of these opcode have a matching config entry (yet),
+       * so they can all share.
+       */
+      case VIX_COMMAND_CHECK_USER_ACCOUNT:
+      case VIX_COMMAND_LOGOUT_IN_GUEST:
+      case VIX_COMMAND_GUEST_FILE_EXISTS:
+      case VIX_COMMAND_DIRECTORY_EXISTS:
+      case VIX_COMMAND_GET_FILE_INFO:
+      case VIX_COMMAND_LIST_FILESYSTEMS:
+      case VIX_COMMAND_OPEN_URL:
+      case VIX_COMMAND_READ_VARIABLE:
+      case VIX_COMMAND_WRITE_VARIABLE:
+      case VIX_COMMAND_GET_GUEST_NETWORKING_CONFIG:
+      case VIX_COMMAND_SET_GUEST_NETWORKING_CONFIG:
+
+      case VIX_COMMAND_REGISTRY_KEY_EXISTS:
+      case VIX_COMMAND_READ_REGISTRY:
+      case VIX_COMMAND_WRITE_REGISTRY:
+      case VIX_COMMAND_DELETE_GUEST_REGISTRY_KEY:
+
+      /*
+       * These may want to use the VMODL API name that most closely
+       * matches, but for now, leave them alone.
+       */
+      case VIX_COMMAND_RUN_SCRIPT_IN_GUEST:
+      case VIX_COMMAND_RUN_PROGRAM:
+      case VIX_COMMAND_LIST_DIRECTORY:
+      case VMXI_HGFS_SEND_PACKET_COMMAND:
+      default:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef, NULL);
+         break;
+   }
+
+   return enabled;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixTools_ProcessVixCommand --
  *
  *
@@ -5933,6 +6173,13 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
    }
 
    Debug("%s: command %d\n", __FUNCTION__, requestMsg->opCode);
+
+
+   if (!VixToolsCheckIfVixCommandEnabled(requestMsg->opCode, confDictRef)) {
+      err = VIX_E_OPERATION_DISABLED;
+      Debug("%s: command %d disabled by configuration\n", __FUNCTION__, requestMsg->opCode);
+      goto abort;
+   }
 
    switch (requestMsg->opCode) {
       ////////////////////////////////////
@@ -5987,8 +6234,8 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_LIST_FILES:
          err = VixToolsListFiles(requestMsg,
-                                     maxResultBufferSize,
-                                     &resultValue);
+                                 maxResultBufferSize,
+                                 &resultValue);
          deleteResultValue = TRUE;
          break;
       ////////////////////////////////////
