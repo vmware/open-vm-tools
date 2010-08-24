@@ -1069,12 +1069,6 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
 
    *fsAttrs = Util_SafeMalloc(FS_PARTITION_ARR_SIZE(FS_PLIST_DEF_MAX_PARTITIONS));
 
-   if (*fsAttrs == NULL) {
-      Log(LGPFX" %s: failed to allocate memory\n", __func__);
-      ret = -1;
-      goto bail;
-   }
-
    memset(*fsAttrs, 0, FS_PARTITION_ARR_SIZE(FS_PLIST_DEF_MAX_PARTITIONS));
 
    (*fsAttrs)->ioctlAttr.maxPartitions = FS_PLIST_DEF_MAX_PARTITIONS;
