@@ -60,12 +60,17 @@ typedef struct
    const char    *suffix;               // Suffix to generate log file name
    const char    *appName;              // App name for log header
    const char    *appVersion;           // App version for log header
+
    Bool           logging;              // Logging is enabled or not
    Bool           append;               // Append to log file
+   Bool           switchFile;           // Switch the initial log file
+   Bool           useThreadName;        // Thread name on log line
+   Bool           useTimeStamp;         // Use a log line time stamp
+   Bool           useMilliseconds;      // Show milliseconds in time stamp
+
    unsigned int   keepOld;              // Number of old logs to keep
    unsigned int   throttleThreshold;    // Threshold for throttling
    unsigned int   throttleBytesPerSec;  // BPS for throttle
-   Bool           switchFile;           // Switch the initial log file
    unsigned int   rotateSize;           // Size at which log should be rotated
 
    SysLogger      systemLoggerUse;      // System logger options
