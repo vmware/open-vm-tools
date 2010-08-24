@@ -659,6 +659,7 @@ File_GetTimes(ConstUnicode pathName,       // IN:
    if (Posix_Lstat(pathName, &statBuf) == -1) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
           UTF8(pathName), Err_Errno2String(errno));
+
       return FALSE;
    }
 
@@ -1082,7 +1083,8 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
    fd = Posix_Open(parentPath, O_RDONLY, 0);
 
    if (fd == -1) {
-      Log(LGPFX" %s: could not open %s.\n", __func__, UTF8(pathName));
+      Log(LGPFX" %s: could not open %s: %s\n", __func__, UTF8(pathName),
+          Err_Errno2String(errno));
       ret = -1;
       goto bail;
    }
@@ -1091,8 +1093,8 @@ File_GetVMFSAttributes(ConstUnicode pathName,             // IN: File to test
 
    close(fd);
    if (ret == -1) {
-      Log(LGPFX" %s: Could not get volume attributes (ret = %d)\n", __func__,
-          ret);
+      Log(LGPFX" %s: Could not get volume attributes (ret = %d): %s\n",
+          __func__, ret, Err_Errno2String(errno));
    }
 
 bail:
