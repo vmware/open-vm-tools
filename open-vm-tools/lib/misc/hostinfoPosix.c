@@ -140,7 +140,7 @@ typedef struct lsb_distro_info {
 } LSBDistroInfo;
 
 
-static LSBDistroInfo lsbFields[] = {
+static const LSBDistroInfo lsbFields[] = {
    {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
    {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"},
    {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"},
@@ -155,7 +155,7 @@ typedef struct distro_info {
 } DistroInfo;
 
 
-static DistroInfo distroArray[] = {
+static const DistroInfo distroArray[] = {
    {"RedHat",             "/etc/redhat-release"},
    {"RedHat",             "/etc/redhat_version"},
    {"Sun",                "/etc/sun-release"},

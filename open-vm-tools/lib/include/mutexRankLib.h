@@ -102,7 +102,8 @@
  * Low-level misc. range:
  * (RANK_libLockBase + 0x9000, RANK_libLockBase + 0x9100)
  */
-#define RANK_licenseCheckLock        (RANK_libLockBase + 0x9004)
+#define RANK_licenseCheckLock        (RANK_libLockBase + 0x9003)
+#define RANK_sslStateLock            (RANK_libLockBase + 0x9004)
 #define RANK_sslConnectionLock       (RANK_libLockBase + 0x9005)
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x9010)
 #define RANK_keyLocatorLock          (RANK_libLockBase + 0x9020)
