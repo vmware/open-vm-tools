@@ -104,6 +104,10 @@ void Log_UpdateState(Bool enable,
                      size_t rotateSize,
                      Bool fastRotation);
 
+void Log_UpdatePerLine(Bool perLineTimeStamps,
+                       Bool perLineMilliseconds,
+                       Bool perLineThreadNames);
+
 void Log_Exit(void);
 void Log_SetConfigDir(const char *configDir);
 void Log_WriteLogFile(const char *msg);
