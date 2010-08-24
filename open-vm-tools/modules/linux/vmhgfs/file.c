@@ -76,7 +76,9 @@ static ssize_t HgfsWrite(struct file *file,
                          loff_t *offset);
 #endif
 static int HgfsFsync(struct file *file,
+#if defined VMW_FSYNC_OLD
                      struct dentry *dentry,
+#endif
                      int datasync);
 static int HgfsMmap(struct file *file,
                     struct vm_area_struct *vma);
@@ -929,7 +931,9 @@ HgfsWrite(struct file *file,      // IN: File to write to
 
 static int
 HgfsFsync(struct file *file,		// IN: File we operate on
+#if defined VMW_FSYNC_OLD
           struct dentry *dentry,        // IN: Dentry for this file
+#endif
           int datasync)	                // IN: fdatasync or fsync
 {
    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsFsync: was called\n"));

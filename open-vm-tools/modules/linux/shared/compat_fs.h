@@ -244,4 +244,8 @@
 #define compat_invalidate_remote_inode(inode) invalidate_remote_inode(inode)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
+#define VMW_FSYNC_OLD
+#endif
+
 #endif /* __COMPAT_FS_H__ */
