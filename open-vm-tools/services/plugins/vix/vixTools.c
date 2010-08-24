@@ -4429,11 +4429,11 @@ if (0 == *interpreterName) {
    asyncState->requestName = Util_SafeStrdup(requestName);
    asyncState->runProgramOptions = scriptRequest->scriptOptions;
 
+   memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
       forcedRoot = Impersonate_ForceRoot();
    }
-   memset(&procArgs, 0, sizeof procArgs);
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
    procArgs.bInheritHandles = TRUE;
 #else
