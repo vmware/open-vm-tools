@@ -365,8 +365,7 @@ static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
                                               char const *obfuscatedNamePassword,
                                               void **userToken);
 
-#if defined(_WIN32) || defined(linux) || \
-    (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
+#if defined(_WIN32) || defined(linux) || defined(sun)
 static VixError VixToolsDoesUsernameMatchCurrentUser(const char *username);
 #endif
 
@@ -4620,12 +4619,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
    }
 
 ///////////////////////////////////////////////////////////////////////
-#if defined(__FreeBSD__) || \
-    (defined(sun) && !defined(VIX_ENABLE_SOLARIS_GUESTOPS))
+#if defined(__FreeBSD__)
    err = VIX_E_NOT_SUPPORTED;
 ///////////////////////////////////////////////////////////////////////
-#elif defined(_WIN32) || defined(linux) || \
-      (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
+#elif defined(_WIN32) || defined(linux) || defined(sun)
    {
       Bool success = FALSE;
       AuthToken authToken;
@@ -4791,7 +4788,7 @@ VixToolsUnimpersonateUser(void *userToken)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
 #if defined(_WIN32)
       Impersonate_Undo();
-#elif defined(linux) || (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
+#elif defined(linux) || defined(sun)
       ProcMgr_ImpersonateUserStop();
 #endif
    }
@@ -4819,8 +4816,7 @@ VixToolsLogoutUser(void *userToken)    // IN
       return;
    }
 
-#if !defined(__FreeBSD__) && \
-    !(defined(sun) && !defined(VIX_ENABLE_SOLARIS_GUESTOPS))
+#if !defined(__FreeBSD__)
    if (NULL != userToken) {
       AuthToken authToken = (AuthToken) userToken;
       Auth_CloseToken(authToken);
@@ -5649,8 +5645,7 @@ abort:
 #endif
 
 
-#if defined(_WIN32) || defined(linux) || \
-    (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS))
+#if defined(_WIN32) || defined(linux) || defined(sun)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -5855,8 +5850,7 @@ abort:
    
    return err;
 }
-#endif  /* #if defined(_WIN32) || defined(linux) ||
-               (defined(sun) && defined(VIX_ENABLE_SOLARIS_GUESTOPS)) */
+#endif  /* #if defined(_WIN32) || defined(linux) || defined(sun) */
 
 
 /*
