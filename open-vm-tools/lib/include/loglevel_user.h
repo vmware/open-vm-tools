@@ -63,6 +63,7 @@
    LOGLEVEL_VAR(extcfgdevice), \
    LOGLEVEL_VAR(flashram), \
    LOGLEVEL_VAR(efinv), \
+   LOGLEVEL_VAR(pvnvram), \
    LOGLEVEL_VAR(pci), \
    LOGLEVEL_VAR(pci_vide), \
    LOGLEVEL_VAR(pci_uhci), \
