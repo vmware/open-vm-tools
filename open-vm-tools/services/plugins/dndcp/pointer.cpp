@@ -57,7 +57,7 @@ static void PointerGrabbed(void);
 static void PointerUngrabbed(void);
 static gboolean PointerUpdatePointerLoop(gpointer clientData);
 
-#define POINTER_UPDATE_TIMEOUT 10
+#define POINTER_UPDATE_TIMEOUT 100
 
 #if !defined(WIN32)
 /*
