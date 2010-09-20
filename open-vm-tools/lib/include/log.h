@@ -69,6 +69,7 @@ typedef struct
    Bool           useMilliseconds;      // Show milliseconds in time stamp
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevert Log_RemoveFile(FALSE)
+   Bool           stderrWarnings;       // warnings also go to stderr
 
    uint32         keepOld;              // Number of old logs to keep
    uint32         throttleThreshold;    // Threshold for throttling
@@ -77,8 +78,6 @@ typedef struct
 
    SysLogger      systemLoggerUse;      // System logger options
    char           systemLoggerID[128];  // Identifier for system logger
-
-   Bool           stderrWarnings;       // warning also to stderr?
 } LogInitParams;
 
 void Log_GetInitDefaults(const char *fileName,
