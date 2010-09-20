@@ -49,6 +49,12 @@
 #include <gdk/gdkx.h>
 #undef Bool
 
+/* And this is why we have to ship and link against our own. */
+#ifdef REDIST_GMENU
+#define GMENU_I_KNOW_THIS_IS_UNSTABLE
+#include <gnome-menus/gmenu-tree.h>
+#endif
+
 #include "vmware.h"
 #include "vmware/tools/guestrpc.h"
 #include "base64.h"
