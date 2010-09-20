@@ -6921,6 +6921,14 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
+      case VIX_COMMAND_CAPTURE_SCREEN:
+         /*
+          * The VMX sends this through just to validate the auth info.
+          * Just no-op it so we don't fall through to the 'default'.
+          */
+         break;
+
+      ////////////////////////////////////
       default:
          /*
           * If the opcode is not recognized, tools might be old and the
