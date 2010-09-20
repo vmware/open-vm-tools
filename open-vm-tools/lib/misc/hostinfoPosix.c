@@ -1962,7 +1962,9 @@ Hostinfo_SLC64Supported(void)
         "c"  (BDOOR_CMD_GET_VCPU_INFO),
         "d"  (BDOOR_PORT)
    );
-   return (result & (1 << BDOOR_CMD_VCPU_SLC64)) != 0;
+   /* If reserved bit is 1, this command wasn't implemented. */
+   return (result & (1 << BDOOR_CMD_VCPU_RESERVED)) == 0 &&
+          (result & (1 << BDOOR_CMD_VCPU_SLC64))    != 0;
 #endif
    return FALSE;
 }
