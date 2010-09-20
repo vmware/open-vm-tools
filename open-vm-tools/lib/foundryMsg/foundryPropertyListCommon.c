@@ -230,8 +230,14 @@ VixPropertyList_Serialize(VixPropertyListImpl    *propList,       // IN
 
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_POINTER:
-            bufferSize += PROPERTY_SIZE_POINTER;
-            break;
+            /*
+             * We should not serialize any pointer.
+             * Catch such programming errors.
+             */
+            err = VIX_E_INVALID_ARG;
+            Log("%s:%d, pointer properties cannot be serialized.\n",
+                __FUNCTION__, __LINE__);
+            goto abort;
 
          ////////////////////////////////////////////////////////
          default:
@@ -318,16 +324,7 @@ VixPropertyList_Serialize(VixPropertyListImpl    *propList,       // IN
 
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_POINTER:
-            if (property->value.ptrValue) {
-               valueLength = PROPERTY_SIZE_POINTER;
-               memcpy(&(serializeBuffer[pos]), &valueLength, propertyValueLengthSize);
-               pos += propertyValueLengthSize;
-               memcpy(&(serializeBuffer[pos]), &(property->value.ptrValue), sizeof(property->value.ptrValue));
-            } else {
-               err = VIX_E_INVALID_ARG;
-               goto abort;
-            }
-            break;
+            NOT_IMPLEMENTED();
 
          ////////////////////////////////////////////////////////
          default:
@@ -448,7 +445,6 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
    int *intPtr;
    Bool *boolPtr;
    int64 *int64Ptr;
-   void **ptrPtr;
    unsigned char* blobPtr;
    int *propertyIDPtr;
    int *lengthPtr;
@@ -588,15 +584,14 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,     // IN
 
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_POINTER:
-            // The size may be different on different machines.
-            // To be safe, we always use 8 bytes.
-            if (PROPERTY_SIZE_POINTER != *lengthPtr) {
-               err = VIX_E_INVALID_SERIALIZED_DATA;
-               goto abort;
-            }
-            ptrPtr = (void**) &(buffer[pos]);
-            property->value.ptrValue = *ptrPtr;
-            break;
+            /*
+             * Deserialize an pointer property should not be allowed.
+             * An evil peer could send us such data.
+             */
+            err = VIX_E_INVALID_SERIALIZED_DATA;
+            Log("%s:%d, pointer properties cannot be serialized.\n",
+                __FUNCTION__, __LINE__);
+            goto abort;
 
          ////////////////////////////////////////////////////////
          default:

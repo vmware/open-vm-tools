@@ -36,4 +36,4 @@ libvix_la_SOURCES =
 libvix_la_SOURCES += foundryToolsDaemon.c
 libvix_la_SOURCES += vixPlugin.c
 libvix_la_SOURCES += vixTools.c
-
+libvix_la_SOURCES += vixToolsEnvVars.c

@@ -462,6 +462,13 @@ static const VixCommandInfo vixCommandInfoTable[] = {
    VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST,
                            VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
 
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_ACQUIRE_CREDENTIALS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_RELEASE_CREDENTIALS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+   VIX_DEFINE_COMMAND_INFO(VIX_COMMAND_VALIDATE_CREDENTIALS,
+                           VIX_COMMAND_CATEGORY_ALWAYS_ALLOWED),
+
 };
 
 
@@ -617,36 +624,38 @@ VixMsg_InitResponseMsg(VixCommandResponseHeader *responseHeader,     // IN
 
 VixCommandRequestHeader *
 VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
-                       int opCode,                    // IN
-                       uint64 cookie,                 // IN
-                       int credentialType,            // IN
-                       const char *userNamePassword)  // IN
+                       int opCode,                       // IN
+                       uint64 cookie,                    // IN
+                       int credentialType,               // IN
+                       const char *credential)           // IN
 {
    size_t totalMessageSize;
    VixCommandRequestHeader *commandRequest = NULL;
-   size_t credentialLength = 0;
-   size_t namePasswordLength = 0;
+   size_t providedCredentialLength = 0;
+   size_t totalCredentialLength = 0;
    char *destPtr;
 
-   if ((VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType) 
+   if ((VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType)
       || (VIX_USER_CREDENTIAL_HOST_CONFIG_SECRET == credentialType)
-      || (VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET == credentialType)) {
+      || (VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET == credentialType)
+      || (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType)
+      || (VIX_USER_CREDENTIAL_SSPI == credentialType)) {
       /*
-       * Both of these are optional.
+       * All of these are optional.
        */
-      if (NULL != userNamePassword) {
-         namePasswordLength = strlen(userNamePassword);
-         credentialLength += namePasswordLength;
+      if (NULL != credential) {
+         providedCredentialLength = strlen(credential);
+         totalCredentialLength += providedCredentialLength;
       }
       /*
        * Add 1 to each string to include '\0' for the end of the string.
        */
-      credentialLength += 1;
+      totalCredentialLength += 1;
    } else {
-      credentialLength = 0;
+      totalCredentialLength = 0;
    }
 
-   totalMessageSize = msgHeaderAndBodyLength + credentialLength;
+   totalMessageSize = msgHeaderAndBodyLength + totalCredentialLength;
    if (totalMessageSize > VIX_COMMAND_MAX_REQUEST_SIZE) {
       /*
        * We don't want to allocate any requests larger than
@@ -664,11 +673,11 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
    commandRequest->commonHeader.magic = VIX_COMMAND_MAGIC_WORD;
    commandRequest->commonHeader.messageVersion = VIX_COMMAND_MESSAGE_VERSION;
    commandRequest->commonHeader.totalMessageLength =
-      msgHeaderAndBodyLength + credentialLength;
+      msgHeaderAndBodyLength + totalCredentialLength;
    commandRequest->commonHeader.headerLength = sizeof(VixCommandRequestHeader);
    commandRequest->commonHeader.bodyLength = msgHeaderAndBodyLength -
       sizeof(VixCommandRequestHeader);
-   commandRequest->commonHeader.credentialLength = credentialLength;
+   commandRequest->commonHeader.credentialLength = totalCredentialLength;
    commandRequest->commonHeader.commonFlags = VIX_COMMAND_REQUEST;
 
    commandRequest->opCode = opCode;
@@ -680,13 +689,15 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
 
    if ((VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType)
          || (VIX_USER_CREDENTIAL_HOST_CONFIG_SECRET == credentialType)
-         || (VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET == credentialType)) {
+         || (VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET == credentialType)
+         || (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType)
+         || (VIX_USER_CREDENTIAL_SSPI == credentialType)) {
       destPtr = (char *) commandRequest;
       destPtr += commandRequest->commonHeader.headerLength;
       destPtr += commandRequest->commonHeader.bodyLength;
-      if (NULL != userNamePassword) {
-         Str_Strcpy(destPtr, userNamePassword, namePasswordLength + 1);
-         destPtr += namePasswordLength;
+      if (NULL != credential) {
+         Str_Strcpy(destPtr, credential, providedCredentialLength + 1);
+         destPtr += providedCredentialLength;
       }
       *(destPtr++) = 0;
    }

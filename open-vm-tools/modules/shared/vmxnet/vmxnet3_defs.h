@@ -74,6 +74,17 @@
 #define VMXNET3_PT_REG_SIZE     4096    /* BAR 0 */
 #define VMXNET3_VD_REG_SIZE     4096    /* BAR 1 */
 
+/*
+ * The two Vmxnet3 MMIO Register PCI BARs (BAR 0 at offset 10h and BAR 1 at
+ * offset 14h)  as well as the MSI-X BAR are combined into one PhysMem region:
+ * <-VMXNET3_PT_REG_SIZE-><-VMXNET3_VD_REG_SIZE-><-VMXNET3_MSIX_BAR_SIZE-->
+ * -------------------------------------------------------------------------
+ * |Pass Thru Registers  | Virtual Dev Registers | MSI-X Vector/PBA Table  |
+ * -------------------------------------------------------------------------
+ * VMXNET3_MSIX_BAR_SIZE is defined in "vmxnet3Int.h"
+ */
+#define VMXNET3_PHYSMEM_PAGES   4
+
 #define VMXNET3_REG_ALIGN       8  /* All registers are 8-byte aligned. */
 #define VMXNET3_REG_ALIGN_MASK  0x7
 

@@ -120,6 +120,8 @@ EXTERN int File_GetVMFSMountInfo(ConstUnicode pathName,
 
 EXTERN Bool File_SupportsZeroedThick(ConstUnicode pathName);
 
+EXTERN Bool File_SupportsMultiWriter(ConstUnicode pathName);
+
 EXTERN Bool File_Exists(ConstUnicode pathName);
 
 EXTERN int File_Unlink(ConstUnicode pathName);

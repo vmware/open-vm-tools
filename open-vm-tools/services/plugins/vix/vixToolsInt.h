@@ -28,13 +28,54 @@
 
 #include "vmware.h"
 #include "vix.h"
+#include "vixCommands.h"
 
+
+#define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
 
 #ifdef _WIN32
+
+#define VIX_TOOLS_MAX_SSPI_SESSIONS 50
+#define VIX_TOOLS_MAX_TICKETED_SESSIONS 50
+
+#endif
+
+
+typedef struct VixToolsEnvIterator VixToolsEnvIterator;
+
+VixError VixToolsNewEnvIterator(void *userToken, VixToolsEnvIterator **envItr);
+
+char *VixToolsGetNextEnvVar(VixToolsEnvIterator *envItr);
+
+void VixToolsDestroyEnvIterator(VixToolsEnvIterator *envItr);
+
+#ifdef _WIN32
+
+VixError VixToolsGetEnvBlock(void *userToken,
+                             wchar_t **envBlock);
+
+Bool VixToolsDestroyEnvironmentBlock(wchar_t *envBlock);
+
 VixError VixToolsGetUserTmpDir(void *userToken,
                                char **tmpDirPath);
 
 Bool VixToolsUserIsMemberOfAdministratorGroup(VixCommandRequestHeader *requestMsg);
+
+void VixToolsInitSspiSessionList(const unsigned int maxSessions);
+void VixToolsDeinitSspiSessionList();
+void VixToolsInitTicketedSessionList(const unsigned int maxSessions);
+void VixToolsDeinitTicketedSessionList();
+
+
+VixError VixToolsAuthenticateWithSSPI(VixCommandRequestHeader *requestMsg,
+                                      char **resultBuffer);
+
+VixError VixToolsGetTokenHandleFromTicketID(const char *ticketID,
+                                            char **username,
+                                            HANDLE *hToken);
+
+VixError VixToolsReleaseCredentialsImpl(VixCommandRequestHeader *requestMsg);
+
 #endif // _WIN32
 
 

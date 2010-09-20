@@ -2044,20 +2044,33 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
 {
    int i;
    int numFiles;
+   int err = 0;
    Unicode base;
 
    Unicode *fileList = NULL;
    Bool sawFileError = FALSE;
 
-   if (Posix_EuidAccess(pathName, F_OK)) {
-      switch (errno) {
+   if (Posix_EuidAccess(pathName, F_OK) != 0) {
+      /*
+       * If Posix_EuidAccess failed with errno == ENOSYS, then fall back
+       * to FileAttributes.
+       */
+      if (errno == ENOSYS) {
+         /* FileAttributes returns the error code instead of setting errno. */
+         err = FileAttributes(pathName, NULL);
+      } else {
+         /* Use the error value that was set by Posix_EuidAccess. */
+         err = errno;
+      }
+   }
+
+   switch (err) {
       case ENOENT:
       case ENOTDIR:
          /* path does not exist or is inaccessible */
          return TRUE;
       default:
          break;
-      }
    }
 
    /* get list of files in current directory */

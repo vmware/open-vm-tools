@@ -1203,6 +1203,48 @@ File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIsVMFS --
+ *
+ *      Is the given file on a filesystem that supports vmfs-specific
+ *      features like zeroed-thick and multiwriter files?
+ *
+ * Results:
+ *      TRUE if we're on VMFS.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+FileIsVMFS(ConstUnicode pathName) // IN
+{
+   Bool result = FALSE;
+
+#if defined(VMX86_SERVER)
+   /* Right now only VMFS supports zeroedThick and multiWriter. */
+   FS_PartitionListResult *fsAttrs = NULL;
+
+   if (File_GetVMFSAttributes(pathName, &fsAttrs) >= 0) {
+      result = strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
+                       sizeof(FS_VMFS_ON_ESX)) == 0;
+   } else {
+      Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
+   }
+
+   if (fsAttrs) {
+      free(fsAttrs);
+   }
+#endif
+ 
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_SupportsZeroedThick --
  *
  *      Check if the given file is on an FS supports creation of
@@ -1220,27 +1262,35 @@ File_GetVMFSMountInfo(ConstUnicode pathName,  // IN:
  */
 
 Bool
-File_SupportsZeroedThick(ConstUnicode pathName) // IN: File name to test
+File_SupportsZeroedThick(ConstUnicode pathName) // IN
 {
-   Bool result = FALSE;
+   return FileIsVMFS(pathName);
+}
 
-#if defined(VMX86_SERVER)
-   /* Right now only VMFS supports ZeroedThick */
-   FS_PartitionListResult *fsAttrs = NULL;
 
-   if (File_GetVMFSAttributes(pathName, &fsAttrs) >= 0) {
-      result = strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
-                       sizeof(FS_VMFS_ON_ESX)) == 0;
-   } else {
-      Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
-   }
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SupportsMultiWriter --
+ *  
+ *      Check if the given file is on an FS supports opening files
+ *      in multi-writer mode.
+ *      Currently only VMFS on ESX supports multi-writer mode, but
+ *      this may change in the future.
+ *
+ * Results:
+ *      TRUE if FS supports opening files in multi-writer mode.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
 
-   if (fsAttrs) {
-      free(fsAttrs);
-   }
-#endif
- 
-   return result;
+Bool
+File_SupportsMultiWriter(ConstUnicode pathName) // IN
+{
+   return FileIsVMFS(pathName);
 }
 
 

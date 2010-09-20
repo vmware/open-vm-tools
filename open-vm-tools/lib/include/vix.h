@@ -169,8 +169,10 @@ enum {
    VIX_E_NO_DISPLAY_SERVER                      = 3043,
    VIX_E_VM_NOT_RECORDING                       = 3044,
    VIX_E_VM_NOT_REPLAYING                       = 3045,
+   VIX_E_TOO_MANY_LOGONS                        = 3046,
+   VIX_E_INVALID_AUTHENTICATION_SESSION         = 3047,
 
-   /* VM Errors */ 
+   /* VM Errors */
    VIX_E_VM_NOT_FOUND                           = 4000,
    VIX_E_NOT_SUPPORTED_FOR_VM_VERSION           = 4001,
    VIX_E_CANNOT_READ_VM_CONFIG                  = 4002,

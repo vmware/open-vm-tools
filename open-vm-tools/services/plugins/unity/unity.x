@@ -27,21 +27,15 @@
  */
 
 /*
+ * Include unityCommon for the definitions of the types of operations.
+ */
+%#include "unityCommon.h"
+
+/*
  * Enumerates the different versions of the messages.
  */
 enum UnityOptionsVersion {
   UNITY_OPTIONS_V1 = 1
-};
-
-/*
- * List of features (as a bitmask) which may be optionally enabled when entering
- * Unity mode. By default all these features are disabled.
- */
-enum UnityFeatures {
-   UNITY_ADD_HIDDEN_WINDOWS_TO_TRACKER = 1,
-   UNITY_INTERLOCK_MINIMIZE_OPERATION = 2,
-   UNITY_SEND_WINDOW_CONTENTS = 4,
-   UNITY_DISABLE_COMPOSITING_IN_GUEST = 8
 };
 
 /*
@@ -86,14 +80,10 @@ enum UnityOperationVersion {
   UNITY_OP_V1 = 1
 };
 
-enum UnityOperations {
-   MINIMIZE = 1
-};
-
 /*
  * The structure used to distinguish the operations of the message.
  */
-union UnityOperationDetails switch (UnityOperations op) {
+union UnityOperationDetails switch (int op) {
 case MINIMIZE:
    int dummy;        /* Dummy value to avoid empty union */
 };

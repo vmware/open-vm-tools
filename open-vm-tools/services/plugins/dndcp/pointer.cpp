@@ -310,8 +310,18 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
 void
 Pointer_Init(ToolsAppCtx *ctx)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
-   absoluteMouseState = GuestApp_GetAbsoluteMouseState();
-   PointerUpdatePointerLoop(NULL);
-   mouseIsGrabbed = FALSE;
+   /*
+    * XXX There is a performance issue with timer in this module. As a
+    * temporarily workaround, this module will be disabled by default, but can
+    * be enabled with tools.conf. Please refer to bug 598078 for more detail.
+    */
+   if (g_key_file_get_boolean(ctx->config, "dndcp",
+                              "pointer.enable", NULL)) {
+      g_debug("%s: pointer is enabled\n", __FUNCTION__);
+      absoluteMouseState = GuestApp_GetAbsoluteMouseState();
+      PointerUpdatePointerLoop(NULL);
+      mouseIsGrabbed = FALSE;
+   } else {
+      g_debug("%s: pointer is disabled\n", __FUNCTION__);
+   }
 }

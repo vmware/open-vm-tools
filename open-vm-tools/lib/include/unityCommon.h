@@ -434,6 +434,26 @@ typedef uint32 UnityIconSize; // Number of pixels on the larger side of the icon
 
 #define UNITY_DEFAULT_COLOR "#c0c0c0"
 
+/*
+ * List of operations that can be interlocked with the host, via a request, confirm,
+ * acknowledge sequence of RPCs.
+ */
+typedef enum {
+   MINIMIZE = 1
+} UnityOperations;
+
+
+/*
+ * List of features (as a bitmask) which may be optionally enabled when entering
+ * Unity mode. By default all these features are disabled.
+ */
+typedef enum {
+   UNITY_ADD_HIDDEN_WINDOWS_TO_TRACKER = 1,
+   UNITY_INTERLOCK_MINIMIZE_OPERATION = 1 << 1,
+   UNITY_SEND_WINDOW_CONTENTS = 1 << 2,
+   UNITY_DISABLE_COMPOSITING_IN_GUEST = 1 << 3
+}  UnityFeatures;
+
 
 /*
  * Multipage Doxygen documentation.
@@ -802,6 +822,13 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    @param[in] deltaZ the distance the wheel is rotated in the Z axis
    @param[in] modifierFlags modifier flags pressed during the event
 
+   @def         UNITY_RPC_WINDOW_CONTENTS_REQUEST
+   @brief       Request the asynchronous delivery of window contents.
+   @code
+   UNITY_RPC_WINDOW_CONTENTS_REQUEST XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
    @}
 */
 
@@ -881,6 +908,27 @@ desktop where the upper right <tt>{1,2}</tt> is the currently active desktop.
    @brief       Acknowledge that a previously confirmed operations has been performed.
    @code
    UNITY_RPC_ACK_OPERATION XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
+   @def         UNITY_RPC_WINDOW_CONTENTS_START
+   @brief       The start of data for the pixel contents of the window.
+   @code
+   UNITY_RPC_WINDOW_CONTENTS_START XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
+   @def         UNITY_RPC_WINDOW_CONTENTS_CHUNK
+   @brief       One (<64KB) chunk of Pixel Data for a previously started window.
+   @code
+   UNITY_RPC_WINDOW_CONTENTS_CHUNK XDR_REP
+   @endcode
+   @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
+
+   @def         UNITY_RPC_WINDOW_CONTENTS_END
+   @brief       The end of data for the pixel contents of the window.
+   @code
+   UNITY_RPC_WINDOW_CONTENTS_END XDR_REP
    @endcode
    @param[in] XDR_REP XDR Encoded (see unity.x) representation of arguments.
 

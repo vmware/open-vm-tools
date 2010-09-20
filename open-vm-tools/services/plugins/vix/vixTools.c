@@ -24,10 +24,11 @@
 
 /*
  * When adding new functions, be sure to update
- * VixToolsSetAPIEnabledProperties() (adding a property and associated code
- * in apps/lib/foundry/foundryVM.c if necessary).  The enabled properties
- * provide hints to an API developer as to which APIs are available,
- * and can be affected to guest OS attributes or guest-side conifguration.
+ * VixToolsCheckIfVixCommandEnabled() and VixToolsSetAPIEnabledProperties()
+ * (adding a property and associated code in apps/lib/foundry/foundryVM.c
+ * if necessary).  The enabled properties provide hints to an API developer
+ * as to which APIs are available, and can be affected to guest OS attributes
+ * or guest-side configuration.
  *
  * See Vim.Vm.Guest.QueryDisabledMethods()
  *
@@ -114,8 +115,6 @@
 
 #define SECONDS_BETWEEN_POLL_TEST_FINISHED     1
 
-#define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
-
 #define MAX_PROCESS_LIST_RESULT_LENGTH    81920
 
 /*
@@ -199,7 +198,7 @@ typedef struct VixToolsStartProgramState {
  * if we don't save it off for before the timer fires.
  */
 typedef struct VixToolsExitedProgramState {
-   char                                *name;
+   char                                *fullCommandLine;
    char                                *user;
    uint64                              pid;
    time_t                              startTime;
@@ -337,6 +336,8 @@ static VixError VixToolsReadVariable(VixCommandRequestHeader *requestMsg,
 static VixError VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,
                                          char **result);
 
+static VixError VixToolsGetAllEnvVarsForUser(void *userToken, char **result);
+
 static VixError VixToolsWriteVariable(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsListProcesses(VixCommandRequestHeader *requestMsg,
@@ -372,6 +373,12 @@ static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
 static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
                                         char **result);
 
+static VixError VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg);
+
+static VixError VixToolsAcquireCredentials(VixCommandRequestHeader *requestMsg,
+                                           char **result);
+
+static VixError VixToolsReleaseCredentials(VixCommandRequestHeader *requestMsg);
 
 #if defined(__linux__) || defined(_WIN32)
 static VixError VixToolsGetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg,
@@ -451,6 +458,15 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
 
 #ifndef _WIN32
    VixToolsBuildUserEnvironmentTable(originalEnvp);
+#else
+   /*
+    * Ensure that we never allow more SSPI sessions than ticketed sessions
+    * because there must be a ticketed session available for each SSPI session.
+    */
+   ASSERT_ON_COMPILE(VIX_TOOLS_MAX_TICKETED_SESSIONS >= VIX_TOOLS_MAX_SSPI_SESSIONS);
+
+   VixToolsInitSspiSessionList(VIX_TOOLS_MAX_SSPI_SESSIONS);
+   VixToolsInitTicketedSessionList(VIX_TOOLS_MAX_TICKETED_SESSIONS);
 #endif
 #if !defined(__FreeBSD__)
    /* Register a straight through connection with the Hgfs server. */
@@ -757,7 +773,6 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
    int64 pid;
    static char resultBuffer[32];
 
-
    runProgramRequest = (VixMsgRunProgramRequest *) requestMsg;
    commandLine = ((char *) runProgramRequest) + sizeof(*runProgramRequest);
    if (0 == *commandLine) {
@@ -892,6 +907,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
                                   &pid);
 
    if (VIX_OK == err) {
+
       /*
        * Save off the program so ListProcessesEx can find it.
        *
@@ -899,7 +915,26 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
        * exited process polling proc.
        */
       exitState = Util_SafeMalloc(sizeof(VixToolsExitedProgramState));
-      exitState->name = Util_SafeStrdup(programPath);
+
+      /*
+       * Build up the command line so the args are passed to the command.
+       * To be safe, always put quotes around the program name. If the name
+       * contains spaces (either in the file name of its directory path),
+       * then the quotes are required. If the name doesn't contain spaces, then
+       * unnecessary quotes don't seem to create a problem for both Windows and
+       * Linux.
+       */
+      if (NULL != arguments) {
+         exitState->fullCommandLine = Str_Asprintf(NULL,
+                                        "\"%s\" %s",
+                                        programPath,
+                                        arguments);
+      } else {
+         exitState->fullCommandLine = Str_Asprintf(NULL,
+                                        "\"%s\"",
+                                        programPath);
+      }
+
       exitState->user = Util_SafeStrdup(VixToolsGetImpersonatedUsername(&userToken));
       exitState->pid = (uint64) pid;
       exitState->startTime = time(NULL);
@@ -1021,7 +1056,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
     * To be safe, always put quotes around the program name. If the name
     * contains spaces (either in the file name of its directory path),
     * then the quotes are required. If the name doesn't contain spaces, then
-    * unnecessary quotes don't seem to create aproblem for both Windows and
+    * unnecessary quotes don't seem to create a problem for both Windows and
     * Linux.
     */
    if (NULL != commandLineArgs) {
@@ -1211,7 +1246,7 @@ VixToolsStartProgramImpl(char *requestName,      // IN
     * To be safe, always put quotes around the program name. If the name
     * contains spaces (either in the file name of its directory path),
     * then the quotes are required. If the name doesn't contain spaces, then
-    * unnecessary quotes don't seem to create aproblem for both Windows and
+    * unnecessary quotes don't seem to create a problem for both Windows and
     * Linux.
     */
    if (NULL != arguments) {
@@ -1443,7 +1478,7 @@ done:
     * and endTime.
     */
    exitState = Util_SafeMalloc(sizeof(VixToolsExitedProgramState));
-   exitState->name = NULL;
+   exitState->fullCommandLine = NULL;
    exitState->user = NULL;
    exitState->pid = pid;
    exitState->startTime = 0;
@@ -1568,7 +1603,7 @@ VixToolsFreeExitedProgramState(VixToolsExitedProgramState *exitState) // IN
       return;
    }
 
-   free(exitState->name);
+   free(exitState->fullCommandLine);
    free(exitState->user);
 
    free(exitState);
@@ -1952,6 +1987,8 @@ exit:
  *
  *    Helper function for fetching the API config setting.
  *
+ *    If the varName is NULL, only the global switch is checked.
+ *
  * Return value:
  *    Bool
  *
@@ -1976,7 +2013,7 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
 
    /*
     * First check the global kill-switch, which will override the
-    * per-API configs.
+    * per-API configs if its set.
     */
    if (confDictRef != NULL) {
       disabled = g_key_file_get_boolean(confDictRef,
@@ -1989,10 +2026,10 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
    }
 
    /*
-    * Check the individual API
+    * Check the individual API if the global kill-switch isn't on.
     */
    if (NULL != varName) {
-      snprintf(disabledName, sizeof(disabledName), "%s.disabled", varName);
+      Str_Snprintf(disabledName, sizeof(disabledName), "%s.disabled", varName);
       if (confDictRef != NULL) {
          disabled = g_key_file_get_boolean(confDictRef,
                                            VIX_TOOLS_CONFIG_API_GROUPNAME,
@@ -2844,24 +2881,10 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
       /*
        * If none are specified, return all of them.
        */
-#ifdef _WIN32
-      /* XXX TODO XXX */
-#elif defined(linux)
-      char **ep;
-
-      /*
-       * The full env var list is in a magic char ** extern in the form
-       * 'VAR=VAL'
-       */
-      ep = __environ;
-      while (*ep) {
-         tmp = results;
-         results = Str_Asprintf(NULL, "%s<ev>%s</ev>",
-                                tmp, *ep);
-         free(tmp);
-         ep++;
+      err = VixToolsGetAllEnvVarsForUser(userToken, &results);
+      if (VIX_FAILED(err)) {
+         goto abort;
       }
-#endif
    }
 
    *result = results;
@@ -2873,7 +2896,67 @@ abort:
    VixToolsLogoutUser(userToken);
 
    return err;
-} // VixToolsReadVariable
+} // VixToolsReadEnvVariables
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsGetAllEnvVarsForUser --
+ *
+ *      Populates result with an XML-like string containing all the
+ *      environment variables set for the user represented by 'userToken'.
+ *      The result string will contain zero or more entries of the form
+ *      <ev>NAME=VALUE</ev> without any delimiting characters.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
+                             char **result)       // OUT
+{
+   VixError err;
+   char *resultLocal;
+   VixToolsEnvIterator *itr;
+   char *envVar;
+
+   if (NULL == result) {
+      err = VIX_E_FAIL;
+      return err;
+   }
+
+   resultLocal = Util_SafeStrdup("");  // makes the loop cleaner.
+
+   err = VixToolsNewEnvIterator(userToken, &itr);
+   if (VIX_FAILED(err)) {
+      goto abort;
+   }
+
+   while ((envVar = VixToolsGetNextEnvVar(itr)) != NULL) {
+      char *tmp = resultLocal;
+      resultLocal = Str_Asprintf(NULL, "%s<ev>%s</ev>", tmp, envVar);
+      free(tmp);
+      free(envVar);
+      if (NULL == resultLocal) {
+         Debug("%s: Out of memory.\n", __FUNCTION__);
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+   }
+
+abort:
+   VixToolsDestroyEnvIterator(itr);
+   *result = resultLocal;
+
+   return err;
+}
 
 
 /*
@@ -3063,7 +3146,18 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
     * diff err codes depending on OS, so catch it up front (bug 133165)
     */
    if (File_IsDirectory(destFilePathName)) {
-      err = VIX_E_ALREADY_EXISTS;
+      if ((VIX_COMMAND_MOVE_GUEST_FILE_EX == requestMsg->opCode) ||
+          (VIX_COMMAND_MOVE_GUEST_DIRECTORY == requestMsg->opCode)) {
+      /*
+       * If we are implementing opcodes related to VI Guest operations,
+       * then return VIX_E_FILE_ALREADY_EXISTS. Don't change the error
+       * code for opcode related to VIX C api. It will break the existing
+       * tests.
+       */
+         err = VIX_E_FILE_ALREADY_EXISTS;
+      } else {
+         err = VIX_E_ALREADY_EXISTS;
+      }
       goto abort;
    }
 
@@ -3404,7 +3498,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
                                       "<user>%s</user><start>%d</start>"
                                       "<eCode>%d</eCode><eTime>%d</eTime>"
                                       "</proc>",
-                                      epList->name,
+                                      epList->fullCommandLine,
                                       epList->pid,
                                       epList->user,
                                       (int) epList->startTime,
@@ -3423,7 +3517,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
                                 "<user>%s</user><start>%d</start>"
                                 "<eCode>%d</eCode><eTime>%d</eTime>"
                                 "</proc>",
-                                epList->name,
+                                epList->fullCommandLine,
                                 epList->pid,
                                 epList->user,
                                 (int) epList->startTime,
@@ -3870,10 +3964,8 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    int maxResults = 0;
    int count = 0;
    int numResults;
-#if defined(VMTOOLS_USE_GLIB)
    GRegex *regex = NULL;
    GError *gerr = NULL;
-#endif
 
    ASSERT(NULL != requestMsg);
 
@@ -3912,7 +4004,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
          __FUNCTION__, dirPathName, pattern);
 
    if (pattern) {
-#if defined(VMTOOLS_USE_GLIB)
       regex = g_regex_new(pattern, 0, 0, &gerr);
       if (!regex) {
          Debug("%s: bad regex pattern '%s'; failing with INVALID_ARG\n",
@@ -3920,12 +4011,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
          err = VIX_E_INVALID_ARG;
          goto abort;
       }
-#else
-      Debug("%s: pattern filter support desired but not built in\n",
-            __FUNCTION__);
-      err = VIX_E_NOT_SUPPORTED;
-      goto abort;
-#endif
    }
 
    if (File_IsDirectory(dirPathName)) {
@@ -3975,13 +4060,11 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
         fileNum++) {
       currentFileName = fileNameList[fileNum];
 
-#if defined(VMTOOLS_USE_GLIB)
       if (regex) {
          if (!g_regex_match(regex, currentFileName, 0, NULL)) {
             continue;
          }
       }
-#endif
 
       resultBufferSize += formatStringLength;
       resultBufferSize += 2; // DIRSEPC chars
@@ -4036,13 +4119,11 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
 
       currentFileName = fileNameList[fileNum];
 
-#if defined(VMTOOLS_USE_GLIB)
       if (regex) {
          if (!g_regex_match(regex, currentFileName, 0, NULL)) {
             continue;
          }
       }
-#endif
 
       if (listingSingleFile) {
          pathName = Util_SafeStrdup(currentFileName);
@@ -4797,40 +4878,64 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
 {
    VixError err = VIX_OK;
    char *credentialField;
-   VixCommandNamePassword *namePasswordStruct;
    int credentialType;
 
    Debug(">%s\n", __FUNCTION__);
 
    credentialField = ((char *) requestMsg)
-                           + requestMsg->commonHeader.headerLength 
+                           + requestMsg->commonHeader.headerLength
                            + requestMsg->commonHeader.bodyLength;
 
-   namePasswordStruct = (VixCommandNamePassword *) credentialField;
-   credentialField += sizeof(VixCommandNamePassword);
    credentialType = requestMsg->userCredentialType;
 
-   err = VixToolsImpersonateUserImplEx(NULL, 
-                                       credentialType,
-                                       credentialField, 
-                                       userToken);
-   if ((VIX_OK != err)
-         && ((VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)
-               || (VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType))) {
-      /*
-       * Windows does not allow you to login with an empty password. Only
-       * the console allows this login, which means the console does not
-       * call the simple public LogonUser api.
-       *
-       * See the description for ERROR_ACCOUNT_RESTRICTION.
-       * For example, the error codes are described here:
-       *      http://support.microsoft.com/kb/155012
-       */
-#ifdef _WIN32
-      if (namePasswordStruct->passwordLength <= 0) {
-         err = VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST;
+   if (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType) {
+      VixCommandTicketedSession *commandTicketedSession = (VixCommandTicketedSession *) credentialField;
+      size_t ticketLength = commandTicketedSession->ticketLength;
+
+      credentialField += sizeof(VixCommandTicketedSession);
+
+      if (ticketLength != strlen(credentialField)) {
+         Debug("%s: Ticket Length Does Not Match Expected\n", __FUNCTION__);
+         return VIX_E_INVALID_MESSAGE_BODY;
       }
+
+      err = VixToolsImpersonateUserImplEx(NULL,
+                                          credentialType,
+                                          credentialField,
+                                          userToken);
+
+   } else if (VIX_USER_CREDENTIAL_SSPI == credentialType) {
+      /*
+       * SSPI currently only supported in ticketed sessions
+       */
+      err = VIX_E_NOT_SUPPORTED;
+
+   } else {
+      VixCommandNamePassword *namePasswordStruct = (VixCommandNamePassword *) credentialField;
+      credentialField += sizeof(*namePasswordStruct);
+
+      err = VixToolsImpersonateUserImplEx(NULL,
+                                          credentialType,
+                                          credentialField,
+                                          userToken);
+      if ((VIX_OK != err)
+            && ((VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)
+                  || (VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType))) {
+         /*
+          * Windows does not allow you to login with an empty password. Only
+          * the console allows this login, which means the console does not
+          * call the simple public LogonUser api.
+          *
+          * See the description for ERROR_ACCOUNT_RESTRICTION.
+          * For example, the error codes are described here:
+          *      http://support.microsoft.com/kb/155012
+          */
+#ifdef _WIN32
+         if (namePasswordStruct->passwordLength <= 0) {
+            err = VIX_E_EMPTY_PASSWORD_NOT_ALLOWED_IN_GUEST;
+         }
 #endif
+      }
    }
 
    Debug("<%s\n", __FUNCTION__);
@@ -4915,6 +5020,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
       AuthToken authToken;
       char *unobfuscatedUserName = NULL;
       char *unobfuscatedPassword = NULL;
+      char *ticketID = NULL;
 
       if (NULL != credentialTypeStr) {
          if (!StrUtil_StrToInt(&credentialType, credentialTypeStr)) {
@@ -5003,34 +5109,79 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        * by the VMX. If this is something else, then we are talking to a newer
        * version of the VMX.
        */
-      if ((VIX_USER_CREDENTIAL_NAME_PASSWORD != credentialType) 
-            && (VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED != credentialType)) {
+      if ((VIX_USER_CREDENTIAL_NAME_PASSWORD != credentialType)
+            && (VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED != credentialType)
+            && (VIX_USER_CREDENTIAL_TICKETED_SESSION != credentialType)) {
          err = VIX_E_NOT_SUPPORTED;
          goto abort;
       }
 
-      success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
-                                               &unobfuscatedUserName,
-                                               &unobfuscatedPassword);
-      if (!success) {
-         err = VIX_E_FAIL;
-         goto abort;
-      }
+      if (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType) {
+#ifdef _WIN32
+         size_t ticketSize;
+         char *username;
 
-      authToken = Auth_AuthenticateUser(unobfuscatedUserName, unobfuscatedPassword);
-      if (NULL == authToken) {
-         err = VIX_E_GUEST_USER_PERMISSIONS;
-         goto abort;
-      }
-      if (NULL != userToken) {
-         *userToken = (void *) authToken;
-      }
+         ticketSize = Base64_DecodedLength(obfuscatedNamePassword,
+                                           strlen(obfuscatedNamePassword));
 
+         /*
+          * Leave room for null terminator
+          */
+         ticketID = Util_SafeMalloc(ticketSize + 1);
+
+         if (!Base64_Decode(obfuscatedNamePassword,
+                            ticketID,
+                            ticketSize,
+                            &ticketSize)) {
+           Debug("%s: Decode Failed\n", __FUNCTION__);
+           err = VIX_E_FAIL;
+           goto abort;
+         }
+
+         ticketID[ticketSize] = '\0';
+
+         if (ticketSize != strlen(ticketID)) {
+            Debug("%s: Invalid Ticket\n", __FUNCTION__);
+            err = VIX_E_FAIL;
+            goto abort;
+         }
+
+         err = VixToolsGetTokenHandleFromTicketID(ticketID,
+                                                  &username,
+                                                  &authToken);
+
+         if (VIX_OK != err) {
+            goto abort;
+         }
+
+         unobfuscatedUserName = Util_SafeStrdup(username);
+#else
+         err = VIX_E_NOT_SUPPORTED;
+         goto abort;
+#endif
+      } else {
+         success = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
+                                                  &unobfuscatedUserName,
+                                                  &unobfuscatedPassword);
+         if (!success) {
+            err = VIX_E_FAIL;
+            goto abort;
+         }
+
+         authToken = Auth_AuthenticateUser(unobfuscatedUserName, unobfuscatedPassword);
+         if (NULL == authToken) {
+            err = VIX_E_GUEST_USER_PERMISSIONS;
+            goto abort;
+         }
+         if (NULL != userToken) {
+            *userToken = (void *) authToken;
+         }
+      }
 #ifdef _WIN32
       success = Impersonate_Do(unobfuscatedUserName, authToken);
 #else
       /*
-       * Use a tools-special version of user impersonation, since 
+       * Use a tools-special version of user impersonation, since
        * lib/impersonate model isn't quite what we want on linux.
        */
       success = ProcMgr_ImpersonateUserStart(unobfuscatedUserName, authToken);
@@ -5045,6 +5196,8 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
 abort:
       free(unobfuscatedUserName);
       Util_ZeroFreeString(unobfuscatedPassword);
+
+      Util_ZeroFreeString(ticketID);
    }
 
 #else
@@ -5733,6 +5886,125 @@ abort:
    return(err);
 } // VixToolsListFileSystems
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsValidateCredentials --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg)    // IN
+{
+   VixError err = VIX_OK;
+   void *userToken = NULL;
+   Bool impersonatingVMWareUser = FALSE;
+
+   Debug(">%s\n", __FUNCTION__);
+
+   if (NULL == requestMsg) {
+      ASSERT(0);
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   Debug("<%s\n", __FUNCTION__);
+
+   return err;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsAcquireCredentials --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsAcquireCredentials(VixCommandRequestHeader *requestMsg,    // IN
+                           char **result)                          // OUT
+{
+   VixError err;
+   Debug(">%s\n", __FUNCTION__);
+
+#if !defined(_WIN32)
+   err = VIX_E_NOT_SUPPORTED;
+   goto abort;
+#else
+   err = VixToolsAuthenticateWithSSPI(requestMsg, result);
+
+   if (VIX_OK != err) {
+      Debug("%s: Failed to authenticate with SSPI with error %d\n", __FUNCTION__, err);
+      goto abort;
+   }
+#endif
+
+abort:
+   Debug("<%s\n", __FUNCTION__);
+   return err;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsReleaseCredentials --
+ *
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsReleaseCredentials(VixCommandRequestHeader *requestMsg)    // IN
+{
+   VixError err = VIX_OK;
+
+   Debug(">%s\n", __FUNCTION__);
+#if !defined(_WIN32)
+   err = VIX_E_NOT_SUPPORTED;
+#else
+    err = VixToolsReleaseCredentialsImpl(requestMsg);
+#endif
+
+   Debug("<%s\n", __FUNCTION__);
+   return err;
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -6317,6 +6589,21 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
                                 VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_TO_GUEST_NAME);
          break;
 
+      case VIX_COMMAND_VALIDATE_CREDENTIALS:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_VALIDATE_CREDENTIALS_NAME);
+         break;
+
+      case VIX_COMMAND_ACQUIRE_CREDENTIALS:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_ACQUIRE_CREDENTIALS_NAME);
+         break;
+
+      case VIX_COMMAND_RELEASE_CREDENTIALS:
+         enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
+                                VIX_TOOLS_CONFIG_API_RELEASE_CREDENTIALS_NAME);
+         break;
+
       /*
        * None of these opcode have a matching config entry (yet),
        * so they can all share.
@@ -6616,10 +6903,31 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST:
          err = VixToolsInitiateFileTransferToGuest(requestMsg);
+			break;
+
+      case VIX_COMMAND_VALIDATE_CREDENTIALS:
+         err = VixToolsValidateCredentials(requestMsg);
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_ACQUIRE_CREDENTIALS:
+         err = VixToolsAcquireCredentials(requestMsg, &resultValue);
+         // resultValue is static. Do not free it.
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_RELEASE_CREDENTIALS:
+         err = VixToolsReleaseCredentials(requestMsg);
          break;
 
       ////////////////////////////////////
       default:
+         /*
+          * If the opcode is not recognized, tools might be old and the
+          * VIX client might be sending new opcodes. In such case,
+          * we should return VIX_E_UNRECOGNIZED_COMMAND_IN_GUEST.
+          */
+         err = VIX_E_UNRECOGNIZED_COMMAND_IN_GUEST;
          break;
    } // switch (requestMsg->opCode)
 

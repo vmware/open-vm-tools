@@ -59,6 +59,8 @@
 #define VIX_USER_CREDENTIAL_HOST_CONFIG_SECRET        6
 #define VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET 7
 #define VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER    8
+#define VIX_USER_CREDENTIAL_TICKETED_SESSION          9
+#define VIX_USER_CREDENTIAL_SSPI                      10
 
 #define VIX_SHARED_SECRET_CONFIG_USER_NAME          "__VMware_Vix_Shared_Secret_1__"
 
@@ -287,6 +289,29 @@ struct VixCommandNamePassword {
 #include "vmware_pack_end.h"
 VixCommandNamePassword;
 
+/*
+ * **********************************************************
+ * This is a ticketed session for authentication.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandTicketedSession {
+   uint32    ticketLength;
+}
+#include "vmware_pack_end.h"
+VixCommandTicketedSession;
+
+/*
+ * **********************************************************
+ * This is a SSPI token for acquiring credentials
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandSSPI {
+   uint32    tokenLength;
+}
+#include "vmware_pack_end.h"
+VixCommandSSPI;
 
 /*
  * **********************************************************
@@ -1643,7 +1668,7 @@ VixMsgGetVProbesResponse;
 typedef
 #include "vmware_pack_begin.h"
 struct VixMsgVProbeLoadRequest {
-   VixCommandResponseHeader header;
+   VixCommandRequestHeader header;
    char   string[1];             /* variable length */
 } 
 #include "vmware_pack_end.h"
@@ -2049,6 +2074,20 @@ struct VixCommandListFileSystemsRequest {
 #include "vmware_pack_end.h"
 VixCommandListFileSystemsRequest;
 
+/*
+ * **********************************************************
+ * Acquire Credentials.
+ */
+
+typedef
+#include "vmware_pack_begin.h"
+struct VixCommandAcquireCredentialsRequest {
+   VixCommandRequestHeader    header;
+
+   int64                      sessionID;
+}
+#include "vmware_pack_end.h"
+VixCommandAcquireCredentialsRequest;
 
 /*
  * **********************************************************
@@ -2341,8 +2380,11 @@ enum {
    VIX_COMMAND_READ_ENV_VARIABLES               = 187,
 
    VIX_COMMAND_INITIATE_FILE_TRANSFER_FROM_GUEST   = 188,
-
    VIX_COMMAND_INITIATE_FILE_TRANSFER_TO_GUEST     = 189,
+
+   VIX_COMMAND_ACQUIRE_CREDENTIALS              = 190,
+   VIX_COMMAND_RELEASE_CREDENTIALS              = 191,
+   VIX_COMMAND_VALIDATE_CREDENTIALS             = 192,
 
    /*
     * HOWTO: Adding a new Vix Command. Step 2a.
@@ -2354,7 +2396,7 @@ enum {
     * Once a new command is added here, a command info field needs to be added
     * in bora/lib/foundryMsg/foundryMsg.c as well.
     */
-   VIX_COMMAND_LAST_NORMAL_COMMAND              = 190,
+   VIX_COMMAND_LAST_NORMAL_COMMAND              = 193,
 
    VIX_TEST_UNSUPPORTED_TOOLS_OPCODE_COMMAND    = 998,
    VIX_TEST_UNSUPPORTED_VMX_OPCODE_COMMAND      = 999,
