@@ -903,10 +903,6 @@ Util_CompareDotted(const char *s1, const char *s2)
    return 0;
 }
 
-/*
- * MS does not want us disribute code based on their KB samples in
- * open source products.
- */
 
 
 /*
