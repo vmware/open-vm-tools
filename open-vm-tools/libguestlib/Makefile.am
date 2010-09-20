@@ -55,7 +55,7 @@ $(pkgconfig_DATA): $(top_builddir)/config.status
 
 guestlibV3.h: guestlibV3.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
-	   cp -f $(top_srcdir)/lib/guestRpc/guestlibV3.x $(builddir);           \
+	   cp -f $(top_srcdir)/guestABI/guestrpc/guestlibV3.x $(builddir);           \
 	fi
 	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/guestlibV3.x
 	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
