@@ -32,7 +32,9 @@
 #include "util.h"
 #include "debug.h"
 #include "strutil.h"
-#include "guestrpc/guestlibV3.h"
+#include "guestlibV3.h"
+#include "dynxdr.h"
+#include "xdrutil.h"
 
 #define GUESTLIB_NAME "VMware Guest API"
 
@@ -103,6 +105,7 @@ typedef struct {
       ASSERT(_stat.d == (STATID));                                              \
       if (sizeof *(OUTPTR) < sizeof _stat.GuestLibV3Stat_u.FIELDNAME.value) {   \
          (ERROR) = VMGUESTLIB_ERROR_BUFFER_TOO_SMALL;                           \
+         break;                                                                 \
       }                                                                         \
       *(OUTPTR) = _stat.GuestLibV3Stat_u.FIELDNAME.value;                       \
       (ERROR) = VMGUESTLIB_ERROR_SUCCESS;                                       \
