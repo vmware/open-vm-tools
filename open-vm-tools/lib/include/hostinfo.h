@@ -70,7 +70,9 @@ extern Bool Hostinfo_OSIsWow64(void);
 DWORD Hostinfo_OpenProcessBits(void);
 #endif
 extern Bool Hostinfo_NestingSupported(void);
+extern Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
 extern Bool Hostinfo_SLC64Supported(void);
+extern Bool Hostinfo_SynchronizedVTSCs(void);
 extern Bool Hostinfo_TouchBackDoor(void);
 extern Bool Hostinfo_TouchVirtualPC(void);
 extern Bool Hostinfo_TouchXen(void);

@@ -1933,15 +1933,16 @@ Hostinfo_NestingSupported(void)
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_SLC64Supported --
+ *  Hostinfo_VCPUInfoBackdoor --
  *
- *      Access the backdoor with an SLC64 control query. This is used
- *      to determine if we are running inside a VM that supports SLC64.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
+ *      Access the backdoor with an VCPU info query. This is used to
+ *      determine whether a VCPU supports a particular feature,
+ *      determined by 'bit'.  This function should only be called after
+ *      determining that the backdoor is present with
+ *      Hostinfo_TouchBackdoor().
  *
  * Results:
- *      TRUE if the outer VM supports SLC64.
+ *      TRUE if the outer VM supports the feature.
  *	FALSE otherwise.
  *
  * Side effects:
@@ -1951,7 +1952,7 @@ Hostinfo_NestingSupported(void)
  */
 
 Bool
-Hostinfo_SLC64Supported(void)
+Hostinfo_VCPUInfoBackdoor(unsigned bit)
 {
 #if defined(__i386__) || defined(__x86_64__)
    uint32 result;
@@ -1964,7 +1965,7 @@ Hostinfo_SLC64Supported(void)
    );
    /* If reserved bit is 1, this command wasn't implemented. */
    return (result & (1 << BDOOR_CMD_VCPU_RESERVED)) == 0 &&
-          (result & (1 << BDOOR_CMD_VCPU_SLC64))    != 0;
+          (result & (1 << bit))                     != 0;
 #endif
    return FALSE;
 }
