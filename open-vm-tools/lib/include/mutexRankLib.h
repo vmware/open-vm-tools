@@ -91,23 +91,28 @@
 #define RANK_vmdbMemMapLock          (RANK_libLockBase + 0x5580)
 
 /*
- * poll default lock
+ * misc locks
  *
- * There is a LOT of code under this lock, but it appears reasonably
- * low-level, so this seems as good a rank as any.
+ * Assuming ordering is important here for the listed locks. Other
+ * non-leaf locks are usually defined with RANK_LEAF - 1.
+ *
+ * At least:
+ *    keyLocator > preference (for checking AESNI)
+ *    configDb > keyLocator (for unlocking dictionaries)
+ *    battery/button > preference
+ *    workerLib > something for sure under VThread_Create
+ *    licenseCheck > preference
  */
-#define RANK_pollDefaultLock         (RANK_libLockBase + 0x8505)
 
-/*
- * Low-level misc. range:
- * (RANK_libLockBase + 0x9000, RANK_libLockBase + 0x9100)
- */
-#define RANK_licenseCheckLock        (RANK_libLockBase + 0x9003)
-#define RANK_sslStateLock            (RANK_libLockBase + 0x9004)
-#define RANK_sslConnectionLock       (RANK_libLockBase + 0x9005)
-#define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x9010)
-#define RANK_keyLocatorLock          (RANK_libLockBase + 0x9020)
-#define RANK_randGetBytesLock        (RANK_libLockBase + 0x9030)
-#define RANK_randSeedLock            (RANK_libLockBase + 0x9040)
+#define RANK_sslStateLock            (RANK_libLockBase + 0x7010)
+#define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
+#define RANK_batteryLock             (RANK_libLockBase + 0x7030)
+#define RANK_buttonLock              (RANK_libLockBase + 0x7040)
+#define RANK_pollDefaultLock         (RANK_libLockBase + 0x7050)
+#define RANK_workerLibLock           (RANK_libLockBase + 0x7060)
+#define RANK_configDbLock            (RANK_libLockBase + 0x7070)
+#define RANK_keyLocatorLock          (RANK_libLockBase + 0x7080)
+#define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
+#define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
 
 #endif /* _LIBMUTEXRANK_H */
