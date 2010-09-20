@@ -2114,7 +2114,6 @@ __VMAutomationRequestParserGetString(const char                *caller, // IN
    if (VIX_OK != err) {
       return err;
    }
-   Log("%s(%u): Retrieved fixed string \"%s\".\n", caller, line, string);
 
    *result = string;
    return VIX_OK;

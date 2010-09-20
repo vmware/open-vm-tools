@@ -3462,6 +3462,20 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
          err = VIX_E_NOT_A_DIRECTORY;
          goto abort;
       }
+
+      /*
+       * In case of moving a directory, File_Rename() returns different
+       * errors on different Guest Os if the destination file path points
+       * to an existing file. We should catch them upfront and report them
+       * to the user.
+       * As per the documentation for rename() on linux, if the source
+       * file points to an existing directory, then destionation file
+       * should not point to anything other than a directory.
+       */
+      if (File_IsSymLink(destFilePathName) || File_IsFile(destFilePathName)) {
+         err = VIX_E_FILE_ALREADY_EXISTS;
+         goto abort;
+      }
    }
 
    success = File_Rename(srcFilePathName, destFilePathName);
@@ -3594,8 +3608,14 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    if (fd > 0) {
       close(fd);
    } else {
-      err = FoundryToolsDaemon_TranslateSystemErr();
-      Debug("Unable to create a tmp file to test directory permissions,"
+      /*
+       * File_MakeTempEx() function internally uses Posix variant
+       * functions and proper error will be stuffed in errno variable.
+       * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+       * to translate the errno to a proper foundry error.
+       */
+      err = Vix_TranslateErrno(errno);
+      Debug("Unable to create a temp file to test directory permissions,"
             " errno is %d\n", errno);
       goto abort;
    }
@@ -4328,7 +4348,12 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
       }
    }
 
-   if (File_IsDirectory(dirPathName)) {
+
+   /*
+    * First check for symlink -- File_IsDirectory() will lie
+    * if its a symlink to a directory.
+    */
+   if (!File_IsSymLink(dirPathName) && File_IsDirectory(dirPathName)) {
       /*
        * Ideally we should not overload VixToolsListFiles(). We should
        * implement a separate function for implementing VIX_COMMAND_LIST_FILES
@@ -4805,16 +4830,18 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
 #endif
    struct stat statbuf;
 
-   if (File_IsDirectory(filePathName)) {
+   /*
+    * First check for symlink -- File_IsDirectory() will lie
+    * if its a symlink to a directory.
+    */
+   if (File_IsSymLink(filePathName)) {
+      fileProperties |= VIX_FILE_ATTRIBUTES_SYMLINK;
+   } else if (File_IsDirectory(filePathName)) {
       fileProperties |= VIX_FILE_ATTRIBUTES_DIRECTORY;
-   } else {
-      if (File_IsSymLink(filePathName)) {
-         fileProperties |= VIX_FILE_ATTRIBUTES_SYMLINK;
-      }
-      if (File_IsFile(filePathName)) {
-         fileSize = File_GetSize(filePathName);
-      }
+   } else if (File_IsFile(filePathName)) {
+      fileSize = File_GetSize(filePathName);
    }
+
 #ifdef _WIN32
    fileAttr = Win32U_GetFileAttributes(filePathName);
    if (fileAttr != INVALID_FILE_ATTRIBUTES) {
@@ -5933,7 +5960,13 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
                                &data,
                                &tempFilePath);
          if (fd < 0) {
-            err = FoundryToolsDaemon_TranslateSystemErr();
+            /*
+             * File_MakeTempEx() function internally uses Posix variant
+             * functions and proper error will be stuffed in errno variable.
+             * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+             * to translate the errno to a proper foundry error.
+             */
+            err = Vix_TranslateErrno(errno);
             goto abort;
          }
       }
@@ -5978,7 +6011,13 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
                             &data,
                             &tempFilePath);
       if (fd < 0) {
-         err = FoundryToolsDaemon_TranslateSystemErr();
+         /*
+          * File_MakeTempEx() function internally uses Posix variant
+          * functions and proper error will be stuffed in errno variable.
+          * If File_MakeTempEx() fails, then use Vix_TranslateErrno()
+          * to translate the errno to a proper foundry error.
+          */
+         err = Vix_TranslateErrno(errno);
          goto abort;
       }
    }

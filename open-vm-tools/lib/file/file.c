@@ -1243,6 +1243,17 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
 
       if (createTempFile) {
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
+#if defined(_WIN32)
+         /*
+          * On windows, Posix_Open() fails with EACCES if there is any
+          * access violation while creating the file. Also, EACCES is returned
+          * if a directory already exists with the same name. In such case,
+          * we need to check if a file already exists and ignore EACCES error.
+          */
+         if ((fd == -1) && (errno == EACCES) && (File_Exists(path))) {
+            continue;
+         }
+#endif
       } else {
          fd = Posix_Mkdir(path, 0600);
       }
@@ -1253,16 +1264,7 @@ File_MakeTempEx2(ConstUnicode dir,                                // IN:
          break;
       }
 
-#if defined(_WIN32)
-      /*
-       * On windows, Posix_Open() fails with EACCES if a directory
-       * already exists with the same name. In such case, we need to
-       * ignore EACCES error and continue trying out.
-       */
-      if ((errno != EEXIST) && (errno != EACCES)) {
-#else
       if (errno != EEXIST) {
-#endif
          err = errno;
          Msg_Append(MSGID(file.maketemp.openFailed)
                  "Failed to create temporary file \"%s\": %s.\n",
@@ -2132,8 +2134,11 @@ File_DeleteDirectoryTree(ConstUnicode pathName)  // IN: directory to delete
 
    Unicode_Free(base);
 
-   /* delete the now-empty directory */
-   if (!File_DeleteEmptyDirectory(pathName)) {
+   /*
+    * Call File_DeleteEmptyDirectory() only if there is no prior error
+    * while deleting the children.
+    */
+   if (!sawFileError && !File_DeleteEmptyDirectory(pathName)) {
       sawFileError = TRUE;
    }
 

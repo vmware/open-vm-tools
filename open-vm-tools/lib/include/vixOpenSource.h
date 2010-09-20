@@ -83,6 +83,7 @@ extern "C"{
 #ifndef VIX_HIDE_BORA_DEPENDENCIES
 VixError Vix_TranslateSystemError(int systemError);
 VixError Vix_TranslateCryptoError(CryptoError cryptoError);
+VixError Vix_TranslateErrno(int systemError);
 
 #ifdef _WIN32
 VixError Vix_TranslateCOMError(HRESULT comError);

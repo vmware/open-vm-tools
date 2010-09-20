@@ -33,11 +33,10 @@
 
 #include "vmware.h"
 #include "vixOpenSource.h"
-
-#ifndef _WIN32
 #include <errno.h>
 #include <string.h>
-#else
+
+#ifdef _WIN32
 #include "win32u.h"
 #endif
 
@@ -132,65 +131,7 @@ Vix_TranslateSystemError(int systemError) // IN
    Unicode_Free(msg);
 
 #else // linux, other *nix
-   switch (systemError) {
-   case EPERM:
-   case EACCES:
-      err = VIX_E_FILE_ACCESS_ERROR;
-      break;
-   case EAGAIN:
-   case EBUSY:
-      err = VIX_E_OBJECT_IS_BUSY;
-      break;
-   case EEXIST:
-      err = VIX_E_FILE_ALREADY_EXISTS;
-      break;
-   case EFBIG:
-      err = VIX_E_FILE_TOO_BIG;
-      break;
-   case ENOTEMPTY:
-      err = VIX_E_DIRECTORY_NOT_EMPTY;
-      break;
-   case ENOTDIR:
-      err = VIX_E_NOT_A_DIRECTORY;
-      break;
-   case ETIMEDOUT:
-   case EIO:
-   case EMFILE:
-   case ENFILE:
-   case EMLINK:
-   case ENOBUFS:
-   case EROFS:
-      Log("%s: system error = %d\n", __FUNCTION__,
-                        systemError);
-      err = VIX_E_FILE_ERROR;
-      break;
-   case ENODEV:
-   case ENOENT:
-      err = VIX_E_FILE_NOT_FOUND;
-      break;
-   case ENOSPC:
-      err = VIX_E_DISK_FULL;
-      break;
-   case EISDIR:
-      err = VIX_E_NOT_A_FILE;
-      break;
-   case ESRCH:
-      err = VIX_E_NO_SUCH_PROCESS;
-      break;
-   case ENAMETOOLONG:
-      err = VIX_E_FILE_NAME_TOO_LONG;
-      break;
-   case EMSGSIZE:
-      err = VIX_E_INVALID_ARG;
-      break;
-   case ENOMEM:
-   case EINVAL:
-   case ELOOP:
-   default:
-      err = VIX_E_FAIL;
-   }
-   Log("Foundry operation failed with system error: %s (%d), translated to %"FMT64"d\n",
-       strerror(systemError), systemError, err);
+   err = Vix_TranslateErrno(systemError);
 #endif
 
    return err;
@@ -309,4 +250,103 @@ Vix_TranslateCryptoError(CryptoError cryptoError) // IN
 
    return VIX_E_FAIL;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Vix_TranslateErrno --
+ *
+ *     Translate a Posix errno to a Foundry error.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+Vix_TranslateErrno(int systemError)             // IN
+{
+   VixError err = VIX_E_FAIL;
+
+   /*
+    * Be careful while adding new error code translations. This function is
+    * complied for both Windows and POSIX guests. Few errors i.e. ETIMEDOUT,
+    * ENOBUFS are defined only for POSIX guests. When a new error code
+    * translation is added, make sure you build a sandbox job and it is
+    * successful.
+    */
+
+   switch (systemError) {
+   case EPERM:
+   case EACCES:
+      err = VIX_E_FILE_ACCESS_ERROR;
+      break;
+   case EAGAIN:
+   case EBUSY:
+      err = VIX_E_OBJECT_IS_BUSY;
+      break;
+   case EEXIST:
+      err = VIX_E_FILE_ALREADY_EXISTS;
+      break;
+   case EFBIG:
+      err = VIX_E_FILE_TOO_BIG;
+      break;
+   case ENOTEMPTY:
+      err = VIX_E_DIRECTORY_NOT_EMPTY;
+      break;
+   case ENOTDIR:
+      err = VIX_E_NOT_A_DIRECTORY;
+      break;
+#ifndef _WIN32
+   case ETIMEDOUT:
+   case ENOBUFS:
+#endif
+   case EIO:
+   case EMFILE:
+   case ENFILE:
+   case EMLINK:
+   case EROFS:
+      Log("%s: errno = %d\n", __FUNCTION__,
+                              systemError);
+      err = VIX_E_FILE_ERROR;
+      break;
+   case ENODEV:
+   case ENOENT:
+      err = VIX_E_FILE_NOT_FOUND;
+      break;
+   case ENOSPC:
+      err = VIX_E_DISK_FULL;
+      break;
+   case EISDIR:
+      err = VIX_E_NOT_A_FILE;
+      break;
+   case ESRCH:
+      err = VIX_E_NO_SUCH_PROCESS;
+      break;
+   case ENAMETOOLONG:
+      err = VIX_E_FILE_NAME_TOO_LONG;
+      break;
+#ifndef _WIN32
+   case EMSGSIZE:
+      err = VIX_E_INVALID_ARG;
+      break;
+   case ELOOP:
+#endif
+   case ENOMEM:
+      err = VIX_E_OUT_OF_MEMORY;
+      break;
+   case EINVAL:
+   default:
+      err = VIX_E_FAIL;
+   }
+   Log("Foundry operation failed with system error: %s (%d), translated to %"FMT64"d\n",
+       strerror(systemError), systemError, err);
+
+   return err;
+} // Vix_TranslateErrno
 
