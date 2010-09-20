@@ -148,10 +148,6 @@ typedef enum {
  */
 #define FILEIO_OPEN_MULTIWRITER_LOCK     (1 << 14)
 /*
- * Flag the file as not to be backed up by Time Machine on Mac OS X.
- */
-#define FILEIO_OPEN_NO_TIME_MACHINE      (1 << 15)
-/*
  * Valid only for MacOS. It eventually results into O_EXLOCK flag passed to open
  * system call.
  *
@@ -406,12 +402,6 @@ FileIO_IsSuccess(FileIOResult res)      // IN
  * have a separate definition that is neither static nor inline.
  */
 Bool FileIO_IsSuccess(FileIOResult res);
-#endif
-
-#if defined(__APPLE__)
-EXTERN Bool FileIO_ResetExcludedFromTimeMachine(char const *pathName);
-EXTERN Bool FileIO_SetExcludedFromTimeMachine(char const *pathName,
-                                              Bool isExcluded);
 #endif
 
 Bool FileIO_SupportsPrealloc(const char *pathName, Bool fsCheck);

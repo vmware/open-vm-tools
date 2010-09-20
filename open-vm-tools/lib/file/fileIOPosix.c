@@ -92,13 +92,12 @@
 #include "unicodeOperations.h"
 #include "memaligned.h"
 
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(__linux__)
 #include "hostinfo.h"
 #endif
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
-#define XATTR_BACKUP_REENABLED "com.vmware.backupReenabled"
 #endif
 
 /*
@@ -145,12 +144,6 @@ typedef struct FilePosixOptions {
    int sizeThreshold;
    int aioNumThreads;
 } FilePosixOptions;
-
-#if defined(__APPLE__)
-typedef OSStatus CSBackupSetItemExcludedFunction(CFURLRef item,
-                                                 Boolean exclude,
-                                                 Boolean excludeByPath);
-#endif
 
 
 static FilePosixOptions filePosixOptions;
@@ -859,32 +852,6 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
          ret = FileIOErrno2Result(errno);
          goto error;
       }
-   }
-
-   /*
-    * Fix for Bug 202805:
-    *   Time Machine backs up EVERY file unless explicitly told not to, so this
-    *   option uses the API to exclude the file that was just opened.
-    */
-
-   if ((access & FILEIO_OPEN_NO_TIME_MACHINE)) {
-      if (!FileIO_SetExcludedFromTimeMachine(pathName, TRUE)) {
-         ret = FILEIO_ERROR;
-         goto error;
-      }
-   } else {
-      /*
-       * Fix for Bug 248644:
-       *   The issue with Time Machine that was causing hangs has been fixed in
-       *   10.5.2, so if the user is in 10.5.2 and the option isn't set, then
-       *   we want to reset the exclusion of the file.
-       *
-       *   Note that this call ignores errors because there are some files
-       *   (like raw devices) that will fail checking xattrs and Time
-       *   Machine Exclusion status, but we can't detect them at this point.
-       */
-
-      FileIO_ResetExcludedFromTimeMachine(pathName);
    }
 #endif
 
@@ -2231,157 +2198,6 @@ FileIO_DescriptorToStream(FileIODescriptor *fdesc,  // IN:
 
 
 #if defined(__APPLE__)
-/*
- *-----------------------------------------------------------------------------
- *
- * FileIO_ResetExcludedFromTimeMachine --
- *
- *      Request that the given path have its time machine exclusion reset
- *      (turned off). We use a special xattr on the file to mark that we have
- *      done this so that future calls won't clear the file if the user has
- *      explicitly marked it themselves.
- *
- * Results:
- *      A boolean reflecting whether or not reseting the file succeeded.
- *
- * Side effects:
- *      Adds a "backup re-enabled" xattr to the file if wasn't already present
- *      and removing the Time Machine exclusion was successful.
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-FileIO_ResetExcludedFromTimeMachine(char const *pathName)  // IN:
-{
-   bool result = TRUE;
-   char xattr;
-   ssize_t gXattrResult = getxattr(pathName, XATTR_BACKUP_REENABLED,
-                                   &xattr, sizeof(xattr), 0, 0);
-   int sXattrResult;
-
-   if (gXattrResult != -1) {
-      // We have already seen this file, don't touch it again.
-      goto exit;
-   }
-   if (errno != ENOATTR) {
-      LOG_ONCE((LGPFX" %s Couldn't get xattr on path [%s]: %s.\n",
-                __func__, pathName, Err_Errno2String(errno)));
-      result = FALSE;
-      goto exit;
-   }
-   result = FileIO_SetExcludedFromTimeMachine(pathName, FALSE);
-   if (!result) {
-      goto exit;
-   }
-   xattr = '1';
-   sXattrResult = setxattr(pathName, XATTR_BACKUP_REENABLED,
-                           &xattr, sizeof(xattr), 0, 0);
-   if (sXattrResult == -1) {
-      LOG_ONCE((LGPFX" %s Couldn't set xattr on path [%s]: %s.\n",
-                __func__, pathName, Err_Errno2String(errno)));
-      result = FALSE;
-      goto exit;
-   }
-
-exit:
-      return result;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * FileIO_SetExcludedFromTimeMachine --
- *
- *      Request that the given path be excluded from Backup processes (namely
- *      Time Machine).
- *
- * Results:
- *      A boolean reflecting whether or not excluding the file succeeded.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-FileIO_SetExcludedFromTimeMachine(char const *pathName,  // IN:
-                                  Bool isExcluded)       // IN:
-{
-   Bool result = TRUE;
-   CSBackupSetItemExcludedFunction *backupFunc;
-   const char *symbolName = "CSBackupSetItemExcluded";
-   const char *libPath = "/System/Library/Frameworks/CoreServices.framework/"
-      "Versions/Current/Frameworks/CarbonCore.framework/CarbonCore";
-   OSStatus ret = noErr;
-   CFURLRef item = NULL;
-   void *image = NULL;
-
-   if (Config_GetBool(FALSE, "fileMacos.timemachine.enable")) {
-      goto exit;
-   }
-
-   image = dlopen(libPath, RTLD_LAZY | RTLD_GLOBAL);
-
-   if (!image) {
-      LOG_ONCE((LGPFX" %s Couldn't dlopen [%s]: %s.\n",
-               __func__, libPath, Err_Errno2String(errno)));
-      goto exit;
-   }
-
-   backupFunc = (CSBackupSetItemExcludedFunction *) dlsym(image, symbolName);
-
-   if (!backupFunc) {
-      LOG_ONCE((LGPFX" %s Couldn't dlsym [%s]: %s.\n",
-               __func__, symbolName, Err_Errno2String(errno)));
-      goto exit;
-   }
-
-   item = CFURLCreateFromFileSystemRepresentation(NULL, pathName,
-                                                  strlen((const char *)pathName),
-                                                  FALSE);
-
-   if (!item) {
-      Warning("%s: Error creating URL\n", __func__);
-      result = FALSE;
-      goto exit;
-   }
-
-   ret = (*backupFunc)(item, isExcluded, FALSE);
-
-   if (ret != noErr) {
-      /*
-       * TODO: In testing, this only actually fails on NFS-mounted
-       * volumes. (ret == noPerm).  Perhaps we should enumerate the errors
-       * that we want to treat as soft errors versus hard errors?
-       *
-       * We could call CSBackupIsItemExcluded() to make sure this file isn't
-       * participating in backup. This needs to be tested to see if it only
-       * checks the file system extensible meta-data or if it also checks the
-       * policies of the backup daemon.
-       *
-       * Ideally, we would like to log once for every file that we fail to
-       * mark as excluded. Simply logging produces way too many log satements
-       * and logging once would only note when this fails on the first file.
-       */
-
-      goto exit;
-   }
-
-exit:
-   if (item) {
-      CFRelease(item);
-   }
-   if (image) {
-      dlclose(image);
-   }
-
-   return result;
-}
-
-
 /*
  *----------------------------------------------------------------------
  *

@@ -43,16 +43,6 @@
    #include <sys/types.h>
 #endif
 
-#ifdef __APPLE__
-   #include <CoreFoundation/CoreFoundation.h>
-   #if TARGET_OS_IPHONE
-      typedef unsigned long io_object_t;
-      typedef unsigned long io_service_t;
-   #else
-      #include <IOKit/IOTypes.h>
-   #endif /* !TARGET_OS_IPHONE */
-#endif /* __APPLE__ */
-
 #include "vm_assert.h"
 #include "unicodeTypes.h"
 
