@@ -1175,7 +1175,6 @@ AC_CONFIG_FILES([                      \
    lib/rpcIn/Makefile                  \
    lib/rpcOut/Makefile                 \
    lib/rpcVmx/Makefile                 \
-   lib/SLPv2Parser/Makefile            \
    lib/slashProc/Makefile              \
    lib/string/Makefile                 \
    lib/stubs/Makefile                  \
