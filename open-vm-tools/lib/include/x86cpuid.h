@@ -527,7 +527,7 @@ FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            YES, FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     4,  1, SVM_TSC_RATE_MSR,    NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     5,  1, SVM_VMCB_CLEAN,      YES, FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     6,  1, SVM_FLUSH_BY_ASID,   YES, FALSE)            \
-FLAGDEF(  8A, EDX, AMD,     7,  1, SVM_DECODE_ASSISTS,  YES, FALSE)            \
+FLAGDEFA( 8A, EDX, AMD,     7,  1, SVM_DECODE_ASSISTS,  YES, FALSE, SVM_DECODE_ASSISTS) \
 FIELDDEF( 8A, EDX, AMD,     8,  2, SVMEDX_RSVD0,        NO,  FALSE)            \
 FLAGDEFA( 8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,    NO,  FALSE, PAUSE_FILTER) \
 FLAGDEF(  8A, EDX, AMD,    11,  1, SVMEDX_RSVD1,        NO,  FALSE)            \
