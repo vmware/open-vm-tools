@@ -36,6 +36,10 @@
 #include "copyPasteDnDWin32.h"
 #endif
 
+#if defined(__APPLE__)
+#include "copyPasteDnDMac.h"
+#endif
+
 extern "C" {
 #include "vmware.h"
 #include "rpcout.h"
@@ -122,6 +126,9 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 #endif
 #if defined(WIN32)
       m_pimpl = new CopyPasteDnDWin32();
+#endif
+#if defined(__APPLE__)
+      m_pimpl = new CopyPasteDnDMac();
 #endif
       if (m_pimpl) {
          m_pimpl->Init(ctx);
