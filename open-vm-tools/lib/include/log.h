@@ -90,12 +90,6 @@ Bool Log_Init(const char *fileName,
               const char *config,
               const char *suffix);
 
-Bool Log_InitForApp(const char *fileName,
-                    const char *config,
-                    const char *suffix,
-                    const char *appName,
-                    const char *appVersion);
-
 Bool Log_InitEx(const LogInitParams *params);
 
 void Log_UpdateFileControl(Bool append,
