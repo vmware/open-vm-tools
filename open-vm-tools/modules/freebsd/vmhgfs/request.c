@@ -30,6 +30,7 @@
 
 #include "hgfs_kernel.h"
 #include "requestInt.h"
+#include "channel.h"
 
 /*
  * Macros
@@ -385,6 +386,26 @@ HgfsKReq_AllocateRequest(HgfsKReqContainerHandle container)        // IN
    HgfsKReqObject *req;
 
    ASSERT(container);
+
+   /*
+    * We may not have any channel currently. It so, try to
+    * establish channel once again. Most likely we will fail
+    * because user has probably disabled shared folders. This
+    * check is useful when user enables shared folders and they
+    * tries some operation. During that, we will come across this
+    * code path and user will be magically able to access stuff
+    * on host.
+    *
+    * Note that trying to establish new channel on send() path is
+    * broken because every channel has specific allocator function.
+    * Trying to allocate from one channel and then sending over
+    * another channel is sure asking for trouble. Don't do that.
+    */
+   if (gHgfsChannel->status != HGFS_CHANNEL_CONNECTED) {
+      if (!HgfsSetupNewChannel()) {
+         return NULL;
+      }
+   }
 
    req = os_zone_alloc(hgfsKReqZone, M_WAITOK);
    if (!req) {

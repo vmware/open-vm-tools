@@ -49,6 +49,7 @@ HgfsKReqWState hgfsKReqWorkerState;
 
 /* Global pointer that handles channel abstraction */
 HgfsTransportChannel *gHgfsChannel = NULL;
+OS_MUTEX_T *gHgfsChannelLock = NULL;
 
 
 /*
@@ -71,10 +72,17 @@ HgfsTransportChannel *gHgfsChannel = NULL;
  *----------------------------------------------------------------------
  */
 
-static Bool
+Bool
 HgfsSetupNewChannel(void)
 {
    Bool ret;
+
+   os_mutex_lock(gHgfsChannelLock);
+
+   if (gHgfsChannel->status == HGFS_CHANNEL_CONNECTED) {
+      ret = TRUE;
+      goto exit;
+   }
 
    HgfsGetVmciChannel(gHgfsChannel);
    if (gHgfsChannel->ops.open != NULL) {
@@ -92,9 +100,15 @@ HgfsSetupNewChannel(void)
 exit:
    if (ret) {
       gHgfsChannel->status = HGFS_CHANNEL_CONNECTED;
+   } else {
+      gHgfsChannel->status = HGFS_CHANNEL_NOTCONNECTED;
    }
+
+   os_mutex_unlock(gHgfsChannelLock);
+
    return ret;
 }
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -128,10 +142,14 @@ HgfsKReqWorker(void *arg)
       goto exit;
    }
 
+   gHgfsChannelLock = os_mutex_alloc_init(HGFS_FS_NAME "_channellck");
+   if (!gHgfsChannelLock) {
+      goto exit;
+   }
+
    ret = HgfsSetupNewChannel();
    if (!ret) {
-      DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: ohoh no channel.\n", __func__);
-      goto exit;
+      DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: ohoh no channel yet.\n", __func__);
    }
 
    for (;;) {
@@ -178,13 +196,11 @@ HgfsKReqWorker(void *arg)
       switch (req->state) {
       case HGFS_REQ_SUBMITTED:
          if (gHgfsChannel->status != HGFS_CHANNEL_CONNECTED) {
-            if (!HgfsSetupNewChannel()) {
-               req->state = HGFS_REQ_ERROR;
-               os_cv_signal(&req->stateCv);
-               os_mutex_unlock(req->stateLock);
-               os_mutex_unlock(hgfsKReqWorkItemLock);
-               goto done;
-            }
+            req->state = HGFS_REQ_ERROR;
+            os_cv_signal(&req->stateCv);
+            os_mutex_unlock(req->stateLock);
+            os_mutex_unlock(hgfsKReqWorkItemLock);
+            goto done;
          }
          break;
       case HGFS_REQ_ABANDONED:
@@ -211,7 +227,9 @@ HgfsKReqWorker(void *arg)
           * now. We do this because subsequent requests deserve a chance to
           * reopen it.
           */
+         os_mutex_lock(gHgfsChannelLock);
          gHgfsChannel->ops.close(gHgfsChannel);
+         os_mutex_unlock(gHgfsChannelLock);
       }
 
 done:
@@ -248,9 +266,15 @@ done:
 
    ws->running = FALSE;
 
-   gHgfsChannel->ops.close(gHgfsChannel);
+   if (gHgfsChannel->status == HGFS_CHANNEL_CONNECTED) {
+      gHgfsChannel->ops.close(gHgfsChannel);
+   }
 
 exit:
+   if (gHgfsChannelLock) {
+      os_mutex_free(gHgfsChannelLock);
+   }
+
    if (gHgfsChannel) {
       os_free(gHgfsChannel, sizeof (*gHgfsChannel));
    }
