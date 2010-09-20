@@ -100,6 +100,7 @@ typedef struct VmBackupState {
    void          *scripts;
    const char    *configDir;
    ssize_t        currentScript;
+   gchar         *errorMsg;
    VmBackupMState machineState;
    struct VmBackupSyncProvider *provider;
 } VmBackupState;

@@ -213,6 +213,7 @@ VmBackupFinalize(void)
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
+   g_free(gBackupState->errorMsg);
    g_free(gBackupState);
    gBackupState = NULL;
 }
@@ -404,20 +405,19 @@ VmBackupAsyncCallback(void *clientData)
 
    default:
       {
-         Bool freeMsg = TRUE;
-         char *errMsg = Str_Asprintf(NULL,
-                                     "Asynchronous operation failed: %s",
-                                     gBackupState->currentOpName);
-         if (errMsg == NULL) {
-            freeMsg = FALSE;
-            errMsg = "Asynchronous operation failed.";
+         gchar *msg;
+         if (gBackupState->errorMsg != NULL) {
+            msg = g_strdup_printf("'%s' operation failed: %s",
+                                  gBackupState->currentOpName,
+                                  gBackupState->errorMsg);
+         } else {
+            msg = g_strdup_printf("'%s' operation failed.",
+                                  gBackupState->currentOpName);
          }
          VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_ERROR,
                             VMBACKUP_UNEXPECTED_ERROR,
-                            errMsg);
-         if (freeMsg) {
-            vm_free(errMsg);
-         }
+                            msg);
+         g_free(msg);
 
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
