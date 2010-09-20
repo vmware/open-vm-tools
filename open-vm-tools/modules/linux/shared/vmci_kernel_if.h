@@ -75,6 +75,14 @@
 
 /* Platform specific type definitions. */
 
+#if defined(linux) && !defined(VMKERNEL)
+#  define VMCI_EXPORT_SYMBOL(_symbol)  EXPORT_SYMBOL(_symbol);
+#elif defined(__APPLE__)
+#  define VMCI_EXPORT_SYMBOL(_symbol)  __attribute__((visibility("default")))
+#else
+#  define VMCI_EXPORT_SYMBOL(_symbol)
+#endif
+
 #if defined(VMKERNEL)
   typedef SP_SpinLock VMCILock;
   typedef SP_IRQL VMCILockFlags;

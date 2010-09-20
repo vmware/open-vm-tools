@@ -409,6 +409,7 @@ DatagramHandleUniqueLockedAnyCid(VMCIHandle handle) // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDatagramCreateHndInt)
 int
 VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
                          uint32 flags,               // IN:
@@ -515,10 +516,7 @@ VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIDatagram_CreateHnd);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHnd)
 int
 VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
                        uint32 flags,               // IN:
@@ -548,10 +546,7 @@ VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIDatagram_CreateHndPriv);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHndPriv)
 int
 VMCIDatagram_CreateHndPriv(VMCIId resourceID,            // IN:
                            uint32 flags,                 // IN:
@@ -582,6 +577,7 @@ VMCIDatagram_CreateHndPriv(VMCIId resourceID,            // IN:
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDatagramCreateHndPriv)
 int
 VMCIDatagramCreateHndPriv(VMCIId resourceID,            // IN:
                           uint32 flags,                 // IN:
@@ -610,6 +606,7 @@ VMCIDatagramCreateHndPriv(VMCIId resourceID,            // IN:
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDatagramDestroyHndInt)
 int
 VMCIDatagramDestroyHndInt(VMCIHandle handle)       // IN
 {
@@ -667,10 +664,7 @@ VMCIDatagramDestroyHndInt(VMCIHandle handle)       // IN
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIDatagram_DestroyHnd);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIDatagram_DestroyHnd)
 int
 VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
 {
@@ -694,10 +688,7 @@ VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIDatagram_Send);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIDatagram_Send)
 int
 VMCIDatagram_Send(VMCIDatagram *msg) // IN
 {

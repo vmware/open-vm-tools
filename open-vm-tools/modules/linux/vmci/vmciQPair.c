@@ -123,6 +123,7 @@ struct VMCIQPair {
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_Alloc)
 int
 VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
                 VMCIHandle *handle,           // OUT
@@ -186,6 +187,7 @@ VMCIQPair_Alloc(VMCIQPair **qpair,            // OUT
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_Detach)
 int
 VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
 {
@@ -219,11 +221,6 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
    return result;
 }
 
-
-#if defined __linux__ && !defined VMKERNEL
-EXPORT_SYMBOL(VMCIQPair_Alloc);
-EXPORT_SYMBOL(VMCIQPair_Detach);
-#endif
 
 /*
  * "Windows blocking call."
@@ -304,6 +301,7 @@ VMCIQPairUnlock(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_Init)
 void
 VMCIQPair_Init(VMCIQPair *qpair)
 {
@@ -337,6 +335,7 @@ VMCIQPair_Init(VMCIQPair *qpair)
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_GetProduceIndexes)
 int
 VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
                             uint64 *producerTail,   // OUT
@@ -382,6 +381,7 @@ VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair, // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_GetConsumeIndexes)
 int
 VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
                             uint64 *consumerTail,   // OUT
@@ -408,12 +408,6 @@ VMCIQPair_GetConsumeIndexes(const VMCIQPair *qpair, // IN
    return VMCI_SUCCESS;
 }
 
-#if defined __linux__ && !defined VMKERNEL
-EXPORT_SYMBOL(VMCIQPair_Init);
-EXPORT_SYMBOL(VMCIQPair_GetProduceIndexes);
-EXPORT_SYMBOL(VMCIQPair_GetConsumeIndexes);
-#endif
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -435,6 +429,7 @@ EXPORT_SYMBOL(VMCIQPair_GetConsumeIndexes);
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_ProduceFreeSpace)
 int64
 VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
 {
@@ -477,6 +472,7 @@ VMCIQPair_ProduceFreeSpace(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_ConsumeFreeSpace)
 int64
 VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
 {
@@ -519,6 +515,7 @@ VMCIQPair_ConsumeFreeSpace(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_ProduceBufReady)
 int64
 VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
 {
@@ -560,6 +557,7 @@ VMCIQPair_ProduceBufReady(const VMCIQPair *qpair) // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_ConsumeBufReady)
 int64
 VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
 {
@@ -579,13 +577,6 @@ VMCIQPair_ConsumeBufReady(const VMCIQPair *qpair) // IN
 
    return result;
 }
-
-#if defined __linux__ && !defined VMKERNEL
-EXPORT_SYMBOL(VMCIQPair_ProduceFreeSpace);
-EXPORT_SYMBOL(VMCIQPair_ConsumeFreeSpace);
-EXPORT_SYMBOL(VMCIQPair_ProduceBufReady);
-EXPORT_SYMBOL(VMCIQPair_ConsumeBufReady);
-#endif
 
 
 /*
@@ -772,6 +763,7 @@ DequeueLocked(VMCIQueue *produceQ,                        // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_Enqueue)
 ssize_t
 VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
                   const void *buf,         // IN
@@ -815,6 +807,7 @@ VMCIQPair_Enqueue(VMCIQPair *qpair,        // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_Dequeue)
 ssize_t
 VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
                   void *buf,               // IN
@@ -860,6 +853,7 @@ VMCIQPair_Dequeue(VMCIQPair *qpair,        // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_Peek)
 ssize_t
 VMCIQPair_Peek(VMCIQPair *qpair,    // IN
                void *buf,           // IN
@@ -886,12 +880,6 @@ VMCIQPair_Peek(VMCIQPair *qpair,    // IN
    return result;
 }
 
-#if defined __linux__ && !defined VMKERNEL
-EXPORT_SYMBOL(VMCIQPair_Enqueue);
-EXPORT_SYMBOL(VMCIQPair_Dequeue);
-EXPORT_SYMBOL(VMCIQPair_Peek);
-#endif
-
 
 #if defined (SOLARIS) || (defined(__APPLE__) && !defined (VMX86_TOOLS)) || \
     (defined(__linux__) && defined(__KERNEL__)) || \
@@ -914,6 +902,7 @@ EXPORT_SYMBOL(VMCIQPair_Peek);
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_EnqueueV)
 ssize_t
 VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
                    void *iov,               // IN
@@ -957,6 +946,7 @@ VMCIQPair_EnqueueV(VMCIQPair *qpair,        // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_DequeueV)
 ssize_t
 VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
                    void *iov,                // IN
@@ -1002,6 +992,7 @@ VMCIQPair_DequeueV(VMCIQPair *qpair,         // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIQPair_PeekV)
 ssize_t
 VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
                 void *iov,                  // IN
@@ -1027,12 +1018,6 @@ VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
 
    return result;
 }
-
-#if defined __linux__ && !defined VMKERNEL
-EXPORT_SYMBOL(VMCIQPair_EnqueueV);
-EXPORT_SYMBOL(VMCIQPair_DequeueV);
-EXPORT_SYMBOL(VMCIQPair_PeekV);
-#endif
 
 #endif /* Systems that support struct iovec */
 

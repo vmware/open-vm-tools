@@ -233,10 +233,7 @@ VMCIUtil_CheckHostCapabilities(void)
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCI_GetContextID);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCI_GetContextID)
 VMCIId
 VMCI_GetContextID(void)
 {
@@ -302,10 +299,7 @@ VMCI_CheckHostCapabilities(void)
  *----------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCI_Version);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCI_Version)
 uint32
 VMCI_Version()
 {
@@ -366,10 +360,7 @@ VMCI_InInterrupt()
  *----------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCI_DeviceGet);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
 Bool
 VMCI_DeviceGet(void)
 {
@@ -393,10 +384,7 @@ VMCI_DeviceGet(void)
  *----------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCI_DeviceRelease);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCI_DeviceRelease)
 void
 VMCI_DeviceRelease(void)
 {
@@ -562,10 +550,7 @@ VMCI_ReadDatagramsFromPort(VMCIIoHandle ioHandle,  // IN
  *----------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIContext_GetPrivFlags);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIContext_GetPrivFlags)
 VMCIPrivilegeFlags
 VMCIContext_GetPrivFlags(VMCIId contextID) // IN
 {
@@ -589,10 +574,7 @@ VMCIContext_GetPrivFlags(VMCIId contextID) // IN
  *----------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCI_ContextID2HostVmID);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCI_ContextID2HostVmID)
 int
 VMCI_ContextID2HostVmID(VMCIId contextID,    // IN
                         void *hostVmID,      // OUT

@@ -84,10 +84,7 @@ static int VMCIDsRecvCB(void *clientData, struct VMCIDatagram *msg);
  *-------------------------------------------------------------------------
  */
 
-#ifdef __linux__
-EXPORT_SYMBOL(VMCIDs_Lookup);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIDs_Lookup)
 int
 VMCIDs_Lookup(const char *name,	  // IN
               VMCIHandle *out)    //

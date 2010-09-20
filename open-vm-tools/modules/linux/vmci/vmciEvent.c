@@ -642,6 +642,7 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
  *----------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIEventSubscribe)
 int
 VMCIEventSubscribe(VMCI_Event event,        // IN
                    uint32 flags,            // IN
@@ -691,10 +692,7 @@ VMCIEventSubscribe(VMCI_Event event,        // IN
  *----------------------------------------------------------------------
  */
 
-#if defined(__linux__)
-EXPORT_SYMBOL(VMCIEvent_Subscribe);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIEvent_Subscribe)
 int
 VMCIEvent_Subscribe(VMCI_Event event,        // IN
                     uint32 flags,            // IN
@@ -725,6 +723,7 @@ VMCIEvent_Subscribe(VMCI_Event event,        // IN
  *----------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIEventUnsubscribe)
 int
 VMCIEventUnsubscribe(VMCIId subID)   // IN
 {
@@ -763,10 +762,7 @@ VMCIEventUnsubscribe(VMCIId subID)   // IN
  *----------------------------------------------------------------------
  */
 
-#if defined(__linux__)
-EXPORT_SYMBOL(VMCIEvent_Unsubscribe);
-#endif
-
+VMCI_EXPORT_SYMBOL(VMCIEvent_Unsubscribe)
 int
 VMCIEvent_Unsubscribe(VMCIId subID)   // IN
 {

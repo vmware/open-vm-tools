@@ -951,6 +951,7 @@ VMCI_ScanNotificationBitmap(uint8 *bitmap) // IN
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDoorbell_Create)
 int
 VMCIDoorbell_Create(VMCIHandle *handle,            // IN
                     uint32 flags,                  // IN
@@ -968,10 +969,6 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN
    return VMCINotificationRegister(handle, TRUE, flags,
                                    notifyCB, clientData);
 }
-
-#if defined(__linux__)
-EXPORT_SYMBOL(VMCIDoorbell_Create);
-#endif
 
 
 /*
@@ -992,6 +989,7 @@ EXPORT_SYMBOL(VMCIDoorbell_Create);
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDoorbell_Destroy)
 int
 VMCIDoorbell_Destroy(VMCIHandle handle) // IN
 {
@@ -1000,10 +998,6 @@ VMCIDoorbell_Destroy(VMCIHandle handle) // IN
    }
    return VMCINotificationUnregister(handle, TRUE);
 }
-
-#if defined(__linux__)
-EXPORT_SYMBOL(VMCIDoorbell_Destroy);
-#endif
 
 
 /*
@@ -1023,6 +1017,7 @@ EXPORT_SYMBOL(VMCIDoorbell_Destroy);
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDoorbell_Notify)
 int
 VMCIDoorbell_Notify(VMCIHandle handle,             // IN
                     VMCIPrivilegeFlags privFlags)  // IN: Unused in guest
@@ -1048,9 +1043,6 @@ VMCIDoorbell_Notify(VMCIHandle handle,             // IN
    return result;
 }
 
-#if defined(__linux__)
-EXPORT_SYMBOL(VMCIDoorbell_Notify);
-#endif
 
 #else // defined(SOLARIS) || defined(__APPLE__)
 
@@ -1071,9 +1063,10 @@ EXPORT_SYMBOL(VMCIDoorbell_Notify);
  *-----------------------------------------------------------------------------
  */
 
+VMCI_EXPORT_SYMBOL(VMCIDoorbell_Create)
 int
 VMCIDoorbell_Create(VMCIHandle *handle,            // IN
-                    uint32 flags,                  // IN
+                    uint32 flags,                  // I
                     VMCIPrivilegeFlags privFlags,  // IN
                     VMCICallback notifyCB,         // IN
                     void *clientData)              // IN
@@ -1082,6 +1075,7 @@ VMCIDoorbell_Create(VMCIHandle *handle,            // IN
 }
 
 
+VMCI_EXPORT_SYMBOL(VMCIDoorbell_Destroy)
 int
 VMCIDoorbell_Destroy(VMCIHandle handle)  // IN
 {
@@ -1089,6 +1083,7 @@ VMCIDoorbell_Destroy(VMCIHandle handle)  // IN
 }
 
 
+VMCI_EXPORT_SYMBOL(VMCIDoorbell_Notify)
 int
 VMCIDoorbell_Notify(VMCIHandle handle,             // IN
                     VMCIPrivilegeFlags privFlags)  // IN
