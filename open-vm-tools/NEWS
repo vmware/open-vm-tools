@@ -1,3 +1,9 @@
+open-vm-tools 2010.09.19 changes:
+	* Mostly cleanups and minor bug fixes.
+
+	* VIX plugin has been updated with lots of new commands being added
+	to the next VIX API release.
+
 open-vm-tools 2010.08.24 changes:
 	* HGFS and VMCI kernel module bug fixes, and updates to compile
 	in newer Linux kernels.
