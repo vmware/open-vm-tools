@@ -64,7 +64,7 @@ HgfsBdChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 {
    Bool ret;
 
-   ASSERT(channel->status == HGFS_CHANNEL_NOTCONNECTED);
+   ASSERT_DEVEL(channel->status == HGFS_CHANNEL_NOTCONNECTED);
 
    if ((ret = HgfsBd_OpenBackdoor((RpcOut **)&channel->priv))) {
       DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: backdoor opened.\n", __func__);
@@ -96,10 +96,13 @@ static void
 HgfsBdChannelClose(HgfsTransportChannel *channel) // IN: Channel
 {
    int ret;
-   ASSERT(channel->priv != NULL);
+
+   if (channel->priv == NULL) {
+      return;
+   }
 
    ret = HgfsBd_CloseBackdoor((RpcOut **)&channel->priv);
-   ASSERT(channel->priv == NULL);
+   ASSERT_DEVEL(channel->priv == NULL);
    if (!ret) {
       DEBUG(VM_DEBUG_FAIL, "VMware hgfs: %s: Failed to close backdoor.\n", __func__);
    } else {
