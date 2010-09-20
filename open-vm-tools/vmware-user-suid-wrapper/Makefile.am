@@ -26,3 +26,15 @@ vmware_user_suid_wrapper_SOURCES += wrapper-@TARGET_OS@.c
 
 vmware_user_suid_wrapper_LDADD =
 vmware_user_suid_wrapper_LDADD += ../lib/vmSignal/libVmSignal.la
+
+desktopfile = vmware-user.desktop
+desktopfilesrc = $(top_srcdir)/vmware-user-suid-wrapper/vmware-user.desktop.in
+
+autostartdir = $(sysconfdir)/xdg/autostart
+autostart_DATA = $(desktopfile)
+
+CLEANFILES = $(desktopfile)
+
+$(desktopfile): $(desktopfilesrc)
+	sed 's,_bindir_,$(bindir),' $(desktopfilesrc) > $(desktopfile)
+
