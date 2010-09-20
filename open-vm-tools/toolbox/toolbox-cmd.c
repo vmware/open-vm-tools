@@ -61,11 +61,6 @@ const typedef struct CmdTable {
 } CmdTable;
 
 
-/*
- * Sadly, our home-brewed implementation of getopt() doesn't come with an
- * implementation of getopt_long().
- */
-#ifndef _WIN32
 static struct option long_options[] = {
    /* quiet sets a flag */
    { "quiet", no_argument, 0, 'q' },
@@ -74,7 +69,6 @@ static struct option long_options[] = {
    { "help", no_argument, 0, 'h' },
    { "version", no_argument, 0, 'v' },
    { 0, 0, 0, 0 } };
-#endif
 
 static gboolean gQuiet = FALSE;
 static const char *options = "hqv";
@@ -427,11 +421,7 @@ main(int argc,    // IN: length of command line arguments
    while (1) {
       int option_index = 0;
 
-#ifdef _WIN32
-      c = getopt(argc, argv, options);
-#else
       c = getopt_long(argc, argv, options, long_options, &option_index);
-#endif
 
       /* Detect the end of the options. */
       if (c == -1) {
