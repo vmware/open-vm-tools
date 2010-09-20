@@ -129,7 +129,12 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 6, 6)                      \
    CPUIDLEVEL(FALSE, A, 0xA)                    \
    CPUIDLEVEL(FALSE, B, 0xB)                    \
-   CPUIDLEVEL(FALSE, 86, 0x80000006)		\
+   CPUIDLEVEL(FALSE, 85, 0x80000005)            \
+   CPUIDLEVEL(FALSE, 86, 0x80000006)            \
+   CPUIDLEVEL(FALSE, 819, 0x80000019)           \
+   CPUIDLEVEL(FALSE, 81A, 0x8000001A)           \
+   CPUIDLEVEL(FALSE, 81B, 0x8000001B)           \
+   CPUIDLEVEL(FALSE, 81C, 0x8000001C)           \
    CPUIDLEVEL(FALSE, 81D, 0x8000001D)           \
    CPUIDLEVEL(FALSE, 81E, 0x8000001E)
 
@@ -280,7 +285,7 @@ FIELDDEF(  1, EBX, COMMON,  8,  8, CLFL_SIZE,           ANY, FALSE)            \
 FIELDDEFA( 1, EBX, COMMON, 16,  8, LCPU_COUNT,          ANY, FALSE, LCPU_COUNT) \
 FIELDDEFA( 1, EBX, COMMON, 24,  8, APICID,              ANY, FALSE, APICID)    \
 FLAGDEFA(  1, ECX, COMMON, 0,   1, SSE3,                YES, TRUE,  SSE3)      \
-FLAGDEFA(  1, ECX, INTEL,  1,   1, PCLMULQDQ,           YES, TRUE, PCLMULQDQ)  \
+FLAGDEFA(  1, ECX, COMMON, 1,   1, PCLMULQDQ,           YES, TRUE, PCLMULQDQ)  \
 FLAGDEF(   1, ECX, INTEL,  2,   1, NDA2,                NO,  FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 3,   1, MWAIT,               ANY, FALSE, MWAIT)     \
 FLAGDEFA(  1, ECX, INTEL,  4,   1, DSCPL,               NO,  FALSE, DSCPL)     \
@@ -291,21 +296,21 @@ FLAGDEF(   1, ECX, INTEL,  7,   1, EST,                 NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  8,   1, TM2,                 NO,  FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 9,   1, SSSE3,               YES, TRUE,  SSSE3)     \
 FLAGDEF(   1, ECX, INTEL,  10,  1, HTCACHE,             NO,  FALSE)            \
-FLAGDEFA(  1, ECX, INTEL,  12,  1, FMA,                 YES, TRUE,  FMA)       \
+FLAGDEF(   1, ECX, INTEL,  11,  1, NDA11,               NO,  FALSE)            \
+FLAGDEFA(  1, ECX, COMMON, 12,  1, FMA,                 YES, TRUE,  FMA)       \
 FLAGDEFA(  1, ECX, COMMON, 13,  1, CMPX16,              YES, TRUE,  CMPX16)    \
 FLAGDEF(   1, ECX, INTEL,  14,  1, xPPR,                NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  15,  1, PERF_MSR,            NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  17,  1, PCID,                NO,  FALSE)            \
 FLAGDEF(   1, ECX, INTEL,  18,  1, DCA,                 NO,  FALSE)            \
-FLAGDEFA(  1, ECX, INTEL,  19,  1, SSE41,               YES, TRUE,  SSE41)     \
-FLAGDEFA(  1, ECX, INTEL,  20,  1, SSE42,               YES, TRUE,  SSE42)     \
+FLAGDEFA(  1, ECX, COMMON, 19,  1, SSE41,               YES, TRUE,  SSE41)     \
+FLAGDEFA(  1, ECX, COMMON, 20,  1, SSE42,               YES, TRUE,  SSE42)     \
 FLAGDEF(   1, ECX, INTEL,  21,  1, X2APIC,              NO,  FALSE)            \
 FLAGDEFA(  1, ECX, INTEL,  22,  1, MOVBE,               YES, TRUE,  MOVBE)     \
 FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, TRUE,  POPCNT)    \
-FLAGDEF(   1, ECX, INTEL,  24,  1, ULE,                 NO,  TRUE)             \
-FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, TRUE, AES)        \
+FLAGDEFA(  1, ECX, COMMON, 25,  1, AES,                 YES, TRUE, AES)        \
 FLAGDEFA(  1, ECX, COMMON, 26,  1, XSAVE,               YES, FALSE, XSAVE)     \
-FLAGDEF(   1, ECX, COMMON, 27,  1, OSXSAVE,             YES, FALSE)            \
+FLAGDEF(   1, ECX, COMMON, 27,  1, OSXSAVE,             ANY, FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 28,  1, AVX,                 YES, TRUE,  AVX)       \
 FLAGDEFA(  1, ECX, COMMON, 29,  1, F16,                 YES, TRUE,  F16)       \
 FLAGDEFA(  1, ECX, COMMON, 30,  1, RDRAND,              YES, TRUE,  RDRAND)    \
@@ -461,6 +466,7 @@ FLAGDEF(  81, ECX, AMD,    10,  1, IBS,                 NO,  FALSE)            \
 FLAGDEFA( 81, ECX, AMD,    11,  1, XOP,                 YES, TRUE,  XOP)       \
 FLAGDEF(  81, ECX, AMD,    12,  1, SKINIT,              NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    13,  1, WATCHDOG,            NO,  FALSE)            \
+FLAGDEF(  81, ECX, AMD,    15,  1, LWP,                 NO,  FALSE)            \
 FLAGDEFA( 81, ECX, AMD,    16,  1, FMA4,                YES, TRUE,  FMA4)      \
 FLAGDEF(  81, ECX, AMD,    19,  1, NODEID,              NO,  FALSE)            \
 FLAGDEF(  81, ECX, AMD,    22,  1, TOPOLOGY,            NO,  FALSE)            \
@@ -494,8 +500,32 @@ FLAGDEFA( 81, EDX, AMD,    31,  1, 3DNOW,               YES, TRUE,  3DNOW)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_8x                                              \
+FIELDDEF( 85, EAX, AMD,     0,  8, ITLB_ENTRIES_2M4M_PGS, NA, FALSE)           \
+FIELDDEF( 85, EAX, AMD,     8,  8, ITLB_ASSOC_2M4M_PGS, NA,  FALSE)            \
+FIELDDEF( 85, EAX, AMD,    16,  8, DTLB_ENTRIES_2M4M_PGS, NA, FALSE)           \
+FIELDDEF( 85, EAX, AMD,    24,  8, DTLB_ASSOC_2M4M_PGS, NA,  FALSE)            \
+FIELDDEF( 85, EBX, AMD,     0,  8, ITLB_ENTRIES_4K_PGS, NA,  FALSE)            \
+FIELDDEF( 85, EBX, AMD,     8,  8, ITLB_ASSOC_4K_PGS,   NA,  FALSE)            \
+FIELDDEF( 85, EBX, AMD,    16,  8, DTLB_ENTRIES_4K_PGS, NA,  FALSE)            \
+FIELDDEF( 85, EBX, AMD,    24,  8, DTLB_ASSOC_4K_PGS,   NA,  FALSE)            \
+FIELDDEF( 85, ECX, AMD,     0,  8, L1_DCACHE_LINE_SIZE, NA,  FALSE)            \
+FIELDDEF( 85, ECX, AMD,     8,  8, L1_DCACHE_LINES_PER_TAG, NA, FALSE)         \
+FIELDDEF( 85, ECX, AMD,    16,  8, L1_DCACHE_ASSOC,     NA, FALSE)             \
+FIELDDEF( 85, ECX, AMD,    24,  8, L1_DCACHE_SIZE,      NA, FALSE)             \
+FIELDDEF( 85, EDX, AMD,     0,  8, L1_ICACHE_LINE_SIZE, NA,  FALSE)            \
+FIELDDEF( 85, EDX, AMD,     8,  8, L1_ICACHE_LINES_PER_TAG, NA, FALSE)         \
+FIELDDEF( 85, EDX, AMD,    16,  8, L1_ICACHE_ASSOC,     NA, FALSE)             \
+FIELDDEF( 85, EDX, AMD,    24,  8, L1_ICACHE_SIZE,      NA, FALSE)             \
+FIELDDEF( 86, EAX, AMD,     0, 12, L2_ITLB_ENTRIES_2M4M_PGS, NA, FALSE)        \
+FIELDDEF( 86, EAX, AMD,    12,  4, L2_ITLB_ASSOC_2M4M_PGS, NA, FALSE)          \
+FIELDDEF( 86, EAX, AMD,    16, 12, L2_DTLB_ENTRIES_2M4M_PGS, NA, FALSE)        \
+FIELDDEF( 86, EAX, AMD,    28,  4, L2_DTLB_ASSOC_2M4M_PGS, NA, FALSE)          \
+FIELDDEF( 86, EBX, AMD,     0, 12, L2_ITLB_ENTRIES_4K_PGS, NA, FALSE)          \
+FIELDDEF( 86, EBX, AMD,    12,  4, L2_ITLB_ASSOC_4K_PGS, NA, FALSE)            \
+FIELDDEF( 86, EBX, AMD,    16, 12, L2_DTLB_ENTRIES_4K_PGS, NA, FALSE)          \
+FIELDDEF( 86, EBX, AMD,    28,  4, L2_DTLB_ASSOC_4K_PGS,NA,  FALSE)            \
 FIELDDEF( 86, ECX, AMD,     0,  8, L2CACHE_LINE,        NA,  FALSE)            \
-FIELDDEF( 86, ECX, AMD,     8,  4, L2CACHE_LINE_PER_TAG, NA, FALSE)            \
+FIELDDEF( 86, ECX, AMD,     8,  4, L2CACHE_LINE_PER_TAG,NA,  FALSE)            \
 FIELDDEF( 86, ECX, AMD,    12,  4, L2CACHE_WAYS,        NA,  FALSE)            \
 FIELDDEF( 86, ECX, AMD,    16, 16, L2CACHE_SIZE,        NA,  FALSE)            \
 FIELDDEF( 86, EDX, AMD,     0,  8, L3CACHE_LINE,        NA,  FALSE)            \
@@ -511,8 +541,10 @@ FLAGDEF(  87, EDX, AMD,     5,  1, STC,                 NA,  FALSE)            \
 FLAGDEF(  87, EDX, AMD,     6,  1, 100MHZSTEPS,         NA,  FALSE)            \
 FLAGDEF(  87, EDX, AMD,     7,  1, HWPSTATE,            NA,  FALSE)            \
 FLAGDEF(  87, EDX, COMMON,  8,  1, TSC_INVARIANT,       NA,  FALSE)            \
+FLAGDEF(  87, EDX, COMMON,  9,  1, CORE_PERF_BOOST,     NA,  FALSE)            \
 FIELDDEFA(88, EAX, COMMON,  0,  8, PHYSBITS,            NA,  FALSE, PHYS_BITS) \
 FIELDDEFA(88, EAX, COMMON,  8,  8, VIRTBITS,            NA,  FALSE, VIRT_BITS) \
+FIELDDEF( 88, EAX, COMMON, 16,  8, GUEST_PHYS_ADDR_SZ,  NA,  FALSE)            \
 FIELDDEFA(88, ECX, AMD,     0,  8, CORE_COUNT,          NA,  FALSE, AMD_CORE_COUNT) \
 FIELDDEFA(88, ECX, AMD,    12,  4, APICID_COREID_SIZE,  NA,  FALSE, AMD_APICID_COREID_SIZE) \
 FIELDDEFA(8A, EAX, AMD,     0,  8, SVM_REVISION,        YES, FALSE, SVM_REVISION) \
@@ -535,14 +567,74 @@ FLAGDEF(  8A, EDX, AMD,    12,  1, SVM_PAUSE_THRESHOLD, NO,  FALSE)            \
 FIELDDEF( 8A, EDX, AMD,    13, 19, SVMEDX_RSVD2,        NO,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
-#define CPUID_FIELD_DATA_LEVEL_81D					       \
+#define CPUID_FIELD_DATA_LEVEL_81x                                             \
+FIELDDEF(819, EAX, AMD,     0, 12, L1_ITLB_ENTRIES_1G_PGS, NA, FALSE)          \
+FIELDDEF(819, EAX, AMD,    12,  4, L1_ITLB_ASSOC_1G_PGS, NA, FALSE)            \
+FIELDDEF(819, EAX, AMD,    16, 12, L1_DTLB_ENTRIES_1G_PGS, NA, FALSE)          \
+FIELDDEF(819, EAX, AMD,    28,  4, L1_DTLB_ASSOC_1G_PGS, NA, FALSE)            \
+FIELDDEF(819, EBX, AMD,     0, 12, L2_ITLB_ENTRIES_1G_PGS, NA, FALSE)          \
+FIELDDEF(819, EBX, AMD,    12,  4, L2_ITLB_ASSOC_1G_PGS, NA, FALSE)            \
+FIELDDEF(819, EBX, AMD,    16, 12, L2_DTLB_ENTRIES_1G_PGS, NA, FALSE)          \
+FIELDDEF(819, EBX, AMD,    28,  4, L2_DTLB_ASSOC_1G_PGS, NA, FALSE)            \
+FLAGDEF( 81A, EAX, AMD,     0,  1, FP128,               NA,  FALSE)            \
+FLAGDEF( 81A, EAX, AMD,     1,  1, MOVU,                NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     0,  1, IBS_FFV,             NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     1,  1, IBS_FETCHSAM,        NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     2,  1, IBS_OPSAM,           NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     3,  1, RW_OPCOUNT,          NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     4,  1, OPCOUNT,             NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     5,  1, BRANCH_TARGET_ADDR,  NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     6,  1, OPCOUNT_EXT,         NA,  FALSE)            \
+FLAGDEF( 81B, EAX, AMD,     7,  1, RIP_INVALID_CHECK,   NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     0,  1, LWP_AVAIL,           NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     1,  1, LWP_VAL_AVAIL,       NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     2,  1, LWP_IRE_AVAIL,       NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     3,  1, LWP_BRE_AVAIL,       NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     4,  1, LWP_DME_AVAIL,       NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     5,  1, LWP_CNH_AVAIL,       NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,     6,  1, LWP_RNH_AVAIL,       NA,  FALSE)            \
+FLAGDEF( 81C, EAX, AMD,    31,  1, LWP_INT_AVAIL,       NA,  FALSE)            \
+FIELDDEF(81C, EBX, AMD,     0,  8, LWP_CB_SIZE,         NA,  FALSE)            \
+FIELDDEF(81C, EBX, AMD,     8,  8, LWP_EVENT_SIZE,      NA,  FALSE)            \
+FIELDDEF(81C, EBX, AMD,    16,  8, LWP_MAX_EVENTS,      NA,  FALSE)            \
+FIELDDEF(81C, EBX, AMD,    24,  8, LWP_EVENT_OFFSET,    NA,  FALSE)            \
+FIELDDEF(81C, ECX, AMD,     0,  4, LWP_LATENCY_MAX,     NA,  FALSE)            \
+FLAGDEF( 81C, ECX, AMD,     5,  1, LWP_DATA_ADDR_VALID, NA,  FALSE)            \
+FIELDDEF(81C, ECX, AMD,     6,  3, LWP_LATENCY_ROUND,   NA,  FALSE)            \
+FIELDDEF(81C, ECX, AMD,     9,  7, LWP_VERSION,         NA,  FALSE)            \
+FIELDDEF(81C, ECX, AMD,    16,  8, LWP_MIN_BUF_SIZE,    NA,  FALSE)            \
+FLAGDEF( 81C, ECX, AMD,    28,  1, LWP_BRANCH_PRED,     NA,  FALSE)            \
+FLAGDEF( 81C, ECX, AMD,    29,  1, LWP_IP_FILTERING,    NA,  FALSE)            \
+FLAGDEF( 81C, ECX, AMD,    30,  1, LWP_CACHE_LEVEL,     NA,  FALSE)            \
+FLAGDEF( 81C, ECX, AMD,    31,  1, LWP_CACHE_LATENCY,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     0,  1, LWP_SUPPORTED,       NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     1,  1, LWP_VAL_SUPPORTED,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     2,  1, LWP_IRE_SUPPORTED,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     3,  1, LWP_BRE_SUPPORTED,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     4,  1, LWP_DME_SUPPORTED,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     5,  1, LWP_CNH_SUPPORTED,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,     6,  1, LWP_RNH_SUPPORTED,   NA,  FALSE)            \
+FLAGDEF( 81C, EDX, AMD,    31,  1, LWP_INT_SUPPORTED,   NA,  FALSE)            \
 FIELDDEFA( 81D,EAX, AMD,     0,  5, CACHE_TYPE,          NA,  FALSE, AMD_CACHE_TYPE) \
 FIELDDEFA( 81D,EAX, AMD,     5,  3, CACHE_LEVEL,         NA,  FALSE, AMD_CACHE_LEVEL) \
-FIELDDEFA( 81D,EBX, AMD,    22, 10, CACHE_WAYS,          NA,  FALSE, AMD_CACHE_WAYS)
-
-#define CPUID_FIELD_DATA_LEVEL_81E					       \
+FLAGDEF( 81D, EAX, AMD,     8,  1, CACHE_SELF_INIT,     NA,  FALSE)            \
+FLAGDEF( 81D, EAX, AMD,     9,  1, CACHE_FULLY_ASSOC,   NA,  FALSE)            \
+FIELDDEF(81D, EAX, AMD,    14, 12, NUM_SHARING_CACHE,   NA,  FALSE)            \
+FIELDDEF(81D, EBX, AMD,     0, 12, CACHE_LINE_SIZE,     NA,  FALSE)            \
+FIELDDEF(81D, EBX, AMD,    12, 10, CACHE_PHYS_PARTITIONS, NA, FALSE)           \
+FIELDDEFA(81D,EBX, AMD,   22, 10, CACHE_WAYS,          NA,  FALSE, AMD_CACHE_WAYS) \
+FIELDDEF(81D, ECX, AMD,     0, 32, CACHE_NUM_SETS,      NA,  FALSE)            \
+FLAGDEF( 81D, EDX, AMD,     0,  1, CACHE_WBINVD,        NA,  FALSE)            \
+FLAGDEF( 81D, EDX, AMD,     1,  1, CACHE_INCLUSIVE,     NA,  FALSE)            \
+FIELDDEF(81E, EAX, AMD,     0, 32, EXTENDED_APICID,     NA,  FALSE)            \
+FIELDDEF(81E, EBX, AMD,     0,  8, COMPUTE_UNIT_ID,     NA,  FALSE)            \
+FIELDDEF(81E, EBX, AMD,     8,  2, CORES_PER_COMPUTE_UNIT, NA, FALSE)          \
+FIELDDEF(81E, ECX, AMD,     0,  8, NODEID,              NA,  FALSE)            \
 FIELDDEFA( 81E,ECX, AMD,     8,  3, NODES_PER_PKG,       NA,  FALSE, AMD_NODES_PER_PKG)
 
+#define INTEL_CPUID_FIELD_DATA
+
+#define AMD_CPUID_FIELD_DATA
 
 #define CPUID_FIELD_DATA                                              \
    CPUID_FIELD_DATA_LEVEL_0                                           \
@@ -559,9 +651,9 @@ FIELDDEFA( 81E,ECX, AMD,     8,  3, NODES_PER_PKG,       NA,  FALSE, AMD_NODES_P
    CPUID_FIELD_DATA_LEVEL_80                                          \
    CPUID_FIELD_DATA_LEVEL_81                                          \
    CPUID_FIELD_DATA_LEVEL_8x                                          \
-   CPUID_FIELD_DATA_LEVEL_81D                                         \
-   CPUID_FIELD_DATA_LEVEL_81E
-
+   CPUID_FIELD_DATA_LEVEL_81x                                         \
+   INTEL_CPUID_FIELD_DATA                                             \
+   AMD_CPUID_FIELD_DATA
 
 /*
  * Define all field and flag values as an enum.  The result is a full
