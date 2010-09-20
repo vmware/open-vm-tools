@@ -310,7 +310,7 @@ FLAGDEFA(  1, ECX, INTEL,  22,  1, MOVBE,               YES, TRUE,  MOVBE)     \
 FLAGDEFA(  1, ECX, COMMON, 23,  1, POPCNT,              YES, TRUE,  POPCNT)    \
 FLAGDEFA(  1, ECX, COMMON, 25,  1, AES,                 YES, TRUE, AES)        \
 FLAGDEFA(  1, ECX, COMMON, 26,  1, XSAVE,               YES, FALSE, XSAVE)     \
-FLAGDEF(   1, ECX, COMMON, 27,  1, OSXSAVE,             ANY, FALSE)            \
+FLAGDEFA(  1, ECX, COMMON, 27,  1, OSXSAVE,             ANY, FALSE, OSXSAVE)   \
 FLAGDEFA(  1, ECX, COMMON, 28,  1, AVX,                 YES, TRUE,  AVX)       \
 FLAGDEFA(  1, ECX, COMMON, 29,  1, F16,                 YES, TRUE,  F16)       \
 FLAGDEFA(  1, ECX, COMMON, 30,  1, RDRAND,              YES, TRUE,  RDRAND)    \
