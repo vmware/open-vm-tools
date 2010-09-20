@@ -253,8 +253,8 @@ VMCIQPair_Detach(VMCIQPair **qpair) // IN/OUT
 static INLINE void
 VMCIQPairLock(const VMCIQPair *qpair) // IN
 {
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
-   VMCIHost_AcquireQueueMutex(qpair->produceQ);
+#if !defined VMX86_VMX
+   VMCI_AcquireQueueMutex(qpair->produceQ);
 #endif
 }
 
@@ -278,8 +278,8 @@ VMCIQPairLock(const VMCIQPair *qpair) // IN
 static INLINE void
 VMCIQPairUnlock(const VMCIQPair *qpair) // IN
 {
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
-   VMCIHost_ReleaseQueueMutex(qpair->produceQ);
+#if !defined VMX86_VMX
+   VMCI_ReleaseQueueMutex(qpair->produceQ);
 #endif
 }
 
@@ -617,8 +617,8 @@ EnqueueLocked(VMCIQueue *produceQ,                   // IN
    size_t written;
    ssize_t result;
 
-#if !defined VMX86_TOOLS && !defined VMX86_VMX
-   if (UNLIKELY(VMCIHost_EnqueueToDevNull(produceQ))) {
+#if !defined VMX86_VMX
+   if (UNLIKELY(VMCI_EnqueueToDevNull(produceQ))) {
       return (ssize_t) bufSize;
    }
 

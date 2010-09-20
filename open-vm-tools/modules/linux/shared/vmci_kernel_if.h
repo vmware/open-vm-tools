@@ -314,9 +314,9 @@ void VMCI_FreePPNSet(PPNSet *ppnSet);
 int VMCI_PopulatePPNList(uint8 *callBuf, const PPNSet *ppnSet);
 #endif
 
-#if !defined(VMX86_TOOLS)
 struct VMCIQueue;
 
+#if !defined(VMX86_TOOLS)
 #if  !defined(VMKERNEL)
 struct PageStoreAttachInfo;
 struct VMCIQueue *VMCIHost_AllocQueue(uint64 queueSize);
@@ -329,13 +329,8 @@ void VMCIHost_ReleaseUserMemory(struct PageStoreAttachInfo *attach,
                                 struct VMCIQueue *produceQ,
                                 struct VMCIQueue *detachQ);
 #endif // VMKERNEL
-#ifdef _WIN32
-void VMCIHost_InitQueueMutex(struct VMCIQueue *produceQ,
-                             struct VMCIQueue *consumeQ);
-void VMCIHost_AcquireQueueMutex(struct VMCIQueue *queue);
-void VMCIHost_ReleaseQueueMutex(struct VMCIQueue *queue);
-Bool VMCIHost_EnqueueToDevNull(struct VMCIQueue *queue);
 
+#ifdef _WIN32
 /*
  * Special routine used on the Windows platform to save a queue when
  * its backing memory goes away.
@@ -345,13 +340,31 @@ void VMCIHost_SaveProduceQ(struct PageStoreAttachInfo *attach,
                            struct VMCIQueue *produceQ,
                            struct VMCIQueue *detachQ,
                            const uint64 produceQSize);
-#else // _WIN32
-#  define VMCIHost_InitQueueMutex(_pq, _cq)
-#  define VMCIHost_AcquireQueueMutex(_q)
-#  define VMCIHost_ReleaseQueueMutex(_q)
-#  define VMCIHost_EnqueueToDevNull(_q) FALSE
 #endif // _WIN32
+
 #endif // !VMX86_TOOLS
 
+#ifdef _WIN32
+void VMCI_InitQueueMutex(struct VMCIQueue *produceQ,
+                             struct VMCIQueue *consumeQ);
+void VMCI_AcquireQueueMutex(struct VMCIQueue *queue);
+void VMCI_ReleaseQueueMutex(struct VMCIQueue *queue);
+Bool VMCI_EnqueueToDevNull(struct VMCIQueue *queue);
+int VMCI_ConvertToLocalQueue(struct VMCIQueue *queueInfo,
+                             struct VMCIQueue *otherQueueInfo,
+                             uint64 size, Bool keepContent,
+                             void **oldQueue);
+void VMCI_RevertToNonLocalQueue(struct VMCIQueue *queueInfo,
+                                void *nonLocalQueue, uint64 size);
+void VMCI_FreeQueueBuffer(void *queue, uint64 size);
+#else // _WIN32
+#  define VMCI_InitQueueMutex(_pq, _cq)
+#  define VMCI_AcquireQueueMutex(_q)
+#  define VMCI_ReleaseQueueMutex(_q)
+#  define VMCI_EnqueueToDevNull(_q) FALSE
+#  define VMCI_ConvertToLocalQueue(_pq, _cq, _s, _oq, _kc) VMCI_ERROR_UNAVAILABLE
+#  define VMCI_RevertToNonLocalQueue(_q, _nlq, _s)
+#  define VMCI_FreeQueueBuffer(_q, _s)
+#endif // !_WIN32
 
 #endif // _VMCI_KERNEL_IF_H_

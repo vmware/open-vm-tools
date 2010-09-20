@@ -58,6 +58,7 @@ typedef struct QueuePairEntry {
 
 typedef struct QueuePairList {
    ListItem  *head;
+   Bool      hibernate;
    VMCIMutex mutex;
 } QueuePairList;
 
@@ -79,6 +80,7 @@ static int VMCIQueuePairAllocHelper(VMCIHandle *handle, VMCIQueue **produceQ,
                                     uint64 consumeSize,
                                     VMCIId peer, uint32 flags);
 static int VMCIQueuePairDetachHelper(VMCIHandle handle);
+static int VMCIQueuePairDetachHyperCall(VMCIHandle handle);
 static int QueuePairNotifyPeerLocal(Bool attach, VMCIHandle handle);
 
 
@@ -194,6 +196,7 @@ void
 VMCIQueuePair_Init(void)
 {
    queuePairList.head = NULL;
+   queuePairList.hibernate = FALSE;
    QueuePairLock_Init();
 }
 
@@ -244,6 +247,7 @@ VMCIQueuePair_Exit(void)
       QueuePairEntryDestroy(entry);
    }
 
+   queuePairList.hibernate = FALSE;
    QueuePairList_Unlock();
    QueuePairLock_Destroy();
 }
@@ -683,6 +687,17 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
 
    QueuePairList_Lock();
 
+   if (queuePairList.hibernate && !(flags & VMCI_QPFLAG_LOCAL)) {
+      /*
+       * While guest OS is in hibernate state, creating non-local
+       * queue pairs is not allowed after the point where the VMCI
+       * guest driver converted the existing queue pairs to local
+       * ones.
+       */
+
+      return VMCI_ERROR_UNAVAILABLE;
+   }
+
    if ((queuePairEntry = QueuePairList_FindEntry(*handle))) {
       if (queuePairEntry->flags & VMCI_QPFLAG_LOCAL) {
          /* Local attach case. */
@@ -781,6 +796,8 @@ VMCIQueuePairAllocHelper(VMCIHandle *handle,   // IN/OUT:
       }
    }
 
+   VMCI_InitQueueMutex((VMCIQueue *)myProduceQ, (VMCIQueue *)myConsumeQ);
+
    QueuePairList_AddEntry(queuePairEntry);
 
 out:
@@ -830,6 +847,37 @@ errorKeepEntry:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VMCIQueuePairDetachHyperCall --
+ *
+ *      Helper to make a QueuePairDetach hypercall.
+ *
+ * Results:
+ *      Result of the hypercall.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+int
+VMCIQueuePairDetachHyperCall(VMCIHandle handle) // IN:
+{
+   VMCIQueuePairDetachMsg detachMsg;
+
+   detachMsg.hdr.dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
+                                        VMCI_QUEUEPAIR_DETACH);
+   detachMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
+   detachMsg.hdr.payloadSize = sizeof handle;
+   detachMsg.handle = handle;
+
+   return VMCI_SendDatagram((VMCIDatagram *)&detachMsg);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VMCIQueuePairDetachHelper --
  *
  *      Helper for VMCI QueuePair detach interface on Linux. Frees the physical
@@ -873,15 +921,7 @@ VMCIQueuePairDetachHelper(VMCIHandle handle)   // IN:
          }
       }
    } else {
-      VMCIQueuePairDetachMsg detachMsg;
-
-      detachMsg.hdr.dst = VMCI_MAKE_HANDLE(VMCI_HYPERVISOR_CONTEXT_ID,
-                                           VMCI_QUEUEPAIR_DETACH);
-      detachMsg.hdr.src = VMCI_ANON_SRC_HANDLE;
-      detachMsg.hdr.payloadSize = sizeof handle;
-      detachMsg.handle = handle;
-
-      result = VMCI_SendDatagram((VMCIDatagram *)&detachMsg);
+      result = VMCIQueuePairDetachHyperCall(handle);
    }
 
 out:
@@ -951,4 +991,141 @@ QueuePairNotifyPeerLocal(Bool attach,           // IN: attach or detach?
    ePayload->handle = handle;
 
    return VMCIEvent_Dispatch((VMCIDatagram *)eMsg);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VMCIQueuePair_Hibernate --
+ *
+ *      When the guest enters hibernation, any non-local queue pairs
+ *      will disconnect no later than at the time the VMCI device
+ *      powers off. To preserve the content of the non-local queue
+ *      pairs for this guest, we make a local copy of the content and
+ *      disconnect from the queue pairs. This will ensure that the
+ *      peer doesn't continue to update the queue pair state while the
+ *      guest OS is checkpointing the memory (otherwise we might end
+ *      up with a inconsistent snapshot where the pointers of the
+ *      consume queue are checkpointed later than the data pages they
+ *      point to, possibly indicating that non-valid data is
+ *      valid). While we are in hibernation mode, we block the
+ *      allocation of new non-local queue pairs. Note that while we
+ *      are doing the conversion to local queue pairs, we are holding
+ *      the queue pair list lock, which will prevent concurrent
+ *      creation of additional non-local queue pairs.
+ *
+ *      The hibernation cannot fail, so if we are unable to either
+ *      save the queue pair state or detach from a queue pair, we deal
+ *      with it by keeping the queue pair around, and converting it to
+ *      a local queue pair when going out of hibernation. Since
+ *      failing a detach is highly unlikely (it would require a queue
+ *      pair being actively used as part of a DMA operation), this is
+ *      an acceptable fall back. Once we come back from hibernation,
+ *      these queue pairs will no longer be external, so we simply
+ *      mark them as local at that point.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Queue pairs are detached.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+VMCIQueuePair_Hibernate(Bool enterHibernation)
+{
+   ListItem *next;
+
+   QueuePairList_Lock();
+
+   if (enterHibernation) {
+
+      LIST_SCAN(next, queuePairList.head) {
+         QueuePairEntry *entry = LIST_CONTAINER(next, QueuePairEntry, listItem);
+
+         if (!(entry->flags & VMCI_QPFLAG_LOCAL)) {
+            VMCIQueue *prodQ;
+            VMCIQueue *consQ;
+            void *oldProdQ;
+            void *oldConsQ;
+            int result;
+
+            prodQ = (VMCIQueue *)entry->produceQ;
+            consQ = (VMCIQueue *)entry->consumeQ;
+            oldConsQ = oldProdQ = NULL;
+
+            VMCI_AcquireQueueMutex(prodQ);
+
+            result = VMCI_ConvertToLocalQueue(consQ, prodQ, entry->consumeSize,
+                                              TRUE, &oldConsQ);
+            if (result != VMCI_SUCCESS) {
+               VMCI_LOG((LGPFX "Hibernate failed to create local consume queue "
+                         "from handle %x:%x (error: %d)\n",
+                         entry->handle.context, entry->handle.resource, result));
+               VMCI_ReleaseQueueMutex(prodQ);
+               continue;
+            }
+            result = VMCI_ConvertToLocalQueue(prodQ, consQ, entry->produceSize,
+                                              FALSE, &oldProdQ);
+            if (result != VMCI_SUCCESS) {
+               VMCI_LOG((LGPFX "Hibernate failed to create local produce queue "
+                         "from handle %x:%x (error: %d)\n",
+                         entry->handle.context, entry->handle.resource, result));
+               VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
+               VMCI_ReleaseQueueMutex(prodQ);
+               continue;
+            }
+
+            /*
+             * Now that the contents of the queue pair has been saved,
+             * we can detach from the non-local queue pair. This will
+             * revert the content of the non-local queues to that
+             * before the queue pair allocation and any buffered data
+             * will be lost.
+             */
+
+            result = VMCIQueuePairDetachHyperCall(entry->handle);
+            if (result < VMCI_SUCCESS) {
+               VMCI_LOG((LGPFX "Hibernate failed to detach from handle %x:%x\n",
+                         entry->handle.context, entry->handle.resource));
+               VMCI_RevertToNonLocalQueue(consQ, oldConsQ, entry->consumeSize);
+               VMCI_RevertToNonLocalQueue(prodQ, oldProdQ, entry->produceSize);
+               VMCI_ReleaseQueueMutex(prodQ);
+               continue;
+            }
+
+            entry->flags |= VMCI_QPFLAG_LOCAL;
+
+            VMCI_ReleaseQueueMutex(prodQ);
+
+            VMCI_FreeQueueBuffer(oldProdQ, entry->produceSize);
+            VMCI_FreeQueueBuffer(oldConsQ, entry->consumeSize);
+
+            QueuePairNotifyPeerLocal(FALSE, entry->handle);
+         }
+      }
+      queuePairList.hibernate = TRUE;
+   } else {
+      queuePairList.hibernate = FALSE;
+
+      LIST_SCAN(next, queuePairList.head) {
+         QueuePairEntry *entry = LIST_CONTAINER(next, QueuePairEntry, listItem);
+
+         if (!(entry->flags & VMCI_QPFLAG_LOCAL)) {
+            /*
+             * Any queue pairs, that couldn't be deallocated when
+             * entering hibernation are now assumed to be local, since
+             * the VMCI device has been reset.
+             */
+
+            entry->flags |= VMCI_QPFLAG_LOCAL;
+            QueuePairNotifyPeerLocal(FALSE, entry->handle);
+         }
+      }
+   }
+
+   QueuePairList_Unlock();
 }

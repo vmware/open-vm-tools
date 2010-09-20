@@ -35,5 +35,7 @@ int VMCINotificationRegister(VMCIHandle *handle, Bool doorbell, uint32 flags,
                              VMCICallback notifyCB, void *callbackData);
 int VMCINotificationUnregister(VMCIHandle handle, Bool doorbell);
 
+void VMCINotifications_Hibernate(Bool enterHibernation);
+
 #endif /* !_VMCI_NOTIFICATIONS_H_ */
 

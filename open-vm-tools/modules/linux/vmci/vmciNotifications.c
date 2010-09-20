@@ -209,6 +209,67 @@ VMCINotifications_Exit(void)
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * VMCINotifications_Hibernate --
+ *
+ *    When a guest leaves hibernation, the device driver state is out
+ *    of sync with the device state, since the driver state has
+ *    doorbells registered that aren't known to the device. This
+ *    function takes care of reregistering any doorbells. In case an
+ *    error occurs during reregistration (this is highly unlikely
+ *    since 1) it succeeded the first time 2) the device driver is the
+ *    only source of doorbell registrations), we simply log the
+ *    error. The doorbell can still be destroyed using
+ *    VMCIDoorbell_Destroy.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+VMCINotifications_Hibernate(Bool enterHibernate)  // IN
+{
+   VMCILockFlags flags;
+   uint32 bucket;
+   ListItem *iter;
+
+   if (enterHibernate) {
+      /*
+       * Nothing to do when entering hibernation.
+       */
+
+      return;
+   }
+
+   VMCI_GrabLock_BH(&vmciNotifyHT.lock, &flags);
+
+   for (bucket = 0; bucket < HASH_TABLE_SIZE; bucket++) {
+      LIST_SCAN(iter, vmciNotifyHT.entriesByIdx[bucket]) {
+         VMCINotifyHashEntry *cur;
+         int result;
+
+         cur = LIST_CONTAINER(iter, VMCINotifyHashEntry, idxListItem);
+         result = LinkNotificationHypercall(cur->handle, cur->doorbell, cur->idx);
+         if (result != VMCI_SUCCESS && result != VMCI_ERROR_DUPLICATE_ENTRY) {
+            VMCI_LOG(("Failed to reregister doorbell handle 0x%x:0x%x of "
+                      "resource %s to index (error: %d).\n",
+                      cur->handle.context, cur->handle.resource,
+                      cur->doorbell ? "doorbell" : "queue pair", result));
+         }
+      }
+   }
+
+   VMCI_ReleaseLock_BH(&vmciNotifyHT.lock, flags);
+}
+
+
+/*
  *-------------------------------------------------------------------------
  *
  * VMCINotifyHashAddEntry --
@@ -783,8 +844,8 @@ VMCINotificationRegister(VMCIHandle *handle,     // IN
 
    result = LinkNotificationHypercall(entry->handle, doorbell, entry->idx);
    if (result != VMCI_SUCCESS) {
-      VMCI_LOG(("Failed to link handle 0x%x:0x%x of resource %s to index, "
-                "err 0x%x.\n", entry->handle.context, entry->handle.resource,
+      VMCI_LOG(("Failed to link handle 0x%x:0x%x of resource %s to index "
+                "(error: %d).\n", entry->handle.context, entry->handle.resource,
                 entry->doorbell ? "doorbell" : "queue pair", result));
       VMCINotifyHashRemoveEntry(entry->handle, entry->doorbell);
       VMCI_DestroyEvent(&entry->destroyEvent);
@@ -844,15 +905,16 @@ VMCINotificationUnregister(VMCIHandle handle, // IN
        * The only reason this should fail would be an inconsistency
        * between guest and hypervisor state, where the guest believes
        * it has an active registration whereas the hypervisor
-       * doesn't. Since the handle has now been removed in the guest,
-       * we just print a warning and return success.
+       * doesn't. One case where this may happen is if a doorbell is
+       * unregistered following a hibernation at a time where the
+       * doorbell state hasn't been restored on the hypervisor side
+       * yet. Since the handle has now been removed in the guest, we
+       * just print a warning and return success.
        */
 
-      ASSERT(FALSE);
-
-      VMCI_LOG(("Unlink of %s  handle 0x%x:0x%x unknown by hypervisor.\n",
-                doorbell ? "doorbell" : "queuepair",
-                handle.context, handle.resource));
+      VMCI_LOG(("Unlink of %s  handle 0x%x:0x%x unknown by hypervisor "
+                "(error: %d).\n", doorbell ? "doorbell" : "queuepair",
+                handle.context, handle.resource, result));
    }
    return VMCI_SUCCESS;
 }
@@ -891,7 +953,7 @@ VMCI_RegisterNotificationBitmap(PPN bitmapPPN) // IN
    result = VMCI_SendDatagram((VMCIDatagram *)&bitmapSetMsg);
    if (result != VMCI_SUCCESS) {
       VMCI_LOG(("VMCINotifications: Failed to register PPN %u as notification "
-                "bitmap (error : %d).\n", bitmapPPN, result));
+                "bitmap (error: %d).\n", bitmapPPN, result));
       return FALSE;
    }
    return TRUE;
