@@ -549,7 +549,6 @@ FIELDDEFA( 81E,ECX, AMD,     8,  3, NODES_PER_PKG,       NA,  FALSE, AMD_NODES_P
    CPUID_FIELD_DATA_LEVEL_80                                          \
    CPUID_FIELD_DATA_LEVEL_81                                          \
    CPUID_FIELD_DATA_LEVEL_8x                                          \
-   CPUID_FIELD_DATA_LEVEL_8A_BD                                       \
    CPUID_FIELD_DATA_LEVEL_81D                                         \
    CPUID_FIELD_DATA_LEVEL_81E
 
