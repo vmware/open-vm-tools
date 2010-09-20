@@ -68,6 +68,12 @@ Vix_TranslateSystemError(int systemError) // IN
    case ERROR_ACCESS_DENIED:
       err = VIX_E_FILE_ACCESS_ERROR;
       break;
+   case ERROR_INVALID_NAME:
+      err = VIX_E_FILE_NAME_INVALID;
+      break;
+   case ERROR_FILENAME_EXCED_RANGE:
+      err = VIX_E_FILE_NAME_TOO_LONG;
+      break;
    case ERROR_FILE_NOT_FOUND:
    case ERROR_PATH_NOT_FOUND:
    case ERROR_BAD_PATHNAME:

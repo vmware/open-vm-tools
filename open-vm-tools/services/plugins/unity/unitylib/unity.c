@@ -146,6 +146,24 @@ static UnityCommandElem unityCommandTable[] = {
    { NULL, NULL }
 };
 
+/*
+ * A list of the commands implemented in this library - this list should
+ * match the command dispatch table.
+ */
+static char* unityCommandList[] = {
+   UNITY_RPC_WINDOW_CLOSE,
+   UNITY_RPC_WINDOW_SHOW,
+   UNITY_RPC_WINDOW_HIDE,
+   UNITY_RPC_WINDOW_MINIMIZE,
+   UNITY_RPC_WINDOW_UNMINIMIZE,
+   UNITY_RPC_WINDOW_MAXIMIZE,
+   UNITY_RPC_WINDOW_UNMAXIMIZE,
+   UNITY_RPC_WINDOW_STICK,
+   UNITY_RPC_WINDOW_UNSTICK,
+   /* Add more commands above this. */
+   NULL
+};
+
 typedef struct {
    uint32 featureBit;
    void (*setter)(Bool enabled);
@@ -511,6 +529,32 @@ Unity_UnregisterCaps(void)
    AppUtil_SendGuestCaps(unityCaps, ARRAYSIZE(unityCaps), FALSE);
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * Unity_GetWindowCommandList --
+ *
+ *     Retrieve the list of command strings supported by this library. The
+ *     commands are a list of strings which each operate on a specified Unity
+ *     window ID to perform operations like unmiminimize or restore.
+ *
+ * Results:
+ *     None.
+ *
+ * Side effects:
+ *     None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+Unity_GetWindowCommandList(char ***commandList)     // OUT
+{
+   ASSERT(commandList != NULL);
+
+   *commandList = unityCommandList;
+}
 
 /*
  *----------------------------------------------------------------------------

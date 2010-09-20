@@ -620,6 +620,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
    pid_t pid;
    char *cmdCurrent = NULL;
    char **envpCurrent = NULL;
+   char *workDir = NULL;
 
    if (cmd == NULL) {
       ASSERT(FALSE);
@@ -633,6 +634,12 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
 
    if (!CodeSet_Utf8ToCurrent(cmd, strlen(cmd), &cmdCurrent, NULL)) {
       Warning("Could not convert from UTF-8 to current\n");
+      return -1;
+   }
+
+   if ((NULL != workingDir) &&
+       !CodeSet_Utf8ToCurrent(workingDir, strlen(workingDir), &workDir, NULL)) {
+      Warning("Could not convert workingDir from UTF-8 to current\n");
       return -1;
    }
 
@@ -652,9 +659,9 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
        * Child
        */
 
-      if (NULL != workingDir) {
-         if (chdir(workingDir) != 0) {
-            Warning("%s: Could not chdir(%s) %s\n", __FUNCTION__, workingDir,
+      if (NULL != workDir) {
+         if (chdir(workDir) != 0) {
+            Warning("%s: Could not chdir(%s) %s\n", __FUNCTION__, workDir,
                     strerror(errno));
          }
       }
@@ -675,6 +682,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
     */
 
    free(cmdCurrent);
+   free(workDir);
    Unicode_FreeList(envpCurrent, -1);
    return pid;
 }
@@ -1463,6 +1471,52 @@ ProcMgr_ImpersonateUserStop(void)
    setenv("USER", ppw->pw_name, 1);
    setenv("HOME", ppw->pw_dir, 1);
    setenv("SHELL", ppw->pw_shell, 1);
+
+   return TRUE;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_GetImpersonatedUserInfo --
+ *
+ *      Return info about the impersonated user.
+ *
+ * Results:
+ *      TRUE on success
+ *
+ * Side effects:
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+ProcMgr_GetImpersonatedUserInfo(char **userName,            // OUT
+                                char **homeDir)             // OUT
+{
+   uid_t uid = geteuid();
+   char buffer[BUFSIZ];
+   struct passwd pw;
+   struct passwd *ppw = &pw;
+   int error;
+
+   *userName = NULL;
+   *homeDir = NULL;
+   if ((error = getpwuid_r(uid, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
+       !ppw) {
+      /*
+       * getpwuid_r() and getpwnam_r() can return a 0 (success) but not
+       * set the return pointer (ppw) if there's no entry for the user,
+       * according to POSIX 1003.1-2003, so patch up the errno.
+       */
+      if (error == 0) {
+         error = ENOENT;
+      }
+      return FALSE;
+   }
+
+   *userName = Unicode_Alloc(ppw->pw_name, STRING_ENCODING_DEFAULT);
+   *homeDir = Unicode_Alloc(ppw->pw_dir, STRING_ENCODING_DEFAULT);
 
    return TRUE;
 }

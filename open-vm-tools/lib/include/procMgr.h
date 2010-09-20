@@ -145,5 +145,6 @@ Bool ProcMgr_ImpersonateUserStart(const char *user,      // UTF-8
                                   AuthToken token);
 Bool ProcMgr_ImpersonateUserStop(void);
 #endif
+Bool ProcMgr_GetImpersonatedUserInfo(char **username, char **homeDir);
 
 #endif /* __PROCMGR_H__ */

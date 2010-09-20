@@ -273,6 +273,8 @@ static const char *fileInfoFormatString = "<FileInfo>"
                                           "<ModTime>%"FMT64"d</ModTime>"
                                           "</FileInfo>";
 
+static const char *listFilesRemainingFormatString = "<rem>%d</rem>";
+
 #ifdef _WIN32
 static const char *fileExtendedInfoWindowsFormatString = "<fxi>"
                                           "<Name>%s</Name>"
@@ -312,7 +314,7 @@ static VixError VixToolsStartProgramImpl(char *requestName,
                                          char *arguments,
                                          char *workingDir,
                                          int numEnvVars,
-                                         char **envVars,
+                                         const char **envVars,
                                          Bool startMinimized,
                                          void *userToken,
                                          void *eventQueue,
@@ -333,8 +335,17 @@ static VixError VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,
 static VixError VixToolsReadVariable(VixCommandRequestHeader *requestMsg,
                                      char **result);
 
+static VixError VixToolsGetEnvForUser(void *userToken,
+                                      const char *name,
+                                      char **value);
+
 static VixError VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,
                                          char **result);
+
+static VixError VixToolsGetMultipleEnvVarsForUser(void *userToken,
+                                                  const char *names,
+                                                  unsigned int numNames,
+                                                  char **result);
 
 static VixError VixToolsGetAllEnvVarsForUser(void *userToken, char **result);
 
@@ -394,10 +405,8 @@ static VixError VixTools_Base64EncodeBuffer(char **resultValuePtr, size_t *resul
 
 static VixError VixToolsSetSharedFoldersProperties(VixPropertyListImpl *propList);
 
-#if !defined(__FreeBSD__) && !defined(sun)
 static VixError VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,
                                                 GKeyFile *confDictRef);
-#endif
 
 #if defined(_WIN32)
 static HRESULT VixToolsEnableDHCPOnPrimary(void);
@@ -451,6 +460,11 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
                     void *clientData)                                               // IN
 {
    VixError err = VIX_OK;
+
+   /*
+    * Run unit tests on DEVEL builds.
+    */
+   DEVEL_ONLY(TestVixToolsEnvVars());
 
    thisProcessRunsAsRoot = thisProcessRunsAsRootParam;
    reportProgramDoneProc = reportProgramDoneProcParam;
@@ -854,7 +868,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
    char *programPath = NULL;
    char *arguments = NULL;
    char *workingDir = NULL;
-   char **envVars = NULL;
+   const char **envVars = NULL;
    char *bp = NULL;
    Bool impersonatingVMWareUser = FALSE;
    int64 pid = -1;
@@ -876,6 +890,10 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
    }
    if (startProgramRequest->workingDirLength > 0) {
       workingDir = bp;
+      if ('\0' == workingDir[0]) {
+         /* Let's treat an empty string the same as NULL: use the default. */
+         workingDir = NULL;
+      }
       bp += startProgramRequest->workingDirLength;
    }
    if (startProgramRequest->numEnvVars > 0) {
@@ -885,6 +903,11 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
          bp += strlen(envVars[i]) + 1;
       }
       envVars[i] = NULL;
+
+      err = VixToolsValidateEnviron(envVars);
+      if (VIX_OK != err) {
+         goto abort;
+      }
    }
 
    err = VixToolsImpersonateUser(requestMsg, &userToken);
@@ -935,7 +958,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
                                         programPath);
       }
 
-      exitState->user = Util_SafeStrdup(VixToolsGetImpersonatedUsername(&userToken));
+      exitState->user = VixToolsGetImpersonatedUsername(&userToken);
       exitState->pid = (uint64) pid;
       exitState->startTime = time(NULL);
       exitState->exitCode = 0;
@@ -956,7 +979,7 @@ abort:
    Str_Sprintf(resultBuffer, sizeof(resultBuffer), "%"FMT64"d", pid);
    *result = resultBuffer;
 
-   free(envVars);
+   free((char **) envVars);
 
    return err;
 } // VixTools_StartProgram
@@ -1000,6 +1023,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
 #if defined(_WIN32)
    Bool forcedRoot = FALSE;
    STARTUPINFO si;
+   wchar_t *envBlock = NULL;
 #endif
    GSource *timer;
 
@@ -1085,6 +1109,17 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+      /*
+       * If we are impersonating a user then use the user's environment
+       * block. That way the user-specific environment variables will
+       * be available to the application (such as the user's TEMP
+       * directory instead of the system-wide one).
+       */
+      err = VixToolsGetEnvBlock(userToken, &envBlock);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       forcedRoot = Impersonate_ForceRoot();
    }
 
@@ -1093,6 +1128,8 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    procArgs.bInheritHandles = TRUE;
    procArgs.lpStartupInfo = &si;
    si.cb = sizeof si;
+   procArgs.dwCreationFlags = CREATE_UNICODE_ENVIRONMENT;
+   procArgs.lpEnvironment = envBlock;
    si.dwFlags = STARTF_USESHOWWINDOW;
    si.wShowWindow = (VIX_RUNPROGRAM_ACTIVATE_WINDOW & runProgramOptions)
                      ? SW_SHOWNORMAL : SW_MINIMIZE;
@@ -1136,6 +1173,11 @@ VixToolsRunProgramImpl(char *requestName,      // IN
 
 abort:
    free(fullCommandLine);
+#ifdef _WIN32
+   if (NULL != envBlock) {
+      VixToolsDestroyEnvironmentBlock(envBlock);
+   }
+#endif
 
    if (VIX_FAILED(err)) {
       VixToolsFreeRunProgramState(asyncState);
@@ -1167,7 +1209,7 @@ VixToolsStartProgramImpl(char *requestName,      // IN
                          char *arguments,        // IN
                          char *workingDir,       // IN
                          int numEnvVars,         // IN
-                         char **envVars,         // IN
+                         const char **envVars,   // IN
                          Bool startMinimized,    // IN
                          void *userToken,        // IN
                          void *eventQueue,       // IN
@@ -1182,9 +1224,12 @@ VixToolsStartProgramImpl(char *requestName,      // IN
    Bool programExists;
    Bool programIsExecutable;
    ProcMgr_ProcArgs procArgs;
+   char *workingDirectory = NULL;
 #if defined(_WIN32)
    Bool forcedRoot = FALSE;
    STARTUPINFO si;
+   wchar_t *envBlock = NULL;
+   Bool envBlockFromMalloc = TRUE;
 #endif
    GSource *timer;
 
@@ -1242,6 +1287,35 @@ VixToolsStartProgramImpl(char *requestName,      // IN
    }
 
    /*
+    * Adjust the workingDir if needed.
+    * For non-Windows, we use the user's $HOME if workingDir isn't supplied.
+    */
+   if (NULL == workingDir) {
+#if defined(linux) || defined(sun)
+      char *username = NULL;
+
+      if (!ProcMgr_GetImpersonatedUserInfo(&username, &workingDirectory)) {
+         Debug("%s: ProcMgr_GetImpersonatedUserInfo() failed fetching workingDirectory\n", __FUNCTION__);
+         err = VIX_E_FAIL;
+         goto abort;
+      }
+
+      free(username);
+#elif defined(_WIN32)
+      workingDirectory = workingDir;
+#else
+      /*
+       * we shouldn't ever get here for unsupported guests, so just
+       * be sure it builds.
+       */
+      workingDirectory = NULL;
+#endif
+   } else {
+      workingDirectory = Util_SafeStrdup(workingDir);
+   }
+
+
+   /*
     * Build up the command line so the args are passed to the command.
     * To be safe, always put quotes around the program name. If the name
     * contains spaces (either in the file name of its directory path),
@@ -1272,6 +1346,26 @@ VixToolsStartProgramImpl(char *requestName,      // IN
 
    memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
+   if (NULL != envVars) {
+      err = VixToolsEnvironToEnvBlock(envVars, &envBlock);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+   } else if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+      /*
+       * If we are impersonating a user and that user did not supply
+       * environment variables to pass, then use the user's environment
+       * block. That way the user-specific environment variables will
+       * be available to the application (such as the user's TEMP
+       * directory instead of the system-wide one).
+       */
+      err = VixToolsGetEnvBlock(userToken, &envBlock);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+      envBlockFromMalloc = FALSE;
+   }
+
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
       forcedRoot = Impersonate_ForceRoot();
    }
@@ -1280,14 +1374,19 @@ VixToolsStartProgramImpl(char *requestName,      // IN
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
    procArgs.bInheritHandles = TRUE;
    procArgs.lpStartupInfo = &si;
-   procArgs.lpCurrentDirectory = UNICODE_GET_UTF16(workingDir);
-   procArgs.lpEnvironment = envVars;
+   procArgs.lpCurrentDirectory = UNICODE_GET_UTF16(workingDirectory);
+   /*
+    * The lpEnvironment is in UTF-16, so we need the CREATE_UNICODE_ENVIRONMENT
+    * flag.
+    */
+   procArgs.dwCreationFlags = CREATE_UNICODE_ENVIRONMENT;
+   procArgs.lpEnvironment = envBlock;
    si.cb = sizeof si;
    si.dwFlags = STARTF_USESHOWWINDOW;
    si.wShowWindow = (startMinimized) ? SW_MINIMIZE : SW_SHOWNORMAL;
 #else
-   procArgs.workingDirectory = workingDir;
-   procArgs.envp = envVars;
+   procArgs.workingDirectory = workingDirectory;
+   procArgs.envp = (char **)envVars;
 #endif
 
    asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
@@ -1326,6 +1425,15 @@ VixToolsStartProgramImpl(char *requestName,      // IN
 
 abort:
    free(fullCommandLine);
+   free(workingDirectory);
+#ifdef _WIN32
+   if (envBlockFromMalloc) {
+      free(envBlock);
+   } else {
+      VixToolsDestroyEnvironmentBlock(envBlock);
+   }
+   UNICODE_RELEASE_UTF16(procArgs.lpCurrentDirectory);
+#endif
 
    if (VIX_FAILED(err)) {
       VixToolsFreeStartProgramState(asyncState);
@@ -1523,7 +1631,7 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
    now = time(NULL);
 
    /*
-    * Update the 'running' record if necessary.
+    * Update the 'running' record if the process has completed.
     */
    if (state && (state->isRunning == FALSE)) {
       epList = exitedProcessList;
@@ -1534,6 +1642,7 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
              */
             epList->exitCode = state->exitCode;
             epList->endTime = state->endTime;
+            epList->isRunning = FALSE;
             VixToolsFreeExitedProgramState(state);
             // NULL it out so we don't try to add it later in this function
             state  = NULL;
@@ -1551,7 +1660,8 @@ VixToolsUpdateExitedProgramList(VixToolsExitedProgramState *state)        // IN
    last = NULL;
    epList = exitedProcessList;
    while (epList) {
-      if (!epList->isRunning && (epList->endTime < now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME)) {
+      if (!epList->isRunning &&
+          (epList->endTime < (now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME))) {
          if (last) {
             last->next = epList->next;
          } else {
@@ -1871,13 +1981,11 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
       goto abort;
    }
 
-#if !defined(sun)
    /* Set up the API status properties */
    err = VixToolsSetAPIEnabledProperties(&propList, confDictRef);
    if (VIX_OK != err) {
       goto abort;
    }
-#endif
 
    /*
     * Serialize the property list to buffer then encode it.
@@ -1910,6 +2018,16 @@ abort:
    /* Retrieve the share folders UNC root path. */
    err = VixToolsSetSharedFoldersProperties(&propList);
 
+   /*
+    * Set up the API status properties.
+    * This is done even though none are currently supported, so
+    * that the client side can tell the difference between OutOfDate
+    * tools and NotSupported.
+    */
+   err = VixToolsSetAPIEnabledProperties(&propList, confDictRef);
+   if (VIX_OK != err) {
+      goto abort;
+   }
    /*
     * Serialize the property list to buffer then encode it.
     * This is the string we return to the VMX process.
@@ -2042,13 +2160,49 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
 }
 
 
-#if !defined(__FreeBSD__) && !defined(sun)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsComputeEnabledProperty --
+ *
+ *    Wrapper function for setting ENABLED properties for VMODL APIs.
+ *    For supported guest OSes, it uses VixToolsGetAPIDisabledFromConf() to
+ *    check.  Otherwise its FALSE.
+ *
+ *
+ * Return value:
+ *    Bool
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VixToolsComputeEnabledProperty(GKeyFile *confDictRef,            // IN
+                               const char *varName)              // IN
+{
+#if defined(_WIN32) || defined(linux) || defined(sun)
+   return VixToolsGetAPIDisabledFromConf(confDictRef, varName);
+#else
+   return FALSE;
+#endif
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
  * VixToolsSetAPIEnabledProperties --
  *
  *    Set information about the state of APIs.
+ *
+ *    This is done for all guests, even those that can't do VMODL
+ *    guest APIs, so that the client side knows if the tools are
+ *    up-to-date.  If the client side doesn't see an ENABLED property
+ *    for an API it knows about, it assumes the tools are out-of-date,
+ *    and returns the appropriate error.
  *
  * Return value:
  *    VixError
@@ -2067,7 +2221,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_START_PROGRAM_ENABLED,
-                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                              VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_START_PROGRAM_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2075,7 +2229,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_LIST_PROCESSES_ENABLED,
-                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                              VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_LIST_PROCESSES_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2083,7 +2237,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_TERMINATE_PROCESS_ENABLED,
-                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                              VixToolsComputeEnabledProperty(confDictRef,
                                  VIX_TOOLS_CONFIG_API_TERMINATE_PROCESS_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2091,7 +2245,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_READ_ENVIRONMENT_VARIABLE_ENABLED,
-                              VixToolsGetAPIDisabledFromConf(confDictRef,
+                              VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_READ_ENV_VARS_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2099,7 +2253,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_VALIDATE_CREDENTIALS_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                    VIX_TOOLS_CONFIG_API_VALIDATE_CREDENTIALS_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2107,7 +2261,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_ACQUIRE_CREDENTIALS_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_ACQUIRE_CREDENTIALS_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2115,7 +2269,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_RELEASE_CREDENTIALS_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_RELEASE_CREDENTIALS_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2123,7 +2277,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_MAKE_DIRECTORY_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                                   VIX_TOOLS_CONFIG_API_MAKE_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2131,7 +2285,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_DELETE_FILE_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                        VIX_TOOLS_CONFIG_API_DELETE_FILE_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2139,7 +2293,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_DELETE_DIRECTORY_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_DELETE_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2147,7 +2301,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_MOVE_DIRECTORY_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                                    VIX_TOOLS_CONFIG_API_MOVE_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2155,7 +2309,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_MOVE_FILE_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                        VIX_TOOLS_CONFIG_API_MOVE_FILE_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2163,7 +2317,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_CREATE_TEMP_FILE_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_CREATE_TMP_FILE_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2171,7 +2325,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_CREATE_TEMP_DIRECTORY_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_CREATE_TMP_DIRECTORY_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2179,7 +2333,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_LIST_FILES_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                        VIX_TOOLS_CONFIG_API_LIST_FILES_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2187,7 +2341,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_CHANGE_FILE_ATTRIBUTES_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_CHANGE_FILE_ATTRS_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2195,7 +2349,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_INITIATE_FILE_TRANSFER_FROM_GUEST_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_FROM_GUEST_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2203,7 +2357,7 @@ VixToolsSetAPIEnabledProperties(VixPropertyListImpl *propList,    // IN
 
    err = VixPropertyList_SetBool(propList,
                                  VIX_PROPERTY_GUEST_INITIATE_FILE_TRANSFER_TO_GUEST_ENABLED,
-                                 VixToolsGetAPIDisabledFromConf(confDictRef,
+                                 VixToolsComputeEnabledProperty(confDictRef,
                                     VIX_TOOLS_CONFIG_API_INITIATE_FILE_TRANSFER_TO_GUEST_NAME));
    if (VIX_OK != err) {
       goto exit;
@@ -2213,7 +2367,6 @@ exit:
    Debug("finished %s, err %"FMT64"d\n", __FUNCTION__, err);
    return err;
 } // VixToolsSetAPIEnabledProperties
-#endif // !defined(__FreeBSD__) && !defined(sun)
 
 
 /*
@@ -2796,9 +2949,9 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
       }
 #endif
 
-      value = System_GetEnv(FALSE, valueName);
-      if (NULL == value) {
-         value = Util_SafeStrdup("");
+      err = VixToolsGetEnvForUser(userToken, valueName, &value);
+      if (VIX_OK != err) {
+         goto abort;
       }
       break;
 
@@ -2825,6 +2978,49 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
+ * VixToolsGetEnvVarForUser --
+ *
+ *      Reads a single environment variable from the given user's
+ *      environment.
+ *
+ * Results:
+ *      VixError
+ *      'value' points to a heap-allocated string containing the value.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsGetEnvForUser(void *userToken,       // IN
+                      const char *name,      // IN
+                      char **value)          // OUT
+{
+   VixError err;
+   VixToolsUserEnvironment *env;
+
+   ASSERT(NULL != value);
+
+   err = VixToolsNewUserEnvironment(userToken, &env);
+   if (VIX_FAILED(err)) {
+      return err;
+   }
+
+   *value = VixToolsGetEnvFromUserEnvironment(env, name);
+   VixToolsDestroyUserEnvironment(env);
+   if (NULL == *value) {
+      *value = Util_SafeStrdup("");
+   }
+
+   return err;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VixToolsReadEnvVariables --
  *
  *    Read environment variables in the guest. The name of the environment
@@ -2846,15 +3042,10 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
                          char **result)                         // OUT: UTF-8
 {
    VixError err = VIX_OK;
-   char *value;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
    VixMsgReadEnvironmentVariablesRequest *readRequest;
-   char *names;
-   char *np;
-   char *tmp;
    char *results = NULL;
-   int i;
 
    readRequest = (VixMsgReadEnvironmentVariablesRequest *) requestMsg;
 
@@ -2865,17 +3056,12 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
    impersonatingVMWareUser = TRUE;
 
    if (readRequest->numNames > 0) {
-      names = ((char *) readRequest) + sizeof(*readRequest);
-      for (i = 0, np = names; i < readRequest->numNames; i++) {
-         size_t len = strlen(np) + 1;
-         value = System_GetEnv(FALSE, np);
-         if (NULL != value) {
-            tmp = results;
-            results = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
-                                   tmp, np, value);
-            free(tmp);
-         }
-         np += len;
+      char *names = ((char *) readRequest) + sizeof(*readRequest);
+      err = VixToolsGetMultipleEnvVarsForUser(userToken, names,
+                                              readRequest->numNames,
+                                              &results);
+      if (VIX_FAILED(err)) {
+         goto abort;
       }
    } else {
       /*
@@ -2897,6 +3083,72 @@ abort:
 
    return err;
 } // VixToolsReadEnvVariables
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsGetMultipleEnvVarsForUser --
+ *
+ *      Populates result with an XML-like string containing all the
+ *      environment variables listed starting at 'names' (each name is
+ *      separated by a null character).
+ *      The result string will contain zero or more entries of the form
+ *      <ev>NAME=VALUE</ev> without any delimiting characters.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static VixError
+VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
+                                  const char *names,     // IN
+                                  unsigned int numNames, // IN
+                                  char **result)         // OUT
+{
+   VixError err;
+   unsigned int i;
+   char *resultLocal = Util_SafeStrdup("");  // makes the loop cleaner.
+   VixToolsUserEnvironment *env;
+
+   err = VixToolsNewUserEnvironment(userToken, &env);
+   if (VIX_FAILED(err)) {
+      env = NULL;
+      goto abort;
+   }
+
+   for (i = 0; i < numNames; i++) {
+      char *value;
+
+      value = VixToolsGetEnvFromUserEnvironment(env, names);
+      if (NULL != value) {
+         char *tmp = resultLocal;
+         resultLocal = Str_Asprintf(NULL, "%s<ev>%s=%s</ev>",
+                                    tmp, names, value);
+         free(tmp);
+         free(value);
+         if (NULL == resultLocal) {
+            err = VIX_E_OUT_OF_MEMORY;
+            goto abort;
+         }
+      }
+
+      names += strlen(names) + 1;
+   }
+
+   *result = resultLocal;
+   err = VIX_OK;
+
+abort:
+   VixToolsDestroyUserEnvironment(env);
+
+   return err;
+}
 
 
 /*
@@ -3148,23 +3400,48 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
    if (File_IsDirectory(destFilePathName)) {
       if ((VIX_COMMAND_MOVE_GUEST_FILE_EX == requestMsg->opCode) ||
           (VIX_COMMAND_MOVE_GUEST_DIRECTORY == requestMsg->opCode)) {
-      /*
-       * If we are implementing opcodes related to VI Guest operations,
-       * then return VIX_E_FILE_ALREADY_EXISTS. Don't change the error
-       * code for opcode related to VIX C api. It will break the existing
-       * tests.
-       */
-         err = VIX_E_FILE_ALREADY_EXISTS;
+
+         /*
+          * If File_IsDirectory() returns true, it doesn't mean the
+          * filepath points to a real directory. It may point to a symlink.
+          * So perform a quick symlink check. Do this only for opcodes
+          * related to VI Guest Operations. Otherwise, it may affect
+          * the existing tests.
+          */
+         if (!File_IsSymLink(destFilePathName)) {
+            /*
+             * If we are implementing opcodes related to VI Guest operations,
+             * then return VIX_E_FILE_ALREADY_EXISTS. Don't change the error
+             * code for opcode related to VIX C api. It will break the existing
+             * tests.
+            */
+            err = VIX_E_FILE_ALREADY_EXISTS;
+            goto abort;
+         }
       } else {
          err = VIX_E_ALREADY_EXISTS;
+         goto abort;
       }
-      goto abort;
    }
 
    if (VIX_COMMAND_MOVE_GUEST_FILE_EX == requestMsg->opCode) {
       if (File_IsDirectory(srcFilePathName)) {
-         err = VIX_E_NOT_A_FILE;
-         goto abort;
+         /*
+          * Be careful while executing File_[File|Directory] operations.
+          * In case of symlinks, these functions are smart engough to
+          * resolve the final component pointed by the symlink and do
+          * the check on the final component.
+          *
+          * For VI guest operations, MoveFile should return
+          * VIX_E_NOT_A_FILE if the file path points to a real directory.
+          * File_IsDirectory() returns true if it is invoked on a
+          * symlink that points to a directory. So, we have to
+          * filter out that case before returning VIX_E_NOT_A_FILE.
+          */
+         if (!File_IsSymLink(srcFilePathName)) {
+            err = VIX_E_NOT_A_FILE;
+            goto abort;
+         }
       }
       if (!overwrite) {
          if (File_Exists(destFilePathName)) {
@@ -3173,7 +3450,15 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
          }
       }
    } else if (VIX_COMMAND_MOVE_GUEST_DIRECTORY == requestMsg->opCode) {
-      if (!(File_IsDirectory(srcFilePathName))) {
+      /*
+       * For VI guest operations, MoveDirectory should return
+       * VIX_E_NOT_A_DIRECTORY if the file path doesn't point to a real
+       * directory. File_IsDirectory() returns false if it is invoked on
+       * a symlink that points to a file. So, we should include that
+       * check before returning VIX_E_NOT_A_DIRECTORY.
+       */
+      if (!(File_IsDirectory(srcFilePathName)) ||
+          (File_IsSymLink(srcFilePathName))) {
          err = VIX_E_NOT_A_DIRECTORY;
          goto abort;
       }
@@ -3647,6 +3932,35 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
    }
 
    if (!ProcMgr_KillByPid(killProcessRequest->pid)) {
+      /*
+       * FoundryToolsDaemon_TranslateSystemErr() calls
+       * Vix_TranslateSystemError() which assumes that any perm error
+       * is file related, and returns VIX_E_FILE_ACCESS_ERROR.  Bogus
+       * for this case, so rewrite it here.
+       */
+#ifdef _WIN32
+      if (ERROR_ACCESS_DENIED == GetLastError()) {
+         err = VIX_E_GUEST_USER_PERMISSIONS;
+         goto abort;
+      }
+#else
+      if ((EPERM == errno) || (EACCES == errno)) {
+         err = VIX_E_GUEST_USER_PERMISSIONS;
+         goto abort;
+      }
+#endif
+      /*
+       * Windows doesn't give us an obvious error for a non-existent
+       * PID.  But we can make a pretty good guess that it returned
+       * ERROR_INVALID_PARAMETER because the PID was bad, so rewrite
+       * that error if we see it.
+       */
+#ifdef _WIN32
+      if (ERROR_INVALID_PARAMETER == GetLastError()) {
+         err = VIX_E_NO_SUCH_PROCESS;
+         goto abort;
+      }
+#endif
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
    }
@@ -3963,6 +4277,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    int index = 0;
    int maxResults = 0;
    int count = 0;
+   int remaining = 0;
    int numResults;
    GRegex *regex = NULL;
    GError *gerr = NULL;
@@ -4037,16 +4352,23 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
          fileNameList = Util_SafeMalloc(sizeof(char *));
          fileNameList[0] = Util_SafeStrdup(dirPathName);
       } else {
-         err = VIX_E_OBJECT_NOT_FOUND;
+         /*
+          * We don't know what they intended to list, but we'll
+          * assume file since that gives a fairly sane error.
+          */
+         err = VIX_E_FILE_NOT_FOUND;
          goto abort;
       }
    }
 
    /*
     * Calculate the size of the result buffer and keep track of the
-    * max number of entries we can store.
+    * max number of entries we can store.  Also compute the number
+    * we won't be returning (anything > maxResults).
     */
    resultBufferSize = 3; // truncation bool + space + '\0'
+   // space for the 'remaining' tag up front
+   resultBufferSize += strlen(listFilesRemainingFormatString) + 10;
    lastGoodResultBufferSize = resultBufferSize;
    ASSERT_NOT_IMPLEMENTED(lastGoodResultBufferSize < maxBufferSize);
 #ifdef _WIN32
@@ -4056,7 +4378,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
 #endif
 
    for (fileNum = offset + index;
-        fileNum < numFiles && count < maxResults;
+        fileNum < numFiles;
         fileNum++) {
       currentFileName = fileNameList[fileNum];
 
@@ -4066,6 +4388,13 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
          }
       }
 
+      if (count < maxResults) {
+         count++;
+      } else {
+         remaining++;
+         continue;   // stop computing buffersize
+      }
+
       resultBufferSize += formatStringLength;
       resultBufferSize += 2; // DIRSEPC chars
       resultBufferSize += 10 + 20 + (20 * 3); // properties + size + times
@@ -4073,7 +4402,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
       resultBufferSize += 10 * 3;            // uid, gid, perms
 #endif
       resultBufferSize += strlen(currentFileName);
-      count++;
 
       if (resultBufferSize < maxBufferSize) {
          /*
@@ -4110,6 +4438,10 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
       err = VIX_E_OUT_OF_MEMORY;
       goto abort;
    }
+
+   destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
+                          listFilesRemainingFormatString, remaining);
+
 
    for (fileNum = offset + index, count = 0;
         count < numResults;
@@ -4622,6 +4954,7 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
    ProcMgr_ProcArgs procArgs;
 #if defined(_WIN32)
    Bool forcedRoot = FALSE;
+   wchar_t *envBlock = NULL;
 #endif
    GSource *timer;
 
@@ -4800,10 +5133,23 @@ if (0 == *interpreterName) {
    memset(&procArgs, 0, sizeof procArgs);
 #if defined(_WIN32)
    if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+      /*
+       * If we are impersonating a user then use the user's environment
+       * block. That way the user-specific environment variables will
+       * be available to the application (such as the user's TEMP
+       * directory instead of the system-wide one).
+       */
+      err = VixToolsGetEnvBlock(userToken, &envBlock);
+      if (VIX_OK != err) {
+         goto abort;
+      }
+
       forcedRoot = Impersonate_ForceRoot();
    }
    procArgs.hToken = (PROCESS_CREATOR_USER_TOKEN == userToken) ? NULL : userToken;
    procArgs.bInheritHandles = TRUE;
+   procArgs.dwCreationFlags = CREATE_UNICODE_ENVIRONMENT;
+   procArgs.lpEnvironment = envBlock;
 #else
    procArgs.envp = VixToolsEnvironmentTableToEnvp(userEnvironmentTable);
 #endif
@@ -4846,6 +5192,12 @@ abort:
    if (VIX_FAILED(err)) {
       VixToolsFreeRunProgramState(asyncState);
    }
+
+#ifdef _WIN32
+   if (NULL != envBlock) {
+      VixToolsDestroyEnvironmentBlock(envBlock);
+   }
+#endif
 
    free(fullCommandLine);
    free(tempDirPath);
@@ -5270,9 +5622,9 @@ VixToolsLogoutUser(void *userToken)    // IN
  *
  * VixToolsGetImpersonatedUsername --
  *
- *
  * Return value:
- *    The name of the user being impersonated.
+ *    The name of the user currently being impersonated.  Must be freed
+ *    by caller.
  *
  * Side effects:
  *    None
@@ -5283,17 +5635,19 @@ VixToolsLogoutUser(void *userToken)    // IN
 static char *
 VixToolsGetImpersonatedUsername(void *userToken)
 {
-   /*
-    * XXX
-    *
-    * Not clear yet how to do this.  One way is to pull the username
-    * out of the request credentials, but that won't work for ticketed
-    * sessions.  Another is to look at the current user and get its
-    * name.  Punt til I understand ticketed credentials better.
-    *
-    */
-   return "XXX TBD XXX";
+#if defined(_WIN32) || defined(linux) || defined(sun)
+   char *userName = NULL;
+   char *homeDir = NULL;
 
+   if (!ProcMgr_GetImpersonatedUserInfo(&userName, &homeDir)) {
+      return Util_SafeStrdup("XXX failed to get username XXX");
+   }
+   free(homeDir);
+
+   return userName;
+#else
+   return Util_SafeStrdup("XXX failed to get username XXX");
+#endif
 } // VixToolsUnimpersonateUser
 
 
@@ -5569,7 +5923,7 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
          }
 
          if (File_IsFile(directoryPath)) {
-            err = VIX_E_NOT_A_FILE;
+            err = VIX_E_NOT_A_DIRECTORY;
             goto abort;
          }
 
@@ -5614,7 +5968,7 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
       }
 
       if (File_IsFile(directoryPath)) {
-         err = VIX_E_NOT_A_FILE;
+         err = VIX_E_NOT_A_DIRECTORY;
          goto abort;
       }
 
@@ -6921,6 +7275,14 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
 
       ////////////////////////////////////
+      case VIX_COMMAND_WAIT_FOR_TOOLS:
+         /*
+          * Older VMX's can send this.  We don't want to do anything, but
+          * we also don't want it to be treated as unknown and return
+          * VIX_E_UNRECOGNIZED_COMMAND_IN_GUEST.
+          */
+         break;
+
       case VIX_COMMAND_CAPTURE_SCREEN:
          /*
           * The VMX sends this through just to validate the auth info.

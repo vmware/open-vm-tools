@@ -99,6 +99,7 @@ void Unity_RegisterCaps(void);
 void Unity_UnregisterCaps(void);
 void Unity_UnityToLocalPoint(UnityPoint *localPt, UnityPoint *unityPt);
 void Unity_LocalToUnityPoint(UnityPoint *unityPt, UnityPoint *localPt);
+void Unity_GetWindowCommandList(char ***commandList);
 #ifdef _WIN32
 LIB_EXPORT HWND Unity_GetHwndFromUnityId(UnityWindowId id);
 #endif

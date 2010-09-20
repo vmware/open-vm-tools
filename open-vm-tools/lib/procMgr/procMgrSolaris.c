@@ -43,6 +43,8 @@
 #include "su.h"
 #include "str.h"
 #include "fileIO.h"
+#include "codeset.h"
+#include "unicode.h"
 
 static Bool
 ReadArgsFromAddressSpaceFile(FileIODescriptor asFd,
@@ -737,3 +739,42 @@ ProcMgr_ImpersonateUserStop(void)
 
    return TRUE;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_GetImpersonatedUserInfo --
+ *
+ *      Return info about the impersonated user.
+ *
+ * Results:
+ *      TRUE on success, FALSE on failure.
+ *
+ * Side effects:
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+ProcMgr_GetImpersonatedUserInfo(char **userName,            // OUT
+                                char **homeDir)             // OUT
+{
+   char buffer[BUFSIZ];
+   struct passwd pw;
+   struct passwd *ppw;
+
+   *userName = NULL;
+   *homeDir = NULL;
+
+   ppw = &pw;
+   if ((ppw = getpwuid_r(Id_GetEUid(), &pw, buffer, sizeof buffer)) == NULL) {
+      return FALSE;
+   }
+
+   *userName = Unicode_Alloc(ppw->pw_name, STRING_ENCODING_DEFAULT);
+   *homeDir = Unicode_Alloc(ppw->pw_dir, STRING_ENCODING_DEFAULT);
+
+   return TRUE;
+}
+

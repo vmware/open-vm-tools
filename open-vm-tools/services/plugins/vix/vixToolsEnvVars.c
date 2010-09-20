@@ -31,6 +31,9 @@
 
 #include "util.h"
 #include "unicode.h"
+#include "dynbuf.h"
+#include "str.h"
+#include "posix.h"
 #include "vixToolsInt.h"
 
 
@@ -57,6 +60,17 @@ struct VixToolsEnvIterator {
    char **environ;
 #endif
 };
+
+
+struct VixToolsUserEnvironment {
+#ifdef _WIN32
+   Bool impersonated;
+   wchar_t *envBlock;      // Only used when impersonated == TRUE.
+#else
+   // The POSIX versions don't need any state currently.
+#endif
+};
+
 
 
 /*
@@ -177,7 +191,7 @@ VixToolsGetNextEnvVar(VixToolsEnvIterator *envItr)    // IN
       if (NULL == *envItr->data.environ) {
          envVar = NULL;
       } else {
-         Unicode_AllocWithUTF16(*envItr->data.environ);
+         envVar = Unicode_AllocWithUTF16(*envItr->data.environ);
          envItr->data.environ++;
       }
    } else {
@@ -226,3 +240,508 @@ VixToolsDestroyEnvIterator(VixToolsEnvIterator *envItr)   // IN
       free(envItr);
    }
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsNewUserEnvironment --
+ *
+ *      Create a new UserEnvironment that can be used to query for
+ *      environment variables.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsNewUserEnvironment(void *userToken,                   // IN
+                           VixToolsUserEnvironment **env)     // OUT
+{
+   VixError err = VIX_OK;
+   VixToolsUserEnvironment *myEnv = Util_SafeMalloc(sizeof *myEnv);
+
+   if (NULL == env) {
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   *env = NULL;
+
+#ifdef _WIN32
+   if (PROCESS_CREATOR_USER_TOKEN != userToken) {
+      myEnv->impersonated = TRUE;
+      err = VixToolsGetEnvBlock(userToken, &myEnv->envBlock);
+      if (VIX_FAILED(err)) {
+         goto abort;
+      }
+   } else {
+      myEnv->impersonated = FALSE;
+      /* We will just read from the process's environment. */
+   }
+#endif
+
+   *env = myEnv;
+
+abort:
+   if (VIX_FAILED(err)) {
+      free(myEnv);
+   }
+
+   return err;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsGetEnvFromUserEnvironment --
+ *
+ *      Looks up the environment variable given by 'name' in the provided
+ *      user environment.
+ *
+ * Results:
+ *      A heap-allocated UTF-8 string, or NULL if the environment variable
+ *      is not found.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+VixToolsGetEnvFromUserEnvironment(const VixToolsUserEnvironment *env,  // IN
+                                  const char *name)                    // IN
+{
+   char *envVar;
+
+   if (NULL == env) {
+      return NULL;
+   }
+
+#ifdef _WIN32
+   if (env->impersonated) {
+      envVar = VixToolsGetEnvVarFromEnvBlock(env->envBlock, name);
+   } else {
+      envVar = Util_SafeStrdup(Posix_Getenv(name));
+   }
+#else
+   envVar = Util_SafeStrdup(Posix_Getenv(name));
+#endif
+
+   return envVar;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsDestroyUserEnvironment --
+ *
+ *      Releases any resources used by the VixToolsUserEnvironment.
+ *      The VixToolsUserEnvironment must not be used after calling
+ *      this function.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VixToolsDestroyUserEnvironment(VixToolsUserEnvironment *env)   // IN
+{
+   if (NULL != env) {
+#ifdef _WIN32
+      if (NULL != env->envBlock) {
+         if (env->impersonated) {
+            VixToolsDestroyEnvironmentBlock(env->envBlock);
+         }
+      }
+#endif
+      free(env);
+   }
+}
+
+
+#ifdef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsEnvironToEnvBlock --
+ *
+ *      Converts a NULL terminated array of UTF-8 environment variables in
+ *      the form NAME=VALUE to an Win32 environment block, which is a single
+ *      contiguous array containing UTF-16 environment variables in the same
+ *      form, each separated by a UTF-16 null character, followed by two
+ *      training null characters.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsEnvironToEnvBlock(char const * const *environ,    // IN: UTF-8
+                          wchar_t **envBlock)             // OUT
+{
+   VixError err;
+   DynBuf buf;
+   Bool res;
+   static const wchar_t nullTerm[] = { L'\0', L'\0' };
+
+   DynBuf_Init(&buf);
+
+   if ((NULL == environ) || (NULL == envBlock)) {
+      err = VIX_E_FAIL;
+      goto abort;
+   }
+
+   *envBlock = NULL;
+
+   while (NULL != *environ) {
+      wchar_t *envVar = Unicode_GetAllocUTF16(*environ);
+
+      res = DynBuf_Append(&buf, envVar,
+                          (wcslen(envVar) + 1) * sizeof(*envVar));
+      free(envVar);
+      if (!res) {
+         err = VIX_E_OUT_OF_MEMORY;
+         goto abort;
+      }
+      environ++;
+   }
+
+   /*
+    * Append two null characters at the end. This adds an extra (third) null
+    * if there was at least one environment variable (since there already
+    * is one after the last string) but we need both if there were no
+    * environment variables in the input array. I'll waste two bytes to
+    * keep the code a little simpler.
+    */
+   res = DynBuf_Append(&buf, nullTerm, sizeof nullTerm);
+   if (!res) {
+      err = VIX_E_OUT_OF_MEMORY;
+      goto abort;
+   }
+
+   *envBlock = DynBuf_Detach(&buf);
+   err = VIX_OK;
+
+abort:
+   DynBuf_Destroy(&buf);
+
+   return err;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsValidateEnviron --
+ *
+ *      Ensures that the NULL terminated array of strings contains
+ *      properly formated environment variables.
+ *
+ * Results:
+ *      VixError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsValidateEnviron(char const * const *environ)   // IN
+{
+   if (NULL == environ) {
+      return VIX_E_FAIL;
+   }
+
+   while (NULL != *environ) {
+      /*
+       * Each string should contain at least one '=', to delineate between
+       * the name and the value.
+       */
+      if (NULL == Str_Strchr(*environ, '=')) {
+         return VIX_E_INVALID_ARG;
+      }
+      environ++;
+   }
+
+   return VIX_OK;
+}
+
+
+#ifdef VMX86_DEVEL
+#ifdef _WIN32
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsEnvironToEnvBlockEmptyEnviron --
+ *
+ *      Tests VixToolsEnvironToEnvBlock() with an empty environment: an
+ *      char ** pointing to a single NULL pointer.
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsEnvironToEnvBlockEmptyEnviron(void)
+{
+   const char *environ1[] = { NULL };
+   wchar_t *envBlock;
+   VixError err;
+
+   err = VixToolsEnvironToEnvBlock(environ1, &envBlock);
+   ASSERT(VIX_OK == err);
+
+   ASSERT((L'\0' == envBlock[0]) && (L'\0' == envBlock[1]));
+   free(envBlock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsEnvironToEnvBlockTwoGood --
+ *
+ *      Tests VixToolsEnvironToEnvBlock() with an environment containing
+ *      two valid entries.
+ *
+ * Results:
+ *      Passes or ASSERTs
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsEnvironToEnvBlockTwoGood(void)
+{
+   const char *environ1[] = { "foo=bar", "env=block", NULL };
+   wchar_t *envBlock, *currPos;
+   VixError err;
+
+   err = VixToolsEnvironToEnvBlock(environ1, &envBlock);
+   ASSERT(VIX_OK == err);
+
+   currPos = envBlock;
+   ASSERT(wcscmp(currPos, L"foo=bar") == 0);
+   currPos += wcslen(L"foo=bar") + 1;
+   ASSERT(wcscmp(currPos, L"env=block") == 0);
+   free(envBlock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsEnvironToEnvBlock --
+ *
+ *      Runs unit tests for VixToolsEnvironToEnvBlock().
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsEnvironToEnvBlock(void)
+{
+   TestVixToolsEnvironToEnvBlockEmptyEnviron();
+   TestVixToolsEnvironToEnvBlockTwoGood();
+}
+#endif // #ifdef _WIN32
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsValidateEnvironEmptyEnviron --
+ *
+ *      Tests VixToolsEnvironToEnvBlock() with an empty environment.
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsValidateEnvironEmptyEnviron(void)
+{
+   const char *environ1[] = { NULL };
+   VixError err;
+
+   err = VixToolsValidateEnviron(environ1);
+   ASSERT(VIX_OK == err);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsValidateEnvironTwoGoodVars --
+ *
+ *      Tests VixToolsEnvironToEnvBlock() with an environment containing
+ *      two valid environment variables.
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsValidateEnvironTwoGoodVars(void)
+{
+   const char *environ1[] = { "foo=bar", "vix=api", NULL };
+   VixError err;
+
+   err = VixToolsValidateEnviron(environ1);
+   ASSERT(VIX_OK == err);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsValidateEnvironOneBad --
+ *
+ *      Tests VixToolsEnvironToEnvBlock() with an environment containing
+ *      one invalid environment variable.
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsValidateEnvironOneBad(void)
+{
+   const char *environ1[] = { "noequals", NULL };
+   VixError err;
+
+   err = VixToolsValidateEnviron(environ1);
+   ASSERT(VIX_E_INVALID_ARG == err);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsValidateEnvironSecondBad --
+ *
+ *      Tests VixToolsEnvironToEnvBlock() with an environment containing
+ *      one valid environment variable followed by one invalid environment
+ *      variable.
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsValidateEnvironSecondBad(void)
+{
+   const char *environ1[] = { "foo=bar", "noequals", NULL };
+   VixError err;
+
+   err = VixToolsValidateEnviron(environ1);
+   ASSERT(VIX_E_INVALID_ARG == err);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TestVixToolsValidateEnviron --
+ *
+ *      Run unit tests for VixToolsValidateEnviron().
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+TestVixToolsValidateEnviron(void)
+{
+   TestVixToolsValidateEnvironEmptyEnviron();
+   TestVixToolsValidateEnvironTwoGoodVars();
+   TestVixToolsValidateEnvironOneBad();
+   TestVixToolsValidateEnvironSecondBad();
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TextVixToolsEnvVars --
+ *
+ *      Run unit tests for functions in this file.
+ *
+ * Results:
+ *      Passes or ASSERTs.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+TestVixToolsEnvVars(void)
+{
+#ifdef _WIN32
+   TestVixToolsEnvironToEnvBlock();
+#endif
+   TestVixToolsValidateEnviron();
+}
+#endif // #ifdef VMX86_DEVEL

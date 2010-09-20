@@ -43,18 +43,35 @@
 
 typedef struct VixToolsEnvIterator VixToolsEnvIterator;
 
+typedef struct VixToolsUserEnvironment VixToolsUserEnvironment;
+
 VixError VixToolsNewEnvIterator(void *userToken, VixToolsEnvIterator **envItr);
 
 char *VixToolsGetNextEnvVar(VixToolsEnvIterator *envItr);
 
 void VixToolsDestroyEnvIterator(VixToolsEnvIterator *envItr);
 
-#ifdef _WIN32
+VixError VixToolsNewUserEnvironment(void *userToken,
+                                    VixToolsUserEnvironment **env);
 
+char *VixToolsGetEnvFromUserEnvironment(const VixToolsUserEnvironment *env,
+                                        const char *name);
+
+void VixToolsDestroyUserEnvironment(VixToolsUserEnvironment *env);
+
+VixError VixToolsValidateEnviron(char const * const *environ);
+
+char *VixToolsGetEnvVarFromEnvBlock(const wchar_t *envBlock,
+                                    const char *envVarName);
+
+#ifdef _WIN32
 VixError VixToolsGetEnvBlock(void *userToken,
                              wchar_t **envBlock);
 
 Bool VixToolsDestroyEnvironmentBlock(wchar_t *envBlock);
+
+VixError VixToolsEnvironToEnvBlock(char const * const *environ,
+                                   wchar_t **envBlock);
 
 VixError VixToolsGetUserTmpDir(void *userToken,
                                char **tmpDirPath);
@@ -78,5 +95,8 @@ VixError VixToolsReleaseCredentialsImpl(VixCommandRequestHeader *requestMsg);
 
 #endif // _WIN32
 
+#ifdef VMX86_DEVEL
+void TestVixToolsEnvVars(void);
+#endif
 
 #endif // #ifndef __VIX_TOOLS_INT_H__

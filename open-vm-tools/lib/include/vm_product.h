@@ -144,6 +144,12 @@
 // XXX Only one product for now so just hardcode it.
 #define PRODUCT_VMVISOR_NAME MAKE_NAME(PRODUCT_SCALABLE_SERVER_BRIEF_NAME "i")
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#define PRODUCT_NETDUMP_NAME PRODUCT_GENERIC_NAME_LOWER "-netdumper"
+#else
+#define PRODUCT_NETDUMP_NAME PRODUCT_VMVISOR_NAME " dump collector"
+#endif
+
 /*
  * VMware Remote Console (VMRC) version definitions
  */
@@ -250,7 +256,8 @@
       || defined(VMX86_VLICENSE) \
       || defined(VMX86_P2V)      \
       || defined(VMX86_DDK)      \
-      || defined(VMX86_VDDK))
+      || defined(VMX86_VDDK)     \
+      || defined(VMX86_NETDUMP))
 #   if defined(_WIN32) || defined(__APPLE__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
@@ -315,6 +322,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_DDK_NAME
 #elif defined(VMX86_VDDK)
 # define PRODUCT_SHORT_NAME PRODUCT_VDDK_NAME
+#elif defined(VMX86_NETDUMP)
+# define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
 #endif
 
 
@@ -390,6 +399,9 @@
 #   elif defined(VMX86_SYSIMAGE)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_NETDUMP)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NETDUMP_NAME
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" //None
 #   else   /* It is a product that doesn't use a license */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None

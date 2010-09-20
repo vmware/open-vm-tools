@@ -138,6 +138,12 @@ UnityPlugin::GetRpcCallbackList()
    rpcList.push_back(RpcChannelCallbackEntry(UNITY_RPC_WINDOW_CONTENTS_REQUEST, UnityTcloRequestWindowContents));
    rpcList.push_back(RpcChannelCallbackEntry(UNITY_RPC_SEND_MOUSE_WHEEL, UnityTcloSendMouseWheel));
 
+   char **commandList = NULL;
+   Unity_GetWindowCommandList(&commandList);
+   for (int i = 0; commandList && (NULL != commandList[i]); i++) {
+      rpcList.push_back(RpcChannelCallbackEntry(commandList[i], UnityTcloWindowCommand));
+   }
+
    if (GHI_IsSupported()) {
       rpcList.push_back(RpcChannelCallbackEntry(UNITY_RPC_GET_BINARY_INFO, GHITcloGetBinaryInfo));
       rpcList.push_back(RpcChannelCallbackEntry(UNITY_RPC_OPEN_LAUNCHMENU, GHITcloOpenStartMenu));
