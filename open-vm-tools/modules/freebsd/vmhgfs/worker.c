@@ -46,55 +46,13 @@ OS_THREAD_T hgfsKReqWorkerThread;
  * See requestInt.h.
  */
 HgfsKReqWState hgfsKReqWorkerState;
-
-/* Global pointer that handles channel abstraction */
-HgfsTransportChannel *gHgfsChannel = NULL;
+HgfsTransportChannel *gHgfsChannel;
 
 
 /*
  * Global (module) functions
  */
 
-/*
- *----------------------------------------------------------------------
- *
- * HgfsTransportSetupNewChannel --
- *
- *     Find a new workable channel.
- *
- * Results:
- *     TRUE on success, otherwise FALSE.
- *
- * Side effects:
- *     None
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-HgfsSetupNewChannel(void)
-{
-   Bool ret;
-
-   HgfsGetVmciChannel(gHgfsChannel);
-   if (gHgfsChannel->ops.open != NULL) {
-      if ((ret = gHgfsChannel->ops.open(gHgfsChannel))) {
-         DEBUG(VM_DEBUG_ALWAYS, "Channel: VMCI channel\n");
-         goto exit;
-      }
-   }
-
-   /* Every client using this code is expected to have backdoor enabled. */
-   HgfsGetBdChannel(gHgfsChannel);
-   DEBUG(VM_DEBUG_ALWAYS, "Channel: Bd channel\n");
-   ret = gHgfsChannel->ops.open(gHgfsChannel);
-
-exit:
-   if (ret) {
-      gHgfsChannel->status = HGFS_CHANNEL_CONNECTED;
-   }
-   return ret;
-}
 
 /*
  *-----------------------------------------------------------------------------
@@ -123,16 +81,7 @@ HgfsKReqWorker(void *arg)
 
    ws->running = TRUE;
 
-   gHgfsChannel = os_malloc(sizeof *gHgfsChannel, M_WAITOK | M_ZERO);
-   if (!gHgfsChannel) {
-      goto exit;
-   }
-
-   ret = HgfsSetupNewChannel();
-   if (!ret) {
-      DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: ohoh no channel.\n", __func__);
-      goto exit;
-   }
+   gHgfsChannel = HgfsGetBdChannel();
 
    for (;;) {
       /*
@@ -178,7 +127,7 @@ HgfsKReqWorker(void *arg)
       switch (req->state) {
       case HGFS_REQ_SUBMITTED:
          if (gHgfsChannel->status != HGFS_CHANNEL_CONNECTED) {
-            if (!HgfsSetupNewChannel()) {
+            if (!gHgfsChannel->ops.open(gHgfsChannel)) {
                req->state = HGFS_REQ_ERROR;
                os_cv_signal(&req->stateCv);
                os_mutex_unlock(req->stateLock);
@@ -249,10 +198,5 @@ done:
    ws->running = FALSE;
 
    gHgfsChannel->ops.close(gHgfsChannel);
-
-exit:
-   if (gHgfsChannel) {
-      os_free(gHgfsChannel, sizeof (*gHgfsChannel));
-   }
    os_thread_exit(0);
 }

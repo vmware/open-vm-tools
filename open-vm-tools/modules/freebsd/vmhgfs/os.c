@@ -191,7 +191,8 @@ os_zone_alloc(OS_ZONE_T *zone, // IN
 {
    ASSERT(zone);
    ASSERT(zone->umaZone);
-   return uma_zalloc(zone->umaZone, flags | M_ZERO);
+
+   return uma_zalloc(zone->umaZone, flags);
 }
 
 

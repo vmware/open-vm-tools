@@ -31,6 +31,17 @@ static HgfsKReqObject * HgfsBdChannelAllocate(size_t payloadSize, int flags);
 void HgfsBdChannelFree(HgfsKReqObject *req, size_t payloadSize);
 static int HgfsBdChannelSend(HgfsTransportChannel *channel, HgfsKReqObject *req);
 
+static HgfsTransportChannel gChannel = {
+   .name = "backdoor",
+   .ops.open = HgfsBdChannelOpen,
+   .ops.close = HgfsBdChannelClose,
+   .ops.allocate = HgfsBdChannelAllocate,
+   .ops.free = HgfsBdChannelFree,
+   .ops.send = HgfsBdChannelSend,
+   .priv = NULL,
+   .status = HGFS_CHANNEL_NOTCONNECTED
+};
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -52,12 +63,13 @@ static Bool
 HgfsBdChannelOpen(HgfsTransportChannel *channel) // IN: Channel
 {
    Bool ret;
+
    ASSERT_DEVEL(channel->status == HGFS_CHANNEL_NOTCONNECTED);
-   ASSERT_DEVEL(channel->priv == NULL);
 
    if ((ret = HgfsBd_OpenBackdoor((RpcOut **)&channel->priv))) {
       DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: backdoor opened.\n", __func__);
-      ASSERT_DEVEL(channel->priv != NULL);
+      ASSERT(channel->priv != NULL);
+      channel->status = HGFS_CHANNEL_CONNECTED;
    }
 
    return ret;
@@ -121,13 +133,7 @@ static HgfsKReqObject *
 HgfsBdChannelAllocate(size_t payloadSize,   // IN: Size of allocation
                       int flags)            // IN:
 {
-   HgfsKReqObject *req;
-   req = os_malloc(payloadSize, flags);
-   if (req) {
-      /* Zero out the object. */
-      bzero(req, sizeof *req);
-   }
-   return req;
+   return os_malloc(payloadSize, flags);
 }
 
 
@@ -183,6 +189,9 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
 
    DEBUG(VM_DEBUG_INFO, "VMware hgfs: %s: backdoor sending.\n", __func__);
 
+   bcopy(HGFS_SYNC_REQREP_CLIENT_CMD, req->__rpc_packet._command,
+         HGFS_SYNC_REQREP_CLIENT_CMD_LEN);
+
    ret = HgfsBd_Dispatch(channel->priv, req->payload, &req->payloadSize,
                          &replyPacket);
    os_mutex_lock(req->stateLock);
@@ -214,23 +223,16 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
  *     Initialize backdoor channel.
  *
  * Results:
- *     None.
+ *     Always return pointer to back door channel.
  *
  * Side effects:
- *     Global pointer initialized to use backdoor channel.
+ *     None
  *
  *----------------------------------------------------------------------
  */
 
-void
-HgfsGetBdChannel(HgfsTransportChannel *channel)
+HgfsTransportChannel*
+HgfsGetBdChannel(void)
 {
-   channel->name = "backdoor";
-   channel->ops.open = HgfsBdChannelOpen;
-   channel->ops.close = HgfsBdChannelClose;
-   channel->ops.allocate = HgfsBdChannelAllocate;
-   channel->ops.free = HgfsBdChannelFree;
-   channel->ops.send = HgfsBdChannelSend;
-   channel->priv = NULL;
-   channel->status = HGFS_CHANNEL_NOTCONNECTED;
+   return &gChannel;
 }

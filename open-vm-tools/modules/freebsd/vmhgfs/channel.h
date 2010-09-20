@@ -52,8 +52,7 @@ typedef struct HgfsTransportChannel {
    void *priv;                     /* Channel private data. */
 } HgfsTransportChannel;
 
-void HgfsGetBdChannel(HgfsTransportChannel *channel);
-void HgfsGetVmciChannel(HgfsTransportChannel *channel);
+HgfsTransportChannel *HgfsGetBdChannel(void);
 extern HgfsTransportChannel *gHgfsChannel;
 
 #endif // _HGFS_CHANNEL_H_

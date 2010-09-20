@@ -88,7 +88,7 @@
                  ((type & VM_DEBUG_LEV) ?                     \
                   (kprintf("%s:%u: " fmt,                     \
                        __func__, __LINE__, ##__VA_ARGS__))    \
-                  : (void)0)
+                  : 0)
 #  endif
 #else
 #  define DEBUG(type, ...)
