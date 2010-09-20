@@ -264,13 +264,24 @@
  */
 #define TOOLS_VERSION TOOLS_VERSION_CURRENT_STR
 
+#define USB_ARBITRATOR_VERSION_MAJOR 8
+#define USB_ARBITRATOR_VERSION_MINOR 0
+#define USB_ARBITRATOR_VERSION_Z     1
+#define USB_ARBITRATOR_VERSION_BASE  USB_ARBITRATOR_VERSION_MAJOR.\
+                                     USB_ARBITRATOR_VERSION_MINOR
+
+#define USB_ARBITRATOR_VERSION_STRING \
+   XSTR(USB_ARBITRATOR_VERSION_BASE) "." XSTR(USB_ARBITRATOR_VERSION_Z) "." \
+   BUILD_NUMBER_NUMERIC_STRING
+#define USB_ARBITRATOR_VERSION_COMMAS \
+   USB_ARBITRATOR_VERSION_MAJOR,USB_ARBITRATOR_VERSION_MINOR,\
+   USB_ARBITRATOR_VERSION_Z
+
 /*
- * USB Arbitrator Component version. This encompasses the USB Arbitrator, hcmon, and
- * vmusb. This is used by the installer to determine if an upgrade should take place. The
- * major version should be bumped with every major hosted release (and the minor to 0)
- * while the minor version should be bumped with each change affecting the USB Arbitrator.
+ * USB Arbitrator Component version. This version is used by the linux
+ * installer. See USB_ARBITRATOR_COMPONENT_VERSION_NUMBER in mk/defs-onetime.mk
  */
-#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "2.9"
+#define USB_ARBITRATOR_COMPONENT_VERSION_NUMBER "8.0.1"
 
 #ifdef VMX86_VPX
 #define VIM_API_TYPE "VirtualCenter"
