@@ -33,8 +33,10 @@
 #include "debug.h"
 #include "strutil.h"
 #include "guestlibV3.h"
+#include "guestlibIoctl.h"
 #include "dynxdr.h"
 #include "xdrutil.h"
+#include "ctype.h"
 
 #define GUESTLIB_NAME "VMware Guest API"
 
@@ -1589,3 +1591,79 @@ VMGuestLib_GetHostMemUnmappedMB(VMGuestLibHandle handle,    // IN
    return error;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLibIoctl --
+ *
+ *      Marshal and invoke the guestlib ioctl.
+ *
+ * Results:
+ *      TRUE on success, FALSE otherwise (reply contains error detail, if
+ *      provided)
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VMGuestLibIoctl(const GuestLibIoctlParam *param,
+                char **reply,
+                size_t *replySize)
+{
+   XDR xdrs;
+   Bool ret;
+   static const char *request = VMGUESTLIB_IOCTL_COMMAND_STRING " ";
+
+   if (param == NULL || param->d >= GUESTLIB_IOCTL_MAX) {
+      return FALSE;
+   }
+   if (NULL == DynXdr_Create(&xdrs)) {
+      return FALSE;
+   }
+   if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
+       !xdr_GuestLibIoctlParam(&xdrs, (GuestLibIoctlParam *)param)) {
+      DynXdr_Destroy(&xdrs, TRUE);
+      return FALSE;
+   }
+   ret = RpcOut_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs), reply, replySize);
+   DynXdr_Destroy(&xdrs, TRUE);
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_AtomicUpdateCookie --
+ *
+ *      Atomically update a cookie on the host.
+ *
+ * Results:
+ *      TRUE on success, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+VMGuestLib_AtomicUpdateCookie(const char *src,    // IN
+                              const char *dst,    // IN
+                              char **reply,       // OUT
+                              size_t *replySize)  // OUT
+{
+   GuestLibIoctlParam param;
+
+   ASSERT(src != NULL);
+   ASSERT(dst != NULL);
+
+   param.d = GUESTLIB_IOCTL_ATOMIC_UPDATE_COOKIE;
+   param.GuestLibIoctlParam_u.atomicUpdateCookie.src = (char *)src;
+   param.GuestLibIoctlParam_u.atomicUpdateCookie.dst = (char *)dst;
+   return VMGuestLibIoctl(&param, reply, replySize);
+}
