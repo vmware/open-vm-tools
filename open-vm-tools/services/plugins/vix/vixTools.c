@@ -290,11 +290,11 @@ static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
                                           "<ft>%d</ft>"
                                           "<fs>%"FMT64"u</fs>"
                                           "<mt>%"FMT64"u</mt>"
-                                          "<ct>%"FMT64"u</ct>"
                                           "<at>%"FMT64"u</at>"
                                           "<uid>%d</uid>"
                                           "<gid>%d</gid>"
                                           "<perm>%d</perm>"
+                                          "<slt>%s</slt>"
                                           "</fxi>";
 #endif
 
@@ -2597,7 +2597,8 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
    impersonatingVMWareUser = TRUE;
 
    ///////////////////////////////////////////
-   if (VIX_COMMAND_DELETE_GUEST_FILE == requestMsg->opCode) {
+   if ((VIX_COMMAND_DELETE_GUEST_FILE == requestMsg->opCode) ||
+       (VIX_COMMAND_DELETE_GUEST_FILE_EX == requestMsg->opCode)) {
       /*
        * if pathName is an invalid symbolic link, we still want to delete it.
        */
@@ -2672,6 +2673,99 @@ abort:
 
    return err;
 } // VixToolsDeleteObject
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsDeleteDirectory --
+ *
+ *    Delete a directory on the guest.
+ *
+ * Return value:
+ *    TRUE on success
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsDeleteDirectory(VixCommandRequestHeader *requestMsg)  // IN
+{
+   VixError err = VIX_OK;
+   char *directoryPath = NULL;
+   Bool success;
+   Bool impersonatingVMWareUser = FALSE;
+   void *userToken = NULL;
+   Bool recursive = TRUE;
+   VixMsgDeleteDirectoryRequest *deleteDirectoryRequest =
+      (VixMsgDeleteDirectoryRequest *) requestMsg;
+
+   if ((requestMsg->commonHeader.bodyLength +
+        requestMsg->commonHeader.headerLength) !=
+       (((uint64) sizeof(*deleteDirectoryRequest)) +
+        deleteDirectoryRequest->guestPathNameLength + 1)) {
+      ASSERT(0);
+      Debug("%s: Invalid request message received\n", __FUNCTION__);
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   directoryPath = ((char *) deleteDirectoryRequest) +
+                    sizeof(*deleteDirectoryRequest);
+
+   if (0 == *directoryPath) {
+      err = VIX_E_INVALID_ARG;
+      goto abort;
+   }
+
+   if ('\0' != *(directoryPath + deleteDirectoryRequest->guestPathNameLength)) {
+      ASSERT(0);
+      Debug("%s: Invalid request message received.\n", __FUNCTION__);
+      err = VIX_E_INVALID_MESSAGE_BODY;
+      goto abort;
+   }
+
+   recursive = deleteDirectoryRequest->recursive;
+   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   if (VIX_OK != err) {
+      goto abort;
+   }
+   impersonatingVMWareUser = TRUE;
+
+   success = File_Exists(directoryPath);
+   if (!success) {
+      err = VIX_E_FILE_NOT_FOUND;
+      goto abort;
+   }
+
+   if (File_IsSymLink(directoryPath) || File_IsFile(directoryPath)) {
+      err = VIX_E_NOT_A_DIRECTORY;
+      goto abort;
+   }
+
+   if (recursive) {
+      success = File_DeleteDirectoryTree(directoryPath);
+   } else {
+      success = File_DeleteEmptyDirectory(directoryPath);
+   }
+
+   if (!success) {
+      err = FoundryToolsDaemon_TranslateSystemErr();
+      goto abort;
+   }
+
+abort:
+   if (impersonatingVMWareUser) {
+      VixToolsUnimpersonateUser(userToken);
+   }
+   VixToolsLogoutUser(userToken);
+
+   return err;
+} // VixToolsDeleteDirectory
 
 
 /*
@@ -4301,6 +4395,10 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    int numResults;
    GRegex *regex = NULL;
    GError *gerr = NULL;
+   char *pathName;
+#ifdef linux
+   char *symlinkTarget = NULL;
+#endif
 
    ASSERT(NULL != requestMsg);
 
@@ -4405,6 +4503,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    for (fileNum = offset + index;
         fileNum < numFiles;
         fileNum++) {
+
       currentFileName = fileNameList[fileNum];
 
       if (regex) {
@@ -4422,9 +4521,31 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
 
       resultBufferSize += formatStringLength;
       resultBufferSize += 2; // DIRSEPC chars
-      resultBufferSize += 10 + 20 + (20 * 3); // properties + size + times
+      resultBufferSize += 10 + 20 + (20 * 2); // properties + size + times
+#ifdef _WIN32
+      resultBufferSize += 20;                // createTime
+#endif
 #ifdef linux
       resultBufferSize += 10 * 3;            // uid, gid, perms
+
+      /*
+       * It would be nice if this were cleaner, but then we'd have to save
+       * off the symlinks for the second loop.
+       */
+      if (listingSingleFile && File_IsSymLink(currentFileName)) {
+         symlinkTarget = Posix_ReadLink(currentFileName);
+         resultBufferSize += strlen(symlinkTarget);
+         free(symlinkTarget);
+      } else {
+         pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
+                                     currentFileName);
+         if (File_IsSymLink(pathName)) {
+            symlinkTarget = Posix_ReadLink(pathName);
+            resultBufferSize += strlen(symlinkTarget);
+            free(symlinkTarget);
+         }
+         free(pathName);
+      }
 #endif
       resultBufferSize += strlen(currentFileName);
 
@@ -4472,7 +4593,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
         count < numResults;
         fileNum++, count++) {
       /* File_ListDirectory never returns "." or ".." */
-      char *pathName;
 
       currentFileName = fileNameList[fileNum];
 
@@ -4817,16 +4937,17 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    int64 fileSize = 0;
    VmTimeType modTime = 0;
    VmTimeType accessTime = 0;
-   VmTimeType createTime = 0;
    int32 fileProperties = 0;
 #ifdef _WIN32
    DWORD fileAttr = 0;
    Bool hidden = FALSE;
    Bool readOnly = FALSE;
+   VmTimeType createTime = 0;
 #elif defined(linux)
    int permissions = 0;
    int ownerId = 0;
    int groupId = 0;
+   char *symlinkTarget = NULL;
 #endif
    struct stat statbuf;
 
@@ -4841,6 +4962,23 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    } else if (File_IsFile(filePathName)) {
       fileSize = File_GetSize(filePathName);
    }
+
+#ifdef linux
+   /*
+    * If the file is a symlink, figure out where it points.
+    */
+   if (fileProperties & VIX_FILE_ATTRIBUTES_SYMLINK) {
+      symlinkTarget = Posix_ReadLink(filePathName);
+   }
+
+   /*
+    * Have a nice empty value if it's not a link or there's some error
+    * reading the link.
+    */
+   if (NULL == symlinkTarget) {
+      symlinkTarget = Util_SafeStrdup("");
+   }
+#endif
 
 #ifdef _WIN32
    fileAttr = Win32U_GetFileAttributes(filePathName);
@@ -4860,8 +4998,14 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
       groupId = statbuf.st_gid;
       permissions = statbuf.st_mode;
 #endif
-      modTime = statbuf.st_mtime;
+      /*
+       * We want create time.  ctime is the inode change time for Linux,
+       * so we can't report anything.
+       */
+#ifdef _WIN32
       createTime = statbuf.st_ctime;
+#endif
+      modTime = statbuf.st_mtime;
       accessTime = statbuf.st_atime;
    } else {
       Debug("%s: Posix_Stat(%s) failed with %d\n",
@@ -4888,11 +5032,12 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
                            fileProperties,
                            fileSize,
                            modTime,
-                           createTime,
                            accessTime,
                            ownerId,
                            groupId,
-                           permissions);
+                           permissions,
+                           symlinkTarget);
+   free(symlinkTarget);
 #endif
 #endif   // defined(_WIN32) || defined(linux)
 } // VixToolsPrintFileExtendedInfo
@@ -6924,15 +7069,18 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
                                    VIX_TOOLS_CONFIG_API_LIST_FILES_NAME);
          break;
       case VIX_COMMAND_DELETE_GUEST_FILE:
+      case VIX_COMMAND_DELETE_GUEST_FILE_EX:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                    VIX_TOOLS_CONFIG_API_DELETE_FILE_NAME);
          break;
       case VIX_COMMAND_DELETE_GUEST_DIRECTORY:
       case VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY:
+      case VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                    VIX_TOOLS_CONFIG_API_DELETE_DIRECTORY_NAME);
          break;
       case VIX_COMMAND_KILL_PROCESS:
+      case VIX_COMMAND_TERMINATE_PROCESS:
          enabled = !VixToolsGetAPIDisabledFromConf(confDictRef,
                                    VIX_TOOLS_CONFIG_API_TERMINATE_PROCESS_NAME);
          break;
@@ -7147,10 +7295,16 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
          break;
       ////////////////////////////////////
       case VIX_COMMAND_DELETE_GUEST_FILE:
+      case VIX_COMMAND_DELETE_GUEST_FILE_EX:
       case VIX_COMMAND_DELETE_GUEST_REGISTRY_KEY:
       case VIX_COMMAND_DELETE_GUEST_DIRECTORY:
       case VIX_COMMAND_DELETE_GUEST_EMPTY_DIRECTORY:
          err = VixToolsDeleteObject(requestMsg);
+         break;
+
+      ////////////////////////////////////
+      case VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX:
+         err = VixToolsDeleteDirectory(requestMsg);
          break;
 
       ////////////////////////////////////
@@ -7174,6 +7328,7 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
 
       ////////////////////////////////////
       case VIX_COMMAND_KILL_PROCESS:
+      case VIX_COMMAND_TERMINATE_PROCESS:
          err = VixToolsKillProcess(requestMsg);
          break;
 

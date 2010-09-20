@@ -276,6 +276,11 @@ Bool File_Replace(ConstUnicode oldFile,
 Bool File_Rename(ConstUnicode oldFile, 
                  ConstUnicode newFile);
 
+void File_Rotate(const char *fileName,
+                 int n,
+                 Bool noRename,
+                 char **newFileName);
+
 int64 File_GetSize(ConstUnicode pathName);
 
 int64 File_GetSizeByPath(ConstUnicode pathName);

@@ -121,6 +121,10 @@
 
 #define PRODUCT_VPX_NAME MAKE_NAME("VirtualCenter")
 
+#define PRODUCT_VPXA_NAME PRODUCT_VPX_NAME " Agent"
+
+#define PRODUCT_FDM_NAME MAKE_NAME("Fault Domain Manager")
+
 #define PRODUCT_WBC_NAME MAKE_NAME("WebCenter")
 
 #define PRODUCT_SDK_NAME MAKE_NAME("SDK")
@@ -136,6 +140,8 @@
 #define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("View Client")
 #define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
 
+#define PRODUCT_XVP_SHORT_NAME "XVP"
+#define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
 
 // XXX VMvisor is the underlying technology for possibly several products,
@@ -301,7 +307,15 @@
 #     define PRODUCT_SHORT_NAME PRODUCT_API_SCRIPTING_PERL_NAME
 #  endif
 #elif defined(VMX86_VPX)
-# define PRODUCT_SHORT_NAME PRODUCT_VPX_NAME
+#  if defined(CSI_FDM)
+#     define PRODUCT_SHORT_NAME PRODUCT_FDM_NAME
+#  elif defined(VPXA)
+#     define PRODUCT_SHORT_NAME PRODUCT_VPXA_NAME
+#  elif defined(XVP)
+#     define PRODUCT_SHORT_NAME PRODUCT_XVP_NAME
+#  else
+#     define PRODUCT_SHORT_NAME PRODUCT_VPX_NAME
+#  endif
 #elif defined(VMX86_WBC)
 # define PRODUCT_SHORT_NAME PRODUCT_WBC_NAME
 #elif defined(VMX86_SDK)
@@ -389,6 +403,9 @@
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_VPX)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_WGS_MIGRATION)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for " PRODUCT_OS
@@ -498,6 +515,9 @@
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif
+#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_VPX)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_WGS_MIGRATION)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " for Win32"

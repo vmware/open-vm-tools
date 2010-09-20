@@ -355,7 +355,27 @@ File_EnsureDirectory(ConstUnicode pathName)  // IN:
 Bool
 File_DeleteEmptyDirectory(ConstUnicode pathName)  // IN:
 {
-   return (FileRemoveDirectory(pathName) == 0) ? TRUE : FALSE;
+   Bool returnValue = TRUE;
+
+   if (FileRemoveDirectory(pathName) != 0) {
+#if defined(_WIN32)
+      /*
+       * Directory may have read-only bit set. Unset the
+       * read-only bit and try deleting one more time.
+       */
+      if (File_SetFilePermissions(pathName, S_IWUSR)) {
+         if (FileRemoveDirectory(pathName) != 0) {
+            returnValue = FALSE;
+         }
+      } else {
+         returnValue = FALSE;
+      }
+#else
+      returnValue =  FALSE;
+#endif
+   }
+
+   return returnValue;
 }
 
 
@@ -2563,3 +2583,271 @@ FileSleeper(uint32 msecMinSleepTime,  // IN:
    return msecActualSleepTime;
 }
 #endif // N_PLAT_NLM
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileRotateByRename --
+ *
+ *      The oldest indexed file should be removed so that the
+ *      consequent rename succeeds.
+ *
+ *      The last dst is 'fileName' and should not be deleted.
+ *
+ * Results:
+ *      If newFileName is non-NULL: the new path is returned to
+ *      *newFileName if the rotation succeeded, otherwise NULL
+ *      is returned in *newFileName.  The caller is responsible
+ *      for freeing the string returned in *newFileName.
+ *
+ * Side effects:
+ *      Rename backup old files kept so far.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FileRotateByRename(const char *fileName,  // IN: full path to file
+                   const char *baseName,  // IN: filename w/o extension.
+                   const char *ext,       // IN: extension
+                   int n,                 // IN: number of old files to keep
+                   char **newFileName)    // OUT/OPT: new path to file
+{
+   char *src = NULL;
+   char *dst = NULL;
+   int i;
+   int result;
+
+   for (i = n; i >= 0; i--) {
+      src = (i == 0) ? (char *) fileName :
+                       Str_SafeAsprintf(NULL, "%s-%d%s", baseName, i - 1, ext);
+
+      if (dst != NULL) {
+         result = Posix_Rename(src, dst);
+         if (result == -1) {
+            int error = Err_Errno();
+            if (error != ENOENT) {
+               Log("LOG failed to rename %s -> %s: %s\n", src, dst,
+                   Err_Errno2String(error));
+            }
+         }
+      } else {
+         result = File_UnlinkIfExists(src);
+         if (result == -1) {
+            Log("LOG failed to remove %s: %s\n", src, Msg_ErrString());
+         }
+      }
+      if (src == fileName && newFileName != NULL) {
+         *newFileName = result == -1 ? NULL : strdup(dst);
+      }
+      ASSERT(dst != fileName);
+      free(dst);
+      dst = src;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileNumberCompare --
+ *
+ *      Helper function for comparing the contents of two
+ *      uint32 pointers a and b, suitable for use by qsort
+ *      to order an array of file numbers.
+ *
+ * Results:
+ *      The contents of 'a' minus the contents of 'b'.
+ *
+ * Side effects:
+ *      None.
+ */
+
+static int
+FileNumberCompare(const void *a,  // IN:
+                  const void *b)  // IN:
+{
+   return *(uint32 *)a - *(uint32 *)b;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileRotateByRenumber --
+ *
+ *      File rotation scheme optimized for vmfs:
+ *        1) find highest numbered file (maxNr)
+ *        2) rename <base>.<ext> to <base>-<maxNr + 1>.<ext>
+ *        3) delete (nFound - numToKeep) lowest numbered files.
+ *
+ *        Wrap around is handled incorrectly.
+ *
+ * Results:
+ *      If newFilePath is non-NULL: the new path is returned to
+ *      *newFilePath if the rotation succeeded, otherwise NULL
+ *      is returned in *newFilePath.  The caller is responsible
+ *      for freeing the string returned in *newFilePath.
+ *
+ * Side effects:
+ *      Files renamed / deleted.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FileRotateByRenumber(const char *filePath,       // IN: full path to file
+                     const char *filePathNoExt,  // IN: filename w/o extension.
+                     const char *ext,            // IN: extension
+                     int n,                      // IN: number old files to keep
+                     char **newFilePath)         // OUT/OPT: new path to file
+{
+   char *baseDir = NULL, *fmtString = NULL, *baseName = NULL, *tmp;
+   char *fullPathNoExt = NULL;
+   uint32 maxNr = 0;
+   int i, nrFiles, nFound = 0;
+   char **fileList = NULL;
+   uint32 *fileNumbers;
+   int result;
+
+   fullPathNoExt = File_FullPath(filePathNoExt);
+   if (fullPathNoExt == NULL) {
+      Log("%s: failed to get full path for '%s'.\n", __FUNCTION__,
+          filePathNoExt);
+      goto cleanup;
+   }
+
+   File_GetPathName(fullPathNoExt, &baseDir, &baseName);
+   if ((baseDir[0] == '\0') || (baseName[0] == '\0')) {
+      Log("%s: failed to get base dir for path '%s'.\n", __FUNCTION__,
+          filePathNoExt);
+      goto cleanup;
+   }
+
+   fmtString = Str_SafeAsprintf(NULL, "%s-%%d%s%%n", baseName, ext);
+
+   nrFiles = File_ListDirectory(baseDir, &fileList);
+   if (nrFiles == -1) {
+      Log("%s: failed to read the directory '%s'.\n", __FUNCTION__,
+          baseDir);
+      goto cleanup;
+   }
+
+   fileNumbers = Util_SafeCalloc(nrFiles, sizeof(uint32));
+
+   for (i = 0; i < nrFiles; i++) {
+      uint32 curNr;
+      int bytesProcessed = 0;
+
+      /*
+       * Make sure the whole file name matched what we expect for the file.
+       */
+
+      if ((sscanf(fileList[i], fmtString, &curNr, &bytesProcessed) >= 1) &&
+          (bytesProcessed == strlen(fileList[i]))) {
+         fileNumbers[nFound++] = curNr;
+      }
+      free(fileList[i]);
+   }
+
+   if (nFound > 0) {
+      qsort(fileNumbers, nFound, sizeof(uint32), FileNumberCompare);
+      maxNr = fileNumbers[nFound - 1];
+   }
+
+   /* rename the existing file to the next number */
+   tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName, maxNr + 1, ext);
+   result = Posix_Rename(filePath, tmp);
+   if (result == -1) {
+      int error = Err_Errno();
+      if (error != ENOENT) {
+         Log("%s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
+             filePath, tmp, Err_Errno2String(error));
+      }
+   }
+   if (newFilePath != NULL) {
+      if (result == -1) {
+         *newFilePath = NULL;
+         free(tmp);
+      } else {
+         *newFilePath = tmp;
+      }
+   }
+
+   if (nFound >= n) {
+      /* Delete the extra files. */
+      for (i = 0; i <= nFound - n; i++) {
+         tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
+                                fileNumbers[i], ext);
+
+         if (Posix_Unlink(tmp) == -1) {
+            Log("%s: failed to remove %s: %s\n", __FUNCTION__,
+                tmp, Msg_ErrString());
+         }
+         free(tmp);
+      }
+   }
+
+  cleanup:
+   free(fileList);
+   free(fmtString);
+   free(baseDir);
+   free(baseName);
+   free(fullPathNoExt);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_Rotate --
+ *
+ *      Rotate old files. The 'noRename' option is useful for filesystems
+ *      where rename is hideously expensive (*cough* vmfs).
+ *
+ * Results:
+ *      If newFileName is non-NULL: the new path is returned to
+ *      *newFileName if the rotation succeeded, otherwise NULL
+ *      is returned in *newFileName.  The caller is responsible
+ *      for freeing the string returned in *newFileName.
+ *
+ * Side effects:
+ *      Files are renamed / deleted.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+File_Rotate(const char *fileName,  // IN: original file
+            int n,                 // IN: number of backup files
+            Bool noRename,         // IN: don't rename all files
+            char **newFileName)    // OUT/OPT: new path to file
+{
+   const char *ext;
+   size_t baseLen;
+   char *baseName;
+
+   if ((ext = Str_Strrchr(fileName, '.')) == NULL) {
+      ext = fileName + strlen(fileName);
+   }
+   baseLen = ext - fileName;
+
+   /*
+    * Backup base of file name.
+    *
+    * Since the Str_Asprintf(...) doesn't like format of %.*s and crashes
+    * in Windows 2000. (Daniel Liu)
+    */
+
+   baseName = Util_SafeStrdup(fileName);
+   baseName[baseLen] = '\0';
+
+   if (noRename) {
+      FileRotateByRenumber(fileName, baseName, ext, n, newFileName);
+   } else {
+      FileRotateByRename(fileName, baseName, ext, n, newFileName);
+   }
+
+   free(baseName);
+}

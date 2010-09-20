@@ -30,7 +30,7 @@
 #include "hostType.h"
 #include "str.h"
 
-#ifdef VMX86_SERVER
+#if defined(VMX86_SERVER) || (defined(VMX86_VPX) && defined(linux))
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -66,7 +66,7 @@
 static int
 HostTypeOSVMKernelType(void)
 {
-#ifdef VMX86_SERVER
+#if defined(VMX86_SERVER) || (defined(VMX86_VPX) && defined(linux))
    static int vmkernelType = -1;
 
    if (vmkernelType == -1) {

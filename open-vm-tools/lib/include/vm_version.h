@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -233,8 +233,8 @@
 #define VMSAFE_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define NETDUMP_VERSION        "1.1.0"
 #define NETDUMP_FILE_VERSION    1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "1.1.0"
-#define VDDK_FILE_VERSION      1,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VDDK_VERSION          "5.1.0"
+#define VDDK_FILE_VERSION      5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "2.0.1"
 #define VDM_CLIENT_VERSION "e.x.p"
 
