@@ -515,14 +515,15 @@ FLAGDEFA( 8A, EDX, AMD,     0,  1, SVM_NP,              YES, FALSE, NPT)       \
 FLAGDEF(  8A, EDX, AMD,     1,  1, SVM_LBR,             NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     2,  1, SVM_LOCK,            NO,  FALSE)            \
 FLAGDEF(  8A, EDX, AMD,     3,  1, SVM_NRIP,            YES, FALSE)            \
-FLAGDEFA( 8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,    NO,  FALSE, PAUSE_FILTER)
-
-
-
-#define CPUID_FIELD_DATA_LEVEL_8A_BD                                           \
-FIELDDEF( 8A, EDX, AMD,     4,  6, SVMEDX_RSVD0,        NO,  FALSE)            \
-FIELDDEF( 8A, EDX, AMD,    11, 21, SVMEDX_RSVD1,        NO,  FALSE)
-
+FLAGDEF(  8A, EDX, AMD,     4,  1, SVM_TSC_RATE_MSR,    NO,  FALSE)            \
+FLAGDEF(  8A, EDX, AMD,     5,  1, SVM_VMCB_CLEAN,      YES, FALSE)            \
+FLAGDEF(  8A, EDX, AMD,     6,  1, SVM_FLUSH_BY_ASID,   YES, FALSE)            \
+FLAGDEF(  8A, EDX, AMD,     7,  1, SVM_DECODE_ASSISTS,  YES, FALSE)            \
+FIELDDEF( 8A, EDX, AMD,     8,  2, SVMEDX_RSVD0,        NO,  FALSE)            \
+FLAGDEFA( 8A, EDX, AMD,    10,  1, SVM_PAUSE_FILTER,    NO,  FALSE, PAUSE_FILTER) \
+FLAGDEF(  8A, EDX, AMD,    11,  1, SVMEDX_RSVD1,        NO,  FALSE)            \
+FLAGDEF(  8A, EDX, AMD,    12,  1, SVM_PAUSE_THRESHOLD, NO,  FALSE)            \
+FIELDDEF( 8A, EDX, AMD,    13, 19, SVMEDX_RSVD2,        NO,  FALSE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_81D					       \
