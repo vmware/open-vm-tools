@@ -4325,12 +4325,7 @@ VSockVmciStreamSendmsg(struct kiocb *kiocb,          // UNUSED
    prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
    while (totalWritten < len) {
-      Bool sentWrote;
-      unsigned int retries;
       ssize_t written;
-
-      sentWrote = FALSE;
-      retries = 0;
 
       while (VSockVmciStreamHasSpace(vsk) == 0 &&
              sk->sk_err == 0 &&
