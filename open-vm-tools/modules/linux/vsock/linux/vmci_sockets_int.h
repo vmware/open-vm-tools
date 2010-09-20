@@ -29,7 +29,6 @@
 #ifndef _VMCI_SOCKETS_INT_H_
 #define _VMCI_SOCKETS_INT_H_
 
-#include "vm_basic_types.h"
 
 #if defined(_WIN32)
 #  if defined(_DDK_DRIVER_)
@@ -54,24 +53,6 @@
       NTSTATUS VMCISock_WskGetLocalCID(PWSK_CLIENT wskClient, PIRP irp);
 #  endif // _DDK_DRIVER_
 #endif // _WIN32
-
-
-#if defined(__APPLE__) && !defined(KERNEL)
-#  include <sys/socket.h>
-#endif // __APPLE__ && !KERNEL
-#define VMCISock_socket(_domain, _type, _protocol) socket(_domain, _type, _protocol)
-#define VMCISock_bind(_socket, _address, _address_len) bind(_socket, _address, _address_len)
-#define VMCISock_listen(_socket, _backlog) listen(_socket, _backlog)
-#define VMCISock_accept(_socket, _address, _address_len) accept(_socket, _address, _address_len)
-#define VMCISock_getsockname(_socket, _address, _address_len) getsockname(_socket, _address, _address_len)
-#define VMCISock_connect(_socket, _address, _address_len) connect(_socket, _address, _address_len)
-#define VMCISock_send(_socket, _buffer, _length, _flags) send(_socket, _buffer, _length, _flags)
-#define VMCISock_recv(_socket, _buffer, _length, _flags) recv(_socket, _buffer, _length, _flags)
-#define VMCISock_sendto(_socket, _buffer, _length, _flags, _dest_addr, _dest_len) sendto(_socket, _buffer, _length, _flags, _dest_addr, _dest_len)
-#define VMCISock_recvfrom(_socket, _buffer, _length, _flags, _address, _address_len) recvfrom(_socket, _buffer, _length, _flags, _address, _address_len)
-#define VMCISock_getpeername(_socket, _address, _address_len) getpeername(_socket, _address, _address_len)
-#define VMCISock_writev(_socket, _iov, _iovcount) writev(_socket, _iov, _iovcount)
-#define VMCISock_close(_socket) close(_socket)
 
 
 #endif // _VMCI_SOCKETS_INT_H_
