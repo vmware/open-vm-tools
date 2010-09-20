@@ -867,38 +867,6 @@ AC_C_VOLATILE
 ### Specific features and OS/arch flags / actions
 ###
 
-if test "$os" = "linux"; then
-   # Ensure an error is thrown if function is unknown.
-   ORIGINAL_CFLAGS="$CFLAGS"
-   CFLAGS="$CFLAGS -Werror-implicit-function-declaration -Werror"
-
-   # setresuid() was wrapped beginning in glibc 2.3.2.
-   AC_MSG_CHECKING([for setresuid])
-   AC_TRY_COMPILE(
-      [#define _GNU_SOURCE
-       #include <unistd.h>],
-      [
-         setresuid(0, 0, 0);
-      ],
-      [HAVE_SETRESUID="yes"],
-      [HAVE_SETRESUID="no"])
-   AC_MSG_RESULT($HAVE_SETRESUID)
-
-   # euidaccess was added in glibc 2.4
-   AC_MSG_CHECKING([for euidaccess])
-   AC_TRY_COMPILE(
-      [#define _GNU_SOURCE
-       #include <unistd.h>],
-      [
-         euidaccess("/", R_OK);
-      ],
-      [HAVE_EUIDACCESS="yes"],
-      [HAVE_EUIDACCESS="no"])
-   AC_MSG_RESULT($HAVE_EUIDACCESS)
-
-   CFLAGS="$ORIGINAL_CFLAGS"
-fi
-
 ### General flags / actions
 CFLAGS="$CFLAGS -Wall"
 CFLAGS="$CFLAGS -Werror"
@@ -1093,15 +1061,6 @@ if test "$enable_multimon" = "no"; then
    # XXX: For consistency, change this to ENABLE_MULTIMON. This will require
    # some additional code cleanup.
    AC_DEFINE([NO_MULTIMON], 1, [Define to 1 if building without multimon support.])
-fi
-
-if test "$os" = "linux"; then
-   if test "$HAVE_SETRESUID" = "yes"; then
-      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_23"
-   fi
-   if test "$HAVE_EUIDACCESS" = "yes"; then
-      CPPFLAGS="$CPPFLAGS -DGLIBC_VERSION_24"
-   fi
 fi
 
 LIB_AUTH_CPPFLAGS="$LIB_AUTH_CPPFLAGS $PAM_CPPFLAGS"
