@@ -56,22 +56,21 @@ pkgconfig_DATA = vmguestlib.pc
 
 $(pkgconfig_DATA): $(top_builddir)/config.status
 
-define gen-headers
+guestlibIoctl.h: guestlibIoctl.x
 	if [ $(top_builddir) != $(top_srcdir) ]; then                     \
-	   cp -f $(top_srcdir)/guestABI/guestrpc/$< $(builddir);          \
+	   cp -f $(top_srcdir)/libguestlib/guestlibIoctl.x $(builddir);   \
 	fi
-	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/$<
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/guestlibIoctl.x
 	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
 	mv $@.tmp $@
-	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
-	cp $@ $(top_builddir)/lib/include/guestrpc
-endef
 
 guestlibV3.h: guestlibV3.x
-	$(gen-headers)
-
-guestlibIoctl.h: guestlibIoctl.x
-	$(gen-headers)
+	if [ $(top_builddir) != $(top_srcdir) ]; then                     \
+	   cp -f $(top_srcdir)/libguestlib/guestlibV3.x $(builddir);      \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/guestlibV3.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
 
 guestlibV3_xdr.c: guestlibV3.x guestlibV3.h
 	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/guestlibV3.x
