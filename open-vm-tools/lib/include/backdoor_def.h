@@ -147,7 +147,8 @@
 #  define BDOOR_CMD_VCPU_SLC64            0
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS       1
 #  define BDOOR_CMD_VCPU_RESERVED        31
-#define BDOOR_CMD_MAX                   69
+#define BDOOR_CMD_EFI_SERIALCON_CONFIG   69
+#define BDOOR_CMD_MAX                    70
 
 
 /* 
