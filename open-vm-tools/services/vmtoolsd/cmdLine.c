@@ -79,7 +79,8 @@ ToolsCoreRunCommand(const gchar *option,
       vm_free(result);
       exit(status ? 0 : 1);
    }
-   g_printerr(SU_(cmdline.rpcerror, "Unable to send command to VMware hypervisor.\n"));
+   g_printerr("%s\n",
+              SU_(cmdline.rpcerror, "Unable to send command to VMware hypervisor."));
    exit(1);
 }
 
