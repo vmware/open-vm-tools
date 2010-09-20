@@ -26,7 +26,6 @@
 
 #include <linux/moduleparam.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 
 #include "compat_kernel.h"
 #include "compat_module.h"
@@ -74,11 +73,10 @@ static int vmci_probe_device(struct pci_dev *pdev,
 static void vmci_remove_device(struct pci_dev* pdev);
 static int vmci_open(struct inode *inode, struct file *file);
 static int vmci_close(struct inode *inode, struct file *file);
-static int vmci_ioctl(struct inode *dummy, struct file *file,
-                      unsigned int cmd, unsigned long arg);
-#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
-static long vmci_unlocked_ioctl(struct file *file,
-                                unsigned int cmd, unsigned long arg);
+static long vmci_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+#if !defined(HAVE_UNLOCKED_IOCTL)
+static int vmci_legacy_ioctl(struct inode *dummy, struct file *file,
+                             unsigned int cmd, unsigned long arg);
 #endif
 static unsigned int vmci_poll(struct file *file, poll_table *wait);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
@@ -103,12 +101,12 @@ static struct file_operations vmci_ops = {
    .open    = vmci_open,
    .release = vmci_close,
 #ifdef HAVE_UNLOCKED_IOCTL
-   .unlocked_ioctl = vmci_unlocked_ioctl,
+   .unlocked_ioctl = vmci_ioctl,
 #else
-   .ioctl   = vmci_ioctl,
+   .ioctl   = vmci_legacy_ioctl,
 #endif
 #ifdef HAVE_COMPAT_IOCTL
-   .compat_ioctl = vmci_unlocked_ioctl,
+   .compat_ioctl = vmci_ioctl,
 #endif
    .poll    = vmci_poll,
 };
@@ -117,7 +115,7 @@ static struct pci_driver vmci_driver = {
    .name     = "vmci",
    .id_table = vmci_ids,
    .probe = vmci_probe_device,
-   .remove = vmci_remove_device,
+   .remove = __devexit_p(vmci_remove_device),
 };
 
 static vmci_device vmci_dev;
@@ -163,20 +161,10 @@ static uint8 *notification_bitmap = NULL;
  *-----------------------------------------------------------------------------
  */
 
-static int
+static int __init
 vmci_init(void)
 {
-   int err = -ENOMEM;
-
-   /* Register device node ops. */
-   err = register_chrdev(0, "vmci", &vmci_ops);
-   if (err < 0) {
-      printk(KERN_ERR "Unable to register vmci device\n");
-      return err;
-   }
-   device_major_nr = err;
-
-   printk("VMCI: Major device number is: %d\n", device_major_nr);
+   int err;
 
    /* Initialize device data. */
    compat_mutex_init(&vmci_dev.lock);
@@ -186,20 +174,32 @@ vmci_init(void)
    vmci_dev.enabled = FALSE;
 
    data_buffer = vmalloc(data_buffer_size);
-   if (data_buffer == NULL) {
-      goto error;
+   if (!data_buffer) {
+      return -ENOMEM;
    }
+
+   /* Register device node ops. */
+   err = register_chrdev(0, "vmci", &vmci_ops);
+   if (err < 0) {
+      printk(KERN_ERR "Unable to register vmci device\n");
+      goto err_free_mem;
+   }
+
+   device_major_nr = err;
+
+   printk("VMCI: Major device number is: %d\n", device_major_nr);
 
    /* This should be last to make sure we are done initializing. */
    err = pci_register_driver(&vmci_driver);
    if (err < 0) {
-      goto error;
+      goto err_unregister_chrdev;
    }
 
    return 0;
 
-error:
+err_unregister_chrdev:
    unregister_chrdev(device_major_nr, "vmci");
+err_free_mem:
    vfree(data_buffer);
    return err;
 }
@@ -221,7 +221,7 @@ error:
  *-----------------------------------------------------------------------------
  */
 
-static void
+static void __exit
 vmci_exit(void)
 {
    pci_unregister_driver(&vmci_driver);
@@ -285,7 +285,7 @@ vmci_enable_msix(struct pci_dev *pdev) // IN
  *-----------------------------------------------------------------------------
  */
 
-static int
+static int __devinit
 vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
                   const struct pci_device_id *id) // IN: matching device ID
 {
@@ -508,7 +508,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
  *-----------------------------------------------------------------------------
  */
 
-static void
+static void __devexit
 vmci_remove_device(struct pci_dev* pdev)
 {
    struct vmci_device *dev = pci_get_drvdata(pdev);
@@ -667,9 +667,8 @@ vmci_close(struct inode *inode,  // IN
  *-----------------------------------------------------------------------------
  */
 
-static int
-vmci_ioctl(struct inode *dummy,  // IN: NULL or inode; do not use
-           struct file *file,    // IN
+static long
+vmci_ioctl(struct file *file,    // IN
            unsigned int cmd,     // IN
            unsigned long arg)    // IN
 {
@@ -682,6 +681,8 @@ vmci_ioctl(struct inode *dummy,  // IN: NULL or inode; do not use
    if (devHndl == NULL) {
       return -EINVAL;
    }
+
+   compat_mutex_lock(&vmci_dev.lock);
 
    /*
     * When adding new ioctls make sure that their data structures are same
@@ -844,18 +845,20 @@ vmci_ioctl(struct inode *dummy,  // IN: NULL or inode; do not use
       break;
    }
 
+   compat_mutex_unlock(&vmci_dev.lock);
+
    return retval;
 #endif
 }
 
 
-#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL)
+#if !defined(HAVE_UNLOCKED_IOCTL)
 /*
  *-----------------------------------------------------------------------------
  *
- * vmci_unlocked_ioctl --
+ * vmci_legacy_ioctl --
  *
- *      IOCTL interface to device.
+ *      IOCTL interface for kernels that do not have unlocked_ioctl.
  *
  * Results:
  *      Negative error code, or per-ioctl result.
@@ -866,18 +869,13 @@ vmci_ioctl(struct inode *dummy,  // IN: NULL or inode; do not use
  *-----------------------------------------------------------------------------
  */
 
-static long
-vmci_unlocked_ioctl(struct file *filp,    // IN:
-                    u_int iocmd,          // IN:
-                    unsigned long ioarg)  // IN:
+static int
+vmci_legacy_ioctl(struct inode *inode,  // IN: unused
+                  struct file *filp,    // IN:
+                  u_int iocmd,          // IN:
+                  unsigned long ioarg)  // IN:
 {
-   long err;
-
-   lock_kernel();
-   err = vmci_ioctl(NULL, filp, iocmd, ioarg);
-   unlock_kernel();
-
-   return err;
+   return vmci_ioctl(filp, iocmd, ioarg);
 }
 #endif
 
