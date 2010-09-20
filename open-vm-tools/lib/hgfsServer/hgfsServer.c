@@ -2720,7 +2720,7 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
        * Starting from HGFS V3 header is not included in the payload size.
        */
       if (input->op < HGFS_OP_OPEN_V3) {
-         replySize = replyPayloadSize;
+         replySize = MAX(replyPayloadSize, sizeof *reply);
       } else {
          replySize = sizeof *reply + replyPayloadSize;
       }
