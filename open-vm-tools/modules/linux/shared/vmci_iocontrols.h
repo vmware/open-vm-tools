@@ -129,7 +129,7 @@ VMCIPtrToVA64(void const *ptr) // IN
 #define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
 #define VMCI_VERSION_PREVERS2       VMCI_MAKE_VERSION(1, 0)
 
-#if defined(__linux__) || defined(__APPLE__) || defined(SOLARIS) || defined(VMKERNEL)
+#if defined(__linux__) || defined(SOLARIS) || defined(VMKERNEL)
 /*
  * Linux defines _IO* macros, but the core kernel code ignore the encoded
  * ioctl value. It is up to individual drivers to decode the value (for
@@ -142,6 +142,15 @@ VMCIPtrToVA64(void const *ptr) // IN
  * intermediate IOCTLCMD_ representation.
  */
 #  define IOCTLCMD(_cmd) IOCTL_VMCI_ ## _cmd
+#elif defined (__APPLE__)
+#include <sys/ioccom.h>
+#define IOCTLCMD(_cmd) IOCTL_VMCI_ ## _cmd
+#define IOCTLCMD_I(_cmd, _type) \
+   IOCTL_VMCI_MACOS_ ## _cmd = _IOW('V', IOCTL_VMCI_ ## _cmd, _type)
+#define IOCTLCMD_O(_cmd, _type) \
+   IOCTL_VMCI_MACOS_ ## _cmd = _IOR('V', IOCTL_VMCI_ ## _cmd, _type)
+#define IOCTLCMD_IO(_cmd, _type) \
+   IOCTL_VMCI_MACOS_ ## _cmd = _IOWR('V', IOCTL_VMCI_ ## _cmd, _type)
 #else // if defined(__linux__)
 /*
  * On platforms other than Linux, IOCTLCMD_foo values are just numbers, and
@@ -215,7 +224,14 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(SOCKETS_FIRST) = IOCTLCMD(LAST),
    IOCTLCMD(SOCKETS_ACCEPT) = IOCTLCMD(SOCKETS_FIRST),
    IOCTLCMD(SOCKETS_BIND),
-   IOCTLCMD(SOCKETS_CLOSE),
+
+   /*
+    * This used to be for close() on Windows and MacOS, which is now
+    * redundant (since we now use real handles).  It is now used instead for
+    * sending private symbols to the MacOS driver.
+    */
+   IOCTLCMD(SOCKETS_SET_SYMBOLS),
+
    IOCTLCMD(SOCKETS_CONNECT),
    /*
     * The next two values are public (vmci_sockets.h) and cannot be changed.
@@ -246,7 +262,6 @@ enum IOCTLCmd_VMCI {
     */
    // Must be last.
    IOCTLCMD(SOCKETS_LAST) = IOCTLCMD(SOCKETS_SOCKET) + 4, /* 1994 on Linux. */
-
    /*
     * The VSockets ioctls occupy the block above.  We define a new range of
     * VMCI ioctls to maintain binary compatibility between the user land and
@@ -259,6 +274,24 @@ enum IOCTLCmd_VMCI {
    IOCTLCMD(SET_NOTIFY) = IOCTLCMD(FIRST2), /* 1995 on Linux. */
    IOCTLCMD(LAST2),
 };
+
+#if defined (__APPLE__)
+/*
+ * The size of this must match the size of VSockIoctlPrivSyms in
+ * modules/vsock/common/vsockIoctl.h.
+ */
+#include "vmware_pack_begin.h"
+struct IOCTLCmd_VMCIMacOS_PrivSyms {
+   char data[304];
+}
+#include "vmware_pack_end.h"
+;
+enum IOCTLCmd_VMCIMacOS {
+   IOCTLCMD_I(SOCKETS_SET_SYMBOLS, struct IOCTLCmd_VMCIMacOS_PrivSyms),
+   IOCTLCMD_O(SOCKETS_GET_AF_VALUE, int),
+   IOCTLCMD_O(SOCKETS_GET_LOCAL_CID, unsigned int),
+};
+#endif // __APPLE__
 
 
 #if defined _WIN32

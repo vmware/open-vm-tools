@@ -51,12 +51,13 @@
 #define SO_NONBLOCKING  0x1200
 #endif // __APPLE__
 
-#if defined(_WIN32) || defined(VMKERNEL) || defined __APPLE__
+#if defined(_WIN32) || defined(VMKERNEL) || defined(__APPLE__)
 #  define SS_FREE             0
 #  define SS_UNCONNECTED      1
 #  define SS_CONNECTING       2
 #  define SS_CONNECTED        3
 #  define SS_DISCONNECTING    4
+#  define SS_DISCONNECTED     5
 #  define RCV_SHUTDOWN        1
 #  define SEND_SHUTDOWN       2
 #  define SHUTDOWN_MASK       3
@@ -213,14 +214,16 @@
 #  define SOCKET_ERROR        (-1)
 #  define INVALID_SOCKET      ((SOCKET) -1)
 #  define sockerr()           errno
-#  define sockerr2err(_e)     (((_e) > 0) ? -(_e) : (_e))
 #  define sockcleanup()       do {} while (0)
 #if defined(linux)
+#  define sockerr2err(_e)     (((_e) > 0) ? -(_e) : (_e))
 #  define closesocket(_s)     close((_s))
-#else
-#  define closesocket(_s)	VMCISock_close(_s)
-#endif
    typedef int32              SOCKET;
+#else
+#  define sockerr2err(_e)     (_e)
+#  define closesocket(_s)     VMCISock_close(_s)
+   typedef int32              SOCKET;
+#endif
 #endif // linux
 #endif // VMKERNEL
 #endif // _WIN32
