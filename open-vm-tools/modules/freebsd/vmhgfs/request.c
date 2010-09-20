@@ -719,9 +719,6 @@ HgfsKReqZInit(void *mem,     // IN: Pointer to the allocated object
    HgfsKReqObject *req = (HgfsKReqObject *)mem;
    ASSERT(size == sizeof *req);
 
-   /* Zero out the object. */
-   bzero(req, sizeof *req);
-
    /*
     * Request IDs are a 32-bit unsigned integer.  Conveniently enough for us,
     * our memory addresses provide (at least) 32 bits.

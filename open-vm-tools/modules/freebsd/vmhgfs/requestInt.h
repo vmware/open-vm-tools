@@ -43,6 +43,13 @@
 #include "request.h"
 #include "debug.h"
 
+#if defined __APPLE__
+ #include "hgfsTransport.h"
+ #define HGFS_REQUEST_PREFIX_LENGTH MAX(HGFS_CLIENT_CMD_LEN, sizeof (HgfsVmciTransportStatus))
+#else
+ #define HGFS_REQUEST_PREFIX_LENGTH HGFS_CLIENT_CMD_LEN
+#endif
+
 
 /*
  * Data types
@@ -98,7 +105,9 @@ typedef struct HgfsKReqObject {
                                 // Typically set to the address of the HgfsKReq
                                 // object.
    size_t payloadSize;          // Total size of payload
-   /*
+   void *ioBuf;                 // Pointer to memory desc (for macos)
+   /* Backdoor:
+    *
     * The file system is concerned only with the payload portion of an Hgfs
     * request packet, but the RPC message opens with the command string "f ".
     *
@@ -109,11 +118,16 @@ typedef struct HgfsKReqObject {
     * packet, and the command is varied by the transport layer.) So, anyway, effectively
     * all of __rpc_packet will be sent across the backdoor, but the file system will only
     * muck with _payload.
+    *
+    * VMCI:
+    *
+    * MacOSX is also capable of using VMCI in which case _command will have
+    * HgfsVmciTransportStatus.
+    *
     */
    struct {
-      char      _command[HGFS_CLIENT_CMD_LEN];  // Typically "f ".
-      char      _payload[HGFS_PACKET_MAX];      // Contains both the request and
-                                                // its reply.
+      char _command[HGFS_REQUEST_PREFIX_LENGTH];
+      char _payload[HGFS_PACKET_MAX];
    } __rpc_packet;
 } HgfsKReqObject;
 
