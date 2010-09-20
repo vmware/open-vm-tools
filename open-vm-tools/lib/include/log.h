@@ -28,15 +28,30 @@
 
 /*
  * The log levels are taken from POSIXen syslog. We hijack their values
- * on POSIXen and provide equivalent defines on all other platforms.
+ * on POSIXen and provide equivalent defines on all other platforms. The
+ * conceptual model is as follows:
+ *
+ * LOG_EMERG    0  (highest priority)
+ * LOG_ALERT    1
+ * LOG_CRIT     2
+ * LOG_ERR      3
+ * LOG_WARNING  4  (<= this priority is written to stderr by default)
+ * LOG_NOTICE   5
+ * LOG_INFO     6
+ * LOG_DEBUG    7  (lowest priority; <= this priority are logged by default)
  */
 
 #if defined(_WIN32)
 #   include <windows.h>
 
-#   define LOG_INFO       EVENTLOG_INFORMATION_TYPE
-#   define LOG_WARNING    EVENTLOG_WARNING_TYPE
+#   define LOG_EMERG      EVENTLOG_ERROR_TYPE
+#   define LOG_ALERT      EVENTLOG_ERROR_TYPE
+#   define LOG_CRIT       EVENTLOG_ERROR_TYPE
 #   define LOG_ERR        EVENTLOG_ERROR_TYPE
+#   define LOG_WARNING    EVENTLOG_WARNING_TYPE
+#   define LOG_NOTICE     EVENTLOG_INFORMATION_TYPE
+#   define LOG_INFO       EVENTLOG_INFORMATION_TYPE
+#   define LOG_DEBUG      EVENTLOG_INFORMATION_TYPE
 #else
 #   if !defined(VMM)
 #      include <syslog.h>
@@ -69,7 +84,9 @@ typedef struct
    Bool           useMilliseconds;      // Show milliseconds in time stamp
    Bool           fastRotation;         // ESX log rotation optimization
    Bool           preventRemove;        // prevert Log_RemoveFile(FALSE)
-   Bool           stderrWarnings;       // warnings also go to stderr
+
+   int32          stderrMinLevel;       // This level and above to stderr
+   int32          logMinLevel;          // This level and above to log
 
    uint32         keepOld;              // Number of old logs to keep
    uint32         throttleThreshold;    // Threshold for throttling
