@@ -80,7 +80,7 @@ CopyPasteDnDX11::CopyPasteDnDX11() :
 
 /**
  *
- * Initialize Win32 platform DnD/CP. Initialize OLE, and create detection
+ * Initialize Win32 platform DnD/CP. Initialize Gtk+, and create detection
  * windows.
  *
  * @param[in] ctx tools app context.
@@ -133,6 +133,12 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    if (m_main) {
       delete m_main;
    }
+
+   /*
+    * Legacy CP.
+    */
+   CopyPaste_Unregister(gUserMainWidget);
+
    if (gUserMainWidget) {
       gtk_widget_destroy(gUserMainWidget);
    }
@@ -249,11 +255,6 @@ CopyPasteDnDX11::UnregisterCP()
          delete m_copyPasteUI;
          m_copyPasteUI = NULL;
       }
-
-      /*
-       * Legacy CP.
-       */
-      CopyPaste_Unregister(gUserMainWidget);
       wrapper->SetCPIsRegistered(FALSE);
       wrapper->SetCPVersion(-1);
    }
