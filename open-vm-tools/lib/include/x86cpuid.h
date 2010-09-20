@@ -114,6 +114,7 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  0,  0)                     \
    CPUIDLEVEL(TRUE,  1,  1)                     \
    CPUIDLEVEL(FALSE, 5,  5)                     \
+   CPUIDLEVEL(TRUE,  7,  7)                     \
    CPUIDLEVEL(TRUE,  D,  0xD)                   \
    CPUIDLEVEL(FALSE,400, 0x40000000)            \
    CPUIDLEVEL(FALSE,410, 0x40000010)            \
@@ -306,6 +307,8 @@ FLAGDEFA(  1, ECX, INTEL,  25,  1, AES,                 YES, TRUE, AES)        \
 FLAGDEFA(  1, ECX, COMMON, 26,  1, XSAVE,               YES, FALSE, XSAVE)     \
 FLAGDEF(   1, ECX, COMMON, 27,  1, OSXSAVE,             YES, FALSE)            \
 FLAGDEFA(  1, ECX, COMMON, 28,  1, AVX,                 YES, TRUE,  AVX)       \
+FLAGDEFA(  1, ECX, COMMON, 29,  1, F16,                 YES, TRUE,  F16)       \
+FLAGDEFA(  1, ECX, COMMON, 30,  1, RDRAND,              YES, TRUE,  RDRAND)    \
 FLAGDEFA(  1, ECX, COMMON, 31,  1, HYPERVISOR,          ANY, FALSE, HYPERVISOR)\
 FLAGDEFA(  1, EDX, COMMON, 0,   1, FPU,                 YES, TRUE, FPU)        \
 FLAGDEFA(  1, EDX, COMMON, 1,   1, VME,                 YES, FALSE, VME)       \
@@ -372,6 +375,12 @@ FLAGDEF(   6, EAX, INTEL,   1,  1, TURBO_MODE,          NA,  FALSE)     \
 FIELDDEF(  6, EBX, INTEL,   0,  4, NUM_INTR_THRESHOLDS, NA,  FALSE)     \
 FLAGDEF(   6, ECX, INTEL,   0,  1, HW_COORD_FEEDBACK,   NA,  FALSE)	\
 FLAGDEF(   6, ECX, INTEL,   3,  1, ENERGY_PERF_BIAS,    NA,  FALSE)
+
+/*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
+#define CPUID_FIELD_DATA_LEVEL_7                                               \
+FLAGDEFA(  7, EBX, INTEL,   0,  1, FSGSBASE,            YES, TRUE,  FSGSBASE)  \
+FLAGDEF(   7, EBX, INTEL,   7,  1, SMEP,                NO,  FALSE)            \
+FLAGDEF(   7, EBX, INTEL,   9,  1, ENFSTRG,             YES, TRUE)
 
 /*    LEVEL, REG, VENDOR, POS, SIZE, NAME,       MON SUPP, CPL3, [FUNC] */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
@@ -541,6 +550,7 @@ FIELDDEFA( 81E,ECX, AMD,     8,  3, NODES_PER_PKG,       NA,  FALSE, AMD_NODES_P
    CPUID_FIELD_DATA_LEVEL_4                                           \
    CPUID_FIELD_DATA_LEVEL_5                                           \
    CPUID_FIELD_DATA_LEVEL_6                                           \
+   CPUID_FIELD_DATA_LEVEL_7                                           \
    CPUID_FIELD_DATA_LEVEL_A                                           \
    CPUID_FIELD_DATA_LEVEL_B                                           \
    CPUID_FIELD_DATA_LEVEL_D                                           \
