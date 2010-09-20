@@ -61,6 +61,8 @@
 #include "wiper.h"
 #include "vmware/guestrpc/tclodefs.h"
 
+#include "vmware/tools/plugin.h"
+
 /*
  * Gtk 1.2 doesn't know about the CLIPBOARD selection, but that doesn't matter, we
  * just create the atom we need directly in main().
@@ -101,10 +103,12 @@ static uint64 gGuestSelClipboardTime = 0;
 static char gHostClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
 
 static Bool gIsOwner;
+static ToolsAppCtx *gCtx = NULL;
 
 /*
  * Forward Declarations
  */
+static gboolean IsCtxMainLoopActive(void);
 static INLINE void CopyPasteStateInit(void);
 static void CopyPasteSelectionReceivedCB(GtkWidget *widget,
                                          GtkSelectionData *selection_data,
@@ -221,14 +225,14 @@ CopyPaste_RequestSelection(void)
                             GDK_SELECTION_PRIMARY,
                             GDK_SELECTION_TYPE_UTF8_STRING,
                             GDK_CURRENT_TIME);
-      while (gWaitingOnGuestSelection) gtk_main_iteration();
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
 
       gWaitingOnGuestSelection = TRUE;
       gtk_selection_convert(gUserMainWidget,
                             GDK_SELECTION_CLIPBOARD,
                             GDK_SELECTION_TYPE_UTF8_STRING,
                             GDK_CURRENT_TIME);
-      while (gWaitingOnGuestSelection) gtk_main_iteration();
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
 
       if (gGuestSelPrimaryBuf[0] == '\0' && gGuestSelClipboardBuf[0] == '\0') {
          /*
@@ -240,14 +244,14 @@ CopyPaste_RequestSelection(void)
                                GDK_SELECTION_PRIMARY,
                                GDK_SELECTION_TYPE_STRING,
                                GDK_CURRENT_TIME);
-         while (gWaitingOnGuestSelection) gtk_main_iteration();
+         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
 
          gWaitingOnGuestSelection = TRUE;
          gtk_selection_convert(gUserMainWidget,
                                GDK_SELECTION_CLIPBOARD,
                                GDK_SELECTION_TYPE_STRING,
                                GDK_CURRENT_TIME);
-         while (gWaitingOnGuestSelection) gtk_main_iteration();
+         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
       }
    }
    /* Send text to host. */
@@ -255,6 +259,20 @@ CopyPaste_RequestSelection(void)
          gGuestSelPrimaryBuf, gGuestSelClipboardBuf);
    CopyPasteSetBackdoorSelections();
    return TRUE;
+}
+
+
+/**
+ * Check to see if we are running in tools main loop.
+ *
+ * @return TRUE if we are, FALSE if we are not running in main loop.
+ */
+
+static gboolean
+IsCtxMainLoopActive(void)
+{
+   ASSERT(gCtx);
+   return g_main_loop_is_running(gCtx->mainLoop);
 }
 
 
@@ -645,9 +663,14 @@ CopyPaste_GetBackdoorSelections(void)
  */
 
 Bool
-CopyPaste_Register(GtkWidget* mainWnd)
+CopyPaste_Register(GtkWidget* mainWnd,   // IN
+                   ToolsAppCtx *ctx)     // IN
 {
    g_debug("%s: enter\n", __FUNCTION__);
+   ASSERT(mainWnd);
+   ASSERT(ctx);
+
+   gCtx = ctx;
    /* Text copy/paste initialization for all versions. */
 #ifndef GDK_SELECTION_CLIPBOARD
    GDK_SELECTION_CLIPBOARD = gdk_atom_intern("CLIPBOARD", FALSE);

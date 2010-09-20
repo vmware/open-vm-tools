@@ -39,7 +39,7 @@ extern "C" {
 #include "unity.h"
 #endif
 
-void CopyPaste_Register(GtkWidget *mainWnd);
+void CopyPaste_Register(GtkWidget *mainWnd, ToolsAppCtx *ctx);
 void CopyPaste_Unregister(GtkWidget *mainWnd);
 }
 
@@ -112,7 +112,7 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
     * Register legacy (backdoor) version of copy paste.
     */
    CopyPaste_SetVersion(1);
-   CopyPaste_Register(gUserMainWidget);
+   CopyPaste_Register(gUserMainWidget, ctx);
    return true;
 }
 
