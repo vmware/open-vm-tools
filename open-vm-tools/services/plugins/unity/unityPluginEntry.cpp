@@ -175,36 +175,40 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   ToolsPluginSignalCb sigs[] = {
-      { TOOLS_CORE_SIG_RESET, (void *) UnityPluginReset, &regData },
-      { TOOLS_CORE_SIG_SHUTDOWN, (void *) UnityPluginShutdown, &regData },
-      { TOOLS_CORE_SIG_CAPABILITIES, (void *) UnityPluginCapabilities, &regData },
-      { TOOLS_CORE_SIG_SET_OPTION, (void *) UnityPluginSetOption, &regData },
-   };
+   if (ctx->rpc != NULL) {
+      ToolsPluginSignalCb sigs[] = {
+         { TOOLS_CORE_SIG_RESET, (void *) UnityPluginReset, &regData },
+         { TOOLS_CORE_SIG_SHUTDOWN, (void *) UnityPluginShutdown, &regData },
+         { TOOLS_CORE_SIG_CAPABILITIES, (void *) UnityPluginCapabilities, &regData },
+         { TOOLS_CORE_SIG_SET_OPTION, (void *) UnityPluginSetOption, &regData },
+      };
 
-   ToolsPlugin *pluginInstance = NULL;
+      ToolsPlugin *pluginInstance = NULL;
 
 #if WIN32
-   pluginInstance = new UnityPluginWin32(ctx);
+      pluginInstance = new UnityPluginWin32(ctx);
 #else // Linux
-   pluginInstance = new UnityPlugin(ctx);
+      pluginInstance = new UnityPlugin(ctx);
 #endif
 
-   if (!pluginInstance) {
-      // There's nothing we can do if we can't construct the plugin instance
-      return NULL;
+      if (!pluginInstance) {
+         // There's nothing we can do if we can't construct the plugin instance
+         return NULL;
+      }
+      regData._private = pluginInstance;
+
+      std::vector<RpcChannelCallback> rpcs = pluginInstance->GetRpcCallbackList();
+
+      ToolsAppReg regs[] = {
+         { TOOLS_APP_GUESTRPC, VMTools_WrapArray(&rpcs[0], sizeof rpcs[0], rpcs.size()) },
+         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
+      };
+
+      regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+
+      return &regData;
    }
-   regData._private = pluginInstance;
 
-   std::vector<RpcChannelCallback> rpcs = pluginInstance->GetRpcCallbackList();
-
-   ToolsAppReg regs[] = {
-      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(&rpcs[0], sizeof rpcs[0], rpcs.size()) },
-      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
-   };
-
-   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
-
-   return &regData;
+   return NULL;
 }
 

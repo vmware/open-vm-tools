@@ -736,7 +736,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
     * Stop all app providers, and free the memory we allocated for the two
     * internal app providers.
     */
-   for (i = 0; i < state->providers->len; i++) {
+   for (i = 0; state->providers != NULL && i < state->providers->len; i++) {
        ToolsAppProviderReg *preg = &g_array_index(state->providers,
                                                   ToolsAppProviderReg,
                                                   i);
@@ -774,8 +774,10 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       g_free(plugin);
    }
 
-   g_array_free(state->providers, TRUE);
-   state->providers = NULL;
+   if (state->providers != NULL) {
+      g_array_free(state->providers, TRUE);
+      state->providers = NULL;
+   }
 
    g_ptr_array_free(state->plugins, TRUE);
    state->plugins = NULL;

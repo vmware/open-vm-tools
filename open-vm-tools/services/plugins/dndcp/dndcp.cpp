@@ -173,29 +173,33 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   ToolsPluginSignalCb sigs[] = {
-      { TOOLS_CORE_SIG_CAPABILITIES, (void *) DnDCPCapabilities, NULL },
-      { TOOLS_CORE_SIG_RESET, (void *) DnDCPReset, NULL },
-      { TOOLS_CORE_SIG_SET_OPTION, (void *) DnDCPSetOption, NULL },
-      { TOOLS_CORE_SIG_SHUTDOWN, (void *) DnDCPShutdown, NULL }
-   };
+   if (ctx->rpc != NULL) {
+      ToolsPluginSignalCb sigs[] = {
+         { TOOLS_CORE_SIG_CAPABILITIES, (void *) DnDCPCapabilities, NULL },
+         { TOOLS_CORE_SIG_RESET, (void *) DnDCPReset, NULL },
+         { TOOLS_CORE_SIG_SET_OPTION, (void *) DnDCPSetOption, NULL },
+         { TOOLS_CORE_SIG_SHUTDOWN, (void *) DnDCPShutdown, NULL }
+      };
 
-   ToolsAppReg regs[] = {
-      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
-   };
+      ToolsAppReg regs[] = {
+         { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
+      };
 
-   /*
-    * DnD/CP Initialization here.
-    */
+      /*
+       * DnD/CP Initialization here.
+       */
 
-   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
-   if (p) {
-      p->Init(ctx);
-      p->PointerInit();
+      CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
+      if (p) {
+         p->Init(ctx);
+         p->PointerInit();
+      }
+
+      regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+      return &regData;
    }
 
-   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
-   return &regData;
+   return NULL;
 }
 
 }

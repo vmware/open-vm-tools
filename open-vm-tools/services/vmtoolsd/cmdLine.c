@@ -37,6 +37,7 @@
 #include "conf.h"
 #include "rpcout.h"
 #include "str.h"
+#include "vmcheck.h"
 #include "vmtoolsd_version.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/i18n.h"
@@ -60,19 +61,26 @@ ToolsCoreRunCommand(const gchar *option,
                     gpointer data,
                     GError **error)
 {
-   char *result = NULL;
-   Bool status = FALSE;
+#if defined(_WIN32)
+   VMTools_AttachConsole();
+#endif
+   if (VmCheck_IsVirtualWorld()) {
+      char *result = NULL;
+      Bool status = FALSE;
 
-   status = RpcOut_sendOne(&result, NULL, "%s", value);
+      status = RpcOut_sendOne(&result, NULL, "%s", value);
 
-   if (!status) {
-      g_printerr("%s\n", result ? result : "NULL");
-   } else {
-      g_print("%s\n", result);
+      if (!status) {
+         g_printerr("%s\n", result ? result : "NULL");
+      } else {
+         g_print("%s\n", result);
+      }
+
+      vm_free(result);
+      exit(status ? 0 : 1);
    }
-
-   vm_free(result);
-   exit(status ? 0 : 1);
+   g_printerr(SU_(cmdline.rpcerror, "Unable to send command to VMware hypervisor.\n"));
+   exit(1);
 }
 
 
