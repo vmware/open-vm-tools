@@ -24,6 +24,7 @@ libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += @VMTOOLS_LIBS@
 
 libguestlib_la_SOURCES =
+libguestlib_la_SOURCES += guestlibV3_xdr.c
 libguestlib_la_SOURCES += vmGuestLib.c
 
 libguestlib_la_LDFLAGS =
@@ -39,10 +40,29 @@ libguestlib_include_HEADERS += $(top_srcdir)/lib/include/vmGuestLib.h
 libguestlib_include_HEADERS += $(top_srcdir)/lib/include/vmSessionId.h
 libguestlib_include_HEADERS += $(top_srcdir)/lib/include/vm_basic_types.h
 
+BUILT_SOURCES =
+BUILT_SOURCES += guestlibV3.h
+BUILT_SOURCES += guestlibV3_xdr.c
+
+CFLAGS += -Wno-unused
+
 EXTRA_DIST = vmguestlib.pc.in
 
 pkgconfigdir   = $(libdir)/pkgconfig
 pkgconfig_DATA = vmguestlib.pc
 
 $(pkgconfig_DATA): $(top_builddir)/config.status
+
+guestlibV3.h: guestlibV3.x
+	if [ $(top_builddir) != $(top_srcdir) ]; then                           \
+	   cp -f $(top_srcdir)/lib/guestRpc/guestlibV3.x $(builddir);           \
+	fi
+	$(RPCGEN) $(RPCGENFLAGS) -h -o $@ $(builddir)/guestlibV3.x
+	$(SED) 's,rpc/rpc\.h,vmxrpc.h,' $@ > $@.tmp
+	mv $@.tmp $@
+	$(MKDIR_P) $(top_builddir)/lib/include/guestrpc
+	cp $@ $(top_builddir)/lib/include/guestrpc
+
+guestlibV3_xdr.c: guestlibV3.x guestlibV3.h
+	$(RPCGEN) $(RPCGENFLAGS) -c -o $@ $(builddir)/guestlibV3.x
 
