@@ -333,14 +333,16 @@ Vix_TranslateErrno(int systemError)             // IN
       break;
 #ifndef _WIN32
    case EMSGSIZE:
+#endif
+   case EINVAL:
       err = VIX_E_INVALID_ARG;
       break;
+#ifndef _WIN32
    case ELOOP:
 #endif
    case ENOMEM:
       err = VIX_E_OUT_OF_MEMORY;
       break;
-   case EINVAL:
    default:
       err = VIX_E_FAIL;
    }
