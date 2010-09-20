@@ -44,7 +44,8 @@
 #endif
 
 
-typedef void (LogBasicFunc)(const char *fmt, va_list args);
+typedef void (LogBasicFunc)(const char *fmt,
+                            va_list args);
 
 
 typedef enum {
