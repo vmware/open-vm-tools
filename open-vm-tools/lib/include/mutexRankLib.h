@@ -31,8 +31,17 @@
  */
 
 /*
+ * hostDeviceInfo HAL lock
+ *
+ * Must be > vmhs locks since this is held around the RANK_vmhsHDILock
+ * callback lock which vmhs passes into that library.
+ */
+#define RANK_hdiHALLock             (RANK_libLockBase + 0x1005)
+
+/*
  * vmhs locks
  */
+#define RANK_vmhsHDILock            (RANK_libLockBase + 0x3002)
 #define RANK_vmhsThrMxLock          (RANK_libLockBase + 0x3005)
 #define RANK_vmhsVmxMxLock          (RANK_libLockBase + 0x3005)
 #define RANK_vmhsMvmtsMxLock        (RANK_libLockBase + 0x3005)
@@ -97,6 +106,7 @@
  * non-leaf locks are usually defined with RANK_LEAF - 1.
  *
  * At least:
+ *    impersonate > pollDefault
  *    keyLocator > preference (for checking AESNI)
  *    configDb > keyLocator (for unlocking dictionaries)
  *    battery/button > preference
@@ -108,6 +118,7 @@
 #define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7020)
 #define RANK_batteryLock             (RANK_libLockBase + 0x7030)
 #define RANK_buttonLock              (RANK_libLockBase + 0x7040)
+#define RANK_impersonateLock         (RANK_libLockBase + 0x7045)
 #define RANK_pollDefaultLock         (RANK_libLockBase + 0x7050)
 #define RANK_workerLibLock           (RANK_libLockBase + 0x7060)
 #define RANK_configDbLock            (RANK_libLockBase + 0x7070)

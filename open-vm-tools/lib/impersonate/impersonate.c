@@ -28,9 +28,70 @@
 
 #include "vmware.h"
 #include "auth.h"
+#include "userlock.h"
+#include "mutexRankLib.h"
 #include "impersonateInt.h"
 
+static Atomic_Ptr impersonateLockStorage;
+
 Bool impersonationEnabled = FALSE;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ImpersonateGetLock --
+ *
+ *      Get/create the impersonate lock.
+ *
+ * Results:
+ *      See above.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE MXUserRecLock *
+ImpersonateGetLock(void)
+{
+   MXUserRecLock *lock = MXUser_CreateSingletonRecLock(&impersonateLockStorage,
+                                                       "impersonateLock",
+                                                       RANK_impersonateLock);
+   ASSERT_MEM_ALLOC(lock);
+   return lock;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ImpersonateLock --
+ *
+ *      Acquire or release the impersonate lock. Protects access to
+ *      the library's static and TLS states.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+ImpersonateLock(Bool lock) // IN
+{
+   MXUserRecLock *impersonateLock = ImpersonateGetLock();
+
+   if (lock) {
+      MXUser_AcquireRecLock(impersonateLock);
+   } else {
+      MXUser_ReleaseRecLock(impersonateLock);
+   }
+}
 
 
 /*
@@ -42,6 +103,8 @@ Bool impersonationEnabled = FALSE;
  *      userenv.dll.
  *      Without calling this, code calling into this module will 
  *      essentially be noops.
+ *
+ *      Call when single-threaded.
  *
  * Side effects:
  *
@@ -88,12 +151,17 @@ Impersonate_Runas(const char *cfg,           // IN
                   const char *caller,        // IN
                   AuthToken callerToken)     // IN
 {
+   Bool res;
+
    if (!impersonationEnabled) {
       return TRUE;
-   } else {
-      return ImpersonateRunas(cfg, caller, callerToken);
    }
-   return TRUE;
+
+   ImpersonateLock(TRUE);
+   res = ImpersonateRunas(cfg, caller, callerToken);
+   ImpersonateLock(FALSE);
+
+   return res;
 }
 
 
@@ -116,12 +184,17 @@ Impersonate_Runas(const char *cfg,           // IN
 Bool
 Impersonate_Owner(const char *file)        // IN
 {
+   Bool res;
+
    if (!impersonationEnabled) {
       return TRUE;
-   } else {
-      return ImpersonateOwner(file);
    }
-   return TRUE;
+
+   ImpersonateLock(TRUE);
+   res = ImpersonateOwner(file);
+   ImpersonateLock(FALSE);
+
+   return res;
 }
 
 
@@ -149,12 +222,17 @@ Bool
 Impersonate_Do(const char *user,             // IN 
                AuthToken token)              // IN
 {
+   Bool res;
+
    if (!impersonationEnabled) {
       return TRUE;
-   } else {
-      return ImpersonateDo(user, token);
    }
-   return TRUE;
+
+   ImpersonateLock(TRUE);
+   res = ImpersonateDo(user, token);
+   ImpersonateLock(FALSE);
+
+   return res;
 }
 
 
@@ -180,12 +258,14 @@ Impersonate_Do(const char *user,             // IN
 Bool
 Impersonate_Undo(void)
 {
+   Bool res;
    ImpersonationState *imp = NULL;
 
    if (!impersonationEnabled) {
       return TRUE;
    }
 
+   ImpersonateLock(TRUE);
    imp = ImpersonateGetTLS();
    ASSERT(imp);
 
@@ -198,10 +278,14 @@ Impersonate_Undo(void)
                        (int) imp, imp->refCount)));
 
    if (imp->refCount > 0) {
+      ImpersonateLock(FALSE);
       return TRUE;
    }
 
-   return ImpersonateUndo();
+   res = ImpersonateUndo();
+   ImpersonateLock(FALSE);
+
+   return res;
 }
 
 
@@ -231,12 +315,15 @@ Impersonate_Who(void)
    if (!impersonationEnabled) {
       return strdup("");
    }
-   
+
+   ImpersonateLock(TRUE);
    imp = ImpersonateGetTLS();
    ASSERT(imp);
 
    impUser = strdup(imp->impersonatedUser);
    ASSERT_MEM_ALLOC(impUser);
+   ImpersonateLock(FALSE);
+
    return impUser;
 }
 
@@ -263,12 +350,17 @@ Impersonate_Who(void)
 Bool 
 Impersonate_ForceRoot(void) 
 {
+   Bool res;
+
    if (!impersonationEnabled) {
       return TRUE;
-   } else {
-      return ImpersonateForceRoot();
    }
-   return TRUE;
+
+   ImpersonateLock(TRUE);
+   res = ImpersonateForceRoot();
+   ImpersonateLock(FALSE);
+
+   return res;
 }
 
 
@@ -292,12 +384,17 @@ Impersonate_ForceRoot(void)
 Bool 
 Impersonate_UnforceRoot(void) 
 {
+   Bool res;
+
    if (!impersonationEnabled) {
       return TRUE;
-   } else {
-      return ImpersonateUnforceRoot();
    }
-   return TRUE;
+
+   ImpersonateLock(TRUE);
+   res = ImpersonateUnforceRoot();
+   ImpersonateLock(FALSE);
+
+   return res;
 }
 
 
@@ -323,6 +420,12 @@ Impersonate_UnforceRoot(void)
 Bool
 Impersonate_CfgRunasOnly(const char *cfg)        // IN
 {
-   return Impersonate_Runas(cfg, NULL, NULL);
+   Bool res;
+
+   ImpersonateLock(TRUE);
+   res = Impersonate_Runas(cfg, NULL, NULL);
+   ImpersonateLock(FALSE);
+   
+   return res;
 }
 #endif //_WIN32
