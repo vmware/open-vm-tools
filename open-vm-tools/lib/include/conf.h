@@ -114,6 +114,11 @@
  */
 #define CONFNAME_UNITY_BACKGROUNDCOLOR "desktop.backgroundColor"
 
+/**
+ * Lets users enable (or disable) the Protocol Buffer enabled service
+ */
+#define CONFNAME_UNITY_ENABLEPBRPC "pbrpc.enable"
+
 /*
  * END Unity goodies.
  ******************************************************************************

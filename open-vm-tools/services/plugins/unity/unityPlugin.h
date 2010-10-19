@@ -31,9 +31,15 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include "boost/shared_ptr.hpp"
+#endif // _WIN32
+
 #include "vmware/tools/plugin.h"
 
 namespace vmware { namespace tools {
+
+class UnityPBRPCServer;
 
 typedef struct _UnityUpdateChannel UnityUpdateChannel;
 
@@ -206,11 +212,14 @@ protected:
 #ifdef _WIN32
 class UnityPluginWin32 : public UnityPlugin {
 public:
-   UnityPluginWin32(ToolsAppCtx *ctx) : UnityPlugin(ctx) {};
-   virtual ~UnityPluginWin32() {};
+   UnityPluginWin32(ToolsAppCtx *ctx);
+   virtual ~UnityPluginWin32();
 
    virtual std::vector<ToolsAppCapability> GetCapabilities(gboolean set);
    virtual void SessionChange(gpointer src, DWORD code, DWORD id) {};
+
+protected:
+   boost::shared_ptr<UnityPBRPCServer> mUnityPBRPCServer;
 };
 #endif // _WIN32
 

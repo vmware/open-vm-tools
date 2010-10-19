@@ -247,11 +247,17 @@
 
 // This extra version define is here so the Makefiles can easily pick it up.
 // See the VMRC_PLUGIN_VERSION section in /mk/defs-onetime.mk
-#define VMRC_PLUGIN_VERSION_NUMBER "2.5.0"
 
-#define VMRC_PLUGIN_VERSION_MAJOR 2
-#define VMRC_PLUGIN_VERSION_MINOR 5
+#define VMRC_PLUGIN_VERSION_MAJOR 4
+#define VMRC_PLUGIN_VERSION_MINOR 0
 #define VMRC_PLUGIN_VERSION_Z     0
+
+#define VMRC_PLUGIN_VERSION_NUMBER       \
+        XSTR(VMRC_PLUGIN_VERSION_MAJOR) "." XSTR(VMRC_PLUGIN_VERSION_MINOR) "." XSTR(VMRC_PLUGIN_VERSION_Z)
+
+/* this version number should always match real VMRC & plugin version number */
+#define VMRC_VERSION VMRC_PLUGIN_VERSION_NUMBER
+
 #define VMRC_PLUGIN_VERSION_BASE  VMRC_PLUGIN_VERSION_MAJOR.VMRC_PLUGIN_VERSION_MINOR
 
 #define VMRC_PLUGIN_VERSION       \

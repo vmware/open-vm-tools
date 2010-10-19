@@ -76,13 +76,13 @@ EXTERN void IOV_DuplicateStatic(VMIOVec *iovIn,
                                 struct iovec *staticEntries,
                                 VMIOVec *iovOut);
 
-EXTERN INLINE void IOV_MakeSingleIOV(VMIOVec* v,
-                                     struct iovec* iov,
-                                     SectorType startSector,
-                                     SectorType dataLen,
-                                     uint32 sectorSize,
-                                     uint8* buffer,
-                                     Bool read);
+EXTERN void IOV_MakeSingleIOV(VMIOVec* v,
+                              struct iovec* iov,
+                              SectorType startSector,
+                              SectorType dataLen,
+                              uint32 sectorSize,
+                              uint8* buffer,
+                              Bool read);
 
 EXTERN void IOV_WriteIovToBuf(struct iovec* entries,
                               int numEntries,

@@ -425,7 +425,7 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
          }
       }
 
-      StatsLog(histoLine);
+      StatsLog("%s", histoLine);
    }
 #endif
 }

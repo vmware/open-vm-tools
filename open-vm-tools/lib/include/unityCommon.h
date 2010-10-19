@@ -235,6 +235,7 @@
 #define UNITY_RPC_WINDOW_UNSTICK          "unity.window.unstick"
 #define UNITY_RPC_CONFIRM_OPERATION       "unity.operation.confirm"
 #define UNITY_RPC_WINDOW_CONTENTS_REQUEST "unity.window.contents.request"
+#define UNITY_RPC_REGISTER_PBRPCSERVER    "unity.register.pbrpcserver"
 #define UNITY_RPC_SEND_MOUSE_WHEEL        "unity.sendMouseWheel"
 
 #define GHI_RPC_GUEST_SHELL_ACTION                    "ghi.guest.shell.action"
@@ -453,6 +454,17 @@ typedef enum {
    UNITY_SEND_WINDOW_CONTENTS = 1 << 2,
    UNITY_DISABLE_COMPOSITING_IN_GUEST = 1 << 3
 }  UnityFeatures;
+
+
+/*
+ * UNITY_RPC_REGISTER_PBRPCSERVER includes an enumerated Address Family to distinguish
+ * between PBRPC servers listening on TCP/IP sockets and those listening on VSockets.
+ */
+typedef enum {
+   InvalidAddressFamily = 0,
+   VSocketAddressFamily = 1,
+   INET4AddressFamily = 2
+} UnityPBRPCAddressFamily;
 
 
 /*

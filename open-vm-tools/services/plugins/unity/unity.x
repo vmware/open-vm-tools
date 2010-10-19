@@ -199,12 +199,36 @@ case UNITY_WINDOW_CONTENTS_V1:
 const UNITY_MAX_NUM_WINDOWS_PER_REQUEST = 256;
 
 struct UnityWindowContentsRequestV1 {
-	uint32 windowID<UNITY_MAX_NUM_WINDOWS_PER_REQUEST>;
+   uint32 windowID<UNITY_MAX_NUM_WINDOWS_PER_REQUEST>;
 };
 
 union UnityWindowContentsRequest switch (UnityWindowContentsVersion ver) {
 case UNITY_WINDOW_CONTENTS_V1:
-	struct UnityWindowContentsRequestV1 *requestV1;
+   struct UnityWindowContentsRequestV1 *requestV1;
+};
+
+/*
+ * Message used to register the presence of a PBRPC server in the guest for
+ * handling Unity & GHI operations. This message is sent by the guest to
+ * bootstrap the process of talking via a 'non-backdoor' channel between guest
+ * and host.
+ */
+
+const UNITY_REGISTER_PBRPCSERVER_ADDRESS_LEN = 256;
+
+enum UnityRegisterPbrpcServerVersion {
+   UNITY_REGISTER_PBRPCSERVER_V1 = 1
+};
+
+struct UnityRegisterPbrpcServerV1 {
+   uint32 addressFamily;
+   string address<UNITY_REGISTER_PBRPCSERVER_ADDRESS_LEN>;
+   uint32 port;
+};
+
+union UnityRegisterPbrpcServer switch (UnityRegisterPbrpcServerVersion ver) {
+case UNITY_REGISTER_PBRPCSERVER_V1:
+   struct UnityRegisterPbrpcServerV1* registerV1;
 };
 
 

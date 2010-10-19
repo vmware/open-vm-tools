@@ -27,8 +27,6 @@
 
 #include "ghIntegration.h"
 
-#include "vmware/tools/plugin.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
