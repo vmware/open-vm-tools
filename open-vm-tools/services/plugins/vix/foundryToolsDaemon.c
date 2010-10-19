@@ -113,18 +113,18 @@ static VixError ToolsDaemonTcloGetEncodedQuotedString(const char *args,
                                                       const char **endOfArg,
                                                       char **result);
 
-RpcInRet ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
+gboolean ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
 static HgfsServerMgrData gFoundryHgfsBkdrConn;
-RpcInRet ToolsDaemonHgfsImpersonated(RpcInData *data);
+gboolean ToolsDaemonHgfsImpersonated(RpcInData *data);
 
 #if defined(linux) || defined(_WIN32)
-RpcInRet ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
+gboolean ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 
-RpcInRet ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
+gboolean ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
 #endif
 
-RpcInRet ToolsDaemonTcloMountHGFS(RpcInData *data);
+gboolean ToolsDaemonTcloMountHGFS(RpcInData *data);
 
 void ToolsDaemonTcloReportProgramCompleted(const char *requestName,
                                            VixError err,
@@ -159,7 +159,7 @@ static Bool thisProcessRunsAsRoot = FALSE;
  *-----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 FoundryToolsDaemonRunProgram(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -280,7 +280,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -363,7 +363,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 ToolsDaemonTcloCheckUserAccount(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -602,7 +602,7 @@ abort:
  */
 
 #if defined(linux) || defined(_WIN32)
-RpcInRet
+gboolean
 ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -748,7 +748,7 @@ exit:
  */
 
 #if defined(linux) || defined(_WIN32)
-RpcInRet
+gboolean
 ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
@@ -801,7 +801,7 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
  *-----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
 {
    VixError err = VIX_OK;
@@ -900,7 +900,7 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
  *-----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 ToolsDaemonHgfsImpersonated(RpcInData *data) // IN
 {
    VixError err;
@@ -1127,7 +1127,7 @@ ToolsDaemonTcloReportProgramCompleted(const char *requestName,    // IN
  *-----------------------------------------------------------------------------
  */
 
-RpcInRet
+gboolean
 ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
 {
    VixError err = VIX_OK;

@@ -31,29 +31,29 @@
 #include "vmware/tools/plugin.h"
 #include "rpcin.h"
 
-RpcInRet
+gboolean
 ToolsDaemonTcloCheckUserAccount(RpcInData *data);
 
-RpcInRet
+gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data);
 
-RpcInRet
+gboolean
 ToolsDaemonHgfsImpersonated(RpcInData *data);
 
-RpcInRet
+gboolean
 ToolsDaemonTcloMountHGFS(RpcInData *data);
 
-RpcInRet
+gboolean
 ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 
-RpcInRet
+gboolean
 FoundryToolsDaemonRunProgram(RpcInData *data);
 
 #if defined(linux) || defined(_WIN32)
-RpcInRet
+gboolean
 ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 
-RpcInRet
+gboolean
 ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
 #endif
 

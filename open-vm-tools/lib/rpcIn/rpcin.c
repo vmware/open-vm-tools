@@ -72,21 +72,11 @@ static DblLnkLst_Links *gTimerEventQueue;
  * The RpcIn object
  */
 
-typedef enum {
-    RPCIN_CB_OLD,
-    RPCIN_CB_NEW
-} RpcInCallbackType;
-
-
 /* The list of TCLO command callbacks we support */
 typedef struct RpcInCallbackList {
    const char *name;
    size_t length; /* Length of name so we don't have to strlen a lot */
-   RpcInCallbackType type;
-   union {
-      RpcIn_CallbackOld oldCb;
-      RpcIn_Callback newCb;
-   } callback;
+   RpcIn_Callback callback;
    struct RpcInCallbackList *next;
    void *clientData;
 } RpcInCallbackList;
@@ -151,9 +141,14 @@ struct RpcIn {
  */
 
 static Bool
-RpcInPingCallback(RpcInData *data)  // IN
+RpcInPingCallback(char const **result,     // OUT
+                  size_t *resultLen,       // OUT
+                  const char *name,        // IN
+                  const char *args,        // IN
+                  size_t argsSize,         // IN
+                  void *clientData)        // IN
 {
-   return RPCIN_SETRETVALS(data, "", TRUE);
+   return RpcIn_SetRetVals(result, resultLen, "", TRUE);
 }
 
 
@@ -201,7 +196,7 @@ RpcIn_Construct(DblLnkLst_Links *eventQueue)
  *-----------------------------------------------------------------------------
  */
 
-RpcInCallbackList *
+static RpcInCallbackList *
 RpcInLookupCallback(RpcIn *in,        // IN
                     const char *name) // IN
 {
@@ -244,7 +239,7 @@ RpcInLookupCallback(RpcIn *in,        // IN
 void
 RpcIn_RegisterCallback(RpcIn *in,               // IN
                        const char *name,        // IN
-                       RpcIn_CallbackOld cb,    // IN
+                       RpcIn_Callback cb,       // IN
                        void *clientData)        // IN
 {
    RpcInCallbackList *p;
@@ -261,56 +256,7 @@ RpcIn_RegisterCallback(RpcIn *in,               // IN
 
    p->length = strlen(name);
    p->name = strdup(name);
-   p->type = RPCIN_CB_OLD;
-   p->callback.oldCb = cb;
-   p->clientData = clientData;
-
-   p->next = in->callbacks;
-
-   in->callbacks = p;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RpcIn_RegisterCallbackEx --
- *
- *      Register a callback to happen when a TCLO message is
- *      received. When a TCLO message beginning with 'name' is
- *      sent, the callback will be called with an instance of
- *      "RpcInData" with the information from the request.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-void
-RpcIn_RegisterCallbackEx(RpcIn *in,          // IN
-                         const char *name,   // IN
-                         RpcIn_Callback cb,  // IN
-                         void *clientData)   // IN
-{
-   RpcInCallbackList *p;
-
-   Debug("Registering callback '%s'\n", name);
-
-   ASSERT(in);
-   ASSERT(name);
-   ASSERT(cb);
-   ASSERT(RpcInLookupCallback(in, name) == NULL); // not there yet
-
-   p = (RpcInCallbackList *) malloc(sizeof(RpcInCallbackList));
-   ASSERT_NOT_IMPLEMENTED(p);
-
-   p->length = strlen(name);
-   p->name = strdup(name);
-   p->type = RPCIN_CB_NEW;
-   p->callback.newCb = cb;
+   p->callback = cb;
    p->clientData = clientData;
 
    p->next = in->callbacks;
@@ -645,25 +591,9 @@ RpcInLoop(void *clientData) // IN
          free(cmd);
          if (cb) {
             result = NULL;
-            if (cb->type == RPCIN_CB_OLD) {
-               status = cb->callback.oldCb((char const **) &result, &resultLen, cb->name,
-                                           reply + cb->length, repLen - cb->length,
-                                           cb->clientData);
-            } else {
-               RpcInData data = { cb->name,
-                                  reply + cb->length,
-                                  repLen - cb->length,
-                                  NULL,
-                                  0,
-                                  FALSE,
-                                  NULL,
-                                  cb->clientData };
-               status = cb->callback.newCb(&data);
-               result = data.result;
-               resultLen = data.resultLen;
-               freeResult = data.freeResult;
-            }
-
+            status = cb->callback((char const **) &result, &resultLen, cb->name,
+                                  reply + cb->length, repLen - cb->length,
+                                  cb->clientData);
             ASSERT(result);
          } else {
             status = FALSE;
@@ -697,14 +627,6 @@ RpcInLoop(void *clientData) // IN
       if (freeResult) {
          free(result);
       }
-
-#if 0 /* Costly in non-debug cases --hpreg */
-      if (strlen(reply) <= 128) {
-         Debug("Tclo: Done executing '%s'; result='%s'\n", reply, result);
-      } else {
-         Debug("Tclo: reply string too long to display\n");
-      }
-#endif
 
       /*
        * Run the event pump (in case VMware sends a long sequence of RPCs and
@@ -844,10 +766,10 @@ RpcIn_start(RpcIn *in,                    // IN
 #if !defined(VMTOOLS_USE_GLIB)
    /* Register the 'reset' handler */
    if (resetCallback) {
-      RpcIn_RegisterCallbackEx(in, "reset", resetCallback, resetClientData);
+      RpcIn_RegisterCallback(in, "reset", resetCallback, resetClientData);
    }
 
-   RpcIn_RegisterCallbackEx(in, "ping", RpcInPingCallback, NULL);
+   RpcIn_RegisterCallback(in, "ping", RpcInPingCallback, NULL);
 #endif
 
    return TRUE;

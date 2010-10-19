@@ -127,7 +127,9 @@ static gint ToolsMain_CheckF1Help(GtkWidget *widget, GdkEventKey *event,
 static GtkWidget* ToolsMain_Create(void);
 
 
-static Bool RpcInResetCB(RpcInData *data);
+static Bool RpcInResetCB(char const **result, size_t *resultLen,
+                         const char *name, const char *args,
+                         size_t argsSize, void *clientData);
 static Bool RpcInSetOptionCB(char const **result, size_t *resultLen,
                              const char *name, const char *args,
                              size_t argsSize, void *clientData);
@@ -746,11 +748,16 @@ ToolsMain_Create(void)
  */
 
 static Bool
-RpcInResetCB(RpcInData *data) // IN/OUT
+RpcInResetCB(char const **result,     // OUT
+             size_t *resultLen,       // OUT
+             const char *name,        // IN
+             const char *args,        // IN
+             size_t argsSize,         // IN
+             void *clientData)        // IN
 {
    Debug("----------toolbox: Received 'reset' from vmware\n");
 
-   return RPCIN_SETRETVALS(data, "ATR " TOOLS_CTLPANEL_NAME, TRUE);
+   return RpcIn_SetRetVals(result, resultLen, "ATR " TOOLS_CTLPANEL_NAME, TRUE);
 }
 
 
