@@ -6328,7 +6328,7 @@ HgfsGetDirEntry(HgfsHandle hgfsSearchHandle,
                memset(attr, 0, sizeof *attr);
                attr->requestType = savedOp;
                attr->type = HGFS_FILE_TYPE_REGULAR;
-               attr->mask = 0;
+               attr->mask = HGFS_ATTR_VALID_TYPE;
             }
 
             free(fullName);
