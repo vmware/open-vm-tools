@@ -34,6 +34,10 @@
 #include "vmci_call_defs.h"
 
 
+/* VMCI module namespace on vmkernel. */
+
+#define MOD_VMCI_NAMESPACE "com.vmware.vmci"
+
 /* Define version 1. */
 
 #undef  VMCI_KERNEL_API_VERSION

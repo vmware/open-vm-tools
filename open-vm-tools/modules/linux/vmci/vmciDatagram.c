@@ -396,7 +396,7 @@ DatagramHandleUniqueLockedAnyCid(VMCIHandle handle) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIDatagramCreateHndInt --
+ * VMCIDatagram_CreateHnd --
  *
  *      Creates a datagram endpoint and returns a handle to it.
  *
@@ -409,13 +409,13 @@ DatagramHandleUniqueLockedAnyCid(VMCIHandle handle) // IN
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDatagramCreateHndInt)
+VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHnd)
 int
-VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
-                         uint32 flags,               // IN:
-                         VMCIDatagramRecvCB recvCB,  // IN:
-                         void *clientData,           // IN:
-                         VMCIHandle *outHandle)      // OUT:
+VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN
+                       uint32 flags,               // IN
+                       VMCIDatagramRecvCB recvCB,  // IN
+                       void *clientData,           // IN
+                       VMCIHandle *outHandle)      // OUT
 {
    int result;
    DatagramHashEntry *entry;
@@ -503,34 +503,6 @@ VMCIDatagramCreateHndInt(VMCIId resourceID,          // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIDatagram_CreateHnd --
- *
- *      Creates a datagram endpoint and returns a handle to it.
- *
- * Results:
- *      Returns handle if success, negative errno value otherwise.
- *
- * Side effects:
- *      Datagram endpoint is created both in guest and on host.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIDatagram_CreateHnd)
-int
-VMCIDatagram_CreateHnd(VMCIId resourceID,          // IN:
-                       uint32 flags,               // IN:
-                       VMCIDatagramRecvCB recvCB,  // IN:
-                       void *clientData,           // IN:
-                       VMCIHandle *outHandle)      // OUT:
-{
-   return VMCIDatagramCreateHndInt(resourceID, flags, recvCB, clientData, outHandle);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCIDatagram_CreateHndPriv --
  *
  *      API provided for compatibility with the host vmci API. This function
@@ -562,38 +534,7 @@ VMCIDatagram_CreateHndPriv(VMCIId resourceID,            // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIDatagramCreateHndPriv --
- *
- *      API provided for compatibility with the host vmci API. This function
- *      doesn't ever succeed since you can't ask for elevated privileges from
- *      the guest. Use VMCIDatagramCreateHndInt instead.
- *
- * Results:
- *      Returns VMCI_ERROR_NO_ACCESS.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIDatagramCreateHndPriv)
-int
-VMCIDatagramCreateHndPriv(VMCIId resourceID,            // IN:
-                          uint32 flags,                 // IN:
-                          VMCIPrivilegeFlags privFlags, // IN:
-                          VMCIDatagramRecvCB recvCB,    // IN:
-                          void *clientData,             // IN:
-                          VMCIHandle *outHandle)        // OUT:
-{
-   return VMCI_ERROR_NO_ACCESS;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIDatagramDestroyHndInt --
+ * VMCIDatagram_DestroyHnd --
  *
  *      Destroys a handle.
  *
@@ -606,9 +547,9 @@ VMCIDatagramCreateHndPriv(VMCIId resourceID,            // IN:
  *-----------------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIDatagramDestroyHndInt)
+VMCI_EXPORT_SYMBOL(VMCIDatagram_DestroyHnd)
 int
-VMCIDatagramDestroyHndInt(VMCIHandle handle)       // IN
+VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
 {
    DatagramHashEntry *entry = DatagramHashGetEntry(handle);
    if (entry == NULL) {
@@ -645,30 +586,6 @@ VMCIDatagramDestroyHndInt(VMCIHandle handle)       // IN
    VMCI_FreeKernelMem(entry, sizeof *entry);
 
    return VMCI_SUCCESS;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VMCIDatagram_DestroyHnd --
- *
- *      Destroys a handle.
- *
- * Results:
- *      VMCI_SUCCESS or error code.
- *
- * Side effects:
- *      Host and guest state is cleaned up.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIDatagram_DestroyHnd)
-int
-VMCIDatagram_DestroyHnd(VMCIHandle handle)       // IN
-{
-   return VMCIDatagramDestroyHndInt(handle);
 }
 
 

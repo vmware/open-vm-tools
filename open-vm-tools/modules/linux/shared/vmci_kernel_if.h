@@ -17,13 +17,13 @@
  *********************************************************/
 
 /*
- * vmci_kernel_if.h -- 
- * 
+ * vmci_kernel_if.h --
+ *
  *      This file defines helper functions for VMCI host _and_ guest
  *      kernel code. It must work for Windows, Mac OS, vmkernel, Linux and
  *      Solaris kernels, i.e. using defines where necessary.
  */
- 
+
 #ifndef _VMCI_KERNEL_IF_H_
 #define _VMCI_KERNEL_IF_H_
 
@@ -34,7 +34,7 @@
 
 #if defined(_WIN32)
 #include <ntddk.h>
-#endif 
+#endif
 
 #if defined(linux) && !defined(VMKERNEL)
 #  include <linux/wait.h>
@@ -52,6 +52,7 @@
 #ifdef VMKERNEL
 #include "splock.h"
 #include "semaphore_ext.h"
+#include "vmkapi.h"
 #endif
 
 #ifdef SOLARIS
@@ -75,7 +76,9 @@
 
 /* Platform specific type definitions. */
 
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(VMKERNEL)
+#  define VMCI_EXPORT_SYMBOL(_SYMBOL)  VMK_MODULE_EXPORT_SYMBOL(_SYMBOL);
+#elif defined(linux)
 #  define VMCI_EXPORT_SYMBOL(_symbol)  EXPORT_SYMBOL(_symbol);
 #elif defined(__APPLE__)
 #  define VMCI_EXPORT_SYMBOL(_symbol)  __attribute__((visibility("default")))
@@ -125,7 +128,7 @@ typedef int (*VMCIEventReleaseCB)(void *clientData);
 /*
  * The VMCI locks use a ranking scheme similar to the one used by
  * vmkernel. While holding a lock L1 with rank R1, only locks with
- * rank higher than R1 may be grabbed. The available ranks for VMCI 
+ * rank higher than R1 may be grabbed. The available ranks for VMCI
  * locks are (in descending order):
  * - VMCI_LOCK_RANK_HIGH_BH : to be used for locks grabbed while executing
  *   in a bottom half and not held while grabbing other locks.
@@ -205,12 +208,12 @@ typedef struct VMCIHost {
 #elif defined(__APPLE__)
    struct Socket *socket; /* vmci Socket object on Mac OS. */
 #elif defined(_WIN32)
-   KEVENT *callEvent; /* Ptr to userlevel event used when signalling 
+   KEVENT *callEvent; /* Ptr to userlevel event used when signalling
                        * new pending guestcalls in kernel.
                        */
 #elif defined(SOLARIS)
    struct pollhead pollhead; /* Per datagram handle pollhead structure to
-                              * be treated as a black-box. None of its 
+                              * be treated as a black-box. None of its
                               * fields should be referenced.
                               */
 #endif
@@ -264,7 +267,7 @@ Bool VMCIWellKnownID_AllowMap(VMCIId wellKnownID,
 void VMCI_CreateEvent(VMCIEvent *event);
 void VMCI_DestroyEvent(VMCIEvent *event);
 void VMCI_SignalEvent(VMCIEvent *event);
-void VMCI_WaitOnEvent(VMCIEvent *event, VMCIEventReleaseCB releaseCB, 
+void VMCI_WaitOnEvent(VMCIEvent *event, VMCIEventReleaseCB releaseCB,
 		      void *clientData);
 #if (defined(__APPLE__) || defined(__linux__) || defined(_WIN32)) && !defined(VMKERNEL)
 Bool VMCI_WaitOnEventInterruptible(VMCIEvent *event,

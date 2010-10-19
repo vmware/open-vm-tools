@@ -34,10 +34,11 @@
 
 #include "vm_assert.h"
 #include "vmci_kernel_if.h"
+#include "vmciEvent.h"
+#include "vmciInt.h"
+#include "vmciKernelAPI.h"
 #include "vmciQueuePairInt.h"
 #include "vmciUtil.h"
-#include "vmciInt.h"
-#include "vmciEvent.h"
 #include "circList.h"
 
 #define LGPFX "VMCIQueuePair: "

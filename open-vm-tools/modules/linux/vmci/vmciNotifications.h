@@ -25,6 +25,10 @@
 #ifndef _VMCI_NOTIFICATIONS_H_
 #define _VMCI_NOTIFICATIONS_H_
 
+#include "vm_basic_types.h"
+#include "vmci_defs.h"
+#include "vmciKernelAPI.h"
+
 void VMCINotifications_Init(void);
 void VMCINotifications_Exit(void);
 

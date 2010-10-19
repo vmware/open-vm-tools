@@ -41,19 +41,6 @@ void VMCIDatagram_Init(void);
 Bool VMCIDatagram_CheckHostCapabilities(void);
 int VMCIDatagram_Dispatch(VMCIId contextID, VMCIDatagram *msg);
 
-int VMCIDatagramCreateHndInt(VMCIId resourceID,
-                             uint32 flags,
-                             VMCIDatagramRecvCB recvCB,
-                             void *clientData,
-                             VMCIHandle *outHandle);
-int VMCIDatagramCreateHndPriv(VMCIId resourceID,
-                              uint32 flags,
-                              VMCIPrivilegeFlags privFlags,
-                              VMCIDatagramRecvCB recvCB,
-                              void *clientData,
-                              VMCIHandle *outHandle); /* Compat */
-int VMCIDatagramDestroyHndInt(VMCIHandle handle);
-
 int VMCIDatagramProcess_Create(VMCIDatagramProcess **outDgmProc,
                                VMCIDatagramCreateProcessInfo *createInfo,
                                uintptr_t eventHnd);

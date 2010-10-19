@@ -63,7 +63,6 @@
 
 /* Must come before any kernel header file. */
 #if defined(__linux__) && !defined(VMKERNEL)
-#  define EXPORT_SYMTAB
 #  include "driver-config.h"
 #  include "compat_module.h"
 #endif
@@ -987,4 +986,3 @@ VMCIQPair_PeekV(VMCIQPair *qpair,           // IN
 }
 
 #endif /* Systems that support struct iovec */
-

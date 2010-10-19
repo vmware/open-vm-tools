@@ -622,7 +622,7 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
 /*
  *----------------------------------------------------------------------
  *
- * VMCIEventSubscribe --
+ * VMCIEvent_Subscribe --
  *
  *      Subscribe to given event. The callback specified can be fired
  *      in different contexts depending on what flag is specified while
@@ -642,13 +642,13 @@ VMCIEventUnregisterSubscription(VMCIId subID)    // IN
  *----------------------------------------------------------------------
  */
 
-VMCI_EXPORT_SYMBOL(VMCIEventSubscribe)
+VMCI_EXPORT_SYMBOL(VMCIEvent_Subscribe)
 int
-VMCIEventSubscribe(VMCI_Event event,        // IN
-                   uint32 flags,            // IN
-                   VMCI_EventCB callback,   // IN
-                   void *callbackData,      // IN
-                   VMCIId *subscriptionID)  // OUT
+VMCIEvent_Subscribe(VMCI_Event event,        // IN
+                    uint32 flags,            // IN
+                    VMCI_EventCB callback,   // IN
+                    void *callbackData,      // IN
+                    VMCIId *subscriptionID)  // OUT
 {
    int retval;
    VMCISubscription *s = NULL;
@@ -675,76 +675,6 @@ VMCIEventSubscribe(VMCI_Event event,        // IN
 }
 
 
-#ifndef VMKERNEL
-/*
- *----------------------------------------------------------------------
- *
- * VMCIEvent_Subscribe --
- *
- *      Subscribe to given event.
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIEvent_Subscribe)
-int
-VMCIEvent_Subscribe(VMCI_Event event,        // IN
-                    uint32 flags,            // IN
-                    VMCI_EventCB callback,   // IN
-                    void *callbackData,      // IN
-                    VMCIId *subscriptionID)  // OUT
-{
-   return VMCIEventSubscribe(event, flags, callback, callbackData,
-                             subscriptionID);
-}
-#endif	/* !VMKERNEL  */
-
-
-/*
- *----------------------------------------------------------------------
- *
- * VMCIEventUnsubscribe --
- *
- *      Unsubscribe to given event. Removes it from list and frees it.
- *      Will return callbackData if requested by caller.
- *
- * Results:
- *      VMCI_SUCCESS on success, error code otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIEventUnsubscribe)
-int
-VMCIEventUnsubscribe(VMCIId subID)   // IN
-{
-   VMCISubscription *s;
-
-   /*
-    * Return subscription. At this point we know noone else is accessing
-    * the subscription so we can free it.
-    */
-   s = VMCIEventUnregisterSubscription(subID);
-   if (s == NULL) {
-      return VMCI_ERROR_NOT_FOUND;
-
-   }
-   VMCI_FreeKernelMem(s, sizeof *s);
-
-   return VMCI_SUCCESS;
-}
-
-
-#ifndef VMKERNEL
 /*
  *----------------------------------------------------------------------
  *
@@ -766,7 +696,18 @@ VMCI_EXPORT_SYMBOL(VMCIEvent_Unsubscribe)
 int
 VMCIEvent_Unsubscribe(VMCIId subID)   // IN
 {
-   return VMCIEventUnsubscribe(subID);
-}
+   VMCISubscription *s;
 
-#endif /* !VMKERNEL  */
+   /*
+    * Return subscription. At this point we know noone else is accessing
+    * the subscription so we can free it.
+    */
+   s = VMCIEventUnregisterSubscription(subID);
+   if (s == NULL) {
+      return VMCI_ERROR_NOT_FOUND;
+
+   }
+   VMCI_FreeKernelMem(s, sizeof *s);
+
+   return VMCI_SUCCESS;
+}

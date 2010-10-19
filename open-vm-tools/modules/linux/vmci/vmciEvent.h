@@ -33,7 +33,6 @@
 
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
-#include "vmciKernelAPI.h"
 
 void VMCIEvent_Init(void);
 void VMCIEvent_Exit(void);
@@ -41,13 +40,5 @@ int  VMCIEvent_Dispatch(VMCIDatagram *msg);
 #ifdef VMX86_TOOLS
 Bool VMCIEvent_CheckHostCapabilities(void);
 #endif
-
-/*
- * Non-public VMCI Event API for the kernel.
- */
-
-int VMCIEventSubscribe(VMCI_Event event, uint32 flags, VMCI_EventCB callback,
-                        void *callbackData, VMCIId *subID);
-int VMCIEventUnsubscribe(VMCIId subID);
 
 #endif //__VMCI_EVENT_H__
