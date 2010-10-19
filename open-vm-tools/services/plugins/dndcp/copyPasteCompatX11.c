@@ -100,7 +100,7 @@ static char gGuestSelPrimaryBuf[MAX_SELECTION_BUFFER_LENGTH];
 static char gGuestSelClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
 static uint64 gGuestSelPrimaryTime = 0;
 static uint64 gGuestSelClipboardTime = 0;
-static char gHostClipboardBuf[MAX_SELECTION_BUFFER_LENGTH];
+static char gHostClipboardBuf[MAX_SELECTION_BUFFER_LENGTH + 1];
 
 static Bool gIsOwner;
 static ToolsAppCtx *gCtx = NULL;
@@ -660,11 +660,11 @@ CopyPaste_GetBackdoorSelections(void)
    }
 
    selLength = GuestApp_GetHostSelectionLen();
-   if (selLength < 0) {
+   if (selLength < 0 || selLength > MAX_SELECTION_BUFFER_LENGTH) {
       return FALSE;
    } else if (selLength > 0) {
-      memset(gHostClipboardBuf, 0, sizeof (gHostClipboardBuf));
       GuestApp_GetHostSelection(selLength, gHostClipboardBuf);
+      gHostClipboardBuf[selLength] = 0;
       g_debug("CopyPaste_GetBackdoorSelections Get text [%s].\n", gHostClipboardBuf);
       gtk_selection_owner_set(gUserMainWidget,
                               GDK_SELECTION_CLIPBOARD,
