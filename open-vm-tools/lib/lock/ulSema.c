@@ -384,7 +384,6 @@ MXUserUp(NativeSemaphore *sema)  // IN:
 #endif  // _WIN32
 
 
-#if defined(MXUSER_STATS)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -442,7 +441,6 @@ MXUserStatsActionSema(MXUserHeader *header)  // IN:
       }
    }
 }
-#endif
 
 
 /*
@@ -514,23 +512,24 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
    if (LIKELY(MXUserInit(&sema->nativeSemaphore) == 0)) {
       MXUserStats *stats;
 
-      sema->header.name = properName;
       sema->header.signature = MXUSER_SEMA_SIGNATURE;
+      sema->header.name = properName;
       sema->header.rank = rank;
+      sema->header.serialNumber = MXUserAllocSerialNumber();
       sema->header.dumpFunc = MXUserDumpSemaphore;
 
-#if defined(MXUSER_STATS)
-      sema->header.statsFunc = MXUserStatsActionSema;
-      sema->header.identifier = MXUserAllocID();
+      if (MXUserStatsEnabled()) {
+         sema->header.statsFunc = MXUserStatsActionSema;
 
-      stats = Util_SafeCalloc(1, sizeof(*stats));
+         stats = Util_SafeCalloc(1, sizeof(*stats));
 
-      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-#else
-      stats = NULL;
-#endif
+         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
 
-      Atomic_WritePtr(&sema->statsMem, stats);
+         Atomic_WritePtr(&sema->statsMem, stats);
+      } else {
+         sema->header.statsFunc = NULL;
+         Atomic_WritePtr(&sema->statsMem, NULL);
+      }
 
       MXUserAddToList(&sema->header);
    } else {

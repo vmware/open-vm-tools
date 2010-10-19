@@ -24,6 +24,8 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include <stdarg.h>
+
 #include "vm_atomic.h"
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
@@ -205,9 +207,6 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
                                     MX_Rank rank,
                                     Bool isBelowBull);
 
-#if defined(VMX86_STATS) 
-#define MXUSER_STATS  // stats "only inside the VMX" when requested
-#endif
 #endif
 
 #if defined(VMX86_DEBUG)
@@ -215,16 +214,19 @@ MXUserRecLock *MXUser_InitFromMXRec(const char *name,
 #endif
 
 #if defined(MXUSER_DEBUG)
-Bool MXUser_IsCurThreadHoldingLocks(void);
 void MXUser_TryAcquireFailureControl(Bool (*func)(const char *lockName));
+Bool MXUser_IsCurThreadHoldingLocks(void);
 #endif
 
-#if defined(MXUSER_STATS)
 void MXUser_StatisticsControl(double contentionRatio,
                               uint64 minCount);
 
 void MXUser_PerLockData(void);
-#endif
+void MXUser_SetStatsFunc(void *context,
+                         uint32 maxLineLength,
+                         void (*statsFunc)(void *context,
+                                           const char *fmt,
+                                           va_list ap));
 
 void MXUser_SetInPanic(void);
 Bool MXUser_InPanic(void);

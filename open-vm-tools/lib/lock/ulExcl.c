@@ -45,7 +45,6 @@ struct MXUserExclLock
 };
 
 
-#if defined(MXUSER_STATS)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -113,7 +112,6 @@ MXUserStatsActionExcl(MXUserHeader *header)  // IN:
       }
    }
 }
-#endif
 
 
 /*
@@ -174,7 +172,6 @@ MXUser_CreateExclLock(const char *userName,  // IN:
                       MX_Rank rank)          // IN:
 {
    char *properName;
-   MXUserStats *stats;
    MXUserExclLock *lock;
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
@@ -192,24 +189,24 @@ MXUser_CreateExclLock(const char *userName,  // IN:
       return NULL;
    }
 
-   lock->header.name = properName;
    lock->header.signature = MXUSER_EXCL_SIGNATURE;
+   lock->header.name = properName;
    lock->header.rank = rank;
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpExclLock;
 
-#if defined(MXUSER_STATS)
-   lock->header.statsFunc = MXUserStatsActionExcl;
-   lock->header.identifier = MXUserAllocID();
+   if (MXUserStatsEnabled()) {
+      MXUserStats *stats = Util_SafeCalloc(1, sizeof(*stats));
 
-   stats = Util_SafeCalloc(1, sizeof(*stats));
+      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+      MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
 
-   MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-   MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-#else
-   stats = NULL;
-#endif
-
-   Atomic_WritePtr(&lock->statsMem, stats);
+      lock->header.statsFunc = MXUserStatsActionExcl;
+      Atomic_WritePtr(&lock->statsMem, stats);
+   } else {
+      lock->header.statsFunc = NULL;
+      Atomic_WritePtr(&lock->statsMem, NULL);
+   }
 
    MXUserAddToList(&lock->header);
 

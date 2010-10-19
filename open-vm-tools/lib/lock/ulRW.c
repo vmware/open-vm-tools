@@ -271,7 +271,6 @@ struct MXUserRWLock
 };
 
 
-#if defined(MXUSER_STATS)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -340,7 +339,6 @@ MXUserStatsActionRW(MXUserHeader *header)  // IN:
       }
    }
 }
-#endif
 
 
 /*
@@ -422,6 +420,12 @@ MXUser_CreateRWLock(const char *userName,  // IN:
       properName = Util_SafeStrdup(userName);
    }
 
+   lock->header.signature = MXUSER_RW_SIGNATURE;
+   lock->header.name = properName;
+   lock->header.rank = rank;
+   lock->header.serialNumber = MXUserAllocSerialNumber();
+   lock->header.dumpFunc = MXUserDumpRWLock;
+
    /*
     * Always attempt to use native locks when they are available. If, for some
     * reason, a native lock should be available but isn't, fall back to using
@@ -430,48 +434,32 @@ MXUser_CreateRWLock(const char *userName,  // IN:
 
    lock->useNative = useNative && MXUserNativeRWInit(&lock->nativeLock);
 
-   if (lock->useNative) {
-#if defined(MXUSER_STATS)
-      /* stats builds need an internal recursive lock for data integrity */
-
-      lockInited = MXRecLockInit(&lock->recursiveLock);
-
-      if (!lockInited) {
-         MXUserNativeRWDestroy(&lock->nativeLock);
-      }
-#else
-      lockInited = TRUE;
-#endif
-   } else {
-      lockInited = MXRecLockInit(&lock->recursiveLock);
-   }
+   lockInited = MXRecLockInit(&lock->recursiveLock);
 
    if (LIKELY(lockInited)) {
-      MXUserStats *stats;
-
       lock->holderTable = HashTable_Alloc(256,
                                           HASH_INT_KEY | HASH_FLAG_ATOMIC,
                                           MXUserFreeHashEntry);
 
-      lock->header.name = properName;
-      lock->header.signature = MXUSER_RW_SIGNATURE;
-      lock->header.rank = rank;
-      lock->header.dumpFunc = MXUserDumpRWLock;
+      if (MXUserStatsEnabled()) {
+         MXUserStats *stats = Util_SafeCalloc(1, sizeof(*stats));
 
-#if defined(MXUSER_STATS)
-      lock->header.statsFunc = MXUserStatsActionRW;
-      lock->header.identifier = MXUserAllocID();
+         MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
+         MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
 
-      stats = Util_SafeCalloc(1, sizeof(*stats));
-
-      MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
-      MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-#else
-      stats = NULL;
-#endif
+         lock->header.statsFunc = MXUserStatsActionRW;
+         Atomic_WritePtr(&lock->statsMem, stats);
+      } else {
+         lock->header.statsFunc = NULL;
+         Atomic_WritePtr(&lock->statsMem, NULL);
+      }
 
       MXUserAddToList(&lock->header);
    } else {
+      if (lock->useNative) {
+         MXUserNativeRWDestroy(&lock->nativeLock);
+      }
+
       free(properName);
       free(lock);
       lock = NULL;
@@ -518,13 +506,9 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
             MXUserDumpAndPanic(&lock->header, "%s: Internal error (%d)\n",
                                __FUNCTION__, err);
          }
-
-#if defined(MXUSER_STATS)
-         MXRecLockDestroy(&lock->recursiveLock);  
-#endif
-      } else {
-         MXRecLockDestroy(&lock->recursiveLock);  
       }
+
+      MXRecLockDestroy(&lock->recursiveLock);  
 
       MXUserRemoveFromList(&lock->header);
 

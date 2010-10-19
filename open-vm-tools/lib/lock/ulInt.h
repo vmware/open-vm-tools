@@ -396,15 +396,12 @@ MXUserGetNativeTID(void)
 
 typedef struct MXUserHeader {
    uint32       signature;
-   MX_Rank      rank;
    char        *name;
-   uint32       identifier;
+   MX_Rank      rank;
+   uint32       serialNumber;
    void       (*dumpFunc)(struct MXUserHeader *);
-
-#if defined(MXUSER_STATS)
    void       (*statsFunc)(struct MXUserHeader *);
    ListItem     item;
-#endif
 } MXUserHeader;
 
 
@@ -478,24 +475,12 @@ typedef struct {
    MXUserBasicStats  basicStats;       // total held statistics
 } MXUserReleaseStats;
 
-uint32 MXUserAllocID(void);
+uint32 MXUserAllocSerialNumber(void);
 
-#if defined(MXUSER_STATS)
 void MXUserAddToList(MXUserHeader *header);
 void MXUserRemoveFromList(MXUserHeader *header);
-#else
-static INLINE void
-MXUserAddToList(MXUserHeader *header)
-{
-   return;
-}
 
-static INLINE void
-MXUserRemoveFromList(MXUserHeader *header)
-{
-   return;
-}
-#endif
+Bool MXUserStatsEnabled(void);
 
 typedef struct MXUserHisto MXUserHisto;
 

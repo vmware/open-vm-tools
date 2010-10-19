@@ -30,19 +30,15 @@
 #include "hostinfo.h"
 #include "log.h"
 #include "logFixed.h"
-#if defined(MXUSER_STATS)
 #include "statsLog.h"
-#endif
 
 #define BINS_PER_DECADE 100
 
 static double mxUserContentionRatio = 0.0;  // always "off"
 static uint64 mxUserContentionCount = 0;    // always "off"
 
-#if defined(MXUSER_STATS)
 static Atomic_Ptr mxLockMemPtr;   // internal singleton lock
 static ListItem *mxUserLockList;  // list of all MXUser locks
-#endif
 
 typedef struct {
    void   *address;
@@ -61,8 +57,14 @@ struct MXUserHisto {
    TopOwner  ownerArray[TOPOWNERS];  // List of top owners
 };
 
+static char   *mxUserHistoLine = NULL;
+static uint32  mxUserMaxLineLength = 0;
+static void   *mxUserStatsContext = NULL;
+static void  (*mxUserStatsFunc)(void *context,
+                               const char *fmt,
+                               va_list ap) = NULL;
 
-#if defined(MXUSER_STATS)
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -121,7 +123,6 @@ MXUserRemoveFromList(MXUserHeader *header)  // IN:
       MXRecLockRelease(listLock);
    }
 }
-#endif
 
 
 /*
@@ -307,6 +308,36 @@ MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * MXUserStatsLog --
+ *
+ *      Output the statistics data
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+MXUserStatsLog(const char *fmt,  // IN:
+               ...)              // IN:
+{
+   va_list ap;
+
+   ASSERT(mxUserStatsFunc);
+
+   va_start(ap, fmt);
+   (*mxUserStatsFunc)(mxUserStatsContext, fmt, ap);
+   va_end(ap);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * MXUserHistoDump --
  *
  *      Dump the specified histogram for the specified lock.
@@ -327,30 +358,16 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
    ASSERT(header);
    ASSERT(histo);
 
-#if defined(MXUSER_STATS)
    if (histo->totalSamples) {
       char *p;
       uint32 i;
       uint32 spaceLeft;
 
-      static uint32 maxLine = 0;
-      static char *histoLine = NULL;
+      ASSERT(mxUserHistoLine);
 
-      /*
-       * Statistics are reported from a single thread. This avoids allocating
-       * a potentially large buffer on the stack.
-       */ 
-
-      if (maxLine == 0) {
-         maxLine = Log_MaxLineLength();  // includes terminating NUL
-         ASSERT(maxLine >= 1024);        // assert a rational minimum
-
-         histoLine = Util_SafeMalloc(maxLine);
-      }
-
-      i = Str_Sprintf(histoLine, maxLine,
+      i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
                       "MXUser: h l=%u t=%s min=%"FMT64"u max=%"FMT64"u\n",
-                      header->identifier, histo->typeName, histo->minValue,
+                      header->serialNumber, histo->typeName, histo->minValue,
                       histo->maxValue);
 
       /*
@@ -359,8 +376,8 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
        * properly terminated no matter what happens.
        */
 
-      p = &histoLine[i - 1];
-      spaceLeft = maxLine - i - 2;
+      p = &mxUserHistoLine[i - 1];
+      spaceLeft = mxUserMaxLineLength - i - 2;
 
       /* Add as many histogram bins as possible within the line limitations */
       for (i = 0; i < histo->numBins; i++) {
@@ -389,13 +406,14 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
          }
       }
 
-      StatsLog(histoLine);
+      MXUserStatsLog("%s", mxUserHistoLine);
 
-      i = Str_Sprintf(histoLine, maxLine, "MXUser: ht l=%u t=%s\n",
-                      header->identifier, histo->typeName);
+      i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
+                      "MXUser: ht l=%u t=%s\n", header->serialNumber,
+                      histo->typeName);
 
-      p = &histoLine[i - 1];
-      spaceLeft = maxLine - i - 2;
+      p = &mxUserHistoLine[i - 1];
+      spaceLeft = mxUserMaxLineLength - i - 2;
 
       for (i = 0; i < TOPOWNERS; i++) {
          if (histo->ownerArray[i].address != NULL) {
@@ -425,9 +443,8 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
          }
       }
 
-      StatsLog("%s", histoLine);
+      MXUserStatsLog("%s", mxUserHistoLine);
    }
-#endif
 }
 
 
@@ -515,11 +532,24 @@ MXUserBasicStatsSetUp(MXUserBasicStats *stats,  // IN/OUT:
  *-----------------------------------------------------------------------------
  */
 
+static double
+MXUserSqrt(double x)  // IN: hack until next round when FP goes away
+{
+   double xn;
+   double xn1 = x;
+
+   do {
+      xn = xn1;
+      xn1 = (xn + x/xn) / 2.0;
+   } while (fabs(xn1 - xn) > 1E-10);
+
+   return xn1;
+}
+
 void
 MXUserDumpBasicStats(MXUserBasicStats *stats,  // IN:
                      MXUserHeader *header)     // IN:
 {
-#if defined(MXUSER_STATS)
    uint64 stdDev;
 
    if (stats->numSamples < 2) {
@@ -544,15 +574,14 @@ MXUserDumpBasicStats(MXUserBasicStats *stats,  // IN:
       mean = ((double) stats->timeSum) / num;
       variance = (stats->timeSquaredSum - (num*mean*mean)) / (num - 1.0);
 
-      stdDev = (variance < 0.0) ? 0 : (uint64) (sqrt(variance) + 0.5);
+      stdDev = (variance < 0.0) ? 0 : (uint64) (MXUserSqrt(variance) + 0.5);
    }
 
-   StatsLog("MXUser: e l=%u t=%s c=%"FMT64"u min=%"FMT64"u "
-            "max=%"FMT64"u mean=%"FMT64"u sd=%"FMT64"u\n",
-            header->identifier, stats->typeName,
-            stats->numSamples, stats->minTime, stats->maxTime,
-            stats->timeSum/stats->numSamples, stdDev);
-#endif
+   MXUserStatsLog("MXUser: e l=%u t=%s c=%"FMT64"u min=%"FMT64"u "
+                  "max=%"FMT64"u mean=%"FMT64"u sd=%"FMT64"u\n",
+                  header->serialNumber, stats->typeName,
+                  stats->numSamples, stats->minTime, stats->maxTime,
+                  stats->timeSum/stats->numSamples, stdDev);
 }
 
 
@@ -673,22 +702,20 @@ void
 MXUserDumpAcquisitionStats(MXUserAcquisitionStats *stats,  // IN:
                            MXUserHeader *header)           // IN:
 {
-#if defined(MXUSER_STATS)
    if (stats->numAttempts > 0) {
       if (stats->numSuccesses > 0) {
          MXUserDumpBasicStats(&stats->basicStats, header);
       }
 
-      StatsLog("MXUser: ce l=%u a=%"FMT64"u s=%"FMT64"u sc=%"FMT64"u "
-               "sct=%"FMT64"u t=%"FMT64"u\n",
-               header->identifier,
-               stats->numAttempts,
-               stats->numSuccesses,
-               stats->numSuccessesContended,
-               stats->successContentionTime,
-               stats->totalContentionTime);
+      MXUserStatsLog("MXUser: ce l=%u a=%"FMT64"u s=%"FMT64"u sc=%"FMT64"u "
+                     "sct=%"FMT64"u t=%"FMT64"u\n",
+                     header->serialNumber,
+                     stats->numAttempts,
+                     stats->numSuccesses,
+                     stats->numSuccessesContended,
+                     stats->successContentionTime,
+                     stats->totalContentionTime);
    }
-#endif
 }
 
 
@@ -872,7 +899,68 @@ MXUserForceHisto(Atomic_Ptr *histoPtr,  // IN/OUT:
 }
 
 
-#if defined(MXUSER_STATS)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUserStatsEnabled --
+ *
+ *      Are statistics keeping enabled
+ *
+ * Results:
+ *      TRUE   Yes
+ *      FALSE  NO
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUserStatsEnabled(void)
+{
+   return (mxUserStatsFunc != NULL) && (mxUserMaxLineLength > 0);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_SetStatsFunc --
+ *
+ *      Establish statistics taking and reporting. This is done by registering
+ *      a statistics context, a reporting function and a maximum line length.
+ *
+ *      A maxLineLength of zero (0) and/or a statsFunc of NULL will
+ *      disable/prevent statistics gathering.
+ *
+ * Results:
+ *      As above
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+MXUser_SetStatsFunc(void *context,                    // IN:
+                    uint32 maxLineLength,             // IN:
+                    void (*statsFunc)(void *context,  // IN:
+                                      const char *fmt,
+                                      va_list ap))
+{
+   ASSERT(maxLineLength >= 1024);   // assert a rational minimum
+
+   free(mxUserHistoLine);
+   mxUserHistoLine = Util_SafeMalloc(maxLineLength);
+
+   mxUserStatsContext = context;
+   mxUserMaxLineLength = maxLineLength;
+   mxUserStatsFunc = statsFunc;
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -904,21 +992,21 @@ MXUser_PerLockData(void)
 
    if (listLock && MXRecLockTryAcquire(listLock)) {
       ListItem *entry;
-      uint32 highestID;
-      static uint32 lastReportedID = 0;
+      uint32 highestSerialNumber;
+      static uint32 lastReportedSerialNumber = 0;
 
-      highestID = lastReportedID;
+      highestSerialNumber = lastReportedSerialNumber;
 
       LIST_SCAN(entry, mxUserLockList) {
          MXUserHeader *header = LIST_CONTAINER(entry, MXUserHeader, item);
 
          /* Log the ID information for a lock that did exist previously */
-         if (header->identifier > lastReportedID) {
-            StatsLog("MXUser: n n=%s l=%d r=0x%x\n", header->name,
-                     header->identifier, header->rank);
+         if (header->serialNumber > lastReportedSerialNumber) {
+            MXUserStatsLog("MXUser: n n=%s l=%d r=0x%x\n", header->name,
+                           header->serialNumber, header->rank);
 
-            if (header->identifier > highestID) {
-               highestID = header->identifier;
+            if (header->serialNumber > highestSerialNumber) {
+               highestSerialNumber = header->serialNumber;
             }
          }
 
@@ -931,22 +1019,21 @@ MXUser_PerLockData(void)
          }
       }
 
-      lastReportedID = highestID;
+      lastReportedSerialNumber = highestSerialNumber;
 
       MXRecLockRelease(listLock);
    }
 }
-#endif
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUserAllocID --
+ * MXUserAllocSerialNumber --
  *
- *      Allocate and return an MXUser identifier
+ *      Allocate and return an MXUser serial number.
  *
- *      MXUser identifiers are never recycled.
+ *      MXUser serial numbers are never recycled.
  *
  * Results:
  *      As above.
@@ -958,9 +1045,9 @@ MXUser_PerLockData(void)
  */
 
 uint32
-MXUserAllocID(void)
+MXUserAllocSerialNumber(void)
 {
-   static Atomic_uint32 firstFreeID = { 1 };  // must start not zero
+   static Atomic_uint32 firstFreeSerialNumber = { 1 };  // must start not zero
 
-   return Atomic_FetchAndInc(&firstFreeID);
+   return Atomic_FetchAndInc(&firstFreeSerialNumber);
 }

@@ -57,7 +57,7 @@ struct MXUserRecLock
    struct MX_MutexRec  *vmmLock;
 };
 
-#if defined(MXUSER_STATS)
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -125,7 +125,6 @@ MXUserStatsActionRec(MXUserHeader *header)  // IN:
       }
    }
 }
-#endif
 
 
 /*
@@ -202,7 +201,6 @@ MXUserCreateRecLock(const char *userName,  // IN:
                     Bool beSilent)         // IN:
 {
    char *properName;
-   MXUserStats *stats;
    MXUserRecLock *lock;
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
@@ -222,30 +220,24 @@ MXUserCreateRecLock(const char *userName,  // IN:
 
    lock->vmmLock = NULL;
 
-   lock->header.name = properName;
    lock->header.signature = MXUSER_REC_SIGNATURE;
+   lock->header.name = properName;
    lock->header.rank = rank;
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpRecLock;
 
-#if defined(MXUSER_STATS)
-   lock->header.statsFunc = MXUserStatsActionRec;
-   lock->header.identifier = MXUserAllocID();
-#endif
-
-   if (beSilent) {
-      stats = NULL;
+   if (beSilent || !MXUserStatsEnabled()) {
+      lock->header.statsFunc = NULL;
+      Atomic_WritePtr(&lock->statsMem, NULL);
    } else {
-#if defined(MXUSER_STATS)
-      stats = Util_SafeCalloc(1, sizeof(*stats));
+      MXUserStats *stats = Util_SafeCalloc(1, sizeof(*stats));
 
       MXUserAcquisitionStatsSetUp(&stats->acquisitionStats);
       MXUserBasicStatsSetUp(&stats->heldStats, MXUSER_STAT_CLASS_HELD);
-#else
-      stats = NULL;
-#endif
-   }
 
-   Atomic_WritePtr(&lock->statsMem, stats);
+      lock->header.statsFunc = MXUserStatsActionRec;
+      Atomic_WritePtr(&lock->statsMem, stats);
+   }
 
    MXUserAddToList(&lock->header);
 
@@ -915,16 +907,12 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 
    lock = Util_SafeCalloc(1, sizeof(*lock));
 
-   lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
-
    lock->header.signature = MXUSER_REC_SIGNATURE;
+   lock->header.name = Str_SafeAsprintf(NULL, "MX_%p", mutex);
    lock->header.rank = rank;
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = NULL;
-
-#if defined(MXUSER_STATS)
    lock->header.statsFunc = NULL;
-   lock->header.identifier = MXUserAllocID();
-#endif
 
    Atomic_WritePtr(&lock->statsMem, NULL);
 

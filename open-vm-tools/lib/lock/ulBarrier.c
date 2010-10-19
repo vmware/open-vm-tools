@@ -155,15 +155,14 @@ MXUser_CreateBarrier(const char *userName,  // IN:
    barrier->configCount = count;
    barrier->curContext = 0;
 
-   barrier->header.name = properName;
    barrier->header.signature = MXUSER_BARRIER_SIGNATURE;
+   barrier->header.name = properName;
    barrier->header.rank = rank;
+   barrier->header.serialNumber = MXUserAllocSerialNumber();
    barrier->header.dumpFunc = MXUserDumpBarrier;
-
-#if defined(MXUSER_STATS)
    barrier->header.statsFunc = NULL;
-   barrier->header.identifier = MXUserAllocID();
-#endif
+
+   MXUserAddToList(&barrier->header);
 
    return barrier;
 }
@@ -197,6 +196,8 @@ MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
                             "%s: Attempted destroy on barrier while in use\n",
                             __FUNCTION__);
       }
+
+      MXUserRemoveFromList(&barrier->header);
 
       MXUser_DestroyCondVar(barrier->contexts[0].condVar);
       MXUser_DestroyCondVar(barrier->contexts[1].condVar);
