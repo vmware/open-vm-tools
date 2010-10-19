@@ -1891,7 +1891,7 @@ HgfsReplyRemoveWatchV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsNotifyEvent {
+struct HgfsNotifyEventV4 {
    uint32 nextOffset;        /* Offset of next event; 0 if it i sthe last one. */
    uint64 mask;              /* Event occurred. */
    uint64 reserved;          /* Reserved for future use. */
@@ -1899,7 +1899,7 @@ struct HgfsNotifyEvent {
    HgfsFileName oldName;     /* New filename for rename operation. */
 }
 #include "vmware_pack_end.h"
-HgfsNotifyEvent;
+HgfsNotifyEventV4;
 
 /* Too many events, some or all event were dropped by the server. */
 #define HGFS_NOTIFY_FLAG_OVERFLOW          (1 << 0)
@@ -1910,15 +1910,15 @@ HgfsNotifyEvent;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestNotify {
-   HgfsHandle watchId;         /* Watch identifier. */
-   uint32 flags;               /* Various flags. */
-   uint32 count;               /* Number of events occured. */
-   uint64 reserved;            /* Reserved for future use. */
-   HgfsNotifyEvent events[1];  /* Events. HgfsNotifyEvent(s). */
+struct HgfsRequestNotifyV4 {
+   HgfsHandle watchId;           /* Watch identifier. */
+   uint32 flags;                 /* Various flags. */
+   uint32 count;                 /* Number of events occured. */
+   uint64 reserved;              /* Reserved for future use. */
+   HgfsNotifyEventV4 events[1];  /* Events. HgfsNotifyEvent(s). */
 }
 #include "vmware_pack_end.h"
-HgfsRequestNotify;
+HgfsRequestNotifyV4;
 
 // Query EA flags values.
 #define HGFS_QUERY_EA_INDEX_SPECIFIED (1 << 0)
@@ -1927,7 +1927,7 @@ HgfsRequestNotify;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestQueryEA {
+struct HgfsRequestQueryEAV4 {
    uint32 flags;                 /* EA flags. */
    uint32 index;
    uint64 reserved;              /* Reserved for future use. */
@@ -1940,11 +1940,11 @@ struct HgfsRequestQueryEA {
                                   */
 }
 #include "vmware_pack_end.h"
-HgfsRequestQueryEA;
+HgfsRequestQueryEAV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyQueryEA {
+struct HgfsReplyQueryEAV4 {
    uint32 nextOffset;            /* Offset of the next structure when more then
                                   * one record is returned.
                                   */
@@ -1955,7 +1955,7 @@ struct HgfsReplyQueryEA {
    char eaData[1];               /* NULL termianed EA name followed by EA value. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyQueryEA;
+HgfsReplyQueryEAV4;
 
 
 typedef
@@ -1970,22 +1970,22 @@ HgfsEA;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestSetEA {
+struct HgfsRequestSetEAV4 {
    uint32 flags;           /* Flags, see below. */
    uint64 reserved;        /* Reserved for future use. */
    uint32 numEAs;          /* Number of EAs in this request. */
    HgfsEA attributes[1];   /* Array of attributes. */
 }
 #include "vmware_pack_end.h"
-HgfsRequestSetEA;
+HgfsRequestSetEAV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplySetEA {
+struct HgfsReplySetEAV4 {
    uint64 reserved;        /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsReplySetEA;
+HgfsReplySetEAV4;
 
 /*
  * EA Flags. When both flags are set EA is either created or replaced if it exists.
@@ -2007,7 +2007,7 @@ HgfsReplySetEA;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestLockRange {
+struct HgfsRequestLockRangeV4 {
    HgfsHandle     fid;          /* File to take lock on. */
    uint32 flags;                /* Various flags. */
    uint64 start;                /* Starting offset in the file. */
@@ -2015,36 +2015,37 @@ struct HgfsRequestLockRange {
    uint64 reserved;             /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsRequestLockRange;
+HgfsRequestLockRangeV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyLockRange {
+struct HgfsReplyLockRangeV4 {
    uint64 reserved;             /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyLockRange;
+HgfsReplyLockRangeV4;
 
 #define HGFS_RANGE_LOCK_UNLOCK_ALL               (1 << 0)
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestUnlockRange {
+struct HgfsRequestUnlockRangeV4 {
    HgfsHandle     fid;          /* File to take lock on. */
    uint32 flags;                /* Various flags. */
    uint64 start;                /* Starting offset in the file. */
    uint64 length;               /* Number of bytes to lock. */
-}
-#include "vmware_pack_end.h"
-HgfsRequestUnlockRange;
-
-typedef
-#include "vmware_pack_begin.h"
-struct HgfsReplyUnlockRange {
    uint64 reserved;             /* Reserved for future use. */
 }
 #include "vmware_pack_end.h"
-HgfsReplyUnlockRange;
+HgfsRequestUnlockRangeV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplyUnlockRangeV4 {
+   uint64 reserved;             /* Reserved for future use. */
+}
+#include "vmware_pack_end.h"
+HgfsReplyUnlockRangeV4;
 
 /*
  * There are three types of oplocks: level 1, batch, and level 2. Both the level 1 and
@@ -2294,7 +2295,7 @@ struct HgfsRequestOpenV4 {
     * If the host file system does not support EA server should fail the request rather
     * then succeeding and silently dropping EA.
     */
-   HgfsRequestSetEA extendedAttributes;
+   HgfsRequestSetEAV4 extendedAttributes;
    uint32 aclLength;               /* Length of the acl field. */
    char acl[1];                    /* Multi-platform ACL as defined in RFC 3530. */
 }
@@ -2484,6 +2485,7 @@ struct HgfsReplyReadDirectoryV4 {
    uint32 numberEntriesReturned;
    uint32 offsetToContinue;
    HgfsDirectoryReadMaskV4 mask; /* Returned mask that may be a subset of requested mask. */
+   uint64 reserved;              /* Reserved for future use. */
    HgfsDirectoryEntryV4 entries[1];
 }
 #include "vmware_pack_end.h"
@@ -2513,13 +2515,25 @@ HgfsRequestStreamEntryV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsRequestGetAttrV4 {
+struct HgfsReplyEnumerateStreamsV4 {
+   uint32 numberEntriesReturned;
+   uint32 offsetToContinue;
+   uint64 reserved;
+   HgfsRequestStreamEntryV4 entries[1];
+}
+#include "vmware_pack_end.h"
+HgfsReplyEnumerateStreamsV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsRequestGetattrV4 {
    uint32 mask;
    uint32 flags;
+   uint64 reserved;
    HgfsFileNameV3 name;
 }
 #include "vmware_pack_end.h"
-HgfsRequestGetAttrV4;
+HgfsRequestGetattrV4;
 
 /*
  * V4 reports different file size for symlinks then V3 or V2.
@@ -2547,6 +2561,7 @@ struct HgfsAttrV4 {
    HgfsFileName shortName;
    HgfsFileName symlinkTarget;
    uint32 aclLength;
+   uint64 reserved;
    char acl[1];
 }
 #include "vmware_pack_end.h"
@@ -2554,19 +2569,30 @@ HgfsAttrV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplyGetAttrV4 {
+struct HgfsReplyGetattrV4 {
    HgfsAttrV4 attr;
 }
 #include "vmware_pack_end.h"
-HgfsReplyGetAttrV4;
+HgfsReplyGetattrV4;
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsReplySetAttrV4 {
+struct HgfsRequestSetattrV4 {
+   HgfsAttrHint hints;
+   HgfsAttrV2 attr;
+   uint64 reserved;          /* Reserved for future use */
+   HgfsFileNameV3 fileName;  /* Filename used when file handle invalid. */
+}
+#include "vmware_pack_end.h"
+HgfsRequestSetattrV4;
+
+typedef
+#include "vmware_pack_begin.h"
+struct HgfsReplySetattrV4 {
    uint32 mask;                      /* Defines which attributes were set. */
 }
 #include "vmware_pack_end.h"
-HgfsReplySetAttrV4;
+HgfsReplySetattrV4;
 
 /*
  * Unlike V3 deletion this command can be used to delete both files and directories.
