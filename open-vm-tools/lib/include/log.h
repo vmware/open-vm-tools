@@ -27,60 +27,31 @@
 #include <stdarg.h>
 
 /*
- * The log levels are taken from POSIXen syslog and extended. We hijack the
- * standard values on POSIXen and provide equivalent defines on all other
- * platforms. Then the debugging levels are extended "down" to allow for
- * multiple levels of debugging "noise".
+ * The bora/lig Log Facility log level model.
+ * This the same as the vmacore/hostd Log Facility.
  *
- * NOTE: The reuse of the syslog defines is temporary. The levels will be
- *       moved to a private name space soon.
- *
- * The conceptual model is as follows:
- *
- * LOG_EMERG       0   (highest priority)
- * LOG_ALERT       1
- * LOG_CRIT        2
- * LOG_ERR         3
- * LOG_WARNING     4   (<= this priority is written to stderr by default)
- * LOG_NOTICE      5
- * LOG_INFO        6   (<= this priority are logged by default)
- * LOG_DEBUG_00    7   (noisiest level of debugging; also LOG_DEBUG)
- * LOG_DEBUG_01    8 
- * LOG_DEBUG_02    9 
- * LOG_DEBUG_03    10 
- * LOG_DEBUG_04    11 
- * LOG_DEBUG_05    12 
- * LOG_DEBUG_06    13 
- * LOG_DEBUG_07    14 
- * LOG_DEBUG_08    15 
- * LOG_DEBUG_09    16 
- * LOG_DEBUG_10    17  (lowest priority; least noisy debugging level)
+ * The VMW_LOG_BASE is chosen to ensure that on all platforms commonly
+ * used system logger values will be invalid and the errant usage caught.
  */
 
-#if defined(_WIN32) || defined(VMM)
-#define LOG_EMERG    0
-#define LOG_ALERT    1
-#define LOG_CRIT     2
-#define LOG_ERR      3
-#define LOG_WARNING  4
-#define LOG_NOTICE   5
-#define LOG_INFO     6
-#define LOG_DEBUG    7
-#else
-#   include <syslog.h>
-#endif
-
-#define LOG_DEBUG_00    LOG_DEBUG + 0
-#define LOG_DEBUG_01    LOG_DEBUG + 1
-#define LOG_DEBUG_02    LOG_DEBUG + 2
-#define LOG_DEBUG_03    LOG_DEBUG + 3
-#define LOG_DEBUG_04    LOG_DEBUG + 4
-#define LOG_DEBUG_05    LOG_DEBUG + 5
-#define LOG_DEBUG_06    LOG_DEBUG + 6
-#define LOG_DEBUG_07    LOG_DEBUG + 7
-#define LOG_DEBUG_08    LOG_DEBUG + 8
-#define LOG_DEBUG_09    LOG_DEBUG + 9
-#define LOG_DEBUG_10    LOG_DEBUG + 10
+#define VMW_LOG_BASE      100
+#define VMW_LOG_PANIC     VMW_LOG_BASE + 00  // highest priority
+#define VMW_LOG_ERROR     VMW_LOG_BASE + 01
+#define VMW_LOG_WARNING   VMW_LOG_BASE + 02  // <= goes to stderr by default
+#define VMW_LOG_INFO      VMW_LOG_BASE + 03  // <= goes to log by default
+#define VMW_LOG_VERBOSE   VMW_LOG_BASE + 04
+#define VMW_LOG_TRIVIA    VMW_LOG_BASE + 05
+#define VMW_LOG_DEBUG_00  VMW_LOG_BASE + 06  // noisiest level of debugging
+#define VMW_LOG_DEBUG_01  VMW_LOG_BASE + 07
+#define VMW_LOG_DEBUG_02  VMW_LOG_BASE + 08
+#define VMW_LOG_DEBUG_03  VMW_LOG_BASE + 09
+#define VMW_LOG_DEBUG_04  VMW_LOG_BASE + 10
+#define VMW_LOG_DEBUG_05  VMW_LOG_BASE + 11
+#define VMW_LOG_DEBUG_06  VMW_LOG_BASE + 12
+#define VMW_LOG_DEBUG_07  VMW_LOG_BASE + 13
+#define VMW_LOG_DEBUG_08  VMW_LOG_BASE + 14
+#define VMW_LOG_DEBUG_09  VMW_LOG_BASE + 15
+#define VMW_LOG_DEBUG_10  VMW_LOG_BASE + 16  // lowest priority; least noisy
 
 void LogV(int level,
           const char *fmt,
@@ -90,8 +61,8 @@ void LogV(int level,
 /*
  * Handy wrapper functions.
  *
- * Log -> LOG_INFO
- * Warning -> LOG_WARNING
+ * Log -> VMW_LOG_INFO
+ * Warning -> VMW_LOG_WARNING
  *
  * TODO: even Log and Warning become wrapper functions around LogV.
  */
@@ -118,61 +89,49 @@ Log_String(int level,
 
 
 static INLINE void
-Log_Emerg(const char *fmt,
+Log_Panic(const char *fmt,
           ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
-   LogV(LOG_EMERG, fmt, ap);
+   LogV(VMW_LOG_PANIC, fmt, ap);
    va_end(ap);
 }
 
 
 static INLINE void
-Log_Alert(const char *fmt,
+Log_Error(const char *fmt,
           ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
-   LogV(LOG_ALERT, fmt, ap);
+   LogV(VMW_LOG_ERROR, fmt, ap);
    va_end(ap);
 }
 
 
 static INLINE void
-Log_Crit(const char *fmt,
-         ...)
+Log_Verbose(const char *fmt,
+            ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
-   LogV(LOG_CRIT, fmt, ap);
+   LogV(VMW_LOG_VERBOSE, fmt, ap);
    va_end(ap);
 }
 
 
 static INLINE void
-Log_Err(const char *fmt,
-        ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(LOG_ERR, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void
-Log_Notice(const char *fmt,
+Log_Trivia(const char *fmt,
            ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
-   LogV(LOG_NOTICE, fmt, ap);
+   LogV(VMW_LOG_TRIVIA, fmt, ap);
    va_end(ap);
 }
 
