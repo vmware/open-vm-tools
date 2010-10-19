@@ -30,13 +30,26 @@
 /*
  * Socket states and flags.  Note that MSG_WAITALL is only defined on 2K3,
  * XP-SP2 and above.  Since we currently build for 2K to maintain backwards
- * compatibility, we pull the value from the newer header.
+ * compatibility, we pull the value from the newer header.  Same for the
+ * POLLXXX flags, which are not defined before Vista.
  */
 #if defined(_WIN32)
 #  define MSG_DONTWAIT        0
 #  define MSG_NOSIGNAL        0
 #  if (_WIN32_WINNT < 0x0502)
 #     define MSG_WAITALL      0x8
+#  endif
+#  if (_WIN32_WINNT < 0x0600)
+#     define POLLRDNORM       0x0100
+#     define POLLRDBAND       0x0200
+#     define POLLIN           (POLLRDNORM | POLLRDBAND)
+#     define POLLPRI          0x0400
+#     define POLLWRNORM       0x0010
+#     define POLLOUT          (POLLWRNORM)
+#     define POLLWRBAND       0x0020
+#     define POLLERR          0x0001
+#     define POLLHUP          0x0002
+#     define POLLNVAL         0x0004
 #  endif
 #endif
 
