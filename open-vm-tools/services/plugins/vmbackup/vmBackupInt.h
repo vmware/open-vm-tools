@@ -214,6 +214,9 @@ VmBackup_NewSyncDriverProvider(void);
 #if defined(G_PLATFORM_WIN32)
 VmBackupSyncProvider *
 VmBackup_NewVssProvider(void);
+
+void
+VmBackup_UnregisterSnapshotProvider(void);
 #endif
 
 VmBackupOp *

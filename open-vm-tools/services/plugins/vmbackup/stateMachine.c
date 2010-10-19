@@ -984,9 +984,12 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 #if defined(G_PLATFORM_WIN32)
    /*
     * If initializing COM fails (unlikely), we'll fallback to the sync driver
-    * or the null provider, depending on the configuration.
+    * or the null provider, depending on the configuration. On success, send
+    * a request to unregister the VMware snapshot provider.
     */
-   if (!ToolsCore_InitializeCOM(ctx)) {
+   if (ToolsCore_InitializeCOM(ctx)) {
+      VmBackup_UnregisterSnapshotProvider();
+   } else {
       g_warning("Failed to initialize COM, VSS support will be unavailable.");
    }
 #endif
