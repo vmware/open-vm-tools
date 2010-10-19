@@ -51,8 +51,11 @@
       ASSERT(payloadSize); \
    } while(0)
 
-/* Capabilities of the HGFS server. */
-static HgfsCapability hgfsServerCapabilities[] =
+/*
+ * This is the default/minimal set of capabilities which is supported by every transport.
+ * Every transport and session may have additional capabilities in addition to these.
+ */
+static HgfsCapability hgfsDefaultCapabilityTable[] =
 {
    {HGFS_OP_OPEN,                  HGFS_REQUEST_SUPPORTED},
    {HGFS_OP_READ,                  HGFS_REQUEST_SUPPORTED},
@@ -97,8 +100,8 @@ static HgfsCapability hgfsServerCapabilities[] =
    {HGFS_OP_WRITE_WIN32_STREAM_V3, HGFS_REQUEST_WIN32_SUPPORTED},
    {HGFS_OP_CREATE_SESSION_V4,     HGFS_REQUEST_SUPPORTED},
    {HGFS_OP_DESTROY_SESSION_V4,    HGFS_REQUEST_SUPPORTED},
-   {HGFS_OP_READ_FAST_V4,          HGFS_REQUEST_SUPPORTED},
-   {HGFS_OP_WRITE_FAST_V4,         HGFS_REQUEST_SUPPORTED},
+   {HGFS_OP_READ_FAST_V4,          HGFS_REQUEST_NOT_SUPPORTED},
+   {HGFS_OP_WRITE_FAST_V4,         HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_OPEN_V4,               HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_DIRECTORY_READ_V4,     HGFS_REQUEST_NOT_SUPPORTED},
    {HGFS_OP_ENUMERATE_STREAMS_V4,  HGFS_REQUEST_NOT_SUPPORTED},
@@ -4779,23 +4782,22 @@ HgfsPackCreateSessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 {
    Bool result;
    HgfsReplyCreateSessionV4 *reply;
-   uint32 numCapabilities = ARRAYSIZE(hgfsServerCapabilities);
+   uint32 numCapabilities = session->numberOfCapabilities;
+   uint32 capabilitiesLen = numCapabilities * sizeof *session->hgfsSessionCapabilities;
 
    HGFS_ASSERT_PACK_PARAMS;
 
-   *payloadSize = offsetof(HgfsReplyCreateSessionV4, capabilities) +
-      sizeof hgfsServerCapabilities;
+   *payloadSize = offsetof(HgfsReplyCreateSessionV4, capabilities) + capabilitiesLen;
 
-   result = HgfsAllocInitReply(packet, packetHeader, *payloadSize,
-                               (void **)&reply, session);
+   result = HgfsAllocInitReply(packet, packetHeader, *payloadSize, (void **)&reply,
+                               session);
    if (result) {
       reply->sessionId = session->sessionId;
       reply->numCapabilities = numCapabilities;
       reply->maxPacketSize = session->maxPacketSize;
       reply->identityOffset = 0;
       reply->reserved = 0;
-      memcpy(reply->capabilities, hgfsServerCapabilities,
-             sizeof hgfsServerCapabilities);
+      memcpy(reply->capabilities, session->hgfsSessionCapabilities, capabilitiesLen);
    }
 
    return result;
@@ -4840,4 +4842,30 @@ HgfsPackDestorySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    }
 
    return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerGetDefaultCapabilities --
+ *
+ *    Returns list capabilities that are supported by all sessions.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsServerGetDefaultCapabilities(HgfsCapability *capabilities,  // OUT: capabilities
+                                 uint32 *numberOfCapabilities)  // OUT: number of items
+{
+   *numberOfCapabilities = ARRAYSIZE(hgfsDefaultCapabilityTable);
+   ASSERT(*numberOfCapabilities <= HGFS_OP_MAX);
+   memcpy(capabilities, hgfsDefaultCapabilityTable, sizeof hgfsDefaultCapabilityTable);
 }

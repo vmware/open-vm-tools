@@ -348,6 +348,11 @@ typedef struct HgfsSessionInfo {
    DblLnkLst_Links searchFreeList;
    /** END SEARCH ARRAY ****************************************************/
 
+   /* Array of session specific capabiities. */
+   HgfsCapability hgfsSessionCapabilities[HGFS_OP_MAX];
+
+   uint32 numberOfCapabilities;
+
 } HgfsSessionInfo;
 
 
@@ -787,6 +792,9 @@ HgfsPackDestorySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                             char const *packetHeader,  // IN: packet header
                             size_t *payloadSize,       // OUT: size of packet
                             HgfsSessionInfo *session); // IN: Session Info
+void
+HgfsServerGetDefaultCapabilities(HgfsCapability *capabilities,   // OUT:
+                                 uint32 *numberOfCapabilities);  // OUT:
 /* Node cache functions. */
 
 Bool

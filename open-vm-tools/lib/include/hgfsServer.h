@@ -111,6 +111,9 @@ typedef uint32 HgfsSendFlags;
 #define HGFS_SEND_CAN_DELAY         (1 << 0)
 #define HGFS_SEND_NO_COMPLETE       (1 << 1)
 
+// Channel capability flags
+#define HGFS_CHANNEL_SHARED_MEM     (1 << 0)
+#define HGFS_CHANNEL_ASYNC          (1 << 1)
 
 typedef Bool
 HgfsSessionSendFunc(void *opaqueSession,  // IN
@@ -127,7 +130,7 @@ typedef struct HgfsServerChannelCallbacks {
 }HgfsServerChannelCallbacks;
 
 typedef struct HgfsServerSessionCallbacks {
-   Bool (*connect)(void *, HgfsServerChannelCallbacks *, void **);
+   Bool (*connect)(void *, HgfsServerChannelCallbacks *, uint32 ,void **);
    void (*disconnect)(void *);
    void (*close)(void *);
    void (*receive)(HgfsPacket *packet, void *);

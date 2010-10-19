@@ -116,7 +116,6 @@
 /* Default maximun number of open nodes that have server locks. */
 #define MAX_LOCKED_FILENODES 10
 
-
 /* Maximum number of cached open nodes. */
 static unsigned int maxCachedOpenNodes;
 
@@ -159,6 +158,7 @@ static void HgfsServerSessionReceive(HgfsPacket *packet,
                                      void *clientData);
 static Bool HgfsServerSessionConnect(void *transportData,
                                      HgfsServerChannelCallbacks *channelCbTable,
+                                     uint32 channelCapabililies,
                                      void **clientData);
 static void HgfsServerSessionDisconnect(void *clientData);
 static void HgfsServerSessionClose(void *clientData);
@@ -2991,6 +2991,43 @@ HgfsGenerateSessionId(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerSetSessionCapability --
+ *
+ *    Sets session capability for a specific operation code.
+ *
+ * Results:
+ *    TRUE is the capability for the operation has been changed.
+ *    FALSE if the operation is not represented in the capabilities array.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
+                               uint32 flags,               // IN: flags that describe level of support
+                               HgfsSessionInfo *session)   // INOUT: session to update
+{
+   int i;
+   Bool result = FALSE;
+
+   for ( i = 0; i < ARRAYSIZE(session->hgfsSessionCapabilities); i++) {
+      if (session->hgfsSessionCapabilities[i].op == op) {
+         session->hgfsSessionCapabilities[i].flags = flags;
+         result = TRUE;
+      }
+   }
+   LOG(4, ("%s: Setting capabilitiy flags %x for op code %d %s\n", __FUNCTION__, flags,
+           op, result ? "succeeded" : "failed"));
+   return result;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerSessionConnect --
  *
  *    Initialize a new client session.
@@ -3010,6 +3047,7 @@ HgfsGenerateSessionId(void)
 static Bool
 HgfsServerSessionConnect(void *transportData,                         // IN: transport session context
                          HgfsServerChannelCallbacks *channelCbTable,  // IN: Channel callbacks
+                         uint32 channelCapabililies,                  // IN: channel capabilities
                          void **sessionData)                          // OUT: server session context
 {
    int i;
@@ -3102,9 +3140,18 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
    session->channelCbTable = channelCbTable;
    Atomic_Write(&session->refCount, 0);
 
+   /* Get common to all sessions capabiities. */
+   HgfsServerGetDefaultCapabilities(session->hgfsSessionCapabilities,
+                                    &session->numberOfCapabilities);
+
    /* Give our session a reference to hold while we are open. */
    HgfsServerSessionGet(session);
    *sessionData = session;
+
+   if (channelCapabililies & HGFS_CHANNEL_SHARED_MEM) {
+      HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4, HGFS_REQUEST_SUPPORTED, session);
+      HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4, HGFS_REQUEST_SUPPORTED, session);
+   }
 
    return TRUE;
 }

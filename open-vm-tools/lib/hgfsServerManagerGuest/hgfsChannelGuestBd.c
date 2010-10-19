@@ -349,6 +349,7 @@ HgfsChannelGuestConnConnect(HgfsGuestConn *connData)  // IN: our connection data
    connData->channelCbTable.send = HgfsChannelGuestBdSend;
    result = connData->serverCbTable->connect(connData,
                                              &connData->channelCbTable,
+                                             0,
                                              &connData->serverSession);
    if (result) {
       HgfsChannelGuestConnGet(connData);
