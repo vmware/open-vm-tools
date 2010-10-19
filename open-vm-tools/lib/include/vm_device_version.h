@@ -129,7 +129,7 @@
 #define PCI_VENDOR_ID_FRESCO            0x1B73
 #define PCI_DEVICE_ID_FRESCO_FL1000     0x1000   // Original 1-port chip
 #define PCI_DEVICE_ID_FRESCO_FL1009     0x1009   // New 2-port chip (Driver 3.0.98+)
-#define PCI_DEVICE_ID_FRESCO_DEVEL      0x1400   // Unknown (development hardware?)
+#define PCI_DEVICE_ID_FRESCO_FL1400     0x1400   // Unknown (4-port? Dev hardware?)
 
 /*
  * NEC/Renesas xHCI (USB 3.0) Controller
