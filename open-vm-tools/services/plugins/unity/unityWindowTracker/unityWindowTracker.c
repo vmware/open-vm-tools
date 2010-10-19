@@ -829,6 +829,31 @@ UnityWindowTracker_RemoveWindow(UnityWindowTracker *tracker,      // IN
    }
 }
 
+/*
+ *------------------------------------------------------------------------------
+ *
+ * UnityWindowTracker_RemoveAllWindows --
+ *
+ *      Removes all the windows from the window tracker, *without* notifying
+ *      the client. This function is meant to be used to "reset" the tracker
+ *      state after we have exited Unity.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *------------------------------------------------------------------------------
+ */
+
+
+void
+UnityWindowTracker_RemoveAllWindows(UnityWindowTracker *tracker)
+{
+   HashTable_Clear(tracker->windows);
+}
+
 
 /*
  *----------------------------------------------------------------------------

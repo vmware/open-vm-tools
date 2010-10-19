@@ -232,7 +232,7 @@ typedef struct {
     * This points back to the tracker. It's either this, or a bigger hack in
     * lib/misc/hash.c
     */
-   void		    *tracker;
+   void             *tracker;
 } UnityWindowInfo;
 
 typedef struct _UnityWindowTracker UnityWindowTracker;
@@ -294,6 +294,7 @@ void UnityWindowTracker_SendUpdate(UnityWindowTracker *tracker,
 void UnityWindowTracker_SetWindowTitle(UnityWindowTracker *tracker,
                                        UnityWindowId id,
                                        DynBuf *titleUtf8);
+void UnityWindowTracker_RemoveAllWindows(UnityWindowTracker *tracker);
 
 /*
  * Please note that calling ChangeWindowState directly is deprecated. Use
