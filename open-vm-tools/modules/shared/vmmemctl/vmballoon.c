@@ -440,7 +440,7 @@ Balloon_QueryAndExecute(void)
 /*
  *----------------------------------------------------------------------
  *
- * BalloonErrorPagesAlloc --
+ * BalloonErrorPageStore --
  *
  *      Attempt to add "page" to list of non-balloonable pages
  *      associated with "b".
@@ -456,8 +456,8 @@ Balloon_QueryAndExecute(void)
  */
 
 static int
-BalloonErrorPagesAlloc(Balloon *b,      // IN
-                       PageHandle page) // IN
+BalloonErrorPageStore(Balloon *b,      // IN
+                      PageHandle page) // IN
 {
    /* fail if list already full */
    if (b->errors.pageCount >= BALLOON_ERROR_PAGES) {
@@ -505,6 +505,56 @@ BalloonErrorPagesFree(Balloon *b) // IN
 /*
  *----------------------------------------------------------------------
  *
+ * BalloonPageStore --
+ *
+ *      Attempt to add "page" to list of locked pages associated with "b".
+ *
+ * Results:
+ *      Returns BALLOON_SUCCESS if successful, BALLOON_FAILURE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+BalloonPageStore(Balloon *b, PageHandle page)
+{
+   BalloonChunk *chunk = NULL;
+
+   /* Find chunk with free space, create it if necessary. */
+   if (DblLnkLst_IsLinked(&b->chunks)) {
+      /* Get first chunk from the list */
+      chunk = DblLnkLst_Container(b->chunks.next, BalloonChunk, node);
+      if (chunk->pageCount >= BALLOON_CHUNK_PAGES) {
+         /* This chunk is full. */
+         chunk = NULL;
+      }
+   }
+
+   if (chunk == NULL) {
+      /* create new chunk */
+      chunk = BalloonChunk_Create();
+      if (chunk == NULL) {
+         return BALLOON_FAILURE;
+      }
+
+      DblLnkLst_LinkFirst(&b->chunks, &chunk->node);
+
+      /* update stats */
+      b->nChunks++;
+   }
+
+   /* track allocated page */
+   chunk->page[chunk->pageCount++] = page;
+
+   return BALLOON_SUCCESS;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * BalloonPageAlloc --
  *
  *      Attempts to allocate a physical page, inflating balloon "b".
@@ -523,78 +573,57 @@ static int
 BalloonPageAlloc(Balloon *b,                     // IN
                  BalloonPageAllocType allocType) // IN
 {
-   BalloonChunk *chunk = NULL;
    PageHandle page;
+   Bool locked;
    int status;
 
- retry:
-
    /* allocate page, fail if unable */
-   STATS_INC(b->stats.primAlloc[allocType]);
+   do {
+      STATS_INC(b->stats.primAlloc[allocType]);
 
-   /*
-    * Attempts to allocate and reserve a physical page.
-    *
-    * If canSleep == 1, i.e., BALLOON_PAGE_ALLOC_CANSLEEP:
-    *      The allocation can wait (sleep) for page writeout (swap) by the guest.
-    * otherwise canSleep == 0, i.e., BALLOON_PAGE_ALLOC_NOSLEEP:
-    *      If allocation of a page requires disk writeout, then just fail. DON'T sleep.
-    *
-    * Returns the physical address of the allocated page, or 0 if error.
-    */
-   page = OS_ReservedPageAlloc(allocType);
-
-   if (page == PAGE_HANDLE_INVALID) {
-      STATS_INC(b->stats.primAllocFail[allocType]);
-      return BALLOON_PAGE_ALLOC_FAILURE;
-   }
-
-   /* Find chunk with free space, create it if necessary. */
-   if (DblLnkLst_IsLinked(&b->chunks)) {
-      /* Get first chunk from the list */
-      chunk = DblLnkLst_Container(b->chunks.next, BalloonChunk, node);
-      if (chunk->pageCount >= BALLOON_CHUNK_PAGES) {
-         /* This chunk is full. */
-         chunk = NULL;
-      }
-   }
-
-   if (chunk == NULL) {
-      /* create new chunk */
-      chunk = BalloonChunk_Create();
-      if (chunk == NULL) {
-         /* reclaim storage, fail */
-         OS_ReservedPageFree(page);
+      /*
+       * Attempts to allocate and reserve a physical page.
+       *
+       * If canSleep == 1, i.e., BALLOON_PAGE_ALLOC_CANSLEEP:
+       *      The allocation can wait (sleep) for page writeout (swap) by the guest.
+       * otherwise canSleep == 0, i.e., BALLOON_PAGE_ALLOC_NOSLEEP:
+       *      If allocation of a page requires disk writeout, then just fail. DON'T sleep.
+       *
+       * Returns the physical address of the allocated page, or 0 if error.
+       */
+      page = OS_ReservedPageAlloc(allocType);
+      if (page == PAGE_HANDLE_INVALID) {
+         STATS_INC(b->stats.primAllocFail[allocType]);
          return BALLOON_PAGE_ALLOC_FAILURE;
       }
 
-      DblLnkLst_LinkFirst(&b->chunks, &chunk->node);
+      /* inform monitor via backdoor */
+      status = BalloonMonitorLockPage(b, page);
+      locked = status == BALLOON_SUCCESS;
+      if (!locked) {
+         if (status == BALLOON_ERROR_RESET ||
+             status == BALLOON_ERROR_PPN_NOTNEEDED) {
+            OS_ReservedPageFree(page);
+            return status;
+         }
 
-      /* update stats */
-      b->nChunks++;
-   }
-
-   /* inform monitor via backdoor */
-   status = BalloonMonitorLockPage(b, page);
-   if (status != BALLOON_SUCCESS) {
-      /* place on list of non-balloonable pages, retry allocation */
-      if ((status != BALLOON_ERROR_RESET) &&
-          (BalloonErrorPagesAlloc(b, page) == BALLOON_SUCCESS)) {
-         goto retry;
+         /* place on list of non-balloonable pages, retry allocation */
+         status = BalloonErrorPageStore(b, page);
+         if (status != BALLOON_SUCCESS) {
+            OS_ReservedPageFree(page);
+            return status;
+         }
       }
-
-      /* reclaim storage, fail */
-      OS_ReservedPageFree(page);
-      return status;
-   }
+   } while (!locked);
 
    /* track allocated page */
-   chunk->page[chunk->pageCount++] = page;
+   status = BalloonPageStore(b, page);
+   if (status == BALLOON_SUCCESS) {
+      /* update balloon size */
+      b->nPages++;
+   }
 
-   /* update balloon size */
-   b->nPages++;
-
-   return BALLOON_SUCCESS;
+   return status;
 }
 
 
@@ -682,77 +711,6 @@ BalloonPageFree(Balloon *b,        // IN
 /*
  *----------------------------------------------------------------------
  *
- * BalloonDecreaseRateAlloc --
- *
- *      Wrapper to quickly reduce the page allocation rate. This function
- *      is called only when a CANSLEEP allocation fails. This implies severe
- *      memory pressure inside the guest, so quickly decrease the rateAlloc.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-BalloonDecreaseRateAlloc(Balloon *b) // IN
-{
-   if (BALLOON_RATE_ADAPT) {
-      b->rateAlloc = MAX(b->rateAlloc / 2, BALLOON_RATE_ALLOC_MIN);
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BalloonIncreaseRateAlloc --
- *
- *      Wrapper to increase the page allocation rate.
- *
- *      This function is called when the balloon target is met or
- *      b->rateAlloc (or more) pages have been successfully allocated.
- *      This implies that the guest may not be under high memory
- *      pressure. So let us increase the rateAlloc.
- *
- *      If meeting balloon target requires less than b->rateAlloc
- *      pages, then we do not change the page allocation rate.
- *
- *      If the number of pages successfully allocated (nAlloc) is far
- *      higher than b->rateAlloc, then it implies that NOSLEEP
- *      allocations are highly successful. Therefore, we predict that
- *      the guest is under no memory pressure, and so increase
- *      b->rateAlloc quickly.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-BalloonIncreaseRateAlloc(Balloon *b,    // IN
-                         uint32 nAlloc) // IN
-{
-   if (BALLOON_RATE_ADAPT) {
-      if (nAlloc >= b->rateAlloc) {
-         uint32 mult = nAlloc / b->rateAlloc;
-         b->rateAlloc = MIN(b->rateAlloc + mult * BALLOON_RATE_ALLOC_INC,
-                            BALLOON_RATE_ALLOC_MAX);
-      }
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * BalloonInflate--
  *
  *      Attempts to allocate physical pages to inflate balloon.
@@ -770,8 +728,12 @@ static int
 BalloonInflate(Balloon *b,    // IN
                uint32 target) // IN
 {
-   int status, allocations = 0;
-   uint32 i, nAllocNoSleep, nAllocCanSleep;
+   unsigned int goal;
+   unsigned int rate;
+   unsigned int i;
+   unsigned int allocations = 0;
+   int status = 0;
+   BalloonPageAllocType allocType = BALLOON_PAGE_ALLOC_NOSLEEP;
 
    /*
     * First try NOSLEEP page allocations to inflate balloon.
@@ -787,104 +749,74 @@ BalloonInflate(Balloon *b,    // IN
     * predicted that the guest is under memory pressure, then we
     * slowdown page allocations considerably.
     */
-   if (b->slowPageAllocationCycles > 0) {
-      nAllocNoSleep = MIN(target - b->nPages, b->rateAlloc);
-   } else {
-      nAllocNoSleep = MIN(target - b->nPages, BALLOON_NOSLEEP_ALLOC_MAX);
-   }
 
-   for (i = 0; i < nAllocNoSleep; i++) {
-      /* Try NOSLEEP allocation */
-      status = BalloonPageAlloc(b, BALLOON_PAGE_ALLOC_NOSLEEP);
+   goal = target - b->nPages;
+   /*
+    * Start with no sleep allocation rate which may be higher
+    * than sleeping allocation rate.
+    */
+   rate = b->slowPageAllocationCycles ?
+                b->rateAlloc : BALLOON_NOSLEEP_ALLOC_MAX;
+
+   for (i = 0; i < goal; i++) {
+
+      status = BalloonPageAlloc(b, allocType);
       if (status != BALLOON_SUCCESS) {
          if (status != BALLOON_PAGE_ALLOC_FAILURE) {
             /*
-             * Not a page allocation failure, so release non-balloonable
-             * pages, and fail.
+             * Not a page allocation failure, stop this cycle.
+             * Maybe we'll get new target from the host soon.
              */
-            BalloonErrorPagesFree(b);
-            return status;
+            break;
          }
-         /*
-          * NOSLEEP page allocation failed, so the guest is under memory
-          * pressure. Let us slowdown page allocations for next few
-          * cycles so that the guest gets out of memory pressure.
-          */
-         b->slowPageAllocationCycles = SLOW_PAGE_ALLOCATION_CYCLES;
-         break;
-      }
 
-      if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
-         OS_Yield();
-         allocations = 0;
-      }
-   }
-
-   /*
-    * Check whether nosleep allocation successfully zapped nAllocNoSleep
-    * pages.
-    */
-   if (i == nAllocNoSleep) {
-      BalloonIncreaseRateAlloc(b, nAllocNoSleep);
-      /* release non-balloonable pages, succeed */
-      BalloonErrorPagesFree(b);
-      return BALLOON_SUCCESS;
-   } else {
-      /*
-       * NOSLEEP allocation failed, so the guest is under memory pressure.
-       * If already b->rateAlloc pages were zapped, then succeed. Otherwise,
-       * try CANSLEEP allocation.
-       */
-      if (i > b->rateAlloc) {
-         BalloonIncreaseRateAlloc(b, i);
-         /* release non-balloonable pages, succeed */
-         BalloonErrorPagesFree(b);
-         return BALLOON_SUCCESS;
-      } else {
-         /* update successful NOSLEEP allocations, and proceed */
-         nAllocNoSleep = i;
-      }
-   }
-
-   /*
-    * Use CANSLEEP page allocation to inflate balloon if below target.
-    *
-    * Sleep allocations are required only when nosleep allocation fails.
-    * This implies that the guest is already under memory pressure, so
-    * let us always throttle canSleep allocations. The total number pages
-    * allocated using noSleep and canSleep methods is throttled at
-    * b->rateAlloc per second when the guest is under memory pressure.
-    */
-   nAllocCanSleep = target - b->nPages;
-   nAllocCanSleep = MIN(nAllocCanSleep, b->rateAlloc - nAllocNoSleep);
-
-   for (i = 0; i < nAllocCanSleep; i++) {
-      /* Try CANSLEEP allocation */
-      status = BalloonPageAlloc(b, BALLOON_PAGE_ALLOC_CANSLEEP);
-      if(status != BALLOON_SUCCESS) {
-         if (status == BALLOON_PAGE_ALLOC_FAILURE) {
+         if (allocType == BALLOON_PAGE_ALLOC_CANSLEEP) {
             /*
              * CANSLEEP page allocation failed, so guest is under severe
-             * memory pressure. Quickly decrease rateAlloc.
+             * memory pressure. Quickly decrease allocation rate.
              */
-            BalloonDecreaseRateAlloc(b);
+            b->rateAlloc = MAX(b->rateAlloc / 2, BALLOON_RATE_ALLOC_MIN);
+            break;
          }
-         /* release non-balloonable pages, fail */
-         BalloonErrorPagesFree(b);
-         return status;
+
+         /*
+          * NOSLEEP page allocation failed, so the guest is under memory
+          * pressure. Let us slow down page allocations for next few cycles
+          * so that the guest gets out of memory pressure. Also, if we
+          * already allocated b->rateAlloc pages, let's pause, otherwise
+          * switch to sleeping allocations.
+          */
+         b->slowPageAllocationCycles = SLOW_PAGE_ALLOCATION_CYCLES;
+
+         if (i >= b->rateAlloc)
+            break;
+
+         allocType = BALLOON_PAGE_ALLOC_CANSLEEP;
+         /* Lower rate for sleeping allocations. */
+         rate = b->rateAlloc;
       }
 
       if (++allocations > BALLOON_ALLOC_YIELD_THRESHOLD) {
          OS_Yield();
          allocations = 0;
       }
+
+      if (i >= rate) {
+         /* We allocated enough pages, let's take a break. */
+         break;
+      }
    }
 
    /*
-    * Either met the balloon target or b->rateAlloc pages have been
-    * successfully zapped.
+    * We reached our goal without failures so try increasing
+    * allocation rate.
     */
-   BalloonIncreaseRateAlloc(b, nAllocNoSleep + nAllocCanSleep);
+   if (status == BALLOON_SUCCESS && i >= b->rateAlloc) {
+      unsigned int mult = i / b->rateAlloc;
+
+      b->rateAlloc = MIN(b->rateAlloc + mult * BALLOON_RATE_ALLOC_INC,
+                         BALLOON_RATE_ALLOC_MAX);
+   }
 
    /* release non-balloonable pages, succeed */
    BalloonErrorPagesFree(b);
