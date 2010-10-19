@@ -149,7 +149,8 @@
 #  define BDOOR_CMD_VCPU_HV_REPLAY_OK     2
 #  define BDOOR_CMD_VCPU_RESERVED        31
 #define BDOOR_CMD_EFI_SERIALCON_CONFIG   69
-#define BDOOR_CMD_MAX                    70
+#define BDOOR_CMD_BUG328986              70
+#define BDOOR_CMD_MAX                    71
 
 
 /* 
