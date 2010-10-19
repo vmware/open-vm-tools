@@ -551,6 +551,17 @@ else
                             [zlibVersion],
                             [],
                             [AC_MSG_ERROR([zlib library not found. Please configure without Unity (using --disable-unity) or install the zlib devel package.])])
+
+           # Check for gio 2.24.
+           AC_VMW_CHECK_LIB([gio-2.0],
+                            [GIO],
+                            [gio-unix-2.0],
+                            [],
+                            [2.24.0],
+                            [gio.h],
+                            [g_desktop_app_info_get_filename],
+                            [],
+                            [AC_MSG_ERROR([GLib/GIO 2.24+ not found.  Please configure without Unity (using --disable-unity) or upgrade the Glib devel package.])])
    fi # End of library checks for Unity.
 
    # Check whether we have gtk+ 2.0.
