@@ -327,6 +327,7 @@ enum IOCTLCmd_VMCIMacOS {
 
 enum IOCTLCmd_VMCIWin32 {
    IOCTLCMD(DEVICE_GET) = IOCTLCMD(LAST2) + 1,
+   IOCTLCMD(SOCKETS_SERVICE_GET),
 };
 
 #define IOCTL_VMCI_VERSION VMCIIOCTL_BUFFERED(VERSION)
@@ -411,6 +412,8 @@ enum IOCTLCmd_VMCIWin32 {
                VMCIIOCTL_BUFFERED(SOCKETS_SET_SOCK_OPT)
 #define IOCTL_VMCI_SOCKETS_SHUTDOWN \
                VMCIIOCTL_BUFFERED(SOCKETS_SHUTDOWN)
+#define IOCTL_VMCI_SOCKETS_SERVICE_GET \
+               VMCIIOCTL_BUFFERED(SOCKETS_SERVICE_GET)
 /* END VMCI SOCKETS */
 
 #endif // _WIN32
@@ -632,12 +635,12 @@ typedef struct VMCIDeviceGetInfoVer2 {
    VMCIDoorbell_NotifyFct *doorbellNotify;
 } VMCIDeviceGetInfoVer2;
 
-/* Combination of all versions. */
 typedef struct VMCIDeviceGetInfoHdr {
    /* Requested API version on input, supported version on output. */
    uint32 apiVersion;
 } VMCIDeviceGetInfoHdr;
 
+/* Combination of all versions. */
 typedef struct VMCIDeviceGetInfo {
    VMCIDeviceGetInfoHdr hdr;
    VMCIDeviceGetInfoVer1 ver1;
