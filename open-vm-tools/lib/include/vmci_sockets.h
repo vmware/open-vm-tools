@@ -27,9 +27,9 @@
 
 
 #if defined(_WIN32)
-#  if !defined(_DDK_DRIVER_)
+#  if !defined(NT_INCLUDED)
 #     include <winsock2.h>
-#  endif // _DDK_DRIVER_
+#  endif // !NT_INCLUDED
 #else // _WIN32
 #if defined(linux) && !defined(VMKERNEL)
 #  if !defined(__KERNEL__)
@@ -102,7 +102,7 @@ struct sockaddr_vm {
 
 
 #if defined(_WIN32)
-#  if !defined(_DDK_DRIVER_)
+#  if !defined(NT_INCLUDED)
 #     include <winioctl.h>
 #     define VMCI_SOCKETS_DEVICE          L"\\\\.\\VMCI"
 #     define VMCI_SOCKETS_GET_AF_VALUE    0x81032068
@@ -138,7 +138,7 @@ struct sockaddr_vm {
          }
          return cid;
       }
-#  endif // _DDK_DRIVER_
+#  endif // !NT_INCLUDED
 #else // _WIN32
 #if (defined(linux) && !defined(VMKERNEL)) || (defined(__APPLE__))
 #  if defined(linux) && defined(__KERNEL__)

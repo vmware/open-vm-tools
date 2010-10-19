@@ -31,16 +31,18 @@
 
 
 #if defined(_WIN32)
-#  if defined(_DDK_DRIVER_)
-      /*
-       * WinSockKernel is targetted at Vista and later.  We want to allow
-       * drivers built from W2K onwards to work with the interface.  Until we
-       * find a better way, these hacks are necessary.
-       */
-      typedef unsigned short u_short;
-#     include <windef.h>
-#     include <ws2def.h>
-      typedef WSACMSGHDR CMSGHDR, *PCMSGHDR;
+#  if defined(NT_INCLUDED)
+#     if (_WIN32_WINNT < 0x0600)
+         /*
+          * WinSockKernel is targetted at Vista and later.  We want to allow
+          * drivers built from W2K onwards to work with the interface, so we
+          * need to define some missing types before we bring in the WSK header.
+          */
+         typedef unsigned short u_short;
+#        include <windef.h>
+#        include <ws2def.h>
+         typedef WSACMSGHDR CMSGHDR, *PCMSGHDR;
+#     endif // (_WIN32_WINNT < 0x0600)
 #     include <wsk.h>
       NTSTATUS VMCISock_WskRegister(PWSK_CLIENT_NPI wskClientNpi,
                                     PWSK_REGISTRATION wskRegistration);
@@ -51,7 +53,7 @@
       NTSTATUS VMCISock_WskReleaseProviderNPI(PWSK_REGISTRATION wskRegistration);
       NTSTATUS VMCISock_WskGetAFValue(PWSK_CLIENT wskClient, PIRP irp);
       NTSTATUS VMCISock_WskGetLocalCID(PWSK_CLIENT wskClient, PIRP irp);
-#  endif // _DDK_DRIVER_
+#  endif // NT_INCLUDED
 #endif // _WIN32
 
 
