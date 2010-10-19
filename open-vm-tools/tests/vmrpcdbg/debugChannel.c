@@ -68,7 +68,7 @@ RpcDebugDispatch(gpointer _chan)
    memset(&data, 0, sizeof data);
    memset(&rpcdata, 0, sizeof rpcdata);
 
-   if (!plugin->sendFn(&rpcdata)) {
+   if (plugin->sendFn == NULL || !plugin->sendFn(&rpcdata)) {
       RpcDebug_DecRef(cdata->ctx);
       cdata->hasLibRef = FALSE;
       return FALSE;

@@ -280,6 +280,7 @@ TestPluginSetOption(gpointer src,
  *
  * @param[in] ctx     Unused.
  * @param[in] prov    Unused.
+ * @param[in] plugin  Unused.
  * @param[in] reg     Registration data (should be a string).
  *
  * @retval FALSE if registration value is TEST_APP_ERROR.
@@ -289,6 +290,7 @@ TestPluginSetOption(gpointer src,
 static gboolean
 TestProviderRegisterApp(ToolsAppCtx *ctx,
                         ToolsAppProvider *prov,
+                        ToolsPluginData *plugin,
                         gpointer reg)
 {
    TestApp *app = reg;
@@ -389,11 +391,11 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { "TestAppNoProvider" }
    };
    ToolsAppReg regs[] = {
-      { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
-      { TOOLS_APP_PROVIDER, VMTools_WrapArray(provs, sizeof *provs, ARRAYSIZE(provs)) },
-      { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) },
-      { 42, VMTools_WrapArray(tapp, sizeof *tapp, ARRAYSIZE(tapp)) },
-      { 43, VMTools_WrapArray(tnoprov, sizeof *tnoprov, ARRAYSIZE(tnoprov)) },
+      { TOOLS_APP_GUESTRPC, VMTOOLS_WRAP_ARRAY(rpcs) },
+      { TOOLS_APP_PROVIDER, VMTOOLS_WRAP_ARRAY(provs) },
+      { TOOLS_APP_SIGNALS,  VMTOOLS_WRAP_ARRAY(sigs) },
+      { 42,                 VMTOOLS_WRAP_ARRAY(tapp) },
+      { 43,                 VMTOOLS_WRAP_ARRAY(tnoprov) },
    };
 
    g_signal_new("test-signal",
@@ -406,7 +408,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
                 G_TYPE_NONE,
                 0);
 
-   regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
+   regData.regs = VMTOOLS_WRAP_ARRAY(regs);
    return &regData;
 }
 

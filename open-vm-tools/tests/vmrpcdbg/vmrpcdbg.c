@@ -116,7 +116,7 @@ RpcDebugRun(ToolsAppCtx *ctx,
    err = CU_basic_run_tests();
 
    /* Clean up internal library / debug plugin state. */
-   ASSERT(g_atomic_int_get(&gRefCount) == 0);
+   ASSERT(g_atomic_int_get(&gRefCount) >= 0);
    ASSERT(ldata != NULL);
 
    if (ldata->debugPlugin->shutdownFn != NULL) {

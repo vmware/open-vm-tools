@@ -68,6 +68,36 @@
    g_source_attach(__src, g_main_loop_get_context((ctx)->mainLoop));    \
 } while (0)
 
+/* Indentation leves for the state log function below. */
+#define TOOLS_STATE_LOG_ROOT        0
+#define TOOLS_STATE_LOG_CONTAINER   1
+#define TOOLS_STATE_LOG_PLUGIN      2
+
+/**
+ * Convenience function for printing state logs. This function makes sure
+ * all code logging state information uses the same log domain, level and
+ * use the same indentation.
+ *
+ * @param[in] level  Indentation level (see constants above).
+ * @param[in] fmt    Message format.
+ * @param[in] ...    Message arguments.
+ */
+
+static inline void
+ToolsCore_LogState(guint level,
+                   const char *fmt,
+                   ...)
+{
+   gchar *indented = g_strdup_printf("%*s%s", 3 * level, "", fmt);
+
+   va_list args;
+   va_start(args, fmt);
+   g_logv("state", G_LOG_LEVEL_INFO, indented, args);
+   va_end(args);
+
+   g_free(indented);
+}
+
 
 /**
  * Signal sent when registering or unregistering capabilities.
@@ -300,6 +330,8 @@ typedef enum {
 } ToolsAppType;
 
 
+struct ToolsPluginData;
+
 /**
  * Defines the registration data for an "application provider". Application
  * providers allow plugins to hook into new application frameworks that will
@@ -334,17 +366,23 @@ typedef struct ToolsAppProvider {
     * Registration callback. This is called after "activate", to register an
     * application provided by a plugin.
     *
-    * @param[in]  ctx   The application context.
-    * @param[in]  prov  The provider instance.
-    * @param[in]  reg   The application registration data.
+    * @param[in]  ctx      The application context.
+    * @param[in]  prov     The provider instance.
+    * @param[in]  plugin   The plugin that owns the registration.
+    * @param[in]  reg      The application registration data.
     *
     * @return Whether registration succeeded.
     */
-   gboolean (*registerApp)(ToolsAppCtx *ctx, struct ToolsAppProvider *prov, gpointer reg);
+   gboolean (*registerApp)(ToolsAppCtx *ctx,
+                           struct ToolsAppProvider *prov,
+                           struct ToolsPluginData *plugin,
+                           gpointer reg);
    /**
     * Shutdown callback (optional). Called when the service is being shut down.
     * The provider is responsible for keeping track of registrations and
     * cleaning them up during shutdown.
+    *
+    * This method is only called if the provider was successfully activated.
     *
     * @param[in]  ctx   The application context.
     * @param[in]  prov  The provider instance.

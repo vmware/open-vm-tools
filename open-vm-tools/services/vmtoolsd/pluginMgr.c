@@ -68,10 +68,14 @@ ToolsCoreDumpAppInfo(ToolsServiceState *state,
       if (preg->prov->dumpState != NULL) {
          preg->prov->dumpState(&state->ctx, preg->prov, reg);
       } else {
-         g_message("      App type %u (no provider info).\n", type);
+         ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN,
+                            "App type %u (no provider info).\n",
+                            type);
       }
     } else {
-      g_message("      App type %u (no provider).\n", type);
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN,
+                         "App type %u (no provider).\n",
+                         type);
    }
    return TRUE;
 }
@@ -88,10 +92,10 @@ static void
 ToolsCoreDumpPluginInfo(ToolsServiceState *state,
                         ToolsPluginData *plugin)
 {
-   g_message("   Plugin: %s\n", plugin->name);
+   ToolsCore_LogState(TOOLS_STATE_LOG_CONTAINER, "Plugin: %s\n", plugin->name);
 
    if (plugin->regs == NULL) {
-      g_message("      No registrations.\n");
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "No registrations.\n");
    }
 }
 
@@ -111,7 +115,7 @@ ToolsCoreDumpRPC(ToolsAppCtx *ctx,
 {
    if (reg != NULL) {
       RpcChannelCallback *cb = reg;
-      g_message("      RPC callback: %s\n", cb->name);
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "RPC callback: %s\n", cb->name);
    }
 }
 
@@ -131,7 +135,7 @@ ToolsCoreDumpSignal(ToolsAppCtx *ctx,
 {
    if (reg != NULL) {
       ToolsPluginSignalCb *sig = reg;
-      g_message("      Signal callback: %s\n", sig->signame);
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "Signal callback: %s\n", sig->signame);
    }
 }
 
@@ -189,7 +193,7 @@ ToolsCoreRegisterApp(ToolsServiceState *state,
       preg->state = TOOLS_PROVIDER_ACTIVE;
    }
 
-   if (!preg->prov->registerApp(&state->ctx, preg->prov, reg)) {
+   if (!preg->prov->registerApp(&state->ctx, preg->prov, plugin, reg)) {
       g_warning("Failed registration of app type %d (%s) from plugin %s.",
                 type, preg->prov->name, plugin->name);
       goto exit;
@@ -323,9 +327,10 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
 /**
  * Registration callback for GuestRPC applications.
  *
- * @param[in]  ctx   The application context.
- * @param[in]  prov  Unused.
- * @param[in]  reg   The application registration data.
+ * @param[in]  ctx      The application context.
+ * @param[in]  prov     Unused.
+ * @param[in]  plugin   Unused.
+ * @param[in]  reg      The application registration data.
  *
  * @return TRUE.
  */
@@ -333,6 +338,7 @@ ToolsCoreForEachPlugin(ToolsServiceState *state,
 static gboolean
 ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
                      ToolsAppProvider *prov,
+                     ToolsPluginData *plugin,
                      gpointer reg)
 {
    RpcChannel_RegisterCallback(ctx->rpc, reg);
@@ -343,9 +349,10 @@ ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
 /**
  * Registration callback for signal connections.
  *
- * @param[in]  ctx   The application context.
- * @param[in]  prov  Unused.
- * @param[in]  reg   The application registration data.
+ * @param[in]  ctx      The application context.
+ * @param[in]  prov     Unused.
+ * @param[in]  plugin   Unused.
+ * @param[in]  reg      The application registration data.
  *
  * @return TRUE if the signal exists.
  */
@@ -353,6 +360,7 @@ ToolsCoreRegisterRPC(ToolsAppCtx *ctx,
 static gboolean
 ToolsCoreRegisterSignal(ToolsAppCtx *ctx,
                         ToolsAppProvider *prov,
+                        ToolsPluginData *plugin,
                         gpointer reg)
 {
    ToolsPluginSignalCb *sig = reg;
@@ -614,6 +622,19 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
       goto exit;
    }
 
+   /*
+    * If there is a debug plugin, see if it exports standard plugin registration
+    * data too.
+    */
+   if (state->debugData != NULL && state->debugData->debugPlugin->plugin != NULL) {
+      ToolsPluginData *data = state->debugData->debugPlugin->plugin;
+      ToolsPlugin *plugin = g_malloc(sizeof *plugin);
+      plugin->module = NULL;
+      plugin->data = data;
+      VMTools_BindTextDomain(data->name, NULL, NULL);
+      g_ptr_array_add(state->plugins, plugin);
+   }
+
    ret = TRUE;
 
 exit:
@@ -730,8 +751,6 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       g_array_free(pcaps, TRUE);
    }
 
-   g_signal_emit_by_name(state->ctx.serviceObj, TOOLS_CORE_SIG_SHUTDOWN, &state->ctx);
-
    /*
     * Stop all app providers, and free the memory we allocated for the two
     * internal app providers.
@@ -741,7 +760,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
                                                   ToolsAppProviderReg,
                                                   i);
 
-      if (preg->prov->shutdown != NULL) {
+      if (preg->prov->shutdown != NULL && preg->state == TOOLS_PROVIDER_ACTIVE) {
          preg->prov->shutdown(&state->ctx, preg->prov);
       }
 
@@ -751,6 +770,8 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
          g_free(preg->prov);
       }
    }
+
+   g_signal_emit_by_name(state->ctx.serviceObj, TOOLS_CORE_SIG_SHUTDOWN, &state->ctx);
 
    while (state->plugins->len > 0) {
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
@@ -770,7 +791,9 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       }
 
       g_ptr_array_remove_index(state->plugins, state->plugins->len - 1);
-      g_module_close(plugin->module);
+      if (plugin->module != NULL) {
+         g_module_close(plugin->module);
+      }
       g_free(plugin);
    }
 

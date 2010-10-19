@@ -96,21 +96,8 @@ static gboolean
 TestDebugValidateReset(RpcInData *data,
                        gboolean ret)
 {
-   ToolsAppCtx *ctx = data->appCtx;
    RPCDEBUG_ASSERT(data->result != NULL, FALSE);
    CU_ASSERT_STRING_EQUAL(data->result, "ATR debug");
-
-   /*
-    * If reset was successful, connect the "test-signal" signal so we
-    * test custom registration of signals. The test plugin will emit
-    * this signal after it sends an "test.rpcout.msg1" RPC as part of
-    * handling a "test.rpcin.msg1" RPC.
-    */
-   g_signal_connect(ctx->serviceObj,
-                    "test-signal",
-                    G_CALLBACK(TestDebugHandleSignal),
-                    NULL);
-
    return (gboolean) ret;
 }
 
@@ -267,25 +254,47 @@ RpcDebugOnLoad(ToolsAppCtx *ctx)
         xdr_TestPluginData, sizeof (TestPluginData) },
       { NULL, NULL }
    };
+   static ToolsPluginData pluginData = {
+      "testDebug",
+      NULL,
+      NULL,
+      NULL,
+   };
    static RpcDebugPlugin regData = {
       recvFns,
       NULL,
       TestDebugSendNext,
-      NULL
+      NULL,
+      &pluginData,
    };
 
-   TestPluginData testdata;
-   testdata.data = "rpc1test";
-   testdata.f_int = 1357;
-   testdata.f_bool = TRUE;
+   /* Standard plugin interface, used to listen for signals. */
+   {
+      ToolsPluginSignalCb sigs[] = {
+         { "test-signal", TestDebugHandleSignal, NULL },
+      };
+      ToolsAppReg regs[] = {
+         { TOOLS_APP_SIGNALS, VMTOOLS_WRAP_ARRAY(sigs) },
+      };
 
-   /* Build the command for the "test.rpcin.msg1" RPC. */
-   if (!RpcChannel_BuildXdrCommand("test.rpcin.msg1",
-                                   xdr_TestPluginData,
-                                   &testdata,
-                                   &gRpcMessages[4].message,
-                                   &gRpcMessages[4].messageLen)) {
-      g_error("Failed to create test.rpcin.msg1 command.\n");
+      pluginData.regs = VMTOOLS_WRAP_ARRAY(regs);
+   }
+
+   /* Initialize the paylod of the "test.rpcin.msg1" RPC. */
+   {
+      TestPluginData testdata;
+      testdata.data = "rpc1test";
+      testdata.f_int = 1357;
+      testdata.f_bool = TRUE;
+
+      /* Build the command for the "test.rpcin.msg1" RPC. */
+      if (!RpcChannel_BuildXdrCommand("test.rpcin.msg1",
+                                      xdr_TestPluginData,
+                                      &testdata,
+                                      &gRpcMessages[4].message,
+                                      &gRpcMessages[4].messageLen)) {
+         g_error("Failed to create test.rpcin.msg1 command.\n");
+      }
    }
 
    gCtx = ctx;

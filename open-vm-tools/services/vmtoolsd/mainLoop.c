@@ -254,16 +254,21 @@ ToolsCore_DumpState(ToolsServiceState *state)
 
    ASSERT_ON_COMPILE(ARRAYSIZE(providerStates) == TOOLS_PROVIDER_MAX);
 
-   g_message("VM Tools Service '%s':\n", state->name);
-   g_message("   Plugin path: %s\n", state->pluginPath);
+   ToolsCore_LogState(TOOLS_STATE_LOG_ROOT,
+                      "VM Tools Service '%s':\n",
+                      state->name);
+   ToolsCore_LogState(TOOLS_STATE_LOG_CONTAINER,
+                      "Plugin path: %s\n",
+                      state->pluginPath);
 
    for (i = 0; i < state->providers->len; i++) {
       ToolsAppProviderReg *prov = &g_array_index(state->providers,
                                                  ToolsAppProviderReg,
                                                  i);
-      g_message("   App provider: %s (%s)\n",
-                prov->prov->name,
-                providerStates[prov->state]);
+      ToolsCore_LogState(TOOLS_STATE_LOG_CONTAINER,
+                         "App provider: %s (%s)\n",
+                         prov->prov->name,
+                         providerStates[prov->state]);
       if (prov->prov->dumpState != NULL) {
          prov->prov->dumpState(&state->ctx, prov->prov, NULL);
       }

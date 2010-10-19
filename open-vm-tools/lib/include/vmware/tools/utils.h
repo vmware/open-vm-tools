@@ -89,6 +89,10 @@
 #  define VMTOOLS_RELEASE_FILENAME_LOCAL(path)   g_free(path)
 #endif
 
+/** Convenience macro around VMTools_WrapArray. */
+#define VMTOOLS_WRAP_ARRAY(a) VMTools_WrapArray((a), sizeof *(a), G_N_ELEMENTS(a))
+
+
 G_BEGIN_DECLS
 
 void

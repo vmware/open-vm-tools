@@ -899,10 +899,11 @@ VmBackupDumpState(gpointer src,
                   gpointer data)
 {
    if (gBackupState == NULL) {
-      g_message("Backup is idle.\n");
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN, "Backup is idle.\n");
    } else {
-      g_message("Backup is in state: %s\n",
-                VmBackupGetStateName(gBackupState->machineState));
+      ToolsCore_LogState(TOOLS_STATE_LOG_PLUGIN,
+                         "Backup is in state: %s\n",
+                         VmBackupGetStateName(gBackupState->machineState));
    }
 }
 

@@ -121,6 +121,8 @@ typedef struct RpcDebugPlugin {
    RpcDebugSendFn       sendFn;
    /** Shutdown function. */
    RpcDebugShutdownFn   shutdownFn;
+   /** Plugin data that debug plugins can also export. */
+   ToolsPluginData     *plugin;
 } RpcDebugPlugin;
 
 
