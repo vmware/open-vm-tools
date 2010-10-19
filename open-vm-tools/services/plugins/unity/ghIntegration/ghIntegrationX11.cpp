@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2010 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,6 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
+
 
 /*
  * ghIntegrationX11.c --
@@ -173,8 +174,6 @@ struct _GHIPlatform {
    GHIHostCallbacks hostCallbacks;
 };
 
-#ifdef GTK2
-
 /*
  * The GHIMenuItem object represents an individual leaf-node menu item (corresponding to
  * a .desktop file).
@@ -313,7 +312,6 @@ GHIPlatformDestroyMenuDirectory(gpointer data) // IN
    g_ptr_array_foreach(gmd->items, GHIPlatformDestroyMenuItem, NULL);
    g_ptr_array_free(gmd->items, TRUE);
 }
-#endif // GTK2
 
 
 /*
@@ -336,11 +334,7 @@ GHIPlatformDestroyMenuDirectory(gpointer data) // IN
 Bool
 GHIPlatformIsSupported(void)
 {
-#ifdef GTK2
    return TRUE;
-#else
-   return FALSE;
-#endif
 }
 
 
@@ -437,7 +431,6 @@ GHIPlatformUnregisterCaps(GHIPlatform *ghip) // IN
 }
 
 
-#ifdef GTK2
 /*
  *-----------------------------------------------------------------------------
  *
@@ -465,7 +458,6 @@ GHIPlatformFreeValue(gpointer key,       // IN
 
    return TRUE;
 }
-#endif // GTK2
 
 
 /*
@@ -488,7 +480,6 @@ GHIPlatformFreeValue(gpointer key,       // IN
 static void
 GHIPlatformCleanupMenuEntries(GHIPlatform *ghip) // IN
 {
-#ifdef GTK2
    if (ghip->menuHandles) {
       g_hash_table_foreach_remove(ghip->menuHandles, GHIPlatformFreeValue, NULL);
       g_hash_table_destroy(ghip->menuHandles);
@@ -501,7 +492,6 @@ GHIPlatformCleanupMenuEntries(GHIPlatform *ghip) // IN
       g_tree_destroy(ghip->apps);
       ghip->apps = NULL;
    }
-#endif // GTK2
 }
 
 
@@ -562,9 +552,6 @@ GHIPlatformRegisterNotifyIconCallback(NotifyIconCallback *notifyIconCallback) //
 void GHIPlatformUnregisterNotifyIconCallback(NotifyIconCallback *notifyIconCallback)   // IN
 {
 }
-
-
-#ifdef GTK2
 
 
 /*
@@ -655,7 +642,6 @@ GHIPlatformCollectIconInfo(GHIPlatform *ghip,                        // IN
 
    AppUtil_FreeIconArray(pixbufs);
 }
-#endif // GTK2
 
 
 /*
@@ -683,7 +669,6 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
                          std::string &friendlyName,               // OUT: Friendly name
                          std::list<GHIBinaryIconInfo> &iconList)  // OUT: Icons
 {
-#ifdef GTK2
    const char *realCmd = NULL;
    char *keyfilePath = NULL;
    unsigned long windowID = 0;
@@ -828,9 +813,6 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    GHIPlatformCollectIconInfo(ghip, ghm, windowID, iconList);
 
    return TRUE;
-#else // !GTK2
-   return FALSE;
-#endif // GTK2
 }
 
 
@@ -861,9 +843,6 @@ GHIPlatformGetBinaryHandlers(GHIPlatform *ghip,      // IN: platform-specific st
    return sEmptyFileTypeList;
 }
 #endif // OPEN_VM_TOOLS
-
-
-#ifdef GTK2
 
 
 /*
@@ -1509,7 +1488,6 @@ GHIPlatformReadAllApplications(GHIPlatform *ghip) // IN
       }
    }
 }
-#endif // GTK2
 
 
 /*
@@ -1541,7 +1519,6 @@ GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific 
                              uint32 flags,             // IN: flags
                              DynBuf *buf)              // OUT: number of items
 {
-#ifdef GTK2
    char temp[64];
    GHIMenuHandle *gmh;
    int itemCount = 0;
@@ -1602,13 +1579,9 @@ GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific 
    DynBuf_AppendString(buf, temp);
 
    return TRUE;
-#else // !GTK2
-   return FALSE;
-#endif // GTK2
 }
 
 
-#ifdef GTK2
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1644,7 +1617,6 @@ GHIPlatformFindLaunchMenuItem(gpointer key,   // IN
 
    return FALSE;
 }
-#endif // GTK2
 
 
 /*
@@ -1756,7 +1728,6 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
                             uint32 itemIndex,  // IN: the index of the item in the tree
                             DynBuf *buf)       // OUT: item
 {
-#ifdef GTK2
    GHIMenuHandle *gmh;
    char *itemName = NULL;
    uint itemFlags = 0;
@@ -1848,9 +1819,6 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
    }
 
    return TRUE;
-#else // !GTK2
-   return FALSE;
-#endif // GTK2
 }
 
 
@@ -1875,7 +1843,6 @@ Bool
 GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
                               uint32 handle)     // IN: handle to the tree to be closed
 {
-#ifdef GTK2
    GHIMenuHandle *gmh;
 
    ASSERT(ghip);
@@ -1892,9 +1859,6 @@ GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
    GHIPlatformFreeValue(NULL, gmh, NULL);
 
    return TRUE;
-#else // !GTK2
-   return FALSE;
-#endif // GTK2
 }
 
 
