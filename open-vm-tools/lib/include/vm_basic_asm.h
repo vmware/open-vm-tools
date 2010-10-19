@@ -81,7 +81,7 @@ extern "C" {
 /*
  * It seems x86 & x86-64 windows still implements these intrinsic
  * functions.  The documentation for the x86-64 suggest the
- * __inbyte/__outbyte intrinsics eventhough the _in/_out work fine and
+ * __inbyte/__outbyte intrinsics even though the _in/_out work fine and
  * __inbyte/__outbyte aren't supported on x86.
  */
 int            _inp(unsigned short);
@@ -126,6 +126,14 @@ unsigned char  _BitScanForward(unsigned long *, unsigned long);
 unsigned char  _BitScanReverse(unsigned long *, unsigned long);
 #pragma intrinsic(_BitScanForward, _BitScanReverse)
 
+unsigned char  _bittestandset(long *, long);
+unsigned char  _bittestandreset(long *, long);
+#pragma intrinsic(_bittestandset, _bittestandreset)
+#ifdef VM_X86_64
+unsigned char  _bittestandset64(__int64 *, __int64);
+unsigned char  _bittestandreset64(__int64 *, __int64);
+#pragma intrinsic(_bittestandset64, _bittestandreset64)
+#endif /* VM_X86_64 */
 #ifdef __cplusplus
 }
 #endif
@@ -769,5 +777,108 @@ RDTSC(void)
 #define DEBUGBREAK()   __asm__ (" int $3 ")
 #endif
 #endif // defined(__i386__) || defined(__x86_64__)
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * {Clear,Set}Bit{32,64} --
+ *
+ *    Sets or clears a specified single bit in the provided variable.  
+ *    The index input value specifies which bit to modify and is 0-based. 
+ *    Index is truncated by hardware to a 5-bit or 6-bit offset for the 
+ *    32 and 64-bit flavors, respectively, but input values are not validated
+ *    with asserts to avoid include dependencies.
+ *    64-bit flavors are not provided for 32-bit builds because the inlined
+ *    version can defeat user or compiler optimizations.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+SetBit32(uint32 *var, unsigned index)
+{
+#ifdef __GNUC__
+   __asm__ (
+      "bts %1, %0"
+#   if VM_ASM_PLUS
+      : "+mr" (*var)
+      : "ri" (index)
+#   else
+      : "=mr" (*var)
+      : "ri" (index),
+        "0" (*var)
+#   endif
+      : "cc"
+   );
+#elif defined(_MSC_VER)
+   _bittestandset((long *)var, index);
+#endif
+}
+
+static INLINE void
+ClearBit32(uint32 *var, unsigned index)
+{
+#ifdef __GNUC__
+   __asm__ (
+      "btr %1, %0"
+#   if VM_ASM_PLUS
+      : "+mr" (*var)
+      : "ri" (index)
+#   else
+      : "=mr" (*var)
+      : "ri" (index),
+        "0" (*var)
+#   endif
+      : "cc"
+   );
+#elif defined(_MSC_VER)
+   _bittestandreset((long *)var, index);
+#endif
+}
+
+#if defined(VM_X86_64)
+static INLINE void
+SetBit64(uint64 *var, unsigned index)
+{
+#ifdef __GNUC__
+   __asm__ (
+      "bts %1, %0"
+#   if VM_ASM_PLUS
+      : "+mr" (*var)
+      : "ri" (index)
+#   else
+      : "=mr" (*var)
+      : "ri" (index),
+        "0" (*var)
+#   endif
+      : "cc"
+   );
+#elif defined _MSC_VER
+   _bittestandset64((__int64 *)var, index);
+#endif
+}
+
+static INLINE void
+ClearBit64(uint64 *var, unsigned index)
+{
+#ifdef __GNUC__
+   __asm__ (
+      "btr %1, %0"
+#   if VM_ASM_PLUS
+      : "+mr" (*var)
+      : "ri" (index)
+#   else
+      : "=mr" (*var)
+      : "ri" (index),
+        "0" (*var)
+#   endif
+      : "cc"
+   );
+#elif defined _MSC_VER
+   _bittestandreset64((__int64 *)var, index);
+#endif
+}
+#endif /* VM_X86_64 */
 
 #endif // _VM_BASIC_ASM_H_
