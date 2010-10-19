@@ -564,7 +564,6 @@ BalloonGetChunk(Balloon *b)         // IN
 static void
 BalloonPageStore(BalloonChunk *chunk, PageHandle page)
 {
-   ASSERT(chunk->pageCount < BALLOON_CHUNK_PAGES);
    chunk->page[chunk->pageCount++] = page;
 }
 
@@ -994,8 +993,6 @@ BalloonMonitorGuestType(Balloon *b) // IN
 {
    uint32 status, target;
    Backdoor_proto bp;
-
-   ASSERT(b->guestType == (uint32) b->guestType);
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = BALLOON_BDOOR_CMD_GUEST_ID;
