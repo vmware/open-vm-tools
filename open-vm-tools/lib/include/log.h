@@ -82,6 +82,101 @@
 #define LOG_DEBUG_09    LOG_DEBUG + 9
 #define LOG_DEBUG_10    LOG_DEBUG + 10
 
+void LogV(int level,
+          const char *fmt,
+          va_list args);
+
+
+/*
+ * Handy wrapper functions.
+ *
+ * Log -> LOG_INFO
+ * Warning -> LOG_WARNING
+ *
+ * TODO: even Log and Warning become wrapper functions around LogV.
+ */
+
+static INLINE void
+Log_Level(int level,
+          const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(level, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_String(int level,
+           const char *string)
+{
+   Log_Level(level, "%s", string);
+}
+
+
+static INLINE void
+Log_Emerg(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_EMERG, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Alert(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_ALERT, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Crit(const char *fmt,
+         ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_CRIT, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Err(const char *fmt,
+        ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_ERR, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Notice(const char *fmt,
+           ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_NOTICE, fmt, ap);
+   va_end(ap);
+}
+
+#if !defined(VMM)
 typedef void (LogBasicFunc)(const char *fmt,
                             va_list args);
 
@@ -145,7 +240,6 @@ void Log_UpdatePerLine(Bool perLineTimeStamps,
 
 void Log_Exit(void);
 void Log_SetConfigDir(const char *configDir);
-void Log_WriteBytes(const char *msg);
 
 Bool Log_Outputting(void);
 const char *Log_GetFileName(void);
@@ -170,91 +264,6 @@ Bool Log_SetOutput(const char *fileName,
 size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
                           size_t max);
-
-void LogV(int level,
-          const char *fmt,
-          va_list args);
-
-
-static INLINE void
-Log_Level(int level,
-          const char *fmt,
-          ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(level, fmt, ap);
-   va_end(ap);
-}
-
-/*
- * Handy wrapper functions.
- *
- * Log -> LOG_INFO
- * Warning -> LOG_WARNING
- *
- * TODO: even Log and Warning become wrapper functions around LogV.
- */
-
-static INLINE void
-Log_Emerg(const char *fmt,
-          ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(LOG_EMERG, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void
-Log_Alert(const char *fmt,
-          ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(LOG_ALERT, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void
-Log_Crit(const char *fmt,
-         ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(LOG_CRIT, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void
-Log_Err(const char *fmt,
-        ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(LOG_ERR, fmt, ap);
-   va_end(ap);
-}
-
-
-static INLINE void
-Log_Notice(const char *fmt,
-           ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(LOG_NOTICE, fmt, ap);
-   va_end(ap);
-}
 
 
 /* Logging that uses the custom guest throttling configuration. */
@@ -306,4 +315,5 @@ void Log_Histogram(uint32 n,
                    int *count,
                    int limit);
 
+#endif /* !VMM */
 #endif /* VMWARE_LOG_H */
