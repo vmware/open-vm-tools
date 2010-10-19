@@ -278,23 +278,32 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
       GuestNicV3 *nic = NULL;
       char macAddress[NICINFO_MAC_LEN];
 
-      Str_Sprintf(macAddress, sizeof macAddress, "%s",
-                  addr_ntoa(&entry->intf_link_addr));
-      nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
-      ASSERT_MEM_ALLOC(nic);
+      /*
+       * There is a race where the guest info plugin might be iterating over the
+       * interfaces while the OS is modifying them (i.e. by bringing them up
+       * after a resume). If we see an ethernet interface with an invalid MAC,
+       * then ignore it for now. Subsequent iterations of the gather loop will
+       * pick up any changes.
+       */
+      if (entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
+         Str_Sprintf(macAddress, sizeof macAddress, "%s",
+                     addr_ntoa(&entry->intf_link_addr));
+         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
+         ASSERT_MEM_ALLOC(nic);
 
-      /* Record the "primary" address. */
-      if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
-          entry->intf_addr.addr_type == ADDR_TYPE_IP6) {
-         RecordNetworkAddress(nic, &entry->intf_addr);
-      }
+         /* Record the "primary" address. */
+         if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
+             entry->intf_addr.addr_type == ADDR_TYPE_IP6) {
+            RecordNetworkAddress(nic, &entry->intf_addr);
+         }
 
-      /* Walk the list of alias's and add those that are IPV4 or IPV6 */
-      for (i = 0; i < entry->intf_alias_num; i++) {
-         const struct addr *alias = &entry->intf_alias_addrs[i];
-         if (alias->addr_type == ADDR_TYPE_IP ||
-             alias->addr_type == ADDR_TYPE_IP6) {
-            RecordNetworkAddress(nic, alias);
+         /* Walk the list of alias's and add those that are IPV4 or IPV6 */
+         for (i = 0; i < entry->intf_alias_num; i++) {
+            const struct addr *alias = &entry->intf_alias_addrs[i];
+            if (alias->addr_type == ADDR_TYPE_IP ||
+                alias->addr_type == ADDR_TYPE_IP6) {
+               RecordNetworkAddress(nic, alias);
+            }
          }
       }
    }
