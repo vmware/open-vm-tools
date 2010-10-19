@@ -32,6 +32,9 @@
  * platforms. Then the debugging levels are extended "down" to allow for
  * multiple levels of debugging "noise".
  *
+ * NOTE: The reuse of the syslog defines is temporary. The levels will be
+ *       moved to a private name space soon.
+ *
  * The conceptual model is as follows:
  *
  * LOG_EMERG       0   (highest priority)
@@ -54,7 +57,7 @@
  * LOG_DEBUG_10    17  (lowest priority; least noisy debugging level)
  */
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(VMM)
 #define LOG_EMERG    0
 #define LOG_ALERT    1
 #define LOG_CRIT     2
@@ -64,9 +67,7 @@
 #define LOG_INFO     6
 #define LOG_DEBUG    7
 #else
-#   if !defined(VMM)
-#      include <syslog.h>
-#   endif
+#   include <syslog.h>
 #endif
 
 #define LOG_DEBUG_00    LOG_DEBUG + 0
@@ -170,19 +171,91 @@ size_t Log_MakeTimeString(Bool millisec,
                           char *buf,
                           size_t max);
 
-void LogV(const char *fmt,
+void LogV(int level,
+          const char *fmt,
           va_list args);
 
-void WarningV(const char *fmt,
-              va_list args);
 
-void Log_Level(int level,
-               const char *fmt,
-               ...);
+static INLINE void
+Log_Level(int level,
+          const char *fmt,
+          ...)
+{
+   va_list ap;
 
-void Log_LevelV(int level,
-                const char *fmt,
-                va_list args);
+   va_start(ap, fmt);
+   LogV(level, fmt, ap);
+   va_end(ap);
+}
+
+/*
+ * Handy wrapper functions.
+ *
+ * Log -> LOG_INFO
+ * Warning -> LOG_WARNING
+ *
+ * TODO: even Log and Warning become wrapper functions around LogV.
+ */
+
+static INLINE void
+Log_Emerg(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_EMERG, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Alert(const char *fmt,
+          ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_ALERT, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Crit(const char *fmt,
+         ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_CRIT, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Err(const char *fmt,
+        ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_ERR, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void
+Log_Notice(const char *fmt,
+           ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(LOG_NOTICE, fmt, ap);
+   va_end(ap);
+}
+
 
 /* Logging that uses the custom guest throttling configuration. */
 void GuestLog_Init(void);
