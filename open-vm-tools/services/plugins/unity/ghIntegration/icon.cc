@@ -46,6 +46,8 @@ static void  AppendPixbufToArray(const GdkPixbuf* pixbuf,
                                  std::list<GHIBinaryIconInfo>& iconList);
 static gint* GetIconSizesDescending(GtkIconTheme *iconTheme,
                                     const gchar* iconName);
+static Bool  GetIconsForGIcon(GIcon* gicon,
+                              std::list<GHIBinaryIconInfo>& iconList);
 
 
 /*
@@ -57,11 +59,10 @@ static gint* GetIconSizesDescending(GtkIconTheme *iconTheme,
  *      as BGRA data.  Icons are sorted in descending order by size.
  *
  * Results:
- *      Returns a pointer to a GPtrArray of GHIX11Icons on success and NULL on
- *      failure.
+ *      Returns FALSE if any errors were encountered and TRUE otherwise.
  *
  * Side effects:
- *      Caller is responsible for freeing icons.
+ *      iconList.size() may grow.
  *
  *-----------------------------------------------------------------------------
  */
@@ -71,31 +72,96 @@ GHIX11IconGetIconsForDesktopFile(const char* desktopFile,                // IN
                                  std::list<GHIBinaryIconInfo>& iconList) // OUT
 {
    GDesktopAppInfo* desktopAppInfo = NULL;
-   GAppInfo* appInfo;
    GIcon* gicon = NULL;
-   gchar* iconName = NULL;
    Bool success = FALSE;
 
+   desktopAppInfo = g_desktop_app_info_new_from_filename(desktopFile);
+   if (desktopAppInfo) {
+      GAppInfo* appInfo = (GAppInfo*)G_APP_INFO(desktopAppInfo);
+      gicon = g_app_info_get_icon(appInfo);
+      if (gicon) {
+         success = GetIconsForGIcon(gicon, iconList);
+      }
+      g_object_unref(desktopAppInfo);
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIX11IconGetIconsByName --
+ *
+ *      Try to find icons identified by a string.  The string may refer to a
+ *      generic name leading to searching an icon theme, or it may be an
+ *      absolute path to an icon file.
+ *
+ * Results:
+ *      Returns FALSE if any errors were encountered and TRUE otherwise.
+ *
+ * Side effects:
+ *      iconList.size() may grow.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+GHIX11IconGetIconsByName(const char* iconName,                          // IN
+                         std::list<GHIBinaryIconInfo>& iconList)        // OUT
+{
+   GIcon *gicon;
+   Bool retval = FALSE;
+
+   gicon = g_icon_new_for_string(iconName, NULL);
+   if (gicon) {
+      retval = GetIconsForGIcon(gicon, iconList);
+      g_object_unref(G_OBJECT(gicon));
+   }
+
+   return retval;
+}
+
+
+/*
+ * Local functions
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetIconsForGIcon --
+ *
+ *      Given a GLib GIcon, search the default icon theme or filesystem for
+ *      icons.
+ *
+ * Results:
+ *      Returns FALSE if any errors were encountered and TRUE otherwise.
+ *
+ * Side effects:
+ *      iconList.size() may grow.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+GetIconsForGIcon(GIcon* gicon,                                  // IN
+                 std::list<GHIBinaryIconInfo>& iconList)        // OUT
+{
+   gchar* iconName = NULL;
    GtkIconTheme* iconTheme;
+   Bool success = FALSE;
+
+   ASSERT(gicon);
 
    /*
-    * Let GIO do the heavy lifting to find our icon's name.  We can handle
-    * two icon types, themed and file.  A themed icon is provided by and varies
-    * by icon theme whereas a file icon is stored in a single file.  (There's
-    * a special case where GIO thinks we have a themed icon, but it turns out
-    * to be a file icon.  More on that later.)
+    * We can handle two icon types, themed and file.  A themed icon is
+    * provided by and varies by icon theme whereas a file icon is stored
+    * in a single file.  (There's a special case where GIO thinks we have
+    * a themed icon, but it turns out to be a file icon.  More on that later.)
     */
-
-   desktopAppInfo = g_desktop_app_info_new_from_filename(desktopFile);
-   if (!desktopAppInfo) {
-      goto out;
-   }
-
-   appInfo = (GAppInfo* )G_APP_INFO(desktopAppInfo);
-   gicon = g_app_info_get_icon(appInfo);
-   if (!gicon) {
-      goto out;
-   }
 
    iconName = g_icon_to_string(gicon);
    iconTheme = gtk_icon_theme_get_default();
@@ -162,16 +228,8 @@ out:
    if (iconName) {
       g_free(iconName);
    }
-   if (desktopAppInfo) {
-      g_object_unref(G_OBJECT(desktopAppInfo));
-   }
    return success;
 }
-
-
-/*
- * Local functions
- */
 
 
 /*
@@ -296,8 +354,8 @@ DescendingIntCmp(const void* a,
 }
 
 static gint*
-GetIconSizesDescending(GtkIconTheme* iconTheme,
-                       const gchar* iconName)
+GetIconSizesDescending(GtkIconTheme* iconTheme, // IN
+                       const gchar* iconName)   // IN
 {
    gint* iconSizes = NULL;
    gint* iter;

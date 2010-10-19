@@ -30,8 +30,7 @@
  *    (GHIPlatform{OpenStartMenuTree,GetStartMenuItem,CloseStartMenuTree}).
  */
 
-#define _BSD_SOURCE 1 // Needed on Linux to get the DT_* values for dirent->d_type
-#include <dirent.h>
+
 #include <stdio.h>
 #include <limits.h>
 #include <sys/param.h>
@@ -45,6 +44,9 @@
 #endif
 
 #include <gtk/gtk.h>
+#include <gtkmm.h>
+#include <glibmm.h>
+#include <giomm.h>
 #include <glib.h>
 #include <gdk-pixbuf/gdk-pixbuf-core.h>
 
@@ -92,6 +94,11 @@ using vmware::tools::ghi::MenuItemManager;
 using vmware::tools::ghi::MenuItem;
 #endif
 
+#include "vmware/tools/ghi/pseudoAppMgr.hh"
+using vmware::tools::ghi::PseudoAppMgr;
+using vmware::tools::ghi::PseudoApp;
+
+
 using vmware::tools::NotifyIconCallback;
 
 /*
@@ -130,7 +137,7 @@ struct _GHIPlatform {
    GHashTable *appsByWindowExecutable;
 
    /* Pre-wrapper script environment.  See @ref System_GetNativeEnviron. */
-   const char **nativeEnviron;
+   std::vector<Glib::ustring> nativeEnviron;
 
    /* Callbacks to send data (RPCs) to the host */
    GHIHostCallbacks hostCallbacks;
@@ -254,18 +261,34 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
    GHIPlatform *ghip;
    const char *desktopEnv;
 
+   Gtk::Main::init_gtkmm_internals();
+
    ghip = (GHIPlatform *) Util_SafeCalloc(1, sizeof *ghip);
-   ghip->nativeEnviron = envp;
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
    ghip->hostCallbacks = hostCallbacks;
    AppUtil_Init();
+
+   const char** tmp;
+   for (tmp = envp; *tmp; tmp++) {
+      ghip->nativeEnviron.push_back(*tmp);
+   }
 
    desktopEnv = GHIX11DetectDesktopEnv();
    g_desktop_app_info_set_desktop_env(desktopEnv);
 
 #ifdef REDIST_GMENU
    ghip->menuItemManager = new MenuItemManager(desktopEnv);
+#endif
+
+#ifdef VMX86_DEBUG
+   std::vector<const char *> folderKeysChanged;
+   folderKeysChanged.push_back(UNITY_START_MENU_LAUNCH_FOLDER);
+   folderKeysChanged.push_back(UNITY_START_MENU_FIXED_FOLDER);
+   if (ghip->hostCallbacks.launchMenuChange) {
+      ghip->hostCallbacks.launchMenuChange(folderKeysChanged.size(),
+                                           &folderKeysChanged[0]);
+   }
 #endif
 
    return ghip;
@@ -353,7 +376,6 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
       return;
    }
 
-   ghip->nativeEnviron = NULL;
    g_hash_table_destroy(ghip->appsByWindowExecutable);
    free(ghip);
 }
@@ -412,9 +434,11 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
                          std::list<GHIBinaryIconInfo> &iconList)  // OUT: Icons
 {
    const char *realCmd = NULL;
+#if 0
    char *keyfilePath = NULL;
    unsigned long windowID = 0;
    gpointer freeMe = NULL;
+#endif
    UriParserStateA state;
    UriUriA uri;
 
@@ -429,7 +453,63 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       realCmd = pathURIUtf8;
    } else if (uriParseUriA(&state, pathURIUtf8) == URI_SUCCESS) {
       if (URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
-         GDesktopAppInfo *desktopFileInfo = NULL;
+         gchar* tmp = (gchar*)g_alloca(strlen(pathURIUtf8) + 1);
+         uriUriStringToUnixFilenameA(pathURIUtf8, tmp);
+
+         Glib::ustring unixFile;
+         unixFile.assign(tmp);
+
+         Glib::ustring contentType;
+         bool uncertain;
+         contentType = Gio::content_type_guess(unixFile, std::string(""),
+                                               uncertain);
+
+         Bool success = FALSE;
+         PseudoAppMgr appMgr;
+         PseudoApp app;
+
+         /*
+          * H'okay.  So we're looking up icons, yeah?
+          *
+          * 1.  If given a URI for an XDG desktop entry file, search for an icon based
+          *     on its Icon key.
+          * 2.  If given a pseudo app URI, as identified by appMgr, use the special
+          *     icon associated with said pseudo app.
+          * 3.  If given a folder, try going with "folder" (per icon-naming-spec).
+          * 4.  Else fall back to searching our theme for an icon based on MIME/
+          *     content type.
+          */
+
+         if (contentType == "application/x-desktop") {
+            Glib::RefPtr<Gio::DesktopAppInfo> desktopFileInfo;
+
+            desktopFileInfo = Gio::DesktopAppInfo::create_from_filename(unixFile);
+            if (desktopFileInfo) {
+               friendlyName = desktopFileInfo->get_name();
+               GHIX11IconGetIconsForDesktopFile(unixFile.c_str(), iconList);
+               success = TRUE;
+            }
+         } else if (appMgr.GetAppByUri(pathURIUtf8, app)) {
+            friendlyName = app.symbolicName;
+            GHIX11IconGetIconsByName(app.iconName.c_str(), iconList);
+            success = TRUE;
+         } else if (Glib::file_test(unixFile, Glib::FILE_TEST_IS_DIR)) {
+            friendlyName = Glib::filename_display_basename(unixFile);
+            GHIX11IconGetIconsByName("folder", iconList);
+            success = TRUE;
+         } else {
+            friendlyName = Glib::filename_display_basename(unixFile);
+            size_t i = 0;
+            while ((i = contentType.find('/', i)) != contentType.npos) {
+               contentType.replace(i, 1, "-");
+            }
+            GHIX11IconGetIconsByName(contentType.c_str(), iconList);
+            success = TRUE;
+         }
+
+         uriFreeUriMembersA(&uri);
+         return success;
+#if 0
          UriQueryListA *queryList = NULL;
          int itemCount;
 
@@ -465,6 +545,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
 
             uriFreeQueryListA(queryList);
          }
+#endif
       } else {
          uriFreeUriMembersA(&uri);
          Debug("Binary URI %s does not have a 'file' scheme\n", pathURIUtf8);
@@ -757,10 +838,10 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
 
 #ifdef REDIST_GMENU
    const MenuItem* menuItem;
-   const utf::string* path;
+   const Glib::ustring* path;
 
    if (ghip->menuItemManager->GetMenuItem(handle, itemIndex, &menuItem, &path)) {
-      utf::string key = *path + "/" + menuItem->key;
+      Glib::ustring key = *path + "/" + menuItem->key;
       DynBuf_AppendString(buf, key.c_str());
 
       char tmp[sizeof MAKESTR(UINT_MAX)];
@@ -1341,25 +1422,58 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
 
       if (uriParseUriA(&upState, fileUtf8) == URI_SUCCESS &&
           URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
-         GDesktopAppInfo *dappinfo;
-         gchar *desktopFile;
          Bool success = FALSE;
 
-         desktopFile = (gchar *)g_alloca(strlen(fileUtf8) + 1);
-         uriUriStringToUnixFilenameA(fileUtf8, desktopFile);
-         ASSERT(g_str_has_suffix(desktopFile, ".desktop"));
+         gchar* tmp = (gchar*)g_alloca(strlen(fileUtf8) + 1);
+         uriUriStringToUnixFilenameA(fileUtf8, tmp);
 
-         dappinfo = g_desktop_app_info_new_from_filename(desktopFile);
-         if (dappinfo) {
-            GAppInfo *appinfo = (GAppInfo *)G_APP_INFO(dappinfo);
-            success = g_app_info_launch(appinfo, NULL, NULL, NULL);
-            g_object_unref(dappinfo);
+         Glib::ustring unixFile;
+         unixFile.assign(tmp);
+
+         Glib::ustring contentType;
+         bool uncertain;
+         contentType = Gio::content_type_guess(unixFile, std::string(""), uncertain);
+
+         if (contentType == "application/x-desktop") {
+            GDesktopAppInfo* dappinfo;
+            dappinfo = g_desktop_app_info_new_from_filename(unixFile.c_str());
+            if (dappinfo) {
+               // XXX Okay, this is broken.  We need to use nativeEnviron when
+               // spawning applications, but g_app_info doesn't provide a way
+               // to do this.
+               GAppInfo *appinfo = (GAppInfo*)G_APP_INFO(dappinfo);
+               success = g_app_info_launch(appinfo, NULL, NULL, NULL);
+               g_object_unref(dappinfo);
+            }
+         } else {
+            std::vector<Glib::ustring> argv;
+            Glib::ustring de = GHIX11DetectDesktopEnv();
+            // XXX Really we should just use xdg-open exclusively, but xdg-open
+            // as shipped with xdg-utils 1.0.2 is broken.  It is fixed
+            // in portland CVS, but we need to import into modsource and
+            // redistribute with Tools in order to guarantee a working version.
+            if (de == "GNOME") {
+               argv.push_back("gnome-open");
+            } else if (de == "KDE") {
+               argv.push_back("kde-open");
+            } else {
+               argv.push_back("xdg-open");
+            }
+            argv.push_back(unixFile);
+            try {
+               Glib::spawn_async("", argv, ghip->nativeEnviron, Glib::SPAWN_SEARCH_PATH);
+               success = TRUE;
+            } catch(Glib::SpawnError& e) {
+               g_warning("%s: %s: %s\n", __func__, unixFile.c_str(), e.what().c_str());
+            }
          }
 
          return success;
       }
    } else if (GHIPlatformCombineArgs(ghip, fileUtf8, &fullArgv, &fullArgc) &&
        fullArgc > 0) {
+      // XXX Will fix this soon.
+#if 0
       retval = g_spawn_async(NULL, fullArgv,
                             /*
                              * XXX  Please don't hate me for casting off the qualifier
@@ -1374,6 +1488,7 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
                              G_SPAWN_STDOUT_TO_DEV_NULL |
                              G_SPAWN_STDERR_TO_DEV_NULL),
                              NULL, NULL, NULL, NULL);
+#endif
    }
 
    g_strfreev(fullArgv);

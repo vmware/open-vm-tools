@@ -33,5 +33,8 @@ struct GHIBinaryIconInfo;
 
 Bool GHIX11IconGetIconsForDesktopFile(const char* desktopFile,
                                       std::list<GHIBinaryIconInfo>& iconList);
+Bool GHIX11IconGetIconsByName(const char* iconName,
+                              std::list<GHIBinaryIconInfo>& iconList);
+
 
 #endif // ifndef _GHIX11ICON_H_

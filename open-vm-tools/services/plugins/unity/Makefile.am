@@ -62,6 +62,7 @@ libunity_la_SOURCES += ghIntegration/ghIntegration.cpp
 libunity_la_SOURCES += ghIntegration/ghIntegrationInt.h
 libunity_la_SOURCES += ghIntegration/icon.cc
 libunity_la_SOURCES += ghIntegration/platform.cc
+libunity_la_SOURCES += ghIntegration/pseudoAppMgr.cc
 
 libunity_la_SOURCES += unitylib/unity.c
 libunity_la_SOURCES += unitylib/unityPlatform.h
