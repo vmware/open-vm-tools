@@ -1001,6 +1001,8 @@ HgfsPackCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         /* Reply consists of a reserved field only. */
+         reply->reserved = 0;
          *payloadSize = sizeof *reply;
       }
       break;
@@ -1059,7 +1061,7 @@ HgfsUnpackSearchClosePayload(HgfsRequestSearchClose *request, // IN: payload
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsUnpackClosePayloadV3 --
+ * HgfsUnpackSearchClosePayloadV3 --
  *
  *    Unpack hgfs search close payload V3 to get the search handle which need to
  *    be closed.
@@ -1179,6 +1181,8 @@ HgfsPackSearchCloseReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         /* Reply consists of only a reserved field. */
+         reply->reserved = 0;
          *payloadSize = sizeof *reply;
       }
       break;
@@ -2003,6 +2007,8 @@ HgfsPackRenameReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         /* Reply consists of only a reserved field. */
+         reply->reserved = 0;
          *payloadSize = sizeof *reply;
       }
       break;
@@ -3150,6 +3156,8 @@ HgfsPackSetattrReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         /* Reply consists of only a reserved field. */
+         reply->reserved = 0;
          *payloadSize = sizeof *reply;
       }
       break;
@@ -3449,6 +3457,8 @@ HgfsPackCreateDirReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         /* Reply consists of only a reserved field. */
+         reply->reserved = 0;
          *payloadSize = sizeof *reply;
       }
       break;
@@ -3610,6 +3620,7 @@ HgfsPackWriteWin32StreamReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                  (void **)&reply, session);
       if (result) {
+         reply->reserved = 0;
          reply->actualSize = actualSize;
          *payloadSize = sizeof *reply;
       }
@@ -3987,6 +3998,7 @@ HgfsPackWriteReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         reply->reserved = 0;
          reply->actualSize = actualSize;
          *payloadSize = sizeof *reply;
       }
@@ -4189,6 +4201,7 @@ HgfsPackQueryVolumeReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         reply->reserved = 0;
          reply->freeBytes = freeBytes;
          reply->totalBytes = totalBytes;
          *payloadSize = sizeof *reply;
@@ -4432,17 +4445,19 @@ HgfsPackSymlinkCreateReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
 
    switch (op) {
    case HGFS_OP_CREATE_SYMLINK_V3: {
-      HgfsReplyQueryVolumeV3 *reply;
+      HgfsReplySymlinkCreateV3 *reply;
 
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         /* Reply only consists of a reserved field. */
+         reply->reserved = 0;
          *payloadSize = sizeof *reply;
       }
       break;
    }
    case HGFS_OP_CREATE_SYMLINK: {
-      HgfsReplyQueryVolume *reply;
+      HgfsReplySymlinkCreate *reply;
 
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
@@ -4632,6 +4647,7 @@ HgfsPackSearchOpenReply(HgfsPacket *packet,          // IN/OUT: Hgfs Packet
       result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
                                   (void **)&reply, session);
       if (result) {
+         reply->reserved = 0;
          reply->search = search;
          *payloadSize = sizeof *reply;
       }
@@ -4809,11 +4825,19 @@ HgfsPackDestorySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                             HgfsSessionInfo *session)  // IN: Session info
 {
    HgfsReplyDestroySessionV4 *reply;
+   Bool result;
 
    HGFS_ASSERT_PACK_PARAMS;
 
    *payloadSize = 0;
 
-   return HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
-                             (void **)&reply, session);
+   result = HgfsAllocInitReply(packet, packetHeader, sizeof *reply,
+                               (void **)&reply, session);
+   if (result) {
+      /* Reply only consists of a reserved field. */
+      *payloadSize = sizeof *reply;
+      reply->reserved = 0;
+   }
+
+   return result;
 }

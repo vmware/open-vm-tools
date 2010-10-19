@@ -4566,6 +4566,7 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    reply = HSPU_GetReplyPacket(packet, &replyPacketSize, session);
 
    if (reply && (replyPacketSize >= headerSize + payloadSize)) {
+      memset(reply, 0, headerSize + payloadSize);
       result = TRUE;
       if (payloadSize > 0) {
          *payload = reply + headerSize;
@@ -4634,6 +4635,7 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
                                                 requiredSize, payload,
                                                 &reply->actualSize);
                   if (HGFS_ERROR_SUCCESS == status) {
+                     reply->reserved = 0;
                      replyPayloadSize = sizeof *reply +
                                          ((inlineDataSize > 0) ? reply->actualSize : 0);
                   }
