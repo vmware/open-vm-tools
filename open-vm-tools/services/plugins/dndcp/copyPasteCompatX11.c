@@ -219,20 +219,43 @@ CopyPaste_RequestSelection(void)
 
    /* Only send out request if we are not the owner. */
    if (!gIsOwner) {
+      /* Try to get timestamp for primary and clipboard. */
+      gWaitingOnGuestSelection = TRUE;
+      gtk_selection_convert(gUserMainWidget,
+                            GDK_SELECTION_PRIMARY,
+                            GDK_SELECTION_TYPE_TIMESTAMP,
+                            GDK_CURRENT_TIME);
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
+
+      gWaitingOnGuestSelection = TRUE;
+      gtk_selection_convert(gUserMainWidget,
+                            GDK_SELECTION_CLIPBOARD,
+                            GDK_SELECTION_TYPE_TIMESTAMP,
+                            GDK_CURRENT_TIME);
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
+
       /* Try to get utf8 text from primary and clipboard. */
       gWaitingOnGuestSelection = TRUE;
       gtk_selection_convert(gUserMainWidget,
                             GDK_SELECTION_PRIMARY,
                             GDK_SELECTION_TYPE_UTF8_STRING,
                             GDK_CURRENT_TIME);
-      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
 
       gWaitingOnGuestSelection = TRUE;
       gtk_selection_convert(gUserMainWidget,
                             GDK_SELECTION_CLIPBOARD,
                             GDK_SELECTION_TYPE_UTF8_STRING,
                             GDK_CURRENT_TIME);
-      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+      while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+         gtk_main_iteration();
+      }
 
       if (gGuestSelPrimaryBuf[0] == '\0' && gGuestSelClipboardBuf[0] == '\0') {
          /*
@@ -244,14 +267,18 @@ CopyPaste_RequestSelection(void)
                                GDK_SELECTION_PRIMARY,
                                GDK_SELECTION_TYPE_STRING,
                                GDK_CURRENT_TIME);
-         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+            gtk_main_iteration();
+         }
 
          gWaitingOnGuestSelection = TRUE;
          gtk_selection_convert(gUserMainWidget,
                                GDK_SELECTION_CLIPBOARD,
                                GDK_SELECTION_TYPE_STRING,
                                GDK_CURRENT_TIME);
-         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) gtk_main_iteration();
+         while (IsCtxMainLoopActive() && gWaitingOnGuestSelection) {
+            gtk_main_iteration();
+         }
       }
    }
    /* Send text to host. */
@@ -557,7 +584,12 @@ CopyPasteSetBackdoorSelections(void)
    primaryLen = strlen(gGuestSelPrimaryBuf);
    clipboardLen = strlen(gGuestSelClipboardBuf);
 
-   if (primaryLen) {
+   if (primaryLen && clipboardLen) {
+      /* Pick latest one if both are available. */
+      p = gGuestSelPrimaryTime >= gGuestSelClipboardTime ?
+         (uint32 const *)gGuestSelPrimaryBuf :
+         (uint32 const *)gGuestSelClipboardBuf;
+   } else if (primaryLen) {
       /*
        * Send primary selection to backdoor if it exists.
        */
