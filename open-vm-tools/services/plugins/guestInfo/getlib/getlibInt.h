@@ -18,19 +18,16 @@
 
 
 /*
- * guestInfoInt.h --
+ * getlibInt.h --
  *
  *    Functions used to communicate guest information to the host.
  *
  */
 
-#ifndef GUEST_INFO_INT_H
-#define GUEST_INFO_INT_H
+#ifndef GETLIB_INT_H
+#define GETLIB_INT_H
 
-
-#include "guestInfo.h"
-#include "guestInfoLib.h"
-#include "guestrpc/nicinfo.h"
+#include "guestInfoInt.h"
 
 #if defined __FreeBSD__ || defined __sun__ || defined __APPLE__
 #   include <sys/socket.h>      // struct sockaddr
@@ -39,8 +36,6 @@
 Bool GuestInfoGetFqdn(int outBufLen, char fqdn[]);
 GuestDiskInfo *GuestInfoGetDiskInfoWiper(void);
 Bool GuestInfoGetNicInfo(NicInfoV3 *nicInfo);
-void GuestInfoMemset(void * mem, int value, unsigned int size);
-Bool GuestInfo_PerfMon(struct GuestMemInfo *vmStats);
 
 GuestNicV3 *GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                    // IN/OUT
                                  const char macAddress[NICINFO_MAC_LEN], // IN

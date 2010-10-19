@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <glib.h>
 #include <fcntl.h>
 #ifdef sun
 # include <sys/systeminfo.h>
@@ -100,7 +99,7 @@
 #include "sys/ioctl.h"
 #include "vmware.h"
 #include "hostinfo.h"
-#include "guestInfoInt.h"
+#include "getlibInt.h"
 #include "debug.h"
 #include "str.h"
 #include "guest_os.h"
@@ -143,7 +142,7 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 {
    ASSERT(fqdn);
    if (gethostname(fqdn, outBufLen) < 0) {
-      Debug("Error, gethostname failed\n");
+      g_debug("Error, gethostname failed\n");
       return FALSE;
    }
 
@@ -168,13 +167,13 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
 
    /* Get a handle to read the network interface configuration details. */
    if ((intf = intf_open()) == NULL) {
-      Debug("GuestInfo: Error, failed NULL result from intf_open()\n");
+      g_debug("Error, failed NULL result from intf_open()\n");
       return FALSE;
    }
 
    if (intf_loop(intf, ReadInterfaceDetails, nicInfo) < 0) {
       intf_close(intf);
-      Debug("GuestInfo: Error, negative result from intf_loop\n");
+      g_debug("Error, negative result from intf_loop\n");
       return FALSE;
    }
 
@@ -414,7 +413,7 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       union res_sockaddr_union *ns;
       ns = Util_SafeCalloc(_res.nscount, sizeof *ns);
       if (res_getservers(&_res, ns, _res.nscount) != _res.nscount) {
-         Warning("%s: res_getservers failed.\n", __func__);
+         g_warning("%s: res_getservers failed.\n", __func__);
          return;
       }
       for (i = 0; i < _res.nscount; i++) {
@@ -687,12 +686,12 @@ RecordRoutingInfo(NicInfoV3 *nicInfo)
    Bool ret = TRUE;
 
    if (File_Exists("/proc/net/route") && !RecordRoutingInfoIPv4(nicInfo)) {
-      Warning("%s: Unable to collect IPv4 routing table.\n", __func__);
+      g_warning("%s: Unable to collect IPv4 routing table.\n", __func__);
       ret = FALSE;
    }
 
    if (File_Exists("/proc/net/ipv6_route") && !RecordRoutingInfoIPv6(nicInfo)) {
-      Warning("%s: Unable to collect IPv6 routing table.\n", __func__);
+      g_warning("%s: Unable to collect IPv6 routing table.\n", __func__);
       ret = FALSE;
    }
 

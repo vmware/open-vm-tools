@@ -24,7 +24,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <glib.h>
 
 #if defined _WIN32
 #   include <ws2tcpip.h>
@@ -32,7 +31,7 @@
 
 #include "vm_assert.h"
 #include "debug.h"
-#include "guestInfoInt.h"
+#include "getlibInt.h"
 #include "str.h"
 #include "util.h"
 #include "xdrutil.h"
@@ -190,7 +189,7 @@ GuestInfoGetDiskInfoWiper(void)
 
    /* Get partition list. */
    if (!WiperPartition_Open(&pl)) {
-      Debug("GetDiskInfo: ERROR: could not get partition list\n");
+      g_debug("GetDiskInfo: ERROR: could not get partition list\n");
       return FALSE;
    }
 
@@ -207,13 +206,13 @@ GuestInfoGetDiskInfoWiper(void)
 
          error = WiperSinglePartition_GetSpace(part, &freeBytes, &totalBytes);
          if (strlen(error)) {
-            Debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
-                  part->mountPoint, error);
+            g_debug("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
+                    part->mountPoint, error);
             goto out;
          }
 
          if (strlen(part->mountPoint) + 1 > partNameSize) {
-            Debug("GetDiskInfo: ERROR: Partition name buffer too small\n");
+            g_debug("GetDiskInfo: ERROR: Partition name buffer too small\n");
             goto out;
          }
 
