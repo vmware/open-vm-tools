@@ -558,7 +558,7 @@ else
                             [gio-unix-2.0],
                             [],
                             [2.24.0],
-                            [gio.h],
+                            [gio/gio.h],
                             [g_desktop_app_info_get_filename],
                             [],
                             [AC_MSG_ERROR([GLib/GIO 2.24+ not found.  Please configure without Unity (using --disable-unity) or upgrade the Glib devel package.])])
