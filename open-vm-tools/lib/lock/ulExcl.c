@@ -28,11 +28,11 @@
 
 typedef struct
 {
-   VmTimeType              holdStart;
-
    MXUserAcquisitionStats  acquisitionStats;
    Atomic_Ptr              acquisitionHisto;
 
+   void                   *holder;
+   VmTimeType              holdStart;
    MXUserBasicStats        heldStats;
    Atomic_Ptr              heldHisto;
 } MXUserStats;
@@ -136,6 +136,7 @@ static void
 MXUserDumpExclLock(MXUserHeader *header)  // IN:
 {
    MXUserExclLock *lock = (MXUserExclLock *) header;
+   MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
 
    Warning("%s: Exclusive lock @ 0x%p\n", __FUNCTION__, lock);
 
@@ -145,9 +146,9 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
 
    Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
-#if defined(MXUSER_DEBUG)
-   Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
-#endif
+   if (stats && (stats->holder != NULL)) {
+      Warning("\tholder %p\n", stats->holder);
+   }
 }
 
 
@@ -302,20 +303,22 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
       Bool contended;
       MXUserHisto *histo;
 
-      contended = MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+      contended = MXRecLockAcquire(&lock->recursiveLock);
 
       value = Hostinfo_SystemTimerNS() - begin;
 
       MXUserAcquisitionSample(&stats->acquisitionStats, TRUE, contended,
                               value);
 
+      stats->holder = GetReturnAddress();
+
       histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, value);
+         MXUserHistoSample(histo, value, stats->holder);
       }
    } else {
-      MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+      MXRecLockAcquire(&lock->recursiveLock);
    }
 
    if (MXRecLockCount(&lock->recursiveLock) > 1) {
@@ -364,7 +367,8 @@ MXUser_ReleaseExclLock(MXUserExclLock *lock)  // IN/OUT:
       histo = Atomic_ReadPtr(&stats->heldHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, value);
+         MXUserHistoSample(histo, value, stats->holder);
+         stats->holder = NULL;
       }
    }
 
@@ -416,7 +420,7 @@ MXUser_TryAcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
       return FALSE;
    }
 
-   success = MXRecLockTryAcquire(&lock->recursiveLock, GetReturnAddress());
+   success = MXRecLockTryAcquire(&lock->recursiveLock);
 
    if (success) {
       MXUserAcquisitionTracking(&lock->header, FALSE);

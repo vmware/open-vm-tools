@@ -78,7 +78,7 @@ MXUserAddToList(MXUserHeader *header)  // IN:
 
    /* Tolerate a failure. This is too low down to log */
    if (listLock) {
-      MXRecLockAcquire(listLock, GetReturnAddress());
+      MXRecLockAcquire(listLock);
       LIST_QUEUE(&header->item, &mxUserLockList);
       MXRecLockRelease(listLock);
    }
@@ -108,7 +108,7 @@ MXUserRemoveFromList(MXUserHeader *header)  // IN:
 
    /* Tolerate a failure. This is too low down to log */
    if (listLock) {
-      MXRecLockAcquire(listLock, GetReturnAddress());
+      MXRecLockAcquire(listLock);
       LIST_DEL(&header->item, &mxUserLockList);
       MXRecLockRelease(listLock);
    }
@@ -251,7 +251,8 @@ MXUserHistoTearDown(MXUserHisto *histo)  // IN:
 
 void
 MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
-                  uint64 durationNS)   // IN:
+                  uint64 durationNS,   // IN:
+                  void *caller)        // IN:
 {
    uint32 index;
 
@@ -839,7 +840,7 @@ MXUser_PerLockData(void)
 {
    MXRecLock *listLock = MXUserInternalSingleton(&mxLockMemPtr);
 
-   if (listLock && MXRecLockTryAcquire(listLock, GetReturnAddress())) {
+   if (listLock && MXRecLockTryAcquire(listLock)) {
       ListItem *entry;
       uint32 highestID;
       static uint32 lastReportedID = 0;

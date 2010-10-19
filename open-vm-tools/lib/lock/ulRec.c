@@ -26,11 +26,11 @@
 
 typedef struct
 {
-   uint64                  holdStart;
-
    MXUserAcquisitionStats  acquisitionStats;
    Atomic_Ptr              acquisitionHisto;
 
+   void                   *holder;
+   uint64                  holdStart;
    MXUserBasicStats        heldStats;
    Atomic_Ptr              heldHisto;
 } MXUserStats;
@@ -156,6 +156,8 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
    Warning("\trank 0x%X\n", lock->header.rank);
 
    if (lock->vmmLock == NULL) {
+      MXUserStats *stats = (MXUserStats *) Atomic_ReadPtr(&lock->statsMem);
+
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
 
 #if defined(_WIN32)
@@ -165,9 +167,9 @@ MXUserDumpRecLock(MXUserHeader *header)  // IN:
               (void *)(uintptr_t)lock->recursiveLock.nativeThreadID);
 #endif
 
-#if defined(MXUSER_DEBUG)
-      Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
-#endif
+      if (stats && (stats->holder != NULL)) {
+         Warning("\tholder %p\n", stats->holder);
+      }
    } else {
       Warning("\tvmmLock 0x%p\n", lock->vmmLock);
    }
@@ -401,8 +403,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
          Bool contended;
          VmTimeType begin = Hostinfo_SystemTimerNS();
 
-         contended = MXRecLockAcquire(&lock->recursiveLock,
-                                      GetReturnAddress());
+         contended = MXRecLockAcquire(&lock->recursiveLock);
 
          if (MXRecLockCount(&lock->recursiveLock) == 1) {
             MXUserHisto *histo;
@@ -411,16 +412,18 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
             MXUserAcquisitionSample(&stats->acquisitionStats, TRUE, contended,
                                     value);
 
+            stats->holder = GetReturnAddress();
+
             histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
             if (UNLIKELY(histo != NULL)) {
-               MXUserHistoSample(histo, value);
+               MXUserHistoSample(histo, value, stats->holder);
             }
 
             stats->holdStart = Hostinfo_SystemTimerNS();
          }
       } else {
-         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+         MXRecLockAcquire(&lock->recursiveLock);
       }
    }
 }
@@ -461,7 +464,8 @@ MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
             MXUserBasicStatsSample(&stats->heldStats, value);
 
             if (UNLIKELY(histo != NULL)) {
-               MXUserHistoSample(histo, value);
+               MXUserHistoSample(histo, value, stats->holder);
+               stats->holder = NULL;
             }
          }
       }
@@ -522,7 +526,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
          return FALSE;
       }
 
-      success = MXRecLockTryAcquire(&lock->recursiveLock, GetReturnAddress());
+      success = MXRecLockTryAcquire(&lock->recursiveLock);
 
       if (success) {
          MXUserAcquisitionTracking(&lock->header, FALSE);

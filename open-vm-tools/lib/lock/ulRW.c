@@ -243,8 +243,9 @@ typedef enum {
 } HolderState;
 
 typedef struct {
-   HolderState  state;
-   VmTimeType   holdStart;
+   HolderState   state;
+   void         *holder;
+   VmTimeType    holdStart;
 } HolderContext;
 
 typedef struct {
@@ -373,10 +374,6 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
       Warning("\tnativeLock 0x%p\n", &lock->nativeLock);
    } else {
       Warning("\tcount %u\n", lock->recursiveLock.referenceCount);
-
-#if defined(MXUSER_DEBUG)
-      Warning("\tcaller 0x%p\n", lock->recursiveLock.ownerRetAddr);
-#endif
    }
 
    Warning("\tholderCount %d\n", Atomic_Read(&lock->holderCount));
@@ -580,6 +577,7 @@ MXUserGetHolderContext(MXUserRWLock *lock)  // IN:
       HolderContext *newContext = Util_SafeMalloc(sizeof(HolderContext));
 
       newContext->holdStart = 0;
+      newContext->holder = NULL;
       newContext->state = RW_UNLOCKED;
 
       result = HashTable_LookupOrInsert(lock->holderTable, threadID,
@@ -643,8 +641,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
 
       contended = lock->useNative ? MXUserNativeRWAcquire(&lock->nativeLock,
                                                           forRead, &err) :
-                                    MXRecLockAcquire(&lock->recursiveLock,
-                                                     GetReturnAddress());
+                                    MXRecLockAcquire(&lock->recursiveLock);
 
       value = Hostinfo_SystemTimerNS() - begin;
 
@@ -659,7 +656,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
        */
 
       if (forRead && lock->useNative) {
-         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+         MXRecLockAcquire(&lock->recursiveLock);
       }
 
       MXUserAcquisitionSample(&stats->acquisitionStats, TRUE, contended,
@@ -668,7 +665,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
       histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, value);
+         MXUserHistoSample(histo, value, GetReturnAddress());
       }
 
       if (forRead && lock->useNative) {
@@ -678,7 +675,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
       if (LIKELY(lock->useNative)) {
          MXUserNativeRWAcquire(&lock->nativeLock, forRead, &err);
       } else {
-         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+         MXRecLockAcquire(&lock->recursiveLock);
       }
    }
 
@@ -690,6 +687,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
    myContext->state = forRead ? RW_LOCKED_FOR_READ : RW_LOCKED_FOR_WRITE;
 
    if (stats) {
+      myContext->holder = GetReturnAddress();
       myContext->holdStart = Hostinfo_SystemTimerNS();
    }
 }
@@ -829,7 +827,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
        */
 
       if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {
-         MXRecLockAcquire(&lock->recursiveLock, GetReturnAddress());
+         MXRecLockAcquire(&lock->recursiveLock);
       }
 
       MXUserBasicStatsSample(&stats->heldStats, duration);
@@ -837,7 +835,8 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
       histo = Atomic_ReadPtr(&stats->heldHisto);
 
       if (UNLIKELY(histo != NULL)) {
-         MXUserHistoSample(histo, duration);
+         MXUserHistoSample(histo, duration, myContext->holder);
+         myContext->holder = NULL;
       }
 
       if ((myContext->state == RW_LOCKED_FOR_READ) && lock->useNative) {

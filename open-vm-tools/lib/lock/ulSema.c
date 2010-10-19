@@ -653,7 +653,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
             histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
             if (UNLIKELY(histo != NULL)) {
-               MXUserHistoSample(histo, value);
+               MXUserHistoSample(histo, value, GetReturnAddress());
             }
          }
       }
@@ -731,7 +731,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
                MXUserHisto *histo = Atomic_ReadPtr(&stats->acquisitionHisto);
 
                if (UNLIKELY(histo != NULL)) {
-                  MXUserHistoSample(histo, value);
+                  MXUserHistoSample(histo, value, GetReturnAddress());
                }
             }
          }

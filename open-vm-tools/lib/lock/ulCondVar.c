@@ -323,8 +323,8 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
          LeaveCriticalSection(&condVar->x.compat.condVarLock);
       } while (!done);
 
-      MXRecLockAcquire(lock, GetReturnAddress());
-      MXRecLockIncCount(lock, GetReturnAddress(), lockCount - 1);
+      MXRecLockAcquire(lock);
+      MXRecLockIncCount(lock, lockCount - 1);
    }
 
    if (err != ERROR_SUCCESS) {
@@ -534,7 +534,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN:
       }
    }
 
-   MXRecLockIncCount(lock, GetReturnAddress(), lockCount);
+   MXRecLockIncCount(lock, lockCount);
 
    if (err != 0) {
       Panic("%s: failure %d on condVar (%p; %s)\n", __FUNCTION__, err,

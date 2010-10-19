@@ -59,10 +59,6 @@ typedef struct {
 
    int              referenceCount;   // Acquisition count
    MXThreadID       nativeThreadID;   // Native thread ID
-
-#if defined(MXUSER_DEBUG)
-   const void      *ownerRetAddr;      // return address of acquisition routine
-#endif
 } MXRecLock;
 
 
@@ -228,10 +224,6 @@ MXRecLockInit(MXRecLock *lock)  // IN/OUT:
       MXRecLockSetNoOwner(lock);
 
       lock->referenceCount = 0;
-
-#if defined(MXUSER_DEBUG)
-      lock->ownerRetAddr = NULL;
-#endif
    }
 
    return success;
@@ -258,14 +250,9 @@ MXRecLockCount(const MXRecLock *lock)  // IN:
 
 static INLINE void
 MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
-                  void *location,   // IN:
                   uint32 count)     // IN:
 {
    if (MXRecLockCount(lock) == 0) {
-#if defined(MXUSER_DEBUG)
-      lock->ownerRetAddr = location;
-#endif
-
       MXRecLockSetOwner(lock);
    }
 
@@ -274,8 +261,7 @@ MXRecLockIncCount(MXRecLock *lock,  // IN/OUT:
 
 
 static INLINE Bool
-MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
-                 void *location)   // IN:
+MXRecLockAcquire(MXRecLock *lock)  // IN/OUT:
 {
    Bool contended;
 
@@ -307,15 +293,14 @@ MXRecLockAcquire(MXRecLock *lock,  // IN/OUT:
       ASSERT(lock->referenceCount == 0);
    }
 
-   MXRecLockIncCount(lock, location, 1);
+   MXRecLockIncCount(lock, 1);
 
    return contended;
 }
 
 
 static INLINE Bool
-MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
-                    void *location)   // IN:
+MXRecLockTryAcquire(MXRecLock *lock)  // IN/OUT:
 {
    int err;
    Bool acquired;
@@ -323,7 +308,7 @@ MXRecLockTryAcquire(MXRecLock *lock,  // IN/OUT:
    err = MXRecLockTryAcquireInternal(lock);
 
    if (err == 0) {
-      MXRecLockIncCount(lock, location, 1);
+      MXRecLockIncCount(lock, 1);
 
       ASSERT((MXRecLockCount(lock) > 0) &&
              (MXRecLockCount(lock) < MXUSER_MAX_REC_DEPTH));
@@ -350,10 +335,6 @@ MXRecLockDecCount(MXRecLock *lock,  // IN/OUT:
 
    if (MXRecLockCount(lock) == 0) {
       MXRecLockSetNoOwner(lock);
-
-#if defined(MXUSER_DEBUG)
-      lock->ownerRetAddr = NULL;
-#endif
    }
 }
 
@@ -525,7 +506,8 @@ MXUserHisto *MXUserHistoSetUp(char *typeName,
 void MXUserHistoTearDown(MXUserHisto *histo);
 
 void MXUserHistoSample(MXUserHisto *histo,
-                       uint64 value);
+                       uint64 value,
+                       void *caller);
 
 void MXUserHistoDump(MXUserHisto *histo,
                      MXUserHeader *header);
