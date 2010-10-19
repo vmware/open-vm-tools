@@ -134,15 +134,6 @@ Bool UnityPlatformSendMouseWheel(UnityPlatform *up,
                                  int32 deltaY,
                                  int32 deltaZ,
                                  uint32 modifierFlags);
-
-/*
- * Function called by UnityUpdateCallbackFn whenever a window is removed from
- * the tracker.
- *
- * NOTE: This function is called with the platform lock held.
- */
-void UnityPlatformWillRemoveWindow(UnityPlatform *up, UnityWindowId windowId);
-
 void UnityPlatformSetDisableCompositing(UnityPlatform *up, Bool disabled);
 
 #ifdef __cplusplus

@@ -745,21 +745,6 @@ void
 UnityUpdateCallbackFn(void *param,          // IN: UnityPlatform
                       UnityUpdate *update)  // IN
 {
-   UnityPlatform *up = (UnityPlatform*)param;
-   switch (update->type) {
-
-   case UNITY_UPDATE_REMOVE_WINDOW:
-      /*
-       * Let the platform know that this window has been removed. This is
-       * useful on platforms that must poll for window changes.
-       */
-      UnityPlatformWillRemoveWindow(up, update->u.removeWindow.id);
-      break;
-
-   default:
-      break;
-   }
-
    unity.hostCallbacks.updateCB(unity.hostCallbacks.updateCbCtx, update);
 }
 

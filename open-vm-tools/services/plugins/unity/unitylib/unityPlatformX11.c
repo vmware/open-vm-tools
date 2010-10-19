@@ -3149,31 +3149,6 @@ void UnityPlatformSetInterlockMinimizeOperation(UnityPlatform *up,   // IN
 
 
 /*
- *------------------------------------------------------------------------------
- *
- * UnityPlatformWillRemoveWindow --
- *
- *    Called when a window is removed from the UnityWindowTracker.
- *
- *    NOTE: This function is called with the platform lock held.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *------------------------------------------------------------------------------
- */
-
-void
-UnityPlatformWillRemoveWindow(UnityPlatform *up,      // IN
-                              UnityWindowId windowId) // IN
-{
-   ASSERT(up);
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * UnityPlatformSetDisableCompositing --
