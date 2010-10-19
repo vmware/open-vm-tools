@@ -71,9 +71,7 @@ typedef enum {
    CAP_AUTOUPGRADE_AT_SHUTDOWN          = 24, // supports auto-upgrading tools at OS shutdown
    GHI_CAP_AUTOLOGON                    = 25, // supports autologon
    CAP_DESKTOP_AUTOLOCK                 = 26, // supports desktop autolock
-#if defined(VMX86_TOOLS) || defined(WINGER_UPDATE_AGENT)
    CAP_UPDATE_AGENT                     = 27, // supports guest update agent
-#endif
 } GuestCapabilities;
 
 typedef struct {
@@ -142,9 +140,7 @@ static GuestCapElem guestCapTable[] = {
    { CAP_AUTOUPGRADE_AT_SHUTDOWN,          CAP_VMDB_PATH,       "autoUpgradeAtShutdown"},
    { GHI_CAP_AUTOLOGON,                    GHI_CAP_VMDB_PATH,   "autologon" },
    { CAP_DESKTOP_AUTOLOCK,                 CAP_VMDB_PATH,       "desktopAutolock" },
-#if defined(VMX86_TOOLS) || defined(WINGER_UPDATE_AGENT)
    { CAP_UPDATE_AGENT,                     CAP_VMDB_PATH,       "updateAgent"},
-#endif
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING
