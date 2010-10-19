@@ -45,7 +45,6 @@ extern "C" {
 #include "ghiTclo.h"
 #include "unityPlugin.h"
 #include "unityTclo.h"
-#include "ghIntegrationInt.h"
 #if defined(G_PLATFORM_WIN32)
 #include "NotifyIconRpcCallback.h"
 #endif // G_PLATFORM_WIN32

@@ -59,7 +59,6 @@ libunity_la_SOURCES += ghIntegration/ghIntegrationInt.h
 libunity_la_SOURCES += ghIntegration/ghIntegrationX11.cpp
 
 libunity_la_SOURCES += unitylib/unity.c
-libunity_la_SOURCES += unitylib/unityDebug.h
 libunity_la_SOURCES += unitylib/unityPlatform.h
 libunity_la_SOURCES += unitylib/unityPlatformX11.c
 libunity_la_SOURCES += unitylib/unityPlatformX11Settings.c
