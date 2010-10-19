@@ -5007,7 +5007,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
 
    for (fileNum = offset + index, count = 0;
         count < numResults;
-        fileNum++, count++) {
+        fileNum++) {
 
       currentFileName = fileNameList[fileNum];
 
@@ -5028,6 +5028,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
                                     &destPtr, endDestPtr);
 
       free(pathName);
+      count++;
    } // for (fileNum = 0; fileNum < lastGoodNumFiles; fileNum++)
    *destPtr = '\0';
 
@@ -6179,9 +6180,12 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
 {
    VixError err = VIX_E_INVALID_LOGIN_CREDENTIALS;
 
-   if (NULL != userToken) {
-      *userToken = NULL;
+   if (NULL == userToken) {
+      Debug("%s: Invalid userToken pointer\n", __FUNCTION__);
+      return VIX_E_FAIL;
    }
+
+   *userToken = NULL;
 
 ///////////////////////////////////////////////////////////////////////
 #if defined(__FreeBSD__)
@@ -6209,11 +6213,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        * The VMX will make sure that only it will pass this value in,
        * and only when the VM and host are configured to allow this.
        */
-      if ((VIX_USER_CREDENTIAL_ROOT == credentialType) 
+      if ((VIX_USER_CREDENTIAL_ROOT == credentialType)
             && (thisProcessRunsAsRoot)) {
-         if (NULL != userToken) {
-            *userToken = PROCESS_CREATOR_USER_TOKEN;
-         }
+         *userToken = PROCESS_CREATOR_USER_TOKEN;
+
          err = VIX_OK;
          goto abort;
       }
@@ -6223,11 +6226,10 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
        * The VMX will make sure that only it will pass this value in,
        * and only when the VM and host are configured to allow this.
        */
-      if ((VIX_USER_CREDENTIAL_CONSOLE_USER == credentialType) 
+      if ((VIX_USER_CREDENTIAL_CONSOLE_USER == credentialType)
             && ((allowConsoleUserOps) || !(thisProcessRunsAsRoot))) {
-         if (NULL != userToken) {
-            *userToken = PROCESS_CREATOR_USER_TOKEN;
-         }
+         *userToken = PROCESS_CREATOR_USER_TOKEN;
+
          err = VIX_OK;
          goto abort;
       }
@@ -6259,9 +6261,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
                goto abort;
             }
 
-            if (NULL != userToken) {
-               *userToken = PROCESS_CREATOR_USER_TOKEN;
-            }
+            *userToken = PROCESS_CREATOR_USER_TOKEN;
 
             goto abort;
          } else {
@@ -6300,6 +6300,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
          }
 
          unobfuscatedUserName = Util_SafeStrdup(username);
+         *userToken = (void *) authToken;
 #else
          err = VIX_E_NOT_SUPPORTED;
          goto abort;
@@ -6317,9 +6318,8 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
             err = VIX_E_INVALID_LOGIN_CREDENTIALS;
             goto abort;
          }
-         if (NULL != userToken) {
-            *userToken = (void *) authToken;
-         }
+
+         *userToken = (void *) authToken;
       }
 #ifdef _WIN32
       success = Impersonate_Do(unobfuscatedUserName, authToken);

@@ -1150,7 +1150,7 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
    mac_register_t *macr;
    uint16_t vendorId, devId, ret16;
    uint32_t ret32;
-   int ret;
+   int ret, err;
    uint_t uret;
 
    if (cmd != DDI_ATTACH) {
@@ -1274,17 +1274,16 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
       case VMXNET3_IT_AUTO:
       case VMXNET3_IT_MSIX:
          dp->intrType = DDI_INTR_TYPE_MSIX;
-         if (ddi_intr_alloc(dip, &dp->intrHandle, dp->intrType, 0, 1,
-                            &ret, DDI_INTR_ALLOC_STRICT) == DDI_SUCCESS) {
+         err = ddi_intr_alloc(dip, &dp->intrHandle, dp->intrType, 0, 1,
+                              &ret, DDI_INTR_ALLOC_STRICT);
+         if (err == DDI_SUCCESS)
             break;
-         }
-         VMXNET3_DEBUG(dp, 2, "DDI_INTR_TYPE_MSIX failed\n");
+         VMXNET3_DEBUG(dp, 2, "DDI_INTR_TYPE_MSIX failed, err:%d\n", err);
       case VMXNET3_IT_MSI:
          dp->intrType = DDI_INTR_TYPE_MSI;
          if (ddi_intr_alloc(dip, &dp->intrHandle, dp->intrType, 0, 1,
-                            &ret, DDI_INTR_ALLOC_STRICT) == DDI_SUCCESS) {
+                            &ret, DDI_INTR_ALLOC_STRICT) == DDI_SUCCESS)
             break;
-         }
          VMXNET3_DEBUG(dp, 2, "DDI_INTR_TYPE_MSI failed\n");
       case VMXNET3_IT_INTX:
          dp->intrType = DDI_INTR_TYPE_FIXED;
@@ -1335,9 +1334,24 @@ vmxnet3_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
       goto error_mutexes;
    }
 
-   if (ddi_intr_enable(dp->intrHandle) != DDI_SUCCESS) {
-      VMXNET3_WARN(dp, "ddi_intr_enable() failed\n");
+   err = ddi_intr_get_cap(dp->intrHandle, &dp->intrCap);
+   if (err != DDI_SUCCESS) {
+      VMXNET3_WARN(dp, "ddi_intr_get_cap() failed %d", err);
       goto error_intr_handler;
+   }
+
+   if (dp->intrCap & DDI_INTR_FLAG_BLOCK) {
+      err = ddi_intr_block_enable(&dp->intrHandle, 1);
+      if (err != DDI_SUCCESS) {
+         VMXNET3_WARN(dp, "ddi_intr_block_enable() failed, err:%d\n", err);
+         goto error_intr_handler;
+      }
+   } else {
+      err = ddi_intr_enable(dp->intrHandle);
+      if ((err != DDI_SUCCESS)) {
+         VMXNET3_WARN(dp, "ddi_intr_enable() failed, err:%d\n", err);
+         goto error_intr_handler;
+      }
    }
 
    return DDI_SUCCESS;
@@ -1403,7 +1417,11 @@ vmxnet3_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
       }
    }
 
-   ddi_intr_disable(dp->intrHandle);
+   if (dp->intrCap & DDI_INTR_FLAG_BLOCK) {
+      ddi_intr_block_disable(&dp->intrHandle, 1);
+   } else {
+      ddi_intr_disable(dp->intrHandle);
+   }
    ddi_intr_remove_handler(dp->intrHandle);
    ddi_intr_free(dp->intrHandle);
 

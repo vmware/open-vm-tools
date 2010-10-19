@@ -684,3 +684,91 @@ main(int argc,
    return 0;
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Escape_Comma --
+ *
+ *       Use backslash character as an escape character to handle comma
+ *       character escaping.
+ *
+ * Results:
+ *       Returns a newly allocated string with comma and backslash characters
+ *       escaped.
+ *
+ * Side effects:
+ *       None.  It is a caller responsibility to deallocate the result.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Escape_Comma(const char *string) // IN
+{
+   DynBuf b;
+
+   if (NULL == string) {
+      return NULL;
+   }
+
+   DynBuf_Init(&b);
+
+   for (; *string; ++string) {
+      char c = *string;
+
+      if (c == ',' || c == '\\') {
+         if (!DynBuf_Append(&b, "\\", 1)) {
+            goto out_of_memory;
+         }
+      }
+      if (!DynBuf_Append(&b, string, 1)) {
+         goto out_of_memory;
+      }
+   }
+
+   DynBuf_Append(&b, string, 1);
+
+   return DynBuf_Get(&b);
+
+out_of_memory:
+   DynBuf_Destroy(&b);
+   return NULL;
+}
+
+
+#if 0
+/* Unit test suite for Escape_Comma() */
+int
+main(int argc,
+     char **argv)
+{
+   static struct {
+      const char *in;
+      const char *out;
+   } tests[] = {
+      { "123# ", "123# ", },
+      { "123,", "123\\,", },
+      { "'123\\", "'123\\\\", },
+   };
+   unsigned int i;
+
+   for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+      char *out;
+
+      out = Escape_Comma(tests[i].in);
+      if (strcmp(out, tests[i].out) != 0) {
+         printf("test %u failed: \"%s\" : \"%s\"\n", i, tests[i].in, out);
+         exit(1);
+      }
+      free(out);
+   }
+
+   printf("all tests passed\n");
+
+   return 0;
+}
+
+#endif
+

@@ -554,9 +554,10 @@ Panic_Panic(const char *format,
 
    Panic_PostPanicMsg(buf);
 
-   /* 
+   /*
     * Bye
     */
+   Log("Exiting\n");
 
    exit(-1);
    NOT_REACHED();

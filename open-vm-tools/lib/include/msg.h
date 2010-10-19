@@ -97,6 +97,7 @@ typedef struct MsgCallback {
    int (*progressList)(MsgList *messages, int percent, Bool cancelButton);
    HintResult (*hintList)(HintOptions options, MsgList *messages);
    void *(*lazyProgressStartList)(MsgList *messages);
+   void (*forceUnblock)(void);
 } MsgCallback;
 
 #define MSG_QUESTION_MAX_BUTTONS   10
@@ -176,6 +177,7 @@ EXTERN char *Msg_GetMessageFilePath(const char *locale, const char *binaryName,
 EXTERN char *Msg_FormatFloat(double value, unsigned int precision);
 EXTERN char *Msg_FormatSizeInBytes(uint64 size);
 EXTERN Bool Msg_LoadMessageFile(const char *locale, const char *fileName);
+EXTERN void Msg_ForceUnblock(void);
 
 
 /*
@@ -243,6 +245,5 @@ EXTERN void Msg_GetThreadCallback(MsgCallback *cb);
 #ifdef _WIN32
 EXTERN const char *Msg_HResult2String(long hr);
 #endif
-
 
 #endif // ifndef _MSG_H_

@@ -39,6 +39,7 @@
 #include <sys/strsubr.h>
 #include <sys/pattr.h>
 #include <sys/mac.h>
+#include <sys/sockio.h>
 #ifdef OPEN_SOLARIS
 #  include <sys/mac_provider.h>
 #endif
@@ -115,6 +116,15 @@ typedef struct vmxnet3_rxqueue_t {
    Vmxnet3_RxQueueCtrl *sharedCtrl;
 } vmxnet3_rxqueue_t;
 
+#if 0
+enum {
+   PARAM_ACCEPT_JUMBO = 0,
+   PARAM_MTU
+   VMXNET3_PARAM_COUNT
+};
+
+#endif
+
 typedef struct vmxnet3_softc_t {
    dev_info_t          *dip;
    int                  instance;
@@ -126,6 +136,7 @@ typedef struct vmxnet3_softc_t {
 
    boolean_t            devEnabled;
    uint8_t              macaddr[6];
+   uint32_t             cur_mtu;
    link_state_t         linkState;
    uint64_t             linkSpeed;
    vmxnet3_dmabuf_t     sharedData;
@@ -134,6 +145,7 @@ typedef struct vmxnet3_softc_t {
    kmutex_t             intrLock;
    int                  intrType;
    int                  intrMaskMode;
+   int                  intrCap;
    ddi_intr_handle_t    intrHandle;
    ddi_taskq_t         *resetTask;
 
@@ -149,6 +161,7 @@ typedef struct vmxnet3_softc_t {
    uint32_t             rxMode;
 
    vmxnet3_dmabuf_t     mfTable;
+//   caddr_t		nd_arg_p;
 } vmxnet3_softc_t;
 
 int       vmxnet3_alloc_dma_mem_1(vmxnet3_softc_t *dp, vmxnet3_dmabuf_t *dma,
@@ -176,12 +189,13 @@ extern ddi_device_acc_attr_t vmxnet3_dev_attr;
 
 /* Logging stuff */
 #define VMXNET3_LOG(Level, Device, Format, Args...)   \
-   cmn_err(Level, VMXNET3_MODNAME "%d: " Format,      \
+   cmn_err(Level, VMXNET3_MODNAME ":%d: " Format,      \
            Device->instance, ##Args);
 
 #define VMXNET3_WARN(Device, Format, Args...)         \
    VMXNET3_LOG(CE_WARN, Device, Format, ##Args)
 
+#define VMXNET3_DEBUG_LEVEL 2
 #ifdef VMXNET3_DEBUG_LEVEL
 #define VMXNET3_DEBUG(Device, Level, Format, Args...) \
    do {                                               \
