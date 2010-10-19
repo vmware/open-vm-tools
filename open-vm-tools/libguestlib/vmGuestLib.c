@@ -604,6 +604,7 @@ VMGuestLib_UpdateInfo(VMGuestLibHandle handle) // IN
    error = VMGuestLibUpdateInfo(handle);
    if (error != VMGUESTLIB_ERROR_SUCCESS) {
       Debug("VMGuestLibUpdateInfo failed: %d\n", error);
+      HANDLE_SESSIONID(handle) = 0;
       return error;
    }
 
