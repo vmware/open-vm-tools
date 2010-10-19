@@ -26,6 +26,18 @@
 #include "vmtoolsInt.h"
 #include <stdio.h>
 
+#if defined(_WIN32)
+static GStaticMutex gConsoleLock = G_STATIC_MUTEX_INIT;
+static gint gRefCount = 0;
+#endif
+
+typedef struct StdLoggerData {
+   LogHandlerData    handler;
+#if defined(_WIN32)
+   gboolean          attached;
+#endif
+} StdLoggerData;
+
 
 /*
  ******************************************************************************
@@ -36,7 +48,7 @@
  * @param[in] domain    Unused.
  * @param[in] level     Log level.
  * @param[in] message   Message to log.
- * @param[in] _data     Unused.
+ * @param[in] data      Logger data.
  * @param[in] errfn     Unused.
  *
  * @return TRUE.
@@ -48,12 +60,56 @@ static gboolean
 VMStdLoggerLog(const gchar *domain,
                GLogLevelFlags level,
                const gchar *message,
-               LogHandlerData *_data,
+               LogHandlerData *data,
                LogErrorFn errfn)
 {
    FILE *dest = (level < G_LOG_LEVEL_MESSAGE) ? stderr : stdout;
+
+#if defined(_WIN32)
+   StdLoggerData *sdata = (StdLoggerData *) data;
+
+   if (!sdata->attached) {
+      g_static_mutex_lock(&gConsoleLock);
+      if (gRefCount != 0 || VMTools_AttachConsole()) {
+         gRefCount++;
+         sdata->attached = TRUE;
+      }
+      g_static_mutex_unlock(&gConsoleLock);
+   }
+
+   if (!sdata->attached) {
+      return FALSE;
+   }
+#endif
+
    fputs(message, dest);
    return TRUE;
+}
+
+
+/*
+ *******************************************************************************
+ * VMStdLoggerDestroy --                                                  */ /**
+ *
+ * Cleans up the internal state of the logger.
+ *
+ * @param[in] data   Logger data.
+ *
+ *******************************************************************************
+ */
+
+static void
+VMStdLoggerDestroy(LogHandlerData *data)
+{
+#if defined(_WIN32)
+   StdLoggerData *sdata = (StdLoggerData *) data;
+   g_static_mutex_lock(&gConsoleLock);
+   if (sdata->attached && --gRefCount == 0) {
+      FreeConsole();
+   }
+   g_static_mutex_unlock(&gConsoleLock);
+#endif
+   g_free(data);
 }
 
 
@@ -79,21 +135,13 @@ VMStdLoggerConfig(const gchar *defaultDomain,
                   const gchar *name,
                   GKeyFile *cfg)
 {
-   LogHandlerData *data;
-
-#if defined(_WIN32)
-   if (!VMTools_AttachConsole()) {
-      return NULL;
-   }
-#endif
-
-   data = g_new0(LogHandlerData, 1);
-   data->logfn = VMStdLoggerLog;
-   data->convertToLocal = TRUE;
-   data->timestamp = TRUE;
-   data->shared = FALSE;
-   data->copyfn = NULL;
-   data->dtor = (LogHandlerDestroyFn) g_free;
-   return data;
+   StdLoggerData *data = g_new0(StdLoggerData, 1);
+   data->handler.logfn = VMStdLoggerLog;
+   data->handler.convertToLocal = TRUE;
+   data->handler.timestamp = TRUE;
+   data->handler.shared = FALSE;
+   data->handler.copyfn = NULL;
+   data->handler.dtor = VMStdLoggerDestroy;
+   return &data->handler;
 }
 

@@ -425,7 +425,12 @@ VMToolsConfigLogDomain(const gchar *domain,
 
       if (configfn == NULL) {
          g_warning("Unknown log handler '%s', using default.", handler);
-         goto exit;
+         if (strcmp(domain, gLogDomain) == 0) {
+            configfn = DEFAULT_HANDLER->configfn;
+            hid = DEFAULT_HANDLER->id;
+         } else {
+            goto exit;
+         }
       }
 
       data = configfn(gLogDomain, domain, handler, cfg);
