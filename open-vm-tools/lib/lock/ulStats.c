@@ -291,8 +291,8 @@ MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
          break;
       }
 
-      if (histo->ownerArray[index].timeValue <
-          histo->ownerArray[i].timeValue) {
+      if (histo->ownerArray[i].timeValue <
+          histo->ownerArray[index].timeValue) {
          index = i;
       }
    }
