@@ -287,39 +287,6 @@ VMCIQPairUnlock(const VMCIQPair *qpair) // IN
 /*
  *-----------------------------------------------------------------------------
  *
- * VMCIQPair_Init --
- *
- *      This is the client interface for initializing the producer's
- *      pointers.
- *
- * Results:
- *      err, if < 0
- *
- * Side effects:
- *      Windows blocking call.
- *
- *-----------------------------------------------------------------------------
- */
-
-VMCI_EXPORT_SYMBOL(VMCIQPair_Init)
-void
-VMCIQPair_Init(VMCIQPair *qpair)
-{
-   VMCIQPairLock(qpair);
-
-   if (NULL != qpair &&
-       NULL != qpair->produceQ &&
-       NULL != qpair->produceQ->qHeader) {
-      VMCIQueueHeader_Init(qpair->produceQ->qHeader, qpair->handle);
-   }
-
-   VMCIQPairUnlock(qpair);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VMCIQPair_GetProduceIndexes --
  *
  *      This is the client interface for getting the current indexes of the

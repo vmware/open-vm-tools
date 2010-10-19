@@ -107,7 +107,6 @@ int VMCIQPair_Alloc(VMCIQPair **qpair,
 
 int VMCIQPair_Detach(VMCIQPair **qpair);
 
-void VMCIQPair_Init(VMCIQPair *qpair);
 int VMCIQPair_GetProduceIndexes(const VMCIQPair *qpair,
                                 uint64 *producerTail,
                                 uint64 *consumerHead);

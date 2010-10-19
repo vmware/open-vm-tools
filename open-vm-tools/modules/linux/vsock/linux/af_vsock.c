@@ -1769,8 +1769,6 @@ VSockVmciRecvConnectingServer(struct sock *listener, // IN: the listening socket
       goto destroy;
    }
 
-   VMCIQPair_Init(qpair);
-
    ASSERT(VMCI_HANDLE_EQUAL(handle, pkt->u.handle));
    vpending->qpHandle = handle;
    vpending->qpair = qpair;
@@ -2090,8 +2088,6 @@ VSockVmciRecvConnectingClientNegotiate(struct sock *sk,   // IN: socket
    if (err < 0) {
       goto destroy;
    }
-
-   VMCIQPair_Init(qpair);
 
    err = VSOCK_SEND_QP_OFFER(sk, handle);
    if (err < 0) {
