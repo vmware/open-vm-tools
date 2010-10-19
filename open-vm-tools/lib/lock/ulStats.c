@@ -30,7 +30,6 @@
 #include "hostinfo.h"
 #include "log.h"
 #include "logFixed.h"
-#include "statsLog.h"
 
 #define BINS_PER_DECADE 100
 
