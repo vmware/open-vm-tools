@@ -484,30 +484,6 @@ enum VixMsgConfigObjectType {
 };
 
 /*
- * Commands related to Record|Replay State.
- */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRecordReplayStateCommandRequest {
-   VixCommandRequestHeader   header;
-   
-   int32                     options;
-   uint32                    propertyListBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgRecordReplayStateCommandRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRecordReplayStateCommandResponse {
-   VixCommandResponseHeader header;
-   uint32   propertyListBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgRecordReplayStateCommandResponse;
-
-
-/*
  * **********************************************************
  * Wait for tools request. The response is just a generic
  * response header (it has no body).
@@ -1250,15 +1226,6 @@ VixMsgRecordReplayEvent;
 
 typedef
 #include "vmware_pack_begin.h"
-struct VixMsgTimeMarkerEncounteredEvent {
-   VixMsgEventHeader        eventHeader;      
-   uint32                   propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixMsgTimeMarkerEncounteredEvent;
-
-typedef
-#include "vmware_pack_begin.h"
 struct VixMsgDebuggerEvent {
    VixMsgEventHeader          eventHeader;
 
@@ -1269,51 +1236,6 @@ struct VixMsgDebuggerEvent {
 }
 #include "vmware_pack_end.h"
 VixMsgDebuggerEvent;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetRecordReplayInfoResponse {
-   VixCommandResponseHeader header;
-   uint32                   propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixMsgGetRecordReplayInfoResponse;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMSnapshotSetReplaySpeedRequest {
-   VixCommandRequestHeader    header;
-
-   int32                      options;
-   int32                      timeType;
-   int64                      timeValue;
-}
-#include "vmware_pack_end.h"
-VixMsgVMSnapshotSetReplaySpeedRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMAddTimeMarkerRequest {
-   VixCommandRequestHeader    header;
-   uint32                     options;
-   uint32                     action;
-   uint32                     propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixMsgVMAddTimeMarkerRequest;
-
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMGetTimeMarkerRequest {
-   VixCommandRequestHeader    header;
-   uint32                     options;
-   uint32                     whence;
-   uint32                     index;
-   uint32                     propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixMsgVMGetTimeMarkerRequest;
-
 
 /*
  * Fault Tolerance Automation
@@ -2292,7 +2214,7 @@ enum {
    VIX_COMMAND_VM_PAUSE                         = 122,
    VIX_COMMAND_VM_UNPAUSE                       = 123,
    /* DEPRECATED VIX_COMMAND_GET_SNAPSHOT_LOG_INFO            = 124, */
-   VIX_COMMAND_SET_REPLAY_SPEED                 = 125,
+   /* DEPRECATED VIX_COMMAND_SET_REPLAY_SPEED                 = 125, */
 
    /* DEPRECATED VIX_COMMAND_ANSWER_USER_MESSAGE              = 126, */
    /* DEPRECATED VIX_COMMAND_SET_CLIENT_LOCALE                = 127, */
@@ -2302,7 +2224,7 @@ enum {
    /* DEPRECATED VIX_COMMAND_REFRESH_RUNTIME_PROPERTIES       = 129, */
 
    VIX_COMMAND_GET_SNAPSHOT_SCREENSHOT          = 130,
-   VIX_COMMAND_ADD_TIMEMARKER                   = 131,
+   /* DEPRECATED VIX_COMMAND_ADD_TIMEMARKER                   = 131, */
 
    VIX_COMMAND_WAIT_FOR_USER_ACTION_IN_GUEST    = 132,
    /* DEPRECATED VIX_COMMAND_VMDB_END_TRANSACTION             = 133, */
@@ -2319,20 +2241,20 @@ enum {
    VIX_COMMAND_DEBUGGER_DETACH                  = 141,
    VIX_COMMAND_DEBUGGER_SEND_COMMAND            = 142,
 
-   VIX_COMMAND_GET_RECORD_STATE                 = 143,
-   VIX_COMMAND_SET_RECORD_STATE                 = 144,
-   VIX_COMMAND_REMOVE_RECORD_STATE              = 145,
-   VIX_COMMAND_GET_REPLAY_STATE                 = 146,
-   VIX_COMMAND_SET_REPLAY_STATE                 = 147,
-   VIX_COMMAND_REMOVE_REPLAY_STATE              = 148,
+   /* DEPRECATED VIX_COMMAND_GET_RECORD_STATE                 = 143, */
+   /* DEPRECATED VIX_COMMAND_SET_RECORD_STATE                 = 144, */
+   /* DEPRECATEDVIX_COMMAND_REMOVE_RECORD_STATE              = 145, */
+   /* VIX_COMMAND_GET_REPLAY_STATE                 = 146, */
+   /* VIX_COMMAND_SET_REPLAY_STATE                 = 147, */
+   /* VIX_COMMAND_REMOVE_REPLAY_STATE              = 148, */
 
    /* DEPRECATED VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150, */
    
    VIX_COMMAND_GET_VMX_DEVICE_STATE             = 151,
 
-   VIX_COMMAND_GET_NUM_TIMEMARKERS              = 152,
-   VIX_COMMAND_GET_TIMEMARKER                   = 153,
-   VIX_COMMAND_REMOVE_TIMEMARKER                = 154,
+   /* DEPRECATED VIX_COMMAND_GET_NUM_TIMEMARKERS              = 152, */
+   /* DEPRECATED VIX_COMMAND_GET_TIMEMARKER                   = 153, */
+   /* DEPRECATED VIX_COMMAND_REMOVE_TIMEMARKER                = 154, */
 
    VIX_COMMAND_SET_SNAPSHOT_INFO                = 155,
    VIX_COMMAND_SNAPSHOT_SET_MRU                 = 156,
