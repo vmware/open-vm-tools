@@ -364,7 +364,7 @@ vmxnet_get_drvinfo(struct net_device *dev,
    strncpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
    drvinfo->fw_version[sizeof(drvinfo->fw_version) - 1] = '\0';
 
-   strncpy(drvinfo->bus_info, compat_pci_name(lp->pdev), ETHTOOL_BUSINFO_LEN);
+   strncpy(drvinfo->bus_info, pci_name(lp->pdev), ETHTOOL_BUSINFO_LEN);
 }
 
 
@@ -1020,15 +1020,15 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
    Bool morphed = FALSE;
    int i;
 
-   i = compat_pci_enable_device(pdev);
+   i = pci_enable_device(pdev);
    if (i) {
       printk(KERN_ERR "Cannot enable vmxnet adapter %s: error %d\n",
-             compat_pci_name(pdev), i);
+             pci_name(pdev), i);
       return i;
    }
-   compat_pci_set_master(pdev);
+   pci_set_master(pdev);
    irq_line = pdev->irq;
-   ioaddr = compat_pci_resource_start(pdev, 0);
+   ioaddr = pci_resource_start(pdev, 0);
 
    reqIOAddr = ioaddr;
    /* Found adapter, adjust ioaddr to match the adapter we found. */
@@ -1068,9 +1068,9 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
                   VMXNET_CHIP_IO_RESV_SIZE;
    }
    /* Do not attempt to morph non-morphable AMD PCnet */
-   if (reqIOSize > compat_pci_resource_len(pdev, 0)) {
+   if (reqIOSize > pci_resource_len(pdev, 0)) {
       printk(KERN_INFO "vmxnet: Device in slot %s is not supported by this driver.\n",
-             compat_pci_name(pdev));
+             pci_name(pdev));
       goto pci_disable;
    }
 
@@ -1081,7 +1081,7 @@ vmxnet_probe_device(struct pci_dev             *pdev, // IN: vmxnet PCI device
 
    if (!compat_request_region(reqIOAddr, reqIOSize, VMXNET_CHIP_NAME)) {
       printk(KERN_INFO "vmxnet: Another driver already loaded for device in slot %s.\n",
-             compat_pci_name(pdev));
+             pci_name(pdev));
       goto pci_disable;
    }
 
@@ -1188,8 +1188,8 @@ morph_back:
    }
 release_reg:
    release_region(reqIOAddr, reqIOSize);
-pci_disable:;
-   compat_pci_disable_device(pdev);
+pci_disable:
+   pci_disable_device(pdev);
    return -EBUSY;
 }
 
@@ -1563,7 +1563,7 @@ vmxnet_remove_device(struct pci_dev* pdev)
 
    vmxnet_release_private_data(lp, pdev);
    free_netdev(dev);
-   compat_pci_disable_device(pdev);
+   pci_disable_device(pdev);
 }
 
 
@@ -1663,7 +1663,7 @@ VMXNET_SUSPEND_DEVICE(/* struct pci_dev * */ pdev,  // IN: pci device
       vmxnet_unmorph_device(dev->base_addr - MORPH_PORT_SIZE);
    }
 
-   compat_pci_disable_device(pdev); /* Disables bus-mastering. */
+   pci_disable_device(pdev); /* Disables bus-mastering. */
    vmxnet_release_private_data(lp, pdev);
 
 done:
@@ -1705,13 +1705,14 @@ VMXNET_RESUME_DEVICE(/* struct pci_dev* */ pdev) // IN: pci device
       VMXNET_PM_RETURN(0);
    }
 
-   ret = compat_pci_enable_device(pdev); /* Does not enable bus-mastering. */
+   ret = pci_enable_device(pdev); /* Does not enable bus-mastering. */
    if (ret) {
       printk(KERN_ERR "Cannot resume vmxnet adapter %s: error %d\n",
-             compat_pci_name(pdev), ret);
+             pci_name(pdev), ret);
       VMXNET_PM_RETURN(ret);
    }
-   compat_pci_set_master(pdev);
+
+   pci_set_master(pdev);
 
    if (lp->morphed) {
       if (vmxnet_morph_device(dev->base_addr - MORPH_PORT_SIZE) != 0) {
@@ -1741,7 +1742,7 @@ VMXNET_RESUME_DEVICE(/* struct pci_dev* */ pdev) // IN: pci device
           */
 
          printk(KERN_ERR "Could not open vmxnet adapter %s: error %d\n",
-                compat_pci_name(pdev), ret);
+                pci_name(pdev), ret);
          goto disable_pci;
       }
    }
@@ -1750,7 +1751,7 @@ VMXNET_RESUME_DEVICE(/* struct pci_dev* */ pdev) // IN: pci device
    VMXNET_PM_RETURN(0);
 
 disable_pci:
-   compat_pci_disable_device(pdev); /* Disables bus-mastering. */
+   pci_disable_device(pdev); /* Disables bus-mastering. */
    VMXNET_PM_RETURN(ret);
 }
 #endif

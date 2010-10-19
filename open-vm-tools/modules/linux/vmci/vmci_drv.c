@@ -296,15 +296,15 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
    printk(KERN_INFO "Probing for vmci/PCI.\n");
 
-   result = compat_pci_enable_device(pdev);
+   result = pci_enable_device(pdev);
    if (result) {
       printk(KERN_ERR "Cannot VMCI device %s: error %d\n",
-             compat_pci_name(pdev), result);
+             pci_name(pdev), result);
       return result;
    }
-   compat_pci_set_master(pdev); /* To enable QueuePair functionality. */
-   ioaddr = compat_pci_resource_start(pdev, 0);
-   ioaddr_size = compat_pci_resource_len(pdev, 0);
+   pci_set_master(pdev); /* To enable QueuePair functionality. */
+   ioaddr = pci_resource_start(pdev, 0);
+   ioaddr_size = pci_resource_len(pdev, 0);
 
    /*
     * Request I/O region with adjusted base address and size. The adjusted
@@ -313,7 +313,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
 
    if (!compat_request_region(ioaddr, ioaddr_size, "vmci")) {
       printk(KERN_INFO "vmci: Another driver already loaded "
-                       "for device in slot %s.\n", compat_pci_name(pdev));
+                       "for device in slot %s.\n", pci_name(pdev));
       goto pci_disable;
    }
 
@@ -487,7 +487,7 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
    }
    release_region(ioaddr, ioaddr_size);
  pci_disable:
-   compat_pci_disable_device(pdev);
+   pci_disable_device(pdev);
    return -EBUSY;
 }
 
@@ -554,7 +554,7 @@ vmci_remove_device(struct pci_dev* pdev)
    printk(KERN_INFO "Unregistered vmci device.\n");
    compat_mutex_unlock(&dev->lock);
 
-   compat_pci_disable_device(pdev);
+   pci_disable_device(pdev);
 }
 
 
