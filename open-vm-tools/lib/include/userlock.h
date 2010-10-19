@@ -33,6 +33,7 @@
 typedef struct MXUserExclLock   MXUserExclLock;
 typedef struct MXUserRecLock    MXUserRecLock;
 typedef struct MXUserRWLock     MXUserRWLock;
+typedef struct MXUserRankLock   MXUserRankLock;
 typedef struct MXUserCondVar    MXUserCondVar;
 typedef struct MXUserSemaphore  MXUserSemaphore;
 typedef struct MXUserBarrier    MXUserBarrier;
@@ -161,7 +162,20 @@ MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
                                                  const char *name,
                                                  MX_Rank rank);
 
+/*
+ * Rank lock
+ *
+ * Rank "locks" are entities that perform rank checking but do not provide
+ * any form of mutual exclusion. Their main use is for protecting certain
+ * situations involving Poll and friends/enemies.
+ */
 
+MXUserRankLock *MXUser_CreateRankLock(const char *name,
+                                      MX_Rank rank);
+
+void MXUser_AcquireRankLock(MXUserRankLock *lock);
+void MXUser_ReleaseRankLock(MXUserRankLock *lock);
+void MXUser_DestroyRankLock(MXUserRankLock *lock);
 
 /*
  * Generic conditional variable functions.
