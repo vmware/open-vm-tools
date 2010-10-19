@@ -1,3 +1,16 @@
+open-vm-tools 2010.10.18 changes:
+	* The unity plugin has received some refactoring work, and the
+	menu gathering code has been enhanced to be more DE-agnostic and
+	support the new app icon code. It now needs glib 2.24 to compile.
+
+	* Several bug fixes and enhancements to the VIX plugin.
+
+	* Bug fixes to the guest info plugin so that it better supports
+	VMs with several network interfaces.
+
+	* Other minor enhancements and bug fixes in several areas, incluing
+	vsock, vmmemctl and copy & paste.
+
 open-vm-tools 2010.09.19 changes:
 	* Mostly cleanups and minor bug fixes.
 
