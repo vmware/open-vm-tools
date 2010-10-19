@@ -505,12 +505,13 @@ BalloonErrorPagesFree(Balloon *b) // IN
 /*
  *----------------------------------------------------------------------
  *
- * BalloonPageStore --
+ * BalloonGetChunk --
  *
- *      Attempt to add "page" to list of locked pages associated with "b".
+ *      Attempt to find a "chunk" with a free slot to store locked page.
+ *      Try to allocate new chunk if all existing chunks are full.
  *
  * Results:
- *      Returns BALLOON_SUCCESS if successful, BALLOON_FAILURE otherwise.
+ *      Returns NULL on failure.
  *
  * Side effects:
  *      None.
@@ -518,39 +519,55 @@ BalloonErrorPagesFree(Balloon *b) // IN
  *----------------------------------------------------------------------
  */
 
-static int
-BalloonPageStore(Balloon *b, PageHandle page)
+static BalloonChunk *
+BalloonGetChunk(Balloon *b)         // IN
 {
-   BalloonChunk *chunk = NULL;
+   BalloonChunk *chunk;
 
-   /* Find chunk with free space, create it if necessary. */
+   /* Get first chunk from the list */
    if (DblLnkLst_IsLinked(&b->chunks)) {
-      /* Get first chunk from the list */
       chunk = DblLnkLst_Container(b->chunks.next, BalloonChunk, node);
-      if (chunk->pageCount >= BALLOON_CHUNK_PAGES) {
-         /* This chunk is full. */
-         chunk = NULL;
+      if (chunk->pageCount < BALLOON_CHUNK_PAGES) {
+         /* This chunk has free slots, use it */
+         return chunk;
       }
    }
 
-   if (chunk == NULL) {
-      /* create new chunk */
-      chunk = BalloonChunk_Create();
-      if (chunk == NULL) {
-         return BALLOON_FAILURE;
-      }
-
+   /* create new chunk */
+   chunk = BalloonChunk_Create();
+   if (chunk != NULL) {
       DblLnkLst_LinkFirst(&b->chunks, &chunk->node);
 
       /* update stats */
       b->nChunks++;
    }
 
-   /* track allocated page */
-   chunk->page[chunk->pageCount++] = page;
-
-   return BALLOON_SUCCESS;
+   return chunk;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * BalloonPageStore --
+ *
+ *      Add "page" to the given "chunk".
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+BalloonPageStore(BalloonChunk *chunk, PageHandle page)
+{
+   ASSERT(chunk->pageCount < BALLOON_CHUNK_PAGES);
+   chunk->page[chunk->pageCount++] = page;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -574,6 +591,7 @@ BalloonPageAlloc(Balloon *b,                     // IN
                  BalloonPageAllocType allocType) // IN
 {
    PageHandle page;
+   BalloonChunk *chunk = NULL;
    Bool locked;
    int status;
 
@@ -597,6 +615,15 @@ BalloonPageAlloc(Balloon *b,                     // IN
          return BALLOON_PAGE_ALLOC_FAILURE;
       }
 
+      /* Get the chunk to store allocated page. */
+      if (!chunk) {
+         chunk = BalloonGetChunk(b);
+         if (!chunk) {
+            OS_ReservedPageFree(page);
+            return BALLOON_PAGE_ALLOC_FAILURE;
+         }
+      }
+
       /* inform monitor via backdoor */
       status = BalloonMonitorLockPage(b, page);
       locked = status == BALLOON_SUCCESS;
@@ -617,11 +644,10 @@ BalloonPageAlloc(Balloon *b,                     // IN
    } while (!locked);
 
    /* track allocated page */
-   status = BalloonPageStore(b, page);
-   if (status == BALLOON_SUCCESS) {
-      /* update balloon size */
-      b->nPages++;
-   }
+   BalloonPageStore(chunk, page);
+
+   /* update balloon size */
+   b->nPages++;
 
    return status;
 }
