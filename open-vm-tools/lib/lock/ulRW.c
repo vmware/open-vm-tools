@@ -31,6 +31,12 @@
 
 #define MXUSER_RW_SIGNATURE 0x57524B4C // 'LKRW' in memory
 
+static void
+MXUserFreeHashEntry(void *data)  // IN:
+{
+   free(data);
+}
+
 
 /*
  * Environment specific implementations of portable read-write locks.
@@ -397,12 +403,6 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static void
-MXUserFreeHashEntry(void *data)  // IN:
-{
-   free(data);
-}
-
 MXUserRWLock *
 MXUser_CreateRWLock(const char *userName,  // IN:
                     MX_Rank rank)          // IN:
@@ -544,7 +544,7 @@ MXUser_DestroyRWLock(MXUserRWLock *lock)  // IN:
 
       HashTable_FreeUnsafe(lock->holderTable);
       lock->header.signature = 0;  // just in case...
-      free((void *) lock->header.name);  // avoid const warnings
+      free(lock->header.name);
       lock->header.name = NULL;
       free(lock);
    }

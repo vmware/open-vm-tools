@@ -593,7 +593,7 @@ MXUser_DestroySemaphore(MXUserSemaphore *sema)  // IN:
       }
 
       sema->header.signature = 0;  // just in case...
-      free((void *) sema->header.name);  // avoid const warnings
+      free(sema->header.name);
       sema->header.name = NULL;
       free(sema);
    }

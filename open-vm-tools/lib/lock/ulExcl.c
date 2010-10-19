@@ -262,7 +262,7 @@ MXUser_DestroyExclLock(MXUserExclLock *lock)  // IN:
       }
 
       lock->header.signature = 0;  // just in case...
-      free((void *) lock->header.name);  // avoid const warnings
+      free(lock->header.name);
       lock->header.name = NULL;
       free(lock);
    }

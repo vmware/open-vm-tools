@@ -416,7 +416,7 @@ MXUserGetNativeTID(void)
 typedef struct MXUserHeader {
    uint32       signature;
    MX_Rank      rank;
-   const char  *name;
+   char        *name;
    uint32       identifier;
    void       (*dumpFunc)(struct MXUserHeader *);
 

@@ -203,7 +203,7 @@ MXUser_DestroyBarrier(MXUserBarrier *barrier)  // IN:
       MXUser_DestroyExclLock(barrier->lock);
 
       barrier->header.signature = 0;  // just in case...
-      free((void *) barrier->header.name);  // avoid const warnings
+      free(barrier->header.name);
       barrier->header.name = NULL;
       free(barrier);
    }
