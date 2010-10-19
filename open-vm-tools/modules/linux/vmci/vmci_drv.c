@@ -54,6 +54,13 @@
 #define LGPFX "VMCI: "
 #define VMCI_DEVICE_MINOR_NUM 0
 
+/* MSI-X has performance problems in < 2.6.19 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
+#  define VMCI_DISABLE_MSIX   0
+#else
+#  define VMCI_DISABLE_MSIX   1
+#endif
+
 typedef struct vmci_device {
    compat_mutex_t    lock;
 
@@ -122,6 +129,9 @@ static vmci_device vmci_dev;
 
 /* We dynamically request the device major number at init time. */
 static int device_major_nr = 0;
+
+static int vmci_disable_msi;
+static int vmci_disable_msix = VMCI_DISABLE_MSIX;
 
 DECLARE_TASKLET(vmci_dg_tasklet, dispatch_datagrams,
                 (unsigned long)&vmci_dev);
@@ -410,10 +420,10 @@ vmci_probe_device(struct pci_dev *pdev,           // IN: vmci PCI device
     * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
     * legacy interrupts.
     */
-   if (!vmci_enable_msix(pdev)) {
+   if (!vmci_disable_msix && !vmci_enable_msix(pdev)) {
       vmci_dev.intr_type = VMCI_INTR_TYPE_MSIX;
       vmci_dev.irq = vmci_dev.msix_entries[0].vector;
-   } else if (!pci_enable_msi(pdev)) {
+   } else if (!vmci_disable_msi && !pci_enable_msi(pdev)) {
       vmci_dev.intr_type = VMCI_INTR_TYPE_MSI;
       vmci_dev.irq = pdev->irq;
    } else {
@@ -1217,6 +1227,13 @@ process_bitmap(unsigned long data)
 module_init(vmci_init);
 module_exit(vmci_exit);
 MODULE_DEVICE_TABLE(pci, vmci_ids);
+
+module_param_named(disable_msi, vmci_disable_msi, bool, 0);
+MODULE_PARM_DESC(disable_msi, "Disable MSI use in driver - (default=0)");
+
+module_param_named(disable_msix, vmci_disable_msix, bool, 0);
+MODULE_PARM_DESC(disable_msix, "Disable MSI-X use in driver - (default="
+		 __stringify(VMCI_DISABLE_MSIX) ")");
 
 /* Module information. */
 MODULE_AUTHOR("VMware, Inc.");
