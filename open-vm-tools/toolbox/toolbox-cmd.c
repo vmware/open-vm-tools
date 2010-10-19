@@ -32,6 +32,7 @@
 #include "toolboxCmdInt.h"
 #include "toolboxcmd_version.h"
 #include "system.h"
+#include "unicode.h"
 #include "vmware/tools/guestrpc.h"
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
@@ -393,14 +394,26 @@ ParseCommand(char **argv, // IN: Command line arguments
  */
 
 int
+#if defined(_WIN32)
+wmain(int argc,         // IN: length of command line arguments
+      wchar_t **wargv)  // IN: Command line arguments
+#else
 main(int argc,    // IN: length of command line arguments
      char **argv) // IN: Command line arguments
+#endif
 {
    Bool show_help = FALSE;
    Bool show_version = FALSE;
    CmdTable *cmd = NULL;
    int c;
    int retval;
+
+#if defined(_WIN32)
+   char **argv;
+   Unicode_InitW(argc, wargv, NULL, &argv, NULL);
+#else
+   Unicode_Init(argc, &argv, NULL);
+#endif
 
    setlocale(LC_ALL, "");
    VMTools_ConfigLogging("toolboxcmd", NULL, FALSE, FALSE);
@@ -453,7 +466,7 @@ main(int argc,    // IN: length of command line arguments
    }
 
    if (show_version) {
-      printf("%s (%s)\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER);
+      g_print("%s (%s)\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER);
    } else if (show_help) {
       ToolboxCmdHelp(argv[0], "help");
    } else {

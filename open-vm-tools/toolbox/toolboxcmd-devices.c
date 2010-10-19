@@ -55,7 +55,7 @@ DevicesList(void)
       if (GuestApp_GetDeviceInfo(i, &info) && strlen(info.name) > 0) {
          const char *status = info.enabled ? SU_(option.enabled, "Enabled")
                                            : SU_(option.disabled, "Disabled");
-         printf("%s: %s\n", info.name, status);
+         g_print("%s: %s\n", info.name, status);
       }
    }
    return EXIT_SUCCESS;
