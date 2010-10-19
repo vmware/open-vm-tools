@@ -362,8 +362,12 @@ VMCI_InInterrupt()
 
 VMCI_EXPORT_SYMBOL(VMCI_DeviceGet)
 Bool
-VMCI_DeviceGet(void)
+VMCI_DeviceGet(uint32 *apiVersion)
 {
+   if (*apiVersion > VMCI_KERNEL_API_VERSION) {
+      *apiVersion = VMCI_KERNEL_API_VERSION;
+      return FALSE;
+   }
    return VMCI_DeviceEnabled();
 }
 

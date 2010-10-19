@@ -367,9 +367,7 @@ static compat_define_mutex(registrationMutex);
 static int devOpenCount = 0;
 static int vsockVmciSocketCount = 0;
 static int vsockVmciKernClientCount = 0;
-#ifdef VMX86_TOOLS
 static Bool vmciDevicePresent = FALSE;
-#endif
 static VMCIHandle vmciStreamHandle = { VMCI_INVALID_ID, VMCI_INVALID_ID };
 static VMCIId qpResumedSubId = VMCI_INVALID_ID;
 
@@ -3025,18 +3023,19 @@ VSockVmciRegisterAddressFamily(void)
 {
    int err = 0;
    int i;
+   uint32 apiVersion;
 
-#ifdef VMX86_TOOLS
    /*
     * We don't call into the vmci module or register our socket family if the
     * vmci device isn't present.
     */
-   vmciDevicePresent = VMCI_DeviceGet();
+   apiVersion = VMCI_KERNEL_API_VERSION_1;
+   vmciDevicePresent = VMCI_DeviceGet(&apiVersion);
    if (!vmciDevicePresent) {
-      Log("Could not register VMCI Sockets because VMCI device is not present.\n");
+      Log("Could not register VMCI Sockets because VMCI device is not present "
+          "or API version is unsupported.\n");
       return -1;
    }
-#endif
 
    /*
     * Create the datagram handle that we will use to send and receive all
@@ -3128,12 +3127,10 @@ error:
 static void
 VSockVmciUnregisterAddressFamily(void)
 {
-#ifdef VMX86_TOOLS
    if (!vmciDevicePresent) {
       /* Nothing was registered. */
       return;
    }
-#endif
 
    if (!VMCI_HANDLE_INVALID(vmciStreamHandle)) {
       if (VMCIDatagram_DestroyHnd(vmciStreamHandle) != VMCI_SUCCESS) {
@@ -3153,6 +3150,7 @@ VSockVmciUnregisterAddressFamily(void)
    vsockVmciDgramOps.family = vsockVmciFamilyOps.family = VSOCK_INVALID_FAMILY;
    vsockVmciStreamOps.family = vsockVmciFamilyOps.family;
 
+   VMCI_DeviceRelease();
 }
 
 
