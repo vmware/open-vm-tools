@@ -506,7 +506,7 @@ nicinfo_fsm:
                /* Write preamble and serialized nic info to XDR stream. */
                if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
                    !xdr_GuestNicProto(&xdrs, &message)) {
-                  g_warning("Error serializing nic info v2 data.");
+                  g_warning("Error serializing nic info v%d data.", message.ver);
                   DynXdr_Destroy(&xdrs, TRUE);
                   return FALSE;
                }

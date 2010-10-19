@@ -365,7 +365,16 @@ RecordResolverInfo(NicInfoV3 *nicInfo)  // OUT
     * Search suffixes.
     */
    for (s = _res.dnsrch; *s; s++) {
-      DnsHostname *suffix = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, searchSuffixes, 1);
+      DnsHostname *suffix;
+
+      /* Check to see if we're going above our limit. See bug 605821. */
+      if (dnsConfigInfo->searchSuffixes.searchSuffixes_len == DNSINFO_MAX_SUFFIXES) {
+         g_message("%s: dns search suffix limit (%d) reached, skipping overflow.",
+                   __FUNCTION__, DNSINFO_MAX_SUFFIXES);
+         break;
+      }
+
+      suffix = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, searchSuffixes, 1);
       ASSERT_MEM_ALLOC(suffix);
       *suffix = Util_SafeStrdup(*s);
    }
@@ -411,7 +420,16 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       for (i = 0; i < _res.nscount; i++) {
          struct sockaddr *sa = (struct sockaddr *)&ns[i];
          if (sa->sa_family == AF_INET || sa->sa_family == AF_INET6) {
-            TypedIpAddress *ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+            TypedIpAddress *ip;
+
+            /* Check to see if we're going above our limit. See bug 605821. */
+            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+               g_message("%s: dns server limit (%d) reached, skipping overflow.",
+                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+               break;
+            }
+
+            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
             ASSERT_MEM_ALLOC(ip);
             GuestInfoSockaddrToTypedIpAddress(sa, ip);
          }
@@ -425,7 +443,16 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       for (i = 0; i < MAXNS; i++) {
          struct sockaddr_in *sin = &_res.nsaddr_list[i];
          if (sin->sin_family == AF_INET) {
-            TypedIpAddress *ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+            TypedIpAddress *ip;
+
+            /* Check to see if we're going above our limit. See bug 605821. */
+            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+               g_message("%s: dns server limit (%d) reached, skipping overflow.",
+                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+               break;
+            }
+
+            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
             ASSERT_MEM_ALLOC(ip);
             GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin, ip);
          }
@@ -437,7 +464,16 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
       for (i = 0; i < MAXNS; i++) {
          struct sockaddr_in6 *sin6 = _res._u._ext.nsaddrs[i];
          if (sin6) {
-            TypedIpAddress *ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+            TypedIpAddress *ip;
+
+            /* Check to see if we're going above our limit. See bug 605821. */
+            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+               g_message("%s: dns server limit (%d) reached, skipping overflow.",
+                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+               break;
+            }
+
+            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
             ASSERT_MEM_ALLOC(ip);
             GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin6, ip);
          }
@@ -485,6 +521,13 @@ RecordRoutingInfoIPv4(NicInfoV3 *nicInfo)
       struct sockaddr_in *sin_genmask;
       InetCidrRouteEntry *icre;
       uint32_t ifIndex;
+
+      /* Check to see if we're going above our limit. See bug 605821. */
+      if (nicInfo->routes.routes_len == NICINFO_MAX_ROUTES) {
+         g_message("%s: route limit (%d) reached, skipping overflow.",
+                   __FUNCTION__, NICINFO_MAX_ROUTES);
+         break;
+      }
 
       rtentry = g_ptr_array_index(routes, i);
 
@@ -567,6 +610,13 @@ RecordRoutingInfoIPv6(NicInfoV3 *nicInfo)
       struct in6_rtmsg *in6_rtmsg;
       InetCidrRouteEntry *icre;
       uint32_t ifIndex = -1;
+
+      /* Check to see if we're going above our limit. See bug 605821. */
+      if (nicInfo->routes.routes_len == NICINFO_MAX_ROUTES) {
+         g_message("%s: route limit (%d) reached, skipping overflow.",
+                   __FUNCTION__, NICINFO_MAX_ROUTES);
+         break;
+      }
 
       in6_rtmsg = g_ptr_array_index(routes, i);
 
