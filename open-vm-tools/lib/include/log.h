@@ -27,37 +27,59 @@
 #include <stdarg.h>
 
 /*
- * The log levels are taken from POSIXen syslog. We hijack their values
- * on POSIXen and provide equivalent defines on all other platforms. The
- * conceptual model is as follows:
+ * The log levels are taken from POSIXen syslog and extended. We hijack the
+ * standard values on POSIXen and provide equivalent defines on all other
+ * platforms. Then the debugging levels are extended "down" to allow for
+ * multiple levels of debugging "noise".
  *
- * LOG_EMERG    0  (highest priority)
- * LOG_ALERT    1
- * LOG_CRIT     2
- * LOG_ERR      3
- * LOG_WARNING  4  (<= this priority is written to stderr by default)
- * LOG_NOTICE   5
- * LOG_INFO     6
- * LOG_DEBUG    7  (lowest priority; <= this priority are logged by default)
+ * The conceptual model is as follows:
+ *
+ * LOG_EMERG       0   (highest priority)
+ * LOG_ALERT       1
+ * LOG_CRIT        2
+ * LOG_ERR         3
+ * LOG_WARNING     4   (<= this priority is written to stderr by default)
+ * LOG_NOTICE      5
+ * LOG_INFO        6   (<= this priority are logged by default)
+ * LOG_DEBUG_00    7   (noisiest level of debugging; also LOG_DEBUG)
+ * LOG_DEBUG_01    8 
+ * LOG_DEBUG_02    9 
+ * LOG_DEBUG_03    10 
+ * LOG_DEBUG_04    11 
+ * LOG_DEBUG_05    12 
+ * LOG_DEBUG_06    13 
+ * LOG_DEBUG_07    14 
+ * LOG_DEBUG_08    15 
+ * LOG_DEBUG_09    16 
+ * LOG_DEBUG_10    17  (lowest priority; least noisy debugging level)
  */
 
 #if defined(_WIN32)
-#   include <windows.h>
-
-#   define LOG_EMERG      EVENTLOG_ERROR_TYPE
-#   define LOG_ALERT      EVENTLOG_ERROR_TYPE
-#   define LOG_CRIT       EVENTLOG_ERROR_TYPE
-#   define LOG_ERR        EVENTLOG_ERROR_TYPE
-#   define LOG_WARNING    EVENTLOG_WARNING_TYPE
-#   define LOG_NOTICE     EVENTLOG_INFORMATION_TYPE
-#   define LOG_INFO       EVENTLOG_INFORMATION_TYPE
-#   define LOG_DEBUG      EVENTLOG_INFORMATION_TYPE
+#define LOG_EMERG    0
+#define LOG_ALERT    1
+#define LOG_CRIT     2
+#define LOG_ERR      3
+#define LOG_WARNING  4
+#define LOG_NOTICE   5
+#define LOG_INFO     6
+#define LOG_DEBUG    7
 #else
 #   if !defined(VMM)
 #      include <syslog.h>
 #   endif
 #endif
 
+#define LOG_DEBUG_00    LOG_DEBUG + 0
+#define LOG_DEBUG_01    LOG_DEBUG + 1
+#define LOG_DEBUG_02    LOG_DEBUG + 2
+#define LOG_DEBUG_03    LOG_DEBUG + 3
+#define LOG_DEBUG_04    LOG_DEBUG + 4
+#define LOG_DEBUG_05    LOG_DEBUG + 5
+#define LOG_DEBUG_06    LOG_DEBUG + 6
+#define LOG_DEBUG_07    LOG_DEBUG + 7
+#define LOG_DEBUG_08    LOG_DEBUG + 8
+#define LOG_DEBUG_09    LOG_DEBUG + 9
+#define LOG_DEBUG_10    LOG_DEBUG + 10
 
 typedef void (LogBasicFunc)(const char *fmt,
                             va_list args);
