@@ -4546,9 +4546,9 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
        * local shutdown occured with the SOCK_DONE flag.
        */
       if (sock_flag(sk, SOCK_DONE)) {
-	 err = 0;
+         err = 0;
       } else {
-	 err = -ENOTCONN;
+         err = -ENOTCONN;
       }
       goto out;
    }
@@ -4563,6 +4563,17 @@ VSockVmciStreamRecvmsg(struct kiocb *kiocb,          // UNUSED
     * but there can be data in the VMCI queue that local socket can receive.
     */
    if (sk->sk_shutdown & RCV_SHUTDOWN) {
+      err = 0;
+      goto out;
+   }
+
+   /*
+    * It is valid on Linux to pass in a zero-length receive buffer.  This
+    * is not an error.  We may as well bail out now.  Note that if we don't,
+    * we will fail "ASSERT(copied >= target)" after we dequeue, because the
+    * minimum target is always 1 byte.
+    */
+   if (!len) {
       err = 0;
       goto out;
    }
