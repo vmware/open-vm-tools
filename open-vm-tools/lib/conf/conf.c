@@ -66,46 +66,45 @@ Conf_Load(void)
    char *confPath = GuestApp_GetConfPath();
    char *installPath = GuestApp_GetInstallPath();
 
-   /* We really can't proceed without these paths. */
-   ASSERT(confPath);
-   ASSERT(installPath);
    if (confPath == NULL) {
       Panic("Could not get path to Tools configuration file.\n");
-   }
-
-   if (installPath == NULL) {
-      Panic("Could not get path to Tools installation.\n");
    }
 
    path = Str_Asprintf(NULL, "%s%c%s", confPath, DIRSEPC, CONF_FILE);
    ASSERT_NOT_IMPLEMENTED(path);
    confDict = GuestApp_ConstructDict(path);
-   // don't free path; it's used by the dict
-   
+   /* don't free path; it's used by the dict */
+
    /* Set default conf values */
-   path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
-                       CONFVAL_POWERONSCRIPT_DEFAULT);
-   ASSERT_NOT_IMPLEMENTED(path);
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWERONSCRIPT, path);
-   free(path);
+   if (installPath != NULL) {
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_POWERONSCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWERONSCRIPT, path);
+      free(path);
 
-   path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC, 
-                       CONFVAL_POWEROFFSCRIPT_DEFAULT);
-   ASSERT_NOT_IMPLEMENTED(path);
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWEROFFSCRIPT, path);
-   free(path);
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_POWEROFFSCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_POWEROFFSCRIPT, path);
+      free(path);
 
-   path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC, 
-                       CONFVAL_RESUMESCRIPT_DEFAULT);
-   ASSERT_NOT_IMPLEMENTED(path);
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_RESUMESCRIPT, path);
-   free(path);
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_RESUMESCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_RESUMESCRIPT, path);
+      free(path);
 
-   path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC, 
-                       CONFVAL_SUSPENDSCRIPT_DEFAULT);
-   ASSERT_NOT_IMPLEMENTED(path);
-   GuestApp_SetDictEntryDefault(confDict, CONFNAME_SUSPENDSCRIPT, path);
-   free(path);
+      path = Str_Asprintf(NULL, "%s%c%s", installPath, DIRSEPC,
+                          CONFVAL_SUSPENDSCRIPT_DEFAULT);
+      ASSERT_NOT_IMPLEMENTED(path);
+      GuestApp_SetDictEntryDefault(confDict, CONFNAME_SUSPENDSCRIPT, path);
+      free(path);
+
+      free(installPath);
+   } else {
+      Warning("Could not get path to Tools installation.\n");
+   }
 
    GuestApp_SetDictEntryDefault(confDict, CONFNAME_MAX_WIPERSIZE,
                                 CONFVAL_MAX_WIPERSIZE_DEFAULT);
@@ -113,7 +112,6 @@ Conf_Load(void)
    /* Load the user-configured values from the conf file if it's there */
    GuestApp_LoadDict(confDict);
 
-   free(installPath);
    free(confPath);
 
    return confDict;
