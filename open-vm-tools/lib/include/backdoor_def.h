@@ -146,6 +146,7 @@
 #define BDOOR_CMD_GET_VCPU_INFO         68
 #  define BDOOR_CMD_VCPU_SLC64            0
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS       1
+#  define BDOOR_CMD_VCPU_HV_REPLAY_OK     2
 #  define BDOOR_CMD_VCPU_RESERVED        31
 #define BDOOR_CMD_EFI_SERIALCON_CONFIG   69
 #define BDOOR_CMD_MAX                    70

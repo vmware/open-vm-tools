@@ -618,6 +618,33 @@ Hostinfo_SLC64Supported(void)
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_NestedHVReplaySupported --
+ *
+ *      Access the backdoor with a HV replay control query. This is used
+ *      to determine if we are running in a VM that supports nested HV replay.
+ *      This function should only be called after determining that the
+ *	backdoor is present with Hostinfo_TouchBackdoor().
+ *
+ * Results:
+ *      TRUE if the outer VM supports nexted HV replay.
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_NestedHVReplaySupported(void)
+{
+   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_HV_REPLAY_OK);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  Hostinfo_SynchronizedVTSCs --
  *
  *      Access the backdoor to determine if the VCPUs' TSCs are
