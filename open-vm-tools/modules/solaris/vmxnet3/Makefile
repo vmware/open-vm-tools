@@ -110,5 +110,5 @@ install:
 	chmod 755 /kernel/drv/$(MODULE)
 	cp $(MODULE_64) /kernel/drv/amd64
 	chmod 755 /kernel/drv/amd64/$(MODULE)
-	cp docs/vmxnet3s.conf /kernel/drv/vmxnet3s.conf
+	cp vmxnet3s.conf /kernel/drv/vmxnet3s.conf
 	chmod 644 /kernel/drv/vmxnet3s.conf
