@@ -219,6 +219,9 @@ main(int argc,
    VMTOOLSAPP_ATTACH_SOURCE(&gState.ctx, src, ToolsCoreSigUsrHandler, NULL, NULL);
    g_source_unref(src);
 
+   /* Ignore SIGUSR2 by default. */
+   signal(SIGUSR2, SIG_IGN);
+
    /*
     * Save the original environment so that we can safely spawn other
     * applications (since we may have to modify the original environment
