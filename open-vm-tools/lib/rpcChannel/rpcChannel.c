@@ -174,8 +174,7 @@ RpcChannelReset(RpcInData *data)
 
    msg = Str_Asprintf(NULL, "ATR %s", chan->appName);
    ASSERT_MEM_ALLOC(msg);
-   data->freeResult = TRUE;
-   return RPCIN_SETRETVALS(data, msg, TRUE);
+   return RPCIN_SETRETVALSF(data, msg, TRUE);
 }
 
 
@@ -518,8 +517,8 @@ RpcChannel_Setup(RpcChannel *chan,
 
 
 /**
- * Sets the result of the given RPC context to the given value. The result
- * should be a NULL-terminated string.
+ * Sets the non-freeable result of the given RPC context to the given value.
+ * The result should be a NULL-terminated string.
  *
  * @param[in] data     RPC context.
  * @param[in] result   Result string.
@@ -530,13 +529,41 @@ RpcChannel_Setup(RpcChannel *chan,
 
 gboolean
 RpcChannel_SetRetVals(RpcInData *data,
-                      char *result,
+                      char const *result,
                       gboolean retVal)
+{
+   ASSERT(data);
+
+   /* This cast is safe: data->result will not be freed. */
+   data->result = (char *)result;
+   data->resultLen = strlen(data->result);
+   data->freeResult = FALSE;
+
+   return retVal;
+}
+
+
+/**
+ * Sets the freeable result of the given RPC context to the given value.
+ * The result should be a NULL-terminated string.
+ *
+ * @param[in] data     RPC context.
+ * @param[in] result   Result string.
+ * @param[in] retVal   Return value of this function.
+ *
+ * @return @a retVal
+ */
+
+gboolean
+RpcChannel_SetRetValsF(RpcInData *data,
+                       char *result,
+                       gboolean retVal)
 {
    ASSERT(data);
 
    data->result = result;
    data->resultLen = strlen(data->result);
+   data->freeResult = TRUE;
 
    return retVal;
 }

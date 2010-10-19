@@ -41,8 +41,9 @@
 
 G_BEGIN_DECLS
 
-/** Alias for RpcChannel_SetRetVals. */
-#define RPCIN_SETRETVALS RpcChannel_SetRetVals
+/** Aliases. */
+#define RPCIN_SETRETVALS  RpcChannel_SetRetVals
+#define RPCIN_SETRETVALSF RpcChannel_SetRetValsF
 
 struct RpcChannel;
 
@@ -112,7 +113,7 @@ typedef gboolean (*RpcChannelStartFn)(struct RpcChannel *);
 typedef void (*RpcChannelStopFn)(struct RpcChannel *);
 typedef void (*RpcChannelShutdownFn)(struct RpcChannel *);
 typedef gboolean (*RpcChannelSendFn)(struct RpcChannel *,
-                                     char *data,
+                                     char const *data,
                                      size_t dataLen,
                                      char **result,
                                      size_t *resultLen);
@@ -193,7 +194,7 @@ RpcChannel_Stop(RpcChannel *chan)
 
 G_INLINE_FUNC gboolean
 RpcChannel_Send(RpcChannel *chan,
-                char *data,
+                char const *data,
                 size_t dataLen,
                 char **result,
                 size_t *resultLen)
@@ -234,8 +235,13 @@ RpcChannel_RegisterCallback(RpcChannel *chan,
 
 gboolean
 RpcChannel_SetRetVals(RpcInData *data,
-                      char *result,
+                      char const *result,
                       gboolean retVal);
+
+gboolean
+RpcChannel_SetRetValsF(RpcInData *data,
+                       char *result,
+                       gboolean retVal);
 
 void
 RpcChannel_UnregisterCallback(RpcChannel *chan,

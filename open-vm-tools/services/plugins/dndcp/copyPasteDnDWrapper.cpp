@@ -516,7 +516,7 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
    g_debug("%s: enter\n", __FUNCTION__);
    char *reply;
    size_t replyLen;
-   char *toolsDnDVersion = TOOLS_DND_VERSION_3;
+   char const *toolsDnDVersion = TOOLS_DND_VERSION_3;
    char *toolsCopyPasteVersion = NULL;
    int version;
 
@@ -532,7 +532,8 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
          version = 1;
          SetDnDVersion(version);
       } else {
-         char *vmxDnDVersion = QUERY_VMX_DND_VERSION;
+         char const *vmxDnDVersion = QUERY_VMX_DND_VERSION;
+
          if (!RpcChannel_Send(ctx->rpc, vmxDnDVersion,
                               strlen(vmxDnDVersion), &reply, &replyLen)) {
             g_debug("%s: could not get VMX dnd version capability, assuming v1\n",
@@ -561,7 +562,8 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
          version = 1;
          SetCPVersion(version);
       } else {
-         char *vmxCopyPasteVersion = QUERY_VMX_COPYPASTE_VERSION;
+         char const *vmxCopyPasteVersion = QUERY_VMX_COPYPASTE_VERSION;
+
          if (!RpcChannel_Send(ctx->rpc, vmxCopyPasteVersion,
                               strlen(vmxCopyPasteVersion), &reply, &replyLen)) {
             g_debug("%s: could not get VMX copypaste version capability, assuming v1\n",

@@ -414,7 +414,7 @@ typedef struct ToolsPluginSignalCb {
  */
 typedef struct ToolsPluginData {
    /** Name of the application (required). */
-   char                      *name;
+   char const                *name;
    /**
     * List of features provided by the app. Registration of applications
     * happens in the same order provided by this array.

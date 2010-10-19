@@ -173,7 +173,7 @@ RpcInShutdown(RpcChannel *chan)
 
 static gboolean
 RpcInSend(RpcChannel *chan,
-          char *data,
+          char const *data,
           size_t dataLen,
           char **result,
           size_t *resultLen)
