@@ -67,7 +67,7 @@ void LogV(int level,
  * TODO: even Log and Warning become wrapper functions around LogV.
  */
 
-static INLINE void
+static INLINE void PRINTF_DECL(2, 3)
 Log_Level(int level,
           const char *fmt,
           ...)
@@ -88,7 +88,7 @@ Log_String(int level,
 }
 
 
-static INLINE void
+static INLINE void PRINTF_DECL(1, 2)
 Log_Panic(const char *fmt,
           ...)
 {
@@ -100,7 +100,7 @@ Log_Panic(const char *fmt,
 }
 
 
-static INLINE void
+static INLINE void PRINTF_DECL(1, 2)
 Log_Error(const char *fmt,
           ...)
 {
@@ -112,7 +112,7 @@ Log_Error(const char *fmt,
 }
 
 
-static INLINE void
+static INLINE void PRINTF_DECL(1, 2)
 Log_Verbose(const char *fmt,
             ...)
 {
@@ -124,7 +124,7 @@ Log_Verbose(const char *fmt,
 }
 
 
-static INLINE void
+static INLINE void PRINTF_DECL(1, 2)
 Log_Trivia(const char *fmt,
            ...)
 {
