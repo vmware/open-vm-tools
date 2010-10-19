@@ -44,6 +44,7 @@
 #error "Gtk 2.0 is required"
 #endif
 
+#include <gtk/gtk.h>
 #include <glib.h>
 #include <gdk-pixbuf/gdk-pixbuf-core.h>
 
@@ -51,11 +52,12 @@
 #include <gdk/gdkx.h>
 #undef Bool
 
+#include <gio/gdesktopappinfo.h>
+
 extern "C" {
 #include "vmware.h"
 #include "vmware/tools/guestrpc.h"
 #include "base64.h"
-#include "rpcin.h"
 #include "dbllnklst.h"
 #include "debug.h"
 #include "util.h"
@@ -81,43 +83,16 @@ extern "C" {
 #include "appUtil.h"
 #include "ghIntegration.h"
 #include "ghIntegrationInt.h"
+#include "ghiX11.h"
+#include "ghiX11icon.h"
+
+#ifdef REDIST_GMENU
+#   include "vmware/tools/ghi/menuItemManager.hh"
+using vmware::tools::ghi::MenuItemManager;
+using vmware::tools::ghi::MenuItem;
+#endif
 
 using vmware::tools::NotifyIconCallback;
-
-/*
- * The following defines appear in newer versions of glib 2.x, so
- * we define them for backwards compat.
- */
-#ifndef G_KEY_FILE_DESKTOP_GROUP
-#define G_KEY_FILE_DESKTOP_GROUP                "Desktop Entry"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_NAME
-#define G_KEY_FILE_DESKTOP_KEY_NAME             "Name"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_ICON
-#define G_KEY_FILE_DESKTOP_KEY_ICON             "Icon"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_EXEC
-#define G_KEY_FILE_DESKTOP_KEY_EXEC             "Exec"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_TRY_EXEC
-#define G_KEY_FILE_DESKTOP_KEY_TRY_EXEC         "TryExec"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_CATEGORIES
-#define G_KEY_FILE_DESKTOP_KEY_CATEGORIES       "Categories"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY
-#define G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY       "NoDisplay"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_HIDDEN
-#define G_KEY_FILE_DESKTOP_KEY_HIDDEN           "Hidden"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_ONLY_SHOW_IN
-#define G_KEY_FILE_DESKTOP_KEY_ONLY_SHOW_IN     "OnlyShowIn"
-#endif
-#ifndef G_KEY_FILE_DESKTOP_KEY_NOT_SHOW_IN
-#define G_KEY_FILE_DESKTOP_KEY_NOT_SHOW_IN      "NotShowIn"
-#endif
 
 /*
  * These describe possible start menu item flags. It should come from ghiCommon.h
@@ -135,17 +110,10 @@ using vmware::tools::NotifyIconCallback;
  */
 #define ICON_SPACE_PADDING (sizeof "999x999x65535x" + 25)
 
+
 /*
- * The GHIDirectoryWatch object represents a watch on a directory to be notified of
- * added/removed/changed .desktop files.
- *
- * XXX Watching directories for added/changed/removed .desktop files is not yet
- * implemented. We need to figure out whether we want to use inotify, dnotify, gamin,
- * etc. and work through all the backwards compat issues.
+ * GHI/X11 context object
  */
-typedef struct {
-   char *directoryPath;
-} GHIDirectoryWatch;
 
 struct _GHIPlatform {
    GTree *apps; // Tree of GHIMenuDirectory's, keyed & ordered by their dirname
@@ -161,17 +129,16 @@ struct _GHIPlatform {
     */
    GHashTable *appsByWindowExecutable;
 
-   Bool trackingEnabled;
-   GArray *directoriesTracked;
-
-   int nextMenuHandle;
-   GHashTable *menuHandles;
-
-   /** Pre-wrapper script environment.  See @ref System_GetNativeEnviron. */
+   /* Pre-wrapper script environment.  See @ref System_GetNativeEnviron. */
    const char **nativeEnviron;
 
-   /** Callbacks to send data (RPCs) to the host */
+   /* Callbacks to send data (RPCs) to the host */
    GHIHostCallbacks hostCallbacks;
+
+#ifdef REDIST_GMENU
+   /* Launch menu item layout generator thing. */
+   MenuItemManager *menuItemManager;
+#endif
 };
 
 /*
@@ -212,23 +179,7 @@ typedef struct {
    GHIMenuDirectory *gmd; // OUT - pointer to the Nth GHIMenuDirectory
 } GHITreeTraversal;
 
-static void GHIPlatformSetMenuTracking(GHIPlatform *ghip,
-                                       Bool isEnabled);
 static char *GHIPlatformUriPathToString(UriPathSegmentA *path);
-
-
-/*
- * This is a list of directories that we search for .desktop files by default.
- */
-static const char *desktopDirs[] = {
-   "/usr/share/applications",
-   "/opt/gnome/share/applications",
-   "/opt/kde3/share/applications",
-   "/opt/kde4/share/applications",
-   "/opt/kde/share/applications",
-   "/usr/share/applnk",
-   "~/.local/share/applications"
-};
 
 
 /*
@@ -256,65 +207,6 @@ static FileTypeList sEmptyFileTypeList;
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformDestroyMenuItem --
- *
- *      Frees a menu item object (which right now is just a GKeyFile).
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      The specified GHIMenuItem is no longer valid.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformDestroyMenuItem(gpointer data,      // IN
-                           gpointer user_data) // IN (unused)
-{
-   GHIMenuItem *gmi;
-
-   ASSERT(data);
-
-   gmi = (GHIMenuItem *) data;
-   g_key_file_free(gmi->keyfile);
-   g_free(gmi->keyfilePath);
-   g_free(gmi->exepath);
-   g_free(gmi);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformDestroyMenuDirectory --
- *
- *      Frees the memory associated with a GHIMenuDirectory object.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      The specified GHIMenuDirectory object is no longer valid.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformDestroyMenuDirectory(gpointer data) // IN
-{
-   GHIMenuDirectory *gmd = (GHIMenuDirectory *) data;
-
-   // gmd->dirname comes from a static const array, so it should never be freed
-   g_ptr_array_foreach(gmd->items, GHIPlatformDestroyMenuItem, NULL);
-   g_ptr_array_free(gmd->items, TRUE);
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformIsSupported --
@@ -334,7 +226,7 @@ GHIPlatformDestroyMenuDirectory(gpointer data) // IN
 Bool
 GHIPlatformIsSupported(void)
 {
-   return TRUE;
+   return GHIX11DetectDesktopEnv() != NULL;
 }
 
 
@@ -360,14 +252,21 @@ GHIPlatformInit(GMainLoop *mainLoop,            // IN
                 GHIHostCallbacks hostCallbacks) // IN
 {
    GHIPlatform *ghip;
+   const char *desktopEnv;
 
    ghip = (GHIPlatform *) Util_SafeCalloc(1, sizeof *ghip);
-   ghip->directoriesTracked = g_array_new(FALSE, FALSE, sizeof(GHIDirectoryWatch));
    ghip->nativeEnviron = envp;
    ghip->appsByWindowExecutable =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
    ghip->hostCallbacks = hostCallbacks;
    AppUtil_Init();
+
+   desktopEnv = GHIX11DetectDesktopEnv();
+   g_desktop_app_info_set_desktop_env(desktopEnv);
+
+#ifdef REDIST_GMENU
+   ghip->menuItemManager = new MenuItemManager(desktopEnv);
+#endif
 
    return ghip;
 }
@@ -432,70 +331,6 @@ GHIPlatformUnregisterCaps(GHIPlatform *ghip) // IN
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformFreeValue --
- *
- *      Frees a hash table entry. Typically called from a g_hashtable
- *      iterator. Just the value is destroyed, not the key.
- *      Also called directly from GHIPlatformCloseStartMenu.
- *
- * Results:
- *      TRUE always.
- *
- * Side effects:
- *      The specified value will no longer be valid.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-GHIPlatformFreeValue(gpointer key,       // IN
-                     gpointer value,     // IN
-                     gpointer user_data) // IN
-{
-   g_free(value);
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformCleanupMenuEntries --
- *
- *      Frees all the memory associated with the menu information, including active menu
- *      handles and the internal applications menu representation.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformCleanupMenuEntries(GHIPlatform *ghip) // IN
-{
-   if (ghip->menuHandles) {
-      g_hash_table_foreach_remove(ghip->menuHandles, GHIPlatformFreeValue, NULL);
-      g_hash_table_destroy(ghip->menuHandles);
-      ghip->menuHandles = NULL;
-   }
-
-   if (ghip->apps) {
-      g_hash_table_destroy(ghip->appsByDesktopEntry);
-      g_hash_table_destroy(ghip->appsByExecutable);
-      g_tree_destroy(ghip->apps);
-      ghip->apps = NULL;
-   }
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformCleanup --
@@ -518,9 +353,6 @@ GHIPlatformCleanup(GHIPlatform *ghip) // IN
       return;
    }
 
-   GHIPlatformSetMenuTracking(ghip, FALSE);
-   g_array_free(ghip->directoriesTracked, TRUE);
-   ghip->directoriesTracked = NULL;
    ghip->nativeEnviron = NULL;
    g_hash_table_destroy(ghip->appsByWindowExecutable);
    free(ghip);
@@ -555,96 +387,6 @@ void GHIPlatformUnregisterNotifyIconCallback(NotifyIconCallback *notifyIconCallb
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformCollectIconInfo --
- *
- *      Sucks all the icon information for a particular application from the system, and
- *      appends it into the icon list for returning to the host.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Adds data into the DynBuf.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformCollectIconInfo(GHIPlatform *ghip,                        // IN
-                           GHIMenuItem *ghm,                         // IN
-                           unsigned long windowID,                   // IN
-                           std::list<GHIBinaryIconInfo> &iconList)   // OUT: Icons
-{
-   GPtrArray *pixbufs;
-   char *ctmp = NULL;
-   unsigned int i;
-
-   if (ghm) {
-      ctmp = g_key_file_get_string(ghm->keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                   G_KEY_FILE_DESKTOP_KEY_ICON, NULL);
-   }
-
-   pixbufs = AppUtil_CollectIconArray(ctmp, windowID);
-
-   /*
-    * Now that we actually have all available icons loaded and checked, dump their
-    * contents into the list.
-    */
-
-   for (i = 0; i < pixbufs->len; i++) {
-      GdkPixbuf *pixbuf;
-      guchar *pixels;
-      int x, y;
-      int width, height;
-      int rowstride;
-      int n_channels;
-      GHIBinaryIconInfo iconInfo = { 0 };
-      unsigned char* bgra = NULL;
-
-      pixbuf = (GdkPixbuf *) g_ptr_array_index(pixbufs, i);
-
-      width = gdk_pixbuf_get_width(pixbuf);
-      height = gdk_pixbuf_get_height(pixbuf);
-
-      iconInfo.width = width;
-      iconInfo.height = height;
-
-      ASSERT (gdk_pixbuf_get_colorspace (pixbuf) == GDK_COLORSPACE_RGB);
-      ASSERT (gdk_pixbuf_get_bits_per_sample (pixbuf) == 8);
-      rowstride = gdk_pixbuf_get_rowstride(pixbuf);
-      n_channels = gdk_pixbuf_get_n_channels(pixbuf);
-      pixels = gdk_pixbuf_get_pixels(pixbuf);
-
-      // Resize the destination BGRA vector to hold the pixel data.
-      iconInfo.dataBGRA.resize(iconInfo.width * iconInfo.height * 4);
-      bgra = &iconInfo.dataBGRA[0];
-      for (y = height - 1; y >= 0; y--) { // GetBinaryInfo icons are bottom-to-top. :(
-         for (x = 0; x < width; x++) {
-            guchar *p; // Pointer to RGBA data in GdkPixbuf
-
-            p = pixels + (y * rowstride) + (x * n_channels);
-            bgra[0] = p[2];
-            bgra[1] = p[1];
-            bgra[2] = p[0];
-            if (n_channels > 3) {
-               bgra[3] = p[3];
-            } else {
-               bgra[3] = 0xFF;
-            }
-            // Step on to the next pixel/group of bytes
-            bgra += 4;
-         }
-      }
-      iconList.push_back(iconInfo);
-   }
-
-   AppUtil_FreeIconArray(pixbufs);
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformGetBinaryInfo --
@@ -673,8 +415,6 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
    char *keyfilePath = NULL;
    unsigned long windowID = 0;
    gpointer freeMe = NULL;
-   GHIMenuItem *ghm = NULL;
-   char *ctmp;
    UriParserStateA state;
    UriUriA uri;
 
@@ -689,14 +429,26 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       realCmd = pathURIUtf8;
    } else if (uriParseUriA(&state, pathURIUtf8) == URI_SUCCESS) {
       if (URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
+         GDesktopAppInfo *desktopFileInfo = NULL;
          UriQueryListA *queryList = NULL;
          int itemCount;
 
          freeMe = GHIPlatformUriPathToString(uri.pathHead);
          realCmd = (const char *) freeMe;
-         if (uriDissectQueryMallocA(&queryList, &itemCount,
-                                    uri.query.first,
-                                    uri.query.afterLast) == URI_SUCCESS) {
+         if (g_str_has_suffix(realCmd, ".desktop") &&
+             (desktopFileInfo = g_desktop_app_info_new_from_filename(realCmd))
+              != NULL) {
+            Bool success;
+
+            friendlyName = g_app_info_get_name(G_APP_INFO(desktopFileInfo));
+            g_object_unref(desktopFileInfo);
+
+            success = GHIX11IconGetIconsForDesktopFile(realCmd, iconList);
+            uriFreeUriMembersA(&uri);
+            return success;
+         } else if (uriDissectQueryMallocA(&queryList, &itemCount,
+                                           uri.query.first,
+                                           uri.query.afterLast) == URI_SUCCESS) {
             UriQueryListA *cur;
 
             for (cur = queryList; cur; cur = cur->next) {
@@ -723,8 +475,9 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
       return FALSE;
    }
 
-   GHIPlatformSetMenuTracking(ghip, TRUE);
+   return FALSE;
 
+#if 0
    /*
     * If for some reason the command we got wasn't a fullly expanded filesystem path,
     * then expand the command into a full path.
@@ -812,6 +565,7 @@ GHIPlatformGetBinaryInfo(GHIPlatform *ghip,         // IN: platform-specific sta
 
    GHIPlatformCollectIconInfo(ghip, ghm, windowID, iconList);
 
+#endif
    return TRUE;
 }
 
@@ -846,651 +600,6 @@ GHIPlatformGetBinaryHandlers(GHIPlatform *ghip,      // IN: platform-specific st
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformGetDesktopName --
- *
- *      Figures out which desktop environment we're running under.
- *
- * Results:
- *      Desktop name if successful, NULL otherwise.
- *
- * Side effects:
- *      Allocates memory to hold return value.
- *
- *-----------------------------------------------------------------------------
- */
-
-static const char *
-GHIPlatformGetDesktopName(void)
-{
-   unsigned int i;
-   static const char *clientMappings[][2] = {
-      {"gnome-panel", "GNOME"},
-      {"gnome-session", "GNOME"},
-      {"nautilus", "GNOME"},
-      {"ksmserver", "KDE"},
-      {"kicker", "KDE"},
-      {"startkde", "KDE"},
-      {"konqueror", "KDE"},
-      {"xfce-mcs-manage", "XFCE"},
-      {"xfwm4", "XFCE"},
-      {"ROX-Session", "ROX"}
-   };
-   Display *display;
-   Window rootWindow;
-   Window temp1;        // throwaway
-   Window temp2;        // throwaway
-   Window *children = NULL;
-   unsigned int nchildren;
-   static const char *desktopEnvironment = NULL;
-
-   /*
-    * NB: While window managers may change during vmware-user's execution, TTBOMK
-    * desktop environments cannot, so this is safe.
-    */
-   if (desktopEnvironment) {
-      return desktopEnvironment;
-   }
-
-   display = gdk_x11_get_default_xdisplay();
-   rootWindow = DefaultRootWindow(display);
-
-   if (XQueryTree(display, rootWindow, &temp1, &temp2, &children, &nchildren) == 0) {
-      return NULL;
-   }
-
-   for (i = 0; i < nchildren && !desktopEnvironment; i++) {
-      XClassHint wmClass = { 0, 0 };
-      unsigned int j;
-
-      /*
-       * Try WM_CLASS first, then try WM_NAME.
-       */
-
-      if (XGetClassHint(display, children[i], &wmClass) != 0) {
-         for (j = 0; j < ARRAYSIZE(clientMappings) && !desktopEnvironment; j++) {
-            if ((strcasecmp(clientMappings[j][0], wmClass.res_name) == 0) ||
-                (strcasecmp(clientMappings[j][0], wmClass.res_class) == 0)) {
-               desktopEnvironment = clientMappings[j][1];
-            }
-         }
-         XFree(wmClass.res_name);
-         XFree(wmClass.res_class);
-      }
-
-      if (!desktopEnvironment) {
-         char *name = NULL;
-
-         if ((XFetchName(display, children[i], &name) == 0) ||
-             name == NULL) {
-            continue;
-         }
-
-         for (j = 0; j < ARRAYSIZE(clientMappings) && !desktopEnvironment; j++) {
-            if (!strcmp(clientMappings[j][0], name)) {
-               desktopEnvironment = clientMappings[j][1];
-            }
-         }
-
-         XFree(name);
-      }
-   }
-
-   XFree(children);
-   return desktopEnvironment;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformIsMenuItemAllowed --
- *
- *      This routine tells the caller, based on policies defined by the .desktop file,
- *      whether the requested application should be displayed in the Unity menus.
- *
- * Results:
- *      TRUE if the item should be displayed, FALSE if it should not be.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-GHIPlatformIsMenuItemAllowed(GHIPlatform *ghip, // IN:
-                             GKeyFile *keyfile) // IN:
-{
-   const char *dtname;
-
-   ASSERT(ghip);
-   ASSERT(keyfile);
-
-   /*
-    * Examine the "NoDisplay" and "Hidden" properties.
-    */
-   if (g_key_file_get_boolean(keyfile,
-                              G_KEY_FILE_DESKTOP_GROUP,
-                              G_KEY_FILE_DESKTOP_KEY_NO_DISPLAY,
-                              NULL) ||
-       g_key_file_get_boolean(keyfile,
-                              G_KEY_FILE_DESKTOP_GROUP,
-                              G_KEY_FILE_DESKTOP_KEY_HIDDEN,
-                              NULL)) {
-      Debug("%s: contains either NoDisplay or Hidden keys.\n", __func__);
-      return FALSE;
-   }
-
-   /*
-    * NB: This may return NULL.
-    * XXX Perhaps that should be changed to return an empty string?
-    */
-   dtname = GHIPlatformGetDesktopName();
-
-   /*
-    * Check our desktop environment name against the OnlyShowIn and NotShowIn
-    * lists.
-    *
-    * NB:  If the .desktop file defines OnlyShowIn as an empty string, we
-    * effectively ignore it.  (Another interpretation would be that an application
-    * shouldn't appear at all, but that's what the NoDisplay and Hidden keys are
-    * for.)
-    *
-    * XXX I didn't see anything in the Key-value file parser reference, but I'm
-    * wondering if there's some other GLib string list searching goodness that
-    * would obviate the boilerplate-ish code below.
-    */
-   {
-      gchar **onlyShowList = NULL;
-      gsize nstrings;
-
-      onlyShowList = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                                G_KEY_FILE_DESKTOP_KEY_ONLY_SHOW_IN,
-                                                &nstrings, NULL);
-      if (onlyShowList && nstrings) {
-         Bool matchedOnlyShowIn = FALSE;
-         unsigned int i;
-
-         if (dtname) {
-            for (i = 0; i < nstrings; i++) {
-               if (strcasecmp(dtname, onlyShowList[i]) == 0) {
-                  matchedOnlyShowIn = TRUE;
-                  break;
-               }
-            }
-         }
-
-         if (!matchedOnlyShowIn) {
-            Debug("%s: OnlyShowIn does not include our desktop environment, %s.\n",
-                  __func__, dtname ? dtname : "(not set)");
-            g_strfreev(onlyShowList);
-            return FALSE;
-         }
-      }
-      g_strfreev(onlyShowList);
-   }
-
-   if (dtname) {
-      gchar **notShowList = NULL;
-      gsize nstrings;
-      unsigned int i;
-
-      notShowList = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                               G_KEY_FILE_DESKTOP_KEY_NOT_SHOW_IN,
-                                               &nstrings, NULL);
-      if (notShowList && nstrings) {
-         for (i = 0; i < nstrings; i++) {
-            if (strcasecmp(dtname, notShowList[i]) == 0) {
-               Debug("%s: NotShowIn includes our desktop environment, %s.\n",
-                     __func__, dtname);
-               g_strfreev(notShowList);
-               return FALSE;
-            }
-         }
-      }
-      g_strfreev(notShowList);
-   }
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformGetExecFromKeyFile --
- *
- *      Given a GLib GKeyFile, extract path(s) from the TryExec or Exec
- *      keys, normalize them, and return them to the caller.
- *
- * Results:
- *      Returns a string pointer to an absolute executable pathname on success or
- *      NULL on failure.
- *
- * Side effects:
- *      This routine returns memory allocated by GLib.  Caller is responsible
- *      for freeing it via g_free.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gchar *
-GHIPlatformGetExecFromKeyfile(GHIPlatform *ghip, // IN
-                              GKeyFile *keyfile) // IN
-{
-   gchar *exe = NULL;
-
-   /*
-    * TryExec is supposed to be a path to an executable without arguments that,
-    * if set but not found or not executable, indicates that this menu item should
-    * be skipped.
-    */
-   {
-      gchar *tryExec;
-
-      tryExec = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                      G_KEY_FILE_DESKTOP_KEY_TRY_EXEC, NULL);
-      if (tryExec) {
-         gchar *ctmp;
-         ctmp = g_find_program_in_path(tryExec);
-
-         if (ctmp == NULL) {
-            Debug("%s: Entry has TryExec=%s, but it was not found in our PATH.\n",
-                  __func__, tryExec);
-            g_free(tryExec);
-            return NULL;
-         }
-
-         g_free(ctmp);
-         g_free(tryExec);
-      }
-   }
-
-   /*
-    * Next up:  Look up Exec key and do some massaging to skip over common interpreters.
-    */
-   {
-      char *exec;
-      char **argv;
-      int argc;
-      int i;
-      gboolean parsed;
-
-      exec = g_key_file_get_string(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                   G_KEY_FILE_DESKTOP_KEY_EXEC, NULL);
-
-      if (!exec) {
-         Debug("%s: Missing Exec key.\n", __func__);
-         return NULL;
-      }
-
-      parsed = g_shell_parse_argv(exec, &argc, &argv, NULL);
-      g_free(exec);
-
-      if (!parsed) {
-         Debug("%s: Unable to parse shell arguments.\n", __func__);
-         return NULL;
-      }
-
-      for (i = 0; i < argc; i++) {
-         /*
-          * The Exec= line in the .desktop file may list other boring helper apps before
-          * the name of the main app. getproxy is a common one. We need to skip those
-          * arguments in the cmdline.
-          */
-         if (!AppUtil_AppIsSkippable(argv[i])) {
-            exe = g_strdup(argv[i]);
-            break;
-         }
-      }
-      g_strfreev(argv);
-   }
-
-   /*
-    * Turn it into a full path.  Yes, if we can't get an absolute path, we'll return
-    * NULL.
-    */
-   if (exe && *exe != '/') {
-      gchar *ctmp;
-
-      ctmp = g_find_program_in_path(exe);
-      g_free(exe);
-      exe = ctmp;
-      if (!exe) {
-         Debug("%s: Unable to find program in PATH.\n", __func__);
-      }
-   }
-
-   return exe;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformAddMenuItem --
- *
- *      Examines an application's .desktop file and inserts it into an appropriate
- *      Unity application menu.
- *
- * Results:
- *      A new GHIMenuItem will be created.  If our desired menu directory doesn't
- *      already exist, then we'll create that, too.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformAddMenuItem(GHIPlatform *ghip,       // IN:
-                       const char *keyfilePath, // IN:
-                       GKeyFile *keyfile,       // IN:
-                       char *exePath)           // IN:
-{
-   /*
-    * A list of categories that a .desktop file should be in in order to be relayed to
-    * the host.
-    *
-    * NB: "Other" is a generic category where we dump applications for which we can't
-    * determine an appropriate category.  This is "safe" as long as menu-spec doesn't
-    * register it, and I don't expect that to happen any time soon.  It is -extremely-
-    * important that "Other" be the final entry in this list.
-    *
-    * XXX See desktop-entry-spec and make use of .directory files.
-    */
-   static const char *validCategories[][2] = {
-      /*
-       * Bug 372348:
-       * menu-spec category     pretty string
-       */
-      { "AudioVideo",           "Sound & Video" },
-      { "Development",          0 },
-      { "Education",            0 },
-      { "Game",                 "Games" },
-      { "Graphics",             0 },
-      { "Network",              0 },
-      { "Office",               0 },
-      { "Settings",             0 },
-      { "System",               0 },
-      { "Utility",              0 },
-      { "Other",                0 }
-   };
-
-   /*
-    * Applications belonging to certain categories should never show up
-    * in our launch menus.  List taken from
-    * http://standards.freedesktop.org/menu-spec/latest/apa.html table 2.
-    */
-   static const char *invalidCategories[] = {
-      "Screensaver",
-      "Shell",
-   };
-
-   GHIMenuDirectory *gmd;
-   GHIMenuItem *gmi;
-   Bool foundIt = FALSE;
-   char **categories = NULL;
-   gsize numcats;
-   unsigned int kfIndex;                 // keyfile categories index/iterator
-   unsigned int vIndex;                  // validCategories index/iterator
-   unsigned int iIndex;                  // invalidCategories index/iterator
-
-   /*
-    * Figure out if this .desktop file is in a category we want to put on our menus,
-    * and if so which one...
-    */
-   categories = g_key_file_get_string_list(keyfile, G_KEY_FILE_DESKTOP_GROUP,
-                                           G_KEY_FILE_DESKTOP_KEY_CATEGORIES,
-                                           &numcats, NULL);
-   if (categories) {
-      for (kfIndex = 0; kfIndex < numcats && !foundIt; kfIndex++) {
-         /*
-          * If any of this app's categories are in our blacklist, we'll just
-          * return prematurely.
-          */
-         for (iIndex = 0; iIndex < ARRAYSIZE(invalidCategories); iIndex++) {
-            if (!strcasecmp(categories[kfIndex], invalidCategories[iIndex])) {
-               g_debug("Ignoring app %s because it's a member of category %s.\n",
-                       keyfilePath, categories[kfIndex]);
-               return;
-            }
-         }
-
-         /*
-          * NB:  See validCategories' comment re: "Other" being the final, default
-          * category.  It explains why we condition on ARRAYSIZE() - 1.
-          */
-         for (vIndex = 0; vIndex < ARRAYSIZE(validCategories) - 1; vIndex++) {
-            if (!strcasecmp(categories[kfIndex], validCategories[vIndex][0])) {
-               foundIt = TRUE;
-               break;
-            }
-         }
-      }
-      g_strfreev(categories);
-   }
-
-   /*
-    * If not found, fall back to "Other".
-    */
-   if (!foundIt) {
-      vIndex = ARRAYSIZE(validCategories) - 1;
-   }
-
-   /*
-    * We have all the information we need to create the new GHIMenuItem.
-    */
-   gmi = g_new0(GHIMenuItem, 1);
-   gmi->keyfilePath = g_strdup(keyfilePath);
-   gmi->keyfile = keyfile;
-   gmi->exepath = exePath;
-
-   gmd = (GHIMenuDirectory *) g_tree_lookup(ghip->apps, validCategories[vIndex][0]);
-
-   if (!gmd) {
-      /*
-       * A GHIMenuDirectory object does not yet exist for the validCategory
-       * that this .desktop is in, so create that object.
-       */
-      gmd = g_new0(GHIMenuDirectory, 1);
-      gmd->dirname = validCategories[vIndex][0];
-      gmd->prettyDirname = validCategories[vIndex][1];
-      gmd->items = g_ptr_array_new();
-      g_tree_insert(ghip->apps, (gpointer)validCategories[vIndex][0], gmd);
-      Debug("Created new category '%s'\n", gmd->dirname);
-   }
-
-   g_ptr_array_add(gmd->items, gmi);
-   g_hash_table_insert(ghip->appsByExecutable, gmi->exepath, gmi);
-   g_hash_table_insert(ghip->appsByDesktopEntry, gmi->keyfilePath, gmi);
-   Debug("Loaded desktop item for %s into %s\n", gmi->exepath, gmd->dirname);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformReadDesktopFile --
- *
- *      Reads a .desktop file into our internal representation of the available
- *      applications.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformReadDesktopFile(GHIPlatform *ghip, // IN
-                           const char *path)  // IN
-{
-   GKeyFile *keyfile = NULL;
-   gchar *exe = NULL;
-
-   Debug("%s: Analyzing %s.\n", __func__, path);
-
-   /*
-    * First load our .desktop file into a GLib GKeyFile structure.  Then perform
-    * some rudimentary policy checks based on keys like NoDisplay and OnlyShowIn.
-    */
-
-   keyfile = g_key_file_new();
-   if (!keyfile) {
-      Debug("%s: g_key_file_new failed.\n", __func__);
-      return;
-   }
-
-   if (!g_key_file_load_from_file(keyfile, path, (GKeyFileFlags) 0, NULL) ||
-       !GHIPlatformIsMenuItemAllowed(ghip, keyfile)) {
-      g_key_file_free(keyfile);
-      Debug("%s: Unable to load .desktop file or told to skip it.\n", __func__);
-      return;
-   }
-
-   /*
-    * Okay, policy checks passed.  Next up, obtain a normalized executable path,
-    * and if successful insert it into our menus.
-    */
-
-   exe = GHIPlatformGetExecFromKeyfile(ghip, keyfile);
-   if (exe) {
-      /* The following routine takes ownership of keyfile and exec. */
-      GHIPlatformAddMenuItem(ghip, path, keyfile, exe);
-   } else {
-      Debug("%s: Could not find executable for %s\n", __func__, path);
-      g_key_file_free(keyfile);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformReadApplicationsDir --
- *
- *      Reads in the .desktop files in a particular directory.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformReadApplicationsDir(GHIPlatform *ghip, // IN
-                               const char *dir)   // IN
-{
-   DIR *dirh;
-   struct dirent *dent;
-   GHIDirectoryWatch dirWatch;
-
-   ASSERT(ghip);
-   ASSERT(dir);
-
-   dirh = opendir(dir);
-   if (!dirh) {
-      return;
-   }
-
-   dirWatch.directoryPath = strdup(dir);
-   g_array_append_val(ghip->directoriesTracked, dirWatch);
-
-   while ((dent = readdir(dirh))) {
-      char subpath[PATH_MAX];
-      struct stat sbuf;
-      unsigned int subpathLen;
-
-      if (!strcmp(dent->d_name, ".") ||
-          !strcmp(dent->d_name, "..") ||
-          !strcmp(dent->d_name, ".hidden")) {
-         continue;
-      }
-
-      subpathLen = Str_Sprintf(subpath, sizeof subpath, "%s/%s", dir, dent->d_name);
-      if (subpathLen >= (sizeof subpath - 1)) {
-         Warning("There may be a recursive symlink or long path,"
-                 " somewhere above %s. Skipping.\n", subpath);
-         closedir(dirh);
-         return;
-      }
-      if (dent->d_type == DT_UNKNOWN && stat(subpath, &sbuf)) {
-         continue;
-      }
-
-      if (dent->d_type == DT_DIR ||
-          (dent->d_type == DT_UNKNOWN
-           && S_ISDIR(sbuf.st_mode))) {
-         GHIPlatformReadApplicationsDir(ghip, subpath);
-      } else if ((dent->d_type == DT_REG ||
-                  dent->d_type == DT_LNK ||
-                  (dent->d_type == DT_UNKNOWN
-                   && S_ISREG(sbuf.st_mode)))
-                 && StrUtil_EndsWith(dent->d_name, ".desktop")) {
-         GHIPlatformReadDesktopFile(ghip, subpath);
-      }
-   }
-
-   closedir(dirh);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformReadAllApplications --
- *
- *      Reads in information on all the applications that have .desktop files on this
- *      system.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      ghip->applist is created.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformReadAllApplications(GHIPlatform *ghip) // IN
-{
-   ASSERT(ghip);
-
-   if (!ghip->apps) {
-      unsigned int i;
-
-      ghip->apps = g_tree_new_full((GCompareDataFunc)strcmp, NULL, NULL,
-                                   GHIPlatformDestroyMenuDirectory);
-      ghip->appsByExecutable = g_hash_table_new(g_str_hash, g_str_equal);
-      ghip->appsByDesktopEntry = g_hash_table_new(g_str_hash, g_str_equal);
-
-      for (i = 0; i < ARRAYSIZE(desktopDirs); i++) {
-         if (StrUtil_StartsWith(desktopDirs[i], "~/")) {
-            char cbuf[PATH_MAX];
-
-            Str_Sprintf(cbuf, sizeof cbuf, "%s/%s",
-                        g_get_home_dir(), desktopDirs[i] + 2);
-            GHIPlatformReadApplicationsDir(ghip, cbuf);
-         } else {
-            GHIPlatformReadApplicationsDir(ghip, desktopDirs[i]);
-         }
-      }
-   }
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformOpenStartMenuTree --
@@ -1519,103 +628,19 @@ GHIPlatformOpenStartMenuTree(GHIPlatform *ghip,        // IN: platform-specific 
                              uint32 flags,             // IN: flags
                              DynBuf *buf)              // OUT: number of items
 {
-   char temp[64];
-   GHIMenuHandle *gmh;
-   int itemCount = 0;
-   Bool retval = FALSE;
+   Bool success = FALSE;
 
-   ASSERT(ghip);
-   ASSERT(rootUtf8);
-   ASSERT(buf);
-
-   GHIPlatformSetMenuTracking(ghip, TRUE);
-
-   if (!ghip->menuHandles) {
-      ghip->menuHandles = g_hash_table_new(g_direct_hash, g_direct_equal);
+#ifdef REDIST_GMENU
+   std::pair<uint32,uint32> descriptor;
+   if (ghip->menuItemManager->OpenMenuTree(rootUtf8, &descriptor)) {
+      char tmp[2 * sizeof MAKESTR(UINT_MAX)];
+      Str_Sprintf(tmp, sizeof tmp, "%u %u", descriptor.first, descriptor.second);
+      DynBuf_AppendString(buf, tmp);
+      success = TRUE;
    }
+#endif
 
-   if (!ghip->apps) {
-      return FALSE;
-   }
-
-   gmh = g_new0(GHIMenuHandle, 1);
-   gmh->handleID = ++ghip->nextMenuHandle;
-
-   if (!strcmp(rootUtf8, UNITY_START_MENU_LAUNCH_FOLDER)) {
-      gmh->handleType = GHIMenuHandle::LAUNCH_FOLDER;
-      itemCount = g_tree_nnodes(ghip->apps);
-      retval = TRUE;
-   } else if (!strcmp(rootUtf8, UNITY_START_MENU_FIXED_FOLDER)) {
-      /*
-       * XXX Not yet implemented
-       */
-      gmh->handleType = GHIMenuHandle::FIXED_FOLDER;
-      retval = TRUE;
-   } else if (*rootUtf8) {
-      gmh->handleType = GHIMenuHandle::DIRECTORY_FOLDER;
-
-      if (StrUtil_StartsWith(rootUtf8, UNITY_START_MENU_LAUNCH_FOLDER)) {
-         gmh->gmd = (GHIMenuDirectory *) g_tree_lookup(ghip->apps,
-                                                       rootUtf8 +
-                                                         sizeof(UNITY_START_MENU_LAUNCH_FOLDER));
-         if (gmh->gmd) {
-            itemCount = gmh->gmd->items->len;
-            retval = TRUE;
-         }
-      }
-   }
-
-   if (!retval) {
-      g_free(gmh);
-      return retval;
-   }
-
-   Debug("Opened start menu tree for %s with %d items, handle %d\n",
-         rootUtf8, itemCount, gmh->handleID);
-
-   g_hash_table_insert(ghip->menuHandles, GINT_TO_POINTER(gmh->handleID), gmh);
-
-   Str_Sprintf(temp, sizeof temp, "%d %d", gmh->handleID, itemCount);
-   DynBuf_AppendString(buf, temp);
-
-   return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformFindLaunchMenuItem --
- *
- *      A GTraverseFunc used to find the right item in the list of directories.
- *
- * Results:
- *      TRUE if tree traversal should stop, FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static gboolean
-GHIPlatformFindLaunchMenuItem(gpointer key,   // IN
-                              gpointer value, // IN
-                              gpointer data)  // IN
-{
-   GHITreeTraversal *td;
-
-   ASSERT(data);
-   ASSERT(value);
-   td = (GHITreeTraversal *) data;
-
-   td->currentItem++;
-   if (td->currentItem == td->desiredItem) {
-      td->gmd = (GHIMenuDirectory *) value;
-      return TRUE;
-   }
-
-   return FALSE;
+   return success;
 }
 
 
@@ -1728,97 +753,27 @@ GHIPlatformGetStartMenuItem(GHIPlatform *ghip, // IN: platform-specific state
                             uint32 itemIndex,  // IN: the index of the item in the tree
                             DynBuf *buf)       // OUT: item
 {
-   GHIMenuHandle *gmh;
-   char *itemName = NULL;
-   uint itemFlags = 0;
-   char *itemPath = NULL;
-   char *localizedItemName = NULL;
-   Bool freeItemName = FALSE;
-   Bool freeItemPath = FALSE;
-   Bool freeLocalItemName = FALSE;
-   char temp[64];
+   Bool success = FALSE;
 
-   ASSERT(ghip);
-   ASSERT(ghip->menuHandles);
-   ASSERT(buf);
+#ifdef REDIST_GMENU
+   const MenuItem* menuItem;
+   const utf::string* path;
 
-   gmh = (GHIMenuHandle *) g_hash_table_lookup(ghip->menuHandles, GINT_TO_POINTER(handle));
-   if (!gmh) {
-      return FALSE;
+   if (ghip->menuItemManager->GetMenuItem(handle, itemIndex, &menuItem, &path)) {
+      utf::string key = *path + "/" + menuItem->key;
+      DynBuf_AppendString(buf, key.c_str());
+
+      char tmp[sizeof MAKESTR(UINT_MAX)];
+      Str_Sprintf(tmp, sizeof tmp, "%u", menuItem->isFolder ? 1 : 0);
+      DynBuf_AppendString(buf, tmp);
+
+      DynBuf_AppendString(buf, menuItem->execPath.c_str());
+      DynBuf_AppendString(buf, menuItem->displayName.c_str());
+      success = TRUE;
    }
+#endif
 
-   switch (gmh->handleType) {
-   case GHIMenuHandle::LAUNCH_FOLDER:
-      {
-         GHITreeTraversal traverseData = { -1, itemIndex, NULL };
-
-         /*
-          * We're iterating through the list of directories.
-          */
-         if (!ghip->apps) {
-            return FALSE;
-         }
-
-         g_tree_foreach(ghip->apps, GHIPlatformFindLaunchMenuItem, &traverseData);
-         if (!traverseData.gmd) {
-            return FALSE;
-         }
-
-         itemPath = "";
-         itemFlags = UNITY_START_MENU_ITEM_DIRECTORY; // It's a directory
-         itemName = g_strdup_printf("%s/%s", UNITY_START_MENU_LAUNCH_FOLDER,
-                                    traverseData.gmd->dirname);
-         freeItemName = TRUE;
-         localizedItemName = traverseData.gmd->prettyDirname ?
-            (char *)traverseData.gmd->prettyDirname :
-            (char *)traverseData.gmd->dirname;
-      }
-      break;
-   case GHIMenuHandle::FIXED_FOLDER:
-      return FALSE;
-
-   case GHIMenuHandle::DIRECTORY_FOLDER:
-      {
-         GHIMenuItem *gmi;
-
-         if (gmh->gmd->items->len <= itemIndex) {
-            return FALSE;
-         }
-
-         gmi = (GHIMenuItem *) g_ptr_array_index(gmh->gmd->items, itemIndex);
-
-         localizedItemName = g_key_file_get_locale_string(gmi->keyfile,
-                                                          G_KEY_FILE_DESKTOP_GROUP,
-                                                          G_KEY_FILE_DESKTOP_KEY_NAME,
-                                                          NULL, NULL);
-         freeLocalItemName = TRUE;
-         itemName = g_strdup_printf("%s/%s/%s", UNITY_START_MENU_LAUNCH_FOLDER,
-                                    gmh->gmd->dirname, localizedItemName);
-         freeItemName = TRUE;
-
-         itemPath = GHIPlatformMenuItemToURI(ghip, gmi);
-         freeItemPath = TRUE;
-      }
-      break;
-   }
-
-   DynBuf_AppendString(buf, itemName);
-   Str_Sprintf(temp, sizeof temp, "%u", itemFlags);
-   DynBuf_AppendString(buf, temp);
-   DynBuf_AppendString(buf, itemPath ? itemPath : "");
-   DynBuf_AppendString(buf, localizedItemName ? localizedItemName : itemName);
-
-   if (freeItemName) {
-      g_free(itemName);
-   }
-   if (freeItemPath) {
-      g_free(itemPath);
-   }
-   if (freeLocalItemName) {
-      g_free(localizedItemName);
-   }
-
-   return TRUE;
+   return success;
 }
 
 
@@ -1843,22 +798,11 @@ Bool
 GHIPlatformCloseStartMenuTree(GHIPlatform *ghip, // IN: platform-specific state
                               uint32 handle)     // IN: handle to the tree to be closed
 {
-   GHIMenuHandle *gmh;
-
-   ASSERT(ghip);
-   if (!ghip->menuHandles) {
-      return TRUE;
-   }
-
-   gmh = (GHIMenuHandle *) g_hash_table_lookup(ghip->menuHandles, GINT_TO_POINTER(handle));
-   if (!gmh) {
-      return TRUE;
-   }
-
-   g_hash_table_remove(ghip->menuHandles, GINT_TO_POINTER(gmh->handleID));
-   GHIPlatformFreeValue(NULL, gmh, NULL);
-
-   return TRUE;
+#ifdef REDIST_GMENU
+   return ghip->menuItemManager->CloseMenuTree(handle);
+#else
+   return FALSE;
+#endif
 }
 
 
@@ -2382,7 +1326,39 @@ GHIPlatformShellOpen(GHIPlatform *ghip,    // IN
 
    Debug("%s: file: '%s'\n", __FUNCTION__, fileUtf8);
 
-   if (GHIPlatformCombineArgs(ghip, fileUtf8, &fullArgv, &fullArgc) &&
+   /*
+    * XXX This is not shippable.  GHIPlatformCombineArgs may still be necessary,
+    * and I chose to use if (1) rather than #if 0 it out in order to not have to
+    * #if 0 out that function and everything else it calls as well.
+    */
+   if (1) {
+      UriParserStateA upState;
+      UriUriA uri;
+
+      memset(&upState, 0, sizeof upState);
+      memset(&uri, 0, sizeof uri);
+      upState.uri = &uri;
+
+      if (uriParseUriA(&upState, fileUtf8) == URI_SUCCESS &&
+          URI_TEXTRANGE_EQUAL(uri.scheme, "file")) {
+         GDesktopAppInfo *dappinfo;
+         gchar *desktopFile;
+         Bool success = FALSE;
+
+         desktopFile = (gchar *)g_alloca(strlen(fileUtf8) + 1);
+         uriUriStringToUnixFilenameA(fileUtf8, desktopFile);
+         ASSERT(g_str_has_suffix(desktopFile, ".desktop"));
+
+         dappinfo = g_desktop_app_info_new_from_filename(desktopFile);
+         if (dappinfo) {
+            GAppInfo *appinfo = (GAppInfo *)G_APP_INFO(dappinfo);
+            success = g_app_info_launch(appinfo, NULL, NULL, NULL);
+            g_object_unref(dappinfo);
+         }
+
+         return success;
+      }
+   } else if (GHIPlatformCombineArgs(ghip, fileUtf8, &fullArgv, &fullArgc) &&
        fullArgc > 0) {
       retval = g_spawn_async(NULL, fullArgv,
                             /*
@@ -2584,53 +1560,6 @@ GHIPlatformRestoreDefaultGuestHandler(GHIPlatform *ghip,  // IN: platform-specif
 
 
 /*
- *-----------------------------------------------------------------------------
- *
- * GHIPlatformSetMenuTracking --
- *
- *      Turns menu tracking on/off.
- *
- *      XXX needs additional implementation work, as per the comment above
- *      GHIDirectoryWatch.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GHIPlatformSetMenuTracking(GHIPlatform *ghip, // IN
-                           Bool isEnabled)    // IN
-{
-   unsigned int i;
-   ASSERT(ghip);
-
-   if (isEnabled == ghip->trackingEnabled) {
-      return;
-   }
-
-   ghip->trackingEnabled = isEnabled;
-   if (isEnabled) {
-      GHIPlatformReadAllApplications(ghip);
-   } else {
-      GHIPlatformCleanupMenuEntries(ghip);
-
-      for (i = 0; i < ghip->directoriesTracked->len; i++) {
-         GHIDirectoryWatch *dirWatch;
-
-         dirWatch = &g_array_index(ghip->directoriesTracked, GHIDirectoryWatch, i);
-         g_free(dirWatch->directoryPath);
-      }
-      g_array_set_size(ghip->directoriesTracked, 0);
-   }
-}
-
-
-/*
  *----------------------------------------------------------------------------
  *
  * GHIPlatformSetOutlookTempFolder --
@@ -2787,6 +1716,13 @@ GHIX11FindDesktopUriByExec(GHIPlatform *ghip,
    ASSERT(exec);
 
    /*
+    * XXX This is not shippable.  This is to be addressed by milestone 3 with
+    * the improved "fuzzy logic for UNITY_RPC_GET_WINDOW_PATH" deliverable.
+    */
+
+   return NULL;
+
+   /*
     * Check our hash table first.  Negative entries are also cached.
     */
    if (g_hash_table_lookup_extended(ghip->appsByWindowExecutable,
@@ -2879,4 +1815,46 @@ tryagain:
    g_hash_table_insert(ghip->appsByWindowExecutable, g_strdup(exec), uri);
 
    return uri;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIX11DetectDesktopEnv --
+ *
+ *      Query environment and/or root window properties to determine if we're
+ *      under GNOME or KDE.
+ *
+ *      XXX Consider moving this to another library.
+ *      XXX Investigate whether this requires legal review, since it's cribbed
+ *      from xdg-utils' detectDE subroutine (MIT license).
+ *      XXX Add the _DT_SESSION bit for XFCE detection.
+ *
+ * Results:
+ *      Pointer to a valid string on success, NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+GHIX11DetectDesktopEnv(void)
+{
+   static const char *desktopEnvironment = NULL;
+   const char *tmp;
+
+   if (desktopEnvironment) {
+      return desktopEnvironment;
+   }
+
+   if (g_strcmp0(g_getenv("KDE_FULL_SESSION"), "true") == 0) {
+      desktopEnvironment = "KDE";
+   } else if ((tmp = g_getenv("GNOME_DESKTOP_SESSION_ID")) && *tmp) {
+      desktopEnvironment = "GNOME";
+   }
+
+   return desktopEnvironment;
 }

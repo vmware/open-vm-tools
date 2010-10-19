@@ -1,0 +1,332 @@
+/*********************************************************
+ * Copyright (C) 2010 VMware, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation version 2.1 and no later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+ *
+ *********************************************************/
+
+/*
+ * icon.c --
+ *
+ *	GHI/X11 icon collection code.
+ */
+
+
+#include <gtk/gtk.h>
+#include <glib.h>
+
+#include <gio/gdesktopappinfo.h>
+
+extern "C" {
+#include "vmware.h"
+}
+
+#include "ghiX11.h"
+#include "ghiX11icon.h"
+
+
+/*
+ * Local function declarations.
+ */
+
+static void  AppendFileToArray(const gchar* iconPath,
+                               std::list<GHIBinaryIconInfo>& iconList);
+static void  AppendPixbufToArray(const GdkPixbuf* pixbuf,
+                                 std::list<GHIBinaryIconInfo>& iconList);
+static gint* GetIconSizesDescending(GtkIconTheme *iconTheme,
+                                    const gchar* iconName);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GHIX11IconGetIconsForDesktopFile --
+ *
+ *      Given an application's .desktop file, look up and return the app's icons
+ *      as BGRA data.  Icons are sorted in descending order by size.
+ *
+ * Results:
+ *      Returns a pointer to a GPtrArray of GHIX11Icons on success and NULL on
+ *      failure.
+ *
+ * Side effects:
+ *      Caller is responsible for freeing icons.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+GHIX11IconGetIconsForDesktopFile(const char* desktopFile,                // IN
+                                 std::list<GHIBinaryIconInfo>& iconList) // OUT
+{
+   GDesktopAppInfo* desktopAppInfo = NULL;
+   GAppInfo* appInfo;
+   GIcon* gicon = NULL;
+   gchar* iconName = NULL;
+   Bool success = FALSE;
+
+   GtkIconTheme* iconTheme;
+
+   /*
+    * Let GIO do the heavy lifting to find our icon's name.  We can handle
+    * two icon types, themed and file.  A themed icon is provided by and varies
+    * by icon theme whereas a file icon is stored in a single file.  (There's
+    * a special case where GIO thinks we have a themed icon, but it turns out
+    * to be a file icon.  More on that later.)
+    */
+
+   desktopAppInfo = g_desktop_app_info_new_from_filename(desktopFile);
+   if (!desktopAppInfo) {
+      goto out;
+   }
+
+   appInfo = (GAppInfo* )G_APP_INFO(desktopAppInfo);
+   gicon = g_app_info_get_icon(appInfo);
+   if (!gicon) {
+      goto out;
+   }
+
+   iconName = g_icon_to_string(gicon);
+   iconTheme = gtk_icon_theme_get_default();
+
+   if (G_IS_THEMED_ICON(gicon) && gtk_icon_theme_has_icon(iconTheme, iconName)) {
+
+      /*
+       * Sweet - GTK claims that our icon is themed and can give us pixbufs for
+       * it at various sizes.
+       *
+       * Remember what I said about GIO thinking we have a themed icon that might
+       * not be?  If an icon doesn't have a size, then it's one of those such
+       * icons, and we have to fall back to loading directly from a file ourselves.
+       */
+
+      gint* iconSizes = GetIconSizesDescending(iconTheme, iconName);
+
+      if (iconSizes && *iconSizes != 0) {
+         gint* sizeIter;
+
+         for (sizeIter = iconSizes; *sizeIter; sizeIter++) {
+            GdkPixbuf* pixbuf;
+
+            pixbuf = gtk_icon_theme_load_icon(iconTheme, iconName, *sizeIter,
+                                              (GtkIconLookupFlags)0, NULL);
+            if (pixbuf) {
+               AppendPixbufToArray(pixbuf, iconList);
+               g_object_unref(pixbuf);
+            }
+         }
+      } else if (iconSizes && *iconSizes == 0) {
+         GtkIconInfo* iconInfo;
+
+         iconInfo = gtk_icon_theme_lookup_icon(iconTheme, iconName, 0,
+                                               (GtkIconLookupFlags)0);
+         if (iconInfo) {
+            AppendFileToArray(gtk_icon_info_get_filename(iconInfo), iconList);
+            gtk_icon_info_free(iconInfo);
+         }
+      }
+
+      g_free(iconSizes);
+   } else if (G_IS_FILE_ICON(gicon)) {
+      GFileIcon* fileIcon;
+      GFile* file;
+      char* path;
+
+      fileIcon = G_FILE_ICON(gicon);
+      file = g_file_icon_get_file(fileIcon);
+      path = g_file_get_path(file);
+      ASSERT(path);
+
+      AppendFileToArray(path, iconList);
+
+      g_free(path);
+   } else {
+      /* Give up. */
+      goto out;
+   }
+
+   success = TRUE;
+
+out:
+   if (iconName) {
+      g_free(iconName);
+   }
+   if (desktopAppInfo) {
+      g_object_unref(G_OBJECT(desktopAppInfo));
+   }
+   return success;
+}
+
+
+/*
+ * Local functions
+ */
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AppendFileToArray --
+ *
+ *      Load an icon from a file into a pixbuf, then append it to a GPtrArray of
+ *      GHIX11Icons.
+ *
+ * Results:
+ *      Appends an icon on success, no-op on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+AppendFileToArray(const gchar* iconPath,                  // IN
+                  std::list<GHIBinaryIconInfo>& iconList) // OUT
+{
+   GdkPixbuf* pixbuf;
+
+   if ((pixbuf = gdk_pixbuf_new_from_file(iconPath, NULL)) != NULL) {
+      AppendPixbufToArray(pixbuf, iconList);
+      g_object_unref(pixbuf);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AppendPixbufToArray --
+ *
+ *      Appends a pixbuf to a GPtrArray of GHIX11Icons.
+ *
+ * Results:
+ *      Appends an icon on success, no-op on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+AppendPixbufToArray(const GdkPixbuf* pixbuf,                // IN
+                    std::list<GHIBinaryIconInfo>& iconList) // OUT
+{
+   GHIBinaryIconInfo ghiIcon;
+   guchar* pixels;
+   guint width;
+   guint height;
+   guint x, y;
+   guint rowstride;
+   guint n_channels;
+   guint bgraStride;
+
+   ASSERT(pixbuf);
+   ASSERT(gdk_pixbuf_get_colorspace(pixbuf) == GDK_COLORSPACE_RGB);
+   ASSERT(gdk_pixbuf_get_bits_per_sample(pixbuf) == 8);
+
+   rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+   n_channels = gdk_pixbuf_get_n_channels(pixbuf);
+   pixels = gdk_pixbuf_get_pixels(pixbuf);
+
+   ghiIcon.width = width = gdk_pixbuf_get_width(pixbuf);
+   ghiIcon.height = height = gdk_pixbuf_get_height(pixbuf);
+   bgraStride = width * 4;
+   ghiIcon.dataBGRA.resize(height * bgraStride);
+
+   /* GetBinaryInfo icons are bottom-to-top. */
+   for (y = 0; y < height; y++) {
+      for (x = 0; x < width; x++) {
+         guchar* b; // Pointer to BGRA data in ghiIcon.
+         guchar* p; // Pointer to RGBA data in GdkPixbuf
+         gint bgraOffset = y * bgraStride + x * 4;
+         gint pixbufOffset = (height - y - 1) * rowstride + x * n_channels;
+
+         b = &ghiIcon.dataBGRA[bgraOffset];
+         p = &pixels[pixbufOffset];
+
+         b[0] = p[2];
+         b[1] = p[1];
+         b[2] = p[0];
+         b[3] = (n_channels > 3) ? p[3] : 0xFF;
+      }
+   }
+
+   iconList.push_back(ghiIcon);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * GetIconSizesDescending --
+ *
+ *      Query an icon theme for an icon's sizes.  Return the sizes as a gint
+ *      array in descending order.
+ *
+ * Results:
+ *      Pointer to a gint array on success or NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+DescendingIntCmp(const void* a,
+                 const void* b)
+{
+   gint ia = *(gint* )a;
+   gint ib = *(gint* )b;
+
+   return (ia < ib) ? 1 : (ia == ib) ? 0 : -1;
+}
+
+static gint*
+GetIconSizesDescending(GtkIconTheme* iconTheme,
+                       const gchar* iconName)
+{
+   gint* iconSizes = NULL;
+   gint* iter;
+   size_t nsizes;
+
+   if (!gtk_icon_theme_has_icon(iconTheme, iconName)) {
+      return NULL;
+   }
+
+   iconSizes = gtk_icon_theme_get_icon_sizes(iconTheme, iconName);
+   ASSERT(iconSizes);
+
+   /*
+    * iconSizes is a 0-terminated array. If there are no sizes or the
+    * array has only 1 element, this function has no remaining work to do.
+    * (No point sorting a 1 element array.)
+    */
+   if (!iconSizes || *iconSizes == 0) {
+      return iconSizes;
+   }
+
+   /*
+    * Sort the array in descending order.  First we have to determine its
+    * size, then we'll just pass it off to qsort.  Note that we don't consider
+    * the final, terminating element when sorting, because the icon array may
+    * contain a -1 to signify a scalable icon.
+    */
+   for (iter = iconSizes, nsizes = 0; *iter; iter++, nsizes++);
+   qsort(iconSizes, nsizes, sizeof *iter, DescendingIntCmp);
+
+   return iconSizes;
+}

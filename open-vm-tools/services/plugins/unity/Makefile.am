@@ -22,6 +22,7 @@ CFLAGS += -Wno-unused
 
 libunity_la_CPPFLAGS =
 libunity_la_CPPFLAGS += @GTK_CPPFLAGS@
+libunity_la_CPPFLAGS += @GTKMM_CPPFLAGS@
 libunity_la_CPPFLAGS += @LIBPNG_CPPFLAGS@
 libunity_la_CPPFLAGS += @URIPARSER_CPPFLAGS@
 libunity_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -36,6 +37,7 @@ libunity_la_LDFLAGS += @PLUGIN_LDFLAGS@
 libunity_la_LIBADD =
 libunity_la_LIBADD += @COMMON_XLIBS@
 libunity_la_LIBADD += @GTK_LIBS@
+libunity_la_LIBADD += @GTKMM_LIBS@
 libunity_la_LIBADD += @LIBPNG_LIBS@
 libunity_la_LIBADD += @URIPARSER_LIBS@
 libunity_la_LIBADD += @VMTOOLS_LIBS@
@@ -56,7 +58,8 @@ libunity_la_SOURCES += unityTclo.cpp
 
 libunity_la_SOURCES += ghIntegration/ghIntegration.cpp
 libunity_la_SOURCES += ghIntegration/ghIntegrationInt.h
-libunity_la_SOURCES += ghIntegration/ghIntegrationX11.cpp
+libunity_la_SOURCES += ghIntegration/icon.cc
+libunity_la_SOURCES += ghIntegration/platform.cc
 
 libunity_la_SOURCES += unitylib/unity.c
 libunity_la_SOURCES += unitylib/unityPlatform.h
