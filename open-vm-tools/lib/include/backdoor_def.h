@@ -152,6 +152,7 @@
 #define BDOOR_CMD_BUG328986              70
 #define BDOOR_CMD_FIRMWARE_ERROR         71
 #  define BDOOR_CMD_FE_INSUFFICIENT_MEM   0
+#  define BDOOR_CMD_FE_EXCEPTION          1
 #define BDOOR_CMD_MAX                    72
 
 
